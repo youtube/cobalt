@@ -18,6 +18,7 @@
       'target_name': 'common_test',
       'type': '<(gtest_target_type)',
       'sources': [
+        'memory_test.cc',
         'socket_test.cc',
         '<(DEPTH)/starboard/common/test_main.cc',
       ],

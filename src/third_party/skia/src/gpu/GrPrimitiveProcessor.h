@@ -283,7 +283,7 @@ private:
 
 const GrPrimitiveProcessor::TextureSampler& GrPrimitiveProcessor::IthTextureSampler(int i) {
     SK_ABORT("Illegal texture sampler index");
-    static const TextureSampler kBogus{};
+    static const TextureSampler kBogus;
     return kBogus;
 }
 

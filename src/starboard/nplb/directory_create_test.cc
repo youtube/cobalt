@@ -72,7 +72,7 @@ TEST(SbDirectoryCreateTest, SunnyDayTempDirectoryManySeparators) {
   bool system_path_success = SbSystemGetPath(
       kSbSystemPathTempDirectory, temp_path.data(), temp_path.size());
   ASSERT_TRUE(system_path_success);
-  const int new_size = SbStringConcat(
+  const int new_size = starboard::strlcat(
       temp_path.data(), kManyFileSeparators.c_str(), kSbFileMaxPath);
   ASSERT_LT(new_size, kSbFileMaxPath);
 

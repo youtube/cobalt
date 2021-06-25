@@ -37,7 +37,7 @@ TEST_F(ExecutableMemoryTest, VerifyMemoryProtection) {
   void* memory =
       SbMemoryMap(kSize, kSbMemoryMapProtectWrite, "evergreen_buffer");
   ASSERT_NE(SB_MEMORY_MAP_FAILED, memory);
-  SbMemorySet(memory, 0, kSize);
+  memset(memory, 0, kSize);
   ASSERT_TRUE(SbMemoryProtect(
       memory, kSmallerSize, kSbMemoryMapProtectRead | kSbMemoryMapProtectExec));
   SbMemoryUnmap(memory, kSize);

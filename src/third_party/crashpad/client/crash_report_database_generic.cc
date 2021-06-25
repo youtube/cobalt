@@ -25,7 +25,6 @@
 #include "base/logging.h"
 #include "build/build_config.h"
 #include "client/settings.h"
-#include "nb/cpp14oncpp11.h"
 #include "util/file/directory_reader.h"
 #include "util/file/filesystem.h"
 #include "util/misc/initialization_state_dcheck.h"

@@ -29,7 +29,7 @@ void CopyData(const scoped_refptr<IOBuffer>& buf,
               int buf_size,
               const scoped_refptr<base::RefCountedMemory>& data,
               int64_t data_offset) {
-  SbMemoryCopy(buf->data(), data->front() + data_offset, buf_size);
+  memcpy(buf->data(), data->front() + data_offset, buf_size);
 }
 
 }  // namespace

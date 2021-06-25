@@ -71,7 +71,7 @@ JSONFileOutputter::~JSONFileOutputter() {
                 << output_path_.value();
   } else {
     const char tail[] = "\n]}";
-    Write(tail, SbStringGetLength(tail));
+    Write(tail, strlen(tail));
   }
   Close();
 }
@@ -111,7 +111,7 @@ void JSONFileOutputter::OutputTraceData(
   // multiple times.
   if (output_trace_event_call_count_ != 0) {
     const char text[] = ",\n";
-    Write(text, SbStringGetLength(text));
+    Write(text, strlen(text));
   }
   const std::string& event_str = event_string->data();
   Write(event_str.c_str(), event_str.size());

@@ -82,7 +82,7 @@ void DrawRRectColor::ExecuteUpdateVertexBuffer(
   }
 
   vertex_buffer_ = graphics_state->AllocateVertexData(sizeof(attributes));
-  SbMemoryCopy(vertex_buffer_, attributes, sizeof(attributes));
+  memcpy(vertex_buffer_, attributes, sizeof(attributes));
 }
 
 void DrawRRectColor::ExecuteRasterize(GraphicsState* graphics_state,

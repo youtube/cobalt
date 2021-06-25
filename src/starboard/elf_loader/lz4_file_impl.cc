@@ -145,7 +145,7 @@ bool LZ4FileImpl::ReadFromOffset(int64_t offset, char* buffer, int size) {
   if ((offset < 0) || (offset + size >= decompressed_data_.size())) {
     return false;
   }
-  SbMemoryCopy(buffer, decompressed_data_.data() + offset, size);
+  memcpy(buffer, decompressed_data_.data() + offset, size);
   return true;
 }
 

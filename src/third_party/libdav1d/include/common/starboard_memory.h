@@ -26,16 +26,6 @@
 #endif
 #define realloc SbMemoryReallocate
 
-#ifdef memcpy
-#undef memcpy
-#endif
-#define memcpy SbMemoryCopy
-
-#ifdef memset
-#undef memset
-#endif
-#define memset SbMemorySet
-
 #ifdef free
 #undef free
 #endif

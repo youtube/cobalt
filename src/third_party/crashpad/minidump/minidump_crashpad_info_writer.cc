@@ -19,7 +19,6 @@
 #include "base/logging.h"
 #include "minidump/minidump_module_crashpad_info_writer.h"
 #include "minidump/minidump_simple_string_dictionary_writer.h"
-#include "nb/cpp14oncpp11.h"
 #include "snapshot/process_snapshot.h"
 #include "util/file/file_writer.h"
 

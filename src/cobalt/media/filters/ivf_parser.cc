@@ -42,11 +42,11 @@ bool IvfParser::Initialize(const uint8_t* stream, size_t size,
     return false;
   }
 
-  SbMemoryCopy(file_header, ptr_, sizeof(IvfFileHeader));
+  memcpy(file_header, ptr_, sizeof(IvfFileHeader));
   file_header->ByteSwap();
 
-  if (SbMemoryCompare(file_header->signature, kIvfHeaderSignature,
-                      sizeof(file_header->signature)) != 0) {
+  if (memcmp(file_header->signature, kIvfHeaderSignature,
+             sizeof(file_header->signature)) != 0) {
     DLOG(ERROR) << "IVF signature mismatch";
     return false;
   }
@@ -73,7 +73,7 @@ bool IvfParser::ParseNextFrame(IvfFrameHeader* frame_header,
     return false;
   }
 
-  SbMemoryCopy(frame_header, ptr_, sizeof(IvfFrameHeader));
+  memcpy(frame_header, ptr_, sizeof(IvfFrameHeader));
   frame_header->ByteSwap();
   ptr_ += sizeof(IvfFrameHeader);
 

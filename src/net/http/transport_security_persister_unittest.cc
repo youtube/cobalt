@@ -69,7 +69,7 @@ TEST_F(TransportSecurityPersisterTest, LoadEntriesClearsExistingState) {
 
   state_.AddHSTS(kYahooDomain, expiry, false /* include subdomains */);
   HashValue spki(HASH_VALUE_SHA256);
-  SbMemorySet(spki.data(), 0, spki.size());
+  memset(spki.data(), 0, spki.size());
   HashValueVector dynamic_spki_hashes;
   dynamic_spki_hashes.push_back(spki);
   state_.AddHPKP(kYahooDomain, expiry, false, dynamic_spki_hashes, GURL());
@@ -138,9 +138,9 @@ TEST_F(TransportSecurityPersisterTest, SerializeData3) {
   const GURL report_uri(kReportUri);
   // Add an entry.
   HashValue fp1(HASH_VALUE_SHA256);
-  SbMemorySet(fp1.data(), 0, fp1.size());
+  memset(fp1.data(), 0, fp1.size());
   HashValue fp2(HASH_VALUE_SHA256);
-  SbMemorySet(fp2.data(), 1, fp2.size());
+  memset(fp2.data(), 1, fp2.size());
   base::Time expiry =
       base::Time::Now() + base::TimeDelta::FromSeconds(1000);
   HashValueVector dynamic_spki_hashes;
@@ -153,8 +153,8 @@ TEST_F(TransportSecurityPersisterTest, SerializeData3) {
   state_.AddExpectCT("www.example.com", expiry, true /* enforce */, GURL());
 
   // Add another entry.
-  SbMemorySet(fp1.data(), 2, fp1.size());
-  SbMemorySet(fp2.data(), 3, fp2.size());
+  memset(fp1.data(), 2, fp1.size());
+  memset(fp2.data(), 3, fp2.size());
   expiry =
       base::Time::Now() + base::TimeDelta::FromSeconds(3000);
   dynamic_spki_hashes.push_back(fp1);
@@ -260,7 +260,7 @@ TEST_F(TransportSecurityPersisterTest, PublicKeyPins) {
   EXPECT_FALSE(pkp_state.CheckPublicKeyPins(hashes, &failure_log));
 
   HashValue sha256(HASH_VALUE_SHA256);
-  SbMemorySet(sha256.data(), '1', sha256.size());
+  memset(sha256.data(), '1', sha256.size());
   pkp_state.spki_hashes.push_back(sha256);
 
   EXPECT_FALSE(pkp_state.CheckPublicKeyPins(hashes, &failure_log));
@@ -286,8 +286,8 @@ TEST_F(TransportSecurityPersisterTest, PublicKeyPins) {
   EXPECT_TRUE(state_.GetDynamicPKPState(kTestDomain, &new_pkp_state));
   EXPECT_EQ(1u, new_pkp_state.spki_hashes.size());
   EXPECT_EQ(sha256.tag(), new_pkp_state.spki_hashes[0].tag());
-  EXPECT_EQ(0, SbMemoryCompare(new_pkp_state.spki_hashes[0].data(),
-                               sha256.data(), sha256.size()));
+  EXPECT_EQ(0, memcmp(new_pkp_state.spki_hashes[0].data(),
+                      sha256.data(), sha256.size()));
   EXPECT_EQ(report_uri, new_pkp_state.report_uri);
 }
 
@@ -348,7 +348,7 @@ TEST_F(TransportSecurityPersisterTest, ExpectCTWithSTSAndPKPDataPresent) {
   state_.AddHSTS(kTestDomain, expiry, false /* include subdomains */);
   state_.AddExpectCT(kTestDomain, expiry, true /* enforce */, GURL());
   HashValue spki_hash(HASH_VALUE_SHA256);
-  SbMemorySet(spki_hash.data(), 0, spki_hash.size());
+  memset(spki_hash.data(), 0, spki_hash.size());
   HashValueVector dynamic_spki_hashes;
   dynamic_spki_hashes.push_back(spki_hash);
   state_.AddHPKP(kTestDomain, expiry, false /* include subdomains */,
@@ -375,8 +375,8 @@ TEST_F(TransportSecurityPersisterTest, ExpectCTWithSTSAndPKPDataPresent) {
   TransportSecurityState::PKPState pkp_state;
   EXPECT_TRUE(state_.GetDynamicPKPState(kTestDomain, &pkp_state));
   EXPECT_EQ(1u, pkp_state.spki_hashes.size());
-  EXPECT_EQ(0, SbMemoryCompare(pkp_state.spki_hashes[0].data(),
-                               spki_hash.data(), spki_hash.size()));
+  EXPECT_EQ(0, memcmp(pkp_state.spki_hashes[0].data(),
+                      spki_hash.data(), spki_hash.size()));
 }
 
 // Tests that Expect-CT state is not serialized and persisted when the feature

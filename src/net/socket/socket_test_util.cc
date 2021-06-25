@@ -1250,7 +1250,7 @@ int MockTCPClientSocket::ReadIfReadyImpl(IOBuffer* buf,
   if (read_data_.data) {
     if (read_data_.data_len - read_offset_ > 0) {
       result = std::min(buf_len, read_data_.data_len - read_offset_);
-      SbMemoryCopy(buf->data(), read_data_.data + read_offset_, result);
+      memcpy(buf->data(), read_data_.data + read_offset_, result);
       read_offset_ += result;
       if (read_offset_ == read_data_.data_len) {
         need_read_data_ = true;
@@ -1592,7 +1592,7 @@ int MockSSLClientSocket::ExportKeyingMaterial(const base::StringPiece& label,
                                               const base::StringPiece& context,
                                               unsigned char* out,
                                               unsigned int outlen) {
-  SbMemorySet(out, 'A', outlen);
+  memset(out, 'A', outlen);
   return OK;
 }
 
@@ -1925,7 +1925,7 @@ int MockUDPClientSocket::CompleteRead() {
   if (read_data_.data) {
     if (read_data_.data_len - read_offset_ > 0) {
       result = std::min(buf_len, read_data_.data_len - read_offset_);
-      SbMemoryCopy(buf->data(), read_data_.data + read_offset_, result);
+      memcpy(buf->data(), read_data_.data + read_offset_, result);
       read_offset_ += result;
       if (read_offset_ == read_data_.data_len) {
         need_read_data_ = true;

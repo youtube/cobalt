@@ -190,7 +190,7 @@ class FakeDataChannel {
   int PropagateData(scoped_refptr<IOBuffer> read_buf, int read_buf_len) {
     scoped_refptr<DrainableIOBuffer> buf = data_.front();
     int copied = std::min(buf->BytesRemaining(), read_buf_len);
-    SbMemoryCopy(read_buf->data(), buf->data(), copied);
+    memcpy(read_buf->data(), buf->data(), copied);
     buf->DidConsume(copied);
 
     if (!buf->BytesRemaining())
@@ -316,7 +316,7 @@ TEST(FakeSocketTest, DataTransfer) {
   FakeSocket server(&channel_2, &channel_1);
 
   const char kTestData[] = "testing123";
-  const int kTestDataSize = SbStringGetLength(kTestData);
+  const int kTestDataSize = strlen(kTestData);
   const int kReadBufSize = 1024;
   scoped_refptr<IOBuffer> write_buf =
       base::MakeRefCounted<StringIOBuffer>(kTestData);
@@ -334,7 +334,7 @@ TEST(FakeSocketTest, DataTransfer) {
       client.Read(read_buf.get(), kReadBufSize, CompletionOnceCallback());
   EXPECT_GT(read, 0);
   EXPECT_LE(read, written);
-  EXPECT_EQ(0, SbMemoryCompare(kTestData, read_buf->data(), read));
+  EXPECT_EQ(0, memcmp(kTestData, read_buf->data(), read));
 
   // Read then write.
   TestCompletionCallback callback;
@@ -350,7 +350,7 @@ TEST(FakeSocketTest, DataTransfer) {
   read = callback.WaitForResult();
   EXPECT_GT(read, 0);
   EXPECT_LE(read, written);
-  EXPECT_EQ(0, SbMemoryCompare(kTestData, read_buf->data(), read));
+  EXPECT_EQ(0, memcmp(kTestData, read_buf->data(), read));
 }
 
 class SSLServerSocketTest : public PlatformTest,
@@ -955,8 +955,8 @@ TEST_F(SSLServerSocketTest, DataTransfer) {
   }
   EXPECT_EQ(write_buf->size(), read_buf->BytesConsumed());
   read_buf->SetOffset(0);
-  EXPECT_EQ(0, SbMemoryCompare(write_buf->data(), read_buf->data(),
-                               write_buf->size()));
+  EXPECT_EQ(0, memcmp(write_buf->data(), read_buf->data(),
+                      write_buf->size()));
 
   // Read then write.
   write_buf = base::MakeRefCounted<StringIOBuffer>("hello123");
@@ -984,8 +984,8 @@ TEST_F(SSLServerSocketTest, DataTransfer) {
   }
   EXPECT_EQ(write_buf->size(), read_buf->BytesConsumed());
   read_buf->SetOffset(0);
-  EXPECT_EQ(0, SbMemoryCompare(write_buf->data(), read_buf->data(),
-                               write_buf->size()));
+  EXPECT_EQ(0, memcmp(write_buf->data(), read_buf->data(),
+                      write_buf->size()));
 }
 
 // A regression test for bug 127822 (http://crbug.com/127822).
@@ -1077,14 +1077,14 @@ TEST_F(SSLServerSocketTest, ExportKeyingMaterial) {
   rv = client_socket_->ExportKeyingMaterial(kKeyingLabel, false, kKeyingContext,
                                             client_out, sizeof(client_out));
   ASSERT_THAT(rv, IsOk());
-  EXPECT_EQ(0, SbMemoryCompare(server_out, client_out, sizeof(server_out)));
+  EXPECT_EQ(0, memcmp(server_out, client_out, sizeof(server_out)));
 
   const char kKeyingLabelBad[] = "EXPERIMENTAL-server-socket-test-bad";
   unsigned char client_bad[kKeyingMaterialSize];
   rv = client_socket_->ExportKeyingMaterial(
       kKeyingLabelBad, false, kKeyingContext, client_bad, sizeof(client_bad));
   ASSERT_EQ(rv, OK);
-  EXPECT_NE(0, SbMemoryCompare(server_out, client_bad, sizeof(server_out)));
+  EXPECT_NE(0, memcmp(server_out, client_bad, sizeof(server_out)));
 }
 
 // Verifies that SSLConfig::require_ecdhe flags works properly.

@@ -181,7 +181,7 @@ void TraceConfigCategoryFilter::SetCategoriesFromIncludedList(
     std::string category;
     if (!included_list.GetString(i, &category))
       continue;
-    if (category.compare(0, SbStringGetLength(TRACE_DISABLED_BY_DEFAULT("")),
+    if (category.compare(0, strlen(TRACE_DISABLED_BY_DEFAULT("")),
                          TRACE_DISABLED_BY_DEFAULT("")) == 0) {
       disabled_categories_.push_back(category);
     } else {

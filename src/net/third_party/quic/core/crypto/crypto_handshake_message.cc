@@ -114,7 +114,7 @@ QuicErrorCode CryptoHandshakeMessage::GetTaglist(
   out_tags->resize(num_tags);
   for (size_t i = 0; i < num_tags; ++i) {
     QuicTag tag;
-    SbMemoryCopy(&tag, it->second.data() + i * sizeof(tag), sizeof(tag));
+    memcpy(&tag, it->second.data() + i * sizeof(tag), sizeof(tag));
     (*out_tags)[i] = tag;
   }
   return ret;
@@ -254,11 +254,11 @@ QuicErrorCode CryptoHandshakeMessage::GetPOD(QuicTag tag,
   }
 
   if (ret != QUIC_NO_ERROR) {
-    SbMemorySet(out, 0, len);
+    memset(out, 0, len);
     return ret;
   }
 
-  SbMemoryCopy(out, it->second.data(), len);
+  memcpy(out, it->second.data(), len);
   return ret;
 }
 
@@ -280,7 +280,7 @@ QuicString CryptoHandshakeMessage::DebugStringInternal(size_t indent) const {
         // uint32_t value
         if (it->second.size() == 4) {
           uint32_t value;
-          SbMemoryCopy(&value, it->second.data(), sizeof(value));
+          memcpy(&value, it->second.data(), sizeof(value));
           ret += QuicTextUtils::Uint64ToString(value);
           done = true;
         }
@@ -289,7 +289,7 @@ QuicString CryptoHandshakeMessage::DebugStringInternal(size_t indent) const {
         // uint64_t value
         if (it->second.size() == 8) {
           uint64_t value;
-          SbMemoryCopy(&value, it->second.data(), sizeof(value));
+          memcpy(&value, it->second.data(), sizeof(value));
           value = QuicEndian::NetToHost64(value);
           ret += QuicTextUtils::Uint64ToString(value);
           done = true;
@@ -305,7 +305,7 @@ QuicString CryptoHandshakeMessage::DebugStringInternal(size_t indent) const {
         if (it->second.size() % sizeof(QuicTag) == 0) {
           for (size_t j = 0; j < it->second.size(); j += sizeof(QuicTag)) {
             QuicTag tag;
-            SbMemoryCopy(&tag, it->second.data() + j, sizeof(tag));
+            memcpy(&tag, it->second.data() + j, sizeof(tag));
             if (j > 0) {
               ret += ",";
             }
@@ -319,7 +319,7 @@ QuicString CryptoHandshakeMessage::DebugStringInternal(size_t indent) const {
         if (it->second.size() % sizeof(uint32_t) == 0) {
           for (size_t j = 0; j < it->second.size(); j += sizeof(uint32_t)) {
             uint32_t value;
-            SbMemoryCopy(&value, it->second.data() + j, sizeof(value));
+            memcpy(&value, it->second.data() + j, sizeof(value));
             if (j > 0) {
               ret += ",";
             }

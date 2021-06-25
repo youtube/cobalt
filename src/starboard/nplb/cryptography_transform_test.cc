@@ -166,14 +166,14 @@ TEST_P(Aes, SunnyDayIdentity) {
     SbCryptographySetAuthenticatedData(encrypter, aad.get(), aad_len);
   }
 
-  const int kInputSize = static_cast<int>(SbStringGetLength(kClearText));
+  const int kInputSize = static_cast<int>(strlen(kClearText));
   const int kBufferSize = static_cast<int>(sizeof(kClearText));
   char* cipher_text = new char[kBufferSize];
-  SbMemorySet(cipher_text, 0, kBufferSize);
+  memset(cipher_text, 0, kBufferSize);
   int count =
       SbCryptographyTransform(encrypter, kClearText, kInputSize, cipher_text);
   EXPECT_EQ(kInputSize, count);
-  EXPECT_NE(0, SbStringCompare(kClearText, cipher_text, kBufferSize));
+  EXPECT_NE(0, strncmp(kClearText, cipher_text, kBufferSize));
 
   EXPECT_STREQ(GetExpectedEncryptedValueHex(),
                HexDump(cipher_text, kBufferSize).c_str());
@@ -201,12 +201,12 @@ TEST_P(Aes, SunnyDayIdentity) {
   }
 
   char* decrypted_text = new char[kBufferSize];
-  SbMemorySet(decrypted_text, 0, kBufferSize);
+  memset(decrypted_text, 0, kBufferSize);
   count = SbCryptographyTransform(decrypter, cipher_text, kInputSize,
                                   decrypted_text);
 
   EXPECT_EQ(kInputSize, count);
-  EXPECT_EQ(kInputSize, SbStringGetLength(decrypted_text));
+  EXPECT_EQ(kInputSize, strlen(decrypted_text));
   EXPECT_STREQ(kClearText, decrypted_text);
 
   delete[] decrypted_text;

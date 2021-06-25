@@ -72,7 +72,7 @@ template <typename T, int source_size>
 void CopyIntoObjectFromArray(T* out_destination,
                              const unsigned char(&source)[source_size]) {
   SB_COMPILE_ASSERT(sizeof(T) <= source_size, destination_is_too_small);
-  SbMemoryCopy(out_destination, source, sizeof(T));
+  memcpy(out_destination, source, sizeof(T));
 }
 
 bool GetPotentialMatch(const sockaddr* input_addr,
@@ -128,7 +128,7 @@ bool GetNetmaskForInterfaceAddress(const SbSocketAddress& interface_address,
     if (!GetPotentialMatch(interface->ifa_addr, &potential_match))
       continue;
 
-    if (SbMemoryCompare(&to_match, potential_match, sizeof(in_addr_type)) !=
+    if (memcmp(&to_match, potential_match, sizeof(in_addr_type)) !=
         0) {
       continue;
     }
@@ -305,9 +305,9 @@ bool FindIPv6InterfaceIP(SbSocketAddress* out_interface_ip,
     return false;
   }
 
-  SbMemoryCopy(out_interface_ip, &temp_interface_ip, sizeof(SbSocketAddress));
+  memcpy(out_interface_ip, &temp_interface_ip, sizeof(SbSocketAddress));
   if (out_netmask != NULL) {
-    SbMemoryCopy(out_netmask, &temp_netmask, sizeof(SbSocketAddress));
+    memcpy(out_netmask, &temp_netmask, sizeof(SbSocketAddress));
   }
 
   return true;

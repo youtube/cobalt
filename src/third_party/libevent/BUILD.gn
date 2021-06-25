@@ -65,7 +65,9 @@ static_library("libevent") {
     }
     if (is_android) {
       include_dirs += [ "starboard/linux" ]
-      libs = [ "rt" ]
+      if (current_toolchain == host_toolchain) {
+        libs = [ "rt" ]
+      }
     }
     cflags_c = [ "-Wno-unused-function" ]
     public_deps = [ "//starboard/common" ]

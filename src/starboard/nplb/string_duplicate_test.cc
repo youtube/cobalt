@@ -25,7 +25,7 @@ void RunTest(const char* input) {
   const char* kNull = NULL;
   EXPECT_NE(kNull, dupe);
   EXPECT_EQ(0, SbStringCompareNoCase(input, dupe));
-  EXPECT_EQ(SbStringGetLength(input), SbStringGetLength(dupe));
+  EXPECT_EQ(strlen(input), strlen(dupe));
   SbMemoryDeallocate(dupe);
 }
 

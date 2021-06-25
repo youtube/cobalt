@@ -128,19 +128,11 @@ SB_CHARACTER_REPLACEMENT_DICT = {
 SB_MEMORY_REPLACEMENT_DICT = {
     'free': 'SbMemoryFree',
     'malloc': 'SbMemoryAllocate',
-    'memchr': 'SbMemoryFindByte',
-    'memcmp': 'SbMemoryCompare',
-    'memcpy': 'SbMemoryCopy',
-    'memmove': 'SbMemoryMove',
-    'memset': 'SbMemorySet',
     'realloc': 'SbMemoryReallocate'
 }
 
 SB_STRING_REPLACEMENT_DICT = {
     'atoi': 'SbStringAToI',
-    'strcpy': 'SbStringCopyUnsafe',
-    'strlen': 'SbStringGetLength',
-    'strncpy': 'SbStringCopy',
 }
 
 c_function_list = []

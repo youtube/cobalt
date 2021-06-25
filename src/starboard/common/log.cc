@@ -15,13 +15,13 @@
 #include "starboard/common/log.h"
 
 #include <algorithm>
+#include <cstring>
 #include <iomanip>
 #include <sstream>
-#include <string>
 
 #include "starboard/client_porting/eztime/eztime.h"
 #include "starboard/client_porting/poem/string_poem.h"
-#include "starboard/configuration.h"
+#include "starboard/common/string.h"
 #include "starboard/system.h"
 #include "starboard/thread.h"
 #include "starboard/time.h"
@@ -150,10 +150,7 @@ LogMessage::~LogMessage() {
     // Ensure the first characters of the string are on the stack so they
     // are contained in minidumps for diagnostic purposes.
     char str_stack[1024];
-    const size_t copy_bytes =
-        std::min(SB_ARRAY_SIZE(str_stack), str_newline.length() + 1);
-    PoemStringCopyN(str_stack, str_newline.c_str(),
-                    static_cast<int>(copy_bytes));
+    starboard::strlcpy(str_stack, str_newline.c_str(), 1024);
 
     Alias(str_stack);
     Break();

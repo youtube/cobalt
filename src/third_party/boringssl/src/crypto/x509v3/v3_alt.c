@@ -262,7 +262,7 @@ static GENERAL_NAMES *v2i_issuer_alt(X509V3_EXT_METHOD *method,
     for (i = 0; i < sk_CONF_VALUE_num(nval); i++) {
         cnf = sk_CONF_VALUE_value(nval, i);
         if (!name_cmp(cnf->name, "issuer") && cnf->value &&
-            !OPENSSL_port_strcmp(cnf->value, "copy")) {
+            !strcmp(cnf->value, "copy")) {
             if (!copy_issuer(ctx, gens))
                 goto err;
         } else {
@@ -332,11 +332,11 @@ static GENERAL_NAMES *v2i_subject_alt(X509V3_EXT_METHOD *method,
     for (i = 0; i < sk_CONF_VALUE_num(nval); i++) {
         cnf = sk_CONF_VALUE_value(nval, i);
         if (!name_cmp(cnf->name, "email") && cnf->value &&
-            !OPENSSL_port_strcmp(cnf->value, "copy")) {
+            !strcmp(cnf->value, "copy")) {
             if (!copy_email(ctx, gens, 0))
                 goto err;
         } else if (!name_cmp(cnf->name, "email") && cnf->value &&
-                   !OPENSSL_port_strcmp(cnf->value, "move")) {
+                   !strcmp(cnf->value, "move")) {
             if (!copy_email(ctx, gens, 1))
                 goto err;
         } else {
@@ -513,7 +513,7 @@ GENERAL_NAME *a2i_GENERAL_NAME(GENERAL_NAME *out,
     if (is_string) {
         if (!(gen->d.ia5 = M_ASN1_IA5STRING_new()) ||
             !ASN1_STRING_set(gen->d.ia5, (unsigned char *)value,
-                             OPENSSL_port_strlen(value))) {
+                             strlen(value))) {
             OPENSSL_PUT_ERROR(X509V3, ERR_R_MALLOC_FAILURE);
             goto err;
         }
@@ -573,7 +573,7 @@ static int do_othername(GENERAL_NAME *gen, char *value, X509V3_CTX *ctx)
 {
     char *objtmp = NULL, *p;
     int objlen;
-    if (!(p = OPENSSL_port_strchr(value, ';')))
+    if (!(p = strchr(value, ';')))
         return 0;
     if (!(gen->d.otherName = OTHERNAME_new()))
         return 0;

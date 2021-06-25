@@ -74,7 +74,7 @@ std::unique_ptr<IP_ADAPTER_ADDRESSES, base::FreeDeleter> CreateAdapterAddresses(
   std::unique_ptr<IP_ADAPTER_ADDRESSES, base::FreeDeleter> heap(
       static_cast<IP_ADAPTER_ADDRESSES*>(SbMemoryAllocate(heap_size)));
   CHECK(heap.get());
-  SbMemorySet(heap.get(), 0, heap_size);
+  memset(heap.get(), 0, heap_size);
 
   IP_ADAPTER_ADDRESSES* adapters = heap.get();
   IP_ADAPTER_DNS_SERVER_ADDRESS* addresses =

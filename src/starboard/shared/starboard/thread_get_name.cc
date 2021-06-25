@@ -18,5 +18,5 @@
 #include "starboard/shared/starboard/thread_name_internal.h"
 
 void SbThreadGetName(char* buffer, int buffer_size) {
-  SbStringCopy(buffer, starboard::shared::GetThreadName(), buffer_size);
+  starboard::strlcpy(buffer, starboard::shared::GetThreadName(), buffer_size);
 }

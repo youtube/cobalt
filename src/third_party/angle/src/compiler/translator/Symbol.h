@@ -14,7 +14,6 @@
 #include "compiler/translator/ImmutableString.h"
 #include "compiler/translator/IntermNode.h"
 #include "compiler/translator/SymbolUniqueId.h"
-#include "nb/cpp14oncpp11.h"
 
 namespace sh
 {
@@ -239,7 +238,7 @@ class TFunction : public TSymbol
     bool hasSamplerInStructOrArrayOfArrayParams() const;
 
     // Note: Only to be used for static built-in functions!
-    CONSTEXPR TFunction(const TSymbolUniqueId &id,
+    constexpr TFunction(const TSymbolUniqueId &id,
                         const ImmutableString &name,
                         TExtension extension,
                         const TVariable *const *parameters,

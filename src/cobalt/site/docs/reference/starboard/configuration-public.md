@@ -68,8 +68,9 @@ title: "Starboard Configuration Reference Guide"
 
 | Properties |
 | :--- |
-| **`SB_HAS_QUIRK_SEEK_TO_KEYFRAME`**<br><br>After a seek is triggerred, the default behavior is to append video frames from the last key frame before the seek time and append audio frames from the seek time because usually all audio frames are key frames.  On platforms that cannot decode video frames without displaying them, this will cause the video being played without audio for several seconds after seeking.  When the following macro is defined, the app will append audio frames start from the timestamp that is before the timestamp of the video key frame being appended.  This quirk has been deprecated in Starboard version 12 or later.  Please see `configuration_public.md` for more details.<br><br>By default, this property is undefined. |
+| **`SB_HAS_QUIRK_SEEK_TO_KEYFRAME`**<br><br>After a seek is triggered, the default behavior is to append video frames from the last key frame before the seek time and append audio frames from the seek time because usually all audio frames are key frames.  On platforms that cannot decode video frames without displaying them, this will cause the video being played without audio for several seconds after seeking.  When the following macro is defined, the app will append audio frames start from the timestamp that is before the timestamp of the video key frame being appended.  This quirk has been deprecated in Starboard version 12 or later.  Please see `configuration_public.md` for more details.<br><br>By default, this property is undefined. |
 | **`SB_HAS_QUIRK_SUPPORT_INT16_AUDIO_SAMPLES`**<br><br>The implementation is allowed to support kSbMediaAudioSampleTypeInt16 only when this macro is defined.<br><br>By default, this property is undefined. |
+
 
 ## Memory Configuration
 
@@ -107,3 +108,5 @@ title: "Starboard Configuration Reference Guide"
 | Properties |
 | :--- |
 | **`SB_HAS_TIME_THREAD_NOW`**<br><br>Whether this platform has an API to retrieve how long the current thread has spent in the executing state.<br><br>The default value in the Stub implementation is `1` |
+
+

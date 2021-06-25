@@ -118,7 +118,7 @@ SbPlayer SbPlayerCreate(SbWindow window,
     return kSbPlayerInvalid;
   }
 
-  if (SbStringGetLength(max_video_capabilities) == 0) {
+  if (strlen(max_video_capabilities) == 0) {
     // Check the availability of hardware video decoder. Main player must use a
     // hardware codec, but Android doesn't support multiple concurrent hardware
     // codecs. Since it's not safe to have multiple hardware codecs, we only

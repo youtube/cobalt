@@ -135,7 +135,7 @@ TEST_F(QuicServerEpollInTest, ProcessBufferedCHLOsOnEpollin) {
   ASSERT_LT(0, fd);
 
   char buf[1024];
-  SbMemorySet(buf, 0, QUIC_ARRAYSIZE(buf));
+  memset(buf, 0, QUIC_ARRAYSIZE(buf));
   sockaddr_storage storage = server_address_.generic_address();
   int rc = sendto(fd, buf, QUIC_ARRAYSIZE(buf), 0,
                   reinterpret_cast<sockaddr*>(&storage), sizeof(storage));

@@ -190,10 +190,10 @@ void MD5Update(MD5Context* context, const StringPiece& data) {
 
     t = 64 - t;
     if (len < t) {
-      SbMemoryCopy(p, buf, len);
+      memcpy(p, buf, len);
       return;
     }
-    SbMemoryCopy(p, buf, t);
+    memcpy(p, buf, t);
     byteReverse(ctx->in, 16);
     MD5Transform(ctx->buf, reinterpret_cast<uint32_t*>(ctx->in));
     buf += t;
@@ -203,7 +203,7 @@ void MD5Update(MD5Context* context, const StringPiece& data) {
   /* Process data in 64-byte chunks */
 
   while (len >= 64) {
-    SbMemoryCopy(ctx->in, buf, 64);
+    memcpy(ctx->in, buf, 64);
     byteReverse(ctx->in, 16);
     MD5Transform(ctx->buf, reinterpret_cast<uint32_t*>(ctx->in));
     buf += 64;
@@ -212,7 +212,7 @@ void MD5Update(MD5Context* context, const StringPiece& data) {
 
   /* Handle any remaining bytes of data. */
 
-  SbMemoryCopy(ctx->in, buf, len);
+  memcpy(ctx->in, buf, len);
 }
 
 /*
@@ -238,35 +238,35 @@ void MD5Final(MD5Digest* digest, MD5Context* context) {
   /* Pad out to 56 mod 64 */
   if (count < 8) {
     /* Two lots of padding:  Pad the first block to 64 bytes */
-    SbMemorySet(p, 0, count);
+    memset(p, 0, count);
     byteReverse(ctx->in, 16);
     MD5Transform(ctx->buf, reinterpret_cast<uint32_t*>(ctx->in));
 
     /* Now fill the next block with 56 bytes */
-    SbMemorySet(ctx->in, 0, 56);
+    memset(ctx->in, 0, 56);
   } else {
     /* Pad block to 56 bytes */
-    SbMemorySet(p, 0, count - 8);
+    memset(p, 0, count - 8);
   }
   byteReverse(ctx->in, 14);
 
   /* Append length in bits and transform */
-  SbMemoryCopy(&ctx->in[14 * sizeof(ctx->bits[0])], &ctx->bits[0],
+  memcpy(&ctx->in[14 * sizeof(ctx->bits[0])], &ctx->bits[0],
                sizeof(ctx->bits[0]));
-  SbMemoryCopy(&ctx->in[15 * sizeof(ctx->bits[1])], &ctx->bits[1],
+  memcpy(&ctx->in[15 * sizeof(ctx->bits[1])], &ctx->bits[1],
                sizeof(ctx->bits[1]));
 
   MD5Transform(ctx->buf, reinterpret_cast<uint32_t*>(ctx->in));
   byteReverse(reinterpret_cast<uint8_t*>(ctx->buf), 4);
-  SbMemoryCopy(digest->a, ctx->buf, 16);
-  SbMemorySet(ctx, 0, sizeof(*ctx)); /* In case it's sensitive */
+  memcpy(digest->a, ctx->buf, 16);
+  memset(ctx, 0, sizeof(*ctx)); /* In case it's sensitive */
 }
 
 void MD5IntermediateFinal(MD5Digest* digest, const MD5Context* context) {
   /* MD5Final mutates the MD5Context*. Make a copy for generating the
      intermediate value. */
   MD5Context context_copy;
-  SbMemoryCopy(&context_copy, context, sizeof(context_copy));
+  memcpy(&context_copy, context, sizeof(context_copy));
   MD5Final(digest, &context_copy);
 }
 

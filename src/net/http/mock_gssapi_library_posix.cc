@@ -71,7 +71,7 @@ void SetBuffer(gss_buffer_t dest, const void* src, size_t length) {
   dest->length = length;
   if (length) {
     dest->value = new char[length];
-    SbMemoryCopy(dest->value, src, length);
+    memcpy(dest->value, src, length);
   }
 }
 
@@ -212,7 +212,7 @@ MockGSSAPILibrary::SecurityContextQuery::SecurityContextQuery(
       minor_response_code(in_minor_response_code),
       context_info(in_context_info) {
   if (in_expected_input_token) {
-    expected_input_token.length = SbStringGetLength(in_expected_input_token);
+    expected_input_token.length = strlen(in_expected_input_token);
     expected_input_token.value = const_cast<char*>(in_expected_input_token);
   } else {
     expected_input_token.length = 0;
@@ -220,7 +220,7 @@ MockGSSAPILibrary::SecurityContextQuery::SecurityContextQuery(
   }
 
   if (in_output_token) {
-    output_token.length = SbStringGetLength(in_output_token);
+    output_token.length = strlen(in_output_token);
     output_token.value = const_cast<char*>(in_output_token);
   } else {
     output_token.length = 0;
@@ -400,9 +400,9 @@ OM_uint32 MockGSSAPILibrary::init_sec_context(
   } else {
     EXPECT_EQ(input_token->length, security_query.expected_input_token.length);
     if (input_token->length) {
-      EXPECT_EQ(0, SbMemoryCompare(input_token->value,
-                                   security_query.expected_input_token.value,
-                                   input_token->length));
+      EXPECT_EQ(0, memcmp(input_token->value,
+                          security_query.expected_input_token.value,
+                          input_token->length));
     }
   }
   CopyBuffer(output_token, &security_query.output_token);

@@ -15,6 +15,7 @@
 #include <string>
 
 #include "starboard/common/log.h"
+#include "starboard/common/string.h"
 #include "starboard/elf_loader/elf_loader.h"
 #include "starboard/elf_loader/elf_loader_constants.h"
 #include "starboard/elf_loader/evergreen_info.h"
@@ -80,9 +81,9 @@ void LoadLibraryAndInitialize(const std::string& library_path,
     SB_LOG(ERROR) << "Failed to get user agent string";
   } else {
     CrashpadAnnotations cobalt_version_info;
-    SbMemorySet(&cobalt_version_info, sizeof(CrashpadAnnotations), 0);
-    SbStringCopy(cobalt_version_info.user_agent_string, get_user_agent_func(),
-                 USER_AGENT_STRING_MAX_SIZE);
+    memset(&cobalt_version_info, 0, sizeof(CrashpadAnnotations));
+    starboard::strlcpy(cobalt_version_info.user_agent_string,
+                       get_user_agent_func(), USER_AGENT_STRING_MAX_SIZE);
     third_party::crashpad::wrapper::AddAnnotationsToCrashpad(
         cobalt_version_info);
     SB_DLOG(INFO) << "Added user agent string to Crashpad.";

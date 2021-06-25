@@ -11,7 +11,6 @@
 
 #include "base/base_export.h"
 #include "base/task/task_traits_details.h"
-#include "nb/cpp14oncpp11.h"
 #include "starboard/types.h"
 
 namespace base {
@@ -134,7 +133,7 @@ struct BASE_EXPORT TaskTraitsExtensionStorage {
   inline constexpr TaskTraitsExtensionStorage(
       uint8_t extension_id_in,
       const std::array<uint8_t, kStorageSize>& data_in);
-  inline CONSTEXPR TaskTraitsExtensionStorage(
+  inline constexpr TaskTraitsExtensionStorage(
       uint8_t extension_id_in,
       std::array<uint8_t, kStorageSize>&& data_in);
 
@@ -172,7 +171,7 @@ inline constexpr TaskTraitsExtensionStorage::TaskTraitsExtensionStorage(
     const std::array<uint8_t, kStorageSize>& data_in)
     : extension_id(extension_id_in), data(data_in) {}
 
-inline CONSTEXPR TaskTraitsExtensionStorage::TaskTraitsExtensionStorage(
+inline constexpr TaskTraitsExtensionStorage::TaskTraitsExtensionStorage(
     uint8_t extension_id_in,
     std::array<uint8_t, kStorageSize>&& data_in)
     : extension_id(extension_id_in), data(std::move(data_in)) {}

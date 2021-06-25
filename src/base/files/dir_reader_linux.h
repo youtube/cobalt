@@ -34,7 +34,7 @@ class DirReaderLinux {
       : fd_(open(directory_path, O_RDONLY | O_DIRECTORY)),
         offset_(0),
         size_(0) {
-    SbMemorySet(buf_, 0, sizeof(buf_));
+    memset(buf_, 0, sizeof(buf_));
   }
 
   ~DirReaderLinux() {

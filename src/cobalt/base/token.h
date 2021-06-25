@@ -76,11 +76,11 @@ class Token {
 };
 
 inline bool operator==(const Token& lhs, const std::string& rhs) {
-  return SbStringCompareAll(lhs.c_str(), rhs.c_str()) == 0;
+  return strcmp(lhs.c_str(), rhs.c_str()) == 0;
 }
 
 inline bool operator==(const std::string& lhs, const Token& rhs) {
-  return SbStringCompareAll(lhs.c_str(), rhs.c_str()) == 0;
+  return strcmp(lhs.c_str(), rhs.c_str()) == 0;
 }
 
 inline bool operator!=(const Token& lhs, const Token& rhs) {
@@ -98,7 +98,7 @@ inline bool operator!=(const std::string& lhs, const Token& rhs) {
 inline bool operator<(const Token& lhs, const Token& rhs) {
 #ifdef ENABLE_TOKEN_ALPHABETICAL_SORTING
   if (Token::sort_alphabetically()) {
-    return SbStringCompareAll(lhs.c_str(), rhs.c_str()) < 0;
+    return strcmp(lhs.c_str(), rhs.c_str()) < 0;
   }
 #endif  // ENABLE_TOKEN_ALPHABETICAL_SORTING
   return lhs.c_str() < rhs.c_str();
@@ -107,7 +107,7 @@ inline bool operator<(const Token& lhs, const Token& rhs) {
 inline bool operator>(const Token& lhs, const Token& rhs) {
 #ifdef ENABLE_TOKEN_ALPHABETICAL_SORTING
   if (Token::sort_alphabetically()) {
-    return SbStringCompareAll(lhs.c_str(), rhs.c_str()) > 0;
+    return strcmp(lhs.c_str(), rhs.c_str()) > 0;
   }
 #endif  // ENABLE_TOKEN_ALPHABETICAL_SORTING
   return lhs.c_str() > rhs.c_str();

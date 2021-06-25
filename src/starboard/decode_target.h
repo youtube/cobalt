@@ -83,7 +83,7 @@
 //
 //     // If the decode works, you can get the texture out and render it.
 //     SbDecodeTargetInfo info;
-//     SbMemorySet(&info, 0, sizeof(info));
+//     memset(&info, 0, sizeof(info));
 //     SbDecodeTargetGetInfo(target, &info);
 //     GLuint texture =
 //         info.planes[kSbDecodeTargetPlaneRGBA].texture;
@@ -139,7 +139,7 @@ typedef enum SbDecodeTargetFormat {
   // order.
   kSbDecodeTargetFormat3Plane10BitYUVI420,
 
-  // A decoder target format consisting of a single plane with pixels layed out
+  // A decoder target format consisting of a single plane with pixels laid out
   // in the format UYVY.  Since there are two Y values per sample, but only one
   // U value and only one V value, horizontally the Y resolution is twice the
   // size of both the U and V resolutions.  Vertically, they Y, U and V all

@@ -14,10 +14,6 @@
 
 #include <memory>
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/string_leaks_poem.h"
-#endif  // defined(STARBOARD)
-
 #include "cobalt/dom_parser/parser.h"
 
 #include "base/logging.h"

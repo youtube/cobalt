@@ -631,7 +631,7 @@ bool TestLauncher::Run() {
   CHECK_EQ(0, pipe(g_shutdown_pipe));
 
   struct sigaction action;
-  SbMemorySet(&action, 0, sizeof(action));
+  memset(&action, 0, sizeof(action));
   sigemptyset(&action.sa_mask);
   action.sa_handler = &ShutdownPipeSignalHandler;
 

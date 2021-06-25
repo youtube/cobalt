@@ -31,7 +31,7 @@ class ScopedOpenSSLSafeSizeBuffer {
   ~ScopedOpenSSLSafeSizeBuffer() {
     if (output_len_ < MIN_SIZE) {
       // Copy the temporary buffer out, truncating as needed.
-      SbMemoryCopy(output_, min_sized_buffer_, output_len_);
+      memcpy(output_, min_sized_buffer_, output_len_);
     }
     // else... any writing already happened directly into |output_|.
   }

@@ -105,7 +105,7 @@ void DecodeHex(scoped_array<uint8_t>* out,
     return;
   }
 
-  size_t len = SbStringGetLength(in);
+  size_t len = strlen(in);
   if (len & 1) {
     ADD_FAILURE() << description << ": Odd length.";
     return;

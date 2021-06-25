@@ -266,7 +266,7 @@ scoped_refptr<render_tree::Image>
 HardwareResourceProvider::CreateImageFromSbDecodeTarget(
     SbDecodeTarget decode_target) {
   SbDecodeTargetInfo info;
-  SbMemorySet(&info, 0, sizeof(info));
+  memset(&info, 0, sizeof(info));
   CHECK(SbDecodeTargetGetInfo(decode_target, &info));
   DCHECK_NE(kSbDecodeTargetFormat1PlaneBGRA, info.format);
 
@@ -463,6 +463,13 @@ HardwareResourceProvider::GetCharacterFallbackTypeface(
               NULL, CobaltFontStyleToSkFontStyle(font_style), &language_cstr, 1,
               character)));
   return scoped_refptr<render_tree::Typeface>(new SkiaTypeface(typeface));
+}
+
+void HardwareResourceProvider::LoadAdditionalFonts() {
+  sk_sp<SkFontMgr> font_manager(SkFontMgr::RefDefault());
+  SkFontMgr_Cobalt* cobalt_font_manager =
+      base::polymorphic_downcast<SkFontMgr_Cobalt*>(font_manager.get());
+  cobalt_font_manager->LoadLocaleDefault();
 }
 
 scoped_refptr<render_tree::Typeface>

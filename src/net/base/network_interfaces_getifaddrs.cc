@@ -97,8 +97,8 @@ int AddressFlagsToNetAddressAttributes(int flags) {
 bool IPAttributesGetterMac::GetAddressAttributes(const ifaddrs* if_addr,
                                                  int* attributes) {
   struct in6_ifreq ifr = {};
-  SbStringCopy(ifr.ifr_name, if_addr->ifa_name, sizeof(ifr.ifr_name) - 1);
-  SbMemoryCopy(&ifr.ifr_ifru.ifru_addr, if_addr->ifa_addr,
+  strncpy(ifr.ifr_name, if_addr->ifa_name, sizeof(ifr.ifr_name) - 1);
+  memcpy(&ifr.ifr_ifru.ifru_addr, if_addr->ifa_addr,
                if_addr->ifa_addr->sa_len);
   int rv = ioctl(ioctl_socket_, SIOCGIFAFLAG_IN6, &ifr);
   if (rv >= 0) {
@@ -113,7 +113,7 @@ IPAttributesGetterMac::GetNetworkInterfaceType(const ifaddrs* if_addr) {
     return NetworkChangeNotifier::CONNECTION_UNKNOWN;
 
   struct ifmediareq ifmr = {};
-  SbStringCopy(ifmr.ifm_name, if_addr->ifa_name, sizeof(ifmr.ifm_name) - 1);
+  strncpy(ifmr.ifm_name, if_addr->ifa_name, sizeof(ifmr.ifm_name) - 1);
 
   if (ioctl(ioctl_socket_, SIOCGIFMEDIA, &ifmr) != -1) {
     if (ifmr.ifm_current & IFM_IEEE80211) {

@@ -101,7 +101,7 @@ bool CircularBufferShell::Write(const void* source, size_t length,
     // Copy this segment and do the accounting.
     void* destination = GetWritePointer_Locked();
     const void* src = add_to_pointer(source, produced);
-    SbMemoryCopy(destination, src, to_write);
+    memcpy(destination, src, to_write);
     length_ += to_write;
     produced += to_write;
   }
@@ -150,7 +150,7 @@ void CircularBufferShell::ReadUnchecked_Locked(void* destination,
     const void* source = add_to_pointer(buffer_, read_position);
     if (destination) {
       void* dest = add_to_pointer(destination, consumed);
-      SbMemoryCopy(dest, source, to_read);
+      memcpy(dest, source, to_read);
     }
     source_length -= to_read;
     read_position = (read_position + to_read) % capacity_;

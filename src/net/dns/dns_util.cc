@@ -74,7 +74,7 @@ bool DNSDomainFromDot(const base::StringPiece& dotted, std::string* out) {
       if (namelen + labellen + 1 > sizeof name)
         return false;
       name[namelen++] = static_cast<char>(labellen);
-      SbMemoryCopy(name + namelen, label, labellen);
+      memcpy(name + namelen, label, labellen);
       namelen += labellen;
       labellen = 0;
       continue;
@@ -92,7 +92,7 @@ bool DNSDomainFromDot(const base::StringPiece& dotted, std::string* out) {
     if (namelen + labellen + 1 > sizeof name)
       return false;
     name[namelen++] = static_cast<char>(labellen);
-    SbMemoryCopy(name + namelen, label, labellen);
+    memcpy(name + namelen, label, labellen);
     namelen += labellen;
     labellen = 0;
   }

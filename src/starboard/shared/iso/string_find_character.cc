@@ -16,6 +16,10 @@
 
 #include <string.h>
 
+#if SB_API_VERSION < 13
+
 const char* SbStringFindCharacter(const char* str, char character) {
   return strchr(str, character);
 }
+
+#endif  // SB_API_VERSION < 13

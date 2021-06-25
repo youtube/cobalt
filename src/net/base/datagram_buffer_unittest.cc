@@ -25,7 +25,7 @@ TEST_F(DatagramBufferTest, EnqueueCopiesData) {
   pool_.Enqueue(data, sizeof(data), &buffers);
   EXPECT_EQ(sizeof(data), buffers.front()->length());
   EXPECT_NE(data, buffers.front()->data());
-  EXPECT_EQ(0, SbMemoryCompare(data, buffers.front()->data(), sizeof(data)));
+  EXPECT_EQ(0, memcmp(data, buffers.front()->data(), sizeof(data)));
 }
 
 TEST_F(DatagramBufferTest, DatgramBufferPoolRecycles) {

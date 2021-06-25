@@ -100,7 +100,7 @@ class Observer : public update_client::UpdateClient::Observer {
         static_cast<const CobaltExtensionUpdaterNotificationApi*>(
             SbSystemGetExtension(kCobaltExtensionUpdaterNotificationName));
     if (updater_notification_ext &&
-        SbStringCompareAll(updater_notification_ext->name,
+        strcmp(updater_notification_ext->name,
                            kCobaltExtensionUpdaterNotificationName) == 0 &&
         updater_notification_ext->version >= 1) {
       updater_notification_ext_ = updater_notification_ext;

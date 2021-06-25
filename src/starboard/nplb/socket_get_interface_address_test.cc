@@ -33,15 +33,15 @@ TEST(SbSocketGetInterfaceAddressTest, SunnyDay) {
   SbSocketAddress address;
 
   // Initialize to something invalid.
-  SbMemorySet(&address, kInvalidByte, sizeof(address));
-  SbMemorySet(&invalid_address, kInvalidByte, sizeof(invalid_address));
+  memset(&address, kInvalidByte, sizeof(address));
+  memset(&invalid_address, kInvalidByte, sizeof(invalid_address));
 
   EXPECT_TRUE(SbSocketGetInterfaceAddress(NULL, &address, NULL));
   EXPECT_EQ(0, address.port);
   EXPECT_FALSE(IsUnspecified(&address));
   EXPECT_FALSE(IsLocalhost(&address));
-  EXPECT_NE(0, SbMemoryCompare(address.address, invalid_address.address,
-                               SB_ARRAY_SIZE(address.address)));
+  EXPECT_NE(0, memcmp(address.address, invalid_address.address,
+                      SB_ARRAY_SIZE(address.address)));
 }
 
 TEST(SbSocketGetInterfaceAddressTest, RainyDayNull) {
@@ -52,8 +52,8 @@ TEST(SbSocketGetInterfaceAddressTest, SunnyDayNullDestination) {
   SbSocketAddress netmask;
   SbSocketAddress source;
 
-  SbMemorySet(&netmask, kInvalidByte, sizeof(netmask));
-  SbMemorySet(&source, kInvalidByte, sizeof(source));
+  memset(&netmask, kInvalidByte, sizeof(netmask));
+  memset(&source, kInvalidByte, sizeof(source));
 
   // If destination address is NULL, then any IP address that is valid for
   // |destination| set to 0.0.0.0 (IPv4) or :: (IPv6) can be returned.
@@ -79,8 +79,8 @@ TEST_P(SbSocketGetInterfaceAddressTest, SunnyDayDestination) {
   SbSocketAddress source;
 
   // Initialize to something invalid.
-  SbMemorySet(&netmask, kInvalidByte, sizeof(netmask));
-  SbMemorySet(&source, kInvalidByte, sizeof(source));
+  memset(&netmask, kInvalidByte, sizeof(netmask));
+  memset(&source, kInvalidByte, sizeof(source));
 
   EXPECT_TRUE(SbSocketGetInterfaceAddress(&destination, &source, NULL));
   EXPECT_EQ(GetAddressType(), source.type);
@@ -120,9 +120,9 @@ TEST_P(SbSocketGetInterfaceAddressTest, SunnyDaySourceForDestination) {
   SbSocketAddress source;
   SbSocketAddress netmask;
   SbSocketAddress invalid_address;
-  SbMemorySet(&netmask, kInvalidByte, sizeof(netmask));
-  SbMemorySet(&source, kInvalidByte, sizeof(source));
-  SbMemorySet(&invalid_address, kInvalidByte, sizeof(source));
+  memset(&netmask, kInvalidByte, sizeof(netmask));
+  memset(&source, kInvalidByte, sizeof(source));
+  memset(&invalid_address, kInvalidByte, sizeof(source));
   SbSocketGetInterfaceAddress(&destination_address, &source, &netmask);
 
   EXPECT_EQ(GetAddressType(), source.type);
@@ -130,10 +130,10 @@ TEST_P(SbSocketGetInterfaceAddressTest, SunnyDaySourceForDestination) {
   // A netmask that starts with 0 is likely incorrect.
   EXPECT_TRUE(netmask.address[0] & 0x80);
   EXPECT_EQ(GetAddressType(), netmask.type);
-  EXPECT_NE(0, SbMemoryCompare(source.address, invalid_address.address,
-                               SB_ARRAY_SIZE(source.address)));
-  EXPECT_NE(0, SbMemoryCompare(netmask.address, invalid_address.address,
-                               SB_ARRAY_SIZE(netmask.address)));
+  EXPECT_NE(0, memcmp(source.address, invalid_address.address,
+                      SB_ARRAY_SIZE(source.address)));
+  EXPECT_NE(0, memcmp(netmask.address, invalid_address.address,
+                      SB_ARRAY_SIZE(netmask.address)));
 
   SbSocketFreeResolution(resolution);
 }
@@ -158,9 +158,9 @@ TEST_P(SbSocketGetInterfaceAddressTest, SunnyDaySourceNotLoopback) {
   SbSocketAddress invalid_address;
 
   // Initialize to something invalid.
-  SbMemorySet(&netmask, kInvalidByte, sizeof(netmask));
-  SbMemorySet(&source, kInvalidByte, sizeof(source));
-  SbMemorySet(&invalid_address, kInvalidByte, sizeof(invalid_address));
+  memset(&netmask, kInvalidByte, sizeof(netmask));
+  memset(&source, kInvalidByte, sizeof(source));
+  memset(&invalid_address, kInvalidByte, sizeof(invalid_address));
 
   EXPECT_TRUE(SbSocketGetInterfaceAddress(&destination, &source, NULL));
   EXPECT_EQ(GetAddressType(), source.type);
@@ -168,10 +168,10 @@ TEST_P(SbSocketGetInterfaceAddressTest, SunnyDaySourceNotLoopback) {
   EXPECT_FALSE(IsLocalhost(&source));
   EXPECT_FALSE(IsUnspecified(&source));
 
-  EXPECT_NE(0, SbMemoryCompare(netmask.address, invalid_address.address,
-                               SB_ARRAY_SIZE(netmask.address)));
-  EXPECT_NE(0, SbMemoryCompare(source.address, invalid_address.address,
-                               SB_ARRAY_SIZE(source.address)));
+  EXPECT_NE(0, memcmp(netmask.address, invalid_address.address,
+                      SB_ARRAY_SIZE(netmask.address)));
+  EXPECT_NE(0, memcmp(source.address, invalid_address.address,
+                      SB_ARRAY_SIZE(source.address)));
 }
 
 #if SB_HAS(IPV6)

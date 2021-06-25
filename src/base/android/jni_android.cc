@@ -120,9 +120,9 @@ ScopedJavaLocalRef<jclass> GetClass(JNIEnv* env, const char* class_name) {
     // TODO(torne): move to an approach where we always use ClassLoader except
     // for the special case of base::android::GetClassLoader(), and change the
     // JNI generator to generate dot-separated names. http://crbug.com/461773
-    size_t bufsize = SbStringGetLength(class_name) + 1;
+    size_t bufsize = strlen(class_name) + 1;
     char dotted_name[bufsize];
-    SbMemoryMove(dotted_name, class_name, bufsize);
+    memmove(dotted_name, class_name, bufsize);
     for (size_t i = 0; i < bufsize; ++i) {
       if (dotted_name[i] == '/') {
         dotted_name[i] = '.';

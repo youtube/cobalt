@@ -2464,7 +2464,7 @@ inline int RmDir(const char* dir) { return SbFileDelete(dir); }
 inline bool IsDir(const StatStruct& st) { return st.is_directory; }
 
 inline const char* StrNCpy(char* dest, const char* src, size_t n) {
-  SbStringCopy(dest, src, static_cast<int>(n));
+  strncpy(dest, src, static_cast<int>(n));
   return dest;
 }
 
@@ -2481,23 +2481,23 @@ inline int VSNPrintF(char* out_buffer, size_t size, const char* format,
 }
 
 inline size_t StrLen(const char *str) {
-  return SbStringGetLength(str);
+  return strlen(str);
 }
 
 inline const char *StrChr(const char *str, char c) {
-  return SbStringFindCharacter(str, c);
+  return strchr(str, c);
 }
 
 inline const char *StrRChr(const char *str, char c) {
-  return SbStringFindLastCharacter(str, c);
+  return strrchr(str, c);
 }
 
 inline int StrNCmp(const char *s1, const char *s2, size_t n) {
-  return SbStringCompare(s1, s2, n);
+  return strncmp(s1, s2, n);
 }
 
 inline void *MemSet(void *s, int c, size_t n) {
-  return SbMemorySet(s, c, n);
+  return memset(s, c, n);
 }
 
 inline void Assert(bool b) { SB_CHECK(b); }
@@ -2845,4 +2845,3 @@ const char* StringFromGTestEnv(const char* flag, const char* default_val);
 }  // namespace testing
 
 #endif  // GTEST_INCLUDE_GTEST_INTERNAL_GTEST_PORT_H_
-

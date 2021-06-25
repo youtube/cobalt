@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-#include "starboard/client_porting/poem/string_leaks_poem.h"
-
 #include "nb/analytics/memory_tracker_impl.h"
 
 #include <algorithm>

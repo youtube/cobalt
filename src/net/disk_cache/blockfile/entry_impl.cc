@@ -201,7 +201,7 @@ void EntryImpl::UserBuffer::Write(int offset, IOBuffer* buf, int len) {
   int valid_len = Size() - offset;
   int copy_len = std::min(valid_len, len);
   if (copy_len) {
-    SbMemoryCopy(&buffer_[offset], buffer, copy_len);
+    memcpy(&buffer_[offset], buffer, copy_len);
     len -= copy_len;
     buffer += copy_len;
   }
@@ -245,7 +245,7 @@ int EntryImpl::UserBuffer::Read(int offset, IOBuffer* buf, int len) {
   if (offset < offset_) {
     // We don't have a file so lets fill the first part with 0.
     clean_bytes = std::min(offset_ - offset, len);
-    SbMemorySet(buf->data(), 0, clean_bytes);
+    memset(buf->data(), 0, clean_bytes);
     if (len == clean_bytes)
       return len;
     offset = offset_;
@@ -257,7 +257,7 @@ int EntryImpl::UserBuffer::Read(int offset, IOBuffer* buf, int len) {
   DCHECK_GE(start, 0);
   DCHECK_GE(available, 0);
   len = std::min(len, available);
-  SbMemoryCopy(buf->data() + clean_bytes, &buffer_[start], len);
+  memcpy(buf->data() + clean_bytes, &buffer_[start], len);
   return len + clean_bytes;
 }
 
@@ -425,9 +425,9 @@ bool EntryImpl::CreateEntry(Addr node_address,
   Trace("Create entry In");
   EntryStore* entry_store = entry_.Data();
   RankingsNode* node = node_.Data();
-  SbMemorySet(entry_store, 0,
+  memset(entry_store, 0,
               sizeof(EntryStore) * entry_.address().num_blocks());
-  SbMemorySet(node, 0, sizeof(RankingsNode));
+  memset(node, 0, sizeof(RankingsNode));
   if (!node_.LazyInit(backend_->File(node_address), node_address))
     return false;
 
@@ -458,7 +458,7 @@ bool EntryImpl::CreateEntry(Addr node_address,
     if (address.is_separate_file())
       key_file->SetLength(key.size() + 1);
   } else {
-    SbMemoryCopy(entry_store->key, key.data(), key.size());
+    memcpy(entry_store->key, key.data(), key.size());
     entry_store->key[key.size()] = '\0';
   }
   backend_->ModifyStorageSize(0, static_cast<int32_t>(key.size()));
@@ -1565,7 +1565,7 @@ void EntryImpl::GetData(int index, char** buffer, Addr* address) {
     if (data_len <= user_buffers_[index]->Size()) {
       DCHECK(!user_buffers_[index]->Start());
       *buffer = new char[data_len];
-      SbMemoryCopy(*buffer, user_buffers_[index]->Data(), data_len);
+      memcpy(*buffer, user_buffers_[index]->Data(), data_len);
       return;
     }
   }

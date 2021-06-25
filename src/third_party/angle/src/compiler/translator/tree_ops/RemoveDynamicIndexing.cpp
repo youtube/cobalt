@@ -19,7 +19,6 @@
 #include "compiler/translator/tree_util/IntermNodePatternMatcher.h"
 #include "compiler/translator/tree_util/IntermNode_util.h"
 #include "compiler/translator/tree_util/IntermTraverse.h"
-#include "nb/cpp14oncpp11.h"
 
 namespace sh
 {
@@ -31,9 +30,9 @@ using DynamicIndexingNodeMatcher = std::function<bool(TIntermBinary *)>;
 
 const TType *kIndexType = StaticType::Get<EbtInt, EbpHigh, EvqIn, 1, 1>();
 
-CONSTEXPR const ImmutableString kBaseName("base");
-CONSTEXPR const ImmutableString kIndexName("index");
-CONSTEXPR const ImmutableString kValueName("value");
+constexpr const ImmutableString kBaseName("base");
+constexpr const ImmutableString kIndexName("index");
+constexpr const ImmutableString kValueName("value");
 
 std::string GetIndexFunctionName(const TType &type, bool write)
 {

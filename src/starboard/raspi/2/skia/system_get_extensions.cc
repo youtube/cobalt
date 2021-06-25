@@ -19,7 +19,7 @@
 #include "starboard/raspi/2/skia/configuration.h"
 
 const void* SbSystemGetExtension(const char* name) {
-  if (SbStringCompareAll(name, kCobaltExtensionConfigurationName) == 0) {
+  if (strcmp(name, kCobaltExtensionConfigurationName) == 0) {
     return starboard::raspi::skia::GetConfigurationApi();
   }
   return NULL;

@@ -51,7 +51,7 @@ std::string DrainToString(size_t max_buffer_size, SpdyReadQueue* queue) {
   size_t padding = std::max(static_cast<size_t>(4096), queue->GetTotalSize());
   size_t buffer_size_with_padding = padding + max_buffer_size + padding;
   auto buffer = std::make_unique<char[]>(buffer_size_with_padding);
-  SbMemorySet(buffer.get(), 0, buffer_size_with_padding);
+  memset(buffer.get(), 0, buffer_size_with_padding);
   char* buffer_data = buffer.get() + padding;
 
   while (!queue->IsEmpty()) {

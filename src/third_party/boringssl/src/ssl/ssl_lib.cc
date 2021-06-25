@@ -348,10 +348,9 @@ int ssl_log_secret(const SSL *ssl, const char *label, const uint8_t *secret,
   ScopedCBB cbb;
   uint8_t *out;
   size_t out_len;
-  if (!CBB_init(cbb.get(), OPENSSL_port_strlen(label) + 1 +
+  if (!CBB_init(cbb.get(), strlen(label) + 1 +
                                SSL3_RANDOM_SIZE * 2 + 1 + secret_len * 2 + 1) ||
-      !CBB_add_bytes(cbb.get(), (const uint8_t *)label,
-                     OPENSSL_port_strlen(label)) ||
+      !CBB_add_bytes(cbb.get(), (const uint8_t *)label, strlen(label)) ||
       !CBB_add_bytes(cbb.get(), (const uint8_t *)" ", 1) ||
       !cbb_add_hex(cbb.get(), ssl->s3->client_random, SSL3_RANDOM_SIZE) ||
       !CBB_add_bytes(cbb.get(), (const uint8_t *)" ", 1) ||
@@ -1909,7 +1908,7 @@ int SSL_set_tlsext_host_name(SSL *ssl, const char *name) {
     return 1;
   }
 
-  size_t len = OPENSSL_port_strlen(name);
+  size_t len = strlen(name);
   if (len == 0 || len > TLSEXT_MAXLEN_host_name) {
     OPENSSL_PUT_ERROR(SSL, SSL_R_SSL3_EXT_INVALID_SERVERNAME);
     return 0;
@@ -2354,8 +2353,7 @@ void SSL_set_tmp_dh_callback(SSL *ssl, DH *(*cb)(SSL *ssl, int is_export,
 
 static int use_psk_identity_hint(UniquePtr<char> *out,
                                  const char *identity_hint) {
-  if (identity_hint != NULL &&
-      OPENSSL_port_strlen(identity_hint) > PSK_MAX_IDENTITY_LEN) {
+  if (identity_hint != NULL && strlen(identity_hint) > PSK_MAX_IDENTITY_LEN) {
     OPENSSL_PUT_ERROR(SSL, SSL_R_DATA_LENGTH_TOO_LONG);
     return 0;
   }

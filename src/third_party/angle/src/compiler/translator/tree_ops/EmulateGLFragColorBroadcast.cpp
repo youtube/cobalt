@@ -18,7 +18,6 @@
 #include "compiler/translator/tree_util/IntermNode_util.h"
 #include "compiler/translator/tree_util/IntermTraverse.h"
 #include "compiler/translator/tree_util/RunAtTheEndOfShader.h"
-#include "nb/cpp14oncpp11.h"
 
 namespace sh
 {
@@ -26,7 +25,7 @@ namespace sh
 namespace
 {
 
-CONSTEXPR const ImmutableString kGlFragDataString("gl_FragData");
+constexpr const ImmutableString kGlFragDataString("gl_FragData");
 
 class GLFragColorBroadcastTraverser : public TIntermTraverser
 {

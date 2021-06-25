@@ -40,9 +40,9 @@ const char kPlatformNameFormat[] =
 bool CopyStringAndTestIfSuccess(char* out_value,
                                 int value_length,
                                 const char* from_value) {
-  if (SbStringGetLength(from_value) + 1 > value_length)
+  if (strlen(from_value) + 1 > value_length)
     return false;
-  SbStringCopy(out_value, from_value, value_length);
+  starboard::strlcpy(out_value, from_value, value_length);
   return true;
 }
 
@@ -56,8 +56,8 @@ bool GetAndroidSystemProperty(const char* system_property_name,
   // Note that __system_property_get returns empty string on no value
   __system_property_get(system_property_name, out_value);
 
-  if (SbStringGetLength(out_value) == 0) {
-    SbStringCopy(out_value, default_value, value_length);
+  if (strlen(out_value) == 0) {
+    starboard::strlcpy(out_value, default_value, value_length);
   }
   return true;
 }
@@ -108,8 +108,8 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
       char key1[PROP_VALUE_MAX] = "";
       SB_DCHECK(GetAndroidSystemProperty("ro.oem.key1", key1, PROP_VALUE_MAX,
                                          kUnknownValue));
-      if (SbStringCompareAll(key1, kUnknownValue) == 0 ||
-          SbStringGetLength(key1) < 10) {
+      if (strcmp(key1, kUnknownValue) == 0 ||
+          strlen(key1) < 10) {
         return CopyStringAndTestIfSuccess(out_value, value_length,
                                           kUnknownValue);
       }

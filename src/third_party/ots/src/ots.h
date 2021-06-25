@@ -13,13 +13,8 @@
 #include <cstdarg>
 #include <cstddef>
 
-#if !defined(STARBOARD)
 #include <cstring>
 #define MEMCPY_OTS std::memcpy
-#else
-#include "starboard/memory.h"
-#define MEMCPY_OTS SbMemoryCopy
-#endif
 
 #if defined(STARBOARD)
 #include "starboard/common/byte_swap.h"

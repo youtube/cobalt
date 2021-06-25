@@ -2080,7 +2080,7 @@ TEST_F(HttpCacheTest, RangeGET_ParallelValidationCouldConditionalize) {
   mock_transaction.data = kFullRangeData;
   std::string response_headers_str = base::StrCat(
       {"ETag: StrongOne\n", "Content-Length:",
-       base::IntToString(SbStringGetLength(kFullRangeData)), "\n"});
+       base::IntToString(strlen(kFullRangeData)), "\n"});
   mock_transaction.response_headers = response_headers_str.c_str();
 
   ScopedMockTransaction transaction(mock_transaction);
@@ -9201,7 +9201,7 @@ TEST_F(HttpCacheTest, WriteMetadata_OK) {
   // Write meta data to the same entry.
   scoped_refptr<IOBufferWithSize> buf =
       base::MakeRefCounted<IOBufferWithSize>(50);
-  SbMemorySet(buf->data(), 0, buf->size());
+  memset(buf->data(), 0, buf->size());
   base::strlcpy(buf->data(), "Hi there", buf->size());
   cache.http_cache()->WriteMetadata(GURL(kSimpleGET_Transaction.url),
                                     DEFAULT_PRIORITY, response.response_time,
@@ -9237,7 +9237,7 @@ TEST_F(HttpCacheTest, WriteMetadata_Fail) {
   // Attempt to write meta data to the same entry.
   scoped_refptr<IOBufferWithSize> buf =
       base::MakeRefCounted<IOBufferWithSize>(50);
-  SbMemorySet(buf->data(), 0, buf->size());
+  memset(buf->data(), 0, buf->size());
   base::strlcpy(buf->data(), "Hi there", buf->size());
   base::Time expected_time = response.response_time -
                              base::TimeDelta::FromMilliseconds(20);
@@ -9277,7 +9277,7 @@ TEST_F(HttpCacheTest, WriteMetadata_IgnoreVary) {
   // Attempt to write meta data to the same entry.
   scoped_refptr<IOBufferWithSize> buf =
       base::MakeRefCounted<IOBufferWithSize>(50);
-  SbMemorySet(buf->data(), 0, buf->size());
+  memset(buf->data(), 0, buf->size());
   base::strlcpy(buf->data(), "Hi there", buf->size());
   cache.http_cache()->WriteMetadata(GURL(transaction.url), DEFAULT_PRIORITY,
                                     response.response_time, buf.get(),
@@ -9402,7 +9402,7 @@ TEST_F(HttpCacheTest, ReadMetadata) {
   // Write meta data to the same entry.
   scoped_refptr<IOBufferWithSize> buf =
       base::MakeRefCounted<IOBufferWithSize>(50);
-  SbMemorySet(buf->data(), 0, buf->size());
+  memset(buf->data(), 0, buf->size());
   base::strlcpy(buf->data(), "Hi there", buf->size());
   cache.http_cache()->WriteMetadata(GURL(kTypicalGET_Transaction.url),
                                     DEFAULT_PRIORITY, response.response_time,

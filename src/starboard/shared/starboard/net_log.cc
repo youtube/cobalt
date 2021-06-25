@@ -109,7 +109,7 @@ scoped_ptr<Socket> CreateListenSocket() {
   socket->SetReuseAddress(true);
   SbSocketAddress sock_addr;
   // Ip address will be set to 0.0.0.0 so that it will bind to all sockets.
-  SbMemorySet(&sock_addr, 0, sizeof(SbSocketAddress));
+  memset(&sock_addr, 0, sizeof(SbSocketAddress));
   sock_addr.type = NET_LOG_IP_VERSION;
   sock_addr.port = NET_LOG_PORT;
   SbSocketError sock_err = socket->Bind(&sock_addr);
@@ -324,7 +324,7 @@ class NetLogServer {
   }
 
   void OnLog(const char* msg) {
-    buffered_socket_writer_.Append(msg, SbStringGetLength(msg));
+    buffered_socket_writer_.Append(msg, strlen(msg));
     writer_thread_sema_.Put();
   }
 

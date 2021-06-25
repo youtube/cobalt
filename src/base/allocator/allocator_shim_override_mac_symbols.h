@@ -16,7 +16,7 @@ namespace allocator {
 
 MallocZoneFunctions MallocZoneFunctionsToReplaceDefault() {
   MallocZoneFunctions new_functions;
-  SbMemorySet(&new_functions, 0, sizeof(MallocZoneFunctions));
+  memset(&new_functions, 0, sizeof(MallocZoneFunctions));
   new_functions.size = [](malloc_zone_t* zone, const void* ptr) -> size_t {
     return ShimGetSizeEstimate(ptr, zone);
   };

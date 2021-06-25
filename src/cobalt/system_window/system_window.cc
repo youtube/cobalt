@@ -104,21 +104,27 @@ void* SystemWindow::GetWindowHandle() {
   return SbWindowGetPlatformHandle(window_);
 }
 
-void SystemWindow::DispatchInputEvent(const SbInputData& data,
+void SystemWindow::DispatchInputEvent(const SbEvent* event,
                                       InputEvent::Type type, bool is_repeat) {
+  DCHECK(event);
+  DCHECK(event->data);
+  SbInputData* input_data = static_cast<SbInputData*>(event->data);
+  const SbInputData& data = *input_data;
+
   // Use the current time unless it was overridden.
   SbTimeMonotonic timestamp = 0;
-
+#if SB_API_VERSION >= 13
+  timestamp = event->timestamp;
+#else  // SB_API_VERSION >= 13
   bool use_input_timestamp =
       SbSystemHasCapability(kSbSystemCapabilitySetsInputTimestamp);
   if (use_input_timestamp) {
     timestamp = data.timestamp;
   }
-
+#endif  // SB_API_VERSION >= 13
   if (timestamp == 0) {
     timestamp = SbTimeGetMonotonicNow();
   }
-
   // Starboard handily uses the Microsoft key mapping, which is also what Cobalt
   // uses.
   int key_code = static_cast<int>(data.key);
@@ -177,7 +183,11 @@ void SystemWindow::DispatchInputEvent(const SbInputData& data,
       std::unique_ptr<base::Event>(input_event.release()));
 }
 
-void SystemWindow::HandlePointerInputEvent(const SbInputData& data) {
+void SystemWindow::HandlePointerInputEvent(const SbEvent* event) {
+  DCHECK(event);
+  DCHECK(event->data);
+  SbInputData* input_data = static_cast<SbInputData*>(event->data);
+  const SbInputData& data = *input_data;
   InputEvent::Type input_event_type;
   switch (data.type) {
     case kSbInputEventTypePress: {
@@ -188,7 +198,7 @@ void SystemWindow::HandlePointerInputEvent(const SbInputData& data) {
       } else {
         input_event_type = InputEvent::kPointerDown;
       }
-      DispatchInputEvent(data, input_event_type, false /* is_repeat */);
+      DispatchInputEvent(event, input_event_type, false /* is_repeat */);
       break;
     }
     case kSbInputEventTypeUnpress: {
@@ -199,11 +209,11 @@ void SystemWindow::HandlePointerInputEvent(const SbInputData& data) {
       } else {
         input_event_type = InputEvent::kPointerUp;
       }
-      DispatchInputEvent(data, input_event_type, false /* is_repeat */);
+      DispatchInputEvent(event, input_event_type, false /* is_repeat */);
       break;
     }
     case kSbInputEventTypeWheel: {
-      DispatchInputEvent(data, InputEvent::kWheel, false /* is_repeat */);
+      DispatchInputEvent(event, InputEvent::kWheel, false /* is_repeat */);
       break;
     }
     case kSbInputEventTypeMove: {
@@ -214,7 +224,7 @@ void SystemWindow::HandlePointerInputEvent(const SbInputData& data) {
       } else {
         input_event_type = InputEvent::kPointerMove;
       }
-      DispatchInputEvent(data, input_event_type, false /* is_repeat */);
+      DispatchInputEvent(event, input_event_type, false /* is_repeat */);
       break;
     }
     default:
@@ -223,35 +233,39 @@ void SystemWindow::HandlePointerInputEvent(const SbInputData& data) {
   }
 }
 
-void SystemWindow::HandleInputEvent(const SbInputData& data) {
+void SystemWindow::HandleInputEvent(const SbEvent* event) {
+  DCHECK(event);
+  DCHECK(event->data);
+  SbInputData* input_data = static_cast<SbInputData*>(event->data);
+  const SbInputData& data = *input_data;
   DCHECK_EQ(window_, data.window);
   // Handle supported pointer device types.
   if ((kSbInputDeviceTypeMouse == data.device_type) ||
       (kSbInputDeviceTypeTouchScreen == data.device_type) ||
       (kSbInputDeviceTypeTouchPad == data.device_type)) {
-    HandlePointerInputEvent(data);
+    HandlePointerInputEvent(event);
     return;
   }
 
   // Handle all other input device types.
   switch (data.type) {
     case kSbInputEventTypePress: {
-      DispatchInputEvent(data, InputEvent::kKeyDown, key_down_);
+      DispatchInputEvent(event, InputEvent::kKeyDown, key_down_);
       key_down_ = true;
       break;
     }
     case kSbInputEventTypeUnpress: {
-      DispatchInputEvent(data, InputEvent::kKeyUp, false /* is_repeat */);
+      DispatchInputEvent(event, InputEvent::kKeyUp, false /* is_repeat */);
       key_down_ = false;
       break;
     }
     case kSbInputEventTypeMove: {
-      DispatchInputEvent(data, InputEvent::kKeyMove, false /* is_repeat */);
+      DispatchInputEvent(event, InputEvent::kKeyMove, false /* is_repeat */);
       break;
     }
 #if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
     case kSbInputEventTypeInput: {
-      DispatchInputEvent(data, InputEvent::kInput, false /* is_repeat */);
+      DispatchInputEvent(event, InputEvent::kInput, false /* is_repeat */);
       break;
     }
 #endif  // SB_API_VERSION >= 12 ||
@@ -269,9 +283,7 @@ void HandleInputEvent(const SbEvent* event) {
   }
 
   DCHECK(g_the_window);
-  DCHECK(event->data);
-  SbInputData* data = reinterpret_cast<SbInputData*>(event->data);
-  g_the_window->HandleInputEvent(*data);
+  g_the_window->HandleInputEvent(event);
   return;
 }
 

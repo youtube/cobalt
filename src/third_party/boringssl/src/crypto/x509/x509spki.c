@@ -84,7 +84,7 @@ NETSCAPE_SPKI *NETSCAPE_SPKI_b64_decode(const char *str, int len)
     size_t spki_len;
     NETSCAPE_SPKI *spki;
     if (len <= 0)
-        len = OPENSSL_port_strlen(str);
+        len = strlen(str);
     if (!EVP_DecodedLength(&spki_len, len)) {
         OPENSSL_PUT_ERROR(X509, X509_R_BASE64_DECODE_ERROR);
         return NULL;

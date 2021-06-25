@@ -28,9 +28,9 @@ bool H264SliceHeader::IsSPSlice() const { return (slice_type % 5 == kSPSlice); }
 
 bool H264SliceHeader::IsSISlice() const { return (slice_type % 5 == kSISlice); }
 
-H264NALU::H264NALU() { SbMemorySet(this, 0, sizeof(*this)); }
+H264NALU::H264NALU() { memset(this, 0, sizeof(*this)); }
 
-H264SPS::H264SPS() { SbMemorySet(this, 0, sizeof(*this)); }
+H264SPS::H264SPS() { memset(this, 0, sizeof(*this)); }
 
 // Based on T-REC-H.264 7.4.2.1.1, "Sequence parameter set data semantics",
 // available from http://www.itu.int/rec/T-REC-H.264.
@@ -107,11 +107,11 @@ base::Optional<math::Rect> H264SPS::GetVisibleRect() const {
                     coded_size->height() - crop_top - crop_bottom);
 }
 
-H264PPS::H264PPS() { SbMemorySet(this, 0, sizeof(*this)); }
+H264PPS::H264PPS() { memset(this, 0, sizeof(*this)); }
 
-H264SliceHeader::H264SliceHeader() { SbMemorySet(this, 0, sizeof(*this)); }
+H264SliceHeader::H264SliceHeader() { memset(this, 0, sizeof(*this)); }
 
-H264SEIMessage::H264SEIMessage() { SbMemorySet(this, 0, sizeof(*this)); }
+H264SEIMessage::H264SEIMessage() { memset(this, 0, sizeof(*this)); }
 
 #define READ_BITS_OR_RETURN(num_bits, out)                                 \
   do {                                                                     \
@@ -492,10 +492,10 @@ static inline void DefaultScalingList4x4(
   DCHECK_LT(i, 6);
 
   if (i < 3)
-    SbMemoryCopy(scaling_list4x4[i], kDefault4x4Intra,
+    memcpy(scaling_list4x4[i], kDefault4x4Intra,
                  sizeof(kDefault4x4Intra));
   else if (i < 6)
-    SbMemoryCopy(scaling_list4x4[i], kDefault4x4Inter,
+    memcpy(scaling_list4x4[i], kDefault4x4Inter,
                  sizeof(kDefault4x4Inter));
 }
 
@@ -504,10 +504,10 @@ static inline void DefaultScalingList8x8(
   DCHECK_LT(i, 6);
 
   if (i % 2 == 0)
-    SbMemoryCopy(scaling_list8x8[i], kDefault8x8Intra,
+    memcpy(scaling_list8x8[i], kDefault8x8Intra,
                  sizeof(kDefault8x8Intra));
   else
-    SbMemoryCopy(scaling_list8x8[i], kDefault8x8Inter,
+    memcpy(scaling_list8x8[i], kDefault8x8Inter,
                  sizeof(kDefault8x8Inter));
 }
 
@@ -520,32 +520,32 @@ static void FallbackScalingList4x4(
 
   switch (i) {
     case 0:
-      SbMemoryCopy(scaling_list4x4[i], default_scaling_list_intra,
+      memcpy(scaling_list4x4[i], default_scaling_list_intra,
                    kScalingList4x4ByteSize);
       break;
 
     case 1:
-      SbMemoryCopy(scaling_list4x4[i], scaling_list4x4[0],
+      memcpy(scaling_list4x4[i], scaling_list4x4[0],
                    kScalingList4x4ByteSize);
       break;
 
     case 2:
-      SbMemoryCopy(scaling_list4x4[i], scaling_list4x4[1],
+      memcpy(scaling_list4x4[i], scaling_list4x4[1],
                    kScalingList4x4ByteSize);
       break;
 
     case 3:
-      SbMemoryCopy(scaling_list4x4[i], default_scaling_list_inter,
+      memcpy(scaling_list4x4[i], default_scaling_list_inter,
                    kScalingList4x4ByteSize);
       break;
 
     case 4:
-      SbMemoryCopy(scaling_list4x4[i], scaling_list4x4[3],
+      memcpy(scaling_list4x4[i], scaling_list4x4[3],
                    kScalingList4x4ByteSize);
       break;
 
     case 5:
-      SbMemoryCopy(scaling_list4x4[i], scaling_list4x4[4],
+      memcpy(scaling_list4x4[i], scaling_list4x4[4],
                    kScalingList4x4ByteSize);
       break;
 
@@ -564,32 +564,32 @@ static void FallbackScalingList8x8(
 
   switch (i) {
     case 0:
-      SbMemoryCopy(scaling_list8x8[i], default_scaling_list_intra,
+      memcpy(scaling_list8x8[i], default_scaling_list_intra,
                    kScalingList8x8ByteSize);
       break;
 
     case 1:
-      SbMemoryCopy(scaling_list8x8[i], default_scaling_list_inter,
+      memcpy(scaling_list8x8[i], default_scaling_list_inter,
                    kScalingList8x8ByteSize);
       break;
 
     case 2:
-      SbMemoryCopy(scaling_list8x8[i], scaling_list8x8[0],
+      memcpy(scaling_list8x8[i], scaling_list8x8[0],
                    kScalingList8x8ByteSize);
       break;
 
     case 3:
-      SbMemoryCopy(scaling_list8x8[i], scaling_list8x8[1],
+      memcpy(scaling_list8x8[i], scaling_list8x8[1],
                    kScalingList8x8ByteSize);
       break;
 
     case 4:
-      SbMemoryCopy(scaling_list8x8[i], scaling_list8x8[2],
+      memcpy(scaling_list8x8[i], scaling_list8x8[2],
                    kScalingList8x8ByteSize);
       break;
 
     case 5:
-      SbMemoryCopy(scaling_list8x8[i], scaling_list8x8[3],
+      memcpy(scaling_list8x8[i], scaling_list8x8[3],
                    kScalingList8x8ByteSize);
       break;
 
@@ -1216,7 +1216,7 @@ H264Parser::Result H264Parser::ParseSliceHeader(const H264NALU& nalu,
   const H264PPS* pps;
   Result res;
 
-  SbMemorySet(shdr, 0, sizeof(*shdr));
+  memset(shdr, 0, sizeof(*shdr));
 
   shdr->idr_pic_flag = (nalu.nal_unit_type == 5);
   shdr->nal_ref_idc = nalu.nal_ref_idc;
@@ -1358,7 +1358,7 @@ H264Parser::Result H264Parser::ParseSliceHeader(const H264NALU& nalu,
 H264Parser::Result H264Parser::ParseSEI(H264SEIMessage* sei_msg) {
   int byte;
 
-  SbMemorySet(sei_msg, 0, sizeof(*sei_msg));
+  memset(sei_msg, 0, sizeof(*sei_msg));
 
   READ_BITS_OR_RETURN(8, &byte);
   while (byte == 0xff) {

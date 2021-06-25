@@ -20,3 +20,5 @@ declare_args() {
   # Set this flag to true to skip the assertion.
   ignore_elf32_limitations = false
 }
+
+enable_java_templates = false

@@ -313,7 +313,7 @@ class CPUInfo final {
     size_t len = q - p;
     char* result = new char[len + 1];
     if (result != nullptr) {
-      base::Memcpy(result, p, len);
+      memcpy(result, p, len);
       result[len] = '\0';
     }
     return result;
@@ -438,7 +438,7 @@ CPU::CPU()
       is_fp64_mode_(false),
       has_non_stop_time_stamp_counter_(false),
       has_msa_(false) {
-  base::Memcpy(vendor_, "Unknown", 8);
+  memcpy(vendor_, "Unknown", 8);
 
 #if defined(STARBOARD)
   if (StarboardDetectCPU()) {
@@ -459,7 +459,7 @@ CPU::CPU()
   __cpuid(cpu_info, 0);
   unsigned num_ids = cpu_info[0];
   std::swap(cpu_info[2], cpu_info[3]);
-  base::Memcpy(vendor_, cpu_info + 1, 12);
+  memcpy(vendor_, cpu_info + 1, 12);
   vendor_[12] = '\0';
 
   // Interpret CPU feature information.

@@ -46,13 +46,13 @@ char* UnsafeArena::Realloc(char* original, size_t oldsize, size_t newsize) {
     }
   }
   char* out = Alloc(newsize);
-  SbMemoryCopy(out, original, oldsize);
+  memcpy(out, original, oldsize);
   return out;
 }
 
 char* UnsafeArena::Memdup(const char* data, size_t size) {
   char* out = Alloc(size);
-  SbMemoryCopy(out, data, size);
+  memcpy(out, data, size);
   return out;
 }
 

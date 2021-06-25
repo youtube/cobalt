@@ -16,6 +16,10 @@
 
 #include <wchar.h>
 
+#if SB_API_VERSION < 13
+
 size_t SbStringGetLengthWide(const wchar_t* str) {
   return wcslen(str);
 }
+
+#endif  // SB_API_VERSION < 13

@@ -174,7 +174,7 @@ bool SampleEncryptionEntry::Parse(BufferReader* reader, uint8_t iv_size,
   // the constant IV must be ensured by the caller.
   RCHECK(iv_size == 0 || iv_size == 8 || iv_size == 16);
 
-  SbMemorySet(initialization_vector, 0, sizeof(initialization_vector));
+  memset(initialization_vector, 0, sizeof(initialization_vector));
   for (uint8_t i = 0; i < iv_size; i++)
     RCHECK(reader->Read1(initialization_vector + i));
 
@@ -265,7 +265,7 @@ bool TrackEncryption::Parse(BoxReader* reader) {
     if (default_iv_size == 0) {
       RCHECK(reader->Read1(&default_constant_iv_size));
       RCHECK(default_constant_iv_size == 8 || default_constant_iv_size == 16);
-      SbMemorySet(default_constant_iv, 0, sizeof(default_constant_iv));
+      memset(default_constant_iv, 0, sizeof(default_constant_iv));
       for (uint8_t i = 0; i < default_constant_iv_size; i++)
         RCHECK(reader->Read1(default_constant_iv + i));
     } else {
@@ -1244,7 +1244,7 @@ bool CencSampleEncryptionInfoEntry::Parse(BoxReader* reader) {
     if (iv_size == 0) {
       RCHECK(reader->Read1(&constant_iv_size));
       RCHECK(constant_iv_size == 8 || constant_iv_size == 16);
-      SbMemorySet(constant_iv, 0, sizeof(constant_iv));
+      memset(constant_iv, 0, sizeof(constant_iv));
       for (uint8_t i = 0; i < constant_iv_size; i++)
         RCHECK(reader->Read1(constant_iv + i));
     } else {

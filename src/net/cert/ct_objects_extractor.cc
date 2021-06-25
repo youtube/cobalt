@@ -49,7 +49,7 @@ const uint8_t kSHA256Oid[] = {0x60, 0x86, 0x48, 0x01, 0x65,
 bool StringEqualToCBS(const std::string& value1, const CBS* value2) {
   if (CBS_len(value2) != value1.size())
     return false;
-  return SbMemoryCompare(value1.data(), CBS_data(value2), CBS_len(value2)) == 0;
+  return memcmp(value1.data(), CBS_data(value2), CBS_len(value2)) == 0;
 }
 
 bool SkipElements(CBS* cbs, int count) {

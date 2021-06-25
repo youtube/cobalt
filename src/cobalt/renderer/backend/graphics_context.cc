@@ -22,14 +22,12 @@ namespace cobalt {
 namespace renderer {
 namespace backend {
 
-GraphicsContext::GraphicsContext(GraphicsSystem* system)
-    : system_(system) {
+GraphicsContext::GraphicsContext(GraphicsSystem* system) : system_(system) {
   graphics_extension_ = static_cast<const CobaltExtensionGraphicsApi*>(
       SbSystemGetExtension(kCobaltExtensionGraphicsName));
   if (graphics_extension_) {
     // Verify it's the extension needed.
-    if (SbStringCompareAll(graphics_extension_->name,
-                           kCobaltExtensionGraphicsName) != 0 ||
+    if (strcmp(graphics_extension_->name, kCobaltExtensionGraphicsName) != 0 ||
         graphics_extension_->version < 1) {
       LOG(WARNING) << "Not using supplied cobalt graphics extension: "
                    << "'" << graphics_extension_->name << "' ("

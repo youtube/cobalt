@@ -71,7 +71,7 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
   bool SetPause(bool pause) override;
   bool SetPlaybackRate(double playback_rate) override;
   void SetVolume(double volume) override;
-  bool SetBounds(const PlayerWorker::Bounds& bounds) override;
+  bool SetBounds(const Bounds& bounds) override;
   void Stop() override;
 
   void Update();

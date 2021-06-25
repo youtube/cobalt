@@ -183,7 +183,7 @@ TEST_F(DynamicSectionTest, LookupNameById) {
   dynamic_section_memory.dynamic_table_[1].d_un.d_ptr =
       reinterpret_cast<Addr>(dynamic_section_memory.string_table_) - base_addr;
 
-  SbMemoryCopy(dynamic_section_memory.string_table_, "test1\x00test2\x00", 12);
+  memcpy(dynamic_section_memory.string_table_, "test1\x00test2\x00", 12);
 
   dynamic_section_memory.symbol_table_[0].st_name = 0;  // the offset of test1
   dynamic_section_memory.symbol_table_[1].st_name = 6;  // the offset of test2
@@ -195,8 +195,8 @@ TEST_F(DynamicSectionTest, LookupNameById) {
   ASSERT_EQ(dynamic_section_memory.dynamic_table_, d.GetDynamicTable());
   ASSERT_EQ(2, d.GetDynamicTableSize());
 
-  ASSERT_EQ(0, SbStringCompareAll("test1", d.LookupNameById(0)));
-  ASSERT_EQ(0, SbStringCompareAll("test2", d.LookupNameById(1)));
+  ASSERT_EQ(0, strcmp("test1", d.LookupNameById(0)));
+  ASSERT_EQ(0, strcmp("test2", d.LookupNameById(1)));
 }
 
 }  // namespace

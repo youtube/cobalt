@@ -309,7 +309,7 @@ QuicCryptoServerConfig::GenerateConfig(QuicRandom* rand,
 
   char orbit_bytes[kOrbitSize];
   if (options.orbit.size() == sizeof(orbit_bytes)) {
-    SbMemoryCopy(orbit_bytes, options.orbit.data(), sizeof(orbit_bytes));
+    memcpy(orbit_bytes, options.orbit.data(), sizeof(orbit_bytes));
   } else {
     DCHECK(options.orbit.empty());
     rand->RandBytes(orbit_bytes, sizeof(orbit_bytes));
@@ -1044,7 +1044,7 @@ void QuicCryptoServerConfig::ProcessClientHelloAfterCalculateSharedKeys(
         client_hello_copy.GetSerialized();
     QuicString hkdf_input;
     hkdf_input.append(QuicCryptoConfig::kCETVLabel,
-                      SbStringGetLength(QuicCryptoConfig::kCETVLabel) + 1);
+                      strlen(QuicCryptoConfig::kCETVLabel) + 1);
     hkdf_input.append(connection_id.data(), connection_id.length());
     hkdf_input.append(client_hello_copy_serialized.data(),
                       client_hello_copy_serialized.length());
@@ -1092,7 +1092,7 @@ void QuicCryptoServerConfig::ProcessClientHelloAfterCalculateSharedKeys(
   }
 
   QuicString hkdf_input;
-  size_t label_len = SbStringGetLength(QuicCryptoConfig::kInitialLabel) + 1;
+  size_t label_len = strlen(QuicCryptoConfig::kInitialLabel) + 1;
   hkdf_input.reserve(label_len + hkdf_suffix.size());
   hkdf_input.append(QuicCryptoConfig::kInitialLabel, label_len);
   hkdf_input.append(hkdf_suffix);
@@ -1123,7 +1123,7 @@ void QuicCryptoServerConfig::ProcessClientHelloAfterCalculateSharedKeys(
   }
 
   QuicString forward_secure_hkdf_input;
-  label_len = SbStringGetLength(QuicCryptoConfig::kForwardSecureLabel) + 1;
+  label_len = strlen(QuicCryptoConfig::kForwardSecureLabel) + 1;
   forward_secure_hkdf_input.reserve(label_len + hkdf_suffix.size());
   forward_secure_hkdf_input.append(QuicCryptoConfig::kForwardSecureLabel,
                                    label_len);
@@ -1784,7 +1784,7 @@ QuicCryptoServerConfig::ParseConfigProtobuf(
     return nullptr;
   }
   static_assert(sizeof(config->orbit) == kOrbitSize, "incorrect orbit size");
-  SbMemoryCopy(config->orbit, orbit.data(), sizeof(config->orbit));
+  memcpy(config->orbit, orbit.data(), sizeof(config->orbit));
 
   if (kexs_tags.size() != static_cast<size_t>(protobuf->key_size())) {
     QUIC_LOG(WARNING) << "Server config has " << kexs_tags.size()

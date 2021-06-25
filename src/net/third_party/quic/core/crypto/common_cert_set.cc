@@ -59,7 +59,7 @@ int Compare(QuicStringPiece a, const unsigned char* b, size_t b_len) {
   if (len > b_len) {
     len = b_len;
   }
-  int n = SbMemoryCompare(a.data(), b, len);
+  int n = memcmp(a.data(), b, len);
   if (n != 0) {
     return n;
   }
@@ -119,7 +119,7 @@ class CommonCertSetsQUIC : public CommonCertSets {
 
     for (size_t i = 0; i < common_set_hashes.size() / sizeof(uint64_t); i++) {
       uint64_t hash;
-      SbMemoryCopy(&hash, common_set_hashes.data() + i * sizeof(uint64_t),
+      memcpy(&hash, common_set_hashes.data() + i * sizeof(uint64_t),
                    sizeof(uint64_t));
 
       for (size_t j = 0; j < QUIC_ARRAYSIZE(kSets); j++) {

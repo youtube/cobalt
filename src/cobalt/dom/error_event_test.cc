@@ -77,7 +77,7 @@ class ErrorEventTest : public ::testing::Test {
         css_parser_.get(), dom_parser_.get(), fetcher_factory_.get(),
         loader_factory_.get(), NULL, NULL, NULL, NULL, NULL, NULL,
         &local_storage_database_, NULL, NULL, NULL, NULL,
-        global_environment_->script_value_factory(), NULL, NULL, url_, "",
+        global_environment_->script_value_factory(), NULL, NULL, url_, "", NULL,
         "en-US", "en", base::Callback<void(const GURL&)>(),
         base::Bind(&MockLoadCompleteCallback::Run,
                    base::Unretained(&mock_load_complete_callback_)),

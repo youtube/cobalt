@@ -98,7 +98,7 @@ void InitTrace(void) {
     return;
 
   s_trace_buffer = new TraceBuffer;
-  SbMemorySet(s_trace_buffer, 0, sizeof(*s_trace_buffer));
+  memset(s_trace_buffer, 0, sizeof(*s_trace_buffer));
 }
 
 void DestroyTrace(void) {
@@ -135,7 +135,7 @@ void Trace(const char* format, ...) {
     if (!s_trace_buffer || !s_trace_enabled)
       return;
 
-    SbMemoryCopy(s_trace_buffer->buffer[s_trace_buffer->current], line,
+    memcpy(s_trace_buffer->buffer[s_trace_buffer->current], line,
                  kEntrySize);
 
     s_trace_buffer->num_traces++;
@@ -161,9 +161,9 @@ void DumpTrace(int num_traces) {
       current += kNumberOfEntries;
 
     for (int i = 0; i < num_traces; i++) {
-      SbMemoryCopy(line, s_trace_buffer->buffer[current], kEntrySize);
+      memcpy(line, s_trace_buffer->buffer[current], kEntrySize);
       line[kEntrySize] = '\0';
-      size_t length = SbStringGetLength(line);
+      size_t length = strlen(line);
       if (length) {
         line[length] = '\n';
         line[length + 1] = '\0';

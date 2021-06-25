@@ -1,0 +1,98 @@
+# Copyright 2021 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+template("install_target") {
+  not_needed(invoker, [ "type" ])
+  content_dir = "usr/share/cobalt"
+
+  action("build_${target_name}_apk") {
+    forward_variables_from(invoker,
+                           [
+                             "installable_target_name",
+                             "testonly",
+                           ])
+    deps = [
+      ":$installable_target_name",
+      "//starboard/android/apk:apk_sources",
+    ]
+
+    target_output = "$root_out_dir/lib${installable_target_name}.so"
+    gradle_files_dir = "$root_out_dir/gradle/$installable_target_name"
+    if (is_gold) {
+      gradle_build_type = "release"
+    } else {
+      gradle_build_type = build_type
+    }
+
+    sources = [
+      "$root_out_dir/gradle/apk_sources.stamp",
+      target_output,
+    ]
+
+    outputs = [ "$root_out_dir/${installable_target_name}.apk" ]
+
+    cobalt_project_dir =
+        string_join("/",
+                    [
+                      root_build_dir,
+                      rebase_path("//starboard/android/apk", root_build_dir),
+                    ])
+    cobalt_deploy_apk = string_join("/",
+                                    [
+                                      root_build_dir,
+                                      rebase_path(outputs[0], root_build_dir),
+                                    ])
+    cobalt_content_dir =
+        string_join("/",
+                    [
+                      root_build_dir,
+                      rebase_path("$sb_install_output_dir/$content_dir",
+                                  root_build_dir),
+                    ])
+    cobalt_gradle_dir =
+        string_join("/",
+                    [
+                      root_build_dir,
+                      rebase_path(gradle_files_dir, root_build_dir),
+                    ])
+
+    script = "//starboard/build/run_bash.py"
+    bash_script =
+        rebase_path("//starboard/android/apk/cobalt-gradle.sh", root_build_dir)
+    args = [
+      bash_script,
+      "--sdk",
+      android_sdk_path,
+      "--cache",
+      cobalt_gradle_dir,
+      "--project-dir",
+      cobalt_project_dir,
+      "-P",
+      "cobaltBuildAbi=$android_abi",
+      "-P",
+      "cobaltDeployApk=$cobalt_deploy_apk",
+      "-P",
+      "cobaltContentDir=$cobalt_content_dir",
+      "-P",
+      "cobaltGradleDir=$cobalt_gradle_dir",
+      "-P",
+      "cobaltProductDir=$root_out_dir",
+      "-P",
+      "cobaltTarget=$installable_target_name",
+      "-P",
+      "enableVulkan=$enable_vulkan",
+      "assembleCobalt_$gradle_build_type",
+    ]
+  }
+}

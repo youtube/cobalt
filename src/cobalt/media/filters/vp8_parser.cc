@@ -43,7 +43,7 @@ namespace media {
     *out = _out;                                                      \
   } while (0)
 
-Vp8FrameHeader::Vp8FrameHeader() { SbMemorySet(this, 0, sizeof(*this)); }
+Vp8FrameHeader::Vp8FrameHeader() { memset(this, 0, sizeof(*this)); }
 
 Vp8Parser::Vp8Parser() : stream_(NULL), bytes_left_(0) {}
 
@@ -54,7 +54,7 @@ bool Vp8Parser::ParseFrame(const uint8_t* ptr, size_t frame_size,
   stream_ = ptr;
   bytes_left_ = frame_size;
 
-  SbMemorySet(fhdr, 0, sizeof(*fhdr));
+  memset(fhdr, 0, sizeof(*fhdr));
   fhdr->data = stream_;
   fhdr->frame_size = bytes_left_;
 
@@ -98,7 +98,7 @@ bool Vp8Parser::ParseFrameTag(Vp8FrameHeader* fhdr) {
     if (bytes_left_ < kKeyframeTagSize) return false;
 
     static const uint8_t kVp8StartCode[] = {0x9d, 0x01, 0x2a};
-    if (SbMemoryCompare(stream_, kVp8StartCode, sizeof(kVp8StartCode)) != 0)
+    if (memcmp(stream_, kVp8StartCode, sizeof(kVp8StartCode)) != 0)
       return false;
 
     stream_ += sizeof(kVp8StartCode);
@@ -206,7 +206,7 @@ bool Vp8Parser::ParseFrameHeader(Vp8FrameHeader* fhdr) {
 bool Vp8Parser::ParseSegmentationHeader(bool keyframe) {
   Vp8SegmentationHeader* shdr = &curr_segmentation_hdr_;
 
-  if (keyframe) SbMemorySet(shdr, 0, sizeof(*shdr));
+  if (keyframe) memset(shdr, 0, sizeof(*shdr));
 
   BD_READ_BOOL_OR_RETURN(&shdr->segmentation_enabled);
   if (!shdr->segmentation_enabled) return true;
@@ -255,7 +255,7 @@ bool Vp8Parser::ParseSegmentationHeader(bool keyframe) {
 bool Vp8Parser::ParseLoopFilterHeader(bool keyframe) {
   Vp8LoopFilterHeader* lfhdr = &curr_loopfilter_hdr_;
 
-  if (keyframe) SbMemorySet(lfhdr, 0, sizeof(*lfhdr));
+  if (keyframe) memset(lfhdr, 0, sizeof(*lfhdr));
 
   int type;
   BD_READ_UNSIGNED_OR_RETURN(1, &type);
@@ -288,7 +288,7 @@ bool Vp8Parser::ParseLoopFilterHeader(bool keyframe) {
 
 bool Vp8Parser::ParseQuantizationHeader(Vp8QuantizationHeader* qhdr) {
   // If any of the delta values is not present, the delta should be zero.
-  SbMemorySet(qhdr, 0, sizeof(*qhdr));
+  memset(qhdr, 0, sizeof(*qhdr));
 
   BD_READ_UNSIGNED_OR_RETURN(7, &qhdr->y_ac_qi);
 
@@ -683,24 +683,24 @@ void Vp8Parser::ResetProbs() {
   static_assert(
       sizeof(curr_entropy_hdr_.coeff_probs) == sizeof(kDefaultCoeffProbs),
       "coeff_probs_arrays_must_be_of_correct_size");
-  SbMemoryCopy(curr_entropy_hdr_.coeff_probs, kDefaultCoeffProbs,
+  memcpy(curr_entropy_hdr_.coeff_probs, kDefaultCoeffProbs,
                sizeof(curr_entropy_hdr_.coeff_probs));
 
   static_assert(sizeof(curr_entropy_hdr_.mv_probs) == sizeof(kDefaultMVProbs),
                 "mv_probs_arrays_must_be_of_correct_size");
-  SbMemoryCopy(curr_entropy_hdr_.mv_probs, kDefaultMVProbs,
+  memcpy(curr_entropy_hdr_.mv_probs, kDefaultMVProbs,
                sizeof(curr_entropy_hdr_.mv_probs));
 
   static_assert(
       sizeof(curr_entropy_hdr_.y_mode_probs) == sizeof(kDefaultYModeProbs),
       "y_probs_arrays_must_be_of_correct_size");
-  SbMemoryCopy(curr_entropy_hdr_.y_mode_probs, kDefaultYModeProbs,
+  memcpy(curr_entropy_hdr_.y_mode_probs, kDefaultYModeProbs,
                sizeof(curr_entropy_hdr_.y_mode_probs));
 
   static_assert(
       sizeof(curr_entropy_hdr_.uv_mode_probs) == sizeof(kDefaultUVModeProbs),
       "uv_probs_arrays_must_be_of_correct_size");
-  SbMemoryCopy(curr_entropy_hdr_.uv_mode_probs, kDefaultUVModeProbs,
+  memcpy(curr_entropy_hdr_.uv_mode_probs, kDefaultUVModeProbs,
                sizeof(curr_entropy_hdr_.uv_mode_probs));
 }
 
@@ -721,7 +721,7 @@ bool Vp8Parser::ParseTokenProbs(Vp8EntropyHeader* ehdr,
   }
 
   if (update_curr_probs) {
-    SbMemoryCopy(curr_entropy_hdr_.coeff_probs, ehdr->coeff_probs,
+    memcpy(curr_entropy_hdr_.coeff_probs, ehdr->coeff_probs,
                  sizeof(curr_entropy_hdr_.coeff_probs));
   }
 
@@ -733,12 +733,12 @@ bool Vp8Parser::ParseIntraProbs(Vp8EntropyHeader* ehdr, bool update_curr_probs,
   if (keyframe) {
     static_assert(sizeof(ehdr->y_mode_probs) == sizeof(kKeyframeYModeProbs),
                   "y_probs_arrays_must_be_of_correct_size");
-    SbMemoryCopy(ehdr->y_mode_probs, kKeyframeYModeProbs,
+    memcpy(ehdr->y_mode_probs, kKeyframeYModeProbs,
                  sizeof(ehdr->y_mode_probs));
 
     static_assert(sizeof(ehdr->uv_mode_probs) == sizeof(kKeyframeUVModeProbs),
                   "uv_probs_arrays_must_be_of_correct_size");
-    SbMemoryCopy(ehdr->uv_mode_probs, kKeyframeUVModeProbs,
+    memcpy(ehdr->uv_mode_probs, kKeyframeUVModeProbs,
                  sizeof(ehdr->uv_mode_probs));
   } else {
     bool intra_16x16_prob_update_flag;
@@ -748,7 +748,7 @@ bool Vp8Parser::ParseIntraProbs(Vp8EntropyHeader* ehdr, bool update_curr_probs,
         BD_READ_UNSIGNED_OR_RETURN(8, &ehdr->y_mode_probs[i]);
 
       if (update_curr_probs) {
-        SbMemoryCopy(curr_entropy_hdr_.y_mode_probs, ehdr->y_mode_probs,
+        memcpy(curr_entropy_hdr_.y_mode_probs, ehdr->y_mode_probs,
                      sizeof(curr_entropy_hdr_.y_mode_probs));
       }
     }
@@ -760,7 +760,7 @@ bool Vp8Parser::ParseIntraProbs(Vp8EntropyHeader* ehdr, bool update_curr_probs,
         BD_READ_UNSIGNED_OR_RETURN(8, &ehdr->uv_mode_probs[i]);
 
       if (update_curr_probs) {
-        SbMemoryCopy(curr_entropy_hdr_.uv_mode_probs, ehdr->uv_mode_probs,
+        memcpy(curr_entropy_hdr_.uv_mode_probs, ehdr->uv_mode_probs,
                      sizeof(curr_entropy_hdr_.uv_mode_probs));
       }
     }
@@ -784,7 +784,7 @@ bool Vp8Parser::ParseMVProbs(Vp8EntropyHeader* ehdr, bool update_curr_probs) {
   }
 
   if (update_curr_probs) {
-    SbMemoryCopy(curr_entropy_hdr_.mv_probs, ehdr->mv_probs,
+    memcpy(curr_entropy_hdr_.mv_probs, ehdr->mv_probs,
                  sizeof(curr_entropy_hdr_.mv_probs));
   }
 

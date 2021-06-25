@@ -93,7 +93,7 @@ size_t copyT(const BasicStringPiece<STR>& self,
              size_t n,
              size_t pos) {
   size_t ret = std::min(self.size() - pos, n);
-  SbMemoryCopy(buf, self.data() + pos, ret * sizeof(typename STR::value_type));
+  memcpy(buf, self.data() + pos, ret * sizeof(typename STR::value_type));
   return ret;
 }
 

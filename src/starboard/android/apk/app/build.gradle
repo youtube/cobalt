@@ -30,6 +30,7 @@ ext {
             project.hasProperty('cobaltProductDir') ? new File(cobaltProductDir).canonicalPath : ''
     cobaltContentDir =
             project.hasProperty('cobaltContentDir') ? new File(cobaltContentDir).canonicalPath : ''
+    cobaltLibraryDir = project.hasProperty('cobaltLibraryDir') ? cobaltLibraryDir : cobaltProductDir
     enableVulkan =
             project.hasProperty('enableVulkan') ? enableVulkan : 0
 
@@ -75,6 +76,7 @@ android {
                 arguments "-DCOBALT_TARGET=${cobaltTarget}"
                 arguments "-DCOBALT_PRODUCT_DIR=${cobaltProductDir}"
                 arguments "-DCOBALT_CONTENT_DIR=${cobaltContentDir}"
+                arguments "-DCOBALT_LIBRARY_DIR=${cobaltLibraryDir}"
                 arguments "-DCOBALT_PLATFORM_DEPLOY=${project.hasProperty('cobaltDeployApk')}"
                 arguments "-DENABLE_VULKAN=${enableVulkan}"
             }

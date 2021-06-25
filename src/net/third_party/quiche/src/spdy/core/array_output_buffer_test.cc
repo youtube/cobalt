@@ -8,6 +8,8 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "starboard/memory.h"
 
+#include <cstring>
+
 namespace spdy {
 namespace test {
 
@@ -33,7 +35,7 @@ TEST(ArrayOutputBufferTest, WriteAndReset) {
   ASSERT_GT(size, 1);
   ASSERT_NE(nullptr, dst);
   const int64_t written = size / 2;
-  SbMemorySet(dst, 'x', written);
+  memset(dst, 'x', written);
   buffer.AdvanceWritePtr(written);
 
   // The buffer should be partially used.

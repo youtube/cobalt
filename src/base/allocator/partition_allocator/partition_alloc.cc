@@ -235,7 +235,7 @@ bool PartitionReallocDirectMappedInPlace(PartitionRootGeneric* root,
     root->RecommitSystemPages(char_ptr + current_size, recommit_size);
 
 #if DCHECK_IS_ON()
-    SbMemorySet(char_ptr + current_size, kUninitializedByte, recommit_size);
+    memset(char_ptr + current_size, kUninitializedByte, recommit_size);
 #endif
   } else {
     // We can't perform the realloc in-place.
@@ -326,7 +326,7 @@ void* PartitionReallocGenericFlags(PartitionRootGeneric* root,
   if (new_size < copy_size)
     copy_size = new_size;
 
-  SbMemoryCopy(ret, ptr, copy_size);
+  memcpy(ret, ptr, copy_size);
   root->Free(ptr);
   return ret;
 #endif
@@ -378,7 +378,7 @@ static size_t PartitionPurgePage(internal::PartitionPage* page, bool discard) {
   // DiscardVirtualMemory makes the contents of discarded memory undefined.
   size_t last_slot = static_cast<size_t>(-1);
 #endif
-  SbMemorySet(slot_usage, 1, num_slots);
+  memset(slot_usage, 1, num_slots);
   char* ptr = reinterpret_cast<char*>(internal::PartitionPage::ToPointer(page));
   // First, walk the freelist for this page and make a bitmap of which slots
   // are not in use.
@@ -564,7 +564,7 @@ static void PartitionDumpBucketStats(PartitionBucketMemoryStats* stats_out,
       !bucket->num_full_pages)
     return;
 
-  SbMemorySet(stats_out, '\0', sizeof(*stats_out));
+  memset(stats_out, '\0', sizeof(*stats_out));
   stats_out->is_valid = true;
   stats_out->is_direct_map = false;
   stats_out->num_full_pages = static_cast<size_t>(bucket->num_full_pages);

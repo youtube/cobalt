@@ -60,13 +60,13 @@ class AudioTrack : public TrackBase {
   //
   static bool IsValidKind(const char* kind) {
     // https://www.w3.org/TR/html51/semantics-embedded-content.html#dom-audiotrack-audiotrackkind
-    return SbStringCompareAll(kind, "alternative") == 0 ||
-           SbStringCompareAll(kind, "descriptions") == 0 ||
-           SbStringCompareAll(kind, "main") == 0 ||
-           SbStringCompareAll(kind, "main-desc") == 0 ||
-           SbStringCompareAll(kind, "translation") == 0 ||
-           SbStringCompareAll(kind, "commentary") == 0 ||
-           SbStringGetLength(kind) == 0;
+    return strcmp(kind, "alternative") == 0 ||
+           strcmp(kind, "descriptions") == 0 ||
+           strcmp(kind, "main") == 0 ||
+           strcmp(kind, "main-desc") == 0 ||
+           strcmp(kind, "translation") == 0 ||
+           strcmp(kind, "commentary") == 0 ||
+           strlen(kind) == 0;
   }
 
   DEFINE_WRAPPABLE_TYPE(AudioTrack);

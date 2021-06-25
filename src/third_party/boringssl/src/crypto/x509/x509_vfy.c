@@ -750,7 +750,7 @@ static int check_hosts(X509 *x, X509_VERIFY_PARAM_ID *id) {
   }
   for (i = 0; i < n; ++i) {
     name = sk_OPENSSL_STRING_value(id->hosts, i);
-    if (X509_check_host(x, name, OPENSSL_port_strlen(name), id->hostflags, &id->peername) >
+    if (X509_check_host(x, name, strlen(name), id->hostflags, &id->peername) >
         0)
       return 1;
   }
@@ -1806,7 +1806,7 @@ int X509_cmp_time(const ASN1_TIME *ctm, OPENSSL_port_time_t *cmp_time) {
     int max_length = sizeof("YYMMDDHHMMSS+hhmm") - 1;
     if (remaining < min_length || remaining > max_length)
       return 0;
-    OPENSSL_port_memcpy(p, str, 10);
+    memcpy(p, str, 10);
     p += 10;
     str += 10;
     remaining -= 10;
@@ -1816,7 +1816,7 @@ int X509_cmp_time(const ASN1_TIME *ctm, OPENSSL_port_time_t *cmp_time) {
     int max_length = sizeof("YYYYMMDDHHMMSS.fff+hhmm") - 1;
     if (remaining < min_length || remaining > max_length)
       return 0;
-    OPENSSL_port_memcpy(p, str, 12);
+    memcpy(p, str, 12);
     p += 12;
     str += 12;
     remaining -= 12;
@@ -1892,7 +1892,7 @@ int X509_cmp_time(const ASN1_TIME *ctm, OPENSSL_port_time_t *cmp_time) {
     if (i > j)
       return 1;
   }
-  i = OPENSSL_port_strcmp(buff1, buff2);
+  i = strcmp(buff1, buff2);
   if (i == 0) /* wait a second then return younger :-) */
     return -1;
   else

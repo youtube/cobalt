@@ -3226,7 +3226,7 @@ TEST_F(SpdyNetworkTransactionTest, ServerPushMultipleDataFrame) {
   static const char kPushedData[] = "pushed payload for chunked test";
   spdy::SpdySerializedFrame stream2_body_base(
       spdy_util_.ConstructSpdyDataFrame(2, kPushedData, true));
-  const size_t kChunkSize = SbStringGetLength(kPushedData) / 4;
+  const size_t kChunkSize = strlen(kPushedData) / 4;
   spdy::SpdySerializedFrame stream2_body1(stream2_body_base.data(), kChunkSize,
                                           false);
   spdy::SpdySerializedFrame stream2_body2(stream2_body_base.data() + kChunkSize,
@@ -3280,7 +3280,7 @@ TEST_F(SpdyNetworkTransactionTest, ServerPushMultipleDataFrameInterrupted) {
   static const char kPushedData[] = "pushed payload for chunked test";
   spdy::SpdySerializedFrame stream2_body_base(
       spdy_util_.ConstructSpdyDataFrame(2, kPushedData, true));
-  const size_t kChunkSize = SbStringGetLength(kPushedData) / 4;
+  const size_t kChunkSize = strlen(kPushedData) / 4;
   spdy::SpdySerializedFrame stream2_body1(stream2_body_base.data(), kChunkSize,
                                           false);
   spdy::SpdySerializedFrame stream2_body2(stream2_body_base.data() + kChunkSize,
@@ -4177,7 +4177,7 @@ TEST_F(SpdyNetworkTransactionTest, GoAwayOnDecompressionFailure) {
   // Read HEADERS with corrupted payload.
   spdy::SpdySerializedFrame resp(
       spdy_util_.ConstructSpdyGetReply(nullptr, 0, 1));
-  SbMemorySet(resp.data() + 12, 0xcf, resp.size() - 12);
+  memset(resp.data() + 12, 0xcf, resp.size() - 12);
   MockRead reads[] = {CreateMockRead(resp, 1)};
 
   SequencedSocketData data(reads, writes);

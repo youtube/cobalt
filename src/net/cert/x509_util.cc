@@ -353,8 +353,8 @@ bool CryptoBufferEqual(const CRYPTO_BUFFER* a, const CRYPTO_BUFFER* b) {
   if (a == b)
     return true;
   return CRYPTO_BUFFER_len(a) == CRYPTO_BUFFER_len(b) &&
-         SbMemoryCompare(CRYPTO_BUFFER_data(a), CRYPTO_BUFFER_data(b),
-                         CRYPTO_BUFFER_len(a)) == 0;
+         memcmp(CRYPTO_BUFFER_data(a), CRYPTO_BUFFER_data(b),
+                CRYPTO_BUFFER_len(a)) == 0;
 }
 
 base::StringPiece CryptoBufferAsStringPiece(const CRYPTO_BUFFER* buffer) {

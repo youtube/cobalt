@@ -29,8 +29,8 @@ extern const char kContent[];
 // If not specified the default is to load the YouTube main app.
 extern const char kURL[];
 
-// Disables Cobalt updates for the app.
-extern const char kDisableUpdates[];
+// Run Evergreen Lite by loading the system image and disabling the updater.
+extern const char kEvergreenLite[];
 
 }  // namespace loader_app
 }  // namespace starboard

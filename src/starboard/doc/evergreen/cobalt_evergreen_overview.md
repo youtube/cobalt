@@ -9,6 +9,16 @@ Cobalt Evergreen is an end-to-end framework for cloud-based deployment of Cobalt
 updates without the need for supplemental Cobalt integration work on device
 platforms.
 
+There are two configurations available:
+*   Evergreen-Lite
+    *   Please read this document for general Evergreen details then see
+        Evergreen-Lite specific configuration details in
+        [cobalt_evergreen_lite.md](cobalt_evergreen_lite.md)
+*   Evergreen Full
+    *   Please continue reading below documentation for configuration details
+
+![Cobalt Evergreen Configurations](resources/cobalt_evergreen_configurations.png)
+
 For a bit of background context, as the number of Cobalt devices in the field
 increases there is a growing proliferation of version fragmentation. Many of
 these devices are unable to take advantage of the benefits of Cobalt
@@ -120,7 +130,7 @@ The following additional Starboard interfaces are necessary to implement for
 Evergreen:
 
 *   `kSbSystemPathStorageDirectory`
-    *   Dedidated location for storing Cobalt Evergreen-related binaries
+    *   Dedicated location for storing Cobalt Evergreen-related binaries
     *   This path must be writable and have at least 96MB of reserved space for
         Evergreen updates. Please see the “Platforms Requirements” section below
         for more details.
@@ -399,17 +409,17 @@ Image required for all slot configurations:
 ```
 .
 ├── content <--(kSbSystemPathContentDirectory)
-│   └── fonts <--(kSbSystemPathFontDirectory, `standard` or `limit` configuration, to be explained below)
-│   └── app
-│       └── cobalt <--(SLOT_0)
-│           ├── content <--(relative path defined in kSystemImageContentPath)
-│           │   ├── fonts <--(`minimal` configuration)
-│           │   ├── (icu) <--(only present when it needs to be updated by Cobalt Update)
-│           │   ├── licenses
-│           │   ├── ssl
-│           ├── lib
-│           │   └── libcobalt.so <--(System image version of libcobalt.so)
-│           └── manifest.json
+│   └── fonts <--(kSbSystemPathFontDirectory, `standard` or `limit` configuration, to be explained below)
+│   └── app
+│       └── cobalt <--(SLOT_0)
+│           ├── content <--(relative path defined in kSystemImageContentPath)
+│           │   ├── fonts <--(`empty` configuration)
+│           │   ├── (icu) <--(only present when it needs to be updated by Cobalt Update)
+│           │   ├── licenses
+│           │   ├── ssl
+│           ├── lib
+│           │   └── libcobalt.so <--(System image version of libcobalt.so)
+│           └── manifest.json
 └── loader_app <--(Cobalt launcher binary)
 └── crashpad_handler <--(Cobalt crash handler)
 ```
@@ -420,18 +430,18 @@ updates in an example 3-slot configuration:
 ```
 ├── .cobalt_storage <--(kSbSystemPathStorageDirectory)
     ├── cobalt_updater
-    │   └── prefs_<APP_KEY>.json
+    │   └── prefs_<APP_KEY>.json
     ├── installation_1 <--(SLOT_1 - currently unused)
     ├── installation_2 <--(SLOT_2 - contains new Cobalt version)
-    │   ├── content
-    │   │   ├── fonts <--(`minimal` configuration)
-    │   │   ├── (icu) <--(only present when it needs to be updated by Cobalt Update)
-    │   │   ├── licenses
-    │   │   ├── ssl
-    │   ├── lib
-    │   │   └── libcobalt.so <--(SLOT_2 version of libcobalt.so)
-    │   ├── manifest.fingerprint
-    │   └── manifest.json <-- (Evergreen version information of libcobalt.so under SLOT_2)
+    │   ├── content
+    │   │   ├── fonts <--(`empty` configuration)
+    │   │   ├── (icu) <--(only present when it needs to be updated by Cobalt Update)
+    │   │   ├── licenses
+    │   │   ├── ssl
+    │   ├── lib
+    │   │   └── libcobalt.so <--(SLOT_2 version of libcobalt.so)
+    │   ├── manifest.fingerprint
+    │   └── manifest.json <-- (Evergreen version information of libcobalt.so under SLOT_2)
     ├── installation_store_<APP_KEY>.pb
     └── icu (default location shared by installation slots, to be explained below)
 ```
@@ -460,13 +470,13 @@ easy way to do that is to use the `kSbSystemPathContentDirectory` to contain
 the system font directory and setting the `cobalt_font_package` to `standard` or
 `limited` in your port.
 
-Cobalt Evergreen (built by Google), will by default use the `minimal` font
-package which is around 16KB to minimize storage requirements. A separate
-`cobalt_font_package` variable is set to `minimal` in the Evergreen platform.
+Cobalt Evergreen (built by Google), will by default use the `empty` font
+package to minimize storage requirements. A separate
+`cobalt_font_package` variable is set to `empty` in the Evergreen platform.
 
 On Raspberry Pi this is:
 
-`minimal` set of fonts under:
+`empty` set of fonts under:
 ```
 <kSbSystemPathContentDirectory>/app/cobalt/content/fonts
 ```
@@ -508,13 +518,15 @@ for an example.
 Evergreen can support multiple apps that share a Cobalt binary. This is a very
 common way to save space and keep all your Cobalt apps using the latest version
 of Cobalt. We understand that there are situations where updates are only needed
-for certain apps, so we have provided a way where Cobalt Updater behavior can be
-easily configured on a per-app basis with simple loader_app command-line flags.
+for certain apps, so we have provided a way where Cobalt Updater and loader_app
+behavior can be easily configured on a per-app basis with simple command-line flags.
 
-Currently, the only configurable option for Cobalt Updater configuration is:
-* --disable_updates *Turns off updates for the specified application. Note that
-  apps disabling updates will use the Cobalt version available in the System
-  Image.*
+The configurable options for Cobalt Updater configuration are:
+* `--evergreen_lite` *Use the System Image version of Cobalt under Slot_0 and turn
+  off the updater for the specified application.*
+* `--disable_updater_module` *Stay on the current version of Cobalt that might be the
+  system image or an installed update, and turn off the updater for the
+  specified application.*
 
 Each app’s Cobalt Updater will perform an independent, regular check for new
 Cobalt Evergreen updates. Note that all apps will share the same set of slots,
@@ -543,8 +555,8 @@ existing slot. In this case, `APP_1` and `APP_2` are now using the same Cobalt
 binaries in SLOT_2.
 
 If `APP_3` has not been launched, not run through a regular Cobalt Updater
-check, or launched with the `--disable_updates` flag, it stays with its current
-configuration.
+check, or launched with the `--evergreen_lite`/`--disable_updater_module` flag,
+it stays with its current configuration.
 
 #### AFTER COBALT UPDATE
 ```
@@ -570,26 +582,27 @@ loader_app --url="<YOUR_APP_2_URL>"
 loader_app --url="<YOUR_APP_3_URL>"
 
 
-# Only APP_1 gets Evergreen Updates, APP_2 wants to use an alternate splash screen
+# Only APP_1 gets Evergreen Updates, APP_2 disables the updater and uses an alternate splash screen, APP_3 uses
+# the system image and disables the updater
 [APP_1] (Cobalt Updater ENABLED)
 [APP_2] (Cobalt Updater DISABLED)
-[APP_3] (Cobalt Updater DISABLED)
+[APP_3] (System Image loaded, Cobalt Updater DISABLED)
 
 loader_app --url="<YOUR_APP_1_URL>"
-loader_app --url="<YOUR_APP_2_URL>" --disable_updates \
+loader_app --url="<YOUR_APP_2_URL>" --disable_updater_module \
 --fallback_splash_screen_url="/<PATH_TO_APP_2>/app_2_splash_screen.html"
-loader_app --url="<YOUR_APP_3_URL>" --disable_updates
+loader_app --url="<YOUR_APP_3_URL>" --evergreen_lite
 
 
-# APP_3 is a local app, wants Cobalt Updater disabled, and uses an alternate content directory
-# (This configuration is common for System UI apps. APP_3 in this example.)
+# APP_3 is a local app, wants Cobalt Updater disabled and stays on the system image, and uses an alternate content
+# directory (This configuration is common for System UI apps. APP_3 in this example.)
 [APP_1] (Cobalt Updater ENABLED)
 [APP_2] (Cobalt Updater ENABLED)
-[APP_3] (Cobalt Updater DISABLED)
+[APP_3] (System Image loaded, Cobalt Updater DISABLED)
 
 loader_app --url="<YOUR_APP_1_URL>"
 loader_app --url="<YOUR_APP_2_URL>"
-loader_app --csp_mode=disable --allow_http --url="file:///<PATH_TO_APP_3>/index.html" --content="/<PATH_TO_APP_3>/content" --disable_updates
+loader_app --csp_mode=disable --allow_http --url="file:///<PATH_TO_APP_3>/index.html" --content="/<PATH_TO_APP_3>/content" --evergreen_lite
 ```
 
 Please see

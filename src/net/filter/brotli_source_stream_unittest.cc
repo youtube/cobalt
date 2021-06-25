@@ -96,7 +96,7 @@ TEST_F(BrotliSourceStreamTest, DecodeBrotliOneBlockSync) {
 
   EXPECT_EQ(static_cast<int>(source_data_len()), bytes_read);
   EXPECT_EQ(
-      0, SbMemoryCompare(out_data(), source_data().c_str(), source_data_len()));
+      0, memcmp(out_data(), source_data().c_str(), source_data_len()));
   EXPECT_EQ("BROTLI", brotli_stream()->Description());
 }
 
@@ -178,7 +178,7 @@ TEST_F(BrotliSourceStreamTest, DecodeBrotliTwoBlockSync) {
   int bytes_read = ReadStream(callback);
   EXPECT_EQ(static_cast<int>(source_data_len()), bytes_read);
   EXPECT_EQ(
-      0, SbMemoryCompare(out_data(), source_data().c_str(), source_data_len()));
+      0, memcmp(out_data(), source_data().c_str(), source_data_len()));
   EXPECT_EQ("BROTLI", brotli_stream()->Description());
 }
 
@@ -195,7 +195,7 @@ TEST_F(BrotliSourceStreamTest, DecodeBrotliOneBlockAsync) {
   int rv = callback.WaitForResult();
   EXPECT_EQ(static_cast<int>(source_data_len()), rv);
   EXPECT_EQ(
-      0, SbMemoryCompare(out_data(), source_data().c_str(), source_data_len()));
+      0, memcmp(out_data(), source_data().c_str(), source_data_len()));
   EXPECT_EQ("BROTLI", brotli_stream()->Description());
 }
 
@@ -219,11 +219,11 @@ TEST_F(BrotliSourceStreamTest, DecodeWithSmallBufferSync) {
     bytes_read = ReadStream(callback);
     EXPECT_LE(OK, bytes_read);
     EXPECT_GE(kSmallBufferSize, static_cast<size_t>(bytes_read));
-    SbMemoryCopy(buffer->data() + total_bytes_read, out_data(), bytes_read);
+    memcpy(buffer->data() + total_bytes_read, out_data(), bytes_read);
     total_bytes_read += bytes_read;
   } while (bytes_read > 0);
   EXPECT_EQ(source_data_len(), total_bytes_read);
-  EXPECT_EQ(0, SbMemoryCompare(buffer->data(), source_data().c_str(),
+  EXPECT_EQ(0, memcmp(buffer->data(), source_data().c_str(),
                                total_bytes_read));
   EXPECT_EQ("BROTLI", brotli_stream()->Description());
 }
@@ -251,11 +251,11 @@ TEST_F(BrotliSourceStreamTest, DecodeWithSmallBufferAsync) {
       bytes_read = callback.WaitForResult();
     }
     EXPECT_GE(static_cast<int>(kSmallBufferSize), bytes_read);
-    SbMemoryCopy(buffer->data() + total_bytes_read, out_data(), bytes_read);
+    memcpy(buffer->data() + total_bytes_read, out_data(), bytes_read);
     total_bytes_read += bytes_read;
   } while (bytes_read > 0);
   EXPECT_EQ(source_data_len(), total_bytes_read);
-  EXPECT_EQ(0, SbMemoryCompare(buffer->data(), source_data().c_str(),
+  EXPECT_EQ(0, memcmp(buffer->data(), source_data().c_str(),
                                total_bytes_read));
   EXPECT_EQ("BROTLI", brotli_stream()->Description());
 }
@@ -278,11 +278,11 @@ TEST_F(BrotliSourceStreamTest, DecodeWithOneByteBuffer) {
     bytes_read = ReadStream(callback);
     EXPECT_NE(ERR_IO_PENDING, bytes_read);
     EXPECT_GE(1, bytes_read);
-    SbMemoryCopy(buffer->data() + total_bytes_read, out_data(), bytes_read);
+    memcpy(buffer->data() + total_bytes_read, out_data(), bytes_read);
     total_bytes_read += bytes_read;
   } while (bytes_read > 0);
   EXPECT_EQ(source_data_len(), total_bytes_read);
-  EXPECT_EQ(0, SbMemoryCompare(buffer->data(), source_data().c_str(),
+  EXPECT_EQ(0, memcmp(buffer->data(), source_data().c_str(),
                                source_data_len()));
   EXPECT_EQ("BROTLI", brotli_stream()->Description());
 }
@@ -291,7 +291,7 @@ TEST_F(BrotliSourceStreamTest, DecodeWithOneByteBuffer) {
 TEST_F(BrotliSourceStreamTest, DecodeCorruptedData) {
   char corrupt_data[kDefaultBufferSize];
   int corrupt_data_len = encoded_len();
-  SbMemoryCopy(corrupt_data, encoded_buffer(), encoded_len());
+  memcpy(corrupt_data, encoded_buffer(), encoded_len());
   int pos = corrupt_data_len / 2;
   corrupt_data[pos] = !corrupt_data[pos];
 
@@ -318,11 +318,11 @@ TEST_F(BrotliSourceStreamTest, DecodeCorruptedData) {
 TEST_F(BrotliSourceStreamTest, DecodeMissingData) {
   char corrupt_data[kDefaultBufferSize];
   int corrupt_data_len = encoded_len();
-  SbMemoryCopy(corrupt_data, encoded_buffer(), encoded_len());
+  memcpy(corrupt_data, encoded_buffer(), encoded_len());
 
   int pos = corrupt_data_len / 2;
   int len = corrupt_data_len - pos - 1;
-  SbMemoryMove(&corrupt_data[pos], &corrupt_data[pos + 1], len);
+  memmove(&corrupt_data[pos], &corrupt_data[pos + 1], len);
   --corrupt_data_len;
 
   // Decode the corrupted data with filter

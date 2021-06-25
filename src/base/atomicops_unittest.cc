@@ -26,8 +26,8 @@ static void TestAtomicIncrement() {
   } s;
 
   AtomicType prev_word_value, next_word_value;
-  SbMemorySet(&prev_word_value, 0xFF, sizeof(AtomicType));
-  SbMemorySet(&next_word_value, 0xEE, sizeof(AtomicType));
+  memset(&prev_word_value, 0xFF, sizeof(AtomicType));
+  memset(&next_word_value, 0xEE, sizeof(AtomicType));
 
   s.prev_word = prev_word_value;
   s.count = 0;
@@ -164,7 +164,7 @@ static void TestAtomicIncrementBounds() {
 template <class AtomicType>
 static AtomicType TestFillValue() {
   AtomicType val = 0;
-  SbMemorySet(&val, 0xa5, sizeof(AtomicType));
+  memset(&val, 0xa5, sizeof(AtomicType));
   return val;
 }
 

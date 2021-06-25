@@ -43,7 +43,7 @@ MATCHER_P(HexEq, hexStr, "") {
 
   // Print hex string (easier to read than default GTest representation)
   *result_listener << "a.k.a. 0x" << base::HexEncode(arg.data(), arg.size());
-  return SbMemoryCompare(arg.data(), bytes.data(), bytes.size()) == 0;
+  return memcmp(arg.data(), bytes.data(), bytes.size()) == 0;
 }
 
 class MerkleTreeLeafTest : public ::testing::Test {

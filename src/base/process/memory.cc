@@ -49,11 +49,7 @@ bool UncheckedCalloc(size_t num_items, size_t size, void** result) {
   if (!UncheckedMalloc(alloc_size, result))
     return false;
 
-#if defined(STARBOARD)
-  SbMemorySet(*result, 0, alloc_size);
-#else
-  SbMemorySet(*result, 0, alloc_size);
-#endif
+  memset(*result, 0, alloc_size);
   return true;
 }
 

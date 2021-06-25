@@ -55,7 +55,7 @@ bool LeakFinderTool::IsJavascriptScope(
        it != callstack.end(); ++it) {
     const NbMemoryScopeInfo* memory_scope = *it;
     const bool is_javascript_scope =
-        SbStringFindString(memory_scope->memory_scope_name_, "Javascript");
+        strstr(memory_scope->memory_scope_name_, "Javascript");
     if (is_javascript_scope) {
       return true;
     }
@@ -259,9 +259,9 @@ const std::string* LeakFinderTool::GetOrCreateCplusPlusSymbol(
     const NbMemoryScopeInfo* memory_scope = callstack.back();
 
     const bool skip =
-        SbStringFindString(memory_scope->function_name_, "js_malloc") ||
-        SbStringFindString(memory_scope->function_name_, "js_realloc") ||
-        SbStringFindString(memory_scope->function_name_, "new_");
+        strstr(memory_scope->function_name_, "js_malloc") ||
+        strstr(memory_scope->function_name_, "js_realloc") ||
+        strstr(memory_scope->function_name_, "new_");
 
     // Skip up one callstack because we don't want to track calls to
     // allocation functions.

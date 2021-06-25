@@ -405,12 +405,12 @@ void AudioRendererImpl::GetSourceStatus(int* frames_in_buffer,
                           max_cached_frames_;
 
       if (silence_frames_to_write <= max_cached_frames_ - start_offset) {
-        SbMemorySet(frame_buffer_.data() + start_offset * bytes_per_frame_, 0,
+        memset(frame_buffer_.data() + start_offset * bytes_per_frame_, 0,
                     silence_frames_to_write * bytes_per_frame_);
       } else {
-        SbMemorySet(frame_buffer_.data() + start_offset * bytes_per_frame_, 0,
+        memset(frame_buffer_.data() + start_offset * bytes_per_frame_, 0,
                     (max_cached_frames_ - start_offset) * bytes_per_frame_);
-        SbMemorySet(
+        memset(
             frame_buffer_.data(), 0,
             (silence_frames_to_write - max_cached_frames_ + start_offset) *
                 bytes_per_frame_);
@@ -722,7 +722,7 @@ bool AudioRendererImpl::AppendAudioToFrameBuffer(bool* is_frame_buffer_full) {
   int frames_appended = 0;
 
   if (frames_to_append > max_cached_frames_ - offset_to_append) {
-    SbMemoryCopy(&frame_buffer_[offset_to_append * bytes_per_frame_],
+    memcpy(&frame_buffer_[offset_to_append * bytes_per_frame_],
                  source_buffer,
                  (max_cached_frames_ - offset_to_append) * bytes_per_frame_);
     source_buffer += (max_cached_frames_ - offset_to_append) * bytes_per_frame_;
@@ -731,7 +731,7 @@ bool AudioRendererImpl::AppendAudioToFrameBuffer(bool* is_frame_buffer_full) {
     offset_to_append = 0;
   }
 
-  SbMemoryCopy(&frame_buffer_[offset_to_append * bytes_per_frame_],
+  memcpy(&frame_buffer_[offset_to_append * bytes_per_frame_],
                source_buffer, frames_to_append * bytes_per_frame_);
   frames_appended += frames_to_append;
 

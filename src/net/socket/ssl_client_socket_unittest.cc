@@ -178,7 +178,7 @@ int ReadBufferingStreamSocket::ReadIfReady(IOBuffer* buf,
     return transport_->ReadIfReady(buf, buf_len, std::move(callback));
 
   if (read_buffer_->RemainingCapacity() == 0) {
-    SbMemoryCopy(buf->data(), read_buffer_->StartOfBuffer(),
+    memcpy(buf->data(), read_buffer_->StartOfBuffer(),
                  read_buffer_->capacity());
     read_buffer_->set_offset(0);
     return read_buffer_->capacity();
@@ -241,7 +241,7 @@ int ReadBufferingStreamSocket::DoReadComplete(int result) {
   if (user_read_buf_ == nullptr)
     return OK;
 
-  SbMemoryCopy(user_read_buf_->data(), read_buffer_->StartOfBuffer(),
+  memcpy(user_read_buf_->data(), read_buffer_->StartOfBuffer(),
                read_buffer_->capacity());
   read_buffer_->set_offset(0);
   return read_buffer_->capacity();
@@ -476,7 +476,7 @@ int FakeBlockingStreamSocket::ReadIfReady(IOBuffer* buf,
     CHECK(!should_block_read_);
     CHECK_GE(len, static_cast<int>(read_if_ready_buf_.size()));
     int rv = read_if_ready_buf_.size();
-    SbMemoryCopy(buf->data(), read_if_ready_buf_.data(), rv);
+    memcpy(buf->data(), read_if_ready_buf_.data(), rv);
     read_if_ready_buf_.clear();
     return rv;
   }
@@ -485,7 +485,7 @@ int FakeBlockingStreamSocket::ReadIfReady(IOBuffer* buf,
                 base::Bind(&FakeBlockingStreamSocket::CompleteReadIfReady,
                            base::Unretained(this), buf_copy));
   if (rv > 0)
-    SbMemoryCopy(buf->data(), buf_copy->data(), rv);
+    memcpy(buf->data(), buf_copy->data(), rv);
   if (rv == ERR_IO_PENDING)
     read_if_ready_callback_ = std::move(callback);
   return rv;
@@ -540,7 +540,7 @@ bool FakeBlockingStreamSocket::ReplaceReadResult(const std::string& data) {
   if (static_cast<size_t>(pending_read_buf_len_) < data.size())
     return false;
 
-  SbMemoryCopy(pending_read_buf_->data(), data.data(), data.size());
+  memcpy(pending_read_buf_->data(), data.data(), data.size());
   pending_read_result_ = data.size();
   return true;
 }
@@ -1135,7 +1135,7 @@ class SSLClientSocketFalseStartTest : public SSLClientSocketTest {
           static_cast<int>(arraysize(request_text) - 1);
       scoped_refptr<IOBuffer> request_buffer =
           base::MakeRefCounted<IOBuffer>(kRequestTextSize);
-      SbMemoryCopy(request_buffer->data(), request_text, kRequestTextSize);
+      memcpy(request_buffer->data(), request_text, kRequestTextSize);
 
       // Write the request.
       rv = callback.GetResult(sock->Write(request_buffer.get(),
@@ -1288,7 +1288,7 @@ class SSLClientSocketZeroRTTTest : public SSLClientSocketTest {
   int WriteAndWait(base::StringPiece request) {
     scoped_refptr<IOBuffer> request_buffer =
         base::MakeRefCounted<IOBuffer>(request.size());
-    SbMemoryCopy(request_buffer->data(), request.data(), request.size());
+    memcpy(request_buffer->data(), request.data(), request.size());
     return callback_.GetResult(
         ssl_socket_->Write(request_buffer.get(), request.size(),
                            callback_.callback(), TRAFFIC_ANNOTATION_FOR_TESTS));
@@ -1522,7 +1522,7 @@ TEST_P(SSLClientSocketReadTest, Read) {
   const char request_text[] = "GET / HTTP/1.0\r\n\r\n";
   scoped_refptr<IOBuffer> request_buffer =
       base::MakeRefCounted<IOBuffer>(base::size(request_text) - 1);
-  SbMemoryCopy(request_buffer->data(), request_text,
+  memcpy(request_buffer->data(), request_text,
                arraysize(request_text) - 1);
 
   rv = callback.GetResult(
@@ -1614,7 +1614,7 @@ TEST_P(SSLClientSocketReadTest, Read_WithSynchronousError) {
       static_cast<int>(arraysize(request_text) - 1);
   scoped_refptr<IOBuffer> request_buffer =
       base::MakeRefCounted<IOBuffer>(kRequestTextSize);
-  SbMemoryCopy(request_buffer->data(), request_text, kRequestTextSize);
+  memcpy(request_buffer->data(), request_text, kRequestTextSize);
 
   rv = callback.GetResult(sock->Write(request_buffer.get(), kRequestTextSize,
                                       callback.callback(),
@@ -1671,7 +1671,7 @@ TEST_F(SSLClientSocketTest, Write_WithSynchronousError) {
       static_cast<int>(arraysize(request_text) - 1);
   scoped_refptr<IOBuffer> request_buffer =
       base::MakeRefCounted<IOBuffer>(kRequestTextSize);
-  SbMemoryCopy(request_buffer->data(), request_text, kRequestTextSize);
+  memcpy(request_buffer->data(), request_text, kRequestTextSize);
 
   // Simulate an unclean/forcible shutdown on the underlying socket.
   // However, simulate this error asynchronously.
@@ -1743,7 +1743,7 @@ TEST_F(SSLClientSocketTest, Write_WithSynchronousErrorNoRead) {
       static_cast<int>(arraysize(request_text) - 1);
   scoped_refptr<IOBuffer> request_buffer =
       base::MakeRefCounted<IOBuffer>(kRequestTextSize);
-  SbMemoryCopy(request_buffer->data(), request_text, kRequestTextSize);
+  memcpy(request_buffer->data(), request_text, kRequestTextSize);
 
   // This write should complete synchronously, because the TLS ciphertext
   // can be created and placed into the outgoing buffers independent of the
@@ -1932,7 +1932,7 @@ TEST_P(SSLClientSocketReadTest, Read_WithWriteError) {
       static_cast<int>(arraysize(request_text) - 1);
   scoped_refptr<IOBuffer> request_buffer =
       base::MakeRefCounted<IOBuffer>(kRequestTextSize);
-  SbMemoryCopy(request_buffer->data(), request_text, kRequestTextSize);
+  memcpy(request_buffer->data(), request_text, kRequestTextSize);
 
   rv = callback.GetResult(sock->Write(request_buffer.get(), kRequestTextSize,
                                       callback.callback(),
@@ -2113,7 +2113,7 @@ TEST_P(SSLClientSocketReadTest, Read_SmallChunks) {
   const char request_text[] = "GET / HTTP/1.0\r\n\r\n";
   scoped_refptr<IOBuffer> request_buffer =
       base::MakeRefCounted<IOBuffer>(base::size(request_text) - 1);
-  SbMemoryCopy(request_buffer->data(), request_text,
+  memcpy(request_buffer->data(), request_text,
                arraysize(request_text) - 1);
 
   TestCompletionCallback callback;
@@ -2153,7 +2153,7 @@ TEST_P(SSLClientSocketReadTest, Read_ManySmallRecords) {
   const char request_text[] = "GET /ssl-many-small-records HTTP/1.0\r\n\r\n";
   scoped_refptr<IOBuffer> request_buffer =
       base::MakeRefCounted<IOBuffer>(base::size(request_text) - 1);
-  SbMemoryCopy(request_buffer->data(), request_text,
+  memcpy(request_buffer->data(), request_text,
                arraysize(request_text) - 1);
 
   rv = callback.GetResult(
@@ -2188,7 +2188,7 @@ TEST_P(SSLClientSocketReadTest, Read_Interrupted) {
   const char request_text[] = "GET / HTTP/1.0\r\n\r\n";
   scoped_refptr<IOBuffer> request_buffer =
       base::MakeRefCounted<IOBuffer>(base::size(request_text) - 1);
-  SbMemoryCopy(request_buffer->data(), request_text,
+  memcpy(request_buffer->data(), request_text,
                arraysize(request_text) - 1);
 
   TestCompletionCallback callback;
@@ -2225,7 +2225,7 @@ TEST_P(SSLClientSocketReadTest, Read_FullLogging) {
   const char request_text[] = "GET / HTTP/1.0\r\n\r\n";
   scoped_refptr<IOBuffer> request_buffer =
       base::MakeRefCounted<IOBuffer>(base::size(request_text) - 1);
-  SbMemoryCopy(request_buffer->data(), request_text,
+  memcpy(request_buffer->data(), request_text,
                arraysize(request_text) - 1);
 
   rv = callback.GetResult(
@@ -2355,32 +2355,32 @@ TEST_F(SSLClientSocketTest, ExportKeyingMaterial) {
   const char kKeyingLabel1[] = "client-socket-test-1";
   const char kKeyingContext1[] = "";
   unsigned char client_out1[kKeyingMaterialSize];
-  SbMemorySet(client_out1, 0, sizeof(client_out1));
+  memset(client_out1, 0, sizeof(client_out1));
   rv = sock_->ExportKeyingMaterial(kKeyingLabel1, false, kKeyingContext1,
                                    client_out1, sizeof(client_out1));
   EXPECT_EQ(rv, OK);
 
   const char kKeyingLabel2[] = "client-socket-test-2";
   unsigned char client_out2[kKeyingMaterialSize];
-  SbMemorySet(client_out2, 0, sizeof(client_out2));
+  memset(client_out2, 0, sizeof(client_out2));
   rv = sock_->ExportKeyingMaterial(kKeyingLabel2, false, kKeyingContext1,
                                    client_out2, sizeof(client_out2));
   EXPECT_EQ(rv, OK);
-  EXPECT_NE(SbMemoryCompare(client_out1, client_out2, kKeyingMaterialSize), 0);
+  EXPECT_NE(memcmp(client_out1, client_out2, kKeyingMaterialSize), 0);
 
   const char kKeyingContext2[] = "context";
   rv = sock_->ExportKeyingMaterial(kKeyingLabel1, true, kKeyingContext2,
                                    client_out2, sizeof(client_out2));
   EXPECT_EQ(rv, OK);
-  EXPECT_NE(SbMemoryCompare(client_out1, client_out2, kKeyingMaterialSize), 0);
+  EXPECT_NE(memcmp(client_out1, client_out2, kKeyingMaterialSize), 0);
 
   // Using an empty context should give different key material from not using a
   // context at all.
-  SbMemorySet(client_out2, 0, sizeof(client_out2));
+  memset(client_out2, 0, sizeof(client_out2));
   rv = sock_->ExportKeyingMaterial(kKeyingLabel1, true, kKeyingContext1,
                                    client_out2, sizeof(client_out2));
   EXPECT_EQ(rv, OK);
-  EXPECT_NE(SbMemoryCompare(client_out1, client_out2, kKeyingMaterialSize), 0);
+  EXPECT_NE(memcmp(client_out1, client_out2, kKeyingMaterialSize), 0);
 }
 
 // Verifies that SSLClientSocket::ClearSessionCache can be called without
@@ -2826,7 +2826,7 @@ TEST_F(SSLClientSocketTest, ReuseStates) {
   const size_t kRequestLen = arraysize(kRequestText) - 1;
   scoped_refptr<IOBuffer> request_buffer =
       base::MakeRefCounted<IOBuffer>(kRequestLen);
-  SbMemoryCopy(request_buffer->data(), kRequestText, kRequestLen);
+  memcpy(request_buffer->data(), kRequestText, kRequestLen);
 
   TestCompletionCallback callback;
   rv = callback.GetResult(sock_->Write(request_buffer.get(), kRequestLen,
@@ -2905,7 +2905,7 @@ TEST_F(SSLClientSocketTest, ReusableAfterWrite) {
   const size_t kRequestLen = arraysize(kRequestText) - 1;
   scoped_refptr<IOBuffer> request_buffer =
       base::MakeRefCounted<IOBuffer>(kRequestLen);
-  SbMemoryCopy(request_buffer->data(), kRequestText, kRequestLen);
+  memcpy(request_buffer->data(), kRequestText, kRequestLen);
 
   // Although transport writes are blocked, SSLClientSocketImpl completes the
   // outer Write operation.
@@ -3503,7 +3503,7 @@ TEST_F(SSLClientSocketTest, SendGoodCert) {
 HashValueVector MakeHashValueVector(uint8_t value) {
   HashValueVector out;
   HashValue hash(HASH_VALUE_SHA256);
-  SbMemorySet(hash.data(), value, hash.size());
+  memset(hash.data(), value, hash.size());
   out.push_back(hash);
   return out;
 }

@@ -14,6 +14,7 @@
 
 #include "starboard/loader_app/app_key_files.h"
 
+#include <cstring>
 #include <vector>
 
 #include "starboard/common/file.h"
@@ -29,7 +30,7 @@ namespace {
 const char kFilePrefix[] = "app_key_";
 const char kGoodFileSuffix[] = ".good";
 const char kBadFileSuffix[] = ".bad";
-}
+}  // namespace
 
 std::string GetAppKeyFilePathWithSuffix(const std::string& dir,
                                         const std::string& app_key,
@@ -77,8 +78,7 @@ bool EndsWith(const std::string& s, const std::string& suffix) {
   if (s.size() < suffix.size()) {
     return false;
   }
-  return SbStringCompareAll(s.c_str() + (s.size() - suffix.size()),
-                            suffix.c_str()) == 0;
+  return strcmp(s.c_str() + (s.size() - suffix.size()), suffix.c_str()) == 0;
 }
 }  // namespace
 
@@ -94,8 +94,7 @@ bool AnyGoodAppKeyFile(const std::string& dir) {
 #if SB_API_VERSION >= 12
   std::vector<char> filename(kSbFileMaxName);
   while (SbDirectoryGetNext(directory, filename.data(), filename.size())) {
-    if (!SbStringCompare(kFilePrefix, filename.data(),
-                         sizeof(kFilePrefix) - 1) &&
+    if (!strncmp(kFilePrefix, filename.data(), sizeof(kFilePrefix) - 1) &&
         EndsWith(filename.data(), kGoodFileSuffix)) {
       found = true;
       break;
@@ -104,7 +103,7 @@ bool AnyGoodAppKeyFile(const std::string& dir) {
 #else
   SbDirectoryEntry entry;
   while (SbDirectoryGetNext(directory, &entry)) {
-    if (!SbStringCompare(kFilePrefix, entry.name, sizeof(kFilePrefix) - 1) &&
+    if (!strncmp(kFilePrefix, entry.name, sizeof(kFilePrefix) - 1) &&
         EndsWith(entry.name, kGoodFileSuffix)) {
       found = true;
       break;

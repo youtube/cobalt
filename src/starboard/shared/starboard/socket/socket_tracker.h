@@ -39,7 +39,7 @@ inline bool operator<(const SbSocketAddress& left,
   }
 
   int bytes_to_compare = left.type == kSbSocketAddressTypeIpv4 ? 4 : 16;
-  int result = SbMemoryCompare(left.address, right.address, bytes_to_compare);
+  int result = memcmp(left.address, right.address, bytes_to_compare);
   if (result < 0) {
     return true;
   }

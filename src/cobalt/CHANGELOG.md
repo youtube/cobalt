@@ -4,15 +4,24 @@ This document records all notable changes made to Cobalt since the last release.
 
 ## Version 22
  - **C++14 is required to compile Cobalt 22.**
+
    Cobalt code now requires C++14-compatible toolchains to compile. This
    requirement helps us stay updated with C++ standards and integrate
    third-party libraries much easier.
+   C++17 support is recommended, but not yet required to compile Cobalt.
+
+ - **Updated lifecycle handling to support concealed mode.**
+
+   Cobalt now supports a "concealed" state when used with Starboard 13 or later.
+   See (doc/lifecycle.md)[doc/lifecycle.md] for more information.
 
  - **SpiderMonkey(mozjs-45) JavaScript Engine library is removed.**
+
    As stated last year, V8 should be the choice of JavaScript engine on
    every platform. SpiderMonkey is now completely removed.
 
  - **V8 JavaScript Engine is rebased to version v8.8**
+
    We rebased V8 from v7.7 in Cobalt 21 to v8.8 in Cobalt 22. V8 8.8 provides a
    new feature, pointer compression, that reduces JavaScript heap memory usage by
    60% on 64-bit platforms(arm64 and x64), saving about 5MB on startup and more
@@ -20,6 +29,7 @@ This document records all notable changes made to Cobalt since the last release.
    platform uses 64-bit CPU architecture.
 
  - **window.navigator.onLine property and its change events are added.**
+
    To improve user experience during network connect/disconnect situations
    and enable auto-reconnect, Cobalt added web APIs including Navigator.onLine
    property and its change events. To enable using the property and events
@@ -29,15 +39,87 @@ This document records all notable changes made to Cobalt since the last release.
    kSbEventTypeOsNetworkDisconnected Starboard event,
    kSbEventTypeOsNetworkConnected Starboard event.
 
+ - **Added support for User Agent Client Hints.**
+
+   User agent client hints (https://wicg.github.io/ua-client-hints/#interface)
+   is now supported. This does not impact the existing User Agent string.
+
+ - **Added support for Performance Timeline Web API.**
+
+   To facilitate metrics for Cobalt performance, the following web APIs are now
+   supported:
+    - https://www.w3.org/TR/performance-timeline/#the-performanceentry-interface
+    - https://www.w3.org/TR/performance-timeline/#extensions-to-the-performance-interface
+    - https://www.w3.org/TR/performance-timeline/#the-performanceobserver-interface
+    - https://www.w3.org/TR/performance-timeline/#performanceobserverinit-dictionary
+    - https://www.w3.org/TR/performance-timeline/#performanceobserverentrylist-interface
+
+   Additionally, a subset of the following web API is also supported:
+    - https://w3c.github.io/resource-timing/#resources-included-in-the-performanceresourcetiming-interface
+
+ - **Added support for TextEncoder and TextDecoder Web APIs.**
+
+   The following Web APIs are now supported:
+    - https://encoding.spec.whatwg.org/#interface-textencoder
+    - https://encoding.spec.whatwg.org/#interface-textdecoder
+
+ - **Added support for rendering HTML elements with different border styles.**
+
+   Previously, Cobalt only supported borders on elements which used the same
+   border style (e.g. solid) for all sides. This is now fixed.
+
+ - **ICU rebased to version 68.**
+
+   Additionally, ICU data is now packaged as a single file instead of individual
+   files for each locale; this saves about 2MB of storage space compared to the
+   previous version.
+
+ - **Fixed instances where system ICU headers were included.**
+
+   To maintain consistency, only ICU headers from the included version of ICU
+   are used.
+
+ - **Added support for multiple splash screens.**
+
+   See [doc/splash_screen.md](doc/splash_screen.md).
+
+ - **Added Cobalt extension to handle Media Session Web API.**
+
+   This new Cobalt extension allows platform-specific support for Media Session
+   controls.
+
+ - **Deprecated CobaltExtensionConfigurationApi::CobaltJsGarbageCollectionThresholdInBytes.**
+
+   This configuration was only relevant for SpiderMonkey, which has been
+   removed.
+
+ - **Removed Cobalt's custom window.console object.**
+
+   This was only used with SpiderMonkey. V8 has its own handling of the console
+   object so the Cobalt version is no longer needed.
+
+ - **Deprecated depot_tools.**
+
+   Cobalt now uses only built-in git commands for development, and the
+   [setup guide](https://cobalt.dev/development/setup-linux.html) has been changed to reflect that.
+
+ - **Started migration from GYP to GN.**
+
+   The starboard layer can now be built using GN.
+   See `starboard/build/doc/migrating_gyp_to_gn.md`.
+
+
 ## Version 21
 
  - **SpiderMonkey(mozjs-45) JavaScript Engine is no longer supported.**
+
    We will only support V8 from now on. For platforms without Just-In-Time
    compilation ability, please use JIT-less V8 instead. Overriding
    `cobalt_enable_jit` environment variable in `gyp_configuration.py` will
    switch V8 to use JIT-less mode. V8 requires at least Starboard version 10.
 
  - **Runtime V8 snapshot is no longer supported**
+
    V8 has deprecated runtime snapshot and mandated build-time snapshot, Cobalt
    adopts this change as well. Build-time snapshot greatly improves first
    startup speed after install and is required for JIT-less mode.
@@ -146,6 +228,10 @@ This document records all notable changes made to Cobalt since the last release.
    the comment of `SbMediaCanPlayMimeAndKeySystem()` in `media.h` for more
    details.
 
+ - **Added custom web APIs to query memory used by media source extensions.**
+
+   See `cobalt/dom/memory_info.idl` for details.
+
  - **Added support for controlling shutdown behavior of graphics system.**
 
    Cobalt normally clears the framebuffer to opaque black on suspend or exit.
@@ -169,7 +255,6 @@ This document records all notable changes made to Cobalt since the last release.
    Platforms can provide javascript code caching by implementing
    CobaltExtensionJavaScriptCacheApi.
 
-
  - **Added support for UrlFetcher observer.**
 
    Platforms can implement UrlFetcher observer for performance tracing by
@@ -179,6 +264,13 @@ This document records all notable changes made to Cobalt since the last release.
 
    Platforms can implement CobaltExtensionUpdaterNotificationApi to
    receive notifications from the Cobalt Evergreen Updater.
+
+ - **Improvements and Bugfixes**
+
+   - Fixed rare crash in mouse/pointer event dispatch.
+   - Fixed threading bug with webdriver screenshot handling.
+   - Improved extraction of optional element ID in webdriver moveto handling.
+   - Fixed getClientBoundingRect to factor in scrollLeft / scrollTop.
 
 
 ## Version 20

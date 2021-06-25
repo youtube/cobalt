@@ -1495,7 +1495,7 @@ skcms_Matrix3x3 skcms_Matrix3x3_concat(const skcms_Matrix3x3* A, const skcms_Mat
     return m;
 }
 
-#if defined(__clang__) && (__clang_major__ * 1000 + __clang_minor__) >= 3007
+#if defined(__clang__)
     [[clang::no_sanitize("float-divide-by-zero")]]  // Checked for by classify() on the way out.
 #endif
 bool skcms_TransferFunction_invert(const skcms_TransferFunction* src, skcms_TransferFunction* dst) {

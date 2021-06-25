@@ -240,7 +240,7 @@ bool WebSocketImpl::SendHelper(const net::WebSocketFrameHeader::OpCode op_code,
                                const char *data, std::size_t length,
                                std::string *error_message) {
   scoped_refptr<net::IOBuffer> io_buffer(new net::IOBuffer(length));
-  SbMemoryCopy(io_buffer->data(), data, length);
+  memcpy(io_buffer->data(), data, length);
 
   if (delegate_task_runner_->BelongsToCurrentThread()) {
     SendOnDelegateThread(op_code, std::move(io_buffer), length);
@@ -275,11 +275,12 @@ void WebSocketImpl::ProcessSendQueue() {
     SendQueueMessage message = send_queue_.front();
     size_t current_message_length = message.length - sent_size_of_top_message_;
     bool final = false;
+    bool continuation = sent_size_of_top_message_ > 0 ? true : false;
     if (current_quota_ < static_cast<int64_t>(current_message_length)) {
       // quota is not enough to send the top message.
       scoped_refptr<net::IOBuffer> new_io_buffer(
           new net::IOBuffer(static_cast<size_t>(current_quota_)));
-      SbMemoryCopy(new_io_buffer->data(),
+      memcpy(new_io_buffer->data(),
                    message.io_buffer->data() + sent_size_of_top_message_,
                    current_quota_);
       sent_size_of_top_message_ += current_quota_;
@@ -294,7 +295,10 @@ void WebSocketImpl::ProcessSendQueue() {
       current_quota_ -= current_message_length;
     }
     auto channel_state = websocket_channel_->SendFrame(
-        final, message.op_code, message.io_buffer, current_message_length);
+        final,
+        continuation ? net::WebSocketFrameHeader::kOpCodeContinuation
+                     : message.op_code,
+        message.io_buffer, current_message_length);
     if (channel_state == net::WebSocketChannel::CHANNEL_DELETED) {
       websocket_channel_.reset();
     }

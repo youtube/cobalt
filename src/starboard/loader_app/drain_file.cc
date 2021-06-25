@@ -15,11 +15,13 @@
 #include "starboard/loader_app/drain_file.h"
 
 #include <algorithm>
+#include <cstring>
 #include <string>
 #include <vector>
 
 #include "starboard/common/file.h"
 #include "starboard/common/log.h"
+#include "starboard/common/string.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/directory.h"
 #include "starboard/string.h"
@@ -82,20 +84,18 @@ std::vector<std::string> FindAllWithPrefix(const std::string& dir,
   std::vector<char> filename(kSbFileMaxName);
 
   while (SbDirectoryGetNext(slot, filename.data(), filename.size())) {
-    if (!SbStringCompareAll(filename.data(), ".") ||
-        !SbStringCompareAll(filename.data(), ".."))
+    if (!strcmp(filename.data(), ".") || !strcmp(filename.data(), ".."))
       continue;
-    if (!SbStringCompare(prefix.data(), filename.data(), prefix.size()))
+    if (!strncmp(prefix.data(), filename.data(), prefix.size()))
       filenames.push_back(std::string(filename.data()));
   }
 #else
   SbDirectoryEntry entry;
 
   while (SbDirectoryGetNext(slot, &entry)) {
-    if (!SbStringCompareAll(entry.name, ".") ||
-        !SbStringCompareAll(entry.name, ".."))
+    if (!strcmp(entry.name, ".") || !strcmp(entry.name, ".."))
       continue;
-    if (!SbStringCompare(prefix.data(), entry.name, prefix.size()))
+    if (!strncmp(prefix.data(), entry.name, prefix.size()))
       filenames.push_back(std::string(entry.name));
   }
 #endif
@@ -130,15 +130,15 @@ void Rank(const char* dir, char* app_key, size_t len) {
     const std::string left_app_key = ExtractAppKey(left);
     const std::string right_app_key = ExtractAppKey(right);
 
-    return SbStringCompare(left_app_key.c_str(), right_app_key.c_str(),
-                           right_app_key.size()) < 0;
+    return strncmp(left_app_key.c_str(), right_app_key.c_str(),
+                   right_app_key.size()) < 0;
   };
 
   std::sort(filenames.begin(), filenames.end(), compare_filenames);
 
   const std::string& ranking_app_key = ExtractAppKey(filenames.front());
 
-  if (SbStringCopy(app_key, ranking_app_key.c_str(), len) >= len)
+  if (starboard::strlcpy(app_key, ranking_app_key.c_str(), len) >= len)
     SB_LOG(ERROR) << "Returned value was truncated";
 }
 
@@ -192,7 +192,7 @@ bool RankAndCheck(const char* dir, const char* app_key) {
 
   Rank(dir, ranking_app_key.data(), ranking_app_key.size());
 
-  return !SbStringCompareAll(ranking_app_key.data(), app_key);
+  return !strcmp(ranking_app_key.data(), app_key);
 }
 
 bool Remove(const char* dir, const char* app_key) {
@@ -239,7 +239,7 @@ void PrepareDirectory(const char* dir, const char* app_key) {
   const std::vector<std::string> entries = FindAllWithPrefix(dir, "");
 
   for (const auto& entry : entries) {
-    if (!SbStringCompare(entry.c_str(), prefix.c_str(), prefix.size()))
+    if (!strncmp(entry.c_str(), prefix.c_str(), prefix.size()))
       continue;
 
     std::string path(dir);

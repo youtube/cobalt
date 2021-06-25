@@ -32,7 +32,7 @@ class DiscardableMemoryImpl : public DiscardableMemory {
     is_locked_ = false;
     // Force eviction to catch clients not correctly checking the return value
     // of Lock().
-    SbMemorySet(data_.get(), 0, size_);
+    memset(data_.get(), 0, size_);
   }
 
   void* data() const override {

@@ -30,8 +30,8 @@ class CobaltAndroidConfiguration(cobalt_configuration.CobaltConfiguration):
       if os.path.basename(include) == 'configuration.gypi':
         return includes
 
-    shared_gypi_path = os.path.join(os.path.dirname(__file__),
-                                    'configuration.gypi')
+    shared_gypi_path = os.path.join(
+        os.path.dirname(__file__), 'configuration.gypi')
     if os.path.isfile(shared_gypi_path):
       includes.append(shared_gypi_path)
     return includes
@@ -47,13 +47,20 @@ class CobaltAndroidConfiguration(cobalt_configuration.CobaltConfiguration):
 
   def GetTestEnvVariables(self):
     return {
-        'base_unittests': {'ASAN_OPTIONS': 'detect_leaks=0'},
-        'crypto_unittests': {'ASAN_OPTIONS': 'detect_leaks=0'},
-        'net_unittests': {'ASAN_OPTIONS': 'detect_leaks=0'}
+        'base_unittests': {
+            'ASAN_OPTIONS': 'detect_leaks=0'
+        },
+        'crypto_unittests': {
+            'ASAN_OPTIONS': 'detect_leaks=0'
+        },
+        'net_unittests': {
+            'ASAN_OPTIONS': 'detect_leaks=0'
+        }
     }
 
   def GetWebPlatformTestFilters(self):
-    filters = super(CobaltAndroidConfiguration, self).GetWebPlatformTestFilters()
+    filters = super(CobaltAndroidConfiguration,
+                    self).GetWebPlatformTestFilters()
     filters += [
         # Test Name (content-security-policy/media-src/media-src-allowed.html):
         # Allowed media src
@@ -71,6 +78,7 @@ class CobaltAndroidConfiguration(cobalt_configuration.CobaltConfiguration):
           # have the update (Emoji 11.0) NotoColorEmoji.ttf installed.
           'CSS3FontsLayoutTests/Layout.Test/color_emojis_should_render_properly'
       ],
+      'crypto_unittests': ['P224.*'],
       'renderer_test': [
           # Instead of returning an error when allocating too much texture
           # memory, Android instead just terminates the process.  Since this
@@ -87,5 +95,6 @@ class CobaltAndroidConfiguration(cobalt_configuration.CobaltConfiguration):
           #
           # See: starboard/android/shared/file_internal.cc.
           'ZipTest.Zip*',
+          'ZipReaderTest.ExtractToFileAsync_RegularFile',
       ],
   }

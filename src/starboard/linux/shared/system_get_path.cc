@@ -86,7 +86,7 @@ bool GetExecutablePath(char* out_path, int path_size) {
     return false;
   }
 
-  SbStringCopy(out_path, path.data(), path_size);
+  starboard::strlcpy(out_path, path.data(), path_size);
   return true;
 }
 
@@ -105,8 +105,8 @@ bool GetEvergreenContentPathOverride(char* out_path, int path_size) {
     return true;
   }
 
-  if (SbStringCopy(out_path, evergreen_config->content_path_.c_str(),
-                   path_size) >= path_size) {
+  if (starboard::strlcpy(out_path, evergreen_config->content_path_.c_str(),
+                         path_size) >= path_size) {
     return false;
   }
   return true;
@@ -124,7 +124,7 @@ bool GetExecutableDirectory(char* out_path, int path_size) {
   }
 
   char* last_slash =
-      const_cast<char *>(SbStringFindLastCharacter(out_path, '/'));
+      const_cast<char *>(strrchr(out_path, '/'));
   if (!last_slash) {
     return false;
   }
@@ -140,8 +140,8 @@ bool GetExecutableName(char* out_path, int path_size) {
     return false;
   }
 
-  const char* last_slash = SbStringFindLastCharacter(path.data(), '/');
-  if (SbStringCopy(out_path, last_slash + 1, path_size) >= path_size) {
+  const char* last_slash = strrchr(path.data(), '/');
+  if (starboard::strlcpy(out_path, last_slash + 1, path_size) >= path_size) {
     return false;
   }
   return true;
@@ -169,7 +169,7 @@ bool GetContentDirectory(char* out_path, int path_size) {
   if (!GetExecutableDirectory(out_path, path_size)) {
     return false;
   }
-  if (SbStringConcat(out_path, "/content", path_size) >= path_size) {
+  if (starboard::strlcat(out_path, "/content", path_size) >= path_size) {
     return false;
   }
   return true;
@@ -202,7 +202,7 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
       if (!GetCacheDirectory(path.data(), kPathSize)) {
         return false;
       }
-      if (SbStringConcat(path.data(), "/cobalt", kPathSize) >= kPathSize) {
+      if (starboard::strlcat(path.data(), "/cobalt", kPathSize) >= kPathSize) {
         return false;
       }
       if (!SbDirectoryCreate(path.data())) {
@@ -215,7 +215,7 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
                            kPathSize)) {
         return false;
       }
-      if (SbStringConcat(path.data(), "/log", kPathSize) >= kPathSize) {
+      if (starboard::strlcat(path.data(), "/log", kPathSize) >= kPathSize) {
         return false;
       }
       SbDirectoryCreate(path.data());
@@ -241,7 +241,7 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
       if (!GetContentDirectory(path.data(), kPathSize)) {
         return false;
       }
-      if (SbStringConcat(path.data(), "/fonts", kPathSize) >= kPathSize) {
+      if (starboard::strlcat(path.data(), "/fonts", kPathSize) >= kPathSize) {
         return false;
       }
       break;
@@ -263,11 +263,11 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
       return false;
   }
 
-  int length = SbStringGetLength(path.data());
+  int length = strlen(path.data());
   if (length < 1 || length > path_size) {
     return false;
   }
 
-  SbStringCopy(out_path, path.data(), path_size);
+  starboard::strlcpy(out_path, path.data(), path_size);
   return true;
 }

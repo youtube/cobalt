@@ -32,6 +32,8 @@
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/memory.h"
 
+#include <cstring>
+
 // TODO: Detect Neon on ARM platform and enable SIMD.
 #if SB_IS(ARCH_X86) || SB_IS(ARCH_X64)
 #define USE_SIMD 1
@@ -117,7 +119,7 @@ void MultiChannelDotProduct(const scoped_refptr<DecodedAudio>& a,
   frame_offset_a += last_index;
   frame_offset_b += last_index;
 #else   // defined(USE_SIMD)
-  SbMemorySet(dot_product, 0, sizeof(*dot_product) * a->channels());
+  memset(dot_product, 0, sizeof(*dot_product) * a->channels());
 #endif  // defined(USE_SIMD)
 
   for (int k = 0; k < a->channels(); ++k) {
@@ -254,7 +256,7 @@ int DecimatedSearch(int decimation,
       optimal_index = n;
       best_similarity = similarity[2];
     }
-    SbMemoryMove(similarity, &similarity[1], 2 * sizeof(*similarity));
+    memmove(similarity, &similarity[1], 2 * sizeof(*similarity));
   }
   return optimal_index;
 }

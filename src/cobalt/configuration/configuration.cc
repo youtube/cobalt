@@ -34,7 +34,7 @@ Configuration::Configuration() {
       SbSystemGetExtension(kCobaltExtensionConfigurationName));
   if (configuration_api_) {
     // Verify it's the extension needed.
-    if (SbStringCompareAll(configuration_api_->name,
+    if (strcmp(configuration_api_->name,
                            kCobaltExtensionConfigurationName) != 0 ||
         configuration_api_->version < 1) {
       LOG(WARNING) << "Not using supplied cobalt configuration extension: "
@@ -436,24 +436,6 @@ float Configuration::CobaltImageCacheCapacityMultiplierWhenPlayingVideo() {
   return COBALT_IMAGE_CACHE_CAPACITY_MULTIPLIER_WHEN_PLAYING_VIDEO;
 #else
   return 1.0f;
-#endif
-}
-
-int Configuration::CobaltJsGarbageCollectionThresholdInBytes() {
-  if (configuration_api_) {
-    return configuration_api_->CobaltJsGarbageCollectionThresholdInBytes();
-  }
-#if SB_API_VERSION >= 12
-#if defined(COBALT_JS_GARBAGE_COLLECTION_THRESHOLD_IN_BYTES)
-// NOLINTNEXTLINE(whitespace/line_length)
-#error "COBALT_JS_GARBAGE_COLLECTION_THRESHOLD_IN_BYTES is deprecated after Starboard version 12."
-// NOLINTNEXTLINE(whitespace/line_length)
-#error "Implement CobaltExtensionConfigurationApi::CobaltJsGarbageCollectionThresholdInBytes()"
-#error "instead."
-#endif
-  return 8 * 1024 * 1024;
-#else
-  return 8 * 1024 * 1024;
 #endif
 }
 

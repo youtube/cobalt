@@ -25,7 +25,7 @@
 
 #if SB_API_VERSION >= 12
 
-// Determines the threshhold of allocation size that should be done with mmap
+// Determines the threshold of allocation size that should be done with mmap
 // (if available), rather than allocated within the core heap.
 extern const size_t kSbDefaultMmapThreshold;
 

@@ -45,7 +45,7 @@ class NET_EXPORT_PRIVATE Bitmap {
 
   // Sets all the bits to true or false.
   void SetAll(bool value) {
-    SbMemorySet(map_, (value ? 0xFF : 0x00), array_size_ * sizeof(*map_));
+    memset(map_, (value ? 0xFF : 0x00), array_size_ * sizeof(*map_));
   }
 
   // Clears all bits in the bitmap

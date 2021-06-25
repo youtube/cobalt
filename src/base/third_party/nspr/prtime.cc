@@ -1112,7 +1112,7 @@ PR_ParseTimeString(
   if (month == TT_UNKNOWN || date == -1 || year == -1 || year > PR_INT16_MAX)
       return PR_FAILURE;
 
-  SbMemorySet(result, 0, sizeof(*result));
+  memset(result, 0, sizeof(*result));
   if (usec != -1)
         result->tm_usec = usec;
   if (sec != -1)

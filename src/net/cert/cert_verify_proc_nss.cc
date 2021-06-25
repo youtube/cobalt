@@ -867,7 +867,7 @@ int CertVerifyProcNSS::VerifyInternalImpl(
   check_chain_revocation_args.next_callback = chain_verify_callback;
 
   CERTChainVerifyCallback crlset_callback;
-  SbMemorySet(&crlset_callback, 0, sizeof(crlset_callback));
+  memset(&crlset_callback, 0, sizeof(crlset_callback));
   crlset_callback.isChainValid = &CheckChainRevocationWithCRLSet;
   crlset_callback.isChainValidArg =
       static_cast<void*>(&check_chain_revocation_args);

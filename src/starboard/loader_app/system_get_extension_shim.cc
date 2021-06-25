@@ -14,6 +14,7 @@
 
 #include "starboard/loader_app/system_get_extension_shim.h"
 
+#include <cstring>
 #include <string>
 
 #include "cobalt/extension/installation_manager.h"
@@ -41,7 +42,7 @@ namespace starboard {
 namespace loader_app {
 
 const void* SbSystemGetExtensionShim(const char* name) {
-  if (SbStringCompareAll(name, kCobaltExtensionInstallationManagerName) == 0) {
+  if (strcmp(name, kCobaltExtensionInstallationManagerName) == 0) {
     return &kInstallationManagerApi;
   }
   return NULL;

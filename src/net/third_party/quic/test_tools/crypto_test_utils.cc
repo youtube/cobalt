@@ -58,10 +58,10 @@ bool TestChannelIDKey::Sign(QuicStringPiece signed_data,
   }
 
   EVP_DigestUpdate(md_ctx.get(), ChannelIDVerifier::kContextStr,
-                   SbStringGetLength(ChannelIDVerifier::kContextStr) + 1);
+                   strlen(ChannelIDVerifier::kContextStr) + 1);
   EVP_DigestUpdate(
       md_ctx.get(), ChannelIDVerifier::kClientToServerStr,
-      SbStringGetLength(ChannelIDVerifier::kClientToServerStr) + 1);
+      strlen(ChannelIDVerifier::kClientToServerStr) + 1);
   EVP_DigestUpdate(md_ctx.get(), signed_data.data(), signed_data.size());
 
   size_t sig_len;
@@ -667,7 +667,7 @@ class MockCommonCertSets : public CommonCertSets {
     bool client_has_set = false;
     for (size_t i = 0; i < common_set_hashes.size(); i += sizeof(uint64_t)) {
       uint64_t hash;
-      SbMemoryCopy(&hash, common_set_hashes.data() + i, sizeof(hash));
+      memcpy(&hash, common_set_hashes.data() + i, sizeof(hash));
       if (hash == hash_) {
         client_has_set = true;
         break;
@@ -847,7 +847,7 @@ void CompareClientAndServerKeys(QuicCryptoClientStream* client,
 }
 
 QuicTag ParseTag(const char* tagstr) {
-  const size_t len = SbStringGetLength(tagstr);
+  const size_t len = strlen(tagstr);
   CHECK_NE(0u, len);
 
   QuicTag tag = 0;
@@ -1023,7 +1023,7 @@ QuicString GenerateClientNonceHex(const QuicClock* clock,
 
 QuicString GenerateClientPublicValuesHex() {
   char public_value[32];
-  SbMemorySet(public_value, 42, sizeof(public_value));
+  memset(public_value, 42, sizeof(public_value));
   return ("#" + QuicTextUtils::HexEncode(public_value, sizeof(public_value)));
 }
 

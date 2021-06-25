@@ -106,7 +106,7 @@ void SymbolMap::Populate() {
   // if we keep hitting problems with truncation, find a way to plumb argv[0]
   // through to here instead, e.g. using CommandLine::GetProgramName().
   char app_name[arraysize(SymbolMap::Entry::name)];
-  SbStringCopyUnsafe(app_name, kProcessNamePrefix);
+  strcpy(app_name, kProcessNamePrefix);
   zx_status_t status = zx_object_get_property(
       process, ZX_PROP_NAME, app_name + kProcessNamePrefixLen,
       sizeof(app_name) - kProcessNamePrefixLen);

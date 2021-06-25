@@ -131,7 +131,9 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(SbFileWrite);
   REGISTER_SYMBOL(SbMediaGetAudioConfiguration);
   REGISTER_SYMBOL(SbMediaGetAudioOutputCount);
+#if SB_API_VERSION < 13
   REGISTER_SYMBOL(SbMediaIsSupported);
+#endif  // SB_API_VERSION < 13
   REGISTER_SYMBOL(SbMemoryAllocate);
   REGISTER_SYMBOL(SbMemoryAllocateAligned);
   REGISTER_SYMBOL(SbMemoryAllocateNoReport);
@@ -152,15 +154,21 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(SbMediaCanPlayMimeAndKeySystem);
   REGISTER_SYMBOL(SbMemoryAllocateAlignedUnchecked);
   REGISTER_SYMBOL(SbMemoryAllocateUnchecked);
+#if SB_API_VERSION < 13
   REGISTER_SYMBOL(SbMemoryCompare);
   REGISTER_SYMBOL(SbMemoryCopy);
   REGISTER_SYMBOL(SbMemoryFindByte);
+#endif
   REGISTER_SYMBOL(SbMemoryFree);
   REGISTER_SYMBOL(SbMemoryFreeAligned);
   REGISTER_SYMBOL(SbMemoryGetStackBounds);
+#if SB_API_VERSION < 13
   REGISTER_SYMBOL(SbMemoryMove);
+#endif
   REGISTER_SYMBOL(SbMemoryReallocateUnchecked);
+#if SB_API_VERSION < 13
   REGISTER_SYMBOL(SbMemorySet);
+#endif
   REGISTER_SYMBOL(SbMutexAcquire);
   REGISTER_SYMBOL(SbMutexAcquireTry);
   REGISTER_SYMBOL(SbMutexCreate);
@@ -211,24 +219,30 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(SbStorageOpenRecord);
   REGISTER_SYMBOL(SbStorageReadRecord);
   REGISTER_SYMBOL(SbStorageWriteRecord);
+#if SB_API_VERSION < 13
   REGISTER_SYMBOL(SbStringCompare);
   REGISTER_SYMBOL(SbStringCompareAll);
+#endif
   REGISTER_SYMBOL(SbStringCompareNoCase);
   REGISTER_SYMBOL(SbStringCompareNoCaseN);
+#if SB_API_VERSION < 13
   REGISTER_SYMBOL(SbStringCompareWide);
   REGISTER_SYMBOL(SbStringConcat);
   REGISTER_SYMBOL(SbStringConcatWide);
   REGISTER_SYMBOL(SbStringCopy);
   REGISTER_SYMBOL(SbStringCopyWide);
+#endif  // SB_API_VERSION >= 13
   REGISTER_SYMBOL(SbStringDuplicate);
+#if SB_API_VERSION < 13
   REGISTER_SYMBOL(SbStringFindCharacter);
   REGISTER_SYMBOL(SbStringFindLastCharacter);
   REGISTER_SYMBOL(SbStringFindString);
+#endif
   REGISTER_SYMBOL(SbStringFormat);
   REGISTER_SYMBOL(SbStringFormatWide);
+#if SB_API_VERSION < 13
   REGISTER_SYMBOL(SbStringGetLength);
   REGISTER_SYMBOL(SbStringGetLengthWide);
-#if SB_API_VERSION < 13
   REGISTER_SYMBOL(SbStringParseDouble);
   REGISTER_SYMBOL(SbStringParseSignedInteger);
   REGISTER_SYMBOL(SbStringParseUInt64);

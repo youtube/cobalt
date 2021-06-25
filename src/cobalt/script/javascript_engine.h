@@ -36,16 +36,11 @@ struct HeapStatistics {
 class JavaScriptEngine {
  public:
   struct Options {
-    Options() : disable_jit(false), gc_threshold_bytes(1024 * 1024) {}
+    Options() : disable_jit(false) {}
 
     // Default false. When set to true then the JavaScript engine should
     // disable the just-in-time compiler.
     bool disable_jit;
-
-    // Determines the size of garbage collection threshold. After this many
-    // bytes have been allocated, the garbage collector will run.
-    // Default is 1MB (see default constructor).
-    size_t gc_threshold_bytes;
   };
 
   typedef base::Callback<void(const base::SourceLocation& location,

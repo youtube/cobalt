@@ -125,7 +125,7 @@ class EntryWrapper {
  public:
   EntryWrapper() : entry_(nullptr), state_(NONE) {
     buffer_ = base::MakeRefCounted<net::IOBuffer>(kBufferSize);
-    SbMemorySet(buffer_->data(), 'k', kBufferSize);
+    memset(buffer_->data(), 'k', kBufferSize);
   }
 
   Operation state() const { return state_; }
@@ -193,7 +193,7 @@ void EntryWrapper::DoRead() {
     return DoWrite();
 
   state_ = READ;
-  SbMemorySet(buffer_->data(), 'k', kReadSize);
+  memset(buffer_->data(), 'k', kReadSize);
   int rv = entry_->ReadData(
       0, 0, buffer_.get(), kReadSize,
       base::Bind(&EntryWrapper::OnReadDone, base::Unretained(this)));
@@ -204,7 +204,7 @@ void EntryWrapper::DoRead() {
 void EntryWrapper::OnReadDone(int result) {
   DCHECK_EQ(state_, READ);
   CHECK_EQ(result, kReadSize);
-  CHECK_EQ(0, SbMemoryCompare(buffer_->data(), "Write: ", 7));
+  CHECK_EQ(0, memcmp(buffer_->data(), "Write: ", 7));
   DoWrite();
 }
 
@@ -390,7 +390,7 @@ bool MessageHandler(int severity, const char* file, int line,
   char message[kMaxMessageLen];
   size_t len = std::min(str.length() - message_start, kMaxMessageLen - 1);
 
-  SbMemoryCopy(message, str.c_str() + message_start, len);
+  memcpy(message, str.c_str() + message_start, len);
   message[len] = '\0';
 #if !defined(DISK_CACHE_TRACE_TO_LOG)
   disk_cache::Trace("%s", message);

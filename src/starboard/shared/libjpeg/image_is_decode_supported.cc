@@ -29,7 +29,7 @@ bool SbImageIsDecodeSupported(const char* mime_type,
         format != kSbDecodeTargetFormat1PlaneBGRA) {
       return false;
     }
-    return SbStringCompareAll(mime_type, "image/jpeg") == 0;
+    return strcmp(mime_type, "image/jpeg") == 0;
   } else {
     return false;
   }

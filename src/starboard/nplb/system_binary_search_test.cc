@@ -35,7 +35,7 @@ int CharComparator(const void* a, const void* b) {
 
 TEST(SbSystemBinarySearchTest, SunnyDayLetters) {
   char buf[SB_ARRAY_SIZE(kSorted)] = {0};
-  SbStringCopy(buf, kSorted, SB_ARRAY_SIZE(buf));
+  starboard::strlcpy(buf, kSorted, SB_ARRAY_SIZE(buf));
   void* result = SbSystemBinarySearch("k", kSorted, SB_ARRAY_SIZE(kSorted) - 1,
                                       1, CharComparator);
   EXPECT_EQ(result, kSorted + ('k' - 'a'));

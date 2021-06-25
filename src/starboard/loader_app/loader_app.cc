@@ -15,6 +15,7 @@
 #include <vector>
 
 #include "starboard/common/log.h"
+#include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/elf_loader/elf_loader.h"
@@ -131,9 +132,9 @@ void LoadLibraryAndInitialize(const std::string& alternative_content_path) {
     SB_LOG(ERROR) << "Failed to get user agent string";
   } else {
     CrashpadAnnotations cobalt_version_info;
-    SbMemorySet(&cobalt_version_info, sizeof(CrashpadAnnotations), 0);
-    SbStringCopy(cobalt_version_info.user_agent_string, get_user_agent_func(),
-                 USER_AGENT_STRING_MAX_SIZE);
+    memset(&cobalt_version_info, 0, sizeof(CrashpadAnnotations));
+    starboard::strlcpy(cobalt_version_info.user_agent_string,
+                       get_user_agent_func(), USER_AGENT_STRING_MAX_SIZE);
     third_party::crashpad::wrapper::AddAnnotationsToCrashpad(
         cobalt_version_info);
     SB_DLOG(INFO) << "Added user agent string to Crashpad.";
@@ -164,15 +165,15 @@ void SbEventHandle(const SbEvent* event) {
     const starboard::shared::starboard::CommandLine command_line(
         data->argument_count, const_cast<const char**>(data->argument_values));
 
-    bool disable_updates =
-        command_line.HasSwitch(starboard::loader_app::kDisableUpdates);
-    SB_LOG(INFO) << "disable_updates=" << disable_updates;
+    bool is_evergreen_lite =
+        command_line.HasSwitch(starboard::loader_app::kEvergreenLite);
+    SB_LOG(INFO) << "is_evergreen_lite=" << is_evergreen_lite;
 
     std::string alternative_content =
         command_line.GetSwitchValue(starboard::loader_app::kContent);
     SB_LOG(INFO) << "alternative_content=" << alternative_content;
 
-    if (disable_updates) {
+    if (is_evergreen_lite) {
       LoadLibraryAndInitialize(alternative_content);
     } else {
       std::string url =

@@ -15,6 +15,7 @@
 #include "starboard/elf_loader/program_table.h"
 
 #include "starboard/common/log.h"
+#include "starboard/common/string.h"
 #include "starboard/elf_loader/evergreen_info.h"
 #include "starboard/elf_loader/log.h"
 #include "starboard/memory.h"
@@ -65,7 +66,8 @@ bool ProgramTable::LoadProgramHeader(const Ehdr* elf_header, File* elf_file) {
   SB_DLOG(INFO) << "elf_header->e_phnum=" << elf_header->e_phnum;
 
   Addr page_min = PAGE_START(elf_header->e_phoff);
-  Addr page_max = PAGE_END(elf_header->e_phoff + (phdr_num_ * elf_header->e_phentsize));
+  Addr page_max =
+      PAGE_END(elf_header->e_phoff + (phdr_num_ * elf_header->e_phentsize));
   Addr page_offset = PAGE_OFFSET(elf_header->e_phoff);
 
   SB_DLOG(INFO) << "page_min=" << page_min;
@@ -217,8 +219,8 @@ bool ProgramTable::LoadSegments(File* elf_file) {
     // if the segment is writable, and does not end on a page boundary,
     // zero-fill it until the page limit.
     if ((phdr->p_flags & PF_W) != 0 && PAGE_OFFSET(seg_file_end) > 0) {
-      SbMemorySet(reinterpret_cast<void*>(seg_file_end), 0,
-                  PAGE_SIZE - PAGE_OFFSET(seg_file_end));
+      memset(reinterpret_cast<void*>(seg_file_end), 0,
+             PAGE_SIZE - PAGE_OFFSET(seg_file_end));
     }
 
     seg_file_end = PAGE_END(seg_file_end);
@@ -241,8 +243,8 @@ bool ProgramTable::LoadSegments(File* elf_file) {
       SB_CHECK(false);
 #endif
 
-      SbMemorySet(reinterpret_cast<void*>(seg_file_end), 0,
-                  seg_page_end - seg_file_end);
+      memset(reinterpret_cast<void*>(seg_file_end), 0,
+             seg_page_end - seg_file_end);
 #if (SB_API_VERSION >= 12 || SB_HAS(MMAP)) && SB_CAN(MAP_EXECUTABLE_MEMORY)
       SbMemoryProtect(reinterpret_cast<void*>(seg_file_end),
                       seg_page_end - seg_file_end,
@@ -379,9 +381,9 @@ bool ProgramTable::ReserveLoadMemory() {
 
 void ProgramTable::PublishEvergreenInfo(const char* file_path) {
   EvergreenInfo evergreen_info;
-  SbMemorySet(&evergreen_info, sizeof(EvergreenInfo), 0);
-  SbStringCopy(evergreen_info.file_path_buf, file_path,
-               EVERGREEN_FILE_PATH_MAX_SIZE);
+  memset(&evergreen_info, 0, sizeof(EvergreenInfo));
+  starboard::strlcpy(evergreen_info.file_path_buf, file_path,
+                     EVERGREEN_FILE_PATH_MAX_SIZE);
   evergreen_info.base_address = base_memory_address_;
   evergreen_info.load_size = load_size_;
   evergreen_info.phdr_table = (uint64_t)phdr_table_;
@@ -389,8 +391,8 @@ void ProgramTable::PublishEvergreenInfo(const char* file_path) {
 
   std::vector<char> tmp(build_id_.begin(), build_id_.end());
   tmp.push_back('\0');
-  SbStringCopy(evergreen_info.build_id, tmp.data(),
-               EVERGREEN_BUILD_ID_MAX_SIZE);
+  starboard::strlcpy(evergreen_info.build_id, tmp.data(),
+                     EVERGREEN_BUILD_ID_MAX_SIZE);
   evergreen_info.build_id_length = build_id_.size();
 
   SetEvergreenInfo(&evergreen_info);

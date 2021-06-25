@@ -130,7 +130,7 @@ class QuicStreamSequencerTest : public QuicTest {
                       << expected.length();
       return false;
     }
-    if (SbMemoryCompare(IOVEC.iov_base, expected.data(), expected.length()) !=
+    if (memcmp(IOVEC.iov_base, expected.data(), expected.length()) !=
         0) {
       QUIC_LOG(ERROR) << "Invalid data: " << static_cast<char*>(IOVEC.iov_base)
                       << " vs " << expected;
@@ -144,7 +144,7 @@ class QuicStreamSequencerTest : public QuicTest {
     frame.stream_id = 1;
     frame.offset = byte_offset;
     frame.data_buffer = data;
-    frame.data_length = SbStringGetLength(data);
+    frame.data_length = strlen(data);
     frame.fin = true;
     sequencer_->OnStreamFrame(frame);
   }
@@ -154,7 +154,7 @@ class QuicStreamSequencerTest : public QuicTest {
     frame.stream_id = 1;
     frame.offset = byte_offset;
     frame.data_buffer = data;
-    frame.data_length = SbStringGetLength(data);
+    frame.data_length = strlen(data);
     frame.fin = false;
     sequencer_->OnStreamFrame(frame);
   }

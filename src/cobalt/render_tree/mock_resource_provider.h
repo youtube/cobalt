@@ -59,6 +59,7 @@ class MockResourceProvider : public ResourceProvider {
   MOCK_CONST_METHOD1(HasLocalFontFamily, bool(const char* font_family_name));
   MOCK_METHOD2(GetLocalTypefaceMock,
                Typeface*(const char* font_family_name, FontStyle font_style));
+  MOCK_METHOD0(LoadAdditionalFonts, void());
   MOCK_METHOD1(GetLocalTypefaceIfAvailableMock,
                Typeface*(const std::string& font_face_name));
   MOCK_METHOD3(GetCharacterFallbackTypefaceMock,

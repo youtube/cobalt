@@ -212,8 +212,8 @@ void InterleavedSincResampler::Resample(float* destination, int frames) {
 
     // Step (3) Copy r3_ to r1_ and r4_ to r2_.
     // This wraps the last input frames back to the start of the buffer.
-    SbMemoryCopy(r1_, r3_, frame_size_in_bytes_ * (kKernelSize / 2));
-    SbMemoryCopy(r2_, r4_, frame_size_in_bytes_ * (kKernelSize / 2));
+    memcpy(r1_, r3_, frame_size_in_bytes_ * (kKernelSize / 2));
+    memcpy(r2_, r4_, frame_size_in_bytes_ * (kKernelSize / 2));
 
     // Step (4)
     // Refresh the buffer with more input.
@@ -262,7 +262,7 @@ void InterleavedSincResampler::Read(float* destination, int frames) {
     scoped_refptr<Buffer> buffer = pending_buffers_.front();
     if (buffer->IsEndOfStream()) {
       // Zero fill the buffer after EOS has reached.
-      SbMemorySet(destination, 0, frame_size_in_bytes_ * frames);
+      memset(destination, 0, frame_size_in_bytes_ * frames);
       return;
     }
     // Copy the data over.
@@ -270,7 +270,7 @@ void InterleavedSincResampler::Read(float* destination, int frames) {
     int frames_to_copy = std::min(frames_in_buffer - offset_in_frames_, frames);
     const float* source = buffer->GetData();
     source += offset_in_frames_ * channel_count_;
-    SbMemoryCopy(destination, source, frame_size_in_bytes_ * frames_to_copy);
+    memcpy(destination, source, frame_size_in_bytes_ * frames_to_copy);
     offset_in_frames_ += frames_to_copy;
     // Pop the first buffer if all its content has been read.
     if (offset_in_frames_ == frames_in_buffer) {

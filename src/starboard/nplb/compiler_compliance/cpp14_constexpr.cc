@@ -32,7 +32,6 @@ constexpr size_t CompileTimeStringLength(const char* str) {
 
 SB_COMPILE_ASSERT(CompileTimeStringLength(kPangram) == sizeof(kPangram),
                   CompileTimeStringLength_does_not_return_correct_length);
-
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard

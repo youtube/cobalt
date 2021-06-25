@@ -158,7 +158,7 @@ void StubAudioDecoder::DecodeOneBuffer(
                            output_byte_size));
 
       if (fill_type == kSilence) {
-        SbMemorySet(decoded_audio.get()->buffer(), 0, output_byte_size);
+        memset(decoded_audio.get()->buffer(), 0, output_byte_size);
       } else {
         SB_DCHECK(fill_type == kWave);
         for (int j = 0; j < output_byte_size / sample_size; ++j) {

@@ -34,7 +34,7 @@ int main() {
   base::FilePath uuid_file_path =
       dir_module.Append("test_fonts").Append(".uuid");
   const char uuid[] = "df1acc8c-39d5-4a8b-8507-b1a7396ac3ac";
-  WriteFile(uuid_file_path, uuid, SbStringGetLength(uuid));
+  WriteFile(uuid_file_path, uuid, strlen(uuid));
 
   // fontconfig writes the mtime of the test_fonts directory into the cache. It
   // presumably checks this later to ensure that the cache is still up to date.

@@ -47,7 +47,7 @@ If the platform detects a change in the date/time configuration (e.g. timezone
 change), then it should send the new `kSbEventDateTimeConfigurationChanged`
 event.
 
-### Deprected speech recognizer API.
+### Deprecated speech recognizer API.
 
 The `starboard/speech_recognizer.h` APIs have been deprecated -- even for
 platforms that define SB_HAS(SPEECH_RECOGNIZER). Instead, the application is
@@ -90,17 +90,54 @@ The following starboard functions have been removed:
 * `SbCharacterIsUpper`
 * `SbCharacterToLower`
 * `SbCharacterToUpper`
+* `SbStringConcat`
+* `SbStringConcatUnsafe`
+* `SbStringConcatWide`
 * `SbDoubleAbsolute`
 * `SbDoubleExponent`
 * `SbDoubleFloor`
 * `SbDoubleIsFinite`
 * `SbDoubleIsNan`
+* `SbMemoryAlignToPageSize`
+* `SbMemoryCompare`
+* `SbMemoryCopy`
+* `SbMemoryFindByte`
+* `SbMemoryIsAligned`
+* `SbMemoryIsZero`
+* `SbMemoryMove`
+* `SbMemorySet`
+* `SbStringCompare`
+* `SbStringCompareAll`
+* `SbStringCompareWide`
+* `SbStringCopy`
+* `SbStringCopyUnsafe`
+* `SbStringCopyWide`
+* `SbStringFindCharacter`
+* `SbStringFindLastCharacter`
+* `SbStringFindString`
+* `SbStringGetLength`
+* `SbStringGetLengthWide`
 * `SbStringParseDouble`
 * `SbStringParseSignedInteger`
 * `SbStringParseUInt64`
 * `SbStringParseUnsignedInteger`
 * `SbSystemBinarySearch`
 * `SbSystemSort`
+
+### Add SbTimeMonotonic timestamp into SbEvent.
+
+### Remove SbTimeMonotonic timestamp from SbInputData.
+
+### Deprecated kSbSystemCapabilitySetsInputTimestamp from SbSystemCapabilityId.
+
+The new timestamp field from `SbEvent` will be used instead of the deprecated
+timestamp in `SbInputData`.
+
+### Moved `SbMediaIsSupported()` from `media.h` to `media_support_internal.h`.
+
+It has never been used by Cobalt.  It is only used inside Starboard by functions
+like `CanPlayMimeAndKeySystem()`, and is no longer exposed as a Starboard
+interface function.
 
 ## Version 12
 ### Add support for platform-based UI navigation.

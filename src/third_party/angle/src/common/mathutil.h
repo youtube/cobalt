@@ -20,7 +20,6 @@
 
 #include "common/debug.h"
 #include "common/platform.h"
-#include "nb/cpp14oncpp11.h"
 
 namespace angle
 {
@@ -1263,7 +1262,7 @@ angle::CheckedNumeric<T> CheckedRoundUp(const T value, const T alignment)
     return roundUp(checkedValue, checkedAlignment);
 }
 
-inline CONSTEXPR unsigned int UnsignedCeilDivide(unsigned int value, unsigned int divisor)
+inline constexpr unsigned int UnsignedCeilDivide(unsigned int value, unsigned int divisor)
 {
     unsigned int divided = value / divisor;
     return (divided + ((value % divisor == 0) ? 0 : 1));

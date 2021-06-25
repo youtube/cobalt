@@ -157,16 +157,16 @@ IPEndPoint IPEndPoint::GetForAllInterfaces(int port) {
 bool IPEndPoint::ToSbSocketAddress(SbSocketAddress* out_address) const {
   DCHECK(out_address);
   out_address->port = port_;
-  SbMemorySet(out_address->address, 0, sizeof(out_address->address));
+  memset(out_address->address, 0, sizeof(out_address->address));
   switch (GetFamily()) {
     case ADDRESS_FAMILY_IPV4:
       out_address->type = kSbSocketAddressTypeIpv4;
-      SbMemoryCopy(&out_address->address, address_.bytes().data(),
+      memcpy(&out_address->address, address_.bytes().data(),
                    IPAddress::kIPv4AddressSize);
       break;
     case ADDRESS_FAMILY_IPV6:
       out_address->type = kSbSocketAddressTypeIpv6;
-      SbMemoryCopy(&out_address->address, address_.bytes().data(),
+      memcpy(&out_address->address, address_.bytes().data(),
                    IPAddress::kIPv6AddressSize);
       break;
     default:
@@ -202,10 +202,10 @@ bool IPEndPoint::ToSockAddr(struct sockaddr* address,
         return false;
       *address_length = kSockaddrInSize;
       struct sockaddr_in* addr = reinterpret_cast<struct sockaddr_in*>(address);
-      SbMemorySet(addr, 0, sizeof(struct sockaddr_in));
+      memset(addr, 0, sizeof(struct sockaddr_in));
       addr->sin_family = AF_INET;
       addr->sin_port = base::HostToNet16(port_);
-      SbMemoryCopy(&addr->sin_addr, address_.bytes().data(),
+      memcpy(&addr->sin_addr, address_.bytes().data(),
                    IPAddress::kIPv4AddressSize);
       break;
     }
@@ -215,10 +215,10 @@ bool IPEndPoint::ToSockAddr(struct sockaddr* address,
       *address_length = kSockaddrIn6Size;
       struct sockaddr_in6* addr6 =
           reinterpret_cast<struct sockaddr_in6*>(address);
-      SbMemorySet(addr6, 0, sizeof(struct sockaddr_in6));
+      memset(addr6, 0, sizeof(struct sockaddr_in6));
       addr6->sin6_family = AF_INET6;
       addr6->sin6_port = base::HostToNet16(port_);
-      SbMemoryCopy(&addr6->sin6_addr, address_.bytes().data(),
+      memcpy(&addr6->sin6_addr, address_.bytes().data(),
                    IPAddress::kIPv6AddressSize);
       break;
     }

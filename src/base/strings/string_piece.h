@@ -30,7 +30,6 @@
 #include "base/strings/char_traits.h"
 #include "base/strings/string16.h"
 #include "base/strings/string_piece_forward.h"
-#include "nb/cpp14oncpp11.h"
 #include "starboard/types.h"
 
 namespace base {
@@ -205,9 +204,9 @@ template <typename STRING_TYPE> class BasicStringPiece {
   // returned buffer may or may not be null terminated.  Therefore it is
   // typically a mistake to pass data() to a routine that expects a NUL
   // terminated string.
-  CONSTEXPR const value_type* data() const { return ptr_; }
-  CONSTEXPR size_type size() const { return length_; }
-  CONSTEXPR size_type length() const { return length_; }
+  constexpr const value_type* data() const { return ptr_; }
+  constexpr size_type size() const { return length_; }
+  constexpr size_type length() const { return length_; }
   bool empty() const { return length_ == 0; }
 
   void clear() {
@@ -223,7 +222,7 @@ template <typename STRING_TYPE> class BasicStringPiece {
     length_ = str ? STRING_TYPE::traits_type::length(str) : 0;
   }
 
-  CONSTEXPR value_type operator[](size_type i) const {
+  constexpr value_type operator[](size_type i) const {
     CHECK(i < length_);
     return ptr_[i];
   }
@@ -238,18 +237,18 @@ template <typename STRING_TYPE> class BasicStringPiece {
     return ptr_[length_ - 1];
   }
 
-  CONSTEXPR void remove_prefix(size_type n) {
+  constexpr void remove_prefix(size_type n) {
     CHECK(n <= length_);
     ptr_ += n;
     length_ -= n;
   }
 
-  CONSTEXPR void remove_suffix(size_type n) {
+  constexpr void remove_suffix(size_type n) {
     CHECK(n <= length_);
     length_ -= n;
   }
 
-  CONSTEXPR int compare(BasicStringPiece x) const noexcept {
+  constexpr int compare(BasicStringPiece x) const noexcept {
     int r = CharTraits<value_type>::compare(
         ptr_, x.ptr_, (length_ < x.length_ ? length_ : x.length_));
     if (r == 0) {

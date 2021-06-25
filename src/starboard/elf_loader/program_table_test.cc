@@ -60,7 +60,7 @@ class DummyFile : public File {
                     << file_chunk.size_;
       return false;
     }
-    SbMemoryCopy(buffer, file_chunk.buffer_, size);
+    memcpy(buffer, file_chunk.buffer_, size);
     return true;
   }
   void Close() {}
@@ -99,9 +99,9 @@ TEST_F(ProgramTableTest, LoadSegments) {
   Phdr ent1;
   Phdr ent2;
   Phdr ent3;
-  SbMemorySet(&ent1, 0, sizeof(Phdr));
-  SbMemorySet(&ent2, 0, sizeof(Phdr));
-  SbMemorySet(&ent3, 0, sizeof(Phdr));
+  memset(&ent1, 0, sizeof(Phdr));
+  memset(&ent2, 0, sizeof(Phdr));
+  memset(&ent3, 0, sizeof(Phdr));
 
   ent1.p_type = PT_LOAD;
   ent1.p_vaddr = 0;
@@ -135,14 +135,14 @@ TEST_F(ProgramTableTest, LoadSegments) {
   dynamic_table_data[2].d_tag = DT_DEBUG;
 
   char program_table_page[PAGE_SIZE];
-  SbMemorySet(program_table_page, 0, sizeof(program_table_page));
-  SbMemoryCopy(program_table_page, program_table_data,
+  memset(program_table_page, 0, sizeof(program_table_page));
+  memcpy(program_table_page, program_table_data,
                sizeof(program_table_data));
 
   char segment_file_data1[2 * PAGE_SIZE];
   char segment_file_data2[3 * PAGE_SIZE];
 
-  SbMemoryCopy(segment_file_data1 + 250, dynamic_table_data,
+  memcpy(segment_file_data1 + 250, dynamic_table_data,
                sizeof(dynamic_table_data));
 
   std::vector<DummyFile::FileChunk> file_chunks;

@@ -22,7 +22,7 @@ TEST(KnownRootsTest, RootCertDataIsSorted) {
   EXPECT_TRUE(std::is_sorted(
       std::begin(kRootCerts), std::end(kRootCerts),
       [](const RootCertData& lhs, const RootCertData& rhs) {
-        return SbMemoryCompare(lhs.sha256_spki_hash, rhs.sha256_spki_hash, 32) <
+        return memcmp(lhs.sha256_spki_hash, rhs.sha256_spki_hash, 32) <
                0;
       }));
 }

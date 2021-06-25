@@ -14,13 +14,13 @@
 
 #include "starboard/accessibility.h"
 
-#include "starboard/memory.h"
+#include "starboard/common/memory.h"
 
 bool SbAccessibilityGetDisplaySettings(
     SbAccessibilityDisplaySettings* out_setting) {
   if (!out_setting ||
-      !SbMemoryIsZero(out_setting,
-                      sizeof(SbAccessibilityDisplaySettings))) {
+      !starboard::common::MemoryIsZero(
+          out_setting, sizeof(SbAccessibilityDisplaySettings))) {
     return false;
   }
   out_setting->has_high_contrast_text_setting = false;

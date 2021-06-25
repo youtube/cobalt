@@ -8,14 +8,13 @@
 
 #include "common/debug.h"
 #include "compiler/translator/ImmutableStringBuilder.h"
-#include "nb/cpp14oncpp11.h"
 
 namespace sh
 {
 
 namespace
 {
-CONSTEXPR const ImmutableString kPrefix("_webgl_struct_");
+constexpr const ImmutableString kPrefix("_webgl_struct_");
 }  // anonymous namespace
 
 void RegenerateStructNames::visitSymbol(TIntermSymbol *symbol)

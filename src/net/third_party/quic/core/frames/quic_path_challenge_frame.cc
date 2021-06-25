@@ -18,7 +18,7 @@ QuicPathChallengeFrame::QuicPathChallengeFrame(
     QuicControlFrameId control_frame_id,
     const QuicPathFrameBuffer& data_buff)
     : control_frame_id(control_frame_id) {
-  SbMemoryCopy(data_buffer.data(), data_buff.data(), data_buffer.size());
+  memcpy(data_buffer.data(), data_buff.data(), data_buffer.size());
 }
 
 QuicPathChallengeFrame::~QuicPathChallengeFrame() {}

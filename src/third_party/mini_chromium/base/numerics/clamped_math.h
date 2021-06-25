@@ -11,7 +11,6 @@
 #include <type_traits>
 
 #include "base/numerics/clamped_math_impl.h"
-#include "nb/cpp14oncpp11.h"
 
 namespace base {
 namespace internal {
@@ -24,11 +23,11 @@ class ClampedNumeric {
  public:
   using type = T;
 
-  CONSTEXPR ClampedNumeric() : value_(0) {}
+  constexpr ClampedNumeric() : value_(0) {}
 
   // Copy constructor.
   template <typename Src>
-  CONSTEXPR ClampedNumeric(const ClampedNumeric<Src>& rhs)
+  constexpr ClampedNumeric(const ClampedNumeric<Src>& rhs)
       : value_(saturated_cast<T>(rhs.value_)) {}
 
   template <typename Src>
@@ -37,7 +36,7 @@ class ClampedNumeric {
   // This is not an explicit constructor because we implicitly upgrade regular
   // numerics to ClampedNumerics to make them easier to use.
   template <typename Src>
-  CONSTEXPR ClampedNumeric(Src value)  // NOLINT(runtime/explicit)
+  constexpr ClampedNumeric(Src value)  // NOLINT(runtime/explicit)
       : value_(saturated_cast<T>(value)) {
     static_assert(std::is_arithmetic<Src>::value, "Argument must be numeric.");
   }
@@ -45,57 +44,57 @@ class ClampedNumeric {
   // This is not an explicit constructor because we want a seamless conversion
   // from StrictNumeric types.
   template <typename Src>
-  CONSTEXPR ClampedNumeric(
+  constexpr ClampedNumeric(
       StrictNumeric<Src> value)  // NOLINT(runtime/explicit)
       : value_(saturated_cast<T>(static_cast<Src>(value))) {}
 
   // Returns a ClampedNumeric of the specified type, cast from the current
   // ClampedNumeric, and saturated to the destination type.
   template <typename Dst>
-  CONSTEXPR ClampedNumeric<typename UnderlyingType<Dst>::type> Cast() const {
+  constexpr ClampedNumeric<typename UnderlyingType<Dst>::type> Cast() const {
     return *this;
   }
 
   // Prototypes for the supported arithmetic operator overloads.
   template <typename Src>
-  CONSTEXPR ClampedNumeric& operator+=(const Src rhs);
+  constexpr ClampedNumeric& operator+=(const Src rhs);
   template <typename Src>
-  CONSTEXPR ClampedNumeric& operator-=(const Src rhs);
+  constexpr ClampedNumeric& operator-=(const Src rhs);
   template <typename Src>
-  CONSTEXPR ClampedNumeric& operator*=(const Src rhs);
+  constexpr ClampedNumeric& operator*=(const Src rhs);
   template <typename Src>
-  CONSTEXPR ClampedNumeric& operator/=(const Src rhs);
+  constexpr ClampedNumeric& operator/=(const Src rhs);
   template <typename Src>
-  CONSTEXPR ClampedNumeric& operator%=(const Src rhs);
+  constexpr ClampedNumeric& operator%=(const Src rhs);
   template <typename Src>
-  CONSTEXPR ClampedNumeric& operator<<=(const Src rhs);
+  constexpr ClampedNumeric& operator<<=(const Src rhs);
   template <typename Src>
-  CONSTEXPR ClampedNumeric& operator>>=(const Src rhs);
+  constexpr ClampedNumeric& operator>>=(const Src rhs);
   template <typename Src>
-  CONSTEXPR ClampedNumeric& operator&=(const Src rhs);
+  constexpr ClampedNumeric& operator&=(const Src rhs);
   template <typename Src>
-  CONSTEXPR ClampedNumeric& operator|=(const Src rhs);
+  constexpr ClampedNumeric& operator|=(const Src rhs);
   template <typename Src>
-  CONSTEXPR ClampedNumeric& operator^=(const Src rhs);
+  constexpr ClampedNumeric& operator^=(const Src rhs);
 
-  CONSTEXPR ClampedNumeric operator-() const {
+  constexpr ClampedNumeric operator-() const {
     // The negation of two's complement int min is int min, so that's the
     // only overflow case where we will saturate.
     return ClampedNumeric<T>(SaturatedNegWrapper(value_));
   }
 
-  CONSTEXPR ClampedNumeric operator~() const {
+  constexpr ClampedNumeric operator~() const {
     return ClampedNumeric<decltype(InvertWrapper(T()))>(InvertWrapper(value_));
   }
 
-  CONSTEXPR ClampedNumeric Abs() const {
+  constexpr ClampedNumeric Abs() const {
     // The negation of two's complement int min is int min, so that's the
     // only overflow case where we will saturate.
     return ClampedNumeric<T>(SaturatedAbsWrapper(value_));
   }
 
   template <typename U>
-  CONSTEXPR ClampedNumeric<typename MathWrapper<ClampedMaxOp, T, U>::type> Max(
+  constexpr ClampedNumeric<typename MathWrapper<ClampedMaxOp, T, U>::type> Max(
       const U rhs) const {
     using result_type = typename MathWrapper<ClampedMaxOp, T, U>::type;
     return ClampedNumeric<result_type>(
@@ -103,7 +102,7 @@ class ClampedNumeric {
   }
 
   template <typename U>
-  CONSTEXPR ClampedNumeric<typename MathWrapper<ClampedMinOp, T, U>::type> Min(
+  constexpr ClampedNumeric<typename MathWrapper<ClampedMinOp, T, U>::type> Min(
       const U rhs) const {
     using result_type = typename MathWrapper<ClampedMinOp, T, U>::type;
     return ClampedNumeric<result_type>(
@@ -113,29 +112,29 @@ class ClampedNumeric {
   // This function is available only for integral types. It returns an unsigned
   // integer of the same width as the source type, containing the absolute value
   // of the source, and properly handling signed min.
-  CONSTEXPR ClampedNumeric<typename UnsignedOrFloatForSize<T>::type>
+  constexpr ClampedNumeric<typename UnsignedOrFloatForSize<T>::type>
   UnsignedAbs() const {
     return ClampedNumeric<typename UnsignedOrFloatForSize<T>::type>(
         SafeUnsignedAbs(value_));
   }
 
-  CONSTEXPR ClampedNumeric& operator++() {
+  constexpr ClampedNumeric& operator++() {
     *this += 1;
     return *this;
   }
 
-  CONSTEXPR ClampedNumeric operator++(int) {
+  constexpr ClampedNumeric operator++(int) {
     ClampedNumeric value = *this;
     *this += 1;
     return value;
   }
 
-  CONSTEXPR ClampedNumeric& operator--() {
+  constexpr ClampedNumeric& operator--() {
     *this -= 1;
     return *this;
   }
 
-  CONSTEXPR ClampedNumeric operator--(int) {
+  constexpr ClampedNumeric operator--(int) {
     ClampedNumeric value = *this;
     *this -= 1;
     return value;
@@ -146,7 +145,7 @@ class ClampedNumeric {
   template <template <typename, typename, typename> class M,
             typename L,
             typename R>
-  static CONSTEXPR ClampedNumeric MathOp(const L lhs, const R rhs) {
+  static constexpr ClampedNumeric MathOp(const L lhs, const R rhs) {
     using Math = typename MathWrapper<M, L, R>::math;
     return ClampedNumeric<T>(
         Math::template Do<T>(Wrapper<L>::value(lhs), Wrapper<R>::value(rhs)));
@@ -154,7 +153,7 @@ class ClampedNumeric {
 
   // Assignment arithmetic operations.
   template <template <typename, typename, typename> class M, typename R>
-  CONSTEXPR ClampedNumeric& MathOp(const R rhs) {
+  constexpr ClampedNumeric& MathOp(const R rhs) {
     using Math = typename MathWrapper<M, T, R>::math;
     *this =
         ClampedNumeric<T>(Math::template Do<T>(value_, Wrapper<R>::value(rhs)));
@@ -162,7 +161,7 @@ class ClampedNumeric {
   }
 
   template <typename Dst>
-  CONSTEXPR operator Dst() const {
+  constexpr operator Dst() const {
     return saturated_cast<typename ArithmeticOrUnderlyingEnum<Dst>::type>(
         value_);
   }
@@ -170,7 +169,7 @@ class ClampedNumeric {
   // This method extracts the raw integer value without saturating it to the
   // destination type as the conversion operator does. This is useful when
   // e.g. assigning to an auto type or passing as a deduced template parameter.
-  CONSTEXPR T RawValue() const { return value_; }
+  constexpr T RawValue() const { return value_; }
 
  private:
   T value_;
@@ -179,7 +178,7 @@ class ClampedNumeric {
   // ClampedNumeric and POD arithmetic types.
   template <typename Src>
   struct Wrapper {
-    static CONSTEXPR Src value(Src value) {
+    static constexpr Src value(Src value) {
       return static_cast<typename UnderlyingType<Src>::type>(value);
     }
   };
@@ -188,7 +187,7 @@ class ClampedNumeric {
 // Convience wrapper to return a new ClampedNumeric from the provided arithmetic
 // or ClampedNumericType.
 template <typename T>
-CONSTEXPR ClampedNumeric<typename UnderlyingType<T>::type> MakeClampedNum(
+constexpr ClampedNumeric<typename UnderlyingType<T>::type> MakeClampedNum(
     const T value) {
   return value;
 }
@@ -204,7 +203,7 @@ std::ostream& operator<<(std::ostream& os, const ClampedNumeric<T>& value) {
 template <template <typename, typename, typename> class M,
           typename L,
           typename R>
-CONSTEXPR ClampedNumeric<typename MathWrapper<M, L, R>::type> ClampMathOp(
+constexpr ClampedNumeric<typename MathWrapper<M, L, R>::type> ClampMathOp(
     const L lhs,
     const R rhs) {
   using Math = typename MathWrapper<M, L, R>::math;
@@ -217,7 +216,7 @@ template <template <typename, typename, typename> class M,
           typename L,
           typename R,
           typename... Args>
-CONSTEXPR ClampedNumeric<typename ResultType<M, L, R, Args...>::type>
+constexpr ClampedNumeric<typename ResultType<M, L, R, Args...>::type>
 ClampMathOp(const L lhs, const R rhs, const Args... args) {
   return ClampMathOp<M>(ClampMathOp<M>(lhs, rhs), args...);
 }

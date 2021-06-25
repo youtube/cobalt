@@ -38,7 +38,6 @@
 #include "cobalt/browser/on_screen_keyboard_starboard_bridge.h"
 #include "cobalt/browser/screen_shot_writer.h"
 #include "cobalt/browser/switches.h"
-#include "cobalt/browser/user_agent_string.h"
 #include "cobalt/browser/webapi_extension.h"
 #include "cobalt/configuration/configuration.h"
 #include "cobalt/cssom/viewport_size.h"
@@ -47,9 +46,13 @@
 #include "cobalt/dom/keyboard_event_init.h"
 #include "cobalt/dom/keycode.h"
 #include "cobalt/dom/mutation_observer_task_manager.h"
+#include "cobalt/dom/navigator.h"
+#include "cobalt/dom/navigator_ua_data.h"
 #include "cobalt/dom/window.h"
+#include "cobalt/extension/graphics.h"
 #include "cobalt/h5vcc/h5vcc.h"
 #include "cobalt/input/input_device_manager_fuzzer.h"
+#include "cobalt/math/matrix3_f.h"
 #include "cobalt/overlay_info/overlay_info_registry.h"
 #include "nb/memory_scope.h"
 #include "starboard/atomic.h"
@@ -194,13 +197,6 @@ void OnScreenshotMessage(BrowserModule* browser_module,
 
 #endif  // defined(ENABLE_DEBUGGER)
 
-scoped_refptr<script::Wrappable> CreateH5VCC(
-    const h5vcc::H5vcc::Settings& settings,
-    const scoped_refptr<dom::Window>& window,
-    script::GlobalEnvironment* global_environment) {
-  return scoped_refptr<script::Wrappable>(new h5vcc::H5vcc(settings));
-}
-
 #if SB_API_VERSION < 12
 scoped_refptr<script::Wrappable> CreateExtensionInterface(
     const scoped_refptr<dom::Window>& window,
@@ -245,6 +241,7 @@ BrowserModule::BrowserModule(const GURL& url,
       options_(options),
       self_message_loop_(base::MessageLoop::current()),
       event_dispatcher_(event_dispatcher),
+      account_manager_(account_manager),
       is_rendered_(false),
       can_play_type_handler_(media::MediaModule::CreateCanPlayTypeHandler()),
       network_module_(network_module),
@@ -365,16 +362,8 @@ BrowserModule::BrowserModule(const GURL& url,
   // Setup our main web module to have the H5VCC API injected into it.
   DCHECK(!ContainsKey(options_.web_module_options.injected_window_attributes,
                       "h5vcc"));
-  h5vcc::H5vcc::Settings h5vcc_settings;
-  h5vcc_settings.media_module = media_module_.get();
-  h5vcc_settings.network_module = network_module_;
-#if SB_IS(EVERGREEN)
-  h5vcc_settings.updater_module = updater_module_;
-#endif
-  h5vcc_settings.account_manager = account_manager;
-  h5vcc_settings.event_dispatcher = event_dispatcher_;
   options_.web_module_options.injected_window_attributes["h5vcc"] =
-      base::Bind(&CreateH5VCC, h5vcc_settings);
+      base::Bind(&BrowserModule::CreateH5vcc, base::Unretained(this));
 
   if (command_line->HasSwitch(switches::kDisableTimerResolutionLimit)) {
     options_.web_module_options.limit_performance_timer_resolution = false;
@@ -471,12 +460,12 @@ BrowserModule::~BrowserModule() {
   // currently be in, to prepare for shutdown.
   switch (application_state_) {
     case base::kApplicationStateStarted:
-      Blur();
+      Blur(0);
     // Intentional fall-through.
     case base::kApplicationStateBlurred:
-      Conceal();
+      Conceal(0);
     case base::kApplicationStateConcealed:
-      Freeze();
+      Freeze(0);
       break;
     case base::kApplicationStateStopped:
       NOTREACHED() << "BrowserModule does not support the stopped state.";
@@ -1467,53 +1456,55 @@ void BrowserModule::SetProxy(const std::string& proxy_rules) {
   network_module_->SetProxy(proxy_rules);
 }
 
-void BrowserModule::Blur() {
+void BrowserModule::Blur(SbTimeMonotonic timestamp) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::Blur()");
   DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
   DCHECK(application_state_ == base::kApplicationStateStarted);
   application_state_ = base::kApplicationStateBlurred;
-  FOR_EACH_OBSERVER(LifecycleObserver, lifecycle_observers_, Blur());
+  FOR_EACH_OBSERVER(LifecycleObserver,
+                    lifecycle_observers_, Blur(timestamp));
 }
 
-void BrowserModule::Conceal() {
+void BrowserModule::Conceal(SbTimeMonotonic timestamp) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::Conceal()");
   DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
   DCHECK(application_state_ == base::kApplicationStateBlurred);
   application_state_ = base::kApplicationStateConcealed;
-  ConcealInternal();
+  ConcealInternal(timestamp);
   OnMaybeFreeze();
 }
 
-void BrowserModule::Focus() {
+void BrowserModule::Focus(SbTimeMonotonic timestamp) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::Focus()");
   DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
   DCHECK(application_state_ == base::kApplicationStateBlurred);
-  FOR_EACH_OBSERVER(LifecycleObserver, lifecycle_observers_, Focus());
+  FOR_EACH_OBSERVER(LifecycleObserver,
+                    lifecycle_observers_, Focus(timestamp));
   application_state_ = base::kApplicationStateStarted;
 }
 
-void BrowserModule::Freeze() {
+void BrowserModule::Freeze(SbTimeMonotonic timestamp) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::Freeze()");
   DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
   DCHECK(application_state_ == base::kApplicationStateConcealed);
   application_state_ = base::kApplicationStateFrozen;
-  FreezeInternal();
+  FreezeInternal(timestamp);
 }
 
-void BrowserModule::Reveal() {
+void BrowserModule::Reveal(SbTimeMonotonic timestamp) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::Reveal()");
   DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
   DCHECK(application_state_ == base::kApplicationStateConcealed);
   application_state_ = base::kApplicationStateBlurred;
-  RevealInternal();
+  RevealInternal(timestamp);
 }
 
-void BrowserModule::Unfreeze() {
+void BrowserModule::Unfreeze(SbTimeMonotonic timestamp) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::Unfreeze()");
   DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
   DCHECK(application_state_ == base::kApplicationStateFrozen);
   application_state_ = base::kApplicationStateConcealed;
-  UnfreezeInternal();
+  UnfreezeInternal(timestamp);
   NavigatePendingURL();
 }
 
@@ -1762,10 +1753,10 @@ void BrowserModule::UpdateScreenSize() {
   }
 }
 
-void BrowserModule::ConcealInternal() {
+void BrowserModule::ConcealInternal(SbTimeMonotonic timestamp) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::ConcealInternal()");
   FOR_EACH_OBSERVER(LifecycleObserver, lifecycle_observers_,
-                    Conceal(GetResourceProvider()));
+                    Conceal(GetResourceProvider(), timestamp));
 
   ResetResources();
 
@@ -1787,15 +1778,16 @@ void BrowserModule::ConcealInternal() {
   }
 }
 
-void BrowserModule::FreezeInternal() {
+void BrowserModule::FreezeInternal(SbTimeMonotonic timestamp) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::FreezeInternal()");
   FreezeMediaModule();
   // First freeze all our web modules which implies that they will release
   // their resource provider and all resources created through it.
-  FOR_EACH_OBSERVER(LifecycleObserver, lifecycle_observers_, Freeze());
+  FOR_EACH_OBSERVER(LifecycleObserver,
+                    lifecycle_observers_, Freeze(timestamp));
 }
 
-void BrowserModule::RevealInternal() {
+void BrowserModule::RevealInternal(SbTimeMonotonic timestamp) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::RevealInternal()");
   DCHECK(!renderer_module_);
   if (!system_window_) {
@@ -1812,14 +1804,14 @@ void BrowserModule::RevealInternal() {
 
   // Set resource provider right after render module initialized.
   FOR_EACH_OBSERVER(LifecycleObserver, lifecycle_observers_,
-                    Reveal(GetResourceProvider()));
+                    Reveal(GetResourceProvider(), timestamp));
 
   if (qr_code_overlay_) {
     qr_code_overlay_->SetResourceProvider(GetResourceProvider());
   }
 }
 
-void BrowserModule::UnfreezeInternal() {
+void BrowserModule::UnfreezeInternal(SbTimeMonotonic timestamp) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::UnfreezeInternal()");
 // Set the Stub resource provider to media module and to web module
 // at Concealed state.
@@ -1828,7 +1820,7 @@ void BrowserModule::UnfreezeInternal() {
 #endif  // SB_API_VERSION >= 13
 
   FOR_EACH_OBSERVER(LifecycleObserver, lifecycle_observers_,
-                    Unfreeze(GetResourceProvider()));
+                    Unfreeze(GetResourceProvider(), timestamp));
 }
 
 void BrowserModule::OnMaybeFreeze() {
@@ -1860,6 +1852,22 @@ void BrowserModule::OnMaybeFreeze() {
 }
 
 ViewportSize BrowserModule::GetViewportSize() {
+  // If a custom render root transform is used, report the size of the
+  // transformed viewport.
+  math::Matrix3F viewport_transform = math::Matrix3F::Identity();
+  static const CobaltExtensionGraphicsApi* s_graphics_extension =
+      static_cast<const CobaltExtensionGraphicsApi*>(
+          SbSystemGetExtension(kCobaltExtensionGraphicsName));
+  float m00, m01, m02, m10, m11, m12, m20, m21, m22;
+  if (s_graphics_extension &&
+      strcmp(s_graphics_extension->name, kCobaltExtensionGraphicsName) == 0 &&
+      s_graphics_extension->version >= 5 &&
+      s_graphics_extension->GetRenderRootTransform(&m00, &m01, &m02, &m10, &m11,
+                                                   &m12, &m20, &m21, &m22)) {
+    viewport_transform =
+        math::Matrix3F::FromValues(m00, m01, m02, m10, m11, m12, m20, m21, m22);
+  }
+
   // We trust the renderer module for width and height the most, if it exists.
   if (renderer_module_) {
     math::Size target_size = renderer_module_->render_target_size();
@@ -1884,6 +1892,9 @@ ViewportSize BrowserModule::GetViewportSize() {
           options_.requested_viewport_size->device_pixel_ratio();
     }
 
+    target_size =
+        math::RoundOut(viewport_transform.MapRect(math::RectF(target_size)))
+            .size();
     ViewportSize v(target_size.width(), target_size.height(), diagonal_inches,
                    device_pixel_ratio);
     return v;
@@ -1892,6 +1903,7 @@ ViewportSize BrowserModule::GetViewportSize() {
   // If the system window exists, that's almost just as good.
   if (system_window_) {
     math::Size size = system_window_->GetWindowSize();
+    size = math::RoundOut(viewport_transform.MapRect(math::RectF(size))).size();
     ViewportSize v(size.width(), size.height(),
                    system_window_->GetDiagonalSizeInches(),
                    system_window_->GetDevicePixelRatio());
@@ -1900,7 +1912,14 @@ ViewportSize BrowserModule::GetViewportSize() {
 
   // Otherwise, we assume we'll get the viewport size that was requested.
   if (options_.requested_viewport_size) {
-    return *options_.requested_viewport_size;
+    math::Size requested_size =
+        math::RoundOut(viewport_transform.MapRect(math::RectF(
+                           options_.requested_viewport_size->width(),
+                           options_.requested_viewport_size->height())))
+            .size();
+    return ViewportSize(requested_size.width(), requested_size.height(),
+                        options_.requested_viewport_size->diagonal_inches(),
+                        options_.requested_viewport_size->device_pixel_ratio());
   }
 
   // TODO: Allow platforms to define the default window size and return that
@@ -1908,7 +1927,11 @@ ViewportSize BrowserModule::GetViewportSize() {
 
   // No window and no viewport size was requested, so we return a conservative
   // default.
-  ViewportSize view_size(1280, 720);
+  math::Size default_size(1280, 720);
+  default_size =
+      math::RoundOut(viewport_transform.MapRect(math::RectF(default_size)))
+          .size();
+  ViewportSize view_size(default_size.width(), default_size.height());
   return view_size;
 }
 
@@ -1920,14 +1943,6 @@ void BrowserModule::ApplyAutoMemSettings() {
 
   LOG(INFO) << auto_mem_->ToPrettyPrintString(SbLogIsTty());
 
-  if (javascript_gc_threshold_in_bytes_) {
-    DCHECK_EQ(*javascript_gc_threshold_in_bytes_,
-              auto_mem_->javascript_gc_threshold_in_bytes()->value());
-  } else {
-    javascript_gc_threshold_in_bytes_ =
-        auto_mem_->javascript_gc_threshold_in_bytes()->value();
-  }
-
   // Web Module options.
   options_.web_module_options.encoded_image_cache_capacity =
       static_cast<int>(auto_mem_->encoded_image_cache_size_in_bytes()->value());
@@ -1935,9 +1950,6 @@ void BrowserModule::ApplyAutoMemSettings() {
       static_cast<int>(auto_mem_->image_cache_size_in_bytes()->value());
   options_.web_module_options.remote_typeface_cache_capacity = static_cast<int>(
       auto_mem_->remote_typeface_cache_size_in_bytes()->value());
-  options_.web_module_options.javascript_engine_options.gc_threshold_bytes =
-      static_cast<size_t>(
-          auto_mem_->javascript_gc_threshold_in_bytes()->value());
   if (web_module_) {
     web_module_->SetImageCacheCapacity(
         auto_mem_->image_cache_size_in_bytes()->value());
@@ -2007,7 +2019,11 @@ base::Optional<std::string> BrowserModule::SetSplashScreenTopicFallback(
   std::map<std::string, std::string> url_param_map;
   // If this is the initial startup, use topic within deeplink, if specified.
   if (main_web_module_generation_ == 1) {
-    GetParamMap(GetInitialDeepLink(), url_param_map);
+    std::string deeplink = GetInitialDeepLink();
+    size_t query_pos = deeplink.find('?');
+    if (query_pos != std::string::npos) {
+      GetParamMap(deeplink.substr(query_pos + 1), url_param_map);
+    }
   }
   // If this is not the initial startup, there was no deeplink specified, or
   // the deeplink did not have a topic, check the current url for a topic.
@@ -2059,6 +2075,23 @@ void BrowserModule::GetParamMap(const std::string& url,
       next_is_value = false;
     }
   }
+}
+
+scoped_refptr<script::Wrappable> BrowserModule::CreateH5vcc(
+    const scoped_refptr<dom::Window>& window,
+    script::GlobalEnvironment* global_environment) {
+  h5vcc::H5vcc::Settings h5vcc_settings;
+  h5vcc_settings.media_module = media_module_.get();
+  h5vcc_settings.network_module = network_module_;
+#if SB_IS(EVERGREEN)
+  h5vcc_settings.updater_module = updater_module_;
+#endif
+  h5vcc_settings.account_manager = account_manager_;
+  h5vcc_settings.event_dispatcher = event_dispatcher_;
+  h5vcc_settings.user_agent_data = window->navigator()->user_agent_data();
+  h5vcc_settings.global_environment = global_environment;
+
+  return scoped_refptr<script::Wrappable>(new h5vcc::H5vcc(h5vcc_settings));
 }
 
 }  // namespace browser

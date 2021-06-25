@@ -13,18 +13,18 @@
 // limitations under the License.
 
 #include "starboard/common/log.h"
+#include "starboard/common/memory.h"
 #include "starboard/decode_target.h"
-#include "starboard/memory.h"
 #include "starboard/raspi/shared/open_max/decode_target_internal.h"
 
 bool SbDecodeTargetGetInfo(SbDecodeTarget decode_target,
                            SbDecodeTargetInfo* out_info) {
-  if (!SbMemoryIsZero(out_info, sizeof(*out_info))) {
+  if (!starboard::common::MemoryIsZero(out_info, sizeof(*out_info))) {
     SB_DCHECK(false) << "out_info must be zeroed out.";
     return false;
   }
 
-  SbMemoryCopy(out_info, &decode_target->info, sizeof(*out_info));
+  memcpy(out_info, &decode_target->info, sizeof(*out_info));
 
   return true;
 }

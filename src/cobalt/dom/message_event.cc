@@ -46,7 +46,7 @@ std::string MessageEvent::GetResponseTypeAsString(
 MessageEvent::ResponseTypeCode MessageEvent::GetResponseTypeCode(
     base::StringPiece to_match) {
   for (std::size_t i = 0; i != arraysize(kResponseTypes); ++i) {
-    if (SbStringCompare(kResponseTypes[i], to_match.data(), to_match.size()) ==
+    if (strncmp(kResponseTypes[i], to_match.data(), to_match.size()) ==
         0) {
       return MessageEvent::ResponseTypeCode(i);
     }

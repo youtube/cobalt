@@ -225,7 +225,7 @@ scoped_refptr<IOBufferWithSize> SpdyProxyClientSocketTest::CreateBuffer(
     const char* data, int size) {
   scoped_refptr<IOBufferWithSize> buf =
       base::MakeRefCounted<IOBufferWithSize>(size);
-  SbMemoryCopy(buf->data(), data, size);
+  memcpy(buf->data(), data, size);
   return buf;
 }
 

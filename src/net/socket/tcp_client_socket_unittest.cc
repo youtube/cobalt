@@ -262,9 +262,9 @@ TEST(TCPClientSocketTest, Tag) {
   scoped_refptr<IOBuffer> write_buffer1 =
       base::MakeRefCounted<StringIOBuffer>(kRequest1);
   TestCompletionCallback write_callback1;
-  EXPECT_EQ(s.Write(write_buffer1.get(), SbStringGetLength(kRequest1),
+  EXPECT_EQ(s.Write(write_buffer1.get(), strlen(kRequest1),
                     write_callback1.callback(), TRAFFIC_ANNOTATION_FOR_TESTS),
-            static_cast<int>(SbStringGetLength(kRequest1)));
+            static_cast<int>(strlen(kRequest1)));
   EXPECT_GT(GetTaggedBytes(tag_val2), old_traffic);
 
   // Verify socket can be retagged with a new value and the current process's
@@ -273,12 +273,12 @@ TEST(TCPClientSocketTest, Tag) {
   s.ApplySocketTag(tag1);
   const char kRequest2[] = "\n\n";
   scoped_refptr<IOBufferWithSize> write_buffer2 =
-      base::MakeRefCounted<IOBufferWithSize>(SbStringGetLength(kRequest2));
-  SbMemoryMove(write_buffer2->data(), kRequest2, SbStringGetLength(kRequest2));
+      base::MakeRefCounted<IOBufferWithSize>(strlen(kRequest2));
+  memmmove(write_buffer2->data(), kRequest2, strlen(kRequest2));
   TestCompletionCallback write_callback2;
-  EXPECT_EQ(s.Write(write_buffer2.get(), SbStringGetLength(kRequest2),
+  EXPECT_EQ(s.Write(write_buffer2.get(), strlen(kRequest2),
                     write_callback2.callback(), TRAFFIC_ANNOTATION_FOR_TESTS),
-            static_cast<int>(SbStringGetLength(kRequest2)));
+            static_cast<int>(strlen(kRequest2)));
   EXPECT_GT(GetTaggedBytes(tag_val1), old_traffic);
 
   s.Disconnect();
@@ -312,9 +312,9 @@ TEST(TCPClientSocketTest, TagAfterConnect) {
   scoped_refptr<IOBuffer> write_buffer1 =
       base::MakeRefCounted<StringIOBuffer>(kRequest1);
   TestCompletionCallback write_callback1;
-  EXPECT_EQ(s.Write(write_buffer1.get(), SbStringGetLength(kRequest1),
+  EXPECT_EQ(s.Write(write_buffer1.get(), strlen(kRequest1),
                     write_callback1.callback(), TRAFFIC_ANNOTATION_FOR_TESTS),
-            static_cast<int>(SbStringGetLength(kRequest1)));
+            static_cast<int>(strlen(kRequest1)));
   EXPECT_GT(GetTaggedBytes(tag_val2), old_traffic);
 
   // Verify socket can be retagged with a new value and the current process's
@@ -327,9 +327,9 @@ TEST(TCPClientSocketTest, TagAfterConnect) {
   scoped_refptr<IOBuffer> write_buffer2 =
       base::MakeRefCounted<StringIOBuffer>(kRequest2);
   TestCompletionCallback write_callback2;
-  EXPECT_EQ(s.Write(write_buffer2.get(), SbStringGetLength(kRequest2),
+  EXPECT_EQ(s.Write(write_buffer2.get(), strlen(kRequest2),
                     write_callback2.callback(), TRAFFIC_ANNOTATION_FOR_TESTS),
-            static_cast<int>(SbStringGetLength(kRequest2)));
+            static_cast<int>(strlen(kRequest2)));
   EXPECT_GT(GetTaggedBytes(tag_val1), old_traffic);
 
   s.Disconnect();

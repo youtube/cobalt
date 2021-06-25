@@ -165,11 +165,11 @@ void TransportClientSocketTest::EstablishConnection(
 void TransportClientSocketTest::SendRequestAndResponse() {
   // Send client request.
   const char request_text[] = "GET / HTTP/1.0\r\n\r\n";
-  int request_len = SbStringGetLength(request_text);
+  int request_len = strlen(request_text);
   scoped_refptr<DrainableIOBuffer> request_buffer =
       base::MakeRefCounted<DrainableIOBuffer>(
           base::MakeRefCounted<IOBuffer>(request_len), request_len);
-  SbMemoryCopy(request_buffer->data(), request_text, request_len);
+  memcpy(request_buffer->data(), request_text, request_len);
 
   int bytes_written = 0;
   while (request_buffer->BytesRemaining() > 0) {
@@ -196,11 +196,11 @@ void TransportClientSocketTest::SendRequestAndResponse() {
 
 void TransportClientSocketTest::SendServerResponse() {
   // TODO(dkegel): this might not be long enough to tickle some bugs.
-  int reply_len = SbStringGetLength(kServerReply);
+  int reply_len = strlen(kServerReply);
   scoped_refptr<DrainableIOBuffer> write_buffer =
       base::MakeRefCounted<DrainableIOBuffer>(
           base::MakeRefCounted<IOBuffer>(reply_len), reply_len);
-  SbMemoryCopy(write_buffer->data(), kServerReply, reply_len);
+  memcpy(write_buffer->data(), kServerReply, reply_len);
   int bytes_written = 0;
   while (write_buffer->BytesRemaining() > 0) {
     TestCompletionCallback write_callback;
@@ -296,8 +296,8 @@ TEST_P(TransportClientSocketTest, IsConnected) {
   EXPECT_FALSE(sock_->IsConnectedAndIdle());
 
   bytes_read = DrainClientSocket(
-      buf.get(), 4096, SbStringGetLength(kServerReply) - 1, &callback);
-  ASSERT_EQ(bytes_read, SbStringGetLength(kServerReply) - 1);
+      buf.get(), 4096, strlen(kServerReply) - 1, &callback);
+  ASSERT_EQ(bytes_read, strlen(kServerReply) - 1);
 
   // After draining the data, the socket should be back to connected
   // and idle.
@@ -316,8 +316,8 @@ TEST_P(TransportClientSocketTest, IsConnected) {
   EXPECT_FALSE(sock_->IsConnectedAndIdle());
 
   bytes_read = DrainClientSocket(
-      buf.get(), 4096, SbStringGetLength(kServerReply) - 1, &callback);
-  ASSERT_EQ(bytes_read, SbStringGetLength(kServerReply) - 1);
+      buf.get(), 4096, strlen(kServerReply) - 1, &callback);
+  ASSERT_EQ(bytes_read, strlen(kServerReply) - 1);
 
   // Once the data is drained, the socket should now be seen as not
   // connected.
@@ -339,8 +339,8 @@ TEST_P(TransportClientSocketTest, Read) {
 
   scoped_refptr<IOBuffer> buf = base::MakeRefCounted<IOBuffer>(4096);
   uint32_t bytes_read = DrainClientSocket(
-      buf.get(), 4096, SbStringGetLength(kServerReply), &callback);
-  ASSERT_EQ(bytes_read, SbStringGetLength(kServerReply));
+      buf.get(), 4096, strlen(kServerReply), &callback);
+  ASSERT_EQ(bytes_read, strlen(kServerReply));
   ASSERT_EQ(std::string(kServerReply), std::string(buf->data(), bytes_read));
 
   // All data has been read now.  Read once more to force an ERR_IO_PENDING, and
@@ -360,7 +360,7 @@ TEST_P(TransportClientSocketTest, Read_SmallChunks) {
 
   scoped_refptr<IOBuffer> buf = base::MakeRefCounted<IOBuffer>(1);
   uint32_t bytes_read = 0;
-  while (bytes_read < SbStringGetLength(kServerReply)) {
+  while (bytes_read < strlen(kServerReply)) {
     int rv = sock_->Read(buf.get(), 1, callback.callback());
     EXPECT_TRUE(rv >= 0 || rv == ERR_IO_PENDING);
 
@@ -409,7 +409,7 @@ TEST_P(TransportClientSocketTest, FullDuplex_ReadFirst) {
   scoped_refptr<IOBuffer> request_buffer =
       base::MakeRefCounted<IOBuffer>(kWriteBufLen);
   char* request_data = request_buffer->data();
-  SbMemorySet(request_data, 'A', kWriteBufLen);
+  memset(request_data, 'A', kWriteBufLen);
   TestCompletionCallback write_callback;
 
   int bytes_written = 0;
@@ -443,7 +443,7 @@ TEST_P(TransportClientSocketTest, DISABLED_FullDuplex_WriteFirst) {
   scoped_refptr<IOBuffer> request_buffer =
       base::MakeRefCounted<IOBuffer>(kWriteBufLen);
   char* request_data = request_buffer->data();
-  SbMemorySet(request_data, 'A', kWriteBufLen);
+  memset(request_data, 'A', kWriteBufLen);
   TestCompletionCallback write_callback;
 
   int bytes_written = 0;

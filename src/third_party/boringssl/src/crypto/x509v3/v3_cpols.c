@@ -167,7 +167,7 @@ static STACK_OF(POLICYINFO) *r2i_certpol(X509V3_EXT_METHOD *method,
             goto err;
         }
         pstr = cnf->name;
-        if (!OPENSSL_port_strcmp(pstr, "ia5org")) {
+        if (!strcmp(pstr, "ia5org")) {
             ia5org = 1;
             continue;
         } else if (*pstr == '@') {
@@ -222,7 +222,7 @@ static POLICYINFO *policy_section(X509V3_CTX *ctx,
         goto merr;
     for (i = 0; i < sk_CONF_VALUE_num(polstrs); i++) {
         cnf = sk_CONF_VALUE_value(polstrs, i);
-        if (!OPENSSL_port_strcmp(cnf->name, "policyIdentifier")) {
+        if (!strcmp(cnf->name, "policyIdentifier")) {
             ASN1_OBJECT *pobj;
             if (!(pobj = OBJ_txt2obj(cnf->value, 0))) {
                 OPENSSL_PUT_ERROR(X509V3, X509V3_R_INVALID_OBJECT_IDENTIFIER);
@@ -249,7 +249,7 @@ static POLICYINFO *policy_section(X509V3_CTX *ctx,
                 goto err;
             }
             if (!ASN1_STRING_set(qual->d.cpsuri, cnf->value,
-                                 OPENSSL_port_strlen(cnf->value)))
+                                 strlen(cnf->value)))
                 goto merr;
         } else if (!name_cmp(cnf->name, "userNotice")) {
             STACK_OF(CONF_VALUE) *unot;
@@ -317,14 +317,14 @@ static POLICYQUALINFO *notice_section(X509V3_CTX *ctx,
     qual->d.usernotice = not;
     for (i = 0; i < sk_CONF_VALUE_num(unot); i++) {
         cnf = sk_CONF_VALUE_value(unot, i);
-        if (!OPENSSL_port_strcmp(cnf->name, "explicitText")) {
+        if (!strcmp(cnf->name, "explicitText")) {
             not->exptext = M_ASN1_VISIBLESTRING_new();
             if (not->exptext == NULL)
                 goto merr;
             if (!ASN1_STRING_set(not->exptext, cnf->value,
-                                 OPENSSL_port_strlen(cnf->value)))
+                                 strlen(cnf->value)))
                 goto merr;
-        } else if (!OPENSSL_port_strcmp(cnf->name, "organization")) {
+        } else if (!strcmp(cnf->name, "organization")) {
             NOTICEREF *nref;
             if (!not->noticeref) {
                 if (!(nref = NOTICEREF_new()))
@@ -337,9 +337,9 @@ static POLICYQUALINFO *notice_section(X509V3_CTX *ctx,
             else
                 nref->organization->type = V_ASN1_VISIBLESTRING;
             if (!ASN1_STRING_set(nref->organization, cnf->value,
-                                 OPENSSL_port_strlen(cnf->value)))
+                                 strlen(cnf->value)))
                 goto merr;
-        } else if (!OPENSSL_port_strcmp(cnf->name, "noticeNumbers")) {
+        } else if (!strcmp(cnf->name, "noticeNumbers")) {
             NOTICEREF *nref;
             STACK_OF(CONF_VALUE) *nos;
             if (!not->noticeref) {

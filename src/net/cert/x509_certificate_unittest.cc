@@ -367,8 +367,8 @@ TEST(X509CertificateTest, SerialNumbers) {
   };
 
   ASSERT_EQ(sizeof(google_serial), google_cert->serial_number().size());
-  EXPECT_TRUE(SbMemoryCompare(google_cert->serial_number().data(),
-                              google_serial, sizeof(google_serial)) == 0);
+  EXPECT_TRUE(memcmp(google_cert->serial_number().data(),
+                     google_serial, sizeof(google_serial)) == 0);
 }
 
 TEST(X509CertificateTest, SerialNumberZeroPadded) {
@@ -382,8 +382,8 @@ TEST(X509CertificateTest, SerialNumberZeroPadded) {
   // serial() should contain the leading 0 padding byte.
   static const uint8_t expected_serial[3] = {0x00, 0x80, 0x01};
   ASSERT_EQ(sizeof(expected_serial), cert->serial_number().size());
-  EXPECT_TRUE(SbMemoryCompare(cert->serial_number().data(), expected_serial,
-                              sizeof(expected_serial)) == 0);
+  EXPECT_TRUE(memcmp(cert->serial_number().data(), expected_serial,
+                     sizeof(expected_serial)) == 0);
 }
 
 TEST(X509CertificateTest, SerialNumberZeroPadded21BytesLong) {
@@ -400,8 +400,8 @@ TEST(X509CertificateTest, SerialNumberZeroPadded21BytesLong) {
       0x00, 0x80, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
       0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13};
   ASSERT_EQ(sizeof(expected_serial), cert->serial_number().size());
-  EXPECT_TRUE(SbMemoryCompare(cert->serial_number().data(), expected_serial,
-                              sizeof(expected_serial)) == 0);
+  EXPECT_TRUE(memcmp(cert->serial_number().data(), expected_serial,
+                     sizeof(expected_serial)) == 0);
 }
 
 TEST(X509CertificateTest, SerialNumberNegative) {
@@ -415,8 +415,8 @@ TEST(X509CertificateTest, SerialNumberNegative) {
   // parsing is currently permissive, so this does not cause an error.
   static const uint8_t expected_serial[2] = {0x80, 0x01};
   ASSERT_EQ(sizeof(expected_serial), cert->serial_number().size());
-  EXPECT_TRUE(SbMemoryCompare(cert->serial_number().data(), expected_serial,
-                              sizeof(expected_serial)) == 0);
+  EXPECT_TRUE(memcmp(cert->serial_number().data(), expected_serial,
+                     sizeof(expected_serial)) == 0);
 }
 
 TEST(X509CertificateTest, SerialNumber37BytesLong) {
@@ -434,8 +434,8 @@ TEST(X509CertificateTest, SerialNumber37BytesLong) {
       0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e,
       0x1f, 0x20, 0x21, 0x22, 0x23, 0x24, 0x25};
   ASSERT_EQ(sizeof(expected_serial), cert->serial_number().size());
-  EXPECT_TRUE(SbMemoryCompare(cert->serial_number().data(), expected_serial,
-                              sizeof(expected_serial)) == 0);
+  EXPECT_TRUE(memcmp(cert->serial_number().data(), expected_serial,
+                     sizeof(expected_serial)) == 0);
 }
 
 TEST(X509CertificateTest, SHA256FingerprintsCorrectly) {
@@ -537,16 +537,16 @@ TEST(X509CertificateTest, ParseSubjectAltNames) {
       0x7F, 0x00, 0x00, 0x02
   };
   ASSERT_EQ(base::size(kIPv4Address), ip_addresses[0].size());
-  EXPECT_EQ(0, SbMemoryCompare(ip_addresses[0].data(), kIPv4Address,
-                               base::size(kIPv4Address)));
+  EXPECT_EQ(0, memcmp(ip_addresses[0].data(), kIPv4Address,
+                      base::size(kIPv4Address)));
 
   static const uint8_t kIPv6Address[] = {
       0xFE, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01
   };
   ASSERT_EQ(base::size(kIPv6Address), ip_addresses[1].size());
-  EXPECT_EQ(0, SbMemoryCompare(ip_addresses[1].data(), kIPv6Address,
-                               base::size(kIPv6Address)));
+  EXPECT_EQ(0, memcmp(ip_addresses[1].data(), kIPv6Address,
+                      base::size(kIPv6Address)));
 
   // Ensure the subjectAltName dirName has not influenced the handling of
   // the subject commonName.
@@ -577,7 +577,7 @@ TEST(X509CertificateTest, ExtractSPKIFromDERCert) {
   base::SHA1HashBytes(reinterpret_cast<const uint8_t*>(spkiBytes.data()),
                       spkiBytes.size(), hash);
 
-  EXPECT_EQ(0, SbMemoryCompare(hash, kNistSPKIHash, sizeof(hash)));
+  EXPECT_EQ(0, memcmp(hash, kNistSPKIHash, sizeof(hash)));
 }
 
 TEST(X509CertificateTest, HasTLSFeatureExtension) {

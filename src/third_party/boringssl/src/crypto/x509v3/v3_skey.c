@@ -109,7 +109,7 @@ static ASN1_OCTET_STRING *s2i_skey_id(X509V3_EXT_METHOD *method,
     unsigned char pkey_dig[EVP_MAX_MD_SIZE];
     unsigned int diglen;
 
-    if (OPENSSL_port_strcmp(str, "hash"))
+    if (strcmp(str, "hash"))
         return s2i_ASN1_OCTET_STRING(method, ctx, str);
 
     if (!(oct = M_ASN1_OCTET_STRING_new())) {

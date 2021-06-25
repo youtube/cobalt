@@ -25,12 +25,12 @@ namespace {
 struct SHA256ToHashValueComparator {
   bool operator()(const SHA256HashValue& lhs, const HashValue& rhs) const {
     DCHECK_EQ(HASH_VALUE_SHA256, rhs.tag());
-    return SbMemoryCompare(lhs.data, rhs.data(), rhs.size()) < 0;
+    return memcmp(lhs.data, rhs.data(), rhs.size()) < 0;
   }
 
   bool operator()(const HashValue& lhs, const SHA256HashValue& rhs) const {
     DCHECK_EQ(HASH_VALUE_SHA256, lhs.tag());
-    return SbMemoryCompare(lhs.data(), rhs.data, lhs.size()) < 0;
+    return memcmp(lhs.data(), rhs.data, lhs.size()) < 0;
   }
 };
 
@@ -55,7 +55,7 @@ bool HashValue::FromString(const base::StringPiece value) {
   if (!base::Base64Decode(base64_str, &decoded) || decoded.size() != size())
     return false;
 
-  SbMemoryCopy(data(), decoded.data(), size());
+  memcpy(data(), decoded.data(), size());
   return true;
 }
 

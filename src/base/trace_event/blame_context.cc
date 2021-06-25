@@ -28,7 +28,7 @@ BlameContext::BlameContext(const char* category,
       parent_id_(parent_context ? parent_context->id() : 0),
       category_group_enabled_(nullptr),
       weak_factory_(this) {
-  DCHECK(!parent_context || !SbStringCompareAll(name_, parent_context->name()))
+  DCHECK(!parent_context || !strcmp(name_, parent_context->name()))
       << "Parent blame context must have the same name";
 }
 

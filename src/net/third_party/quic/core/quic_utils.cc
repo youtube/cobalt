@@ -132,8 +132,8 @@ void QuicUtils::SerializeUint128Short(QuicUint128 v, uint8_t* out) {
   const uint64_t lo = QuicUint128Low64(v);
   const uint64_t hi = QuicUint128High64(v);
   // This assumes that the system is little-endian.
-  SbMemoryCopy(out, &lo, sizeof(lo));
-  SbMemoryCopy(out + sizeof(lo), &hi, sizeof(hi) / 2);
+  memcpy(out, &lo, sizeof(lo));
+  memcpy(out + sizeof(lo), &hi, sizeof(hi) / 2);
 }
 
 #define RETURN_STRING_LITERAL(x) \
@@ -278,7 +278,7 @@ void QuicUtils::CopyToBuffer(const struct IOVEC* iov,
 
   const char* src = static_cast<char*>(iov[iovnum].iov_base) + iov_offset;
   while (true) {
-    SbMemoryCopy(buffer, src, copy_len);
+    memcpy(buffer, src, copy_len);
     buffer_length -= copy_len;
     buffer += copy_len;
     if (buffer_length == 0 || ++iovnum >= iov_count) {
@@ -499,7 +499,7 @@ QuicUint128 QuicUtils::GenerateStatelessResetToken(
   uint64_t data_bytes[3] = {0, 0, 0};
   static_assert(sizeof(data_bytes) >= kQuicMaxConnectionIdLength,
                 "kQuicMaxConnectionIdLength changed");
-  SbMemoryCopy(data_bytes, connection_id.data(), connection_id.length());
+  memcpy(data_bytes, connection_id.data(), connection_id.length());
   // This is designed so that the common case of 64bit connection IDs
   // produces a stateless reset token that is equal to the connection ID
   // interpreted as a 64bit unsigned integer, to facilitate debugging.

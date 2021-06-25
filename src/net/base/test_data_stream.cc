@@ -16,7 +16,7 @@ void TestDataStream::GetBytes(char* buffer, int length) {
   while (length) {
     AdvanceIndex();
     int bytes_to_copy = std::min(length, bytes_remaining_);
-    SbMemoryCopy(buffer, buffer_ptr_, bytes_to_copy);
+    memcpy(buffer, buffer_ptr_, bytes_to_copy);
     buffer += bytes_to_copy;
     Consume(bytes_to_copy);
     length -= bytes_to_copy;
@@ -27,7 +27,7 @@ bool TestDataStream::VerifyBytes(const char *buffer, int length) {
   while (length) {
     AdvanceIndex();
     int bytes_to_compare = std::min(length, bytes_remaining_);
-    if (SbMemoryCompare(buffer, buffer_ptr_, bytes_to_compare))
+    if (memcmp(buffer, buffer_ptr_, bytes_to_compare))
       return false;
     Consume(bytes_to_compare);
     length -= bytes_to_compare;

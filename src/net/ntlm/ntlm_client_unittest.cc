@@ -108,8 +108,8 @@ TEST(NtlmClientTest, VerifyNegotiateMessageV1) {
   std::vector<uint8_t> result = client.GetNegotiateMessage();
 
   ASSERT_EQ(kNegotiateMessageLen, result.size());
-  ASSERT_EQ(0, SbMemoryCompare(test::kExpectedNegotiateMsg, result.data(),
-                               kNegotiateMessageLen));
+  ASSERT_EQ(0, memcmp(test::kExpectedNegotiateMsg, result.data(),
+                      kNegotiateMessageLen));
 }
 
 TEST(NtlmClientTest, MinimalStructurallyValidChallenge) {
@@ -131,7 +131,7 @@ TEST(NtlmClientTest, MinimalStructurallyValidChallengeZeroOffset) {
   // In reality the offset should always be ignored if the length is zero.
   // Also implementations often just write zeros.
   uint8_t raw[kMinChallengeHeaderLen];
-  SbMemoryCopy(raw, test::kMinChallengeMessage, kMinChallengeHeaderLen);
+  memcpy(raw, test::kMinChallengeMessage, kMinChallengeHeaderLen);
   // Modify the default valid message to overwrite the offset to zero.
   ASSERT_NE(0x00, raw[16]);
   raw[16] = 0x00;
@@ -157,7 +157,7 @@ TEST(NtlmClientTest, ChallengeMsgNoSig) {
 
   // Fail because the first 8 bytes don't match "NTLMSSP\0"
   uint8_t raw[kMinChallengeHeaderLen];
-  SbMemoryCopy(raw, test::kMinChallengeMessage, kMinChallengeHeaderLen);
+  memcpy(raw, test::kMinChallengeMessage, kMinChallengeHeaderLen);
   // Modify the default valid message to overwrite the last byte of the
   // signature.
   ASSERT_NE(0xff, raw[7]);
@@ -173,7 +173,7 @@ TEST(NtlmClientTest, ChallengeMsgWrongMessageType) {
   // Fail because the message type should be MessageType::kChallenge
   // (0x00000002)
   uint8_t raw[kMinChallengeHeaderLen];
-  SbMemoryCopy(raw, test::kMinChallengeMessage, kMinChallengeHeaderLen);
+  memcpy(raw, test::kMinChallengeMessage, kMinChallengeHeaderLen);
   // Modify the message type.
   ASSERT_NE(0x03, raw[8]);
   raw[8] = 0x03;
@@ -193,7 +193,7 @@ TEST(NtlmClientTest, ChallengeWithNoTargetName) {
   // In reality the offset should always be ignored if the length is zero.
   // Also implementations often just write zeros.
   uint8_t raw[kMinChallengeHeaderLen];
-  SbMemoryCopy(raw, test::kMinChallengeMessage, kMinChallengeHeaderLen);
+  memcpy(raw, test::kMinChallengeMessage, kMinChallengeHeaderLen);
   // Modify the default valid message to overwrite the offset to zero.
   ASSERT_NE(0x00, raw[16]);
   raw[16] = 0x00;
@@ -209,7 +209,7 @@ TEST(NtlmClientTest, Type2MessageWithTargetName) {
 
   // One extra byte is provided for target name.
   uint8_t raw[kMinChallengeHeaderLen + 1];
-  SbMemoryCopy(raw, test::kMinChallengeMessage, kMinChallengeHeaderLen);
+  memcpy(raw, test::kMinChallengeMessage, kMinChallengeHeaderLen);
   // Put something in the target name.
   raw[kMinChallengeHeaderLen] = 'Z';
 
@@ -231,7 +231,7 @@ TEST(NtlmClientTest, NoTargetNameOverflowFromOffset) {
   NtlmClient client(NtlmFeatures(false));
 
   uint8_t raw[kMinChallengeHeaderLen];
-  SbMemoryCopy(raw, test::kMinChallengeMessage, kMinChallengeHeaderLen);
+  memcpy(raw, test::kMinChallengeMessage, kMinChallengeHeaderLen);
   // Modify the default valid message to claim that the target name field is 1
   // byte long overrunning the end of the message message.
   ASSERT_NE(0x01, raw[12]);
@@ -256,7 +256,7 @@ TEST(NtlmClientTest, NoTargetNameOverflowFromLength) {
   // Message has 1 extra byte of space after the header for the target name.
   // One extra byte is provided for target name.
   uint8_t raw[kMinChallengeHeaderLen + 1];
-  SbMemoryCopy(raw, test::kMinChallengeMessage, kMinChallengeHeaderLen);
+  memcpy(raw, test::kMinChallengeMessage, kMinChallengeHeaderLen);
   // Put something in the target name.
   raw[kMinChallengeHeaderLen] = 'Z';
 
@@ -286,8 +286,8 @@ TEST(NtlmClientTest, Type3UnicodeWithSessionSecuritySpecTest) {
   ASSERT_FALSE(result.empty());
   ASSERT_EQ(base::size(test::kExpectedAuthenticateMsgSpecResponseV1),
             result.size());
-  ASSERT_EQ(0, SbMemoryCompare(test::kExpectedAuthenticateMsgSpecResponseV1,
-                               result.data(), result.size()));
+  ASSERT_EQ(0, memcmp(test::kExpectedAuthenticateMsgSpecResponseV1,
+                      result.data(), result.size()));
 }
 
 TEST(NtlmClientTest, Type3WithoutUnicode) {
@@ -318,10 +318,10 @@ TEST(NtlmClientTest, Type3WithoutUnicode) {
   ASSERT_TRUE(ReadBytesPayload(&reader, actual_lm_response));
   ASSERT_TRUE(ReadBytesPayload(&reader, actual_ntlm_response));
 
-  ASSERT_EQ(0, SbMemoryCompare(test::kExpectedLmResponseWithV1SS,
-                               actual_lm_response, kResponseLenV1));
-  ASSERT_EQ(0, SbMemoryCompare(test::kExpectedNtlmResponseWithV1SS,
-                               actual_ntlm_response, kResponseLenV1));
+  ASSERT_EQ(0, memcmp(test::kExpectedLmResponseWithV1SS,
+                      actual_lm_response, kResponseLenV1));
+  ASSERT_EQ(0, memcmp(test::kExpectedNtlmResponseWithV1SS,
+                      actual_ntlm_response, kResponseLenV1));
 
   std::string domain;
   std::string username;
@@ -375,10 +375,10 @@ TEST(NtlmClientTest, ClientDoesNotDowngradeSessionSecurity) {
   // The important part of this test is that even though the
   // server told the client to drop session security. The client
   // DID NOT drop it.
-  ASSERT_EQ(0, SbMemoryCompare(test::kExpectedLmResponseWithV1SS,
-                               actual_lm_response, kResponseLenV1));
-  ASSERT_EQ(0, SbMemoryCompare(test::kExpectedNtlmResponseWithV1SS,
-                               actual_ntlm_response, kResponseLenV1));
+  ASSERT_EQ(0, memcmp(test::kExpectedLmResponseWithV1SS,
+                      actual_lm_response, kResponseLenV1));
+  ASSERT_EQ(0, memcmp(test::kExpectedNtlmResponseWithV1SS,
+                      actual_ntlm_response, kResponseLenV1));
 
   base::string16 domain;
   base::string16 username;
@@ -420,8 +420,8 @@ TEST(NtlmClientTest, VerifyNegotiateMessageV2) {
   std::vector<uint8_t> result = client.GetNegotiateMessage();
   ASSERT_FALSE(result.empty());
   ASSERT_EQ(base::size(test::kExpectedNegotiateMsg), result.size());
-  ASSERT_EQ(0, SbMemoryCompare(test::kExpectedNegotiateMsg, result.data(),
-                               result.size()));
+  ASSERT_EQ(0, memcmp(test::kExpectedNegotiateMsg, result.data(),
+                      result.size()));
 }
 
 TEST(NtlmClientTest, VerifyAuthenticateMessageV2) {
@@ -433,8 +433,8 @@ TEST(NtlmClientTest, VerifyAuthenticateMessageV2) {
   ASSERT_FALSE(result.empty());
   ASSERT_EQ(base::size(test::kExpectedAuthenticateMsgSpecResponseV2),
             result.size());
-  ASSERT_EQ(0, SbMemoryCompare(test::kExpectedAuthenticateMsgSpecResponseV2,
-                               result.data(), result.size()));
+  ASSERT_EQ(0, memcmp(test::kExpectedAuthenticateMsgSpecResponseV2,
+                      result.data(), result.size()));
 }
 
 TEST(NtlmClientTest,
@@ -450,8 +450,8 @@ TEST(NtlmClientTest,
 
   ASSERT_EQ(base::size(test::kExpectedAuthenticateMsgToOldV1ChallegeV2),
             result.size());
-  ASSERT_EQ(0, SbMemoryCompare(test::kExpectedAuthenticateMsgToOldV1ChallegeV2,
-                               result.data(), result.size()));
+  ASSERT_EQ(0, memcmp(test::kExpectedAuthenticateMsgToOldV1ChallegeV2,
+                      result.data(), result.size()));
 }
 
 }  // namespace ntlm

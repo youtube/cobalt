@@ -22,13 +22,13 @@ namespace {
 TEST(SbStringCompareNoCaseNTest, SunnyDaySelf) {
   const char kString[] = "0123456789";
   EXPECT_EQ(
-      0, SbStringCompareNoCaseN(kString, kString, SbStringGetLength(kString)));
+      0, SbStringCompareNoCaseN(kString, kString, strlen(kString)));
   EXPECT_EQ(0, SbStringCompareNoCaseN("", "", 0));
 }
 
 TEST(SbStringCompareNoCaseNTest, SunnyDayEmptyLessThanNotEmpty) {
   const char kString[] = "0123456789";
-  EXPECT_GT(0, SbStringCompareNoCaseN("", kString, SbStringGetLength(kString)));
+  EXPECT_GT(0, SbStringCompareNoCaseN("", kString, strlen(kString)));
 }
 
 TEST(SbStringCompareNoCaseNTest, SunnyDayEmptyZeroNEqual) {
@@ -39,27 +39,27 @@ TEST(SbStringCompareNoCaseNTest, SunnyDayEmptyZeroNEqual) {
 TEST(SbStringCompareNoCaseNTest, SunnyDayBigN) {
   const char kString[] = "0123456789";
   EXPECT_EQ(0, SbStringCompareNoCaseN(kString, kString,
-                                      SbStringGetLength(kString) * 2));
+                                      strlen(kString) * 2));
 }
 
 TEST(SbStringCompareNoCaseNTest, SunnyDayCase) {
   const char kString1[] = "aBcDeFgHiJkLmNoPqRsTuVwXyZ";
   const char kString2[] = "AbCdEfGhIjKlMnOpQrStUvWxYz";
   EXPECT_EQ(0, SbStringCompareNoCaseN(kString1, kString2,
-                                      SbStringGetLength(kString1)));
+                                      strlen(kString1)));
   EXPECT_EQ(0, SbStringCompareNoCaseN(kString2, kString1,
-                                      SbStringGetLength(kString2)));
+                                      strlen(kString2)));
 
   const char kString3[] = "aBcDeFgHiJkLmaBcDeFgHiJkLm";
   const char kString4[] = "AbCdEfGhIjKlMnOpQrStUvWxYz";
   EXPECT_GT(0, SbStringCompareNoCaseN(kString3, kString4,
-                                      SbStringGetLength(kString3)));
+                                      strlen(kString3)));
   EXPECT_LT(0, SbStringCompareNoCaseN(kString4, kString3,
-                                      SbStringGetLength(kString4)));
+                                      strlen(kString4)));
   EXPECT_EQ(0, SbStringCompareNoCaseN(kString3, kString4,
-                                      SbStringGetLength(kString3) / 2));
+                                      strlen(kString3) / 2));
   EXPECT_EQ(0, SbStringCompareNoCaseN(kString4, kString3,
-                                      SbStringGetLength(kString4) / 2));
+                                      strlen(kString4) / 2));
 }
 
 }  // namespace

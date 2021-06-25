@@ -105,7 +105,8 @@ void Observer::OnEvent(Events event, const std::string& id) {
     if (updater_notification_ext_ != nullptr) {
       updater_notification_ext_->UpdaterState(
           ComponentStateToCobaltExtensionUpdaterNotificationState(
-              crx_update_item_.state));
+              crx_update_item_.state),
+          GetCurrentEvergreenVersion().c_str());
     }
   } else {
     status = "No status available";

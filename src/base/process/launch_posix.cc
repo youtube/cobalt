@@ -443,7 +443,7 @@ Process LaunchProcess(const std::vector<std::string>& argv,
     void *malloc_thunk =
         reinterpret_cast<void*>(reinterpret_cast<intptr_t>(malloc) & ~4095);
     mprotect(malloc_thunk, 4096, PROT_READ | PROT_WRITE | PROT_EXEC);
-    SbMemorySet(reinterpret_cast<void*>(malloc), 0xff, 8);
+    memset(reinterpret_cast<void*>(malloc), 0xff, 8);
 #endif  // 0
 
 #if defined(OS_CHROMEOS)

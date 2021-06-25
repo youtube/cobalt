@@ -20,8 +20,8 @@
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/common/log.h"
+#include "starboard/common/memory.h"
 #include "starboard/configuration.h"
-#include "starboard/memory.h"
 #include "starboard/shared/starboard/accessibility_internal.h"
 
 using starboard::android::shared::JniEnvExt;
@@ -104,8 +104,8 @@ void SetColorProperties(jobject j_caption_settings,
 bool SbAccessibilityGetCaptionSettings(
     SbAccessibilityCaptionSettings* caption_settings) {
   if (!caption_settings ||
-      !SbMemoryIsZero(caption_settings,
-                      sizeof(SbAccessibilityCaptionSettings))) {
+      !starboard::common::MemoryIsZero(
+          caption_settings, sizeof(SbAccessibilityCaptionSettings))) {
     return false;
   }
 

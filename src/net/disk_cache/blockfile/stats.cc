@@ -82,11 +82,11 @@ bool VerifyStats(OnDiskStats* stats) {
   // We don't want to discard the whole cache every time we have one extra
   // counter; we keep old data if we can.
   if (static_cast<unsigned int>(stats->size) > sizeof(*stats)) {
-    SbMemorySet(stats, 0, sizeof(*stats));
+    memset(stats, 0, sizeof(*stats));
     stats->signature = kDiskSignature;
   } else if (static_cast<unsigned int>(stats->size) != sizeof(*stats)) {
     size_t delta = sizeof(*stats) - static_cast<unsigned int>(stats->size);
-    SbMemorySet(reinterpret_cast<char*>(stats) + stats->size, 0, delta);
+    memset(reinterpret_cast<char*>(stats) + stats->size, 0, delta);
     stats->size = sizeof(*stats);
   }
 
@@ -101,14 +101,14 @@ bool Stats::Init(void* data, int num_bytes, Addr address) {
   OnDiskStats local_stats;
   OnDiskStats* stats = &local_stats;
   if (!num_bytes) {
-    SbMemorySet(stats, 0, sizeof(local_stats));
+    memset(stats, 0, sizeof(local_stats));
     local_stats.signature = kDiskSignature;
     local_stats.size = sizeof(local_stats);
   } else if (num_bytes >= static_cast<int>(sizeof(*stats))) {
     stats = reinterpret_cast<OnDiskStats*>(data);
     if (!VerifyStats(stats)) {
-      SbMemorySet(&local_stats, 0, sizeof(local_stats));
-      if (SbMemoryCompare(stats, &local_stats, sizeof(local_stats))) {
+      memset(&local_stats, 0, sizeof(local_stats));
+      if (memcmp(stats, &local_stats, sizeof(local_stats))) {
         return false;
       } else {
         // The storage is empty which means that SerializeStats() was never
@@ -124,8 +124,8 @@ bool Stats::Init(void* data, int num_bytes, Addr address) {
 
   storage_addr_ = address;
 
-  SbMemoryCopy(data_sizes_, stats->data_sizes, sizeof(data_sizes_));
-  SbMemoryCopy(counters_, stats->counters, sizeof(counters_));
+  memcpy(data_sizes_, stats->data_sizes, sizeof(data_sizes_));
+  memcpy(counters_, stats->counters, sizeof(counters_));
 
   // Clean up old value.
   SetCounter(UNUSED, 0);
@@ -245,8 +245,8 @@ int Stats::SerializeStats(void* data, int num_bytes, Addr* address) {
 
   stats->signature = kDiskSignature;
   stats->size = sizeof(*stats);
-  SbMemoryCopy(stats->data_sizes, data_sizes_, sizeof(data_sizes_));
-  SbMemoryCopy(stats->counters, counters_, sizeof(counters_));
+  memcpy(stats->data_sizes, data_sizes_, sizeof(data_sizes_));
+  memcpy(stats->counters, counters_, sizeof(counters_));
 
   *address = storage_addr_;
   return sizeof(*stats);

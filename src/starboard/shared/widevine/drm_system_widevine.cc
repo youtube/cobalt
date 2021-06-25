@@ -95,8 +95,8 @@ std::string GetWidevineStoragePath() {
   auto path_size = path.size();
   SB_CHECK(
       SbSystemGetPath(kSbSystemPathCacheDirectory, path.data(), path_size) &&
-      SbStringConcat(path.data(), kSbFileSepString, path_size) &&
-      SbStringConcat(path.data(), kWidevineStorageFileName, path_size));
+      ::starboard::strlcat(path.data(), kSbFileSepString, path_size) &&
+      ::starboard::strlcat(path.data(), kWidevineStorageFileName, path_size));
   return std::string(path.data());
 }
 
@@ -205,7 +205,7 @@ DrmSystemWidevine::DrmSystemWidevine(
     void* context,
     SbDrmSessionUpdateRequestFunc session_update_request_callback,
     SbDrmSessionUpdatedFunc session_updated_callback,
-    SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback,
+    SbDrmSessionKeyStatusesChangedFunc session_key_statuses_changed_callback,
     SbDrmServerCertificateUpdatedFunc server_certificate_updated_callback,
     SbDrmSessionClosedFunc session_closed_callback,
     const std::string& company_name,
@@ -213,7 +213,8 @@ DrmSystemWidevine::DrmSystemWidevine(
     : context_(context),
       session_update_request_callback_(session_update_request_callback),
       session_updated_callback_(session_updated_callback),
-      key_statuses_changed_callback_(key_statuses_changed_callback),
+      session_key_statuses_changed_callback_(
+          session_key_statuses_changed_callback),
       server_certificate_updated_callback_(server_certificate_updated_callback),
       session_closed_callback_(session_closed_callback),
       ticket_thread_id_(SbThreadGetId()) {
@@ -306,9 +307,9 @@ void DrmSystemWidevine::GenerateSessionUpdateRequest(
   const std::string init_str(static_cast<const char*>(initialization_data),
                              initialization_data_size);
   wv3cdm::InitDataType init_type = wv3cdm::kWebM;
-  if (SbStringCompareAll("cenc", type) == 0) {
+  if (strcmp("cenc", type) == 0) {
     init_type = wv3cdm::kCenc;
-  } else if (SbStringCompareAll("webm", type) == 0) {
+  } else if (strcmp("webm", type) == 0) {
     init_type = wv3cdm::kWebM;
   } else {
     SB_NOTREACHED();
@@ -591,7 +592,7 @@ void DrmSystemWidevine::GenerateSessionUpdateRequestInternal(
     const char* session_id =
         SbDrmTicketIsValid(ticket) ? NULL : kFirstSbDrmSessionId;
     int session_id_size =
-        session_id ? static_cast<int>(SbStringGetLength(session_id)) : 0;
+        session_id ? static_cast<int>(strlen(session_id)) : 0;
     session_update_request_callback_(
         this, context_, ticket, CdmStatusToSbDrmStatus(status),
         kSbDrmSessionRequestTypeLicenseRequest, "", session_id, session_id_size,
@@ -650,7 +651,7 @@ void DrmSystemWidevine::onKeyStatusesChange(
   for (auto& key_status : key_statuses) {
     SbDrmKeyId sb_key_id;
     SB_DCHECK(key_status.first.size() <= sizeof(sb_key_id.identifier));
-    SbMemoryCopy(sb_key_id.identifier, key_status.first.c_str(),
+    memcpy(sb_key_id.identifier, key_status.first.c_str(),
                  key_status.first.size());
     sb_key_id.identifier_size = static_cast<int>(key_status.first.size());
     sb_key_ids.push_back(sb_key_id);
@@ -659,9 +660,9 @@ void DrmSystemWidevine::onKeyStatusesChange(
 
   const std::string sb_drm_session_id =
       WvdmSessionIdToSbDrmSessionId(wvcdm_session_id);
-  key_statuses_changed_callback_(this, context_, sb_drm_session_id.c_str(),
-                                 sb_drm_session_id.size(), sb_key_ids.size(),
-                                 sb_key_ids.data(), sb_key_statuses.data());
+  session_key_statuses_changed_callback_(
+      this, context_, sb_drm_session_id.c_str(), sb_drm_session_id.size(),
+      sb_key_ids.size(), sb_key_ids.data(), sb_key_statuses.data());
 }
 
 void DrmSystemWidevine::onRemoveComplete(const std::string& wvcdm_session_id) {

@@ -21,6 +21,8 @@ dictionary CobaltUADataValues : UADataValues {
   DOMString rasterizer;
   DOMString evergreenVersion;
   DOMString starboardVersion;
+  DOMString originalDesignManufacturer;
+  DOMString deviceType;
   DOMString chipset;
   DOMString modelYear;
   DOMString deviceBrand;

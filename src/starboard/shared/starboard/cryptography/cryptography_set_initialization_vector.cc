@@ -36,7 +36,7 @@ void SbCryptographySetInitializationVector(
     AES_gcm128_setiv(&transformer->gcm_context, &transformer->key,
                      initialization_vector, initialization_vector_size);
   } else {
-    SbMemoryCopy(transformer->ivec, initialization_vector,
+    memcpy(transformer->ivec, initialization_vector,
                  std::min(initialization_vector_size,
                           static_cast<int>(sizeof(transformer->ivec))));
   }

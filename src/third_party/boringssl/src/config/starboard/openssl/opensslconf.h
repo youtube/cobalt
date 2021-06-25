@@ -238,30 +238,15 @@
 #define OPENSSL_port_gettimeofday EzTimeValueGetNow
 #define OPENSSL_port_gmtime_r EzTimeTExplodeUTC
 #define OPENSSL_port_malloc SbMemoryAllocate
-#define OPENSSL_port_memcmp SbMemoryCompare
-#define OPENSSL_port_memcpy SbMemoryCopy
-#define OPENSSL_port_memmove SbMemoryMove
-#define OPENSSL_port_memset SbMemorySet
 #define OPENSSL_port_printf SbLogFormatF
 #define OPENSSL_port_printferr SbLogFormatF
 #define OPENSSL_port_realloc SbMemoryReallocate
 #define OPENSSL_port_sscanf SbStringScanF
 #define OPENSSL_port_strcasecmp SbStringCompareNoCase
-#define OPENSSL_port_strcat(d, s) SbStringConcat((d), (s), INT_MAX)
-#define OPENSSL_port_strchr (char *)SbStringFindCharacter
-#define OPENSSL_port_strcmp SbStringCompareAll
-#define OPENSSL_port_strcpy(d, s) SbStringCopy((d), (s), INT_MAX)
 #define OPENSSL_port_strdup SbStringDuplicate
 #define OPENSSL_port_strerror(x) ""
-#define OPENSSL_port_strlen SbStringGetLength
 #define OPENSSL_port_strncasecmp SbStringCompareNoCaseN
-#define OPENSSL_port_strncmp SbStringCompare
-#define OPENSSL_port_strncpy SbStringCopy
-#define OPENSSL_port_strrchr (char *)SbStringFindLastCharacter
 #define OPENSSL_port_time EzTimeTGetNow
-
-// OPENSSL wrapper functions that aren't defined globally.
-#define OPENSSL_strcmp OPENSSL_port_strcmp
 
 // Variables that need to be ported.
 #define OPENSSL_port_errno SbSystemGetLastError()

@@ -172,12 +172,19 @@ TEST_F(WebSocketImplTest, OverLimitRequest) {
     EXPECT_CALL(*mock_channel_,
                 MockSendFrame(false, net::WebSocketFrameHeader::kOpCodeText, _,
                               kDefaultSendQuotaHighWaterMark))
-        .Times(2)
+        .Times(1)
         .WillRepeatedly(Return(net::WebSocketChannel::CHANNEL_ALIVE));
 
     EXPECT_CALL(
         *mock_channel_,
-        MockSendFrame(true, net::WebSocketFrameHeader::kOpCodeText, _, 1))
+        MockSendFrame(false, net::WebSocketFrameHeader::kOpCodeContinuation, _,
+                      kDefaultSendQuotaHighWaterMark))
+        .Times(1)
+        .WillRepeatedly(Return(net::WebSocketChannel::CHANNEL_ALIVE));
+
+    EXPECT_CALL(*mock_channel_,
+                MockSendFrame(
+                    true, net::WebSocketFrameHeader::kOpCodeContinuation, _, 1))
         .Times(1)
         .WillOnce(Return(net::WebSocketChannel::CHANNEL_ALIVE));
   }
@@ -204,7 +211,7 @@ TEST_F(WebSocketImplTest, ReuseSocketForLargeRequest) {
         .WillOnce(Return(net::WebSocketChannel::CHANNEL_ALIVE));
     EXPECT_CALL(
         *mock_channel_,
-        MockSendFrame(true, net::WebSocketFrameHeader::kOpCodeBinary, _, 1))
+        MockSendFrame(true, net::WebSocketFrameHeader::kOpCodeContinuation, _, 1))
         .Times(1)
         .WillOnce(Return(net::WebSocketChannel::CHANNEL_ALIVE));
     EXPECT_CALL(*mock_channel_,
@@ -213,7 +220,7 @@ TEST_F(WebSocketImplTest, ReuseSocketForLargeRequest) {
         .Times(1)
         .WillOnce(Return(net::WebSocketChannel::CHANNEL_ALIVE));
     EXPECT_CALL(*mock_channel_,
-                MockSendFrame(true, net::WebSocketFrameHeader::kOpCodeText, _,
+                MockSendFrame(true, net::WebSocketFrameHeader::kOpCodeContinuation, _,
                               kTooMuch - (k512KB - 1)))
         .Times(1)
         .WillOnce(Return(net::WebSocketChannel::CHANNEL_ALIVE));

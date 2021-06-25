@@ -792,11 +792,11 @@ TEST_F(SpdySessionTest, GoAwayWhileDraining) {
   auto buffer = std::make_unique<char[]>(joint_size);
   {
     size_t out = 0;
-    SbMemoryCopy(&buffer[out], goaway.data(), goaway.size());
+    memcpy(&buffer[out], goaway.data(), goaway.size());
     out += goaway.size();
-    SbMemoryCopy(&buffer[out], body.data(), body.size());
+    memcpy(&buffer[out], body.data(), body.size());
     out += body.size();
-    SbMemoryCopy(&buffer[out], goaway.data(), goaway.size());
+    memcpy(&buffer[out], goaway.data(), goaway.size());
     out += goaway.size();
     ASSERT_EQ(out, joint_size);
   }

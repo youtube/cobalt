@@ -120,8 +120,8 @@ UDPSocketWin::Core::Core(UDPSocketWin* socket)
     : socket_(socket),
       reader_(this),
       writer_(this) {
-  SbMemorySet(&read_overlapped_, 0, sizeof(read_overlapped_));
-  SbMemorySet(&write_overlapped_, 0, sizeof(write_overlapped_));
+  memset(&read_overlapped_, 0, sizeof(read_overlapped_));
+  memset(&write_overlapped_, 0, sizeof(write_overlapped_));
 
   read_overlapped_.hEvent = WSACreateEvent();
   write_overlapped_.hEvent = WSACreateEvent();
@@ -133,9 +133,9 @@ UDPSocketWin::Core::~Core() {
   write_watcher_.StopWatching();
 
   WSACloseEvent(read_overlapped_.hEvent);
-  SbMemorySet(&read_overlapped_, 0xaf, sizeof(read_overlapped_));
+  memset(&read_overlapped_, 0xaf, sizeof(read_overlapped_));
   WSACloseEvent(write_overlapped_.hEvent);
-  SbMemorySet(&write_overlapped_, 0xaf, sizeof(write_overlapped_));
+  memset(&write_overlapped_, 0xaf, sizeof(write_overlapped_));
 }
 
 void UDPSocketWin::Core::WatchForRead() {
@@ -1032,7 +1032,7 @@ int UDPSocketWin::JoinGroup(const IPAddress& group_address) const {
         return ERR_ADDRESS_INVALID;
       ip_mreq mreq;
       mreq.imr_interface.s_addr = htonl(multicast_interface_);
-      SbMemoryCopy(&mreq.imr_multiaddr, group_address.bytes().data(),
+      memcpy(&mreq.imr_multiaddr, group_address.bytes().data(),
                    IPAddress::kIPv4AddressSize);
       int rv = setsockopt(socket_, IPPROTO_IP, IP_ADD_MEMBERSHIP,
                           reinterpret_cast<const char*>(&mreq),
@@ -1046,7 +1046,7 @@ int UDPSocketWin::JoinGroup(const IPAddress& group_address) const {
         return ERR_ADDRESS_INVALID;
       ipv6_mreq mreq;
       mreq.ipv6mr_interface = multicast_interface_;
-      SbMemoryCopy(&mreq.ipv6mr_multiaddr, group_address.bytes().data(),
+      memcpy(&mreq.ipv6mr_multiaddr, group_address.bytes().data(),
                    IPAddress::kIPv6AddressSize);
       int rv = setsockopt(socket_, IPPROTO_IPV6, IPV6_ADD_MEMBERSHIP,
                           reinterpret_cast<const char*>(&mreq),
@@ -1072,7 +1072,7 @@ int UDPSocketWin::LeaveGroup(const IPAddress& group_address) const {
         return ERR_ADDRESS_INVALID;
       ip_mreq mreq;
       mreq.imr_interface.s_addr = htonl(multicast_interface_);
-      SbMemoryCopy(&mreq.imr_multiaddr, group_address.bytes().data(),
+      memcpy(&mreq.imr_multiaddr, group_address.bytes().data(),
                    IPAddress::kIPv4AddressSize);
       int rv = setsockopt(socket_, IPPROTO_IP, IP_DROP_MEMBERSHIP,
                           reinterpret_cast<const char*>(&mreq), sizeof(mreq));
@@ -1085,7 +1085,7 @@ int UDPSocketWin::LeaveGroup(const IPAddress& group_address) const {
         return ERR_ADDRESS_INVALID;
       ipv6_mreq mreq;
       mreq.ipv6mr_interface = multicast_interface_;
-      SbMemoryCopy(&mreq.ipv6mr_multiaddr, group_address.bytes().data(),
+      memcpy(&mreq.ipv6mr_multiaddr, group_address.bytes().data(),
                    IPAddress::kIPv6AddressSize);
       int rv = setsockopt(socket_, IPPROTO_IPV6, IP_DROP_MEMBERSHIP,
                           reinterpret_cast<const char*>(&mreq), sizeof(mreq));

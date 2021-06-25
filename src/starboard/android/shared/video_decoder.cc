@@ -102,12 +102,12 @@ const SbMediaMasteringMetadata kEmptyMasteringMetadata = {};
 // Determine if two |SbMediaMasteringMetadata|s are equal.
 bool Equal(const SbMediaMasteringMetadata& lhs,
            const SbMediaMasteringMetadata& rhs) {
-  return SbMemoryCompare(&lhs, &rhs, sizeof(SbMediaMasteringMetadata)) == 0;
+  return memcmp(&lhs, &rhs, sizeof(SbMediaMasteringMetadata)) == 0;
 }
 
 // Determine if two |SbMediaColorMetadata|s are equal.
 bool Equal(const SbMediaColorMetadata& lhs, const SbMediaColorMetadata& rhs) {
-  return SbMemoryCompare(&lhs, &rhs, sizeof(SbMediaMasteringMetadata)) == 0;
+  return memcmp(&lhs, &rhs, sizeof(SbMediaMasteringMetadata)) == 0;
 }
 
 // TODO: For whatever reason, Cobalt will always pass us this us for
@@ -228,7 +228,7 @@ VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec,
       has_new_texture_available_(false),
       surface_condition_variable_(surface_destroy_mutex_),
       require_software_codec_(max_video_capabilities &&
-                              SbStringGetLength(max_video_capabilities) > 0) {
+                              strlen(max_video_capabilities) > 0) {
   SB_DCHECK(error_message);
 
   if (tunnel_mode_audio_session_id != -1) {
@@ -748,7 +748,7 @@ void getTransformMatrix(jobject surface_texture, float* matrix4x4) {
                              java_array);
 
   jfloat* array_values = env->GetFloatArrayElements(java_array, 0);
-  SbMemoryCopy(matrix4x4, array_values, sizeof(float) * 16);
+  memcpy(matrix4x4, array_values, sizeof(float) * 16);
 
   env->DeleteLocalRef(java_array);
 }

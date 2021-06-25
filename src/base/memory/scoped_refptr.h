@@ -12,7 +12,6 @@
 #include "base/compiler_specific.h"
 #include "base/logging.h"
 #include "base/macros.h"
-#include "nb/cpp14oncpp11.h"
 #include "starboard/types.h"
 
 template <class T>
@@ -171,7 +170,7 @@ class scoped_refptr {
   constexpr scoped_refptr() = default;
 
   // Constructs from raw pointer. constexpr if |p| is null.
-  CONSTEXPR scoped_refptr(T* p) : ptr_(p) {
+  constexpr scoped_refptr(T* p) : ptr_(p) {
     if (ptr_)
       AddRef(ptr_);
   }

@@ -142,30 +142,43 @@ services:
       - build-base-xenial
     scale: 0
 
-  linux-x64x11-clang-3-6:
+  linux-x64x11-clang-3-9:
     <<: *common-definitions
     <<: *build-volumes
     build:
       context: ./docker/linux/
-      dockerfile: clang-3-6/Dockerfile
-    image: cobalt-build-linux-clang-3-6
+      dockerfile: clang-3-9/Dockerfile
+    image: cobalt-build-linux-clang-3-9
     environment:
       <<: *shared-build-env
-      PLATFORM: linux-x64x11-clang-3-6
+      PLATFORM: linux-x64x11-clang-3-9
       CONFIG: ${CONFIG:-debug}
     depends_on:
       - linux-x64x11-xenial
 
-  linux-x64x11-clang-3-6-prebuilt:
+  linux-x64x11-clang-3-9-prebuilt:
     <<: *common-definitions
     <<: *build-volumes
-    image: gcr.io/cobalt-tools/build-cobalt-linux-x64x11-clang-3-6:1.3
+    image: gcr.io/cobalt-tools/build-cobalt-linux-x64x11-clang-3-9:1.4
     environment:
       <<: *shared-build-env
-      PLATFORM: linux-x64x11-clang-3-6
+      PLATFORM: linux-x64x11-clang-3-9
       CONFIG: ${CONFIG:-debug}
       USE_CCACHE: ${USE_CCACHE:-1}
       NINJA_STATUS: ${NINJA_STATUS}
+
+  linux-x64x11-sbversion12-evergreen:
+    <<: *build-common-definitions
+    build:
+      context: ./docker/linux
+      dockerfile: linux-x64x11/Dockerfile
+      args:
+        - FROM_IMAGE=cobalt-build-evergreen
+    image: cobalt-build-linux-x64x11-evergreen
+    environment:
+      <<: *shared-build-env
+      PLATFORM: linux-x64x11-sbversion-12
+      CONFIG: ${CONFIG:-debug}
 
   # Define common build container for Android
   build-android:
@@ -186,6 +199,20 @@ services:
       PLATFORM: android-x86
       CONFIG: ${CONFIG:-debug}
 
+  android-x86-gn:
+    <<: *build-common-definitions
+    image: cobalt-build-android-gn
+    depends_on: [ android-x86 ]
+    build:
+      context: ./docker/linux/android
+      dockerfile: ./gn/Dockerfile
+    environment:
+      <<: *shared-build-env
+      IS_DOCKER: 1
+      PLATFORM: android-x86
+      CONFIG: ${CONFIG:-debug}
+      TARGET_CPU: ${TARGET_CPU:-x86}
+
   android-arm:
     <<: *build-common-definitions
     image: cobalt-build-android
@@ -196,6 +223,20 @@ services:
       PLATFORM: android-arm
       CONFIG: ${CONFIG:-debug}
 
+  android-arm-gn:
+    <<: *build-common-definitions
+    image: cobalt-build-android-gn
+    depends_on: [ android-arm ]
+    build:
+      context: ./docker/linux/android
+      dockerfile: ./gn/Dockerfile
+    environment:
+      <<: *shared-build-env
+      IS_DOCKER: 1
+      PLATFORM: android-arm
+      CONFIG: ${CONFIG:-debug}
+      TARGET_CPU: ${TARGET_CPU:-arm}
+
   android-arm64:
     <<: *build-common-definitions
     image: cobalt-build-android
@@ -205,6 +246,20 @@ services:
       IS_DOCKER: 1
       PLATFORM: android-arm64
       CONFIG: ${CONFIG:-debug}
+
+  android-arm64-gn:
+    <<: *build-common-definitions
+    image: cobalt-build-android-gn
+    depends_on: [ android-arm64 ]
+    build:
+      context: ./docker/linux/android
+      dockerfile: ./gn/Dockerfile
+    environment:
+      <<: *shared-build-env
+      IS_DOCKER: 1
+      PLATFORM: android-arm64
+      CONFIG: ${CONFIG:-debug}
+      TARGET_CPU: ${TARGET_CPU:-arm64}
 
   raspi:
     <<: *build-common-definitions

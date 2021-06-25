@@ -77,8 +77,8 @@ bool ContentsEqual(const FilePath& filename1, const FilePath& filename2) {
     return false;
   }
 
-  return SbMemoryCompare(file1_content.get(), file2_content.get(),
-                         file1_length) == 0;
+  return memcmp(file1_content.get(), file2_content.get(),
+                file1_length) == 0;
 #else
   std::ifstream file1(filename1.value().c_str(),
                       std::ios::in | std::ios::binary);

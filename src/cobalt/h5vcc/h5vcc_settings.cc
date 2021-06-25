@@ -20,19 +20,28 @@ namespace cobalt {
 namespace h5vcc {
 
 H5vccSettings::H5vccSettings(media::MediaModule* media_module,
-                             cobalt::network::NetworkModule* network_module)
-    : media_module_(media_module), network_module_(network_module) {}
+                             cobalt::network::NetworkModule* network_module,
+                             dom::NavigatorUAData* user_agent_data,
+                             script::GlobalEnvironment* global_environment)
+    : media_module_(media_module),
+      network_module_(network_module),
+      user_agent_data_(user_agent_data),
+      global_environment_(global_environment) {}
 
 bool H5vccSettings::Set(const std::string& name, int32 value) const {
   const char kMediaPrefix[] = "Media.";
+  const char kNavigatorUAData[] = "NavigatorUAData";
   const char kQUIC[] = "QUIC";
 
-  if (SbStringCompare(name.c_str(), kMediaPrefix, sizeof(kMediaPrefix) - 1) ==
-      0) {
+  if (name.compare(kMediaPrefix) == 0) {
     return media_module_ ? media_module_->SetConfiguration(name, value) : false;
   }
 
-  if (SbStringCompare(name.c_str(), kQUIC, sizeof(kQUIC) - 1) == 0) {
+  if (name.compare(kNavigatorUAData) == 0 && value == 1) {
+    global_environment_->BindTo("userAgentData", user_agent_data_, "navigator");
+  }
+
+  if (name.compare(kQUIC) == 0) {
     if (!network_module_) {
       return false;
     } else {
@@ -40,6 +49,7 @@ bool H5vccSettings::Set(const std::string& name, int32 value) const {
       return true;
     }
   }
+
   return false;
 }
 

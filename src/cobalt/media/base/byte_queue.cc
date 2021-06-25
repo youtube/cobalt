@@ -45,18 +45,18 @@ void ByteQueue::Push(const uint8_t* data, int size) {
     std::unique_ptr<uint8_t[]> new_buffer(new uint8_t[new_size]);
 
     // Copy the data from the old buffer to the start of the new one.
-    if (used_ > 0) SbMemoryCopy(new_buffer.get(), front(), used_);
+    if (used_ > 0) memcpy(new_buffer.get(), front(), used_);
 
     buffer_ = std::move(new_buffer);
     size_ = new_size;
     offset_ = 0;
   } else if ((offset_ + used_ + size) > size_) {
     // The buffer is big enough, but we need to move the data in the queue.
-    SbMemoryMove(buffer_.get(), front(), used_);
+    memmove(buffer_.get(), front(), used_);
     offset_ = 0;
   }
 
-  SbMemoryCopy(front() + used_, data, size);
+  memcpy(front() + used_, data, size);
   used_ += size;
 }
 

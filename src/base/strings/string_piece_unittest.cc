@@ -7,7 +7,6 @@
 #include "base/strings/string16.h"
 #include "base/strings/string_piece.h"
 #include "base/strings/utf_string_conversions.h"
-#include "nb/cpp14oncpp11.h"
 #include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -708,98 +707,98 @@ TYPED_TEST(CommonStringPieceTest, CheckConstructors) {
 
 TEST(StringPieceTest, CONSTEXPRCtor) {
   {
-    CONSTEXPR StringPiece piece;
+    constexpr StringPiece piece;
     std::ignore = piece;
   }
 
   {
-    CONSTEXPR StringPiece piece("abc");
+    constexpr StringPiece piece("abc");
     std::ignore = piece;
   }
 
   {
-    CONSTEXPR StringPiece piece("abc", 2);
+    constexpr StringPiece piece("abc", 2);
     std::ignore = piece;
   }
 }
 
 TEST(StringPieceTest, CONSTEXPRData) {
   {
-    CONSTEXPR StringPiece piece;
-    STATIC_ASSERT(piece.data() == nullptr, "");
+    constexpr StringPiece piece;
+    static_assert(piece.data() == nullptr, "");
   }
 
   {
-    CONSTEXPR StringPiece piece("abc");
-    STATIC_ASSERT(piece.data()[0] == 'a', "");
-    STATIC_ASSERT(piece.data()[1] == 'b', "");
-    STATIC_ASSERT(piece.data()[2] == 'c', "");
+    constexpr StringPiece piece("abc");
+    static_assert(piece.data()[0] == 'a', "");
+    static_assert(piece.data()[1] == 'b', "");
+    static_assert(piece.data()[2] == 'c', "");
   }
 
   {
-    CONSTEXPR StringPiece piece("def", 2);
-    STATIC_ASSERT(piece.data()[0] == 'd', "");
-    STATIC_ASSERT(piece.data()[1] == 'e', "");
+    constexpr StringPiece piece("def", 2);
+    static_assert(piece.data()[0] == 'd', "");
+    static_assert(piece.data()[1] == 'e', "");
   }
 }
 
 TEST(StringPieceTest, CONSTEXPRSize) {
   {
-    CONSTEXPR StringPiece piece;
-    STATIC_ASSERT(piece.size() == 0, "");
+    constexpr StringPiece piece;
+    static_assert(piece.size() == 0, "");
   }
 
   {
-    CONSTEXPR StringPiece piece("abc");
-    STATIC_ASSERT(piece.size() == 3, "");
+    constexpr StringPiece piece("abc");
+    static_assert(piece.size() == 3, "");
   }
 
   {
-    CONSTEXPR StringPiece piece("def", 2);
-    STATIC_ASSERT(piece.size() == 2, "");
+    constexpr StringPiece piece("def", 2);
+    static_assert(piece.size() == 2, "");
   }
 }
 
 TEST(StringPieceTest, Compare) {
-  CONSTEXPR StringPiece piece = "def";
+  constexpr StringPiece piece = "def";
 
-  STATIC_ASSERT(piece.compare("ab") == 1, "");
-  STATIC_ASSERT(piece.compare("abc") == 1, "");
-  STATIC_ASSERT(piece.compare("abcd") == 1, "");
-  STATIC_ASSERT(piece.compare("de") == 1, "");
-  STATIC_ASSERT(piece.compare("def") == 0, "");
-  STATIC_ASSERT(piece.compare("defg") == -1, "");
-  STATIC_ASSERT(piece.compare("gh") == -1, "");
-  STATIC_ASSERT(piece.compare("ghi") == -1, "");
-  STATIC_ASSERT(piece.compare("ghij") == -1, "");
+  static_assert(piece.compare("ab") == 1, "");
+  static_assert(piece.compare("abc") == 1, "");
+  static_assert(piece.compare("abcd") == 1, "");
+  static_assert(piece.compare("de") == 1, "");
+  static_assert(piece.compare("def") == 0, "");
+  static_assert(piece.compare("defg") == -1, "");
+  static_assert(piece.compare("gh") == -1, "");
+  static_assert(piece.compare("ghi") == -1, "");
+  static_assert(piece.compare("ghij") == -1, "");
 }
 
 TEST(StringPieceTest, StartsWith) {
-  CONSTEXPR StringPiece piece("abc");
+  constexpr StringPiece piece("abc");
 
-  STATIC_ASSERT(piece.starts_with(""), "");
-  STATIC_ASSERT(piece.starts_with("a"), "");
-  STATIC_ASSERT(piece.starts_with("ab"), "");
-  STATIC_ASSERT(piece.starts_with("abc"), "");
+  static_assert(piece.starts_with(""), "");
+  static_assert(piece.starts_with("a"), "");
+  static_assert(piece.starts_with("ab"), "");
+  static_assert(piece.starts_with("abc"), "");
 
-  STATIC_ASSERT(!piece.starts_with("b"), "");
-  STATIC_ASSERT(!piece.starts_with("bc"), "");
+  static_assert(!piece.starts_with("b"), "");
+  static_assert(!piece.starts_with("bc"), "");
 
-  STATIC_ASSERT(!piece.starts_with("abcd"), "");
+  static_assert(!piece.starts_with("abcd"), "");
 }
 
 TEST(StringPieceTest, EndsWith) {
-  CONSTEXPR StringPiece piece("abc");
+  constexpr StringPiece piece("abc");
 
-  STATIC_ASSERT(piece.ends_with(""), "");
-  STATIC_ASSERT(piece.ends_with("c"), "");
-  STATIC_ASSERT(piece.ends_with("bc"), "");
-  STATIC_ASSERT(piece.ends_with("abc"), "");
+  static_assert(piece.ends_with(""), "");
+  static_assert(piece.ends_with("c"), "");
+  static_assert(piece.ends_with("bc"), "");
+  static_assert(piece.ends_with("abc"), "");
 
-  STATIC_ASSERT(!piece.ends_with("a"), "");
-  STATIC_ASSERT(!piece.ends_with("ab"), "");
+  static_assert(!piece.ends_with("a"), "");
+  static_assert(!piece.ends_with("ab"), "");
 
-  STATIC_ASSERT(!piece.ends_with("abcd"), "");
+  static_assert(!piece.ends_with("abcd"), "");
 }
 
 }  // namespace base

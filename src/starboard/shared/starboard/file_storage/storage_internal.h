@@ -53,24 +53,24 @@ static SB_C_INLINE bool GetUserStorageFilePath(SbUser user,
     return false;
   }
 
-  const size_t n = name ? SbStringGetLength(name) : 0;
-  SbStringConcat(out_path, "/.starboard", path_size);
+  const size_t n = name ? strlen(name) : 0;
+  ::starboard::strlcat(out_path, "/.starboard", path_size);
   if (n > 0) {
-    SbStringConcat(out_path, ".", path_size);
+    ::starboard::strlcat(out_path, ".", path_size);
 #if SB_HAS_QUIRK(HASH_FILE_NAME)
-    size_t n = SbStringGetLength(name);
+    size_t n = strlen(name);
     // Two 32 bit hashes will create a 64 bit hash with extremely low
     // probability of collisions. The seed term was chosen arbitrary.
     uint32_t hash1 = MurmurHash2_32(name, n, 0x8df88a67);
     uint32_t hash2 = MurmurHash2_32(name, n, 0x5bdac960);
     std::stringstream name_stringstream;
     name_stringstream << std::hex << hash1 << hash2;
-    SbStringConcat(out_path, name_stringstream.str().c_str(), path_size);
+    ::starboard::strlcat(out_path, name_stringstream.str().c_str(), path_size);
 #else
-    SbStringConcat(out_path, name, path_size);
+    ::starboard::strlcat(out_path, name, path_size);
 #endif
   }
-  SbStringConcat(out_path, ".storage", path_size);
+  ::starboard::strlcat(out_path, ".storage", path_size);
   return true;
 }
 }  // namespace starboard

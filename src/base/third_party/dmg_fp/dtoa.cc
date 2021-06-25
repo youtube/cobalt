@@ -622,7 +622,7 @@ Bfree
 	}
 
 #define Bcopy(x, y)                              \
-  SbMemoryCopy((char*)&x->sign, (char*)&y->sign, \
+  memcpy((char*)&x->sign, (char*)&y->sign, \
                y->wds * sizeof(Long) + 2 * sizeof(int))
 
         static Bigint* multadd
@@ -1824,8 +1824,8 @@ gethex( CONST char **sp, U *rvp, int rounding, int sign)
 	if (!(s0 = decimalpoint_cache)) {
 		s0 = (unsigned char*)localeconv()->decimal_point;
                 if ((decimalpoint_cache = (unsigned char*)MALLOC(
-                         SbStringGetLength((CONST char*)s0) + 1))) {
-                  SbStringCopyUnsafe((char*)decimalpoint_cache,
+                         strlen((CONST char*)s0) + 1))) {
+                  strcpy((char*)decimalpoint_cache,
                                      (CONST char*)s0);
                   s0 = decimalpoint_cache;
 			}

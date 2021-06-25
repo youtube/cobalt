@@ -21,9 +21,31 @@ namespace browser {
 
 namespace {
 
-UserAgentPlatformInfo CreateOnlyOSNameAndVersionPlatformInfo() {
+UserAgentPlatformInfo CreateEmptyPlatformInfo() {
   UserAgentPlatformInfo platform_info;
-  platform_info.os_name_and_version = "GLaDOS 3.11";
+  platform_info.set_starboard_version("");
+  platform_info.set_os_name_and_version("");
+  platform_info.set_original_design_manufacturer("");
+  platform_info.set_device_type(kSbSystemDeviceTypeUnknown);
+  platform_info.set_chipset_model_number("");
+  platform_info.set_model_year("");
+  platform_info.set_firmware_version("");
+  platform_info.set_brand("");
+  platform_info.set_model("");
+  platform_info.set_aux_field("");
+  platform_info.set_connection_type(base::nullopt);
+  platform_info.set_javascript_engine_version("");
+  platform_info.set_rasterizer_type("");
+  platform_info.set_evergreen_version("");
+  platform_info.set_cobalt_version("");
+  platform_info.set_cobalt_build_version_number("");
+  platform_info.set_build_configuration("");
+  return platform_info;
+}
+
+UserAgentPlatformInfo CreateOnlyOSNameAndVersionPlatformInfo() {
+  UserAgentPlatformInfo platform_info = CreateEmptyPlatformInfo();
+  platform_info.set_os_name_and_version("GLaDOS 3.11");
   return platform_info;
 }
 
@@ -46,11 +68,11 @@ TEST(UserAgentStringFactoryTest, WithOSNameAndVersion) {
 }
 
 TEST(UserAgentStringFactoryTest, WithCobaltVersionAndConfiguration) {
-  UserAgentPlatformInfo platform_info;
-  platform_info.os_name_and_version = "GLaDOS 3.11";
-  platform_info.cobalt_version = "16";
-  platform_info.cobalt_build_version_number = "123456";
-  platform_info.build_configuration = "gold";
+  UserAgentPlatformInfo platform_info =
+      CreateOnlyOSNameAndVersionPlatformInfo();
+  platform_info.set_cobalt_version("16");
+  platform_info.set_cobalt_build_version_number("123456");
+  platform_info.set_build_configuration("gold");
   std::string user_agent_string = CreateUserAgentString(platform_info);
 
   const char* tv_info_str = "Cobalt/16.123456-gold (unlike Gecko)";
@@ -67,15 +89,15 @@ TEST(UserAgentStringFactoryTest, WithCobaltVersionAndConfiguration) {
 TEST(UserAgentStringFactoryTest, WithPlatformInfo) {
   // There are deliberately a variety of underscores, commas, slashes, and
   // parentheses in the strings below to ensure they get sanitized.
-  UserAgentPlatformInfo platform_info;
-  platform_info.os_name_and_version = "GLaDOS 3.11";
-  platform_info.original_design_manufacturer = "Aperture_Science_Innovators";
-  platform_info.device_type = kSbSystemDeviceTypeOverTheTopBox;
-  platform_info.chipset_model_number = "P-body/Orange_Atlas/Blue";
-  platform_info.model_year = "2013";
-  platform_info.firmware_version = "0,01";
-  platform_info.brand = "Aperture Science (Labs)";
-  platform_info.model = "GLaDOS";
+  UserAgentPlatformInfo platform_info =
+      CreateOnlyOSNameAndVersionPlatformInfo();
+  platform_info.set_original_design_manufacturer("Aperture_Science_Innovators");
+  platform_info.set_device_type(kSbSystemDeviceTypeOverTheTopBox);
+  platform_info.set_chipset_model_number("P-body/Orange_Atlas/Blue");
+  platform_info.set_model_year("2013");
+  platform_info.set_firmware_version("0,01");
+  platform_info.set_brand("Aperture Science (Labs)");
+  platform_info.set_model("GLaDOS");
   std::string user_agent_string = CreateUserAgentString(platform_info);
 
   const char* tv_info_str =
@@ -90,31 +112,31 @@ TEST(UserAgentStringFactoryTest, WithPlatformInfo) {
 }
 
 TEST(UserAgentStringFactoryTest, WithWiredConnection) {
-  UserAgentPlatformInfo platform_info;
-  platform_info.os_name_and_version = "GLaDOS 3.11";
-  platform_info.connection_type = kSbSystemConnectionTypeWired;
-  platform_info.device_type = kSbSystemDeviceTypeOverTheTopBox;
+  UserAgentPlatformInfo platform_info =
+      CreateOnlyOSNameAndVersionPlatformInfo();
+  platform_info.set_connection_type(kSbSystemConnectionTypeWired);
+  platform_info.set_device_type(kSbSystemDeviceTypeOverTheTopBox);
   std::string user_agent_string = CreateUserAgentString(platform_info);
 
   EXPECT_NE(std::string::npos, user_agent_string.find("Wired"));
 }
 
 TEST(UserAgentStringFactoryTest, WithWirelessConnection) {
-  UserAgentPlatformInfo platform_info;
-  platform_info.os_name_and_version = "GLaDOS 3.11";
-  platform_info.connection_type = kSbSystemConnectionTypeWireless;
-  platform_info.device_type = kSbSystemDeviceTypeOverTheTopBox;
+  UserAgentPlatformInfo platform_info =
+      CreateOnlyOSNameAndVersionPlatformInfo();
+  platform_info.set_connection_type(kSbSystemConnectionTypeWireless);
+  platform_info.set_device_type(kSbSystemDeviceTypeOverTheTopBox);
   std::string user_agent_string = CreateUserAgentString(platform_info);
 
   EXPECT_NE(std::string::npos, user_agent_string.find("Wireless"));
 }
 
 TEST(UserAgentStringFactoryTest, WithOnlyBrandModelAndDeviceType) {
-  UserAgentPlatformInfo platform_info;
-  platform_info.os_name_and_version = "GLaDOS 3.11";
-  platform_info.device_type = kSbSystemDeviceTypeOverTheTopBox;
-  platform_info.brand = "Aperture Science";
-  platform_info.model = "GLaDOS";
+  UserAgentPlatformInfo platform_info =
+      CreateOnlyOSNameAndVersionPlatformInfo();
+  platform_info.set_device_type(kSbSystemDeviceTypeOverTheTopBox);
+  platform_info.set_brand("Aperture Science");
+  platform_info.set_model("GLaDOS");
   std::string user_agent_string = CreateUserAgentString(platform_info);
 
   const char* tv_info_str = ", _OTT__/ (Aperture Science, GLaDOS, )";
@@ -122,9 +144,9 @@ TEST(UserAgentStringFactoryTest, WithOnlyBrandModelAndDeviceType) {
 }
 
 TEST(UserAgentStringFactoryTest, WithStarboardVersion) {
-  UserAgentPlatformInfo platform_info;
-  platform_info.starboard_version = "Starboard/6";
-  platform_info.device_type = kSbSystemDeviceTypeOverTheTopBox;
+  UserAgentPlatformInfo platform_info = CreateEmptyPlatformInfo();
+  platform_info.set_starboard_version("Starboard/6");
+  platform_info.set_device_type(kSbSystemDeviceTypeOverTheTopBox);
   std::string user_agent_string = CreateUserAgentString(platform_info);
 
   const char* tv_info_str = "Starboard/6, _OTT__/ (, , )";
@@ -132,8 +154,8 @@ TEST(UserAgentStringFactoryTest, WithStarboardVersion) {
 }
 
 TEST(UserAgentStringFactoryTest, WithJavaScriptVersion) {
-  UserAgentPlatformInfo platform_info;
-  platform_info.javascript_engine_version = "V8/6.5.254.28";
+  UserAgentPlatformInfo platform_info = CreateEmptyPlatformInfo();
+  platform_info.set_javascript_engine_version("V8/6.5.254.28");
   std::string user_agent_string = CreateUserAgentString(platform_info);
 
   EXPECT_NE(std::string::npos, user_agent_string.find("V8/6.5.254.28"));

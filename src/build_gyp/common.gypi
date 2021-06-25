@@ -290,7 +290,6 @@
         # build.
         '-Wno-unused-function',
         '-Wno-char-subscripts',
-        '-Wno-c++11-extensions',
         '-Wno-unnamed-type-template-args',
       ],
 

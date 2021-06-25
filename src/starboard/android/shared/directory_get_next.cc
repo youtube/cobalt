@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "starboard/common/string.h"
 #include "starboard/directory.h"
 
 #include <android/asset_manager.h>
@@ -30,7 +31,7 @@ bool SbDirectoryGetNext(SbDirectory directory,
     if (file_name == NULL) {
       return false;
     }
-    SbStringCopy(out_entry, file_name, out_entry_size);
+    starboard::strlcpy(out_entry, file_name, out_entry_size);
     return true;
   }
 

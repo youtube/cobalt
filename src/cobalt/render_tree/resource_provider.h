@@ -129,6 +129,9 @@ class ResourceProvider {
   virtual scoped_refptr<Typeface> GetLocalTypeface(const char* font_family_name,
                                                    FontStyle font_style) = 0;
 
+  // Loads additional fonts that should be loaded asynchronously at startup.
+  virtual void LoadAdditionalFonts() = 0;
+
   // Given a set of typeface information, this method returns the locally
   // available typeface that best fits the specified parameters. In the case
   // where no typeface is found that matches the font family name, NULL is

@@ -169,7 +169,7 @@ class BASE_EXPORT TaskTraits {
                 trait_helpers::AreValidTraits<ValidTrait, ArgTypes...>::value ||
                 trait_helpers::AreValidTraitsForExtension<ArgTypes...>::value>>
 #endif
-  CONSTEXPR TaskTraits(ArgTypes... args)
+  constexpr TaskTraits(ArgTypes... args)
 #if __cplusplus < 201402L
       :
 #else
@@ -212,34 +212,34 @@ class BASE_EXPORT TaskTraits {
   // the value from |right|. Note that extension traits are not merged: any
   // extension traits in |left| are discarded if extension traits are present in
   // |right|.
-  static CONSTEXPR TaskTraits Override(const TaskTraits& left,
+  static constexpr TaskTraits Override(const TaskTraits& left,
                                        const TaskTraits& right) {
     return TaskTraits(left, right);
   }
 
   // Returns true if the priority was set explicitly.
-  CONSTEXPR bool priority_set_explicitly() const {
+  constexpr bool priority_set_explicitly() const {
     return priority_set_explicitly_;
   }
 
   // Returns the priority of tasks with these traits.
-  CONSTEXPR TaskPriority priority() const { return priority_; }
+  constexpr TaskPriority priority() const { return priority_; }
 
   // Returns true if the shutdown behavior was set explicitly.
-  CONSTEXPR bool shutdown_behavior_set_explicitly() const {
+  constexpr bool shutdown_behavior_set_explicitly() const {
     return shutdown_behavior_set_explicitly_;
   }
 
   // Returns the shutdown behavior of tasks with these traits.
-  CONSTEXPR TaskShutdownBehavior shutdown_behavior() const {
+  constexpr TaskShutdownBehavior shutdown_behavior() const {
     return shutdown_behavior_;
   }
 
   // Returns true if tasks with these traits may block.
-  CONSTEXPR bool may_block() const { return may_block_; }
+  constexpr bool may_block() const { return may_block_; }
 
   // Returns true if tasks with these traits may use base/ sync primitives.
-  CONSTEXPR bool with_base_sync_primitives() const {
+  constexpr bool with_base_sync_primitives() const {
     return with_base_sync_primitives_;
   }
 
@@ -254,7 +254,7 @@ class BASE_EXPORT TaskTraits {
   }
 
  private:
-  CONSTEXPR TaskTraits(const TaskTraits& left, const TaskTraits& right)
+  constexpr TaskTraits(const TaskTraits& left, const TaskTraits& right)
       : extension_(right.extension_.extension_id !=
                            TaskTraitsExtensionStorage::kInvalidExtensionId
                        ? right.extension_

@@ -44,7 +44,7 @@ void MultiChannelDotProduct(const AudioBus* a, int frame_offset_a,
   DCHECK_LE(frame_offset_a + num_frames, a->frames());
   DCHECK_LE(frame_offset_b + num_frames, b->frames());
 
-  SbMemorySet(dot_product, 0, sizeof(*dot_product) * a->channels());
+  memset(dot_product, 0, sizeof(*dot_product) * a->channels());
   for (int k = 0; k < a->channels(); ++k) {
     const float* ch_a = a->channel(k) + frame_offset_a;
     const float* ch_b = b->channel(k) + frame_offset_b;
@@ -173,7 +173,7 @@ int DecimatedSearch(int decimation, Interval exclude_interval,
       optimal_index = n;
       best_similarity = similarity[2];
     }
-    SbMemoryMove(similarity, &similarity[1], 2 * sizeof(*similarity));
+    memmove(similarity, &similarity[1], 2 * sizeof(*similarity));
   }
   return optimal_index;
 }

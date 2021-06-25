@@ -329,6 +329,8 @@ class ResourceProviderStub : public ResourceProvider {
     return base::WrapRefCounted(new TypefaceStub(NULL));
   }
 
+  void LoadAdditionalFonts() override {}
+
   scoped_refptr<Typeface> CreateTypefaceFromRawData(
       std::unique_ptr<RawTypefaceDataVector> raw_data,
       std::string* error_string) override {

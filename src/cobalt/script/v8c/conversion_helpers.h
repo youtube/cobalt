@@ -309,7 +309,6 @@ inline void FromJSValue(
   // gets triggered by the conversion.
   if (!success) {
     // TODO: Still need to handle infinite recursion edge case here.
-    // Avoiding infinite exception loops were implemented on old mozjs engine.
     // V8 does not provide APIs to determine if it is throwing exception and
     // neither does v8 provide API to alert that we might enter infinite
     // exception handling.

@@ -156,7 +156,7 @@ void CryptoUtils::GenerateNonce(QuicWallTime now,
   size_t bytes_written = 4;
 
   if (orbit.size() == 8) {
-    SbMemoryCopy(&(*nonce)[bytes_written], orbit.data(), orbit.size());
+    memcpy(&(*nonce)[bytes_written], orbit.data(), orbit.size());
     bytes_written += orbit.size();
   }
 

@@ -188,15 +188,15 @@ class AllocatorShimTest : public testing::Test {
 
   void SetUp() override {
     const size_t array_size = kMaxSizeTracked * sizeof(size_t);
-    SbMemorySet(&allocs_intercepted_by_size, 0, array_size);
-    SbMemorySet(&zero_allocs_intercepted_by_size, 0, array_size);
-    SbMemorySet(&aligned_allocs_intercepted_by_size, 0, array_size);
-    SbMemorySet(&aligned_allocs_intercepted_by_alignment, 0, array_size);
-    SbMemorySet(&reallocs_intercepted_by_size, 0, array_size);
-    SbMemorySet(&frees_intercepted_by_addr, 0, array_size);
-    SbMemorySet(&batch_mallocs_intercepted_by_size, 0, array_size);
-    SbMemorySet(&batch_frees_intercepted_by_addr, 0, array_size);
-    SbMemorySet(&free_definite_sizes_intercepted_by_size, 0, array_size);
+    memset(&allocs_intercepted_by_size, 0, array_size);
+    memset(&zero_allocs_intercepted_by_size, 0, array_size);
+    memset(&aligned_allocs_intercepted_by_size, 0, array_size);
+    memset(&aligned_allocs_intercepted_by_alignment, 0, array_size);
+    memset(&reallocs_intercepted_by_size, 0, array_size);
+    memset(&frees_intercepted_by_addr, 0, array_size);
+    memset(&batch_mallocs_intercepted_by_size, 0, array_size);
+    memset(&batch_frees_intercepted_by_addr, 0, array_size);
+    memset(&free_definite_sizes_intercepted_by_size, 0, array_size);
     did_fail_realloc_0xfeed_once.reset(new ThreadLocalBoolean());
     subtle::Release_Store(&num_new_handler_calls, 0);
     instance_ = this;
@@ -315,7 +315,7 @@ TEST_F(AllocatorShimTest, InterceptLibcSymbols) {
 #endif  // !OS_WIN && !OS_MACOSX
 
   char* realloc_ptr = static_cast<char*>(SbMemoryAllocate(10));
-  SbStringCopyUnsafe(realloc_ptr, "foobar");
+  strcpy(realloc_ptr, "foobar");
   void* old_realloc_ptr = realloc_ptr;
   SbMemoryReallocate_ptr =
       static_cast<char*>(SbMemoryReallocate(SbMemoryReallocate_ptr, 73));

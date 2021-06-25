@@ -15,6 +15,8 @@
 #include "starboard/common/string.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+#if SB_API_VERSION < 13
+
 namespace starboard {
 namespace nplb {
 namespace {
@@ -23,7 +25,7 @@ const char kSource[] = "01234567890123456789";
 
 void TestCopy(const char* source, bool is_short) {
   const int kDestinationOffset = 16;
-  int source_length = static_cast<int>(SbStringGetLength(source));
+  int source_length = static_cast<int>(strlen(source));
   int destination_size = source_length + kDestinationOffset * 2;
   int destination_limit = source_length + 1;
   if (is_short) {
@@ -39,7 +41,7 @@ void TestCopy(const char* source, bool is_short) {
 
   // Expected to be one less than the limit due to the null terminator.
   int expected_length = destination_limit - 1;
-  EXPECT_EQ(expected_length, SbStringGetLength(dest));
+  EXPECT_EQ(expected_length, strlen(dest));
 
   // Validate the memory before the destination isn't touched.
   for (int i = 0; i < kDestinationOffset; ++i) {
@@ -72,3 +74,5 @@ TEST(SbStringCopyTest, SunnyDayShort) {
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
+
+#endif  // SB_API_VERSION >= 13

@@ -14,6 +14,10 @@
 
 #include "starboard/common/string.h"
 
+#if SB_API_VERSION < 13
+
 size_t SbStringGetLength(const char* str) {
   return static_cast<size_t>(0);
 }
+
+#endif  // SB_API_VERSION < 13

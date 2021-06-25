@@ -17,8 +17,10 @@
 
 #include <string>
 
+#include "cobalt/dom/navigator_ua_data.h"
 #include "cobalt/media/media_module.h"
 #include "cobalt/network/network_module.h"
+#include "cobalt/script/global_environment.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -30,7 +32,9 @@ namespace h5vcc {
 class H5vccSettings : public script::Wrappable {
  public:
   explicit H5vccSettings(media::MediaModule* media_module,
-                         cobalt::network::NetworkModule* network_module);
+                         cobalt::network::NetworkModule* network_module,
+                         dom::NavigatorUAData* user_agent_data,
+                         script::GlobalEnvironment* global_environment);
 
   // Returns true when the setting is set successfully or if the setting has
   // already been set to the expected value.  Returns false when the setting is
@@ -42,6 +46,8 @@ class H5vccSettings : public script::Wrappable {
  private:
   media::MediaModule* media_module_;
   cobalt::network::NetworkModule* network_module_ = nullptr;
+  dom::NavigatorUAData* user_agent_data_;
+  script::GlobalEnvironment* global_environment_;
 
   DISALLOW_COPY_AND_ASSIGN(H5vccSettings);
 };

@@ -531,7 +531,7 @@ class MimeSnifferControlCodesEdgeCaseTest
 
 TEST_P(MimeSnifferControlCodesEdgeCaseTest, EdgeCase) {
   const char* param = GetParam();
-  EXPECT_TRUE(LooksLikeBinary(param, SbStringGetLength(param)));
+  EXPECT_TRUE(LooksLikeBinary(param, strlen(param)));
 }
 
 INSTANTIATE_TEST_CASE_P(MimeSnifferControlCodesEdgeCaseTest,

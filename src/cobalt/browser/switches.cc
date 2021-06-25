@@ -273,11 +273,6 @@ const char kInitialURLHelp[] =
     "Setting this switch defines the startup URL that Cobalt will use.  If no "
     "value is set, a default URL will be used.";
 
-const char kJavaScriptGcThresholdInBytes[] = "javascript_gc_threshold_in_bytes";
-const char kJavaScriptGcThresholdInBytesHelp[] =
-    "Specifies the javascript gc threshold. When this amount of garbage has "
-    "collected then the garbage collector will begin running.";
-
 const char kLocalStoragePartitionUrl[] = "local_storage_partition_url";
 const char kLocalStoragePartitionUrlHelp[] =
     "Overrides the default storage partition with a custom partition URL to "
@@ -323,11 +318,6 @@ const char kQrCodeOverlayHelp[] =
     " will be displayed in 4 different locations on the screen alternatively,"
     " and the number of locations can be overwritten by specifying it as the "
     " value of the command line parameter, like '--qr_code_overlay=6'.";
-
-const char kReduceCpuMemoryBy[] = "reduce_cpu_memory_by";
-const char kReduceCpuMemoryByHelp[] =
-    "Reduces the cpu-memory of the system by this amount. This causes AutoMem "
-    "to reduce the runtime size of the CPU-Memory caches.";
 
 const char kReduceGpuMemoryBy[] = "reduce_gpu_memory_by";
 const char kReduceGpuMemoryByHelp[] =
@@ -470,7 +460,6 @@ std::string HelpMessage() {
         {kHelp, kHelpHelp},
         {kImageCacheSizeInBytes, kImageCacheSizeInBytesHelp},
         {kInitialURL, kInitialURLHelp},
-        {kJavaScriptGcThresholdInBytes, kJavaScriptGcThresholdInBytesHelp},
         {kLocalStoragePartitionUrl, kLocalStoragePartitionUrlHelp},
         {kMaxCobaltCpuUsage, kMaxCobaltCpuUsageHelp},
         {kMaxCobaltGpuUsage, kMaxCobaltGpuUsageHelp},
@@ -480,7 +469,6 @@ std::string HelpMessage() {
         {kOmitDeviceAuthenticationQueryParameters,
          kOmitDeviceAuthenticationQueryParametersHelp},
         {kProxy, kProxyHelp}, {kQrCodeOverlay, kQrCodeOverlayHelp},
-        {kReduceCpuMemoryBy, kReduceCpuMemoryByHelp},
         {kReduceGpuMemoryBy, kReduceGpuMemoryByHelp},
         {kRemoteTypefaceCacheSizeInBytes, kRemoteTypefaceCacheSizeInBytesHelp},
         {kRetainRemoteTypefaceCacheDuringSuspend,

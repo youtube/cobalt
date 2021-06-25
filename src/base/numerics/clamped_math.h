@@ -56,25 +56,25 @@ class ClampedNumeric {
 
   // Prototypes for the supported arithmetic operator overloads.
   template <typename Src>
-  CONSTEXPR ClampedNumeric& operator+=(const Src rhs);
+  constexpr ClampedNumeric& operator+=(const Src rhs);
   template <typename Src>
-  CONSTEXPR ClampedNumeric& operator-=(const Src rhs);
+  constexpr ClampedNumeric& operator-=(const Src rhs);
   template <typename Src>
-  CONSTEXPR ClampedNumeric& operator*=(const Src rhs);
+  constexpr ClampedNumeric& operator*=(const Src rhs);
   template <typename Src>
-  CONSTEXPR ClampedNumeric& operator/=(const Src rhs);
+  constexpr ClampedNumeric& operator/=(const Src rhs);
   template <typename Src>
-  CONSTEXPR ClampedNumeric& operator%=(const Src rhs);
+  constexpr ClampedNumeric& operator%=(const Src rhs);
   template <typename Src>
-  CONSTEXPR ClampedNumeric& operator<<=(const Src rhs);
+  constexpr ClampedNumeric& operator<<=(const Src rhs);
   template <typename Src>
-  CONSTEXPR ClampedNumeric& operator>>=(const Src rhs);
+  constexpr ClampedNumeric& operator>>=(const Src rhs);
   template <typename Src>
-  CONSTEXPR ClampedNumeric& operator&=(const Src rhs);
+  constexpr ClampedNumeric& operator&=(const Src rhs);
   template <typename Src>
-  CONSTEXPR ClampedNumeric& operator|=(const Src rhs);
+  constexpr ClampedNumeric& operator|=(const Src rhs);
   template <typename Src>
-  CONSTEXPR ClampedNumeric& operator^=(const Src rhs);
+  constexpr ClampedNumeric& operator^=(const Src rhs);
 
   constexpr ClampedNumeric operator-() const {
     // The negation of two's complement int min is int min, so that's the
@@ -117,23 +117,23 @@ class ClampedNumeric {
         SafeUnsignedAbs(value_));
   }
 
-  CONSTEXPR ClampedNumeric& operator++() const {
+  constexpr ClampedNumeric& operator++() const {
     *this += 1;
     return *this;
   }
 
-  CONSTEXPR ClampedNumeric operator++(int) const {
+  constexpr ClampedNumeric operator++(int) const {
     ClampedNumeric value = *this;
     *this += 1;
     return value;
   }
 
-  CONSTEXPR ClampedNumeric& operator--() const {
+  constexpr ClampedNumeric& operator--() const {
     *this -= 1;
     return *this;
   }
 
-  CONSTEXPR ClampedNumeric operator--(int) const {
+  constexpr ClampedNumeric operator--(int) const {
     ClampedNumeric value = *this;
     *this -= 1;
     return value;
@@ -152,7 +152,7 @@ class ClampedNumeric {
 
   // Assignment arithmetic operations.
   template <template <typename, typename, typename> class M, typename R>
-  CONSTEXPR ClampedNumeric& MathOp(const R rhs) {
+  constexpr ClampedNumeric& MathOp(const R rhs) {
     using Math = typename MathWrapper<M, T, R>::math;
     *this =
         ClampedNumeric<T>(Math::template Do<T>(value_, Wrapper<R>::value(rhs)));

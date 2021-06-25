@@ -94,7 +94,7 @@ class TestEncrypter : public QuicEncrypter {
     packet_number_ = QuicPacketNumber(packet_number);
     associated_data_ = QuicString(associated_data);
     plaintext_ = QuicString(plaintext);
-    SbMemoryCopy(output, plaintext.data(), plaintext.length());
+    memcpy(output, plaintext.data(), plaintext.length());
     *output_length = plaintext.length();
     return true;
   }
@@ -137,7 +137,7 @@ class TestDecrypter : public QuicDecrypter {
     packet_number_ = QuicPacketNumber(packet_number);
     associated_data_ = QuicString(associated_data);
     ciphertext_ = QuicString(ciphertext);
-    SbMemoryCopy(output, ciphertext.data(), ciphertext.length());
+    memcpy(output, ciphertext.data(), ciphertext.length());
     *output_length = ciphertext.length();
     return true;
   }
@@ -211,7 +211,7 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
   void OnCoalescedPacket(const QuicEncryptedPacket& packet) override {
     size_t coalesced_data_length = packet.length();
     char* coalesced_data = new char[coalesced_data_length];
-    SbMemoryCopy(coalesced_data, packet.data(), coalesced_data_length);
+    memcpy(coalesced_data, packet.data(), coalesced_data_length);
     coalesced_packets_.push_back(QuicMakeUnique<QuicEncryptedPacket>(
         coalesced_data, coalesced_data_length,
         /*owns_buffer=*/true));
@@ -555,7 +555,7 @@ class QuicFramerTest : public QuicTestWithParam<ParsedQuicVersion> {
     char* buffer = new char[kMaxPacketSize + 1];
     size_t len = 0;
     for (const auto& fragment : fragments) {
-      SbMemoryCopy(buffer + len, fragment.fragment.data(),
+      memcpy(buffer + len, fragment.fragment.data(),
                    fragment.fragment.size());
       len += fragment.fragment.size();
     }
@@ -830,7 +830,7 @@ TEST_P(QuicFramerTest, LargePacket) {
       !kIncludeDiversificationNonce, PACKET_4BYTE_PACKET_NUMBER,
       VARIABLE_LENGTH_INTEGER_LENGTH_0, 0, VARIABLE_LENGTH_INTEGER_LENGTH_0);
 
-  SbMemorySet(p + header_size, 0, kMaxPacketSize - header_size);
+  memset(p + header_size, 0, kMaxPacketSize - header_size);
 
   QuicEncryptedPacket encrypted(AsChars(p), p_size, false);
   EXPECT_QUIC_BUG(framer_.ProcessPacket(encrypted), "Packet too large:1");
@@ -5441,7 +5441,7 @@ TEST_P(QuicFramerTest, BuildPaddingFramePacket) {
       PACKET_0BYTE_CONNECTION_ID, !kIncludeVersion,
       !kIncludeDiversificationNonce, PACKET_4BYTE_PACKET_NUMBER,
       VARIABLE_LENGTH_INTEGER_LENGTH_0, 0, VARIABLE_LENGTH_INTEGER_LENGTH_0);
-  SbMemorySet(p + header_size + 1, 0x00, kMaxPacketSize - header_size - 1);
+  memset(p + header_size + 1, 0x00, kMaxPacketSize - header_size - 1);
 
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
   ASSERT_TRUE(data != nullptr);
@@ -5673,7 +5673,7 @@ TEST_P(QuicFramerTest, Build4ByteSequenceNumberPaddingFramePacket) {
       PACKET_0BYTE_CONNECTION_ID, !kIncludeVersion,
       !kIncludeDiversificationNonce, PACKET_4BYTE_PACKET_NUMBER,
       VARIABLE_LENGTH_INTEGER_LENGTH_0, 0, VARIABLE_LENGTH_INTEGER_LENGTH_0);
-  SbMemorySet(p + header_size + 1, 0x00, kMaxPacketSize - header_size - 1);
+  memset(p + header_size + 1, 0x00, kMaxPacketSize - header_size - 1);
 
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
   ASSERT_TRUE(data != nullptr);
@@ -5762,7 +5762,7 @@ TEST_P(QuicFramerTest, Build2ByteSequenceNumberPaddingFramePacket) {
       PACKET_0BYTE_CONNECTION_ID, !kIncludeVersion,
       !kIncludeDiversificationNonce, PACKET_2BYTE_PACKET_NUMBER,
       VARIABLE_LENGTH_INTEGER_LENGTH_0, 0, VARIABLE_LENGTH_INTEGER_LENGTH_0);
-  SbMemorySet(p + header_size + 1, 0x00, kMaxPacketSize - header_size - 1);
+  memset(p + header_size + 1, 0x00, kMaxPacketSize - header_size - 1);
 
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
   ASSERT_TRUE(data != nullptr);
@@ -5851,7 +5851,7 @@ TEST_P(QuicFramerTest, Build1ByteSequenceNumberPaddingFramePacket) {
       PACKET_0BYTE_CONNECTION_ID, !kIncludeVersion,
       !kIncludeDiversificationNonce, PACKET_1BYTE_PACKET_NUMBER,
       VARIABLE_LENGTH_INTEGER_LENGTH_0, 0, VARIABLE_LENGTH_INTEGER_LENGTH_0);
-  SbMemorySet(p + header_size + 1, 0x00, kMaxPacketSize - header_size - 1);
+  memset(p + header_size + 1, 0x00, kMaxPacketSize - header_size - 1);
 
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
   ASSERT_TRUE(data != nullptr);
@@ -11204,8 +11204,8 @@ TEST_P(QuicFramerTest, NewTokenFrame) {
 
   EXPECT_EQ(sizeof(expected_token_value), visitor_.new_token_.token.length());
   EXPECT_EQ(
-      0, SbMemoryCompare(expected_token_value, visitor_.new_token_.token.data(),
-                         sizeof(expected_token_value)));
+      0, memcmp(expected_token_value, visitor_.new_token_.token.data(),
+                sizeof(expected_token_value)));
 
   CheckFramingBoundaries(packet, QUIC_INVALID_NEW_TOKEN);
 }

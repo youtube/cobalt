@@ -590,7 +590,7 @@ std::string HashLeaf(const std::string& leaf) {
   const char kLeafPrefix[] = {'\x00'};
 
   SHA256HashValue sha256;
-  SbMemorySet(sha256.data, 0, sizeof(sha256.data));
+  memset(sha256.data, 0, sizeof(sha256.data));
 
   std::unique_ptr<crypto::SecureHash> hash(
       crypto::SecureHash::Create(crypto::SecureHash::SHA256));

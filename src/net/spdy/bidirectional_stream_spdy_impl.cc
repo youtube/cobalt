@@ -146,7 +146,7 @@ void BidirectionalStreamSpdyImpl::SendvData(
     int len = 0;
     // TODO(xunjieli): Get rid of extra copy. Coalesce headers and data frames.
     for (size_t i = 0; i < buffers.size(); ++i) {
-      SbMemoryCopy(pending_combined_buffer_->data() + len, buffers[i]->data(),
+      memcpy(pending_combined_buffer_->data() + len, buffers[i]->data(),
                    lengths[i]);
       len += lengths[i];
     }

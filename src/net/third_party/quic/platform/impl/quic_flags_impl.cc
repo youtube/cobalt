@@ -89,7 +89,7 @@ void AppendFlagDescription(const std::string& name,
   static const char kDashes[] = "--";
 
   base::StrAppend(out, {kDashes, name});
-  int col = SbStringGetLength(kDashes) + name.length();
+  int col = strlen(kDashes) + name.length();
   if (col + kMinPadding < kEndCol) {
     // Start help text on same line
     int pad_len = std::max(kMinPadding, kStartCol - col);

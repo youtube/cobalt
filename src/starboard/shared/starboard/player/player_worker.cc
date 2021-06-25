@@ -138,8 +138,9 @@ PlayerWorker::PlayerWorker(SbMediaAudioCodec audio_codec,
 void PlayerWorker::UpdateMediaInfo(SbTime time,
                                    int dropped_video_frames,
                                    bool is_progressing) {
-  SB_DCHECK(player_state_ == kSbPlayerStatePresenting);
-  update_media_info_cb_(time, dropped_video_frames, ticket_, is_progressing);
+  if (player_state_ == kSbPlayerStatePresenting) {
+    update_media_info_cb_(time, dropped_video_frames, ticket_, is_progressing);
+  }
 }
 
 void PlayerWorker::UpdatePlayerState(SbPlayerState player_state) {

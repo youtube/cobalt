@@ -77,7 +77,7 @@ class StreamingUtf8ValidatorThoroughTest : public ::testing::Test {
   // whether it is valid UTF-8 or not.
   void TestNumber(uint32_t n) const {
     char test[sizeof n];
-    SbMemoryCopy(test, &n, sizeof n);
+    memcpy(test, &n, sizeof n);
     StreamingUtf8Validator validator;
     EXPECT_EQ(IsStringUtf8(test, sizeof n),
               validator.AddBytes(test, sizeof n) == VALID_ENDPOINT)
@@ -214,10 +214,10 @@ class PartialIterator {
 
   void Advance() {
     if (index_ < arraysize(valid) &&
-        prefix_length_ < SbStringGetLength(valid[index_]))
+        prefix_length_ < strlen(valid[index_]))
       ++prefix_length_;
     while (index_ < arraysize(valid) &&
-           prefix_length_ == SbStringGetLength(valid[index_])) {
+           prefix_length_ == strlen(valid[index_])) {
       ++index_;
       prefix_length_ = 1;
     }
@@ -309,7 +309,7 @@ TEST(StreamingUtf8ValidatorTest, NulIsValid) {
 TEST(StreamingUtf8ValidatorTest, HelloWorld) {
   static const char kHelloWorld[] = "Hello, World!";
   EXPECT_EQ(VALID_ENDPOINT, StreamingUtf8Validator().AddBytes(
-                                kHelloWorld, SbStringGetLength(kHelloWorld)));
+                                kHelloWorld, strlen(kHelloWorld)));
 }
 
 // Check that the Reset() method works.

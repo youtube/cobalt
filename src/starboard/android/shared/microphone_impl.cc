@@ -168,7 +168,7 @@ bool SbMicrophoneImpl::StartRecording() {
   // starts as soon as the state is modified.
   for (int i = 0; i < kNumOfOpenSLESBuffers; ++i) {
     int16_t* buffer = new int16_t[kSamplesPerBuffer];
-    SbMemorySet(buffer, 0, kBufferSizeInBytes);
+    memset(buffer, 0, kBufferSizeInBytes);
     delivered_queue_.push(buffer);
     SLresult result =
         (*buffer_object_)->Enqueue(buffer_object_, buffer, kBufferSizeInBytes);
@@ -249,7 +249,7 @@ int SbMicrophoneImpl::Read(void* out_audio_data, int audio_data_size) {
   while (!ready_queue_.empty() &&
          audio_data_size - read_bytes >= kBufferSizeInBytes) {
     buffer.reset(ready_queue_.front());
-    SbMemoryCopy(static_cast<uint8_t*>(out_audio_data) + read_bytes,
+    memcpy(static_cast<uint8_t*>(out_audio_data) + read_bytes,
                  buffer.get(), kBufferSizeInBytes);
     ready_queue_.pop();
     read_bytes += kBufferSizeInBytes;
@@ -282,7 +282,7 @@ void SbMicrophoneImpl::SwapAndPublishBuffer() {
 
   if (state_ == kOpened) {
     int16_t* buffer = new int16_t[kSamplesPerBuffer];
-    SbMemorySet(buffer, 0, kBufferSizeInBytes);
+    memset(buffer, 0, kBufferSizeInBytes);
     delivered_queue_.push(buffer);
     SLresult result =
         (*buffer_object_)->Enqueue(buffer_object_, buffer, kBufferSizeInBytes);

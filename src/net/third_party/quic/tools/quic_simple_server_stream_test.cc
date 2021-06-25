@@ -40,7 +40,7 @@ namespace test {
 
 const size_t kFakeFrameLen = 60;
 const size_t kErrorLength =
-    SbStringGetLength(QuicSimpleServerStream::kErrorResponseBody);
+    strlen(QuicSimpleServerStream::kErrorResponseBody);
 const size_t kDataFrameHeaderLength = 2;
 
 class TestStream : public QuicSimpleServerStream {

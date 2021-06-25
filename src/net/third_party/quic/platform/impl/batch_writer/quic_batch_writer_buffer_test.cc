@@ -44,7 +44,7 @@ class QuicBatchWriterBufferTest : public QuicTest {
 
   // Fill |packet_buffer| with |buf_len| bytes of |c|s.
   char* FillPacketBuffer(char c, char* packet_buffer, size_t buf_len) {
-    SbMemorySet(packet_buffer, c, buf_len);
+    memset(packet_buffer, c, buf_len);
     return packet_buffer;
   }
 

@@ -204,7 +204,7 @@ void SHA1HashBytes(const unsigned char* data, size_t len,
   sha.Update(data, len);
   sha.Final();
 
-  SbMemoryCopy(hash, sha.Digest(), SecureHashAlgorithm::kDigestSizeBytes);
+  memcpy(hash, sha.Digest(), SecureHashAlgorithm::kDigestSizeBytes);
 }
 
 }  // namespace base

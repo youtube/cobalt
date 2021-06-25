@@ -300,7 +300,7 @@ void ApplicationAndroid::ProcessAndroidCommand() {
       // (because the user exits and enters the app) so we check
       // for changes here.
       SbAccessibilityDisplaySettings settings;
-      SbMemorySet(&settings, 0, sizeof(settings));
+      memset(&settings, 0, sizeof(settings));
       if (!SbAccessibilityGetDisplaySettings(&settings)) {
         break;
       }
@@ -537,7 +537,7 @@ void ApplicationAndroid::SbWindowSendInputEvent(const char* input_text,
                                                 bool is_composing) {
   char* text = SbStringDuplicate(input_text);
   SbInputData* data = new SbInputData();
-  SbMemorySet(data, 0, sizeof(*data));
+  memset(data, 0, sizeof(*data));
   data->window = window_;
   data->type = kSbInputEventTypeInput;
   data->device_type = kSbInputDeviceTypeOnScreenKeyboard;
@@ -553,7 +553,7 @@ void ApplicationAndroid::SbWindowSendInputEvent(const char* input_text,
 bool ApplicationAndroid::OnSearchRequested() {
   for (int i = 0; i < 2; i++) {
     SbInputData* data = new SbInputData();
-    SbMemorySet(data, 0, sizeof(*data));
+    memset(data, 0, sizeof(*data));
     data->window = window_;
     data->key = kSbKeyBrowserSearch;
     data->type = (i == 0) ? kSbInputEventTypePress : kSbInputEventTypeUnpress;

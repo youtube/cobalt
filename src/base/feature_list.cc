@@ -185,7 +185,7 @@ void FeatureList::AddFeaturesToAllocator(PersistentMemoryAllocator* allocator) {
     entry->pickle_size = pickle.size();
 
     char* dst = reinterpret_cast<char*>(entry) + sizeof(FeatureEntry);
-    SbMemoryCopy(dst, pickle.data(), pickle.size());
+    memcpy(dst, pickle.data(), pickle.size());
 
     allocator->MakeIterable(entry);
   }

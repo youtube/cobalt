@@ -47,7 +47,7 @@ bool IsSupportedAudioCodec(const MimeType& mime_type,
   // number of channels, by passing channels to SbMediaAudioIsSupported and /
   // or SbMediaIsSupported.
 
-  if (SbStringGetLength(key_system) != 0) {
+  if (strlen(key_system) != 0) {
     if (!SbMediaIsSupported(kSbMediaVideoCodecNone, audio_codec, key_system)) {
       return false;
     }
@@ -118,7 +118,7 @@ bool IsSupportedVideoCodec(const MimeType& mime_type,
   }
   SB_DCHECK(video_codec != kSbMediaVideoCodecNone);
 
-  if (SbStringGetLength(key_system) != 0) {
+  if (strlen(key_system) != 0) {
     if (!SbMediaIsSupported(video_codec, kSbMediaAudioCodecNone, key_system)) {
       return false;
     }
@@ -207,7 +207,7 @@ bool IsSupportedVideoCodec(const MimeType& mime_type,
 }  // namespace
 
 AudioSampleInfo::AudioSampleInfo() {
-  SbMemorySet(this, 0, sizeof(SbMediaAudioSampleInfo));
+  memset(this, 0, sizeof(SbMediaAudioSampleInfo));
   codec = kSbMediaAudioCodecNone;
 }
 
@@ -220,7 +220,7 @@ AudioSampleInfo& AudioSampleInfo::operator=(
   *static_cast<SbMediaAudioSampleInfo*>(this) = that;
   if (audio_specific_config_size > 0) {
     audio_specific_config_storage.resize(audio_specific_config_size);
-    SbMemoryCopy(audio_specific_config_storage.data(), audio_specific_config,
+    memcpy(audio_specific_config_storage.data(), audio_specific_config,
                  audio_specific_config_size);
     audio_specific_config = audio_specific_config_storage.data();
   }
@@ -237,7 +237,7 @@ AudioSampleInfo& AudioSampleInfo::operator=(
 }
 
 VideoSampleInfo::VideoSampleInfo() {
-  SbMemorySet(this, 0, sizeof(SbMediaAudioSampleInfo));
+  memset(this, 0, sizeof(SbMediaAudioSampleInfo));
   codec = kSbMediaVideoCodecNone;
 }
 
@@ -344,7 +344,7 @@ SbMediaSupportType CanPlayMimeAndKeySystem(const MimeType& mime_type,
   auto codecs = mime_type.GetCodecs();
 
   // Pre-filter for |key_system|.
-  if (SbStringGetLength(key_system) != 0) {
+  if (strlen(key_system) != 0) {
     if (!SbMediaIsSupported(kSbMediaVideoCodecNone, kSbMediaAudioCodecNone,
                             key_system)) {
       return kSbMediaSupportTypeNotSupported;
@@ -411,7 +411,7 @@ SbMediaSupportType CanPlayMimeAndKeySystem(const MimeType& mime_type,
   return kSbMediaSupportTypeNotSupported;
 }
 
-std::string GetStringRepresentation(const uint8_t* data, int size) {
+std::string GetStringRepresentation(const uint8_t* data, const int size) {
   std::string result;
 
   for (int i = 0; i < size; ++i) {
@@ -428,20 +428,20 @@ std::string GetStringRepresentation(const uint8_t* data, int size) {
 }
 
 std::string GetMixedRepresentation(const uint8_t* data,
-                                   int size,
-                                   int bytes_per_line) {
+                                   const int size,
+                                   const int bytes_per_line) {
   std::string result;
 
   for (int i = 0; i < size; i += bytes_per_line) {
     if (i + bytes_per_line <= size) {
-      result += ::starboard::HexEncode(data + i, bytes_per_line);
+      result += HexEncode(data + i, bytes_per_line);
       result += " | ";
       result += GetStringRepresentation(data + i, bytes_per_line);
       result += '\n';
     } else {
       int bytes_left = size - i;
-      result += ::starboard::HexEncode(data + i, bytes_left);
-      result += std::string((bytes_per_line - bytes_left) * 3, ' ');
+      result += HexEncode(data + i, bytes_left);
+      result += std::string((bytes_per_line - bytes_left) * 2, ' ');
       result += " | ";
       result += GetStringRepresentation(data + i, bytes_left);
       result += std::string(bytes_per_line - bytes_left, ' ');
@@ -459,9 +459,9 @@ bool IsAudioSampleInfoSubstantiallyDifferent(
          left.samples_per_second != right.samples_per_second ||
          left.number_of_channels != right.number_of_channels ||
          left.audio_specific_config_size != right.audio_specific_config_size ||
-         SbMemoryCompare(left.audio_specific_config,
-                         right.audio_specific_config,
-                         left.audio_specific_config_size) != 0;
+         memcmp(left.audio_specific_config,
+                right.audio_specific_config,
+                left.audio_specific_config_size) != 0;
 }
 
 }  // namespace media
@@ -471,8 +471,8 @@ bool IsAudioSampleInfoSubstantiallyDifferent(
 
 bool operator==(const SbMediaColorMetadata& metadata_1,
                 const SbMediaColorMetadata& metadata_2) {
-  return SbMemoryCompare(&metadata_1, &metadata_2,
-                         sizeof(SbMediaColorMetadata)) == 0;
+  return memcmp(&metadata_1, &metadata_2,
+                sizeof(SbMediaColorMetadata)) == 0;
 }
 
 bool operator==(const SbMediaVideoSampleInfo& sample_info_1,
@@ -485,10 +485,10 @@ bool operator==(const SbMediaVideoSampleInfo& sample_info_1,
   }
 
 #if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
-  if (SbStringCompareAll(sample_info_1.mime, sample_info_2.mime) != 0) {
+  if (strcmp(sample_info_1.mime, sample_info_2.mime) != 0) {
     return false;
   }
-  if (SbStringCompareAll(sample_info_1.max_video_capabilities,
+  if (strcmp(sample_info_1.max_video_capabilities,
                          sample_info_2.max_video_capabilities) != 0) {
     return false;
   }

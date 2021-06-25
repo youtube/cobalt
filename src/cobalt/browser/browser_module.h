@@ -66,6 +66,7 @@
 #include "cobalt/system_window/system_window.h"
 #include "cobalt/webdriver/session_driver.h"
 #include "starboard/configuration.h"
+#include "starboard/time.h"
 #include "starboard/window.h"
 #include "url/gurl.h"
 
@@ -175,12 +176,12 @@ class BrowserModule {
   void SetProxy(const std::string& proxy_rules);
 
   // LifecycleObserver-similar interface.
-  void Blur();
-  void Conceal();
-  void Freeze();
-  void Unfreeze();
-  void Reveal();
-  void Focus();
+  void Blur(SbTimeMonotonic timestamp);
+  void Conceal(SbTimeMonotonic timestamp);
+  void Freeze(SbTimeMonotonic timestamp);
+  void Unfreeze(SbTimeMonotonic timestamp);
+  void Reveal(SbTimeMonotonic timestamp);
+  void Focus(SbTimeMonotonic timestamp);
 
   // Attempt to reduce overall memory consumption. Called in response to a
   // system indication that memory usage is nearing a critical level.
@@ -423,23 +424,19 @@ class BrowserModule {
 
   // Does all the steps for half of a Conceal that happen prior to
   // the app state update.
-  void ConcealInternal();
+  void ConcealInternal(SbTimeMonotonic timestamp);
 
   // Does all the steps for half of a Freeze that happen prior to
   // the app state update.
-  void FreezeInternal();
+  void FreezeInternal(SbTimeMonotonic timestamp);
 
   // Does all the steps for half of a Reveal that happen prior to
   // the app state update.
-  void RevealInternal();
-
-  // Does all the steps for half of a Start that happen prior to
-  // the app state update.
-  void StartInternal();
+  void RevealInternal(SbTimeMonotonic timestamp);
 
   // Does all the steps for half of a Unfreeze that happen prior to
   // the app state update.
-  void UnfreezeInternal();
+  void UnfreezeInternal(SbTimeMonotonic timestamp);
 
   // Check debug console, splash screen and web module if they are
   // ready to freeze at Concealed state. If so, call SystemRequestFreeze
@@ -471,6 +468,11 @@ class BrowserModule {
   // Sets the fallback splash screen url to a topic-specific URL, if applicable.
   // Returns the topic used, or an empty Optional if a topic isn't found.
   base::Optional<std::string> SetSplashScreenTopicFallback(const GURL& url);
+
+  // Function that creates the H5vcc object that will be injected into WebModule
+  scoped_refptr<script::Wrappable> CreateH5vcc(
+      const scoped_refptr<dom::Window>& window,
+      script::GlobalEnvironment* global_environment);
 
   // TODO:
   //     WeakPtr usage here can be avoided if BrowserModule has a thread to
@@ -507,6 +509,8 @@ class BrowserModule {
   URLHandlerCollection url_handlers_;
 
   base::EventDispatcher* event_dispatcher_;
+
+  account::AccountManager* account_manager_;
 
   // Whether the browser module has yet rendered anything. On the very first
   // render, we hide the system splash screen.
@@ -708,11 +712,6 @@ class BrowserModule {
   // to another (in which case it may need to clear its submission queue).
   int current_splash_screen_timeline_id_;
   int current_main_web_module_timeline_id_;
-
-  // Remember the first set value for JavaScript's GC threshold setting computed
-  // by automem.  We want this so that we can check that it never changes, since
-  // we do not have the ability to modify it after startup.
-  base::Optional<int64_t> javascript_gc_threshold_in_bytes_;
 
   // Save the current window size before transitioning to Concealed state,
   // and reuse this value to recreate the window.

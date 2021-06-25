@@ -52,6 +52,7 @@ int CobaltSkiaGlyphAtlasWidthDefault();
 
 int CobaltSkiaGlyphAtlasHeightDefault();
 
+// Deprecated.
 int CobaltJsGarbageCollectionThresholdInBytesDefault();
 
 int CobaltReduceCpuMemoryByDefault();

@@ -22,6 +22,7 @@
 
 #include "starboard/atomic.h"
 #include "starboard/common/log.h"
+#include "starboard/common/memory.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/memory.h"
 
@@ -30,8 +31,8 @@ namespace {
 int32_t s_tracked_page_count = 0;
 
 int32_t GetPageCount(size_t byte_count) {
-  return static_cast<int32_t>(SbMemoryAlignToPageSize(byte_count) /
-                              kSbMemoryPageSize);
+  return static_cast<int32_t>(
+      starboard::common::MemoryAlignToPageSize(byte_count) / kSbMemoryPageSize);
 }
 
 int SbMemoryMapFlagsToMmapProtect(int sb_flags) {

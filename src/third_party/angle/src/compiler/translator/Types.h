@@ -9,7 +9,6 @@
 
 #include "common/angleutils.h"
 #include "common/debug.h"
-#include "nb/cpp14oncpp11.h"
 
 #include "compiler/translator/BaseTypes.h"
 #include "compiler/translator/Common.h"
@@ -234,7 +233,7 @@ class TType
 
     const TStructure *getStruct() const { return mStructure; }
 
-    static CONSTEXPR char GetSizeMangledName(unsigned char primarySize, unsigned char secondarySize)
+    static constexpr char GetSizeMangledName(unsigned char primarySize, unsigned char secondarySize)
     {
         unsigned int sizeKey = (secondarySize - 1u) * 4u + primarySize - 1u;
         if (sizeKey < 10u)

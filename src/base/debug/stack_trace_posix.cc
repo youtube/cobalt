@@ -116,7 +116,7 @@ void DemangleSymbols(std::string* text) {
       // Insert the demangled symbol.
       text->insert(mangled_start, demangled_symbol.get());
       // Next time, we'll start right after the demangled symbol we inserted.
-      search_from = mangled_start + SbStringGetLength(demangled_symbol.get());
+      search_from = mangled_start + strlen(demangled_symbol.get());
     } else {
       // Failed to demangle.  Retry after the "_Z" we just found.
       search_from = mangled_start + 2;
@@ -223,7 +223,7 @@ void PrintToStderr(const char* output) {
   // NOTE: This code MUST be async-signal safe (it's used by in-process
   // stack dumping signal handler). NO malloc or stdio is allowed here.
   ignore_result(
-      HANDLE_EINTR(write(STDERR_FILENO, output, SbStringGetLength(output))));
+      HANDLE_EINTR(write(STDERR_FILENO, output, strlen(output))));
 }
 
 void StackDumpSignalHandler(int signal, siginfo_t* info, void* void_context) {
@@ -242,7 +242,7 @@ void StackDumpSignalHandler(int signal, siginfo_t* info, void* void_context) {
     // replaced this signal handler upon entry, but we want to stay
     // installed. Thus, we reinstall ourselves before returning.
     struct sigaction action;
-    SbMemorySet(&action, 0, sizeof(action));
+    memset(&action, 0, sizeof(action));
     action.sa_flags = SA_RESETHAND | SA_SIGINFO;
     action.sa_sigaction = &StackDumpSignalHandler;
     sigemptyset(&action.sa_mask);
@@ -587,7 +587,7 @@ class SandboxSymbolizeHelper {
         start_address = region.start;
         base_address = region.base;
         if (file_path && file_path_size > 0) {
-          SbStringCopy(file_path, region.path.c_str(), file_path_size);
+          strncpy(file_path, region.path.c_str(), file_path_size);
           // Ensure null termination.
           file_path[file_path_size - 1] = '\0';
         }
@@ -615,7 +615,7 @@ class SandboxSymbolizeHelper {
       static_assert(SELFMAG <= sizeof(ElfW(Ehdr)), "SELFMAG too large");
       if ((r.permissions & MappedMemoryRegion::READ) &&
           safe_memcpy(&ehdr, r.start, sizeof(ElfW(Ehdr))) &&
-          SbMemoryCompare(ehdr.e_ident, ELFMAG, SELFMAG) == 0) {
+          memcmp(ehdr.e_ident, ELFMAG, SELFMAG) == 0) {
         switch (ehdr.e_type) {
           case ET_EXEC:
             cur_base = 0;
@@ -778,7 +778,7 @@ bool EnableInProcessStackDumping() {
   // to be ignored.  Therefore, when testing that same code, it should run
   // with SIGPIPE ignored as well.
   struct sigaction sigpipe_action;
-  SbMemorySet(&sigpipe_action, 0, sizeof(sigpipe_action));
+  memset(&sigpipe_action, 0, sizeof(sigpipe_action));
   sigpipe_action.sa_handler = SIG_IGN;
   sigemptyset(&sigpipe_action.sa_mask);
   bool success = (sigaction(SIGPIPE, &sigpipe_action, nullptr) == 0);
@@ -787,7 +787,7 @@ bool EnableInProcessStackDumping() {
   WarmUpBacktrace();
 
   struct sigaction action;
-  SbMemorySet(&action, 0, sizeof(action));
+  memset(&action, 0, sizeof(action));
   action.sa_flags = SA_RESETHAND | SA_SIGINFO;
   action.sa_sigaction = &StackDumpSignalHandler;
   sigemptyset(&action.sa_mask);

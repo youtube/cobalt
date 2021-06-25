@@ -43,9 +43,9 @@ class DrmSystemWidevine : public SbDrmSystemPrivate,
  public:
   DrmSystemWidevine(
       void* context,
-      SbDrmSessionUpdateRequestFunc update_request_callback,
+      SbDrmSessionUpdateRequestFunc session_update_request_callback,
       SbDrmSessionUpdatedFunc session_updated_callback,
-      SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback,
+      SbDrmSessionKeyStatusesChangedFunc session_key_statuses_changed_callback,
       SbDrmServerCertificateUpdatedFunc server_certificate_updated_callback,
       SbDrmSessionClosedFunc session_closed_callback,
       const std::string& company_name,
@@ -156,7 +156,8 @@ class DrmSystemWidevine : public SbDrmSystemPrivate,
   void* const context_;
   const SbDrmSessionUpdateRequestFunc session_update_request_callback_;
   const SbDrmSessionUpdatedFunc session_updated_callback_;
-  const SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback_;
+  const SbDrmSessionKeyStatusesChangedFunc
+      session_key_statuses_changed_callback_;
   const SbDrmServerCertificateUpdatedFunc server_certificate_updated_callback_;
   const SbDrmSessionClosedFunc session_closed_callback_;
 

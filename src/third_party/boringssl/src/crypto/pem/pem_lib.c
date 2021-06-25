@@ -109,7 +109,7 @@ void PEM_dek_info(char *buf, const char *type, int len, char *str)
     BUF_strlcat(buf, "DEK-Info: ", PEM_BUFSIZE);
     BUF_strlcat(buf, type, PEM_BUFSIZE);
     BUF_strlcat(buf, ",", PEM_BUFSIZE);
-    j = OPENSSL_port_strlen(buf);
+    j = strlen(buf);
     if (j + (len * 2) + 1 > PEM_BUFSIZE)
         return;
     for (i = 0; i < len; i++) {
@@ -141,50 +141,50 @@ void *PEM_ASN1_read(d2i_of_void *d2i, const char *name, FILE *fp, void **x,
 static int check_pem(const char *nm, const char *name)
 {
     /* Normal matching nm and name */
-    if (!OPENSSL_port_strcmp(nm, name))
+    if (!strcmp(nm, name))
         return 1;
 
     /* Make PEM_STRING_EVP_PKEY match any private key */
 
-    if (!OPENSSL_port_strcmp(name, PEM_STRING_EVP_PKEY)) {
-        return !OPENSSL_port_strcmp(nm, PEM_STRING_PKCS8) ||
-               !OPENSSL_port_strcmp(nm, PEM_STRING_PKCS8INF) ||
-               !OPENSSL_port_strcmp(nm, PEM_STRING_RSA) ||
-               !OPENSSL_port_strcmp(nm, PEM_STRING_EC) ||
-               !OPENSSL_port_strcmp(nm, PEM_STRING_DSA);
+    if (!strcmp(name, PEM_STRING_EVP_PKEY)) {
+        return !strcmp(nm, PEM_STRING_PKCS8) ||
+               !strcmp(nm, PEM_STRING_PKCS8INF) ||
+               !strcmp(nm, PEM_STRING_RSA) ||
+               !strcmp(nm, PEM_STRING_EC) ||
+               !strcmp(nm, PEM_STRING_DSA);
     }
 
     /* Permit older strings */
 
-    if (!OPENSSL_port_strcmp(nm, PEM_STRING_X509_OLD) && !OPENSSL_port_strcmp(name, PEM_STRING_X509))
+    if (!strcmp(nm, PEM_STRING_X509_OLD) && !strcmp(name, PEM_STRING_X509))
         return 1;
 
-    if (!OPENSSL_port_strcmp(nm, PEM_STRING_X509_REQ_OLD) &&
-        !OPENSSL_port_strcmp(name, PEM_STRING_X509_REQ))
+    if (!strcmp(nm, PEM_STRING_X509_REQ_OLD) &&
+        !strcmp(name, PEM_STRING_X509_REQ))
         return 1;
 
     /* Allow normal certs to be read as trusted certs */
-    if (!OPENSSL_port_strcmp(nm, PEM_STRING_X509) &&
-        !OPENSSL_port_strcmp(name, PEM_STRING_X509_TRUSTED))
+    if (!strcmp(nm, PEM_STRING_X509) &&
+        !strcmp(name, PEM_STRING_X509_TRUSTED))
         return 1;
 
-    if (!OPENSSL_port_strcmp(nm, PEM_STRING_X509_OLD) &&
-        !OPENSSL_port_strcmp(name, PEM_STRING_X509_TRUSTED))
+    if (!strcmp(nm, PEM_STRING_X509_OLD) &&
+        !strcmp(name, PEM_STRING_X509_TRUSTED))
         return 1;
 
     /* Some CAs use PKCS#7 with CERTIFICATE headers */
-    if (!OPENSSL_port_strcmp(nm, PEM_STRING_X509) && !OPENSSL_port_strcmp(name, PEM_STRING_PKCS7))
+    if (!strcmp(nm, PEM_STRING_X509) && !strcmp(name, PEM_STRING_PKCS7))
         return 1;
 
-    if (!OPENSSL_port_strcmp(nm, PEM_STRING_PKCS7_SIGNED) &&
-        !OPENSSL_port_strcmp(name, PEM_STRING_PKCS7))
+    if (!strcmp(nm, PEM_STRING_PKCS7_SIGNED) &&
+        !strcmp(name, PEM_STRING_PKCS7))
         return 1;
 
 #ifndef OPENSSL_NO_CMS
-    if (!OPENSSL_port_strcmp(nm, PEM_STRING_X509) && !OPENSSL_port_strcmp(name, PEM_STRING_CMS))
+    if (!strcmp(nm, PEM_STRING_X509) && !strcmp(name, PEM_STRING_CMS))
         return 1;
     /* Allow CMS to be read from PKCS#7 headers */
-    if (!OPENSSL_port_strcmp(nm, PEM_STRING_PKCS7) && !OPENSSL_port_strcmp(name, PEM_STRING_CMS))
+    if (!strcmp(nm, PEM_STRING_PKCS7) && !strcmp(name, PEM_STRING_CMS))
         return 1;
 #endif
 
@@ -196,15 +196,15 @@ static const EVP_CIPHER *cipher_by_name(const char *name)
     /* This is similar to the (deprecated) function |EVP_get_cipherbyname|. Note
      * the PEM code assumes that ciphers have at least 8 bytes of IV, at most 20
      * bytes of overhead and generally behave like CBC mode. */
-    if (0 == OPENSSL_port_strcmp(name, SN_des_cbc)) {
+    if (0 == strcmp(name, SN_des_cbc)) {
         return EVP_des_cbc();
-    } else if (0 == OPENSSL_port_strcmp(name, SN_des_ede3_cbc)) {
+    } else if (0 == strcmp(name, SN_des_ede3_cbc)) {
         return EVP_des_ede3_cbc();
-    } else if (0 == OPENSSL_port_strcmp(name, SN_aes_128_cbc)) {
+    } else if (0 == strcmp(name, SN_aes_128_cbc)) {
         return EVP_aes_128_cbc();
-    } else if (0 == OPENSSL_port_strcmp(name, SN_aes_192_cbc)) {
+    } else if (0 == strcmp(name, SN_aes_192_cbc)) {
         return EVP_aes_192_cbc();
-    } else if (0 == OPENSSL_port_strcmp(name, SN_aes_256_cbc)) {
+    } else if (0 == strcmp(name, SN_aes_256_cbc)) {
         return EVP_aes_256_cbc();
     } else {
         return NULL;
@@ -338,7 +338,7 @@ int PEM_ASN1_write_bio(i2d_of_void *i2d, const char *name, BIO *bp,
         if (kstr == (unsigned char *)buf)
             OPENSSL_cleanse(buf, PEM_BUFSIZE);
 
-        assert(OPENSSL_port_strlen(objstr) + 23 + 2 * iv_len + 13 <= sizeof buf);
+        assert(strlen(objstr) + 23 + 2 * iv_len + 13 <= sizeof buf);
 
         buf[0] = '\0';
         PEM_proc_type(buf, PEM_TYPE_ENCRYPTED);
@@ -428,7 +428,7 @@ int PEM_get_EVP_CIPHER_INFO(char *header, EVP_CIPHER_INFO *cipher)
     OPENSSL_memset(cipher->iv, 0, sizeof(cipher->iv));
     if ((header == NULL) || (*header == '\0') || (*header == '\n'))
         return (1);
-    if (OPENSSL_port_strncmp(header, "Proc-Type: ", 11) != 0) {
+    if (strncmp(header, "Proc-Type: ", 11) != 0) {
         OPENSSL_PUT_ERROR(PEM, PEM_R_NOT_PROC_TYPE);
         return (0);
     }
@@ -439,7 +439,7 @@ int PEM_get_EVP_CIPHER_INFO(char *header, EVP_CIPHER_INFO *cipher)
     if (*header != ',')
         return (0);
     header++;
-    if (OPENSSL_port_strncmp(header, "ENCRYPTED", 9) != 0) {
+    if (strncmp(header, "ENCRYPTED", 9) != 0) {
         OPENSSL_PUT_ERROR(PEM, PEM_R_NOT_ENCRYPTED);
         return (0);
     }
@@ -449,7 +449,7 @@ int PEM_get_EVP_CIPHER_INFO(char *header, EVP_CIPHER_INFO *cipher)
         return (0);
     }
     header++;
-    if (OPENSSL_port_strncmp(header, "DEK-Info: ", 10) != 0) {
+    if (strncmp(header, "DEK-Info: ", 10) != 0) {
         OPENSSL_PUT_ERROR(PEM, PEM_R_NOT_DEK_INFO);
         return (0);
     }
@@ -540,14 +540,14 @@ int PEM_write_bio(BIO *bp, const char *name, const char *header,
     int reason = ERR_R_BUF_LIB;
 
     EVP_EncodeInit(&ctx);
-    nlen = OPENSSL_port_strlen(name);
+    nlen = strlen(name);
 
     if ((BIO_write(bp, "-----BEGIN ", 11) != 11) ||
         (BIO_write(bp, name, nlen) != nlen) ||
         (BIO_write(bp, "-----\n", 6) != 6))
         goto err;
 
-    i = OPENSSL_port_strlen(header);
+    i = strlen(header);
     if (i > 0) {
         if ((BIO_write(bp, header, i) != i) || (BIO_write(bp, "\n", 1) != 1))
             goto err;
@@ -640,10 +640,10 @@ int PEM_read_bio(BIO *bp, char **name, char **header, unsigned char **data,
         buf[++i] = '\n';
         buf[++i] = '\0';
 
-        if (OPENSSL_port_strncmp(buf, "-----BEGIN ", 11) == 0) {
-            i = OPENSSL_port_strlen(&(buf[11]));
+        if (strncmp(buf, "-----BEGIN ", 11) == 0) {
+            i = strlen(&(buf[11]));
 
-            if (OPENSSL_port_strncmp(&(buf[11 + i - 6]), "-----\n", 6) != 0)
+            if (strncmp(&(buf[11 + i - 6]), "-----\n", 6) != 0)
                 continue;
             if (!BUF_MEM_grow(nameB, i + 9)) {
                 OPENSSL_PUT_ERROR(PEM, ERR_R_MALLOC_FAILURE);
@@ -676,7 +676,7 @@ int PEM_read_bio(BIO *bp, char **name, char **header, unsigned char **data,
             OPENSSL_PUT_ERROR(PEM, ERR_R_MALLOC_FAILURE);
             goto err;
         }
-        if (OPENSSL_port_strncmp(buf, "-----END ", 9) == 0) {
+        if (strncmp(buf, "-----END ", 9) == 0) {
             nohead = 1;
             break;
         }
@@ -704,7 +704,7 @@ int PEM_read_bio(BIO *bp, char **name, char **header, unsigned char **data,
 
             if (i != 65)
                 end = 1;
-            if (OPENSSL_port_strncmp(buf, "-----END ", 9) == 0)
+            if (strncmp(buf, "-----END ", 9) == 0)
                 break;
             if (i > 65)
                 break;
@@ -735,10 +735,10 @@ int PEM_read_bio(BIO *bp, char **name, char **header, unsigned char **data,
         dataB = tmpB;
         bl = hl;
     }
-    i = OPENSSL_port_strlen(nameB->data);
-    if ((OPENSSL_port_strncmp(buf, "-----END ", 9) != 0) ||
-        (OPENSSL_port_strncmp(nameB->data, &(buf[9]), i) != 0) ||
-        (OPENSSL_port_strncmp(&(buf[9 + i]), "-----\n", 6) != 0)) {
+    i = strlen(nameB->data);
+    if ((strncmp(buf, "-----END ", 9) != 0) ||
+        (strncmp(nameB->data, &(buf[9]), i) != 0) ||
+        (strncmp(&(buf[9 + i]), "-----\n", 6) != 0)) {
         OPENSSL_PUT_ERROR(PEM, PEM_R_BAD_END_LINE);
         goto err;
     }
@@ -780,7 +780,7 @@ int PEM_def_callback(char *buf, int size, int rwflag, void *userdata)
     if (!buf || !userdata || size < 0) {
         return 0;
     }
-    size_t len = OPENSSL_port_strlen((char *)userdata);
+    size_t len = strlen((char *)userdata);
     if (len >= (size_t)size) {
         return 0;
     }

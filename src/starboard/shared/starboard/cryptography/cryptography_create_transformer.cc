@@ -40,7 +40,7 @@ SbCryptographyTransformer SbCryptographyCreateTransformer(
     int initialization_vector_size,
     const void* key,
     int key_size) {
-  if (SbStringCompareAll(algorithm, kSbCryptographyAlgorithmAes) != 0) {
+  if (strcmp(algorithm, kSbCryptographyAlgorithmAes) != 0) {
     SB_DLOG(WARNING) << "Unsupported algorithm: " << algorithm;
     return kSbCryptographyInvalidTransformer;
   }
@@ -106,12 +106,12 @@ SbCryptographyTransformer SbCryptographyCreateTransformer(
 
   SbCryptographyTransformer transformer =
       new SbCryptographyTransformerPrivate();
-  SbMemorySet(transformer, 0, sizeof(transformer));
+  memset(transformer, 0, sizeof(transformer));
   transformer->key = aeskey;
   transformer->algorithm = combined_algorithm;
   transformer->direction = direction;
   if (initialization_vector_size) {
-    SbMemoryCopy(transformer->ivec, initialization_vector,
+    memcpy(transformer->ivec, initialization_vector,
                  initialization_vector_size);
   }
 

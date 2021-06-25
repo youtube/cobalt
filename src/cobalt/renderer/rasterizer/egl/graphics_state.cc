@@ -61,7 +61,7 @@ GraphicsState::GraphicsState()
     DCHECK_NE(vertex_data_buffer_handle_[frame], 0);
     DCHECK_NE(vertex_index_buffer_handle_[frame], 0);
   }
-  SbMemorySet(clip_adjustment_, 0, sizeof(clip_adjustment_));
+  memset(clip_adjustment_, 0, sizeof(clip_adjustment_));
   SetDirty();
   blend_enabled_ = false;
   Reset();
@@ -420,8 +420,8 @@ void GraphicsState::Reset() {
   array_buffer_handle_ = 0;
   index_buffer_handle_ = 0;
   texture_unit_ = 0;
-  SbMemorySet(&texunit_target_, 0, sizeof(texunit_target_));
-  SbMemorySet(&texunit_texture_, 0, sizeof(texunit_texture_));
+  memset(&texunit_target_, 0, sizeof(texunit_target_));
+  memset(&texunit_texture_, 0, sizeof(texunit_texture_));
   clip_adjustment_dirty_ = true;
 
   enabled_vertex_attrib_array_mask_ = 0;

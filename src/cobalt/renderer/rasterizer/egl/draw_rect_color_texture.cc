@@ -75,7 +75,7 @@ DrawRectColorTexture::DrawRectColorTexture(
       sizeof(color_transform_) == sizeof(color_transform_in_column_major),
       "color_transform_ and color_transform_in_column_major size mismatch");
 
-  SbMemoryCopy(color_transform_, color_transform_in_column_major,
+  memcpy(color_transform_, color_transform_in_column_major,
                sizeof(color_transform_));
   graphics_state->ReserveVertexData(4 * sizeof(VertexAttributes));
 }
@@ -104,7 +104,7 @@ void DrawRectColorTexture::ExecuteUpdateVertexBuffer(
   COMPILE_ASSERT(sizeof(attributes) == 4 * sizeof(VertexAttributes),
                  bad_padding);
   vertex_buffer_ = graphics_state->AllocateVertexData(sizeof(attributes));
-  SbMemoryCopy(vertex_buffer_, attributes, sizeof(attributes));
+  memcpy(vertex_buffer_, attributes, sizeof(attributes));
 
   // Find minimum and maximum texcoord values.
   texcoord_clamps_[0][0] = attributes[0].texcoord[0];
@@ -131,7 +131,7 @@ void DrawRectColorTexture::ExecuteUpdateVertexBuffer(
       texcoord_clamps_[0][2] > 1.0f || texcoord_clamps_[0][3] > 1.0f;
 
   for (int i = 1; i < SB_ARRAY_SIZE_INT(texcoord_clamps_); ++i) {
-    SbMemoryCopy(texcoord_clamps_[i], texcoord_clamps_[0],
+    memcpy(texcoord_clamps_[i], texcoord_clamps_[0],
                  sizeof(texcoord_clamps_[0]));
   }
   if (clamp_texcoords_) {

@@ -76,22 +76,6 @@
 #include <string.h>
 
 #define ft_memchr memchr
-
-#if defined(STARBOARD)
-#include "starboard/string.h"
-#include "starboard/memory.h"
-#define ft_memcmp   SbMemoryCompare
-#define ft_memcpy   SbMemoryCopy
-#define ft_memmove  SbMemoryMove
-#define ft_memset   SbMemorySet
-#define ft_strcat   SbStringConcatUnsafe
-#define ft_strcmp   SbStringCompareAll
-#define ft_strcpy   SbStringCopyUnsafe
-#define ft_strlen   SbStringGetLength
-#define ft_strncmp  SbStringCompare
-#define ft_strncpy  SbStringCopy
-#define ft_strrchr  SbStringFindLastCharacter
-#else
 #define ft_memcmp   memcmp
 #define ft_memcpy   memcpy
 #define ft_memmove  memmove
@@ -103,8 +87,8 @@
 #define ft_strncmp  strncmp
 #define ft_strncpy  strncpy
 #define ft_strrchr  strrchr
-#endif
 #define ft_strstr   strstr
+
   /**************************************************************************
    *
    *                          file handling
@@ -164,7 +148,7 @@ static SB_C_INLINE void *ft_scalloc(size_t nelem, size_t elsize) {
     return NULL;
   }
 
-  SbMemorySet(memory, 0, size);
+  memset(memory, 0, size);
   return memory;
 }
 #define ft_sfree     SbMemoryDeallocate

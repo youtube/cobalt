@@ -103,7 +103,7 @@ bool ParseAndAppendPin(std::string::const_iterator begin,
   if (decoded.size() != hash.size())
     return false;
 
-  SbMemoryCopy(hash.data(), decoded.data(), hash.size());
+  memcpy(hash.data(), decoded.data(), hash.size());
   hashes->push_back(hash);
   return true;
 }

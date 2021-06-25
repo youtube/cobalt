@@ -118,7 +118,7 @@ class StatelessRejectorTest : public QuicTestWithParam<TestParams> {
 
     // Generate a public value.
     char public_value[32];
-    SbMemorySet(public_value, 42, sizeof(public_value));
+    memset(public_value, 42, sizeof(public_value));
     pubs_hex_ =
         "#" + QuicTextUtils::HexEncode(public_value, sizeof(public_value));
 

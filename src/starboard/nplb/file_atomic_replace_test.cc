@@ -43,7 +43,7 @@ bool CompareFileContentsToString(const char* filename,
   EXPECT_EQ(size, SbFileReadAll(file, result, kTestContentsLength));
   EXPECT_TRUE(SbFileClose(file));
 
-  return SbStringCompare(str, result, kTestContentsLength) == 0;
+  return strncmp(str, result, kTestContentsLength) == 0;
 }
 
 TEST(SbFileAtomicReplaceTest, ReplacesValidFile) {

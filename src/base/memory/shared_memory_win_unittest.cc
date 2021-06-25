@@ -68,7 +68,7 @@ win::ScopedHandle ReadHandleFromPipe(HANDLE pipe) {
   // Read from parent pipe.
   const size_t buf_size = 1000;
   char buffer[buf_size];
-  SbMemorySet(buffer, 0, buf_size);
+  memset(buffer, 0, buf_size);
   DWORD bytes_read;
   BOOL success = ReadFile(pipe, buffer, buf_size, &bytes_read, NULL);
 

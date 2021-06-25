@@ -14,33 +14,109 @@
 
 #include "cobalt/dom/performance.h"
 
+#include <string>
+
 #include "base/time/time.h"
+#include "base/time/default_clock.h"
 #include "cobalt/browser/stack_size_constants.h"
+#include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/memory_info.h"
 #include "cobalt/dom/performance_entry.h"
+#include "cobalt/dom/performance_mark.h"
+#include "cobalt/dom/performance_measure.h"
 
 namespace cobalt {
 namespace dom {
 
+namespace {
+
+base::TimeDelta GetUnixAtZeroMonotonic(const base::Clock* clock,
+                                         const base::TickClock* tick_clock) {
+  base::TimeDelta unix_time_now = clock->Now() - base::Time::UnixEpoch();
+  base::TimeDelta time_since_origin = tick_clock->NowTicks().since_origin();
+  return unix_time_now - time_since_origin;
+}
+
+bool IsNamePerformanceTimingAttribute(const std::string& name) {
+  return name == "navigationStart";
+}
+
+DOMHighResTimeStamp ConvertNameToTimestamp(
+    const std::string& name, script::ExceptionState* exception_state) {
+  // The algorithm of ConvertNameToTimestamp() follows these steps:
+  //   https://www.w3.org/TR/user-timing/#convert-a-name-to-a-timestamp
+  // 1. If the global object is not a Window object, throw a SyntaxError.
+  // 2. If name is navigationStart, return 0.
+  if (name == "navigationStart") {
+    return 0.0;
+  }
+
+  // 3. Let startTime be the value of navigationStart in the PerformanceTiming
+  // interface.
+  // 4. Let endTime be the value of name in the PerformanceTiming interface.
+  // 5. If endTime is 0, throw an InvalidAccessError.
+  // 6. Return result of subtracting startTime from endTime.
+
+  // Note that we only support navigationStart in the PerformanceTiming
+  // interface. We return 0.0 instead of the result of subtracting
+  // startTime from endTime.
+  dom::DOMException::Raise(dom::DOMException::kSyntaxErr,
+                           "Cannot convert a name that is not a public "
+                           "attribute of PerformanceTiming to a timestamp",
+                           exception_state);
+  return 0.0;
+}
+
+}  //namespace
+
 Performance::Performance(script::EnvironmentSettings* settings,
                          const scoped_refptr<base::BasicClock>& clock)
     : EventTarget(settings),
-      timing_(new PerformanceTiming(clock)),
+      time_origin_(base::TimeTicks::Now()),
+      tick_clock_(base::DefaultTickClock::GetInstance()),
+      timing_(new PerformanceTiming(clock, time_origin_)),
       memory_(new MemoryInfo()),
-      time_origin_(base::Time::Now() - base::Time::UnixEpoch()),
+      lifecycle_timing_(
+          new PerformanceLifecycleTiming("lifecycle timing", 0.0, 0.0)),
       resource_timing_buffer_size_limit_(
           Performance::kMaxResourceTimingBufferSize),
       resource_timing_buffer_current_size_(0),
       resource_timing_buffer_full_event_pending_flag_(false),
       resource_timing_secondary_buffer_current_size_(0),
       performance_observer_task_queued_flag_(false),
-      add_to_performance_entry_buffer_flag_(false) {}
+      add_to_performance_entry_buffer_flag_(false) {
+  unix_at_zero_monotonic_ = GetUnixAtZeroMonotonic(
+      base::DefaultClock::GetInstance(), tick_clock_);
+  QueuePerformanceEntry(lifecycle_timing_);
+}
+
+// static
+DOMHighResTimeStamp Performance::MonotonicTimeToDOMHighResTimeStamp(
+      base::TimeTicks time_origin,
+      base::TimeTicks monotonic_time) {
+  if (monotonic_time.is_null() || time_origin.is_null())
+    return 0.0;
+  DOMHighResTimeStamp clamped_time =
+      ClampTimeStampMinimumResolution(monotonic_time,
+      Performance::kPerformanceTimerMinResolutionInMicroseconds) -
+      ClampTimeStampMinimumResolution(time_origin,
+      Performance::kPerformanceTimerMinResolutionInMicroseconds);
+
+  if (clamped_time < 0)
+    return 0.0;
+  return clamped_time;
+}
+
+DOMHighResTimeStamp Performance::MonotonicTimeToDOMHighResTimeStamp(
+    base::TimeTicks monotonic_time) const {
+  return Performance::MonotonicTimeToDOMHighResTimeStamp(time_origin_,
+                                                         monotonic_time);
+}
 
 DOMHighResTimeStamp Performance::Now() const {
-  base::TimeDelta now = base::Time::Now() - base::Time::UnixEpoch();
-  return ConvertTimeDeltaToDOMHighResTimeStamp(
-      now - time_origin_,
-      Performance::kPerformanceTimerMinResolutionInMicroseconds);
+  // Now stores the current high resolution time.
+  //   https://www.w3.org/TR/2019/REC-hr-time-2-20191121/#dfn-current-high-resolution-time
+  return MonotonicTimeToDOMHighResTimeStamp(tick_clock_->NowTicks());
 }
 
 scoped_refptr<PerformanceTiming> Performance::timing() const { return timing_; }
@@ -51,19 +127,177 @@ DOMHighResTimeStamp Performance::time_origin() const {
   // The algorithm for calculating time origin timestamp.
   //   https://www.w3.org/TR/2019/REC-hr-time-2-20191121/#dfn-time-origin-timestamp
   // Assert that global's time origin is not undefined.
-  DCHECK(!time_origin_.is_zero());
+  DCHECK(!time_origin_.is_null());
 
   // Let t1 be the DOMHighResTimeStamp representing the high resolution
   // time at which the global monotonic clock is zero.
-  base::TimeDelta t1 = base::Time::UnixEpoch().ToDeltaSinceWindowsEpoch();
+  base::TimeDelta t1 = unix_at_zero_monotonic_;
 
   // Let t2 be the DOMHighResTimeStamp representing the high resolution
   // time value of the global monotonic clock at global's time origin.
-  base::TimeDelta t2 = time_origin_;
+  base::TimeDelta t2 = time_origin_ - base::TimeTicks();
 
   // Return the sum of t1 and t2.
-  return ConvertTimeDeltaToDOMHighResTimeStamp(
-      t1 + t2, Performance::kPerformanceTimerMinResolutionInMicroseconds);
+  return ClampTimeStampMinimumResolution(
+      t1 + t2,
+      Performance::kPerformanceTimerMinResolutionInMicroseconds);
+}
+
+void Performance::Mark(const std::string& mark_name,
+                       script::ExceptionState* exception_state) {
+  // The algorithm for mark() follows these steps:
+  //   https://www.w3.org/TR/2019/REC-user-timing-2-20190226/#mark-method
+  // 1. If the global object is a Window object and markName uses the same name
+  // as a read only attribute in the PerformanceTiming interface, throw a
+  // SyntaxError.
+  if (IsNamePerformanceTimingAttribute(mark_name)) {
+    dom::DOMException::Raise(
+        dom::DOMException::kSyntaxErr,
+        "Cannot create a mark with the same name as a read-only attribute in "
+        "the PerformanceTiming interface",
+        exception_state);
+  }
+
+  // 2. Create a new PerformanceMark object (entry).
+  // 3. Set entry's name attribute to markName.
+  // 4. Set entry's entryType attribute to DOMString "mark".
+  // 5. Set entry's startTime attribute to the value that would be returned by
+  // the Performance object's now() method.
+  // 6. Set entry's duration attribute to 0.
+  scoped_refptr<PerformanceMark> entry =
+      base::MakeRefCounted<PerformanceMark>(mark_name, Now());
+
+  // 7. Queue entry.
+  QueuePerformanceEntry(entry);
+
+  // 8. Add entry to the performance entry buffer.
+  performance_entry_buffer_.push_back(entry);
+
+  // 9. Return undefined
+}
+
+void Performance::ClearMarks(const std::string& mark_name) {
+  // The algorithm for clearMarks follows these steps:
+  //   https://www.w3.org/TR/2019/REC-user-timing-2-20190226/#clearmarks-method
+  // 1. If markName is omitted, remove all PerformanceMark objects from the
+  // performance entry buffer.
+  // 2. Otherwise, remove all PerformanceMark objects listed in the performance
+  // entry buffer whose name matches markName.
+  PerformanceEntryList retained_performance_entry_buffer;
+  for (const auto& entry : performance_entry_buffer_) {
+    bool should_remove_entry =
+        PerformanceEntry::ToEntryTypeEnum(entry->entry_type()) ==
+            PerformanceEntry::kMark &&
+        (mark_name.empty() || entry->name() == mark_name);
+    if (!should_remove_entry) {
+      retained_performance_entry_buffer.push_back(entry);
+    }
+  }
+  performance_entry_buffer_.swap(retained_performance_entry_buffer);
+
+  // 3. Return undefined.
+}
+
+void Performance::Measure(const std::string& measure_name,
+                          const std::string& start_mark,
+                          const std::string& end_mark,
+                          script::ExceptionState* exception_state) {
+  // The algorithm for measure() follows these steps:
+  //   https://www.w3.org/TR/2019/REC-user-timing-2-20190226/#measure-method
+  // 1. Let end time be 0.
+  DOMHighResTimeStamp end_time = 0.0;
+
+  // 2. If endMark is omitted, let end time be the value that would be returned
+  // by the Performance object's now() method.
+  if (end_mark.empty()) {
+    end_time = Now();
+  } else if (IsNamePerformanceTimingAttribute(end_mark)) {
+    // 2.1. Otherwise, if endMark has the same name as a read only attribute in
+    // the PerformanceTiming interface, let end time be the value returned by
+    // running the convert a name to a timestamp algorithm with name set to the
+    // value of endMark.
+    end_time = ConvertNameToTimestamp(end_mark, exception_state);
+  } else {
+    // 2.2. Otherwise let end time be the value of the startTime attribute from
+    // the most recent occurrence of a PerformanceMark object in the performance
+    // entry buffer whose name matches the value of endMark. If no matching
+    // entry is found, throw a SyntaxError.
+    PerformanceEntryList list = GetEntriesByName(end_mark, "mark");
+    if (list.empty()) {
+      dom::DOMException::Raise(
+          dom::DOMException::kSyntaxErr,
+          "Cannot create measure; no mark found with name: " + end_mark + ".",
+          exception_state);
+      return;
+    }
+    end_time = list.at(list.size() - 1)->start_time();
+  }
+
+  DOMHighResTimeStamp start_time;
+  // 3. If startMark is omitted, let start time be 0.
+  if (start_mark.empty()) {
+    start_time = 0.0;
+  } else if (IsNamePerformanceTimingAttribute(start_mark)) {
+    // 3.1. If startMark has the same name as a read only attribute in the
+    // PerformanceTiming interface, let start time be the value returned by
+    // running the convert a name to a timestamp algorithm with name set to
+    // startMark.
+    start_time = ConvertNameToTimestamp(start_mark, exception_state);
+  } else {
+    // 3.2. Otherwise let start time be the value of the startTime attribute
+    // from the most recent occurrence of a PerformanceMark object in the
+    // performance entry buffer whose name matches the value of startMark. If no
+    // matching entry is found, throw a SyntaxError.
+    PerformanceEntryList list = GetEntriesByName(start_mark, "mark");
+    if (list.empty()) {
+      dom::DOMException::Raise(
+          dom::DOMException::kSyntaxErr,
+          "Cannot create measure; no mark found with name: " + start_mark + ".",
+          exception_state);
+      return;
+    }
+    start_time = list.at(list.size() - 1)->start_time();
+  }
+
+  // 4. Create a new PerformanceMeasure object (entry).
+  // 5. Set entry's name attribute to measureName.
+  // 6. Set entry's entryType attribute to DOMString "measure".
+  // 7. Set entry's startTime attribute to start time.
+  // 8. Set entry's duration attribute to the duration from start time to end
+  // time. The resulting duration value MAY be negative.
+  scoped_refptr<PerformanceMeasure> entry =
+      base::MakeRefCounted<PerformanceMeasure>(measure_name, start_time,
+                                               end_time);
+
+  // 9. Queue entry.
+  QueuePerformanceEntry(entry);
+
+  // 10. Add entry to the performance entry buffer.
+  performance_entry_buffer_.push_back(entry);
+
+  // 11. Return undefined.
+}
+
+void Performance::ClearMeasures(const std::string& measure_name) {
+  // The algorithm for clearMeasures follows these steps:
+  //   https://www.w3.org/TR/2019/REC-user-timing-2-20190226/#clearmeasures-method
+  // 1. If measureName is omitted, remove all PerformanceMeasure objects in the
+  // performance entry buffer.
+  // 2. Otherwise remove all PerformanceMeasure objects listed in the
+  // performance entry buffer whose name matches measureName.
+  PerformanceEntryList performance_entry_buffer;
+  for (const auto& entry : performance_entry_buffer_) {
+    bool shouldRemoveEntry =
+        PerformanceEntry::ToEntryTypeEnum(entry->entry_type()) ==
+            PerformanceEntry::kMeasure &&
+        (measure_name.empty() || entry->name() == measure_name);
+    if (!shouldRemoveEntry) {
+      performance_entry_buffer.push_back(entry);
+    }
+  }
+  performance_entry_buffer_.swap(performance_entry_buffer);
+
+  // 3. Return undefined.
 }
 
 void Performance::UnregisterPerformanceObserver(
@@ -83,8 +317,7 @@ void Performance::RegisterPerformanceObserver(
     const PerformanceObserverInit& options) {
   std::list<PerformanceObserverInit> options_list;
   options_list.push_back(options);
-  registered_performance_observers_.emplace_back(observer,
-                                                 options_list);
+  registered_performance_observers_.emplace_back(observer, options_list);
 }
 
 void Performance::ReplaceRegisteredPerformanceObserverOptionsList(
@@ -122,6 +355,7 @@ void Performance::UpdateRegisteredPerformanceObserverOptionsList(
 void Performance::TraceMembers(script::Tracer* tracer) {
   tracer->Trace(timing_);
   tracer->Trace(memory_);
+  tracer->Trace(lifecycle_timing_);
 }
 
 PerformanceEntryList Performance::GetEntries() {
@@ -131,13 +365,13 @@ PerformanceEntryList Performance::GetEntries() {
 PerformanceEntryList Performance::GetEntriesByType(
     const std::string& entry_type) {
   return PerformanceEntryListImpl::GetEntriesByType(performance_entry_buffer_,
-                                                      entry_type);
+                                                    entry_type);
 }
 
 PerformanceEntryList Performance::GetEntriesByName(
     const std::string& name, const base::StringPiece& type) {
   return PerformanceEntryListImpl::GetEntriesByName(performance_entry_buffer_,
-                                                      name, type);
+                                                    name, type);
 }
 
 void Performance::ClearResourceTimings() {
@@ -147,7 +381,9 @@ void Performance::ClearResourceTimings() {
   // entry buffer.
   PerformanceEntryList performance_entry_buffer;
   for (const auto& entry : performance_entry_buffer_) {
-    if (!base::polymorphic_downcast<PerformanceResourceTiming*>(entry.get())) {
+    bool should_be_removed = PerformanceEntry::ToEntryTypeEnum(
+        entry->entry_type()) == PerformanceEntry::kResource;
+    if (!should_be_removed) {
       performance_entry_buffer.push_back(entry);
     }
   }
@@ -157,7 +393,8 @@ void Performance::ClearResourceTimings() {
   resource_timing_buffer_current_size_ = 0;
 }
 
-void Performance::SetResourceTimingBufferSize(unsigned long max_size) {
+void Performance::SetResourceTimingBufferSize(
+    unsigned long max_size) {  // NOLINT(runtime/int)
   // The method runs the following steps:
   //   https://www.w3.org/TR/2021/WD-resource-timing-2-20210414/#dom-performance-setresourcetimingbuffersize
   // 1. Set resource timing buffer size limit to the maxSize parameter.
@@ -218,7 +455,7 @@ void Performance::FireResourceTimingBufferFullEvent() {
   while (!resource_timing_secondary_buffer_.empty()) {
     // 1.1 Let number of excess entries before be resource timing secondary
     // buffer current size.
-    unsigned long excess_entries_before =
+    unsigned long excess_entries_before =  // NOLINT(runtime/int)
         resource_timing_secondary_buffer_current_size_;
     // 1.2 If can add resource timing entry returns false, then fire an event
     // named resourcetimingbufferfull at the Performance object.
@@ -229,7 +466,7 @@ void Performance::FireResourceTimingBufferFullEvent() {
     CopySecondaryBuffer();
     // 1.4 Let number of excess entries after be resource timing secondary
     // buffer current size.
-    unsigned long excess_entries_after =
+    unsigned long excess_entries_after =  // NOLINT(runtime/int)
         resource_timing_secondary_buffer_current_size_;
     // 1.5 If number of excess entries before is lower than or equals number of
     // excess entries after, then remove all entries from resource timing
@@ -369,7 +606,7 @@ void Performance::CreatePerformanceResourceTiming(
   // requestedURL, timingInfo, and cacheMode.
   scoped_refptr<PerformanceResourceTiming> resource_timing(
       new PerformanceResourceTiming(timing_info, initiator_type,
-                                    requested_url, this));
+                                    requested_url, this, time_origin_));
   // 2. Queue entry.
   QueuePerformanceEntry(resource_timing);
   // 3. Add entry to global's performance entry buffer.

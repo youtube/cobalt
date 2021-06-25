@@ -51,7 +51,7 @@ class ScopedCipherCTX {
 Encryptor::Counter::Counter(base::StringPiece counter) {
   CHECK(sizeof(counter_) == counter.length());
 
-  SbMemoryCopy(&counter_, counter.data(), sizeof(counter_));
+  memcpy(&counter_, counter.data(), sizeof(counter_));
 }
 
 Encryptor::Counter::~Counter() = default;
@@ -73,7 +73,7 @@ bool Encryptor::Counter::Increment() {
 
 void Encryptor::Counter::Write(void* buf) {
   uint8_t* buf_ptr = reinterpret_cast<uint8_t*>(buf);
-  SbMemoryCopy(buf_ptr, &counter_, sizeof(counter_));
+  memcpy(buf_ptr, &counter_, sizeof(counter_));
 }
 
 size_t Encryptor::Counter::GetLengthInBytes() const {

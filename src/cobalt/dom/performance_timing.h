@@ -15,10 +15,9 @@
 #ifndef COBALT_DOM_PERFORMANCE_TIMING_H_
 #define COBALT_DOM_PERFORMANCE_TIMING_H_
 
-#include "cobalt/script/wrappable.h"
-
 #include "base/time/time.h"
 #include "cobalt/base/clock.h"
+#include "cobalt/script/wrappable.h"
 
 namespace cobalt {
 namespace dom {
@@ -26,8 +25,11 @@ namespace dom {
 // Implements the PerformanceTiming IDL interface, as described here:
 //   https://dvcs.w3.org/hg/webperf/raw-file/tip/specs/NavigationTiming/Overview.html#sec-navigation-timing-interface
 class PerformanceTiming : public script::Wrappable {
+  // If any new public fields are added here, handling logic must be added to
+  // Performance::Mark and Performance::Measure.
  public:
-  explicit PerformanceTiming(const scoped_refptr<base::BasicClock>& clock);
+  explicit PerformanceTiming(const scoped_refptr<base::BasicClock>& clock,
+                             base::TimeTicks time_origin);
 
   // This attribute must return the time immediately after the user agent
   // finishes prompting to unload the previous document. If there is no previous
@@ -48,7 +50,7 @@ class PerformanceTiming : public script::Wrappable {
   ~PerformanceTiming();
 
   // The navigation start time relative to January 1, 1970.
-  base::TimeDelta navigation_start_;
+  base::TimeTicks navigation_start_;
   scoped_refptr<base::OffsetClock> navigation_start_clock_;
 
   DISALLOW_COPY_AND_ASSIGN(PerformanceTiming);

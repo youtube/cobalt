@@ -48,13 +48,13 @@ inline TrivialStringPiece TrivialStringPiece::FromCString(
     const char* c_string) {
   TrivialStringPiece string_piece;
   string_piece.begin = c_string;
-  string_piece.end = c_string + SbStringGetLength(c_string);
+  string_piece.end = c_string + strlen(c_string);
   return string_piece;
 }
 
 // Used by tests.
 inline bool operator==(const TrivialStringPiece& lhs, const char* rhs) {
-  return SbStringCompare(lhs.begin, rhs, lhs.size()) == 0 &&
+  return strncmp(lhs.begin, rhs, lhs.size()) == 0 &&
          rhs[lhs.size()] == '\0';
 }
 

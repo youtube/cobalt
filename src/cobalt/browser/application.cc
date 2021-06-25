@@ -64,6 +64,7 @@
 #include "cobalt/browser/memory_tracker/tool.h"
 #include "cobalt/browser/storage_upgrade_handler.h"
 #include "cobalt/browser/switches.h"
+#include "cobalt/browser/user_agent_platform_info.h"
 #include "cobalt/browser/user_agent_string.h"
 #include "cobalt/configuration/configuration.h"
 #include "cobalt/extension/crash_handler.h"
@@ -77,6 +78,8 @@
 #include "cobalt/system_window/input_event.h"
 #include "cobalt/trace_event/scoped_trace_to_file.h"
 #include "starboard/configuration.h"
+#include "starboard/event.h"
+#include "starboard/time.h"
 #include "starboard/system.h"
 #include "url/gurl.h"
 
@@ -553,9 +556,9 @@ bool AddCrashHandlerAnnotations() {
 #endif
   if (version.empty()) {
     base::StringAppendF(&version, "%s.%s-%s",
-                        platform_info.cobalt_version.c_str(),
-                        platform_info.cobalt_build_version_number.c_str(),
-                        platform_info.build_configuration.c_str());
+                        platform_info.cobalt_version().c_str(),
+                        platform_info.cobalt_build_version_number().c_str(),
+                        platform_info.build_configuration().c_str());
   }
 
   user_agent.push_back('\0');
@@ -563,13 +566,13 @@ bool AddCrashHandlerAnnotations() {
   version.push_back('\0');
 
   CrashpadAnnotations crashpad_annotations;
-  SbMemorySet(&crashpad_annotations, sizeof(CrashpadAnnotations), 0);
-  SbStringCopy(crashpad_annotations.user_agent_string, user_agent.c_str(),
-               USER_AGENT_STRING_MAX_SIZE);
-  SbStringCopy(crashpad_annotations.product, product.c_str(),
-               CRASHPAD_ANNOTATION_DEFAULT_LENGTH);
-  SbStringCopy(crashpad_annotations.version, version.c_str(),
-               CRASHPAD_ANNOTATION_DEFAULT_LENGTH);
+  memset(&crashpad_annotations, 0, sizeof(CrashpadAnnotations));
+  strncpy(crashpad_annotations.user_agent_string, user_agent.c_str(),
+          USER_AGENT_STRING_MAX_SIZE);
+  strncpy(crashpad_annotations.product, product.c_str(),
+          CRASHPAD_ANNOTATION_DEFAULT_LENGTH);
+  strncpy(crashpad_annotations.version, version.c_str(),
+          CRASHPAD_ANNOTATION_DEFAULT_LENGTH);
   bool result = static_cast<const CobaltExtensionCrashHandlerApi*>(
                     crash_handler_extension)
                     ->OverrideCrashpadAnnotations(&crashpad_annotations);
@@ -831,7 +834,7 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
       storage_manager_options));
 
   network_module_.reset(new network::NetworkModule(
-      CreateUserAgentString(GetUserAgentPlatformInfoFromSystem()),
+      CreateUserAgentString(browser::GetUserAgentPlatformInfoFromSystem()),
       storage_manager_.get(), &event_dispatcher_, network_module_options));
 
   AddCrashHandlerAnnotations();
@@ -1010,7 +1013,7 @@ void Application::Start() {
     return;
   }
 
-  OnApplicationEvent(kSbEventTypeStart);
+  OnApplicationEvent(kSbEventTypeStart, SbTimeGetMonotonicNow());
 }
 
 void Application::Quit() {
@@ -1043,7 +1046,8 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
     case kSbEventTypeFreeze:
     case kSbEventTypeUnfreeze:
     case kSbEventTypeLowMemory:
-      OnApplicationEvent(starboard_event->type);
+      OnApplicationEvent(starboard_event->type,
+                         starboard_event->timestamp);
       break;
 #else
     case kSbEventTypePause:
@@ -1051,7 +1055,7 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
     case kSbEventTypeSuspend:
     case kSbEventTypeResume:
     case kSbEventTypeLowMemory:
-      OnApplicationEvent(starboard_event->type);
+      OnApplicationEvent(starboard_event->type, SbTimeGetMonotonicNow());
       break;
 #endif  // SB_API_VERSION >= 13
     case kSbEventTypeWindowSizeChanged:
@@ -1147,9 +1151,11 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
   }
 }
 
-void Application::OnApplicationEvent(SbEventType event_type) {
+void Application::OnApplicationEvent(SbEventType event_type,
+                                     SbTimeMonotonic timestamp) {
   TRACE_EVENT0("cobalt::browser", "Application::OnApplicationEvent()");
   DCHECK_CALLED_ON_VALID_THREAD(application_event_thread_checker_);
+
   switch (event_type) {
     case kSbEventTypeStop:
       DLOG(INFO) << "Got quit event.";
@@ -1158,35 +1164,35 @@ void Application::OnApplicationEvent(SbEventType event_type) {
       break;
     case kSbEventTypeStart:
       DLOG(INFO) << "Got start event.";
-      browser_module_->Reveal();
-      browser_module_->Focus();
+      browser_module_->Reveal(timestamp);
+      browser_module_->Focus(timestamp);
       DLOG(INFO) << "Finished starting.";
       break;
 #if SB_API_VERSION >= 13
     case kSbEventTypeBlur:
       DLOG(INFO) << "Got blur event.";
-      browser_module_->Blur();
+      browser_module_->Blur(timestamp);
       DLOG(INFO) << "Finished blurring.";
       break;
     case kSbEventTypeFocus:
       DLOG(INFO) << "Got focus event.";
-      browser_module_->Focus();
+      browser_module_->Focus(timestamp);
       DLOG(INFO) << "Finished focusing.";
       break;
     case kSbEventTypeConceal:
       DLOG(INFO) << "Got conceal event.";
-      browser_module_->Conceal();
+      browser_module_->Conceal(timestamp);
       DLOG(INFO) << "Finished concealing.";
       break;
     case kSbEventTypeReveal:
       DCHECK(SbSystemSupportsResume());
       DLOG(INFO) << "Got reveal event.";
-      browser_module_->Reveal();
+      browser_module_->Reveal(timestamp);
       DLOG(INFO) << "Finished revealing.";
       break;
     case kSbEventTypeFreeze:
       DLOG(INFO) << "Got freeze event.";
-      browser_module_->Freeze();
+      browser_module_->Freeze(timestamp);
 #if SB_IS(EVERGREEN)
       if (updater_module_) updater_module_->Suspend();
 #endif
@@ -1194,7 +1200,7 @@ void Application::OnApplicationEvent(SbEventType event_type) {
       break;
     case kSbEventTypeUnfreeze:
       DLOG(INFO) << "Got unfreeze event.";
-      browser_module_->Unfreeze();
+      browser_module_->Unfreeze(timestamp);
 #if SB_IS(EVERGREEN)
       if (updater_module_) updater_module_->Resume();
 #endif
@@ -1203,18 +1209,18 @@ void Application::OnApplicationEvent(SbEventType event_type) {
 #else
     case kSbEventTypePause:
       DLOG(INFO) << "Got pause event.";
-      browser_module_->Blur();
+      browser_module_->Blur(timestamp);
       DLOG(INFO) << "Finished pausing.";
       break;
     case kSbEventTypeUnpause:
       DLOG(INFO) << "Got unpause event.";
-      browser_module_->Focus();
+      browser_module_->Focus(timestamp);
       DLOG(INFO) << "Finished unpausing.";
       break;
     case kSbEventTypeSuspend:
       DLOG(INFO) << "Got suspend event.";
-      browser_module_->Conceal();
-      browser_module_->Freeze();
+      browser_module_->Conceal(timestamp);
+      browser_module_->Freeze(timestamp);
 #if SB_IS(EVERGREEN)
       if (updater_module_) updater_module_->Suspend();
 #endif
@@ -1223,8 +1229,8 @@ void Application::OnApplicationEvent(SbEventType event_type) {
     case kSbEventTypeResume:
       DCHECK(SbSystemSupportsResume());
       DLOG(INFO) << "Got resume event.";
-      browser_module_->Unfreeze();
-      browser_module_->Reveal();
+      browser_module_->Unfreeze(timestamp);
+      browser_module_->Reveal(timestamp);
 #if SB_IS(EVERGREEN)
       if (updater_module_) updater_module_->Resume();
 #endif

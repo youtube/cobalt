@@ -56,13 +56,13 @@ constexpr net::NetworkTrafficAnnotationTag kNetworkTrafficAnnotation =
 base::Optional<net::IPEndPoint> GetLocalIpAddress() {
   net::IPEndPoint ip_addr;
   SbSocketAddress local_ip;
-  SbMemorySet(&local_ip, 0, sizeof(local_ip));
+  memset(&local_ip, 0, sizeof(local_ip));
   bool result = false;
 
   // Dial Server only supports Ipv4 now.
   SbSocketAddressType address_types = {kSbSocketAddressTypeIpv4};
   SbSocketAddress destination;
-  SbMemorySet(&(destination.address), 0, sizeof(destination.address));
+  memset(&(destination.address), 0, sizeof(destination.address));
   destination.type = address_types;
   if (!SbSocketGetInterfaceAddress(&destination, &local_ip, NULL) ||
       !ip_addr.FromSbSocketAddress(&local_ip)) {
@@ -149,7 +149,7 @@ void DialHttpServer::OnHttpRequest(int conn_id,
 
   } else if (strstr(info.path.c_str(), kAppsPrefix)) {
     if (info.method == "GET" &&
-        info.path.length() == SbStringGetLength(kAppsPrefix)) {
+        info.path.length() == strlen(kAppsPrefix)) {
       // If /apps/ request, send 302 to current application.
       http_server_->SendRaw(
           conn_id,

@@ -66,7 +66,7 @@ class VideoDecoderFuzzer {
       current_au_buffer_ =
           ::media::ShellBufferFactory::Instance()->AllocateBufferNow(
               desc.size, desc.is_keyframe);
-      SbMemoryCopy(current_au_buffer_->GetWritableData(),
+      memcpy(current_au_buffer_->GetWritableData(),
                    &au_data_[0] + desc.offset, desc.size);
       ++au_index_;
     } else if (!current_au_buffer_->IsEndOfStream()) {

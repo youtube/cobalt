@@ -37,7 +37,7 @@ void SbLogFormat(const char* format, va_list arguments) {
   char formatted_buffer[kFormatBufferSizeBytes];
   vsprintf(formatted_buffer, format, arguments);
 
-  const char* newline = SbStringFindCharacter(formatted_buffer, '\n');
+  const char* newline = strchr(formatted_buffer, '\n');
 
   SbMutexAcquire(&log_line_mutex);
   std::string buffer_string(formatted_buffer);

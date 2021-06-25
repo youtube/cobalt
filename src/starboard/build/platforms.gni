@@ -33,4 +33,24 @@ platforms = [
     name = "linux-x64x11-internal"
     path = "starboard/linux/x64x11/internal"
   },
+  {
+    name = "linux-x64x11-skia"
+    path = "starboard/linux/x64x11/skia"
+  },
+  {
+    name = "android-arm"
+    path = "starboard/android/arm"
+  },
+  {
+    name = "android-arm64"
+    path = "starboard/android/arm64"
+  },
+  {
+    name = "android-arm64-vulkan"
+    path = "starboard/android/arm64/vulkan"
+  },
+  {
+    name = "android-x86"
+    path = "starboard/android/x86"
+  },
 ]

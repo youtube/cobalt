@@ -215,7 +215,7 @@ class SymbolContext {
           kMaxNameLength * sizeof(wchar_t) +
           sizeof(ULONG64) - 1) /
         sizeof(ULONG64)];
-      SbMemorySet(buffer, 0, sizeof(buffer));
+      memset(buffer, 0, sizeof(buffer));
 
       // Initialize symbol information retrieval structures.
       DWORD64 sym_displacement = 0;
@@ -308,14 +308,14 @@ void StackTrace::InitTrace(const CONTEXT* context_record) {
   // context may have had more register state (YMM, etc) than we need to unwind
   // the stack. Typically StackWalk64 only needs integer and control registers.
   CONTEXT context_copy;
-  SbMemoryCopy(&context_copy, context_record, sizeof(context_copy));
+  memcpy(&context_copy, context_record, sizeof(context_copy));
   context_copy.ContextFlags = CONTEXT_INTEGER | CONTEXT_CONTROL;
 
   // When walking an exception stack, we need to use StackWalk64().
   count_ = 0;
   // Initialize stack walking.
   STACKFRAME64 stack_frame;
-  SbMemorySet(&stack_frame, 0, sizeof(stack_frame));
+  memset(&stack_frame, 0, sizeof(stack_frame));
 #if defined(_WIN64)
   int machine_type = IMAGE_FILE_MACHINE_AMD64;
   stack_frame.AddrPC.Offset = context_record->Rip;

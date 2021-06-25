@@ -28,27 +28,27 @@ struct NET_EXPORT SHA256HashValue {
 };
 
 inline bool operator==(const SHA256HashValue& lhs, const SHA256HashValue& rhs) {
-  return SbMemoryCompare(lhs.data, rhs.data, sizeof(lhs.data)) == 0;
+  return memcmp(lhs.data, rhs.data, sizeof(lhs.data)) == 0;
 }
 
 inline bool operator!=(const SHA256HashValue& lhs, const SHA256HashValue& rhs) {
-  return SbMemoryCompare(lhs.data, rhs.data, sizeof(lhs.data)) != 0;
+  return memcmp(lhs.data, rhs.data, sizeof(lhs.data)) != 0;
 }
 
 inline bool operator<(const SHA256HashValue& lhs, const SHA256HashValue& rhs) {
-  return SbMemoryCompare(lhs.data, rhs.data, sizeof(lhs.data)) < 0;
+  return memcmp(lhs.data, rhs.data, sizeof(lhs.data)) < 0;
 }
 
 inline bool operator>(const SHA256HashValue& lhs, const SHA256HashValue& rhs) {
-  return SbMemoryCompare(lhs.data, rhs.data, sizeof(lhs.data)) > 0;
+  return memcmp(lhs.data, rhs.data, sizeof(lhs.data)) > 0;
 }
 
 inline bool operator<=(const SHA256HashValue& lhs, const SHA256HashValue& rhs) {
-  return SbMemoryCompare(lhs.data, rhs.data, sizeof(lhs.data)) <= 0;
+  return memcmp(lhs.data, rhs.data, sizeof(lhs.data)) <= 0;
 }
 
 inline bool operator>=(const SHA256HashValue& lhs, const SHA256HashValue& rhs) {
-  return SbMemoryCompare(lhs.data, rhs.data, sizeof(lhs.data)) >= 0;
+  return memcmp(lhs.data, rhs.data, sizeof(lhs.data)) >= 0;
 }
 
 enum HashValueTag {

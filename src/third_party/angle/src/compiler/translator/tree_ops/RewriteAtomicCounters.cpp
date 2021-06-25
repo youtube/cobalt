@@ -15,16 +15,15 @@
 #include "compiler/translator/tree_util/IntermNode_util.h"
 #include "compiler/translator/tree_util/IntermTraverse.h"
 #include "compiler/translator/tree_util/ReplaceVariable.h"
-#include "nb/cpp14oncpp11.h"
 
 namespace sh
 {
 namespace
 {
-CONSTEXPR ImmutableString kAtomicCounterTypeName  = ImmutableString("ANGLE_atomic_uint");
-CONSTEXPR ImmutableString kAtomicCounterBlockName = ImmutableString("ANGLEAtomicCounters");
-CONSTEXPR ImmutableString kAtomicCounterVarName   = ImmutableString("atomicCounters");
-CONSTEXPR ImmutableString kAtomicCounterFieldName = ImmutableString("counters");
+constexpr ImmutableString kAtomicCounterTypeName  = ImmutableString("ANGLE_atomic_uint");
+constexpr ImmutableString kAtomicCounterBlockName = ImmutableString("ANGLEAtomicCounters");
+constexpr ImmutableString kAtomicCounterVarName   = ImmutableString("atomicCounters");
+constexpr ImmutableString kAtomicCounterFieldName = ImmutableString("counters");
 
 // DeclareAtomicCountersBuffer adds a storage buffer array that's used with atomic counters.
 const TVariable *DeclareAtomicCountersBuffers(TIntermBlock *root, TSymbolTable *symbolTable)

@@ -42,7 +42,7 @@ class TestFilterSourceStreamBase : public FilterSourceStream {
   int WriteBufferToOutput(IOBuffer* output_buffer, int output_buffer_size) {
     size_t bytes_to_filter =
         std::min(buffer_.length(), static_cast<size_t>(output_buffer_size));
-    SbMemoryCopy(output_buffer->data(), buffer_.data(), bytes_to_filter);
+    memcpy(output_buffer->data(), buffer_.data(), bytes_to_filter);
     buffer_.erase(0, bytes_to_filter);
     return base::checked_cast<int>(bytes_to_filter);
   }
@@ -152,7 +152,7 @@ class ThrottleSourceStream : public TestFilterSourceStreamBase {
     buffer_.append(input_buffer->data(), input_buffer_size);
     *consumed_bytes = input_buffer_size;
     int bytes_to_read = std::min(1, static_cast<int>(buffer_.size()));
-    SbMemoryCopy(output_buffer->data(), buffer_.data(), bytes_to_read);
+    memcpy(output_buffer->data(), buffer_.data(), bytes_to_read);
     buffer_.erase(0, bytes_to_read);
     return bytes_to_read;
   }

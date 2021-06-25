@@ -133,7 +133,7 @@ class WebSocketBasicStreamSocketTest : public TestWithScopedTaskEnvironment {
   void SetHttpReadBuffer(const char* data, size_t size) {
     http_read_buffer_ = base::MakeRefCounted<GrowableIOBuffer>();
     http_read_buffer_->SetCapacity(size);
-    SbMemoryCopy(http_read_buffer_->data(), data, size);
+    memcpy(http_read_buffer_->data(), data, size);
     http_read_buffer_->set_offset(size);
   }
 
@@ -234,7 +234,7 @@ class WebSocketBasicStreamSocketWriteTest
         kWriteFrameSize - (WebSocketFrameHeader::kBaseHeaderSize +
                            WebSocketFrameHeader::kMaskingKeyLength);
     frame->data = base::MakeRefCounted<IOBuffer>(payload_size);
-    SbMemoryCopy(frame->data->data(),
+    memcpy(frame->data->data(),
                  kWriteFrame + kWriteFrameSize - payload_size, payload_size);
     WebSocketFrameHeader& header = frame->header;
     header.final = true;
@@ -669,8 +669,8 @@ TEST_F(WebSocketBasicStreamSocketSingleReadTest,
   ASSERT_EQ(1U, frames_.size());
   EXPECT_EQ(WebSocketFrameHeader::kOpCodeClose, frames_[0]->header.opcode);
   EXPECT_EQ(kCloseFrameSize - 2, frames_[0]->header.payload_length);
-  EXPECT_EQ(0, SbMemoryCompare(frames_[0]->data->data(), kCloseFrame + 2,
-                               kCloseFrameSize - 2));
+  EXPECT_EQ(0, memcmp(frames_[0]->data->data(), kCloseFrame + 2,
+                      kCloseFrameSize - 2));
 }
 
 // Check that a control frame which partially arrives at the end of the response
@@ -800,9 +800,9 @@ TEST_F(WebSocketBasicStreamSocketChunkedReadTest, OneMegFrame) {
   const size_t kExpectedFrameCount =
       (kWireSize + kReadBufferSize - 1) / kReadBufferSize;
   std::unique_ptr<char[]> big_frame(new char[kWireSize]);
-  SbMemoryCopy(big_frame.get(), "\x81\x7F", 2);
+  memcpy(big_frame.get(), "\x81\x7F", 2);
   base::WriteBigEndian(big_frame.get() + 2, kPayloadSize);
-  SbMemorySet(big_frame.get() + kLargeFrameHeaderSize, 'A', kPayloadSize);
+  memset(big_frame.get() + kLargeFrameHeaderSize, 'A', kPayloadSize);
 
   CreateChunkedRead(ASYNC,
                     big_frame.get(),
@@ -920,7 +920,7 @@ TEST_F(WebSocketBasicStreamSocketTest, WriteNonNulMask) {
   const std::string unmasked_payload = "graphics";
   const size_t payload_size = unmasked_payload.size();
   frame->data = base::MakeRefCounted<IOBuffer>(payload_size);
-  SbMemoryCopy(frame->data->data(), unmasked_payload.data(), payload_size);
+  memcpy(frame->data->data(), unmasked_payload.data(), payload_size);
   WebSocketFrameHeader& header = frame->header;
   header.final = true;
   header.masked = true;

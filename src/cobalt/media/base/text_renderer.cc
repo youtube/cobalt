@@ -184,11 +184,11 @@ void TextRenderer::BufferReady(DemuxerStream* stream,
   // The side data contains both the cue id and cue settings,
   // each terminated with a NUL.
   const char* id_ptr = reinterpret_cast<const char*>(input->side_data());
-  size_t id_len = SbStringGetLength(id_ptr);
+  size_t id_len = strlen(id_ptr);
   std::string id(id_ptr, id_len);
 
   const char* settings_ptr = id_ptr + id_len + 1;
-  size_t settings_len = SbStringGetLength(settings_ptr);
+  size_t settings_len = strlen(settings_ptr);
   std::string settings(settings_ptr, settings_len);
 
   // The cue payload is stored in the data-part of the input buffer.

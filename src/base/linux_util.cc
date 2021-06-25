@@ -139,8 +139,8 @@ std::string GetLinuxDistro() {
   if (output.length() > 0) {
     // lsb_release -d should return: Description:<tab>Distro Info
     const char field[] = "Description:\t";
-    if (output.compare(0, SbStringGetLength(field), field) == 0) {
-      SetLinuxDistro(output.substr(SbStringGetLength(field)));
+    if (output.compare(0, strlen(field), field) == 0) {
+      SetLinuxDistro(output.substr(strlen(field)));
     }
   }
   distro_state_singleton->CheckFinished();

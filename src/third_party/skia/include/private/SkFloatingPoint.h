@@ -228,14 +228,14 @@ static inline float sk_float_rsqrt(float x) {
 // IEEE defines how float divide behaves for non-finite values and zero-denoms, but C does not
 // so we have a helper that suppresses the possible undefined-behavior warnings.
 
-#if defined(__clang__) && (__clang_major__ * 1000 + __clang_minor__) >= 3007
+#ifdef __clang__
 __attribute__((no_sanitize("float-divide-by-zero")))
 #endif
 static inline float sk_ieee_float_divide(float numer, float denom) {
     return numer / denom;
 }
 
-#if defined(__clang__) && (__clang_major__ * 1000 + __clang_minor__) >= 3007
+#ifdef __clang__
 __attribute__((no_sanitize("float-divide-by-zero")))
 #endif
 static inline double sk_ieee_double_divide(double numer, double denom) {

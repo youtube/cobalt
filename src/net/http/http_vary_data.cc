@@ -42,7 +42,7 @@ bool HttpVaryData::Init(const HttpRequestInfo& request_info,
     if (request_header == "*") {
       // What's in request_digest_ will never be looked at, but make it
       // deterministic so we don't serialize out uninitialized memory content.
-      SbMemorySet(&request_digest_, 0, sizeof(request_digest_));
+      memset(&request_digest_, 0, sizeof(request_digest_));
       return is_valid_ = true;
     }
     AddField(request_info, request_header, &ctx);
@@ -60,7 +60,7 @@ bool HttpVaryData::InitFromPickle(base::PickleIterator* iter) {
   is_valid_ = false;
   const char* data;
   if (iter->ReadBytes(&data, sizeof(request_digest_))) {
-    SbMemoryCopy(&request_digest_, data, sizeof(request_digest_));
+    memcpy(&request_digest_, data, sizeof(request_digest_));
     return is_valid_ = true;
   }
   return false;
@@ -84,8 +84,8 @@ bool HttpVaryData::MatchesRequest(
     // by a build before crbug.com/469675 was fixed.
     return false;
   }
-  return SbMemoryCompare(&new_vary_data.request_digest_, &request_digest_,
-                         sizeof(request_digest_)) == 0;
+  return memcmp(&new_vary_data.request_digest_, &request_digest_,
+                sizeof(request_digest_)) == 0;
 }
 
 // static

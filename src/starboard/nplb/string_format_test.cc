@@ -35,7 +35,7 @@ TEST(SbStringFormatTest, SunnyDay) {
   char destination[1024] = {0};
   int result = Format(destination, SB_ARRAY_SIZE(destination), "a%db%dc%d%s", 1,
                       2, 3, "test");
-  size_t expected_length = SbStringGetLength(kExpected);
+  size_t expected_length = strlen(kExpected);
   EXPECT_EQ(expected_length, result);
   for (size_t i = 0; i <= expected_length; ++i) {
     EXPECT_EQ(kExpected[i], destination[i]);

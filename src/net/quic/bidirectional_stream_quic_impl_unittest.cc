@@ -921,7 +921,7 @@ TEST_P(BidirectionalStreamQuicImplTest, GetRequest) {
   const char kResponseBody[] = "Hello world!";
   // Server sends data.
   quic::QuicString header =
-      ConstructDataHeader(SbStringGetLength(kResponseBody));
+      ConstructDataHeader(strlen(kResponseBody));
   ProcessPacket(ConstructServerDataPacket(3, !kIncludeVersion, !kFin, 0,
                                           header + kResponseBody));
   EXPECT_EQ(12, cb.WaitForResult());
@@ -934,7 +934,7 @@ TEST_P(BidirectionalStreamQuicImplTest, GetRequest) {
   size_t spdy_trailers_frame_length;
   trailers["foo"] = "bar";
   trailers[quic::kFinalOffsetHeaderKey] =
-      base::NumberToString(SbStringGetLength(kResponseBody));
+      base::NumberToString(strlen(kResponseBody));
   // Server sends trailers.
   ProcessPacket(ConstructResponseTrailersPacket(
       4, kFin, trailers.Clone(), &spdy_trailers_frame_length, &offset));
@@ -953,7 +953,7 @@ TEST_P(BidirectionalStreamQuicImplTest, GetRequest) {
   EXPECT_EQ(static_cast<int64_t>(spdy_request_headers_frame_length),
             delegate->GetTotalSentBytes());
   EXPECT_EQ(static_cast<int64_t>(spdy_response_headers_frame_length +
-                                 SbStringGetLength(kResponseBody) +
+                                 strlen(kResponseBody) +
                                  header.length() + spdy_trailers_frame_length),
             delegate->GetTotalReceivedBytes());
   // Check that NetLog was filled as expected.
@@ -1055,8 +1055,8 @@ TEST_P(BidirectionalStreamQuicImplTest, CoalesceDataBuffersNotHeadersFrame) {
   AddWrite(ConstructInitialSettingsPacket(1, &header_stream_offset));
   const char kBody1[] = "here are some data";
   const char kBody2[] = "data keep coming";
-  quic::QuicString header = ConstructDataHeader(SbStringGetLength(kBody1));
-  quic::QuicString header2 = ConstructDataHeader(SbStringGetLength(kBody2));
+  quic::QuicString header = ConstructDataHeader(strlen(kBody1));
+  quic::QuicString header2 = ConstructDataHeader(strlen(kBody2));
   std::vector<std::string> two_writes = {kBody1, kBody2};
   AddWrite(ConstructRequestHeadersPacketInner(
       2, GetNthClientInitiatedBidirectionalStreamId(0), !kFin, DEFAULT_PRIORITY,
@@ -1074,11 +1074,11 @@ TEST_P(BidirectionalStreamQuicImplTest, CoalesceDataBuffersNotHeadersFrame) {
   const char kBody3[] = "hello there";
   const char kBody4[] = "another piece of small data";
   const char kBody5[] = "really small";
-  quic::QuicString header3 = ConstructDataHeader(SbStringGetLength(kBody3));
-  quic::QuicString header4 = ConstructDataHeader(SbStringGetLength(kBody4));
-  quic::QuicString header5 = ConstructDataHeader(SbStringGetLength(kBody5));
-  quic::QuicStreamOffset data_offset = SbStringGetLength(kBody1) +
-                                       SbStringGetLength(kBody2) +
+  quic::QuicString header3 = ConstructDataHeader(strlen(kBody3));
+  quic::QuicString header4 = ConstructDataHeader(strlen(kBody4));
+  quic::QuicString header5 = ConstructDataHeader(strlen(kBody5));
+  quic::QuicStreamOffset data_offset = strlen(kBody1) +
+                                       strlen(kBody2) +
                                        header.length() + header2.length();
   if (version_ != quic::QUIC_VERSION_99) {
     AddWrite(ConstructClientMultipleDataFramesPacket(
@@ -1140,12 +1140,12 @@ TEST_P(BidirectionalStreamQuicImplTest, CoalesceDataBuffersNotHeadersFrame) {
   EXPECT_EQ("200", delegate->response_headers().find(":status")->second);
   const char kResponseBody[] = "Hello world!";
   quic::QuicString header6 =
-      ConstructDataHeader(SbStringGetLength(kResponseBody));
+      ConstructDataHeader(strlen(kResponseBody));
   // Server sends data.
   ProcessPacket(ConstructServerDataPacket(3, !kIncludeVersion, !kFin, 0,
                                           header6 + kResponseBody));
 
-  EXPECT_EQ(static_cast<int>(SbStringGetLength(kResponseBody)),
+  EXPECT_EQ(static_cast<int>(strlen(kResponseBody)),
             cb.WaitForResult());
 
   // Send a second Data packet.
@@ -1164,7 +1164,7 @@ TEST_P(BidirectionalStreamQuicImplTest, CoalesceDataBuffersNotHeadersFrame) {
   spdy::SpdyHeaderBlock trailers;
   trailers["foo"] = "bar";
   trailers[quic::kFinalOffsetHeaderKey] =
-      base::NumberToString(SbStringGetLength(kResponseBody));
+      base::NumberToString(strlen(kResponseBody));
   // Server sends trailers.
   ProcessPacket(ConstructResponseTrailersPacket(
       4, kFin, trailers.Clone(), &spdy_trailers_frame_length, &offset));
@@ -1178,14 +1178,14 @@ TEST_P(BidirectionalStreamQuicImplTest, CoalesceDataBuffersNotHeadersFrame) {
   EXPECT_EQ(2, delegate->on_data_sent_count());
   EXPECT_EQ(kProtoQUIC, delegate->GetProtocol());
   EXPECT_EQ(static_cast<int64_t>(
-                spdy_request_headers_frame_length + SbStringGetLength(kBody1) +
-                SbStringGetLength(kBody2) + SbStringGetLength(kBody3) +
-                SbStringGetLength(kBody4) + SbStringGetLength(kBody5) +
+                spdy_request_headers_frame_length + strlen(kBody1) +
+                strlen(kBody2) + strlen(kBody3) +
+                strlen(kBody4) + strlen(kBody5) +
                 header.length() + header2.length() + header3.length() +
                 header4.length() + header5.length()),
             delegate->GetTotalSentBytes());
   EXPECT_EQ(static_cast<int64_t>(spdy_response_headers_frame_length +
-                                 SbStringGetLength(kResponseBody) +
+                                 strlen(kResponseBody) +
                                  header6.length() + spdy_trailers_frame_length),
             delegate->GetTotalReceivedBytes());
 }
@@ -1199,7 +1199,7 @@ TEST_P(BidirectionalStreamQuicImplTest,
   quic::QuicStreamOffset header_stream_offset = 0;
   AddWrite(ConstructInitialSettingsPacket(1, &header_stream_offset));
   const char kBody1[] = "here are some data";
-  quic::QuicString header = ConstructDataHeader(SbStringGetLength(kBody1));
+  quic::QuicString header = ConstructDataHeader(strlen(kBody1));
   if (version_ == quic::QUIC_VERSION_99) {
     AddWrite(ConstructRequestHeadersAndMultipleDataFramesPacket(
         2, !kFin, DEFAULT_PRIORITY, &header_stream_offset,
@@ -1213,9 +1213,9 @@ TEST_P(BidirectionalStreamQuicImplTest,
   // Ack server's data packet.
   AddWrite(ConstructClientAckPacket(3, 3, 1, 2));
   const char kBody2[] = "really small";
-  quic::QuicString header2 = ConstructDataHeader(SbStringGetLength(kBody2));
+  quic::QuicString header2 = ConstructDataHeader(strlen(kBody2));
   quic::QuicStreamOffset data_offset =
-      SbStringGetLength(kBody1) + header.length();
+      strlen(kBody1) + header.length();
   if (version_ == quic::QUIC_VERSION_99) {
     AddWrite(ConstructClientMultipleDataFramesPacket(
         4, !kIncludeVersion, kFin, data_offset, {header2, kBody2}));
@@ -1268,11 +1268,11 @@ TEST_P(BidirectionalStreamQuicImplTest,
   const char kResponseBody[] = "Hello world!";
   // Server sends data.
   quic::QuicString header3 =
-      ConstructDataHeader(SbStringGetLength(kResponseBody));
+      ConstructDataHeader(strlen(kResponseBody));
   ProcessPacket(ConstructServerDataPacket(3, !kIncludeVersion, !kFin, 0,
                                           header3 + kResponseBody));
 
-  EXPECT_EQ(static_cast<int>(SbStringGetLength(kResponseBody)),
+  EXPECT_EQ(static_cast<int>(strlen(kResponseBody)),
             cb.WaitForResult());
 
   // Send a second Data packet.
@@ -1286,7 +1286,7 @@ TEST_P(BidirectionalStreamQuicImplTest,
   spdy::SpdyHeaderBlock trailers;
   trailers["foo"] = "bar";
   trailers[quic::kFinalOffsetHeaderKey] =
-      base::NumberToString(SbStringGetLength(kResponseBody));
+      base::NumberToString(strlen(kResponseBody));
   // Server sends trailers.
   ProcessPacket(ConstructResponseTrailersPacket(
       4, kFin, trailers.Clone(), &spdy_trailers_frame_length, &offset));
@@ -1300,11 +1300,11 @@ TEST_P(BidirectionalStreamQuicImplTest,
   EXPECT_EQ(2, delegate->on_data_sent_count());
   EXPECT_EQ(kProtoQUIC, delegate->GetProtocol());
   EXPECT_EQ(static_cast<int64_t>(
-                spdy_request_headers_frame_length + SbStringGetLength(kBody1) +
-                SbStringGetLength(kBody2) + header.length() + header2.length()),
+                spdy_request_headers_frame_length + strlen(kBody1) +
+                strlen(kBody2) + header.length() + header2.length()),
             delegate->GetTotalSentBytes());
   EXPECT_EQ(static_cast<int64_t>(spdy_response_headers_frame_length +
-                                 SbStringGetLength(kResponseBody) +
+                                 strlen(kResponseBody) +
                                  header3.length() + spdy_trailers_frame_length),
             delegate->GetTotalReceivedBytes());
 }
@@ -1319,8 +1319,8 @@ TEST_P(BidirectionalStreamQuicImplTest,
   AddWrite(ConstructInitialSettingsPacket(1, &header_stream_offset));
   const char kBody1[] = "here are some data";
   const char kBody2[] = "data keep coming";
-  quic::QuicString header = ConstructDataHeader(SbStringGetLength(kBody1));
-  quic::QuicString header2 = ConstructDataHeader(SbStringGetLength(kBody2));
+  quic::QuicString header = ConstructDataHeader(strlen(kBody1));
+  quic::QuicString header2 = ConstructDataHeader(strlen(kBody2));
 
   if (version_ == quic::QUIC_VERSION_99) {
     AddWrite(ConstructRequestHeadersAndMultipleDataFramesPacket(
@@ -1337,11 +1337,11 @@ TEST_P(BidirectionalStreamQuicImplTest,
   const char kBody3[] = "hello there";
   const char kBody4[] = "another piece of small data";
   const char kBody5[] = "really small";
-  quic::QuicString header3 = ConstructDataHeader(SbStringGetLength(kBody3));
-  quic::QuicString header4 = ConstructDataHeader(SbStringGetLength(kBody4));
-  quic::QuicString header5 = ConstructDataHeader(SbStringGetLength(kBody5));
-  quic::QuicStreamOffset data_offset = SbStringGetLength(kBody1) +
-                                       SbStringGetLength(kBody2) +
+  quic::QuicString header3 = ConstructDataHeader(strlen(kBody3));
+  quic::QuicString header4 = ConstructDataHeader(strlen(kBody4));
+  quic::QuicString header5 = ConstructDataHeader(strlen(kBody5));
+  quic::QuicStreamOffset data_offset = strlen(kBody1) +
+                                       strlen(kBody2) +
                                        header.length() + header2.length();
   if (version_ == quic::QUIC_VERSION_99) {
     AddWrite(ConstructClientMultipleDataFramesPacket(
@@ -1398,12 +1398,12 @@ TEST_P(BidirectionalStreamQuicImplTest,
   EXPECT_EQ("200", delegate->response_headers().find(":status")->second);
   const char kResponseBody[] = "Hello world!";
   quic::QuicString header6 =
-      ConstructDataHeader(SbStringGetLength(kResponseBody));
+      ConstructDataHeader(strlen(kResponseBody));
   // Server sends data.
   ProcessPacket(ConstructServerDataPacket(3, !kIncludeVersion, !kFin, 0,
                                           header6 + kResponseBody));
 
-  EXPECT_EQ(static_cast<int>(SbStringGetLength(kResponseBody)),
+  EXPECT_EQ(static_cast<int>(strlen(kResponseBody)),
             cb.WaitForResult());
 
   // Send a second Data packet.
@@ -1422,7 +1422,7 @@ TEST_P(BidirectionalStreamQuicImplTest,
   spdy::SpdyHeaderBlock trailers;
   trailers["foo"] = "bar";
   trailers[quic::kFinalOffsetHeaderKey] =
-      base::NumberToString(SbStringGetLength(kResponseBody));
+      base::NumberToString(strlen(kResponseBody));
   // Server sends trailers.
   ProcessPacket(ConstructResponseTrailersPacket(
       4, kFin, trailers.Clone(), &spdy_trailers_frame_length, &offset));
@@ -1436,14 +1436,14 @@ TEST_P(BidirectionalStreamQuicImplTest,
   EXPECT_EQ(2, delegate->on_data_sent_count());
   EXPECT_EQ(kProtoQUIC, delegate->GetProtocol());
   EXPECT_EQ(static_cast<int64_t>(
-                spdy_request_headers_frame_length + SbStringGetLength(kBody1) +
-                SbStringGetLength(kBody2) + SbStringGetLength(kBody3) +
-                SbStringGetLength(kBody4) + SbStringGetLength(kBody5) +
+                spdy_request_headers_frame_length + strlen(kBody1) +
+                strlen(kBody2) + strlen(kBody3) +
+                strlen(kBody4) + strlen(kBody5) +
                 header.length() + header2.length() + header3.length() +
                 header4.length() + header5.length()),
             delegate->GetTotalSentBytes());
   EXPECT_EQ(static_cast<int64_t>(spdy_response_headers_frame_length +
-                                 SbStringGetLength(kResponseBody) +
+                                 strlen(kResponseBody) +
                                  header6.length() + spdy_trailers_frame_length),
             delegate->GetTotalReceivedBytes());
 }
@@ -1532,7 +1532,7 @@ TEST_P(BidirectionalStreamQuicImplTest, PostRequest) {
   AddWrite(ConstructRequestHeadersPacketInner(
       2, GetNthClientInitiatedBidirectionalStreamId(0), !kFin, DEFAULT_PRIORITY,
       &spdy_request_headers_frame_length, &header_stream_offset));
-  quic::QuicString header = ConstructDataHeader(SbStringGetLength(kUploadData));
+  quic::QuicString header = ConstructDataHeader(strlen(kUploadData));
   if (version_ == quic::QUIC_VERSION_99) {
     AddWrite(ConstructClientMultipleDataFramesPacket(3, kIncludeVersion, kFin,
                                                      0, {header, kUploadData}));
@@ -1585,19 +1585,19 @@ TEST_P(BidirectionalStreamQuicImplTest, PostRequest) {
   EXPECT_EQ("200", delegate->response_headers().find(":status")->second);
   const char kResponseBody[] = "Hello world!";
   quic::QuicString header2 =
-      ConstructDataHeader(SbStringGetLength(kResponseBody));
+      ConstructDataHeader(strlen(kResponseBody));
   // Server sends data.
   ProcessPacket(ConstructServerDataPacket(3, !kIncludeVersion, !kFin, 0,
                                           header2 + kResponseBody));
 
-  EXPECT_EQ(static_cast<int>(SbStringGetLength(kResponseBody)),
+  EXPECT_EQ(static_cast<int>(strlen(kResponseBody)),
             cb.WaitForResult());
 
   size_t spdy_trailers_frame_length;
   spdy::SpdyHeaderBlock trailers;
   trailers["foo"] = "bar";
   trailers[quic::kFinalOffsetHeaderKey] =
-      base::NumberToString(SbStringGetLength(kResponseBody));
+      base::NumberToString(strlen(kResponseBody));
   // Server sends trailers.
   ProcessPacket(ConstructResponseTrailersPacket(
       4, kFin, trailers.Clone(), &spdy_trailers_frame_length, &offset));
@@ -1612,10 +1612,10 @@ TEST_P(BidirectionalStreamQuicImplTest, PostRequest) {
   EXPECT_EQ(kProtoQUIC, delegate->GetProtocol());
   EXPECT_EQ(
       static_cast<int64_t>(spdy_request_headers_frame_length +
-                           SbStringGetLength(kUploadData) + header.length()),
+                           strlen(kUploadData) + header.length()),
       delegate->GetTotalSentBytes());
   EXPECT_EQ(static_cast<int64_t>(spdy_response_headers_frame_length +
-                                 SbStringGetLength(kResponseBody) +
+                                 strlen(kResponseBody) +
                                  header2.length() + spdy_trailers_frame_length),
             delegate->GetTotalReceivedBytes());
 }
@@ -1628,7 +1628,7 @@ TEST_P(BidirectionalStreamQuicImplTest, EarlyDataOverrideRequest) {
   AddWrite(ConstructRequestHeadersPacketInner(
       2, GetNthClientInitiatedBidirectionalStreamId(0), !kFin, DEFAULT_PRIORITY,
       &spdy_request_headers_frame_length, &header_stream_offset));
-  quic::QuicString header = ConstructDataHeader(SbStringGetLength(kUploadData));
+  quic::QuicString header = ConstructDataHeader(strlen(kUploadData));
   if (version_ == quic::QUIC_VERSION_99) {
     AddWrite(ConstructClientMultipleDataFramesPacket(3, kIncludeVersion, kFin,
                                                      0, {header, kUploadData}));
@@ -1683,18 +1683,18 @@ TEST_P(BidirectionalStreamQuicImplTest, EarlyDataOverrideRequest) {
   const char kResponseBody[] = "Hello world!";
   // Server sends data.
   quic::QuicString header2 =
-      ConstructDataHeader(SbStringGetLength(kResponseBody));
+      ConstructDataHeader(strlen(kResponseBody));
   ProcessPacket(ConstructServerDataPacket(3, !kIncludeVersion, !kFin, 0,
                                           header2 + kResponseBody));
 
-  EXPECT_EQ(static_cast<int>(SbStringGetLength(kResponseBody)),
+  EXPECT_EQ(static_cast<int>(strlen(kResponseBody)),
             cb.WaitForResult());
 
   size_t spdy_trailers_frame_length;
   spdy::SpdyHeaderBlock trailers;
   trailers["foo"] = "bar";
   trailers[quic::kFinalOffsetHeaderKey] =
-      base::NumberToString(SbStringGetLength(kResponseBody));
+      base::NumberToString(strlen(kResponseBody));
   // Server sends trailers.
   ProcessPacket(ConstructResponseTrailersPacket(
       4, kFin, trailers.Clone(), &spdy_trailers_frame_length, &offset));
@@ -1709,10 +1709,10 @@ TEST_P(BidirectionalStreamQuicImplTest, EarlyDataOverrideRequest) {
   EXPECT_EQ(kProtoQUIC, delegate->GetProtocol());
   EXPECT_EQ(
       static_cast<int64_t>(spdy_request_headers_frame_length +
-                           SbStringGetLength(kUploadData) + header.length()),
+                           strlen(kUploadData) + header.length()),
       delegate->GetTotalSentBytes());
   EXPECT_EQ(static_cast<int64_t>(spdy_response_headers_frame_length +
-                                 SbStringGetLength(kResponseBody) +
+                                 strlen(kResponseBody) +
                                  header2.length() + spdy_trailers_frame_length),
             delegate->GetTotalReceivedBytes());
 }
@@ -1726,19 +1726,19 @@ TEST_P(BidirectionalStreamQuicImplTest, InterleaveReadDataAndSendData) {
       2, GetNthClientInitiatedBidirectionalStreamId(0), !kFin, DEFAULT_PRIORITY,
       &spdy_request_headers_frame_length, &header_stream_offset));
 
-  quic::QuicString header = ConstructDataHeader(SbStringGetLength(kUploadData));
+  quic::QuicString header = ConstructDataHeader(strlen(kUploadData));
   if (version_ != quic::QUIC_VERSION_99) {
     AddWrite(ConstructAckAndDataPacket(3, !kIncludeVersion, 2, 1, 2, !kFin, 0,
                                        kUploadData, &client_maker_));
     AddWrite(ConstructAckAndDataPacket(4, !kIncludeVersion, 3, 3, 3, kFin,
-                                       SbStringGetLength(kUploadData),
+                                       strlen(kUploadData),
                                        kUploadData, &client_maker_));
   } else {
     AddWrite(ConstructAckAndMultipleDataFramesPacket(
         3, !kIncludeVersion, 2, 1, 1, !kFin, 0, {header, kUploadData}));
     AddWrite(ConstructAckAndMultipleDataFramesPacket(
         4, !kIncludeVersion, 3, 3, 3, kFin,
-        SbStringGetLength(kUploadData) + header.length(),
+        strlen(kUploadData) + header.length(),
         {header, kUploadData}));
   }
   Initialize();
@@ -1784,13 +1784,13 @@ TEST_P(BidirectionalStreamQuicImplTest, InterleaveReadDataAndSendData) {
   const char kResponseBody[] = "Hello world!";
 
   quic::QuicString header2 =
-      ConstructDataHeader(SbStringGetLength(kResponseBody));
+      ConstructDataHeader(strlen(kResponseBody));
   // Server sends a data packet.
   ProcessPacket(ConstructAckAndDataPacket(3, !kIncludeVersion, 2, 1, 1, !kFin,
                                           0, header2 + kResponseBody,
                                           &server_maker_));
 
-  EXPECT_EQ(static_cast<int64_t>(SbStringGetLength(kResponseBody)),
+  EXPECT_EQ(static_cast<int64_t>(strlen(kResponseBody)),
             cb.WaitForResult());
   EXPECT_EQ(std::string(kResponseBody), delegate->data_received());
 
@@ -1803,10 +1803,10 @@ TEST_P(BidirectionalStreamQuicImplTest, InterleaveReadDataAndSendData) {
   EXPECT_THAT(rv, IsError(ERR_IO_PENDING));
   ProcessPacket(ConstructAckAndDataPacket(
       4, !kIncludeVersion, 3, 1, 1, kFin,
-      SbStringGetLength(kResponseBody) + header2.length(),
+      strlen(kResponseBody) + header2.length(),
       header2 + kResponseBody, &server_maker_));
 
-  EXPECT_EQ(static_cast<int64_t>(SbStringGetLength(kResponseBody)),
+  EXPECT_EQ(static_cast<int64_t>(strlen(kResponseBody)),
             cb2.WaitForResult());
 
   std::string expected_body(kResponseBody);
@@ -1818,11 +1818,11 @@ TEST_P(BidirectionalStreamQuicImplTest, InterleaveReadDataAndSendData) {
   EXPECT_EQ(2, delegate->on_data_sent_count());
   EXPECT_EQ(kProtoQUIC, delegate->GetProtocol());
   EXPECT_EQ(static_cast<int64_t>(spdy_request_headers_frame_length +
-                                 2 * SbStringGetLength(kUploadData) +
+                                 2 * strlen(kUploadData) +
                                  2 * header.length()),
             delegate->GetTotalSentBytes());
   EXPECT_EQ(static_cast<int64_t>(spdy_response_headers_frame_length +
-                                 2 * SbStringGetLength(kResponseBody) +
+                                 2 * strlen(kResponseBody) +
                                  2 * header2.length()),
             delegate->GetTotalReceivedBytes());
 }
@@ -2260,11 +2260,11 @@ TEST_P(BidirectionalStreamQuicImplTest, DeleteStreamDuringOnDataRead) {
   EXPECT_THAT(rv, IsError(ERR_IO_PENDING));
   const char kResponseBody[] = "Hello world!";
   quic::QuicString header =
-      ConstructDataHeader(SbStringGetLength(kResponseBody));
+      ConstructDataHeader(strlen(kResponseBody));
   // Server sends data.
   ProcessPacket(ConstructServerDataPacket(3, !kIncludeVersion, !kFin, 0,
                                           header + kResponseBody));
-  EXPECT_EQ(static_cast<int64_t>(SbStringGetLength(kResponseBody)),
+  EXPECT_EQ(static_cast<int64_t>(strlen(kResponseBody)),
             cb.WaitForResult());
 
   base::RunLoop().RunUntilIdle();
@@ -2282,7 +2282,7 @@ TEST_P(BidirectionalStreamQuicImplTest, AsyncFinRead) {
   AddWrite(ConstructRequestHeadersPacketInner(
       2, GetNthClientInitiatedBidirectionalStreamId(0), !kFin, DEFAULT_PRIORITY,
       &spdy_request_headers_frame_length, &header_stream_offset));
-  quic::QuicString header = ConstructDataHeader(SbStringGetLength(kBody));
+  quic::QuicString header = ConstructDataHeader(strlen(kBody));
   if (version_ == quic::QUIC_VERSION_99) {
     AddWrite(ConstructClientMultipleDataFramesPacket(3, kIncludeVersion, kFin,
                                                      0, {header, kBody}));
@@ -2337,13 +2337,13 @@ TEST_P(BidirectionalStreamQuicImplTest, AsyncFinRead) {
   EXPECT_THAT(rv, IsError(ERR_IO_PENDING));
   const char kResponseBody[] = "Hello world!";
   quic::QuicString header2 =
-      ConstructDataHeader(SbStringGetLength(kResponseBody));
+      ConstructDataHeader(strlen(kResponseBody));
 
   // Server sends data with the fin set, which should result in the stream
   // being closed and hence no RST_STREAM will be sent.
   ProcessPacket(ConstructServerDataPacket(3, !kIncludeVersion, kFin, 0,
                                           header2 + kResponseBody));
-  EXPECT_EQ(static_cast<int64_t>(SbStringGetLength(kResponseBody)),
+  EXPECT_EQ(static_cast<int64_t>(strlen(kResponseBody)),
             cb.WaitForResult());
 
   base::RunLoop().RunUntilIdle();
@@ -2401,11 +2401,11 @@ TEST_P(BidirectionalStreamQuicImplTest, DeleteStreamDuringOnTrailersReceived) {
 
   // Server sends data.
   quic::QuicString header =
-      ConstructDataHeader(SbStringGetLength(kResponseBody));
+      ConstructDataHeader(strlen(kResponseBody));
   ProcessPacket(ConstructServerDataPacket(3, !kIncludeVersion, !kFin, 0,
                                           header + kResponseBody));
 
-  EXPECT_EQ(static_cast<int64_t>(SbStringGetLength(kResponseBody)),
+  EXPECT_EQ(static_cast<int64_t>(strlen(kResponseBody)),
             cb.WaitForResult());
   EXPECT_EQ(std::string(kResponseBody), delegate->data_received());
 
@@ -2413,7 +2413,7 @@ TEST_P(BidirectionalStreamQuicImplTest, DeleteStreamDuringOnTrailersReceived) {
   spdy::SpdyHeaderBlock trailers;
   trailers["foo"] = "bar";
   trailers[quic::kFinalOffsetHeaderKey] =
-      base::NumberToString(SbStringGetLength(kResponseBody));
+      base::NumberToString(strlen(kResponseBody));
   // Server sends trailers.
   ProcessPacket(ConstructResponseTrailersPacket(
       4, kFin, trailers.Clone(), &spdy_trailers_frame_length, &offset));

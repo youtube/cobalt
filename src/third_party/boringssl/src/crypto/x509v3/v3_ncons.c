@@ -125,10 +125,10 @@ static void *v2i_NAME_CONSTRAINTS(const X509V3_EXT_METHOD *method,
         goto memerr;
     for (i = 0; i < sk_CONF_VALUE_num(nval); i++) {
         val = sk_CONF_VALUE_value(nval, i);
-        if (!OPENSSL_port_strncmp(val->name, "permitted", 9) && val->name[9]) {
+        if (!strncmp(val->name, "permitted", 9) && val->name[9]) {
             ptree = &ncons->permittedSubtrees;
             tval.name = val->name + 10;
-        } else if (!OPENSSL_port_strncmp(val->name, "excluded", 8) && val->name[8]) {
+        } else if (!strncmp(val->name, "excluded", 8) && val->name[8]) {
             ptree = &ncons->excludedSubtrees;
             tval.name = val->name + 9;
         } else {
@@ -418,8 +418,8 @@ static int nc_email(ASN1_IA5STRING *eml, ASN1_IA5STRING *base)
     const char *baseptr = (char *)base->data;
     const char *emlptr = (char *)eml->data;
 
-    const char *baseat = OPENSSL_port_strchr(baseptr, '@');
-    const char *emlat = OPENSSL_port_strchr(emlptr, '@');
+    const char *baseat = strchr(baseptr, '@');
+    const char *emlat = strchr(emlptr, '@');
     if (!emlat)
         return X509_V_ERR_UNSUPPORTED_NAME_SYNTAX;
     /* Special case: inital '.' is RHS match */
@@ -439,7 +439,7 @@ static int nc_email(ASN1_IA5STRING *eml, ASN1_IA5STRING *base)
             if ((baseat - baseptr) != (emlat - emlptr))
                 return X509_V_ERR_PERMITTED_VIOLATION;
             /* Case sensitive match of local part */
-            if (OPENSSL_port_strncmp(baseptr, emlptr, emlat - emlptr))
+            if (strncmp(baseptr, emlptr, emlat - emlptr))
                 return X509_V_ERR_PERMITTED_VIOLATION;
         }
         /* Position base after '@' */
@@ -458,7 +458,7 @@ static int nc_uri(ASN1_IA5STRING *uri, ASN1_IA5STRING *base)
 {
     const char *baseptr = (char *)base->data;
     const char *hostptr = (char *)uri->data;
-    const char *p = OPENSSL_port_strchr(hostptr, ':');
+    const char *p = strchr(hostptr, ':');
     int hostlen;
     /* Check for foo:// and skip past it */
     if (!p || (p[1] != '/') || (p[2] != '/'))
@@ -469,13 +469,13 @@ static int nc_uri(ASN1_IA5STRING *uri, ASN1_IA5STRING *base)
 
     /* Look for a port indicator as end of hostname first */
 
-    p = OPENSSL_port_strchr(hostptr, ':');
+    p = strchr(hostptr, ':');
     /* Otherwise look for trailing slash */
     if (!p)
-        p = OPENSSL_port_strchr(hostptr, '/');
+        p = strchr(hostptr, '/');
 
     if (!p)
-        hostlen = OPENSSL_port_strlen(hostptr);
+        hostlen = strlen(hostptr);
     else
         hostlen = p - hostptr;
 

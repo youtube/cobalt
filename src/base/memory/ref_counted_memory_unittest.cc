@@ -78,7 +78,7 @@ TEST(RefCountedMemoryUnitTest, RefCountedSharedMemory) {
   static const char kData[] = "shm_dummy_data";
   auto shm = std::make_unique<SharedMemory>();
   ASSERT_TRUE(shm->CreateAndMapAnonymous(sizeof(kData)));
-  SbMemoryCopy(shm->memory(), kData, sizeof(kData));
+  memcpy(shm->memory(), kData, sizeof(kData));
 
   auto mem =
       MakeRefCounted<RefCountedSharedMemory>(std::move(shm), sizeof(kData));
@@ -97,7 +97,7 @@ TEST(RefCountedMemoryUnitTest, RefCountedSharedMemoryMapping) {
     ReadOnlySharedMemoryMapping ro_mapping = region.region.Map();
     WritableSharedMemoryMapping rw_mapping = std::move(region.mapping);
     ASSERT_TRUE(rw_mapping.IsValid());
-    SbMemoryCopy(rw_mapping.memory(), kData, sizeof(kData));
+    memcpy(rw_mapping.memory(), kData, sizeof(kData));
     mem = MakeRefCounted<RefCountedSharedMemoryMapping>(std::move(ro_mapping));
   }
 
@@ -111,7 +111,7 @@ TEST(RefCountedMemoryUnitTest, RefCountedSharedMemoryMapping) {
         ReadOnlySharedMemoryRegion::Create(sizeof(kData));
     WritableSharedMemoryMapping rw_mapping = std::move(region.mapping);
     ASSERT_TRUE(rw_mapping.IsValid());
-    SbMemoryCopy(rw_mapping.memory(), kData, sizeof(kData));
+    memcpy(rw_mapping.memory(), kData, sizeof(kData));
     mem = RefCountedSharedMemoryMapping::CreateFromWholeRegion(region.region);
   }
 

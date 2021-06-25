@@ -1234,7 +1234,7 @@ TEST(HttpStreamParser, WebSocket101Response) {
                               read_buffer->capacity()));
 
   EXPECT_EQ(CountWriteBytes(writes), parser.sent_bytes());
-  EXPECT_EQ(CountReadBytes(reads) - static_cast<int64_t>(SbStringGetLength(
+  EXPECT_EQ(CountReadBytes(reads) - static_cast<int64_t>(strlen(
                                         "a fake websocket frame")),
             parser.received_bytes());
 }
@@ -1266,7 +1266,7 @@ class SimpleGetRunner {
     int offset = read_buffer_->offset();
     int size = data.size();
     read_buffer_->SetCapacity(offset + size);
-    SbMemoryCopy(read_buffer_->StartOfBuffer() + offset, data.data(), size);
+    memcpy(read_buffer_->StartOfBuffer() + offset, data.data(), size);
     read_buffer_->set_offset(offset + size);
   }
 

@@ -45,6 +45,8 @@
 #include "starboard/system.h"
 #include "starboard/types.h"
 
+#include <string.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -54,8 +56,8 @@ extern "C" {
 // The bitwise OR of these flags should be passed to SbMemoryMap to indicate
 // how the mapped memory can be used.
 typedef enum SbMemoryMapFlags {
-// No flags set: Reserves virtual address space. SbMemoryProtect() can later
-// make it accessible.
+  // No flags set: Reserves virtual address space. SbMemoryProtect() can later
+  // make it accessible.
   kSbMemoryMapProtectReserved = 0,
   kSbMemoryMapProtectRead = 1 << 0,   // Mapped memory can be read.
   kSbMemoryMapProtectWrite = 1 << 1,  // Mapped memory can be written to.
@@ -65,6 +67,8 @@ typedef enum SbMemoryMapFlags {
   kSbMemoryMapProtectReadWrite =
       kSbMemoryMapProtectRead | kSbMemoryMapProtectWrite,
 } SbMemoryMapFlags;
+
+#if SB_API_VERSION < 13
 
 // Checks whether |memory| is aligned to |alignment| bytes.
 static SB_C_FORCE_INLINE bool SbMemoryIsAligned(const void* memory,
@@ -76,6 +80,8 @@ static SB_C_FORCE_INLINE bool SbMemoryIsAligned(const void* memory,
 static SB_C_FORCE_INLINE size_t SbMemoryAlignToPageSize(size_t size) {
   return (size + kSbMemoryPageSize - 1) & ~(kSbMemoryPageSize - 1);
 }
+
+#endif  // SB_API_VERSION < 13
 
 static SB_C_FORCE_INLINE void SbAbortIfAllocationFailed(size_t requested_bytes,
                                                         void* address) {
@@ -240,6 +246,8 @@ SB_EXPORT void SbMemoryFlush(void* virtual_address, int64_t size_bytes);
 // |out_low|: The lowest addressable byte for the current thread.
 SB_EXPORT void SbMemoryGetStackBounds(void** out_high, void** out_low);
 
+#if SB_API_VERSION < 13
+
 // Copies |count| sequential bytes from |source| to |destination|, without
 // support for the |source| and |destination| regions overlapping. This
 // function is meant to be a drop-in replacement for |memcpy|.
@@ -304,16 +312,20 @@ SB_EXPORT const void* SbMemoryFindByte(const void* buffer,
                                        int value,
                                        size_t count);
 
+#endif  // SB_API_VERSION < 13
+
 // A wrapper that implements a drop-in replacement for |calloc|, which is used
 // in some packages.
 static SB_C_INLINE void* SbMemoryCalloc(size_t count, size_t size) {
   size_t total = count * size;
   void* result = SbMemoryAllocate(total);
   if (result) {
-    SbMemorySet(result, 0, total);
+    memset(result, 0, total);
   }
   return result;
 }
+
+#if SB_API_VERSION < 13
 
 // Returns true if the first |count| bytes of |buffer| are set to zero.
 static SB_C_INLINE bool SbMemoryIsZero(const void* buffer, size_t count) {
@@ -322,8 +334,10 @@ static SB_C_INLINE bool SbMemoryIsZero(const void* buffer, size_t count) {
   }
   const char* char_buffer = (const char*)(buffer);
   return char_buffer[0] == 0 &&
-         SbMemoryCompare(char_buffer, char_buffer + 1, count - 1) == 0;
+         memcmp(char_buffer, char_buffer + 1, count - 1) == 0;
 }
+
+#endif  // SB_API_VERSION < 13
 
 /////////////////////////////////////////////////////////////////
 // Deprecated. Do not use.

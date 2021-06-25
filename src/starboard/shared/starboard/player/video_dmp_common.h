@@ -79,7 +79,7 @@ struct SbMediaAudioSampleInfoWithConfig : public SbMediaAudioSampleInfo {
     audio_specific_config = stored_audio_specific_config.data();
   }
   void operator=(const SbMediaAudioSampleInfoWithConfig& that) {
-    SbMemoryCopy(this, &that, sizeof(SbMediaAudioSampleInfo));
+    memcpy(this, &that, sizeof(SbMediaAudioSampleInfo));
     stored_audio_specific_config = that.stored_audio_specific_config;
     audio_specific_config = stored_audio_specific_config.data();
   }
@@ -109,7 +109,7 @@ struct SbMediaVideoSampleInfoWithOptionalColorMetadata
         stored_color_metadata(that.stored_color_metadata) {
   }
   void operator=(const SbMediaVideoSampleInfoWithOptionalColorMetadata& that) {
-    SbMemoryCopy(this, &that, sizeof(SbMediaVideoSampleInfo));
+    memcpy(this, &that, sizeof(SbMediaVideoSampleInfo));
   }
 
   SbMediaColorMetadata stored_color_metadata;

@@ -547,7 +547,7 @@ class PriorityTracker {
  public:
   explicit PriorityTracker(RequestPriority initial_priority)
       : highest_priority_(initial_priority), total_count_(0) {
-    SbMemorySet(counts_, 0, sizeof(counts_));
+    memset(counts_, 0, sizeof(counts_));
   }
 
   RequestPriority highest_priority() const {

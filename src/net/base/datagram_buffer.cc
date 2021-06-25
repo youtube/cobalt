@@ -48,7 +48,7 @@ DatagramBuffer::~DatagramBuffer() {}
 
 void DatagramBuffer::Set(const char* buffer, size_t buf_len) {
   length_ = buf_len;
-  SbMemoryCopy(data_.get(), buffer, buf_len);
+  memcpy(data_.get(), buffer, buf_len);
 }
 
 char* DatagramBuffer::data() const {

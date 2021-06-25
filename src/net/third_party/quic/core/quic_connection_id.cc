@@ -29,7 +29,7 @@ QuicConnectionId::QuicConnectionId(const char* data, uint8_t length) {
   }
   length_ = length;
   if (length_ > 0) {
-    SbMemoryCopy(data_, data, length_);
+    memcpy(data_, data, length_);
   }
 }
 
@@ -58,7 +58,7 @@ bool QuicConnectionId::IsEmpty() const {
 size_t QuicConnectionId::Hash() const {
   uint64_t data_bytes[3] = {0, 0, 0};
   static_assert(sizeof(data_bytes) >= sizeof(data_), "sizeof(data_) changed");
-  SbMemoryCopy(data_bytes, data_, length_);
+  memcpy(data_bytes, data_, length_);
   // This Hash function is designed to return the same value as the host byte
   // order representation when the connection ID length is 64 bits.
   return QuicEndian::NetToHost64(kQuicDefaultConnectionIdLength ^ length_ ^
@@ -78,7 +78,7 @@ std::ostream& operator<<(std::ostream& os, const QuicConnectionId& v) {
 }
 
 bool QuicConnectionId::operator==(const QuicConnectionId& v) const {
-  return length_ == v.length_ && SbMemoryCompare(data_, v.data_, length_) == 0;
+  return length_ == v.length_ && memcmp(data_, v.data_, length_) == 0;
 }
 
 bool QuicConnectionId::operator!=(const QuicConnectionId& v) const {
@@ -92,7 +92,7 @@ bool QuicConnectionId::operator<(const QuicConnectionId& v) const {
   if (length_ > v.length_) {
     return false;
   }
-  return SbMemoryCompare(data_, v.data_, length_) < 0;
+  return memcmp(data_, v.data_, length_) < 0;
 }
 
 QuicConnectionId EmptyQuicConnectionId() {

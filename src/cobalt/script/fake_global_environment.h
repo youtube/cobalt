@@ -54,6 +54,9 @@ class FakeGlobalEnvironment : public GlobalEnvironment {
   }
   void Bind(const std::string& identifier,
             const scoped_refptr<Wrappable>& impl) override {}
+  void BindTo(const std::string& identifier,
+              const scoped_refptr<Wrappable>& impl,
+              const std::string& local_object_name) override {}
   ScriptValueFactory* script_value_factory() { return NULL; }
 };
 

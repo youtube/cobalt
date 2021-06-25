@@ -38,9 +38,9 @@ class QuicStreamSendBufferTest : public QuicTest {
     iov[1] = MakeIovec(QuicStringPiece(data2));
 
     QuicMemSlice slice1(&allocator_, 1024);
-    SbMemorySet(const_cast<char*>(slice1.data()), 'c', 1024);
+    memset(const_cast<char*>(slice1.data()), 'c', 1024);
     QuicMemSlice slice2(&allocator_, 768);
-    SbMemorySet(const_cast<char*>(slice2.data()), 'd', 768);
+    memset(const_cast<char*>(slice2.data()), 'd', 768);
 
     // Index starts from not pointing to any slice.
     EXPECT_EQ(nullptr,
@@ -280,7 +280,7 @@ TEST_F(QuicStreamSendBufferTest, CurrentWriteIndex) {
   EXPECT_EQ(nullptr,
             QuicStreamSendBufferPeer::CurrentWriteSlice(&send_buffer_));
   QuicMemSlice slice(&allocator_, 60);
-  SbMemorySet(const_cast<char*>(slice.data()), 'e', 60);
+  memset(const_cast<char*>(slice.data()), 'e', 60);
   send_buffer_.SaveMemSlice(std::move(slice));
   // With new data, index points to the new data.
   EXPECT_EQ(3840u,

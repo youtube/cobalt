@@ -136,9 +136,9 @@ void ChangeDataFormat(SbBlitterPixelDataFormat in_format,
   for (int i = 0; i < height / 2; ++i) {
     uint8_t* current_row = data_bytes + i * pitch_in_bytes;
     uint8_t* flip_row = data_bytes + pitch_in_bytes * (height - 1 - i);
-    SbMemoryCopy(temp_array.get(), current_row, pitch_in_bytes);
-    SbMemoryCopy(current_row, flip_row, pitch_in_bytes);
-    SbMemoryCopy(flip_row, temp_array.get(), pitch_in_bytes);
+    memcpy(temp_array.get(), current_row, pitch_in_bytes);
+    memcpy(current_row, flip_row, pitch_in_bytes);
+    memcpy(flip_row, temp_array.get(), pitch_in_bytes);
   }
 
   if (in_format != out_format && in_format != kSbBlitterPixelDataFormatA8) {

@@ -199,7 +199,7 @@ std::vector<CertEntry> MatchCerts(const std::vector<QuicString>& certs,
       for (size_t j = 0; j < client_cached_cert_hashes.size();
            j += sizeof(uint64_t)) {
         uint64_t cached_hash;
-        SbMemoryCopy(&cached_hash, client_cached_cert_hashes.data() + j,
+        memcpy(&cached_hash, client_cached_cert_hashes.data() + j,
                      sizeof(uint64_t));
         if (hash != cached_hash) {
           continue;
@@ -264,14 +264,14 @@ void SerializeCertEntries(uint8_t* out, const std::vector<CertEntry>& entries) {
       case CertEntry::COMPRESSED:
         break;
       case CertEntry::CACHED:
-        SbMemoryCopy(out, &i->hash, sizeof(i->hash));
+        memcpy(out, &i->hash, sizeof(i->hash));
         out += sizeof(uint64_t);
         break;
       case CertEntry::COMMON:
         // Assumes a little-endian machine.
-        SbMemoryCopy(out, &i->set_hash, sizeof(i->set_hash));
+        memcpy(out, &i->set_hash, sizeof(i->set_hash));
         out += sizeof(i->set_hash);
-        SbMemoryCopy(out, &i->index, sizeof(uint32_t));
+        memcpy(out, &i->index, sizeof(uint32_t));
         out += sizeof(uint32_t);
         break;
     }
@@ -364,7 +364,7 @@ bool ParseEntries(QuicStringPiece* in_out,
         if (in.size() < sizeof(uint64_t)) {
           return false;
         }
-        SbMemoryCopy(&entry.hash, in.data(), sizeof(uint64_t));
+        memcpy(&entry.hash, in.data(), sizeof(uint64_t));
         in.remove_prefix(sizeof(uint64_t));
 
         if (cached_hashes.size() != cached_certs.size()) {
@@ -390,9 +390,9 @@ bool ParseEntries(QuicStringPiece* in_out,
         if (in.size() < sizeof(uint64_t) + sizeof(uint32_t)) {
           return false;
         }
-        SbMemoryCopy(&entry.set_hash, in.data(), sizeof(uint64_t));
+        memcpy(&entry.set_hash, in.data(), sizeof(uint64_t));
         in.remove_prefix(sizeof(uint64_t));
-        SbMemoryCopy(&entry.index, in.data(), sizeof(uint32_t));
+        memcpy(&entry.index, in.data(), sizeof(uint32_t));
         in.remove_prefix(sizeof(uint32_t));
 
         QuicStringPiece cert =
@@ -472,7 +472,7 @@ QuicString CertCompressor::CompressChain(
   ScopedZLib scoped_z(ScopedZLib::DEFLATE);
 
   if (uncompressed_size > 0) {
-    SbMemorySet(&z, 0, sizeof(z));
+    memset(&z, 0, sizeof(z));
     int rv = deflateInit(&z, Z_DEFAULT_COMPRESSION);
     DCHECK_EQ(Z_OK, rv);
     if (rv != Z_OK) {
@@ -507,7 +507,7 @@ QuicString CertCompressor::CompressChain(
   }
 
   uint32_t uncompressed_size_32 = uncompressed_size;
-  SbMemoryCopy(j, &uncompressed_size_32, sizeof(uint32_t));
+  memcpy(j, &uncompressed_size_32, sizeof(uint32_t));
   j += sizeof(uint32_t);
 
   int rv;
@@ -573,7 +573,7 @@ bool CertCompressor::DecompressChain(
     }
 
     uint32_t uncompressed_size;
-    SbMemoryCopy(&uncompressed_size, in.data(), sizeof(uncompressed_size));
+    memcpy(&uncompressed_size, in.data(), sizeof(uncompressed_size));
     in.remove_prefix(sizeof(uint32_t));
 
     if (uncompressed_size > 128 * 1024) {
@@ -584,7 +584,7 @@ bool CertCompressor::DecompressChain(
     z_stream z;
     ScopedZLib scoped_z(ScopedZLib::INFLATE);
 
-    SbMemorySet(&z, 0, sizeof(z));
+    memset(&z, 0, sizeof(z));
     z.next_out = uncompressed_data.get();
     z.avail_out = uncompressed_size;
     z.next_in =
@@ -621,7 +621,7 @@ bool CertCompressor::DecompressChain(
           return false;
         }
         uint32_t cert_len;
-        SbMemoryCopy(&cert_len, uncompressed.data(), sizeof(cert_len));
+        memcpy(&cert_len, uncompressed.data(), sizeof(cert_len));
         uncompressed.remove_prefix(sizeof(uint32_t));
         if (uncompressed.size() < cert_len) {
           return false;

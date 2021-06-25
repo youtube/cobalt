@@ -131,7 +131,7 @@ SbThread SbThreadCreate(int64_t stack_size,
   params->context = context;
 
   if (name) {
-    SbStringCopy(params->name, name, SB_ARRAY_SIZE_INT(params->name));
+    starboard::strlcpy(params->name, name, SB_ARRAY_SIZE_INT(params->name));
   } else {
     params->name[0] = '\0';
   }

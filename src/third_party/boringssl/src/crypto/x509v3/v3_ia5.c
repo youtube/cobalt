@@ -111,7 +111,7 @@ static ASN1_IA5STRING *s2i_ASN1_IA5STRING(X509V3_EXT_METHOD *method,
     if (!(ia5 = M_ASN1_IA5STRING_new()))
         goto err;
     if (!ASN1_STRING_set((ASN1_STRING *)ia5, (unsigned char *)str,
-                         OPENSSL_port_strlen(str))) {
+                         strlen(str))) {
         M_ASN1_IA5STRING_free(ia5);
         goto err;
     }

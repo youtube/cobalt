@@ -61,7 +61,6 @@
 #include "base/logging.h"
 #include "base/numerics/safe_math.h"
 #include "build/build_config.h"
-#include "nb/cpp14oncpp11.h"
 
 #if defined(STARBOARD)
 #include "starboard/time.h"
@@ -163,7 +162,7 @@ class BASE_EXPORT TimeDelta {
   constexpr int64_t ToInternalValue() const { return delta_; }
 
   // Returns the magnitude (absolute value) of this TimeDelta.
-  CONSTEXPR TimeDelta magnitude() const {
+  constexpr TimeDelta magnitude() const {
     // Some toolchains provide an incomplete C++11 implementation and lack an
     // int64_t overload for std::abs().  The following is a simple branchless
     // implementation:
@@ -242,7 +241,7 @@ class BASE_EXPORT TimeDelta {
     return TimeDelta(std::numeric_limits<int64_t>::max());
   }
   template <typename T>
-  CONSTEXPR TimeDelta operator/(T a) const {
+  constexpr TimeDelta operator/(T a) const {
     CheckedNumeric<int64_t> rv(delta_);
     rv /= a;
     if (rv.IsValid())
@@ -258,7 +257,7 @@ class BASE_EXPORT TimeDelta {
     return *this = (*this * a);
   }
   template <typename T>
-  CONSTEXPR TimeDelta& operator/=(T a) {
+  constexpr TimeDelta& operator/=(T a) {
     return *this = (*this / a);
   }
 

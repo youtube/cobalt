@@ -168,7 +168,7 @@ void CFIBacktraceAndroid::ParseCFITables() {
   static constexpr size_t kUnwIndexRowSize =
       sizeof(*unw_index_function_col_) + sizeof(*unw_index_indices_col_);
   size_t unw_index_size = 0;
-  SbMemoryCopy(&unw_index_size, cfi_mmap_->data(), sizeof(unw_index_size));
+  memcpy(&unw_index_size, cfi_mmap_->data(), sizeof(unw_index_size));
   DCHECK_EQ(0u, unw_index_size % kUnwIndexRowSize);
   // UNW_INDEX table starts after 4 bytes.
   unw_index_function_col_ =
@@ -223,7 +223,7 @@ size_t CFIBacktraceAndroid::Unwind(uintptr_t pc,
     // SP_prev = SP_cur + cfa_offset and
     // PC_prev = * (SP_prev - ra_offset).
     sp = sp + cfi.cfa_offset;
-    SbMemoryCopy(&pc, reinterpret_cast<uintptr_t*>(sp - cfi.ra_offset),
+    memcpy(&pc, reinterpret_cast<uintptr_t*>(sp - cfi.ra_offset),
                  sizeof(uintptr_t));
   }
   return depth;
@@ -275,7 +275,7 @@ bool CFIBacktraceAndroid::FindCFIRowForPC(uintptr_t func_addr,
   const uint16_t* unwind_data = unw_data_start_addr_ + index;
   // The value of first 2 bytes is the CFI data row count for the function.
   uint16_t row_count = 0;
-  SbMemoryCopy(&row_count, unwind_data, sizeof(row_count));
+  memcpy(&row_count, unwind_data, sizeof(row_count));
   // And the actual CFI rows start after 2 bytes from the |unwind_data|. Cast
   // the data into an array of CFIUnwindDataRow since the struct is designed to
   // represent each row. We should be careful to read only |row_count| number of
@@ -289,7 +289,7 @@ bool CFIBacktraceAndroid::FindCFIRowForPC(uintptr_t func_addr,
   uint16_t ra_offset = 0;
   for (uint16_t i = 0; i < row_count; ++i) {
     CFIUnwindDataRow row;
-    SbMemoryCopy(&row, function_data + i, sizeof(CFIUnwindDataRow));
+    memcpy(&row, function_data + i, sizeof(CFIUnwindDataRow));
     // The return address of the function is the instruction that is not yet
     // been executed. The cfi row specifies the unwind info before executing the
     // given instruction. If the given address is equal to the instruction

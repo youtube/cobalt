@@ -69,7 +69,7 @@
 BIO *BIO_new_mem_buf(const void *buf, int len) {
   BIO *ret;
   BUF_MEM *b;
-  const size_t size = len < 0 ? OPENSSL_port_strlen((char *)buf) : (size_t)len;
+  const size_t size = len < 0 ? strlen((char *)buf) : (size_t)len;
 
   if (!buf && len != 0) {
     OPENSSL_PUT_ERROR(BIO, BIO_R_NULL_PARAMETER);

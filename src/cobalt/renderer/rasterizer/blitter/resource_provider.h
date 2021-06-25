@@ -86,6 +86,8 @@ class ResourceProvider : public render_tree::ResourceProvider {
       int32 utf32_character, render_tree::FontStyle font_style,
       const std::string& language) override;
 
+  void LoadAdditionalFonts() override;
+
   scoped_refptr<render_tree::Typeface> CreateTypefaceFromRawData(
       std::unique_ptr<RawTypefaceDataVector> raw_data,
       std::string* error_string) override;

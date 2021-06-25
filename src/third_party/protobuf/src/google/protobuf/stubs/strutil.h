@@ -641,26 +641,14 @@ struct LIBPROTOBUF_EXPORT AlphaNum {
         piece_size_(FastUInt64ToBufferLeft(u64, digits) - &digits[0]) {}
 
   AlphaNum(float f)
-#ifndef STARBOARD
     : piece_data_(digits), piece_size_(strlen(FloatToBuffer(f, digits))) {}
-#else
-    : piece_data_(digits), piece_size_(SbStringGetLength(FloatToBuffer(f, digits))) {}
-#endif  // STARBOARD
   AlphaNum(double f)
-#ifndef STARBOARD
     : piece_data_(digits), piece_size_(strlen(DoubleToBuffer(f, digits))) {}
-#else
-    : piece_data_(digits), piece_size_(SbStringGetLength(DoubleToBuffer(f, digits))) {}
-#endif  // STARBOARD
 
   AlphaNum(Hex hex);
 
   AlphaNum(const char* c_str)
-#ifndef STARBOARD
       : piece_data_(c_str), piece_size_(strlen(c_str)) {}
-#else
-      : piece_data_(c_str), piece_size_(SbStringGetLength(c_str)) {}
-#endif  // STARBOARD
   // TODO: Add a string_ref constructor, eventually
   // AlphaNum(const StringPiece &pc) : piece(pc) {}
 

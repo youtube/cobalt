@@ -465,7 +465,7 @@ std::unique_ptr<BackingStore> BackingStore::CopyWasmMemory(Isolate* isolate,
     // If the allocation was successful, then the new buffer must be at least
     // as big as the old one.
     DCHECK_GE(new_pages * wasm::kWasmPageSize, byte_length_);
-    base::Memcpy(new_backing_store->buffer_start(), buffer_start_,
+    memcpy(new_backing_store->buffer_start(), buffer_start_,
                  byte_length_);
   }
 

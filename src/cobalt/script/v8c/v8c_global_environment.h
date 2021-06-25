@@ -97,6 +97,10 @@ class V8cGlobalEnvironment : public GlobalEnvironment,
   void Bind(const std::string& identifier,
             const scoped_refptr<Wrappable>& impl) override;
 
+  void BindTo(const std::string& identifier,
+              const scoped_refptr<Wrappable>& impl,
+              const std::string& local_object_name) override;
+
   ScriptValueFactory* script_value_factory() override;
 
   v8::Isolate* isolate() const { return isolate_; }

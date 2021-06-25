@@ -200,13 +200,13 @@ TlsVectorEntry* ConstructTlsVector() {
   // our service is in place. (i.e., don't even call new until after we're
   // setup)
   TlsVectorEntry stack_allocated_tls_data[kThreadLocalStorageSize];
-  SbMemorySet(stack_allocated_tls_data, 0, sizeof(stack_allocated_tls_data));
+  memset(stack_allocated_tls_data, 0, sizeof(stack_allocated_tls_data));
   // Ensure that any rentrant calls change the temp version.
   PlatformThreadLocalStorage::SetTLSValue(key, stack_allocated_tls_data);
 
   // Allocate an array to store our data.
   TlsVectorEntry* tls_data = new TlsVectorEntry[kThreadLocalStorageSize];
-  SbMemoryCopy(tls_data, stack_allocated_tls_data,
+  memcpy(tls_data, stack_allocated_tls_data,
                sizeof(stack_allocated_tls_data));
   PlatformThreadLocalStorage::SetTLSValue(key, tls_data);
   return tls_data;
@@ -235,7 +235,7 @@ void OnThreadExitInternal(TlsVectorEntry* tls_data) {
   // we have called all g_tls_metadata destructors. (i.e., don't even call
   // delete[] after we're done with destructors.)
   TlsVectorEntry stack_allocated_tls_data[kThreadLocalStorageSize];
-  SbMemoryCopy(stack_allocated_tls_data, tls_data,
+  memcpy(stack_allocated_tls_data, tls_data,
                sizeof(stack_allocated_tls_data));
   // Ensure that any re-entrant calls change the temp version.
   PlatformThreadLocalStorage::TLSKey key =
@@ -248,7 +248,7 @@ void OnThreadExitInternal(TlsVectorEntry* tls_data) {
   TlsMetadata tls_metadata[kThreadLocalStorageSize];
   {
     base::AutoLock auto_lock(*GetTLSMetadataLock());
-    SbMemoryCopy(tls_metadata, g_tls_metadata, sizeof(g_tls_metadata));
+    memcpy(tls_metadata, g_tls_metadata, sizeof(g_tls_metadata));
   }
 
   int remaining_attempts = kMaxDestructorIterations;

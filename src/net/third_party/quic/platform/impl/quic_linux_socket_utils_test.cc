@@ -54,7 +54,7 @@ void CheckMsghdrWithoutCbuf(const msghdr* hdr,
       hdr->msg_namelen);
   sockaddr_storage peer_generic_addr = peer_addr.generic_address();
   EXPECT_EQ(
-      0, SbMemoryCompare(hdr->msg_name, &peer_generic_addr, hdr->msg_namelen));
+      0, memcmp(hdr->msg_name, &peer_generic_addr, hdr->msg_namelen));
   EXPECT_EQ(1u, hdr->msg_iovlen);
   EXPECT_EQ(buffer, hdr->msg_iov->iov_base);
   EXPECT_EQ(buf_len, hdr->msg_iov->iov_len);
@@ -82,12 +82,12 @@ void CheckIpAndGsoSizeInCbuf(msghdr* hdr,
   const QuicString& self_addr_str = self_addr.ToPackedString();
   if (is_ipv4) {
     in_pktinfo* pktinfo = reinterpret_cast<in_pktinfo*>(CMSG_DATA(cmsg));
-    EXPECT_EQ(0, SbMemoryCompare(&pktinfo->ipi_spec_dst, self_addr_str.c_str(),
-                                 self_addr_str.length()));
+    EXPECT_EQ(0, memcmp(&pktinfo->ipi_spec_dst, self_addr_str.c_str(),
+                        self_addr_str.length()));
   } else {
     in6_pktinfo* pktinfo = reinterpret_cast<in6_pktinfo*>(CMSG_DATA(cmsg));
-    EXPECT_EQ(0, SbMemoryCompare(&pktinfo->ipi6_addr, self_addr_str.c_str(),
-                                 self_addr_str.length()));
+    EXPECT_EQ(0, memcmp(&pktinfo->ipi6_addr, self_addr_str.c_str(),
+                        self_addr_str.length()));
   }
 
   cmsg = CMSG_NXTHDR(hdr, cmsg);
@@ -229,8 +229,8 @@ TEST_F(QuicLinuxSocketUtilsTest, WriteMultiplePackets_WriteSuccess) {
             EXPECT_EQ(buffered_write.buf_len, hdr.msg_iov->iov_len);
             sockaddr_storage expected_peer_address =
                 buffered_write.peer_address.generic_address();
-            EXPECT_EQ(0, SbMemoryCompare(&expected_peer_address, hdr.msg_name,
-                                         sizeof(sockaddr_storage)));
+            EXPECT_EQ(0, memcmp(&expected_peer_address, hdr.msg_name,
+                                sizeof(sockaddr_storage)));
             EXPECT_EQ(buffered_write.self_address.IsInitialized(),
                       hdr.msg_control != nullptr);
           }

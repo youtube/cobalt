@@ -79,8 +79,8 @@ TEST_F(QuicHKDFTest, HKDF) {
 
     ASSERT_EQ(expected.size(), hkdf.client_write_key().size());
     EXPECT_EQ(0,
-              SbMemoryCompare(expected.data(), hkdf.client_write_key().data(),
-                              expected.size()));
+              memcmp(expected.data(), hkdf.client_write_key().data(),
+                     expected.size()));
   }
 }
 

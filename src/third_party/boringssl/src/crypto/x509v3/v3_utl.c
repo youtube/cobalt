@@ -174,7 +174,7 @@ static char *bignum_to_string(const BIGNUM *bn)
         return NULL;
     }
 
-    len = OPENSSL_port_strlen(tmp) + 3;
+    len = strlen(tmp) + 3;
     ret = OPENSSL_malloc(len);
     if (ret == NULL) {
         OPENSSL_PUT_ERROR(X509V3, ERR_R_MALLOC_FAILURE);
@@ -287,14 +287,14 @@ int X509V3_get_value_bool(CONF_VALUE *value, int *asn1_bool)
     char *btmp;
     if (!(btmp = value->value))
         goto err;
-    if (!OPENSSL_port_strcmp(btmp, "TRUE") || !OPENSSL_port_strcmp(btmp, "true")
-        || !OPENSSL_port_strcmp(btmp, "Y") || !OPENSSL_port_strcmp(btmp, "y")
-        || !OPENSSL_port_strcmp(btmp, "YES") || !OPENSSL_port_strcmp(btmp, "yes")) {
+    if (!strcmp(btmp, "TRUE") || !strcmp(btmp, "true")
+        || !strcmp(btmp, "Y") || !strcmp(btmp, "y")
+        || !strcmp(btmp, "YES") || !strcmp(btmp, "yes")) {
         *asn1_bool = 0xff;
         return 1;
-    } else if (!OPENSSL_port_strcmp(btmp, "FALSE") || !OPENSSL_port_strcmp(btmp, "false")
-               || !OPENSSL_port_strcmp(btmp, "N") || !OPENSSL_port_strcmp(btmp, "n")
-               || !OPENSSL_port_strcmp(btmp, "NO") || !OPENSSL_port_strcmp(btmp, "no")) {
+    } else if (!strcmp(btmp, "FALSE") || !strcmp(btmp, "false")
+               || !strcmp(btmp, "N") || !strcmp(btmp, "n")
+               || !strcmp(btmp, "NO") || !strcmp(btmp, "no")) {
         *asn1_bool = 0;
         return 1;
     }
@@ -428,7 +428,7 @@ static char *strip_spaces(char *name)
         p++;
     if (!*p)
         return NULL;
-    q = p + OPENSSL_port_strlen(p) - 1;
+    q = p + strlen(p) - 1;
     while ((q != p) && isspace((unsigned char)*q))
         q--;
     if (p != q)
@@ -481,7 +481,7 @@ unsigned char *string_to_hex(const char *str, long *len)
         OPENSSL_PUT_ERROR(X509V3, X509V3_R_INVALID_NULL_ARGUMENT);
         return NULL;
     }
-    if (!(hexbuf = OPENSSL_malloc(OPENSSL_port_strlen(str) >> 1)))
+    if (!(hexbuf = OPENSSL_malloc(strlen(str) >> 1)))
         goto err;
     for (p = (unsigned char *)str, q = hexbuf; *p;) {
         ch = *p++;
@@ -541,8 +541,8 @@ int name_cmp(const char *name, const char *cmp)
 {
     int len, ret;
     char c;
-    len = OPENSSL_port_strlen(cmp);
-    if ((ret = OPENSSL_port_strncmp(name, cmp, len)))
+    len = strlen(cmp);
+    if ((ret = strncmp(name, cmp, len)))
         return ret;
     c = name[len];
     if (!c || (c == '.'))
@@ -552,7 +552,7 @@ int name_cmp(const char *name, const char *cmp)
 
 static int sk_strcmp(const OPENSSL_STRING *a, const OPENSSL_STRING *b)
 {
-    return OPENSSL_port_strcmp(*a, *b);
+    return strcmp(*a, *b);
 }
 
 STACK_OF(OPENSSL_STRING) *X509_get1_email(X509 *x)
@@ -1110,7 +1110,7 @@ ASN1_OCTET_STRING *a2i_IPADDRESS_NC(const char *ipasc)
     unsigned char ipout[32];
     char *iptmp = NULL, *p;
     int iplen1, iplen2;
-    p = OPENSSL_port_strchr(ipasc, '/');
+    p = strchr(ipasc, '/');
     if (!p)
         return NULL;
     iptmp = BUF_strdup(ipasc);
@@ -1152,7 +1152,7 @@ int a2i_ipadd(unsigned char *ipout, const char *ipasc)
 {
     /* If string contains a ':' assume IPv6 */
 
-    if (OPENSSL_port_strchr(ipasc, ':')) {
+    if (strchr(ipasc, ':')) {
         if (!ipv6_from_asc(ipout, ipasc))
             return 0;
         return 16;

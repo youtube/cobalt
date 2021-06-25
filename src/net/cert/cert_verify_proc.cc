@@ -18,7 +18,6 @@
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "crypto/sha2.h"
-#include "nb/cpp14oncpp11.h"
 #include "net/base/net_errors.h"
 #include "net/base/registry_controlled_domains/registry_controlled_domain.h"
 #include "net/base/url_util.h"
@@ -313,14 +312,14 @@ struct HashToArrayComparator {
   bool operator()(const uint8_t(&lhs)[N], const HashValue& rhs) const {
     static_assert(N == crypto::kSHA256Length,
                   "Only SHA-256 hashes are supported");
-    return SbMemoryCompare(lhs, rhs.data(), crypto::kSHA256Length) < 0;
+    return memcmp(lhs, rhs.data(), crypto::kSHA256Length) < 0;
   }
 
   template <size_t N>
   bool operator()(const HashValue& lhs, const uint8_t(&rhs)[N]) const {
     static_assert(N == crypto::kSHA256Length,
                   "Only SHA-256 hashes are supported");
-    return SbMemoryCompare(lhs.data(), rhs, crypto::kSHA256Length) < 0;
+    return memcmp(lhs.data(), rhs, crypto::kSHA256Length) < 0;
   }
 };
 
@@ -645,9 +644,9 @@ bool CertVerifyProc::IsBlacklisted(X509Certificate* cert) {
   // The old certs had a lifetime of five years, so this can be removed April
   // 2nd, 2019.
   const base::StringPiece cn(cert->subject().common_name);
-  static CONSTEXPR base::StringPiece kCloudflareCNSuffix(".cloudflare.com");
+  static constexpr base::StringPiece kCloudflareCNSuffix(".cloudflare.com");
   // April 2nd, 2014 UTC, expressed as seconds since the Unix Epoch.
-  static CONSTEXPR base::TimeDelta kCloudflareEpoch =
+  static constexpr base::TimeDelta kCloudflareEpoch =
       base::TimeDelta::FromSeconds(1396396800);
 
   if (cn.ends_with(kCloudflareCNSuffix) &&
@@ -723,7 +722,7 @@ bool CertVerifyProc::HasNameConstraintsViolation(
     const std::string& common_name,
     const std::vector<std::string>& dns_names,
     const std::vector<std::string>& ip_addrs) {
-  static CONSTEXPR base::StringPiece kDomainsANSSI[] = {
+  static constexpr base::StringPiece kDomainsANSSI[] = {
       ".fr",  // France
       ".gp",  // Guadeloupe
       ".gf",  // Guyane
@@ -739,12 +738,12 @@ bool CertVerifyProc::HasNameConstraintsViolation(
       ".tf",  // Terres australes et antarctiques françaises
   };
 
-  static CONSTEXPR base::StringPiece kDomainsIndiaCCA[] = {
+  static constexpr base::StringPiece kDomainsIndiaCCA[] = {
       ".gov.in",   ".nic.in",    ".ac.in", ".rbi.org.in", ".bankofindia.co.in",
       ".ncode.in", ".tcs.co.in",
   };
 
-  static CONSTEXPR base::StringPiece kDomainsTest[] = {
+  static constexpr base::StringPiece kDomainsTest[] = {
       ".example.com",
   };
 
@@ -809,8 +808,8 @@ bool CertVerifyProc::HasNameConstraintsViolation(
     for (const auto& hash : public_key_hashes) {
       if (hash.tag() != HASH_VALUE_SHA256)
         continue;
-      if (SbMemoryCompare(hash.data(), limit.public_key_hash.data,
-                          hash.size()) != 0)
+      if (memcmp(hash.data(), limit.public_key_hash.data,
+                 hash.size()) != 0)
         continue;
       if (dns_names.empty() && ip_addrs.empty()) {
         std::vector<std::string> names;

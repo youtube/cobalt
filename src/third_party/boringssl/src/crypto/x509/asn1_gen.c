@@ -387,13 +387,13 @@ static int asn1_cb(const char *elem, int len, void *bitstr)
             OPENSSL_PUT_ERROR(ASN1, ASN1_R_UNKNOWN_FORMAT);
             return -1;
         }
-        if (!OPENSSL_port_strncmp(vstart, "ASCII", 5))
+        if (!strncmp(vstart, "ASCII", 5))
             arg->format = ASN1_GEN_FORMAT_ASCII;
-        else if (!OPENSSL_port_strncmp(vstart, "UTF8", 4))
+        else if (!strncmp(vstart, "UTF8", 4))
             arg->format = ASN1_GEN_FORMAT_UTF8;
-        else if (!OPENSSL_port_strncmp(vstart, "HEX", 3))
+        else if (!strncmp(vstart, "HEX", 3))
             arg->format = ASN1_GEN_FORMAT_HEX;
-        else if (!OPENSSL_port_strncmp(vstart, "BITLIST", 7))
+        else if (!strncmp(vstart, "BITLIST", 7))
             arg->format = ASN1_GEN_FORMAT_BITLIST;
         else {
             OPENSSL_PUT_ERROR(ASN1, ASN1_R_UNKNOWN_FORMAT);
@@ -633,11 +633,11 @@ static int asn1_str2tag(const char *tagstr, int len)
     };
 
     if (len == -1)
-        len = OPENSSL_port_strlen(tagstr);
+        len = strlen(tagstr);
 
     tntmp = tnst;
     for (i = 0; i < sizeof(tnst) / sizeof(struct tag_name_st); i++, tntmp++) {
-        if ((len == tntmp->len) && !OPENSSL_port_strncmp(tntmp->strnam, tagstr, len))
+        if ((len == tntmp->len) && !strncmp(tntmp->strnam, tagstr, len))
             return tntmp->tag;
     }
 

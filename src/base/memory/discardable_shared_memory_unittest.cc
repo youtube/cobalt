@@ -409,7 +409,7 @@ TEST(DiscardableSharedMemoryTest, ZeroFilledPagesAfterPurge) {
   ASSERT_TRUE(rv);
 
   // Initialize all memory to '0xaa'.
-  SbMemorySet(memory2.memory(), 0xaa, kDataSize);
+  memset(memory2.memory(), 0xaa, kDataSize);
 
   // Unlock memory.
   memory2.SetNow(Time::FromDoubleT(1));
@@ -425,7 +425,7 @@ TEST(DiscardableSharedMemoryTest, ZeroFilledPagesAfterPurge) {
   // Check that reading memory after it has been purged is returning
   // zero-filled pages.
   uint8_t expected_data[kDataSize] = {};
-  EXPECT_EQ(SbMemoryCompare(memory2.memory(), expected_data, kDataSize), 0);
+  EXPECT_EQ(memcmp(memory2.memory(), expected_data, kDataSize), 0);
 }
 #endif
 

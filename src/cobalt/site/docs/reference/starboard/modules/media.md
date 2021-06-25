@@ -127,7 +127,7 @@ the following link: [https://www.w3.org/TR/2011/WD-html5-20110113/video.html#dom
     The media type cannot be played.
 *   `kSbMediaSupportTypeMaybe`
 
-    Cannot determinate if the media type is playable without playing it.
+    Cannot determine if the media type is playable without playing it.
 *   `kSbMediaSupportTypeProbably`
 
     The media type seems to be playable.
@@ -192,12 +192,13 @@ output.
 
 ### SbMediaAudioSampleInfo ###
 
-An audio sample info, which is a description of a given audio sample. This, in
-hexadecimal string form, acts as a set of instructions to the audio decoder.
+An audio sample info, which is a description of a given audio sample. This acts
+as a set of instructions to the audio decoder.
 
-The audio sample info consists of a little-endian hexadecimal encoded
-`WAVEFORMATEX` structure followed by an Audio-specific configuration field. The
-`WAVEFORMATEX` structure is specified at: [http://msdn.microsoft.com/en-us/library/dd390970(v=vs.85).aspx](http://msdn.microsoft.com/en-us/library/dd390970(v=vs.85).aspx)
+The audio sample info consists of information found in the `WAVEFORMATEX`
+structure, as well as other information for the audio decoder, including the
+Audio-specific configuration field. The `WAVEFORMATEX` structure is specified at
+[http://msdn.microsoft.com/en-us/library/dd390970(v=vs.85).aspx](http://msdn.microsoft.com/en-us/library/dd390970(v=vs.85).aspx)x) .
 
 #### Members ####
 
@@ -270,11 +271,11 @@ Electronics Association press release: [https://www.cta.tech/News/Press-Releases
 *   `unsigned int chroma_siting_horizontal`
 
     How chroma is subsampled horizontally. (0: Unspecified, 1: Left Collocated,
-    2: Half)
+    2: Half).
 *   `unsigned int chroma_siting_vertical`
 
     How chroma is subsampled vertically. (0: Unspecified, 1: Top Collocated, 2:
-    Half)
+    Half).
 *   `SbMediaMasteringMetadata mastering_metadata`
 
     [HDR Metadata field] SMPTE 2086 mastering data.
@@ -292,7 +293,7 @@ Electronics Association press release: [https://www.cta.tech/News/Press-Releases
     value and meanings for Primaries are adopted from Table 2 of ISO/IEC
     23001-8:2013/DCOR1. (0: Reserved, 1: ITU-R BT.709, 2: Unspecified, 3:
     Reserved, 4: ITU-R BT.470M, 5: ITU-R BT.470BG, 6: SMPTE 170M, 7: SMPTE 240M,
-    8: FILM, 9: ITU-R BT.2020, 10: SMPTE ST 428-1, 22: JEDEC P22 phosphors)
+    8: FILM, 9: ITU-R BT.2020, 10: SMPTE ST 428-1, 22: JEDEC P22 phosphors).
 *   `SbMediaTransferId transfer`
 
     [Color Space field] The transfer characteristics of the video. For clarity,
@@ -302,7 +303,7 @@ Electronics Association press release: [https://www.cta.tech/News/Press-Releases
     4: Gamma 2.2 curve, 5: Gamma 2.8 curve, 6: SMPTE 170M, 7: SMPTE 240M, 8:
     Linear, 9: Log, 10: Log Sqrt, 11: IEC 61966-2-4, 12: ITU-R BT.1361 Extended
     Colour Gamut, 13: IEC 61966-2-1, 14: ITU-R BT.2020 10 bit, 15: ITU-R BT.2020
-    12 bit, 16: SMPTE ST 2084, 17: SMPTE ST 428-1 18: ARIB STD-B67 (HLG))
+    12 bit, 16: SMPTE ST 2084, 17: SMPTE ST 428-1 18: ARIB STD-B67 (HLG)).
 *   `SbMediaMatrixId matrix`
 
     [Color Space field] The Matrix Coefficients of the video used to derive luma
@@ -310,12 +311,12 @@ Electronics Association press release: [https://www.cta.tech/News/Press-Releases
     the value and meanings for MatrixCoefficients are adopted from Table 4 of
     ISO/IEC 23001-8:2013/DCOR1. (0:GBR, 1: BT709, 2: Unspecified, 3: Reserved,
     4: FCC, 5: BT470BG, 6: SMPTE 170M, 7: SMPTE 240M, 8: YCOCG, 9: BT2020 Non-
-    constant Luminance, 10: BT2020 Constant Luminance)
+    constant Luminance, 10: BT2020 Constant Luminance).
 *   `SbMediaRangeId range`
 
     [Color Space field] Clipping of the color ranges. (0: Unspecified, 1:
     Broadcast Range, 2: Full range (no clipping), 3: Defined by
-    MatrixCoefficients/TransferCharacteristics)
+    MatrixCoefficients/TransferCharacteristics).
 *   `float custom_primary_matrix`
 
     [Color Space field] Only used if primaries == kSbMediaPrimaryIdCustom. This
@@ -429,10 +430,38 @@ Note that neither `mime` nor `key_system` can be NULL. This function returns
 `mime`: The mime information of the media in the form of `video/webm` or
 `video/mp4; codecs="avc1.42001E"`. It may include arbitrary parameters like
 "codecs", "channels", etc. Note that the "codecs" parameter may contain more
-than one codec, delimited by comma. `key_system`: A lowercase value in fhe form
+than one codec, delimited by comma. `key_system`: A lowercase value in the form
 of "com.example.somesystem" as suggested by [https://w3c.github.io/encrypted-media/#key-system](https://w3c.github.io/encrypted-media/#key-system)) that can
 be matched exactly with known DRM key systems of the platform. When `key_system`
 is an empty string, the return value is an indication for non-encrypted media.
+
+An implementation may choose to support `key_system` with extra attributes,
+separated by ';', like `com.example.somesystem; attribute_name1="value1";
+attribute_name2=value1`. If `key_system` with attributes is not supported by an
+implementation, it should treat `key_system` as if it contains only the key
+system, and reject any input containing extra attributes, i.e. it can keep using
+its existing implementation. When an implementation supports `key_system` with
+attributes, it has to support all attributes defined by the Starboard version
+the implementation uses. An implementation should ignore any unknown attributes,
+and make a decision solely based on the key system and the known attributes. For
+example, if an implementation supports "com.widevine.alpha", it should also
+return `kSbMediaSupportTypeProbably` kSbMediaSupportTypeProbably when
+`key_system` is `com.widevine.alpha; invalid_attribute="invalid_value"`.
+Currently the only attribute has to be supported is `encryptionscheme`. It
+reflects the value passed to `encryptionScheme` encryptionScheme of
+MediaKeySystemMediaCapability, as defined in [https://wicg.github.io/encrypted-media-encryption-scheme/,](https://wicg.github.io/encrypted-media-encryption-scheme/,),) which can take value "cenc", "cbcs", or "cbcs-1-9". Empty string is
+not a valid value for `encryptionscheme` and the implementation should return
+`kSbMediaSupportTypeNotSupported` kSbMediaSupportTypeNotSupported when
+`encryptionscheme` is set to "". The implementation should return
+`kSbMediaSupportTypeNotSupported` kSbMediaSupportTypeNotSupported for unknown
+values of known attributes. For example, if an implementation supports
+"encryptionscheme" with value "cenc", "cbcs", or "cbcs-1-9", then it should
+return `kSbMediaSupportTypeProbably` kSbMediaSupportTypeProbably when
+`key_system` is `com.widevine.alpha; encryptionscheme="cenc"`, and return
+`kSbMediaSupportTypeNotSupported` kSbMediaSupportTypeNotSupported when
+`key_system` is `com.widevine.alpha; encryptionscheme="invalid"`. If an
+implementation supports key system with attributes on one key system, it has to
+support key system with attributes on all key systems supported.
 
 #### Declaration ####
 
@@ -653,18 +682,6 @@ pools should be allocated on demand, as opposed to using SbMemory* functions.
 bool SbMediaIsBufferUsingMemoryPool()
 ```
 
-### SbMediaIsSupported ###
-
-Indicates whether this platform supports decoding `video_codec` and
-`audio_codec` along with decrypting using `key_system`. If `video_codec` is
-`kSbMediaVideoCodecNone` or if `audio_codec` is `kSbMediaAudioCodecNone`, this
-function should return `true` as long as `key_system` is supported on the
-platform to decode any supported input formats.
-
-`video_codec`: The `SbMediaVideoCodec` being checked for platform compatibility.
-`audio_codec`: The `SbMediaAudioCodec` being checked for platform compatibility.
-`key_system`: The key system being checked for platform compatibility.
-
 #### Declaration ####
 
 ```
@@ -688,3 +705,4 @@ seconds.
 ```
 void SbMediaSetAudioWriteDuration(SbTime duration)
 ```
+

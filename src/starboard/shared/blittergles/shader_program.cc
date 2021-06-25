@@ -44,7 +44,7 @@ const void TransformCoords(
                   lower_left_coords.first,  upper_right_coords.second,
                   upper_right_coords.first, lower_left_coords.second,
                   upper_right_coords.first, upper_right_coords.second};
-  SbMemoryCopy(vertex_data, temp, sizeof(float) * 8);
+  memcpy(vertex_data, temp, sizeof(float) * 8);
 }
 
 }  // namespace
@@ -57,7 +57,7 @@ ShaderProgram::~ShaderProgram() {
 
 void ShaderProgram::InitializeShader(GLuint shader_handle,
                                      const char* shader_source) {
-  int shader_source_length = SbStringGetLength(shader_source);
+  int shader_source_length = strlen(shader_source);
   int compile_status;
   GL_CALL(
       glShaderSource(shader_handle, 1, &shader_source, &shader_source_length));

@@ -31,6 +31,7 @@
 #include "cobalt/browser/lifecycle_observer.h"
 #include "cobalt/browser/screen_shot_writer.h"
 #include "cobalt/browser/splash_screen_cache.h"
+#include "cobalt/browser/user_agent_platform_info.h"
 #include "cobalt/css_parser/parser.h"
 #include "cobalt/cssom/viewport_size.h"
 #include "cobalt/dom/blob.h"
@@ -210,11 +211,6 @@ class WebModule : public LifecycleObserver {
     // the frozen state.
     bool should_retain_remote_typeface_cache_on_freeze = false;
 
-    // The language and script to use with fonts. If left empty, then the
-    // language-script combination provided by base::GetSystemLanguageScript()
-    // is used.
-    std::string font_language_script_override;
-
     // The splash screen cache object, owned by the BrowserModule.
     SplashScreenCache* splash_screen_cache;
 
@@ -386,12 +382,15 @@ class WebModule : public LifecycleObserver {
   }
 
   // LifecycleObserver implementation
-  void Blur() override;
-  void Conceal(render_tree::ResourceProvider* resource_provider) override;
-  void Freeze() override;
-  void Unfreeze(render_tree::ResourceProvider* resource_provider) override;
-  void Reveal(render_tree::ResourceProvider* resource_provider) override;
-  void Focus() override;
+  void Blur(SbTimeMonotonic timestamp) override;
+  void Conceal(render_tree::ResourceProvider* resource_provider,
+               SbTimeMonotonic timestamp) override;
+  void Freeze(SbTimeMonotonic timestamp) override;
+  void Unfreeze(render_tree::ResourceProvider* resource_provider,
+                SbTimeMonotonic timestamp) override;
+  void Reveal(render_tree::ResourceProvider* resource_provider,
+              SbTimeMonotonic timestamp) override;
+  void Focus(SbTimeMonotonic timestamp) override;
 
   // Attempt to reduce overall memory consumption. Called in response to a
   // system indication that memory usage is nearing a critical level.

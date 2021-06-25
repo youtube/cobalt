@@ -20,6 +20,8 @@
 #include "starboard/memory.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
+#include <cstring>
+
 namespace starboard {
 namespace shared {
 namespace starboard {
@@ -93,14 +95,14 @@ void DecodedAudio::AdjustForSeekTime(int samples_per_second,
   auto bytes_per_frame = bytes_per_sample * channels();
 
   if (storage_type_ == kSbMediaAudioFrameStorageTypeInterleaved) {
-    SbMemoryMove(buffer(), buffer() + bytes_per_frame * frames_to_remove,
+    memmove(buffer(), buffer() + bytes_per_frame * frames_to_remove,
                  (frames() - frames_to_remove) * bytes_per_frame);
   } else {
     SB_DCHECK(storage_type_ == kSbMediaAudioFrameStorageTypePlanar);
     const uint8_t* source_addr = buffer();
     uint8_t* dest_addr = buffer();
     for (int channel = 0; channel < channels(); ++channel) {
-      SbMemoryMove(dest_addr, source_addr + bytes_per_sample * frames_to_remove,
+      memmove(dest_addr, source_addr + bytes_per_sample * frames_to_remove,
                    (frames() - frames_to_remove) * bytes_per_sample);
       source_addr += frames() * bytes_per_sample;
       dest_addr += (frames() - frames_to_remove) * bytes_per_sample;
@@ -229,7 +231,7 @@ void DecodedAudio::SwitchStorageTypeTo(
             old_samples + (frame * channels() + channel) * bytes_per_sample;
         uint8_t* new_sample =
             new_samples + (channel * frames() + frame) * bytes_per_sample;
-        SbMemoryCopy(new_sample, old_sample, bytes_per_sample);
+        memcpy(new_sample, old_sample, bytes_per_sample);
       }
     }
   } else if (storage_type_ == kSbMediaAudioFrameStorageTypePlanar &&
@@ -240,7 +242,7 @@ void DecodedAudio::SwitchStorageTypeTo(
             old_samples + (channel * frames() + frame) * bytes_per_sample;
         uint8_t* new_sample =
             new_samples + (frame * channels() + channel) * bytes_per_sample;
-        SbMemoryCopy(new_sample, old_sample, bytes_per_sample);
+        memcpy(new_sample, old_sample, bytes_per_sample);
       }
     }
   }

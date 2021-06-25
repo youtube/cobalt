@@ -304,13 +304,13 @@ TEST_F(ChannelIDTest, SignAndVerify) {
   EXPECT_FALSE(ChannelIDVerifier::Verify(key, "a" + signed_data, signature));
 
   std::unique_ptr<char[]> bad_key(new char[key.size()]);
-  SbMemoryCopy(bad_key.get(), key.data(), key.size());
+  memcpy(bad_key.get(), key.data(), key.size());
   bad_key[1] ^= 0x80;
   EXPECT_FALSE(ChannelIDVerifier::Verify(QuicString(bad_key.get(), key.size()),
                                          signed_data, signature));
 
   std::unique_ptr<char[]> bad_signature(new char[signature.size()]);
-  SbMemoryCopy(bad_signature.get(), signature.data(), signature.size());
+  memcpy(bad_signature.get(), signature.data(), signature.size());
   bad_signature[1] ^= 0x80;
   EXPECT_FALSE(ChannelIDVerifier::Verify(
       key, signed_data, QuicString(bad_signature.get(), signature.size())));

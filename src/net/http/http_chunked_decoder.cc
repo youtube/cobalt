@@ -100,7 +100,7 @@ int HttpChunkedDecoder::FilterBuf(char* buf, int buf_len) {
 
     buf_len -= bytes_consumed;
     if (buf_len > 0)
-      SbMemoryMove(buf, buf + bytes_consumed, buf_len);
+      memmove(buf, buf + bytes_consumed, buf_len);
   }
 
   return result;

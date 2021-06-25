@@ -66,7 +66,7 @@ TEST(LZ4FileImplTest, SunnyDayDecompressesFile) {
 
   EXPECT_TRUE(file.ReadFromOffset(0, decompressed,
                                   SB_ARRAY_SIZE(kUncompressedData) - 1));
-  EXPECT_EQ(SbStringCompareAll(decompressed, kUncompressedData), 0);
+  EXPECT_EQ(strcmp(decompressed, kUncompressedData), 0);
 }
 
 }  // namespace

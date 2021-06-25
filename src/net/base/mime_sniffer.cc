@@ -93,7 +93,6 @@
 #include "base/logging.h"
 #include "base/stl_util.h"
 #include "base/strings/string_util.h"
-#include "nb/cpp14oncpp11.h"
 #include "starboard/common/string.h"
 #include "starboard/types.h"
 #include "url/gurl.h"
@@ -333,7 +332,7 @@ static bool MatchMagicNumber(const char* content,
   if (magic_entry.is_string) {
     if (content_strlen >= len) {
       // Do a case-insensitive prefix comparison.
-      DCHECK_EQ(SbStringGetLength(magic_entry.magic), len);
+      DCHECK_EQ(strlen(magic_entry.magic), len);
       match = base::EqualsCaseInsensitiveASCII(magic_entry.magic,
                                                base::StringPiece(content, len));
     }
@@ -568,8 +567,8 @@ static bool SniffXML(const char* content,
     if (!pos)
       return false;
 
-    static CONSTEXPR base::StringPiece kXmlPrefix("<?xml");
-    static CONSTEXPR base::StringPiece kDocTypePrefix("<!DOCTYPE");
+    static constexpr base::StringPiece kXmlPrefix("<?xml");
+    static constexpr base::StringPiece kDocTypePrefix("<!DOCTYPE");
 
     base::StringPiece current(pos, end - pos);
     if (base::EqualsCaseInsensitiveASCII(current.substr(0, kXmlPrefix.size()),

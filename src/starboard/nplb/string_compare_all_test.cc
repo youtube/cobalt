@@ -18,6 +18,8 @@
 #include "starboard/common/string.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+#if SB_API_VERSION < 13
+
 namespace starboard {
 namespace nplb {
 namespace {
@@ -33,3 +35,5 @@ TEST(SbStringCompareAllTest, SunnyDay) {
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
+
+#endif  // SB_API_VERSION < 13

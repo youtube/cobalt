@@ -19,12 +19,15 @@
 #include <vector>
 
 #include "starboard/common/log.h"
+#include "starboard/common/memory.h"
 #include "starboard/configuration.h"
 #include "starboard/memory.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace nb {
 namespace {
+
+using starboard::common::MemoryIsZero;
 
 TEST(MultipartAllocatorAllocationsTest, DefaultCtor) {
   MultipartAllocator::Allocations allocations;
@@ -158,24 +161,23 @@ TEST(MultipartAllocatorAllocationsTest, SingleBufferWrite) {
   char source[kBufferSize];
 
   MultipartAllocator::Allocations allocations(buffer, kBufferSize);
-  SbMemorySet(source, 'x', kBufferSize);
+  memset(source, 'x', kBufferSize);
 
-  SbMemorySet(buffer, 0, kBufferSize * 2);
+  memset(buffer, 0, kBufferSize * 2);
   allocations.Write(0, source, kBufferSize);
-  EXPECT_EQ(SbMemoryCompare(buffer, source, kBufferSize), 0);
-  EXPECT_TRUE(SbMemoryIsZero(buffer + kBufferSize, kBufferSize));
+  EXPECT_EQ(memcmp(buffer, source, kBufferSize), 0);
+  EXPECT_TRUE(MemoryIsZero(buffer + kBufferSize, kBufferSize));
 
-  SbMemorySet(buffer, 0, kBufferSize * 2);
+  memset(buffer, 0, kBufferSize * 2);
   allocations.Write(kBufferSize / 2, source, kBufferSize / 2);
-  EXPECT_TRUE(SbMemoryIsZero(buffer, kBufferSize / 2));
-  EXPECT_EQ(SbMemoryCompare(buffer + kBufferSize / 2, source, kBufferSize / 2),
-            0);
-  EXPECT_TRUE(SbMemoryIsZero(buffer + kBufferSize, kBufferSize));
+  EXPECT_TRUE(MemoryIsZero(buffer, kBufferSize / 2));
+  EXPECT_EQ(memcmp(buffer + kBufferSize / 2, source, kBufferSize / 2), 0);
+  EXPECT_TRUE(MemoryIsZero(buffer + kBufferSize, kBufferSize));
 
-  SbMemorySet(buffer, 0, kBufferSize * 2);
+  memset(buffer, 0, kBufferSize * 2);
   allocations.Write(kBufferSize, source, 0);
-  EXPECT_TRUE(SbMemoryIsZero(buffer, kBufferSize * 2));
-  EXPECT_TRUE(SbMemoryIsZero(buffer + kBufferSize, kBufferSize));
+  EXPECT_TRUE(MemoryIsZero(buffer, kBufferSize * 2));
+  EXPECT_TRUE(MemoryIsZero(buffer + kBufferSize, kBufferSize));
 }
 
 TEST(MultipartAllocatorAllocationsTest, SingleBufferRead) {
@@ -185,11 +187,11 @@ TEST(MultipartAllocatorAllocationsTest, SingleBufferRead) {
 
   MultipartAllocator::Allocations allocations(buffer, kBufferSize);
 
-  SbMemorySet(buffer, 'x', kBufferSize);
-  SbMemorySet(destination, 0, kBufferSize * 2);
+  memset(buffer, 'x', kBufferSize);
+  memset(destination, 0, kBufferSize * 2);
   allocations.Read(destination);
-  EXPECT_EQ(SbMemoryCompare(buffer, destination, kBufferSize), 0);
-  EXPECT_TRUE(SbMemoryIsZero(destination + kBufferSize, kBufferSize));
+  EXPECT_EQ(memcmp(buffer, destination, kBufferSize), 0);
+  EXPECT_TRUE(MemoryIsZero(destination + kBufferSize, kBufferSize));
 }
 
 TEST(MultipartAllocatorAllocationsTest, MultipleBuffers) {
@@ -263,36 +265,35 @@ TEST(MultipartAllocatorAllocationsTest, MultipleBuffersWrite) {
 
   MultipartAllocator::Allocations allocations(
       static_cast<int>(buffers.size()), buffers.data(), buffer_sizes.data());
-  SbMemorySet(source, 'x', kBufferSize0 + kBufferSize1);
+  memset(source, 'x', kBufferSize0 + kBufferSize1);
 
-  SbMemorySet(buffer0, 0, kBufferSize0);
-  SbMemorySet(buffer1, 0, kBufferSize1 * 2);
+  memset(buffer0, 0, kBufferSize0);
+  memset(buffer1, 0, kBufferSize1 * 2);
   allocations.Write(0, source, kBufferSize0 + kBufferSize1);
-  EXPECT_EQ(SbMemoryCompare(buffer0, source, kBufferSize0), 0);
-  EXPECT_EQ(SbMemoryCompare(buffer1, source, kBufferSize1), 0);
-  EXPECT_TRUE(SbMemoryIsZero(buffer1 + kBufferSize1, kBufferSize1));
+  EXPECT_EQ(memcmp(buffer0, source, kBufferSize0), 0);
+  EXPECT_EQ(memcmp(buffer1, source, kBufferSize1), 0);
+  EXPECT_TRUE(MemoryIsZero(buffer1 + kBufferSize1, kBufferSize1));
 
-  SbMemorySet(buffer0, 0, kBufferSize0);
-  SbMemorySet(buffer1, 0, kBufferSize1 * 2);
+  memset(buffer0, 0, kBufferSize0);
+  memset(buffer1, 0, kBufferSize1 * 2);
   allocations.Write(kBufferSize0 / 2, source, kBufferSize0 / 2 + kBufferSize1);
-  EXPECT_TRUE(SbMemoryIsZero(buffer0, kBufferSize0 / 2));
-  EXPECT_EQ(
-      SbMemoryCompare(buffer0 + kBufferSize0 / 2, source, kBufferSize0 / 2), 0);
-  EXPECT_EQ(SbMemoryCompare(buffer1, source, kBufferSize1), 0);
-  EXPECT_TRUE(SbMemoryIsZero(buffer1 + kBufferSize1, kBufferSize1));
+  EXPECT_TRUE(MemoryIsZero(buffer0, kBufferSize0 / 2));
+  EXPECT_EQ(memcmp(buffer0 + kBufferSize0 / 2, source, kBufferSize0 / 2), 0);
+  EXPECT_EQ(memcmp(buffer1, source, kBufferSize1), 0);
+  EXPECT_TRUE(MemoryIsZero(buffer1 + kBufferSize1, kBufferSize1));
 
-  SbMemorySet(buffer0, 0, kBufferSize0);
-  SbMemorySet(buffer1, 0, kBufferSize1 * 2);
+  memset(buffer0, 0, kBufferSize0);
+  memset(buffer1, 0, kBufferSize1 * 2);
   allocations.Write(kBufferSize0, source, kBufferSize1);
-  EXPECT_TRUE(SbMemoryIsZero(buffer0, kBufferSize0));
-  EXPECT_EQ(SbMemoryCompare(buffer1, source, kBufferSize1), 0);
-  EXPECT_TRUE(SbMemoryIsZero(buffer1 + kBufferSize1, kBufferSize1));
+  EXPECT_TRUE(MemoryIsZero(buffer0, kBufferSize0));
+  EXPECT_EQ(memcmp(buffer1, source, kBufferSize1), 0);
+  EXPECT_TRUE(MemoryIsZero(buffer1 + kBufferSize1, kBufferSize1));
 
-  SbMemorySet(buffer0, 0, kBufferSize0);
-  SbMemorySet(buffer1, 0, kBufferSize1 * 2);
+  memset(buffer0, 0, kBufferSize0);
+  memset(buffer1, 0, kBufferSize1 * 2);
   allocations.Write(kBufferSize0 + kBufferSize1, source, 0);
-  EXPECT_TRUE(SbMemoryIsZero(buffer0, kBufferSize0));
-  EXPECT_TRUE(SbMemoryIsZero(buffer1, kBufferSize1 * 2));
+  EXPECT_TRUE(MemoryIsZero(buffer0, kBufferSize0));
+  EXPECT_TRUE(MemoryIsZero(buffer1, kBufferSize1 * 2));
 }
 
 TEST(MultipartAllocatorAllocationsTest, MultipleBuffersRead) {
@@ -308,15 +309,14 @@ TEST(MultipartAllocatorAllocationsTest, MultipleBuffersRead) {
   MultipartAllocator::Allocations allocations(
       static_cast<int>(buffers.size()), buffers.data(), buffer_sizes.data());
 
-  SbMemorySet(buffer0, 'x', kBufferSize0);
-  SbMemorySet(buffer1, 'y', kBufferSize1);
-  SbMemorySet(destination, 0, kBufferSize0 + kBufferSize1 * 2);
+  memset(buffer0, 'x', kBufferSize0);
+  memset(buffer1, 'y', kBufferSize1);
+  memset(destination, 0, kBufferSize0 + kBufferSize1 * 2);
   allocations.Read(destination);
-  EXPECT_EQ(SbMemoryCompare(buffer0, destination, kBufferSize0), 0);
-  EXPECT_EQ(SbMemoryCompare(buffer1, destination + kBufferSize0, kBufferSize1),
-            0);
+  EXPECT_EQ(memcmp(buffer0, destination, kBufferSize0), 0);
+  EXPECT_EQ(memcmp(buffer1, destination + kBufferSize0, kBufferSize1), 0);
   EXPECT_TRUE(
-      SbMemoryIsZero(destination + kBufferSize0 + kBufferSize1, kBufferSize1));
+      MemoryIsZero(destination + kBufferSize0 + kBufferSize1, kBufferSize1));
 }
 
 }  // namespace

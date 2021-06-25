@@ -5,13 +5,8 @@
 #ifndef OPENTYPE_SANITISER_H_
 #define OPENTYPE_SANITISER_H_
 
-#if !defined(STARBOARD)
 #include <cstring>
 #define MEMCPY_OPENTYPE_SANITISER std::memcpy
-#else
-#include "starboard/memory.h"
-#define MEMCPY_OPENTYPE_SANITISER SbMemoryCopy
-#endif
 
 #if defined(STARBOARD)
 #include "starboard/common/byte_swap.h"

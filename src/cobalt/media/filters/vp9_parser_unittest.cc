@@ -151,11 +151,11 @@ TEST_F(Vp9ParserTest, StreamFileParsingWithCompressedHeader) {
 
     Vp9FrameContext frame_context;
     ReadContext(&frame_context);
-    EXPECT_TRUE(SbMemoryCompare(&frame_context, &fhdr.initial_frame_context,
+    EXPECT_TRUE(memcmp(&frame_context, &fhdr.initial_frame_context,
                                 sizeof(frame_context)) == 0);
     ReadContext(&frame_context);
-    EXPECT_TRUE(SbMemoryCompare(&frame_context, &fhdr.frame_context,
-                                sizeof(frame_context)) == 0);
+    EXPECT_TRUE(memcmp(&frame_context, &fhdr.frame_context,
+                       sizeof(frame_context)) == 0);
 
     // test-25fps.vp9 doesn't need frame update from driver.
     auto context_refresh_cb = GetContextRefreshCb(fhdr);
@@ -186,11 +186,11 @@ TEST_F(Vp9ParserTest, StreamFileParsingWithContextUpdate) {
 
     Vp9FrameContext frame_context;
     ReadContext(&frame_context);
-    EXPECT_TRUE(SbMemoryCompare(&frame_context, &fhdr.initial_frame_context,
+    EXPECT_TRUE(memcmp(&frame_context, &fhdr.initial_frame_context,
                                 sizeof(frame_context)) == 0);
     ReadContext(&frame_context);
-    EXPECT_TRUE(SbMemoryCompare(&frame_context, &fhdr.frame_context,
-                                sizeof(frame_context)) == 0);
+    EXPECT_TRUE(memcmp(&frame_context, &fhdr.frame_context,
+                       sizeof(frame_context)) == 0);
 
     bool should_update = ReadShouldContextUpdate();
     auto context_refresh_cb = GetContextRefreshCb(fhdr);

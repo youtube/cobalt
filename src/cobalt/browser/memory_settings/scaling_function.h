@@ -160,11 +160,6 @@ typedef base::Callback<double(double)> ScalingFunction;
 ScalingFunction MakeLinearMemoryScaler(double min_clamp_value,
                                        double max_clamp_value);
 
-// Generates a functor that will shed most of the memory of the JavaScriptGC
-// very quickly.
-ScalingFunction MakeJavaScriptGCScaler(int64_t min_consumption,
-                                       int64_t max_consumption);
-
 // Generates a functor that will shed 50% of memory when the requested
 // memory scale is .5 or less, otherwise no memory is reduced.
 ScalingFunction MakeSkiaGlyphAtlasMemoryScaler();

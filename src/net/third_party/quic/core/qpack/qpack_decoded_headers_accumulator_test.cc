@@ -92,7 +92,7 @@ TEST_F(QpackDecodedHeadersAccumulatorTest, Success) {
   ++it;
   EXPECT_TRUE(it == header_list.end());
 
-  EXPECT_EQ(SbStringGetLength("foo") + SbStringGetLength("bar"),
+  EXPECT_EQ(strlen("foo") + strlen("bar"),
             header_list.uncompressed_header_bytes());
   EXPECT_EQ(encoded_data.size(), header_list.compressed_header_bytes());
 }

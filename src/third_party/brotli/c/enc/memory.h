@@ -9,13 +9,8 @@
 #ifndef BROTLI_ENC_MEMORY_H_
 #define BROTLI_ENC_MEMORY_H_
 
-#if !defined(STARBOARD)
 #include <string.h>  /* memcpy*/
 #define MEMCPY_MEMORY memcpy
-#else
-#include "starboard/memory.h"
-#define MEMCPY_MEMORY SbMemoryCopy
-#endif
 
 #include "../common/platform.h"
 #include <brotli/types.h>

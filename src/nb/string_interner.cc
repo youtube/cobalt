@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-#include "starboard/client_porting/poem/string_leaks_poem.h"
-
 #include "nb/hash.h"
 #include "nb/string_interner.h"
 #include "starboard/client_porting/poem/string_poem.h"
@@ -99,7 +97,7 @@ const std::string& ConcurrentStringInterner::Intern(const std::string& str) {
 }
 
 const std::string& ConcurrentStringInterner::Intern(const char* c_string) {
-  return GetBucket(c_string, SbStringGetLength(c_string)).Intern(c_string);
+  return GetBucket(c_string, strlen(c_string)).Intern(c_string);
 }
 
 const std::string* ConcurrentStringInterner::Get(const std::string& str) const {
@@ -107,7 +105,7 @@ const std::string* ConcurrentStringInterner::Get(const std::string& str) const {
 }
 
 const std::string* ConcurrentStringInterner::Get(const char* c_string) const {
-  return GetBucket(c_string, SbStringGetLength(c_string)).Get(c_string);
+  return GetBucket(c_string, strlen(c_string)).Get(c_string);
 }
 
 size_t ConcurrentStringInterner::Size() const {

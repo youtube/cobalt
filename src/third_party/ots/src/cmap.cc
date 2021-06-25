@@ -9,13 +9,8 @@
 #include <utility>
 #include <vector>
 
-#if !defined(STARBOARD)
 #include <cstring>
 #define MEMCPY_CMAP std::memcpy
-#else
-#include "starboard/memory.h"
-#define MEMCPY_CMAP SbMemoryCopy
-#endif
 
 #if defined(STARBOARD)
 #include "starboard/common/byte_swap.h"

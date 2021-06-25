@@ -20,17 +20,41 @@
 #include "SkFontStyle.h"
 #include "SkTypefaceCache.h"
 
-SkTypeface_Cobalt::SkTypeface_Cobalt(int face_index, SkFontStyle style,
-                                     bool is_fixed_pitch,
-                                     const SkString& family_name)
+SkTypeface_Cobalt::SkTypeface_Cobalt(
+    int face_index, SkFontStyle style, bool is_fixed_pitch,
+    const SkString& family_name,
+    scoped_refptr<font_character_map::CharacterMap> character_map)
     : INHERITED(style, is_fixed_pitch),
       face_index_(face_index),
       family_name_(family_name),
-      synthesizes_bold_(!isBold()) {}
+      synthesizes_bold_(!isBold()),
+      character_map_(character_map) {}
 
 sk_sp<SkTypeface> SkTypeface_Cobalt::onMakeClone(
     const SkFontArguments& args) const {
   return sk_ref_sp(this);
+}
+
+void SkTypeface_Cobalt::onCharsToGlyphs(const SkUnichar uni[], int count,
+                                        SkGlyphID glyphs[]) const {
+  for (int i = 0; i < count; ++i) {
+    glyphs[i] = characterMapGetGlyphIdForCharacter(uni[i]);
+  }
+}
+
+SkGlyphID SkTypeface_Cobalt::characterMapGetGlyphIdForCharacter(
+    SkUnichar character) const {
+  CHECK(character_map_);
+
+  // Check whether the character is cached in the character map.
+  font_character_map::Character c = character_map_->Find(character);
+  if (c.is_set) return c.id;
+
+  // If the character isn't there, look it up with FreeType, then cache it.
+  SkGlyphID glyphs[1] = {0};
+  SkTypeface_FreeType::onCharsToGlyphs(&character, 1, glyphs);
+  character_map_->Insert(character, glyphs[0]);
+  return glyphs[0];
 }
 
 void SkTypeface_Cobalt::onGetFamilyName(SkString* family_name) const {
@@ -39,8 +63,9 @@ void SkTypeface_Cobalt::onGetFamilyName(SkString* family_name) const {
 
 SkTypeface_CobaltStream::SkTypeface_CobaltStream(
     std::unique_ptr<SkStreamAsset> stream, int face_index, SkFontStyle style,
-    bool is_fixed_pitch, const SkString& family_name)
-    : INHERITED(face_index, style, is_fixed_pitch, family_name),
+    bool is_fixed_pitch, const SkString& family_name,
+    scoped_refptr<font_character_map::CharacterMap> character_map)
+    : INHERITED(face_index, style, is_fixed_pitch, family_name, character_map),
       stream_(std::move(stream)) {
   LOG(INFO) << "Created SkTypeface_CobaltStream: " << family_name.c_str() << "("
             << style.weight() << ", " << style.width() << ", " << style.slant()
@@ -68,8 +93,9 @@ size_t SkTypeface_CobaltStream::GetStreamLength() const {
 SkTypeface_CobaltStreamProvider::SkTypeface_CobaltStreamProvider(
     SkFileMemoryChunkStreamProvider* stream_provider, int face_index,
     SkFontStyle style, bool is_fixed_pitch, const SkString& family_name,
-    bool disable_synthetic_bolding)
-    : INHERITED(face_index, style, is_fixed_pitch, family_name),
+    bool disable_synthetic_bolding,
+    scoped_refptr<font_character_map::CharacterMap> character_map)
+    : INHERITED(face_index, style, is_fixed_pitch, family_name, character_map),
       stream_provider_(stream_provider) {
   if (disable_synthetic_bolding) {
     synthesizes_bold_ = false;

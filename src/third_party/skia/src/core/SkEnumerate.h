@@ -12,7 +12,6 @@
 #include <iterator>
 #include <tuple>
 
-#include "include/private/SkMacros.h"
 #include "include/private/SkTLogic.h"
 
 // SkEnumerate returns a tuple with an index and the value returned by the iterator. The index always

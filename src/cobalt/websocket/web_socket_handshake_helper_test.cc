@@ -30,7 +30,7 @@ using cobalt::websocket::SecWebSocketKey;
 
 SecWebSocketKey NullMaskingKeyGenerator() {
   SecWebSocketKey::SecWebSocketKeyBytes key_bytes;
-  SbMemorySet(&key_bytes, 0, sizeof(key_bytes));
+  memset(&key_bytes, 0, sizeof(key_bytes));
   return SecWebSocketKey(key_bytes);
 }
 
@@ -83,9 +83,9 @@ TEST_F(WebSocketHandshakeHelperTest, null_key) {
   handshake_helper_.GenerateSecWebSocketKey();
   std::string null_key(SecWebSocketKey::kKeySizeInBytes, '\0');
   EXPECT_EQ(
-      SbMemoryCompare(null_key.data(),
-                      handshake_helper_.sec_websocket_key_.GetRawKeyBytes(),
-                      SecWebSocketKey::kKeySizeInBytes),
+      memcmp(null_key.data(),
+             handshake_helper_.sec_websocket_key_.GetRawKeyBytes(),
+             SecWebSocketKey::kKeySizeInBytes),
       0);
 }
 

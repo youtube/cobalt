@@ -20,7 +20,7 @@
 #define STARBOARD_COMMON_STRING_H_
 
 #include <stdarg.h>
-
+#include <cstring>
 #include <string>
 #include <vector>
 
@@ -56,7 +56,7 @@ SB_C_INLINE std::string HexEncode(const void* data,
   const char kDecToHex[] = "0123456789abcdef";
 
   std::string result;
-  auto delimiter_size = delimiter ? SbStringGetLength(delimiter) : 0;
+  auto delimiter_size = delimiter ? std::strlen(delimiter) : 0;
   result.reserve((delimiter_size + 2) * size);
 
   const uint8_t* data_in_uint8 = static_cast<const uint8_t*>(data);
@@ -70,6 +70,35 @@ SB_C_INLINE std::string HexEncode(const void* data,
   }
 
   return result;
+}
+
+template <typename CHAR>
+static SB_C_FORCE_INLINE int strlcpy(CHAR* dst, const CHAR* src, int dst_size) {
+  for (int i = 0; i < dst_size; ++i) {
+    if ((dst[i] = src[i]) == 0)  // We hit and copied the terminating NULL.
+      return i;
+  }
+
+  // We were left off at dst_size.  We over copied 1 byte.  Null terminate.
+  if (dst_size != 0)
+    dst[dst_size - 1] = 0;
+
+  // Count the rest of the |src|, and return its length in characters.
+  while (src[dst_size])
+    ++dst_size;
+  return dst_size;
+}
+
+template <typename CHAR>
+static SB_C_FORCE_INLINE int strlcat(CHAR* dst, const CHAR* src, int dst_size) {
+  int dst_length = 0;
+  for (; dst_length < dst_size; ++dst_length) {
+    if (dst[dst_length] == 0)
+      break;
+  }
+
+  return strlcpy<CHAR>(dst + dst_length, src, dst_size - dst_length) +
+         dst_length;
 }
 
 }  // namespace starboard

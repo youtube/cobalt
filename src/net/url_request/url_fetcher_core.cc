@@ -146,7 +146,7 @@ URLFetcherCore::URLFetcherCore(
           SbSystemGetExtension(kCobaltExtensionUrlFetcherObserverName));
   if (command_line.HasSwitch(URL_FETCHER_COMMAND_LINE_SWITCH) &&
       observer_extension &&
-      SbStringCompareAll(observer_extension->name,
+      strcmp(observer_extension->name,
                          kCobaltExtensionUrlFetcherObserverName) == 0 &&
       observer_extension->version >= 1) {
     observer_extension_ = observer_extension;

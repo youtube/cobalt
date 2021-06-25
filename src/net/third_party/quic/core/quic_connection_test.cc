@@ -118,9 +118,9 @@ class TaggingEncrypter : public QuicEncrypter {
       return false;
     }
     // Memmove is safe for inplace encryption.
-    SbMemoryMove(output, plaintext.data(), plaintext.size());
+    memmove(output, plaintext.data(), plaintext.size());
     output += plaintext.size();
-    SbMemorySet(output, tag_, kTagSize);
+    memset(output, tag_, kTagSize);
     *output_length = len;
     return true;
   }
@@ -184,7 +184,7 @@ class TaggingDecrypter : public QuicDecrypter {
       return false;
     }
     *output_length = ciphertext.size() - kTagSize;
-    SbMemoryCopy(output, ciphertext.data(), *output_length);
+    memcpy(output, ciphertext.data(), *output_length);
     return true;
   }
 
@@ -320,7 +320,7 @@ class TestPacketWriter : public QuicPacketWriter {
 
     if (packet.length() >= sizeof(final_bytes_of_last_packet_)) {
       final_bytes_of_previous_packet_ = final_bytes_of_last_packet_;
-      SbMemoryCopy(&final_bytes_of_last_packet_,
+      memcpy(&final_bytes_of_last_packet_,
                    packet.data() + packet.length() - 4,
                    sizeof(final_bytes_of_last_packet_));
     }
@@ -2844,7 +2844,7 @@ TEST_P(QuicConnectionTest, LargeSendWithPendingAck) {
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(8);
   size_t len = 10000;
   std::unique_ptr<char[]> data_array(new char[len]);
-  SbMemorySet(data_array.get(), '?', len);
+  memset(data_array.get(), '?', len);
   struct IOVEC iov;
   iov.iov_base = data_array.get();
   iov.iov_len = len;
@@ -6747,7 +6747,7 @@ TEST_P(QuicConnectionTest, PathDegradingAlarmForNonCryptoPackets) {
   EXPECT_FALSE(connection_.IsPathDegrading());
 
   const char data[] = "data";
-  size_t data_size = SbStringGetLength(data);
+  size_t data_size = strlen(data);
   QuicStreamOffset offset = 0;
 
   for (int i = 0; i < 2; ++i) {
@@ -6830,7 +6830,7 @@ TEST_P(QuicConnectionTest, RetransmittableOnWireSetsPingAlarm) {
   EXPECT_FALSE(connection_.GetPingAlarm()->IsSet());
 
   const char data[] = "data";
-  size_t data_size = SbStringGetLength(data);
+  size_t data_size = strlen(data);
   QuicStreamOffset offset = 0;
 
   // Send a packet.
@@ -6892,7 +6892,7 @@ TEST_P(QuicConnectionTest, NoPathDegradingAlarmIfPathIsDegrading) {
   EXPECT_FALSE(connection_.IsPathDegrading());
 
   const char data[] = "data";
-  size_t data_size = SbStringGetLength(data);
+  size_t data_size = strlen(data);
   QuicStreamOffset offset = 0;
 
   // Send the first packet. Now there's a retransmittable packet on the wire, so
@@ -6958,7 +6958,7 @@ TEST_P(QuicConnectionTest, UnmarkPathDegradingOnForwardProgress) {
   EXPECT_FALSE(connection_.IsPathDegrading());
 
   const char data[] = "data";
-  size_t data_size = SbStringGetLength(data);
+  size_t data_size = strlen(data);
   QuicStreamOffset offset = 0;
 
   // Send the first packet. Now there's a retransmittable packet on the wire, so
@@ -7349,7 +7349,7 @@ TEST_P(QuicConnectionTest, PingAfterLastRetransmittablePacketAcked) {
       .WillRepeatedly(Return(true));
 
   const char data[] = "data";
-  size_t data_size = SbStringGetLength(data);
+  size_t data_size = strlen(data);
   QuicStreamOffset offset = 0;
 
   // Advance 5ms, send a retransmittable packet to the peer.
@@ -7441,7 +7441,7 @@ TEST_P(QuicConnectionTest, NoPingIfRetransmittablePacketSent) {
       .WillRepeatedly(Return(true));
 
   const char data[] = "data";
-  size_t data_size = SbStringGetLength(data);
+  size_t data_size = strlen(data);
   QuicStreamOffset offset = 0;
 
   // Advance 5ms, send a retransmittable packet to the peer.
@@ -7507,7 +7507,7 @@ TEST_P(QuicConnectionTest, OnForwardProgressConfirmed) {
   EXPECT_TRUE(connection_.connected());
 
   const char data[] = "data";
-  size_t data_size = SbStringGetLength(data);
+  size_t data_size = strlen(data);
   QuicStreamOffset offset = 0;
 
   // Send two packets.
@@ -7655,9 +7655,9 @@ TEST_P(QuicConnectionTest, PathChallengeResponse) {
   // The final check is to ensure that the random data in the response matches
   // the random data from the challenge.
   EXPECT_EQ(
-      0, SbMemoryCompare(&challenge_data,
-                         &(writer_->path_response_frames().front().data_buffer),
-                         sizeof(challenge_data)));
+      0, memcmp(&challenge_data,
+                &(writer_->path_response_frames().front().data_buffer),
+                sizeof(challenge_data)));
 }
 
 // Regression test for b/110259444

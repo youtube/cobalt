@@ -29,7 +29,7 @@ void* DefaultWinHeapCallocImpl(const AllocatorDispatch* self,
 
   void* result = DefaultWinHeapMallocImpl(self, size, context);
   if (result) {
-    SbMemorySet(result, 0, size);
+    memset(result, 0, size);
   }
   return result;
 }

@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/media.h"
+#include "starboard/shared/starboard/media/media_support_internal.h"
 
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/media_common.h"
+#include "starboard/media.h"
 #include "starboard/string.h"
 
 bool SbMediaIsSupported(SbMediaVideoCodec video_codec,
@@ -24,7 +25,7 @@ bool SbMediaIsSupported(SbMediaVideoCodec video_codec,
   using starboard::android::shared::IsWidevineL1;
   using starboard::android::shared::JniEnvExt;
 
-  if (SbStringFindCharacter(key_system, ';')) {
+  if (strchr(key_system, ';')) {
     // TODO: Remove this check and enable key system with attributes support.
     return false;
   }

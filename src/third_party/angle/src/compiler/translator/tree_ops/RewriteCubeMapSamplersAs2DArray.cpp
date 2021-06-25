@@ -16,14 +16,13 @@
 #include "compiler/translator/tree_util/IntermNode_util.h"
 #include "compiler/translator/tree_util/IntermTraverse.h"
 #include "compiler/translator/tree_util/ReplaceVariable.h"
-#include "nb/cpp14oncpp11.h"
 
 namespace sh
 {
 namespace
 {
-CONSTEXPR ImmutableString kCoordTransformFuncName("ANGLECubeMapCoordTransform");
-CONSTEXPR ImmutableString kCoordTransformFuncNameImplicit("ANGLECubeMapCoordTransformImplicit");
+constexpr ImmutableString kCoordTransformFuncName("ANGLECubeMapCoordTransform");
+constexpr ImmutableString kCoordTransformFuncNameImplicit("ANGLECubeMapCoordTransformImplicit");
 
 TIntermTyped *DerivativeQuotient(TIntermTyped *u,
                                  TIntermTyped *du,

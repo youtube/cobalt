@@ -3,8 +3,92 @@ layout: doc
 title: "Starboard Module Reference: event.h"
 ---
 
+For SB_API_VERSION >= 13
+
+Module Overview: Starboard Event module
+
 Defines the event system that wraps the Starboard main loop and entry point.
-The Starboard Application Lifecycle
+
+## The Starboard Application Lifecycle ##
+
+```
+               * ----------
+               |           |
+             Start         |
+               |           |
+               V           |
+         [===========]     |
+    ---> [  STARTED  ]     |
+   |     [===========]     |
+   |           |           |
+ Focus       Blur      Preload
+   |           |           |
+   |           V           |
+    ---- [===========]     |
+    ---> [  BLURRED  ]     |
+   |     [===========]     |
+   |           |           |
+ Reveal     Conceal        |
+   |           |           |
+   |           V           |
+   |     [===========]     |
+    ---- [ CONCEALED ] <---
+    ---> [===========]
+   |           |
+Unfreeze     Freeze
+   |           |
+   |           V
+   |     [===========]
+    ---- [  FROZEN   ]
+         [===========]
+               |
+              Stop
+               |
+               V
+         [===========]
+         [  STOPPED  ]
+         [===========]
+
+```
+
+The first event that a Starboard application receives is either `Start`
+(`kSbEventTypeStart`) or `Preload` (`kSbEventTypePreload`). `Start` puts the
+application in the `STARTED` state, whereas `Preload` puts the application in
+the `CONCEALED` state.
+
+In the `STARTED` state, the application is in the foreground and can expect to
+do all of the normal things it might want to do. Once in the `STARTED` state, it
+may receive a `Blur` event, putting the application into the `BLURRED` state.
+
+In the `BLURRED` state, the application is still visible, but has lost focus, or
+it is partially obscured by a modal dialog, or it is on its way to being shut
+down. The application should blur activity in this state. In this state, it can
+receive `Focus` to be brought back to the foreground state (`STARTED`), or
+`Conceal` to be pushed to the `CONCEALED` state.
+
+In the `CONCEALED` state, the application should behave as it should for an
+invisible program that can still run, and that can optionally access the network
+and playback audio, albeit potentially will have less CPU and memory available.
+The application may get switched from `CONCEALED` to `FROZEN` at any time, when
+the platform decides to do so.
+
+In the `FROZEN` state, the application is not visible. It should immediately
+release all graphics and video resources, and shut down all background activity
+(timers, rendering, etc). Additionally, the application should flush storage to
+ensure that if the application is killed, the storage will be up-to-date. The
+application may be killed at this point, but will ideally receive a `Stop` event
+for a more graceful shutdown.
+
+Note that the application is always expected to transition through `BLURRED`,
+`CONCEALED` to `FROZEN` before receiving `Stop` or being killed.
+
+For SB_API_VERSION < 13
+
+Module Overview: Starboard Event module
+
+Defines the event system that wraps the Starboard main loop and entry point.
+
+## The Starboard Application Lifecycle ##
 
 ```
     ---------- *
@@ -91,7 +175,7 @@ the type of the value pointed to by that data argument, if any.
     SbEventStartData is passed as the data argument.
 
     The system may send `kSbEventTypeSuspend` in `PRELOADING` if it wants to
-    push the app into a lower resource consumption state. Applications can alo
+    push the app into a lower resource consumption state. Applications can also
     call SbSystemRequestSuspend() when they are done preloading to request this.
 *   `kSbEventTypeStart`
 
@@ -136,7 +220,7 @@ the type of the value pointed to by that data argument, if any.
 *   `kSbEventTypeStop`
 
     The operating system will shut the application down entirely after this
-    event is handled. Can only be recieved after a Suspend event, in the
+    event is handled. Can only be received after a Suspend event, in the
     SUSPENDED state. No data argument.
 *   `kSbEventTypeInput`
 
@@ -171,10 +255,11 @@ the type of the value pointed to by that data argument, if any.
     query the accessibility settings using the appropriate APIs to get the new
     settings. Note this excludes captions settings changes, which causes
     kSbEventTypeAccessibilityCaptionSettingsChanged to fire. If the starboard
-    version has kSbEventTypeAccessiblityTextToSpeechSettingsChanged, then that
-    event should be used to signal text-to-speech settings changes instead;
+    version has kSbEventTypeAccessib(i)lityTextToSpeechSettingsChanged, then
+    that event should be used to signal text-to-speech settings changes instead;
     platforms using older starboard versions should use
-    kSbEventTypeAccessiblitySettingsChanged for text-to-speech settings changes.
+    kSbEventTypeAccessib(i)litySettingsChanged for text-to-speech settings
+    changes.
 *   `kSbEventTypeLowMemory`
 
     An optional event that platforms may send to indicate that the application
@@ -234,7 +319,7 @@ the type of the value pointed to by that data argument, if any.
     ticket value kSbEventOnScreenKeyboardInvalidTicket.
 *   `kSbEventTypeAccessibilityCaptionSettingsChanged`
 
-    SB_HAS(ON_SCREEN_KEYBOARD) One or more of the fields returned by
+    SB_HAS(ON_SCREEN_KEYBOARD)One or more of the fields returned by
     SbAccessibilityGetCaptionSettings has changed.
 *   `kSbEventTypeAccessiblityTextToSpeechSettingsChanged`
 

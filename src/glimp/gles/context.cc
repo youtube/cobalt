@@ -2089,7 +2089,7 @@ void Context::VertexAttribfv(GLuint indx,
   SB_DCHECK(elem_size <= 4);
 
   VertexAttributeConstant* value = &const_vertex_attrib_map_[indx];
-  SbMemorySet(value, 0, sizeof(*value));
+  memset(value, 0, sizeof(*value));
   for (int i = 0; i < elem_size; ++i) {
     value->data[i] = values[i];
   }

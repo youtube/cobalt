@@ -178,7 +178,7 @@ int BIO_write(BIO *bio, const void *in, int inl) {
 }
 
 int BIO_puts(BIO *bio, const char *in) {
-  return BIO_write(bio, in, OPENSSL_port_strlen(in));
+  return BIO_write(bio, in, strlen(in));
 }
 
 int BIO_flush(BIO *bio) {

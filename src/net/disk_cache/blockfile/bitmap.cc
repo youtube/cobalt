@@ -75,7 +75,7 @@ void Bitmap::Resize(int num_bits, bool clear_bits) {
     uint32_t* new_map = new uint32_t[array_size_];
     // Always clear the unused bits in the last word.
     new_map[array_size_ - 1] = 0;
-    SbMemoryCopy(new_map, map_,
+    memcpy(new_map, map_,
                  sizeof(*map_) * std::min(array_size_, old_array_size));
     if (alloc_)
       delete[] map_;  // No need to check for NULL.
@@ -129,7 +129,7 @@ uint32_t Bitmap::GetMapElement(int array_index) const {
 }
 
 void Bitmap::SetMap(const uint32_t* map, int size) {
-  SbMemoryCopy(map_, map, std::min(size, array_size_) * sizeof(*map_));
+  memcpy(map_, map, std::min(size, array_size_) * sizeof(*map_));
 }
 
 void Bitmap::SetRange(int begin, int end, bool value) {
@@ -151,7 +151,7 @@ void Bitmap::SetRange(int begin, int end, bool value) {
   SetWordBits(end, end_offset, value);
 
   // Set all the words in the middle.
-  SbMemorySet(map_ + (begin / kIntBits), (value ? 0xFF : 0x00),
+  memset(map_ + (begin / kIntBits), (value ? 0xFF : 0x00),
               ((end / kIntBits) - (begin / kIntBits)) * sizeof(*map_));
 }
 

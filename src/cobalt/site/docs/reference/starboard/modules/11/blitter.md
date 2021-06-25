@@ -12,7 +12,8 @@ This API is designed to allow implementations make use of GPU hardware
 acceleration, if it is available. Draw commands exist for solid-color rectangles
 and rasterization/blitting of rectangular images onto rectangular target
 patches.
-Threading Concerns
+
+## Threading Concerns ##
 
 Note that in general the Blitter API is not thread safe, except for all
 `SbBlitterDevice`-related functions. All functions that are not required to
@@ -23,14 +24,15 @@ Functions which claim to not be thread safe can still be used from multiple
 threads, but manual synchronization must be performed in order to ensure their
 parameters are not referenced at the same time on another thread by another
 function.
-Examples
+
+### Examples ###
 
 *   Multiple threads should not issue commands to the same `SbBlitterContext`
     object unless they are manually synchronized.
 
 *   Multiple threads should not issue draw calls to the same render target, even
     if the draw calls are made within separate contexts. In this case, be sure
-    to manually synchronize through the use of syncrhonization primitives and
+    to manually synchronize through the use of synchronization primitives and
     use of the `SbBlitterFlushContext()` command.
 
 *   Multiple threads can operate on the swap chain, but they must perform manual

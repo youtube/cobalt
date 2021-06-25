@@ -81,7 +81,7 @@ void* QuicMsgHdr::GetNextCmsgDataInternal(int cmsg_level,
 
   if (cmsg_ == nullptr) {
     DCHECK_EQ(nullptr, hdr_.msg_control);
-    SbMemorySet(cbuf_, 0, cbuf_size_);
+    memset(cbuf_, 0, cbuf_size_);
     hdr_.msg_control = cbuf_;
     cmsg_ = CMSG_FIRSTHDR(&hdr_);
   } else {
@@ -272,10 +272,10 @@ size_t QuicSocketUtils::SetIpInfoInCmsg(const QuicIpAddress& self_address,
     cmsg->cmsg_level = IPPROTO_IP;
     cmsg->cmsg_type = IP_PKTINFO;
     in_pktinfo* pktinfo = reinterpret_cast<in_pktinfo*>(CMSG_DATA(cmsg));
-    SbMemorySet(pktinfo, 0, sizeof(in_pktinfo));
+    memset(pktinfo, 0, sizeof(in_pktinfo));
     pktinfo->ipi_ifindex = 0;
     address_string = self_address.ToPackedString();
-    SbMemoryCopy(&pktinfo->ipi_spec_dst, address_string.c_str(),
+    memcpy(&pktinfo->ipi_spec_dst, address_string.c_str(),
                  address_string.length());
     return sizeof(in_pktinfo);
   } else if (self_address.IsIPv6()) {
@@ -283,9 +283,9 @@ size_t QuicSocketUtils::SetIpInfoInCmsg(const QuicIpAddress& self_address,
     cmsg->cmsg_level = IPPROTO_IPV6;
     cmsg->cmsg_type = IPV6_PKTINFO;
     in6_pktinfo* pktinfo = reinterpret_cast<in6_pktinfo*>(CMSG_DATA(cmsg));
-    SbMemorySet(pktinfo, 0, sizeof(in6_pktinfo));
+    memset(pktinfo, 0, sizeof(in6_pktinfo));
     address_string = self_address.ToPackedString();
-    SbMemoryCopy(&pktinfo->ipi6_addr, address_string.c_str(),
+    memcpy(&pktinfo->ipi6_addr, address_string.c_str(),
                  address_string.length());
     return sizeof(in6_pktinfo);
   } else {
@@ -365,11 +365,11 @@ void QuicSocketUtils::SetIpInfoInCmsgData(const QuicIpAddress& self_address,
   if (self_address.IsIPv4()) {
     in_pktinfo* pktinfo = static_cast<in_pktinfo*>(cmsg_data);
     pktinfo->ipi_ifindex = 0;
-    SbMemoryCopy(&pktinfo->ipi_spec_dst, address_str.c_str(),
+    memcpy(&pktinfo->ipi_spec_dst, address_str.c_str(),
                  address_str.length());
   } else if (self_address.IsIPv6()) {
     in6_pktinfo* pktinfo = static_cast<in6_pktinfo*>(cmsg_data);
-    SbMemoryCopy(&pktinfo->ipi6_addr, address_str.c_str(),
+    memcpy(&pktinfo->ipi6_addr, address_str.c_str(),
                  address_str.length());
   } else {
     QUIC_BUG << "Unrecognized IPAddress";

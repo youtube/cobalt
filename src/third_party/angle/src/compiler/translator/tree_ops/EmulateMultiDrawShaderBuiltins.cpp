@@ -23,7 +23,6 @@
 #include "compiler/translator/tree_util/IntermTraverse.h"
 #include "compiler/translator/tree_util/ReplaceVariable.h"
 #include "compiler/translator/util.h"
-#include "nb/cpp14oncpp11.h"
 
 namespace sh
 {
@@ -31,7 +30,7 @@ namespace sh
 namespace
 {
 
-CONSTEXPR const ImmutableString kEmulatedGLDrawIDName("angle_DrawID");
+constexpr const ImmutableString kEmulatedGLDrawIDName("angle_DrawID");
 
 class FindGLDrawIDTraverser : public TIntermTraverser
 {
@@ -72,7 +71,7 @@ class AddBaseVertexToGLVertexIDTraverser : public TIntermTraverser
     }
 };
 
-CONSTEXPR const ImmutableString kEmulatedGLBaseVertexName("angle_BaseVertex");
+constexpr const ImmutableString kEmulatedGLBaseVertexName("angle_BaseVertex");
 
 class FindGLBaseVertexTraverser : public TIntermTraverser
 {
@@ -94,7 +93,7 @@ class FindGLBaseVertexTraverser : public TIntermTraverser
     const TVariable *mVariable;
 };
 
-CONSTEXPR const ImmutableString kEmulatedGLBaseInstanceName("angle_BaseInstance");
+constexpr const ImmutableString kEmulatedGLBaseInstanceName("angle_BaseInstance");
 
 class FindGLBaseInstanceTraverser : public TIntermTraverser
 {

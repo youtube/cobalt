@@ -381,7 +381,7 @@ int WebSocketBasicStream::ConvertChunkToFrame(
       DCHECK_EQ(body_size,
                 static_cast<int>(current_frame_header_->payload_length));
       auto body = base::MakeRefCounted<IOBufferWithSize>(body_size);
-      SbMemoryCopy(body->data(),
+      memcpy(body->data(),
                    incomplete_control_frame_body_->StartOfBuffer(), body_size);
       incomplete_control_frame_body_ = NULL;  // Frame now complete.
       DCHECK(is_final_chunk);
@@ -450,7 +450,7 @@ void WebSocketBasicStream::AddToIncompleteControlFrameBody(
   CHECK_GE(incomplete_control_frame_body_->capacity(), new_offset)
       << "Control frame body larger than frame header indicates; frame parser "
          "bug?";
-  SbMemoryCopy(incomplete_control_frame_body_->data(), data_buffer->data(),
+  memcpy(incomplete_control_frame_body_->data(), data_buffer->data(),
                data_buffer->size());
   incomplete_control_frame_body_->set_offset(new_offset);
 }

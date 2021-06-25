@@ -62,6 +62,11 @@ std::string GetSystemLanguageScript() {
   if (U_SUCCESS(icu_result) && buffer[0]) {
     language += "-";
     language += buffer;
+  } else {
+    uloc_addLikelySubtags(NULL, buffer, arraysize(buffer), &icu_result);
+    if (U_SUCCESS(icu_result) && buffer[0]) {
+      return buffer;
+    }
   }
 
   // We should end up with something like "en" or "en-Latn".

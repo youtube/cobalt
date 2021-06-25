@@ -527,7 +527,7 @@ class BeforeHeadersSentHandler {
 void FillLargeHeadersString(std::string* str, int size) {
   const char row[] =
       "SomeHeaderName: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\r\n";
-  const int sizeof_row = SbStringGetLength(row);
+  const int sizeof_row = strlen(row);
   const int num_rows = static_cast<int>(
       ceil(static_cast<float>(size) / sizeof_row));
   const int sizeof_data = num_rows * sizeof_row;
@@ -549,7 +549,7 @@ uint64_t MockGetMSTime() {
 void MockGenerateRandom(uint8_t* output, size_t n) {
   // This is set to 0xaa because the client challenge for testing in
   // [MS-NLMP] Section 4.2.1 is 8 bytes of 0xaa.
-  SbMemorySet(output, 0xaa, n);
+  memset(output, 0xaa, n);
 }
 
 std::string MockGetHostName() {
@@ -928,7 +928,7 @@ TEST_F(HttpNetworkTransactionTest, StopsReading204) {
   EXPECT_EQ("HTTP/1.1 204 No Content", out.status_line);
   EXPECT_EQ("", out.response_data);
   int64_t reads_size = CountReadBytes(data_reads);
-  int64_t response_size = reads_size - SbStringGetLength(junk);
+  int64_t response_size = reads_size - strlen(junk);
   EXPECT_EQ(response_size, out.total_received_bytes);
 }
 
@@ -1562,12 +1562,12 @@ void HttpNetworkTransactionTest::PreconnectErrorResendRequestTest(
     data2_reads.push_back(MockRead(ASYNC, OK, 3));
   } else {
     data2_writes.push_back(
-        MockWrite(ASYNC, kHttpRequest, SbStringGetLength(kHttpRequest), 0));
+        MockWrite(ASYNC, kHttpRequest, strlen(kHttpRequest), 0));
 
     data2_reads.push_back(
-        MockRead(ASYNC, kHttpResponse, SbStringGetLength(kHttpResponse), 1));
+        MockRead(ASYNC, kHttpResponse, strlen(kHttpResponse), 1));
     data2_reads.push_back(
-        MockRead(ASYNC, kHttpData, SbStringGetLength(kHttpData), 2));
+        MockRead(ASYNC, kHttpData, strlen(kHttpData), 2));
     data2_reads.push_back(MockRead(ASYNC, OK, 3));
   }
   SequencedSocketData data2(data2_reads, data2_writes);

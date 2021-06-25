@@ -28,7 +28,7 @@ SignedTreeHead::SignedTreeHead(Version version,
       tree_size(tree_size),
       signature(signature),
       log_id(log_id) {
-  SbMemoryCopy(this->sha256_root_hash, sha256_root_hash, kSthRootHashLength);
+  memcpy(this->sha256_root_hash, sha256_root_hash, kSthRootHashLength);
 }
 
 SignedTreeHead::SignedTreeHead(const SignedTreeHead& other) = default;
@@ -50,7 +50,7 @@ void PrintTo(const SignedTreeHead& sth, std::ostream* os) {
 bool operator==(const SignedTreeHead& lhs, const SignedTreeHead& rhs) {
   return std::tie(lhs.version, lhs.timestamp, lhs.tree_size, lhs.log_id) ==
              std::tie(rhs.version, rhs.timestamp, rhs.tree_size, rhs.log_id) &&
-         SbMemoryCompare(lhs.sha256_root_hash, rhs.sha256_root_hash,
+         memcmp(lhs.sha256_root_hash, rhs.sha256_root_hash,
                          kSthRootHashLength) == 0 &&
          lhs.signature.SignatureParametersMatch(
              rhs.signature.hash_algorithm, rhs.signature.signature_algorithm) &&

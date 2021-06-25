@@ -87,7 +87,7 @@ scoped_refptr<render_tree::Image> ResourceProvider::CreateImage(
 scoped_refptr<render_tree::Image>
 ResourceProvider::CreateImageFromSbDecodeTarget(SbDecodeTarget decode_target) {
   SbDecodeTargetInfo info;
-  SbMemorySet(&info, 0, sizeof(info));
+  memset(&info, 0, sizeof(info));
   CHECK(SbDecodeTargetGetInfo(decode_target, &info));
 
   SbDecodeTargetFormat format = info.format;
@@ -148,6 +148,10 @@ scoped_refptr<Typeface> ResourceProvider::GetCharacterFallbackTypeface(
     int32 utf32_character, FontStyle font_style, const std::string& language) {
   return skia_resource_provider_->GetCharacterFallbackTypeface(
       utf32_character, font_style, language);
+}
+
+void ResourceProvider::LoadAdditionalFonts() {
+  return skia_resource_provider_->LoadAdditionalFonts();
 }
 
 scoped_refptr<Typeface> ResourceProvider::CreateTypefaceFromRawData(

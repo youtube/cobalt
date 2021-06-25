@@ -140,13 +140,13 @@ bool IsSameCertificate(CERTCertificate* a, CERTCertificate* b) {
   if (a == b)
     return true;
   return a->derCert.len == b->derCert.len &&
-         SbMemoryCompare(a->derCert.data, b->derCert.data, a->derCert.len) == 0;
+         memcmp(a->derCert.data, b->derCert.data, a->derCert.len) == 0;
 }
 
 bool IsSameCertificate(CERTCertificate* a, const X509Certificate* b) {
   return a->derCert.len == CRYPTO_BUFFER_len(b->cert_buffer()) &&
-         SbMemoryCompare(a->derCert.data, CRYPTO_BUFFER_data(b->cert_buffer()),
-                         a->derCert.len) == 0;
+         memcmp(a->derCert.data, CRYPTO_BUFFER_data(b->cert_buffer()),
+                a->derCert.len) == 0;
 }
 bool IsSameCertificate(const X509Certificate* a, CERTCertificate* b) {
   return IsSameCertificate(b, a);
@@ -363,7 +363,7 @@ void GetUPNSubjectAltNames(CERTCertificate* cert_handle,
     if (name->type == certOtherName) {
       OtherName* on = &name->name.OthName;
       if (on->oid.len == sizeof(kUpnOid) &&
-          SbMemoryCompare(on->oid.data, kUpnOid, sizeof(kUpnOid)) == 0) {
+          memcmp(on->oid.data, kUpnOid, sizeof(kUpnOid)) == 0) {
         SECItem decoded;
         if (SEC_QuickDERDecodeItem(arena.get(), &decoded,
                                    SEC_ASN1_GET(SEC_UTF8StringTemplate),
@@ -430,7 +430,7 @@ bool GetValidityTimes(CERTCertificate* cert,
 
 SHA256HashValue CalculateFingerprint256(CERTCertificate* cert) {
   SHA256HashValue sha256;
-  SbMemorySet(sha256.data, 0, sizeof(sha256.data));
+  memset(sha256.data, 0, sizeof(sha256.data));
 
   DCHECK(cert->derCert.data);
   DCHECK_NE(0U, cert->derCert.len);

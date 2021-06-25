@@ -662,8 +662,8 @@ static bool is_cipher_list_separator(char c, int is_strict) {
 // rule_equals returns whether the NUL-terminated string |rule| is equal to the
 // |buf_len| bytes at |buf|.
 static bool rule_equals(const char *rule, const char *buf, size_t buf_len) {
-  // |OPENSSL_port_strncmp| alone only checks that |buf| is a prefix of |rule|.
-  return OPENSSL_port_strncmp(rule, buf, buf_len) == 0 && rule[buf_len] == '\0';
+  // |strncmp| alone only checks that |buf| is a prefix of |rule|.
+  return strncmp(rule, buf, buf_len) == 0 && rule[buf_len] == '\0';
 }
 
 static void ll_append_tail(CIPHER_ORDER **head, CIPHER_ORDER *curr,
@@ -1100,7 +1100,7 @@ static bool ssl_cipher_process_rulestr(const char *rule_str,
 
     // Ok, we have the rule, now apply it.
     if (rule == CIPHER_SPECIAL) {
-      if (buf_len != 8 || OPENSSL_port_strncmp(buf, "STRENGTH", 8) != 0) {
+      if (buf_len != 8 || strncmp(buf, "STRENGTH", 8) != 0) {
         OPENSSL_PUT_ERROR(SSL, SSL_R_INVALID_COMMAND);
         return false;
       }
@@ -1199,7 +1199,7 @@ bool ssl_create_cipher_list(UniquePtr<SSLCipherPreferenceList> *out_cipher_list,
   // If the rule_string begins with DEFAULT, apply the default rule before
   // using the (possibly available) additional rules.
   const char *rule_p = rule_str;
-  if (OPENSSL_port_strncmp(rule_str, "DEFAULT", 7) == 0) {
+  if (strncmp(rule_str, "DEFAULT", 7) == 0) {
     if (!ssl_cipher_process_rulestr(SSL_DEFAULT_CIPHER_LIST, &head, &tail,
                                     strict)) {
       return false;

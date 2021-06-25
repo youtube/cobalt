@@ -2383,17 +2383,17 @@ void SpdySession::SendInitialData() {
 #endif
   size_t offset = 0;
 
-  SbMemoryCopy(initial_frame_data.get() + offset,
+  memcpy(initial_frame_data.get() + offset,
                spdy::kHttp2ConnectionHeaderPrefix,
                spdy::kHttp2ConnectionHeaderPrefixSize);
   offset += spdy::kHttp2ConnectionHeaderPrefixSize;
 
-  SbMemoryCopy(initial_frame_data.get() + offset, settings_frame->data(),
+  memcpy(initial_frame_data.get() + offset, settings_frame->data(),
                settings_frame->size());
   offset += settings_frame->size();
 
   if (send_window_update) {
-    SbMemoryCopy(initial_frame_data.get() + offset, window_update_frame->data(),
+    memcpy(initial_frame_data.get() + offset, window_update_frame->data(),
                  window_update_frame->size());
   }
 

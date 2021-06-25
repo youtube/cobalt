@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "starboard/common/memory.h"
 #include "starboard/configuration.h"
 #include "starboard/memory.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -28,7 +29,7 @@ TEST(SbMemoryAllocateAlignedTest, AllocatesAligned) {
   for (size_t align = 2; align < kMaxAlign; align <<= 1) {
     void* memory = SbMemoryAllocateAligned(align, kSize);
     ASSERT_NE(static_cast<void*>(NULL), memory);
-    EXPECT_TRUE(SbMemoryIsAligned(memory, align));
+    EXPECT_TRUE(starboard::common::MemoryIsAligned(memory, align));
     SbMemoryDeallocateAligned(memory);
   }
 }
@@ -41,7 +42,7 @@ TEST(SbMemoryAllocateAlignedTest, AllocatesAlignedZero) {
     // allocated zero-size memory block, and some implementations may return
     // NULL.
     if (memory) {
-      EXPECT_TRUE(SbMemoryIsAligned(memory, align));
+      EXPECT_TRUE(starboard::common::MemoryIsAligned(memory, align));
     }
     SbMemoryDeallocateAligned(memory);
   }

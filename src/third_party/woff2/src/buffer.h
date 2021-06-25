@@ -39,13 +39,8 @@ typedef unsigned __int64 uint64_t;
 #define woff2_htons(x) htons (x)
 #endif
 
-#if !defined(STARBOARD)
 #include <cstring>
 #define MEMCPY_BUFFER std::memcpy
-#else
-#include "starboard/memory.h"
-#define MEMCPY_BUFFER SbMemoryCopy
-#endif
 
 #include <cstdio>
 #include <cstdlib>
