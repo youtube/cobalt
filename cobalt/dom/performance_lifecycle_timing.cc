@@ -106,8 +106,6 @@ void PerformanceLifecycleTiming::SetApplicationState(
         lifecycle_timing_info_.app_blur = timestamp;
       } else if (GetLastState() == base::kApplicationStateConcealed) {
         lifecycle_timing_info_.app_reveal = timestamp;
-      } else {
-        NOTREACHED() << "Invalid application state transition.";
       }
       break;
     case base::kApplicationStateConcealed:
