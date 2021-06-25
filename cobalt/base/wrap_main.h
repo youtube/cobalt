@@ -41,8 +41,7 @@ typedef int (*MainFunction)(int argc, char** argv);
 
 // A start-style function.
 typedef void (*StartFunction)(int argc, char** argv, const char* link,
-                              const base::Closure& quit_closure,
-                              SbTimeMonotonic timestamp);
+                              const base::Closure& quit_closure);
 
 // A function type that can be called at shutdown.
 typedef void (*StopFunction)();
@@ -53,8 +52,7 @@ typedef void (*EventFunction)(const SbEvent* event);
 // No-operation function that can be passed into start_function if no start work
 // is needed.
 void NoopStartFunction(int argc, char** argv, const char* link,
-                       const base::Closure& quit_closure,
-                       SbTimeMonotonic timestamp) {}
+                       const base::Closure& quit_closure) {}
 
 // No-operation function that can be passed into event_function if no other
 // event handling work is needed.
@@ -92,8 +90,7 @@ int BaseMain(int argc, char** argv) {
   DCHECK(!message_loop.is_running());
   base::RunLoop run_loop;
 
-  start_function(argc, argv, NULL, run_loop.QuitClosure(),
-                 0 /*Invalid timestamp*/);
+  start_function(argc, argv, NULL, run_loop.QuitClosure());
   run_loop.Run();
   stop_function();
 

@@ -53,14 +53,9 @@ void BaseEventHandler(const SbEvent* event) {
       DCHECK(!g_loop);
       g_loop = new base::MessageLoopForUI();
       g_loop->Start();
-#if SB_API_VERSION >= 13
+
       preload_function(data->argument_count, data->argument_values, data->link,
-                       base::Bind(&SbSystemRequestStop, 0), event->timestamp);
-#else  // SB_API_VERSION >= 13
-      preload_function(data->argument_count, data->argument_values, data->link,
-                       base::Bind(&SbSystemRequestStop, 0),
-                       SbTimeGetMonotonicNow());
-#endif  // SB_API_VERSION >= 13
+                       base::Bind(&SbSystemRequestStop, 0));
       g_started = true;
       break;
     }
@@ -79,14 +74,9 @@ void BaseEventHandler(const SbEvent* event) {
         g_loop = new base::MessageLoopForUI();
         g_loop->Start();
       }
-#if SB_API_VERSION >= 13
+
       start_function(data->argument_count, data->argument_values, data->link,
-                     base::Bind(&SbSystemRequestStop, 0), event->timestamp);
-#else  // SB_API_VERSION >= 13
-      start_function(data->argument_count, data->argument_values, data->link,
-                     base::Bind(&SbSystemRequestStop, 0),
-                     SbTimeGetMonotonicNow());
-#endif  // SB_API_VERSION >= 13
+                     base::Bind(&SbSystemRequestStop, 0));
       g_started = true;
       break;
     }
