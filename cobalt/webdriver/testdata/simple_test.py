@@ -276,9 +276,41 @@ def ElementScreenShotTest():
   DeleteSession(session_id)
 
 
+def ElementUniqueTest():
+  # Do a simple test that keeps running as long as the element IDs stay the
+  # same.
+  session_id = GetSessionID()
+  try:
+    initial_active_element = GetActiveElement(session_id)
+    print('initial active_element : %s' % initial_active_element)
+
+    initial_selected_element = ElementFind(session_id, 'class name',
+                                           'ytlr-tile-renderer--focused')
+    print('Selected List element : %s' % initial_selected_element)
+    while True:
+      active_element = GetActiveElement(session_id)
+      print('active_element : %s' % active_element)
+
+      if initial_active_element != active_element:
+        break
+
+      selected_element = ElementFind(session_id, 'class name',
+                                     'ytlr-tile-renderer--focused')
+      print('Selected List element : %s' % selected_element)
+
+      if initial_selected_element != selected_element:
+        break
+
+      time.sleep(1)
+
+  except KeyboardInterrupt:
+    print('Bye')
+
+
 def main():
   MouseTest()
   ElementScreenShotTest()
+  # ElementUniqueTest()
 
 
 if __name__ == '__main__':

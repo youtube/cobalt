@@ -399,6 +399,14 @@ util::CommandResult<void> WindowDriver::SendClick(
 protocol::ElementId WindowDriver::ElementToId(
     const scoped_refptr<dom::Element>& element) {
   DCHECK_EQ(base::MessageLoop::current()->task_runner(), window_task_runner_);
+  for (auto i : element_drivers_) {
+    // Note: The element_task_runner_ is the same as the window_task_runner_.
+    auto weak_element = i.second->GetWeakElement();
+    if (element == weak_element) {
+      return i.second->element_id();
+    }
+  }
+
   return CreateNewElementDriver(base::AsWeakPtr(element.get()));
 }
 
