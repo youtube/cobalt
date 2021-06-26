@@ -113,8 +113,6 @@ void PerformanceLifecycleTiming::SetApplicationState(
         lifecycle_timing_info_.app_conceal = timestamp;
       } else if (GetLastState() == base::kApplicationStateFrozen) {
         lifecycle_timing_info_.app_unfreeze = timestamp;
-      } else {
-        NOTREACHED() << "Invalid application state transition.";
       }
       break;
     case base::kApplicationStateFrozen:
