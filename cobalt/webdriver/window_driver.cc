@@ -138,6 +138,13 @@ WindowDriver::WindowDriver(
 
 WindowDriver::~WindowDriver() {
   DCHECK(thread_checker_.CalledOnValidThread());
+
+  // Ensure ElementDrivers that this WindowDriver owns are deleted on
+  // destruction of the WindowDriver.
+  for (ElementDriverMap::iterator it = element_drivers_.begin();
+      it != element_drivers_.end(); ++it) {
+    delete it->second;
+  }
 }
 
 ElementDriver* WindowDriver::GetElementDriver(
@@ -389,6 +396,15 @@ util::CommandResult<void> WindowDriver::SendClick(
 protocol::ElementId WindowDriver::ElementToId(
     const scoped_refptr<dom::Element>& element) {
   DCHECK_EQ(base::MessageLoopProxy::current(), window_message_loop_);
+  for (ElementDriverMap::iterator it = element_drivers_.begin();
+      it != element_drivers_.end(); ++it) {
+    // Note: The element_task_runner_ is the same as the window_task_runner_.
+    auto weak_element = it->second->GetWeakElement();
+    if (element == weak_element) {
+      return it->second->element_id();
+    }
+  }
+
   return CreateNewElementDriver(base::AsWeakPtr(element.get()));
 }
 
