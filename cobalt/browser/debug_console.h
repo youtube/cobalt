@@ -95,27 +95,15 @@ class DebugConsole : public LifecycleObserver {
   }
 
   // LifecycleObserver implementation.
-  void Blur(SbTimeMonotonic timestamp) override {
-    web_module_->Blur(timestamp);
-  }
+  void Blur(SbTimeMonotonic timestamp) override {}
   void Conceal(render_tree::ResourceProvider* resource_provider,
-               SbTimeMonotonic timestamp) override {
-    web_module_->Conceal(resource_provider, timestamp);
-  }
-  void Freeze(SbTimeMonotonic timestamp) override {
-    web_module_->Freeze(timestamp);
-  }
+               SbTimeMonotonic timestamp) override {}
+  void Freeze(SbTimeMonotonic timestamp) override {}
   void Unfreeze(render_tree::ResourceProvider* resource_provider,
-                SbTimeMonotonic timestamp) override {
-    web_module_->Unfreeze(resource_provider, timestamp);
-  }
+                SbTimeMonotonic timestamp) override {}
   void Reveal(render_tree::ResourceProvider* resource_provider,
-              SbTimeMonotonic timestamp) override {
-    web_module_->Reveal(resource_provider, timestamp);
-  }
-  void Focus(SbTimeMonotonic timestamp) override {
-     web_module_->Focus(timestamp);
-  }
+              SbTimeMonotonic timestamp) override {}
+  void Focus(SbTimeMonotonic timestamp) override {}
 
   void ReduceMemory() { web_module_->ReduceMemory(); }
 

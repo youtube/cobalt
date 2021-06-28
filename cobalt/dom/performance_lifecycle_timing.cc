@@ -102,24 +102,31 @@ void PerformanceLifecycleTiming::SetApplicationState(
     base::ApplicationState state, SbTimeMonotonic timestamp) {
   switch (state) {
     case base::kApplicationStateBlurred:
-      if (GetLastState() == base::kApplicationStateStarted) {
+      if (GetCurrentState() == base::kApplicationStateStarted ||
+          // TODO: Figure out why the current state is not set
+          // by SetApplicationStartOrPreloadTimestamp.
+          GetCurrentState() == base::kApplicationStateStopped) {
         lifecycle_timing_info_.app_blur = timestamp;
-      } else if (GetLastState() == base::kApplicationStateConcealed) {
+      } else if (GetCurrentState() == base::kApplicationStateConcealed) {
         lifecycle_timing_info_.app_reveal = timestamp;
+      } else {
+        NOTREACHED() << "Invalid application state transition.";
       }
       break;
     case base::kApplicationStateConcealed:
-      if (GetLastState() == base::kApplicationStateBlurred) {
+      if (GetCurrentState() == base::kApplicationStateBlurred) {
         lifecycle_timing_info_.app_conceal = timestamp;
-      } else if (GetLastState() == base::kApplicationStateFrozen) {
+      } else if (GetCurrentState() == base::kApplicationStateFrozen) {
         lifecycle_timing_info_.app_unfreeze = timestamp;
+      } else {
+        NOTREACHED() << "Invalid application state transition.";
       }
       break;
     case base::kApplicationStateFrozen:
       lifecycle_timing_info_.app_freeze = timestamp;
       break;
     case base::kApplicationStateStarted:
-      if (GetLastState() == base::kApplicationStateBlurred) {
+      if (GetCurrentState() == base::kApplicationStateBlurred) {
         if (lifecycle_timing_info_.app_preload != 0) {
           lifecycle_timing_info_.app_start = timestamp;
         }
@@ -147,8 +154,8 @@ void PerformanceLifecycleTiming::SetApplicationStartOrPreloadTimestamp(
   }
 }
 
-base::ApplicationState PerformanceLifecycleTiming::GetLastState() const {
-  return lifecycle_timing_info_.last_state;
+base::ApplicationState PerformanceLifecycleTiming::GetCurrentState() const {
+  return lifecycle_timing_info_.current_state;
 }
 
 void PerformanceLifecycleTiming::SetLifecycleTimingInfoState(

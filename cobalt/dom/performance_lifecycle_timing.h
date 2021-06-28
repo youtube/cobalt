@@ -61,7 +61,7 @@ class PerformanceLifecycleTiming : public PerformanceEntry {
   void SetLifecycleTimingInfoState(base::ApplicationState state);
   DOMHighResTimeStamp ReportDOMHighResTimeStamp(
       SbTimeMonotonic timestamp) const;
-  base::ApplicationState GetLastState() const;
+  base::ApplicationState GetCurrentState() const;
  struct LifecycleTimingInfo {
   SbTimeMonotonic app_preload = 0;
   SbTimeMonotonic app_start = 0;
