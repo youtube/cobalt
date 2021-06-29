@@ -164,8 +164,8 @@ Window::Window(
                                captions, script_value_factory)),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           relay_on_load_event_(new RelayLoadEvent(this))),
-      ALLOW_THIS_IN_INITIALIZER_LIST(
-          window_timers_(new WindowTimers(this, debugger_hooks()))),
+      ALLOW_THIS_IN_INITIALIZER_LIST(window_timers_(
+          new WindowTimers(this, debugger_hooks(), initial_application_state))),
       ALLOW_THIS_IN_INITIALIZER_LIST(animation_frame_request_callback_list_(
           new AnimationFrameRequestCallbackList(this, debugger_hooks()))),
       crypto_(new Crypto()),
@@ -540,6 +540,7 @@ void Window::SetApplicationState(base::ApplicationState state,
       state);
   if (timestamp == 0) return;
   performance_->SetApplicationState(state, timestamp);
+  window_timers_->SetApplicationState(state);
 }
 
 bool Window::ReportScriptError(const script::ErrorReport& error_report) {
