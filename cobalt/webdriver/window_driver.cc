@@ -138,13 +138,6 @@ WindowDriver::WindowDriver(
 
 WindowDriver::~WindowDriver() {
   DCHECK(thread_checker_.CalledOnValidThread());
-
-  // Ensure ElementDrivers that this WindowDriver owns are deleted on
-  // destruction of the WindowDriver.
-  for (ElementDriverMap::iterator it = element_drivers_.begin();
-      it != element_drivers_.end(); ++it) {
-    delete it->second;
-  }
 }
 
 ElementDriver* WindowDriver::GetElementDriver(
