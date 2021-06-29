@@ -16,10 +16,15 @@
 #define COBALT_DOM_WINDOW_TIMERS_H_
 
 #include <memory>
+#include <utility>
+#include <vector>
 
 #include "base/containers/hash_tables.h"
 #include "base/memory/ref_counted.h"
+#include "base/optional.h"
+#include "base/time/time.h"
 #include "base/timer/timer.h"
+#include "cobalt/base/application_state.h"
 #include "cobalt/base/debugger_hooks.h"
 #include "cobalt/script/callback_function.h"
 #include "cobalt/script/script_value.h"
@@ -33,10 +38,11 @@ class WindowTimers {
   typedef script::CallbackFunction<void()> TimerCallback;
   typedef script::ScriptValue<TimerCallback> TimerCallbackArg;
   explicit WindowTimers(script::Wrappable* const owner,
-                        const base::DebuggerHooks& debugger_hooks)
-      : current_timer_index_(0),
-        owner_(owner),
-        debugger_hooks_(debugger_hooks) {}
+                        const base::DebuggerHooks& debugger_hooks,
+                        base::ApplicationState application_state)
+      : owner_(owner),
+        debugger_hooks_(debugger_hooks),
+        application_state_(application_state) {}
   ~WindowTimers() {}
 
   int SetTimeout(const TimerCallbackArg& handler, int timeout);
@@ -55,25 +61,51 @@ class WindowTimers {
   // event queue without adding more on to the end of it.
   void DisableCallbacks();
 
+  void SetApplicationState(base::ApplicationState state);
+
  private:
-  class TimerInfo : public base::RefCounted<TimerInfo> {
+  class Timer : public base::RefCounted<Timer> {
    public:
-    TimerInfo(script::Wrappable* const owner,
-              std::unique_ptr<base::internal::TimerBase> timer,
-              const TimerCallbackArg& callback)
-        : timer_(std::move(timer)), callback_(owner, callback) {}
+    enum TimerType { kOneShot, kRepeating };
+
+    Timer(TimerType type, script::Wrappable* const owner,
+          const TimerCallbackArg& callback, int timeout, int handle,
+          WindowTimers* window_timers);
 
     base::internal::TimerBase* timer() { return timer_.get(); }
     TimerCallbackArg::Reference& callback_reference() { return callback_; }
 
+    // Pause this timer. The timer will not fire when paused.
+    void Pause();
+    // Start or Resume this timer. If the timer was paused and the desired run
+    // time is in the past, it will fire immediately.
+    void StartOrResume();
+
    private:
-    ~TimerInfo() {}
+    ~Timer() {}
+
+    // Create and start a timer of the specified TimerClass type.
+    template <class TimerClass>
+    std::unique_ptr<base::internal::TimerBase> CreateAndStart();
+
+    TimerType type_;
     std::unique_ptr<base::internal::TimerBase> timer_;
     TimerCallbackArg::Reference callback_;
+    int timeout_;
+    int handle_;
+    WindowTimers* window_timers_;
 
-    friend class base::RefCounted<TimerInfo>;
+    // Store the desired run tim of a paused timer.
+    base::Optional<base::TimeTicks> desired_run_time_;
+
+    friend class base::RefCounted<Timer>;
   };
-  typedef base::hash_map<int, scoped_refptr<TimerInfo> > Timers;
+  typedef base::hash_map<int, scoped_refptr<Timer> > Timers;
+
+  // Try to add a new timer of the given type, return the handle or 0 when
+  // failed.
+  int TryAddNewTimer(Timer::TimerType type, const TimerCallbackArg& handler,
+                     int timeout);
 
   // Returns a positive integer timer handle that hasn't been assigned, or 0
   // if none can be found.
@@ -84,13 +116,15 @@ class WindowTimers {
   void RunTimerCallback(int handle);
 
   Timers timers_;
-  int current_timer_index_;
+  int current_timer_index_ = 0;
   script::Wrappable* const owner_;
   const base::DebuggerHooks& debugger_hooks_;
 
   // Set to false when we're about to shutdown, to ensure that no new JavaScript
   // is fired as we are waiting for it to drain.
   bool callbacks_active_ = true;
+
+  base::ApplicationState application_state_;
 
   DISALLOW_COPY_AND_ASSIGN(WindowTimers);
 };
