@@ -14,6 +14,7 @@
 
 [Exposed=Window]
 interface PerformanceLifecycleTiming : PerformanceEntry {
+  readonly  attribute DOMHighResTimeStamp appPreload;
   readonly  attribute DOMHighResTimeStamp appStart;
   readonly  attribute DOMHighResTimeStamp appBlur;
   readonly  attribute DOMHighResTimeStamp appFocus;
@@ -21,7 +22,6 @@ interface PerformanceLifecycleTiming : PerformanceEntry {
   readonly  attribute DOMHighResTimeStamp appReveal;
   readonly  attribute DOMHighResTimeStamp appFreeze;
   readonly  attribute DOMHighResTimeStamp appUnfreeze;
-  readonly  attribute DOMHighResTimeStamp appStop;
   readonly  attribute DOMString  currentState;
   readonly  attribute DOMString  lastState;
 };

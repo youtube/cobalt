@@ -129,7 +129,8 @@ cobalt::browser::Application* g_application = NULL;
 base::Thread* g_snapshot_thread = NULL;
 
 void StartApplication(int argc, char* argv[], const char* link,
-                      const base::Closure& quit_closure) {
+                      const base::Closure& quit_closure,
+                      SbTimeMonotonic timestamp) {
   logging::SetMinLogLevel(100);
 
   // Use null storage for our savegame so that we don't persist state from
@@ -142,7 +143,8 @@ void StartApplication(int argc, char* argv[], const char* link,
 
   // Create the application object just like is done in the Cobalt main app.
   g_application =
-      new cobalt::browser::Application(quit_closure, false /*should_preload*/);
+      new cobalt::browser::Application(quit_closure, false /*should_preload*/,
+                                       timestamp);
 
   // Create a thread to start a timer for kSecondsToWait seconds after which
   // we will take a snapshot of the CVals at that time and then quit the

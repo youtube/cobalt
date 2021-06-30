@@ -409,6 +409,8 @@ class WebModule : public LifecycleObserver {
 
   scoped_refptr<render_tree::Node> DoSynchronousLayoutAndGetRenderTree();
 
+  void SetApplicationStartOrPreloadTimestamp(bool is_preload,
+                                             SbTimeMonotonic timestamp);
  private:
   // Data required to construct a WebModule, initialized in the constructor and
   // passed to |Initialize|.

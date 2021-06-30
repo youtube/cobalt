@@ -28,7 +28,8 @@ namespace {
 cobalt::script::StandaloneJavascriptRunner* g_javascript_runner = NULL;
 
 void StartApplication(int argc, char** argv, const char* link,
-                      const base::Closure& quit_closure) {
+                      const base::Closure& quit_closure,
+                      SbTimeMonotonic timestamp) {
   scoped_refptr<Window> test_window = new Window();
   cobalt::script::JavaScriptEngine::Options javascript_engine_options;
 

@@ -2,10 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#if defined(V8_OS_STARBOARD)
-#include "starboard/client_porting/poem/stdio_leaks_poem.h"
-#endif
-
 #include "src/tracing/traced-value.h"
 
 #include "src/base/platform/platform.h"

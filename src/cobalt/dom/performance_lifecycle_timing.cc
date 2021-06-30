@@ -19,51 +19,153 @@
 namespace cobalt {
 namespace dom {
 
+namespace {
+
+  std::string TranslateApplicationStateToString(
+      base::ApplicationState state) {
+    switch (state) {
+      case base::kApplicationStateBlurred:
+        return "ApplicationStateBlurred";
+      case base::kApplicationStateConcealed:
+        return "ApplicationStateConcealed";
+      case base::kApplicationStateFrozen:
+        return "ApplicationStateFrozen";
+      case base::kApplicationStateStarted:
+        return "ApplicationStateStarted";
+      case base::kApplicationStateStopped:
+        return "ApplicationStateStopped";
+    }
+
+    NOTREACHED() << "state = " << state;
+    return "INVALID_APPLICATION_STATE";
+  }
+
+  DOMHighResTimeStamp ConvertSbTimeMonotonicToDOMHiResTimeStamp(
+      base::TimeTicks time_origin, SbTimeMonotonic monotonic_time) {
+    SbTimeMonotonic time_delta = SbTimeGetNow() - SbTimeGetMonotonicNow();
+    base::TimeTicks time_ticks =
+        base::TimeTicks::FromInternalValue(time_delta + monotonic_time);
+    return Performance::MonotonicTimeToDOMHighResTimeStamp(
+        time_origin, time_ticks);
+  }
+
+}  // namespace
+
 PerformanceLifecycleTiming::PerformanceLifecycleTiming(
-    const std::string& name, DOMHighResTimeStamp start_time,
-    DOMHighResTimeStamp end_time)
-    : PerformanceEntry(name, start_time, end_time),
-    current_state_("unstarted"),
-    last_state_("unstarted") {}
+    const std::string& name, base::TimeTicks time_origin)
+    : PerformanceEntry(name, 0.0, 0.0), time_origin_(time_origin) {}
+
+
+DOMHighResTimeStamp PerformanceLifecycleTiming::app_preload() const {
+  return ReportDOMHighResTimeStamp(lifecycle_timing_info_.app_preload);
+}
 
 DOMHighResTimeStamp PerformanceLifecycleTiming::app_start() const {
-  return PerformanceEntry::start_time();
+  return ReportDOMHighResTimeStamp(lifecycle_timing_info_.app_start);
 }
 
 DOMHighResTimeStamp PerformanceLifecycleTiming::app_blur() const {
-  return PerformanceEntry::start_time();
+  return ReportDOMHighResTimeStamp(lifecycle_timing_info_.app_blur);
 }
 
 DOMHighResTimeStamp PerformanceLifecycleTiming::app_focus() const {
-  return PerformanceEntry::start_time();
+  return ReportDOMHighResTimeStamp(lifecycle_timing_info_.app_focus);
 }
 
 DOMHighResTimeStamp PerformanceLifecycleTiming::app_conceal() const {
-  return PerformanceEntry::start_time();
+  return ReportDOMHighResTimeStamp(lifecycle_timing_info_.app_conceal);
 }
 
 DOMHighResTimeStamp PerformanceLifecycleTiming::app_reveal() const {
-  return PerformanceEntry::start_time();
+  return ReportDOMHighResTimeStamp(lifecycle_timing_info_.app_reveal);
 }
 
 DOMHighResTimeStamp PerformanceLifecycleTiming::app_freeze() const {
-  return PerformanceEntry::start_time();
+  return ReportDOMHighResTimeStamp(lifecycle_timing_info_.app_freeze);
 }
 
 DOMHighResTimeStamp PerformanceLifecycleTiming::app_unfreeze() const {
-  return PerformanceEntry::start_time();
-}
-
-DOMHighResTimeStamp PerformanceLifecycleTiming::app_stop() const {
-  return PerformanceEntry::start_time();
+  return ReportDOMHighResTimeStamp(lifecycle_timing_info_.app_unfreeze);
 }
 
 std::string PerformanceLifecycleTiming::current_state() const {
-  return current_state_;
+  return TranslateApplicationStateToString(
+      lifecycle_timing_info_.current_state);
 }
 
 std::string PerformanceLifecycleTiming::last_state() const {
-  return last_state_;
+  return TranslateApplicationStateToString(
+      lifecycle_timing_info_.last_state);
+}
+
+void PerformanceLifecycleTiming::SetApplicationState(
+    base::ApplicationState state, SbTimeMonotonic timestamp) {
+  switch (state) {
+    case base::kApplicationStateBlurred:
+      if (GetLastState() == base::kApplicationStateStarted) {
+        lifecycle_timing_info_.app_blur = timestamp;
+      } else if (GetLastState() == base::kApplicationStateConcealed) {
+        lifecycle_timing_info_.app_reveal = timestamp;
+      }
+      break;
+    case base::kApplicationStateConcealed:
+      if (GetLastState() == base::kApplicationStateBlurred) {
+        lifecycle_timing_info_.app_conceal = timestamp;
+      } else if (GetLastState() == base::kApplicationStateFrozen) {
+        lifecycle_timing_info_.app_unfreeze = timestamp;
+      }
+      break;
+    case base::kApplicationStateFrozen:
+      lifecycle_timing_info_.app_freeze = timestamp;
+      break;
+    case base::kApplicationStateStarted:
+      if (GetLastState() == base::kApplicationStateBlurred) {
+        if (lifecycle_timing_info_.app_preload != 0) {
+          lifecycle_timing_info_.app_start = timestamp;
+        }
+        lifecycle_timing_info_.app_focus = timestamp;
+      }
+      break;
+    case base::kApplicationStateStopped:
+      NOTREACHED() << "Not support the application stopped state.";
+      break;
+    default:
+      NOTREACHED() << "Invalid application state = " << state;
+      break;
+  }
+  SetLifecycleTimingInfoState(state);
+}
+
+void PerformanceLifecycleTiming::SetApplicationStartOrPreloadTimestamp(
+      bool is_preload, SbTimeMonotonic timestamp) {
+  if (is_preload) {
+    lifecycle_timing_info_.app_preload = timestamp;
+    SetLifecycleTimingInfoState(base::kApplicationStateConcealed);
+  } else {
+    lifecycle_timing_info_.app_start = timestamp;
+    SetLifecycleTimingInfoState(base::kApplicationStateStarted);
+  }
+}
+
+base::ApplicationState PerformanceLifecycleTiming::GetLastState() const {
+  return lifecycle_timing_info_.last_state;
+}
+
+void PerformanceLifecycleTiming::SetLifecycleTimingInfoState(
+    base::ApplicationState state) {
+  lifecycle_timing_info_.last_state =
+      lifecycle_timing_info_.current_state;
+  lifecycle_timing_info_.current_state = state;
+}
+
+DOMHighResTimeStamp
+    PerformanceLifecycleTiming::ReportDOMHighResTimeStamp(
+        SbTimeMonotonic timestamp) const {
+  if (timestamp != 0) {
+    return ConvertSbTimeMonotonicToDOMHiResTimeStamp(
+        time_origin_, timestamp);
+  }
+  return PerformanceEntry::start_time();
 }
 
 }  // namespace dom

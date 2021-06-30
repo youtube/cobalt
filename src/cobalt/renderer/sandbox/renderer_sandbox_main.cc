@@ -82,7 +82,8 @@ RendererSandbox::RendererSandbox()
 RendererSandbox* g_renderer_sandbox = NULL;
 
 void StartApplication(int argc, char** argv, const char* link,
-                      const base::Closure& quit_closure) {
+                      const base::Closure& quit_closure,
+                      SbTimeMonotonic timestamp) {
   DCHECK(!g_renderer_sandbox);
   g_renderer_sandbox = new RendererSandbox();
   DCHECK(g_renderer_sandbox);

@@ -2094,5 +2094,12 @@ scoped_refptr<script::Wrappable> BrowserModule::CreateH5vcc(
   return scoped_refptr<script::Wrappable>(new h5vcc::H5vcc(h5vcc_settings));
 }
 
+void BrowserModule::SetApplicationStartOrPreloadTimestamp(
+  bool is_preload, SbTimeMonotonic timestamp) {
+  DCHECK(web_module_);
+  web_module_->SetApplicationStartOrPreloadTimestamp(
+      is_preload, timestamp);
+}
+
 }  // namespace browser
 }  // namespace cobalt

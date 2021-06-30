@@ -12,10 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/stdio_leaks_poem.h"
-#endif
-
 #include "cobalt/browser/application.h"
 
 #include <map>
@@ -79,8 +75,8 @@
 #include "cobalt/trace_event/scoped_trace_to_file.h"
 #include "starboard/configuration.h"
 #include "starboard/event.h"
-#include "starboard/time.h"
 #include "starboard/system.h"
+#include "starboard/time.h"
 #include "url/gurl.h"
 
 #if SB_IS(EVERGREEN)
@@ -595,7 +591,8 @@ struct RecordCheckerStub : public base::RecordHistogramChecker {
 ssize_t Application::available_memory_ = 0;
 int64 Application::lifetime_in_ms_ = 0;
 
-Application::Application(const base::Closure& quit_closure, bool should_preload)
+Application::Application(const base::Closure& quit_closure, bool should_preload,
+                         SbTimeMonotonic timestamp)
     : message_loop_(base::MessageLoop::current()),
       quit_closure_(quit_closure)
 #if defined(ENABLE_DEBUGGER) && defined(STARBOARD_ALLOWS_MEMORY_TRACKING)
@@ -855,6 +852,9 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
 #endif
       options));
 
+  DCHECK(browser_module_);
+  browser_module_->SetApplicationStartOrPreloadTimestamp(should_preload,
+                                                         timestamp);
   UpdateUserAgent();
 
   // Register event callbacks.
@@ -1006,14 +1006,17 @@ Application::~Application() {
 #endif
 }
 
-void Application::Start() {
+void Application::Start(SbTimeMonotonic timestamp) {
   if (base::MessageLoop::current() != message_loop_) {
     message_loop_->task_runner()->PostTask(
-        FROM_HERE, base::Bind(&Application::Start, base::Unretained(this)));
+        FROM_HERE, base::Bind(&Application::Start, base::Unretained(this),
+                              timestamp));
     return;
   }
 
-  OnApplicationEvent(kSbEventTypeStart, SbTimeGetMonotonicNow());
+  OnApplicationEvent(kSbEventTypeStart, timestamp);
+  browser_module_->SetApplicationStartOrPreloadTimestamp(
+      false /*is_preload*/, timestamp);
 }
 
 void Application::Quit() {
@@ -1046,8 +1049,7 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
     case kSbEventTypeFreeze:
     case kSbEventTypeUnfreeze:
     case kSbEventTypeLowMemory:
-      OnApplicationEvent(starboard_event->type,
-                         starboard_event->timestamp);
+      OnApplicationEvent(starboard_event->type, starboard_event->timestamp);
       break;
 #else
     case kSbEventTypePause:

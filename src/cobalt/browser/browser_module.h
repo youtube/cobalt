@@ -229,6 +229,9 @@ class BrowserModule {
   static void GetParamMap(const std::string& url,
                           std::map<std::string, std::string>& map);
 
+  // Pass the application preload or start timestamps from Starboard.
+  void SetApplicationStartOrPreloadTimestamp(bool is_preload,
+                                             SbTimeMonotonic timestamp);
  private:
 #if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
   static void CoreDumpHandler(void* browser_module_as_void);

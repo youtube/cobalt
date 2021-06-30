@@ -47,8 +47,9 @@ for test in "${TESTS[@]}"; do
 
   log "info" " [ RUN      ] ${TEST_NAME}"
 
-  # Temporarily disable all tests until Omaha config handles SB14.
-  RESULT=2
+  run_test
+
+  RESULT=$?
 
   if [[ "${RESULT}" -eq 0 ]]; then
     log "info"  " [   PASSED ] ${TEST_NAME}"
