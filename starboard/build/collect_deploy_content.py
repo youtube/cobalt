@@ -60,6 +60,19 @@ def _CheckDepth(max_depth, content_dir):
     raise RuntimeError('Content is %d levels deep (max allowed is %d): %s' %
                        (depth, max_depth, deepest_file))
 
+def _CopyTree(src_path, dst_path):
+  """Copy tree with a safeguard for windows long path (>260).
+
+  On Windows Python is facing long path limitation, for more details see
+  https://bugs.python.org/issue27730
+  """
+  if os.sep == '\\':
+    prefix = '\\\\?\\'
+    if prefix not in src_path:
+      src_path = prefix + src_path
+    if prefix not in dst_path:
+      dst_path = prefix + dst_path
+  shutil.copytree(src_path, dst_path)
 
 def main(argv):
   parser = argparse.ArgumentParser()
@@ -141,7 +154,7 @@ def main(argv):
         logging.error(msg)
 
     if options.copy_override:
-      shutil.copytree(src_path, dst_path)
+      _CopyTree(src_path, dst_path)
     elif options.use_absolute_symlinks:
       port_symlink.MakeSymLink(
           target_path=os.path.abspath(src_path),
