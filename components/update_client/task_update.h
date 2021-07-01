@@ -57,6 +57,9 @@ class TaskUpdate : public Task {
   const std::vector<std::string> ids_;
   UpdateClient::CrxDataCallback crx_data_callback_;
   Callback callback_;
+#if defined(STARBOARD)
+  base::OnceClosure cancelation_closure_;
+#endif
 
   DISALLOW_COPY_AND_ASSIGN(TaskUpdate);
 };

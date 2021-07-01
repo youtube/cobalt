@@ -36,12 +36,24 @@ void TaskUpdate::Run() {
     return;
   }
 
+#if defined(STARBOARD)
+  update_engine_->Update(is_foreground_, ids_, std::move(crx_data_callback_),
+                         base::BindOnce(&TaskUpdate::TaskComplete, this),
+                         cancelation_closure_);
+#else
   update_engine_->Update(is_foreground_, ids_, std::move(crx_data_callback_),
                          base::BindOnce(&TaskUpdate::TaskComplete, this));
+#endif
 }
 
 void TaskUpdate::Cancel() {
   DCHECK(thread_checker_.CalledOnValidThread());
+
+#if defined(STARBOARD)
+  if (cancelation_closure_) {  // The engine's picked up the task.
+    std::move(cancelation_closure_).Run();
+  }
+#endif
 
   TaskComplete(Error::UPDATE_CANCELED);
 }

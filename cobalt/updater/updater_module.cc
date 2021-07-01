@@ -174,6 +174,7 @@ void UpdaterModule::Finalize() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   update_client_->RemoveObserver(updater_observer_.get());
   updater_observer_.reset();
+  update_client_->Stop();
   update_client_ = nullptr;
 
   if (updater_configurator_ != nullptr) {

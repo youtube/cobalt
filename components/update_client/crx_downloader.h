@@ -122,6 +122,10 @@ class CrxDownloader {
                      const std::string& expected_hash,
                      DownloadCallback download_callback);
 
+#if defined(STARBOARD)
+  void CancelDownload();
+#endif
+
   const std::vector<DownloadMetrics> download_metrics() const;
 
  protected:
@@ -151,6 +155,9 @@ class CrxDownloader {
 
  private:
   virtual void DoStartDownload(const GURL& url) = 0;
+#if defined(STARBOARD)
+  virtual void DoCancelDownload() = 0;
+#endif
 
   void VerifyResponse(bool is_handled,
                       Result result,

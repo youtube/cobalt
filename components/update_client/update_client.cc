@@ -201,6 +201,16 @@ void UpdateClientImpl::Stop() {
 
   is_stopped_ = true;
 
+  // Cancel the pending tasks. These tasks are safe to cancel and delete since
+  // they have not picked up by the update engine, and not shared with any
+  // task runner yet.
+  while (!task_queue_.empty()) {
+    auto task = task_queue_.front();
+    task_queue_.pop_front();
+    task->Cancel();
+  }
+
+#if !defined(STARBOARD)
   // In the current implementation it is sufficient to cancel the pending
   // tasks only. The tasks that are run by the update engine will stop
   // making progress naturally, as the main task runner stops running task
@@ -210,15 +220,15 @@ void UpdateClientImpl::Stop() {
   // area, to cancel the running tasks by canceling the current action update.
   // This behavior would be expected, correct, and result in no resource leaks
   // in all cases, in shutdown or not.
-  //
-  // Cancel the pending tasks. These tasks are safe to cancel and delete since
-  // they have not picked up by the update engine, and not shared with any
-  // task runner yet.
-  while (!task_queue_.empty()) {
-    auto task = task_queue_.front();
-    task_queue_.pop_front();
+#else
+  // For Cobalt it's not sufficient to just let the tasks already picked up by
+  // the update engine stop naturally, as this can result in resource leaks and
+  // crashes. These tasks are also canceled so that any necessary cleanup can be
+  // done.
+  for (auto task : tasks_) {
     task->Cancel();
   }
+#endif
 }
 
 void UpdateClientImpl::SendUninstallPing(const std::string& id,
