@@ -144,6 +144,13 @@ void UrlFetcherDownloader::DoStartDownload(const GURL& url) {
 #endif
 }
 
+#if defined(STARBOARD)
+void UrlFetcherDownloader::DoCancelDownload() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  network_fetcher_->CancelDownloadToFile();
+}
+#endif
+
 void UrlFetcherDownloader::CreateDownloadDir() {
   base::CreateNewTempDirectory(FILE_PATH_LITERAL("chrome_url_fetcher_"),
                                &download_dir_);
