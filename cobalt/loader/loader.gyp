@@ -142,6 +142,7 @@
         'file_fetcher_test.cc',
         'font/typeface_decoder_test.cc',
         'image/image_decoder_test.cc',
+        'image/image_decoder_unit_test.cc',
         'mesh/mesh_decoder_test.cc',
         'loader_test.cc',
         'text_decoder_test.cc',

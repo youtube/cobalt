@@ -122,6 +122,8 @@ class ImageDecoder : public Decoder {
   bool use_failure_image_decoder_ = false;
 };
 
+ImageDecoder::ImageType DetermineImageType(const uint8* header);
+
 }  // namespace image
 }  // namespace loader
 }  // namespace cobalt
