@@ -233,21 +233,33 @@ void Application::SetStartLink(const char* start_link) {
   }
 }
 
+#if SB_API_VERSION >= 13
+void Application::DispatchStart(SbTimeMonotonic timestamp) {
+  SB_DCHECK(IsCurrentThread());
+  SB_DCHECK(state_ == kStateUnstarted);
+  DispatchAndDelete(CreateInitialEvent(kSbEventTypeStart, timestamp));
+}
+#else  // SB_API_VERSION >= 13
 void Application::DispatchStart() {
   SB_DCHECK(IsCurrentThread());
-#if SB_API_VERSION >= 13
-  SB_DCHECK(state_ == kStateUnstarted);
-#else
   SB_DCHECK(state_ == kStateUnstarted || state_ == kStatePreloading);
-#endif  // SB_API_VERSION >= 13
   DispatchAndDelete(CreateInitialEvent(kSbEventTypeStart));
 }
+#endif  // SB_API_VERSION >= 13
 
+#if SB_API_VERSION >= 13
+void Application::DispatchPreload(SbTimeMonotonic timestamp) {
+  SB_DCHECK(IsCurrentThread());
+  SB_DCHECK(state_ == kStateUnstarted);
+  DispatchAndDelete(CreateInitialEvent(kSbEventTypePreload, timestamp));
+}
+#else  // SB_API_VERSION >= 13
 void Application::DispatchPreload() {
   SB_DCHECK(IsCurrentThread());
   SB_DCHECK(state_ == kStateUnstarted);
   DispatchAndDelete(CreateInitialEvent(kSbEventTypePreload));
 }
+#endif  // SB_API_VERSION >= 13
 
 bool Application::HasPreloadSwitch() {
   return command_line_->HasSwitch(kPreloadSwitch);
@@ -570,7 +582,12 @@ void Application::CallTeardownCallbacks() {
   }
 }
 
+#if SB_API_VERSION >= 13
+Application::Event* Application::CreateInitialEvent(SbEventType type,
+                                                    SbTimeMonotonic timestamp) {
+#else  // SB_API_VERSION >= 13
 Application::Event* Application::CreateInitialEvent(SbEventType type) {
+#endif  // SB_API_VERSION >= 13
   SB_DCHECK(type == kSbEventTypePreload || type == kSbEventTypeStart);
   SbEventStartData* start_data = new SbEventStartData();
   memset(start_data, 0, sizeof(SbEventStartData));
@@ -583,16 +600,28 @@ Application::Event* Application::CreateInitialEvent(SbEventType type) {
     start_data->argument_values[i] = const_cast<char*>(args[i].c_str());
   }
   start_data->link = start_link_;
+#if SB_API_VERSION >= 13
+  return new Event(type, timestamp, start_data, &DeleteStartData);
+#else  // SB_API_VERSION >= 13
   return new Event(type, start_data, &DeleteStartData);
+#endif  // SB_API_VERSION >= 13
 }
 
 int Application::RunLoop() {
   SB_DCHECK(command_line_);
+#if SB_API_VERSION >= 13
   if (IsPreloadImmediate()) {
+    DispatchPreload(SbTimeGetMonotonicNow());
+  } else if (IsStartImmediate()) {
+    DispatchStart(SbTimeGetMonotonicNow());
+  }
+#else  // SB_API_VERSION >= 13
+ if (IsPreloadImmediate()) {
     DispatchPreload();
   } else if (IsStartImmediate()) {
     DispatchStart();
   }
+#endif  // SB_API_VERSION >= 13
 
   for (;;) {
     if (!DispatchNextEvent()) {

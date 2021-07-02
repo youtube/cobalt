@@ -475,7 +475,11 @@ class Application {
 
   // Synchronously dispatches a Start event to the system event handler. Must be
   // called on the main dispatch thread.
+#if SB_API_VERSION >= 13
+  void DispatchStart(SbTimeMonotonic timestamp);
+#else  // SB_API_VERSION >= 13
   void DispatchStart();
+#endif  // SB_API_VERSION >= 13
 
   // Returns whether the Preload event should be sent in |Run| before entering
   // the event loop. Derived classes that return true must call |Unpause| or
@@ -486,7 +490,11 @@ class Application {
 
   // Synchronously dispatches a Preload event to the system event handler. Must
   // be called on the main dispatch thread.
+#if SB_API_VERSION >= 13
+  void DispatchPreload(SbTimeMonotonic timestamp);
+#else  // SB_API_VERSION >= 13
   void DispatchPreload();
+#endif  // SB_API_VERSION >= 13
 
   // Returns whether the '--preload' command-line argument is specified.
   bool HasPreloadSwitch();
@@ -504,7 +512,11 @@ class Application {
  private:
   // Creates an initial event type of either Start or Preload with the original
   // command line and deep link.
+#if SB_API_VERSION >= 13
+  Event* CreateInitialEvent(SbEventType type, SbTimeMonotonic timestamp);
+#else  // SB_API_VERSION >= 13
   Event* CreateInitialEvent(SbEventType type);
+#endif  // SB_API_VERSION >= 13
 
   // Internal workhorse of the main run loop.
   int RunLoop();

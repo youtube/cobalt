@@ -259,7 +259,11 @@ void ApplicationAndroid::ProcessAndroidCommand() {
         // This is the initial launch, so we have to start Cobalt now that we
         // have a window.
         env->CallStarboardVoidMethodOrAbort("beforeStartOrResume", "()V");
+#if SB_API_VERSION >= 13
+        DispatchStart(SbTimeGetMonotonicNow());
+#else  // SB_API_VERSION >= 13
         DispatchStart();
+#endif  // SB_API_VERSION >= 13
       } else if (state() == kStateConcealed || state() == kStateFrozen) {
         DispatchAndDelete(new Event(kSbEventTypeReveal, NULL, NULL));
       } else {
