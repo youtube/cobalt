@@ -144,7 +144,7 @@ void PerformanceLifecycleTiming::SetApplicationState(
 }
 
 void PerformanceLifecycleTiming::SetApplicationStartOrPreloadTimestamp(
-      bool is_preload, SbTimeMonotonic timestamp) {
+    bool is_preload, SbTimeMonotonic timestamp) {
   if (is_preload) {
     lifecycle_timing_info_.app_preload = timestamp;
     SetLifecycleTimingInfoState(base::kApplicationStateConcealed);
@@ -165,12 +165,11 @@ void PerformanceLifecycleTiming::SetLifecycleTimingInfoState(
   lifecycle_timing_info_.current_state = state;
 }
 
-DOMHighResTimeStamp
-    PerformanceLifecycleTiming::ReportDOMHighResTimeStamp(
-        SbTimeMonotonic timestamp) const {
+DOMHighResTimeStamp PerformanceLifecycleTiming::ReportDOMHighResTimeStamp(
+    SbTimeMonotonic timestamp) const {
   if (timestamp != 0) {
-    return ConvertSbTimeMonotonicToDOMHiResTimeStamp(
-        time_origin_, timestamp);
+    return ConvertSbTimeMonotonicToDOMHiResTimeStamp(time_origin_,
+                                                     timestamp);
   }
   return PerformanceEntry::start_time();
 }
