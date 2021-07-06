@@ -47,7 +47,6 @@ NoInterfaceObject
 # used by the Window interface, but is also used for TestWindow in unit tests.
 # http://heycam.github.io/webidl/#Global
 Global
-PrimaryGlobal
 
 # This interface is exposed on the specified global interface, rather than
 # the default of Window.

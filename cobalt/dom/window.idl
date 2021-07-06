@@ -15,7 +15,7 @@
 // https://www.w3.org/TR/html50/browsers.html#the-window-object
 
 // Note: Cobalt only supports one browsing context and one Window object.
-[PrimaryGlobal]
+[Global]
 /*sealed*/ interface Window : EventTarget {
   // the current browsing context
   [Unforgeable] readonly attribute Window window;
@@ -52,4 +52,3 @@
 };
 Window implements GlobalEventHandlers;
 Window implements WindowEventHandlers;
-
