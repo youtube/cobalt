@@ -281,6 +281,19 @@ bool AudioTrackBridge::GetAndResetHasNewAudioDeviceAdded(
       j_audio_track_bridge_, "getAndResetHasNewAudioDeviceAdded", "()Z");
 }
 
+bool AudioTrackBridge::GetAndResetHasAudioDeviceChanged(
+    JniEnvExt* env /*= JniEnvExt::Get()*/) {
+  SB_DCHECK(env);
+  SB_DCHECK(is_valid());
+
+  ScopedLocalJavaRef<jobject> j_audio_output_manager(
+      env->CallStarboardObjectMethodOrAbort(
+          "getAudioOutputManager", "()Ldev/cobalt/media/AudioOutputManager;"));
+
+  return env->CallBooleanMethodOrAbort(
+      j_audio_output_manager.Get(), "getAndResetHasAudioDeviceChanged", "()Z");
+}
+
 int AudioTrackBridge::GetUnderrunCount(JniEnvExt* env /*= JniEnvExt::Get()*/) {
   SB_DCHECK(env);
   SB_DCHECK(is_valid());

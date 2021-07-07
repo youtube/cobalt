@@ -80,6 +80,7 @@ class AudioTrackBridge {
   int64_t GetPlaybackHeadPosition(SbTime* updated_at,
                                   JniEnvExt* env = JniEnvExt::Get());
   bool GetAndResetHasNewAudioDeviceAdded(JniEnvExt* env = JniEnvExt::Get());
+  bool GetAndResetHasAudioDeviceChanged(JniEnvExt* env = JniEnvExt::Get());
   int GetUnderrunCount(JniEnvExt* env = JniEnvExt::Get());
 
  private:

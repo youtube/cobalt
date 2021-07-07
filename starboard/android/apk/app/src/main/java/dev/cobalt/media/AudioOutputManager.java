@@ -18,6 +18,7 @@ import static dev.cobalt.media.Log.TAG;
 
 import android.content.Context;
 import android.media.AudioAttributes;
+import android.media.AudioDeviceCallback;
 import android.media.AudioDeviceInfo;
 import android.media.AudioFormat;
 import android.media.AudioManager;
@@ -29,11 +30,15 @@ import dev.cobalt.util.UsedByNative;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /** Creates and destroys AudioTrackBridge and handles the volume change. */
 public class AudioOutputManager implements CobaltMediaSession.UpdateVolumeListener {
   private List<AudioTrackBridge> audioTrackBridgeList;
   private Context context;
+
+  AtomicBoolean hasAudioDeviceChanged = new AtomicBoolean(false);
+  boolean hasRegisteredAudioDeviceCallback = false;
 
   public AudioOutputManager(Context context) {
     this.context = context;
@@ -54,7 +59,7 @@ public class AudioOutputManager implements CobaltMediaSession.UpdateVolumeListen
       int sampleRate,
       int channelCount,
       int preferredBufferSizeInBytes,
-      boolean enableAudioRouting,
+      boolean enableAudioDeviceChangeDetection,
       int tunnelModeAudioSessionId) {
     AudioTrackBridge audioTrackBridge =
         new AudioTrackBridge(
@@ -62,13 +67,59 @@ public class AudioOutputManager implements CobaltMediaSession.UpdateVolumeListen
             sampleRate,
             channelCount,
             preferredBufferSizeInBytes,
-            enableAudioRouting,
+            enableAudioDeviceChangeDetection,
             tunnelModeAudioSessionId);
     if (!audioTrackBridge.isAudioTrackValid()) {
       Log.e(TAG, "AudioTrackBridge has invalid audio track");
       return null;
     }
     audioTrackBridgeList.add(audioTrackBridge);
+    hasAudioDeviceChanged.set(false);
+
+    if (Build.VERSION.SDK_INT < 23
+        || !enableAudioDeviceChangeDetection
+        || hasRegisteredAudioDeviceCallback) {
+      return audioTrackBridge;
+    }
+
+    AudioManager audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
+    audioManager.registerAudioDeviceCallback(
+        new AudioDeviceCallback() {
+          // Since registering a callback triggers an immediate call to onAudioDevicesAdded() with
+          // current devices, don't set |hasAudioDeviceChanged| for this initial call.
+          private boolean initialDevicesAdded = false;
+
+          private void handleConnectedDeviceChange(AudioDeviceInfo[] devices) {
+            for (AudioDeviceInfo info : devices) {
+              // TODO: Determine if AudioDeviceInfo.TYPE_HDMI_EARC should be checked in API 31.
+              if (info.isSink()
+                  && (info.getType() == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP
+                      || info.getType() == AudioDeviceInfo.TYPE_HDMI_ARC
+                      || info.getType() == AudioDeviceInfo.TYPE_HDMI)) {
+                // TODO: Avoid destroying the AudioTrack if the new devices can support the current
+                // AudioFormat.
+                hasAudioDeviceChanged.set(true);
+                break;
+              }
+            }
+          }
+
+          @Override
+          public void onAudioDevicesAdded(AudioDeviceInfo[] addedDevices) {
+            if (initialDevicesAdded) {
+              handleConnectedDeviceChange(addedDevices);
+              return;
+            }
+            initialDevicesAdded = true;
+          }
+
+          @Override
+          public void onAudioDevicesRemoved(AudioDeviceInfo[] removedDevices) {
+            handleConnectedDeviceChange(removedDevices);
+          }
+        },
+        null);
+    hasRegisteredAudioDeviceCallback = true;
     return audioTrackBridge;
   }
 
@@ -479,5 +530,10 @@ public class AudioOutputManager implements CobaltMediaSession.UpdateVolumeListen
         .setUsage(AudioAttributes.USAGE_MEDIA)
         .setContentType(AudioAttributes.CONTENT_TYPE_MOVIE)
         .build();
+  }
+
+  @UsedByNative
+  private boolean getAndResetHasAudioDeviceChanged() {
+    return hasAudioDeviceChanged.getAndSet(false);
   }
 }
