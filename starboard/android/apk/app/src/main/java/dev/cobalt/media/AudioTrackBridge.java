@@ -73,10 +73,11 @@ public class AudioTrackBridge {
       int sampleRate,
       int channelCount,
       int preferredBufferSizeInBytes,
-      boolean enableAudioRouting,
+      boolean enableAudioDeviceChangeDetection,
       int tunnelModeAudioSessionId) {
-    // TODO: Re-enable audio routing when all related bugs are fixed.
-    enableAudioRouting = false;
+    // TODO: Determine if AudioRouting should be removed entirely, as AudioDeviceCallback is
+    // currently used instead.
+    enableAudioDeviceChangeDetection = false;
 
     tunnelModeEnabled = tunnelModeAudioSessionId != -1;
     int channelConfig;
@@ -176,7 +177,7 @@ public class AudioTrackBridge {
             audioTrackBufferSize,
             preferredBufferSizeInBytes,
             AudioTrack.getMinBufferSize(sampleRate, channelConfig, sampleType)));
-    if (audioTrack != null && enableAudioRouting && Build.VERSION.SDK_INT >= 24) {
+    if (audioTrack != null && enableAudioDeviceChangeDetection && Build.VERSION.SDK_INT >= 24) {
       Log.i(TAG, "Audio routing enabled.");
       currentRoutedDevice = audioTrack.getRoutedDevice();
       onRoutingChangedListener =
@@ -184,7 +185,7 @@ public class AudioTrackBridge {
             @Override
             public void onRoutingChanged(AudioRouting router) {
               AudioDeviceInfo newRoutedDevice = router.getRoutedDevice();
-              if (currentRoutedDevice == null && newRoutedDevice != null) {
+              if (currentRoutedDevice != null && newRoutedDevice != null) {
                 if (!areAudioDevicesEqual(currentRoutedDevice, newRoutedDevice)) {
                   Log.v(
                       TAG,

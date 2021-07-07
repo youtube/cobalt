@@ -178,10 +178,11 @@ void AudioTrackAudioSink::AudioThreadFunc() {
   while (!quit_) {
     int playback_head_position = 0;
     SbTime frames_consumed_at = 0;
-    if (bridge_.GetAndResetHasNewAudioDeviceAdded(env)) {
-      SB_LOG(INFO) << "New audio device added.";
-      error_func_(kSbPlayerErrorCapabilityChanged, "New audio device added.",
-                  context_);
+    if (bridge_.GetAndResetHasAudioDeviceChanged(env)) {
+      SB_LOG(INFO) << "Audio device changed, raising a capability changed "
+                      "error to restart playback.";
+      error_func_(kSbPlayerErrorCapabilityChanged,
+                  "Audio device capability changed", context_);
       break;
     }
 
@@ -328,6 +329,7 @@ void AudioTrackAudioSink::AudioThreadFunc() {
           capabilities_changed,
           FormatString("Error while writing frames: %d", written_frames),
           context_);
+      SB_LOG(INFO) << "Restarting playback.";
       break;
     } else if (written_frames > 0) {
       last_written_succeeded_at = now;

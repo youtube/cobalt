@@ -35,7 +35,7 @@ constexpr SbTime kAudioTrackUpdateInternal = kSbTimeMillisecond * 5;
 
 constexpr int kPreferredBufferSizeInBytes = 16 * 1024;
 // TODO: Enable audio routing and link it to client side experiment.
-constexpr bool kEnableAudioRouting = false;
+constexpr bool kEnableAudioRouting = true;
 // TODO: Enable passthrough with tunnel mode.
 constexpr int kTunnelModeAudioSessionId = -1;
 
@@ -436,6 +436,16 @@ void AudioRendererPassthrough::UpdateStatusAndWriteData(
   SB_DCHECK(error_cb_);
   SB_DCHECK(audio_track_bridge_);
 
+  if (kEnableAudioRouting &&
+      audio_track_bridge_->GetAndResetHasAudioDeviceChanged()) {
+    SB_LOG(INFO) << "Audio device changed, raising a capability changed error "
+                    "to restart playback.";
+    error_cb_(kSbPlayerErrorCapabilityChanged,
+              "Audio device capability changed");
+    audio_track_bridge_->PauseAndFlush();
+    return;
+  }
+
   AudioTrackState current_state;
 
   {
@@ -499,15 +509,21 @@ void AudioRendererPassthrough::UpdateStatusAndWriteData(
           sample_buffer, samples_to_write, sync_time);
       // Error code returned as negative value, like kAudioTrackErrorDeadObject.
       if (samples_written < 0) {
-        // `kSbPlayerErrorDecode` is used for general SbPlayer error, there is
-        // no error code corresponding to audio sink.
-        auto error = kSbPlayerErrorDecode;
         if (samples_written == AudioTrackBridge::kAudioTrackErrorDeadObject) {
           // Inform the audio end point change.
-          error = kSbPlayerErrorCapabilityChanged;
+          SB_LOG(INFO)
+              << "Write error for dead audio track, audio device capability "
+                 "has likely changed. Restarting playback.";
+          error_cb_(kSbPlayerErrorCapabilityChanged,
+                    "Audio device capability changed");
+          audio_track_bridge_->PauseAndFlush();
+          return;
         }
-        error_cb_(error, FormatString("Error while writing frames: %d",
-                                      samples_written));
+        // `kSbPlayerErrorDecode` is used for general SbPlayer error, there is
+        // no error code corresponding to audio sink.
+        error_cb_(
+            kSbPlayerErrorDecode,
+            FormatString("Error while writing frames: %d", samples_written));
       }
       decoded_audio_writing_offset_ += samples_written;
 
