@@ -92,6 +92,7 @@ class ApplicationAndroid
   void SbWindowSendInputEvent(const char* input_text, bool is_composing);
   void SendLowMemoryEvent();
   void OsNetworkStatusChange(bool became_online);
+  SbTimeMonotonic GetAppStartTimestamp();
 
  protected:
   // --- Application overrides ---

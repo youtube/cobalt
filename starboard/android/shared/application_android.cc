@@ -260,7 +260,7 @@ void ApplicationAndroid::ProcessAndroidCommand() {
         // have a window.
         env->CallStarboardVoidMethodOrAbort("beforeStartOrResume", "()V");
 #if SB_API_VERSION >= 13
-        DispatchStart(SbTimeGetMonotonicNow());
+        DispatchStart(GetAppStartTimestamp());
 #else  // SB_API_VERSION >= 13
         DispatchStart();
 #endif  // SB_API_VERSION >= 13
@@ -661,6 +661,22 @@ void ApplicationAndroid::OsNetworkStatusChange(bool became_online) {
   } else {
     Inject(new Event(kSbEventTypeOsNetworkDisconnected, NULL, NULL));
   }
+}
+
+SbTimeMonotonic ApplicationAndroid::GetAppStartTimestamp() {
+  JniEnvExt* env = JniEnvExt::Get();
+  jlong app_start_timestamp =
+      env->CallStarboardLongMethodOrAbort("getAppStartTimestamp",
+                                          "()J");
+  return app_start_timestamp;
+}
+
+extern "C" SB_EXPORT_PLATFORM jlong
+Java_dev_cobalt_coat_StarboardBridge_nativeSbTimeGetMonotonicNow(
+    JNIEnv* env,
+    jobject jcaller,
+    jboolean online) {
+  return SbTimeGetMonotonicNow();
 }
 
 }  // namespace shared
