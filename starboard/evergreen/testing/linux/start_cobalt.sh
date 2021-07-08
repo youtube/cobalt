@@ -44,7 +44,7 @@ function start_cobalt() {
 
   log "info" " Logs will be output to '${LOG_PATH}/${LOG}'"
 
-  eval "${OUT}/loader_app --url=\"\"${URL}\"\" ${ARGS} 2>&1 | tee \"${LOG_PATH}/${LOG}\"" &
+  eval "${OUT}/loader_app --url=\"\"${URL}\"\" ${ARGS} &> >(tee \"${LOG_PATH}/${LOG}\") &"
 
   loader_pid_ref=$!
 
