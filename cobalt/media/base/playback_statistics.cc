@@ -14,7 +14,11 @@
 
 #include "cobalt/media/base/playback_statistics.h"
 
+#include <math.h>
+#include <stdint.h>
+
 #include "starboard/atomic.h"
+#include "starboard/common/log.h"
 #include "starboard/common/string.h"
 
 namespace cobalt {
@@ -33,14 +37,12 @@ volatile SbAtomic32 s_max_video_width = 0;
 volatile SbAtomic32 s_max_video_height = 0;
 volatile SbAtomic32 s_last_working_codec = kUnknownVideoCodec;
 
-int RoundValues(SbAtomic32 value) {
+int64_t RoundValues(int64_t value) {
   if (value < 10) {
     return value;
   }
-  if (value < 100) {
-    return value / 10 * 10;
-  }
-  return value / 100 * 100;
+  int64_t closest_power = pow(10, floor(log10(value)));
+  return floor(value / closest_power) * closest_power;
 }
 
 void UpdateMaxValue(SbAtomic32 new_value, volatile SbAtomic32* max) {
@@ -71,10 +73,6 @@ void UpdateMinValue(SbAtomic32 new_value, volatile SbAtomic32* min) {
       return;
     }
   }
-}
-
-std::string ToString(const base::Optional<base::TimeDelta>& t) {
-  return (t) ? starboard::FormatString("%" PRId64, t->InMicroseconds()) : "n/a";
 }
 
 }  // namespace
@@ -147,17 +145,13 @@ void PlaybackStatistics::OnVideoAU(const base::TimeDelta& timestamp) {
 std::string PlaybackStatistics::GetStatistics(
     const VideoDecoderConfig& current_video_config) const {
   return starboard::FormatString(
-      "current_codec: %s, drm: %s, width: %d, height: %d,"
-      " active_players (max): %d (%d), av1: ~%d, h264: ~%d, hevc: ~%d,"
-      " vp9: ~%d, min_width: %d, min_height: %d, max_width: %d, max_height: %d,"
-      " last_working_codec: %s,"
-      " seek_time: %" PRId64
-      ","
-      " first_audio_time: %s,"
-      " first_video_time: %s,"
-      " last_audio_time: %" PRId64
-      ","
-      " last_video_time: %" PRId64,
+      "current_codec: %s, drm: %s, width: %d, height: %d"
+      ", active_players (max): %d (%d), av1: ~%" PRId64 ", h264: ~%" PRId64
+      ", hevc: ~%" PRId64 ", vp9: ~%" PRId64
+      ", min_width: %d, min_height: %d, max_width: %d, max_height: %d"
+      ", last_working_codec: %s, seek_time: %" PRId64
+      ", first_audio_time: ~%" PRId64 ", first_video_time: ~%" PRId64
+      ", last_audio_time: ~%" PRId64 ", last_video_time: ~%" PRId64,
       GetCodecName(current_video_config.codec()).c_str(),
       (current_video_config.is_encrypted() ? "Y" : "N"),
       static_cast<int>(current_video_config.natural_size().width()),
@@ -176,10 +170,18 @@ std::string PlaybackStatistics::GetStatistics(
                        SbAtomicNoBarrier_Load(&s_last_working_codec)))
           .c_str(),
       seek_time_.InMicroseconds(),
-      ToString(first_written_audio_timestamp_).c_str(),
-      ToString(first_written_audio_timestamp_).c_str(),
-      last_written_audio_timestamp_.InMicroseconds(),
-      last_written_video_timestamp_.InMicroseconds());
+      first_written_audio_timestamp_.has_value()
+          ? RoundValues(first_written_audio_timestamp_->InSeconds())
+          : -1,
+      first_written_video_timestamp_.has_value()
+          ? RoundValues(first_written_video_timestamp_->InSeconds())
+          : -1,
+      first_written_audio_timestamp_.has_value()
+          ? RoundValues(last_written_audio_timestamp_.InSeconds())
+          : -1,
+      first_written_video_timestamp_.has_value()
+          ? RoundValues(last_written_video_timestamp_.InSeconds())
+          : -1);
 }
 
 }  // namespace media
