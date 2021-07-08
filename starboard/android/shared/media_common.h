@@ -30,8 +30,6 @@ namespace starboard {
 namespace android {
 namespace shared {
 
-const int64_t kSecondInMicroseconds = 1000 * 1000;
-
 inline bool IsWidevineL1(const char* key_system) {
   return strcmp(key_system, "com.widevine") == 0 ||
          strcmp(key_system, "com.widevine.alpha") == 0;
@@ -66,37 +64,6 @@ inline const char* SupportedVideoCodecToMimeType(
   }
   return NULL;
 }
-
-// A simple thread-safe queue for events of type |E|, that supports polling
-// based access only.
-template <typename E>
-class EventQueue {
- public:
-  E PollFront() {
-    ScopedLock lock(mutex_);
-    if (!deque_.empty()) {
-      E event = deque_.front();
-      deque_.pop_front();
-      return event;
-    }
-
-    return E();
-  }
-
-  void PushBack(const E& event) {
-    ScopedLock lock(mutex_);
-    deque_.push_back(event);
-  }
-
-  void Clear() {
-    ScopedLock lock(mutex_);
-    deque_.clear();
-  }
-
- private:
-  ::starboard::Mutex mutex_;
-  std::deque<E> deque_;
-};
 
 }  // namespace shared
 }  // namespace android
