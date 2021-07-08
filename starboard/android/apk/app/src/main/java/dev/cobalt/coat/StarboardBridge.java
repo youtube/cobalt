@@ -94,6 +94,8 @@ public class StarboardBridge {
   private final HashMap<String, CobaltService.Factory> cobaltServiceFactories = new HashMap<>();
   private final HashMap<String, CobaltService> cobaltServices = new HashMap<>();
 
+  private final long timeNanosecondsPerMicrosecond = 1000;
+
   public StarboardBridge(
       Context appContext,
       Holder<Activity> activityHolder,
@@ -122,6 +124,8 @@ public class StarboardBridge {
   }
 
   private native boolean nativeInitialize();
+
+  private native long nativeSbTimeGetMonotonicNow();
 
   protected void onActivityStart(Activity activity, KeyboardEditor keyboardEditor) {
     activityHolder.set(activity);
@@ -672,5 +676,22 @@ public class StarboardBridge {
   @UsedByNative
   void closeCobaltService(String serviceName) {
     cobaltServices.remove(serviceName);
+  }
+
+  /**
+   * Returns the application start timestamp.
+   */
+  @SuppressWarnings("unused")
+  @UsedByNative
+  protected long getAppStartTimestamp() {
+    Activity activity = activityHolder.get();
+    if (activity instanceof CobaltActivity) {
+      long javaStartTimestamp = ((CobaltActivity) activity).getAppStartTimestamp();
+      long cppTimestamp = nativeSbTimeGetMonotonicNow();
+      long javaStopTimestamp = System.nanoTime();
+      return cppTimestamp -
+          (javaStartTimestamp - javaStopTimestamp) / timeNanosecondsPerMicrosecond;
+    }
+    return 0;
   }
 }
