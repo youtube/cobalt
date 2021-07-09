@@ -81,10 +81,10 @@ public class MediaPlaybackService extends Service {
   }
 
   public void stopService() {
-    deleteChannel();
-    hideNotification();
     stopForeground(true);
     stopSelf();
+    deleteChannel();
+    hideNotification();
   }
 
   private void hideNotification() {
