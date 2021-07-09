@@ -33,10 +33,15 @@ RUN apt update -qqy \
     && echo "Done"
 
 # === Get Nodejs pinned LTS version via NVM
+ARG NVM_SHA256SUM="f068e17dacb88f73302790cc076956c7a0d459ce9b01df842ff3e75744f9e2fe /tmp/install.sh"
+ARG NVM_URL="https://cobalt.googlesource.com/third_party/nvm/+/refs/tags/v0.35.3/install.sh?format=TEXT"
 ENV NVM_DIR /root/.nvm
 ENV NODE_VERSION 12.17.0
 
-RUN curl --silent -o- https://raw.githubusercontent.com/creationix/nvm/v0.35.3/install.sh | bash
+RUN curl --silent -o- ${NVM_URL} \
+  | base64 -d > /tmp/install.sh \
+   && echo ${NVM_SHA256SUM} | sha256sum --check \
+   && . /tmp/install.sh
 
 RUN . $NVM_DIR/nvm.sh \
    && nvm install --lts \
