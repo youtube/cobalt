@@ -265,7 +265,12 @@ void ApplicationAndroid::ProcessAndroidCommand() {
         DispatchStart();
 #endif  // SB_API_VERSION >= 13
       } else if (state() == kStateConcealed || state() == kStateFrozen) {
+#if SB_API_VERSION >= 13
+        DispatchAndDelete(new Event(kSbEventTypeReveal, SbTimeGetMonotonicNow(),
+                                    NULL, NULL));
+#else  // SB_API_VERSION >= 13
         DispatchAndDelete(new Event(kSbEventTypeReveal, NULL, NULL));
+#endif  // SB_API_VERSION >= 13
       } else {
         // Now that we got a window back, change the command for the switch
         // below to sync up with the current activity lifecycle.
@@ -284,7 +289,12 @@ void ApplicationAndroid::ProcessAndroidCommand() {
         // Cobalt can't keep running without a window, even if the Activity
         // hasn't stopped yet. DispatchAndDelete() will inject events as needed
         // if we're not already paused.
+#if SB_API_VERSION >= 13
+        DispatchAndDelete(new Event(kSbEventTypeConceal, SbTimeGetMonotonicNow(),
+                                    NULL, NULL));
+#else  // SB_API_VERSION >= 13
         DispatchAndDelete(new Event(kSbEventTypeConceal, NULL, NULL));
+#endif  // SB_API_VERSION >= 13
         if (window_) {
           window_->native_window = NULL;
         }
@@ -346,6 +356,35 @@ void ApplicationAndroid::ProcessAndroidCommand() {
 
   // If there's a window, sync the app state to the Activity lifecycle, letting
   // DispatchAndDelete() inject events as needed if we missed a state.
+#if SB_API_VERSION >= 13
+if (native_window_) {
+    switch (sync_state) {
+      case AndroidCommand::kStart:
+        DispatchAndDelete(new Event(kSbEventTypeReveal, SbTimeGetMonotonicNow(),
+                                    NULL, NULL));
+        break;
+      case AndroidCommand::kResume:
+        DispatchAndDelete(new Event(kSbEventTypeFocus, SbTimeGetMonotonicNow(),
+                                    NULL, NULL));
+        break;
+      case AndroidCommand::kPause:
+        DispatchAndDelete(new Event(kSbEventTypeBlur, SbTimeGetMonotonicNow(),
+                                    NULL, NULL));
+        break;
+      case AndroidCommand::kStop:
+        if (state() != kStateConcealed && state() != kStateFrozen) {
+          // We usually conceal when losing the window above, but if the window
+          // wasn't destroyed (e.g. when Daydream starts) then we still have to
+          // conceal when the Activity is stopped.
+          DispatchAndDelete(new Event(kSbEventTypeConceal, SbTimeGetMonotonicNow(),
+                                      NULL, NULL));
+        }
+        break;
+      default:
+        break;
+    }
+  }
+#else  // SB_API_VERSION >= 13
   if (native_window_) {
     switch (sync_state) {
       case AndroidCommand::kStart:
@@ -369,6 +408,7 @@ void ApplicationAndroid::ProcessAndroidCommand() {
         break;
     }
   }
+#endif  // SB_API_VERSION >= 13
 }
 
 void ApplicationAndroid::SendAndroidCommand(AndroidCommand::CommandType type,
