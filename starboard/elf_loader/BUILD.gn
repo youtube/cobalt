@@ -73,6 +73,7 @@ static_library("elf_loader_sys") {
 
   deps = [
     ":evergreen_config",
+    ":evergreen_info",
     "//starboard",
   ]
 
@@ -89,6 +90,7 @@ target(final_executable_type, "elf_loader_sandbox") {
 
   deps = [
     ":elf_loader",
+    ":evergreen_info",
     ":sabi_string",
     "//cobalt/content/fonts:copy_font_data",
     "//starboard",
@@ -116,6 +118,7 @@ target(final_executable_type, "elf_loader_sys_sandbox") {
 
   deps = [
     ":elf_loader_sys",
+    ":evergreen_info",
     ":sabi_string",
     "//starboard",
   ]
