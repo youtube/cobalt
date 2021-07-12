@@ -524,7 +524,8 @@ class TestApp():
 
   def __exit__(self, *args):
     self.should_exit.set()
-    self.periodic_query_thread.join(THREAD_EXIT_TIMEOUT_SECONDS)
+    if self.periodic_query_thread.is_alive():
+      self.periodic_query_thread.join(THREAD_EXIT_TIMEOUT_SECONDS)
     return self.runner.__exit__(*args)
 
   def _OnNewLogLine(self, line):
@@ -770,3 +771,22 @@ class TestApp():
       raise RuntimeError('Media type supported query failed with error (%s)' %
                          (str(e)))
     return result
+
+  def PlayOrPausePlayback(self):
+    self.SendKeys(AdditionalKeys.MEDIA_PLAYPAUSE)
+
+  def FastforwardPlayback(self):
+    # The first fastforward will only bring up the progress bar.
+    self.SendKeys(AdditionalKeys.MEDIA_FASTFORWARD)
+    # The second fastforward will forward the playback by 10 seconds.
+    self.SendKeys(AdditionalKeys.MEDIA_FASTFORWARD)
+    # Press play button to start the playback.
+    self.SendKeys(AdditionalKeys.MEDIA_PLAYPAUSE)
+
+  def RewindPlayback(self):
+    # The first rewind will only bring up the progress bar.
+    self.SendKeys(AdditionalKeys.MEDIA_REWIND)
+    # The second rewind will rewind the playback by 10 seconds.
+    self.SendKeys(AdditionalKeys.MEDIA_REWIND)
+    # It needs to press play button to start the playback.
+    self.SendKeys(AdditionalKeys.MEDIA_PLAYPAUSE)
