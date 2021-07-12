@@ -89,14 +89,14 @@ class StartLatencyTest(TestCase):
         app.WaitUntilMediaTimeReached(app.CurrentMediaTime() + 1)
         start_time = time.time()
         # Pause the playback.
-        app.PlayOrPausePlayback()
+        app.PlayOrPause()
         app.WaitUntilReachState(
             lambda _app: _app.PlayerState().video_element_state.paused)
         pause_latency = time.time() - start_time
 
         start_time = time.time()
         # Resume the playback.
-        app.PlayOrPausePlayback()
+        app.PlayOrPause()
         app.WaitUntilReachState(
             lambda _app: not _app.PlayerState().video_element_state.paused)
 
@@ -122,7 +122,7 @@ class StartLatencyTest(TestCase):
       while len(test_results) < self.test_times:
         old_media_time = app.CurrentMediaTime()
         start_time = time.time()
-        app.FastforwardPlayback()
+        app.Fastforward()
         app.WaitUntilReachState(lambda _app: _app.PlayerState(
         ).pipeline_state.first_written_video_timestamp != _app.PlayerState().
                                 pipeline_state.last_written_video_timestamp)

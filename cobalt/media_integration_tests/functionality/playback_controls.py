@@ -16,7 +16,6 @@
 import logging
 
 import _env  # pylint: disable=unused-import
-from cobalt.media_integration_tests.test_app import AdditionalKeys
 from cobalt.media_integration_tests.test_case import TestCase
 from cobalt.media_integration_tests.test_util import PlaybackUrls
 
@@ -35,11 +34,11 @@ class PlaybackControlsTest(TestCase):
       # Let the playback play for 2 seconds.
       app.WaitUntilMediaTimeReached(app.CurrentMediaTime() + 2)
       # Pause the playback.
-      app.PlayOrPausePlayback()
+      app.PlayOrPause()
       app.WaitUntilReachState(
           lambda _app: _app.PlayerState().video_element_state.paused)
       # Resume the playback.
-      app.PlayOrPausePlayback()
+      app.PlayOrPause()
       app.WaitUntilReachState(
           lambda _app: not _app.PlayerState().video_element_state.paused)
       # Let the playback play for another 2 seconds.
@@ -57,7 +56,7 @@ class PlaybackControlsTest(TestCase):
       logging.info('Fast forward the playback.')
       old_media_time = app.CurrentMediaTime()
       # Fastforward the playback by 10 seconds.
-      app.FastforwardPlayback()
+      app.Fastforward()
       app.WaitUntilReachState(
           lambda _app: _app.CurrentMediaTime() > old_media_time + 10)
       # Let the playback play for another 2 seconds.
@@ -66,7 +65,7 @@ class PlaybackControlsTest(TestCase):
       logging.info('Rewind the playback.')
       old_media_time = app.CurrentMediaTime()
       # Rewind the playback by 10 seconds.
-      app.RewindPlayback()
+      app.Rewind()
       app.WaitUntilReachState(
           lambda _app: _app.CurrentMediaTime() < old_media_time)
       # Let the playback play for another 2 seconds.
@@ -82,7 +81,7 @@ class PlaybackControlsTest(TestCase):
       app.WaitUntilMediaTimeReached(app.CurrentMediaTime() + 2)
       # Play next track.
       logging.info('Play next playback.')
-      app.SendKeys(AdditionalKeys.MEDIA_NEXT_TRACK)
+      app.PlayNext()
       # Wait until the player is destroyed.
       app.WaitUntilPlayerDestroyed()
       # Wait until the playback starts.
@@ -92,7 +91,7 @@ class PlaybackControlsTest(TestCase):
       app.WaitUntilMediaTimeReached(app.CurrentMediaTime() + 2)
       # Play previous track.
       logging.info('Play previous playback.')
-      app.SendKeys(AdditionalKeys.MEDIA_PREV_TRACK)
+      app.PlayPrevious()
       # Wait until the player is destroyed.
       app.WaitUntilPlayerDestroyed()
       # Wait until the playback starts.
