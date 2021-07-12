@@ -110,6 +110,10 @@ void PerformanceLifecycleTiming::SetApplicationState(
       } else if (GetCurrentState() == base::kApplicationStateConcealed) {
         lifecycle_timing_info_.app_reveal = timestamp;
       } else {
+        DLOG(INFO) << "Current State: " <<
+            TranslateApplicationStateToString(GetCurrentState());
+        DLOG(INFO) << "Next State: " <<
+            TranslateApplicationStateToString(state);
         NOTREACHED() << "Invalid application state transition.";
       }
       break;
@@ -119,6 +123,10 @@ void PerformanceLifecycleTiming::SetApplicationState(
       } else if (GetCurrentState() == base::kApplicationStateFrozen) {
         lifecycle_timing_info_.app_unfreeze = timestamp;
       } else {
+        DLOG(INFO) << "Current State: " <<
+            TranslateApplicationStateToString(GetCurrentState());
+        DLOG(INFO) << "Next State: " <<
+            TranslateApplicationStateToString(state);
         NOTREACHED() << "Invalid application state transition.";
       }
       break;
