@@ -279,7 +279,11 @@ class Launcher(abstract_launcher.AbstractLauncher):
     # Setup for running executable
     self._CheckCallAdb('wait-for-device')
     self._Shutdown()
-
+    # TODO: Need to wait until cobalt fully shutdown. Otherwise, it may get
+    # dirty logs from previous test, and logs like "***Application Stopped***"
+    # will cause unexpected errors.
+    # Simply wait 2s as a temperary solution.
+    time.sleep(2)
     # Clear logcat
     self._CheckCallAdb('logcat', '-c')
 

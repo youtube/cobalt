@@ -14,7 +14,6 @@
 """ Tests for playback control shortcuts."""
 
 import logging
-import time
 
 import _env  # pylint: disable=unused-import
 from cobalt.media_integration_tests.test_app import AdditionalKeys
@@ -36,13 +35,11 @@ class PlaybackControlsTest(TestCase):
       # Let the playback play for 2 seconds.
       app.WaitUntilMediaTimeReached(app.CurrentMediaTime() + 2)
       # Pause the playback.
-      logging.info('Pause the playback.')
-      app.SendKeys(AdditionalKeys.MEDIA_PLAY_PAUSE)
+      app.PlayOrPausePlayback()
       app.WaitUntilReachState(
           lambda _app: _app.PlayerState().video_element_state.paused)
       # Resume the playback.
-      logging.info('Resume the playback.')
-      app.SendKeys(AdditionalKeys.MEDIA_PLAY_PAUSE)
+      app.PlayOrPausePlayback()
       app.WaitUntilReachState(
           lambda _app: not _app.PlayerState().video_element_state.paused)
       # Let the playback play for another 2 seconds.
@@ -59,27 +56,19 @@ class PlaybackControlsTest(TestCase):
 
       logging.info('Fast forward the playback.')
       old_media_time = app.CurrentMediaTime()
-      # The first fastforward will only bring up the progress bar.
-      app.SendKeys(AdditionalKeys.MEDIA_FAST_FORWARD)
-      # The second fastforward will forward the playback by 10 seconds.
-      app.SendKeys(AdditionalKeys.MEDIA_FAST_FORWARD)
-      # Press play button to start the playback.
-      app.SendKeys(AdditionalKeys.MEDIA_PLAY_PAUSE)
+      # Fastforward the playback by 10 seconds.
+      app.FastforwardPlayback()
       app.WaitUntilReachState(
-          lambda _app: app.CurrentMediaTime() > old_media_time + 10)
+          lambda _app: _app.CurrentMediaTime() > old_media_time + 10)
       # Let the playback play for another 2 seconds.
       app.WaitUntilMediaTimeReached(app.CurrentMediaTime() + 2)
 
       logging.info('Rewind the playback.')
       old_media_time = app.CurrentMediaTime()
-      # The first rewind will only bring up the progress bar.
-      app.SendKeys(AdditionalKeys.MEDIA_REWIND)
-      # The second rewind will rewind the playback by 10 seconds.
-      app.SendKeys(AdditionalKeys.MEDIA_REWIND)
-      # It needs to press play button to start the playback.
-      app.SendKeys(AdditionalKeys.MEDIA_PLAY_PAUSE)
+      # Rewind the playback by 10 seconds.
+      app.RewindPlayback()
       app.WaitUntilReachState(
-          lambda _app: app.CurrentMediaTime() < old_media_time)
+          lambda _app: _app.CurrentMediaTime() < old_media_time)
       # Let the playback play for another 2 seconds.
       app.WaitUntilMediaTimeReached(app.CurrentMediaTime() + 2)
 

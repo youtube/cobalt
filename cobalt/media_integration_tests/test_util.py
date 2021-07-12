@@ -13,6 +13,8 @@
 # limitations under the License.
 """The module of base media integration test case."""
 
+from collections import OrderedDict
+
 import _env  # pylint: disable=unused-import
 
 
@@ -20,6 +22,8 @@ class MimeStrings():
   """
     Set of playback mime strings.
   """
+
+  H264 = 'video/mp4; codecs=\\"avc1.4d4015\\"'
   VP9 = 'video/webm; codecs=\\"vp9\\"'
   VP9_HFR = 'video/webm; codecs=\\"vp9\\"; framerate=60'
   AV1 = 'video/mp4; codecs=\\"av01.0.08M.08\\"'
@@ -29,13 +33,37 @@ class MimeStrings():
   VP9_HDR_PQ_HFR = ('video/webm; codecs=\\"vp09.02.51.10.01.09.16.09.00\\";'
                     'framerate=60')
 
+  AAC = 'audio/mp4; codecs=\\"mp4a.40.2\\"'
+  OPUS = 'audio/webm; codecs=\\"opus\\"'
+
+  RESOLUTIONS = OrderedDict([('140P', 'width=256; height=144'),
+                             ('240P', 'width=352; height=240'),
+                             ('360P', 'width=480; height=360'),
+                             ('480P', 'width=640; height=480'),
+                             ('720P', 'width=1280; height=720'),
+                             ('1080P', 'width=1920; height=1080'),
+                             ('2K', 'width=2560; height=1440'),
+                             ('4K', 'width=3840; height=2160'),
+                             ('8K', 'width=7680; height=4320')])
+
+  @staticmethod
+  def create_video_mime_string(codec, resolution):
+    return '%s; %s' % (codec, MimeStrings.RESOLUTIONS[resolution])
+
+  @staticmethod
+  def create_audio_mime_string(codec, channels):
+    return '%s; channels=%d' % (codec, channels)
+
 
 class PlaybackUrls():
   """
     Set of testing video urls.
   """
+
+  DEFAULT = 'https://www.youtube.com/tv'
   H264_ONLY = 'https://www.youtube.com/tv#/watch?v=RACW52qnJMI'
   ENCRYPTED = 'https://www.youtube.com/tv#/watch?v=iNvUS1dnwfw'
+
   VP9 = 'https://www.youtube.com/tv#/watch?v=x7GkebUe6XQ'
   VP9_HFR = 'https://www.youtube.com/tv#/watch?v=Jsjtt5dWDYU'
   AV1 = 'https://www.youtube.com/tv#/watch?v=iXvy8ZeCs5M'

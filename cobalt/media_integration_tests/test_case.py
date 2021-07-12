@@ -59,3 +59,9 @@ class TestCase(unittest.TestCase):
   def IsFeatureSupported(feature):
     global _supported_features
     return _supported_features[feature]
+
+  @staticmethod
+  def CreateTest(test_class, test_name, test_function, *args):
+    test_method = lambda self: test_function(self, *args)
+    test_method.__name__ = 'test_%s' % test_name
+    setattr(test_class, test_method.__name__, test_method)
