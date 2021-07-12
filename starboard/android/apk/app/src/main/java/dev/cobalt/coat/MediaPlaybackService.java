@@ -32,9 +32,9 @@ import dev.cobalt.util.UsedByNative;
 
 public class MediaPlaybackService extends Service {
 
-  private static final int NOTIFICATION_ID = 1234;
-  private static final String NOTIFICATION_CHANNEL_ID = "default";
-  private static final String NOTIFICATION_CHANNEL_NAME = "Default channel";
+  private static final int NOTIFICATION_ID = 193266736; // CL number for uniqueness.
+  private static final String NOTIFICATION_CHANNEL_ID = "dev.cobalt.coat media playback service";
+  private static final String NOTIFICATION_CHANNEL_NAME = "Media playback service";
   private Context context;
 
   @Override
@@ -81,8 +81,10 @@ public class MediaPlaybackService extends Service {
   }
 
   public void stopService() {
-    stopForeground(true);
+    // Do not remove notification here.
+    stopForeground(false);
     stopSelf();
+    // Delete notification after foreground stopped.
     deleteChannel();
     hideNotification();
   }
