@@ -79,7 +79,9 @@ class PlaybackUrls():
   LIVE_ULL = 'https://www.youtube.com/tv#/watch?v=KI1XlTQrsa0'
   LIVE_VR = 'https://www.youtube.com/tv#/watch?v=soeo5OPv7CA'
 
+  PLAYLIST = ('https://www.youtube.com/tv#/watch?list='
+              'PLynQTqo4blSSCMPUGcH2YnbSrV84AnsRD')
   # The link refers to a video in the middle of the playlist, so that
   # it can be used to test both play previous and next.
-  PLAYLIST = ('https://www.youtube.com/tv#/watch?'
-              'v=v3dclL2grbs&list=PLEo9nJ_lneYVn57sDqYmx9Bu6K80OauUs')
+  PLAYLIST_MID = ('https://www.youtube.com/tv#/watch?'
+                  'v=9WrgRpOJr0I&list=PLynQTqo4blSSCMPUGcH2YnbSrV84AnsRD')

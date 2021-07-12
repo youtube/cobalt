@@ -587,7 +587,7 @@ class TestApp():
     self.player_state_handler.AddPlayerStateChangeHandler(handler)
 
   def RemovePlayerStateChangeHandler(self, handler):
-    self.player_state_handler.RemoveAppStateChangeHandler(handler)
+    self.player_state_handler.RemovePlayerStateChangeHandler(handler)
 
   # The handler will receive parameters (TestApp, String, Dictionary).
   def RegisterPeriodicQuery(self, query_name, query_js_code, result_handler):
@@ -772,10 +772,10 @@ class TestApp():
                          (str(e)))
     return result
 
-  def PlayOrPausePlayback(self):
+  def PlayOrPause(self):
     self.SendKeys(AdditionalKeys.MEDIA_PLAYPAUSE)
 
-  def FastforwardPlayback(self):
+  def Fastforward(self):
     # The first fastforward will only bring up the progress bar.
     self.SendKeys(AdditionalKeys.MEDIA_FASTFORWARD)
     # The second fastforward will forward the playback by 10 seconds.
@@ -783,10 +783,16 @@ class TestApp():
     # Press play button to start the playback.
     self.SendKeys(AdditionalKeys.MEDIA_PLAYPAUSE)
 
-  def RewindPlayback(self):
+  def Rewind(self):
     # The first rewind will only bring up the progress bar.
     self.SendKeys(AdditionalKeys.MEDIA_REWIND)
     # The second rewind will rewind the playback by 10 seconds.
     self.SendKeys(AdditionalKeys.MEDIA_REWIND)
     # It needs to press play button to start the playback.
     self.SendKeys(AdditionalKeys.MEDIA_PLAYPAUSE)
+
+  def PlayPrevious(self):
+    self.SendKeys(AdditionalKeys.MEDIA_PREV_TRACK)
+
+  def PlayNext(self):
+    self.SendKeys(AdditionalKeys.MEDIA_NEXT_TRACK)

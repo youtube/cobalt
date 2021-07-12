@@ -34,12 +34,12 @@ class LivePlaybackTest(TestCase):
       # Let the playback play for 5 seconds.
       app.WaitUntilMediaTimeReached(app.CurrentMediaTime() + 5)
       # Pause the playback and wait for some time.
-      app.PlayOrPausePlayback()
+      app.PlayOrPause()
       app.WaitUntilReachState(
           lambda _app: _app.PlayerState().video_element_state.paused)
       time.sleep(2)
       # Resume the playback.
-      app.PlayOrPausePlayback()
+      app.PlayOrPause()
       app.WaitUntilReachState(
           lambda _app: not _app.PlayerState().video_element_state.paused)
       # Let the playback play for another 5 seconds.
