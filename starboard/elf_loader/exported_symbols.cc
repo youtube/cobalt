@@ -231,7 +231,7 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(SbStringConcatWide);
   REGISTER_SYMBOL(SbStringCopy);
   REGISTER_SYMBOL(SbStringCopyWide);
-#endif  // SB_API_VERSION >= 13
+#endif  // SB_API_VERSION < 13
   REGISTER_SYMBOL(SbStringDuplicate);
 #if SB_API_VERSION < 13
   REGISTER_SYMBOL(SbStringFindCharacter);
