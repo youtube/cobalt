@@ -15,8 +15,6 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_JOB_QUEUE_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_JOB_QUEUE_H_
 
-// TODO: We need unit tests for JobQueue and JobThread.
-
 #include <functional>
 #include <map>
 #include <utility>
@@ -72,11 +70,7 @@ class JobQueue {
       SB_DCHECK(job_queue);
     }
     JobOwner(const JobOwner&) = delete;
-    ~JobOwner() {
-      if (job_queue_) {
-        CancelPendingJobs();
-      }
-    }
+    ~JobOwner() { CancelPendingJobs(); }
 
     bool BelongsToCurrentThread() const {
       return job_queue_->BelongsToCurrentThread();
@@ -92,12 +86,16 @@ class JobQueue {
     void RemoveJobByToken(JobToken job_token) {
       return job_queue_->RemoveJobByToken(job_token);
     }
-    void CancelPendingJobs() { job_queue_->RemoveJobsByOwner(this); }
+    void CancelPendingJobs() {
+      if (job_queue_) {
+        job_queue_->RemoveJobsByOwner(this);
+      }
+    }
 
    protected:
     enum DetachedState { kDetached };
 
-    explicit JobOwner(DetachedState detached_state) : job_queue_(NULL) {
+    explicit JobOwner(DetachedState detached_state) : job_queue_(nullptr) {
       SB_DCHECK(detached_state == kDetached);
     }
 
@@ -106,8 +104,19 @@ class JobQueue {
     // Note that this operation is not thread safe.  It is the caller's
     // responsibility to ensure that concurrency hasn't happened yet.
     void AttachToCurrentThread() {
-      SB_DCHECK(job_queue_ == NULL);
+      SB_DCHECK(job_queue_ == nullptr);
       job_queue_ = JobQueue::current();
+    }
+
+    // If a class implementing JobOwner also holds the current thread JobQueue,
+    // that JobQueue will get deleted before the JobOwner dtor runs, which
+    // accesses job_queue_. To avoid making calls on a destroyed object
+    // job_queue_ must be detached before the subclass is destroyed.
+    void DetachFromCurrentThread() {
+      SB_DCHECK(job_queue_ != nullptr);
+      SB_DCHECK(BelongsToCurrentThread());
+      CancelPendingJobs();
+      job_queue_ = nullptr;
     }
 
    private:

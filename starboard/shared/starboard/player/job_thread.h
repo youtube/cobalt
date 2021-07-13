@@ -55,16 +55,22 @@ class JobThread {
 
     return job_queue_->Schedule(job, delay);
   }
+
   JobQueue::JobToken Schedule(JobQueue::Job&& job, SbTimeMonotonic delay = 0) {
     SB_DCHECK(job_queue_);
 
     return job_queue_->Schedule(std::move(job), delay);
   }
+
   void ScheduleAndWait(const JobQueue::Job& job) {
     SB_DCHECK(job_queue_);
 
     job_queue_->ScheduleAndWait(job);
   }
+
+  // TODO: Calling ScheduleAndWait with a call to JobQueue::StopSoon will cause
+  // heap-use-after-free errors in ScheduleAndWait due to JobQueue dtor
+  // occasionally running before ScheduleAndWait has finished.
   void ScheduleAndWait(JobQueue::Job&& job) {
     SB_DCHECK(job_queue_);
 

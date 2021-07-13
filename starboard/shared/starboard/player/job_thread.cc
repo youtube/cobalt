@@ -49,14 +49,19 @@ JobThread::JobThread(const char* thread_name,
 }
 
 JobThread::~JobThread() {
-  job_queue_->Schedule(std::bind(&JobQueue::StopSoon, job_queue_.get()));
-  SbThreadJoin(thread_, NULL);
+  // TODO: There is a potential race condition here since job_queue_ can get
+  // reset if it's is stopped while this dtor is running. Thus, avoid stopping
+  // job_queue_ before JobThread is destructed.
+  if (job_queue_) {
+    job_queue_->Schedule(std::bind(&JobQueue::StopSoon, job_queue_.get()));
+  }
+  SbThreadJoin(thread_, nullptr);
 }
 
 // static
 void* JobThread::ThreadEntryPoint(void* context) {
   ThreadParam* param = static_cast<ThreadParam*>(context);
-  SB_DCHECK(param != NULL);
+  SB_DCHECK(param != nullptr);
   JobThread* job_thread = param->job_thread;
   {
     ScopedLock scoped_lock(param->mutex);
@@ -64,13 +69,15 @@ void* JobThread::ThreadEntryPoint(void* context) {
     param->condition_variable.Signal();
   }
   job_thread->RunLoop();
-  return NULL;
+  return nullptr;
 }
 
 void JobThread::RunLoop() {
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
 
   job_queue_->RunUntilStopped();
+  // TODO: Investigate removing this line to avoid the race condition in the
+  // dtor.
   job_queue_.reset();
 }
 

@@ -96,11 +96,11 @@ void JobQueue::ScheduleAndWait(Job&& job) {
 
   bool job_finished = false;
 
-  Schedule(std::bind([&]() {
+  Schedule([&]() {
     ScopedLock lock(mutex_);
     job_finished = true;
     condition_.Broadcast();
-  }));
+  });
 
   ScopedLock lock(mutex_);
   while (!job_finished && !stopped_) {
@@ -197,7 +197,7 @@ JobQueue::JobToken JobQueue::Schedule(Job&& job,
   bool is_first_job = time_to_job_record_map_.empty() ||
                       time_to_run_job < time_to_job_record_map_.begin()->first;
 
-  time_to_job_record_map_.insert(std::make_pair(time_to_run_job, job_record));
+  time_to_job_record_map_.insert({time_to_run_job, std::move(job_record)});
   if (is_first_job) {
     condition_.Broadcast();
   }
@@ -262,7 +262,7 @@ bool JobQueue::TryToRunOneJob(bool wait_for_next_job) {
     if (delay > 0) {
       return false;
     }
-    job_record = first_delayed_job->second;
+    job_record = std::move(first_delayed_job->second);
     time_to_job_record_map_.erase(first_delayed_job);
   }
 
