@@ -47,9 +47,9 @@ if(NOT COBALT_CONTENT_DIR)
 endif()
 
 # If COBALT_LIBRARY_DIR isn't set for a particular deploy target use the
-# base product directory.
+# toplevel lib/ subdirectory.
 if(NOT COBALT_LIBRARY_DIR)
-  set(COBALT_LIBRARY_DIR COBALT_PRODUCT_DIR)
+  set(COBALT_LIBRARY_DIR ${COBALT_PRODUCT_DIR}/lib)
 endif()
 
 # For platform deploy builds, use the -n parameter to skip Cobalt ninja and

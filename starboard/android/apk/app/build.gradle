@@ -30,7 +30,8 @@ ext {
             project.hasProperty('cobaltProductDir') ? new File(cobaltProductDir).canonicalPath : ''
     cobaltContentDir =
             project.hasProperty('cobaltContentDir') ? new File(cobaltContentDir).canonicalPath : ''
-    cobaltLibraryDir = project.hasProperty('cobaltLibraryDir') ? cobaltLibraryDir : cobaltProductDir
+    cobaltLibraryDir =
+            project.hasProperty('cobaltLibraryDir') ? new File(cobaltLibraryDir).canonicalPath : ''
     enableVulkan =
             project.hasProperty('enableVulkan') ? enableVulkan : 0
 
