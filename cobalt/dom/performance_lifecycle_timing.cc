@@ -90,6 +90,10 @@ DOMHighResTimeStamp PerformanceLifecycleTiming::app_unfreeze() const {
   return ReportDOMHighResTimeStamp(lifecycle_timing_info_.app_unfreeze);
 }
 
+DOMHighResTimeStamp PerformanceLifecycleTiming::app_deeplink() const {
+  return ReportDOMHighResTimeStamp(lifecycle_timing_info_.app_deeplink);
+}
+
 std::string PerformanceLifecycleTiming::current_state() const {
   return TranslateApplicationStateToString(
       lifecycle_timing_info_.current_state);
@@ -162,6 +166,11 @@ void PerformanceLifecycleTiming::SetApplicationStartOrPreloadTimestamp(
     lifecycle_timing_info_.app_start = timestamp;
     SetLifecycleTimingInfoState(base::kApplicationStateStarted);
   }
+}
+
+void PerformanceLifecycleTiming::SetDeepLinkTimestamp(
+    SbTimeMonotonic timestamp) {
+  lifecycle_timing_info_.app_deeplink = timestamp;
 }
 
 base::ApplicationState PerformanceLifecycleTiming::GetCurrentState() const {

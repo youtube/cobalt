@@ -1093,7 +1093,13 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
 #endif  // SB_API_VERSION >= 12 ||
         // SB_HAS(ON_SCREEN_KEYBOARD)
     case kSbEventTypeLink: {
-      DispatchDeepLink(static_cast<const char*>(starboard_event->data));
+#if SB_API_VERSION >= 13
+      DispatchDeepLink(static_cast<const char*>(starboard_event->data),
+                                                starboard_event->timestamp);
+#else  // SB_API_VERSION >= 13
+      DispatchDeepLink(static_cast<const char*>(starboard_event->data),
+                                                SbTimeGetMonotonicNow());
+#endif  // SB_API_VERSION >= 13
       break;
     }
 #if SB_API_VERSION >= 13
@@ -1473,7 +1479,8 @@ void Application::OnDeepLinkConsumedCallback(const std::string& link) {
   }
 }
 
-void Application::DispatchDeepLink(const char* link) {
+void Application::DispatchDeepLink(const char* link,
+                                   SbTimeMonotonic timestamp) {
   if (!link || *link == 0) {
     return;
   }
@@ -1489,10 +1496,17 @@ void Application::DispatchDeepLink(const char* link) {
     deep_link = unconsumed_deep_link_;
   }
 
+  deep_link_timestamp_ = timestamp;
+
   LOG(INFO) << "Dispatching deep link: " << deep_link;
   DispatchEventInternal(new base::DeepLinkEvent(
       deep_link, base::Bind(&Application::OnDeepLinkConsumedCallback,
                             base::Unretained(this), deep_link)));
+#if SB_API_VERSION >= 13
+  if (browser_module_) {
+    browser_module_->SetDeepLinkTimestamp(timestamp);
+  }
+#endif  // SB_API_VERSION >= 13
 }
 
 void Application::DispatchDeepLinkIfNotConsumed() {
@@ -1510,6 +1524,11 @@ void Application::DispatchDeepLinkIfNotConsumed() {
         deep_link, base::Bind(&Application::OnDeepLinkConsumedCallback,
                               base::Unretained(this), deep_link)));
   }
+#if SB_API_VERSION >= 13
+    if (browser_module_) {
+      browser_module_->SetDeepLinkTimestamp(deep_link_timestamp_);
+    }
+#endif  // SB_API_VERSION >= 13
 }
 
 }  // namespace browser

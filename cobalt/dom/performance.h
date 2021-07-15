@@ -138,6 +138,8 @@ class Performance : public EventTarget {
   void SetApplicationStartOrPreloadTimestamp(
       bool is_preload, SbTimeMonotonic timestamp);
 
+  void SetDeepLinkTimestamp(SbTimeMonotonic timestamp);
+
   void TraceMembers(script::Tracer* tracer) override;
   DEFINE_WRAPPABLE_TYPE(Performance);
 
