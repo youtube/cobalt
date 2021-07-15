@@ -231,7 +231,7 @@ void WebMediaPlayerImpl::LoadUrl(const GURL& url) {
   UMA_HISTOGRAM_ENUMERATION("Media.URLScheme", URLScheme(url), kMaxURLScheme);
   DLOG(INFO) << "Start URL playback";
 
-  // Handle any volume changes that occured before load().
+  // Handle any volume changes that occurred before load().
   SetVolume(GetClient()->Volume());
 
   // TODO: Set networkState to WebMediaPlayer::kNetworkStateIdle on stop.
@@ -251,7 +251,7 @@ void WebMediaPlayerImpl::LoadMediaSource() {
 
   DLOG(INFO) << "Start MEDIASOURCE playback";
 
-  // Handle any volume changes that occured before load().
+  // Handle any volume changes that occurred before load().
   SetVolume(GetClient()->Volume());
 
   SetNetworkState(WebMediaPlayer::kNetworkStateLoading);
@@ -278,7 +278,7 @@ void WebMediaPlayerImpl::LoadProgressive(
   UMA_HISTOGRAM_ENUMERATION("Media.URLScheme", URLScheme(url), kMaxURLScheme);
   DLOG(INFO) << "Start PROGRESSIVE playback";
 
-  // Handle any volume changes that occured before load().
+  // Handle any volume changes that occurred before load().
   SetVolume(GetClient()->Volume());
 
   SetNetworkState(WebMediaPlayer::kNetworkStateLoading);
@@ -307,9 +307,6 @@ void WebMediaPlayerImpl::Play() {
   TRACE_EVENT0("cobalt::media", "WebMediaPlayerImpl::Play");
 
   DCHECK_EQ(main_loop_, base::MessageLoop::current());
-#if defined(__LB_ANDROID__)
-  audio_focus_bridge_.RequestAudioFocus();
-#endif  // defined(__LB_ANDROID__)
 
   state_.paused = false;
   pipeline_->SetPlaybackRate(state_.playback_rate);
@@ -319,9 +316,6 @@ void WebMediaPlayerImpl::Play() {
 
 void WebMediaPlayerImpl::Pause() {
   DCHECK_EQ(main_loop_, base::MessageLoop::current());
-#if defined(__LB_ANDROID__)
-  audio_focus_bridge_.AbandonAudioFocus();
-#endif  // defined(__LB_ANDROID__)
 
   state_.paused = true;
   pipeline_->SetPlaybackRate(0.0f);
