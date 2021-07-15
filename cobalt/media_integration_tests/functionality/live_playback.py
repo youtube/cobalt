@@ -25,7 +25,7 @@ class LivePlaybackTest(TestCase):
     Test cases for live playbacks.
   """
 
-  def run_test_with_url(self, url):
+  def run_test(self, url):
     app = self.CreateCobaltApp(url)
     with app:
       # Wait until the playback starts.
@@ -45,11 +45,13 @@ class LivePlaybackTest(TestCase):
       # Let the playback play for another 5 seconds.
       app.WaitUntilMediaTimeReached(app.CurrentMediaTime() + 5)
 
-  def test_live_playback(self):
-    self.run_test_with_url(PlaybackUrls.LIVE)
 
-  def test_ull_live_playback(self):
-    self.run_test_with_url(PlaybackUrls.LIVE_ULL)
+TEST_PARAMETERS = [
+    ('LIVE', PlaybackUrls.LIVE),
+    ('LIVE_ULL', PlaybackUrls.LIVE_ULL),
+    ('LIVE_VR', PlaybackUrls.LIVE_VR),
+]
 
-  def test_vr_live_playback(self):
-    self.run_test_with_url(PlaybackUrls.LIVE_VR)
+for name, playback_url in TEST_PARAMETERS:
+  TestCase.CreateTest(LivePlaybackTest, name, LivePlaybackTest.run_test,
+                      playback_url)
