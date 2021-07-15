@@ -622,5 +622,9 @@ void Performance::SetApplicationStartOrPreloadTimestamp(
       is_preload, timestamp);
 }
 
+void Performance::SetDeepLinkTimestamp(SbTimeMonotonic timestamp) {
+  lifecycle_timing_->SetDeepLinkTimestamp(timestamp);
+}
+
 }  // namespace dom
 }  // namespace cobalt

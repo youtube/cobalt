@@ -263,6 +263,7 @@ class WebModule::Impl {
 
   void SetApplicationStartOrPreloadTimestamp(
       bool is_preload, SbTimeMonotonic timestamp);
+  void SetDeepLinkTimestamp(SbTimeMonotonic timestamp);
 
  private:
   class DocumentLoadedObserver;
@@ -1032,6 +1033,11 @@ void WebModule::Impl::SetApplicationStartOrPreloadTimestamp(
   DCHECK(window_);
   window_->performance()->SetApplicationStartOrPreloadTimestamp(
       is_preload, timestamp);
+}
+
+void WebModule::Impl::SetDeepLinkTimestamp(SbTimeMonotonic timestamp) {
+  DCHECK(window_);
+  window_->performance()->SetDeepLinkTimestamp(timestamp);
 }
 
 void WebModule::Impl::OnCspPolicyChanged() {
@@ -1833,6 +1839,21 @@ void WebModule::SetApplicationStartOrPreloadTimestamp(
                  base::Unretained(impl_.get()), is_preload, timestamp));
   } else {
     impl_->SetApplicationStartOrPreloadTimestamp(is_preload, timestamp);
+  }
+}
+
+void WebModule::SetDeepLinkTimestamp(SbTimeMonotonic timestamp) {
+  TRACE_EVENT0("cobalt::browser",
+               "WebModule::SetDeepLinkTimestamp()");
+  DCHECK(message_loop());
+  DCHECK(impl_);
+  if (base::MessageLoop::current() != message_loop()) {
+    message_loop()->task_runner()->PostBlockingTask(
+      FROM_HERE,
+      base::Bind(&WebModule::Impl::SetDeepLinkTimestamp,
+                 base::Unretained(impl_.get()), timestamp));
+  } else {
+    impl_->SetDeepLinkTimestamp(timestamp);
   }
 }
 

@@ -22,6 +22,7 @@ interface PerformanceLifecycleTiming : PerformanceEntry {
   readonly  attribute DOMHighResTimeStamp appReveal;
   readonly  attribute DOMHighResTimeStamp appFreeze;
   readonly  attribute DOMHighResTimeStamp appUnfreeze;
+  readonly  attribute DOMHighResTimeStamp appDeeplink;
   readonly  attribute DOMString  currentState;
   readonly  attribute DOMString  lastState;
 };
