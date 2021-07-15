@@ -313,10 +313,6 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   std::unique_ptr<Demuxer> progressive_demuxer_;
   std::unique_ptr<ChunkDemuxer> chunk_demuxer_;
 
-#if defined(__LB_ANDROID__)
-  AudioFocusBridge audio_focus_bridge_;
-#endif  // defined(__LB_ANDROID__)
-
   // Suppresses calls to OnPipelineError() after destruction / shutdown has been
   // started; prevents us from spuriously logging errors that are transient or
   // unimportant.
