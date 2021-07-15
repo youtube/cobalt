@@ -15,7 +15,6 @@
 
 import logging
 import time
-import unittest
 
 import _env  # pylint: disable=unused-import
 from cobalt.media_integration_tests.test_app import Features
@@ -28,7 +27,7 @@ class SuspendResumeTest(TestCase):
     Test cases for suspend and resume.
   """
 
-  def run_test_with_url(self, url, mime=None):
+  def run_test(self, url, mime=None):
     app = self.CreateCobaltApp(url)
     with app:
       # Skip the test if the mime is not supported.
@@ -55,37 +54,19 @@ class SuspendResumeTest(TestCase):
       # Let the playback play for 2 seconds.
       app.WaitUntilMediaTimeReached(app.CurrentMediaTime() + 2)
 
-  @unittest.skipIf(not TestCase.IsFeatureSupported(Features.SUSPEND_AND_RESUME),
-                   'Suspend and resume is not supported on this platform.')
-  def test_h264_playback(self):
-    self.run_test_with_url(PlaybackUrls.H264_ONLY)
+TEST_PARAMETERS = [
+    ('H264', PlaybackUrls.H264_ONLY, None),
+    ('ENCRYPTED', PlaybackUrls.ENCRYPTED, None),
+    ('LIVE', PlaybackUrls.LIVE, None),
+    ('VP9', PlaybackUrls.VP9, MimeStrings.VP9),
+    ('AV1', PlaybackUrls.AV1, MimeStrings.AV1),
+    ('VERTICAL', PlaybackUrls.VERTICAL, None),
+    ('VR', PlaybackUrls.VR, None),
+]
 
-  @unittest.skipIf(not TestCase.IsFeatureSupported(Features.SUSPEND_AND_RESUME),
-                   'Suspend and resume is not supported on this platform.')
-  def test_encrypted_playback(self):
-    self.run_test_with_url(PlaybackUrls.ENCRYPTED)
-
-  @unittest.skipIf(not TestCase.IsFeatureSupported(Features.SUSPEND_AND_RESUME),
-                   'Suspend and resume is not supported on this platform.')
-  def test_live_stream(self):
-    self.run_test_with_url(PlaybackUrls.LIVE)
-
-  @unittest.skipIf(not TestCase.IsFeatureSupported(Features.SUSPEND_AND_RESUME),
-                   'Suspend and resume is not supported on this platform.')
-  def test_vp9_playback(self):
-    self.run_test_with_url(PlaybackUrls.VP9, MimeStrings.VP9)
-
-  @unittest.skipIf(not TestCase.IsFeatureSupported(Features.SUSPEND_AND_RESUME),
-                   'Suspend and resume is not supported on this platform.')
-  def test_av1_playback(self):
-    self.run_test_with_url(PlaybackUrls.AV1, MimeStrings.AV1)
-
-  @unittest.skipIf(not TestCase.IsFeatureSupported(Features.SUSPEND_AND_RESUME),
-                   'Suspend and resume is not supported on this platform.')
-  def test_vertical_playback(self):
-    self.run_test_with_url(PlaybackUrls.VERTICAL)
-
-  @unittest.skipIf(not TestCase.IsFeatureSupported(Features.SUSPEND_AND_RESUME),
-                   'Suspend and resume is not supported on this platform.')
-  def test_vr_playback(self):
-    self.run_test_with_url(PlaybackUrls.VR)
+if not TestCase.IsFeatureSupported(Features.SUSPEND_AND_RESUME):
+  logging.info('Suspend and resume is not supported on this platform.')
+else:
+  for name, playback_url, mime_str in TEST_PARAMETERS:
+    TestCase.CreateTest(SuspendResumeTest, name, SuspendResumeTest.run_test,
+                        playback_url, mime_str)

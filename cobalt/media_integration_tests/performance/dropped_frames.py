@@ -59,7 +59,7 @@ class DroppedFrameTest(TestCase):
 
 
 TEST_PARAMETERS = [
-    ('H264', PlaybackUrls.H264, MimeStrings.H264),
+    ('H264', PlaybackUrls.H264_ONLY, MimeStrings.H264),
     ('VP9', PlaybackUrls.VP9, MimeStrings.VP9),
     ('VP9_HFR', PlaybackUrls.VP9_HFR, MimeStrings.VP9_HFR),
     ('AV1', PlaybackUrls.AV1, MimeStrings.AV1),

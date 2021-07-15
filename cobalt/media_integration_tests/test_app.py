@@ -825,15 +825,15 @@ class TestApp():
                               (mime))
 
   def PlayOrPause(self):
-    self.SendKeys(AdditionalKeys.MEDIA_PLAYPAUSE)
+    self.SendKeys(AdditionalKeys.MEDIA_PLAY_PAUSE)
 
   def Fastforward(self):
     # The first fastforward will only bring up the progress bar.
-    self.SendKeys(AdditionalKeys.MEDIA_FASTFORWARD)
+    self.SendKeys(AdditionalKeys.MEDIA_FAST_FORWARD)
     # The second fastforward will forward the playback by 10 seconds.
-    self.SendKeys(AdditionalKeys.MEDIA_FASTFORWARD)
+    self.SendKeys(AdditionalKeys.MEDIA_FAST_FORWARD)
     # Press play button to start the playback.
-    self.SendKeys(AdditionalKeys.MEDIA_PLAYPAUSE)
+    self.SendKeys(AdditionalKeys.MEDIA_PLAY_PAUSE)
 
   def Rewind(self):
     # The first rewind will only bring up the progress bar.
@@ -841,7 +841,7 @@ class TestApp():
     # The second rewind will rewind the playback by 10 seconds.
     self.SendKeys(AdditionalKeys.MEDIA_REWIND)
     # It needs to press play button to start the playback.
-    self.SendKeys(AdditionalKeys.MEDIA_PLAYPAUSE)
+    self.SendKeys(AdditionalKeys.MEDIA_PLAY_PAUSE)
 
   def PlayPrevious(self):
     self.SendKeys(AdditionalKeys.MEDIA_PREV_TRACK)

@@ -138,7 +138,7 @@ class StartLatencyTest(TestCase):
 
 
 TEST_PARAMETERS = [
-    ('H264', PlaybackUrls.H264, MimeStrings.H264),
+    ('H264', PlaybackUrls.H264_ONLY, MimeStrings.H264),
     ('VP9', PlaybackUrls.VP9, MimeStrings.VP9),
     ('AV1', PlaybackUrls.AV1, MimeStrings.AV1),
     ('VP9_HDR_HLG', PlaybackUrls.VP9_HDR_HLG, MimeStrings.VP9_HDR_HLG),
