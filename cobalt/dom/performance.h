@@ -25,6 +25,7 @@
 #include "base/threading/thread_checker.h"
 #include "cobalt/base/application_state.h"
 #include "cobalt/base/clock.h"
+#include "cobalt/base/event_dispatcher.h"
 #include "cobalt/dom/event_target.h"
 #include "cobalt/dom/performance_entry_list_impl.h"
 #include "cobalt/dom/performance_high_resolution_time.h"
@@ -59,7 +60,9 @@ class Performance : public EventTarget {
       kMaxResourceTimingBufferSize = 250;
 
   Performance(script::EnvironmentSettings* settings,
-              const scoped_refptr<base::BasicClock>& clock);
+              const scoped_refptr<base::BasicClock>& clock,
+              base::EventDispatcher* event_dispatcher);
+  ~Performance();
 
   // Web API: Performance
   //   https://www.w3.org/TR/hr-time-2/#sec-performance
@@ -138,6 +141,8 @@ class Performance : public EventTarget {
   void SetApplicationStartOrPreloadTimestamp(
       bool is_preload, SbTimeMonotonic timestamp);
 
+  void SetDeepLinkTimestamp(const base::Event* event);
+
   void TraceMembers(script::Tracer* tracer) override;
   DEFINE_WRAPPABLE_TYPE(Performance);
 
@@ -180,6 +185,10 @@ class Performance : public EventTarget {
 
   bool performance_observer_task_queued_flag_;
   bool add_to_performance_entry_buffer_flag_;
+
+  base::EventDispatcher* event_dispatcher_;
+  base::EventCallback deep_link_event_callback_;
+  base::Lock lock_;
 
   DISALLOW_COPY_AND_ASSIGN(Performance);
 };

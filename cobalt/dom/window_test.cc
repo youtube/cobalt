@@ -83,7 +83,7 @@ class WindowTest : public ::testing::Test {
         base::Closure() /* window_minimize */, NULL, NULL,
         dom::Window::OnStartDispatchEventCallback(),
         dom::Window::OnStopDispatchEventCallback(),
-        dom::ScreenshotManager::ProvideScreenshotFunctionCallback(), NULL);
+        dom::ScreenshotManager::ProvideScreenshotFunctionCallback(), NULL, NULL);
     fake_event_listener_ = MockEventListener::Create();
   }
 

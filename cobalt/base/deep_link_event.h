@@ -26,16 +26,19 @@ namespace base {
 
 class DeepLinkEvent : public Event {
  public:
-  DeepLinkEvent(const std::string& link, const base::Closure& consumed_callback)
-      : link_(link), consumed_callback_(consumed_callback) {}
+  DeepLinkEvent(const std::string& link, const base::Closure& consumed_callback,
+                SbTimeMonotonic timestamp)
+      : link_(link), consumed_callback_(consumed_callback),
+      timestamp_(timestamp) {}
   const std::string& link() const { return link_; }
   const base::Closure& callback() const { return consumed_callback_; }
-
+  SbTimeMonotonic timestamp() const { return timestamp_; }
   BASE_EVENT_SUBCLASS(DeepLinkEvent);
 
  private:
   std::string link_;
   base::Closure consumed_callback_;
+  SbTimeMonotonic timestamp_;
 };
 
 }  // namespace base

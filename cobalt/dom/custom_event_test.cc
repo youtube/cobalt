@@ -86,7 +86,7 @@ class CustomEventTest : public ::testing::Test {
         base::Closure() /* window_minimize */, NULL, NULL,
         dom::Window::OnStartDispatchEventCallback(),
         dom::Window::OnStopDispatchEventCallback(),
-        dom::ScreenshotManager::ProvideScreenshotFunctionCallback(), NULL);
+        dom::ScreenshotManager::ProvideScreenshotFunctionCallback(), NULL, NULL);
     global_environment_->CreateGlobalObject(window_,
                                             environment_settings_.get());
   }

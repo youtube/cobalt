@@ -225,7 +225,7 @@ class OnScreenKeyboardTest : public ::testing::Test {
             dom::Window::OnStartDispatchEventCallback(),
             dom::Window::OnStopDispatchEventCallback(),
             dom::ScreenshotManager::ProvideScreenshotFunctionCallback(),
-            NULL)) {
+            NULL, NULL)) {
     global_environment_->CreateGlobalObject(window_,
                                             environment_settings_.get());
     on_screen_keyboard_bridge_->window_ = window_;

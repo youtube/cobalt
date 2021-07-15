@@ -139,6 +139,8 @@ DebugConsole::DebugConsole(
   // Pass down this callback from Browser module to Web module eventually.
   web_module_options.maybe_freeze_callback = maybe_freeze_callback;
 
+  web_module_options.event_dispatcher = nullptr;
+
   web_module_.reset(new WebModule(
       GURL(kInitialDebugConsoleUrl), initial_application_state,
       render_tree_produced_callback,

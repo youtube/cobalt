@@ -271,6 +271,8 @@ class WebModule : public LifecycleObserver {
     // there is no playback during Concealed state, we should provide a chance
     // for Cobalt to freeze.
     base::Closure maybe_freeze_callback;
+
+    base::EventDispatcher* event_dispatcher;
   };
 
   typedef layout::LayoutManager::LayoutResults LayoutResults;

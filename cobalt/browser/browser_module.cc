@@ -575,6 +575,7 @@ void BrowserModule::Navigate(const GURL& url_reference) {
     }
   }
 
+  options_.web_module_options.event_dispatcher = event_dispatcher_;
 // Create new WebModule.
 #if !defined(COBALT_FORCE_CSP)
   options_.web_module_options.csp_insecure_allowed_token =

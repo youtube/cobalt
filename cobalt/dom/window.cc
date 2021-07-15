@@ -121,6 +121,7 @@ Window::Window(
     const ScreenshotManager::ProvideScreenshotFunctionCallback&
         screenshot_function_callback,
     base::WaitableEvent* synchronous_loader_interrupt,
+    base::EventDispatcher* event_dispatcher,
     bool enable_inline_script_warnings,
     const scoped_refptr<ui_navigation::NavItem>& ui_nav_root,
     bool enable_map_to_mesh, int csp_insecure_allowed_token,
@@ -137,7 +138,8 @@ Window::Window(
 #if defined(ENABLE_TEST_RUNNER)
       test_runner_(new TestRunner()),
 #endif  // ENABLE_TEST_RUNNER
-      performance_(new Performance(settings, MakePerformanceClock(clock_type))),
+      performance_(new Performance(settings, MakePerformanceClock(clock_type),
+          event_dispatcher)),
       html_element_context_(new HTMLElementContext(
           settings, fetcher_factory, loader_factory, css_parser, dom_parser,
           can_play_type_handler, web_media_player_factory, script_runner,

@@ -689,6 +689,7 @@ WebModule::Impl::Impl(const ConstructionData& data)
                  base::Unretained(this)),
       base::Bind(&WebModule::Impl::OnStopDispatchEvent, base::Unretained(this)),
       data.options.provide_screenshot_function, &synchronous_loader_interrupt_,
+      data.options.event_dispatcher,
       data.options.enable_inline_script_warnings, data.ui_nav_root,
       data.options.enable_map_to_mesh, data.options.csp_insecure_allowed_token,
       data.dom_max_element_depth, data.options.video_playback_rate_multiplier,
@@ -702,6 +703,7 @@ WebModule::Impl::Impl(const ConstructionData& data)
       dom::Window::kClockTypeSystemTime,
 #endif
       splash_screen_cache_callback, system_caption_settings_, log_tts);
+
   DCHECK(window_);
 
   window_weak_ = base::AsWeakPtr(window_.get());

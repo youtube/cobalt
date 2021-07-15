@@ -64,7 +64,7 @@ class PerformanceObserverTest : public ::testing::Test {
 
 PerformanceObserverTest::PerformanceObserverTest()
     : clock_(new base::SystemMonotonicClock()),
-    performance_(new Performance(&environment_settings_, clock_)),
+    performance_(new Performance(&environment_settings_, clock_, nullptr)),
     observer_(new MockPerformanceObserver(
         base::Bind(&PerformanceObserverCallbackMock::NativePerformanceObserverCallback,
                    base::Unretained(&callback_mock_)),
