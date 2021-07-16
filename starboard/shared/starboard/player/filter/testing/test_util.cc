@@ -65,8 +65,35 @@ std::string ResolveTestFileName(const char* filename) {
   return GetTestInputDirectory() + kSbFileSepChar + filename;
 }
 
-std::vector<const char*> GetSupportedAudioTestFiles(bool include_heaac,
-                                                    bool ignore_channels) {
+std::string GetContentTypeFromAudioCodec(SbMediaAudioCodec audio_codec,
+                                         const char* mime_attributes) {
+  SB_DCHECK(audio_codec != kSbMediaAudioCodecNone);
+
+  std::string content_type;
+  switch (audio_codec) {
+    case kSbMediaAudioCodecAac:
+      content_type = "audio/mp4; codecs=\"mp4a.40.2\"";
+      break;
+    case kSbMediaAudioCodecOpus:
+      content_type = "audio/webm; codecs=\"opus\"";
+      break;
+    case kSbMediaAudioCodecAc3:
+      content_type = "audio/mp4; codecs=\"ac-3\"";
+      break;
+    case kSbMediaAudioCodecEac3:
+      content_type = "audio/mp4; codecs=\"ec-3\"";
+      break;
+    default:
+      SB_NOTREACHED();
+  }
+  return strlen(mime_attributes) > 0 ? content_type + "; " + mime_attributes
+                                     : content_type;
+}
+
+std::vector<const char*> GetSupportedAudioTestFiles(
+    HeaacOption heaac_option,
+    int max_channels,
+    const char* extra_mime_attributes) {
   // beneath_the_canopy_aac_stereo.dmp
   //   codec: kSbMediaAudioCodecAac
   //   sampling rate: 44.1k
@@ -81,6 +108,14 @@ std::vector<const char*> GetSupportedAudioTestFiles(bool include_heaac,
   // filters for every platform, just in case a particular test case should be
   // disabled.
 
+  struct AudioFileInfo {
+    const char* filename;
+    SbMediaAudioCodec audio_codec;
+    int num_channels;
+    int64_t bitrate;
+    bool is_heaac;
+  };
+
   const char* kFilenames[] = {"beneath_the_canopy_aac_stereo.dmp",
                               "beneath_the_canopy_aac_5_1.dmp",
                               "beneath_the_canopy_aac_mono.dmp",
@@ -91,51 +126,50 @@ std::vector<const char*> GetSupportedAudioTestFiles(bool include_heaac,
                               "sintel_381_ac3.dmp",
                               "heaac.dmp"};
 
-  static std::vector<const char*> supported_filenames_channels_unchecked;
-  static std::vector<const char*> supported_filenames_channels_checked;
+  static std::vector<AudioFileInfo> audio_file_info_cache;
+  std::vector<const char*> filenames;
 
-  if (supported_filenames_channels_unchecked.empty()) {
-    int supported_channels = SbAudioSinkGetMaxChannels();
+  if (audio_file_info_cache.empty()) {
+    audio_file_info_cache.reserve(SB_ARRAY_SIZE_INT(kFilenames));
     for (auto filename : kFilenames) {
       VideoDmpReader dmp_reader(ResolveTestFileName(filename).c_str(),
                                 VideoDmpReader::kEnableReadOnDemand);
       SB_DCHECK(dmp_reader.number_of_audio_buffers() > 0);
 
-      // Filter files of unsupported codec.
-      if (!SbMediaIsAudioSupported(dmp_reader.audio_codec(),
-#if SB_API_VERSION >= 12
-                                   "",  // content_type
-#endif                                  // SB_API_VERSION >= 12
-                                   dmp_reader.audio_bitrate())) {
-        continue;
-      }
-      supported_filenames_channels_unchecked.push_back(filename);
-
-      // Filter files of unsupported channels.
-      if (dmp_reader.audio_sample_info().number_of_channels >
-          supported_channels) {
-        continue;
-      }
-      supported_filenames_channels_checked.push_back(filename);
+      audio_file_info_cache.push_back(
+          {filename, dmp_reader.audio_codec(),
+           dmp_reader.audio_sample_info().number_of_channels,
+           dmp_reader.audio_bitrate(), strstr(filename, "heaac") != nullptr});
     }
   }
 
-  if (include_heaac) {
-    return ignore_channels ? supported_filenames_channels_unchecked
-                           : supported_filenames_channels_checked;
-  }
-
-  // Filter heaac file.
-  std::vector<const char*> test_params;
-  for (auto filename :
-       (ignore_channels ? supported_filenames_channels_unchecked
-                        : supported_filenames_channels_checked)) {
-    if (strstr(filename, "heaac") != nullptr) {
+  for (auto& audio_file_info : audio_file_info_cache) {
+    // Filter files with channels exceeding |max_channels|.
+    if (audio_file_info.num_channels > max_channels) {
       continue;
     }
-    test_params.push_back(filename);
+
+    // Filter heaac files when |heaac_option| == kExcludeHeaac.
+    if (heaac_option == kExcludeHeaac && audio_file_info.is_heaac) {
+      continue;
+    }
+
+    // Filter files of unsupported codec.
+    if (!SbMediaIsAudioSupported(
+            audio_file_info.audio_codec,
+#if SB_API_VERSION >= 12
+            GetContentTypeFromAudioCodec(audio_file_info.audio_codec,
+                                         extra_mime_attributes)
+                .c_str(),
+#endif  // SB_API_VERSION >= 12
+            audio_file_info.bitrate)) {
+      continue;
+    }
+
+    filenames.push_back(audio_file_info.filename);
   }
-  return test_params;
+
+  return filenames;
 }
 
 std::vector<VideoTestParam> GetSupportedVideoTests() {

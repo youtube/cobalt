@@ -35,6 +35,11 @@ namespace testing {
 
 typedef std::tuple<const char*, SbPlayerOutputMode> VideoTestParam;
 
+enum HeaacOption {
+  kIncludeHeaac,
+  kExcludeHeaac,
+};
+
 // The function doesn't free the buffer, it assumes that the lifetime of the
 // buffer is actually managed by other code.  It can be used in the places where
 // SbPlayerDeallocateSampleFunc is expected.
@@ -43,8 +48,10 @@ void StubDeallocateSampleFunc(SbPlayer player,
                               const void* sample_buffer);
 
 std::string ResolveTestFileName(const char* filename);
-std::vector<const char*> GetSupportedAudioTestFiles(bool include_heaac,
-                                                    bool ignore_channels);
+std::vector<const char*> GetSupportedAudioTestFiles(
+    HeaacOption heaac_option,
+    int max_channels,
+    const char* extra_mime_attributes = "");
 std::vector<VideoTestParam> GetSupportedVideoTests();
 
 bool CreateAudioComponents(bool using_stub_decoder,
