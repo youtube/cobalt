@@ -674,7 +674,8 @@ vector<PlayerComponentsTestParam> GetSupportedCreationParameters() {
   vector<PlayerComponentsTestParam> supported_parameters;
 
   // TODO: Enable tests of "heaac.dmp".
-  vector<const char*> audio_files = GetSupportedAudioTestFiles(false, false);
+  vector<const char*> audio_files =
+      GetSupportedAudioTestFiles(kExcludeHeaac, SbAudioSinkGetMaxChannels());
   vector<VideoTestParam> video_params = GetSupportedVideoTests();
 
   // Filter too short dmp files, as the tests need at least 4s of data.
