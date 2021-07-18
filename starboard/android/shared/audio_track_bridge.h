@@ -30,6 +30,9 @@ namespace shared {
 // The C++ encapsulation of the Java class AudioTrackBridge.
 class AudioTrackBridge {
  public:
+  // The maximum number of frames that can be written to android audio track per
+  // write request.  It is used to pre-allocate |j_audio_data_|.
+  static constexpr int kMaxFramesPerRequest = 65536;
   // The same as Android AudioTrack.ERROR_DEAD_OBJECT.
   static constexpr int kAudioTrackErrorDeadObject = -6;
 
@@ -38,7 +41,6 @@ class AudioTrackBridge {
                    int channels,
                    int sampling_frequency_hz,
                    int preferred_buffer_size_in_bytes,
-                   int max_frames_per_write,
                    bool enable_audio_routing,
                    int tunnel_mode_audio_session_id);
   ~AudioTrackBridge();
@@ -81,9 +83,12 @@ class AudioTrackBridge {
   int GetUnderrunCount(JniEnvExt* env = JniEnvExt::Get());
 
  private:
-  const int max_samples_per_write_;
+  int max_samples_per_write_;
 
   jobject j_audio_track_bridge_ = nullptr;
+  // The audio data has to be copied into a Java Array before writing into the
+  // audio track.  Allocating a large array and saves as a member variable
+  // avoids an array being allocated repeatedly.
   jobject j_audio_data_ = nullptr;
 };
 

@@ -34,7 +34,6 @@ constexpr int kMaxDecodedAudios = 64;
 constexpr SbTime kAudioTrackUpdateInternal = kSbTimeMillisecond * 5;
 
 constexpr int kPreferredBufferSizeInBytes = 16 * 1024;
-constexpr int kMaxFramesPerRequest = 65536;
 // TODO: Enable audio routing and link it to client side experiment.
 constexpr bool kEnableAudioRouting = false;
 // TODO: Enable passthrough with tunnel mode.
@@ -385,7 +384,7 @@ void AudioRendererPassthrough::CreateAudioTrackAndStartProcessing() {
       optional<SbMediaAudioSampleType>(),  // Not required in passthrough mode
       audio_sample_info_.number_of_channels,
       audio_sample_info_.samples_per_second, kPreferredBufferSizeInBytes,
-      kMaxFramesPerRequest, kEnableAudioRouting, kTunnelModeAudioSessionId));
+      kEnableAudioRouting, kTunnelModeAudioSessionId));
 
   if (!audio_track_bridge->is_valid()) {
     error_cb_(kSbPlayerErrorDecode, "Error creating AudioTrackBridge");

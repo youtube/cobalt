@@ -105,7 +105,6 @@ AudioTrackAudioSink::AudioTrackAudioSink(
               channels,
               sampling_frequency_hz,
               preferred_buffer_size_in_bytes,
-              max_frames_per_request_,
               enable_audio_routing,
               tunnel_mode_audio_session_id) {
   SB_DCHECK(update_source_status_func_);
