@@ -14,6 +14,8 @@
 
 #include "starboard/android/shared/audio_track_bridge.h"
 
+#include <algorithm>
+
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/audio_sink.h"
@@ -37,10 +39,8 @@ AudioTrackBridge::AudioTrackBridge(SbMediaAudioCodingType coding_type,
                                    int channels,
                                    int sampling_frequency_hz,
                                    int preferred_buffer_size_in_bytes,
-                                   int max_frames_per_write,
                                    bool enable_audio_routing,
-                                   int tunnel_mode_audio_session_id)
-    : max_samples_per_write_(channels * max_frames_per_write) {
+                                   int tunnel_mode_audio_session_id) {
   if (coding_type == kSbMediaAudioCodingTypePcm) {
     SB_DCHECK(SbAudioSinkIsAudioSampleTypeSupported(sample_type.value()));
 
@@ -82,13 +82,16 @@ AudioTrackBridge::AudioTrackBridge(SbMediaAudioCodingType coding_type,
   if (coding_type != kSbMediaAudioCodingTypePcm) {
     // This must be passthrough.
     SB_DCHECK(!sample_type);
-    j_audio_data_ = env->NewByteArray(max_frames_per_write);
+    max_samples_per_write_ = kMaxFramesPerRequest;
+    j_audio_data_ = env->NewByteArray(max_samples_per_write_);
   } else if (sample_type == kSbMediaAudioSampleTypeFloat32) {
-    j_audio_data_ = env->NewFloatArray(channels * max_frames_per_write);
+    max_samples_per_write_ = channels * kMaxFramesPerRequest;
+    j_audio_data_ = env->NewFloatArray(channels * kMaxFramesPerRequest);
   } else if (sample_type == kSbMediaAudioSampleTypeInt16Deprecated) {
+    max_samples_per_write_ = channels * kMaxFramesPerRequest;
     j_audio_data_ =
         env->NewByteArray(channels * GetBytesPerSample(sample_type.value()) *
-                          max_frames_per_write);
+                          kMaxFramesPerRequest);
   } else {
     SB_NOTREACHED();
   }
@@ -179,6 +182,8 @@ int AudioTrackBridge::WriteSample(const float* samples,
   SB_DCHECK(is_valid());
   SB_DCHECK(num_of_samples <= max_samples_per_write_);
 
+  num_of_samples = std::min(num_of_samples, max_samples_per_write_);
+
   // TODO: Test this code path
   env->SetFloatArrayRegion(static_cast<jfloatArray>(j_audio_data_), kNoOffset,
                            num_of_samples, samples);
@@ -194,6 +199,8 @@ int AudioTrackBridge::WriteSample(const uint16_t* samples,
   SB_DCHECK(env);
   SB_DCHECK(is_valid());
   SB_DCHECK(num_of_samples <= max_samples_per_write_);
+
+  num_of_samples = std::min(num_of_samples, max_samples_per_write_);
 
   // TODO: Test this code path
   env->SetByteArrayRegion(static_cast<jbyteArray>(j_audio_data_), kNoOffset,
@@ -218,6 +225,8 @@ int AudioTrackBridge::WriteSample(const uint8_t* samples,
   SB_DCHECK(env);
   SB_DCHECK(is_valid());
   SB_DCHECK(num_of_samples <= max_samples_per_write_);
+
+  num_of_samples = std::min(num_of_samples, max_samples_per_write_);
 
   env->SetByteArrayRegion(static_cast<jbyteArray>(j_audio_data_), kNoOffset,
                           num_of_samples,
