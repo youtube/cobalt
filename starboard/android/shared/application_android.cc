@@ -348,12 +348,7 @@ void ApplicationAndroid::ProcessAndroidCommand() {
           SbMemoryDeallocate(static_cast<void*>(deep_link));
         } else {
           SB_LOG(INFO) << "ApplicationAndroid Inject: kSbEventTypeLink";
-#if SB_API_VERSION >= 13
-          Inject(new Event(kSbEventTypeLink, SbTimeGetMonotonicNow(),
-              deep_link, SbMemoryDeallocate));
-#else  // SB_API_VERSION >= 13
           Inject(new Event(kSbEventTypeLink, deep_link, SbMemoryDeallocate));
-#endif  // SB_API_VERSION >= 13
         }
       }
       break;

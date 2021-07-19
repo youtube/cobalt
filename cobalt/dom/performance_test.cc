@@ -25,8 +25,7 @@ TEST(PerformanceTest, Now) {
       new base::SystemMonotonicClock());
 
   testing::StubEnvironmentSettings environment_settings;
-  scoped_refptr<Performance> performance(new Performance(&environment_settings, clock,
-                                                         nullptr));
+  scoped_refptr<Performance> performance(new Performance(&environment_settings, clock));
 
   // Test that now returns a result that is within a correct range for the
   // current time.
@@ -47,8 +46,7 @@ TEST(PerformanceTest, MonotonicTimeToDOMHighResTimeStamp) {
       new base::SystemMonotonicClock());
 
   testing::StubEnvironmentSettings environment_settings;
-  scoped_refptr<Performance> performance(new Performance(&environment_settings, clock,
-                                                         nullptr));
+  scoped_refptr<Performance> performance(new Performance(&environment_settings, clock));
 
   base::TimeTicks current_time_ticks = base::TimeTicks::Now();
   DOMHighResTimeStamp  current_time = ClampTimeStampMinimumResolution(

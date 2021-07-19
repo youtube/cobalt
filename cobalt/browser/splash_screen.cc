@@ -97,7 +97,6 @@ SplashScreen::SplashScreen(
   // Pass down this callback from Browser module to Web module eventually.
   web_module_options.maybe_freeze_callback = maybe_freeze_callback;
 
-  web_module_options.event_dispatcher = nullptr;
   DCHECK(url_to_pass);
   web_module_.reset(new WebModule(
       *url_to_pass, initial_application_state, render_tree_produced_callback_,

@@ -76,7 +76,7 @@ class UserAgentDataTest : public ::testing::Test {
         base::Closure() /* window_minimize */, NULL, NULL,
         dom::Window::OnStartDispatchEventCallback(),
         dom::Window::OnStopDispatchEventCallback(),
-        dom::ScreenshotManager::ProvideScreenshotFunctionCallback(), NULL, NULL);
+        dom::ScreenshotManager::ProvideScreenshotFunctionCallback(), NULL);
 
     // Make Navigator accessible via Window
     global_environment_->CreateGlobalObject(window_,

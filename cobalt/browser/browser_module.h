@@ -111,7 +111,6 @@ class BrowserModule {
     base::Optional<cssom::ViewportSize> requested_viewport_size;
     bool enable_splash_screen_on_reloads;
     bool enable_on_screen_keyboard = true;
-    base::EventDispatcher* event_dispatcher;
   };
 
   // Type for a collection of URL handler callbacks that can potentially handle

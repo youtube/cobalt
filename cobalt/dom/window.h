@@ -173,7 +173,6 @@ class Window : public EventTarget, public ApplicationLifecycleState::Observer {
       const ScreenshotManager::ProvideScreenshotFunctionCallback&
           screenshot_function_callback,
       base::WaitableEvent* synchronous_loader_interrupt,
-      base::EventDispatcher* event_dispatcher,
       bool enable_inline_script_warnings = false,
       const scoped_refptr<ui_navigation::NavItem>& ui_nav_root = nullptr,
       bool enable_map_to_mesh = true, int csp_insecure_allowed_token = 0,

@@ -224,13 +224,11 @@ class Application {
   // Lock for access to unconsumed_deep_link_ from different threads.
   base::Lock unconsumed_deep_link_lock_;
 
-  SbTimeMonotonic deep_link_timestamp_ = 0;
-
   // Called when deep links are consumed.
   void OnDeepLinkConsumedCallback(const std::string& link);
 
   // Dispatch events for deep links.
-  void DispatchDeepLink(const char* link, SbTimeMonotonic timestamp);
+  void DispatchDeepLink(const char* link);
   void DispatchDeepLinkIfNotConsumed();
 
   DISALLOW_COPY_AND_ASSIGN(Application);

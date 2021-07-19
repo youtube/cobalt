@@ -42,7 +42,6 @@ class PerformanceLifecycleTiming : public PerformanceEntry {
   DOMHighResTimeStamp app_reveal() const;
   DOMHighResTimeStamp app_freeze() const;
   DOMHighResTimeStamp app_unfreeze() const;
-  DOMHighResTimeStamp app_deeplink() const;
   std::string current_state() const;
   std::string last_state() const;
 
@@ -55,7 +54,6 @@ class PerformanceLifecycleTiming : public PerformanceEntry {
                            SbTimeMonotonic timestamp);
   void SetApplicationStartOrPreloadTimestamp(
       bool is_preload, SbTimeMonotonic timestamp);
-  void SetDeepLinkTimestamp(SbTimeMonotonic timestamp);
 
   DEFINE_WRAPPABLE_TYPE(PerformanceLifecycleTiming);
 
@@ -73,7 +71,6 @@ class PerformanceLifecycleTiming : public PerformanceEntry {
   SbTimeMonotonic app_reveal = 0;
   SbTimeMonotonic app_freeze = 0;
   SbTimeMonotonic app_unfreeze = 0;
-  SbTimeMonotonic app_deeplink = 0;
 
   base::ApplicationState current_state =
       base::kApplicationStateStopped;

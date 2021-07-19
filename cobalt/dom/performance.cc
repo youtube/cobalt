@@ -16,11 +16,8 @@
 
 #include <string>
 
-#include "base/synchronization/lock.h"
 #include "base/time/time.h"
 #include "base/time/default_clock.h"
-#include "cobalt/base/deep_link_event.h"
-#include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/browser/stack_size_constants.h"
 #include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/memory_info.h"
@@ -73,8 +70,7 @@ DOMHighResTimeStamp ConvertNameToTimestamp(
 }  //namespace
 
 Performance::Performance(script::EnvironmentSettings* settings,
-                         const scoped_refptr<base::BasicClock>& clock,
-                         base::EventDispatcher* event_dispatcher)
+                         const scoped_refptr<base::BasicClock>& clock)
     : EventTarget(settings),
       time_origin_(base::TimeTicks::Now()),
       tick_clock_(base::DefaultTickClock::GetInstance()),
@@ -88,26 +84,10 @@ Performance::Performance(script::EnvironmentSettings* settings,
       resource_timing_buffer_full_event_pending_flag_(false),
       resource_timing_secondary_buffer_current_size_(0),
       performance_observer_task_queued_flag_(false),
-      add_to_performance_entry_buffer_flag_(false),
-      event_dispatcher_(event_dispatcher) {
+      add_to_performance_entry_buffer_flag_(false) {
   unix_at_zero_monotonic_ = GetUnixAtZeroMonotonic(
       base::DefaultClock::GetInstance(), tick_clock_);
   QueuePerformanceEntry(lifecycle_timing_);
-
-  base::AutoLock lock(lock_);
-  if (event_dispatcher_) {
-    deep_link_event_callback_ =
-    base::Bind(&Performance::SetDeepLinkTimestamp, base::Unretained(this));
-    event_dispatcher_->AddEventCallback(base::DeepLinkEvent::TypeId(),
-                                        deep_link_event_callback_);
-  }
-}
-
-Performance::~Performance() {
-  if (event_dispatcher_) {
-    event_dispatcher_->RemoveEventCallback(base::DeepLinkEvent::TypeId(),
-                                           deep_link_event_callback_);
-  }
 }
 
 // static
@@ -640,13 +620,6 @@ void Performance::SetApplicationStartOrPreloadTimestamp(
     bool is_preload, SbTimeMonotonic timestamp) {
   lifecycle_timing_->SetApplicationStartOrPreloadTimestamp(
       is_preload, timestamp);
-}
-
-void Performance::SetDeepLinkTimestamp(const base::Event* event) {
-  base::AutoLock lock(lock_);
-  const base::DeepLinkEvent* deep_link_event =
-      base::polymorphic_downcast<const base::DeepLinkEvent*>(event);
-  lifecycle_timing_->SetDeepLinkTimestamp(deep_link_event->timestamp());
 }
 
 }  // namespace dom
