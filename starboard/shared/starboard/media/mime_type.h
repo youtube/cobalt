@@ -50,6 +50,7 @@ class MimeType {
     kParamTypeInteger,
     kParamTypeFloat,
     kParamTypeString,
+    kParamTypeBoolean,
   };
 
   static const int kInvalidParamIndex;
@@ -71,12 +72,30 @@ class MimeType {
   int GetParamIntValue(int index) const;
   float GetParamFloatValue(int index) const;
   const std::string& GetParamStringValue(int index) const;
+  bool GetParamBoolValue(int index) const;
 
   int GetParamIntValue(const char* name, int default_value) const;
   float GetParamFloatValue(const char* name, float default_value) const;
   const std::string& GetParamStringValue(
       const char* name,
       const std::string& default_value) const;
+  bool GetParamBoolValue(const char* name, bool default_value) const;
+
+  // Pre-register a mime parameter of type boolean.
+  // Returns true if the mime type is valid and the value passes validation.
+  // If the parameter validation fails this MimeType will be marked invalid.
+  // NOTE: The function returns true for missing parameters.
+  bool RegisterBoolParameter(const char* name);
+
+  // Pre-register a mime parameter of type string.
+  // Returns true if the mime type is valid and the value passes validation.
+  // Allows passing a pattern on the format "value_1|...|value_n"
+  // where the parameter value must match one of the values in the pattern in
+  // order to be considered valid.
+  // If the parameter validation fails this MimeType will be marked invalid.
+  // NOTE: The function returns true for missing parameters.
+  bool RegisterStringParameter(const char* name,
+                               const std::string& pattern = "");
 
  private:
   struct Param {
@@ -90,6 +109,7 @@ class MimeType {
   typedef std::vector<Param> Params;
 
   int GetParamIndexByName(const char* name) const;
+  bool RegisterParameter(const char* name, ParamType type);
 
   const std::string raw_content_type_;
   bool is_valid_;
