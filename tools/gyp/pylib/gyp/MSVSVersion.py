@@ -324,10 +324,13 @@ def _DetectVisualStudioVersions(versions_to_check, force_express,
         if not os.path.exists(path):
           path = r'C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\Common7\IDE'
       path = _ConvertToCygpath(path)
-      full_path = os.path.join(path, 'devenv.exe')
-      if os.path.exists(full_path) and version in version_to_year:
+      devenv_path = os.path.join(path, 'devenv.exe')
+      devenv_ini_path = os.path.join(path, 'devenv.isolation.ini')
+      if (os.path.exists(devenv_path) or os.path.exists(devenv_ini_path)) and version in version_to_year:
         versions.append(_CreateVersion(version_to_year[version],
             os.path.join(path, '..', '..')))
+      else:
+          print('_DetectVisualStudioVersion() did not find Visual Studio 2017 (v15.0)')
       continue
     # Old method of searching for which VS version is installed
     # We don't use the 2010-encouraged-way because we also want to get the
