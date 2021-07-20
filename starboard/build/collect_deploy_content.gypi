@@ -46,6 +46,11 @@
         'collect_deploy_content_extra_args': [ '--use_absolute_symlinks' ],
       }
     }],
+    ['cobalt_docker_build == 1 and host_os == "win"', {
+      'variables': {
+        'collect_deploy_content_extra_args': [ '--copy_override' ],
+      }
+    }],
   ],
   'actions': [{
     'action_name': 'collect_deploy_content',

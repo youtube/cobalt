@@ -747,6 +747,7 @@ def _ExtractImportantEnvironment(output_of_set):
       'cell_.*',
       'sn_.*',
       'sce_.*',
+      'is_docker',
   )
   env = {}
   for line in output_of_set.splitlines():
