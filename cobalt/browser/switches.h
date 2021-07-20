@@ -151,6 +151,8 @@ extern const char kFallbackSplashScreenURL[];
 extern const char kFallbackSplashScreenURLHelp[];
 extern const char kFallbackSplashScreenTopics[];
 extern const char kFallbackSplashScreenTopicsHelp[];
+extern const char kUseQAUpdateServer[];
+extern const char kUseQAUpdateServerHelp[];
 extern const char kVersion[];
 extern const char kVersionHelp[];
 extern const char kViewport[];

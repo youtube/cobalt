@@ -397,6 +397,11 @@ const char kFallbackSplashScreenTopicsHelp[] =
     "the URL used to launch Cobalt, then the value of "
     "'fallback_splash_screen_url' will be used.";
 
+const char kUseQAUpdateServer[] = "use_qa_update_server";
+const char kUseQAUpdateServerHelp[] =
+    "Uses the QA update server to test the changes to the configuration of the "
+    "PROD update server.";
+
 const char kVersion[] = "version";
 const char kVersionHelp[] = "Prints the current version of Cobalt";
 
@@ -480,7 +485,8 @@ std::string HelpMessage() {
         {kSoftwareSurfaceCacheSizeInBytes,
          kSoftwareSurfaceCacheSizeInBytesHelp},
         {kFallbackSplashScreenURL, kFallbackSplashScreenURLHelp},
-        {kVersion, kVersionHelp}, {kViewport, kViewportHelp},
+        {kUseQAUpdateServer, kUseQAUpdateServerHelp}, {kVersion, kVersionHelp},
+        {kViewport, kViewportHelp},
         {kVideoPlaybackRateMultiplier, kVideoPlaybackRateMultiplierHelp},
   };
 

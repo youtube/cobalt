@@ -7,7 +7,9 @@
 #include <set>
 #include <utility>
 
+#include "base/command_line.h"
 #include "base/version.h"
+#include "cobalt/browser/switches.h"
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/updater/network_fetcher.h"
 #include "cobalt/updater/patcher.h"
@@ -86,7 +88,12 @@ int Configurator::OnDemandDelay() const { return 0; }
 int Configurator::UpdateDelay() const { return 0; }
 
 std::vector<GURL> Configurator::UpdateUrl() const {
-  return std::vector<GURL>{GURL(kUpdaterJSONDefaultUrl)};
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+          browser::switches::kUseQAUpdateServer)) {
+    return std::vector<GURL>{GURL(kUpdaterJSONDefaultUrlQA)};
+  } else {
+    return std::vector<GURL>{GURL(kUpdaterJSONDefaultUrl)};
+  }
 }
 
 std::vector<GURL> Configurator::PingUrl() const { return UpdateUrl(); }
