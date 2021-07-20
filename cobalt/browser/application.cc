@@ -1114,7 +1114,7 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
     case kSbEventTypeAccessibilitySettingsChanged:
 #else
     case kSbEventTypeAccessiblitySettingsChanged:
-#endif  // B_API_VERSION >= 13
+#endif  // SB_API_VERSION >= 13
       DispatchEventInternal(new base::AccessibilitySettingsChangedEvent());
 #if SB_API_VERSION < 12
       // Also dispatch the newer text-to-speech settings changed event since
@@ -1533,9 +1533,9 @@ void Application::DispatchDeepLinkIfNotConsumed() {
                               base::Unretained(this), deep_link)));
   }
 #if SB_API_VERSION >= 13
-    if (browser_module_) {
-      browser_module_->SetDeepLinkTimestamp(deep_link_timestamp_);
-    }
+  if (browser_module_) {
+    browser_module_->SetDeepLinkTimestamp(deep_link_timestamp_);
+  }
 #endif  // SB_API_VERSION >= 13
 }
 
