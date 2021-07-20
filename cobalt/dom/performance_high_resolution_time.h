@@ -39,7 +39,7 @@ inline DOMHighResTimeStamp ConvertTimeTicksToDOMHighResTimeStamp(
   return (time - base::TimeTicks()).InMillisecondsF();
 }
 
-// Clamp customized minimum clock resolution.
+// Clamp customized minimum clock resolution in milliseconds.
 //   https://w3c.github.io/hr-time/#clock-resolution
 inline DOMHighResTimeStamp ClampTimeStampMinimumResolution(
     base::TimeTicks ticks,
@@ -49,13 +49,13 @@ inline DOMHighResTimeStamp ClampTimeStampMinimumResolution(
         (microseconds % min_resolution_in_microseconds)).InMillisecondsF();
 }
 
-// Clamp customized minimum clock resolution.
+// Clamp customized minimum clock resolution in milliseconds.
 //   https://w3c.github.io/hr-time/#clock-resolution
 inline DOMHighResTimeStamp ClampTimeStampMinimumResolution(base::TimeDelta delta,
     int64_t min_resolution_in_microseconds) {
     int64_t microseconds = delta.InMicroseconds();
     return base::TimeDelta::FromMicroseconds(microseconds -
-        (microseconds % min_resolution_in_microseconds)).InMicrosecondsF();
+        (microseconds % min_resolution_in_microseconds)).InMillisecondsF();
 }
 
 }  // namespace dom
