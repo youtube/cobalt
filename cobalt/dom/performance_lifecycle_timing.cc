@@ -41,22 +41,21 @@ namespace {
   }
 
     DOMHighResTimeStamp ConvertSbTimeMonotonicToDOMHiResTimeStamp(
-      base::TimeTicks time_origin, SbTimeMonotonic monotonic_time) {
+      const DOMHighResTimeStamp time_origin, SbTimeMonotonic monotonic_time) {
     SbTimeMonotonic time_delta = SbTimeGetNow() - SbTimeGetMonotonicNow();
     base::Time base_time = base::Time::FromSbTime(time_delta + monotonic_time);
     base::TimeTicks time_ticks =
         base::TimeTicks::FromInternalValue(static_cast<int64_t>(
             base_time.ToJsTime()));
-    return Performance::MonotonicTimeToDOMHighResTimeStamp(
-        time_origin, time_ticks);
+    return ClampTimeStampMinimumResolution(time_ticks,
+        Performance::kPerformanceTimerMinResolutionInMicroseconds) - time_origin;
   }
 
 }  // namespace
 
 PerformanceLifecycleTiming::PerformanceLifecycleTiming(
-    const std::string& name, base::TimeTicks time_origin)
+    const std::string& name, const DOMHighResTimeStamp time_origin)
     : PerformanceEntry(name, 0.0, 0.0), time_origin_(time_origin) {}
-
 
 DOMHighResTimeStamp PerformanceLifecycleTiming::app_preload() const {
   return ReportDOMHighResTimeStamp(lifecycle_timing_info_.app_preload);

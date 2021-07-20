@@ -76,8 +76,6 @@ Performance::Performance(script::EnvironmentSettings* settings,
       tick_clock_(base::DefaultTickClock::GetInstance()),
       timing_(new PerformanceTiming(clock, time_origin_)),
       memory_(new MemoryInfo()),
-      lifecycle_timing_(
-          new PerformanceLifecycleTiming("lifecycle timing", time_origin_)),
       resource_timing_buffer_size_limit_(
           Performance::kMaxResourceTimingBufferSize),
       resource_timing_buffer_current_size_(0),
@@ -87,6 +85,8 @@ Performance::Performance(script::EnvironmentSettings* settings,
       add_to_performance_entry_buffer_flag_(false) {
   unix_at_zero_monotonic_ = GetUnixAtZeroMonotonic(
       base::DefaultClock::GetInstance(), tick_clock_);
+  lifecycle_timing_ = base::MakeRefCounted<PerformanceLifecycleTiming>(
+      "lifecycle timing", time_origin());
   QueuePerformanceEntry(lifecycle_timing_);
 }
 
