@@ -14,8 +14,12 @@
 
 #include "starboard/shared/starboard/media/mime_type.h"
 
+#include <algorithm>
+#include <iosfwd>
 #include <locale>
-#include <sstream>
+#include <numeric>
+#include <string>
+#include <vector>
 
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
@@ -43,6 +47,11 @@ MimeType::ParamType GetParamTypeByValue(const std::string& value) {
   if (!buffer.fail() && buffer.rdbuf()->in_avail() == 0) {
     return MimeType::kParamTypeFloat;
   }
+
+  if (value == "true" || value == "false") {
+    return MimeType::kParamTypeBoolean;
+  }
+
   return MimeType::kParamTypeString;
 }
 
@@ -85,6 +94,22 @@ Strings SplitAndTrim(const std::string& str, char ch) {
   return result;
 }
 
+const char* ParamTypeToString(MimeType::ParamType param_type) {
+  switch (param_type) {
+    case MimeType::kParamTypeInteger:
+      return "Integer";
+    case MimeType::kParamTypeFloat:
+      return "Float";
+    case MimeType::kParamTypeString:
+      return "String";
+    case MimeType::kParamTypeBoolean:
+      return "Boolean";
+    default:
+      SB_NOTREACHED();
+      return "Unknown";
+  }
+}
+
 }  // namespace
 
 const int MimeType::kInvalidParamIndex = -1;
@@ -117,8 +142,11 @@ MimeType::MimeType(const std::string& content_type)
   for (Strings::iterator iter = components.begin(); iter != components.end();
        ++iter) {
     std::vector<std::string> name_and_value = SplitAndTrim(*iter, '=');
+    // The parameter must be on the format 'name=value' and neither |name| nor
+    // |value| can be empty. |value| must also not contain '|'.
     if (name_and_value.size() != 2 || name_and_value[0].empty() ||
-        name_and_value[1].empty()) {
+        name_and_value[1].empty() ||
+        name_and_value[1].find('|') != std::string::npos) {
       return;
     }
     Param param;
@@ -215,6 +243,17 @@ const std::string& MimeType::GetParamStringValue(int index) const {
   return params_[index].value;
 }
 
+bool MimeType::GetParamBoolValue(int index) const {
+  SB_DCHECK(is_valid());
+  SB_DCHECK(index < GetParamCount());
+
+  if (GetParamType(index) != kParamTypeBoolean) {
+    return false;
+  }
+
+  return params_[index].value == "true";
+}
+
 int MimeType::GetParamIntValue(const char* name, int default_value) const {
   int index = GetParamIndexByName(name);
   if (index != kInvalidParamIndex) {
@@ -242,6 +281,60 @@ const std::string& MimeType::GetParamStringValue(
   return default_value;
 }
 
+bool MimeType::GetParamBoolValue(const char* name, bool default_value) const {
+  int index = GetParamIndexByName(name);
+  if (index != kInvalidParamIndex) {
+    return GetParamBoolValue(index);
+  }
+  return default_value;
+}
+
+bool MimeType::RegisterBoolParameter(const char* name) {
+  return RegisterParameter(name, kParamTypeBoolean);
+}
+
+bool MimeType::RegisterStringParameter(const char* name,
+                                       const std::string& pattern /* = "" */) {
+  if (!RegisterParameter(name, kParamTypeString)) {
+    return false;
+  }
+
+  int param_index = GetParamIndexByName(name);
+  if (param_index == kInvalidParamIndex || pattern.empty()) {
+    return true;
+  }
+
+  // Compare the parameter value with the provided pattern.
+  const std::string& param_value = GetParamStringValue(param_index);
+  bool matches = false;
+  size_t match_start = 0;
+  while (!matches) {
+    match_start = pattern.find(param_value, match_start);
+    if (match_start == std::string::npos) {
+      break;
+    }
+
+    size_t match_end = match_start + param_value.length();
+    matches =
+        // Matches if the match is at the start of the string or
+        // if the preceding character is the divider _and_
+        (match_start <= 0 || pattern[match_start - 1] == '|') &&
+        // if the end of the match is the end of the pattern or
+        // if the succeeding character is the divider.
+        (match_end >= pattern.length() || pattern[match_end] == '|');
+    match_start = match_end + 1;
+  }
+
+  if (matches) {
+    return true;
+  }
+
+  SB_LOG(INFO) << "Extended Parameter '" << name << "=" << param_value
+               << "' does not match the supplied pattern: '" << pattern << "'";
+  is_valid_ = false;
+  return false;
+}
+
 int MimeType::GetParamIndexByName(const char* name) const {
   for (size_t i = 0; i < params_.size(); ++i) {
     if (SbStringCompareNoCase(params_[i].name.c_str(), name) == 0) {
@@ -249,6 +342,36 @@ int MimeType::GetParamIndexByName(const char* name) const {
     }
   }
   return kInvalidParamIndex;
+}
+
+bool MimeType::RegisterParameter(const char* name, ParamType param_type) {
+  if (!is_valid()) {
+    return false;
+  }
+
+  int index = GetParamIndexByName(name);
+  if (index == kInvalidParamIndex) {
+    return true;
+  }
+
+  const std::string& param_value = GetParamStringValue(index);
+  ParamType parsed_type = GetParamType(index);
+
+  // Check that the parameter can be returned as the requested type.
+  // Allowed conversions:
+  // Any Type -> String, Int -> Float
+  bool convertible =
+      param_type == parsed_type || param_type == kParamTypeString ||
+      (param_type == kParamTypeFloat && parsed_type == kParamTypeInteger);
+  if (!convertible) {
+    SB_LOG(INFO) << "Extended Parameter '" << name << "=" << param_value
+                 << "' can't be converted to " << ParamTypeToString(param_type);
+    is_valid_ = false;
+    return false;
+  }
+
+  // All validations succeeded.
+  return true;
 }
 
 }  // namespace media
