@@ -78,6 +78,23 @@ bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec,
     return false;
   }
 
+  auto audio_passthrough_parameter_value =
+      mime_type.GetParamStringValue("audiopassthrough", "");
+  if (!audio_passthrough_parameter_value.empty() &&
+      audio_passthrough_parameter_value != "true" &&
+      audio_passthrough_parameter_value != "false") {
+    SB_LOG(INFO) << "Invalid value for audio mime parameter "
+                    "\"audiopassthrough\": "
+                 << audio_passthrough_parameter_value
+                 << ". Passthrough is disabled.";
+    return false;
+  }
+  if (audio_passthrough_parameter_value == "false" && is_passthrough) {
+    SB_LOG(INFO) << "Passthrough is rejected because audio mime parameter "
+                    "\"audiopassthrough\" == false.";
+    return false;
+  }
+
   JniEnvExt* env = JniEnvExt::Get();
   ScopedLocalJavaRef<jstring> j_mime(env->NewStringStandardUTFOrAbort(mime));
   const bool must_support_tunnel_mode =
