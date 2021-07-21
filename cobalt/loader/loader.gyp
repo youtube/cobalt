@@ -114,7 +114,7 @@
         '<(DEPTH)/third_party/libjpeg/libjpeg.gyp:libjpeg',
         '<(DEPTH)/third_party/libpng/libpng.gyp:libpng',
         '<(DEPTH)/third_party/libwebp/libwebp.gyp:libwebp',
-        'embed_resources_as_header_files',
+        'embed_resources_as_header_files_loader',
       ],
       'conditions': [
         ['cobalt_config != "gold"', {
@@ -188,7 +188,7 @@
       # This target takes all files in the embedded_resources directory (e.g.
       # the splash screen) and embeds them as header files for
       # inclusion into the binary.
-      'target_name': 'embed_resources_as_header_files',
+      'target_name': 'embed_resources_as_header_files_loader',
       'type': 'none',
       # Because we generate a header, we must set the hard_dependency flag.
       'hard_dependency': 1,
@@ -212,7 +212,7 @@
       ],
       'actions': [
         {
-          'action_name': 'embed_resources_as_header_files',
+          'action_name': 'embed_resources_as_header_files_loader',
           'inputs': [
             '<(script_path)',
             '<@(_sources)',
