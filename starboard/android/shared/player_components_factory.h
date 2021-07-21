@@ -185,6 +185,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
   scoped_ptr<PlayerComponents> CreateComponents(
       const CreationParameters& creation_parameters,
       std::string* error_message) override {
+    using starboard::shared::starboard::media::MimeType;
     SB_DCHECK(error_message);
 
     if (creation_parameters.audio_codec() != kSbMediaAudioCodecAc3 &&
@@ -192,6 +193,14 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
       SB_LOG(INFO) << "Creating non-passthrough components.";
       return PlayerComponents::Factory::CreateComponents(creation_parameters,
                                                          error_message);
+    }
+
+    MimeType audio_mime_type(creation_parameters.audio_mime());
+    if (audio_mime_type.GetParamStringValue("audiopassthrough", "") ==
+        "false") {
+      SB_LOG(INFO) << "Mime attribute \"audiopassthrough\" is set to: "
+                      "false. Passthrough is disabled.";
+      return scoped_ptr<PlayerComponents>();
     }
 
     SB_LOG(INFO) << "Creating passthrough components.";
