@@ -101,6 +101,8 @@ bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
   // Allows for enabling tunneled playback. Disabled by default.
   // https://source.android.com/devices/tv/multimedia-tunneling
   mime_type.RegisterBoolParameter("tunnelmode");
+  // Override endianness on HDR Info header. Defaults to little.
+  mime_type.RegisterStringParameter("hdrinfoendianness", "big|little");
 
   if (!mime_type.is_valid()) {
     return false;

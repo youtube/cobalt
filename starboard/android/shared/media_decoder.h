@@ -85,6 +85,7 @@ class MediaDecoder : private MediaCodecBridge::Handler {
                bool require_software_codec,
                const FrameRenderedCB& frame_rendered_cb,
                int tunnel_mode_audio_session_id,
+               bool force_big_endian_hdr_metadata,
                std::string* error_message);
   ~MediaDecoder();
 

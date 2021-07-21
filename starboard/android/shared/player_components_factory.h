@@ -429,6 +429,16 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
       int tunnel_mode_audio_session_id,
       bool force_secure_pipeline_under_tunnel_mode,
       std::string* error_message) {
+    using starboard::shared::starboard::media::MimeType;
+    // Use mime param to determine endianness of HDR metadata. If param is
+    // missing or invalid it defaults to Little Endian.
+    MimeType video_mime_type(creation_parameters.video_mime());
+    video_mime_type.RegisterStringParameter("hdrinfoendianness", "big|little");
+    const std::string& hdr_info_endianness =
+        video_mime_type.GetParamStringValue("hdrinfoendianness",
+                                            /*default=*/"little");
+    bool force_big_endian_hdr_metadata = hdr_info_endianness == "big";
+
     scoped_ptr<VideoDecoder> video_decoder(new VideoDecoder(
         creation_parameters.video_codec(),
         GetExtendedDrmSystem(creation_parameters.drm_system()),
@@ -436,7 +446,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
         creation_parameters.decode_target_graphics_context_provider(),
         creation_parameters.max_video_capabilities(),
         tunnel_mode_audio_session_id, force_secure_pipeline_under_tunnel_mode,
-        error_message));
+        force_big_endian_hdr_metadata, error_message));
     if (creation_parameters.video_codec() == kSbMediaVideoCodecAv1 ||
         video_decoder->is_decoder_created()) {
       return video_decoder.Pass();

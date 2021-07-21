@@ -351,7 +351,8 @@ class MediaCodecBridge {
         float maxMasteringLuminance,
         float minMasteringLuminance,
         int maxCll,
-        int maxFall) {
+        int maxFall,
+        boolean forceBigEndianHdrMetadata) {
       this.colorRange = colorRange;
       this.colorStandard = colorStandard;
       this.colorTransfer = colorTransfer;
@@ -365,7 +366,14 @@ class MediaCodecBridge {
 
       // This logic is inspired by
       // https://github.com/google/ExoPlayer/blob/deb9b301b2c7ef66fdd7d8a3e58298a79ba9c619/library/core/src/main/java/com/google/android/exoplayer2/extractor/mkv/MatroskaExtractor.java#L1803.
-      ByteBuffer hdrStaticInfo = ByteBuffer.allocateDirect(25).order(ByteOrder.LITTLE_ENDIAN);
+      ByteBuffer hdrStaticInfo = ByteBuffer.allocateDirect(25);
+      // Force big endian in case the HDR metadata causes problems in production.
+      if (forceBigEndianHdrMetadata) {
+        hdrStaticInfo.order(ByteOrder.BIG_ENDIAN);
+      } else {
+        hdrStaticInfo.order(ByteOrder.LITTLE_ENDIAN);
+      }
+
       hdrStaticInfo.put((byte) 0);
       hdrStaticInfo.putShort((short) ((primaryRChromaticityX * MAX_CHROMATICITY) + 0.5f));
       hdrStaticInfo.putShort((short) ((primaryRChromaticityY * MAX_CHROMATICITY) + 0.5f));
