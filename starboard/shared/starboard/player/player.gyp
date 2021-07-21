@@ -65,7 +65,7 @@
           },
           'action_name': 'player_download_test_data',
           'action': [
-            'python',
+            'python2',
             '<(DEPTH)/tools/download_from_gcs.py',
             '--bucket', 'cobalt-static-storage',
             '--sha1', '<(sha_dir)',
