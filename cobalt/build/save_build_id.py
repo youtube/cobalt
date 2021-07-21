@@ -63,7 +63,12 @@ def main():
     return 0
 
   if not options.build_id:
-    options.build_id = gyp_utils.GetBuildNumber()
+    build_id_server_url = os.environ.get('BUILD_ID_SERVER_URL')
+    if build_id_server_url:
+      options.build_id = gyp_utils.GetBuildNumber(
+          version_server=build_id_server_url)
+    else:
+      options.build_id = gyp_utils.GetBuildNumber()
 
   if not options.build_id:
     logging.error('Unable to retrieve build id.')
