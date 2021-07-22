@@ -124,7 +124,8 @@ void PerformanceLifecycleTiming::SetApplicationState(
       }
       break;
     case base::kApplicationStateConcealed:
-      if (GetCurrentState() == base::kApplicationStateBlurred) {
+      if (GetCurrentState() == base::kApplicationStateBlurred ||
+          GetCurrentState() == base::kApplicationStateStopped) {
         lifecycle_timing_info_.app_conceal = timestamp;
       } else if (GetCurrentState() == base::kApplicationStateFrozen) {
         lifecycle_timing_info_.app_unfreeze = timestamp;
