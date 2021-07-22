@@ -254,6 +254,9 @@ void HTMLLinkElement::OnContentProduced(const loader::Origin& last_url_origin,
 
 void HTMLLinkElement::OnLoadingComplete(
     const base::Optional<std::string>& error) {
+  // GetLoadTimingInfo and create resource timing before loader released.
+  GetLoadTimingInfoAndCreateResourceTiming();
+
   base::MessageLoop::current()->task_runner()->PostTask(
       FROM_HERE, base::Bind(&HTMLLinkElement::ReleaseLoader, this));
 
@@ -279,9 +282,6 @@ void HTMLLinkElement::OnLoadingComplete(
     // complete.
     node_document()->DecreaseLoadingCounterAndMaybeDispatchLoadEvent();
   }
-
-  // GetLoadTimingInfo and create resource timing before loader released.
-  GetLoadTimingInfoAndCreateResourceTiming();
 }
 
 void HTMLLinkElement::OnSplashscreenLoaded(Document* document,

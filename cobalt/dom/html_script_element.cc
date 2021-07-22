@@ -555,6 +555,9 @@ void HTMLScriptElement::OnContentProduced(
 //   https://www.w3.org/TR/html50/scripting-1.html#prepare-a-script
 void HTMLScriptElement::OnLoadingComplete(
     const base::Optional<std::string>& error) {
+  // GetLoadTimingInfo and create resource timing before loader released.
+  GetLoadTimingInfoAndCreateResourceTiming();
+
   if (!error) return;
 
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
@@ -595,9 +598,6 @@ void HTMLScriptElement::OnLoadingComplete(
   // document until the task that is queued by the networking task source
   // once the resource has been fetched (defined above) has been run.
   document_->DecreaseLoadingCounterAndMaybeDispatchLoadEvent();
-
-  // GetLoadTimingInfo and create resource timing before loader released.
-  GetLoadTimingInfoAndCreateResourceTiming();
 
   // Post a task to release the loader.
   base::MessageLoop::current()->task_runner()->PostTask(
