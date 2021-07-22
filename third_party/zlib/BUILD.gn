@@ -57,7 +57,9 @@ source_set("zlib_adler32_simd") {
     ]
     if (!is_debug) {
       # Use optimize_speed (-O3) to output the _smallest_ code.
-      configs -= [ "//build/config/compiler:default_optimization" ]
+      if(!is_starboard) {
+        configs -= [ "//build/config/compiler:default_optimization" ]
+      }
       configs += [ "//build/config/compiler:optimize_speed" ]
     }
   }
@@ -121,7 +123,9 @@ if (use_arm_neon_optimizations) {
       ]
 
       if (!is_debug) {
-        configs -= [ "//build/config/compiler:default_optimization" ]
+        if(!is_starboard) {
+          configs -= [ "//build/config/compiler:default_optimization" ]
+        }
         configs += [ "//build/config/compiler:optimize_speed" ]
       }
     }
@@ -174,7 +178,9 @@ source_set("zlib_inflate_chunk_simd") {
     if (use_arm_neon_optimizations && !is_debug) {
       # Here we trade better performance on newer/bigger ARMv8 cores
       # for less perf on ARMv7, per crbug.com/772870#c40
-      configs -= [ "//build/config/compiler:default_optimization" ]
+      if(!is_starboard) {
+        configs -= [ "//build/config/compiler:default_optimization" ]
+      }
       configs += [ "//build/config/compiler:optimize_speed" ]
     }
   }
