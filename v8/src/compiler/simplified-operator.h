@@ -730,9 +730,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* CompareMaps(ZoneHandleSet<Map>);
   const Operator* MapGuard(ZoneHandleSet<Map> maps);
 
-  const Operator* CheckBounds(const FeedbackSource& feedback,
-                              CheckBoundsParameters::Mode mode =
-                                  CheckBoundsParameters::kDeoptOnOutOfBounds);
+  const Operator* CheckBounds(const VectorSlotPair& feedback);
   const Operator* CheckEqualsInternalizedString();
   const Operator* CheckEqualsSymbol();
   const Operator* CheckFloat64Hole(CheckFloat64HoleMode, VectorSlotPair const&);

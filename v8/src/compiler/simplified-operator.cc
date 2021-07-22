@@ -812,6 +812,7 @@ bool operator==(CheckMinusZeroParameters const& lhs,
   V(CheckedUint32Mod, 2, 1)
 
 #define CHECKED_WITH_FEEDBACK_OP_LIST(V)    \
+  V(CheckBounds, 2, 1)                      \
   V(CheckNumber, 1, 1)                      \
   V(CheckSmi, 1, 1)                         \
   V(CheckString, 1, 1)                      \
@@ -833,9 +834,7 @@ bool operator==(CheckMinusZeroParameters const& lhs,
   V(CheckedUint64ToInt32, 1, 1)             \
   V(CheckedUint64ToTaggedSigned, 1, 1)
 
-#define CHECKED_BOUNDS_OP_LIST(V) \
-  V(CheckBounds)                  \
-  V(CheckedUint32Bounds)
+#define CHECKED_BOUNDS_OP_LIST(V) V(CheckedUint32Bounds)
 
 struct SimplifiedOperatorGlobalCache final {
 #define PURE(Name, properties, value_input_count, control_input_count)     \
@@ -1564,8 +1563,7 @@ std::ostream& operator<<(std::ostream& os, CheckParameters const& p) {
 }
 
 CheckParameters const& CheckParametersOf(Operator const* op) {
-  if (op->opcode() == IrOpcode::kCheckBounds ||
-      op->opcode() == IrOpcode::kCheckedUint32Bounds) {
+  if (op->opcode() == IrOpcode::kCheckedUint32Bounds) {
     return OpParameter<CheckBoundsParameters>(op).check_parameters();
   }
 #define MAKE_OR(name, arg2, arg3) op->opcode() == IrOpcode::k##name ||
