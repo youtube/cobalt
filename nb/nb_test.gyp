@@ -80,6 +80,7 @@
       'variables': {
         'executable_name': 'reuse_allocator_benchmark',
       },
+      'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
     },
 
     {
