@@ -26,11 +26,7 @@ RUN apt update -qqy \
         pkgconf \
         unzip \
         yasm \
-    && apt-get clean autoclean \
-    && apt-get autoremove -y --purge \
-    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* \
-    && rm -rf /var/lib/{apt,dpkg,cache,log} \
-    && echo "Done"
+    && /opt/clean-after-apt.sh
 
 # === Get Nodejs pinned LTS version via NVM
 ARG NVM_SHA256SUM="f068e17dacb88f73302790cc076956c7a0d459ce9b01df842ff3e75744f9e2fe /tmp/install.sh"

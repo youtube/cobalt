@@ -17,10 +17,10 @@ FROM cobalt-base
 RUN apt update -qqy \
     && apt install -qqy --no-install-recommends \
         libasound2 \
-        libavcodec57 \
-        libavformat57 \
-        libavresample3 \
-        libavutil55 \
+        libavcodec-dev \
+        libavformat-dev \
+        libavresample-dev \
+        libavutil-dev \
         libegl1-mesa \
         libgl1-mesa-dri \
         libgles2-mesa \
@@ -30,14 +30,9 @@ RUN apt update -qqy \
         unzip \
         xauth \
         xvfb \
-    && apt-get clean autoclean \
-    && apt-get autoremove -y --purge \
-    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* \
-    && rm -rf /var/lib/{apt,dpkg,cache,log} \
-    && echo "Done"
+    && /opt/clean-after-apt.sh
 
 WORKDIR /out
-
 # Sets the locale in the environment. This is needed for NPLB unit tests.
 ENV LANG en_US.UTF-8
 
