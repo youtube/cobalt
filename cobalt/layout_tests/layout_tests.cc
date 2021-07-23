@@ -128,9 +128,8 @@ void RunTest(const TestInfo& test_info,
   // room for tests to maneuver within and speed at which pixel tests can be
   // done.
   const ViewportSize kDefaultViewportSize(640, 360);
-  ViewportSize viewport_size = test_info.viewport_size
-                                   ? *test_info.viewport_size
-                                   : kDefaultViewportSize;
+  ViewportSize viewport_size =
+      test_info.viewport_size ? *test_info.viewport_size : kDefaultViewportSize;
 
   renderer::RenderTreePixelTester pixel_tester(
       viewport_size.width_height(), GetTestInputRootDirectory(),
@@ -222,30 +221,26 @@ TEST_P(LayoutExact, Test) {
 }
 
 // Cobalt-specific test cases.
-INSTANTIATE_TEST_CASE_P(
-    CobaltSpecificLayoutTests, Layout,
-    ::testing::ValuesIn(EnumerateLayoutTests("cobalt")),
-    GetTestName());
+INSTANTIATE_TEST_CASE_P(CobaltSpecificLayoutTests, Layout,
+                        ::testing::ValuesIn(EnumerateLayoutTests("cobalt")),
+                        GetTestName());
 // Custom CSS 2.1 (https://www.w3.org/TR/CSS21/) test cases.
-INSTANTIATE_TEST_CASE_P(
-    CSS21LayoutTests, Layout,
-    ::testing::ValuesIn(EnumerateLayoutTests("css-2-1")),
-    GetTestName());
+INSTANTIATE_TEST_CASE_P(CSS21LayoutTests, Layout,
+                        ::testing::ValuesIn(EnumerateLayoutTests("css-2-1")),
+                        GetTestName());
 // Custom CSS Background (https://www.w3.org/TR/css3-background/) test cases.
 INSTANTIATE_TEST_CASE_P(
     CSSBackground3LayoutTests, Layout,
     ::testing::ValuesIn(EnumerateLayoutTests("css3-background")),
     GetTestName());
 // Custom CSS Color (https://www.w3.org/TR/css3-color/) test cases.
-INSTANTIATE_TEST_CASE_P(
-    CSSColor3LayoutTests, Layout,
-    ::testing::ValuesIn(EnumerateLayoutTests("css3-color")),
-    GetTestName());
+INSTANTIATE_TEST_CASE_P(CSSColor3LayoutTests, Layout,
+                        ::testing::ValuesIn(EnumerateLayoutTests("css3-color")),
+                        GetTestName());
 // Custom CSS Images (https://www.w3.org/TR/css3-images/) test cases.
 INSTANTIATE_TEST_CASE_P(
     CSSImages3LayoutTests, Layout,
-    ::testing::ValuesIn(EnumerateLayoutTests("css3-images")),
-    GetTestName());
+    ::testing::ValuesIn(EnumerateLayoutTests("css3-images")), GetTestName());
 // Custom CSS Media Queries (https://www.w3.org/TR/css3-mediaqueries/) test
 // cases.
 INSTANTIATE_TEST_CASE_P(
@@ -253,16 +248,14 @@ INSTANTIATE_TEST_CASE_P(
     ::testing::ValuesIn(EnumerateLayoutTests("css3-mediaqueries")),
     GetTestName());
 // Custom CSS Text (https://www.w3.org/TR/css-text-3/) test cases.
-INSTANTIATE_TEST_CASE_P(
-    CSSText3LayoutTests, Layout,
-    ::testing::ValuesIn(EnumerateLayoutTests("css-text-3")),
-    GetTestName());
+INSTANTIATE_TEST_CASE_P(CSSText3LayoutTests, Layout,
+                        ::testing::ValuesIn(EnumerateLayoutTests("css-text-3")),
+                        GetTestName());
 // Custom CSS Transform (http://https://www.w3.org/TR/css-transforms/)
 // test cases.
 INSTANTIATE_TEST_CASE_P(
     CSSTransformsLayoutTests, Layout,
-    ::testing::ValuesIn(EnumerateLayoutTests("css-transforms")),
-    GetTestName());
+    ::testing::ValuesIn(EnumerateLayoutTests("css-transforms")), GetTestName());
 // Custom CSS Transition
 // (https://www.w3.org/TR/2013/WD-css3-transitions-20131119/)
 // test cases.
@@ -279,15 +272,13 @@ INSTANTIATE_TEST_CASE_P(
     GetTestName());
 // Custom bidi text (http://www.unicode.org/reports/tr9/)
 // (https://www.w3.org/TR/CSS21/visuren.html#direction) test cases.
-INSTANTIATE_TEST_CASE_P(
-    BidiLayoutTests, Layout,
-    ::testing::ValuesIn(EnumerateLayoutTests("bidi")),
-    GetTestName());
+INSTANTIATE_TEST_CASE_P(BidiLayoutTests, Layout,
+                        ::testing::ValuesIn(EnumerateLayoutTests("bidi")),
+                        GetTestName());
 // Custom text shaping test cases.
 INSTANTIATE_TEST_CASE_P(
     TextShapingLayoutTests, Layout,
-    ::testing::ValuesIn(EnumerateLayoutTests("text-shaping")),
-    GetTestName());
+    ::testing::ValuesIn(EnumerateLayoutTests("text-shaping")), GetTestName());
 // Custom CSS Conditional (https://www.w3.org/TR/css3-conditional/) test cases.
 INSTANTIATE_TEST_CASE_P(
     CSSConditional3LayoutTests, Layout,
@@ -298,25 +289,22 @@ INSTANTIATE_TEST_CASE_P(
     CSSFlexbox3LayoutTests, Layout,
     ::testing::ValuesIn(EnumerateLayoutTests("css3-flexbox")), GetTestName());
 // Custom CSS Font (https://www.w3.org/TR/css3-fonts/) test cases.
-INSTANTIATE_TEST_CASE_P(
-    CSS3FontsLayoutTests, Layout,
-    ::testing::ValuesIn(EnumerateLayoutTests("css3-fonts")),
-    GetTestName());
+INSTANTIATE_TEST_CASE_P(CSS3FontsLayoutTests, Layout,
+                        ::testing::ValuesIn(EnumerateLayoutTests("css3-fonts")),
+                        GetTestName());
 // Custom CSS Text Decor (https://www.w3.org/TR/css-text-decor-3/) test cases.
 INSTANTIATE_TEST_CASE_P(
     CSS3TextDecorLayoutTests, Layout,
     ::testing::ValuesIn(EnumerateLayoutTests("css3-text-decor")),
     GetTestName());
 // Custom CSS UI (https://www.w3.org/TR/css3-ui/) test cases.
-INSTANTIATE_TEST_CASE_P(
-    CSS3UILayoutTests, Layout,
-    ::testing::ValuesIn(EnumerateLayoutTests("css3-ui")),
-    GetTestName());
+INSTANTIATE_TEST_CASE_P(CSS3UILayoutTests, Layout,
+                        ::testing::ValuesIn(EnumerateLayoutTests("css3-ui")),
+                        GetTestName());
 // Custom CSS Value (https://www.w3.org/TR/css3-values/) test cases.
 INSTANTIATE_TEST_CASE_P(
     CSS3ValuesLayoutTests, Layout,
-    ::testing::ValuesIn(EnumerateLayoutTests("css3-values")),
-    GetTestName());
+    ::testing::ValuesIn(EnumerateLayoutTests("css3-values")), GetTestName());
 // Custom incremental layout test cases.
 INSTANTIATE_TEST_CASE_P(
     IncrementalLayoutLayoutTests, Layout,
@@ -324,10 +312,9 @@ INSTANTIATE_TEST_CASE_P(
     GetTestName());
 // Custom CSSOM view (https://www.w3.org/TR/2013/WD-cssom-view-20131217/)
 // test cases.
-INSTANTIATE_TEST_CASE_P(
-    CSSOMViewLayoutTests, Layout,
-    ::testing::ValuesIn(EnumerateLayoutTests("cssom-view")),
-    GetTestName());
+INSTANTIATE_TEST_CASE_P(CSSOMViewLayoutTests, Layout,
+                        ::testing::ValuesIn(EnumerateLayoutTests("cssom-view")),
+                        GetTestName());
 // Custom DOM (https://dom.spec.whatwg.org/) test cases.
 INSTANTIATE_TEST_CASE_P(DOMLayoutTests, Layout,
                         ::testing::ValuesIn(EnumerateLayoutTests("dom")),
@@ -341,11 +328,9 @@ INSTANTIATE_TEST_CASE_P(
 
 // JavaScript HTML5 WebAPIs (https://www.w3.org/TR/html50/webappapis.html) test
 // cases.
-INSTANTIATE_TEST_CASE_P(
-    WebAppAPIsLayoutTests, Layout,
-    ::testing::ValuesIn(EnumerateLayoutTests("webappapis")),
-    GetTestName());
-
+INSTANTIATE_TEST_CASE_P(WebAppAPIsLayoutTests, Layout,
+                        ::testing::ValuesIn(EnumerateLayoutTests("webappapis")),
+                        GetTestName());
 // JavaScript HTML5 APIs that describe requestAnimationFrame().
 //   https://www.w3.org/TR/animation-timing/
 INSTANTIATE_TEST_CASE_P(
@@ -356,8 +341,7 @@ INSTANTIATE_TEST_CASE_P(
 // Problematic test cases found through cluster-fuzz.
 INSTANTIATE_TEST_CASE_P(
     ClusterFuzzLayoutTests, Layout,
-    ::testing::ValuesIn(EnumerateLayoutTests("cluster-fuzz")),
-    GetTestName());
+    ::testing::ValuesIn(EnumerateLayoutTests("cluster-fuzz")), GetTestName());
 
 // Intersection Observer API (https://www.w3.org/TR/intersection-observer/) test
 // cases
@@ -365,6 +349,11 @@ INSTANTIATE_TEST_CASE_P(
     IntersectionObserverLayoutTests, Layout,
     ::testing::ValuesIn(EnumerateLayoutTests("intersection-observer")),
     GetTestName());
+
+// webp background image test cases.
+INSTANTIATE_TEST_CASE_P(WebPLayoutTests, Layout,
+                        ::testing::ValuesIn(EnumerateLayoutTests("webp")),
+                        GetTestName());
 
 // Blitter does not support Skottie.
 #if !SB_HAS(BLITTER)
@@ -377,17 +366,14 @@ INSTANTIATE_TEST_CASE_P(
 // Disable on Windows until network stack is implemented.
 #if !defined(COBALT_WIN)
 // Content Security Policy test cases.
-INSTANTIATE_TEST_CASE_P(
-    ContentSecurityPolicyTests, Layout,
-    ::testing::ValuesIn(EnumerateLayoutTests("csp")),
-    GetTestName());
+INSTANTIATE_TEST_CASE_P(ContentSecurityPolicyTests, Layout,
+                        ::testing::ValuesIn(EnumerateLayoutTests("csp")),
+                        GetTestName());
 #endif  // !defined(COBALT_WIN)
 
 // Pixel-perfect tests.
 INSTANTIATE_TEST_CASE_P(
     CobaltPixelTests, LayoutExact,
-    ::testing::ValuesIn(EnumerateLayoutTests("cobalt-pixel")),
-    GetTestName());
-
+    ::testing::ValuesIn(EnumerateLayoutTests("cobalt-pixel")), GetTestName());
 }  // namespace layout_tests
 }  // namespace cobalt
