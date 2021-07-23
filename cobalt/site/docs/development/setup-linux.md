@@ -55,10 +55,29 @@ SSH into another machine and run the binary on that machine.
     $ git clone https://cobalt.googlesource.com/cobalt
     ```
 
+### Set up Developer Tools
+
+Cobalt's developer tools require a different file structure which we are in the
+process of moving to. For now, if you want to use these tools, you must unnest
+the `src/` directory like so:
+
+```
+$ cd cobalt
+$ git mv src/* ./
+$ git mv src/.* ./
+```
+
+Once you do that, you'll be able to follow the following two steps to have C++
+and Python linting and formatting as well as other helpful checks enabled. Keep
+in mind that after doing this, you'll want to run following commands in the
+top-level directory instead of the `src/` subdirectory.
+
+Git will track this as a large change, we recommend that you create a commit
+for it and rebase that commit of our upstream continuously for now.
+
 1.  Create a Python 3 virtual environment for working on Cobalt (feel free to use `virtualenvwrapper` instead):
 
     ```
-    $ cd cobalt
     $ python -m venv ~/.virtualenvs/cobalt_dev
     $ source ~/.virtualenvs/cobalt_dev
     $ pip install -r requirements.txt
