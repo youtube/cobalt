@@ -106,6 +106,11 @@ Raspberry Pi.
 
 ## Build, install, and run Cobalt for Raspberry Pi
 
+<aside class="note">
+<b>Note:</b> If you've unnested the 'src' directory, build and compile the code
+in your top-level checkout of Cobalt instead of the 'src' subdirectory.
+</aside>
+
 1.  Build the code by navigating to the src directory in your cobalt directory and run the
     following command :
 
