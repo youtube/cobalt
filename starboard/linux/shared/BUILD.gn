@@ -398,6 +398,17 @@ static_library("starboard_platform_sources") {
   ]
   deps = [ "//third_party/boringssl:crypto" ]
 
+  if (sb_api_version == 12) {
+    sources += [
+      "//starboard/shared/stub/speech_recognizer_cancel.cc",
+      "//starboard/shared/stub/speech_recognizer_create.cc",
+      "//starboard/shared/stub/speech_recognizer_destroy.cc",
+      "//starboard/shared/stub/speech_recognizer_is_supported.cc",
+      "//starboard/shared/stub/speech_recognizer_start.cc",
+      "//starboard/shared/stub/speech_recognizer_stop.cc",
+    ]
+  }
+
   if (is_internal_build) {
     sources += [
       "//starboard/linux/shared/drm_create_system.cc",
