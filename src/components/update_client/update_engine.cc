@@ -72,10 +72,19 @@ UpdateEngine::~UpdateEngine() {
   DCHECK(thread_checker_.CalledOnValidThread());
 }
 
+#if !defined(STARBOARD)
 void UpdateEngine::Update(bool is_foreground,
                           const std::vector<std::string>& ids,
                           UpdateClient::CrxDataCallback crx_data_callback,
                           Callback callback) {
+#else
+void UpdateEngine::Update(bool is_foreground,
+                          const std::vector<std::string>& ids,
+                          UpdateClient::CrxDataCallback crx_data_callback,
+                          Callback callback,
+                          base::OnceClosure& cancelation_closure) {
+
+#endif
   DCHECK(thread_checker_.CalledOnValidThread());
 
   if (ids.empty()) {
@@ -100,6 +109,10 @@ void UpdateEngine::Update(bool is_foreground,
       config_, is_foreground, ids, std::move(crx_data_callback),
       notify_observers_callback_, std::move(callback), crx_downloader_factory_);
   DCHECK(!update_context->session_id.empty());
+#if defined(STARBOARD)
+  cancelation_closure = base::BindOnce(&UpdateEngine::Cancel, this,
+                                       update_context->session_id, ids);
+#endif
 
   const auto result = update_contexts_.insert(
       std::make_pair(update_context->session_id, update_context));
@@ -404,6 +417,17 @@ bool UpdateEngine::IsThrottled(bool is_foreground) const {
   return throttle_updates_until_ - base::TimeDelta::FromDays(1) < now &&
          now < throttle_updates_until_;
 }
+
+#if defined(STARBOARD)
+void UpdateEngine::Cancel(const std::string& update_context_session_id,
+                          const std::vector<std::string>& crx_component_ids) {
+  const auto& context = update_contexts_.at(update_context_session_id);
+  for (const auto& crx_component_id : crx_component_ids) {
+    auto& component = context->components.at(crx_component_id);
+    component->Cancel();
+  }
+}
+#endif
 
 void UpdateEngine::SendUninstallPing(const std::string& id,
                                      const base::Version& version,

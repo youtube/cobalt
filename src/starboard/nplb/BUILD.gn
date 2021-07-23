@@ -103,7 +103,6 @@ target(gtest_target_type, "nplb") {
     "double_floor_test.cc",
     "double_is_finite_test.cc",
     "double_is_nan_test.cc",
-    "drm_create_system_test.cc",
     "drm_get_metrics_test.cc",
     "drm_helpers.cc",
     "drm_helpers.h",
@@ -142,7 +141,6 @@ target(gtest_target_type, "nplb") {
     # TODO: Separate functions tested by media buffer test into multiple
     # files.
     "media_buffer_test.cc",
-    "media_can_play_mime_and_key_system_test.cc",
     "media_configuration_test.cc",
     "memory_align_to_page_size_test.cc",
     "memory_allocate_aligned_test.cc",
@@ -241,6 +239,7 @@ target(gtest_target_type, "nplb") {
     "string_scan_test.cc",
     "system_binary_search_test.cc",
     "system_clear_last_error_test.cc",
+    "system_get_connection_type_test.cc",
     "system_get_error_string_test.cc",
     "system_get_extension_test.cc",
     "system_get_last_error_test.cc",
@@ -294,6 +293,13 @@ target(gtest_target_type, "nplb") {
     "window_get_platform_handle_test.cc",
     "window_get_size_test.cc",
   ]
+
+  if (is_internal_build) {
+    sources += [
+      "drm_create_system_test.cc",
+      "media_can_play_mime_and_key_system_test.cc",
+    ]
+  }
 
   deps = [ "//starboard/nplb/testdata/file_tests:nplb_file_tests_data" ]
 

@@ -538,6 +538,7 @@ void Window::SetApplicationState(base::ApplicationState state,
                                  SbTimeMonotonic timestamp) {
   html_element_context_->application_lifecycle_state()->SetApplicationState(
       state);
+  if (timestamp == 0) return;
   performance_->SetApplicationState(state, timestamp);
 }
 

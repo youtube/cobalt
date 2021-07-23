@@ -277,6 +277,51 @@ class AndroidConfiguration(PlatformConfiguration):
   # A map of failing or crashing tests per target.
   __FILTERED_TESTS = {  # pylint: disable=invalid-name
       'player_filter_tests': [
+          # All e/ac3 related decoder tests are disabled.  They will be
+          # re-enabled soon once we can filter out audio decoder tests for
+          # passthrough decoders.
+          'AdaptiveAudioDecoderTests/AdaptiveAudioDecoderTest.SingleInput/12',
+          'AdaptiveAudioDecoderTests/AdaptiveAudioDecoderTest.SingleInput/26',
+          'AdaptiveAudioDecoderTests/AdaptiveAudioDecoderTest.SingleInput/40',
+          'AdaptiveAudioDecoderTests/AdaptiveAudioDecoderTest.SingleInput/54',
+          'AdaptiveAudioDecoderTests/AdaptiveAudioDecoderTest.SingleInput/68',
+          'AdaptiveAudioDecoderTests/AdaptiveAudioDecoderTest.SingleInput/82',
+          'AdaptiveAudioDecoderTests/AdaptiveAudioDecoderTest.SingleInput/84',
+          'AdaptiveAudioDecoderTests/AdaptiveAudioDecoderTest.SingleInput/86',
+          'AdaptiveAudioDecoderTests/AdaptiveAudioDecoderTest.SingleInput/88',
+          'AdaptiveAudioDecoderTests/AdaptiveAudioDecoderTest.SingleInput/90',
+          'AdaptiveAudioDecoderTests/AdaptiveAudioDecoderTest.SingleInput/92',
+          'AdaptiveAudioDecoderTests/AdaptiveAudioDecoderTest.SingleInput/94',
+          'AdaptiveAudioDecoderTests/AdaptiveAudioDecoderTest.SingleInput/96',
+          'AdaptiveAudioDecoderTests/AdaptiveAudioDecoderTest.SingleInput/98',
+          'AdaptiveAudioDecoderTests/AdaptiveAudioDecoderTest.SingleInput/100',
+          'AdaptiveAudioDecoderTests/AdaptiveAudioDecoderTest.SingleInput/102',
+          'AdaptiveAudioDecoderTests/AdaptiveAudioDecoderTest.SingleInput/104',
+          'AdaptiveAudioDecoderTests/AdaptiveAudioDecoderTest.MultipleInput/12',
+          'AdaptiveAudioDecoderTests/AdaptiveAudioDecoderTest.MultipleInput/26',
+          'AdaptiveAudioDecoderTests/AdaptiveAudioDecoderTest.MultipleInput/40',
+          'AdaptiveAudioDecoderTests/AdaptiveAudioDecoderTest.MultipleInput/54',
+          'AdaptiveAudioDecoderTests/AdaptiveAudioDecoderTest.MultipleInput/68',
+          'AdaptiveAudioDecoderTests/AdaptiveAudioDecoderTest.MultipleInput/82',
+          'AdaptiveAudioDecoderTests/AdaptiveAudioDecoderTest.MultipleInput/84',
+          'AdaptiveAudioDecoderTests/AdaptiveAudioDecoderTest.MultipleInput/86',
+          'AdaptiveAudioDecoderTests/AdaptiveAudioDecoderTest.MultipleInput/88',
+          'AdaptiveAudioDecoderTests/AdaptiveAudioDecoderTest.MultipleInput/90',
+          'AdaptiveAudioDecoderTests/AdaptiveAudioDecoderTest.MultipleInput/92',
+          'AdaptiveAudioDecoderTests/AdaptiveAudioDecoderTest.MultipleInput/94',
+          'AdaptiveAudioDecoderTests/AdaptiveAudioDecoderTest.MultipleInput/96',
+          'AdaptiveAudioDecoderTests/AdaptiveAudioDecoderTest.MultipleInput/98',
+          'AdaptiveAudioDecoderTests/AdaptiveAudioDecoderTest.' +
+              'MultipleInput/100',
+          'AdaptiveAudioDecoderTests/AdaptiveAudioDecoderTest.' +
+              'MultipleInput/102',
+          'AdaptiveAudioDecoderTests/AdaptiveAudioDecoderTest.' +
+              'MultipleInput/104',
+          'AudioDecoderTests/AudioDecoderTest.SingleInput/12',
+          'AudioDecoderTests/AudioDecoderTest.ResetBeforeInput/12',
+          'AudioDecoderTests/AudioDecoderTest.MultipleInputs/12',
+          'AudioDecoderTests/AudioDecoderTest.LimitedInput/12',
+          'AudioDecoderTests/AudioDecoderTest.ContinuedLimitedInput/12',
 
           # GetMaxNumberOfCachedFrames() on Android is device dependent,
           # and Android doesn't provide an API to get it. So, this function
@@ -296,6 +341,9 @@ class AndroidConfiguration(PlatformConfiguration):
 
           # The video pipeline will hang if it doesn't receive any input.
           'PlayerComponentsTests/PlayerComponentsTest.EOSWithoutInput/*',
+
+          # The e/eac3 audio time reporting during pause will be revisitied.
+          'PlayerComponentsTests/PlayerComponentsTest.Pause/15',
       ],
       'nplb': [
           # This test is failing because localhost is not defined for IPv6 in
@@ -316,6 +364,17 @@ class AndroidConfiguration(PlatformConfiguration):
           # These tests are disabled due to not receiving the kEndOfStream
           # player state update within the specified timeout.
           'SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.NoInput/*',
+
+          # Android does not use SbDrmSessionClosedFunc, which these tests
+          # depend on.
+          'SbDrmSessionTest.SunnyDay',
+          'SbDrmSessionTest.CloseDrmSessionBeforeUpdateSession',
+
+          # This test is failing because Android calls the
+          # SbDrmSessionUpdateRequestFunc with SbDrmStatus::kSbDrmStatusSuccess
+          # when invalid initialization data is passed to
+          # SbDrmGenerateSessionUpdateRequest().
+          'SbDrmSessionTest.InvalidSessionUpdateRequestParams',
       ],
   }
 

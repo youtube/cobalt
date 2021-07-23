@@ -30,10 +30,6 @@
 #include "src/wasm/wasm-subtyping.h"
 #include "src/wasm/wasm-value.h"
 
-#if defined(V8_OS_STARBOARD)
-#include "src/poems.h"
-#endif
-
 #define TRACE_IFT(...)              \
   do {                              \
     if (false) PrintF(__VA_ARGS__); \

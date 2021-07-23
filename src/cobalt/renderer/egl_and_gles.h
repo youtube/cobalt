@@ -18,40 +18,29 @@
 #include "base/logging.h"
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"
-
-// Defining COBALT_EGL_AND_GLES_LOGGING enables a greater amount of logging and
-// error reporting with EGL and GLES calls throughout Cobalt. Each invoked
-// function will be logged, and when checks are failed the EGL or GLES error
-// code will be outputted.
-#undef COBALT_EGL_AND_GLES_LOGGING
-
 #include "starboard/egl.h"
 #include "starboard/gles.h"
+
 #define EGL_CALL_PREFIX ::cobalt::renderer::CobaltGetEglInterface().
 #define GL_CALL_PREFIX ::cobalt::renderer::CobaltGetGlesInterface().
 
-#if defined(COBALT_EGL_AND_GLES_LOGGING)
-#define EGL_DCHECK_MAYBE_LOG(x) SB_LOG(INFO) << #x;
-#define GL_DCHECK_MAYBE_LOG(x) SB_LOG(INFO) << #x;
-#else  // !defined(COBALT_EGL_AND_GLES_LOGGING)
-#define EGL_DCHECK_MAYBE_LOG(x)
-#define GL_DCHECK_MAYBE_LOG(x)
-#endif  // defined(COBALT_EGL_AND_GLES_LOGGING)
-
+#if SB_DCHECK_ENABLED
 #define EGL_DCHECK(x)                                                 \
   do {                                                                \
-    EGL_DCHECK_MAYBE_LOG(x);                                          \
     const int32_t COBALT_EGL_ERRNO = (EGL_CALL_PREFIX eglGetError()); \
     SB_DCHECK(COBALT_EGL_ERRNO == EGL_SUCCESS)                        \
         << #x << " exited with code: " << COBALT_EGL_ERRNO;           \
   } while (false)
 #define GL_DCHECK(x)                                               \
   do {                                                             \
-    GL_DCHECK_MAYBE_LOG(x);                                        \
     const int32_t COBALT_GL_ERRNO = (GL_CALL_PREFIX glGetError()); \
     SB_DCHECK(COBALT_GL_ERRNO == GL_NO_ERROR)                      \
         << #x << " exited with code: " << COBALT_GL_ERRNO;         \
   } while (false)
+#else
+#define EGL_DCHECK(x)
+#define GL_DCHECK(x)
+#endif  // SB_DCHECK_ENABLED
 
 namespace cobalt {
 namespace renderer {
@@ -92,21 +81,8 @@ inline const SbGlesInterface& CobaltGetGlesInterface() {
     GL_DCHECK(x);     \
   } while (false)
 
-#if defined(COBALT_EGL_AND_GLES_LOGGING)
-#define EGL_CALL_SIMPLE(x)    \
-  ([&]() {                    \
-    SB_LOG(INFO) << #x;       \
-    return EGL_CALL_PREFIX x; \
-  }())
-#define GL_CALL_SIMPLE(x)    \
-  ([&]() {                   \
-    SB_LOG(INFO) << #x;      \
-    return GL_CALL_PREFIX x; \
-  }())
-#else  // !defined(COBALT_EGL_AND_GLES_LOGGING)
 #define EGL_CALL_SIMPLE(x) (EGL_CALL_PREFIX x)
 #define GL_CALL_SIMPLE(x) (GL_CALL_PREFIX x)
-#endif  // defined(COBALT_EGL_AND_GLES_LOGGING)
 
 // EGL TYPES
 #define EGLint SbEglInt32

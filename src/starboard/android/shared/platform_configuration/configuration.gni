@@ -47,3 +47,5 @@ static_library_configs +=
     [ "//starboard/android/shared/platform_configuration:library_config" ]
 
 install_target_path = "//starboard/android/shared/install_target.gni"
+
+sb_widevine_platform = "android"

@@ -14,12 +14,6 @@
 
 import("//starboard/shared/starboard/player/buildfiles.gni")
 
-declare_args() {
-  has_input_events_filter = false
-
-  has_drm_system_extension = false
-}
-
 config("starboard_platform_config") {
   include_dirs = [ "bionic" ]
 }
@@ -431,16 +425,6 @@ static_library("starboard_platform") {
     "//starboard/shared/starboard/player/player_set_playback_rate.cc",
   ]
 
-  if (has_drm_system_extension) {
-    # TODO(andrewsavage)
-  } else {
-    sources += [
-      "drm_create_system.cc",
-      "media_is_supported.cc",
-      "player_components_factory.cc",
-    ]
-  }
-
   configs += [
     ":starboard_platform_config",
     "//starboard/build/config:starboard_implementation",
@@ -458,6 +442,21 @@ static_library("starboard_platform") {
     "//third_party/libevent",
     "//third_party/opus",
   ]
+
+  if (is_internal_build) {
+    sources += [
+      "input_events_filter.cc",
+      "input_events_filter.h",
+    ]
+    defines = [ "STARBOARD_INPUT_EVENTS_FILTER" ]
+    deps += [ "//starboard/android/shared/drm_system_extension" ]
+  } else {
+    sources += [
+      "drm_create_system.cc",
+      "media_is_supported.cc",
+      "player_components_factory.cc",
+    ]
+  }
 }
 
 static_library("starboard_base_symbolize") {

@@ -31,7 +31,7 @@ namespace dom {
 namespace {
 
 base::TimeDelta GetUnixAtZeroMonotonic(const base::Clock* clock,
-                                         const base::TickClock* tick_clock) {
+                                       const base::TickClock* tick_clock) {
   base::TimeDelta unix_time_now = clock->Now() - base::Time::UnixEpoch();
   base::TimeDelta time_since_origin = tick_clock->NowTicks().since_origin();
   return unix_time_now - time_since_origin;
@@ -620,6 +620,10 @@ void Performance::SetApplicationStartOrPreloadTimestamp(
     bool is_preload, SbTimeMonotonic timestamp) {
   lifecycle_timing_->SetApplicationStartOrPreloadTimestamp(
       is_preload, timestamp);
+}
+
+void Performance::SetDeepLinkTimestamp(SbTimeMonotonic timestamp) {
+  lifecycle_timing_->SetDeepLinkTimestamp(timestamp);
 }
 
 }  // namespace dom

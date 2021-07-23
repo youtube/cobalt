@@ -42,6 +42,9 @@ class UrlFetcherDownloader : public CrxDownloader {
  private:
   // Overrides for CrxDownloader.
   void DoStartDownload(const GURL& url) override;
+#if defined(STARBOARD)
+  void DoCancelDownload() override;
+#endif
 
   void CreateDownloadDir();
   void StartURLFetch(const GURL& url);

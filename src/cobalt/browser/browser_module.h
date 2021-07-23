@@ -232,6 +232,8 @@ class BrowserModule {
   // Pass the application preload or start timestamps from Starboard.
   void SetApplicationStartOrPreloadTimestamp(bool is_preload,
                                              SbTimeMonotonic timestamp);
+  // Pass the deeplink timestamp from Starboard.
+  void SetDeepLinkTimestamp(SbTimeMonotonic timestamp);
  private:
 #if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
   static void CoreDumpHandler(void* browser_module_as_void);

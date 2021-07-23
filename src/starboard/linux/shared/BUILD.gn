@@ -14,10 +14,6 @@
 
 import("//starboard/shared/starboard/player/buildfiles.gni")
 
-declare_args() {
-  has_cdm = false
-}
-
 group("starboard_platform") {
   public_deps = [
     ":starboard_base_symbolize",
@@ -68,7 +64,11 @@ static_library("starboard_platform_sources") {
     "//starboard/linux/shared/decode_target_release.cc",
     "//starboard/linux/shared/media_is_audio_supported.cc",
     "//starboard/linux/shared/media_is_video_supported.cc",
+    "//starboard/linux/shared/netlink.cc",
+    "//starboard/linux/shared/netlink.h",
     "//starboard/linux/shared/player_components_factory.cc",
+    "//starboard/linux/shared/routes.cc",
+    "//starboard/linux/shared/routes.h",
     "//starboard/linux/shared/system_get_connection_type.cc",
     "//starboard/linux/shared/system_get_device_type.cc",
     "//starboard/linux/shared/system_get_extensions.cc",
@@ -386,8 +386,42 @@ static_library("starboard_platform_sources") {
 
   sources += common_player_sources
 
-  if (has_cdm) {
-    # TODO(andrewsavage)
+  configs += [
+    "//starboard/build/config:starboard_implementation",
+    "//third_party/de265_includes",
+    "//third_party/pulseaudio_includes",
+  ]
+
+  public_deps = [
+    "//starboard:starboard_headers_only",
+    "//starboard/shared/starboard/player/filter:filter_based_player_sources",
+  ]
+  deps = [ "//third_party/boringssl:crypto" ]
+
+  if (is_internal_build) {
+    sources += [
+      "//starboard/linux/shared/drm_create_system.cc",
+      "//starboard/linux/shared/oemcrypto_engine_device_properties_linux.cc",
+      "//starboard/shared/starboard/drm/drm_close_session.cc",
+      "//starboard/shared/starboard/drm/drm_destroy_system.cc",
+      "//starboard/shared/starboard/drm/drm_generate_session_update_request.cc",
+      "//starboard/shared/starboard/drm/drm_get_metrics.cc",
+      "//starboard/shared/starboard/drm/drm_is_server_certificate_updatable.cc",
+      "//starboard/shared/starboard/drm/drm_system_internal.h",
+      "//starboard/shared/starboard/drm/drm_update_server_certificate.cc",
+      "//starboard/shared/starboard/drm/drm_update_session.cc",
+      "//starboard/shared/widevine/drm_system_widevine.cc",
+      "//starboard/shared/widevine/drm_system_widevine.h",
+      "//starboard/shared/widevine/media_is_supported.cc",
+      "//starboard/shared/widevine/widevine_storage.cc",
+      "//starboard/shared/widevine/widevine_storage.h",
+      "//starboard/shared/widevine/widevine_timer.cc",
+      "//starboard/shared/widevine/widevine_timer.h",
+    ]
+    deps += [
+      "//starboard/shared/widevine:oemcrypto",
+      "//third_party/ce_cdm/cdm:widevine_ce_cdm_static",
+    ]
   } else {
     sources += [
       "//starboard/shared/stub/drm_close_session.cc",
@@ -401,15 +435,4 @@ static_library("starboard_platform_sources") {
       "//starboard/shared/stub/media_is_supported.cc",
     ]
   }
-
-  public_deps = [
-    "//starboard:starboard_headers_only",
-    "//starboard/shared/starboard/player/filter:filter_based_player_sources",
-  ]
-  deps = [ "//third_party/boringssl:crypto" ]
-  configs += [
-    "//starboard/build/config:starboard_implementation",
-    "//third_party/de265_includes",
-    "//third_party/pulseaudio_includes",
-  ]
 }

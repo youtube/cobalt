@@ -33,6 +33,7 @@ import dev.cobalt.media.VideoSurfaceView;
 import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.Log;
 import dev.cobalt.util.UsedByNative;
+import java.security.Timestamp;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -65,10 +66,15 @@ public abstract class CobaltActivity extends NativeActivity {
 
   private boolean forceCreateNewVideoSurfaceView = false;
 
+  private long timeInNanoseconds;
+
   private static native void nativeLowMemoryEvent();
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
+    // Record the application start timestamp.
+    timeInNanoseconds = System.nanoTime();
+
     // To ensure that volume controls adjust the correct stream, make this call
     // early in the app's lifecycle. This connects the volume controls to
     // STREAM_MUSIC whenever the target activity or fragment is visible.
@@ -340,5 +346,9 @@ public abstract class CobaltActivity extends NativeActivity {
   public void onLowMemory() {
     super.onLowMemory();
     nativeLowMemoryEvent();
+  }
+
+  public long getAppStartTimestamp() {
+    return timeInNanoseconds;
   }
 }

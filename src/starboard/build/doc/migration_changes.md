@@ -11,6 +11,10 @@ variables.
 :---------------------------------------- | :--------------------------------------------------- | :----------
 `OS` ("starboard"/other)                  | `is_starboard` (true/false)                          | (global)
 `clang` (0/1)                             | `is_clang` (true/false)                              | (global)
+`has_input_events_filter`                 | `is_internal_build` (true/false)                     | (global)
+`has_drm_system_extension`                | `is_internal_build` (true/false)                     | (global)
+`has_cdm`                                 | `is_internal_build` (true/false)                     | (global)
+`has_private_system_properties`           | `is_internal_build` (true/false)                     | (global)
 `sb_deploy_output_dir`                    | `sb_install_output_dir`                              | `//starboard/build/config/base_configuration.gni`
 `sb_evergreen` (0/1)                      | `sb_is_evergreen` (true/false)                       | `//starboard/build/config/base_configuration.gni`
 `sb_evergreen_compatible` (0/1)           | `sb_is_evergreen_compatible` (true/false)            | `//starboard/build/config/base_configuration.gni`

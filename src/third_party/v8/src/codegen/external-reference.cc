@@ -33,7 +33,6 @@
 #include "src/wasm/wasm-external-refs.h"
 
 #ifdef V8_INTL_SUPPORT
-#include "src/base/platform/wrappers.h"
 #include "src/objects/intl-objects.h"
 #endif  // V8_INTL_SUPPORT
 

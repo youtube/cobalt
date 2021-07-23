@@ -11,14 +11,15 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-""" Tests of suspend and resume during playing."""
+""" Tests for suspend and resume during playing."""
 
+import logging
 import time
-import unittest
 
 import _env  # pylint: disable=unused-import
 from cobalt.media_integration_tests.test_app import Features
 from cobalt.media_integration_tests.test_case import TestCase
+from cobalt.media_integration_tests.test_util import MimeStrings, PlaybackUrls
 
 
 class SuspendResumeTest(TestCase):
@@ -26,56 +27,46 @@ class SuspendResumeTest(TestCase):
     Test cases for suspend and resume.
   """
 
-  def run_test_with_url(self, url):
+  def run_test(self, url, mime=None):
     app = self.CreateCobaltApp(url)
     with app:
+      # Skip the test if the mime is not supported.
+      if mime and not app.IsMediaTypeSupported(mime):
+        logging.info('Mime type (%s) is not supported. Skip the test.', mime)
+        return
       # Wait until the playback starts.
       app.WaitUntilPlayerStart()
       app.WaitUntilAdsEnd()
       # Let the playback play for 2 seconds.
       app.WaitUntilMediaTimeReached(app.CurrentMediaTime() + 2)
       # Suspend the app and wait the app enters background.
+      logging.info('Suspend the application.')
       app.Suspend()
       app.WaitUntilReachState(
           lambda _app: not _app.ApplicationState().is_visible)
       # Wait for 1 second before resume.
       time.sleep(1)
       # Resume the app and let it play for a few time.
+      logging.info('Resume the application.')
       app.Resume()
       app.WaitUntilPlayerStart()
       app.WaitUntilAdsEnd()
       # Let the playback play for 2 seconds.
       app.WaitUntilMediaTimeReached(app.CurrentMediaTime() + 2)
 
-  @unittest.skipIf(not TestCase.IsFeatureSupported(Features.SUSPEND_AND_RESUME),
-                   'Suspend and resume is not supported on this platform.')
-  def test_playback_h264(self):
-    self.run_test_with_url('https://www.youtube.com/tv#/watch?v=RACW52qnJMI')
+TEST_PARAMETERS = [
+    ('H264', PlaybackUrls.H264_ONLY, None),
+    ('ENCRYPTED', PlaybackUrls.ENCRYPTED, None),
+    ('LIVE', PlaybackUrls.LIVE, None),
+    ('VP9', PlaybackUrls.VP9, MimeStrings.VP9),
+    ('AV1', PlaybackUrls.AV1, MimeStrings.AV1),
+    ('VERTICAL', PlaybackUrls.VERTICAL, None),
+    ('VR', PlaybackUrls.VR, None),
+]
 
-  @unittest.skipIf(not TestCase.IsFeatureSupported(Features.SUSPEND_AND_RESUME),
-                   'Suspend and resume is not supported on this platform.')
-  def test_encrypted_playback(self):
-    self.run_test_with_url('https://www.youtube.com/tv#/watch?v=Vx5lkGS4w30')
-
-  @unittest.skipIf(not TestCase.IsFeatureSupported(Features.SUSPEND_AND_RESUME),
-                   'Suspend and resume is not supported on this platform.')
-  def test_live_stream(self):
-    self.run_test_with_url('https://www.youtube.com/tv#/watch?v=KI1XlTQrsa0')
-
-  # Test for vp9 playback if supported.
-  @unittest.skipIf(not TestCase.IsFeatureSupported(Features.SUSPEND_AND_RESUME),
-                   'Suspend and resume is not supported on this platform.')
-  def test_playback_vp9(self):
-    self.run_test_with_url('https://www.youtube.com/tv#/watch?v=1La4QzGeaaQ')
-
-  # Test for av1 playback if supported.
-  @unittest.skipIf(not TestCase.IsFeatureSupported(Features.SUSPEND_AND_RESUME),
-                   'Suspend and resume is not supported on this platform.')
-  def test_playback_av1(self):
-    self.run_test_with_url('https://www.youtube.com/tv#/watch?v=iXvy8ZeCs5M')
-
-  # Test for vertical playback
-  @unittest.skipIf(not TestCase.IsFeatureSupported(Features.SUSPEND_AND_RESUME),
-                   'Suspend and resume is not supported on this platform.')
-  def test_vertical_playback(self):
-    self.run_test_with_url('https://www.youtube.com/tv#/watch?v=jNQXAC9IVRw')
+if not TestCase.IsFeatureSupported(Features.SUSPEND_AND_RESUME):
+  logging.info('Suspend and resume is not supported on this platform.')
+else:
+  for name, playback_url, mime_str in TEST_PARAMETERS:
+    TestCase.CreateTest(SuspendResumeTest, name, SuspendResumeTest.run_test,
+                        playback_url, mime_str)

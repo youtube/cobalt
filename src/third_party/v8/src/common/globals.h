@@ -1765,10 +1765,10 @@ struct AcquireLoadTag {};
 struct RelaxedLoadTag {};
 struct ReleaseStoreTag {};
 struct RelaxedStoreTag {};
-static constexpr AcquireLoadTag kAcquireLoad{};
-static constexpr RelaxedLoadTag kRelaxedLoad{};
-static constexpr ReleaseStoreTag kReleaseStore{};
-static constexpr RelaxedStoreTag kRelaxedStore{};
+static constexpr AcquireLoadTag kAcquireLoad;
+static constexpr RelaxedLoadTag kRelaxedLoad;
+static constexpr ReleaseStoreTag kReleaseStore;
+static constexpr RelaxedStoreTag kRelaxedStore;
 
 }  // namespace v8
 

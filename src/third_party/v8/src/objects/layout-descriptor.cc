@@ -7,7 +7,6 @@
 #include <sstream>
 
 #include "src/base/bits.h"
-#include "src/base/platform/wrappers.h"
 #include "src/handles/handles-inl.h"
 #include "src/objects/objects-inl.h"
 
@@ -103,8 +102,8 @@ Handle<LayoutDescriptor> LayoutDescriptor::EnsureCapacity(
 
   if (layout_descriptor->IsSlowLayout()) {
     memcpy(new_layout_descriptor->GetDataStartAddress(),
-                 layout_descriptor->GetDataStartAddress(),
-                 layout_descriptor->DataSize());
+           layout_descriptor->GetDataStartAddress(),
+           layout_descriptor->DataSize());
     return new_layout_descriptor;
   } else {
     // Fast layout.

@@ -83,6 +83,8 @@ SbPlayer SbPlayerCreate(SbWindow window,
 
   if (audio_codec != kSbMediaAudioCodecNone &&
       audio_codec != kSbMediaAudioCodecAac &&
+      audio_codec != kSbMediaAudioCodecAc3 &&
+      audio_codec != kSbMediaAudioCodecEac3 &&
       audio_codec != kSbMediaAudioCodecOpus) {
     SB_LOG(ERROR) << "Unsupported audio codec " << audio_codec;
     return kSbPlayerInvalid;

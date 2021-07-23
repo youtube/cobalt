@@ -5,7 +5,6 @@
 #include "src/snapshot/deserializer.h"
 
 #include "src/base/logging.h"
-#include "src/base/platform/wrappers.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/common/assert-scope.h"
 #include "src/common/external-pointer.h"

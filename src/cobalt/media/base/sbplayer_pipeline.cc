@@ -57,6 +57,8 @@ namespace {
 
 static const int kRetryDelayAtSuspendInMilliseconds = 100;
 
+unsigned int g_pipeline_identifier_counter = 0;
+
 // Used to post parameters to SbPlayerPipeline::StartTask() as the number of
 // parameters exceed what base::Bind() can support.
 struct StartTaskParameters {
@@ -325,7 +327,8 @@ SbPlayerPipeline::SbPlayerPipeline(
         get_decode_target_graphics_context_provider_func,
     bool allow_resume_after_suspend, MediaLog* media_log,
     VideoFrameProvider* video_frame_provider)
-    : pipeline_identifier_(base::StringPrintf("%p", this)),
+    : pipeline_identifier_(base::StringPrintf("%X",
+                           g_pipeline_identifier_counter++)),
       task_runner_(task_runner),
       allow_resume_after_suspend_(allow_resume_after_suspend),
       window_(window),
@@ -909,11 +912,15 @@ void SbPlayerPipeline::CreateUrlPlayer(const std::string& source_url) {
         task_runner_, source_url, window_, this, set_bounds_helper_.get(),
         allow_resume_after_suspend_, *decode_to_texture_output_mode_,
         on_encrypted_media_init_data_encountered_cb_, video_frame_provider_));
-    SetPlaybackRateTask(playback_rate_);
-    SetVolumeTask(volume_);
+    if (player_->IsValid()) {
+      SetPlaybackRateTask(playback_rate_);
+      SetVolumeTask(volume_);
+    } else {
+      player_.reset();
+    }
   }
 
-  if (player_->IsValid()) {
+  if (player_ && player_->IsValid()) {
     base::Closure output_mode_change_cb;
     {
       base::AutoLock auto_lock(lock_);
@@ -924,7 +931,6 @@ void SbPlayerPipeline::CreateUrlPlayer(const std::string& source_url) {
     return;
   }
 
-  player_.reset();
   CallSeekCB(DECODER_ERROR_NOT_SUPPORTED,
              "SbPlayerPipeline::CreateUrlPlayer failed: "
              "player_->IsValid() is false.");
@@ -997,33 +1003,35 @@ void SbPlayerPipeline::CreatePlayer(SbDrmSystem drm_system) {
         set_bounds_helper_.get(), allow_resume_after_suspend_,
         *decode_to_texture_output_mode_, video_frame_provider_,
         max_video_capabilities_));
-
-    if (!player_->IsValid()) {
+    if (player_->IsValid()) {
+      SetPlaybackRateTask(playback_rate_);
+      SetVolumeTask(volume_);
+    } else {
       player_.reset();
-      CallErrorCB(DECODER_ERROR_NOT_SUPPORTED,
-                  "SbPlayerPipeline::CreatePlayer failed: "
-                  "player_->IsValid() is false.");
-      return;
     }
-
-    SetPlaybackRateTask(playback_rate_);
-    SetVolumeTask(volume_);
   }
 
-  base::Closure output_mode_change_cb;
-  {
-    base::AutoLock auto_lock(lock_);
-    DCHECK(!output_mode_change_cb_.is_null());
-    output_mode_change_cb = std::move(output_mode_change_cb_);
-  }
-  output_mode_change_cb.Run();
+  if (player_ && player_->IsValid()) {
+    base::Closure output_mode_change_cb;
+    {
+      base::AutoLock auto_lock(lock_);
+      DCHECK(!output_mode_change_cb_.is_null());
+      output_mode_change_cb = std::move(output_mode_change_cb_);
+    }
+    output_mode_change_cb.Run();
 
-  if (audio_stream_) {
-    UpdateDecoderConfig(audio_stream_);
+    if (audio_stream_) {
+      UpdateDecoderConfig(audio_stream_);
+    }
+    if (video_stream_) {
+      UpdateDecoderConfig(video_stream_);
+    }
+    return;
   }
-  if (video_stream_) {
-    UpdateDecoderConfig(video_stream_);
-  }
+
+  CallSeekCB(DECODER_ERROR_NOT_SUPPORTED,
+             "SbPlayerPipeline::CreatePlayer failed: "
+             "player_->IsValid() is false.");
 }
 
 void SbPlayerPipeline::OnDemuxerInitialized(PipelineStatus status) {
@@ -1426,7 +1434,12 @@ void SbPlayerPipeline::ResumeTask(PipelineWindow window,
   if (player_) {
     player_->Resume(window);
     if (!player_->IsValid()) {
-      player_.reset();
+      {
+        base::AutoLock auto_lock(lock_);
+        player_.reset();
+      }
+      // TODO: Determine if CallSeekCB() may be used here, as |seek_cb_| may be
+      // available if the app is suspended before a seek is completed.
       CallErrorCB(DECODER_ERROR_NOT_SUPPORTED,
                   "SbPlayerPipeline::ResumeTask failed: "
                   "player_->IsValid() is false.");

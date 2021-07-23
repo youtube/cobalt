@@ -24,6 +24,8 @@ declare_args() {
   is_starboard = true
 
   cobalt_fastbuild = getenv("IS_CI") == 1
+
+  is_internal_build = false
 }
 
 is_debug = build_type == "debug"

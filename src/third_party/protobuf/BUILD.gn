@@ -11,6 +11,21 @@ config("protobuf_config") {
   if (!is_win) {
     defines += [ "HAVE_PTHREAD" ]
   }
+
+  if (is_starboard) {
+    if (is_clang) {
+      cflags = [
+        # protobuf-3 contains a few functions that are unused.
+        "-Wno-unused-function",
+        # protobuf-3 mixes generated enum types.
+        "-Wno-enum-compare-switch",
+        # Used by older version of clang.
+        "-Wno-enum-compare",
+        # Older version of clang don't have -Wno-enum-compare-switch
+        "-Wno-unknown-warning-option",
+      ]
+    }
+  }
 }
 
 config("protobuf_warnings") {
@@ -139,7 +154,11 @@ if (is_win) {
 component("protobuf_lite") {
   sources = protobuf_lite_sources
 
-  configs -= [ "//build/config/compiler:chromium_code" ]
+  if (is_starboard) {
+    deps = [ "//starboard/common" ]
+  } else {
+    configs -= [ "//build/config/compiler:chromium_code" ]
+  }
   configs += [
     "//build/config/compiler:no_chromium_code",
 
@@ -159,9 +178,11 @@ component("protobuf_lite") {
     "//build/config/compiler:no_size_t_to_int_warning",
   ]
 
-  deps = [
-    "//build/config/sanitizers:deps",
-  ]
+  if (!is_starboard) {
+    deps = [
+      "//build/config/sanitizers:deps",
+    ]
+  }
 
   cflags = protobuf_lite_cflags
 
@@ -308,11 +329,14 @@ static_library("protobuf_full") {
     "src/google/protobuf/wrappers.pb.h",
   ]
 
-  deps = [
-    "//build/config/sanitizers:deps",
-  ]
-
-  configs -= [ "//build/config/compiler:chromium_code" ]
+  if (is_starboard) {
+    deps = [ "//starboard/common" ]
+  } else {
+    deps = [
+      "//build/config/sanitizers:deps",
+    ]
+    configs -= [ "//build/config/compiler:chromium_code" ]
+  }
   configs += [
     "//build/config/compiler:no_chromium_code",
 
@@ -526,7 +550,9 @@ if (current_toolchain == host_toolchain) {
       "src/google/protobuf/compiler/zip_writer.h",
     ]
 
-    configs -= [ "//build/config/compiler:chromium_code" ]
+    if (!is_starboard) {
+      configs -= [ "//build/config/compiler:chromium_code" ]
+    }
     configs += [
       "//build/config/compiler:no_chromium_code",
 
@@ -553,7 +579,9 @@ if (current_toolchain == host_toolchain) {
       "src/google/protobuf/compiler/main.cc",
     ]
 
-    configs -= [ "//build/config/compiler:chromium_code" ]
+    if (!is_starboard) {
+      configs -= [ "//build/config/compiler:chromium_code" ]
+    }
     configs += [ "//build/config/compiler:no_chromium_code" ]
 
     cflags = protobuf_lite_cflags
@@ -567,86 +595,88 @@ if (current_toolchain == host_toolchain) {
   }
 }
 
-google_python_dir = "$root_out_dir/pyproto/google"
+if (!is_starboard) {
+  google_python_dir = "$root_out_dir/pyproto/google"
 
-copy("copy_google") {
-  sources = [
-    "__init__.py",
-  ]
-  outputs = [
-    "$google_python_dir/{{source_file_part}}",
-  ]
-}
+  copy("copy_google") {
+    sources = [
+      "__init__.py",
+    ]
+    outputs = [
+      "$google_python_dir/{{source_file_part}}",
+    ]
+  }
 
-copy("copy_six") {
-  sources = [
-    "third_party/six/six.py",
-  ]
-  outputs = [
-    "$google_python_dir/third_party/six/{{source_file_part}}",
-  ]
-}
+  copy("copy_six") {
+    sources = [
+      "third_party/six/six.py",
+    ]
+    outputs = [
+      "$google_python_dir/third_party/six/{{source_file_part}}",
+    ]
+  }
 
-copy("copy_google_protobuf") {
-  sources = [
-    "python/google/protobuf/__init__.py",
-    "python/google/protobuf/descriptor.py",
-    "python/google/protobuf/descriptor_database.py",
-    "python/google/protobuf/descriptor_pool.py",
-    "python/google/protobuf/json_format.py",
-    "python/google/protobuf/message.py",
-    "python/google/protobuf/message_factory.py",
-    "python/google/protobuf/proto_builder.py",
-    "python/google/protobuf/reflection.py",
-    "python/google/protobuf/service.py",
-    "python/google/protobuf/service_reflection.py",
-    "python/google/protobuf/symbol_database.py",
-    "python/google/protobuf/text_encoding.py",
-    "python/google/protobuf/text_format.py",
+  copy("copy_google_protobuf") {
+    sources = [
+      "python/google/protobuf/__init__.py",
+      "python/google/protobuf/descriptor.py",
+      "python/google/protobuf/descriptor_database.py",
+      "python/google/protobuf/descriptor_pool.py",
+      "python/google/protobuf/json_format.py",
+      "python/google/protobuf/message.py",
+      "python/google/protobuf/message_factory.py",
+      "python/google/protobuf/proto_builder.py",
+      "python/google/protobuf/reflection.py",
+      "python/google/protobuf/service.py",
+      "python/google/protobuf/service_reflection.py",
+      "python/google/protobuf/symbol_database.py",
+      "python/google/protobuf/text_encoding.py",
+      "python/google/protobuf/text_format.py",
 
-    # TODO(ncarter): protoc's python generator treats descriptor.proto
-    # specially, but only when the input path is exactly
-    # "google/protobuf/descriptor.proto".  I'm not sure how to execute a rule
-    # from a different directory.  For now, use a manually-generated copy of
-    # descriptor_pb2.py.
-    "python/google/protobuf/descriptor_pb2.py",
-  ]
-  outputs = [
-    "$google_python_dir/protobuf/{{source_file_part}}",
-  ]
-}
+      # TODO(ncarter): protoc's python generator treats descriptor.proto
+      # specially, but only when the input path is exactly
+      # "google/protobuf/descriptor.proto".  I'm not sure how to execute a rule
+      # from a different directory.  For now, use a manually-generated copy of
+      # descriptor_pb2.py.
+      "python/google/protobuf/descriptor_pb2.py",
+    ]
+    outputs = [
+      "$google_python_dir/protobuf/{{source_file_part}}",
+    ]
+  }
 
-copy("copy_google_protobuf_internal") {
-  sources = [
-    "python/google/protobuf/internal/__init__.py",
-    "python/google/protobuf/internal/_parameterized.py",
-    "python/google/protobuf/internal/api_implementation.py",
-    "python/google/protobuf/internal/containers.py",
-    "python/google/protobuf/internal/decoder.py",
-    "python/google/protobuf/internal/encoder.py",
-    "python/google/protobuf/internal/enum_type_wrapper.py",
-    "python/google/protobuf/internal/message_listener.py",
-    "python/google/protobuf/internal/python_message.py",
-    "python/google/protobuf/internal/type_checkers.py",
-    "python/google/protobuf/internal/well_known_types.py",
-    "python/google/protobuf/internal/wire_format.py",
-  ]
-  outputs = [
-    "$google_python_dir/protobuf/internal/{{source_file_part}}",
-  ]
-}
+  copy("copy_google_protobuf_internal") {
+    sources = [
+      "python/google/protobuf/internal/__init__.py",
+      "python/google/protobuf/internal/_parameterized.py",
+      "python/google/protobuf/internal/api_implementation.py",
+      "python/google/protobuf/internal/containers.py",
+      "python/google/protobuf/internal/decoder.py",
+      "python/google/protobuf/internal/encoder.py",
+      "python/google/protobuf/internal/enum_type_wrapper.py",
+      "python/google/protobuf/internal/message_listener.py",
+      "python/google/protobuf/internal/python_message.py",
+      "python/google/protobuf/internal/type_checkers.py",
+      "python/google/protobuf/internal/well_known_types.py",
+      "python/google/protobuf/internal/wire_format.py",
+    ]
+    outputs = [
+      "$google_python_dir/protobuf/internal/{{source_file_part}}",
+    ]
+  }
 
-group("py_proto") {
-  public_deps = [
-    ":copy_google",
-    ":copy_google_protobuf",
-    ":copy_google_protobuf_internal",
-    ":copy_six",
-  ]
+  group("py_proto") {
+    public_deps = [
+      ":copy_google",
+      ":copy_google_protobuf",
+      ":copy_google_protobuf_internal",
+      ":copy_six",
+    ]
 
-  # Targets that depend on this should depend on the copied data files.
-  data = get_target_outputs(":copy_google")
-  data += get_target_outputs(":copy_six")
-  data += get_target_outputs(":copy_google_protobuf")
-  data += get_target_outputs(":copy_google_protobuf_internal")
+    # Targets that depend on this should depend on the copied data files.
+    data = get_target_outputs(":copy_google")
+    data += get_target_outputs(":copy_six")
+    data += get_target_outputs(":copy_google_protobuf")
+    data += get_target_outputs(":copy_google_protobuf_internal")
+  }
 }

@@ -47,8 +47,10 @@ extern const char kLoggingModuleSwitch[];
 
 // URLs.
 //
-// Omaha server end point.
+// Update server end point (prod).
 extern const char kUpdaterJSONDefaultUrl[];
+// Update server end point (qa).
+extern const char kUpdaterJSONDefaultUrlQA[];
 
 // The URL where crash reports are uploaded.
 extern const char kCrashUploadURL[];

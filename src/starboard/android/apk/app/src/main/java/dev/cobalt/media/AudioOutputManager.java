@@ -17,6 +17,7 @@ package dev.cobalt.media;
 import static dev.cobalt.media.Log.TAG;
 
 import android.content.Context;
+import android.media.AudioAttributes;
 import android.media.AudioDeviceInfo;
 import android.media.AudioFormat;
 import android.media.AudioManager;
@@ -122,7 +123,7 @@ public class AudioOutputManager implements CobaltMediaSession.UpdateVolumeListen
 
   /** Convert AudioDeviceInfo.TYPE_* to name in String */
   @RequiresApi(23)
-  private static String getDeviceTypeName(int device_type) {
+  private static String getDeviceTypeNameV23(int device_type) {
     switch (device_type) {
       case AudioDeviceInfo.TYPE_AUX_LINE:
         return "TYPE_AUX_LINE";
@@ -240,7 +241,7 @@ public class AudioOutputManager implements CobaltMediaSession.UpdateVolumeListen
           TAG,
           String.format(
               "  Audio Device: %s, channels: %s, sample rates: %s, encodings: %s",
-              getDeviceTypeName(info.getType()),
+              getDeviceTypeNameV23(info.getType()),
               Arrays.toString(info.getChannelCounts()),
               Arrays.toString(info.getSampleRates()),
               getEncodingNames(info.getEncodings())));
@@ -291,5 +292,141 @@ public class AudioOutputManager implements CobaltMediaSession.UpdateVolumeListen
     }
     AudioManager audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
     return audioManager.generateAudioSessionId();
+  }
+
+  /** Returns whether passthrough on `encoding` is supported. */
+  @SuppressWarnings("unused")
+  @UsedByNative
+  boolean hasPassthroughSupportFor(int encoding) {
+    if (Build.VERSION.SDK_INT < 23) {
+      Log.i(
+          TAG,
+          String.format(
+              "Passthrough on encoding %d is rejected on api %d, as passthrough is only"
+                  + " supported on api 23 or later.",
+              encoding, Build.VERSION.SDK_INT));
+      return false;
+    }
+    if (hasPassthroughSupportForV23(encoding)) {
+      Log.i(
+          TAG,
+          String.format(
+              "Passthrough on encoding %d is supported, as hasPassthroughSupportForV23() returns"
+                  + " true.",
+              encoding));
+      return true;
+    }
+    if (Build.VERSION.SDK_INT < 29) {
+      Log.i(
+          TAG,
+          String.format(
+              "Passthrough on encoding %d is rejected, as"
+                  + " hasDirectSurroundingPlaybackSupportForV29() is not called for api %d.",
+              encoding, Build.VERSION.SDK_INT));
+      return false;
+    }
+    if (hasDirectSurroundingPlaybackSupportForV29(encoding)) {
+      Log.i(
+          TAG,
+          String.format(
+              "Passthrough on encoding %d is supported, as"
+                  + " hasDirectSurroundingPlaybackSupportForV29() returns true.",
+              encoding));
+      return true;
+    }
+
+    Log.i(
+        TAG,
+        String.format(
+            "Passthrough on encoding %d is not supported, as"
+                + " hasDirectSurroundingPlaybackSupportForV29() returns false.",
+            encoding));
+    return false;
+  }
+
+  /** Returns whether passthrough on `encoding` is supported for API 23 and above. */
+  @RequiresApi(23)
+  private boolean hasPassthroughSupportForV23(int encoding) {
+    AudioManager audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
+    AudioDeviceInfo[] deviceInfos = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS);
+
+    // TODO: Verify the follow code returns false if non-surrounding BT device is routed.
+    for (AudioDeviceInfo info : deviceInfos) {
+      final int type = info.getType();
+      if (type != AudioDeviceInfo.TYPE_HDMI && type != AudioDeviceInfo.TYPE_HDMI_ARC) {
+        continue;
+      }
+      // TODO: ExoPlayer uses ACTION_HDMI_AUDIO_PLUG to detect the encodings supported via
+      //       passthrough, we should consider using it, and maybe other actions like
+      //       ACTION_HEADSET_PLUG for general audio device switch/encoding detection.
+      final int[] encodings = info.getEncodings();
+      if (encodings.length == 0) {
+        // Per https://developer.android.com/reference/android/media/AudioDeviceInfo#getEncodings()
+        // an empty array indicates that the device supports arbitrary encodings.
+        Log.i(
+            TAG,
+            String.format(
+                "Passthrough on encoding %d is supported on %s, because getEncodings() returns"
+                    + " an empty array.",
+                encoding, getDeviceTypeNameV23(type)));
+        return true;
+      }
+      for (int i = 0; i < encodings.length; ++i) {
+        if (encodings[i] == encoding) {
+          Log.i(
+              TAG,
+              String.format(
+                  "Passthrough on encoding %d is supported on %s.",
+                  encoding, getDeviceTypeNameV23(type)));
+          return true;
+        }
+      }
+      Log.i(
+          TAG,
+          String.format(
+              "Passthrough on encoding %d is not supported on %s.",
+              encoding, getDeviceTypeNameV23(type)));
+    }
+    Log.i(
+        TAG,
+        String.format("Passthrough on encoding %d is not supported on any devices.", encoding));
+    return false;
+  }
+
+  @RequiresApi(29)
+  /**
+   * Returns whether direct playback on surrounding `encoding` is supported for API 29 and above.
+   */
+  private boolean hasDirectSurroundingPlaybackSupportForV29(int encoding) {
+    if (encoding != AudioFormat.ENCODING_AC3
+        && encoding != AudioFormat.ENCODING_E_AC3
+        && encoding != AudioFormat.ENCODING_E_AC3_JOC) {
+      Log.w(
+          TAG,
+          String.format(
+              "hasDirectSurroundingPlaybackSupportForV29() encountered unsupported encoding %d.",
+              encoding));
+      return false;
+    }
+
+    // Sample rate is not provided when the function is called, assume it is 48000.
+    final int DEFAULT_SURROUNDING_SAMPLE_RATE = 48000;
+    AudioFormat format =
+        new AudioFormat.Builder()
+            .setChannelMask(AudioFormat.CHANNEL_OUT_5POINT1)
+            .setEncoding(encoding)
+            .setSampleRate(DEFAULT_SURROUNDING_SAMPLE_RATE)
+            .build();
+    AudioAttributes attributes =
+        new AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_MEDIA)
+            .setContentType(AudioAttributes.CONTENT_TYPE_MOVIE)
+            .build();
+    final boolean supported = AudioTrack.isDirectPlaybackSupported(format, attributes);
+    Log.i(
+        TAG,
+        String.format(
+            "isDirectPlaybackSupported() for encoding %d returned %b.", encoding, supported));
+    return supported;
   }
 }

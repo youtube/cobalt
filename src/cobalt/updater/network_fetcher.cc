@@ -129,6 +129,13 @@ void NetworkFetcher::DownloadToFile(
   url_fetcher_->Start();
 }
 
+void NetworkFetcher::CancelDownloadToFile() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+
+  SB_LOG(INFO) << "Canceling DownloadToFile";
+  url_fetcher_.reset();
+}
+
 void NetworkFetcher::OnURLFetchResponseStarted(const net::URLFetcher* source) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   std::move(response_started_callback_)

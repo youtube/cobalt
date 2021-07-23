@@ -36,10 +36,6 @@
 #include "src/wasm/wasm-result.h"
 #include "src/wasm/wasm-serialization.h"
 
-#if defined(V8_OS_STARBOARD)
-#include "src/poems.h"
-#endif
-
 #define TRACE_COMPILE(...)                             \
   do {                                                 \
     if (FLAG_trace_wasm_compiler) PrintF(__VA_ARGS__); \

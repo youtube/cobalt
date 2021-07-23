@@ -2101,5 +2101,11 @@ void BrowserModule::SetApplicationStartOrPreloadTimestamp(
       is_preload, timestamp);
 }
 
+void BrowserModule::SetDeepLinkTimestamp(
+    SbTimeMonotonic timestamp) {
+  DCHECK(web_module_);
+  web_module_->SetDeepLinkTimestamp(timestamp);
+}
+
 }  // namespace browser
 }  // namespace cobalt

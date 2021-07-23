@@ -56,10 +56,20 @@ class UpdateEngine : public base::RefCounted<UpdateEngine> {
   // is not found.
   bool GetUpdateState(const std::string& id, CrxUpdateItem* update_state);
 
+#if !defined(STARBOARD)
   void Update(bool is_foreground,
               const std::vector<std::string>& ids,
               UpdateClient::CrxDataCallback crx_data_callback,
               Callback update_callback);
+#else
+  // |cancelation_closure| is populated with a closure that can be run to cancel
+  // the update requested by the caller.
+  void Update(bool is_foreground,
+              const std::vector<std::string>& ids,
+              UpdateClient::CrxDataCallback crx_data_callback,
+              Callback update_callback,
+              base::OnceClosure& cancelation_closure);
+#endif
 
   void SendUninstallPing(const std::string& id,
                          const base::Version& version,
@@ -95,6 +105,14 @@ class UpdateEngine : public base::RefCounted<UpdateEngine> {
   // Returns true if the update engine rejects this update call because it
   // occurs too soon.
   bool IsThrottled(bool is_foreground) const;
+
+#if defined(STARBOARD)
+  // Cancels updates currently handled by the engine for each component
+  // identified by one of |crx_component_ids| for the update context identified
+  // by the |update_context_session_id|.
+  void Cancel(const std::string& update_context_session_id,
+              const std::vector<std::string>& crx_component_ids);
+#endif
 
   base::ThreadChecker thread_checker_;
   scoped_refptr<Configurator> config_;

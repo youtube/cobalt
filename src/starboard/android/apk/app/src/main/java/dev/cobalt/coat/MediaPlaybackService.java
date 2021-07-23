@@ -32,10 +32,9 @@ import dev.cobalt.util.UsedByNative;
 
 public class MediaPlaybackService extends Service {
 
-  private static final int NOTIFICATION_ID = 1234;
-  private static final String NOTIFICATION_CHANNEL_ID = "default";
-  private static final String NOTIFICATION_CHANNEL_NAME = "Default channel";
-  private Context context;
+  private static final int NOTIFICATION_ID = 193266736; // CL number for uniqueness.
+  private static final String NOTIFICATION_CHANNEL_ID = "dev.cobalt.coat media playback service";
+  private static final String NOTIFICATION_CHANNEL_NAME = "Media playback service";
 
   @Override
   public void onCreate() {
@@ -46,7 +45,6 @@ public class MediaPlaybackService extends Service {
       return;
     }
     getStarboardBridge().onServiceStart(this);
-    context = getApplicationContext();
   }
 
   @Override
@@ -70,7 +68,6 @@ public class MediaPlaybackService extends Service {
       return;
     }
     getStarboardBridge().onServiceDestroy(this);
-    context = null;
     super.onDestroy();
     Log.i(TAG, "Destroying the Media playback service.");
   }
@@ -81,16 +78,18 @@ public class MediaPlaybackService extends Service {
   }
 
   public void stopService() {
+    // Do not remove notification here.
+    stopForeground(false);
+    stopSelf();
+    // Delete notification after foreground stopped.
     deleteChannel();
     hideNotification();
-    stopForeground(true);
-    stopSelf();
   }
 
   private void hideNotification() {
     Log.i(TAG, "Hiding notification after stopped the service");
     NotificationManager notificationManager =
-        (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+        (NotificationManager) this.getSystemService(Context.NOTIFICATION_SERVICE);
     notificationManager.cancel(NOTIFICATION_ID);
   }
 
@@ -103,7 +102,7 @@ public class MediaPlaybackService extends Service {
   @RequiresApi(26)
   private void createChannelInternalV26() {
     NotificationManager notificationManager =
-        (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+        (NotificationManager) this.getSystemService(Context.NOTIFICATION_SERVICE);
     NotificationChannel channel =
         new NotificationChannel(
             NOTIFICATION_CHANNEL_ID,
@@ -113,7 +112,7 @@ public class MediaPlaybackService extends Service {
     try {
       notificationManager.createNotificationChannel(channel);
     } catch (IllegalArgumentException e) {
-
+      // intentional empty.
     }
   }
 
@@ -126,13 +125,13 @@ public class MediaPlaybackService extends Service {
   @RequiresApi(26)
   private void deleteChannelInternalV26() {
     NotificationManager notificationManager =
-        (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+        (NotificationManager) this.getSystemService(Context.NOTIFICATION_SERVICE);
     notificationManager.deleteNotificationChannel(NOTIFICATION_CHANNEL_ID);
   }
 
   Notification buildNotification() {
     NotificationCompat.Builder builder =
-        new NotificationCompat.Builder(context, NOTIFICATION_CHANNEL_ID)
+        new NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
             .setShowWhen(false)
             .setPriority(NotificationCompat.PRIORITY_MIN)
             .setSmallIcon(android.R.drawable.stat_sys_warning)

@@ -13,8 +13,6 @@
 # limitations under the License.
 
 static_library("starboard_platform") {
-  deps = [ ":stub_sources" ]
-
   sources = [
     "application_stub.cc",
     "application_stub.h",
@@ -30,14 +28,11 @@ static_library("starboard_platform") {
     "system_get_extensions.cc",
     "thread_types_public.h",
   ]
+
+  public_deps = [ ":stub_sources" ]
 }
 
 static_library("stub_sources") {
-  public_deps = [
-    "//starboard:starboard_headers_only",
-    "//starboard/common",
-  ]
-
   sources = [
     "//starboard/shared/starboard/application.cc",
     "//starboard/shared/starboard/command_line.cc",
@@ -338,4 +333,13 @@ static_library("stub_sources") {
   ]
 
   public_configs = [ "//starboard/build/config:starboard_implementation" ]
+
+  public_deps = [
+    "//starboard:starboard_headers_only",
+    "//starboard/common",
+  ]
+
+  if (is_internal_build) {
+    deps = [ "//starboard/private/shared/stub:private_sources" ]
+  }
 }

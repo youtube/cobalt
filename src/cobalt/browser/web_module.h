@@ -411,6 +411,7 @@ class WebModule : public LifecycleObserver {
 
   void SetApplicationStartOrPreloadTimestamp(bool is_preload,
                                              SbTimeMonotonic timestamp);
+  void SetDeepLinkTimestamp(SbTimeMonotonic timestamp);
  private:
   // Data required to construct a WebModule, initialized in the constructor and
   // passed to |Initialize|.

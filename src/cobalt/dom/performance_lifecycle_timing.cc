@@ -40,11 +40,13 @@ namespace {
     return "INVALID_APPLICATION_STATE";
   }
 
-  DOMHighResTimeStamp ConvertSbTimeMonotonicToDOMHiResTimeStamp(
+    DOMHighResTimeStamp ConvertSbTimeMonotonicToDOMHiResTimeStamp(
       base::TimeTicks time_origin, SbTimeMonotonic monotonic_time) {
     SbTimeMonotonic time_delta = SbTimeGetNow() - SbTimeGetMonotonicNow();
+    base::Time base_time = base::Time::FromSbTime(time_delta + monotonic_time);
     base::TimeTicks time_ticks =
-        base::TimeTicks::FromInternalValue(time_delta + monotonic_time);
+        base::TimeTicks::FromInternalValue(static_cast<int64_t>(
+            base_time.ToJsTime()));
     return Performance::MonotonicTimeToDOMHighResTimeStamp(
         time_origin, time_ticks);
   }
@@ -88,6 +90,10 @@ DOMHighResTimeStamp PerformanceLifecycleTiming::app_unfreeze() const {
   return ReportDOMHighResTimeStamp(lifecycle_timing_info_.app_unfreeze);
 }
 
+DOMHighResTimeStamp PerformanceLifecycleTiming::app_deeplink() const {
+  return ReportDOMHighResTimeStamp(lifecycle_timing_info_.app_deeplink);
+}
+
 std::string PerformanceLifecycleTiming::current_state() const {
   return TranslateApplicationStateToString(
       lifecycle_timing_info_.current_state);
@@ -102,24 +108,40 @@ void PerformanceLifecycleTiming::SetApplicationState(
     base::ApplicationState state, SbTimeMonotonic timestamp) {
   switch (state) {
     case base::kApplicationStateBlurred:
-      if (GetLastState() == base::kApplicationStateStarted) {
+      if (GetCurrentState() == base::kApplicationStateStarted ||
+          // TODO: Figure out why the current state is not set
+          // by SetApplicationStartOrPreloadTimestamp.
+          GetCurrentState() == base::kApplicationStateStopped) {
         lifecycle_timing_info_.app_blur = timestamp;
-      } else if (GetLastState() == base::kApplicationStateConcealed) {
+      } else if (GetCurrentState() == base::kApplicationStateConcealed) {
         lifecycle_timing_info_.app_reveal = timestamp;
+      } else {
+        DLOG(INFO) << "Current State: " <<
+            TranslateApplicationStateToString(GetCurrentState());
+        DLOG(INFO) << "Next State: " <<
+            TranslateApplicationStateToString(state);
+        NOTREACHED() << "Invalid application state transition.";
       }
       break;
     case base::kApplicationStateConcealed:
-      if (GetLastState() == base::kApplicationStateBlurred) {
+      if (GetCurrentState() == base::kApplicationStateBlurred ||
+          GetCurrentState() == base::kApplicationStateStopped) {
         lifecycle_timing_info_.app_conceal = timestamp;
-      } else if (GetLastState() == base::kApplicationStateFrozen) {
+      } else if (GetCurrentState() == base::kApplicationStateFrozen) {
         lifecycle_timing_info_.app_unfreeze = timestamp;
+      } else {
+        DLOG(INFO) << "Current State: " <<
+            TranslateApplicationStateToString(GetCurrentState());
+        DLOG(INFO) << "Next State: " <<
+            TranslateApplicationStateToString(state);
+        NOTREACHED() << "Invalid application state transition.";
       }
       break;
     case base::kApplicationStateFrozen:
       lifecycle_timing_info_.app_freeze = timestamp;
       break;
     case base::kApplicationStateStarted:
-      if (GetLastState() == base::kApplicationStateBlurred) {
+      if (GetCurrentState() == base::kApplicationStateBlurred) {
         if (lifecycle_timing_info_.app_preload != 0) {
           lifecycle_timing_info_.app_start = timestamp;
         }
@@ -137,7 +159,7 @@ void PerformanceLifecycleTiming::SetApplicationState(
 }
 
 void PerformanceLifecycleTiming::SetApplicationStartOrPreloadTimestamp(
-      bool is_preload, SbTimeMonotonic timestamp) {
+    bool is_preload, SbTimeMonotonic timestamp) {
   if (is_preload) {
     lifecycle_timing_info_.app_preload = timestamp;
     SetLifecycleTimingInfoState(base::kApplicationStateConcealed);
@@ -147,8 +169,13 @@ void PerformanceLifecycleTiming::SetApplicationStartOrPreloadTimestamp(
   }
 }
 
-base::ApplicationState PerformanceLifecycleTiming::GetLastState() const {
-  return lifecycle_timing_info_.last_state;
+void PerformanceLifecycleTiming::SetDeepLinkTimestamp(
+    SbTimeMonotonic timestamp) {
+  lifecycle_timing_info_.app_deeplink = timestamp;
+}
+
+base::ApplicationState PerformanceLifecycleTiming::GetCurrentState() const {
+  return lifecycle_timing_info_.current_state;
 }
 
 void PerformanceLifecycleTiming::SetLifecycleTimingInfoState(
@@ -158,12 +185,11 @@ void PerformanceLifecycleTiming::SetLifecycleTimingInfoState(
   lifecycle_timing_info_.current_state = state;
 }
 
-DOMHighResTimeStamp
-    PerformanceLifecycleTiming::ReportDOMHighResTimeStamp(
-        SbTimeMonotonic timestamp) const {
+DOMHighResTimeStamp PerformanceLifecycleTiming::ReportDOMHighResTimeStamp(
+    SbTimeMonotonic timestamp) const {
   if (timestamp != 0) {
-    return ConvertSbTimeMonotonicToDOMHiResTimeStamp(
-        time_origin_, timestamp);
+    return ConvertSbTimeMonotonicToDOMHiResTimeStamp(time_origin_,
+                                                     timestamp);
   }
   return PerformanceEntry::start_time();
 }
