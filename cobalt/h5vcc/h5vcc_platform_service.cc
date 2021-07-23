@@ -14,6 +14,9 @@
 
 #include "cobalt/h5vcc/h5vcc_platform_service.h"
 
+#include <utility>
+#include <vector>
+
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/dom/dom_settings.h"
 #include "starboard/common/string.h"
@@ -129,17 +132,23 @@ script::Handle<script::ArrayBuffer> H5vccPlatformService::Send(
 }
 
 // static
-void H5vccPlatformService::Receive(void* context, void* data, uint64_t length) {
+void H5vccPlatformService::Receive(void* context, const void* data,
+                                   uint64_t length) {
   DCHECK(context) << "Platform should not call Receive with NULL context";
-  static_cast<H5vccPlatformService*>(context)->ReceiveInternal(data, length);
+  // Make a copy of the data before potentially crossing thread boundaries,
+  // since we don't have any guarantee of the lifetime of the given data.
+  const uint8_t* input_data = static_cast<const uint8_t*>(data);
+  std::vector<uint8_t> internal_data(input_data, input_data + length);
+  static_cast<H5vccPlatformService*>(context)->ReceiveInternal(
+      std::move(internal_data));
 }
 
-void H5vccPlatformService::ReceiveInternal(void* data, uint64_t length) {
+void H5vccPlatformService::ReceiveInternal(std::vector<uint8_t> data) {
   // ReceiveInternal may be called by another thread.
   if (!main_message_loop_->BelongsToCurrentThread()) {
     main_message_loop_->PostTask(
         FROM_HERE, base::Bind(&H5vccPlatformService::ReceiveInternal,
-                              weak_this_, data, length));
+                              weak_this_, std::move(data)));
     return;
   }
   DCHECK(main_message_loop_->BelongsToCurrentThread());
@@ -148,10 +157,11 @@ void H5vccPlatformService::ReceiveInternal(void* data, uint64_t length) {
     return;
   }
   script::Handle<script::ArrayBuffer> data_array_buffer;
-  if (length) {
-    data_array_buffer = script::ArrayBuffer::New(environment_, data, length);
-  } else {
+  if (data.empty()) {
     data_array_buffer = script::ArrayBuffer::New(environment_, 0);
+  } else {
+    data_array_buffer =
+        script::ArrayBuffer::New(environment_, data.data(), data.size());
   }
 
   const scoped_refptr<H5vccPlatformService>& service(this);

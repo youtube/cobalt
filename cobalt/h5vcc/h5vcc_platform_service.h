@@ -17,6 +17,7 @@
 
 #include <map>
 #include <string>
+#include <vector>
 
 #include "base/message_loop/message_loop.h"
 #include "base/optional.h"
@@ -65,9 +66,9 @@ class H5vccPlatformService : public script::Wrappable {
  private:
   static constexpr size_t kMaxNameLength = 1024;
 
-  void ReceiveInternal(void* data, uint64_t length);
+  void ReceiveInternal(std::vector<uint8_t> data);
 
-  static void Receive(void* context, void* data, uint64_t length);
+  static void Receive(void* context, const void* data, uint64_t length);
 
   bool IsOpen();
 
