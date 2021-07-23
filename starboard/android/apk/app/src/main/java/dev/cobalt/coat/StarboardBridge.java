@@ -171,6 +171,10 @@ public class StarboardBridge {
   protected void startMediaPlaybackService() {
     Service service = serviceHolder.get();
     if (service == null) {
+      if (appContext == null) {
+        Log.w(TAG, "Activiy already destoryed.");
+        return;
+      }
       Log.i(TAG, "Cold start - Instantiating a MediaPlaybackService.");
       Intent intent = new Intent(appContext, MediaPlaybackService.class);
       appContext.startService(intent);
