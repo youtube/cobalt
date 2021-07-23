@@ -16,6 +16,8 @@
 #include <stdlib.h>
 #include <string>
 
+#include "base/strings/string_number_conversions.h"
+
 #if defined(STARBOARD)
 #include "starboard/client_porting/poem/string_poem.h"
 #endif
@@ -229,6 +231,24 @@ String to_string(uint64_t value) {
 }
 
 String to_string(double value) {
+#if defined(STARBOARD)
+    std::string s = base::NumberToString(value);
+    bool needsDotZero = true;
+    for (int i = s.size() - 1; i >= 0; --i) {
+        char c = s[i];
+        if (c == '.' || c == 'e') {
+            needsDotZero = false;
+            break;
+        }
+    }
+    if (needsDotZero) {
+        s += ".0";
+    }
+    if (s.size() > 0 && s[0] == '.') {
+      s = "0" + s;
+    }
+    return String(s.c_str());
+#else
     std::stringstream buffer;
     buffer.imbue(std::locale::classic());
     buffer.precision(17);
@@ -246,6 +266,7 @@ String to_string(double value) {
         buffer << ".0";
     }
     return String(buffer.str().c_str());
+#endif
 }
 
 SKSL_INT stoi(const String& s) {
@@ -258,6 +279,12 @@ SKSL_INT stoi(const String& s) {
 }
 
 SKSL_FLOAT stod(const String& s) {
+#if defined(STARBOARD)
+    double d;
+    bool res= base::StringToDouble(s.c_str(), &d);
+    SkASSERT(res);
+    return d;
+#else
     double result;
     std::string str(s.c_str(), s.size());
     std::stringstream buffer(str);
@@ -265,6 +292,7 @@ SKSL_FLOAT stod(const String& s) {
     buffer >> result;
     SkASSERT(!buffer.fail());
     return result;
+#endif
 }
 
 long stol(const String& s) {
