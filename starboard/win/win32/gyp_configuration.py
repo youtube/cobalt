@@ -75,6 +75,17 @@ class WinWin32PlatformConfig(gyp_configuration.Win32SharedConfiguration):
       filters = super(WinWin32PlatformConfig, self).GetTestFilters()
       for target, tests in self.__FILTERED_TESTS.iteritems():
         filters.extend(test_filter.TestFilter(target, test) for test in tests)
+      if os.environ.get('EXPERIMENTAL_CI', '0') == '1':
+        # Disable these tests in the experimental CI due to pending failures.
+        experimental_filtered_tests = {
+          'drain_file_test': [
+            'DrainFileTest.SunnyDay',
+            'DrainFileTest.SunnyDayPrepareDirectory',
+            'DrainFileTest.RainyDayDrainFileAlreadyExists'
+          ]
+        }
+        for target, tests in experimental_filtered_tests.iteritems():
+          filters.extend(test_filter.TestFilter(target, test) for test in tests)
       return filters
 
   __FILTERED_TESTS = {

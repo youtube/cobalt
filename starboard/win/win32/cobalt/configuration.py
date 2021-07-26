@@ -13,6 +13,8 @@
 # limitations under the License.
 """Starboard Win32 Cobalt configuration."""
 
+import os
+
 from cobalt.build import cobalt_configuration
 from starboard.tools.testing import test_filter
 
@@ -33,6 +35,16 @@ class CobaltWinWin32Configuration(cobalt_configuration.CobaltConfiguration):
     filters = super(CobaltWinWin32Configuration, self).GetTestFilters()
     for target, tests in self.__FILTERED_TESTS.iteritems():
       filters.extend(test_filter.TestFilter(target, test) for test in tests)
+    if os.environ.get('EXPERIMENTAL_CI', '0') == '1':
+      # Disable these tests in the experimental CI due to pending failures.
+      experimental_filtered_tests = {
+        'zip_unittests': [
+          'ZipTest.Unzip',
+          'ZipTest.UnzipUncompressed'
+        ],
+      }
+      for target, tests in experimental_filtered_tests.iteritems():
+        filters.extend(test_filter.TestFilter(target, test) for test in tests)
     return filters
 
   def GetWebPlatformTestFilters(self):
