@@ -121,15 +121,15 @@ public class AudioTrackBridge {
               .build();
     } else {
       // TODO: Support ENCODING_E_AC3_JOC for api level 28 or later.
-      final boolean is_surrounding =
+      final boolean is_surround =
           sampleType == AudioFormat.ENCODING_AC3 || sampleType == AudioFormat.ENCODING_E_AC3;
-      // TODO: We start to enforce |CONTENT_TYPE_MOVIE| for surrounding playback, investigate if we
-      //       can use |CONTENT_TYPE_MOVIE| for all non-surrounding AudioTrack used by video
+      // TODO: We start to enforce |CONTENT_TYPE_MOVIE| for surround playback, investigate if we
+      //       can use |CONTENT_TYPE_MOVIE| for all non-surround AudioTrack used by video
       //       playback.
       attributes =
           new AudioAttributes.Builder()
               .setContentType(
-                  is_surrounding
+                  is_surround
                       ? AudioAttributes.CONTENT_TYPE_MOVIE
                       : AudioAttributes.CONTENT_TYPE_MUSIC)
               .setUsage(AudioAttributes.USAGE_MEDIA)

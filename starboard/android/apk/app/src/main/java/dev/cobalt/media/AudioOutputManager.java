@@ -321,16 +321,16 @@ public class AudioOutputManager implements CobaltMediaSession.UpdateVolumeListen
           TAG,
           String.format(
               "Passthrough on encoding %d is rejected, as"
-                  + " hasDirectSurroundingPlaybackSupportForV29() is not called for api %d.",
+                  + " hasDirectSurroundPlaybackSupportForV29() is not called for api %d.",
               encoding, Build.VERSION.SDK_INT));
       return false;
     }
-    if (hasDirectSurroundingPlaybackSupportForV29(encoding)) {
+    if (hasDirectSurroundPlaybackSupportForV29(encoding)) {
       Log.i(
           TAG,
           String.format(
               "Passthrough on encoding %d is supported, as"
-                  + " hasDirectSurroundingPlaybackSupportForV29() returns true.",
+                  + " hasDirectSurroundPlaybackSupportForV29() returns true.",
               encoding));
       return true;
     }
@@ -339,7 +339,7 @@ public class AudioOutputManager implements CobaltMediaSession.UpdateVolumeListen
         TAG,
         String.format(
             "Passthrough on encoding %d is not supported, as"
-                + " hasDirectSurroundingPlaybackSupportForV29() returns false.",
+                + " hasDirectSurroundPlaybackSupportForV29() returns false.",
             encoding));
     return false;
   }
@@ -394,28 +394,26 @@ public class AudioOutputManager implements CobaltMediaSession.UpdateVolumeListen
   }
 
   @RequiresApi(29)
-  /**
-   * Returns whether direct playback on surrounding `encoding` is supported for API 29 and above.
-   */
-  private boolean hasDirectSurroundingPlaybackSupportForV29(int encoding) {
+  /** Returns whether direct playback on surround `encoding` is supported for API 29 and above. */
+  private boolean hasDirectSurroundPlaybackSupportForV29(int encoding) {
     if (encoding != AudioFormat.ENCODING_AC3
         && encoding != AudioFormat.ENCODING_E_AC3
         && encoding != AudioFormat.ENCODING_E_AC3_JOC) {
       Log.w(
           TAG,
           String.format(
-              "hasDirectSurroundingPlaybackSupportForV29() encountered unsupported encoding %d.",
+              "hasDirectSurroundPlaybackSupportForV29() encountered unsupported encoding %d.",
               encoding));
       return false;
     }
 
     // Sample rate is not provided when the function is called, assume it is 48000.
-    final int DEFAULT_SURROUNDING_SAMPLE_RATE = 48000;
+    final int DEFAULT_SURROUND_SAMPLE_RATE = 48000;
     AudioFormat format =
         new AudioFormat.Builder()
             .setChannelMask(AudioFormat.CHANNEL_OUT_5POINT1)
             .setEncoding(encoding)
-            .setSampleRate(DEFAULT_SURROUNDING_SAMPLE_RATE)
+            .setSampleRate(DEFAULT_SURROUND_SAMPLE_RATE)
             .build();
     AudioAttributes attributes =
         new AudioAttributes.Builder()
