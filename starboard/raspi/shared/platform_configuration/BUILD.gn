@@ -50,12 +50,12 @@ config("compiler_flags") {
 
     # This is a quirk of Raspbian, these are required to link any GL-related
     # libraries.
-    "-L/$raspi_home/busterroot/opt/vc/lib",
-    "-Wl,-rpath=/$raspi_home/busterroot/opt/vc/lib",
-    "-L/$raspi_home/busterroot/usr/lib/arm-linux-gnueabihf",
-    "-Wl,-rpath=/$raspi_home/busterroot/usr/lib/arm-linux-gnueabihf",
-    "-L/$raspi_home/busterroot/lib/arm-linux-gnueabihf",
-    "-Wl,-rpath=/$raspi_home/busterroot/lib/arm-linux-gnueabihf",
+    "-L$raspi_home/busterroot/opt/vc/lib",
+    "-Wl,-rpath=$raspi_home/busterroot/opt/vc/lib",
+    "-L$raspi_home/busterroot/usr/lib/arm-linux-gnueabihf",
+    "-Wl,-rpath=$raspi_home/busterroot/usr/lib/arm-linux-gnueabihf",
+    "-L$raspi_home/busterroot/lib/arm-linux-gnueabihf",
+    "-Wl,-rpath=$raspi_home/busterroot/lib/arm-linux-gnueabihf",
 
     # Cleanup unused sections
     "-Wl,-gc-sections",
@@ -124,12 +124,6 @@ config("compiler_flags") {
   cflags_cc += [
     "-std=gnu++14",
     "-Wno-literal-suffix",
-  ]
-  ldflags += [
-    "-Wl,-rpath=\$ORIGIN/lib",
-
-    # Cleanup unused sections
-    "-Wl,-gc-sections",
   ]
 
   if (sb_pedantic_warnings) {
