@@ -30,7 +30,7 @@ if (cobalt_font_package == "empty") {
              "-i",
              rebase_path(font_xml, root_build_dir),
              "-o",
-             outputs[0],
+             rebase_path(outputs[0], root_out_dir),
            ] + package_categories
   }
 
