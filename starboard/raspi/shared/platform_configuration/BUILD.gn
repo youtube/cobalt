@@ -158,23 +158,23 @@ config("compiler_flags") {
 
 config("platform_configuration") {
   libs = [
-    "-asound",
-    "-avcodec",
-    "-avformat",
-    "-avutil",
-    "-:libpthread.so.0",
-    "-pthread",
-    "-rt",
-    "-openmaxil",
-    "-bcm_host",
-    "-vcos",
-    "-vchiq_arm",
-    "-brcmGLESv2",
-    "-brcmEGL",
+    "asound",
+    "avcodec",
+    "avformat",
+    "avutil",
+    ":libpthread.so.0",
+    "pthread",
+    "rt",
+    "openmaxil",
+    "bcm_host",
+    "vcos",
+    "vchiq_arm",
+    "brcmGLESv2",
+    "brcmEGL",
 
     # Static libs must be last, to avoid __dlopen linker errors
-    "-EGL_static",
-    "-GLESv2_static",
+    "EGL_static",
+    "GLESv2_static",
   ]
 
   configs = [ "//starboard/raspi/shared/platform_configuration:compiler_flags" ]
