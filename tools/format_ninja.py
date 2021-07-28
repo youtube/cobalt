@@ -35,6 +35,7 @@ from typing import List, Tuple
 _ACTION_COMPONENTS = ['directory', 'command', 'file', 'output']
 STRIP = 0
 
+
 def make_path_absolute(path: str, directory: str) -> str:
   if os.path.isabs(path):
     return path
@@ -43,8 +44,9 @@ def make_path_absolute(path: str, directory: str) -> str:
 
 
 def remove_directory_path(path: str, directory: str) -> str:
-  dirsplit = directory.split(os.path.sep)
-  directory = os.path.sep.join(dirsplit[:-STRIP])
+  if STRIP :
+    dirsplit = directory.split(os.path.sep)
+    directory = os.path.sep.join(dirsplit[:-(STRIP)])
   if os.path.commonpath([path, directory]) != directory:
     return path
 
