@@ -44,6 +44,9 @@ function deploy_cobalt() {
   echo " Copying loader_app to Cobalt-on-Evergreen directory"
   eval "${SCP} ${OUT}/deploy/loader_app/loader_app pi@${RASPI_ADDR}:/home/pi/coeg/" 1> /dev/null
 
+  echo " Copying crashpad_handler to Cobalt-on-Evergreen directory"
+  eval "${SCP} ${OUT}/deploy/loader_app/crashpad_handler pi@${RASPI_ADDR}:/home/pi/coeg/" 1> /dev/null
+
   echo " Regenerating system image directory"
   eval "${SSH} mkdir -p /home/pi/coeg/content/app/cobalt/lib" 1> /dev/null
 
