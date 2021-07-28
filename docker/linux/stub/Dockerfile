@@ -25,6 +25,7 @@ RUN apt update -qqy \
         libxcomposite-dev \
         libxrender-dev \
         libasound2-dev \
+        libxml2-dev \
     && /opt/clean-after-apt.sh
 
 CMD /code/cobalt/build/gyp_cobalt -v -C ${CONFIG} ${PLATFORM} && \
