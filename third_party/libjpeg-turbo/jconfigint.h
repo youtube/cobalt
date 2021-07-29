@@ -15,11 +15,13 @@
 #endif
 #endif
 
+#if !defined(STARBOARD)
 /* How to obtain thread-local storage */
 #if defined(_MSC_VER) && (defined(_WIN32) || defined(_WIN64))
 #define THREAD_LOCAL  __declspec(thread)
 #else
 #define THREAD_LOCAL  __thread
+#endif
 #endif
 
 /* Define to the full name of this package. */

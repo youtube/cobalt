@@ -69,7 +69,11 @@ extern void jpeg_mem_src_tj(j_decompress_ptr, const unsigned char *,
 
 /* Error handling (based on example in example.txt) */
 
+#if defined(STARBOARD)
+static char errStr[JMSG_LENGTH_MAX] = "No error";
+#else
 static THREAD_LOCAL char errStr[JMSG_LENGTH_MAX] = "No error";
+#endif
 
 struct my_error_mgr {
   struct jpeg_error_mgr pub;
