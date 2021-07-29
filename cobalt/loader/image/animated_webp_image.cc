@@ -238,13 +238,11 @@ void RecordImage(scoped_refptr<render_tree::Image>* image_pointer,
 void DecodeError(const base::Optional<std::string>& error) {
   if (error) LOG(ERROR) << *error;
 }
-
 }  // namespace
 
 bool AnimatedWebPImage::DecodeOneFrame(int frame_index) {
   TRACE_EVENT0("cobalt::loader::image", "AnimatedWebPImage::DecodeOneFrame()");
   TRACK_MEMORY_SCOPE("Rendering");
-  DCHECK(task_runner_->BelongsToCurrentThread());
   lock_.AssertAcquired();
 
   WebPIterator webp_iterator;
@@ -405,6 +403,32 @@ base::TimeDelta AnimatedWebPImage::GetFrameDuration(int frame_index) {
 
 bool AnimatedWebPImage::LoopingFinished() const {
   return loop_count_ == 1 && current_frame_index_ == frame_count_;
+}
+
+scoped_refptr<render_tree::Image> AnimatedWebPImage::GetFrameForDebugging(
+    int target_frame) {
+  TRACE_EVENT0("cobalt::loader::image",
+               "AnimatedWebPImage::GetFrameForDebugging()");
+
+  base::AutoLock lock(lock_);
+  DCHECK(!should_dispose_previous_frame_to_background_ && !current_canvas_);
+  DCHECK(current_frame_index_ == 0 && !is_playing_);
+
+  if (target_frame <= 0 || target_frame > frame_count_) {
+    LOG(WARNING) << "Invalid frame index: " << target_frame;
+    return nullptr;
+  }
+
+  for (int frame = 1; frame <= target_frame; ++frame) {
+    DecodeOneFrame(frame);
+  }
+
+  // Reset states when GetFrameForDebugging finishes
+  should_dispose_previous_frame_to_background_ = false;
+  scoped_refptr<render_tree::Image> target_canvas = current_canvas_;
+  current_canvas_ = nullptr;
+
+  return target_canvas;
 }
 
 }  // namespace image

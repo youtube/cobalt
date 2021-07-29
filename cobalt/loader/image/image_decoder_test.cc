@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/loader/image/image_decoder.h"
-
 #include <memory>
 #include <string>
 #include <vector>
@@ -27,89 +25,14 @@
 #include "cobalt/base/cobalt_paths.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/loader/image/animated_webp_image.h"
+#include "cobalt/loader/image/image_decoder_mock.h"
 #include "cobalt/loader/image/jpeg_image_decoder.h"
-#include "cobalt/render_tree/resource_provider_stub.h"
 #include "starboard/configuration.h"
-#include "testing/gmock/include/gmock/gmock.h"
-#include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
 namespace loader {
 namespace image {
-
 namespace {
-
-struct MockImageDecoderCallback {
-  void SuccessCallback(const scoped_refptr<Image>& value) { image = value; }
-
-  MOCK_METHOD1(LoadCompleteCallback,
-               void(const base::Optional<std::string>& message));
-
-  scoped_refptr<Image> image;
-};
-
-class MockImageDecoder : public Decoder {
- public:
-  MockImageDecoder();
-  ~MockImageDecoder() override {}
-
-  LoadResponseType OnResponseStarted(
-      Fetcher* fetcher,
-      const scoped_refptr<net::HttpResponseHeaders>& headers) override;
-
-  void DecodeChunk(const char* data, size_t size) override;
-
-  void Finish() override;
-  bool Suspend() override;
-  void Resume(render_tree::ResourceProvider* resource_provider) override;
-
-  scoped_refptr<Image> image();
-
-  void ExpectCallWithError(const base::Optional<std::string>& error);
-
- protected:
-  render_tree::ResourceProviderStub resource_provider_;
-  base::NullDebuggerHooks debugger_hooks_;
-  ::testing::StrictMock<MockImageDecoderCallback> image_decoder_callback_;
-  std::unique_ptr<Decoder> image_decoder_;
-};
-
-MockImageDecoder::MockImageDecoder() {
-  image_decoder_.reset(new ImageDecoder(
-      &resource_provider_, debugger_hooks_,
-      base::Bind(&MockImageDecoderCallback::SuccessCallback,
-                 base::Unretained(&image_decoder_callback_)),
-      base::Bind(&MockImageDecoderCallback::LoadCompleteCallback,
-                 base::Unretained(&image_decoder_callback_))));
-}
-
-LoadResponseType MockImageDecoder::OnResponseStarted(
-    Fetcher* fetcher, const scoped_refptr<net::HttpResponseHeaders>& headers) {
-  return image_decoder_->OnResponseStarted(fetcher, headers);
-}
-
-void MockImageDecoder::DecodeChunk(const char* data, size_t size) {
-  image_decoder_->DecodeChunk(data, size);
-}
-
-void MockImageDecoder::Finish() { image_decoder_->Finish(); }
-
-bool MockImageDecoder::Suspend() { return image_decoder_->Suspend(); }
-
-void MockImageDecoder::Resume(
-    render_tree::ResourceProvider* resource_provider) {
-  image_decoder_->Resume(resource_provider);
-}
-
-scoped_refptr<Image> MockImageDecoder::image() {
-  return image_decoder_callback_.image;
-}
-
-void MockImageDecoder::ExpectCallWithError(
-    const base::Optional<std::string>& error) {
-  EXPECT_CALL(image_decoder_callback_, LoadCompleteCallback(error));
-}
-
 base::FilePath GetTestImagePath(const char* file_name) {
   base::FilePath data_directory;
   CHECK(base::PathService::Get(base::DIR_TEST_DATA, &data_directory));
@@ -226,7 +149,6 @@ std::vector<uint8> GetImageData(const base::FilePath& file_path) {
 
   return CheckSameColor(pixels, size.width(), size.height(), test_color);
 }
-
 }  // namespace
 
 // TODO: Test special images like the image has gAMA chunk information,
@@ -846,7 +768,6 @@ TEST(ImageDecoderTest, DecodeAnimatedWEBPImageWithMultipleChunks) {
   EXPECT_EQ(math::Size(480, 270), animated_webp_image->GetSize());
   EXPECT_TRUE(animated_webp_image->IsOpaque());
 }
-
 }  // namespace image
 }  // namespace loader
 }  // namespace cobalt
