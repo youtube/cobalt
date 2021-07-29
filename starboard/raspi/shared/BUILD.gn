@@ -394,10 +394,8 @@ static_library("starboard_platform_sources") {
   }
 
   deps = [
-    "//third_party/crashpad/wrapper:wrapper",
     "//third_party/libevent",
     "//third_party/opus",
-    "//third_party/zlib",
   ]
   if (sb_evergreen_compatible_use_libunwind) {
     deps += [ "//third_party/llvm-project/libunwind:unwind_starboard" ]
