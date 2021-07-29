@@ -59,7 +59,7 @@ public class AudioOutputManager implements CobaltMediaSession.UpdateVolumeListen
       int sampleRate,
       int channelCount,
       int preferredBufferSizeInBytes,
-      boolean enableAudioDeviceChangeDetection,
+      boolean enableAudioDeviceCallback,
       int tunnelModeAudioSessionId) {
     AudioTrackBridge audioTrackBridge =
         new AudioTrackBridge(
@@ -67,7 +67,6 @@ public class AudioOutputManager implements CobaltMediaSession.UpdateVolumeListen
             sampleRate,
             channelCount,
             preferredBufferSizeInBytes,
-            enableAudioDeviceChangeDetection,
             tunnelModeAudioSessionId);
     if (!audioTrackBridge.isAudioTrackValid()) {
       Log.e(TAG, "AudioTrackBridge has invalid audio track");
@@ -77,8 +76,8 @@ public class AudioOutputManager implements CobaltMediaSession.UpdateVolumeListen
     hasAudioDeviceChanged.set(false);
 
     if (Build.VERSION.SDK_INT < 23
-        || !enableAudioDeviceChangeDetection
-        || hasRegisteredAudioDeviceCallback) {
+        || hasRegisteredAudioDeviceCallback
+        || !enableAudioDeviceCallback) {
       return audioTrackBridge;
     }
 

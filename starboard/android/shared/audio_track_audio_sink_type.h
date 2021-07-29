@@ -68,7 +68,7 @@ class AudioTrackAudioSinkType : public SbAudioSinkPrivate::Type {
       SbAudioSinkPrivate::ErrorFunc error_func,
       SbTime start_time,
       int tunnel_mode_audio_session_id,
-      bool enable_audio_routing,
+      bool enable_audio_device_callback,
       void* context);
 
   bool IsValid(SbAudioSink audio_sink) override {
@@ -111,7 +111,7 @@ class AudioTrackAudioSink : public SbAudioSinkPrivate {
       SbAudioSinkPrivate::ErrorFunc error_func,
       SbTime start_media_time,
       int tunnel_mode_audio_session_id,
-      bool enable_audio_routing,
+      bool enable_audio_device_callback,
       void* context);
   ~AudioTrackAudioSink() override;
 
