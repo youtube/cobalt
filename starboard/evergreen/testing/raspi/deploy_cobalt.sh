@@ -56,6 +56,9 @@ function deploy_cobalt() {
   echo " Copying content to system image directory"
   eval "${SCP} -r ${OUT}/deploy/loader_app/content/app/cobalt/content/ pi@${RASPI_ADDR}:/home/pi/coeg/content/app/cobalt/" 1> /dev/null
 
+  echo " Copying fonts to system content directory"
+  eval "${SCP} -r ${OUT}/content/fonts/ pi@${RASPI_ADDR}:/home/pi/coeg/content/" 1> /dev/null
+
   echo " Generating HTML test directory"
   eval "${SSH} mkdir -p /home/pi/coeg/content/app/cobalt/content/web/tests/" 1> /dev/null
 
