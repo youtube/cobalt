@@ -34,8 +34,6 @@ constexpr int kMaxDecodedAudios = 64;
 constexpr SbTime kAudioTrackUpdateInternal = kSbTimeMillisecond * 5;
 
 constexpr int kPreferredBufferSizeInBytes = 16 * 1024;
-// TODO: Enable audio routing and link it to client side experiment.
-constexpr bool kEnableAudioRouting = true;
 // TODO: Enable passthrough with tunnel mode.
 constexpr int kTunnelModeAudioSessionId = -1;
 
@@ -75,8 +73,10 @@ int ParseAc3SyncframeAudioSampleCount(const uint8_t* buffer, int size) {
 
 AudioRendererPassthrough::AudioRendererPassthrough(
     const SbMediaAudioSampleInfo& audio_sample_info,
-    SbDrmSystem drm_system)
-    : audio_sample_info_(audio_sample_info) {
+    SbDrmSystem drm_system,
+    bool enable_audio_device_callback)
+    : audio_sample_info_(audio_sample_info),
+      enable_audio_device_callback_(enable_audio_device_callback) {
   SB_DCHECK(audio_sample_info_.codec == kSbMediaAudioCodecAc3 ||
             audio_sample_info_.codec == kSbMediaAudioCodecEac3);
   if (SbDrmSystemIsValid(drm_system)) {
@@ -384,7 +384,7 @@ void AudioRendererPassthrough::CreateAudioTrackAndStartProcessing() {
       optional<SbMediaAudioSampleType>(),  // Not required in passthrough mode
       audio_sample_info_.number_of_channels,
       audio_sample_info_.samples_per_second, kPreferredBufferSizeInBytes,
-      kEnableAudioRouting, kTunnelModeAudioSessionId));
+      enable_audio_device_callback_, kTunnelModeAudioSessionId));
 
   if (!audio_track_bridge->is_valid()) {
     error_cb_(kSbPlayerErrorDecode, "Error creating AudioTrackBridge");
@@ -436,7 +436,7 @@ void AudioRendererPassthrough::UpdateStatusAndWriteData(
   SB_DCHECK(error_cb_);
   SB_DCHECK(audio_track_bridge_);
 
-  if (kEnableAudioRouting &&
+  if (enable_audio_device_callback_ &&
       audio_track_bridge_->GetAndResetHasAudioDeviceChanged()) {
     SB_LOG(INFO) << "Audio device changed, raising a capability changed error "
                     "to restart playback.";

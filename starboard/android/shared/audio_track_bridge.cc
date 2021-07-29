@@ -39,7 +39,7 @@ AudioTrackBridge::AudioTrackBridge(SbMediaAudioCodingType coding_type,
                                    int channels,
                                    int sampling_frequency_hz,
                                    int preferred_buffer_size_in_bytes,
-                                   bool enable_audio_routing,
+                                   bool enable_audio_device_callback,
                                    int tunnel_mode_audio_session_id) {
   if (coding_type == kSbMediaAudioCodingTypePcm) {
     SB_DCHECK(SbAudioSinkIsAudioSampleTypeSupported(sample_type.value()));
@@ -65,7 +65,7 @@ AudioTrackBridge::AudioTrackBridge(SbMediaAudioCodingType coding_type,
       j_audio_output_manager.Get(), "createAudioTrackBridge",
       "(IIIIZI)Ldev/cobalt/media/AudioTrackBridge;",
       GetAudioFormatSampleType(coding_type, sample_type), sampling_frequency_hz,
-      channels, preferred_buffer_size_in_bytes, enable_audio_routing,
+      channels, preferred_buffer_size_in_bytes, enable_audio_device_callback,
       tunnel_mode_audio_session_id);
   if (!j_audio_track_bridge) {
     // One of the cases that this may hit is when output happened to be switched
@@ -270,15 +270,6 @@ int64_t AudioTrackBridge::GetPlaybackHeadPosition(
   }
   return env->GetLongFieldOrAbort(j_audio_timestamp.Get(), "framePosition",
                                   "J");
-}
-
-bool AudioTrackBridge::GetAndResetHasNewAudioDeviceAdded(
-    JniEnvExt* env /*= JniEnvExt::Get()*/) {
-  SB_DCHECK(env);
-  SB_DCHECK(is_valid());
-
-  return env->CallBooleanMethodOrAbort(
-      j_audio_track_bridge_, "getAndResetHasNewAudioDeviceAdded", "()Z");
 }
 
 bool AudioTrackBridge::GetAndResetHasAudioDeviceChanged(

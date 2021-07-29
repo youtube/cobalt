@@ -46,17 +46,17 @@ bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec,
     return false;
   }
   MimeType mime_type(content_type);
-  // Allows for disabling the use of the AudioRouting API to detect when audio
-  // peripherals are connected. Enabled by default.
-  // (https://developer.android.com/reference/android/media/AudioRouting)
-  auto enable_audio_routing_parameter_value =
-      mime_type.GetParamStringValue("enableaudiorouting", "");
-  if (!enable_audio_routing_parameter_value.empty() &&
-      enable_audio_routing_parameter_value != "true" &&
-      enable_audio_routing_parameter_value != "false") {
-    SB_LOG(INFO)
-        << "Invalid value for audio mime parameter \"enableaudiorouting\": "
-        << enable_audio_routing_parameter_value << ".";
+  // Allows for disabling the use of the AudioDeviceCallback API to detect when
+  // audio peripherals are connected. Enabled by default.
+  // (https://developer.android.com/reference/android/media/AudioDeviceCallback)
+  auto enable_audio_device_callback_parameter_value =
+      mime_type.GetParamStringValue("enableaudiodevicecallback", "");
+  if (!enable_audio_device_callback_parameter_value.empty() &&
+      enable_audio_device_callback_parameter_value != "true" &&
+      enable_audio_device_callback_parameter_value != "false") {
+    SB_LOG(INFO) << "Invalid value for audio mime parameter "
+                    "\"enableaudiodevicecallback\": "
+                 << enable_audio_device_callback_parameter_value << ".";
     return false;
   }
   // Allows for enabling tunneled playback. Disabled by default.
