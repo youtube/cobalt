@@ -57,23 +57,11 @@ SSH into another machine and run the binary on that machine.
 
 ### Set up Developer Tools
 
-Cobalt's developer tools require a different file structure which we are in the
-process of moving to. For now, if you want to use these tools, you must unnest
-the `src/` directory like so:
+1.  Enter your new `cobalt` directory:
 
-```
-$ cd cobalt
-$ mv src/* ./
-$ mv src/.* ./
-```
-
-Once you do that, you'll be able to follow the following two steps to have C++
-and Python linting and formatting as well as other helpful checks enabled. Keep
-in mind that after doing this, you'll want to run following commands in the
-top-level directory instead of the `src/` subdirectory.
-
-Git will track this as a large change, we recommend that you create a commit
-for it and rebase that commit of our upstream continuously for now.
+    ```
+    $ cd cobalt
+    ```
 
 1.  Create a Python 3 virtual environment for working on Cobalt (feel free to use `virtualenvwrapper` instead):
 
@@ -92,10 +80,9 @@ for it and rebase that commit of our upstream continuously for now.
 
 ## Build and Run Cobalt
 
-1.  Build the code by navigating to the `src` directory in your new
-    `cobalt` directory and running the following command. You must
-    specify a platform when running this command. On Ubuntu Linux, the
-    canonical platform is `linux-x64x11`.
+1.  Build the code running the following command in the top-level `cobalt`
+    directory. You must specify a platform when running this command. On Ubuntu
+    Linux, the canonical platform is `linux-x64x11`.
 
     You can also use the `-C` command-line flag to specify a `build_type`.
     Valid build types are `debug`, `devel`, `qa`, and `gold`. If you
@@ -109,7 +96,7 @@ for it and rebase that commit of our upstream continuously for now.
     <aside class="note"><b>Important:</b> You need to rerun gyp_cobalt every
     time a change is made to a `.gyp` file.</aside>
 
-1.  Compile the code from the `src/` directory:
+1.  Compile the code from the `cobalt/` directory:
 
     ```
     $ ninja -C out/<platform>_<build_type> <target_name>
@@ -155,7 +142,7 @@ for it and rebase that commit of our upstream continuously for now.
 
     The flags in the following table are frequently used, and the full set
     of flags that this command supports are in <code><a
-    href="https://cobalt.googlesource.com/cobalt/+/master/src/cobalt/browser/switches.cc">cobalt/browser/switches.cc</a></code>.
+    href="https://cobalt.googlesource.com/cobalt/+/master/cobalt/browser/switches.cc">cobalt/browser/switches.cc</a></code>.
 
     <table class="details responsive">
       <tr>
