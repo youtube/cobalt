@@ -408,7 +408,7 @@ NOTE: 3-slots is the DEFAULT configuration.
 
 The number of installation slots is directly controlled using
 `kMaxNumInstallations`, defined in
-[loader\_app.cc](https://cobalt.googlesource.com/cobalt/+/refs/heads/master/src/starboard/loader_app/loader_app.cc).
+[loader\_app.cc](../../loader_app/loader_app.cc).
 
 It is worth noting that all slot configurations specify that the first
 installation slot (`SLOT_0`) will always be the read-only factory system image.
@@ -549,7 +549,7 @@ that on platforms that support suspending the platform should check
  suspending if there is a pending restart.
 
 Please see
-[`suspend_signals.cc`](https://cobalt.googlesource.com/cobalt/+/refs/heads/master/src/starboard/shared/signal/suspend_signals.cc)
+[`suspend_signals.cc`](../../shared/signal/suspend_signals.cc)
 for an example.
 
 ### Multi-App Support
@@ -644,7 +644,7 @@ loader_app --csp_mode=disable --allow_http --url="file:///<PATH_TO_APP_3>/index.
 ```
 
 Please see
-[`loader_app_switches.cc`](https://cobalt.googlesource.com/cobalt/+/refs/heads/master/src/starboard/loader_app/loader_app.cc)
+[`loader_app_switches.cc`](../../loader_app/loader_app.cc)
 for full list of available command-line flags.
 
 ### Platform Security

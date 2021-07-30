@@ -36,18 +36,18 @@ down into the following more concise motivations:
 
 With the Starboard ABI being the source of truth for all things architecture
 related, each platform must now include a Starboard ABI file in its build (see
-[//starboard/sabi](https://cobalt.googlesource.com/cobalt/+/refs/heads/master/src/starboard/sabi)
+[//starboard/sabi](../sabi)
 for examples). Starboard ABI files are JSON, and should all contain identical
 keys with the values being appropriate for the architecture. Each platform must
 override the new
-[GetPathToSabiJsonFile](https://cobalt.googlesource.com/cobalt/+/refs/heads/master/src/starboard/build/platform_configuration.py##339)
+[GetPathToSabiJsonFile](../build/platform_configuration.py##339)
 method in its platform configuration to return the path to the desired Starboard
 ABI file (e.g.
-[//starboard/linux/shared/gyp\_configuration.py](https://cobalt.googlesource.com/cobalt/+/refs/heads/master/src/starboard/linux/shared/gyp_configuration.py)).
+[//starboard/linux/shared/gyp\_configuration.py](../linux/shared/gyp_configuration.py)).
 By default, an empty and invalid Starboard ABI file is provided.
 
 Additionally, all platforms must include the
-[sabi.gypi](https://cobalt.googlesource.com/cobalt/+/refs/heads/master/src/starboard/sabi/sabi.gypi)
+[sabi.gypi](../sabi/sabi.gypi)
 in their build configuration. This file will consume the specified Starboard ABI
 file, resulting in the creation of a set of GYP variables and preprocessor
 macros. The preprocessor macros are passed directly to the compiler and replace
@@ -56,7 +56,7 @@ the macros you might be familiar with, such as `SB_HAS_32_BIT_LONG`.
 The newly defined GYP variables need to be transformed into toolchain specific
 flags; these flags are what actually makes the build result in a binary for the
 desired architecture. These flags will, in most cases, be identical to the flags
-already being used for building. 
+already being used for building.
 
 The process outlined above is shown in the diagram below.
 
@@ -106,12 +106,12 @@ of verification that occur:
 
 1.  When configuring your build, the Starboard ABI file that was specified will
     have its values sanity checked against a provided
-    [schema](https://cobalt.googlesource.com/cobalt/+/refs/heads/master/src/starboard/sabi/sabi.schema.json).
+    [schema](../sabi/sabi.schema.json).
 1.  When building, a number of static assertions will assert correctness of a
     number of features generated from the Starboard ABI file against the
     features of the binary.
 1.  The NPLB test suite has been expanded to include [additional
-    tests](https://cobalt.googlesource.com/cobalt/+/refs/heads/master/src/starboard/nplb/sabi/)
+    tests](../nplb/sabi/)
     capable of verifying the remaining features of the binary.
 
 Finally, binaries produced by the Cobalt team for your architecture, including
