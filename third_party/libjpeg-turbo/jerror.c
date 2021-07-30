@@ -31,6 +31,14 @@
 #include <windows.h>
 #endif
 
+#if defined(STARBOARD)
+#include "starboard/common/log.h"
+#include "starboard/string.h"
+#include "starboard/system.h"
+// Applications should not leave the standard error handler registered.
+#define exit(x) SbSystemBreakIntoDebugger(x)
+#endif
+
 #ifndef EXIT_FAILURE            /* define exit() codes if not provided */
 #define EXIT_FAILURE  1
 #endif
@@ -107,7 +115,9 @@ output_message(j_common_ptr cinfo)
              MB_OK | MB_ICONERROR);
 #else
   /* Send it to stderr, adding a newline */
+#if !defined(STARBOARD)
   fprintf(stderr, "%s\n", buffer);
+#endif
 #endif
 }
 

@@ -32,7 +32,11 @@ struct cjpeg_source_struct {
   JDIMENSION (*get_pixel_rows) (j_compress_ptr cinfo, cjpeg_source_ptr sinfo);
   void (*finish_input) (j_compress_ptr cinfo, cjpeg_source_ptr sinfo);
 
+#if defined(STARBOARD)
+  SbFile *input_file;
+#else
   FILE *input_file;
+#endif
 
   JSAMPARRAY buffer;
   JDIMENSION buffer_height;
@@ -68,7 +72,11 @@ struct djpeg_dest_struct {
 
 
   /* Target file spec; filled in by djpeg.c after object is created. */
+#if defined(STARBOARD)
+  SbFile *output_file;
+#else
   FILE *output_file;
+#endif
 
   /* Output pixel-row buffer.  Created by module init or start_output.
    * Width is cinfo->output_width * cinfo->output_components;
@@ -126,7 +134,11 @@ EXTERN(boolean) set_sample_factors(j_compress_ptr cinfo, char *arg);
 
 /* djpeg support routines (in rdcolmap.c) */
 
+#if defined(STARBOARD)
+EXTERN(void) read_color_map(j_decompress_ptr cinfo, SbFile *infile);
+#else
 EXTERN(void) read_color_map(j_decompress_ptr cinfo, FILE *infile);
+#endif
 
 /* common support routines (in cdjpeg.c) */
 
@@ -134,8 +146,14 @@ EXTERN(void) start_progress_monitor(j_common_ptr cinfo,
                                     cd_progress_ptr progress);
 EXTERN(void) end_progress_monitor(j_common_ptr cinfo);
 EXTERN(boolean) keymatch(char *arg, const char *keyword, int minchars);
+
+#if defined(STARBOARD)
+EXTERN(SbFile *) read_stdin(void);
+EXTERN(SbFile *) write_stdout(void);
+#else
 EXTERN(FILE *) read_stdin(void);
 EXTERN(FILE *) write_stdout(void);
+#endif
 
 /* miscellaneous useful macros */
 

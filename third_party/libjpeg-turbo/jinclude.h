@@ -34,12 +34,17 @@
  * You can remove those references if you want to compile without <stdio.h>.
  */
 
+#ifdef STARBOARD
 #ifdef HAVE_STDDEF_H
-#include <stddef.h>
+//#include <stddef.h>
 #endif
 
-#ifdef HAVE_STDLIB_H
-#include <stdlib.h>
+#include "starboard/client_porting/poem/stdio_poem.h"
+#include "starboard/file.h"
+
+#else
+#ifdef HAVE_STDDEF_H
+#include <stddef.h>
 #endif
 
 #ifdef NEED_SYS_TYPES_H
@@ -47,6 +52,7 @@
 #endif
 
 #include <stdio.h>
+#endif
 
 /*
  * We need memory copying and zeroing functions, plus strncpy().
@@ -58,7 +64,13 @@
  * Change the casts in these macros if not!
  */
 
-#ifdef NEED_BSD_STRINGS
+#if defined(NEED_STARBOARD_MEMORY)
+
+#include "starboard/memory.h"
+#define MEMZERO(target,size)   memset((void *)(target), 0, (size_t)(size))
+#define MEMCOPY(dest,src,size) memcpy((void *)(dest), (const void *)(src), (size_t)(size))
+
+#elif NEED_BSD_STRINGS
 
 #include <strings.h>
 #define MEMZERO(target, size) \
@@ -67,6 +79,10 @@
   bcopy((const void *)(src), (void *)(dest), (size_t)(size))
 
 #else /* not BSD, assume ANSI/SysV string lib */
+
+#ifdef HAVE_STDLIB_H
+#include <stdlib.h>
+#endif
 
 #include <string.h>
 #define MEMZERO(target, size) \
@@ -82,7 +98,15 @@
  * CAUTION: argument order is different from underlying functions!
  */
 
+#ifdef STARBOARD
+#define JFREAD(file, buf, sizeofbuf) \
+  ((size_t)SbFileRead((file), (void *)(buf), (size_t)(sizeofbuf)))
+#define JFWRITE(file, buf, sizeofbuf) \
+  ((size_t)SbFileWrite((file), (const void *)(buf), (size_t)(sizeofbuf)))
+
+#else
 #define JFREAD(file, buf, sizeofbuf) \
   ((size_t)fread((void *)(buf), (size_t)1, (size_t)(sizeofbuf), (file)))
 #define JFWRITE(file, buf, sizeofbuf) \
   ((size_t)fwrite((const void *)(buf), (size_t)1, (size_t)(sizeofbuf), (file)))
+#endif

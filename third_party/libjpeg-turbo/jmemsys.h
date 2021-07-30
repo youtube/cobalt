@@ -142,7 +142,11 @@ typedef struct backing_store_struct {
   char temp_name[TEMP_NAME_LENGTH]; /* name if it's a file */
 #else
   /* For a typical implementation with temp files, we need: */
+#if defined(STARBOARD)
+  SbFile *temp_file;              /* stdio reference to temp file */
+#else
   FILE *temp_file;              /* stdio reference to temp file */
+#endif
   char temp_name[TEMP_NAME_LENGTH]; /* name of temp file */
 #endif
 #endif

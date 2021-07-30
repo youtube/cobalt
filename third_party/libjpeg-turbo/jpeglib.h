@@ -919,8 +919,13 @@ EXTERN(void) jpeg_destroy_decompress(j_decompress_ptr cinfo);
 
 /* Standard data source and destination managers: stdio streams. */
 /* Caller is responsible for opening the file before and closing after. */
+#if defined(STARBOARD)
+EXTERN(void) jpeg_stdio_dest(j_compress_ptr cinfo, SbFile *outfile);
+EXTERN(void) jpeg_stdio_src(j_decompress_ptr cinfo, SbFile *infile);
+#else
 EXTERN(void) jpeg_stdio_dest(j_compress_ptr cinfo, FILE *outfile);
 EXTERN(void) jpeg_stdio_src(j_decompress_ptr cinfo, FILE *infile);
+#endif
 
 #if JPEG_LIB_VERSION >= 80 || defined(MEM_SRCDST_SUPPORTED)
 /* Data source and destination managers: memory buffers. */

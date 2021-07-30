@@ -3,6 +3,9 @@
 # found in the LICENSE file.
 
 {
+  'variables': {
+    'optimize_target_for_speed': 1,
+  },
   'targets': [
     {
       'target_name': 'libjpeg',
@@ -14,6 +17,12 @@
         'BMP_SUPPORTED',
         'PPM_SUPPORTED'
       ],
+      'variables': {
+        'no_simd_files': [
+          'jsimd.h',
+          'jsimd_none.c',
+        ]
+      },
       'sources': [
         'cdjpeg.h',
         'jaricom.c',
@@ -40,9 +49,7 @@
         'jdapimin.c',
         'jdapistd.c',
         'jdarith.c',
-        'jdatadst.c',
         'jdatadst-tj.c',
-        'jdatasrc.c',
         'jdatasrc-tj.c',
         'jdcoefct.c',
         'jdcolor.c',
@@ -81,18 +88,37 @@
         'jquant2.c',
         'jutils.c',
         'jversion.h',
-        'rdbmp.c',
-        'rdppm.c',
         'transupp.h',
         'transupp.c',
         'turbojpeg.h',
         'turbojpeg.c',
-        'wrbmp.c',
-        'wrppm.c',
+        '<@(no_simd_files)',
+        # These dependecies are needed for file io
+        # and are not currently used by Cobalt.
+        #'rdbmp.c',
+        #'rdppm.c',
+        #'wrbmp.c',
+        #'wrppm.c',
+        #'jdatasrc.c',
+        #'jdatadst.c',
       ],
       'conditions': [
-        #x86_64 specific optimizations
-        ['target_arch == "x64"', {
+        # arm processor specific optimizations.
+        ['target_arch == "arm" and arm_neon == 1', {
+          'sources!': [
+            '<@(no_simd_files)'
+          ],
+          'sources': [
+            'simd/arm/aarch32/jsimd.c',
+            'simd/arm/aarch64/jsimd.c',
+            'simd/jsimd.h',
+          ],
+        }],
+        # x86_64 specific optimizations.
+        ['<(yasm_exists) == 1 and target_arch == "x64"', {
+          'sources!': [
+            '<@(no_simd_files)'
+          ],
           'sources': [
             'simd/x86_64/jsimdcpu.asm',
             'simd/x86_64/jfdctflt-sse.asm',
@@ -131,10 +157,10 @@
               'extension': 'asm',
                   'inputs': [ ],
                   'outputs': [
-                    '../../out/<(RULE_INPUT_ROOT).asm.o',
+                    '<(PRODUCT_DIR)/obj/third_party/libjpeg-turbo/<(RULE_INPUT_ROOT).asm.o',
                   ],
                   'action': [
-                    'yasm',
+                    '<(path_to_yasm)',
                     '-DELF',
                     '-D__x86_64__',
                     '-DPIC',
@@ -143,7 +169,7 @@
                     '-f',
                     'elf64',
                     '-o',
-                    "$out",
+                    "<(PRODUCT_DIR)/$out",
                     '<(RULE_INPUT_PATH)',
                   ],
                   'process_outputs_as_sources': 1,
@@ -151,13 +177,7 @@
             },
           ],
           },
-          #no optimizations
-          {
-            'sources': [
-              'jsimd.h',
-              'jsimd_none.c'
-            ]
-          }]
+        ]
       ],
     },
   ],

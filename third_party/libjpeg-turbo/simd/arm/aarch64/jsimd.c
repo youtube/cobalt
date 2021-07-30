@@ -25,9 +25,15 @@
 #include "../../jsimd.h"
 #include "jconfigint.h"
 
-#include <stdio.h>
-#include <string.h>
-#include <ctype.h>
+#ifdef STARBOARD
+#include "starboard/client_porting/poem/strings_poem.h"
+#include "starboard/client_porting/poem/string_poem.h"
+#include "starboard/configuration.h"
+#include "starboard/client_porting/poem/stdio_poem.h"
+#include "starboard/character.h"
+#else
+#include "starboard/client_porting/poem/stdio_poem.h"
+#endif
 
 #define JSIMD_FASTLD3  1
 #define JSIMD_FASTST3  2
@@ -39,6 +45,7 @@ static unsigned int simd_features = JSIMD_FASTLD3 | JSIMD_FASTST3 |
                                     JSIMD_FASTTBL;
 
 #if defined(__linux__) || defined(ANDROID) || defined(__ANDROID__)
+#if !defined(STARBOARD)
 
 #define SOMEWHAT_SANE_PROC_CPUINFO_SIZE_LIMIT  (1024 * 1024)
 
@@ -108,6 +115,7 @@ parse_proc_cpuinfo(int bufsize)
 }
 
 #endif
+#endif
 
 /*
  * Check what SIMD accelerations are supported.
@@ -128,7 +136,9 @@ init_simd(void)
   char *env = NULL;
 #endif
 #if defined(__linux__) || defined(ANDROID) || defined(__ANDROID__)
+#if !defined(STARBOARD)
   int bufsize = 1024; /* an initial guess for the line buffer size limit */
+#endif
 #endif
 
   if (simd_support != ~0U)
@@ -138,11 +148,13 @@ init_simd(void)
 
   simd_support |= JSIMD_NEON;
 #if defined(__linux__) || defined(ANDROID) || defined(__ANDROID__)
+#if !defined(STARBOARD)
   while (!parse_proc_cpuinfo(bufsize)) {
     bufsize *= 2;
     if (bufsize > SOMEWHAT_SANE_PROC_CPUINFO_SIZE_LIMIT)
       break;
   }
+#endif
 #endif
 
 #ifndef NO_GETENV

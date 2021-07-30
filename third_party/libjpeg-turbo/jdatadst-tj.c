@@ -24,9 +24,14 @@
 #include "jerror.h"
 
 #ifndef HAVE_STDLIB_H           /* <stdlib.h> should declare malloc(),free() */
+#ifdef STARBOARD
+#include "starboard/client_porting/poem/stdio_poem.h"
+#else
 extern void *malloc(size_t size);
 extern void free(void *ptr);
 #endif
+#endif
+
 void jpeg_mem_dest_tj(j_compress_ptr cinfo, unsigned char **outbuffer,
                       unsigned long *outsize, boolean alloc);
 
