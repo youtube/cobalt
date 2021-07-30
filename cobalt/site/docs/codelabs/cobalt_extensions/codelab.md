@@ -108,7 +108,7 @@ customization or optimization. This has been discouraged by the Cobalt team
 because it makes rebasing to future versions of Cobalt more difficult but has
 been possible because porters have historically built **both** Cobalt and
 Starboard. However, Cobalt is moving toward Evergreen
-(<a href="https://cobalt.googlesource.com/cobalt/+/refs/heads/master/src/starboard/doc/evergreen/cobalt_evergreen_overview.md">overview</a>),
+(<a href="https://cobalt.googlesource.com/cobalt/+/refs/heads/master/starboard/doc/evergreen/cobalt_evergreen_overview.md">overview</a>),
 an architecture that enables automatic Cobalt updates on devices by separating a
 Google-built, Cobalt core shared library from the partner-built Starboard layer
 and Cobalt loader app. Because Cobalt core code is built by Google, custom
