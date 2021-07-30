@@ -259,6 +259,17 @@ services:
       PLATFORM: ${PLATFORM:-raspi-2}
       CONFIG: ${CONFIG:-debug}
 
+  raspi-gn:
+    <<: *build-common-definitions
+    build:
+      context: ./docker/linux/raspi
+      dockerfile: ./gn/Dockerfile
+    image: cobalt-build-raspi-gn
+    environment:
+      <<: *shared-build-env
+      PLATFORM: ${PLATFORM:-raspi-2}
+      CONFIG: ${CONFIG:-debug}
+
   # Define common build container for Evergreen
   build-evergreen:
     <<: *build-common-definitions
