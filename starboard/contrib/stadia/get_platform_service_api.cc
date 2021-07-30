@@ -22,7 +22,7 @@
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
 #include "starboard/common/string.h"
-#include "starboard/contrib/stadia/clients/vendor/public/plugin_manager.h"
+#include "starboard/contrib/stadia/clients/vendor/public/stadia_plugin.h"
 #include "starboard/event.h"
 #include "starboard/memory.h"
 #include "starboard/window.h"
