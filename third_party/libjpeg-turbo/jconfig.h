@@ -10,10 +10,10 @@
 #define LIBJPEG_TURBO_VERSION_NUMBER  2001000
 
 /* Support arithmetic encoding */
-/* #define C_ARITH_CODING_SUPPORTED 1 */
+#define C_ARITH_CODING_SUPPORTED 1
 
 /* Support arithmetic decoding */
-/* #define D_ARITH_CODING_SUPPORTED 1 */
+#define D_ARITH_CODING_SUPPORTED 1
 
 /* Support in-memory source/destination managers */
 #define MEM_SRCDST_SUPPORTED 1
