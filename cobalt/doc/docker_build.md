@@ -21,7 +21,7 @@ You can override this with an environment variable, e.g.
 where config is one of the four optimization levels, debug, devel, qa and gold,
 and target is the build target passed to `ninja`
 
-See [Cobalt README](https://cobalt.googlesource.com/cobalt/+/master/src/README.md#build-types)
+See [Cobalt README](../../README.md#build-types)
 for full details.
 
 Builds will be available in your `${COBALT_SRC}/out` directory.
@@ -63,4 +63,4 @@ launching the bash shell, i.e.
 
   `docker-compose run linux-x64x11 /bin/bash`
 
-and try to build cobalt [with the usual `gyp / ninja` flow](https://cobalt.googlesource.com/cobalt/+/master/src/README.md#building-and-running-the-code).
+and try to build cobalt [with the usual `gyp / ninja` flow](../../README.md#building-and-running-the-code).

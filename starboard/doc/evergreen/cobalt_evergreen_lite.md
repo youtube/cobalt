@@ -75,7 +75,7 @@ process
 
 ## How is Evergreen different from porting Cobalt previously?
 
-Same as the [Evergreen full doc](https://cobalt.googlesource.com/cobalt/+/refs/heads/master/src/starboard/doc/evergreen/cobalt_evergreen_overview.md).
+Same as the [Evergreen full doc](cobalt_evergreen_overview.md).
 
 ## Building Cobalt Evergreen Components
 
