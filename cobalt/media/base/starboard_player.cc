@@ -517,7 +517,7 @@ void StarboardPlayer::CreateUrlPlayer(const std::string& url) {
   DCHECK(task_runner_->BelongsToCurrentThread());
 
   DCHECK(!on_encrypted_media_init_data_encountered_cb_.is_null());
-  DLOG(INFO) << "CreateUrlPlayer passed url " << url;
+  LOG(INFO) << "CreateUrlPlayer passed url " << url;
   player_ =
       SbUrlPlayerCreate(url.c_str(), window_, &StarboardPlayer::PlayerStatusCB,
                         &StarboardPlayer::EncryptedMediaInitDataEncounteredCB,
@@ -778,10 +778,10 @@ void StarboardPlayer::OnDecoderStatus(SbPlayer player, SbMediaType type,
       break;
 #if SB_API_VERSION < 12
     case kSbPlayerDecoderStateBufferFull:
-      DLOG(WARNING) << "kSbPlayerDecoderStateBufferFull has been deprecated.";
+      LOG(WARNING) << "kSbPlayerDecoderStateBufferFull has been deprecated.";
       return;
     case kSbPlayerDecoderStateDestroyed:
-      DLOG(WARNING) << "kSbPlayerDecoderStateDestroyed has been deprecated.";
+      LOG(WARNING) << "kSbPlayerDecoderStateDestroyed has been deprecated.";
       return;
 #endif  // SB_API_VERSION < 12
   }
