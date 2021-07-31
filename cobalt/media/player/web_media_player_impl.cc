@@ -33,9 +33,6 @@ namespace media {
 
 namespace {
 
-// Used to ensure that there is no more than one instance of WebMediaPlayerImpl.
-WebMediaPlayerImpl* s_instance;
-
 // Limits the range of playback rate.
 //
 // TODO(kylep): Revisit these.
@@ -137,10 +134,6 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
 
   video_frame_provider_ = new VideoFrameProvider();
 
-  DLOG_IF(ERROR, s_instance)
-      << "More than one WebMediaPlayerImpl has been created.";
-  s_instance = this;
-
   DCHECK(buffer_allocator_);
   media_log_->AddEvent(
       media_log_->CreateEvent(MediaLogEvent::WEBMEDIAPLAYER_CREATED));
@@ -165,10 +158,6 @@ WebMediaPlayerImpl::~WebMediaPlayerImpl() {
   DCHECK(!main_loop_ || main_loop_ == base::MessageLoop::current());
 
   ON_INSTANCE_RELEASED(WebMediaPlayerImpl);
-
-  DLOG_IF(ERROR, s_instance != this)
-      << "More than one WebMediaPlayerImpl has been created.";
-  s_instance = NULL;
 
   if (delegate_) {
     delegate_->UnregisterPlayer(this);
@@ -229,7 +218,7 @@ void WebMediaPlayerImpl::LoadUrl(const GURL& url) {
   DCHECK_EQ(main_loop_, base::MessageLoop::current());
 
   UMA_HISTOGRAM_ENUMERATION("Media.URLScheme", URLScheme(url), kMaxURLScheme);
-  DLOG(INFO) << "Start URL playback";
+  LOG(INFO) << "Start URL playback";
 
   // Handle any volume changes that occured before load().
   SetVolume(GetClient()->Volume());
@@ -249,7 +238,7 @@ void WebMediaPlayerImpl::LoadMediaSource() {
   TRACE_EVENT0("cobalt::media", "WebMediaPlayerImpl::LoadMediaSource");
   DCHECK_EQ(main_loop_, base::MessageLoop::current());
 
-  DLOG(INFO) << "Start MEDIASOURCE playback";
+  LOG(INFO) << "Start MEDIASOURCE playback";
 
   // Handle any volume changes that occured before load().
   SetVolume(GetClient()->Volume());
@@ -276,7 +265,7 @@ void WebMediaPlayerImpl::LoadProgressive(
   DCHECK_EQ(main_loop_, base::MessageLoop::current());
 
   UMA_HISTOGRAM_ENUMERATION("Media.URLScheme", URLScheme(url), kMaxURLScheme);
-  DLOG(INFO) << "Start PROGRESSIVE playback";
+  LOG(INFO) << "Start PROGRESSIVE playback";
 
   // Handle any volume changes that occured before load().
   SetVolume(GetClient()->Volume());
@@ -904,11 +893,11 @@ void WebMediaPlayerImpl::Destroy() {
   // Note: stopping the pipeline might block for a long time.
   base::WaitableEvent waiter(base::WaitableEvent::ResetPolicy::AUTOMATIC,
                              base::WaitableEvent::InitialState::NOT_SIGNALED);
-  DLOG(INFO) << "Trying to stop media pipeline.";
+  LOG(INFO) << "Trying to stop media pipeline.";
   pipeline_->Stop(
       base::Bind(&base::WaitableEvent::Signal, base::Unretained(&waiter)));
   waiter.Wait();
-  DLOG(INFO) << "Media pipeline stopped.";
+  LOG(INFO) << "Media pipeline stopped.";
 
   // And then detach the proxy, it may live on the render thread for a little
   // longer until all the tasks are finished.
