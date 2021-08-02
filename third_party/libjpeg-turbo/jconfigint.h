@@ -40,9 +40,11 @@
 #define HAVE_BUILTIN_CTZL
 #endif
 
+#if !defined(STARBOARD)
 /* Define to 1 if you have the <intrin.h> header file. */
 #if defined(_MSC_VER)
 #define HAVE_INTRIN_H  1
+#endif
 #endif
 
 #if defined(_MSC_VER) && defined(HAVE_INTRIN_H)

@@ -80,7 +80,7 @@
         'jmemnobs.c',
         'jmemsys.h',
         'jmorecfg.h',
-	'jpeg_nbits_table.c',
+        'jpeg_nbits_table.c',
         'jpegint.h',
         'jpeglib.h',
         'jpeglibmangler.h',
