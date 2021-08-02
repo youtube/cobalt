@@ -54,7 +54,7 @@ $ apt-get install -y libpulse-dev libasound2-dev libavformat-dev \
 ## Set up your workstation
 
 <aside class="note">
-<b>Note:</b> Before proceeding further, refer to the documentation for <a href="setup-linux.md">"Set up your environment - Linux"</a>. Complete the section **Set up your workstation**, then return and complete the following steps.
+<b>Note:</b> Before proceeding further, refer to the documentation for <a href="setup-linux.html">"Set up your environment - Linux"</a>. Complete the section **Set up your workstation**, then return and complete the following steps.
 </aside>
 
 The following steps install the cross-compiling toolchain on your workstation.
