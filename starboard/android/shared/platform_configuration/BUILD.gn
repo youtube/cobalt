@@ -60,27 +60,6 @@ config("platform_configuration") {
     cflags += [ "-g" ]
   }
 
-  if (sb_pedantic_warnings) {
-    cflags += [
-      "-Wall",
-      "-Wextra",
-      "-Wunreachable-code",
-
-      # Don"t get pedantic about warnings from base macros. These must be
-      # disabled after the -Wall above, so this has to be done here rather
-      # than in the platform"s target toolchain.
-      # TODO: Rebase base and use static_assert instead of COMPILE_ASSERT
-
-      "-Wno-unused-local-typedef",  # COMPILE_ASSERT
-      "-Wno-missing-field-initializers",  # LAZY_INSTANCE_INITIALIZER
-
-      # It"s OK not to use some input parameters. Note that the order
-      # matters: Wall implies Wunused-parameter and Wno-unused-parameter
-      # has no effect if specified before Wall.
-      "-Wno-unused-parameter",
-    ]
-  }
-
   if (use_asan) {
     cflags += [
       "-fsanitize=address",
@@ -205,4 +184,24 @@ config("executable_config") {
 
 config("library_config") {
   cflags = [ "-fPIC" ]
+}
+
+config("pedantic_warnings") {
+  cflags = [
+    "-Wall",
+    "-Wextra",
+    "-Wunreachable-code",
+
+    # Don't get pedantic about warnings from base macros. These must be
+    # disabled after the -Wall above, so this has to be done here rather
+    # than in the platform's target toolchain.
+    # TODO: Rebase base and use static_assert instead of COMPILE_ASSERT
+    "-Wno-unused-local-typedef",  # COMPILE_ASSERT
+    "-Wno-missing-field-initializers",  # LAZY_INSTANCE_INITIALIZER
+
+    # It's OK not to use some input parameters. Note that the order
+    # matters: Wall implies Wunused-parameter and Wno-unused-parameter
+    # has no effect if specified before Wall.
+    "-Wno-unused-parameter",
+  ]
 }

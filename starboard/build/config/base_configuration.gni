@@ -23,10 +23,6 @@ declare_args() {
   # value is meant to be overridden by a Starboard ABI file.
   sb_api_version = 13
 
-  # Enabling this variable enables pedantic levels of warnings for the current
-  # toolchain.
-  sb_pedantic_warnings = false
-
   # Enables embedding Cobalt as a shared library within another app. This
   # requires a 'lib' starboard implementation for the corresponding platform.
   sb_enable_lib = false

@@ -375,7 +375,11 @@ static_library("starboard_platform_sources") {
 
   sources += common_player_sources
 
-  configs += [ "//starboard/build/config:starboard_implementation" ]
+  configs += [
+    "//starboard/build/config:pedantic_warnings",
+    "//starboard/build/config:starboard_implementation",
+  ]
+  configs -= [ "//starboard/build/config:no_pedantic_warnings" ]
 
   public_deps = [
     ":starboard_base_symbolize",

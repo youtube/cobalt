@@ -23,3 +23,8 @@ gl_type = "none"
 sabi_path = "//starboard/sabi/x64/sysv/sabi-v$sb_api_version.json"
 
 install_target_path = "//starboard/build/install/install_target.gni"
+
+pedantic_warnings_config_path =
+    "//starboard/stub/platform_configuration:pedantic_warnings"
+no_pedantic_warnings_config_path =
+    "//starboard/stub/platform_configuration:no_pedantic_warnings"

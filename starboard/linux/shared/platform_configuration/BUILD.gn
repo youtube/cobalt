@@ -99,33 +99,6 @@ config("compiler_flags") {
     "-Wl,-gc-sections",
   ]
 
-  if (sb_pedantic_warnings) {
-    cflags += [
-      "-Wall",
-      "-Wextra",
-      "-Wunreachable-code",
-    ]
-  } else {
-    cflags += [
-      # 'this' pointer cannot be NULL...pointer may be assumed
-      # to always convert to true.
-      "-Wno-undefined-bool-conversion",
-
-      # Skia doesn't use overrides.
-      "-Wno-inconsistent-missing-override",
-
-      # Do not warn for implicit type conversions that may change a value.
-      "-Wno-conversion",
-
-      # shifting a negative signed value is undefined
-      "-Wno-shift-negative-value",
-
-      # Width of bit-field exceeds width of its type- value will be truncated
-      "-Wno-bitfield-width",
-      "-Wno-undefined-var-template",
-    ]
-  }
-
   if (use_asan) {
     cflags += [
       "-fsanitize=address",
@@ -210,5 +183,34 @@ config("size") {
     # Compile symbols in separate sections
     "-ffunction-sections",
     "-fdata-sections",
+  ]
+}
+
+config("pedantic_warnings") {
+  cflags = [
+    "-Wall",
+    "-Wextra",
+    "-Wunreachable-code",
+  ]
+}
+
+config("no_pedantic_warnings") {
+  cflags = [
+    # 'this' pointer cannot be NULL...pointer may be assumed
+    # to always convert to true.
+    "-Wno-undefined-bool-conversion",
+
+    # Skia doesn't use overrides.
+    "-Wno-inconsistent-missing-override",
+
+    # Do not warn for implicit type conversions that may change a value.
+    "-Wno-conversion",
+
+    # shifting a negative signed value is undefined
+    "-Wno-shift-negative-value",
+
+    # Width of bit-field exceeds width of its type- value will be truncated
+    "-Wno-bitfield-width",
+    "-Wno-undefined-var-template",
   ]
 }
