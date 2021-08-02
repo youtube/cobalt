@@ -13,7 +13,6 @@
 # limitations under the License.
 """A module to support fundamental communications with Cobalt application."""
 
-import enum
 import json
 import logging
 import threading
@@ -90,7 +89,7 @@ class AdditionalKeys():
   MEDIA_FAST_FORWARD = u'\uf005'
 
 
-class Features(enum.Enum):
+class Features():
   """Set of platform features."""
   SUSPEND_AND_RESUME = 1
   SEND_KEYS = 2
@@ -153,7 +152,7 @@ class ApplicationStateHandler():
       self._NotifyHandlersOnStateChanged()
 
 
-class PipelinePlayerState(enum.IntEnum):
+class PipelinePlayerState(int):
   """Set of pipeline states, equals to SbPlayerState."""
   INITIALIZED = 0  # kSbPlayerStateInitialized
   PREROLLING = 1  # kSbPlayerStatePrerolling
@@ -298,16 +297,22 @@ class PipelineState():
             not self.is_ended and not self.is_suspended and not self.is_stopped)
 
 
-class MediaSessionPlaybackState(enum.Enum):
+class MediaSessionPlaybackState(int):
   """Set of media session playback states."""
   NONE = 0
   PAUSED = 1
   PLAYING = 2
 
-  # Aliases to convert string to the enum.
-  none = 0
-  paused = 1
-  playing = 2
+  @staticmethod
+  def FromString(str):
+    if str == 'none':
+      return 0
+    if str == 'paused':
+      return 1
+    if str == 'playing':
+      return 2
+    raise NotImplementedError(
+        '"%s" is not a valid media session playback state.' % str)
 
 
 class MediaSessionState():
@@ -327,8 +332,8 @@ class MediaSessionState():
     self.title = GetValueFromQueryResult(metadata, 'title', '')
     self.artist = GetValueFromQueryResult(metadata, 'artist', '')
     self.album = GetValueFromQueryResult(metadata, 'album', '')
-    self.playback_state = MediaSessionPlaybackState[GetValueFromQueryResult(
-        query_result, 'playbackState', 'none')]
+    self.playback_state = MediaSessionPlaybackState.FromString(
+        GetValueFromQueryResult(query_result, 'playbackState', 'none'))
 
   def __eq__(self, other):
     if not isinstance(other, self.__class__):
@@ -478,7 +483,7 @@ class PlayerStateHandler():
       self._NotifyHandlersOnStateChanged()
 
 
-class AdsState(enum.IntEnum):
+class AdsState(int):
   """Set of ads states. The numeric values are used in ads state query."""
   NONE = 0
   PLAYING = 1
