@@ -149,3 +149,15 @@ config("size") {
     configs = [ size_config_path ]
   }
 }
+
+config("pedantic_warnings") {
+  if (defined(pedantic_warnings_config_path)) {
+    configs = [ pedantic_warnings_config_path ]
+  }
+}
+
+config("no_pedantic_warnings") {
+  if (defined(no_pedantic_warnings_config_path)) {
+    configs = [ no_pedantic_warnings_config_path ]
+  }
+}

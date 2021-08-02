@@ -101,11 +101,12 @@ import("//starboard/build/config/build_assertions.gni")
 default_compiler_configs = [
   "//build/config/compiler:default_include_dirs",
   "//build/config/compiler:no_exceptions",
+  "//$starboard_path/platform_configuration",
   "//starboard/build/config:base",
   "//starboard/build/config:host",
   "//starboard/build/config:size",
   "//starboard/build/config:target",
-  "//$starboard_path/platform_configuration",
+  "//starboard/build/config:no_pedantic_warnings",
 ]
 
 if (is_starboard) {
