@@ -31,7 +31,7 @@
 #include "../../../jsimddct.h"
 #include "../../jsimd.h"
 #include "../jchuff.h"
-#include "neon-compat.h"
+#include "../neon-compat.h"
 
 #include <limits.h>
 
