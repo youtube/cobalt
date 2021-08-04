@@ -28,7 +28,6 @@
       'target_name': 'skia_library',
       'type': 'static_library',
       'dependencies': [
-        '<(DEPTH)/base/base.gyp:base',
         'skia_library_no_asan',
       ],
       'includes': [
@@ -66,6 +65,7 @@
       'target_name': 'filter_fuzz_stub',
       'type': 'executable',
       'dependencies': [
+        '<(DEPTH)/base/base.gyp:base',
         'skia',
       ],
       'sources': [
