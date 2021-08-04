@@ -20,6 +20,7 @@
 #include <string>
 #include <vector>
 
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
 #include "cobalt/extension/graphics.h"
 #include "cobalt/math/size.h"
@@ -364,28 +365,31 @@ uint32 TexturedMeshRenderer::CreateFragmentShader(
       graphics_extension->GetMapToMeshColorAdjustments(&color_adjustment)) {
     // Setup vectors for the color adjustments. Ensure they use dot for decimal
     // point regardless of locale.
-    std::stringstream buffer;
-    buffer.imbue(std::locale::classic());
-    buffer << "  vec4 scale0 = vec4(" << color_adjustment.rgba0_scale[0] << ","
-           << color_adjustment.rgba0_scale[1] << ","
-           << color_adjustment.rgba0_scale[2] << ","
-           << color_adjustment.rgba0_scale[3] << ");";
-    buffer << "  vec4 scale1 = vec4(" << color_adjustment.rgba1_scale[0] << ","
-           << color_adjustment.rgba1_scale[1] << ","
-           << color_adjustment.rgba1_scale[2] << ","
-           << color_adjustment.rgba1_scale[3] << ");";
-    buffer << "  vec4 scale2 = vec4(" << color_adjustment.rgba2_scale[0] << ","
-           << color_adjustment.rgba2_scale[1] << ","
-           << color_adjustment.rgba2_scale[2] << ","
-           << color_adjustment.rgba2_scale[3] << ");";
-    buffer << "  vec4 scale3 = vec4(" << color_adjustment.rgba3_scale[0] << ","
-           << color_adjustment.rgba3_scale[1] << ","
-           << color_adjustment.rgba3_scale[2] << ","
-           << color_adjustment.rgba3_scale[3] << ");";
+    std::string buffer;
+    buffer = "  vec4 scale0 = vec4(" +
+             base::NumberToString(color_adjustment.rgba0_scale[0]) + "," +
+             base::NumberToString(color_adjustment.rgba0_scale[1]) + "," +
+             base::NumberToString(color_adjustment.rgba0_scale[2]) + "," +
+             base::NumberToString(color_adjustment.rgba0_scale[3]) + ");" +
+             "  vec4 scale1 = vec4(" +
+             base::NumberToString(color_adjustment.rgba1_scale[0]) + "," +
+             base::NumberToString(color_adjustment.rgba1_scale[1]) + "," +
+             base::NumberToString(color_adjustment.rgba1_scale[2]) + "," +
+             base::NumberToString(color_adjustment.rgba1_scale[3]) + ");" +
+             "  vec4 scale2 = vec4(" +
+             base::NumberToString(color_adjustment.rgba2_scale[0]) + "," +
+             base::NumberToString(color_adjustment.rgba2_scale[1]) + "," +
+             base::NumberToString(color_adjustment.rgba2_scale[2]) + "," +
+             base::NumberToString(color_adjustment.rgba2_scale[3]) + ");" +
+             "  vec4 scale3 = vec4(" +
+             base::NumberToString(color_adjustment.rgba3_scale[0]) + "," +
+             base::NumberToString(color_adjustment.rgba3_scale[1]) + "," +
+             base::NumberToString(color_adjustment.rgba3_scale[2]) + "," +
+             base::NumberToString(color_adjustment.rgba3_scale[3]) + ");";
     blit_fragment_shader_source +=
         "  vec4 color2 = color * color;"
         "  vec4 color3 = color2 * color;" +
-        buffer.str() +
+        buffer +
         "  color = scale0 + scale1*color + scale2*color2 + scale3*color3;"
         "  gl_FragColor = clamp(color, vec4(0.0), vec4(1.0));"
         "}";
