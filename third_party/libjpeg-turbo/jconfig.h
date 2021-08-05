@@ -18,8 +18,10 @@
 /* Support in-memory source/destination managers */
 #define MEM_SRCDST_SUPPORTED 1
 
+#if !defined(STARBOARD)
 /* Use accelerated SIMD routines. */
 #define WITH_SIMD 1
+#endif
 
 #if defined(STARBOARD)
 #define NEED_STARBOARD_MEMORY
