@@ -433,8 +433,8 @@ TEST_F(FilePathTest, IsAbsolute) {
     { FPL("rom:/a"),    true },
     { FPL("cache:/.."), true },
     { FPL("rom:/.."),   true },
-#else  // !defined(FILE_PATH_USES_DRIVE_LETTERS) && \
-          !defined(FILE_PATH_USES_MOUNT_POINT_NAME)
+#else  // !defined(FILE_PATH_USES_DRIVE_LETTERS) &&
+       // !defined(FILE_PATH_USES_MOUNT_POINT_NAME)
     { FPL("/"),   true },
     { FPL("/a"),  true },
     { FPL("/."),  true },
