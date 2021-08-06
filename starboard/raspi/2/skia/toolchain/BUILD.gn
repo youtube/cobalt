@@ -23,7 +23,6 @@ gcc_toolchain("target") {
   cxx = "$gcc_toolchain_cxx"
   ld = cxx
 
-  # We use whatever 'ar' resolves to in gyp.
   ar = "$gcc_toolchain_ar"
   strip = "$gcc_toolchain_strip"
 

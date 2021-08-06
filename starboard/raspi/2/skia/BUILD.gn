@@ -12,22 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//starboard/raspi/shared/toolchain/raspi_shared_toolchain.gni")
-
-clang_toolchain("host") {
-  clang_base_path = raspi_clang_base_path
-}
-
-gcc_toolchain("target") {
-  cc = "$gcc_toolchain_cc"
-  cxx = "$gcc_toolchain_cxx"
-  ld = cxx
-
-  # We use whatever 'ar' resolves to in gyp.
-  ar = "$gcc_toolchain_ar"
-  strip = "$gcc_toolchain_strip"
-
-  toolchain_args = {
-    is_clang = false
-  }
+static_library("starboard_platform") {
+  check_includes = false
+  sources = [
+    "//starboard/raspi/2/skia/configuration.cc",
+    "//starboard/raspi/2/skia/configuration.h",
+    "//starboard/raspi/2/skia/system_get_extensions.cc",
+  ]
+  configs += [ "//starboard/build/config:starboard_implementation" ]
+  public_deps = [ "//starboard/raspi/shared:starboard_platform" ]
 }
