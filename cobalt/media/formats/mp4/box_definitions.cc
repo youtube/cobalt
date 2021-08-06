@@ -1308,7 +1308,8 @@ bool TrackFragment::Parse(BoxReader* reader) {
          reader->ReadChild(&decode_time) && reader->MaybeReadChildren(&runs) &&
          reader->MaybeReadChild(&auxiliary_offset) &&
          reader->MaybeReadChild(&auxiliary_size) &&
-         reader->MaybeReadChild(&sdtp));
+         reader->MaybeReadChild(&sdtp) &&
+         reader->MaybeReadChild(&sample_encryption));
 
   // There could be multiple SampleGroupDescription and SampleToGroup boxes with
   // different grouping types. For common encryption, the relevant grouping type
