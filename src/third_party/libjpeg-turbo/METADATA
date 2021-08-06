@@ -5,17 +5,14 @@ description:
 third_party {
   url {
     type: GIT
-    value: "https://github.com/libjpeg-turbo/libjpeg-turbo"
+    value: "https://chromium.googlesource.com/chromium/deps/libjpeg_turbo/"
   }
-  # Note: We initially added a version of libjpeg-turbo that was in between
-  # versions 2.0.0 and 1.5.91. The version and last upgrade date below should
-  # reflect the point in between those two versions when the library was first
-  # brought into Cobalt.
-  version: "1a85fc497db85e1bf8b026d51cf6e5dec391d224"
+  # Version 2.1.0
+  version: "b201838d8b5f2f80c9f86ec8405a62a002232b2c"
   last_upgrade_date {
-    year: 2018
-    month: 5
-    day: 21
+    year: 2021
+    month: 7
+    day: 13
   }
   license_type: NOTICE
 }

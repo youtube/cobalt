@@ -18,11 +18,7 @@ RUN apt update -qqy \
     && apt install -qqy --no-install-recommends \
         default-jdk \
         g++-multilib \
-    && apt-get clean autoclean \
-    && apt-get autoremove -y --purge \
-    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* \
-    && rm -rf /var/lib/{apt,dpkg,cache,log} \
-    && echo "Done"
+    && /opt/clean-after-apt.sh
 
 RUN mkdir -p /root/.android
 

@@ -4,7 +4,7 @@
  * This file was part of the Independent JPEG Group's software:
  * Copyright (C) 1991-1996, Thomas G. Lane.
  * libjpeg-turbo Modifications:
- * Copyright (C) 2010, D. R. Commander.
+ * Copyright (C) 2010, 2018, D. R. Commander.
  * For conditions of distribution and use, see the accompanying README.ijg
  * file.
  *
@@ -276,7 +276,8 @@ bogus:
 
 
 #if JPEG_LIB_VERSION < 70
-/* These are the sample quantization tables given in JPEG spec section K.1.
+/* These are the sample quantization tables given in Annex K (Clause K.1) of
+ * Recommendation ITU-T T.81 (1992) | ISO/IEC 10918-1:1994.
  * The spec says that the values given produce "good" quality, and
  * when divided by 2, "very good" quality.
  */
@@ -337,8 +338,8 @@ set_quality_ratings(j_compress_ptr cinfo, char *arg, boolean force_baseline)
 #else
       q_scale_factor[tblno] = jpeg_quality_scaling(val);
 #endif
-      while (*arg && *arg++ != ',') /* advance to next segment of arg string */
-        ;
+      while (*arg && *arg++ != ','); /* advance to next segment of arg
+                                        string */
     } else {
       /* reached end of parameter, set remaining factors to last value */
 #if JPEG_LIB_VERSION >= 70
@@ -377,8 +378,8 @@ set_quant_slots(j_compress_ptr cinfo, char *arg)
         return FALSE;
       }
       cinfo->comp_info[ci].quant_tbl_no = val;
-      while (*arg && *arg++ != ',') /* advance to next segment of arg string */
-        ;
+      while (*arg && *arg++ != ','); /* advance to next segment of arg
+                                        string */
     } else {
       /* reached end of parameter, set remaining components to last table */
       cinfo->comp_info[ci].quant_tbl_no = val;
@@ -411,8 +412,8 @@ set_sample_factors(j_compress_ptr cinfo, char *arg)
       }
       cinfo->comp_info[ci].h_samp_factor = val1;
       cinfo->comp_info[ci].v_samp_factor = val2;
-      while (*arg && *arg++ != ',') /* advance to next segment of arg string */
-        ;
+      while (*arg && *arg++ != ',');  /* advance to next segment of arg
+                                         string */
     } else {
       /* reached end of parameter, set remaining components to 1x1 sampling */
       cinfo->comp_info[ci].h_samp_factor = 1;

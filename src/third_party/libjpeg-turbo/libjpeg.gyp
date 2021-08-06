@@ -80,6 +80,7 @@
         'jmemnobs.c',
         'jmemsys.h',
         'jmorecfg.h',
+        'jpeg_nbits_table.c',
         'jpegint.h',
         'jpeglib.h',
         'jpeglibmangler.h',
@@ -102,17 +103,6 @@
         #'jdatadst.c',
       ],
       'conditions': [
-        # arm processor specific optimizations.
-        ['target_arch == "arm" and arm_neon == 1', {
-          'sources!': [
-            '<@(no_simd_files)'
-          ],
-          'sources': [
-            'simd/arm/jsimd.c',
-            'simd/arm/jsimd_neon.S',
-            'simd/jsimd.h',
-          ],
-        }],
         # x86_64 specific optimizations.
         ['<(yasm_exists) == 1 and target_arch == "x64"', {
           'sources!': [

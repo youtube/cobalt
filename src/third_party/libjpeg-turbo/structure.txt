@@ -89,12 +89,12 @@ nonetheless, they are useful for viewers.
 The compressor and decompressor are each divided into two main sections:
 the JPEG compressor or decompressor proper, and the preprocessing or
 postprocessing functions.  The interface between these two sections is the
-image data that the official JPEG spec regards as its input or output: this
-data is in the colorspace to be used for compression, and it is downsampled
-to the sampling factors to be used.  The preprocessing and postprocessing
-steps are responsible for converting a normal image representation to or from
-this form.  (Those few applications that want to deal with YCbCr downsampled
-data can skip the preprocessing or postprocessing step.)
+image data that Rec. ITU-T T.81 | ISO/IEC 10918-1 regards as its input or
+output: this data is in the colorspace to be used for compression, and it is
+downsampled to the sampling factors to be used.  The preprocessing and
+postprocessing steps are responsible for converting a normal image
+representation to or from this form.  (Those few applications that want to deal
+with YCbCr downsampled data can skip the preprocessing or postprocessing step.)
 
 Looking more closely, the compressor library contains the following main
 elements:
@@ -141,22 +141,22 @@ allow such merging where appropriate.
 
 
 Note: it is convenient to regard edge expansion (padding to block boundaries)
-as a preprocessing/postprocessing function, even though the JPEG spec includes
-it in compression/decompression.  We do this because downsampling/upsampling
-can be simplified a little if they work on padded data: it's not necessary to
-have special cases at the right and bottom edges.  Therefore the interface
-buffer is always an integral number of blocks wide and high, and we expect
-compression preprocessing to pad the source data properly.  Padding will occur
-only to the next block (8-sample) boundary.  In an interleaved-scan situation,
-additional dummy blocks may be used to fill out MCUs, but the MCU assembly and
-disassembly logic will create or discard these blocks internally.  (This is
-advantageous for speed reasons, since we avoid DCTing the dummy blocks.
-It also permits a small reduction in file size, because the compressor can
-choose dummy block contents so as to minimize their size in compressed form.
-Finally, it makes the interface buffer specification independent of whether
-the file is actually interleaved or not.)  Applications that wish to deal
-directly with the downsampled data must provide similar buffering and padding
-for odd-sized images.
+as a preprocessing/postprocessing function, even though
+Rec. ITU-T T.81 | ISO/IEC 10918-1 includes it in compression/decompression.  We
+do this because downsampling/upsampling can be simplified a little if they work
+on padded data: it's not necessary to have special cases at the right and
+bottom edges.  Therefore the interface buffer is always an integral number of
+blocks wide and high, and we expect compression preprocessing to pad the source
+data properly.  Padding will occur only to the next block (8-sample) boundary.
+In an interleaved-scan situation, additional dummy blocks may be used to fill
+out MCUs, but the MCU assembly and disassembly logic will create or discard
+these blocks internally.  (This is advantageous for speed reasons, since we
+avoid DCTing the dummy blocks.  It also permits a small reduction in file size,
+because the compressor can choose dummy block contents so as to minimize their
+size in compressed form.  Finally, it makes the interface buffer specification
+independent of whether the file is actually interleaved or not.)  Applications
+that wish to deal directly with the downsampled data must provide similar
+buffering and padding for odd-sized images.
 
 
 *** Poor man's object-oriented programming ***
@@ -548,13 +548,9 @@ Arrays of pixel sample values use the following data structure:
     typedef JSAMPROW *JSAMPARRAY;       ptr to a list of rows
     typedef JSAMPARRAY *JSAMPIMAGE;     ptr to a list of color-component arrays
 
-The basic element type JSAMPLE will typically be one of unsigned char,
-(signed) char, or short.  Short will be used if samples wider than 8 bits are
-to be supported (this is a compile-time option).  Otherwise, unsigned char is
-used if possible.  If the compiler only supports signed chars, then it is
-necessary to mask off the value when reading.  Thus, all reads of JSAMPLE
-values must be coded as "GETJSAMPLE(value)", where the macro will be defined
-as "((value) & 0xFF)" on signed-char machines and "((int) (value))" elsewhere.
+The basic element type JSAMPLE will be one of unsigned char or short.  Short
+will be used if samples wider than 8 bits are to be supported (this is a
+compile-time option).  Otherwise, unsigned char is used.
 
 With these conventions, JSAMPLE values can be assumed to be >= 0.  This helps
 simplify correct rounding during downsampling, etc.  The JPEG standard's
@@ -587,7 +583,7 @@ we can read or write each component to a temporary file independently, which
 is helpful when dealing with noninterleaved JPEG files.
 
 In general, a specific sample value is accessed by code such as
-        GETJSAMPLE(image[colorcomponent][row][col])
+        image[colorcomponent][row][col]
 where col is measured from the image left edge, but row is measured from the
 first sample row currently in memory.  Either of the first two indexings can
 be precomputed by copying the relevant pointer.

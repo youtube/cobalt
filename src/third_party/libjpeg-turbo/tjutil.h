@@ -34,7 +34,7 @@
 #else
 #include <stdio.h>
 #define snprintf(str, n, format, ...) \
-  _snprintf_s(str, n, _TRUNCATE, format, __VA_ARGS__)
+  _snprintf_s(str, n, _TRUNCATE, format, ##__VA_ARGS__)
 #endif
 
 #endif

@@ -27,11 +27,7 @@ RUN apt update -qqy \
         libxrender-dev \
         libxcomposite-dev \
         libxi-dev \
-    && apt-get clean autoclean \
-    && apt-get autoremove -y --purge \
-    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* \
-    && rm -rf /var/lib/{apt,dpkg,cache,log} \
-    && echo "Done"
+    && /opt/clean-after-apt.sh
 
 CMD /code/cobalt/build/gyp_cobalt -v -C ${CONFIG} ${PLATFORM} && \
     ninja -v -j ${NINJA_PARALLEL} -C ${OUTDIR}/${PLATFORM}_${CONFIG} ${TARGET:-cobalt_deploy}

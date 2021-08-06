@@ -64,7 +64,7 @@ constexpr bool kForceSecurePipelineInTunnelModeWhenRequired = true;
 class AudioRendererSinkAndroid : public ::starboard::shared::starboard::player::
                                      filter::AudioRendererSinkImpl {
  public:
-  explicit AudioRendererSinkAndroid(bool enable_audio_routing,
+  explicit AudioRendererSinkAndroid(bool enable_audio_device_callback,
                                     int tunnel_mode_audio_session_id = -1)
       : AudioRendererSinkImpl(
             [=](SbTime start_media_time,
@@ -87,7 +87,8 @@ class AudioRendererSinkAndroid : public ::starboard::shared::starboard::player::
                   audio_frame_storage_type, frame_buffers,
                   frame_buffers_size_in_frames, update_source_status_func,
                   consume_frames_func, error_func, start_media_time,
-                  tunnel_mode_audio_session_id, enable_audio_routing, context);
+                  tunnel_mode_audio_session_id, enable_audio_device_callback,
+                  context);
             }) {}
 
  private:
@@ -182,9 +183,28 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
     return (value + alignment - 1) / alignment * alignment;
   }
 
+  static bool IsAudioDeviceCallbackEnabled(
+      const CreationParameters& creation_parameters) {
+    using starboard::shared::starboard::media::MimeType;
+
+    MimeType mime_type(creation_parameters.audio_mime());
+    auto enable_audio_device_callback_parameter_value =
+        mime_type.GetParamStringValue("enableaudiodevicecallback", "");
+    if (enable_audio_device_callback_parameter_value.empty() ||
+        enable_audio_device_callback_parameter_value == "true") {
+      SB_LOG(INFO) << "AudioDeviceCallback is enabled.";
+      return true;
+    }
+    SB_LOG(INFO) << "Mime attribute \"enableaudiodevicecallback\" is set to: "
+                 << enable_audio_device_callback_parameter_value
+                 << ". AudioDeviceCallback is disabled.";
+    return false;
+  }
+
   scoped_ptr<PlayerComponents> CreateComponents(
       const CreationParameters& creation_parameters,
       std::string* error_message) override {
+    using starboard::shared::starboard::media::MimeType;
     SB_DCHECK(error_message);
 
     if (creation_parameters.audio_codec() != kSbMediaAudioCodecAc3 &&
@@ -194,12 +214,21 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
                                                          error_message);
     }
 
+    MimeType audio_mime_type(creation_parameters.audio_mime());
+    if (audio_mime_type.GetParamStringValue("audiopassthrough", "") ==
+        "false") {
+      SB_LOG(INFO) << "Mime attribute \"audiopassthrough\" is set to: "
+                      "false. Passthrough is disabled.";
+      return scoped_ptr<PlayerComponents>();
+    }
+
     SB_LOG(INFO) << "Creating passthrough components.";
     // TODO: Enable tunnel mode for passthrough
     scoped_ptr<AudioRendererPassthrough> audio_renderer;
     audio_renderer.reset(new AudioRendererPassthrough(
         creation_parameters.audio_sample_info(),
-        GetExtendedDrmSystem(creation_parameters.drm_system())));
+        GetExtendedDrmSystem(creation_parameters.drm_system()),
+        IsAudioDeviceCallbackEnabled(creation_parameters)));
     if (!audio_renderer->is_valid()) {
       return scoped_ptr<PlayerComponents>();
     }
@@ -328,30 +357,20 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
           creation_parameters.audio_sample_info(),
           GetExtendedDrmSystem(creation_parameters.drm_system()),
           decoder_creator));
-      bool enable_audio_routing = true;
-      MimeType audio_mime_type(creation_parameters.audio_mime());
-      auto enable_audio_routing_parameter_value =
-          audio_mime_type.GetParamStringValue("enableaudiorouting", "");
-      if (enable_audio_routing_parameter_value.empty() ||
-          enable_audio_routing_parameter_value == "true") {
-        SB_LOG(INFO) << "AudioRouting is enabled.";
-      } else {
-        enable_audio_routing = false;
-        SB_LOG(INFO) << "Mime attribute \"enableaudiorouting\" is set to: "
-                     << enable_audio_routing_parameter_value
-                     << ". AudioRouting is disabled.";
-      }
+
+      bool enable_audio_device_callback =
+          IsAudioDeviceCallbackEnabled(creation_parameters);
       if (tunnel_mode_audio_session_id != -1) {
         *audio_renderer_sink = TryToCreateTunnelModeAudioRendererSink(
             tunnel_mode_audio_session_id, creation_parameters,
-            enable_audio_routing);
+            enable_audio_device_callback);
         if (!*audio_renderer_sink) {
           tunnel_mode_audio_session_id = -1;
         }
       }
       if (!*audio_renderer_sink) {
         audio_renderer_sink->reset(
-            new AudioRendererSinkAndroid(enable_audio_routing));
+            new AudioRendererSinkAndroid(enable_audio_device_callback));
       }
     }
 
@@ -523,9 +542,9 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
   scoped_ptr<AudioRendererSink> TryToCreateTunnelModeAudioRendererSink(
       int tunnel_mode_audio_session_id,
       const CreationParameters& creation_parameters,
-      bool enable_audio_routing) {
+      bool enable_audio_device_callback) {
     scoped_ptr<AudioRendererSink> audio_sink(new AudioRendererSinkAndroid(
-        enable_audio_routing, tunnel_mode_audio_session_id));
+        enable_audio_device_callback, tunnel_mode_audio_session_id));
     // We need to double check if the audio sink can actually be created.
     int max_cached_frames, min_frames_per_append;
     GetAudioRendererParams(creation_parameters, &max_cached_frames,

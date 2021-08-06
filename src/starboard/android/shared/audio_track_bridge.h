@@ -41,7 +41,7 @@ class AudioTrackBridge {
                    int channels,
                    int sampling_frequency_hz,
                    int preferred_buffer_size_in_bytes,
-                   bool enable_audio_routing,
+                   bool enable_audio_device_callback,
                    int tunnel_mode_audio_session_id);
   ~AudioTrackBridge();
 
@@ -79,7 +79,7 @@ class AudioTrackBridge {
   // updated on return.  It can be nullptr.
   int64_t GetPlaybackHeadPosition(SbTime* updated_at,
                                   JniEnvExt* env = JniEnvExt::Get());
-  bool GetAndResetHasNewAudioDeviceAdded(JniEnvExt* env = JniEnvExt::Get());
+  bool GetAndResetHasAudioDeviceChanged(JniEnvExt* env = JniEnvExt::Get());
   int GetUnderrunCount(JniEnvExt* env = JniEnvExt::Get());
 
  private:

@@ -14,20 +14,19 @@
 
 FROM cobalt-build-base
 
+# Using clang in the deps here to correctly resolve the appropriate libstdc++.
+# Previously this specifically pulled in libstdc++6-dev which is no longer
+# available since we updated the base image to Debian 10 / Buster.
 RUN apt update -qqy \
     && apt install -qqy --no-install-recommends \
-        libstdc++-6-dev \
+        clang \
         mesa-common-dev \
         libx11-dev \
         libxcomposite-dev \
         libxrender-dev \
         libasound2-dev \
-        libxml2 \
-    && apt-get clean autoclean \
-    && apt-get autoremove -y --purge \
-    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* \
-    && rm -rf /var/lib/{apt,dpkg,cache,log} \
-    && echo "Done"
+        libxml2-dev \
+    && /opt/clean-after-apt.sh
 
 CMD /code/cobalt/build/gyp_cobalt -v -C ${CONFIG} ${PLATFORM} && \
     ninja -v -j ${NINJA_PARALLEL} -C ${OUTDIR}/${PLATFORM}_${CONFIG} ${TARGET:-cobalt_deploy}

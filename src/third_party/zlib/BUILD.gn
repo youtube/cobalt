@@ -57,7 +57,9 @@ source_set("zlib_adler32_simd") {
     ]
     if (!is_debug) {
       # Use optimize_speed (-O3) to output the _smallest_ code.
-      configs -= [ "//build/config/compiler:default_optimization" ]
+      if(!is_starboard) {
+        configs -= [ "//build/config/compiler:default_optimization" ]
+      }
       configs += [ "//build/config/compiler:optimize_speed" ]
     }
   }
@@ -76,7 +78,7 @@ if (use_arm_neon_optimizations) {
     # Disabled for iPhone, as described in DDI0487C_a_armv8_arm:
     #  "All implementations of the ARMv8.1 architecture are required to
     #   implement the CRC32* instructions. These are optional in ARMv8.0."
-    if (!is_ios) {
+    if (!is_ios && arm_version >= 8) {
       defines = [ "CRC32_ARMV8_CRC32" ]
       if (is_android) {
         defines += [ "ARMV8_OS_ANDROID" ]
@@ -121,7 +123,9 @@ if (use_arm_neon_optimizations) {
       ]
 
       if (!is_debug) {
-        configs -= [ "//build/config/compiler:default_optimization" ]
+        if(!is_starboard) {
+          configs -= [ "//build/config/compiler:default_optimization" ]
+        }
         configs += [ "//build/config/compiler:optimize_speed" ]
       }
     }
@@ -174,7 +178,9 @@ source_set("zlib_inflate_chunk_simd") {
     if (use_arm_neon_optimizations && !is_debug) {
       # Here we trade better performance on newer/bigger ARMv8 cores
       # for less perf on ARMv7, per crbug.com/772870#c40
-      configs -= [ "//build/config/compiler:default_optimization" ]
+      if(!is_starboard) {
+        configs -= [ "//build/config/compiler:default_optimization" ]
+      }
       configs += [ "//build/config/compiler:optimize_speed" ]
     }
   }
@@ -312,7 +318,10 @@ component("zlib") {
       cflags_c += [ "-Wno-missing-braces" ]
       deps += [ ":zlib_crc32_simd" ]
     } else if (use_arm_neon_optimizations) {
-      sources += [ "contrib/optimizations/slide_hash_neon.h" ]
+      sources += [
+        "contrib/optimizations/slide_hash_neon.c",
+        "contrib/optimizations/slide_hash_neon.h",
+      ]
       deps += [ ":zlib_arm_crc32" ]
     }
   } else {

@@ -9,7 +9,7 @@ device. The package being built here is referred to as CoAT (Cobalt on Android T
 ## Preliminary Setup
 
 <aside class="note">
-<b>Note:</b> Before proceeding further, refer to the documentation for <a href="setup-linux.md">"Set up your environment - Linux"</a>. Complete the section **Set up your workstation**, then return and complete the following steps.
+<b>Note:</b> Before proceeding further, refer to the documentation for <a href="setup-linux.html">"Set up your environment - Linux"</a>. Complete the section **Set up your workstation**, then return and complete the following steps.
 </aside>
 
 1.  Additional build dependencies may need to be installed:
@@ -224,7 +224,9 @@ The test target itself (e.g. nplb) just builds an .so file (e.g. libnplb.so). To
 run that on a device, it needs to be packaged into an APK, which is done by the
 associated "deploy" target (e.g. nplb_deploy). The Starboard test runner does
 all this for you, so just use that to build and run tests. For example, to
-build and run "devel" NPLB on an ARM64 device, from the top 'src' directory:
+build and run "devel" NPLB on an ARM64 device, from the top 'src' directory
+(if you've unnested the 'src' directory, just run this from your top-level
+directory):
 
 ```
 starboard/tools/testing/test_runner.py -p android-arm64 -c devel -b -r -t nplb

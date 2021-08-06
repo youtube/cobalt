@@ -54,7 +54,7 @@ $ apt-get install -y libpulse-dev libasound2-dev libavformat-dev \
 ## Set up your workstation
 
 <aside class="note">
-<b>Note:</b> Before proceeding further, refer to the documentation for <a href="setup-linux.md">"Set up your environment - Linux"</a>. Complete the section **Set up your workstation**, then return and complete the following steps.
+<b>Note:</b> Before proceeding further, refer to the documentation for <a href="setup-linux.html">"Set up your environment - Linux"</a>. Complete the section **Set up your workstation**, then return and complete the following steps.
 </aside>
 
 The following steps install the cross-compiling toolchain on your workstation.
@@ -105,6 +105,11 @@ Raspberry Pi.
         ```
 
 ## Build, install, and run Cobalt for Raspberry Pi
+
+<aside class="note">
+<b>Note:</b> If you've unnested the 'src' directory, build and compile the code
+in your top-level checkout of Cobalt instead of the 'src' subdirectory.
+</aside>
 
 1.  Build the code by navigating to the src directory in your cobalt directory and run the
     following command :

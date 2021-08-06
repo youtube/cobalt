@@ -155,11 +155,11 @@ class EnduranceTest(TestCase):
       app.Resume()
 
     actions = {
-      'PlayPause': lambda _app: _app.PlayOrPause(),
-      'Fastforward': lambda _app: _app.Fastforward(),
-      'Rewind': lambda _app: _app.Rewind(),
-      'PlayPrevious': lambda _app: _app.PlayPrevious(),
-      'PlayNext': lambda _app: _app.PlayNext(),
+        'PlayPause': lambda _app: _app.PlayOrPause(),
+        'Fastforward': lambda _app: _app.Fastforward(),
+        'Rewind': lambda _app: _app.Rewind(),
+        'PlayPrevious': lambda _app: _app.PlayPrevious(),
+        'PlayNext': lambda _app: _app.PlayNext(),
     }
     if TestCase.IsFeatureSupported(Features.SUSPEND_AND_RESUME):
       actions['SuspendAndResume'] = SuspendAndResume
@@ -259,6 +259,6 @@ class EnduranceTest(TestCase):
         if current_running_time - self.last_action_time > IDLE_TIME_MAXIMUM:
           # Play the previous playback again.
           app.PlayPrevious()
-          self.playback_start_time = -1
+          self.last_action_time = current_running_time
 
       app.RemovePlayerStateChangeHandler(self.OnPlayerStateChanged)

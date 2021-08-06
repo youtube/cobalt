@@ -4,16 +4,19 @@
  * This file was part of the Independent JPEG Group's software:
  * Developed 1997-2015 by Guido Vollbeding.
  * libjpeg-turbo Modifications:
- * Copyright (C) 2015-2017, D. R. Commander.
+ * Copyright (C) 2015-2020, D. R. Commander.
  * For conditions of distribution and use, see the accompanying README.ijg
  * file.
  *
- * This file contains portable arithmetic entropy decoding routines for JPEG
- * (implementing the ISO/IEC IS 10918-1 and CCITT Recommendation ITU-T T.81).
+ * This file contains portable arithmetic entropy encoding routines for JPEG
+ * (implementing Recommendation ITU-T T.81 | ISO/IEC 10918-1).
  *
  * Both sequential and progressive modes are supported in this single module.
  *
  * Suspension is not currently supported in this module.
+ *
+ * NOTE: All referenced figures are from
+ * Recommendation ITU-T T.81 (1992) | ISO/IEC 10918-1:1994.
  */
 
 #define JPEG_INTERNALS
@@ -77,7 +80,7 @@ get_byte(j_decompress_ptr cinfo)
     if (!(*src->fill_input_buffer) (cinfo))
       ERREXIT(cinfo, JERR_CANT_SUSPEND);
   src->bytes_in_buffer--;
-  return GETJOCTET(*src->next_input_byte++);
+  return *src->next_input_byte++;
 }
 
 
@@ -662,8 +665,16 @@ bad:
     for (ci = 0; ci < cinfo->comps_in_scan; ci++) {
       int coefi, cindex = cinfo->cur_comp_info[ci]->component_index;
       int *coef_bit_ptr = &cinfo->coef_bits[cindex][0];
+      int *prev_coef_bit_ptr =
+        &cinfo->coef_bits[cindex + cinfo->num_components][0];
       if (cinfo->Ss && coef_bit_ptr[0] < 0) /* AC without prior DC scan */
         WARNMS2(cinfo, JWRN_BOGUS_PROGRESSION, cindex, 0);
+      for (coefi = MIN(cinfo->Ss, 1); coefi <= MAX(cinfo->Se, 9); coefi++) {
+        if (cinfo->input_scan_number > 1)
+          prev_coef_bit_ptr[coefi] = coef_bit_ptr[coefi];
+        else
+          prev_coef_bit_ptr[coefi] = 0;
+      }
       for (coefi = cinfo->Ss; coefi <= cinfo->Se; coefi++) {
         int expected = (coef_bit_ptr[coefi] < 0) ? 0 : coef_bit_ptr[coefi];
         if (cinfo->Ah != expected)
@@ -724,6 +735,7 @@ bad:
   entropy->c = 0;
   entropy->a = 0;
   entropy->ct = -16;    /* force reading 2 initial bytes to fill C */
+  entropy->pub.insufficient_data = FALSE;
 
   /* Initialize restart counter */
   entropy->restarts_to_go = cinfo->restart_interval;
@@ -760,7 +772,7 @@ jinit_arith_decoder(j_decompress_ptr cinfo)
     int *coef_bit_ptr, ci;
     cinfo->coef_bits = (int (*)[DCTSIZE2])
       (*cinfo->mem->alloc_small) ((j_common_ptr)cinfo, JPOOL_IMAGE,
-                                  cinfo->num_components * DCTSIZE2 *
+                                  cinfo->num_components * 2 * DCTSIZE2 *
                                   sizeof(int));
     coef_bit_ptr = &cinfo->coef_bits[0][0];
     for (ci = 0; ci < cinfo->num_components; ci++)

@@ -682,12 +682,6 @@ pools should be allocated on demand, as opposed to using SbMemory* functions.
 bool SbMediaIsBufferUsingMemoryPool()
 ```
 
-#### Declaration ####
-
-```
-bool SbMediaIsSupported(SbMediaVideoCodec video_codec, SbMediaAudioCodec audio_codec, const char *key_system)
-```
-
 ### SbMediaSetAudioWriteDuration ###
 
 Communicate to the platform how far past `current_playback_position` the app

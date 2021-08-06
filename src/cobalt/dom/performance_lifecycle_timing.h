@@ -31,7 +31,7 @@ class Performance;
 class PerformanceLifecycleTiming : public PerformanceEntry {
  public:
   PerformanceLifecycleTiming(const std::string& name,
-                             base::TimeTicks time_origin);
+                             const DOMHighResTimeStamp time_origin);
 
   // Web API.
   DOMHighResTimeStamp app_preload() const;
@@ -83,7 +83,7 @@ class PerformanceLifecycleTiming : public PerformanceEntry {
 
   LifecycleTimingInfo lifecycle_timing_info_;
 
-  base::TimeTicks time_origin_;
+  DOMHighResTimeStamp time_origin_;
 
   DISALLOW_COPY_AND_ASSIGN(PerformanceLifecycleTiming);
 };

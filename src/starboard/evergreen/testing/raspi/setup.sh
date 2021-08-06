@@ -17,7 +17,7 @@
 source $1/../pprint.sh
 source $1/run_command.sh
 
-CACHE_DIR="${HOME}/.cache/cobalt"
+CACHE_DIR="/home/pi/.cache/cobalt"
 CONTENT="/home/pi/coeg/content/app/cobalt/content"
 STORAGE_DIR="/home/pi/.cobalt_storage"
 STORAGE_DIR_TMPFS="${STORAGE_DIR}.tmpfs"

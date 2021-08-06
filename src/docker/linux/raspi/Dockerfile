@@ -28,11 +28,7 @@ RUN apt update -qqy \
         libxml2 \
         binutils-aarch64-linux-gnu \
         binutils-arm-linux-gnueabi \
-    && apt-get clean autoclean \
-    && apt-get autoremove -y --purge \
-    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* \
-    && rm -rf /var/lib/{apt,dpkg,cache,log} \
-    && echo "Done"
+    && /opt/clean-after-apt.sh
 
 # Get the combined toolchains package.
 RUN cd /tmp \

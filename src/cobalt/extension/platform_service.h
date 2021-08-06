@@ -42,7 +42,7 @@ static SB_C_INLINE bool CobaltExtensionPlatformServiceIsValid(
 
 // When a client receives a message from a service, the service will be passed
 // in as the |context| here, with |data|, which has length |length|.
-typedef void (*ReceiveMessageCallback)(void* context, void* data,
+typedef void (*ReceiveMessageCallback)(void* context, const void* data,
                                        uint64_t length);
 
 typedef struct CobaltExtensionPlatformServiceApi {

@@ -17,11 +17,8 @@ package dev.cobalt.media;
 import static dev.cobalt.media.Log.TAG;
 
 import android.media.AudioAttributes;
-import android.media.AudioDeviceInfo;
 import android.media.AudioFormat;
 import android.media.AudioManager;
-import android.media.AudioRouting;
-import android.media.AudioRouting.OnRoutingChangedListener;
 import android.media.AudioTimestamp;
 import android.media.AudioTrack;
 import android.os.Build;
@@ -30,8 +27,6 @@ import dev.cobalt.util.Log;
 import dev.cobalt.util.UsedByNative;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.util.Arrays;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * A wrapper of the android AudioTrack class. Android AudioTrack would not start playing until the
@@ -51,10 +46,6 @@ public class AudioTrackBridge {
   private ByteBuffer avSyncHeader;
   private int avSyncPacketBytesRemaining;
 
-  private AtomicBoolean newAudioDeviceAdded = new AtomicBoolean(false);
-  private AudioDeviceInfo currentRoutedDevice;
-  private OnRoutingChangedListener onRoutingChangedListener;
-
   private static int getBytesPerSample(int audioFormat) {
     switch (audioFormat) {
       case AudioFormat.ENCODING_PCM_16BIT:
@@ -73,10 +64,7 @@ public class AudioTrackBridge {
       int sampleRate,
       int channelCount,
       int preferredBufferSizeInBytes,
-      boolean enableAudioRouting,
       int tunnelModeAudioSessionId) {
-    // TODO: Re-enable audio routing when all related bugs are fixed.
-    enableAudioRouting = false;
 
     tunnelModeEnabled = tunnelModeAudioSessionId != -1;
     int channelConfig;
@@ -121,15 +109,15 @@ public class AudioTrackBridge {
               .build();
     } else {
       // TODO: Support ENCODING_E_AC3_JOC for api level 28 or later.
-      final boolean is_surrounding =
+      final boolean is_surround =
           sampleType == AudioFormat.ENCODING_AC3 || sampleType == AudioFormat.ENCODING_E_AC3;
-      // TODO: We start to enforce |CONTENT_TYPE_MOVIE| for surrounding playback, investigate if we
-      //       can use |CONTENT_TYPE_MOVIE| for all non-surrounding AudioTrack used by video
+      // TODO: We start to enforce |CONTENT_TYPE_MOVIE| for surround playback, investigate if we
+      //       can use |CONTENT_TYPE_MOVIE| for all non-surround AudioTrack used by video
       //       playback.
       attributes =
           new AudioAttributes.Builder()
               .setContentType(
-                  is_surrounding
+                  is_surround
                       ? AudioAttributes.CONTENT_TYPE_MOVIE
                       : AudioAttributes.CONTENT_TYPE_MUSIC)
               .setUsage(AudioAttributes.USAGE_MEDIA)
@@ -176,31 +164,6 @@ public class AudioTrackBridge {
             audioTrackBufferSize,
             preferredBufferSizeInBytes,
             AudioTrack.getMinBufferSize(sampleRate, channelConfig, sampleType)));
-    if (audioTrack != null && enableAudioRouting && Build.VERSION.SDK_INT >= 24) {
-      Log.i(TAG, "Audio routing enabled.");
-      currentRoutedDevice = audioTrack.getRoutedDevice();
-      onRoutingChangedListener =
-          new AudioRouting.OnRoutingChangedListener() {
-            @Override
-            public void onRoutingChanged(AudioRouting router) {
-              AudioDeviceInfo newRoutedDevice = router.getRoutedDevice();
-              if (currentRoutedDevice == null && newRoutedDevice != null) {
-                if (!areAudioDevicesEqual(currentRoutedDevice, newRoutedDevice)) {
-                  Log.v(
-                      TAG,
-                      String.format(
-                          "New audio device %s added to AudioTrackAudioSink.",
-                          newRoutedDevice.getProductName()));
-                  newAudioDeviceAdded.set(true);
-                }
-              }
-              currentRoutedDevice = newRoutedDevice;
-            }
-          };
-      audioTrack.addOnRoutingChangedListener(onRoutingChangedListener, null);
-    } else {
-      Log.i(TAG, "Audio routing disabled.");
-    }
   }
 
   public Boolean isAudioTrackValid() {
@@ -209,9 +172,6 @@ public class AudioTrackBridge {
 
   public void release() {
     if (audioTrack != null) {
-      if (Build.VERSION.SDK_INT >= 24 && onRoutingChangedListener != null) {
-        audioTrack.removeOnRoutingChangedListener(onRoutingChangedListener);
-      }
       audioTrack.release();
     }
     audioTrack = null;
@@ -423,27 +383,5 @@ public class AudioTrackBridge {
       return 0;
     }
     return audioTrack.getUnderrunCount();
-  }
-
-  @RequiresApi(23)
-  private boolean areAudioDevicesEqual(AudioDeviceInfo device1, AudioDeviceInfo device2) {
-    if (device1.getId() == device2.getId()
-        && device1.getType() == device2.getType()
-        && device1.getType() == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER) {
-      // This is a workaround for the emulator, which triggers an error callback when switching
-      // between devices with different hash codes that are otherwise identical.
-      return Arrays.equals(device1.getChannelCounts(), device2.getChannelCounts())
-          && Arrays.equals(device1.getChannelIndexMasks(), device2.getChannelIndexMasks())
-          && Arrays.equals(device1.getChannelMasks(), device2.getChannelMasks())
-          && Arrays.equals(device1.getEncodings(), device2.getEncodings())
-          && Arrays.equals(device1.getSampleRates(), device2.getSampleRates())
-          && device1.getProductName().equals(device2.getProductName());
-    }
-    return device1.equals(device2);
-  }
-
-  @UsedByNative
-  private boolean getAndResetHasNewAudioDeviceAdded() {
-    return newAudioDeviceAdded.getAndSet(false);
   }
 }
