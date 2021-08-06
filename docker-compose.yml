@@ -50,14 +50,14 @@ services:
     image: cobalt-base
     scale: 0
 
-  base-xenial:
+  base-bionic:
     build:
       args:
-        - BASE_OS=ubuntu
-        - BASE_OS_TAG=xenial
+        - BASE_OS=gcr.io/cloud-marketplace-containers/google/ubuntu1804
+        - BASE_OS_TAG=latest
       context: ./docker/linux
       dockerfile: base/Dockerfile
-    image: base-xenial
+    image: base-bionic
     scale: 0
 
   # Define common build container for Linux
@@ -70,15 +70,15 @@ services:
       - base
     scale: 0
 
-  build-base-xenial:
+  build-base-bionic:
     build:
       context: ./docker/linux
       dockerfile: base/build/Dockerfile
       args:
-        - FROM_IMAGE=base-xenial
-    image: build-base-xenial
+        - FROM_IMAGE=base-bionic
+    image: build-base-bionic
     depends_on:
-      - base-xenial
+      - base-bionic
     scale: 0
 
   stub:
@@ -129,17 +129,17 @@ services:
       PLATFORM: linux-x64x11
       CONFIG: ${CONFIG:-debug}
 
-  linux-x64x11-xenial:
+  linux-x64x11-bionic:
     <<: *common-definitions
     <<: *build-volumes
     build:
       context: ./docker/linux
       dockerfile: linux-x64x11/Dockerfile
       args:
-        - FROM_IMAGE=build-base-xenial
-    image: linux-x64x11-xenial
+        - FROM_IMAGE=build-base-bionic
+    image: linux-x64x11-bionic
     depends_on:
-      - build-base-xenial
+      - build-base-bionic
     scale: 0
 
   linux-x64x11-clang-3-9:
@@ -154,7 +154,7 @@ services:
       PLATFORM: linux-x64x11-clang-3-9
       CONFIG: ${CONFIG:-debug}
     depends_on:
-      - linux-x64x11-xenial
+      - linux-x64x11-bionic
 
   linux-x64x11-clang-3-9-prebuilt:
     <<: *common-definitions
