@@ -1,0 +1,10 @@
+import("//build/toolchain/gcc_toolchain.gni")
+
+raspi_home_dir = getenv("HOME")
+raspi_clang_base_path = "$raspi_home_dir/starboard-toolchains/x86_64-linux-gnu-clang-chromium-365097-f7e52fbd-8"
+raspi_toolchain_path = "$raspi_home_dir/raspi_tools/tools/arm-bcm2708/gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf/bin"
+
+gcc_toolchain_ar = "ar"
+gcc_toolchain_cc = "$raspi_toolchain_path/arm-linux-gnueabihf-gcc"
+gcc_toolchain_cxx = "$raspi_toolchain_path/arm-linux-gnueabihf-g++"
+gcc_toolchain_strip = "$raspi_toolchain_path/arm-linux-gnueabihf-strip"

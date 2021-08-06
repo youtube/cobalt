@@ -14,7 +14,11 @@
 
 static_library("starboard_platform") {
   check_includes = false
+  sources = [
+    "//starboard/raspi/shared/configuration.cc",
+    "//starboard/raspi/shared/configuration.h",
+    "//starboard/raspi/shared/system_get_extensions.cc",
+  ]
   configs += [ "//starboard/build/config:starboard_implementation" ]
-
   public_deps = [ "//starboard/raspi/shared:starboard_platform" ]
 }
