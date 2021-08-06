@@ -15,7 +15,8 @@
       ],
       'defines': [
         'BMP_SUPPORTED',
-        'PPM_SUPPORTED'
+        'PPM_SUPPORTED',
+        'MANGLE_JPEG_NAMES',
       ],
       'variables': {
         'no_simd_files': [
@@ -103,6 +104,57 @@
         #'jdatadst.c',
       ],
       'conditions': [
+        # arm processor specific optimizations.
+        ['target_arch == "arm" and arm_neon == 1 or target_arch == "arm64" and arm_neon == 1', {
+          'include_dirs': [
+            'simd/arm',
+          ],
+          'sources!': [
+            '<@(no_simd_files)'
+          ],
+          'sources': [
+            'simd/arm/jccolor-neon.c',
+            'simd/arm/jcgray-neon.c',
+            'simd/arm/jcphuff-neon.c',
+            'simd/arm/jcsample-neon.c',
+            'simd/arm/jdcolor-neon.c',
+            'simd/arm/jdmerge-neon.c',
+            'simd/arm/jdsample-neon.c',
+            'simd/arm/jfdctfst-neon.c',
+            'simd/arm/jfdctint-neon.c',
+            'simd/arm/jidctfst-neon.c',
+            'simd/arm/jidctint-neon.c',
+            'simd/arm/jidctred-neon.c',
+            'simd/arm/jquanti-neon.c',
+          ],
+          'defines': [
+            'WITH_SIMD',
+            'NEON_INTRINSICS',
+          ],
+          'conditions': [
+            ['target_arch == "arm"', {
+              'sources': [
+                'simd/arm/aarch32/jsimd.c',
+                'simd/arm/aarch32/jchuff-neon.c',
+              ],
+            }],
+            ['target_arch == "arm64"', {
+              'sources': [
+                'simd/arm/aarch64/jsimd.c',
+                'simd/arm/aarch64/jchuff-neon.c',
+              ],
+            }],
+            # For all Evergreen hardfp and softfp platforms.
+            ['floating_point_fpu=="vfpv3"', {
+              'cflags!': [
+                '-mfpu=<(floating_point_fpu)',
+              ],
+              'cflags': [
+                '-mfpu=neon-vfpv3',
+              ],
+            }],
+          ],
+        }],
         # x86_64 specific optimizations.
         ['<(yasm_exists) == 1 and target_arch == "x64"', {
           'sources!': [
