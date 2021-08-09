@@ -415,31 +415,12 @@ TEST_F(FilePathTest, IsAbsolute) {
     { FPL("c:/.."),  true },
     { FPL("C:/a"),   true },
     { FPL("d:/a"),   true },
-#elif defined(FILE_PATH_USES_MOUNT_POINT_NAME)
-    { FPL("/"),         false },
-    { FPL("/a"),        false },
-    { FPL("/."),        false },
-    { FPL("/.."),       false },
-    { FPL("ab:/."),     true  },
-    { FPL("ab:/"),      true  },
-    { FPL("ab:"),       false },
-    { FPL("b:"),        false },
-    { FPL("b:/"),       false },
-    { FPL("cache:/"),   true },
-    { FPL("rom:/"),     true },
-    { FPL("cache:/."),  true },
-    { FPL("rom:/."),    true },
-    { FPL("cache:/a"),  true },
-    { FPL("rom:/a"),    true },
-    { FPL("cache:/.."), true },
-    { FPL("rom:/.."),   true },
-#else  // !defined(FILE_PATH_USES_DRIVE_LETTERS) &&
-       // !defined(FILE_PATH_USES_MOUNT_POINT_NAME)
-    { FPL("/"),   true },
-    { FPL("/a"),  true },
-    { FPL("/."),  true },
-    { FPL("/.."), true },
-    { FPL("c:/"), false },
+#else  // FILE_PATH_USES_DRIVE_LETTERS
+    { FPL("/"),      true },
+    { FPL("/a"),     true },
+    { FPL("/."),     true },
+    { FPL("/.."),    true },
+    { FPL("c:/"),    false },
 #endif  // FILE_PATH_USES_DRIVE_LETTERS
 #if defined(FILE_PATH_USES_WIN_SEPARATORS)
     { FPL("a\\b"),   false },

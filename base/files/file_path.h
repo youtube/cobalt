@@ -118,20 +118,10 @@
 // enabled and disabled independently, to aid testing.  These #defines are
 // here so that the same setting can be used in both the implementation and
 // in the unit test.
-#if defined(OS_WIN) || SB_IS(COMPILER_MSVC) && !defined(NN_NINTENDO_SDK)
+#if defined(OS_WIN) || SB_IS(COMPILER_MSVC)
 #define FILE_PATH_USES_DRIVE_LETTERS
 #define FILE_PATH_USES_WIN_SEPARATORS
 #endif  // OS_WIN
-
-// The Nintendo platform has no drive letters similar to Window platform.
-// Nintendo platform use mount point names instead of drive letters, so in
-// the Nintendo case the paths are processed in the wrong way.
-// #define FILE_PATH_USES_MOUNT_POINT_NAME separates Nintendo platform dependent
-// code from Windows platform dependent code for correct mount points and paths
-// processing.
-#if defined(NN_NINTENDO_SDK)
-#define FILE_PATH_USES_MOUNT_POINT_NAME
-#endif
 
 // To print path names portably use PRFilePath (based on PRIuS and friends from
 // C99 and format_macros.h) like this:
