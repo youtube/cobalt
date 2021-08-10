@@ -270,7 +270,6 @@ class PlatformConfiguration(object):
         # Whether to build with clang's Thread Sanitizer instrumentation.
         'use_tsan':
             use_tsan,
-
         'javascript_engine':
             'v8',
 
@@ -286,8 +285,6 @@ class PlatformConfiguration(object):
         'cobalt_config':
             config_name,
         'cobalt_fastbuild':
-            0,
-        'custom_media_session_client':
             0,
         'enable_vr':
             0,
