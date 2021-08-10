@@ -50,6 +50,9 @@
 #include "starboard/client_porting/poem/string_poem.h"
 #include "starboard/configuration.h"
 #include "starboard/client_porting/poem/stdio_poem.h"
+
+#include "starboard/once.h"
+#include "starboard/thread.h"
 #else
 #include <stdio.h>
 #endif
@@ -70,9 +73,38 @@ extern void jpeg_mem_src_tj(j_decompress_ptr, const unsigned char *,
 /* Error handling (based on example in example.txt) */
 
 #if defined(STARBOARD)
-static char errStr[JMSG_LENGTH_MAX] = "No error";
+static SbThreadLocalKey g_err_key = kSbThreadLocalKeyInvalid;
+static SbOnceControl g_err_once = SB_ONCE_INITIALIZER;
+
+void initialize_err_key(void) {
+  g_err_key = SbThreadCreateLocalKey(SbMemoryDeallocate);
+  SB_DCHECK(SbThreadIsValidLocalKey(g_err_key));
+}
+
+char* errStr() {
+  SbOnce(&g_err_once, initialize_err_key);
+
+  char* value = (char*)(SbThreadGetLocalValue(g_err_key));
+
+  if (value) {
+    return value;
+  }
+
+  value = SbMemoryAllocate(sizeof(char) * JMSG_LENGTH_MAX);
+
+  SB_DCHECK(value);
+  SB_DCHECK(SbThreadSetLocalValue(g_err_key, value));
+
+  memset(value, 0, JMSG_LENGTH_MAX);
+  strcpy(value, "No error");
+
+  return value;
+}
+
+#define GET_ERRSTR errStr()
 #else
 static THREAD_LOCAL char errStr[JMSG_LENGTH_MAX] = "No error";
+#define GET_ERRSTR errStr
 #endif
 
 struct my_error_mgr {
@@ -101,7 +133,7 @@ static void my_error_exit(j_common_ptr cinfo)
 
 static void my_output_message(j_common_ptr cinfo)
 {
-  (*cinfo->err->format_message) (cinfo, errStr);
+  (*cinfo->err->format_message) (cinfo, GET_ERRSTR);
 }
 
 static void my_emit_message(j_common_ptr cinfo, int msg_level)
@@ -146,7 +178,7 @@ static void my_progress_monitor(j_common_ptr dinfo)
     if (scan_no > 500) {
       snprintf(myprog->this->errStr, JMSG_LENGTH_MAX,
                "Progressive JPEG image has more than 500 scans");
-      snprintf(errStr, JMSG_LENGTH_MAX,
+      snprintf(GET_ERRSTR, JMSG_LENGTH_MAX,
                "Progressive JPEG image has more than 500 scans");
       myprog->this->isInstanceError = TRUE;
       myerr->warning = FALSE;
@@ -209,13 +241,13 @@ static int cs2pf[JPEG_NUMCS] = {
 };
 
 #define THROWG(m) { \
-  snprintf(errStr, JMSG_LENGTH_MAX, "%s", m); \
+  snprintf(GET_ERRSTR, JMSG_LENGTH_MAX, "%s", m); \
   retval = -1;  goto bailout; \
 }
 #define THROW_UNIX(m) { \
   char message[512]; \
   SbSystemGetErrorString(errno, message, SB_ARRAY_SIZE_INT(message)); \
-  snprintf(errStr, JMSG_LENGTH_MAX, "%s\n%s", m, message); \
+  snprintf(GET_ERRSTR, JMSG_LENGTH_MAX, "%s\n%s", m, message); \
   retval = -1;  goto bailout; \
 }
 #define THROW(m) { \
@@ -234,7 +266,7 @@ static int cs2pf[JPEG_NUMCS] = {
   j_decompress_ptr dinfo = NULL; \
   \
   if (!this) { \
-    snprintf(errStr, JMSG_LENGTH_MAX, "Invalid handle"); \
+    snprintf(GET_ERRSTR, JMSG_LENGTH_MAX, "Invalid handle"); \
     return -1; \
   } \
   cinfo = &this->cinfo;  dinfo = &this->dinfo; \
@@ -246,7 +278,7 @@ static int cs2pf[JPEG_NUMCS] = {
   j_compress_ptr cinfo = NULL; \
   \
   if (!this) { \
-    snprintf(errStr, JMSG_LENGTH_MAX, "Invalid handle"); \
+    snprintf(GET_ERRSTR, JMSG_LENGTH_MAX, "Invalid handle"); \
     return -1; \
   } \
   cinfo = &this->cinfo; \
@@ -258,7 +290,7 @@ static int cs2pf[JPEG_NUMCS] = {
   j_decompress_ptr dinfo = NULL; \
   \
   if (!this) { \
-    snprintf(errStr, JMSG_LENGTH_MAX, "Invalid handle"); \
+    snprintf(GET_ERRSTR, JMSG_LENGTH_MAX, "Invalid handle"); \
     return -1; \
   } \
   dinfo = &this->dinfo; \
@@ -443,13 +475,13 @@ DLLEXPORT char *tjGetErrorStr2(tjhandle handle)
     this->isInstanceError = FALSE;
     return this->errStr;
   } else
-    return errStr;
+    return GET_ERRSTR;
 }
 
 
 DLLEXPORT char *tjGetErrorStr(void)
 {
-  return errStr;
+  return GET_ERRSTR;
 }
 
 
@@ -528,7 +560,7 @@ DLLEXPORT tjhandle tjInitCompress(void)
   tjinstance *this = NULL;
 
   if ((this = (tjinstance *)malloc(sizeof(tjinstance))) == NULL) {
-    snprintf(errStr, JMSG_LENGTH_MAX,
+    snprintf(GET_ERRSTR, JMSG_LENGTH_MAX,
              "tjInitCompress(): Memory allocation failure");
     return NULL;
   }
@@ -1200,7 +1232,7 @@ DLLEXPORT tjhandle tjInitDecompress(void)
   tjinstance *this;
 
   if ((this = (tjinstance *)malloc(sizeof(tjinstance))) == NULL) {
-    snprintf(errStr, JMSG_LENGTH_MAX,
+    snprintf(GET_ERRSTR, JMSG_LENGTH_MAX,
              "tjInitDecompress(): Memory allocation failure");
     return NULL;
   }
@@ -1284,7 +1316,7 @@ DLLEXPORT int tjDecompressHeader(tjhandle handle, unsigned char *jpegBuf,
 DLLEXPORT tjscalingfactor *tjGetScalingFactors(int *numscalingfactors)
 {
   if (numscalingfactors == NULL) {
-    snprintf(errStr, JMSG_LENGTH_MAX,
+    snprintf(GET_ERRSTR, JMSG_LENGTH_MAX,
              "tjGetScalingFactors(): Invalid argument");
     return NULL;
   }
@@ -1891,7 +1923,7 @@ DLLEXPORT tjhandle tjInitTransform(void)
   tjhandle handle = NULL;
 
   if ((this = (tjinstance *)malloc(sizeof(tjinstance))) == NULL) {
-    snprintf(errStr, JMSG_LENGTH_MAX,
+    snprintf(GET_ERRSTR, JMSG_LENGTH_MAX,
              "tjInitTransform(): Memory allocation failure");
     return NULL;
   }
