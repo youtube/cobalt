@@ -383,9 +383,7 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/starboard/media:media_util",
     "//starboard/shared/starboard/player/filter:filter_based_player_sources",
   ]
-  if (sb_is_evergreen_compatible) {
-    public_deps += [ "//starboard/elf_loader:evergreen_config" ]
-  }
+
   if (sb_is_evergreen_compatible && !sb_evergreen_compatible_enable_lite) {
     public_deps += [ "//starboard/loader_app:pending_restart" ]
   }
@@ -394,8 +392,16 @@ static_library("starboard_platform_sources") {
     "//third_party/libevent",
     "//third_party/opus",
   ]
+
   if (sb_evergreen_compatible_use_libunwind) {
     deps += [ "//third_party/llvm-project/libunwind:unwind_starboard" ]
+  }
+
+  if (sb_is_evergreen_compatible) {
+    public_deps += [ "//starboard/elf_loader:evergreen_config" ]
+    deps += [ "//third_party/crashpad/wrapper" ]
+  } else {
+    deps += [ "//third_party/crashpad/wrapper:wrapper_stub" ]
   }
 }
 
