@@ -14,39 +14,35 @@
 
 {
   'variables': {
-    'conditions': [
-      ['javascript_engine == "v8"', {
-        'generated_bindings_prefix': 'v8c',
-        'engine_include_dirs': [],
-        'engine_dependencies': [
-          '<(DEPTH)/third_party/v8/v8.gyp:v8',
-          '<(DEPTH)/third_party/v8/v8.gyp:v8_libplatform',
-          '<(DEPTH)/net/net.gyp:net',
-        ],
-        'engine_defines': [],
-        'engine_templates_dir': [
-          '<(DEPTH)/cobalt/bindings/v8c/templates',
-        ],
-        'engine_template_files': [
-          '<(DEPTH)/cobalt/bindings/v8c/templates/callback-interface.cc.template',
-          '<(DEPTH)/cobalt/bindings/v8c/templates/callback-interface.h.template',
-          '<(DEPTH)/cobalt/bindings/v8c/templates/dictionary-conversion.cc.template',
-          '<(DEPTH)/cobalt/bindings/v8c/templates/enumeration-conversion.cc.template',
-          '<(DEPTH)/cobalt/bindings/v8c/templates/generated-types.h.template',
-          '<(DEPTH)/cobalt/bindings/v8c/templates/interface.cc.template',
-          '<(DEPTH)/cobalt/bindings/v8c/templates/interface.h.template',
-          '<(DEPTH)/cobalt/bindings/v8c/templates/macros.cc.template',
-        ],
-        'engine_bindings_scripts': [
-          '<(DEPTH)/cobalt/bindings/v8c/code_generator_v8c.py',
-          '<(DEPTH)/cobalt/bindings/v8c/idl_compiler_v8c.py',
-          '<(DEPTH)/cobalt/bindings/v8c/generate_conversion_header_v8c.py',
-        ],
-        'engine_idl_compiler':
-            '<(DEPTH)/cobalt/bindings/v8c/idl_compiler_v8c.py',
-        'engine_conversion_header_generator_script':
-            '<(DEPTH)/cobalt/bindings/v8c/generate_conversion_header_v8c.py',
-      }],
+    'generated_bindings_prefix': 'v8c',
+    'engine_include_dirs': [],
+    'engine_dependencies': [
+      '<(DEPTH)/third_party/v8/v8.gyp:v8',
+      '<(DEPTH)/third_party/v8/v8.gyp:v8_libplatform',
+      '<(DEPTH)/net/net.gyp:net',
     ],
+    'engine_defines': [],
+    'engine_templates_dir': [
+      '<(DEPTH)/cobalt/bindings/v8c/templates',
+    ],
+    'engine_template_files': [
+      '<(DEPTH)/cobalt/bindings/v8c/templates/callback-interface.cc.template',
+      '<(DEPTH)/cobalt/bindings/v8c/templates/callback-interface.h.template',
+      '<(DEPTH)/cobalt/bindings/v8c/templates/dictionary-conversion.cc.template',
+      '<(DEPTH)/cobalt/bindings/v8c/templates/enumeration-conversion.cc.template',
+      '<(DEPTH)/cobalt/bindings/v8c/templates/generated-types.h.template',
+      '<(DEPTH)/cobalt/bindings/v8c/templates/interface.cc.template',
+      '<(DEPTH)/cobalt/bindings/v8c/templates/interface.h.template',
+      '<(DEPTH)/cobalt/bindings/v8c/templates/macros.cc.template',
+    ],
+    'engine_bindings_scripts': [
+      '<(DEPTH)/cobalt/bindings/v8c/code_generator_v8c.py',
+      '<(DEPTH)/cobalt/bindings/v8c/idl_compiler_v8c.py',
+      '<(DEPTH)/cobalt/bindings/v8c/generate_conversion_header_v8c.py',
+    ],
+    'engine_idl_compiler':
+        '<(DEPTH)/cobalt/bindings/v8c/idl_compiler_v8c.py',
+    'engine_conversion_header_generator_script':
+        '<(DEPTH)/cobalt/bindings/v8c/generate_conversion_header_v8c.py',
   },
 }

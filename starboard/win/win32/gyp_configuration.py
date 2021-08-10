@@ -164,8 +164,6 @@ class WinWin32PlatformConfig(gyp_configuration.Win32SharedConfiguration):
         # during build step.
         # This is important for being able to run binaries in within docker.
         'deploy_dlls': deploy_dlls,
-        # These variables will tell gyp to compile with V8.
-        'javascript_engine': 'v8',
         'visual_studio_toolset': vs_version.DefaultToolset()[1:],
     })
     return variables

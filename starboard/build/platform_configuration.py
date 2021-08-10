@@ -270,8 +270,6 @@ class PlatformConfiguration(object):
         # Whether to build with clang's Thread Sanitizer instrumentation.
         'use_tsan':
             use_tsan,
-        'javascript_engine':
-            'v8',
 
         # If the path to the Starboard ABI file is able to be formatted, it will
         # be using the experimental Starboard API version of the file, i.e.

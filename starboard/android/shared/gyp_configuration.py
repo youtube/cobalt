@@ -106,8 +106,6 @@ class AndroidConfiguration(PlatformConfiguration):
             self.android_abi,
         'include_path_platform_deploy_gypi':
             'starboard/android/shared/platform_deploy.gypi',
-        'javascript_engine':
-            'v8',
     })
     return variables
 

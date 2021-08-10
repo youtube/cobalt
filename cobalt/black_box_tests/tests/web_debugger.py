@@ -224,8 +224,6 @@ class WebDebuggerTest(black_box_tests.BlackBoxTestCase):
   def setUp(self):
     platform_vars = self.platform_config.GetVariables(
         self.launcher_params.config)
-    if platform_vars['javascript_engine'] != 'v8':
-      self.skipTest('DevTools requires V8')
 
     cobalt_vars = self.cobalt_config.GetVariables(self.launcher_params.config)
     if not cobalt_vars['enable_debugger']:
