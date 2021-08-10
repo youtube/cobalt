@@ -1471,7 +1471,6 @@ void BrowserModule::Conceal(SbTimeMonotonic timestamp) {
   DCHECK(application_state_ == base::kApplicationStateBlurred);
   application_state_ = base::kApplicationStateConcealed;
   ConcealInternal(timestamp);
-  OnMaybeFreeze();
 }
 
 void BrowserModule::Focus(SbTimeMonotonic timestamp) {
@@ -1824,7 +1823,7 @@ void BrowserModule::UnfreezeInternal(SbTimeMonotonic timestamp) {
 }
 
 void BrowserModule::OnMaybeFreeze() {
-  TRACE_EVENT0("cobalt::browser", "BrowserModule::MaybeFreeze()");
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::OnMaybeFreeze()");
   if (base::MessageLoop::current() != self_message_loop_) {
     self_message_loop_->task_runner()->PostTask(
         FROM_HERE,
@@ -1846,6 +1845,7 @@ void BrowserModule::OnMaybeFreeze() {
       web_module_ready_to_freeze &&
       application_state_ == base::kApplicationStateConcealed) {
 #if SB_API_VERSION >= 13
+    DLOG(INFO) << "System request to freeze the app.";
     SbSystemRequestFreeze();
 #endif  // SB_API_VERSION >= 13
   }

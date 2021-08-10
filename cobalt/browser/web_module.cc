@@ -1202,6 +1202,11 @@ void WebModule::Impl::Conceal(
 
   loader_factory_->UpdateResourceProvider(resource_provider_);
   SetApplicationState(base::kApplicationStateConcealed, timestamp);
+
+  if (window_->media_session()->media_session_client() != NULL) {
+    window_->media_session()->media_session_client()
+        ->PostDelayedTaskForMaybeFreezeCallback();
+  }
 }
 
 void WebModule::Impl::Freeze(SbTimeMonotonic timestamp) {
