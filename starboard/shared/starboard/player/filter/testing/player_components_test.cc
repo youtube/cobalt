@@ -541,7 +541,7 @@ TEST_P(PlayerComponentsTest, EOSWithoutInput) {
   // ASSERT_LE(std::abs(GetMediaTime()), 100 * kSbTimeMillisecond);
 }
 
-TEST_P(PlayerComponentsTest, FLAKY_Pause) {
+TEST_P(PlayerComponentsTest, Pause) {
   Seek(0);
   ASSERT_NO_FATAL_FAILURE(WriteDataUntilPrerolled());
   Play();

@@ -45,10 +45,15 @@ class Androidx86Configuration(shared_configuration.AndroidConfiguration):
           'SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.*',
           'SbMediaSetAudioWriteDurationTests/SbMediaSetAudioWriteDurationTest'
           '.WriteContinuedLimitedInput/*',
+          'SbMediaSetAudioWriteDurationTests/SbMediaSetAudioWriteDurationTest'
+          '.WriteLimitedInput/*',
       ],
       'player_filter_tests': [
           'AudioDecoderTests/*',
           'VideoDecoderTests/*',
+
+          'PlayerComponentsTests/PlayerComponentsTest.Preroll/*',
+          'PlayerComponentsTests/PlayerComponentsTest.Pause/*',
 
           'PlayerComponentsTests/PlayerComponentsTest.*/2',
           'PlayerComponentsTests/PlayerComponentsTest.*/4',
