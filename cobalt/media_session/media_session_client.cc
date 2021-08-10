@@ -175,6 +175,15 @@ MediaSessionClient::ComputeAvailableActions() const {
   return result;
 }
 
+void MediaSessionClient::PostDelayedTaskForMaybeFreezeCallback() {
+  if (is_active()) return;
+
+  media_session_->task_runner_->PostDelayedTask(
+      FROM_HERE, base::Bind(&MediaSessionClient::RunMaybeFreezeCallback,
+                            base::Unretained(this), ++sequence_number_),
+                            kMaybeFreezeDelay);
+}
+
 void MediaSessionClient::UpdatePlatformPlaybackState(
     CobaltExtensionMediaSessionPlaybackState state) {
   DCHECK(media_session_->task_runner_);
@@ -190,12 +199,7 @@ void MediaSessionClient::UpdatePlatformPlaybackState(
     UpdateMediaSessionState();
   }
 
-  if (!is_active()) {
-    media_session_->task_runner_->PostDelayedTask(
-        FROM_HERE, base::Bind(&MediaSessionClient::RunMaybeFreezeCallback,
-                              base::Unretained(this), ++sequence_number_),
-                              kMaybeFreezeDelay);
-  }
+  PostDelayedTaskForMaybeFreezeCallback();
 }
 
 void MediaSessionClient::RunMaybeFreezeCallback(int sequence_number) {

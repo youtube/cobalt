@@ -95,9 +95,8 @@ class MediaSessionClient {
     media_session_ = media_session;
   }
 
-  // If the media session is not active, then run MaybeFreezeCallback to
-  // suspend the App.
-  void RunMaybeFreezeCallback(int sequence_number);
+  // Post a delayed task for running MaybeFreeze callback.
+  void PostDelayedTaskForMaybeFreezeCallback();
 
  private:
   THREAD_CHECKER(thread_checker_);
@@ -134,6 +133,10 @@ class MediaSessionClient {
       MediaSessionAction action);
   MediaSessionAction ConvertMediaSessionAction(
       CobaltExtensionMediaSessionAction action);
+
+  // If the media session is not active, then run MaybeFreezeCallback to
+  // suspend the App.
+  void RunMaybeFreezeCallback(int sequence_number);
 
   base::Closure maybe_freeze_callback_;
 
