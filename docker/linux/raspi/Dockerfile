@@ -24,13 +24,6 @@ ENV RASPI_HOME=${raspi_home}
 RUN apt update -qqy \
     && apt install -qqy --no-install-recommends \
         g++-multilib \
-        clang \
-        mesa-common-dev \
-        libx11-dev \
-        libxcomposite-dev \
-        libxrender-dev \
-        libasound2-dev \
-        libxml2-dev \
         bzip2 \
         libxml2 \
         binutils-aarch64-linux-gnu \
