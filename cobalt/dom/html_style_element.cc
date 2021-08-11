@@ -79,9 +79,8 @@ void HTMLStyleElement::Process() {
 
   base::Optional<std::string> content = text_content();
   const std::string& text = content.value_or(base::EmptyString());
-  if (bypass_csp || text.empty() ||
-      csp_delegate->AllowInline(CspDelegate::kStyle, inline_style_location_,
-                                text)) {
+  if (bypass_csp || csp_delegate->AllowInline(CspDelegate::kStyle,
+                                              inline_style_location_, text)) {
     scoped_refptr<cssom::CSSStyleSheet> css_style_sheet =
         document->html_element_context()->css_parser()->ParseStyleSheet(
             text, inline_style_location_);
