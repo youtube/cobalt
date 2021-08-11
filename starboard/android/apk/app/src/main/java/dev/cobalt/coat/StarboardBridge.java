@@ -250,7 +250,6 @@ public class StarboardBridge {
   @UsedByNative
   public void requestStop(int errorLevel) {
     if (!starboardStopped) {
-      Log.i(TAG, "Request to stop");
       nativeStopApp(errorLevel);
     }
   }
@@ -262,7 +261,6 @@ public class StarboardBridge {
   public void requestSuspend() {
     Activity activity = activityHolder.get();
     if (activity != null) {
-      Log.i(TAG, "Request to suspend");
       activity.finish();
     }
   }
