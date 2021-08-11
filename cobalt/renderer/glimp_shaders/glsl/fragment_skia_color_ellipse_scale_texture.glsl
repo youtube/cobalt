@@ -27,7 +27,7 @@ highp     vec4 sk_FragCoord = vec4(gl_FragCoord.x, u_skRTHeight - gl_FragCoord.y
         highp float implicit = dot(Z, d) - 1.0;
         highp float grad_dot = 4.0 * dot(Z, Z);
         {
-            grad_dot = max(grad_dot, 6.1036000261083245e-05);
+            grad_dot = max(grad_dot, 6.103600026108325e-05);
         }
         highp float approx_dist = implicit * inversesqrt(grad_dot);
         {

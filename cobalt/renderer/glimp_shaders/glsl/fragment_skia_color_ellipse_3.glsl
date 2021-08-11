@@ -18,7 +18,7 @@ void main() {
         highp vec2 grad = vec2(vEllipseOffsets0_Stage0.x * duvdx.x + vEllipseOffsets0_Stage0.y * duvdx.y, vEllipseOffsets0_Stage0.x * duvdy.x + vEllipseOffsets0_Stage0.y * duvdy.y);
         grad *= vEllipseOffsets0_Stage0.z;
         highp float grad_dot = 4.0 * dot(grad, grad);
-        grad_dot = max(grad_dot, 6.1036000261083245e-05);
+        grad_dot = max(grad_dot, 6.103600026108325e-05);
         highp float invlen = inversesqrt(grad_dot);
         invlen *= vEllipseOffsets0_Stage0.z;
         highp float edgeAlpha = clamp(0.5 - test * invlen, 0.0, 1.0);
