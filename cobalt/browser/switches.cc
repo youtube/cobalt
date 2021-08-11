@@ -175,6 +175,24 @@ const char kUserAgentHelp[] =
     "'network_operator'_'device_type'_'chipset_model_number'_'model_year'/"
     "'firmware_version' ('brand', 'model', 'connection_type') 'aux_field'\".";
 
+const char kUserAgentClientHints[] = "user_agent_client_hints";
+const char kUserAgentClientHintsHelp[] =
+    "Specify custom user agent client hints for device simulations. "
+    "Configure user agent fields in a string delimited by semicolon ';'. "
+    "If semicolon is expected to be in value of any user agent field, "
+    "escape the semicolon by prefixing it with backslash '\\'. "
+    "Empty field value is allowed. "
+    "Example: "
+    "--user_agent_client_hints=\"device_type=GAME;"
+    "os_name_and_version=Linux armeabi-v7a\\; Android 7.1.2;evergreen_type=\" "
+    "The 18 supported UA fields for overriding are: aux_field, brand, "
+    "build_configuration, chipset_model_number, cobalt_build_version_number, "
+    "cobalt_build_version_number, connection_type, device_type, "
+    "evergreen_type,evergreen_version, firmware_version, "
+    "javascript_engine_version, model, model_year, "
+    "original_design_manufacturer, os_name_and_version, starboard_version, "
+    "rasterizer_type";
+
 const char kUserAgentOsNameVersion[] = "user_agent_os_name_version";
 const char kUserAgentOsNameVersionHelp[] =
     "Specifies a custom 'os_name_and_version' user agent field with otherwise "
@@ -441,6 +459,7 @@ std::string HelpMessage() {
         {kStubImageDecoder, kStubImageDecoderHelp},
         {kSuspendFuzzer, kSuspendFuzzerHelp}, {kTimedTrace, kTimedTraceHelp},
         {kUserAgent, kUserAgentHelp},
+        {kUserAgentClientHints, kUserAgentClientHintsHelp},
         {kUserAgentOsNameVersion, kUserAgentOsNameVersionHelp},
         {kUseTTS, kUseTTSHelp}, {kWebDriverListenIp, kWebDriverListenIpHelp},
         {kWebDriverPort, kWebDriverPortHelp},

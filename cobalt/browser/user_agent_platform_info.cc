@@ -14,6 +14,7 @@
 
 #include "cobalt/browser/user_agent_platform_info.h"
 
+#include <map>
 #include <memory>
 
 #include "base/command_line.h"
@@ -37,48 +38,144 @@
 namespace cobalt {
 namespace browser {
 
-namespace {
+void GetUserAgentInputMap(
+    const std::string& user_agent_input,
+    std::map<std::string, std::string>& user_agent_input_map) {
+  struct state {
+    std::string field{""};
+    std::string value{""};
+    bool field_value_delimiter_found{false};
 
-std::string CreateDeviceTypeString(SbSystemDeviceType device_type) {
-  switch (device_type) {
-    case kSbSystemDeviceTypeBlueRayDiskPlayer:
-      return "BDP";
-    case kSbSystemDeviceTypeGameConsole:
-      return "GAME";
-    case kSbSystemDeviceTypeOverTheTopBox:
-      return "OTT";
-    case kSbSystemDeviceTypeSetTopBox:
-      return "STB";
-    case kSbSystemDeviceTypeTV:
-      return "TV";
-    case kSbSystemDeviceTypeAndroidTV:
-      return "ATV";
-    case kSbSystemDeviceTypeDesktopPC:
-      return "DESKTOP";
-    case kSbSystemDeviceTypeUnknown:
-      return "UNKNOWN";
-    default:
-      NOTREACHED();
-      return "UNKNOWN";
+    void reset() {
+      field.clear();
+      value.clear();
+      field_value_delimiter_found = false;
+    }
+  } current_state;
+
+  char escape_char = '\\';
+  char override_delimit_char = ';';
+  char field_value_delimit_char = '=';
+  bool prev_is_escape_char = false;
+
+  for (auto cur_char : user_agent_input) {
+    if (cur_char == override_delimit_char) {
+      if (prev_is_escape_char) {
+        if (!current_state.value.empty() &&
+            current_state.value.back() == escape_char) {  // escape delimiter
+                                                          // found in value.
+
+          current_state.value.back() = override_delimit_char;
+        } else {  // not a valid case for field, reset
+          current_state.reset();
+        }
+      } else {
+        if (current_state.field_value_delimiter_found) {  // valid field value
+                                                          // pair found.
+          user_agent_input_map[current_state.field] = current_state.value;
+        }  // else, in current captured override, field_value_delimit_char
+           // is not found, invalid.
+        current_state.reset();
+      }
+    } else if (cur_char == field_value_delimit_char) {
+      if (current_state.field.empty()) {  // field is not found when encounter
+                                          // field_value_delimit_char,
+                                          // invalid.
+        current_state.reset();
+      } else {
+        current_state.field_value_delimiter_found =
+            true;  // a field is found, next char is expected to be value
+      }
+    } else {
+      if (current_state.field_value_delimiter_found) {
+        current_state.value.push_back(cur_char);
+      } else {
+        current_state.field.push_back(cur_char);
+      }
+    }
+    if (cur_char == escape_char) {
+      prev_is_escape_char = true;
+    } else {
+      prev_is_escape_char = false;
+    }
+  }
+  if (current_state.field_value_delimiter_found) {
+    user_agent_input_map[current_state.field] = current_state.value;
   }
 }
 
-const char kUnspecifiedConnectionTypeName[] = "UnspecifiedConnectionType";
+namespace {
+
+struct DeviceTypeName {
+  SbSystemDeviceType device_type;
+  char device_type_string[8];
+};
+
+const DeviceTypeName kDeviceTypeStrings[] = {
+    {kSbSystemDeviceTypeBlueRayDiskPlayer, "BDP"},
+    {kSbSystemDeviceTypeGameConsole, "GAME"},
+    {kSbSystemDeviceTypeOverTheTopBox, "OTT"},
+    {kSbSystemDeviceTypeSetTopBox, "STB"},
+    {kSbSystemDeviceTypeTV, "TV"},
+    {kSbSystemDeviceTypeAndroidTV, "ATV"},
+    {kSbSystemDeviceTypeDesktopPC, "DESKTOP"},
+    {kSbSystemDeviceTypeUnknown, "UNKNOWN"}};
+
+std::string CreateDeviceTypeString(SbSystemDeviceType device_type) {
+  for (auto& map : kDeviceTypeStrings) {
+    if (map.device_type == device_type) {
+      return std::string(map.device_type_string);
+    }
+  }
+  NOTREACHED();
+  return "UNKNOWN";
+}
+
+#if !defined(COBALT_BUILD_TYPE_GOLD)
+SbSystemDeviceType GetDeviceType(std::string device_type_string) {
+  for (auto& map : kDeviceTypeStrings) {
+    if (!SbStringCompareNoCase(map.device_type_string,
+                               device_type_string.c_str())) {
+      return map.device_type;
+    }
+  }
+  return kSbSystemDeviceTypeUnknown;
+}
+#endif
+
+struct ConnectionTypeName {
+  SbSystemConnectionType connection_type;
+  char connection_type_string[26];
+};
+
+const ConnectionTypeName kConnectionTypeStrings[] = {
+    {kSbSystemConnectionTypeWired, "Wired"},
+    {kSbSystemConnectionTypeWireless, "Wireless"},
+    {kSbSystemConnectionTypeUnknown, "UnspecifiedConnectionType"}};
 
 std::string CreateConnectionTypeString(
     const base::Optional<SbSystemConnectionType>& connection_type) {
   if (connection_type) {
-    switch (*connection_type) {
-      case kSbSystemConnectionTypeWired:
-        return "Wired";
-      case kSbSystemConnectionTypeWireless:
-        return "Wireless";
-      case kSbSystemConnectionTypeUnknown:
-        return kUnspecifiedConnectionTypeName;
+    for (auto& map : kConnectionTypeStrings) {
+      if (map.connection_type == connection_type) {
+        return std::string(map.connection_type_string);
+      }
     }
   }
-  return kUnspecifiedConnectionTypeName;
+  return "UnspecifiedConnectionType";
 }
+
+#if !defined(COBALT_BUILD_TYPE_GOLD)
+SbSystemConnectionType GetConnectionType(std::string connection_type_string) {
+  for (auto& map : kConnectionTypeStrings) {
+    if (!SbStringCompareNoCase(map.connection_type_string,
+                               connection_type_string.c_str())) {
+      return map.connection_type;
+    }
+  }
+  return kSbSystemConnectionTypeUnknown;
+}
+#endif
 
 static bool isAsciiAlphaDigit(int c) {
   return base::IsAsciiAlpha(c) || base::IsAsciiDigit(c);
@@ -141,7 +238,6 @@ base::Optional<std::string> Sanitize(base::Optional<std::string> str,
   }
   return base::Optional<std::string>(clean);
 }
-
 
 // Function that will query Starboard and populate a UserAgentPlatformInfo
 // object based on those results.  This is de-coupled from
@@ -269,8 +365,85 @@ void InitializeUserAgentPlatformInfoFields(UserAgentPlatformInfo& info) {
 
   // Connection type
   info.set_connection_type(SbSystemGetConnectionType());
-}
 
+// Apply overrides from command line
+#if !defined(COBALT_BUILD_TYPE_GOLD)
+  if (base::CommandLine::InitializedForCurrentProcess()) {
+    base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
+    if (command_line->HasSwitch(switches::kUserAgentClientHints)) {
+      LOG(INFO) << "Entering UA overrides";
+      std::string user_agent_input =
+          command_line->GetSwitchValueASCII(switches::kUserAgentClientHints);
+
+      std::map<std::string, std::string> user_agent_input_map;
+      GetUserAgentInputMap(user_agent_input, user_agent_input_map);
+
+      for (const auto& input : user_agent_input_map) {
+        LOG(INFO) << "Overriding " << input.first << " to " << input.second;
+
+        if (!input.first.compare("starboard_version")) {
+          info.set_starboard_version(input.second);
+          LOG(INFO) << "Set starboard version to " << input.second;
+        } else if (!input.first.compare("os_name_and_version")) {
+          info.set_os_name_and_version(input.second);
+          LOG(INFO) << "Set os name and version to " << input.second;
+        } else if (!input.first.compare("original_design_manufacturer")) {
+          info.set_original_design_manufacturer(input.second);
+          LOG(INFO) << "Set original design manufacturer to " << input.second;
+        } else if (!input.first.compare("device_type")) {
+          info.set_device_type(GetDeviceType(input.second));
+          LOG(INFO) << "Set device type to " << input.second;
+        } else if (!input.first.compare("chipset_model_number")) {
+          info.set_chipset_model_number(input.second);
+          LOG(INFO) << "Set chipset model to " << input.second;
+        } else if (!input.first.compare("model_year")) {
+          info.set_model_year(input.second);
+          LOG(INFO) << "Set model year to " << input.second;
+        } else if (!input.first.compare("firmware_version")) {
+          info.set_firmware_version(input.second);
+          LOG(INFO) << "Set firmware version to " << input.second;
+        } else if (!input.first.compare("brand")) {
+          info.set_brand(input.second);
+          LOG(INFO) << "Set brand to " << input.second;
+        } else if (!input.first.compare("model")) {
+          info.set_model(input.second);
+          LOG(INFO) << "Set model to " << input.second;
+        } else if (!input.first.compare("aux_field")) {
+          info.set_aux_field(input.second);
+          LOG(INFO) << "Set aux field to " << input.second;
+        } else if (!input.first.compare("connection_type")) {
+          info.set_connection_type(GetConnectionType(input.second));
+          LOG(INFO) << "Set connection type to " << input.second;
+        } else if (!input.first.compare("javascript_engine_version")) {
+          info.set_javascript_engine_version(input.second);
+          LOG(INFO) << "Set javascript engine version to " << input.second;
+        } else if (!input.first.compare("rasterizer_type")) {
+          info.set_rasterizer_type(input.second);
+          LOG(INFO) << "Set rasterizer type to " << input.second;
+        } else if (!input.first.compare("evergreen_type")) {
+          info.set_evergreen_type(input.second);
+          LOG(INFO) << "Set evergreen type to " << input.second;
+        } else if (!input.first.compare("evergreen_version")) {
+          info.set_evergreen_version(input.second);
+          LOG(INFO) << "Set evergreen version to " << input.second;
+        } else if (!input.first.compare("cobalt_version")) {
+          info.set_cobalt_version(input.second);
+          LOG(INFO) << "Set cobalt type to " << input.second;
+        } else if (!input.first.compare("cobalt_build_version_number")) {
+          info.set_cobalt_build_version_number(input.second);
+          LOG(INFO) << "Set cobalt build version to " << input.second;
+        } else if (!input.first.compare("build_configuration")) {
+          info.set_build_configuration(input.second);
+          LOG(INFO) << "Set build configuration to " << input.second;
+        } else {
+          LOG(WARNING) << "Unsupported user agent field: " << input.first;
+        }
+      }
+    }
+  }
+
+#endif
+}
 }  // namespace
 
 UserAgentPlatformInfo::UserAgentPlatformInfo() {
