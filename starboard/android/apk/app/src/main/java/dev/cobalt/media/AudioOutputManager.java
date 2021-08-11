@@ -97,6 +97,11 @@ public class AudioOutputManager implements CobaltMediaSession.UpdateVolumeListen
                       || info.getType() == AudioDeviceInfo.TYPE_HDMI)) {
                 // TODO: Avoid destroying the AudioTrack if the new devices can support the current
                 // AudioFormat.
+                Log.v(
+                    TAG,
+                    String.format(
+                        "Setting |hasAudioDeviceChanged| to true for audio device %s, %s.",
+                        info.getProductName(), getDeviceTypeNameV23(info.getType())));
                 hasAudioDeviceChanged.set(true);
                 break;
               }
@@ -105,6 +110,11 @@ public class AudioOutputManager implements CobaltMediaSession.UpdateVolumeListen
 
           @Override
           public void onAudioDevicesAdded(AudioDeviceInfo[] addedDevices) {
+            Log.v(
+                TAG,
+                String.format(
+                    "onAudioDevicesAdded() called, |initialDevicesAdded| is: %b.",
+                    initialDevicesAdded));
             if (initialDevicesAdded) {
               handleConnectedDeviceChange(addedDevices);
               return;
@@ -114,6 +124,7 @@ public class AudioOutputManager implements CobaltMediaSession.UpdateVolumeListen
 
           @Override
           public void onAudioDevicesRemoved(AudioDeviceInfo[] removedDevices) {
+            Log.v(TAG, "onAudioDevicesRemoved() called.");
             handleConnectedDeviceChange(removedDevices);
           }
         },
