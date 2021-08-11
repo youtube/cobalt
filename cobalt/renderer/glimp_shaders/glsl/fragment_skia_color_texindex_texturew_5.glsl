@@ -18,10 +18,10 @@ void main() {
         {
             texColor = texture2D(uTextureSampler_0_Stage0, uv).wwww;
         }
-        mediump float distance = 7.96875 * (texColor.x - 0.50196081399917603);
+        mediump float distance = 7.96875 * (texColor.x - 0.501960813999176);
         mediump float afwidth;
         mediump float st_grad_len = length(-dFdy(vIntTextureCoords_Stage0));
-        afwidth = abs(0.64999997615814209 * st_grad_len);
+        afwidth = abs(0.6499999761581421 * st_grad_len);
         mediump float val = smoothstep(-afwidth, afwidth, distance);
         outputCoverage_Stage0 = vec4(val);
     }
