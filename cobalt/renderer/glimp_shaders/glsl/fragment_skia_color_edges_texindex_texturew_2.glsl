@@ -21,9 +21,9 @@ highp     vec4 sk_FragCoord = vec4(gl_FragCoord.x, u_skRTHeight - gl_FragCoord.y
         {
             texColor = texture2D(uTextureSampler_0_Stage0, uv).wwww;
         }
-        mediump float distance = 7.96875 * (texColor.x - 0.50196081399917603);
+        mediump float distance = 7.96875 * (texColor.x - 0.501960813999176);
         mediump float afwidth;
-        afwidth = abs(0.64999997615814209 * -dFdy(vIntTextureCoords_Stage0.y));
+        afwidth = abs(0.6499999761581421 * -dFdy(vIntTextureCoords_Stage0.y));
         mediump float val = smoothstep(-afwidth, afwidth, distance);
         outputCoverage_Stage0 = vec4(val);
     }
