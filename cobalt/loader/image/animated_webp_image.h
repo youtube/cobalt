@@ -63,6 +63,9 @@ class AnimatedWebPImage : public AnimatedImage {
 
   void AppendChunk(const uint8* data, size_t input_byte);
 
+  // Returns the render image of the frame for debugging
+  scoped_refptr<render_tree::Image> GetFrameForDebugging(int target_frame);
+
  private:
   ~AnimatedWebPImage() override;
 
