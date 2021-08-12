@@ -57,14 +57,16 @@ class MockImageDecoder : public Decoder {
   void ExpectCallWithError(const base::Optional<std::string>& error);
 
  protected:
+  std::unique_ptr<render_tree::ResourceProviderStub> resource_provider_stub_;
   render_tree::ResourceProvider* resource_provider_;
   base::NullDebuggerHooks debugger_hooks_;
   ::testing::StrictMock<MockImageDecoderCallback> image_decoder_callback_;
   std::unique_ptr<Decoder> image_decoder_;
 };
 
-MockImageDecoder::MockImageDecoder() {
-  resource_provider_ = new render_tree::ResourceProviderStub();
+MockImageDecoder::MockImageDecoder()
+    : resource_provider_stub_(new render_tree::ResourceProviderStub()),
+      resource_provider_(resource_provider_stub_.get()) {
   image_decoder_.reset(new ImageDecoder(
       resource_provider_, debugger_hooks_,
       base::Bind(&MockImageDecoderCallback::SuccessCallback,
