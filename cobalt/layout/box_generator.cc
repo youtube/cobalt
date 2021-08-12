@@ -626,7 +626,7 @@ void ContainerBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
 
       container_box_ = base::WrapRefCounted(new InlineContainerBox(
           css_computed_style_declaration_, context_->used_style_provider,
-          context_->layout_stat_tracker));
+          context_->layout_stat_tracker, (*paragraph_)->base_direction()));
       break;
     // Generate an inline-level block container box. The inside of
     // an inline-block is formatted as a block box, and the element itself

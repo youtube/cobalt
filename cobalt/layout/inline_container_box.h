@@ -39,13 +39,18 @@ class InlineContainerBox : public ContainerBox {
   InlineContainerBox(const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
                          css_computed_style_declaration,
                      UsedStyleProvider* used_style_provider,
-                     LayoutStatTracker* layout_stat_tracker);
+                     LayoutStatTracker* layout_stat_tracker,
+                     BaseDirection base_direction);
   ~InlineContainerBox() override;
 
   // From |Box|.
   Level GetLevel() const override;
 
   void UpdateContentSizeAndMargins(const LayoutParams& layout_params) override;
+
+  void UpdateBorders() override;
+
+  void UpdatePaddings(const LayoutParams& layout_params) override;
 
   WrapResult TryWrapAt(WrapAtPolicy wrap_at_policy,
                        WrapOpportunityPolicy wrap_opportunity_policy,
@@ -76,6 +81,8 @@ class InlineContainerBox : public ContainerBox {
   LayoutUnit GetBaselineOffsetFromTopMarginEdge() const override;
   LayoutUnit GetInlineLevelBoxHeight() const override;
   LayoutUnit GetInlineLevelTopMargin() const override;
+  void SetIsSplitOnLeft(bool is_split_on_left);
+  void SetIsSplitOnRight(bool is_split_on_right);
 
   // From |ContainerBox|.
   bool TryAddChild(const scoped_refptr<Box>& child_box) override;
@@ -135,6 +142,11 @@ class InlineContainerBox : public ContainerBox {
 
   // A font used for text width and line height calculations.
   const scoped_refptr<dom::FontList> used_font_;
+
+  bool is_split_on_left_;
+  bool is_split_on_right_;
+
+  BaseDirection base_direction_;
 
   // A reference to the next inline container box in a linked list of inline
   // container boxes produced from splits of the initial text box. This enables

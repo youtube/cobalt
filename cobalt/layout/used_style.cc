@@ -722,7 +722,7 @@ std::pair<math::PointF, math::PointF> LinearGradientPointsFromAngle(
 
 // The specifications indicate that if positions are not specified for color
 // stops, then they should be filled in automatically by evenly spacing them
-// between the two neighbooring color stops that DO have positions specified.
+// between the two neighboring color stops that DO have positions specified.
 // This function implements this.  It assumes that unspecified position values
 // are indicated by a value of -1.0f.
 void InterpolateUnspecifiedColorStopPositions(
@@ -1706,8 +1706,7 @@ base::Optional<LayoutUnit> GetUsedBottomIfNotAuto(
 //   https://www.w3.org/TR/css-flexbox-1/#flex-basis-property
 base::Optional<LayoutUnit> GetUsedFlexBasisIfNotContent(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style,
-    bool main_direction_is_horizontal,
-    LayoutUnit main_space,
+    bool main_direction_is_horizontal, LayoutUnit main_space,
     bool* flex_basis_depends_on_available_space) {
   // Percentage values of flex-basis are resolved against the flex item's
   // containing block (i.e. its flex container).
@@ -1861,30 +1860,26 @@ base::Optional<LayoutUnit> GetUsedMarginBottomIfNotAuto(
 
 LayoutUnit GetUsedBorderLeft(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style) {
-  return LayoutUnit(base::polymorphic_downcast<const cssom::LengthValue*>(
-                        computed_style->border_left_width().get())
-                        ->value());
+  return LayoutUnit(
+      GetUsedNonNegativeLength(computed_style->border_left_width()));
 }
 
 LayoutUnit GetUsedBorderTop(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style) {
-  return LayoutUnit(base::polymorphic_downcast<const cssom::LengthValue*>(
-                        computed_style->border_top_width().get())
-                        ->value());
+  return LayoutUnit(
+      GetUsedNonNegativeLength(computed_style->border_top_width()));
 }
 
 LayoutUnit GetUsedBorderRight(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style) {
-  return LayoutUnit(base::polymorphic_downcast<const cssom::LengthValue*>(
-                        computed_style->border_right_width().get())
-                        ->value());
+  return LayoutUnit(
+      GetUsedNonNegativeLength(computed_style->border_right_width()));
 }
 
 LayoutUnit GetUsedBorderBottom(
     const scoped_refptr<const cssom::CSSComputedStyleData>& computed_style) {
-  return LayoutUnit(base::polymorphic_downcast<const cssom::LengthValue*>(
-                        computed_style->border_bottom_width().get())
-                        ->value());
+  return LayoutUnit(
+      GetUsedNonNegativeLength(computed_style->border_bottom_width()));
 }
 
 LayoutUnit GetUsedPaddingLeft(
