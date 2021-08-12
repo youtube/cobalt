@@ -14,10 +14,16 @@
 
 package dev.cobalt.coat;
 
+import static dev.cobalt.util.Log.TAG;
+
+import dev.cobalt.util.Log;
 import dev.cobalt.util.UsedByNative;
 
 /** Abstract class that provides an interface for Cobalt to interact with a platform service. */
 public abstract class CobaltService {
+  // Indicate is the service opened, and be able to send data to client
+  protected boolean opened = true;
+
   /** Interface that returns an object that extends CobaltService. */
   public interface Factory {
     /** Create the service. */
@@ -59,14 +65,41 @@ public abstract class CobaltService {
   @UsedByNative
   public abstract ResponseToClient receiveFromClient(byte[] data);
 
-  /** Close the service. */
+  /**
+   * Close the service.
+   *
+   * <p>Once this function returns, it is invalid to call sendToClient for the nativeService, so
+   * synchronization must be used to protect against this.
+   */
   @SuppressWarnings("unused")
   @UsedByNative
+  public void onClose() {
+    synchronized (this) {
+      opened = false;
+      close();
+    }
+  }
+
   public abstract void close();
 
-  /** Send data from the service to the client. */
+  /**
+   * Send data from the service to the client.
+   *
+   * <p>This may be called from a separate thread, do not call nativeSendToClient() once onClose()
+   * is processed.
+   */
   protected void sendToClient(long nativeService, byte[] data) {
-    nativeSendToClient(nativeService, data);
+    synchronized (this) {
+      if (!opened) {
+        Log.w(
+            TAG,
+            "Platform service did not send data to client, because client already closed the"
+                + " platform service.");
+        return;
+      }
+
+      nativeSendToClient(nativeService, data);
+    }
   }
 
   private native void nativeSendToClient(long nativeService, byte[] data);
