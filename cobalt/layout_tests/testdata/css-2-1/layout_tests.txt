@@ -182,6 +182,9 @@
 9-4-2-inline-boxes-should-split-at-br-elements
 9-4-2-long-inline-boxes-should-be-split
 9-4-2-margin-should-not-overflow-line-box
+9-4-2-margins-borders-paddings-should-have-no-visual-effect-when-bidi-split-occurs
+9-4-2-margins-borders-paddings-should-have-no-visual-effect-when-split-occurs
+9-4-2-margins-borders-paddings-should-have-no-visual-effect-when-split-occurs-2
 9-4-2-multiple-inline-boxes-exceeding-width-of-line-box-should-be-split
 9-4-2-nested-inline-boxes-should-split-at-br-elements
 9-4-2-splitting-of-boxes-can-affect-containing-box-of-children
