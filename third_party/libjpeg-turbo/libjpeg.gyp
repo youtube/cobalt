@@ -150,7 +150,7 @@
                 '-mfpu=<(floating_point_fpu)',
               ],
               'cflags': [
-                '-mfpu=neon-vfpv3',
+                '-mfpu=neon',
               ],
             }],
           ],
