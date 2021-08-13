@@ -203,6 +203,21 @@ databases by using [format_ninja.py](../../../tools/format_ninja.py) and a
 comparison tool, i.e. [meld](https://meldmerge.org/). This will allow you to see
 any changes in commands, i.e. with flags or otherwise.
 
+The name of the intermediate .o, .d files is different in both cases: this
+doesn't cause any issues. Keep this in mind while comparing the ninja flags for
+GYP vs GN. Here is an example for raspi2 while compiling the same source file
+```
+starboard/common/new.cc
+```
+GYP generates:
+```
+obj/starboard/common/common.new.cc.o
+```
+GN generates:
+```
+obj/starboard/common/common/new.o
+```
+
 ### Validating a Platform
 
 Checking that an entire platform has been migrated successfully is slightly more
@@ -213,6 +228,12 @@ dependencies) then work your way up to building the `all` target.
 
 You can use the same comparison method of using `format_ninja.py` as discussed
 [in the section above](#validating-a-target).
+
+### Step by Step Stub to Your Platform Migration Guide
+
+This [document](../gn_migrate_stub_to_platform.md) outlines a step by step
+process for converting the stub platform's GN files to GN files that will be
+able to be built for your platform.
 
 [cobalt_porting_guide]: https://cobalt.dev/starboard/porting.html
 [gn_check_tool]: https://cobalt.googlesource.com/third_party/gn/+/refs/heads/main/docs/reference.md#cmd_check
