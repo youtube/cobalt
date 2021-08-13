@@ -87,7 +87,10 @@ Performance::Performance(script::EnvironmentSettings* settings,
       base::DefaultClock::GetInstance(), tick_clock_);
   lifecycle_timing_ = base::MakeRefCounted<PerformanceLifecycleTiming>(
       "lifecycle timing", time_origin());
+  // Queue lifecycle timing.
   QueuePerformanceEntry(lifecycle_timing_);
+  // Add lifecycle timing to the performance entry buffer.
+  performance_entry_buffer_.push_back(lifecycle_timing_);
 }
 
 // static
