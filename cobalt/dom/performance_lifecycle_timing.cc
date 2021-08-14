@@ -44,11 +44,8 @@ namespace {
       const DOMHighResTimeStamp time_origin, SbTimeMonotonic monotonic_time) {
     SbTimeMonotonic time_delta = SbTimeGetNow() - SbTimeGetMonotonicNow();
     base::Time base_time = base::Time::FromSbTime(time_delta + monotonic_time);
-    base::TimeTicks time_ticks =
-        base::TimeTicks::FromInternalValue(static_cast<int64_t>(
-            base_time.ToJsTime()));
-    return ClampTimeStampMinimumResolution(time_ticks,
-        Performance::kPerformanceTimerMinResolutionInMicroseconds) - time_origin;
+    return ClampTimeStampMinimumResolution(base_time.ToJsTime() - time_origin,
+        Performance::kPerformanceTimerMinResolutionInMicroseconds);
   }
 
 }  // namespace
