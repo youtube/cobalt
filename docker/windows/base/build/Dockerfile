@@ -69,3 +69,11 @@ COPY .boto /Users/ContainerAdministrator/.boto
 COPY download_from_gcs.ps1 /download_from_gcs.ps1
 ADD https://storage.googleapis.com/pub/gsutil.zip /gsutil.zip
 RUN powershell Expand-Archive -Force C:\gsutil.zip C:\gsutil
+
+# Set some git defaults to ensure local checkouts of code are configured to
+# build and run unittests (if needed).
+RUN git config --global core.autocrlf false
+RUN git config --global core.symlinks false
+RUN git config --global core.filemode false
+RUN git config --global core.preloadindex true
+RUN git config --global core.fscache true
