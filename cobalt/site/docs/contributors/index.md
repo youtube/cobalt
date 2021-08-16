@@ -52,7 +52,7 @@ The following steps explain the submission process:
 *  Ensure you or your company have signed the appropriate CLA as discussed
    in the [Before You Contribute](#before-you-contribute) section above.
 *  Rebase your changes down into a single git commit.
-*  Run `git cl upload` to upload the review to
+*  Run `git push origin HEAD:refs/for/master` to upload the review to
    [Cobalt's Gerrit instance](https://cobalt-review.googlesource.com/).
 *  Someone from the maintainers team reviews the code, adding comments on
    any things that need to change before the code can be submitted.

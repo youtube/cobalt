@@ -53,7 +53,7 @@ code for review before merging changes into the Cobalt master tree.
   1. Run `git clang-format HEAD~` to apply default C++ formatting rules,
      followed by `git commit -a --amend` to squash any formatting changes
      into your commit.
-  1. Run `git cl upload` to upload the review to
+  1. Run `git push origin HEAD:refs/for/master` to upload the review to
      [Cobalt's Gerrit instance](https://cobalt-review.googlesource.com/).
   1. Someone from the maintainers team will review the code, putting up comments
      on any things that need to change for submission.
@@ -62,4 +62,3 @@ code for review before merging changes into the Cobalt master tree.
   1. If you do not need to make any more changes, a maintainer will integrate
      the change into our private repository, and it will get pushed out to the
      public repository after some time.
-
