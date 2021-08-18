@@ -15,12 +15,14 @@
 #include <cmath>
 #include <deque>
 #include <functional>
+#include <memory>
 #include <numeric>
 #include <queue>
 
 #include "starboard/common/mutex.h"
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/configuration_constants.h"
+#include "starboard/directory.h"
 #include "starboard/shared/starboard/media/media_support_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/player_components.h"
