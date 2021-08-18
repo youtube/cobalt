@@ -18,6 +18,8 @@ group("starboard_platform") {
 }
 
 static_library("starboard_platform_sources") {
+  check_includes = false
+
   sources = [
     "//starboard/linux/shared/atomic_public.h",
     "//starboard/linux/shared/configuration_constants.cc",
