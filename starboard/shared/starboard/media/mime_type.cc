@@ -307,14 +307,14 @@ bool MimeType::RegisterStringParameter(const char* name,
   // Compare the parameter value with the provided pattern.
   const std::string& param_value = GetParamStringValue(param_index);
   bool matches = false;
-  int match_start = 0;
+  size_t match_start = 0;
   while (!matches) {
     match_start = pattern.find(param_value, match_start);
     if (match_start == std::string::npos) {
       break;
     }
 
-    int match_end = match_start + param_value.length();
+    size_t match_end = match_start + param_value.length();
     matches =
         // Matches if the match is at the start of the string or
         // if the preceding character is the divider _and_
@@ -330,8 +330,7 @@ bool MimeType::RegisterStringParameter(const char* name,
   }
 
   SB_LOG(INFO) << "Extended Parameter '" << name << "=" << param_value
-                << "' does not match the supplied pattern: '" << pattern
-                << "'";
+               << "' does not match the supplied pattern: '" << pattern << "'";
   is_valid_ = false;
   return false;
 }
@@ -345,8 +344,7 @@ int MimeType::GetParamIndexByName(const char* name) const {
   return kInvalidParamIndex;
 }
 
-bool MimeType::RegisterParameter(const char* name,
-                                 ParamType param_type) {
+bool MimeType::RegisterParameter(const char* name, ParamType param_type) {
   if (!is_valid()) {
     return false;
   }
