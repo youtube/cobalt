@@ -21,12 +21,15 @@
 
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"
+#include "starboard/file.h"
 #include "starboard/linux/shared/decode_target_internal.h"
 
 // Inhibit C++ name-mangling for libjpeg functions.
 extern "C" {
-#include "third_party/libjpeg/jpeglib.h"
-#include "third_party/libjpeg/jpegint.h"
+// clang-format off
+#include "third_party/libjpeg-turbo/jpeglib.h"
+#include "third_party/libjpeg-turbo/jpegint.h"
+// clang-format on
 }
 
 namespace starboard {
@@ -274,7 +277,7 @@ SbDecodeTarget Decode(SbDecodeTargetGraphicsContextProvider* context_provider,
   jmp_buf jump_buffer;
   info.client_data = &jump_buffer;
 
-  // int setjmp(jmp_buf env) saves the current environment (ths program state),
+  // int setjmp(jmp_buf env) saves the current environment (this program state),
   // at some point of program execution, into a platform-specific data
   // structure (jmp_buf) that can be used at some later point of program
   // execution by longjmp to restore the program state to that saved by setjmp

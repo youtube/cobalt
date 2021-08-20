@@ -16,7 +16,6 @@
       'defines': [
         'BMP_SUPPORTED',
         'PPM_SUPPORTED',
-        'MANGLE_JPEG_NAMES',
       ],
       'variables': {
         'no_simd_files': [
