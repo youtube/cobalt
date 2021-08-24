@@ -15,6 +15,7 @@
 #include "cobalt/dom/font_list.h"
 
 #include "base/i18n/char_iterator.h"
+#include "cobalt/base/unicode/character_values.h"
 #include "cobalt/dom/font_cache.h"
 
 namespace cobalt {
@@ -23,6 +24,19 @@ namespace dom {
 namespace {
 
 const base::char16 kHorizontalEllipsisValue = 0x2026;
+
+bool CharInRange(
+    const std::set<FontFaceStyleSet::Entry::UnicodeRange>& unicode_range,
+    uint32 utf32_character) {
+  if (unicode_range.empty()) return true;
+  for (const auto& range : unicode_range) {
+    if (range.start > utf32_character) break;
+    if ((range.start <= utf32_character) && (utf32_character <= range.end)) {
+      return true;
+    }
+  }
+  return false;
+}
 
 }  // namespace
 
@@ -40,18 +54,34 @@ FontList::FontList(FontCache* font_cache, const FontListKey& font_list_key)
           font_cache_->GetCharacterFallbackTypefaceMap(style_)) {
   // Add all of the family names to the font list fonts.
   for (size_t i = 0; i < font_list_key.family_names.size(); ++i) {
-    fonts_.push_back(FontListFont(font_list_key.family_names[i]));
+    FontListFont font = FontListFont(font_list_key.family_names[i]);
+    font.faces =
+        font_cache_->GetFacesForFamilyAndStyle(font.family_name, style_);
+    fonts_.push_back(font);
   }
 
   // Add an empty font at the end in order to fall back to the default typeface.
-  fonts_.push_back(FontListFont(""));
+  FontListFont default_font = FontListFont("");
+  FontFace* default_face = new FontFace();
+  default_font.faces = std::vector<FontFace*>{default_face};
+  fonts_.push_back(default_font);
+}
+
+FontList::~FontList() {
+  for (FontListFont font : fonts_) {
+    for (FontFace* face : font.faces) {
+      delete face;
+    }
+  }
 }
 
 void FontList::Reset() {
   for (size_t i = 0; i < fonts_.size(); ++i) {
     FontListFont& font_list_font = fonts_[i];
-    font_list_font.set_state(FontListFont::kUnrequestedState);
-    font_list_font.set_font(NULL);
+    for (auto face : font_list_font.faces) {
+      face->state = FontFace::kUnrequestedState;
+      face->font = NULL;
+    }
   }
 
   primary_font_ = NULL;
@@ -69,20 +99,22 @@ void FontList::ResetLoadingFonts() {
   for (size_t i = 0; i < fonts_.size(); ++i) {
     FontListFont& font_list_font = fonts_[i];
 
-    if (font_list_font.state() == FontListFont::kLoadingWithTimerActiveState ||
-        font_list_font.state() == FontListFont::kLoadingWithTimerExpiredState) {
-      font_list_font.set_state(FontListFont::kUnrequestedState);
-      // If a loaded font hasn't been found yet, then the cached values need to
-      // be reset. It'll potentially change the primary font.
-      if (!found_loaded_font) {
-        primary_font_ = NULL;
-        is_font_metrics_set_ = false;
-        is_space_width_set_ = false;
-        is_ellipsis_info_set_ = false;
-        ellipsis_font_ = NULL;
+    for (auto face : font_list_font.faces) {
+      if (face->state == FontFace::kLoadingWithTimerActiveState ||
+          face->state == FontFace::kLoadingWithTimerExpiredState) {
+        face->state = FontFace::kUnrequestedState;
+        // If a loaded font hasn't been found yet, then the cached values need
+        // to be reset. It'll potentially change the primary font.
+        if (!found_loaded_font) {
+          primary_font_ = NULL;
+          is_font_metrics_set_ = false;
+          is_space_width_set_ = false;
+          is_ellipsis_info_set_ = false;
+          ellipsis_font_ = NULL;
+        }
+      } else if (face->state == FontFace::kLoadedState) {
+        found_loaded_font = true;
       }
-    } else if (font_list_font.state() == FontListFont::kLoadedState) {
-      found_loaded_font = true;
     }
   }
 }
@@ -97,8 +129,10 @@ bool FontList::IsVisible() const {
     // display text, simply leaving transparent text is considered
     // non-conformant behavior."
     //   https://www.w3.org/TR/css3-fonts/#font-face-loading
-    if (fonts_[i].state() == FontListFont::kLoadingWithTimerActiveState) {
-      return false;
+    for (auto face : fonts_[i].faces) {
+      if (face->state == FontFace::kLoadingWithTimerActiveState) {
+        return false;
+      }
     }
   }
 
@@ -197,15 +231,20 @@ const scoped_refptr<render_tree::Font>& FontList::GetCharacterFont(
   for (size_t i = 0; i < fonts_.size(); ++i) {
     FontListFont& font_list_font = fonts_[i];
 
-    if (font_list_font.state() == FontListFont::kUnrequestedState) {
-      RequestFont(i);
-    }
+    for (FontFace* face : font_list_font.faces) {
+      const FontFaceStyleSet::Entry* entry = face->entry;
+      if (entry && !CharInRange(entry->unicode_range, utf32_character)) {
+        continue;
+      }
+      if (face->state == FontFace::kUnrequestedState) {
+        RequestFont(i, face);
+      }
 
-    if (font_list_font.state() == FontListFont::kLoadedState) {
-      *glyph_index =
-          font_list_font.font()->GetGlyphForCharacter(utf32_character);
-      if (*glyph_index != render_tree::kInvalidGlyphIndex) {
-        return font_list_font.font();
+      if (face->state == FontFace::kLoadedState) {
+        *glyph_index = face->font->GetGlyphForCharacter(utf32_character);
+        if (*glyph_index != render_tree::kInvalidGlyphIndex) {
+          return face->font;
+        }
       }
     }
   }
@@ -241,18 +280,27 @@ const scoped_refptr<render_tree::Font>& FontList::GetPrimaryFont() {
   // time to do it now.
   if (!primary_font_) {
     // Walk the list of fonts, requesting any encountered that are in an
-    // unrequested state. The first font encountered that is loaded is
-    // the primary font.
+    // unrequested state. The first font encountered that is loaded and whose
+    // unicode range includes the space character is the primary font.
+    // https://www.w3.org/TR/css-fonts-4/#first-available-font
     for (size_t i = 0; i < fonts_.size(); ++i) {
       FontListFont& font_list_font = fonts_[i];
 
-      if (font_list_font.state() == FontListFont::kUnrequestedState) {
-        RequestFont(i);
-      }
+      for (FontFace* face : font_list_font.faces) {
+        const FontFaceStyleSet::Entry* entry = face->entry;
+        if (entry && !CharInRange(entry->unicode_range,
+                                  base::unicode::kSpaceCharacter)) {
+          continue;
+        }
+        if (face->state == FontFace::kUnrequestedState) {
+          RequestFont(i, face);
+        }
 
-      if (font_list_font.state() == FontListFont::kLoadedState) {
-        primary_font_ = font_list_font.font();
-        break;
+        if (face->state == FontFace::kLoadedState) {
+          primary_font_ = face->font;
+          DCHECK(primary_font_);
+          return primary_font_;
+        }
       }
     }
   }
@@ -261,40 +309,41 @@ const scoped_refptr<render_tree::Font>& FontList::GetPrimaryFont() {
   return primary_font_;
 }
 
-void FontList::RequestFont(size_t index) {
+void FontList::RequestFont(size_t index, FontFace* used_face) {
   FontListFont& font_list_font = fonts_[index];
-  FontListFont::State state;
+  FontFace::State state;
 
   // Request the font from the font cache; the state of the font will be set
   // during the call.
   scoped_refptr<render_tree::Font> render_tree_font = font_cache_->TryGetFont(
-      font_list_font.family_name(), style_, size_, &state);
+      font_list_font.family_name, style_, size_, &state, used_face->entry);
 
-  if (state == FontListFont::kLoadedState) {
+  if (state == FontFace::kLoadedState) {
     DCHECK(render_tree_font.get() != NULL);
 
     // Walk all of the fonts in the list preceding the loaded font. If they have
-    // the same typeface as the loaded font, then set the font list font as a
-    // duplicate. There's no reason to have multiple fonts in the list with the
-    // same typeface.
+    // the same typeface as the loaded font, then do not create a new face.
+    // There's no reason to have multiple fonts in the list with the same
+    // typeface.
     render_tree::TypefaceId typeface_id = render_tree_font->GetTypefaceId();
     for (size_t i = 0; i < index; ++i) {
       FontListFont& check_font = fonts_[i];
-      if (check_font.state() == FontListFont::kLoadedState &&
-          check_font.font()->GetTypefaceId() == typeface_id) {
-        font_list_font.set_state(FontListFont::kDuplicateState);
-        break;
+      for (auto face : check_font.faces) {
+        if (face->state == FontFace::kLoadedState &&
+            face->font->GetTypefaceId() == typeface_id) {
+          used_face->state = FontFace::kDuplicateState;
+        }
       }
     }
 
     // If this font wasn't a duplicate, then its time to initialize its font
     // data. This font is now available to use.
-    if (font_list_font.state() != FontListFont::kDuplicateState) {
-      font_list_font.set_state(FontListFont::kLoadedState);
-      font_list_font.set_font(render_tree_font);
+    if (used_face->state != FontFace::kDuplicateState) {
+      used_face->state = FontFace::kLoadedState;
+      used_face->font = render_tree_font;
     }
   } else {
-    font_list_font.set_state(state);
+    used_face->state = state;
   }
 }
 
@@ -310,10 +359,10 @@ void FontList::GenerateEllipsisInfo() {
 
 void FontList::GenerateSpaceWidth() {
   if (!is_space_width_set_) {
-    const scoped_refptr<render_tree::Font>& primary_font = GetPrimaryFont();
-    render_tree::GlyphIndex space_glyph =
-        primary_font->GetGlyphForCharacter(' ');
-    space_width_ = primary_font->GetGlyphWidth(space_glyph);
+    render_tree::GlyphIndex space_glyph = render_tree::kInvalidGlyphIndex;
+    space_width_ =
+        GetCharacterFont(base::unicode::kSpaceCharacter, &space_glyph)
+            ->GetGlyphWidth(space_glyph);
     if (space_width_ == 0) {
       DLOG(WARNING) << "Font being used with space width of 0!";
     }
