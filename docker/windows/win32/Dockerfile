@@ -13,6 +13,8 @@
 # limitations under the License.
 FROM build-base-windows
 
+SHELL ["cmd", "/s", "/c"]
+
 ADD ./build.cmd /build.cmd
 
 WORKDIR "C:\code"

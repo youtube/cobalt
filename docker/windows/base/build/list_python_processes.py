@@ -12,7 +12,7 @@ wmic_prc = subprocess.Popen(wmic_cmd, stdout=subprocess.PIPE, stderr=subprocess.
 wmic_out, _ = wmic_prc.communicate()
 
 py_processes = [item.rsplit(None, 1) for item in wmic_out.splitlines() if item][1:]
-py_processes = [[cmdline, int(pid)] for [cmdline, pid] in pythons]
+py_processes = [[cmdline, int(pid)] for [cmdline, pid] in py_processes]
 
 print('Running python processes:')
 for p in py_processes:

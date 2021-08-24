@@ -18,21 +18,25 @@ FROM mcr.microsoft.com/windows:1809
 # Dockerfile for image used to install Visual Studio.
 # WARNING: Changes to this file will result in an extremely long image rebuild.
 
-# Restore the default Windows shell for correct batch processing.
-SHELL ["cmd", "/S", "/C"]
+SHELL ["powershell", "-ExecutionPolicy", "unrestricted", "-Command"]
 
-# Download the Build Tools bootstrapper.
-# This downloads Visual Studio 2017, version 15 (the latest release version).
-ADD https://aka.ms/vs/15/release/vs_buildtools.exe C:\TEMP\vs_buildtools.exe
-
-RUN C:\TEMP\vs_buildtools.exe --quiet --wait --norestart --nocache `
-    --installPath C:\BuildTools `
-    --add Microsoft.VisualStudio.Component.VC.CoreIde `
-    --add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
-    --add Microsoft.VisualStudio.Component.Windows10SDK.17134 `
-    --add Microsoft.VisualStudio.Component.Windows10SDK.17763 `
-    --add Microsoft.VisualStudio.Component.VC.Tools.14.15 `
- || IF "%ERRORLEVEL%"=="3010" EXIT 0
+RUN mkdir C:\TEMP;`
+    Write-Host ('Downloading vs_buildtools.exe');`
+    Invoke-WebRequest -Uri https://aka.ms/vs/15/release/vs_buildtools.exe -OutFile C:\TEMP\vs_buildtools.exe;`
+    Write-Host ('Installing vs_buildtools.exe');`
+    Start-Process C:\TEMP\vs_buildtools.exe -Wait -NoNewWindow`
+        -ArgumentList '--quiet --wait --norestart --nocache`
+        --installPath C:\BuildTools `
+        --add Microsoft.VisualStudio.Component.VC.CoreIde `
+        --add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
+        --add Microsoft.VisualStudio.Component.Windows10SDK.17134 `
+        --add Microsoft.VisualStudio.Component.Windows10SDK.17763 `
+        --add Microsoft.VisualStudio.Component.VC.Tools.14.15';`
+    Write-Host ('Cleaning up vs_buildtools.exe');`
+    Remove-Item -Force -Recurse ${env:ProgramFiles(x86)}\'Microsoft Visual Studio'\Installer;`
+    Remove-Item -Force -Recurse $env:TEMP\*;`
+    Remove-Item -Force -Recurse $env:ProgramData\'Package Cache'\;`
+    Remove-Item C:\TEMP\vs_buildtools.exe
 
 ENV VSINSTALLDIR "C:\BuildTools"
 ENV VS_INSTALL_DIR "C:\BuildTools"

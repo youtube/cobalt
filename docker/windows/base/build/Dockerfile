@@ -15,65 +15,69 @@
 # limitations under the License.
 FROM visual-studio-base
 
-# Restore the default Windows shell for correct batch processing.
-SHELL ["cmd", "/S", "/C"]
-
-RUN powershell -ExecutionPolicy unrestricted -Command `
-    iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
-
-RUN choco install -f -y python2 --params '/InstallDir:C:\python2'
-RUN choco install -f -y winflexbison3 --params '/InstallDir:C:\bison'
-RUN choco install -f -y ninja
-RUN choco install -f -y nodejs-lts
-RUN choco install -f -y git
-RUN choco install -f -y cmake --installargs 'ADD_CMAKE_TO_PATH=System'
-
-RUN pip install pypiwin32
-
-RUN setx path "%path%;C:\Python2"
-RUN setx path "%path%;C:\Python2\Scripts"
-RUN setx path "%path%;C:\Python2\Lib"
-RUN setx python2 "C:\Python2\python.exe"
-ADD ./python2.bat /python2/python2.bat
-
-# This fixes a bug running python scripts "LookupError: unknown encoding: cp0".
-ENV PYTHONIOENCODING "UTF-8"
-
-# Registry changes to enable long filesystem paths.
-RUN reg add "HKLM\SYSTEM\CurrentControlSet\Control\FileSystem" /v LongPathsEnabled /t REG_DWORD /reg:64 /d 1 /f
-RUN reg add "HKLM\SYSTEM\CurrentControlSet\Control\FileSystem" /v LongPathsEnabled /t REG_DWORD /d 1 /f
+SHELL ["powershell", "-ExecutionPolicy", "unrestricted", "-Command"]
 
 # Helper script for quick delete operations in windows
 COPY ./fast-win-rmdir.cmd /fast-win-rmdir.cmd
+
 # Helper script to run an looping command to persist the container instead of
 # running the main command.
 COPY ./spin.ps1 /spin.ps1
+
 # Helper script to output all the running python processes showing the details
 # of the execution, i.e. the full invocation string.
 COPY ./list_python_processes.py /list_python_processes.py
 
-# This env var is read during GYP step and serves two purposes:
-#   - Disables PDB generation in win32 and xb1 builds
-#   - Disables symlink creation in ps4 deploy build steps
-RUN setx IS_DOCKER 1
+# Helper file to ensure python2 is invoked correctly from command line.
+COPY ./python2.bat /python2/python2.bat
+
+RUN iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'));`
+    # Install deps via chocolatey.
+    mkdir C:\choco-cache;`
+    choco install -y -c C:\choco-cache python2 --params '/InstallDir:C:\python2';`
+    choco install -y -c C:\choco-cache winflexbison3 --params '/InstallDir:C:\bison';`
+    choco install -y -c C:\choco-cache ninja;`
+    choco install -y -c C:\choco-cache nodejs-lts;`
+    choco install -y -c C:\choco-cache git;`
+    choco install -y -c C:\choco-cache cmake --installargs 'ADD_CMAKE_TO_PATH=System';`
+    Write-Host ('Deleting the chocolately download cache');`
+    Remove-Item -Force -Recurse $env:TEMP\*;`
+    C:\fast-win-rmdir.cmd C:\choco-cache
+
+RUN mkdir C:\pip-cache;`
+    # Install pip.
+    pip install pypiwin32 --cache-dir C:\pip-cache;`
+    C:\fast-win-rmdir.cmd C:\pip-cache;`
+    # Setup path variable.
+    Set-Item -Path Env:Path -Value ($Env:Path + 'C:\Python2');`
+    Set-Item -Path Env:Path -Value ($Env:Path + 'C:\Python2\Scripts');`
+    Set-Item -Path Env:Path -Value ($Env:Path + 'C:\Python2\Lib');`
+    Set-Item -Path Env:python2 -Value 'C:\Python2\python.exe';`
+    # Configure git global settings.
+    git config --global core.autocrlf false;`
+    git config --global core.symlinks false;`
+    git config --global core.filemode false;`
+    git config --global core.preloadindex true;`
+    git config --global core.fscache true;`
+    # This fixes a bug running python scripts "LookupError: unknown encoding: cp0".
+    Set-Item -Path Env:PYTHONIOENCODING -Value 'UTF-8';`
+    # This ensures GYP does not generate PDB files, or create symlinks during build.
+    Set-Item -Path Env:IS_DOCKER -Value '1';`
+    # Registry changes to enable long filesystem paths.
+    reg add 'HKLM\SYSTEM\CurrentControlSet\Control\FileSystem' /v LongPathsEnabled /t REG_DWORD /reg:64 /d 1 /f;`
+    reg add 'HKLM\SYSTEM\CurrentControlSet\Control\FileSystem' /v LongPathsEnabled /t REG_DWORD /d 1 /f
 
 # Setup Sccache
 ADD https://storage.googleapis.com/cobalt-docker-resources/sccache-cobalt.exe /sccache/sccache.exe
 COPY ./setup_sccache.ps1 /sccache/setup_sccache.ps1
 ARG encoded_gs_service_key_file
 ENV ENCODED_GS_SERVICE_KEY_FILE ${encoded_gs_service_key_file}
-RUN powershell -ExecutionPolicy Unrestricted -c C:\sccache\setup_sccache.ps1
+RUN C:\sccache\setup_sccache.ps1;`
+    Remove-Item C:\sccache\setup_sccache.ps1
 
-# Install gsutil helpers to download from GCS
+# Install gsutil helpers to download from GCS. This helps download required SDKs.
 COPY .boto /Users/ContainerAdministrator/.boto
 COPY download_from_gcs.ps1 /download_from_gcs.ps1
 ADD https://storage.googleapis.com/pub/gsutil.zip /gsutil.zip
-RUN powershell Expand-Archive -Force C:\gsutil.zip C:\gsutil
-
-# Set some git defaults to ensure local checkouts of code are configured to
-# build and run unittests (if needed).
-RUN git config --global core.autocrlf false
-RUN git config --global core.symlinks false
-RUN git config --global core.filemode false
-RUN git config --global core.preloadindex true
-RUN git config --global core.fscache true
+RUN Expand-Archive -Force C:\gsutil.zip C:\gsutil;`
+    Remove-Item C:\gsutil.zip
