@@ -22,6 +22,7 @@
 #include "base/containers/hash_tables.h"
 #include "base/containers/small_map.h"
 #include "base/memory/ref_counted.h"
+#include "cobalt/dom/font_face.h"
 #include "cobalt/math/rect_f.h"
 #include "cobalt/render_tree/font.h"
 #include "cobalt/render_tree/font_provider.h"
@@ -33,12 +34,11 @@ namespace dom {
 
 class FontCache;
 
-// A specific font family within a font list. It has an internal state, which
-// lets the font list know whether or not the font has already been requested,
-// and if so, whether or not it was available. |font_| and |character_map_|
-// will only be non-NULL in the case where |state_| is set to |kLoadedState|.
-class FontListFont {
- public:
+// A font-face for a font-family. It has an internal state, which lets the font
+// list know whether or not the font has already been requested, and if so,
+// whether or not it was available. |font_| will only be non-NULL in the case
+// where |state_| is set to |kLoadedState|.
+struct FontFace {
   enum State {
     kUnrequestedState,
     kLoadingWithTimerActiveState,
@@ -47,27 +47,29 @@ class FontListFont {
     kUnavailableState,
     kDuplicateState,
   };
+  State state = kUnrequestedState;
+  const FontFaceStyleSet::Entry* entry = nullptr;
 
+  // The render_tree::Font obtained via the font cache using |family_name_| in
+  // font list font, along with |style_| and |size_| from the containing font
+  // list, and the unicode range needed for the requested character. It is only
+  // non-NULL in the case where |state_| is set to |kLoadedState|.
+  scoped_refptr<render_tree::Font> font;
+};
+
+// A specific font family within a font list. A family may have more than one
+// FontFace if the FontFaces have different unicode ranges specified.
+struct FontListFont {
   explicit FontListFont(const std::string& family_name)
-      : family_name_(family_name), state_(kUnrequestedState) {}
+      : family_name(family_name) {}
 
-  const std::string& family_name() const { return family_name_; }
-
-  State state() const { return state_; }
-  void set_state(State state) { state_ = state; }
-
-  const scoped_refptr<render_tree::Font>& font() const { return font_; }
-  void set_font(const scoped_refptr<render_tree::Font>& font) { font_ = font; }
-
- private:
-  std::string family_name_;
-  State state_;
+  std::string family_name;
 
   // The render_tree::Font obtained via the font cache using |family_name_| in
   // font list font, along with |style_| and |size_| from the containing font
   // list. It is only non-NULL in the case where |state_| is set to
   // |kLoadedState|.
-  scoped_refptr<render_tree::Font> font_;
+  std::vector<FontFace*> faces;
 };
 
 // The key used for maps with a |FontList| value. It is also used for
@@ -178,6 +180,8 @@ class FontList : public render_tree::FontProvider,
       int32 utf32_character, render_tree::GlyphIndex* glyph_index) override;
 
  private:
+  ~FontList() override;
+
   const scoped_refptr<render_tree::Font>& GetFallbackCharacterFont(
       int32 utf32_character, render_tree::GlyphIndex* glyph_index);
 
@@ -191,9 +195,10 @@ class FontList : public render_tree::FontProvider,
   const scoped_refptr<render_tree::Font>& GetPrimaryFont();
 
   // Request a font from the font cache and update its state depending on the
-  // results of the request. If the font is successfully set, then both its
-  // |font_| and |character_map_| are non-NULL after this call.
-  void RequestFont(size_t index);
+  // results of the request. If the font is successfully set, then its |font_|
+  // is non-NULL after this call.
+  void RequestFont(size_t index, FontFace* face);
+
 
   // Lazily generates the ellipsis font and ellipsis width. If it is already
   // generated then it immediately returns.
