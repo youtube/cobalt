@@ -20,7 +20,7 @@ import _env  # pylint: disable=unused-import
 import argparse
 import sys
 import requests
-import simplejson
+import json as simplejson
 
 from starboard.sabi import generate_sabi_id
 
@@ -116,6 +116,9 @@ def main():
   _REQUEST['request']['updaterchannel'] = args.channel
   _REQUEST['request']['sbversion'] = args.sbversion
   _REQUEST['request']['app'][0]['version'] = args.version
+
+  print('Querying: [[ {} ]]'.format(_ENDPOINT_QA if args.qa else _ENDPOINT))
+  print('Request:  [[ {} ]]'.format(simplejson.dumps(_REQUEST)))
 
   print(
       requests.post(
