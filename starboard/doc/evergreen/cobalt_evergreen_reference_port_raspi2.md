@@ -53,8 +53,15 @@ $ ninja -C out/evergreen-arm-hardfp-sbversion-12_qa cobalt
 $ cp -r out/evergreen-arm-hardfp-sbversion-12_qa/lib   $COEG_PATH/content/app/cobalt/
 $ cp -r out/evergreen-arm-hardfp-sbversion-12_qa/content   $COEG_PATH/content/app/cobalt/
 
-## Download the manifest file
-$ curl https://storage.googleapis.com/evergreen_public/latest/manifest.json -o $COEG_PATH/content/app/cobalt/manifest.json
+## Create a file named manifest.json with the following content, and put it under $COEG_PATH/content/app/cobalt/
+$ cat > $COEG_PATH/content/app/cobalt/manifest.json <<EOF
+{
+        "manifest_version": 2,
+        "name": "Cobalt",
+        "description": "Cobalt",
+        "version": "1.0.0"
+}
+EOF
 ```
 
 ## Deployment instructions
