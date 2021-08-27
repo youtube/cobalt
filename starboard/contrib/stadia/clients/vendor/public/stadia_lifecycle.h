@@ -15,10 +15,12 @@
 #ifndef STARBOARD_CONTRIB_STADIA_CLIENTS_VENDOR_PUBLIC_STADIA_LIFECYCLE_H_
 #define STARBOARD_CONTRIB_STADIA_CLIENTS_VENDOR_PUBLIC_STADIA_LIFECYCLE_H_
 
+#include "starboard/contrib/stadia/clients/vendor/public/stadia_export.h"
+
 extern "C" {
 
 // An initialization call for Stadia Plugins that should be called when the
 // application window is created.
-void StadiaPluginInitialize();
+STADIA_EXPORT_FUNCTION(void, StadiaInitialize, ());
 }
 #endif  // STARBOARD_CONTRIB_STADIA_CLIENTS_VENDOR_PUBLIC_STADIA_LIFECYCLE_H_
