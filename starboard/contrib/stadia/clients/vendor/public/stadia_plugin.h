@@ -18,6 +18,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "starboard/contrib/stadia/clients/vendor/public/stadia_export.h"
+
 // An interface header that allows to interact with Stadia plugins.
 
 extern "C" {
@@ -29,16 +31,20 @@ typedef void (*StadiaPluginReceiveFromCallback)(const uint8_t* message,
                                                 size_t length,
                                                 void* user_data);
 
-bool StadiaPluginHas(const char* channel);
+STADIA_EXPORT_FUNCTION(bool, StadiaPluginHas, (const char* channel));
 
-StadiaPlugin* StadiaPluginOpen(const char* channel,
-                               StadiaPluginReceiveFromCallback callback,
-                               void* user_data);
+STADIA_EXPORT_FUNCTION(StadiaPlugin*,
+                       StadiaPluginOpen,
+                       (const char* channel,
+                        StadiaPluginReceiveFromCallback callback,
+                        void* user_data));
 
-void StadiaPluginSendTo(StadiaPlugin* plugin,
+STADIA_EXPORT_FUNCTION(void,
+                       StadiaPluginSendTo,
+                       (StadiaPlugin* plugin,
                         const char* message,
-                        size_t length);
+                        size_t length));
 
-void StadiaPluginClose(StadiaPlugin* plugin);
+STADIA_EXPORT_FUNCTION(void, StadiaPluginClose, (StadiaPlugin* plugin));
 }
 #endif  // STARBOARD_CONTRIB_STADIA_CLIENTS_VENDOR_PUBLIC_STADIA_PLUGIN_H_
