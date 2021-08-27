@@ -139,6 +139,7 @@
       ],
       'dependencies': [
         'elf_loader_sys',
+        '<(DEPTH)/starboard/elf_loader/sabi_string.gyp:sabi_string',
         '<(DEPTH)/starboard/starboard.gyp:starboard',
       ],
       'sources': [
