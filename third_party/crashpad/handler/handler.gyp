@@ -102,6 +102,7 @@
           'ldflags': [
             '-Wl,--as-needed',
             '-Wl,-gc-sections',
+            '-Wl,-z,noexecstack',
           ],
         }],
         ['OS=="win"',  {
