@@ -228,16 +228,14 @@ const scoped_refptr<render_tree::Font>& FontList::GetCharacterFont(
   // Walk the list of fonts, requesting any encountered that are in an
   // unrequested state. The first font encountered that has the character is the
   // character font.
-  for (size_t i = 0; i < fonts_.size(); ++i) {
-    FontListFont& font_list_font = fonts_[i];
-
+  for (auto font_list_font : fonts_) {
     for (FontFace* face : font_list_font.faces) {
       const FontFaceStyleSet::Entry* entry = face->entry;
       if (entry && !CharInRange(entry->unicode_range, utf32_character)) {
         continue;
       }
       if (face->state == FontFace::kUnrequestedState) {
-        RequestFont(i, face);
+        RequestFont(font_list_font.family_name, face);
       }
 
       if (face->state == FontFace::kLoadedState) {
@@ -283,9 +281,7 @@ const scoped_refptr<render_tree::Font>& FontList::GetPrimaryFont() {
     // unrequested state. The first font encountered that is loaded and whose
     // unicode range includes the space character is the primary font.
     // https://www.w3.org/TR/css-fonts-4/#first-available-font
-    for (size_t i = 0; i < fonts_.size(); ++i) {
-      FontListFont& font_list_font = fonts_[i];
-
+    for (auto font_list_font : fonts_) {
       for (FontFace* face : font_list_font.faces) {
         const FontFaceStyleSet::Entry* entry = face->entry;
         if (entry && !CharInRange(entry->unicode_range,
@@ -293,7 +289,7 @@ const scoped_refptr<render_tree::Font>& FontList::GetPrimaryFont() {
           continue;
         }
         if (face->state == FontFace::kUnrequestedState) {
-          RequestFont(i, face);
+          RequestFont(font_list_font.family_name, face);
         }
 
         if (face->state == FontFace::kLoadedState) {
@@ -309,42 +305,20 @@ const scoped_refptr<render_tree::Font>& FontList::GetPrimaryFont() {
   return primary_font_;
 }
 
-void FontList::RequestFont(size_t index, FontFace* used_face) {
-  FontListFont& font_list_font = fonts_[index];
+void FontList::RequestFont(const std::string& family, FontFace* used_face) {
   FontFace::State state;
 
   // Request the font from the font cache; the state of the font will be set
   // during the call.
-  scoped_refptr<render_tree::Font> render_tree_font = font_cache_->TryGetFont(
-      font_list_font.family_name, style_, size_, &state, used_face->entry);
+  scoped_refptr<render_tree::Font> render_tree_font =
+      font_cache_->TryGetFont(family, style_, size_, &state, used_face->entry);
 
   if (state == FontFace::kLoadedState) {
     DCHECK(render_tree_font.get() != NULL);
 
-    // Walk all of the fonts in the list preceding the loaded font. If they have
-    // the same typeface as the loaded font, then do not create a new face.
-    // There's no reason to have multiple fonts in the list with the same
-    // typeface.
-    render_tree::TypefaceId typeface_id = render_tree_font->GetTypefaceId();
-    for (size_t i = 0; i < index; ++i) {
-      FontListFont& check_font = fonts_[i];
-      for (auto face : check_font.faces) {
-        if (face->state == FontFace::kLoadedState &&
-            face->font->GetTypefaceId() == typeface_id) {
-          used_face->state = FontFace::kDuplicateState;
-        }
-      }
-    }
-
-    // If this font wasn't a duplicate, then its time to initialize its font
-    // data. This font is now available to use.
-    if (used_face->state != FontFace::kDuplicateState) {
-      used_face->state = FontFace::kLoadedState;
-      used_face->font = render_tree_font;
-    }
-  } else {
-    used_face->state = state;
+    used_face->font = render_tree_font;
   }
+  used_face->state = state;
 }
 
 void FontList::GenerateEllipsisInfo() {

@@ -45,7 +45,6 @@ struct FontFace {
     kLoadingWithTimerExpiredState,
     kLoadedState,
     kUnavailableState,
-    kDuplicateState,
   };
   State state = kUnrequestedState;
   const FontFaceStyleSet::Entry* entry = nullptr;
@@ -197,7 +196,7 @@ class FontList : public render_tree::FontProvider,
   // Request a font from the font cache and update its state depending on the
   // results of the request. If the font is successfully set, then its |font_|
   // is non-NULL after this call.
-  void RequestFont(size_t index, FontFace* face);
+  void RequestFont(const std::string& family, FontFace* face);
 
 
   // Lazily generates the ellipsis font and ellipsis width. If it is already
