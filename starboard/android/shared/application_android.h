@@ -94,6 +94,8 @@ class ApplicationAndroid
   void OsNetworkStatusChange(bool became_online);
   SbTimeMonotonic GetAppStartTimestamp();
 
+  void SendDateTimeConfigurationChangedEvent();
+
  protected:
   // --- Application overrides ---
   void Initialize() override;

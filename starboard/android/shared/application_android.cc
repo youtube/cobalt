@@ -282,7 +282,6 @@ void ApplicationAndroid::ProcessAndroidCommand() {
       // early in SendAndroidCommand().
       {
         ScopedLock lock(android_command_mutex_);
-
 // Cobalt can't keep running without a window, even if the Activity
 // hasn't stopped yet. DispatchAndDelete() will inject events as needed
 // if we're not already paused.
@@ -682,6 +681,19 @@ Java_dev_cobalt_coat_StarboardBridge_nativeSbTimeGetMonotonicNow(
     jobject jcaller,
     jboolean online) {
   return SbTimeGetMonotonicNow();
+}
+
+void ApplicationAndroid::SendDateTimeConfigurationChangedEvent() {
+  // Set the timezone to allow SbTimeZoneGetName() to return updated timezone.
+  tzset();
+  Inject(new Event(kSbEventDateTimeConfigurationChanged, NULL, NULL));
+}
+
+extern "C" SB_EXPORT_PLATFORM void
+Java_dev_cobalt_coat_CobaltSystemConfigChangeReceiver_nativeDateTimeConfigurationChanged(
+    JNIEnv* env,
+    jobject jcaller) {
+  ApplicationAndroid::Get()->SendDateTimeConfigurationChangedEvent();
 }
 
 }  // namespace shared
