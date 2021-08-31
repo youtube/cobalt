@@ -21,10 +21,10 @@
 // STADIA_EXPORT_FUNCTION(bool, GreaterThan, (int a, int b)) will produce the
 // following statements:
 //     * bool GreaterThan(int a, int b);
-//     * const char* kGreaterThan = "_GreaterThan";
+//     * constexpr const char* kGreaterThan = "_GreaterThan";
 //     * typedef bool (*GreaterThanFunction)(int a, int b);
 #define STADIA_EXPORT_FUNCTION(return_type, name, parameters) \
   return_type name parameters;                                \
-  const char* k##name = "_" #name;                            \
+  constexpr const char* k##name = #name;                      \
   typedef return_type(*name##Function) parameters
 #endif  // STARBOARD_CONTRIB_STADIA_CLIENTS_VENDOR_PUBLIC_STADIA_EXPORT_H_

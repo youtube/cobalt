@@ -12,26 +12,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_CONTRIB_STADIA_X11_APPLICATION_STADIA_X11_H_
-#define STARBOARD_CONTRIB_STADIA_X11_APPLICATION_STADIA_X11_H_
+#ifndef STARBOARD_CONTRIB_STADIA_STADIA_INTERFACE_H_
+#define STARBOARD_CONTRIB_STADIA_STADIA_INTERFACE_H_
 
-#include "starboard/shared/x11/application_x11.h"
-#include "starboard/window.h"
+#include "clients/vendor/public/stadia_lifecycle.h"
+#include "clients/vendor/public/stadia_plugin.h"
 
 namespace starboard {
 namespace contrib {
 namespace stadia {
-namespace x11 {
 
-// This application engine combines the generic queue with the X11 event queue.
-class ApplicationStadiaX11 : public starboard::shared::x11::ApplicationX11 {
- public:
-  SbWindow CreateWindow(const SbWindowOptions* options) override;
+struct StadiaInterface {
+  StadiaPluginHasFunction StadiaPluginHas;
+  StadiaPluginOpenFunction StadiaPluginOpen;
+  StadiaPluginSendToFunction StadiaPluginSendTo;
+  StadiaPluginCloseFunction StadiaPluginClose;
+
+  StadiaInitializeFunction StadiaInitialize;
+
+  StadiaInterface();
 };
 
-}  // namespace x11
 }  // namespace stadia
 }  // namespace contrib
 }  // namespace starboard
 
-#endif  // STARBOARD_CONTRIB_STADIA_X11_APPLICATION_STADIA_X11_H_
+extern const starboard::contrib::stadia::StadiaInterface* g_stadia_interface;
+
+#endif  // STARBOARD_CONTRIB_STADIA_STADIA_INTERFACE_H_

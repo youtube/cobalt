@@ -33,6 +33,8 @@
       '<(DEPTH)/starboard/shared/x11/egl_swap_buffers.cc',
       '<(DEPTH)/starboard/contrib/stadia/get_platform_service_api.cc',
       '<(DEPTH)/starboard/contrib/stadia/get_platform_service_api.h',
+      '<(DEPTH)/starboard/contrib/stadia/stadia_interface.cc',
+      '<(DEPTH)/starboard/contrib/stadia/stadia_interface.h',
       '<(DEPTH)/starboard/shared/x11/player_set_bounds.cc',
       '<(DEPTH)/starboard/shared/x11/window_create.cc',
       '<(DEPTH)/starboard/shared/x11/window_destroy.cc',
