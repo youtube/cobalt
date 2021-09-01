@@ -303,6 +303,10 @@ target(gtest_target_type, "nplb") {
 
   deps = [ "//starboard/nplb/testdata/file_tests:nplb_file_tests_data" ]
 
+  if (is_internal_build) {
+    deps += [ "//starboard/private/nplb:nplb_private" ]
+  }
+
   public_deps = [
     "//starboard",
     "//starboard/common",
