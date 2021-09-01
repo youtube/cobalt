@@ -24,3 +24,5 @@ no_pedantic_warnings_config_path =
     "//starboard/raspi/shared/platform_configuration:no_pedantic_warnings"
 
 sabi_path = "//starboard/sabi/arm/hardfp/sabi-v$sb_api_version.json"
+
+has_drm_support = false

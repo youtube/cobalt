@@ -98,4 +98,7 @@ declare_args() {
   static_library_configs = []
   source_set_configs = []
   loadable_module_configs = []
+
+  # Whether or not to build drm test suites.
+  has_drm_support = true
 }

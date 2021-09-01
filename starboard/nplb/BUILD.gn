@@ -294,7 +294,7 @@ target(gtest_target_type, "nplb") {
     "window_get_size_test.cc",
   ]
 
-  if (is_internal_build) {
+  if (has_drm_support) {
     sources += [
       "drm_create_system_test.cc",
       "media_can_play_mime_and_key_system_test.cc",
