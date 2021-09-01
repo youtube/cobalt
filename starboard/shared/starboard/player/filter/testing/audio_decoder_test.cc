@@ -637,7 +637,7 @@ INSTANTIATE_TEST_CASE_P(
     AudioDecoderTest,
     Combine(ValuesIn(GetSupportedAudioTestFiles(kIncludeHeaac,
                                                 6,
-                                                "audiopassthrough=\"false\"")),
+                                                "audiopassthrough=false")),
             Bool()));
 
 }  // namespace
