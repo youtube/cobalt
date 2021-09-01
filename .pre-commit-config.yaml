@@ -155,3 +155,9 @@ repos:
         entry: gn format
         language: system
         files: '.*\.gni?$'
+    -   id: gyp-changes
+        name: Disallow GYP Changes
+        entry: echo -e "GYP is deprecated and will not be included past Cobalt 22. Use GN.\n"
+        language: system
+        files: '\.gypi?$'
+        verbose: true
