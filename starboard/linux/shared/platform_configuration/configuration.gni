@@ -33,3 +33,5 @@ no_pedantic_warnings_config_path =
     "//starboard/linux/shared/platform_configuration:no_pedantic_warnings"
 
 sb_widevine_platform = "linux"
+
+has_drm_support = is_internal_build
