@@ -366,7 +366,6 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/stub/system_get_total_gpu_memory.cc",
     "//starboard/shared/stub/system_get_used_gpu_memory.cc",
     "//starboard/shared/stub/system_hide_splash_screen.cc",
-    "//starboard/shared/stub/system_network_is_disconnected.cc",
     "//starboard/shared/stub/system_raise_platform_error.cc",
     "//starboard/shared/stub/system_sign_with_certification_secret_key.cc",
     "//starboard/shared/stub/thread_create_priority.cc",
