@@ -54,8 +54,10 @@ class SuspendResumeTest(TestCase):
       # Let the playback play for 2 seconds.
       app.WaitUntilMediaTimeReached(app.CurrentMediaTime() + 2)
 
+
 TEST_PARAMETERS = [
     ('H264', PlaybackUrls.H264_ONLY, None),
+    ('PROGRESSIVE', PlaybackUrls.PROGRESSIVE, None),
     ('ENCRYPTED', PlaybackUrls.ENCRYPTED, None),
     ('LIVE', PlaybackUrls.LIVE, None),
     ('VP9', PlaybackUrls.VP9, MimeStrings.VP9),
