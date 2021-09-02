@@ -278,6 +278,8 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
       audio_mime_type.RegisterBoolParameter("enableaudiodevicecallback");
 
       if (!audio_mime_type.is_valid()) {
+        *error_message =
+            "Invalid audio MIME: '" + std::string(audio_mime) + "'";
         return false;
       }
     }
@@ -292,6 +294,8 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
       video_mime_type.RegisterBoolParameter("tunnelmode");
 
       if (!video_mime_type.is_valid()) {
+        *error_message =
+            "Invalid video MIME: '" + std::string(video_mime) + "'";
         return false;
       }
     }
