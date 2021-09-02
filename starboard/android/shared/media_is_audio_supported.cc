@@ -47,18 +47,20 @@ bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec,
   }
 
   MimeType mime_type(content_type);
-  // Allows for disabling the use of the AudioDeviceCallback API to detect when
-  // audio peripherals are connected. Enabled by default.
-  // (https://developer.android.com/reference/android/media/AudioDeviceCallback)
-  mime_type.RegisterBoolParameter("enableaudiodevicecallback");
-  // Allows for enabling tunneled playback. Disabled by default.
-  // (https://source.android.com/devices/tv/multimedia-tunneling)
-  mime_type.RegisterBoolParameter("tunnelmode");
-  // Enables audio passthrough if the codec supports it.
-  mime_type.RegisterBoolParameter("audiopassthrough");
+  if (strlen(content_type) > 0) {
+    // Allows for disabling the use of the AudioDeviceCallback API to detect
+    // when audio peripherals are connected. Enabled by default.
+    // (https://developer.android.com/reference/android/media/AudioDeviceCallback)
+    mime_type.RegisterBoolParameter("enableaudiodevicecallback");
+    // Allows for enabling tunneled playback. Disabled by default.
+    // (https://source.android.com/devices/tv/multimedia-tunneling)
+    mime_type.RegisterBoolParameter("tunnelmode");
+    // Enables audio passthrough if the codec supports it.
+    mime_type.RegisterBoolParameter("audiopassthrough");
 
-  if (!mime_type.is_valid()) {
-    return false;
+    if (!mime_type.is_valid()) {
+      return false;
+    }
   }
 
   bool enable_tunnel_mode = mime_type.GetParamBoolValue("tunnelmode", false);
