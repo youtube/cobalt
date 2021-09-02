@@ -464,7 +464,8 @@ public class CobaltMediaSession
         // focus if |explicitUserActionRequired| is true. Currently we're not able to recognize
         // it. But if we don't have window focus, we know the user is not interacting with our app
         // and we should not request media focus.
-        if (!explicitUserActionRequired || activityHolder.get().hasWindowFocus()) {
+        if (!explicitUserActionRequired
+            || (activityHolder.get() != null && activityHolder.get().hasWindowFocus())) {
           explicitUserActionRequired = false;
           configureMediaFocus(playbackState);
         } else {
@@ -478,7 +479,7 @@ public class CobaltMediaSession
     }
 
     // Ignore updates to the MediaSession metadata if playback is stopped.
-    if (playbackState == PLAYBACK_STATE_NONE) {
+    if (playbackState == PLAYBACK_STATE_NONE || mediaSession == null) {
       return;
     }
 
