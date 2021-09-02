@@ -62,6 +62,7 @@ class PlaybackUrls():
 
   DEFAULT = 'https://www.youtube.com/tv'
   H264_ONLY = 'https://www.youtube.com/tv#/watch?v=RACW52qnJMI'
+  PROGRESSIVE = 'https://www.youtube.com/tv#/watch?v=w5tbgPJxyGA'
   ENCRYPTED = 'https://www.youtube.com/tv#/watch?v=iNvUS1dnwfw'
 
   VP9 = 'https://www.youtube.com/tv#/watch?v=x7GkebUe6XQ'

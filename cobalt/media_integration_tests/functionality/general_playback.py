@@ -38,8 +38,10 @@ class GeneralPlaybackTest(TestCase):
       # Let the playback play for 10 seconds.
       app.WaitUntilMediaTimeReached(app.CurrentMediaTime() + 10)
 
+
 TEST_PARAMETERS = [
     ('H264', PlaybackUrls.H264_ONLY, None),
+    ('PROGRESSIVE', PlaybackUrls.PROGRESSIVE, None),
     ('ENCRYPTED', PlaybackUrls.ENCRYPTED, None),
     ('VR', PlaybackUrls.VR, None),
     ('VP9', PlaybackUrls.VP9, MimeStrings.VP9),
