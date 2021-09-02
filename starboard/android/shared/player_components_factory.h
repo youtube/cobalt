@@ -198,10 +198,12 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
 
     MimeType audio_mime_type(creation_parameters.audio_mime());
 
-    audio_mime_type.RegisterBoolParameter("enableaudiodevicecallback");
-    audio_mime_type.RegisterBoolParameter("audiopassthrough");
-    if (!audio_mime_type.is_valid()) {
-      return scoped_ptr<PlayerComponents>();
+    if (strlen(creation_parameters.audio_mime()) > 0) {
+      audio_mime_type.RegisterBoolParameter("enableaudiodevicecallback");
+      audio_mime_type.RegisterBoolParameter("audiopassthrough");
+      if (!audio_mime_type.is_valid()) {
+        return scoped_ptr<PlayerComponents>();
+      }
     }
 
     bool enable_audio_device_callback =
@@ -264,15 +266,34 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
       std::string* error_message) override {
     using starboard::shared::starboard::media::MimeType;
     SB_DCHECK(error_message);
-    MimeType audio_mime_type(creation_parameters.audio_mime());
-    audio_mime_type.RegisterBoolParameter("tunnelmode");
-    audio_mime_type.RegisterBoolParameter("enableaudiodevicecallback");
 
-    MimeType video_mime_type(creation_parameters.video_mime());
-    video_mime_type.RegisterBoolParameter("tunnelmode");
+    const char* audio_mime =
+        creation_parameters.audio_codec() != kSbMediaAudioCodecNone
+            ? creation_parameters.audio_mime()
+            : "";
+    MimeType audio_mime_type(audio_mime);
+    if (creation_parameters.audio_codec() != kSbMediaAudioCodecNone &&
+        strlen(creation_parameters.audio_mime()) > 0) {
+      audio_mime_type.RegisterBoolParameter("tunnelmode");
+      audio_mime_type.RegisterBoolParameter("enableaudiodevicecallback");
 
-    if (!audio_mime_type.is_valid() || !video_mime_type.is_valid()) {
-      return false;
+      if (!audio_mime_type.is_valid()) {
+        return false;
+      }
+    }
+
+    const char* video_mime =
+        creation_parameters.video_codec() != kSbMediaVideoCodecNone
+            ? creation_parameters.video_mime()
+            : "";
+    MimeType video_mime_type(video_mime);
+    if (creation_parameters.video_codec() != kSbMediaVideoCodecNone &&
+        strlen(creation_parameters.video_mime()) > 0) {
+      video_mime_type.RegisterBoolParameter("tunnelmode");
+
+      if (!video_mime_type.is_valid()) {
+        return false;
+      }
     }
 
     int tunnel_mode_audio_session_id = -1;
@@ -284,13 +305,13 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
           video_mime_type.GetParamBoolValue("tunnelmode", false);
 
       if (!enable_tunnel_mode) {
-        SB_LOG(INFO) << "Tunnel mode is disabled."
+        SB_LOG(INFO) << "Tunnel mode is disabled. "
                      << "Audio mime parameter \"tunnelmode\" value: "
                      << audio_mime_type.GetParamStringValue("tunnelmode",
-                                                            "not provided")
+                                                            "<not provided>")
                      << ", video mime parameter \"tunnelmode\" value: "
                      << video_mime_type.GetParamStringValue("tunnelmode",
-                                                            "not provided")
+                                                            "<not provided>")
                      << ".";
       }
     } else {
@@ -433,7 +454,11 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
     // Use mime param to determine endianness of HDR metadata. If param is
     // missing or invalid it defaults to Little Endian.
     MimeType video_mime_type(creation_parameters.video_mime());
-    video_mime_type.RegisterStringParameter("hdrinfoendianness", "big|little");
+
+    if (strlen(creation_parameters.video_mime()) > 0) {
+      video_mime_type.RegisterStringParameter("hdrinfoendianness",
+                                              "big|little");
+    }
     const std::string& hdr_info_endianness =
         video_mime_type.GetParamStringValue("hdrinfoendianness",
                                             /*default=*/"little");
