@@ -99,9 +99,21 @@ script::Handle<script::ArrayBuffer> H5vccPlatformService::Send(
   }
   uint64_t output_length = 0;
   bool invalid_state = 0;
+
+  // Make sure the data pointer is not null as the platform service may not
+  // handle that properly.
+  void* data_ptr = data->Data();
+  size_t data_length = data->ByteLength();
+  if (data_ptr == nullptr) {
+    // If the data length is 0, then it's okay to point to a static array.
+    DCHECK(data_length == 0);
+    static int null_data = 0;
+    data_ptr = &null_data;
+    data_length = 0;
+  }
+
   void* output_data = platform_service_api_->Send(
-      ext_service_, data->Data(), data->ByteLength(), &output_length,
-      &invalid_state);
+      ext_service_, data_ptr, data_length, &output_length, &invalid_state);
   if (invalid_state) {
     dom::DOMException::Raise(dom::DOMException::kInvalidStateErr,
                              "Service unable to accept data currently.",
