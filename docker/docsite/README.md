@@ -26,14 +26,3 @@ we need to run `bundle install` with elevated permissions but if we let the
 `preview-site.sh`, which normally installs gems, run with elevated permissions
 the resulting files added or modified would not be accessible to the user who
 ran the Docker container.
-
-# GKE version
-For Buildbot on GKE, we use base images then layer the Buildbot worker image
-atop. This currently requires root to work, so we have a separate simplified
-Dockerfile which only has the necessary ruby and gems installed, plus the
-additional libs required for Buildbot.
-To build and push a new version run:
-
-docker build -t gcr.io/cobalt-buildbot-gcr/docsite-builder -f Dockerfile-gke .
-
-docker push gcr.io/cobalt-buildbot-gcr/docsite-builder
