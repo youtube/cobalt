@@ -19,7 +19,7 @@ void main() {
     }
     mediump vec4 output_Stage2;
     {
-        mediump float luma = clamp(dot(vec3(0.2125999927520752, 0.71520000696182251, 0.072200000286102295), output_Stage1.xyz), 0.0, 1.0);
+        mediump float luma = clamp(dot(vec3(0.2125999927520752, 0.7152000069618225, 0.0722000002861023), output_Stage1.xyz), 0.0, 1.0);
         output_Stage2 = vec4(0.0, 0.0, 0.0, luma);
     }
     {

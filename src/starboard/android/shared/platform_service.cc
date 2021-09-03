@@ -78,7 +78,7 @@ CobaltExtensionPlatformService Open(void* context,
 
 void Close(CobaltExtensionPlatformService service) {
   JniEnvExt* env = JniEnvExt::Get();
-  env->CallVoidMethodOrAbort(service->cobalt_service, "close", "()V");
+  env->CallVoidMethodOrAbort(service->cobalt_service, "onClose", "()V");
   ScopedLocalJavaRef<jstring> j_name(
       env->NewStringStandardUTFOrAbort(service->name));
   env->CallStarboardVoidMethodOrAbort("closeCobaltService",

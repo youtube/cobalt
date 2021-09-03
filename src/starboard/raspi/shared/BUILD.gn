@@ -18,6 +18,8 @@ group("starboard_platform") {
 }
 
 static_library("starboard_platform_sources") {
+  check_includes = false
+
   sources = [
     "//starboard/linux/shared/atomic_public.h",
     "//starboard/linux/shared/configuration_constants.cc",
@@ -31,8 +33,6 @@ static_library("starboard_platform_sources") {
     "//starboard/linux/shared/system_has_capability.cc",
     "//starboard/raspi/shared/application_dispmanx.cc",
     "//starboard/raspi/shared/audio_sink_type_dispatcher.cc",
-    "//starboard/raspi/shared/configuration.cc",
-    "//starboard/raspi/shared/configuration.h",
     "//starboard/raspi/shared/dispmanx_util.cc",
     "//starboard/raspi/shared/dispmanx_util.h",
     "//starboard/raspi/shared/graphics.cc",
@@ -62,7 +62,6 @@ static_library("starboard_platform_sources") {
     "//starboard/raspi/shared/open_max/video_decoder.h",
     "//starboard/raspi/shared/player_components_factory.cc",
     "//starboard/raspi/shared/system_get_device_type.cc",
-    "//starboard/raspi/shared/system_get_extensions.cc",
     "//starboard/raspi/shared/system_get_property.cc",
     "//starboard/raspi/shared/system_gles2.cc",
     "//starboard/raspi/shared/thread_create_priority.cc",
@@ -376,7 +375,11 @@ static_library("starboard_platform_sources") {
 
   sources += common_player_sources
 
-  configs += [ "//starboard/build/config:starboard_implementation" ]
+  configs += [
+    "//starboard/build/config:pedantic_warnings",
+    "//starboard/build/config:starboard_implementation",
+  ]
+  configs -= [ "//starboard/build/config:no_pedantic_warnings" ]
 
   public_deps = [
     ":starboard_base_symbolize",
@@ -386,9 +389,7 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/starboard/media:media_util",
     "//starboard/shared/starboard/player/filter:filter_based_player_sources",
   ]
-  if (sb_is_evergreen_compatible) {
-    public_deps += [ "//starboard/elf_loader:evergreen_config" ]
-  }
+
   if (sb_is_evergreen_compatible && !sb_evergreen_compatible_enable_lite) {
     public_deps += [ "//starboard/loader_app:pending_restart" ]
   }
@@ -397,8 +398,16 @@ static_library("starboard_platform_sources") {
     "//third_party/libevent",
     "//third_party/opus",
   ]
+
   if (sb_evergreen_compatible_use_libunwind) {
     deps += [ "//third_party/llvm-project/libunwind:unwind_starboard" ]
+  }
+
+  if (sb_is_evergreen_compatible) {
+    public_deps += [ "//starboard/elf_loader:evergreen_config" ]
+    deps += [ "//third_party/crashpad/wrapper" ]
+  } else {
+    deps += [ "//third_party/crashpad/wrapper:wrapper_stub" ]
   }
 }
 

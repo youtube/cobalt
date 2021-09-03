@@ -18,7 +18,7 @@ mediump vec4 stage_Stage2_c1_c0_c0_c0(mediump vec4 _input) {
     mediump vec4 out0_c1_c0;
     mediump vec4 inputColor = _input;
     {
-        mediump float nonZeroAlpha = max(inputColor.w, 9.9999997473787516e-05);
+        mediump float nonZeroAlpha = max(inputColor.w, 9.999999747378752e-05);
         inputColor = vec4(inputColor.xyz / nonZeroAlpha, nonZeroAlpha);
     }
     out0_c1_c0 = um_Stage2_c1_c0_c0_c0 * inputColor + uv_Stage2_c1_c0_c0_c0;
@@ -32,7 +32,7 @@ mediump vec4 stage_Stage2_c1_c0_c0_c0(mediump vec4 _input) {
 }
 mediump vec4 stage_Stage2_c1_c0_c1_c0(mediump vec4 _input) {
     mediump vec4 _sample1278;
-    mediump float nonZeroAlpha = max(_input.w, 9.9999997473787516e-05);
+    mediump float nonZeroAlpha = max(_input.w, 9.999999747378752e-05);
     mediump vec4 coord = vec4(_input.xyz / nonZeroAlpha, nonZeroAlpha);
     coord = coord * 0.9960939884185791 + vec4(0.0019529999699443579, 0.0019529999699443579, 0.0019529999699443579, 0.0019529999699443579);
     _sample1278.w = texture2D(uTextureSampler_0_Stage2, vec2(coord.w, 0.125)).w;

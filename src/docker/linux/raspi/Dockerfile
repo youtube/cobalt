@@ -28,6 +28,7 @@ RUN apt update -qqy \
         libxml2 \
         binutils-aarch64-linux-gnu \
         binutils-arm-linux-gnueabi \
+        libglib2.0-dev \
     && /opt/clean-after-apt.sh
 
 # Get the combined toolchains package.

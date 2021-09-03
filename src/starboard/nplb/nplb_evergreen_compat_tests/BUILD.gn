@@ -18,6 +18,7 @@ target(gtest_target_type, "nplb_evergreen_compat_tests") {
   sources = [
     "//starboard/common/test_main.cc",
     "checks.h",
+    "crashpad_config_test.cc",
     "executable_memory_test.cc",
     "fonts_test.cc",
     "sabi_test.cc",

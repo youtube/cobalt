@@ -19,15 +19,18 @@
 
 #include "base/bind.h"
 #include "base/bind_helpers.h"
+#include "base/threading/sequenced_task_runner_handle.h"
 #include "base/trace_event/trace_event.h"
+#include "cobalt/base/application_state.h"
+#include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/dom/global_stats.h"
 #include "nb/memory_scope.h"
 
 namespace cobalt {
 namespace dom {
 
-int WindowTimers::SetTimeout(const TimerCallbackArg& handler, int timeout) {
-  TRACK_MEMORY_SCOPE("DOM");
+int WindowTimers::TryAddNewTimer(Timer::TimerType type,
+                                 const TimerCallbackArg& handler, int timeout) {
   int handle = GetFreeTimerHandle();
   DCHECK(handle);
 
@@ -37,15 +40,16 @@ int WindowTimers::SetTimeout(const TimerCallbackArg& handler, int timeout) {
   }
 
   if (callbacks_active_) {
-    auto* timer = new base::OneShotTimer();
-    timer->Start(FROM_HERE, base::TimeDelta::FromMilliseconds(timeout),
-                 base::Bind(&WindowTimers::RunTimerCallback,
-                            base::Unretained(this), handle));
-    timers_[handle] = new TimerInfo(
-        owner_, std::unique_ptr<base::internal::TimerBase>(timer), handler);
+    auto* timer = new Timer(type, owner_, handler, timeout, handle, this);
+    if (application_state_ != base::kApplicationStateFrozen) {
+      timer->StartOrResume();
+    }
+    timers_[handle] = timer;
     debugger_hooks_.AsyncTaskScheduled(
-        timers_[handle], "SetTimeout",
-        base::DebuggerHooks::AsyncTaskFrequency::kOneshot);
+        timers_[handle], type == Timer::kOneShot ? "SetTimeout" : "SetInterval",
+        type == Timer::kOneShot
+            ? base::DebuggerHooks::AsyncTaskFrequency::kOneshot
+            : base::DebuggerHooks::AsyncTaskFrequency::kRecurring);
   } else {
     timers_[handle] = nullptr;
   }
@@ -53,32 +57,16 @@ int WindowTimers::SetTimeout(const TimerCallbackArg& handler, int timeout) {
   return handle;
 }
 
+int WindowTimers::SetTimeout(const TimerCallbackArg& handler, int timeout) {
+  TRACK_MEMORY_SCOPE("DOM");
+  return TryAddNewTimer(Timer::kOneShot, handler, timeout);
+}
+
 void WindowTimers::ClearTimeout(int handle) { timers_.erase(handle); }
 
 int WindowTimers::SetInterval(const TimerCallbackArg& handler, int timeout) {
-  int handle = GetFreeTimerHandle();
-  DCHECK(handle);
-
-  if (handle == 0) {  // unable to get a free timer handle
-    // avoid accidentally overwriting existing timers
-    return 0;
-  }
-
-  if (callbacks_active_) {
-    auto* timer(new base::RepeatingTimer());
-    timer->Start(FROM_HERE, base::TimeDelta::FromMilliseconds(timeout),
-                 base::Bind(&WindowTimers::RunTimerCallback,
-                            base::Unretained(this), handle));
-    timers_[handle] = new TimerInfo(
-        owner_, std::unique_ptr<base::internal::TimerBase>(timer), handler);
-    debugger_hooks_.AsyncTaskScheduled(
-        timers_[handle], "SetInterval",
-        base::DebuggerHooks::AsyncTaskFrequency::kRecurring);
-  } else {
-    timers_[handle] = nullptr;
-  }
-
-  return handle;
+  TRACK_MEMORY_SCOPE("DOM");
+  return TryAddNewTimer(Timer::kRepeating, handler, timeout);
 }
 
 void WindowTimers::ClearInterval(int handle) {
@@ -138,7 +126,7 @@ void WindowTimers::RunTimerCallback(int handle) {
   {
     // Keep a |TimerInfo| reference, so it won't be released when running the
     // callback.
-    scoped_refptr<TimerInfo> timer_info = timer->second;
+    scoped_refptr<Timer> timer_info = timer->second;
     base::ScopedAsyncTask async_task(debugger_hooks_, timer_info);
     timer_info->callback_reference().value().Run();
   }
@@ -155,6 +143,93 @@ void WindowTimers::RunTimerCallback(int handle) {
 
   // The callback has finished running. Stop tracking it in the global stats.
   GlobalStats::GetInstance()->StopJavaScriptEvent();
+}
+
+void WindowTimers::SetApplicationState(base::ApplicationState state) {
+  switch (state) {
+    case base::kApplicationStateFrozen:
+      DCHECK_EQ(application_state_, base::kApplicationStateConcealed);
+      for (auto timer : timers_) {
+        timer.second->Pause();
+      }
+      break;
+    case base::kApplicationStateConcealed:
+      if (application_state_ == base::kApplicationStateFrozen) {
+        for (auto timer : timers_) {
+          timer.second->StartOrResume();
+        }
+      }
+      break;
+    case base::kApplicationStateStopped:
+    case base::kApplicationStateBlurred:
+    case base::kApplicationStateStarted:
+      break;
+  }
+  application_state_ = state;
+}
+
+WindowTimers::Timer::Timer(TimerType type, script::Wrappable* const owner,
+                           const TimerCallbackArg& callback, int timeout,
+                           int handle, WindowTimers* window_timers)
+    : type_(type),
+      callback_(owner, callback),
+      timeout_(timeout),
+      handle_(handle),
+      window_timers_(window_timers) {}
+
+void WindowTimers::Timer::Pause() {
+  if (timer_) {
+    // The desired runtime is preserved here to determine whether the timer
+    // should fire immediately when resuming.
+    desired_run_time_ = timer_->desired_run_time();
+    timer_.reset();
+  }
+}
+
+void WindowTimers::Timer::StartOrResume() {
+  if (timer_ != nullptr) return;
+  switch (type_) {
+    case kOneShot:
+      if (desired_run_time_) {
+        // Adjust the new timeout for the time spent while paused.
+        auto now = base::TimeTicks::Now();
+        if (desired_run_time_ <= now) {
+          // The previous desired run time was in the past or is right now, so
+          // it should fire immediately.
+          timeout_ = 0;
+        } else {
+          // Set the timeout to keep the same desired run time. Note that since
+          // the timer uses the timeout that we request to set a new desired
+          // run time from the clock, the resumed timer will likely fire
+          // slightly later.
+          base::TimeDelta time_delta(desired_run_time_.value() - now);
+          timeout_ = static_cast<int>(time_delta.InMilliseconds());
+        }
+      }
+      timer_ = CreateAndStart<base::OneShotTimer>();
+      break;
+    case kRepeating:
+      timer_ = CreateAndStart<base::RepeatingTimer>();
+      if (timeout_ && desired_run_time_ &&
+          desired_run_time_ < base::TimeTicks::Now()) {
+        // The timer was paused and the desired run time is in the past.
+        // Call the callback once before continuing the repeating timer.
+        base::SequencedTaskRunnerHandle::Get()->PostTask(
+            FROM_HERE, base::Bind(&WindowTimers::RunTimerCallback,
+                                  base::Unretained(window_timers_), handle_));
+      }
+      break;
+  }
+}
+
+template <class TimerClass>
+std::unique_ptr<base::internal::TimerBase>
+WindowTimers::Timer::CreateAndStart() {
+  auto* timer = new TimerClass();
+  timer->Start(FROM_HERE, base::TimeDelta::FromMilliseconds(timeout_),
+               base::Bind(&WindowTimers::RunTimerCallback,
+                          base::Unretained(window_timers_), handle_));
+  return std::unique_ptr<base::internal::TimerBase>(timer);
 }
 
 }  // namespace dom

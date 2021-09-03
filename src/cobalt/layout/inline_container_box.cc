@@ -27,7 +27,7 @@ InlineContainerBox::InlineContainerBox(
     const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
         css_computed_style_declaration,
     UsedStyleProvider* used_style_provider,
-    LayoutStatTracker* layout_stat_tracker)
+    LayoutStatTracker* layout_stat_tracker, BaseDirection base_direction)
     : ContainerBox(css_computed_style_declaration, used_style_provider,
                    layout_stat_tracker),
       should_collapse_leading_white_space_(false),
@@ -41,7 +41,10 @@ InlineContainerBox::InlineContainerBox(
           css_computed_style_declaration->data()->font_family(),
           css_computed_style_declaration->data()->font_size(),
           css_computed_style_declaration->data()->font_style(),
-          css_computed_style_declaration->data()->font_weight())) {}
+          css_computed_style_declaration->data()->font_weight())),
+      is_split_on_left_(false),
+      is_split_on_right_(false),
+      base_direction_(base_direction) {}
 
 InlineContainerBox::~InlineContainerBox() {}
 
@@ -55,7 +58,7 @@ bool InlineContainerBox::TryAddChild(const scoped_refptr<Box>& child_box) {
         // container box.
         return false;
       }
-      // Fall through if out-of-flow.
+    // Fall through if out-of-flow.
 
     case kInlineLevel:
       // If the inline container box already contains a line break, then no
@@ -74,13 +77,19 @@ bool InlineContainerBox::TryAddChild(const scoped_refptr<Box>& child_box) {
 }
 
 scoped_refptr<ContainerBox> InlineContainerBox::TrySplitAtEnd() {
-  scoped_refptr<InlineContainerBox> box_after_split(
-      new InlineContainerBox(css_computed_style_declaration(),
-                             used_style_provider(), layout_stat_tracker()));
-  // When an inline box is split, margins, borders, and padding have no visual
-  // effect where the split occurs.
-  //   https://www.w3.org/TR/CSS21/visuren.html#inline-formatting
-  // TODO: Implement the above comment.
+  scoped_refptr<InlineContainerBox> box_after_split(new InlineContainerBox(
+      css_computed_style_declaration(), used_style_provider(),
+      layout_stat_tracker(), base_direction_));
+  // Set the state of where the sibling boxes are split using
+  // base_direction_ to determine the correct way to split the boxes for
+  // dir : rtl or ltr.
+  if (base_direction_ == kLeftToRightBaseDirection) {
+    is_split_on_right_ = true;
+    box_after_split->SetIsSplitOnLeft(true);
+  } else {
+    is_split_on_left_ = true;
+    box_after_split->SetIsSplitOnRight(true);
+  }
 
   return box_after_split;
 }
@@ -91,6 +100,14 @@ LayoutUnit InlineContainerBox::GetInlineLevelBoxHeight() const {
 
 LayoutUnit InlineContainerBox::GetInlineLevelTopMargin() const {
   return inline_top_margin_;
+}
+
+void InlineContainerBox::SetIsSplitOnLeft(bool is_split_on_left) {
+  is_split_on_left_ = is_split_on_left;
+}
+
+void InlineContainerBox::SetIsSplitOnRight(bool is_split_on_right) {
+  is_split_on_right_ = is_split_on_right;
 }
 
 void InlineContainerBox::UpdateContentSizeAndMargins(
@@ -127,16 +144,36 @@ void InlineContainerBox::UpdateContentSizeAndMargins(
     //   https://www.w3.org/TR/CSS21/visuren.html#inline-formatting
     set_width(line_box.shrink_to_fit_width());
 
-    base::Optional<LayoutUnit> maybe_margin_left = GetUsedMarginLeftIfNotAuto(
-        computed_style(), layout_params.containing_block_size);
-    base::Optional<LayoutUnit> maybe_margin_right = GetUsedMarginRightIfNotAuto(
-        computed_style(), layout_params.containing_block_size);
+    if (is_split_on_left_) {
+      // When an inline box is split, margins, borders, and padding
+      // have no visual effect where the split occurs. (or at any split, when
+      // there are several).
+      //   https://www.w3.org/TR/CSS21/visuren.html#inline-formatting
+      set_margin_left(LayoutUnit());
+    } else {
+      // A computed value of "auto" for "margin-left" or "margin-right" becomes
+      // a used value of "0".
+      //   https://www.w3.org/TR/CSS21/visudet.html#inline-width
+      base::Optional<LayoutUnit> maybe_margin_left = GetUsedMarginLeftIfNotAuto(
+          computed_style(), layout_params.containing_block_size);
+      set_margin_left(maybe_margin_left.value_or(LayoutUnit()));
+    }
 
-    // A computed value of "auto" for "margin-left" or "margin-right" becomes
-    // a used value of "0".
-    //   https://www.w3.org/TR/CSS21/visudet.html#inline-width
-    set_margin_left(maybe_margin_left.value_or(LayoutUnit()));
-    set_margin_right(maybe_margin_right.value_or(LayoutUnit()));
+    if (is_split_on_right_) {
+      // When an inline box is split, margins, borders, and padding
+      // have no visual effect where the split occurs. (or at any split, when
+      // there are several).
+      //   https://www.w3.org/TR/CSS21/visuren.html#inline-formatting
+      set_margin_right(LayoutUnit());
+    } else {
+      // A computed value of "auto" for "margin-left" or "margin-right" becomes
+      // a used value of "0".
+      //   https://www.w3.org/TR/CSS21/visudet.html#inline-width
+      base::Optional<LayoutUnit> maybe_margin_right =
+          GetUsedMarginRightIfNotAuto(computed_style(),
+                                      layout_params.containing_block_size);
+      set_margin_right(maybe_margin_right.value_or(LayoutUnit()));
+    }
   }
 
   // The "height" property does not apply. The height of the content area should
@@ -170,6 +207,44 @@ void InlineContainerBox::UpdateContentSizeAndMargins(
   first_box_justifying_line_existence_index_ =
       line_box.GetFirstBoxJustifyingLineExistenceIndex();
   baseline_offset_from_margin_box_top_ = line_box.baseline_offset_from_top();
+}
+
+void InlineContainerBox::UpdateBorders() {
+  if (IsBorderStyleNoneOrHidden(computed_style()->border_left_style()) &&
+      IsBorderStyleNoneOrHidden(computed_style()->border_top_style()) &&
+      IsBorderStyleNoneOrHidden(computed_style()->border_right_style()) &&
+      IsBorderStyleNoneOrHidden(computed_style()->border_bottom_style())) {
+    ResetBorderInsets();
+    return;
+  }
+  // When an inline box is split, margins, borders, and padding
+  // have no visual effect where the split occurs. (or at any split, when there
+  // are several).
+  //   https://www.w3.org/TR/CSS21/visuren.html#inline-formatting
+  SetBorderInsets(
+      is_split_on_left_ ? LayoutUnit() : GetUsedBorderLeft(computed_style()),
+      GetUsedBorderTop(computed_style()),
+      is_split_on_right_ ? LayoutUnit() : GetUsedBorderRight(computed_style()),
+      GetUsedBorderBottom(computed_style()));
+}
+
+void InlineContainerBox::UpdatePaddings(const LayoutParams& layout_params) {
+  // When an inline box is split, margins, borders, and padding
+  // have no visual effect where the split occurs. (or at any split, when there
+  // are several).
+  //   https://www.w3.org/TR/CSS21/visuren.html#inline-formatting
+  SetPaddingInsets(
+      is_split_on_left_
+          ? LayoutUnit()
+          : GetUsedPaddingLeft(computed_style(),
+                               layout_params.containing_block_size),
+      GetUsedPaddingTop(computed_style(), layout_params.containing_block_size),
+      is_split_on_right_
+          ? LayoutUnit()
+          : GetUsedPaddingRight(computed_style(),
+                                layout_params.containing_block_size),
+      GetUsedPaddingBottom(computed_style(),
+                           layout_params.containing_block_size));
 }
 
 WrapResult InlineContainerBox::TryWrapAt(
@@ -632,14 +707,21 @@ WrapResult InlineContainerBox::TryWrapAtIndex(
 
 void InlineContainerBox::SplitAtIterator(
     Boxes::const_iterator child_split_iterator) {
-  // TODO: When an inline box is split, margins, borders, and padding
-  //       have no visual effect where the split occurs.
-  //   https://www.w3.org/TR/CSS21/visuren.html#inline-formatting
-
   // Move the children after the split into a new box.
-  scoped_refptr<InlineContainerBox> box_after_split(
-      new InlineContainerBox(css_computed_style_declaration(),
-                             used_style_provider(), layout_stat_tracker()));
+  scoped_refptr<InlineContainerBox> box_after_split(new InlineContainerBox(
+      css_computed_style_declaration(), used_style_provider(),
+      layout_stat_tracker(), base_direction_));
+
+  // Set the state of where the sibling boxes are split using
+  // base_direction_ to determine the correct way to split the boxes for
+  // dir : rtl or ltr.
+  if (base_direction_ == kLeftToRightBaseDirection) {
+    is_split_on_right_ = true;
+    box_after_split->SetIsSplitOnLeft(true);
+  } else {
+    is_split_on_left_ = true;
+    box_after_split->SetIsSplitOnRight(true);
+  }
 
   // Update the split sibling links.
   box_after_split->split_sibling_ = split_sibling_;

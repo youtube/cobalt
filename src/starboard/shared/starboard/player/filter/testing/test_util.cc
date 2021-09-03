@@ -209,8 +209,8 @@ std::vector<VideoTestParam> GetSupportedVideoTests() {
       if (SbMediaIsVideoSupported(
               dmp_reader.video_codec(),
 #if SB_API_VERSION >= 12
-              "",  // content_type
-#endif             // SB_API_VERSION >= 12
+              dmp_reader.video_mime_type().c_str(),
+#endif  // SB_API_VERSION >= 12
 #if SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
               -1, -1, 8, kSbMediaPrimaryIdUnspecified,
               kSbMediaTransferIdUnspecified, kSbMediaMatrixIdUnspecified,

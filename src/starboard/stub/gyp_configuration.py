@@ -45,9 +45,6 @@ class StubConfiguration(config.base.PlatformConfigBase):
   def GetVariables(self, configuration):
     variables = super(StubConfiguration, self).GetVariables(
         configuration, use_clang=1)
-    variables.update({
-        'javascript_engine': 'v8',
-    })
     return variables
 
   def GetEnvironmentVariables(self):

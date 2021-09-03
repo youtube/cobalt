@@ -410,12 +410,6 @@
     # a warning if the engine consumes more memory than this value specifies.
     'reduce_gpu_memory_by%': -1,
 
-    # Note: Ideally, |javascript_engine| would live here, however due to weird
-    # gyp variable usage in bindings gyp files (that if we removed, would
-    # result in large code duplication), we have to define it in the python gyp
-    # platform files instead.  See "starboard/build/platform_configuration.py"
-    # for its documentation.
-
     # Deprecated. Implement the CobaltExtensionConfigurationApi function
     # CobaltEnableJit instead.
     'cobalt_enable_jit%': -1,

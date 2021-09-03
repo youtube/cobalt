@@ -21,7 +21,7 @@ mediump vec4 stage_Stage1_c0_c0(mediump vec4 _input) {
 }
 mediump vec4 stage_Stage2_c1_c0_c0_c0_c0_c0(mediump vec4 _input) {
     mediump vec4 _sample453_c1_c0_c0_c0;
-    mediump float t = vTransformedCoords_1_Stage0.x + 9.9999997473787516e-06;
+    mediump float t = vTransformedCoords_1_Stage0.x + 9.999999747378752e-06;
     _sample453_c1_c0_c0_c0 = vec4(t, 1.0, 0.0, 0.0);
     return _sample453_c1_c0_c0_c0;
 }

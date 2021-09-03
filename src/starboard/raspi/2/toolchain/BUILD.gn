@@ -13,23 +13,20 @@
 # limitations under the License.
 
 import("//build/toolchain/gcc_toolchain.gni")
-
-_home_dir = getenv("HOME")
-_clang_base_path = "$_home_dir/starboard-toolchains/x86_64-linux-gnu-clang-chromium-365097-f7e52fbd-8"
-raspi_toolchain_path = "$_home_dir/raspi_tools/tools/arm-bcm2708/gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf/bin"
+import("//starboard/raspi/shared/toolchain/raspi_shared_toolchain.gni")
 
 clang_toolchain("host") {
-  clang_base_path = _clang_base_path
+  clang_base_path = raspi_clang_base_path
 }
 
 gcc_toolchain("target") {
-  cc = "$raspi_toolchain_path/arm-linux-gnueabihf-gcc"
-  cxx = "$raspi_toolchain_path/arm-linux-gnueabihf-g++"
+  cc = "$gcc_toolchain_cc"
+  cxx = "$gcc_toolchain_cxx"
   ld = cxx
 
   # We use whatever 'ar' resolves to in gyp.
-  ar = "ar"
-  strip = "$raspi_toolchain_path/arm-linux-gnueabihf-strip"
+  ar = "$gcc_toolchain_ar"
+  strip = "$gcc_toolchain_strip"
 
   toolchain_args = {
     is_clang = false

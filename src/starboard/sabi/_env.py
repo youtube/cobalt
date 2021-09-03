@@ -21,6 +21,6 @@ import sys
 
 _ENV = path.abspath(path.join(path.dirname(__file__), path.pardir, '_env.py'))
 if not path.exists(_ENV):
-  print '%s: Can\'t find repo root.\nMissing parent: %s' % (__file__, _ENV)
+  print('%s: Can\'t find repo root.\nMissing parent: %s' % (__file__, _ENV))
   sys.exit(1)
 load_source('', _ENV)

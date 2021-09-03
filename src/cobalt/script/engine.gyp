@@ -22,16 +22,12 @@
       'sources': [
         'javascript_engine.h',
       ],
-      'conditions': [
-        [ 'javascript_engine == "v8"', { 'dependencies': ['v8c/v8c.gyp:engine', ], }, ],
-      ],
+      'dependencies': ['v8c/v8c.gyp:engine', ],
     },
     {
       'target_name': 'engine_shell',
       'type': 'none',
-      'conditions': [
-        [ 'javascript_engine == "v8"', { 'dependencies': ['v8c/v8c.gyp:v8c', ], }, ],
-      ],
+      'dependencies': ['v8c/v8c.gyp:v8c', ],
     },
   ],
 }

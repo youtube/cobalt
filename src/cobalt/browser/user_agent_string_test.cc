@@ -12,8 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/browser/user_agent_string.h"
+#include <map>
 
+#include "cobalt/browser/user_agent_platform_info.h"
+#include "cobalt/browser/user_agent_string.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
@@ -349,6 +351,87 @@ TEST(UserAgentStringFactoryTest, WithJavaScriptVersion) {
   EXPECT_NE(std::string::npos, user_agent_string.find(" V8/6.5.254.28"));
 }
 
+TEST(GetUserAgentInputMapTest, DelimitParamsBySemicolon) {
+  std::map<std::string, std::string> user_agent_input_map;
+  const std::string user_agent_input =
+      "model_year=2049;starboard_version=Starboard/"
+      "13;original_design_manufacturer=foo;device_type=GAME";
+  GetUserAgentInputMap(user_agent_input, user_agent_input_map);
+
+  std::map<std::string, std::string> expected_user_agent_input_map{
+      {"device_type", "GAME"},
+      {"model_year", "2049"},
+      {"original_design_manufacturer", "foo"},
+      {"starboard_version", "Starboard/13"},
+  };
+  EXPECT_TRUE(user_agent_input_map == expected_user_agent_input_map);
+}
+
+TEST(GetUserAgentInputMapTest, HandleSpecialChar) {
+  std::map<std::string, std::string> user_agent_input_map;
+  const std::string user_agent_input =
+      "aux_field=foo.bar.baz.qux/"
+      "21.2.1.41.0;invalid-field~name=quux(#quuz)";
+  GetUserAgentInputMap(user_agent_input, user_agent_input_map);
+
+  std::map<std::string, std::string> expected_user_agent_input_map{
+      {"aux_field", "foo.bar.baz.qux/21.2.1.41.0"},
+      {"invalid-field~name", "quux(#quuz)"},
+  };
+  EXPECT_TRUE(user_agent_input_map == expected_user_agent_input_map);
+}
+
+TEST(GetUserAgentInputMapTest, EscapeSemicolonInValue) {
+  std::map<std::string, std::string> user_agent_input_map;
+  const std::string user_agent_input =
+      "os_name_and_version=Foo bar-v7a\\; Baz 7.1.2\\; Qux OS "
+      "6.0;model=QUUX";
+  GetUserAgentInputMap(user_agent_input, user_agent_input_map);
+
+  std::map<std::string, std::string> expected_user_agent_input_map{
+      {"model", "QUUX"},
+      {"os_name_and_version", "Foo bar-v7a; Baz 7.1.2; Qux OS 6.0"},
+  };
+  EXPECT_TRUE(user_agent_input_map == expected_user_agent_input_map);
+}
+
+TEST(GetUserAgentInputMapTest, OmitEscapeSemicolonInField) {
+  std::map<std::string, std::string> user_agent_input_map;
+  const std::string user_agent_input = "foo//;bar=baz";
+
+  GetUserAgentInputMap(user_agent_input, user_agent_input_map);
+
+  std::map<std::string, std::string> expected_user_agent_input_map{
+      {"bar", "baz"},
+  };
+  EXPECT_TRUE(user_agent_input_map == expected_user_agent_input_map);
+}
+
+TEST(GetUserAgentInputMapTest, HandleEmptyFieldValue) {
+  std::map<std::string, std::string> user_agent_input_map;
+  const std::string user_agent_input =
+      "evergreen_type=;device_type=GAME;evergreen_version=";
+  GetUserAgentInputMap(user_agent_input, user_agent_input_map);
+
+  std::map<std::string, std::string> expected_user_agent_input_map{
+      {"device_type", "GAME"},
+      {"evergreen_type", ""},
+      {"evergreen_version", ""},
+  };
+  EXPECT_TRUE(user_agent_input_map == expected_user_agent_input_map);
+}
+
+TEST(GetUserAgentInputMapTest, FailSafeWithInvalidInput) {
+  std::map<std::string, std::string> user_agent_input_map;
+  const std::string user_agent_input =
+      ";model;aux_field=;=dummy;device_type=GAME;invalid_field";
+  GetUserAgentInputMap(user_agent_input, user_agent_input_map);
+
+  std::map<std::string, std::string> expected_user_agent_input_map{
+      {"aux_field", ""}, {"device_type", "GAME"},
+  };
+  EXPECT_TRUE(user_agent_input_map == expected_user_agent_input_map);
+}
 }  // namespace
 
 }  // namespace browser

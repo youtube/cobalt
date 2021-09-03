@@ -190,10 +190,9 @@ typedef struct CobaltExtensionConfigurationApi {
   // the specified amount. -1 disables the value.
   int (*CobaltReduceGpuMemoryBy)();
 
-  // Can be set to enable zealous garbage collection, if |javascript_engine|
-  // supports it.  Zealous garbage collection will cause garbage collection
-  // to occur much more frequently than normal, for the purpose of finding or
-  // reproducing bugs.
+  // Can be set to enable zealous garbage collection. Zealous garbage
+  // collection will cause garbage collection to occur much more frequently
+  // than normal, for the purpose of finding or reproducing bugs.
   bool (*CobaltGcZeal)();
 
   // Defines what kind of rasterizer will be used.  This can be adjusted to

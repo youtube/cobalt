@@ -271,9 +271,6 @@ class PlatformConfiguration(object):
         'use_tsan':
             use_tsan,
 
-        'javascript_engine':
-            'v8',
-
         # If the path to the Starboard ABI file is able to be formatted, it will
         # be using the experimental Starboard API version of the file, i.e.
         # |sabi.SB_API_VERSION|. Otherwise, the value provided is just assumed
@@ -286,8 +283,6 @@ class PlatformConfiguration(object):
         'cobalt_config':
             config_name,
         'cobalt_fastbuild':
-            0,
-        'custom_media_session_client':
             0,
         'enable_vr':
             0,

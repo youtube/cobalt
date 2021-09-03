@@ -111,6 +111,7 @@ MediaDecoder::MediaDecoder(Host* host,
                            bool require_software_codec,
                            const FrameRenderedCB& frame_rendered_cb,
                            int tunnel_mode_audio_session_id,
+                           bool force_big_endian_hdr_metadata,
                            std::string* error_message)
     : media_type_(kSbMediaTypeVideo),
       host_(host),
@@ -125,7 +126,7 @@ MediaDecoder::MediaDecoder(Host* host,
   media_codec_bridge_ = MediaCodecBridge::CreateVideoMediaCodecBridge(
       video_codec, width, height, fps, this, j_output_surface, j_media_crypto,
       color_metadata, require_software_codec, tunnel_mode_audio_session_id,
-      error_message);
+      force_big_endian_hdr_metadata, error_message);
   if (!media_codec_bridge_) {
     SB_LOG(ERROR) << "Failed to create video media codec bridge with error: "
                   << *error_message;

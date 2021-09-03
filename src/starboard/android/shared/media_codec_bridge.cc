@@ -198,6 +198,7 @@ scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
     const SbMediaColorMetadata* color_metadata,
     bool require_software_codec,
     int tunnel_mode_audio_session_id,
+    bool force_big_endian_hdr_metadata,
     std::string* error_message) {
   SB_DCHECK(error_message);
 
@@ -222,7 +223,7 @@ scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
         color_range != COLOR_VALUE_UNKNOWN) {
       const auto& mastering_metadata = color_metadata->mastering_metadata;
       j_color_info.Reset(env->NewObjectOrAbort(
-          "dev/cobalt/media/MediaCodecBridge$ColorInfo", "(IIIFFFFFFFFFFII)V",
+          "dev/cobalt/media/MediaCodecBridge$ColorInfo", "(IIIFFFFFFFFFFIIZ)V",
           color_range, color_standard, color_transfer,
           mastering_metadata.primary_r_chromaticity_x,
           mastering_metadata.primary_r_chromaticity_y,
@@ -233,7 +234,8 @@ scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
           mastering_metadata.white_point_chromaticity_x,
           mastering_metadata.white_point_chromaticity_y,
           mastering_metadata.luminance_max, mastering_metadata.luminance_min,
-          color_metadata->max_cll, color_metadata->max_fall));
+          color_metadata->max_cll, color_metadata->max_fall,
+          force_big_endian_hdr_metadata));
     }
   }
 

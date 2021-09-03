@@ -38,6 +38,8 @@ namespace testing {
 namespace {
 
 using ::starboard::testing::FakeGraphicsContextProvider;
+using std::placeholders::_1;
+using std::placeholders::_2;
 using std::string;
 using std::unique_ptr;
 using std::vector;
@@ -121,7 +123,7 @@ class PlayerComponentsTest
 
     if (GetAudioRenderer()) {
       GetAudioRenderer()->Initialize(
-          std::bind(&PlayerComponentsTest::OnError, this),
+          std::bind(&PlayerComponentsTest::OnError, this, _1, _2),
           std::bind(&PlayerComponentsTest::OnPrerolled, this,
                     kSbMediaTypeAudio),
           std::bind(&PlayerComponentsTest::OnEnded, this, kSbMediaTypeAudio));
@@ -129,7 +131,7 @@ class PlayerComponentsTest
     SetPlaybackRate(playback_rate_);
     if (GetVideoRenderer()) {
       GetVideoRenderer()->Initialize(
-          std::bind(&PlayerComponentsTest::OnError, this),
+          std::bind(&PlayerComponentsTest::OnError, this, _1, _2),
           std::bind(&PlayerComponentsTest::OnPrerolled, this,
                     kSbMediaTypeVideo),
           std::bind(&PlayerComponentsTest::OnEnded, this, kSbMediaTypeVideo));
@@ -401,7 +403,11 @@ class PlayerComponentsTest
   // 1s in the tests.
   const SbTime kMaxWriteAheadDuration = kSbTimeSecond;
 
-  void OnError() { has_error_ = true; }
+  void OnError(SbPlayerError error, const std::string& error_message) {
+    has_error_ = true;
+    SB_LOG(ERROR) << "Caught renderer error (" << error
+                  << "): " << error_message;
+  }
   void OnPrerolled(SbMediaType media_type) {
     if (media_type == kSbMediaTypeAudio) {
       audio_prerolled_ = true;

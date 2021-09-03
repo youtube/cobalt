@@ -67,6 +67,7 @@ class VideoDecoder
                const char* max_video_capabilities,
                int tunnel_mode_audio_session_id,
                bool force_secure_pipeline_under_tunnel_mode,
+               bool force_big_endian_hdr_metadata,
                std::string* error_message);
   ~VideoDecoder() override;
 
@@ -134,6 +135,9 @@ class VideoDecoder
   // Google's software decoders can work concurrently. So, we use HW decoder for
   // the main player and SW decoder for sub players.
   const bool require_software_codec_;
+
+  // Force endianness of HDR Metadata.
+  const bool force_big_endian_hdr_metadata_;
 
   const int tunnel_mode_audio_session_id_ = -1;
   // On some platforms tunnel mode is only supported in the secure pipeline.  So

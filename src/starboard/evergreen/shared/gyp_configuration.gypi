@@ -22,7 +22,6 @@
 
     'enable_vr': 0,
     'default_renderer_options_dependency': '<(DEPTH)/cobalt/renderer/default_options_starboard.gyp:default_options',
-    'javascript_engine': 'v8',
 
     'cobalt_font_package': 'empty',
 

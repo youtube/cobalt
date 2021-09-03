@@ -19,6 +19,8 @@
 #include "base/files/file_path.h"
 #include "base/memory/ptr_util.h"
 #include "base/path_service.h"
+#include "cobalt/loader/image/animated_webp_image.h"
+#include "cobalt/loader/image/image_decoder_mock.h"
 #include "cobalt/math/matrix3_f.h"
 #include "cobalt/math/rect_f.h"
 #include "cobalt/math/size_f.h"
@@ -68,6 +70,9 @@
 #endif
 #endif
 
+using cobalt::loader::image::AnimatedWebPImage;
+using cobalt::loader::image::MockImageDecoder;
+using cobalt::loader::image::MockImageDecoderCallback;
 using cobalt::math::Matrix3F;
 using cobalt::math::PointF;
 using cobalt::math::RectF;
@@ -4564,6 +4569,38 @@ TEST_F(PixelTest, LottieScaledWideAnimationTest) {
       lottie_node,
       ScaleMatrix(4.0f, 1.0f) *
           TranslateMatrix(output_surface_size().width() * -0.5f, 0.0f)));
+}
+
+TEST_F(PixelTest, DebugAnimatedWebPFrame) {
+  MockImageDecoder image_decoder(GetResourceProvider());
+  image_decoder.ExpectCallWithError(base::nullopt);
+
+  std::vector<uint8> image_data =
+      GetFileData(GetTestFilePath("loading-spinner-opaque.webp"));
+  image_decoder.DecodeChunk(reinterpret_cast<char*>(&image_data[0]),
+                            image_data.size());
+  image_decoder.Finish();
+
+  scoped_refptr<AnimatedWebPImage> animated_webp_image =
+      base::polymorphic_downcast<AnimatedWebPImage*>(
+          image_decoder.image().get());
+
+  scoped_refptr<Image> frame_image =
+      animated_webp_image->GetFrameForDebugging(20);
+
+  scoped_refptr<ImageNode> frame_image_node = new ImageNode(frame_image);
+
+  CompositionNode::Builder builder;
+
+  // Test opaque background animated webp image on top of an opaque canvas
+  // webp image's background should be ignored and only shows underlying
+  // canvas's color.
+  builder.AddChild(new ClearRectNode(math::RectF(output_surface_size()),
+                                     ColorRGBA(0.0f, 0.0f, 0.0f, 1.0f)));
+  builder.AddChild(frame_image_node);
+
+  scoped_refptr<Node> root = new CompositionNode(builder);
+  TestTree(root);
 }
 
 #endif  // !SB_HAS(BLITTER)

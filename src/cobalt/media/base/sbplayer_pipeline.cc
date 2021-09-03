@@ -327,8 +327,8 @@ SbPlayerPipeline::SbPlayerPipeline(
         get_decode_target_graphics_context_provider_func,
     bool allow_resume_after_suspend, MediaLog* media_log,
     VideoFrameProvider* video_frame_provider)
-    : pipeline_identifier_(base::StringPrintf("%X",
-                           g_pipeline_identifier_counter++)),
+    : pipeline_identifier_(
+          base::StringPrintf("%X", g_pipeline_identifier_counter++)),
       task_runner_(task_runner),
       allow_resume_after_suspend_(allow_resume_after_suspend),
       window_(window),
@@ -535,9 +535,9 @@ void SbPlayerPipeline::Stop(const base::Closure& stop_cb) {
       player = std::move(player_);
     }
 
-    DLOG(INFO) << "Destroying SbPlayer.";
+    LOG(INFO) << "Destroying SbPlayer.";
     player.reset();
-    DLOG(INFO) << "SbPlayer destroyed.";
+    LOG(INFO) << "SbPlayer destroyed.";
   }
 
   // When Stop() is in progress, we no longer need to call |error_cb_|.
@@ -907,7 +907,7 @@ void SbPlayerPipeline::CreateUrlPlayer(const std::string& source_url) {
 
   {
     base::AutoLock auto_lock(lock_);
-    DLOG(INFO) << "StarboardPlayer created with url: " << source_url;
+    LOG(INFO) << "Creating StarboardPlayer with url: " << source_url;
     player_.reset(new StarboardPlayer(
         task_runner_, source_url, window_, this, set_bounds_helper_.get(),
         allow_resume_after_suspend_, *decode_to_texture_output_mode_,
@@ -917,6 +917,7 @@ void SbPlayerPipeline::CreateUrlPlayer(const std::string& source_url) {
       SetVolumeTask(volume_);
     } else {
       player_.reset();
+      LOG(INFO) << "Failed to create a valid StarboardPlayer.";
     }
   }
 
@@ -941,8 +942,7 @@ void SbPlayerPipeline::SetDrmSystem(SbDrmSystem drm_system) {
 
   base::AutoLock auto_lock(lock_);
   if (!player_) {
-    DLOG(INFO)
-        << "Player not set before calling SbPlayerPipeline::SetDrmSystem";
+    LOG(INFO) << "Player not set before calling SbPlayerPipeline::SetDrmSystem";
     return;
   }
 
@@ -997,6 +997,7 @@ void SbPlayerPipeline::CreatePlayer(SbDrmSystem drm_system) {
     // available, reset the existing player first to reduce the number of active
     // players.
     player_.reset();
+    LOG(INFO) << "Creating StarboardPlayer.";
     player_.reset(new StarboardPlayer(
         task_runner_, get_decode_target_graphics_context_provider_func_,
         audio_config, video_config, window_, drm_system, this,
@@ -1008,6 +1009,7 @@ void SbPlayerPipeline::CreatePlayer(SbDrmSystem drm_system) {
       SetVolumeTask(volume_);
     } else {
       player_.reset();
+      LOG(INFO) << "Failed to create a valid StarboardPlayer.";
     }
   }
 

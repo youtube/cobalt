@@ -30,7 +30,7 @@ function start_cobalt() {
 
   URL="${1}"
   LOG="${2}"
-  __LOADER="${3}"
+  declare -n loader_pid_ref=$3
   ARGS="${4}"
 
   stop_cobalt
@@ -46,7 +46,7 @@ function start_cobalt() {
 
   eval "${SSH}\"/home/pi/coeg/loader_app --url=\"\"${URL}\"\" ${ARGS} \" 2>&1 | tee \"${LOG_PATH}/${LOG}\"" &
 
-  eval $__LOADER=$!
+  loader_pid_ref=$!
 
-  log "info" " Cobalt process ID is ${__LOADER}"
+  log "info" " Cobalt process ID is ${loader_pid_ref}"
 }

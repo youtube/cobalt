@@ -261,8 +261,8 @@ class WebModule::Impl {
   void DoSynchronousLayoutAndGetRenderTree(
       scoped_refptr<render_tree::Node>* render_tree);
 
-  void SetApplicationStartOrPreloadTimestamp(
-      bool is_preload, SbTimeMonotonic timestamp);
+  void SetApplicationStartOrPreloadTimestamp(bool is_preload,
+                                             SbTimeMonotonic timestamp);
   void SetDeepLinkTimestamp(SbTimeMonotonic timestamp);
 
  private:
@@ -1031,8 +1031,8 @@ void WebModule::Impl::DoSynchronousLayoutAndGetRenderTree(
 void WebModule::Impl::SetApplicationStartOrPreloadTimestamp(
     bool is_preload, SbTimeMonotonic timestamp) {
   DCHECK(window_);
-  window_->performance()->SetApplicationStartOrPreloadTimestamp(
-      is_preload, timestamp);
+  window_->performance()->SetApplicationStartOrPreloadTimestamp(is_preload,
+                                                                timestamp);
 }
 
 void WebModule::Impl::SetDeepLinkTimestamp(SbTimeMonotonic timestamp) {
@@ -1171,12 +1171,12 @@ void WebModule::Impl::Blur(SbTimeMonotonic timestamp) {
   SetApplicationState(base::kApplicationStateBlurred, timestamp);
 }
 
-void WebModule::Impl::Conceal(
-    render_tree::ResourceProvider* resource_provider,
-    SbTimeMonotonic timestamp) {
+void WebModule::Impl::Conceal(render_tree::ResourceProvider* resource_provider,
+                              SbTimeMonotonic timestamp) {
   TRACE_EVENT0("cobalt::browser", "WebModule::Impl::Conceal()");
   SetResourceProvider(resource_provider);
 
+  SetApplicationState(base::kApplicationStateConcealed, timestamp);
   layout_manager_->Suspend();
   // Purge the cached resources prior to the freeze. That may cancel pending
   // loads, allowing the freeze to occur faster and preventing unnecessary
@@ -1201,21 +1201,25 @@ void WebModule::Impl::Conceal(
   }
 
   loader_factory_->UpdateResourceProvider(resource_provider_);
-  SetApplicationState(base::kApplicationStateConcealed, timestamp);
+
+  if (window_->media_session()->media_session_client() != NULL) {
+    window_->media_session()
+        ->media_session_client()
+        ->PostDelayedTaskForMaybeFreezeCallback();
+  }
 }
 
 void WebModule::Impl::Freeze(SbTimeMonotonic timestamp) {
   TRACE_EVENT0("cobalt::browser", "WebModule::Impl::Freeze()");
+  SetApplicationState(base::kApplicationStateFrozen, timestamp);
 
   // Clear out the loader factory's resource provider, possibly aborting any
   // in-progress loads.
   loader_factory_->Suspend();
-  SetApplicationState(base::kApplicationStateFrozen, timestamp);
 }
 
-void WebModule::Impl::Unfreeze(
-    render_tree::ResourceProvider* resource_provider,
-    SbTimeMonotonic timestamp) {
+void WebModule::Impl::Unfreeze(render_tree::ResourceProvider* resource_provider,
+                               SbTimeMonotonic timestamp) {
   TRACE_EVENT0("cobalt::browser", "WebModule::Impl::Unfreeze()");
   synchronous_loader_interrupt_.Reset();
   DCHECK(resource_provider);
@@ -1224,9 +1228,8 @@ void WebModule::Impl::Unfreeze(
   SetApplicationState(base::kApplicationStateConcealed, timestamp);
 }
 
-void WebModule::Impl::Reveal(
-  render_tree::ResourceProvider* resource_provider,
-  SbTimeMonotonic timestamp) {
+void WebModule::Impl::Reveal(render_tree::ResourceProvider* resource_provider,
+                             SbTimeMonotonic timestamp) {
   TRACE_EVENT0("cobalt::browser", "WebModule::Impl::Reveal()");
   synchronous_loader_interrupt_.Reset();
   DCHECK(resource_provider);
@@ -1693,9 +1696,8 @@ void WebModule::Blur(SbTimeMonotonic timestamp) {
 
   impl_->CancelSynchronousLoads();
 
-  auto impl_blur =
-      base::Bind(&WebModule::Impl::Blur,
-                 base::Unretained(impl_.get()), timestamp);
+  auto impl_blur = base::Bind(&WebModule::Impl::Blur,
+                              base::Unretained(impl_.get()), timestamp);
 
 #if defined(ENABLE_DEBUGGER)
   // We normally need to block here so that the call doesn't return until the
@@ -1725,9 +1727,9 @@ void WebModule::Conceal(render_tree::ResourceProvider* resource_provider,
   // We must block here so that the call doesn't return until the web
   // application has had a chance to process the whole event.
   message_loop()->task_runner()->PostBlockingTask(
-      FROM_HERE, base::Bind(&WebModule::Impl::Conceal,
-                            base::Unretained(impl_.get()),
-                            resource_provider, timestamp));
+      FROM_HERE,
+      base::Bind(&WebModule::Impl::Conceal, base::Unretained(impl_.get()),
+                 resource_provider, timestamp));
 }
 
 void WebModule::Freeze(SbTimeMonotonic timestamp) {
@@ -1737,9 +1739,8 @@ void WebModule::Freeze(SbTimeMonotonic timestamp) {
   // We must block here so that the call doesn't return until the web
   // application has had a chance to process the whole event.
   message_loop()->task_runner()->PostBlockingTask(
-      FROM_HERE,
-      base::Bind(&WebModule::Impl::Freeze,
-                 base::Unretained(impl_.get()), timestamp));
+      FROM_HERE, base::Bind(&WebModule::Impl::Freeze,
+                            base::Unretained(impl_.get()), timestamp));
 }
 
 void WebModule::Unfreeze(render_tree::ResourceProvider* resource_provider,
@@ -1748,9 +1749,9 @@ void WebModule::Unfreeze(render_tree::ResourceProvider* resource_provider,
   DCHECK_NE(base::MessageLoop::current(), message_loop());
 
   message_loop()->task_runner()->PostTask(
-      FROM_HERE, base::Bind(&WebModule::Impl::Unfreeze,
-                            base::Unretained(impl_.get()),
-                            resource_provider, timestamp));
+      FROM_HERE,
+      base::Bind(&WebModule::Impl::Unfreeze, base::Unretained(impl_.get()),
+                 resource_provider, timestamp));
 }
 
 void WebModule::Reveal(render_tree::ResourceProvider* resource_provider,
@@ -1759,9 +1760,9 @@ void WebModule::Reveal(render_tree::ResourceProvider* resource_provider,
   DCHECK_NE(base::MessageLoop::current(), message_loop());
 
   message_loop()->task_runner()->PostTask(
-      FROM_HERE, base::Bind(&WebModule::Impl::Reveal,
-                            base::Unretained(impl_.get()),
-                            resource_provider, timestamp));
+      FROM_HERE,
+      base::Bind(&WebModule::Impl::Reveal, base::Unretained(impl_.get()),
+                 resource_provider, timestamp));
 }
 
 void WebModule::Focus(SbTimeMonotonic timestamp) {
@@ -1769,9 +1770,8 @@ void WebModule::Focus(SbTimeMonotonic timestamp) {
   DCHECK_NE(base::MessageLoop::current(), message_loop());
 
   message_loop()->task_runner()->PostTask(
-      FROM_HERE,
-      base::Bind(&WebModule::Impl::Focus,
-                 base::Unretained(impl_.get()), timestamp));
+      FROM_HERE, base::Bind(&WebModule::Impl::Focus,
+                            base::Unretained(impl_.get()), timestamp));
 }
 
 void WebModule::ReduceMemory() {
@@ -1834,24 +1834,22 @@ void WebModule::SetApplicationStartOrPreloadTimestamp(
   DCHECK(impl_);
   if (base::MessageLoop::current() != message_loop()) {
     message_loop()->task_runner()->PostBlockingTask(
-      FROM_HERE,
-      base::Bind(&WebModule::Impl::SetApplicationStartOrPreloadTimestamp,
-                 base::Unretained(impl_.get()), is_preload, timestamp));
+        FROM_HERE,
+        base::Bind(&WebModule::Impl::SetApplicationStartOrPreloadTimestamp,
+                   base::Unretained(impl_.get()), is_preload, timestamp));
   } else {
     impl_->SetApplicationStartOrPreloadTimestamp(is_preload, timestamp);
   }
 }
 
 void WebModule::SetDeepLinkTimestamp(SbTimeMonotonic timestamp) {
-  TRACE_EVENT0("cobalt::browser",
-               "WebModule::SetDeepLinkTimestamp()");
+  TRACE_EVENT0("cobalt::browser", "WebModule::SetDeepLinkTimestamp()");
   DCHECK(message_loop());
   DCHECK(impl_);
   if (base::MessageLoop::current() != message_loop()) {
     message_loop()->task_runner()->PostBlockingTask(
-      FROM_HERE,
-      base::Bind(&WebModule::Impl::SetDeepLinkTimestamp,
-                 base::Unretained(impl_.get()), timestamp));
+        FROM_HERE, base::Bind(&WebModule::Impl::SetDeepLinkTimestamp,
+                              base::Unretained(impl_.get()), timestamp));
   } else {
     impl_->SetDeepLinkTimestamp(timestamp);
   }

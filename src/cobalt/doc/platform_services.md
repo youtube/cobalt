@@ -53,7 +53,7 @@ implement versioning.
 
 The Platform Services extension is exposed to the web app via the following IDL:
 
-*   [src/cobalt/h5vcc/h5vcc\_platform\_service.idl](https://cobalt.googlesource.com/cobalt/+/refs/heads/master/src/cobalt/h5vcc/h5vcc_platform_service.idl)
+*   [src/cobalt/h5vcc/h5vcc\_platform\_service.idl](../h5vcc/h5vcc_platform_service.idl)
 
 The entrypoint for defined Platform Services extensions will be accessible in
 the `H5vccPlatformService` object. Note that ArrayBuffers are chosen to
@@ -62,10 +62,10 @@ passing binary data.
 
 ### Starboard Interface
 
-Implementing the Starboard layer of Platform Service extension support uses the 
+Implementing the Starboard layer of Platform Service extension support uses the
 following interface in parallel with the IDL interface:
 
-*   [src/cobalt/extension/platform\_service.h](https://cobalt.googlesource.com/cobalt/+/refs/heads/master/src/cobalt/extension/platform_service.h)
+*   [src/cobalt/extension/platform\_service.h](../extension/platform_service.h)
 
 `CobaltExtensionPlatformServiceApi` is the main interface for the Starboard
 layer.

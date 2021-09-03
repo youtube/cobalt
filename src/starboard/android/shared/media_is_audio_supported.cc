@@ -45,71 +45,54 @@ bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec,
   if (!mime) {
     return false;
   }
+
   MimeType mime_type(content_type);
-  // Allows for disabling the use of the AudioDeviceCallback API to detect when
-  // audio peripherals are connected. Enabled by default.
-  // (https://developer.android.com/reference/android/media/AudioDeviceCallback)
-  auto enable_audio_device_callback_parameter_value =
-      mime_type.GetParamStringValue("enableaudiodevicecallback", "");
-  if (!enable_audio_device_callback_parameter_value.empty() &&
-      enable_audio_device_callback_parameter_value != "true" &&
-      enable_audio_device_callback_parameter_value != "false") {
-    SB_LOG(INFO) << "Invalid value for audio mime parameter "
-                    "\"enableaudiodevicecallback\": "
-                 << enable_audio_device_callback_parameter_value << ".";
-    return false;
+  if (strlen(content_type) > 0) {
+    // Allows for disabling the use of the AudioDeviceCallback API to detect
+    // when audio peripherals are connected. Enabled by default.
+    // (https://developer.android.com/reference/android/media/AudioDeviceCallback)
+    mime_type.RegisterBoolParameter("enableaudiodevicecallback");
+    // Allows for enabling tunneled playback. Disabled by default.
+    // (https://source.android.com/devices/tv/multimedia-tunneling)
+    mime_type.RegisterBoolParameter("tunnelmode");
+    // Enables audio passthrough if the codec supports it.
+    mime_type.RegisterBoolParameter("audiopassthrough");
+
+    if (!mime_type.is_valid()) {
+      return false;
+    }
   }
-  // Allows for enabling tunneled playback. Disabled by default.
-  // (https://source.android.com/devices/tv/multimedia-tunneling)
-  auto enable_tunnel_mode_parameter_value =
-      mime_type.GetParamStringValue("tunnelmode", "");
-  if (!enable_tunnel_mode_parameter_value.empty() &&
-      enable_tunnel_mode_parameter_value != "true" &&
-      enable_tunnel_mode_parameter_value != "false") {
-    SB_LOG(INFO) << "Invalid value for audio mime parameter \"tunnelmode\": "
-                 << enable_tunnel_mode_parameter_value << ".";
-    return false;
-  } else if (enable_tunnel_mode_parameter_value == "true" &&
-             !SbAudioSinkIsAudioSampleTypeSupported(
-                 kSbMediaAudioSampleTypeInt16Deprecated)) {
+
+  bool enable_tunnel_mode = mime_type.GetParamBoolValue("tunnelmode", false);
+  if (enable_tunnel_mode && !SbAudioSinkIsAudioSampleTypeSupported(
+                                kSbMediaAudioSampleTypeInt16Deprecated)) {
     SB_LOG(WARNING)
         << "Tunnel mode is rejected because int16 sample is required "
            "but not supported.";
     return false;
   }
 
-  auto audio_passthrough_parameter_value =
-      mime_type.GetParamStringValue("audiopassthrough", "");
-  if (!audio_passthrough_parameter_value.empty() &&
-      audio_passthrough_parameter_value != "true" &&
-      audio_passthrough_parameter_value != "false") {
-    SB_LOG(INFO) << "Invalid value for audio mime parameter "
-                    "\"audiopassthrough\": "
-                 << audio_passthrough_parameter_value
-                 << ". Passthrough is disabled.";
-    return false;
-  }
-  if (audio_passthrough_parameter_value == "false" && is_passthrough) {
-    SB_LOG(INFO) << "Passthrough is rejected because audio mime parameter "
-                    "\"audiopassthrough\" == false.";
-    return false;
-  }
-
   JniEnvExt* env = JniEnvExt::Get();
   ScopedLocalJavaRef<jstring> j_mime(env->NewStringStandardUTFOrAbort(mime));
-  const bool must_support_tunnel_mode =
-      enable_tunnel_mode_parameter_value == "true";
   auto media_codec_supported =
       env->CallStaticBooleanMethodOrAbort(
           "dev/cobalt/media/MediaCodecUtil", "hasAudioDecoderFor",
           "(Ljava/lang/String;IZ)Z", j_mime.Get(), static_cast<jint>(bitrate),
-          must_support_tunnel_mode) == JNI_TRUE;
+          enable_tunnel_mode) == JNI_TRUE;
   if (!media_codec_supported) {
     return false;
   }
+
   if (!is_passthrough) {
     return true;
   }
+
+  if (!mime_type.GetParamBoolValue("audiopassthrough", true)) {
+    SB_LOG(INFO) << "Passthrough codec is rejected because passthrough is "
+                    "disabled through mime param.";
+    return false;
+  }
+
   SbMediaAudioCodingType coding_type;
   switch (audio_codec) {
     case kSbMediaAudioCodecAc3:

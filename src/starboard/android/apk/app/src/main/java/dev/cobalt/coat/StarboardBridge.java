@@ -24,6 +24,7 @@ import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.hardware.input.InputManager;
 import android.media.AudioDeviceInfo;
 import android.media.AudioManager;
 import android.net.ConnectivityManager;
@@ -33,6 +34,7 @@ import android.os.Build;
 import android.util.Size;
 import android.util.SizeF;
 import android.view.Display;
+import android.view.InputDevice;
 import android.view.accessibility.AccessibilityManager;
 import android.view.accessibility.CaptioningManager;
 import androidx.annotation.Nullable;
@@ -172,7 +174,7 @@ public class StarboardBridge {
     Service service = serviceHolder.get();
     if (service == null) {
       if (appContext == null) {
-        Log.w(TAG, "Activiy already destoryed.");
+        Log.w(TAG, "Activiy already destroyed.");
         return;
       }
       Log.i(TAG, "Cold start - Instantiating a MediaPlaybackService.");
@@ -250,6 +252,7 @@ public class StarboardBridge {
   @UsedByNative
   public void requestStop(int errorLevel) {
     if (!starboardStopped) {
+      Log.i(TAG, "Request to stop");
       nativeStopApp(errorLevel);
     }
   }
@@ -261,6 +264,7 @@ public class StarboardBridge {
   public void requestSuspend() {
     Activity activity = activityHolder.get();
     if (activity != null) {
+      Log.i(TAG, "Request to suspend");
       activity.finish();
     }
   }
@@ -435,7 +439,21 @@ public class StarboardBridge {
     // connected input audio device is a microphone.
     AudioManager audioManager = (AudioManager) appContext.getSystemService(AUDIO_SERVICE);
     AudioDeviceInfo[] devices = audioManager.getDevices(GET_DEVICES_INPUTS);
-    return devices.length > 0;
+    if (devices.length > 0) {
+      return true;
+    }
+
+    // fallback to check for BT voice capable RCU
+    InputManager inputManager = (InputManager) appContext.getSystemService(Context.INPUT_SERVICE);
+    final int[] inputDeviceIds = inputManager.getInputDeviceIds();
+    for (int inputDeviceId : inputDeviceIds) {
+      final InputDevice inputDevice = inputManager.getInputDevice(inputDeviceId);
+      final boolean hasMicrophone = inputDevice.hasMicrophone();
+      if (hasMicrophone) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /**
@@ -682,9 +700,7 @@ public class StarboardBridge {
     cobaltServices.remove(serviceName);
   }
 
-  /**
-   * Returns the application start timestamp.
-   */
+  /** Returns the application start timestamp. */
   @SuppressWarnings("unused")
   @UsedByNative
   protected long getAppStartTimestamp() {
@@ -693,8 +709,8 @@ public class StarboardBridge {
       long javaStartTimestamp = ((CobaltActivity) activity).getAppStartTimestamp();
       long cppTimestamp = nativeSbTimeGetMonotonicNow();
       long javaStopTimestamp = System.nanoTime();
-      return cppTimestamp -
-          (javaStartTimestamp - javaStopTimestamp) / timeNanosecondsPerMicrosecond;
+      return cppTimestamp
+          - (javaStartTimestamp - javaStopTimestamp) / timeNanosecondsPerMicrosecond;
     }
     return 0;
   }

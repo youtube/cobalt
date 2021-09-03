@@ -15,12 +15,17 @@
 #ifndef COBALT_BROWSER_USER_AGENT_PLATFORM_INFO_H_
 #define COBALT_BROWSER_USER_AGENT_PLATFORM_INFO_H_
 
+#include <map>
 #include <string>
 
 #include "cobalt/dom/user_agent_platform_info.h"
 
 namespace cobalt {
 namespace browser {
+
+void GetUserAgentInputMap(
+    const std::string& user_agent_input,
+    std::map<std::string, std::string>& user_agent_input_map);
 
 class UserAgentPlatformInfo : public dom::UserAgentPlatformInfo {
  public:

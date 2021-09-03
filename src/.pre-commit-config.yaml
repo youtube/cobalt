@@ -117,6 +117,7 @@ repos:
         language: python
         stages: [push]
         always_run: true
+        pass_filenames: false
     -   id: run-py2-tests
         name: Run Python 2 Tests
         description: Run Python 2 unittests

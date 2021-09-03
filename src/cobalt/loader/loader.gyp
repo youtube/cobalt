@@ -111,7 +111,7 @@
         '<(DEPTH)/cobalt/render_tree/render_tree.gyp:render_tree',
         '<(DEPTH)/cobalt/renderer/test/png_utils/png_utils.gyp:png_utils',
         '<(DEPTH)/url/url.gyp:url',
-        '<(DEPTH)/third_party/libjpeg/libjpeg.gyp:libjpeg',
+        '<(DEPTH)/third_party/libjpeg-turbo/libjpeg.gyp:libjpeg',
         '<(DEPTH)/third_party/libpng/libpng.gyp:libpng',
         '<(DEPTH)/third_party/libwebp/libwebp.gyp:libwebp',
         'embed_resources_as_header_files_loader',

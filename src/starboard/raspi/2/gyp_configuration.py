@@ -26,9 +26,6 @@ class Raspi2PlatformConfig(shared_configuration.RaspiPlatformConfig):
 
   def GetVariables(self, config_name):
     variables = super(Raspi2PlatformConfig, self).GetVariables(config_name)
-    variables.update({
-        'javascript_engine': 'v8',
-    })
     return variables
 
 

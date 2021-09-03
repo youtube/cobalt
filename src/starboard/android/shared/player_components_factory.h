@@ -183,24 +183,6 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
     return (value + alignment - 1) / alignment * alignment;
   }
 
-  static bool IsAudioDeviceCallbackEnabled(
-      const CreationParameters& creation_parameters) {
-    using starboard::shared::starboard::media::MimeType;
-
-    MimeType mime_type(creation_parameters.audio_mime());
-    auto enable_audio_device_callback_parameter_value =
-        mime_type.GetParamStringValue("enableaudiodevicecallback", "");
-    if (enable_audio_device_callback_parameter_value.empty() ||
-        enable_audio_device_callback_parameter_value == "true") {
-      SB_LOG(INFO) << "AudioDeviceCallback is enabled.";
-      return true;
-    }
-    SB_LOG(INFO) << "Mime attribute \"enableaudiodevicecallback\" is set to: "
-                 << enable_audio_device_callback_parameter_value
-                 << ". AudioDeviceCallback is disabled.";
-    return false;
-  }
-
   scoped_ptr<PlayerComponents> CreateComponents(
       const CreationParameters& creation_parameters,
       std::string* error_message) override {
@@ -215,8 +197,21 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
     }
 
     MimeType audio_mime_type(creation_parameters.audio_mime());
-    if (audio_mime_type.GetParamStringValue("audiopassthrough", "") ==
-        "false") {
+
+    if (strlen(creation_parameters.audio_mime()) > 0) {
+      audio_mime_type.RegisterBoolParameter("enableaudiodevicecallback");
+      audio_mime_type.RegisterBoolParameter("audiopassthrough");
+      if (!audio_mime_type.is_valid()) {
+        return scoped_ptr<PlayerComponents>();
+      }
+    }
+
+    bool enable_audio_device_callback =
+        audio_mime_type.GetParamBoolValue("enableaudiodevicecallback", true);
+    SB_LOG(INFO) << "AudioDeviceCallback is "
+                 << (enable_audio_device_callback ? "enabled." : "disabled.");
+
+    if (!audio_mime_type.GetParamBoolValue("audiopassthrough", true)) {
       SB_LOG(INFO) << "Mime attribute \"audiopassthrough\" is set to: "
                       "false. Passthrough is disabled.";
       return scoped_ptr<PlayerComponents>();
@@ -228,7 +223,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
     audio_renderer.reset(new AudioRendererPassthrough(
         creation_parameters.audio_sample_info(),
         GetExtendedDrmSystem(creation_parameters.drm_system()),
-        IsAudioDeviceCallbackEnabled(creation_parameters)));
+        enable_audio_device_callback));
     if (!audio_renderer->is_valid()) {
       return scoped_ptr<PlayerComponents>();
     }
@@ -272,31 +267,56 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
     using starboard::shared::starboard::media::MimeType;
     SB_DCHECK(error_message);
 
+    const char* audio_mime =
+        creation_parameters.audio_codec() != kSbMediaAudioCodecNone
+            ? creation_parameters.audio_mime()
+            : "";
+    MimeType audio_mime_type(audio_mime);
+    if (creation_parameters.audio_codec() != kSbMediaAudioCodecNone &&
+        strlen(creation_parameters.audio_mime()) > 0) {
+      audio_mime_type.RegisterBoolParameter("tunnelmode");
+      audio_mime_type.RegisterBoolParameter("enableaudiodevicecallback");
+
+      if (!audio_mime_type.is_valid()) {
+        *error_message =
+            "Invalid audio MIME: '" + std::string(audio_mime) + "'";
+        return false;
+      }
+    }
+
+    const char* video_mime =
+        creation_parameters.video_codec() != kSbMediaVideoCodecNone
+            ? creation_parameters.video_mime()
+            : "";
+    MimeType video_mime_type(video_mime);
+    if (creation_parameters.video_codec() != kSbMediaVideoCodecNone &&
+        strlen(creation_parameters.video_mime()) > 0) {
+      video_mime_type.RegisterBoolParameter("tunnelmode");
+
+      if (!video_mime_type.is_valid()) {
+        *error_message =
+            "Invalid video MIME: '" + std::string(video_mime) + "'";
+        return false;
+      }
+    }
+
     int tunnel_mode_audio_session_id = -1;
     bool enable_tunnel_mode = false;
     if (creation_parameters.audio_codec() != kSbMediaAudioCodecNone &&
         creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
-      MimeType audio_mime_type(creation_parameters.audio_mime());
-      MimeType video_mime_type(creation_parameters.video_mime());
-      auto enable_tunnel_mode_audio_parameter_value =
-          audio_mime_type.GetParamStringValue("tunnelmode", "");
-      auto enable_tunnel_mode_video_parameter_value =
-          video_mime_type.GetParamStringValue("tunnelmode", "");
-      if (enable_tunnel_mode_audio_parameter_value == "true" &&
-          enable_tunnel_mode_video_parameter_value == "true") {
-        enable_tunnel_mode = true;
-      } else {
-        if (enable_tunnel_mode_audio_parameter_value.empty()) {
-          enable_tunnel_mode_audio_parameter_value = "not provided";
-        }
-        if (enable_tunnel_mode_video_parameter_value.empty()) {
-          enable_tunnel_mode_video_parameter_value = "not provided";
-        }
-        SB_LOG(INFO) << "Tunnel mode is disabled. Audio mime parameter "
-                        "\"tunnelmode\" value: "
-                     << enable_tunnel_mode_audio_parameter_value
+      bool enable_tunnel_mode =
+          audio_mime_type.GetParamBoolValue("tunnelmode", false) &&
+          video_mime_type.GetParamBoolValue("tunnelmode", false);
+
+      if (!enable_tunnel_mode) {
+        SB_LOG(INFO) << "Tunnel mode is disabled. "
+                     << "Audio mime parameter \"tunnelmode\" value: "
+                     << audio_mime_type.GetParamStringValue("tunnelmode",
+                                                            "<not provided>")
                      << ", video mime parameter \"tunnelmode\" value: "
-                     << enable_tunnel_mode_video_parameter_value << ".";
+                     << video_mime_type.GetParamStringValue("tunnelmode",
+                                                            "<not provided>")
+                     << ".";
       }
     } else {
       SB_LOG(INFO) << "Tunnel mode requires both an audio and video stream. "
@@ -359,7 +379,10 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
           decoder_creator));
 
       bool enable_audio_device_callback =
-          IsAudioDeviceCallbackEnabled(creation_parameters);
+          audio_mime_type.GetParamBoolValue("enableaudiodevicecallback", true);
+      SB_LOG(INFO) << "AudioDeviceCallback is "
+                   << (enable_audio_device_callback ? "enabled." : "disabled.");
+
       if (tunnel_mode_audio_session_id != -1) {
         *audio_renderer_sink = TryToCreateTunnelModeAudioRendererSink(
             tunnel_mode_audio_session_id, creation_parameters,
@@ -431,6 +454,20 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
       int tunnel_mode_audio_session_id,
       bool force_secure_pipeline_under_tunnel_mode,
       std::string* error_message) {
+    using starboard::shared::starboard::media::MimeType;
+    // Use mime param to determine endianness of HDR metadata. If param is
+    // missing or invalid it defaults to Little Endian.
+    MimeType video_mime_type(creation_parameters.video_mime());
+
+    if (strlen(creation_parameters.video_mime()) > 0) {
+      video_mime_type.RegisterStringParameter("hdrinfoendianness",
+                                              "big|little");
+    }
+    const std::string& hdr_info_endianness =
+        video_mime_type.GetParamStringValue("hdrinfoendianness",
+                                            /*default=*/"little");
+    bool force_big_endian_hdr_metadata = hdr_info_endianness == "big";
+
     scoped_ptr<VideoDecoder> video_decoder(new VideoDecoder(
         creation_parameters.video_codec(),
         GetExtendedDrmSystem(creation_parameters.drm_system()),
@@ -438,7 +475,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
         creation_parameters.decode_target_graphics_context_provider(),
         creation_parameters.max_video_capabilities(),
         tunnel_mode_audio_session_id, force_secure_pipeline_under_tunnel_mode,
-        error_message));
+        force_big_endian_hdr_metadata, error_message));
     if (creation_parameters.video_codec() == kSbMediaVideoCodecAv1 ||
         video_decoder->is_decoder_created()) {
       return video_decoder.Pass();

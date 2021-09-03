@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM linux-x64x11-xenial
+FROM linux-x64x11-bionic
 
 ARG DEBIAN_FRONTEND=noninteractive
 

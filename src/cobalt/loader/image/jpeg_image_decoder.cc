@@ -15,12 +15,13 @@
 #include "cobalt/loader/image/jpeg_image_decoder.h"
 
 #include <algorithm>
+#include <utility>
 
 #include "base/logging.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/console_log.h"
 #include "nb/memory_scope.h"
-#include "third_party/libjpeg/jpegint.h"
+#include "third_party/libjpeg-turbo/jpegint.h"
 
 namespace cobalt {
 namespace loader {
@@ -167,7 +168,7 @@ size_t JPEGImageDecoder::DecodeChunkInternal(const uint8* data,
   jmp_buf jump_buffer;
   info_.client_data = &jump_buffer;
 
-  // int setjmp(jmp_buf env) saves the current environment (ths program state),
+  // int setjmp(jmp_buf env) saves the current environment (this program state),
   // at some point of program execution, into a platform-specific data
   // structure (jmp_buf) that can be used at some later point of program
   // execution by longjmp to restore the program state to that saved by setjmp

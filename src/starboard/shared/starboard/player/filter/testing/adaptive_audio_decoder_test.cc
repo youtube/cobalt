@@ -15,12 +15,14 @@
 #include <cmath>
 #include <deque>
 #include <functional>
+#include <memory>
 #include <numeric>
 #include <queue>
 
 #include "starboard/common/mutex.h"
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/configuration_constants.h"
+#include "starboard/directory.h"
 #include "starboard/shared/starboard/media/media_support_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/player_components.h"
@@ -362,8 +364,8 @@ vector<vector<const char*>> GetSupportedTests() {
     return test_params;
   }
 
-  vector<const char*> supported_files = GetSupportedAudioTestFiles(
-      kExcludeHeaac, 6, "audiopassthrough=\"false\"");
+  vector<const char*> supported_files =
+      GetSupportedAudioTestFiles(kExcludeHeaac, 6, "audiopassthrough=false");
 
   // Generate test cases. For example, we have |supported_files| [A, B, C].
   // Add tests A->A, A->B, A->C, B->A, B->B, B->C, C->A, C->B and C->C.
