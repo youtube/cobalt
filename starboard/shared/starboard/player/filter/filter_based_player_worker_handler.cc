@@ -161,7 +161,7 @@ bool FilterBasedPlayerWorkerHandler::Init(
     player_components_ =
         factory->CreateComponents(creation_parameters, error_message);
     if (!player_components_) {
-      SB_LOG(ERROR) << "Failed to create renderer with error: "
+      SB_LOG(ERROR) << "Failed to create player components with error: "
                     << *error_message;
       return false;
     }
@@ -399,8 +399,7 @@ bool FilterBasedPlayerWorkerHandler::SetBounds(const Bounds& bounds) {
     // only log when the other members of |bounds| have been changed to avoid
     // spamming the log.
     bounds_.z_index = bounds.z_index;
-    bool bounds_changed =
-        memcmp(&bounds_, &bounds, sizeof(bounds_)) != 0;
+    bool bounds_changed = memcmp(&bounds_, &bounds, sizeof(bounds_)) != 0;
     SB_LOG_IF(INFO, bounds_changed)
         << "Set bounds to "
         << "x: " << bounds.x << ", y: " << bounds.y
