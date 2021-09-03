@@ -100,13 +100,6 @@ TEST_F(FontCacheTest, FindPostscriptFont) {
   const std::string postscript_font_name("DancingScript");
   std::unique_ptr<FontCache::FontFaceMap> ffm =
       CreateFontFaceMapHelper(family_name, postscript_font_name);
-
-  const FontFaceStyleSet::Entry* entry = nullptr;
-  FontCache::FontFaceMap::iterator ffm_iterator = ffm->find(family_name);
-  if (ffm_iterator != ffm->end()) {
-    entry = ffm_iterator->second.GetEntriesThatMatchStyle(kNormalUpright)[0];
-  }
-  EXPECT_TRUE(entry);
   font_cache_->SetFontFaceMap(std::move(ffm));
 
   EXPECT_CALL(loader_factory_, CreateTypefaceLoaderMock(_, _, _, _, _))
@@ -116,9 +109,9 @@ TEST_F(FontCacheTest, FindPostscriptFont) {
               GetLocalTypefaceIfAvailableMock(postscript_font_name))
       .WillOnce(Return(sample_typeface_));
 
-  FontFace::State state;
+  FontListFont::State state;
   scoped_refptr<render_tree::Font> f =
-      font_cache_->TryGetFont(family_name, kNormalUpright, 12.0, &state, entry);
+      font_cache_->TryGetFont(family_name, kNormalUpright, 12.0, &state);
 
   EXPECT_TRUE(f);
 }
@@ -128,13 +121,6 @@ TEST_F(FontCacheTest, UseRemote) {
   const std::string family_name("Dancing Script");
   std::unique_ptr<FontCache::FontFaceMap> ffm =
       CreateFontFaceMapHelper(family_name, invalid_postscript_font_name);
-
-  const FontFaceStyleSet::Entry* entry = nullptr;
-  FontCache::FontFaceMap::iterator ffm_iterator = ffm->find(family_name);
-  if (ffm_iterator != ffm->end()) {
-    entry = ffm_iterator->second.GetEntriesThatMatchStyle(kNormalUpright)[0];
-  }
-  EXPECT_TRUE(entry);
   font_cache_->SetFontFaceMap(std::move(ffm));
 
   EXPECT_CALL(mock_resource_provider_,
@@ -142,9 +128,9 @@ TEST_F(FontCacheTest, UseRemote) {
       .Times(1);
   EXPECT_CALL(loader_factory_, CreateTypefaceLoaderMock(_, _, _, _, _));
 
-  FontFace::State state;
+  FontListFont::State state;
   scoped_refptr<render_tree::Font> f =
-      font_cache_->TryGetFont(family_name, kNormalUpright, 12.0, &state, entry);
+      font_cache_->TryGetFont(family_name, kNormalUpright, 12.0, &state);
   EXPECT_FALSE(f);
 }
 

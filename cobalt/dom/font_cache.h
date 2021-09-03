@@ -201,19 +201,13 @@ class FontCache {
   const scoped_refptr<render_tree::Font>& GetFontFromTypefaceAndSize(
       const scoped_refptr<render_tree::Typeface>& typeface, float size);
 
-
-  // Retrieves a list of the font faces that match the given family name and
-  // style. If no explicit font faces exist, creates a faux face for
-  // representing a local font.
-  std::vector<FontFace*> GetFacesForFamilyAndStyle(
-      const std::string& family, render_tree::FontStyle style);
-
   // Attempts to retrieve a font. If the family maps to a font face, then this
   // makes a request to |TryGetRemoteFont()|; otherwise, it makes a request
   // to |TryGetLocalFont()|. This function may return NULL.
-  scoped_refptr<render_tree::Font> TryGetFont(
-      const std::string& family, render_tree::FontStyle style, float size,
-      FontFace::State* state, const FontFaceStyleSet::Entry* maybe_entry);
+  scoped_refptr<render_tree::Font> TryGetFont(const std::string& family,
+                                              render_tree::FontStyle style,
+                                              float size,
+                                              FontListFont::State* state);
 
   // Returns the character fallback typeface map associated with the specified
   // style. Each unique style has its own exclusive map. If it doesn't already
@@ -265,20 +259,20 @@ class FontCache {
   // font are registered with the remote typeface cache to be called when the
   // load finishes.
   scoped_refptr<render_tree::Font> TryGetRemoteFont(const GURL& url, float size,
-                                                    FontFace::State* state);
+                                                    FontListFont::State* state);
 
   // Returns NULL if the requested family is not empty and is not available in
   // the resource provider. Otherwise, returns the best matching local font.
   scoped_refptr<render_tree::Font> TryGetLocalFont(const std::string& family,
                                                    render_tree::FontStyle style,
                                                    float size,
-                                                   FontFace::State* state);
+                                                   FontListFont::State* state);
 
   // Lookup by a typeface (aka font_face), typeface is defined as font family +
   // style (weight, width, and style).
   // Returns NULL if the requested font face is not found.
   scoped_refptr<render_tree::Font> TryGetLocalFontByFaceName(
-      const std::string& font_face, float size, FontFace::State* state);
+      const std::string& font_face, float size, FontListFont::State* state);
 
   // Called when a remote typeface either successfully loads or fails to load.
   // In either case, the event can impact the fonts contained within the font

@@ -66,19 +66,7 @@ class FontFaceStyleSet {
       return style.weight == other.style.weight &&
              style.slant == other.style.slant && sources == other.sources;
     }
-    struct UnicodeRange {
-      // Sorts ranges primarily based on start and secondarily based on end.
-      bool operator<(const UnicodeRange& range) const {
-        if (start == range.start) {
-          return end < range.end;
-        }
-        return start < range.start;
-      }
-      uint32 start;
-      uint32 end;
-    };
 
-    std::set<UnicodeRange> unicode_range;
     render_tree::FontStyle style;
     FontFaceSources sources;
   };
@@ -89,11 +77,10 @@ class FontFaceStyleSet {
   // into the set. All pre-existing url entries within the set are retained.
   void CollectUrlSources(std::set<GURL>* urls) const;
 
-
-  // Returns a list of entries with the style that most closesly matches the
-  // pattern.
-  std::vector<const Entry*> GetEntriesThatMatchStyle(
-      const render_tree::FontStyle& pattern) const;
+  // Returns the style set entry with the style most closely matching the
+  // requested pattern. If the style set contains any entries, it is guaranteed
+  // to not return NULL.
+  const Entry* MatchStyle(const render_tree::FontStyle& pattern) const;
 
   bool operator==(const FontFaceStyleSet& other) const {
     return entries_ == other.entries_;
@@ -101,6 +88,11 @@ class FontFaceStyleSet {
 
  private:
   typedef std::vector<Entry> Entries;
+
+  // Returns the index of the entry with a style most closely matching the
+  // pattern (the lower the score, the more closely it matches). In the case of
+  // a tie, the earliest encountered entry is given priority.
+  size_t GetClosestStyleEntryIndex(const render_tree::FontStyle& pattern) const;
 
   // Returns the match score between two patterns. The score logic matches that
   // within SkFontStyleSet_Cobalt::match_score().

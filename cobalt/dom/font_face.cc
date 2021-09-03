@@ -39,22 +39,25 @@ void FontFaceStyleSet::CollectUrlSources(std::set<GURL>* urls) const {
   }
 }
 
-std::vector<const FontFaceStyleSet::Entry*>
-FontFaceStyleSet::GetEntriesThatMatchStyle(
+const FontFaceStyleSet::Entry* FontFaceStyleSet::MatchStyle(
     const render_tree::FontStyle& pattern) const {
-  std::vector<const FontFaceStyleSet::Entry*> entries;
+  return entries_.empty() ? NULL
+                          : &entries_[GetClosestStyleEntryIndex(pattern)];
+}
+
+size_t FontFaceStyleSet::GetClosestStyleEntryIndex(
+    const render_tree::FontStyle& pattern) const {
+  size_t closest_index = 0;
   int max_score = std::numeric_limits<int>::min();
-  for (const auto& entry : entries_) {
-    int score = MatchScore(pattern, entry.style);
-    if (score >= max_score) {
-      if (score > max_score) {
-        max_score = score;
-        entries.clear();
-      }
-      entries.push_back(&entry);
+  for (size_t i = 0; i < entries_.size(); ++i) {
+    int score = MatchScore(pattern, entries_[i].style);
+    if (score > max_score) {
+      closest_index = i;
+      max_score = score;
     }
   }
-  return entries;
+
+  return closest_index;
 }
 
 int FontFaceStyleSet::MatchScore(

@@ -29,7 +29,6 @@
 #include "cobalt/cssom/property_value_visitor.h"
 #include "cobalt/cssom/string_value.h"
 #include "cobalt/cssom/style_sheet_list.h"
-#include "cobalt/cssom/unicode_range_value.h"
 #include "cobalt/cssom/url_src_value.h"
 #include "cobalt/cssom/url_value.h"
 
@@ -215,10 +214,8 @@ void FontFaceProvider::VisitString(cssom::StringValue* string) {
 
 void FontFaceProvider::VisitUnicodeRange(
     cssom::UnicodeRangeValue* unicode_range) {
-  FontFaceStyleSet::Entry::UnicodeRange range = {
-      static_cast<uint32>(unicode_range->start()),
-      static_cast<uint32>(unicode_range->end())};
-  style_set_entry_.unicode_range.insert(range);
+  NOTIMPLEMENTED()
+      << "FontFaceProvider::UnicodeRange support not implemented yet.";
 }
 
 // Check for a supported format. If no format hints are supplied, then the user
@@ -309,9 +306,6 @@ void FontFaceUpdater::VisitCSSFontFaceRule(
   }
   if (css_font_face_rule->data()->weight()) {
     css_font_face_rule->data()->weight()->Accept(&font_face_provider);
-  }
-  if (css_font_face_rule->data()->unicode_range()) {
-    css_font_face_rule->data()->unicode_range()->Accept(&font_face_provider);
   }
 
   if (font_face_provider.IsFontFaceValid()) {

@@ -159,34 +159,21 @@ const scoped_refptr<render_tree::Font>& FontCache::GetFontFromTypefaceAndSize(
   return cached_font_info.font;
 }
 
-std::vector<FontFace*> FontCache::GetFacesForFamilyAndStyle(
-    const std::string& family, render_tree::FontStyle style) {
-  std::vector<FontFace*> faces;
-  FontFaceMap::iterator font_face_map_iterator = font_face_map_->find(family);
-  if (font_face_map_iterator != font_face_map_->end()) {
-    // Add all font-face entries that match the family.
-    std::vector<const FontFaceStyleSet::Entry*> entries =
-        font_face_map_iterator->second.GetEntriesThatMatchStyle(style);
-    for (auto entry : entries) {
-      FontFace* face = new FontFace();
-      face->entry = entry;
-      faces.push_back(face);
-    }
-  } else {
-    // This is a local font. One face can represent it.
-    FontFace* face = new FontFace();
-    faces.push_back(face);
-  }
-  return faces;
-}
-
 scoped_refptr<render_tree::Font> FontCache::TryGetFont(
     const std::string& family, render_tree::FontStyle style, float size,
-    FontFace::State* state,
-    const FontFaceStyleSet::Entry* maybe_style_set_entry) {
+    FontListFont::State* state) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  FontFaceMap::iterator font_face_map_iterator = font_face_map_->find(family);
   int64 request_time_start = base::TimeTicks::Now().ToInternalValue();
-  if (maybe_style_set_entry) {
+  if (font_face_map_iterator != font_face_map_->end()) {
+    // Retrieve the font face style set entry that most closely matches the
+    // desired style. Given that a font face was found for this family, it
+    // should never be NULL.
+    // https://www.w3.org/TR/css3-fonts/#font-prop-desc
+    const FontFaceStyleSet::Entry* style_set_entry =
+        font_face_map_iterator->second.MatchStyle(style);
+    DCHECK(style_set_entry != NULL);
+
     // Walk the entry's sources:
     // - If a remote source is encountered, always return the results of its
     //   attempted retrieval, regardless of its success.
@@ -196,9 +183,8 @@ scoped_refptr<render_tree::Font> FontCache::TryGetFont(
     //   instead.
     // https://www.w3.org/TR/css3-fonts/#src-desc
     for (FontFaceSources::const_iterator source_iterator =
-             maybe_style_set_entry->sources.begin();
-         source_iterator != maybe_style_set_entry->sources.end();
-         ++source_iterator) {
+             style_set_entry->sources.begin();
+         source_iterator != style_set_entry->sources.end(); ++source_iterator) {
       if (source_iterator->IsUrlSource()) {
         auto font = TryGetRemoteFont(source_iterator->GetUrl(), size, state);
         GlobalStats::GetInstance()->OnFontRequestComplete(request_time_start);
@@ -213,7 +199,7 @@ scoped_refptr<render_tree::Font> FontCache::TryGetFont(
       }
     }
 
-    *state = FontFace::kUnavailableState;
+    *state = FontListFont::kUnavailableState;
     return NULL;
   } else {
     auto font = TryGetLocalFont(family, style, size, state);
@@ -349,7 +335,7 @@ const scoped_refptr<render_tree::Typeface>& FontCache::GetCachedLocalTypeface(
 }
 
 scoped_refptr<render_tree::Font> FontCache::TryGetRemoteFont(
-    const GURL& url, float size, FontFace::State* state) {
+    const GURL& url, float size, FontListFont::State* state) {
   // Retrieve the font from the remote typeface cache, potentially triggering a
   // load.
   scoped_refptr<loader::font::CachedRemoteTypeface> cached_remote_typeface =
@@ -384,16 +370,16 @@ scoped_refptr<render_tree::Font> FontCache::TryGetRemoteFont(
   scoped_refptr<render_tree::Typeface> typeface =
       cached_remote_typeface->TryGetResource();
   if (typeface.get() != NULL) {
-    *state = FontFace::kLoadedState;
+    *state = FontListFont::kLoadedState;
     return GetFontFromTypefaceAndSize(typeface, size);
   } else {
     if (cached_remote_typeface->IsLoadingComplete()) {
-      *state = FontFace::kUnavailableState;
+      *state = FontListFont::kUnavailableState;
     } else if (requested_remote_typeface_iterator->second
                    ->HasActiveRequestTimer()) {
-      *state = FontFace::kLoadingWithTimerActiveState;
+      *state = FontListFont::kLoadingWithTimerActiveState;
     } else {
-      *state = FontFace::kLoadingWithTimerExpiredState;
+      *state = FontListFont::kLoadingWithTimerExpiredState;
     }
     return NULL;
   }
@@ -401,7 +387,7 @@ scoped_refptr<render_tree::Font> FontCache::TryGetRemoteFont(
 
 scoped_refptr<render_tree::Font> FontCache::TryGetLocalFont(
     const std::string& family, render_tree::FontStyle style, float size,
-    FontFace::State* state) {
+    FontListFont::State* state) {
   DCHECK(resource_provider());
   DCHECK(resource_provider() != NULL);
   // Only request the local font from the resource provider if the family is
@@ -412,10 +398,10 @@ scoped_refptr<render_tree::Font> FontCache::TryGetLocalFont(
   // signifies using the default font.
   if (!family.empty() &&
       !resource_provider()->HasLocalFontFamily(family.c_str())) {
-    *state = FontFace::kUnavailableState;
+    *state = FontListFont::kUnavailableState;
     return NULL;
   } else {
-    *state = FontFace::kLoadedState;
+    *state = FontListFont::kLoadedState;
     return GetFontFromTypefaceAndSize(
         GetCachedLocalTypeface(
             resource_provider()->GetLocalTypeface(family.c_str(), style)),
@@ -424,7 +410,7 @@ scoped_refptr<render_tree::Font> FontCache::TryGetLocalFont(
 }
 
 scoped_refptr<render_tree::Font> FontCache::TryGetLocalFontByFaceName(
-    const std::string& font_face, float size, FontFace::State* state) {
+    const std::string& font_face, float size, FontListFont::State* state) {
   do {
     if (font_face.empty()) {
       break;
@@ -438,11 +424,11 @@ scoped_refptr<render_tree::Font> FontCache::TryGetLocalFontByFaceName(
     const scoped_refptr<render_tree::Typeface>& typeface_cached(
         GetCachedLocalTypeface(typeface));
 
-    *state = FontFace::kLoadedState;
+    *state = FontListFont::kLoadedState;
     return GetFontFromTypefaceAndSize(typeface_cached, size);
   } while (false);
 
-  *state = FontFace::kUnavailableState;
+  *state = FontListFont::kUnavailableState;
   return NULL;
 }
 
