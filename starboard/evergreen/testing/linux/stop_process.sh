@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright 2020 The Cobalt Authors. All Rights Reserved.
+# Copyright 2021 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,9 +14,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-function clean_up() {
-  echo " Clearing loader app process id storage"
-  eval "${SSH}\"rm -rf ${PID_STORAGE_DIR}\"" 1> /dev/null
+function stop_process() {
+  if [[ $# -ne 1 ]]; then
+    log "error" " stop_process only accepts a single argument"
+    return 1
+  fi
 
-  clear_storage
+  kill -9 "${1}" 1> /dev/null
 }

@@ -21,6 +21,7 @@ CACHE_DIR="/home/pi/.cache/cobalt"
 CONTENT="/home/pi/coeg/content/app/cobalt/content"
 STORAGE_DIR="/home/pi/.cobalt_storage"
 STORAGE_DIR_TMPFS="${STORAGE_DIR}.tmpfs"
+PID_STORAGE_DIR="/tmp/cobalt_loader_pids"
 
 ID="id"
 TAIL="tail"
@@ -69,3 +70,12 @@ if [[ -z "${IS_BUILDBOT}" ]] || [[ "${IS_BUILDBOT}" -eq 0 ]]; then
     fi
   fi
 fi
+
+eval "${SSH}\"test -d /tmp\"" 1> /dev/null
+if [[ $? -ne 0 ]]; then
+  echo " The '/tmp' directory is required on the Raspberry Pi 2 to persist data"
+  exit 1
+fi
+
+echo " Making a directory on the Raspberry Pi 2 to store loader app process ids"
+run_command "mkdir -p ${PID_STORAGE_DIR}"
