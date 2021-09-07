@@ -19,7 +19,7 @@ group("starboard_platform") {
     "//starboard/linux/shared:starboard_platform",
   ]
 
-  deps = [ "//third_party/libjpeg" ]
+  deps = [ "//third_party/libjpeg-turbo:libjpeg" ]
 }
 
 static_library("starboard_platform_sources") {

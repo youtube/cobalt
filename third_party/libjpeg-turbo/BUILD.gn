@@ -23,11 +23,20 @@ source_set("libjpeg_headers") {
   ]
   if (!is_starboard) {
     defines = [ "MANGLE_JPEG_NAMES" ]
+  } else {
+    public_deps = [
+      "//starboard:starboard_headers_only",
+      "//starboard/common",
+    ]
   }
 }
 
 if (current_cpu == "x86" || current_cpu == "x64") {
-  import("//third_party/nasm/nasm_assemble.gni")
+  if (is_starboard) {
+    import("//starboard/build/nasm_assemble.gni")
+  } else {
+    import("//third_party/nasm/nasm_assemble.gni")
+  }
 
   nasm_assemble("simd_asm") {
     defines = []
@@ -252,6 +261,22 @@ static_library("libjpeg") {
     "NO_GETENV",
   ]
 
+  if (is_starboard) {
+    sources += [
+      "jaricom.c",
+      "jcarith.c",
+      "jdarith.c",
+    ]
+    # These dependencies are needed for file io
+    # and are not currently used by Cobalt
+    sources -= [
+      "jdatadst.c",
+      "jdatasrc.c",
+    ]
+    # This is defined in code.
+    defines -= [ "NO_GETENV" ]
+  }
+
   configs += [ ":libjpeg_config" ]
 
   public_configs = [ ":libjpeg_config" ]
@@ -281,6 +306,15 @@ static_library("turbojpeg") {
     "wrbmp.c",
     "wrppm.c",
   ]
+
+  if (is_starboard) {
+    sources -= [
+      "rdbmp.c",
+      "rdppm.c",
+      "wrbmp.c",
+      "wrppm.c",
+    ]
+  }
 
   defines = [
     "WITH_SIMD",
