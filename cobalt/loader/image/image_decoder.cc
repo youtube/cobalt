@@ -108,7 +108,6 @@ ImageDecoder::ImageDecoder(
       state_(resource_provider_ ? kWaitingForHeader : kSuspended),
       is_deletion_pending_(false) {
   signature_cache_.position = 0;
-  use_failure_image_decoder_ = IsResourceProviderStub(resource_provider);
 }
 
 ImageDecoder::ImageDecoder(
@@ -125,7 +124,6 @@ ImageDecoder::ImageDecoder(
       state_(resource_provider_ ? kWaitingForHeader : kSuspended),
       is_deletion_pending_(false) {
   signature_cache_.position = 0;
-  use_failure_image_decoder_ = IsResourceProviderStub(resource_provider);
 }
 
 LoadResponseType ImageDecoder::OnResponseStarted(
@@ -243,7 +241,11 @@ void ImageDecoder::Resume(render_tree::ResourceProvider* resource_provider) {
   DCHECK_EQ(state_, kSuspended);
   DCHECK(!resource_provider_);
   DCHECK(resource_provider);
-  use_failure_image_decoder_ = IsResourceProviderStub(resource_provider);
+  if (IsResourceProviderStub(resource_provider)) {
+    use_failure_image_decoder_ = true;
+  } else {
+    use_failure_image_decoder_ = false;
+  }
   state_ = kWaitingForHeader;
   resource_provider_ = resource_provider;
 }
