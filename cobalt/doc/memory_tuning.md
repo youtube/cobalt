@@ -36,9 +36,6 @@ AutoMem:
 | image_cache_size_in_bytes            |    33554432 |  32.0 MB |  GPU | AutoSet |
 |______________________________________|_____________|__________|______|_________|
 |                                      |             |          |      |         |
-| javascript_gc_threshold_in_bytes     |     8388608 |   8.0 MB |  CPU |   Build |
-|______________________________________|_____________|__________|______|_________|
-|                                      |             |          |      |         |
 | misc_cobalt_cpu_size_in_bytes        |   124780544 | 119.0 MB |  CPU | AutoSet |
 |______________________________________|_____________|__________|______|_________|
 |                                      |             |          |      |         |
@@ -281,10 +278,6 @@ cobalt --max_cobalt_cpu_usage=500MB --max_cobalt_gpu_usage=500MB
   * `image_cache_size_in_bytes`
     * See documentation *Image cache capacity* in `performance_tuning.md` for what
       this setting does.
-    * Set via command line, or else build system, or else automatically by Cobalt.
-  * `javascript_gc_threshold_in_bytes`
-    * See documentation *Garbage collection trigger threshold* in `performance_tuning.md`
-      for what this setting does.
     * Set via command line, or else build system, or else automatically by Cobalt.
   * `remote_typeface_cache_size_in_bytes`
     * Determines the capacity of the remote typefaces cache which manages all typefaces
