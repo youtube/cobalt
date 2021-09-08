@@ -393,7 +393,7 @@ std::vector<uint8_t> Window::Atob(const std::string& encoded_string,
 
 int Window::SetTimeout(const WindowTimers::TimerCallbackArg& handler,
                        int timeout) {
-  DLOG_IF(WARNING, timeout < 0)
+  LOG_IF(WARNING, timeout < 0)
       << "Window::SetTimeout received negative timeout: " << timeout;
   timeout = std::max(timeout, 0);
 
@@ -401,7 +401,7 @@ int Window::SetTimeout(const WindowTimers::TimerCallbackArg& handler,
   if (window_timers_) {
     return_value = window_timers_->SetTimeout(handler, timeout);
   } else {
-    DLOG(WARNING) << "window_timers_ does not exist.  Already destroyed?";
+    LOG(WARNING) << "window_timers_ does not exist.  Already destroyed?";
   }
 
   return return_value;
@@ -411,13 +411,13 @@ void Window::ClearTimeout(int handle) {
   if (window_timers_) {
     window_timers_->ClearTimeout(handle);
   } else {
-    DLOG(WARNING) << "window_timers_ does not exist.  Already destroyed?";
+    LOG(WARNING) << "window_timers_ does not exist.  Already destroyed?";
   }
 }
 
 int Window::SetInterval(const WindowTimers::TimerCallbackArg& handler,
                         int timeout) {
-  DLOG_IF(WARNING, timeout < 0)
+  LOG_IF(WARNING, timeout < 0)
       << "Window::SetInterval received negative timeout: " << timeout;
   timeout = std::max(timeout, 0);
 
@@ -425,7 +425,7 @@ int Window::SetInterval(const WindowTimers::TimerCallbackArg& handler,
   if (window_timers_) {
     return_value = window_timers_->SetInterval(handler, timeout);
   } else {
-    DLOG(WARNING) << "window_timers_ does not exist.  Already destroyed?";
+    LOG(WARNING) << "window_timers_ does not exist.  Already destroyed?";
   }
 
   return return_value;
