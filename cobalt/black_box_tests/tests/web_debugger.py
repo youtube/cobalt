@@ -222,9 +222,6 @@ class WebDebuggerTest(black_box_tests.BlackBoxTestCase):
     return val
 
   def setUp(self):
-    platform_vars = self.platform_config.GetVariables(
-        self.launcher_params.config)
-
     cobalt_vars = self.cobalt_config.GetVariables(self.launcher_params.config)
     if not cobalt_vars['enable_debugger']:
       self.skipTest('DevTools is disabled on this platform')

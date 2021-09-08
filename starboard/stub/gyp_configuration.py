@@ -56,7 +56,7 @@ class StubConfiguration(config.base.PlatformConfigBase):
     })
     return env_variables
 
-  def GetTargetToolchain(self, **kwargs):
+  def GetTargetToolchain(self, **kwargs):  # pylint: disable=unused-argument
     environment_variables = self.GetEnvironmentVariables()
     cc_path = environment_variables['CC']
     cxx_path = environment_variables['CXX']
@@ -74,7 +74,7 @@ class StubConfiguration(config.base.PlatformConfigBase):
         bash.Shell(),
     ]
 
-  def GetHostToolchain(self, **kwargs):
+  def GetHostToolchain(self, **kwargs):  # pylint: disable=unused-argument
     environment_variables = self.GetEnvironmentVariables()
     cc_path = environment_variables['CC_host']
     cxx_path = environment_variables['CXX_host']
