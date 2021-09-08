@@ -149,22 +149,13 @@ std::vector<uint8> GetImageData(const base::FilePath& file_path) {
 
   return CheckSameColor(pixels, size.width(), size.height(), test_color);
 }
-
-class FakeResourceProviderStub : public render_tree::ResourceProviderStub {
-  base::TypeId GetTypeId() const override {
-    return base::GetTypeId<FakeResourceProviderStub>();
-  }
-};
-
 }  // namespace
 
 // TODO: Test special images like the image has gAMA chunk information,
 // pngs with 16 bit depth, and large pngs.
 
 TEST(ImageDecoderTest, DecodeImageWithContentLength0) {
-  std::unique_ptr<FakeResourceProviderStub> resource_provider(
-      new FakeResourceProviderStub());
-  MockImageDecoder image_decoder(resource_provider.get());
+  MockImageDecoder image_decoder;
   image_decoder.ExpectCallWithError(
       std::string("No content returned, but expected some."));
 
@@ -188,9 +179,7 @@ TEST(ImageDecoderTest, DecodeImageWithContentLength0) {
 }
 
 TEST(ImageDecoderTest, DecodeNonImageTypeWithContentLength0) {
-  std::unique_ptr<FakeResourceProviderStub> resource_provider(
-      new FakeResourceProviderStub());
-  MockImageDecoder image_decoder(resource_provider.get());
+  MockImageDecoder image_decoder;
   image_decoder.ExpectCallWithError(std::string(
       "No content returned, but expected some. Not an image mime type."));
 
@@ -214,9 +203,7 @@ TEST(ImageDecoderTest, DecodeNonImageTypeWithContentLength0) {
 }
 
 TEST(ImageDecoderTest, DecodeNonImageType) {
-  std::unique_ptr<FakeResourceProviderStub> resource_provider(
-      new FakeResourceProviderStub());
-  MockImageDecoder image_decoder(resource_provider.get());
+  MockImageDecoder image_decoder;
   image_decoder.ExpectCallWithError(std::string("Not an image mime type."));
 
   const char kHTMLHeaders[] = {
@@ -241,9 +228,7 @@ TEST(ImageDecoderTest, DecodeNonImageType) {
 }
 
 TEST(ImageDecoderTest, DecodeNoContentType) {
-  std::unique_ptr<FakeResourceProviderStub> resource_provider(
-      new FakeResourceProviderStub());
-  MockImageDecoder image_decoder(resource_provider.get());
+  MockImageDecoder image_decoder;
   image_decoder.ExpectCallWithError(std::string("Not an image mime type."));
 
   const char kHTMLHeaders[] = {
@@ -267,9 +252,7 @@ TEST(ImageDecoderTest, DecodeNoContentType) {
 }
 
 TEST(ImageDecoderTest, DecodeImageWithNoContent) {
-  std::unique_ptr<FakeResourceProviderStub> resource_provider(
-      new FakeResourceProviderStub());
-  MockImageDecoder image_decoder(resource_provider.get());
+  MockImageDecoder image_decoder;
   image_decoder.ExpectCallWithError(
       std::string("No content returned. Not an image mime type."));
 
@@ -293,9 +276,7 @@ TEST(ImageDecoderTest, DecodeImageWithNoContent) {
 }
 
 TEST(ImageDecoderTest, DecodeImageWithLessThanHeaderBytes) {
-  std::unique_ptr<FakeResourceProviderStub> resource_provider(
-      new FakeResourceProviderStub());
-  MockImageDecoder image_decoder(resource_provider.get());
+  MockImageDecoder image_decoder;
   image_decoder.ExpectCallWithError(
       std::string("No enough image data for header."));
 
@@ -307,9 +288,7 @@ TEST(ImageDecoderTest, DecodeImageWithLessThanHeaderBytes) {
 }
 
 TEST(ImageDecoderTest, FailedToDecodeImage) {
-  std::unique_ptr<FakeResourceProviderStub> resource_provider(
-      new FakeResourceProviderStub());
-  MockImageDecoder image_decoder(resource_provider.get());
+  MockImageDecoder image_decoder;
   image_decoder.ExpectCallWithError(
       std::string("PNGImageDecoder failed to decode image."));
 
@@ -323,9 +302,7 @@ TEST(ImageDecoderTest, FailedToDecodeImage) {
 }
 
 TEST(ImageDecoderTest, UnsupportedImageFormat) {
-  std::unique_ptr<FakeResourceProviderStub> resource_provider(
-      new FakeResourceProviderStub());
-  MockImageDecoder image_decoder(resource_provider.get());
+  MockImageDecoder image_decoder;
   image_decoder.ExpectCallWithError(std::string("Unsupported image format."));
 
   const char kPartialICOImage[] = {
@@ -338,9 +315,7 @@ TEST(ImageDecoderTest, UnsupportedImageFormat) {
 
 // Test that we can properly decode the PNG image.
 TEST(ImageDecoderTest, DecodePNGImage) {
-  std::unique_ptr<FakeResourceProviderStub> resource_provider(
-      new FakeResourceProviderStub());
-  MockImageDecoder image_decoder(resource_provider.get());
+  MockImageDecoder image_decoder;
   image_decoder.ExpectCallWithError(base::nullopt);
 
   std::vector<uint8> image_data =
@@ -374,9 +349,7 @@ TEST(ImageDecoderTest, DecodePNGImage) {
 
 // Test that we can properly decode the PNG image with multiple chunks.
 TEST(ImageDecoderTest, DecodePNGImageWithMultipleChunks) {
-  std::unique_ptr<FakeResourceProviderStub> resource_provider(
-      new FakeResourceProviderStub());
-  MockImageDecoder image_decoder(resource_provider.get());
+  MockImageDecoder image_decoder;
   image_decoder.ExpectCallWithError(base::nullopt);
 
   std::vector<uint8> image_data =
@@ -414,9 +387,7 @@ TEST(ImageDecoderTest, DecodePNGImageWithMultipleChunks) {
 
 // Test that we can properly decode the the interlaced PNG.
 TEST(ImageDecoderTest, DecodeInterlacedPNGImage) {
-  std::unique_ptr<FakeResourceProviderStub> resource_provider(
-      new FakeResourceProviderStub());
-  MockImageDecoder image_decoder(resource_provider.get());
+  MockImageDecoder image_decoder;
   image_decoder.ExpectCallWithError(base::nullopt);
 
   std::vector<uint8> image_data =
@@ -450,9 +421,7 @@ TEST(ImageDecoderTest, DecodeInterlacedPNGImage) {
 
 // Test that we can properly decode the interlaced PNG with multiple chunks.
 TEST(ImageDecoderTest, DecodeInterlacedPNGImageWithMultipleChunks) {
-  std::unique_ptr<FakeResourceProviderStub> resource_provider(
-      new FakeResourceProviderStub());
-  MockImageDecoder image_decoder(resource_provider.get());
+  MockImageDecoder image_decoder;
   image_decoder.ExpectCallWithError(base::nullopt);
 
   std::vector<uint8> image_data =
@@ -490,9 +459,7 @@ TEST(ImageDecoderTest, DecodeInterlacedPNGImageWithMultipleChunks) {
 
 // Test that we can properly decode the JPEG image.
 TEST(ImageDecoderTest, DecodeJPEGImage) {
-  std::unique_ptr<FakeResourceProviderStub> resource_provider(
-      new FakeResourceProviderStub());
-  MockImageDecoder image_decoder(resource_provider.get());
+  MockImageDecoder image_decoder;
   image_decoder.ExpectCallWithError(base::nullopt);
 
   std::vector<uint8> image_data =
@@ -518,9 +485,7 @@ TEST(ImageDecoderTest, DecodeJPEGImage) {
 
 // Test that we can properly decode the JPEG image with multiple chunks.
 TEST(ImageDecoderTest, DecodeJPEGImageWithMultipleChunks) {
-  std::unique_ptr<FakeResourceProviderStub> resource_provider(
-      new FakeResourceProviderStub());
-  MockImageDecoder image_decoder(resource_provider.get());
+  MockImageDecoder image_decoder;
   image_decoder.ExpectCallWithError(base::nullopt);
 
   std::vector<uint8> image_data =
@@ -550,9 +515,7 @@ TEST(ImageDecoderTest, DecodeJPEGImageWithMultipleChunks) {
 
 // Test that we can properly decode the progressive JPEG image.
 TEST(ImageDecoderTest, DecodeProgressiveJPEGImage) {
-  std::unique_ptr<FakeResourceProviderStub> resource_provider(
-      new FakeResourceProviderStub());
-  MockImageDecoder image_decoder(resource_provider.get());
+  MockImageDecoder image_decoder;
   image_decoder.ExpectCallWithError(base::nullopt);
 
   std::vector<uint8> image_data =
@@ -579,9 +542,7 @@ TEST(ImageDecoderTest, DecodeProgressiveJPEGImage) {
 
 // Test that we can properly decode the progressive JPEG with multiple chunks.
 TEST(ImageDecoderTest, DecodeProgressiveJPEGImageWithMultipleChunks) {
-  std::unique_ptr<FakeResourceProviderStub> resource_provider(
-      new FakeResourceProviderStub());
-  MockImageDecoder image_decoder(resource_provider.get());
+  MockImageDecoder image_decoder;
   image_decoder.ExpectCallWithError(base::nullopt);
 
   std::vector<uint8> image_data =
@@ -612,7 +573,7 @@ TEST(ImageDecoderTest, DecodeProgressiveJPEGImageWithMultipleChunks) {
 // Test that we can properly decode the progressive JPEG image while forcing the
 // output to be single plane.
 TEST(ImageDecoderTest, DecodeProgressiveJPEGImageToSinglePlane) {
-  FakeResourceProviderStub resource_provider;
+  render_tree::ResourceProviderStub resource_provider;
   base::NullDebuggerHooks debugger_hooks;
   const bool kAllowImageDecodingToMultiPlane = false;
   JPEGImageDecoder jpeg_image_decoder(&resource_provider, debugger_hooks,
@@ -645,7 +606,7 @@ TEST(ImageDecoderTest, DecodeProgressiveJPEGImageToSinglePlane) {
 // while forcing the output to be single plane.
 TEST(ImageDecoderTest,
      DecodeProgressiveJPEGImageWithMultipleChunksToSinglePlane) {
-  FakeResourceProviderStub resource_provider;
+  render_tree::ResourceProviderStub resource_provider;
   base::NullDebuggerHooks debugger_hooks;
   const bool kAllowImageDecodingToMultiPlane = false;
   JPEGImageDecoder jpeg_image_decoder(&resource_provider, debugger_hooks,
@@ -680,9 +641,7 @@ TEST(ImageDecoderTest,
 
 // Test that we can properly decode the WEBP image.
 TEST(ImageDecoderTest, DecodeWEBPImage) {
-  std::unique_ptr<FakeResourceProviderStub> resource_provider(
-      new FakeResourceProviderStub());
-  MockImageDecoder image_decoder(resource_provider.get());
+  MockImageDecoder image_decoder;
   image_decoder.ExpectCallWithError(base::nullopt);
 
   std::vector<uint8> image_data =
@@ -715,9 +674,7 @@ TEST(ImageDecoderTest, DecodeWEBPImage) {
 
 // Test that we can properly decode the WEBP image with multiple chunks.
 TEST(ImageDecoderTest, DecodeWEBPImageWithMultipleChunks) {
-  std::unique_ptr<FakeResourceProviderStub> resource_provider(
-      new FakeResourceProviderStub());
-  MockImageDecoder image_decoder(resource_provider.get());
+  MockImageDecoder image_decoder;
   image_decoder.ExpectCallWithError(base::nullopt);
 
   std::vector<uint8> image_data =
@@ -756,9 +713,7 @@ TEST(ImageDecoderTest, DecodeAnimatedWEBPImage) {
   base::Thread thread("AnimatedWebP");
   thread.Start();
 
-  std::unique_ptr<FakeResourceProviderStub> resource_provider(
-      new FakeResourceProviderStub());
-  MockImageDecoder image_decoder(resource_provider.get());
+  MockImageDecoder image_decoder;
   image_decoder.ExpectCallWithError(base::nullopt);
 
   std::vector<uint8> image_data =
@@ -787,9 +742,7 @@ TEST(ImageDecoderTest, DecodeAnimatedWEBPImageWithMultipleChunks) {
   base::Thread thread("AnimatedWebP");
   thread.Start();
 
-  std::unique_ptr<FakeResourceProviderStub> resource_provider(
-      new FakeResourceProviderStub());
-  MockImageDecoder image_decoder(resource_provider.get());
+  MockImageDecoder image_decoder;
   image_decoder.ExpectCallWithError(base::nullopt);
 
   std::vector<uint8> image_data =
