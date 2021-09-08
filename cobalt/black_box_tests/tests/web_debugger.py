@@ -216,7 +216,7 @@ class DebuggerConnection(object):
 class WebDebuggerTest(black_box_tests.BlackBoxTestCase):
   """Test interaction with the web debugger over a WebSocket."""
 
-  def setUpWith(self, cm):
+  def set_up_with(self, cm):
     val = cm.__enter__()
     self.addCleanup(cm.__exit__, None, None, None)
     return val
@@ -226,11 +226,11 @@ class WebDebuggerTest(black_box_tests.BlackBoxTestCase):
     if not cobalt_vars['enable_debugger']:
       self.skipTest('DevTools is disabled on this platform')
 
-    self.server = self.setUpWith(
+    self.server = self.set_up_with(
         ThreadedWebServer(binding_address=self.GetBindingAddress()))
     url = self.server.GetURL(file_name='testdata/web_debugger.html')
-    self.runner = self.setUpWith(self.CreateCobaltRunner(url=url))
-    self.debugger = self.setUpWith(self.create_debugger_connection())
+    self.runner = self.set_up_with(self.CreateCobaltRunner(url=url))
+    self.debugger = self.set_up_with(self.create_debugger_connection())
     self.runner.WaitForJSTestsSetup()
     self.debugger.enable_runtime()
 
