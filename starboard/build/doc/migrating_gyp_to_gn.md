@@ -203,20 +203,25 @@ databases by using [format_ninja.py](../../../tools/format_ninja.py) and a
 comparison tool, i.e. [meld](https://meldmerge.org/). This will allow you to see
 any changes in commands, i.e. with flags or otherwise.
 
-The name of the intermediate .o, .d files is different in both cases: this
-doesn't cause any issues. Keep this in mind while comparing the ninja flags for
-GYP vs GN. Here is an example for raspi2 while compiling the same source file
-```
-starboard/common/new.cc
-```
-GYP generates:
-```
-obj/starboard/common/common.new.cc.o
-```
-GN generates:
-```
-obj/starboard/common/common/new.o
-```
+The following differences for ninja flags between GYP and GN don't cause any
+issues:
+
+1. The name of the intermediate .o, .d files is different in both cases: Here is
+   an example while compiling the same source file
+   ```
+   starboard/common/new.cc
+   ```
+   GYP generates:
+   ```
+   obj/starboard/common/common.new.cc.o
+   ```
+   GN generates:
+   ```
+   obj/starboard/common/common/new.o
+   ```
+2. The `-x` flag for specifying language is not present in GN migration.
+   For example GYP specifies `-x c` flag while building c language files for
+   certain targets. This flag is not specified while building any GN targets.
 
 ### Validating a Platform
 
