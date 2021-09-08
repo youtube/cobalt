@@ -34,7 +34,7 @@ sys.path.append(
     os.path.join(
         os.path.dirname(__file__), '..', '..', '..', 'third_party',
         'websocket-client'))
-import websocket  # pylint: disable=g-bad-import-order,g-import-not-at-top
+import websocket  # pylint: disable=wrong-import-position
 
 # Set to True to add additional logging to debug the test.
 _DEBUG = False
