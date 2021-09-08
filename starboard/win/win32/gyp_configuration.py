@@ -15,7 +15,7 @@
 
 from __future__ import print_function
 
-import imp
+import imp  # pylint: disable=deprecated-module
 import logging
 import os
 import sys
