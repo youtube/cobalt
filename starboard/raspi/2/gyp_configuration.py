@@ -25,8 +25,8 @@ class Raspi2PlatformConfig(shared_configuration.RaspiPlatformConfig):
     super(Raspi2PlatformConfig, self).__init__(
         platform, sabi_json_path=sabi_json_path)
 
-  def GetVariables(self, config_name):
-    variables = super(Raspi2PlatformConfig, self).GetVariables(config_name)
+  def GetVariables(self, configuration):
+    variables = super(Raspi2PlatformConfig, self).GetVariables(configuration)
     return variables
 
 
