@@ -78,9 +78,9 @@ class DebuggerConnection(object):
     self.ws_url = ws_url
     self.timeout = timeout
     self.last_id = 0
-    self.commands = dict()
-    self.responses = dict()
-    self.events = list()
+    self.commands = {}
+    self.responses = {}
+    self.events = []
 
   def __enter__(self):
     websocket.enableTrace(_DEBUG)
