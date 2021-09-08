@@ -97,31 +97,33 @@ target(final_executable_type, "elf_loader_sandbox") {
   ]
 }
 
-target(final_executable_type, "elf_loader_sys_sandbox") {
-  # To properly function the system loader requires the starboard
-  # symbols to be exported from the binary.
-  # To allow symbols to be exported remove the '-fvisibility=hidden' flag
-  # from your compiler_flags.gypi. For Linux this would be:
-  #   starboard/linux/shared/compiler_flags.gypi
-  # Example run:
-  # export LD_LIBRARY_PATH=.
-  # ./elf_loader_sys_sandbox --evergreen_library=app/cobalt/lib/libcobalt.so --evergreen_content=app/cobalt/content
-  sources = [ "sandbox.cc" ]
-  configs += [ ":elf_loader_config" ]
+if (can_build_evergreen_loader_apps) {
+  target(final_executable_type, "elf_loader_sys_sandbox") {
+    # To properly function the system loader requires the starboard
+    # symbols to be exported from the binary.
+    # To allow symbols to be exported remove the '-fvisibility=hidden' flag
+    # from your compiler_flags.gypi. For Linux this would be:
+    #   starboard/linux/shared/compiler_flags.gypi
+    # Example run:
+    # export LD_LIBRARY_PATH=.
+    # ./elf_loader_sys_sandbox --evergreen_library=app/cobalt/lib/libcobalt.so --evergreen_content=app/cobalt/content
+    sources = [ "sandbox.cc" ]
+    configs += [ ":elf_loader_config" ]
 
-  starboard_syms_path =
-      rebase_path("//starboard/starboard.syms", root_build_dir)
-  ldflags = [
-    "-Wl,--dynamic-list=$starboard_syms_path",
-    "-ldl",
-  ]
+    starboard_syms_path =
+        rebase_path("//starboard/starboard.syms", root_build_dir)
+    ldflags = [
+      "-Wl,--dynamic-list=$starboard_syms_path",
+      "-ldl",
+    ]
 
-  deps = [
-    ":elf_loader_sys",
-    ":evergreen_info",
-    ":sabi_string",
-    "//starboard",
-  ]
+    deps = [
+      ":elf_loader_sys",
+      ":evergreen_info",
+      ":sabi_string",
+      "//starboard",
+    ]
+  }
 }
 
 target(gtest_target_type, "elf_loader_test") {
