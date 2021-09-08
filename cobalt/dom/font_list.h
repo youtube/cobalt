@@ -47,7 +47,7 @@ struct FontFace {
     kUnavailableState,
   };
   State state = kUnrequestedState;
-  const FontFaceStyleSet::Entry* entry = nullptr;
+  scoped_refptr<FontFaceStyleSet::Entry> entry;
 
   // The render_tree::Font obtained via the font cache using |family_name_| in
   // font list font, along with |style_| and |size_| from the containing font

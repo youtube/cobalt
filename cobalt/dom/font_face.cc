@@ -21,14 +21,13 @@
 namespace cobalt {
 namespace dom {
 
-void FontFaceStyleSet::AddEntry(const FontFaceStyleSet::Entry& entry) {
+void FontFaceStyleSet::AddEntry(scoped_refptr<FontFaceStyleSet::Entry> entry) {
   entries_.push_back(entry);
 }
 
 void FontFaceStyleSet::CollectUrlSources(std::set<GURL>* urls) const {
-  for (Entries::const_iterator entry_iterator = entries_.begin();
-       entry_iterator != entries_.end(); ++entry_iterator) {
-    const FontFaceSources& entry_sources = entry_iterator->sources;
+  for (auto entry : entries_) {
+    const FontFaceSources& entry_sources = entry->sources;
     for (FontFaceSources::const_iterator source_iterator =
              entry_sources.begin();
          source_iterator != entry_sources.end(); ++source_iterator) {
@@ -39,19 +38,19 @@ void FontFaceStyleSet::CollectUrlSources(std::set<GURL>* urls) const {
   }
 }
 
-std::vector<const FontFaceStyleSet::Entry*>
+std::vector<scoped_refptr<FontFaceStyleSet::Entry>>
 FontFaceStyleSet::GetEntriesThatMatchStyle(
     const render_tree::FontStyle& pattern) const {
-  std::vector<const FontFaceStyleSet::Entry*> entries;
+  std::vector<scoped_refptr<Entry>> entries;
   int max_score = std::numeric_limits<int>::min();
   for (const auto& entry : entries_) {
-    int score = MatchScore(pattern, entry.style);
+    int score = MatchScore(pattern, entry->style);
     if (score >= max_score) {
       if (score > max_score) {
         max_score = score;
         entries.clear();
       }
-      entries.push_back(&entry);
+      entries.push_back(entry);
     }
   }
   return entries;

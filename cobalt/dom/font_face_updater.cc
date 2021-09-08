@@ -48,7 +48,9 @@ namespace {
 // TODO: Handle unicode ranges.
 class FontFaceProvider : public cssom::NotReachedPropertyValueVisitor {
  public:
-  explicit FontFaceProvider(const GURL& base_url) : base_url_(base_url) {}
+  explicit FontFaceProvider(const GURL& base_url) : base_url_(base_url) {
+    style_set_entry_ = base::MakeRefCounted<FontFaceStyleSet::Entry>();
+  }
 
   void VisitFontStyle(cssom::FontStyleValue* font_style) override;
   void VisitFontWeight(cssom::FontWeightValue* font_weight) override;
@@ -63,7 +65,7 @@ class FontFaceProvider : public cssom::NotReachedPropertyValueVisitor {
   bool IsFontFaceValid() const;
 
   const std::string& font_family() const { return font_family_; }
-  const FontFaceStyleSet::Entry& style_set_entry() const {
+  const scoped_refptr<FontFaceStyleSet::Entry> style_set_entry() const {
     return style_set_entry_;
   }
 
@@ -71,13 +73,13 @@ class FontFaceProvider : public cssom::NotReachedPropertyValueVisitor {
   const GURL& base_url_;
 
   std::string font_family_;
-  FontFaceStyleSet::Entry style_set_entry_;
+  scoped_refptr<FontFaceStyleSet::Entry> style_set_entry_;
 
   DISALLOW_COPY_AND_ASSIGN(FontFaceProvider);
 };
 
 void FontFaceProvider::VisitFontStyle(cssom::FontStyleValue* font_style) {
-  style_set_entry_.style.slant =
+  style_set_entry_->style.slant =
       font_style->value() == cssom::FontStyleValue::kItalic
           ? render_tree::FontStyle::kItalicSlant
           : render_tree::FontStyle::kUprightSlant;
@@ -86,31 +88,32 @@ void FontFaceProvider::VisitFontStyle(cssom::FontStyleValue* font_style) {
 void FontFaceProvider::VisitFontWeight(cssom::FontWeightValue* font_weight) {
   switch (font_weight->value()) {
     case cssom::FontWeightValue::kThinAka100:
-      style_set_entry_.style.weight = render_tree::FontStyle::kThinWeight;
+      style_set_entry_->style.weight = render_tree::FontStyle::kThinWeight;
       break;
     case cssom::FontWeightValue::kExtraLightAka200:
-      style_set_entry_.style.weight = render_tree::FontStyle::kExtraLightWeight;
+      style_set_entry_->style.weight =
+          render_tree::FontStyle::kExtraLightWeight;
       break;
     case cssom::FontWeightValue::kLightAka300:
-      style_set_entry_.style.weight = render_tree::FontStyle::kLightWeight;
+      style_set_entry_->style.weight = render_tree::FontStyle::kLightWeight;
       break;
     case cssom::FontWeightValue::kNormalAka400:
-      style_set_entry_.style.weight = render_tree::FontStyle::kNormalWeight;
+      style_set_entry_->style.weight = render_tree::FontStyle::kNormalWeight;
       break;
     case cssom::FontWeightValue::kMediumAka500:
-      style_set_entry_.style.weight = render_tree::FontStyle::kMediumWeight;
+      style_set_entry_->style.weight = render_tree::FontStyle::kMediumWeight;
       break;
     case cssom::FontWeightValue::kSemiBoldAka600:
-      style_set_entry_.style.weight = render_tree::FontStyle::kSemiBoldWeight;
+      style_set_entry_->style.weight = render_tree::FontStyle::kSemiBoldWeight;
       break;
     case cssom::FontWeightValue::kBoldAka700:
-      style_set_entry_.style.weight = render_tree::FontStyle::kBoldWeight;
+      style_set_entry_->style.weight = render_tree::FontStyle::kBoldWeight;
       break;
     case cssom::FontWeightValue::kExtraBoldAka800:
-      style_set_entry_.style.weight = render_tree::FontStyle::kExtraBoldWeight;
+      style_set_entry_->style.weight = render_tree::FontStyle::kExtraBoldWeight;
       break;
     case cssom::FontWeightValue::kBlackAka900:
-      style_set_entry_.style.weight = render_tree::FontStyle::kBlackWeight;
+      style_set_entry_->style.weight = render_tree::FontStyle::kBlackWeight;
       break;
   }
 }
@@ -200,7 +203,7 @@ void FontFaceProvider::VisitKeyword(cssom::KeywordValue* keyword) {
 }
 
 void FontFaceProvider::VisitLocalSrc(cssom::LocalSrcValue* local_src) {
-  style_set_entry_.sources.push_back(FontFaceSource(local_src->value()));
+  style_set_entry_->sources.push_back(FontFaceSource(local_src->value()));
 }
 
 void FontFaceProvider::VisitPropertyList(
@@ -219,7 +222,7 @@ void FontFaceProvider::VisitUnicodeRange(
   FontFaceStyleSet::Entry::UnicodeRange range = {
       static_cast<uint32>(unicode_range->start()),
       static_cast<uint32>(unicode_range->end())};
-  style_set_entry_.unicode_range.insert(range);
+  style_set_entry_->unicode_range.insert(range);
 }
 
 // Check for a supported format. If no format hints are supplied, then the user
@@ -239,7 +242,7 @@ void FontFaceProvider::VisitUrlSrc(cssom::UrlSrcValue* url_src) {
 void FontFaceProvider::VisitURL(cssom::URLValue* url) {
   GURL gurl = url->is_absolute() ? GURL(url->value()) : url->Resolve(base_url_);
   if (gurl.is_valid()) {
-    style_set_entry_.sources.push_back(FontFaceSource(gurl));
+    style_set_entry_->sources.push_back(FontFaceSource(gurl));
   }
 }
 
@@ -247,7 +250,7 @@ void FontFaceProvider::VisitURL(cssom::URLValue* url) {
 //  https://www.w3.org/TR/css3-fonts/#descdef-font-family
 //  https://www.w3.org/TR/css3-fonts/#descdef-src
 bool FontFaceProvider::IsFontFaceValid() const {
-  return !font_family_.empty() && !style_set_entry_.sources.empty();
+  return !font_family_.empty() && !style_set_entry_->sources.empty();
 }
 
 }  // namespace

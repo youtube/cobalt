@@ -60,7 +60,7 @@ class FontFaceStyleSet {
   // single @font-face rule.
   // https://www.w3.org/TR/css3-fonts/#descdef-src
   // https://www.w3.org/TR/css3-fonts/#font-prop-desc
-  struct Entry {
+  struct Entry : public base::RefCounted<Entry> {
    public:
     bool operator==(const Entry& other) const {
       return style.weight == other.style.weight &&
@@ -83,7 +83,7 @@ class FontFaceStyleSet {
     FontFaceSources sources;
   };
 
-  void AddEntry(const Entry& entry);
+  void AddEntry(scoped_refptr<Entry> entry);
 
   // Walk all of the style set's entries, inserting any url sources encountered
   // into the set. All pre-existing url entries within the set are retained.
@@ -92,7 +92,7 @@ class FontFaceStyleSet {
 
   // Returns a list of entries with the style that most closesly matches the
   // pattern.
-  std::vector<const Entry*> GetEntriesThatMatchStyle(
+  std::vector<scoped_refptr<Entry>> GetEntriesThatMatchStyle(
       const render_tree::FontStyle& pattern) const;
 
   bool operator==(const FontFaceStyleSet& other) const {
@@ -100,7 +100,7 @@ class FontFaceStyleSet {
   }
 
  private:
-  typedef std::vector<Entry> Entries;
+  typedef std::vector<scoped_refptr<Entry>> Entries;
 
   // Returns the match score between two patterns. The score logic matches that
   // within SkFontStyleSet_Cobalt::match_score().

@@ -166,7 +166,7 @@ std::vector<FontFace*> FontCache::GetFacesForFamilyAndStyle(
   FontFaceMap::iterator font_face_map_iterator = font_face_map_->find(family);
   if (font_face_map_iterator != font_face_map_->end()) {
     // Add all font-face entries that match the family.
-    std::vector<const FontFaceStyleSet::Entry*> entries =
+    std::vector<scoped_refptr<FontFaceStyleSet::Entry>> entries =
         font_face_map_iterator->second.GetEntriesThatMatchStyle(style);
     for (auto entry : entries) {
       FontFace* face = new FontFace();

@@ -46,10 +46,11 @@ std::unique_ptr<FontCache::FontFaceMap> CreateFontFaceMapHelper(
     const std::string& family_name, const base::StringPiece local_font_name) {
   std::unique_ptr<FontCache::FontFaceMap> ffm(new FontCache::FontFaceMap());
   dom::FontFaceStyleSet ffss;
-  dom::FontFaceStyleSet::Entry entry;
-  entry.sources.push_back(
+  scoped_refptr<dom::FontFaceStyleSet::Entry> entry =
+      base::MakeRefCounted<dom::FontFaceStyleSet::Entry>();
+  entry->sources.push_back(
       FontFaceSource(local_font_name.as_string()));  // local()
-  entry.sources.push_back(FontFaceSource(
+  entry->sources.push_back(FontFaceSource(
       GURL("https://example.com/Dancing-Regular.woff")));  // url()
   ffss.AddEntry(entry);
   ffm->insert(FontCache::FontFaceMap::value_type(family_name, ffss));
