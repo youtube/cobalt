@@ -21,17 +21,17 @@ import os
 import sys
 
 import _env  # pylint: disable=unused-import
-import starboard.shared.win32.gyp_configuration as gyp_configuration
+from starboard.shared.win32 import gyp_configuration
 from starboard.tools.testing import test_filter
 
 try:
-  import gyp.MSVSVersion as MSVSVersion
+  from gyp import MSVSVersion
 except ImportError:
   # FIXME: hack to ensure that the MSVSVersion.py file is loaded when not run
   # as part of gyp invocation.
   _COBALT_SRC = os.path.abspath(os.path.join(*([__file__] + 4 * [os.pardir])))
   sys.path.append(os.path.join(_COBALT_SRC, 'tools', 'gyp', 'pylib'))
-  import gyp.MSVSVersion as MSVSVersion
+  from gyp import MSVSVersion
 
 
 def CreatePlatformConfig():
