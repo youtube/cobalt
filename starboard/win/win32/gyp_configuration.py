@@ -25,13 +25,13 @@ import starboard.shared.win32.gyp_configuration as gyp_configuration
 from starboard.tools.testing import test_filter
 
 try:
-    import gyp.MSVSVersion as MSVSVersion;
+  import gyp.MSVSVersion as MSVSVersion
 except ImportError:
-    # FIXME: hack to ensure that the MSVSVersion.py file is loaded when not run
-    # as part of gyp invocation.
-    _COBALT_SRC = os.path.abspath(os.path.join(*([__file__] + 4 * [os.pardir])))
-    sys.path.append(os.path.join(_COBALT_SRC, 'tools', 'gyp', 'pylib'))
-    import gyp.MSVSVersion as MSVSVersion
+  # FIXME: hack to ensure that the MSVSVersion.py file is loaded when not run
+  # as part of gyp invocation.
+  _COBALT_SRC = os.path.abspath(os.path.join(*([__file__] + 4 * [os.pardir])))
+  sys.path.append(os.path.join(_COBALT_SRC, 'tools', 'gyp', 'pylib'))
+  import gyp.MSVSVersion as MSVSVersion
 
 
 def CreatePlatformConfig():
@@ -78,11 +78,11 @@ class WinWin32PlatformConfig(gyp_configuration.Win32SharedConfiguration):
       if os.environ.get('EXPERIMENTAL_CI', '0') == '1':
         # Disable these tests in the experimental CI due to pending failures.
         experimental_filtered_tests = {
-          'drain_file_test': [
-            'DrainFileTest.SunnyDay',
-            'DrainFileTest.SunnyDayPrepareDirectory',
-            'DrainFileTest.RainyDayDrainFileAlreadyExists'
-          ]
+            'drain_file_test': [
+                'DrainFileTest.SunnyDay',
+                'DrainFileTest.SunnyDayPrepareDirectory',
+                'DrainFileTest.RainyDayDrainFileAlreadyExists'
+            ]
         }
         for target, tests in experimental_filtered_tests.iteritems():
           filters.extend(test_filter.TestFilter(target, test) for test in tests)
@@ -148,16 +148,17 @@ class WinWin32PlatformConfig(gyp_configuration.Win32SharedConfiguration):
   def GetVariables(self, configuration):
     variables = super(WinWin32PlatformConfig, self).GetVariables(configuration)
     try:
-        # TODO: Remove this conditional on docker builds.
-        # Currently, only windows containers have consistent installed Redist/
-        # folder versions. Builders on Trygerrit do not (yet) and this breaks
-        # deployment of DLLs. The fix is to first standardize it for all build
-        # environments, before removing this conditional.
-        deploy_dlls = int(os.environ.get('BUILD_IN_DOCKER', 0))
+      # TODO: Remove this conditional on docker builds.
+      # Currently, only windows containers have consistent installed Redist/
+      # folder versions. Builders on Trygerrit do not (yet) and this breaks
+      # deployment of DLLs. The fix is to first standardize it for all build
+      # environments, before removing this conditional.
+      deploy_dlls = int(os.environ.get('BUILD_IN_DOCKER', 0))
     except (ValueError, TypeError):
-        deploy_dlls = 0
+      deploy_dlls = 0
 
-    vs_version = MSVSVersion.SelectVisualStudioVersion(str(gyp_configuration.MSVS_VERSION))
+    vs_version = MSVSVersion.SelectVisualStudioVersion(
+        str(gyp_configuration.MSVS_VERSION))
 
     variables.update({
         # This controls whether the redistributable debug dlls are copied over
