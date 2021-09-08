@@ -113,6 +113,7 @@ class LinuxConfiguration(platform_configuration.PlatformConfiguration):
       ],
   }
 
+  # pylint: disable=line-too-long
   __FILTERED_TESTS = {  # pylint: disable=invalid-name
       'player_filter_tests': [
           # libdav1d crashes when fed invalid data
@@ -126,3 +127,5 @@ class LinuxConfiguration(platform_configuration.PlatformConfiguration):
         'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest.SunnyDaySourceForDestination/1',
         'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest.SunnyDaySourceNotLoopback/1',
     ]
+
+  # pylint: enable=line-too-long

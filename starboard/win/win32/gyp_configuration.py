@@ -88,6 +88,7 @@ class WinWin32PlatformConfig(gyp_configuration.Win32SharedConfiguration):
           filters.extend(test_filter.TestFilter(target, test) for test in tests)
       return filters
 
+  # pylint: disable=line-too-long
   __FILTERED_TESTS = {
       'nplb': [
           # This single test takes >15 minutes.
@@ -144,6 +145,8 @@ class WinWin32PlatformConfig(gyp_configuration.Win32SharedConfiguration):
           'PlayerComponentsTests/*',
       ],
   }
+
+  # pylint: enable=line-too-long
 
   def GetVariables(self, configuration):
     variables = super(WinWin32PlatformConfig, self).GetVariables(configuration)
