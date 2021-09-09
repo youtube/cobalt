@@ -20,6 +20,7 @@
 #include <set>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "base/callback.h"
 #include "base/containers/hash_tables.h"

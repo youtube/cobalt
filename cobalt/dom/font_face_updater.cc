@@ -15,6 +15,7 @@
 #include "cobalt/dom/font_face_updater.h"
 
 #include <string>
+#include <utility>
 
 #include "cobalt/cssom/css_font_face_rule.h"
 #include "cobalt/cssom/css_media_rule.h"

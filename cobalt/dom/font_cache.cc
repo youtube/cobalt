@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <memory>
+#include <vector>
 
 #include "cobalt/dom/font_cache.h"
 #include "cobalt/dom/global_stats.h"
