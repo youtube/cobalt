@@ -14,5 +14,5 @@
 
 FROM cobalt-build-raspi
 
-CMD gn gen ${OUTDIR}/${PLATFORM}_${CONFIG} --args="target_platform=\"${PLATFORM}\" build_type=\"${CONFIG}\" target_cpu=\"arm\" treat_warnings_as_errors=false" && \
+CMD gn gen ${OUTDIR}/${PLATFORM}_${CONFIG} --args="target_platform=\"${PLATFORM}\" build_type=\"${CONFIG}\" target_cpu=\"arm\" is_clang=false can_build_evergreen_loader_apps=false " && \
     ninja -j ${NINJA_PARALLEL} -C ${OUTDIR}/${PLATFORM}_${CONFIG}
