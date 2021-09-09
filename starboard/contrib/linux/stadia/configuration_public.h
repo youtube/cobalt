@@ -19,6 +19,10 @@
 // Other source files should never include this header directly, but should
 // include the generic "starboard/configuration.h" instead.
 
+// This file is meant to live under starboard/linux/stadia/ (see ../README.md),
+// so we disable the header guard check.
+// NOLINT(build/header_guard)
+
 #ifndef STARBOARD_LINUX_STADIA_CONFIGURATION_PUBLIC_H_
 #define STARBOARD_LINUX_STADIA_CONFIGURATION_PUBLIC_H_
 
