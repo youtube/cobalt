@@ -18,12 +18,14 @@
 Primarily used for looking at the differences between GYP and GN builds during
 the GN migration.
 
-To test, first generate a the ninja build files, then use
+To test, first generate the ".ninja" build files, then use
 
 ninja -t compdb > out.json
 
-in the build directory to generate a JSON file containing all actions ninja
-would run. The run this script on that file and diff it with another.
+in the build directory to generate a JSON file (out.json) containing all actions
+ninja would run. Then, run this script on the out.json file to generate the
+normalized_out.json file. Diff this normalized_out.json file with another
+generated from GYP/GN to see differences in actions, build flags, etc.
 """
 
 import argparse
