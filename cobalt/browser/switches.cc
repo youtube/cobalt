@@ -337,11 +337,6 @@ const char kQrCodeOverlayHelp[] =
     " and the number of locations can be overwritten by specifying it as the "
     " value of the command line parameter, like '--qr_code_overlay=6'.";
 
-const char kReduceGpuMemoryBy[] = "reduce_gpu_memory_by";
-const char kReduceGpuMemoryByHelp[] =
-    "Reduces the gpu-memory of the system by this amount. This causes AutoMem "
-    "to reduce the runtime size of the GPU-Memory caches.";
-
 const char kRemoteTypefaceCacheSizeInBytes[] =
     "remote_typeface_cache_size_in_bytes";
 const char kRemoteTypefaceCacheSizeInBytesHelp[] =
@@ -488,7 +483,6 @@ std::string HelpMessage() {
         {kOmitDeviceAuthenticationQueryParameters,
          kOmitDeviceAuthenticationQueryParametersHelp},
         {kProxy, kProxyHelp}, {kQrCodeOverlay, kQrCodeOverlayHelp},
-        {kReduceGpuMemoryBy, kReduceGpuMemoryByHelp},
         {kRemoteTypefaceCacheSizeInBytes, kRemoteTypefaceCacheSizeInBytesHelp},
         {kRetainRemoteTypefaceCacheDuringSuspend,
          kRetainRemoteTypefaceCacheDuringSuspendHelp},

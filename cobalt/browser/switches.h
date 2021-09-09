@@ -133,8 +133,6 @@ extern const char kProxy[];
 extern const char kProxyHelp[];
 extern const char kQrCodeOverlay[];
 extern const char kQrCodeOverlayHelp[];
-extern const char kReduceGpuMemoryBy[];
-extern const char kReduceGpuMemoryByHelp[];
 extern const char kRemoteTypefaceCacheSizeInBytes[];
 extern const char kRemoteTypefaceCacheSizeInBytesHelp[];
 extern const char kRetainRemoteTypefaceCacheDuringSuspend[];

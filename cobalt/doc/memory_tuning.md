@@ -7,12 +7,6 @@ On startup, AutoMem will print a memory table to the output console detailing
 the memory allocations that will be assigned to the various subsystems in
 cobalt.
 
-As an example, at the cost of performance you can reduce CPU memory on your
-platform by 5MB and GPU memory usage on your platform by 10MB using these
-command line flags:
-
-`cobalt --reduce_cpu_memory_by=5MB --reduce_gpu_memory_by=10MB`
-
 Some settings will be "fixed" while others will be "flexible" so that their
 memory consumption will scale down for memory constrained platforms.
 
@@ -20,8 +14,7 @@ Read on for more information.
 
 **IMPORTANT**
 *Setting `--max_cobalt_cpu_usage` and `--max_cobalt_gpu_usage` on the
-command line is a beta feature. When reducing memory, please use
-`--reduce_cpu_memory_by` and `--reduce_gpu_memory_by`.*
+command line is a beta feature.*
 
 ### Memory Settings Table ###
 
@@ -98,8 +91,6 @@ be set from a specific place or automatically generated from Cobalt.
     * `AutoSet (Constrained)`
       * This value was AutoSet to a default value, but then was reduced in
       response to `max_cobalt_cpu_usage` or `max_cobalt_gpu_usage being` set too low.
-      This will also trigger in response to `reduce_cpu_memory_by` or
-      `reduce_cpu_memory_by` being set. See "Memory Scaling" section below.
 
 ### Maximum Memory Table ###
 
@@ -180,18 +171,6 @@ to scale down whenever the memory settings memory consumption exceed the maximum
 **TOTAL** value. The memory settings will be scaled down until their consumption is
 less than or equal the maximum allowed value **TOTAL**. See also **SETTINGS CONSUME**.
 
-Another way to scale down the memory size is by passing the flags
-`--reduce_cpu_memory_by=XX` and `--reduce_gpu_memory_by=XX` which will:
-1) Ignore the `--max_cobalt_cpu_usage` and `--max_cobalt_gpu_usage`.
-2) Use the current memory consumption of the settings and then reduce that by
-   the amount.
-
-For example, if cobalt uses 160MB of CPU memory then passing in
-`--reduce_cpu_memory_by=10MB` to the command line will attempt to reduce the
-footprint of cobalt by 10MB to 150MB. Note that this reduction is an an attempt,
-and it's possible this attempt will fail if the memory reduction is too aggressive
-or if memory settings have been explicitly set via the build or command line.
-
 *Forcing a Memory Setting to be flexible*
 
 If a memory setting is set via a build setting, then it's possible to make it
@@ -262,16 +241,6 @@ cobalt --max_cobalt_cpu_usage=500MB --max_cobalt_gpu_usage=500MB
     * Note that `SbSystemGetTotalGPUMemory()` is optional. If no value exists
       for `max_cobalt_gpu_usage` in build/commandline/starboard settings then no
       GPU memory checking is performed.
-  * `reduce_cpu_memory_by`
-    * This setting will trigger CPU memory consumption to be reduced by the amount
-      specified. *This overrides the memory scaling behavior of `max_cobalt_cpu_usage`*.
-      But this will not affect memory checking of `max_cobalt_cpu_usage` otherwise.
-    * Set via command line or else the platform gyp build file.
-  * `reduce_cpu_memory_by`
-    * This setting will trigger GPU memory consumption to be reduced by the amount
-      specified. *This overrides the memory scaling behavior of `max_cobalt_gpu_usage`*.
-      But this will not affect memory checking of `max_cobalt_gpu_usage` otherwise.
-    * Set via command line or else the platform gyp build file.
 
 #### Memory Setting API ####
 
