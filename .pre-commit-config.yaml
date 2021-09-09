@@ -5,7 +5,7 @@ default_stages: [commit]
 default_language_version:
     python: python3
 
-exclude: '^(build|third_party|v8)/'
+exclude: '^(base|build|third_party|v8)/'
 
 repos:
 -   repo: https://cobalt.googlesource.com/pre-commit-hooks
