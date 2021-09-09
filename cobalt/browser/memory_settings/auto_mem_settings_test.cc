@@ -81,8 +81,6 @@ void TestAllParseInt(const base::Optional<int64_t>& expected,
                  max_cpu_in_bytes);
   TEST_PARSE_INT(expected, value, switches::kMaxCobaltGpuUsage,
                  max_gpu_in_bytes);
-  TEST_PARSE_INT(expected, value, switches::kReduceGpuMemoryBy,
-                 reduce_gpu_memory_by);
 #undef TEST_PARSE_INT
 }
 
@@ -122,7 +120,6 @@ TEST(AutoMemSettingsTest, InitialState) {
   EXPECT_FALSE(settings.offscreen_target_cache_size_in_bytes);
   EXPECT_FALSE(settings.max_cpu_in_bytes);
   EXPECT_FALSE(settings.max_gpu_in_bytes);
-  EXPECT_FALSE(settings.reduce_gpu_memory_by);
 
   AutoMemSettings build_settings(AutoMemSettings::kTypeBuild);
   EXPECT_EQ(AutoMemSettings::kTypeBuild, build_settings.type);

@@ -93,18 +93,12 @@ class AutoMem {
   // in AllMemorySettings().
   std::unique_ptr<IntSetting> max_cpu_bytes_;
   std::unique_ptr<IntSetting> max_gpu_bytes_;
-  std::unique_ptr<IntSetting>
-      reduced_cpu_bytes_;  // Forces CPU memory reduction.
-  std::unique_ptr<IntSetting>
-      reduced_gpu_bytes_;  // Forces GPU memory reduction.
 
   std::vector<std::string> error_msgs_;
 
   FRIEND_TEST(AutoMem, AllMemorySettingsAreOrderedByName);
   FRIEND_TEST(AutoMem, ConstrainedCPUEnvironment);
   FRIEND_TEST(AutoMem, ConstrainedGPUEnvironment);
-  FRIEND_TEST(AutoMem, ExplicitReducedCPUMemoryConsumption);
-  FRIEND_TEST(AutoMem, ExplicitReducedGPUMemoryConsumption);
   FRIEND_TEST(AutoMem, MaxCpuIsIgnoredDuringExplicitMemoryReduction);
 };
 
