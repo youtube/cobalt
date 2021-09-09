@@ -40,16 +40,12 @@ int WindowTimers::TryAddNewTimer(Timer::TimerType type,
   }
 
   if (callbacks_active_) {
-    auto* timer = new Timer(type, owner_, handler, timeout, handle, this);
+    auto* timer = new Timer(type, owner_, debugger_hooks_, handler, timeout,
+                            handle, this);
     if (application_state_ != base::kApplicationStateFrozen) {
       timer->StartOrResume();
     }
     timers_[handle] = timer;
-    debugger_hooks_.AsyncTaskScheduled(
-        timers_[handle], type == Timer::kOneShot ? "SetTimeout" : "SetInterval",
-        type == Timer::kOneShot
-            ? base::DebuggerHooks::AsyncTaskFrequency::kOneshot
-            : base::DebuggerHooks::AsyncTaskFrequency::kRecurring);
   } else {
     timers_[handle] = nullptr;
   }
@@ -69,26 +65,12 @@ int WindowTimers::SetInterval(const TimerCallbackArg& handler, int timeout) {
   return TryAddNewTimer(Timer::kRepeating, handler, timeout);
 }
 
-void WindowTimers::ClearInterval(int handle) {
-  Timers::iterator timer = timers_.find(handle);
-  if (timer != timers_.end()) {
-    debugger_hooks_.AsyncTaskCanceled(timer->second);
-    timers_.erase(timer);
-  }
-}
-
-void WindowTimers::ClearAllIntervalsAndTimeouts() {
-  for (auto& timer_entry : timers_) {
-    debugger_hooks_.AsyncTaskCanceled(timer_entry.second);
-  }
-  timers_.clear();
-}
+void WindowTimers::ClearInterval(int handle) { timers_.erase(handle); }
 
 void WindowTimers::DisableCallbacks() {
   callbacks_active_ = false;
   // Immediately cancel any pending timers.
   for (auto& timer_entry : timers_) {
-    debugger_hooks_.AsyncTaskCanceled(timer_entry.second);
     timer_entry.second = nullptr;
   }
 }
@@ -126,9 +108,8 @@ void WindowTimers::RunTimerCallback(int handle) {
   {
     // Keep a |TimerInfo| reference, so it won't be released when running the
     // callback.
-    scoped_refptr<Timer> timer_info = timer->second;
-    base::ScopedAsyncTask async_task(debugger_hooks_, timer_info);
-    timer_info->callback_reference().value().Run();
+    scoped_refptr<Timer> timer_info(timer->second);
+    timer_info->Run();
   }
 
   // After running the callback, double check whether the timer is still there
@@ -137,7 +118,6 @@ void WindowTimers::RunTimerCallback(int handle) {
   // If the timer is not deleted and is not running, it means it is an oneshot
   // timer and has just fired the shot, and it should be deleted now.
   if (timer != timers_.end() && !timer->second->timer()->IsRunning()) {
-    debugger_hooks_.AsyncTaskCanceled(timer->second);
     timers_.erase(timer);
   }
 
@@ -169,13 +149,28 @@ void WindowTimers::SetApplicationState(base::ApplicationState state) {
 }
 
 WindowTimers::Timer::Timer(TimerType type, script::Wrappable* const owner,
+                           const base::DebuggerHooks& debugger_hooks,
                            const TimerCallbackArg& callback, int timeout,
                            int handle, WindowTimers* window_timers)
     : type_(type),
       callback_(owner, callback),
+      debugger_hooks_(debugger_hooks),
       timeout_(timeout),
       handle_(handle),
-      window_timers_(window_timers) {}
+      window_timers_(window_timers) {
+  debugger_hooks_.AsyncTaskScheduled(
+      this, type == Timer::kOneShot ? "SetTimeout" : "SetInterval",
+      type == Timer::kOneShot
+          ? base::DebuggerHooks::AsyncTaskFrequency::kOneshot
+          : base::DebuggerHooks::AsyncTaskFrequency::kRecurring);
+}
+
+WindowTimers::Timer::~Timer() { debugger_hooks_.AsyncTaskCanceled(this); }
+
+void WindowTimers::Timer::Run() {
+  base::ScopedAsyncTask async_task(debugger_hooks_, this);
+  callback_.value().Run();
+}
 
 void WindowTimers::Timer::Pause() {
   if (timer_) {

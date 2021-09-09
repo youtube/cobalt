@@ -18,7 +18,7 @@ class TickClock;
 namespace net {
 
 // Inherit from this class if a ScopedTaskEnvironment is needed in a test.
-// Use in class hierachies where inheritance from ::testing::Test at the same
+// Use in class hierarchies where inheritance from ::testing::Test at the same
 // time is not desirable or possible (for example, when inheriting from
 // PlatformTest at the same time).
 class WithScopedTaskEnvironment {
@@ -34,16 +34,30 @@ class WithScopedTaskEnvironment {
     return scoped_task_environment_.MainThreadHasPendingTask();
   }
 
+  // Executes all tasks that have no remaining delay. Tasks with a remaining
+  // delay greater than zero will remain enqueued, and no virtual time will
+  // elapse.
   void RunUntilIdle() { scoped_task_environment_.RunUntilIdle(); }
 
+  // Fast-forwards virtual time by |delta|, causing all tasks with a remaining
+  // delay less than or equal to |delta| to be executed. |delta| must be
+  // non-negative.
   void FastForwardBy(base::TimeDelta delta) {
     scoped_task_environment_.FastForwardBy(delta);
   }
 
+  // Fast-forwards virtual time by |delta| but not causing any task execution.
+  void AdvanceMockTickClock(base::TimeDelta delta) {
+    scoped_task_environment_.AdvanceMockTickClock(delta);
+  }
+
+  // Fast-forwards virtual time just until all tasks are executed.
   void FastForwardUntilNoTasksRemain() {
     scoped_task_environment_.FastForwardUntilNoTasksRemain();
   }
 
+  // Returns a TickClock that uses the virtual time ticks of |this| as its tick
+  // source. The returned TickClock will hold a reference to |this|.
   const base::TickClock* GetMockTickClock() WARN_UNUSED_RESULT {
     return scoped_task_environment_.GetMockTickClock();
   }

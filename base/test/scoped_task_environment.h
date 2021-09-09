@@ -116,6 +116,8 @@ class ScopedTaskEnvironment {
   // (currently only main thread time is mocked).
   void FastForwardBy(TimeDelta delta);
 
+  void AdvanceMockTickClock(TimeDelta delta);
+
   // Only valid for instances with a MOCK_TIME MainThreadType.
   // Short for FastForwardBy(TimeDelta::Max()).
   void FastForwardUntilNoTasksRemain();

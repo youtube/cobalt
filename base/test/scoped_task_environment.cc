@@ -267,6 +267,11 @@ void ScopedTaskEnvironment::FastForwardBy(TimeDelta delta) {
   mock_time_task_runner_->FastForwardBy(delta);
 }
 
+void ScopedTaskEnvironment::AdvanceMockTickClock(TimeDelta delta) {
+  DCHECK(mock_time_task_runner_);
+  mock_time_task_runner_->AdvanceMockTickClock(delta);
+}
+
 void ScopedTaskEnvironment::FastForwardUntilNoTasksRemain() {
   DCHECK(mock_time_task_runner_);
   mock_time_task_runner_->FastForwardUntilNoTasksRemain();
