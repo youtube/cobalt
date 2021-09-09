@@ -64,8 +64,8 @@ GTEST_API_ string ConvertIdentifierNameToWords(const char* id_name) {
     // We don't care about the current locale as the input is
     // guaranteed to be a valid C++ identifier name.
     const bool starts_new_word = IsUpper(*p) ||
-        (!IsAlpha(prev_char) && IsLower(*p)) ||
-        (!IsDigit(prev_char) && IsDigit(*p));
+                                 (!IsAlpha(prev_char) && IsLower(*p)) ||
+                                 (!IsDigit(prev_char) && IsDigit(*p));
 
     if (IsAlNum(*p)) {
       if (starts_new_word && result != "")
@@ -81,14 +81,13 @@ GTEST_API_ string ConvertIdentifierNameToWords(const char* id_name) {
 // use Google Mock with a testing framework other than Google Test.
 class GoogleTestFailureReporter : public FailureReporterInterface {
  public:
-  virtual void ReportFailure(FailureType type, const char* file, int line,
+  virtual void ReportFailure(FailureType type,
+                             const char* file,
+                             int line,
                              const string& message) {
-    AssertHelper(type == kFatal ?
-                 TestPartResult::kFatalFailure :
-                 TestPartResult::kNonFatalFailure,
-                 file,
-                 line,
-                 message.c_str()) = Message();
+    AssertHelper(type == kFatal ? TestPartResult::kFatalFailure
+                                : TestPartResult::kNonFatalFailure,
+                 file, line, message.c_str()) = Message();
     if (type == kFatal) {
       posix::Abort();
     }
@@ -147,24 +146,21 @@ GTEST_API_ void Log(LogSeverity severity,
   // macro.
 
   if (severity == kWarning) {
-    // Prints a GMOCK WARNING marker to make the warnings easily searchable.
-#if GTEST_OS_STARBOARD
-    SB_LOG(INFO) << "\nGMOCK WARNING:";
-#else
+// Prints a GMOCK WARNING marker to make the warnings easily searchable.
+#if !GTEST_OS_STARBOARD
     std::cout << "\nGMOCK WARNING:";
 #endif
   }
   // Pre-pends a new-line to message if it doesn't start with one.
   if (message.empty() || message[0] != '\n') {
-#if GTEST_OS_STARBOARD
-    SB_LOG(INFO) << "\nGMOCK WARNING:";
-#else
+#if !GTEST_OS_STARBOARD
     std::cout << "\n";
 #endif
   }
 
 #if GTEST_OS_STARBOARD
-  SB_LOG(INFO) << "\nGMOCK WARNING:";
+  SB_LOG(INFO) << "\nGMOCK" << ((severity == kWarning) ? " WARNING" : "")
+               << ": " << message;
 #else
   std::cout << message;
 #endif
@@ -189,14 +185,14 @@ GTEST_API_ void Log(LogSeverity severity,
 
 #if GTEST_OS_STARBOARD
     SB_LOG(INFO) << "Stack trace:\n"
-         << ::testing::internal::GetCurrentOsStackTraceExceptTop(
-             ::testing::UnitTest::GetInstance(), actual_to_skip);
+                 << ::testing::internal::GetCurrentOsStackTraceExceptTop(
+                        ::testing::UnitTest::GetInstance(), actual_to_skip);
   }
   SB_LOG(INFO) << ::std::flush;
 #else
     std::cout << "Stack trace:\n"
-         << ::testing::internal::GetCurrentOsStackTraceExceptTop(
-             ::testing::UnitTest::GetInstance(), actual_to_skip);
+              << ::testing::internal::GetCurrentOsStackTraceExceptTop(
+                     ::testing::UnitTest::GetInstance(), actual_to_skip);
   }
   std::cout << ::std::flush;
 #endif
