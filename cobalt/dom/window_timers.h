@@ -43,7 +43,7 @@ class WindowTimers {
       : owner_(owner),
         debugger_hooks_(debugger_hooks),
         application_state_(application_state) {}
-  ~WindowTimers() {}
+  ~WindowTimers() { DisableCallbacks(); }
 
   int SetTimeout(const TimerCallbackArg& handler, int timeout);
 
@@ -52,8 +52,6 @@ class WindowTimers {
   int SetInterval(const TimerCallbackArg& handler, int timeout);
 
   void ClearInterval(int handle);
-
-  void ClearAllIntervalsAndTimeouts();
 
   // When called, it will irreversibly put the WindowTimers object in an
   // inactive state where timer callbacks are ignored.  This is useful when
@@ -69,11 +67,12 @@ class WindowTimers {
     enum TimerType { kOneShot, kRepeating };
 
     Timer(TimerType type, script::Wrappable* const owner,
+          const base::DebuggerHooks& debugger_hooks,
           const TimerCallbackArg& callback, int timeout, int handle,
           WindowTimers* window_timers);
 
     base::internal::TimerBase* timer() { return timer_.get(); }
-    TimerCallbackArg::Reference& callback_reference() { return callback_; }
+    void Run();
 
     // Pause this timer. The timer will not fire when paused.
     void Pause();
@@ -82,7 +81,7 @@ class WindowTimers {
     void StartOrResume();
 
    private:
-    ~Timer() {}
+    ~Timer();
 
     // Create and start a timer of the specified TimerClass type.
     template <class TimerClass>
@@ -91,6 +90,7 @@ class WindowTimers {
     TimerType type_;
     std::unique_ptr<base::internal::TimerBase> timer_;
     TimerCallbackArg::Reference callback_;
+    const base::DebuggerHooks& debugger_hooks_;
     int timeout_;
     int handle_;
     WindowTimers* window_timers_;
