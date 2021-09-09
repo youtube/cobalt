@@ -149,7 +149,7 @@ Window::Window(
           performance_.get(), enable_inline_script_warnings,
           video_playback_rate_multiplier)),
       ALLOW_THIS_IN_INITIALIZER_LIST(document_(new Document(
-          html_element_context_.get(),
+          html_element_context(),
           Document::Options(
               url, this,
               base::Bind(&Window::FireHashChangeEvent, base::Unretained(this)),
@@ -197,7 +197,7 @@ Window::Window(
 #if !defined(ENABLE_TEST_RUNNER)
 #endif
   document_->AddObserver(relay_on_load_event_.get());
-  html_element_context_->application_lifecycle_state()->AddObserver(this);
+  html_element_context()->application_lifecycle_state()->AddObserver(this);
   SetCamera3D(camera_3d);
 
   // Document load start is deferred from this constructor so that we can be
@@ -354,9 +354,9 @@ void Window::CancelAnimationFrame(int32 handle) {
 }
 
 scoped_refptr<MediaQueryList> Window::MatchMedia(const std::string& query) {
-  DCHECK(html_element_context_->css_parser());
+  DCHECK(html_element_context()->css_parser());
   scoped_refptr<cssom::MediaList> media_list =
-      html_element_context_->css_parser()->ParseMediaList(
+      html_element_context()->css_parser()->ParseMediaList(
           query, GetInlineSourceLocation());
   return base::WrapRefCounted(new MediaQueryList(media_list, screen_));
 }
@@ -471,10 +471,6 @@ void Window::Gc(script::EnvironmentSettings* settings) {
   }
 }
 
-HTMLElementContext* Window::html_element_context() const {
-  return html_element_context_.get();
-}
-
 void Window::RunAnimationFrameCallbacks() {
   // Scope the StopWatch. It should not include any processing from
   // |ran_animation_frame_callbacks_callback_|.
@@ -536,7 +532,7 @@ void Window::InjectEvent(const scoped_refptr<Event>& event) {
 
 void Window::SetApplicationState(base::ApplicationState state,
                                  SbTimeMonotonic timestamp) {
-  html_element_context_->application_lifecycle_state()->SetApplicationState(
+  html_element_context()->application_lifecycle_state()->SetApplicationState(
       state);
   if (timestamp == 0) return;
   performance_->SetApplicationState(state, timestamp);
@@ -621,7 +617,8 @@ void Window::SetSize(ViewportSize size) {
   // This will cause layout invalidation.
   document_->SetViewport(viewport_size_);
 
-  if (html_element_context_->application_lifecycle_state()
+  if (html_element_context()
+          ->application_lifecycle_state()
           ->GetVisibilityState() == kVisibilityStateVisible) {
     DispatchEvent(new Event(base::Tokens::resize()));
   } else {
@@ -656,7 +653,8 @@ void Window::OnDocumentRootElementUnableToProvideOffsetDimensions() {
   // the app being in a visibility state that disables layout, then prepare a
   // pending resize event, so that the resize will occur once layouts are again
   // available.
-  if (html_element_context_->application_lifecycle_state()
+  if (html_element_context()
+          ->application_lifecycle_state()
           ->GetVisibilityState() != kVisibilityStateVisible) {
     is_resize_event_pending_ = true;
   }
@@ -728,7 +726,7 @@ Window::~Window() {
   if (ui_nav_root_) {
     ui_nav_root_->SetEnabled(false);
   }
-  html_element_context_->application_lifecycle_state()->RemoveObserver(this);
+  html_element_context()->application_lifecycle_state()->RemoveObserver(this);
 }
 
 void Window::FireHashChangeEvent() {

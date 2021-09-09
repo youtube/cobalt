@@ -322,7 +322,9 @@ class Window : public EventTarget, public ApplicationLifecycleState::Observer {
 
   void Gc(script::EnvironmentSettings* settings);
 
-  HTMLElementContext* html_element_context() const;
+  HTMLElementContext* html_element_context() const {
+    return html_element_context_.get();
+  }
 
   // Will fire the animation frame callbacks and reset the animation frame
   // request callback list.
