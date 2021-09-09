@@ -63,10 +63,6 @@ int64_t CalculateOffscreenTargetCacheSizeInBytes(
 // to be 4MB @ 1080p and scales accordingly.
 int64_t CalculateSkiaCacheSize(const math::Size& ui_resolution);
 
-// Calculates the GPU usage of the app to un-accounted systems. Scales linearly
-// with ui_resolution.
-int64_t CalculateMiscCobaltGpuSize(const math::Size& ui_resolution);
-
 }  // namespace memory_settings
 }  // namespace browser
 }  // namespace cobalt
