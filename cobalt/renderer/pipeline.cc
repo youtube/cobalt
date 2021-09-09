@@ -26,10 +26,9 @@
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/extension/graphics.h"
 #include "cobalt/math/rect_f.h"
-#include "cobalt/render_tree/brush.h"
+#include "cobalt/render_tree/clear_rect_node.h"
 #include "cobalt/render_tree/composition_node.h"
 #include "cobalt/render_tree/dump_render_tree_to_string.h"
-#include "cobalt/render_tree/rect_node.h"
 #include "nb/memory_scope.h"
 #include "starboard/system.h"
 
@@ -66,7 +65,7 @@ const int kRendererThreadStackSize =
 // How many entries the rasterize periodic timer will contain before updating.
 const size_t kRasterizePeriodicTimerEntriesPerUpdate = 60;
 
-// The maximum numer of entries that the rasterize animations timer can contain
+// The maximum number of entries that the rasterize animations timer can contain
 // before automatically updating. In the typical use case, the update will
 // occur manually when the animations expire.
 const size_t kRasterizeAnimationsTimerMaxEntries = 60;
@@ -658,11 +657,10 @@ void Pipeline::ShutdownRasterizerThread() {
   render_tree::ColorRGBA clear_color;
   if (render_target_ && clear_on_shutdown_mode_ == kClearAccordingToPlatform &&
       ShouldClearFrameOnShutdown(&clear_color)) {
-    rasterizer_->Submit(new render_tree::RectNode(
-                            math::RectF(render_target_->GetSize()),
-                            std::unique_ptr<render_tree::Brush>(
-                                new render_tree::SolidColorBrush(clear_color))),
-                        render_target_);
+    rasterizer_->Submit(
+        new render_tree::ClearRectNode(math::RectF(render_target_->GetSize()),
+                                       clear_color),
+        render_target_);
   }
 
   // This potential reference to a render tree whose animations may have ended
