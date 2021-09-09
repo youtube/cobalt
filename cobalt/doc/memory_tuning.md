@@ -22,30 +22,16 @@ A table similar to the one below, will be printed on startup.
 
 ~~~
 AutoMem:
-
- SETTING NAME                           VALUE                    TYPE   SOURCE
- ________________________________________________________________________________
-|                                      |             |          |      |         |
-| image_cache_size_in_bytes            |    33554432 |  32.0 MB |  GPU | AutoSet |
-|______________________________________|_____________|__________|______|_________|
-|                                      |             |          |      |         |
-| misc_cobalt_cpu_size_in_bytes        |   124780544 | 119.0 MB |  CPU | AutoSet |
-|______________________________________|_____________|__________|______|_________|
-|                                      |             |          |      |         |
-| misc_cobalt_gpu_size_in_bytes        |    25165824 |  24.0 MB |  GPU | AutoSet |
-|______________________________________|_____________|__________|______|_________|
-|                                      |             |          |      |         |
-| remote_typeface_cache_size_in_bytes  |     4194304 |   4.0 MB |  CPU |   Build |
-|______________________________________|_____________|__________|______|_________|
-|                                      |             |          |      |         |
-| skia_atlas_texture_dimensions        | 4096x8192x2 |  64.0 MB |  GPU |   Build |
-|______________________________________|_____________|__________|______|_________|
-|                                      |             |          |      |         |
-| skia_cache_size_in_bytes             |     4194304 |   4.0 MB |  GPU |   Build |
-|______________________________________|_____________|__________|______|_________|
-|                                      |             |          |      |         |
-| software_surface_cache_size_in_bytes |         N/A |      N/A |  N/A |     N/A |
-|______________________________________|_____________|__________|______|_________|
+ _______________________________________________________________________________
+|SETTING NAME                          |VALUE        |         |TYPE  |SOURCE   |
+| encoded_image_cache_size_in_bytes    |     1048576 |  1.0 MB |  CPU |   Build |
+| image_cache_size_in_bytes            |    10485760 | 10.0 MB |  GPU | AutoSet |
+| offscreen_target_cache_size_in_bytes |     2097152 |  2.0 MB |  GPU | AutoSet |
+| remote_typeface_cache_size_in_bytes  |     4194304 |  4.0 MB |  CPU |   Build |
+| skia_atlas_texture_dimensions        | 2048x2048x2 |  8.0 MB |  GPU | AutoSet |
+| skia_cache_size_in_bytes             |     4194304 |  4.0 MB |  GPU |   Build |
+| software_surface_cache_size_in_bytes |         N/A |     N/A |  N/A |     N/A |
+|______________________________________|_____________|_________|______|_________|
 
 ~~~
 This table shows the breakdown of how much memory is being allocated to each

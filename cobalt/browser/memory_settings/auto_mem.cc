@@ -243,14 +243,6 @@ AutoMem::AutoMem(const math::Size& ui_resolution,
 
 AutoMem::~AutoMem() {}
 
-const IntSetting* AutoMem::misc_cobalt_cpu_size_in_bytes() const {
-  return misc_cobalt_cpu_size_in_bytes_.get();
-}
-
-const IntSetting* AutoMem::misc_cobalt_gpu_size_in_bytes() const {
-  return misc_cobalt_gpu_size_in_bytes_.get();
-}
-
 const IntSetting* AutoMem::remote_typeface_cache_size_in_bytes() const {
   return remote_typeface_cache_size_in_bytes_.get();
 }
@@ -303,8 +295,6 @@ std::vector<MemorySetting*> AutoMem::AllMemorySettingsMutable() {
   // Keep these in alphabetical order.
   all_settings.push_back(encoded_image_cache_size_in_bytes_.get());
   all_settings.push_back(image_cache_size_in_bytes_.get());
-  all_settings.push_back(misc_cobalt_cpu_size_in_bytes_.get());
-  all_settings.push_back(misc_cobalt_gpu_size_in_bytes_.get());
   all_settings.push_back(offscreen_target_cache_size_in_bytes_.get());
   all_settings.push_back(remote_typeface_cache_size_in_bytes_.get());
   all_settings.push_back(skia_atlas_texture_dimensions_.get());
@@ -397,19 +387,6 @@ void AutoMem::ConstructSettings(const math::Size& ui_resolution,
   // be increased beyond that.
   image_cache_size_in_bytes_->set_memory_scaling_function(
       MakeLinearMemoryScaler(.75, 1.0));
-
-  // Set the misc cobalt size to a specific size.
-  misc_cobalt_cpu_size_in_bytes_.reset(
-      new IntSetting("misc_cobalt_cpu_size_in_bytes"));
-  misc_cobalt_cpu_size_in_bytes_->set_value(MemorySetting::kAutoSet,
-                                            kMiscCobaltCpuSizeInBytes);
-
-  // Set the misc cobalt size to a specific size.
-  misc_cobalt_gpu_size_in_bytes_.reset(
-      new IntSetting("misc_cobalt_gpu_size_in_bytes"));
-  misc_cobalt_gpu_size_in_bytes_->set_memory_type(MemorySetting::kGPU);
-  misc_cobalt_gpu_size_in_bytes_->set_value(
-      MemorySetting::kAutoSet, CalculateMiscCobaltGpuSize(ui_resolution));
 
   // Set remote_type_face_cache size.
   remote_typeface_cache_size_in_bytes_ =
