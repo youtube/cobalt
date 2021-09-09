@@ -56,6 +56,9 @@ void CacheMessage(std::string* result, const std::string& message) {
 
 // Returns true if the ResourceProvider is ResourceProviderStub.
 bool IsResourceProviderStub(render_tree::ResourceProvider* resource_provider) {
+  if (resource_provider == nullptr) {
+    return true;
+  }
   return resource_provider->GetTypeId() ==
          base::GetTypeId<render_tree::ResourceProviderStub>();
 }
