@@ -40,8 +40,8 @@ int WindowTimers::TryAddNewTimer(Timer::TimerType type,
   }
 
   if (callbacks_active_) {
-    auto* timer = new Timer(type, owner_, debugger_hooks_, handler, timeout,
-                            handle, this);
+    auto* timer = new Timer(type, owner_, dom_stat_tracker_, debugger_hooks_,
+                            handler, timeout, handle, this);
     if (application_state_ != base::kApplicationStateFrozen) {
       timer->StartOrResume();
     }
@@ -149,11 +149,13 @@ void WindowTimers::SetApplicationState(base::ApplicationState state) {
 }
 
 WindowTimers::Timer::Timer(TimerType type, script::Wrappable* const owner,
+                           DomStatTracker* dom_stat_tracker,
                            const base::DebuggerHooks& debugger_hooks,
                            const TimerCallbackArg& callback, int timeout,
                            int handle, WindowTimers* window_timers)
     : type_(type),
       callback_(owner, callback),
+      dom_stat_tracker_(dom_stat_tracker),
       debugger_hooks_(debugger_hooks),
       timeout_(timeout),
       handle_(handle),
@@ -163,9 +165,27 @@ WindowTimers::Timer::Timer(TimerType type, script::Wrappable* const owner,
       type == Timer::kOneShot
           ? base::DebuggerHooks::AsyncTaskFrequency::kOneshot
           : base::DebuggerHooks::AsyncTaskFrequency::kRecurring);
+  switch (type) {
+    case Timer::kOneShot:
+      dom_stat_tracker_->OnWindowTimersTimeoutCreated();
+      break;
+    case Timer::kRepeating:
+      dom_stat_tracker_->OnWindowTimersIntervalCreated();
+      break;
+  }
 }
 
-WindowTimers::Timer::~Timer() { debugger_hooks_.AsyncTaskCanceled(this); }
+WindowTimers::Timer::~Timer() {
+  switch (type_) {
+    case Timer::kOneShot:
+      dom_stat_tracker_->OnWindowTimersTimeoutDestroyed();
+      break;
+    case Timer::kRepeating:
+      dom_stat_tracker_->OnWindowTimersIntervalDestroyed();
+      break;
+  }
+  debugger_hooks_.AsyncTaskCanceled(this);
+}
 
 void WindowTimers::Timer::Run() {
   base::ScopedAsyncTask async_task(debugger_hooks_, this);

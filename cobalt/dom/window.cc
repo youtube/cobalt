@@ -165,7 +165,8 @@ Window::Window(
       ALLOW_THIS_IN_INITIALIZER_LIST(
           relay_on_load_event_(new RelayLoadEvent(this))),
       ALLOW_THIS_IN_INITIALIZER_LIST(window_timers_(
-          new WindowTimers(this, debugger_hooks(), initial_application_state))),
+          new WindowTimers(this, dom_stat_tracker, debugger_hooks(),
+                           initial_application_state))),
       ALLOW_THIS_IN_INITIALIZER_LIST(animation_frame_request_callback_list_(
           new AnimationFrameRequestCallbackList(this, debugger_hooks()))),
       crypto_(new Crypto()),
@@ -418,7 +419,7 @@ void Window::ClearTimeout(int handle) {
 int Window::SetInterval(const WindowTimers::TimerCallbackArg& handler,
                         int timeout) {
   LOG_IF(WARNING, timeout < 0)
-      << "Window::SetInterval received negative timeout: " << timeout;
+      << "Window::SetInterval received negative interval: " << timeout;
   timeout = std::max(timeout, 0);
 
   int return_value = 0;

@@ -21,6 +21,7 @@
 #include "base/test/scoped_task_environment.h"
 #include "base/threading/platform_thread.h"
 #include "base/time/time.h"
+#include "cobalt/dom/dom_stat_tracker.h"
 #include "cobalt/script/callback_function.h"
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/javascript_engine.h"
@@ -85,15 +86,18 @@ class WindowTimersTest : public ::testing::Test,
   WindowTimersTest()
       : WithScopedTaskEnvironment(
             base::test::ScopedTaskEnvironment::MainThreadType::MOCK_TIME),
+        dom_stat_tracker_("WindowTimersTest"),
         callback_(&mock_timer_callback_) {
     script::Wrappable* foo = nullptr;
-    timers_.reset(new WindowTimers(
-        foo, hooks_, base::ApplicationState::kApplicationStateStarted));
+    timers_.reset(
+        new WindowTimers(foo, &dom_stat_tracker_, hooks_,
+                         base::ApplicationState::kApplicationStateStarted));
   }
 
   ~WindowTimersTest() override {}
 
   testing::MockDebuggerHooks hooks_;
+  DomStatTracker dom_stat_tracker_;
   std::unique_ptr<WindowTimers> timers_;
   testing::MockTimerCallback mock_timer_callback_;
   FakeScriptValue<WindowTimers::TimerCallback> callback_;
@@ -223,6 +227,45 @@ TEST_F(WindowTimersTest, MultipleTimeouts) {
   EXPECT_EQ(GetPendingMainThreadTaskCount(), 0);
 }
 
+TEST_F(WindowTimersTest, ActiveTimeoutsAreCounted) {
+  hooks_.ExpectAsyncTaskScheduled(2);
+  hooks_.ExpectAsyncTaskCanceled(2);
+  hooks_.ExpectAsyncTaskStarted(2);
+  hooks_.ExpectAsyncTaskFinished(2);
+
+  mock_timer_callback_.ExpectRunCall(2);
+  timers_->SetTimeout(callback_, kTimerDelayInMilliseconds);
+  timers_->SetTimeout(callback_, kTimerDelayInMilliseconds * 3);
+
+  dom_stat_tracker_.FlushPeriodicTracking();
+  EXPECT_EQ("0", base::CValManager::GetInstance()
+                     ->GetValueAsString(
+                         "Count.WindowTimersTest.DOM.WindowTimers.Interval")
+                     .value_or("Foo"));
+  EXPECT_EQ("2", base::CValManager::GetInstance()
+                     ->GetValueAsString(
+                         "Count.WindowTimersTest.DOM.WindowTimers.Timeout")
+                     .value_or("Foo"));
+
+  EXPECT_EQ(GetPendingMainThreadTaskCount(), 2);
+  EXPECT_EQ(NextMainThreadPendingTaskDelay(),
+            base::TimeDelta::FromMilliseconds(kTimerDelayInMilliseconds));
+
+  FastForwardBy(
+      base::TimeDelta::FromMilliseconds(3 * kTimerDelayInMilliseconds));
+  EXPECT_EQ(GetPendingMainThreadTaskCount(), 0);
+
+  dom_stat_tracker_.FlushPeriodicTracking();
+  EXPECT_EQ("0", base::CValManager::GetInstance()
+                     ->GetValueAsString(
+                         "Count.WindowTimersTest.DOM.WindowTimers.Interval")
+                     .value_or("Foo"));
+  EXPECT_EQ("0", base::CValManager::GetInstance()
+                     ->GetValueAsString(
+                         "Count.WindowTimersTest.DOM.WindowTimers.Timeout")
+                     .value_or("Foo"));
+}
+
 TEST_F(WindowTimersTest, IntervalZeroTaskIsScheduledImmediately) {
   hooks_.ExpectAsyncTaskScheduled(1);
   hooks_.ExpectAsyncTaskCanceled(1);
@@ -336,6 +379,88 @@ TEST_F(WindowTimersTest, MultipleIntervals) {
       base::TimeDelta::FromMilliseconds(3 * kTimerDelayInMilliseconds));
   RunUntilIdle();
   EXPECT_EQ(GetPendingMainThreadTaskCount(), 2);
+}
+
+TEST_F(WindowTimersTest, ActiveIntervalsAreCounted) {
+  hooks_.ExpectAsyncTaskScheduled(2);
+  hooks_.ExpectAsyncTaskCanceled(2);
+  hooks_.ExpectAsyncTaskStarted(4);
+  hooks_.ExpectAsyncTaskFinished(4);
+
+  mock_timer_callback_.ExpectRunCall(4);
+  timers_->SetInterval(callback_, kTimerDelayInMilliseconds);
+  timers_->SetInterval(callback_, kTimerDelayInMilliseconds * 3);
+
+  dom_stat_tracker_.FlushPeriodicTracking();
+  EXPECT_EQ("2", base::CValManager::GetInstance()
+                     ->GetValueAsString(
+                         "Count.WindowTimersTest.DOM.WindowTimers.Interval")
+                     .value_or("Foo"));
+  EXPECT_EQ("0", base::CValManager::GetInstance()
+                     ->GetValueAsString(
+                         "Count.WindowTimersTest.DOM.WindowTimers.Timeout")
+                     .value_or("Foo"));
+
+  EXPECT_EQ(GetPendingMainThreadTaskCount(), 2);
+  EXPECT_EQ(NextMainThreadPendingTaskDelay(),
+            base::TimeDelta::FromMilliseconds(kTimerDelayInMilliseconds));
+
+  FastForwardBy(
+      base::TimeDelta::FromMilliseconds(3 * kTimerDelayInMilliseconds));
+  RunUntilIdle();
+  EXPECT_EQ(GetPendingMainThreadTaskCount(), 2);
+
+  dom_stat_tracker_.FlushPeriodicTracking();
+  EXPECT_EQ("2", base::CValManager::GetInstance()
+                     ->GetValueAsString(
+                         "Count.WindowTimersTest.DOM.WindowTimers.Interval")
+                     .value_or("Foo"));
+  EXPECT_EQ("0", base::CValManager::GetInstance()
+                     ->GetValueAsString(
+                         "Count.WindowTimersTest.DOM.WindowTimers.Timeout")
+                     .value_or("Foo"));
+}
+
+TEST_F(WindowTimersTest, ActiveIntervalsAndTimeoutsAreCounted) {
+  hooks_.ExpectAsyncTaskScheduled(4);
+  hooks_.ExpectAsyncTaskCanceled(4);
+  hooks_.ExpectAsyncTaskStarted(6);
+  hooks_.ExpectAsyncTaskFinished(6);
+
+  mock_timer_callback_.ExpectRunCall(6);
+  timers_->SetInterval(callback_, kTimerDelayInMilliseconds);
+  timers_->SetInterval(callback_, kTimerDelayInMilliseconds * 3);
+  timers_->SetTimeout(callback_, kTimerDelayInMilliseconds);
+  timers_->SetTimeout(callback_, kTimerDelayInMilliseconds * 3);
+
+  dom_stat_tracker_.FlushPeriodicTracking();
+  EXPECT_EQ("2", base::CValManager::GetInstance()
+                     ->GetValueAsString(
+                         "Count.WindowTimersTest.DOM.WindowTimers.Interval")
+                     .value_or("Foo"));
+  EXPECT_EQ("2", base::CValManager::GetInstance()
+                     ->GetValueAsString(
+                         "Count.WindowTimersTest.DOM.WindowTimers.Timeout")
+                     .value_or("Foo"));
+
+  EXPECT_EQ(GetPendingMainThreadTaskCount(), 4);
+  EXPECT_EQ(NextMainThreadPendingTaskDelay(),
+            base::TimeDelta::FromMilliseconds(kTimerDelayInMilliseconds));
+
+  FastForwardBy(
+      base::TimeDelta::FromMilliseconds(3 * kTimerDelayInMilliseconds));
+  RunUntilIdle();
+  EXPECT_EQ(GetPendingMainThreadTaskCount(), 2);
+
+  dom_stat_tracker_.FlushPeriodicTracking();
+  EXPECT_EQ("2", base::CValManager::GetInstance()
+                     ->GetValueAsString(
+                         "Count.WindowTimersTest.DOM.WindowTimers.Interval")
+                     .value_or("Foo"));
+  EXPECT_EQ("0", base::CValManager::GetInstance()
+                     ->GetValueAsString(
+                         "Count.WindowTimersTest.DOM.WindowTimers.Timeout")
+                     .value_or("Foo"));
 }
 
 

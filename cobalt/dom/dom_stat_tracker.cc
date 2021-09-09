@@ -26,10 +26,21 @@ DomStatTracker::DomStatTracker(const std::string& name)
       count_html_element_document_(
           base::StringPrintf("Count.%s.DOM.HtmlElement.Document", name.c_str()),
           0, "Number of HTML elements in the document."),
+      count_window_timers_interval_(
+          base::StringPrintf("Count.%s.DOM.WindowTimers.Interval",
+                             name.c_str()),
+          0, "Number of active WindowTimer Intervals."),
+      count_window_timers_timeout_(
+          base::StringPrintf("Count.%s.DOM.WindowTimers.Timeout", name.c_str()),
+          0, "Number of active WindowTimer Timeouts."),
       count_html_element_created_(0),
       count_html_element_destroyed_(0),
       count_html_element_document_added_(0),
       count_html_element_document_removed_(0),
+      count_window_timers_interval_created_(0),
+      count_window_timers_interval_destroyed_(0),
+      count_window_timers_timeout_created_(0),
+      count_window_timers_timeout_destroyed_(0),
       script_element_execute_count_(
           base::StringPrintf("Count.%s.DOM.HtmlScriptElement.Execute",
                              name.c_str()),
@@ -69,6 +80,8 @@ DomStatTracker::~DomStatTracker() {
   // destroyed.
   DCHECK_EQ(count_html_element_, 0);
   DCHECK_EQ(count_html_element_document_, 0);
+  DCHECK_EQ(count_window_timers_interval_, 0);
+  DCHECK_EQ(count_window_timers_timeout_, 0);
 
   event_video_start_delay_stop_watch_.Stop();
 }
@@ -146,11 +159,20 @@ void DomStatTracker::FlushPeriodicTracking() {
   count_html_element_document_ +=
       count_html_element_document_added_ - count_html_element_document_removed_;
 
+  count_window_timers_interval_ += count_window_timers_interval_created_ -
+                                   count_window_timers_interval_destroyed_;
+  count_window_timers_timeout_ += count_window_timers_timeout_created_ -
+                                  count_window_timers_timeout_destroyed_;
   // Now clear the values.
   count_html_element_created_ = 0;
   count_html_element_destroyed_ = 0;
   count_html_element_document_added_ = 0;
   count_html_element_document_removed_ = 0;
+
+  count_window_timers_interval_created_ = 0;
+  count_window_timers_interval_destroyed_ = 0;
+  count_window_timers_timeout_created_ = 0;
+  count_window_timers_timeout_destroyed_ = 0;
 }
 
 void DomStatTracker::StartTrackingEvent() {
