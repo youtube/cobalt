@@ -46,7 +46,7 @@ def make_path_absolute(path: str, directory: str) -> str:
 
 
 def remove_directory_path(path: str, directory: str) -> str:
-  if STRIP :
+  if STRIP:
     dirsplit = directory.split(os.path.sep)
     directory = os.path.sep.join(dirsplit[:-(STRIP)])
   if os.path.commonpath([path, directory]) != directory:
