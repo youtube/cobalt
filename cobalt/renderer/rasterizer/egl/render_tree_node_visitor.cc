@@ -602,6 +602,11 @@ void RenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
     }
   } else {
     texcoord_transform = data.local_transform.Inverse();
+
+    if (texcoord_transform.IsZeros()) {
+      DLOG(ERROR) << "data.local_transform is a non invertible matrix.";
+      return;
+    }
   }
 
   // Different shaders are used depending on whether the image has a single
