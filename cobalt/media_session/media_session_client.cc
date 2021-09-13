@@ -176,8 +176,6 @@ MediaSessionClient::ComputeAvailableActions() const {
 }
 
 void MediaSessionClient::PostDelayedTaskForMaybeFreezeCallback() {
-  if (is_active()) return;
-
   media_session_->task_runner_->PostDelayedTask(
       FROM_HERE, base::Bind(&MediaSessionClient::RunMaybeFreezeCallback,
                             base::Unretained(this), ++sequence_number_),
