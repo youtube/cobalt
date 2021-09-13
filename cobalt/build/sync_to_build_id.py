@@ -12,6 +12,7 @@ from __future__ import print_function
 import argparse
 import json
 import os
+import platform
 import shutil
 import subprocess
 import sys
@@ -65,13 +66,14 @@ def _RunGitCommandReturnExitCode(gitargs, **kwargs):
 
   """
   popen_args = ["git"] + gitargs
-  with subprocess.Popen(popen_args, stdout=subprocess.PIPE, **kwargs) as p:
-    output = p.stdout.read().splitlines()
-    return p.wait(), output
+  p = subprocess.Popen(popen_args, stdout=subprocess.PIPE, **kwargs)
+  output = p.stdout.read().splitlines()
+  return p.wait(), output
 
 
 def main():
-  dev_null = open(os.devnull, "w")  # pylint: disable=consider-using-with
+  dev_null_filename = "nul" if platform.system() == "Windows" else "/dev/null"
+  dev_null = open(dev_null_filename, "w")
   arg_parser = argparse.ArgumentParser(
       description="Syncs to a given Cobalt build id")
   arg_parser.add_argument("buildid", nargs=1)
@@ -95,7 +97,7 @@ def main():
   hashes = json.loads(outer_json["deps"])
   git_root = os.getcwd()
 
-  for relpath, rep_hash in hashes.items():
+  for relpath, rep_hash in hashes.iteritems():
     path = os.path.normpath(os.path.join(git_root, relpath))
     if not os.path.exists(path):
       # No warning in this case, we will attempt to clone the repository in
@@ -118,21 +120,17 @@ def main():
 
     (requested_repo, _) = rep_hash.split("@")
     remote_url = _RunGitCommand(["config", "--get", "remote.origin.url"],
-                                cwd=path)[0]
-    if requested_repo.endswith(".git"):
-      remote_url += ".git"
-
+                                cwd=path)[0] + ".git"
     if remote_url != requested_repo:
-      if args.force and path != git_root:
+      if args.force:
         shutil.rmtree(path)
       else:
         print(("{0} exists but does not point to the requested repo for that "
                "path, {1}. Either replace that directory manually or run this "
-               "script with --force. --force will not try to remove the top "
-               "level repository.").format(path, requested_repo))
+               "script with --force.").format(path, requested_repo))
         return 1
 
-  for relpath, rep_hash in hashes.items():
+  for relpath, rep_hash in hashes.iteritems():
     path = os.path.normpath(os.path.join(git_root, relpath))
 
     # repo_hash has a repo path prefix like this:
