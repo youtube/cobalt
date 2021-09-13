@@ -139,6 +139,7 @@ repos:
         entry: python precommit_hooks/internal_file_check_wrapper.py
         language: python
         types: [text]
+        exclude: 'EXCLUDE\.FILES(\.RECURSIVE)?$'
     -   id: gn-format
         name: GN format
         entry: gn format
