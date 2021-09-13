@@ -82,8 +82,8 @@ declare_args() {
   # Where the Starboard ABI file for this platform can be found.
   sabi_path = "starboard/sabi/default/sabi.json"
 
-  # Whether the platform implements platforms tests.
-  has_platform_tests = false
+  # Set to the starboard_platform_tests target if the platform implements them.
+  platform_tests_path = ""
 
   # Whether the platform has platform-specific targets to depend on.
   has_platform_targets = false
