@@ -473,25 +473,6 @@ static_library("starboard_base_symbolize") {
   public_deps = [ "//starboard/elf_loader:evergreen_info" ]
 }
 
-target(gtest_target_type, "starboard_platform_tests") {
-  testonly = true
-
-  sources = [
-    "//starboard/common/test_main.cc",
-    "jni_env_ext_test.cc",
-    "model_year_test.cc",
-  ]
-
-  configs += [ "//starboard/build/config:starboard_implementation" ]
-
-  deps = [
-    "//starboard",
-    "//starboard/shared/starboard/media:media_util_tests",
-    "//testing/gmock",
-    "//testing/gtest",
-  ]
-}
-
 copy("ndk_sources") {
   sources = [ "$android_ndk_path/sources/android/cpufeatures/cpu-features.c" ]
   outputs = [ "$target_gen_dir/ndk-sources/{{source_file_part}}" ]
