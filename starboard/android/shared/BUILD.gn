@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//starboard/shared/starboard/media/media_tests.gni")
 import("//starboard/shared/starboard/player/buildfiles.gni")
 
 config("starboard_platform_config") {
@@ -471,6 +472,25 @@ static_library("starboard_base_symbolize") {
   ]
 
   public_deps = [ "//starboard/elf_loader:evergreen_info" ]
+}
+
+target(gtest_target_type, "starboard_platform_tests") {
+  testonly = true
+
+  sources = media_tests_sources + [
+              "//starboard/common/test_main.cc",
+              "jni_env_ext_test.cc",
+              "model_year_test.cc",
+            ]
+
+  configs += [ "//starboard/build/config:starboard_implementation" ]
+
+  deps = [
+    "//starboard",
+    "//starboard/shared/starboard/player/filter/testing:test_util",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
 }
 
 copy("ndk_sources") {
