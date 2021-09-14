@@ -105,7 +105,7 @@ the guidelines follow thusly as follows.
     name of the module following the `Sb`.
       * `file.h` contains `SbFile`, `SbFileInfo`, `SbFileWhence`, etc...
   * Every seemingly-allocatable, platform-specific Starboard type should be
-    defined as an opaque handle to a publically undefined struct with the
+    defined as an opaque handle to a publicly undefined struct with the
     `Private` suffix. Follow this pattern for all such type declarations.
       * `struct SbFilePrivate` is declared, but not defined in the public header.
       * `SbFilePrivate` is `typedef`'d to `struct SbFilePrivate`. This is a C

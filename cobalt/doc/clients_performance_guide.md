@@ -124,7 +124,7 @@ is desired, instead of creating a new fullscreen `<div>`, set the
 desired background color or image on the `<body>` element which will cover the
 display anyway.  Otherwise, the `<body>` element will render its background, and
 then the `<div>` element will render over top of it (Cobalt is not smart enough
-to know if an element completely coveres another element), resulting in more
+to know if an element completely covers another element), resulting in more
 pixels being touched than is necessary.
 
 This type of optimization is related to the concept of "overdraw" from computer

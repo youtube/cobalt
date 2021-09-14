@@ -10,7 +10,7 @@ Initially all targets were defined in one common shared file,
 `src/tools/gyp/pylib/gyp/generator/ninja.py`.
 Modifications to this file were required for replacing any of the toolchain
 components, adding platform-specific tooling, adding new toolchains, or
-accomodating platform-specific flavor of reference tool. Doing this in a
+accommodating platform-specific flavor of reference tool. Doing this in a
 shared file does not scale with the number of ports.
 
 ## Overview

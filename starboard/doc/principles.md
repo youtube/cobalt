@@ -150,4 +150,3 @@ Starboard has a [versioning mechanism](versioning.md) to manage change.
   * [Joshua Bloch's presentation about API design](https://www.youtube.com/watch?v=aAb7hSCtvGw)
   * [Joshua Bloch's bumper sticker API design rules](http://www.infoq.com/articles/API-Design-Joshua-Bloch)
   * [digithead's collection of API design links (I didn't read them all)](http://digitheadslabnotebook.blogspot.com/2010/07/how-to-design-good-apis.html)
-
