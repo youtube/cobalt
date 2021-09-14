@@ -628,9 +628,11 @@ void Window::SetSize(ViewportSize size) {
 }
 
 void Window::UpdateCamera3D(const scoped_refptr<input::Camera3D>& camera_3d) {
-  if (camera_3d_) {
+  if (camera_3d_ && camera_3d_->impl()) {
+    // Update input object for existing camera.
     camera_3d_->impl()->SetInput(camera_3d);
   } else {
+    // Create a new camera which uses the given input camera object.
     camera_3d_ = new Camera3D(camera_3d);
     camera_3d_->StartOrientationEvents(base::AsWeakPtr(this));
   }
