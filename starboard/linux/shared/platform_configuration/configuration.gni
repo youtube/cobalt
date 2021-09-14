@@ -35,4 +35,3 @@ no_pedantic_warnings_config_path =
 sb_widevine_platform = "linux"
 
 has_drm_support = is_internal_build
-platform_tests_path = "//starboard/linux/shared:starboard_platform_tests"
