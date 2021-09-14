@@ -1461,8 +1461,7 @@ void BrowserModule::Blur(SbTimeMonotonic timestamp) {
   DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
   DCHECK(application_state_ == base::kApplicationStateStarted);
   application_state_ = base::kApplicationStateBlurred;
-  FOR_EACH_OBSERVER(LifecycleObserver,
-                    lifecycle_observers_, Blur(timestamp));
+  FOR_EACH_OBSERVER(LifecycleObserver, lifecycle_observers_, Blur(timestamp));
 }
 
 void BrowserModule::Conceal(SbTimeMonotonic timestamp) {
@@ -1477,8 +1476,7 @@ void BrowserModule::Focus(SbTimeMonotonic timestamp) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::Focus()");
   DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
   DCHECK(application_state_ == base::kApplicationStateBlurred);
-  FOR_EACH_OBSERVER(LifecycleObserver,
-                    lifecycle_observers_, Focus(timestamp));
+  FOR_EACH_OBSERVER(LifecycleObserver, lifecycle_observers_, Focus(timestamp));
   application_state_ = base::kApplicationStateStarted;
 }
 
@@ -1629,12 +1627,12 @@ void BrowserModule::InitializeComponents() {
                                                options_.media_module_options));
 
     if (web_module_) {
-      web_module_->SetCamera3D(input_device_manager_->camera_3d());
       web_module_->SetMediaModule(media_module_.get());
     }
   }
 
   if (web_module_) {
+    web_module_->UpdateCamera3D(input_device_manager_->camera_3d());
     web_module_->GetUiNavRoot()->SetContainerWindow(
         system_window_->GetSbWindow());
   }
@@ -1782,8 +1780,7 @@ void BrowserModule::FreezeInternal(SbTimeMonotonic timestamp) {
   FreezeMediaModule();
   // First freeze all our web modules which implies that they will release
   // their resource provider and all resources created through it.
-  FOR_EACH_OBSERVER(LifecycleObserver,
-                    lifecycle_observers_, Freeze(timestamp));
+  FOR_EACH_OBSERVER(LifecycleObserver, lifecycle_observers_, Freeze(timestamp));
 }
 
 void BrowserModule::RevealInternal(SbTimeMonotonic timestamp) {
@@ -2095,14 +2092,12 @@ scoped_refptr<script::Wrappable> BrowserModule::CreateH5vcc(
 }
 
 void BrowserModule::SetApplicationStartOrPreloadTimestamp(
-  bool is_preload, SbTimeMonotonic timestamp) {
+    bool is_preload, SbTimeMonotonic timestamp) {
   DCHECK(web_module_);
-  web_module_->SetApplicationStartOrPreloadTimestamp(
-      is_preload, timestamp);
+  web_module_->SetApplicationStartOrPreloadTimestamp(is_preload, timestamp);
 }
 
-void BrowserModule::SetDeepLinkTimestamp(
-    SbTimeMonotonic timestamp) {
+void BrowserModule::SetDeepLinkTimestamp(SbTimeMonotonic timestamp) {
   DCHECK(web_module_);
   web_module_->SetDeepLinkTimestamp(timestamp);
 }

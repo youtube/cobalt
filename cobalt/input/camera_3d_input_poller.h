@@ -52,6 +52,8 @@ class Camera3DInputPoller : public Camera3D {
 
   void Reset() override;
 
+  void SetInput(const scoped_refptr<Camera3D>& other) override;
+
  private:
   struct KeycodeMappingInfo {
     KeycodeMappingInfo() : axis(0), degrees_per_second(0.0f) {}

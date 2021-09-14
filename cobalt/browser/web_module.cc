@@ -217,7 +217,7 @@ class WebModule::Impl {
 #endif  // defined(ENABLE_DEBUGGER)
 
   void SetSize(cssom::ViewportSize viewport_size);
-  void SetCamera3D(const scoped_refptr<input::Camera3D>& camera_3d);
+  void UpdateCamera3D(const scoped_refptr<input::Camera3D>& camera_3d);
   void SetMediaModule(media::MediaModule* media_module);
   void SetImageCacheCapacity(int64_t bytes);
   void SetRemoteTypefaceCacheCapacity(int64_t bytes);
@@ -1123,9 +1123,9 @@ void WebModule::Impl::SetSize(cssom::ViewportSize viewport_size) {
   window_->SetSize(viewport_size);
 }
 
-void WebModule::Impl::SetCamera3D(
+void WebModule::Impl::UpdateCamera3D(
     const scoped_refptr<input::Camera3D>& camera_3d) {
-  window_->SetCamera3D(camera_3d);
+  window_->UpdateCamera3D(camera_3d);
 }
 
 void WebModule::Impl::SetMediaModule(media::MediaModule* media_module) {
@@ -1666,9 +1666,10 @@ void WebModule::SetSize(const ViewportSize& viewport_size) {
                             base::Unretained(impl_.get()), viewport_size));
 }
 
-void WebModule::SetCamera3D(const scoped_refptr<input::Camera3D>& camera_3d) {
+void WebModule::UpdateCamera3D(
+    const scoped_refptr<input::Camera3D>& camera_3d) {
   message_loop()->task_runner()->PostTask(
-      FROM_HERE, base::Bind(&WebModule::Impl::SetCamera3D,
+      FROM_HERE, base::Bind(&WebModule::Impl::UpdateCamera3D,
                             base::Unretained(impl_.get()), camera_3d));
 }
 
