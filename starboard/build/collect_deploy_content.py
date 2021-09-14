@@ -17,7 +17,6 @@
 import argparse
 import logging
 import os
-import shutil
 import sys
 
 import _env  # pylint: disable=unused-import
@@ -60,19 +59,6 @@ def _CheckDepth(max_depth, content_dir):
     raise RuntimeError('Content is %d levels deep (max allowed is %d): %s' %
                        (depth, max_depth, deepest_file))
 
-def _CopyTree(src_path, dst_path):
-  """Copy tree with a safeguard for windows long path (>260).
-
-  On Windows Python is facing long path limitation, for more details see
-  https://bugs.python.org/issue27730
-  """
-  if os.sep == '\\':
-    prefix = '\\\\?\\'
-    if prefix not in src_path:
-      src_path = prefix + src_path
-    if prefix not in dst_path:
-      dst_path = prefix + dst_path
-  shutil.copytree(src_path, dst_path)
 
 def main(argv):
   parser = argparse.ArgumentParser()
@@ -100,11 +86,6 @@ def main(argv):
       metavar='subdirs',
       nargs='*',
       help='subdirectories within both the input and output directories')
-  parser.add_argument(
-      '--copy_override',
-      action='store_true',
-      help='Overrides the behavior of collect_deploy_content to copy files, '
-      'instead of symlinking them.')
   options = parser.parse_args(argv[1:])
 
   if os.environ.get(_SHOULD_LOG_ENV_KEY, None) == '1':
@@ -153,9 +134,7 @@ def main(argv):
           msg += ' path points to an unknown type'
         logging.error(msg)
 
-    if options.copy_override:
-      _CopyTree(src_path, dst_path)
-    elif options.use_absolute_symlinks:
+    if options.use_absolute_symlinks:
       port_symlink.MakeSymLink(
           target_path=os.path.abspath(src_path),
           link_path=os.path.abspath(dst_path))
