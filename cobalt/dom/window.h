@@ -347,7 +347,7 @@ class Window : public EventTarget, public ApplicationLifecycleState::Observer {
 
   void SetSize(cssom::ViewportSize size);
 
-  void SetCamera3D(const scoped_refptr<input::Camera3D>& camera_3d);
+  void UpdateCamera3D(const scoped_refptr<input::Camera3D>& camera_3d);
 
   void set_web_media_player_factory(
       media::WebMediaPlayerFactory* web_media_player_factory) {

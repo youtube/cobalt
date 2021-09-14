@@ -198,7 +198,7 @@ Window::Window(
 #endif
   document_->AddObserver(relay_on_load_event_.get());
   html_element_context_->application_lifecycle_state()->AddObserver(this);
-  SetCamera3D(camera_3d);
+  UpdateCamera3D(camera_3d);
 
   // Document load start is deferred from this constructor so that we can be
   // guaranteed that this Window object is fully constructed before document
@@ -629,9 +629,13 @@ void Window::SetSize(ViewportSize size) {
   }
 }
 
-void Window::SetCamera3D(const scoped_refptr<input::Camera3D>& camera_3d) {
-  camera_3d_ = new Camera3D(camera_3d);
-  camera_3d_->StartOrientationEvents(base::AsWeakPtr(this));
+void Window::UpdateCamera3D(const scoped_refptr<input::Camera3D>& camera_3d) {
+  if (camera_3d_) {
+    camera_3d_->impl()->SetInput(camera_3d);
+  } else {
+    camera_3d_ = new Camera3D(camera_3d);
+    camera_3d_->StartOrientationEvents(base::AsWeakPtr(this));
+  }
 }
 
 void Window::OnWindowFocusChanged(bool has_focus) {
