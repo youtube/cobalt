@@ -73,7 +73,7 @@ repos:
         types: [java]
         args: [-i]
     -   id: gcheckstyle
-        name: gcheckstyle
+        name: Lint Java With gcheckstyle
         entry: python ./precommit_hooks/gcheckstyle_wrapper.py
         language: python
         types: [java]
