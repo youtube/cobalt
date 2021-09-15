@@ -89,6 +89,8 @@ template("install_target") {
       "-P",
       "cobaltProductDir=$root_out_dir",
       "-P",
+      "cobaltLibraryDir=$root_out_dir",
+      "-P",
       "cobaltTarget=$installable_target_name",
       "-P",
       "enableVulkan=$enable_vulkan",
