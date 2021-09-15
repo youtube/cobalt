@@ -375,6 +375,17 @@ static_library("starboard_platform_sources") {
 
   sources += common_player_sources
 
+  if (sb_api_version == 12) {
+    sources += [
+      "//starboard/shared/stub/speech_recognizer_cancel.cc",
+      "//starboard/shared/stub/speech_recognizer_create.cc",
+      "//starboard/shared/stub/speech_recognizer_destroy.cc",
+      "//starboard/shared/stub/speech_recognizer_is_supported.cc",
+      "//starboard/shared/stub/speech_recognizer_start.cc",
+      "//starboard/shared/stub/speech_recognizer_stop.cc",
+    ]
+  }
+
   configs += [
     "//starboard/build/config:pedantic_warnings",
     "//starboard/build/config:starboard_implementation",
