@@ -34,7 +34,8 @@ namespace {
 const base::TimeDelta kUpdateDelay = base::TimeDelta::FromMilliseconds(250);
 
 // Delay to check if the media session state is not active.
-const base::TimeDelta kMaybeFreezeDelay = base::TimeDelta::FromMilliseconds(1500);
+const base::TimeDelta kMaybeFreezeDelay =
+    base::TimeDelta::FromMilliseconds(1500);
 
 // Guess the media position state for the media session.
 void GuessMediaPositionState(MediaSessionState* session_state,
@@ -75,8 +76,7 @@ MediaSessionClient::MediaSessionClient(MediaSession* media_session)
   extension_ = static_cast<const CobaltExtensionMediaSessionApi*>(
       SbSystemGetExtension(kCobaltExtensionMediaSessionName));
   if (extension_) {
-    if (strcmp(extension_->name,
-                           kCobaltExtensionMediaSessionName) != 0 ||
+    if (strcmp(extension_->name, kCobaltExtensionMediaSessionName) != 0 ||
         extension_->version < 1) {
       LOG(WARNING) << "Wrong MediaSession extension supplied";
       extension_ = nullptr;
@@ -177,9 +177,10 @@ MediaSessionClient::ComputeAvailableActions() const {
 
 void MediaSessionClient::PostDelayedTaskForMaybeFreezeCallback() {
   media_session_->task_runner_->PostDelayedTask(
-      FROM_HERE, base::Bind(&MediaSessionClient::RunMaybeFreezeCallback,
-                            base::Unretained(this), ++sequence_number_),
-                            kMaybeFreezeDelay);
+      FROM_HERE,
+      base::Bind(&MediaSessionClient::RunMaybeFreezeCallback,
+                 base::Unretained(this), ++sequence_number_),
+      kMaybeFreezeDelay);
 }
 
 void MediaSessionClient::UpdatePlatformPlaybackState(

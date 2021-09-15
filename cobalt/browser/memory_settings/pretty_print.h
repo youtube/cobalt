@@ -27,6 +27,8 @@ namespace cobalt {
 namespace browser {
 namespace memory_settings {
 
+// clang-format off
+
 // Generates a table, ie:
 //  _______________________________________________________________________________
 // |SETTING NAME                          |VALUE        |         |TYPE  |SOURCE   |
@@ -38,6 +40,8 @@ namespace memory_settings {
 // | skia_cache_size_in_bytes             |     4194304 |  4.0 MB |  GPU |   Build |
 // | software_surface_cache_size_in_bytes |         N/A |     N/A |  N/A |     N/A |
 // |______________________________________|_____________|_________|______|_________|
+
+// clang-format on
 
 std::string GeneratePrettyPrintTable(
     bool use_color_ascii,
