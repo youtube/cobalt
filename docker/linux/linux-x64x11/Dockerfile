@@ -21,8 +21,6 @@ RUN apt update -qqy \
         libgles2-mesa-dev \
         mesa-common-dev \
         libpulse-dev \
-        libavformat-dev \
-        libavresample-dev \
         libasound2-dev \
         libxrender-dev \
         libxcomposite-dev \
