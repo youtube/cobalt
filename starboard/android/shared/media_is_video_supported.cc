@@ -98,14 +98,16 @@ bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
   // Check extended parameters for correctness and return false if any invalid
   // invalid params are found.
   MimeType mime_type(content_type);
-  // Allows for enabling tunneled playback. Disabled by default.
-  // https://source.android.com/devices/tv/multimedia-tunneling
-  mime_type.RegisterBoolParameter("tunnelmode");
-  // Override endianness on HDR Info header. Defaults to little.
-  mime_type.RegisterStringParameter("hdrinfoendianness", "big|little");
+  if (strlen(content_type) > 0) {
+    // Allows for enabling tunneled playback. Disabled by default.
+    // https://source.android.com/devices/tv/multimedia-tunneling
+    mime_type.RegisterBoolParameter("tunnelmode");
+    // Override endianness on HDR Info header. Defaults to little.
+    mime_type.RegisterStringParameter("hdrinfoendianness", "big|little");
 
-  if (!mime_type.is_valid()) {
-    return false;
+    if (!mime_type.is_valid()) {
+      return false;
+    }
   }
 
   bool must_support_tunnel_mode =
