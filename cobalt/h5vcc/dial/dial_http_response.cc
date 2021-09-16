@@ -13,7 +13,6 @@
 // limitations under the License.
 
 #include <memory>
-#include <utility>
 
 #include "cobalt/h5vcc/dial/dial_http_response.h"
 
@@ -25,7 +24,7 @@ namespace h5vcc {
 namespace dial {
 DialHttpResponse::DialHttpResponse(const std::string& path,
                                    const std::string& method)
-    : path_(path), method_(method), response_code_(500) {}
+    : path_(path), method_(method), response_code_(0) {}
 
 void DialHttpResponse::AddHeader(const std::string& header,
                                  const std::string& value) {
