@@ -18,4 +18,6 @@
 interface WindowEventHandlers {
   attribute EventHandler onunload;
   attribute EventHandler onbeforeunload;
+  attribute EventHandler onoffline;
+  attribute EventHandler ononline;
 };
