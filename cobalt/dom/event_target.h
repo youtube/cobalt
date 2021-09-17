@@ -400,6 +400,20 @@ class EventTarget : public script::Wrappable,
     SetAttributeEventListener(base::Tokens::beforeunload(), event_listener);
   }
 
+  const EventListenerScriptValue* onoffline() {
+    return GetAttributeEventListener(base::Tokens::offline());
+  }
+  void set_onoffline(const EventListenerScriptValue& event_listener) {
+    SetAttributeEventListener(base::Tokens::offline(), event_listener);
+  }
+
+  const EventListenerScriptValue* ononline() {
+    return GetAttributeEventListener(base::Tokens::online());
+  }
+  void set_ononline(const EventListenerScriptValue& event_listener) {
+    SetAttributeEventListener(base::Tokens::online(), event_listener);
+  }
+
   const EventListenerScriptValue* ontransitionend() {
     return GetAttributeEventListener(base::Tokens::transitionend());
   }
