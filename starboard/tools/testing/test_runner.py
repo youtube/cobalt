@@ -402,8 +402,9 @@ class TestRunner(object):
       test_params.append("--gtest_filter=" + gtest_filter_value)
 
     if self.log_xml_results:
-      # Log the xml results
-      test_params.append("--gtest_output=xml:log")
+      # Log the xml results in the current working directory.
+      xml_filename = "{}_testoutput.xml".format(target_name)
+      test_params.append("--gtest_output=xml:{}".format(xml_filename))
       logging.info("Xml results for this test will be logged.")
     elif self.xml_output_dir:
       # Have gtest create and save a test result xml
