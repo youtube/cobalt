@@ -48,24 +48,21 @@ RUN mkdir C:\pip-cache;`
     # Install pip.
     pip install pypiwin32 --cache-dir C:\pip-cache;`
     C:\fast-win-rmdir.cmd C:\pip-cache;`
-    # Setup path variable.
-    Set-Item -Path Env:Path -Value ($Env:Path + 'C:\Python2');`
-    Set-Item -Path Env:Path -Value ($Env:Path + 'C:\Python2\Scripts');`
-    Set-Item -Path Env:Path -Value ($Env:Path + 'C:\Python2\Lib');`
-    Set-Item -Path Env:python2 -Value 'C:\Python2\python.exe';`
     # Configure git global settings.
     git config --global core.autocrlf false;`
     git config --global core.symlinks false;`
     git config --global core.filemode false;`
     git config --global core.preloadindex true;`
     git config --global core.fscache true;`
-    # This fixes a bug running python scripts "LookupError: unknown encoding: cp0".
-    Set-Item -Path Env:PYTHONIOENCODING -Value 'UTF-8';`
-    # This ensures GYP does not generate PDB files, or create symlinks during build.
-    Set-Item -Path Env:IS_DOCKER -Value '1';`
     # Registry changes to enable long filesystem paths.
     reg add 'HKLM\SYSTEM\CurrentControlSet\Control\FileSystem' /v LongPathsEnabled /t REG_DWORD /reg:64 /d 1 /f;`
-    reg add 'HKLM\SYSTEM\CurrentControlSet\Control\FileSystem' /v LongPathsEnabled /t REG_DWORD /d 1 /f
+    reg add 'HKLM\SYSTEM\CurrentControlSet\Control\FileSystem' /v LongPathsEnabled /t REG_DWORD /d 1 /f;`
+    # Environment variables
+    cmd /S /C setx /M python2 'C:\Python2\python.exe';`
+    # This fixes a bug running python scripts "LookupError: unknown encoding: cp0".
+    cmd /S /C setx /M PYTHONIOENCODING 'UTF-8';`
+    # This ensures GYP does not generate PDB files, or create symlinks during build.
+    cmd /S /C setx /M IS_DOCKER '1'
 
 # Setup Sccache
 ADD https://storage.googleapis.com/cobalt-docker-resources/sccache-cobalt.exe /sccache/sccache.exe
@@ -78,6 +75,10 @@ RUN C:\sccache\setup_sccache.ps1;`
 # Install gsutil helpers to download from GCS. This helps download required SDKs.
 COPY .boto /Users/ContainerAdministrator/.boto
 COPY download_from_gcs.ps1 /download_from_gcs.ps1
-ADD https://storage.googleapis.com/pub/gsutil.zip /gsutil.zip
-RUN Expand-Archive -Force C:\gsutil.zip C:\gsutil;`
-    Remove-Item C:\gsutil.zip
+RUN (New-Object Net.WebClient).DownloadFile(`
+    'https://dl.google.com/dl/cloudsdk/channels/rapid/GoogleCloudSDKInstaller.exe',`
+    'C:\GoogleCloudSDKInstaller.exe') ; `
+    Start-Process -Wait -FilePath "C:\GoogleCloudSDKInstaller.exe" `
+    -ArgumentList "/S","/D","C:\gcloud-sdk","/noreporting";`
+    Remove-Item -Path C:\GoogleCloudSDKInstaller.exe;`
+    cmd /S /C setx BOTO_PATH 'C:\Users\ContainerAdministrator\.boto'
