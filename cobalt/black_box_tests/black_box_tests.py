@@ -62,6 +62,7 @@ _TESTS_NEEDING_SYSTEM_SIGNAL = [
 # These tests only need app launchers with webdriver.
 _TESTS_NO_SIGNAL = [
     'allow_eval',
+    'compression_test',
     'disable_eval_with_csp',
     'persistent_cookie',
     'web_debugger',
