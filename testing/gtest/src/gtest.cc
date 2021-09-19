@@ -3450,6 +3450,19 @@ class XmlUnitTestResultPrinter : public EmptyTestEventListener {
   GTEST_DISALLOW_COPY_AND_ASSIGN_(XmlUnitTestResultPrinter);
 };
 
+#if GTEST_OS_STARBOARD
+void WriteOuputFile(const std::string &output_file, const std::string &data) {
+  SbFileError err;
+  starboard::ScopedFile cache_file(
+      output_file.c_str(), kSbFileCreateAlways | kSbFileWrite, NULL, &err);
+  // TODO: Change to SB_DCHECK once all platforms are verified
+  if(err != kSbFileOk) {
+    SB_LOG(ERROR) << "Unable to open file " << output_file << " for XML output";
+  }
+  cache_file.WriteAll(data.c_str(), static_cast<int>(data.size()));
+}
+#endif
+
 // Creates a new XmlUnitTestResultPrinter.
 XmlUnitTestResultPrinter::XmlUnitTestResultPrinter(const char* output_file)
     : output_file_(output_file) {
@@ -3458,6 +3471,10 @@ XmlUnitTestResultPrinter::XmlUnitTestResultPrinter(const char* output_file)
     fflush(stderr);
     exit(EXIT_FAILURE);
   }
+#if GTEST_OS_STARBOARD
+  // Ensure file contents get reset between runs, to avoid stale results
+  WriteOuputFile(output_file,"");
+#endif
 }
 
 // Called after the unit test ends.
@@ -3466,10 +3483,8 @@ void XmlUnitTestResultPrinter::OnTestIterationEnd(const UnitTest& unit_test,
 #if GTEST_OS_STARBOARD
   std::stringstream stream;
   PrintXmlUnitTest(&stream, unit_test);
-  starboard::ScopedFile cache_file(
-      output_file_.c_str(), kSbFileCreateAlways | kSbFileWrite, NULL, NULL);
-  cache_file.WriteAll(StringStreamToString(&stream).c_str(),
-                      static_cast<int>(StringStreamToString(&stream).size()));
+
+  WriteOuputFile(output_file_, StringStreamToString(&stream));
 #else
   FILE* xmlout = NULL;
   FilePath output_file(output_file_);

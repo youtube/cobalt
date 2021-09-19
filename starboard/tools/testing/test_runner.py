@@ -409,11 +409,32 @@ class TestRunner(object):
     if gtest_filter_value:
       test_params.append("--gtest_filter=" + gtest_filter_value)
 
+    def MakeLauncher():
+      return abstract_launcher.LauncherFactory(
+          self.platform,
+          target_name,
+          self.config,
+          device_id=self.device_id,
+          target_params=test_params,
+          output_file=write_pipe,
+          out_directory=self.out_directory,
+          coverage_directory=self.coverage_directory,
+          env_variables=env,
+          loader_platform=self.loader_platform,
+          loader_config=self.loader_config,
+          loader_out_directory=self.loader_out_directory,
+          launcher_args=self.launcher_args)
+
     if self.log_xml_results:
-      # Log the xml results in the current working directory.
+      out_path = MakeLauncher().GetDeviceOutputPath()
       xml_filename = "{}_testoutput.xml".format(target_name)
-      test_params.append("--gtest_output=xml:{}".format(xml_filename))
-      logging.info("Xml results for this test will be logged.")
+      if out_path:
+        xml_path = os.path.join(out_path, xml_filename)
+      else:
+        xml_path = xml_filename
+      test_params.append("--gtest_output=xml:{}".format(xml_path))
+      logging.info(("Xml results for this test will "
+                    "be logged to '%s'."), xml_path)
     elif self.xml_output_dir:
       # Have gtest create and save a test result xml
       xml_output_subdir = os.path.join(self.xml_output_dir, target_name)
@@ -434,20 +455,7 @@ class TestRunner(object):
       test_params.extend(["--gtest_list_tests"])
 
     logging.info("Initializing launcher")
-    launcher = abstract_launcher.LauncherFactory(
-        self.platform,
-        target_name,
-        self.config,
-        device_id=self.device_id,
-        target_params=test_params,
-        output_file=write_pipe,
-        out_directory=self.out_directory,
-        coverage_directory=self.coverage_directory,
-        env_variables=env,
-        loader_platform=self.loader_platform,
-        loader_config=self.loader_config,
-        loader_out_directory=self.loader_out_directory,
-        launcher_args=self.launcher_args)
+    launcher = MakeLauncher()
     logging.info("Launcher initialized")
 
     test_reader = TestLineReader(read_pipe)

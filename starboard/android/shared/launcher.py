@@ -450,3 +450,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
   def GetDeviceIp(self):
     """Gets the device IP. TODO: Implement."""
     return None
+
+  def GetDeviceOutputPath(self):
+    """Writable path where test targets can output files"""
+    return '/data/data/{}/cache/'.format(_APP_PACKAGE_NAME)

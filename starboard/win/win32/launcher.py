@@ -88,3 +88,6 @@ class Launcher(abstract_launcher.AbstractLauncher):
   def GetDeviceIp(self):
     """Gets the device IP."""
     return socket.gethostbyname(socket.getfqdn())
+
+  def GetDeviceOutputPath(self):
+    return os.getenv('TMP')
