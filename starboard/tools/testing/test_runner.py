@@ -190,14 +190,12 @@ class TestLauncher(object):
           self.launcher.target_name))
       traceback.print_exc(file=sys.stderr)
 
-    self.return_code_lock.acquire()
-    self.return_code = return_code
-    self.return_code_lock.release()
+    with self.return_code_lock:
+      self.return_code = return_code
 
   def GetReturnCode(self):
-    self.return_code_lock.acquire()
-    return_code = self.return_code
-    self.return_code_lock.release()
+    with self.return_code_lock:
+      return_code = self.return_code
     return return_code
 
 
@@ -233,7 +231,8 @@ class TestRunner(object):
       self.out_directory = paths.BuildOutputDirectory(self.platform,
                                                       self.config)
     self.coverage_directory = os.path.join(self.out_directory, "coverage")
-    if not self.loader_out_directory and self.loader_platform and self.loader_config:
+    if (not self.loader_out_directory and self.loader_platform and
+        self.loader_config):
       self.loader_out_directory = paths.BuildOutputDirectory(
           self.loader_platform, self.loader_config)
 
@@ -272,13 +271,13 @@ class TestRunner(object):
       logging.info(msg)
       if output_file:
         with open(output_file, "wb") as out:
-          p = subprocess.Popen(
+          p = subprocess.Popen(  # pylint: disable=consider-using-with
               cmd_list,
               stdout=out,
               universal_newlines=True,
               cwd=self.out_directory)
       else:
-        p = subprocess.Popen(
+        p = subprocess.Popen(  # pylint: disable=consider-using-with
             cmd_list,
             stderr=subprocess.STDOUT,
             universal_newlines=True,
