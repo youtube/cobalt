@@ -177,6 +177,14 @@ void SbEventHandle(const SbEvent* event) {
         command_line.HasSwitch(starboard::loader_app::kEvergreenLite);
     SB_LOG(INFO) << "is_evergreen_lite=" << is_evergreen_lite;
 
+#if SB_API_VERSION >= 12
+    if (command_line.HasSwitch(starboard::loader_app::kShowSABI)) {
+      std::string sabi = "SABI=";
+      sabi += SB_SABI_JSON_ID;
+      SbLogRaw(sabi.c_str());
+    }
+#endif
+
     std::string alternative_content =
         command_line.GetSwitchValue(starboard::loader_app::kContent);
     SB_LOG(INFO) << "alternative_content=" << alternative_content;
