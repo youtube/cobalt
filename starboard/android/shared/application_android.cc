@@ -247,13 +247,13 @@ void ApplicationAndroid::ProcessAndroidCommand() {
       if (window_) {
         window_->native_window = native_window_;
       }
+      // Now that we have the window, signal that the Android UI thread can
+      // continue, before we start or resume the Starboard app.
+      android_command_condition_.Signal();
       // Media playback service is tied to UI window being created/destroyed
       // (rather than to the Activity lifecycle), the service should be
       // stopped before native window being created.
       StopMediaPlaybackService();
-      // Now that we have the window, signal that the Android UI thread can
-      // continue, before we start or resume the Starboard app.
-      android_command_condition_.Signal();
     }
       if (state() == kStateUnstarted) {
         // This is the initial launch, so we have to start Cobalt now that we
@@ -282,10 +282,6 @@ void ApplicationAndroid::ProcessAndroidCommand() {
       // early in SendAndroidCommand().
       {
         ScopedLock lock(android_command_mutex_);
-        // Media playback service is tied to UI window being created/destroyed
-        // (rather than to the Activity lifecycle). The service should be
-        // started after window being destroyed.
-        StartMediaPlaybackService();
 // Cobalt can't keep running without a window, even if the Activity
 // hasn't stopped yet. DispatchAndDelete() will inject events as needed
 // if we're not already paused.
@@ -302,6 +298,10 @@ void ApplicationAndroid::ProcessAndroidCommand() {
         // Now that we've suspended the Starboard app, and let go of the window,
         // signal that the Android UI thread can continue.
         android_command_condition_.Signal();
+        // Media playback service is tied to UI window being created/destroyed
+        // (rather than to the Activity lifecycle). The service should be
+        // started after window being destroyed.
+        StartMediaPlaybackService();
       }
       break;
 
