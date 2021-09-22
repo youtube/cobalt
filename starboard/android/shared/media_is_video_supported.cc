@@ -42,13 +42,13 @@ bool IsHDRTransferCharacteristicsSupported(SbMediaVideoCodec video_codec,
     return false;
   }
   JniEnvExt* env = JniEnvExt::Get();
+  ScopedLocalJavaRef<jstring> j_mime(env->NewStringStandardUTFOrAbort(mime));
 
   // An HDR capable VP9 or AV1 decoder is needed to handle HDR at all.
   bool has_hdr_capable_decoder =
       JniEnvExt::Get()->CallStaticBooleanMethodOrAbort(
           "dev/cobalt/media/MediaCodecUtil", "hasHdrCapableVideoDecoder",
-          "(Ljava/lang/String;)Z",
-          env->NewStringStandardUTFOrAbort(mime)) == JNI_TRUE;
+          "(Ljava/lang/String;)Z", j_mime.Get()) == JNI_TRUE;
   if (!has_hdr_capable_decoder) {
     return false;
   }
