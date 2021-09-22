@@ -247,13 +247,13 @@ void ApplicationAndroid::ProcessAndroidCommand() {
       if (window_) {
         window_->native_window = native_window_;
       }
+      // Now that we have the window, signal that the Android UI thread can
+      // continue, before we start or resume the Starboard app.
+      android_command_condition_.Signal();
       // Media playback service is tied to UI window being created/destroyed
       // (rather than to the Activity lifecycle), the service should be
       // stopped before native window being created.
       StopMediaPlaybackService();
-      // Now that we have the window, signal that the Android UI thread can
-      // continue, before we start or resume the Starboard app.
-      android_command_condition_.Signal();
     }
       if (state() == kStateUnstarted) {
         // This is the initial launch, so we have to start Cobalt now that we
@@ -261,14 +261,14 @@ void ApplicationAndroid::ProcessAndroidCommand() {
         env->CallStarboardVoidMethodOrAbort("beforeStartOrResume", "()V");
 #if SB_API_VERSION >= 13
         DispatchStart(GetAppStartTimestamp());
-#else  // SB_API_VERSION >= 13
+#else   // SB_API_VERSION >= 13
         DispatchStart();
 #endif  // SB_API_VERSION >= 13
       } else if (state() == kStateConcealed || state() == kStateFrozen) {
 #if SB_API_VERSION >= 13
-        DispatchAndDelete(new Event(kSbEventTypeReveal, SbTimeGetMonotonicNow(),
-                                    NULL, NULL));
-#else  // SB_API_VERSION >= 13
+        DispatchAndDelete(
+            new Event(kSbEventTypeReveal, SbTimeGetMonotonicNow(), NULL, NULL));
+#else   // SB_API_VERSION >= 13
         DispatchAndDelete(new Event(kSbEventTypeReveal, NULL, NULL));
 #endif  // SB_API_VERSION >= 13
       } else {
@@ -282,17 +282,14 @@ void ApplicationAndroid::ProcessAndroidCommand() {
       // early in SendAndroidCommand().
       {
         ScopedLock lock(android_command_mutex_);
-        // Media playback service is tied to UI window being created/destroyed
-        // (rather than to the Activity lifecycle). The service should be
-        // started after window being destroyed.
-        StartMediaPlaybackService();
-        // Cobalt can't keep running without a window, even if the Activity
-        // hasn't stopped yet. DispatchAndDelete() will inject events as needed
-        // if we're not already paused.
+
+// Cobalt can't keep running without a window, even if the Activity
+// hasn't stopped yet. DispatchAndDelete() will inject events as needed
+// if we're not already paused.
 #if SB_API_VERSION >= 13
-        DispatchAndDelete(new Event(kSbEventTypeConceal, SbTimeGetMonotonicNow(),
-                                    NULL, NULL));
-#else  // SB_API_VERSION >= 13
+        DispatchAndDelete(new Event(kSbEventTypeConceal,
+                                    SbTimeGetMonotonicNow(), NULL, NULL));
+#else   // SB_API_VERSION >= 13
         DispatchAndDelete(new Event(kSbEventTypeConceal, NULL, NULL));
 #endif  // SB_API_VERSION >= 13
         if (window_) {
@@ -302,6 +299,10 @@ void ApplicationAndroid::ProcessAndroidCommand() {
         // Now that we've suspended the Starboard app, and let go of the window,
         // signal that the Android UI thread can continue.
         android_command_condition_.Signal();
+        // Media playback service is tied to UI window being created/destroyed
+        // (rather than to the Activity lifecycle). The service should be
+        // started after window being destroyed.
+        StartMediaPlaybackService();
       }
       break;
 
@@ -349,9 +350,9 @@ void ApplicationAndroid::ProcessAndroidCommand() {
         } else {
           SB_LOG(INFO) << "ApplicationAndroid Inject: kSbEventTypeLink";
 #if SB_API_VERSION >= 13
-          Inject(new Event(kSbEventTypeLink, SbTimeGetMonotonicNow(),
-              deep_link, SbMemoryDeallocate));
-#else  // SB_API_VERSION >= 13
+          Inject(new Event(kSbEventTypeLink, SbTimeGetMonotonicNow(), deep_link,
+                           SbMemoryDeallocate));
+#else   // SB_API_VERSION >= 13
           Inject(new Event(kSbEventTypeLink, deep_link, SbMemoryDeallocate));
 #endif  // SB_API_VERSION >= 13
         }
@@ -359,37 +360,37 @@ void ApplicationAndroid::ProcessAndroidCommand() {
       break;
   }
 
-  // If there's a window, sync the app state to the Activity lifecycle, letting
-  // DispatchAndDelete() inject events as needed if we missed a state.
+// If there's a window, sync the app state to the Activity lifecycle, letting
+// DispatchAndDelete() inject events as needed if we missed a state.
 #if SB_API_VERSION >= 13
-if (native_window_) {
+  if (native_window_) {
     switch (sync_state) {
       case AndroidCommand::kStart:
-        DispatchAndDelete(new Event(kSbEventTypeReveal, SbTimeGetMonotonicNow(),
-                                    NULL, NULL));
+        DispatchAndDelete(
+            new Event(kSbEventTypeReveal, SbTimeGetMonotonicNow(), NULL, NULL));
         break;
       case AndroidCommand::kResume:
-        DispatchAndDelete(new Event(kSbEventTypeFocus, SbTimeGetMonotonicNow(),
-                                    NULL, NULL));
+        DispatchAndDelete(
+            new Event(kSbEventTypeFocus, SbTimeGetMonotonicNow(), NULL, NULL));
         break;
       case AndroidCommand::kPause:
-        DispatchAndDelete(new Event(kSbEventTypeBlur, SbTimeGetMonotonicNow(),
-                                    NULL, NULL));
+        DispatchAndDelete(
+            new Event(kSbEventTypeBlur, SbTimeGetMonotonicNow(), NULL, NULL));
         break;
       case AndroidCommand::kStop:
         if (state() != kStateConcealed && state() != kStateFrozen) {
           // We usually conceal when losing the window above, but if the window
           // wasn't destroyed (e.g. when Daydream starts) then we still have to
           // conceal when the Activity is stopped.
-          DispatchAndDelete(new Event(kSbEventTypeConceal, SbTimeGetMonotonicNow(),
-                                      NULL, NULL));
+          DispatchAndDelete(new Event(kSbEventTypeConceal,
+                                      SbTimeGetMonotonicNow(), NULL, NULL));
         }
         break;
       default:
         break;
     }
   }
-#else  // SB_API_VERSION >= 13
+#else   // SB_API_VERSION >= 13
   if (native_window_) {
     switch (sync_state) {
       case AndroidCommand::kStart:
@@ -671,8 +672,7 @@ void ApplicationAndroid::OsNetworkStatusChange(bool became_online) {
 SbTimeMonotonic ApplicationAndroid::GetAppStartTimestamp() {
   JniEnvExt* env = JniEnvExt::Get();
   jlong app_start_timestamp =
-      env->CallStarboardLongMethodOrAbort("getAppStartTimestamp",
-                                          "()J");
+      env->CallStarboardLongMethodOrAbort("getAppStartTimestamp", "()J");
   return app_start_timestamp;
 }
 
