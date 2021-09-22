@@ -171,7 +171,9 @@ class TestLauncher(object):
   def Kill(self):
     """Kills the running launcher."""
     try:
+      logging.info("Killing launcher")
       self.launcher.Kill()
+      logging.info("Launcher killed")
     except Exception:  # pylint: disable=broad-except
       sys.stderr.write("Error while killing {}:\n".format(
           self.launcher.target_name))
@@ -184,7 +186,9 @@ class TestLauncher(object):
     """Runs the launcher, and assigns a return code."""
     return_code = 1
     try:
+      logging.info("Running launcher")
       return_code = self.launcher.Run()
+      logging.info("Finished running launcher")
     except Exception:  # pylint: disable=broad-except
       sys.stderr.write("Error while running {}:\n".format(
           self.launcher.target_name))
@@ -236,11 +240,15 @@ class TestRunner(object):
       self.loader_out_directory = paths.BuildOutputDirectory(
           self.loader_platform, self.loader_config)
 
+    logging.info("Getting platform configuration")
     self._platform_config = build.GetPlatformConfig(platform)
     if self.loader_platform:
       self._loader_platform_config = build.GetPlatformConfig(loader_platform)
+    logging.info("Got platform configuration")
+    logging.info("Getting application configuration")
     self._app_config = self._platform_config.GetApplicationConfiguration(
         application_name)
+    logging.info("Got application configuration")
     self.application_name = application_name
     self.dry_run = dry_run
     self.xml_output_dir = xml_output_dir
@@ -257,11 +265,12 @@ class TestRunner(object):
     _VerifyConfig(self._app_config)
 
     # If a particular test binary has been provided, configure only that one.
+    logging.info("Getting test targets")
     if specified_targets:
       self.test_targets = self._GetSpecifiedTestTargets(specified_targets)
     else:
       self.test_targets = self._GetTestTargets(platform_tests_only)
-
+    logging.info("Got test targets")
     self.test_env_vars = self._GetAllTestEnvVariables()
 
   def _Exec(self, cmd_list, output_file=None):
@@ -424,6 +433,7 @@ class TestRunner(object):
     if self.dry_run:
       test_params.extend(["--gtest_list_tests"])
 
+    logging.info("Initializing launcher")
     launcher = abstract_launcher.LauncherFactory(
         self.platform,
         target_name,
@@ -438,6 +448,7 @@ class TestRunner(object):
         loader_config=self.loader_config,
         loader_out_directory=self.loader_out_directory,
         launcher_args=self.launcher_args)
+    logging.info("Launcher initialized")
 
     test_reader = TestLineReader(read_pipe)
     test_launcher = TestLauncher(launcher)
@@ -460,7 +471,9 @@ class TestRunner(object):
     if test_params:
       sys.stdout.write(" {}\n".format(test_params))
     test_reader.Start()
+    logging.info("Starting test launcher")
     test_launcher.Start()
+    logging.info("Test launcher started")
 
     # Wait for the launcher to exit then close the write pipe, which will
     # cause the reader to exit.
@@ -862,12 +875,14 @@ def main():
   if args.dry_run:
     launcher_args.append(abstract_launcher.ARG_DRYRUN)
 
+  logging.info("Initializing test runner")
   runner = TestRunner(args.platform, args.config, args.loader_platform,
                       args.loader_config, args.device_id, args.target_name,
                       target_params, args.out_directory,
                       args.loader_out_directory, args.platform_tests_only,
                       args.application_name, args.dry_run, args.xml_output_dir,
                       args.log_xml_results, launcher_args)
+  logging.info("Test runner intialized")
 
   def Abort(signum, frame):
     del signum, frame  # Unused.
