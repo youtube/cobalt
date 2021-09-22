@@ -882,7 +882,7 @@ def main():
                       args.loader_out_directory, args.platform_tests_only,
                       args.application_name, args.dry_run, args.xml_output_dir,
                       args.log_xml_results, launcher_args)
-  logging.info("Test runner intialized")
+  logging.info("Test runner initialized")
 
   def Abort(signum, frame):
     del signum, frame  # Unused.
