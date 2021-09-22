@@ -14,6 +14,7 @@
 
 #include <vector>
 
+#include "cobalt/version.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
@@ -164,6 +165,13 @@ void SbEventHandle(const SbEvent* event) {
     const SbEventStartData* data = static_cast<SbEventStartData*>(event->data);
     const starboard::shared::starboard::CommandLine command_line(
         data->argument_count, const_cast<const char**>(data->argument_values));
+
+    if (command_line.HasSwitch(starboard::loader_app::kLoaderAppVersion)) {
+      std::string versiong_msg = "Loader app version: ";
+      versiong_msg += COBALT_VERSION;
+      versiong_msg += "\n";
+      SbLogRaw(versiong_msg.c_str());
+    }
 
     bool is_evergreen_lite =
         command_line.HasSwitch(starboard::loader_app::kEvergreenLite);
