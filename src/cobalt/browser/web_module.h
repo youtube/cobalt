@@ -370,7 +370,7 @@ class WebModule : public LifecycleObserver {
   // from the current parameters.
   void SetSize(const cssom::ViewportSize& viewport_size);
 
-  void SetCamera3D(const scoped_refptr<input::Camera3D>& camera_3d);
+  void UpdateCamera3D(const scoped_refptr<input::Camera3D>& camera_3d);
   void SetMediaModule(media::MediaModule* media_module);
   void SetImageCacheCapacity(int64_t bytes);
   void SetRemoteTypefaceCacheCapacity(int64_t bytes);
@@ -412,6 +412,7 @@ class WebModule : public LifecycleObserver {
   void SetApplicationStartOrPreloadTimestamp(bool is_preload,
                                              SbTimeMonotonic timestamp);
   void SetDeepLinkTimestamp(SbTimeMonotonic timestamp);
+
  private:
   // Data required to construct a WebModule, initialized in the constructor and
   // passed to |Initialize|.

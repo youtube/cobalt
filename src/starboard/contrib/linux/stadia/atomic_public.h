@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// This file is meant to live under starboard/linux/stadia/ (see ../README.md),
+// so we disable the header guard check.
+// NOLINT(build/header_guard)
+
 #ifndef STARBOARD_LINUX_STADIA_ATOMIC_PUBLIC_H_
 #define STARBOARD_LINUX_STADIA_ATOMIC_PUBLIC_H_
 

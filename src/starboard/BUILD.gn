@@ -37,10 +37,10 @@ group("gn_all") {
     deps += [ "//$starboard_path/platform_targets" ]
   }
 
-  if (has_platform_tests) {
-    deps += [ "//$starboard_path/starboard_platform_tests" ]
-  } else {
+  if (platform_tests_path == "") {
     deps += [ ":starboard_platform_tests" ]
+  } else {
+    deps += [ platform_tests_path ]
   }
 
   if (sb_filter_based_player) {
@@ -147,7 +147,7 @@ static_library("starboard_headers_only") {
   ]
 }
 
-if (!has_platform_tests) {
+if (platform_tests_path == "") {
   # If 'starboard_platform_tests' is not defined by the platform, then an
   # empty 'starboard_platform_tests' target is defined.
   target(gtest_target_type, "starboard_platform_tests") {

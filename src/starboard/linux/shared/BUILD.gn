@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//starboard/shared/starboard/media/media_tests.gni")
 import("//starboard/shared/starboard/player/buildfiles.gni")
 
 group("starboard_platform") {
@@ -366,7 +367,6 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/stub/system_get_total_gpu_memory.cc",
     "//starboard/shared/stub/system_get_used_gpu_memory.cc",
     "//starboard/shared/stub/system_hide_splash_screen.cc",
-    "//starboard/shared/stub/system_network_is_disconnected.cc",
     "//starboard/shared/stub/system_raise_platform_error.cc",
     "//starboard/shared/stub/system_sign_with_certification_secret_key.cc",
     "//starboard/shared/stub/thread_create_priority.cc",
@@ -446,4 +446,19 @@ static_library("starboard_platform_sources") {
       "//starboard/shared/stub/media_is_supported.cc",
     ]
   }
+}
+
+target(gtest_target_type, "starboard_platform_tests") {
+  testonly = true
+
+  sources = media_tests_sources + [ "//starboard/common/test_main.cc" ]
+
+  configs += [ "//starboard/build/config:starboard_implementation" ]
+
+  deps = [
+    "//starboard",
+    "//starboard/shared/starboard/player/filter/testing:test_util",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
 }

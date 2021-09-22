@@ -20,6 +20,7 @@
 #include <cmath>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "base/optional.h"
@@ -31,7 +32,6 @@
 #include "cobalt/browser/memory_settings/auto_mem_settings.h"
 #include "cobalt/browser/memory_settings/calculations.h"
 #include "cobalt/browser/memory_settings/constants.h"
-#include "cobalt/browser/memory_settings/constrainer.h"
 #include "cobalt/browser/memory_settings/memory_settings.h"
 #include "cobalt/browser/memory_settings/pretty_print.h"
 #include "cobalt/browser/memory_settings/scaling_function.h"
@@ -230,44 +230,6 @@ void CheckConstrainingValues(const MemorySetting& memory_setting) {
          "monotonically decreasing values as input goes from 1.0 -> 0.0";
 }
 
-int64_t GenerateTargetMemoryBytes(int64_t max_memory_bytes,
-                                  int64_t current_memory_bytes,
-                                  base::Optional<int64_t> reduce_memory_bytes) {
-  // Make sure values are sanitized.
-  max_memory_bytes = std::max<int64_t>(0, max_memory_bytes);
-  current_memory_bytes = std::max<int64_t>(0, current_memory_bytes);
-
-  // If reduce_memory_bytes is valid and it's a zero or positive value then
-  // this is a signal that the calculation should be based off of this setting.
-  bool use_reduce_memory_input =
-      (reduce_memory_bytes && (-1 < *reduce_memory_bytes));
-
-  if (use_reduce_memory_input) {
-    // If reducing_memory_bytes is set exactly to 0, then this
-    // this will disable max_memory_bytes setting. current_memory_bytes
-    // will be returned as the target memory consumption,
-    // which will prevent memory constraining.
-    if (*reduce_memory_bytes == 0) {
-      return current_memory_bytes;
-    } else {
-      // Reduce memory bytes will subtract from the current memory
-      // consumption.
-      const int64_t target_value = current_memory_bytes - *reduce_memory_bytes;
-      return math::Clamp<int64_t>(target_value, 0, std::abs(target_value));
-    }
-  } else {  // reduce_memory_bytes is not used. Use max_memory_bytes instead.
-    // max_memory_bytes == 0 is special, and signals that no constraining
-    // should happen.
-    if (max_memory_bytes == 0) {
-      return current_memory_bytes;
-    } else {
-      // A non-zero value means that max_memory_bytes is valid and should
-      // be used as the target value.
-      return max_memory_bytes;
-    }
-  }
-}
-
 }  // namespace
 
 AutoMem::AutoMem(const math::Size& ui_resolution,
@@ -276,27 +238,10 @@ AutoMem::AutoMem(const math::Size& ui_resolution,
   TRACE_EVENT0("cobalt::browser", "AutoMem::AutoMem()");
   ConstructSettings(ui_resolution, command_line_settings, build_settings);
 
-  const int64_t target_cpu_memory = GenerateTargetMemoryBytes(
-      max_cpu_bytes_->value(), SumAllMemoryOfType(MemorySetting::kCPU),
-      base::Optional<int64_t>(0));
-  const int64_t target_gpu_memory = GenerateTargetMemoryBytes(
-      max_gpu_bytes_->value(), SumAllMemoryOfType(MemorySetting::kGPU),
-      reduced_gpu_bytes_->optional_value());
-
   std::vector<MemorySetting*> memory_settings = AllMemorySettingsMutable();
-  ConstrainToMemoryLimits(target_cpu_memory, target_gpu_memory,
-                          &memory_settings, &error_msgs_);
 }
 
 AutoMem::~AutoMem() {}
-
-const IntSetting* AutoMem::misc_cobalt_cpu_size_in_bytes() const {
-  return misc_cobalt_cpu_size_in_bytes_.get();
-}
-
-const IntSetting* AutoMem::misc_cobalt_gpu_size_in_bytes() const {
-  return misc_cobalt_gpu_size_in_bytes_.get();
-}
 
 const IntSetting* AutoMem::remote_typeface_cache_size_in_bytes() const {
   return remote_typeface_cache_size_in_bytes_.get();
@@ -350,8 +295,6 @@ std::vector<MemorySetting*> AutoMem::AllMemorySettingsMutable() {
   // Keep these in alphabetical order.
   all_settings.push_back(encoded_image_cache_size_in_bytes_.get());
   all_settings.push_back(image_cache_size_in_bytes_.get());
-  all_settings.push_back(misc_cobalt_cpu_size_in_bytes_.get());
-  all_settings.push_back(misc_cobalt_gpu_size_in_bytes_.get());
   all_settings.push_back(offscreen_target_cache_size_in_bytes_.get());
   all_settings.push_back(remote_typeface_cache_size_in_bytes_.get());
   all_settings.push_back(skia_atlas_texture_dimensions_.get());
@@ -421,15 +364,6 @@ void AutoMem::ConstructSettings(const math::Size& ui_resolution,
   max_cpu_bytes_ = CreateCpuSetting(command_line_settings, build_settings);
   max_gpu_bytes_ = CreateGpuSetting(command_line_settings, build_settings);
 
-  reduced_gpu_bytes_ = CreateSystemMemorySetting(
-      switches::kReduceGpuMemoryBy, MemorySetting::kGPU,
-      command_line_settings.reduce_gpu_memory_by,
-      build_settings.reduce_gpu_memory_by, -1);
-  if (reduced_gpu_bytes_->value() == -1) {
-    // This effectively disables the value from being used in the constrainer.
-    reduced_gpu_bytes_->set_value(MemorySetting::kUnset, 0);
-  }
-
   // Set the encoded image cache capacity
   encoded_image_cache_size_in_bytes_ = CreateMemorySetting<IntSetting, int64_t>(
       switches::kEncodedImageCacheSizeInBytes,
@@ -453,19 +387,6 @@ void AutoMem::ConstructSettings(const math::Size& ui_resolution,
   // be increased beyond that.
   image_cache_size_in_bytes_->set_memory_scaling_function(
       MakeLinearMemoryScaler(.75, 1.0));
-
-  // Set the misc cobalt size to a specific size.
-  misc_cobalt_cpu_size_in_bytes_.reset(
-      new IntSetting("misc_cobalt_cpu_size_in_bytes"));
-  misc_cobalt_cpu_size_in_bytes_->set_value(MemorySetting::kAutoSet,
-                                            kMiscCobaltCpuSizeInBytes);
-
-  // Set the misc cobalt size to a specific size.
-  misc_cobalt_gpu_size_in_bytes_.reset(
-      new IntSetting("misc_cobalt_gpu_size_in_bytes"));
-  misc_cobalt_gpu_size_in_bytes_->set_memory_type(MemorySetting::kGPU);
-  misc_cobalt_gpu_size_in_bytes_->set_value(
-      MemorySetting::kAutoSet, CalculateMiscCobaltGpuSize(ui_resolution));
 
   // Set remote_type_face_cache size.
   remote_typeface_cache_size_in_bytes_ =

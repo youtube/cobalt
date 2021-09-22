@@ -133,8 +133,8 @@ compact string.
 ##### Debug Console overlay
 
 This overlay is interactive and it shows messages from Cobalt, along with logs
-from Javacript `console.log()`. While it is active, you cannot interact directly
-with the underlying page.
+from Javascript `console.log()`. While it is active, you cannot interact
+directly with the underlying page.
 
 Additionally, it can act as a JS interpreter that will evaluate arbitrary
 expressions on the page being debugged. The output from these JS commands will

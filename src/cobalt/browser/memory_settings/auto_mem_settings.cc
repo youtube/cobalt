@@ -264,8 +264,6 @@ AutoMemSettings GetSettings(const base::CommandLine& command_line) {
       switches::kOffscreenTargetCacheSizeInBytes);
   Set(command_line, &settings.max_cpu_in_bytes, switches::kMaxCobaltCpuUsage);
   Set(command_line, &settings.max_gpu_in_bytes, switches::kMaxCobaltGpuUsage);
-  Set(command_line, &settings.reduce_gpu_memory_by,
-      switches::kReduceGpuMemoryBy);
 
   return settings;
 }

@@ -152,6 +152,20 @@ if (!crashpad_is_in_starboard) {
 }
 
 if (!crashpad_is_ios) {
+  if (crashpad_is_in_starboard) {
+    config("crashpad_handler_starboard_config") {
+      cflags = [
+        "-ffunction-sections",
+        "-fdata-sections",
+      ]
+      ldflags = [
+        "-Wl,--as-needed",
+        "-Wl,-gc-sections",
+        "-Wl,-z,noexecstack",
+      ]
+    }
+  }
+
   crashpad_executable("crashpad_handler") {
     if (crashpad_is_in_starboard) {
       check_includes = false
@@ -166,16 +180,21 @@ if (!crashpad_is_ios) {
       "../third_party/mini_chromium:base",
     ]
 
+    configs = []
     if (crashpad_is_win) {
       if (crashpad_is_in_chromium || crashpad_is_in_dart) {
         remove_configs = [ "//build/config/win:console" ]
-        configs = [ "//build/config/win:windowed" ]
+        configs += [ "//build/config/win:windowed" ]
       } else {
         remove_configs =
             [ "//third_party/mini_chromium/mini_chromium/build:win_console" ]
-        configs =
+        configs +=
             [ "//third_party/mini_chromium/mini_chromium/build:win_windowed" ]
       }
+    }
+
+    if (crashpad_is_in_starboard) {
+      configs += [ ":crashpad_handler_starboard_config" ]
     }
   }
 }

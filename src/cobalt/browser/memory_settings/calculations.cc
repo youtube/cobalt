@@ -182,16 +182,6 @@ int64_t CalculateSkiaCacheSize(const math::Size& ui_resolution) {
   return std::max<int64_t>(output, kMinSkiaCacheSize);
 }
 
-int64_t CalculateMiscCobaltGpuSize(const math::Size& ui_resolution) {
-  // LinearRemap defines a mapping function which will map the number
-  // of ui_resolution pixels to the misc memory of the GPU. This mapping
-  // is linear such that:
-  // 1080p (1920x1080) => maps to => 24MB
-  LinearRemap remap(0, 1920 * 1080, 0, 24 * 1024 * 1024);
-
-  return static_cast<int64_t>(remap.Map(ui_resolution.GetArea()));
-}
-
 }  // namespace memory_settings
 }  // namespace browser
 }  // namespace cobalt

@@ -84,7 +84,7 @@ support.
    texture/surface handle to render the video frame as it wishes.
 
 5. When the application is finished using the `SbDecodeTarget` that it has
-   aquired through the `SbPlayerGetCurrentFrame()` function, it will call
+   acquired through the `SbPlayerGetCurrentFrame()` function, it will call
    `SbDecodeTargetRelease()` on it.  The Starboard platform implementation
    should ensure that the `SbDecodeTarget` object returned by
    `SbPlayerGetCurrentFrame()` remains valid until the corresponding call to

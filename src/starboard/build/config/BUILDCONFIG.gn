@@ -26,6 +26,9 @@ declare_args() {
   cobalt_fastbuild = getenv("IS_CI") == 1
 
   is_internal_build = false
+
+  # TODO: Remove this flag when the affected targets can be built.
+  can_build_evergreen_loader_apps = true
 }
 
 is_debug = build_type == "debug"

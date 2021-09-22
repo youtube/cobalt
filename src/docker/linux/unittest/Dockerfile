@@ -17,10 +17,6 @@ FROM cobalt-base
 RUN apt update -qqy \
     && apt install -qqy --no-install-recommends \
         libasound2 \
-        libavcodec-dev \
-        libavformat-dev \
-        libavresample-dev \
-        libavutil-dev \
         libegl1-mesa \
         libgl1-mesa-dri \
         libgles2-mesa \

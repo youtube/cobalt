@@ -13,7 +13,7 @@
 # limitations under the License.
 """Base platform build configuration."""
 
-import imp
+import imp  # pylint: disable=deprecated-module
 import inspect
 import logging
 import os

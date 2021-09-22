@@ -5,6 +5,7 @@
 {
   'variables': {
     'optimize_target_for_speed': 1,
+    'is_starboard': 1,
   },
   'targets': [
     {
@@ -49,7 +50,9 @@
         'jdapimin.c',
         'jdapistd.c',
         'jdarith.c',
+        'jdatadst.c',
         'jdatadst-tj.c',
+        'jdatasrc.c',
         'jdatasrc-tj.c',
         'jdcoefct.c',
         'jdcolor.c',
@@ -88,21 +91,29 @@
         'jquant2.c',
         'jutils.c',
         'jversion.h',
+        'rdbmp.c',
+        'rdppm.c',
         'transupp.h',
         'transupp.c',
         'turbojpeg.h',
         'turbojpeg.c',
+        'wrbmp.c',
+        'wrppm.c',
         '<@(no_simd_files)',
-        # These dependecies are needed for file io
-        # and are not currently used by Cobalt.
-        #'rdbmp.c',
-        #'rdppm.c',
-        #'wrbmp.c',
-        #'wrppm.c',
-        #'jdatasrc.c',
-        #'jdatadst.c',
       ],
       'conditions': [
+        ['is_starboard', {
+          # These dependecies are needed for file io
+          # and are not currently used by Cobalt.
+          'sources!': [
+            'jdatadst.c',
+            'jdatasrc.c',
+            'rdbmp.c',
+            'rdppm.c',
+            'wrbmp.c',
+            'wrppm.c',
+          ],
+        }],
         # arm processor specific optimizations.
         ['target_arch == "arm" and arm_neon == 1 or target_arch == "arm64" and arm_neon == 1', {
           'include_dirs': [

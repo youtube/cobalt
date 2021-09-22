@@ -70,6 +70,9 @@ class Camera3D : public base::RefCountedThreadSafe<Camera3D> {
   // Resets camera to default orientation.
   virtual void Reset() {}
 
+  // Adopt input object from the given Camera3D.
+  virtual void SetInput(const scoped_refptr<Camera3D>& other) {}
+
   virtual ~Camera3D() {}
 
   template <typename FloatType>

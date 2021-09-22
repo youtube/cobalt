@@ -1,0 +1,3 @@
+# Ignore raw media files as they are not tracked inside git repository.  They
+# are synced via gclient hook "mse_eme_conformance_tests".
+*.mp4

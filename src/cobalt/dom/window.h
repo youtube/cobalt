@@ -322,7 +322,9 @@ class Window : public EventTarget, public ApplicationLifecycleState::Observer {
 
   void Gc(script::EnvironmentSettings* settings);
 
-  HTMLElementContext* html_element_context() const;
+  HTMLElementContext* html_element_context() const {
+    return html_element_context_.get();
+  }
 
   // Will fire the animation frame callbacks and reset the animation frame
   // request callback list.
@@ -347,7 +349,7 @@ class Window : public EventTarget, public ApplicationLifecycleState::Observer {
 
   void SetSize(cssom::ViewportSize size);
 
-  void SetCamera3D(const scoped_refptr<input::Camera3D>& camera_3d);
+  void UpdateCamera3D(const scoped_refptr<input::Camera3D>& camera_3d);
 
   void set_web_media_player_factory(
       media::WebMediaPlayerFactory* web_media_player_factory) {

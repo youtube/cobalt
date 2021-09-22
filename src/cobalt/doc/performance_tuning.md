@@ -264,7 +264,7 @@ time and potentially affect the video frame drop rate.
 ### Close the debug console when measuring performance
 
 Cobalt provides a debug console in non-gold builds to allow the display
-of variables overlayed on top of the application.  This can be helpful
+of variables overlaid on top of the application.  This can be helpful
 for debugging issues and keeping track of things like app lifetime, but
 the debug console consumes significant resources when it is visible in order
 to render it, so it should be hidden when performance is being evaluated.

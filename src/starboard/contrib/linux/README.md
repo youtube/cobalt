@@ -5,7 +5,7 @@
   Sample commands:
 
 ```bash
-$ cp starboard/contrib/linux/stadia starboard/linux/
+$ cp -r starboard/contrib/linux/stadia starboard/linux/
 $ ./cobalt/build/gyp_cobalt linux-stadia
 $ ninja -C out/linux-stadia_devel cobalt
 ```

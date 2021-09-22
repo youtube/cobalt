@@ -15,7 +15,7 @@
 #
 """Ask the parent directory to load the project environment."""
 
-from imp import load_source
+from imp import load_source  # pylint: disable=deprecated-module
 from os import path
 import sys
 

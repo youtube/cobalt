@@ -5,7 +5,7 @@ default_stages: [commit]
 default_language_version:
     python: python3
 
-exclude: '^(build|third_party|v8)/'
+exclude: '^(base|build|testing|third_party)/'
 
 repos:
 -   repo: https://cobalt.googlesource.com/pre-commit-hooks
@@ -21,6 +21,7 @@ repos:
     hooks:
     -   id: codespell
         name: Spell Check
+        exclude: '^cobalt/content/i18n/platform/'
 
 -   repo: local
     hooks:
@@ -72,7 +73,7 @@ repos:
         types: [java]
         args: [-i]
     -   id: gcheckstyle
-        name: gcheckstyle
+        name: Lint Java With gcheckstyle
         entry: python ./precommit_hooks/gcheckstyle_wrapper.py
         language: python
         types: [java]
@@ -83,6 +84,7 @@ repos:
         language: python
         types: [file, text]
         stages: [push]
+        exclude: '^cobalt/layout_tests/testdata/'
     -   id: check-if-starboard-interface-changed
         name: check if starboard interface changed
         entry: python ./precommit_hooks/warn_that_starboard_interface_changed_wrapper.py
@@ -137,6 +139,7 @@ repos:
         entry: python precommit_hooks/internal_file_check_wrapper.py
         language: python
         types: [text]
+        exclude: 'EXCLUDE\.FILES(\.RECURSIVE)?$'
     -   id: gn-format
         name: GN format
         entry: gn format

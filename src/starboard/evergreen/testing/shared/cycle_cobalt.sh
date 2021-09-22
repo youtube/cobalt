@@ -85,9 +85,9 @@ function cycle_cobalt() {
   watch_cobalt "${LOG}" "${PAT}"
   RES=$?
 
-  log "info" " Stopping with 'kill -9 ${LOADER}'"
+  log "info" " Stopping ${LOADER}"
 
-  kill -9 "${LOADER}" 1> /dev/null
+  stop_process "${LOADER}"
 
   sleep 1
 

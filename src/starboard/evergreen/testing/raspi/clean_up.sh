@@ -14,5 +14,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-source $1/../linux/clean_up.sh
+function clean_up() {
+  echo " Clearing loader app process id storage"
+  eval "${SSH}\"rm -rf ${PID_STORAGE_DIR}\"" 1> /dev/null
 
+  clear_storage
+}

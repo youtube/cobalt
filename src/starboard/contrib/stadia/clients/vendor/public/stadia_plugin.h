@@ -39,6 +39,7 @@ STADIA_EXPORT_FUNCTION(StadiaPlugin*,
                         StadiaPluginReceiveFromCallback callback,
                         void* user_data));
 
+// clang-format off
 STADIA_EXPORT_FUNCTION(void,
                        StadiaPluginSendTo,
                        (StadiaPlugin* plugin,
@@ -46,5 +47,6 @@ STADIA_EXPORT_FUNCTION(void,
                         size_t length));
 
 STADIA_EXPORT_FUNCTION(void, StadiaPluginClose, (StadiaPlugin* plugin));
+// clang-format on
 }
 #endif  // STARBOARD_CONTRIB_STADIA_CLIENTS_VENDOR_PUBLIC_STADIA_PLUGIN_H_

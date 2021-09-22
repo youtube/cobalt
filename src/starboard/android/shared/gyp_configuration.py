@@ -15,7 +15,7 @@
 
 from __future__ import print_function
 
-import imp
+import imp  # pylint: disable=deprecated-module
 import os
 import subprocess
 
@@ -113,8 +113,8 @@ class AndroidConfiguration(PlatformConfiguration):
     # example src/out/android-arm64/devel/cobalt.apk
     return ['*.apk']
 
-  def GetGeneratorVariables(self, configuration):
-    _ = configuration
+  def GetGeneratorVariables(self, config_name):
+    _ = config_name
     generator_variables = {
         'qtcreator_session_name_prefix': 'cobalt',
     }

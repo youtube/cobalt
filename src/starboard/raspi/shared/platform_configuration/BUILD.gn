@@ -182,8 +182,7 @@ config("pedantic_warnings") {
     # This decision should be revisited after raspi toolchain is upgraded.
     "-Wno-maybe-uninitialized",
 
-    #TODO: Renable -Werror after fixing all warnings.
-    #"-Werror",
+    "-Werror",
     "-Wno-expansion-to-defined",
     "-Wno-implicit-fallthrough",
   ]

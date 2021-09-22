@@ -1,0 +1,5 @@
+*.pyc
+*.sublime-workspace
+*.swp
+*.tmp
+.DS_Store

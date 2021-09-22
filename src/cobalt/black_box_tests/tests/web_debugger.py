@@ -34,7 +34,7 @@ sys.path.append(
     os.path.join(
         os.path.dirname(__file__), '..', '..', '..', 'third_party',
         'websocket-client'))
-import websocket  # pylint: disable=g-bad-import-order,g-import-not-at-top
+import websocket  # pylint: disable=wrong-import-position
 
 # Set to True to add additional logging to debug the test.
 _DEBUG = False
@@ -78,9 +78,9 @@ class DebuggerConnection(object):
     self.ws_url = ws_url
     self.timeout = timeout
     self.last_id = 0
-    self.commands = dict()
-    self.responses = dict()
-    self.events = list()
+    self.commands = {}
+    self.responses = {}
+    self.events = []
 
   def __enter__(self):
     websocket.enableTrace(_DEBUG)
@@ -216,24 +216,21 @@ class DebuggerConnection(object):
 class WebDebuggerTest(black_box_tests.BlackBoxTestCase):
   """Test interaction with the web debugger over a WebSocket."""
 
-  def setUpWith(self, cm):
+  def set_up_with(self, cm):
     val = cm.__enter__()
     self.addCleanup(cm.__exit__, None, None, None)
     return val
 
   def setUp(self):
-    platform_vars = self.platform_config.GetVariables(
-        self.launcher_params.config)
-
     cobalt_vars = self.cobalt_config.GetVariables(self.launcher_params.config)
     if not cobalt_vars['enable_debugger']:
       self.skipTest('DevTools is disabled on this platform')
 
-    self.server = self.setUpWith(
+    self.server = self.set_up_with(
         ThreadedWebServer(binding_address=self.GetBindingAddress()))
     url = self.server.GetURL(file_name='testdata/web_debugger.html')
-    self.runner = self.setUpWith(self.CreateCobaltRunner(url=url))
-    self.debugger = self.setUpWith(self.create_debugger_connection())
+    self.runner = self.set_up_with(self.CreateCobaltRunner(url=url))
+    self.debugger = self.set_up_with(self.create_debugger_connection())
     self.runner.WaitForJSTestsSetup()
     self.debugger.enable_runtime()
 

@@ -17,6 +17,7 @@ from starboard.raspi.shared import gyp_configuration as shared_configuration
 
 
 class Raspi2PlatformConfig(shared_configuration.RaspiPlatformConfig):
+  """Starboard raspi-2 platform configuration."""
 
   def __init__(self,
                platform,
@@ -24,8 +25,8 @@ class Raspi2PlatformConfig(shared_configuration.RaspiPlatformConfig):
     super(Raspi2PlatformConfig, self).__init__(
         platform, sabi_json_path=sabi_json_path)
 
-  def GetVariables(self, config_name):
-    variables = super(Raspi2PlatformConfig, self).GetVariables(config_name)
+  def GetVariables(self, configuration):
+    variables = super(Raspi2PlatformConfig, self).GetVariables(configuration)
     return variables
 
 

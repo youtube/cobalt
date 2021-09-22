@@ -15,7 +15,6 @@
 #include "starboard/contrib/stadia/x11/application_stadia_x11.h"
 
 #include "starboard/contrib/stadia/services/vendor/linux/public/stadia_lifecycle.h"
-#include "starboard/shared/x11/application_x11.cc"
 #include "starboard/shared/x11/window_internal.h"
 
 namespace starboard {

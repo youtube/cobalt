@@ -1,0 +1,10 @@
+*.pyc
+# Settings directory for eclipse
+.settings/
+/buildbot
+/gyp-mac-tool
+/out
+.vscode
+.idea
+/venv/*
+_certs/

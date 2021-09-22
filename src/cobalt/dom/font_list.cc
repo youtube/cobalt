@@ -14,6 +14,8 @@
 
 #include "cobalt/dom/font_list.h"
 
+#include <set>
+
 #include "base/i18n/char_iterator.h"
 #include "cobalt/base/unicode/character_values.h"
 #include "cobalt/dom/font_cache.h"

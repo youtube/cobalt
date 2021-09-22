@@ -113,6 +113,7 @@ class LinuxConfiguration(platform_configuration.PlatformConfiguration):
       ],
   }
 
+  # pylint: disable=line-too-long
   __FILTERED_TESTS = {  # pylint: disable=invalid-name
       'player_filter_tests': [
           # libdav1d crashes when fed invalid data
@@ -120,9 +121,11 @@ class LinuxConfiguration(platform_configuration.PlatformConfiguration):
       ],
   }
   # Conditionally disables tests that require ipv6
-  if os.getenv('IPV6_AVAILABLE', 1) == '0':
+  if os.getenv('IPV6_AVAILABLE', '1') == '0':
     __FILTERED_TESTS['nplb'] = [
         'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest.SunnyDayDestination/1',
         'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest.SunnyDaySourceForDestination/1',
         'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest.SunnyDaySourceNotLoopback/1',
     ]
+
+  # pylint: enable=line-too-long

@@ -521,6 +521,10 @@ public class CobaltMediaSession
   }
 
   private void updateMetadata(boolean resetMetadataWithEmptyBuilder) {
+    if (mediaSession == null) {
+      return;
+    }
+
     MediaMetadataCompat.Builder metadataBuilder = new MediaMetadataCompat.Builder();
     // Reset the metadata to make sure the artwork update correctly.
     if (resetMetadataWithEmptyBuilder) mediaSession.setMetadata(metadataBuilder.build());

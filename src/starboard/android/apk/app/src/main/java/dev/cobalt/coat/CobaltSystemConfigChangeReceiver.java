@@ -31,18 +31,39 @@ final class CobaltSystemConfigChangeReceiver extends BroadcastReceiver {
   CobaltSystemConfigChangeReceiver(Context appContext, Runnable stopRequester) {
     this.isForeground = true;
     this.stopRequester = stopRequester;
-    appContext.registerReceiver(this, new IntentFilter(Intent.ACTION_LOCALE_CHANGED));
+    IntentFilter filter = new IntentFilter();
+    filter.addAction(Intent.ACTION_LOCALE_CHANGED);
+    filter.addAction(Intent.ACTION_TIMEZONE_CHANGED);
+    filter.addAction(Intent.ACTION_TIME_CHANGED);
+    filter.addAction(Intent.ACTION_DATE_CHANGED);
+    appContext.registerReceiver(this, filter);
   }
 
   @Override
   public void onReceive(Context context, Intent intent) {
-    if ((!Intent.ACTION_LOCALE_CHANGED.equals(intent.getAction())) || isForeground) return;
+    if (isForeground) {
+      return;
+    }
 
-    Log.w(TAG, "System locale settings have changed.");
-    stopRequester.run();
+    switch (intent.getAction()) {
+      case Intent.ACTION_TIMEZONE_CHANGED:
+      case Intent.ACTION_TIME_CHANGED:
+      case Intent.ACTION_DATE_CHANGED:
+        Log.w(TAG, "System Date or Time have changed.");
+        nativeDateTimeConfigurationChanged();
+        break;
+      case Intent.ACTION_LOCALE_CHANGED:
+        Log.w(TAG, "System locale settings have changed.");
+        stopRequester.run();
+        break;
+      default:
+        Log.w(TAG, "Unknown intent.");
+    }
   }
 
   public void setForeground(final boolean isForeground) {
     this.isForeground = isForeground;
   }
+
+  private native void nativeDateTimeConfigurationChanged();
 }

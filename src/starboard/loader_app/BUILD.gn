@@ -42,22 +42,24 @@ target(final_executable_type, "loader_app") {
   }
 }
 
-target(final_executable_type, "loader_app_sys") {
-  if (target_cpu == "x86" || target_cpu == "x64" || target_cpu == "arm" ||
-      target_cpu == "arm64") {
-    sources = _common_loader_app_sources
+if (can_build_evergreen_loader_apps) {
+  target(final_executable_type, "loader_app_sys") {
+    if (target_cpu == "x86" || target_cpu == "x64" || target_cpu == "arm" ||
+        target_cpu == "arm64") {
+      sources = _common_loader_app_sources
 
-    starboard_syms_path =
-        rebase_path("//starboard/starboard.syms", root_build_dir)
-    ldflags = [
-      "-Wl,--dynamic-list=$starboard_syms_path",
-      "-ldl",
-    ]
-    deps = [
-      ":common_loader_app_dependencies",
-      "//cobalt/content/fonts:copy_font_data",
-      "//starboard/elf_loader:elf_loader_sys",
-    ]
+      starboard_syms_path =
+          rebase_path("//starboard/starboard.syms", root_build_dir)
+      ldflags = [
+        "-Wl,--dynamic-list=$starboard_syms_path",
+        "-ldl",
+      ]
+      deps = [
+        ":common_loader_app_dependencies",
+        "//cobalt/content/fonts:copy_font_data",
+        "//starboard/elf_loader:elf_loader_sys",
+      ]
+    }
   }
 }
 

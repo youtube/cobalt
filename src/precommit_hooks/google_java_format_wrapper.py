@@ -24,4 +24,8 @@ if __name__ == '__main__':
     sys.exit(0)
 
   google_java_format_args = sys.argv[1:]
-  sys.exit(subprocess.call(['google-java-format'] + google_java_format_args))
+  try:
+    sys.exit(subprocess.call(['google-java-format'] + google_java_format_args))
+  except FileNotFoundError:
+    print('google-java-format not found, skipping.')
+    sys.exit(0)

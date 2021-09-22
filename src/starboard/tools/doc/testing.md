@@ -78,7 +78,7 @@ configuration from which the test should be excluded. An example is shown below:
 
     test_filter.TestFilter('math_test', 'Vector3dTest.IsZero', 'debug')
 
-If a configuration is not provided, then the test will be exluded from all
+If a configuration is not provided, then the test will be excluded from all
 configurations.
 
 To filter out all tests for a particular target, provide

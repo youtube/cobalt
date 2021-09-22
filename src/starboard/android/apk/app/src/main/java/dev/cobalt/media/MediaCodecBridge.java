@@ -365,7 +365,7 @@ class MediaCodecBridge {
       }
 
       // This logic is inspired by
-      // https://github.com/google/ExoPlayer/blob/deb9b301b2c7ef66fdd7d8a3e58298a79ba9c619/library/core/src/main/java/com/google/android/exoplayer2/extractor/mkv/MatroskaExtractor.java#L1803.
+      // https://cs.android.com/android/_/android/platform/external/exoplayer/+/3423b4bbfffbb62b5f2d8f16cfdc984dc107cd02:tree/library/extractor/src/main/java/com/google/android/exoplayer2/extractor/mkv/MatroskaExtractor.java;l=2200-2215;drc=9af07bc62f8115cbaa6f1178ce8aa3533d2b9e29.
       ByteBuffer hdrStaticInfo = ByteBuffer.allocateDirect(25);
       // Force big endian in case the HDR metadata causes problems in production.
       if (forceBigEndianHdrMetadata) {

@@ -107,6 +107,7 @@ target(gtest_target_type, "nplb") {
     "drm_helpers.cc",
     "drm_helpers.h",
     "drm_is_server_certificate_updatable_test.cc",
+    "drm_session_test.cc",
     "drm_update_server_certificate_test.cc",
     "egl_test.cc",
     "extern_c_test.cc",
@@ -294,7 +295,7 @@ target(gtest_target_type, "nplb") {
     "window_get_size_test.cc",
   ]
 
-  if (is_internal_build) {
+  if (has_drm_support) {
     sources += [
       "drm_create_system_test.cc",
       "media_can_play_mime_and_key_system_test.cc",
@@ -302,6 +303,10 @@ target(gtest_target_type, "nplb") {
   }
 
   deps = [ "//starboard/nplb/testdata/file_tests:nplb_file_tests_data" ]
+
+  if (is_internal_build) {
+    deps += [ "//starboard/private/nplb:nplb_private" ]
+  }
 
   public_deps = [
     "//starboard",

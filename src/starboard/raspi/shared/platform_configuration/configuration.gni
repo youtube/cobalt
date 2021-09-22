@@ -15,12 +15,12 @@
 import("//starboard/build/config/base_configuration.gni")
 
 arm_float_abi = "hard"
+has_drm_support = false
 sb_pedantic_warnings = true
 sb_static_contents_output_data_dir = "$root_out_dir/content"
 
-pedantic_warnings_config_path =
-    "//starboard/raspi/shared/platform_configuration:pedantic_warnings"
 no_pedantic_warnings_config_path =
     "//starboard/raspi/shared/platform_configuration:no_pedantic_warnings"
-
+pedantic_warnings_config_path =
+    "//starboard/raspi/shared/platform_configuration:pedantic_warnings"
 sabi_path = "//starboard/sabi/arm/hardfp/sabi-v$sb_api_version.json"

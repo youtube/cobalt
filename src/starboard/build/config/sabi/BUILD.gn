@@ -49,6 +49,9 @@ config("sabi") {
     "SB_SABI_JSON_ID=R\"($sabi_id)\"",
     "SB_API_VERSION=$sb_api_version",
 
+    "SB_SABI_TARGET_ARCH=\"${target_cpu}\"",
+    "SB_SABI_WORD_SIZE=\"${word_size}\"",
+
     "SB_IS_ARCH_${arch_uppercase}=1",
     "SB_HAS_${calling_convention_uppercase}_CALLING=1",
     "SB_HAS_${floating_point_abi_uppercase}_FLOATS=1",

@@ -70,6 +70,7 @@
         'url_utils_test.cc',
         'user_agent_data_test.cc',
         'window_test.cc',
+        'window_timers_test.cc',
         'xml_document_test.cc',
       ],
       'dependencies': [

@@ -37,4 +37,4 @@ class ApplicationStadiaX11 : public starboard::shared::x11::ApplicationX11 {
 }  // namespace contrib
 }  // namespace starboard
 
-#endif  // STARBOARD_CONRTIB_STADIA_X11_APPLICATION_STADIA_X11_H_
+#endif  // STARBOARD_CONTRIB_STADIA_X11_APPLICATION_STADIA_X11_H_

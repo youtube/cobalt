@@ -79,6 +79,15 @@ class CspDelegatePermissive : public dom::CspDelegateSecure {
   }
 };
 
+// FakeResourceProviderStub has the identical behavior as ResourceProviderStub,
+// except the GetTypeId, which makes the ImageDecode not to create the
+// FailureImageDecoder based on the TypeId Check.
+class FakeResourceProviderStub : public render_tree::ResourceProviderStub {
+  base::TypeId GetTypeId() const override {
+    return base::GetTypeId<FakeResourceProviderStub>();
+  }
+};
+
 // Match the enums from testharness.js.
 enum TestStatus {
   kPass = 0,
@@ -190,7 +199,7 @@ std::string RunWebPlatformTest(const GURL& url, bool* got_results) {
   network::NetworkModule network_module(net_options);
 
   // Media module
-  render_tree::ResourceProviderStub resource_provider;
+  FakeResourceProviderStub resource_provider;
   std::unique_ptr<media::MediaModule> media_module(
       new media::MediaModule(NULL, &resource_provider));
   std::unique_ptr<media::CanPlayTypeHandler> can_play_type_handler(

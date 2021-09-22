@@ -14,11 +14,8 @@
 
 #include "starboard/system.h"
 
-#include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/shared/signal/signal_internal.h"
 #include "starboard/shared/starboard/application.h"
-
-using starboard::android::shared::JniEnvExt;
 
 #if SB_IS(EVERGREEN_COMPATIBLE) && !SB_IS(EVERGREEN_COMPATIBLE_LITE)
 #include "starboard/loader_app/pending_restart.h"
@@ -35,19 +32,11 @@ void SbSystemRequestFreeze() {
     // There is no FreezeDone callback for stopping all thread execution
     // after fully transitioning into Frozen.
     starboard::shared::starboard::Application::Get()->Freeze(NULL, NULL);
-
-    // Let Android platform directly transit into Frozen.
-    JniEnvExt* env = JniEnvExt::Get();
-    env->CallStarboardVoidMethodOrAbort("requestSuspend", "()V");
   }
 #else
   // There is no FreezeDone callback for stopping all thread execution
   // after fully transitioning into Frozen.
   starboard::shared::starboard::Application::Get()->Freeze(NULL, NULL);
-
-  // Let Android platform directly transit into Frozen.
-  JniEnvExt* env = JniEnvExt::Get();
-  env->CallStarboardVoidMethodOrAbort("requestSuspend", "()V");
 #endif  // SB_IS(EVERGREEN_COMPATIBLE) && !SB_IS(EVERGREEN_COMPATIBLE_LITE)
 }
 #endif  // SB_API_VERSION >= 13

@@ -57,7 +57,8 @@ SCRIPTS=("${DIR}/shared/app_key.sh"           \
          "${DIR}/${1}/deploy_cobalt.sh"       \
          "${DIR}/${1}/run_command.sh"         \
          "${DIR}/${1}/start_cobalt.sh"        \
-         "${DIR}/${1}/stop_cobalt.sh")
+         "${DIR}/${1}/stop_cobalt.sh"         \
+         "${DIR}/${1}/stop_process.sh")
 
 for script in "${SCRIPTS[@]}"; do
   if [[ ! -f "${script}" ]]; then
