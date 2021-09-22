@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Builds a symlink farm pointing to specified subdirectories of the input dir."""
+"""Builds a symlink farm pointing to specified subdirs of the input dir."""
 
 import argparse
 import logging
@@ -20,7 +20,7 @@ import os
 import sys
 
 import _env  # pylint: disable=unused-import
-import starboard.tools.port_symlink as port_symlink
+from starboard.tools import port_symlink
 
 # The name of an environment variable that when set to |'1'|, signals to us that
 # we should log all output directories that we have populated.
