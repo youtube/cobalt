@@ -386,6 +386,8 @@ static_library("starboard_platform_sources") {
 
   sources += common_player_sources
 
+  sources -= [ "//starboard/shared/starboard/player/player_set_bounds.cc" ]
+
   configs += [
     "//starboard/build/config:starboard_implementation",
     "//third_party/de265_includes",
