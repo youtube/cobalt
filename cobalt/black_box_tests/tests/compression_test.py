@@ -31,7 +31,7 @@ def encode(raw_content, encoding_type):
     return encode_gzip(raw_content)
   elif encoding_type == 'deflate':
     return encode_deflate(raw_content)
-  elif encoding_type == 'br' and brotli:
+  elif encoding_type == 'br':
     return encode_brotli(raw_content)
   raise ValueError('Unknown encoding type used [{}].'.format(encoding_type))
 
@@ -140,3 +140,8 @@ class CompressionTest(black_box_tests.BlackBoxTestCase):
 
   def test_deflate(self):
     execute_test(self, 'deflate')
+
+  def test_brotli(self):
+    # Skip this test if the brotli module is not available.
+    if brotli:
+      execute_test(self, 'br')
