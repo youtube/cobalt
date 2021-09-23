@@ -15,13 +15,7 @@
 static_library("starboard_platform") {
   check_includes = false
 
-  sources = [
-    "//starboard/linux/x64x11/main.cc",
-    "//starboard/shared/starboard/player/video_dmp_common.cc",
-    "//starboard/shared/starboard/player/video_dmp_common.h",
-    "//starboard/shared/starboard/player/video_dmp_writer.cc",
-    "//starboard/shared/starboard/player/video_dmp_writer.h",
-  ]
+  sources = [ "//starboard/linux/x64x11/main.cc" ]
 
   public_deps = [
     "//starboard/linux/x64x11/shared:starboard_platform",
