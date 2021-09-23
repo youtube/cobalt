@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""Contains utilities to create black box tests and run them."""
 
 from __future__ import absolute_import
 from __future__ import division
@@ -44,6 +45,7 @@ _PORT_SELECTION_RANGE = [5000, 7000]
 # List of blocked ports.
 _RESTRICTED_PORTS = [6000, 6665, 6666, 6667, 6668, 6669, 6697]
 _SERVER_EXIT_TIMEOUT_SECONDS = 30
+_SOCKET_SUCCESS = 0
 # These tests can only be run on platforms whose app launcher can send suspend/
 # resume signals.
 _TESTS_NEEDING_SYSTEM_SIGNAL = [
@@ -81,6 +83,7 @@ _wpt_http_port = None
 
 
 class BlackBoxTestCase(unittest.TestCase):
+  """Base class for Cobalt black box test cases."""
 
   def __init__(self, *args, **kwargs):
     super(BlackBoxTestCase, self).__init__(*args, **kwargs)
@@ -92,12 +95,12 @@ class BlackBoxTestCase(unittest.TestCase):
   @classmethod
   def setUpClass(cls):
     super(BlackBoxTestCase, cls).setUpClass()
-    logging.info('Running ' + cls.__name__)
+    logging.info('Running %s', cls.__name__)
 
   @classmethod
   def tearDownClass(cls):
     super(BlackBoxTestCase, cls).tearDownClass()
-    logging.info('Done ' + cls.__name__)
+    logging.info('Done %s', cls.__name__)
 
   def CreateCobaltRunner(self, url, target_params=None):
     all_target_params = list(target_params) if target_params else []
@@ -191,9 +194,7 @@ class BlackBoxTests(object):
         'www2.web-platform.test', 'xn--n8j6ds53lwwkrqhv28a.web-platform.test',
         'xn--lve-6lad.web-platform.test'
     ]
-    self.host_resolve_map = dict([
-        (host, server_binding_address) for host in hosts
-    ])
+    self.host_resolve_map = {host: server_binding_address for host in hosts}
 
   def Run(self):
     if self.proxy_port == '-1':
@@ -202,12 +203,12 @@ class BlackBoxTests(object):
     # Temporary means to determine if we are running on CI
     # TODO: Update to IS_CI environment variable or similar
     out_dir = _launcher_params.out_directory
-    is_ci = out_dir and 'mh_lab' in out_dir
+    is_ci = out_dir and 'mh_lab' in out_dir  # pylint: disable=unsupported-membership-test
 
     target = (_launcher_params.platform, _launcher_params.config)
     if is_ci and '{}/{}'.format(*target) in _DISABLED_BLACKBOXTEST_CONFIGS:
-      logging.warning(
-          'Blackbox tests disabled for platform:{} config:{}'.format(*target))
+      logging.warning('Blackbox tests disabled for platform:%s config:%s',
+                      *target)
       return 0
 
     logging.info('Using proxy port: %s', self.proxy_port)
@@ -227,7 +228,6 @@ class BlackBoxTests(object):
 
   def GetUnusedPort(self, addresses):
     """Find a free port on the list of addresses by pinging with sockets."""
-    SOCKET_SUCCESS = 0
 
     if not addresses:
       logging.error('Can not find unused port on invalid addresses.')
@@ -245,7 +245,7 @@ class BlackBoxTests(object):
         unused = True
         for sock in socks:
           result = sock[1].connect_ex((sock[0], port))
-          if result == SOCKET_SUCCESS:
+          if result == _SOCKET_SUCCESS:
             unused = False
             break
         if unused:
