@@ -19,6 +19,7 @@
 #ifndef STARBOARD_SHARED_DLMALLOC_PAGE_INTERNAL_H_
 #define STARBOARD_SHARED_DLMALLOC_PAGE_INTERNAL_H_
 
+#include "starboard/memory.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/types.h"
 
@@ -114,6 +115,17 @@ void* SbPageMap(size_t size_bytes, int flags, const char* name);
 // SbGetMappedBytes(). This should only be called by dlmalloc so that memory
 // allocated by dlmalloc isn't counted twice.
 void* SbPageMapUntracked(size_t size_bytes, int flags, const char* name);
+
+// Memory maps a file to the specified |addr| starting with |file_offset| and
+// mapping |size| bytes. The |addr| should be reserved before calling. If
+// NULL |addr| is passed a new memory block would be allocated and the address
+// returned. The file_offset must be a multiple of |kSbMemoryPageSize|.
+// On error returns NULL.
+void* SbPageMapFile(void* addr,
+                    const char* path,
+                    SbMemoryMapFlags flags,
+                    int64_t file_offset,
+                    int64_t size);
 
 // Unmap |size_bytes| of physical pages starting from |virtual_address|,
 // returning true on success. After this, [virtual_address, virtual_address +

@@ -16,6 +16,9 @@
 #define STARBOARD_ELF_LOADER_FILE_IMPL_H_
 
 #include "starboard/elf_loader/file.h"
+
+#include <string>
+
 #include "starboard/file.h"
 
 namespace starboard {
@@ -29,9 +32,11 @@ class FileImpl : public File {
   bool Open(const char* name) override;
   bool ReadFromOffset(int64_t offset, char* buffer, int size) override;
   void Close() override;
+  const std::string& GetName() override;
 
  protected:
   SbFile file_;
+  std::string name_;
 
   FileImpl(const FileImpl&) = delete;
   void operator=(const FileImpl&) = delete;

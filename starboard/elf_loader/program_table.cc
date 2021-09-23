@@ -35,14 +35,16 @@
 namespace starboard {
 namespace elf_loader {
 
-ProgramTable::ProgramTable()
+ProgramTable::ProgramTable(
+    const CobaltExtensionMemoryMappedFileApi* memory_mapped_file_extension)
     : phdr_num_(0),
       phdr_mmap_(NULL),
       phdr_table_(NULL),
       phdr_size_(0),
       load_start_(NULL),
       load_size_(0),
-      base_memory_address_(0) {}
+      base_memory_address_(0),
+      memory_mapped_file_extension_(memory_mapped_file_extension) {}
 
 bool ProgramTable::LoadProgramHeader(const Ehdr* elf_header, File* elf_file) {
   if (!elf_header) {
@@ -77,39 +79,52 @@ bool ProgramTable::LoadProgramHeader(const Ehdr* elf_header, File* elf_file) {
 
   SB_DLOG(INFO) << "page_max - page_min=" << page_max - page_min;
 
-#if SB_API_VERSION >= 12 || SB_HAS(MMAP)
-  phdr_mmap_ =
-      SbMemoryMap(phdr_size_, kSbMemoryMapProtectWrite, "program_header");
-  if (!phdr_mmap_) {
-    SB_LOG(ERROR) << "Failed to allocate memory";
-    return false;
-  }
+  if (memory_mapped_file_extension_) {
+    SB_DLOG(INFO) << "Memory mapped file for the program header";
+    phdr_mmap_ = memory_mapped_file_extension_->MemoryMapFile(
+        NULL, elf_file->GetName().c_str(), kSbMemoryMapProtectRead, page_min,
+        phdr_size_);
+    if (!phdr_mmap_) {
+      SB_LOG(ERROR) << "Failed to memory map the program header";
+      return false;
+    }
 
-  SB_DLOG(INFO) << "Allocated address=" << phdr_mmap_;
-#else
-  SB_CHECK(false);
-#endif
-  if (!elf_file->ReadFromOffset(page_min, reinterpret_cast<char*>(phdr_mmap_),
-                                phdr_size_)) {
-    SB_LOG(ERROR) << "Failed to read program header from file offset: "
-                  << page_min;
-    return false;
-  }
+    SB_DLOG(INFO) << "Allocated address=" << phdr_mmap_;
+  } else {
 #if SB_API_VERSION >= 12 || SB_HAS(MMAP)
-  bool mp_result =
-      SbMemoryProtect(phdr_mmap_, phdr_size_, kSbMemoryMapProtectRead);
-  SB_DLOG(INFO) << "mp_result=" << mp_result;
-  if (!mp_result) {
-    SB_LOG(ERROR) << "Failed to protect program header";
-    return false;
-  }
+    phdr_mmap_ =
+        SbMemoryMap(phdr_size_, kSbMemoryMapProtectWrite, "program_header");
+    if (!phdr_mmap_) {
+      SB_LOG(ERROR) << "Failed to allocate memory";
+      return false;
+    }
+
+    SB_DLOG(INFO) << "Allocated address=" << phdr_mmap_;
 #else
-  SB_CHECK(false);
+    SB_CHECK(false);
 #endif
+    if (!elf_file->ReadFromOffset(page_min, reinterpret_cast<char*>(phdr_mmap_),
+                                  phdr_size_)) {
+      SB_LOG(ERROR) << "Failed to read program header from file offset: "
+                    << page_min;
+      return false;
+    }
+#if SB_API_VERSION >= 12 || SB_HAS(MMAP)
+    bool mp_result =
+        SbMemoryProtect(phdr_mmap_, phdr_size_, kSbMemoryMapProtectRead);
+    SB_DLOG(INFO) << "mp_result=" << mp_result;
+    if (!mp_result) {
+      SB_LOG(ERROR) << "Failed to protect program header";
+      return false;
+    }
+#else
+    SB_CHECK(false);
+#endif
+  }
 
   phdr_table_ = reinterpret_cast<Phdr*>(reinterpret_cast<char*>(phdr_mmap_) +
                                         page_offset);
-
+  SB_DLOG(INFO) << "phdr_table_=" << phdr_table_;
   return true;
 }
 
@@ -186,20 +201,33 @@ bool ProgramTable::LoadSegments(File* elf_file) {
       SB_DLOG(INFO) << "segment prot_flags=" << std::hex << prot_flags;
 
       void* seg_addr = reinterpret_cast<void*>(seg_page_start);
-      bool mp_ret =
-          SbMemoryProtect(seg_addr, file_length, kSbMemoryMapProtectWrite);
-      SB_DLOG(INFO) << "segment vaddress=" << seg_addr;
+      bool mp_ret = false;
+      if (memory_mapped_file_extension_) {
+        SB_DLOG(INFO) << "Using Memory Mapped File for Loading the Segment";
+        void* p = memory_mapped_file_extension_->MemoryMapFile(
+            seg_addr, elf_file->GetName().c_str(), kSbMemoryMapProtectRead,
+            file_page_start, file_length);
+        if (!p) {
+          SB_LOG(ERROR) << "Failed to memory map file: " << elf_file->GetName();
+          return false;
+        }
+      } else {
+        SB_DLOG(INFO) << "Not using Memory Mapped Files";
+        mp_ret =
+            SbMemoryProtect(seg_addr, file_length, kSbMemoryMapProtectWrite);
+        SB_DLOG(INFO) << "segment vaddress=" << seg_addr;
 
-      if (!mp_ret) {
-        SB_LOG(ERROR) << "Failed to unprotect segment";
-        return false;
-      }
-      if (!elf_file->ReadFromOffset(file_page_start,
-                                    reinterpret_cast<char*>(seg_addr),
-                                    file_length)) {
-        SB_DLOG(INFO) << "Failed to read segment from file offset: "
-                      << file_page_start;
-        return false;
+        if (!mp_ret) {
+          SB_LOG(ERROR) << "Failed to unprotect segment";
+          return false;
+        }
+        if (!elf_file->ReadFromOffset(file_page_start,
+                                      reinterpret_cast<char*>(seg_addr),
+                                      file_length)) {
+          SB_DLOG(INFO) << "Failed to read segment from file offset: "
+                        << file_page_start;
+          return false;
+        }
       }
       mp_ret = SbMemoryProtect(seg_addr, file_length, prot_flags);
       SB_DLOG(INFO) << "mp_ret=" << mp_ret;
@@ -314,7 +342,7 @@ void ProgramTable::GetDynamicSection(Dyn** dynamic,
     SB_DLOG(INFO) << "Reading at vaddr: " << phdr->p_vaddr;
     *dynamic = reinterpret_cast<Dyn*>(base_memory_address_ + phdr->p_vaddr);
     if (dynamic_count) {
-      *dynamic_count = (size_t)(phdr->p_memsz / sizeof(Dyn));
+      *dynamic_count = static_cast<size_t>((phdr->p_memsz / sizeof(Dyn)));
     }
     if (dynamic_flags) {
       *dynamic_flags = phdr->p_flags;
