@@ -155,6 +155,8 @@
       '<(DEPTH)/starboard/shared/posix/memory_allocate_aligned_unchecked.cc',
       '<(DEPTH)/starboard/shared/posix/memory_flush.cc',
       '<(DEPTH)/starboard/shared/posix/memory_free_aligned.cc',
+      '<(DEPTH)/starboard/shared/posix/memory_mapped_file.cc',
+      '<(DEPTH)/starboard/shared/posix/memory_mapped_file.h',
       '<(DEPTH)/starboard/shared/posix/set_non_blocking_internal.cc',
       '<(DEPTH)/starboard/shared/posix/socket_accept.cc',
       '<(DEPTH)/starboard/shared/posix/socket_bind.cc',
