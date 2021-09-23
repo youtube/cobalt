@@ -142,6 +142,8 @@
       '<(DEPTH)/starboard/shared/posix/log_is_tty.cc',
       '<(DEPTH)/starboard/shared/posix/log_raw.cc',
       '<(DEPTH)/starboard/shared/posix/memory_flush.cc',
+      '<(DEPTH)/starboard/shared/posix/memory_mapped_file.cc',
+      '<(DEPTH)/starboard/shared/posix/memory_mapped_file.h',
       '<(DEPTH)/starboard/shared/posix/set_non_blocking_internal.cc',
       '<(DEPTH)/starboard/shared/posix/socket_accept.cc',
       '<(DEPTH)/starboard/shared/posix/socket_bind.cc',

@@ -20,6 +20,8 @@
 #include "starboard/elf_loader/file.h"
 #include "starboard/file.h"
 
+#include <string>
+
 namespace starboard {
 namespace elf_loader {
 
@@ -31,9 +33,11 @@ class FileImpl : public File {
   bool Open(const char* name);
   bool ReadFromOffset(int64_t offset, char* buffer, int size);
   void Close();
+  const std::string& GetName() override;
 
  private:
   SbFile file_;
+  std::string name_;
 
   SB_DISALLOW_COPY_AND_ASSIGN(FileImpl);
 };

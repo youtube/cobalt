@@ -16,7 +16,9 @@
 
 #include "cobalt/extension/configuration.h"
 #include "cobalt/extension/crash_handler.h"
+#include "cobalt/extension/memory_mapped_file.h"
 #include "starboard/common/string.h"
+#include "starboard/shared/posix/memory_mapped_file.h"
 #include "starboard/shared/starboard/crash_handler.h"
 #if SB_IS(EVERGREEN_COMPATIBLE)
 #include "starboard/elf_loader/evergreen_config.h"
@@ -40,6 +42,9 @@ const void* SbSystemGetExtension(const char* name) {
   }
   if (SbStringCompareAll(name, kCobaltExtensionCrashHandlerName) == 0) {
     return starboard::common::GetCrashHandlerApi();
+  }
+  if (SbStringCompareAll(name, kCobaltExtensionMemoryMappedFileName) == 0) {
+    return starboard::shared::posix::GetMemoryMappedFileApi();
   }
   return NULL;
 }

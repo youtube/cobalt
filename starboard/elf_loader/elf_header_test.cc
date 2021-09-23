@@ -14,6 +14,8 @@
 
 #include "starboard/elf_loader/elf_header.h"
 
+#include <string>
+
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/elf_loader/file.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -30,7 +32,10 @@ class DummyFile : public File {
  public:
   DummyFile(const char* buffer, int size) : buffer_(buffer), size_(size) {}
 
-  bool Open(const char* name) { return true; }
+  bool Open(const char* name) {
+    name_ = name;
+    return true;
+  }
   bool ReadFromOffset(int64_t offset, char* buffer, int size) {
     SB_LOG(INFO) << "ReadFromOffset";
     if (offset != 0) {
@@ -46,9 +51,12 @@ class DummyFile : public File {
   }
   void Close() {}
 
+  const std::string& GetName() { return name_; }
+
  private:
   const char* buffer_;
   int size_;
+  std::string name_;
 };
 
 class ElfHeaderTest : public ::testing::Test {

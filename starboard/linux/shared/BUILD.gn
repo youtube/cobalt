@@ -371,6 +371,8 @@ source_set("starboard_platform") {
     "//starboard/shared/posix/log_is_tty.cc",
     "//starboard/shared/posix/log_raw.cc",
     "//starboard/shared/posix/memory_flush.cc",
+    "//starboard/shared/posix/memory_mapped_file.cc",
+    "//starboard/shared/posix/memory_mapped_file.h",
     "//starboard/shared/posix/set_non_blocking_internal.cc",
     "//starboard/shared/posix/socket_accept.cc",
     "//starboard/shared/posix/socket_bind.cc",

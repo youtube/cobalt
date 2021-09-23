@@ -46,7 +46,18 @@ bool ElfLoaderImpl::Load(
 
   SB_DLOG(INFO) << "Loaded ELF header";
 
-  program_table_.reset(new ProgramTable());
+  const auto* memory_mapped_file_extension =
+      reinterpret_cast<const CobaltExtensionMemoryMappedFileApi*>(
+          SbSystemGetExtension(kCobaltExtensionMemoryMappedFileName));
+  if (memory_mapped_file_extension &&
+      SbStringCompareAll(memory_mapped_file_extension->name,
+             kCobaltExtensionMemoryMappedFileName) == 0 &&
+      memory_mapped_file_extension->version >= 1) {
+    program_table_.reset(new ProgramTable(memory_mapped_file_extension));
+  } else {
+    program_table_.reset(new ProgramTable(nullptr));
+  }
+
   program_table_->LoadProgramHeader(elf_header_loader_->GetHeader(),
                                     elf_file_.get());
 

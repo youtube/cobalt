@@ -17,6 +17,8 @@
 
 #include "starboard/elf_loader/elf.h"
 
+#include <string>
+
 namespace starboard {
 namespace elf_loader {
 
@@ -34,6 +36,9 @@ class File {
 
   // Closes the underlying file.
   virtual void Close() = 0;
+
+  // Returns the name of the file.
+  virtual const std::string& GetName() = 0;
 
   virtual ~File() {}
 };

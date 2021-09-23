@@ -17,8 +17,10 @@
 
 #include "starboard/shared/dlmalloc/page_internal.h"
 
+#include <fcntl.h>
 #include <stdio.h>
 #include <sys/mman.h>
+#include <unistd.h>
 
 #include "starboard/atomic.h"
 #include "starboard/common/log.h"
@@ -83,6 +85,38 @@ void* SbPageMapUntracked(size_t size_bytes,
   int mmap_protect = SbMemoryMapFlagsToMmapProtect(flags);
   void* mem = mmap(0, size_bytes, mmap_protect, MAP_PRIVATE | MAP_ANON, -1, 0);
   return mem;
+}
+
+void* SbPageMapFile(void* addr,
+                    const char* path,
+                    SbMemoryMapFlags flags,
+                    int64_t file_offset,
+                    int64_t size) {
+  int fd = open(path, O_RDONLY);
+  if (fd == -1) {
+    return nullptr;
+  }
+
+  void* p = nullptr;
+  if (addr != nullptr) {
+    p = mmap(addr, size, SbMemoryMapFlagsToMmapProtect(flags),
+             MAP_PRIVATE | MAP_FIXED, fd, file_offset);
+    if (p == MAP_FAILED) {
+      close(fd);
+      return nullptr;
+    }
+  } else {
+    p = mmap(addr, size, SbMemoryMapFlagsToMmapProtect(flags), MAP_PRIVATE, fd,
+             file_offset);
+    if (p == MAP_FAILED) {
+      close(fd);
+      return nullptr;
+    }
+  }
+  // It is OK to close the file descriptor as the memory
+  // mapping keeps the file open.
+  close(fd);
+  return p;
 }
 
 bool SbPageUnmap(void* ptr, size_t size_bytes) {
