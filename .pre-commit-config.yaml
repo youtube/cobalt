@@ -140,7 +140,9 @@ repos:
         entry: python precommit_hooks/internal_file_check_wrapper.py
         language: python
         types: [text]
-        exclude: 'EXCLUDE\.FILES(\.RECURSIVE)?$'
+        # TODO: Remove docker-compose-windows.yml after internal check evaluates
+        # properly on it.
+        exclude: '(^docker-compose-windows.yml|EXCLUDE\.FILES(\.RECURSIVE)?)$'
     -   id: gn-format
         name: GN format
         entry: gn format
