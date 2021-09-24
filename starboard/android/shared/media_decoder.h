@@ -32,6 +32,7 @@
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/filter/common.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
+#include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/shared/starboard/thread_checker.h"
 
 namespace starboard {
@@ -40,7 +41,9 @@ namespace shared {
 
 // TODO: Better encapsulation the MediaCodecBridge so the decoders no longer
 //       need to talk directly to the MediaCodecBridge.
-class MediaDecoder : private MediaCodecBridge::Handler {
+class MediaDecoder
+    : private MediaCodecBridge::Handler,
+      protected ::starboard::shared::starboard::player::JobQueue::JobOwner {
  public:
   typedef ::starboard::shared::starboard::player::filter::ErrorCB ErrorCB;
   typedef ::starboard::shared::starboard::player::InputBuffer InputBuffer;
@@ -143,6 +146,7 @@ class MediaDecoder : private MediaCodecBridge::Handler {
   bool ProcessOneInputBuffer(std::deque<Event>* pending_tasks,
                              std::vector<int>* input_buffer_indices);
   void HandleError(const char* action_name, jint status);
+  void ReportError(const SbPlayerError error, const std::string error_message);
 
   // MediaCodecBridge::Handler methods
   // Note that these methods are called from the default looper and is not on
@@ -168,6 +172,10 @@ class MediaDecoder : private MediaCodecBridge::Handler {
   const bool tunnel_mode_enabled_;
 
   ErrorCB error_cb_;
+
+  bool error_occurred_ = false;
+  SbPlayerError error_;
+  std::string error_message_;
 
   atomic_bool stream_ended_;
 
