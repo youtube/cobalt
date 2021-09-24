@@ -29,6 +29,10 @@ bool SbWindowGetSize(SbWindow window, SbWindowSize* size) {
     return false;
   }
 
+  if (window->native_window == NULL) {
+    SB_DLOG(ERROR) << __FUNCTION__ << ": Native window has been destroyed.";
+    return false;
+  }
   size->width = ANativeWindow_getWidth(window->native_window);
   size->height = ANativeWindow_getHeight(window->native_window);
 
