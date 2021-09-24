@@ -1641,7 +1641,7 @@ void BrowserModule::InitializeComponents() {
 void BrowserModule::InitializeSystemWindow() {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::InitializeSystemWindow()");
   DCHECK(!system_window_);
-  if (media_module_) {
+  if (media_module_ && !window_size_.IsEmpty()) {
     system_window_.reset(
         new system_window::SystemWindow(event_dispatcher_, window_size_));
   } else {
