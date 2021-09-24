@@ -85,6 +85,7 @@ repos:
         types: [file, text]
         stages: [push]
         exclude: '^cobalt/layout_tests/testdata/'
+        exclude_types: [markdown]
     -   id: check-if-starboard-interface-changed
         name: check if starboard interface changed
         entry: python ./precommit_hooks/warn_that_starboard_interface_changed_wrapper.py
