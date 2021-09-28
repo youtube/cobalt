@@ -530,8 +530,8 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
     bool is_encrypted = !!j_media_crypto;
     if (env->CallStaticBooleanMethodOrAbort(
             "dev/cobalt/media/MediaCodecUtil", "hasVideoDecoderFor",
-            "(Ljava/lang/String;ZIIIIZZ)Z", j_mime.Get(), is_encrypted, 0, 0, 0,
-            0, false, true) == JNI_TRUE) {
+            "(Ljava/lang/String;ZZZIIII)Z", j_mime.Get(), is_encrypted, false,
+            true, 0, 0, 0, 0) == JNI_TRUE) {
       return true;
     }
 
@@ -540,8 +540,8 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
       auto support_tunnel_mode_under_secure_pipeline =
           env->CallStaticBooleanMethodOrAbort(
               "dev/cobalt/media/MediaCodecUtil", "hasVideoDecoderFor",
-              "(Ljava/lang/String;ZIIIIZZ)Z", j_mime.Get(), kIsEncrypted, 0, 0,
-              0, 0, false, true) == JNI_TRUE;
+              "(Ljava/lang/String;ZZZIIII)Z", j_mime.Get(), kIsEncrypted, false,
+              true, 0, 0, 0, 0) == JNI_TRUE;
       if (support_tunnel_mode_under_secure_pipeline) {
         *force_secure_pipeline_under_tunnel_mode = true;
         return true;

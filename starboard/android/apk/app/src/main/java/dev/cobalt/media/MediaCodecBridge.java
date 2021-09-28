@@ -523,22 +523,21 @@ class MediaCodecBridge {
   public static MediaCodecBridge createAudioMediaCodecBridge(
       long nativeMediaCodecBridge,
       String mime,
-      boolean isSecure,
-      boolean requireSoftwareCodec,
       int sampleRate,
       int channelCount,
       MediaCrypto crypto) {
     MediaCodec mediaCodec = null;
     try {
-      String decoderName = MediaCodecUtil.findAudioDecoder(mime, 0, false);
+      String decoderName =
+          MediaCodecUtil.findAudioDecoder(mime, 0, false /* mustSupportTunnelMode */);
       if (decoderName.equals("")) {
-        Log.e(TAG, String.format("Failed to find decoder: %s, isSecure: %s", mime, isSecure));
+        Log.e(TAG, String.format("Failed to find decoder: %s", mime));
         return null;
       }
       Log.i(TAG, String.format("Creating \"%s\" decoder.", decoderName));
       mediaCodec = MediaCodec.createByCodecName(decoderName);
     } catch (Exception e) {
-      Log.e(TAG, String.format("Failed to create MediaCodec: %s, isSecure: %s", mime, isSecure), e);
+      Log.e(TAG, String.format("Failed to create MediaCodec: %s, ", mime), e);
       return null;
     }
     if (mediaCodec == null) {
@@ -574,8 +573,8 @@ class MediaCodecBridge {
   public static void createVideoMediaCodecBridge(
       long nativeMediaCodecBridge,
       String mime,
-      boolean isSecure,
-      boolean requireSoftwareCodec,
+      boolean mustSupportSecure,
+      boolean mustSupportSoftwareCodec,
       int width,
       int height,
       int fps,
@@ -587,32 +586,52 @@ class MediaCodecBridge {
     MediaCodec mediaCodec = null;
     outCreateMediaCodecBridgeResult.mMediaCodecBridge = null;
 
-    boolean findHDRDecoder = android.os.Build.VERSION.SDK_INT >= 24 && colorInfo != null;
-    boolean findTunneledDecoder = tunnelModeAudioSessionId != -1;
+    boolean mustSupportHdr = android.os.Build.VERSION.SDK_INT >= 24 && colorInfo != null;
+    boolean mustSupportTunneled = tunnelModeAudioSessionId != -1;
     // On first pass, try to find a decoder with HDR if the color info is non-null.
     MediaCodecUtil.FindVideoDecoderResult findVideoDecoderResult =
         MediaCodecUtil.findVideoDecoder(
-            mime, isSecure, 0, 0, 0, 0, findHDRDecoder, requireSoftwareCodec, findTunneledDecoder);
-    if (findVideoDecoderResult.name.equals("") && findHDRDecoder) {
+            mime,
+            mustSupportSecure,
+            mustSupportHdr,
+            mustSupportSoftwareCodec,
+            mustSupportTunneled,
+            0,
+            0,
+            0,
+            0);
+    if (findVideoDecoderResult.name.equals("") && mustSupportHdr) {
       // On second pass, forget HDR.
       findVideoDecoderResult =
           MediaCodecUtil.findVideoDecoder(
-              mime, isSecure, 0, 0, 0, 0, false, requireSoftwareCodec, findTunneledDecoder);
+              mime,
+              mustSupportSecure,
+              false /* mustSupportHdr */,
+              mustSupportSoftwareCodec,
+              mustSupportTunneled,
+              0,
+              0,
+              0,
+              0);
     }
     try {
       String decoderName = findVideoDecoderResult.name;
       if (decoderName.equals("") || findVideoDecoderResult.videoCapabilities == null) {
-        Log.e(TAG, String.format("Failed to find decoder: %s, isSecure: %s", mime, isSecure));
-        outCreateMediaCodecBridgeResult.mErrorMessage =
-            String.format("Failed to find decoder: %s, isSecure: %s", mime, isSecure);
+        String message =
+            String.format(
+                "Failed to find decoder: %s, mustSupportSecure: %s", mime, mustSupportSecure);
+        Log.e(TAG, message);
+        outCreateMediaCodecBridgeResult.mErrorMessage = message;
         return;
       }
       Log.i(TAG, String.format("Creating \"%s\" decoder.", decoderName));
       mediaCodec = MediaCodec.createByCodecName(decoderName);
     } catch (Exception e) {
-      Log.e(TAG, String.format("Failed to create MediaCodec: %s, isSecure: %s", mime, isSecure), e);
-      outCreateMediaCodecBridgeResult.mErrorMessage =
-          String.format("Failed to create MediaCodec: %s, isSecure: %s", mime, isSecure);
+      String message =
+          String.format(
+              "Failed to create MediaCodec: %s, mustSupportSecure: %s", mime, mustSupportSecure);
+      Log.e(TAG, message, e);
+      outCreateMediaCodecBridgeResult.mErrorMessage = message;
       return;
     }
     if (mediaCodec == null) {
@@ -648,10 +667,7 @@ class MediaCodecBridge {
     if (tunnelModeAudioSessionId != -1) {
       mediaFormat.setFeatureEnabled(CodecCapabilities.FEATURE_TunneledPlayback, true);
       mediaFormat.setInteger(MediaFormat.KEY_AUDIO_SESSION_ID, tunnelModeAudioSessionId);
-      Log.d(
-          TAG,
-          String.format(
-              "Enabled tunnel mode playback on audio session %d", tunnelModeAudioSessionId));
+      Log.d(TAG, "Enabled tunnel mode playback on audio session " + tunnelModeAudioSessionId);
     }
 
     VideoCapabilities videoCapabilities = findVideoDecoderResult.videoCapabilities;
