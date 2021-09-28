@@ -21,6 +21,7 @@ repos:
     hooks:
     -   id: codespell
         name: Spell Check
+        args: [-x, .codespellignorelines]
         exclude: '^cobalt/content/i18n/platform/'
 
 -   repo: local
