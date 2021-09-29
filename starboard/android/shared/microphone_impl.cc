@@ -18,10 +18,12 @@
 #include <SLES/OpenSLES_Android.h>
 
 #include <algorithm>
+#include <cstddef>
 #include <queue>
 
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/common/log.h"
+#include "starboard/common/mutex.h"
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/memory.h"
 #include "starboard/shared/starboard/thread_checker.h"
@@ -83,8 +85,10 @@ class SbMicrophoneImpl : public SbMicrophonePrivate {
   // Keeps track of the microphone's current state.
   State state_;
   // Audio data that has been delivered to the buffer queue.
+  Mutex delivered_queue_mutex_;
   std::queue<int16_t*> delivered_queue_;
   // Audio data that is ready to be read.
+  Mutex ready_queue_mutex_;
   std::queue<int16_t*> ready_queue_;
 };
 
@@ -169,7 +173,10 @@ bool SbMicrophoneImpl::StartRecording() {
   for (int i = 0; i < kNumOfOpenSLESBuffers; ++i) {
     int16_t* buffer = new int16_t[kSamplesPerBuffer];
     memset(buffer, 0, kBufferSizeInBytes);
-    delivered_queue_.push(buffer);
+    {
+      ScopedLock lock(delivered_queue_mutex_);
+      delivered_queue_.push(buffer);
+    }
     SLresult result =
         (*buffer_object_)->Enqueue(buffer_object_, buffer, kBufferSizeInBytes);
     if (!CheckReturnValue(result)) {
@@ -245,14 +252,17 @@ int SbMicrophoneImpl::Read(void* out_audio_data, int audio_data_size) {
 
   int read_bytes = 0;
   scoped_ptr<int16_t> buffer;
-  // Go through the ready queue, reading and sending audio data.
-  while (!ready_queue_.empty() &&
-         audio_data_size - read_bytes >= kBufferSizeInBytes) {
-    buffer.reset(ready_queue_.front());
-    memcpy(static_cast<uint8_t*>(out_audio_data) + read_bytes,
-                 buffer.get(), kBufferSizeInBytes);
-    ready_queue_.pop();
-    read_bytes += kBufferSizeInBytes;
+  {
+    ScopedLock lock(ready_queue_mutex_);
+    // Go through the ready queue, reading and sending audio data.
+    while (!ready_queue_.empty() &&
+           audio_data_size - read_bytes >= kBufferSizeInBytes) {
+      buffer.reset(ready_queue_.front());
+      memcpy(static_cast<uint8_t*>(out_audio_data) + read_bytes, buffer.get(),
+             kBufferSizeInBytes);
+      ready_queue_.pop();
+      read_bytes += kBufferSizeInBytes;
+    }
   }
 
   buffer.reset();
@@ -272,18 +282,29 @@ void SbMicrophoneImpl::SwapAndPublishBuffer(
 }
 
 void SbMicrophoneImpl::SwapAndPublishBuffer() {
-  if (!delivered_queue_.empty()) {
-    // The front item in the delivered queue already has the buffered data, so
-    // move it from the delivered queue to the ready queue for future reads.
-    int16_t* buffer = delivered_queue_.front();
-    delivered_queue_.pop();
+  int16_t* buffer = nullptr;
+  {
+    ScopedLock lock(delivered_queue_mutex_);
+    if (!delivered_queue_.empty()) {
+      // The front item in the delivered queue already has the buffered data, so
+      // move it from the delivered queue to the ready queue for future reads.
+      buffer = delivered_queue_.front();
+      delivered_queue_.pop();
+    }
+  }
+
+  if (buffer != NULL) {
+    ScopedLock lock(ready_queue_mutex_);
     ready_queue_.push(buffer);
   }
 
   if (state_ == kOpened) {
     int16_t* buffer = new int16_t[kSamplesPerBuffer];
     memset(buffer, 0, kBufferSizeInBytes);
-    delivered_queue_.push(buffer);
+    {
+      ScopedLock lock(delivered_queue_mutex_);
+      delivered_queue_.push(buffer);
+    }
     SLresult result =
         (*buffer_object_)->Enqueue(buffer_object_, buffer, kBufferSizeInBytes);
     CheckReturnValue(result);
@@ -437,14 +458,20 @@ void SbMicrophoneImpl::ClearBuffer() {
     }
   }
 
-  while (!delivered_queue_.empty()) {
-    delete[] delivered_queue_.front();
-    delivered_queue_.pop();
+  {
+    ScopedLock lock(delivered_queue_mutex_);
+    while (!delivered_queue_.empty()) {
+      delete[] delivered_queue_.front();
+      delivered_queue_.pop();
+    }
   }
 
-  while (!ready_queue_.empty()) {
-    delete[] ready_queue_.front();
-    ready_queue_.pop();
+  {
+    ScopedLock lock(ready_queue_mutex_);
+    while (!ready_queue_.empty()) {
+      delete[] ready_queue_.front();
+      ready_queue_.pop();
+    }
   }
 }
 
