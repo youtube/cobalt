@@ -10,6 +10,8 @@ exclude: |
         (
             base|
             build|
+            buildtools|
+            crypto|
             net|
             testing|
             third_party|
@@ -166,7 +168,7 @@ repos:
         types: [text]
         # TODO: Remove docker-compose-windows.yml after internal check evaluates
         # properly on it.
-        exclude: '(^docker-compose-windows.yml|^download_resources_internal.py|EXCLUDE\.FILES(\.RECURSIVE)?)$'
+        exclude: '(^docker-compose-windows.yml|^download_resources_internal.py|EXCLUDE\.FILES(\.RECURSIVE)?|codereview\.settings)$'
     -   id: gn-format
         name: GN format
         entry: gn format
