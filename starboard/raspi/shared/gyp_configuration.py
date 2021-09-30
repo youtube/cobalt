@@ -74,9 +74,8 @@ class RaspiPlatformConfig(platform_configuration.PlatformConfiguration):
 
     toolchain = os.path.realpath(
         os.path.join(
-            self.raspi_home,
-            'tools/arm-bcm2708/gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf'
-        ))
+            self.raspi_home, 'tools/arm-bcm2708/'
+            'gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf'))
     toolchain_bin_dir = os.path.join(toolchain, 'bin')
 
     env_variables = self.host_compiler_environment
@@ -164,6 +163,7 @@ class RaspiPlatformConfig(platform_configuration.PlatformConfiguration):
           'SbMediaSetAudioWriteDurationTests/*',
           'SbPlayerWriteSampleTests*',
           'SbUndefinedBehaviorTest.CallThisPointerIsNullRainyDay',
+          'SbSystemGetPropertyTest.FLAKY_ReturnsRequired',
       ],
       'player_filter_tests': [
           # The implementations for the raspberry pi (0 and 2) are incomplete

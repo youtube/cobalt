@@ -51,8 +51,6 @@ class CobaltRaspiConfiguration(cobalt_configuration.CobaltConfiguration):
                                'PixelTest.CircularSubPixelBorder'),
         test_filter.TestFilter('renderer_test',
                                'PixelTest.FilterBlurred100PxText'),
-        test_filter.TestFilter('nplb',
-                               'SbSystemGetPropertyTest.FLAKY_ReturnsRequired'),
     ])
     return filters
 
