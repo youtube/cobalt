@@ -23,8 +23,8 @@ TEST_NAME="OutOfStorage"
 TEST_FILE="test.html"
 
 function run_test() {
-  if [[ ! -z "${IS_BUILDBOT}" ]] && [[ "${IS_BUILDBOT}" -eq 1 ]]; then
-    echo " Cannot mount temporary filesystems on builbot, skipping"
+  if [[ ! -z "${CAN_MOUNT_TMPFS}" ]] && [[ "${CAN_MOUNT_TMPFS}" -eq 0 ]]; then
+    echo " Cannot mount temporary filesystem, skipping"
     return 2
   fi
 

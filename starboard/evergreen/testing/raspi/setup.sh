@@ -27,8 +27,13 @@ ID="id"
 TAIL="tail"
 WC="wc"
 
+# Prioritize the command-line argument over the environment variable.
+if [[ ! -z "${DEVICE_ID}" ]]; then
+  RASPI_ADDR="${DEVICE_ID}"
+fi
+
 if [[ -z "${RASPI_ADDR}" ]]; then
-  log "info" " Please set the environment variable 'RASPI_ADDR'"
+  log "info" " Please pass in the device id or set the environment variable 'RASPI_ADDR'"
   exit 1
 fi
 
@@ -50,10 +55,11 @@ echo " Targeting the Raspberry Pi 2 at ${RASPI_ADDR}"
 # Attempt to unlink the path, ignoring errors.
 eval "${SSH}\"unlink \"${STORAGE_DIR}\"\"" 1> /dev/null
 
-# Mounting a temporary filesystem cannot be done on buildbot since it requires
-# sudo. When run locally, check for the temporary filesystem and create and
-# mount it if it does not exist.
-if [[ -z "${IS_BUILDBOT}" ]] || [[ "${IS_BUILDBOT}" -eq 0 ]]; then
+# If it's possible to mount a temporary filesystem then the temporary filesystem
+# is checked for and created + mounted if it does not exist. It's assumed to be
+# possible unless explicitly declared otherwise via the CAN_MOUNT_TMPFS
+# environment variable.
+if [[ -z "${CAN_MOUNT_TMPFS}" ]] || [[ "${CAN_MOUNT_TMPFS}" -eq 1 ]]; then
   eval "${SSH}\"grep -qs \"${STORAGE_DIR_TMPFS}\" \"/proc/mounts\"\"" 1> /dev/null
 
   if [[ $? -ne 0 ]]; then

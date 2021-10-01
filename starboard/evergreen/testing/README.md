@@ -86,7 +86,7 @@ running the Evergreen tests.
 
 **Python Helper Script**
 
-The Python helper script at `cobalt/tools/buildbot/run_evergreen_tests.py`
+The Python helper script at `cobalt/evergreen_tests/evergreen_tests.py`
 simplifies the process of running the automated tests, and relies on the
 existing abstract launcher infrastructure.
 
@@ -98,7 +98,7 @@ For this example we will use the following:
 Then the following command can be used to run the tests.
 
 ```
-python cobalt/tools/buildbot/run_evergreen_tests.py \
+python cobalt/evergreen_tests/evergreen_tests.py \
     -p evergreen-x64 -c qa -P linux-x64x11 -C qa
 ```
 

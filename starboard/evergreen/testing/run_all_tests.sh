@@ -19,6 +19,7 @@
 # availability of "find", "grep", "ln", "mv", and "rm".
 
 DIR="$(dirname "${0}")"
+DEVICE_ID="${2}"
 
 if [[ ! -f "${DIR}/setup.sh" ]]; then
   echo "The script 'setup.sh' is required"
