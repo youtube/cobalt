@@ -13,24 +13,24 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """Example script for getting the Net log."""
 
 from __future__ import print_function
 
 import argparse
-import pprint
 import select
 import socket
 import sys
 import time
 import threading
 
+
 class NetLog:
   """
   Uses a non-blocking socket to establish a connection with a
   NetLog and then will allow the log to be fetched.
   """
+
   def __init__(self, host, port):
     self.host = host
     self.port = port
@@ -47,9 +47,9 @@ class NetLog:
         self.server_socket = None
       else:
         return log
-    except socket.error as (err_no, err_str):
-      print(__file__ + ": Socket error while reading log:" \
-            + str(err_no) + " - " + str(err_str))
+    except socket.error as e:
+      print(__file__ + ': Socket error while reading log:' \
+            + str(e.errno) + ' - ' + str(e.strerror))
       self.server_socket = None
       return None
 
@@ -64,28 +64,31 @@ class NetLog:
       if len(result) == 0:
         return None
       return result
-    except socket.error as (err_no, err_str):
-      if err_no == 10035:  # Data not ready yet.
+    except socket.error as e:
+      if e.errno == 10035:  # Data not ready yet.
         return ''
       else:
         raise
 
   def _TryCreateSocketConnection(self):
     try:
-      print("Waiting for connection to " + str(self.host) + ':' + str(self.port))
+      print('Waiting for connection to ' + str(self.host) + ':' +
+            str(self.port))
 
-      server_socket = socket.create_connection((self.host, self.port), timeout = 1)
+      server_socket = socket.create_connection((self.host, self.port),
+                                               timeout=1)
       server_socket.setblocking(0)
       return server_socket
-    except socket.timeout as err:
+    except socket.timeout:
       return None
     except socket.error as err:
-      print("Error while trying to create socket: " + str(err))
+      print('Error while trying to create socket: ' + str(err))
       return None
 
 
 class NetLogThread(threading.Thread):
   """Threaded version of NetLog"""
+
   def __init__(self, host, port):
     super(NetLogThread, self).__init__()
     self.web_log = NetLog(host, port)
@@ -111,8 +114,9 @@ class NetLogThread(threading.Thread):
         with self.log_mutex:
           self.log.extend(new_log)
 
+
 def TestNetLog(host, port):
-  print("Started...")
+  print('Started...')
   web_log = NetLog(host, port)
 
   while True:
@@ -123,11 +127,14 @@ def TestNetLog(host, port):
 
 
 def main(argv):
-  parser = argparse.ArgumentParser(description = 'Connects to the weblog.')
-  parser.add_argument('--host', type=str, required = False,
-                      default = 'localhost',
-                      help = "Example localhost or 1.2.3.4")
-  parser.add_argument('--port', type=int, required = False, default = '49353')
+  parser = argparse.ArgumentParser(description='Connects to the weblog.')
+  parser.add_argument(
+      '--host',
+      type=str,
+      required=False,
+      default='localhost',
+      help='Example localhost or 1.2.3.4')
+  parser.add_argument('--port', type=int, required=False, default='49353')
   args = parser.parse_args(argv)
 
   thread = NetLogThread(args.host, args.port)
@@ -136,13 +143,14 @@ def main(argv):
     while True:
       print(thread.GetLog(), end='')
       time.sleep(.1)
-  except KeyboardInterrupt as ki:
-    print("\nUser canceled.")
+  except KeyboardInterrupt:
+    print('\nUser canceled.')
     pass
 
-  print("Waiting to join...")
+  print('Waiting to join...')
   thread.join()
   return 0
+
 
 if __name__ == '__main__':
   sys.exit(main(sys.argv[1:]))

@@ -31,8 +31,9 @@ import tempfile
 import _env  # pylint: disable=unused-import
 from paths import REPOSITORY_ROOT
 from paths import THIRD_PARTY_ROOT
+
 sys.path.append(THIRD_PARTY_ROOT)
-# pylint: disable=g-import-not-at-top,g-bad-import-order
+# pylint: disable=g-import-not-at-top,g-bad-import-order,wrong-import-position
 from starboard.tools import port_symlink
 import starboard.tools.platform
 
@@ -44,6 +45,7 @@ _INCLUDE_FILE_PATTERNS = [
     ('buildbot/device_server/shared/ssl_certs', '*'),
     ('cobalt', '*.py'),
     ('starboard', '*.py'),
+    ('starboard', '*.pfx'),
     ('starboard/tools', 'platform.py.template')
 ]
 
@@ -130,11 +132,11 @@ def _WritePlatformsInfo(repo_root, dest_root):
     # Store posix paths even on Windows so MH Linux hosts can use them.
     # The template has code to re-normalize them when used on Windows hosts.
     platforms_map[p] = platform_path.replace('\\', '/')
-  template = string.Template(
-      open(os.path.join(current_dir, 'platform.py.template')).read())
-  with open(os.path.join(dest_dir, 'platform.py'), 'w+') as f:
-    sub = template.substitute(platforms_map=platforms_map)
-    f.write(sub.encode('utf-8'))
+  with open(os.path.join(current_dir, 'platform.py.template')) as c:
+    template = string.Template(c.read())
+    with open(os.path.join(dest_dir, 'platform.py'), 'w+') as f:
+      sub = template.substitute(platforms_map=platforms_map)
+      f.write(sub.encode('utf-8'))
   logging.info('Finished baking in platform info files.')
 
 
