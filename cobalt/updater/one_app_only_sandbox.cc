@@ -26,13 +26,17 @@
 #include "cobalt/browser/switches.h"
 #include "cobalt/version.h"
 #include "starboard/event.h"
+#include "starboard/loader_app/app_key.h"
 #include "starboard/system.h"
 
 namespace {
 
+const char kMainAppKey[] = "aHR0cHM6Ly93d3cueW91dHViZS5jb20vdHY=";
+// Use the html instead of url or app key to target the Evergreen cert test
+// page, because there are various urls to launch the test page.
 const char kEvergreenCertTestHtml[] = "evergreen-cert-test.html";
 
-bool is_evergreen_cert_test = false;
+bool is_target_app = false;
 
 cobalt::browser::Application* g_application = NULL;
 bool g_is_startup_switch_set = false;
@@ -75,9 +79,8 @@ void PreloadApplication(int argc, char** argv, const char* link,
   }
   LOG(INFO) << "Concealing application.";
   DCHECK(!g_application);
-  g_application =
-      new cobalt::browser::Application(quit_closure, true /*should_preload*/,
-                                       timestamp);
+  g_application = new cobalt::browser::Application(
+      quit_closure, true /*should_preload*/, timestamp);
   DCHECK(g_application);
 }
 
@@ -91,15 +94,13 @@ void StartApplication(int argc, char** argv, const char* link,
   LOG(INFO) << "Starting application.";
 #if SB_API_VERSION >= 13
   DCHECK(!g_application);
-  g_application =
-      new cobalt::browser::Application(quit_closure, false /*not_preload*/,
-                                       timestamp);
+  g_application = new cobalt::browser::Application(
+      quit_closure, false /*not_preload*/, timestamp);
   DCHECK(g_application);
 #else
   if (!g_application) {
-    g_application = new cobalt::browser::Application(quit_closure,
-                                                     false /*should_preload*/,
-                                                     timestamp);
+    g_application = new cobalt::browser::Application(
+        quit_closure, false /*should_preload*/, timestamp);
     DCHECK(g_application);
   } else {
     g_application->Start(timestamp);
@@ -126,7 +127,7 @@ void HandleStarboardEvent(const SbEvent* starboard_event) {
 }  // namespace
 
 void SbEventHandle(const SbEvent* event) {
-  if (is_evergreen_cert_test)
+  if (is_target_app)
     return ::cobalt::wrap_main::BaseEventHandler<
         PreloadApplication, StartApplication, HandleStarboardEvent,
         StopApplication>(event);
@@ -134,19 +135,22 @@ void SbEventHandle(const SbEvent* event) {
   const SbEventStartData* data = static_cast<SbEventStartData*>(event->data);
   const base::CommandLine command_line(
       data->argument_count, const_cast<const char**>(data->argument_values));
+
   if (command_line.HasSwitch(cobalt::browser::switches::kInitialURL)) {
     std::string url = command_line.GetSwitchValueASCII(
         cobalt::browser::switches::kInitialURL);
-    size_t pos = url.find(kEvergreenCertTestHtml);
-    if (pos != std::string::npos) {
-      // If the url is the Evergreen cert test page, hook up the app lifecycle
-      // functions.
-      is_evergreen_cert_test = true;
-      return ::cobalt::wrap_main::BaseEventHandler<
-          PreloadApplication, StartApplication, HandleStarboardEvent,
-          StopApplication>(event);
+    if (starboard::loader_app::GetAppKey(url) != kMainAppKey &&
+        url.find(kEvergreenCertTestHtml) == std::string::npos) {
+      // If the app is not the main app nor Evergreen cert test page, stop the
+      // app.
+      SbSystemRequestStop(0);
     }
   }
-  // If the url is not the Evergreen cert test page, stop the app.
-  SbSystemRequestStop(0);
+
+  // If the url is the main app or the Evergreen cert test page, hook up the app
+  // lifecycle functions.
+  is_target_app = true;
+  return ::cobalt::wrap_main::BaseEventHandler<
+      PreloadApplication, StartApplication, HandleStarboardEvent,
+      StopApplication>(event);
 }
