@@ -42,6 +42,17 @@ x-shared-build-env: &shared-build-env
 
 services:
 #### Tools
+  pre-commit:
+    build:
+      context: ./docker/precommit_hooks
+      dockerfile: Dockerfile
+    image: pre-commit
+    volumes:
+    - ${COBALT_SRC:-.}:/code/
+    environment:
+      FROM_REF: ${FROM_REF:-HEAD^1}
+      TO_REF: ${TO_REF:-HEAD}
+
   docsite:
     build:
       context: ./docker/docsite
