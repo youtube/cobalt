@@ -128,13 +128,16 @@ PlaybackStatistics::PlaybackStatistics(const std::string& pipeline_identifier)
                      "", "The error message of the media pipeline error.") {}
 
 PlaybackStatistics::~PlaybackStatistics() {
-  SbAtomicNoBarrier_Increment(&s_active_instances, -1);
+  if (has_active_instance_) {
+    DCHECK(SbAtomicAcquire_Load(&s_active_instances) > 0);
+    SbAtomicNoBarrier_Increment(&s_active_instances, -1);
+  }
 }
 
 void PlaybackStatistics::UpdateVideoConfig(
     const VideoDecoderConfig& video_config) {
-  if (is_initial_config_) {
-    is_initial_config_ = false;
+  if (!has_active_instance_) {
+    has_active_instance_ = true;
 
     SbAtomicNoBarrier_Increment(&s_active_instances, 1);
 
