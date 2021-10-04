@@ -127,7 +127,9 @@ PlaybackStatistics::PlaybackStatistics(const std::string& pipeline_identifier)
                      "", "The error message of the media pipeline error.") {}
 
 PlaybackStatistics::~PlaybackStatistics() {
-  SbAtomicNoBarrier_Increment(&s_active_instances, -1);
+  if (SbAtomicAcquire_Load(&s_active_instances) > 0) {
+    SbAtomicNoBarrier_Increment(&s_active_instances, -1);
+  }
 }
 
 void PlaybackStatistics::UpdateVideoConfig(
