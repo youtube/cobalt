@@ -1,3 +1,5 @@
+# escape=`
+
 # Copyright 2021 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,10 +15,16 @@
 # limitations under the License.
 FROM build-base-windows
 
-SHELL ["cmd", "/s", "/c"]
-
-ADD ./build.cmd /build.cmd
+SHELL ["powershell", "-ExecutionPolicy", "Unrestricted", "-Command", `
+       "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
 
 WORKDIR "C:\code"
 
-CMD [ "/build.cmd", "${PLATFORM}", "${CONFIG}", "${TARGET}", "${NINJA_FLAGS}" ]
+CMD Invoke-Command -ScriptBlock {`
+      python cobalt/build/gyp_cobalt -vvv $env:PLATFORM -C $env:CONFIG;`
+    } | Out-Default;`
+    if ($?) {`
+      Invoke-Command -ScriptBlock {`
+        ninja $env:NINJA_FLAGS -C out/${env:PLATFORM}_$env:CONFIG $env:TARGET;`
+      } | Out-Default`
+    }
