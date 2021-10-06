@@ -4,6 +4,7 @@
 
 #include "cobalt/updater/utils.h"
 
+#include <memory>
 #include <vector>
 
 #include "base/base_paths.h"
@@ -11,10 +12,13 @@
 #include "base/files/file_util.h"
 #include "base/logging.h"
 #include "base/path_service.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/values.h"
 #include "build/build_config.h"
 #include "cobalt/extension/installation_manager.h"
 #include "components/update_client/utils.h"
+#include "crypto/secure_hash.h"
+#include "crypto/sha2.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/string.h"
 #include "starboard/system.h"
@@ -150,5 +154,75 @@ const std::string GetCurrentEvergreenVersion() {
   }
   return version.GetString();
 }
+
+std::string GetLibrarySha256(int index) {
+  base::FilePath filepath;
+  auto installation_manager =
+      static_cast<const CobaltExtensionInstallationManagerApi*>(
+          SbSystemGetExtension(kCobaltExtensionInstallationManagerName));
+  if (!installation_manager && index == 0) {
+    // Evergreen Lite
+    std::vector<char> system_path_content_dir(kSbFileMaxPath);
+    if (!SbSystemGetPath(kSbSystemPathContentDirectory,
+                         system_path_content_dir.data(), kSbFileMaxPath)) {
+      SB_LOG(ERROR)
+          << "GetLibrarySha256: Failed to get system path content directory";
+      return "";
+    }
+
+    filepath = base::FilePath(std::string(system_path_content_dir.begin(),
+                                          system_path_content_dir.end()))
+                   .DirName();
+  } else if (!installation_manager && index != 0) {
+    SB_LOG(ERROR) << "GetLibrarySha256: Evergreen lite supports only slot 0";
+    return "";
+  } else {
+    // Evergreen Full
+    std::vector<char> installation_path(kSbFileMaxPath);
+    if (installation_manager->GetInstallationPath(
+            index, installation_path.data(), kSbFileMaxPath) == IM_EXT_ERROR) {
+      SB_LOG(ERROR) << "GetLibrarySha256: Failed to get installation path";
+      return "";
+    }
+
+    filepath = base::FilePath(installation_path.data());
+  }
+
+  filepath = filepath.AppendASCII("lib").AppendASCII("libcobalt.so");
+  base::File source_file(filepath,
+                         base::File::FLAG_OPEN | base::File::FLAG_READ);
+  if (!source_file.IsValid()) {
+    SB_LOG(ERROR) << "GetLibrarySha256(): Unable to open source file: "
+                  << filepath.value();
+    return "";
+  }
+
+  const size_t kBufferSize = 32768;
+  std::vector<char> buffer(kBufferSize);
+  uint8_t actual_hash[crypto::kSHA256Length] = {0};
+  std::unique_ptr<crypto::SecureHash> hasher(
+      crypto::SecureHash::Create(crypto::SecureHash::SHA256));
+
+  while (true) {
+    int bytes_read = source_file.ReadAtCurrentPos(&buffer[0], buffer.size());
+    if (bytes_read < 0) {
+      SB_LOG(ERROR) << "GetLibrarySha256(): error reading from: "
+                    << filepath.value();
+
+      return "";
+    }
+
+    if (bytes_read == 0) {
+      break;
+    }
+
+    hasher->Update(&buffer[0], bytes_read);
+  }
+
+  hasher->Finish(actual_hash, sizeof(actual_hash));
+
+  return base::HexEncode(actual_hash, sizeof(actual_hash));
+}
+
 }  // namespace updater
 }  // namespace cobalt

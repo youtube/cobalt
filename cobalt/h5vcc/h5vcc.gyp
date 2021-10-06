@@ -110,6 +110,9 @@
             'h5vcc_updater.cc',
             'h5vcc_updater.h',
           ],
+         'dependencies': [
+           '<(DEPTH)/cobalt/updater/updater.gyp:updater',
+         ],
         }],
       ],
     },
