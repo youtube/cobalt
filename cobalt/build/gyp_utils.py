@@ -19,9 +19,7 @@ import os
 import re
 import subprocess
 import sys
-import urllib
-import urllib2
-
+from six.moves import urllib
 import _env  # pylint: disable=unused-import
 from cobalt.tools import paths
 
@@ -37,26 +35,28 @@ def CheckRevInfo(key, cwd=None):
   cwd = cwd if cwd else '.'
   git_prefix = ['git', '-C', cwd]
   git_get_remote_args = git_prefix + ['config', '--get', 'remote.origin.url']
-  remote = subprocess.check_output(git_get_remote_args).strip()
+  remote = subprocess.check_output(git_get_remote_args).strip().decode('utf-8')
 
   if remote.endswith('.git'):
     remote = remote[:-len('.git')]
 
   git_get_revision_args = git_prefix + ['rev-parse', 'HEAD']
-  revision = subprocess.check_output(git_get_revision_args).strip()
+  revision = subprocess.check_output(git_get_revision_args).strip().decode(
+      'utf-8')
   return {key: '{}@{}'.format(remote, revision)}
 
 
 def GetRevinfo():
   """Get absolute state of all git repos."""
   try:
-    repo_root = subprocess.check_output(['git', 'rev-parse',
-                                         '--show-toplevel']).strip()
+    repo_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel'
+                                        ]).strip().decode('utf-8')
   except subprocess.CalledProcessError as e:
     logging.info('Could not get repo root. Trying again in src/')
     try:
       repo_root = subprocess.check_output(
-          ['git', '-C', 'src', 'rev-parse', '--show-toplevel']).strip()
+          ['git', '-C', 'src', 'rev-parse',
+           '--show-toplevel']).strip().decode('utf-8')
     except subprocess.CalledProcessError as e:
       logging.warning('Failed to get revision information: %s', e)
       return {}
@@ -97,23 +97,24 @@ def GetBuildNumber(version_server=_VERSION_SERVER_URL):
     post_data['user'] = username
 
   logging.debug('Post data is %s', post_data)
-  request = urllib2.Request(version_server, data=urllib.urlencode(post_data))
+  request = urllib.request.Request(version_server)
   # TODO: retry on timeout.
   try:
-    response = urllib2.urlopen(request)
-  except urllib2.HTTPError as e:
+    response = urllib.request.urlopen(  # pylint: disable=consider-using-with
+        request,
+        data=urllib.parse.urlencode(post_data).encode('utf-8'))
+    data = response.read().decode('utf-8')
+    if data.find(_XSSI_PREFIX) == 0:
+      data = data[len(_XSSI_PREFIX):]
+    results = json.loads(data)
+    build_number = results.get('build_number', 0)
+    return build_number
+  except urllib.error.HTTPError as e:
     logging.warning('Failed to retrieve build number: %s', e)
     return 0
-  except urllib2.URLError as e:
+  except urllib.error.URLError as e:
     logging.warning('Could not connect to %s: %s', version_server, e)
     return 0
-
-  data = response.read()
-  if data.find(_XSSI_PREFIX) == 0:
-    data = data[len(_XSSI_PREFIX):]
-  results = json.loads(data)
-  build_number = results.get('build_number', 0)
-  return build_number
 
 
 def GetConstantValue(file_path, constant_name):
