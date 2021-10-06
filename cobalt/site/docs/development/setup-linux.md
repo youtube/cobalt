@@ -63,8 +63,8 @@ the `src/` directory like so:
 
 ```
 $ cd cobalt
-$ git mv src/* ./
-$ git mv src/.* ./
+$ mv src/* ./
+$ mv src/.* ./
 ```
 
 Once you do that, you'll be able to follow the following two steps to have C++
