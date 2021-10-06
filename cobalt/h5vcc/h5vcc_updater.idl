@@ -24,4 +24,7 @@ interface H5vccUpdater {
   void resetInstallations();
 
   unsigned short getInstallationIndex();
+
+  DOMString getLibrarySha256(unsigned short index);
+
 };
