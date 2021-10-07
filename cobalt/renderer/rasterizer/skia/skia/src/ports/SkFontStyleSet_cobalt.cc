@@ -80,8 +80,7 @@ SkFontStyleSet_Cobalt::SkFontStyleSet_Cobalt(
       manager_owned_mutex_(manager_owned_mutex),
       is_fallback_family_(family_info.is_fallback_family),
       language_(family_info.language),
-      page_ranges_(family_info.page_ranges),
-      is_character_map_generated_(!is_fallback_family_) {
+      page_ranges_(family_info.page_ranges) {
   TRACE_EVENT0("cobalt::renderer",
                "SkFontStyleSet_Cobalt::SkFontStyleSet_Cobalt()");
   DCHECK(manager_owned_mutex_);
@@ -90,7 +89,6 @@ SkFontStyleSet_Cobalt::SkFontStyleSet_Cobalt(
     return;
   }
 
-  character_map_ = base::MakeRefCounted<font_character_map::CharacterMap>();
   disable_character_map_ = family_info.disable_caching;
 
   family_name_ = family_info.names[0];
@@ -232,7 +230,7 @@ SkTypeface* SkFontStyleSet_Cobalt::TryRetrieveTypefaceAndRemoveStyleOnFailure(
   SkFontStyleSetEntry_Cobalt* style = styles_[style_index].get();
   // If the typeface doesn't already exist, then attempt to create it.
   if (style->typeface == NULL) {
-    CreateStreamProviderTypeface(style);
+    CreateStreamProviderTypeface(style, style_index);
     // If the creation attempt failed and the typeface is still NULL, then
     // remove the entry from the set's styles.
     if (style->typeface == NULL) {
@@ -286,7 +284,8 @@ bool SkFontStyleSet_Cobalt::ContainsCharacter(const SkFontStyle& style,
 
   // The character map is lazily generated. Generate it now if it isn't already
   // generated.
-  if (!is_character_map_generated_) {
+  int style_index = GetClosestStyleIndex(style);
+  if (!character_maps_[style_index]) {
     TRACE_EVENT0("cobalt::renderer",
                  "SkFontStyleSet_Cobalt::ContainsCharacter() and "
                  "!is_character_map_generated_");
@@ -294,7 +293,6 @@ bool SkFontStyleSet_Cobalt::ContainsCharacter(const SkFontStyle& style,
     // it will be removed from the set and, as long as font styles remain in the
     // set, the logic will be attempted again.
     while (styles_.count() > 0) {
-      int style_index = GetClosestStyleIndex(style);
       SkFontStyleSetEntry_Cobalt* closest_style = styles_[style_index].get();
 
       SkFileMemoryChunkStreamProvider* stream_provider =
@@ -310,9 +308,11 @@ bool SkFontStyleSet_Cobalt::ContainsCharacter(const SkFontStyle& style,
 
       std::unique_ptr<SkFileMemoryChunkStream> stream(
           stream_provider->OpenStream());
-      if (GenerateStyleFaceInfo(closest_style, stream.get())) {
-        if (CharacterMapContainsCharacter(character)) {
-          CreateStreamProviderTypeface(closest_style, stream_provider);
+      if (GenerateStyleFaceInfo(closest_style, stream.get(), style_index)) {
+        if (CharacterMapContainsCharacter(character,
+                                          character_maps_[style_index])) {
+          CreateStreamProviderTypeface(closest_style, style_index,
+                                       stream_provider);
           return true;
         } else {
           // If a typeface was not created, destroy the stream and purge any
@@ -329,27 +329,34 @@ bool SkFontStyleSet_Cobalt::ContainsCharacter(const SkFontStyle& style,
       styles_.pop_back();
     }
 
-    is_character_map_generated_ = true;
   }
 
-  return CharacterMapContainsCharacter(character);
+  DCHECK(character_maps_[style_index]);
+  return CharacterMapContainsCharacter(character, character_maps_[style_index]);
 }
 
-bool SkFontStyleSet_Cobalt::CharacterMapContainsCharacter(SkUnichar character) {
-  font_character_map::Character c = character_map_->Find(character);
+bool SkFontStyleSet_Cobalt::CharacterMapContainsCharacter(
+    SkUnichar character,
+    const scoped_refptr<font_character_map::CharacterMap>& map) {
+  font_character_map::Character c = map->Find(character);
   return c.is_set && c.id > 0;
 }
 
 bool SkFontStyleSet_Cobalt::GenerateStyleFaceInfo(
-    SkFontStyleSetEntry_Cobalt* style, SkStreamAsset* stream) {
+    SkFontStyleSetEntry_Cobalt* style, SkStreamAsset* stream, int style_index) {
   if (style->is_face_info_generated) {
     return true;
   }
 
   // Providing a pointer to the character map will cause it to be generated
   // during ScanFont. Only provide it if it hasn't already been generated.
-  font_character_map::CharacterMap* character_map =
-      !is_character_map_generated_ ? character_map_.get() : NULL;
+
+  font_character_map::CharacterMap* character_map = NULL;
+  if (!character_maps_[style_index]) {
+    character_maps_[style_index] =
+        base::MakeRefCounted<font_character_map::CharacterMap>();
+    character_map = character_maps_[style_index].get();
+  }
 
   if (!sk_freetype_cobalt::ScanFont(
           stream, style->face_index, &style->face_name, &style->font_style,
@@ -358,7 +365,6 @@ bool SkFontStyleSet_Cobalt::GenerateStyleFaceInfo(
   }
 
   style->is_face_info_generated = true;
-  is_character_map_generated_ = true;
   return true;
 }
 
@@ -376,7 +382,7 @@ int SkFontStyleSet_Cobalt::GetClosestStyleIndex(const SkFontStyle& pattern) {
 }
 
 void SkFontStyleSet_Cobalt::CreateStreamProviderTypeface(
-    SkFontStyleSetEntry_Cobalt* style_entry,
+    SkFontStyleSetEntry_Cobalt* style_entry, int style_index,
     SkFileMemoryChunkStreamProvider* stream_provider /*=NULL*/) {
   TRACE_EVENT0("cobalt::renderer",
                "SkFontStyleSet_Cobalt::CreateStreamProviderTypeface()");
@@ -388,13 +394,13 @@ void SkFontStyleSet_Cobalt::CreateStreamProviderTypeface(
 
   std::unique_ptr<SkFileMemoryChunkStream> stream(
       stream_provider->OpenStream());
-  if (GenerateStyleFaceInfo(style_entry, stream.get())) {
+  if (GenerateStyleFaceInfo(style_entry, stream.get(), style_index)) {
     LOG(INFO) << "Scanned font from file: " << style_entry->face_name.c_str()
               << "(" << style_entry->font_style.weight() << ", "
               << style_entry->font_style.width() << ", "
               << style_entry->font_style.slant() << ")";
     scoped_refptr<font_character_map::CharacterMap> map =
-        disable_character_map_ ? NULL : character_map_;
+        disable_character_map_ ? NULL : character_maps_[style_index];
     style_entry->typeface.reset(new SkTypeface_CobaltStreamProvider(
         stream_provider, style_entry->face_index, style_entry->font_style,
         style_entry->face_is_fixed_pitch, family_name_,
