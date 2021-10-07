@@ -62,6 +62,7 @@ group("gn_all") {
         "//third_party/crashpad/client",
         "//third_party/crashpad/handler",
       ]
+      data_deps = [ "//starboard/loader_app" ]
     }
   }
 }
