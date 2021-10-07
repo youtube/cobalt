@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <memory>
+#include <utility>
 
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkTypeface_cobalt.h"
 
@@ -44,16 +45,18 @@ void SkTypeface_Cobalt::onCharsToGlyphs(const SkUnichar uni[], int count,
 
 SkGlyphID SkTypeface_Cobalt::characterMapGetGlyphIdForCharacter(
     SkUnichar character) const {
-  CHECK(character_map_);
-
-  // Check whether the character is cached in the character map.
-  font_character_map::Character c = character_map_->Find(character);
-  if (c.is_set) return c.id;
+  if (character_map_) {
+    // Check whether the character is cached in the character map.
+    font_character_map::Character c = character_map_->Find(character);
+    if (c.is_set) return c.id;
+  }
 
   // If the character isn't there, look it up with FreeType, then cache it.
   SkGlyphID glyphs[1] = {0};
   SkTypeface_FreeType::onCharsToGlyphs(&character, 1, glyphs);
-  character_map_->Insert(character, glyphs[0]);
+  if (character_map_) {
+    character_map_->Insert(character, glyphs[0]);
+  }
   return glyphs[0];
 }
 
@@ -119,7 +122,6 @@ std::unique_ptr<SkStreamAsset> SkTypeface_CobaltStreamProvider::onOpenStream(
   *face_index = face_index_;
   return std::unique_ptr<SkFileMemoryChunkStream>(
       stream_provider_->OpenStream());
-  ;
 }
 
 size_t SkTypeface_CobaltStreamProvider::GetStreamLength() const {
