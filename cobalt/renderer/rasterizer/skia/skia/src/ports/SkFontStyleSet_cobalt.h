@@ -113,14 +113,16 @@ class SkFontStyleSet_Cobalt : public SkFontStyleSet {
   bool ContainsTypeface(const SkTypeface* typeface);
 
   bool ContainsCharacter(const SkFontStyle& style, SkUnichar character);
-  bool CharacterMapContainsCharacter(SkUnichar character);
+  bool CharacterMapContainsCharacter(
+      SkUnichar character,
+      const scoped_refptr<font_character_map::CharacterMap>& map);
 
   bool GenerateStyleFaceInfo(SkFontStyleSetEntry_Cobalt* style,
-                             SkStreamAsset* stream);
+                             SkStreamAsset* stream, int style_index);
 
   int GetClosestStyleIndex(const SkFontStyle& pattern);
   void CreateStreamProviderTypeface(
-      SkFontStyleSetEntry_Cobalt* style,
+      SkFontStyleSetEntry_Cobalt* style, int style_index,
       SkFileMemoryChunkStreamProvider* stream_provider = NULL);
 
   // Purge typefaces that are only referenced internally.
@@ -139,8 +141,10 @@ class SkFontStyleSet_Cobalt : public SkFontStyleSet {
   bool disable_character_map_;
 
   // NOTE: The following characters require locking when being accessed.
-  bool is_character_map_generated_;
-  scoped_refptr<font_character_map::CharacterMap> character_map_;
+  // This map will store one map per style, and can be indexed with the
+  // style_index of each style.
+  std::unordered_map<int, scoped_refptr<font_character_map::CharacterMap>>
+      character_maps_;
 
   SkTArray<sk_sp<SkFontStyleSetEntry_Cobalt>, true> styles_;
 
