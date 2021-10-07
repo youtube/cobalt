@@ -91,6 +91,7 @@ SkFontStyleSet_Cobalt::SkFontStyleSet_Cobalt(
   }
 
   character_map_ = base::MakeRefCounted<font_character_map::CharacterMap>();
+  disable_character_map_ = family_info.disable_caching;
 
   family_name_ = family_info.names[0];
   SkTHashMap<SkString, int> styles_index_map;
@@ -392,10 +393,12 @@ void SkFontStyleSet_Cobalt::CreateStreamProviderTypeface(
               << "(" << style_entry->font_style.weight() << ", "
               << style_entry->font_style.width() << ", "
               << style_entry->font_style.slant() << ")";
+    scoped_refptr<font_character_map::CharacterMap> map =
+        disable_character_map_ ? NULL : character_map_;
     style_entry->typeface.reset(new SkTypeface_CobaltStreamProvider(
         stream_provider, style_entry->face_index, style_entry->font_style,
         style_entry->face_is_fixed_pitch, family_name_,
-        style_entry->disable_synthetic_bolding, character_map_));
+        style_entry->disable_synthetic_bolding, map));
   } else {
     LOG(ERROR) << "Failed to scan font: "
                << style_entry->font_file_path.c_str();

@@ -164,7 +164,8 @@ struct FontFileInfo {
 // determine that a family cannot support a character, without needing to
 // generate a full mapping of the family's characters.
 struct FontFamilyInfo {
-  FontFamilyInfo() : is_fallback_family(true), fallback_priority(0) {}
+  FontFamilyInfo()
+      : is_fallback_family(true), fallback_priority(0), disable_caching(0) {}
 
   SkTArray<SkString> names;
   SkTArray<FontFileInfo> fonts;
@@ -172,6 +173,7 @@ struct FontFamilyInfo {
   bool is_fallback_family;
   int fallback_priority;
   font_character_map::PageRanges page_ranges;
+  bool disable_caching;
 };
 
 #endif  // COBALT_RENDERER_RASTERIZER_SKIA_SKIA_SRC_PORTS_SKFONTUTIL_COBALT_H_

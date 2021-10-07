@@ -324,6 +324,10 @@ void FamilyElementHandler(FontFamilyInfo* family, const char** attributes) {
         LOG(ERROR) << "---- Invalid fallback priority [" << value << "]";
         NOTREACHED();
       }
+    } else if (name_len == 15 &&
+               strncmp("disable_caching", name, name_len) == 0) {
+      family->disable_caching =
+          strcmp("true", value) == 0 || strcmp("1", value) == 0;
     } else {
       LOG(ERROR) << "---- Unsupported family attribute [" << name << "]";
       NOTREACHED();
