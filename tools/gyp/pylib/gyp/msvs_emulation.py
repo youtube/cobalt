@@ -747,6 +747,8 @@ def _ExtractImportantEnvironment(output_of_set):
       'cell_.*',
       'sn_.*',
       'sce_.*',
+      'is_docker', # needed for ninja to invoke docker-specific logic
+      'is_ci',     # needed for ninja to exlcude some logic on GKE
   )
   env = {}
   for line in output_of_set.splitlines():
