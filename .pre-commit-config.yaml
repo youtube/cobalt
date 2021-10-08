@@ -48,10 +48,11 @@ repos:
         files: '.*tests?.(cc|h)$'
     -   id: yapf
         name: yapf
+        description: Run yapf (the python formatter) in-place on changed files.
         entry: yapf
         language: system
         types: [python]
-        args: [-i]
+        args: [-i, -vv]
         exclude: '\.gypi?$'
     -   id: pylint
         name: pylint
