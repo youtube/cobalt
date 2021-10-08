@@ -72,7 +72,6 @@ HTMLScriptElement::HTMLScriptElement(Document* document)
       is_ready_(false),
       load_option_(0),
       inline_script_location_(GetSourceLocationName(), 1, 1),
-      is_sync_load_successful_(false),
       should_execute_(true),
       synchronous_loader_interrupt_(
           document->html_element_context()->synchronous_loader_interrupt()) {
@@ -122,7 +121,7 @@ scoped_refptr<HTMLScriptElement> HTMLScriptElement::AsHTMLScriptElement() {
 scoped_refptr<Node> HTMLScriptElement::Duplicate() const {
   // The cloning steps for script elements must set the "already started" flag
   // on the copy if it is set on the element being cloned.
-  //   https://www.w3.org/TR/html50/scripting-1.html#already-started
+  //   https://www.w3.org/TR/2018/SPSD-html5-20180327/scripting-1.html#already-started
   scoped_refptr<HTMLScriptElement> new_script = HTMLElement::Duplicate()
                                                     ->AsElement()
                                                     ->AsHTMLElement()
@@ -137,20 +136,21 @@ HTMLScriptElement::~HTMLScriptElement() {
   // exists when the script element is destroyed.
   // NOTE: While the garbage collection prevention logic will typically protect
   // from this, it is still possible during shutdown.
-  if (node_document()) {
+  if (document_) {
     std::deque<HTMLScriptElement*>* scripts_to_be_executed =
-        node_document()->scripts_to_be_executed();
+        document_->scripts_to_be_executed();
 
     std::deque<HTMLScriptElement*>::iterator it = std::find(
         scripts_to_be_executed->begin(), scripts_to_be_executed->end(), this);
     if (it != scripts_to_be_executed->end()) {
       scripts_to_be_executed->erase(it);
     }
+    ExecuteSyncScripts();
   }
 }
 
 // Algorithm for Prepare:
-//   https://www.w3.org/TR/html50/scripting-1.html#prepare-a-script
+//   https://www.w3.org/TR/2018/SPSD-html5-20180327/scripting-1.html#prepare-a-script
 void HTMLScriptElement::Prepare() {
   TRACK_MEMORY_SCOPE("DOM");
   // Custom, not in any spec.
@@ -159,8 +159,11 @@ void HTMLScriptElement::Prepare() {
   DCHECK(!loader_ || is_already_started_);
   TRACE_EVENT0("cobalt::dom", "HTMLScriptElement::Prepare()");
 
-  // If the script element is marked as having "already started", then the user
-  // agent must abort these steps at this point. The script is not executed.
+  error_.reset();
+
+  // If the script element is marked as having "already started", then the
+  // user agent must abort these steps at this point. The script is not
+  // executed.
   if (is_already_started_) {
     return;
   }
@@ -214,7 +217,7 @@ void HTMLScriptElement::Prepare() {
   //   2. If src is the empty string, queue a task to fire a simple event
   // named error at the element, and abort these steps.
   if (HasAttribute("src") && src() == "") {
-    LOG(WARNING) << "src attribute of script element is empty.";
+    LOG(ERROR) << "src attribute of script element is empty.";
 
     PreventGarbageCollectionAndPostToDispatchEvent(
         FROM_HERE, base::Tokens::error(),
@@ -228,7 +231,7 @@ void HTMLScriptElement::Prepare() {
   const GURL& base_url = document_->url_as_gurl();
   url_ = base_url.Resolve(src());
   if (!url_.is_valid()) {
-    LOG(WARNING) << src() << " cannot be resolved based on " << base_url << ".";
+    LOG(ERROR) << src() << " cannot be resolved based on " << base_url << ".";
 
     PreventGarbageCollectionAndPostToDispatchEvent(
         FROM_HERE, base::Tokens::error(),
@@ -318,8 +321,6 @@ void HTMLScriptElement::Prepare() {
       // loader below.  If that completion callback never fires, the variable
       // will stay false.  This can happen if the loader was interrupted, or
       // failed for another reason.
-      is_sync_load_successful_ = false;
-
       loader::LoadSynchronously(
           html_element_context()->sync_load_thread()->message_loop(),
           synchronous_loader_interrupt_,
@@ -336,18 +337,14 @@ void HTMLScriptElement::Prepare() {
           base::Bind(&HTMLScriptElement::OnSyncLoadingComplete,
                      base::Unretained(this)));
 
-      if (is_sync_load_successful_) {
+      // This block exists to ensure that garbage collection is prevented while
+      // executing the script.
+      {
         script::GlobalEnvironment::ScopedPreventGarbageCollection
             scoped_prevent_gc(
                 html_element_context()->script_runner()->GetGlobalEnvironment(),
                 this);
         ExecuteExternal();
-        // Release the content string now that we're finished with it.
-        content_.reset();
-      } else {
-        // Executing the script block must just consist of firing a simple event
-        // named error at the element.
-        DispatchEvent(new Event(base::Tokens::error()));
       }
     } break;
     case 4: {
@@ -365,9 +362,10 @@ void HTMLScriptElement::Prepare() {
           document_->scripts_to_be_executed();
       scripts_to_be_executed->push_back(this);
 
-      // Fetching an external script must delay the load event of the element's
-      // document until the task that is queued by the networking task source
-      // once the resource has been fetched (defined above) has been run.
+      // Fetching an external script must delay the load event
+      // of the element's document until the task that is
+      // queued by the networking task source once the resource
+      // has been fetched (defined above) has been run.
       document_->IncreaseLoadingCounter();
 
       loader::Origin origin = document_->location()
@@ -422,6 +420,7 @@ void HTMLScriptElement::Prepare() {
         fetched_last_url_origin_ = document_->location()->GetOriginAsObject();
         ExecuteInternal();
       } else {
+        LOG(ERROR) << " empty synchronous script.";
         PreventGarbageCollectionAndPostToDispatchEvent(
             FROM_HERE, base::Tokens::error(),
             &prevent_gc_until_error_event_dispatch_);
@@ -437,37 +436,119 @@ void HTMLScriptElement::OnSyncContentProduced(
   TRACE_EVENT0("cobalt::dom", "HTMLScriptElement::OnSyncContentProduced()");
   fetched_last_url_origin_ = last_url_origin;
   content_ = std::move(content);
-  is_sync_load_successful_ = true;
 }
 
 void HTMLScriptElement::OnSyncLoadingComplete(
     const base::Optional<std::string>& error) {
+  error_ = error;
   if (!error) return;
-
   TRACE_EVENT0("cobalt::dom", "HTMLScriptElement::OnSyncLoadingComplete()");
   LOG(ERROR) << "Error during synchronous script load referenced from \""
              << inline_script_location_ << "\" : " << *error;
 }
 
 // Algorithm for OnContentProduced:
-//   https://www.w3.org/TR/html50/scripting-1.html#prepare-a-script
+//   https://www.w3.org/TR/2018/SPSD-html5-20180327/scripting-1.html#prepare-a-script
 void HTMLScriptElement::OnContentProduced(
     const loader::Origin& last_url_origin,
     std::unique_ptr<std::string> content) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  DCHECK(load_option_ == 4 || load_option_ == 5);
+  // From Algorithm for OnContentProduced:
+  //   https://www.w3.org/TR/2018/SPSD-html5-20180327/scripting-1.html#prepare-a-script
+  // 15. Then, the first of the following options that describes the situation
+  // must be followed:
+  //
   DCHECK(content);
   TRACE_EVENT0("cobalt::dom", "HTMLScriptElement::OnContentProduced()");
-  if (!document_) {
-    AllowGCAfterLoadComplete();
-    return;
-  }
 
   fetched_last_url_origin_ = last_url_origin;
   content_ = std::move(content);
 
+  OnReadyToExecute();
+}
+
+// Algorithm for OnLoadingComplete:
+//   https://www.w3.org/TR/2018/SPSD-html5-20180327/scripting-1.html#prepare-a-script
+void HTMLScriptElement::OnLoadingComplete(
+    const base::Optional<std::string>& error) {
+  error_ = error;
+  // GetLoadTimingInfo and create resource timing before loader released.
+  GetLoadTimingInfoAndCreateResourceTiming();
+
+  TRACE_EVENT0("cobalt::dom", "HTMLScriptElement::OnLoadingComplete()");
+
+  if (!error_) return;
+
+  OnReadyToExecute();
+}
+
+void HTMLScriptElement::ExecuteSyncScripts() {
+  // From Algorithm for OnContentProduced:
+  //   https://www.w3.org/TR/2018/SPSD-html5-20180327/scripting-1.html#prepare-a-script
+  DCHECK(document_);
+
+  std::deque<HTMLScriptElement*>* scripts_to_be_executed =
+      document_->scripts_to_be_executed();
+  if (scripts_to_be_executed->empty() ||
+      scripts_to_be_executed->front() != this) {
+    return;
+  }
+
+  while (true) {
+    // 2. Execution: Execute the script block corresponding to the first
+    // script element in this list of scripts that will execute in order as
+    // soon as possible.
+    HTMLScriptElement* script = scripts_to_be_executed->front();
+    script->ExecuteExternal();
+
+    // NOTE: Must disable warning 6011 on Windows. It mysteriously believes
+    // that a NULL pointer is being dereferenced with this comparison.
+    MSVC_PUSH_DISABLE_WARNING(6011);
+    // If this script isn't the current object, then allow it to be garbage
+    // collected now that it has executed.
+    if (script != this) {
+      script->AllowGCAfterLoadComplete();
+    }
+    MSVC_POP_WARNING();
+
+    // 3. Remove the first element from this list of scripts that will
+    // execute in order as soon as possible.
+    scripts_to_be_executed->pop_front();
+
+    // Fetching an external script must delay the load event of the
+    //  element's document until the task that is queued by the networking
+    // task source once the resource has been fetched (defined above)
+    // has been run.
+    document_->DecreaseLoadingCounterAndMaybeDispatchLoadEvent();
+
+    // 4. If this list of scripts that will execute in order as soon as
+    // possible is still not empty and the first entry has already been
+    // marked
+    // as ready, then jump back to the step labeled execution.
+    if (scripts_to_be_executed->empty() ||
+        !scripts_to_be_executed->front()->is_ready_) {
+      break;
+    }
+  }
+
+  // Allow garbage collection on the current script object now that it has
+  // finished executing both itself and other pending scripts.
+  AllowGCAfterLoadComplete();
+}
+
+void HTMLScriptElement::OnReadyToExecute() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK(load_option_ == 4 || load_option_ == 5);
+  if (!document_) {
+    error_ = "No document";
+    AllowGCAfterLoadComplete();
+    return;
+  }
+
   switch (load_option_) {
     case 4: {
+      // From Algorithm for OnContentProduced:
+      //   https://www.w3.org/TR/2018/SPSD-html5-20180327/scripting-1.html#script-processing-src-sync
+
       // If the element has a src attribute, does not have an async attribute,
       // and does not have the "force-async" flag set.
 
@@ -477,53 +558,16 @@ void HTMLScriptElement::OnContentProduced(
       //   that will execute in order as soon as possible to which it was added
       //   above, then mark the element as ready but abort these steps without
       //   executing the script yet.
-      std::deque<HTMLScriptElement*>* scripts_to_be_executed =
-          document_->scripts_to_be_executed();
-      if (scripts_to_be_executed->front() != this) {
+      if (document_->scripts_to_be_executed()->front() != this) {
         is_ready_ = true;
-        return;
+      } else {
+        ExecuteSyncScripts();
       }
-      while (true) {
-        // 2. Execution: Execute the script block corresponding to the first
-        // script element in this list of scripts that will execute in order as
-        // soon as possible.
-        HTMLScriptElement* script = scripts_to_be_executed->front();
-        script->ExecuteExternal();
-
-        // NOTE: Must disable warning 6011 on Windows. It mysteriously believes
-        // that a NULL pointer is being dereferenced with this comparison.
-        MSVC_PUSH_DISABLE_WARNING(6011);
-        // If this script isn't the current object, then allow it to be garbage
-        // collected now that it has executed.
-        if (script != this) {
-          script->AllowGCAfterLoadComplete();
-        }
-        MSVC_POP_WARNING();
-
-        // 3. Remove the first element from this list of scripts that will
-        // execute in order as soon as possible.
-        scripts_to_be_executed->pop_front();
-
-        // Fetching an external script must delay the load event of the
-        //  element's document until the task that is queued by the networking
-        // task source once the resource has been fetched (defined above)
-        // has been run.
-        document_->DecreaseLoadingCounterAndMaybeDispatchLoadEvent();
-
-        // 4. If this list of scripts that will execute in order as soon as
-        // possible is still not empty and the first entry has already been
-        // marked
-        // as ready, then jump back to the step labeled execution.
-        if (scripts_to_be_executed->empty() ||
-            !scripts_to_be_executed->front()->is_ready_) {
-          break;
-        }
-      }
-      // Allow garbage collection on the current script object now that it has
-      // finished executing both itself and other pending scripts.
-      AllowGCAfterLoadComplete();
     } break;
     case 5: {
+      // From Algorithm for OnContentProduced:
+      //   https://www.w3.org/TR/2018/SPSD-html5-20180327/scripting-1.html#script-processing-src
+
       // If the element has a src attribute.
 
       // The task that the networking task source places on the task queue once
@@ -543,78 +587,35 @@ void HTMLScriptElement::OnContentProduced(
     } break;
   }
 
-  // Release the content string now that we're finished with it.
-  content_.reset();
-
-  // Post a task to release the loader.
-  base::MessageLoop::current()->task_runner()->PostTask(
-      FROM_HERE, base::Bind(&HTMLScriptElement::ReleaseLoader, this));
-}
-
-// Algorithm for OnLoadingComplete:
-//   https://www.w3.org/TR/html50/scripting-1.html#prepare-a-script
-void HTMLScriptElement::OnLoadingComplete(
-    const base::Optional<std::string>& error) {
-  // GetLoadTimingInfo and create resource timing before loader released.
-  GetLoadTimingInfoAndCreateResourceTiming();
-
-  if (!error) return;
-
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  DCHECK(load_option_ == 4 || load_option_ == 5);
-  TRACE_EVENT0("cobalt::dom", "HTMLScriptElement::OnLoadingComplete()");
-
-  if (!document_) {
-    AllowGCAfterLoadComplete();
-    return;
-  }
-
-  LOG(ERROR) << *error;
-
-  // Executing the script block must just consist of firing a simple event
-  // named error at the element.
-  DispatchEvent(new Event(base::Tokens::error()));
-  AllowGCAfterLoadComplete();
-
-  switch (load_option_) {
-    case 4: {
-      // If the element has a src attribute, does not have an async attribute,
-      // and does not have the "force-async" flag set.
-      std::deque<HTMLScriptElement*>* scripts_to_be_executed =
-          document_->scripts_to_be_executed();
-
-      std::deque<HTMLScriptElement*>::iterator it = std::find(
-          scripts_to_be_executed->begin(), scripts_to_be_executed->end(), this);
-      if (it != scripts_to_be_executed->end()) {
-        scripts_to_be_executed->erase(it);
-      }
-    } break;
-    case 5: {
-      // If the element has a src attribute.
-    } break;
-  }
-
-  // Fetching an external script must delay the load event of the element's
-  // document until the task that is queued by the networking task source
-  // once the resource has been fetched (defined above) has been run.
-  document_->DecreaseLoadingCounterAndMaybeDispatchLoadEvent();
-
   // Post a task to release the loader.
   base::MessageLoop::current()->task_runner()->PostTask(
       FROM_HERE, base::Bind(&HTMLScriptElement::ReleaseLoader, this));
 }
 
 void HTMLScriptElement::ExecuteExternal() {
-  DCHECK(content_);
-  Execute(*content_, base::SourceLocation(url_.spec(), 1, 1), true);
+  if (error_) {
+    LOG(ERROR) << *error_;
+    // If the load resulted in an error (for example a DNS error, or an HTTP
+    // 404 error)
+    // Executing the script block must just consist of firing a simple event
+    // named error at the element.
+    DispatchEvent(new Event(base::Tokens::error()));
+  } else {
+    DCHECK(content_);
+    Execute(*content_, base::SourceLocation(url_.spec(), 1, 1), true);
+  }
+
+  // Release the content string now that we're finished with it.
+  content_.reset();
 }
 
 void HTMLScriptElement::ExecuteInternal() {
+  DCHECK(!error_);
   Execute(text_content().value(), inline_script_location_, false);
 }
 
 // Algorithm for Execute:
-//   https://www.w3.org/TR/html50/scripting-1.html#execute-the-script-block
+//   https://www.w3.org/TR/2018/SPSD-html5-20180327/scripting-1.html#execute-the-script-block
 void HTMLScriptElement::Execute(const std::string& content,
                                 const base::SourceLocation& script_location,
                                 bool is_external) {
@@ -624,18 +625,20 @@ void HTMLScriptElement::Execute(const std::string& content,
   // When inserted using the document.write() method, script elements execute
   // (typically synchronously), but when inserted using innerHTML and
   // outerHTML attributes, they do not execute at all.
-  // https://www.w3.org/TR/html50/scripting-1.html#the-script-element.
+  // https://www.w3.org/TR/2018/SPSD-html5-20180327/scripting-1.html#the-script-element.
   if (!should_execute_) {
     return;
   }
 
-  // The script is now being run. Track it in the global stats.
-  GlobalStats::GetInstance()->StartJavaScriptEvent();
-
   TRACE_EVENT2("cobalt::dom", "HTMLScriptElement::Execute()", "file_path",
                script_location.file_path, "line_number",
                script_location.line_number);
+
   // Since error is already handled, it is guaranteed the load is successful.
+  DCHECK(!error_);
+
+  // The script is now being run. Track it in the global stats.
+  GlobalStats::GetInstance()->StartJavaScriptEvent();
 
   // For |currentScript| logic, see
   // https://html.spec.whatwg.org/commit-snapshots/20a0ddc6841176adab93efefb76b23e0a1e6fa43/#execute-the-script-block
@@ -730,7 +733,7 @@ void HTMLScriptElement::GetLoadTimingInfoAndCreateResourceTiming() {
   if (html_element_context()->performance() == nullptr) return;
   if (loader_) {
     html_element_context()->performance()->CreatePerformanceResourceTiming(
-      loader_->get_load_timing_info(), kTagName, url_.spec());
+        loader_->get_load_timing_info(), kTagName, url_.spec());
   }
 }
 
