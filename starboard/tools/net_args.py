@@ -26,9 +26,11 @@ import threading
 # Returns |True| if a connection was made and the NetArg payload was delivered.
 # Example:
 #  TryConnectAndSendNetArgs('1.2.3.4', '1234', ['--argument', '--switch=value'])
-def TryConnectAndSendNetArgs(host, port):
+def TryConnectAndSendNetArgs(host, port, arg_list):
+  arg_string = '\n'.join(arg_list)
   try:
     server_socket = socket.create_connection((host, port), timeout=.5)
+    server_socket.sendall(arg_string)
     server_socket.close()
     return True
   except socket.timeout:
@@ -66,7 +68,8 @@ class NetArgsThread(threading.Thread):
       with self.mutex:
         if self.join_called:
           break
-      connected_and_sent = TryConnectAndSendNetArgs(self.host, self.port)
+      connected_and_sent = TryConnectAndSendNetArgs(self.host, self.port,
+                                                    self.arg_list)
       if connected_and_sent:
         with self.mutex:
           self.args_sent = True
