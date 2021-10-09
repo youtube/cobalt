@@ -29,7 +29,7 @@ class PerformanceTiming : public script::Wrappable {
   // Performance::Mark and Performance::Measure.
  public:
   explicit PerformanceTiming(const scoped_refptr<base::BasicClock>& clock,
-                             base::TimeTicks time_origin);
+                             uint64 navigation_start);
 
   // This attribute must return the time immediately after the user agent
   // finishes prompting to unload the previous document. If there is no previous
@@ -50,7 +50,7 @@ class PerformanceTiming : public script::Wrappable {
   ~PerformanceTiming();
 
   // The navigation start time relative to January 1, 1970.
-  base::TimeTicks navigation_start_;
+  uint64 navigation_start_;
   scoped_refptr<base::OffsetClock> navigation_start_clock_;
 
   DISALLOW_COPY_AND_ASSIGN(PerformanceTiming);
