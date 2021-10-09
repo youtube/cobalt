@@ -74,7 +74,9 @@ Performance::Performance(script::EnvironmentSettings* settings,
     : EventTarget(settings),
       time_origin_(base::TimeTicks::Now()),
       tick_clock_(base::DefaultTickClock::GetInstance()),
-      timing_(new PerformanceTiming(clock, time_origin_)),
+      timing_(new PerformanceTiming(
+          clock,
+          (time_origin_ - base::TimeTicks::UnixEpoch()).InMilliseconds())),
       memory_(new MemoryInfo()),
       resource_timing_buffer_size_limit_(
           Performance::kMaxResourceTimingBufferSize),
