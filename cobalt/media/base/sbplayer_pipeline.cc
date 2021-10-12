@@ -909,7 +909,7 @@ void SbPlayerPipeline::CreateUrlPlayer(const std::string& source_url) {
   // TODO:  Check |suspended_| here as the pipeline can be suspended before the
   // player is created.  In this case we should delay creating the player as the
   // creation of player may fail.
-
+  std::string error_message;
   {
     base::AutoLock auto_lock(lock_);
     LOG(INFO) << "Creating StarboardPlayer with url: " << source_url;
@@ -921,6 +921,7 @@ void SbPlayerPipeline::CreateUrlPlayer(const std::string& source_url) {
       SetPlaybackRateTask(playback_rate_);
       SetVolumeTask(volume_);
     } else {
+      error_message = player_->GetPlayerCreationErrorMessage();
       player_.reset();
       LOG(INFO) << "Failed to create a valid StarboardPlayer.";
     }
@@ -938,8 +939,9 @@ void SbPlayerPipeline::CreateUrlPlayer(const std::string& source_url) {
   }
 
   CallSeekCB(DECODER_ERROR_NOT_SUPPORTED,
-             "SbPlayerPipeline::CreateUrlPlayer failed: "
-             "player_->IsValid() is false.");
+             "SbPlayerPipeline::CreateUrlPlayer failed to create a valid "
+             "StarboardPlayer:" +
+                 (error_message.empty() ? "" : " Error: " + error_message));
 }
 
 void SbPlayerPipeline::SetDrmSystem(SbDrmSystem drm_system) {
@@ -995,6 +997,7 @@ void SbPlayerPipeline::CreatePlayer(SbDrmSystem drm_system) {
         video_stream_->video_decoder_config());
   }
 
+  std::string error_message;
   {
     base::AutoLock auto_lock(lock_);
     SB_DCHECK(!player_);
@@ -1013,6 +1016,7 @@ void SbPlayerPipeline::CreatePlayer(SbDrmSystem drm_system) {
       SetPlaybackRateTask(playback_rate_);
       SetVolumeTask(volume_);
     } else {
+      error_message = player_->GetPlayerCreationErrorMessage();
       player_.reset();
       LOG(INFO) << "Failed to create a valid StarboardPlayer.";
     }
@@ -1037,8 +1041,9 @@ void SbPlayerPipeline::CreatePlayer(SbDrmSystem drm_system) {
   }
 
   CallSeekCB(DECODER_ERROR_NOT_SUPPORTED,
-             "SbPlayerPipeline::CreatePlayer failed: "
-             "player_->IsValid() is false.");
+             "SbPlayerPipeline::CreatePlayer failed to create a valid "
+             "StarboardPlayer:" +
+                 (error_message.empty() ? "" : " Error: " + error_message));
 }
 
 void SbPlayerPipeline::OnDemuxerInitialized(PipelineStatus status) {

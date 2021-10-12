@@ -554,6 +554,8 @@ void StarboardPlayer::CreatePlayer() {
 
   bool has_audio = audio_codec != kSbMediaAudioCodecNone;
 
+  is_creating_player_ = true;
+
 #if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 
   SbPlayerCreationParam creation_param = {};
@@ -591,6 +593,8 @@ void StarboardPlayer::CreatePlayer() {
       output_mode_, get_decode_target_graphics_context_provider_func_.Run());
 
 #endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+
+  is_creating_player_ = false;
 
   if (!SbPlayerIsValid(player_)) {
     return;
@@ -856,6 +860,19 @@ void StarboardPlayer::OnDeallocateSample(const void* sample_buffer) {
   }
 }
 
+bool StarboardPlayer::TryToSetPlayerCreationErrorMessage(
+    const std::string& message) {
+  DCHECK(task_runner_->BelongsToCurrentThread());
+  if (is_creating_player_) {
+    player_creation_error_message_ = message;
+    return true;
+  }
+  LOG(INFO) << "TryToSetPlayerCreationErrorMessage() "
+               "is called when |is_creating_player_| "
+               "is false. Error message is ignored.";
+  return false;
+}
+
 // static
 void StarboardPlayer::DecoderStatusCB(SbPlayer player, void* context,
                                       SbMediaType type,
@@ -880,6 +897,13 @@ void StarboardPlayer::PlayerStatusCB(SbPlayer player, void* context,
 void StarboardPlayer::PlayerErrorCB(SbPlayer player, void* context,
                                     SbPlayerError error, const char* message) {
   StarboardPlayer* helper = static_cast<StarboardPlayer*>(context);
+  if (player == kSbPlayerInvalid) {
+    // TODO: Simplify by combining the functionality of
+    // TryToSetPlayerCreationErrorMessage() with OnPlayerError().
+    if (helper->TryToSetPlayerCreationErrorMessage(message)) {
+      return;
+    }
+  }
   helper->task_runner_->PostTask(
       FROM_HERE, base::Bind(&StarboardPlayer::CallbackHelper::OnPlayerError,
                             helper->callback_helper_, player, error,
