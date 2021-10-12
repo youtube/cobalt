@@ -18,6 +18,7 @@
 #include <memory>
 #include <queue>
 #include <string>
+#include <vector>
 
 #include "base/memory/weak_ptr.h"
 #include "base/message_loop/message_loop.h"
@@ -47,6 +48,7 @@ class H5vccAccountManager : public script::Wrappable,
   void GetAuthToken(const AccessTokenCallbackHolder& callback);
   void RequestPairing(const AccessTokenCallbackHolder& callback);
   void RequestUnpairing(const AccessTokenCallbackHolder& callback);
+  bool disabled() const;
 
   DEFINE_WRAPPABLE_TYPE(H5vccAccountManager);
 
