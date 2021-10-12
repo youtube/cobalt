@@ -24,6 +24,12 @@ repos:
         args: [-x, .codespellignorelines]
         exclude: '^cobalt/content/i18n/platform/'
 
+-   repo: https://cobalt.googlesource.com/hadolint
+    rev: 71609649f922c7b7a32af912eb8949f8eb82017b  # v2.6.0
+    hooks:
+    -   id: hadolint-docker
+        alias: dockerlint
+
 -   repo: local
     hooks:
     -   id: sync-keyboxes
