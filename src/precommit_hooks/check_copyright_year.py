@@ -56,6 +56,7 @@ def CheckCopyrightYear(filenames: List[str]) -> bool:
   copyright_re = re.compile(r'Copyright (?P<created>\d{4})'
                             r'(-(?P<current>\d{4}))? (?P<author>[\w\s]+)')
   current_year = datetime.datetime.today().year
+  errors = []
 
   for filename in filenames:
     with open(filename) as f:
@@ -67,29 +68,29 @@ def CheckCopyrightYear(filenames: List[str]) -> bool:
 
         match = copyright_re.search(line)
         if match:
-          ret = False
-
           created_year = int(match.group('created'))
           if filename in new_files and created_year != current_year:
-            ret = True
-            print(f'Copyright header for file {filename}'
-                  f' has wrong year {created_year}')
+            errors.append(f'Copyright header for file {filename}'
+                          f' has wrong year {created_year}')
 
           year = match.group('current')
           if year and int(year) != current_year:
-            ret = True
-            print(f'Copyright header for file {filename}'
-                  f' has wrong ending year {year}')
+            errors.append(f'Copyright header for file {filename}'
+                          f' has wrong ending year {year}')
 
           # Strip to get rid of possible newline
           author = match.group('author').rstrip()
           if author != _ALLOWED_AUTHOR:
-            ret = True
-            print(f'Update author to be "{_ALLOWED_AUTHOR}" instead of '
-                  f'"{author}" for {filename}.')
+            errors.append(f'Update author to be "{_ALLOWED_AUTHOR}" instead of'
+                          f' "{author}" for {filename}.')
+          break
 
-          return ret
-
+  if errors:
+    print()  # Separate errors from warnings by a newline.
+    print('The following copyright errors were found:')
+    for error in errors:
+      print('  ' + error)
+    return True
   return False
 
 

@@ -15,6 +15,8 @@
 #ifndef STARBOARD_ELF_LOADER_FILE_H_
 #define STARBOARD_ELF_LOADER_FILE_H_
 
+#include <string>
+
 #include "starboard/types.h"
 
 namespace starboard {
@@ -34,6 +36,9 @@ class File {
 
   // Closes the underlying file.
   virtual void Close() = 0;
+
+  // Returns the name of the file.
+  virtual const std::string& GetName() = 0;
 
   virtual ~File() {}
 };

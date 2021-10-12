@@ -20,6 +20,7 @@
       'dependencies': [
         '<(DEPTH)/cobalt/browser/browser.gyp:browser',
         '<(DEPTH)/net/net.gyp:net',
+        '<(DEPTH)/starboard/loader_app/app_key.gyp:app_key',
         '<(DEPTH)/starboard/starboard.gyp:starboard',
       ],
       'sources': [

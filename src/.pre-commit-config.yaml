@@ -5,7 +5,7 @@ default_stages: [commit]
 default_language_version:
     python: python3
 
-exclude: '^(base|build|testing|third_party)/'
+exclude: '^(base|build|testing|third_party|tools/gyp)/'
 
 repos:
 -   repo: https://cobalt.googlesource.com/pre-commit-hooks
@@ -21,6 +21,7 @@ repos:
     hooks:
     -   id: codespell
         name: Spell Check
+        args: [-x, .codespellignorelines]
         exclude: '^cobalt/content/i18n/platform/'
 
 -   repo: local
@@ -37,8 +38,7 @@ repos:
         language: system
         types: [c++]
         args: [--verbose=4, --quiet]
-        exclude: '.*tests?.(cc|h)$'
-        exclude: '^cobalt/bindings/(templates|generated)/'
+        exclude: '(^cobalt/bindings/(templates|generated)/|tests?.(cc|h)$)'
     -   id: cpplint_test
         name: cpplint_test
         entry: cpplint
@@ -48,10 +48,11 @@ repos:
         files: '.*tests?.(cc|h)$'
     -   id: yapf
         name: yapf
+        description: Run yapf (the python formatter) in-place on changed files.
         entry: yapf
         language: system
         types: [python]
-        args: [-i]
+        args: [-i, -vv]
         exclude: '\.gypi?$'
     -   id: pylint
         name: pylint
@@ -85,6 +86,7 @@ repos:
         types: [file, text]
         stages: [push]
         exclude: '^cobalt/layout_tests/testdata/'
+        exclude_types: [markdown]
     -   id: check-if-starboard-interface-changed
         name: check if starboard interface changed
         entry: python ./precommit_hooks/warn_that_starboard_interface_changed_wrapper.py

@@ -26,9 +26,6 @@ namespace x11 {
 // This application engine combines the generic queue with the X11 event queue.
 class ApplicationStadiaX11 : public starboard::shared::x11::ApplicationX11 {
  public:
-  ApplicationStadiaX11();
-  ~ApplicationStadiaX11();
-
   SbWindow CreateWindow(const SbWindowOptions* options) override;
 };
 

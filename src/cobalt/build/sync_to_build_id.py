@@ -118,9 +118,15 @@ def main():
 
     (requested_repo, _) = rep_hash.split("@")
     remote_url = _RunGitCommand(["config", "--get", "remote.origin.url"],
-                                cwd=path)[0]
+                                cwd=path)[0].strip().decode("utf-8")
     if requested_repo.endswith(".git"):
-      remote_url += ".git"
+      if remote_url + ".git" == requested_repo:
+        print(("WARNING: You are syncing to {0} instead of {1}. While these "
+               "point to the same repo, the differing extension will cause "
+               "different build ids to be generated. If you need the same "
+               "id, you'll need to specifically clone {0} (note the .git "
+               "extension).").format(requested_repo, remote_url))
+        remote_url += ".git"
 
     if remote_url != requested_repo:
       if args.force and path != git_root:

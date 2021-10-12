@@ -18,7 +18,7 @@ import os
 import tempfile
 import unittest
 
-import tools.download_from_gcs as download_from_gcs
+from tools import download_from_gcs
 
 _BUCKET = 'chromium-clang-format'
 _HASH_FILE_EXT = '.sha1'
@@ -52,7 +52,7 @@ class TestFileDownload(unittest.TestCase):
 
   def setUp(self):
     self.test_file = os.path.join(_TEST_PATH, _TEST_FILE)
-    self.output_directory = tempfile.TemporaryDirectory()
+    self.output_directory = tempfile.TemporaryDirectory()  # pylint:disable=consider-using-with
     self.output_file = os.path.join(self.output_directory.name, 'output')
     self.bucket = _BUCKET
 
@@ -74,7 +74,7 @@ class DirectoryDownloadTest(unittest.TestCase):
 
   def setUp(self):
     self.test_directory = os.path.join(_TEST_PATH, _TEST_DIRECTORY)
-    self.output_directory = tempfile.TemporaryDirectory()
+    self.output_directory = tempfile.TemporaryDirectory()  # pylint:disable=consider-using-with
     self.bucket = _BUCKET
 
   def tearDown(self):

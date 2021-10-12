@@ -282,7 +282,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
     # TODO: Need to wait until cobalt fully shutdown. Otherwise, it may get
     # dirty logs from previous test, and logs like "***Application Stopped***"
     # will cause unexpected errors.
-    # Simply wait 2s as a temperary solution.
+    # Simply wait 2s as a temporary solution.
     time.sleep(2)
     # Clear logcat
     self._CheckCallAdb('logcat', '-c')
@@ -450,3 +450,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
   def GetDeviceIp(self):
     """Gets the device IP. TODO: Implement."""
     return None
+
+  def GetDeviceOutputPath(self):
+    """Writable path where test targets can output files"""
+    return '/data/data/{}/cache/'.format(_APP_PACKAGE_NAME)

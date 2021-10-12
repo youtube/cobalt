@@ -83,7 +83,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
   def Run(self):
     """Runs launcher's executable."""
 
-    self.proc = subprocess.Popen(
+    self.proc = subprocess.Popen(  # pylint: disable=consider-using-with
         [self.executable] + self.target_command_line_params,
         stdout=self.output_file,
         stderr=self.output_file,
@@ -197,3 +197,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
   def GetDeviceIp(self):
     """Gets the device IP."""
     return self.device_ip
+
+  def GetDeviceOutputPath(self):
+    """Writable path where test targets can output files"""
+    return "/tmp"

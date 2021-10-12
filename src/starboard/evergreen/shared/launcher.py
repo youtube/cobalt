@@ -163,11 +163,11 @@ class Launcher(abstract_launcher.AbstractLauncher):
       shutil.rmtree(self.staging_directory)
     os.makedirs(self.staging_directory)
 
-    # out/evergreen_staging/linux-x64x11_devel__evergreen-x64_devel/deploy/elf_loader_sandbox
+    # <outpath>/deploy/elf_loader_sandbox
     staging_directory_loader = os.path.join(self.staging_directory, 'deploy',
                                             self.loader_target)
 
-    # out/evergreen_staging/linux-x64x11_devel__evergreen-x64_devel/deploy/elf_loader_sandbox/content/app/nplb/
+    # <outpath>/deploy/elf_loader_sandbox/content/app/nplb/
     staging_directory_evergreen = os.path.join(staging_directory_loader,
                                                'content', 'app',
                                                self.target_name)
@@ -236,3 +236,6 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
   def GetDeviceIp(self):
     return self.launcher.GetDeviceIp()
+
+  def GetDeviceOutputPath(self):
+    return self.launcher.GetDeviceOutputPath()

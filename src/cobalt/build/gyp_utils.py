@@ -39,6 +39,9 @@ def CheckRevInfo(key, cwd=None):
   git_get_remote_args = git_prefix + ['config', '--get', 'remote.origin.url']
   remote = subprocess.check_output(git_get_remote_args).strip()
 
+  if remote.endswith('.git'):
+    remote = remote[:-len('.git')]
+
   git_get_revision_args = git_prefix + ['rev-parse', 'HEAD']
   revision = subprocess.check_output(git_get_revision_args).strip()
   return {key: '{}@{}'.format(remote, revision)}

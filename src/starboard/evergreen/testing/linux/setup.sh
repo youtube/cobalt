@@ -27,10 +27,11 @@ if [[ -L "${STORAGE_DIR}" ]]; then
   rm -f ${STORAGE_DIR} 1> /dev/null
 fi
 
-# Mounting a temporary filesystem cannot be done on buildbot since it requires
-# sudo. When run locally, check for the temporary filesystem and create and
-# mount it if it does not exist.
-if [[ -z "${IS_BUILDBOT}" ]] || [[ "${IS_BUILDBOT}" -eq 0 ]]; then
+# If it's possible to mount a temporary filesystem then the temporary filesystem
+# is checked for and created + mounted if it does not exist. It's assumed to be
+# possible unless explicitly declared otherwise via the CAN_MOUNT_TMPFS
+# environment variable.
+if [[ -z "${CAN_MOUNT_TMPFS}" ]] || [[ "${CAN_MOUNT_TMPFS}" -eq 1 ]]; then
   if ! grep -qs "${STORAGE_DIR_TMPFS}" "/proc/mounts"; then
     echo " Missing tmpfs mount at ${STORAGE_DIR_TMPFS}"
 

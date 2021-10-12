@@ -51,7 +51,7 @@
         'collect_deploy_content_extra_args': [ '--use_absolute_symlinks' ],
       }
     }],
-    ['cobalt_docker_build == 1 and host_os == "win"', {
+    ['cobalt_docker_build == 1 and host_os == "win" and cobalt_fastbuild != 1', {
       'variables': {
         'collect_deploy_content_extra_args': [ '--copy_override' ],
       }

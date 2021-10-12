@@ -227,7 +227,7 @@ void VideoDecoder::InitializeCodec() {
   Dav1dSettings dav1d_settings{0};
   dav1d_default_settings(&dav1d_settings);
   // TODO: Verify this setting is optimal.
-  dav1d_settings.n_frame_threads = 8;
+  dav1d_settings.n_threads = 8;
 
   Dav1dPicAllocator allocator;
   allocator.cookie = this;  // dav1d refers to context pointers as "cookie".

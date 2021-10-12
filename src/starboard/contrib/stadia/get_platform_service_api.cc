@@ -15,6 +15,7 @@
 #include "starboard/contrib/stadia/get_platform_service_api.h"
 
 #include <algorithm>
+#include <functional>
 #include <memory>
 #include <vector>
 
@@ -22,7 +23,7 @@
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
 #include "starboard/common/string.h"
-#include "starboard/contrib/stadia/clients/vendor/public/stadia_plugin.h"
+#include "starboard/contrib/stadia/stadia_interface.h"
 #include "starboard/event.h"
 #include "starboard/memory.h"
 #include "starboard/window.h"
@@ -44,7 +45,7 @@ struct StadiaPluginSendToData {
 }  // namespace
 
 bool HasPlatformService(const char* name) {
-  return StadiaPluginHas(name);
+  return g_stadia_interface->StadiaPluginHas(name);
 }
 
 CobaltExtensionPlatformService OpenPlatformService(
@@ -57,7 +58,7 @@ CobaltExtensionPlatformService OpenPlatformService(
   SB_DCHECK(context);
   SB_LOG(INFO) << "Open " << service_name.get();
 
-  if (!StadiaPluginHas(&service_name[0])) {
+  if (!g_stadia_interface->StadiaPluginHas(&service_name[0])) {
     SB_LOG(ERROR) << "Cannot open service. Service not found. "
                   << service_name.get();
     return kCobaltExtensionPlatformServiceInvalid;
@@ -71,7 +72,7 @@ CobaltExtensionPlatformService OpenPlatformService(
 
       });
 
-  StadiaPlugin* plugin = StadiaPluginOpen(
+  StadiaPlugin* plugin = g_stadia_interface->StadiaPluginOpen(
       name_c_str,
 
       [](const uint8_t* const message, size_t length, void* user_data) -> void {
@@ -90,7 +91,7 @@ CobaltExtensionPlatformService OpenPlatformService(
 void ClosePlatformService(CobaltExtensionPlatformService service) {
   SB_DCHECK(service);
   auto plugin = reinterpret_cast<StadiaPlugin*>(service);
-  StadiaPluginClose(plugin);
+  g_stadia_interface->StadiaPluginClose(plugin);
 }
 
 void* SendToPlatformService(CobaltExtensionPlatformService service,
@@ -115,11 +116,12 @@ void* SendToPlatformService(CobaltExtensionPlatformService service,
       [](void* context) -> void {
         auto internal_data = std::unique_ptr<StadiaPluginSendToData>(
             static_cast<StadiaPluginSendToData*>(context));
-
         std::vector<uint8_t> plugin_data(internal_data->data);
-        StadiaPluginSendTo(internal_data->plugin,
-                           reinterpret_cast<const char*>(plugin_data.data()),
-                           plugin_data.size());
+
+        g_stadia_interface->StadiaPluginSendTo(
+            internal_data->plugin,
+            reinterpret_cast<const char*>(plugin_data.data()),
+            plugin_data.size());
       },
       send_to_plugin_data.release(), 0);
 
@@ -136,7 +138,7 @@ const CobaltExtensionPlatformServiceApi kPlatformServiceApi = {
 }  // namespace
 
 const void* GetPlatformServiceApi() {
-  return &kPlatformServiceApi;
+  return g_stadia_interface == nullptr ? nullptr : &kPlatformServiceApi;
 }
 
 }  // namespace stadia

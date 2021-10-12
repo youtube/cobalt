@@ -41,6 +41,37 @@ x-shared-build-env: &shared-build-env
   IS_CI: ${IS_CI:-0}
 
 services:
+#### Tools
+  pre-commit:
+    build:
+      context: ./docker/precommit_hooks
+      dockerfile: Dockerfile
+    image: pre-commit
+    volumes:
+    - ${COBALT_SRC:-.}:/code/
+    environment:
+      FROM_REF: ${FROM_REF:-HEAD^1}
+      TO_REF: ${TO_REF:-HEAD}
+
+  docsite:
+    build:
+      context: ./docker/docsite
+      dockerfile: Dockerfile
+    container_name: docsite
+    ports:
+      - "4000:4000"
+    volumes:
+      - ${COBALT_SRC:-.}:/code/
+  docsite-build-only:
+    container_name: docsite-build-only
+    environment:
+      # SITE_DST specifies where the files required to deploy the site should be
+      # placed, and by default this is under the "out" directory.
+      - SITE_DST=${SITE_DST:-/cobalt/out/deploy/www}
+    extends:
+      service: docsite
+
+#### Cobalt build containers
   base:
     build:
       args:

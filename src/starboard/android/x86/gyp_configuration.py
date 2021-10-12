@@ -1,4 +1,4 @@
-# Copyright 2016-2020 The Cobalt Authors. All Rights Reserved.
+# Copyright 2016-2021 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -52,16 +52,6 @@ class Androidx86Configuration(shared_configuration.AndroidConfiguration):
           'AudioDecoderTests/*',
           'VideoDecoderTests/*',
 
-          'PlayerComponentsTests/PlayerComponentsTest.Preroll/*',
-          'PlayerComponentsTests/PlayerComponentsTest.Pause/*',
-
-          'PlayerComponentsTests/PlayerComponentsTest.*/2',
-          'PlayerComponentsTests/PlayerComponentsTest.*/4',
-          'PlayerComponentsTests/PlayerComponentsTest.*/9',
-          'PlayerComponentsTests/PlayerComponentsTest.*/11',
-          'PlayerComponentsTests/PlayerComponentsTest.*/16',
-          'PlayerComponentsTests/PlayerComponentsTest.*/17',
-          'PlayerComponentsTests/PlayerComponentsTest.*/20',
-          'PlayerComponentsTests/PlayerComponentsTest.*/21',
+          'PlayerComponentsTests/*',
       ],
   }

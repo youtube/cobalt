@@ -84,6 +84,8 @@ URLRequestContext::URLRequestContext(
       std::unique_ptr<net::CookieStore>(new net::CookieMonster(
           persistent_cookie_store_, NULL /* channel_id_service */, net_log)));
 
+  set_enable_brotli(true);
+
   base::Optional<net::ProxyConfig> proxy_config;
   if (!custom_proxy.empty()) {
     proxy_config = CreateCustomProxyConfig(custom_proxy);

@@ -159,6 +159,11 @@ class AbstractLauncher(object):
     """Gets the device IP. Must be implemented in subclasses."""
     pass
 
+  @abc.abstractmethod
+  def GetDeviceOutputPath(self):
+    """Writable path where test targets can output files"""
+    pass
+
   def SupportsSuspendResume(self):
     return False
 

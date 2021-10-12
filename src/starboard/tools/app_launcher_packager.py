@@ -31,19 +31,18 @@ import tempfile
 import _env  # pylint: disable=unused-import
 from paths import REPOSITORY_ROOT
 from paths import THIRD_PARTY_ROOT
+
 sys.path.append(THIRD_PARTY_ROOT)
-# pylint: disable=g-import-not-at-top,g-bad-import-order
+# pylint: disable=g-import-not-at-top,g-bad-import-order,wrong-import-position
 from starboard.tools import command_line
 from starboard.tools import log_level
 from starboard.tools import port_symlink
 import starboard.tools.platform
 
 # Default python directories to app launcher resources.
-_INCLUDE_FILE_PATTERNS = [
-    ('cobalt', '*.py'),
-    ('starboard', '*.py'),
-    ('starboard/tools', 'platform.py.template')
-]
+_INCLUDE_FILE_PATTERNS = [('cobalt', '*.py'), ('starboard', '*.py'),
+                          ('starboard', '*.pfx'),
+                          ('starboard/tools', 'platform.py.template')]
 
 _INCLUDE_BLACK_BOX_TESTS_PATTERNS = [
     # Black box and web platform tests have non-py assets, so everything
@@ -128,11 +127,11 @@ def _WritePlatformsInfo(repo_root, dest_root):
     # Store posix paths even on Windows so MH Linux hosts can use them.
     # The template has code to re-normalize them when used on Windows hosts.
     platforms_map[p] = platform_path.replace('\\', '/')
-  template = string.Template(
-      open(os.path.join(current_dir, 'platform.py.template')).read())
-  with open(os.path.join(dest_dir, 'platform.py'), 'w+') as f:
-    sub = template.substitute(platforms_map=platforms_map)
-    f.write(sub.encode('utf-8'))
+  with open(os.path.join(current_dir, 'platform.py.template')) as c:
+    template = string.Template(c.read())
+    with open(os.path.join(dest_dir, 'platform.py'), 'w+') as f:
+      sub = template.substitute(platforms_map=platforms_map)
+      f.write(sub.encode('utf-8'))
   logging.info('Finished baking in platform info files.')
 
 

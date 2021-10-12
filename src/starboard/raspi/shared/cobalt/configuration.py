@@ -22,12 +22,6 @@ from starboard.tools.testing import test_filter
 class CobaltRaspiConfiguration(cobalt_configuration.CobaltConfiguration):
   """Starboard Raspberry Pi shared Cobalt configuration."""
 
-  def __init__(self, platform_configuration, application_name,
-               application_directory):
-    super(CobaltRaspiConfiguration,
-          self).__init__(platform_configuration, application_name,
-                         application_directory)
-
   def GetPostIncludes(self):
     # If there isn't a configuration.gypi found in the usual place, we'll
     # supplement with our shared implementation.
@@ -56,7 +50,7 @@ class CobaltRaspiConfiguration(cobalt_configuration.CobaltConfiguration):
         test_filter.TestFilter('renderer_test',
                                'PixelTest.CircularSubPixelBorder'),
         test_filter.TestFilter('renderer_test',
-                               'PixelTest.FilterBlurred100PxText')
+                               'PixelTest.FilterBlurred100PxText'),
     ])
     return filters
 

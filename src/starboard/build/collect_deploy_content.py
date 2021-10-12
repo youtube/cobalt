@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Builds a symlink farm pointing to specified subdirectories of the input dir."""
+"""Builds a symlink farm pointing to specified subdirs of the input dir."""
 
 import argparse
 import logging
@@ -21,7 +21,7 @@ import shutil
 import sys
 
 import _env  # pylint: disable=unused-import
-import starboard.tools.port_symlink as port_symlink
+from starboard.tools import port_symlink
 from starboard.tools import log_level
 
 # The name of an environment variable that when set to |'1'|, signals to us that
@@ -60,6 +60,7 @@ def _CheckDepth(max_depth, content_dir):
     raise RuntimeError('Content is %d levels deep (max allowed is %d): %s' %
                        (depth, max_depth, deepest_file))
 
+
 def _CopyTree(src_path, dst_path):
   """Copy tree with a safeguard for windows long path (>260).
 
@@ -73,6 +74,7 @@ def _CopyTree(src_path, dst_path):
     if prefix not in dst_path:
       dst_path = prefix + dst_path
   shutil.copytree(src_path, dst_path)
+
 
 def main(argv):
   parser = argparse.ArgumentParser()

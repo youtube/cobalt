@@ -54,7 +54,7 @@ class PlaybackStatistics {
   base::CVal<bool> is_video_eos_written_;
   base::CVal<PipelineStatus> pipeline_status_;
   base::CVal<std::string> error_message_;
-  bool is_initial_config_ = true;
+  bool has_active_instance_ = false;
   bool is_first_audio_buffer_written_ = false;
   bool is_first_video_buffer_written_ = false;
 };
