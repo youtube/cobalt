@@ -375,7 +375,7 @@ class TestRunner(object):
         env_variables[test] = test_env
     return env_variables
 
-  def _RunTest(self, target_name, test_name=None, first_test=False):
+  def _RunTest(self, target_name, test_name=None):
     """Runs a specific target or test and collects the output.
 
     Args:
@@ -408,10 +408,6 @@ class TestRunner(object):
       gtest_filter_value = "-" + ":".join(self.test_targets[target_name])
     if gtest_filter_value:
       test_params.append("--gtest_filter=" + gtest_filter_value)
-
-    # Only restart and deploy for the first test.
-    if not first_test:
-      test_params.append("--restart=False --deploy=False")
 
     def MakeLauncher():
       return abstract_launcher.LauncherFactory(
@@ -760,11 +756,9 @@ class TestRunner(object):
       True if the test run succeeded, False if not.
     """
     results = []
-    first_test = True
     # Sort the targets so they are run in alphabetical order
     for test_target in sorted(self.test_targets.keys()):
-      results.append(self._RunTest(test_target, None, first_test))
-      first_test = False
+      results.append(self._RunTest(test_target))
 
     return self._ProcessAllTestResults(results)
 
