@@ -13,7 +13,6 @@
 // limitations under the License.
 
 #include <memory>
-#include <vector>
 
 #include "cobalt/h5vcc/h5vcc_account_manager.h"
 
@@ -162,8 +161,6 @@ void H5vccAccountManager::SendResult(
   token_callback->value().Run(token, expiration_in_seconds);
   delete token_callback;
 }
-
-bool H5vccAccountManager::disabled() const { return false; }
 
 }  // namespace h5vcc
 }  // namespace cobalt

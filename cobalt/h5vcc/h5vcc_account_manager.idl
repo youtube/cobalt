@@ -19,9 +19,6 @@ interface H5vccAccountManager {
   void getAuthToken(AccessTokenCallback callback);
   void requestPairing(AccessTokenCallback callback);
   void requestUnpairing(AccessTokenCallback callback);
-
-  // True if this interface should not be used.
-  readonly attribute boolean disabled;
 };
 
 callback AccessTokenCallback = boolean(DOMString token,
