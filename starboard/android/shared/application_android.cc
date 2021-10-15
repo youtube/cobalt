@@ -264,13 +264,6 @@ void ApplicationAndroid::ProcessAndroidCommand() {
 #else   // SB_API_VERSION >= 13
         DispatchStart();
 #endif  // SB_API_VERSION >= 13
-      } else if (state() == kStateConcealed || state() == kStateFrozen) {
-#if SB_API_VERSION >= 13
-        DispatchAndDelete(
-            new Event(kSbEventTypeReveal, SbTimeGetMonotonicNow(), NULL, NULL));
-#else   // SB_API_VERSION >= 13
-        DispatchAndDelete(new Event(kSbEventTypeReveal, NULL, NULL));
-#endif  // SB_API_VERSION >= 13
       } else {
         // Now that we got a window back, change the command for the switch
         // below to sync up with the current activity lifecycle.
