@@ -13,10 +13,10 @@ it's uncertain how much progress is being made. \
 Here are the steps to do your migration:
 
 1.  [Copy stub files over to your platform and build them](#copy-stub-files-over-to-your-platform-and-build-them).
-2.  [Replace stub toolchain with your platform's toolchain](#replace-stub-toolchain-with-your-platforms-toolchain).
-3.  [Replace stub configuration with your platform's configuration](#replace-stub-configuration-with-your-platforms-configuration).
+2.  [Replace stub toolchain with your platform's toolchain](#replace-stub-toolchain).
+3.  [Replace stub configuration with your platform's configuration](#replace-stub-configuration).
 4.  [Replace stubbed starboard_platform target sources with your platform's
-    sources](#replace-stubbed-starboardplatform-sources-with-your-platforms-sources).
+    sources](#replace-stubbed-starboard).
 
 After each step, you should be able to build the starboard_platform target.
 For example, you would build raspi2 starboard_platform target with the following
@@ -43,21 +43,21 @@ those files:
     *   starboard/stub/toolchain/BUILD.gn >
         starboard/YOUR_PLATFORM/toolchain/BUILD.gn
 2.  Add your platform path to starboard/build/platforms.gni as referenced
-    [here](../migrating_gyp_to_gn.md#adding-your-platform-to-starboard)
+    [here](./migrating_gyp_to_gn.md#adding-your-platform-to-starboard)
 3.  Resolve any errors which come up for missing/incorrect file paths. Then, you
     should be able to build your platform target with the stubbed out files
     suggested in the above section.
 
-### Replace Stub Toolchain with Your Platform's Toolchain
+### Replace Stub Toolchain with Your Platform's Toolchain {#replace-stub-toolchain}
 
-Follow instructions [here](../migrating_gyp_to_gn.md#migrating-a-toolchain) for
+Follow instructions [here](./migrating_gyp_to_gn.md#migrating-a-toolchain) for
 migrating the toolchain. Resolve errors and build the starboard_platform target
 with the stubbed files.
 
-### Replace Stub Configuration with Your Platform's Configuration
+### Replace Stub Configuration with Your Platform's Configuration {#replace-stub-configuration}
 
 This involves migrating the compiler flags and build variables as referenced
-[here](../migrating_gyp_to_gn.md#migrating-a-platform).
+[here](./migrating_gyp_to_gn.md#migrating-a-platform).
 
 > **Highly recommended** \
 > It’s good to turn off the `treat_warnings_as_errors flag` until you can compile
@@ -74,10 +74,10 @@ This involves migrating the compiler flags and build variables as referenced
 
 Resolve errors and build the starboard_platform target with the stubbed files.
 
-### Replace Stubbed starboard_platform Sources with Your Platform's Sources
+### Replace Stubbed starboard_platform Sources with Your Platform's Sources {#replace-stubbed-starboard}
 
 This involves adding files for the starboard_platform target as suggested
-[here](../migrating_gyp_to_gn.md#migrating-a-platform).
+[here](./migrating_gyp_to_gn.md#migrating-a-platform).
 
 While building any target, follow the recommendation above of building the
 target with `treat_warnings_as_errors=false`.
@@ -114,9 +114,9 @@ Once you can build your platform files, you can remove the
     *   Are the compiler flags for this file the same as in GYP ?
 
         > To compare flags for GYP vs GN refer
-        > [section](../migrating_gyp_to_gn.md#validating-a-target). To check if
+        > [section](./migrating_gyp_to_gn.md#validating-a-target). To check if
         > the variables/flags you are compiling have changed since GYP, refer
-        > [page](../migration_changes.md).
+        > [page](./migration_changes.md).
 
     *   Have you passed in the default arguments for your platform correctly?
 
