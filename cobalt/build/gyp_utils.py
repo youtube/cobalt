@@ -34,13 +34,11 @@ BUILD_ID_PATH = os.path.join(paths.BUILD_ROOT, 'build.id')
 
 
 def CheckRevInfo(key, cwd=None):
-  cwd = cwd if cwd else '.'
-  git_prefix = ['git', '-C', cwd]
-  git_get_remote_args = git_prefix + ['config', '--get', 'remote.origin.url']
-  remote = subprocess.check_output(git_get_remote_args).strip()
+  git_get_remote_args = ['git', 'config', '--get', 'remote.origin.url']
+  remote = subprocess.check_output(git_get_remote_args, cwd=cwd).strip()
 
-  git_get_revision_args = git_prefix + ['rev-parse', 'HEAD']
-  revision = subprocess.check_output(git_get_revision_args).strip()
+  git_get_revision_args = ['git', 'rev-parse', 'HEAD']
+  revision = subprocess.check_output(git_get_revision_args, cwd=cwd).strip()
   return {key: '{}@{}'.format(remote, revision)}
 
 
@@ -70,7 +68,11 @@ def GetRevinfo():
     try:
       repos.update(CheckRevInfo(rel_path, cwd=path))
     except subprocess.CalledProcessError as e:
-      logging.warning('Failed to get revision information for subrepo: %s', e)
+      logging.warning('Failed to get revision information for subrepo %s: %s',
+                      rel_path, e)
+      continue
+    except OSError as e:
+      logging.info('%s. Subrepository %s not found.', e, rel_path)
       continue
 
   return repos
