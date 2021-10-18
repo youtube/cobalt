@@ -79,7 +79,8 @@ static_library("foo") {
 ```
 
 You also may need to remove default configs. The default configs are listed in
-[BUILDCONFIG.gn](../config/BUILDCONFIG.gn). You remove a config like so:
+[BUILDCONFIG.gn](https://cobalt.googlesource.com/cobalt/+/refs/heads/master/src/starboard/build/config/BUILDCONFIG.gn).
+You remove a config like so:
 
 ```
 static_library("foo") {
@@ -144,8 +145,9 @@ Some of these files need to define certain targets:
 
 Instead of implicitly searching directories for certain files like GYP did, we
 explicitly enumerate our ports and their locations.
-[platforms.gni](../platforms.gni) contains all of this information, and you'll
-need to add your platform to that list following the same format.
+[platforms.gni](https://cobalt.googlesource.com/cobalt/+/refs/heads/master/src/starboard/build/platforms.gni)
+contains all of this information, and you'll need to add your platform to that
+list following the same format.
 
 ### Migrating a Family of Platforms
 
@@ -171,10 +173,10 @@ toolchain("target") {
 
 You may define a toolchain from scratch following the [reference][gn_toolchain],
 or you can use the
-[gcc/clang templates](../../../build/toolchain/gcc_toolchain.gni) provided.
-Almost all of the reference platforms use these templates, so look to those as
-examples for how to use it correctly. Here's the linux-x64x11
-[toolchain/BUILD.gn file](../../linux/x64x11/toolchain/BUILD.gn).
+[gcc/clang templates](https://cobalt.googlesource.com/cobalt/+/refs/heads/master/src/build/toolchain/gcc_toolchain.gni)
+provided. Almost all of the reference platforms use these templates, so look to
+those as examples for how to use it correctly. Here's the linux-x64x11
+[toolchain/BUILD.gn file](https://cobalt.googlesource.com/cobalt/+/refs/heads/master/src/starboard/linux/x64x11/toolchain/BUILD.gn).
 
 ## Checking Your Migration
 
@@ -199,29 +201,36 @@ $ ninja -C out/stub_debug new_target
 ```
 
 If this was equivalent to a GYP target, you can compare the ninja compilation
-databases by using [format_ninja.py](../../../tools/format_ninja.py) and a
-comparison tool, i.e. [meld](https://meldmerge.org/). This will allow you to see
-any changes in commands, i.e. with flags or otherwise.
+databases by using
+[format_ninja.py](https://cobalt.googlesource.com/cobalt/+/refs/heads/master/src/tools/format_ninja.py)
+and a comparison tool, i.e. [meld](https://meldmerge.org/). This will allow you
+to see any changes in commands, i.e. with flags or otherwise.
 
 The following differences for ninja flags between GYP and GN don't cause any
 issues:
 
-1. The name of the intermediate .o, .d files is different in both cases: Here is
-   an example while compiling the same source file
-   ```
-   starboard/common/new.cc
-   ```
-   GYP generates:
-   ```
-   obj/starboard/common/common.new.cc.o
-   ```
-   GN generates:
-   ```
-   obj/starboard/common/common/new.o
-   ```
-2. The `-x` flag for specifying language is not present in GN migration.
-   For example GYP specifies `-x c` flag while building c language files for
-   certain targets. This flag is not specified while building any GN targets.
+1.  The name of the intermediate .o, .d files is different in both cases: Here
+    is an example while compiling the same source file
+
+    ```
+    starboard/common/new.cc
+    ```
+
+    GYP generates:
+
+    ```
+    obj/starboard/common/common.new.cc.o
+    ```
+
+    GN generates:
+
+    ```
+    obj/starboard/common/common/new.o
+    ```
+
+1.  The `-x` flag for specifying language is not present in GN migration. For
+    example GYP specifies `-x c` flag while building c language files for
+    certain targets. This flag is not specified while building any GN targets.
 
 ### Validating a Platform
 
@@ -236,7 +245,7 @@ You can use the same comparison method of using `format_ninja.py` as discussed
 
 ### Step by Step Stub to Your Platform Migration Guide
 
-This [document](../gn_migrate_stub_to_platform.md) outlines a step by step
+This [document](./gn_migrate_stub_to_platform.md) outlines a step by step
 process for converting the stub platform's GN files to GN files that will be
 able to be built for your platform.
 
