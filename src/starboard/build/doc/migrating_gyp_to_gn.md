@@ -236,7 +236,7 @@ You can use the same comparison method of using `format_ninja.py` as discussed
 
 ### Step by Step Stub to Your Platform Migration Guide
 
-This [document](../gn_migrate_stub_to_platform.md) outlines a step by step
+This [document](gn_migrate_stub_to_platform.md) outlines a step by step
 process for converting the stub platform's GN files to GN files that will be
 able to be built for your platform.
 
