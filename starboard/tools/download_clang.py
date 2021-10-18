@@ -26,8 +26,9 @@ import time
 try:
   import requests
 except ImportError:
-  # Fail with an error at call time.
-  requests = None
+  sys.exit('`requests` is required to download the default clang toolchain. '
+           'Please install the `requests` package for the python executable '
+           'used to execute this script.')
 
 
 def DownloadUrl(url, output_file):
@@ -75,8 +76,8 @@ def DownloadAndUnpack(url, output_dir):
     if not os.path.exists(output_dir):
       os.makedirs(output_dir)
 
-    t = tarfile.open(mode='r:gz', fileobj=tmpfile)
-    t.extractall(path=output_dir)
+    with tarfile.open(mode='r:gz', fileobj=tmpfile) as t:
+      t.extractall(path=output_dir)
 
 
 def UpdateClang(target_dir, revision):
