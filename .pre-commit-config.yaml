@@ -134,7 +134,7 @@ repos:
         entry: python precommit_hooks/run_python2_unittests.py
         language: python
         language_version: python2
-        additional_dependencies: ['mock']
+        additional_dependencies: ['mock', 'requests']
         types: [python]
     -   id: osslint
         name: osslint
