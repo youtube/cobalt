@@ -14,6 +14,9 @@
 
 #include "cobalt/media/media_module.h"
 
+#include <algorithm>
+#include <string>
+#include <utility>
 #include <vector>
 
 #include "base/bind.h"
@@ -37,6 +40,57 @@ namespace media {
 
 namespace {
 
+// TODO: Determine if ExtractCodecs() and ExtractEncryptionScheme() can be
+// combined and simplified.
+static std::vector<std::string> ExtractCodecs(const std::string& mime_type) {
+  std::vector<std::string> codecs;
+  std::vector<std::string> components = base::SplitString(
+      mime_type, ";", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
+  LOG_IF(WARNING, components.empty())
+      << "argument mime type \"" << mime_type << "\" is not valid.";
+  // The first component is the type/subtype pair. We want to iterate over the
+  // remaining components to search for the codecs.
+  auto iter = components.begin() + 1;
+  for (; iter != components.end(); ++iter) {
+    std::vector<std::string> name_and_value = base::SplitString(
+        *iter, "=", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
+    if (name_and_value.size() != 2) {
+      LOG(WARNING) << "parameter for mime_type \"" << mime_type
+                   << "\" is not valid.";
+      continue;
+    }
+    if (name_and_value[0] == "codecs") {
+      ParseCodecString(name_and_value[1], &codecs, /* strip= */ false);
+      return codecs;
+    }
+  }
+  return codecs;
+}
+
+static std::string ExtractEncryptionScheme(const std::string& key_system) {
+  std::vector<std::string> components = base::SplitString(
+      key_system, ";", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
+
+  auto iter = components.begin();
+  for (; iter != components.end(); ++iter) {
+    std::vector<std::string> name_and_value = base::SplitString(
+        *iter, "=", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
+    if (name_and_value.size() != 1 && name_and_value.size() != 2) {
+      LOG(WARNING) << "parameter for key_system \"" << key_system
+                   << "\" is not valid.";
+      continue;
+    }
+    if (name_and_value[0] == "encryptionscheme") {
+      if (name_and_value.size() < 2) {
+        return "";
+      }
+      base::RemoveChars(name_and_value[1], "\"", &name_and_value[1]);
+      return name_and_value[1];
+    }
+  }
+  return "";
+}
+
 class CanPlayTypeHandlerStarboard : public CanPlayTypeHandler {
  public:
   void SetDisabledMediaCodecs(
@@ -46,6 +100,15 @@ class CanPlayTypeHandlerStarboard : public CanPlayTypeHandler {
                           base::SPLIT_WANT_NONEMPTY);
     LOG(INFO) << "Disabled media codecs \"" << disabled_media_codecs
               << "\" from console/command line.";
+  }
+
+  void SetDisabledMediaEncryptionSchemes(
+      const std::string& disabled_encryption_schemes) override {
+    disabled_encryption_schemes_ =
+        base::SplitString(disabled_encryption_schemes, ";",
+                          base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
+    LOG(INFO) << "Disabled encryption scheme(s) \""
+              << disabled_encryption_schemes << "\" from command line.";
   }
 
   SbMediaSupportType CanPlayProgressive(
@@ -72,31 +135,6 @@ class CanPlayTypeHandlerStarboard : public CanPlayTypeHandler {
   }
 
  private:
-  std::vector<std::string> ExtractCodecs(const std::string& mime_type) const {
-    std::vector<std::string> codecs;
-    std::vector<std::string> components = base::SplitString(
-        mime_type, ";", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
-    LOG_IF(WARNING, components.empty())
-        << "argument mime type \"" << mime_type << "\" is not valid.";
-    // The first component is the type/subtype pair. We want to iterate over the
-    // remaining components to search for the codecs.
-    auto iter = components.begin() + 1;
-    for (; iter != components.end(); ++iter) {
-      std::vector<std::string> name_and_value = base::SplitString(
-          *iter, "=", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
-      if (name_and_value.size() != 2) {
-        LOG(WARNING) << "parameter for mime_type \"" << mime_type
-                     << "\" is not valid.";
-        continue;
-      }
-      if (name_and_value[0] == "codecs") {
-        ParseCodecString(name_and_value[1], &codecs, /* strip= */ false);
-        return codecs;
-      }
-    }
-    return codecs;
-  }
-
   SbMediaSupportType CanPlayType(const std::string& mime_type,
                                  const std::string& key_system) const {
     if (!disabled_media_codecs_.empty()) {
@@ -111,6 +149,17 @@ class CanPlayTypeHandlerStarboard : public CanPlayTypeHandler {
         }
       }
     }
+
+    if (!disabled_encryption_schemes_.empty()) {
+      std::string encryption_scheme = ExtractEncryptionScheme(key_system);
+      if (std::find(disabled_encryption_schemes_.begin(),
+                    disabled_encryption_schemes_.end(),
+                    encryption_scheme) != disabled_encryption_schemes_.end()) {
+        LOG(INFO) << "Encryption scheme (" << encryption_scheme
+                  << ") is disabled via console/command line.";
+        return kSbMediaSupportTypeNotSupported;
+      }
+    }
     SbMediaSupportType type =
         SbMediaCanPlayMimeAndKeySystem(mime_type.c_str(), key_system.c_str());
     return type;
@@ -118,6 +167,9 @@ class CanPlayTypeHandlerStarboard : public CanPlayTypeHandler {
 
   // List of disabled media codecs that will be treated as unsupported.
   std::vector<std::string> disabled_media_codecs_;
+  // List of disabled DRM encryption schemes that will be treated as
+  // unsupported.
+  std::vector<std::string> disabled_encryption_schemes_;
 };
 
 }  // namespace
