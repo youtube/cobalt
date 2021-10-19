@@ -13,14 +13,14 @@ it's uncertain how much progress is being made. \
 Here are the steps to do your migration:
 
 1.  [Copy stub files over to your platform and build them](#copy-stub-files-over-to-your-platform-and-build-them).
-2.  [Replace stub toolchain with your platform's toolchain](#replace-stub-toolchain).
-3.  [Replace stub configuration with your platform's configuration](#replace-stub-configuration).
-4.  [Replace stubbed starboard_platform target sources with your platform's
-    sources](#replace-stubbed-starboard).
+2.  [Replace stub toolchain with toolchain for your platform](#replace-stub-toolchain-with-toolchain-for-your-platform).
+3.  [Replace stub configuration with configuration for your platform](#replace-stub-configuration-with-configuration-for-your-platform).
+4.  [Replace stubbed starboard_platform sources with sources for your platform](#replace-stubbed-starboard_platform-sources-with-sources-for-your-platform).
 
-After each step, you should be able to build the starboard_platform target.
-For example, you would build raspi2 starboard_platform target with the following
+After each step, you should be able to build the starboard_platform target. For
+example, you would build raspi2 starboard_platform target with the following
 commands:
+
 ```
 $gn gen out/raspi-2gn_devel --args='target_platform="raspi-2" build_type="devel"'
 $ninja -C out/raspi-2gn_devel/ starboard
@@ -48,33 +48,35 @@ those files:
     should be able to build your platform target with the stubbed out files
     suggested in the above section.
 
-### Replace Stub Toolchain with Your Platform's Toolchain {#replace-stub-toolchain}
+### Replace Stub Toolchain with Toolchain for Your Platform
 
 Follow instructions [here](./migrating_gyp_to_gn.md#migrating-a-toolchain) for
 migrating the toolchain. Resolve errors and build the starboard_platform target
 with the stubbed files.
 
-### Replace Stub Configuration with Your Platform's Configuration {#replace-stub-configuration}
+### Replace Stub Configuration with Configuration for Your Platform
 
 This involves migrating the compiler flags and build variables as referenced
 [here](./migrating_gyp_to_gn.md#migrating-a-platform).
 
 > **Highly recommended** \
-> It’s good to turn off the `treat_warnings_as_errors flag` until you can compile
-> the starboard_platform target with the platform files.
-> If this flag is not disabled you might run into a lot of
-> warnings turned errors and it might take time to solve all those errors.
-> Meanwhile you won't be in a buildable state which might make it uncertain as to
-> how much progress you are actually making.
-> For disabling the flag you can pass that as an argument to gn.
-> Here's an example for disabling the flag for raspi2:
+> It’s good to turn off the `treat_warnings_as_errors flag` until you can
+> compile the starboard_platform target with the platform files. If this flag is
+> not disabled you might run into a lot of warnings turned errors and it might
+> take time to solve all those errors. Meanwhile you won't be in a buildable
+> state which might make it uncertain as to how much progress you are actually
+> making. For disabling the flag you can pass that as an argument to gn. Here's
+> an example for disabling the flag for raspi2:
+>
 > ```
-> $gn gen out/raspi-2gn_devel --args='target_platform="raspi-2" build_type="devel" treat_warnings_as_errors=false'
+> $gn gen out/raspi-2gn_devel
+> --args='target_platform="raspi-2" build_type="devel"
+> treat_warnings_as_errors=false'
 > ```
 
 Resolve errors and build the starboard_platform target with the stubbed files.
 
-### Replace Stubbed starboard_platform Sources with Your Platform's Sources {#replace-stubbed-starboard}
+### Replace Stubbed starboard_platform Sources with Sources for Your Platform
 
 This involves adding files for the starboard_platform target as suggested
 [here](./migrating_gyp_to_gn.md#migrating-a-platform).
@@ -123,6 +125,7 @@ Once you can build your platform files, you can remove the
         > Default variables such as `target_cpu`, `target_os` and others can be
         > overridden by passing arguments to gn while building. Here's an
         > example of passing the default argument `target_cpu` for raspi2:
+        >
         > ```
         > $gn gen out/raspi-2gn_devel --args='target_platform="raspi-2" build_type="devel" target_cpu="arm"'
         > ```
