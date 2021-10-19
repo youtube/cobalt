@@ -507,16 +507,17 @@ reference.
 
 ### Fonts
 The system font directory `kSbSystemPathFontDirectory` should be configured to
-point to the `standard` (23MB) or the `limited` (3.1MB) cobalt font packages. An
-easy way to do that is to use the `kSbSystemPathContentDirectory` to contain
-the system font directory and setting the `cobalt_font_package` to `standard` or
-`limited` in your port.
+point to either the system fonts on the device or the Cobalt `standard` (23MB)
+or the Cobalt `limited` (3.1MB) font packages. An easy way to use the Cobalt
+fonts is to set `kSbSystemPathFontDirectory` to point to
+`kSbSystemPathContentDirectory/fonts` and configure `cobalt_font_package` to
+`standard` or `limited` in your port.
 
 Cobalt Evergreen (built by Google), will by default use the `empty` font
 package to minimize storage requirements. A separate
 `cobalt_font_package` variable is set to `empty` in the Evergreen platform.
 
-On Raspberry Pi this is:
+On Raspberry Pi the Cobalt fonts are configured the following way:
 
 `empty` set of fonts under:
 ```
