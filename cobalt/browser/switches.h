@@ -41,6 +41,8 @@ extern const char kDisableImageAnimationsHelp[];
 extern const char kForceDeterministicRendering[];
 extern const char kDisableMediaCodecs[];
 extern const char kDisableMediaCodecsHelp[];
+extern const char kDisableMediaEncryptionSchemes[];
+extern const char kDisableMediaEncryptionSchemesHelp[];
 extern const char kDisableRasterizerCaching[];
 extern const char kDisableSignIn[];
 extern const char kDisableSignInHelp[];

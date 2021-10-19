@@ -30,6 +30,8 @@ class CanPlayTypeHandler {
   virtual SbMediaSupportType CanPlayAdaptive(
       const std::string& mime_type, const std::string& key_system) const = 0;
   virtual void SetDisabledMediaCodecs(const std::string& codecs) = 0;
+  virtual void SetDisabledMediaEncryptionSchemes(
+      const std::string& disabled_encryption_schemes) = 0;
 
  protected:
   CanPlayTypeHandler() {}
