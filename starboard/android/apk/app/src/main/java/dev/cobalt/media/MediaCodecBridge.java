@@ -23,6 +23,7 @@ import static dev.cobalt.media.Log.TAG;
 import android.media.AudioFormat;
 import android.media.MediaCodec;
 import android.media.MediaCodec.CryptoInfo;
+import android.media.MediaCodec.CryptoInfo.Pattern;
 import android.media.MediaCodecInfo.CodecCapabilities;
 import android.media.MediaCodecInfo.VideoCapabilities;
 import android.media.MediaCrypto;
@@ -923,31 +924,22 @@ class MediaCodecBridge {
       int[] numBytesOfEncryptedData,
       int numSubSamples,
       int cipherMode,
-      int patternEncrypt,
-      int patternSkip,
+      int blocksToEncrypt,
+      int blocksToSkip,
       long presentationTimeUs) {
     resetLastPresentationTimeIfNeeded(presentationTimeUs);
     try {
-      boolean usesCbcs =
-          Build.VERSION.SDK_INT >= 24 && cipherMode == MediaCodec.CRYPTO_MODE_AES_CBC;
-
-      if (usesCbcs) {
-        Log.e(TAG, "Encryption scheme 'cbcs' not supported on this platform.");
-        return MEDIA_CODEC_ERROR;
-      }
       CryptoInfo cryptoInfo = new CryptoInfo();
       cryptoInfo.set(
           numSubSamples, numBytesOfClearData, numBytesOfEncryptedData, keyId, iv, cipherMode);
-      if (patternEncrypt != 0 && patternSkip != 0) {
-        if (usesCbcs) {
-          // Above platform check ensured that setting the pattern is indeed supported.
-          // MediaCodecUtil.setPatternIfSupported(cryptoInfo, patternEncrypt, patternSkip);
-          Log.e(TAG, "Only AES_CTR is supported.");
-        } else {
-          Log.e(TAG, "Pattern encryption only supported for 'cbcs' scheme (CBC mode).");
-          return MEDIA_CODEC_ERROR;
-        }
+
+      if (Build.VERSION.SDK_INT >= 24 && cipherMode == MediaCodec.CRYPTO_MODE_AES_CBC) {
+        cryptoInfo.setPattern(new Pattern(blocksToEncrypt, blocksToSkip));
+      } else if (blocksToEncrypt != 0 || blocksToSkip != 0) {
+        Log.e(TAG, "Pattern encryption only supported for 'cbcs' scheme (CBC mode).");
+        return MEDIA_CODEC_ERROR;
       }
+
       mMediaCodec.queueSecureInputBuffer(index, offset, cryptoInfo, presentationTimeUs, 0);
     } catch (MediaCodec.CryptoException e) {
       int errorCode = e.getErrorCode();
