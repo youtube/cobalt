@@ -544,11 +544,6 @@ void SbPlayerPipeline::Stop(const base::Closure& stop_cb) {
   error_cb_.Reset();
   if (demuxer_) {
     stop_cb_ = stop_cb;
-    {
-      base::AutoLock auto_lock(lock_);
-      audio_stream_ = nullptr;
-      video_stream_ = nullptr;
-    }
     demuxer_->Stop();
     OnDemuxerStopped();
   } else {
