@@ -39,7 +39,7 @@ RUN curl --location --silent --output /tmp/gn.zip \
 WORKDIR /code
 
 ENV PRE_COMMIT_COLOR=always
-ENV SKIP=test-download-from-gcs-helper,check-bug-in-commit-message,run-py2-tests,check-if-starboard-interface-changed,hadolint-docker
+ENV SKIP=test-download-from-gcs-helper,check-bug-in-commit-message,run-py2-tests,check-if-starboard-interface-changed
 
 CMD pre-commit install -t pre-push -t pre-commit && \
     (pre-commit run --from-ref ${FROM_REF} --to-ref ${TO_REF} --hook-stage commit; \
