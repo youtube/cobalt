@@ -14,19 +14,4 @@
 
 group("gn_all") {
   testonly = true
-
-  deps = [
-    "//cobalt:gn_all",
-    "//starboard:gn_all",
-  ]
-}
-
-group("default") {
-  testonly = true
-
-  if (is_qa || is_gold) {
-    deps = [ "//starboard" ]
-  } else {
-    deps = [ ":gn_all" ]
-  }
 }
