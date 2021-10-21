@@ -220,7 +220,9 @@ void SbPlayerWriteSampleTest::SetUp() {
 }
 
 void SbPlayerWriteSampleTest::TearDown() {
-  SB_DCHECK(SbPlayerIsValid(player_));
+  if (!SbPlayerIsValid(player_)) {
+    return;
+  }
 
   ASSERT_FALSE(destroy_player_called_);
   destroy_player_called_ = true;
