@@ -1,0 +1,105 @@
+# Copyright 2021 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+static_library("nb") {
+  if (is_starboard) {
+    sources = [
+      "allocator.cc",
+      "allocator.h",
+      "analytics/memory_tracker.cc",
+      "analytics/memory_tracker.h",
+      "analytics/memory_tracker_helpers.cc",
+      "analytics/memory_tracker_helpers.h",
+      "analytics/memory_tracker_impl.cc",
+      "analytics/memory_tracker_impl.h",
+      "bidirectional_fit_reuse_allocator.cc",
+      "bidirectional_fit_reuse_allocator.h",
+      "bit_cast.h",
+      "concurrent_map.h",
+      "concurrent_ptr.h",
+      "first_fit_reuse_allocator.cc",
+      "first_fit_reuse_allocator.h",
+      "fixed_no_free_allocator.cc",
+      "fixed_no_free_allocator.h",
+      "hash.cc",
+      "hash.h",
+      "memory_pool.h",
+      "memory_scope.cc",
+      "memory_scope.h",
+      "move.h",
+      "multipart_allocator.cc",
+      "multipart_allocator.h",
+      "pointer_arithmetic.h",
+      "rect.h",
+      "ref_counted.cc",
+      "ref_counted.h",
+      "reuse_allocator_base.cc",
+      "reuse_allocator_base.h",
+      "rewindable_vector.h",
+      "scoped_ptr.h",
+      "simple_profiler.cc",
+      "simple_profiler.h",
+      "simple_thread.cc",
+      "simple_thread.h",
+      "starboard_aligned_memory_deleter.h",
+      "starboard_memory_allocator.h",
+      "std_allocator.h",
+      "string_interner.cc",
+      "string_interner.h",
+      "thread_collision_warner.cc",
+      "thread_collision_warner.h",
+      "thread_local_boolean.h",
+      "thread_local_object.h",
+      "thread_local_pointer.h",
+    ]
+
+    deps = [
+      "//starboard:starboard_headers_only",
+      "//starboard/common",
+    ]
+  }
+}
+
+target(gtest_target_type, "nb_test") {
+  testonly = true
+
+  if (is_starboard) {
+    sources = [
+      "analytics/memory_tracker_helpers_test.cc",
+      "analytics/memory_tracker_impl_test.cc",
+      "analytics/memory_tracker_test.cc",
+      "bidirectional_fit_reuse_allocator_test.cc",
+      "concurrent_map_test.cc",
+      "concurrent_ptr_test.cc",
+      "first_fit_reuse_allocator_test.cc",
+      "fixed_no_free_allocator_test.cc",
+      "memory_scope_test.cc",
+      "multipart_allocator_test.cc",
+      "rewindable_vector_test.cc",
+      "run_all_unittests.cc",
+      "simple_profiler_test.cc",
+      "std_allocator_test.cc",
+      "string_interner_test.cc",
+      "test_thread.h",
+      "thread_local_object_test.cc",
+    ]
+
+    deps = [
+      ":nb",
+      "//starboard",
+      "//testing/gmock:gmock",
+      "//testing/gtest",
+    ]
+  }
+}
