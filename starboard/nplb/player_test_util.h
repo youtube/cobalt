@@ -70,7 +70,8 @@ SbPlayer CallSbPlayerCreate(
     SbDecodeTargetGraphicsContextProvider* context_provider);
 
 bool IsOutputModeSupported(SbPlayerOutputMode output_mode,
-                           SbMediaVideoCodec codec);
+                           SbMediaAudioCodec audio_codec,
+                           SbMediaVideoCodec video_codec);
 
 }  // namespace nplb
 }  // namespace starboard
