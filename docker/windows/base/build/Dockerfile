@@ -82,3 +82,6 @@ RUN (New-Object Net.WebClient).DownloadFile(`
     -ArgumentList "/S","/D","C:\gcloud-sdk","/noreporting";`
     Remove-Item -Path C:\GoogleCloudSDKInstaller.exe;`
     cmd /S /C setx BOTO_PATH 'C:\Users\ContainerAdministrator\.boto'
+
+# Configure common env vars.
+ENV NINJA_STATUS="[%f/%t %c/sec] "
