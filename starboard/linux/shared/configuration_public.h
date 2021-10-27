@@ -271,12 +271,6 @@
 #define SB_CAN_MAP_EXECUTABLE_MEMORY 1
 
 #if SB_API_VERSION < 12
-// Whether this platform has and should use an growable heap (e.g. with sbrk())
-// to map physical memory to the virtual address space.
-#define SB_HAS_VIRTUAL_REGIONS 0
-#endif  // SB_API_VERSION < 12
-
-#if SB_API_VERSION < 12
 // Specifies the alignment for IO Buffers, in bytes. Some low-level network APIs
 // may require buffers to have a specific alignment, and this is the place to
 // specify that.
@@ -289,7 +283,7 @@
 #endif  // SB_API_VERSION < 12
 
 #if SB_API_VERSION < 12
-// Determines the threshhold of allocation size that should be done with mmap
+// Determines the threshold of allocation size that should be done with mmap
 // (if available), rather than allocated within the core heap.
 #define SB_DEFAULT_MMAP_THRESHOLD ((size_t)(256 * 1024U))
 #endif  // SB_API_VERSION < 12
