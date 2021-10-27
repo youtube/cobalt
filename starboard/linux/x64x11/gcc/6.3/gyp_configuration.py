@@ -14,16 +14,18 @@
 """Starboard Linux X64 X11 gcc 6.3 platform configuration for gyp_cobalt."""
 
 import os
-import subprocess
 
 from starboard.linux.shared import gyp_configuration as shared_configuration
-from starboard.tools import build
 from starboard.tools.toolchain import ar
 from starboard.tools.toolchain import bash
 from starboard.tools.toolchain import clang
 from starboard.tools.toolchain import clangxx
 from starboard.tools.toolchain import cp
 from starboard.tools.toolchain import touch
+
+# Directory for GCC 6.3 if it is installed as a system dependency.
+_DEFAULT_GCC_6_3_BIN_DIR = '/usr/bin'
+_DEFAULT_GCC_6_3_LIB_DIR = '/usr/lib/gcc/x86_64-linux-gnu/6.3.0'
 
 
 class LinuxX64X11Gcc63Configuration(shared_configuration.LinuxConfiguration):
@@ -33,19 +35,15 @@ class LinuxX64X11Gcc63Configuration(shared_configuration.LinuxConfiguration):
                platform='linux-x64x11-gcc-6-3',
                asan_enabled_by_default=False,
                sabi_json_path='starboard/sabi/default/sabi.json'):
-    super(LinuxX64X11Gcc63Configuration, self).__init__(
-        platform,
-        asan_enabled_by_default,
-        sabi_json_path)
+    super(LinuxX64X11Gcc63Configuration,
+          self).__init__(platform, asan_enabled_by_default, sabi_json_path)
+    self.toolchain_bin_dir = _DEFAULT_GCC_6_3_BIN_DIR
+    self.toolchain_lib_dir = _DEFAULT_GCC_6_3_LIB_DIR
 
-    self.toolchain_dir = os.path.join(build.GetToolchainsDir(),
-                                      'x86_64-linux-gnu-gcc-6.3.0', 'gcc')
-
-  def SetupPlatformTools(self, build_number):
-    # Run the script that ensures gcc 6.3.0 is installed.
-    script_path = os.path.dirname(os.path.realpath(__file__))
-    subprocess.call(
-        os.path.join(script_path, 'download_gcc.sh'), cwd=script_path)
+  def SetupPlatformTools(self, build_number):  # pylint: disable=unused-argument
+    if not (os.path.exists(os.path.join(self.toolchain_bin_dir, 'g++')) and
+            os.path.exists(os.path.join(self.toolchain_bin_dir, 'gcc'))):
+      raise RuntimeError('GCC 6.3 dependency is not present on this system.')
 
   def GetVariables(self, configuration):
     variables = super(LinuxX64X11Gcc63Configuration,
@@ -53,28 +51,29 @@ class LinuxX64X11Gcc63Configuration(shared_configuration.LinuxConfiguration):
     variables.update({
         'clang': 0,
     })
-    toolchain_lib_path = os.path.join(self.toolchain_dir, 'lib64')
     variables.update({
-        'toolchain_lib_path': toolchain_lib_path,
+        'toolchain_lib_path': self.toolchain_lib_dir,
     })
     return variables
 
   def GetEnvironmentVariables(self):
-    toolchain_bin_dir = os.path.join(self.toolchain_dir, 'bin')
-
     env_variables = {
-        'CC': self.build_accelerator + ' ' + os.path.join(toolchain_bin_dir,
-                                                          'gcc'),
-        'CXX': self.build_accelerator + ' ' + os.path.join(toolchain_bin_dir,
-                                                           'g++'),
-        'CC_HOST': self.build_accelerator + ' ' + os.path.join(
-            toolchain_bin_dir, 'gcc'),
-        'CXX_HOST': self.build_accelerator + ' ' + os.path.join(
-            toolchain_bin_dir, 'g++'),
+        'CC':
+            self.build_accelerator + ' ' +
+            os.path.join(self.toolchain_bin_dir, 'gcc'),
+        'CXX':
+            self.build_accelerator + ' ' +
+            os.path.join(self.toolchain_bin_dir, 'g++'),
+        'CC_HOST':
+            self.build_accelerator + ' ' +
+            os.path.join(self.toolchain_bin_dir, 'gcc'),
+        'CXX_HOST':
+            self.build_accelerator + ' ' +
+            os.path.join(self.toolchain_bin_dir, 'g++'),
     }
     return env_variables
 
-  def GetTargetToolchain(self, **kwargs):
+  def GetTargetToolchain(self, **kwargs):  # pylint: disable=unused-argument
     environment_variables = self.GetEnvironmentVariables()
     cc_path = environment_variables['CC']
     cxx_path = environment_variables['CXX']
@@ -92,7 +91,7 @@ class LinuxX64X11Gcc63Configuration(shared_configuration.LinuxConfiguration):
         bash.Shell(),
     ]
 
-  def GetHostToolchain(self, **kwargs):
+  def GetHostToolchain(self, **kwargs):  # pylint: disable=unused-argument
     environment_variables = self.GetEnvironmentVariables()
     cc_path = environment_variables['CC_HOST']
     cxx_path = environment_variables['CXX_HOST']
