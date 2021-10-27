@@ -96,6 +96,10 @@ class ApplicationAndroid
 
   void SendDateTimeConfigurationChangedEvent();
 
+  // Methods to start/stop Media playback service.
+  void StartMediaPlaybackService();
+  void StopMediaPlaybackService();
+
  protected:
   // --- Application overrides ---
   void Initialize() override;
@@ -139,10 +143,6 @@ class ApplicationAndroid
   void ProcessAndroidCommand();
   void ProcessAndroidInput();
   void ProcessKeyboardInject();
-
-  // Methods to start/stop Media playback service.
-  void StartMediaPlaybackService();
-  void StopMediaPlaybackService();
 };
 
 }  // namespace shared
