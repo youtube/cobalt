@@ -20,6 +20,8 @@ group("starboard_platform") {
 static_library("starboard_platform_sources") {
   check_includes = false
 
+  has_pedantic_warnings = true
+
   sources = [
     "//starboard/linux/shared/atomic_public.h",
     "//starboard/linux/shared/configuration_constants.cc",
@@ -386,11 +388,7 @@ static_library("starboard_platform_sources") {
     ]
   }
 
-  configs += [
-    "//starboard/build/config:pedantic_warnings",
-    "//starboard/build/config:starboard_implementation",
-  ]
-  configs -= [ "//starboard/build/config:no_pedantic_warnings" ]
+  configs += [ "//starboard/build/config:starboard_implementation" ]
 
   public_deps = [
     ":starboard_base_symbolize",
