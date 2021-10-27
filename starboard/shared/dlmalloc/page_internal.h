@@ -80,26 +80,6 @@ int64_t SbPageGetUnallocatedPhysicalMemoryBytes();
 // always be a multiple of kSbMemoryPageSize.
 size_t SbPageGetMappedBytes();
 
-// Declaration of the allocator API.
-
-#if defined(ADDRESS_SANITIZER)
-#define SB_ALLOCATOR_PREFIX
-#include <stdlib.h>
-#else
-#define SB_ALLOCATOR_PREFIX dl
-#endif
-
-#define SB_ALLOCATOR_MANGLER_2(prefix, fn) prefix##fn
-#define SB_ALLOCATOR_MANGLER(prefix, fn) SB_ALLOCATOR_MANGLER_2(prefix, fn)
-#define SB_ALLOCATOR(fn) SB_ALLOCATOR_MANGLER(SB_ALLOCATOR_PREFIX, fn)
-
-void SB_ALLOCATOR(_malloc_init)();
-void SB_ALLOCATOR(_malloc_finalize)();
-void* SB_ALLOCATOR(malloc)(size_t size);
-void* SB_ALLOCATOR(memalign)(size_t align, size_t size);
-void* SB_ALLOCATOR(realloc)(void* ptr, size_t size);
-void SB_ALLOCATOR(free)(void* ptr);
-
 #ifdef __cplusplus
 }  // extern "C"
 #endif
