@@ -250,10 +250,6 @@ void ApplicationAndroid::ProcessAndroidCommand() {
       // Now that we have the window, signal that the Android UI thread can
       // continue, before we start or resume the Starboard app.
       android_command_condition_.Signal();
-      // Media playback service is tied to UI window being created/destroyed
-      // (rather than to the Activity lifecycle), the service should be
-      // stopped before native window being created.
-      StopMediaPlaybackService();
     }
       if (state() == kStateUnstarted) {
         // This is the initial launch, so we have to start Cobalt now that we
@@ -291,10 +287,6 @@ void ApplicationAndroid::ProcessAndroidCommand() {
         // Now that we've suspended the Starboard app, and let go of the window,
         // signal that the Android UI thread can continue.
         android_command_condition_.Signal();
-        // Media playback service is tied to UI window being created/destroyed
-        // (rather than to the Activity lifecycle). The service should be
-        // started after window being destroyed.
-        StartMediaPlaybackService();
       }
       break;
 

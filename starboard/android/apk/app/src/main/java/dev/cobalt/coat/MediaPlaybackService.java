@@ -25,11 +25,13 @@ import android.content.Intent;
 import android.os.Build;
 import android.os.Build.VERSION;
 import android.os.IBinder;
+import android.os.RemoteException;
 import androidx.annotation.RequiresApi;
 import androidx.core.app.NotificationCompat;
 import dev.cobalt.util.Log;
 import dev.cobalt.util.UsedByNative;
 
+/** Implementation of the MediaPlaybackService used for Background mode media playing. */
 public class MediaPlaybackService extends Service {
 
   private static final int NOTIFICATION_ID = 193266736; // CL number for uniqueness.
@@ -51,8 +53,8 @@ public class MediaPlaybackService extends Service {
   public int onStartCommand(Intent intent, int flags, int startId) {
     Log.i(TAG, "Cold start - Starting the service.");
     startService();
-    // We don't want the system to recreate a service for us.
-    return START_NOT_STICKY;
+    // It is better for background media playback service.
+    return START_STICKY;
   }
 
   @Override
@@ -74,7 +76,11 @@ public class MediaPlaybackService extends Service {
 
   public void startService() {
     createChannel();
-    startForeground(NOTIFICATION_ID, buildNotification());
+    try {
+      startForeground(NOTIFICATION_ID, buildNotification());
+    } catch (IllegalStateException e) {
+      Log.e(TAG, "Failed to start Foreground Service", e);
+    }
   }
 
   public void stopService() {
@@ -95,12 +101,16 @@ public class MediaPlaybackService extends Service {
 
   private void createChannel() {
     if (Build.VERSION.SDK_INT >= 26) {
-      createChannelInternalV26();
+      try {
+        createChannelInternalV26();
+      } catch (RemoteException e) {
+        Log.e(TAG, "Failed to create Notification Channel.", e);
+      }
     }
   }
 
   @RequiresApi(26)
-  private void createChannelInternalV26() {
+  private void createChannelInternalV26() throws RemoteException {
     NotificationManager notificationManager =
         (NotificationManager) this.getSystemService(Context.NOTIFICATION_SERVICE);
     NotificationChannel channel =
@@ -109,11 +119,7 @@ public class MediaPlaybackService extends Service {
             NOTIFICATION_CHANNEL_NAME,
             notificationManager.IMPORTANCE_DEFAULT);
     channel.setDescription("Channel for showing persistent notification");
-    try {
-      notificationManager.createNotificationChannel(channel);
-    } catch (IllegalArgumentException e) {
-      // intentional empty.
-    }
+    notificationManager.createNotificationChannel(channel);
   }
 
   public void deleteChannel() {
