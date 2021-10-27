@@ -15,6 +15,7 @@ variables.
 `has_drm_system_extension`                | `is_internal_build` (true/false)                     | (global)
 `has_cdm`                                 | `is_internal_build` (true/false)                     | (global)
 `has_private_system_properties`           | `is_internal_build` (true/false)                     | (global)
+`sb_pedantic_warnings` (0/1)              | `has_pedantic_warnings` (true/false)                 | (global, see "Compiler Options" note)
 `sb_deploy_output_dir`                    | `sb_install_output_dir`                              | `//starboard/build/config/base_configuration.gni`
 `sb_evergreen` (0/1)                      | `sb_is_evergreen` (true/false)                       | `//starboard/build/config/base_configuration.gni`
 `sb_evergreen_compatible` (0/1)           | `sb_is_evergreen_compatible` (true/false)            | `//starboard/build/config/base_configuration.gni`
@@ -38,10 +39,8 @@ variables.
 `optimize_target_for_speed` (1) | `"//starboard/build/config:speed"`                    | Optimizations
 `compiler_flags_*_speed`        | `speed_config_path`                                   | Optimizations
 `compiler_flags_*_size`         | `size_config_path`                                    | Optimizations
-`sb_pedantic_warnings`          | `pedantic_warnings_config_path`                       | Compiler Options
-`sb_pedantic_warnings`          | `no_pedantic_warnings_config_path`                    | Compiler Options
 
-Notes:
+## Notes:
 
 *   *Starboard Implementation:* If your platform defined
     `STARBOARD_IMPLENTATION` in its implementation, you would now add the above
@@ -56,13 +55,12 @@ Notes:
     correct ones for `speed_config_path` and `size_config_path` in your
     platform's `platform_configuration/configuration.gni` file.
 
-*   *Compiler Options:* Cobalt compiles some targets with stricter settings
-    than others, depending on the platform. Before these targets would opt into
-    the stricter settings by settings `sb_pedantic_warnings: 1` in their
-    `variables` section. Now they will add the appropriate config like so:
-    `configs += [ "//starboard/build/config:pedantic_warnings" ]` and remove
-    the default: `configs -= [ "//starboard/build/config:no_pedantic_warnings"
-    ]`. The additional config that is used to compile these targets is
-    specified with the `pedantic_warnings_config_path` and
-    `no_pedantic_warnings_config_path` variables in your platform's
-    `platform_configuration/configuration.gni` file.
+*   *Compiler Options:* Cobalt compiles some targets with stricter,
+    platform-dependent settings than others. Before these targets would opt into
+    the stricter settings by setting `sb_pedantic_warnings: 1` in their
+    `variables` section. Now targets will be compiled with pedantic warnings if
+    the target sets `has_pedantic_warnings=true`. The additional config that is
+    used to compile these targets is specified with the
+    `pedantic_warnings_config_path` and `no_pedantic_warnings_config_path`
+    variables in your platform's `platform_configuration/configuration.gni`
+    file.
