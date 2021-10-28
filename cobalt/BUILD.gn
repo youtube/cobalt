@@ -18,5 +18,6 @@ group("gn_all") {
   deps = [
     "//cobalt/storage:storage_constants",
     "//nb",
+    "//third_party/libwebp",
   ]
 }

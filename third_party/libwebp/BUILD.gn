@@ -1,0 +1,103 @@
+# Copyright 2021 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("//third_party/libwebp/libwebp.gni")
+
+template("libwebp_lib") {
+  static_library(target_name) {
+    forward_variables_from(invoker, "*")
+    configs -= [ "//starboard/build/config:size" ]
+    configs += [
+      "//starboard/build/config:speed",
+      ":libwebp_direct_config",
+    ]
+  }
+}
+
+libwebp_lib("libwebp_dec") {
+  sources = libwebp_dec_sources
+}
+
+libwebp_lib("libwebp_demux") {
+  sources = libwebp_demux_sources
+}
+
+libwebp_lib("libwebp_dsp_dec_common") {
+  sources = libwebp_dsp_dec_common_sources
+  deps = [
+    ":libwebp_dsp_dec_mips32",
+    ":libwebp_dsp_dec_mips_dsp_r2",
+    ":libwebp_dsp_dec_msa",
+    ":libwebp_dsp_dec_neon",
+    ":libwebp_dsp_dec_sse2",
+    ":libwebp_dsp_dec_sse41",
+  ]
+}
+
+libwebp_lib("libwebp_dsp_dec_msa") {
+  sources = libwebp_dsp_dec_msa_sources
+}
+
+libwebp_lib("libwebp_dsp_dec_neon") {
+  sources = libwebp_dsp_dec_neon_sources
+}
+
+libwebp_lib("libwebp_dsp_dec_sse2") {
+  sources = libwebp_dsp_dec_sse2_sources
+}
+
+libwebp_lib("libwebp_dsp_dec_sse41") {
+  sources = libwebp_dsp_dec_sse41_sources
+}
+
+libwebp_lib("libwebp_dsp_dec_mips32") {
+  sources = libwebp_dsp_dec_mips32_sources
+}
+
+libwebp_lib("libwebp_dsp_dec_mips_dsp_r2") {
+  sources = libwebp_dsp_dec_mips_dsp_r2_sources
+}
+
+libwebp_lib("libwebp_utils_dec") {
+  sources = libwebp_utils_dec_sources
+}
+
+libwebp_lib("libwebp_enc") {
+  sources = libwebp_enc_sources
+}
+
+libwebp_lib("libwebp_dsp_enc") {
+  sources = libwebp_dsp_enc_sources
+}
+
+libwebp_lib("libwebp_utils_enc") {
+  sources = libwebp_utils_enc_sources
+}
+
+config("libwebp_direct_config") {
+  include_dirs = [ "." ]
+}
+
+group("libwebp") {
+  public_configs = [ ":libwebp_direct_config" ]
+  deps = [
+    ":libwebp_dec",
+    ":libwebp_demux",
+    ":libwebp_dsp_dec_common",
+    ":libwebp_dsp_enc",
+    ":libwebp_enc",
+    ":libwebp_utils_dec",
+    ":libwebp_utils_enc",
+  ]
+}
