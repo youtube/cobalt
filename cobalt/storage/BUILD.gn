@@ -12,11 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-group("gn_all") {
-  testonly = true
-
-  deps = [
-    "//cobalt/storage:storage_constants",
-    "//nb",
+static_library("storage_constants") {
+  sources = [
+    "storage_constants.cc",
+    "storage_constants.h",
   ]
 }
