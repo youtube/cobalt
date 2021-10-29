@@ -67,8 +67,7 @@ RUN mkdir C:\pip-cache;`
 # Setup Sccache
 ADD https://storage.googleapis.com/cobalt-docker-resources/sccache-cobalt.exe /sccache/sccache.exe
 COPY ./setup_sccache.ps1 /sccache/setup_sccache.ps1
-ARG encoded_gs_service_key_file
-ENV ENCODED_GS_SERVICE_KEY_FILE ${encoded_gs_service_key_file}
+ARG encoded_keyfile
 RUN C:\sccache\setup_sccache.ps1;`
     Remove-Item C:\sccache\setup_sccache.ps1
 
