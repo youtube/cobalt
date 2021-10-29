@@ -24,9 +24,6 @@
         'account_manager.h',
         'account_manager.cc',
       ],
-      'dependencies': [
-        '<(DEPTH)/cobalt/base/base.gyp:base',
-      ],
     },
   ],
 }
