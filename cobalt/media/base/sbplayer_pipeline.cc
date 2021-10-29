@@ -1255,11 +1255,9 @@ void SbPlayerPipeline::OnNeedData(DemuxerStream::Type type) {
       SbTime time_ahead_of_playback =
           timestamp_of_last_written_audio_ - last_media_time_;
       if (time_ahead_of_playback > (kAudioLimit + kMediaTimeCheckInterval)) {
-        SbTime delay_time = (time_ahead_of_playback - kAudioLimit) /
-                            std::max(playback_rate_.value(), 1.0f);
         task_runner_->PostDelayedTask(
             FROM_HERE, base::Bind(&SbPlayerPipeline::DelayedNeedData, this),
-            base::TimeDelta::FromMicroseconds(delay_time));
+            base::TimeDelta::FromMicroseconds(kMediaTimeCheckInterval));
         audio_read_delayed_ = true;
         return;
       }
