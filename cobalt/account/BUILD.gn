@@ -12,14 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-group("gn_all") {
-  testonly = true
+static_library("account") {
+  has_pedantic_warnings = true
 
-  deps = [
-    "//cobalt/account",
-    "//cobalt/network_bridge",
-    "//cobalt/storage:storage_constants",
-    "//nb",
-    "//third_party/libwebp",
+  sources = [
+    "account_manager.cc",
+    "account_manager.h",
   ]
+
+  deps = [ "//starboard:starboard_headers_only" ]
 }
