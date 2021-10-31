@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title></title>
+  <link rel="stylesheet" type="text/css" href="css/icons.css">
+  <link rel="stylesheet" type="text/css" href="css/default.css">
+  <script src="js/namespace.js" data-root="js" data-main="spike.main"></script>
+</head>
+<body class="hbox body">
+  <div class="vbox menu focusable">
+    <div class="inert lozenge">
+      <div class="icon-content icon-logo-lozenge"></div>
+    </div>
+    <div class="vbox column">
+      <div class="inert icon-focus"></div>
+    </div>
+  </div>
+  <div class="vbox anchor focusable">
+    <div class="vbox main">
+      <div class="hbox header">
+        <div class="hbox headerbuttons focusable">
+          <div class="button-background-container">
+            <!-- NB: there should be no whitespace or \n between next two divs because of display: inline-block; -->
+            <div class="inert locked leaf button-background"></div><div class="inert locked leaf button-background"></div>
+          </div>
+          <div class="inert button-focus"></div>
+          <div class="leaf button focusable">
+            <div class="icon-content icon-player-play"></div>
+            <div class="label">Watch</div>
+          </div>
+          <div class="leaf button focusable">
+            <div class="icon-content icon-logo-lozenge"></div>
+            <div class="label">Subscribe</div>
+          </div>
+        </div>
+      </div>
+      <div class="vbox content">
+     </div>
+    </div>
+    <div class="fade"></div>
+  </div>
+
+  <!-- Things assigned to innerHTML -->
+  <div class="vbox row-container focusable">
+    <div class="row-label"></div>
+    <div class="hbox row focusable">
+      <div class="inert item-focus"></div>
+    </div>
+  </div>
+
+  <div class="leaf icon focusable navigate" data-index="0">
+    <div class="icon-content"></div>
+    <div class="label"></div>
+  </div>
+
+  <div class="leaf item focusable">
+    <div class="top">
+      <div class="thumbnail"></div>
+      <div class="duration"></div>
+    </div>
+    <div class="playlist"></div>
+    <div class="title"></div>
+    <div class="info">
+      <div class="by"></div>
+      <div class="viewCount"></div>
+      <div class="date"></div>
+    </div>
+  </div>
+
+  <!-- An invalid Unicode character using a hex escape sequence -->
+  &#xe62b;
+  <!-- A decimal escaped supplementary (not in BMP) character -->
+  &#128169;
+  <!-- A hex escaped supplementary (not in BMP) character -->
+  &#x1f4a9;
+  <!-- A UTF8 encoded supplementary (not in BMP) character -->
+  💩
+</body>
+</html>

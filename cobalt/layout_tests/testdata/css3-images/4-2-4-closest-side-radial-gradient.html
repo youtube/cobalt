@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<!--
+ | Non-centered radial gradient.  These are derived from example 19 here:
+ | https://www.w3.org/TR/2012/CR-css3-images-20120417/#radial-gradients
+ -->
+<html>
+<head>
+  <style>
+    .gradient1 {
+      background: radial-gradient(closest-side at 20px 30px, red, yellow, green);
+      width: 300px;
+      height: 80px;
+    }
+    .gradient2 {
+      background: radial-gradient(20px 30px at 20px 30px, red, yellow, green);
+      width: 300px;
+      height: 80px;
+    }
+    .gradient3 {
+      background: radial-gradient(closest-side circle at 20px 30px, red, yellow, green);
+      width: 300px;
+      height: 80px;
+    }
+    .gradient4 {
+      background: radial-gradient(20px 20px at 20px 30px, red, yellow, green);
+      width: 300px;
+      height: 80px;
+    }
+  </style>
+</head>
+<body>
+  <div class="gradient1"></div>
+  <div class="gradient2"></div>
+  <div class="gradient3"></div>
+  <div class="gradient4"></div>
+</body>
+</html>

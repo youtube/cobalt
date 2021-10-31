@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<!--
+ | Setting 2 values for the border radius for a box with a background color
+ | and an outset shadow.
+ | Note that this will not look the exact same in Chrome since Cobalt
+ | normalizes opposing corners and Chrome does not.
+ |   https://www.w3.org/TR/css3-background/#border-radius
+ -->
+<html>
+<head>
+  <style>
+    div {
+      background-color: rgb(176,176,176);
+      border-radius: 25px 100px;
+      box-shadow: 10px 10px #FF7F50;
+      height: 200px;
+      width: 100px;
+    }
+  </style>
+</head>
+<body>
+  <div></div>
+</body>
+</html>

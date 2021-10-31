@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="./resources/intersection-observer-test-utils.js"></script>
+
+<style>
+/* Cobalt does not implement HTML5 spec for body margin. */
+body {
+  margin: 8px;
+}
+pre, #log {
+  position: absolute;
+  top: 0;
+  left: 200px;
+}
+.spacer {
+  height: 100vh;
+}
+#root {
+  overflow: scroll;
+  height: 200px;
+  border: 3px solid black;
+}
+#target {
+  width: 100px;
+  height: 100px;
+  background-color: green;
+}
+</style>
+
+<div class="spacer"></div>
+<div id="root">
+  <div style="height: 300px;"></div>
+  <div id="target"></div>
+</div>
+<div class="spacer"></div>
+
+<script>
+var vh = window.innerHeight;
+
+var entries = [];
+var root, target;
+
+runTestCycle(function() {
+  target = document.getElementById("target");
+  assert_true(!!target, "target exists");
+  root = document.getElementById("root");
+  assert_true(!!root, "root exists");
+  var observer = new IntersectionObserver(function(changes) {
+    entries = entries.concat(changes);
+    window.testRunner.DoNonMeasuredLayout();
+  }, { root: root, rootMargin: "10px 20% 40% 30px" });
+  observer.observe(target);
+  entries = entries.concat(observer.takeRecords());
+  assert_equals(entries.length, 0, "No initial notifications.");
+  runTestCycle(step0, "First rAF");
+}, "Root margin with explicit root.");
+window.testRunner.DoNonMeasuredLayout();
+window.testRunner.DoNonMeasuredLayout();
+
+function step0() {
+  //document.scrollingElement.scrollTop = vh;
+  root.style.marginTop = -1 * vh + "px";
+  runTestCycle(step1, "document.scrollingElement.scrollTop = window.innerHeigh  `t.");
+  checkLastEntry(entries, 0, [ 11, 111, vh + 311, vh + 411, 0, 0, 0, 0, -19, 131, vh + 101, vh + 391, false]);
+  window.testRunner.DoNonMeasuredLayout();
+}
+
+function step1() {
+  //root.scrollTop = 50;
+  target.style.marginTop = "-50px";
+  runTestCycle(step2, "root.scrollTop = 50, putting target into root margin");
+  assert_equals(entries.length, 1, "No notifications after scrolling frame.");
+}
+
+function step2() {
+  //document.documentElement.scrollTop = 0;
+  root.style.marginTop = "0px";
+  runTestCycle(step3, "document.scrollingElement.scrollTop = 0.");
+  checkLastEntry(entries, 1, [11, 111, 261, 361, 11, 111, 261, 291, -19, 131, 101, 391, true]);
+  window.testRunner.DoNonMeasuredLayout();
+}
+
+function step3() {
+  //root.scrollTop = 0;
+  target.style.marginTop = "0px";
+  runTestCycle(step4, "root.scrollTop = 0");
+  checkLastEntry(entries, 1);
+}
+
+function step4() {
+  //root.scrollTop = 50;
+  target.style.marginTop = "-50px";
+  runTestCycle(step5, "root.scrollTop = 50 with root scrolled out of view.");
+  checkLastEntry(entries, 2, [ 11, 111, vh + 311, vh + 411, 0, 0, 0, 0, -19, 131, vh + 101, vh + 391, false]);
+}
+
+// This tests that notifications are generated even when the root element is off screen.
+function step5() {
+  checkLastEntry(entries, 3, [11, 111, vh + 261, vh + 361, 11, 111, vh + 261, vh + 291, -19, 131, vh + 101, vh + 391, true]);
+}
+</script>

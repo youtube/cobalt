@@ -1,5 +1,0 @@
-cpplint<2
-pre-commit<3
-pylint<3
-yapf<1
-requests==2.25.1

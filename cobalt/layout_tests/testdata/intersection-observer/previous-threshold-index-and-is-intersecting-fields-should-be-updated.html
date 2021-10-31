@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<!--
+ | This test checks that the previousThresholdIndex and previousIsIntersecting
+ | fields of the IntersectionObserverRegistration objects are getting updated
+ | correctly.
+ | If the fields are not updated properly, then the callback is executed
+ | multiple times. In this test, the target element is initially green, and
+ | turns blue if the callback is executed exactly once (as expected). It will
+ | turn red (signifying an error) if the callback is executed more than once.
+ |   https://www.w3.org/TR/intersection-observer/
+ -->
+<html>
+<head>
+  <style>
+    #target {
+      background-color: green;
+      width: 200px;
+      height: 150px;
+      position: absolute;
+      left: -100px;
+      top: -75px;
+    }
+  </style>
+</head>
+<body>
+  <div>
+    <div id="target">
+    </div>
+  </div>
+
+  <script>
+    if (window.testRunner) {
+      window.testRunner.waitUntilDone();
+    }
+
+    window.addEventListener("load", function() {
+      var targetElement = document.querySelector('#target');
+      var io_callback_count = 0;
+      var timeout_callback_count = 0;
+
+      function handleIntersect(entries, observer) {
+        // This callback should only be executed once if the intersection
+        // observer registration fields have been updated properly
+        ++io_callback_count;
+        console.log("Number of times previousThresholdIndex or " +
+                    "previousIsIntersecting values changed: " +
+                    io_callback_count);
+        if (io_callback_count > 1) {
+          entries.forEach(function(entry) {
+            entry.target.style.backgroundColor = "red";
+          });
+        } else {
+          entries.forEach(function(entry) {
+            entry.target.style.backgroundColor = "blue";
+          });
+        }
+      }
+
+      function timeoutCallback() {
+        // Do multiple explicit non measured layouts
+        if (++timeout_callback_count < 3) {
+          if (window.testRunner) {
+            window.testRunner.DoNonMeasuredLayout();
+          }
+          window.setTimeout(function() { timeoutCallback(); } , 0);
+        } else {
+          if (window.testRunner) {
+           window.testRunner.notifyDone();
+         }
+        }
+      }
+
+      function createObserver() {
+        var options = {
+          root: null,
+          rootMargin: "0px",
+          threshold: 0.0
+        };
+
+        var observer = new IntersectionObserver(handleIntersect, options);
+        observer.observe(targetElement);
+      }
+
+      createObserver();
+      window.setTimeout(function() { timeoutCallback(); }, 0);
+    });
+  </script>
+
+</body>
+</html>

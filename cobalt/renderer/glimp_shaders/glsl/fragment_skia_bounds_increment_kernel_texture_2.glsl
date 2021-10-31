@@ -1,0 +1,145 @@
+#version 100
+
+precision mediump float;
+precision mediump sampler2D;
+uniform mediump vec2 uImageIncrement_Stage1;
+uniform mediump vec2 uBounds_Stage1;
+uniform mediump vec4 uKernel_Stage1[7];
+uniform sampler2D uTextureSampler_0_Stage1;
+varying highp vec2 vTransformedCoords_0_Stage0;
+void main() {
+    mediump vec4 output_Stage1;
+    {
+        output_Stage1 = vec4(0.0, 0.0, 0.0, 0.0);
+        highp vec2 coord = vTransformedCoords_0_Stage0 - 12.0 * uImageIncrement_Stage1;
+        highp vec2 coordSampled = vec2(0.0, 0.0);
+        coordSampled = coord;
+        if (coord.y >= uBounds_Stage1.x && coord.y <= uBounds_Stage1.y) {
+            output_Stage1 += texture2D(uTextureSampler_0_Stage1, coordSampled) * uKernel_Stage1[0].x;
+        }
+        coord += uImageIncrement_Stage1;
+        coordSampled = coord;
+        if (coord.y >= uBounds_Stage1.x && coord.y <= uBounds_Stage1.y) {
+            output_Stage1 += texture2D(uTextureSampler_0_Stage1, coordSampled) * uKernel_Stage1[0].y;
+        }
+        coord += uImageIncrement_Stage1;
+        coordSampled = coord;
+        if (coord.y >= uBounds_Stage1.x && coord.y <= uBounds_Stage1.y) {
+            output_Stage1 += texture2D(uTextureSampler_0_Stage1, coordSampled) * uKernel_Stage1[0].z;
+        }
+        coord += uImageIncrement_Stage1;
+        coordSampled = coord;
+        if (coord.y >= uBounds_Stage1.x && coord.y <= uBounds_Stage1.y) {
+            output_Stage1 += texture2D(uTextureSampler_0_Stage1, coordSampled) * uKernel_Stage1[0].w;
+        }
+        coord += uImageIncrement_Stage1;
+        coordSampled = coord;
+        if (coord.y >= uBounds_Stage1.x && coord.y <= uBounds_Stage1.y) {
+            output_Stage1 += texture2D(uTextureSampler_0_Stage1, coordSampled) * uKernel_Stage1[1].x;
+        }
+        coord += uImageIncrement_Stage1;
+        coordSampled = coord;
+        if (coord.y >= uBounds_Stage1.x && coord.y <= uBounds_Stage1.y) {
+            output_Stage1 += texture2D(uTextureSampler_0_Stage1, coordSampled) * uKernel_Stage1[1].y;
+        }
+        coord += uImageIncrement_Stage1;
+        coordSampled = coord;
+        if (coord.y >= uBounds_Stage1.x && coord.y <= uBounds_Stage1.y) {
+            output_Stage1 += texture2D(uTextureSampler_0_Stage1, coordSampled) * uKernel_Stage1[1].z;
+        }
+        coord += uImageIncrement_Stage1;
+        coordSampled = coord;
+        if (coord.y >= uBounds_Stage1.x && coord.y <= uBounds_Stage1.y) {
+            output_Stage1 += texture2D(uTextureSampler_0_Stage1, coordSampled) * uKernel_Stage1[1].w;
+        }
+        coord += uImageIncrement_Stage1;
+        coordSampled = coord;
+        if (coord.y >= uBounds_Stage1.x && coord.y <= uBounds_Stage1.y) {
+            output_Stage1 += texture2D(uTextureSampler_0_Stage1, coordSampled) * uKernel_Stage1[2].x;
+        }
+        coord += uImageIncrement_Stage1;
+        coordSampled = coord;
+        if (coord.y >= uBounds_Stage1.x && coord.y <= uBounds_Stage1.y) {
+            output_Stage1 += texture2D(uTextureSampler_0_Stage1, coordSampled) * uKernel_Stage1[2].y;
+        }
+        coord += uImageIncrement_Stage1;
+        coordSampled = coord;
+        if (coord.y >= uBounds_Stage1.x && coord.y <= uBounds_Stage1.y) {
+            output_Stage1 += texture2D(uTextureSampler_0_Stage1, coordSampled) * uKernel_Stage1[2].z;
+        }
+        coord += uImageIncrement_Stage1;
+        coordSampled = coord;
+        if (coord.y >= uBounds_Stage1.x && coord.y <= uBounds_Stage1.y) {
+            output_Stage1 += texture2D(uTextureSampler_0_Stage1, coordSampled) * uKernel_Stage1[2].w;
+        }
+        coord += uImageIncrement_Stage1;
+        coordSampled = coord;
+        if (coord.y >= uBounds_Stage1.x && coord.y <= uBounds_Stage1.y) {
+            output_Stage1 += texture2D(uTextureSampler_0_Stage1, coordSampled) * uKernel_Stage1[3].x;
+        }
+        coord += uImageIncrement_Stage1;
+        coordSampled = coord;
+        if (coord.y >= uBounds_Stage1.x && coord.y <= uBounds_Stage1.y) {
+            output_Stage1 += texture2D(uTextureSampler_0_Stage1, coordSampled) * uKernel_Stage1[3].y;
+        }
+        coord += uImageIncrement_Stage1;
+        coordSampled = coord;
+        if (coord.y >= uBounds_Stage1.x && coord.y <= uBounds_Stage1.y) {
+            output_Stage1 += texture2D(uTextureSampler_0_Stage1, coordSampled) * uKernel_Stage1[3].z;
+        }
+        coord += uImageIncrement_Stage1;
+        coordSampled = coord;
+        if (coord.y >= uBounds_Stage1.x && coord.y <= uBounds_Stage1.y) {
+            output_Stage1 += texture2D(uTextureSampler_0_Stage1, coordSampled) * uKernel_Stage1[3].w;
+        }
+        coord += uImageIncrement_Stage1;
+        coordSampled = coord;
+        if (coord.y >= uBounds_Stage1.x && coord.y <= uBounds_Stage1.y) {
+            output_Stage1 += texture2D(uTextureSampler_0_Stage1, coordSampled) * uKernel_Stage1[4].x;
+        }
+        coord += uImageIncrement_Stage1;
+        coordSampled = coord;
+        if (coord.y >= uBounds_Stage1.x && coord.y <= uBounds_Stage1.y) {
+            output_Stage1 += texture2D(uTextureSampler_0_Stage1, coordSampled) * uKernel_Stage1[4].y;
+        }
+        coord += uImageIncrement_Stage1;
+        coordSampled = coord;
+        if (coord.y >= uBounds_Stage1.x && coord.y <= uBounds_Stage1.y) {
+            output_Stage1 += texture2D(uTextureSampler_0_Stage1, coordSampled) * uKernel_Stage1[4].z;
+        }
+        coord += uImageIncrement_Stage1;
+        coordSampled = coord;
+        if (coord.y >= uBounds_Stage1.x && coord.y <= uBounds_Stage1.y) {
+            output_Stage1 += texture2D(uTextureSampler_0_Stage1, coordSampled) * uKernel_Stage1[4].w;
+        }
+        coord += uImageIncrement_Stage1;
+        coordSampled = coord;
+        if (coord.y >= uBounds_Stage1.x && coord.y <= uBounds_Stage1.y) {
+            output_Stage1 += texture2D(uTextureSampler_0_Stage1, coordSampled) * uKernel_Stage1[5].x;
+        }
+        coord += uImageIncrement_Stage1;
+        coordSampled = coord;
+        if (coord.y >= uBounds_Stage1.x && coord.y <= uBounds_Stage1.y) {
+            output_Stage1 += texture2D(uTextureSampler_0_Stage1, coordSampled) * uKernel_Stage1[5].y;
+        }
+        coord += uImageIncrement_Stage1;
+        coordSampled = coord;
+        if (coord.y >= uBounds_Stage1.x && coord.y <= uBounds_Stage1.y) {
+            output_Stage1 += texture2D(uTextureSampler_0_Stage1, coordSampled) * uKernel_Stage1[5].z;
+        }
+        coord += uImageIncrement_Stage1;
+        coordSampled = coord;
+        if (coord.y >= uBounds_Stage1.x && coord.y <= uBounds_Stage1.y) {
+            output_Stage1 += texture2D(uTextureSampler_0_Stage1, coordSampled) * uKernel_Stage1[5].w;
+        }
+        coord += uImageIncrement_Stage1;
+        coordSampled = coord;
+        if (coord.y >= uBounds_Stage1.x && coord.y <= uBounds_Stage1.y) {
+            output_Stage1 += texture2D(uTextureSampler_0_Stage1, coordSampled) * uKernel_Stage1[6].x;
+        }
+        coord += uImageIncrement_Stage1;
+    }
+    {
+        gl_FragColor = output_Stage1;
+    }
+}

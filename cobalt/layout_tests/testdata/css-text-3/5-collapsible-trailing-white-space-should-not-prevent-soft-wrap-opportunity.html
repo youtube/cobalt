@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<!--
+ | Wrapping is only performed at an allowed break point, called a soft wrap
+ | opportunity. In most writing systems, in the absence of hyphenation a soft
+ | wrap opportunity occurs only at word boundaries.
+ |   https://www.w3.org/TR/css3-text/#soft-wrap-opportunity
+ |   https://www.w3.org/TR/css-text-3/#line-break-details
+ |
+ | When a soft wrap segment is being checked, trailing white space that will be
+ | collapsed should not be included when determining if the segment can fit
+ | within the available space on the line.
+ -->
+<html>
+<head>
+  <style>
+    body {
+      margin: 0px;
+      font-family: Roboto;
+      font-size: 20px;
+    }
+    div {
+      overflow-wrap: normal;
+    }
+    .containing-block {
+      background-color: #03a9f4;
+      width: 202px;
+    }
+  </style>
+</head>
+<body>
+  <div class="containing-block">
+    <div>abc<span>defg hijklmnopqrst uvwxyz</span></div>
+    <div>abc<span>defg hijklmnopqrst </span></div>
+    <div><span>abc</span>defg hijklmnopqrst uvwxyz</div>
+    <div><span>abc</span>defg hijklmnopqrst </div>
+    <div><span><span>abc</span>defg hijklmnopqrst uvwxyz</span></div>
+    <div><span><span>abc</span>defg hijklmnopqrst </span></div>
+  </div>
+</body>
+</html>

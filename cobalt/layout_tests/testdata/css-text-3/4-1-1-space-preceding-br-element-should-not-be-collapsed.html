@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<!--
+ | Whitespace preceding a <br> element should be collapsed.
+ |   https://www.w3.org/TR/css3-text/#white-space-phase-1
+ -->
+<html>
+<head>
+  <style>
+    body {
+      margin: 0px;
+      font-family: Roboto;
+      font-size: 50px;
+      font-weight: bold;
+    }
+    .wrap-block {
+      width: 180px;
+    }
+    .blue-background {
+      background-color: #4285f4;
+    }
+    .collapsed {
+      background-color: #f50057;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap-block blue-background">Hi there <br>world!</div>
+  <div><span class="blue-background">Hello, <br></span>world!</div>
+  <div>Hello,<span class="collapsed"> <br></span>world!</div>
+  <div>Hello,<span class="collapsed"> </span><br>world!</div>
+</body>
+</html>

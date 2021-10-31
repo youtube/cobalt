@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>image-onerror</title>
+  <style>
+    #result {
+      width: 100px;
+      height:100px;
+      background-color:#0047AB;
+    }
+  </style>
+</head>
+<body>
+
+<div id="result"></div>
+
+<script>
+
+function expect(condition, message) {
+  if (!condition) {
+    document.querySelector('#result').style.display = 'none';
+    const fullMessage = `failed expectation at:
+${new Error().stack}
+${typeof message === 'undefined' ? '' : 'with message: ' + message}`;
+    console.error(fullMessage);
+  }
+}
+
+if (window.testRunner) {
+  window.testRunner.waitUntilDone();
+}
+
+const image = new Image();
+
+let imageOnErrorWasCalled = false;
+let imageErrorEventHandlerCalled = false;
+
+function endTestIfAllErrorHandlersCalled() {
+  if (imageOnErrorWasCalled && imageErrorEventHandlerCalled) {
+    // Success!
+    if (window.testRunner) {
+      window.testRunner.notifyDone();
+    }
+  }
+}
+
+image.onerror = (errorEvent) => {
+  expect(errorEvent.type === 'error', errorEvent.type);
+  imageOnErrorWasCalled = true;
+  endTestIfAllErrorHandlersCalled();
+};
+
+image.addEventListener('error', (errorEvent) => {
+  expect(errorEvent.type === 'error', errorEvent.type);
+  imageErrorEventHandlerCalled = true;
+  endTestIfAllErrorHandlersCalled();
+});
+
+image.src = 'bogusscheme://invalidurl';
+
+setTimeout(() => {
+  // If we hit this timeout we have failed because we expect the previous event
+  // handlers to have both fired before we get here.
+  expect(false);
+
+  // However, if we do get here, the subsequent expect statements can help
+  // identify which of the error handlers failed to be called.
+  expect(imageOnErrorWasCalled);
+  expect(imageErrorEventHandlerCalled);
+
+  if (window.testRunner) {
+    window.testRunner.notifyDone();
+  }
+}, 1000);
+
+</script>
+
+</body>
+</html>

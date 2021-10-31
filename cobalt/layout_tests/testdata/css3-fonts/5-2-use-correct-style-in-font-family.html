@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<!--
+ | The user agent should use the font face within a given font family
+ | that most closely matches the specified weight and style.
+ |   https://www.w3.org/TR/css3-fonts/#font-style-matching
+ -->
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body {
+      margin: 0;
+      font-family: Roboto;
+      font-size: 30px;
+      font-weight: normal;
+      color: #fff;
+    }
+    .containing-block {
+      background-color: #03a9f4;
+      width: 700px;
+    }
+    .sans-serif-normal-normal {
+      font-family: sans-serif;
+      font-weight: normal;
+      font-style: normal;
+    }
+    .sans-serif-normal-italic {
+      font-family: sans-serif;
+      font-weight: normal;
+      font-style: italic;
+    }
+    .sans-serif-bold-normal {
+      font-family: sans-serif;
+      font-weight: bold;
+      font-style: normal;
+    }
+    .sans-serif-bold-italic {
+      font-family: sans-serif;
+      font-weight: bold;
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+  <div class="containing-block">
+    <div class="sans-serif-normal-normal">The Hegemony Consul</div>
+    <div class="sans-serif-normal-italic">The Hegemony Consul</div>
+    <div class="sans-serif-bold-normal">The Hegemony Consul</div>
+    <div class="sans-serif-bold-italic">The Hegemony Consul</div>
+  </div>
+</body>
+</html>

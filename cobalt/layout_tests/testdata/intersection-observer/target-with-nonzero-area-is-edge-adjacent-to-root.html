@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<!--
+ | This test checks that an intersection is observed when the target element is
+ | edge adjacent to the root element.
+ | The target element is initially yellow, but if the intersection is observed,
+ | as is expected, it becomes green.
+ |   https://www.w3.org/TR/intersection-observer/
+ -->
+<html>
+<head>
+  <style>
+    #root {
+      background-color: red;
+      width: 100px;
+      height: 100px;
+      position: absolute;
+    }
+    #element {
+      background-color: blue;
+      width: 100px;
+      height: 100px;
+      position: absolute;
+      margin: 0px 100px;
+    }
+    #target {
+      background-color: yellow;
+      width: 50px;
+      height: 50px;
+    }
+  </style>
+</head>
+<body>
+  <div id="root">
+    <div id="element">
+      <div id="target">
+      </div>
+    </div>
+  </div>
+
+  <script>
+    if (window.testRunner) {
+      window.testRunner.waitUntilDone();
+    }
+
+    window.addEventListener("load", function() {
+      var rootElement = document.querySelector('#root');
+      var targetElement = document.querySelector('#target');
+
+    function handleIntersect(entries, observer) {
+      entries.forEach(function(entry) {
+        console.log(entry.isIntersecting);
+        if (entry.isIntersecting) {
+          targetElement.style.backgroundColor = "green";
+        }
+      });
+    }
+
+      function createObserver() {
+        var options = {
+          root: rootElement,
+          rootMargin: "0px",
+          threshold: 0.0
+        };
+
+        var observer = new IntersectionObserver(handleIntersect, options);
+        observer.observe(targetElement);
+      }
+
+      createObserver();
+
+      if (window.testRunner) {
+        window.testRunner.DoNonMeasuredLayout();
+        window.setTimeout(function() { window.testRunner.notifyDone(); }, 0);
+      }
+    });
+  </script>
+
+</body>
+</html>

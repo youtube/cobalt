@@ -1,0 +1,21 @@
+name: "inspector_protocol"
+description:
+  "Subtree at third_party/inspector_protocol."
+
+third_party {
+  url {
+    type: LOCAL_SOURCE
+    value: "/third_party/chromium/inspector_protocol_mirror"
+  }
+  url {
+    type: GIT
+    value: "https://chromium.googlesource.com/deps/inspector_protocol"
+  }
+  version: "8170c7d7cdcfc77e245518de364ff3f6988cb425"
+  last_upgrade_date {
+    year: 2019
+    month: 11
+    day: 23
+  }
+  license_type: NOTICE
+}

@@ -1,0 +1,104 @@
+# Copyright 2021 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+declare_args() {
+  # Enables the yasm compiler to be used to compile .asm files.
+  yasm_exists = false
+
+  # Where yasm can be found on the host device.
+  path_to_yasm = "yasm"
+
+  # The Starboard API version of the current build configuration. The default
+  # value is meant to be overridden by a Starboard ABI file.
+  sb_api_version = 14
+
+  # Enables embedding Cobalt as a shared library within another app. This
+  # requires a 'lib' starboard implementation for the corresponding platform.
+  sb_enable_lib = false
+
+  # Directory path to static contents' data.
+  sb_static_contents_output_data_dir = "$root_out_dir/content/data"
+
+  # Top-level directory for staging deploy build output. Platform deploy
+  # actions should use <(target_deploy_dir) defined in deploy.gypi to place
+  # artifacts for each deploy target in its own subdirectoy.
+  sb_install_output_dir = "$root_out_dir/install"
+
+  # Whether this is an Evergreen build.
+  sb_is_evergreen = false
+
+  # Whether this is an Evergreen compatible platform. A compatible platform
+  # can run the elf_loader and launch the Evergreen build.
+  sb_is_evergreen_compatible = false
+
+  # Whether to use the libunwind library on Evergreen compatible platform.
+  sb_evergreen_compatible_use_libunwind = false
+
+  # Whether to adopt Evergreen Lite on the Evergreen compatible platform.
+  sb_evergreen_compatible_enable_lite = false
+
+  # The variables allow changing the target type on platforms where the
+  # native code may require an additional packaging step (ex. Android).
+  gtest_target_type = "executable"
+  final_executable_type = "executable"
+
+  # Halt execution on failure to allocate memory.
+  abort_on_allocation_failure = true
+
+  # The source of EGL and GLES headers and libraries.
+  # Valid values (case and everything sensitive!):
+  #   'none'   - No EGL + GLES implementation is available on this platform.
+  #   'system_gles2' - Use the system implementation of EGL + GLES2. The
+  #                    headers and libraries must be on the system include and
+  #                    link paths.
+  #   'glimp'  - Cobalt's own EGL + GLES2 implementation. This requires a
+  #              valid Glimp implementation for the platform.
+  #   'angle'  - A DirectX-to-OpenGL adaptation layer. This requires a valid
+  #              ANGLE implementation for the platform.
+  gl_type = "system_gles2"
+
+  # The event polling mechanism available on this platform to support libevent.
+  # Platforms may redefine to 'poll' if necessary.
+  # Other mechanisms, e.g. devpoll, kqueue, select, are not yet supported.
+  sb_libevent_method = "epoll"
+
+  # Used to indicate that the player is filter based.
+  sb_filter_based_player = true
+
+  # Used to enable benchmarks.
+  sb_enable_benchmark = false
+
+  # Where the Starboard ABI file for this platform can be found.
+  sabi_path = "starboard/sabi/default/sabi.json"
+
+  # Set to the starboard_platform_tests target if the platform implements them.
+  platform_tests_path = ""
+
+  # Whether the platform has platform-specific targets to depend on.
+  has_platform_targets = false
+
+  # The path to the gni file containing the install_target template which
+  # defines how the build should produce the install/ directory.
+  install_target_path = "//starboard/build/install/mock_install.gni"
+
+  # Target-specific configurations for each platform.
+  executable_configs = []
+  shared_library_configs = []
+  static_library_configs = []
+  source_set_configs = []
+  loadable_module_configs = []
+
+  # Whether or not to build drm test suites.
+  has_drm_support = true
+}

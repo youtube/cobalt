@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<!--
+ | This test is to show that 'replaced boxes' have the correct height.
+ | Ref https://www.w3.org/TR/CSS21/visudet.html#inline-replaced-height
+-->
+<html>
+<head>
+  <style>
+    body {
+      margin: 0px;
+    }
+    div.large {
+      display: block;
+      width: 640px;
+      height: 360px;
+    }
+    div.small {
+      display: block;
+      width: 64px;
+      height: 36px;
+    }
+    video.test1 {
+      width: 64px;
+      height: 36px;
+      background: #001000;
+    }
+    video.test2 {
+      width: 32px;
+      background: #005000;
+    }
+    video.test3 {
+      height: 32px;
+      background: #009000;
+    }
+    video.test4 {
+      background: #00D000;
+    }
+    video.test5 {
+      height: 25%;
+      background: #00FF00;
+    }
+  </style>
+</head>
+<body>
+  <div class='large'>
+    <video class='test1'>Do not show this</video>
+    <video class='test2'>Do not show this</video>
+    <video class='test3'>Do not show this</video>
+    <video class='test4'>Do not show this</video>
+    <video class='test5'>Do not show this</video>
+  </div>
+</body>
+</html>

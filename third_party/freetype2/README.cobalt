@@ -1,0 +1,14 @@
+Name: freetype2
+URL: http://download.savannah.gnu.org/releases/freetype/
+Version: 2.10.1
+Security Critical: yes
+License: BSD
+License File: NOT_SHIPPED
+
+Description:
+
+This mirrors the Freetype2, version 2.10.1.
+
+Freetype depends on two header files to be supplied by the user to specify
+how to build the library, ftconfig.h and ftmodule.h (or equivalent filenames
+as defined by the FT_CONFIG_CONFIG_H and FT_CONFIG_MODULES_H #defines).
