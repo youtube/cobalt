@@ -20,6 +20,7 @@ group("gn_all") {
     "//cobalt/network_bridge",
     "//cobalt/storage:storage_constants",
     "//nb",
+    "//third_party/flac",
     "//third_party/libwebp",
   ]
 }
