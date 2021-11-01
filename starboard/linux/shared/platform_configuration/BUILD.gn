@@ -20,20 +20,11 @@ config("compiler_flags") {
   ldflags = []
 
   if (is_debug) {
-    cflags += [
-      "-frtti",
-      "-O0",
-    ]
+    cflags += [ "-O0" ]
   } else if (is_devel) {
-    cflags += [
-      "-frtti",
-      "-O2",
-    ]
+    cflags += [ "-O2" ]
   } else {
-    cflags += [
-      "-fno-rtti",
-      "-gline-tables-only",
-    ]
+    cflags += [ "-gline-tables-only" ]
   }
 
   if (is_clang) {
@@ -149,11 +140,13 @@ config("platform_configuration") {
       "_GLIBCXX_DEBUG",
       "_LIBCPP_DEBUG=1",
     ]
+    configs = [ "//build/config/compiler:rtti" ]
   } else if (is_devel) {
     defines += [
       "_GLIBCXX_DEBUG",
       "_LIBCPP_DEBUG=0",
     ]
+    configs = [ "//build/config/compiler:rtti" ]
   }
 }
 
