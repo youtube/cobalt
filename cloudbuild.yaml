@@ -4,6 +4,7 @@ options:
 steps:
 - name: 'gcr.io/cobalt-demo-330821/docker-compose'
   args: ['build',
+         'base',
          'build-base',
          'build-android',
          'build-evergreen',
