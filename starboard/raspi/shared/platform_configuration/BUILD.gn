@@ -36,13 +36,10 @@ config("compiler_flags") {
 
   if (is_debug) {
     cflags += [ "-O0" ]
-    cflags_cc += [ "-frtti" ]
   } else if (is_devel) {
     cflags += [ "-O2" ]
-    cflags_cc += [ "-frtti" ]
   } else {
     cflags += [ "-Wno-unused-but-set-variable" ]
-    cflags_cc += [ "-fno-rtti" ]
   }
 
   ldflags += [
@@ -149,6 +146,10 @@ config("platform_configuration") {
   ]
 
   configs = [ "//starboard/raspi/shared/platform_configuration:compiler_flags" ]
+
+  if (is_debug || is_devel) {
+    configs += [ "//build/config/compiler:rtti" ]
+  }
 }
 
 config("speed") {
