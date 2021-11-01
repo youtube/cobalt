@@ -56,7 +56,14 @@ source_set("flac") {
     "src/libFLAC/include/protected/stream_encoder.h",
   ]
 
+if (is_starboard) {
+  deps = [
+    "//starboard:starboard_headers_only",
+    "//starboard/common",
+  ]
+} else {
   configs -= [ "//build/config/compiler:chromium_code" ]
+}
   configs += [
     ":flac_config",
     "//build/config/compiler:no_chromium_code",
