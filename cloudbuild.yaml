@@ -8,7 +8,7 @@ steps:
          'build-android',
          'build-evergreen',
          'stub',
-         'build-raspi']
+         'raspi']
   env:
     - 'NINJA_STATUS="[%f/%t %c/sec] "'
 - name: 'gcr.io/cloud-builders/docker'
