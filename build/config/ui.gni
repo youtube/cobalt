@@ -44,7 +44,7 @@ declare_args() {
 
   # TODO(crbug.com/1171629): Remove is_chromeos_lacros.
   # Whether we should use glib, a low level C utility library.
-  use_glib = (is_linux || is_chromeos_lacros) && !is_chromecast
+  use_glib = (is_linux || is_chromeos_lacros) && !is_chromecast && !is_starboard
 }
 
 # TODO(crbug.com/1171629): Remove is_chromeos_lacros.

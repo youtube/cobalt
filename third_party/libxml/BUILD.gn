@@ -148,6 +148,9 @@ static_library("libxml") {
     # TODO: Remove after GN migration is complete
     "//cobalt:gn_all",
   ]
+  if (is_starboard) {
+    visibility += [ "//base/test:test_support" ]
+  }
   if (is_ios) {
     foreach(tgt, ios_libxml_visibility_additions) {
       visibility += [ "//ios_internal/$tgt" ]

@@ -20,4 +20,6 @@ static_library("network_bridge") {
     "net_poster.cc",
     "net_poster.h",
   ]
+
+  deps = [ "//base" ]
 }

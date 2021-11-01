@@ -17,6 +17,8 @@
 # targets.
 
 static_library("wrapper") {
+  check_includes = false
+
   sources = [
     "wrapper.cc",
     "wrapper.h",

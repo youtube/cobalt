@@ -25,4 +25,8 @@ source_set("base_numerics") {
     "safe_conversions.h",
     "safe_math.h",
   ]
+
+  if (is_starboard) {
+    deps = [ "//starboard:starboard_headers_only" ]
+  }
 }

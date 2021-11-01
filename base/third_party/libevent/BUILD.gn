@@ -75,6 +75,10 @@ static_library("libevent") {
     include_dirs = [ "nacl_nonsfi" ]
   }
 
-  configs -= [ "//build/config/compiler:chromium_code" ]
+  if (is_starboard) {
+    deps = [ "//starboard:starboard_headers_only" ]
+  } else {
+    configs -= [ "//build/config/compiler:chromium_code" ]
+  }
   configs += [ "//build/config/compiler:no_chromium_code" ]
 }
