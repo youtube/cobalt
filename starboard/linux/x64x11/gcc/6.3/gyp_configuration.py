@@ -45,9 +45,9 @@ class LinuxX64X11Gcc63Configuration(shared_configuration.LinuxConfiguration):
             os.path.exists(os.path.join(self.toolchain_bin_dir, 'gcc'))):
       raise RuntimeError('GCC 6.3 dependency is not present on this system.')
 
-  def GetVariables(self, configuration):
+  def GetVariables(self, config_name):
     variables = super(LinuxX64X11Gcc63Configuration,
-                      self).GetVariables(configuration)
+                      self).GetVariables(config_name)
     variables.update({
         'clang': 0,
     })
