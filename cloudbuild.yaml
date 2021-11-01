@@ -3,4 +3,9 @@ options:
   machineType: N1_HIGHCPU_8
 steps:
 - name: 'gcr.io/cobalt-demo-330821/docker-compose'
-  args: ['build build-base build-android build-evergreen build-linux-stub build-raspi']
+  args: ['build',
+         'build-base',
+         'build-android',
+         'build-evergreen',
+         'build-linux-stub',
+         'build-raspi']
