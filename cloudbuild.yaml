@@ -7,5 +7,5 @@ steps:
          'build-base',
          'build-android',
          'build-evergreen',
-         'build-linux-stub',
+         'stub',
          'build-raspi']
