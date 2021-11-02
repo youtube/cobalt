@@ -253,7 +253,11 @@ class PipelineState():
       const primary_pipeline_keys = h5vcc.cVal.keys().filter(key =>
         key.startsWith("Media.Pipeline.") &&
         key.endsWith("MaxVideoCapabilities") &&
-        h5vcc.cVal.getValue(key).length === 0);
+        h5vcc.cVal.getValue(key).length === 0 &&
+        h5vcc.cVal.getValue(key.replace('MaxVideoCapabilities', 'Started'))
+            === 'true' &&
+        h5vcc.cVal.getValue(key.replace('MaxVideoCapabilities', 'Stopped'))
+            === 'false');
       if (primary_pipeline_keys.length == 0) {
         return "null";
       }

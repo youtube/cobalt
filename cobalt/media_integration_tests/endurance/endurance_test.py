@@ -260,5 +260,6 @@ class EnduranceTest(TestCase):
           # Play the previous playback again.
           app.PlayPrevious()
           self.last_action_time = current_running_time
+          logging.info('Play previous playback to keep app active.')
 
       app.RemovePlayerStateChangeHandler(self.OnPlayerStateChanged)
