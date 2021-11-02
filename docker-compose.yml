@@ -161,16 +161,13 @@ services:
     build:
       context: ./docker/linux
       dockerfile: gcc-6-3/Dockerfile
-      args:
-        - FROM_IMAGE=build-base-bionic
-    image: linux-x64x11-gcc-6-3
+    image: cobalt-build-linux-gcc-6-3
     environment:
       <<: *shared-build-env
       PLATFORM: linux-x64x11-gcc-6-3
       CONFIG: ${CONFIG:-debug}
     depends_on:
-      - build-base-bionic
-    scale: 0
+      - linux-x64x11-bionic
 
   linux-x64x11-clang-3-9:
     <<: *common-definitions
