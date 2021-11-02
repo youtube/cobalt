@@ -75,7 +75,7 @@ SSH into another machine and run the binary on that machine.
 
     ```
     $ pre-commit install -t post-checkout -t pre-commit -t pre-push --allow-missing-config
-    $ git checkout -b <my-branch-name> origin/COBALT
+    $ git checkout -b <my-branch-name> origin/master
     ```
 
 ## Build and Run Cobalt
