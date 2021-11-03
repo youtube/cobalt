@@ -168,7 +168,7 @@ class EnduranceTest(TestCase):
     logging.info('Send random action (%s).', action_name)
     actions[action_name](app)
 
-  def test_playback_endurance(self):
+  def test_playback_endurance(self):  # pylint: disable=invalid-name
     self.start_time = time.time()
     self.player_identifier = ''
     self.playback_is_playing = False
