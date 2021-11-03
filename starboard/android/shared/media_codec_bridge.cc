@@ -166,16 +166,24 @@ scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodecBridge(
     return scoped_ptr<MediaCodecBridge>(NULL);
   }
   JniEnvExt* env = JniEnvExt::Get();
+  ScopedLocalJavaRef<jbyteArray> configuration_data;
+  if (audio_codec == kSbMediaAudioCodecOpus &&
+      audio_sample_info.audio_specific_config_size != 0) {
+    configuration_data.Reset(env->NewByteArrayFromRaw(
+        static_cast<const jbyte*>(audio_sample_info.audio_specific_config),
+        audio_sample_info.audio_specific_config_size));
+  }
   ScopedLocalJavaRef<jstring> j_mime(env->NewStringStandardUTFOrAbort(mime));
   scoped_ptr<MediaCodecBridge> native_media_codec_bridge(
       new MediaCodecBridge(handler));
   jobject j_media_codec_bridge = env->CallStaticObjectMethodOrAbort(
       "dev/cobalt/media/MediaCodecBridge", "createAudioMediaCodecBridge",
-      "(JLjava/lang/String;IILandroid/media/MediaCrypto;)Ldev/cobalt/media/"
+      "(JLjava/lang/String;IILandroid/media/MediaCrypto;[B)Ldev/cobalt/media/"
       "MediaCodecBridge;",
       reinterpret_cast<jlong>(native_media_codec_bridge.get()), j_mime.Get(),
       audio_sample_info.samples_per_second,
-      audio_sample_info.number_of_channels, j_media_crypto);
+      audio_sample_info.number_of_channels, j_media_crypto,
+      configuration_data.Get());
 
   if (!j_media_codec_bridge) {
     return scoped_ptr<MediaCodecBridge>(NULL);

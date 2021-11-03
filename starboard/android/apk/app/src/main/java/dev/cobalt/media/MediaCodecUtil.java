@@ -36,8 +36,8 @@ import java.util.Set;
 
 /** Utility functions for dealing with MediaCodec related things. */
 public class MediaCodecUtil {
-  // A low priority deny list of codec names that should never be used.
-  private static final Set<String> codecDenyList = new HashSet<>();
+  // A low priority deny list of video codec names that should never be used.
+  private static final Set<String> videoCodecDenyList = new HashSet<>();
   // A high priority allow list of brands/model that should always attempt to
   // play vp9.
   private static final Map<String, Set<String>> vp9AllowList = new HashMap<>();
@@ -46,7 +46,7 @@ public class MediaCodecUtil {
 
   // Whether we should report vp9 codecs as supported or not.  Will be set
   // based on whether vp9AllowList contains our brand/model.  If this is set
-  // to true, then codecDenyList will be ignored.
+  // to true, then videoCodecDenyList will be ignored.
   private static boolean isVp9AllowListed;
   private static final String SECURE_DECODER_SUFFIX = ".secure";
   private static final String VP9_MIME_TYPE = "video/x-vnd.on2.vp9";
@@ -71,54 +71,54 @@ public class MediaCodecUtil {
 
   static {
     if (Build.VERSION.SDK_INT >= 24 && Build.BRAND.equals("google")) {
-      codecDenyList.add("OMX.Nvidia.vp9.decode");
+      videoCodecDenyList.add("OMX.Nvidia.vp9.decode");
     }
     if (Build.VERSION.SDK_INT >= 24 && Build.BRAND.equals("LGE")) {
-      codecDenyList.add("OMX.qcom.video.decoder.vp9");
+      videoCodecDenyList.add("OMX.qcom.video.decoder.vp9");
     }
     if (Build.VERSION.RELEASE.startsWith("6.0.1")) {
-      codecDenyList.add("OMX.Exynos.vp9.dec");
-      codecDenyList.add("OMX.Intel.VideoDecoder.VP9.hwr");
-      codecDenyList.add("OMX.MTK.VIDEO.DECODER.VP9");
-      codecDenyList.add("OMX.qcom.video.decoder.vp9");
+      videoCodecDenyList.add("OMX.Exynos.vp9.dec");
+      videoCodecDenyList.add("OMX.Intel.VideoDecoder.VP9.hwr");
+      videoCodecDenyList.add("OMX.MTK.VIDEO.DECODER.VP9");
+      videoCodecDenyList.add("OMX.qcom.video.decoder.vp9");
     }
     if (Build.VERSION.RELEASE.startsWith("6.0")) {
-      codecDenyList.add("OMX.MTK.VIDEO.DECODER.VP9");
-      codecDenyList.add("OMX.Nvidia.vp9.decode");
+      videoCodecDenyList.add("OMX.MTK.VIDEO.DECODER.VP9");
+      videoCodecDenyList.add("OMX.Nvidia.vp9.decode");
     }
     if (Build.VERSION.RELEASE.startsWith("5.1.1")) {
-      codecDenyList.add("OMX.allwinner.video.decoder.vp9");
-      codecDenyList.add("OMX.Exynos.vp9.dec");
-      codecDenyList.add("OMX.Intel.VideoDecoder.VP9.hwr");
-      codecDenyList.add("OMX.MTK.VIDEO.DECODER.VP9");
-      codecDenyList.add("OMX.qcom.video.decoder.vp9");
+      videoCodecDenyList.add("OMX.allwinner.video.decoder.vp9");
+      videoCodecDenyList.add("OMX.Exynos.vp9.dec");
+      videoCodecDenyList.add("OMX.Intel.VideoDecoder.VP9.hwr");
+      videoCodecDenyList.add("OMX.MTK.VIDEO.DECODER.VP9");
+      videoCodecDenyList.add("OMX.qcom.video.decoder.vp9");
     }
     if (Build.VERSION.RELEASE.startsWith("5.1")) {
-      codecDenyList.add("OMX.Exynos.VP9.Decoder");
-      codecDenyList.add("OMX.Intel.VideoDecoder.VP9.hwr");
-      codecDenyList.add("OMX.MTK.VIDEO.DECODER.VP9");
+      videoCodecDenyList.add("OMX.Exynos.VP9.Decoder");
+      videoCodecDenyList.add("OMX.Intel.VideoDecoder.VP9.hwr");
+      videoCodecDenyList.add("OMX.MTK.VIDEO.DECODER.VP9");
     }
     if (Build.VERSION.RELEASE.startsWith("5.0")) {
-      codecDenyList.add("OMX.allwinner.video.decoder.vp9");
-      codecDenyList.add("OMX.Exynos.vp9.dec");
-      codecDenyList.add("OMX.Intel.VideoDecoder.VP9.hwr");
-      codecDenyList.add("OMX.MTK.VIDEO.DECODER.VP9");
+      videoCodecDenyList.add("OMX.allwinner.video.decoder.vp9");
+      videoCodecDenyList.add("OMX.Exynos.vp9.dec");
+      videoCodecDenyList.add("OMX.Intel.VideoDecoder.VP9.hwr");
+      videoCodecDenyList.add("OMX.MTK.VIDEO.DECODER.VP9");
     }
 
     if (Build.BRAND.equals("google")) {
-      codecDenyList.add("OMX.Intel.VideoDecoder.VP9.hybrid");
+      videoCodecDenyList.add("OMX.Intel.VideoDecoder.VP9.hybrid");
     }
 
     // Denylist non hardware media codec names if we aren't running on an emulator.
     if (!IsEmulator.isEmulator()) {
-      codecDenyList.add("OMX.ffmpeg.vp9.decoder");
-      codecDenyList.add("OMX.Intel.sw_vd.vp9");
-      codecDenyList.add("OMX.MTK.VIDEO.DECODER.SW.VP9");
+      videoCodecDenyList.add("OMX.ffmpeg.vp9.decoder");
+      videoCodecDenyList.add("OMX.Intel.sw_vd.vp9");
+      videoCodecDenyList.add("OMX.MTK.VIDEO.DECODER.SW.VP9");
     }
 
     // Denylist the Google software vp9 decoder both on hardware and on the emulator.
     // On the emulator it fails with the log: "storeMetaDataInBuffers failed w/ err -1010"
-    codecDenyList.add("OMX.google.vp9.decoder");
+    videoCodecDenyList.add("OMX.google.vp9.decoder");
 
     vp9AllowList.put("Amazon", new HashSet<String>());
     vp9AllowList.put("Amlogic", new HashSet<String>());
@@ -530,7 +530,7 @@ public class MediaCodecUtil {
           Log.v(TAG, String.format("Rejecting %s, reason: require software codec", name));
           continue;
         }
-        if (!isVp9AllowListed && codecDenyList.contains(name)) {
+        if (!isVp9AllowListed && videoCodecDenyList.contains(name)) {
           Log.v(TAG, String.format("Rejecting %s, reason: codec is on deny list", name));
           continue;
         }
@@ -551,7 +551,7 @@ public class MediaCodecUtil {
           // denylisted.
           String nameWithoutSecureSuffix =
               name.substring(0, name.length() - SECURE_DECODER_SUFFIX.length());
-          if (!isVp9AllowListed && codecDenyList.contains(nameWithoutSecureSuffix)) {
+          if (!isVp9AllowListed && videoCodecDenyList.contains(nameWithoutSecureSuffix)) {
             String format = "Rejecting %s, reason: offpsec denylisted secure decoder";
             Log.v(TAG, String.format(format, name));
             continue;
@@ -850,7 +850,7 @@ public class MediaCodecUtil {
                 "name: %s (%s, %s): ",
                 name,
                 supportedType,
-                codecDenyList.contains(name) ? "denylisted" : "not denylisted");
+                videoCodecDenyList.contains(name) ? "denylisted" : "not denylisted");
         CodecCapabilities codecCapabilities = info.getCapabilitiesForType(supportedType);
         VideoCapabilities videoCapabilities = codecCapabilities.getVideoCapabilities();
         String resultName =

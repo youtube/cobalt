@@ -31,6 +31,7 @@ import android.media.MediaFormat;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.Surface;
+import androidx.annotation.Nullable;
 import dev.cobalt.util.Log;
 import dev.cobalt.util.UsedByNative;
 import java.nio.ByteBuffer;
@@ -526,7 +527,8 @@ class MediaCodecBridge {
       String mime,
       int sampleRate,
       int channelCount,
-      MediaCrypto crypto) {
+      MediaCrypto crypto,
+      @Nullable byte[] configurationData) {
     MediaCodec mediaCodec = null;
     try {
       String decoderName =
@@ -554,7 +556,17 @@ class MediaCodecBridge {
             -1);
 
     MediaFormat mediaFormat = createAudioFormat(mime, sampleRate, channelCount);
-    setFrameHasADTSHeader(mediaFormat);
+
+    if (mime.contains("opus")) {
+      if (!setOpusConfigurationData(mediaFormat, sampleRate, configurationData)) {
+        bridge.release();
+        return null;
+      }
+    } else {
+      // TODO: Determine if we should explicitly check the mime for AAC audio before calling
+      // setFrameHasADTSHeader(), as more codecs may be supported here in the future.
+      setFrameHasADTSHeader(mediaFormat);
+    }
     if (!bridge.configureAudio(mediaFormat, crypto, 0)) {
       Log.e(TAG, "Failed to configure audio codec.");
       bridge.release();
@@ -1073,7 +1085,7 @@ class MediaCodecBridge {
   }
 
   // Use some heuristics to set KEY_MAX_INPUT_SIZE (the size of the input buffers).
-  // Taken from exoplayer:
+  // Taken from ExoPlayer:
   // https://github.com/google/ExoPlayer/blob/8595c65678a181296cdf673eacb93d8135479340/library/src/main/java/com/google/android/exoplayer/MediaCodecVideoTrackRenderer.java
   private void maybeSetMaxInputSize(MediaFormat format) {
     if (format.containsKey(android.media.MediaFormat.KEY_MAX_INPUT_SIZE)) {
@@ -1153,6 +1165,45 @@ class MediaCodecBridge {
     if (name != null) {
       format.setByteBuffer(name, ByteBuffer.wrap(bytes));
     }
+  }
+
+  @SuppressWarnings("unused")
+  private static boolean setOpusConfigurationData(
+      MediaFormat format, int sampleRate, @Nullable byte[] configurationData) {
+    final int MIN_OPUS_INITIALIZATION_DATA_BUFFER_SIZE = 19;
+    final long NANOSECONDS_IN_ONE_SECOND = 1000000000L;
+    // 3840 is the default seek pre-roll samples used by ExoPlayer:
+    // https://github.com/google/ExoPlayer/blob/0ba317b1337eaa789f05dd6c5241246478a3d1e5/library/common/src/main/java/com/google/android/exoplayer2/audio/OpusUtil.java#L30.
+    final int DEFAULT_SEEK_PRE_ROLL_SAMPLES = 3840;
+    if (configurationData == null
+        || configurationData.length < MIN_OPUS_INITIALIZATION_DATA_BUFFER_SIZE) {
+      Log.e(
+          TAG,
+          "Failed to configure Opus audio codec. " + configurationData == null
+              ? "|configurationData| is null."
+              : String.format(
+                  "Configuration data size (%d) is less than the required size (%d).",
+                  configurationData.length, MIN_OPUS_INITIALIZATION_DATA_BUFFER_SIZE));
+      return false;
+    }
+    // Both the number of samples to skip from the beginning of the stream and the amount of time
+    // to pre-roll when seeking must be specified when configuring the Opus decoder. Logic adapted
+    // from ExoPlayer:
+    // https://github.com/google/ExoPlayer/blob/0ba317b1337eaa789f05dd6c5241246478a3d1e5/library/common/src/main/java/com/google/android/exoplayer2/audio/OpusUtil.java#L52.
+    int preSkipSamples = ((configurationData[11] & 0xFF) << 8) | (configurationData[10] & 0xFF);
+    long preSkipNanos = (preSkipSamples * NANOSECONDS_IN_ONE_SECOND) / sampleRate;
+    long seekPreRollNanos =
+        (DEFAULT_SEEK_PRE_ROLL_SAMPLES * NANOSECONDS_IN_ONE_SECOND) / sampleRate;
+    setCodecSpecificData(format, 0, configurationData);
+    setCodecSpecificData(
+        format,
+        1,
+        ByteBuffer.allocate(8).order(ByteOrder.nativeOrder()).putLong(preSkipNanos).array());
+    setCodecSpecificData(
+        format,
+        2,
+        ByteBuffer.allocate(8).order(ByteOrder.nativeOrder()).putLong(seekPreRollNanos).array());
+    return true;
   }
 
   @SuppressWarnings("unused")

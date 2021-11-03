@@ -34,11 +34,6 @@ bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec,
     return false;
   }
 
-  // Android now uses libopus based opus decoder.
-  if (audio_codec == kSbMediaAudioCodecOpus) {
-    return true;
-  }
-
   bool is_passthrough = false;
   const char* mime =
       SupportedAudioCodecToMimeType(audio_codec, &is_passthrough);
@@ -70,6 +65,12 @@ bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec,
         << "Tunnel mode is rejected because int16 sample is required "
            "but not supported.";
     return false;
+  }
+
+  // Android uses a libopus based opus decoder for clear content, or a platform
+  // opus decoder for encrypted content, if available.
+  if (audio_codec == kSbMediaAudioCodecOpus) {
+    return true;
   }
 
   JniEnvExt* env = JniEnvExt::Get();

@@ -38,10 +38,11 @@ bool SbMediaIsSupported(SbMediaVideoCodec video_codec,
     return false;
   }
 
-  // We support all codecs except Opus in L1.  Use allow list to avoid
-  // accidentally introducing the support of a codec brought in in future.
+  // Use allow list to avoid accidentally introducing the support of a codec
+  // brought in the future.
   if (audio_codec != kSbMediaAudioCodecNone &&
       audio_codec != kSbMediaAudioCodecAac &&
+      audio_codec != kSbMediaAudioCodecOpus &&
       audio_codec != kSbMediaAudioCodecAc3 &&
       audio_codec != kSbMediaAudioCodecEac3) {
     return false;
