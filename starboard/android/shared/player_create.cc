@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <string>
+
 #include "starboard/player.h"
 
 #include "starboard/android/shared/video_decoder.h"
@@ -92,21 +94,21 @@ SbPlayer SbPlayerCreate(SbWindow window,
   if (!sample_deallocate_func) {
     SB_LOG(ERROR) << "|sample_deallocate_func| cannot be null.";
     player_error_func(kSbPlayerInvalid, context, kSbPlayerErrorDecode,
-                      "|sample_deallocate_func| cannot be null.");
+                      "|sample_deallocate_func| cannot be null");
     return kSbPlayerInvalid;
   }
 
   if (!decoder_status_func) {
     SB_LOG(ERROR) << "|decoder_status_func| cannot be null.";
     player_error_func(kSbPlayerInvalid, context, kSbPlayerErrorDecode,
-                      "|decoder_status_func| cannot be null.");
+                      "|decoder_status_func| cannot be null");
     return kSbPlayerInvalid;
   }
 
   if (!player_status_func) {
     SB_LOG(ERROR) << "|player_status_func| cannot be null.";
     player_error_func(kSbPlayerInvalid, context, kSbPlayerErrorDecode,
-                      "|player_status_func| cannot be null.");
+                      "|player_status_func| cannot be null");
     return kSbPlayerInvalid;
   }
 
