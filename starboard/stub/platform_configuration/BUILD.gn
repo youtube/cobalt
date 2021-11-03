@@ -25,18 +25,13 @@ config("platform_configuration") {
   }
 
   if (is_debug) {
-    cflags += [
-      "-frtti",
-      "-O0",
-    ]
+    cflags += [ "-O0" ]
+    configs += [ "//build/config/compiler:rtti" ]
   } else if (is_devel) {
-    cflags += [
-      "-frtti",
-      "-O2",
-    ]
+    cflags += [ "-O2" ]
+    configs += [ "//build/config/compiler:rtti" ]
   } else {
     cflags += [
-      "-fno-rtti",
       "-O2",
       "-gline-tables-only",
     ]

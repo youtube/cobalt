@@ -95,7 +95,9 @@ def main():
 
   run_all_tests = os.path.join(REPOSITORY_ROOT,
                                'starboard/evergreen/testing/run_all_tests.sh')
-  command = [run_all_tests, args.platform_under_test]
+
+  # /bin/bash is executed since run_all_tests.sh may not be executable.
+  command = ['/bin/bash', run_all_tests, args.platform_under_test]
 
   if launcher.device_id:
     # The automated tests run on this host should target a remote device.

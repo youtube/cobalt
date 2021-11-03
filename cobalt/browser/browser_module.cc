@@ -409,6 +409,15 @@ BrowserModule::BrowserModule(const GURL& url,
 #endif  // ENABLE_DEBUGGER
     }
   }
+
+  if (command_line->HasSwitch(switches::kDisableMediaEncryptionSchemes)) {
+    std::string encryption_schemes = command_line->GetSwitchValueASCII(
+        switches::kDisableMediaEncryptionSchemes);
+    if (!encryption_schemes.empty()) {
+      can_play_type_handler_->SetDisabledMediaEncryptionSchemes(
+          encryption_schemes);
+    }
+  }
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
   if (application_state_ == base::kApplicationStateStarted ||

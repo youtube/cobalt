@@ -18,10 +18,12 @@
       'type': '<(gtest_target_type)',
       'includes': [
         '<(DEPTH)/starboard/shared/starboard/media/media_tests.gypi',
+        '<(DEPTH)/starboard/shared/starboard/player/player_tests.gypi',
       ],
       'sources': [
         '<(DEPTH)/starboard/common/test_main.cc',
         '<@(media_tests_sources)',
+        '<@(player_tests_sources)',
       ],
       'defines': [
         # This allows the tests to include internal only header files.

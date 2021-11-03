@@ -14,6 +14,7 @@
 
 import("//starboard/shared/starboard/media/media_tests.gni")
 import("//starboard/shared/starboard/player/buildfiles.gni")
+import("//starboard/shared/starboard/player/player_tests.gni")
 
 config("starboard_platform_config") {
   include_dirs = [ "bionic" ]
@@ -477,7 +478,7 @@ static_library("starboard_base_symbolize") {
 target(gtest_target_type, "starboard_platform_tests") {
   testonly = true
 
-  sources = media_tests_sources + [
+  sources = media_tests_sources + player_tests_sources + [
               "//starboard/common/test_main.cc",
               "jni_env_ext_test.cc",
               "model_year_test.cc",

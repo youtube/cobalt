@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-"""Extracts python files and writes platforms information.
+"""Extracts files and writes platforms information.
 
 This script extracts the app launcher scripts (and all their dependencies) from
 the Cobalt source tree, and then packages them into a user-specified location so
@@ -39,10 +39,16 @@ from starboard.tools import log_level
 from starboard.tools import port_symlink
 import starboard.tools.platform
 
-# Default python directories to app launcher resources.
-_INCLUDE_FILE_PATTERNS = [('cobalt', '*.py'), ('starboard', '*.py'),
-                          ('starboard', '*.pfx'),
-                          ('starboard/tools', 'platform.py.template')]
+# Default directories to app launcher resources.
+_INCLUDE_FILE_PATTERNS = [
+    ('cobalt', '*.py'),
+    ('starboard', '*.py'),
+    ('starboard', '*.pfx'),
+    ('starboard/tools', 'platform.py.template'),
+    # Just match everything since the Evergreen tests are written using shell
+    # scripts and html files.
+    ('starboard/evergreen/testing', '*')
+]
 
 _INCLUDE_BLACK_BOX_TESTS_PATTERNS = [
     # Black box and web platform tests have non-py assets, so everything

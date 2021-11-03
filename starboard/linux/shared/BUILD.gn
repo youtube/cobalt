@@ -14,6 +14,7 @@
 
 import("//starboard/shared/starboard/media/media_tests.gni")
 import("//starboard/shared/starboard/player/buildfiles.gni")
+import("//starboard/shared/starboard/player/player_tests.gni")
 
 group("starboard_platform") {
   public_deps = [
@@ -455,7 +456,8 @@ static_library("starboard_platform_sources") {
 target(gtest_target_type, "starboard_platform_tests") {
   testonly = true
 
-  sources = media_tests_sources + [ "//starboard/common/test_main.cc" ]
+  sources = media_tests_sources + player_tests_sources +
+            [ "//starboard/common/test_main.cc" ]
 
   configs += [ "//starboard/build/config:starboard_implementation" ]
 

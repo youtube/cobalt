@@ -11,7 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 import("//starboard/shared/starboard/player/buildfiles.gni")
+import("//starboard/shared/starboard/player/player_tests.gni")
 
 group("starboard_platform") {
   public_deps = [ ":starboard_platform_sources" ]
@@ -19,6 +21,8 @@ group("starboard_platform") {
 
 static_library("starboard_platform_sources") {
   check_includes = false
+
+  has_pedantic_warnings = true
 
   sources = [
     "//starboard/linux/shared/atomic_public.h",
@@ -386,11 +390,7 @@ static_library("starboard_platform_sources") {
     ]
   }
 
-  configs += [
-    "//starboard/build/config:pedantic_warnings",
-    "//starboard/build/config:starboard_implementation",
-  ]
-  configs -= [ "//starboard/build/config:no_pedantic_warnings" ]
+  configs += [ "//starboard/build/config:starboard_implementation" ]
 
   public_deps = [
     ":starboard_base_symbolize",
@@ -429,4 +429,19 @@ static_library("starboard_base_symbolize") {
   ]
 
   public_deps = [ "//starboard/elf_loader:evergreen_info" ]
+}
+
+target(gtest_target_type, "starboard_platform_tests") {
+  testonly = true
+
+  sources = player_tests_sources + [ "//starboard/common/test_main.cc" ]
+
+  configs += [ "//starboard/build/config:starboard_implementation" ]
+
+  deps = [
+    "//starboard",
+    "//starboard/shared/starboard/player/filter/testing:test_util",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
 }

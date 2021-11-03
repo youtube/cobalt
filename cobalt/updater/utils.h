@@ -1,4 +1,4 @@
-// Copyright 2019 The Chromium Authors. All rights reserved.
+// Copyright 2021 The Cobalt Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -28,6 +28,10 @@ const std::string GetCurrentEvergreenVersion();
 
 // Read the Evergreen version of the installation dir.
 base::Version ReadEvergreenVersion(base::FilePath installation_dir);
+
+// Returns the hash of the libcobalt.so binary for the installation
+// at slot |index|.
+std::string GetLibrarySha256(int index);
 
 }  // namespace updater
 }  // namespace cobalt

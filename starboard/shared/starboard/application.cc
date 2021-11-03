@@ -239,7 +239,7 @@ void Application::DispatchStart(SbTimeMonotonic timestamp) {
   SB_DCHECK(state_ == kStateUnstarted);
   DispatchAndDelete(CreateInitialEvent(kSbEventTypeStart, timestamp));
 }
-#else  // SB_API_VERSION >= 13
+#else   // SB_API_VERSION >= 13
 void Application::DispatchStart() {
   SB_DCHECK(IsCurrentThread());
   SB_DCHECK(state_ == kStateUnstarted || state_ == kStatePreloading);
@@ -253,7 +253,7 @@ void Application::DispatchPreload(SbTimeMonotonic timestamp) {
   SB_DCHECK(state_ == kStateUnstarted);
   DispatchAndDelete(CreateInitialEvent(kSbEventTypePreload, timestamp));
 }
-#else  // SB_API_VERSION >= 13
+#else   // SB_API_VERSION >= 13
 void Application::DispatchPreload() {
   SB_DCHECK(IsCurrentThread());
   SB_DCHECK(state_ == kStateUnstarted);
@@ -334,7 +334,6 @@ bool Application::DispatchAndDelete(Application::Event* event) {
         case kStateStopped:
           return true;
         case kStateFrozen:
-          OnResume();
           Inject(new Event(kSbEventTypeUnfreeze, timestamp, NULL, NULL));
           Inject(scoped_event.release());
           return true;
@@ -370,6 +369,7 @@ bool Application::DispatchAndDelete(Application::Event* event) {
         case kStateStopped:
           return true;
         case kStateFrozen:
+          OnResume();
           break;
         case kStateConcealed:
         case kStateBlurred:
@@ -585,7 +585,7 @@ void Application::CallTeardownCallbacks() {
 #if SB_API_VERSION >= 13
 Application::Event* Application::CreateInitialEvent(SbEventType type,
                                                     SbTimeMonotonic timestamp) {
-#else  // SB_API_VERSION >= 13
+#else   // SB_API_VERSION >= 13
 Application::Event* Application::CreateInitialEvent(SbEventType type) {
 #endif  // SB_API_VERSION >= 13
   SB_DCHECK(type == kSbEventTypePreload || type == kSbEventTypeStart);
@@ -615,8 +615,8 @@ int Application::RunLoop() {
   } else if (IsStartImmediate()) {
     DispatchStart(SbTimeGetMonotonicNow());
   }
-#else  // SB_API_VERSION >= 13
- if (IsPreloadImmediate()) {
+#else   // SB_API_VERSION >= 13
+  if (IsPreloadImmediate()) {
     DispatchPreload();
   } else if (IsStartImmediate()) {
     DispatchStart();

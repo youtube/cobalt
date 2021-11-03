@@ -14,6 +14,10 @@
 
 #include "cobalt/h5vcc/h5vcc_updater.h"
 
+#if SB_IS(EVERGREEN)
+#include "cobalt/updater/utils.h"
+#endif
+
 namespace {
 
 const uint16 kInvalidInstallationIndex = 1000;
@@ -23,6 +27,7 @@ const uint16 kInvalidInstallationIndex = 1000;
 namespace cobalt {
 namespace h5vcc {
 
+#if SB_IS(EVERGREEN)
 std::string H5vccUpdater::GetUpdaterChannel() const {
   if (!updater_module_) {
     return "";
@@ -66,5 +71,10 @@ uint16 H5vccUpdater::GetInstallationIndex() const {
   return index == -1 ? kInvalidInstallationIndex : static_cast<uint16>(index);
 }
 
+std::string H5vccUpdater::GetLibrarySha256(uint16 index) const {
+  return cobalt::updater::GetLibrarySha256(index);
+}
+
+#endif  // SB_IS(EVERGREEN)
 }  // namespace h5vcc
 }  // namespace cobalt

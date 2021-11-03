@@ -38,7 +38,12 @@ repos:
         language: system
         types: [c++]
         args: [--verbose=4, --quiet]
-        exclude: '(^cobalt/bindings/(templates|generated)/|tests?.(cc|h)$)'
+        exclude: |
+            (?x)(
+                ^cobalt/bindings/(templates|generated)/|
+                ^starboard/shared/uikit/.*\.h$|
+                tests?\.(cc|h)$
+            )
     -   id: cpplint_test
         name: cpplint_test
         entry: cpplint
@@ -46,6 +51,7 @@ repos:
         types: [c++]
         args: [--verbose=5, --quiet]
         files: '.*tests?.(cc|h)$'
+        exclude: '^starboard/shared/uikit/.*\.h$'
     -   id: yapf
         name: yapf
         description: Run yapf (the python formatter) in-place on changed files.
@@ -141,9 +147,17 @@ repos:
         entry: python precommit_hooks/internal_file_check_wrapper.py
         language: python
         types: [text]
-        exclude: 'EXCLUDE\.FILES(\.RECURSIVE)?$'
+        # TODO: Remove docker-compose-windows.yml after internal check evaluates
+        # properly on it.
+        exclude: '(^docker-compose-windows.yml|EXCLUDE\.FILES(\.RECURSIVE)?)$'
     -   id: gn-format
         name: GN format
         entry: gn format
         language: system
         files: '.*\.gni?$'
+    -   id: gyp-changes
+        name: Disallow GYP Changes
+        entry: echo -e "GYP is deprecated and will not be included past Cobalt 22. Use GN.\n"
+        language: system
+        files: '\.gypi?$'
+        verbose: true

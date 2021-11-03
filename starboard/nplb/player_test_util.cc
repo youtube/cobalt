@@ -74,7 +74,8 @@ std::vector<SbPlayerTestConfig> GetSupportedSbPlayerTestConfigs() {
     if (SbMediaCanPlayMimeAndKeySystem(dmp_reader.audio_mime_type().c_str(),
                                        "")) {
       for (auto output_mode : kOutputModes) {
-        if (IsOutputModeSupported(output_mode, kSbMediaVideoCodecNone)) {
+        if (IsOutputModeSupported(output_mode, dmp_reader.audio_codec(),
+                                  kSbMediaVideoCodecNone)) {
           test_configs.push_back(
               std::make_tuple(audio_filename, kEmptyName, output_mode));
         }
@@ -90,7 +91,8 @@ std::vector<SbPlayerTestConfig> GetSupportedSbPlayerTestConfigs() {
       continue;
     }
     for (auto output_mode : kOutputModes) {
-      if (IsOutputModeSupported(output_mode, dmp_reader.video_codec())) {
+      if (IsOutputModeSupported(output_mode, kSbMediaAudioCodecNone,
+                                dmp_reader.video_codec())) {
         test_configs.push_back(
             std::make_tuple(kEmptyName, video_filename, output_mode));
       }
@@ -173,24 +175,26 @@ SbPlayer CallSbPlayerCreate(
 
 #else  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 
-  return SbPlayerCreate(
-      window, video_codec, audio_codec, kSbDrmSystemInvalid, audio_sample_info,
-      max_video_capabilities,
-      sample_deallocate_func, decoder_status_func, player_status_func,
-      player_error_func, context, output_mode, context_provider);
+  return SbPlayerCreate(window, video_codec, audio_codec, kSbDrmSystemInvalid,
+                        audio_sample_info, max_video_capabilities,
+                        sample_deallocate_func, decoder_status_func,
+                        player_status_func, player_error_func, context,
+                        output_mode, context_provider);
 
 #endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 }
 
 bool IsOutputModeSupported(SbPlayerOutputMode output_mode,
-                           SbMediaVideoCodec codec) {
+                           SbMediaAudioCodec audio_codec,
+                           SbMediaVideoCodec video_codec) {
 #if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
   SbPlayerCreationParam creation_param =
-      CreatePlayerCreationParam(kSbMediaAudioCodecNone, codec);
+      CreatePlayerCreationParam(audio_codec, video_codec);
   creation_param.output_mode = output_mode;
   return SbPlayerGetPreferredOutputMode(&creation_param) == output_mode;
 #else   // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
-  return SbPlayerOutputModeSupported(output_mode, codec, kSbDrmSystemInvalid);
+  return SbPlayerOutputModeSupported(output_mode, video_codec,
+                                     kSbDrmSystemInvalid);
 #endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 }
 

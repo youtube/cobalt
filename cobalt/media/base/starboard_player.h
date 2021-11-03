@@ -118,6 +118,15 @@ class StarboardPlayer {
   //       Need to be removed with media refactor.
   void Resume(SbWindow window);
 
+  // These functions help the pipeline report an error message on a player
+  // creation error. TryToSetPlayerCreationErrorMessage() will set
+  // |player_creation_error_message_| and return true when called while
+  // |is_creating_player_| is true, else it will do nothing and return false.
+  bool TryToSetPlayerCreationErrorMessage(const std::string& message);
+  std::string GetPlayerCreationErrorMessage() const {
+    return player_creation_error_message_;
+  }
+
   SbDecodeTarget GetCurrentSbDecodeTarget();
   SbPlayerOutputMode GetSbPlayerOutputMode();
 
@@ -255,6 +264,10 @@ class StarboardPlayer {
 
   // A string of video maximum capabilities.
   std::string max_video_capabilities_;
+
+  // Keep track of errors during player creation.
+  bool is_creating_player_ = false;
+  std::string player_creation_error_message_;
 
 #if SB_HAS(PLAYER_WITH_URL)
   const bool is_url_based_;

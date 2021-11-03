@@ -26,9 +26,6 @@ declare_args() {
   cobalt_fastbuild = getenv("IS_CI") == 1
 
   is_internal_build = false
-
-  # TODO: Remove this flag when the affected targets can be built.
-  can_build_evergreen_loader_apps = true
 }
 
 is_debug = build_type == "debug"
@@ -104,39 +101,89 @@ import("//starboard/build/config/build_assertions.gni")
 default_compiler_configs = [
   "//build/config/compiler:default_include_dirs",
   "//build/config/compiler:no_exceptions",
-  "//$starboard_path/platform_configuration",
+  "//build/config/compiler:thin_archive",
   "//starboard/build/config:base",
   "//starboard/build/config:host",
   "//starboard/build/config:size",
   "//starboard/build/config:target",
-  "//starboard/build/config:no_pedantic_warnings",
 ]
 
 if (is_starboard) {
   default_compiler_configs += [ "//starboard/build/config:starboard" ]
 }
 
+if (is_qa || is_gold) {
+  default_compiler_configs += [ "//build/config/compiler:no_rtti" ]
+}
+
 set_defaults("static_library") {
   configs = default_compiler_configs + static_library_configs
+  has_pedantic_warnings = false
 }
 set_defaults("source_set") {
   configs = default_compiler_configs + source_set_configs
+  has_pedantic_warnings = false
 }
 set_defaults("loadable_module") {
   configs = default_compiler_configs + loadable_module_configs
+  has_pedantic_warnings = false
 }
 set_defaults("executable") {
   configs = default_compiler_configs + executable_configs
+  has_pedantic_warnings = false
 }
 set_defaults("shared_library") {
   configs = default_compiler_configs + shared_library_configs
+  has_pedantic_warnings = false
+}
+
+# We make sure to change the pedantic_warnings configs in a particular order to
+# ensure -Wno-foo compiler flags (usually set in no_pedantic_warnings and some
+# of the platform_configuration) come after -Wfoo flags (including -Wall and
+# -Wextra which are set in pedantic_warnings). It is only certain the the "foo"
+# error will be ignored if -Wfoo precedes -Wno-foo in the compilation line.
+template("target_with_platform_configs") {
+  target(invoker.target_type, target_name) {
+    forward_variables_from(invoker, "*", [ "target_type" ])
+
+    if (has_pedantic_warnings) {
+      configs += [ "//starboard/build/config:pedantic_warnings" ]
+    }
+    configs += [ "//$starboard_path/platform_configuration" ]
+    if (!has_pedantic_warnings) {
+      configs += [ "//starboard/build/config:no_pedantic_warnings" ]
+    }
+  }
+}
+
+# Ensure the platform_configuration config is the last one included.
+template("static_library") {
+  target_with_platform_configs(target_name) {
+    target_type = "static_library"
+    forward_variables_from(invoker, "*")
+  }
+}
+
+template("source_set") {
+  target_with_platform_configs(target_name) {
+    target_type = "source_set"
+    forward_variables_from(invoker, "*")
+  }
+}
+
+template("loadable_module") {
+  target_with_platform_configs(target_name) {
+    target_type = "loadable_module"
+    forward_variables_from(invoker, "*")
+  }
 }
 
 # Set up the method of generating the install targets as defined by the
 # platform.
 import("$install_target_path")
 template("executable") {
-  executable(target_name) {
+  target_with_platform_configs(target_name) {
+    target_type = "executable"
     forward_variables_from(invoker, "*", [ "install_target" ])
   }
 
@@ -155,7 +202,8 @@ template("executable") {
 }
 
 template("shared_library") {
-  shared_library(target_name) {
+  target_with_platform_configs(target_name) {
+    target_type = "shared_library"
     forward_variables_from(invoker, "*", [ "install_target" ])
   }
 

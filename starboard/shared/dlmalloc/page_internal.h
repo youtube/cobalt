@@ -27,83 +27,6 @@
 extern "C" {
 #endif
 
-// A virtual memory address.
-typedef void* SbPageVirtualMemory;
-
-// Internal Virtual memory API
-//
-// This was designed to provide common wrappers around OS functions relied upon
-// by dlmalloc. However the APIs can also be used for other custom allocators,
-// but, due to platform restrictions, this is not completely generic.
-//
-// When dlmalloc requires memory from the system, it uses two different
-// approaches to get it. It either extends a growing heap, or it uses mmap() to
-// request a bunch of pages from the system.
-//
-// Its default behavior is to place small allocations into a contiguous heap,
-// and allocate large (256K+) blocks with mmap. Separating large blocks from the
-// main heap has advantages for reducing fragmentation.
-//
-// In dlmalloc, extending the heap is called "MORECORE" and, by default on POSIX
-// systems, uses sbrk().
-//
-// Since almost none of our platforms support sbrk(), we implement MORECORE by
-// reserving a large virtual region and giving that to dlmalloc. This region
-// starts off unmapped, i.e. there are no physical pages backing it, so reading
-// or writing from that region is invalid.  As dlmalloc requests memory, we
-// allocate physical pages from the OS and map them to the top of the heap,
-// thereby growing the usable heap area. When the heap shrinks, we can unmap
-// those pages and free them back to the OS.
-//
-// mmap(), by contrast, allocates N pages from the OS, and the OS then maps them
-// into some arbitrary virtual address space. There is no guarantee that two
-// consecutive mmap() calls will return a contiguous block.
-//
-// SbMap() is our implementation of mmap(). On platforms such as Linux that
-// actually have mmap(), we call that directly. Otherwise we use
-// platform-specific system allocators.
-//
-// Platforms that support SbMap() must be at least starboard version 12 or
-// enable SB_HAS_MMAP in their configuration_public.h file. dlmalloc is very
-// flexible and if a platform can't implement virtual regions, it will use
-// Map() for all allocations, merging adjacent allocations when it can.
-//
-// If a platform can't use Map(), it will just use MORECORE for everything.
-// Currently we believe a mixture of both provides best behavior, but more
-// testing would be useful.
-//
-// See also dlmalloc_config.h which controls some dlmalloc behavior.
-
-#if SB_API_VERSION < 12 && SB_HAS(VIRTUAL_REGIONS)
-// Reserves a virtual address space |size_bytes| big, without mapping any
-// physical pages to that range, returning a pointer to the beginning of the
-// reserved virtual address range. To get memory that is actually usable and
-// backed by physical memory, a reserved virtual address needs to passed into
-// AllocateAndMap().
-// [Presumably size_bytes should be a multiple of a physical page size? -DG]
-SbPageVirtualMemory SbPageReserveVirtualRegion(size_t size_bytes);
-
-// Releases a virtual address space reserved with ReserveVirtualRegion().
-// [What happens if that address space is wholly or partially mapped? -DG]
-void SbPageReleaseVirtualRegion(SbPageVirtualMemory range_start);
-
-// Allocate |size_bytes| of physical memory and map it to a virtual address
-// range starting at |virtual_address|. |virtual_address| should be a pointer
-// into the range returned by ReserveVirtualRegion().
-int SbPageAllocatePhysicalAndMap(SbPageVirtualMemory virtual_address,
-                                 size_t size_bytes);
-
-// Frees |size_bytes| of physical memory that had been mapped to
-// |virtual_address| and return them to the system. After this,
-// [virtual_address, virtual_address + size_bytes) will not be read/writable.
-int SbPageUnmapAndFreePhysical(SbPageVirtualMemory virtual_address,
-                               size_t size_bytes);
-
-// How big of a virtual region dlmalloc should allocate.
-size_t SbPageGetVirtualRegionSize();
-#endif  // SB_API_VERSION < 12 &&
-        // SB_HAS(VIRTUAL_REGIONS)
-
 #if SB_API_VERSION >= 12 || SB_HAS(MMAP)
 // Allocates |size_bytes| worth of physical memory pages and maps them into an
 // available virtual region. On some platforms, |name| appears in the debugger
@@ -156,26 +79,6 @@ int64_t SbPageGetUnallocatedPhysicalMemoryBytes();
 // Returns the total amount, in bytes, currently allocated via Map().  Should
 // always be a multiple of kSbMemoryPageSize.
 size_t SbPageGetMappedBytes();
-
-// Declaration of the allocator API.
-
-#if defined(ADDRESS_SANITIZER)
-#define SB_ALLOCATOR_PREFIX
-#include <stdlib.h>
-#else
-#define SB_ALLOCATOR_PREFIX dl
-#endif
-
-#define SB_ALLOCATOR_MANGLER_2(prefix, fn) prefix##fn
-#define SB_ALLOCATOR_MANGLER(prefix, fn) SB_ALLOCATOR_MANGLER_2(prefix, fn)
-#define SB_ALLOCATOR(fn) SB_ALLOCATOR_MANGLER(SB_ALLOCATOR_PREFIX, fn)
-
-void SB_ALLOCATOR(_malloc_init)();
-void SB_ALLOCATOR(_malloc_finalize)();
-void* SB_ALLOCATOR(malloc)(size_t size);
-void* SB_ALLOCATOR(memalign)(size_t align, size_t size);
-void* SB_ALLOCATOR(realloc)(void* ptr, size_t size);
-void SB_ALLOCATOR(free)(void* ptr);
 
 #ifdef __cplusplus
 }  // extern "C"

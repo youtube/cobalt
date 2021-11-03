@@ -46,6 +46,8 @@ class H5vccUpdater : public script::Wrappable {
 
   uint16 GetInstallationIndex() const;
 
+  std::string GetLibrarySha256(uint16 index) const;
+
 #else
   H5vccUpdater() {}
 #endif
