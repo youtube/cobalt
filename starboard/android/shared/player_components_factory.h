@@ -54,6 +54,10 @@ namespace shared {
 // mode on all playbacks.
 constexpr bool kForceTunnelMode = false;
 
+// By default, the platform Opus decoder is only enabled for encrypted playback.
+// Set the following variable to true to force it for clear playback.
+constexpr bool kForcePlatformOpusDecoder = false;
+
 // On some platforms tunnel mode is only supported in the secure pipeline.  Set
 // the following variable to true to force creating a secure pipeline in tunnel
 // mode, even for clear content.
@@ -350,15 +354,19 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
 
       auto decoder_creator = [](const SbMediaAudioSampleInfo& audio_sample_info,
                                 SbDrmSystem drm_system) {
-        if (audio_sample_info.codec == kSbMediaAudioCodecAac) {
-          scoped_ptr<AudioDecoder> audio_decoder_impl(new AudioDecoder(
-              audio_sample_info.codec, audio_sample_info, drm_system));
+        bool use_libopus_decoder =
+            audio_sample_info.codec == kSbMediaAudioCodecOpus &&
+            !SbDrmSystemIsValid(drm_system) && !kForcePlatformOpusDecoder;
+        if (use_libopus_decoder) {
+          scoped_ptr<OpusAudioDecoder> audio_decoder_impl(
+              new OpusAudioDecoder(audio_sample_info));
           if (audio_decoder_impl->is_valid()) {
             return audio_decoder_impl.PassAs<AudioDecoderBase>();
           }
-        } else if (audio_sample_info.codec == kSbMediaAudioCodecOpus) {
-          scoped_ptr<OpusAudioDecoder> audio_decoder_impl(
-              new OpusAudioDecoder(audio_sample_info));
+        } else if (audio_sample_info.codec == kSbMediaAudioCodecAac ||
+                   audio_sample_info.codec == kSbMediaAudioCodecOpus) {
+          scoped_ptr<AudioDecoder> audio_decoder_impl(new AudioDecoder(
+              audio_sample_info.codec, audio_sample_info, drm_system));
           if (audio_decoder_impl->is_valid()) {
             return audio_decoder_impl.PassAs<AudioDecoderBase>();
           }

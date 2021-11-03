@@ -90,7 +90,12 @@ MediaDecoder::MediaDecoder(Host* host,
     SB_LOG(ERROR) << "Failed to create audio media codec bridge.";
     return;
   }
-  if (audio_sample_info.audio_specific_config_size > 0) {
+  // When |audio_codec| == kSbMediaAudioCodecOpus, we instead send the audio
+  // specific configuration when we create the MediaCodec object.
+  // TODO: Determine if we should send the audio specific configuration here
+  // only when |audio_codec| == kSbMediaAudioCodecAac.
+  if (audio_codec != kSbMediaAudioCodecOpus &&
+      audio_sample_info.audio_specific_config_size > 0) {
     // |audio_sample_info.audio_specific_config| is guaranteed to be outlived
     // the decoder as it is stored in |FilterBasedPlayerWorkerHandler|.
     pending_tasks_.push_back(Event(
