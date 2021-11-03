@@ -186,23 +186,6 @@ int GetWebDriverPort() {
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
   return webdriver_port;
 }
-
-std::string GetWebDriverListenIp() {
-  // The default IP on which the webdriver server should listen for incoming
-  // connections.
-  std::string webdriver_listen_ip = GetDevServersListenIp();
-#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
-  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
-  if (command_line->HasSwitch(switches::kWebDriverListenIp)) {
-    DLOG(WARNING) << "The \"--" << switches::kWebDriverListenIp
-                  << "\" switch is deprecated; please use \"--"
-                  << switches::kDevServersListenIp << "\" instead.";
-    webdriver_listen_ip =
-        command_line->GetSwitchValueASCII(switches::kWebDriverListenIp);
-  }
-#endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
-  return webdriver_listen_ip;
-}
 #endif  // ENABLE_WEBDRIVER
 
 GURL GetInitialURL(bool should_preload) {
@@ -924,7 +907,7 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
   if (create_webdriver_module) {
     web_driver_module_.reset(new webdriver::WebDriverModule(
-        GetWebDriverPort(), GetWebDriverListenIp(),
+        GetWebDriverPort(), GetDevServersListenIp(),
         base::Bind(&BrowserModule::CreateSessionDriver,
                    base::Unretained(browser_module_.get())),
         base::Bind(&BrowserModule::RequestScreenshotToMemory,
@@ -1009,14 +992,14 @@ Application::~Application() {
 void Application::Start(SbTimeMonotonic timestamp) {
   if (base::MessageLoop::current() != message_loop_) {
     message_loop_->task_runner()->PostTask(
-        FROM_HERE, base::Bind(&Application::Start, base::Unretained(this),
-                              timestamp));
+        FROM_HERE,
+        base::Bind(&Application::Start, base::Unretained(this), timestamp));
     return;
   }
 
   OnApplicationEvent(kSbEventTypeStart, timestamp);
-  browser_module_->SetApplicationStartOrPreloadTimestamp(
-      false /*is_preload*/, timestamp);
+  browser_module_->SetApplicationStartOrPreloadTimestamp(false /*is_preload*/,
+                                                         timestamp);
 }
 
 void Application::Quit() {
@@ -1095,10 +1078,10 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
     case kSbEventTypeLink: {
 #if SB_API_VERSION >= 13
       DispatchDeepLink(static_cast<const char*>(starboard_event->data),
-                                                starboard_event->timestamp);
-#else  // SB_API_VERSION >= 13
+                       starboard_event->timestamp);
+#else   // SB_API_VERSION >= 13
       DispatchDeepLink(static_cast<const char*>(starboard_event->data),
-                                                SbTimeGetMonotonicNow());
+                       SbTimeGetMonotonicNow());
 #endif  // SB_API_VERSION >= 13
       break;
     }
