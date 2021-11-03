@@ -27,7 +27,7 @@ RUN git clone https://cobalt.googlesource.com/depot_tools /depot_tools
 ENV PATH="${PATH}:/depot_tools" \
     OUTDIR=out \
     DEPOT_TOOLS_UPDATE=0 \
-    NINJA_STATUS="[%f/%t %c/sec] " \
+    ENV NINJA_STATUS="[%e sec | %f/%t %u remaining | %c/sec | j%r] " \
     NINJA_PARALLEL=4 \
     IS_CI=0 \
     CCACHE_DIR=/root/ccache \
