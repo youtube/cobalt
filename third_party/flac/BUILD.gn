@@ -62,9 +62,11 @@ source_set("flac") {
     ]
   }
 
-  if (!is_starboard) {
-    configs -= [ "//build/config/compiler:chromium_code" ]
+  if (is_starboard) {
     public_configs = [ ":flac_config" ]
+  } else {
+    configs -= [ "//build/config/compiler:chromium_code" ]
+    direct_dependent_configs = [ ":flac_config" ]
   }
 
   configs += [
