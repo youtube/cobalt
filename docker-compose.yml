@@ -165,7 +165,6 @@ services:
       PLATFORM: linux-x64x11-clang-3-9
       CONFIG: ${CONFIG:-debug}
       USE_CCACHE: ${USE_CCACHE:-1}
-      NINJA_STATUS: ${NINJA_STATUS}
 
   # Define common build container for Android
   build-android:
