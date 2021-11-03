@@ -83,4 +83,4 @@ RUN (New-Object Net.WebClient).DownloadFile(`
     cmd /S /C setx BOTO_PATH 'C:\Users\ContainerAdministrator\.boto'
 
 # Configure common env vars.
-ENV NINJA_STATUS="[%f/%t %c/sec] "
+ENV NINJA_STATUS="[%e sec | %f/%t %u remaining | %c/sec | j%r] "
