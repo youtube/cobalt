@@ -63,6 +63,12 @@ SSH into another machine and run the binary on that machine.
     $ cd cobalt
     ```
 
+<aside class="note">
+<b>Note:</b> Pre-commit is only available on branches later than 22.lts.1+,
+including trunk. The below commands will fail on 22.lts.1+ and earlier branches.
+For earlier branches, run `cd src` and move on to the next section.
+</aside>
+
 1.  Create a Python 3 virtual environment for working on Cobalt (feel free to use `virtualenvwrapper` instead):
 
     ```
