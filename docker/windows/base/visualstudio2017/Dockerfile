@@ -13,7 +13,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-FROM mcr.microsoft.com/windows:1809
+ARG FROM_IMAGE
+FROM ${FROM_IMAGE}
 
 # Dockerfile for image used to install Visual Studio.
 # WARNING: Changes to this file will result in an extremely long image rebuild.
@@ -29,7 +30,6 @@ RUN mkdir C:\TEMP;`
         --installPath C:\BuildTools `
         --add Microsoft.VisualStudio.Component.VC.CoreIde `
         --add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
-        --add Microsoft.VisualStudio.Component.Windows10SDK.17134 `
         --add Microsoft.VisualStudio.Component.Windows10SDK.17763 `
         --add Microsoft.VisualStudio.Component.VC.Tools.14.15';`
     Write-Host ('Cleaning up vs_buildtools.exe');`
@@ -37,6 +37,8 @@ RUN mkdir C:\TEMP;`
     Remove-Item -Force -Recurse $env:TEMP\*;`
     Remove-Item -Force -Recurse $env:ProgramData\'Package Cache'\;`
     Remove-Item -Force -Recurse C:\BuildTools\Common7\IDE\CommonExtensions\Microsoft\TextMate\Starterkit\Extensions;`
+    Remove-Item -Force -Recurse C:\BuildTools\VC\Tools\MSVC\14.15.26726\atlmfc;`
+    Remove-Item -Force -Recurse C:\BuildTools\VC\Tools\MSVC\14.15.26726\lib\spectre;`
     Remove-Item C:\TEMP\vs_buildtools.exe
 
 ENV VSINSTALLDIR "C:\BuildTools"
