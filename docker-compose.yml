@@ -155,13 +155,13 @@ services:
       - build-base-bionic
     scale: 0
 
-  linux-x64x11-gcc-6-3:
+  linux-x64x11-gcc:
     <<: *common-definitions
     <<: *build-volumes
     build:
       context: ./docker/linux
       dockerfile: gcc-6-3/Dockerfile
-    image: cobalt-build-linux-gcc-6-3
+    image: cobalt-build-linux-gcc
     environment:
       <<: *shared-build-env
       PLATFORM: linux-x64x11-gcc-6-3
