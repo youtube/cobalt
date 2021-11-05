@@ -16,5 +16,5 @@ action("apk_sources") {
   script = "//starboard/build/touch.py"
   sources = [ "cobalt-gradle.sh" ]
   outputs = [ "$root_out_dir/gradle/apk_sources.stamp" ]
-  args = outputs
+  args = rebase_path(outputs, root_build_dir)
 }
