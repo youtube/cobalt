@@ -85,7 +85,7 @@
 //        &Demiurge::DecreaseMonsters, base::Unretained(&mock->demiurge_)))));
 //
 
-#include "base/bind.h"
+#include "base/bind.h"    // nogncheck
 
 namespace testing {
 
