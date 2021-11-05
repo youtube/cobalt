@@ -21,7 +21,11 @@ repos:
     hooks:
     -   id: codespell
         name: Spell Check
-        args: [-x, .codespellignorelines]
+        args: [-x, .codespellignorelines,
+               # The --ignore-words-list argument has a bug where it needs to
+               # be lowercase, see
+               # https://github.com/codespell-project/codespell/issues/1390
+               --ignore-words-list, atleast]
         exclude: '^cobalt/content/i18n/platform/'
 
 -   repo: local
