@@ -1,0 +1,110 @@
+# Copyright 2014 The Chromium Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+config("libpng_config") {
+  include_dirs = [ "." ]
+
+  defines = [
+    "CHROME_PNG_WRITE_SUPPORT",
+    "PNG_USER_CONFIG",
+  ]
+
+  if (is_starboard) {
+    defines += [ "PNG_SKIP_SETJMP_CHECK" ]
+  }
+
+  if (is_win && is_component_build) {
+    defines += [ "PNG_USE_DLL" ]
+  }
+}
+
+# Must be in a config because of how GN orders flags (otherwise -Wall will
+# appear after this, and turn it back on).
+config("clang_warnings") {
+  if (is_clang) {
+    cflags = [
+      # libpng checks that the width is not greater than PNG_SIZE_MAX.
+      # On platforms where size_t is 64-bits, this comparison will always
+      # be false.
+      "-Wno-tautological-compare",
+    ]
+  }
+}
+
+source_set("libpng_sources") {
+  sources = [
+    "png.c",
+    "png.h",
+    "pngconf.h",
+    "pngerror.c",
+    "pngget.c",
+    "pnginfo.h",
+    "pnglibconf.h",
+    "pngmem.c",
+    "pngpread.c",
+    "pngprefix.h",
+    "pngpriv.h",
+    "pngread.c",
+    "pngrio.c",
+    "pngrtran.c",
+    "pngrutil.c",
+    "pngset.c",
+    "pngstruct.h",
+    "pngtrans.c",
+    "pngwio.c",
+    "pngwrite.c",
+    "pngwtran.c",
+    "pngwutil.c",
+  ]
+
+  if (is_starboard) {
+    sources -= [
+      "pnginfo.h",
+      "pnglibconf.h",
+      "pngprefix.h",
+      "pngpriv.h",
+      "pngread.c",
+      "pngstruct.h",
+    ]
+    sources += [
+      "pnggccrd.c",
+      "pngusr.h",
+      "pngvcrd.c",
+    ]
+  }
+
+  if (!is_win) {
+    output_name = "png"
+  }
+
+  defines = []
+  if (is_win && is_component_build) {
+    defines += [
+      "PNG_BUILD_DLL",
+      "PNG_NO_MODULEDEF",
+    ]
+  }
+
+  configs += [ ":clang_warnings" ]
+
+  if (is_starboard) {
+    configs -= [ "//starboard/build/config:size" ]
+    configs += [ "//starboard/build/config:speed" ]
+    deps = [ "//starboard:starboard_headers_only" ]
+  }
+
+  public_deps = [ "//third_party/zlib" ]
+
+  public_configs = [ ":libpng_config" ]
+}
+
+if (is_win) {
+  component("libpng") {
+    public_deps = [ ":libpng_sources" ]
+  }
+} else {
+  group("libpng") {
+    public_deps = [ ":libpng_sources" ]
+  }
+}

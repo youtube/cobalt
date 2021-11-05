@@ -24,6 +24,7 @@ group("gn_all") {
     "//third_party/brotli:dec",
     "//third_party/brotli:dec_no_dictionary_data",
     "//third_party/flac",
+    "//third_party/libpng",
     "//third_party/libwebp",
     "//third_party/libxml",
     "//third_party/woff2:woff2_dec",

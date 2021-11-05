@@ -14,4 +14,8 @@ third_party {
     day: 7
   }
   license_type: NOTICE
+  local_modifications:
+    "11/5/21 - Added BUILD.gn as part of GN migration."
+    "Contents taken from https://chromium.googlesource.com/chromium/src/+/0ddf78a46654c13f9ee7de921a820087f45375e3/third_party/libpng/BUILD.gn"
+    "and modified for Cobalt."
 }
