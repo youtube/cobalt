@@ -89,7 +89,6 @@ config("platform_configuration") {
       # Other flags
       "-fsigned-char",
       "-fno-limit-debug-info",
-      "-fno-exceptions",
       "-fcolor-diagnostics",
       "-fno-strict-aliasing",  # See http://crbug.com/32204
 
