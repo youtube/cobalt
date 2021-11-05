@@ -59,7 +59,7 @@ RUN curl --location --silent --output /tmp/gn.zip \
 
 # === Configure common env vars
 ENV OUTDIR=out \
-    ENV NINJA_STATUS="[%e sec | %f/%t %u remaining | %c/sec | j%r] " \
+    NINJA_STATUS="[%e sec | %f/%t %u remaining | %c/sec | j%r] " \
     NINJA_PARALLEL=4 \
     IS_CI=0 \
     CCACHE_DIR=/root/ccache \
