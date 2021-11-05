@@ -19,4 +19,8 @@ third_party {
     day: 19
   }
   license_type: UNENCUMBERED
+  local_modifications:
+    '11/5/21 - Added BUILD.gn as part of GN migration.'
+    'Contents taken from https://chromium.googlesource.com/chromium/src/+/e5389527466d390b5653724a069008b9f1edcd5c/third_party/sqlite/BUILD.gn'
+    'and modified for Cobalt.'
 }

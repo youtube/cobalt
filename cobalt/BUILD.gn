@@ -28,6 +28,7 @@ group("gn_all") {
     "//third_party/libpng",
     "//third_party/libwebp",
     "//third_party/libxml",
+    "//third_party/sqlite",
     "//third_party/woff2:woff2_dec",
   ]
 }
