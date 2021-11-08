@@ -27,7 +27,7 @@
       '<(DEPTH)/starboard/shared/win32/application_win32_key_event.cc',
       '<(DEPTH)/starboard/shared/win32/application_win32.cc',
       '<(DEPTH)/starboard/shared/win32/configuration.cc',
-      '<(DEPTH)/starboard/shared/win32/configuration.h ',
+      '<(DEPTH)/starboard/shared/win32/configuration.h',
       '<(DEPTH)/starboard/shared/win32/dialog.cc',
       '<(DEPTH)/starboard/shared/win32/get_home_directory.cc',
       '<(DEPTH)/starboard/shared/win32/log_file_impl.cc',
