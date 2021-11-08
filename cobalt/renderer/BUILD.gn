@@ -12,22 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-group("gn_all") {
-  testonly = true
-
-  deps = [
-    "//cobalt/account",
-    "//cobalt/network_bridge",
-    "//cobalt/renderer:default_options",
-    "//cobalt/storage:storage_constants",
-    "//content/browser/speech",
-    "//nb",
-    "//third_party/brotli:dec",
-    "//third_party/brotli:dec_no_dictionary_data",
-    "//third_party/flac",
-    "//third_party/libpng",
-    "//third_party/libwebp",
-    "//third_party/libxml",
-    "//third_party/woff2:woff2_dec",
-  ]
+static_library("default_options") {
+  sources = [ "//cobalt/renderer/get_default_rasterizer_for_platform.cc" ]
+  deps = [ "//starboard:starboard_headers_only" ]
 }
