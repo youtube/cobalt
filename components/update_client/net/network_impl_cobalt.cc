@@ -53,7 +53,7 @@ std::string GetStringHeader(const net::HttpResponseHeaders* headers,
 }
 
 // Returns the integral value of a header of the server response or -1 if
-// if the header is not available or a conversion error has occured.
+// if the header is not available or a conversion error has occurred.
 int64_t GetInt64Header(const net::HttpResponseHeaders* headers,
                        const char* header_name) {
   if (!headers) {
@@ -130,6 +130,13 @@ void NetworkFetcherCobaltImpl::DownloadToFile(
   url_fetcher_type_ = kUrlFetcherTypeDownloadToFile;
 
   url_fetcher_->Start();
+}
+
+void NetworkFetcherCobaltImpl::CancelDownloadToFile() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+
+  SB_LOG(INFO) << "Canceling DownloadToFile";
+  url_fetcher_.reset();
 }
 
 void NetworkFetcherCobaltImpl::OnURLFetchResponseStarted(

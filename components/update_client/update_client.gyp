@@ -148,7 +148,7 @@
       'sources': [
         'component_unpacker_unittest.cc',
         # TODO: enable the tests commented out
-        # 'crx_downloader_unittest.cc',
+        'crx_downloader_unittest.cc',
         'persisted_data_unittest.cc',
         'ping_manager_unittest.cc',
         'protocol_parser_json_unittest.cc',
