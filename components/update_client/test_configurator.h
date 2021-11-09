@@ -85,7 +85,7 @@ class TestConfigurator : public Configurator {
  public:
   TestConfigurator();
 
-  // Overrrides for Configurator.
+  // Overrides for Configurator.
   int InitialDelay() const override;
   int NextCheckDelay() const override;
   int OnDemandDelay() const override;
@@ -127,8 +127,14 @@ class TestConfigurator : public Configurator {
   void SetAppGuid(const std::string& app_guid);
 
 #if defined(STARBOARD)
+  // TODO: add unit tests for updater channels and status
   void SetChannel(const std::string& channel) override {}
   void CompareAndSwapChannelChanged(int old_value, int new_value) override {}
+  std::string GetUpdaterStatus() const override { return ""; }
+  void SetUpdaterStatus(const std::string& status) override {}
+
+  std::string GetPreviousUpdaterStatus() const override { return ""; }
+  void SetPreviousUpdaterStatus(const std::string& status) override {}
 #else
   network::TestURLLoaderFactory* test_url_loader_factory() {
     return &test_url_loader_factory_;
