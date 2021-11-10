@@ -21,7 +21,7 @@ import sys
 import _env  # pylint: disable=unused-import
 from starboard.tools import build
 from starboard.tools import paths
-from starboard.tools import platform
+from starboard.tools import starboard_platform
 
 
 def _Dedupe(sequence):
@@ -175,7 +175,7 @@ class GypRunner(object):
     """Makes a list of GYP arguments that are common to all configurations."""
 
     platform_name = self.platform_configuration.GetName()
-    if not platform.IsValid(platform_name):
+    if not starboard_platform.IsValid(platform_name):
       raise RuntimeError('Invalid platform: %s' % platform_name)
 
     source_tree_dir = paths.REPOSITORY_ROOT
@@ -202,12 +202,17 @@ class GypRunner(object):
 
     # Append common GYP variables.
     common_variables = {
-        'OS': 'starboard',
-        'CC_HOST': os.environ.get('CC_HOST', os.environ.get('CC', '')),
-        'host_os': _GetHostOS(),
-        'starboard_path': os.path.relpath(platform.Get(platform_name).path,
-                                          source_tree_dir),
-        'starboard_platform_name': platform_name,
+        'OS':
+            'starboard',
+        'CC_HOST':
+            os.environ.get('CC_HOST', os.environ.get('CC', '')),
+        'host_os':
+            _GetHostOS(),
+        'starboard_path':
+            os.path.relpath(
+                starboard_platform.Get(platform_name).path, source_tree_dir),
+        'starboard_platform_name':
+            platform_name,
     }
 
     _AppendVariables(common_variables, self.common_args)

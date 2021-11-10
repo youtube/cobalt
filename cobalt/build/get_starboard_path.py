@@ -12,21 +12,20 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """Prints the path to the given starboard platform's configuration directory.
 """
 
 import sys
 
 import _env  # pylint: disable=unused-import
-from starboard.tools import platform
+from starboard.tools import starboard_platform
 
 
 def main():
-  platform_info = platform.Get(sys.argv[1])
+  platform_info = starboard_platform.Get(sys.argv[1])
   if not platform_info:
     return 1
-  print platform_info.path
+  print(platform_info.path)
   return 0
 
 
