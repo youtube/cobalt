@@ -5,7 +5,18 @@ default_stages: [commit]
 default_language_version:
     python: python3
 
-exclude: '^(base|build|testing|third_party|tools/gyp)/'
+exclude: |
+    (?x)^(
+        (
+            base|
+            build|
+            testing|
+            third_party|
+            tools/gyp
+        )/
+        |
+        components/update_client/((?!cobalt).)*$
+    )
 
 repos:
 -   repo: https://cobalt.googlesource.com/pre-commit-hooks
