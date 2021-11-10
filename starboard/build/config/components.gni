@@ -50,6 +50,16 @@ template("component") {
   target(_component_mode, target_name) {
     forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
     forward_variables_from(invoker, "*", TESTONLY_AND_VISIBILITY)
+
+    if (is_starboard) {
+      if (_component_mode == "source_set") {
+        configs += source_set_configs
+      } else if (_component_mode == "static_library") {
+        configs += static_library_configs
+      } else if (_component_mode == "shared_library") {
+        configs += shared_library_configs
+      }
+    }
   }
 }
 
