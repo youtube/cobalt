@@ -26,5 +26,5 @@
 #define STADIA_EXPORT_FUNCTION(return_type, name, parameters) \
   return_type name parameters;                                \
   constexpr const char* k##name = #name;                      \
-  typedef return_type(*name##Function) parameters
+  typedef return_type(*name##FunctionPtr) parameters
 #endif  // STARBOARD_CONTRIB_STADIA_CLIENTS_VENDOR_PUBLIC_STADIA_EXPORT_H_

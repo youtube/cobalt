@@ -43,15 +43,15 @@ StadiaInterface::StadiaInterface() {
     SB_LOG(ERROR) << "Failed to open streaming client library: " << dlerror();
   }
   // Try look up the library's entry point.
-  StadiaPluginHas = reinterpret_cast<StadiaPluginHasFunction>(
+  StadiaPluginHas = reinterpret_cast<StadiaPluginHasFunctionPtr>(
       LookupSymbol(lib_ptr, kStadiaPluginHas));
-  StadiaPluginOpen = reinterpret_cast<StadiaPluginOpenFunction>(
+  StadiaPluginOpen = reinterpret_cast<StadiaPluginOpenFunctionPtr>(
       LookupSymbol(lib_ptr, kStadiaPluginOpen));
-  StadiaPluginSendTo = reinterpret_cast<StadiaPluginSendToFunction>(
+  StadiaPluginSendTo = reinterpret_cast<StadiaPluginSendToFunctionPtr>(
       LookupSymbol(lib_ptr, kStadiaPluginSendTo));
-  StadiaPluginClose = reinterpret_cast<StadiaPluginCloseFunction>(
+  StadiaPluginClose = reinterpret_cast<StadiaPluginCloseFunctionPtr>(
       LookupSymbol(lib_ptr, kStadiaPluginClose));
-  StadiaInitialize = reinterpret_cast<StadiaInitializeFunction>(
+  StadiaInitialize = reinterpret_cast<StadiaInitializeFunctionPtr>(
       LookupSymbol(lib_ptr, kStadiaInitialize));
 
   // Return an empty optional if any entry point wasn't found.
