@@ -25,7 +25,6 @@ gcc_toolchain("target") {
   ld = cxx
 
   ar = "$gcc_toolchain_ar"
-  strip = "$gcc_toolchain_strip"
 
   toolchain_args = {
     is_clang = false
