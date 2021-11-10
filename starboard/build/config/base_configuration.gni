@@ -101,4 +101,7 @@ declare_args() {
 
   # Whether or not to build drm test suites.
   has_drm_support = true
+
+  # Enables optimizations on SSE compatible platforms.
+  sb_enable_opus_sse = true
 }
