@@ -12,23 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-group("gn_all") {
+static_library("run_all_unittests") {
   testonly = true
-
+  sources = [ "run_all_unittests.cc" ]
   deps = [
-    "//cobalt/account",
+    "//base/test:test_support",
     "//cobalt/base",
-    "//cobalt/network_bridge",
-    "//cobalt/renderer:default_options",
-    "//cobalt/storage:storage_constants",
-    "//content/browser/speech",
-    "//nb",
-    "//third_party/brotli:dec",
-    "//third_party/brotli:dec_no_dictionary_data",
-    "//third_party/flac",
-    "//third_party/libpng",
-    "//third_party/libwebp",
-    "//third_party/sqlite",
-    "//third_party/woff2:woff2_dec",
+    "//testing/gtest",
   ]
 }
