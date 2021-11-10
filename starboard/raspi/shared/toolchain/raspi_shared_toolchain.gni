@@ -23,4 +23,3 @@ _raspi_toolchain_path = "$_raspi_home_dir/tools/arm-bcm2708/gcc-linaro-7.5.0-201
 gcc_toolchain_ar = "ar"
 gcc_toolchain_cc = "$_raspi_toolchain_path/arm-linux-gnueabihf-gcc"
 gcc_toolchain_cxx = "$_raspi_toolchain_path/arm-linux-gnueabihf-g++"
-gcc_toolchain_strip = "$_raspi_toolchain_path/arm-linux-gnueabihf-strip"
