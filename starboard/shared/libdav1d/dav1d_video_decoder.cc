@@ -37,6 +37,9 @@ using starboard::player::InputBuffer;
 using starboard::player::JobThread;
 using starboard::player::filter::CpuVideoFrame;
 
+constexpr int kMaxDecodedFrameWidth = 1920;
+constexpr int kMaxDecodedFrameHeight = 1080;
+
 int AllocatePicture(Dav1dPicture* picture, void* context) {
   SB_DCHECK(picture);
   SB_DCHECK(context);
@@ -236,6 +239,8 @@ void VideoDecoder::InitializeCodec() {
   allocator.release_picture_callback =
       &::starboard::shared::libdav1d::ReleasePicture;
   dav1d_settings.allocator = allocator;
+  dav1d_settings.frame_size_limit =
+      kMaxDecodedFrameHeight * kMaxDecodedFrameWidth;
 
   int result = dav1d_open(&dav1d_context_, &dav1d_settings);
   if (result != kDav1dSuccess) {
