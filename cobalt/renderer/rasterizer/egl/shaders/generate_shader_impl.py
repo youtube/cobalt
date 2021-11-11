@@ -96,14 +96,13 @@ def ReadShaderFile(filename):
 
   with open(filename, 'rb') as f:
     # Read the file and strip comments.
-    file_contents = f.read()
+    file_contents_bytes = f.read()
+    file_contents = file_contents_bytes.decode('utf-8')
     file_contents = re.sub(r'/\*.*?\*/', '', file_contents, flags=re.DOTALL)
     file_contents = re.sub(r'(\s)*//.*', '', file_contents)
-
     # Parse #include directives. This must be done after stripping comments as
     # it's possible to have multi-line comments that encompass #includes.
     lines = [HandleInclude(x) for x in file_contents.splitlines()]
-
     # Join non-empty lines.
     return '\n'.join(filter(None, lines))
 
@@ -114,14 +113,14 @@ def GetDataDefinitionStringForFile(filename):
 
   def GetChunk(contents, chunk_size):
     # Yield successive |chunk_size|-sized chunks from |contents|.
-    for i in xrange(0, len(contents), chunk_size):
+    for i in range(0, len(contents), chunk_size):
       yield contents[i:i + chunk_size]
 
   # Break up the data into chunk sizes such that the produced output lines
   # representing the data in the .h file are less than 80 characters long.
   length_of_output_byte_string = 6
   max_characters_per_line = 80
-  chunk_size = max_characters_per_line / length_of_output_byte_string
+  chunk_size = int(max_characters_per_line / length_of_output_byte_string)
 
   # Convert each byte to ASCII hexadecimal form and output that to the C++
   # header file, line-by-line.
