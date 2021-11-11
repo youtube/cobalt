@@ -18,6 +18,7 @@ group("gn_all") {
   deps = [
     "//cobalt/account",
     "//cobalt/base",
+    "//cobalt/math",
     "//cobalt/network_bridge",
     "//cobalt/renderer:default_options",
     "//cobalt/renderer/rasterizer/egl/shaders",
