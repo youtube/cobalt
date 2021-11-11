@@ -20,6 +20,7 @@ group("gn_all") {
     "//cobalt/audio",
     "//cobalt/base",
     "//cobalt/browser:generated_bindings",
+    "//cobalt/css_parser",
     "//cobalt/fetch",
     "//cobalt/math",
     "//cobalt/media",
