@@ -128,6 +128,9 @@ config("constructor_and_destructor_warnings") {
       "-Wexit-time-destructors",
       "-Wglobal-constructors",
     ]
+    if (is_starboard) {
+      cflags -= [ "-Wglobal-constructors" ]
+    }
   }
 }
 
@@ -249,6 +252,14 @@ config("debug_annotations_config") {
 config("angle_release_asserts_config") {
   if (dcheck_always_on) {
     defines = [ "ANGLE_ENABLE_RELEASE_ASSERTS" ]
+  }
+}
+
+if (is_starboard) {
+  config("starboard_angle_config") {
+    if (is_win) {
+      cflags = ["/wd4200"]
+    }
   }
 }
 
@@ -785,6 +796,10 @@ angle_source_set("libANGLE_base") {
       ":copy_compiler_dll",
     ]
   }
+
+  if (is_starboard) {
+    deps += [ "//starboard/common" ]
+  }
 }
 
 config("angle_frame_capture_disabled") {
@@ -908,7 +923,7 @@ angle_libGLESv2("libGLESv2_capture_complement") {
   }
 }
 
-if (is_win && !angle_is_winuwp) {
+if (is_win && !angle_is_winuwp && !is_starboard) {
   angle_shared_library("libGL") {
     sources = libgl_sources
 
@@ -1120,92 +1135,98 @@ foreach(is_shared_library,
   }
 
   if (is_starboard) {
-    not_needed([ "dep_suffix" ])
-  }
-
-  target(library_type, library_name) {
-    sources = util_sources
-    deps = [
-      ":angle_common",
-      ":angle_util_loader_headers",
-    ]
-    public_deps = []
-    libs = []
-
-    if (is_win && !angle_is_winuwp) {
-      sources += util_win_sources
-      deps += [ ":angle_stack_walker" ]
-    }
-
-    if (is_linux) {
-      sources += util_linux_sources
-      libs += [
-        "rt",
-        "dl",
+    not_needed([ "dep_suffix", "library_type" ])
+    group(library_name) {
+      deps = [
+        ":angle_common",
+        ":angle_util_loader_headers",
       ]
     }
-
-    if (is_mac) {
-      sources += util_osx_sources
-      libs += [
-        "AppKit.framework",
-        "QuartzCore.framework",
+  } else {
+    target(library_type, library_name) {
+      sources = util_sources
+      deps = [
+        ":angle_common",
+        ":angle_util_loader_headers",
       ]
-    }
-
-    if (angle_use_x11 && !is_starboard) {
-      sources += util_x11_sources
-    }
-
-    if (is_android) {
-      sources += util_android_sources
-      libs += [
-        "android",
-        "log",
-      ]
-    }
-
-    configs += [ ":debug_annotations_config" ]
-
-    public_configs += [ ":angle_util_config" ]
-
-    if (is_fuchsia) {
-      sources += util_fuchsia_sources
-      public_deps += [
-        "src/common/fuchsia_egl",
-        "//third_party/fuchsia-sdk/sdk:async_loop_cpp",
-        "//third_party/fuchsia-sdk/sdk:async_loop_default",
-        "//third_party/fuchsia-sdk/sdk:fdio",
-        "//third_party/fuchsia-sdk/sdk:images",
-        "//third_party/fuchsia-sdk/sdk:scenic_cpp",
-        "//third_party/fuchsia-sdk/sdk:ui_policy",
-        "//third_party/fuchsia-sdk/sdk:ui_scenic",
-        "//third_party/fuchsia-sdk/sdk:ui_views",
-      ]
-    } else if (use_ozone) {
-      sources += util_ozone_sources
-    }
-
-    if (is_shared_library) {
-      defines = [ "LIBANGLE_UTIL_IMPLEMENTATION" ]
+      public_deps = []
+      libs = []
 
       if (is_win && !angle_is_winuwp) {
-        sources += util_win_shared_sources
+        sources += util_win_sources
+        deps += [ ":angle_stack_walker" ]
       }
 
-      public_deps += [ ":angle_util_loader" ]
-
-      if (is_mac && !is_component_build) {
-        ldflags = [
-          "-install_name",
-          "@rpath/libangle_util.dylib",
+      if (is_linux) {
+        sources += util_linux_sources
+        libs += [
+          "rt",
+          "dl",
         ]
       }
-    } else {
-      public_configs += [
-        ":angle_static",
-        ":gl_prototypes",
-      ]
+
+      if (is_mac) {
+        sources += util_osx_sources
+        libs += [
+          "AppKit.framework",
+          "QuartzCore.framework",
+        ]
+      }
+
+      if (angle_use_x11) {
+        sources += util_x11_sources
+      }
+
+      if (is_android) {
+        sources += util_android_sources
+        libs += [
+          "android",
+          "log",
+        ]
+      }
+
+      configs += [ ":debug_annotations_config" ]
+
+      public_configs += [ ":angle_util_config" ]
+
+      if (is_fuchsia) {
+        sources += util_fuchsia_sources
+        public_deps += [
+          "src/common/fuchsia_egl",
+          "//third_party/fuchsia-sdk/sdk:async_loop_cpp",
+          "//third_party/fuchsia-sdk/sdk:async_loop_default",
+          "//third_party/fuchsia-sdk/sdk:fdio",
+          "//third_party/fuchsia-sdk/sdk:images",
+          "//third_party/fuchsia-sdk/sdk:scenic_cpp",
+          "//third_party/fuchsia-sdk/sdk:ui_policy",
+          "//third_party/fuchsia-sdk/sdk:ui_scenic",
+          "//third_party/fuchsia-sdk/sdk:ui_views",
+        ]
+      } else if (use_ozone) {
+        sources += util_ozone_sources
+      }
+
+      if (is_shared_library) {
+        defines = [ "LIBANGLE_UTIL_IMPLEMENTATION" ]
+
+        if (is_win && !angle_is_winuwp) {
+          sources += util_win_shared_sources
+        }
+
+        public_deps += [ ":angle_util_loader" ]
+
+        if (is_mac && !is_component_build) {
+          ldflags = [
+            "-install_name",
+            "@rpath/libangle_util.dylib",
+          ]
+        }
+      } else {
+        public_configs += [
+          ":angle_static",
+          ":gl_prototypes",
+        ]
+      }
     }
   }
 }

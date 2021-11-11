@@ -12,29 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# The common "starboard" target. Any target that depends on Starboard should
-# depend on this common target, and not any of the specific "starboard_platform"
-# targets.
+import("//starboard/build/config/base_configuration.gni")
 
-if (sb_is_evergreen_compatible) {
-  static_library("wrapper") {
-    check_includes = false
+# No GL drivers available.
+gl_type = "angle"
 
-    sources = [
-      "wrapper.cc",
-      "wrapper.h",
-    ]
+sabi_path = "//starboard/sabi/x64/windows/sabi-v$sb_api_version.json"
 
-    deps = [
-      "//starboard/elf_loader:evergreen_info",
-      "//third_party/crashpad/client",
-    ]
-  }
-}
+install_target_path = "//starboard/build/install/mock_install.gni"
 
-static_library("wrapper_stub") {
-  sources = [
-    "wrapper_stub.cc",
-    "wrapper.h",
-  ]
-}
+no_pedantic_warnings_config_path =
+    "//starboard/win/shared/platform_configuration:no_pedantic_warnings"
+pedantic_warnings_config_path =
+    "//starboard/win/shared/platform_configuration:pedantic_warnings"

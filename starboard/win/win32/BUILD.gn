@@ -1,0 +1,81 @@
+# Copyright 2021 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+static_library("starboard_platform") {
+  sources = [
+    "//starboard/shared/starboard/localized_strings.cc",
+    "//starboard/shared/starboard/media/media_get_audio_configuration_5_1.cc",
+    "//starboard/shared/starboard/net_args.cc",
+    "//starboard/shared/starboard/net_args.h",
+    "//starboard/shared/starboard/queue_application.cc",
+    "//starboard/shared/starboard/system_request_blur.cc",
+    "//starboard/shared/starboard/system_request_conceal.cc",
+    "//starboard/shared/starboard/system_request_focus.cc",
+    "//starboard/shared/starboard/system_request_freeze.cc",
+    "//starboard/shared/starboard/system_request_pause.cc",
+    "//starboard/shared/starboard/system_request_reveal.cc",
+    "//starboard/shared/starboard/system_request_stop.cc",
+    "//starboard/shared/starboard/system_request_suspend.cc",
+    "//starboard/shared/starboard/system_request_unpause.cc",
+    "//starboard/shared/starboard/system_supports_resume.cc",
+    "//starboard/shared/stub/microphone_close.cc",
+    "//starboard/shared/stub/microphone_create.cc",
+    "//starboard/shared/stub/microphone_destroy.cc",
+    "//starboard/shared/stub/microphone_get_available.cc",
+    "//starboard/shared/stub/microphone_is_sample_rate_supported.cc",
+    "//starboard/shared/stub/microphone_open.cc",
+    "//starboard/shared/stub/microphone_read.cc",
+    "//starboard/shared/win32/application_win32.cc",
+    "//starboard/shared/win32/application_win32_key_event.cc",
+    "//starboard/shared/win32/configuration.cc",
+    "//starboard/shared/win32/configuration.h",
+    "//starboard/shared/win32/dialog.cc",
+    "//starboard/shared/win32/get_home_directory.cc",
+    "//starboard/shared/win32/log_file_impl.cc",
+    "//starboard/shared/win32/log_file_impl.h",
+    "//starboard/shared/win32/log_raw.cc",
+    "//starboard/shared/win32/log_raw_format.cc",
+    "//starboard/shared/win32/media_is_audio_supported.cc",
+    "//starboard/shared/win32/media_is_video_supported.cc",
+    "//starboard/shared/win32/minidump.cc",
+    "//starboard/shared/win32/minidump.h",
+    "//starboard/shared/win32/player_components_factory.cc",
+    "//starboard/shared/win32/playready_license.cc",
+    "//starboard/shared/win32/starboard_main.cc",
+    "//starboard/shared/win32/system_get_device_type.cc",
+    "//starboard/shared/win32/system_get_extensions.cc",
+    "//starboard/shared/win32/system_get_property.cc",
+    "//starboard/shared/win32/system_get_total_cpu_memory.cc",
+    "//starboard/shared/win32/system_get_used_cpu_memory.cc",
+    "//starboard/shared/win32/system_raise_platform_error.cc",
+    "//starboard/shared/win32/system_symbolize.cc",
+    "//starboard/shared/win32/window_create.cc",
+    "//starboard/shared/win32/window_destroy.cc",
+    "//starboard/shared/win32/window_get_platform_handle.cc",
+    "//starboard/shared/win32/window_get_size.cc",
+    "//starboard/shared/win32/window_internal.cc",
+    "//starboard/shared/win32/window_internal.h",
+    "//starboard/shared/win32/window_set_default_options.cc",
+    "//starboard/win/shared/configuration_constants.cc",
+    "//starboard/win/shared/system_get_path.cc",
+    "atomic_public.h",
+    "configuration_public.h",
+    "main.cc",
+    "thread_types_public.h",
+  ]
+
+  configs += [ "//starboard/build/config:starboard_implementation" ]
+
+  public_deps = [ "//starboard/win/shared:starboard_platform" ]
+}

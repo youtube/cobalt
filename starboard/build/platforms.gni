@@ -61,4 +61,8 @@ platforms = [
     name = "raspi-2-skia"
     path = "starboard/raspi/2/skia"
   },
+  {
+    name = "win-win32"
+    path = "starboard/win/win32"
+  },
 ]

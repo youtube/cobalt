@@ -1041,3 +1041,11 @@ libegl_sources = [
   "src/libGLESv2/entry_points_egl_ext.h",
   "src/libEGL/egl_loader_autogen.h",
 ]
+
+if (is_starboard) {
+  libangle_common_sources += [ "src/common/angle_hdr.cpp" ]
+  libgl_sources -= [ "src/libGL/libGL.rc" ]
+  libglesv2_sources -= [ "src/libGLESv2/libGLESv2.rc" ]
+  libglesv1_cm_sources -= [ "src/libGLESv1_CM/libGLESv1_CM.rc" ]
+  libegl_sources -= [ "src/libEGL/libEGL.rc" ]
+}

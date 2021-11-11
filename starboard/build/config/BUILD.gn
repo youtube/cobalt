@@ -75,7 +75,7 @@ config("target") {
       # Rewrite main() functions into StarboardMain. TODO: This is a
       # hack, it would be better to be more surgical, here.
       defines = [ "main=StarboardMain" ]
-    } else {
+    } else if (!is_win) {
       # To link into a shared library on Linux and similar platforms,
       # the compiler must be told to generate Position Independent Code.
       # This appears to cause errors when linking the code statically,

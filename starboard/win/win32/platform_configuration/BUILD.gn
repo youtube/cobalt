@@ -12,29 +12,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# The common "starboard" target. Any target that depends on Starboard should
-# depend on this common target, and not any of the specific "starboard_platform"
-# targets.
+config("platform_configuration") {
+  configs = [
+    "//starboard/win/shared/platform_configuration",
+    "//starboard/build/config/sabi",
+  ]
 
-if (sb_is_evergreen_compatible) {
-  static_library("wrapper") {
-    check_includes = false
-
-    sources = [
-      "wrapper.cc",
-      "wrapper.h",
-    ]
-
-    deps = [
-      "//starboard/elf_loader:evergreen_info",
-      "//third_party/crashpad/client",
-    ]
-  }
-}
-
-static_library("wrapper_stub") {
-  sources = [
-    "wrapper_stub.cc",
-    "wrapper.h",
+  ldflags = [ "/SUBSYSTEM:CONSOLE" ]
+  libs = [
+    "shell32.lib",
+    "winmm.lib",
+    "gdi32.lib",
+    "dbghelp.lib",
+    "user32.lib",
+    "shlwapi.lib",
+  ]
+  defines = [
+    "_WIN32",
+    "WIN32",
+    "WINDOWS",
+    "_UNICODE",
+    "UNICODE",
   ]
 }

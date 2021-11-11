@@ -40,18 +40,20 @@ target(gtest_target_type, "player_filter_tests") {
   ]
 }
 
-target(final_executable_type, "player_filter_benchmarks") {
-  testonly = true
+if (!is_win) {
+  target(final_executable_type, "player_filter_benchmarks") {
+    testonly = true
 
-  sources = [
-    "//starboard/common/benchmark_main.cc",
-    "audio_decoder_benchmark.cc",
-  ]
+    sources = [
+      "//starboard/common/benchmark_main.cc",
+      "audio_decoder_benchmark.cc",
+    ]
 
-  public_deps = [
-    ":test_util",
-    "//third_party/google_benchmark",
-  ]
+    public_deps = [
+      ":test_util",
+      "//third_party/google_benchmark",
+    ]
+  }
 }
 
 static_library("test_util") {

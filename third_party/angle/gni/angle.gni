@@ -87,11 +87,11 @@ declare_args() {
 }
 
 declare_args() {
-  angle_enable_d3d9 = is_win && !angle_is_winuwp
+  angle_enable_d3d9 = is_win && !angle_is_winuwp && !is_starboard
   angle_enable_d3d11 = is_win
   angle_enable_gl =
       (ozone_platform_gbm || !is_linux || (angle_use_x11 && !is_chromeos)) &&
-      !is_fuchsia && !angle_is_winuwp && !is_ggp ||
+      !is_fuchsia && !angle_is_winuwp && !is_ggp && !is_starboard ||
       (defined(sb_angle_enable_gl) && sb_angle_enable_gl)
 
   # ANGLE Vulkan backend on Android requires API level 26, i.e. Oreo, due to
@@ -140,7 +140,10 @@ angle_common_configs = [
 ]
 
 if (is_starboard) {
-  angle_common_configs += [ angle_root + ":starboard_defines" ]
+  angle_common_configs += [
+    angle_root + ":starboard_defines",
+    angle_root + ":starboard_angle_config",
+  ]
 }
 
 angle_remove_configs = []

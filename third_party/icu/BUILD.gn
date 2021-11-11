@@ -73,6 +73,10 @@ config("icu_config") {
   } else {
     defines += [ "UCHAR_TYPE=uint16_t" ]
   }
+
+  if (is_starboard && is_win) {
+    cflags = [ "/wd4805"]
+  }
 }
 
 # Config used only by ICU code.
