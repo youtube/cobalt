@@ -54,9 +54,6 @@ class VideoDecoder : public starboard::player::filter::VideoDecoder,
   void WriteEndOfStream() override;
   void Reset() override;
 
-  int AllocatePicture(Dav1dPicture* picture) const;
-  void ReleasePicture(Dav1dPicture* picture) const;
-
  private:
   typedef ::starboard::shared::starboard::player::filter::CpuVideoFrame
       CpuVideoFrame;
