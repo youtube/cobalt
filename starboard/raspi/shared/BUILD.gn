@@ -153,6 +153,7 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/opus/opus_audio_decoder.cc",
     "//starboard/shared/opus/opus_audio_decoder.h",
     "//starboard/shared/posix/directory_create.cc",
+    "//starboard/shared/posix/environment.cc",
     "//starboard/shared/posix/file_atomic_replace.cc",
     "//starboard/shared/posix/file_can_open.cc",
     "//starboard/shared/posix/file_close.cc",
@@ -408,6 +409,7 @@ static_library("starboard_platform_sources") {
   }
 
   deps = [
+    "//starboard/shared/watchdog",
     "//third_party/libevent",
     "//third_party/opus",
   ]

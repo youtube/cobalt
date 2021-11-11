@@ -31,4 +31,36 @@ interface H5vccCrashLog {
   // type of crash. The result may vary by platform. This API is intended for
   // reliability testing only.
   void triggerCrash(H5vccCrashType intent);
+
+  // Returns true if Watchdog client was registered.
+  //   name, Watchdog client to register.
+  //   description, information on the Watchdog client.
+  //   monitor_state, application state up to which the client is monitored.
+  //   time_interval, maximum number of microseconds allowed between pings
+  //     before triggering a Watchdog violation.
+  //   time_wait, number of microseconds to initially wait before Watchdog
+  //     violations can be triggered.
+  //   replace, behavior with previously registered Watchdog clients of the
+  //     same name.
+  boolean register(DOMString name, DOMString description,
+                   WatchdogState monitor_state, long long time_interval,
+                   long long time_wait, WatchdogReplace replace);
+
+  // Returns true if Watchdog client was unregistered. Name determines the
+  // Watchdog client to unregister.
+  boolean unregister(DOMString name);
+
+  // Returns true if Watchdog client was pinged. Name determines the Watchdog
+  // client to ping with info which can either be empty or contain relevant
+  // metadata.
+  boolean ping(DOMString name, DOMString info);
+
+  // Returns a json string containing the Watchdog violations. Current boolean
+  // determines whether the current file representing ongoing violations or the
+  // previous file containing violations from previous app starts and since the
+  // last call (up to a limit) is returned.
+  DOMString getWatchdogViolations(boolean current);
+
+  // Returns a string containing the current Watchdog index.
+  DOMString getSerializedWatchdogIndex();
 };

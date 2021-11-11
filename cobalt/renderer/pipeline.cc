@@ -30,13 +30,13 @@
 #include "cobalt/render_tree/composition_node.h"
 #include "cobalt/render_tree/dump_render_tree_to_string.h"
 #include "nb/memory_scope.h"
+#include "starboard/shared/watchdog/watchdog.h"
 #include "starboard/system.h"
-
-using cobalt::render_tree::Node;
-using cobalt::render_tree::animations::AnimateNode;
 
 namespace cobalt {
 namespace renderer {
+
+using ::starboard::shared::watchdog::Watchdog;
 
 namespace {
 
@@ -69,6 +69,15 @@ const size_t kRasterizePeriodicTimerEntriesPerUpdate = 60;
 // before automatically updating. In the typical use case, the update will
 // occur manually when the animations expire.
 const size_t kRasterizeAnimationsTimerMaxEntries = 60;
+
+// The watchdog client name used to represent Pipeline.
+const char kWatchdogName[] = "renderer";
+// The watchdog time interval in microseconds allowed between pings before
+// triggering violations.
+const int64_t kWatchdogTimeInterval = 1000000;
+// The watchdog time wait in microseconds to initially wait before triggering
+// violations.
+const int64_t kWatchdogTimeWait = 1000000;
 
 void DestructSubmissionOnMessageLoop(base::MessageLoop* message_loop,
                                      std::unique_ptr<Submission> submission) {
@@ -183,6 +192,7 @@ Pipeline::Pipeline(const CreateRasterizerFunction& create_rasterizer_function,
       enable_fps_stdout_(options.enable_fps_stdout),
       enable_fps_overlay_(options.enable_fps_overlay),
       fps_overlay_update_pending_(false) {
+
   TRACE_EVENT0("cobalt::renderer", "Pipeline::Pipeline()");
   // The actual Pipeline can be constructed from any thread, but we want
   // rasterizer_thread_checker_ to be associated with the rasterizer thread,
@@ -202,6 +212,10 @@ Pipeline::Pipeline(const CreateRasterizerFunction& create_rasterizer_function,
 }
 
 Pipeline::~Pipeline() {
+  // Unregisters Pipeline as a watchdog client.
+  Watchdog* watchdog = Watchdog::GetInstance();
+  if (watchdog != nullptr) watchdog->Unregister(std::string(kWatchdogName));
+
   TRACE_EVENT0("cobalt::renderer", "Pipeline::~Pipeline()");
 
   // First we shutdown the submission queue.  We do this as a separate step from
@@ -323,6 +337,14 @@ void Pipeline::SetNewRenderTree(const Submission& render_tree_submission) {
 
   TRACE_EVENT0("cobalt::renderer", "Pipeline::SetNewRenderTree()");
 
+  // Registers Pipeline as a watchdog client.
+  Watchdog* watchdog = Watchdog::GetInstance();
+  if (watchdog != nullptr)
+    watchdog->Register(std::string(kWatchdogName),
+                       starboard::shared::watchdog::STARTED,
+                       kWatchdogTimeInterval, kWatchdogTimeWait,
+                       starboard::shared::watchdog::PARTIAL);
+
   // If a time fence is active, save the submission to be queued only after
   // we pass the time fence.  Overwrite any existing waiting submission in this
   // case.
@@ -385,6 +407,10 @@ void Pipeline::ClearCurrentRenderTree() {
   DCHECK_CALLED_ON_VALID_THREAD(rasterizer_thread_checker_);
   TRACE_EVENT0("cobalt::renderer", "Pipeline::ClearCurrentRenderTree()");
 
+  // Unregisters Pipeline as a watchdog client.
+  Watchdog* watchdog = Watchdog::GetInstance();
+  if (watchdog != nullptr) watchdog->Unregister(std::string(kWatchdogName));
+
   ResetSubmissionQueue();
   rasterize_timer_ = base::nullopt;
 }
@@ -393,6 +419,17 @@ void Pipeline::RasterizeCurrentTree() {
   TRACK_MEMORY_SCOPE("Renderer");
   DCHECK_CALLED_ON_VALID_THREAD(rasterizer_thread_checker_);
   TRACE_EVENT0("cobalt::renderer", "Pipeline::RasterizeCurrentTree()");
+
+  // Gets watchdog instance.
+  Watchdog* watchdog = Watchdog::GetInstance();
+  if (watchdog != nullptr) {
+#if defined(_DEBUG)
+    // Injects delay based off of environment variables for watchdog debugging.
+    watchdog->MaybeInjectDebugDelay(std::string(kWatchdogName));
+#endif  // defined(_DEBUG)
+    // Pings watchdog.
+    watchdog->Ping(std::string(kWatchdogName));
+  }
 
   base::TimeTicks start_rasterize_time = base::TimeTicks::Now();
   Submission submission =

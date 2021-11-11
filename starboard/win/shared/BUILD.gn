@@ -218,6 +218,7 @@ static_library("starboard_platform") {
     "//starboard/shared/win32/drm_system_playready.h",
     "//starboard/shared/win32/dx_context_video_decoder.cc",
     "//starboard/shared/win32/dx_context_video_decoder.h",
+    "//starboard/shared/win32/environment.cc",
     "//starboard/shared/win32/error_utils.cc",
     "//starboard/shared/win32/error_utils.h",
     "//starboard/shared/win32/file_atomic_replace.cc",
@@ -371,6 +372,7 @@ static_library("starboard_platform") {
     "//starboard/egl_and_gles",
     "//starboard/shared/starboard/media:media_util",
     "//starboard/shared/starboard/player/filter:filter_based_player_sources",
+    "//starboard/shared/watchdog",
     "//third_party/opus",
   ]
 
