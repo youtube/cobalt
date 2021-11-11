@@ -3,8 +3,10 @@
 # found in the LICENSE file.
 
 import("//build/buildflag_header.gni")
-import("//testing/test.gni")
-import("//testing/libfuzzer/fuzzer_test.gni")
+if (!is_starboard) {
+  import("//testing/test.gni")
+  import("//testing/libfuzzer/fuzzer_test.gni")
+}
 import("features.gni")
 
 if (is_android) {
@@ -63,10 +65,18 @@ component("url") {
     "//build/config/compiler:no_size_t_to_int_warning",
   ]
 
+  if (is_starboard) {
+    configs += [ "//build/config/compiler:chromium_code" ]
+  }
+
   deps = [
     "//base",
     "//base/third_party/dynamic_annotations",
   ]
+
+  if (is_starboard) {
+    deps += [ "//starboard/common" ]
+  }
 
   if (is_win) {
     # Don't conflict with Windows' "url.dll".
@@ -101,7 +111,7 @@ component("url") {
   }
 }
 
-if (is_android) {
+if (is_android && !is_starboard) {
   android_library("url_java") {
     java_files = [ "android/java/src/org/chromium/url/IDNStringUtil.java" ]
     deps = [
@@ -117,7 +127,9 @@ if (is_android) {
   }
 }
 
-test("url_unittests") {
+target(gtest_target_type, "url_unittests") {
+  testonly = true
+
   sources = [
     "gurl_unittest.cc",
     "origin_unittest.cc",
@@ -137,7 +149,7 @@ test("url_unittests") {
     "//testing/gtest",
   ]
 
-  if (!is_ios) {
+  if (!is_ios && !is_starboard) {
     sources += [ "mojom/url_gurl_mojom_traits_unittest.cc" ]
   }
 
@@ -167,7 +179,7 @@ test("url_unittests") {
   # TODO(jschuh): crbug.com/167187 fix size_t to int truncations.
   configs += [ "//build/config/compiler:no_size_t_to_int_warning" ]
 
-  if (!is_ios) {
+  if (!is_ios && !is_starboard) {
     deps += [
       "//mojo/core/embedder",
       "//url/mojom:test_url_mojom_gurl",
@@ -175,14 +187,16 @@ test("url_unittests") {
   }
 }
 
-fuzzer_test("gurl_fuzzer") {
-  sources = [
-    "gurl_fuzzer.cc",
-  ]
-  deps = [
-    ":url",
-    "//base",
-    "//base:i18n",
-  ]
-  dict = "gurl_fuzzer.dict"
+if (!is_starboard) {
+  fuzzer_test("gurl_fuzzer") {
+    sources = [
+      "gurl_fuzzer.cc",
+    ]
+    deps = [
+      ":url",
+      "//base",
+      "//base:i18n",
+    ]
+    dict = "gurl_fuzzer.dict"
+  }
 }

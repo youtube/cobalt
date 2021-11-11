@@ -21,5 +21,8 @@ static_library("network_bridge") {
     "net_poster.h",
   ]
 
-  deps = [ "//base" ]
+  deps = [
+    "//base",
+    "//url",
+  ]
 }

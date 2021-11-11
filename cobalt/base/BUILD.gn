@@ -99,6 +99,7 @@ static_library("base") {
     "//starboard/common",
     "//third_party/icu",
     "//third_party/libxml",
+    "//url",
   ]
 }
 
