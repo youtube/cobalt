@@ -160,6 +160,7 @@
         'update_query_params_unittest.cc',
         'updater_state_unittest.cc',
         'utils_unittest.cc',
+        '<(DEPTH)/cobalt/updater/utils.cc',
       ],
       'dependencies': [
         'update_client',
