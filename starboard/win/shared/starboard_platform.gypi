@@ -53,7 +53,6 @@
       '<(DEPTH)/starboard/shared/win32/window_get_platform_handle.cc',
       '<(DEPTH)/starboard/shared/win32/window_get_size.cc',
       '<(DEPTH)/starboard/shared/win32/window_internal.cc',
-      '<(DEPTH)/starboard/shared/win32/window_intsdfdsfernal.h',
       '<(DEPTH)/starboard/shared/win32/window_set_default_options.cc',
     ],
     'win32_shared_drm_files': [
@@ -429,7 +428,6 @@
         '<(DEPTH)/starboard/shared/win32/thread_sleep.cc',
         '<(DEPTH)/starboard/shared/win32/thread_types_public.h',
         '<(DEPTH)/starboard/shared/win32/thread_yield.cc',
-        '<(DEPTH)/starboard/shared/win32/thread_yield.h',
         '<(DEPTH)/starboard/shared/win32/time_get_monotonic_now.cc',
         '<(DEPTH)/starboard/shared/win32/time_get_now.cc',
         '<(DEPTH)/starboard/shared/win32/time_zone_get_current.cc',
