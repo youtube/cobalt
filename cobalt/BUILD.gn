@@ -20,6 +20,7 @@ group("gn_all") {
     "//cobalt/base",
     "//cobalt/math",
     "//cobalt/network_bridge",
+    "//cobalt/render_tree",
     "//cobalt/renderer:default_options",
     "//cobalt/renderer/rasterizer/egl/shaders",
     "//cobalt/storage:storage_constants",
