@@ -168,7 +168,7 @@ class EnduranceTest(TestCase):
     logging.info('Send random action (%s).', action_name)
     actions[action_name](app)
 
-  def test_playback_endurance(self):
+  def test_playback_endurance(self):  # pylint: disable=invalid-name
     self.start_time = time.time()
     self.player_identifier = ''
     self.playback_is_playing = False
@@ -260,5 +260,6 @@ class EnduranceTest(TestCase):
           # Play the previous playback again.
           app.PlayPrevious()
           self.last_action_time = current_running_time
+          logging.info('Play previous playback to keep app active.')
 
       app.RemovePlayerStateChangeHandler(self.OnPlayerStateChanged)

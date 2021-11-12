@@ -71,9 +71,9 @@ the `binary-variant` is `armel`.
 Add the following directories to the source tree for the `<family-name>`
 that you selected in step 1:
 
-*   `src/third_party/starboard/<family-name>/`
+*   `third_party/starboard/<family-name>/`
 
-*   `src/third_party/starboard/<family-name>/shared/`
+*   `third_party/starboard/<family-name>/shared/`
 
     This subdirectory contains code that is shared between architectures
     within a product family. For example, if BobBox devices run on many
@@ -82,15 +82,15 @@ that you selected in step 1:
     Starboard function implementation, BobCo can put that function in the
     `shared` directory to make it accessible in every binary variant.
 
-*   `src/third_party/starboard/<family-name>/<binary-variant>/`
+*   `third_party/starboard/<family-name>/<binary-variant>/`
 
     You should create one directory for _each_ `<binary-variant>`. So, for
     example, BobCo could create the following directories:
 
-    *   `src/third_party/starboard/bobbox/shared/`
-    *   `src/third_party/starboard/bobbox/armeb/`
-    *   `src/third_party/starboard/bobbox/armel/`
-    *   `src/third_party/starboard/bobbox/armel/gles/`
+    *   `third_party/starboard/bobbox/shared/`
+    *   `third_party/starboard/bobbox/armeb/`
+    *   `third_party/starboard/bobbox/armel/`
+    *   `third_party/starboard/bobbox/armel/gles/`
 
 Again, functions that work for all of the configurations would go in the
 `shared` directory. Functions that work for all little-endian devices would go
@@ -110,7 +110,7 @@ the following files:
 *   `thread_types_public.h`
 
 We recommend that you copy the files from the Stub reference implementation,
-located at `src/starboard/stub/` to your `binary-variant` directories.
+located at `starboard/stub/` to your `binary-variant` directories.
 In this approach, you will essentially start with a clean slate of stub
 interfaces that need to be modified to work with your platform.
 
@@ -122,8 +122,8 @@ If you are copying the Stub implementation, you would run the following
 command for each `binary-variant` directory:
 
 ```sh
-cp -R src/starboard/stub
-      src/third_party/starboard/<family-name>/<binary-variant>
+cp -R starboard/stub
+      third_party/starboard/<family-name>/<binary-variant>
 ```
 
 After copying these files, you should be able to compile Cobalt and link it
@@ -304,20 +304,20 @@ that you copied in step 3:
 The `starboard_platform.gyp` file points to all of the source files included
 in your new Starboard implementation. If you are starting with a copy of the
 Stub implementation, then that file will initially include a lot of files
-from the `src/starboard/shared/stub/` directory. Similarly, if you are starting
+from the `starboard/shared/stub/` directory. Similarly, if you are starting
 starting with a copy of the Desktop Linux port, then that file will initially
-point to files in the `src/starboard/shared/posix` directory.
+point to files in the `starboard/shared/posix` directory.
 
 The modules are defined so that each one has a set of functions, and each
 function is defined in its own file with a consistent naming convention.
 For example, the `SbSystemBreakIntoDebugger()` function is defined in the
 `system_break_into_debugger.cc` file. The list of files in the
-`src/starboard/shared/stub/` directory represents an authoritative list of
+`starboard/shared/stub/` directory represents an authoritative list of
 supported functions.
 
 Function-by-function and module-by-module, you can now replace stub
 implementations with either custom implementations or with other ported
-implementations from the `src/starboard/shared/` directory until you have
+implementations from the `starboard/shared/` directory until you have
 gone through all of the modules. As you do, update the
 `starboard_platform.gyp` file to identify the appropriate source files.
 

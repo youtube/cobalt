@@ -95,7 +95,7 @@ group("starboard") {
   }
 }
 
-static_library("starboard_headers_only") {
+source_set("starboard_headers_only") {
   # We include starboard/common/log.h in starboard_headers, but some common
   # files include starboard headers.
   check_includes = false

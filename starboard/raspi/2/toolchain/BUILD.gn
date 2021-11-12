@@ -26,7 +26,6 @@ gcc_toolchain("target") {
 
   # We use whatever 'ar' resolves to in gyp.
   ar = "$gcc_toolchain_ar"
-  strip = "$gcc_toolchain_strip"
 
   toolchain_args = {
     is_clang = false

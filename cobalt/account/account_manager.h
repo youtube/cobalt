@@ -17,9 +17,6 @@
 
 #include <string>
 
-#include "base/basictypes.h"
-#include "cobalt/base/event_dispatcher.h"
-
 namespace cobalt {
 namespace account {
 
@@ -28,6 +25,8 @@ namespace account {
 class AccountManager {
  public:
   AccountManager();
+  AccountManager(const AccountManager&) = delete;
+  AccountManager& operator=(const AccountManager&) = delete;
 
   ~AccountManager() {}
 
@@ -40,9 +39,6 @@ class AccountManager {
 
   // Get the user ID associated with the account.
   std::string GetUserId();
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(AccountManager);
 };
 
 }  // namespace account

@@ -21,11 +21,11 @@ a living contract for the APIs on all platforms.
 
 ## Test Organization
 
-NPLB tests can be found in the `src/starboard/nplb/` directory and are broken
+NPLB tests can be found in the `starboard/nplb/` directory and are broken
 out into files by Starboard module and function:
 
 ```
-src/starboard/nplb/<module>_<function>_test.cc
+starboard/nplb/<module>_<function>_test.cc
 ```
 
 Although each test may incidentally test other functions, there is an attempt
@@ -36,4 +36,4 @@ effectively tested as part of another test.
 For example, the `SbSocketSendTo` and `SbSocketReceiveFrom` are tested
 together, ensuring that the API is self-consistent on both sides of a
 connection. Therefore, only one set of tests exist to cover those use cases,
-in `src/starboard/nplb/socket_receive_from_test.cc`.
+in `starboard/nplb/socket_receive_from_test.cc`.

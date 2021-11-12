@@ -213,12 +213,6 @@ const char kUseTTSHelp[] =
     "speech synthesis API. If the platform doesn't have speech synthesis, "
     "TTSLogger will be used instead.";
 
-const char kWebDriverListenIp[] = "webdriver_listen_ip";
-const char kWebDriverListenIpHelp[] =
-    "IP that the WebDriver server should be listening on. (INADDR_ANY if "
-    "unspecified). This is deprecated in favor of --dev_servers_listen_ip (if "
-    "both are specified, --webdriver_listen_ip is used).";
-
 const char kWebDriverPort[] = "webdriver_port";
 const char kWebDriverPortHelp[] =
     "Port that the WebDriver server should be listening on.";
@@ -471,8 +465,7 @@ std::string HelpMessage() {
         {kUserAgent, kUserAgentHelp},
         {kUserAgentClientHints, kUserAgentClientHintsHelp},
         {kUserAgentOsNameVersion, kUserAgentOsNameVersionHelp},
-        {kUseTTS, kUseTTSHelp}, {kWebDriverListenIp, kWebDriverListenIpHelp},
-        {kWebDriverPort, kWebDriverPortHelp},
+        {kUseTTS, kUseTTSHelp}, {kWebDriverPort, kWebDriverPortHelp},
 #if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
         {kDisableOnScreenKeyboard, kDisableOnScreenKeyboardHelp},
 #endif  // SB_API_VERSION >= 12 ||

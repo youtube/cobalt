@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "base/compiler_specific.h"
+#include "base/compiler_specific.h"  // nogncheck
 
 #include "starboard/accessibility.h"
 #include "starboard/common/memory.h"

@@ -20,7 +20,9 @@ if (is_nacl) {
       "dynamic_annotations.h",
     ]
     if (is_android && !is_debug) {
-      configs -= [ "//build/config/compiler:default_optimization" ]
+      if (!is_starboard) {
+        configs -= [ "//build/config/compiler:default_optimization" ]
+      }
       configs += [ "//build/config/compiler:optimize_max" ]
     }
   }

@@ -44,6 +44,13 @@ config("icu_config") {
     # to avoid performance issues.
     "U_ENABLE_TRACING=1",
     "U_ENABLE_RESOURCE_TRACING=0",
+
+    # Disable unused ICU code
+    "UCONFIG_ONLY_HTML_CONVERSION",
+    "UCONFIG_NO_COLLATION",
+    "UCONFIG_NO_LEGACY_CONVERSION",
+    "UCONFIG_NO_TRANSLITERATION",
+    "UCONFIG_NO_REGULAR_EXPRESSIONS"
   ]
 
   if (!is_component_build) {

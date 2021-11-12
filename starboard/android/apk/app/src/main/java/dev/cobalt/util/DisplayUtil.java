@@ -14,6 +14,7 @@
 
 package dev.cobalt.util;
 
+import android.app.Activity;
 import android.content.Context;
 import android.util.DisplayMetrics;
 import android.util.Size;
@@ -29,6 +30,7 @@ public class DisplayUtil {
   private DisplayUtil() {}
 
   private static Display defaultDisplay;
+  private static DisplayMetrics cachedDisplayMetrics = null;
 
   /** Returns the physical pixels per inch of the screen in the X and Y dimensions. */
   public static SizeF getDisplayDpi() {
@@ -48,11 +50,15 @@ public class DisplayUtil {
     }
   }
 
-  /** Cache the default display, this will be triggered when a NativeActivity starts. */
+  /**
+   * Cache the default display and display metrics, this will be triggered when a NativeActivity
+   * starts.
+   */
   public static void cacheDefaultDisplay(Context context) {
     Display display = getDisplayFromContext(context);
     synchronized (DisplayUtil.class) {
       defaultDisplay = display;
+      cachedDisplayMetrics = ((Activity) context).getResources().getDisplayMetrics();
     }
   }
 
@@ -130,16 +136,7 @@ public class DisplayUtil {
     return null;
   }
 
-  private static DisplayMetrics cachedDisplayMetrics = null;
-
   private static DisplayMetrics getDisplayMetrics() {
-    if (cachedDisplayMetrics == null) {
-      cachedDisplayMetrics = new DisplayMetrics();
-      Display display = getDefaultDisplay();
-      if (display != null) {
-        display.getRealMetrics(cachedDisplayMetrics);
-      }
-    }
     return cachedDisplayMetrics;
   }
 }

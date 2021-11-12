@@ -86,8 +86,6 @@ extern const char kUserAgentOsNameVersion[];
 extern const char kUserAgentOsNameVersionHelp[];
 extern const char kUseTTS[];
 extern const char kUseTTSHelp[];
-extern const char kWebDriverListenIp[];
-extern const char kWebDriverListenIpHelp[];
 extern const char kWebDriverPort[];
 extern const char kWebDriverPortHelp[];
 

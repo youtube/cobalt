@@ -21,6 +21,6 @@ extern "C" {
 
 // An initialization call for Stadia Plugins that should be called when the
 // application window is created.
-STADIA_EXPORT_FUNCTION(void, StadiaInitialize, ());
+STADIA_EXPORT_FUNCTION(void, StadiaInitialize, (void* window));
 }
 #endif  // STARBOARD_CONTRIB_STADIA_CLIENTS_VENDOR_PUBLIC_STADIA_LIFECYCLE_H_

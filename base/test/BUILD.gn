@@ -158,9 +158,9 @@ static_library("test_support") {
     "values_test_util.h",
   ]
 
-  if (is_ios) {
+  if (is_ios && !is_starboard) {
     sources += [ "launcher/unit_test_launcher_ios.cc" ]
-  } else if (!is_nacl_nonsfi) {
+  } else if (!is_nacl_nonsfi && !is_starboard) {
     sources += [
       "launcher/test_launcher.cc",
       "launcher/test_launcher.h",
@@ -194,7 +194,78 @@ static_library("test_support") {
     "//third_party/libxml",
   ]
 
-  if (is_posix || is_fuchsia) {
+  if (is_starboard) {
+    sources -= [
+      "android/java_handler_thread_helpers.cc",
+      "android/java_handler_thread_helpers.h",
+      "android/url_utils.cc",
+      "android/url_utils.h",
+      "gtest_xml_unittest_result_printer.cc",
+      "gtest_xml_unittest_result_printer.h",
+      "gtest_xml_util.cc",
+      "gtest_xml_util.h",
+      "ios/wait_util.h",
+      "ios/wait_util.mm",
+      "launcher/test_result.cc",
+      "launcher/test_result.h",
+      "launcher/test_results_tracker.h",
+      "launcher/unit_test_launcher.h",
+      "metrics/histogram_enum_reader.cc",
+      "metrics/histogram_enum_reader.h",
+      "mock_chrome_application_mac.h",
+      "mock_chrome_application_mac.mm",
+      "mock_entropy_provider.cc",
+      "mock_entropy_provider.h",
+      "move_only_int.h",
+      "multiprocess_test.h",
+      "multiprocess_test_android.cc",
+      "perf_log.cc",
+      "perf_log.h",
+      "perf_test_suite.cc",
+      "perf_test_suite.h",
+      "perf_time_logger.cc",
+      "perf_time_logger.h",
+      "scoped_command_line.cc",
+      "scoped_command_line.h",
+      "scoped_environment_variable_override.cc",
+      "scoped_environment_variable_override.h",
+      "scoped_os_info_override_win.cc",
+      "scoped_os_info_override_win.h",
+      "scoped_path_override.cc",
+      "scoped_path_override.h",
+      "test_discardable_memory_allocator.cc",
+      "test_discardable_memory_allocator.h",
+      "test_file_util.cc",
+      "test_file_util.h",
+      "test_file_util_android.cc",
+      "test_file_util_linux.cc",
+      "test_file_util_mac.cc",
+      "test_file_util_win.cc",
+      "test_listener_ios.h",
+      "test_listener_ios.mm",
+      "test_message_loop.cc",
+      "test_message_loop.h",
+      "test_reg_util_win.cc",
+      "test_reg_util_win.h",
+      "test_shared_memory_util.cc",
+      "test_shared_memory_util.h",
+      "test_shortcut_win.cc",
+      "test_shortcut_win.h",
+      "test_support_android.cc",
+      "test_support_android.h",
+      "test_support_ios.h",
+      "test_support_ios.mm",
+      "thread_test_helper.cc",
+      "thread_test_helper.h",
+    ]
+    sources += [
+      "time_helpers.cc",
+      "time_helpers.h",
+    ]
+    deps += [ "//third_party/libxml:libxml_utils" ]
+  }
+
+  if ((is_posix || is_fuchsia) && !is_starboard) {
     sources += [
       "scoped_locale.cc",
       "scoped_locale.h",
@@ -206,7 +277,7 @@ static_library("test_support") {
     deps += [ "//third_party/fuchsia-sdk:zx" ]
   }
 
-  if (is_linux) {
+  if (is_linux && !is_starboard) {
     public_deps += [ ":fontconfig_util_linux" ]
     data_deps = [
       "//third_party/test_fonts",
@@ -226,7 +297,7 @@ static_library("test_support") {
     libs = [ "AppKit.framework" ]
   }
 
-  if (is_android) {
+  if (is_android && !is_starboard) {
     set_sources_assignment_filter([])
     sources += [ "test_file_util_linux.cc" ]
     set_sources_assignment_filter(sources_assignment_filter)
@@ -237,7 +308,7 @@ static_library("test_support") {
     public_deps += [ ":test_support_java" ]
   }
 
-  if (is_nacl_nonsfi) {
+  if (is_nacl_nonsfi && !is_starboard) {
     sources += [
       "launcher/test_launcher.h",
       "launcher/test_result.h",
@@ -294,15 +365,17 @@ source_set("test_support_perf") {
   public_configs = [ ":perf_test_config" ]
 }
 
-static_library("test_launcher_nacl_nonsfi") {
-  testonly = true
-  sources = [
-    "launcher/test_launcher_nacl_nonsfi.cc",
-    "launcher/test_launcher_nacl_nonsfi.h",
-  ]
-  deps = [
-    ":test_support",
-  ]
+if (!is_starboard) {
+  static_library("test_launcher_nacl_nonsfi") {
+    testonly = true
+    sources = [
+      "launcher/test_launcher_nacl_nonsfi.cc",
+      "launcher/test_launcher_nacl_nonsfi.h",
+    ]
+    deps = [
+      ":test_support",
+    ]
+  }
 }
 
 static_library("run_all_unittests") {
@@ -337,20 +410,22 @@ shared_library("test_shared_library") {
   ]
 }
 
-static_library("run_all_base_unittests") {
-  # Only targets in base should depend on this, targets outside base
-  # should depend on run_all_unittests above.
-  visibility = [ "//base/*" ]
-  testonly = true
-  sources = [
-    "run_all_base_unittests.cc",
-  ]
-  deps = [
-    ":test_support",
-  ]
+if (!is_starboard) {
+  static_library("run_all_base_unittests") {
+    # Only targets in base should depend on this, targets outside base
+    # should depend on run_all_unittests above.
+    visibility = [ "//base/*" ]
+    testonly = true
+    sources = [
+      "run_all_base_unittests.cc",
+    ]
+    deps = [
+      ":test_support",
+    ]
+  }
 }
 
-if (is_linux) {
+if (is_linux && !is_starboard) {
   source_set("fontconfig_util_linux") {
     sources = [
       "fontconfig_util_linux.cc",
@@ -399,7 +474,7 @@ if (is_linux) {
   }
 }
 
-if (is_android) {
+if (is_android && !is_starboard) {
   generate_jni("base_unittests_jni_headers") {
     sources = [
       "android/java/src/org/chromium/base/ContentUriTestUtils.java",
@@ -453,11 +528,13 @@ if (is_android) {
   }
 }
 
-# Trivial executable which outputs space-delimited argv to stdout,
-# used for testing.
-executable("test_child_process") {
-  testonly = true
-  sources = [
-    "test_child_process.cc",
-  ]
+if (!is_starboard) {
+  # Trivial executable which outputs space-delimited argv to stdout,
+  # used for testing.
+  executable("test_child_process") {
+    testonly = true
+    sources = [
+      "test_child_process.cc",
+    ]
+  }
 }

@@ -23,12 +23,12 @@ namespace contrib {
 namespace stadia {
 
 struct StadiaInterface {
-  StadiaPluginHasFunction StadiaPluginHas;
-  StadiaPluginOpenFunction StadiaPluginOpen;
-  StadiaPluginSendToFunction StadiaPluginSendTo;
-  StadiaPluginCloseFunction StadiaPluginClose;
+  StadiaPluginHasFunctionPtr StadiaPluginHas;
+  StadiaPluginOpenFunctionPtr StadiaPluginOpen;
+  StadiaPluginSendToFunctionPtr StadiaPluginSendTo;
+  StadiaPluginCloseFunctionPtr StadiaPluginClose;
 
-  StadiaInitializeFunction StadiaInitialize;
+  StadiaInitializeFunctionPtr StadiaInitialize;
 
   StadiaInterface();
 };

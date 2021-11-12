@@ -13,13 +13,10 @@
 // limitations under the License.
 
 #include <memory>
+#include <string>
 
 #include "cobalt/account/account_manager.h"
 
-#include "base/basictypes.h"
-#include "base/compiler_specific.h"
-#include "base/logging.h"
-#include "cobalt/base/event_dispatcher.h"
 #include "starboard/user.h"
 
 namespace cobalt {

@@ -15,6 +15,8 @@
 import("../build/crashpad_buildconfig.gni")
 
 static_library("minidump") {
+  check_includes = false
+
   sources = [
     "minidump_annotation_writer.cc",
     "minidump_annotation_writer.h",
@@ -129,6 +131,7 @@ static_library("test_support") {
 
 source_set("minidump_test") {
   testonly = true
+  check_includes = false
 
   sources = [
     "minidump_annotation_writer_test.cc",

@@ -92,6 +92,8 @@ class HTMLScriptElement : public HTMLElement {
  protected:
   scoped_refptr<Node> Duplicate() const override;
 
+  void ExecuteSyncScripts();
+
  private:
   ~HTMLScriptElement() override;
 
@@ -103,6 +105,7 @@ class HTMLScriptElement : public HTMLElement {
                              std::unique_ptr<std::string> content);
   void OnSyncLoadingComplete(const base::Optional<std::string>& error);
 
+  void OnReadyToExecute();
   void OnContentProduced(const loader::Origin& last_url_origin,
                          std::unique_ptr<std::string> content);
   void OnLoadingComplete(const base::Optional<std::string>& error);
@@ -131,6 +134,8 @@ class HTMLScriptElement : public HTMLElement {
   bool is_parser_inserted_;
   // Whether the script is ready to be executed.
   bool is_ready_;
+  // If the script failed, contains the error message.
+  base::Optional<std::string> error_;
   // The option that defines how the script should be loaded and executed.
   int load_option_;
   // SourceLocation for inline script.
@@ -143,8 +148,6 @@ class HTMLScriptElement : public HTMLElement {
   base::WeakPtr<Document> document_;
   // The loader that is used for asynchronous loads.
   std::unique_ptr<loader::Loader> loader_;
-  // Whether the sync load is successful.
-  bool is_sync_load_successful_;
   // Resolved URL of the script.
   GURL url_;
   // Content of the script. Released after Execute is called.

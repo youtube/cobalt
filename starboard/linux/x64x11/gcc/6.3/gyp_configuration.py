@@ -25,7 +25,7 @@ from starboard.tools.toolchain import touch
 
 # Directory for GCC 6.3 if it is installed as a system dependency.
 _DEFAULT_GCC_6_3_BIN_DIR = '/usr/bin'
-_DEFAULT_GCC_6_3_LIB_DIR = '/usr/lib/gcc/x86_64-linux-gnu/6.3.0'
+_DEFAULT_GCC_6_3_LIB_DIR = '/usr/lib/gcc/x86_64-linux-gnu/6'
 
 
 class LinuxX64X11Gcc63Configuration(shared_configuration.LinuxConfiguration):
@@ -41,8 +41,8 @@ class LinuxX64X11Gcc63Configuration(shared_configuration.LinuxConfiguration):
     self.toolchain_lib_dir = _DEFAULT_GCC_6_3_LIB_DIR
 
   def SetupPlatformTools(self, build_number):  # pylint: disable=unused-argument
-    if not (os.path.exists(os.path.join(self.toolchain_bin_dir, 'g++')) and
-            os.path.exists(os.path.join(self.toolchain_bin_dir, 'gcc'))):
+    if not (os.path.exists(os.path.join(self.toolchain_bin_dir, 'g++-6')) and
+            os.path.exists(os.path.join(self.toolchain_bin_dir, 'gcc-6'))):
       raise RuntimeError('GCC 6.3 dependency is not present on this system.')
 
   def GetVariables(self, config_name):
@@ -60,16 +60,16 @@ class LinuxX64X11Gcc63Configuration(shared_configuration.LinuxConfiguration):
     env_variables = {
         'CC':
             self.build_accelerator + ' ' +
-            os.path.join(self.toolchain_bin_dir, 'gcc'),
+            os.path.join(self.toolchain_bin_dir, 'gcc-6'),
         'CXX':
             self.build_accelerator + ' ' +
-            os.path.join(self.toolchain_bin_dir, 'g++'),
+            os.path.join(self.toolchain_bin_dir, 'g++-6'),
         'CC_HOST':
             self.build_accelerator + ' ' +
-            os.path.join(self.toolchain_bin_dir, 'gcc'),
+            os.path.join(self.toolchain_bin_dir, 'gcc-6'),
         'CXX_HOST':
             self.build_accelerator + ' ' +
-            os.path.join(self.toolchain_bin_dir, 'g++'),
+            os.path.join(self.toolchain_bin_dir, 'g++-6'),
     }
     return env_variables
 

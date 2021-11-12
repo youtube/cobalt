@@ -83,7 +83,7 @@ static_library("foo") {
 ```
 
 You also may need to remove default configs. The default configs are listed in
-[BUILDCONFIG.gn](https://cobalt.googlesource.com/cobalt/+/refs/heads/master/src/starboard/build/config/BUILDCONFIG.gn).
+[BUILDCONFIG.gn](https://cobalt.googlesource.com/cobalt/+/refs/heads/master/starboard/build/config/BUILDCONFIG.gn).
 You remove a config like so:
 
 ```
@@ -149,7 +149,7 @@ Some of these files need to define certain targets:
 
 Instead of implicitly searching directories for certain files like GYP did, we
 explicitly enumerate our ports and their locations.
-[platforms.gni](https://cobalt.googlesource.com/cobalt/+/refs/heads/master/src/starboard/build/platforms.gni)
+[platforms.gni](https://cobalt.googlesource.com/cobalt/+/refs/heads/master/starboard/build/platforms.gni)
 contains all of this information, and you'll need to add your platform to that
 list following the same format.
 
@@ -177,10 +177,10 @@ toolchain("target") {
 
 You may define a toolchain from scratch following the [reference][gn_toolchain],
 or you can use the
-[gcc/clang templates](https://cobalt.googlesource.com/cobalt/+/refs/heads/master/src/build/toolchain/gcc_toolchain.gni)
+[gcc/clang templates](https://cobalt.googlesource.com/cobalt/+/refs/heads/master/build/toolchain/gcc_toolchain.gni)
 provided. Almost all of the reference platforms use these templates, so look to
 those as examples for how to use it correctly. Here's the linux-x64x11
-[toolchain/BUILD.gn file](https://cobalt.googlesource.com/cobalt/+/refs/heads/master/src/starboard/linux/x64x11/toolchain/BUILD.gn).
+[toolchain/BUILD.gn file](https://cobalt.googlesource.com/cobalt/+/refs/heads/master/starboard/linux/x64x11/toolchain/BUILD.gn).
 
 ## Checking Your Migration
 
@@ -206,7 +206,7 @@ $ ninja -C out/stub_debug new_target
 
 If this was equivalent to a GYP target, you can compare the ninja compilation
 databases by using
-[format_ninja.py](https://cobalt.googlesource.com/cobalt/+/refs/heads/master/src/tools/format_ninja.py)
+[format_ninja.py](https://cobalt.googlesource.com/cobalt/+/refs/heads/master/tools/format_ninja.py)
 and a comparison tool, i.e. [meld](https://meldmerge.org/). This will allow you
 to see any changes in commands, i.e. with flags or otherwise.
 

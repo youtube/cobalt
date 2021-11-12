@@ -28,6 +28,7 @@ template("install_target") {
     ]
 
     target_output = "$root_out_dir/lib${installable_target_name}.so"
+    gradle_content_dir = "$sb_install_output_dir/$content_dir"
     gradle_files_dir = "$root_out_dir/gradle/$installable_target_name"
     if (is_gold) {
       gradle_build_type = "release"
@@ -42,30 +43,12 @@ template("install_target") {
 
     outputs = [ "$root_out_dir/${installable_target_name}.apk" ]
 
-    cobalt_project_dir =
-        string_join("/",
-                    [
-                      root_build_dir,
-                      rebase_path("//starboard/android/apk", root_build_dir),
-                    ])
-    cobalt_deploy_apk = string_join("/",
-                                    [
-                                      root_build_dir,
-                                      rebase_path(outputs[0], root_build_dir),
-                                    ])
-    cobalt_content_dir =
-        string_join("/",
-                    [
-                      root_build_dir,
-                      rebase_path("$sb_install_output_dir/$content_dir",
-                                  root_build_dir),
-                    ])
-    cobalt_gradle_dir =
-        string_join("/",
-                    [
-                      root_build_dir,
-                      rebase_path(gradle_files_dir, root_build_dir),
-                    ])
+    cobalt_project_dir = rebase_path("//starboard/android/apk")
+    cobalt_deploy_apk = rebase_path(outputs[0])
+    cobalt_content_dir = rebase_path(gradle_content_dir)
+    cobalt_gradle_dir = rebase_path(gradle_files_dir)
+    cobalt_product_dir = rebase_path(root_out_dir)
+    cobalt_library_dir = rebase_path(root_out_dir)
 
     script = "//starboard/build/run_bash.py"
     bash_script =
@@ -75,7 +58,7 @@ template("install_target") {
       "--sdk",
       android_sdk_path,
       "--cache",
-      cobalt_gradle_dir,
+      rebase_path(root_build_dir),
       "--project-dir",
       cobalt_project_dir,
       "-P",
@@ -87,9 +70,9 @@ template("install_target") {
       "-P",
       "cobaltGradleDir=$cobalt_gradle_dir",
       "-P",
-      "cobaltProductDir=$root_out_dir",
+      "cobaltProductDir=$cobalt_product_dir",
       "-P",
-      "cobaltLibraryDir=$root_out_dir",
+      "cobaltLibraryDir=$cobalt_library_dir",
       "-P",
       "cobaltTarget=$installable_target_name",
       "-P",

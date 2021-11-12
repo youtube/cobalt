@@ -17,7 +17,7 @@
 #include <functional>
 #include <set>
 
-#include "base/logging.h"
+#include "starboard/common/log.h"
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/media.h"
 #include "starboard/memory.h"

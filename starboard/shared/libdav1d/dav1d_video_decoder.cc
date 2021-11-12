@@ -37,21 +37,8 @@ using starboard::player::InputBuffer;
 using starboard::player::JobThread;
 using starboard::player::filter::CpuVideoFrame;
 
-int AllocatePicture(Dav1dPicture* picture, void* context) {
-  SB_DCHECK(picture);
-  SB_DCHECK(context);
-
-  VideoDecoder* decoder = static_cast<VideoDecoder*>(context);
-  return decoder->AllocatePicture(picture);
-}
-
-void ReleasePicture(Dav1dPicture* picture, void* context) {
-  SB_DCHECK(picture);
-  SB_DCHECK(context);
-
-  VideoDecoder* decoder = static_cast<VideoDecoder*>(context);
-  decoder->ReleasePicture(picture);
-}
+constexpr int kMaxDecodedFrameWidth = 3840;
+constexpr int kMaxDecodedFrameHeight = 2160;
 
 void ReleaseInputBuffer(const uint8_t* buf, void* context) {
   SB_DCHECK(context);
@@ -154,52 +141,6 @@ void VideoDecoder::Reset() {
   frames_ = std::queue<scoped_refptr<CpuVideoFrame>>();
 }
 
-int VideoDecoder::AllocatePicture(Dav1dPicture* picture) const {
-  SB_DCHECK(decoder_thread_);
-  SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
-  SB_DCHECK(picture->data[0] == NULL);
-  SB_DCHECK(picture->data[1] == NULL);
-  SB_DCHECK(picture->data[2] == NULL);
-
-  // dav1d requires that the allocated width and height is a multiple of 128.
-  // NOTE: UV resolution is half that of Y resolution.
-  int uv_width = (((picture->p.w + 127) / 128) * 128) / 2;
-  int uv_height = (((picture->p.h + 127) / 128) * 128) / 2;
-  // dav1d requires DAV1D_PICTURE_ALIGNMENT padded to allocated memory areas.
-  int uv_size = uv_width * uv_height + DAV1D_PICTURE_ALIGNMENT;
-
-  // This guarantees that the Y dimension is double the UV dimension.
-  int y_width = uv_width * 2;
-  int y_height = uv_height * 2;
-  int y_size = y_width * y_height + DAV1D_PICTURE_ALIGNMENT;
-
-  picture->stride[0] = y_width;
-  picture->stride[1] = uv_width;
-
-  void* ptr =
-      SbMemoryAllocateAligned(DAV1D_PICTURE_ALIGNMENT, y_size + uv_size * 2);
-  if (ptr == NULL) {
-    return DAV1D_ERR(ENOMEM);
-  }
-  picture->data[0] = ptr;
-  picture->data[1] = static_cast<uint8_t*>(ptr) + y_size;
-  picture->data[2] = static_cast<uint8_t*>(ptr) + y_size + uv_size;
-  return 0;
-}
-
-void VideoDecoder::ReleasePicture(Dav1dPicture* picture) const {
-  SB_DCHECK(picture->data[0]);
-  SB_DCHECK(picture->data[1]);
-  SB_DCHECK(picture->data[2]);
-  SB_DCHECK(picture->data[0] < picture->data[1]);
-  SB_DCHECK(picture->data[1] < picture->data[2]);
-
-  SbMemoryDeallocateAligned(picture->data[0]);
-  for (int i = 0; i < 3; ++i) {
-    picture->data[i] = NULL;
-  }
-}
-
 void VideoDecoder::UpdateDecodeTarget_Locked(
     const scoped_refptr<CpuVideoFrame>& frame) {
   SbDecodeTarget decode_target = DecodeTargetCreate(
@@ -229,13 +170,8 @@ void VideoDecoder::InitializeCodec() {
   // TODO: Verify this setting is optimal.
   dav1d_settings.n_threads = 8;
 
-  Dav1dPicAllocator allocator;
-  allocator.cookie = this;  // dav1d refers to context pointers as "cookie".
-  allocator.alloc_picture_callback =
-      &::starboard::shared::libdav1d::AllocatePicture;
-  allocator.release_picture_callback =
-      &::starboard::shared::libdav1d::ReleasePicture;
-  dav1d_settings.allocator = allocator;
+  dav1d_settings.frame_size_limit =
+      kMaxDecodedFrameHeight * kMaxDecodedFrameWidth;
 
   int result = dav1d_open(&dav1d_context_, &dav1d_settings);
   if (result != kDav1dSuccess) {

@@ -37,7 +37,7 @@ SbWindow ApplicationStadiaX11::CreateWindow(const SbWindowOptions* options) {
 
   if (GetCommandLine()->HasSwitch(kEnableStadia)) {
     g_stadia_interface = new starboard::contrib::stadia::StadiaInterface();
-    g_stadia_interface->StadiaInitialize();
+    g_stadia_interface->StadiaInitialize(&window);
   }
   return window;
 }

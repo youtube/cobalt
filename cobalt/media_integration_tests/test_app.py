@@ -59,7 +59,7 @@ def GetValueFromQueryResult(query_result, key, default):
 
   # CVal returns unicode, so we need to decode them before using.
   if default_value_type in (bool, int, float):
-    if value_type in (str, unicode):
+    if value_type in (str, unicode):  # pylint: disable=undefined-variable
       try:
         # Try to parse numbers and booleans.
         parsed_value = json.loads(value)
@@ -69,10 +69,10 @@ def GetValueFromQueryResult(query_result, key, default):
       return parsed_value
 
   elif default_value_type is str:
-    if value_type == unicode:
+    if value_type == unicode:  # pylint: disable=undefined-variable
       return value.encode('utf-8')
 
-  raise NotImplementedError('Convertion from (%s) to (%s) is not suppoted.' %
+  raise NotImplementedError('Convertion from (%s) to (%s) is not supported.' %
                             (value_type, default_value_type))
 
 
@@ -253,7 +253,11 @@ class PipelineState():
       const primary_pipeline_keys = h5vcc.cVal.keys().filter(key =>
         key.startsWith("Media.Pipeline.") &&
         key.endsWith("MaxVideoCapabilities") &&
-        h5vcc.cVal.getValue(key).length === 0);
+        h5vcc.cVal.getValue(key).length === 0 &&
+        h5vcc.cVal.getValue(key.replace('MaxVideoCapabilities', 'Started'))
+            === 'true' &&
+        h5vcc.cVal.getValue(key.replace('MaxVideoCapabilities', 'Stopped'))
+            === 'false');
       if (primary_pipeline_keys.length == 0) {
         return "null";
       }
@@ -304,15 +308,15 @@ class MediaSessionPlaybackState(int):
   PLAYING = 2
 
   @staticmethod
-  def FromString(str):
-    if str == 'none':
+  def FromString(string):
+    if string == 'none':
       return 0
-    if str == 'paused':
+    if string == 'paused':
       return 1
-    if str == 'playing':
+    if string == 'playing':
       return 2
     raise NotImplementedError(
-        '"%s" is not a valid media session playback state.' % str)
+        '"%s" is not a valid media session playback state.' % string)
 
 
 class MediaSessionState():
@@ -483,6 +487,7 @@ class PlayerStateHandler():
       self._NotifyHandlersOnStateChanged()
 
 
+# pylint: disable=bad-string-format-type
 class AdsState(int):
   """Set of ads states. The numeric values are used in ads state query."""
   NONE = 0
@@ -525,7 +530,7 @@ class TestApp():
   def __enter__(self):
     try:
       self.runner.__enter__()
-    except Exception:
+    except Exception:  # pylint: disable=broad-except
       # Potentially from thread.interrupt_main(). No need to start
       # query thread.
       return self
@@ -542,8 +547,8 @@ class TestApp():
   def ExecuteScript(self, script):
     try:
       result = self.runner.webdriver.execute_script(script)
-    except Exception as e:
-      raise RuntimeError('Fail to excute script with error (%s).' % (str(e)))
+    except Exception as e:  # pylint: disable=broad-except
+      raise RuntimeError('Fail to execute script with error (%s).' % (str(e)))
     return result
 
   def _OnNewLogLine(self, line):
@@ -642,12 +647,11 @@ class TestApp():
         js_code = self._GeneratePeriodicQueryJsCode(local_is_queries_changed,
                                                     local_periodic_queries)
         result = self.ExecuteScript(js_code)
-        for query_name in local_periodic_queries.keys():
-          if not result.get(query_name):
+        for name, query in local_periodic_queries.items():
+          if not result.get(name):
             raise RuntimeError(
                 'There\'s something wrong in the queries result.')
-          local_periodic_queries[query_name][1](self, query_name,
-                                                result[query_name])
+          query[1](self, name, result[name])
 
       time.sleep(PERIODIC_QUERIES_INTERVAL_SECONDS)
 
@@ -716,7 +720,7 @@ class TestApp():
                        active_element_label_attr)
           self.SendKeys(webdriver_keys.Keys.ENTER)
         else:
-          logging.info('Current selected item is "Add acount", move to next'
+          logging.info('Current selected item is "Add account", move to next'
                        ' item.')
           self.SendKeys(webdriver_keys.Keys.ARROW_RIGHT)
         return False
@@ -756,10 +760,7 @@ class TestApp():
         lambda _app: _app.PlayerState().pipeline_state.identifier !=
         current_identifier, timeout)
 
-  """
-    The return values of the query, exact mapping of AdsState defined earlier
-    in this file.
-  """
+  # The return values exact mapping of AdsState defined earlier in this file.
   _GET_ADS_STATE_QUERY_JS_CODE = """
     if (document.getElementsByTagName("YTLR-AD-PREVIEW-RENDERER").length > 0) {
       return 1;

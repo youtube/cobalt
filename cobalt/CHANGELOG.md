@@ -2,6 +2,12 @@
 
 This document records all notable changes made to Cobalt since the last release.
 
+## Version 23
+ - **Deleted deprecated --webdriver_listen_ip switch.**
+
+   The `--webdriver_listen_ip` switch was deprecated in Cobalt 22 in favor of
+   `--dev_servers_listen_ip`.
+
 ## Version 22
  - **C++14 is required to compile Cobalt 22.**
 

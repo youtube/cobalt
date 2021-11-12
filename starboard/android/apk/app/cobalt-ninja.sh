@@ -16,7 +16,7 @@
 # This wrapper allows us to run ninja without any assumptions about the
 # environment having been setup correctly to build Cobalt, since that won't
 # happen when started from Android Studio. See:
-# https://cobalt.googlesource.com/cobalt/+/master/src/#Building-and-Running-the-Code
+# https://cobalt.googlesource.com/cobalt/+/master/#Building-and-Running-the-Code
 
 # Allow for a developer-specific environment setup from .cobaltrc
 local_rc=$(dirname $0)/.cobaltrc
