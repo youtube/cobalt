@@ -25,6 +25,7 @@ group("gn_all") {
     "//cobalt/renderer/rasterizer/egl/shaders",
     "//cobalt/storage:storage_constants",
     "//content/browser/speech",
+    "//crypto",
     "//nb",
     "//third_party/brotli:dec",
     "//third_party/brotli:dec_no_dictionary_data",
