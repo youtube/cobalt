@@ -1299,6 +1299,8 @@ component("base") {
       "trace_event/cpufreq_monitor_android.h",
       "trace_event/java_heap_dump_provider_android.cc",
       "trace_event/java_heap_dump_provider_android.h",
+      "trace_event/malloc_dump_provider.cc",
+      "trace_event/malloc_dump_provider.h",
       "trace_event/memory_dump_manager.cc",
       "trace_event/memory_dump_manager.h",
       "trace_event/trace_event_android.cc",
@@ -2080,18 +2082,18 @@ component("base") {
     ]
   }
 
-  # Linux.
-  if (is_linux) {
-    # TODO(brettw) this will need to be parameterized at some point.
-    linux_configs = []
-    if (use_glib) {
-      linux_configs += [ "//build/config/linux:glib" ]
-    }
+  if (!is_starboard) {
+    # Linux.
+    if (is_linux) {
+      # TODO(brettw) this will need to be parameterized at some point.
+      linux_configs = []
+      if (use_glib) {
+        linux_configs += [ "//build/config/linux:glib" ]
+      }
 
-    configs += linux_configs
-    all_dependent_configs += linux_configs
+      configs += linux_configs
+      all_dependent_configs += linux_configs
 
-    if (!is_starboard) {
       sources += [
         "nix/mime_util_xdg.cc",
         "nix/mime_util_xdg.h",
@@ -2109,13 +2111,13 @@ component("base") {
         "//base/third_party/xdg_mime",
         "//base/third_party/xdg_user_dirs",
       ]
-    }
-  } else {
-    if (!is_android) {
-      sources -= [
-        "linux_util.cc",
-        "linux_util.h",
-      ]
+    } else {
+      if (!is_android) {
+        sources -= [
+          "linux_util.cc",
+          "linux_util.h",
+        ]
+      }
     }
   }
 
@@ -2344,7 +2346,7 @@ static_library("base_static") {
     "base_switches.h",
   ]
 
-  if (is_win) {
+  if (is_win && !is_starboard) {
     public_deps = [
       "//base/win:pe_image",
     ]
@@ -2506,7 +2508,7 @@ if (!is_ios && !is_starboard) {
   }
 }
 
-if (is_win) {
+if (is_win && !is_starboard) {
   # Target to manually rebuild pe_image_test.dll which is checked into
   # base/test/data/pe_image.
   shared_library("pe_image_test") {
@@ -2985,6 +2987,11 @@ target(gtest_target_type, "base_unittests") {
     "//base/test:test_shared_library",
   ]
 
+  if (is_starboard && is_win) {
+    deps -= [ "//base/test:native_library_test_utils" ]
+    data_deps -= [ "//base/test:test_shared_library" ]
+  }
+
   if (is_starboard) {
     sources -= [
       "allocator/allocator_interception_mac_unittest.mm",
@@ -3296,7 +3303,7 @@ target(gtest_target_type, "base_unittests") {
     set_sources_assignment_filter(sources_assignment_filter)
   }
 
-  if (is_win) {
+  if (is_win && !is_starboard) {
     deps += [ "//base:scoped_handle_test_dll" ]
     if (current_cpu == "x64") {
       sources += [ "profiler/win32_stack_frame_unwinder_unittest.cc" ]

@@ -173,7 +173,9 @@ source_set("zlib_inflate_chunk_simd") {
       "contrib/optimizations/inflate.c",
     ]
 
-    cflags_c = [ "-Wno-unused-function" ]
+    if (!is_win && is_starboard) {
+      cflags_c = [ "-Wno-unused-function" ]
+    }
 
     if (use_arm_neon_optimizations && !is_debug) {
       # Here we trade better performance on newer/bigger ARMv8 cores
@@ -315,7 +317,9 @@ component("zlib") {
         "arm_stub.c",
         "x86.c",
       ]
-      cflags_c += [ "-Wno-missing-braces" ]
+      if (!is_win) {
+        cflags_c += [ "-Wno-missing-braces" ]
+      }
       deps += [ ":zlib_crc32_simd" ]
     } else if (use_arm_neon_optimizations) {
       sources += [

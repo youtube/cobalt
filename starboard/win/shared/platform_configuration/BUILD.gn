@@ -130,7 +130,6 @@ config("platform_configuration") {
 
     # Enable GNU extensions to get prototypes like ffsl.
     "_GNU_SOURCE=1",
-    "WIN32_LEAN_AND_MEAN",
 
     # By defining this, M_PI will get #defined.
     "_USE_MATH_DEFINES",

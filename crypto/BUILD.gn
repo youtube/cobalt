@@ -83,7 +83,7 @@ component("crypto") {
       "scoped_nss_types.h",
     ]
     if (is_win) {
-      cflags += [
+      cflags = [
         "/wd4018",  # Comparing signed and unsigned values.
       ]
     }

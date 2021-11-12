@@ -388,26 +388,28 @@ static_library("run_all_unittests") {
   ]
 }
 
-# These sources are linked into both the base_unittests binary and the test
-# shared library target below.
-source_set("native_library_test_utils") {
-  testonly = true
-  sources = [
-    "native_library_test_utils.cc",
-    "native_library_test_utils.h",
-  ]
-}
+if (is_starboard && !is_win) {
+  # These sources are linked into both the base_unittests binary and the test
+  # shared library target below.
+  source_set("native_library_test_utils") {
+    testonly = true
+    sources = [
+      "native_library_test_utils.cc",
+      "native_library_test_utils.h",
+    ]
+  }
 
-# This shared library is dynamically loaded by NativeLibrary unittests.
-shared_library("test_shared_library") {
-  testonly = true
-  sources = [
-    "test_shared_library.cc",
-  ]
+  # This shared library is dynamically loaded by NativeLibrary unittests.
+  shared_library("test_shared_library") {
+    testonly = true
+    sources = [
+      "test_shared_library.cc",
+    ]
 
-  deps = [
-    ":native_library_test_utils",
-  ]
+    deps = [
+      ":native_library_test_utils",
+    ]
+  }
 }
 
 if (!is_starboard) {

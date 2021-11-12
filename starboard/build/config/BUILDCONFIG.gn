@@ -118,6 +118,10 @@ if (is_qa || is_gold) {
   default_compiler_configs += [ "//build/config/compiler:no_rtti" ]
 }
 
+if (is_win) {
+  default_compiler_configs += [ "//build/config/win:lean_and_mean" ]
+}
+
 set_defaults("static_library") {
   configs = default_compiler_configs + static_library_configs
   has_pedantic_warnings = false

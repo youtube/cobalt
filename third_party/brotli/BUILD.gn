@@ -18,7 +18,7 @@ config("includes") {
   }
 }
 
-static_library("headers") {
+source_set("headers") {
   if (is_starboard) {
     sources = [
       "c/include/brotli/decode.h",

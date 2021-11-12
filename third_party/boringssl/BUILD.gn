@@ -24,14 +24,16 @@ config("internal_config") {
     "TERMIO",
     "_REENTRANT",
   ]
-  cflags = [
-    "-fPIC",
-    "-fvisibility=hidden",
-  ]
-  cflags_c = [
-    "-std=gnu99",
-    "-Wno-bad-function-cast",
-  ]
+  if (!is_starboard || !is_win) {
+    cflags = [
+      "-fPIC",
+      "-fvisibility=hidden",
+    ]
+    cflags_c = [
+      "-std=gnu99",
+      "-Wno-bad-function-cast",
+    ]
+  }
   ldflags = [ "-fPIC" ]
   include_dirs = [ "." ]
 
