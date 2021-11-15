@@ -36,6 +36,7 @@ RUN mkdir C:\TEMP;`
     Remove-Item -Force -Recurse ${env:ProgramFiles(x86)}\'Microsoft Visual Studio'\Installer;`
     Remove-Item -Force -Recurse $env:TEMP\*;`
     Remove-Item -Force -Recurse $env:ProgramData\'Package Cache'\;`
+    Remove-Item -Force -Recurse C:\BuildTools\Common7\IDE\CommonExtensions\Microsoft\TextMate\Starterkit\Extensions;`
     Remove-Item C:\TEMP\vs_buildtools.exe
 
 ENV VSINSTALLDIR "C:\BuildTools"
