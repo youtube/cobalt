@@ -1,18 +1,16 @@
-/*
- * Copyright 2014 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2014 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "nb/reuse_allocator_base.h"
 
@@ -49,7 +47,7 @@ bool ReuseAllocatorBase::MemoryBlock::Merge(const MemoryBlock& other) {
 }
 
 bool ReuseAllocatorBase::MemoryBlock::CanFulfill(std::size_t request_size,
-                                                  std::size_t alignment) const {
+                                                 std::size_t alignment) const {
   const std::size_t extra_bytes_for_alignment =
       AlignUp(AsInteger(address_), alignment) - AsInteger(address_);
   const std::size_t aligned_size = request_size + extra_bytes_for_alignment;
@@ -236,7 +234,6 @@ bool ReuseAllocatorBase::TryFree(void* memory) {
 void* ReuseAllocatorBase::AllocateBestBlock(std::size_t alignment,
                                             intptr_t context,
                                             std::size_t* size_hint) {
-  const std::size_t kMinAlignment = 16;
   std::size_t size =
       AlignUp(std::max(*size_hint, kMinAlignment), kMinAlignment);
   alignment = AlignUp(std::max<std::size_t>(alignment, 1), kMinAlignment);
@@ -299,7 +296,7 @@ ReuseAllocatorBase::ReuseAllocatorBase(Allocator* fallback_allocator,
       capacity_(0),
       total_allocated_(0) {
   if (initial_capacity > 0) {
-    FreeBlockSet::iterator iter = ExpandToFit(initial_capacity, 1);
+    FreeBlockSet::iterator iter = ExpandToFit(initial_capacity, kMinAlignment);
     SB_DCHECK(iter != free_blocks_.end());
   }
 }
