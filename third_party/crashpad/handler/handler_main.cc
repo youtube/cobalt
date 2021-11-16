@@ -169,6 +169,10 @@ void Usage(const base::FilePath& me) {
 "      --trace-parent-with-exception=EXCEPTION_INFORMATION_ADDRESS\n"
 "                              request a dump for the handler's parent process\n"
 #endif  // OS_LINUX || OS_ANDROID
+#if defined(STARBOARD)
+"      --evergreen-information=EVERGREEN_INFORMATION_ADDRESS\n"
+"                              the address of a EvegreenInfo struct.\n"
+#endif
 "      --url=URL               send crash reports to this Breakpad server URL,\n"
 "                              only if uploads are enabled for the database\n"
 #if defined(OS_CHROMEOS)
@@ -208,6 +212,9 @@ struct Options {
   VMAddress sanitization_information_address;
   int initial_client_fd;
   bool shared_client_connection;
+#if defined(STARBOARD)
+  VMAddress evergreen_information_address;
+#endif  // defined(STARBOARD)
 #if defined(OS_ANDROID)
   bool write_minidump_to_log;
   bool write_minidump_to_database;
@@ -581,6 +588,9 @@ int HandlerMain(int argc,
     kOptionSanitizationInformation,
     kOptionSharedClientConnection,
     kOptionTraceParentWithException,
+#if defined(STARBOARD)
+    kOptionEvergreenInformaton,
+#endif  // defined(STARBOARD)
 #endif
     kOptionURL,
 #if defined(OS_CHROMEOS)
@@ -661,6 +671,12 @@ int HandlerMain(int argc,
      nullptr,
      kOptionTraceParentWithException},
 #endif  // OS_LINUX || OS_ANDROID
+#if defined(STARBOARD)
+    {"evergreen-information",
+     required_argument,
+     nullptr,
+     kOptionEvergreenInformaton},
+#endif
     {"url", required_argument, nullptr, kOptionURL},
 #if defined(OS_CHROMEOS)
     {"use-cros-crash-reporter",
@@ -824,6 +840,17 @@ int HandlerMain(int argc,
         }
         break;
       }
+#if defined(STARBOARD)
+      case kOptionEvergreenInformaton: {
+        if (!StringToNumber(optarg,
+                            &options.evergreen_information_address)) {
+          ToolSupport::UsageHint(me,
+                                 "failed to parse --evergreen-information");
+          return ExitFailure();
+        }
+        break;
+      }
+#endif   // defined(STARBOARD)
 #endif  // OS_LINUX || OS_ANDROID
       case kOptionURL: {
         options.url = optarg;
@@ -1040,6 +1067,10 @@ int HandlerMain(int argc,
     info.exception_information_address = options.exception_information_address;
     info.sanitization_information_address =
         options.sanitization_information_address;
+#if defined(STARBOARD)
+    info.evergreen_information_address =
+        options.evergreen_information_address;
+#endif   // defined(STARBOARD)
     return exception_handler->HandleException(getppid(), geteuid(), info)
                ? EXIT_SUCCESS
                : ExitFailure();

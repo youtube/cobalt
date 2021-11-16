@@ -41,8 +41,9 @@ bool CaptureSnapshot(
   std::unique_ptr<ProcessSnapshotLinux> process_snapshot(
       new ProcessSnapshotLinux());
 #if defined(STARBOARD)
-  if (!process_snapshot->Initialize(
-          connection, evergreen_information_address, annotations_address)) {
+  if (!process_snapshot->Initialize(connection,
+                                    info.evergreen_information_address,
+                                    info.annotations_address)) {
 #else
   if (!process_snapshot->Initialize(connection)) {
 #endif
