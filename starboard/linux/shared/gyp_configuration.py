@@ -121,10 +121,30 @@ class LinuxConfiguration(platform_configuration.PlatformConfiguration):
           'VideoDecoderTests/VideoDecoderTest.*Invalid*',
       ],
   }
+  __FILTERED_TESTS['nplb'] = []
   # Conditionally disables tests that require ipv6
-  if os.getenv('IPV6_AVAILABLE', 1) == '0':
-    __FILTERED_TESTS['nplb'] = [
+  if os.getenv('IPV6_AVAILABLE', '1') == '0':
+    __FILTERED_TESTS['nplb'].extend([
         'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest.SunnyDayDestination/1',
         'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest.SunnyDaySourceForDestination/1',
         'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest.SunnyDaySourceNotLoopback/1',
-    ]
+    ])
+    # TODO: Re-enable once tests or infra fixed.
+    __FILTERED_TESTS['nplb'].extend([
+        'SbSocketAddressTypes/SbSocketBindTest.RainyDayBadInterface/1',
+        'SbSocketAddressTypes/PairSbSocketGetLocalAddressTest.SunnyDayConnected/1',
+        'SbSocketAddressTypes/PairSbSocketIsConnectedAndIdleTest.SunnyDay/1',
+        'SbSocketAddressTypes/PairSbSocketIsConnectedTest.SunnyDay/1',
+        'SbSocketAddressTypes/PairSbSocketReceiveFromTest.SunnyDay/1',
+        'SbSocketAddressTypes/SbSocketResolveTest.Localhost/1',
+        'SbSocketAddressTypes/SbSocketResolveTest.SunnyDayFiltered/1',
+        'SbSocketAddressTypes/PairSbSocketSendToTest.RainyDaySendToClosedSocket/1',
+        'SbSocketAddressTypes/PairSbSocketSendToTest.RainyDaySendToSocketUntilBlocking/1',
+        'SbSocketAddressTypes/PairSbSocketSendToTest.RainyDaySendToSocketConnectionReset/1',
+        'SbSocketAddressTypes/PairSbSocketWaiterWaitTest.SunnyDay/1',
+        'SbSocketAddressTypes/PairSbSocketWaiterWaitTest.SunnyDayAlreadyReady/1',
+        'SbSocketAddressTypes/PairSbSocketWaiterWaitTimedTest.SunnyDay/1',
+        'SbSocketAddressTypes/PairSbSocketWrapperTest.SunnyDay/1',
+    ])
+
+  # pylint: enable=line-too-long
