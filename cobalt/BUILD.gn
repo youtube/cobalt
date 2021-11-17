@@ -18,8 +18,8 @@ group("gn_all") {
   deps = [
     "//cobalt/account",
     "//cobalt/base",
-    "//cobalt/build:cobalt_build_id",
     "//cobalt/math",
+    "//cobalt/network",
     "//cobalt/network_bridge",
     "//cobalt/render_tree",
     "//cobalt/renderer:default_options",
