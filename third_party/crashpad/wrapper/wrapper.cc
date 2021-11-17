@@ -27,6 +27,7 @@
 #include "starboard/directory.h"
 #include "starboard/file.h"
 #include "starboard/system.h"
+#include "third_party/crashpad/snapshot/sanitized/sanitization_information.h"
 
 namespace third_party {
 namespace crashpad {
@@ -206,6 +207,9 @@ void InstallCrashpadHandler() {
                        default_arguments,
                        false,
                        false);
+
+  ::crashpad::SanitizationInformation sanitization_info = {0, 0, 0, 1};
+  client->SendSanitizationInformationToHandler(sanitization_info);
 }
 
 bool AddEvergreenInfoToCrashpad(EvergreenInfo evergreen_info) {
