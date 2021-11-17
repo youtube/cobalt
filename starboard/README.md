@@ -237,7 +237,7 @@ platform configuration name `bobbox-armeb`.)
           1. Set `'gl_type': 'system_gles2'` if you are using the system EGL +
              GLES2 implementation.
           1. Set `'in_app_dial'` to `1` or `0`. This enables or disables the
-             DIAL server that runs inside Cobalt, only when Coblat is
+             DIAL server that runs inside Cobalt, only when Cobalt is
              running. You do not want in-app DIAL if you already have
              system-wide DIAL support.
       1. Update your toolchain command-line flags and libraries. Make sure you
