@@ -172,8 +172,10 @@ class BlackBoxTests(object):
     global _wpt_http_port
     _wpt_http_port = wpt_http_port
     _launcher_params.target_params.append(
-        '--web-platform-test-server=http://web-platform.test:%s' %
-        wpt_http_port)
+        '--dev_servers_listen_ip={}'.format(server_binding_address))
+    _launcher_params.target_params.append(
+        '--web-platform-test-server=http://web-platform.test:{}'.format(
+            wpt_http_port))
 
     # Port used to create the proxy server. If not specified, a random free
     # port is used.
