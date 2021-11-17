@@ -129,7 +129,7 @@ class LinuxConfiguration(platform_configuration.PlatformConfiguration):
         'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest.SunnyDaySourceForDestination/1',
         'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest.SunnyDaySourceNotLoopback/1',
     ])
-    #TODO(b/206119532): Re-enable once tests or infra fixed.
+    # TODO: Re-enable once tests or infra fixed.
     __FILTERED_TESTS['nplb'].extend([
         'SbSocketAddressTypes/SbSocketBindTest.RainyDayBadInterface/1',
         'SbSocketAddressTypes/PairSbSocketGetLocalAddressTest.SunnyDayConnected/1',
