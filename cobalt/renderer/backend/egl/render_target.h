@@ -15,7 +15,7 @@
 #ifndef COBALT_RENDERER_BACKEND_EGL_RENDER_TARGET_H_
 #define COBALT_RENDERER_BACKEND_EGL_RENDER_TARGET_H_
 
-#include "cobalt/renderer/backend/render_target.h"
+#include "cobalt/renderer/backend/render_target.h"  // nogncheck
 #include "cobalt/renderer/egl_and_gles.h"
 
 namespace cobalt {
@@ -25,12 +25,11 @@ namespace backend {
 class RenderTargetEGL : public RenderTarget {
  public:
   RenderTargetEGL()
-      : swap_count_(0)
-      , has_been_made_current_(false)
-      , content_preserved_on_swap_(false)
-      , content_cleared_on_swap_(false)
-      , is_surface_bad_(false)
-  {}
+      : swap_count_(0),
+        has_been_made_current_(false),
+        content_preserved_on_swap_(false),
+        content_cleared_on_swap_(false),
+        is_surface_bad_(false) {}
 
   // An EGLSurface is needed for the EGL function eglMakeCurrent() which
   // associates a render target with a rendering context.

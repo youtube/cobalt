@@ -12,11 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-static_library("default_options") {
-  sources = [ "//cobalt/renderer/get_default_rasterizer_for_platform.cc" ]
+static_library("system_window") {
+  has_pedantic_warnings = true
+
+  sources = [
+    "input_event.h",
+    "system_window.cc",
+    "system_window.h",
+  ]
+
   deps = [
-    "//cobalt/configuration",
-    "//cobalt/renderer/backend:renderer_backend",
+    "//cobalt/base",
+    "//cobalt/math",
     "//starboard:starboard_headers_only",
   ]
 }
