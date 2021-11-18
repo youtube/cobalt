@@ -71,6 +71,14 @@ ARG encoded_keyfile
 RUN C:\sccache\setup_sccache.ps1;`
     Remove-Item C:\sccache\setup_sccache.ps1
 
+# Set up GN
+RUN (New-Object Net.WebClient).DownloadFile(`
+    'https://chrome-infra-packages.appspot.com/dl/gn/gn/windows-amd64/+/c7arrb3NphJV3Hzo5oKj94VeQgVYY6AoatHY39wlWAEC',`
+    'C:\gn.zip') ; `
+    Expand-Archive -Force C:\gn.zip C:\gn\ ; `
+    Remove-Item -Path C:\gn.zip ; `
+    setx /M PATH $($Env:PATH + ';C:\gn')
+
 # Install gsutil helpers to download from GCS. This helps download required SDKs.
 COPY .boto /Users/ContainerAdministrator/.boto
 COPY download_from_gcs.ps1 /download_from_gcs.ps1
