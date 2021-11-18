@@ -12,7 +12,8 @@ exclude: |
             build|
             testing|
             third_party|
-            tools/gyp
+            tools/gyp|
+            url
         )/
         |
         components/update_client/((?!cobalt).)*$
