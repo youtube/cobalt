@@ -37,6 +37,7 @@ group("gn_all") {
     "//cobalt/sso",
     "//cobalt/storage",
     "//cobalt/storage:storage_constants",
+    "//cobalt/subtlecrypto",
     "//cobalt/trace_event",
     "//cobalt/ui_navigation",
     "//content/browser/speech",
