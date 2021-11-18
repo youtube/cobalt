@@ -27,7 +27,7 @@
 #include "starboard/directory.h"
 #include "starboard/file.h"
 #include "starboard/system.h"
-#include "third_party/crashpad/snapshot/sanitized/sanitization_information.h"
+#include "third_party/crashpad/snapshot/sanitized/sanitization_information.h"  // nogncheck
 
 namespace third_party {
 namespace crashpad {

@@ -40,7 +40,7 @@
 
 #if defined(STARBOARD)
 #include "starboard/elf_loader/evergreen_info.h"
-#include "third_party/crashpad/snapshot/sanitized/sanitization_information.h"
+#include "third_party/crashpad/snapshot/sanitized/sanitization_information.h"  // nogncheck
 #include "third_party/crashpad/wrapper/annotations.h"
 #endif
 
