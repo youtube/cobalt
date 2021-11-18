@@ -4,6 +4,7 @@
 
 #include "net/dial/dial_http_server.h"
 
+#include <memory>
 #include <vector>
 
 #include "base/bind.h"
@@ -19,11 +20,6 @@
 #include "net/server/http_server_request_info.h"
 #include "net/socket/stream_socket.h"
 #include "net/socket/tcp_server_socket.h"
-
-#if defined(__LB_SHELL__)
-#include "lb_network_helpers.h"
-#include "starboard/string.h"
-#endif
 
 namespace net {
 
@@ -59,7 +55,7 @@ base::Optional<net::IPEndPoint> GetLocalIpAddress() {
   memset(&local_ip, 0, sizeof(local_ip));
   bool result = false;
 
-  // Dial Server only supports Ipv4 now.
+  // DIAL Server only supports Ipv4 now.
   SbSocketAddressType address_types = {kSbSocketAddressTypeIpv4};
   SbSocketAddress destination;
   memset(&(destination.address), 0, sizeof(destination.address));
@@ -86,7 +82,7 @@ DialHttpServer::DialHttpServer(DialService* dial_service)
       new net::TCPServerSocket(NULL /*net_log*/, net::NetLogSource());
   base::Optional<net::IPEndPoint> ip_addr = GetLocalIpAddress();
   if (!ip_addr) {
-    DLOG(ERROR) << "Can not get a local address for Dial HTTP Server";
+    LOG(ERROR) << "Can not get a local address for DIAL HTTP Server";
   } else {
     server_socket->ListenWithAddressAndPort(
         ip_addr.value().address().ToString(), ip_addr.value().port(),
@@ -124,12 +120,14 @@ int DialHttpServer::GetLocalAddress(IPEndPoint* addr) {
   SbSocketAddress destination = {0};
   SbSocketAddress netmask = {0};
 
-  // Dial only works with IPv4.
+  // DIAL only works with IPv4.
   destination.type = kSbSocketAddressTypeIpv4;
   if (!SbSocketGetInterfaceAddress(&destination, &local_ip, NULL)) {
     return ERR_FAILED;
   }
   local_ip.port = addr->port();
+  LOG_ONCE(INFO) << "In-App DIAL Address http://" << addr->address().ToString()
+               << ":" << addr->port();
 
   if (addr->FromSbSocketAddress(&local_ip)) {
     return OK;
@@ -148,8 +146,7 @@ void DialHttpServer::OnHttpRequest(int conn_id,
     SendDeviceDescriptionManifest(conn_id);
 
   } else if (strstr(info.path.c_str(), kAppsPrefix)) {
-    if (info.method == "GET" &&
-        info.path.length() == strlen(kAppsPrefix)) {
+    if (info.method == "GET" && info.path.length() == strlen(kAppsPrefix)) {
       // If /apps/ request, send 302 to current application.
       http_server_->SendRaw(
           conn_id,
