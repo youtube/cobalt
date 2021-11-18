@@ -153,7 +153,8 @@ class BlackBoxTests(object):
                proxy_port=None,
                test_name=None,
                wpt_http_port=None,
-               device_ips=None):
+               device_ips=None,
+               device_id=None):
     # Setup global variables used by test cases.
     global _launcher_params
     _launcher_params = command_line.CreateLauncherParams()
@@ -167,8 +168,14 @@ class BlackBoxTests(object):
       wpt_http_port = str(self.GetUnusedPort([server_binding_address]))
     global _wpt_http_port
     _wpt_http_port = wpt_http_port
-    _launcher_params.target_params.append(
-        '--dev_servers_listen_ip={}'.format(server_binding_address))
+    # TODO: Remove generation of --dev_servers_listen_ip once executable will
+    # be able to bind correctly with incomplete support of IPv6
+    if device_id and IsValidIpAddress(device_id):
+      _launcher_params.target_params.append(
+          '--dev_servers_listen_ip={}'.format(device_id))
+    elif IsValidIpAddress(server_binding_address):
+      _launcher_params.target_params.append(
+          '--dev_servers_listen_ip={}'.format(server_binding_address))
     _launcher_params.target_params.append(
         '--web-platform-test-server=http://web-platform.test:{}'.format(
             wpt_http_port))
@@ -260,6 +267,29 @@ class BlackBoxTests(object):
         sock[1].close()
 
 
+def IsValidIpAddress(address):
+  """Checks if address is valid IP address."""
+  return IsValidIpv4Address(address) or IsValidIpv6Address(address)
+
+
+def IsValidIpv4Address(address):
+  """Checks if address is valid IPv4 address."""
+  try:
+    socket.inet_pton(socket.AF_INET, address)
+    return True
+  except socket.error:  # not a valid address
+    return False
+
+
+def IsValidIpv6Address(address):
+  """Checks if address is valid IPv6 address."""
+  try:
+    socket.inet_pton(socket.AF_INET6, address)
+    return True
+  except socket.error:  # not a valid address
+    return False
+
+
 def main():
   parser = argparse.ArgumentParser()
   parser.add_argument('-v', '--verbose', required=False, action='store_true')
@@ -291,10 +321,15 @@ def main():
             'server. If not specified, a random free port is'
             'used.'))
   parser.add_argument(
+      '--device_id',
+      default=None,
+      help=('ID of test device to connect. If specified, it will be passed '
+            'as --dev_servers_listen_ip param on the test device.'))
+  parser.add_argument(
       '--device_ips',
       default=None,
       nargs='*',
-      help=('IPs of test devices that will be allowed to connect. If not'
+      help=('IPs of test devices that will be allowed to connect. If not '
             'specified, all IPs will be allowed to connect.'))
   args, _ = parser.parse_known_args()
 
@@ -302,7 +337,8 @@ def main():
 
   test_object = BlackBoxTests(args.server_binding_address, args.proxy_address,
                               args.proxy_port, args.test_name,
-                              args.wpt_http_port, args.device_ips)
+                              args.wpt_http_port, args.device_ips,
+                              args.device_id)
   sys.exit(test_object.Run())
 
 
