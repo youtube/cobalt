@@ -41,41 +41,52 @@
         }],
       ],
     },
-    {
-      'target_name': 'starboard_full',
-      'type': 'none',
-      'dependencies': [
-        '<(DEPTH)/<(starboard_path)/starboard_platform.gyp:starboard_platform',
-        '<(DEPTH)/starboard/client_porting/cwrappers/cwrappers.gyp:cwrappers',
-        '<(DEPTH)/starboard/client_porting/eztime/eztime.gyp:eztime',
-        '<(DEPTH)/starboard/starboard_headers_only.gyp:starboard_headers_only',
-        'common/common.gyp:common',
-      ],
-      'export_dependent_settings': [
-        '<(DEPTH)/<(starboard_path)/starboard_platform.gyp:starboard_platform',
-      ],
-      'conditions': [
-        ['sb_evergreen_compatible == 1', {
+  ],
+  'conditions' : [
+    # Evergreen platforms aren't built with a starboard_platform static library
+    # but rather just the Starboard headers. Even though targets don't depend on
+    # starboard_full when sb_evergreen is True, GYP will still try to define it
+    # if it's included in the global dictionary defined by this file. So, this
+    # condition is used to only include it when sb_evergreen is False.
+    ['sb_evergreen == 0', {
+      'targets': [
+        {
+          'target_name': 'starboard_full',
+          'type': 'none',
           'dependencies': [
-            '<(DEPTH)/third_party/crashpad/wrapper/wrapper.gyp:crashpad_wrapper',
+            '<(DEPTH)/<(starboard_path)/starboard_platform.gyp:starboard_platform',
+            '<(DEPTH)/starboard/client_porting/cwrappers/cwrappers.gyp:cwrappers',
+            '<(DEPTH)/starboard/client_porting/eztime/eztime.gyp:eztime',
+            '<(DEPTH)/starboard/starboard_headers_only.gyp:starboard_headers_only',
+            'common/common.gyp:common',
           ],
-        }, {
-          'dependencies': [
-            '<(DEPTH)/third_party/crashpad/wrapper/wrapper.gyp:crashpad_wrapper_stub',
+          'export_dependent_settings': [
+            '<(DEPTH)/<(starboard_path)/starboard_platform.gyp:starboard_platform',
           ],
-        }],
-        ['final_executable_type=="shared_library"', {
-          'all_dependent_settings': {
-            'target_conditions': [
-              ['_type=="executable" and _toolset=="target"', {
-                'sources': [
-                  '<(DEPTH)/starboard/shared/starboard/shared_main_adapter.cc',
+          'conditions': [
+            ['sb_evergreen_compatible == 1', {
+              'dependencies': [
+                '<(DEPTH)/third_party/crashpad/wrapper/wrapper.gyp:crashpad_wrapper',
+              ],
+            }, {
+              'dependencies': [
+                '<(DEPTH)/third_party/crashpad/wrapper/wrapper.gyp:crashpad_wrapper_stub',
+              ],
+            }],
+            ['final_executable_type=="shared_library"', {
+              'all_dependent_settings': {
+                'target_conditions': [
+                  ['_type=="executable" and _toolset=="target"', {
+                    'sources': [
+                      '<(DEPTH)/starboard/shared/starboard/shared_main_adapter.cc',
+                    ],
+                  }],
                 ],
-              }],
-            ],
-          },
-        }],
+              },
+            }],
+          ],
+        },
       ],
-    },
+    }],
   ],
 }
