@@ -112,7 +112,7 @@ void Observer::OnEvent(Events event, const std::string& id) {
     status = "No status available";
   }
   updater_configurator_->SetUpdaterStatus(status);
-  SB_LOG(INFO) << "Updater status is " << status;
+  LOG(INFO) << "Updater status is " << status;
 }
 
 UpdaterModule::UpdaterModule(network::NetworkModule* network_module)
@@ -195,18 +195,17 @@ void UpdaterModule::MarkSuccessful() {
       static_cast<const CobaltExtensionInstallationManagerApi*>(
           SbSystemGetExtension(kCobaltExtensionInstallationManagerName));
   if (!installation_manager) {
-    SB_LOG(ERROR) << "Updater failed to get installation manager extension.";
+    LOG(ERROR) << "Updater failed to get installation manager extension.";
     return;
   }
   int index = installation_manager->GetCurrentInstallationIndex();
   if (index == IM_EXT_ERROR) {
-    SB_LOG(ERROR) << "Updater failed to get current installation index.";
+    LOG(ERROR) << "Updater failed to get current installation index.";
     return;
   }
   if (installation_manager->MarkInstallationSuccessful(index) !=
       IM_EXT_SUCCESS) {
-    SB_LOG(ERROR)
-        << "Updater failed to mark the current installation successful";
+    LOG(ERROR) << "Updater failed to mark the current installation successful";
   }
 }
 
@@ -221,7 +220,7 @@ void UpdaterModule::Update() {
 
   const base::Version manifest_version(GetCurrentEvergreenVersion());
   if (!manifest_version.IsValid()) {
-    SB_LOG(ERROR) << "Updater failed to get the current update version.";
+    LOG(ERROR) << "Updater failed to get the current update version.";
     return;
   }
 
@@ -308,21 +307,21 @@ void UpdaterModule::ResetInstallations() {
       static_cast<const CobaltExtensionInstallationManagerApi*>(
           SbSystemGetExtension(kCobaltExtensionInstallationManagerName));
   if (!installation_manager) {
-    SB_LOG(ERROR) << "Updater failed to get installation manager extension.";
+    LOG(ERROR) << "Updater failed to get installation manager extension.";
     return;
   }
   if (installation_manager->Reset() == IM_EXT_ERROR) {
-    SB_LOG(ERROR) << "Updater failed to reset installations.";
+    LOG(ERROR) << "Updater failed to reset installations.";
     return;
   }
   base::FilePath product_data_dir;
   if (!GetProductDirectoryPath(&product_data_dir)) {
-    SB_LOG(ERROR) << "Updater failed to get product directory path.";
+    LOG(ERROR) << "Updater failed to get product directory path.";
     return;
   }
   if (!starboard::SbFileDeleteRecursive(product_data_dir.value().c_str(),
                                         true)) {
-    SB_LOG(ERROR) << "Updater failed to clean the product directory.";
+    LOG(ERROR) << "Updater failed to clean the product directory.";
     return;
   }
 }
@@ -332,12 +331,12 @@ int UpdaterModule::GetInstallationIndex() const {
       static_cast<const CobaltExtensionInstallationManagerApi*>(
           SbSystemGetExtension(kCobaltExtensionInstallationManagerName));
   if (!installation_manager) {
-    SB_LOG(ERROR) << "Updater failed to get installation manager extension.";
+    LOG(ERROR) << "Updater failed to get installation manager extension.";
     return -1;
   }
   int index = installation_manager->GetCurrentInstallationIndex();
   if (index == IM_EXT_ERROR) {
-    SB_LOG(ERROR) << "Updater failed to get current installation index.";
+    LOG(ERROR) << "Updater failed to get current installation index.";
     return -1;
   }
   return index;

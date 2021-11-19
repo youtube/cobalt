@@ -149,7 +149,7 @@ TEST_F(CobaltSlotManagementTest, SelectMinVersionSlot) {
   base::FilePath dir;
   cobalt_slot_management.SelectSlot(&dir);
   ASSERT_TRUE(DrainFileDraining(dir.value().c_str(), kTestAppKey1));
-  SB_LOG(INFO) << "dir=" << dir;
+  LOG(INFO) << "dir=" << dir;
 
   ASSERT_TRUE(base::EndsWith(dir.value(), "installation_2",
                              base::CompareCase::SENSITIVE));
@@ -169,7 +169,7 @@ TEST_F(CobaltSlotManagementTest, ConfirmSlot) {
   ASSERT_TRUE(cobalt_slot_management.Init(api_));
   base::FilePath dir;
   ASSERT_TRUE(cobalt_slot_management.SelectSlot(&dir));
-  SB_LOG(INFO) << "dir=" << dir;
+  LOG(INFO) << "dir=" << dir;
 
   ASSERT_TRUE(base::EndsWith(dir.value(), "installation_1",
                              base::CompareCase::SENSITIVE));

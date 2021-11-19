@@ -14,6 +14,8 @@
 
 #include "components/update_client/cobalt_slot_management.h"
 
+#include <vector>
+
 #include "base/values.h"
 #include "cobalt/updater/utils.h"
 #include "components/update_client/utils.h"
@@ -29,9 +31,9 @@ bool CheckBadFileExists(const char* installation_path, const char* app_key) {
   std::string bad_app_key_file_path =
       starboard::loader_app::GetBadAppKeyFilePath(installation_path, app_key);
   SB_DCHECK(!bad_app_key_file_path.empty());
-  SB_LOG(INFO) << "bad_app_key_file_path: " << bad_app_key_file_path;
-  SB_LOG(INFO) << "bad_app_key_file_path SbFileExists: "
-               << SbFileExists(bad_app_key_file_path.c_str());
+  LOG(INFO) << "bad_app_key_file_path: " << bad_app_key_file_path;
+  LOG(INFO) << "bad_app_key_file_path SbFileExists: "
+            << SbFileExists(bad_app_key_file_path.c_str());
   return !bad_app_key_file_path.empty() &&
          SbFileExists(bad_app_key_file_path.c_str());
 }
@@ -41,21 +43,21 @@ CobaltSlotManagement::CobaltSlotManagement() : installation_api_(nullptr) {}
 
 bool CobaltSlotManagement::Init(
     const CobaltExtensionInstallationManagerApi* installation_api) {
-  SB_LOG(INFO) << "CobaltSlotManagement::Init";
+  LOG(INFO) << "CobaltSlotManagement::Init";
 
   installation_api_ = installation_api;
 
   // Make sure the index is reset
   installation_index_ = IM_EXT_INVALID_INDEX;
   if (!installation_api_) {
-    SB_LOG(ERROR) << "Failed to get installation manager";
+    LOG(ERROR) << "Failed to get installation manager";
     return false;
   }
 
   char app_key[IM_EXT_MAX_APP_KEY_LENGTH];
   if (installation_api_->GetAppKey(app_key, IM_EXT_MAX_APP_KEY_LENGTH) ==
       IM_EXT_ERROR) {
-    SB_LOG(ERROR) << "Failed to get app key.";
+    LOG(ERROR) << "Failed to get app key.";
     return false;
   }
   app_key_ = app_key;
@@ -64,10 +66,10 @@ bool CobaltSlotManagement::Init(
 
 bool CobaltSlotManagement::SelectSlot(base::FilePath* dir) {
   SB_DCHECK(installation_api_);
-  SB_LOG(INFO) << "CobaltSlotManagement::SelectSlot";
+  LOG(INFO) << "CobaltSlotManagement::SelectSlot";
   int max_slots = installation_api_->GetMaxNumberInstallations();
   if (max_slots == IM_EXT_ERROR) {
-    SB_LOG(ERROR) << "Failed to get max number of slots";
+    LOG(ERROR) << "Failed to get max number of slots";
     return false;
   }
 
@@ -78,14 +80,14 @@ bool CobaltSlotManagement::SelectSlot(base::FilePath* dir) {
 
   // Iterate over all writeable slots - index >= 1.
   for (int i = 1; i < max_slots; i++) {
-    SB_LOG(INFO) << "CobaltSlotManagement::SelectSlot iterating slot=" << i;
+    LOG(INFO) << "CobaltSlotManagement::SelectSlot iterating slot=" << i;
     std::vector<char> installation_path(kSbFileMaxPath);
     if (installation_api_->GetInstallationPath(i, installation_path.data(),
                                                installation_path.size()) ==
         IM_EXT_ERROR) {
-      SB_LOG(ERROR) << "CobaltSlotManagement::SelectSlot: Failed to get "
-                       "installation path for slot="
-                    << i;
+      LOG(ERROR) << "CobaltSlotManagement::SelectSlot: Failed to get "
+                    "installation path for slot="
+                 << i;
       continue;
     }
 
@@ -103,31 +105,29 @@ bool CobaltSlotManagement::SelectSlot(base::FilePath* dir) {
     base::Version version =
         cobalt::updater::ReadEvergreenVersion(installation_dir);
     if (!version.IsValid()) {
-      SB_LOG(INFO)
-          << "CobaltSlotManagement::SelectSlot installed version invalid";
+      LOG(INFO) << "CobaltSlotManagement::SelectSlot installed version invalid";
       if (!DrainFileDraining(installation_dir.value().c_str(), "")) {
-        SB_LOG(INFO) << "CobaltSlotManagement::SelectSlot not draining";
+        LOG(INFO) << "CobaltSlotManagement::SelectSlot not draining";
         // Found empty slot.
         slot_candidate = i;
         slot_candidate_path = installation_dir;
         break;
       } else {
         // There is active draining from another updater so bail out.
-        SB_LOG(ERROR) << "CobaltSlotManagement::SelectSlot bailing out";
+        LOG(ERROR) << "CobaltSlotManagement::SelectSlot bailing out";
         return false;
       }
     } else if ((!slot_candidate_version.IsValid() ||
                 slot_candidate_version > version)) {
       if (!DrainFileDraining(installation_dir.value().c_str(), "")) {
         // Found a slot with older version that's not draining.
-        SB_LOG(INFO) << "CobaltSlotManagement::SelectSlot slot candidate: "
-                     << i;
+        LOG(INFO) << "CobaltSlotManagement::SelectSlot slot candidate: " << i;
         slot_candidate_version = version;
         slot_candidate = i;
         slot_candidate_path = installation_dir;
       } else {
         // There is active draining from another updater so bail out.
-        SB_LOG(ERROR) << "CobaltSlotManagement::SelectSlot bailing out";
+        LOG(ERROR) << "CobaltSlotManagement::SelectSlot bailing out";
         return false;
       }
     }
@@ -138,7 +138,7 @@ bool CobaltSlotManagement::SelectSlot(base::FilePath* dir) {
 
   if (installation_index_ == -1 ||
       !DrainFileTryDrain(dir->value().c_str(), app_key_.c_str())) {
-    SB_LOG(ERROR)
+    LOG(ERROR)
         << "CobaltSlotManagement::SelectSlot unable to find a slot, candidate="
         << installation_index_;
     return false;
@@ -148,19 +148,19 @@ bool CobaltSlotManagement::SelectSlot(base::FilePath* dir) {
 
 bool CobaltSlotManagement::ConfirmSlot(const base::FilePath& dir) {
   SB_DCHECK(installation_api_);
-  SB_LOG(INFO) << "CobaltSlotManagement::ConfirmSlot ";
+  LOG(INFO) << "CobaltSlotManagement::ConfirmSlot ";
   if (!DrainFileRankAndCheck(dir.value().c_str(), app_key_.c_str())) {
-    SB_LOG(INFO) << "CobaltSlotManagement::ConfirmSlot: failed to lock slot ";
+    LOG(INFO) << "CobaltSlotManagement::ConfirmSlot: failed to lock slot ";
     return false;
   }
 
   // TODO: Double check the installed_version.
 
   // Use the installation slot
-  SB_LOG(INFO) << "Resetting the slot: " << installation_index_;
+  LOG(INFO) << "Resetting the slot: " << installation_index_;
   if (installation_api_->ResetInstallation(installation_index_) ==
       IM_EXT_ERROR) {
-    SB_LOG(INFO) << "CobaltSlotManagement::ConfirmSlot: failed to reset slot ";
+    LOG(INFO) << "CobaltSlotManagement::ConfirmSlot: failed to reset slot ";
     return false;
   }
 
@@ -189,13 +189,13 @@ bool CobaltFinishInstallation(
       starboard::loader_app::GetGoodAppKeyFilePath(dir, app_key);
   SB_CHECK(!good_app_key_file_path.empty());
   if (!starboard::loader_app::CreateAppKeyFile(good_app_key_file_path)) {
-    SB_LOG(WARNING) << "Failed to create good app key file";
+    LOG(WARNING) << "Failed to create good app key file";
   }
   DrainFileRemove(dir.c_str(), app_key.c_str());
   int ret =
       installation_api->RequestRollForwardToInstallation(installation_index);
   if (ret == IM_EXT_ERROR) {
-    SB_LOG(ERROR) << "Failed to request roll forward.";
+    LOG(ERROR) << "Failed to request roll forward.";
     return false;
   }
   return true;
@@ -210,13 +210,13 @@ bool CobaltQuickUpdate(
   char app_key[IM_EXT_MAX_APP_KEY_LENGTH];
   if (installation_api->GetAppKey(app_key, IM_EXT_MAX_APP_KEY_LENGTH) ==
       IM_EXT_ERROR) {
-    SB_LOG(ERROR) << "CobaltQuickUpdate: Failed to get app key.";
+    LOG(ERROR) << "CobaltQuickUpdate: Failed to get app key.";
     return true;
   }
 
   int max_slots = installation_api->GetMaxNumberInstallations();
   if (max_slots == IM_EXT_ERROR) {
-    SB_LOG(ERROR) << "CobaltQuickUpdate: Failed to get max number of slots.";
+    LOG(ERROR) << "CobaltQuickUpdate: Failed to get max number of slots.";
     return true;
   }
 
@@ -227,14 +227,14 @@ bool CobaltQuickUpdate(
 
   // Iterate over all writeable slots - index >= 1.
   for (int i = 1; i < max_slots; i++) {
-    SB_LOG(INFO) << "CobaltQuickInstallation: iterating slot=" << i;
+    LOG(INFO) << "CobaltQuickInstallation: iterating slot=" << i;
     // Get the path to new installation.
     std::vector<char> installation_path(kSbFileMaxPath);
     if (installation_api->GetInstallationPath(i, installation_path.data(),
                                               installation_path.size()) ==
         IM_EXT_ERROR) {
-      SB_LOG(ERROR) << "CobaltQuickInstallation: Failed to get "
-                    << "installation path for slot=" << i;
+      LOG(ERROR) << "CobaltQuickInstallation: Failed to get "
+                 << "installation path for slot=" << i;
       continue;
     }
 
@@ -248,7 +248,7 @@ bool CobaltQuickUpdate(
         cobalt::updater::ReadEvergreenVersion(installation_dir);
 
     if (!installed_version.IsValid()) {
-      SB_LOG(WARNING) << "CobaltQuickInstallation: invalid version ";
+      LOG(WARNING) << "CobaltQuickInstallation: invalid version ";
       continue;
     } else if (slot_candidate_version < installed_version &&
                current_version < installed_version &&
@@ -260,7 +260,7 @@ bool CobaltQuickUpdate(
       // draining, and no bad file of current app exists, and a good file
       // exists. The final candidate is the newest version of the valid
       // candidates.
-      SB_LOG(INFO) << "CobaltQuickInstallation: slot candidate: " << i;
+      LOG(INFO) << "CobaltQuickInstallation: slot candidate: " << i;
       slot_candidate_version = installed_version;
       slot_candidate = i;
     }
@@ -269,11 +269,11 @@ bool CobaltQuickUpdate(
   if (slot_candidate != -1) {
     if (installation_api->RequestRollForwardToInstallation(slot_candidate) !=
         IM_EXT_ERROR) {
-      SB_LOG(INFO) << "CobaltQuickInstallation: quick update succeeded.";
+      LOG(INFO) << "CobaltQuickInstallation: quick update succeeded.";
       return true;
     }
   }
-  SB_LOG(WARNING) << "CobaltQuickInstallation: quick update failed.";
+  LOG(WARNING) << "CobaltQuickInstallation: quick update failed.";
   return false;
 }
 
