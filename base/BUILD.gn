@@ -93,6 +93,13 @@ config("base_implementation") {
   configs = [ "//build/config/compiler:wexit_time_destructors" ]
 }
 
+config("base_public_defines") {
+  defines = [
+    "BASE_DONT_ENFORCE_THREAD_NAME_LENGTH",
+    "ENABLE_TEST_DATA",
+  ]
+}
+
 if (is_win) {
   # This is in a separate config so the flags can be applied to dependents.
   # ldflags in GN aren't automatically inherited.
@@ -1555,6 +1562,7 @@ component("base") {
     configs -= [
       "//build/config/compiler:noshadowing",
     ]
+    public_configs = [ ":base_public_defines" ]
     deps += [
       "//nb",
       "//starboard/client_porting/eztime",
@@ -3144,7 +3152,6 @@ target(gtest_target_type, "base_unittests") {
       "//base/test:run_all_unittests",
     ]
     defines += [
-      "BASE_DONT_ENFORCE_THREAD_NAME_LENGTH",
       "GMOCK_NO_MOVE_MOCK",
     ]
     data_deps -= [ "//base/test:test_child_process" ]

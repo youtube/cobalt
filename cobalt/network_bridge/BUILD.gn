@@ -23,6 +23,7 @@ static_library("network_bridge") {
 
   deps = [
     "//base",
+    "//net",
     "//url",
   ]
 }

@@ -17,4 +17,7 @@ third_party {
     month: 10
     day: 9
   }
+  local_modifications:
+    '11/22/21 - Replaced original BUILD.gn file with a port of existing GYP file.'
+    'Original BUILD.gn file renamed to BUILD.gn.orig.'
 }
