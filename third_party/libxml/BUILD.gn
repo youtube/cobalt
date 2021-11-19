@@ -150,7 +150,8 @@ static_library("libxml") {
     visibility += [
       "//base/test:test_support",
       "//cobalt/base",
-     ]
+      "//cobalt/renderer/rasterizer/skia/skia",
+    ]
   }
   if (is_ios) {
     foreach(tgt, ios_libxml_visibility_additions) {
