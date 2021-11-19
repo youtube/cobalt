@@ -141,11 +141,11 @@ void InstallOnBlockingTaskRunner(
       static_cast<const CobaltExtensionInstallationManagerApi*>(
           SbSystemGetExtension(kCobaltExtensionInstallationManagerName));
   if (!installation_api) {
-    SB_LOG(ERROR) << "Failed to get installation manager api.";
+    LOG(ERROR) << "Failed to get installation manager api.";
     // TODO: add correct error code.
     install_error = InstallError::GENERIC_ERROR;
   } else if (installation_index == IM_EXT_INVALID_INDEX) {
-    SB_LOG(ERROR) << "Installation index is invalid.";
+    LOG(ERROR) << "Installation index is invalid.";
     // TODO: add correct error code.
     install_error = InstallError::GENERIC_ERROR;
   } else {
@@ -628,7 +628,7 @@ void Component::StateChecking::UpdateCheckComplete() {
                                   base::Unretained(metadata), component.id_,
                                   config->GetChannel()));
   } else {
-    SB_LOG(WARNING) << "Failed to get the persisted data store to write the "
+    LOG(WARNING) << "Failed to get the persisted data store to write the "
                        "updater channel.";
   }
 #endif

@@ -219,7 +219,7 @@ void UpdateCheckerImpl::CheckForUpdatesHelper(
         static_cast<const CobaltExtensionInstallationManagerApi*>(
             SbSystemGetExtension(kCobaltExtensionInstallationManagerName));
     if (!installation_api) {
-      SB_LOG(ERROR) << "Failed to get installation manager extension.";
+      LOG(ERROR) << "Failed to get installation manager extension.";
       return;
     }
 

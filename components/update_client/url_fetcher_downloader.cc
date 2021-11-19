@@ -86,7 +86,7 @@ UrlFetcherDownloader::~UrlFetcherDownloader() {
 
 #if defined(STARBOARD)
 void UrlFetcherDownloader::ConfirmSlot(const GURL& url) {
-  SB_LOG(INFO) << "UrlFetcherDownloader::ConfirmSlot: url=" << url;
+  LOG(INFO) << "UrlFetcherDownloader::ConfirmSlot: url=" << url;
   if (!cobalt_slot_management_.ConfirmSlot(download_dir_)) {
     ReportDownloadFailure(url, CrxDownloaderError::SLOT_UNAVAILABLE);
     return;
@@ -98,7 +98,7 @@ void UrlFetcherDownloader::ConfirmSlot(const GURL& url) {
 }
 
 void UrlFetcherDownloader::SelectSlot(const GURL& url) {
-  SB_LOG(INFO) << "UrlFetcherDownloader::SelectSlot: url=" << url;
+  LOG(INFO) << "UrlFetcherDownloader::SelectSlot: url=" << url;
   if (!cobalt_slot_management_.SelectSlot(&download_dir_)) {
     ReportDownloadFailure(url, CrxDownloaderError::SLOT_UNAVAILABLE);
     return;
@@ -123,7 +123,7 @@ void UrlFetcherDownloader::DoStartDownload(const GURL& url) {
       static_cast<const CobaltExtensionInstallationManagerApi*>(
           SbSystemGetExtension(kCobaltExtensionInstallationManagerName));
   if (!installation_api) {
-    SB_LOG(ERROR) << "Failed to get installation manager";
+    LOG(ERROR) << "Failed to get installation manager";
     ReportDownloadFailure(url);
     return;
   }
@@ -195,13 +195,13 @@ void UrlFetcherDownloader::StartURLFetch(const GURL& url) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
 #if defined(STARBOARD)
-  SB_LOG(INFO) << "UrlFetcherDownloader::StartURLFetch: url" << url
+  LOG(INFO) << "UrlFetcherDownloader::StartURLFetch: url" << url
                << " download_dir=" << download_dir_;
 #endif
 
   if (download_dir_.empty()) {
 #if defined(STARBOARD)
-    SB_LOG(ERROR) << "UrlFetcherDownloader::StartURLFetch: failed with empty "
+    LOG(ERROR) << "UrlFetcherDownloader::StartURLFetch: failed with empty "
                      "download_dir";
 #endif
     ReportDownloadFailure(url);
