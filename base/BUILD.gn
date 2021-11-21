@@ -1120,6 +1120,19 @@ component("base") {
       "files/memory_mapped_file.cc",
       "files/memory_mapped_file.h",
       "files/memory_mapped_file_win.cc",
+      "ios/block_types.h",
+      "ios/crb_protocol_observers.h",
+      "ios/crb_protocol_observers.mm",
+      "ios/device_util.h",
+      "ios/device_util.mm",
+      "ios/ios_util.h",
+      "ios/ios_util.mm",
+      "ios/ns_error_util.h",
+      "ios/ns_error_util.mm",
+      "ios/scoped_critical_action.h",
+      "ios/scoped_critical_action.mm",
+      "ios/weak_nsobject.h",
+      "ios/weak_nsobject.mm",
       "linux_util.cc",
       "linux_util.h",
       "logging_win.cc",
@@ -2112,7 +2125,7 @@ component("base") {
         "//base/third_party/xdg_user_dirs",
       ]
     } else {
-      if (!is_android) {
+      if (!is_android && !is_starboard) {
         sources -= [
           "linux_util.cc",
           "linux_util.h",
@@ -2439,7 +2452,7 @@ component("i18n") {
   # TODO(jschuh): crbug.com/167187 fix size_t to int truncations.
   configs += [ "//build/config/compiler:no_size_t_to_int_warning" ]
 
-  if (is_mac) {
+  if (is_mac && !is_starboard) {
     libs = [ "CoreFoundation.framework" ]
   }
 }
@@ -3026,6 +3039,7 @@ target(gtest_target_type, "base_unittests") {
       "ios/device_util_unittest.mm",
       "ios/weak_nsobject_unittest.mm",
       "mac/bind_objc_block_unittest.mm",
+      "mac/call_with_eh_frame_unittest.mm",
       "mac/dispatch_source_mach_unittest.cc",
       "mac/foundation_util_unittest.mm",
       "mac/mac_util_unittest.mm",
@@ -3067,6 +3081,7 @@ target(gtest_target_type, "base_unittests") {
       "process/process_unittest.cc",
       "process/process_util_unittest.cc",
       "profiler/stack_sampling_profiler_unittest.cc",
+      "strings/sys_string_conversions_mac_unittest.mm",
       "sync_socket_unittest.cc",
       "synchronization/waitable_event_watcher_unittest.cc",
       "task_runner_util_unittest.cc",
@@ -3135,7 +3150,7 @@ target(gtest_target_type, "base_unittests") {
     data_deps -= [ "//base/test:test_child_process" ]
   }
 
-  if (is_ios || is_mac) {
+  if (!is_starboard && (is_ios || is_mac)) {
     deps += [ ":base_unittests_arc" ]
   }
 
@@ -3227,7 +3242,7 @@ target(gtest_target_type, "base_unittests") {
     ]
   }
 
-  if (is_mac) {
+  if (is_mac && !is_starboard) {
     libs = [
       "CoreFoundation.framework",
       "Foundation.framework",

@@ -293,7 +293,7 @@ static_library("test_support") {
     set_sources_assignment_filter(sources_assignment_filter)
   }
 
-  if (is_mac) {
+  if (is_mac && !is_starboard) {
     libs = [ "AppKit.framework" ]
   }
 

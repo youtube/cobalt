@@ -141,6 +141,12 @@ static_library("crypto") {
         } else if (asm_target_arch == "arm64") {
           sources += boringssl_linux_aarch64_files
         }
+      } else if (is_mac) {
+        if (asm_target_arch == "arm64") {
+          sources += boringssl_ios_aarch64_files
+        } else if (asm_target_arch == "x64") {
+          defines = [ "OPENSSL_NO_ASM" ]
+        }
       }
     }
   }

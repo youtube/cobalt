@@ -89,7 +89,7 @@ if (use_arm_neon_optimizations) {
       } else if (is_win) {
         defines += [ "ARMV8_OS_WINDOWS" ]
       } else {
-        assert(false, "Unsupported ARM OS")
+        assert(is_starboard, "Unsupported ARM OS")
       }
     }
   }

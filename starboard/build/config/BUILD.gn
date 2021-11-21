@@ -81,7 +81,7 @@ config("target") {
       # Rewrite main() functions into StarboardMain. TODO: This is a
       # hack, it would be better to be more surgical, here.
       defines = [ "main=StarboardMain" ]
-    } else if (!is_win) {
+    } else if (is_linux || is_android) {
       # To link into a shared library on Linux and similar platforms,
       # the compiler must be told to generate Position Independent Code.
       # This appears to cause errors when linking the code statically,
@@ -96,50 +96,52 @@ config("target") {
 }
 
 config("starboard") {
-  defines = [
-    "STARBOARD",
-    "COBALT",  # TODO: See if this can be replaced by STARBOARD macro.
-  ]
+  if (current_toolchain == default_toolchain) {
+    defines = [
+      "STARBOARD",
+      "COBALT",  # TODO: See if this can be replaced by STARBOARD macro.
+    ]
 
-  if (gl_type == "none") {
-    defines += [ "SB_GN_GL_TYPE_IS_NONE=1" ]
-  } else {
-    defines += [ "SB_GN_GL_TYPE_IS_NONE=0" ]
+    if (gl_type == "none") {
+      defines += [ "SB_GN_GL_TYPE_IS_NONE=1" ]
+    } else {
+      defines += [ "SB_GN_GL_TYPE_IS_NONE=0" ]
+    }
+
+    if (abort_on_allocation_failure) {
+      defines += [ "SB_ABORT_ON_ALLOCATION_FAILURE" ]
+    }
+
+    if (sb_allows_memory_tracking) {
+      defines += [ "STARBOARD_ALLOWS_MEMORY_TRACKING" ]
+    }
+
+    if (sb_enable_lib) {
+      defines += [ "SB_IS_LIBRARY=1" ]
+    }
+
+    if (sb_is_evergreen) {
+      defines += [ "SB_IS_EVERGREEN=1" ]
+    }
+
+    if (sb_is_evergreen_compatible) {
+      defines += [ "SB_IS_EVERGREEN_COMPATIBLE=1" ]
+    }
+
+    if (sb_evergreen_compatible_use_libunwind) {
+      defines += [ "SB_IS_EVERGREEN_COMPATIBLE_LIBUNWIND=1" ]
+    }
+
+    if (sb_evergreen_compatible_enable_lite) {
+      defines += [ "SB_IS_EVERGREEN_COMPATIBLE_LITE=1" ]
+    }
+
+    defines += [
+      "STARBOARD_ATOMIC_INCLUDE=\"$starboard_path/atomic_public.h\"",
+      "STARBOARD_CONFIGURATION_INCLUDE=\"$starboard_path/configuration_public.h\"",
+      "STARBOARD_THREAD_TYPES_INCLUDE=\"$starboard_path/thread_types_public.h\"",
+    ]
   }
-
-  if (abort_on_allocation_failure) {
-    defines += [ "SB_ABORT_ON_ALLOCATION_FAILURE" ]
-  }
-
-  if (sb_allows_memory_tracking) {
-    defines += [ "STARBOARD_ALLOWS_MEMORY_TRACKING" ]
-  }
-
-  if (sb_enable_lib) {
-    defines += [ "SB_IS_LIBRARY=1" ]
-  }
-
-  if (sb_is_evergreen) {
-    defines += [ "SB_IS_EVERGREEN=1" ]
-  }
-
-  if (sb_is_evergreen_compatible) {
-    defines += [ "SB_IS_EVERGREEN_COMPATIBLE=1" ]
-  }
-
-  if (sb_evergreen_compatible_use_libunwind) {
-    defines += [ "SB_IS_EVERGREEN_COMPATIBLE_LIBUNWIND=1" ]
-  }
-
-  if (sb_evergreen_compatible_enable_lite) {
-    defines += [ "SB_IS_EVERGREEN_COMPATIBLE_LITE=1" ]
-  }
-
-  defines += [
-    "STARBOARD_ATOMIC_INCLUDE=\"$starboard_path/atomic_public.h\"",
-    "STARBOARD_CONFIGURATION_INCLUDE=\"$starboard_path/configuration_public.h\"",
-    "STARBOARD_THREAD_TYPES_INCLUDE=\"$starboard_path/thread_types_public.h\"",
-  ]
 }
 
 config("starboard_implementation") {
