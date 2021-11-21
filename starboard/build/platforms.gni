@@ -65,4 +65,8 @@ platforms = [
     name = "win-win32"
     path = "starboard/win/win32"
   },
+  {
+    name = "darwin-tvos-arm64"
+    path = "starboard/darwin/tvos/arm64"
+  },
 ]

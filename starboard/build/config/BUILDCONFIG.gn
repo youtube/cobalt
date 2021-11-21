@@ -67,6 +67,12 @@ if (current_cpu == "") {
 }
 import("//starboard/build/config/os_definitions.gni")
 
+if (is_mac) {
+  declare_args() {
+    use_system_xcode = true
+  }
+}
+
 # Get the path to the starboard implementation and include its GN
 # configuration.
 foreach(platform, platforms) {
