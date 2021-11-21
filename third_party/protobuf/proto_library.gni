@@ -236,9 +236,15 @@ template("proto_library") {
     args = protos
 
     if (is_starboard) {
+      # TODO(b/207292694): Build protoc from source.
+      if (is_mac) {
+        protoc_path = "//tools/protoc_mac"
+      } else {
+        protoc_path = "//tools/protoc"
+      }
       args += [
         "--protoc",
-        rebase_path("//tools/protoc", root_build_dir) + host_executable_suffix,
+        rebase_path(protoc_path, root_build_dir) + host_executable_suffix,
       ]
     } else {
       protoc_label = "//third_party/protobuf:protoc($host_toolchain)"
