@@ -129,10 +129,10 @@ void NetworkFetcher::DownloadToFile(
   url_fetcher_->Start();
 }
 
-void NetworkFetcher::CancelDownloadToFile() {
+void NetworkFetcher::Cancel() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
-  LOG(INFO) << "Canceling DownloadToFile";
+  LOG(INFO) << "Cancel";
   url_fetcher_.reset();
 }
 
