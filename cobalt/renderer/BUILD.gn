@@ -14,9 +14,5 @@
 
 static_library("default_options") {
   sources = [ "//cobalt/renderer/get_default_rasterizer_for_platform.cc" ]
-  deps = [
-    "//cobalt/configuration",
-    "//cobalt/renderer/backend:renderer_backend",
-    "//starboard:starboard_headers_only",
-  ]
+  deps = [ "//starboard:starboard_headers_only" ]
 }
