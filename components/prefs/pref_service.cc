@@ -97,6 +97,9 @@ PrefService::PrefService(
       user_pref_store_(std::move(user_prefs)),
       read_error_callback_(std::move(read_error_callback)),
       pref_registry_(std::move(pref_registry)) {
+#if defined(STARBOARD)
+  LOG(INFO) << "PrefService::PrefService";
+#endif
   pref_notifier_->SetPrefService(this);
 
   DCHECK(pref_registry_);
@@ -106,6 +109,9 @@ PrefService::PrefService(
 }
 
 PrefService::~PrefService() {
+#if defined(STARBOARD)
+  LOG(INFO) << "PrefService::~PrefService";
+#endif
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   // TODO(crbug.com/942491, 946668, 945772) The following code collects

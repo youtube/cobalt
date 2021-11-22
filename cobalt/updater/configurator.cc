@@ -64,6 +64,7 @@ Configurator::Configurator(network::NetworkModule* network_module)
       network_fetcher_factory_(
           base::MakeRefCounted<NetworkFetcherFactoryCobalt>(network_module)),
       patch_factory_(base::MakeRefCounted<PatcherFactory>()) {
+  LOG(INFO) << "Configurator::Configurator";
   const std::string persisted_channel =
       persisted_data_->GetUpdaterChannel(GetAppGuid());
   if (persisted_channel.empty()) {
@@ -75,7 +76,7 @@ Configurator::Configurator(network::NetworkModule* network_module)
     user_agent_string_ = network_module->GetUserAgent();
   }
 }
-Configurator::~Configurator() = default;
+Configurator::~Configurator() { LOG(INFO) << "Configurator::~Configurator"; }
 
 int Configurator::InitialDelay() const { return 0; }
 

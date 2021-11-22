@@ -66,6 +66,10 @@ PingSender::~PingSender() {
 void PingSender::SendPing(const Component& component, Callback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
+#if defined(STARBOARD)
+  LOG(INFO) << "PingSender::SendPing";
+#endif
+
   if (component.events().empty()) {
     base::ThreadTaskRunnerHandle::Get()->PostTask(
         FROM_HERE, base::BindOnce(std::move(callback), kErrorNoEvents, ""));
@@ -106,6 +110,7 @@ void PingSender::SendPing(const Component& component, Callback callback) {
 void PingSender::SendPingComplete(int error,
                                   const std::string& response,
                                   int retry_after_sec) {
+  LOG(INFO) << "PingSender::SendPingComplete";
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   std::move(callback_).Run(error, response);
 }
@@ -113,14 +118,25 @@ void PingSender::SendPingComplete(int error,
 }  // namespace
 
 PingManager::PingManager(scoped_refptr<Configurator> config)
-    : config_(config) {}
+    : config_(config) {
+#if defined(STARBOARD)
+  LOG(INFO) << "PingManager::PingManager";
+#endif
+}
 
 PingManager::~PingManager() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+#if defined(STARBOARD)
+  LOG(INFO) << "PingManager::~PingManager";
+#endif
 }
 
 void PingManager::SendPing(const Component& component, Callback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+
+#if defined(STARBOARD)
+  LOG(INFO) << "PingManager::SendPing";
+#endif
 
   auto ping_sender = base::MakeRefCounted<PingSender>(config_);
   ping_sender->SendPing(component, std::move(callback));

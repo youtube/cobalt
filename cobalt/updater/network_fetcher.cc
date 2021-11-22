@@ -68,9 +68,13 @@ namespace cobalt {
 namespace updater {
 
 NetworkFetcher::NetworkFetcher(const network::NetworkModule* network_module)
-    : network_module_(network_module) {}
+    : network_module_(network_module) {
+  LOG(INFO) << "cobalt::updater::NetworkFetcher::NetworkFetcher";
+}
 
-NetworkFetcher::~NetworkFetcher() {}
+NetworkFetcher::~NetworkFetcher() {
+  LOG(INFO) << "cobalt::updater::NetworkFetcher::~NetworkFetcher";
+}
 
 void NetworkFetcher::PostRequest(
     const GURL& url, const std::string& post_data,
@@ -80,6 +84,7 @@ void NetworkFetcher::PostRequest(
     PostRequestCompleteCallback post_request_complete_callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
+  LOG(INFO) << "cobalt::updater::NetworkFetcher::PostRequest";
   LOG(INFO) << "PostRequest url = " << url;
   LOG(INFO) << "PostRequest post_data = " << post_data;
 
@@ -111,6 +116,7 @@ void NetworkFetcher::DownloadToFile(
     DownloadToFileCompleteCallback download_to_file_complete_callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
+  LOG(INFO) << "cobalt::updater::NetworkFetcher::DownloadToFile";
   LOG(INFO) << "DownloadToFile url = " << url;
   LOG(INFO) << "DownloadToFile file_path = " << file_path;
 
@@ -131,13 +137,13 @@ void NetworkFetcher::DownloadToFile(
 
 void NetworkFetcher::Cancel() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-
-  LOG(INFO) << "Cancel";
+  LOG(INFO) << "cobalt::updater::NetworkFetcher::Cancel";
   url_fetcher_.reset();
 }
 
 void NetworkFetcher::OnURLFetchResponseStarted(const net::URLFetcher* source) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  LOG(INFO) << "cobalt::updater::NetworkFetcher::OnURLFetchResponseStarted";
   std::move(response_started_callback_)
       .Run(source->GetURL(), source->GetResponseCode(),
            source->GetResponseHeaders()
@@ -147,6 +153,7 @@ void NetworkFetcher::OnURLFetchResponseStarted(const net::URLFetcher* source) {
 
 void NetworkFetcher::OnURLFetchComplete(const net::URLFetcher* source) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  LOG(INFO) << "cobalt::updater::NetworkFetcher::OnURLFetchComplete";
   const net::URLRequestStatus& status = source->GetStatus();
   const int response_code = source->GetResponseCode();
   if (url_fetcher_type_ == kUrlFetcherTypePostRequest) {
@@ -169,6 +176,7 @@ void NetworkFetcher::OnURLFetchDownloadProgress(const net::URLFetcher* source,
                                                 int64_t current, int64_t total,
                                                 int64_t current_network_bytes) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  LOG(INFO) << "cobalt::updater::NetworkFetcher::OnURLFetchDownloadProgress";
 
   progress_callback_.Run(current);
 }
@@ -195,6 +203,7 @@ void NetworkFetcher::CreateUrlFetcher(
 
 void NetworkFetcher::OnPostRequestComplete(const net::URLFetcher* source,
                                            const int status_error) {
+  LOG(INFO) << "cobalt::updater::NetworkFetcher::OnPostRequestComplete";
   std::unique_ptr<std::string> response_body(new std::string);
   auto* download_data_writer =
       base::polymorphic_downcast<loader::URLFetcherStringWriter*>(
@@ -220,6 +229,7 @@ void NetworkFetcher::OnPostRequestComplete(const net::URLFetcher* source,
 
 void NetworkFetcher::OnDownloadToFileComplete(const net::URLFetcher* source,
                                               const int status_error) {
+  LOG(INFO) << "cobalt::updater::NetworkFetcher::OnDownloadToFileComplete";
   base::FilePath response_file;
   if (!source->GetResponseAsFilePath(true, &response_file)) {
     LOG(ERROR) << "DownloadToFile failed to get response from a file";
@@ -235,8 +245,9 @@ void NetworkFetcher::OnDownloadToFileComplete(const net::URLFetcher* source,
 
 NetworkFetcher::ReturnWrapper NetworkFetcher::HandleError(
     const std::string& message) {
+  LOG(ERROR) << "cobalt::updater::NetworkFetcher::HandleError message="
+             << message;
   url_fetcher_.reset();
-  LOG(ERROR) << message;
   return ReturnWrapper();
 }
 
