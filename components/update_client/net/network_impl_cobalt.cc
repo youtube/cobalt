@@ -132,10 +132,10 @@ void NetworkFetcherCobaltImpl::DownloadToFile(
   url_fetcher_->Start();
 }
 
-void NetworkFetcherCobaltImpl::CancelDownloadToFile() {
+void NetworkFetcherCobaltImpl::Cancel() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
-  LOG(INFO) << "Canceling DownloadToFile";
+  LOG(INFO) << "Cancel";
   url_fetcher_.reset();
 }
 

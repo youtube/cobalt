@@ -69,7 +69,7 @@ class NetworkFetcher : public update_client::NetworkFetcher,
                       ProgressCallback progress_callback,
                       DownloadToFileCompleteCallback
                           download_to_file_complete_callback) override;
-  void CancelDownloadToFile() override;
+  void Cancel() override;
 
   // net::URLFetcherDelegate interface.
   void OnURLFetchResponseStarted(const net::URLFetcher* source) override;

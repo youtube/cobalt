@@ -147,7 +147,9 @@ void UrlFetcherDownloader::DoStartDownload(const GURL& url) {
 #if defined(STARBOARD)
 void UrlFetcherDownloader::DoCancelDownload() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  network_fetcher_->CancelDownloadToFile();
+  if (network_fetcher_.get()) {
+    network_fetcher_->Cancel();
+  }
 }
 #endif
 
