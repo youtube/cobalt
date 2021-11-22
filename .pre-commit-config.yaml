@@ -107,7 +107,11 @@ repos:
         language: python
         types: [file, text]
         stages: [push]
-        exclude: '^cobalt/layout_tests/testdata/'
+        exclude: |
+            (?x)^(
+                cobalt/layout_tests/testdata/|
+                starboard/android/apk/app/src/main/java/dev/cobalt/media/MediaDrmBridge.java$
+            )
         exclude_types: [markdown]
     -   id: check-if-starboard-interface-changed
         name: check if starboard interface changed
