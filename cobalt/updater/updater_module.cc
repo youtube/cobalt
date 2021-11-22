@@ -82,6 +82,7 @@ namespace cobalt {
 namespace updater {
 
 void Observer::OnEvent(Events event, const std::string& id) {
+  LOG(INFO) << "Observer::OnEvent id=" << id;
   std::string status;
   if (update_client_->GetCrxUpdateState(id, &crx_update_item_)) {
     auto status_iterator =
@@ -117,6 +118,7 @@ void Observer::OnEvent(Events event, const std::string& id) {
 
 UpdaterModule::UpdaterModule(network::NetworkModule* network_module)
     : updater_thread_("updater"), network_module_(network_module) {
+  LOG(INFO) << "UpdaterModule::UpdaterModule";
   updater_thread_.StartWithOptions(
       base::Thread::Options(base::MessageLoop::TYPE_IO, 0));
 
@@ -129,6 +131,7 @@ UpdaterModule::UpdaterModule(network::NetworkModule* network_module)
 }
 
 UpdaterModule::~UpdaterModule() {
+  LOG(INFO) << "UpdaterModule::~UpdaterModule";
   if (is_updater_running_) {
     is_updater_running_ = false;
     updater_thread_.task_runner()->PostBlockingTask(
@@ -172,6 +175,7 @@ void UpdaterModule::Initialize() {
 
 void UpdaterModule::Finalize() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  LOG(INFO) << "UpdaterModule::Finalize begin";
   update_client_->RemoveObserver(updater_observer_.get());
   updater_observer_.reset();
   update_client_->Stop();
@@ -186,6 +190,7 @@ void UpdaterModule::Finalize() {
   }
 
   updater_configurator_ = nullptr;
+  LOG(INFO) << "UpdaterModule::Finalize end";
 }
 
 void UpdaterModule::MarkSuccessful() {
@@ -279,22 +284,37 @@ void UpdaterModule::CompareAndSwapChannelChanged(int old_value, int new_value) {
 }
 
 std::string UpdaterModule::GetUpdaterChannel() const {
+  LOG(INFO) << "UpdaterModule::GetUpdaterChannel";
   auto config = updater_configurator_;
-  if (!config) return "";
+  if (!config) {
+    LOG(ERROR) << "UpdaterModule::GetUpdaterChannel: missing config";
+    return "";
+  }
 
-  return config->GetChannel();
+  std::string channel = config->GetChannel();
+  LOG(INFO) << "UpdaterModule::GetUpdaterChannel channel=" << channel;
+  return channel;
 }
 
 void UpdaterModule::SetUpdaterChannel(const std::string& updater_channel) {
+  LOG(INFO) << "UpdaterModule::SetUpdaterChannel updater_channel="
+            << updater_channel;
   auto config = updater_configurator_;
   if (config) config->SetChannel(updater_channel);
 }
 
 std::string UpdaterModule::GetUpdaterStatus() const {
+  LOG(INFO) << "UpdaterModule::GetUpdaterStatus";
   auto config = updater_configurator_;
-  if (!config) return "";
+  if (!config) {
+    LOG(ERROR) << "UpdaterModule::GetUpdaterStatus: missing configuration";
+    return "";
+  }
 
-  return config->GetUpdaterStatus();
+  std::string updater_status = config->GetUpdaterStatus();
+  LOG(INFO) << "UpdaterModule::GetUpdaterStatus updater_status="
+            << updater_status;
+  return updater_status;
 }
 
 void UpdaterModule::RunUpdateCheck() {

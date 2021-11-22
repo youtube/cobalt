@@ -20,6 +20,9 @@
 #include "base/strings/stringprintf.h"
 #include "base/task/post_task.h"
 #include "base/threading/thread_checker.h"
+#if defined(STARBOARD)
+#include "base/threading/thread_id_name_manager.h"
+#endif
 #include "base/threading/thread_task_runner_handle.h"
 #include "build/build_config.h"
 #if defined(STARBOARD)
@@ -121,10 +124,17 @@ class UpdateCheckerImpl : public UpdateChecker {
 
 UpdateCheckerImpl::UpdateCheckerImpl(scoped_refptr<Configurator> config,
                                      PersistedData* metadata)
-    : config_(config), metadata_(metadata) {}
+    : config_(config), metadata_(metadata) {
+#if defined(STARBOARD)
+  LOG(INFO) << "UpdateCheckerImpl::UpdateCheckerImpl";
+#endif
+}
 
 UpdateCheckerImpl::~UpdateCheckerImpl() {
   DCHECK(thread_checker_.CalledOnValidThread());
+#if defined(STARBOARD)
+  LOG(INFO) << "UpdateCheckerImpl::~UpdateCheckerImpl";
+#endif
 }
 
 void UpdateCheckerImpl::CheckForUpdates(
@@ -135,6 +145,9 @@ void UpdateCheckerImpl::CheckForUpdates(
     bool enabled_component_updates,
     UpdateCheckCallback update_check_callback) {
   DCHECK(thread_checker_.CalledOnValidThread());
+#if defined(STARBOARD)
+  LOG(INFO) << "UpdateCheckerImpl::CheckForUpdates";
+#endif
 
   ids_checked_ = ids_checked;
   update_check_callback_ = std::move(update_check_callback);
@@ -150,6 +163,11 @@ void UpdateCheckerImpl::CheckForUpdates(
 
 // This function runs on the blocking pool task runner.
 void UpdateCheckerImpl::ReadUpdaterStateAttributes() {
+#if defined(STARBOARD)
+  LOG(INFO) << "UpdateCheckerImpl::ReadUpdaterStateAttributes current_thread="
+    << base::ThreadIdNameManager::GetInstance()->GetNameForCurrentThread();
+#endif
+
 #if defined(OS_WIN)
   // On Windows, the Chrome and the updater install modes are matched by design.
   updater_state_attributes_ =
@@ -168,6 +186,9 @@ void UpdateCheckerImpl::CheckForUpdatesHelper(
     const base::flat_map<std::string, std::string>& additional_attributes,
     bool enabled_component_updates) {
   DCHECK(thread_checker_.CalledOnValidThread());
+#if defined(STARBOARD)
+  LOG(INFO) << "UpdateCheckerImpl::CheckForUpdatesHelper";
+#endif
 
   auto urls(config_->UpdateUrl());
   if (IsEncryptionRequired(components))
