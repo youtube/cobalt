@@ -38,7 +38,11 @@ repos:
                # be lowercase, see
                # https://github.com/codespell-project/codespell/issues/1390
                --ignore-words-list, atleast]
-        exclude: '^cobalt/content/i18n/platform/'
+        exclude: |
+            (?x)^(
+                cobalt/content/i18n/platform/|
+                cobalt/content/licenses/
+            )
 
 -   repo: local
     hooks:
