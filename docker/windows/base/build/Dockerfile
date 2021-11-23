@@ -47,7 +47,7 @@ RUN iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.or
 
 RUN mkdir C:\pip-cache;`
     # Install pip.
-    pip install pypiwin32 --cache-dir C:\pip-cache;`
+    pip install pypiwin32 six --cache-dir C:\pip-cache;`
     C:\fast-win-rmdir.cmd C:\pip-cache;`
     # Configure git global settings.
     git config --global core.autocrlf false;`
