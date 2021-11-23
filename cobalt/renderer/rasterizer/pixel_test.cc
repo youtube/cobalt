@@ -17,8 +17,12 @@
 
 #include "base/bind.h"
 #include "base/files/file_path.h"
+#include "base/i18n/char_iterator.h"
+#include "base/i18n/icu_string_conversions.h"
 #include "base/memory/ptr_util.h"
 #include "base/path_service.h"
+#include "cobalt/base/unicode/character.h"
+#include "cobalt/base/unicode/character_values.h"
 #include "cobalt/loader/image/animated_webp_image.h"
 #include "cobalt/loader/image/image_decoder_mock.h"
 #include "cobalt/math/matrix3_f.h"
@@ -1061,10 +1065,25 @@ namespace {
 
 scoped_refptr<GlyphBuffer> CreateGlyphBuffer(
     ResourceProvider* resource_provider, FontStyle font_style, int font_size,
-    const std::string& text) {
-  scoped_refptr<Font> font =
-      resource_provider->GetLocalTypeface("Roboto", font_style)
-          ->CreateFontWithSize(font_size);
+    const std::string& text, const char* font_family_name = "Roboto",
+    const std::string& language = "en_US") {
+  scoped_refptr<Font> font;
+  if (resource_provider->HasLocalFontFamily(font_family_name)) {
+    font = resource_provider->GetLocalTypeface(font_family_name, font_style)
+               ->CreateFontWithSize(font_size);
+  } else {
+    base::string16 utf16_string;
+    base::CodepageToUTF16(text, base::kCodepageUTF8,
+                          base::OnStringConversionError::SUBSTITUTE,
+                          &utf16_string);
+    int32 first_character = base::unicode::NormalizeSpaces(
+        base::i18n::UTF16CharIterator(utf16_string.c_str(), utf16_string.size())
+            .get());
+    font = resource_provider
+               ->GetCharacterFallbackTypeface(first_character, font_style,
+                                              language)
+               ->CreateFontWithSize(font_size);
+  }
   return resource_provider->CreateGlyphBuffer(text, font);
 }
 
@@ -1080,9 +1099,11 @@ scoped_refptr<MatrixTransformNode> TransformRenderTree(
 scoped_refptr<Node> CreateTextNodeWithinSurface(
     ResourceProvider* resource_provider, const std::string& text,
     FontStyle font_style, int font_size, const ColorRGBA& color,
-    const std::vector<Shadow>& shadows) {
+    const std::vector<Shadow>& shadows, const char* font_family_name = "Roboto",
+    const std::string& language = "en_US") {
   scoped_refptr<render_tree::GlyphBuffer> glyph_buffer =
-      CreateGlyphBuffer(resource_provider, font_style, font_size, text);
+      CreateGlyphBuffer(resource_provider, font_style, font_size, text,
+                        font_family_name, language);
   RectF bounds(glyph_buffer->GetBounds());
 
   TextNode::Builder builder(Vector2dF(-bounds.x(), -bounds.y()), glyph_buffer,
@@ -1163,6 +1184,18 @@ TEST_F(PixelTest, SimpleTextInRed40PtFont) {
   TestTree(CreateTextNodeWithinSurface(GetResourceProvider(), "Cobalt",
                                        FontStyle(), 40,
                                        ColorRGBA(1.0, 0, 0, 1.0)));
+}
+
+TEST_F(PixelTest, SimpleTextInRed40PtThaiFont) {
+  TestTree(CreateTextNodeWithinSurface(
+      GetResourceProvider(), "   ็", FontStyle(), 40, ColorRGBA(1.0, 0, 0, 1.0),
+      std::vector<Shadow>(), "Noto Sans Thai UI", "und-Thai"));
+}
+
+TEST_F(PixelTest, SimpleTextInRed40PtChineseFont) {
+  TestTree(CreateTextNodeWithinSurface(
+      GetResourceProvider(), "你好！", FontStyle(), 40,
+      ColorRGBA(1.0, 0, 0, 1.0), std::vector<Shadow>(), "Noto Sans CJK SC"));
 }
 
 TEST_F(PixelTest, RotatedTextInScaledRoundedCorners) {

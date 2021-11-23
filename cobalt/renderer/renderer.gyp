@@ -105,6 +105,7 @@
         '<(DEPTH)/cobalt/loader/loader.gyp:loader',
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
+        '<(DEPTH)/third_party/icu/icu.gyp:icuuc',
         'render_tree_pixel_tester',
         'renderer_copy_test_data',
       ],
