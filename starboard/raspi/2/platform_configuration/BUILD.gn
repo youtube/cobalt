@@ -13,15 +13,18 @@
 # limitations under the License.
 
 config("platform_configuration") {
-  configs = [
-    "//starboard/build/config/sabi",
-    "//starboard/raspi/shared/platform_configuration",
-  ]
-  cflags = [
-    "-march=armv7-a",
-    "-mfpu=neon-vfpv4",
-    "-mfloat-abi=hard",
-    "-mcpu=cortex-a8",
-    "-mtune=cortex-a8",
-  ]
+  configs = [ "//starboard/build/config/sabi" ]
+
+  if (current_toolchain == default_toolchain) {
+    configs += [ "//starboard/raspi/shared/platform_configuration" ]
+    cflags = [
+      "-march=armv7-a",
+      "-mfpu=neon-vfpv4",
+      "-mfloat-abi=hard",
+      "-mcpu=cortex-a8",
+      "-mtune=cortex-a8",
+    ]
+  } else {
+    cflags = [ "-O2" ]
+  }
 }

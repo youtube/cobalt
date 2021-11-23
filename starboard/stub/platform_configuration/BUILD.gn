@@ -15,71 +15,72 @@
 config("platform_configuration") {
   configs = [ "//starboard/build/config/sabi" ]
   cflags = []
-  ldflags = [ "-static-libstdc++" ]
 
-  if (current_toolchain == default_toolchain) {
+  if (current_toolchain == host_toolchain) {
     cflags += [
       "-O2",
       "-Wno-unused-parameter",
     ]
-  }
-
-  if (is_debug) {
-    cflags += [ "-O0" ]
-    configs += [ "//build/config/compiler:rtti" ]
-  } else if (is_devel) {
-    cflags += [ "-O2" ]
-    configs += [ "//build/config/compiler:rtti" ]
   } else {
-    cflags += [
-      "-O2",
-      "-gline-tables-only",
-    ]
+    ldflags = [ "-static-libstdc++" ]
+
+    if (is_debug) {
+      cflags += [ "-O0" ]
+      configs += [ "//build/config/compiler:rtti" ]
+    } else if (is_devel) {
+      cflags += [ "-O2" ]
+      configs += [ "//build/config/compiler:rtti" ]
+    } else {
+      cflags += [
+        "-O2",
+        "-gline-tables-only",
+      ]
+    }
+
+    # if (!cobalt_fastbuild && (is_debug || is_devel)) {
+    #   cflags += ["-g"]
+    # }
+
+    if (is_clang) {
+      cflags += [
+        "-Werror",
+        "-fcolor-diagnostics",
+
+        # Default visibility to hidden, to enable dead stripping.
+        "-fvisibility=hidden",
+
+        # Warn for implicit type conversions that may change a value.
+        "-Wconversion",
+
+        # Warns on switches on enums that cover all enum values but
+        # also contain a default: branch. Chrome is full of that.
+        "-Wno-covered-switch-default",
+
+        # protobuf uses hash_map.
+        "-Wno-deprecated",
+
+        # Don"t warn about the "struct foo f = {0};" initialization pattern.
+        "-Wno-missing-field-initializers",
+
+        # Do not warn for implicit sign conversions.
+        "-Wno-sign-conversion",
+        "-fno-strict-aliasing",  # See http://crbug.com/32204
+
+        # Triggered by the COMPILE_ASSERT macro.
+        "-Wno-unused-local-typedef",
+
+        # Do not warn if a function or variable cannot be implicitly
+        # instantiated.
+        "-Wno-undefined-var-template",
+
+        # Do not warn about unused function params.
+        "-Wno-unused-parameter",
+      ]
+    }
+
+    # Defined to get format macro constants from <inttypes.h>.
+    defines = [ "__STDC_FORMAT_MACROS" ]
   }
-
-  # if (!cobalt_fastbuild && (is_debug || is_devel)) {
-  #   cflags += ["-g"]
-  # }
-
-  if (is_clang) {
-    cflags += [
-      "-Werror",
-      "-fcolor-diagnostics",
-
-      # Default visibility to hidden, to enable dead stripping.
-      "-fvisibility=hidden",
-
-      # Warn for implicit type conversions that may change a value.
-      "-Wconversion",
-
-      # Warns on switches on enums that cover all enum values but
-      # also contain a default: branch. Chrome is full of that.
-      "-Wno-covered-switch-default",
-
-      # protobuf uses hash_map.
-      "-Wno-deprecated",
-
-      # Don"t warn about the "struct foo f = {0};" initialization pattern.
-      "-Wno-missing-field-initializers",
-
-      # Do not warn for implicit sign conversions.
-      "-Wno-sign-conversion",
-      "-fno-strict-aliasing",  # See http://crbug.com/32204
-
-      # Triggered by the COMPILE_ASSERT macro.
-      "-Wno-unused-local-typedef",
-
-      # Do not warn if a function or variable cannot be implicitly
-      # instantiated.
-      "-Wno-undefined-var-template",
-
-      # Do not warn about unused function params.
-      "-Wno-unused-parameter",
-    ]
-  }
-
-  # Defined to get format macro constants from <inttypes.h>.
-  defines = [ "__STDC_FORMAT_MACROS" ]
 }
 
 config("pedantic_warnings") {

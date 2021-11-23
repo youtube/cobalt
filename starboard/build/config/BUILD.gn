@@ -53,7 +53,7 @@ config("base") {
 
 config("host") {
   if (current_toolchain == host_toolchain) {
-    if (host_os == "linux") {
+    if (is_linux) {
       ldflags = [ "-pthread" ]
       cflags_cc = [ "-std=gnu++14" ]
 
@@ -65,6 +65,12 @@ config("host") {
           "-latomic",
         ]
       }
+    } else if (is_win) {
+      # A few flags to mute MSVC compiler errors that does not appear on Linux.
+      cflags = [
+        "/wd4267",  # Possible loss of precision from size_t to a smaller type.
+        "/wd4715",  # Not all control paths return value.
+      ]
     }
   }
 }
@@ -142,25 +148,33 @@ config("starboard_implementation") {
 }
 
 config("speed") {
-  if (defined(speed_config_path)) {
-    configs = [ speed_config_path ]
+  if (current_toolchain == default_toolchain) {
+    if (defined(speed_config_path)) {
+      configs = [ speed_config_path ]
+    }
   }
 }
 
 config("size") {
-  if (defined(size_config_path)) {
-    configs = [ size_config_path ]
+  if (current_toolchain == default_toolchain) {
+    if (defined(size_config_path)) {
+      configs = [ size_config_path ]
+    }
   }
 }
 
 config("pedantic_warnings") {
-  if (defined(pedantic_warnings_config_path)) {
-    configs = [ pedantic_warnings_config_path ]
+  if (current_toolchain == default_toolchain) {
+    if (defined(pedantic_warnings_config_path)) {
+      configs = [ pedantic_warnings_config_path ]
+    }
   }
 }
 
 config("no_pedantic_warnings") {
-  if (defined(no_pedantic_warnings_config_path)) {
-    configs = [ no_pedantic_warnings_config_path ]
+  if (current_toolchain == default_toolchain) {
+    if (defined(no_pedantic_warnings_config_path)) {
+      configs = [ no_pedantic_warnings_config_path ]
+    }
   }
 }
