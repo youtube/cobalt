@@ -1179,11 +1179,12 @@ class MediaCodecBridge {
         || configurationData.length < MIN_OPUS_INITIALIZATION_DATA_BUFFER_SIZE) {
       Log.e(
           TAG,
-          "Failed to configure Opus audio codec. " + configurationData == null
-              ? "|configurationData| is null."
-              : String.format(
-                  "Configuration data size (%d) is less than the required size (%d).",
-                  configurationData.length, MIN_OPUS_INITIALIZATION_DATA_BUFFER_SIZE));
+          "Failed to configure Opus audio codec. "
+              + (configurationData == null
+                  ? "|configurationData| is null."
+                  : String.format(
+                      "Configuration data size (%d) is less than the required size (%d).",
+                      configurationData.length, MIN_OPUS_INITIALIZATION_DATA_BUFFER_SIZE)));
       return false;
     }
     // Both the number of samples to skip from the beginning of the stream and the amount of time
