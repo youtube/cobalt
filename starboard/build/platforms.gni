@@ -69,4 +69,8 @@ platforms = [
     name = "darwin-tvos-arm64"
     path = "starboard/darwin/tvos/arm64"
   },
+  {
+    name = "darwin-tvos-simulator"
+    path = "starboard/darwin/tvos/simulator"
+  },
 ]
