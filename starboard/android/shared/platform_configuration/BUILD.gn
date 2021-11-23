@@ -74,91 +74,89 @@ config("platform_configuration") {
       defines += [ "THREAD_SANITIZER" ]
     }
 
-    if (current_toolchain != host_toolchain) {
-      cflags_cc = [ "-std=c++14" ]
-      cflags += [
-        # libwebp uses the cpufeatures library to detect ARM NEON support
-        "-I${android_ndk_path}/sources/android/cpufeatures",
+    cflags_cc = [ "-std=c++14" ]
+    cflags += [
+      # libwebp uses the cpufeatures library to detect ARM NEON support
+      "-I${android_ndk_path}/sources/android/cpufeatures",
 
-        # Mimic build/cmake/android.toolchain.cmake in the Android NDK.
-        "-ffunction-sections",
-        "-funwind-tables",
-        "-fstack-protector-strong",
-        "-no-canonical-prefixes",
+      # Mimic build/cmake/android.toolchain.cmake in the Android NDK.
+      "-ffunction-sections",
+      "-funwind-tables",
+      "-fstack-protector-strong",
+      "-no-canonical-prefixes",
 
-        # Other flags
-        "-fsigned-char",
-        "-fno-limit-debug-info",
-        "-fcolor-diagnostics",
-        "-fno-strict-aliasing",  # See http://crbug.com/32204
+      # Other flags
+      "-fsigned-char",
+      "-fno-limit-debug-info",
+      "-fcolor-diagnostics",
+      "-fno-strict-aliasing",  # See http://crbug.com/32204
 
-        # Default visibility is hidden to enable dead stripping.
-        "-fvisibility=hidden",
+      # Default visibility is hidden to enable dead stripping.
+      "-fvisibility=hidden",
 
-        # Any warning will stop the build.
-        "-Werror",
+      # Any warning will stop the build.
+      "-Werror",
 
-        # Disable errors for the warning till the Android NDK r19 is fixed.
-        # The warning is trigger when compiling .c files and complains for
-        # "-stdlib=libc++" which is added by the NDK.
-        "-Wno-error=unused-command-line-argument",
+      # Disable errors for the warning till the Android NDK r19 is fixed.
+      # The warning is trigger when compiling .c files and complains for
+      # "-stdlib=libc++" which is added by the NDK.
+      "-Wno-error=unused-command-line-argument",
 
-        # Don"t warn about register variables (in base and net)
-        "-Wno-deprecated-register",
+      # Don"t warn about register variables (in base and net)
+      "-Wno-deprecated-register",
 
-        # Don"t warn about deprecated ICU methods (in googleurl and net)
-        "-Wno-deprecated-declarations",
+      # Don"t warn about deprecated ICU methods (in googleurl and net)
+      "-Wno-deprecated-declarations",
 
-        # Skia doesn"t use overrides.
-        "-Wno-inconsistent-missing-override",
+      # Skia doesn"t use overrides.
+      "-Wno-inconsistent-missing-override",
 
-        # shifting a negative signed value is undefined
-        "-Wno-shift-negative-value",
+      # shifting a negative signed value is undefined
+      "-Wno-shift-negative-value",
 
-        # Don"t warn for implicit sign conversions. (in v8 and protobuf)
-        "-Wno-sign-conversion",
-      ]
-      defines += [
-        # Enable compile-time decisions based on the ABI
-        "ANDROID_ABI=$android_abi",
+      # Don"t warn for implicit sign conversions. (in v8 and protobuf)
+      "-Wno-sign-conversion",
+    ]
+    defines += [
+      # Enable compile-time decisions based on the ABI
+      "ANDROID_ABI=$android_abi",
 
-        # -DANDROID is an argument to some ifdefs in the NDK"s eglplatform.h
-        "ANDROID",
+      # -DANDROID is an argument to some ifdefs in the NDK"s eglplatform.h
+      "ANDROID",
 
-        # Cobalt on Linux flag
-        "COBALT_LINUX",
+      # Cobalt on Linux flag
+      "COBALT_LINUX",
 
-        # So that we get the PRI* macros from inttypes.h
-        "__STDC_FORMAT_MACROS",
+      # So that we get the PRI* macros from inttypes.h
+      "__STDC_FORMAT_MACROS",
 
-        # Enable GNU extensions to get prototypes like ffsl.
-        "_GNU_SOURCE=1",
+      # Enable GNU extensions to get prototypes like ffsl.
+      "_GNU_SOURCE=1",
 
-        # Undefining __linux__ causes the system headers to make wrong
-        # assumptions about which C-library is used on the platform.
-        "__BIONIC__",
+      # Undefining __linux__ causes the system headers to make wrong
+      # assumptions about which C-library is used on the platform.
+      "__BIONIC__",
 
-        # Undefining __linux__ leaves libc++ without a threads implementation.
-        # TODO: See if there"s a way to make libcpp threading use Starboard.
-        "_LIBCPP_HAS_THREAD_API_PTHREAD",
-      ]
-      ldflags += [
-        # Use the static LLVM libc++.
-        "-static-libstdc++",
+      # Undefining __linux__ leaves libc++ without a threads implementation.
+      # TODO: See if there"s a way to make libcpp threading use Starboard.
+      "_LIBCPP_HAS_THREAD_API_PTHREAD",
+    ]
+    ldflags += [
+      # Use the static LLVM libc++.
+      "-static-libstdc++",
 
-        # Mimic build/cmake/android.toolchain.cmake in the Android NDK, but
-        # force build-id to sha1, so that older lldb versions can still find
-        # debugsymbols, see https://github.com/android-ndk/ndk/issues/885
-        "-Wl,--build-id=sha1",
-        "-Wl,--warn-shared-textrel",
-        "-Wl,--fatal-warnings",
-        "-Wl,--gc-sections",
-        "-Wl,-z,nocopyreloc",
+      # Mimic build/cmake/android.toolchain.cmake in the Android NDK, but
+      # force build-id to sha1, so that older lldb versions can still find
+      # debugsymbols, see https://github.com/android-ndk/ndk/issues/885
+      "-Wl,--build-id=sha1",
+      "-Wl,--warn-shared-textrel",
+      "-Wl,--fatal-warnings",
+      "-Wl,--gc-sections",
+      "-Wl,-z,nocopyreloc",
 
-        # Wrapper synchronizes punch-out video bounds with the UI frame.
-        "-Wl,--wrap=eglSwapBuffers",
-      ]
-    }
+      # Wrapper synchronizes punch-out video bounds with the UI frame.
+      "-Wl,--wrap=eglSwapBuffers",
+    ]
   }
 }
 
