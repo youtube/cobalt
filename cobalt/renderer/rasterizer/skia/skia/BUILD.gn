@@ -16,7 +16,7 @@ import("//cobalt/renderer/rasterizer/skia/skia/skia_sources.gni")
 import("//cobalt/renderer/rasterizer/skia/skia/skia_template.gni")
 
 # skia_opts_none and skia_opts targets contain the platform-specific optimizations for Skia
-skia_common("skia_opts_none") {
+config("skia_opts_none") {
   include_dirs = [
     "//third_party/skia/include/core",
     "//third_party/skia/include/effects",
@@ -25,7 +25,7 @@ skia_common("skia_opts_none") {
   ]
 }
 
-skia_common("skia_opts") {
+config("skia_opts") {
   include_dirs = [
     "//third_party/skia/include/core",
     "//third_party/skia/include/effects",
@@ -74,13 +74,15 @@ config("skia_library_config_public") {
 skia_common("skia_library") {
   sources = shared_sources + sksl_sources
 
-  configs = [ ":skia_library_config" ]
+  configs = [
+    ":skia_library_config",
+    ":skia_opts",
+  ]
 
   public_configs = [ ":skia_library_config_public" ]
 
   deps = [
     ":skia_library_no_asan",
-    ":skia_opts",
     "//base",
     "//starboard/common",
     "//third_party/freetype2",
