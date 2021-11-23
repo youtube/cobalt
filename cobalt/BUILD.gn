@@ -24,6 +24,7 @@ group("gn_all") {
     "//cobalt/renderer:default_options",
     "//cobalt/renderer/rasterizer/egl/shaders",
     "//cobalt/renderer/rasterizer/skia/skia:skia",
+    "//cobalt/script",
     "//cobalt/storage:storage_constants",
     "//cobalt/ui_navigation",
     "//content/browser/speech",
