@@ -101,6 +101,9 @@ class UpdateCheckerImpl : public UpdateChecker {
       const IdToComponentPtrMap& components,
       const base::flat_map<std::string, std::string>& additional_attributes,
       bool enabled_component_updates);
+#if defined(STARBOARD)
+  void Cancel();
+#endif
   void OnRequestSenderComplete(int error,
                                const std::string& response,
                                int retry_after_sec);
@@ -294,6 +297,15 @@ void UpdateCheckerImpl::CheckForUpdatesHelper(
   config_->CompareAndSwapChannelChanged(1, 0);
 #endif
 }
+
+#if defined(STARBOARD)
+void UpdateCheckerImpl::Cancel() {
+  LOG(INFO) << "UpdateCheckerImpl::Cancel";
+  if (request_sender_.get()) {
+    request_sender_->Cancel();
+  }
+}
+#endif
 
 void UpdateCheckerImpl::OnRequestSenderComplete(int error,
                                                 const std::string& response,

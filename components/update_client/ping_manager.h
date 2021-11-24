@@ -17,6 +17,10 @@ namespace update_client {
 class Configurator;
 class Component;
 
+#if defined(STARBOARD)
+class PingSender;
+#endif
+
 class PingManager : public base::RefCountedThreadSafe<PingManager> {
  public:
   // |error| is 0 if the ping was sent successfully, otherwise |error| contains
@@ -31,6 +35,9 @@ class PingManager : public base::RefCountedThreadSafe<PingManager> {
   // be discarded if it has not been sent for any reason.
   virtual void SendPing(const Component& component, Callback callback);
 
+#if defined(STARBOARD)
+  virtual void Cancel();
+#endif
  protected:
   virtual ~PingManager();
 
@@ -39,6 +46,10 @@ class PingManager : public base::RefCountedThreadSafe<PingManager> {
 
   THREAD_CHECKER(thread_checker_);
   const scoped_refptr<Configurator> config_;
+
+#if defined(STARBOARD)
+  scoped_refptr<PingSender> ping_sender_;
+#endif
 
   DISALLOW_COPY_AND_ASSIGN(PingManager);
 };

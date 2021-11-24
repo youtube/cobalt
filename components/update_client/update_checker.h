@@ -51,6 +51,10 @@ class UpdateChecker {
       bool enabled_component_updates,
       UpdateCheckCallback update_check_callback) = 0;
 
+#if defined(STARBOARD)
+  virtual void Cancel() = 0;
+#endif
+
   static std::unique_ptr<UpdateChecker> Create(
       scoped_refptr<Configurator> config,
       PersistedData* persistent);
