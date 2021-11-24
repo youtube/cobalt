@@ -58,6 +58,10 @@ class RequestSender {
       bool use_signing,
       RequestSenderCallback request_sender_callback);
 
+#if defined(STARBOARD)
+  void Cancel();
+#endif
+
  private:
   // Combines the |url| and |query_params| parameters.
   static GURL BuildUpdateUrl(const GURL& url, const std::string& query_params);

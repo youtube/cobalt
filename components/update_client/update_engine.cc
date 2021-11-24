@@ -474,10 +474,16 @@ bool UpdateEngine::IsThrottled(bool is_foreground) const {
 #if defined(STARBOARD)
 void UpdateEngine::Cancel(const std::string& update_context_session_id,
                           const std::vector<std::string>& crx_component_ids) {
-#if defined(STARBOARD)
   LOG(INFO) << "UpdateEngine::Cancel";
-#endif
+
+  if (ping_manager_.get()) {
+    ping_manager_->Cancel();
+  }
+
   const auto& context = update_contexts_.at(update_context_session_id);
+  if (context->update_checker.get()) {
+    context->update_checker->Cancel();
+  }
   for (const auto& crx_component_id : crx_component_ids) {
     auto& component = context->components.at(crx_component_id);
     component->Cancel();

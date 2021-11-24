@@ -32,12 +32,22 @@ namespace {
 const int kErrorNoEvents = -1;
 const int kErrorNoUrl = -2;
 
+// When building for STARBOARD add the PingSender to the update_client namespace
+// as we keep a reference to it in PingManager.
+#if defined(STARBOARD)
+}
+#endif
+
 // An instance of this class can send only one ping.
 class PingSender : public base::RefCountedThreadSafe<PingSender> {
  public:
   using Callback = PingManager::Callback;
   explicit PingSender(scoped_refptr<Configurator> config);
   void SendPing(const Component& component, Callback callback);
+
+#if defined(STARBOARD)
+  void Cancel();
+#endif
 
  protected:
   virtual ~PingSender();
@@ -107,6 +117,15 @@ void PingSender::SendPing(const Component& component, Callback callback) {
       false, base::BindOnce(&PingSender::SendPingComplete, this));
 }
 
+#if defined(STARBOARD)
+void PingSender::Cancel() {
+  LOG(INFO) << "PingSender::Cancel";
+  if (request_sender_.get()) {
+    request_sender_->Cancel();
+  }
+}
+#endif
+
 void PingSender::SendPingComplete(int error,
                                   const std::string& response,
                                   int retry_after_sec) {
@@ -115,7 +134,9 @@ void PingSender::SendPingComplete(int error,
   std::move(callback_).Run(error, response);
 }
 
+#if !defined(STARBOARD)
 }  // namespace
+#endif
 
 PingManager::PingManager(scoped_refptr<Configurator> config)
     : config_(config) {
@@ -123,6 +144,15 @@ PingManager::PingManager(scoped_refptr<Configurator> config)
   LOG(INFO) << "PingManager::PingManager";
 #endif
 }
+
+#if defined(STARBOARD)
+void PingManager::Cancel() {
+  LOG(INFO) << "PingManager::Cancel";
+  if (ping_sender_.get()) {
+    ping_sender_->Cancel();
+  }
+}
+#endif
 
 PingManager::~PingManager() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
@@ -136,10 +166,13 @@ void PingManager::SendPing(const Component& component, Callback callback) {
 
 #if defined(STARBOARD)
   LOG(INFO) << "PingManager::SendPing";
-#endif
 
+  ping_sender_ = base::MakeRefCounted<PingSender>(config_);
+  ping_sender_->SendPing(component, std::move(callback));
+#else
   auto ping_sender = base::MakeRefCounted<PingSender>(config_);
   ping_sender->SendPing(component, std::move(callback));
+#endif
 }
 
 }  // namespace update_client

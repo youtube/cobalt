@@ -104,6 +104,15 @@ void RequestSender::SendInternal() {
                      base::Unretained(this), url));
 }
 
+#if defined(STARBOARD)
+void RequestSender::Cancel() {
+  LOG(INFO) << "RequestSender::Cancel";
+  if (network_fetcher_.get()) {
+    network_fetcher_->Cancel();
+  }
+}
+#endif
+
 void RequestSender::SendInternalComplete(int error,
                                          const std::string& response_body,
                                          const std::string& response_etag,
