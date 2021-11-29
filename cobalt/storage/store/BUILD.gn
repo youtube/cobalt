@@ -12,52 +12,38 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-static_library("storage_constants") {
+static_library("memory_store") {
   sources = [
-    "storage_constants.cc",
-    "storage_constants.h",
-  ]
-}
-
-static_library("storage") {
-  sources = [
-    "savegame.cc",
-    "savegame.h",
-    "savegame_fake.cc",
-    "savegame_starboard.cc",
-    "savegame_thread.cc",
-    "savegame_thread.h",
-    "storage_manager.cc",
-    "storage_manager.h",
+    "memory_store.cc",
+    "memory_store.h",
+    "storage.pb.cc",
+    "storage.pb.h",
   ]
 
   deps = [
-    "//base",
-    "//base:i18n",
     "//cobalt/base",
-    "//cobalt/storage/store:memory_store",
+    "//cobalt/loader:origin",
+    "//cobalt/storage:storage_constants",
+    "//nb",
     "//net",
-    "//starboard/common",
+    "//third_party/protobuf:protobuf_lite",
     "//url",
   ]
 }
 
-target(gtest_target_type, "storage_test") {
+target(gtest_target_type, "memory_store_test") {
   testonly = true
-  sources = [
-    "savegame_test.cc",
-    "storage_manager_test.cc",
-  ]
 
-  defines = [ "GMOCK_NO_MOVE_MOCK" ]
+  sources = [ "memory_store_test.cc" ]
 
   deps = [
-    ":storage",
+    ":memory_store",
     "//cobalt/base",
+    "//cobalt/storage:storage_constants",
     "//cobalt/test:run_all_unittests",
-    "//net",
     "//testing/gmock",
     "//testing/gtest",
+    "//third_party/protobuf:protobuf_lite",
     "//url",
   ]
 }
