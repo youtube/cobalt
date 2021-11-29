@@ -85,7 +85,7 @@ void InstallComplete(
     const base::FilePath& unpack_path,
     const CrxInstaller::Result& result) {
 #if defined(STARBOARD)
-    LOG(INFO) << "InstallComplete thead_name="
+    LOG(INFO) << "InstallComplete thread_name="
               << base::ThreadIdNameManager::GetInstance()->GetNameForCurrentThread();
 #endif
   base::PostTaskWithTraits(
@@ -96,7 +96,7 @@ void InstallComplete(
              const base::FilePath& unpack_path,
              const CrxInstaller::Result& result) {
 #if defined(STARBOARD)
-            LOG(INFO) << "Closure kicked off rom InstallComplete thread_name="
+            LOG(INFO) << "Closure kicked off from InstallComplete thread_name="
               << base::ThreadIdNameManager::GetInstance()->GetNameForCurrentThread();
 #endif
 // For Cobalt, don't delete the unpack_path, which is not a temp directory.
@@ -340,7 +340,8 @@ void Component::Cancel() {
 void Component::ChangeState(std::unique_ptr<State> next_state) {
   DCHECK(thread_checker_.CalledOnValidThread());
 #if defined(STARBOARD)
-  LOG(INFO) << "Component::ChangeState next_state=" << ((next_state)? next_state->state_name(): "next_state=nullptr");
+  LOG(INFO) << "Component::ChangeState next_state="
+    << ((next_state)? next_state->state_name(): "nullptr");
 #endif
 
   previous_state_ = state();
@@ -578,7 +579,7 @@ void Component::State::Handle(CallbackNextState callback_next_state) {
 #if defined(STARBOARD)
 void Component::State::Cancel() {
   DCHECK(thread_checker_.CalledOnValidThread());
-  // Further work may be needed to ensure cancelation during any state results
+  // Further work may be needed to ensure cancellation during any state results
   // in a clear result and no memory leaks.
 }
 #endif
@@ -587,7 +588,8 @@ void Component::State::TransitionState(std::unique_ptr<State> next_state) {
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(next_state);
 #if defined(STARBOARD)
-  LOG(INFO) << "Component::State::TransitionState next_state=" << ((next_state)? next_state->state_name(): "next_state=nullptr");
+  LOG(INFO) << "Component::State::TransitionState next_state="
+    << ((next_state)? next_state->state_name(): "nullptr");
 #endif
 
   base::ThreadTaskRunnerHandle::Get()->PostTask(
