@@ -16,13 +16,13 @@
 
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "base/bind.h"
 #include "base/strings/stringprintf.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/storage/savegame_thread.h"
-#include "cobalt/storage/upgrade/upgrade_reader.h"
 
 namespace cobalt {
 namespace storage {
@@ -35,10 +35,8 @@ const int kDatabaseFlushOnLastChangeDelayMs = 500;
 const int kDatabaseFlushOnChangeMaxDelayMs = 2000;
 }  // namespace
 
-StorageManager::StorageManager(std::unique_ptr<UpgradeHandler> upgrade_handler,
-                               const Options& options)
-    : upgrade_handler_(std::move(upgrade_handler)),
-      options_(options),
+StorageManager::StorageManager(const Options& options)
+    : options_(options),
       storage_thread_(new base::Thread("StorageManager")),
       memory_store_(new MemoryStore()),
       loaded_database_version_(0),
@@ -47,7 +45,6 @@ StorageManager::StorageManager(std::unique_ptr<UpgradeHandler> upgrade_handler,
       flush_pending_(false),
       no_flushes_pending_(base::WaitableEvent::ResetPolicy::MANUAL,
                           base::WaitableEvent::InitialState::SIGNALED) {
-  DCHECK(upgrade_handler_);
   TRACE_EVENT0("cobalt::storage", __FUNCTION__);
 
   savegame_thread_.reset(new SavegameThread(options_.savegame_options));
@@ -155,7 +152,6 @@ void StorageManager::FinishInit() {
   initialized_ = true;
 
   // Savegame has finished loading. Now initialize the database connection.
-  // Check if this is upgrade data, if so, handle it, otherwise:
   // Check if the savegame data contains a VFS header.
   // If so, proceed to deserialize it.
   // If not, load the file into the VFS directly.
@@ -163,27 +159,10 @@ void StorageManager::FinishInit() {
       savegame_thread_->GetLoadedRawBytes();
   DCHECK(loaded_raw_bytes);
   Savegame::ByteVector& raw_bytes = *loaded_raw_bytes;
-  bool has_upgrade_data = false;
 
   if (raw_bytes.size() > 0) {
-    const char* buffer = reinterpret_cast<char*>(&raw_bytes[0]);
-    int buffer_size = static_cast<int>(raw_bytes.size());
-    // Is this upgrade data?
-    if (upgrade::UpgradeReader::IsUpgradeData(buffer, buffer_size)) {
-      has_upgrade_data = true;
-    } else {
-      bool result = memory_store_->Initialize(raw_bytes);
-      LOG(INFO) << "Deserialize result=" << result;
-    }
-  }
-
-  // Very old legacy save data may contain multiple files (e.g. db-journal as
-  // well as db), so use the first one that looks like a valid database file.
-
-  if (has_upgrade_data) {
-    const char* buffer = reinterpret_cast<char*>(&raw_bytes[0]);
-    int buffer_size = static_cast<int>(raw_bytes.size());
-    upgrade_handler_->OnUpgrade(this, buffer, buffer_size);
+    bool result = memory_store_->Initialize(raw_bytes);
+    LOG(INFO) << "Deserialize result=" << result;
   }
 }
 

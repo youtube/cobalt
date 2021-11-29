@@ -58,7 +58,6 @@
 #include "cobalt/browser/device_authentication.h"
 #include "cobalt/browser/memory_settings/auto_mem_settings.h"
 #include "cobalt/browser/memory_tracker/tool.h"
-#include "cobalt/browser/storage_upgrade_handler.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/browser/user_agent_platform_info.h"
 #include "cobalt/browser/user_agent_string.h"
@@ -808,10 +807,7 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
   options.requested_viewport_size = requested_viewport_size;
   account_manager_.reset(new account::AccountManager());
 
-  storage_manager_.reset(new storage::StorageManager(
-      std::unique_ptr<storage::StorageManager::UpgradeHandler>(
-          new StorageUpgradeHandler(initial_url)),
-      storage_manager_options));
+  storage_manager_.reset(new storage::StorageManager(storage_manager_options));
 
   network_module_.reset(new network::NetworkModule(
       CreateUserAgentString(browser::GetUserAgentPlatformInfoFromSystem()),

@@ -26,8 +26,6 @@
 #include "cobalt/storage/savegame_fake.h"
 #include "cobalt/storage/storage_manager.h"
 
-#include "sql/connection.h"
-#include "sql/statement.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
@@ -84,25 +82,17 @@ std::string GetSavePath() {
   return test_path.Append("local_storage_database_test.bin").value();
 }
 
-class DummyUpgradeHandler : public storage::StorageManager::UpgradeHandler {
-  void OnUpgrade(storage::StorageManager* storage, const char* data,
-                 int size) override {}
-};
-
 class LocalStorageDatabaseTest : public ::testing::Test {
  protected:
   LocalStorageDatabaseTest()
       : message_loop_(base::MessageLoop::TYPE_DEFAULT),
         origin_(GURL("https://www.example.com")) {
-    std::unique_ptr<storage::StorageManager::UpgradeHandler> upgrade_handler(
-        new DummyUpgradeHandler());
     storage::StorageManager::Options options;
     options.savegame_options.path_override = GetSavePath();
     options.savegame_options.delete_on_destruction = true;
     options.savegame_options.factory = &storage::SavegameFake::Create;
 
-    storage_manager_.reset(
-        new storage::StorageManager(std::move(upgrade_handler), options));
+    storage_manager_.reset(new storage::StorageManager(options));
     db_.reset(new LocalStorageDatabase(storage_manager_.get()));
   }
 

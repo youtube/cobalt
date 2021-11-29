@@ -31,12 +31,6 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
   Cobalt per-platform configurations, if defined, must subclass from this class.
   """
 
-  def __init__(self, platform_configuration, application_name,
-               application_directory):
-    super(CobaltConfiguration,
-          self).__init__(platform_configuration, application_name,
-                         application_directory)
-
   def GetVariables(self, config_name):
 
     # Use env var to optimize build speed on CI
@@ -171,9 +165,7 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
         'poem_unittests',
         'render_tree_test',
         'renderer_test',
-        'sql_unittests',
         'storage_test',
-        'storage_upgrade_test',
         'text_encoding_test',
         'web_animations_test',
         'webdriver_test',

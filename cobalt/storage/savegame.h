@@ -19,11 +19,11 @@
 #include <string>
 #include <vector>
 
+#include "base/basictypes.h"
 #include "base/callback.h"
 #include "base/files/file_path.h"
 #include "base/optional.h"
 #include "base/threading/thread_checker.h"
-#include "sql/connection.h"
 
 namespace cobalt {
 namespace storage {
@@ -47,7 +47,7 @@ class Savegame {
     std::unique_ptr<Savegame> CreateSavegame() { return factory(*this); }
 
     // Factory method for constructing a Savegame instance.
-    // Defaults to Savegame::Create() but can be overriden for tests.
+    // Defaults to Savegame::Create() but can be overridden for tests.
     Savegame::Factory factory;
     // The unique savegame ID for this Savegame, if any.
     base::Optional<std::string> id;

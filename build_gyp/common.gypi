@@ -12,7 +12,8 @@
 # Please don't directly include this file if you are building via gyp_cobalt,
 # since gyp_cobalt is automatically forcing its inclusion.
 {
-  # Variables expected to be overriden in the platform's gyp_configuration.gypi.
+  # Variables expected to be overridden in the platform's
+  # gyp_configuration.gypi.
   'variables': {
     # Putting a variables dict inside another variables dict looks kind of
     # weird.  This is done so that 'host_arch', 'android_build_type', etc are
@@ -61,7 +62,7 @@
       # components as dynamic shared libraries but still need variable
       # 'library' for static libraries.
       # By default, component is set to whatever library is set to and
-      # it can be overriden by the GYP command line or by ~/.gyp/include.gypi.
+      # it can be overridden by the GYP command line or by ~/.gyp/include.gypi.
       'component%': 'static_library',
 
       # Enable building with ASAN (Clang's -fsanitize=address option).
@@ -207,8 +208,6 @@
 
         # When building as part of the Android system, use system libraries
         # where possible to reduce ROM size.
-        # TODO(steveblock): Investigate using the system version of sqlite.
-        'use_system_sqlite%': 0,  # '<(android_build_type)',
         'use_system_icu%': '<(android_build_type)',
         'use_system_stlport%': '<(android_build_type)',
 
@@ -284,7 +283,7 @@
       'nacl_untrusted_build%': 0,
 
       'pnacl_compile_flags': [
-        # pnacl uses the clang compiler so we need to supress all the
+        # pnacl uses the clang compiler so we need to suppress all the
         # same warnings as we do for clang.
         # TODO(sbc): Remove these if/when they are removed from the clang
         # build.

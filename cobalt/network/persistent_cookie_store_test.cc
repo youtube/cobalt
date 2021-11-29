@@ -95,11 +95,6 @@ class CookieLoader : public CallbackWaiter {
   DISALLOW_COPY_AND_ASSIGN(CookieLoader);
 };
 
-class DummyUpgradeHandler : public storage::StorageManager::UpgradeHandler {
-  void OnUpgrade(storage::StorageManager* storage, const char* data,
-                 int size) override {}
-};
-
 std::string GetSavePath() {
   base::FilePath test_path;
   CHECK(base::PathService::Get(paths::DIR_COBALT_TEST_OUT, &test_path));
@@ -109,15 +104,12 @@ std::string GetSavePath() {
 class PersistentCookieStoreTest : public ::testing::Test {
  protected:
   PersistentCookieStoreTest() : message_loop_(base::MessageLoop::TYPE_DEFAULT) {
-    std::unique_ptr<storage::StorageManager::UpgradeHandler> upgrade_handler(
-        new DummyUpgradeHandler());
     storage::StorageManager::Options options;
     options.savegame_options.path_override = GetSavePath();
     options.savegame_options.delete_on_destruction = true;
     options.savegame_options.factory = &storage::SavegameFake::Create;
 
-    storage_manager_.reset(
-        new storage::StorageManager(std::move(upgrade_handler), options));
+    storage_manager_.reset(new storage::StorageManager(options));
     cookie_store_ = new PersistentCookieStore(
         storage_manager_.get(), base::MessageLoop::current()->task_runner());
   }

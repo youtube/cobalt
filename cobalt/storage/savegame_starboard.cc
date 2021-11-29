@@ -22,7 +22,6 @@
 #include "base/memory/ptr_util.h"
 #include "base/optional.h"
 #include "base/path_service.h"
-#include "cobalt/storage/store_upgrade/upgrade.h"
 #include "starboard/common/storage.h"
 #include "starboard/user.h"
 
@@ -30,30 +29,12 @@ namespace cobalt {
 namespace storage {
 namespace {
 
-using cobalt::storage::store_upgrade::IsUpgradeRequired;
-using cobalt::storage::store_upgrade::UpgradeStore;
-
 // An arbitrary max size for the save game file so that, for example, a corrupt
 // filesystem cannot cause us to allocate a fatally large memory buffer.
 size_t kMaxSaveGameSizeBytes = 4 * 1024 * 1024;
 
 bool WriteRecord(const std::unique_ptr<starboard::StorageRecord>& record,
                  const Savegame::ByteVector& bytes);
-
-bool Upgrade(Savegame::ByteVector* bytes_ptr,
-             const std::unique_ptr<starboard::StorageRecord>& record) {
-  if (IsUpgradeRequired(*bytes_ptr)) {
-    DLOG(INFO) << "Upgrading Record with size=" << bytes_ptr->size();
-    if (!UpgradeStore(bytes_ptr)) {
-      DLOG(ERROR) << "Upgrade failed";
-      return false;
-    }
-    DLOG(INFO) << "Upgraded successfully bytes_ptr.size=" << bytes_ptr->size();
-  }
-
-  WriteRecord(record, *bytes_ptr);
-  return true;
-}
 
 bool ReadRecord(Savegame::ByteVector* bytes_ptr, size_t max_to_read,
                 const std::unique_ptr<starboard::StorageRecord>& record) {
@@ -87,10 +68,6 @@ bool ReadRecord(Savegame::ByteVector* bytes_ptr, size_t max_to_read,
   bool success = (bytes_read == size);
   if (success) {
     DLOG(INFO) << "Successfully read storage record.";
-  }
-  if (!Upgrade(bytes_ptr, record)) {
-    DLOG(WARNING) << __FUNCTION__ << ": Upgrade Failed";
-    return false;
   }
   return success;
 }
