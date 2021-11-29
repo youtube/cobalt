@@ -22,7 +22,11 @@ TaskUpdate::TaskUpdate(scoped_refptr<UpdateEngine> update_engine,
       is_foreground_(is_foreground),
       ids_(ids),
       crx_data_callback_(std::move(crx_data_callback)),
-      callback_(std::move(callback)) {
+      callback_(std::move(callback))
+#if defined(STARBOARD)
+      , is_completed_(false)
+#endif
+{
 #if defined(STARBOARD)
     LOG(INFO) << "TaskUpdate::TaskUpdate";
 #endif
@@ -79,6 +83,15 @@ void TaskUpdate::TaskComplete(Error error) {
   DCHECK(thread_checker_.CalledOnValidThread());
 #if defined(STARBOARD)
   LOG(INFO) << "TaskUpdate::TaskComplete";
+
+  // The callback is defined as OnceCallback and should not
+  // be called multiple times.
+  if(is_completed_) {
+    LOG(INFO) << "TaskUpdate::TaskComplete already called";
+    return;
+  }
+
+  is_completed_ = true;
 #endif
 
   base::ThreadTaskRunnerHandle::Get()->PostTask(

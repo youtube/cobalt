@@ -59,6 +59,7 @@ class TaskUpdate : public Task {
   Callback callback_;
 #if defined(STARBOARD)
   base::OnceClosure cancelation_closure_;
+  bool is_completed_;
 #endif
 
   DISALLOW_COPY_AND_ASSIGN(TaskUpdate);
