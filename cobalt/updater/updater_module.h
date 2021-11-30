@@ -101,7 +101,7 @@ class Observer : public update_client::UpdateClient::Observer {
             SbSystemGetExtension(kCobaltExtensionUpdaterNotificationName));
     if (updater_notification_ext &&
         strcmp(updater_notification_ext->name,
-                           kCobaltExtensionUpdaterNotificationName) == 0 &&
+               kCobaltExtensionUpdaterNotificationName) == 0 &&
         updater_notification_ext->version >= 1) {
       updater_notification_ext_ = updater_notification_ext;
     } else {
@@ -147,7 +147,7 @@ class UpdaterModule {
   int GetInstallationIndex() const;
 
  private:
-  base::Thread updater_thread_;
+  std::unique_ptr<base::Thread> updater_thread_;
   scoped_refptr<update_client::UpdateClient> update_client_;
   std::unique_ptr<Observer> updater_observer_;
   network::NetworkModule* network_module_;
