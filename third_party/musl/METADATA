@@ -18,4 +18,6 @@ third_party {
     day: 4
   }
   license_type: NOTICE
+  local_modifications:
+    '11/30/21 - Added BUILD.gn file as part of GN migration.'
 }

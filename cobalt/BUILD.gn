@@ -43,4 +43,8 @@ group("gn_all") {
     "//third_party/skia/third_party/skcms",
     "//third_party/woff2:woff2_dec",
   ]
+
+  if (sb_is_evergreen) {
+    deps += [ "//third_party/musl:c" ]
+  }
 }
