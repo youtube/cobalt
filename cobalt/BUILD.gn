@@ -18,6 +18,7 @@ group("gn_all") {
   deps = [
     "//cobalt/account",
     "//cobalt/base",
+    "//cobalt/browser:generated_bindings",
     "//cobalt/fetch",
     "//cobalt/math",
     "//cobalt/media",

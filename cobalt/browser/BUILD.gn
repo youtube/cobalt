@@ -1,0 +1,239 @@
+# Copyright 2021 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("//cobalt/bindings/bindings_templates.gni")
+import("//cobalt/browser/browser_bindings_variables.gni")
+import("//cobalt/browser/idl_files.gni")
+
+config("bindings_includes") {
+  include_dirs = [ generated_source_output_dir ]
+}
+
+# TODO: h5vcc and webdriver depend on targets in this file.
+# group("bindings") {
+#   deps = [
+#     "//cobalt/h5vcc",
+#     "//cobalt/webdriver",
+#     ":generated_bindings",
+#   ]
+#   all_dependent_configs = [ ":bindings_includes" ]
+# }
+
+idl_compile("generated_bindings") {
+  sources = source_idl_files
+
+  cache_directory = bindings_scripts_output_dir
+  component_info = component_info_pickle
+  extended_attributes = extended_attributes_file
+  interfaces_info = interfaces_info_combined_pickle
+  output_directory = generated_source_output_dir
+
+  deps = [
+    ":cached_jinja_templates",
+    ":cached_lex_yacc_tables",
+    ":generated_type_conversion",
+    ":generated_types",
+    ":global_constructors_idls",
+    ":interfaces_info_individual",
+    ":interfaces_info_overall",
+    "//cobalt/script:engine",
+  ]
+  public_deps = engine_dependencies
+
+  generated_file_path =
+      "$generated_source_output_dir/{{source_root_relative_dir}}"
+  generated_file_name = "${generated_bindings_prefix}_{{source_name_part}}"
+  outputs = [
+    "$generated_file_path/$generated_file_name.h",
+    "$generated_file_path/$generated_file_name.cc",
+  ]
+}
+
+idl_compile("generated_types") {
+  sources = generated_header_idl_files
+
+  cache_directory = bindings_scripts_output_dir
+  component_info = component_info_pickle
+  extended_attributes = extended_attributes_file
+  interfaces_info = interfaces_info_combined_pickle
+  output_directory = generated_source_output_dir
+
+  deps = [
+    ":cached_jinja_templates",
+    ":cached_lex_yacc_tables",
+    ":global_constructors_idls",
+    ":interfaces_info_individual",
+    ":interfaces_info_overall",
+  ]
+
+  generated_file_path =
+      "$generated_source_output_dir/{{source_root_relative_dir}}"
+  outputs = [
+    "$generated_file_path/${generated_bindings_prefix}_{{source_name_part}}.h",
+    "$generated_file_path/{{source_name_part}}.cc",
+  ]
+}
+
+action("generated_type_conversion") {
+  script = "//starboard/build/run_bash.py"
+  py_script = engine_conversion_header_generator_script
+
+  deps = [
+    ":cached_jinja_templates",
+    ":cached_lex_yacc_tables",
+    ":global_constructors_idls",
+    ":interfaces_info_overall",
+  ]
+
+  public_deps = engine_dependencies
+
+  sources = source_idl_files + generated_header_idl_files
+
+  # Generated IDL file that will define all the constructors that should be
+  # on the Window object.
+  global_names_idl_file =
+      "$generated_idls_output_dir/dom/window_constructors.idl"
+  inputs = [
+    py_script,
+    interfaces_info_combined_pickle,
+    extended_attributes_file,
+    global_names_idl_file,
+    "//cobalt/bindings/shared/idl_conditional_macros.h",
+  ]
+  inputs += bindings_extra_inputs
+
+  outputs = [ generated_type_conversion_header_file ]
+
+  args = [
+    "python2",
+    rebase_path(py_script, root_build_dir),
+    "--cache-directory",
+    rebase_path(bindings_scripts_output_dir, root_build_dir),
+    "--output-dir",
+    rebase_path(generated_source_output_dir, root_build_dir),
+    "--interfaces-info",
+    rebase_path(interfaces_info_combined_pickle, root_build_dir),
+    "--component-info",
+    rebase_path(component_info_pickle, root_build_dir),
+  ]
+}
+
+compute_global_objects("global_objects") {
+  idl_files = source_idl_files + generated_header_idl_files
+
+  global_objects_file = global_objects_pickle
+}
+
+compute_global_constructors_idls("global_constructors_idls") {
+  idl_files = source_idl_files
+
+  global_objects_file = global_objects_pickle
+
+  # Generated IDL file that will define all the constructors that should be
+  # on the Window object.
+  global_names_idl_file =
+      "$generated_idls_output_dir/dom/window_constructors.idl"
+
+  # Dummy header file which is generated because the idl compiler assumes
+  # there is a header for each IDL.
+  global_constructors_generated_header_file =
+      "$generated_idls_output_dir/dom/window_constructors.h"
+
+  deps = [ ":global_objects" ]
+}
+
+compute_interfaces_info_individual("interfaces_info_individual") {
+  idl_files =
+      source_idl_files + generated_header_idl_files + dependency_idl_files
+
+  # Generated IDL file that will define all the constructors that should be
+  # on the Window object.
+  generated_idl_files = "$generated_idls_output_dir/dom/window_constructors.idl"
+  component_info_file = component_info_pickle
+  interfaces_info_file = interfaces_info_individual_pickle
+  cache_directory = bindings_scripts_output_dir
+  extended_attributes = extended_attributes_file
+
+  deps = [
+    ":cached_lex_yacc_tables",
+    ":global_constructors_idls",
+  ]
+}
+
+action("interfaces_info_overall") {
+  script = "//starboard/build/run_bash.py"
+  py_script = "$bindings_scripts_dir/compute_interfaces_info_overall.py"
+
+  deps = [ ":interfaces_info_individual" ]
+
+  inputs = [
+    py_script,
+    interfaces_info_individual_pickle,
+  ]
+
+  outputs = [ interfaces_info_combined_pickle ]
+
+  args = [
+    "python2",
+    rebase_path(py_script, root_build_dir),
+    "--",
+    rebase_path(interfaces_info_individual_pickle, root_build_dir),
+    rebase_path(interfaces_info_combined_pickle, root_build_dir),
+  ]
+}
+
+action("cached_lex_yacc_tables") {
+  script = "//starboard/build/run_bash.py"
+  py_script = "$bindings_scripts_dir/blink_idl_parser.py"
+
+  inputs = [ py_script ]
+  inputs += idl_lexer_parser_files
+
+  outputs = [
+    "$bindings_scripts_output_dir/lextab.py",
+    "$bindings_scripts_output_dir/parsetab.pickle",
+  ]
+
+  args = [
+    "python2",
+    rebase_path(py_script, root_build_dir),
+    rebase_path(bindings_scripts_output_dir, root_build_dir),
+  ]
+}
+
+action("cached_jinja_templates") {
+  script = "//starboard/build/run_bash.py"
+  py_script = "//cobalt/bindings/code_generator_cobalt.py"
+
+  inputs = [
+    py_script,
+    "//cobalt/bindings/path_generator.py",
+    "//third_party/jinja2/__init__.py",
+    "//third_party/markupsafe/__init__.py",  # jinja2 dep
+  ]
+  inputs += code_generator_template_files
+
+  # TODO: Figure out a way to list the actual outputs instead
+  # Dummy to track dependency
+  outputs = [ "$bindings_scripts_output_dir/cached_jinja_templates.stamp" ]
+
+  args = [
+    "python2",
+    rebase_path(py_script, root_build_dir),
+    rebase_path("$bindings_scripts_output_dir", root_build_dir),
+    rebase_path("$engine_templates_dir", root_build_dir),
+    rebase_path("$bindings_scripts_output_dir/cached_jinja_templates.stamp",
+                root_build_dir),
+  ]
+}

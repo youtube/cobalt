@@ -1,0 +1,193 @@
+# Copyright 2021 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("//cobalt/bindings/bindings_variables.gni")
+import("//cobalt/bindings/blink_variables.gni")
+import("//cobalt/script/v8c/v8c_variables.gni")
+
+# Additional files used by the idl compilation scripts.
+bindings_extra_inputs = [
+  "//cobalt/bindings/code_generator_cobalt.py",
+  "//cobalt/bindings/expression_generator.py",
+  "//cobalt/bindings/contexts.py",
+  "//cobalt/bindings/idl_compiler_cobalt.py",
+  "//cobalt/bindings/generate_conversion_header.py",
+  "//cobalt/bindings/name_conversion.py",
+  "//cobalt/bindings/overload_context.py",
+]
+bindings_extra_inputs += code_generator_template_files
+bindings_extra_inputs += engine_bindings_scripts
+bindings_extra_inputs += idl_lexer_parser_files
+bindings_extra_inputs += idl_cache_files
+bindings_extra_inputs += idl_compiler_files
+
+# Template definitions.
+template("idl_compile") {
+  action_foreach(target_name) {
+    script = "//starboard/build/run_bash.py"
+    py_script = engine_idl_compiler
+
+    sources = invoker.sources
+
+    deps = invoker.deps
+
+    if (defined(invoker.public_deps)) {
+      public_deps = invoker.public_deps
+    }
+
+    inputs = [
+      invoker.interfaces_info,
+      invoker.extended_attributes,
+      invoker.component_info,
+      py_script,
+    ]
+    inputs += invoker.bindings_extra_inputs
+
+    outputs = invoker.outputs
+
+    args = [
+      "python2",
+      rebase_path(py_script, root_build_dir),
+      "--cache-directory",
+      rebase_path(invoker.cache_directory, root_build_dir),
+      "--output-directory",
+      rebase_path(invoker.output_directory, root_build_dir),
+      "--interfaces-info",
+      rebase_path(invoker.interfaces_info, root_build_dir),
+      "--component-info",
+      rebase_path(invoker.component_info, root_build_dir),
+      "--extended-attributes",
+      rebase_path(invoker.extended_attributes, root_build_dir),
+      "{{source}}",
+    ]
+  }
+}
+
+template("compute_global_objects") {
+  action(target_name) {
+    script = "//starboard/build/run_bash.py"
+    py_script = "$bindings_scripts_dir/compute_global_objects.py"
+
+    inputs = [
+      py_script,
+      "$bindings_scripts_dir/utilities.py",
+    ]
+    inputs += invoker.idl_files
+
+    outputs = [ invoker.global_objects_file ]
+
+    idl_files_list = "$target_gen_dir/${target_name}_idl_files_list.tmp"
+    write_file(idl_files_list, rebase_path(invoker.idl_files, root_build_dir))
+
+    args = [
+      "python2",
+      rebase_path(py_script, root_build_dir),
+      "--idl-files-list",
+      rebase_path(idl_files_list, root_build_dir),
+      "--",
+      rebase_path(invoker.global_objects_file, root_build_dir),
+    ]
+  }
+}
+
+template("compute_global_constructors_idls") {
+  action(target_name) {
+    script = "//starboard/build/run_bash.py"
+    py_script = "$bindings_scripts_dir/generate_global_constructors.py"
+
+    deps = invoker.deps
+
+    inputs = [
+      py_script,
+      "$bindings_scripts_dir/utilities.py",
+      invoker.global_objects_file,
+    ]
+    inputs += invoker.idl_files
+
+    outputs = [
+      invoker.global_names_idl_file,
+      invoker.global_constructors_generated_header_file,
+    ]
+
+    # Write the file list to a unique temp file to avoid blowing out the
+    # command line length limit.
+    idl_files_list = "$target_gen_dir/${target_name}_static_idl_files_list.tmp"
+    write_file(idl_files_list, rebase_path(invoker.idl_files, root_build_dir))
+
+    args = [
+      "python2",
+      rebase_path(py_script, root_build_dir),
+      "--idl-files-list",
+      rebase_path(idl_files_list, root_build_dir),
+      "--global-objects-file",
+      rebase_path(invoker.global_objects_file, root_build_dir),
+      "--",
+      "Window",
+      rebase_path(invoker.global_names_idl_file, root_build_dir),
+    ]
+  }
+}
+
+template("compute_interfaces_info_individual") {
+  action(target_name) {
+    script = "//starboard/build/run_bash.py"
+    py_script = "$bindings_scripts_dir/compute_interfaces_info_individual.py"
+
+    deps = invoker.deps
+
+    inputs = [
+      py_script,
+      "$bindings_scripts_dir/utilities.py",
+      invoker.extended_attributes,
+      invoker.generated_idl_files,
+    ]
+    inputs += invoker.idl_files
+
+    outputs = [
+      invoker.interfaces_info_file,
+      invoker.component_info_file,
+    ]
+
+    # Write the file list to a unique temp file to avoid blowing out the
+    # command line length limit.
+    idl_files_list = "$target_gen_dir/${target_name}_static_idl_files_list.tmp"
+    write_file(idl_files_list, rebase_path(invoker.idl_files, root_build_dir))
+
+    dependency_idl_files_paths =
+        rebase_path(invoker.dependency_idl_files, root_build_dir)
+    dependency_idl_files_list = string_join(" ", dependency_idl_files_paths)
+    args = [
+      "python2",
+      rebase_path(py_script, root_build_dir),
+      "--cache-directory",
+      rebase_path(invoker.cache_directory, root_build_dir),
+      "--root-directory",
+      rebase_path("//", root_build_dir),
+      "--idl-files-list",
+      rebase_path(idl_files_list, root_build_dir),
+      "--interfaces-info-file",
+      rebase_path(invoker.interfaces_info_file, root_build_dir),
+      "--component-info-file",
+      rebase_path(invoker.component_info_file, root_build_dir),
+      "--extended-attributes",
+      rebase_path(invoker.extended_attributes, root_build_dir),
+      "--dependency-idl-files",
+      dependency_idl_files_list,
+      "--",
+
+      # Generated files must be passed at command line
+      rebase_path(invoker.generated_idl_files, root_build_dir),
+    ]
+  }
+}
