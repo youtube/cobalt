@@ -41,6 +41,7 @@ group("gn_all") {
     "//third_party/libwebp",
     "//third_party/ots",
     "//third_party/skia/third_party/skcms",
+    "//third_party/v8",
     "//third_party/woff2:woff2_dec",
   ]
 

@@ -2,7 +2,9 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//build/config/gclient_args.gni")
+if (!is_starboard) {
+  import("//build/config/gclient_args.gni")
+}
 import("//build/config/sanitizers/sanitizers.gni")
 import("//build/config/v8_target_cpu.gni")
 import("split_static_library.gni")
@@ -44,7 +46,7 @@ declare_args() {
 
   # Enable ECMAScript Internationalization API. Enabling this feature will
   # add a dependency on the ICU library.
-  v8_enable_i18n_support = true
+  v8_enable_i18n_support = !is_starboard
 
   # Use static libraries instead of source_sets.
   v8_static_library = false
@@ -70,7 +72,7 @@ declare_args() {
   # Scan the call stack conservatively during garbage collection.
   v8_enable_conservative_stack_scanning = false
 
-  v8_enable_google_benchmark = checkout_google_benchmark
+  v8_enable_google_benchmark = !is_starboard && checkout_google_benchmark
 }
 
 if (v8_use_external_startup_data == "") {
@@ -87,7 +89,7 @@ if (v8_use_multi_snapshots) {
 }
 
 if (v8_enable_backtrace == "") {
-  v8_enable_backtrace = is_debug && !v8_optimized_debug
+  v8_enable_backtrace = is_debug && !is_starboard && !v8_optimized_debug
 }
 
 # If chromium is configured to use the perfetto client library, v8 should also
@@ -114,11 +116,13 @@ v8_add_configs = [
   v8_path_prefix + ":toolchain",
 ]
 
-if (is_debug && !v8_optimized_debug) {
+if (is_debug && !is_starboard && !v8_optimized_debug) {
   v8_remove_configs += [ "//build/config/compiler:default_optimization" ]
   v8_add_configs += [ "//build/config/compiler:no_optimize" ]
 } else {
-  v8_remove_configs += [ "//build/config/compiler:default_optimization" ]
+  if (!is_starboard) {
+    v8_remove_configs += [ "//build/config/compiler:default_optimization" ]
+  }
 
   # TODO(crbug.com/621335) Rework this so that we don't have the confusion
   # between "optimize_speed" and "optimize_max".
@@ -129,7 +133,7 @@ if (is_debug && !v8_optimized_debug) {
   }
 }
 
-if (!is_debug) {
+if (!is_debug && !is_starboard) {
   v8_remove_configs += [
     # Too much performance impact, unclear security benefit.
     "//build/config/compiler:default_init_stack_vars",
@@ -168,7 +172,7 @@ if (target_cpu == "mipsel" || target_cpu == "mips64el" ||
   v8_add_configs += [ "//build/config/gcc:rpath_for_built_shared_libraries" ]
 }
 
-if (!build_with_chromium && is_clang) {
+if (!build_with_chromium && is_clang && !is_starboard) {
   v8_remove_configs += [ "//build/config/clang:find_bad_constructs" ]
 }
 
@@ -183,11 +187,13 @@ template("v8_source_set") {
     link_target_type = "source_set"
   }
   target(link_target_type, target_name) {
+    check_includes = !is_starboard
     forward_variables_from(invoker,
                            "*",
                            [
                              "configs",
                              "remove_configs",
+                             "check_includes",
                            ])
     configs -= v8_remove_configs
     configs += v8_add_configs
@@ -200,7 +206,13 @@ template("v8_source_set") {
 
 template("v8_header_set") {
   source_set(target_name) {
-    forward_variables_from(invoker, "*", [ "configs" ])
+    check_includes = !is_starboard
+    forward_variables_from(invoker,
+                           "*",
+                           [
+                             "configs",
+                             "check_includes",
+                           ])
     configs -= v8_remove_configs
     configs += v8_add_configs
     configs += invoker.configs
@@ -209,11 +221,13 @@ template("v8_header_set") {
 
 template("v8_executable") {
   executable(target_name) {
+    check_includes = !is_starboard
     forward_variables_from(invoker,
                            "*",
                            [
                              "configs",
                              "remove_configs",
+                             "check_includes",
                            ])
     configs -= v8_remove_configs
     configs += v8_add_configs
@@ -221,7 +235,8 @@ template("v8_executable") {
       configs -= invoker.remove_configs
     }
     configs += invoker.configs
-    if (is_linux || is_chromeos) {
+    if ((is_linux || is_chromeos) &&
+        (!is_starboard || current_toolchain == default_toolchain)) {
       # For enabling ASLR.
       ldflags = [ "-pie" ]
     }
@@ -242,11 +257,13 @@ template("v8_executable") {
 
 template("v8_component") {
   component(target_name) {
+    check_includes = !is_starboard
     forward_variables_from(invoker,
                            "*",
                            [
                              "configs",
                              "remove_configs",
+                             "check_includes",
                            ])
     configs -= v8_remove_configs
     configs += v8_add_configs
@@ -259,11 +276,13 @@ template("v8_component") {
 
 template("v8_shared_library") {
   shared_library(target_name) {
+    check_includes = !is_starboard
     forward_variables_from(invoker,
                            "*",
                            [
                              "configs",
                              "remove_configs",
+                             "check_includes",
                            ])
     configs -= v8_remove_configs
     configs += v8_add_configs
@@ -278,8 +297,14 @@ template("v8_shared_library") {
 
 template("v8_static_library") {
   static_library(target_name) {
+    check_includes = !is_starboard
     complete_static_lib = true
-    forward_variables_from(invoker, "*", [ "configs" ])
+    forward_variables_from(invoker,
+                           "*",
+                           [
+                             "configs",
+                             "check_includes",
+                           ])
     configs -= v8_remove_configs
     configs -= [ "//build/config/compiler:thin_archive" ]
     configs += v8_add_configs
