@@ -3008,7 +3008,7 @@ target(gtest_target_type, "base_unittests") {
     "//base/test:test_shared_library",
   ]
 
-  if (is_starboard && is_win) {
+  if (is_starboard) {
     deps -= [ "//base/test:native_library_test_utils" ]
     data_deps -= [ "//base/test:test_shared_library" ]
   }

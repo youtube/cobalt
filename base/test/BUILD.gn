@@ -388,7 +388,7 @@ static_library("run_all_unittests") {
   ]
 }
 
-if (is_starboard && !is_win) {
+if (!is_starboard && !is_win) {
   # These sources are linked into both the base_unittests binary and the test
   # shared library target below.
   source_set("native_library_test_utils") {
