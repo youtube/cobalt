@@ -53,8 +53,9 @@ enum class UpdaterStatus {
 };
 
 // Mapping a component state to an updater status.
-const std::map<ComponentState, UpdaterStatus> component_to_updater_status_map =
-    {
+// clang-format off
+const std::map<ComponentState, UpdaterStatus> component_to_updater_status_map = {
+        // clang-format on
         {ComponentState::kNew, UpdaterStatus::kNewUpdate},
         {ComponentState::kChecking, UpdaterStatus::kChecking},
         {ComponentState::kCanUpdate, UpdaterStatus::kUpdateAvailable},
