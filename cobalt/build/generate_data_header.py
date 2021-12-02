@@ -47,16 +47,17 @@ class InputFile(object):
 
 def WriteFileDataToHeader(filename, output_file):
   """Concatenates a single file into the output file."""
-  with file(filename, 'rb') as f:
+  with open(filename, 'r') as f:
     file_contents = f.read()
 
     def Chunks(l, n):
       """Yield successive n-sized chunks from l."""
-      for i in xrange(0, len(l), n):
+      for i in range(0, len(l), n):
         yield l[i:i + n]
 
     output_string = ',\n'.join([
-        ', '.join(['0x%02x' % ord(y) for y in x])
+        ', '.join(['0x%02x' % ord(y)
+                   for y in x])
         for x in Chunks(file_contents, 13)
     ])
     output_file.write('{\n' + output_string + '\n};\n\n')
@@ -88,7 +89,7 @@ def GetInputFilesToConcatenate(paths):
     elif os.path.isfile(path):
       file_list.append(InputFile(path, os.path.dirname(path)))
     else:
-      raise '%s is not a file or directory.' % path
+      raise ValueError('%s is not a file or directory.' % path)
   return file_list
 
 
@@ -129,21 +130,21 @@ def GenerateMapFunction(input_files, output_file):
 
 def WriteHeader(namespace, output_file_name, files_to_concatenate):
   """Writes an embedded resource header to the given output filename."""
-  output_file = open(output_file_name, 'w')
-  include_guard = '_COBALT_GENERATED_' + namespace.upper() + '_H_'
-  output_file.write('// Copyright 2014 The Cobalt Authors. '
-                    'All Rights Reserved.\n'
-                    '// This file is generated. Do not edit!\n'
-                    '#ifndef ' + include_guard + '\n'
-                    '#define ' + include_guard + '\n\n'
-                    '#include \"cobalt/base/generated_resources_types.h\"\n\n'
-                    'namespace ' + namespace + ' {\n')
+  with open(output_file_name, 'w') as output_file:
+    include_guard = '_COBALT_GENERATED_' + namespace.upper() + '_H_'
+    output_file.write('// Copyright 2014 The Cobalt Authors. '
+                      'All Rights Reserved.\n'
+                      '// This file is generated. Do not edit!\n'
+                      '#ifndef ' + include_guard + '\n'
+                      '#define ' + include_guard + '\n\n'
+                      '#include \"cobalt/base/generated_resources_types.h\"\n\n'
+                      'namespace ' + namespace + ' {\n')
 
-  WriteAllFilesToHeader(files_to_concatenate, output_file)
-  GenerateMapFunction(files_to_concatenate, output_file)
+    WriteAllFilesToHeader(files_to_concatenate, output_file)
+    GenerateMapFunction(files_to_concatenate, output_file)
 
-  output_file.write('} // namespace ' + namespace + '\n\n'
-                    '#endif // ' + include_guard + '\n')
+    output_file.write('} // namespace ' + namespace + '\n\n'
+                      '#endif // ' + include_guard + '\n')
 
 
 def main(namespace, output_file_name, paths):
@@ -152,7 +153,7 @@ def main(namespace, output_file_name, paths):
 
 if __name__ == '__main__':
   if len(sys.argv) < 4:
-    print 'usage:\n %s <namespace> <output-file> <inputs...> \n' % sys.argv[0]
-    print __doc__
+    print('usage:\n %s <namespace> <output-file> <inputs...> \n' % sys.argv[0])
+    print(__doc__)
     sys.exit(1)
   main(sys.argv[1], sys.argv[2], sys.argv[3:])
