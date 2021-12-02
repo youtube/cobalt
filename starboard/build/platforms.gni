@@ -73,4 +73,8 @@ platforms = [
     name = "darwin-tvos-simulator"
     path = "starboard/darwin/tvos/simulator"
   },
+  {
+    name = "evergreen-x64"
+    path = "starboard/evergreen/x64"
+  },
 ]

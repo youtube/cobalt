@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//cobalt/content/fonts/font_configuration.gni")
+
 declare_args() {
   # Enables the yasm compiler to be used to compile .asm files.
   yasm_exists = false
@@ -108,4 +110,14 @@ declare_args() {
   # Enables or disables the DIAL server that runs inside Cobalt.
   # Note: Only enable if there's no system-wide DIAL support.
   in_app_dial = false
+
+  # Whether VR is enabled.
+  enable_vr = false
+
+  # Override this value to adjust the default rasterizer setting for your
+  # platform.
+  default_renderer_options_dependency = "//cobalt/renderer:default_options"
+
+  # A symbolizer path for ASAN can be added to allow translation of callstacks.
+  asan_symbolizer_path = ""
 }
