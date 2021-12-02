@@ -177,7 +177,7 @@ void UpdaterModule::Initialize() {
   // Schedule the first update check.
   updater_thread_->task_runner()->PostDelayedTask(
       FROM_HERE, base::Bind(&UpdaterModule::Update, base::Unretained(this)),
-      base::TimeDelta::FromSeconds(1));
+      base::TimeDelta::FromMinutes(1));
 }
 
 void UpdaterModule::Finalize() {
