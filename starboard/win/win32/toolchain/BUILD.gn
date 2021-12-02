@@ -24,6 +24,7 @@ msvc_toolchain("host") {
   cl = "$_base_path/cl.exe"
   lib = "$_base_path/lib.exe"
   link = "$_base_path/link.exe"
+  asm = "$_base_path/ml64.exe"
   sys_lib_flags = libpaths
 
   toolchain_args = {
@@ -37,6 +38,7 @@ msvc_toolchain("target") {
   cl = "$_base_path/cl.exe"
   lib = "$_base_path/lib.exe"
   link = "$_base_path/link.exe"
+  asm = "$_base_path/ml64.exe"
   sys_lib_flags = libpaths
 
   toolchain_args = {

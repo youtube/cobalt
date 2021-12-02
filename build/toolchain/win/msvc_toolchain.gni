@@ -75,6 +75,7 @@ template("msvc_toolchain") {
     cl = invoker.cl
     lib = invoker.lib
     link = invoker.link
+    asm = invoker.asm
 
     env_wrapper = "ninja -t msvc -e $env -- "  # Note trailing space.
     sys_include_flags = ""
@@ -105,6 +106,12 @@ template("msvc_toolchain") {
       outputs = [ "$object_subdir/{{source_name_part}}.obj" ]
 
       command = "$env_wrapper$cl /nologo /showIncludes $sys_include_flags{{defines}} {{include_dirs}} {{cflags}} {{cflags_cc}} /c {{source}} /Fo{{output}} /Fd\"$pdbname\""
+    }
+
+    tool("asm") {
+      description = "ASM {{output}}"
+      outputs = [ "$object_subdir/{{source_name_part}}.obj" ]
+      command ="$env_wrapper$asm /nologo /Fo{{output}} /c {{defines}} {{include_dirs}} {{asmflags}} {{source}}"
     }
 
     linker_wrapper = "ninja -t msvc -e $env -- "  # Note trailing space.
