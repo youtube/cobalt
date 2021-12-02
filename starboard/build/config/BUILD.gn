@@ -15,13 +15,6 @@
 config("base") {
   defines = []
 
-  if (final_executable_type == "shared_library") {
-    if (current_toolchain != default_toolchain) {
-      defines += [ "main=StarboardMain" ]
-      cflags = [ "-fPIC" ]
-    }
-  }
-
   if (is_debug) {
     defines += [
       "STARBOARD_BUILD_TYPE_DEBUG",
@@ -81,7 +74,7 @@ config("target") {
       # Rewrite main() functions into StarboardMain. TODO: This is a
       # hack, it would be better to be more surgical, here.
       defines = [ "main=StarboardMain" ]
-    } else if (is_linux || is_android) {
+
       # To link into a shared library on Linux and similar platforms,
       # the compiler must be told to generate Position Independent Code.
       # This appears to cause errors when linking the code statically,
