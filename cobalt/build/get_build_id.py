@@ -15,13 +15,13 @@
 """Prints out the Cobalt Build ID."""
 
 import os
-from gyp_utils import GetBuildNumber
+from gyp_utils import GetOrGenerateNewBuildNumber
 
 
 def main():
   build_id_server_url = os.environ.get('BUILD_ID_SERVER_URL')
   if build_id_server_url:
-    print(GetBuildNumber(version_server=build_id_server_url))
+    print(GetOrGenerateNewBuildNumber(version_server=build_id_server_url))
   else:
     # No need to generate a build id for local builds.
     print('0')

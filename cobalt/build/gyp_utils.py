@@ -82,7 +82,13 @@ def GetRevinfo():
   return repos
 
 
+# We leave this function in for backwards compatibility.
+# New callers should use GetOrGenerateNewBuildNumber.
 def GetBuildNumber(version_server=_VERSION_SERVER_URL):
+  return GetOrGenerateNewBuildNumber(version_server)
+
+
+def GetOrGenerateNewBuildNumber(version_server=_VERSION_SERVER_URL):
   """Send a request to the build version server for a build number."""
 
   if os.path.isfile(BUILD_ID_PATH):
