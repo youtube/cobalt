@@ -52,6 +52,12 @@ repos:
         language: python
         stages: [post-checkout]
         always_run: true
+    -   id: clang-format
+        name: clang-format
+        entry: python ./precommit_hooks/clang_format_wrapper.py
+        language: python
+        types: [c++]
+        args: [-i, -style=file]
     -   id: cpplint
         name: cpplint
         entry: cpplint
@@ -87,12 +93,6 @@ repos:
         types: [python]
         args: [-d W0201]
         exclude: '\.gypi?$'
-    -   id: clang-format
-        name: clang-format
-        entry: python ./precommit_hooks/clang_format_wrapper.py
-        language: python
-        types: [c++]
-        args: [-i, -style=file]
     -   id: google-java-format
         name: google-java-format
         entry: python ./precommit_hooks/google_java_format_wrapper.py
