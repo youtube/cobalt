@@ -336,6 +336,7 @@ component("zlib") {
   }
 
   if (is_starboard) {
+    check_includes = false
     sources += [ "inflate.c" ]
     sources -= [
       "gzclose.c",
@@ -344,7 +345,6 @@ component("zlib") {
       "gzread.c",
       "gzwrite.c",
     ]
-    deps += [ "//starboard/common" ]
   } else {
     configs -= [ "//build/config/compiler:chromium_code" ]
   }
