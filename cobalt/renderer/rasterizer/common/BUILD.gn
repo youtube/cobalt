@@ -12,11 +12,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-static_library("default_options") {
-  check_includes = false
-  sources = [ "//cobalt/renderer/get_default_rasterizer_for_platform.cc" ]
+static_library("common") {
+  sources = [
+    "find_node.cc",
+    "find_node.h",
+    "offscreen_render_coordinate_mapping.cc",
+    "offscreen_render_coordinate_mapping.h",
+    "scratch_surface_cache.cc",
+    "scratch_surface_cache.h",
+    "streaming_best_fit_line.cc",
+    "streaming_best_fit_line.h",
+    "utils.cc",
+    "utils.h",
+  ]
+
   deps = [
-    "//cobalt/renderer/rasterizer/skia:hardware_rasterizer",
-    "//starboard:starboard_headers_only",
+    "//base",
+    "//cobalt/base",
+    "//cobalt/math",
+    "//cobalt/render_tree",
+    "//cobalt/render_tree:animations",
   ]
 }
