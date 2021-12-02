@@ -178,6 +178,14 @@ provided. Almost all of the reference platforms use these templates, so look to
 those as examples for how to use it correctly. Here's the linux-x64x11
 [toolchain/BUILD.gn file](https://cobalt.googlesource.com/cobalt/+/refs/heads/master/starboard/linux/x64x11/toolchain/BUILD.gn).
 
+When migrating a host toolchain, you'll need to set the `toolchain_args` within
+it. This should always set the `current_os` and `current_cpu` if the `host_os`
+and `host_cpu` differ from the `target_os` and `target_cpu`, respectively. V8
+requires that 32 bit targets be compiled with 32 bit-compatible hosts (see
+[here](https://cobalt.googlesource.com/cobalt/+/refs/heads/master/third_party/v8/src/base/build_config.h)),
+so you should make sure the `current_cpu` set in the `"host"` toolchain is
+compatible with your `target_cpu`.
+
 ## Checking Your Migration
 
 There are a few different ways to ensure you've migrated a target successfully.
