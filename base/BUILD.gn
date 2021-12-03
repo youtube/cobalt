@@ -1565,9 +1565,8 @@ component("base") {
     public_configs = [ ":base_public_defines" ]
     deps += [
       "//nb",
+      "//starboard",
       "//starboard/client_porting/eztime",
-      "//starboard/common",
-      "//starboard:starboard_headers_only",
     ]
     deps -= [
       "//base/allocator",
