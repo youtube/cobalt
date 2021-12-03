@@ -18,7 +18,6 @@ group("gn_all") {
   deps = [
     "//cobalt/account",
     "//cobalt/base",
-    "//cobalt/configuration",
     "//cobalt/math",
     "//cobalt/network",
     "//cobalt/network_bridge",
@@ -28,6 +27,7 @@ group("gn_all") {
     "//cobalt/renderer/rasterizer/skia:hardware_rasterizer",
     "//cobalt/renderer/rasterizer/skia:software_rasterizer",
     "//cobalt/script",
+    "//cobalt/script/v8c",
     "//cobalt/storage",
     "//cobalt/storage:storage_constants",
     "//cobalt/ui_navigation",

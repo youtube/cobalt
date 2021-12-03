@@ -536,6 +536,14 @@ config("external_config") {
     "include",
     "$target_gen_dir/include",
   ]
+
+  if (is_starboard) {
+    include_dirs += [
+      "..",
+      ".",
+      "$target_gen_dir",
+    ]
+  }
 }
 
 # This config should only be applied to code that needs to be explicitly
