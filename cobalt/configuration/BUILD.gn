@@ -11,9 +11,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-static_library("default_options") {
-  check_includes = false
-  sources = [ "//cobalt/renderer/get_default_rasterizer_for_platform.cc" ]
-  deps = [ "//starboard:starboard_headers_only" ]
+static_library("configuration") {
+  sources = [
+    "configuration.cc",
+    "configuration.h",
+  ]
+  deps = [
+    "//base",
+    "//starboard:starboard_headers_only",
+  ]
 }

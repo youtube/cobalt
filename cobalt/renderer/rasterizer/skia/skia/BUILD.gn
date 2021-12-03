@@ -130,6 +130,7 @@ skia_common("skia") {
   deps = [
     "//base",
     "//cobalt/base",
+    "//cobalt/configuration:configuration",
     "//starboard:starboard_headers_only",
     "//starboard/common",
     "//third_party/freetype2",

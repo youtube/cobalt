@@ -48,6 +48,7 @@ static_library("network") {
   deps = [
     "//cobalt/base",
     "//cobalt/build:cobalt_build_id",
+    "//cobalt/configuration",
     "//cobalt/network_bridge",
     "//cobalt/storage",
     "//starboard/common",
