@@ -73,3 +73,18 @@ static_library("standalone_javascript_runner") {
     "//base",
   ]
 }
+
+# Target that represents the JavaScript engine implementation and an
+# interface to create a new engine instance.
+source_set("engine") {
+  sources = [ "javascript_engine.h" ]
+
+  deps = [
+    "v8c:engine",
+    "//cobalt/base",
+  ]
+}
+
+group("engine_shell") {
+  deps = [ "v8c" ]
+}
