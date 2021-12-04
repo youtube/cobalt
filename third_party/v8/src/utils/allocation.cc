@@ -147,7 +147,7 @@ void AlignedFree(void* ptr) {
   // Using free is not correct in general, but for V8_LIBC_BIONIC it is.
   base::Free(ptr);
 #elif V8_OS_STARBOARD
-  SbMemoryFreeAligned(ptr);
+  SbMemoryDeallocateAligned(ptr);
 #else
   base::Free(ptr);
 #endif

@@ -318,7 +318,7 @@ int HttpAuthSSPI::GenerateAuthToken(const AuthCredentials* credentials,
   std::string encode_output;
   base::Base64Encode(encode_input, &encode_output);
   // OK, we are done with |out_buf|
-  SbMemoryFree(out_buf);
+  SbMemoryDeallocate(out_buf);
   *auth_token = scheme_ + " " + encode_output;
   return OK;
 }
@@ -434,11 +434,11 @@ int HttpAuthSSPI::GetNextSecurityToken(const std::string& spn,
   int rv = MapInitializeSecurityContextStatusToError(status);
   if (rv != OK) {
     ResetSecurityContext();
-    SbMemoryFree(out_buffer.pvBuffer);
+    SbMemoryDeallocate(out_buffer.pvBuffer);
     return rv;
   }
   if (!out_buffer.cbBuffer) {
-    SbMemoryFree(out_buffer.pvBuffer);
+    SbMemoryDeallocate(out_buffer.pvBuffer);
     out_buffer.pvBuffer = NULL;
   }
   *out_token = out_buffer.pvBuffer;

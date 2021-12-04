@@ -16,7 +16,7 @@ void* WINAPI CryptAlloc(size_t size) {
 }
 
 void WINAPI CryptFree(void* p) {
-  SbMemoryFree(p);
+  SbMemoryDeallocate(p);
 }
 
 }  // namespace crypto
