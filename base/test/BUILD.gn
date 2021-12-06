@@ -378,7 +378,7 @@ if (!is_starboard) {
   }
 }
 
-static_library("run_all_unittests") {
+source_set("run_all_unittests") {
   testonly = true
   sources = [
     "run_all_unittests.cc",
