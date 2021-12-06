@@ -19,6 +19,8 @@ It filters file name against filter functions and process filtered files using
 processor function.
 """
 
+from __future__ import print_function
+
 import os
 
 # All filter functions
@@ -120,8 +122,7 @@ getuidx,putpwent,pclose,popen,putenv,setenv,setpwent,setreuid,stat,uname,
 unsetenv,setuidx,setegid,setrgid,seteuid,setruid,getruid
 """
 
-SB_CHARACTER_REPLACEMENT_DICT = {
-}
+SB_CHARACTER_REPLACEMENT_DICT = {}
 
 SB_MEMORY_REPLACEMENT_DICT = {
     'free': 'SbMemoryDeallocate',
@@ -129,8 +130,7 @@ SB_MEMORY_REPLACEMENT_DICT = {
     'realloc': 'SbMemoryReallocate'
 }
 
-SB_STRING_REPLACEMENT_DICT = {
-}
+SB_STRING_REPLACEMENT_DICT = {}
 
 c_function_list = []
 
@@ -215,9 +215,9 @@ def DumpCHeadersAndFunctions(pathname):
         continue  # We can fix this, no need to dump
 
       if first:
-        print pathname
+        print(pathname)
         first = False
-      print '    => line ', i + 1, '\t', source_lines[i][:-1]
+      print('    => line ', i + 1, '\t', source_lines[i][:-1])
     for j in range(0, len(c_function_list)):
       index = source_lines[i].find(c_function_list[j] + '(')
       if index == -1:
@@ -249,10 +249,10 @@ def DumpCHeadersAndFunctions(pathname):
           add_starboard_string_h = True
           continue  # We fixed this, no need to dump
         if first:
-          print pathname
+          print(pathname)
           first = False
-        print '    => line ', i + 1, '\t', source_lines[
-            i][:-1], 'contains', c_function_list[j]
+        print('    => line ', i + 1, '\t', source_lines[i][:-1], 'contains',
+              c_function_list[j])
 
   if add_starboard_character_h:
     AddProjectHeader(source_lines, 'starboard/character.h')
