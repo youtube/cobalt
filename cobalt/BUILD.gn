@@ -51,6 +51,9 @@ group("gn_all") {
   ]
 
   if (sb_is_evergreen) {
-    deps += [ "//third_party/musl:c" ]
+    deps += [
+      "//third_party/llvm-project/compiler-rt:compiler_rt",
+      "//third_party/musl:c",
+    ]
   }
 }
