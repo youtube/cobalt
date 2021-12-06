@@ -478,6 +478,12 @@ bool OS::DiscardSystemPages(void* address, size_t size) {
 }
 
 // static
+Stack::StackSlot Stack::GetStackStart() {
+  SB_NOTIMPLEMENTED();
+  return nullptr;
+}
+
+// static
 Stack::StackSlot Stack::GetCurrentStackPosition() {
   void* addresses[1];
   const size_t count = SbSystemGetStack(addresses, 1);
