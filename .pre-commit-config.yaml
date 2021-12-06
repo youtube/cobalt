@@ -10,6 +10,7 @@ exclude: |
         (
             base|
             build|
+            net|
             testing|
             third_party|
             tools/gyp|
