@@ -33,7 +33,7 @@
 #include "cobalt/renderer/rasterizer/egl/offscreen_target_manager.h"
 #include "cobalt/renderer/rasterizer/egl/render_tree_node_visitor.h"
 #include "cobalt/renderer/rasterizer/egl/shader_program_manager.h"
-#include "cobalt/renderer/rasterizer/skia/cobalt_skia_type_conversions.h"
+#include "cobalt/renderer/rasterizer/skia/cobalt_skia_type_conversions.h"  // nogncheck
 #include "cobalt/renderer/rasterizer/skia/gl_format_conversions.h"
 #include "cobalt/renderer/rasterizer/skia/hardware_rasterizer.h"
 #include "third_party/skia/include/core/SkCanvas.h"

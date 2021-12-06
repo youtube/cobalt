@@ -1,1 +1,2 @@
     vp9AllowList.get("Technicolor").add("STING");
+  return SkSurface::MakeRenderTarget(gr_context_.get(), SkBudgeted::kNo,

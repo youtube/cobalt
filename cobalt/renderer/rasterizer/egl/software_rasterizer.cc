@@ -18,12 +18,13 @@
 #include "cobalt/renderer/rasterizer/egl/software_rasterizer.h"
 
 #include <memory>
+#include <utility>
 
 #include "cobalt/renderer/backend/egl/graphics_context.h"
 #include "cobalt/renderer/backend/egl/graphics_system.h"
 #include "cobalt/renderer/backend/egl/texture.h"
 #include "cobalt/renderer/egl_and_gles.h"
-#include "cobalt/renderer/rasterizer/skia/cobalt_skia_type_conversions.h"
+#include "cobalt/renderer/rasterizer/skia/cobalt_skia_type_conversions.h"  // nogncheck
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "third_party/skia/include/core/SkCanvas.h"
 #include "third_party/skia/include/core/SkImageInfo.h"

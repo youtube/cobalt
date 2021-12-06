@@ -16,6 +16,7 @@
 #define COBALT_RENDERER_RASTERIZER_EGL_OFFSCREEN_TARGET_MANAGER_H_
 
 #include <memory>
+#include <vector>
 
 #include "base/callback.h"
 #include "cobalt/math/rect_f.h"
@@ -23,7 +24,7 @@
 #include "cobalt/render_tree/node.h"
 #include "cobalt/renderer/backend/egl/framebuffer_render_target.h"
 #include "cobalt/renderer/backend/egl/graphics_context.h"
-#include "cobalt/renderer/rasterizer/skia/skottie_animation.h"
+#include "cobalt/renderer/rasterizer/skia/skottie_animation.h"  // nogncheck
 #include "third_party/skia/include/core/SkCanvas.h"
 #include "third_party/skia/include/core/SkSurface.h"
 
@@ -87,8 +88,7 @@ class OffscreenTargetManager {
                        const CacheErrorFunction1D& error_function,
                        TargetInfo* out_target_info);
   bool GetCachedTarget(const skia::SkottieAnimation* skottie_animation,
-                       const math::SizeF& size,
-                       TargetInfo* out_target_info);
+                       const math::SizeF& size, TargetInfo* out_target_info);
 
   // Allocate a cached offscreen target of the specified size.
   // The returned values are only valid until the next call to Update().
