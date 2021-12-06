@@ -14,6 +14,10 @@
 
 import("//third_party/protobuf/proto_library.gni")
 
+config("net_all_dependent_configs") {
+  include_dirs = [ "//third_party/protobuf/src" ]
+}
+
 config("net_public_defines") {
   defines = [
     "HTTP_CACHE_DISABLED_FOR_STARBOARD",
@@ -1715,13 +1719,13 @@ component("net") {
 
   public_configs = [ ":net_public_defines" ]
   configs += [ "//build/config/compiler:chromium_code" ]
+  all_dependent_configs = [ ":net_all_dependent_configs" ]
 
   defines = [ "NET_IMPLEMENTATION" ]
 
   include_dirs = [
     "//third_party/brotli/c/dec",
     "//third_party/brotli/c/include",
-    "//third_party/protobuf/src",
   ]
 
   deps = [
