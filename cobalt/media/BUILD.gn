@@ -237,6 +237,7 @@ component("media") {
   deps = [
     "//base",
     "//cobalt/base",
+    "//cobalt/csp",
     "//cobalt/loader:origin",
     "//cobalt/math",
     "//cobalt/network",
