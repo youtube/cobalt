@@ -64,7 +64,6 @@ source_set("libpng_sources") {
       "pnglibconf.h",
       "pngprefix.h",
       "pngpriv.h",
-      "pngread.c",
       "pngstruct.h",
     ]
     sources += [
