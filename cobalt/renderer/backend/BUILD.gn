@@ -12,12 +12,32 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-static_library("default_options") {
-  check_includes = false
-  sources = [ "//cobalt/renderer/get_default_rasterizer_for_platform.cc" ]
+static_library("renderer_backend") {
+  sources = [
+    "graphics_context.cc",
+    "graphics_context.h",
+    "render_target.cc",
+    "render_target.h",
+  ]
   deps = [
-    "//cobalt/renderer/backend:renderer_backend",
-    "//cobalt/renderer/rasterizer/skia:hardware_rasterizer",
+    "//cobalt/base",
+    "//cobalt/math",
+    "//cobalt/renderer/backend/starboard:renderer_platform_backend",
     "//starboard:starboard_headers_only",
+  ]
+}
+
+target(gtest_target_type, "graphics_system_test") {
+  testonly = true
+  sources = [ "graphics_system_test.cc" ]
+
+  deps = [
+    ":renderer_backend",
+    "//base/test:run_all_unittests",
+    "//base/test:test_support",
+    "//cobalt/base",
+    "//cobalt/system_window",
+    "//testing/gmock",
+    "//testing/gtest",
   ]
 }

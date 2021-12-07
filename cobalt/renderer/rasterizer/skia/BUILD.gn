@@ -55,6 +55,7 @@ static_library("common") {
 
   deps = [
     "//base:i18n",
+    "//cobalt/renderer/backend:renderer_backend",
     "//cobalt/renderer/rasterizer/common",
   ]
 }
@@ -79,6 +80,8 @@ static_library("hardware_rasterizer") {
 
   deps = [
     ":common",
+    "//cobalt/renderer/backend:renderer_backend",
+    "//cobalt/renderer/backend/egl:egl_backend",
     "//cobalt/renderer/rasterizer/common",
     "//starboard:starboard_headers_only",
   ]

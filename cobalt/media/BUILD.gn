@@ -241,6 +241,7 @@ component("media") {
     "//cobalt/math",
     "//cobalt/network",
     "//cobalt/render_tree:render_tree",
+    "//cobalt/system_window:system_window",
     "//nb",
     "//net",
     "//starboard",
