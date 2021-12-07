@@ -231,61 +231,6 @@ bool ReuseAllocatorBase::TryFree(void* memory) {
   return true;
 }
 
-void* ReuseAllocatorBase::AllocateBestBlock(std::size_t alignment,
-                                            intptr_t context,
-                                            std::size_t* size_hint) {
-  std::size_t size =
-      AlignUp(std::max(*size_hint, kMinAlignment), kMinAlignment);
-  alignment = AlignUp(std::max<std::size_t>(alignment, 1), kMinAlignment);
-
-  bool allocate_from_front;
-  FreeBlockSet::iterator free_block_iter =
-      FindBestFreeBlock(size, alignment, context, free_blocks_.begin(),
-                        free_blocks_.end(), &allocate_from_front);
-
-  if (free_block_iter == free_blocks_.end()) {
-    if (CapacityExceeded()) {
-      return NULL;
-    }
-    free_block_iter = ExpandToFit(*size_hint, alignment);
-    if (free_block_iter == free_blocks_.end()) {
-      return NULL;
-    }
-  }
-
-  MemoryBlock block = *free_block_iter;
-  // The block is big enough.  We may waste some space due to alignment.
-  RemoveFreeBlock(free_block_iter);
-
-  MemoryBlock allocated_block;
-  void* user_address;
-
-  if (block.CanFulfill(size, alignment)) {
-    MemoryBlock free_block;
-    block.Allocate(size, alignment, allocate_from_front, &allocated_block,
-                   &free_block);
-    if (free_block.size() > 0) {
-      SB_DCHECK(free_block.address());
-      AddFreeBlock(free_block);
-    }
-    user_address = AlignUp(allocated_block.address(), alignment);
-  } else {
-    allocated_block = block;
-    user_address = AlignUp(allocated_block.address(), alignment);
-  }
-  SB_DCHECK(AsInteger(user_address) >= AsInteger(allocated_block.address()));
-  uintptr_t offset =
-      AsInteger(user_address) - AsInteger(allocated_block.address());
-  SB_DCHECK(allocated_block.size() >= offset);
-  if (allocated_block.size() - offset < *size_hint) {
-    *size_hint = allocated_block.size() - offset;
-  }
-
-  AddAllocatedBlock(user_address, allocated_block);
-
-  return user_address;
-}
-
 ReuseAllocatorBase::ReuseAllocatorBase(Allocator* fallback_allocator,
                                        std::size_t initial_capacity,
                                        std::size_t allocation_increment,

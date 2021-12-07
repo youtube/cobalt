@@ -1,18 +1,16 @@
-/*
- * Copyright 2014 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2014 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #ifndef NB_REUSE_ALLOCATOR_BASE_H_
 #define NB_REUSE_ALLOCATOR_BASE_H_
@@ -51,19 +49,6 @@ class ReuseAllocatorBase : public Allocator {
   void PrintAllocations() const override;
 
   bool TryFree(void* memory);
-
-  // Try to allocate a memory block for the |*size_hint| passed in.  If there is
-  // no such block available, the function may return a block whose size is less
-  // than |*size_hint| and set |*size_hint| to that size.  |context| will be
-  // passed to FindBestFreeBlock() as is, which is useful when the user of a
-  // sub-class wants to pass extra information along with the allocation request
-  // to FindBestFreeBlock().  The function never sets |*size_hint| to a value
-  // greater than the value passed in.
-  // This allows the caller to allocate multiple smaller blocks to fulfill a
-  // large allocation request.
-  void* AllocateBestBlock(std::size_t alignment,
-                          intptr_t context,
-                          std::size_t* size_hint);
 
   std::size_t max_capacity() const { return max_capacity_; }
   void IncreaseMaxCapacityIfNecessary(std::size_t max_capacity) {
@@ -131,20 +116,6 @@ class ReuseAllocatorBase : public Allocator {
                                                FreeBlockSet::iterator begin,
                                                FreeBlockSet::iterator end,
                                                bool* allocate_from_front) = 0;
-
-  // The inherited class can implement this function to return a block whose
-  // size might be smaller than the |size| passed in.  AllocateBestBlock() uses
-  // this functional internally.  The default implementation simply calls
-  // FindFreeBlock() and fails if there isn't a block that is large enough for
-  // |size| bytes.
-  virtual FreeBlockSet::iterator FindBestFreeBlock(std::size_t size,
-                                                   std::size_t alignment,
-                                                   intptr_t context,
-                                                   FreeBlockSet::iterator begin,
-                                                   FreeBlockSet::iterator end,
-                                                   bool* allocate_from_front) {
-    return FindFreeBlock(size, alignment, begin, end, allocate_from_front);
-  }
 
  private:
   // Map from pointers we returned to the user, back to memory blocks.
