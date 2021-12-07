@@ -237,6 +237,9 @@ public class StarboardBridge {
       for (CobaltService service : cobaltServices.values()) {
         service.beforeSuspend();
       }
+      // We need to stop MediaPlaybackService before suspending so that this foreground service
+      // would not prevent releasing activity's memory consumption.
+      stopMediaPlaybackService();
     } catch (Throwable e) {
       Log.i(TAG, "Caught exception in beforeSuspend: " + e.getMessage());
     }
