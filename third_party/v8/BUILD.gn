@@ -1618,6 +1618,7 @@ template("run_mksnapshot") {
                                         "root_out_dir") + "/mksnapshot",
                          root_build_dir),
       "--turbo_instruction_scheduling",
+      "--no-partial-constant-pool",
 
       # In cross builds, the snapshot may be generated for both the host and
       # target toolchains.  The same host binary is used to generate both, so
@@ -1675,7 +1676,7 @@ template("run_mksnapshot") {
       ]
     }
 
-    if (v8_use_external_startup_data) {
+    if (v8_use_external_startup_data && !is_starboard) {
       outputs += [ "$root_out_dir/snapshot_blob${suffix}.bin" ]
       data += [ "$root_out_dir/snapshot_blob${suffix}.bin" ]
       args += [
@@ -1819,7 +1820,7 @@ v8_source_set("v8_snapshot") {
 
   configs = [ ":internal_config" ]
 
-  if (v8_use_external_startup_data) {
+  if (v8_use_external_startup_data && !is_starboard) {
     deps += [ ":v8_base" ]
 
     sources += [ "src/snapshot/snapshot-external.cc" ]
