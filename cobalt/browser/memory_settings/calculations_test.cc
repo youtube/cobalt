@@ -165,18 +165,6 @@ TEST(MemoryCalculations, CalculateSkiaGlyphAtlasTextureSize) {
   EXPECT_EQ(16384, atlas_texture_size.height());
 }
 
-TEST(MemoryCalculations, CalculateSoftwareSurfaceCacheSizeInBytes) {
-  math::Size ui_resolution = GetDimensions(k720p);
-  // Expect that a 720p resolution produces a 4mb SoftwareSurfaceCache.
-  EXPECT_EQ(4 * 1024 * 1024,
-            CalculateSoftwareSurfaceCacheSizeInBytes(ui_resolution));
-
-  ui_resolution = GetDimensions(k1080p);
-  // Expect that a 1080p resolution produces a 9mb SoftwareSurfaceCache.
-  EXPECT_EQ(9 * 1024 * 1024,
-            CalculateSoftwareSurfaceCacheSizeInBytes(ui_resolution));
-}
-
 }  // namespace memory_settings
 }  // namespace browser
 }  // namespace cobalt

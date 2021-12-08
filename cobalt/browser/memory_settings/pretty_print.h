@@ -38,7 +38,6 @@ namespace memory_settings {
 // | remote_typeface_cache_size_in_bytes  |     4194304 |  4.0 MB |  CPU |   Build |
 // | skia_atlas_texture_dimensions        | 2048x2048x2 |  8.0 MB |  GPU | AutoSet |
 // | skia_cache_size_in_bytes             |     4194304 |  4.0 MB |  GPU |   Build |
-// | software_surface_cache_size_in_bytes |         N/A |     N/A |  N/A |     N/A |
 // |______________________________________|_____________|_________|______|_________|
 
 // clang-format on

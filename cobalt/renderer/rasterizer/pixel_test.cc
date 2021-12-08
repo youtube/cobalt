@@ -1478,7 +1478,6 @@ scoped_refptr<Image> MakeAlternatingYUYVYImage(
   return resource_provider->CreateImage(std::move(image_data));
 }
 
-#if !SB_HAS(BLITTER)
 TEST_F(PixelTest, ThreePlaneYUVImageSupport) {
   // Tests that an ImageNode hooked up to a 3-plane YUV image works fine.
   scoped_refptr<Image> image =
@@ -1561,7 +1560,6 @@ TEST_F(PixelTest, YUV422UYVYImageScaledAndTranslated) {
                          Matrix3F::FromValues(2.0f, 0.0f, -1.0f, 0.0f, 2.0f,
                                               -1.0f, 0.0f, 0.0f, 1.0f)));
 }
-#endif  // !SB_HAS(BLITTER)
 
 // The software rasterizer does not support NV12 images.
 #if NV12_TEXTURE_SUPPORTED
@@ -2086,14 +2084,12 @@ TEST_F(PixelTest, ZoomedInImagesDoNotWrapInterpolated) {
 
 #endif  // BILINEAR_FILTERING_SUPPORTED
 
-#if !SB_HAS(BLITTER)
 TEST_F(PixelTest, YUV3PlaneImagesAreLinearlyInterpolated) {
   // Tests that three plane YUV images are bilinearly interpolated.
   scoped_refptr<Image> image = MakeI420Image(GetResourceProvider(), Size(8, 8));
 
   TestTree(new ImageNode(image, RectF(output_surface_size())));
 }
-#endif  // !SB_HAS(BLITTER)
 
 // The software rasterizer does not support NV12 images.
 #if NV12_TEXTURE_SUPPORTED
@@ -3957,7 +3953,6 @@ TEST_F(PixelTest, DrawOffscreenImage) {
   TestTree(new ImageNode(offscreen_image));
 }
 
-#if !SB_HAS(BLITTER)
 // Tests that offscreen rendering works fine with YUV images.
 TEST_F(PixelTest, DrawOffscreenYUVImage) {
   scoped_refptr<Image> image =
@@ -3968,7 +3963,6 @@ TEST_F(PixelTest, DrawOffscreenYUVImage) {
 
   TestTree(new ImageNode(offscreen_rendered_image));
 }
-#endif  // !SB_HAS(BLITTER)
 
 #if SB_API_VERSION >= 12 || ENABLE_MAP_TO_MESH
 
@@ -4138,8 +4132,6 @@ TEST_F(PixelTest, ClearRectNodeTest) {
 
   TestTree(new CompositionNode(std::move(composition_node_builder)));
 }
-
-#if !SB_HAS(BLITTER)
 
 namespace {
 
@@ -4635,8 +4627,6 @@ TEST_F(PixelTest, DebugAnimatedWebPFrame) {
   scoped_refptr<Node> root = new CompositionNode(builder);
   TestTree(root);
 }
-
-#endif  // !SB_HAS(BLITTER)
 
 }  // namespace rasterizer
 }  // namespace renderer

@@ -73,8 +73,6 @@ void TestAllParseInt(const base::Optional<int64_t>& expected,
                  remote_typeface_cache_capacity_in_bytes);
   TEST_PARSE_INT(expected, value, switches::kSkiaCacheSizeInBytes,
                  skia_cache_size_in_bytes);
-  TEST_PARSE_INT(expected, value, switches::kSoftwareSurfaceCacheSizeInBytes,
-                 software_surface_cache_size_in_bytes);
   TEST_PARSE_INT(expected, value, switches::kOffscreenTargetCacheSizeInBytes,
                  offscreen_target_cache_size_in_bytes);
   TEST_PARSE_INT(expected, value, switches::kMaxCobaltCpuUsage,
@@ -116,7 +114,6 @@ TEST(AutoMemSettingsTest, InitialState) {
   EXPECT_FALSE(settings.remote_typeface_cache_capacity_in_bytes);
   EXPECT_FALSE(settings.skia_cache_size_in_bytes);
   EXPECT_FALSE(settings.skia_texture_atlas_dimensions);
-  EXPECT_FALSE(settings.software_surface_cache_size_in_bytes);
   EXPECT_FALSE(settings.offscreen_target_cache_size_in_bytes);
   EXPECT_FALSE(settings.max_cpu_in_bytes);
   EXPECT_FALSE(settings.max_gpu_in_bytes);

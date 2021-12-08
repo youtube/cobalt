@@ -1966,9 +1966,6 @@ void BrowserModule::ApplyAutoMemSettings() {
   // Renderer Module options.
   options_.renderer_module_options.skia_cache_size_in_bytes =
       static_cast<int>(auto_mem_->skia_cache_size_in_bytes()->value());
-  options_.renderer_module_options.software_surface_cache_size_in_bytes =
-      static_cast<int>(
-          auto_mem_->software_surface_cache_size_in_bytes()->value());
   options_.renderer_module_options.offscreen_target_cache_size_in_bytes =
       static_cast<int>(
           auto_mem_->offscreen_target_cache_size_in_bytes()->value());

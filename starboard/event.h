@@ -131,8 +131,8 @@
 //
 // |PRELOADING| can only happen as the first application state. In this state,
 // the application should start and run as normal, but will not receive any
-// input, and should not try to initialize graphics resources (via GL or
-// |SbBlitter|). In |PRELOADING|, the application can receive |Start| or
+// input, and should not try to initialize graphics resources via GL.
+// In |PRELOADING|, the application can receive |Start| or
 // |Suspend| events. |Start| will receive the same data that was passed into
 // |Preload|.
 //
@@ -178,8 +178,8 @@ extern "C" {
 typedef enum SbEventType {
 #if SB_API_VERSION >= 13
   // Applications should perform initialization and prepare to react to
-  // subsequent events, but must not initialize any graphics resources (through
-  // GL or SbBlitter). The intent of this event is to allow the application to
+  // subsequent events, but must not initialize any graphics resources through
+  // GL. The intent of this event is to allow the application to
   // do as much work as possible ahead of time, so that when the application is
   // first brought to the foreground, it's as fast as a resume.
 
@@ -251,8 +251,8 @@ typedef enum SbEventType {
   kSbEventTypeStop,
 #else
   // Applications should perform initialization and prepare to react to
-  // subsequent events, but must not initialize any graphics resources (through
-  // GL or SbBlitter). The intent of this event is to allow the application to
+  // subsequent events, but must not initialize any graphics resources through
+  // GL. The intent of this event is to allow the application to
   // do as much work as possible ahead of time, so that when the application is
   // first brought to the foreground, it's as fast as a resume.
   //

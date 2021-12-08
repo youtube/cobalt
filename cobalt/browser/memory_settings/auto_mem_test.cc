@@ -51,8 +51,6 @@ AutoMemSettings EmptyCommandLine() {
 }  // namespace.
 
 // Tests the expectation that the command-line overrides will be applied.
-// Settings which are enabled/disabled when blitter is enabled/disabled are
-// also tested.
 TEST(AutoMem, CommandLineOverrides) {
   // Load up command line settings of command lines.
   AutoMemSettings command_line_settings(AutoMemSettings::kTypeCommandLine);
@@ -60,16 +58,13 @@ TEST(AutoMem, CommandLineOverrides) {
   command_line_settings.skia_cache_size_in_bytes = 3456;
   command_line_settings.skia_texture_atlas_dimensions =
       TextureDimensions(1234, 5678, 2);
-  command_line_settings.software_surface_cache_size_in_bytes = 4567;
   command_line_settings.offscreen_target_cache_size_in_bytes = 5678;
 
   for (int i = 0; i <= 1; ++i) {
     AutoMemSettings build_settings = GetDefaultBuildSettings();
-    build_settings.has_blitter = (i == 0);
 
     AutoMem auto_mem(kResolution1080p, command_line_settings, build_settings);
 
-    // image_cache_size_in_bytes settings ignore the blitter type.
     EXPECT_MEMORY_SETTING(auto_mem.image_cache_size_in_bytes(),
                           MemorySetting::kCmdLine, MemorySetting::kGPU, 1234);
 
@@ -78,23 +73,6 @@ TEST(AutoMem, CommandLineOverrides) {
                             MemorySetting::kCmdLine, MemorySetting::kGPU, 5678);
     }
 
-    // Certain features are only available for the blitter, and some features
-    // are disabled, vice versa.
-    if (build_settings.has_blitter) {
-      // When blitter is active then skia_atlas_texture_dimensions are
-      // not applicable because this is an OpenGl egl feature.
-      EXPECT_MEMORY_SETTING(
-          auto_mem.skia_atlas_texture_dimensions(), MemorySetting::kCmdLine,
-          MemorySetting::kNotApplicable, TextureDimensions(0, 0, 0));
-      // Skia cache is also an egl-only feature, which is not applicable
-      // for blitter.
-      EXPECT_MEMORY_SETTING(auto_mem.skia_cache_size_in_bytes(),
-                            MemorySetting::kCmdLine,
-                            MemorySetting::kNotApplicable, 0);
-
-      EXPECT_MEMORY_SETTING(auto_mem.software_surface_cache_size_in_bytes(),
-                            MemorySetting::kCmdLine, MemorySetting::kCPU, 4567);
-    } else {
       // Skia atlas is an egl-only feature and therefore enabled.
       EXPECT_MEMORY_SETTING(auto_mem.skia_atlas_texture_dimensions(),
                             MemorySetting::kCmdLine, MemorySetting::kGPU,
@@ -104,12 +82,6 @@ TEST(AutoMem, CommandLineOverrides) {
       EXPECT_MEMORY_SETTING(auto_mem.skia_cache_size_in_bytes(),
                             MemorySetting::kCmdLine, MemorySetting::kGPU, 3456);
 
-      // Software surface cache is a blitter-only feature, therefore disabled
-      // in egl.
-      EXPECT_MEMORY_SETTING(auto_mem.software_surface_cache_size_in_bytes(),
-                            MemorySetting::kCmdLine,
-                            MemorySetting::kNotApplicable, 0);
-    }
   }
 }
 
@@ -156,33 +128,6 @@ TEST(AutoMem, SkiaGlyphAtlasTextureSize) {
   EXPECT_MEMORY_SETTING(auto_mem_with_default.skia_atlas_texture_dimensions(),
                         MemorySetting::kBuildSetting, MemorySetting::kGPU,
                         TextureDimensions(1234, 5678, 2));
-}
-
-// Tests that software surface cache will be bind to the built in value, iff
-// it has been set.
-TEST(AutoMem, SoftwareSurfaceCacheSizeInBytes) {
-  AutoMemSettings build_settings(AutoMemSettings::kTypeBuild);
-  AutoMemSettings build_settings_with_default(AutoMemSettings::kTypeBuild);
-  // Enable the setting by enabling the blitter.
-  build_settings.has_blitter = true;
-  build_settings_with_default.has_blitter = true;
-  build_settings_with_default.software_surface_cache_size_in_bytes = 1234;
-
-  AutoMem auto_mem(kResolution1080p, EmptyCommandLine(), build_settings);
-  AutoMem auto_mem_with_surface_cache(kResolution1080p, EmptyCommandLine(),
-                                      build_settings_with_default);
-
-  // Expect that when the software_surface_cache_size_in_bytes is specified in
-  // the/ build settings that it will bind to the auto-set value (computed from
-  // CalculateSoftwareSurfaceCacheSizeInBytes(...)).
-  EXPECT_MEMORY_SETTING(
-      auto_mem.software_surface_cache_size_in_bytes(), MemorySetting::kAutoSet,
-      MemorySetting::kCPU,
-      CalculateSoftwareSurfaceCacheSizeInBytes(kResolution1080p));
-
-  EXPECT_MEMORY_SETTING(
-      auto_mem_with_surface_cache.software_surface_cache_size_in_bytes(),
-      MemorySetting::kBuildSetting, MemorySetting::kCPU, 1234);
 }
 
 // Tests that skia cache will be bind to the built in value, iff

@@ -33,16 +33,14 @@ struct AutoMemSettings {
     kTypeCommandLine,
   };
 
-  explicit AutoMemSettings(Type type) : type(type), has_blitter(false) {}
+  explicit AutoMemSettings(Type type) : type(type) {}
 
   Type type;
-  bool has_blitter;
   base::Optional<int64_t> cobalt_encoded_image_cache_size_in_bytes;
   base::Optional<int64_t> cobalt_image_cache_size_in_bytes;
   base::Optional<int64_t> remote_typeface_cache_capacity_in_bytes;
   base::Optional<int64_t> skia_cache_size_in_bytes;
   base::Optional<TextureDimensions> skia_texture_atlas_dimensions;
-  base::Optional<int64_t> software_surface_cache_size_in_bytes;
   base::Optional<int64_t> offscreen_target_cache_size_in_bytes;
 
   base::Optional<int64_t> max_cpu_in_bytes;

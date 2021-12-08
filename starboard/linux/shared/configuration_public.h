@@ -165,10 +165,6 @@
 
 // --- Graphics Configuration ------------------------------------------------
 
-// Specifies whether this platform supports a performant accelerated blitter
-// API. The basic requirement is a scaled, clipped, alpha-blended blit.
-#define SB_HAS_BLITTER 0
-
 #if SB_API_VERSION < 12
 // Specifies the preferred byte order of color channels in a pixel. Refer to
 // starboard/configuration.h for the possible values. EGL/GLES platforms should

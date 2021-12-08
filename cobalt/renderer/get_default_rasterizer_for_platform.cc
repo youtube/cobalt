@@ -18,8 +18,6 @@
 
 #include "cobalt/configuration/configuration.h"
 #include "cobalt/renderer/backend/graphics_context.h"
-#include "cobalt/renderer/rasterizer/blitter/hardware_rasterizer.h"
-#include "cobalt/renderer/rasterizer/blitter/software_rasterizer.h"
 #include "cobalt/renderer/rasterizer/egl/hardware_rasterizer.h"
 #include "cobalt/renderer/rasterizer/egl/software_rasterizer.h"
 #include "cobalt/renderer/rasterizer/skia/hardware_rasterizer.h"
@@ -78,28 +76,6 @@ std::unique_ptr<rasterizer::Rasterizer> CreateSkiaHardwareRasterizer(
 #endif  // #if SB_API_VERSION >= 12 ||
         // SB_HAS(GLES2)
 
-#if SB_API_VERSION < 12 && SB_HAS(BLITTER)
-std::unique_ptr<rasterizer::Rasterizer> CreateBlitterSoftwareRasterizer(
-    backend::GraphicsContext* graphics_context,
-    const RendererModule::Options& options) {
-  return std::unique_ptr<rasterizer::Rasterizer>(
-      new rasterizer::blitter::SoftwareRasterizer(
-          graphics_context, options.purge_skia_font_caches_on_destruction));
-}
-
-std::unique_ptr<rasterizer::Rasterizer> CreateBlitterHardwareRasterizer(
-    backend::GraphicsContext* graphics_context,
-    const RendererModule::Options& options) {
-  return std::unique_ptr<rasterizer::Rasterizer>(
-      new rasterizer::blitter::HardwareRasterizer(
-          graphics_context, options.skia_glyph_texture_atlas_dimensions.width(),
-          options.skia_glyph_texture_atlas_dimensions.height(),
-          options.scratch_surface_cache_size_in_bytes,
-          options.software_surface_cache_size_in_bytes,
-          options.purge_skia_font_caches_on_destruction));
-}
-#endif  // SB_API_VERSION < 12 && SB_HAS(BLITTER)
-
 }  // namespace
 
 RasterizerInfo GetDefaultRasterizerForPlatform() {
@@ -128,10 +104,8 @@ RasterizerInfo GetDefaultRasterizerForPlatform() {
   } else {
     return {"skia", base::Bind(&CreateSkiaHardwareRasterizer)};
   }
-#elif SB_API_VERSION < 12 && SB_HAS(BLITTER)
-  return {"blitter", base::Bind(&CreateBlitterHardwareRasterizer)};
 #else
-#error "Either GLES2 or the Starboard Blitter API must be available."
+#error "GLES2 API must be available."
   return {"", NULL};
 #endif
 #endif  // SB_API_VERSION >= 12

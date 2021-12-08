@@ -14,7 +14,6 @@
 
 #include <vector>
 
-#include "starboard/blitter.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/decode_target.h"
 #include "starboard/nplb/player_creation_param_helpers.h"

@@ -39,11 +39,11 @@ class FakeGraphicsContextProvider {
 
   SbWindow window() { return window_; }
   SbDecodeTargetGraphicsContextProvider* decoder_target_provider() {
-#if SB_HAS(BLITTER) || SB_HAS(GLES2)
+#if SB_HAS(GLES2)
     return &decoder_target_provider_;
-#else   // SB_HAS(BLITTER) || SB_HAS(GLES2)
+#else   // SB_HAS(GLES2)
     return NULL;
-#endif  // SB_HAS(BLITTER) || SB_HAS(GLES2)
+#endif  // SB_HAS(GLES2)
   }
 
 #if SB_HAS(GLES2)
@@ -84,9 +84,9 @@ class FakeGraphicsContextProvider {
 
   SbWindow window_;
 
-#if SB_HAS(BLITTER) || SB_HAS(GLES2)
+#if SB_HAS(GLES2)
   SbDecodeTargetGraphicsContextProvider decoder_target_provider_;
-#endif  // SB_HAS(BLITTER) || SB_HAS(GLES2)
+#endif  // SB_HAS(GLES2)
 };
 
 }  // namespace testing

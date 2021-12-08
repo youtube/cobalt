@@ -78,9 +78,6 @@ class TestSettingGroup {
 
     MakeSetting(MemorySetting::kCmdLine, MemorySetting::kGPU,
                 switches::kSkiaCacheSizeInBytes, 12345678);
-
-    MakeSetting(MemorySetting::kBuildSetting, MemorySetting::kNotApplicable,
-                switches::kSoftwareSurfaceCacheSizeInBytes, 8910);
   }
 
   ~TestSettingGroup() {

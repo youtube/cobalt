@@ -16,7 +16,6 @@
 
 #include "starboard/accessibility.h"
 #include "starboard/audio_sink.h"
-#include "starboard/blitter.h"
 #include "starboard/byte_swap.h"
 #include "starboard/character.h"
 #include "starboard/condition_variable.h"

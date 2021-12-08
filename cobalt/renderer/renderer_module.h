@@ -62,12 +62,6 @@ class RendererModule {
     // using the hardware-accelerated Skia rasterizer.
     int skia_cache_size_in_bytes;
 
-    // Only relevant if you are using the Blitter API.
-    // Determines the capacity of the software surface cache, which is used to
-    // cache all surfaces that are rendered via a software rasterizer to avoid
-    // re-rendering them.
-    int software_surface_cache_size_in_bytes;
-
     // Determines the amount of GPU memory the offscreen target atlases will
     // use. This is specific to the direct-GLES rasterizer and caches any render
     // tree nodes which require skia for rendering. Two atlases will be

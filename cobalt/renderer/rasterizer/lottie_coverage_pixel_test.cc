@@ -75,8 +75,6 @@ std::vector<base::FilePath> EnumerateLottieTestData() {
 
 }  // namespace
 
-// Blitter does not support Skottie.
-#if !SB_HAS(BLITTER)
 
 class LottiePixelTest : public PixelTest,
                         public testing::WithParamInterface<base::FilePath> {};
@@ -108,8 +106,6 @@ TEST_P(LottiePixelTest, Run) {
 INSTANTIATE_TEST_CASE_P(LottieCoveragePixelTest, LottiePixelTest,
                         ::testing::ValuesIn(EnumerateLottieTestData()),
                         GetLottieTestName());
-
-#endif  // !SB_HAS(BLITTER)
 
 }  // namespace rasterizer
 }  // namespace renderer

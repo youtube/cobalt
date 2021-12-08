@@ -16,8 +16,7 @@
 //
 // A target for decoding image and video data into. This corresponds roughly to
 // an EGLImage, but that extension may not be fully supported on all GL
-// platforms. SbDecodeTarget supports multi-plane targets. The SbBlitter API is
-// supported as well, and this is able to more-or-less unify the two.
+// platforms. SbDecodeTarget supports multi-plane targets.
 //
 // An SbDecodeTarget can be passed into any function which decodes video or
 // image data. This allows the application to allocate fast graphics memory, and
@@ -95,10 +94,6 @@
 #include "starboard/configuration.h"
 #include "starboard/export.h"
 #include "starboard/types.h"
-
-#if SB_API_VERSION < 12 && SB_HAS(BLITTER)
-#include "starboard/blitter.h"
-#endif  // SB_API_VERSION < 12 && SB_HAS(BLITTER)
 
 #ifdef __cplusplus
 extern "C" {
@@ -201,11 +196,6 @@ typedef void (*SbDecodeTargetGlesContextRunner)(
 // should be provided to all Starboard functions that might create
 // SbDecodeTargets (e.g. SbImageDecode()).
 typedef struct SbDecodeTargetGraphicsContextProvider {
-#if SB_API_VERSION < 12 && SB_HAS(BLITTER)
-  // The SbBlitterDevice object that will be used to render any produced
-  // SbDecodeTargets.
-  SbBlitterDevice device;
-#endif
 #if SB_API_VERSION >= 12 || SB_HAS(GLES2)
   // A reference to the EGLDisplay object that hosts the EGLContext that will
   // be used to render any produced SbDecodeTargets.  Note that it has the
@@ -225,9 +215,6 @@ typedef struct SbDecodeTargetGraphicsContextProvider {
   // Context data that is to be passed in to |gles_context_runner| when it is
   // invoked.
   void* gles_context_runner_context;
-#elif !(SB_API_VERSION >= 12 || SB_HAS(BLITTER))
-  // Some compilers complain about empty structures, this is to appease them.
-  char dummy;
 #endif  // SB_API_VERSION >= 12 || SB_HAS(GLES2)
 } SbDecodeTargetGraphicsContextProvider;
 
@@ -247,10 +234,6 @@ typedef struct SbDecodeTargetInfoContentRegion {
 
 // Defines an image plane within a SbDecodeTargetInfo object.
 typedef struct SbDecodeTargetInfoPlane {
-#if SB_API_VERSION < 12 && SB_HAS(BLITTER)
-  // A handle to the Blitter surface that can be used for rendering.
-  SbBlitterSurface surface;
-#endif  // SB_API_VERSION < 12 && SB_HAS(BLITTER)
 #if SB_API_VERSION >= 12 || SB_HAS(GLES2)
   // A handle to the GL texture that can be used for rendering.
   uint32_t texture;

@@ -263,10 +263,6 @@ const IntSetting* AutoMem::skia_cache_size_in_bytes() const {
   return skia_cache_size_in_bytes_.get();
 }
 
-const IntSetting* AutoMem::software_surface_cache_size_in_bytes() const {
-  return software_surface_cache_size_in_bytes_.get();
-}
-
 const IntSetting* AutoMem::offscreen_target_cache_size_in_bytes() const {
   return offscreen_target_cache_size_in_bytes_.get();
 }
@@ -299,7 +295,6 @@ std::vector<MemorySetting*> AutoMem::AllMemorySettingsMutable() {
   all_settings.push_back(remote_typeface_cache_size_in_bytes_.get());
   all_settings.push_back(skia_atlas_texture_dimensions_.get());
   all_settings.push_back(skia_cache_size_in_bytes_.get());
-  all_settings.push_back(software_surface_cache_size_in_bytes_.get());
   return all_settings;
 }
 
@@ -405,14 +400,8 @@ void AutoMem::ConstructSettings(const math::Size& ui_resolution,
                    skia_atlas_texture_dimensions_.get());
   EnsureValuePositive(skia_atlas_texture_dimensions_.get());
 
-  // Not available for non-blitter platforms.
-  if (build_settings.has_blitter) {
-    skia_atlas_texture_dimensions_->set_memory_type(
-        MemorySetting::kNotApplicable);
-  } else {
-    // Skia always uses gpu memory, when enabled.
-    skia_atlas_texture_dimensions_->set_memory_type(MemorySetting::kGPU);
-  }
+  // Skia always uses gpu memory, when enabled.
+  skia_atlas_texture_dimensions_->set_memory_type(MemorySetting::kGPU);
   EnsureValuePositive(skia_atlas_texture_dimensions_.get());
   EnsureTwoBytesPerPixel(skia_atlas_texture_dimensions_.get());
 
@@ -422,28 +411,9 @@ void AutoMem::ConstructSettings(const math::Size& ui_resolution,
       command_line_settings.skia_cache_size_in_bytes,
       build_settings.skia_cache_size_in_bytes,
       CalculateSkiaCacheSize(ui_resolution));
-  // Not available for blitter platforms.
-  if (build_settings.has_blitter) {
-    skia_cache_size_in_bytes_->set_memory_type(MemorySetting::kNotApplicable);
-  } else {
-    // Skia always uses gpu memory, when enabled.
-    skia_cache_size_in_bytes_->set_memory_type(MemorySetting::kGPU);
-  }
+  // Skia always uses gpu memory, when enabled.
+  skia_cache_size_in_bytes_->set_memory_type(MemorySetting::kGPU);
   EnsureValuePositive(skia_cache_size_in_bytes_.get());
-
-  // Set software_surface_cache_size_in_bytes
-  software_surface_cache_size_in_bytes_ =
-      CreateMemorySetting<IntSetting, int64_t>(
-          switches::kSoftwareSurfaceCacheSizeInBytes,
-          command_line_settings.software_surface_cache_size_in_bytes,
-          build_settings.software_surface_cache_size_in_bytes,
-          CalculateSoftwareSurfaceCacheSizeInBytes(ui_resolution));
-  // Blitter only feature.
-  if (!build_settings.has_blitter) {
-    software_surface_cache_size_in_bytes_->set_memory_type(
-        MemorySetting::kNotApplicable);
-  }
-  EnsureValuePositive(software_surface_cache_size_in_bytes_.get());
 
   // Set offscreen_target_cache_size_in_bytes (relevant to the direct-gles
   // rasterizer).

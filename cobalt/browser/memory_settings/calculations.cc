@@ -150,20 +150,6 @@ TextureDimensions CalculateSkiaGlyphAtlasTextureSize(
   return texture_dimensions;
 }
 
-int64_t CalculateSoftwareSurfaceCacheSizeInBytes(
-    const math::Size& ui_resolution) {
-  // LinearRemap defines a mapping function which will map the number
-  // of ui_resolution pixels to the number of surface texture cache such:
-  // 720p (1280x720)   => maps to => 4MB &
-  // 1080p (1920x1080) => maps to => 9MB
-  LinearRemap remap(1280 * 720, 1920 * 1080, 4 * 1024 * 1024, 9 * 1024 * 1024);
-
-  int64_t surface_cache_size_in_bytes =
-      static_cast<int64_t>(remap.Map(ui_resolution.GetArea()));
-
-  return surface_cache_size_in_bytes;
-}
-
 int64_t CalculateOffscreenTargetCacheSizeInBytes(
     const math::Size& ui_resolution) {
   // The offscreen target cache size should be at least half the ui_resolution

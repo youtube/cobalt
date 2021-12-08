@@ -28,7 +28,6 @@
       'sources': [
         'atomic.h',
         'audio_sink.h',
-        'blitter.h',
         'byte_swap.h',
         'character.h',
         'condition_variable.h',

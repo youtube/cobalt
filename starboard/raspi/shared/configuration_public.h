@@ -102,10 +102,6 @@
 
 // --- Graphics Configuration ------------------------------------------------
 
-// Specifies whether this platform supports a performant accelerated blitter
-// API. The basic requirement is a scaled, clipped, alpha-blended blit.
-#define SB_HAS_BLITTER 0
-
 // Indicates whether or not the given platform supports bilinear filtering.
 // This can be checked to enable/disable renderer tests that verify that this is
 // working properly.

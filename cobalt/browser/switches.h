@@ -145,8 +145,6 @@ extern const char kSkiaCacheSizeInBytes[];
 extern const char kSkiaCacheSizeInBytesHelp[];
 extern const char kSkiaTextureAtlasDimensions[];
 extern const char kSkiaTextureAtlasDimensionsHelp[];
-extern const char kSoftwareSurfaceCacheSizeInBytes[];
-extern const char kSoftwareSurfaceCacheSizeInBytesHelp[];
 extern const char kFallbackSplashScreenURL[];
 extern const char kFallbackSplashScreenURLHelp[];
 extern const char kFallbackSplashScreenTopics[];

@@ -25,8 +25,6 @@
 //
 // # SbImageIsDecodeSupported and SbImageDecode Example
 //
-// Let's assume that we're on a Blitter platform.
-//
 //     SbDecodeTargetProvider* provider = GetProviderFromSomewhere();
 //     void* data = GetCompressedJPEGFromSomewhere();
 //     int data_size = GetCompressedJPEGSizeFromSomewhere();
@@ -39,9 +37,6 @@
 //
 //     SbDecodeTarget result_target = SbDecodeImage(provider, data, data_size,
 //                                                  mime_type, format);
-//     SbBlitterSurface surface =
-//         SbDecodeTargetGetPlane(target, kSbDecodeTargetPlaneRGBA);
-//     // Do stuff with surface...
 //
 
 #ifndef STARBOARD_IMAGE_H_

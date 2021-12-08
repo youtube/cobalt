@@ -379,33 +379,9 @@ int Configuration::CobaltMeshCacheSizeInBytes() {
 #endif
 }
 
+// Deprecated, only retained as config API placeholder.
 int Configuration::CobaltSoftwareSurfaceCacheSizeInBytes() {
-  if (configuration_api_) {
-#if defined(COBALT_SOFTWARE_SURFACE_CACHE_SIZE_IN_BYTES)
-    LOG(ERROR)
-        << "COBALT_SOFTWARE_SURFACE_CACHE_SIZE_IN_BYTES and "
-           "CobaltExtensionConfigurationApi::"
-           "CobaltSoftwareSurfaceCacheSizeInBytes() "
-           "are both defined. Remove 'software_surface_cache_size_in_bytes' "
-           "from your \"gyp_configuration.gypi\" file in favor of "
-           "using CobaltSoftwareSurfaceCacheSizeInBytes().";
-#endif
-    return configuration_api_->CobaltSoftwareSurfaceCacheSizeInBytes();
-  }
-#if SB_API_VERSION >= 12
-#if defined(COBALT_SOFTWARE_SURFACE_CACHE_SIZE_IN_BYTES)
-// NOLINTNEXTLINE(whitespace/line_length)
-#error "COBALT_SOFTWARE_SURFACE_CACHE_SIZE_IN_BYTES is deprecated after Starboard version 12."
-// NOLINTNEXTLINE(whitespace/line_length)
-#error "Implement CobaltExtensionConfigurationApi::CobaltSoftwareSurfaceCacheSizeInBytes()"
-#error "instead."
-#endif
-  return 8 * 1024 * 1024;
-#elif defined(COBALT_SOFTWARE_SURFACE_CACHE_SIZE_IN_BYTES)
-  return COBALT_SOFTWARE_SURFACE_CACHE_SIZE_IN_BYTES;
-#else
-  return 8 * 1024 * 1024;
-#endif
+  return -1;
 }
 
 float Configuration::CobaltImageCacheCapacityMultiplierWhenPlayingVideo() {

@@ -96,11 +96,9 @@ FakeGraphicsContextProvider::FakeGraphicsContextProvider()
 #endif  // SB_HAS(GLES2)
       window_(kSbWindowInvalid) {
   InitializeWindow();
-#if SB_HAS(BLITTER)
-  decoder_target_provider_.device = kSbBlitterInvalidDevice;
-#elif SB_HAS(GLES2)
+#if SB_HAS(GLES2)
   InitializeEGL();
-#endif  // SB_HAS(BLITTER)
+#endif
 }
 
 FakeGraphicsContextProvider::~FakeGraphicsContextProvider() {

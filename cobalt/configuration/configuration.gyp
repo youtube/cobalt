@@ -90,11 +90,6 @@
             }],
           ],
         }],
-        ['software_surface_cache_size_in_bytes != -1', {
-          'defines': [
-            'COBALT_SOFTWARE_SURFACE_CACHE_SIZE_IN_BYTES=<(software_surface_cache_size_in_bytes)',
-          ],
-        }],
         ['image_cache_capacity_multiplier_when_playing_video != ""', {
           'defines': [
             'COBALT_IMAGE_CACHE_CAPACITY_MULTIPLIER_WHEN_PLAYING_VIDEO=<(image_cache_capacity_multiplier_when_playing_video)'
