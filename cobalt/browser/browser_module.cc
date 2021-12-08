@@ -1754,6 +1754,7 @@ ViewportSize BrowserModule::GetViewportSize() {
   // If a custom render root transform is used, report the size of the
   // transformed viewport.
   math::Matrix3F viewport_transform = math::Matrix3F::Identity();
+#if SB_API_VERSION >= 11
   static const CobaltExtensionGraphicsApi* s_graphics_extension =
       static_cast<const CobaltExtensionGraphicsApi*>(
           SbSystemGetExtension(kCobaltExtensionGraphicsName));
@@ -1766,7 +1767,7 @@ ViewportSize BrowserModule::GetViewportSize() {
     viewport_transform =
         math::Matrix3F::FromValues(m00, m01, m02, m10, m11, m12, m20, m21, m22);
   }
-
+#endif
   // We trust the renderer module for width and height the most, if it exists.
   if (renderer_module_) {
     math::Size target_size = renderer_module_->render_target_size();
