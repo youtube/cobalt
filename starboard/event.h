@@ -339,6 +339,8 @@ typedef enum SbEventType {
   // directly. The data type is an internally-defined structure.
   kSbEventTypeScheduled,
 
+// clang-format off
+
   // The platform's accessibility settings have changed. The application should
   // query the accessibility settings using the appropriate APIs to get the
   // new settings. Note this excludes captions settings changes, which
@@ -354,6 +356,8 @@ typedef enum SbEventType {
 #else
   kSbEventTypeAccessiblitySettingsChanged,
 #endif  // SB_API_VERSION >= 13
+
+  // clang-format on
 
   // An optional event that platforms may send to indicate that the application
   // may soon be terminated (or crash) due to low memory availability. The
@@ -421,6 +425,8 @@ typedef enum SbEventType {
   kSbEventTypeAccessibilityCaptionSettingsChanged,
 #endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
 
+// clang-format off
+
 #if SB_API_VERSION >= 12
   // The platform's text-to-speech settings have changed.
 #if SB_API_VERSION >= 13
@@ -429,6 +435,8 @@ typedef enum SbEventType {
   kSbEventTypeAccessiblityTextToSpeechSettingsChanged,
 #endif  // SB_API_VERSION >= 13
 #endif  // SB_API_VERSION >= 12
+
+// clang-format on
 
 #if SB_API_VERSION >= 13
   // The platform has detected a network disconnection. There are likely to

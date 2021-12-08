@@ -369,7 +369,8 @@ static SB_C_INLINE void SbDecodeTargetReleaseInGlesContext(
     SbDecodeTargetGraphicsContextProvider* provider,
     SbDecodeTarget decode_target) {
   SbDecodeTargetRunInGlesContext(provider, &PrivateDecodeTargetReleaser,
-                                 (void*)decode_target);
+                                 // Nolint on reinterpret_cast, C shared code
+                                 (void*)decode_target);  // NOLINT
 }
 
 #endif  // SB_HAS(GLES2)

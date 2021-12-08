@@ -60,8 +60,7 @@ class TestDimensionSetting : public DimensionSetting {
  public:
   explicit TestDimensionSetting(const std::string& name)
       : DimensionSetting(name) {}
-  virtual void ScaleMemory(double absolute_constraining_value) {
-  }
+  virtual void ScaleMemory(double absolute_constraining_value) {}
 };
 
 class TestSettingGroup {

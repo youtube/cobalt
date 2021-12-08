@@ -34,8 +34,8 @@ Configuration::Configuration() {
       SbSystemGetExtension(kCobaltExtensionConfigurationName));
   if (configuration_api_) {
     // Verify it's the extension needed.
-    if (strcmp(configuration_api_->name,
-                           kCobaltExtensionConfigurationName) != 0 ||
+    if (strcmp(configuration_api_->name, kCobaltExtensionConfigurationName) !=
+            0 ||
         configuration_api_->version < 1) {
       LOG(WARNING) << "Not using supplied cobalt configuration extension: "
                    << "'" << configuration_api_->name << "' ("
@@ -138,9 +138,11 @@ const char* Configuration::CobaltFallbackSplashScreenUrl() {
 #if SB_API_VERSION >= 12
 #if defined(COBALT_FALLBACK_SPLASH_SCREEN_URL)
 // NOLINTNEXTLINE(whitespace/line_length)
-#error "COBALT_FALLBACK_SPLASH_SCREEN_URL is deprecated after Starboard version 12."
+#error \
+    "COBALT_FALLBACK_SPLASH_SCREEN_URL is deprecated after Starboard version 12."
 // NOLINTNEXTLINE(whitespace/line_length)
-#error "Implement CobaltExtensionConfigurationApi::CobaltFallbackSplashScreenUrl()"
+#error \
+    "Implement CobaltExtensionConfigurationApi::CobaltFallbackSplashScreenUrl()"
 #error "instead."
 #endif
   return "none";
@@ -226,9 +228,11 @@ int Configuration::CobaltOffscreenTargetCacheSizeInBytes() {
 #if SB_API_VERSION >= 12
 #if defined(COBALT_OFFSCREEN_TARGET_CACHE_SIZE_IN_BYTES)
 // NOLINTNEXTLINE(whitespace/line_length)
-#error "COBALT_OFFSCREEN_TARGET_CACHE_SIZE_IN_BYTES is deprecated after Starboard version 12."
+#error \
+    "COBALT_OFFSCREEN_TARGET_CACHE_SIZE_IN_BYTES is deprecated after Starboard version 12."
 // NOLINTNEXTLINE(whitespace/line_length)
-#error "Implement CobaltExtensionConfigurationApi::CobaltOffscreenTargetCacheSizeInBytes()"
+#error \
+    "Implement CobaltExtensionConfigurationApi::CobaltOffscreenTargetCacheSizeInBytes()"
 #error "instead."
 #endif
   return -1;
@@ -255,9 +259,11 @@ int Configuration::CobaltEncodedImageCacheSizeInBytes() {
 #if SB_API_VERSION >= 12
 #if defined(COBALT_ENCODED_IMAGE_CACHE_SIZE_IN_BYTES)
 // NOLINTNEXTLINE(whitespace/line_length)
-#error "COBALT_ENCODED_IMAGE_CACHE_SIZE_IN_BYTES is deprecated after Starboard version 12."
+#error \
+    "COBALT_ENCODED_IMAGE_CACHE_SIZE_IN_BYTES is deprecated after Starboard version 12."
 // NOLINTNEXTLINE(whitespace/line_length)
-#error "Implement CobaltExtensionConfigurationApi::CobaltEncodedImageCacheSizeInBytes()"
+#error \
+    "Implement CobaltExtensionConfigurationApi::CobaltEncodedImageCacheSizeInBytes()"
 #error "instead."
 #endif
   return 1024 * 1024;
@@ -311,9 +317,11 @@ int Configuration::CobaltLocalTypefaceCacheSizeInBytes() {
 #if SB_API_VERSION >= 12
 #if defined(COBALT_LOCAL_TYPEFACE_CACHE_SIZE_IN_BYTES)
 // NOLINTNEXTLINE(whitespace/line_length)
-#error "COBALT_LOCAL_TYPEFACE_CACHE_SIZE_IN_BYTES is deprecated after Starboard version 12."
+#error \
+    "COBALT_LOCAL_TYPEFACE_CACHE_SIZE_IN_BYTES is deprecated after Starboard version 12."
 // NOLINTNEXTLINE(whitespace/line_length)
-#error "Implement CobaltExtensionConfigurationApi::CobaltLocalTypefaceCacheSizeInBytes()"
+#error \
+    "Implement CobaltExtensionConfigurationApi::CobaltLocalTypefaceCacheSizeInBytes()"
 #error "instead."
 #endif
   return 16 * 1024 * 1024;
@@ -339,9 +347,11 @@ int Configuration::CobaltRemoteTypefaceCacheSizeInBytes() {
 #if SB_API_VERSION >= 12
 #if defined(COBALT_REMOTE_TYPEFACE_CACHE_SIZE_IN_BYTES)
 // NOLINTNEXTLINE(whitespace/line_length)
-#error "COBALT_REMOTE_TYPEFACE_CACHE_SIZE_IN_BYTES is deprecated after Starboard version 12."
+#error \
+    "COBALT_REMOTE_TYPEFACE_CACHE_SIZE_IN_BYTES is deprecated after Starboard version 12."
 // NOLINTNEXTLINE(whitespace/line_length)
-#error "Implement CobaltExtensionConfigurationApi::CobaltRemoteTypefaceCacheSizeInBytes()"
+#error \
+    "Implement CobaltExtensionConfigurationApi::CobaltRemoteTypefaceCacheSizeInBytes()"
 #error "instead."
 #endif
   return 4 * 1024 * 1024;
@@ -380,9 +390,7 @@ int Configuration::CobaltMeshCacheSizeInBytes() {
 }
 
 // Deprecated, only retained as config API placeholder.
-int Configuration::CobaltSoftwareSurfaceCacheSizeInBytes() {
-  return -1;
-}
+int Configuration::CobaltSoftwareSurfaceCacheSizeInBytes() { return -1; }
 
 float Configuration::CobaltImageCacheCapacityMultiplierWhenPlayingVideo() {
   if (configuration_api_) {
@@ -402,9 +410,11 @@ float Configuration::CobaltImageCacheCapacityMultiplierWhenPlayingVideo() {
 #if SB_API_VERSION >= 12
 #if defined(COBALT_IMAGE_CACHE_CAPACITY_MULTIPLIER_WHEN_PLAYING_VIDEO)
 // NOLINTNEXTLINE(whitespace/line_length)
-#error "COBALT_IMAGE_CACHE_CAPACITY_MULTIPLIER_WHEN_PLAYING_VIDEO is deprecated after Starboard version 12."
+#error \
+    "COBALT_IMAGE_CACHE_CAPACITY_MULTIPLIER_WHEN_PLAYING_VIDEO is deprecated after Starboard version 12."
 // NOLINTNEXTLINE(whitespace/line_length)
-#error "Implement CobaltExtensionConfigurationApi::CobaltImageCacheCapacityMultiplierWhenPlayingVideo()"
+#error \
+    "Implement CobaltExtensionConfigurationApi::CobaltImageCacheCapacityMultiplierWhenPlayingVideo()"
 #error "instead."
 #endif
   return 1.0f;

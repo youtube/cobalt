@@ -73,15 +73,14 @@ TEST(AutoMem, CommandLineOverrides) {
                             MemorySetting::kCmdLine, MemorySetting::kGPU, 5678);
     }
 
-      // Skia atlas is an egl-only feature and therefore enabled.
-      EXPECT_MEMORY_SETTING(auto_mem.skia_atlas_texture_dimensions(),
-                            MemorySetting::kCmdLine, MemorySetting::kGPU,
-                            TextureDimensions(1234, 5678, 2));
+    // Skia atlas is an egl-only feature and therefore enabled.
+    EXPECT_MEMORY_SETTING(auto_mem.skia_atlas_texture_dimensions(),
+                          MemorySetting::kCmdLine, MemorySetting::kGPU,
+                          TextureDimensions(1234, 5678, 2));
 
-      // Skia cache is an egl-only feature therefore it is enabled for egl.
-      EXPECT_MEMORY_SETTING(auto_mem.skia_cache_size_in_bytes(),
-                            MemorySetting::kCmdLine, MemorySetting::kGPU, 3456);
-
+    // Skia cache is an egl-only feature therefore it is enabled for egl.
+    EXPECT_MEMORY_SETTING(auto_mem.skia_cache_size_in_bytes(),
+                          MemorySetting::kCmdLine, MemorySetting::kGPU, 3456);
   }
 }
 

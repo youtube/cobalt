@@ -92,8 +92,7 @@ RasterizerInfo GetDefaultRasterizerForPlatform() {
       return {"skia", base::Bind(&CreateSkiaHardwareRasterizer)};
     }
   } else {
-    SB_LOG(ERROR)
-        << "GLES2 must be available.";
+    SB_LOG(ERROR) << "GLES2 must be available.";
     SB_DCHECK(false);
     return {};
   }
