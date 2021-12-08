@@ -53,6 +53,7 @@ static_library("audio") {
 
   deps = [
     "//cobalt/base",
+    "//cobalt/dom:dom_exception",
     "//cobalt/media",
     "//cobalt/script",
     "//starboard:starboard_headers_only",

@@ -40,6 +40,7 @@ static_library("media_capture") {
   deps = [
     "//base",
     "//cobalt/base",
+    "//cobalt/dom:dom_exception",
     "//cobalt/media",
     "//cobalt/media_stream",
     "//cobalt/script",
