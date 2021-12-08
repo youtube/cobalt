@@ -405,6 +405,11 @@ const char kFallbackSplashScreenTopicsHelp[] =
     "the URL used to launch Cobalt, then the value of "
     "'fallback_splash_screen_url' will be used.";
 
+const char kUpdateCheckDelaySeconds[] = "update_check_delay_seconds";
+const char kUpdateCheckDelaySecondsHelp[] =
+    "Number of seconds to delay the first Cobalt Evergreen check for updates."
+    "The default value is 60 seconds.";
+
 const char kUseQAUpdateServer[] = "use_qa_update_server";
 const char kUseQAUpdateServerHelp[] =
     "Uses the QA update server to test the changes to the configuration of the "
@@ -491,6 +496,7 @@ std::string HelpMessage() {
         {kSkiaCacheSizeInBytes, kSkiaCacheSizeInBytesHelp},
         {kSkiaTextureAtlasDimensions, kSkiaTextureAtlasDimensionsHelp},
         {kFallbackSplashScreenURL, kFallbackSplashScreenURLHelp},
+        {kUpdateCheckDelaySeconds, kUpdateCheckDelaySecondsHelp},
         {kUseQAUpdateServer, kUseQAUpdateServerHelp}, {kVersion, kVersionHelp},
         {kViewport, kViewportHelp},
         {kVideoPlaybackRateMultiplier, kVideoPlaybackRateMultiplierHelp},
