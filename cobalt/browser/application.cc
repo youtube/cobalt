@@ -839,7 +839,21 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
 #if SB_IS(EVERGREEN)
   if (SbSystemGetExtension(kCobaltExtensionInstallationManagerName) &&
       !command_line->HasSwitch(switches::kDisableUpdaterModule)) {
-    updater_module_.reset(new updater::UpdaterModule(network_module_.get()));
+    uint64_t update_check_delay_sec =
+        cobalt::updater::kDefaultUpdateCheckDelaySeconds;
+    if (command_line->HasSwitch(browser::switches::kUpdateCheckDelaySeconds)) {
+      std::string seconds_value = command_line->GetSwitchValueASCII(
+          browser::switches::kUpdateCheckDelaySeconds);
+      if (!base::StringToUint64(seconds_value, &update_check_delay_sec)) {
+        LOG(WARNING) << "Invalid delay specified for the update check: "
+                     << seconds_value << ". Using default value: "
+                     << cobalt::updater::kDefaultUpdateCheckDelaySeconds;
+        update_check_delay_sec =
+            cobalt::updater::kDefaultUpdateCheckDelaySeconds;
+      }
+    }
+    updater_module_.reset(new updater::UpdaterModule(network_module_.get(),
+                                                     update_check_delay_sec));
   }
 #endif
   browser_module_.reset(new BrowserModule(

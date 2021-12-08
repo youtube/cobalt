@@ -94,7 +94,8 @@ int UpdaterMain(int argc, const char* const* argv) {
   network::NetworkModule::Options network_options;
   network_module.reset(new network::NetworkModule(network_options));
 
-  updater_module.reset(new updater::UpdaterModule(network_module.get()));
+  updater_module.reset(new updater::UpdaterModule(
+      network_module.get(), kDefaultUpdateCheckDelaySeconds));
 
   return 0;
 }

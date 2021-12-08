@@ -26,10 +26,12 @@
 #include "base/run_loop.h"
 #include "base/stl_util.h"
 #include "base/strings/strcat.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/task/post_task.h"
 #include "base/task_runner.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "base/version.h"
+#include "cobalt/browser/switches.h"
 #include "cobalt/extension/installation_manager.h"
 #include "cobalt/updater/crash_client.h"
 #include "cobalt/updater/crash_reporter.h"
@@ -81,6 +83,8 @@ ComponentStateToCobaltExtensionUpdaterNotificationState(
 namespace cobalt {
 namespace updater {
 
+const uint64_t kDefaultUpdateCheckDelaySeconds = 60;
+
 void Observer::OnEvent(Events event, const std::string& id) {
   LOG(INFO) << "Observer::OnEvent id=" << id;
   std::string status;
@@ -116,8 +120,10 @@ void Observer::OnEvent(Events event, const std::string& id) {
   LOG(INFO) << "Updater status is " << status;
 }
 
-UpdaterModule::UpdaterModule(network::NetworkModule* network_module)
-    : network_module_(network_module) {
+UpdaterModule::UpdaterModule(network::NetworkModule* network_module,
+                             uint64_t update_check_delay_sec)
+    : network_module_(network_module),
+      update_check_delay_sec_(update_check_delay_sec) {
   LOG(INFO) << "UpdaterModule::UpdaterModule";
   updater_thread_.reset(new base::Thread("Updater"));
   updater_thread_->StartWithOptions(
@@ -180,9 +186,12 @@ void UpdaterModule::Initialize() {
   update_client_->AddObserver(updater_observer_.get());
 
   // Schedule the first update check.
+
+  LOG(INFO) << "Scheduling UpdateCheck with delay " << update_check_delay_sec_
+            << " seconds";
   updater_thread_->task_runner()->PostDelayedTask(
       FROM_HERE, base::Bind(&UpdaterModule::Update, base::Unretained(this)),
-      base::TimeDelta::FromMinutes(1));
+      base::TimeDelta::FromSeconds(update_check_delay_sec_));
 }
 
 void UpdaterModule::Finalize() {
