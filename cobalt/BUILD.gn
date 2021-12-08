@@ -39,6 +39,7 @@ group("gn_all") {
     "//content/browser/speech",
     "//crypto",
     "//nb",
+    "//third_party/QR-Code-generator:qr_code_generator",
     "//third_party/brotli:dec",
     "//third_party/brotli:dec_no_dictionary_data",
     "//third_party/flac",
