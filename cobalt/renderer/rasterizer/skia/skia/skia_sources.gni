@@ -147,6 +147,8 @@ sksl_sources = [
   "//third_party/skia/src/sksl/SkSLRehydrator.cpp",
   "//third_party/skia/src/sksl/SkSLRehydrator.h",
   "//third_party/skia/src/sksl/SkSLSampleUsage.cpp",
+  "//third_party/skia/src/sksl/SkSLSharedCompiler.cpp",
+  "//third_party/skia/src/sksl/SkSLSharedCompiler.h",
   "//third_party/skia/src/sksl/SkSLString.cpp",
   "//third_party/skia/src/sksl/SkSLThreadContext.cpp",
   "//third_party/skia/src/sksl/SkSLThreadContext.h",
