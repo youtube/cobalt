@@ -51,6 +51,8 @@ idl_compile("generated_bindings") {
   ]
   public_deps = engine_dependencies
 
+  public_configs = [ ":bindings_includes" ]
+
   generated_file_path =
       "$generated_source_output_dir/{{source_root_relative_dir}}"
   generated_file_name = "${generated_bindings_prefix}_{{source_name_part}}"
@@ -76,6 +78,8 @@ idl_compile("generated_types") {
     ":interfaces_info_individual",
     ":interfaces_info_overall",
   ]
+
+  public_configs = [ ":bindings_includes" ]
 
   generated_file_path =
       "$generated_source_output_dir/{{source_root_relative_dir}}"

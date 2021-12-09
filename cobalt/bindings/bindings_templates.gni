@@ -38,6 +38,8 @@ template("idl_compile") {
     script = "//starboard/build/run_bash.py"
     py_script = engine_idl_compiler
 
+    public_configs = invoker.public_configs
+
     sources = invoker.sources
 
     deps = invoker.deps
