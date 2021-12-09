@@ -232,15 +232,19 @@ public class CobaltMediaSession
     wakeLock(playbackState == PLAYBACK_STATE_PLAYING);
     audioFocus(playbackState == PLAYBACK_STATE_PLAYING);
 
-    boolean activating = true;
-    boolean deactivating = false;
+    boolean activating = playbackState != PLAYBACK_STATE_NONE;
+    boolean deactivating = playbackState == PLAYBACK_STATE_NONE;
     if (mediaSession != null) {
-      activating = playbackState != PLAYBACK_STATE_NONE && !mediaSession.isActive();
-      deactivating = playbackState == PLAYBACK_STATE_NONE && mediaSession.isActive();
+      activating = activating && !mediaSession.isActive();
+      deactivating = deactivating && mediaSession.isActive();
     }
     if (activating) {
       // Resuming or new playbacks land here.
       setMediaSession();
+    }
+    if (mediaSession == null) {
+      Log.i(TAG, "MediaSession already released");
+      return;
     }
     mediaSession.setActive(playbackState != PLAYBACK_STATE_NONE);
     if (lifecycleCallback != null) {
