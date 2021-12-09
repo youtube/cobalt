@@ -43,7 +43,9 @@ RUN iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.or
     choco install -y -c C:\choco-cache cmake --installargs 'ADD_CMAKE_TO_PATH=System';`
     Write-Host ('Deleting the chocolately download cache');`
     Remove-Item -Force -Recurse $env:TEMP\*;`
-    C:\fast-win-rmdir.cmd C:\choco-cache
+    C:\fast-win-rmdir.cmd C:\choco-cache;`
+    # Create copy of python.exe as python2.exe for compatibility with GN builds.
+    Copy-Item C:\python2\python.exe C:\python2\python2.exe
 
 RUN mkdir C:\pip-cache;`
     # Install pip.
