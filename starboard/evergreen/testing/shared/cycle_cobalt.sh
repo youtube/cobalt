@@ -78,7 +78,7 @@ function cycle_cobalt() {
   URL="${1}"
   LOG="${2}"
   PAT="${3}"
-  ARGS="${4}"
+  ARGS="--min_log_level=info ${4}"
 
   start_cobalt "${URL}" "${LOG}" LOADER "${ARGS}"
 

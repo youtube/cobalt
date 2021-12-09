@@ -29,14 +29,7 @@ namespace {
 // Default time constants.
 const int kDelayOneMinute = 60;
 const int kDelayOneHour = kDelayOneMinute * 60;
-
-#if defined(COBALT_BUILD_TYPE_DEBUG) || defined(COBALT_BUILD_TYPE_DEVEL)
-const char kDefaultUpdaterChannel[] = "dev";
-#elif defined(COBALT_BUILD_TYPE_QA)
-const char kDefaultUpdaterChannel[] = "qa";
-#elif defined(COBALT_BUILD_TYPE_GOLD)
 const char kDefaultUpdaterChannel[] = "prod";
-#endif
 
 std::string GetDeviceProperty(SbSystemPropertyId id) {
   const size_t kSystemPropertyMaxLength = 1024;
