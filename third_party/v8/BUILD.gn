@@ -4691,27 +4691,29 @@ if (v8_monolithic) {
   }
 }
 
-v8_static_library("wee8") {
-  deps = [
-    ":v8_base",
-    ":v8_libbase",
-    ":v8_libplatform",
-    ":v8_libsampler",
-    ":v8_snapshot",
-    "//build/win:default_exe_manifest",
-  ]
+if (!is_starboard) {
+  v8_static_library("wee8") {
+    deps = [
+      ":v8_base",
+      ":v8_libbase",
+      ":v8_libplatform",
+      ":v8_libsampler",
+      ":v8_snapshot",
+      "//build/win:default_exe_manifest",
+    ]
 
-  # TODO: v8dll-main.cc equivalent for shared library builds
+    # TODO: v8dll-main.cc equivalent for shared library builds
 
-  configs = [ ":internal_config" ]
+    configs = [ ":internal_config" ]
 
-  sources = [
-    ### gcmole(all) ###
-    "src/wasm/c-api.cc",
-    "src/wasm/c-api.h",
-    "third_party/wasm-api/wasm.h",
-    "third_party/wasm-api/wasm.hh",
-  ]
+    sources = [
+      ### gcmole(all) ###
+      "src/wasm/c-api.cc",
+      "src/wasm/c-api.h",
+      "third_party/wasm-api/wasm.h",
+      "third_party/wasm-api/wasm.hh",
+    ]
+  }
 }
 
 ###############################################################################
