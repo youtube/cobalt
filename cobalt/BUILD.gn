@@ -58,6 +58,7 @@ group("gn_all") {
   if (sb_is_evergreen) {
     deps += [
       "//third_party/llvm-project/compiler-rt:compiler_rt",
+      "//third_party/llvm-project/libcxx:cxx",
       "//third_party/llvm-project/libcxxabi:cxxabi",
       "//third_party/llvm-project/libunwind:unwind_evergreen",
       "//third_party/musl:c",
