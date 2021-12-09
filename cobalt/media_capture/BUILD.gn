@@ -15,6 +15,9 @@
 static_library("media_capture") {
   has_pedantic_warnings = true
 
+  # Creates cycle with //cobalt/dom
+  check_includes = false
+
   sources = [
     "encoders/audio_encoder.cc",
     "encoders/audio_encoder.h",

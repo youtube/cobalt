@@ -15,6 +15,9 @@
 static_library("loader") {
   has_pedantic_warnings = true
 
+  # Includes cobalt/dom/url_utils.h from dom that depends on this target.
+  check_includes = false
+
   sources = [
     "blob_fetcher.cc",
     "blob_fetcher.h",

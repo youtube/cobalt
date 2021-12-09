@@ -55,3 +55,5 @@ install_target_path = "//starboard/android/shared/install_target.gni"
 
 sb_widevine_platform = "android"
 platform_tests_path = "//starboard/android/shared:starboard_platform_tests"
+
+cobalt_licenses_platform = "android"

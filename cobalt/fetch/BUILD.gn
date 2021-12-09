@@ -20,6 +20,7 @@ static_library("fetch") {
 
   deps = [
     "//cobalt/base",
+    "//cobalt/dom",
     "//cobalt/script",
     "//cobalt/script:engine",
     "//url",

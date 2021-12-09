@@ -120,4 +120,7 @@ declare_args() {
 
   # A symbolizer path for ASAN can be added to allow translation of callstacks.
   asan_symbolizer_path = ""
+
+  # Sub-directory to copy license file to.
+  cobalt_licenses_platform = "default"
 }

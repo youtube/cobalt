@@ -21,6 +21,7 @@ group("gn_all") {
     "//cobalt/base",
     "//cobalt/browser:generated_bindings",
     "//cobalt/css_parser",
+    "//cobalt/dom",
     "//cobalt/fetch",
     "//cobalt/math",
     "//cobalt/media",

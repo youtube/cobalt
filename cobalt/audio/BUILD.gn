@@ -15,6 +15,10 @@
 static_library("audio") {
   has_pedantic_warnings = true
 
+  # Includes event_target.h and dom_settings.h from //cobalt/dom which depends
+  # on this target
+  check_includes = false
+
   sources = [
     "async_audio_decoder.cc",
     "async_audio_decoder.h",
