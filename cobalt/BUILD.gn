@@ -32,6 +32,7 @@ group("default") {
     "//cobalt/css_parser",
     "//cobalt/dom",
     "//cobalt/dom_parser",
+    "//cobalt/encoding:text_encoding",
     "//cobalt/fetch",
     "//cobalt/h5vcc",
     "//cobalt/input",
