@@ -129,4 +129,10 @@
 #    endif
 #endif
 
+// Disable std::async usage uniformly across all Starboard builds for more
+// consistent behaviour and stability.
+#if defined(STARBOARD)
+#  define ANGLE_STD_ASYNC_WORKERS 0
+#endif // defined(STARBOARD)
+
 #endif  // COMMON_PLATFORM_H_
