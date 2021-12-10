@@ -12,6 +12,121 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+static_library("loader") {
+  has_pedantic_warnings = true
+
+  sources = [
+    "blob_fetcher.cc",
+    "blob_fetcher.h",
+    "cache_fetcher.cc",
+    "cache_fetcher.h",
+    "cors_preflight.cc",
+    "cors_preflight.h",
+    "cors_preflight_cache.cc",
+    "cors_preflight_cache.h",
+    "decoder.h",
+    "embedded_fetcher.cc",
+    "embedded_fetcher.h",
+    "error_fetcher.cc",
+    "error_fetcher.h",
+    "fetcher.cc",
+    "fetcher.h",
+    "fetcher_cache.cc",
+    "fetcher_cache.h",
+    "fetcher_factory.cc",
+    "fetcher_factory.h",
+    "file_fetcher.cc",
+    "file_fetcher.h",
+    "font/remote_typeface_cache.h",
+    "font/typeface_decoder.cc",
+    "font/typeface_decoder.h",
+    "image/animated_image_tracker.cc",
+    "image/animated_image_tracker.h",
+    "image/animated_webp_image.cc",
+    "image/animated_webp_image.h",
+    "image/dummy_gif_image_decoder.cc",
+    "image/dummy_gif_image_decoder.h",
+    "image/failure_image_decoder.h",
+    "image/image.h",
+    "image/image_cache.h",
+    "image/image_data_decoder.cc",
+    "image/image_data_decoder.h",
+    "image/image_decoder.cc",
+    "image/image_decoder.h",
+    "image/image_decoder_starboard.cc",
+    "image/image_decoder_starboard.h",
+    "image/image_encoder.cc",
+    "image/image_encoder.h",
+    "image/jpeg_image_decoder.cc",
+    "image/jpeg_image_decoder.h",
+    "image/lottie_animation.cc",
+    "image/lottie_animation.h",
+    "image/lottie_animation_decoder.cc",
+    "image/lottie_animation_decoder.h",
+    "image/png_image_decoder.cc",
+    "image/png_image_decoder.h",
+    "image/stub_image_decoder.h",
+    "image/threaded_image_decoder_proxy.cc",
+    "image/threaded_image_decoder_proxy.h",
+    "image/webp_image_decoder.cc",
+    "image/webp_image_decoder.h",
+    "loader.cc",
+    "loader.h",
+    "loader_factory.cc",
+    "loader_factory.h",
+    "loader_types.h",
+    "mesh/mesh_cache.h",
+    "mesh/mesh_decoder.cc",
+    "mesh/mesh_decoder.h",
+    "mesh/mesh_projection.h",
+    "mesh/projection_codec/constants.h",
+    "mesh/projection_codec/indexed_vert.cc",
+    "mesh/projection_codec/indexed_vert.h",
+    "mesh/projection_codec/projection_decoder.cc",
+    "mesh/projection_codec/projection_decoder.h",
+    "net_fetcher.cc",
+    "net_fetcher.h",
+    "resource_cache.cc",
+    "resource_cache.h",
+    "switches.cc",
+    "switches.h",
+    "sync_loader.cc",
+    "sync_loader.h",
+    "text_decoder.h",
+    "url_fetcher_string_writer.cc",
+    "url_fetcher_string_writer.h",
+  ]
+
+  configs -= [ "//starboard/build/config:size" ]
+  configs += [ "//starboard/build/config:speed" ]
+
+  deps = [
+    ":embed_loader_resources_as_header_files",
+    ":origin",
+    "//cobalt/base",
+    "//cobalt/configuration",
+    "//cobalt/csp",
+    "//cobalt/math",
+    "//cobalt/network",
+    "//cobalt/render_tree",
+    "//cobalt/renderer/test/png_utils",
+    "//nb",
+    "//third_party/libjpeg-turbo:libjpeg",
+    "//third_party/libpng",
+    "//third_party/libwebp",
+    "//url",
+  ]
+
+  if (!is_gold) {
+    sources += [
+      "about_fetcher.cc",
+      "about_fetcher.h",
+    ]
+    defines = [ "ENABLE_ABOUT_SCHEME" ]
+    deps += [ "//cobalt/renderer/test/jpeg_utils" ]
+  }
+}
+
 static_library("origin") {
   sources = [
     "origin.cc",
@@ -21,5 +136,31 @@ static_library("origin") {
   deps = [
     "//base",
     "//url",
+  ]
+}
+
+action("embed_loader_resources_as_header_files") {
+  script = "//cobalt/build/generate_data_header.py"
+
+  inputs = [
+    "embedded_resources/black_splash_screen.html",
+    "embedded_resources/cobalt_splash_screen.css",
+    "embedded_resources/cobalt_splash_screen.html",
+    "embedded_resources/cobalt_word_logo_356.png",
+    "embedded_resources/dialog.css",
+    "embedded_resources/dialog.js",
+    "embedded_resources/equirectangular_40_40.msh",
+    "embedded_resources/splash_screen.js",
+    "embedded_resources/unable_message.html.template",
+    "embedded_resources/update_message.html.template",
+    "embedded_resources/black_splash_screen.html",
+    "embedded_resources/cobalt_splash_screen.html",
+  ]
+  outputs = [ "$target_gen_dir/embedded_resources.h" ]
+
+  args = [
+    "LoaderEmbeddedResources",
+    rebase_path(outputs[0], root_build_dir),
+    rebase_path("embedded_resources", root_build_dir),
   ]
 }

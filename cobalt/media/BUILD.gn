@@ -238,6 +238,7 @@ component("media") {
     "//base",
     "//cobalt/base",
     "//cobalt/csp",
+    "//cobalt/loader",
     "//cobalt/loader:origin",
     "//cobalt/math",
     "//cobalt/network",
