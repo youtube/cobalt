@@ -17,11 +17,14 @@ group("gn_all") {
 
   deps = [
     "//cobalt/account",
+    "//cobalt/audio",
     "//cobalt/base",
     "//cobalt/browser:generated_bindings",
     "//cobalt/fetch",
     "//cobalt/math",
     "//cobalt/media",
+    "//cobalt/media_capture",
+    "//cobalt/media_session",
     "//cobalt/network",
     "//cobalt/network_bridge",
     "//cobalt/overlay_info",
