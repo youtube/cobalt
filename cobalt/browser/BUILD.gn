@@ -20,15 +20,16 @@ config("bindings_includes") {
   include_dirs = [ generated_source_output_dir ]
 }
 
-# TODO: h5vcc and webdriver depend on targets in this file.
-# group("bindings") {
-#   deps = [
-#     "//cobalt/h5vcc",
-#     "//cobalt/webdriver",
-#     ":generated_bindings",
-#   ]
-#   all_dependent_configs = [ ":bindings_includes" ]
-# }
+group("bindings") {
+  public_configs = [ ":bindings_includes" ]
+
+  deps = [
+    ":generated_bindings_sources",
+    ":generated_types_sources",
+    "//cobalt/h5vcc",
+    "//cobalt/webdriver",
+  ]
+}
 
 idl_compile("generated_bindings") {
   sources = source_idl_files
@@ -52,14 +53,12 @@ idl_compile("generated_bindings") {
   public_deps = engine_dependencies
 
   public_configs = [ ":bindings_includes" ]
+}
 
-  generated_file_path =
-      "$generated_source_output_dir/{{source_root_relative_dir}}"
-  generated_file_name = "${generated_bindings_prefix}_{{source_name_part}}"
-  outputs = [
-    "$generated_file_path/$generated_file_name.h",
-    "$generated_file_path/$generated_file_name.cc",
-  ]
+source_set("generated_bindings_sources") {
+  sources = get_target_outputs(":generated_bindings")
+  public_deps = [ ":generated_bindings" ]
+  deps = [ "//third_party/protobuf:protobuf_lite" ]
 }
 
 idl_compile("generated_types") {
@@ -78,15 +77,14 @@ idl_compile("generated_types") {
     ":interfaces_info_individual",
     ":interfaces_info_overall",
   ]
+  public_deps = engine_dependencies
 
   public_configs = [ ":bindings_includes" ]
+}
 
-  generated_file_path =
-      "$generated_source_output_dir/{{source_root_relative_dir}}"
-  outputs = [
-    "$generated_file_path/${generated_bindings_prefix}_{{source_name_part}}.h",
-    "$generated_file_path/{{source_name_part}}.cc",
-  ]
+source_set("generated_types_sources") {
+  sources = get_target_outputs(":generated_types")
+  public_deps = [ ":generated_types" ]
 }
 
 action("generated_type_conversion") {
@@ -102,8 +100,6 @@ action("generated_type_conversion") {
 
   public_deps = engine_dependencies
 
-  sources = source_idl_files + generated_header_idl_files
-
   # Generated IDL file that will define all the constructors that should be
   # on the Window object.
   global_names_idl_file =
@@ -116,6 +112,8 @@ action("generated_type_conversion") {
     "//cobalt/bindings/shared/idl_conditional_macros.h",
   ]
   inputs += bindings_extra_inputs
+  inputs += source_idl_files
+  inputs += generated_header_idl_files
 
   outputs = [ generated_type_conversion_header_file ]
 

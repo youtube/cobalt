@@ -56,7 +56,13 @@ template("idl_compile") {
     ]
     inputs += invoker.bindings_extra_inputs
 
-    outputs = invoker.outputs
+    generated_file_path =
+        "$generated_source_output_dir/{{source_root_relative_dir}}"
+    generated_file_name = "${generated_bindings_prefix}_{{source_name_part}}"
+    outputs = [
+      "$generated_file_path/$generated_file_name.h",
+      "$generated_file_path/$generated_file_name.cc",
+    ]
 
     args = [
       "python2",

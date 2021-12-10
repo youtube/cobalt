@@ -28,7 +28,7 @@ group("default") {
     "//cobalt/account",
     "//cobalt/audio",
     "//cobalt/base",
-    "//cobalt/browser:generated_bindings",
+    "//cobalt/browser:bindings",
     "//cobalt/css_parser",
     "//cobalt/dom",
     "//cobalt/dom_parser",
