@@ -168,3 +168,96 @@ action("embed_loader_resources_as_header_files") {
     rebase_path("embedded_resources", root_build_dir),
   ]
 }
+
+target(gtest_target_type, "loader_test") {
+  testonly = true
+  has_pedantic_warnings = true
+
+  sources = [
+    "blob_fetcher_test.cc",
+    "fetcher_factory_test.cc",
+    "fetcher_test.h",
+    "file_fetcher_test.cc",
+    "font/typeface_decoder_test.cc",
+    "image/image_decoder_test.cc",
+    "image/image_decoder_unit_test.cc",
+    "loader_test.cc",
+    "mesh/mesh_decoder_test.cc",
+    "text_decoder_test.cc",
+  ]
+
+  configs -= [ "//starboard/build/config:size" ]
+  configs += [ "//starboard/build/config:speed" ]
+
+  deps = [
+    ":copy_loader_test_data",
+    ":loader",
+    "//cobalt/base:base",
+    "//cobalt/dom",
+    "//cobalt/dom_parser",
+    "//cobalt/math:math",
+    "//cobalt/render_tree",
+    "//cobalt/test:run_all_unittests",
+    "//testing/gmock",
+    "//testing/gtest",
+    "//third_party/ots:ots",
+  ]
+
+  deps += cobalt_platform_dependencies
+}
+
+copy("copy_loader_test_data") {
+  sources = [
+    "testdata/baseline_jpeg.jpg",
+    "testdata/empty.txt",
+    "testdata/icons.ttf",
+    "testdata/icons.woff",
+    "testdata/icons.woff2",
+    "testdata/interlaced_png.png",
+    "testdata/non_interlaced_png.png",
+    "testdata/performance-spike.html",
+    "testdata/progressive_jpeg.jpg",
+    "testdata/projection.box",
+    "testdata/sandbox01.jpg",
+    "testdata/sandbox01.png",
+    "testdata/sandbox01.webp",
+    "testdata/sandbox02.jpg",
+    "testdata/sandbox02.png",
+    "testdata/sandbox02.webp",
+    "testdata/sandbox03.jpg",
+    "testdata/sandbox03.png",
+    "testdata/sandbox03.webp",
+    "testdata/sandbox04.jpg",
+    "testdata/sandbox04.webp",
+    "testdata/sandbox05.jpg",
+    "testdata/sandbox05.webp",
+    "testdata/sandbox06.jpg",
+    "testdata/sandbox06.webp",
+    "testdata/sandbox07.jpg",
+    "testdata/sandbox07.webp",
+    "testdata/sandbox08.jpg",
+    "testdata/sandbox08.webp",
+    "testdata/sandbox09.jpg",
+    "testdata/sandbox09.webp",
+    "testdata/sandbox10.jpg",
+    "testdata/sandbox10.webp",
+    "testdata/sandbox11.jpg",
+    "testdata/sandbox11.webp",
+    "testdata/sandbox12.jpg",
+    "testdata/sandbox12.webp",
+    "testdata/sandbox13.jpg",
+    "testdata/sandbox14.jpg",
+    "testdata/sandbox14.webp",
+    "testdata/sandbox15.jpg",
+    "testdata/sandbox15.webp",
+    "testdata/sandbox16.jpg",
+    "testdata/sandbox16.webp",
+    "testdata/sandbox17.jpg",
+    "testdata/sandbox18.jpg",
+    "testdata/vsauce_sm.webp",
+    "testdata/webp_image.webp",
+  ]
+
+  file_path = "{{source_root_relative_dir}}/{{source_file_part}}"
+  outputs = [ "$root_build_dir/content/test/$file_path" ]
+}
