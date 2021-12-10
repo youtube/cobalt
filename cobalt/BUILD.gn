@@ -30,6 +30,7 @@ group("default") {
     "//cobalt/browser:generated_bindings",
     "//cobalt/css_parser",
     "//cobalt/dom",
+    "//cobalt/dom_parser",
     "//cobalt/fetch",
     "//cobalt/h5vcc",
     "//cobalt/input",

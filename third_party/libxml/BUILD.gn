@@ -150,6 +150,7 @@ static_library("libxml") {
     visibility += [
       "//base/test:test_support",
       "//cobalt/base",
+      "//cobalt/dom_parser",
       "//cobalt/renderer/rasterizer/skia/skia",
     ]
   }
