@@ -78,7 +78,7 @@ declare_args() {
 if (v8_use_external_startup_data == "") {
   # If not specified as a gn arg, use external startup data by default if
   # we're not on ios.
-  v8_use_external_startup_data = !is_ios
+  v8_use_external_startup_data = !is_ios && !is_starboard
 }
 
 if (v8_use_multi_snapshots) {

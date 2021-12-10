@@ -1676,7 +1676,7 @@ template("run_mksnapshot") {
       ]
     }
 
-    if (v8_use_external_startup_data && !is_starboard) {
+    if (v8_use_external_startup_data) {
       outputs += [ "$root_out_dir/snapshot_blob${suffix}.bin" ]
       data += [ "$root_out_dir/snapshot_blob${suffix}.bin" ]
       args += [
@@ -1820,7 +1820,7 @@ v8_source_set("v8_snapshot") {
 
   configs = [ ":internal_config" ]
 
-  if (v8_use_external_startup_data && !is_starboard) {
+  if (v8_use_external_startup_data) {
     deps += [ ":v8_base" ]
 
     sources += [ "src/snapshot/snapshot-external.cc" ]
