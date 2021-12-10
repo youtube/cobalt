@@ -54,6 +54,7 @@ target(gtest_target_type, "websocket_test") {
     "//cobalt/base",
     "//cobalt/dom",
     "//cobalt/dom:dom_exception",
+    "//cobalt/dom/testing:dom_testing",
     "//cobalt/network",
     "//cobalt/script",
     "//cobalt/test:run_all_unittests",

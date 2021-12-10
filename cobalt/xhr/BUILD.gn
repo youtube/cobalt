@@ -53,6 +53,7 @@ target(gtest_target_type, "xhr_test") {
     "//cobalt/base",
     "//cobalt/dom",
     "//cobalt/dom:dom_exception",
+    "//cobalt/dom/testing:dom_testing",
     "//cobalt/test:run_all_unittests",
     "//testing/gmock",
     "//testing/gtest",
