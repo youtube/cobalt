@@ -134,6 +134,9 @@ class UpdateEngine : public base::RefCounted<UpdateEngine> {
   // update protocol. See the comments for X-Retry-After header.
   base::TimeTicks throttle_updates_until_;
 
+#if defined(STARBOARD)
+  bool is_cancelled_ = false;
+#endif
   DISALLOW_COPY_AND_ASSIGN(UpdateEngine);
 };
 

@@ -92,6 +92,11 @@ UrlFetcherDownloader::~UrlFetcherDownloader() {
 #if defined(STARBOARD)
 void UrlFetcherDownloader::ConfirmSlot(const GURL& url) {
   LOG(INFO) << "UrlFetcherDownloader::ConfirmSlot: url=" << url;
+  if (is_cancelled_) {
+    LOG(ERROR) << "UrlFetcherDownloader::ConfirmSlot: Download already cancelled";
+    ReportDownloadFailure(url);
+    return;
+  }
   if (!cobalt_slot_management_.ConfirmSlot(download_dir_)) {
     ReportDownloadFailure(url, CrxDownloaderError::SLOT_UNAVAILABLE);
     return;
@@ -104,6 +109,11 @@ void UrlFetcherDownloader::ConfirmSlot(const GURL& url) {
 
 void UrlFetcherDownloader::SelectSlot(const GURL& url) {
   LOG(INFO) << "UrlFetcherDownloader::SelectSlot: url=" << url;
+  if (is_cancelled_) {
+    LOG(ERROR) << "UrlFetcherDownloader::SelectSlot: Download already cancelled";
+    ReportDownloadFailure(url);
+    return;
+  }
   if (!cobalt_slot_management_.SelectSlot(&download_dir_)) {
     ReportDownloadFailure(url, CrxDownloaderError::SLOT_UNAVAILABLE);
     return;
@@ -125,7 +135,11 @@ void UrlFetcherDownloader::DoStartDownload(const GURL& url) {
 
 #if defined(STARBOARD)
   LOG(INFO) << "UrlFetcherDownloader::DoStartDownload";
-
+  if (is_cancelled_) {
+    LOG(ERROR) << "UrlFetcherDownloader::DoStartDownload: Download already cancelled";
+    ReportDownloadFailure(url);
+    return;
+  }
   const CobaltExtensionInstallationManagerApi* installation_api =
       static_cast<const CobaltExtensionInstallationManagerApi*>(
           SbSystemGetExtension(kCobaltExtensionInstallationManagerName));
@@ -155,6 +169,7 @@ void UrlFetcherDownloader::DoStartDownload(const GURL& url) {
 void UrlFetcherDownloader::DoCancelDownload() {
   LOG(INFO) << "UrlFetcherDownloader::DoCancelDownload";
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  is_cancelled_ = true;
   if (network_fetcher_.get()) {
     network_fetcher_->Cancel();
   }
@@ -208,6 +223,11 @@ void UrlFetcherDownloader::StartURLFetch(const GURL& url) {
 #if defined(STARBOARD)
   LOG(INFO) << "UrlFetcherDownloader::StartURLFetch: url" << url
                << " download_dir=" << download_dir_;
+  if (is_cancelled_) {
+    LOG(ERROR) << "UrlFetcherDownloader::StartURLFetch: Download already cancelled";
+    ReportDownloadFailure(url);
+    return;
+  }
 #endif
 
   if (download_dir_.empty()) {

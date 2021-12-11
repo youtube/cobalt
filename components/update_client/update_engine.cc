@@ -200,6 +200,13 @@ void UpdateEngine::ComponentCheckingForUpdatesStart(
     return;
   }
 
+#if defined(STARBOARD)
+  if (is_cancelled_) {
+    LOG(WARNING) << "UpdateEngine::ComponentCheckingForUpdatesStart cancelled";
+    return;
+  }
+#endif
+
   base::ThreadTaskRunnerHandle::Get()->PostTask(
       FROM_HERE, base::BindOnce(&UpdateEngine::DoUpdateCheck,
                                 base::Unretained(this), update_context));
@@ -379,8 +386,16 @@ void UpdateEngine::HandleComponent(
         next_update_delay);
     next_update_delay = base::TimeDelta();
 
-    notify_observers_callback_.Run(
+#if defined(STARBOARD)
+  if (!is_cancelled_) {
+    notify_observers_callback_.Run(UpdateClient::Observer::Events::COMPONENT_WAIT, id);
+  } else {
+    LOG(WARNING) << "UpdateEngine::HandleComponent skip NotifyObservers";
+  }
+#else
+  notify_observers_callback_.Run(
         UpdateClient::Observer::Events::COMPONENT_WAIT, id);
+#endif
     return;
   }
 
@@ -409,8 +424,18 @@ void UpdateEngine::HandleComponentComplete(
     update_context->next_update_delay = component->GetUpdateDuration();
 
     if (!component->events().empty()) {
+#if defined(STARBOARD)
+      if (!is_cancelled_) {
+        ping_manager_->SendPing(*component,
+                                  base::BindOnce([](int, const std::string&) {}));
+
+      } else {
+        LOG(WARNING) << "UpdateEngine::HandleComponentComplete skip SendPing";
+      }
+#else
       ping_manager_->SendPing(*component,
                               base::BindOnce([](int, const std::string&) {}));
+#endif
     }
 
     queue.pop();
@@ -475,7 +500,7 @@ bool UpdateEngine::IsThrottled(bool is_foreground) const {
 void UpdateEngine::Cancel(const std::string& update_context_session_id,
                           const std::vector<std::string>& crx_component_ids) {
   LOG(INFO) << "UpdateEngine::Cancel";
-
+  is_cancelled_ = true;
   if (ping_manager_.get()) {
     ping_manager_->Cancel();
   }

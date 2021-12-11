@@ -82,6 +82,7 @@ class UrlFetcherDownloader : public CrxDownloader {
 #if defined(STARBOARD)
   CobaltSlotManagement cobalt_slot_management_;
   scoped_refptr<Configurator> config_;
+  bool is_cancelled_ = false;
 #endif
 
   DISALLOW_COPY_AND_ASSIGN(UrlFetcherDownloader);
