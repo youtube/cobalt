@@ -133,6 +133,9 @@ class Component {
   std::vector<base::Value> GetEvents() const;
 
  private:
+#if defined(STARBOARD)
+  bool is_cancelled_ = false;
+#endif
   friend class MockPingManagerImpl;
   friend class UpdateCheckerTest;
 
