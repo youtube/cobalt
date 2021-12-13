@@ -237,6 +237,7 @@ component("media") {
   deps = [
     "//base",
     "//cobalt/base",
+    "//cobalt/browser:browser_switches",
     "//cobalt/csp",
     "//cobalt/loader",
     "//cobalt/loader:origin",

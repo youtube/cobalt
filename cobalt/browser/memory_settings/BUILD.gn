@@ -35,6 +35,7 @@ static_library("browser_memory_settings") {
   ]
   deps = [
     "//base",
+    "//cobalt/browser:browser_switches",
     "//cobalt/configuration",
     "//cobalt/loader",
     "//cobalt/math",

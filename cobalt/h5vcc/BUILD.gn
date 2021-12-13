@@ -74,6 +74,7 @@ static_library("h5vcc") {
   deps = [
     "//cobalt/account",
     "//cobalt/base",
+    "//cobalt/browser:browser_switches",
     "//cobalt/build:cobalt_build_id",
     "//cobalt/configuration",
     "//cobalt/dom",

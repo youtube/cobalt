@@ -20,6 +20,125 @@ config("bindings_includes") {
   include_dirs = [ generated_source_output_dir ]
 }
 
+source_set("browser_switches") {
+  sources = [
+    "switches.cc",
+    "switches.h",
+  ]
+
+  public_deps = [ "//starboard:starboard_headers_only" ]
+}
+
+static_library("browser") {
+  has_pedantic_warnings = true
+
+  sources = [
+    "application.cc",
+    "application.h",
+    "browser_module.cc",
+    "browser_module.h",
+    "device_authentication.cc",
+    "device_authentication.h",
+    "lifecycle_observer.h",
+    "on_screen_keyboard_starboard_bridge.cc",
+    "on_screen_keyboard_starboard_bridge.h",
+    "render_tree_combiner.cc",
+    "render_tree_combiner.h",
+    "screen_shot_writer.cc",
+    "screen_shot_writer.h",
+    "splash_screen.cc",
+    "splash_screen.h",
+    "splash_screen_cache.cc",
+    "splash_screen_cache.h",
+    "suspend_fuzzer.cc",
+    "suspend_fuzzer.h",
+    "system_platform_error_handler.cc",
+    "system_platform_error_handler.h",
+    "url_handler.cc",
+    "url_handler.h",
+    "user_agent_platform_info.cc",
+    "user_agent_platform_info.h",
+    "user_agent_string.cc",
+    "user_agent_string.h",
+    "web_module.cc",
+    "web_module.h",
+    "web_module_stat_tracker.cc",
+    "web_module_stat_tracker.h",
+  ]
+
+  public_deps = [ "//cobalt/dom" ]
+
+  deps = [
+    ":bindings",
+    ":browser_switches",
+    "//cobalt/account",
+    "//cobalt/audio",
+    "//cobalt/base",
+    "//cobalt/browser/memory_settings:browser_memory_settings",
+    "//cobalt/browser/memory_tracker:memory_tracker_tool",
+    "//cobalt/build:cobalt_build_id",
+    "//cobalt/configuration",
+    "//cobalt/css_parser",
+    "//cobalt/cssom",
+    "//cobalt/dom_parser",
+    "//cobalt/encoding:text_encoding",
+    "//cobalt/fetch",
+    "//cobalt/h5vcc",
+    "//cobalt/input",
+    "//cobalt/layout",
+    "//cobalt/loader",
+    "//cobalt/math",
+    "//cobalt/media",
+    "//cobalt/media_capture",
+    "//cobalt/media_session",
+    "//cobalt/network",
+    "//cobalt/overlay_info",
+    "//cobalt/render_tree",
+    "//cobalt/renderer",
+    "//cobalt/renderer/test/png_utils",
+    "//cobalt/script",
+    "//cobalt/script:engine",
+    "//cobalt/speech",
+    "//cobalt/sso",
+    "//cobalt/storage",
+    "//cobalt/subtlecrypto",
+    "//cobalt/system_window",
+    "//cobalt/trace_event",
+    "//cobalt/ui_navigation",
+    "//cobalt/webdriver",
+    "//cobalt/websocket",
+    "//cobalt/xhr",
+    "//crypto",
+    "//nb",
+    "//net",
+    "//starboard",
+    "//third_party/icu:icui18n",
+    "//third_party/protobuf:protobuf_lite",
+    "//url",
+  ]
+
+  if (!is_gold) {
+    sources += [
+      "debug_console.cc",
+      "debug_console.h",
+      "lifecycle_console_commands.cc",
+      "lifecycle_console_commands.h",
+    ]
+    defines = [ "ENABLE_ABOUT_SCHEME" ]
+    deps += [
+      "//cobalt/debug",
+      "//cobalt/debug:console_command_manager",
+    ]
+  }
+
+  if (sb_is_evergreen) {
+    # TODO(b/206642994): Migrate //cobalt/updater
+    # deps += [ "//cobalt/updater" ]
+  } else {
+    deps += cobalt_platform_dependencies
+  }
+}
+
 group("bindings") {
   public_configs = [ ":bindings_includes" ]
 
@@ -40,6 +159,7 @@ idl_compile("generated_bindings") {
   interfaces_info = interfaces_info_combined_pickle
   output_directory = generated_source_output_dir
 
+  # TODO(b/211055528): Missing deps from generated sources.
   deps = [
     ":cached_jinja_templates",
     ":cached_lex_yacc_tables",
@@ -70,6 +190,7 @@ idl_compile("generated_types") {
   interfaces_info = interfaces_info_combined_pickle
   output_directory = generated_source_output_dir
 
+  # TODO(b/211055528): Missing deps from generated sources.
   deps = [
     ":cached_jinja_templates",
     ":cached_lex_yacc_tables",
@@ -91,6 +212,7 @@ action("generated_type_conversion") {
   script = "//starboard/build/run_bash.py"
   py_script = engine_conversion_header_generator_script
 
+  # TODO(b/211055528): Missing deps from generated sources.
   deps = [
     ":cached_jinja_templates",
     ":cached_lex_yacc_tables",
