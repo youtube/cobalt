@@ -16,6 +16,7 @@ group("gn_all") {
   testonly = true
   deps = [
     ":default",
+    "//cobalt/dom:dom_test",
     "//cobalt/dom/testing:dom_testing",
     "//cobalt/layout:layout_test",
     "//cobalt/loader:loader_test",
