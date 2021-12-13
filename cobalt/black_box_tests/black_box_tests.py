@@ -65,7 +65,6 @@ _TESTS_NO_SIGNAL = [
     'compression_test',
     'disable_eval_with_csp',
     'persistent_cookie',
-    'soft_mic_platform_service_test',
     'web_debugger',
     'web_platform_tests',
 ]
