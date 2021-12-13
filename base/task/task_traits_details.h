@@ -16,7 +16,7 @@ namespace trait_helpers {
 
 // Checks if any of the elements in |ilist| is true.
 // Similar to std::any_of for the case of constexpr initializer_list.
-#if __cplusplus >= 201402L
+#if __cplusplus >= 201402L || (defined(_MSVC_LANG) && _MSVC_LANG >= 201402L)
 inline constexpr bool any_of(std::initializer_list<bool> ilist) {
   for (auto c : ilist) {
     if (c)

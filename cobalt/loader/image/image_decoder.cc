@@ -432,7 +432,7 @@ bool ImageDecoder::AllowDecodingToMultiPlane() {
   // reduces the space to store the decoded image to 37.5%, but also improves
   // decoding performance by not converting the output from YUV to RGBA.
   //
-  // Blitter platforms usually don't have the ability to perform hardware
+  // Legacy platforms didn't have the ability to perform hardware
   // accelerated YUV-formatted image blitting, so we decode to a single plane
   // when we do not support gles.
   // This also applies to skia based "hardware" rasterizers as the rendering

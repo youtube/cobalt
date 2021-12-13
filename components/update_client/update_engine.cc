@@ -51,7 +51,11 @@ UpdateContext::UpdateContext(
   }
 }
 
-UpdateContext::~UpdateContext() {}
+UpdateContext::~UpdateContext() {
+#if defined(STARBOARD)
+  LOG(INFO) << "UpdateContext::~UpdateContext";
+#endif
+}
 
 UpdateEngine::UpdateEngine(
     scoped_refptr<Configurator> config,
@@ -66,10 +70,17 @@ UpdateEngine::UpdateEngine(
       metadata_(
           std::make_unique<PersistedData>(config->GetPrefService(),
                                           config->GetActivityDataService())),
-      notify_observers_callback_(notify_observers_callback) {}
+      notify_observers_callback_(notify_observers_callback) {
+#if defined(STARBOARD)
+    LOG(INFO) << "UpdateEngine::UpdateEngine";
+#endif
+}
 
 UpdateEngine::~UpdateEngine() {
   DCHECK(thread_checker_.CalledOnValidThread());
+#if defined(STARBOARD)
+  LOG(INFO) << "UpdateEngine::~UpdateEngine";
+#endif
 }
 
 #if !defined(STARBOARD)
@@ -86,6 +97,10 @@ void UpdateEngine::Update(bool is_foreground,
 
 #endif
   DCHECK(thread_checker_.CalledOnValidThread());
+
+#if defined(STARBOARD)
+  LOG(INFO) << "UpdateEngine::Update";
+#endif
 
   if (ids.empty()) {
     base::ThreadTaskRunnerHandle::Get()->PostTask(
@@ -169,6 +184,10 @@ void UpdateEngine::ComponentCheckingForUpdatesStart(
   DCHECK_EQ(1u, update_context->components.count(id));
   DCHECK(update_context->components.at(id));
 
+#if defined(STARBOARD)
+  LOG(INFO) << "UpdateEngine::ComponentCheckingForUpdatesStart";
+#endif
+
   // Handle |kChecking| state.
   auto& component = *update_context->components.at(id);
   component.Handle(
@@ -190,6 +209,10 @@ void UpdateEngine::DoUpdateCheck(scoped_refptr<UpdateContext> update_context) {
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(update_context);
 
+#if defined(STARBOARD)
+  LOG(INFO) << "UpdateEngine::DoUpdateCheck";
+#endif
+
   update_context->update_checker =
       update_checker_factory_(config_, metadata_.get());
 
@@ -210,6 +233,10 @@ void UpdateEngine::UpdateCheckResultsAvailable(
     int retry_after_sec) {
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(update_context);
+
+#if defined(STARBOARD)
+  LOG(INFO) << "UpdateEngine::UpdateCheckResultsAvailable";
+#endif
 
   update_context->retry_after_sec = retry_after_sec;
 
@@ -283,6 +310,10 @@ void UpdateEngine::ComponentCheckingForUpdatesComplete(
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(update_context);
 
+#if defined(STARBOARD)
+  LOG(INFO) << "UpdateEngine::ComponentCheckingForUpdatesComplete";
+#endif
+
   ++update_context->num_components_checked;
   if (update_context->num_components_checked <
       update_context->components_to_check_for_updates.size()) {
@@ -299,6 +330,10 @@ void UpdateEngine::UpdateCheckComplete(
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(update_context);
 
+#if defined(STARBOARD)
+  LOG(INFO) << "UpdateEngine::UpdateCheckComplete";
+#endif
+
   for (const auto& id : update_context->components_to_check_for_updates)
     update_context->component_queue.push(id);
 
@@ -311,6 +346,10 @@ void UpdateEngine::HandleComponent(
     scoped_refptr<UpdateContext> update_context) {
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(update_context);
+
+#if defined(STARBOARD)
+  LOG(INFO) << "UpdateEngine::HandleComponent";
+#endif
 
   auto& queue = update_context->component_queue;
 
@@ -354,6 +393,10 @@ void UpdateEngine::HandleComponentComplete(
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(update_context);
 
+#if defined(STARBOARD)
+  LOG(INFO) << "UpdateEngine::HandleComponentComplete";
+#endif
+
   auto& queue = update_context->component_queue;
   DCHECK(!queue.empty());
 
@@ -380,6 +423,10 @@ void UpdateEngine::HandleComponentComplete(
 
 void UpdateEngine::UpdateComplete(scoped_refptr<UpdateContext> update_context,
                                   Error error) {
+#if defined(STARBOARD)
+  LOG(INFO) << "UpdateEngine::UpdateComplete";
+#endif
+
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(update_context);
 
@@ -393,6 +440,9 @@ void UpdateEngine::UpdateComplete(scoped_refptr<UpdateContext> update_context,
 bool UpdateEngine::GetUpdateState(const std::string& id,
                                   CrxUpdateItem* update_item) {
   DCHECK(thread_checker_.CalledOnValidThread());
+#if defined(STARBOARD)
+  LOG(INFO) << "UpdateEngine::GetUpdateState";
+#endif
   for (const auto& context : update_contexts_) {
     const auto& components = context.second->components;
     const auto it = components.find(id);
@@ -406,6 +456,9 @@ bool UpdateEngine::GetUpdateState(const std::string& id,
 
 bool UpdateEngine::IsThrottled(bool is_foreground) const {
   DCHECK(thread_checker_.CalledOnValidThread());
+#if defined(STARBOARD)
+  LOG(INFO) << "UpdateEngine::IsThrottled";
+#endif
 
   if (is_foreground || throttle_updates_until_.is_null())
     return false;
@@ -421,7 +474,16 @@ bool UpdateEngine::IsThrottled(bool is_foreground) const {
 #if defined(STARBOARD)
 void UpdateEngine::Cancel(const std::string& update_context_session_id,
                           const std::vector<std::string>& crx_component_ids) {
+  LOG(INFO) << "UpdateEngine::Cancel";
+
+  if (ping_manager_.get()) {
+    ping_manager_->Cancel();
+  }
+
   const auto& context = update_contexts_.at(update_context_session_id);
+  if (context->update_checker.get()) {
+    context->update_checker->Cancel();
+  }
   for (const auto& crx_component_id : crx_component_ids) {
     auto& component = context->components.at(crx_component_id);
     component->Cancel();
@@ -434,6 +496,10 @@ void UpdateEngine::SendUninstallPing(const std::string& id,
                                      int reason,
                                      Callback callback) {
   DCHECK(thread_checker_.CalledOnValidThread());
+
+#if defined(STARBOARD)
+  LOG(INFO) << "UpdateEngine::SendUninstallPing";
+#endif
 
   const auto update_context = base::MakeRefCounted<UpdateContext>(
       config_, false, std::vector<std::string>{id},

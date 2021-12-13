@@ -15,13 +15,6 @@
 config("base") {
   defines = []
 
-  if (final_executable_type == "shared_library") {
-    if (current_toolchain != default_toolchain) {
-      defines += [ "main=StarboardMain" ]
-      cflags = [ "-fPIC" ]
-    }
-  }
-
   if (is_debug) {
     defines += [
       "STARBOARD_BUILD_TYPE_DEBUG",
@@ -53,7 +46,7 @@ config("base") {
 
 config("host") {
   if (current_toolchain == host_toolchain) {
-    if (host_os == "linux") {
+    if (is_linux) {
       ldflags = [ "-pthread" ]
       cflags_cc = [ "-std=gnu++14" ]
 
@@ -65,6 +58,12 @@ config("host") {
           "-latomic",
         ]
       }
+    } else if (is_win) {
+      # A few flags to mute MSVC compiler errors that does not appear on Linux.
+      cflags = [
+        "/wd4267",  # Possible loss of precision from size_t to a smaller type.
+        "/wd4715",  # Not all control paths return value.
+      ]
     }
   }
 }
@@ -75,7 +74,7 @@ config("target") {
       # Rewrite main() functions into StarboardMain. TODO: This is a
       # hack, it would be better to be more surgical, here.
       defines = [ "main=StarboardMain" ]
-    } else {
+
       # To link into a shared library on Linux and similar platforms,
       # the compiler must be told to generate Position Independent Code.
       # This appears to cause errors when linking the code statically,
@@ -90,50 +89,52 @@ config("target") {
 }
 
 config("starboard") {
-  defines = [
-    "STARBOARD",
-    "COBALT",  # TODO: See if this can be replaced by STARBOARD macro.
-  ]
+  if (current_toolchain == default_toolchain) {
+    defines = [
+      "STARBOARD",
+      "COBALT",  # TODO: See if this can be replaced by STARBOARD macro.
+    ]
 
-  if (gl_type == "none") {
-    defines += [ "SB_GN_GL_TYPE_IS_NONE=1" ]
-  } else {
-    defines += [ "SB_GN_GL_TYPE_IS_NONE=0" ]
+    if (gl_type == "none") {
+      defines += [ "SB_GN_GL_TYPE_IS_NONE=1" ]
+    } else {
+      defines += [ "SB_GN_GL_TYPE_IS_NONE=0" ]
+    }
+
+    if (abort_on_allocation_failure) {
+      defines += [ "SB_ABORT_ON_ALLOCATION_FAILURE" ]
+    }
+
+    if (sb_allows_memory_tracking) {
+      defines += [ "STARBOARD_ALLOWS_MEMORY_TRACKING" ]
+    }
+
+    if (sb_enable_lib) {
+      defines += [ "SB_IS_LIBRARY=1" ]
+    }
+
+    if (sb_is_evergreen) {
+      defines += [ "SB_IS_EVERGREEN=1" ]
+    }
+
+    if (sb_is_evergreen_compatible) {
+      defines += [ "SB_IS_EVERGREEN_COMPATIBLE=1" ]
+    }
+
+    if (sb_evergreen_compatible_use_libunwind) {
+      defines += [ "SB_IS_EVERGREEN_COMPATIBLE_LIBUNWIND=1" ]
+    }
+
+    if (sb_evergreen_compatible_enable_lite) {
+      defines += [ "SB_IS_EVERGREEN_COMPATIBLE_LITE=1" ]
+    }
+
+    defines += [
+      "STARBOARD_ATOMIC_INCLUDE=\"$starboard_path/atomic_public.h\"",
+      "STARBOARD_CONFIGURATION_INCLUDE=\"$starboard_path/configuration_public.h\"",
+      "STARBOARD_THREAD_TYPES_INCLUDE=\"$starboard_path/thread_types_public.h\"",
+    ]
   }
-
-  if (abort_on_allocation_failure) {
-    defines += [ "SB_ABORT_ON_ALLOCATION_FAILURE" ]
-  }
-
-  if (sb_allows_memory_tracking) {
-    defines += [ "STARBOARD_ALLOWS_MEMORY_TRACKING" ]
-  }
-
-  if (sb_enable_lib) {
-    defines += [ "SB_IS_LIBRARY=1" ]
-  }
-
-  if (sb_is_evergreen) {
-    defines += [ "SB_IS_EVERGREEN=1" ]
-  }
-
-  if (sb_is_evergreen_compatible) {
-    defines += [ "SB_IS_EVERGREEN_COMPATIBLE=1" ]
-  }
-
-  if (sb_evergreen_compatible_use_libunwind) {
-    defines += [ "SB_IS_EVERGREEN_COMPATIBLE_LIBUNWIND=1" ]
-  }
-
-  if (sb_evergreen_compatible_enable_lite) {
-    defines += [ "SB_IS_EVERGREEN_COMPATIBLE_LITE=1" ]
-  }
-
-  defines += [
-    "STARBOARD_ATOMIC_INCLUDE=\"$starboard_path/atomic_public.h\"",
-    "STARBOARD_CONFIGURATION_INCLUDE=\"$starboard_path/configuration_public.h\"",
-    "STARBOARD_THREAD_TYPES_INCLUDE=\"$starboard_path/thread_types_public.h\"",
-  ]
 }
 
 config("starboard_implementation") {
@@ -142,25 +143,33 @@ config("starboard_implementation") {
 }
 
 config("speed") {
-  if (defined(speed_config_path)) {
-    configs = [ speed_config_path ]
+  if (current_toolchain == default_toolchain) {
+    if (defined(speed_config_path)) {
+      configs = [ speed_config_path ]
+    }
   }
 }
 
 config("size") {
-  if (defined(size_config_path)) {
-    configs = [ size_config_path ]
+  if (current_toolchain == default_toolchain) {
+    if (defined(size_config_path)) {
+      configs = [ size_config_path ]
+    }
   }
 }
 
 config("pedantic_warnings") {
-  if (defined(pedantic_warnings_config_path)) {
-    configs = [ pedantic_warnings_config_path ]
+  if (current_toolchain == default_toolchain) {
+    if (defined(pedantic_warnings_config_path)) {
+      configs = [ pedantic_warnings_config_path ]
+    }
   }
 }
 
 config("no_pedantic_warnings") {
-  if (defined(no_pedantic_warnings_config_path)) {
-    configs = [ no_pedantic_warnings_config_path ]
+  if (current_toolchain == default_toolchain) {
+    if (defined(no_pedantic_warnings_config_path)) {
+      configs = [ no_pedantic_warnings_config_path ]
+    }
   }
 }

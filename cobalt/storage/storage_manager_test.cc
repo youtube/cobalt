@@ -41,18 +41,11 @@ namespace {
 // Used to be able to intercept QueueFlush().
 class MockStorageManager : public StorageManager {
  public:
-  MockStorageManager(
-      std::unique_ptr<StorageManager::UpgradeHandler> upgrade_handler,
-      const Options& options)
-      : StorageManager(std::move(upgrade_handler), options) {}
+  explicit MockStorageManager(const Options& options)
+      : StorageManager(options) {}
 #ifndef GMOCK_NO_MOVE_MOCK
   MOCK_METHOD1(QueueFlush, void(base::OnceClosure callback));
 #endif
-};
-
-class MockUpgradeHandler : public StorageManager::UpgradeHandler {
- public:
-  MOCK_METHOD3(OnUpgrade, void(StorageManager*, const char*, int));
 };
 
 class CallbackWaiter {
@@ -87,9 +80,7 @@ class FlushWaiter : public CallbackWaiter {
 class MemoryStoreWaiter : public CallbackWaiter {
  public:
   MemoryStoreWaiter() {}
-  void OnMemoryStore(MemoryStore* memory_store) {
-    Signal();
-  }
+  void OnMemoryStore(MemoryStore* memory_store) { Signal(); }
 
  private:
   DISALLOW_COPY_AND_ASSIGN(MemoryStoreWaiter);
@@ -98,9 +89,7 @@ class MemoryStoreWaiter : public CallbackWaiter {
 class ReadOnlyMemoryStoreWaiter : public CallbackWaiter {
  public:
   ReadOnlyMemoryStoreWaiter() {}
-  void OnMemoryStore(const MemoryStore& memory_store) {
-    Signal();
-  }
+  void OnMemoryStore(const MemoryStore& memory_store) { Signal(); }
 
  private:
   DISALLOW_COPY_AND_ASSIGN(ReadOnlyMemoryStoreWaiter);
@@ -125,16 +114,13 @@ class StorageManagerTest : public ::testing::Test {
     // concurrently.
     storage_manager_.reset(NULL);
 
-    std::unique_ptr<StorageManager::UpgradeHandler> upgrade_handler(
-        new MockUpgradeHandler());
     StorageManager::Options options;
     options.savegame_options.delete_on_destruction = delete_savegame;
     options.savegame_options.factory = &SavegameFake::Create;
     if (initial_data) {
       options.savegame_options.test_initial_data = *initial_data;
     }
-    storage_manager_.reset(
-        new StorageManagerType(std::move(upgrade_handler), options));
+    storage_manager_.reset(new StorageManagerType(options));
   }
 
   template <typename StorageManagerType>
@@ -277,28 +263,6 @@ TEST_F(StorageManagerTest, FlushOnShutdown) {
   EXPECT_TRUE(waiter.IsSignaled());
 }
 #endif
-
-TEST_F(StorageManagerTest, Upgrade) {
-  Savegame::ByteVector initial_data;
-  initial_data.push_back('U');
-  initial_data.push_back('P');
-  initial_data.push_back('G');
-  initial_data.push_back('0');
-  Init<StorageManager>(true, &initial_data);
-
-  // We expect a call to the upgrade handler when it reads this data.
-  MockUpgradeHandler& upgrade_handler =
-      *dynamic_cast<MockUpgradeHandler*>(storage_manager_->upgrade_handler());
-  EXPECT_CALL(upgrade_handler,
-              OnUpgrade(Eq(storage_manager_.get()), NotNull(), Eq(4)))
-      .Times(1);
-
-  FlushWaiter waiter;
-  storage_manager_->FlushNow(
-      base::Bind(&FlushWaiter::OnFlushDone, base::Unretained(&waiter)));
-  EXPECT_TRUE(waiter.TimedWait());
-  base::RunLoop().RunUntilIdle();
-}
 
 }  // namespace storage
 }  // namespace cobalt

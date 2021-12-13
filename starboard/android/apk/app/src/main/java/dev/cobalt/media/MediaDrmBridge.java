@@ -162,7 +162,11 @@ public class MediaDrmBridge {
    * @return true if the container and the crypto scheme is supported, or false otherwise.
    */
   @UsedByNative
-  static boolean isWidevineCryptoSchemeSupported() {
+  static boolean isWidevineCryptoSchemeSupported(boolean usesCbcs) {
+    if (Build.VERSION.SDK_INT < 24 && usesCbcs) {
+      Log.e(TAG, "Encryption scheme 'cbcs' is not supported on this platform.");
+      return false;
+    }
     return MediaDrm.isCryptoSchemeSupported(WIDEVINE_UUID);
   }
 
@@ -173,9 +177,13 @@ public class MediaDrmBridge {
    * @return true if the container and the crypto scheme is supported, or false otherwise.
    */
   @UsedByNative
-  static boolean isWidevineCryptoSchemeSupported(String containerMimeType) {
+  static boolean isWidevineCryptoSchemeSupported(String containerMimeType, boolean usesCbcs) {
     if (containerMimeType.isEmpty()) {
-      return isWidevineCryptoSchemeSupported();
+      return isWidevineCryptoSchemeSupported(usesCbcs);
+    }
+    if (Build.VERSION.SDK_INT < 24 && usesCbcs) {
+      Log.e(TAG, "Encryption scheme 'cbcs' is not supported on this platform.");
+      return false;
     }
     return MediaDrm.isCryptoSchemeSupported(WIDEVINE_UUID, containerMimeType);
   }

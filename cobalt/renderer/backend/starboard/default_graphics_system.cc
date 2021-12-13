@@ -19,7 +19,6 @@
 
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/configuration/configuration.h"
-#include "cobalt/renderer/backend/blitter/graphics_system.h"
 #if SB_API_VERSION >= 12 || SB_HAS(GLES2)
 #include "cobalt/renderer/backend/egl/graphics_system.h"
 #endif  // SB_API_VERSION >= 12 || SB_HAS(GLES2)
@@ -43,8 +42,6 @@ std::unique_ptr<GraphicsSystem> CreateDefaultGraphicsSystem(
 #else  // SB_API_VERSION >= 12
 #if SB_HAS(GLES2)
   return std::unique_ptr<GraphicsSystem>(new GraphicsSystemEGL(system_window));
-#elif SB_API_VERSION < 12 && SB_HAS(BLITTER)
-  return std::unique_ptr<GraphicsSystem>(new GraphicsSystemBlitter());
 #else
   return std::unique_ptr<GraphicsSystem>(new GraphicsSystemStub());
 #endif

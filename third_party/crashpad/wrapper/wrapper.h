@@ -15,7 +15,7 @@
 #ifndef THIRD_PARTY_CRASHPAD_WRAPPER_WRAPPER_H_
 #define THIRD_PARTY_CRASHPAD_WRAPPER_WRAPPER_H_
 
-#include "starboard/elf_loader/evergreen_info.h"
+#include "starboard/elf_loader/evergreen_info.h" // nogncheck
 #include "third_party/crashpad/wrapper/annotations.h"
 
 namespace third_party {

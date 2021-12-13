@@ -65,8 +65,8 @@ bool GetProductDirectoryPath(base::FilePath* path) {
 #if SB_API_VERSION >= 12
   if (!SbSystemGetPath(kSbSystemPathStorageDirectory, storage_dir.data(),
                        kSbFileMaxPath)) {
-    SB_LOG(ERROR) << "GetProductDirectoryPath: Failed to get "
-                     "kSbSystemPathStorageDirectory";
+    LOG(ERROR) << "GetProductDirectoryPath: Failed to get "
+                  "kSbSystemPathStorageDirectory";
     return false;
   }
 #else
@@ -101,7 +101,7 @@ const std::string GetLoadedInstallationEvergreenVersion() {
   std::vector<char> system_path_content_dir(kSbFileMaxPath);
   if (!SbSystemGetPath(kSbSystemPathContentDirectory,
                        system_path_content_dir.data(), kSbFileMaxPath)) {
-    SB_LOG(ERROR) << "Failed to get system path content directory";
+    LOG(ERROR) << "Failed to get system path content directory";
     return "";
   }
   // Get the parent directory of the system_path_content_dir, and read the
@@ -112,8 +112,8 @@ const std::string GetLoadedInstallationEvergreenVersion() {
           .DirName());
 
   if (!version.IsValid()) {
-    SB_LOG(ERROR) << "Failed to get the Evergreen version. Defaulting to "
-                  << kDefaultManifestVersion << ".";
+    LOG(ERROR) << "Failed to get the Evergreen version. Defaulting to "
+               << kDefaultManifestVersion << ".";
     return std::string(kDefaultManifestVersion);
   }
   return version.GetString();
@@ -124,23 +124,23 @@ const std::string GetCurrentEvergreenVersion() {
       static_cast<const CobaltExtensionInstallationManagerApi*>(
           SbSystemGetExtension(kCobaltExtensionInstallationManagerName));
   if (!installation_manager) {
-    SB_LOG(ERROR) << "Failed to get installation manager extension, getting "
-                     "the Evergreen version of the loaded installation.";
+    LOG(ERROR) << "Failed to get installation manager extension, getting "
+                  "the Evergreen version of the loaded installation.";
     return GetLoadedInstallationEvergreenVersion();
   }
   // Get the update version from the manifest file under the current
   // installation path.
   int index = installation_manager->GetCurrentInstallationIndex();
   if (index == IM_EXT_ERROR) {
-    SB_LOG(ERROR) << "Failed to get current installation index, getting the "
-                     "Evergreen version of the currently loaded installation.";
+    LOG(ERROR) << "Failed to get current installation index, getting the "
+                  "Evergreen version of the currently loaded installation.";
     return GetLoadedInstallationEvergreenVersion();
   }
   std::vector<char> installation_path(kSbFileMaxPath);
   if (installation_manager->GetInstallationPath(
           index, installation_path.data(), kSbFileMaxPath) == IM_EXT_ERROR) {
-    SB_LOG(ERROR) << "Failed to get installation path, getting the Evergreen "
-                     "version of the currently loaded installation.";
+    LOG(ERROR) << "Failed to get installation path, getting the Evergreen "
+                  "version of the currently loaded installation.";
     return GetLoadedInstallationEvergreenVersion();
   }
 
@@ -148,8 +148,8 @@ const std::string GetCurrentEvergreenVersion() {
       std::string(installation_path.begin(), installation_path.end())));
 
   if (!version.IsValid()) {
-    SB_LOG(ERROR) << "Failed to get the Evergreen version. Defaulting to "
-                  << kDefaultManifestVersion << ".";
+    LOG(ERROR) << "Failed to get the Evergreen version. Defaulting to "
+               << kDefaultManifestVersion << ".";
     return std::string(kDefaultManifestVersion);
   }
   return version.GetString();
@@ -165,7 +165,7 @@ std::string GetLibrarySha256(int index) {
     std::vector<char> system_path_content_dir(kSbFileMaxPath);
     if (!SbSystemGetPath(kSbSystemPathContentDirectory,
                          system_path_content_dir.data(), kSbFileMaxPath)) {
-      SB_LOG(ERROR)
+      LOG(ERROR)
           << "GetLibrarySha256: Failed to get system path content directory";
       return "";
     }
@@ -174,14 +174,14 @@ std::string GetLibrarySha256(int index) {
                                           system_path_content_dir.end()))
                    .DirName();
   } else if (!installation_manager && index != 0) {
-    SB_LOG(ERROR) << "GetLibrarySha256: Evergreen lite supports only slot 0";
+    LOG(ERROR) << "GetLibrarySha256: Evergreen lite supports only slot 0";
     return "";
   } else {
     // Evergreen Full
     std::vector<char> installation_path(kSbFileMaxPath);
     if (installation_manager->GetInstallationPath(
             index, installation_path.data(), kSbFileMaxPath) == IM_EXT_ERROR) {
-      SB_LOG(ERROR) << "GetLibrarySha256: Failed to get installation path";
+      LOG(ERROR) << "GetLibrarySha256: Failed to get installation path";
       return "";
     }
 
@@ -192,8 +192,8 @@ std::string GetLibrarySha256(int index) {
   base::File source_file(filepath,
                          base::File::FLAG_OPEN | base::File::FLAG_READ);
   if (!source_file.IsValid()) {
-    SB_LOG(ERROR) << "GetLibrarySha256(): Unable to open source file: "
-                  << filepath.value();
+    LOG(ERROR) << "GetLibrarySha256(): Unable to open source file: "
+               << filepath.value();
     return "";
   }
 
@@ -206,8 +206,8 @@ std::string GetLibrarySha256(int index) {
   while (true) {
     int bytes_read = source_file.ReadAtCurrentPos(&buffer[0], buffer.size());
     if (bytes_read < 0) {
-      SB_LOG(ERROR) << "GetLibrarySha256(): error reading from: "
-                    << filepath.value();
+      LOG(ERROR) << "GetLibrarySha256(): error reading from: "
+                 << filepath.value();
 
       return "";
     }

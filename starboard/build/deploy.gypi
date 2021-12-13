@@ -15,10 +15,9 @@
 # This file is meant to be included into a target to provide a rule
 # to deploy a target on a target platform.
 #
-# The platform_deploy target should be defined in
-# starboard/<port_path>/platform_deploy.gyp. This target should perform
-# any per-executable logic that is specific to the platform. For example,
-# copying per-executable metadata files to the output directory.
+# A platform's starboard/<port_path>/platform_deploy.gypi should perform any
+# per-executable logic that is specific to the platform. For example, copying
+# per-executable metadata files to the output directory.
 #
 # To use this, create a gyp target with the following form:
 # 'targets': [

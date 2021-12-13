@@ -69,7 +69,6 @@ TEST(MemorySettingsPrettyPrint, GeneratePrettyPrintTable) {
        "image_cache_size_in_bytes", "1234", "0.0 MB", "GPU", "CmdLine", "\n",
        "skia_atlas_texture_dimensions", "1234x4567x2", "10.7 MB", "GPU", "CmdLine", "\n",  // NOLINT(whitespace/line_length)
        "skia_cache_size_in_bytes", "12345678", "11.8 MB", "GPU", "CmdLine", "\n",  // NOLINT(whitespace/line_length)
-       "software_surface_cache_size_in_bytes", "N/A", "N/A", "N/A", "N/A", "\n"
       }));
   // clang-format on
 }

@@ -36,18 +36,18 @@ import java.util.Set;
 
 /** Utility functions for dealing with MediaCodec related things. */
 public class MediaCodecUtil {
-  // A low priority black list of codec names that should never be used.
-  private static final Set<String> codecBlackList = new HashSet<>();
-  // A high priority white list of brands/model that should always attempt to
+  // A low priority deny list of video codec names that should never be used.
+  private static final Set<String> videoCodecDenyList = new HashSet<>();
+  // A high priority allow list of brands/model that should always attempt to
   // play vp9.
-  private static final Map<String, Set<String>> vp9WhiteList = new HashMap<>();
-  // A white list of software codec names that can be used.
-  private static final Set<String> softwareCodecWhiteList = new HashSet<>();
+  private static final Map<String, Set<String>> vp9AllowList = new HashMap<>();
+  // An allow list of software codec names that can be used.
+  private static final Set<String> softwareCodecAllowList = new HashSet<>();
 
   // Whether we should report vp9 codecs as supported or not.  Will be set
-  // based on whether vp9WhiteList contains our brand/model.  If this is set
-  // to true, then codecBlackList will be ignored.
-  private static boolean isVp9WhiteListed;
+  // based on whether vp9AllowList contains our brand/model.  If this is set
+  // to true, then videoCodecDenyList will be ignored.
+  private static boolean isVp9AllowListed;
   private static final String SECURE_DECODER_SUFFIX = ".secure";
   private static final String VP9_MIME_TYPE = "video/x-vnd.on2.vp9";
   private static final String AV1_MIME_TYPE = "video/av01";
@@ -71,315 +71,315 @@ public class MediaCodecUtil {
 
   static {
     if (Build.VERSION.SDK_INT >= 24 && Build.BRAND.equals("google")) {
-      codecBlackList.add("OMX.Nvidia.vp9.decode");
+      videoCodecDenyList.add("OMX.Nvidia.vp9.decode");
     }
     if (Build.VERSION.SDK_INT >= 24 && Build.BRAND.equals("LGE")) {
-      codecBlackList.add("OMX.qcom.video.decoder.vp9");
+      videoCodecDenyList.add("OMX.qcom.video.decoder.vp9");
     }
     if (Build.VERSION.RELEASE.startsWith("6.0.1")) {
-      codecBlackList.add("OMX.Exynos.vp9.dec");
-      codecBlackList.add("OMX.Intel.VideoDecoder.VP9.hwr");
-      codecBlackList.add("OMX.MTK.VIDEO.DECODER.VP9");
-      codecBlackList.add("OMX.qcom.video.decoder.vp9");
+      videoCodecDenyList.add("OMX.Exynos.vp9.dec");
+      videoCodecDenyList.add("OMX.Intel.VideoDecoder.VP9.hwr");
+      videoCodecDenyList.add("OMX.MTK.VIDEO.DECODER.VP9");
+      videoCodecDenyList.add("OMX.qcom.video.decoder.vp9");
     }
     if (Build.VERSION.RELEASE.startsWith("6.0")) {
-      codecBlackList.add("OMX.MTK.VIDEO.DECODER.VP9");
-      codecBlackList.add("OMX.Nvidia.vp9.decode");
+      videoCodecDenyList.add("OMX.MTK.VIDEO.DECODER.VP9");
+      videoCodecDenyList.add("OMX.Nvidia.vp9.decode");
     }
     if (Build.VERSION.RELEASE.startsWith("5.1.1")) {
-      codecBlackList.add("OMX.allwinner.video.decoder.vp9");
-      codecBlackList.add("OMX.Exynos.vp9.dec");
-      codecBlackList.add("OMX.Intel.VideoDecoder.VP9.hwr");
-      codecBlackList.add("OMX.MTK.VIDEO.DECODER.VP9");
-      codecBlackList.add("OMX.qcom.video.decoder.vp9");
+      videoCodecDenyList.add("OMX.allwinner.video.decoder.vp9");
+      videoCodecDenyList.add("OMX.Exynos.vp9.dec");
+      videoCodecDenyList.add("OMX.Intel.VideoDecoder.VP9.hwr");
+      videoCodecDenyList.add("OMX.MTK.VIDEO.DECODER.VP9");
+      videoCodecDenyList.add("OMX.qcom.video.decoder.vp9");
     }
     if (Build.VERSION.RELEASE.startsWith("5.1")) {
-      codecBlackList.add("OMX.Exynos.VP9.Decoder");
-      codecBlackList.add("OMX.Intel.VideoDecoder.VP9.hwr");
-      codecBlackList.add("OMX.MTK.VIDEO.DECODER.VP9");
+      videoCodecDenyList.add("OMX.Exynos.VP9.Decoder");
+      videoCodecDenyList.add("OMX.Intel.VideoDecoder.VP9.hwr");
+      videoCodecDenyList.add("OMX.MTK.VIDEO.DECODER.VP9");
     }
     if (Build.VERSION.RELEASE.startsWith("5.0")) {
-      codecBlackList.add("OMX.allwinner.video.decoder.vp9");
-      codecBlackList.add("OMX.Exynos.vp9.dec");
-      codecBlackList.add("OMX.Intel.VideoDecoder.VP9.hwr");
-      codecBlackList.add("OMX.MTK.VIDEO.DECODER.VP9");
+      videoCodecDenyList.add("OMX.allwinner.video.decoder.vp9");
+      videoCodecDenyList.add("OMX.Exynos.vp9.dec");
+      videoCodecDenyList.add("OMX.Intel.VideoDecoder.VP9.hwr");
+      videoCodecDenyList.add("OMX.MTK.VIDEO.DECODER.VP9");
     }
 
     if (Build.BRAND.equals("google")) {
-      codecBlackList.add("OMX.Intel.VideoDecoder.VP9.hybrid");
+      videoCodecDenyList.add("OMX.Intel.VideoDecoder.VP9.hybrid");
     }
 
-    // Black list non hardware media codec names if we aren't running on an emulator.
+    // Denylist non hardware media codec names if we aren't running on an emulator.
     if (!IsEmulator.isEmulator()) {
-      codecBlackList.add("OMX.ffmpeg.vp9.decoder");
-      codecBlackList.add("OMX.Intel.sw_vd.vp9");
-      codecBlackList.add("OMX.MTK.VIDEO.DECODER.SW.VP9");
+      videoCodecDenyList.add("OMX.ffmpeg.vp9.decoder");
+      videoCodecDenyList.add("OMX.Intel.sw_vd.vp9");
+      videoCodecDenyList.add("OMX.MTK.VIDEO.DECODER.SW.VP9");
     }
 
-    // Black list the Google software vp9 decoder both on hardware and on the emulator.
+    // Denylist the Google software vp9 decoder both on hardware and on the emulator.
     // On the emulator it fails with the log: "storeMetaDataInBuffers failed w/ err -1010"
-    codecBlackList.add("OMX.google.vp9.decoder");
+    videoCodecDenyList.add("OMX.google.vp9.decoder");
 
-    vp9WhiteList.put("Amazon", new HashSet<String>());
-    vp9WhiteList.put("Amlogic", new HashSet<String>());
-    vp9WhiteList.put("Arcadyan", new HashSet<String>());
-    vp9WhiteList.put("arcelik", new HashSet<String>());
-    vp9WhiteList.put("BNO", new HashSet<String>());
-    vp9WhiteList.put("BROADCOM", new HashSet<String>());
-    vp9WhiteList.put("broadcom", new HashSet<String>());
-    vp9WhiteList.put("Foxconn", new HashSet<String>());
-    vp9WhiteList.put("Freebox", new HashSet<String>());
-    vp9WhiteList.put("Funai", new HashSet<String>());
-    vp9WhiteList.put("gfiber", new HashSet<String>());
-    vp9WhiteList.put("Google", new HashSet<String>());
-    vp9WhiteList.put("google", new HashSet<String>());
-    vp9WhiteList.put("Hisense", new HashSet<String>());
-    vp9WhiteList.put("HUAWEI", new HashSet<String>());
-    vp9WhiteList.put("KaonMedia", new HashSet<String>());
-    vp9WhiteList.put("LeTV", new HashSet<String>());
-    vp9WhiteList.put("LGE", new HashSet<String>());
-    vp9WhiteList.put("MediaTek", new HashSet<String>());
-    vp9WhiteList.put("MStar", new HashSet<String>());
-    vp9WhiteList.put("MTK", new HashSet<String>());
-    vp9WhiteList.put("NVIDIA", new HashSet<String>());
-    vp9WhiteList.put("PHILIPS", new HashSet<String>());
-    vp9WhiteList.put("Philips", new HashSet<String>());
-    vp9WhiteList.put("PIXELA CORPORATION", new HashSet<String>());
-    vp9WhiteList.put("RCA", new HashSet<String>());
-    vp9WhiteList.put("Sagemcom", new HashSet<String>());
-    vp9WhiteList.put("samsung", new HashSet<String>());
-    vp9WhiteList.put("SHARP", new HashSet<String>());
-    vp9WhiteList.put("Skyworth", new HashSet<String>());
-    vp9WhiteList.put("Sony", new HashSet<String>());
-    vp9WhiteList.put("STMicroelectronics", new HashSet<String>());
-    vp9WhiteList.put("SumitomoElectricIndustries", new HashSet<String>());
-    vp9WhiteList.put("TCL", new HashSet<String>());
-    vp9WhiteList.put("Technicolor", new HashSet<String>());
-    vp9WhiteList.put("Vestel", new HashSet<String>());
-    vp9WhiteList.put("wnc", new HashSet<String>());
-    vp9WhiteList.put("Xiaomi", new HashSet<String>());
-    vp9WhiteList.put("ZTE TV", new HashSet<String>());
+    vp9AllowList.put("Amazon", new HashSet<String>());
+    vp9AllowList.put("Amlogic", new HashSet<String>());
+    vp9AllowList.put("Arcadyan", new HashSet<String>());
+    vp9AllowList.put("arcelik", new HashSet<String>());
+    vp9AllowList.put("BNO", new HashSet<String>());
+    vp9AllowList.put("BROADCOM", new HashSet<String>());
+    vp9AllowList.put("broadcom", new HashSet<String>());
+    vp9AllowList.put("Foxconn", new HashSet<String>());
+    vp9AllowList.put("Freebox", new HashSet<String>());
+    vp9AllowList.put("Funai", new HashSet<String>());
+    vp9AllowList.put("gfiber", new HashSet<String>());
+    vp9AllowList.put("Google", new HashSet<String>());
+    vp9AllowList.put("google", new HashSet<String>());
+    vp9AllowList.put("Hisense", new HashSet<String>());
+    vp9AllowList.put("HUAWEI", new HashSet<String>());
+    vp9AllowList.put("KaonMedia", new HashSet<String>());
+    vp9AllowList.put("LeTV", new HashSet<String>());
+    vp9AllowList.put("LGE", new HashSet<String>());
+    vp9AllowList.put("MediaTek", new HashSet<String>());
+    vp9AllowList.put("MStar", new HashSet<String>());
+    vp9AllowList.put("MTK", new HashSet<String>());
+    vp9AllowList.put("NVIDIA", new HashSet<String>());
+    vp9AllowList.put("PHILIPS", new HashSet<String>());
+    vp9AllowList.put("Philips", new HashSet<String>());
+    vp9AllowList.put("PIXELA CORPORATION", new HashSet<String>());
+    vp9AllowList.put("RCA", new HashSet<String>());
+    vp9AllowList.put("Sagemcom", new HashSet<String>());
+    vp9AllowList.put("samsung", new HashSet<String>());
+    vp9AllowList.put("SHARP", new HashSet<String>());
+    vp9AllowList.put("Skyworth", new HashSet<String>());
+    vp9AllowList.put("Sony", new HashSet<String>());
+    vp9AllowList.put("STMicroelectronics", new HashSet<String>());
+    vp9AllowList.put("SumitomoElectricIndustries", new HashSet<String>());
+    vp9AllowList.put("TCL", new HashSet<String>());
+    vp9AllowList.put("Technicolor", new HashSet<String>());
+    vp9AllowList.put("Vestel", new HashSet<String>());
+    vp9AllowList.put("wnc", new HashSet<String>());
+    vp9AllowList.put("Xiaomi", new HashSet<String>());
+    vp9AllowList.put("ZTE TV", new HashSet<String>());
 
-    vp9WhiteList.get("Amazon").add("AFTS");
-    vp9WhiteList.get("Amlogic").add("p212");
-    vp9WhiteList.get("Arcadyan").add("Bouygtel4K");
-    vp9WhiteList.get("Arcadyan").add("HMB2213PW22TS");
-    vp9WhiteList.get("Arcadyan").add("IPSetTopBox");
-    vp9WhiteList.get("arcelik").add("arcelik_uhd_powermax_at");
-    vp9WhiteList.get("BNO").add("QM153E");
-    vp9WhiteList.get("broadcom").add("avko");
-    vp9WhiteList.get("broadcom").add("banff");
-    vp9WhiteList.get("BROADCOM").add("BCM7XXX_TEST_SETTOP");
-    vp9WhiteList.get("broadcom").add("cypress");
-    vp9WhiteList.get("broadcom").add("dawson");
-    vp9WhiteList.get("broadcom").add("elfin");
-    vp9WhiteList.get("Foxconn").add("ba101");
-    vp9WhiteList.get("Foxconn").add("bd201");
-    vp9WhiteList.get("Freebox").add("Freebox Player Mini v2");
-    vp9WhiteList.get("Funai").add("PHILIPS 4K TV");
-    vp9WhiteList.get("gfiber").add("GFHD254");
-    vp9WhiteList.get("google").add("avko");
-    vp9WhiteList.get("google").add("marlin");
-    vp9WhiteList.get("Google").add("Pixel XL");
-    vp9WhiteList.get("Google").add("Pixel");
-    vp9WhiteList.get("google").add("sailfish");
-    vp9WhiteList.get("google").add("sprint");
-    vp9WhiteList.get("Hisense").add("HAT4KDTV");
-    vp9WhiteList.get("HUAWEI").add("X21");
-    vp9WhiteList.get("KaonMedia").add("IC1110");
-    vp9WhiteList.get("KaonMedia").add("IC1130");
-    vp9WhiteList.get("KaonMedia").add("MCM4000");
-    vp9WhiteList.get("KaonMedia").add("PRDMK100T");
-    vp9WhiteList.get("KaonMedia").add("SFCSTB2LITE");
-    vp9WhiteList.get("LeTV").add("uMax85");
-    vp9WhiteList.get("LeTV").add("X4-43Pro");
-    vp9WhiteList.get("LeTV").add("X4-55");
-    vp9WhiteList.get("LeTV").add("X4-65");
-    vp9WhiteList.get("LGE").add("S60CLI");
-    vp9WhiteList.get("LGE").add("S60UPA");
-    vp9WhiteList.get("LGE").add("S60UPI");
-    vp9WhiteList.get("LGE").add("S70CDS");
-    vp9WhiteList.get("LGE").add("S70PCI");
-    vp9WhiteList.get("LGE").add("SH960C-DS");
-    vp9WhiteList.get("LGE").add("SH960C-LN");
-    vp9WhiteList.get("LGE").add("SH960S-AT");
-    vp9WhiteList.get("MediaTek").add("Archer");
-    vp9WhiteList.get("MediaTek").add("augie");
-    vp9WhiteList.get("MediaTek").add("kane");
-    vp9WhiteList.get("MStar").add("Denali");
-    vp9WhiteList.get("MStar").add("Rainier");
-    vp9WhiteList.get("MTK").add("Generic Android on sharp_2k15_us_android");
-    vp9WhiteList.get("NVIDIA").add("SHIELD Android TV");
-    vp9WhiteList.get("NVIDIA").add("SHIELD Console");
-    vp9WhiteList.get("NVIDIA").add("SHIELD Portable");
-    vp9WhiteList.get("PHILIPS").add("QM151E");
-    vp9WhiteList.get("PHILIPS").add("QM161E");
-    vp9WhiteList.get("PHILIPS").add("QM163E");
-    vp9WhiteList.get("Philips").add("TPM171E");
-    vp9WhiteList.get("PIXELA CORPORATION").add("POE-MP4000");
-    vp9WhiteList.get("RCA").add("XLDRCAV1");
-    vp9WhiteList.get("Sagemcom").add("DNA Android TV");
-    vp9WhiteList.get("Sagemcom").add("GigaTV");
-    vp9WhiteList.get("Sagemcom").add("M387_QL");
-    vp9WhiteList.get("Sagemcom").add("Sagemcom Android STB");
-    vp9WhiteList.get("Sagemcom").add("Sagemcom ATV Demo");
-    vp9WhiteList.get("Sagemcom").add("Telecable ATV");
-    vp9WhiteList.get("samsung").add("c71kw200");
-    vp9WhiteList.get("samsung").add("GX-CJ680CL");
-    vp9WhiteList.get("samsung").add("SAMSUNG-SM-G890A");
-    vp9WhiteList.get("samsung").add("SAMSUNG-SM-G920A");
-    vp9WhiteList.get("samsung").add("SAMSUNG-SM-G920AZ");
-    vp9WhiteList.get("samsung").add("SAMSUNG-SM-G925A");
-    vp9WhiteList.get("samsung").add("SAMSUNG-SM-G928A");
-    vp9WhiteList.get("samsung").add("SM-G9200");
-    vp9WhiteList.get("samsung").add("SM-G9208");
-    vp9WhiteList.get("samsung").add("SM-G9209");
-    vp9WhiteList.get("samsung").add("SM-G920A");
-    vp9WhiteList.get("samsung").add("SM-G920D");
-    vp9WhiteList.get("samsung").add("SM-G920F");
-    vp9WhiteList.get("samsung").add("SM-G920FD");
-    vp9WhiteList.get("samsung").add("SM-G920FQ");
-    vp9WhiteList.get("samsung").add("SM-G920I");
-    vp9WhiteList.get("samsung").add("SM-G920K");
-    vp9WhiteList.get("samsung").add("SM-G920L");
-    vp9WhiteList.get("samsung").add("SM-G920P");
-    vp9WhiteList.get("samsung").add("SM-G920R4");
-    vp9WhiteList.get("samsung").add("SM-G920R6");
-    vp9WhiteList.get("samsung").add("SM-G920R7");
-    vp9WhiteList.get("samsung").add("SM-G920S");
-    vp9WhiteList.get("samsung").add("SM-G920T");
-    vp9WhiteList.get("samsung").add("SM-G920T1");
-    vp9WhiteList.get("samsung").add("SM-G920V");
-    vp9WhiteList.get("samsung").add("SM-G920W8");
-    vp9WhiteList.get("samsung").add("SM-G9250");
-    vp9WhiteList.get("samsung").add("SM-G925A");
-    vp9WhiteList.get("samsung").add("SM-G925D");
-    vp9WhiteList.get("samsung").add("SM-G925F");
-    vp9WhiteList.get("samsung").add("SM-G925FQ");
-    vp9WhiteList.get("samsung").add("SM-G925I");
-    vp9WhiteList.get("samsung").add("SM-G925J");
-    vp9WhiteList.get("samsung").add("SM-G925K");
-    vp9WhiteList.get("samsung").add("SM-G925L");
-    vp9WhiteList.get("samsung").add("SM-G925P");
-    vp9WhiteList.get("samsung").add("SM-G925R4");
-    vp9WhiteList.get("samsung").add("SM-G925R6");
-    vp9WhiteList.get("samsung").add("SM-G925R7");
-    vp9WhiteList.get("samsung").add("SM-G925S");
-    vp9WhiteList.get("samsung").add("SM-G925T");
-    vp9WhiteList.get("samsung").add("SM-G925V");
-    vp9WhiteList.get("samsung").add("SM-G925W8");
-    vp9WhiteList.get("samsung").add("SM-G925Z");
-    vp9WhiteList.get("samsung").add("SM-G9280");
-    vp9WhiteList.get("samsung").add("SM-G9287");
-    vp9WhiteList.get("samsung").add("SM-G9287C");
-    vp9WhiteList.get("samsung").add("SM-G928A");
-    vp9WhiteList.get("samsung").add("SM-G928C");
-    vp9WhiteList.get("samsung").add("SM-G928F");
-    vp9WhiteList.get("samsung").add("SM-G928G");
-    vp9WhiteList.get("samsung").add("SM-G928I");
-    vp9WhiteList.get("samsung").add("SM-G928K");
-    vp9WhiteList.get("samsung").add("SM-G928L");
-    vp9WhiteList.get("samsung").add("SM-G928N0");
-    vp9WhiteList.get("samsung").add("SM-G928P");
-    vp9WhiteList.get("samsung").add("SM-G928S");
-    vp9WhiteList.get("samsung").add("SM-G928T");
-    vp9WhiteList.get("samsung").add("SM-G928V");
-    vp9WhiteList.get("samsung").add("SM-G928W8");
-    vp9WhiteList.get("samsung").add("SM-G928X");
-    vp9WhiteList.get("samsung").add("SM-G9300");
-    vp9WhiteList.get("samsung").add("SM-G9308");
-    vp9WhiteList.get("samsung").add("SM-G930A");
-    vp9WhiteList.get("samsung").add("SM-G930AZ");
-    vp9WhiteList.get("samsung").add("SM-G930F");
-    vp9WhiteList.get("samsung").add("SM-G930FD");
-    vp9WhiteList.get("samsung").add("SM-G930K");
-    vp9WhiteList.get("samsung").add("SM-G930L");
-    vp9WhiteList.get("samsung").add("SM-G930P");
-    vp9WhiteList.get("samsung").add("SM-G930R4");
-    vp9WhiteList.get("samsung").add("SM-G930R6");
-    vp9WhiteList.get("samsung").add("SM-G930R7");
-    vp9WhiteList.get("samsung").add("SM-G930S");
-    vp9WhiteList.get("samsung").add("SM-G930T");
-    vp9WhiteList.get("samsung").add("SM-G930T1");
-    vp9WhiteList.get("samsung").add("SM-G930U");
-    vp9WhiteList.get("samsung").add("SM-G930V");
-    vp9WhiteList.get("samsung").add("SM-G930VL");
-    vp9WhiteList.get("samsung").add("SM-G930W8");
-    vp9WhiteList.get("samsung").add("SM-G9350");
-    vp9WhiteList.get("samsung").add("SM-G935A");
-    vp9WhiteList.get("samsung").add("SM-G935D");
-    vp9WhiteList.get("samsung").add("SM-G935F");
-    vp9WhiteList.get("samsung").add("SM-G935FD");
-    vp9WhiteList.get("samsung").add("SM-G935J");
-    vp9WhiteList.get("samsung").add("SM-G935K");
-    vp9WhiteList.get("samsung").add("SM-G935L");
-    vp9WhiteList.get("samsung").add("SM-G935P");
-    vp9WhiteList.get("samsung").add("SM-G935R4");
-    vp9WhiteList.get("samsung").add("SM-G935S");
-    vp9WhiteList.get("samsung").add("SM-G935T");
-    vp9WhiteList.get("samsung").add("SM-G935U");
-    vp9WhiteList.get("samsung").add("SM-G935V");
-    vp9WhiteList.get("samsung").add("SM-G935W8");
-    vp9WhiteList.get("samsung").add("SM-N9200");
-    vp9WhiteList.get("samsung").add("SM-N9208");
-    vp9WhiteList.get("samsung").add("SM-N920A");
-    vp9WhiteList.get("samsung").add("SM-N920C");
-    vp9WhiteList.get("samsung").add("SM-N920F");
-    vp9WhiteList.get("samsung").add("SM-N920G");
-    vp9WhiteList.get("samsung").add("SM-N920I");
-    vp9WhiteList.get("samsung").add("SM-N920K");
-    vp9WhiteList.get("samsung").add("SM-N920L");
-    vp9WhiteList.get("samsung").add("SM-N920R4");
-    vp9WhiteList.get("samsung").add("SM-N920R6");
-    vp9WhiteList.get("samsung").add("SM-N920R7");
-    vp9WhiteList.get("samsung").add("SM-N920S");
-    vp9WhiteList.get("samsung").add("SM-N920T");
-    vp9WhiteList.get("samsung").add("SM-N920TP");
-    vp9WhiteList.get("samsung").add("SM-N920V");
-    vp9WhiteList.get("samsung").add("SM-N920W8");
-    vp9WhiteList.get("samsung").add("SM-N920X");
-    vp9WhiteList.get("SHARP").add("AN-NP40");
-    vp9WhiteList.get("SHARP").add("AQUOS-4KTVJ17");
-    vp9WhiteList.get("SHARP").add("AQUOS-4KTVT17");
-    vp9WhiteList.get("SHARP").add("AQUOS-4KTVX17");
-    vp9WhiteList.get("SHARP").add("LC-U35T");
-    vp9WhiteList.get("SHARP").add("LC-UE630X");
-    vp9WhiteList.get("SHARP").add("LC-Ux30US");
-    vp9WhiteList.get("SHARP").add("LC-XU35T");
-    vp9WhiteList.get("SHARP").add("LC-XU930X_830X");
-    vp9WhiteList.get("Skyworth").add("globe");
-    vp9WhiteList.get("Sony").add("Amai VP9");
-    vp9WhiteList.get("Sony").add("BRAVIA 4K 2015");
-    vp9WhiteList.get("Sony").add("BRAVIA 4K GB");
-    vp9WhiteList.get("STMicroelectronics").add("sti4k");
-    vp9WhiteList.get("SumitomoElectricIndustries").add("C02AS");
-    vp9WhiteList.get("SumitomoElectricIndustries").add("ST4173");
-    vp9WhiteList.get("SumitomoElectricIndustries").add("test_STW2000");
-    vp9WhiteList.get("TCL").add("Percee TV");
-    vp9WhiteList.get("Technicolor").add("AirTV Player");
-    vp9WhiteList.get("Technicolor").add("Bouygtel4K");
-    vp9WhiteList.get("Technicolor").add("CM-7600");
-    vp9WhiteList.get("Technicolor").add("cooper");
-    vp9WhiteList.get("Technicolor").add("Foxtel Now box");
-    vp9WhiteList.get("Technicolor").add("pearl");
-    vp9WhiteList.get("Technicolor").add("Sapphire");
-    vp9WhiteList.get("Technicolor").add("Shortcut");
-    vp9WhiteList.get("Technicolor").add("skipper");
-    vp9WhiteList.get("Technicolor").add("STING");
-    vp9WhiteList.get("Technicolor").add("TIM_BOX");
-    vp9WhiteList.get("Technicolor").add("uzx8020chm");
-    vp9WhiteList.get("Vestel").add("S7252");
-    vp9WhiteList.get("Vestel").add("SmartTV");
-    vp9WhiteList.get("wnc").add("c71kw400");
-    vp9WhiteList.get("Xiaomi").add("MIBOX3");
-    vp9WhiteList.get("ZTE TV").add("AV-ATB100");
-    vp9WhiteList.get("ZTE TV").add("B860H");
+    vp9AllowList.get("Amazon").add("AFTS");
+    vp9AllowList.get("Amlogic").add("p212");
+    vp9AllowList.get("Arcadyan").add("Bouygtel4K");
+    vp9AllowList.get("Arcadyan").add("HMB2213PW22TS");
+    vp9AllowList.get("Arcadyan").add("IPSetTopBox");
+    vp9AllowList.get("arcelik").add("arcelik_uhd_powermax_at");
+    vp9AllowList.get("BNO").add("QM153E");
+    vp9AllowList.get("broadcom").add("avko");
+    vp9AllowList.get("broadcom").add("banff");
+    vp9AllowList.get("BROADCOM").add("BCM7XXX_TEST_SETTOP");
+    vp9AllowList.get("broadcom").add("cypress");
+    vp9AllowList.get("broadcom").add("dawson");
+    vp9AllowList.get("broadcom").add("elfin");
+    vp9AllowList.get("Foxconn").add("ba101");
+    vp9AllowList.get("Foxconn").add("bd201");
+    vp9AllowList.get("Freebox").add("Freebox Player Mini v2");
+    vp9AllowList.get("Funai").add("PHILIPS 4K TV");
+    vp9AllowList.get("gfiber").add("GFHD254");
+    vp9AllowList.get("google").add("avko");
+    vp9AllowList.get("google").add("marlin");
+    vp9AllowList.get("Google").add("Pixel XL");
+    vp9AllowList.get("Google").add("Pixel");
+    vp9AllowList.get("google").add("sailfish");
+    vp9AllowList.get("google").add("sprint");
+    vp9AllowList.get("Hisense").add("HAT4KDTV");
+    vp9AllowList.get("HUAWEI").add("X21");
+    vp9AllowList.get("KaonMedia").add("IC1110");
+    vp9AllowList.get("KaonMedia").add("IC1130");
+    vp9AllowList.get("KaonMedia").add("MCM4000");
+    vp9AllowList.get("KaonMedia").add("PRDMK100T");
+    vp9AllowList.get("KaonMedia").add("SFCSTB2LITE");
+    vp9AllowList.get("LeTV").add("uMax85");
+    vp9AllowList.get("LeTV").add("X4-43Pro");
+    vp9AllowList.get("LeTV").add("X4-55");
+    vp9AllowList.get("LeTV").add("X4-65");
+    vp9AllowList.get("LGE").add("S60CLI");
+    vp9AllowList.get("LGE").add("S60UPA");
+    vp9AllowList.get("LGE").add("S60UPI");
+    vp9AllowList.get("LGE").add("S70CDS");
+    vp9AllowList.get("LGE").add("S70PCI");
+    vp9AllowList.get("LGE").add("SH960C-DS");
+    vp9AllowList.get("LGE").add("SH960C-LN");
+    vp9AllowList.get("LGE").add("SH960S-AT");
+    vp9AllowList.get("MediaTek").add("Archer");
+    vp9AllowList.get("MediaTek").add("augie");
+    vp9AllowList.get("MediaTek").add("kane");
+    vp9AllowList.get("MStar").add("Denali");
+    vp9AllowList.get("MStar").add("Rainier");
+    vp9AllowList.get("MTK").add("Generic Android on sharp_2k15_us_android");
+    vp9AllowList.get("NVIDIA").add("SHIELD Android TV");
+    vp9AllowList.get("NVIDIA").add("SHIELD Console");
+    vp9AllowList.get("NVIDIA").add("SHIELD Portable");
+    vp9AllowList.get("PHILIPS").add("QM151E");
+    vp9AllowList.get("PHILIPS").add("QM161E");
+    vp9AllowList.get("PHILIPS").add("QM163E");
+    vp9AllowList.get("Philips").add("TPM171E");
+    vp9AllowList.get("PIXELA CORPORATION").add("POE-MP4000");
+    vp9AllowList.get("RCA").add("XLDRCAV1");
+    vp9AllowList.get("Sagemcom").add("DNA Android TV");
+    vp9AllowList.get("Sagemcom").add("GigaTV");
+    vp9AllowList.get("Sagemcom").add("M387_QL");
+    vp9AllowList.get("Sagemcom").add("Sagemcom Android STB");
+    vp9AllowList.get("Sagemcom").add("Sagemcom ATV Demo");
+    vp9AllowList.get("Sagemcom").add("Telecable ATV");
+    vp9AllowList.get("samsung").add("c71kw200");
+    vp9AllowList.get("samsung").add("GX-CJ680CL");
+    vp9AllowList.get("samsung").add("SAMSUNG-SM-G890A");
+    vp9AllowList.get("samsung").add("SAMSUNG-SM-G920A");
+    vp9AllowList.get("samsung").add("SAMSUNG-SM-G920AZ");
+    vp9AllowList.get("samsung").add("SAMSUNG-SM-G925A");
+    vp9AllowList.get("samsung").add("SAMSUNG-SM-G928A");
+    vp9AllowList.get("samsung").add("SM-G9200");
+    vp9AllowList.get("samsung").add("SM-G9208");
+    vp9AllowList.get("samsung").add("SM-G9209");
+    vp9AllowList.get("samsung").add("SM-G920A");
+    vp9AllowList.get("samsung").add("SM-G920D");
+    vp9AllowList.get("samsung").add("SM-G920F");
+    vp9AllowList.get("samsung").add("SM-G920FD");
+    vp9AllowList.get("samsung").add("SM-G920FQ");
+    vp9AllowList.get("samsung").add("SM-G920I");
+    vp9AllowList.get("samsung").add("SM-G920K");
+    vp9AllowList.get("samsung").add("SM-G920L");
+    vp9AllowList.get("samsung").add("SM-G920P");
+    vp9AllowList.get("samsung").add("SM-G920R4");
+    vp9AllowList.get("samsung").add("SM-G920R6");
+    vp9AllowList.get("samsung").add("SM-G920R7");
+    vp9AllowList.get("samsung").add("SM-G920S");
+    vp9AllowList.get("samsung").add("SM-G920T");
+    vp9AllowList.get("samsung").add("SM-G920T1");
+    vp9AllowList.get("samsung").add("SM-G920V");
+    vp9AllowList.get("samsung").add("SM-G920W8");
+    vp9AllowList.get("samsung").add("SM-G9250");
+    vp9AllowList.get("samsung").add("SM-G925A");
+    vp9AllowList.get("samsung").add("SM-G925D");
+    vp9AllowList.get("samsung").add("SM-G925F");
+    vp9AllowList.get("samsung").add("SM-G925FQ");
+    vp9AllowList.get("samsung").add("SM-G925I");
+    vp9AllowList.get("samsung").add("SM-G925J");
+    vp9AllowList.get("samsung").add("SM-G925K");
+    vp9AllowList.get("samsung").add("SM-G925L");
+    vp9AllowList.get("samsung").add("SM-G925P");
+    vp9AllowList.get("samsung").add("SM-G925R4");
+    vp9AllowList.get("samsung").add("SM-G925R6");
+    vp9AllowList.get("samsung").add("SM-G925R7");
+    vp9AllowList.get("samsung").add("SM-G925S");
+    vp9AllowList.get("samsung").add("SM-G925T");
+    vp9AllowList.get("samsung").add("SM-G925V");
+    vp9AllowList.get("samsung").add("SM-G925W8");
+    vp9AllowList.get("samsung").add("SM-G925Z");
+    vp9AllowList.get("samsung").add("SM-G9280");
+    vp9AllowList.get("samsung").add("SM-G9287");
+    vp9AllowList.get("samsung").add("SM-G9287C");
+    vp9AllowList.get("samsung").add("SM-G928A");
+    vp9AllowList.get("samsung").add("SM-G928C");
+    vp9AllowList.get("samsung").add("SM-G928F");
+    vp9AllowList.get("samsung").add("SM-G928G");
+    vp9AllowList.get("samsung").add("SM-G928I");
+    vp9AllowList.get("samsung").add("SM-G928K");
+    vp9AllowList.get("samsung").add("SM-G928L");
+    vp9AllowList.get("samsung").add("SM-G928N0");
+    vp9AllowList.get("samsung").add("SM-G928P");
+    vp9AllowList.get("samsung").add("SM-G928S");
+    vp9AllowList.get("samsung").add("SM-G928T");
+    vp9AllowList.get("samsung").add("SM-G928V");
+    vp9AllowList.get("samsung").add("SM-G928W8");
+    vp9AllowList.get("samsung").add("SM-G928X");
+    vp9AllowList.get("samsung").add("SM-G9300");
+    vp9AllowList.get("samsung").add("SM-G9308");
+    vp9AllowList.get("samsung").add("SM-G930A");
+    vp9AllowList.get("samsung").add("SM-G930AZ");
+    vp9AllowList.get("samsung").add("SM-G930F");
+    vp9AllowList.get("samsung").add("SM-G930FD");
+    vp9AllowList.get("samsung").add("SM-G930K");
+    vp9AllowList.get("samsung").add("SM-G930L");
+    vp9AllowList.get("samsung").add("SM-G930P");
+    vp9AllowList.get("samsung").add("SM-G930R4");
+    vp9AllowList.get("samsung").add("SM-G930R6");
+    vp9AllowList.get("samsung").add("SM-G930R7");
+    vp9AllowList.get("samsung").add("SM-G930S");
+    vp9AllowList.get("samsung").add("SM-G930T");
+    vp9AllowList.get("samsung").add("SM-G930T1");
+    vp9AllowList.get("samsung").add("SM-G930U");
+    vp9AllowList.get("samsung").add("SM-G930V");
+    vp9AllowList.get("samsung").add("SM-G930VL");
+    vp9AllowList.get("samsung").add("SM-G930W8");
+    vp9AllowList.get("samsung").add("SM-G9350");
+    vp9AllowList.get("samsung").add("SM-G935A");
+    vp9AllowList.get("samsung").add("SM-G935D");
+    vp9AllowList.get("samsung").add("SM-G935F");
+    vp9AllowList.get("samsung").add("SM-G935FD");
+    vp9AllowList.get("samsung").add("SM-G935J");
+    vp9AllowList.get("samsung").add("SM-G935K");
+    vp9AllowList.get("samsung").add("SM-G935L");
+    vp9AllowList.get("samsung").add("SM-G935P");
+    vp9AllowList.get("samsung").add("SM-G935R4");
+    vp9AllowList.get("samsung").add("SM-G935S");
+    vp9AllowList.get("samsung").add("SM-G935T");
+    vp9AllowList.get("samsung").add("SM-G935U");
+    vp9AllowList.get("samsung").add("SM-G935V");
+    vp9AllowList.get("samsung").add("SM-G935W8");
+    vp9AllowList.get("samsung").add("SM-N9200");
+    vp9AllowList.get("samsung").add("SM-N9208");
+    vp9AllowList.get("samsung").add("SM-N920A");
+    vp9AllowList.get("samsung").add("SM-N920C");
+    vp9AllowList.get("samsung").add("SM-N920F");
+    vp9AllowList.get("samsung").add("SM-N920G");
+    vp9AllowList.get("samsung").add("SM-N920I");
+    vp9AllowList.get("samsung").add("SM-N920K");
+    vp9AllowList.get("samsung").add("SM-N920L");
+    vp9AllowList.get("samsung").add("SM-N920R4");
+    vp9AllowList.get("samsung").add("SM-N920R6");
+    vp9AllowList.get("samsung").add("SM-N920R7");
+    vp9AllowList.get("samsung").add("SM-N920S");
+    vp9AllowList.get("samsung").add("SM-N920T");
+    vp9AllowList.get("samsung").add("SM-N920TP");
+    vp9AllowList.get("samsung").add("SM-N920V");
+    vp9AllowList.get("samsung").add("SM-N920W8");
+    vp9AllowList.get("samsung").add("SM-N920X");
+    vp9AllowList.get("SHARP").add("AN-NP40");
+    vp9AllowList.get("SHARP").add("AQUOS-4KTVJ17");
+    vp9AllowList.get("SHARP").add("AQUOS-4KTVT17");
+    vp9AllowList.get("SHARP").add("AQUOS-4KTVX17");
+    vp9AllowList.get("SHARP").add("LC-U35T");
+    vp9AllowList.get("SHARP").add("LC-UE630X");
+    vp9AllowList.get("SHARP").add("LC-Ux30US");
+    vp9AllowList.get("SHARP").add("LC-XU35T");
+    vp9AllowList.get("SHARP").add("LC-XU930X_830X");
+    vp9AllowList.get("Skyworth").add("globe");
+    vp9AllowList.get("Sony").add("Amai VP9");
+    vp9AllowList.get("Sony").add("BRAVIA 4K 2015");
+    vp9AllowList.get("Sony").add("BRAVIA 4K GB");
+    vp9AllowList.get("STMicroelectronics").add("sti4k");
+    vp9AllowList.get("SumitomoElectricIndustries").add("C02AS");
+    vp9AllowList.get("SumitomoElectricIndustries").add("ST4173");
+    vp9AllowList.get("SumitomoElectricIndustries").add("test_STW2000");
+    vp9AllowList.get("TCL").add("Percee TV");
+    vp9AllowList.get("Technicolor").add("AirTV Player");
+    vp9AllowList.get("Technicolor").add("Bouygtel4K");
+    vp9AllowList.get("Technicolor").add("CM-7600");
+    vp9AllowList.get("Technicolor").add("cooper");
+    vp9AllowList.get("Technicolor").add("Foxtel Now box");
+    vp9AllowList.get("Technicolor").add("pearl");
+    vp9AllowList.get("Technicolor").add("Sapphire");
+    vp9AllowList.get("Technicolor").add("Shortcut");
+    vp9AllowList.get("Technicolor").add("skipper");
+    vp9AllowList.get("Technicolor").add("STING");
+    vp9AllowList.get("Technicolor").add("TIM_BOX");
+    vp9AllowList.get("Technicolor").add("uzx8020chm");
+    vp9AllowList.get("Vestel").add("S7252");
+    vp9AllowList.get("Vestel").add("SmartTV");
+    vp9AllowList.get("wnc").add("c71kw400");
+    vp9AllowList.get("Xiaomi").add("MIBOX3");
+    vp9AllowList.get("ZTE TV").add("AV-ATB100");
+    vp9AllowList.get("ZTE TV").add("B860H");
 
-    isVp9WhiteListed =
-        vp9WhiteList.containsKey(Build.BRAND)
-            && vp9WhiteList.get(Build.BRAND).contains(Build.MODEL);
+    isVp9AllowListed =
+        vp9AllowList.containsKey(Build.BRAND)
+            && vp9AllowList.get(Build.BRAND).contains(Build.MODEL);
 
-    softwareCodecWhiteList.add("OMX.google.h264.decoder");
+    softwareCodecAllowList.add("OMX.google.h264.decoder");
   }
 
   private MediaCodecUtil() {}
@@ -394,24 +394,24 @@ public class MediaCodecUtil {
   @UsedByNative
   public static boolean hasVideoDecoderFor(
       String mimeType,
-      boolean secure,
+      boolean mustSupportSecure,
+      boolean mustSupportHdr,
+      boolean mustSupportTunnelMode,
       int frameWidth,
       int frameHeight,
       int bitrate,
-      int fps,
-      boolean mustSupportHdr,
-      boolean mustSupportTunnelMode) {
+      int fps) {
     FindVideoDecoderResult findVideoDecoderResult =
         findVideoDecoder(
             mimeType,
-            secure,
+            mustSupportSecure,
+            mustSupportHdr,
+            false /* mustSupportSoftwareCodec */,
+            mustSupportTunnelMode,
             frameWidth,
             frameHeight,
             bitrate,
-            fps,
-            mustSupportHdr,
-            false,
-            mustSupportTunnelMode);
+            fps);
     return !findVideoDecoderResult.name.equals("")
         && (!mustSupportHdr || isHdrCapableVideoDecoder(mimeType, findVideoDecoderResult));
   }
@@ -446,7 +446,7 @@ public class MediaCodecUtil {
     }
 
     FindVideoDecoderResult findVideoDecoderResult =
-        findVideoDecoder(mimeType, false, 0, 0, 0, 0, true, false, false);
+        findVideoDecoder(mimeType, false, true, false, false, 0, 0, 0, 0);
     return isHdrCapableVideoDecoder(mimeType, findVideoDecoderResult);
   }
 
@@ -483,38 +483,38 @@ public class MediaCodecUtil {
    */
   public static FindVideoDecoderResult findVideoDecoder(
       String mimeType,
-      boolean secure,
+      boolean mustSupportSecure,
+      boolean mustSupportHdr,
+      boolean mustSupportSoftwareCodec,
+      boolean mustSupportTunnelMode,
       int frameWidth,
       int frameHeight,
       int bitrate,
-      int fps,
-      boolean hdr, // TODO: Move all boolean feature parameters after |secure|
-      boolean requireSoftwareCodec,
-      boolean requireTunneledPlayback) {
+      int fps) {
     Log.v(
         TAG,
         String.format(
             "Searching for video decoder with parameters mimeType: %s, secure: %b, frameWidth: %d,"
-                + " frameHeight: %d, bitrate: %d, fps: %d, hdr: %b, requireSoftwareCodec: %b,"
-                + " requireTunneledPlayback: %b",
+                + " frameHeight: %d, bitrate: %d, fps: %d, mustSupportHdr: %b,"
+                + " mustSupportSoftwareCodec: %b, mustSupportTunnelMode: %b",
             mimeType,
-            secure,
+            mustSupportSecure,
             frameWidth,
             frameHeight,
             bitrate,
             fps,
-            hdr,
-            requireSoftwareCodec,
-            requireTunneledPlayback));
+            mustSupportHdr,
+            mustSupportSoftwareCodec,
+            mustSupportTunnelMode));
     Log.v(
         TAG,
         String.format(
-            "brand: %s, model: %s, version: %s, API level: %d, isVp9WhiteListed: %b",
+            "brand: %s, model: %s, version: %s, API level: %d, isVp9AllowListed: %b",
             Build.BRAND,
             Build.MODEL,
             Build.VERSION.RELEASE,
             Build.VERSION.SDK_INT,
-            isVp9WhiteListed));
+            isVp9AllowListed));
 
     // Note: MediaCodecList is sorted by the framework such that the best decoders come first.
     for (MediaCodecInfo info : new MediaCodecList(MediaCodecList.ALL_CODECS).getCodecInfos()) {
@@ -526,12 +526,12 @@ public class MediaCodecUtil {
           continue;
         }
         String name = info.getName();
-        if (requireSoftwareCodec && !softwareCodecWhiteList.contains(name)) {
+        if (mustSupportSoftwareCodec && !softwareCodecAllowList.contains(name)) {
           Log.v(TAG, String.format("Rejecting %s, reason: require software codec", name));
           continue;
         }
-        if (!isVp9WhiteListed && codecBlackList.contains(name)) {
-          Log.v(TAG, String.format("Rejecting %s, reason: codec is black listed", name));
+        if (!isVp9AllowListed && videoCodecDenyList.contains(name)) {
+          Log.v(TAG, String.format("Rejecting %s, reason: codec is on deny list", name));
           continue;
         }
         // MediaCodecList is supposed to feed us names of decoders that do NOT end in ".secure".  We
@@ -541,60 +541,55 @@ public class MediaCodecUtil {
         // decoders that end in ".secure".  Empirically, FEATURE_SecurePlayback has still been
         // correct when this happens.
         if (name.endsWith(SECURE_DECODER_SUFFIX)) {
-          // If we want a secure decoder, then make sure the version without ".secure" isn't
-          // blacklisted.
-          String nameWithoutSecureSuffix =
-              name.substring(0, name.length() - SECURE_DECODER_SUFFIX.length());
-          if (secure && !isVp9WhiteListed && codecBlackList.contains(nameWithoutSecureSuffix)) {
-            Log.v(
-                TAG,
-                String.format("Rejecting %s, reason: offpsec blacklisted secure decoder", name));
+          // If we don't want a secure decoder, then don't bother messing around with this thing.
+          if (!mustSupportSecure) {
+            String format = "Rejecting %s, reason: want !secure decoder and ends with .secure";
+            Log.v(TAG, String.format(format, name));
             continue;
           }
-          // If we don't want a secure decoder, then don't bother messing around with this thing.
-          if (!secure) {
-            Log.v(
-                TAG,
-                String.format(
-                    "Rejecting %s, reason: want !secure decoder and ends with .secure", name));
+          // If we want a secure decoder, then make sure the version without ".secure" isn't
+          // denylisted.
+          String nameWithoutSecureSuffix =
+              name.substring(0, name.length() - SECURE_DECODER_SUFFIX.length());
+          if (!isVp9AllowListed && videoCodecDenyList.contains(nameWithoutSecureSuffix)) {
+            String format = "Rejecting %s, reason: offpsec denylisted secure decoder";
+            Log.v(TAG, String.format(format, name));
             continue;
           }
         }
 
         CodecCapabilities codecCapabilities = info.getCapabilitiesForType(supportedType);
-        if (secure
-            && !codecCapabilities.isFeatureSupported(
-                MediaCodecInfo.CodecCapabilities.FEATURE_SecurePlayback)) {
-          Log.v(
-              TAG,
+        boolean requiresSecurePlayback =
+            codecCapabilities.isFeatureRequired(
+                MediaCodecInfo.CodecCapabilities.FEATURE_SecurePlayback);
+        boolean supportsSecurePlayback =
+            codecCapabilities.isFeatureSupported(
+                MediaCodecInfo.CodecCapabilities.FEATURE_SecurePlayback);
+        if (mustSupportSecure && !supportsSecurePlayback
+            || !mustSupportSecure && requiresSecurePlayback) {
+          String message =
               String.format(
-                  "Rejecting %s, reason: want secure decoder and !FEATURE_SecurePlayback", name));
+                  "Rejecting %s, reason: secure decoder requested: %b, "
+                      + "codec FEATURE_SecurePlayback supported: %b, required: %b",
+                  name, mustSupportSecure, supportsSecurePlayback, requiresSecurePlayback);
+          Log.v(TAG, message);
           continue;
         }
-        if (!requireTunneledPlayback
-            && codecCapabilities.isFeatureRequired(
-                MediaCodecInfo.CodecCapabilities.FEATURE_TunneledPlayback)) {
-          Log.v(
-              TAG,
-              String.format("Rejecting %s, reason: codec requires FEATURE_TunneledPlayback", name));
-          continue;
-        }
-        if (!secure
-            && codecCapabilities.isFeatureRequired(
-                MediaCodecInfo.CodecCapabilities.FEATURE_SecurePlayback)) {
-          Log.v(
-              TAG,
-              String.format("Rejecting %s, reason: code requires FEATURE_SecurePlayback", name));
-          continue;
-        }
-        if (requireTunneledPlayback
-            && !codecCapabilities.isFeatureSupported(
-                MediaCodecInfo.CodecCapabilities.FEATURE_TunneledPlayback)) {
-          Log.v(
-              TAG,
+
+        boolean requiresTunneledPlayback =
+            codecCapabilities.isFeatureRequired(
+                MediaCodecInfo.CodecCapabilities.FEATURE_TunneledPlayback);
+        boolean supportsTunneledPlayback =
+            codecCapabilities.isFeatureSupported(
+                MediaCodecInfo.CodecCapabilities.FEATURE_TunneledPlayback);
+        if (mustSupportTunnelMode && !supportsTunneledPlayback
+            || !mustSupportTunnelMode && requiresTunneledPlayback) {
+          String message =
               String.format(
-                  "Rejecting %s, reason: want tunneled playback and !FEATURE_TunneledPlayback",
-                  name));
+                  "Rejecting %s, reason: tunneled playback requested: %b, "
+                      + "codec FEATURE_TunneledPlayback supported: %b, required: %b",
+                  name, mustSupportTunnelMode, supportsTunneledPlayback, requiresTunneledPlayback);
+          Log.v(TAG, message);
           continue;
         }
 
@@ -608,6 +603,8 @@ public class MediaCodecUtil {
         }
 
         VideoCapabilities videoCapabilities = codecCapabilities.getVideoCapabilities();
+        Range<Integer> supportedWidths = videoCapabilities.getSupportedWidths();
+        Range<Integer> supportedHeights = videoCapabilities.getSupportedHeights();
 
         // Enable the improved support check based on more specific APIs, like isSizeSupported() or
         // areSizeAndRateSupported(), for 8k content. These APIs are theoretically more accurate,
@@ -616,102 +613,81 @@ public class MediaCodecUtil {
         if (enableImprovedCheck) {
           if (frameWidth != 0 && frameHeight != 0) {
             if (!videoCapabilities.isSizeSupported(frameWidth, frameHeight)) {
-              Log.v(
-                  TAG,
-                  String.format(
-                      "Rejecting %s, reason: width %s is not compatible with height %d",
-                      name, frameWidth, frameHeight));
+              String format = "Rejecting %s, reason: width %s is not compatible with height %d";
+              Log.v(TAG, String.format(format, name, frameWidth, frameHeight));
               continue;
             }
           } else if (frameWidth != 0) {
-            if (!videoCapabilities.getSupportedWidths().contains(frameWidth)) {
-              Log.v(
-                  TAG,
-                  String.format(
-                      "Rejecting %s, reason: supported widths %s does not contain %d",
-                      name, videoCapabilities.getSupportedWidths().toString(), frameWidth));
+            if (!supportedWidths.contains(frameWidth)) {
+              String format = "Rejecting %s, reason: supported widths %s does not contain %d";
+              Log.v(TAG, String.format(format, name, supportedWidths.toString(), frameWidth));
               continue;
             }
           } else if (frameHeight != 0) {
-            if (!videoCapabilities.getSupportedHeights().contains(frameHeight)) {
-              Log.v(
-                  TAG,
-                  String.format(
-                      "Rejecting %s, reason: supported heights %s does not contain %d",
-                      name, videoCapabilities.getSupportedHeights().toString(), frameHeight));
+            if (!supportedHeights.contains(frameHeight)) {
+              String format = "Rejecting %s, reason: supported heights %s does not contain %d";
+              Log.v(TAG, String.format(format, name, supportedHeights.toString(), frameHeight));
               continue;
             }
           }
         } else {
-          if (frameWidth != 0 && !videoCapabilities.getSupportedWidths().contains(frameWidth)) {
-            Log.v(
-                TAG,
-                String.format(
-                    "Rejecting %s, reason: supported widths %s does not contain %d",
-                    name, videoCapabilities.getSupportedWidths().toString(), frameWidth));
+          if (frameWidth != 0 && !supportedWidths.contains(frameWidth)) {
+            String format = "Rejecting %s, reason: supported widths %s does not contain %d";
+            Log.v(TAG, String.format(format, name, supportedWidths.toString(), frameWidth));
             continue;
           }
-          if (frameHeight != 0 && !videoCapabilities.getSupportedHeights().contains(frameHeight)) {
-            Log.v(
-                TAG,
-                String.format(
-                    "Rejecting %s, reason: supported heights %s does not contain %d",
-                    name, videoCapabilities.getSupportedHeights().toString(), frameHeight));
+          if (frameHeight != 0 && !supportedHeights.contains(frameHeight)) {
+            String format = "Rejecting %s, reason: supported heights %s does not contain %d";
+            Log.v(TAG, String.format(format, name, supportedHeights.toString(), frameHeight));
             continue;
           }
         }
-        if (bitrate != 0 && !videoCapabilities.getBitrateRange().contains(bitrate)) {
-          Log.v(
-              TAG,
-              String.format(
-                  "Rejecting %s, reason: bitrate range %s does not contain %d",
-                  name, videoCapabilities.getBitrateRange().toString(), bitrate));
+
+        Range<Integer> bitrates = videoCapabilities.getBitrateRange();
+        if (bitrate != 0 && !bitrates.contains(bitrate)) {
+          String format = "Rejecting %s, reason: bitrate range %s does not contain %d";
+          Log.v(TAG, String.format(format, name, bitrates.toString(), bitrate));
           continue;
         }
+
+        Range<Integer> supportedFrameRates = videoCapabilities.getSupportedFrameRates();
         if (enableImprovedCheck) {
           if (fps != 0) {
             if (frameHeight != 0 && frameWidth != 0) {
               if (!videoCapabilities.areSizeAndRateSupported(frameWidth, frameHeight, fps)) {
-                Log.v(
-                    TAG,
-                    String.format(
-                        "Rejecting %s, reason: supported frame rates %s does not contain %d",
-                        name,
-                        videoCapabilities
-                            .getSupportedFrameRatesFor(frameWidth, frameHeight)
-                            .toString(),
-                        fps));
+                String format =
+                    "Rejecting %s, reason: supported frame rates %s does not contain %d";
+                Log.v(TAG, String.format(format, name, supportedFrameRates.toString(), fps));
                 continue;
               }
             } else {
               // At least one of frameHeight or frameWidth is 0
-              if (!videoCapabilities.getSupportedFrameRates().contains(fps)) {
-                Log.v(
-                    TAG,
-                    String.format(
-                        "Rejecting %s, reason: supported frame rates %s does not contain %d",
-                        name, videoCapabilities.getSupportedFrameRates().toString(), fps));
+              if (!supportedFrameRates.contains(fps)) {
+                String format =
+                    "Rejecting %s, reason: supported frame rates %s does not contain %d";
+                Log.v(TAG, String.format(format, name, supportedFrameRates.toString(), fps));
                 continue;
               }
             }
           }
         } else {
-          if (fps != 0 && !videoCapabilities.getSupportedFrameRates().contains(fps)) {
+          if (fps != 0 && !supportedFrameRates.contains(fps)) {
             Log.v(
                 TAG,
                 String.format(
                     "Rejecting %s, reason: supported frame rates %s does not contain %d",
-                    name, videoCapabilities.getSupportedFrameRates().toString(), fps));
+                    name, supportedFrameRates.toString(), fps));
             continue;
           }
         }
+
         String resultName =
-            (secure && !name.endsWith(SECURE_DECODER_SUFFIX))
+            (mustSupportSecure && !name.endsWith(SECURE_DECODER_SUFFIX))
                 ? (name + SECURE_DECODER_SUFFIX)
                 : name;
         FindVideoDecoderResult findVideoDecoderResult =
             new FindVideoDecoderResult(resultName, videoCapabilities, codecCapabilities);
-        if (hdr && !isHdrCapableVideoDecoder(mimeType, findVideoDecoderResult)) {
+        if (mustSupportHdr && !isHdrCapableVideoDecoder(mimeType, findVideoDecoderResult)) {
           Log.v(TAG, String.format("Rejecting %s, reason: codec does not support HDR", name));
           continue;
         }
@@ -727,7 +703,7 @@ public class MediaCodecUtil {
    * "" otherwise.
    */
   public static String findAudioDecoder(
-      String mimeType, int bitrate, boolean requireTunneledPlayback) {
+      String mimeType, int bitrate, boolean mustSupportTunnelMode) {
     // Note: MediaCodecList is sorted by the framework such that the best decoders come first.
     for (MediaCodecInfo info : new MediaCodecList(MediaCodecList.ALL_CODECS).getCodecInfos()) {
       if (info.isEncoder()) {
@@ -745,12 +721,12 @@ public class MediaCodecUtil {
         if (!bitrateRange.contains(bitrate)) {
           continue;
         }
-        if (requireTunneledPlayback
+        if (mustSupportTunnelMode
             && !codecCapabilities.isFeatureSupported(CodecCapabilities.FEATURE_TunneledPlayback)) {
           continue;
         }
         // TODO: Determine if we can safely check if an audio codec requires the tunneled playback
-        //  feature. i.e., reject when |requireTunneledPlayback| == false
+        //  feature. i.e., reject when |mustSupportTunnelMode| == false
         //  and codecCapabilities.isFeatureRequired(CodecCapabilities.FEATURE_TunneledPlayback) ==
         //  true.
         return name;
@@ -874,7 +850,7 @@ public class MediaCodecUtil {
                 "name: %s (%s, %s): ",
                 name,
                 supportedType,
-                codecBlackList.contains(name) ? "blacklisted" : "not blacklisted");
+                videoCodecDenyList.contains(name) ? "denylisted" : "not denylisted");
         CodecCapabilities codecCapabilities = info.getCapabilitiesForType(supportedType);
         VideoCapabilities videoCapabilities = codecCapabilities.getVideoCapabilities();
         String resultName =

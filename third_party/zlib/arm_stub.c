@@ -7,9 +7,9 @@
 #include <assert.h>
 
 #include "zutil.h"
-#include "starboard/common/log.h"
 
 #if defined(STARBOARD)
+#include "starboard/common/log.h"
 #include "contrib/optimizations/slide_hash_neon.h"
 #endif
 

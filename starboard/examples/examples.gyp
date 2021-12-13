@@ -18,7 +18,6 @@
       'target_name': 'examples',
       'type': 'none',
       'dependencies': [
-        '<(DEPTH)/starboard/examples/blitter/blitter.gyp:starboard_blitter_example',
         '<(DEPTH)/starboard/examples/window/window.gyp:starboard_window_example',
       ],
       'conditions': [

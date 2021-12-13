@@ -115,12 +115,20 @@ void OnStart(ANativeActivity* activity) {
 
 void OnResume(ANativeActivity* activity) {
   if (g_app_running) {
+    // Stop the MediaPlaybackService if activity state transits from background
+    // to foreground. Note that the MediaPlaybackService may already have
+    // been stopped before Cobalt's lifecycle state transits from Concealed
+    // to Frozen.
+    ApplicationAndroid::Get()->StopMediaPlaybackService();
     ApplicationAndroid::Get()->SendAndroidCommand(AndroidCommand::kResume);
   }
 }
 
 void OnPause(ANativeActivity* activity) {
   if (g_app_running) {
+    // Start the MediaPlaybackService before activity state transits from
+    // foreground to background.
+    ApplicationAndroid::Get()->StartMediaPlaybackService();
     ApplicationAndroid::Get()->SendAndroidCommand(AndroidCommand::kPause);
   }
 }
@@ -133,9 +141,9 @@ void OnStop(ANativeActivity* activity) {
 
 void OnWindowFocusChanged(ANativeActivity* activity, int focused) {
   if (g_app_running) {
-    ApplicationAndroid::Get()->SendAndroidCommand(focused
-        ? AndroidCommand::kWindowFocusGained
-        : AndroidCommand::kWindowFocusLost);
+    ApplicationAndroid::Get()->SendAndroidCommand(
+        focused ? AndroidCommand::kWindowFocusGained
+                : AndroidCommand::kWindowFocusLost);
   }
 }
 
@@ -168,15 +176,16 @@ void OnInputQueueDestroyed(ANativeActivity* activity, AInputQueue* queue) {
 }
 
 extern "C" SB_EXPORT_PLATFORM void ANativeActivity_onCreate(
-    ANativeActivity *activity, void *savedState, size_t savedStateSize) {
-
+    ANativeActivity* activity,
+    void* savedState,
+    size_t savedStateSize) {
   // Start the Starboard thread the first time an Activity is created.
   if (!SbThreadIsValid(g_starboard_thread)) {
     Semaphore semaphore;
 
-    g_starboard_thread = SbThreadCreate(
-        0, kSbThreadPriorityNormal, kSbThreadNoAffinity, false,
-        "StarboardMain", &ThreadEntryPoint, &semaphore);
+    g_starboard_thread =
+        SbThreadCreate(0, kSbThreadPriorityNormal, kSbThreadNoAffinity, false,
+                       "StarboardMain", &ThreadEntryPoint, &semaphore);
 
     // Wait for the ApplicationAndroid to be created.
     semaphore.Take();
@@ -194,8 +203,8 @@ extern "C" SB_EXPORT_PLATFORM void ANativeActivity_onCreate(
   activity->instance = ApplicationAndroid::Get();
 }
 
-extern "C" SB_EXPORT_PLATFORM
-jboolean Java_dev_cobalt_coat_StarboardBridge_nativeIsReleaseBuild() {
+extern "C" SB_EXPORT_PLATFORM jboolean
+Java_dev_cobalt_coat_StarboardBridge_nativeIsReleaseBuild() {
 #if defined(COBALT_BUILD_TYPE_GOLD)
   return true;
 #else
@@ -203,9 +212,10 @@ jboolean Java_dev_cobalt_coat_StarboardBridge_nativeIsReleaseBuild() {
 #endif
 }
 
-extern "C" SB_EXPORT_PLATFORM
-void Java_dev_cobalt_coat_StarboardBridge_nativeInitialize(
-    JniEnvExt* env, jobject starboard_bridge) {
+extern "C" SB_EXPORT_PLATFORM void
+Java_dev_cobalt_coat_StarboardBridge_nativeInitialize(
+    JniEnvExt* env,
+    jobject starboard_bridge) {
   JniEnvExt::Initialize(env, starboard_bridge);
 }
 

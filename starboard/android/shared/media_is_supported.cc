@@ -12,11 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <string>
+
 #include "starboard/shared/starboard/media/media_support_internal.h"
 
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/media.h"
+#include "starboard/shared/starboard/media/mime_type.h"
 #include "starboard/string.h"
 
 bool SbMediaIsSupported(SbMediaVideoCodec video_codec,
@@ -24,24 +27,35 @@ bool SbMediaIsSupported(SbMediaVideoCodec video_codec,
                         const char* key_system) {
   using starboard::android::shared::IsWidevineL1;
   using starboard::android::shared::JniEnvExt;
+  using starboard::shared::starboard::media::MimeType;
 
-  if (strchr(key_system, ';')) {
-    // TODO: Remove this check and enable key system with attributes support.
+  // It is possible that the |key_system| comes with extra attributes, like
+  // `com.widevine.alpha; encryptionscheme="cenc"`. We prepend "key_system/"
+  // to it, so it can be parsed by MimeType.
+  MimeType mime_type(std::string("key_system/") + key_system);
+  mime_type.RegisterStringParameter("encryptionscheme", "cenc|cbcs|cbcs-1-9");
+  if (!mime_type.is_valid()) {
     return false;
   }
 
-  // We support all codecs except Opus in L1.  Use allow list to avoid
-  // accidentally introducing the support of a codec brought in in future.
+  // Use allow list to avoid accidentally introducing the support of a codec
+  // brought in the future.
   if (audio_codec != kSbMediaAudioCodecNone &&
       audio_codec != kSbMediaAudioCodecAac &&
+      audio_codec != kSbMediaAudioCodecOpus &&
       audio_codec != kSbMediaAudioCodecAc3 &&
       audio_codec != kSbMediaAudioCodecEac3) {
     return false;
   }
-  if (!IsWidevineL1(key_system)) {
+  const char* key_system_type = mime_type.subtype().c_str();
+  if (!IsWidevineL1(key_system_type)) {
     return false;
   }
+  std::string encryption_scheme =
+      mime_type.GetParamStringValue("encryptionscheme", "");
+  bool uses_cbcs =
+      encryption_scheme == "cbcs" || encryption_scheme == "cbcs-1-9";
   return JniEnvExt::Get()->CallStaticBooleanMethodOrAbort(
              "dev/cobalt/media/MediaDrmBridge",
-             "isWidevineCryptoSchemeSupported", "()Z") == JNI_TRUE;
+             "isWidevineCryptoSchemeSupported", "(Z)Z", uses_cbcs) == JNI_TRUE;
 }

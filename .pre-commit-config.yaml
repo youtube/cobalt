@@ -10,9 +10,11 @@ exclude: |
         (
             base|
             build|
+            net|
             testing|
             third_party|
-            tools/gyp
+            tools/gyp|
+            url
         )/
         |
         components/update_client/((?!cobalt).)*$
@@ -37,7 +39,11 @@ repos:
                # be lowercase, see
                # https://github.com/codespell-project/codespell/issues/1390
                --ignore-words-list, atleast]
-        exclude: '^cobalt/content/i18n/platform/'
+        exclude: |
+            (?x)^(
+                cobalt/content/i18n/platform/|
+                cobalt/content/licenses/
+            )
 
 -   repo: local
     hooks:
@@ -47,6 +53,12 @@ repos:
         language: python
         stages: [post-checkout]
         always_run: true
+    -   id: clang-format
+        name: clang-format
+        entry: python ./precommit_hooks/clang_format_wrapper.py
+        language: python
+        types: [c++]
+        args: [-i, -style=file]
     -   id: cpplint
         name: cpplint
         entry: cpplint
@@ -82,12 +94,6 @@ repos:
         types: [python]
         args: [-d W0201]
         exclude: '\.gypi?$'
-    -   id: clang-format
-        name: clang-format
-        entry: python ./precommit_hooks/clang_format_wrapper.py
-        language: python
-        types: [c++]
-        args: [-i, -style=file]
     -   id: google-java-format
         name: google-java-format
         entry: python ./precommit_hooks/google_java_format_wrapper.py
@@ -106,7 +112,11 @@ repos:
         language: python
         types: [file, text]
         stages: [push]
-        exclude: '^cobalt/layout_tests/testdata/'
+        exclude: |
+            (?x)^(
+                cobalt/layout_tests/testdata/|
+                starboard/android/apk/app/src/main/java/dev/cobalt/media/MediaDrmBridge.java$
+            )
         exclude_types: [markdown]
     -   id: check-if-starboard-interface-changed
         name: check if starboard interface changed

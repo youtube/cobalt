@@ -49,7 +49,6 @@ class AutoMem {
   const IntSetting* remote_typeface_cache_size_in_bytes() const;
   const DimensionSetting* skia_atlas_texture_dimensions() const;
   const IntSetting* skia_cache_size_in_bytes() const;
-  const IntSetting* software_surface_cache_size_in_bytes() const;
   const IntSetting* offscreen_target_cache_size_in_bytes() const;
 
   // max_cpu/gpu_bytes represents the maximum amount of memory that should
@@ -82,7 +81,6 @@ class AutoMem {
   std::unique_ptr<IntSetting> remote_typeface_cache_size_in_bytes_;
   std::unique_ptr<DimensionSetting> skia_atlas_texture_dimensions_;
   std::unique_ptr<IntSetting> skia_cache_size_in_bytes_;
-  std::unique_ptr<IntSetting> software_surface_cache_size_in_bytes_;
   std::unique_ptr<IntSetting> offscreen_target_cache_size_in_bytes_;
 
   // These settings are used for constraining the memory and are NOT included

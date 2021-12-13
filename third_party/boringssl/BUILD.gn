@@ -24,14 +24,16 @@ config("internal_config") {
     "TERMIO",
     "_REENTRANT",
   ]
-  cflags = [
-    "-fPIC",
-    "-fvisibility=hidden",
-  ]
-  cflags_c = [
-    "-std=gnu99",
-    "-Wno-bad-function-cast",
-  ]
+  if (!is_starboard || !is_win) {
+    cflags = [
+      "-fPIC",
+      "-fvisibility=hidden",
+    ]
+    cflags_c = [
+      "-std=gnu99",
+      "-Wno-bad-function-cast",
+    ]
+  }
   ldflags = [ "-fPIC" ]
   include_dirs = [ "." ]
 
@@ -138,6 +140,12 @@ static_library("crypto") {
           sources += boringssl_linux_arm_files
         } else if (asm_target_arch == "arm64") {
           sources += boringssl_linux_aarch64_files
+        }
+      } else if (is_mac) {
+        if (asm_target_arch == "arm64") {
+          sources += boringssl_ios_aarch64_files
+        } else if (asm_target_arch == "x64") {
+          defines = [ "OPENSSL_NO_ASM" ]
         }
       }
     }

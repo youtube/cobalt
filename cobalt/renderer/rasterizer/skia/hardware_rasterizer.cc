@@ -27,7 +27,7 @@
 #include "cobalt/renderer/backend/egl/graphics_system.h"
 #include "cobalt/renderer/backend/egl/texture.h"
 #include "cobalt/renderer/backend/egl/utils.h"
-#include "cobalt/renderer/rasterizer/egl/textured_mesh_renderer.h"
+#include "cobalt/renderer/rasterizer/egl/textured_mesh_renderer.h"  // nogncheck
 #include "cobalt/renderer/rasterizer/skia/cobalt_skia_type_conversions.h"
 #include "cobalt/renderer/rasterizer/skia/gl_format_conversions.h"
 #include "cobalt/renderer/rasterizer/skia/hardware_mesh.h"
@@ -40,11 +40,11 @@
 #include "third_party/glm/glm/mat3x3.hpp"
 #include "third_party/skia/include/core/SkCanvas.h"
 #include "third_party/skia/include/core/SkSurface.h"
-#include "third_party/skia/include/gpu/gl/GrGLInterface.h"
 #include "third_party/skia/include/gpu/GrBackendSurface.h"
 #include "third_party/skia/include/gpu/GrContext.h"
 #include "third_party/skia/include/gpu/GrContextOptions.h"
 #include "third_party/skia/include/gpu/GrTexture.h"
+#include "third_party/skia/include/gpu/gl/GrGLInterface.h"
 #include "third_party/skia/src/gpu/GrRenderTarget.h"
 #include "third_party/skia/src/gpu/GrResourceProvider.h"
 
@@ -228,7 +228,7 @@ glm::mat4 GetFallbackTextureModelViewProjectionMatrix(
 }
 
 glm::mat4 ScaleMatrixFor360VideoAdjustment(const SkISize& canvas_size,
-                           const SkIRect& canvas_boundsi) {
+                                           const SkIRect& canvas_boundsi) {
   glm::mat4 scale_matrix(
       static_cast<float>(canvas_boundsi.width()) / canvas_size.width(), 0, 0, 0,
       0, static_cast<float>(canvas_boundsi.height()) / canvas_size.height(), 0,

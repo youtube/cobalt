@@ -1,0 +1,140 @@
+# Copyright 2021 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("//third_party/skia/gn/core.gni")
+import("//third_party/skia/gn/effects.gni")
+import("//third_party/skia/gn/effects_imagefilters.gni")
+import("//third_party/skia/gn/gpu.gni")
+import("//third_party/skia/gn/utils.gni")
+import("//third_party/skia/modules/skottie/skottie.gni")
+import("//third_party/skia/modules/sksg/sksg.gni")
+import("//third_party/skia/modules/skshaper/skshaper.gni")
+
+combined_sources = []
+
+shared_sources = [
+  "//third_party/skia/src/codec/SkBmpBaseCodec.cpp",
+  "//third_party/skia/src/codec/SkBmpCodec.cpp",
+  "//third_party/skia/src/codec/SkBmpMaskCodec.cpp",
+  "//third_party/skia/src/codec/SkBmpRLECodec.cpp",
+  "//third_party/skia/src/codec/SkBmpStandardCodec.cpp",
+  "//third_party/skia/src/codec/SkCodec.cpp",
+  "//third_party/skia/src/codec/SkCodecImageGenerator.cpp",
+  "//third_party/skia/src/codec/SkColorTable.cpp",
+  "//third_party/skia/src/codec/SkGifCodec.cpp",
+  "//third_party/skia/src/codec/SkMaskSwizzler.cpp",
+  "//third_party/skia/src/codec/SkMasks.cpp",
+  "//third_party/skia/src/codec/SkSampledCodec.cpp",
+  "//third_party/skia/src/codec/SkSampler.cpp",
+  "//third_party/skia/src/codec/SkStreamBuffer.cpp",
+  "//third_party/skia/src/codec/SkSwizzler.cpp",
+  "//third_party/skia/src/codec/SkWbmpCodec.cpp",
+  "//third_party/skia/src/images/SkImageEncoder.cpp",
+  "//third_party/skia/src/ports/SkDiscardableMemory_none.cpp",
+  "//third_party/skia/src/ports/SkFontHost_FreeType.cpp",
+  "//third_party/skia/src/ports/SkFontHost_FreeType_common.cpp",
+  "//third_party/skia/src/ports/SkFontHost_FreeType_common.h",
+  "//third_party/skia/src/ports/SkGlobalInitialization_default.cpp",
+  "//third_party/skia/src/ports/SkImageGenerator_skia.cpp",
+  "//third_party/skia/src/sfnt/SkOTTable_name.cpp",
+  "//third_party/skia/src/sfnt/SkOTUtils.cpp",
+  "//third_party/skia/third_party/gif/SkGifImageReader.cpp",
+]
+
+# from "core.gni"
+combined_sources += shared_sources
+combined_sources += skia_core_sources
+
+combined_sources += skia_pathops_sources
+combined_sources += skia_skpicture_sources
+combined_sources += skia_effects_sources
+combined_sources += skia_effects_imagefilter_sources
+
+# from "gpu.gni"
+combined_sources += skia_gpu_sources
+combined_sources += skia_ccpr_sources
+combined_sources += skia_nvpr_sources
+combined_sources += skia_utils_sources
+combined_sources += skia_skottie_sources
+combined_sources += skia_sksg_sources
+combined_sources += skia_shaper_primitive_sources
+
+# Exclude all unused skia files
+combined_sources -= [
+  # codec
+  "//third_party/skia/src/codec/SkSampledCodec.cpp",
+
+  # core
+  "//third_party/skia/src/core/SkMultiPictureDraw.cpp",
+  "//third_party/skia/src/core/SkTime.cpp",
+
+  # gpu
+  "//third_party/skia/src/gpu/gl/GrGLMakeNativeInterface_none.cpp",
+
+  # utils bitmap
+  "//third_party/skia/src/utils/SkCamera.cpp",
+  "//third_party/skia/src/utils/SkCanvasStack.h",
+  "//third_party/skia/src/utils/SkFloatUtils.h",
+  "//third_party/skia/src/utils/SkFrontBufferedStream.cpp",
+  "//third_party/skia/src/utils/SkInterpolator.cpp",
+  "//third_party/skia/src/utils/SkParseColor.cpp",
+  "//third_party/skia/src/utils/SkParsePath.cpp",
+  "//third_party/skia/src/utils/SkThreadUtils_pthread.cpp",
+  "//third_party/skia/src/utils/SkThreadUtils_win.cpp",
+
+  # mac
+  "//third_party/skia/src/utils/mac/SkCreateCGImageRef.cpp",
+
+  # windows
+  "//third_party/skia/src/utils/win/SkAutoCoInitialize.cpp",
+  "//third_party/skia/src/utils/win/SkAutoCoInitialize.h",
+  "//third_party/skia/src/utils/win/SkDWrite.cpp",
+  "//third_party/skia/src/utils/win/SkDWrite.h",
+  "//third_party/skia/src/utils/win/SkDWriteFontFileStream.cpp",
+  "//third_party/skia/src/utils/win/SkDWriteFontFileStream.h",
+  "//third_party/skia/src/utils/win/SkDWriteGeometrySink.cpp",
+  "//third_party/skia/src/utils/win/SkDWriteGeometrySink.h",
+  "//third_party/skia/src/utils/win/SkHRESULT.cpp",
+  "//third_party/skia/src/utils/win/SkHRESULT.h",
+  "//third_party/skia/src/utils/win/SkIStream.cpp",
+  "//third_party/skia/src/utils/win/SkIStream.h",
+  "//third_party/skia/src/utils/win/SkTScopedComPtr.h",
+  "//third_party/skia/src/utils/win/SkWGL.h",
+  "//third_party/skia/src/utils/win/SkWGL_win.cpp",
+]
+
+sksl_sources = [
+  "//third_party/skia/src/sksl/SkSLASTNode.cpp",
+  "//third_party/skia/src/sksl/SkSLByteCode.cpp",
+  "//third_party/skia/src/sksl/SkSLCFGGenerator.cpp",
+  "//third_party/skia/src/sksl/SkSLCPPCodeGenerator.cpp",
+  "//third_party/skia/src/sksl/SkSLCPPUniformCTypes.cpp",
+  "//third_party/skia/src/sksl/SkSLCompiler.cpp",
+  "//third_party/skia/src/sksl/SkSLGLSLCodeGenerator.cpp",
+  "//third_party/skia/src/sksl/SkSLHCodeGenerator.cpp",
+  "//third_party/skia/src/sksl/SkSLIRGenerator.cpp",
+  "//third_party/skia/src/sksl/SkSLLexer.cpp",
+  "//third_party/skia/src/sksl/SkSLMetalCodeGenerator.cpp",
+  "//third_party/skia/src/sksl/SkSLOutputStream.cpp",
+  "//third_party/skia/src/sksl/SkSLParser.cpp",
+  "//third_party/skia/src/sksl/SkSLPipelineStageCodeGenerator.cpp",
+  "//third_party/skia/src/sksl/SkSLSPIRVCodeGenerator.cpp",
+  "//third_party/skia/src/sksl/SkSLSectionAndParameterHelper.cpp",
+  "//third_party/skia/src/sksl/SkSLString.cpp",
+  "//third_party/skia/src/sksl/SkSLUtil.cpp",
+  "//third_party/skia/src/sksl/ir/SkSLSetting.cpp",
+  "//third_party/skia/src/sksl/ir/SkSLSymbolTable.cpp",
+  "//third_party/skia/src/sksl/ir/SkSLType.cpp",
+  "//third_party/skia/src/sksl/ir/SkSLVariableReference.cpp",
+]

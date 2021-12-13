@@ -14,5 +14,7 @@
 
 config("platform_configuration") {
   configs = [ "//starboard/android/shared/platform_configuration" ]
-  cflags = [ "-march=armv7-a" ]
+  if (current_toolchain == default_toolchain) {
+    cflags = [ "-march=armv7-a" ]
+  }
 }

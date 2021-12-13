@@ -149,6 +149,19 @@ v8_source_set("inspector") {
     "value-mirror.cc",
     "value-mirror.h",
   ]
+
+  if (is_starboard && is_win) {
+    cflags = [
+      "/wd4267",
+      "/wd4312",
+      "/wd4351",
+      "/wd4355",
+      "/wd4800",
+      "/wd4838",
+      "/wd4715",
+      "/wd4309",
+    ]
+  }
 }
 
 #Target to generate all .cc files.

@@ -60,8 +60,7 @@ class TestDimensionSetting : public DimensionSetting {
  public:
   explicit TestDimensionSetting(const std::string& name)
       : DimensionSetting(name) {}
-  virtual void ScaleMemory(double absolute_constraining_value) {
-  }
+  virtual void ScaleMemory(double absolute_constraining_value) {}
 };
 
 class TestSettingGroup {
@@ -78,9 +77,6 @@ class TestSettingGroup {
 
     MakeSetting(MemorySetting::kCmdLine, MemorySetting::kGPU,
                 switches::kSkiaCacheSizeInBytes, 12345678);
-
-    MakeSetting(MemorySetting::kBuildSetting, MemorySetting::kNotApplicable,
-                switches::kSoftwareSurfaceCacheSizeInBytes, 8910);
   }
 
   ~TestSettingGroup() {

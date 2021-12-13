@@ -17,6 +17,11 @@ import("//starboard/raspi/shared/toolchain/raspi_shared_toolchain.gni")
 
 clang_toolchain("host") {
   clang_base_path = raspi_clang_base_path
+
+  toolchain_args = {
+    current_os = "linux"
+    current_cpu = "x86"
+  }
 }
 
 gcc_toolchain("target") {

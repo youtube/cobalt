@@ -78,6 +78,10 @@ UpdateClientImpl::~UpdateClientImpl() {
   DCHECK(task_queue_.empty());
   DCHECK(tasks_.empty());
 
+#if defined(STARBOARD)
+  LOG(INFO) << "UpdateClientImpl::~UpdateClientImpl: task_queue_.size=" << task_queue_.size() << " tasks.size=" << tasks_.size();
+#endif
+
   config_ = nullptr;
 }
 
@@ -134,6 +138,10 @@ void UpdateClientImpl::OnTaskComplete(Callback callback,
                                       Error error) {
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(task);
+
+#if defined(STARBOARD)
+  LOG(INFO) << "UpdateClientImpl::OnTaskComplete";
+#endif
 
   base::ThreadTaskRunnerHandle::Get()->PostTask(
       FROM_HERE, base::BindOnce(std::move(callback), error));

@@ -12,33 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-{
-  'includes': [
-    '<(DEPTH)/starboard/stub/stub_sources.gypi',
-    '<(DEPTH)/starboard/evergreen/shared/starboard_platform.gypi',
-  ],
-  'targets': [
-    {
-      'target_name': 'starboard_platform',
-      'type': 'static_library',
-      'sources': [
-        '<@(stub_sources)',
-        'atomic_public.h',
-        'configuration_public.h',
-        'thread_types_public.h',
-      ],
-      'conditions': [
-        ['sb_speech_supported == 0', {
-          'sources!': [
-            '<@(speech_stub_sources)',
-          ],
-        }],
-      ],
-      'defines': [
-        # This must be defined when building Starboard, and must not when
-        # building Starboard client code.
-        'STARBOARD_IMPLEMENTATION',
-      ],
-    },
-  ],
-}
+# This file is intentionally left empty. Each platform directory must have a
+# starboard_platform.gyp file to be considered a valid platform, but Evergreen
+# platforms aren't typical platforms and simply provide a Starboard interface,
+# rather than full implementation, for Cobalt.

@@ -19,7 +19,6 @@
       'type': 'static_library',
 
       'dependencies': [
-        '../blitter/blitter_backend.gyp:blitter_backend',
         '../egl/egl_backend.gyp:egl_backend',
       ],
 

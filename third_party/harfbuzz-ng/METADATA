@@ -16,4 +16,8 @@ third_party {
     day: 24
   }
   license_type: NOTICE
+  local_modifications:
+    '11/11/21 - Added BUILD.gn as part of GN migration.'
+    'Contents taken from https://chromium.googlesource.com/chromium/src/+/518b35929ff33d0dc2397a186eecbc3b536acb40/third_party/harfbuzz-ng/BUILD.gn'
+    'and modified for Cobalt.'
 }

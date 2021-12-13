@@ -45,6 +45,9 @@ void RequestSender::Send(
     bool use_signing,
     RequestSenderCallback request_sender_callback) {
   DCHECK(thread_checker_.CalledOnValidThread());
+#if defined(STARBOARD)
+  LOG(INFO) << "RequestSender::Send";
+#endif
 
   urls_ = urls;
   request_extra_headers_ = request_extra_headers;
@@ -101,10 +104,22 @@ void RequestSender::SendInternal() {
                      base::Unretained(this), url));
 }
 
+#if defined(STARBOARD)
+void RequestSender::Cancel() {
+  LOG(INFO) << "RequestSender::Cancel";
+  if (network_fetcher_.get()) {
+    network_fetcher_->Cancel();
+  }
+}
+#endif
+
 void RequestSender::SendInternalComplete(int error,
                                          const std::string& response_body,
                                          const std::string& response_etag,
                                          int retry_after_sec) {
+#if defined(STARBOARD)
+  LOG(INFO) << "RequestSender::SendInternalComplete";
+#endif
   if (!error) {
     if (!use_signing_) {
       base::ThreadTaskRunnerHandle::Get()->PostTask(
@@ -152,6 +167,9 @@ void RequestSender::OnNetworkFetcherComplete(
     const std::string& header_etag,
     int64_t xheader_retry_after_sec) {
   DCHECK(thread_checker_.CalledOnValidThread());
+#if defined(STARBOARD)
+  LOG(INFO) << "RequestSender::OnNetworkFetcherComplete";
+#endif
 
   VLOG(1) << "request completed from url: " << original_url.spec();
 

@@ -61,4 +61,20 @@ platforms = [
     name = "raspi-2-skia"
     path = "starboard/raspi/2/skia"
   },
+  {
+    name = "win-win32"
+    path = "starboard/win/win32"
+  },
+  {
+    name = "darwin-tvos-arm64"
+    path = "starboard/darwin/tvos/arm64"
+  },
+  {
+    name = "darwin-tvos-simulator"
+    path = "starboard/darwin/tvos/simulator"
+  },
+  {
+    name = "evergreen-x64"
+    path = "starboard/evergreen/x64"
+  },
 ]

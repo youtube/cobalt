@@ -13,11 +13,15 @@
 # limitations under the License.
 
 config("platform_configuration") {
-  configs = [
-    ":libraries",
-    "//starboard/linux/shared/platform_configuration",
-    "//starboard/linux/shared/platform_configuration:compiler_flags",
-  ]
+  if (current_toolchain == default_toolchain) {
+    configs = [
+      ":libraries",
+      "//starboard/linux/shared/platform_configuration",
+      "//starboard/linux/shared/platform_configuration:compiler_flags",
+    ]
+  } else {
+    cflags = [ "-O2" ]
+  }
 }
 
 config("libraries") {

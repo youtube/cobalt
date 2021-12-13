@@ -44,8 +44,8 @@
 #include "cobalt/renderer/rasterizer/egl/draw_rrect_color.h"
 #include "cobalt/renderer/rasterizer/egl/draw_rrect_color_texture.h"
 #include "cobalt/renderer/rasterizer/skia/hardware_image.h"
-#include "cobalt/renderer/rasterizer/skia/image.h"
-#include "cobalt/renderer/rasterizer/skia/skottie_animation.h"
+#include "cobalt/renderer/rasterizer/skia/image.h"              // nogncheck
+#include "cobalt/renderer/rasterizer/skia/skottie_animation.h"  // nogncheck
 
 namespace cobalt {
 namespace renderer {

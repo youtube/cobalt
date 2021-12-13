@@ -53,8 +53,9 @@ enum class UpdaterStatus {
 };
 
 // Mapping a component state to an updater status.
-const std::map<ComponentState, UpdaterStatus> component_to_updater_status_map =
-    {
+// clang-format off
+const std::map<ComponentState, UpdaterStatus> component_to_updater_status_map = {
+        // clang-format on
         {ComponentState::kNew, UpdaterStatus::kNewUpdate},
         {ComponentState::kChecking, UpdaterStatus::kChecking},
         {ComponentState::kCanUpdate, UpdaterStatus::kUpdateAvailable},
@@ -88,6 +89,9 @@ const std::map<UpdaterStatus, const char*> updater_status_string_map = {
     {UpdaterStatus::kRun, "Transitioning..."},
 };
 
+// Default number of seconds to delay the first update check.
+extern const uint64_t kDefaultUpdateCheckDelaySeconds;
+
 // An interface that observes the updater. It provides notifications when the
 // updater changes status.
 class Observer : public update_client::UpdateClient::Observer {
@@ -101,7 +105,7 @@ class Observer : public update_client::UpdateClient::Observer {
             SbSystemGetExtension(kCobaltExtensionUpdaterNotificationName));
     if (updater_notification_ext &&
         strcmp(updater_notification_ext->name,
-                           kCobaltExtensionUpdaterNotificationName) == 0 &&
+               kCobaltExtensionUpdaterNotificationName) == 0 &&
         updater_notification_ext->version >= 1) {
       updater_notification_ext_ = updater_notification_ext;
     } else {
@@ -127,7 +131,8 @@ class Observer : public update_client::UpdateClient::Observer {
 // checks run according to a schedule defined by the Cobalt application.
 class UpdaterModule {
  public:
-  explicit UpdaterModule(network::NetworkModule* network_module);
+  explicit UpdaterModule(network::NetworkModule* network_module,
+                         uint64_t update_check_delay_sec);
   ~UpdaterModule();
 
   void Suspend();
@@ -147,13 +152,14 @@ class UpdaterModule {
   int GetInstallationIndex() const;
 
  private:
-  base::Thread updater_thread_;
+  std::unique_ptr<base::Thread> updater_thread_;
   scoped_refptr<update_client::UpdateClient> update_client_;
   std::unique_ptr<Observer> updater_observer_;
   network::NetworkModule* network_module_;
   scoped_refptr<Configurator> updater_configurator_;
   int update_check_count_ = 0;
   bool is_updater_running_;
+  uint64_t update_check_delay_sec_ = kDefaultUpdateCheckDelaySeconds;
 
   THREAD_CHECKER(thread_checker_);
 

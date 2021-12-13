@@ -18,3 +18,46 @@ static_library("storage_constants") {
     "storage_constants.h",
   ]
 }
+
+static_library("storage") {
+  sources = [
+    "savegame.cc",
+    "savegame.h",
+    "savegame_fake.cc",
+    "savegame_starboard.cc",
+    "savegame_thread.cc",
+    "savegame_thread.h",
+    "storage_manager.cc",
+    "storage_manager.h",
+  ]
+
+  deps = [
+    "//base",
+    "//base:i18n",
+    "//cobalt/base",
+    "//cobalt/storage/store:memory_store",
+    "//net",
+    "//starboard/common",
+    "//url",
+  ]
+}
+
+target(gtest_target_type, "storage_test") {
+  testonly = true
+  sources = [
+    "savegame_test.cc",
+    "storage_manager_test.cc",
+  ]
+
+  defines = [ "GMOCK_NO_MOVE_MOCK" ]
+
+  deps = [
+    ":storage",
+    "//cobalt/base",
+    "//cobalt/test:run_all_unittests",
+    "//net",
+    "//testing/gmock",
+    "//testing/gtest",
+    "//url",
+  ]
+}

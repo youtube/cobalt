@@ -58,7 +58,6 @@
 #include "cobalt/browser/device_authentication.h"
 #include "cobalt/browser/memory_settings/auto_mem_settings.h"
 #include "cobalt/browser/memory_tracker/tool.h"
-#include "cobalt/browser/storage_upgrade_handler.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/browser/user_agent_platform_info.h"
 #include "cobalt/browser/user_agent_string.h"
@@ -808,10 +807,7 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
   options.requested_viewport_size = requested_viewport_size;
   account_manager_.reset(new account::AccountManager());
 
-  storage_manager_.reset(new storage::StorageManager(
-      std::unique_ptr<storage::StorageManager::UpgradeHandler>(
-          new StorageUpgradeHandler(initial_url)),
-      storage_manager_options));
+  storage_manager_.reset(new storage::StorageManager(storage_manager_options));
 
   network_module_.reset(new network::NetworkModule(
       CreateUserAgentString(browser::GetUserAgentPlatformInfoFromSystem()),
@@ -822,7 +818,21 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
 #if SB_IS(EVERGREEN)
   if (SbSystemGetExtension(kCobaltExtensionInstallationManagerName) &&
       !command_line->HasSwitch(switches::kDisableUpdaterModule)) {
-    updater_module_.reset(new updater::UpdaterModule(network_module_.get()));
+    uint64_t update_check_delay_sec =
+        cobalt::updater::kDefaultUpdateCheckDelaySeconds;
+    if (command_line->HasSwitch(browser::switches::kUpdateCheckDelaySeconds)) {
+      std::string seconds_value = command_line->GetSwitchValueASCII(
+          browser::switches::kUpdateCheckDelaySeconds);
+      if (!base::StringToUint64(seconds_value, &update_check_delay_sec)) {
+        LOG(WARNING) << "Invalid delay specified for the update check: "
+                     << seconds_value << ". Using default value: "
+                     << cobalt::updater::kDefaultUpdateCheckDelaySeconds;
+        update_check_delay_sec =
+            cobalt::updater::kDefaultUpdateCheckDelaySeconds;
+      }
+    }
+    updater_module_.reset(new updater::UpdaterModule(network_module_.get(),
+                                                     update_check_delay_sec));
   }
 #endif
   browser_module_.reset(new BrowserModule(

@@ -31,6 +31,7 @@ import android.net.ConnectivityManager;
 import android.net.Network;
 import android.net.NetworkCapabilities;
 import android.os.Build;
+import android.os.Build.VERSION;
 import android.util.Size;
 import android.util.SizeF;
 import android.view.Display;
@@ -171,6 +172,11 @@ public class StarboardBridge {
   @SuppressWarnings("unused")
   @UsedByNative
   protected void startMediaPlaybackService() {
+    if (cobaltMediaSession == null || !cobaltMediaSession.isActive()) {
+      Log.w(TAG, "Do not start a MediaPlaybackService when the MediSsession is null or inactive.");
+      return;
+    }
+
     Service service = serviceHolder.get();
     if (service == null) {
       if (appContext == null) {
@@ -179,9 +185,18 @@ public class StarboardBridge {
       }
       Log.i(TAG, "Cold start - Instantiating a MediaPlaybackService.");
       Intent intent = new Intent(appContext, MediaPlaybackService.class);
-      appContext.startService(intent);
+      try {
+        if (VERSION.SDK_INT >= 26) {
+          appContext.startForegroundService(intent);
+        } else {
+          appContext.startService(intent);
+        }
+      } catch (SecurityException e) {
+        Log.e(TAG, "Failed to start MediaPlaybackService with intent.", e);
+        return;
+      }
     } else {
-      Log.i(TAG, "Warm start - Restarting the service.");
+      Log.i(TAG, "Warm start - Restarting the MediaPlaybackService.");
       ((MediaPlaybackService) service).startService();
     }
   }
@@ -191,7 +206,7 @@ public class StarboardBridge {
   protected void stopMediaPlaybackService() {
     Service service = serviceHolder.get();
     if (service != null) {
-      Log.i(TAG, "Stopping the Media playback service.");
+      Log.i(TAG, "Stopping the MediaPlaybackService.");
       ((MediaPlaybackService) service).stopService();
     }
   }
@@ -222,6 +237,9 @@ public class StarboardBridge {
       for (CobaltService service : cobaltServices.values()) {
         service.beforeSuspend();
       }
+      // We need to stop MediaPlaybackService before suspending so that this foreground service
+      // would not prevent releasing activity's memory consumption.
+      stopMediaPlaybackService();
     } catch (Throwable e) {
       Log.i(TAG, "Caught exception in beforeSuspend: " + e.getMessage());
     }

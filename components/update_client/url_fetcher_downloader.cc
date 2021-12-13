@@ -71,7 +71,9 @@ UrlFetcherDownloader::UrlFetcherDownloader(
     scoped_refptr<Configurator> config)
     : CrxDownloader(std::move(successor)),
       config_(config),
-      network_fetcher_factory_(config->GetNetworkFetcherFactory()) {}
+      network_fetcher_factory_(config->GetNetworkFetcherFactory()) {
+  LOG(INFO) << "UrlFetcherDownloader::UrlFetcherDownloader";
+}
 #else
 UrlFetcherDownloader::UrlFetcherDownloader(
     std::unique_ptr<CrxDownloader> successor,
@@ -82,11 +84,14 @@ UrlFetcherDownloader::UrlFetcherDownloader(
 
 UrlFetcherDownloader::~UrlFetcherDownloader() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+#if defined(STARBOARD)
+  LOG(INFO) << "UrlFetcherDownloader::UrlFetcherDownloader";
+#endif
 }
 
 #if defined(STARBOARD)
 void UrlFetcherDownloader::ConfirmSlot(const GURL& url) {
-  SB_LOG(INFO) << "UrlFetcherDownloader::ConfirmSlot: url=" << url;
+  LOG(INFO) << "UrlFetcherDownloader::ConfirmSlot: url=" << url;
   if (!cobalt_slot_management_.ConfirmSlot(download_dir_)) {
     ReportDownloadFailure(url, CrxDownloaderError::SLOT_UNAVAILABLE);
     return;
@@ -98,7 +103,7 @@ void UrlFetcherDownloader::ConfirmSlot(const GURL& url) {
 }
 
 void UrlFetcherDownloader::SelectSlot(const GURL& url) {
-  SB_LOG(INFO) << "UrlFetcherDownloader::SelectSlot: url=" << url;
+  LOG(INFO) << "UrlFetcherDownloader::SelectSlot: url=" << url;
   if (!cobalt_slot_management_.SelectSlot(&download_dir_)) {
     ReportDownloadFailure(url, CrxDownloaderError::SLOT_UNAVAILABLE);
     return;
@@ -119,11 +124,13 @@ void UrlFetcherDownloader::DoStartDownload(const GURL& url) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
 #if defined(STARBOARD)
+  LOG(INFO) << "UrlFetcherDownloader::DoStartDownload";
+
   const CobaltExtensionInstallationManagerApi* installation_api =
       static_cast<const CobaltExtensionInstallationManagerApi*>(
           SbSystemGetExtension(kCobaltExtensionInstallationManagerName));
   if (!installation_api) {
-    SB_LOG(ERROR) << "Failed to get installation manager";
+    LOG(ERROR) << "Failed to get installation manager";
     ReportDownloadFailure(url);
     return;
   }
@@ -146,8 +153,11 @@ void UrlFetcherDownloader::DoStartDownload(const GURL& url) {
 
 #if defined(STARBOARD)
 void UrlFetcherDownloader::DoCancelDownload() {
+  LOG(INFO) << "UrlFetcherDownloader::DoCancelDownload";
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  network_fetcher_->CancelDownloadToFile();
+  if (network_fetcher_.get()) {
+    network_fetcher_->Cancel();
+  }
 }
 #endif
 
@@ -158,6 +168,7 @@ void UrlFetcherDownloader::CreateDownloadDir() {
 
 #if defined(STARBOARD)
 void UrlFetcherDownloader::ReportDownloadFailure(const GURL& url) {
+  LOG(INFO) << "UrlFetcherDownloader::ReportDownloadFailure";
   ReportDownloadFailure(url, CrxDownloaderError::GENERIC_ERROR);
 }
 
@@ -195,13 +206,13 @@ void UrlFetcherDownloader::StartURLFetch(const GURL& url) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
 #if defined(STARBOARD)
-  SB_LOG(INFO) << "UrlFetcherDownloader::StartURLFetch: url" << url
+  LOG(INFO) << "UrlFetcherDownloader::StartURLFetch: url" << url
                << " download_dir=" << download_dir_;
 #endif
 
   if (download_dir_.empty()) {
 #if defined(STARBOARD)
-    SB_LOG(ERROR) << "UrlFetcherDownloader::StartURLFetch: failed with empty "
+    LOG(ERROR) << "UrlFetcherDownloader::StartURLFetch: failed with empty "
                      "download_dir";
 #endif
     ReportDownloadFailure(url);
@@ -226,6 +237,10 @@ void UrlFetcherDownloader::OnNetworkFetcherComplete(base::FilePath file_path,
                                                     int net_error,
                                                     int64_t content_size) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+
+#if defined(STARBOARD)
+  LOG(INFO) << "UrlFetcherDownloader::OnNetworkFetcherComplete";
+#endif
 
   const base::TimeTicks download_end_time(base::TimeTicks::Now());
   const base::TimeDelta download_time =
@@ -298,6 +313,10 @@ void UrlFetcherDownloader::OnResponseStarted(const GURL& final_url,
                                              int response_code,
                                              int64_t content_length) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+
+#if defined(STARBOARD)
+  LOG(INFO) << "UrlFetcherDownloader::OnResponseStarted";
+#endif
 
   VLOG(1) << "url fetcher response started for: " << final_url.spec();
 

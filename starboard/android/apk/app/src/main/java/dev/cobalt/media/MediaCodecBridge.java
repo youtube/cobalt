@@ -23,6 +23,7 @@ import static dev.cobalt.media.Log.TAG;
 import android.media.AudioFormat;
 import android.media.MediaCodec;
 import android.media.MediaCodec.CryptoInfo;
+import android.media.MediaCodec.CryptoInfo.Pattern;
 import android.media.MediaCodecInfo.CodecCapabilities;
 import android.media.MediaCodecInfo.VideoCapabilities;
 import android.media.MediaCrypto;
@@ -30,6 +31,7 @@ import android.media.MediaFormat;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.Surface;
+import androidx.annotation.Nullable;
 import dev.cobalt.util.Log;
 import dev.cobalt.util.UsedByNative;
 import java.nio.ByteBuffer;
@@ -523,22 +525,22 @@ class MediaCodecBridge {
   public static MediaCodecBridge createAudioMediaCodecBridge(
       long nativeMediaCodecBridge,
       String mime,
-      boolean isSecure,
-      boolean requireSoftwareCodec,
       int sampleRate,
       int channelCount,
-      MediaCrypto crypto) {
+      MediaCrypto crypto,
+      @Nullable byte[] configurationData) {
     MediaCodec mediaCodec = null;
     try {
-      String decoderName = MediaCodecUtil.findAudioDecoder(mime, 0, false);
+      String decoderName =
+          MediaCodecUtil.findAudioDecoder(mime, 0, false /* mustSupportTunnelMode */);
       if (decoderName.equals("")) {
-        Log.e(TAG, String.format("Failed to find decoder: %s, isSecure: %s", mime, isSecure));
+        Log.e(TAG, String.format("Failed to find decoder: %s", mime));
         return null;
       }
       Log.i(TAG, String.format("Creating \"%s\" decoder.", decoderName));
       mediaCodec = MediaCodec.createByCodecName(decoderName);
     } catch (Exception e) {
-      Log.e(TAG, String.format("Failed to create MediaCodec: %s, isSecure: %s", mime, isSecure), e);
+      Log.e(TAG, String.format("Failed to create MediaCodec: %s, ", mime), e);
       return null;
     }
     if (mediaCodec == null) {
@@ -554,7 +556,17 @@ class MediaCodecBridge {
             -1);
 
     MediaFormat mediaFormat = createAudioFormat(mime, sampleRate, channelCount);
-    setFrameHasADTSHeader(mediaFormat);
+
+    if (mime.contains("opus")) {
+      if (!setOpusConfigurationData(mediaFormat, sampleRate, configurationData)) {
+        bridge.release();
+        return null;
+      }
+    } else {
+      // TODO: Determine if we should explicitly check the mime for AAC audio before calling
+      // setFrameHasADTSHeader(), as more codecs may be supported here in the future.
+      setFrameHasADTSHeader(mediaFormat);
+    }
     if (!bridge.configureAudio(mediaFormat, crypto, 0)) {
       Log.e(TAG, "Failed to configure audio codec.");
       bridge.release();
@@ -574,8 +586,8 @@ class MediaCodecBridge {
   public static void createVideoMediaCodecBridge(
       long nativeMediaCodecBridge,
       String mime,
-      boolean isSecure,
-      boolean requireSoftwareCodec,
+      boolean mustSupportSecure,
+      boolean mustSupportSoftwareCodec,
       int width,
       int height,
       int fps,
@@ -587,32 +599,52 @@ class MediaCodecBridge {
     MediaCodec mediaCodec = null;
     outCreateMediaCodecBridgeResult.mMediaCodecBridge = null;
 
-    boolean findHDRDecoder = android.os.Build.VERSION.SDK_INT >= 24 && colorInfo != null;
-    boolean findTunneledDecoder = tunnelModeAudioSessionId != -1;
+    boolean mustSupportHdr = android.os.Build.VERSION.SDK_INT >= 24 && colorInfo != null;
+    boolean mustSupportTunneled = tunnelModeAudioSessionId != -1;
     // On first pass, try to find a decoder with HDR if the color info is non-null.
     MediaCodecUtil.FindVideoDecoderResult findVideoDecoderResult =
         MediaCodecUtil.findVideoDecoder(
-            mime, isSecure, 0, 0, 0, 0, findHDRDecoder, requireSoftwareCodec, findTunneledDecoder);
-    if (findVideoDecoderResult.name.equals("") && findHDRDecoder) {
+            mime,
+            mustSupportSecure,
+            mustSupportHdr,
+            mustSupportSoftwareCodec,
+            mustSupportTunneled,
+            0,
+            0,
+            0,
+            0);
+    if (findVideoDecoderResult.name.equals("") && mustSupportHdr) {
       // On second pass, forget HDR.
       findVideoDecoderResult =
           MediaCodecUtil.findVideoDecoder(
-              mime, isSecure, 0, 0, 0, 0, false, requireSoftwareCodec, findTunneledDecoder);
+              mime,
+              mustSupportSecure,
+              false /* mustSupportHdr */,
+              mustSupportSoftwareCodec,
+              mustSupportTunneled,
+              0,
+              0,
+              0,
+              0);
     }
     try {
       String decoderName = findVideoDecoderResult.name;
       if (decoderName.equals("") || findVideoDecoderResult.videoCapabilities == null) {
-        Log.e(TAG, String.format("Failed to find decoder: %s, isSecure: %s", mime, isSecure));
-        outCreateMediaCodecBridgeResult.mErrorMessage =
-            String.format("Failed to find decoder: %s, isSecure: %s", mime, isSecure);
+        String message =
+            String.format(
+                "Failed to find decoder: %s, mustSupportSecure: %s", mime, mustSupportSecure);
+        Log.e(TAG, message);
+        outCreateMediaCodecBridgeResult.mErrorMessage = message;
         return;
       }
       Log.i(TAG, String.format("Creating \"%s\" decoder.", decoderName));
       mediaCodec = MediaCodec.createByCodecName(decoderName);
     } catch (Exception e) {
-      Log.e(TAG, String.format("Failed to create MediaCodec: %s, isSecure: %s", mime, isSecure), e);
-      outCreateMediaCodecBridgeResult.mErrorMessage =
-          String.format("Failed to create MediaCodec: %s, isSecure: %s", mime, isSecure);
+      String message =
+          String.format(
+              "Failed to create MediaCodec: %s, mustSupportSecure: %s", mime, mustSupportSecure);
+      Log.e(TAG, message, e);
+      outCreateMediaCodecBridgeResult.mErrorMessage = message;
       return;
     }
     if (mediaCodec == null) {
@@ -648,10 +680,7 @@ class MediaCodecBridge {
     if (tunnelModeAudioSessionId != -1) {
       mediaFormat.setFeatureEnabled(CodecCapabilities.FEATURE_TunneledPlayback, true);
       mediaFormat.setInteger(MediaFormat.KEY_AUDIO_SESSION_ID, tunnelModeAudioSessionId);
-      Log.d(
-          TAG,
-          String.format(
-              "Enabled tunnel mode playback on audio session %d", tunnelModeAudioSessionId));
+      Log.d(TAG, "Enabled tunnel mode playback on audio session " + tunnelModeAudioSessionId);
     }
 
     VideoCapabilities videoCapabilities = findVideoDecoderResult.videoCapabilities;
@@ -907,31 +936,22 @@ class MediaCodecBridge {
       int[] numBytesOfEncryptedData,
       int numSubSamples,
       int cipherMode,
-      int patternEncrypt,
-      int patternSkip,
+      int blocksToEncrypt,
+      int blocksToSkip,
       long presentationTimeUs) {
     resetLastPresentationTimeIfNeeded(presentationTimeUs);
     try {
-      boolean usesCbcs =
-          Build.VERSION.SDK_INT >= 24 && cipherMode == MediaCodec.CRYPTO_MODE_AES_CBC;
-
-      if (usesCbcs) {
-        Log.e(TAG, "Encryption scheme 'cbcs' not supported on this platform.");
-        return MEDIA_CODEC_ERROR;
-      }
       CryptoInfo cryptoInfo = new CryptoInfo();
       cryptoInfo.set(
           numSubSamples, numBytesOfClearData, numBytesOfEncryptedData, keyId, iv, cipherMode);
-      if (patternEncrypt != 0 && patternSkip != 0) {
-        if (usesCbcs) {
-          // Above platform check ensured that setting the pattern is indeed supported.
-          // MediaCodecUtil.setPatternIfSupported(cryptoInfo, patternEncrypt, patternSkip);
-          Log.e(TAG, "Only AES_CTR is supported.");
-        } else {
-          Log.e(TAG, "Pattern encryption only supported for 'cbcs' scheme (CBC mode).");
-          return MEDIA_CODEC_ERROR;
-        }
+
+      if (Build.VERSION.SDK_INT >= 24 && cipherMode == MediaCodec.CRYPTO_MODE_AES_CBC) {
+        cryptoInfo.setPattern(new Pattern(blocksToEncrypt, blocksToSkip));
+      } else if (blocksToEncrypt != 0 || blocksToSkip != 0) {
+        Log.e(TAG, "Pattern encryption only supported for 'cbcs' scheme (CBC mode).");
+        return MEDIA_CODEC_ERROR;
       }
+
       mMediaCodec.queueSecureInputBuffer(index, offset, cryptoInfo, presentationTimeUs, 0);
     } catch (MediaCodec.CryptoException e) {
       int errorCode = e.getErrorCode();
@@ -1065,7 +1085,7 @@ class MediaCodecBridge {
   }
 
   // Use some heuristics to set KEY_MAX_INPUT_SIZE (the size of the input buffers).
-  // Taken from exoplayer:
+  // Taken from ExoPlayer:
   // https://github.com/google/ExoPlayer/blob/8595c65678a181296cdf673eacb93d8135479340/library/src/main/java/com/google/android/exoplayer/MediaCodecVideoTrackRenderer.java
   private void maybeSetMaxInputSize(MediaFormat format) {
     if (format.containsKey(android.media.MediaFormat.KEY_MAX_INPUT_SIZE)) {
@@ -1145,6 +1165,46 @@ class MediaCodecBridge {
     if (name != null) {
       format.setByteBuffer(name, ByteBuffer.wrap(bytes));
     }
+  }
+
+  @SuppressWarnings("unused")
+  private static boolean setOpusConfigurationData(
+      MediaFormat format, int sampleRate, @Nullable byte[] configurationData) {
+    final int MIN_OPUS_INITIALIZATION_DATA_BUFFER_SIZE = 19;
+    final long NANOSECONDS_IN_ONE_SECOND = 1000000000L;
+    // 3840 is the default seek pre-roll samples used by ExoPlayer:
+    // https://github.com/google/ExoPlayer/blob/0ba317b1337eaa789f05dd6c5241246478a3d1e5/library/common/src/main/java/com/google/android/exoplayer2/audio/OpusUtil.java#L30.
+    final int DEFAULT_SEEK_PRE_ROLL_SAMPLES = 3840;
+    if (configurationData == null
+        || configurationData.length < MIN_OPUS_INITIALIZATION_DATA_BUFFER_SIZE) {
+      Log.e(
+          TAG,
+          "Failed to configure Opus audio codec. "
+              + (configurationData == null
+                  ? "|configurationData| is null."
+                  : String.format(
+                      "Configuration data size (%d) is less than the required size (%d).",
+                      configurationData.length, MIN_OPUS_INITIALIZATION_DATA_BUFFER_SIZE)));
+      return false;
+    }
+    // Both the number of samples to skip from the beginning of the stream and the amount of time
+    // to pre-roll when seeking must be specified when configuring the Opus decoder. Logic adapted
+    // from ExoPlayer:
+    // https://github.com/google/ExoPlayer/blob/0ba317b1337eaa789f05dd6c5241246478a3d1e5/library/common/src/main/java/com/google/android/exoplayer2/audio/OpusUtil.java#L52.
+    int preSkipSamples = ((configurationData[11] & 0xFF) << 8) | (configurationData[10] & 0xFF);
+    long preSkipNanos = (preSkipSamples * NANOSECONDS_IN_ONE_SECOND) / sampleRate;
+    long seekPreRollNanos =
+        (DEFAULT_SEEK_PRE_ROLL_SAMPLES * NANOSECONDS_IN_ONE_SECOND) / sampleRate;
+    setCodecSpecificData(format, 0, configurationData);
+    setCodecSpecificData(
+        format,
+        1,
+        ByteBuffer.allocate(8).order(ByteOrder.nativeOrder()).putLong(preSkipNanos).array());
+    setCodecSpecificData(
+        format,
+        2,
+        ByteBuffer.allocate(8).order(ByteOrder.nativeOrder()).putLong(seekPreRollNanos).array());
+    return true;
   }
 
   @SuppressWarnings("unused")

@@ -109,7 +109,8 @@ class UpdateEngine : public base::RefCounted<UpdateEngine> {
 #if defined(STARBOARD)
   // Cancels updates currently handled by the engine for each component
   // identified by one of |crx_component_ids| for the update context identified
-  // by the |update_context_session_id|.
+  // by the |update_context_session_id|. Also cancels the |UpdateChecker| for 
+  // the component and the |PingManager|.
   void Cancel(const std::string& update_context_session_id,
               const std::vector<std::string>& crx_component_ids);
 #endif

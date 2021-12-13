@@ -56,9 +56,7 @@ typedef struct CobaltExtensionConfigurationApi {
   // usually there is a small loading spinner animating on the screen.  On GLES
   // renderers, Cobalt will attempt to implement this support by using
   // eglSurfaceAttrib(..., EGL_SWAP_BEHAVIOR, EGL_BUFFER_PRESERVED), otherwise
-  // the dirty region will be silently disabled.  On Blitter API platforms,
-  // if this is enabled, we explicitly create an extra offscreen full-size
-  // intermediate surface to render into.  Note that some GLES driver
+  // the dirty region will be silently disabled. Note that some GLES driver
   // implementations may internally allocate an extra full screen surface to
   // support this feature, and many have been noticed to not properly support
   // this functionality (but they report that they do), and for these reasons
@@ -94,8 +92,7 @@ typedef struct CobaltExtensionConfigurationApi {
   // within Skia and is used to cache the results of complicated effects such
   // as shadows, so that Skia draw calls that are used repeatedly across
   // frames can be cached into surfaces.  This setting is only relevant when
-  // using the hardware-accelerated Skia rasterizer (e.g. as opposed to the
-  // Blitter API).
+  // using the hardware-accelerated Skia rasterizer.
   int (*CobaltSkiaCacheSizeInBytes)();
 
   // Determines the amount of GPU memory the offscreen target atlases will
@@ -152,10 +149,7 @@ typedef struct CobaltExtensionConfigurationApi {
   // projection.
   int (*CobaltMeshCacheSizeInBytes)();
 
-  // Only relevant if you are using the Blitter API.
-  // Determines the capacity of the software surface cache, which is used to
-  // cache all surfaces that are rendered via a software rasterizer to avoid
-  // re-rendering them.
+  // Deprecated
   int (*CobaltSoftwareSurfaceCacheSizeInBytes)();
 
   // Modifying this function's return value to be non-1.0f will result in the

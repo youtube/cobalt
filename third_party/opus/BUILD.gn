@@ -12,10 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-declare_args() {
-  sb_enable_opus_sse = true
-}
-
 static_library("opus") {
   sources = [
     "celt/_kiss_fft_guts.h",
@@ -218,7 +214,7 @@ static_library("opus") {
     "silk/float/apply_sine_window_FLP.c",
   ]
 
-  if (!sb_enable_opus_sse && (target_cpu == "x86" || target_cpu == "x64")) {
+  if (sb_enable_opus_sse && (target_cpu == "x86" || target_cpu == "x64")) {
     sources += [
       "celt/x86/celt_lpc_sse4_1.c",
       "celt/x86/celt_lpc_sse.h",

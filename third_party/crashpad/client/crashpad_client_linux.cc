@@ -137,6 +137,10 @@ class SignalHandler {
   }
 
 #if defined(STARBOARD)
+  bool SendSanitizationInformation(SanitizationInformation sanitization_information) {
+    sanitization_information_ = sanitization_information;
+    return true;
+  }
   bool SendEvergreenInfo(EvergreenInfo evergreen_info) {
     evergreen_info_ = evergreen_info;
     return SendEvergreenInfoImpl();
@@ -187,6 +191,9 @@ class SignalHandler {
 #if defined(STARBOARD)
   const EvergreenInfo& GetEvergreenInfo() { return evergreen_info_; }
   const CrashpadAnnotations& GetAnnotations() { return annotations_; }
+  const SanitizationInformation& GetSanitizationInformation() {
+    return sanitization_information_;
+  }
 #endif
 
   const ExceptionInformation& GetExceptionInfo() {
@@ -219,6 +226,7 @@ class SignalHandler {
 #if defined(STARBOARD)
   EvergreenInfo evergreen_info_;
   CrashpadAnnotations annotations_;
+  SanitizationInformation sanitization_information_;
 #endif
 
   static SignalHandler* handler_;
@@ -376,6 +384,11 @@ class RequestCrashDumpHandler : public SignalHandler {
     ExceptionHandlerProtocol::ClientInformation info = {};
     info.exception_information_address =
         FromPointerCast<VMAddress>(&GetExceptionInfo());
+#if defined(STARBOARD)
+    info.sanitization_information_address =
+        FromPointerCast<VMAddress>(&GetSanitizationInformation());
+#endif
+
 #if defined(OS_CHROMEOS)
     info.crash_loop_before_time = crash_loop_before_time_;
 #endif
@@ -602,6 +615,16 @@ bool CrashpadClient::SendAnnotationsToHandler(
   }
 
   return SignalHandler::Get()->SendAnnotations(annotations);
+}
+
+bool CrashpadClient::SendSanitizationInformationToHandler(
+    SanitizationInformation sanitization_information) {
+  if (!SignalHandler::Get()) {
+    DLOG(ERROR) << "Crashpad isn't enabled";
+    return false;
+  }
+
+  return SignalHandler::Get()->SendSanitizationInformation(sanitization_information);
 }
 #endif
 

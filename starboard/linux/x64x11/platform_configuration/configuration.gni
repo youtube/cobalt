@@ -16,4 +16,4 @@ import(
     "//starboard/linux/x64x11/shared/platform_configuration/configuration.gni")
 
 gl_type = "angle"
-angle_enable_gl = true
+sb_angle_enable_gl = true

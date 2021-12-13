@@ -12,9 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <string>
+
 #include "starboard/player.h"
 
 #include "starboard/common/log.h"
+#include "starboard/common/media.h"
+#include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/decode_target.h"
 #include "starboard/shared/media_session/playback_state.h"
@@ -43,8 +47,15 @@ SbPlayer SbPlayerCreate(SbWindow window,
                         SbPlayerErrorFunc player_error_func,
                         void* context,
                         SbDecodeTargetGraphicsContextProvider* provider) {
+  if (!player_error_func) {
+    SB_LOG(ERROR) << "|player_error_func| cannot be null.";
+    return kSbPlayerInvalid;
+  }
+
   if (!creation_param) {
     SB_LOG(ERROR) << "CreationParam cannot be null.";
+    player_error_func(kSbPlayerInvalid, context, kSbPlayerErrorDecode,
+                      "CreationParam cannot be null");
     return kSbPlayerInvalid;
   }
 
@@ -62,15 +73,22 @@ SbPlayer SbPlayerCreate(SbWindow window,
 
   if (!audio_mime) {
     SB_LOG(ERROR) << "creation_param->audio_sample_info.mime cannot be null.";
+    player_error_func(kSbPlayerInvalid, context, kSbPlayerErrorDecode,
+                      "creation_param->video_sample_info.mime cannot be null");
     return kSbPlayerInvalid;
   }
   if (!video_mime) {
     SB_LOG(ERROR) << "creation_param->video_sample_info.mime cannot be null.";
+    player_error_func(kSbPlayerInvalid, context, kSbPlayerErrorDecode,
+                      "creation_param->video_sample_info.mime cannot be null");
     return kSbPlayerInvalid;
   }
   if (!max_video_capabilities) {
     SB_LOG(ERROR) << "creation_param->video_sample_info.max_video_capabilities"
                   << " cannot be null.";
+    player_error_func(kSbPlayerInvalid, context, kSbPlayerErrorDecode,
+                      "creation_param->video_sample_info.max_video_"
+                      "capabilities cannot be null");
     return kSbPlayerInvalid;
   }
 
@@ -105,12 +123,33 @@ SbPlayer SbPlayerCreate(SbWindow window,
                         SbDecodeTargetGraphicsContextProvider* provider) {
 #endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 
+  if (!player_error_func) {
+    SB_LOG(ERROR) << "|player_error_func| cannot be null.";
+    return kSbPlayerInvalid;
+  }
+
   if (audio_sample_info) {
     SB_DCHECK(audio_sample_info->codec == audio_codec);
   }
 
-  if (!sample_deallocate_func || !decoder_status_func || !player_status_func ||
-      !player_error_func) {
+  if (!sample_deallocate_func) {
+    SB_LOG(ERROR) << "|sample_deallocate_func| cannot be null.";
+    player_error_func(kSbPlayerInvalid, context, kSbPlayerErrorDecode,
+                      "|sample_deallocate_func| cannot be null");
+    return kSbPlayerInvalid;
+  }
+
+  if (!decoder_status_func) {
+    SB_LOG(ERROR) << "|decoder_status_func| cannot be null.";
+    player_error_func(kSbPlayerInvalid, context, kSbPlayerErrorDecode,
+                      "|decoder_status_func| cannot be null");
+    return kSbPlayerInvalid;
+  }
+
+  if (!player_status_func) {
+    SB_LOG(ERROR) << "|player_status_func| cannot be null.";
+    player_error_func(kSbPlayerInvalid, context, kSbPlayerErrorDecode,
+                      "|player_status_func| cannot be null");
     return kSbPlayerInvalid;
   }
 
@@ -121,7 +160,13 @@ SbPlayer SbPlayerCreate(SbWindow window,
                                audio_mime,
 #endif  // SB_API_VERSION >= 12
                                kDefaultBitRate)) {
-    SB_LOG(ERROR) << "Unsupported audio codec " << audio_codec;
+    SB_LOG(ERROR) << "Unsupported audio codec "
+                  << starboard::GetMediaAudioCodecName(audio_codec) << ".";
+    player_error_func(
+        kSbPlayerInvalid, context, kSbPlayerErrorDecode,
+        starboard::FormatString("Unsupported audio codec: %s",
+                                starboard::GetMediaAudioCodecName(audio_codec))
+            .c_str());
     return kSbPlayerInvalid;
   }
 
@@ -145,14 +190,24 @@ SbPlayer SbPlayerCreate(SbWindow window,
           kDefaultFrameWidth, kDefaultFrameHeight, kDefaultBitRate,
           kDefaultFrameRate,
           output_mode == kSbPlayerOutputModeDecodeToTexture)) {
-    SB_LOG(ERROR) << "Unsupported video codec " << video_codec;
+    SB_LOG(ERROR) << "Unsupported video codec "
+                  << starboard::GetMediaVideoCodecName(video_codec) << ".";
+    player_error_func(
+        kSbPlayerInvalid, context, kSbPlayerErrorDecode,
+        starboard::FormatString("Unsupported video codec: %s",
+                                starboard::GetMediaVideoCodecName(video_codec))
+            .c_str());
     return kSbPlayerInvalid;
   }
 
   if (audio_codec != kSbMediaAudioCodecNone && !audio_sample_info) {
     SB_LOG(ERROR)
         << "SbPlayerCreate() requires a non-NULL SbMediaAudioSampleInfo "
-        << "when |audio_codec| is not kSbMediaAudioCodecNone";
+        << "when |audio_codec| is not kSbMediaAudioCodecNone.";
+    player_error_func(kSbPlayerInvalid, context, kSbPlayerErrorDecode,
+                      "SbPlayerCreate() requires a non-NULL "
+                      "SbMediaAudioSampleInfo when |audio_codec| is not "
+                      "kSbMediaAudioCodecNone");
     return kSbPlayerInvalid;
   }
 
@@ -160,27 +215,41 @@ SbPlayer SbPlayerCreate(SbWindow window,
       video_codec == kSbMediaVideoCodecNone) {
     SB_LOG(ERROR) << "SbPlayerCreate() requires at least one audio track or"
                   << " one video track.";
+    player_error_func(kSbPlayerInvalid, context, kSbPlayerErrorDecode,
+                      "SbPlayerCreate() requires at least one audio track or "
+                      "one video track");
     return kSbPlayerInvalid;
   }
 
+  std::string error_message;
   if (audio_sample_info &&
       audio_sample_info->number_of_channels > SbAudioSinkGetMaxChannels()) {
-    SB_LOG(ERROR) << "audio_sample_info->number_of_channels ("
-                  << audio_sample_info->number_of_channels
-                  << ") exceeds the maximum"
-                  << " number of audio channels supported by this platform ("
-                  << SbAudioSinkGetMaxChannels() << ").";
+    error_message = starboard::FormatString(
+        "Number of audio channels (%d) exceeds the maximum number of audio "
+        "channels supported by this platform (%d)",
+        audio_sample_info->number_of_channels, SbAudioSinkGetMaxChannels());
+    SB_LOG(ERROR) << error_message << ".";
+    player_error_func(kSbPlayerInvalid, context, kSbPlayerErrorDecode,
+                      error_message.c_str());
     return kSbPlayerInvalid;
   }
 
 #if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
   if (SbPlayerGetPreferredOutputMode(creation_param) != output_mode) {
-    SB_LOG(ERROR) << "Unsupported player output mode " << output_mode;
+    error_message = starboard::FormatString("Unsupported player output mode %d",
+                                            output_mode);
+    SB_LOG(ERROR) << error_message << ".";
+    player_error_func(kSbPlayerInvalid, context, kSbPlayerErrorDecode,
+                      error_message.c_str());
     return kSbPlayerInvalid;
   }
 #else   // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
   if (!SbPlayerOutputModeSupported(output_mode, video_codec, drm_system)) {
-    SB_LOG(ERROR) << "Unsupported player output mode " << output_mode;
+    error_message = starboard::FormatString("Unsupported player output mode %d",
+                                            output_mode);
+    SB_LOG(ERROR) << error_message << ".";
+    player_error_func(kSbPlayerInvalid, context, kSbPlayerErrorDecode,
+                      error_message.c_str());
     return kSbPlayerInvalid;
   }
 #endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)

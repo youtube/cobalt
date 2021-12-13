@@ -60,6 +60,9 @@ inline const char* SupportedAudioCodecToMimeType(
   if (audio_codec == kSbMediaAudioCodecAac) {
     return "audio/mp4a-latm";
   }
+  if (audio_codec == kSbMediaAudioCodecOpus) {
+    return "audio/opus";
+  }
   return nullptr;
 }
 

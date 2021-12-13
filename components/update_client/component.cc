@@ -15,6 +15,9 @@
 #include "base/single_thread_task_runner.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/task/post_task.h"
+#if defined(STARBOARD)
+#include "base/threading/thread_id_name_manager.h"
+#endif
 #include "base/threading/thread_task_runner_handle.h"
 #include "base/values.h"
 #include "components/update_client/action_runner.h"
@@ -81,6 +84,10 @@ void InstallComplete(
     InstallOnBlockingTaskRunnerCompleteCallback callback,
     const base::FilePath& unpack_path,
     const CrxInstaller::Result& result) {
+#if defined(STARBOARD)
+    LOG(INFO) << "InstallComplete thread_name="
+              << base::ThreadIdNameManager::GetInstance()->GetNameForCurrentThread();
+#endif
   base::PostTaskWithTraits(
       FROM_HERE, {base::TaskPriority::BEST_EFFORT, base::MayBlock()},
       base::BindOnce(
@@ -88,7 +95,10 @@ void InstallComplete(
              InstallOnBlockingTaskRunnerCompleteCallback callback,
              const base::FilePath& unpack_path,
              const CrxInstaller::Result& result) {
-
+#if defined(STARBOARD)
+            LOG(INFO) << "Closure kicked off from InstallComplete thread_name="
+              << base::ThreadIdNameManager::GetInstance()->GetNameForCurrentThread();
+#endif
 // For Cobalt, don't delete the unpack_path, which is not a temp directory.
 // Cobalt uses a dedicated installation slot obtained from the Installation
 // Manager.
@@ -117,6 +127,11 @@ void InstallOnBlockingTaskRunner(
     InstallOnBlockingTaskRunnerCompleteCallback callback) {
   DCHECK(base::DirectoryExists(unpack_path));
 
+#if defined(STARBOARD)
+  LOG(INFO) << "InstallOnBlockingTaskRunner thread_name="
+              << base::ThreadIdNameManager::GetInstance()->GetNameForCurrentThread();
+#endif
+
 #if !defined(STARBOARD)
   // Acquire the ownership of the |unpack_path|.
   base::ScopedTempDir unpack_path_owner;
@@ -141,11 +156,11 @@ void InstallOnBlockingTaskRunner(
       static_cast<const CobaltExtensionInstallationManagerApi*>(
           SbSystemGetExtension(kCobaltExtensionInstallationManagerName));
   if (!installation_api) {
-    SB_LOG(ERROR) << "Failed to get installation manager api.";
+    LOG(ERROR) << "Failed to get installation manager api.";
     // TODO: add correct error code.
     install_error = InstallError::GENERIC_ERROR;
   } else if (installation_index == IM_EXT_INVALID_INDEX) {
-    SB_LOG(ERROR) << "Installation index is invalid.";
+    LOG(ERROR) << "Installation index is invalid.";
     // TODO: add correct error code.
     install_error = InstallError::GENERIC_ERROR;
   } else {
@@ -187,8 +202,9 @@ void UnpackCompleteOnBlockingTaskRunner(
     scoped_refptr<CrxInstaller> installer,
     InstallOnBlockingTaskRunnerCompleteCallback callback,
     const ComponentUnpacker::Result& result) {
-
 #if defined(STARBOARD)
+  LOG(INFO) << "UnpackCompleteOnBlockingTaskRunner thread_name="
+              << base::ThreadIdNameManager::GetInstance()->GetNameForCurrentThread();
   base::DeleteFile(crx_path, false);
 #else
   update_client::DeleteFileAndEmptyParentDirectory(crx_path);
@@ -245,6 +261,10 @@ void StartInstallOnBlockingTaskRunner(
     scoped_refptr<Patcher> patcher_,
     crx_file::VerifierFormat crx_format,
     InstallOnBlockingTaskRunnerCompleteCallback callback) {
+#if defined(STARBOARD)
+  LOG(INFO) << "StartInstallOnBlockingTaskRunner thread_name="
+              << base::ThreadIdNameManager::GetInstance()->GetNameForCurrentThread();
+#endif
   auto unpacker = base::MakeRefCounted<ComponentUnpacker>(
       pk_hash, crx_path, installer, std::move(unzipper_), std::move(patcher_),
       crx_format);
@@ -274,9 +294,17 @@ const char* DownloaderToString(CrxDownloader::DownloadMetrics::Downloader d) {
 Component::Component(const UpdateContext& update_context, const std::string& id)
     : id_(id),
       state_(std::make_unique<StateNew>(this)),
-      update_context_(update_context) {}
+      update_context_(update_context) {
+#if defined(STARBOARD)
+  LOG(INFO) << "Component::Component";
+#endif
+}
 
-Component::~Component() {}
+Component::~Component() {
+#if defined(STARBOARD)
+  LOG(INFO) << "Component::~Component";
+#endif
+}
 
 scoped_refptr<Configurator> Component::config() const {
   return update_context_.config;
@@ -293,7 +321,9 @@ bool Component::is_foreground() const {
 void Component::Handle(CallbackHandleComplete callback_handle_complete) {
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(state_);
-
+#if defined(STARBOARD)
+  LOG(INFO) << "Component::Handle";
+#endif
   callback_handle_complete_ = std::move(callback_handle_complete);
 
   state_->Handle(
@@ -309,6 +339,10 @@ void Component::Cancel() {
 
 void Component::ChangeState(std::unique_ptr<State> next_state) {
   DCHECK(thread_checker_.CalledOnValidThread());
+#if defined(STARBOARD)
+  LOG(INFO) << "Component::ChangeState next_state="
+    << ((next_state)? next_state->state_name(): "nullptr");
+#endif
 
   previous_state_ = state();
   if (next_state)
@@ -533,6 +567,9 @@ Component::State::~State() {}
 
 void Component::State::Handle(CallbackNextState callback_next_state) {
   DCHECK(thread_checker_.CalledOnValidThread());
+#if defined(STARBOARD)
+  LOG(INFO) << "Component::State::Handle";
+#endif
 
   callback_next_state_ = std::move(callback_next_state);
 
@@ -542,7 +579,7 @@ void Component::State::Handle(CallbackNextState callback_next_state) {
 #if defined(STARBOARD)
 void Component::State::Cancel() {
   DCHECK(thread_checker_.CalledOnValidThread());
-  // Further work may be needed to ensure cancelation during any state results
+  // Further work may be needed to ensure cancellation during any state results
   // in a clear result and no memory leaks.
 }
 #endif
@@ -550,6 +587,10 @@ void Component::State::Cancel() {
 void Component::State::TransitionState(std::unique_ptr<State> next_state) {
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(next_state);
+#if defined(STARBOARD)
+  LOG(INFO) << "Component::State::TransitionState next_state="
+    << ((next_state)? next_state->state_name(): "nullptr");
+#endif
 
   base::ThreadTaskRunnerHandle::Get()->PostTask(
       FROM_HERE,
@@ -628,7 +669,7 @@ void Component::StateChecking::UpdateCheckComplete() {
                                   base::Unretained(metadata), component.id_,
                                   config->GetChannel()));
   } else {
-    SB_LOG(WARNING) << "Failed to get the persisted data store to write the "
+    LOG(WARNING) << "Failed to get the persisted data store to write the "
                        "updater channel.";
   }
 #endif
@@ -972,6 +1013,10 @@ Component::StateUpdating::~StateUpdating() {
 }
 
 void Component::StateUpdating::DoHandle() {
+#if defined(STARBOARD)
+  LOG(INFO) << "Component::StateUpdating::DoHandle() thread_name="
+              << base::ThreadIdNameManager::GetInstance()->GetNameForCurrentThread();
+#endif
   DCHECK(thread_checker_.CalledOnValidThread());
 
   const auto& component = Component::State::component();

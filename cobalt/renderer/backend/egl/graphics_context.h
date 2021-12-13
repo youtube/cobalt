@@ -24,7 +24,7 @@
 #include "cobalt/renderer/backend/egl/resource_context.h"
 #include "cobalt/renderer/backend/egl/texture.h"
 #include "cobalt/renderer/backend/egl/texture_data.h"
-#include "cobalt/renderer/backend/graphics_context.h"
+#include "cobalt/renderer/backend/graphics_context.h"  // nogncheck
 #include "cobalt/renderer/egl_and_gles.h"
 
 namespace cobalt {

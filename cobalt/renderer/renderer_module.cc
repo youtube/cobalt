@@ -42,13 +42,10 @@ RendererModule::Options::Options()
   std::string rasterizer_type =
       configuration::Configuration::GetInstance()->CobaltRasterizerType();
   if (rasterizer_type == "direct-gles") {
-    software_surface_cache_size_in_bytes = 0;
     offscreen_target_cache_size_in_bytes = 4 * 1024 * 1024;
   } else if (rasterizer_type == "hardware") {
-    software_surface_cache_size_in_bytes = 0;
     offscreen_target_cache_size_in_bytes = 0;
   } else {
-    software_surface_cache_size_in_bytes = 8 * 1024 * 1024;
     offscreen_target_cache_size_in_bytes = 0;
   }
 

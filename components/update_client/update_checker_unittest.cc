@@ -369,7 +369,7 @@ TEST_P(UpdateCheckerTest, UpdateCheckSuccess) {
   EXPECT_EQ(GURL("http://localhost/download/"), result.crx_urls.front());
   EXPECT_STREQ("this", result.action_run.c_str());
 
-  // Check the DDOS protection header values.
+// Check the DDOS protection header values.
 #if defined(STARBOARD)
   const auto extra_request_headers = post_interceptor_->GetRequests()[0].second;
 #else
@@ -740,8 +740,12 @@ TEST_P(UpdateCheckerTest, UpdateCheckInstallSource) {
 
   if (is_foreground_) {
     {
+#if defined(STARBOARD)
+      auto post_interceptor = post_interceptor_;
+#else
       auto post_interceptor = std::make_unique<URLLoaderPostInterceptor>(
           config_->test_url_loader_factory());
+#endif
       EXPECT_TRUE(post_interceptor->ExpectRequest(
           std::make_unique<PartialMatch>("updatecheck"),
           test_file("updatecheck_reply_1.json")));
@@ -758,8 +762,12 @@ TEST_P(UpdateCheckerTest, UpdateCheckInstallSource) {
       EXPECT_FALSE(app.FindKey("installedby"));
     }
     {
+#if defined(STARBOARD)
+      auto post_interceptor = post_interceptor_;
+#else
       auto post_interceptor = std::make_unique<URLLoaderPostInterceptor>(
           config_->test_url_loader_factory());
+#endif
       EXPECT_TRUE(post_interceptor->ExpectRequest(
           std::make_unique<PartialMatch>("updatecheck"),
           test_file("updatecheck_reply_1.json")));
@@ -783,8 +791,12 @@ TEST_P(UpdateCheckerTest, UpdateCheckInstallSource) {
 
   DCHECK(!is_foreground_);
   {
+#if defined(STARBOARD)
+    auto post_interceptor = post_interceptor_;
+#else
     auto post_interceptor = std::make_unique<URLLoaderPostInterceptor>(
         config_->test_url_loader_factory());
+#endif
     EXPECT_TRUE(post_interceptor->ExpectRequest(
         std::make_unique<PartialMatch>("updatecheck"),
         test_file("updatecheck_reply_1.json")));
@@ -800,8 +812,12 @@ TEST_P(UpdateCheckerTest, UpdateCheckInstallSource) {
     EXPECT_FALSE(app.FindKey("installsource"));
   }
   {
+#if defined(STARBOARD)
+    auto post_interceptor = post_interceptor_;
+#else
     auto post_interceptor = std::make_unique<URLLoaderPostInterceptor>(
         config_->test_url_loader_factory());
+#endif
     EXPECT_TRUE(post_interceptor->ExpectRequest(
         std::make_unique<PartialMatch>("updatecheck"),
         test_file("updatecheck_reply_1.json")));
@@ -832,8 +848,12 @@ TEST_P(UpdateCheckerTest, ComponentDisabled) {
   auto crx_component = component->crx_component();
 
   {
+#if defined(STARBOARD)
+    auto post_interceptor = post_interceptor_;
+#else
     auto post_interceptor = std::make_unique<URLLoaderPostInterceptor>(
         config_->test_url_loader_factory());
+#endif
     EXPECT_TRUE(post_interceptor->ExpectRequest(
         std::make_unique<PartialMatch>("updatecheck"),
         test_file("updatecheck_reply_1.json")));
@@ -853,8 +873,12 @@ TEST_P(UpdateCheckerTest, ComponentDisabled) {
   {
     crx_component->disabled_reasons = {};
     component->set_crx_component(*crx_component);
+#if defined(STARBOARD)
+    auto post_interceptor = post_interceptor_;
+#else
     auto post_interceptor = std::make_unique<URLLoaderPostInterceptor>(
         config_->test_url_loader_factory());
+#endif
     EXPECT_TRUE(post_interceptor->ExpectRequest(
         std::make_unique<PartialMatch>("updatecheck"),
         test_file("updatecheck_reply_1.json")));
@@ -874,8 +898,12 @@ TEST_P(UpdateCheckerTest, ComponentDisabled) {
   {
     crx_component->disabled_reasons = {0};
     component->set_crx_component(*crx_component);
+#if defined(STARBOARD)
+    auto post_interceptor = post_interceptor_;
+#else
     auto post_interceptor = std::make_unique<URLLoaderPostInterceptor>(
         config_->test_url_loader_factory());
+#endif
     EXPECT_TRUE(post_interceptor->ExpectRequest(
         std::make_unique<PartialMatch>("updatecheck"),
         test_file("updatecheck_reply_1.json")));
@@ -896,8 +924,12 @@ TEST_P(UpdateCheckerTest, ComponentDisabled) {
   {
     crx_component->disabled_reasons = {1};
     component->set_crx_component(*crx_component);
+#if defined(STARBOARD)
+    auto post_interceptor = post_interceptor_;
+#else
     auto post_interceptor = std::make_unique<URLLoaderPostInterceptor>(
         config_->test_url_loader_factory());
+#endif
     EXPECT_TRUE(post_interceptor->ExpectRequest(
         std::make_unique<PartialMatch>("updatecheck"),
         test_file("updatecheck_reply_1.json")));
@@ -919,8 +951,12 @@ TEST_P(UpdateCheckerTest, ComponentDisabled) {
   {
     crx_component->disabled_reasons = {4, 8, 16};
     component->set_crx_component(*crx_component);
+#if defined(STARBOARD)
+    auto post_interceptor = post_interceptor_;
+#else
     auto post_interceptor = std::make_unique<URLLoaderPostInterceptor>(
         config_->test_url_loader_factory());
+#endif
     EXPECT_TRUE(post_interceptor->ExpectRequest(
         std::make_unique<PartialMatch>("updatecheck"),
         test_file("updatecheck_reply_1.json")));
@@ -944,8 +980,12 @@ TEST_P(UpdateCheckerTest, ComponentDisabled) {
   {
     crx_component->disabled_reasons = {0, 4, 8, 16};
     component->set_crx_component(*crx_component);
+#if defined(STARBOARD)
+    auto post_interceptor = post_interceptor_;
+#else
     auto post_interceptor = std::make_unique<URLLoaderPostInterceptor>(
         config_->test_url_loader_factory());
+#endif
     EXPECT_TRUE(post_interceptor->ExpectRequest(
         std::make_unique<PartialMatch>("updatecheck"),
         test_file("updatecheck_reply_1.json")));
@@ -987,8 +1027,12 @@ TEST_P(UpdateCheckerTest, UpdateCheckUpdateDisabled) {
     // Expects the group policy to be ignored and the update check to not
     // include the "updatedisabled" attribute.
     EXPECT_FALSE(crx_component->supports_group_policy_enable_component_updates);
+#if defined(STARBOARD)
+    auto post_interceptor = post_interceptor_;
+#else
     auto post_interceptor = std::make_unique<URLLoaderPostInterceptor>(
         config_->test_url_loader_factory());
+#endif
     EXPECT_TRUE(post_interceptor->ExpectRequest(
         std::make_unique<PartialMatch>("updatecheck"),
         test_file("updatecheck_reply_1.json")));
@@ -1013,8 +1057,12 @@ TEST_P(UpdateCheckerTest, UpdateCheckUpdateDisabled) {
     // Expects the update check to include the "updatedisabled" attribute.
     crx_component->supports_group_policy_enable_component_updates = true;
     component->set_crx_component(*crx_component);
+#if defined(STARBOARD)
+    auto post_interceptor = post_interceptor_;
+#else
     auto post_interceptor = std::make_unique<URLLoaderPostInterceptor>(
         config_->test_url_loader_factory());
+#endif
     EXPECT_TRUE(post_interceptor->ExpectRequest(
         std::make_unique<PartialMatch>("updatecheck"),
         test_file("updatecheck_reply_1.json")));
@@ -1039,8 +1087,12 @@ TEST_P(UpdateCheckerTest, UpdateCheckUpdateDisabled) {
     // Expects the update check to not include the "updatedisabled" attribute.
     crx_component->supports_group_policy_enable_component_updates = false;
     component->set_crx_component(*crx_component);
+#if defined(STARBOARD)
+    auto post_interceptor = post_interceptor_;
+#else
     auto post_interceptor = std::make_unique<URLLoaderPostInterceptor>(
         config_->test_url_loader_factory());
+#endif
     EXPECT_TRUE(post_interceptor->ExpectRequest(
         std::make_unique<PartialMatch>("updatecheck"),
         test_file("updatecheck_reply_1.json")));
@@ -1065,8 +1117,12 @@ TEST_P(UpdateCheckerTest, UpdateCheckUpdateDisabled) {
     // Expects the update check to not include the "updatedisabled" attribute.
     crx_component->supports_group_policy_enable_component_updates = true;
     component->set_crx_component(*crx_component);
+#if defined(STARBOARD)
+    auto post_interceptor = post_interceptor_;
+#else
     auto post_interceptor = std::make_unique<URLLoaderPostInterceptor>(
         config_->test_url_loader_factory());
+#endif
     EXPECT_TRUE(post_interceptor->ExpectRequest(
         std::make_unique<PartialMatch>("updatecheck"),
         test_file("updatecheck_reply_1.json")));
@@ -1221,7 +1277,7 @@ TEST_P(UpdateCheckerTest, ParseErrorProtocolVersionMismatch) {
 }
 
 // The update response contains a status |error-unknownApplication| for the
-// app. The response is succesfully parsed and a result is extracted to
+// app. The response is successfully parsed and a result is extracted to
 // indicate this status.
 TEST_P(UpdateCheckerTest, ParseErrorAppStatusErrorUnknownApplication) {
   EXPECT_TRUE(post_interceptor_->ExpectRequest(

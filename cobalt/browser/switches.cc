@@ -383,14 +383,6 @@ const char kSkiaTextureAtlasDimensionsHelp[] =
     "Specifies the dimensions of the Skia caching texture atlases (e.g. "
     "2048x2048).";
 
-const char kSoftwareSurfaceCacheSizeInBytes[] =
-    "software_surface_cache_size_in_bytes";
-const char kSoftwareSurfaceCacheSizeInBytesHelp[] =
-    "Only relevant if you are using the Blitter API. Determines the capacity "
-    "of the software surface cache, which is used to "
-    "cache all surfaces that are rendered via a software rasterizer to avoid "
-    "re-rendering them.";
-
 const char kFallbackSplashScreenURL[] = "fallback_splash_screen_url";
 const char kFallbackSplashScreenURLHelp[] =
     "Setting this switch defines the splash screen URL that Cobalt will "
@@ -412,6 +404,11 @@ const char kFallbackSplashScreenTopicsHelp[] =
     "'fallback_splash_screen_url'. If no fallback url exists for the topic of "
     "the URL used to launch Cobalt, then the value of "
     "'fallback_splash_screen_url' will be used.";
+
+const char kUpdateCheckDelaySeconds[] = "update_check_delay_seconds";
+const char kUpdateCheckDelaySecondsHelp[] =
+    "Number of seconds to delay the first Cobalt Evergreen check for updates."
+    "The default value is 60 seconds.";
 
 const char kUseQAUpdateServer[] = "use_qa_update_server";
 const char kUseQAUpdateServerHelp[] =
@@ -498,9 +495,8 @@ std::string HelpMessage() {
         {kSilenceInlineScriptWarnings, kSilenceInlineScriptWarningsHelp},
         {kSkiaCacheSizeInBytes, kSkiaCacheSizeInBytesHelp},
         {kSkiaTextureAtlasDimensions, kSkiaTextureAtlasDimensionsHelp},
-        {kSoftwareSurfaceCacheSizeInBytes,
-         kSoftwareSurfaceCacheSizeInBytesHelp},
         {kFallbackSplashScreenURL, kFallbackSplashScreenURLHelp},
+        {kUpdateCheckDelaySeconds, kUpdateCheckDelaySecondsHelp},
         {kUseQAUpdateServer, kUseQAUpdateServerHelp}, {kVersion, kVersionHelp},
         {kViewport, kViewportHelp},
         {kVideoPlaybackRateMultiplier, kVideoPlaybackRateMultiplierHelp},

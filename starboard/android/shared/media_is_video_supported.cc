@@ -130,8 +130,8 @@ bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
   const bool require_secure_playback = must_support_tunnel_mode;
   return env->CallStaticBooleanMethodOrAbort(
              "dev/cobalt/media/MediaCodecUtil", "hasVideoDecoderFor",
-             "(Ljava/lang/String;ZIIIIZZ)Z", j_mime.Get(),
-             require_secure_playback, frame_width, frame_height,
-             static_cast<jint>(bitrate), fps, must_support_hdr,
-             must_support_tunnel_mode) == JNI_TRUE;
+             "(Ljava/lang/String;ZZZIIII)Z", j_mime.Get(),
+             require_secure_playback, must_support_hdr,
+             must_support_tunnel_mode, frame_width, frame_height,
+             static_cast<jint>(bitrate), fps) == JNI_TRUE;
 }

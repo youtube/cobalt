@@ -457,6 +457,12 @@ v8_source_set("unittests_sources") {
     "//testing/gtest",
   ]
 
+  if (is_starboard) {
+    deps -= [
+      "../../third_party/inspector_protocol:crdtp_test"
+    ]
+  }
+
   if (is_win) {
     # This warning is benignly triggered by the U16 and U32 macros in
     # bytecode-utils.h.

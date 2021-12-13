@@ -52,19 +52,6 @@
       'includes': [ '<(DEPTH)/cobalt/test/test.gypi' ],
     },
     {
-      'target_name': 'png_utils_benchmark',
-      'type': '<(final_executable_type)',
-      'sources': [
-        'png_utils_benchmark.cc',
-      ],
-      'dependencies': [
-        '<(DEPTH)/base/base.gyp:base',
-        'png_utils',
-        'png_utils_copy_test_data',
-      ],
-    },
-
-    {
       'target_name': 'png_utils_copy_test_data',
       'type': 'none',
       'variables': {

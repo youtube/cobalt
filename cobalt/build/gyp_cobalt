@@ -17,21 +17,18 @@
 import argparse
 import logging
 import os
-import shlex
 import sys
 import textwrap
 
 import _env  # pylint: disable=unused-import
 from cobalt.build import cobalt_configuration
 from cobalt.build import gyp_utils
-from cobalt.tools import paths
 from starboard.build.gyp_runner import GypRunner
 from starboard.tools import build
 from starboard.tools import command_line
 from starboard.tools import config
 from starboard.tools import log_level
 from starboard.tools import platform
-
 
 # Return values used by main().
 RETVAL_SUCCESS = 0
@@ -49,33 +46,51 @@ def _ParseCommandLineArguments(argv):
       formatter_class=argparse.RawDescriptionHelpFormatter,
       description=textwrap.dedent(__doc__))
 
-  parser.add_argument('-C', '--config', dest='build_configs', metavar='CONFIG',
-                      action='append', default=[], choices=config.GetAll(),
-                      help='Specifies build configurations. Supported '
-                      'configurations are %s. Can be specified multiple '
-                      'times, creates all configurations if nothing is '
-                      'given.' % _ListAsString(config.GetAll()))
+  parser.add_argument(
+      '-C',
+      '--config',
+      dest='build_configs',
+      metavar='CONFIG',
+      action='append',
+      default=[],
+      choices=config.GetAll(),
+      help='Specifies build configurations. Supported '
+      'configurations are %s. Can be specified multiple '
+      'times, creates all configurations if nothing is '
+      'given.' % _ListAsString(config.GetAll()))
 
   gyp_debug_options = build.GypDebugOptions()
-  parser.add_argument('-D', '--debug', dest='debug', metavar='DEBUGMODE',
-                      action='append', default=[],
-                      choices=gyp_debug_options + ['all'],
-                      help='Turn on a debugging mode for debugging GYP. '
-                      'Supported modes are %s or "all" for all of '
-                      'them.' % _ListAsString(gyp_debug_options))
+  parser.add_argument(
+      '-D',
+      '--debug',
+      dest='debug',
+      metavar='DEBUGMODE',
+      action='append',
+      default=[],
+      choices=gyp_debug_options + ['all'],
+      help='Turn on a debugging mode for debugging GYP. '
+      'Supported modes are %s or "all" for all of '
+      'them.' % _ListAsString(gyp_debug_options))
 
-  parser.add_argument('--check', action='store_true',
-                      help='Check format of gyp files.')
-  parser.add_argument('-v', '--verbose', action='store_true',
-                      help='Enables verbose logging. For more control over the '
-                      "logging level use '--log_level' instead.")
-  parser.add_argument('platform', choices=platform.GetAll(),
-                      metavar='platform',
-                      help='Target platform. Supported platforms are: %s.' % (
-                          _ListAsString(platform.GetAll())))
-  parser.add_argument('build_file', nargs='?',
-                      default=None,
-                      help='GYP build file. Uses all.gyp if nothing is given.')
+  parser.add_argument(
+      '--check', action='store_true', help='Check format of gyp files.')
+  parser.add_argument(
+      '-v',
+      '--verbose',
+      action='store_true',
+      help='Enables verbose logging. For more control over the '
+      "logging level use '--log_level' instead.")
+  parser.add_argument(
+      'platform',
+      choices=platform.GetAll(),
+      metavar='platform',
+      help='Target platform. Supported platforms are: %s.' %
+      (_ListAsString(platform.GetAll())))
+  parser.add_argument(
+      'build_file',
+      nargs='?',
+      default=None,
+      help='GYP build file. Uses all.gyp if nothing is given.')
 
   command_line.AddLoggingArguments(parser, default='warning')
 
@@ -94,6 +109,7 @@ def _GetBuildConfigs(build_configs):
     else:
       return config.GetAll()
 
+
 def main(argv):
   options = _ParseCommandLineArguments(argv)
 
@@ -105,10 +121,10 @@ def main(argv):
 
   build_id_server_url = os.environ.get('BUILD_ID_SERVER_URL')
   if build_id_server_url:
-    options.build_number = gyp_utils.GetBuildNumber(
-      version_server=build_id_server_url)
+    options.build_number = gyp_utils.GetOrGenerateNewBuildNumber(
+        version_server=build_id_server_url)
   else:
-    options.build_number = gyp_utils.GetBuildNumber()
+    options.build_number = gyp_utils.GetOrGenerateNewBuildNumber()
 
   try:
     gyp_runner = GypRunner(options)

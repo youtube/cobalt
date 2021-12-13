@@ -935,8 +935,8 @@ void SbPlayerPipeline::CreateUrlPlayer(const std::string& source_url) {
 
   CallSeekCB(DECODER_ERROR_NOT_SUPPORTED,
              "SbPlayerPipeline::CreateUrlPlayer failed to create a valid "
-             "StarboardPlayer:" +
-                 (error_message.empty() ? "" : " Error: " + error_message));
+             "StarboardPlayer: \'" +
+                 error_message + "\'");
 }
 
 void SbPlayerPipeline::SetDrmSystem(SbDrmSystem drm_system) {
@@ -1037,8 +1037,8 @@ void SbPlayerPipeline::CreatePlayer(SbDrmSystem drm_system) {
 
   CallSeekCB(DECODER_ERROR_NOT_SUPPORTED,
              "SbPlayerPipeline::CreatePlayer failed to create a valid "
-             "StarboardPlayer:" +
-                 (error_message.empty() ? "" : " Error: " + error_message));
+             "StarboardPlayer: \'" +
+                 error_message + "\'");
 }
 
 void SbPlayerPipeline::OnDemuxerInitialized(PipelineStatus status) {
@@ -1441,15 +1441,18 @@ void SbPlayerPipeline::ResumeTask(PipelineWindow window,
   if (player_) {
     player_->Resume(window);
     if (!player_->IsValid()) {
+      std::string error_message;
       {
         base::AutoLock auto_lock(lock_);
+        error_message = player_->GetPlayerCreationErrorMessage();
         player_.reset();
       }
       // TODO: Determine if CallSeekCB() may be used here, as |seek_cb_| may be
       // available if the app is suspended before a seek is completed.
       CallErrorCB(DECODER_ERROR_NOT_SUPPORTED,
-                  "SbPlayerPipeline::ResumeTask failed: "
-                  "player_->IsValid() is false.");
+                  "SbPlayerPipeline::ResumeTask failed to create a valid "
+                  "StarboardPlayer: \'" +
+                      error_message + "\'");
       return;
     }
   }

@@ -131,8 +131,8 @@
 //
 // |PRELOADING| can only happen as the first application state. In this state,
 // the application should start and run as normal, but will not receive any
-// input, and should not try to initialize graphics resources (via GL or
-// |SbBlitter|). In |PRELOADING|, the application can receive |Start| or
+// input, and should not try to initialize graphics resources via GL.
+// In |PRELOADING|, the application can receive |Start| or
 // |Suspend| events. |Start| will receive the same data that was passed into
 // |Preload|.
 //
@@ -178,8 +178,8 @@ extern "C" {
 typedef enum SbEventType {
 #if SB_API_VERSION >= 13
   // Applications should perform initialization and prepare to react to
-  // subsequent events, but must not initialize any graphics resources (through
-  // GL or SbBlitter). The intent of this event is to allow the application to
+  // subsequent events, but must not initialize any graphics resources through
+  // GL. The intent of this event is to allow the application to
   // do as much work as possible ahead of time, so that when the application is
   // first brought to the foreground, it's as fast as a resume.
 
@@ -251,8 +251,8 @@ typedef enum SbEventType {
   kSbEventTypeStop,
 #else
   // Applications should perform initialization and prepare to react to
-  // subsequent events, but must not initialize any graphics resources (through
-  // GL or SbBlitter). The intent of this event is to allow the application to
+  // subsequent events, but must not initialize any graphics resources through
+  // GL. The intent of this event is to allow the application to
   // do as much work as possible ahead of time, so that when the application is
   // first brought to the foreground, it's as fast as a resume.
   //
@@ -339,6 +339,8 @@ typedef enum SbEventType {
   // directly. The data type is an internally-defined structure.
   kSbEventTypeScheduled,
 
+// clang-format off
+
   // The platform's accessibility settings have changed. The application should
   // query the accessibility settings using the appropriate APIs to get the
   // new settings. Note this excludes captions settings changes, which
@@ -354,6 +356,8 @@ typedef enum SbEventType {
 #else
   kSbEventTypeAccessiblitySettingsChanged,
 #endif  // SB_API_VERSION >= 13
+
+  // clang-format on
 
   // An optional event that platforms may send to indicate that the application
   // may soon be terminated (or crash) due to low memory availability. The
@@ -421,6 +425,8 @@ typedef enum SbEventType {
   kSbEventTypeAccessibilityCaptionSettingsChanged,
 #endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
 
+// clang-format off
+
 #if SB_API_VERSION >= 12
   // The platform's text-to-speech settings have changed.
 #if SB_API_VERSION >= 13
@@ -429,6 +435,8 @@ typedef enum SbEventType {
   kSbEventTypeAccessiblityTextToSpeechSettingsChanged,
 #endif  // SB_API_VERSION >= 13
 #endif  // SB_API_VERSION >= 12
+
+// clang-format on
 
 #if SB_API_VERSION >= 13
   // The platform has detected a network disconnection. There are likely to

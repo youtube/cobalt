@@ -96,11 +96,9 @@ FakeGraphicsContextProvider::FakeGraphicsContextProvider()
 #endif  // SB_HAS(GLES2)
       window_(kSbWindowInvalid) {
   InitializeWindow();
-#if SB_HAS(BLITTER)
-  decoder_target_provider_.device = kSbBlitterInvalidDevice;
-#elif SB_HAS(GLES2)
+#if SB_HAS(GLES2)
   InitializeEGL();
-#endif  // SB_HAS(BLITTER)
+#endif
 }
 
 FakeGraphicsContextProvider::~FakeGraphicsContextProvider() {
@@ -235,8 +233,8 @@ void FakeGraphicsContextProvider::InitializeEGL() {
   };
 #if SB_API_VERSION < 12 && defined(GLES3_SUPPORTED)
   // Attempt to create an OpenGL ES 3.0 context.
-  context_ = EGL_CALL_SIMPLE(eglCreateContext(
-      display_, config, EGL_NO_CONTEXT, context_attrib_list));
+  context_ = EGL_CALL_SIMPLE(
+      eglCreateContext(display_, config, EGL_NO_CONTEXT, context_attrib_list));
 #endif
   if (context_ == EGL_NO_CONTEXT) {
     // Create an OpenGL ES 2.0 context.
@@ -291,8 +289,8 @@ void FakeGraphicsContextProvider::MakeContextCurrent() {
 }
 
 void FakeGraphicsContextProvider::MakeNoContextCurrent() {
-  EGL_CALL(eglMakeCurrent(display_, EGL_NO_SURFACE, EGL_NO_SURFACE,
-                          EGL_NO_CONTEXT));
+  EGL_CALL(
+      eglMakeCurrent(display_, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT));
 }
 
 void FakeGraphicsContextProvider::DestroyContext() {

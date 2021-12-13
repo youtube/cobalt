@@ -12,6 +12,9 @@
 #include "base/logging.h"
 #include "base/task/post_task.h"
 #include "base/task/task_traits.h"
+#if defined(STARBOARD)
+#include "base/threading/thread_id_name_manager.h"
+#endif
 #include "base/threading/thread_task_runner_handle.h"
 #include "build/build_config.h"
 #if defined(OS_WIN)
@@ -60,9 +63,17 @@ std::unique_ptr<CrxDownloader> CrxDownloader::Create(
 
 CrxDownloader::CrxDownloader(std::unique_ptr<CrxDownloader> successor)
     : main_task_runner_(base::ThreadTaskRunnerHandle::Get()),
-      successor_(std::move(successor)) {}
+      successor_(std::move(successor)) {
+#if defined(STARBOARD)
+  LOG(INFO) << "CrxDownloader::CrxDownloader";
+#endif
+}
 
-CrxDownloader::~CrxDownloader() {}
+CrxDownloader::~CrxDownloader() {
+#if defined(STARBOARD)
+  LOG(INFO) << "CrxDownloader::~CrxDownloader";
+#endif
+}
 
 void CrxDownloader::set_progress_callback(
     const ProgressCallback& progress_callback) {
@@ -87,6 +98,9 @@ CrxDownloader::download_metrics() const {
 void CrxDownloader::StartDownloadFromUrl(const GURL& url,
                                          const std::string& expected_hash,
                                          DownloadCallback download_callback) {
+#if defined(STARBOARD)
+  LOG(INFO) << "CrxDownloader::StartDownloadFromUrl: url=" << url;
+#endif
   std::vector<GURL> urls;
   urls.push_back(url);
   StartDownload(urls, expected_hash, std::move(download_callback));
@@ -122,6 +136,7 @@ void CrxDownloader::StartDownload(const std::vector<GURL>& urls,
 
 #if defined(STARBOARD)
 void CrxDownloader::CancelDownload() {
+  LOG(INFO) << "CrxDownloader::CancelDownload";
   DoCancelDownload();
 }
 #endif
@@ -131,7 +146,9 @@ void CrxDownloader::OnDownloadComplete(
     const Result& result,
     const DownloadMetrics& download_metrics) {
   DCHECK(thread_checker_.CalledOnValidThread());
-
+#if defined(STARBOARD)
+  LOG(INFO) << "CrxDownloader::OnDownloadComplete";
+#endif
   if (!result.error)
     base::PostTaskWithTraits(
         FROM_HERE, kTaskTraits,
@@ -161,7 +178,10 @@ void CrxDownloader::VerifyResponse(bool is_handled,
   DCHECK_EQ(0, result.error);
   DCHECK_EQ(0, download_metrics.error);
   DCHECK(is_handled);
-
+#if defined(STARBOARD)
+  LOG(INFO) << "CrxDownloader::VerifyResponse thread_name="
+    << base::ThreadIdNameManager::GetInstance()->GetNameForCurrentThread();
+#endif
   if (VerifyFileHash256(result.response, expected_hash_)) {
     download_metrics_.push_back(download_metrics);
     main_task_runner()->PostTask(
@@ -195,6 +215,10 @@ void CrxDownloader::HandleDownloadError(
   DCHECK_NE(0, result.error);
   DCHECK(result.response.empty());
   DCHECK_NE(0, download_metrics.error);
+
+#if defined(STARBOARD)
+  LOG(INFO) << "CrxDownloader::HandleDownloadError";
+#endif
 
   download_metrics_.push_back(download_metrics);
 

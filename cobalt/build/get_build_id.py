@@ -12,20 +12,20 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """Prints out the Cobalt Build ID."""
 
-import os.path
-import sys
-
-sys.path.append(
-    os.path.abspath(
-        os.path.join(os.pardir, os.pardir, 'cobalt', 'build')))
-from gyp_utils import GetBuildNumber  # pylint: disable=g-import-not-at-top
+import os
+from gyp_utils import GetOrGenerateNewBuildNumber
 
 
 def main():
-  print GetBuildNumber()
+  build_id_server_url = os.environ.get('BUILD_ID_SERVER_URL')
+  if build_id_server_url:
+    print(GetOrGenerateNewBuildNumber(version_server=build_id_server_url))
+  else:
+    # No need to generate a build id for local builds.
+    print('0')
+
 
 if __name__ == '__main__':
   main()

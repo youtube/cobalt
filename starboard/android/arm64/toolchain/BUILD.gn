@@ -19,6 +19,11 @@ _clang_base_path = "$_home_dir/starboard-toolchains/x86_64-linux-gnu-clang-chrom
 
 clang_toolchain("host") {
   clang_base_path = _clang_base_path
+
+  toolchain_args = {
+    current_os = "linux"
+    current_cpu = "x64"
+  }
 }
 
 _android_toolchain_path =

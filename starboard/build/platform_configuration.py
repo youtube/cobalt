@@ -387,7 +387,6 @@ class PlatformConfiguration(object):
         'elf_loader_test',
         'installation_manager_test',
         'nplb',
-        'nplb_blitter_pixel_tests',
         'player_filter_tests',
         'slot_management_test',
         'starboard_platform_tests',

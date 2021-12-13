@@ -162,7 +162,7 @@ TEST(SbMediaBufferTest, AllocationUnit) {
   }
 
   for (void* ptr : allocated_ptrs) {
-    SbMemoryFreeAligned(ptr);
+    SbMemoryDeallocateAligned(ptr);
   }
 }
 

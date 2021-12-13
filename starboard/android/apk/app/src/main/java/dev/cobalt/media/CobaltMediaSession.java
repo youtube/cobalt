@@ -123,6 +123,14 @@ public class CobaltMediaSession
     setMediaSession();
   }
 
+  public boolean isActive() {
+    if (this.mediaSession == null) {
+      return false;
+    } else {
+      return this.mediaSession.isActive();
+    }
+  }
+
   public void setLifecycleCallback(LifecycleCallback lifecycleCallback) {
     this.lifecycleCallback = lifecycleCallback;
     if (lifecycleCallback != null && this.mediaSession != null) {

@@ -49,10 +49,6 @@ int64_t CalculateImageCacheSize(const math::Size& dimensions,
 TextureDimensions CalculateSkiaGlyphAtlasTextureSize(
     const math::Size& ui_resolution);
 
-// Calculates the SoftwareSurfaceCacheSize given the ui_resolution.
-int64_t CalculateSoftwareSurfaceCacheSizeInBytes(
-    const math::Size& ui_resolution);
-
 // Calculates the offscreen target cache size from the ui_resolution. This is
 // similar to the software surface cache, but it is specific to the direct-GLES
 // rasterizer.

@@ -27,20 +27,11 @@
 #include "cobalt/browser/memory_settings/constants.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/configuration/configuration.h"
-#include "starboard/blitter.h"
 
 namespace cobalt {
 namespace browser {
 namespace memory_settings {
 namespace {
-bool HasBlitter() {
-#if SB_API_VERSION < 12 && SB_HAS(BLITTER)
-  const bool has_blitter = true;
-#else
-  const bool has_blitter = false;
-#endif
-  return has_blitter;
-}
 
 base::Optional<int64_t> MakeValidIfGreaterThanOrEqualToZero(int64_t value) {
   base::Optional<int64_t> output;
@@ -201,7 +192,6 @@ AutoMemSettings GetDefaultBuildSettings() {
   AutoMemSettings settings(AutoMemSettings::kTypeBuild);
   configuration::Configuration* config =
       configuration::Configuration::GetInstance();
-  settings.has_blitter = HasBlitter();
 
   settings.cobalt_encoded_image_cache_size_in_bytes =
       MakeValidIfGreaterThanOrEqualToZero(
@@ -220,9 +210,6 @@ AutoMemSettings GetDefaultBuildSettings() {
                         kSkiaGlyphAtlasTextureBytesPerPixel));
 
   // Render tree node cache settings for various rasterizers.
-  settings.software_surface_cache_size_in_bytes =
-      MakeValidIfGreaterThanOrEqualToZero(
-          config->CobaltSoftwareSurfaceCacheSizeInBytes());
   settings.offscreen_target_cache_size_in_bytes =
       MakeValidIfGreaterThanOrEqualToZero(
           config->CobaltOffscreenTargetCacheSizeInBytes());
@@ -246,7 +233,6 @@ AutoMemSettings GetDefaultBuildSettings() {
 
 AutoMemSettings GetSettings(const base::CommandLine& command_line) {
   AutoMemSettings settings(AutoMemSettings::kTypeCommandLine);
-  settings.has_blitter = HasBlitter();
 
   Set(command_line, &settings.cobalt_encoded_image_cache_size_in_bytes,
       switches::kEncodedImageCacheSizeInBytes);
@@ -258,8 +244,6 @@ AutoMemSettings GetSettings(const base::CommandLine& command_line) {
       switches::kSkiaCacheSizeInBytes);
   Set(command_line, &settings.skia_texture_atlas_dimensions,
       switches::kSkiaTextureAtlasDimensions);
-  Set(command_line, &settings.software_surface_cache_size_in_bytes,
-      switches::kSoftwareSurfaceCacheSizeInBytes);
   Set(command_line, &settings.offscreen_target_cache_size_in_bytes,
       switches::kOffscreenTargetCacheSizeInBytes);
   Set(command_line, &settings.max_cpu_in_bytes, switches::kMaxCobaltCpuUsage);

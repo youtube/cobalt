@@ -26,6 +26,8 @@ declare_args() {
   cobalt_fastbuild = getenv("IS_CI") == 1
 
   is_internal_build = false
+
+  is_docker_build = getenv("IS_DOCKER") == 1
 }
 
 is_debug = build_type == "debug"
@@ -64,6 +66,12 @@ if (current_cpu == "") {
   current_cpu = target_cpu
 }
 import("//starboard/build/config/os_definitions.gni")
+
+if (is_mac) {
+  declare_args() {
+    use_system_xcode = true
+  }
+}
 
 # Get the path to the starboard implementation and include its GN
 # configuration.
@@ -114,6 +122,10 @@ if (is_starboard) {
 
 if (is_qa || is_gold) {
   default_compiler_configs += [ "//build/config/compiler:no_rtti" ]
+}
+
+if (is_win) {
+  default_compiler_configs += [ "//build/config/win:lean_and_mean" ]
 }
 
 set_defaults("static_library") {

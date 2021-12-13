@@ -73,6 +73,18 @@ config("icu_config") {
   } else {
     defines += [ "UCHAR_TYPE=uint16_t" ]
   }
+
+  if (is_starboard && is_win) {
+    cflags = [ "/wd4805"]
+  }
+}
+
+if (is_starboard) {
+  config("icu_dependent_config") {
+    if (is_win) {
+      cflags = [ "/utf-8" ]
+    }
+  }
 }
 
 # Config used only by ICU code.
@@ -174,6 +186,9 @@ template("generate_icu_component") {
       configs += [ ":icu_code" ]
       configs += extra_configs
       public_configs = [ ":icu_config" ]
+      if (is_starboard) {
+        all_dependent_configs = [ ":icu_dependent_config" ]
+      }
     }
   } else {
     component(target_name) {
@@ -210,6 +225,9 @@ template("generate_icu_component") {
       configs += [ ":icu_code" ]
       configs += extra_configs
       public_configs = [ ":icu_config" ]
+      if (is_starboard) {
+        all_dependent_configs = [ ":icu_dependent_config" ]
+      }
 
       # Make icu into a standalone static library. Currently This is only useful
       # on Chrome OS.

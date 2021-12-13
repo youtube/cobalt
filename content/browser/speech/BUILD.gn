@@ -25,5 +25,8 @@ static_library("speech") {
     "endpointer/energy_endpointer_params.cc",
     "endpointer/energy_endpointer_params.h",
   ]
-  deps = [ "//base" ]
+  deps = [
+    "//base",
+    "//cobalt/media",
+  ]
 }

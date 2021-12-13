@@ -22,14 +22,28 @@ TaskUpdate::TaskUpdate(scoped_refptr<UpdateEngine> update_engine,
       is_foreground_(is_foreground),
       ids_(ids),
       crx_data_callback_(std::move(crx_data_callback)),
-      callback_(std::move(callback)) {}
+      callback_(std::move(callback))
+#if defined(STARBOARD)
+      , is_completed_(false)
+#endif
+{
+#if defined(STARBOARD)
+    LOG(INFO) << "TaskUpdate::TaskUpdate";
+#endif
+}
 
 TaskUpdate::~TaskUpdate() {
   DCHECK(thread_checker_.CalledOnValidThread());
+#if defined(STARBOARD)
+  LOG(INFO) << "TaskUpdate::~TaskUpdate";
+#endif
 }
 
 void TaskUpdate::Run() {
   DCHECK(thread_checker_.CalledOnValidThread());
+#if defined(STARBOARD)
+  LOG(INFO) << "TaskUpdate::Run begin";
+#endif
 
   if (ids_.empty()) {
     TaskComplete(Error::INVALID_ARGUMENT);
@@ -40,16 +54,19 @@ void TaskUpdate::Run() {
   update_engine_->Update(is_foreground_, ids_, std::move(crx_data_callback_),
                          base::BindOnce(&TaskUpdate::TaskComplete, this),
                          cancelation_closure_);
+  LOG(INFO) << "TaskUpdate::Run end";
 #else
   update_engine_->Update(is_foreground_, ids_, std::move(crx_data_callback_),
                          base::BindOnce(&TaskUpdate::TaskComplete, this));
 #endif
+
 }
 
 void TaskUpdate::Cancel() {
   DCHECK(thread_checker_.CalledOnValidThread());
 
 #if defined(STARBOARD)
+  LOG(INFO) << "TaskUpdate::Cancel";
   if (cancelation_closure_) {  // The engine's picked up the task.
     std::move(cancelation_closure_).Run();
   }
@@ -64,6 +81,18 @@ std::vector<std::string> TaskUpdate::GetIds() const {
 
 void TaskUpdate::TaskComplete(Error error) {
   DCHECK(thread_checker_.CalledOnValidThread());
+#if defined(STARBOARD)
+  LOG(INFO) << "TaskUpdate::TaskComplete";
+
+  // The callback is defined as OnceCallback and should not
+  // be called multiple times.
+  if(is_completed_) {
+    LOG(INFO) << "TaskUpdate::TaskComplete already called";
+    return;
+  }
+
+  is_completed_ = true;
+#endif
 
   base::ThreadTaskRunnerHandle::Get()->PostTask(
       FROM_HERE, base::BindOnce(std::move(callback_),

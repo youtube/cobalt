@@ -77,12 +77,6 @@ RenderTreePixelTester::~RenderTreePixelTester() {}
 
 // static
 bool RenderTreePixelTester::IsReferencePlatform() {
-#if SB_API_VERSION < 12 && SB_HAS(BLITTER)
-  // The blitter rasterizer often relies on software rendering which may not
-  // produce the same results as GPU-based rendering.
-  return false;
-#endif
-
   const char* rasterizer_type =
       configuration::Configuration::GetInstance()->CobaltRasterizerType();
   const bool is_opengles_rasterizer =

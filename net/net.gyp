@@ -2743,6 +2743,8 @@
         'test/url_request/url_request_slow_download_job.h',
         'url_request/test_url_fetcher_factory.cc',
         'url_request/test_url_fetcher_factory.h',
+        'url_request/test_url_request_interceptor.cc',
+        'url_request/test_url_request_interceptor.h',
         'url_request/url_request_test_job.cc',
         'url_request/url_request_test_job.h',
         'url_request/url_request_test_util.cc',
@@ -2786,7 +2788,7 @@
         'quic/mock_encrypter.h',
         'quic/test_task_runner.cc',
         'quic/test_task_runner.h',
-        # Requres quic_trace third-party library. Not yet supported.
+        # Requires quic_trace third-party library. Not yet supported.
         # 'third_party/quic/core/quic_trace_visitor.cc',
         # 'third_party/quic/core/quic_trace_visitor.h',
         'third_party/quic/platform/api/quic_expect_bug.h',

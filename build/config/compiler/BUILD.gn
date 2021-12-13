@@ -1641,20 +1641,20 @@ config("default_warnings") {
 # part of Chromium.
 
 config("chromium_code") {
-  if (is_starboard) {
-    # TODO(b/205790602): Revisit this code to be more compatible with platforms.
-    defines = [
-      "__STDC_CONSTANT_MACROS",
-      "__STDC_FORMAT_MACROS",
-    ]
-    cflags = [ "-Werror" ]
-  } else if (is_win) {
+  if (is_win) {
     cflags = [ "/W4" ]  # Warning level 4.
 
     if (is_clang) {
       # Opt in to additional [[nodiscard]] on standard library methods.
       defines = [ "_HAS_NODISCARD" ]
     }
+  } else if (is_starboard) {
+    # TODO(b/205790602): Revisit this code to be more compatible with platforms.
+    defines = [
+      "__STDC_CONSTANT_MACROS",
+      "__STDC_FORMAT_MACROS",
+    ]
+    cflags = [ "-Werror" ]
   } else {
     cflags = [ "-Wall" ]
     if (treat_warnings_as_errors) {

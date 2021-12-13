@@ -40,6 +40,7 @@
 
 #if defined(STARBOARD)
 #include "starboard/elf_loader/evergreen_info.h"
+#include "third_party/crashpad/snapshot/sanitized/sanitization_information.h"
 #include "third_party/crashpad/wrapper/annotations.h"
 #endif
 
@@ -398,6 +399,16 @@ class CrashpadClient {
   //!
   //! \return `true` on success, `false` on failure with a message logged.
   static bool SendAnnotationsToHandler(CrashpadAnnotations annotations);
+
+  //! \brief Sends mapping info to the handler
+  //!
+  //! A handler must have already been installed before calling this method.
+  //! \param[in] sanitization_information A SanitizationInformation struct, whose information
+  //!     was created on Evergreen startup.
+  //!
+  //! \return `true` on success, `false` on failure with a message logged.
+  static bool SendSanitizationInformationToHandler(SanitizationInformation sanitization_information);
+
 #endif
 
   //! \brief Requests that the handler capture a dump even though there hasn't

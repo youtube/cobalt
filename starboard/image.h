@@ -25,8 +25,6 @@
 //
 // # SbImageIsDecodeSupported and SbImageDecode Example
 //
-// Let's assume that we're on a Blitter platform.
-//
 //     SbDecodeTargetProvider* provider = GetProviderFromSomewhere();
 //     void* data = GetCompressedJPEGFromSomewhere();
 //     int data_size = GetCompressedJPEGSizeFromSomewhere();
@@ -39,9 +37,6 @@
 //
 //     SbDecodeTarget result_target = SbDecodeImage(provider, data, data_size,
 //                                                  mime_type, format);
-//     SbBlitterSurface surface =
-//         SbDecodeTargetGetPlane(target, kSbDecodeTargetPlaneRGBA);
-//     // Do stuff with surface...
 //
 
 #ifndef STARBOARD_IMAGE_H_
@@ -85,12 +80,12 @@ SB_EXPORT bool SbImageIsDecodeSupported(const char* mime_type,
 // requested format is not supported or the decode fails,
 // kSbDecodeTargetInvalid will be returned, with any intermediate allocations
 // being cleaned up in the implementation.
-SB_EXPORT SbDecodeTarget SbImageDecode(
-    SbDecodeTargetGraphicsContextProvider* context_provider,
-    void* data,
-    int data_size,
-    const char* mime_type,
-    SbDecodeTargetFormat format);
+SB_EXPORT SbDecodeTarget
+SbImageDecode(SbDecodeTargetGraphicsContextProvider* context_provider,
+              void* data,
+              int data_size,
+              const char* mime_type,
+              SbDecodeTargetFormat format);
 
 #ifdef __cplusplus
 }  // extern "C"
