@@ -40,6 +40,8 @@
       '<(DEPTH)/starboard/linux/shared/player_components_factory.cc',
       '<(DEPTH)/starboard/linux/shared/routes.cc',
       '<(DEPTH)/starboard/linux/shared/routes.h',
+      '<(DEPTH)/starboard/linux/shared/soft_mic_platform_service.cc',
+      '<(DEPTH)/starboard/linux/shared/soft_mic_platform_service.h',
       '<(DEPTH)/starboard/linux/shared/system_get_connection_type.cc',
       '<(DEPTH)/starboard/linux/shared/system_get_device_type.cc',
       '<(DEPTH)/starboard/linux/shared/system_get_extensions.cc',
