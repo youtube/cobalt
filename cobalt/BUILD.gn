@@ -54,6 +54,7 @@ group("default") {
     "//cobalt/subtlecrypto",
     "//cobalt/trace_event",
     "//cobalt/ui_navigation",
+    "//cobalt/webdriver",
     "//content/browser/speech",
     "//crypto",
     "//nb",
