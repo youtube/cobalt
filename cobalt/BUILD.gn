@@ -28,6 +28,7 @@ group("default") {
     "//cobalt/fetch",
     "//cobalt/h5vcc",
     "//cobalt/input",
+    "//cobalt/layout",
     "//cobalt/math",
     "//cobalt/media",
     "//cobalt/media_capture",
