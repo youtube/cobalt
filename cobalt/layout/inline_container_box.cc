@@ -207,35 +207,6 @@ void InlineContainerBox::UpdateContentSizeAndMargins(
   first_box_justifying_line_existence_index_ =
       line_box.GetFirstBoxJustifyingLineExistenceIndex();
   baseline_offset_from_margin_box_top_ = line_box.baseline_offset_from_top();
-
-  auto maybe_height = GetUsedHeightIfNotAuto(
-      computed_style(), layout_params.containing_block_size, NULL);
-  LayoutParams child_layout_params;
-  LayoutParams absolute_child_layout_params;
-  child_layout_params.containing_block_direction = base_direction_;
-  absolute_child_layout_params.containing_block_direction = base_direction_;
-  // If the element's position is "relative" or "static", the containing block
-  // is formed by the content edge of the nearest block container ancestor
-  // box.
-  //   https://www.w3.org/TR/CSS21/visudet.html#containing-block-details
-  child_layout_params.containing_block_size.set_width(width());
-  // If the element has 'position: absolute', ...
-  // the containing block is formed by the padding edge of the ancestor.
-  //   http://www.w3.org/TR/CSS21/visudet.html#containing-block-details
-  absolute_child_layout_params.containing_block_size.set_width(
-      GetPaddingBoxWidth());
-  child_layout_params.maybe_margin_top = LayoutUnit();
-  child_layout_params.maybe_margin_bottom = LayoutUnit();
-  child_layout_params.maybe_height = maybe_height;
-
-  // Positioned children are laid out at the end as their position and size
-  // depends on the size of the containing block as well as possibly their
-  // previously calculated in-flow position.
-  child_layout_params.containing_block_size.set_height(height());
-  absolute_child_layout_params.containing_block_size.set_height(
-      GetPaddingBoxHeight());
-  UpdateRectOfPositionedChildBoxes(child_layout_params,
-                                   absolute_child_layout_params);
 }
 
 void InlineContainerBox::UpdateBorders() {
