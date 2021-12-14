@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//build/config/win/visual_studio_version.gni")
+
 config("platform_configuration") {
   configs = [
     "//starboard/build/config/sabi",
@@ -26,6 +28,11 @@ config("platform_configuration") {
     "dbghelp.lib",
     "user32.lib",
     "shlwapi.lib",
+  ]
+
+  include_dirs = [
+    "$wdk_include_path",
+    "$visual_studio_path/atlmfc/include",
   ]
 
   if (current_toolchain == default_toolchain) {

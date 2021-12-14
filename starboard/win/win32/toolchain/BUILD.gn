@@ -16,16 +16,14 @@ import("//build/config/win/visual_studio_version.gni")
 import("//build/toolchain/win/msvc_toolchain.gni")
 
 _base_path = "$visual_studio_path/bin/HostX64/x64"
-
-_wdk_lib_path = "$windows_sdk_path/lib/$wdk_version"
-libpaths = "/LIBPATH:\"$_wdk_lib_path/ucrt/x64\" /LIBPATH:\"$_wdk_lib_path/um/x64\" /LIBPATH:\"$visual_studio_path/lib/x64\""
+_libpaths = "/LIBPATH:\"$wdk_lib_path/ucrt/x64\" /LIBPATH:\"$wdk_lib_path/um/x64\" /LIBPATH:\"$visual_studio_path/lib/x64\""
 
 msvc_toolchain("host") {
   cl = "$_base_path/cl.exe"
   lib = "$_base_path/lib.exe"
   link = "$_base_path/link.exe"
   asm = "$_base_path/ml64.exe"
-  sys_lib_flags = libpaths
+  sys_lib_flags = _libpaths
 
   toolchain_args = {
     is_clang = false
@@ -39,7 +37,7 @@ msvc_toolchain("target") {
   lib = "$_base_path/lib.exe"
   link = "$_base_path/link.exe"
   asm = "$_base_path/ml64.exe"
-  sys_lib_flags = libpaths
+  sys_lib_flags = _libpaths
 
   toolchain_args = {
     is_clang = false

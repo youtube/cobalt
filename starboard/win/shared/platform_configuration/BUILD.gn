@@ -48,17 +48,12 @@ config("platform_configuration") {
 
   # msvs_base
   # OutputDirectory and IntermediateDirectory, maybe CharacterSet
-  wdk_include_path = "$windows_sdk_path/Include/$wdk_version"
   include_dirs += [
     "$wdk_include_path/shared",
     "$wdk_include_path/ucrt",
     "$wdk_include_path/um",
     "$wdk_include_path/winrt",
-    "$wdk_include_path",
-    "$wdk_include_path/shared",
-    "$wdk_include_path/shared",
     "$visual_studio_path/include",
-    "$visual_studio_path/atlmfc/include",
   ]
   cflags += [
     "/EHsc",
