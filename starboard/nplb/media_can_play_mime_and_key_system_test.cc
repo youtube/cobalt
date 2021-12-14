@@ -12,10 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "starboard/nplb/media_can_play_mime_and_key_system_test_helpers.h"
+
 #include "starboard/common/string.h"
 #include "starboard/media.h"
 #include "starboard/nplb/drm_helpers.h"
 #include "starboard/nplb/performance_helpers.h"
+#include "starboard/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -789,9 +792,32 @@ TEST(SbMediaCanPlayMimeAndKeySystem, ValidateQueriesUnderPeakCapability) {
 }
 
 TEST(SbMediaCanPlayMimeAndKeySystem, ValidatePerformance) {
-  TEST_PERF_FUNCWITHARGS_DEFAULT(
-      SbMediaCanPlayMimeAndKeySystem,
-      "video/webm; codecs=\"vp9\"; width=256; height=144; framerate=30", "");
+  auto test_sequential_function_calls =
+      [](const char** mime_params, int num_function_calls,
+         SbTimeMonotonic max_time_delta, const char* query_type) {
+        const SbTimeMonotonic time_start = SbTimeGetMonotonicNow();
+        for (int i = 0; i < num_function_calls; ++i) {
+          SbMediaCanPlayMimeAndKeySystem(mime_params[i], "");
+        }
+        const SbTimeMonotonic time_last = SbTimeGetMonotonicNow();
+        const SbTimeMonotonic time_delta = time_last - time_start;
+        const double time_per_call =
+            static_cast<double>(time_delta) / num_function_calls;
+
+        SB_LOG(INFO) << "SbMediaCanPlayMimeAndKeySystem - " << query_type
+                     << " measured duration " << time_delta
+                     << "us total across " << num_function_calls << " calls.";
+        SB_LOG(INFO) << "  Measured duration " << time_per_call
+                     << "us average per call.";
+        EXPECT_LE(time_delta, max_time_delta);
+      };
+
+  test_sequential_function_calls(kSdrQueryParams,
+                                 SB_ARRAY_SIZE_INT(kSdrQueryParams),
+                                 10 * kSbTimeMillisecond, "SDR queries");
+  test_sequential_function_calls(kHdrQueryParams,
+                                 SB_ARRAY_SIZE_INT(kHdrQueryParams),
+                                 20 * kSbTimeMillisecond, "HDR queries");
 }
 
 }  // namespace
