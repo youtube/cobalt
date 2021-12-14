@@ -57,3 +57,5 @@ sb_widevine_platform = "android"
 platform_tests_path = "//starboard/android/shared:starboard_platform_tests"
 
 cobalt_licenses_platform = "android"
+
+enable_account_manager = true

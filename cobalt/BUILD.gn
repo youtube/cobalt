@@ -26,6 +26,7 @@ group("default") {
     "//cobalt/css_parser",
     "//cobalt/dom",
     "//cobalt/fetch",
+    "//cobalt/h5vcc",
     "//cobalt/math",
     "//cobalt/media",
     "//cobalt/media_capture",

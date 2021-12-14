@@ -123,4 +123,10 @@ declare_args() {
 
   # Sub-directory to copy license file to.
   cobalt_licenses_platform = "default"
+
+  # Set to true to enable H5vccAccountManager.
+  enable_account_manager = false
+
+  # Set to true to enable H5vccSSO (Single Sign On).
+  enable_sso = false
 }
