@@ -25,3 +25,5 @@ no_pedantic_warnings_config_path =
     "//starboard/win/shared/platform_configuration:no_pedantic_warnings"
 pedantic_warnings_config_path =
     "//starboard/win/shared/platform_configuration:pedantic_warnings"
+
+cobalt_platform_dependencies = [ "//starboard/egl_and_gles" ]

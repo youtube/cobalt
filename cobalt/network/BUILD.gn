@@ -73,6 +73,10 @@ static_library("network") {
     ]
     defines = [ "ENABLE_NETWORK_LOGGING" ]
   }
+
+  if (!sb_is_evergreen) {
+    deps += cobalt_platform_dependencies
+  }
 }
 
 copy("copy_ssl_certificates") {

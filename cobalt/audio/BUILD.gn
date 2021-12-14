@@ -62,4 +62,5 @@ static_library("audio") {
     "//cobalt/script",
     "//starboard:starboard_headers_only",
   ]
+  deps += cobalt_platform_dependencies
 }

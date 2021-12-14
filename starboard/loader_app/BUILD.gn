@@ -39,6 +39,7 @@ target(final_executable_type, "loader_app") {
       "//cobalt/content/fonts:copy_font_data",
       "//starboard/elf_loader",
     ]
+    deps += cobalt_platform_dependencies
   }
 }
 
@@ -58,6 +59,7 @@ target(final_executable_type, "loader_app_sys") {
       "//cobalt/content/fonts:copy_font_data",
       "//starboard/elf_loader:elf_loader_sys",
     ]
+    deps += cobalt_platform_dependencies
   }
 }
 

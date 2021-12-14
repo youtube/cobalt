@@ -129,4 +129,8 @@ declare_args() {
 
   # Set to true to enable H5vccSSO (Single Sign On).
   enable_sso = false
+
+  # TODO(b/173248397): Migrate to CobaltExtensions or PlatformServices.
+  # List of platform-specific targets that get compiled into cobalt.
+  cobalt_platform_dependencies = []
 }
