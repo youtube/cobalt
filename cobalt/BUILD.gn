@@ -14,7 +14,10 @@
 
 group("gn_all") {
   testonly = true
-  deps = [ ":default" ]
+  deps = [
+    ":default",
+    "//cobalt/layout:layout_test",
+  ]
 }
 
 group("default") {

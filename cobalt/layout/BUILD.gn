@@ -116,3 +116,30 @@ static_library("layout") {
     "//third_party/icu:icuuc",
   ]
 }
+
+target(gtest_target_type, "layout_test") {
+  testonly = true
+  has_pedantic_warnings = true
+
+  sources = [
+    "layout_unit_test.cc",
+    "letterboxed_image_test.cc",
+    "used_style_test.cc",
+    "white_space_processing_test.cc",
+  ]
+
+  configs -= [ "//starboard/build/config:size" ]
+  configs += [ "//starboard/build/config:speed" ]
+
+  deps = [
+    ":layout",
+    "//base",
+    "//cobalt/base",
+    "//cobalt/css_parser",
+    "//cobalt/cssom",
+    "//cobalt/math",
+    "//cobalt/test:run_all_unittests",
+    "//testing/gmock",
+    "//testing/gmock",
+  ]
+}
