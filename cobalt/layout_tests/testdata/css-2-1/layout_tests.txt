@@ -1,6 +1,5 @@
 10-1-absolute-elements-inherit-style-from-direct-parent
 10-1-absolute-positioned-elements-are-positioned-relative-to-parent-element-flow
-10-1-absolute-positioned-elements-are-positioned-relative-to-parent-inline-box
 10-1-absolute-positioned-elements-compute-used-values-from-containing-block
 10-1-absolute-positioned-elements-container-block-is-absolute-positioned-ancestor
 10-1-absolute-positioned-elements-do-not-effect-containing-block-size
@@ -190,7 +189,6 @@
 9-4-2-splitting-of-relatively-positioned-box-does-not-affect-stacking-context-of-siblings
 9-4-2-unsplittable-inline-box-should-overflow
 9-4-3-relative-positioned-element-percentages-resolved-from-parent
-9-4-3-relative-positioned-elements-are-offset-from-inline-box-ancestor
 9-4-3-relative-positioned-elements-are-offset-from-normal-flow
 9-4-3-relative-positioned-elements-are-offset-from-normal-flow-via-right-and-bottom
 9-4-3-relative-positioned-elements-participate-in-stacking-context
