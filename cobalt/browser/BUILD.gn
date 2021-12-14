@@ -31,11 +31,11 @@ config("bindings_includes") {
 }
 
 source_set("browser_switches") {
+  has_pedantic_warnings = true
   sources = [
     "switches.cc",
     "switches.h",
   ]
-
   public_deps = [ "//starboard:starboard_headers_only" ]
 }
 
@@ -147,6 +147,43 @@ static_library("browser") {
   } else {
     deps += cobalt_platform_dependencies
   }
+}
+
+target(gtest_target_type, "browser_test") {
+  testonly = true
+  has_pedantic_warnings = true
+
+  sources = [
+    "device_authentication_test.cc",
+    "memory_settings/auto_mem_settings_test.cc",
+    "memory_settings/auto_mem_test.cc",
+    "memory_settings/calculations_test.cc",
+    "memory_settings/memory_settings_test.cc",
+    "memory_settings/pretty_print_test.cc",
+    "memory_settings/table_printer_test.cc",
+    "memory_settings/test_common.h",
+    "memory_tracker/tool/tool_impl_test.cc",
+    "memory_tracker/tool/util_test.cc",
+    "user_agent_string_test.cc",
+  ]
+
+  deps = [
+    ":browser",
+    ":browser_switches",
+    "//cobalt/base",
+    "//cobalt/browser/memory_settings:browser_memory_settings",
+    "//cobalt/browser/memory_tracker:memory_tracker_tool",
+    "//cobalt/dom",
+    "//cobalt/loader",
+    "//cobalt/math",
+    "//cobalt/network",
+    "//cobalt/speech",
+    "//cobalt/storage",
+    "//cobalt/test:run_all_unittests",
+    "//nb",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
 }
 
 group("bindings") {
