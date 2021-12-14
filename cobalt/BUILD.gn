@@ -18,6 +18,7 @@ group("gn_all") {
     ":default",
     "//cobalt/layout:layout_test",
     "//cobalt/web_animations:web_animations_test",
+    "//cobalt/websocket:websocket_test",
   ]
 }
 
@@ -56,6 +57,7 @@ group("default") {
     "//cobalt/trace_event",
     "//cobalt/ui_navigation",
     "//cobalt/webdriver",
+    "//cobalt/websocket",
     "//content/browser/speech",
     "//crypto",
     "//nb",
