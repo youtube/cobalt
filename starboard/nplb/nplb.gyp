@@ -158,6 +158,7 @@
         # files.
         'media_buffer_test.cc',
         'media_can_play_mime_and_key_system_test.cc',
+        'media_can_play_mime_and_key_system_test_helpers.h',
         'media_configuration_test.cc',
         'memory_align_to_page_size_test.cc',
         'memory_allocate_aligned_test.cc',
