@@ -45,7 +45,7 @@ namespace libunwind {
 
 #if defined(STARBOARD_IMPLEMENTATION)
 #include "starboard/memory.h"
-#include "starboard/elf_loader/evergreen_info.h"
+#include "starboard/elf_loader/evergreen_info.h"  // nogncheck
 #endif
 
 #ifdef __APPLE__

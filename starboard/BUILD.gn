@@ -68,15 +68,24 @@ group("gn_all") {
 }
 
 group("starboard") {
-  public_deps = [ ":starboard_headers_only" ]
+  public_deps = [
+    ":starboard_headers_only",
+    "//starboard/client_porting/cwrappers",
+    "//starboard/client_porting/eztime",
+  ]
 
   if (sb_is_evergreen) {
-    public_deps += []
+    public_deps += [
+      "//starboard/elf_loader:sabi_string",
+      "//third_party/llvm-project/compiler-rt:compiler_rt",
+      "//third_party/llvm-project/libcxx:cxx",
+      "//third_party/llvm-project/libcxxabi:cxxabi",
+      "//third_party/llvm-project/libunwind:unwind_evergreen",
+      "//third_party/musl:c",
+    ]
   } else {
     public_deps += [
       "//$starboard_path:starboard_platform",
-      "//starboard/client_porting/cwrappers",
-      "//starboard/client_porting/eztime",
       "//starboard/common",
     ]
 

@@ -499,6 +499,11 @@ static_library("c_internal") {
       "src/string/memset.c",
     ]
   }
+
+  deps = [
+    "//starboard:starboard_headers_only",
+    "//starboard/common:common_headers_only",
+  ]
 }
 
 target(gtest_target_type, "musl_unittests") {

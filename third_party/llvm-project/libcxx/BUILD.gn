@@ -51,10 +51,6 @@ config("cxx_config") {
 
 static_library("cxx") {
   sources = [
-    "include/apple_availability.h",
-    "include/atomic_support.h",
-    "include/config_elast.h",
-    "include/refstring.h",
     "src/algorithm.cpp",
     "src/any.cpp",
     "src/bind.cpp",
@@ -62,6 +58,10 @@ static_library("cxx") {
     "src/chrono.cpp",
     "src/condition_variable.cpp",
     "src/exception.cpp",
+    "src/include/apple_availability.h",
+    "src/include/atomic_support.h",
+    "src/include/config_elast.h",
+    "src/include/refstring.h",
 
     # Remove file system operations
     #"src/filesystem/directory_iterator.cpp",
