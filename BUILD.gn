@@ -25,7 +25,10 @@ group("default") {
   testonly = true
 
   if (is_qa || is_gold) {
-    deps = [ "//starboard" ]
+    deps = [
+      "//cobalt:default",
+      "//starboard",
+    ]
   } else {
     deps = [ ":gn_all" ]
   }

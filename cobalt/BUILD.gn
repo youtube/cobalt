@@ -14,7 +14,10 @@
 
 group("gn_all") {
   testonly = true
+  deps = [ ":default" ]
+}
 
+group("default") {
   deps = [
     "//cobalt/account",
     "//cobalt/audio",
