@@ -248,7 +248,7 @@ static_library("libxml") {
     "src/parserInternals.c",
     "src/pattern.c",
 
-    #"src/relaxng.c",
+    "src/relaxng.c",
     "src/save.h",
 
     #"src/schematron.c",
@@ -277,17 +277,17 @@ static_library("libxml") {
     #"src/xmlmodule.c",
     "src/xmlreader.c",
 
-    #"src/xmlregexp.c",
+    "src/xmlregexp.c",
     "src/xmlsave.c",
 
-    #"src/xmlschemas.c",
-    #"src/xmlschemastypes.c",
+    "src/xmlschemas.c",
+    "src/xmlschemastypes.c",
     "src/xmlstring.c",
     "src/xmlunicode.c",
     "src/xmlwriter.c",
     "src/xpath.c",
 
-    #"src/xpointer.c",
+    "src/xpointer.c",
     #"src/xzlib.c",
     "src/xzlib.h",
     "win32/config.h",
