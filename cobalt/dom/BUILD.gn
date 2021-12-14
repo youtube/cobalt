@@ -355,6 +355,7 @@ static_library("dom") {
     "//cobalt/storage/store:memory_store",
     "//cobalt/system_window",
     "//cobalt/ui_navigation",
+    "//cobalt/web_animations",
     "//crypto",
     "//nb",
     "//net",
@@ -362,9 +363,6 @@ static_library("dom") {
     "//third_party/icu:icuuc",
     "//third_party/modp_b64:modp_b64",
     "//url",
-
-    # TODO: Renable deps as they are available
-    # "//cobalt/web_animations",
   ]
 }
 

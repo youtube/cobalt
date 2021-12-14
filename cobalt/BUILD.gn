@@ -17,6 +17,7 @@ group("gn_all") {
   deps = [
     ":default",
     "//cobalt/layout:layout_test",
+    "//cobalt/web_animations:web_animations_test",
   ]
 }
 

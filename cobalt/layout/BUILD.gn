@@ -113,6 +113,7 @@ static_library("layout") {
     "//cobalt/render_tree",
     "//cobalt/render_tree:animations",
     "//cobalt/ui_navigation",
+    "//cobalt/web_animations",
     "//third_party/icu:icuuc",
   ]
 }
