@@ -22,6 +22,7 @@ config("platform_configuration") {
       "-Wno-unused-parameter",
     ]
   } else {
+    cflags_cc = [ "-std=gnu++14" ]
     ldflags = [ "-static-libstdc++" ]
 
     if (is_debug) {
