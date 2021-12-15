@@ -337,6 +337,7 @@ static_library("dom") {
     ":licenses",
     "//base:i18n",
     "//cobalt/base",
+    "//cobalt/browser:generated_bindings",
     "//cobalt/csp",
     "//cobalt/cssom",
     "//cobalt/loader",
@@ -346,8 +347,6 @@ static_library("dom") {
     "//cobalt/media_capture",
     "//cobalt/media_session",
     "//cobalt/network",
-
-    # Interface layer to avoid directly depending on network.
     "//cobalt/network_bridge",
     "//cobalt/render_tree",
     "//cobalt/script",
