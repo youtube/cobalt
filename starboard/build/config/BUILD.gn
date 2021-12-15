@@ -18,6 +18,7 @@ config("base") {
   if (is_debug) {
     defines += [
       "STARBOARD_BUILD_TYPE_DEBUG",
+      "COBALT_BUILD_TYPE_DEBUG",
       "_DEBUG",
     ]
   }
@@ -25,6 +26,7 @@ config("base") {
   if (is_devel) {
     defines += [
       "STARBOARD_BUILD_TYPE_DEVEL",
+      "COBALT_BUILD_TYPE_DEVEL",
       "_DEBUG",
     ]
   }
@@ -32,6 +34,7 @@ config("base") {
   if (is_qa) {
     defines += [
       "STARBOARD_BUILD_TYPE_QA",
+      "COBALT_BUILD_TYPE_QA",
       "NDEBUG",
     ]
   }
@@ -39,6 +42,7 @@ config("base") {
   if (is_gold) {
     defines += [
       "STARBOARD_BUILD_TYPE_GOLD",
+      "COBALT_BUILD_TYPE_GOLD",
       "NDEBUG",
     ]
   }
