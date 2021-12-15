@@ -226,7 +226,9 @@ static_library("libjpeg") {
     "jctrans.c",
     "jdapimin.c",
     "jdapistd.c",
+    "jdatadst-tj.c",
     "jdatadst.c",
+    "jdatasrc-tj.c",
     "jdatasrc.c",
     "jdcoefct.c",
     "jdcolor.c",
@@ -256,6 +258,8 @@ static_library("libjpeg") {
     "jquant1.c",
     "jquant2.c",
     "jutils.c",
+    "transupp.c",
+    "turbojpeg.c",
   ]
 
   defines = [
@@ -269,12 +273,14 @@ static_library("libjpeg") {
       "jcarith.c",
       "jdarith.c",
     ]
+
     # These dependencies are needed for file io
     # and are not currently used by Cobalt
     sources -= [
       "jdatadst.c",
       "jdatasrc.c",
     ]
+
     # This is defined in code.
     defines -= [ "NO_GETENV" ]
   }
