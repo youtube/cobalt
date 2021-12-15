@@ -247,6 +247,7 @@ component("media") {
     "//nb",
     "//net",
     "//starboard",
+    "//third_party/protobuf:protobuf_lite",
     "//url",
   ]
 }

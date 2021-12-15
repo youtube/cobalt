@@ -117,6 +117,7 @@ static_library("loader") {
     "//third_party/libjpeg-turbo:libjpeg",
     "//third_party/libpng",
     "//third_party/libwebp",
+    "//third_party/protobuf:protobuf_lite",
     "//url",
   ]
 

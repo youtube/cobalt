@@ -362,6 +362,7 @@ static_library("dom") {
     "//starboard/common",
     "//third_party/icu:icuuc",
     "//third_party/modp_b64:modp_b64",
+    "//third_party/protobuf:protobuf_lite",
     "//url",
   ]
 }

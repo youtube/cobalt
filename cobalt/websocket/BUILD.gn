@@ -36,6 +36,7 @@ static_library("websocket") {
     "//cobalt/script",
     "//net",
     "//starboard",
+    "//third_party/protobuf:protobuf_lite",
     "//url",
   ]
 }
