@@ -24,7 +24,7 @@ config("gtest_direct_config") {
     "GTEST_HAS_POSIX_RE=0",
     "_SILENCE_TR1_NAMESPACE_DEPRECATION_WARNING",
   ]
-  if (target_cpu != "ps4" && target_os != "win") {
+  if (!is_win) {
     defines += [ "GTEST_USE_OWN_TR1_TUPLE=1" ]
   }
 }

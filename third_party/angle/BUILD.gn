@@ -120,6 +120,18 @@ config("internal_config") {
   if (is_chromeos) {
     defines += [ "ANGLE_PLATFORM_CHROMEOS" ]
   }
+
+  if (is_starboard && is_win) {
+    defines += [ "__WRL_NO_DEFAULT_LIB__" ]
+    if (current_os == "winuwp") {
+      defines += [ "WINAPI_FAMILY=WINAPI_FAMILY_APP" ] # UWP
+    } else {
+      defines += [
+        "_WIN32",
+        "WINAPI_FAMILY=WINAPI_FAMILY_DESKTOP_APP", # win32
+      ]
+    }
+  }
 }
 
 config("constructor_and_destructor_warnings") {

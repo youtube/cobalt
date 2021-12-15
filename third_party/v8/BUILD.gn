@@ -1617,6 +1617,11 @@ template("run_mksnapshot") {
 
     data = []
 
+    if (is_starboard && current_toolchain == default_toolchain) {
+      target_os_arg = "starboard"
+    } else {
+      target_os_arg = current_os
+    }
     args = [
       "./" + rebase_path(get_label_info(":mksnapshot($v8_snapshot_toolchain)",
                                         "root_out_dir") + "/mksnapshot",
@@ -1628,7 +1633,7 @@ template("run_mksnapshot") {
       # target toolchains.  The same host binary is used to generate both, so
       # mksnapshot needs to know which target OS to use at runtime.  It's weird,
       # but the target OS is really |current_os|.
-      "--target_os=$current_os",
+      "--target_os=$target_os_arg",
       "--target_arch=$current_cpu",
 
       "--embedded_src",

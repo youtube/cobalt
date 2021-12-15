@@ -266,7 +266,7 @@ config("zlib_warnings") {
   }
 }
 
-component("zlib") {
+component("zlib_hidden") {
   if (!is_win) {
     # Don't stomp on "libzlib" on other platforms.
     output_name = "chrome_zlib"
@@ -360,6 +360,18 @@ component("zlib") {
 
   deps += [ ":zlib_x86_simd" ]
   allow_circular_includes_from = deps
+}
+
+if (is_starboard) {
+  config("zlib_all_dependent_config") {
+    # To prevent Zlib ever from redefining const keyword in zconf.h
+    defines = [ "STDC" ]
+  }
+
+  group("zlib") {
+    all_dependent_configs = [":zlib_all_dependent_config" ]
+    public_deps = [ ":zlib_hidden" ]
+  }
 }
 
 config("minizip_warnings") {

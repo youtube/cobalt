@@ -2557,7 +2557,7 @@ if (is_win && !is_starboard) {
   }
 }
 
-if (is_win || is_mac) {
+if (!is_starboard && (is_win || is_mac)) {
   if (current_cpu == "x64") {
     # Must be a shared library so that it can be unloaded during testing.
     shared_library("base_profiler_test_support_library") {

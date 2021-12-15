@@ -81,4 +81,8 @@ platforms = [
     name = "nxswitch"
     path = "starboard/nxswitch"
   },
+  {
+    name = "xb1"
+    path = "starboard/xb1"
+  },
 ]

@@ -18,6 +18,7 @@ config("platform_configuration") {
   # TODO(b/206809341): Migrate Detect64BitPortabilityProblems
 
   configs = [ "//starboard/build/config/sabi" ]
+  cflags_cc = [ "/TP" ]
   cflags = []
   ldflags = [
     "/NXCOMPAT",
@@ -58,11 +59,6 @@ config("platform_configuration") {
   cflags += [
     "/EHsc",
     "/std:c++14",
-  ]
-  libs += [
-    "mfplat.lib",
-    "mfuuid.lib",
-    "windowsapp.lib",
   ]
 
   # msvs_debug/_devel/etc
@@ -105,10 +101,6 @@ config("platform_configuration") {
       "/OPT:ICF",
     ]
   }
-  if (current_toolchain == host_toolchain) {
-    # Increase compiler heap limit.
-    cflags += [ "/Zm10" ]
-  }
 
   # target defaults
   if (current_toolchain == default_toolchain) {
@@ -122,9 +114,6 @@ config("platform_configuration") {
       # Disable suggestions to switch to Microsoft-specific secure CRT.
       "_CRT_SECURE_NO_WARNINGS",
       "__STDC_FORMAT_MACROS",  # so that we get PRI*
-
-      # Enable GNU extensions to get prototypes like ffsl.
-      "_GNU_SOURCE=1",
 
       # By defining this, M_PI will get #defined.
       "_USE_MATH_DEFINES",
@@ -149,27 +138,6 @@ config("platform_configuration") {
 
     # Treat warnings as errors.
     "/WX",
-
-    # Don't send error reports to MS.
-    "/errorReport:none",
-  ]
-
-  ldflags += [
-    "/DYNAMICBASE",
-
-    # TODO: SubSystem is hardcoded in
-    # win/sources_template.vcxproj. This will have the exe behave in the
-    # expected way in MSVS: when it's run without debug (Ctrl+F5), it
-    # will pause after finish; when debugging (F5) it will not pause
-    # before the cmd window disappears.
-    # Currently the value is ignored by msvs_makefile.py which generates
-    # the MSVS project files (it's in "data" in GenerateOutput()). Fix
-    # it if we ever need to change SubSystem.
-    "/SUBSYSTEM:CONSOLE",
-    "/MACHINE:x64",
-
-    # Do not generate a WinMD file.
-    "/WINMD:NO",
 
     # Don't send error reports to MS.
     "/errorReport:none",
@@ -293,9 +261,6 @@ config("platform_configuration") {
     # Unsurprisingly, most of the structs become larger because of padding
     # but it's a universally acceptable price for better performance.
     "/wd4820",
-
-    # Following V8 upstream to disable narrowing conversion.
-    "/wd4838",
 
     # Disable static analyzer warning for std::min and std::max with
     # objects.
