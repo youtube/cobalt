@@ -63,8 +63,8 @@ static_library("network") {
     ]
   }
 
-  # Enable network logging on gold builds.
-  if (is_gold) {
+  # Enable network logging on all but gold builds.
+  if (!is_gold) {
     sources += [
       "cobalt_net_log.cc",
       "cobalt_net_log.h",
