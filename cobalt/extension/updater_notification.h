@@ -31,9 +31,15 @@ typedef enum CobaltExtensionUpdaterNotificationState {
   kCobaltExtensionUpdaterNotificationStateDownloading = 3,
   kCobaltExtensionUpdaterNotificationStateDownloaded = 4,
   kCobaltExtensionUpdaterNotificationStateInstalling = 5,
+#if SB_API_VERSION > 13
+  kCobaltExtensionUpdaterNotificationStateUpdated = 6,
+  kCobaltExtensionUpdaterNotificationStateUpToDate = 7,
+  kCobaltExtensionUpdaterNotificationStateUpdateFailed = 8,
+#else
   kCobaltExtensionUpdaterNotificationStatekUpdated = 6,
   kCobaltExtensionUpdaterNotificationStatekUpToDate = 7,
   kCobaltExtensionUpdaterNotificationStatekUpdateFailed = 8,
+#endif
 } CobaltExtensionUpdaterNotificationState;
 
 typedef struct CobaltExtensionUpdaterNotificationApi {

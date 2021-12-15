@@ -67,12 +67,21 @@ ComponentStateToCobaltExtensionUpdaterNotificationState(
       return kCobaltExtensionUpdaterNotificationStateDownloaded;
     case ComponentState::kUpdating:
       return kCobaltExtensionUpdaterNotificationStateInstalling;
+#if SB_API_VERSION > 13
+    case ComponentState::kUpdated:
+      return kCobaltExtensionUpdaterNotificationStateUpdated;
+    case ComponentState::kUpToDate:
+      return kCobaltExtensionUpdaterNotificationStateUpToDate;
+    case ComponentState::kUpdateError:
+      return kCobaltExtensionUpdaterNotificationStateUpdateFailed;
+#else
     case ComponentState::kUpdated:
       return kCobaltExtensionUpdaterNotificationStatekUpdated;
     case ComponentState::kUpToDate:
-      return kCobaltExtensionUpdaterNotificationStatekUpdated;
+      return kCobaltExtensionUpdaterNotificationStatekUpToDate;
     case ComponentState::kUpdateError:
       return kCobaltExtensionUpdaterNotificationStatekUpdateFailed;
+#endif
     default:
       return kCobaltExtensionUpdaterNotificationStateNone;
   }
