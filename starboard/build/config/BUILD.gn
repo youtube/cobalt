@@ -106,7 +106,10 @@ config("starboard") {
     }
 
     if (!is_gold) {
-      defines += [ "ENABLE_DEBUGGER" ]
+      defines += [
+        "ENABLE_DEBUGGER",
+        "ENABLE_DEBUG_COMMAND_LINE_SWITCHES",
+      ]
     }
 
     if (abort_on_allocation_failure) {
