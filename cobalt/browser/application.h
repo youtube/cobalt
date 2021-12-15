@@ -39,9 +39,9 @@
 #endif
 
 #if defined(ENABLE_DEBUGGER)
-#include "cobalt/debug/console/command_manager.h"
-#include "cobalt/debug/remote/debug_web_server.h"
-#endif  // ENABLE_DEBUGGER
+#include "cobalt/debug/console/command_manager.h"  // nogncheck
+#include "cobalt/debug/remote/debug_web_server.h"  // nogncheck
+#endif                                             // ENABLE_DEBUGGER
 
 namespace cobalt {
 namespace browser {
@@ -68,8 +68,7 @@ class Application {
   void OnNetworkEvent(const base::Event* event);
 
   // Called to handle an application event.
-  void OnApplicationEvent(SbEventType event_type,
-                          SbTimeMonotonic timestamp);
+  void OnApplicationEvent(SbEventType event_type, SbTimeMonotonic timestamp);
 
   // Called to handle a window size change event.
   void OnWindowSizeChangedEvent(const base::Event* event);
@@ -230,8 +229,7 @@ class Application {
   void OnDeepLinkConsumedCallback(const std::string& link);
 
   // Dispatch events for deep links.
-  void DispatchDeepLink(const char* link,
-                        SbTimeMonotonic timestamp);
+  void DispatchDeepLink(const char* link, SbTimeMonotonic timestamp);
   void DispatchDeepLinkIfNotConsumed();
 
   DISALLOW_COPY_AND_ASSIGN(Application);

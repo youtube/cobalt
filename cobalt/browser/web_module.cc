@@ -75,8 +75,8 @@
 #include "starboard/gles.h"
 
 #if defined(ENABLE_DEBUGGER)
-#include "cobalt/debug/backend/debug_module.h"
-#endif  // defined(ENABLE_DEBUGGER)
+#include "cobalt/debug/backend/debug_module.h"  // nogncheck
+#endif                                          // defined(ENABLE_DEBUGGER)
 
 namespace cobalt {
 namespace browser {

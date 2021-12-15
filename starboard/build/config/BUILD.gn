@@ -101,6 +101,10 @@ config("starboard") {
       defines += [ "SB_GN_GL_TYPE_IS_NONE=0" ]
     }
 
+    if (!is_gold) {
+      defines += [ "ENABLE_DEBUGGER" ]
+    }
+
     if (abort_on_allocation_failure) {
       defines += [ "SB_ABORT_ON_ALLOCATION_FAILURE" ]
     }

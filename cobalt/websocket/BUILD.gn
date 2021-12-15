@@ -65,8 +65,7 @@ target(gtest_target_type, "websocket_test") {
     "//cobalt/script:engine",
   ]
 
-  # TODO(b/209029980): Migrate //cobalt/debug
-  # if (!is_gold) {
-  #   deps += ["//cobalt/debug"]
-  # }
+  if (!is_gold) {
+    deps += [ "//cobalt/debug" ]
+  }
 }

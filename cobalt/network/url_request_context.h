@@ -27,8 +27,8 @@
 #include "net/url_request/url_request_context_storage.h"
 
 #if defined(ENABLE_DEBUGGER)
-#include "cobalt/debug/console/command_manager.h"
-#endif  // ENABLE_DEBUGGER
+#include "cobalt/debug/console/command_manager.h"  // nogncheck
+#endif                                             // ENABLE_DEBUGGER
 
 namespace cobalt {
 namespace storage {
