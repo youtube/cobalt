@@ -59,7 +59,7 @@ static_library("debug") {
     "remote/debug_web_server.h",
   ]
   deps = [
-    ":console_command_maanger",
+    ":console_command_manager",
     ":copy_backend_web_files",
     ":copy_console_web_files",
     ":copy_remote_web_files",
@@ -80,7 +80,7 @@ static_library("debug") {
 
 # Anything that implements a console command can depend on this without
 # depending on the whole debug module.
-static_library("console_command_maanger") {
+static_library("console_command_manager") {
   # Everything is conditional so implementers of commands can depend on
   # this unconditionally.
   if (!is_gold) {
