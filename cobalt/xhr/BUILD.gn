@@ -33,6 +33,7 @@ static_library("xhr") {
     "//nb",
     "//net",
     "//starboard",
+    "//third_party/protobuf:protobuf_lite",
     "//url",
   ]
 
