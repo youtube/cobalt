@@ -150,7 +150,7 @@ config("platform_configuration") {
     defines += [ "ADDRESS_SANITIZER" ]
 
     if (asan_symbolizer_path != "") {
-      defines += [ "ASAN_SYMBOLIZER_PATH='${asan_symbolizer_path}'" ]
+      defines += [ "ASAN_SYMBOLIZER_PATH=\"${asan_symbolizer_path}\"" ]
     }
   } else if (use_tsan) {
     cflags += [
