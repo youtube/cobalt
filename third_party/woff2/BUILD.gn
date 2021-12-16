@@ -2,8 +2,6 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-# optimize_target_for_speed
-
 config("woff2_includes") {
   include_dirs = [ "include" ]
 }
@@ -30,6 +28,11 @@ static_library("woff2_dec") {
     "//starboard/common",
     "//third_party/brotli:dec",
   ]
+
+  if (is_starboard) {
+    configs -= [ "//starboard/build/config:size" ]
+    configs += [ "//starboard/build/config:speed" ]
+  }
 
   public_configs = [ ":woff2_includes" ]
 
