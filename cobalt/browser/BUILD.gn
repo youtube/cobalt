@@ -16,6 +16,16 @@ import("//cobalt/bindings/bindings_templates.gni")
 import("//cobalt/browser/browser_bindings_variables.gni")
 import("//cobalt/browser/idl_files.gni")
 
+target(final_executable_type, "cobalt") {
+  sources = [ "main.cc" ]
+  deps = [
+    ":browser",
+    ":browser_switches",
+    "//cobalt/base",
+    "//net",
+  ]
+}
+
 config("bindings_includes") {
   include_dirs = [ generated_source_output_dir ]
 }
