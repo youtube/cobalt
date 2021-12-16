@@ -39,7 +39,9 @@ config("skia_opts") {
 # without ASAN. This is done to avoid drastic slowdown in debug unit
 # tests.
 skia_common("skia_library_no_asan") {
+  check_includes = false
   sources = skia_effects_imagefilter_sources_no_asan
+
   # TODO(b/207398024): If this is a target we need to build, then we'll
   # need to rework the configuration framework to be able to remove this
   # flag -fsanitize=address, as it's mostly added in the
@@ -72,7 +74,7 @@ config("skia_library_config_public") {
 }
 
 skia_common("skia_library") {
-  sources = shared_sources + sksl_sources
+  sources = combined_sources + sksl_sources
 
   configs = [
     ":skia_library_config",

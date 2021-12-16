@@ -56,15 +56,12 @@ shared_sources = [
 combined_sources += shared_sources
 combined_sources += skia_core_sources
 
-combined_sources += skia_pathops_sources
-combined_sources += skia_skpicture_sources
 combined_sources += skia_effects_sources
 combined_sources += skia_effects_imagefilter_sources
 
 # from "gpu.gni"
 combined_sources += skia_gpu_sources
-combined_sources += skia_ccpr_sources
-combined_sources += skia_nvpr_sources
+
 combined_sources += skia_utils_sources
 combined_sources += skia_skottie_sources
 combined_sources += skia_sksg_sources
