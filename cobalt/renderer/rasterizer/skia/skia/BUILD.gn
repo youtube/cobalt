@@ -135,6 +135,7 @@ skia_common("skia") {
     "//base",
     "//cobalt/base",
     "//cobalt/configuration:configuration",
+    "//cobalt/renderer:renderer_headers_only",
     "//starboard:starboard_headers_only",
     "//starboard/common",
     "//third_party/freetype2",

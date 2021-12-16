@@ -45,6 +45,7 @@ static_library("egl_backend") {
     "//cobalt/base",
     "//cobalt/configuration",
     "//cobalt/math",
+    "//cobalt/renderer:renderer_headers_only",
     "//cobalt/system_window",
     "//starboard:starboard_headers_only",
     "//starboard/common",

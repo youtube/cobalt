@@ -22,8 +22,7 @@
 #include "cobalt/renderer/rasterizer/egl/software_rasterizer.h"
 #include "cobalt/renderer/rasterizer/skia/hardware_rasterizer.h"
 #include "cobalt/renderer/rasterizer/stub/rasterizer.h"
-#include "cobalt/renderer/renderer_module.h"
-
+#include "cobalt/renderer/renderer_module.h"  // nogncheck
 #include "starboard/gles.h"
 
 namespace cobalt {
