@@ -23,6 +23,7 @@ group("gn_all") {
     "//cobalt/encoding:text_encoding_test",
     "//cobalt/layout:layout_test",
     "//cobalt/loader:loader_test",
+    "//cobalt/renderer:renderer_test",
     "//cobalt/web_animations:web_animations_test",
     "//cobalt/websocket:websocket_test",
     "//cobalt/xhr:xhr_test",

@@ -152,6 +152,9 @@ if __name__ == '__main__':
       '--force',
       action='store_true',
       help='Replace an existing resource.')
+  parser.add_argument(
+      '--stamp_file',
+      help='Path to stamp file to create upon script completion.')
   args = parser.parse_args()
 
   if os.path.isdir(args.sha1):
@@ -159,3 +162,7 @@ if __name__ == '__main__':
                                   args.force)
   else:
     MaybeDownloadFileFromGcs(args.bucket, args.sha1, args.output, args.force)
+
+  if args.stamp_file:
+    with open(args.stamp_file, 'w'):
+      pass
