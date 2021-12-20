@@ -14,6 +14,10 @@ if (is_mac && !icu_is_in_fuchsia) {
   import("//build/config/sanitizers/sanitizers.gni")
 }
 
+if (is_starboard) {
+  import("//cobalt/build/contents_dir.gni")
+}
+
 assert(!icu_disable_thin_archive || !is_component_build,
        "icu_disable_thin_archive only works in static library builds")
 
@@ -52,6 +56,14 @@ config("icu_config") {
     "UCONFIG_NO_TRANSLITERATION",
     "UCONFIG_NO_REGULAR_EXPRESSIONS"
   ]
+
+  if (is_starboard) {
+    defines -= [
+      "USE_CHROMIUM_ICU=1",
+      "U_ENABLE_TRACING=1",
+      "U_ENABLE_RESOURCE_TRACING=0",
+    ]
+  }
 
   if (!is_component_build) {
     defines += [ "U_STATIC_IMPLEMENTATION" ]
@@ -373,7 +385,16 @@ if (current_cpu == "mips" || current_cpu == "mips64" ||
 data_bundle = "${data_bundle_prefix}.dat"
 
 if (icu_use_data_file) {
-  if (is_ios) {
+  if (is_starboard) {
+    not_needed([ "data_bundle", "data_dir" ])
+    copy("icudata") {
+      filename = "icudt68l.dat"
+      sources = [ "$static_contents_source_dir/icu/$filename"]
+      output = "$sb_static_contents_output_data_dir/icu/$filename"
+      outputs = [ output ]
+      data = [ output ]
+    }
+  } else if (is_ios) {
     bundle_data("icudata") {
       sources = [ "$data_dir/$data_bundle" ]
       outputs = [ "{{bundle_resources_dir}}/{{source_file_part}}" ]

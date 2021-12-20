@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//cobalt/build/contents_dir.gni")
+
 static_library("dom") {
   has_pedantic_warnings = true
 
@@ -379,10 +381,9 @@ static_library("dom_exception") {
 }
 
 copy("licenses") {
-  # TODO: Move to cobalt/build/contents_dir.gni?
-  static_contents_source_dir = "//cobalt/content"
   license_path =
       "licenses/platform/$cobalt_licenses_platform/licenses_cobalt.txt"
   sources = [ "$static_contents_source_dir/$license_path" ]
-  outputs = [ "$sb_static_contents_output_data_dir/$license_path" ]
+  outputs =
+      [ "$sb_static_contents_output_data_dir/licenses/licenses_cobalt.txt" ]
 }
