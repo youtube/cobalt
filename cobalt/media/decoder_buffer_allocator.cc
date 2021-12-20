@@ -60,13 +60,8 @@ DecoderBufferAllocator::DecoderBufferAllocator()
   // We cannot call SbMediaGetMaxBufferCapacity because |video_codec_| is not
   // set yet. Use 0 (unbounded) until |video_codec_| is updated in
   // UpdateVideoConfig().
-  int max_capacity = 0;
-  reuse_allocator_.reset(new nb::BidirectionalFitReuseAllocator(
-      &fallback_allocator_, initial_capacity_, kSmallAllocationThreshold,
-      allocation_unit_, max_capacity));
-  DLOG(INFO) << "Allocated " << initial_capacity_
-             << " bytes for media buffer pool as its initial buffer, with max"
-             << " capacity set to " << max_capacity;
+  starboard::ScopedLock scoped_lock(mutex_);
+  CreateReuseAllocator(0);
 }
 
 DecoderBufferAllocator::~DecoderBufferAllocator() {
@@ -81,6 +76,36 @@ DecoderBufferAllocator::~DecoderBufferAllocator() {
   if (reuse_allocator_) {
     DCHECK_EQ(reuse_allocator_->GetAllocated(), 0);
     reuse_allocator_.reset();
+  }
+}
+
+void DecoderBufferAllocator::Suspend() {
+  if (!using_memory_pool_ || is_memory_pool_allocated_on_demand_) {
+    return;
+  }
+
+  TRACK_MEMORY_SCOPE("Media");
+
+  starboard::ScopedLock scoped_lock(mutex_);
+
+  if (reuse_allocator_ && reuse_allocator_->GetAllocated() == 0) {
+    DLOG(INFO) << "Freed " << reuse_allocator_->GetCapacity()
+               << " bytes of media buffer pool `on suspend`.";
+    reuse_allocator_.reset();
+  }
+}
+
+void DecoderBufferAllocator::Resume() {
+  if (!using_memory_pool_ || is_memory_pool_allocated_on_demand_) {
+    return;
+  }
+
+  TRACK_MEMORY_SCOPE("Media");
+
+  starboard::ScopedLock scoped_lock(mutex_);
+
+  if (!reuse_allocator_) {
+    CreateReuseAllocator(0);
   }
 }
 
@@ -106,12 +131,7 @@ DecoderBuffer::Allocator::Allocations DecoderBufferAllocator::Allocate(
       max_capacity = SbMediaGetMaxBufferCapacity(
           video_codec_, resolution_width_, resolution_height_, bits_per_pixel_);
     }
-    reuse_allocator_.reset(new nb::BidirectionalFitReuseAllocator(
-        &fallback_allocator_, initial_capacity_, kSmallAllocationThreshold,
-        allocation_unit_, max_capacity));
-    DLOG(INFO) << "Allocated " << initial_capacity_
-               << " bytes for media buffer pool, with max capacity set to "
-               << max_capacity;
+    CreateReuseAllocator(max_capacity);
   }
 
   void* p = reuse_allocator_->Allocate(size, alignment);
@@ -215,6 +235,17 @@ std::size_t DecoderBufferAllocator::GetMaximumMemoryCapacity() const {
              ? reuse_allocator_->max_capacity()
              : SbMediaGetMaxBufferCapacity(video_codec_, resolution_width_,
                                            resolution_height_, bits_per_pixel_);
+}
+
+void DecoderBufferAllocator::CreateReuseAllocator(int max_capacity) {
+  mutex_.DCheckAcquired();
+
+  reuse_allocator_.reset(new nb::BidirectionalFitReuseAllocator(
+      &fallback_allocator_, initial_capacity_, kSmallAllocationThreshold,
+      allocation_unit_, max_capacity));
+  DLOG(INFO) << "Allocated " << initial_capacity_
+             << " bytes for media buffer pool, with max capacity set to "
+             << max_capacity;
 }
 
 bool DecoderBufferAllocator::UpdateAllocationRecord() const {
