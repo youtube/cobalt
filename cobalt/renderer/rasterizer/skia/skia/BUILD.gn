@@ -71,6 +71,8 @@ config("skia_library_config_public") {
     "//third_party/skia/include/private",
     "//third_party/skia/include/utils",
   ]
+
+  defines = [ "SK_BUILD_NO_OPTS" ]
 }
 
 skia_common("skia_library") {
