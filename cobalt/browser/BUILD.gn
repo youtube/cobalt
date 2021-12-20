@@ -178,7 +178,10 @@ idl_compile("generated_bindings") {
 source_set("generated_bindings_sources") {
   sources = get_target_outputs(":generated_bindings")
   public_deps = [ ":generated_bindings" ]
-  deps = [ "//third_party/protobuf:protobuf_lite" ]
+  deps = [
+    # Ensure that all the files have been generated before trying to compile.
+    ":generated_types",
+  ]
 }
 
 idl_compile("generated_types") {
@@ -206,6 +209,10 @@ idl_compile("generated_types") {
 source_set("generated_types_sources") {
   sources = get_target_outputs(":generated_types")
   public_deps = [ ":generated_types" ]
+  deps = [
+    # Ensure that all the files have been generated before trying to compile.
+    ":generated_bindings",
+  ]
 }
 
 action("generated_type_conversion") {
