@@ -80,6 +80,7 @@ group("default") {
 
   if (sb_is_evergreen) {
     deps += [
+      "//base/util/values:values_util",
       "//third_party/llvm-project/compiler-rt:compiler_rt",
       "//third_party/llvm-project/libcxx:cxx",
       "//third_party/llvm-project/libcxxabi:cxxabi",
