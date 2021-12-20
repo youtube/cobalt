@@ -37,6 +37,9 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
   DecoderBufferAllocator();
   ~DecoderBufferAllocator() override;
 
+  void Suspend();
+  void Resume();
+
   Allocations Allocate(size_t size, size_t alignment,
                        intptr_t context) override;
   void Free(Allocations allocations) override;
@@ -46,6 +49,8 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
   size_t GetMaximumMemoryCapacity() const override;
 
  private:
+  void CreateReuseAllocator(int max_capacity);
+
   // Update the Allocation record, and return false if allocation exceeds the
   // max buffer capacity, or true otherwise.
   bool UpdateAllocationRecord() const;
