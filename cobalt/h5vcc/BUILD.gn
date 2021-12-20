@@ -110,8 +110,7 @@ static_library("h5vcc") {
       "h5vcc_updater.cc",
       "h5vcc_updater.h",
     ]
-
-    # TODO(b/206642994): Migrate //cobalt/updater
-    deps += [ "//cobalt/updater" ]
+    # TODO(b/211447021): Migrate //cobalt/updater
+    # deps += [ "//cobalt/updater" ]
   }
 }
