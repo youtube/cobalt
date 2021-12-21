@@ -17,7 +17,6 @@ version: '2.4'
 volumes:
   android-debug-keystore:
   container-ccache:
-  container-starboard-toolchains:
 
 x-common-definitions: &common-definitions
   stdin_open: true
@@ -28,7 +27,6 @@ x-build-volumes: &build-volumes
     - ${COBALT_SRC:-.}:/code/
     - android-debug-keystore:/root/.android/
     - ${CCACHE_DIR:-container-ccache}:/root/ccache
-    - ${STARBOARD_TOOLCHAINS_DIR:-container-starboard-toolchains}:/root/starboard-toolchains
 
 x-build-common-definitions: &build-common-definitions
   <<: *common-definitions
@@ -78,6 +76,9 @@ services:
     build:
       context: ./docker/linux
       dockerfile: base/build/Dockerfile
+      args:
+        # Should match version pinned by Starboard
+        - CLANG_VER=${CLANG_VER:-365097-f7e52fbd-8}
     image: cobalt-build-base
     depends_on:
       - base
@@ -89,6 +90,7 @@ services:
       dockerfile: base/build/Dockerfile
       args:
         - FROM_IMAGE=base-bionic
+        - CLANG_VER=${CLANG_VER:-365097-f7e52fbd-8}
     image: build-base-bionic
     depends_on:
       - base-bionic
@@ -304,6 +306,7 @@ services:
       context: ./docker/linux
       dockerfile: evergreen/Dockerfile
     image: cobalt-build-evergreen
+    depends_on: [ build-base ]
     environment:
       <<: *shared-build-env
 
