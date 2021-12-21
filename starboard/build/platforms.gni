@@ -77,4 +77,8 @@ platforms = [
     name = "evergreen-x64"
     path = "starboard/evergreen/x64"
   },
+  {
+    name = "nxswitch"
+    path = "starboard/nxswitch"
+  },
 ]

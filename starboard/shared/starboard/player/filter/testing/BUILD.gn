@@ -42,7 +42,7 @@ target(gtest_target_type, "player_filter_tests") {
   deps = cobalt_platform_dependencies
 }
 
-if (!is_win) {
+if (host_os != "win") {
   target(final_executable_type, "player_filter_benchmarks") {
     testonly = true
 

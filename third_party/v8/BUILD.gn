@@ -212,7 +212,7 @@ declare_args() {
       v8_current_cpu != "x86" && (is_android || target_is_simulator)
 
   # Enable minor mark compact.
-  v8_enable_minor_mc = true
+  v8_enable_minor_mc = !is_starboard
 
   # Check that each header can be included in isolation (requires also
   # setting the "check_v8_header_includes" gclient variable to run a
@@ -266,7 +266,7 @@ declare_args() {
   cppgc_enable_object_names = false
 
   # Enable heap reservation of size 4GB. Only possible for 64bit archs.
-  cppgc_enable_caged_heap = v8_current_cpu == "x64" || v8_current_cpu == "arm64"
+  cppgc_enable_caged_heap = !is_starboard && (v8_current_cpu == "x64" || v8_current_cpu == "arm64")
 
   # Enable young generation in cppgc.
   cppgc_enable_young_generation = false
@@ -438,6 +438,10 @@ config("internal_config_base") {
       "DISABLE_UNTRUSTED_CODE_MITIGATIONS",
       "NOMINMAX",
     ]
+
+    if (is_starboard && !is_win) {
+      defines -= [ "NOMINMAX" ]
+    }
 
     if (is_clang) {
       if (current_toolchain == default_toolchain) {
@@ -4158,42 +4162,44 @@ v8_source_set("torque_base") {
   }
 }
 
-v8_source_set("torque_ls_base") {
-  sources = [
-    "src/torque/ls/globals.h",
-    "src/torque/ls/json-parser.cc",
-    "src/torque/ls/json-parser.h",
-    "src/torque/ls/json.cc",
-    "src/torque/ls/json.h",
-    "src/torque/ls/message-handler.cc",
-    "src/torque/ls/message-handler.h",
-    "src/torque/ls/message-macros.h",
-    "src/torque/ls/message-pipe.h",
-    "src/torque/ls/message.h",
-  ]
+if (!is_starboard) {
+  v8_source_set("torque_ls_base") {
+    sources = [
+      "src/torque/ls/globals.h",
+      "src/torque/ls/json-parser.cc",
+      "src/torque/ls/json-parser.h",
+      "src/torque/ls/json.cc",
+      "src/torque/ls/json.h",
+      "src/torque/ls/message-handler.cc",
+      "src/torque/ls/message-handler.h",
+      "src/torque/ls/message-macros.h",
+      "src/torque/ls/message-pipe.h",
+      "src/torque/ls/message.h",
+    ]
 
-  public_deps = [ ":torque_base" ]
+    public_deps = [ ":torque_base" ]
 
-  # The use of exceptions for Torque in violation of the Chromium style-guide
-  # is justified by the fact that it is only used from the non-essential
-  # language server and can be removed anytime if it causes problems.
-  configs = [
-    ":internal_config",
-    "//build/config/compiler:exceptions",
-    "//build/config/compiler:rtti",
-  ]
+    # The use of exceptions for Torque in violation of the Chromium style-guide
+    # is justified by the fact that it is only used from the non-essential
+    # language server and can be removed anytime if it causes problems.
+    configs = [
+      ":internal_config",
+      "//build/config/compiler:exceptions",
+      "//build/config/compiler:rtti",
+    ]
 
-  remove_configs = [
-    "//build/config/compiler:no_exceptions",
-    "//build/config/compiler:no_rtti",
-  ]
+    remove_configs = [
+      "//build/config/compiler:no_exceptions",
+      "//build/config/compiler:no_rtti",
+    ]
 
-  if (is_starboard) {
-    remove_configs -= [ "//build/config/compiler:no_rtti" ]
-  }
+    if (is_starboard) {
+      remove_configs -= [ "//build/config/compiler:no_rtti" ]
+    }
 
-  if (is_win && is_asan) {
-    remove_configs += [ "//build/config/sanitizers:default_sanitizer_flags" ]
+    if (is_win && is_asan) {
+      remove_configs += [ "//build/config/sanitizers:default_sanitizer_flags" ]
+    }
   }
 }
 
@@ -4765,7 +4771,7 @@ if (current_toolchain == v8_snapshot_toolchain) {
       "src/snapshot/snapshot-empty.cc",
     ]
 
-    if (v8_control_flow_integrity) {
+    if (v8_control_flow_integrity || is_starboard) {
       sources += [ "src/deoptimizer/deoptimizer-cfi-empty.cc" ]
     }
 
@@ -5077,6 +5083,10 @@ if (is_component_build) {
       ":v8_initializers",
       ":v8_snapshot",
     ]
+
+    if (is_starboard) {
+      public_deps -= [ ":torque_ls_base" ]
+    }
 
     public_configs = [ ":external_config" ]
   }
