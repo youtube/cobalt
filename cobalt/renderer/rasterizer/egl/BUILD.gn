@@ -82,7 +82,6 @@ static_library("hardware_rasterizer") {
     "shader_program.h",
     "shader_program_manager.cc",
     "shader_program_manager.h",
-    "software_rasterizer.cc",
   ]
 
   configs -= [ "//starboard/build/config:size" ]
