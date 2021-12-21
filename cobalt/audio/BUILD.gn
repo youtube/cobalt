@@ -64,3 +64,20 @@ static_library("audio") {
   ]
   deps += cobalt_platform_dependencies
 }
+
+target(gtest_target_type, "audio_test") {
+  testonly = true
+  has_pedantic_warnings = true
+
+  sources = [ "audio_node_input_output_test.cc" ]
+
+  deps = [
+    ":audio",
+    "//cobalt/dom",
+    "//cobalt/media",
+    "//cobalt/script",
+    "//cobalt/test:run_all_unittests",
+    "//testing/gtest",
+  ]
+  deps += cobalt_platform_dependencies
+}
