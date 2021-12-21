@@ -75,6 +75,7 @@ def DownloadAndUnpack(url, output_dir):
     if not os.path.exists(output_dir):
       os.makedirs(output_dir)
 
+    # pylint: disable=consider-using-with
     t = tarfile.open(mode='r:gz', fileobj=tmpfile)
     t.extractall(path=output_dir)
 
@@ -91,6 +92,9 @@ def UpdateClang(target_dir, revision):
         return
   except IOError:
     pass
+
+  if os.getenv('IS_CI', '') == '1':
+    raise Exception('Dynamic toolchain downloads are disabled in CI')
 
   if os.path.exists(target_dir):
     shutil.rmtree(target_dir)
