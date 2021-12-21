@@ -186,16 +186,6 @@ services:
     depends_on:
       - linux-x64x11-bionic
 
-  linux-x64x11-clang-3-9-prebuilt:
-    <<: *common-definitions
-    <<: *build-volumes
-    image: gcr.io/cobalt-tools/build-cobalt-linux-x64x11-clang-3-9:1.4
-    environment:
-      <<: *shared-build-env
-      PLATFORM: linux-x64x11-clang-3-9
-      CONFIG: ${CONFIG:-debug}
-      USE_CCACHE: ${USE_CCACHE:-1}
-
   # Define common build container for Android
   build-android:
     <<: *build-common-definitions
