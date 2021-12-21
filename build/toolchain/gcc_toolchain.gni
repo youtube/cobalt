@@ -105,6 +105,12 @@ if (enable_resource_allowlist_generation) {
 #      Location of the strip executable. When specified, strip will be run on
 #      all shared libraries and executables as they are built. The pre-stripped
 #      artifacts will be put in lib.unstripped/ and exe.unstripped/.
+#
+# Optional parameters added with the Starboard platform:
+#
+#  - tail_lib_dependencies
+#      If defined, this string will be added to the compilation line after all
+#      other libs are specified.
 template("gcc_toolchain") {
   toolchain(target_name) {
     assert(defined(invoker.ar), "gcc_toolchain() must specify a \"ar\" value")
@@ -346,6 +352,12 @@ template("gcc_toolchain") {
     # Object files go in this directory.
     object_subdir = "{{target_out_dir}}/{{label_name}}"
 
+    if (defined(invoker.tail_lib_dependencies)) {
+      tail_lib_dependencies = " " + invoker.tail_lib_dependencies
+    } else {
+      tail_lib_dependencies = ""
+    }
+
     tool("cc") {
       depfile = "{{output}}.d"
       precompiled_header_type = "gcc"
@@ -450,9 +462,9 @@ template("gcc_toolchain") {
       command = "$python_path \"$solink_wrapper\" --readelf=\"$readelf\" --nm=\"$nm\" $strip_switch$dwp_switch --sofile=\"$unstripped_sofile\" --tocfile=\"$tocfile\"$map_switch --output=\"$sofile\" -- $link_command"
 
       if (target_cpu == "mipsel" && is_component_build && is_android) {
-        rspfile_content = "-Wl,--start-group -Wl,--whole-archive {{inputs}} {{solibs}} -Wl,--no-whole-archive {{libs}} -Wl,--end-group"
+        rspfile_content = "-Wl,--start-group -Wl,--whole-archive {{inputs}} {{solibs}} -Wl,--no-whole-archive {{libs}} -Wl,--end-group$tail_lib_dependencies"
       } else {
-        rspfile_content = "-Wl,--whole-archive {{inputs}} {{solibs}} -Wl,--no-whole-archive {{libs}}"
+        rspfile_content = "-Wl,--whole-archive {{inputs}} {{solibs}} -Wl,--no-whole-archive {{libs}}$tail_lib_dependencies"
       }
 
       description = "SOLINK $sofile"
@@ -520,7 +532,7 @@ template("gcc_toolchain") {
         strip_command = "${invoker.strip} -o \"$sofile\" \"$unstripped_sofile\""
         command += " && " + strip_command
       }
-      rspfile_content = "-Wl,--whole-archive {{inputs}} {{solibs}} -Wl,--no-whole-archive {{libs}}"
+      rspfile_content = "-Wl,--whole-archive {{inputs}} {{solibs}} -Wl,--no-whole-archive {{libs}}$tail_lib_dependencies"
 
       description = "SOLINK_MODULE $sofile"
 
@@ -572,7 +584,7 @@ template("gcc_toolchain") {
         start_group_flag = "-Wl,--start-group"
         end_group_flag = "-Wl,--end-group "
       }
-      link_command = "$ld {{ldflags}}${extra_ldflags} -o \"$unstripped_outfile\" $start_group_flag @\"$rspfile\" {{solibs}} $end_group_flag {{libs}}"
+      link_command = "$ld {{ldflags}}${extra_ldflags} -o \"$unstripped_outfile\" $start_group_flag @\"$rspfile\" {{solibs}} $end_group_flag {{libs}}$tail_lib_dependencies"
 
       # Generate a map file to be used for binary size analysis.
       # Map file adds ~10% to the link time on a z620.
