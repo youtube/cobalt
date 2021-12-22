@@ -14,6 +14,8 @@
 
 #include "components/update_client/cobalt_slot_management.h"
 
+#include <vector>
+
 #include "base/strings/string_util.h"
 #include "starboard/common/file.h"
 #include "starboard/loader_app/app_key_files.h"
@@ -45,7 +47,7 @@ constexpr char kManifestV2[] = R"json(
 
 class CobaltSlotManagementTest : public testing::Test {
  protected:
-  virtual void SetUp() override {
+  void SetUp() override {
     std::vector<char> buf(kSbFileMaxPath);
     storage_path_implemented_ = SbSystemGetPath(kSbSystemPathStorageDirectory,
                                                 buf.data(), kSbFileMaxPath);
@@ -63,7 +65,7 @@ class CobaltSlotManagementTest : public testing::Test {
             kCobaltExtensionInstallationManagerName));
   }
 
-  virtual void TearDown() override {
+  void TearDown() override {
     starboard::SbFileDeleteRecursive(storage_path_.c_str(), true);
     ImUninitialize();
   }

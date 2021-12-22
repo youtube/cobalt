@@ -68,17 +68,8 @@ repos:
         exclude: |
             (?x)(
                 ^cobalt/bindings/(templates|generated)/|
-                ^starboard/shared/uikit/.*\.h$|
-                tests?\.(cc|h)$
+                ^starboard/shared/uikit/.*\.h$
             )
-    -   id: cpplint_test
-        name: cpplint_test
-        entry: cpplint
-        language: system
-        types: [c++]
-        args: [--verbose=5, --quiet]
-        files: '.*tests?.(cc|h)$'
-        exclude: '^starboard/shared/uikit/.*\.h$'
     -   id: yapf
         name: yapf
         description: Run yapf (the python formatter) in-place on changed files.
