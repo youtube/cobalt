@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//starboard/build/platforms.gni")
-
 declare_args() {
   is_clang = true
 
@@ -25,7 +23,7 @@ declare_args() {
 
   cobalt_fastbuild = getenv("IS_CI") == 1
 
-  is_internal_build = false
+  is_internal_build = getenv("COBALT_USE_INTERNAL_BUILD") == "1"
 
   is_docker_build = getenv("IS_DOCKER") == 1
 }
@@ -75,13 +73,11 @@ if (is_mac) {
 
 # Get the path to the starboard implementation and include its GN
 # configuration.
-foreach(platform, platforms) {
-  if (platform.name == target_platform) {
-    starboard_path = platform.path
-  }
-}
+starboard_path = exec_script("//starboard/build/platforms.py",
+                             [ target_platform ],
+                             "trim string")
 assert(defined(starboard_path),
-       "Please port your platform to starboard/build/platforms.gni")
+       "Please add your platform to starboard/build/platforms.py")
 host_toolchain = "//$starboard_path/toolchain:host"
 _default_toolchain = "//$starboard_path/toolchain:target"
 set_default_toolchain(_default_toolchain)
