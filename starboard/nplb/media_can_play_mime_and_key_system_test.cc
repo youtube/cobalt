@@ -12,11 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/nplb/media_can_play_mime_and_key_system_test_helpers.h"
-
 #include "starboard/common/string.h"
 #include "starboard/media.h"
 #include "starboard/nplb/drm_helpers.h"
+#include "starboard/nplb/media_can_play_mime_and_key_system_test_helpers.h"
 #include "starboard/nplb/performance_helpers.h"
 #include "starboard/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -818,6 +817,9 @@ TEST(SbMediaCanPlayMimeAndKeySystem, ValidatePerformance) {
   test_sequential_function_calls(kHdrQueryParams,
                                  SB_ARRAY_SIZE_INT(kHdrQueryParams),
                                  20 * kSbTimeMillisecond, "HDR queries");
+  test_sequential_function_calls(kDrmQueryParams,
+                                 SB_ARRAY_SIZE_INT(kDrmQueryParams),
+                                 50 * kSbTimeMillisecond, "DRM queries");
 }
 
 }  // namespace
