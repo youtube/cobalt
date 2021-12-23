@@ -16,6 +16,7 @@ FROM cobalt-build-base
 
 RUN apt update -qqy \
     && apt install -qqy --no-install-recommends \
+        libxml2-dev \
         default-jdk \
         g++-multilib \
     && /opt/clean-after-apt.sh
