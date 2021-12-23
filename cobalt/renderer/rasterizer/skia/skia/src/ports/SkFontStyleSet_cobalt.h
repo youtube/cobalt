@@ -16,6 +16,7 @@
 #define COBALT_RENDERER_RASTERIZER_SKIA_SKIA_SRC_PORTS_SKFONTSTYLESET_COBALT_H_
 
 #include <string>
+#include <unordered_map>
 
 #include "SkFontMgr.h"
 #include "SkStream.h"

@@ -328,7 +328,6 @@ bool SkFontStyleSet_Cobalt::ContainsCharacter(const SkFontStyle& style,
       styles_[style_index].swap(styles_.back());
       styles_.pop_back();
     }
-
   }
 
   DCHECK(character_maps_[style_index]);
