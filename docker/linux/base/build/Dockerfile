@@ -81,5 +81,15 @@ RUN cd /tmp \
     && echo ${CLANG_VER} >> ${TC_HOME}/cr_build_revision \
     && rm clang-${CLANG_VER}.tgz
 
+#  === Install portable sccache binary
+ARG SCCACHE=sccache-dist-v0.2.15-x86_64-unknown-linux-musl.tar.gz
+RUN cd /tmp \
+    && curl -L -O https://github.com/mozilla/sccache/releases/download/v0.2.15/${SCCACHE} \
+    && tar xvzf ${SCCACHE} -C /usr/local/bin --strip-components=1 \
+    && mv /usr/local/bin/sccache-dist /usr/local/bin/sccache \
+    && chmod +x /usr/local/bin/sccache \
+    && rm -rf ${SCCACHE} \
+    && sccache --version
+
 WORKDIR /code
 CMD ["/usr/bin/python","--version"]
