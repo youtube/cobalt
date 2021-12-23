@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//third_party/blink/public/public_features.gni")
+import("//third_party/devtools/third_party/blink/public/public_features.gni")
 
 all_devtools_files = [
   "front_end/accessibility/accessibilityNode.css",
@@ -1128,6 +1128,10 @@ devtools_test_files = [
   "front_end/test_runner/module.json",
 ]
 
+if (is_starboard) {
+  devtools_test_files -= [ "//third_party/axe-core/axe.js" ]
+}
+
 devtools_embedder_scripts = [
   "front_end/devtools_compatibility.js",
   "front_end/Tests.js",
@@ -1782,6 +1786,18 @@ generated_applications = [
   "$resources_out_dir/worker_app.js",
 ]
 
+if (is_starboard) {
+  generated_applications -= [
+    "$resources_out_dir/audits_worker.js",
+    "$resources_out_dir/js_app.html",
+    "$resources_out_dir/js_app.js",
+    "$resources_out_dir/node_app.html",
+    "$resources_out_dir/node_app.js",
+    "$resources_out_dir/toolbox.html",
+    "$resources_out_dir/toolbox.js",
+  ]
+}
+
 generated_non_autostart_non_remote_modules = [
   "$resources_out_dir/animation/animation_module.js",
   "$resources_out_dir/audits/audits_module.js",
@@ -1884,6 +1900,17 @@ devtools_applications = [
   "worker_app",
 ]
 
+if (is_starboard) {
+  devtools_applications -= [
+    "audits_worker",
+    "integration_test_runner",
+    "js_app",
+    "ndb_app",
+    "node_app",
+    "toolbox",
+  ]
+}
+
 #-------------------------------------------------------------------------------
 
 group("devtools_all_files") {
@@ -1911,6 +1938,18 @@ devtools_frontend_resources_deps = [
   ":supported_css_properties",
   ":copy_devtools_modules",
 ]
+
+if (is_starboard) {
+  devtools_frontend_resources_deps -= [
+    ":aria_properties",
+    ":copy_embedder_scripts",
+    ":copy_emulated_devices_images",
+    ":copy_htaccess",
+    ":copy_lighthouse_locale_files",
+    ":copy_wasm_deps",
+    ":devtools_extension_api",
+  ]
+}
 
 if (debug_devtools) {
   devtools_frontend_resources_deps += [
@@ -1975,41 +2014,43 @@ copy("copy_wasm_deps") {
   ]
 }
 
-action("generate_devtools_grd") {
-  script = "scripts/build/generate_devtools_grd.py"
+if (!is_starboard) {
+  action("generate_devtools_grd") {
+    script = "scripts/build/generate_devtools_grd.py"
 
-  deps = [
-    ":devtools_frontend_resources",
-  ]
+    deps = [
+      ":devtools_frontend_resources",
+    ]
 
-  grd_files =
-      copied_devtools_modules + generated_applications +
-      generated_non_autostart_non_remote_modules + devtools_embedder_scripts +
-      generated_scripts + generated_worker_bundles +
-      [
-        "$resources_out_dir/devtools_extension_api.js",
-        "$resources_out_dir/sdk/wasm_source_map/pkg/wasm_source_map_bg.wasm",
-      ]
+    grd_files =
+        copied_devtools_modules + generated_applications +
+        generated_non_autostart_non_remote_modules + devtools_embedder_scripts +
+        generated_scripts + generated_worker_bundles +
+        [
+          "$resources_out_dir/devtools_extension_api.js",
+          "$resources_out_dir/sdk/wasm_source_map/pkg/wasm_source_map_bg.wasm",
+        ]
 
-  inputs = grd_files + devtools_image_files
-  outfile = "$root_gen_dir/devtools/devtools_resources.grd"
-  outputs = [
-    outfile,
-  ]
+    inputs = grd_files + devtools_image_files
+    outfile = "$root_gen_dir/devtools/devtools_resources.grd"
+    outputs = [
+      outfile,
+    ]
 
-  relative_path_dirs = [
-    resources_out_dir,
-    "front_end",
-  ]
+    relative_path_dirs = [
+      resources_out_dir,
+      "front_end",
+    ]
 
-  args = rebase_path(grd_files, root_build_dir) + [ "--relative_path_dirs" ] +
-         rebase_path(relative_path_dirs, root_build_dir) +
-         [
-           "--images",
-           rebase_path("front_end/Images", root_build_dir),
-           "--output",
-           rebase_path(outfile, root_build_dir),
-         ]
+    args = rebase_path(grd_files, root_build_dir) + [ "--relative_path_dirs" ] +
+          rebase_path(relative_path_dirs, root_build_dir) +
+          [
+            "--images",
+            rebase_path("front_end/Images", root_build_dir),
+            "--output",
+            rebase_path(outfile, root_build_dir),
+          ]
+  }
 }
 
 action("devtools_extension_api") {
@@ -2028,9 +2069,15 @@ action("devtools_extension_api") {
 action("supported_css_properties") {
   script = "scripts/build/generate_supported_css.py"
 
-  inputs = [
-    "//third_party/blink/renderer/core/css/css_properties.json5",
-  ]
+  if (is_starboard) {
+    inputs = [
+      "blink/properties/CSSProperties.json5",
+    ]
+  } else {
+    inputs = [
+      "//third_party/blink/renderer/core/css/css_properties.json5",
+    ]
+  }
 
   outputs = [
     "$resources_out_dir/SupportedCSSProperties.js",
@@ -2040,26 +2087,34 @@ action("supported_css_properties") {
       rebase_path(inputs, root_build_dir) + rebase_path(outputs, root_build_dir)
 }
 
-action("aria_properties") {
-  script = "scripts/build/generate_aria.py"
+if (!is_starboard) {
+  action("aria_properties") {
+    script = "scripts/build/generate_aria.py"
 
-  inputs = [
-    "//third_party/blink/renderer/core/html/aria_properties.json5",
-  ]
+    inputs = [
+      "//third_party/blink/renderer/core/html/aria_properties.json5",
+    ]
 
-  outputs = [
-    "$resources_out_dir/accessibility/ARIAProperties.js",
-  ]
+    outputs = [
+      "$resources_out_dir/accessibility/ARIAProperties.js",
+    ]
 
-  args =
-      rebase_path(inputs, root_build_dir) + rebase_path(outputs, root_build_dir)
+    args =
+        rebase_path(inputs, root_build_dir) + rebase_path(outputs, root_build_dir)
+  }
 }
 
 action("frontend_protocol_sources") {
   script = "scripts/build/code_generator_frontend.py"
-  deps = [
-    "//third_party/blink/public/devtools_protocol:protocol_version",
-  ]
+  if (is_starboard) {
+    deps = [
+      "third_party/blink/public/devtools_protocol:protocol_version",
+    ]
+  } else {
+    deps = [
+      "//third_party/blink/public/devtools_protocol:protocol_version",
+    ]
+  }
   inputs = [
     "$root_gen_dir/third_party/blink/public/devtools_protocol/protocol.json",
   ]
@@ -2074,13 +2129,18 @@ action("frontend_protocol_sources") {
 }
 
 action("build_release_devtools") {
-  script = "scripts/build/build_release_applications.py"
+  script = "//starboard/build/run_bash.py"
+  py_script = "scripts/build/build_release_applications.py"
 
   deps = [
     ":aria_properties",
     ":frontend_protocol_sources",
     ":supported_css_properties",
   ]
+
+  if (is_starboard) {
+    deps -= [ ":aria_properties" ]
+  }
 
   helper_scripts = [
     "scripts/build/modular_build.py",
@@ -2098,7 +2158,17 @@ action("build_release_devtools") {
       generated_remote_modules + generated_test_modules +
       generated_worker_bundles
 
-  args = devtools_applications + [
+  if (is_starboard) {
+    inputs -= generated_aria_properties
+    outputs -= generated_remote_modules
+    outputs -= generated_test_modules
+  }
+
+  args = [
+           "python2",
+           rebase_path(py_script, root_build_dir),
+         ] + devtools_applications +
+         [
            "--input_path",
            rebase_path("front_end", root_build_dir),
            "--output_path",
@@ -2107,7 +2177,8 @@ action("build_release_devtools") {
 }
 
 action("copy_devtools_modules") {
-  script = "scripts/build/copy_devtools_modules.py"
+  script = "//starboard/build/run_bash.py"
+  py_script = "scripts/build/copy_devtools_modules.py"
 
   deps = [
     ":build_release_devtools",
@@ -2116,7 +2187,11 @@ action("copy_devtools_modules") {
   inputs = all_devtools_modules
   outputs = copied_devtools_modules
 
-  args = all_devtools_modules + [
+  args = [
+           "python2",
+           rebase_path(py_script, root_build_dir),
+         ] + all_devtools_modules +
+         [
            "--input_path",
            rebase_path(".", root_build_dir),
            "--output_path",

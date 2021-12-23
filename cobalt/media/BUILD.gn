@@ -237,7 +237,9 @@ component("media") {
   deps = [
     "//base",
     "//cobalt/base",
+    "//cobalt/browser:browser_switches",
     "//cobalt/csp",
+    "//cobalt/loader",
     "//cobalt/loader:origin",
     "//cobalt/math",
     "//cobalt/network",
@@ -246,6 +248,7 @@ component("media") {
     "//nb",
     "//net",
     "//starboard",
+    "//third_party/protobuf:protobuf_lite",
     "//url",
   ]
 }

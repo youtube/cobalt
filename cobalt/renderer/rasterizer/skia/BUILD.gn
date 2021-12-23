@@ -80,6 +80,7 @@ static_library("hardware_rasterizer") {
 
   deps = [
     ":common",
+    "//cobalt/renderer:renderer_headers_only",
     "//cobalt/renderer/backend:renderer_backend",
     "//cobalt/renderer/backend/egl:egl_backend",
     "//cobalt/renderer/rasterizer/common",

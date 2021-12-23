@@ -333,6 +333,7 @@ void Component::Handle(CallbackHandleComplete callback_handle_complete) {
 #if defined(STARBOARD)
 void Component::Cancel() {
   DCHECK(thread_checker_.CalledOnValidThread());
+  is_cancelled_ = true;
   state_->Cancel();
 }
 #endif
@@ -447,7 +448,16 @@ void Component::AppendEvent(base::Value event) {
 
 void Component::NotifyObservers(UpdateClient::Observer::Events event) const {
   DCHECK(thread_checker_.CalledOnValidThread());
+
+#if defined(STARBOARD)
+  if (!is_cancelled_) {
+    update_context_.notify_observers_callback.Run(event, id_);
+  } else {
+    LOG(WARNING) << "Component::NotifyObservers: skip callback";
+  }
+#else
   update_context_.notify_observers_callback.Run(event, id_);
+#endif
 }
 
 base::TimeDelta Component::GetUpdateDuration() const {
@@ -1023,7 +1033,6 @@ void Component::StateUpdating::DoHandle() {
   const auto& update_context = component.update_context_;
 
   DCHECK(component.crx_component());
-
   component.NotifyObservers(Events::COMPONENT_UPDATE_READY);
 
   base::CreateSequencedTaskRunnerWithTraits(kTaskTraits)
@@ -1043,6 +1052,7 @@ void Component::StateUpdating::DoHandle() {
                      component.crx_component()->crx_format_requirement,
                      base::BindOnce(&Component::StateUpdating::InstallComplete,
                                     base::Unretained(this))));
+
 }
 
 void Component::StateUpdating::InstallComplete(ErrorCategory error_category,

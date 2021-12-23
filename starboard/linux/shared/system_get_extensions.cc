@@ -17,9 +17,7 @@
 #include "cobalt/extension/configuration.h"
 #include "cobalt/extension/crash_handler.h"
 #include "cobalt/extension/memory_mapped_file.h"
-#include "cobalt/extension/platform_service.h"
 #include "starboard/common/string.h"
-#include "starboard/linux/shared/soft_mic_platform_service.h"
 #include "starboard/shared/posix/memory_mapped_file.h"
 #include "starboard/shared/starboard/crash_handler.h"
 #if SB_IS(EVERGREEN_COMPATIBLE)
@@ -39,9 +37,6 @@ const void* SbSystemGetExtension(const char* name) {
     }
   }
 #endif
-  if (strcmp(name, kCobaltExtensionPlatformServiceName) == 0) {
-    return starboard::shared::GetPlatformServiceApi();
-  }
   if (strcmp(name, kCobaltExtensionConfigurationName) == 0) {
     return starboard::shared::GetConfigurationApi();
   }

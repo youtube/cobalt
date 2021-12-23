@@ -19,6 +19,10 @@ if (is_starboard) {
   declare_args() {
     # Path to Visual Studio.
     visual_studio_path = "C:/Program Files (x86)/Microsoft Visual Studio/2017/Professional/VC/Tools/MSVC/$visual_studio_version"
+
+    wdk_include_path = "$windows_sdk_path/Include/$wdk_version"
+
+    wdk_lib_path = "$windows_sdk_path/lib/$wdk_version"
   }
 } else {
   declare_args() {

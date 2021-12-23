@@ -38,7 +38,7 @@ import json5  # pylint: disable=import-error
 
 
 def _keep_only_required_keys(entry):
-    for key in entry.keys():
+    for key in list(entry.keys()):
         if key not in ("name", "longhands", "svg", "inherited", "keywords"):
             del entry[key]
     return entry

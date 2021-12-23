@@ -16,19 +16,149 @@ import("//cobalt/bindings/bindings_templates.gni")
 import("//cobalt/browser/browser_bindings_variables.gni")
 import("//cobalt/browser/idl_files.gni")
 
+target(final_executable_type, "cobalt") {
+  sources = [ "main.cc" ]
+  deps = [
+    ":browser",
+    ":browser_switches",
+    "//cobalt/base",
+    "//net",
+  ]
+}
+
 config("bindings_includes") {
   include_dirs = [ generated_source_output_dir ]
 }
 
-# TODO: h5vcc and webdriver depend on targets in this file.
-# group("bindings") {
-#   deps = [
-#     "//cobalt/h5vcc",
-#     "//cobalt/webdriver",
-#     ":generated_bindings",
-#   ]
-#   all_dependent_configs = [ ":bindings_includes" ]
-# }
+source_set("browser_switches") {
+  sources = [
+    "switches.cc",
+    "switches.h",
+  ]
+
+  public_deps = [ "//starboard:starboard_headers_only" ]
+}
+
+static_library("browser") {
+  has_pedantic_warnings = true
+
+  sources = [
+    "application.cc",
+    "application.h",
+    "browser_module.cc",
+    "browser_module.h",
+    "device_authentication.cc",
+    "device_authentication.h",
+    "lifecycle_observer.h",
+    "on_screen_keyboard_starboard_bridge.cc",
+    "on_screen_keyboard_starboard_bridge.h",
+    "render_tree_combiner.cc",
+    "render_tree_combiner.h",
+    "screen_shot_writer.cc",
+    "screen_shot_writer.h",
+    "splash_screen.cc",
+    "splash_screen.h",
+    "splash_screen_cache.cc",
+    "splash_screen_cache.h",
+    "suspend_fuzzer.cc",
+    "suspend_fuzzer.h",
+    "system_platform_error_handler.cc",
+    "system_platform_error_handler.h",
+    "url_handler.cc",
+    "url_handler.h",
+    "user_agent_platform_info.cc",
+    "user_agent_platform_info.h",
+    "user_agent_string.cc",
+    "user_agent_string.h",
+    "web_module.cc",
+    "web_module.h",
+    "web_module_stat_tracker.cc",
+    "web_module_stat_tracker.h",
+  ]
+
+  public_deps = [ "//cobalt/dom" ]
+
+  deps = [
+    ":bindings",
+    ":browser_switches",
+    "//cobalt/account",
+    "//cobalt/audio",
+    "//cobalt/base",
+    "//cobalt/browser/memory_settings:browser_memory_settings",
+    "//cobalt/browser/memory_tracker:memory_tracker_tool",
+    "//cobalt/build:cobalt_build_id",
+    "//cobalt/configuration",
+    "//cobalt/css_parser",
+    "//cobalt/cssom",
+    "//cobalt/dom_parser",
+    "//cobalt/encoding:text_encoding",
+    "//cobalt/fetch",
+    "//cobalt/h5vcc",
+    "//cobalt/input",
+    "//cobalt/layout",
+    "//cobalt/loader",
+    "//cobalt/math",
+    "//cobalt/media",
+    "//cobalt/media_capture",
+    "//cobalt/media_session",
+    "//cobalt/network",
+    "//cobalt/overlay_info",
+    "//cobalt/render_tree",
+    "//cobalt/renderer",
+    "//cobalt/renderer/test/png_utils",
+    "//cobalt/script",
+    "//cobalt/script:engine",
+    "//cobalt/speech",
+    "//cobalt/sso",
+    "//cobalt/storage",
+    "//cobalt/subtlecrypto",
+    "//cobalt/system_window",
+    "//cobalt/trace_event",
+    "//cobalt/ui_navigation",
+    "//cobalt/webdriver",
+    "//cobalt/websocket",
+    "//cobalt/xhr",
+    "//crypto",
+    "//nb",
+    "//net",
+    "//starboard",
+    "//third_party/icu:icui18n",
+    "//third_party/protobuf:protobuf_lite",
+    "//url",
+  ]
+
+  if (!is_gold) {
+    sources += [
+      "debug_console.cc",
+      "debug_console.h",
+      "lifecycle_console_commands.cc",
+      "lifecycle_console_commands.h",
+    ]
+    defines = [ "ENABLE_ABOUT_SCHEME" ]
+    deps += [
+      "//cobalt/debug",
+      "//cobalt/debug:console_command_manager",
+    ]
+  }
+
+  if (sb_is_evergreen) {
+    # TODO(b/206642994): Migrate //cobalt/updater
+    # deps += [ "//cobalt/updater" ]
+  } else {
+    deps += cobalt_platform_dependencies
+  }
+}
+
+group("bindings") {
+  public_configs = [ ":bindings_includes" ]
+
+  deps = [
+    ":generated_bindings_sources",
+    ":generated_types_sources",
+    "//cobalt/h5vcc",
+    "//cobalt/webdriver",
+  ]
+}
 
 idl_compile("generated_bindings") {
   sources = source_idl_files
@@ -39,6 +169,7 @@ idl_compile("generated_bindings") {
   interfaces_info = interfaces_info_combined_pickle
   output_directory = generated_source_output_dir
 
+  # TODO(b/211055528): Missing deps from generated sources.
   deps = [
     ":cached_jinja_templates",
     ":cached_lex_yacc_tables",
@@ -52,13 +183,14 @@ idl_compile("generated_bindings") {
   public_deps = engine_dependencies
 
   public_configs = [ ":bindings_includes" ]
+}
 
-  generated_file_path =
-      "$generated_source_output_dir/{{source_root_relative_dir}}"
-  generated_file_name = "${generated_bindings_prefix}_{{source_name_part}}"
-  outputs = [
-    "$generated_file_path/$generated_file_name.h",
-    "$generated_file_path/$generated_file_name.cc",
+source_set("generated_bindings_sources") {
+  sources = get_target_outputs(":generated_bindings")
+  public_deps = [ ":generated_bindings" ]
+  deps = [
+    # Ensure that all the files have been generated before trying to compile.
+    ":generated_types",
   ]
 }
 
@@ -71,6 +203,7 @@ idl_compile("generated_types") {
   interfaces_info = interfaces_info_combined_pickle
   output_directory = generated_source_output_dir
 
+  # TODO(b/211055528): Missing deps from generated sources.
   deps = [
     ":cached_jinja_templates",
     ":cached_lex_yacc_tables",
@@ -78,14 +211,17 @@ idl_compile("generated_types") {
     ":interfaces_info_individual",
     ":interfaces_info_overall",
   ]
+  public_deps = engine_dependencies
 
   public_configs = [ ":bindings_includes" ]
+}
 
-  generated_file_path =
-      "$generated_source_output_dir/{{source_root_relative_dir}}"
-  outputs = [
-    "$generated_file_path/${generated_bindings_prefix}_{{source_name_part}}.h",
-    "$generated_file_path/{{source_name_part}}.cc",
+source_set("generated_types_sources") {
+  sources = get_target_outputs(":generated_types")
+  public_deps = [ ":generated_types" ]
+  deps = [
+    # Ensure that all the files have been generated before trying to compile.
+    ":generated_bindings",
   ]
 }
 
@@ -93,6 +229,7 @@ action("generated_type_conversion") {
   script = "//starboard/build/run_bash.py"
   py_script = engine_conversion_header_generator_script
 
+  # TODO(b/211055528): Missing deps from generated sources.
   deps = [
     ":cached_jinja_templates",
     ":cached_lex_yacc_tables",
@@ -101,8 +238,6 @@ action("generated_type_conversion") {
   ]
 
   public_deps = engine_dependencies
-
-  sources = source_idl_files + generated_header_idl_files
 
   # Generated IDL file that will define all the constructors that should be
   # on the Window object.
@@ -116,6 +251,8 @@ action("generated_type_conversion") {
     "//cobalt/bindings/shared/idl_conditional_macros.h",
   ]
   inputs += bindings_extra_inputs
+  inputs += source_idl_files
+  inputs += generated_header_idl_files
 
   outputs = [ generated_type_conversion_header_file ]
 

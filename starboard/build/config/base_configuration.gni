@@ -120,4 +120,20 @@ declare_args() {
 
   # A symbolizer path for ASAN can be added to allow translation of callstacks.
   asan_symbolizer_path = ""
+
+  # Sub-directory to copy license file to.
+  cobalt_licenses_platform = "default"
+
+  # Set to true to enable H5vccAccountManager.
+  enable_account_manager = false
+
+  # Set to true to enable H5vccSSO (Single Sign On).
+  enable_sso = false
+
+  # Set to true to enable filtering of HTTP headers before sending.
+  enable_xhr_header_filtering = false
+
+  # TODO(b/173248397): Migrate to CobaltExtensions or PlatformServices.
+  # List of platform-specific targets that get compiled into cobalt.
+  cobalt_platform_dependencies = []
 }

@@ -15,8 +15,8 @@
 static_library("run_all_unittests") {
   testonly = true
   sources = [ "run_all_unittests.cc" ]
+  public_deps = [ "//base/test:test_support" ]
   deps = [
-    "//base/test:test_support",
     "//cobalt/base",
     "//testing/gtest",
   ]

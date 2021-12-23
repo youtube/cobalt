@@ -56,21 +56,27 @@ template("idl_compile") {
     ]
     inputs += invoker.bindings_extra_inputs
 
-    outputs = invoker.outputs
+    generated_file_path =
+        "$generated_source_output_dir/{{source_root_relative_dir}}"
+    generated_file_name = "${generated_bindings_prefix}_{{source_name_part}}"
+    outputs = [
+      "$generated_file_path/$generated_file_name.h",
+      "$generated_file_path/$generated_file_name.cc",
+    ]
 
     args = [
       "python2",
       rebase_path(py_script, root_build_dir),
       "--cache-directory",
-      rebase_path(invoker.cache_directory, root_build_dir),
+      rebase_path(invoker.cache_directory),
       "--output-directory",
-      rebase_path(invoker.output_directory, root_build_dir),
+      rebase_path(invoker.output_directory),
       "--interfaces-info",
-      rebase_path(invoker.interfaces_info, root_build_dir),
+      rebase_path(invoker.interfaces_info),
       "--component-info",
-      rebase_path(invoker.component_info, root_build_dir),
+      rebase_path(invoker.component_info),
       "--extended-attributes",
-      rebase_path(invoker.extended_attributes, root_build_dir),
+      rebase_path(invoker.extended_attributes),
       "{{source}}",
     ]
   }

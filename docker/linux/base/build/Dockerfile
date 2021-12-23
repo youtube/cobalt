@@ -17,6 +17,8 @@ FROM ${FROM_IMAGE:-cobalt-base}
 
 ARG gn_hash=vC0rxqiqGTD3ls9KJHrgJoWP2OBiPk_QEO_xbDItKYoC
 
+ARG HOME=/root
+
 # === Install common build tools, required by all platforms
 RUN apt update -qqy \
     && apt install -qqy --no-install-recommends \
@@ -31,7 +33,7 @@ RUN apt update -qqy \
 # === Get Nodejs pinned LTS version via NVM
 ARG NVM_SHA256SUM="f068e17dacb88f73302790cc076956c7a0d459ce9b01df842ff3e75744f9e2fe /tmp/install.sh"
 ARG NVM_URL="https://cobalt.googlesource.com/third_party/nvm/+/refs/tags/v0.35.3/install.sh?format=TEXT"
-ENV NVM_DIR /root/.nvm
+ENV NVM_DIR=${HOME}/.nvm
 ENV NODE_VERSION 12.17.0
 
 RUN curl --silent -o- ${NVM_URL} \
@@ -58,11 +60,26 @@ ENV OUTDIR=out \
     NINJA_STATUS="[%e sec | %f/%t %u remaining | %c/sec | j%r] " \
     NINJA_PARALLEL=4 \
     IS_CI=0 \
-    CCACHE_DIR=/root/ccache \
+    CCACHE_DIR=${HOME}/ccache \
     CCACHE_MAXSIZE=30G
 
 # == Set up  ccache
-RUN cd /tmp && mkdir /root/ccache
+RUN cd /tmp && mkdir ${HOME}/ccache
+
+# === Install pinned host Clang toolchain for all Linux-hosted builds
+ARG CLANG_VER
+
+ARG TC_ROOT=${HOME}/starboard-toolchains/
+ARG TC_HOME=${TC_ROOT}/x86_64-linux-gnu-clang-chromium-${CLANG_VER}
+ARG BASE_URL=https://commondatastorage.googleapis.com/chromium-browser-clang
+
+RUN cd /tmp \
+    && mkdir -p ${TC_HOME} \
+    && curl --silent -O -J \
+        ${BASE_URL}/Linux_x64/clang-${CLANG_VER}.tgz \
+    && tar xf clang-${CLANG_VER}.tgz -C ${TC_HOME} \
+    && echo ${CLANG_VER} >> ${TC_HOME}/cr_build_revision \
+    && rm clang-${CLANG_VER}.tgz
 
 WORKDIR /code
 CMD ["/usr/bin/python","--version"]

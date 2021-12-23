@@ -216,8 +216,12 @@ void PlayerWorker::DoSeek(SbTime seek_to_time, int ticket) {
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
 
   SB_DCHECK(player_state_ != kSbPlayerStateDestroyed);
-  SB_DCHECK(!error_occurred_);
   SB_DCHECK(ticket_ != ticket);
+
+  if (error_occurred_) {
+    SB_LOG(ERROR) << "Tried to seek after error occurred.";
+    return;
+  }
 
   SB_DLOG(INFO) << "Try to seek to " << seek_to_time << " microseconds.";
 

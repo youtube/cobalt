@@ -14,13 +14,29 @@
 
 group("gn_all") {
   testonly = true
+  deps = [
+    ":default",
+    "//cobalt/layout:layout_test",
+    "//cobalt/web_animations:web_animations_test",
+    "//cobalt/websocket:websocket_test",
+    "//cobalt/xhr:xhr_test",
+  ]
+}
 
+group("default") {
   deps = [
     "//cobalt/account",
     "//cobalt/audio",
     "//cobalt/base",
-    "//cobalt/browser:generated_bindings",
+    "//cobalt/browser",
+    "//cobalt/css_parser",
+    "//cobalt/dom",
+    "//cobalt/dom_parser",
+    "//cobalt/encoding:text_encoding",
     "//cobalt/fetch",
+    "//cobalt/h5vcc",
+    "//cobalt/input",
+    "//cobalt/layout",
     "//cobalt/math",
     "//cobalt/media",
     "//cobalt/media_capture",
@@ -43,6 +59,9 @@ group("gn_all") {
     "//cobalt/subtlecrypto",
     "//cobalt/trace_event",
     "//cobalt/ui_navigation",
+    "//cobalt/webdriver",
+    "//cobalt/websocket",
+    "//cobalt/xhr",
     "//content/browser/speech",
     "//crypto",
     "//nb",
@@ -61,6 +80,8 @@ group("gn_all") {
 
   if (sb_is_evergreen) {
     deps += [
+      "//base/util/values:values_util",
+      "//components/prefs",
       "//third_party/llvm-project/compiler-rt:compiler_rt",
       "//third_party/llvm-project/libcxx:cxx",
       "//third_party/llvm-project/libcxxabi:cxxabi",

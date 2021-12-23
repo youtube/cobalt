@@ -35,8 +35,8 @@
 #include "cobalt/renderer/submission_queue.h"
 
 #if defined(ENABLE_DEBUGGER)
-#include "cobalt/debug/console/command_manager.h"
-#endif  // defined(ENABLE_DEBUGGER)
+#include "cobalt/debug/console/command_manager.h"  // nogncheck
+#endif                                             // defined(ENABLE_DEBUGGER)
 
 namespace cobalt {
 namespace renderer {

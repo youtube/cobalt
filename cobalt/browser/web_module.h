@@ -63,11 +63,11 @@
 #include "url/gurl.h"
 
 #if defined(ENABLE_DEBUGGER)
-#include "cobalt/debug/backend/debug_dispatcher.h"
-#include "cobalt/debug/backend/debugger_state.h"
-#include "cobalt/debug/backend/render_overlay.h"
-#include "cobalt/debug/console/command_manager.h"
-#endif  // ENABLE_DEBUGGER
+#include "cobalt/debug/backend/debug_dispatcher.h"  // nogncheck
+#include "cobalt/debug/backend/debugger_state.h"    // nogncheck
+#include "cobalt/debug/backend/render_overlay.h"    // nogncheck
+#include "cobalt/debug/console/command_manager.h"   // nogncheck
+#endif                                              // ENABLE_DEBUGGER
 
 namespace cobalt {
 namespace browser {

@@ -42,6 +42,9 @@ copy("speech_testdata") {
 static_library("speech") {
   has_pedantic_warnings = true
 
+  # Creates cycle with //cobalt/dom
+  check_includes = false
+
   sources = [
     "audio_encoder_flac.cc",
     "audio_encoder_flac.h",
@@ -96,6 +99,8 @@ static_library("speech") {
 
   deps = [
     "//cobalt/base",
+    "//cobalt/dom:dom_exception",
+    "//cobalt/loader",
     "//cobalt/media",
     "//cobalt/network",
     "//cobalt/script",

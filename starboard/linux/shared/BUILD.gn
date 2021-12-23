@@ -71,8 +71,6 @@ static_library("starboard_platform_sources") {
     "//starboard/linux/shared/player_components_factory.cc",
     "//starboard/linux/shared/routes.cc",
     "//starboard/linux/shared/routes.h",
-    "//starboard/linux/shared/soft_mic_platform_service.cc",
-    "//starboard/linux/shared/soft_mic_platform_service.h",
     "//starboard/linux/shared/system_get_connection_type.cc",
     "//starboard/linux/shared/system_get_device_type.cc",
     "//starboard/linux/shared/system_get_extensions.cc",

@@ -178,7 +178,10 @@ component("protobuf_lite") {
     "//build/config/compiler:no_size_t_to_int_warning",
   ]
 
-  if (!is_starboard) {
+  if (is_starboard) {
+    public_configs -= [ ":protobuf_config" ]
+    all_dependent_configs = [ ":protobuf_config" ]
+  } else {
     deps = [
       "//build/config/sanitizers:deps",
     ]

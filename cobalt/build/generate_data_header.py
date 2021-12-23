@@ -47,7 +47,7 @@ class InputFile(object):
 
 def WriteFileDataToHeader(filename, output_file):
   """Concatenates a single file into the output file."""
-  with open(filename, 'r') as f:
+  with open(filename, 'rb') as f:
     file_contents = f.read()
 
     def Chunks(l, n):
@@ -55,8 +55,14 @@ def WriteFileDataToHeader(filename, output_file):
       for i in range(0, len(l), n):
         yield l[i:i + n]
 
+    # TODO(b/154137263): Remove once python2 is gone.
+    is_py2 = sys.version_info.major == 2
+
+    def GetByte(x):
+      return ord(x) if is_py2 else x
+
     output_string = ',\n'.join([
-        ', '.join(['0x%02x' % ord(y)
+        ', '.join(['0x%02x' % GetByte(y)
                    for y in x])
         for x in Chunks(file_contents, 13)
     ])

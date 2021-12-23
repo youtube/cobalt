@@ -95,6 +95,13 @@ target(final_executable_type, "elf_loader_sandbox") {
     "//cobalt/content/fonts:copy_font_data",
     "//starboard",
   ]
+
+  # TODO: Remove this dependency once MediaSession is migrated to use CobaltExtensions.
+  deps += cobalt_platform_dependencies
+
+  if (!sb_is_evergreen_compatible) {
+    deps += [ "//third_party/crashpad/wrapper:wrapper_stub" ]
+  }
 }
 
 target(final_executable_type, "elf_loader_sys_sandbox") {
@@ -122,6 +129,10 @@ target(final_executable_type, "elf_loader_sys_sandbox") {
     ":sabi_string",
     "//starboard",
   ]
+
+  if (!sb_is_evergreen_compatible) {
+    deps += [ "//third_party/crashpad/wrapper:wrapper_stub" ]
+  }
 }
 
 target(gtest_target_type, "elf_loader_test") {
@@ -147,6 +158,7 @@ target(gtest_target_type, "elf_loader_test") {
       ":copy_elf_loader_testdata",
       ":elf_loader",
     ]
+    deps += cobalt_platform_dependencies
   }
 }
 

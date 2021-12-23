@@ -34,3 +34,5 @@ pedantic_warnings_config_path =
     "//starboard/evergreen/shared/platform_configuration:pedantic_warnings"
 no_pedantic_warnings_config_path =
     "//starboard/evergreen/shared/platform_configuration:no_pedantic_warnings"
+
+cobalt_licenses_platform = "evergreen"

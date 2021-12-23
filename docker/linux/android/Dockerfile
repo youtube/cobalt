@@ -32,5 +32,28 @@ RUN keytool -genkey -v \
             -keysize 2048 \
             -validity 10000
 
+# Install Android SDK and NDK
+ARG TOOLS=commandlinetools-linux-6200805_latest.zip
+ARG CMDLINE_URL=https://dl.google.com/android/repository/${TOOLS}
+ENV ANDROID_SDK_ROOT=/root/starboard-toolchains/AndroidSdk/
+
+RUN cd /tmp \
+  && mkdir -p ${ANDROID_SDK_ROOT} \
+  && curl --silent -O -J  ${CMDLINE_URL} \
+  && unzip ${TOOLS} -d ${ANDROID_SDK_ROOT} \
+  && rm ${TOOLS} \
+  && echo yes | ${ANDROID_SDK_ROOT}/tools/bin/sdkmanager \
+      --sdk_root=${ANDROID_SDK_ROOT} \
+    "build-tools;30.0.0" \
+    "cmake;3.10.2.4988404" \
+    "cmdline-tools;1.0" \
+    "extras;android;m2repository" \
+    "extras;google;m2repository" \
+    "ndk;21.1.6352462" \
+    "patcher;v4" \
+    "platforms;android-30" \
+    "platform-tools" \
+  && echo "Android SDK installed"
+
 CMD /code/cobalt/build/gyp_cobalt -v -C ${CONFIG} ${PLATFORM} \
     && ninja -v -j ${NINJA_PARALLEL} -C ${OUTDIR}/${PLATFORM}_${CONFIG} ${TARGET:-cobalt_deploy}

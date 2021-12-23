@@ -18,8 +18,16 @@
 # This must be a static_library, not a source_set. When using a source_set, we
 # see duplicate definition errors when compiling new.cc because of our
 # overloaded operators.
+source_set("common_headers_only") {
+  sources = [ "log.h" ]
+  deps = [ "//starboard:starboard_headers_only" ]
+}
+
 static_library("common") {
-  public_deps = [ "//starboard:starboard_headers_only" ]
+  public_deps = [
+    ":common_headers_only",
+    "//starboard:starboard_headers_only",
+  ]
   check_includes = false
 
   sources = [
@@ -38,7 +46,6 @@ static_library("common") {
     "flat_map.h",
     "locked_ptr.h",
     "log.cc",
-    "log.h",
     "media.cc",
     "media.h",
     "move.h",

@@ -15,6 +15,10 @@
 static_library("audio") {
   has_pedantic_warnings = true
 
+  # Includes event_target.h and dom_settings.h from //cobalt/dom which depends
+  # on this target
+  check_includes = false
+
   sources = [
     "async_audio_decoder.cc",
     "async_audio_decoder.h",
@@ -53,8 +57,27 @@ static_library("audio") {
 
   deps = [
     "//cobalt/base",
+    "//cobalt/dom:dom_exception",
     "//cobalt/media",
     "//cobalt/script",
     "//starboard:starboard_headers_only",
   ]
+  deps += cobalt_platform_dependencies
+}
+
+target(gtest_target_type, "audio_test") {
+  testonly = true
+  has_pedantic_warnings = true
+
+  sources = [ "audio_node_input_output_test.cc" ]
+
+  deps = [
+    ":audio",
+    "//cobalt/dom",
+    "//cobalt/media",
+    "//cobalt/script",
+    "//cobalt/test:run_all_unittests",
+    "//testing/gtest",
+  ]
+  deps += cobalt_platform_dependencies
 }
