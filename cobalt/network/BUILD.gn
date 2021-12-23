@@ -218,7 +218,7 @@ copy("copy_ssl_certificates") {
       [ "$sb_static_contents_output_data_dir/ssl/certs/{{source_file_part}}" ]
 }
 
-target(gtest_target_type, "network_base_test") {
+target(gtest_target_type, "network_test") {
   testonly = true
   has_pedantic_warnings = true
 
