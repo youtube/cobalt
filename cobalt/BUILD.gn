@@ -81,6 +81,7 @@ group("default") {
   if (sb_is_evergreen) {
     deps += [
       "//base/util/values:values_util",
+      "//components/client_update_protocol",
       "//components/crx_file",
       "//components/prefs",
       "//third_party/llvm-project/compiler-rt:compiler_rt",
