@@ -412,7 +412,13 @@ static_library("minizip") {
     ":zlib",
   ]
 
-  if (!is_starboard) {
+  if (is_starboard) {
+    sources += [
+      "contrib/minizip/iostarboard.c",
+      "contrib/minizip/iostarboard.h",
+    ]
+    deps += [ "//starboard:starboard_headers_only" ]
+  } else {
     configs -= [ "//build/config/compiler:chromium_code" ]
   }
   configs += [
@@ -446,5 +452,54 @@ if (!is_starboard) {
     deps = [
       ":zlib",
     ]
+  }
+}
+
+static_library("zip") {
+  sources = [
+    "google/zip.cc",
+    "google/zip.h",
+    "google/zip_internal.cc",
+    "google/zip_internal.h",
+    "google/zip_reader.cc",
+    "google/zip_reader.h",
+    "google/zip_writer.cc",
+    "google/zip_writer.h",
+  ]
+
+  deps = [
+    ":minizip",
+    "//base",
+  ]
+}
+
+target(gtest_target_type, "zip_unittests") {
+  testonly = true
+
+  sources = [
+    "google/compression_utils_unittest.cc",
+    "google/zip_reader_unittest.cc",
+    "google/zip_unittest.cc",
+    "google/compression_utils.cc",
+    "google/compression_utils.h",
+    "google/compression_utils_portable.cc",
+    "google/compression_utils_portable.h",
+  ]
+
+  deps = [
+    ":minizip",
+    ":zip",
+    ":zlib",
+    "//base/test:run_all_unittests",
+    "//base/test:test_support",
+    "//starboard/common",
+    "//testing/gmock",
+    "//testing/gtest",
+    "//third_party/zlib/google/test:zip_unittest_files",
+  ]
+
+  if (is_starboard) {
+    configs -= [ "//starboard/build/config:size" ]
+    configs += [ "//starboard/build/config:speed" ]
   }
 }
