@@ -92,6 +92,8 @@ config("target") {
   }
 }
 
+# TODO(b/212641065): Scope global defines migrated from
+# cobalt_configuration.gypi to only the targets they're necessary in.
 config("starboard") {
   if (current_toolchain == default_toolchain) {
     defines = [
@@ -109,6 +111,7 @@ config("starboard") {
       defines += [
         "ENABLE_DEBUGGER",
         "ENABLE_DEBUG_COMMAND_LINE_SWITCHES",
+        "ENABLE_TEST_RUNNER",
       ]
     }
 
