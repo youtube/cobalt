@@ -52,3 +52,25 @@ static_library("media_capture") {
     "//starboard",
   ]
 }
+
+target(gtest_target_type, "media_capture_test") {
+  testonly = true
+  has_pedantic_warnings = true
+
+  sources = [
+    "get_user_media_test.cc",
+    "media_recorder_test.cc",
+  ]
+
+  deps = [
+    ":media_capture",
+    "//cobalt/dom",
+    "//cobalt/dom:dom_exception",
+    "//cobalt/dom/testing:dom_testing",
+    "//cobalt/media_stream",
+    "//cobalt/script",
+    "//cobalt/test:run_all_unittests",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+}
