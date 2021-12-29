@@ -283,6 +283,10 @@ GraphicsSystemEGL::AllocateRawTextureMemory(size_t size_in_bytes,
 #endif
 }
 
+math::Size GraphicsSystemEGL::GetWindowSize() const {
+  return system_window_ ? system_window_->GetWindowSize() : math::Size();
+}
+
 }  // namespace backend
 }  // namespace renderer
 }  // namespace cobalt

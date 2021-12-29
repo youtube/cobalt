@@ -42,6 +42,7 @@ class GraphicsContextEGL : public GraphicsContext {
   ~GraphicsContextEGL() override;
 
   GraphicsSystemEGL* system_egl();
+  const GraphicsSystemEGL* system_egl() const;
 
   EGLContext GetContext() { return context_; }
 
@@ -65,6 +66,8 @@ class GraphicsContextEGL : public GraphicsContext {
       const scoped_refptr<RenderTarget>& render_target) override;
 
   void Finish() override;
+
+  math::Size GetWindowSize() const;
 
   // Helper class to allow one to create a RAII object that will acquire the
   // current context upon construction and release it upon destruction.

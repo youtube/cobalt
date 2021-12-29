@@ -137,6 +137,9 @@ enum MultiPlaneImageFormat {
   // A YUV image where each channel, Y, U and V, is stored as a separate
   // single-channel 10bit unnormalized image plane.
   kMultiPlaneImageFormatYUV3Plane10BitBT2020,
+  // A compacted YUV image where Y, U and V, are stored in 32-bit and each
+  // 32-bit represents 3 10-bit pixels with 2 bits of gap.
+  kMultiPlaneImageFormatYUV3Plane10BitCompactedBT2020,
 };
 
 // Like the ImageDataDescriptor object, a MultiPlaneImageDataDescriptor

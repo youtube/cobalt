@@ -328,6 +328,18 @@ egl::TexturedMeshRenderer::Image::Texture GetTextureFromHardwareFrontendImage(
   return result;
 }
 
+inline void SetImageTextures(egl::TexturedMeshRenderer::Image& result,
+                             unsigned int textures_num,
+                             const math::Matrix3F& local_transform,
+                             HardwareMultiPlaneImage* hardware_image,
+                             render_tree::StereoMode stereo_mode) {
+  for (auto i = 0; i < textures_num; i++) {
+    result.textures[i] = GetTextureFromHardwareFrontendImage(
+        local_transform, hardware_image->GetHardwareFrontendImage(i).get(),
+        stereo_mode);
+  }
+}
+
 egl::TexturedMeshRenderer::Image SkiaImageToTexturedMeshRendererImage(
     const math::Matrix3F& local_transform, Image* image,
     render_tree::StereoMode stereo_mode) {
@@ -357,48 +369,25 @@ egl::TexturedMeshRenderer::Image SkiaImageToTexturedMeshRendererImage(
         render_tree::kMultiPlaneImageFormatYUV3PlaneBT601FullRange) {
       result.type =
           egl::TexturedMeshRenderer::Image::YUV_3PLANE_BT601_FULL_RANGE;
-      result.textures[0] = GetTextureFromHardwareFrontendImage(
-          local_transform, hardware_image->GetHardwareFrontendImage(0).get(),
-          stereo_mode);
-      result.textures[1] = GetTextureFromHardwareFrontendImage(
-          local_transform, hardware_image->GetHardwareFrontendImage(1).get(),
-          stereo_mode);
-      result.textures[2] = GetTextureFromHardwareFrontendImage(
-          local_transform, hardware_image->GetHardwareFrontendImage(2).get(),
-          stereo_mode);
+      SetImageTextures(result, 3, local_transform, hardware_image, stereo_mode);
     } else if (hardware_image->GetFormat() ==
                render_tree::kMultiPlaneImageFormatYUV2PlaneBT709) {
       result.type = egl::TexturedMeshRenderer::Image::YUV_2PLANE_BT709;
-      result.textures[0] = GetTextureFromHardwareFrontendImage(
-          local_transform, hardware_image->GetHardwareFrontendImage(0).get(),
-          stereo_mode);
-      result.textures[1] = GetTextureFromHardwareFrontendImage(
-          local_transform, hardware_image->GetHardwareFrontendImage(1).get(),
-          stereo_mode);
+      SetImageTextures(result, 2, local_transform, hardware_image, stereo_mode);
     } else if (hardware_image->GetFormat() ==
                render_tree::kMultiPlaneImageFormatYUV3PlaneBT709) {
       result.type = egl::TexturedMeshRenderer::Image::YUV_3PLANE_BT709;
-      result.textures[0] = GetTextureFromHardwareFrontendImage(
-          local_transform, hardware_image->GetHardwareFrontendImage(0).get(),
-          stereo_mode);
-      result.textures[1] = GetTextureFromHardwareFrontendImage(
-          local_transform, hardware_image->GetHardwareFrontendImage(1).get(),
-          stereo_mode);
-      result.textures[2] = GetTextureFromHardwareFrontendImage(
-          local_transform, hardware_image->GetHardwareFrontendImage(2).get(),
-          stereo_mode);
+      SetImageTextures(result, 3, local_transform, hardware_image, stereo_mode);
     } else if (hardware_image->GetFormat() ==
                render_tree::kMultiPlaneImageFormatYUV3Plane10BitBT2020) {
       result.type = egl::TexturedMeshRenderer::Image::YUV_3PLANE_10BIT_BT2020;
-      result.textures[0] = GetTextureFromHardwareFrontendImage(
-          local_transform, hardware_image->GetHardwareFrontendImage(0).get(),
-          stereo_mode);
-      result.textures[1] = GetTextureFromHardwareFrontendImage(
-          local_transform, hardware_image->GetHardwareFrontendImage(1).get(),
-          stereo_mode);
-      result.textures[2] = GetTextureFromHardwareFrontendImage(
-          local_transform, hardware_image->GetHardwareFrontendImage(2).get(),
-          stereo_mode);
+      SetImageTextures(result, 3, local_transform, hardware_image, stereo_mode);
+    } else if (hardware_image->GetFormat() ==
+               render_tree::
+                   kMultiPlaneImageFormatYUV3Plane10BitCompactedBT2020) {
+      result.type =
+          egl::TexturedMeshRenderer::Image::YUV_3PLANE_10BIT_COMPACT_BT2020;
+      SetImageTextures(result, 3, local_transform, hardware_image, stereo_mode);
     }
   } else {
     NOTREACHED();

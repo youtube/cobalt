@@ -15,6 +15,8 @@
 #ifndef COBALT_RENDERER_BACKEND_EGL_GRAPHICS_SYSTEM_H_
 #define COBALT_RENDERER_BACKEND_EGL_GRAPHICS_SYSTEM_H_
 
+#include <memory>
+
 #include "base/optional.h"
 #include "cobalt/renderer/backend/egl/resource_context.h"
 #include "cobalt/renderer/backend/egl/texture_data.h"
@@ -44,6 +46,8 @@ class GraphicsSystemEGL : public GraphicsSystem {
                                                       GLenum format);
   std::unique_ptr<RawTextureMemoryEGL> AllocateRawTextureMemory(
       size_t size_in_bytes, size_t alignment);
+
+  math::Size GetWindowSize() const;
 
  private:
   EGLDisplay display_;

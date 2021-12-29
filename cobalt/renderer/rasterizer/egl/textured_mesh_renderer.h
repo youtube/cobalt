@@ -59,6 +59,10 @@ class TexturedMeshRenderer {
       // YUV BT2020 image where the Y, U and V components are all on different
       // 10bit unnormalized textures.
       YUV_3PLANE_10BIT_BT2020,
+      // YUV BT2020 image where the Y, U and V components are all on different
+      // textures. Its pixels are stored in 32 bits, and each pixel represents
+      // three 10-bit pixels with two bits of gap.
+      YUV_3PLANE_10BIT_COMPACT_BT2020,
       // 1 texture is used that contains RGBA pixels.
       RGBA,
       // 1 texture plane is used where Y is sampled twice for each UV sample
@@ -79,6 +83,7 @@ class TexturedMeshRenderer {
         case YUV_3PLANE_BT601_FULL_RANGE:
         case YUV_3PLANE_BT709:
         case YUV_3PLANE_10BIT_BT2020:
+        case YUV_3PLANE_10BIT_COMPACT_BT2020:
           return 3;
         case RGBA:
         case YUV_UYVY_422_BT709:
@@ -121,6 +126,9 @@ class TexturedMeshRenderer {
     int32 texture_uniforms[3];
     int32 texture_size_uniforms[3];
     uint32 gl_program_id;
+    int32 viewport_size_uniform;
+    int32 viewport_to_texture_size_ratio_uniform;
+    int32 subtexture_size_uniform;
   };
   // We key each program off of their GL texture type and image type.
   typedef std::tuple<uint32, Image::Type, base::Optional<int32> > CacheKey;
@@ -142,6 +150,9 @@ class TexturedMeshRenderer {
   // of applying bilinear filtering within a texel between the two Y values.
   static uint32 CreateUYVYFragmentShader(uint32 texture_target,
                                          int32 texture_wrap_s);
+  // YUV compacted textures need a special fragment shader to handle compacted
+  // pixels. Compacted textures support YUV420 only.
+  static uint32 CreateYUVCompactedTexturesFragmentShader(uint32 texture_target);
 
   backend::GraphicsContextEGL* graphics_context_;
 
