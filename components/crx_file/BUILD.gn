@@ -29,14 +29,9 @@ static_library("crx_file") {
     "id_util.cc",
     "id_util.h",
   ]
-  public_deps = [ ":crx3_proto" ]
   deps = [
     "//base",
     "//crypto",
     "//third_party/protobuf:protobuf_lite",
   ]
-}
-
-proto_library("crx3_proto") {
-  sources = [ "crx3.proto" ]
 }
