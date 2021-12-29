@@ -17,6 +17,7 @@
 
 #include <algorithm>
 #include <memory>
+#include <utility>
 
 #include "cobalt/renderer/backend/egl/graphics_context.h"
 
@@ -93,6 +94,10 @@ GraphicsContextEGL::GraphicsContextEGL(GraphicsSystem* parent_system,
 }
 
 GraphicsSystemEGL* GraphicsContextEGL::system_egl() {
+  return base::polymorphic_downcast<GraphicsSystemEGL*>(system());
+}
+
+const GraphicsSystemEGL* GraphicsContextEGL::system_egl() const {
   return base::polymorphic_downcast<GraphicsSystemEGL*>(system());
 }
 
@@ -204,10 +209,10 @@ void GraphicsContextEGL::SetupBlitObjects() {
   GL_CALL(glCompileShader(blit_fragment_shader_));
   GL_CALL(glAttachShader(blit_program_, blit_fragment_shader_));
 
-  GL_CALL(glBindAttribLocation(
-      blit_program_, kBlitPositionAttribute, "a_position"));
-  GL_CALL(glBindAttribLocation(
-      blit_program_, kBlitTexcoordAttribute, "a_tex_coord"));
+  GL_CALL(glBindAttribLocation(blit_program_, kBlitPositionAttribute,
+                               "a_position"));
+  GL_CALL(glBindAttribLocation(blit_program_, kBlitTexcoordAttribute,
+                               "a_tex_coord"));
 
   GL_CALL(glLinkProgram(blit_program_));
 
@@ -286,8 +291,7 @@ void GraphicsContextEGL::SafeEglMakeCurrent(RenderTargetEGL* surface) {
 }
 
 void GraphicsContextEGL::MakeCurrentWithSurface(RenderTargetEGL* surface) {
-  DCHECK_NE(EGL_NO_SURFACE, surface) <<
-      "Use ReleaseCurrentContext().";
+  DCHECK_NE(EGL_NO_SURFACE, surface) << "Use ReleaseCurrentContext().";
 
   // In some EGL implementations, like Angle, the first time we make current on
   // a thread can result in global allocations being made that are never freed.
@@ -353,8 +357,8 @@ void GraphicsContextEGL::MakeCurrent() {
 
 void GraphicsContextEGL::ReleaseCurrentContext() {
   GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, 0));
-  EGL_CALL(eglMakeCurrent(
-      display_, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT));
+  EGL_CALL(
+      eglMakeCurrent(display_, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT));
 
   current_surface_ = NULL;
   is_current_ = false;
@@ -380,8 +384,8 @@ std::unique_ptr<TextureEGL> GraphicsContextEGL::CreateTextureFromRawMemory(
 
 scoped_refptr<RenderTarget> GraphicsContextEGL::CreateOffscreenRenderTarget(
     const math::Size& dimensions) {
-  scoped_refptr<RenderTarget> render_target(new PBufferRenderTargetEGL(
-      display_, config_, dimensions));
+  scoped_refptr<RenderTarget> render_target(
+      new PBufferRenderTargetEGL(display_, config_, dimensions));
 
   if (render_target->CreationError()) {
     return scoped_refptr<RenderTarget>();
@@ -412,8 +416,7 @@ void VerticallyFlipPixels(uint8_t* pixels, int pitch_in_bytes, int height) {
   int half_height = height / 2;
   for (int row = 0; row < half_height; ++row) {
     uint8_t* top_row = pixels + row * pitch_in_bytes;
-    uint8_t* bottom_row =
-        pixels + (height - 1 - row) * pitch_in_bytes;
+    uint8_t* bottom_row = pixels + (height - 1 - row) * pitch_in_bytes;
     for (int i = 0; i < pitch_in_bytes; ++i) {
       std::swap(top_row[i], bottom_row[i]);
     }
@@ -494,6 +497,10 @@ std::unique_ptr<uint8_t[]> GraphicsContextEGL::DownloadPixelDataAsRGBA(
 void GraphicsContextEGL::Finish() {
   ScopedMakeCurrent scoped_current_context(this);
   GL_CALL(glFinish());
+}
+
+math::Size GraphicsContextEGL::GetWindowSize() const {
+  return system_egl()->GetWindowSize();
 }
 
 void GraphicsContextEGL::Blit(GLuint texture, int x, int y, int width,

@@ -63,11 +63,10 @@ bool GraphicsContext::IsMapToMeshEnabled(
       graphics_context ? graphics_context->graphics_extension_ : nullptr;
 #if SB_API_VERSION >= 12
 #if defined(ENABLE_MAP_TO_MESH)
-#error \
-    "ENABLE_MAP_TO_MESH is deprecated after Starboard version 12, use \
-the Cobalt graphics extension function IsMapToMeshEnabled() instead."
+#error "ENABLE_MAP_TO_MESH is deprecated after Starboard version 12, use "
+  "the Cobalt graphics extension function IsMapToMeshEnabled() instead."
 #endif  // defined(ENABLE_MAP_TO_MESH)
-  if (graphics_ext && graphics_ext->version >= 3) {
+      if (graphics_ext && graphics_ext->version >= 3) {
     return graphics_ext->IsMapToMeshEnabled();
   }
 
