@@ -40,3 +40,23 @@ static_library("dom_parser") {
     "//third_party/protobuf:protobuf_lite",
   ]
 }
+
+target(gtest_target_type, "dom_parser_test") {
+  testonly = true
+  has_pedantic_warnings = true
+
+  sources = [
+    "html_decoder_test.cc",
+    "xml_decoder_test.cc",
+  ]
+
+  deps = [
+    ":dom_parser",
+    "//cobalt/dom",
+    "//cobalt/dom/testing:dom_testing",
+    "//cobalt/loader",
+    "//cobalt/test:run_all_unittests",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+}

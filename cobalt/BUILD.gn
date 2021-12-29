@@ -19,6 +19,7 @@ group("gn_all") {
     "//cobalt/browser:browser_test",
     "//cobalt/dom:dom_test",
     "//cobalt/dom/testing:dom_testing",
+    "//cobalt/dom_parser:dom_parser_test",
     "//cobalt/layout:layout_test",
     "//cobalt/loader:loader_test",
     "//cobalt/web_animations:web_animations_test",
