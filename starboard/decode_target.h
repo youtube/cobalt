@@ -131,8 +131,13 @@ typedef enum SbDecodeTargetFormat {
   kSbDecodeTargetFormat3PlaneYUVI420,
 
   // A decoder target format consisting of 10bit Y, U, and V planes, in that
-  // order.
+  // order. Each pixel is stored in 16 bits.
   kSbDecodeTargetFormat3Plane10BitYUVI420,
+
+  // A decoder target format consisting of 10bit Y, U, and V planes, in that
+  // order. The plane data is stored in a compact format. Every three 10-bit
+  // pixels are packed into 32 bits.
+  kSbDecodeTargetFormat3Plane10BitYUVI420Compact,
 
   // A decoder target format consisting of a single plane with pixels laid out
   // in the format UYVY.  Since there are two Y values per sample, but only one
@@ -324,6 +329,7 @@ static SB_C_INLINE int SbDecodeTargetNumberOfPlanesForFormat(
     case kSbDecodeTargetFormat2PlaneYUVNV12:
       return 2;
     case kSbDecodeTargetFormat3Plane10BitYUVI420:
+    case kSbDecodeTargetFormat3Plane10BitYUVI420Compact:
     case kSbDecodeTargetFormat3PlaneYUVI420:
       return 3;
     default:
