@@ -38,7 +38,7 @@ config("platform_configuration") {
     "$visual_studio_path/atlmfc/include",
   ]
 
-  ldflags = [
+  ldflags += [
     "/DYNAMICBASE",
 
     # TODO: SubSystem is hardcoded in
@@ -75,6 +75,6 @@ config("platform_configuration") {
     ]
   } else {
     # Increase compiler heap limit.
-    cflags = [ "/Zm10" ]
+    cflags += [ "/Zm10" ]
   }
 }
