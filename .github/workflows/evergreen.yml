@@ -19,15 +19,20 @@ jobs:
   build:
     # The type of runner that the job will run on
     runs-on: [self-hosted, linux, X64]
+    # Create config matrix
+  strategy:
+    matrix:
+      config: [devel, debug]
     # The container to run the job in.
-    container: ghcr.io/kaidokert/cobalt-build-evergreen:latest
-    # Steps represent a sequence of tasks that will be executed as part of the job
-    steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v2
-
-      # Run build
-      - name: evergreen-qa
-        run: |
-          $GITHUB_WORKSPACE/cobalt/build/gyp_cobalt -v -C devel evergreen-x86
-          ninja -v -j 2 -C $GITHUB_WORKSPACE/out/evergreen-x86_qa eztime_test_deploy nplb_deploy app_launcher_zip
+  container: ghcr.io/kaidokert/cobalt-build-evergreen:latest
+  # Steps represent a sequence of tasks that will be executed as part of the job
+  steps:
+    # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+    - uses: actions/checkout@v2
+    # Run build
+    - name: evergreen-${{matrix.config}}
+      env:
+        CONFIG: ${{matrix.config}}
+      run: |
+        $GITHUB_WORKSPACE/cobalt/build/gyp_cobalt -v -C $CONFIG evergreen-x86
+        ninja -v -j 2 -C $GITHUB_WORKSPACE/out/evergreen-x86_qa eztime_test_deploy nplb_deploy app_launcher_zip
