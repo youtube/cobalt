@@ -29,5 +29,5 @@ jobs:
       # Run build
       - name: evergreen-qa
         run: |
-          $GITHUB_WORKSPACE/cobalt/build/gyp_cobalt -v -C qa evergreen-x86
+          $GITHUB_WORKSPACE/cobalt/build/gyp_cobalt -v -C devel evergreen-x86
           ninja -v -j 2 -C $GITHUB_WORKSPACE/out/evergreen-x86_qa eztime_test_deploy nplb_deploy app_launcher_zip
