@@ -32,8 +32,6 @@ jobs:
         uses: actions/checkout@v2
       # Run build
       - name: evergreen-${{matrix.config}}
-        env:
-          CONFIG: ${{matrix.config}}
         run: |
-          $GITHUB_WORKSPACE/cobalt/build/gyp_cobalt -v -C $CONFIG evergreen-x86
+          $GITHUB_WORKSPACE/cobalt/build/gyp_cobalt -v -C ${{ matrix.config }} evergreen-x86
           ninja -v -j 8 -C $GITHUB_WORKSPACE/out/evergreen-x86_qa eztime_test_deploy nplb_deploy app_launcher_zip
