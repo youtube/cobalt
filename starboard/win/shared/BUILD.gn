@@ -354,8 +354,10 @@ static_library("starboard_platform") {
 
   sources += common_player_sources
 
-  configs += [ "//starboard/build/config:starboard_implementation" ]
-  public_configs = [ ":starboard_platform_config" ]
+  configs += [
+    "//starboard/build/config:starboard_implementation",
+    ":starboard_platform_config",
+  ]
 
   public_deps = [
     "//starboard/common",
