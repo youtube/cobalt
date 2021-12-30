@@ -28,7 +28,7 @@
 #include "starboard/file.h"
 #include "starboard/loader_app/installation_store.pb.h"
 #if !SB_IS(EVERGREEN_COMPATIBLE_LITE)
-#include "starboard/loader_app/pending_restart.h"
+#include "starboard/loader_app/pending_restart.h"  // nogncheck
 #endif  // !SB_IS(EVERGREEN_COMPATIBLE_LITE)
 #include "starboard/once.h"
 #include "starboard/string.h"

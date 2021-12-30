@@ -32,6 +32,13 @@ group("gn_all") {
     "//cobalt/websocket:websocket_test",
     "//cobalt/xhr:xhr_test",
   ]
+
+  if (sb_is_evergreen) {
+    deps += [
+      "//components/update_client:cobalt_slot_management_test",
+      "//components/update_client:update_client_test",
+    ]
+  }
 }
 
 group("default") {
@@ -48,6 +55,7 @@ group("default") {
       "//components/client_update_protocol",
       "//components/crx_file",
       "//components/prefs",
+      "//components/update_client",
       "//third_party/llvm-project/compiler-rt:compiler_rt",
       "//third_party/llvm-project/libcxx:cxx",
       "//third_party/llvm-project/libcxxabi:cxxabi",

@@ -26,8 +26,15 @@ group("common_loader_app_dependencies") {
     ":installation_manager",
     ":slot_management",
     "//starboard",
+    "//starboard/elf_loader:evergreen_info",
     "//starboard/elf_loader:sabi_string",
   ]
+
+  if (sb_is_evergreen_compatible) {
+    public_deps += [ "//third_party/crashpad/wrapper" ]
+  } else {
+    public_deps += [ "//third_party/crashpad/wrapper:wrapper_stub" ]
+  }
 }
 
 target(final_executable_type, "loader_app") {
@@ -43,23 +50,25 @@ target(final_executable_type, "loader_app") {
   }
 }
 
-target(final_executable_type, "loader_app_sys") {
-  if (target_cpu == "x86" || target_cpu == "x64" || target_cpu == "arm" ||
-      target_cpu == "arm64") {
-    sources = _common_loader_app_sources
+if (sb_is_evergreen_compatible) {
+  target(final_executable_type, "loader_app_sys") {
+    if (target_cpu == "x86" || target_cpu == "x64" || target_cpu == "arm" ||
+        target_cpu == "arm64") {
+      sources = _common_loader_app_sources
 
-    starboard_syms_path =
-        rebase_path("//starboard/starboard.syms", root_build_dir)
-    ldflags = [
-      "-Wl,--dynamic-list=$starboard_syms_path",
-      "-ldl",
-    ]
-    deps = [
-      ":common_loader_app_dependencies",
-      "//cobalt/content/fonts:copy_font_data",
-      "//starboard/elf_loader:elf_loader_sys",
-    ]
-    deps += cobalt_platform_dependencies
+      starboard_syms_path =
+          rebase_path("//starboard/starboard.syms", root_build_dir)
+      ldflags = [
+        "-Wl,--dynamic-list=$starboard_syms_path",
+        "-ldl",
+      ]
+      deps = [
+        ":common_loader_app_dependencies",
+        "//cobalt/content/fonts:copy_font_data",
+        "//starboard/elf_loader:elf_loader_sys",
+      ]
+      deps += cobalt_platform_dependencies
+    }
   }
 }
 
@@ -192,6 +201,12 @@ static_library("slot_management") {
     "//starboard/elf_loader",
     "//starboard/elf_loader:sabi_string",
   ]
+
+  if (sb_is_evergreen_compatible) {
+    deps += [ "//third_party/crashpad/wrapper" ]
+  } else {
+    deps += [ "//third_party/crashpad/wrapper:wrapper_stub" ]
+  }
 }
 
 target(gtest_target_type, "slot_management_test") {

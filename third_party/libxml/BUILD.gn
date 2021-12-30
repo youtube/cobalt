@@ -152,6 +152,7 @@ static_library("libxml") {
       "//cobalt/base",
       "//cobalt/dom_parser",
       "//cobalt/renderer/rasterizer/skia/skia",
+      "//components/update_client",
     ]
   }
   if (is_ios) {
