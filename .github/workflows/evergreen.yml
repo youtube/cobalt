@@ -34,4 +34,4 @@ jobs:
       - name: evergreen-${{matrix.config}}
         run: |
           $GITHUB_WORKSPACE/cobalt/build/gyp_cobalt -v -C ${{ matrix.config }} evergreen-x86
-          ninja -v -j 8 -C $GITHUB_WORKSPACE/out/evergreen-x86_qa eztime_test_deploy nplb_deploy app_launcher_zip
+          ninja -v -j 8 -C $GITHUB_WORKSPACE/out/evergreen-x86_${{ matrix.config }} eztime_test_deploy nplb_deploy app_launcher_zip
