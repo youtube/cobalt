@@ -23,11 +23,22 @@
 # in the configuration.gni for the current platform.
 
 group("egl_and_gles") {
-  deps = [ ":egl_and_gles_$gl_type" ]
+  public_deps = [ ":egl_and_gles_$gl_type" ]
 }
 
 group("egl_and_gles_system_gles2") {
   # Use the system-provided implementation of GLES2.
+}
+
+config("egl_and_gles_glimp_public_config") {
+  defines = [ "GL_GLEXT_PROTOTYPES" ]
+}
+
+if (gl_type == "glimp") {
+  group("egl_and_gles_glimp") {
+    public_configs = [ ":egl_and_gles_glimp_public_config" ]
+    public_deps = [ "//glimp" ]
+  }
 }
 
 declare_args() {

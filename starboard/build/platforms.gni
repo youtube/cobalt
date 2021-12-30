@@ -85,4 +85,8 @@ platforms = [
     name = "xb1"
     path = "starboard/xb1"
   },
+  {
+    name = "ps5"
+    path = "starboard/ps5"
+  },
 ]

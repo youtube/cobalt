@@ -306,7 +306,8 @@ def GetAllShaderFiles(input_files_filename, input_files_dir):
   with open(input_files_filename) as input_files_file:
     files = [x.strip() for x in input_files_file.readlines()]
 
-  return [os.path.join(input_files_dir, x) for x in files]
+  # We filter out files that already have a full path (the case in GN).
+  return [os.path.join(input_files_dir, x) for x in files if '/' not in x]
 
 
 def main(output_path, input_files_filename, input_files_dir):

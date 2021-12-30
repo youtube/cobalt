@@ -68,6 +68,10 @@ static_library("nb") {
       "//starboard:starboard_headers_only",
       "//starboard/common",
     ]
+
+    if (defined(has_nb_platform) && has_nb_platform) {
+      deps += [ "//nb/${target_platform}:nb_platform" ]
+    }
   }
 }
 

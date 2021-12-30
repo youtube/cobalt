@@ -35,7 +35,7 @@ import("//build/toolchain/rbe.gni")
 declare_args() {
   # Set to "ccache", "icecc" or "distcc".  Probably doesn't work on windows.
   cc_wrapper = ""
-  if (is_starboard && !is_win) {
+  if (is_starboard && host_os != "win") {
     cc_wrapper = "ccache"
   }
 }

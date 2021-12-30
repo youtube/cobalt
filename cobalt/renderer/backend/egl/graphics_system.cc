@@ -16,6 +16,7 @@
 #if SB_API_VERSION >= 12 || SB_HAS(GLES2)
 
 #include <memory>
+#include <utility>
 
 #include "cobalt/renderer/backend/egl/graphics_system.h"
 
@@ -31,7 +32,7 @@
 #include "cobalt/renderer/backend/egl/texture.h"
 #include "cobalt/renderer/backend/egl/utils.h"
 #if defined(ENABLE_GLIMP_TRACING)
-#include "glimp/tracing/tracing.h"
+#include "glimp/tracing/tracing.h"  // nogncheck
 #endif
 
 #include "cobalt/renderer/egl_and_gles.h"
