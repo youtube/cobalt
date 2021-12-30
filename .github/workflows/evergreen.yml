@@ -37,14 +37,3 @@ jobs:
         run: |
           $GITHUB_WORKSPACE/cobalt/build/gyp_cobalt -v -C $CONFIG evergreen-x86
           ninja -v -j 8 -C $GITHUB_WORKSPACE/out/evergreen-x86_qa eztime_test_deploy nplb_deploy app_launcher_zip
-  xb1:
-    # The type of runner that the job will run on
-    runs-on: [self-hosted, X64, windows]
-    # Steps represent a sequence of tasks that will be executed as part of the job
-    steps:
-      # Checkout cobalt repo.
-      # - uses: actions/checkout@v2
-      # Run build
-      - name: echo
-        run: |
-          powershell echo xb1-qa
