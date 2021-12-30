@@ -21,6 +21,8 @@ jobs:
     runs-on: [self-hosted, X64, windows]
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
+      # Checkout cobalt repo.
+      - uses: actions/checkout@v2
       # Run build
       - name: xb1-qa
         run: |
