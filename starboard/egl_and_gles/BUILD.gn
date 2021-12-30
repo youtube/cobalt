@@ -30,11 +30,6 @@ group("egl_and_gles_system_gles2") {
   # Use the system-provided implementation of GLES2.
 }
 
-group("egl_and_gles_system_gles3") {
-  # Though we support as a valid gl_type option, it will use neither GLES3
-  # features nor GLES3 egl context currently.
-}
-
 declare_args() {
   enable_d3d11_feature_level_11 = false
 }
