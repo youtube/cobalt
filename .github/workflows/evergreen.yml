@@ -18,7 +18,7 @@ jobs:
   # This workflow contains a single job called "build"
   evergreen:
     # The type of runner that the job will run on
-    runs-on: [self-hosted, linux, X64, rootless]
+    runs-on: [self-hosted, linux, X64]
     # Create config matrix
     strategy:
       matrix:
