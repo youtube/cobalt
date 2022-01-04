@@ -89,4 +89,8 @@ platforms = [
     name = "ps5"
     path = "starboard/ps5"
   },
+  {
+    name = "ps4"
+    path = "starboard/ps4"
+  },
 ]

@@ -111,6 +111,9 @@ if (enable_resource_allowlist_generation) {
 #  - tail_lib_dependencies
 #      If defined, this string will be added to the compilation line after all
 #      other libs are specified.
+#  - using_snarl_linker
+#      Defining this string will ensure static linker flags are passed in a way
+#      that the snarl tool will accept.
 template("gcc_toolchain") {
   toolchain(target_name) {
     assert(defined(invoker.ar), "gcc_toolchain() must specify a \"ar\" value")
@@ -386,7 +389,11 @@ template("gcc_toolchain") {
     }
 
     tool("alink") {
-      if (current_os == "aix") {
+      if (defined(invoker.using_snarl_linker) && invoker.using_snarl_linker) {
+        rspfile = "{{output}}.rsp"
+        rspfile_content = "{{inputs_newline}}"
+        command = "\"$ar\" {{arflags}} rcsD {{output}} @\"$rspfile\""
+      } else if (current_os == "aix") {
         # AIX does not support either -D (deterministic output) or response
         # files.
         command = "$ar -X64 {{arflags}} -r -c -s {{output}} {{inputs}}"

@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import("//cobalt/content/fonts/font_configuration.gni")
+import("//starboard/build/config/enable_vr.gni")
 
 declare_args() {
   # Enables the yasm compiler to be used to compile .asm files.
@@ -111,9 +112,6 @@ declare_args() {
   # Note: Only enable if there's no system-wide DIAL support.
   in_app_dial = false
 
-  # Whether VR is enabled.
-  enable_vr = false
-
   # Override this value to adjust the default rasterizer setting for your
   # platform.
   default_renderer_options_dependency = "//cobalt/renderer:default_options"
@@ -136,4 +134,7 @@ declare_args() {
   # TODO(b/173248397): Migrate to CobaltExtensions or PlatformServices.
   # List of platform-specific targets that get compiled into cobalt.
   cobalt_platform_dependencies = []
+
+  # Whether or not to link with thin archives.
+  use_thin_archive = true
 }
