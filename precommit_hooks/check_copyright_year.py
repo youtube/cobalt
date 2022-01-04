@@ -70,13 +70,13 @@ def CheckCopyrightYear(filenames: List[str]) -> bool:
         if match:
           created_year = int(match.group('created'))
           if filename in new_files and created_year != current_year:
-            errors.append(f'Copyright header for file {filename}'
-                          f' has wrong year {created_year}')
+            print(f'Copyright header for file {filename} has wrong year '
+                  f'{created_year}')
 
           year = match.group('current')
           if year and int(year) != current_year:
-            errors.append(f'Copyright header for file {filename}'
-                          f' has wrong ending year {year}')
+            print(f'Copyright header for file {filename} has wrong ending year'
+                  f' {year}')
 
           # Strip to get rid of possible newline
           author = match.group('author').rstrip()

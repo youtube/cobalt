@@ -118,6 +118,7 @@ repos:
                 starboard/android/apk/app/src/main/java/dev/cobalt/media/MediaDrmBridge.java$
             )
         exclude_types: [markdown]
+        verbose: true
     -   id: check-if-starboard-interface-changed
         name: check if starboard interface changed
         entry: python ./precommit_hooks/warn_that_starboard_interface_changed_wrapper.py
