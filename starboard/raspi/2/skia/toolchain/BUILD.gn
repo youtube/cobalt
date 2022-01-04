@@ -31,6 +31,8 @@ gcc_toolchain("target") {
 
   ar = "$gcc_toolchain_ar"
 
+  tail_lib_dependencies = "-l:libpthread.so.0"
+
   toolchain_args = {
     is_clang = false
   }
