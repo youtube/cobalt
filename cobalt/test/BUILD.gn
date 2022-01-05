@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-static_library("run_all_unittests") {
+source_set("run_all_unittests") {
   testonly = true
   sources = [ "run_all_unittests.cc" ]
   public_deps = [ "//base/test:test_support" ]
