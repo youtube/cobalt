@@ -1,5 +1,5 @@
 #!/usr/bin/python
-# Copyright 2016 Google Inc. All Rights Reserved.
+# Copyright 2016 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,7 +12,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """Associates GLSL files with platform-specific shaders based on filename.
 
 This script scans all input files and detects whether they are GLSL files or
@@ -54,9 +53,10 @@ def GetHeaderDataDefinitionStringForFile(input_file):
   """Returns a string containing C++ that represents all file data in file."""
   with open(input_file, 'rb') as f:
     file_contents = f.read()
-    def chunks(contents, chunk_size):
+
+    def Chunks(contents, chunk_size):
       """ Yield successive |chunk_size|-sized chunks from |contents|."""
-      for i in xrange(0, len(contents), chunk_size):
+      for i in range(0, len(contents), chunk_size):
         yield contents[i:i + chunk_size]
 
     # Break up the data into chunk sizes such that the produced output lines
@@ -68,9 +68,9 @@ def GetHeaderDataDefinitionStringForFile(input_file):
     # Convert each byte to ASCII hexadecimal form and output that to the C++
     # header file, line-by-line.
     data_definition_string = '{\n'
-    for output_line_data in chunks(file_contents, chunk_size):
+    for output_line_data in Chunks(file_contents, chunk_size):
       data_definition_string += (
-        ' '.join(['0x%02x,' % ord(y) for y in output_line_data]) + '\n')
+          ' '.join(['0x%02x,' % ord(y) for y in output_line_data]) + '\n')
     data_definition_string += '};\n\n'
     return data_definition_string
 
@@ -81,8 +81,8 @@ def GetHeaderDataDefinitionString(files):
   data_definition_string = ''
   for path in files:
     input_file_variable_name = GetBasename(path)
-    data_definition_string += (
-        'const uint8_t %s[] =\n' % input_file_variable_name)
+    data_definition_string += ('const uint8_t %s[] =\n' %
+                               input_file_variable_name)
     data_definition_string += GetHeaderDataDefinitionStringForFile(path)
 
   return data_definition_string
@@ -114,7 +114,6 @@ def GetGenerateMapFunctionString(hash_to_shader_map):
   return generate_map_function_string
 
 
-
 def GetShaderNameFunctionString(hash_to_shader_map):
   """Generate C++ code to retrieve the shader name from a GLSL hash.
 
@@ -133,9 +132,8 @@ def GetShaderNameFunctionString(hash_to_shader_map):
 
   for k, v in hash_to_shader_map.iteritems():
     input_file_variable_name = GetBasename(v)
-    get_shader_name_function_string += (
-        '    case %uU: return \"%s\";\n' %
-        (k, input_file_variable_name))
+    get_shader_name_function_string += ('    case %uU: return \"%s\";\n' %
+                                        (k, input_file_variable_name))
 
   get_shader_name_function_string += '  }\n  return NULL;\n}'
   return get_shader_name_function_string
@@ -167,6 +165,7 @@ namespace shaders {{
 #endif  // {include_guard}
 """
 
+
 def GenerateHeaderFileOutput(output_file_name, hash_to_shader_map):
   """Generate the actual C++ header file code.
 
@@ -181,13 +180,13 @@ def GenerateHeaderFileOutput(output_file_name, hash_to_shader_map):
   with open(output_file_name, 'w') as output_file:
     output_file.write(
         HEADER_FILE_TEMPLATE.format(
-            include_guard = include_guard,
-            data_definitions = GetHeaderDataDefinitionString(
-                                   hash_to_shader_map.values()),
-            generate_map_function = GetGenerateMapFunctionString(
-                                        hash_to_shader_map),
-            shader_name_function = GetShaderNameFunctionString(
-                                       hash_to_shader_map)))
+            include_guard=include_guard,
+            data_definitions=GetHeaderDataDefinitionString(
+                hash_to_shader_map.values()),
+            generate_map_function=GetGenerateMapFunctionString(
+                hash_to_shader_map),
+            shader_name_function=GetShaderNameFunctionString(
+                hash_to_shader_map)))
 
 
 def AssociateGLSLFilesWithPlatformFiles(all_shaders):
@@ -205,6 +204,7 @@ def AssociateGLSLFilesWithPlatformFiles(all_shaders):
     A dictionary mapping GLSL shader filenames to platform-specific shader
     filenames.
   """
+
   def IsGLSL(filename):
     return os.path.splitext(filename)[1].upper() == '.GLSL'
 
@@ -225,12 +225,13 @@ def AssociateGLSLFilesWithPlatformFiles(all_shaders):
     if not IsGLSL(item):
       basename = GetBasename(item)
       if not basename in basename_to_glsl_file:
-        raise Exception(
-            'Platform-specific file ' + item + ' has no GLSL match.')
+        raise Exception('Platform-specific file ' + item +
+                        ' has no GLSL match.')
       glsl_file = basename_to_glsl_file[basename]
       if glsl_file in mapped_files:
-        raise Exception('Multiple platform-specific files match the same GLSL '
-                        + 'file with basename ' + basename)
+        raise Exception(
+            'Multiple platform-specific files match the same GLSL ' +
+            'file with basename ' + basename)
       mapped_files[glsl_file] = item
 
   return mapped_files
@@ -255,6 +256,7 @@ def HashGLSLShaderFile(glsl_filename):
 
   def AddUint32(a, b):
     return (a + b) & 0xffffffff
+
   def XorUint32(a, b):
     return (a ^ b) & 0xffffffff
 
@@ -263,7 +265,7 @@ def HashGLSLShaderFile(glsl_filename):
   # Introduce a generator function for returning only the hashable characters.
   def GetHashableCharacters(hash_string):
     str_without_comments = re.sub(r'//.*\n', '', hash_string)
-    str_without_whitespace = re.sub(r'[ \n\t]', '', str_without_comments);
+    str_without_whitespace = re.sub(r'[ \n\t]', '', str_without_comments)
     str_without_empty_braces = str_without_whitespace.replace('{}', '')
 
     for c in str_without_empty_braces:
@@ -287,8 +289,8 @@ def CreateHashToShaderMap(glsl_to_shader_map):
   for k, v in glsl_to_shader_map.iteritems():
     hashed_glsl = HashGLSLShaderFile(k)
     if hashed_glsl in hash_shader_map:
-      raise Exception('Hash collision between GLSL files ' + k + ' and '
-                      + hash_to_glsl_map[hashed_glsl] + '.')
+      raise Exception('Hash collision between GLSL files ' + k + ' and ' +
+                      hash_to_glsl_map[hashed_glsl] + '.')
     hash_to_glsl_map[hashed_glsl] = k
     hash_shader_map[hashed_glsl] = v
   return hash_shader_map
@@ -310,12 +312,12 @@ def GetAllShaderFiles(input_files_filename, input_files_dir):
 def main(output_path, input_files_filename, input_files_dir):
   all_shaders = GetAllShaderFiles(input_files_filename, input_files_dir)
 
-  glsl_to_shader_map = AssociateGLSLFilesWithPlatformFiles(
-      all_shaders)
+  glsl_to_shader_map = AssociateGLSLFilesWithPlatformFiles(all_shaders)
 
   hash_to_shader_map = CreateHashToShaderMap(glsl_to_shader_map)
 
   GenerateHeaderFileOutput(output_path, hash_to_shader_map)
+
 
 if __name__ == '__main__':
   main(sys.argv[1], sys.argv[2], sys.argv[3])
