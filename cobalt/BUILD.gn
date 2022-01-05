@@ -21,6 +21,7 @@ group("gn_all") {
     "//cobalt/dom/testing:dom_testing",
     "//cobalt/dom_parser:dom_parser_test",
     "//cobalt/encoding:text_encoding_test",
+    "//cobalt/extension:extension_test",
     "//cobalt/layout:layout_test",
     "//cobalt/layout_tests",
     "//cobalt/layout_tests:web_platform_tests",
