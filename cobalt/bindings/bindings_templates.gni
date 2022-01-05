@@ -12,12 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//cobalt/bindings/bindings_variables.gni")
 import("//cobalt/bindings/blink_variables.gni")
 import("//cobalt/script/v8c/v8c_variables.gni")
 
+# The allowlist of what extended attributes we support. If an attribute
+# not in this list is encountered, it will cause an error in the
+# pipeline.
+_extended_attributes_file = "//cobalt/bindings/IDLExtendedAttributes.txt"
+
 # Additional files used by the idl compilation scripts.
-bindings_extra_inputs = [
+_bindings_extra_inputs = [
   "//cobalt/bindings/code_generator_cobalt.py",
   "//cobalt/bindings/expression_generator.py",
   "//cobalt/bindings/contexts.py",
@@ -26,11 +30,9 @@ bindings_extra_inputs = [
   "//cobalt/bindings/name_conversion.py",
   "//cobalt/bindings/overload_context.py",
 ]
-bindings_extra_inputs += code_generator_template_files
-bindings_extra_inputs += engine_bindings_scripts
-bindings_extra_inputs += idl_lexer_parser_files
-bindings_extra_inputs += idl_cache_files
-bindings_extra_inputs += idl_compiler_files
+_bindings_extra_inputs += engine_bindings_scripts
+_bindings_extra_inputs += idl_lexer_parser_files
+_bindings_extra_inputs += idl_compiler_files
 
 # Template definitions.
 template("idl_compile") {
@@ -38,30 +40,36 @@ template("idl_compile") {
     script = "//starboard/build/run_bash.py"
     py_script = engine_idl_compiler
 
-    public_configs = invoker.public_configs
-
     sources = invoker.sources
 
-    deps = invoker.deps
-
-    if (defined(invoker.public_deps)) {
-      public_deps = invoker.public_deps
-    }
+    forward_variables_from(invoker,
+                           [
+                             "testonly",
+                             "deps",
+                             "public_deps",
+                             "public_configs",
+                           ])
 
     inputs = [
-      invoker.interfaces_info,
-      invoker.extended_attributes,
+      _extended_attributes_file,
       invoker.component_info,
+      invoker.interfaces_info,
       py_script,
     ]
-    inputs += invoker.bindings_extra_inputs
+    inputs += _bindings_extra_inputs
 
     generated_file_path =
-        "$generated_source_output_dir/{{source_root_relative_dir}}"
-    generated_file_name = "${generated_bindings_prefix}_{{source_name_part}}"
+        invoker.output_directory + "/{{source_root_relative_dir}}"
+
+    if (defined(invoker.header_prefix)) {
+      header_prefix = invoker.header_prefix + "_"
+    } else {
+      header_prefix = ""
+    }
+
     outputs = [
-      "$generated_file_path/$generated_file_name.h",
-      "$generated_file_path/$generated_file_name.cc",
+      "$generated_file_path/${header_prefix}{{source_name_part}}.h",
+      "$generated_file_path/${generated_bindings_prefix}_{{source_name_part}}.cc",
     ]
 
     args = [
@@ -76,8 +84,45 @@ template("idl_compile") {
       "--component-info",
       rebase_path(invoker.component_info),
       "--extended-attributes",
-      rebase_path(invoker.extended_attributes),
+      rebase_path(_extended_attributes_file),
       "{{source}}",
+    ]
+  }
+}
+
+template("generate_type_conversion") {
+  action(target_name) {
+    script = "//starboard/build/run_bash.py"
+    py_script = engine_conversion_header_generator_script
+
+    deps = invoker.deps
+
+    public_deps = engine_dependencies
+
+    inputs = [
+      py_script,
+      _extended_attributes_file,
+      invoker.global_names_idl_file,
+      "//cobalt/bindings/shared/idl_conditional_macros.h",
+    ]
+    inputs += _bindings_extra_inputs
+    inputs += invoker.inputs
+
+    # Generated header file that contains forward declarations for converting
+    # to/from JS value and generated types.
+    outputs = [ "${invoker.output_dir}/${generated_bindings_prefix}_gen_type_conversion.h" ]
+
+    args = [
+      "python2",
+      rebase_path(py_script, root_build_dir),
+      "--cache-directory",
+      rebase_path(invoker.cache_directory, root_build_dir),
+      "--output-dir",
+      rebase_path(invoker.output_dir, root_build_dir),
+      "--interfaces-info",
+      rebase_path(invoker.interfaces_info, root_build_dir),
+      "--component-info",
+      rebase_path(invoker.component_info, root_build_dir),
     ]
   }
 }
@@ -157,7 +202,7 @@ template("compute_interfaces_info_individual") {
     inputs = [
       py_script,
       "$bindings_scripts_dir/utilities.py",
-      invoker.extended_attributes,
+      _extended_attributes_file,
       invoker.generated_idl_files,
     ]
     inputs += invoker.idl_files
@@ -189,13 +234,96 @@ template("compute_interfaces_info_individual") {
       "--component-info-file",
       rebase_path(invoker.component_info_file, root_build_dir),
       "--extended-attributes",
-      rebase_path(invoker.extended_attributes, root_build_dir),
+      rebase_path(_extended_attributes_file, root_build_dir),
       "--dependency-idl-files",
       dependency_idl_files_list,
       "--",
 
       # Generated files must be passed at command line
       rebase_path(invoker.generated_idl_files, root_build_dir),
+    ]
+  }
+}
+
+template("generate_interfaces_info_overall") {
+  action(target_name) {
+    script = "//starboard/build/run_bash.py"
+    py_script = "$bindings_scripts_dir/compute_interfaces_info_overall.py"
+
+    deps = invoker.deps
+
+    inputs = [
+      py_script,
+      invoker.individual_interfaces_file,
+    ]
+
+    outputs = [ invoker.combined_interfaces_file ]
+
+    args = [
+      "python2",
+      rebase_path(py_script, root_build_dir),
+      "--",
+      rebase_path(invoker.individual_interfaces_file, root_build_dir),
+      rebase_path(invoker.combined_interfaces_file, root_build_dir),
+    ]
+  }
+}
+
+template("cache_lex_tables") {
+  action(target_name) {
+    script = "//starboard/build/run_bash.py"
+    py_script = "$bindings_scripts_dir/blink_idl_parser.py"
+
+    inputs = [ py_script ]
+    inputs += idl_lexer_parser_files
+
+    outputs = [
+      "${invoker.output_dir}/lextab.py",
+      "${invoker.output_dir}/parsetab.pickle",
+    ]
+
+    args = [
+      "python2",
+      rebase_path(py_script, root_build_dir),
+      rebase_path(invoker.output_dir, root_build_dir),
+    ]
+  }
+}
+
+template("cache_templates") {
+  action(target_name) {
+    script = "//starboard/build/run_bash.py"
+    py_script = "//cobalt/bindings/code_generator_cobalt.py"
+
+    inputs = [
+      py_script,
+      "//cobalt/bindings/path_generator.py",
+      "//third_party/jinja2/__init__.py",
+      "//third_party/markupsafe/__init__.py",  # jinja2 dep
+    ]
+
+    # Cobalt's Jinja templates.
+    inputs += engine_template_files
+
+    # Templates that are shared by the code generation for multiple engines.
+    inputs += [
+      "//cobalt/bindings/templates/dictionary.h.template",
+      "//cobalt/bindings/templates/interface-base.cc.template",
+      "//cobalt/bindings/templates/interface-base.h.template",
+      "//cobalt/bindings/templates/callback-interface-base.cc.template",
+      "//cobalt/bindings/templates/callback-interface-base.h.template",
+    ]
+
+    # TODO(b/209507063): Figure out a way to list the actual outputs instead.
+    outputs = [ "${invoker.output_dir}/cached_jinja_templates.stamp" ]
+
+    args = [
+      "python2",
+      rebase_path(py_script, root_build_dir),
+      rebase_path("${invoker.output_dir}", root_build_dir),
+      rebase_path("$engine_templates_dir", root_build_dir),
+      rebase_path("${invoker.output_dir}/cached_jinja_templates.stamp",
+                  root_build_dir),
     ]
   }
 }

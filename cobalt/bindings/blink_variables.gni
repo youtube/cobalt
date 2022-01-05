@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//cobalt/browser/browser_bindings_variables.gni")
-
 # Migrated from third_party/blink/Source/bindings/scripts/scripts.gypi
 ######################################################################
 bindings_scripts_dir = "//third_party/blink/Source/bindings/scripts"
@@ -45,8 +43,6 @@ idl_compiler_files = [
   "//third_party/blink/Source/bindings/scripts/v8_union.py",
   "//third_party/blink/Source/bindings/scripts/v8_utilities.py",
 ]
-
-idl_cache_files = [ "$bindings_scripts_output_dir/lextab.py" ]
 
 idl_lexer_parser_files =
     get_path_info([
