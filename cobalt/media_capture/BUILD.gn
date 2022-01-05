@@ -68,6 +68,7 @@ target(gtest_target_type, "media_capture_test") {
     "//cobalt/dom:dom_exception",
     "//cobalt/dom/testing:dom_testing",
     "//cobalt/media_stream",
+    "//cobalt/media_stream:media_stream_test_headers",
     "//cobalt/script",
     "//cobalt/test:run_all_unittests",
     "//testing/gmock",

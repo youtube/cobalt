@@ -28,6 +28,7 @@ group("gn_all") {
     "//cobalt/loader:loader_test",
     "//cobalt/media_capture:media_capture_test",
     "//cobalt/media_session:media_session_test",
+    "//cobalt/media_stream:media_stream_test",
     "//cobalt/renderer:renderer_test",
     "//cobalt/web_animations:web_animations_test",
     "//cobalt/websocket:websocket_test",
