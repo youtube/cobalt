@@ -42,6 +42,7 @@
       android:launchMode="singleTask"
       android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenSize|uiMode"
       android:screenOrientation="sensorLandscape"
+      android:exported="true"
       android:theme="@style/CobaltTheme">
       <meta-data android:name="cobalt.APP_URL" android:value="https://www.youtube.com/tv"/>
       <meta-data android:name="cobalt.SPLASH_URL" android:value="h5vcc-embedded://cobalt_splash_screen.html"/>
