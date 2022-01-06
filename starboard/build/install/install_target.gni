@@ -13,6 +13,12 @@
 # limitations under the License.
 
 template("install_target") {
+  forward_variables_from(invoker,
+                         [
+                           "installable_target_name",
+                           "testonly",
+                         ])
+
   if (invoker.type == "executable") {
     install_subdir = "bin"
     source_name = invoker.installable_target_name
@@ -24,11 +30,6 @@ template("install_target") {
   }
 
   copy("copy_" + target_name) {
-    forward_variables_from(invoker,
-                           [
-                             "installable_target_name",
-                             "testonly",
-                           ])
     deps = [ ":$installable_target_name" ]
 
     sources = [ "$root_out_dir/$source_name" ]
@@ -37,9 +38,19 @@ template("install_target") {
 
   if (defined(invoker.content)) {
     copy("copy_content_" + target_name) {
-      forward_variables_from(invoker, [ "testonly" ])
       sources = invoker.content
       outputs = [ "$root_out_dir/install/usr/share/cobalt/{{source_root_relative_dir}}/{{source_file_part}}" ]
+      deps = [ ":$installable_target_name" ]
+    }
+  }
+
+  group(target_name) {
+    deps = [
+      ":$installable_target_name",
+      ":copy_${target_name}",
+    ]
+    if (defined(invoker.content)) {
+      deps += [ ":copy_content_${target_name}" ]
     }
   }
 }

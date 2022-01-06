@@ -16,12 +16,13 @@ template("install_target") {
   not_needed(invoker, [ "type" ])
   content_dir = "usr/share/cobalt"
 
+  forward_variables_from(invoker,
+                         [
+                           "installable_target_name",
+                           "testonly",
+                         ])
+
   action("build_${target_name}_apk") {
-    forward_variables_from(invoker,
-                           [
-                             "installable_target_name",
-                             "testonly",
-                           ])
     deps = [
       ":$installable_target_name",
       "//starboard/android/apk:apk_sources",
@@ -78,6 +79,13 @@ template("install_target") {
       "-P",
       "enableVulkan=$enable_vulkan",
       "assembleCobalt_$gradle_build_type",
+    ]
+  }
+
+  group(target_name) {
+    deps = [
+      ":$installable_target_name",
+      ":build_${target_name}_apk",
     ]
   }
 }

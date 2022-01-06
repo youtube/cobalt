@@ -13,6 +13,19 @@
 # limitations under the License.
 
 template("install_target") {
-  not_needed("*")
-  not_needed(invoker, "*")
+  not_needed("*", [ "target_name" ])
+  not_needed(invoker,
+             "*",
+             [
+               "testonly",
+               "installable_target_name",
+             ])
+  forward_variables_from(invoker,
+                         [
+                           "testonly",
+                           "installable_target_name",
+                         ])
+  group(target_name) {
+    deps = [ ":$installable_target_name" ]
+  }
 }
