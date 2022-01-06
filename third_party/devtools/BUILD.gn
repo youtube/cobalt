@@ -1324,7 +1324,11 @@ if (is_starboard) {
   ]
 }
 
-resources_out_dir = "$root_out_dir/resources/inspector"
+if (is_starboard) {
+  resources_out_dir ="$sb_static_contents_output_data_dir/web/debug_remote/devtools"
+} else {
+  resources_out_dir = "$root_out_dir/resources/inspector"
+}
 
 generated_scripts = [
   "$resources_out_dir/InspectorBackendCommands.js",
@@ -2363,7 +2367,7 @@ action("copy_devtools_modules") {
 }
 
 if (debug_devtools) {
-  resources_out_debug_dir = "$root_out_dir/resources/inspector/debug"
+  resources_out_debug_dir = "$resources_out_dir/debug"
 
   action("build_debug_devtools") {
     script = "scripts/build/build_debug_applications.py"

@@ -227,6 +227,7 @@ source_set("generated_bindings_sources") {
   deps = [
     # Ensure that all the files have been generated before trying to compile.
     ":generated_types",
+    "//cobalt/webdriver",
   ]
 }
 

@@ -115,3 +115,39 @@ copy("copy_webdriver_data") {
   outputs =
       [ "$sb_static_contents_output_data_dir/webdriver/webdriver-init.js" ]
 }
+
+copy("webdriver_copy_test_data") {
+  sources = [
+    "testdata/displayed_test.html",
+    "testdata/map.png",
+    "testdata/simple_test.py",
+  ]
+
+  outputs = [ "$sb_static_contents_output_data_dir/test/cobalt/webdriver_test/{{source_file_part}}" ]
+}
+
+target(gtest_target_type, "webdriver_test") {
+  testonly = true
+
+  sources = [
+    "execute_test.cc",
+    "get_element_text_test.cc",
+    "is_displayed_test.cc",
+    "keyboard_test.cc",
+  ]
+
+  deps = [
+    ":webdriver",
+    ":webdriver_copy_test_data",
+    "//cobalt/base",
+    "//cobalt/browser",
+    "//cobalt/css_parser:css_parser",
+    "//cobalt/cssom:cssom",
+    "//cobalt/dom/testing:dom_testing",
+    "//cobalt/script",
+    "//cobalt/test:run_all_unittests",
+    "//testing/gmock",
+    "//testing/gtest",
+    "//third_party/devtools:devtools_all_files",
+  ]
+}

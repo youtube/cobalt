@@ -31,6 +31,7 @@ group("gn_all") {
     "//cobalt/media_stream:media_stream_test",
     "//cobalt/renderer:renderer_test",
     "//cobalt/web_animations:web_animations_test",
+    "//cobalt/webdriver:webdriver_test",
     "//cobalt/websocket:websocket_test",
     "//cobalt/xhr:xhr_test",
   ]
