@@ -106,6 +106,10 @@ def MaybeDownloadFileFromGcs(bucket, sha1_file, output_file, force=False):
   if not tmp_file:
     return False
 
+  output_dir = os.path.dirname(output_file)
+  if not os.path.exists(output_dir):
+    os.makedirs(output_dir)
+
   shutil.move(tmp_file.name, output_file)
   AddExecutableBits(output_file)
   return True

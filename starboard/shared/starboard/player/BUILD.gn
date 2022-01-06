@@ -42,7 +42,7 @@ action("player_download_test_data") {
   }
 
   sha_outputs = []
-  subdir = "starboard/shared/starboard/player/testdata"
+  subdir = "starboard/shared/starboard/player"
   outdir = "$sb_static_contents_output_data_dir/test/$subdir"
   foreach(sha_source, sha_sources) {
     sha_outputs +=
@@ -64,6 +64,6 @@ action("player_download_test_data") {
     "--sha1",
     sha1_dir,
     "--output",
-    rebase_path(outdir, root_build_dir),
+    rebase_path("$outdir/testdata", root_build_dir),
   ]
 }
