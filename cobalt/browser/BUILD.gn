@@ -142,8 +142,7 @@ static_library("browser") {
   }
 
   if (sb_is_evergreen) {
-    # TODO(b/206642994): Migrate //cobalt/updater
-    # deps += [ "//cobalt/updater" ]
+    deps += [ "//cobalt/updater" ]
   } else {
     deps += cobalt_platform_dependencies
   }

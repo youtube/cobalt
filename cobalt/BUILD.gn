@@ -53,6 +53,7 @@ group("default") {
   if (sb_is_evergreen) {
     deps += [
       "//base/util/values:values_util",
+      "//cobalt/updater",
       "//components/client_update_protocol",
       "//components/crx_file",
       "//components/prefs",

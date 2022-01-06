@@ -184,7 +184,6 @@ target(gtest_target_type, "update_client_test") {
   testonly = true
 
   sources = [
-    "//cobalt/updater/utils.cc",
     "component_unpacker_unittest.cc",
 
     # TODO: enable the tests commented out
@@ -210,6 +209,7 @@ target(gtest_target_type, "update_client_test") {
     ":update_client_test_files",
     "//cobalt/base",
     "//cobalt/test:run_all_unittests",
+    "//cobalt/updater",
     "//components/crx_file",
     "//components/prefs",
     "//components/prefs:test_support",
@@ -226,7 +226,6 @@ target(gtest_target_type, "cobalt_slot_management_test") {
   testonly = true
 
   sources = [
-    "//cobalt/updater/utils.cc",
     "//starboard/common/test_main.cc",
     "//starboard/loader_app/system_get_extension_shim.cc",
     "cobalt_slot_management_test.cc",
@@ -235,6 +234,7 @@ target(gtest_target_type, "cobalt_slot_management_test") {
   deps = [
     ":update_client",
     "//cobalt/base",
+    "//cobalt/updater",
     "//components/crx_file",
     "//components/prefs",
     "//components/prefs:test_support",

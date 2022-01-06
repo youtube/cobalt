@@ -1,0 +1,87 @@
+# Copyright 2022 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+static_library("updater") {
+  sources = [
+    "configurator.cc",
+    "configurator.h",
+    "network_fetcher.cc",
+    "network_fetcher.h",
+    "patcher.cc",
+    "patcher.h",
+    "prefs.cc",
+    "prefs.h",
+    "unzipper.cc",
+    "unzipper.h",
+    "updater_constants.cc",
+    "updater_constants.h",
+    "updater_module.cc",
+    "updater_module.h",
+    "utils.cc",
+    "utils.h",
+  ]
+
+  deps = [
+    "//base",
+    "//cobalt/base",
+    "//cobalt/browser:browser_switches",
+    "//cobalt/loader",
+    "//cobalt/network",
+    "//cobalt/script",
+    "//cobalt/script:engine",
+    "//components/crx_file",
+    "//components/prefs",
+    "//components/update_client",
+    "//crypto",
+    "//net",
+    "//starboard:starboard_headers_only",
+    "//starboard/common",
+    "//starboard/loader_app:app_key_files",
+    "//starboard/loader_app:drain_file",
+    "//third_party/zlib:zip",
+    "//url",
+  ]
+
+  # TODO(b/213388707): resolve the dependency cycle and remove this exception.
+  allow_circular_includes_from = [ "//components/update_client" ]
+}
+
+target(final_executable_type, "updater_sandbox") {
+  sources = [
+    "updater.cc",
+    "updater.h",
+    "updater_sandbox.cc",
+  ]
+
+  deps = [
+    ":updater",
+    "//base",
+    "//cobalt/debug:console_command_manager",
+    "//cobalt/network",
+    "//components/crx_file",
+    "//components/prefs",
+    "//components/update_client",
+    "//starboard",
+  ]
+}
+
+target(final_executable_type, "crash_sandbox") {
+  sources = [ "crash_sandbox.cc" ]
+  deps = [ "//starboard" ]
+}
+
+target(final_executable_type, "noop_sandbox") {
+  sources = [ "noop_sandbox.cc" ]
+  deps = [ "//starboard" ]
+}
