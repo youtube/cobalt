@@ -167,11 +167,7 @@ void AudioTrackAudioSink::AudioThreadFunc() {
   SB_LOG(INFO) << "AudioTrackAudioSink thread started.";
 
   int accumulated_written_frames = 0;
-  // TODO: |last_playback_head_changed_at| is also reset when a warning is
-  //       logged after the playback head position hasn't been updated for a
-  //       while.  We should refine the name to make it better reflect its
-  //       usage.
-  SbTime last_playback_head_changed_at = -1;
+  SbTime last_playback_head_event_at = -1;
   SbTime playback_head_not_changed_duration = 0;
   SbTime last_written_succeeded_at = -1;
 
@@ -197,21 +193,21 @@ void AudioTrackAudioSink::AudioThreadFunc() {
           playback_head_position - last_playback_head_position_;
       SbTime now = SbTimeGetMonotonicNow();
 
-      if (last_playback_head_changed_at == -1) {
-        last_playback_head_changed_at = now;
+      if (last_playback_head_event_at == -1) {
+        last_playback_head_event_at = now;
       }
       if (last_playback_head_position_ == playback_head_position) {
-        SbTime elapsed = now - last_playback_head_changed_at;
+        SbTime elapsed = now - last_playback_head_event_at;
         if (elapsed > 5 * kSbTimeSecond) {
           playback_head_not_changed_duration += elapsed;
-          last_playback_head_changed_at = now;
+          last_playback_head_event_at = now;
           SB_LOG(INFO) << "last playback head position is "
                        << last_playback_head_position_
                        << " and it hasn't been updated for " << elapsed
                        << " microseconds.";
         }
       } else {
-        last_playback_head_changed_at = now;
+        last_playback_head_event_at = now;
         playback_head_not_changed_duration = 0;
       }
 
@@ -243,7 +239,7 @@ void AudioTrackAudioSink::AudioThreadFunc() {
       bridge_.Pause();
     } else if (!was_playing && is_playing) {
       was_playing = true;
-      last_playback_head_changed_at = -1;
+      last_playback_head_event_at = -1;
       playback_head_not_changed_duration = 0;
       last_written_succeeded_at = -1;
       bridge_.Play();
