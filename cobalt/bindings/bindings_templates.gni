@@ -314,8 +314,23 @@ template("cache_templates") {
       "//cobalt/bindings/templates/callback-interface-base.h.template",
     ]
 
-    # TODO(b/209507063): Figure out a way to list the actual outputs instead.
-    outputs = [ "${invoker.output_dir}/cached_jinja_templates.stamp" ]
+    # The filenames are hashes of the template file path.
+    outputs = [
+      "${invoker.output_dir}/__jinja2_0458bc0cdbf0dcc5ede1938c55c599dc57dcae71.cache",
+      "${invoker.output_dir}/__jinja2_303dad9caff7b8c046562177d5460bb9f7b159df.cache",
+      "${invoker.output_dir}/__jinja2_4038c00836c6764d385cf4c46462430f9aaf17be.cache",
+      "${invoker.output_dir}/__jinja2_435670c71610a56f1cef61f2d38133c78acac78f.cache",
+      "${invoker.output_dir}/__jinja2_4a2a64213caba2133a0b71aada741965e14fc1bb.cache",
+      "${invoker.output_dir}/__jinja2_4c7f97150281049711d4ce10a328cc061253b390.cache",
+      "${invoker.output_dir}/__jinja2_5d45ad6b9cacef6d9d179dc9099ec37cf6ee1724.cache",
+      "${invoker.output_dir}/__jinja2_65e7aef6627bae7400833440f6e4ae091c710908.cache",
+      "${invoker.output_dir}/__jinja2_74db451681d577fcb9c39eae42a296cbbcf752c7.cache",
+      "${invoker.output_dir}/__jinja2_8e238dc5f6ff498c4406817387ddb7ece64b45bd.cache",
+      "${invoker.output_dir}/__jinja2_b0197cf1f0bbd6fc7944725aec13712883090f68.cache",
+      "${invoker.output_dir}/__jinja2_d049954a9d5a3dc383d37b7673da54b661ec34b0.cache",
+      "${invoker.output_dir}/__jinja2_d09b22d687fad0727f239c3feb23cadd73ac6bc0.cache",
+      "${invoker.output_dir}/__jinja2_df2da080300d5d4b19c5c7b8b87f6a5521d00c89.cache",
+    ]
 
     args = [
       "python2",

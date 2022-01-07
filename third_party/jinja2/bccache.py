@@ -14,7 +14,7 @@
     :copyright: (c) 2010 by the Jinja Team.
     :license: BSD.
 """
-from os import path, listdir
+from os import path, listdir, pardir
 import sys
 import marshal
 import tempfile
@@ -23,6 +23,8 @@ from hashlib import sha1
 from jinja2.utils import open_if_exists
 from jinja2._compat import BytesIO, pickle, PY2, text_type
 
+_REPOSITORY_ROOT = path.abspath(
+    path.join(path.dirname(__file__), pardir, pardir))
 
 # marshal works better on 3.x, one hack less required
 if not PY2:
@@ -173,7 +175,9 @@ class BytecodeCache(object):
         """Return a cache bucket for the given template.  All arguments are
         mandatory but filename may be `None`.
         """
-        key = self.get_cache_key(name, filename)
+        # Use the path to the template relative to the project root to get a
+        # consistent hash.
+        key = self.get_cache_key(name, path.relpath(filename, _REPOSITORY_ROOT))
         checksum = self.get_source_checksum(source)
         bucket = Bucket(environment, key, checksum)
         self.load_bytecode(bucket)
