@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//starboard/android/shared/toolchain/toolchain.gni")
 import("//starboard/shared/starboard/media/media_tests.gni")
 import("//starboard/shared/starboard/player/buildfiles.gni")
 import("//starboard/shared/starboard/player/player_tests.gni")

@@ -48,6 +48,7 @@ assert(!(use_tsan && use_asan), "ASAN and TSAN are mutually exclusive.")
 sb_allows_memory_tracking = !is_gold
 host_byteorder = "little"
 is_official_build = false  # Chromium's build files expect this to be set.
+is_component_build = false
 
 # The os/cpu definitions are here to set the current platform type in
 # os_definitions.gni below.

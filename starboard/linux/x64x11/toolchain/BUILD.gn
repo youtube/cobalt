@@ -12,13 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//build/config/clang/clang.gni")
 import("//build/toolchain/gcc_toolchain.gni")
 
-_home_dir = getenv("HOME")
-_clang_base_path = "$_home_dir/starboard-toolchains/x86_64-linux-gnu-clang-chromium-365097-f7e52fbd-8"
-
 clang_toolchain("host") {
-  clang_base_path = _clang_base_path
+  clang_base_path = clang_base_path
 
   toolchain_args = {
     current_os = "linux"
@@ -27,5 +25,5 @@ clang_toolchain("host") {
 }
 
 clang_toolchain("target") {
-  clang_base_path = _clang_base_path
+  clang_base_path = clang_base_path
 }

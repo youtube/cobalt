@@ -1,4 +1,4 @@
-# Copyright 2021 The Cobalt Authors. All Rights Reserved.
+# Copyright 2022 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,28 +13,21 @@
 # limitations under the License.
 
 import("//build/config/clang/clang.gni")
-import("//build/toolchain/gcc_toolchain.gni")
-import("//starboard/raspi/shared/toolchain/raspi_shared_toolchain.gni")
 
-clang_toolchain("host") {
-  clang_base_path = clang_base_path
-
-  toolchain_args = {
-    current_os = "linux"
-    current_cpu = "x86"
-  }
+declare_args() {
+  android_sdk_path = getenv("ANDROID_HOME")
+  android_ndk_path = ""
+  sb_android_ndk_version = "21.1.6352462"
+  android_ndk_api_level = 21
 }
 
-gcc_toolchain("target") {
-  cc = gcc_toolchain_cc
-  cxx = gcc_toolchain_cxx
-  ld = cxx
-
-  ar = gcc_toolchain_ar
-
-  tail_lib_dependencies = "-l:libpthread.so.0"
-
-  toolchain_args = {
-    is_clang = false
-  }
+if (android_sdk_path == "") {
+  android_sdk_path = "$starboard_toolchains_path/AndroidSdk"
 }
+
+if (android_ndk_path == "") {
+  android_ndk_path = "$android_sdk_path/ndk/$sb_android_ndk_version"
+}
+
+android_toolchain_path =
+    "$android_ndk_path/toolchains/llvm/prebuilt/linux-x86_64"

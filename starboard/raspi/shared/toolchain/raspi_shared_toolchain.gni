@@ -12,12 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-_home_dir = getenv("HOME")
 _raspi_home_dir = getenv("RASPI_HOME")
 assert(_raspi_home_dir != "",
        "RasPi builds require the 'RASPI_HOME' environment variable to be set.")
 
-raspi_clang_base_path = "$_home_dir/starboard-toolchains/x86_64-linux-gnu-clang-chromium-365097-f7e52fbd-8"
 _raspi_toolchain_path = "$_raspi_home_dir/tools/arm-bcm2708/gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf/bin"
 
 gcc_toolchain_ar = "ar"

@@ -16,7 +16,7 @@ import("//build/toolchain/gcc_toolchain.gni")
 import("//starboard/raspi/shared/toolchain/raspi_shared_toolchain.gni")
 
 clang_toolchain("host") {
-  clang_base_path = raspi_clang_base_path
+  clang_base_path = clang_base_path
 
   toolchain_args = {
     current_os = "linux"
@@ -25,12 +25,12 @@ clang_toolchain("host") {
 }
 
 gcc_toolchain("target") {
-  cc = "$gcc_toolchain_cc"
-  cxx = "$gcc_toolchain_cxx"
+  cc = gcc_toolchain_cc
+  cxx = gcc_toolchain_cxx
   ld = cxx
 
-  # We use whatever 'ar' resolves to in gyp.
-  ar = "$gcc_toolchain_ar"
+  # We use whatever 'ar' resolves to.
+  ar = gcc_toolchain_ar
 
   tail_lib_dependencies = "-l:libpthread.so.0"
 
