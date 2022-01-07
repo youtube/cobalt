@@ -54,7 +54,7 @@ config("platform_configuration") {
     "$wdk_include_path/ucrt",
     "$wdk_include_path/um",
     "$wdk_include_path/winrt",
-    "$visual_studio_path/include",
+    "$msvc_path/include",
   ]
   cflags += [
     "/EHsc",

@@ -32,7 +32,7 @@ config("starboard_platform_config") {
   ]
 
   cflags += [
-    "/FU${visual_studio_path}/lib/x86/store/references/platform.winmd",
+    "/FU${msvc_path}/lib/x86/store/references/platform.winmd",
     "/FU${windows_sdk_path}/References/$wdk_version/Windows.Foundation.FoundationContract/3.0.0.0/Windows.Foundation.FoundationContract.winmd",
     "/FU${windows_sdk_path}/References/$wdk_version/Windows.Foundation.UniversalApiContract/7.0.0.0/Windows.Foundation.UniversalApiContract.winmd",
     "/FU${windows_sdk_path}/References/$wdk_version/Windows.Xbox.ApplicationResourcesContract/1.0.0.0/Windows.Xbox.ApplicationResourcesContract.winmd",

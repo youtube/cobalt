@@ -15,8 +15,8 @@
 import("//build/config/win/visual_studio_version.gni")
 import("//build/toolchain/win/msvc_toolchain.gni")
 
-_base_path = "$visual_studio_path/bin/HostX64/x64"
-_libpaths = "/LIBPATH:\"$wdk_lib_path/ucrt/x64\" /LIBPATH:\"$wdk_lib_path/um/x64\" /LIBPATH:\"$visual_studio_path/lib/x64\""
+_base_path = "$msvc_path/bin/HostX64/x64"
+_libpaths = "/LIBPATH:\"$wdk_lib_path/ucrt/x64\" /LIBPATH:\"$wdk_lib_path/um/x64\" /LIBPATH:\"$msvc_path/lib/x64\""
 
 msvc_toolchain("host") {
   cl = "$_base_path/cl.exe"
