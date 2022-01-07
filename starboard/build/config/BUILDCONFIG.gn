@@ -20,8 +20,6 @@ declare_args() {
 
   build_type = "devel"
 
-  target_platform = "stub"
-
   is_starboard = true
 
   cobalt_fastbuild = getenv("IS_CI") == "1"
@@ -69,14 +67,10 @@ if (is_mac) {
 
 # Get the path to the starboard implementation and include its GN
 # configuration.
-starboard_path = exec_script("//starboard/build/platforms.py",
-                             [ target_platform ],
-                             "trim string")
-assert(defined(starboard_path),
-       "Please add your platform to starboard/build/platforms.py")
+import("//starboard/build/platform_path.gni")
 host_toolchain = "//$starboard_path/toolchain:host"
-_default_toolchain = "//$starboard_path/toolchain:target"
-set_default_toolchain(_default_toolchain)
+target_toolchain = "//$starboard_path/toolchain:target"
+set_default_toolchain(target_toolchain)
 
 import("//$starboard_path/platform_configuration/configuration.gni")
 import("//starboard/build/config/build_assertions.gni")
