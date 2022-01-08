@@ -36,7 +36,7 @@ def main(out_directory: str, platform: str, build_type: str,
 
   Path(out_directory).mkdir(parents=True, exist_ok=True)
 
-  if overwrite_args or not os.path.exists(src_args_gn_file):
+  if overwrite_args or not os.path.exists(dst_args_gn_file):
     shutil.copy(src_args_gn_file, dst_args_gn_file)
 
     with open(dst_args_gn_file, 'a') as f:
