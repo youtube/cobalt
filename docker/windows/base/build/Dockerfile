@@ -49,7 +49,7 @@ RUN iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.or
 
 RUN mkdir C:\pip-cache;`
     # Install pip.
-    pip install pypiwin32 six --cache-dir C:\pip-cache;`
+    python2 -m pip install pypiwin32 six --cache-dir C:\pip-cache;`
     C:\fast-win-rmdir.cmd C:\pip-cache;`
     # Configure git global settings.
     git config --global core.autocrlf false;`
@@ -92,6 +92,14 @@ RUN (New-Object Net.WebClient).DownloadFile(`
     -ArgumentList "/S","/D","C:\gcloud-sdk","/noreporting";`
     Remove-Item -Path C:\GoogleCloudSDKInstaller.exe;`
     cmd /S /C setx BOTO_PATH 'C:\Users\ContainerAdministrator\.boto'
+
+# Install Python 3.
+RUN choco install python3 -y -ia '/quiet InstallAllUsers=1 PrependPath=1 TargetDir="C:\Python3"'
+
+# Python `six` package is required to run certain GYP helper scripts.
+RUN mkdir C:\pip-cache;`
+    python -m pip install six --cache-dir C:\pip-cache;`
+    C:\fast-win-rmdir.cmd C:\pip-cache
 
 # Configure common env vars.
 ENV NINJA_STATUS="[%e sec | %f/%t %u remaining | %c/sec | j%r] "
