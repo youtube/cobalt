@@ -135,3 +135,6 @@ sksl_sources = [
   "//third_party/skia/src/sksl/ir/SkSLType.cpp",
   "//third_party/skia/src/sksl/ir/SkSLVariableReference.cpp",
 ]
+
+# Exclude unused skia sksl files
+sksl_sources -= [ "//third_party/skia/src/sksl/SkSLMetalCodeGenerator.cpp" ]
