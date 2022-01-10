@@ -40,7 +40,7 @@ static_library("xhr") {
   if (enable_xhr_header_filtering && !sb_is_evergreen) {
     sources = [ "xhr_modify_headers.h" ]
     defines = [ "COBALT_ENABLE_XHR_HEADER_FILTERING" ]
-    deps += [ cobalt_platform_dependencies ]
+    deps += cobalt_platform_dependencies
   }
 }
 
