@@ -1107,6 +1107,10 @@ component("base") {
       "debug/proc_maps_linux.h",
       "debug/stack_trace_android.cc",
       "debug/stack_trace_win.cc",
+
+      # No usage found for Cobalt yet and they introduce API leaks.
+      "debug/thread_heap_usage_tracker.cc",
+      "debug/thread_heap_usage_tracker.h",
       "file_descriptor_store.cc",
       "file_descriptor_store.h",
       "file_version_info_mac.h",
