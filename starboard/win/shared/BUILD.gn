@@ -375,6 +375,10 @@ static_library("starboard_platform") {
     # "convert_i18n_data",
   ]
 
+  if (is_internal_build) {
+    deps += [ "//starboard/private/shared/stub:private_sources" ]
+  }
+
   if (gl_type == "angle") {
     deps += [ "//third_party/angle:translator" ]
   }

@@ -150,10 +150,11 @@ source_set("starboard_headers_only") {
     "types.h",
     "user.h",
     "window.h",
-
-    # Include private headers, if present.
-    # "<!@pymod_do_main(starboard.build.gyp_functions file_glob <(DEPTH)/starboard/private *.h)",
   ]
+
+  if (is_internal_build) {
+    public_deps = [ "//starboard/private:private_starboard_headers" ]
+  }
 }
 
 if (platform_tests_path == "") {
