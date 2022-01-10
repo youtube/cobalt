@@ -11,12 +11,6 @@ On startup, AutoMem will print a memory table to the output console detailing
 the memory allocations that will be assigned to the various subsystems in
 cobalt.
 
-As an example, at the cost of performance you can reduce CPU memory on your
-platform by 5MB and GPU memory usage on your platform by 10MB using these
-command line flags:
-
-`cobalt --reduce_cpu_memory_by=5MB --reduce_gpu_memory_by=10MB`
-
 Some settings will be "fixed" while others will be "flexible" so that their
 memory consumption will scale down for memory constrained platforms.
 
@@ -24,8 +18,7 @@ Read on for more information.
 
 **IMPORTANT**
 *Setting `--max_cobalt_cpu_usage` and `--max_cobalt_gpu_usage` on the
-command line is a beta feature. When reducing memory, please use
-`--reduce_cpu_memory_by` and `--reduce_gpu_memory_by`.*
+command line is a beta feature.*
 
 ### Memory Settings Table ###
 
@@ -33,33 +26,16 @@ A table similar to the one below, will be printed on startup.
 
 ~~~
 AutoMem:
-
- SETTING NAME                           VALUE                    TYPE   SOURCE
- ________________________________________________________________________________
-|                                      |             |          |      |         |
-| image_cache_size_in_bytes            |    33554432 |  32.0 MB |  GPU | AutoSet |
-|______________________________________|_____________|__________|______|_________|
-|                                      |             |          |      |         |
-| javascript_gc_threshold_in_bytes     |     8388608 |   8.0 MB |  CPU |   Build |
-|______________________________________|_____________|__________|______|_________|
-|                                      |             |          |      |         |
-| misc_cobalt_cpu_size_in_bytes        |   124780544 | 119.0 MB |  CPU | AutoSet |
-|______________________________________|_____________|__________|______|_________|
-|                                      |             |          |      |         |
-| misc_cobalt_gpu_size_in_bytes        |    25165824 |  24.0 MB |  GPU | AutoSet |
-|______________________________________|_____________|__________|______|_________|
-|                                      |             |          |      |         |
-| remote_typeface_cache_size_in_bytes  |     4194304 |   4.0 MB |  CPU |   Build |
-|______________________________________|_____________|__________|______|_________|
-|                                      |             |          |      |         |
-| skia_atlas_texture_dimensions        | 4096x8192x2 |  64.0 MB |  GPU |   Build |
-|______________________________________|_____________|__________|______|_________|
-|                                      |             |          |      |         |
-| skia_cache_size_in_bytes             |     4194304 |   4.0 MB |  GPU |   Build |
-|______________________________________|_____________|__________|______|_________|
-|                                      |             |          |      |         |
-| software_surface_cache_size_in_bytes |         N/A |      N/A |  N/A |     N/A |
-|______________________________________|_____________|__________|______|_________|
+ _______________________________________________________________________________
+|SETTING NAME                          |VALUE        |         |TYPE  |SOURCE   |
+| encoded_image_cache_size_in_bytes    |     1048576 |  1.0 MB |  CPU |   Build |
+| image_cache_size_in_bytes            |    10485760 | 10.0 MB |  GPU | AutoSet |
+| offscreen_target_cache_size_in_bytes |     2097152 |  2.0 MB |  GPU | AutoSet |
+| remote_typeface_cache_size_in_bytes  |     4194304 |  4.0 MB |  CPU |   Build |
+| skia_atlas_texture_dimensions        | 2048x2048x2 |  8.0 MB |  GPU | AutoSet |
+| skia_cache_size_in_bytes             |     4194304 |  4.0 MB |  GPU |   Build |
+| software_surface_cache_size_in_bytes |         N/A |     N/A |  N/A |     N/A |
+|______________________________________|_____________|_________|______|_________|
 
 ~~~
 This table shows the breakdown of how much memory is being allocated to each
@@ -105,8 +81,6 @@ be set from a specific place or automatically generated from Cobalt.
     * `AutoSet (Constrained)`
       * This value was AutoSet to a default value, but then was reduced in
       response to `max_cobalt_cpu_usage` or `max_cobalt_gpu_usage being` set too low.
-      This will also trigger in response to `reduce_cpu_memory_by` or
-      `reduce_cpu_memory_by` being set. See "Memory Scaling" section below.
 
 ### Maximum Memory Table ###
 
@@ -187,18 +161,6 @@ to scale down whenever the memory settings memory consumption exceed the maximum
 **TOTAL** value. The memory settings will be scaled down until their consumption is
 less than or equal the maximum allowed value **TOTAL**. See also **SETTINGS CONSUME**.
 
-Another way to scale down the memory size is by passing the flags
-`--reduce_cpu_memory_by=XX` and `--reduce_gpu_memory_by=XX` which will:
-1) Ignore the `--max_cobalt_cpu_usage` and `--max_cobalt_gpu_usage`.
-2) Use the current memory consumption of the settings and then reduce that by
-   the amount.
-
-For example, if cobalt uses 160MB of CPU memory then passing in
-`--reduce_cpu_memory_by=10MB` to the command line will attempt to reduce the
-footprint of cobalt by 10MB to 150MB. Note that this reduction is an an attempt,
-and it's possible this attempt will fail if the memory reduction is too aggressive
-or if memory settings have been explicitly set via the build or command line.
-
 *Forcing a Memory Setting to be flexible*
 
 If a memory setting is set via a build setting, then it's possible to make it
@@ -269,26 +231,12 @@ cobalt --max_cobalt_cpu_usage=500MB --max_cobalt_gpu_usage=500MB
     * Note that `SbSystemGetTotalGPUMemory()` is optional. If no value exists
       for `max_cobalt_gpu_usage` in build/commandline/starboard settings then no
       GPU memory checking is performed.
-  * `reduce_cpu_memory_by`
-    * This setting will trigger CPU memory consumption to be reduced by the amount
-      specified. *This overrides the memory scaling behavior of `max_cobalt_cpu_usage`*.
-      But this will not affect memory checking of `max_cobalt_cpu_usage` otherwise.
-    * Set via command line or else the platform gyp build file.
-  * `reduce_cpu_memory_by`
-    * This setting will trigger GPU memory consumption to be reduced by the amount
-      specified. *This overrides the memory scaling behavior of `max_cobalt_gpu_usage`*.
-      But this will not affect memory checking of `max_cobalt_gpu_usage` otherwise.
-    * Set via command line or else the platform gyp build file.
 
 #### Memory Setting API ####
 
   * `image_cache_size_in_bytes`
     * See documentation *Image cache capacity* in `performance_tuning.md` for what
       this setting does.
-    * Set via command line, or else build system, or else automatically by Cobalt.
-  * `javascript_gc_threshold_in_bytes`
-    * See documentation *Garbage collection trigger threshold* in `performance_tuning.md`
-      for what this setting does.
     * Set via command line, or else build system, or else automatically by Cobalt.
   * `remote_typeface_cache_size_in_bytes`
     * Determines the capacity of the remote typefaces cache which manages all typefaces
