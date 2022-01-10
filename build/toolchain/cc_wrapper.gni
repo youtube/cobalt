@@ -35,7 +35,13 @@ import("//build/toolchain/rbe.gni")
 declare_args() {
   # Set to "ccache", "icecc" or "distcc".  Probably doesn't work on windows.
   cc_wrapper = ""
-  if (is_starboard && host_os != "win") {
+}
+
+if (is_starboard && cc_wrapper == "") {
+  # TODO(https://crbug.com/gn/273): Use sccache locally as well.
+  if (host_os == "win" && cobalt_fastbuild) {
+    cc_wrapper = "sccache.exe"
+  } else if (host_os != "win") {
     cc_wrapper = "ccache"
   }
 }

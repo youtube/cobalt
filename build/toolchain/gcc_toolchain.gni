@@ -275,9 +275,9 @@ template("gcc_toolchain") {
       compiler_prefix = "$python_path ${_coverage_wrapper} " + compiler_prefix
     }
 
-    cc = compiler_prefix + invoker.cc
-    cxx = compiler_prefix + invoker.cxx
-    asm = asm_prefix + invoker.cc
+    cc = "$compiler_prefix\"${invoker.cc}\""
+    cxx = "$compiler_prefix\"${invoker.cxx}\""
+    asm = "$asm_prefix\"${invoker.cc}\""
     ar = invoker.ar
     ld = "$goma_ld${invoker.ld}"
     if (defined(invoker.readelf)) {
