@@ -87,7 +87,7 @@ if __name__ == '__main__':
     builds_out_directory = args.out_directory
   else:
     builds_directory = os.getenv('COBALT_BUILDS_DIRECTORY',
-                                 args.build_directory or 'out')
+                                 args.builds_directory or 'out')
     builds_out_directory = os.path.join(builds_directory,
                                         f'{args.platform}_{args.build_type}')
 
