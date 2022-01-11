@@ -63,14 +63,14 @@ def GetHeaderDataDefinitionStringForFile(input_file):
     # representing the data in the .h file are less than 80 characters long.
     length_of_output_byte_string = 6
     max_characters_per_line = 80
-    chunk_size = max_characters_per_line / length_of_output_byte_string
+    chunk_size = int(max_characters_per_line / length_of_output_byte_string)
 
     # Convert each byte to ASCII hexadecimal form and output that to the C++
     # header file, line-by-line.
     data_definition_string = '{\n'
     for output_line_data in Chunks(file_contents, chunk_size):
       data_definition_string += (
-          ' '.join(['0x%02x,' % ord(y) for y in output_line_data]) + '\n')
+          ' '.join(['0x{0:02x},'.format(y) for y in output_line_data]) + '\n')
     data_definition_string += '};\n\n'
     return data_definition_string
 
@@ -104,7 +104,7 @@ def GetGenerateMapFunctionString(hash_to_shader_map):
   generate_map_function_string = (
       'inline void GenerateGLSLShaderMap(GLSLShaderHashMap* out_map) {\n')
 
-  for k, v in hash_to_shader_map.iteritems():
+  for k, v in hash_to_shader_map.items():
     input_file_variable_name = GetBasename(v)
     generate_map_function_string += (
         '  (*out_map)[%uU] = ShaderData(%s, sizeof(%s));\n' %
@@ -130,7 +130,7 @@ def GetShaderNameFunctionString(hash_to_shader_map):
       'inline const char *GetShaderName(uint32_t hash_value) {\n'
       '  switch(hash_value) {\n')
 
-  for k, v in hash_to_shader_map.iteritems():
+  for k, v in hash_to_shader_map.items():
     input_file_variable_name = GetBasename(v)
     get_shader_name_function_string += ('    case %uU: return \"%s\";\n' %
                                         (k, input_file_variable_name))
@@ -286,7 +286,7 @@ def CreateHashToShaderMap(glsl_to_shader_map):
   """
   hash_to_glsl_map = {}  # Used for reporting hash map collisions.
   hash_shader_map = {}
-  for k, v in glsl_to_shader_map.iteritems():
+  for k, v in glsl_to_shader_map.items():
     hashed_glsl = HashGLSLShaderFile(k)
     if hashed_glsl in hash_shader_map:
       raise Exception('Hash collision between GLSL files ' + k + ' and ' +
