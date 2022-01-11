@@ -33,8 +33,7 @@ jobs:
           - build-linux-stub
           - build-raspi
 
-    # runs-on: ubuntu-latest
-    runs-on: [self-hosted, linux, X64]
+    runs-on: ubuntu-latest
     steps:
       - name: Log into registry ${{ env.REGISTRY }}
         if: github.event_name != 'pull_request'
