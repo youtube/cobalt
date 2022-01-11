@@ -1,0 +1,48 @@
+# This is a basic workflow to help you get started with Actions
+
+name: raspi
+
+# Controls when the workflow will run
+on:
+  # Triggers the workflow on push or pull request events but only for the main branch
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # This workflow contains a single job called "build"
+  raspi:
+    # The type of runner that the job will run on
+    runs-on: [self-hosted, linux, X64]
+    name: ${{matrix.platform}}-${{matrix.config}}
+    # Create config matrix
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [raspi-2,
+                   raspi-2-skia
+                   raspi-2-skia-sbversion-12,
+                   raspi-2-skia-sbversion-13,
+                   raspi-2-sbversion-12,
+                   raspi-2-sbversion-13,
+                   raspi-2-evergreen-arm-hardfp,
+                   raspi-2-evergreen-arm-hardfp-sbversion-12,
+                   raspi-2-evergreen-arm-hardfp-sbversion-13]
+        config: [devel, debug]
+      # The container to run the job in.
+    container: ghcr.io/kaidokert/cobalt-build-raspi:latest
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - name: checkout
+        uses: actions/checkout@v2
+      # Run build
+      - name: ${{matrix.platform}}-${{matrix.config}}
+        run: |
+          $GITHUB_WORKSPACE/cobalt/build/gyp_cobalt -v -C ${{ matrix.config }} ${{ matrix.platform }}
+          ninja -v -j 8 -C $GITHUB_WORKSPACE/out/${{ matrix.platform }}_${{ matrix.config }} eztime_test_deploy nplb_deploy app_launcher_zip
