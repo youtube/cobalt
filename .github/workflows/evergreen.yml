@@ -19,6 +19,7 @@ jobs:
   evergreen:
     # The type of runner that the job will run on
     runs-on: [self-hosted, linux, X64]
+    name: ''
     # Create config matrix
     strategy:
       matrix:
