@@ -1,6 +1,6 @@
 # This is a basic workflow to help you get started with Actions
 
-name: raspi
+name: CI
 
 # Controls when the workflow will run
 on:
@@ -101,6 +101,7 @@ jobs:
   
   # Evergreen jobs.
   evergreen:
+    needs: docker-image-build
     # The type of runner that the job will run on
     runs-on: [self-hosted, linux, X64]
     name: ${{matrix.platform}}-${{matrix.config}}
@@ -133,6 +134,7 @@ jobs:
   
   # XB1 Jobs.
   xb1:
+    needs: docker-image-build
     # The type of runner that the job will run on
     runs-on: [self-hosted, X64, windows]
     # Steps represent a sequence of tasks that will be executed as part of the job
