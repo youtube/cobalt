@@ -87,9 +87,9 @@ public class MediaPlaybackService extends Service {
     // Do not remove notification here.
     stopForeground(false);
     stopSelf();
-    // Delete notification after foreground stopped.
-    deleteChannel();
+    // Delete notification and channel after service stopped.
     hideNotification();
+    deleteChannel();
   }
 
   private void hideNotification() {
