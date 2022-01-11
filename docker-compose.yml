@@ -17,6 +17,7 @@ version: '2.4'
 volumes:
   android-debug-keystore:
   container-ccache:
+  container-starboard-toolchains:
 
 x-common-definitions: &common-definitions
   stdin_open: true
@@ -27,6 +28,7 @@ x-build-volumes: &build-volumes
     - ${COBALT_SRC:-.}:/code/
     - android-debug-keystore:/root/.android/
     - ${CCACHE_DIR:-container-ccache}:/root/ccache
+    - ${STARBOARD_TOOLCHAINS_DIR:-container-starboard-toolchains}:/root/starboard-toolchains
 
 x-build-common-definitions: &build-common-definitions
   <<: *common-definitions
@@ -105,9 +107,6 @@ services:
     build:
       context: ./docker/linux
       dockerfile: base/build/Dockerfile
-      args:
-        # Should match version pinned by Starboard
-        - CLANG_VER=${CLANG_VER:-365097-f7e52fbd-8}
     image: cobalt-build-base
     depends_on:
       - base
@@ -119,19 +118,24 @@ services:
       dockerfile: base/build/Dockerfile
       args:
         - FROM_IMAGE=base-bionic
-        - CLANG_VER=${CLANG_VER:-365097-f7e52fbd-8}
     image: build-base-bionic
     depends_on:
       - base-bionic
     scale: 0
 
-  stub:
+  build-linux-stub:
     <<: *build-common-definitions
     build:
       context: ./docker/linux
       dockerfile: stub/Dockerfile
     image: cobalt-build-linux-stub
     depends_on: [ build-base ]
+    scale: 0
+
+  stub:
+    <<: *build-common-definitions
+    image: cobalt-build-linux-stub
+    depends_on: [ build-linux-stub ]
     environment:
       <<: *shared-build-env
       PLATFORM: stub
@@ -144,11 +148,16 @@ services:
       dockerfile: linux-x64x11/Dockerfile
     image: cobalt-build-linux
     depends_on: [ build-base ]
+    scale: 0
+
+  linux-x64x11:
+    <<: *build-common-definitions
+    image: cobalt-build-linux
+    depends_on: [ build-linux]
     environment:
       <<: *shared-build-env
       PLATFORM: linux-x64x11
       CONFIG: ${CONFIG:-debug}
-      TARGET: ${TARGET:-cobalt_deploy}
 
   linux-x64x11-bionic:
     <<: *common-definitions
@@ -163,20 +172,6 @@ services:
       - build-base-bionic
     scale: 0
 
-  linux-x64x11-gcc:
-    <<: *common-definitions
-    <<: *build-volumes
-    build:
-      context: ./docker/linux
-      dockerfile: gcc-6-3/Dockerfile
-    image: cobalt-build-linux-gcc
-    environment:
-      <<: *shared-build-env
-      PLATFORM: linux-x64x11-gcc-6-3
-      CONFIG: ${CONFIG:-debug}
-    depends_on:
-      - linux-x64x11-bionic
-
   linux-x64x11-clang-3-9:
     <<: *common-definitions
     <<: *build-volumes
@@ -190,6 +185,17 @@ services:
       CONFIG: ${CONFIG:-debug}
     depends_on:
       - linux-x64x11-bionic
+
+  linux-x64x11-clang-3-9-prebuilt:
+    <<: *common-definitions
+    <<: *build-volumes
+    image: gcr.io/cobalt-tools/build-cobalt-linux-x64x11-clang-3-9:1.4
+    environment:
+      <<: *shared-build-env
+      PLATFORM: linux-x64x11-clang-3-9
+      CONFIG: ${CONFIG:-debug}
+      USE_CCACHE: ${USE_CCACHE:-1}
+      NINJA_STATUS: ${NINJA_STATUS}
 
   # Define common build container for Android
   build-android:
@@ -230,12 +236,19 @@ services:
       CONFIG: ${CONFIG:-debug}
       TARGET_CPU: ${TARGET_CPU:-arm64}
 
-  raspi:
+  build-raspi:
     <<: *build-common-definitions
     build:
       context: ./docker/linux/raspi
       dockerfile: ./Dockerfile
     image: cobalt-build-raspi
+    depends_on: [ build-base ]
+    scale: 0
+
+  raspi:
+    <<: *build-common-definitions
+    image: cobalt-build-raspi
+    depends_on: [ build-raspi ]
     environment:
       <<: *shared-build-env
       PLATFORM: ${PLATFORM:-raspi-2}
@@ -248,9 +261,9 @@ services:
       context: ./docker/linux
       dockerfile: evergreen/Dockerfile
     image: cobalt-build-evergreen
-    depends_on: [ build-base ]
     environment:
       <<: *shared-build-env
+    scale: 0
 
   evergreen-x64:
     <<: *build-common-definitions
