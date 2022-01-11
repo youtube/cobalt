@@ -22,6 +22,7 @@ jobs:
     name: ${{matrix.platform}}-${{matrix.config}}
     # Create config matrix
     strategy:
+      fail-fast: false
       matrix:
         platform: [evergreen-x86,
                    evergreen-x86-sbversion-13,
@@ -30,8 +31,8 @@ jobs:
                    evergreen-arm-softfp-sbversion-13,
                    evergreen-arm-softfp-sbversion-12,
                    evergreen-arm64,
-                   evergreen-arm64-softfp-sbversion-13,
-                   evergreen-arm64-softfp-sbversion-12]
+                   evergreen-arm64-sbversion-13,
+                   evergreen-arm64-sbversion-12]
         config: [devel, debug]
       # The container to run the job in.
     container: ghcr.io/kaidokert/cobalt-build-evergreen:latest
