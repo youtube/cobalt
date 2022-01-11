@@ -27,7 +27,7 @@ jobs:
           - build-base
           - build-evergreen
           - build-linux-stub
-          - build-raspi
+          - raspi
 
     runs-on: ubuntu-latest
     steps:
@@ -51,8 +51,9 @@ jobs:
         uses: smartlyio/docker-compose-action@v1
         with:
           serviceName: ${{ matrix.service }}
-          build: false
+          build: true
           push: "on:push"
+          runCommand: true
 
       - name: Tag images
         run: docker tag cobalt-${{ matrix.service }} ${{ steps.meta.outputs.tags }}
