@@ -119,7 +119,6 @@ jobs:
                    evergreen-arm64-sbversion-13,
                    evergreen-arm64-sbversion-12]
         config: [devel, debug]
-      # The container to run the job in.
     container: ghcr.io/isarkis/cobalt-build-evergreen:main
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
@@ -137,6 +136,13 @@ jobs:
     needs: docker-image-build
     # The type of runner that the job will run on
     runs-on: [self-hosted, X64, windows]
+    name: ${{matrix.platform}}-${{matrix.config}}
+    # Create config matrix
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [xb1]
+        config: [devel, debug]
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       # Checkout cobalt repo.
@@ -144,4 +150,4 @@ jobs:
       # Run build
       - name: echo
         run: |
-          powershell echo xb1-qa
+          powershell echo ${{matrix.platform}}-${{matrix.config}}
