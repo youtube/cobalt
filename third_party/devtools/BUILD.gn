@@ -2342,8 +2342,7 @@ action("build_release_devtools") {
     install_content = true
   }
 
-  script = "//starboard/build/run_bash.py"
-  py_script = "scripts/build/build_release_applications.py"
+  script = "scripts/build/build_release_applications.py"
 
   deps = [
     ":aria_properties",
@@ -2361,7 +2360,7 @@ action("build_release_devtools") {
   ]
 
   inputs =
-      [ py_script ] + helper_scripts + all_devtools_files +
+      helper_scripts + all_devtools_files +
       devtools_test_files + generated_scripts + generated_aria_properties +
       application_templates +
       # In `build_release_applications` we sometimes include
@@ -2378,11 +2377,7 @@ action("build_release_devtools") {
     outputs -= generated_test_modules
   }
 
-  args = [
-           "python2",
-           rebase_path(py_script, root_build_dir),
-         ] + devtools_applications +
-         [
+  args = devtools_applications + [
            "--input_path",
            rebase_path("front_end", root_build_dir),
            "--output_path",
@@ -2395,21 +2390,16 @@ action("copy_devtools_modules") {
     install_content = true
   }
 
-  script = "//starboard/build/run_bash.py"
-  py_script = "scripts/build/copy_devtools_modules.py"
+  script = "scripts/build/copy_devtools_modules.py"
 
   deps = [
     ":build_release_devtools",
   ]
 
-  inputs = [ py_script ] + all_devtools_modules
+  inputs = all_devtools_modules
   outputs = copied_devtools_modules
 
-  args = [
-           "python2",
-           rebase_path(py_script, root_build_dir),
-         ] + all_devtools_modules +
-         [
+  args = all_devtools_modules + [
            "--input_path",
            rebase_path(".", root_build_dir),
            "--output_path",

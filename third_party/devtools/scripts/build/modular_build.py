@@ -46,7 +46,7 @@ def load_and_parse_json(filename):
     try:
         return json.loads(read_file(filename))
     except:
-        print 'ERROR: Failed to parse %s' % filename
+        print('ERROR: Failed to parse {}'.format(filename))
         raise
 
 
@@ -74,7 +74,7 @@ class Descriptors:
 
     def application_json(self):
         result = dict()
-        result['modules'] = self.application.values()
+        result['modules'] = list(self.application.values())
         result['has_html'] = self.has_html
         return json.dumps(result)
 
