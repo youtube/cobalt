@@ -54,7 +54,7 @@ jobs:
         uses: smartlyio/docker-compose-action@v1
         with:
           serviceName: ${{ matrix.service }}
-          build: true
+          build: false
           push: "on:push"
 
       - name: Tag images
