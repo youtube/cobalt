@@ -29,7 +29,7 @@ jobs:
           - build-android
           - build-base
           - build-evergreen
-          - build-linux-stub
+          - linux-x64x11
           - raspi
 
     runs-on: ubuntu-latest
