@@ -87,7 +87,7 @@ jobs:
                    raspi-2-evergreen-arm-hardfp-sbversion-13]
         config: [devel, debug]
       # The container to run the job in.
-    container: ghcr.io/isarkis/cobalt-build-raspi:latest
+    container: ghcr.io/isarkis/cobalt-build-raspi:${GITHUB_REF##*/}
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
