@@ -22,17 +22,17 @@ jobs:
     # Create config matrix
     strategy:
       matrix:
+        platform: [evergreen-x86, evergreen-x86-sbversion-13]
         config: [devel, debug]
       # The container to run the job in.
-    #container: ghcr.io/kaidokert/cobalt-build-evergreen:latest
-    container: gcr.io/cobalt-tools/cobalt-build-evergreen:gcb-docker
+    container: ghcr.io/kaidokert/cobalt-build-evergreen:latest
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - name: checkout
         uses: actions/checkout@v2
       # Run build
-      - name: evergreen-${{matrix.config}}
+      - name: ${{matrix.platform}}-${{matrix.config}}
         run: |
-          $GITHUB_WORKSPACE/cobalt/build/gyp_cobalt -v -C ${{ matrix.config }} evergreen-x86
-          ninja -v -j 8 -C $GITHUB_WORKSPACE/out/evergreen-x86_${{ matrix.config }} eztime_test_deploy nplb_deploy app_launcher_zip
+          $GITHUB_WORKSPACE/cobalt/build/gyp_cobalt -v -C ${{ matrix.config }} ${{ matrix.platform }}
+          ninja -v -j 8 -C $GITHUB_WORKSPACE/out/${{ matrix.platform }}_${{ matrix.config }} eztime_test_deploy nplb_deploy app_launcher_zip
