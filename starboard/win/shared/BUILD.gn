@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import("//build/config/win/visual_studio_version.gni")
+import("//starboard/build/convert_i18n_data.gni")
 import("//starboard/shared/starboard/player/buildfiles.gni")
 
 config("starboard_platform_config") {
@@ -366,13 +367,11 @@ static_library("starboard_platform") {
   ]
 
   deps = [
+    "//cobalt/content/i18n/platform/xb1",
     "//starboard/egl_and_gles",
     "//starboard/shared/starboard/media:media_util",
     "//starboard/shared/starboard/player/filter:filter_based_player_sources",
     "//third_party/opus",
-
-    # TODO(b/206034133)
-    # "convert_i18n_data",
   ]
 
   if (is_internal_build) {
