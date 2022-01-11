@@ -13,8 +13,54 @@ on:
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
+env:
+  REGISTRY: ghcr.io
+
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
+  docker-image-build:
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - build-android
+          - build-base
+          - build-evergreen
+          - build-linux-stub
+          - build-raspi
+
+    runs-on: ubuntu-latest
+    steps:
+      - name: Log into registry ${{ env.REGISTRY }}
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v1
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+          
+      - uses: actions/checkout@v2
+
+      - name: Retrieve Docker metadata
+        id: meta
+        uses: docker/metadata-action@v3
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/cobalt-${{ matrix.service }} 
+
+      - name: Build containers with docker-compose
+        uses: smartlyio/docker-compose-action@v1
+        with:
+          serviceName: ${{ matrix.service }}
+          build: false
+          push: "on:push"
+
+      - name: Tag images
+        run: docker tag cobalt-${{ matrix.service }} ${{ steps.meta.outputs.tags }}
+
+      - name: Push images
+        if: github.event_name != 'pull_request'
+        run: docker push ${{ steps.meta.outputs.tags }}
+
   # This workflow contains a single job called "build"
   raspi:
     # The type of runner that the job will run on
@@ -35,7 +81,7 @@ jobs:
                    raspi-2-evergreen-arm-hardfp-sbversion-13]
         config: [devel, debug]
       # The container to run the job in.
-    container: ghcr.io/kaidokert/cobalt-build-raspi:latest
+    container: ghcr.io/isarkis/cobalt-build-raspi:latest
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
