@@ -22,12 +22,17 @@ permissions:
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
   gcr-login:
+    permissions:
+      contents: 'read'
+      id-token: 'write'
     # The type of runner that the job will run on
     runs-on: [self-hosted, linux, X64]
     steps:
+      - name: 'Set up Cloud SDK'
+        uses: 'google-github-actions/setup-gcloud@v0'
       - name: Docker Pull
         run: |
-          docker-credential-gcr configure-docker
+          gcloud auth configure-docker gcr.io
           docker pull gcr.io/cobalt-tools/cobalt-build-android:gcb-docker
   docker-image-build:
     needs: gcr-login
