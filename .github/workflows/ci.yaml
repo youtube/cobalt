@@ -78,13 +78,8 @@ jobs:
       matrix:
         platform: [raspi-2,
                    raspi-2-skia,
-                   raspi-2-skia-sbversion-12,
-                   raspi-2-skia-sbversion-13,
                    raspi-2-sbversion-12,
-                   raspi-2-sbversion-13,
-                   raspi-2-evergreen-arm-hardfp,
-                   raspi-2-evergreen-arm-hardfp-sbversion-12,
-                   raspi-2-evergreen-arm-hardfp-sbversion-13]
+                   raspi-2-sbversion-13]
         config: [devel, debug]
       # The container to run the job in.
     container: ghcr.io/isarkis/cobalt-build-raspi:main
@@ -131,6 +126,39 @@ jobs:
           $GITHUB_WORKSPACE/cobalt/build/gyp_cobalt -v -C ${{ matrix.config }} ${{ matrix.platform }}
           ninja -v -j 8 -C $GITHUB_WORKSPACE/out/${{ matrix.platform }}_${{ matrix.config }} eztime_test_deploy nplb_deploy app_launcher_zip
   
+  # Linux jobs.
+  linux:
+    needs: docker-image-build
+    # The type of runner that the job will run on
+    runs-on: [self-hosted, linux, X64]
+    name: ${{matrix.platform}}-${{matrix.config}}
+    # Create config matrix
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [linux-x64x11,
+                   linux-x64x11-internal,
+                   linux-x64x11-egl,
+                   linux-x64x11-sbversion-11,
+                   linux-x64x11-sbversion-12,
+                   linux-x64x11-sbversion-13,
+                   linux-x64x11-skia]
+        config: [devel, debug]
+    container: ghcr.io/isarkis/cobalt-build-linux:main
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - name: checkout
+        uses: actions/checkout@v2
+      # Run build
+      - name: ${{matrix.platform}}-${{matrix.config}}
+        run: |
+          $GITHUB_WORKSPACE/cobalt/build/gyp_cobalt -v -C ${{ matrix.config }} ${{ matrix.platform }}
+          ninja -v -j 8 -C $GITHUB_WORKSPACE/out/${{ matrix.platform }}_${{ matrix.config }} eztime_test_deploy nplb_deploy app_launcher_zip
+  
+  # XB1 Jobs.
+  xb1:
+    needs: docker-image-build
   # XB1 Jobs.
   xb1:
     needs: docker-image-build
