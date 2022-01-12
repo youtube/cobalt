@@ -35,6 +35,9 @@ jobs:
 
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout files
+        uses: actions/checkout@v2
+      
       - name: Get docker file changes
         id: changed-files
         uses: tj-actions/changed-files@v13.1
@@ -42,6 +45,7 @@ jobs:
           files: |
             docker-compose.yml
             docker/**
+
       - name: Log into registry ${{ env.REGISTRY }}
         if: ${{ (steps.changed-files.outputs.any_changed == true) && (github.event_name != 'pull_request') }}
         uses: docker/login-action@v1
@@ -50,10 +54,6 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
           
-      - name: Checkout files
-        if: steps.changed-files.outputs.any_changed == true
-        uses: actions/checkout@v2
-
       - name: Retrieve Docker metadata
         if: steps.changed-files.outputs.any_changed == true
         id: meta
