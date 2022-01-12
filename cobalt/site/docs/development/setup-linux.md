@@ -9,16 +9,20 @@ binary. Note that the binary has a graphical client and must be run locally
 on the machine that you are using to view the client. For example, you cannot
 SSH into another machine and run the binary on that machine.
 
+These instructions were tested on a fresh ubuntu:20.04 Docker image. (1/12/22)
+Required libraries can differ depending on your Linux distribution and version.
+
 ## Set up your workstation
 
 1.  Run the following command to install packages needed to build and run
     Cobalt on Linux:
 
     ```
-    $ sudo apt install -qqy --no-install-recommends pkgconf ninja-build \
-        bison yasm binutils clang libgles2-mesa-dev mesa-common-dev \
-        libpulse-dev libavresample-dev libasound2-dev libxrender-dev \
-        libxcomposite-dev
+    $ sudo apt update && sudo apt install -qqy --no-install-recommends \
+        pkgconf ninja-build bison yasm binutils clang libgles2-mesa-dev \
+        mesa-common-dev libpulse-dev libavresample-dev libasound2-dev \
+        libxrender-dev libxcomposite-dev libxml2-dev curl git \
+        python3.8-venv python2
     ```
 
 1.  Install Node.js via `nvm`:
@@ -48,6 +52,14 @@ SSH into another machine and run the binary on that machine.
     $ ccache --max-size=20G
     ```
 
+1.  Install necessary python2 packages for GYP. Until Cobalt 23, when we have
+    migrated our build system to GN, we still require some python2 packages:
+
+    ```
+    $ curl https://bootstrap.pypa.io/pip/2.7/get-pip.py | python2
+    $ python2 -m pip install --user requests selenium six
+    ```
+
 1.  Clone the Cobalt code repository. The following `git` command creates a
     `cobalt` directory that contains the repository:
 
@@ -63,17 +75,17 @@ SSH into another machine and run the binary on that machine.
     $ cd cobalt
     ```
 
-<aside class="note">
-<b>Note:</b> Pre-commit is only available on branches later than 22.lts.1+,
-including trunk. The below commands will fail on 22.lts.1+ and earlier branches.
-For earlier branches, run `cd src` and move on to the next section.
-</aside>
+    <aside class="note">
+    <b>Note:</b> Pre-commit is only available on branches later than 22.lts.1+,
+    including trunk. The below commands will fail on 22.lts.1+ and earlier branches.
+    For earlier branches, run `cd src` and move on to the next section.
+    </aside>
 
 1.  Create a Python 3 virtual environment for working on Cobalt (feel free to use `virtualenvwrapper` instead):
 
     ```
-    $ python -m venv ~/.virtualenvs/cobalt_dev
-    $ source ~/.virtualenvs/cobalt_dev
+    $ python3 -m venv ~/.virtualenvs/cobalt_dev
+    $ source ~/.virtualenvs/cobalt_dev/bin/activate
     $ pip install -r requirements.txt
     ```
 
