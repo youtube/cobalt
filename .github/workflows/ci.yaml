@@ -43,7 +43,7 @@ jobs:
             docker-compose.yml
             docker/**
       - name: Log into registry ${{ env.REGISTRY }}
-        if: ${{ (github.event_name != 'pull_request') && (steps.changed-files.outputs.any_changed == "true") }}
+        if: ${{ (steps.changed-files.outputs.any_changed == "true") && (github.event_name != 'pull_request') }}
         uses: docker/login-action@v1
         with:
           registry: ${{ env.REGISTRY }}
