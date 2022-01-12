@@ -27,14 +27,12 @@ jobs:
       id-token: 'write'
     # The type of runner that the job will run on
     runs-on: [self-hosted, linux, X64]
-    container: ghcr.io/isarkis/cobalt-build-linux:main
     steps:
       - name: 'Set up Cloud SDK'
         uses: 'google-github-actions/setup-gcloud@v0'
-      - name: Docker Pull
+      - name: gsutil
         run: |
-          gcloud auth configure-docker gcr.io
-          docker pull gcr.io/cobalt-tools/cobalt-build-android:gcb-docker
+          gsutil ls gs://cobalt-tools_cloudbuild
   docker-image-build:
     needs: gcr-login
     strategy:
