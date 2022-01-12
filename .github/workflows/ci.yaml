@@ -21,21 +21,7 @@ permissions:
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  gcr-login:
-    permissions:
-      contents: 'read'
-      id-token: 'write'
-    # The type of runner that the job will run on
-    runs-on: [self-hosted, linux, X64]
-    container: ghcr.io/isarkis/cobalt-build-linux:main
-    steps:
-      - name: 'Set up Cloud SDK'
-        uses: 'google-github-actions/setup-gcloud@v0'
-      - name: gsutil
-        run: |
-          gsutil ls gs://cobalt-tools_cloudbuild
   docker-image-build:
-    needs: gcr-login
     strategy:
       fail-fast: false
       matrix:
@@ -49,23 +35,34 @@ jobs:
 
     runs-on: ubuntu-latest
     steps:
+      - name: Get docker file changes
+        id: changed-files
+        uses: tj-actions/changed-files@v13.1
+        with:
+          files: |
+            docker-compose.yml
+            docker/**
       - name: Log into registry ${{ env.REGISTRY }}
-        if: github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request' || steps.changed-files.outputs.any_changed == "true"
         uses: docker/login-action@v1
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
           
-      - uses: actions/checkout@v2
+      - name: Checkout files
+        if: steps.changed-files.outputs.any_changed == "true"
+        uses: actions/checkout@v2
 
       - name: Retrieve Docker metadata
+        if: steps.changed-files.outputs.any_changed == "true"
         id: meta
         uses: docker/metadata-action@v3
         with:
           images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/cobalt-${{ matrix.service }} 
 
       - name: Build containers with docker-compose
+        if: steps.changed-files.outputs.any_changed == "true"
         uses: smartlyio/docker-compose-action@v1
         with:
           serviceName: ${{ matrix.service }}
@@ -74,9 +71,11 @@ jobs:
           composeArguments: "--no-start"
 
       - name: Tag images
+        if: steps.changed-files.outputs.any_changed == "true"
         run: docker tag cobalt-${{ matrix.service }} ${{ steps.meta.outputs.tags }}
 
       - name: Push images
+        if: steps.changed-files.outputs.any_changed == "true"
         if: github.event_name != 'pull_request'
         run: docker push ${{ steps.meta.outputs.tags }}
 
