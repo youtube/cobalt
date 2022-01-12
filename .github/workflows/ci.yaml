@@ -49,7 +49,7 @@ jobs:
             docker/**
 
       - name: Log into registry ${{ env.REGISTRY }}
-        if: ${{ (steps.changed-files.outputs.any_changed == true) && (github.event_name != 'pull_request') }}
+        if: ${{ (steps.changed-files.outputs.any_changed == 'true') && (github.event_name != 'pull_request') }}
         uses: docker/login-action@v1
         with:
           registry: ${{ env.REGISTRY }}
@@ -57,14 +57,14 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
           
       - name: Retrieve Docker metadata
-        if: steps.changed-files.outputs.any_changed == true
+        if: steps.changed-files.outputs.any_changed == 'true'
         id: meta
         uses: docker/metadata-action@v3
         with:
           images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/cobalt-${{ matrix.service }} 
 
       - name: Build containers with docker-compose
-        if: steps.changed-files.outputs.any_changed == true
+        if: steps.changed-files.outputs.any_changed == 'true'
         uses: smartlyio/docker-compose-action@v1
         with:
           serviceName: ${{ matrix.service }}
@@ -73,11 +73,11 @@ jobs:
           composeArguments: "--no-start"
 
       - name: Tag images
-        if: steps.changed-files.outputs.any_changed == true
+        if: steps.changed-files.outputs.any_changed == 'true'
         run: docker tag cobalt-${{ matrix.service }} ${{ steps.meta.outputs.tags }}
 
       - name: Push images
-        if: ${{ (steps.changed-files.outputs.any_changed == true) && (github.event_name != 'pull_request') }}
+        if: ${{ (steps.changed-files.outputs.any_changed == 'true') && (github.event_name != 'pull_request') }}
         run: docker push ${{ steps.meta.outputs.tags }}
 
   # Raspi Jobs.
