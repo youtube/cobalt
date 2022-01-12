@@ -37,6 +37,8 @@ jobs:
     steps:
       - name: Checkout files
         uses: actions/checkout@v2
+        with:
+          fetch-depth: 2 
       
       - name: Get docker file changes
         id: changed-files
