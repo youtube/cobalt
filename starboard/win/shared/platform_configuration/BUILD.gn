@@ -136,9 +136,6 @@ config("platform_configuration") {
     # wchar_t is treated as a built-in type.
     "/Zc:wchar_t",
 
-    # Treat warnings as errors.
-    "/WX",
-
     # Don't send error reports to MS.
     "/errorReport:none",
   ]

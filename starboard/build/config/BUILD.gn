@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//build/config/compiler/compiler.gni")
+
 config("base") {
   defines = []
 
@@ -185,5 +187,11 @@ config("no_pedantic_warnings") {
     if (defined(no_pedantic_warnings_config_path)) {
       configs = [ no_pedantic_warnings_config_path ]
     }
+  }
+}
+
+config("warnings_as_errors") {
+  if (is_win && treat_warnings_as_errors) {
+    cflags = [ "/WX" ]
   }
 }

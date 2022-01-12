@@ -245,6 +245,10 @@ angle_source_set("includes") {
 angle_static_library("preprocessor") {
   sources = angle_preprocessor_sources
 
+  if (is_starboard) {
+    suppressed_configs += [ "//starboard/build/config:warnings_as_errors" ]
+  }
+
   public_deps = [
     ":angle_common",
     ":angle_translator_headers",
@@ -502,6 +506,10 @@ angle_static_library("translator") {
   }
 
   public_configs += [ ":external_config" ]
+
+  if (is_starboard) {
+    suppressed_configs += [ "//starboard/build/config:warnings_as_errors" ]
+  }
 
   deps = [
     ":includes",
