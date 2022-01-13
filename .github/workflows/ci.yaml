@@ -16,9 +16,6 @@ on:
 env:
   REGISTRY: ghcr.io
 
-permissions:
-  packages: write
-
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
   docker-image-build:
@@ -77,6 +74,8 @@ jobs:
         run: docker tag cobalt-${{ matrix.service }} ${{ steps.meta.outputs.tags }}
 
       - name: Push images
+        permissions:
+          packages: write
         if: ${{ (steps.changed-files.outputs.any_changed == 'true') && (github.event_name != 'pull_request') }}
         run: docker push ${{ steps.meta.outputs.tags }}
 
