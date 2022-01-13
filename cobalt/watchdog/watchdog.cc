@@ -391,8 +391,8 @@ bool Watchdog::Ping(const std::string& name, const std::string& info) {
     it->second->time_last_pinged_microseconds = SbTimeGetMonotonicNow();
     if (info != "") {
       int64_t current_time = SbTimeToPosix(SbTimeGetNow());
-      it->second->ping_infos.push(std::to_string(current_time) + "\n" + info +
-                                  "\n");
+      it->second->ping_infos.push(std::to_string(current_time) + "\\n" + info +
+                                  "\\n");
       if (it->second->ping_infos.size() > kWatchdogMaxPingInfos)
         it->second->ping_infos.pop();
     }
