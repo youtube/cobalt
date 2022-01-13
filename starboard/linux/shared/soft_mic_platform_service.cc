@@ -50,19 +50,20 @@ CobaltExtensionPlatformService Open(void* context,
                                     const char* name,
                                     ReceiveMessageCallback receive_callback) {
   // The parameter name is allocated by Cobalt, but must be freed here.
-  std::unique_ptr<const char[]> service_name(name);
 
   SB_DCHECK(context);
-  SB_LOG(INFO) << "Open " << service_name.get();
+  SB_LOG(INFO) << "Open " << name;
 
-  if (!Has(&service_name[0])) {
+  if (!Has(name)) {
     SB_LOG(ERROR) << "Cannot open service, does not exist";
+    delete[] name;
     return kCobaltExtensionPlatformServiceInvalid;
   }
 
   CobaltExtensionPlatformService service =
       new CobaltExtensionPlatformServicePrivate({context, receive_callback});
-  SB_LOG(INFO) << "Open() Service created: " << service_name.get();
+  SB_LOG(INFO) << "Open() Service created: " << name;
+  delete[] name;
   return service;
 }
 
