@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <map>
+
 #include "starboard/common/string.h"
 #include "starboard/media.h"
 #include "starboard/nplb/drm_helpers.h"
@@ -290,280 +292,190 @@ TEST(SbMediaCanPlayMimeAndKeySystem, KeySystemWithAttributes) {
   }
 }
 
-// TODO: Create an abstraction to shorten the length of this test.
 TEST(SbMediaCanPlayMimeAndKeySystem, PrintMaximumSupport) {
-  // AVC
-  std::string avc_resolution = "Unsupported";
-  // 1080p
-  SbMediaSupportType result = SbMediaCanPlayMimeAndKeySystem(
-      "video/mp4; codecs=\"avc1.4d402a\"; width=1920; height=1080; "
-      "framerate=30",
-      "");
-  if (result == kSbMediaSupportTypeProbably) {
-    avc_resolution = "1080p";
-    // 2K
-    result = SbMediaCanPlayMimeAndKeySystem(
-        "video/mp4; codecs=\"avc1.64002a\"; width=2560; height=1440; "
-        "framerate=30",
-        "");
-    if (result == kSbMediaSupportTypeProbably) {
-      avc_resolution = "2K";
-      // 4K
-      result = SbMediaCanPlayMimeAndKeySystem(
-          "video/mp4; codecs=\"avc1.64002a\"; width=3840; height=2160; "
-          "framerate=30",
-          "");
-      if (result == kSbMediaSupportTypeProbably) {
-        avc_resolution = "4K";
+  const char* kResolution1080p = "1080p";
+  const char* kResolution2k = "2K";
+  const char* kResolution4k = "4K";
+  const char* kResolution8k = "8K";
+  auto get_max_video_codec_resolution =
+      [=](std::string video_type,
+          const std::map<const char*, std::string> codec_params,
+          std::string framerate) {
+        std::map<const char*, std::string> resolutions = {
+            {kResolution1080p, "width=1920; height=1080;"},
+            {kResolution2k, "width=2560; height=1440;"},
+            {kResolution4k, "width=3840; height=2160;"},
+            {kResolution8k, "width=7680; height=4320;"}};
+
+        std::string max_supported_resolution;
+        for (auto&& it : resolutions) {
+          if (codec_params.find(it.first) == codec_params.end()) {
+            break;
+          }
+          std::string content_type = video_type + "; codecs=\"" +
+                                     codec_params.at(it.first) + "\"; " +
+                                     it.second + " framerate=" + framerate;
+          if (SbMediaCanPlayMimeAndKeySystem(content_type.c_str(), "") !=
+              kSbMediaSupportTypeProbably) {
+            break;
+          }
+          max_supported_resolution = it.first;
+        }
+        return max_supported_resolution.empty() ? "Unsupported"
+                                                : max_supported_resolution;
+      };
+
+  auto get_drm_system_support = [](std::string key_system) {
+    std::map<const char*, std::string> content_types = {
+        {"video/mp4; codecs=\"avc1.4d402a\"", "AVC"},
+        {"video/webm; codecs=\"vp9\"", "VP9"},
+        {"video/mp4; codecs=\"av01.0.08M.08\"", "AV1"},
+        {"audio/mp4; codecs=\"mp4a.40.2\"", "AAC"},
+        {"audio/webm; codecs=\"opus\"", "Opus"},
+        {"audio/mp4; codecs=\"ac-3\"", "AC-3"},
+        {"audio/mp4; codecs=\"ec-3\"", "E-AC-3"}};
+    std::string supported_codecs;
+    for (auto&& it : content_types) {
+      if (SbMediaCanPlayMimeAndKeySystem(it.first, key_system.c_str()) ==
+          kSbMediaSupportTypeProbably) {
+        supported_codecs += it.second + " ";
       }
     }
+    return supported_codecs.empty() ? "Unsupported" : supported_codecs;
+  };
+
+  std::string avc_support =
+      get_max_video_codec_resolution("video/mp4",
+                                     {{kResolution1080p, "avc1.4d402a"},
+                                      {kResolution2k, "avc1.64002a"},
+                                      {kResolution4k, "avc1.64002a"}},
+                                     "30");
+  if (avc_support != "Unsupported") {
+    avc_support += "\n\tAVC HFR: " + get_max_video_codec_resolution(
+                                         "video/mp4",
+                                         {{kResolution1080p, "avc1.4d402a"},
+                                          {kResolution2k, "avc1.64402a"},
+                                          {kResolution4k, "avc1.64402a"}},
+                                         "60");
   }
 
-  // AVC HFR
-  std::string avc_hfr_resolution = "Unsupported";
-  // 1080p
-  result = SbMediaCanPlayMimeAndKeySystem(
-      "video/mp4; codecs=\"avc1.4d402a\"; width=1920; height=1080; "
-      "framerate=60",
-      "");
-  if (result == kSbMediaSupportTypeProbably) {
-    avc_hfr_resolution = "1080p";
-    // 2K
-    result = SbMediaCanPlayMimeAndKeySystem(
-        "video/mp4; codecs=\"avc1.64402a\"; width=2560; height=1440; "
-        "framerate=60",
-        "");
-    if (result == kSbMediaSupportTypeProbably) {
-      avc_hfr_resolution = "2K";
-      // 4K
-      result = SbMediaCanPlayMimeAndKeySystem(
-          "video/mp4; codecs=\"avc1.64402a\"; width=3840; height=2160; "
-          "framerate=60",
-          "");
-      if (result == kSbMediaSupportTypeProbably) {
-        avc_hfr_resolution = "4K";
-      }
+  std::string vp9_support =
+      get_max_video_codec_resolution("video/webm",
+                                     {{kResolution1080p, "vp9"},
+                                      {kResolution2k, "vp9"},
+                                      {kResolution4k, "vp9"}},
+                                     "30");
+  if (vp9_support != "Unsupported") {
+    vp9_support += "\n\tVP9 HFR: " +
+                   get_max_video_codec_resolution("video/webm",
+                                                  {{kResolution1080p, "vp9"},
+                                                   {kResolution2k, "vp9"},
+                                                   {kResolution4k, "vp9"}},
+                                                  "60");
+    std::string vp9_hdr_support = get_max_video_codec_resolution(
+        "video/webm",
+        {{kResolution1080p, "vp09.02.41.10.01.09.16.09.00"},
+         {kResolution2k, "vp09.02.51.10.01.09.16.09.00"},
+         {kResolution4k, "vp09.02.51.10.01.09.16.09.00"}},
+        "30");
+    if (vp9_hdr_support != "Unsupported") {
+      vp9_hdr_support +=
+          "\n\tVP9 HDR HFR: " +
+          get_max_video_codec_resolution(
+              "video/webm",
+              {{kResolution1080p, "vp09.02.41.10.01.09.16.09.00"},
+               {kResolution2k, "vp09.02.51.10.01.09.16.09.00"},
+               {kResolution4k, "vp09.02.51.10.01.09.16.09.00"}},
+              "60");
     }
+    vp9_support += "\n\tVP9 HDR: " + vp9_hdr_support;
   }
-
-  // VP9
-  std::string vp9_resolution = "Unsupported";
-  // 1080p
-  result = SbMediaCanPlayMimeAndKeySystem(
-      "video/webm; codecs=\"vp9\"; width=1920; height=1080; framerate=30", "");
-  if (result == kSbMediaSupportTypeProbably) {
-    vp9_resolution = "1080p";
-    // 2K
-    result = SbMediaCanPlayMimeAndKeySystem(
-        "video/webm; codecs=\"vp9\"; width=2560; height=1440; framerate=30",
-        "");
-    if (result == kSbMediaSupportTypeProbably) {
-      vp9_resolution = "2K";
-      // 4K
-      result = SbMediaCanPlayMimeAndKeySystem(
-          "video/webm; codecs=\"vp9\"; width=3840; height=2160; framerate=30",
-          "");
-      if (result == kSbMediaSupportTypeProbably) {
-        vp9_resolution = "4K";
-      }
+  std::string av1_support =
+      get_max_video_codec_resolution("video/mp4",
+                                     {{kResolution1080p, "av01.0.08M.08"},
+                                      {kResolution2k, "av01.0.12M.08"},
+                                      {kResolution4k, "av01.0.12M.08"},
+                                      {kResolution8k, "av01.0.16M.08"}},
+                                     "30");
+  if (av1_support != "Unsupported") {
+    av1_support += "\n\tAV1 HFR: " + get_max_video_codec_resolution(
+                                         "video/mp4",
+                                         {{kResolution1080p, "av01.0.09M.08"},
+                                          {kResolution2k, "av01.0.12M.08"},
+                                          {kResolution4k, "av01.0.13M.08"},
+                                          {kResolution8k, "av01.0.17M.08"}},
+                                         "60");
+    std::string av1_hdr_support = get_max_video_codec_resolution(
+        "video/mp4",
+        {{kResolution1080p, "av01.0.09M.10.0.110.09.16.09.0"},
+         {kResolution2k, "av01.0.12M.10.0.110.09.16.09.0"},
+         {kResolution4k, "av01.0.13M.10.0.110.09.16.09.0"},
+         {kResolution8k, "av01.0.17M.10.0.110.09.16.09.0"}},
+        "30");
+    if (av1_hdr_support != "Unsupported") {
+      av1_hdr_support +=
+          "\n\tAV1 HDR HFR: " +
+          get_max_video_codec_resolution(
+              "video/mp4",
+              {{kResolution1080p, "av01.0.09M.10.0.110.09.16.09.0"},
+               {kResolution2k, "av01.0.12M.10.0.110.09.16.09.0"},
+               {kResolution4k, "av01.0.13M.10.0.110.09.16.09.0"},
+               {kResolution8k, "av01.0.17M.10.0.110.09.16.09.0"}},
+              "60");
     }
+    av1_support += "\n\tAV1 HDR: " + av1_hdr_support;
   }
 
-  // VP9 HFR
-  std::string vp9_hfr_resolution = "Unsupported";
-  // 1080p
-  result = SbMediaCanPlayMimeAndKeySystem(
-      "video/webm; codecs=\"vp9\"; width=1920; height=1080; framerate=60", "");
-  if (result == kSbMediaSupportTypeProbably) {
-    vp9_hfr_resolution = "1080p";
-    // 2K
-    result = SbMediaCanPlayMimeAndKeySystem(
-        "video/webm; codecs=\"vp9\"; width=2560; height=1440; framerate=60",
-        "");
-    if (result == kSbMediaSupportTypeProbably) {
-      vp9_hfr_resolution = "2K";
-      // 4K
-      result = SbMediaCanPlayMimeAndKeySystem(
-          "video/webm; codecs=\"vp9\"; width=3840; height=2160; framerate=60",
-          "");
-      if (result == kSbMediaSupportTypeProbably) {
-        vp9_hfr_resolution = "4K";
-      }
-    }
-  }
+  std::string aac_support = SbMediaCanPlayMimeAndKeySystem(
+                                "audio/mp4; codecs=\"mp4a.40.2\"; channels=2",
+                                "") == kSbMediaSupportTypeProbably
+                                ? "Supported"
+                                : "Unsupported";
 
-  // VP9 HDR
-  std::string vp9_hdr_resolution = "Unsupported";
-  // 1080p
-  result = SbMediaCanPlayMimeAndKeySystem(
-      "video/webm; codecs=\"vp09.02.51.10.01.09.16.09.00\"; width=1920; "
-      "height=1080; framerate=30",
-      "");
-  if (result == kSbMediaSupportTypeProbably) {
-    vp9_hdr_resolution = "1080p";
-    // 2K
-    result = SbMediaCanPlayMimeAndKeySystem(
-        "video/webm; codecs=\"vp09.02.51.10.01.09.16.09.00\"; width=2560; "
-        "height=1440; framerate=30",
-        "");
-    if (result == kSbMediaSupportTypeProbably) {
-      vp9_hdr_resolution = "2K";
-      // 4K
-      result = SbMediaCanPlayMimeAndKeySystem(
-          "video/webm; codecs=\"vp09.02.51.10.01.09.16.09.00\"; width=3840; "
-          "height=2160; framerate=30",
-          "");
-      if (result == kSbMediaSupportTypeProbably) {
-        vp9_hdr_resolution = "4K";
-      }
-    }
-  }
+  std::string aac51_support = SbMediaCanPlayMimeAndKeySystem(
+                                  "audio/mp4; codecs=\"mp4a.40.2\"; channels=6",
+                                  "") == kSbMediaSupportTypeProbably
+                                  ? "Supported"
+                                  : "Unsupported";
 
-  // AV1
-  std::string av1_resolution = "Unsupported";
-  // 1080p
-  result = SbMediaCanPlayMimeAndKeySystem(
-      "video/mp4; codecs=\"av01.0.09M.08\"; width=1920; "
-      "height=1080; framerate=30",
-      "");
-  if (result == kSbMediaSupportTypeProbably) {
-    av1_resolution = "1080p";
-    // 2K
-    result = SbMediaCanPlayMimeAndKeySystem(
-        "video/mp4; codecs=\"av01.0.12M.08\"; width=2560; "
-        "height=1440; framerate=30",
-        "");
-    if (result == kSbMediaSupportTypeProbably) {
-      av1_resolution = "2K";
-      // 4K
-      result = SbMediaCanPlayMimeAndKeySystem(
-          "video/mp4; codecs=\"av01.0.12M.08\"; width=3840; "
-          "height=2160; framerate=30",
-          "");
-      if (result == kSbMediaSupportTypeProbably) {
-        av1_resolution = "4K";
-      }
-    }
-  }
-  // AV1 HFR
-  std::string av1_hfr_resolution = "Unsupported";
-  // 1080p
-  result = SbMediaCanPlayMimeAndKeySystem(
-      "video/mp4; codecs=\"av01.0.09M.08\"; width=1920; height=1080; "
-      "framerate=60",
-      "");
-  if (result == kSbMediaSupportTypeProbably) {
-    av1_hfr_resolution = "1080p";
-    // 2K
-    result = SbMediaCanPlayMimeAndKeySystem(
-        "video/mp4; codecs=\"av01.0.12M.08\"; width=2560; height=1440; "
-        "framerate=60",
-        "");
-    if (result == kSbMediaSupportTypeProbably) {
-      av1_hfr_resolution = "2K";
-      // 4K
-      result = SbMediaCanPlayMimeAndKeySystem(
-          "video/mp4; codecs=\"av01.0.13M.08\"; width=3840; height=2160; "
-          "framerate=60",
-          "");
-      if (result == kSbMediaSupportTypeProbably) {
-        av1_hfr_resolution = "4K";
-      }
-    }
-  }
+  std::string opus_support = SbMediaCanPlayMimeAndKeySystem(
+                                 "audio/webm; codecs=\"opus\"; "
+                                 "channels=2; bitrate=128000;",
+                                 "") == kSbMediaSupportTypeProbably
+                                 ? "Supported"
+                                 : "Unsupported";
 
-  // AV1 HDR
-  std::string av1_hdr_resolution = "Unsupported";
-  // 1080p
-  result = SbMediaCanPlayMimeAndKeySystem(
-      "video/mp4; codecs=\"av01.0.09M.10.0.110.09.16.09.0\"; width=1920; "
-      "height=1080",
-      "");
-  if (result == kSbMediaSupportTypeProbably) {
-    av1_hdr_resolution = "1080p";
-    // 2K
-    result = SbMediaCanPlayMimeAndKeySystem(
-        "video/mp4; codecs=\"av01.0.12M.10.0.110.09.16.09.0\"; width=2560; "
-        "height=1440",
-        "");
-    if (result == kSbMediaSupportTypeProbably) {
-      av1_hdr_resolution = "2K";
-      // 4K
-      result = SbMediaCanPlayMimeAndKeySystem(
-          "video/mp4; codecs=\"av01.0.13M.10.0.110.09.16.09.0\"; width=3840; "
-          "height=2160",
-          "");
-      if (result == kSbMediaSupportTypeProbably) {
-        av1_hdr_resolution = "4K";
-      }
-    }
-  }
+  std::string opus51_support = SbMediaCanPlayMimeAndKeySystem(
+                                   "audio/webm; codecs=\"opus\"; "
+                                   "channels=6; bitrate=576000;",
+                                   "") == kSbMediaSupportTypeProbably
+                                   ? "Supported"
+                                   : "Unsupported";
 
-  // AAC
-  std::string aac_support = "Unsupported";
-  result = SbMediaCanPlayMimeAndKeySystem(
-      "audio/mp4; codecs=\"mp4a.40.2\"; channels=2", "");
-  if (result == kSbMediaSupportTypeProbably) {
-    aac_support = "Supported";
-  }
+  std::string ac3_support =
+      SbMediaCanPlayMimeAndKeySystem(
+          "audio/mp4; codecs=\"ac-3\"; channels=6; bitrate=512000", "") ==
+              kSbMediaSupportTypeProbably
+          ? "Supported"
+          : "Unsupported";
 
-  // AAC51
-  std::string aac51_support = "Unsupported";
-  result = SbMediaCanPlayMimeAndKeySystem(
-      "audio/mp4; codecs=\"mp4a.40.2\"; channels=6", "");
-  if (result == kSbMediaSupportTypeProbably) {
-    aac51_support = "Supported";
-  }
+  std::string eac3_support =
+      SbMediaCanPlayMimeAndKeySystem(
+          "audio/mp4; codecs=\"ec-3\"; channels=6; bitrate=512000", "") ==
+              kSbMediaSupportTypeProbably
+          ? "Supported"
+          : "Unsupported";
 
-  // Opus
-  std::string opus_support = "Unsupported";
-  result = SbMediaCanPlayMimeAndKeySystem(
-      "audio/webm; codecs=\"opus\"; "
-      "channels=2; bitrate=128000;",
-      "");
-  if (result == kSbMediaSupportTypeProbably) {
-    opus_support = "Supported";
-  }
-
-  // Opus51
-  std::string opus51_support = "Unsupported";
-  result = SbMediaCanPlayMimeAndKeySystem(
-      "audio/webm; codecs=\"opus\"; "
-      "channels=6; bitrate=576000;",
-      "");
-  if (result == kSbMediaSupportTypeProbably) {
-    opus51_support = "Supported";
-  }
-
-  // AC-3
-  std::string ac3_support = "Unsupported";
-  result = SbMediaCanPlayMimeAndKeySystem(
-      "audio/mp4; codecs=\"ac-3\"; channels=6; bitrate=512000", "");
-  if (result == kSbMediaSupportTypeProbably) {
-    ac3_support = "Supported";
-  }
-
-  // E-AC-3
-  std::string eac3_support = "Unsupported";
-  result = SbMediaCanPlayMimeAndKeySystem(
-      "audio/mp4; codecs=\"ec-3\"; channels=6; bitrate=512000", "");
-  if (result == kSbMediaSupportTypeProbably) {
-    eac3_support = "Supported";
-  }
-
-  SB_LOG(INFO) << "\nVideo Codec Capability:\n\tAVC: " << avc_resolution
-               << "\n\tAVC HFR: " << avc_hfr_resolution
-               << "\n\tVP9: " << vp9_resolution
-               << "\n\tVP9 HFR: " << vp9_hfr_resolution
-               << "\n\tVP9 HDR: " << vp9_hdr_resolution
-               << "\n\tAV1: " << av1_resolution
-               << "\n\tAV1 HFR:" << av1_hfr_resolution
-               << "\n\tAV1 HDR:" << av1_hdr_resolution
+  SB_LOG(INFO) << "\nVideo Codec Capability:\n\tAVC: " << avc_support
+               << "\n\tVP9: " << vp9_support << "\n\tAV1: " << av1_support
                << "\n\nAudio Codec Capability:\n\tAAC: " << aac_support
                << "\n\tAAC 51: " << aac51_support
                << "\n\tOpus: " << opus_support
                << "\n\tOpus 51: " << opus51_support
-               << "\n\tAC-3: " << ac3_support << "\n\tE-AC-3: " << eac3_support;
+               << "\n\tAC-3: " << ac3_support << "\n\tE-AC-3: " << eac3_support
+               << "\n\nDRM Capability:\n\tWidevine: "
+               << get_drm_system_support("com.widevine") << "\n\tPlayReady: "
+               << get_drm_system_support("com.youtube.playready");
 }
 
 // TODO: Create an abstraction to shorten the length of this test.
