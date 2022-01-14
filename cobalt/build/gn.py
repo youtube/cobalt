@@ -29,7 +29,7 @@ _BUILD_TYPES = ['debug', 'devel', 'qa', 'gold']
 
 
 def main(out_directory: str, platform: str, build_type: str,
-         overwrite_args: bool):
+         overwrite_args: bool, check_dependencies: bool):
   platform_path = PLATFORMS[platform]
   dst_args_gn_file = os.path.join(out_directory, 'args.gn')
   src_args_gn_file = os.path.join(platform_path, 'args.gn')
@@ -41,8 +41,10 @@ def main(out_directory: str, platform: str, build_type: str,
 
     with open(dst_args_gn_file, 'a') as f:
       f.write(f'build_type = "{build_type}"\n')
-
-  subprocess.check_call(['gn', 'gen', out_directory])
+  extra_args = []
+  if check_dependencies:
+    extra_args += ['--check']
+  subprocess.check_call(['gn', 'gen', out_directory] + extra_args)
 
 
 if __name__ == '__main__':
@@ -81,6 +83,12 @@ if __name__ == '__main__':
       help='Whether or not to overwrite an existing args.gn file if one exists '
       'in the out directory. In general, if the file exists, you should run '
       '`gn args <out_directory>` to edit it instead.')
+  parser.add_argument(
+      '--check',
+      default=False,
+      action='store_true',
+      help='Whether or not to generate the ninja files with the gn --check '
+      'option.')
   args = parser.parse_args()
 
   if args.out_directory:
@@ -92,4 +100,4 @@ if __name__ == '__main__':
                                         f'{args.platform}_{args.build_type}')
 
   main(builds_out_directory, args.platform, args.build_type,
-       args.overwrite_args)
+       args.overwrite_args, args.check)
