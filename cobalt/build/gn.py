@@ -44,7 +44,9 @@ def main(out_directory: str, platform: str, build_type: str,
   extra_args = []
   if check_dependencies:
     extra_args += ['--check']
-  subprocess.check_call(['gn', 'gen', out_directory] + extra_args)
+  gn_command = ['gn', 'gen', out_directory] + extra_args
+  print(' '.join(gn_command))
+  subprocess.check_call(gn_command)
 
 
 if __name__ == '__main__':
