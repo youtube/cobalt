@@ -22,6 +22,9 @@
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/shared/starboard/application.h"
+#if SB_IS(EVERGREEN_COMPATIBLE)
+#include "starboard/elf_loader/evergreen_config.h"
+#endif  // SB_IS(EVERGREEN_COMPATIBLE)
 
 typedef struct CobaltExtensionPlatformServicePrivate {
   void* context;
@@ -49,21 +52,36 @@ bool Has(const char* name) {
 CobaltExtensionPlatformService Open(void* context,
                                     const char* name,
                                     ReceiveMessageCallback receive_callback) {
-  // The parameter name is allocated by Cobalt, but must be freed here.
-
   SB_DCHECK(context);
-  SB_LOG(INFO) << "Open " << name;
+
+  CobaltExtensionPlatformService service;
 
   if (!Has(name)) {
-    SB_LOG(ERROR) << "Cannot open service, does not exist";
-    delete[] name;
-    return kCobaltExtensionPlatformServiceInvalid;
+    SB_LOG(ERROR) << "Open() service name does not exist: " << name;
+    service = kCobaltExtensionPlatformServiceInvalid;
+  } else {
+    SB_LOG(INFO) << "Open() service created: " << name;
+    service =
+        new CobaltExtensionPlatformServicePrivate({context, receive_callback});
   }
 
-  CobaltExtensionPlatformService service =
-      new CobaltExtensionPlatformServicePrivate({context, receive_callback});
-  SB_LOG(INFO) << "Open() Service created: " << name;
-  delete[] name;
+#if SB_IS(EVERGREEN_COMPATIBLE)
+  const bool is_evergreen = elf_loader::EvergreenConfig::GetInstance() != NULL;
+#else
+  const bool is_evergreen = false;
+#endif  // SB_IS(EVERGREEN_COMPATIBLE)
+
+  // The name parameter memory is allocated in h5vcc_platform_service::Open()
+  // with new[] and must be deallocated here.
+  // If we are in an Evergreen build, the name parameter must be deallocated
+  // with SbMemoryDeallocate(), since new[] will map to SbMemoryAllocate()
+  // in an Evergreen build.
+  if (is_evergreen) {
+    SbMemoryDeallocate((void*)name);  // NOLINT
+  } else {
+    delete[] name;
+  }
+
   return service;
 }
 
