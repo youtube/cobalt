@@ -28,6 +28,8 @@ group("gn_all") {
     "//cobalt/layout_tests:web_platform_tests",
     "//cobalt/loader:loader_test",
     "//cobalt/loader/image/sandbox:image_decoder_sandbox",
+    "//cobalt/media/sandbox:media_sandbox",
+    "//cobalt/media/sandbox:web_media_player_sandbox",
     "//cobalt/media_capture:media_capture_test",
     "//cobalt/media_session:media_session_test",
     "//cobalt/media_stream:media_stream_test",
