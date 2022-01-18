@@ -21,7 +21,7 @@ SHELL ["powershell", "-ExecutionPolicy", "Unrestricted", "-Command", `
 WORKDIR "C:\code"
 
 CMD Invoke-Command -ScriptBlock {`
-      python cobalt/build/gyp_cobalt -vvv $env:PLATFORM -C $env:CONFIG;`
+      python2 cobalt/build/gyp_cobalt -vvv $env:PLATFORM -C $env:CONFIG;`
     } | Out-Default;`
     if ($?) {`
       Invoke-Command -ScriptBlock {`

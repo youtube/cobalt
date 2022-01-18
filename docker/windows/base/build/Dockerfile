@@ -32,9 +32,11 @@ COPY ./list_python_processes.py /list_python_processes.py
 # Helper file to ensure python2 is invoked correctly from command line.
 COPY ./python2.bat /python2/python2.bat
 
+# Install deps via chocolatey.
 RUN iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'));`
-    # Install deps via chocolatey.
     mkdir C:\choco-cache;`
+    # Install Python 3 before Python 2, so the default on the path is python2.
+    choco install -y -c C:\choco-cache python3 -ia '/quiet InstallAllUsers=1 PrependPath=1 TargetDir="C:\Python3"';`
     choco install -y -c C:\choco-cache python2 --params '/InstallDir:C:\python2';`
     choco install -y -c C:\choco-cache winflexbison3 --params '/InstallDir:C:\bison';`
     choco install -y -c C:\choco-cache ninja;`
@@ -44,12 +46,18 @@ RUN iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.or
     Write-Host ('Deleting the chocolately download cache');`
     Remove-Item -Force -Recurse $env:TEMP\*;`
     C:\fast-win-rmdir.cmd C:\choco-cache;`
-    # Create copy of python.exe as python2.exe for compatibility with GN builds.
+    # Create version specific copy of each python executable.
+    Copy-Item C:\Python3\python.exe C:\Python3\python3.exe;`
     Copy-Item C:\python2\python.exe C:\python2\python2.exe
 
+# Install python2 packages via PIP.
+# Additionally do the same for python3, and set various configurations.
 RUN mkdir C:\pip-cache;`
-    # Install pip.
     python2 -m pip install pypiwin32 six --cache-dir C:\pip-cache;`
+    C:\fast-win-rmdir.cmd C:\pip-cache;`
+    # Install python3 packages via PIP.
+    mkdir C:\pip-cache;`
+    python3 -m pip install six --cache-dir C:\pip-cache;`
     C:\fast-win-rmdir.cmd C:\pip-cache;`
     # Configure git global settings.
     git config --global core.autocrlf false;`
@@ -61,7 +69,6 @@ RUN mkdir C:\pip-cache;`
     reg add 'HKLM\SYSTEM\CurrentControlSet\Control\FileSystem' /v LongPathsEnabled /t REG_DWORD /reg:64 /d 1 /f;`
     reg add 'HKLM\SYSTEM\CurrentControlSet\Control\FileSystem' /v LongPathsEnabled /t REG_DWORD /d 1 /f;`
     # Environment variables
-    cmd /S /C setx /M python2 'C:\Python2\python.exe';`
     # This fixes a bug running python scripts "LookupError: unknown encoding: cp0".
     cmd /S /C setx /M PYTHONIOENCODING 'UTF-8';`
     # This ensures GYP does not generate PDB files, or create symlinks during build.
@@ -92,14 +99,6 @@ RUN (New-Object Net.WebClient).DownloadFile(`
     -ArgumentList "/S","/D","C:\gcloud-sdk","/noreporting";`
     Remove-Item -Path C:\GoogleCloudSDKInstaller.exe;`
     cmd /S /C setx BOTO_PATH 'C:\Users\ContainerAdministrator\.boto'
-
-# Install Python 3.
-RUN choco install python3 -y -ia '/quiet InstallAllUsers=1 PrependPath=1 TargetDir="C:\Python3"'
-
-# Python `six` package is required to run certain GYP helper scripts.
-RUN mkdir C:\pip-cache;`
-    python -m pip install six --cache-dir C:\pip-cache;`
-    C:\fast-win-rmdir.cmd C:\pip-cache
 
 # Configure common env vars.
 ENV NINJA_STATUS="[%e sec | %f/%t %u remaining | %c/sec | j%r] "
