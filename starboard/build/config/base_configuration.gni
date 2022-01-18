@@ -137,4 +137,6 @@ declare_args() {
 
   # Whether or not to link with thin archives.
   use_thin_archive = true
+
+  sb_use_no_rtti = false
 }
