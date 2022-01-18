@@ -56,11 +56,11 @@ def ConvertSingleFile(filename, output_filename):
     for msg in messages:
       # Use ; as the separator. Which means it better not be in the name.
       assert ';' not in msg.attrib['name']
-      output_file.write(msg.attrib['name'])
-      output_file.write(';')
+      output_file.write(msg.attrib['name'].encode('utf8'))
+      output_file.write(';'.encode('utf8'))
       # Encode the text as UTF8 to accommodate special characters.
       output_file.write(msg.text.encode('utf8'))
-      output_file.write('\n')
+      output_file.write('\n'.encode('utf8'))
 
 
 def GetOutputs(files_to_convert, output_basedir):
