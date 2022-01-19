@@ -1746,7 +1746,6 @@ copy("layout_copy_test_data") {
     "the-dir-attribute/writing-modes-principal-flow-body-propagation.html",
     "the-dir-attribute/writing-modes-principal-flow-root-propagation-expected.png",
     "the-dir-attribute/writing-modes-principal-flow-root-propagation.html",
-    "web-platform-tests/EXCLUDE.FILES",
     "web-platform-tests/WebCryptoAPI/web_platform_tests.txt",
     "web-platform-tests/WebIDL/web_platform_tests.txt",
     "web-platform-tests/XMLHttpRequest/web_platform_tests.txt",
