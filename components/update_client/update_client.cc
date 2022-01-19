@@ -79,7 +79,8 @@ UpdateClientImpl::~UpdateClientImpl() {
   DCHECK(tasks_.empty());
 
 #if defined(STARBOARD)
-  LOG(INFO) << "UpdateClientImpl::~UpdateClientImpl: task_queue_.size=" << task_queue_.size() << " tasks.size=" << tasks_.size();
+  LOG(INFO) << "UpdateClientImpl::~UpdateClientImpl: task_queue_.size="
+            << task_queue_.size() << " tasks.size=" << tasks_.size();
 #endif
 
   config_ = nullptr;
