@@ -32,6 +32,8 @@ group("gn_all") {
     "//cobalt/media_session:media_session_test",
     "//cobalt/media_stream:media_stream_test",
     "//cobalt/renderer:renderer_test",
+    "//cobalt/renderer/sandbox:renderer_sandbox",
+    "//cobalt/renderer/sandbox:scaling_text_sandbox",
     "//cobalt/speech/sandbox:speech_sandbox",
     "//cobalt/web_animations:web_animations_test",
     "//cobalt/webdriver:webdriver_test",
