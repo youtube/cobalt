@@ -29,7 +29,7 @@
           'action_name': 'package_app_launcher',
           'message': 'Zipping <(app_launcher_zip_file)',
           'inputs': [
-            '<!@pymod_do_main(starboard.tools.app_launcher_packager -l)',
+            '<!@pymod_do_main(starboard.tools.app_launcher_packager -l --return_list)',
           ],
           'outputs': [
             '<(app_launcher_zip_file)',
