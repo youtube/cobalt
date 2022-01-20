@@ -176,6 +176,8 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/posix/file_seek.cc",
     "//starboard/shared/posix/file_truncate.cc",
     "//starboard/shared/posix/file_write.cc",
+    "//starboard/shared/posix/free_space.cc",
+    "//starboard/shared/posix/free_space.h",
     "//starboard/shared/posix/log.cc",
     "//starboard/shared/posix/log_flush.cc",
     "//starboard/shared/posix/log_format.cc",

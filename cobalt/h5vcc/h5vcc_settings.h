@@ -23,6 +23,10 @@
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/wrappable.h"
 
+#if SB_IS(EVERGREEN)
+#include "cobalt/updater/updater_module.h"
+#endif
+
 namespace cobalt {
 namespace h5vcc {
 
@@ -33,6 +37,9 @@ class H5vccSettings : public script::Wrappable {
  public:
   explicit H5vccSettings(media::MediaModule* media_module,
                          cobalt::network::NetworkModule* network_module,
+#if SB_IS(EVERGREEN)
+                         cobalt::updater::UpdaterModule* updater_module,
+#endif
                          dom::NavigatorUAData* user_agent_data,
                          script::GlobalEnvironment* global_environment);
 
@@ -46,6 +53,9 @@ class H5vccSettings : public script::Wrappable {
  private:
   media::MediaModule* media_module_;
   cobalt::network::NetworkModule* network_module_ = nullptr;
+#if SB_IS(EVERGREEN)
+  cobalt::updater::UpdaterModule* updater_module_ = nullptr;
+#endif
   dom::NavigatorUAData* user_agent_data_;
   script::GlobalEnvironment* global_environment_;
 

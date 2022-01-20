@@ -16,8 +16,10 @@
 
 #include "cobalt/extension/configuration.h"
 #include "cobalt/extension/crash_handler.h"
+#include "cobalt/extension/free_space.h"
 #include "cobalt/extension/memory_mapped_file.h"
 #include "starboard/common/string.h"
+#include "starboard/shared/posix/free_space.h"
 #include "starboard/shared/posix/memory_mapped_file.h"
 #include "starboard/shared/starboard/crash_handler.h"
 #if SB_IS(EVERGREEN_COMPATIBLE)
@@ -45,6 +47,9 @@ const void* SbSystemGetExtension(const char* name) {
   }
   if (strcmp(name, kCobaltExtensionMemoryMappedFileName) == 0) {
     return starboard::shared::posix::GetMemoryMappedFileApi();
+  }
+  if (strcmp(name, kCobaltExtensionFreeSpaceName) == 0) {
+    return starboard::shared::posix::GetFreeSpaceApi();
   }
   return NULL;
 }

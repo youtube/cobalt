@@ -14,7 +14,11 @@
 
 #include "components/update_client/cobalt_slot_management.h"
 
+#include <algorithm>
+#include <vector>
+
 #include "base/strings/string_util.h"
+#include "cobalt/extension/free_space.h"
 #include "starboard/common/file.h"
 #include "starboard/loader_app/app_key_files.h"
 #include "starboard/loader_app/drain_file.h"
@@ -228,6 +232,55 @@ TEST_F(CobaltSlotManagementTest, NegativeCobaltQuickUpdateBadVersion) {
 TEST_F(CobaltSlotManagementTest, NegativeCobaltQuickUpdate) {
   base::Version version("1.0.0");
   ASSERT_FALSE(CobaltQuickUpdate(api_, version));
+}
+
+TEST_F(CobaltSlotManagementTest, CobaltSkipUpdateNoInstallationMoreSpace) {
+  ASSERT_FALSE(
+      CobaltSkipUpdate(api_, 1024 /* min */, 1025 /* free */, 0 /* cleanup */));
+}
+
+TEST_F(CobaltSlotManagementTest, CobaltSkipUpdateNoInstallationExactSpace) {
+  ASSERT_FALSE(
+      CobaltSkipUpdate(api_, 1024 /* min */, 1024 /* free */, 0 /* cleanup */));
+}
+
+TEST_F(CobaltSlotManagementTest, CobaltSkipUpdateNoInstallationNotEnoughSpace) {
+  ASSERT_TRUE(
+      CobaltSkipUpdate(api_, 1024 /* min */, 1023 /* free */, 0 /* cleanup */));
+}
+
+TEST_F(CobaltSlotManagementTest, CobaltSkipUpdateWithInstallationMoreSpace) {
+  ASSERT_FALSE(
+      CobaltSkipUpdate(api_, 1024 /* min */, 1024 /* free */, 1 /* cleanup */));
+}
+
+TEST_F(CobaltSlotManagementTest, CobaltSkipUpdateWithInstallationExactSpace) {
+  ASSERT_FALSE(
+      CobaltSkipUpdate(api_, 1024 /* min */, 1023 /* free */, 1 /* cleanup */));
+}
+
+TEST_F(CobaltSlotManagementTest,
+       CobaltSkipUpdateWithInstallationNotEnoughSpace) {
+  ASSERT_TRUE(
+      CobaltSkipUpdate(api_, 1024 /* min */, 1022 /* free */, 1 /* cleanup */));
+}
+
+TEST_F(CobaltSlotManagementTest, CobaltInstallationCleanupSizeNoInstallation) {
+  uint64_t size = CobaltInstallationCleanupSize(api_);
+  ASSERT_EQ(size, 0);
+}
+
+TEST_F(CobaltSlotManagementTest,
+       CobaltInstallationCleanupSizeTwoInstallations) {
+  int len1 = strlen(kManifestV1);
+  int len2 = strlen(kManifestV2);
+  ASSERT_NE(len1, len2);
+
+  CreateManifest("installation_1", kManifestV2, len1);
+  CreateManifest("installation_2", kManifestV1, len2);
+
+  uint64_t size = CobaltInstallationCleanupSize(api_);
+  ASSERT_EQ(size, std::min(len1, len2));
 }
 }  // namespace
 

@@ -147,6 +147,8 @@
       '<(DEPTH)/starboard/shared/posix/file_seek.cc',
       '<(DEPTH)/starboard/shared/posix/file_truncate.cc',
       '<(DEPTH)/starboard/shared/posix/file_write.cc',
+      '<(DEPTH)/starboard/shared/posix/free_space.cc',
+      '<(DEPTH)/starboard/shared/posix/free_space.h',
       '<(DEPTH)/starboard/shared/posix/log_flush.cc',
       '<(DEPTH)/starboard/shared/posix/log_format.cc',
       '<(DEPTH)/starboard/shared/posix/log_is_tty.cc',
