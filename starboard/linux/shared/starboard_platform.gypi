@@ -245,6 +245,8 @@
       '<(DEPTH)/starboard/shared/pulse/pulse_dynamic_load_dispatcher.h',
       '<(DEPTH)/starboard/shared/signal/crash_signals_sigaction.cc',
       '<(DEPTH)/starboard/shared/signal/crash_signals.h',
+      '<(DEPTH)/starboard/shared/signal/debug_signals.cc',
+      '<(DEPTH)/starboard/shared/signal/debug_signals.h',
       '<(DEPTH)/starboard/shared/signal/suspend_signals.cc',
       '<(DEPTH)/starboard/shared/signal/suspend_signals.h',
       '<(DEPTH)/starboard/shared/signal/system_request_conceal.cc',

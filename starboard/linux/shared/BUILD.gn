@@ -276,6 +276,8 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/pulse/pulse_dynamic_load_dispatcher.h",
     "//starboard/shared/signal/crash_signals.h",
     "//starboard/shared/signal/crash_signals_sigaction.cc",
+    "//starboard/shared/signal/debug_signals.cc",
+    "//starboard/shared/signal/debug_signals.h",
     "//starboard/shared/signal/suspend_signals.cc",
     "//starboard/shared/signal/suspend_signals.h",
     "//starboard/shared/signal/system_request_conceal.cc",

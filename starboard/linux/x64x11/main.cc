@@ -16,6 +16,7 @@
 
 #include "starboard/configuration.h"
 #include "starboard/shared/signal/crash_signals.h"
+#include "starboard/shared/signal/debug_signals.h"
 #include "starboard/shared/signal/suspend_signals.h"
 #include "starboard/shared/starboard/link_receiver.h"
 #include "starboard/shared/x11/application_x11.h"
@@ -25,6 +26,7 @@
 extern "C" SB_EXPORT_PLATFORM int main(int argc, char** argv) {
   tzset();
   starboard::shared::signal::InstallCrashSignalHandlers();
+  starboard::shared::signal::InstallDebugSignalHandlers();
   starboard::shared::signal::InstallSuspendSignalHandlers();
 
 #if SB_IS(EVERGREEN_COMPATIBLE)
@@ -44,6 +46,7 @@ extern "C" SB_EXPORT_PLATFORM int main(int argc, char** argv) {
     result = application.Run(argc, argv);
   }
   starboard::shared::signal::UninstallSuspendSignalHandlers();
+  starboard::shared::signal::UninstallDebugSignalHandlers();
   starboard::shared::signal::UninstallCrashSignalHandlers();
   return result;
 }
