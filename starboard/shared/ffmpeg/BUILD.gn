@@ -35,14 +35,17 @@ static_library("ffmpeg_dynamic_load") {
   ]
 }
 
-static_library("ffmpeg_linked") {
-  check_includes = false
-  sources = ffmpeg_specialization_sources + [
-              "ffmpeg_linked_audio_decoder_impl.cc",
-              "ffmpeg_linked_dispatch_impl.cc",
-              "ffmpeg_linked_video_decoder_impl.cc",
-            ]
-  public_deps = [ ":ffmpeg_dispatch_sources" ]
+# TODO(b/208910380): ffmpeg_linked doesn't compile for linux locally.
+if (!is_linux) {
+  static_library("ffmpeg_linked") {
+    check_includes = false
+    sources = ffmpeg_specialization_sources + [
+                "ffmpeg_linked_audio_decoder_impl.cc",
+                "ffmpeg_linked_dispatch_impl.cc",
+                "ffmpeg_linked_video_decoder_impl.cc",
+              ]
+    public_deps = [ ":ffmpeg_dispatch_sources" ]
+  }
 }
 
 # We recompile the specialization sources for each different library version.
