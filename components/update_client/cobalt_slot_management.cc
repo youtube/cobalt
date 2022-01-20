@@ -14,8 +14,10 @@
 
 #include "components/update_client/cobalt_slot_management.h"
 
+#include <algorithm>
 #include <vector>
 
+#include "base/files/file_util.h"
 #include "base/values.h"
 #include "cobalt/updater/utils.h"
 #include "components/update_client/utils.h"
@@ -36,6 +38,32 @@ bool CheckBadFileExists(const char* installation_path, const char* app_key) {
             << SbFileExists(bad_app_key_file_path.c_str());
   return !bad_app_key_file_path.empty() &&
          SbFileExists(bad_app_key_file_path.c_str());
+}
+
+uint64_t ComputeSlotSize(
+    const CobaltExtensionInstallationManagerApi* installation_api,
+    int index) {
+  if (!installation_api) {
+    LOG(WARNING) << "ComputeSlotSize: "
+                 << "Missing installation manager extension.";
+    return 0;
+  }
+  std::vector<char> installation_path(kSbFileMaxPath);
+  if (installation_api->GetInstallationPath(index, installation_path.data(),
+                                            kSbFileMaxPath) == IM_EXT_ERROR) {
+    LOG(WARNING) << "ComputeSlotSize: "
+                 << "Failed to get installation path for slot " << index;
+    return 0;
+  }
+  int64_t slot_size =
+      base::ComputeDirectorySize(base::FilePath(installation_path.data()));
+  LOG(INFO) << "ComputeSlotSize: slot_size=" << slot_size;
+  if (slot_size <= 0) {
+    LOG(WARNING) << "ComputeSlotSize: "
+                 << "Failed to compute slot " << index << " size";
+    return 0;
+  }
+  return slot_size;
 }
 }  // namespace
 
@@ -277,4 +305,52 @@ bool CobaltQuickUpdate(
   return false;
 }
 
+bool CobaltSkipUpdate(
+    const CobaltExtensionInstallationManagerApi* installation_api,
+    uint64_t min_free_space_bytes,
+    int64_t free_space_bytes,
+    uint64_t installation_cleanup_size) {
+  LOG(INFO) << "CobaltSkipUpdate: "
+            << " min_free_space_bytes=" << min_free_space_bytes
+            << " free_space_bytes=" << free_space_bytes
+            << " installation_cleanup_size=" << installation_cleanup_size;
+
+  if (free_space_bytes < 0) {
+    LOG(WARNING) << "CobaltSkipUpdate: "
+                 << "Unable to determine free space";
+    return false;
+  }
+
+  if (free_space_bytes + installation_cleanup_size < min_free_space_bytes) {
+    LOG(WARNING) << "CobaltSkipUpdate: Not enough free space";
+    return true;
+  }
+
+  return false;
+}
+
+uint64_t CobaltInstallationCleanupSize(
+    const CobaltExtensionInstallationManagerApi* installation_api) {
+  if (!installation_api) {
+    LOG(WARNING) << "CobaltInstallationCleanupSize: "
+                 << "Missing installation manager extension.";
+    return 0;
+  }
+  int max_slots = installation_api->GetMaxNumberInstallations();
+  if (max_slots == IM_EXT_ERROR) {
+    LOG(ERROR)
+        << "CobaltInstallationCleanupSize: Failed to get max number of slots.";
+    return 0;
+  }
+  // Ignore the system slot 0 and start with slot 1.
+  uint64_t min_slot_size = ComputeSlotSize(installation_api, 1);
+  for (int i = 2; i < max_slots; i++) {
+    uint64_t slot_size = ComputeSlotSize(installation_api, i);
+    if (slot_size < min_slot_size) {
+      min_slot_size = slot_size;
+    }
+  }
+
+  return min_slot_size;
+}
 }  // namespace update_client

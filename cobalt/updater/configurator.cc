@@ -251,6 +251,16 @@ void Configurator::SetUpdaterStatus(const std::string& status) {
   updater_status_ = status;
 }
 
+void Configurator::SetMinFreeSpaceBytes(uint64_t bytes) {
+  base::AutoLock auto_lock(const_cast<base::Lock&>(min_free_space_bytes_lock_));
+  min_free_space_bytes_ = bytes;
+}
+
+uint64_t Configurator::GetMinFreeSpaceBytes() {
+  base::AutoLock auto_lock(const_cast<base::Lock&>(min_free_space_bytes_lock_));
+  return min_free_space_bytes_;
+}
+
 std::string Configurator::GetPreviousUpdaterStatus() const {
   base::AutoLock auto_lock(
       const_cast<base::Lock&>(previous_updater_status_lock_));

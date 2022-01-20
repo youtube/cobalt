@@ -76,6 +76,22 @@ bool CobaltQuickUpdate(
     const CobaltExtensionInstallationManagerApi* installation_api,
     const base::Version& current_version);
 
+// Computes whether Cobalt should skip the update based on the
+// |min_free_space_bytes|, the |free_space_bytes| and the amount of
+// space that can be recovered from |installation_cleanup_size|.
+// The default behavior is to NOT skip unless the measurements
+// show that there isn't enough space to perform the update.
+bool CobaltSkipUpdate(
+    const CobaltExtensionInstallationManagerApi* installation_api,
+    uint64_t min_free_space_bytes,
+    int64_t free_space_bytes,
+    uint64_t installation_cleanup_size);
+
+// Computes the installation cleanup size by taking the min space
+// from all the installation slots excluding the system slot 0.
+uint64_t CobaltInstallationCleanupSize(
+    const CobaltExtensionInstallationManagerApi* installation_api);
+
 }  // namespace update_client
 
 #endif  // COMPONENTS_UPDATE_CLIENT_COBALT_SLOT_MANAGEMENT_H_

@@ -388,5 +388,12 @@ int UpdaterModule::GetInstallationIndex() const {
   return index;
 }
 
+void UpdaterModule::SetMinFreeSpaceBytes(uint64_t bytes) {
+  LOG(INFO) << "UpdaterModule::SetMinFreeSpaceBytes bytes=" << bytes;
+  if (updater_configurator_) {
+    updater_configurator_->SetMinFreeSpaceBytes(bytes);
+  }
+}
+
 }  // namespace updater
 }  // namespace cobalt

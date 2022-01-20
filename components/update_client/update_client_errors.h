@@ -105,6 +105,7 @@ enum class UpdateCheckError {
   // Using 21 that doesn't conflict with the exsiting error codes and stays away
   // from the other codes below 20.
   QUICK_ROLL_FORWARD = 21,
+  OUT_OF_SPACE = 22,
 };
 #endif
 
