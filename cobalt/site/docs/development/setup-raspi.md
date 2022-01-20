@@ -28,7 +28,7 @@ Make sure the card isn't mounted ( `umount /dev/sdX` ).
 Copy the downloaded image to your SD card (the disk, not the partition. E.g. /dev/sdX or /dev/mmcblkX):
 
 ```
-sudo dd bs=4M if=2020-02-13-raspbian-buster-lite_shrunk_20210427.img of=/dev/sdX
+$ sudo dd bs=4M if=2020-02-13-raspbian-buster-lite_shrunk_20210427.img of=/dev/sdX
 ```
 
 ## Set up your workstation
@@ -46,8 +46,8 @@ Raspberry Pi.
 
     ```
     $ sudo apt install -qqy --no-install-recommends g++-multilib \
-          python-requests wget xz-utils libxml2  binutils-aarch64-linux-gnu \
-          binutils-arm-linux-gnueabi  libglib2.0-dev
+        python-requests wget xz-utils libxml2  binutils-aarch64-linux-gnu \
+        binutils-arm-linux-gnueabi  libglib2.0-dev
     ```
 
 1.  Choose a location for the installed toolchain &ndash; e.g. `raspi-tools`
@@ -58,15 +58,15 @@ Raspberry Pi.
 1.  Create the directory for the installed toolchain and go to it:
 
     ```
-    mkdir -p $RASPI_HOME
-    cd $RASPI_HOME
+    $ mkdir -p $RASPI_HOME
+    $ cd $RASPI_HOME
     ```
 
 1.  Download the pre-packaged toolchain and extract it in `$RASPI_HOME`.
 
     ```
-    curl -O https://storage.googleapis.com/cobalt-static-storage/cobalt_raspi_tools.tar.bz2
-    tar xvpf cobalt_raspi_tools.tar.bz2
+    $ curl -O https://storage.googleapis.com/cobalt-static-storage/cobalt_raspi_tools.tar.bz2
+    $ tar xvpf cobalt_raspi_tools.tar.bz2
     ```
 
     (This is a combination of old raspi tools and a newer one from linaro
@@ -91,7 +91,7 @@ Raspberry Pi.
     on the device:
 
     ```
-    rsync -avzLPh --exclude="obj*" --exclude="gen/" \
+    $ rsync -avzLPh --exclude="obj*" --exclude="gen/" \
           $COBALT_SRC/out/raspi-2_debug pi@$RASPI_ADDR:~/
     ```
 
@@ -103,9 +103,9 @@ Raspberry Pi.
     to quit or restart Cobalt.
 
     ```
-    ssh pi@$RASPI_ADDR
-    cd raspi-2_debug
-    ./cobalt
+    $ ssh pi@$RASPI_ADDR
+    $ cd raspi-2_debug
+    $ ./cobalt
     ```
 
     With this approach, you can just hit `[CTRL-C]` to close Cobalt. If you
