@@ -67,7 +67,7 @@ void DrawRectLinearGradient::ExecuteUpdateVertexBuffer(
   vertex_buffer_ = graphics_state->AllocateVertexData(attributes_.size() *
                                                       sizeof(VertexAttributes));
   memcpy(vertex_buffer_, &attributes_[0],
-               attributes_.size() * sizeof(VertexAttributes));
+         attributes_.size() * sizeof(VertexAttributes));
 }
 
 void DrawRectLinearGradient::ExecuteRasterize(
@@ -191,11 +191,13 @@ void DrawRectLinearGradient::AddRectWithAngledGradient(
   // desired rect with angled gradient. This is not as efficient as calculating
   // a triangle strip to describe the rect with angled gradient, but is simpler.
 
-  // Calculate the angle needed to rotate a horizontal gradient into the
-  // angled gradient. (Flip vertical distance because the input coordinate
-  // system's origin is at the top-left.)
-  float gradient_angle = atan2(brush.source().y() - brush.dest().y(),
-                               brush.dest().x() - brush.source().x());
+  // Calculate the angle from the brush source to the brush destination using
+  // atan2 and subtract from PI / 2 in order to align the diagonal of the
+  // horizontal linear gradient rectangle with the angled linear gradient.
+  // (Flip vertical distance because the input coordinate system's origin is at
+  // the top-left.)
+  float gradient_angle = 1.5707f - atan2(brush.source().y() - brush.dest().y(),
+                                         brush.dest().x() - brush.source().x());
   transform_ = math::RotateMatrix(gradient_angle);
 
   // Calculate the endpoints for the horizontal gradient that, when rotated
@@ -203,7 +205,6 @@ void DrawRectLinearGradient::AddRectWithAngledGradient(
   math::Matrix3F inverse_transform = math::RotateMatrix(-gradient_angle);
   math::PointF mapped_source(inverse_transform * brush.source());
   math::PointF mapped_dest(inverse_transform * brush.dest());
-  SB_DCHECK(mapped_source.x() <= mapped_dest.x());
 
   // Calculate a rect large enough that, when rotated by gradient_angle, it
   // will contain the original rect.
