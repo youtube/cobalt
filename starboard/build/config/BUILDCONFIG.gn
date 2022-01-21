@@ -191,25 +191,93 @@ template("loadable_module") {
   }
 }
 
+# Import configuration variables needed for the install targets and install
+# content targets.
+import("//starboard/build/config/install.gni")
+
 # Set up the method of generating the install targets as defined by the
 # platform.
 import("$install_target_path")
+template("install_content") {
+  target(invoker.target_type, target_name) {
+    forward_variables_from(invoker, "*", [ "install_content" ])
+    if (defined(visibility)) {
+      visibility += [ ":${target_name}_install_content" ]
+    }
+  }
+
+  if (defined(invoker.install_content) && invoker.install_content) {
+    action("${target_name}_install_content") {
+      forward_variables_from(invoker, [ "testonly" ])
+
+      deps = [ ":${invoker.target_name}" ]
+
+      sources = get_target_outputs(":${invoker.target_name}")
+
+      install_content_dir = "$sb_install_output_dir/$sb_install_content_subdir"
+      outputs = []
+      foreach(source, sources) {
+        output_path = install_content_dir + "/" +
+                      rebase_path(source, "$sb_static_contents_output_data_dir")
+        outputs += [ output_path ]
+      }
+
+      script = "//starboard/build/copy_install_content.py"
+      args = [
+        "--output_dir",
+        rebase_path(install_content_dir, root_build_dir),
+        "--base_dir",
+        rebase_path(sb_static_contents_output_data_dir, root_build_dir),
+      ]
+      args += rebase_path(sources, root_build_dir)
+    }
+  }
+}
+
+template("action") {
+  install_content(target_name) {
+    forward_variables_from(invoker, "*")
+    target_type = "action"
+  }
+}
+
+template("action_foreach") {
+  install_content(target_name) {
+    forward_variables_from(invoker, "*")
+    target_type = "action_foreach"
+  }
+}
+
+template("copy") {
+  install_content(target_name) {
+    forward_variables_from(invoker, "*")
+    target_type = "copy"
+  }
+}
+
 template("executable") {
   target_with_platform_configs(target_name) {
     target_type = "executable"
-    forward_variables_from(invoker, "*", [ "install_target" ])
+    forward_variables_from(invoker,
+                           "*",
+                           [
+                             "install_target",
+                             "content_deps",
+                           ])
   }
 
   if (!defined(invoker.install_target) || invoker.install_target) {
     executable_target_name = target_name
     install_target(target_name + "_install") {
-      forward_variables_from(invoker,
-                             [
-                               "content",
-                               "testonly",
-                             ])
+      forward_variables_from(invoker, [ "testonly" ])
       installable_target_name = executable_target_name
       type = "executable"
+      deps = []
+      if (defined(invoker.content_deps)) {
+        foreach(content_dep, invoker.content_deps) {
+          deps += [ "${content_dep}_install_content" ]
+        }
+      }
     }
   }
 }
@@ -217,19 +285,26 @@ template("executable") {
 template("shared_library") {
   target_with_platform_configs(target_name) {
     target_type = "shared_library"
-    forward_variables_from(invoker, "*", [ "install_target" ])
+    forward_variables_from(invoker,
+                           "*",
+                           [
+                             "install_target",
+                             "content_deps",
+                           ])
   }
 
   if (!defined(invoker.install_target) || invoker.install_target) {
     shared_library_target_name = target_name
     install_target(target_name + "_install") {
-      forward_variables_from(invoker,
-                             [
-                               "content",
-                               "testonly",
-                             ])
+      forward_variables_from(invoker, [ "testonly" ])
       installable_target_name = shared_library_target_name
       type = "shared_library"
+      deps = []
+      if (defined(invoker.content_deps)) {
+        foreach(content_dep, invoker.content_deps) {
+          deps += [ "${content_dep}_install_content" ]
+        }
+      }
     }
   }
 }

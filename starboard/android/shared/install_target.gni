@@ -13,25 +13,27 @@
 # limitations under the License.
 
 import("//starboard/android/shared/toolchain/toolchain.gni")
+import("//starboard/build/config/install.gni")
 
 template("install_target") {
   not_needed(invoker, [ "type" ])
-  content_dir = "usr/share/cobalt"
 
-  forward_variables_from(invoker,
-                         [
-                           "installable_target_name",
-                           "testonly",
-                         ])
+  forward_variables_from(invoker, [ "installable_target_name" ])
 
   action("build_${target_name}_apk") {
-    deps = [
+    forward_variables_from(invoker,
+                           [
+                             "deps",
+                             "testonly",
+                           ])
+
+    deps += [
       ":$installable_target_name",
       "//starboard/android/apk:apk_sources",
     ]
 
     target_output = "$root_out_dir/lib${installable_target_name}.so"
-    gradle_content_dir = "$sb_install_output_dir/$content_dir"
+    gradle_content_dir = "$sb_install_output_dir/$sb_install_content_subdir"
     gradle_files_dir = "$root_out_dir/gradle/$installable_target_name"
     if (is_gold) {
       gradle_build_type = "release"
@@ -85,6 +87,7 @@ template("install_target") {
   }
 
   group(target_name) {
+    forward_variables_from(invoker, [ "testonly" ])
     deps = [
       ":$installable_target_name",
       ":build_${target_name}_apk",
