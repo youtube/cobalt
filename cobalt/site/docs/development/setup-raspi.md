@@ -4,7 +4,8 @@ title: "Set up your environment - Raspberry Pi"
 ---
 
 These instructions explain how to set up Cobalt for your workstation and your
-Raspberry Pi device.
+Raspberry Pi device. They have been tested with Ubuntu:20.04 and a Raspberry Pi
+3 Model B.
 
 ## Set up your device
 
@@ -30,6 +31,10 @@ Copy the downloaded image to your SD card (the disk, not the partition. E.g. /de
 ```
 $ sudo dd bs=4M if=2020-02-13-raspbian-buster-lite_shrunk_20210427.img of=/dev/sdX
 ```
+After flashing your device, you'll still need to setup your wifi. Login with the
+default pi login, and run `sudo raspi-config`. You'll find wifi settings under
+`1. System Options`, then `S1 Wireless LAN`.
+
 
 ## Set up your workstation
 
@@ -46,7 +51,7 @@ Raspberry Pi.
 
     ```
     $ sudo apt install -qqy --no-install-recommends g++-multilib \
-        python-requests wget xz-utils libxml2  binutils-aarch64-linux-gnu \
+        wget xz-utils libxml2  binutils-aarch64-linux-gnu \
         binutils-arm-linux-gnueabi  libglib2.0-dev
     ```
 
