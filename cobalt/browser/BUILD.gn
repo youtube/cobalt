@@ -50,6 +50,18 @@ target(final_executable_type, "cobalt") {
     "//cobalt/base",
     "//net",
   ]
+  content_deps = [
+    "//cobalt/content/fonts:copy_fonts",
+    "//cobalt/content/fonts:fonts_xml",
+    "//cobalt/dom:licenses",
+    "//cobalt/network:copy_ssl_certificates",
+    "//cobalt/speech:speech_testdata",
+    "//cobalt/webdriver:copy_webdriver_data",
+    "//third_party/icu:icudata",
+  ]
+  if (!is_gold) {
+    content_deps += [ "//cobalt/debug:copy_backend_web_files" ]
+  }
 }
 
 ##############################

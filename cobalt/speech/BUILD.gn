@@ -29,6 +29,8 @@ config("speech_config") {
 }
 
 copy("speech_testdata") {
+  install_content = true
+
   sources = [
     "testdata/audio1.raw",
     "testdata/audio2.raw",

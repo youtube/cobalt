@@ -381,6 +381,7 @@ static_library("dom_exception") {
 }
 
 copy("licenses") {
+  install_content = true
   license_path =
       "licenses/platform/$cobalt_licenses_platform/licenses_cobalt.txt"
   sources = [ "$static_contents_source_dir/$license_path" ]

@@ -108,9 +108,8 @@ static_library("webdriver") {
   }
 }
 
-# TODO: This declares content_deploy_subdirs which should be migrated for
-#       install targets.
 copy("copy_webdriver_data") {
+  install_content = true
   sources = [ "content/webdriver-init.js" ]
   outputs =
       [ "$sb_static_contents_output_data_dir/webdriver/webdriver-init.js" ]

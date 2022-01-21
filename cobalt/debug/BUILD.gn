@@ -93,6 +93,8 @@ static_library("console_command_manager") {
 }
 
 copy("copy_backend_web_files") {
+  install_content = true
+
   sources = [
     "backend/content/css_agent.js",
     "backend/content/dom_agent.js",
