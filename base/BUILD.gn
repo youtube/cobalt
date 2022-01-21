@@ -2572,7 +2572,7 @@ if (!is_starboard && (is_win || is_mac)) {
   }
 }
 
-bundle_data("base_unittests_bundle_data") {
+copy("base_unittests_bundle_data") {
   testonly = true
   sources = [
     "//tools/metrics/histograms/enums.xml",
@@ -2598,12 +2598,14 @@ bundle_data("base_unittests_bundle_data") {
     "test/data/serializer_test.json",
     "test/data/serializer_test_nowhitespace.json",
   ]
-  outputs = [
-    "{{bundle_resources_dir}}/" +
-        "{{source_root_relative_dir}}/{{source_file_part}}",
-  ]
   if (is_starboard) {
     sources -= [ "//tools/metrics/histograms/enums.xml" ]
+    outputs = [ "$sb_static_contents_output_data_dir/test/base/{{source_target_relative}}" ]
+  } else {
+    outputs = [
+      "{{bundle_resources_dir}}/" +
+          "{{source_root_relative_dir}}/{{source_file_part}}",
+    ]
   }
 }
 
