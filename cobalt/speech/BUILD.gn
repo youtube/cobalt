@@ -30,13 +30,13 @@ config("speech_config") {
 
 copy("speech_testdata") {
   sources = [
-    "//cobalt/speech/testdata/audio1.raw",
-    "//cobalt/speech/testdata/audio2.raw",
-    "//cobalt/speech/testdata/audio3.raw",
-    "//cobalt/speech/testdata/quit.raw",
+    "testdata/audio1.raw",
+    "testdata/audio2.raw",
+    "testdata/audio3.raw",
+    "testdata/quit.raw",
   ]
 
-  outputs = [ "$root_build_dir/content/test/{{source_root_relative_dir}}/{{source_file_part}}" ]
+  outputs = [ "$sb_static_contents_output_data_dir/test/{{source_root_relative_dir}}/{{source_file_part}}" ]
 }
 
 static_library("speech") {
