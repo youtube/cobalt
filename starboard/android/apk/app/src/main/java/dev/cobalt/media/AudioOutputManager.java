@@ -60,14 +60,18 @@ public class AudioOutputManager implements CobaltMediaSession.UpdateVolumeListen
       int channelCount,
       int preferredBufferSizeInBytes,
       boolean enableAudioDeviceCallback,
-      int tunnelModeAudioSessionId) {
+      boolean enablePcmContentTypeMovie,
+      int tunnelModeAudioSessionId,
+      boolean isWebAudio) {
     AudioTrackBridge audioTrackBridge =
         new AudioTrackBridge(
             sampleType,
             sampleRate,
             channelCount,
             preferredBufferSizeInBytes,
-            tunnelModeAudioSessionId);
+            enablePcmContentTypeMovie,
+            tunnelModeAudioSessionId,
+            isWebAudio);
     if (!audioTrackBridge.isAudioTrackValid()) {
       Log.e(TAG, "AudioTrackBridge has invalid audio track");
       return null;

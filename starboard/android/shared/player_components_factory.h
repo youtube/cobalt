@@ -69,6 +69,7 @@ class AudioRendererSinkAndroid : public ::starboard::shared::starboard::player::
                                      filter::AudioRendererSinkImpl {
  public:
   explicit AudioRendererSinkAndroid(bool enable_audio_device_callback,
+                                    bool enable_pcm_content_type_movie,
                                     int tunnel_mode_audio_session_id = -1)
       : AudioRendererSinkImpl(
             [=](SbTime start_media_time,
@@ -92,6 +93,7 @@ class AudioRendererSinkAndroid : public ::starboard::shared::starboard::player::
                   frame_buffers_size_in_frames, update_source_status_func,
                   consume_frames_func, error_func, start_media_time,
                   tunnel_mode_audio_session_id, enable_audio_device_callback,
+                  enable_pcm_content_type_movie, false, /* is_web_audio */
                   context);
             }) {}
 
@@ -280,6 +282,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
         strlen(creation_parameters.audio_mime()) > 0) {
       audio_mime_type.RegisterBoolParameter("tunnelmode");
       audio_mime_type.RegisterBoolParameter("enableaudiodevicecallback");
+      audio_mime_type.RegisterBoolParameter("enablepcmcontenttypemovie");
 
       if (!audio_mime_type.is_valid()) {
         *error_message =
@@ -390,6 +393,11 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
           audio_mime_type.GetParamBoolValue("enableaudiodevicecallback", true);
       SB_LOG(INFO) << "AudioDeviceCallback is "
                    << (enable_audio_device_callback ? "enabled." : "disabled.");
+      bool enable_pcm_content_type_movie =
+          audio_mime_type.GetParamBoolValue("enablepcmcontenttypemovie", true);
+      SB_LOG(INFO) << "AudioAttributes::CONTENT_TYPE_MOVIE is "
+                   << (enable_pcm_content_type_movie ? "enabled" : "disabled")
+                   << " for non-tunneled PCM audio playback.";
 
       if (tunnel_mode_audio_session_id != -1) {
         *audio_renderer_sink = TryToCreateTunnelModeAudioRendererSink(
@@ -400,8 +408,8 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
         }
       }
       if (!*audio_renderer_sink) {
-        audio_renderer_sink->reset(
-            new AudioRendererSinkAndroid(enable_audio_device_callback));
+        audio_renderer_sink->reset(new AudioRendererSinkAndroid(
+            enable_audio_device_callback, enable_pcm_content_type_movie));
       }
     }
 
@@ -589,7 +597,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
       const CreationParameters& creation_parameters,
       bool enable_audio_device_callback) {
     scoped_ptr<AudioRendererSink> audio_sink(new AudioRendererSinkAndroid(
-        enable_audio_device_callback, tunnel_mode_audio_session_id));
+        enable_audio_device_callback, true, tunnel_mode_audio_session_id));
     // We need to double check if the audio sink can actually be created.
     int max_cached_frames, min_frames_per_append;
     GetAudioRendererParams(creation_parameters, &max_cached_frames,
