@@ -52,6 +52,10 @@ bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec,
     mime_type.RegisterBoolParameter("tunnelmode");
     // Enables audio passthrough if the codec supports it.
     mime_type.RegisterBoolParameter("audiopassthrough");
+    // Allows for disabling the CONTENT_TYPE_MOVIE AudioAttribute for
+    // non-tunneled playbacks with PCM audio. Enabled by default.
+    // (https://developer.android.com/reference/android/media/AudioAttributes#CONTENT_TYPE_MOVIE)
+    mime_type.RegisterBoolParameter("enablepcmcontenttypemovie");
 
     if (!mime_type.is_valid()) {
       return false;
