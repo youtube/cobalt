@@ -15,14 +15,12 @@
 #ifndef STARBOARD_ANDROID_SHARED_MEDIA_COMMON_H_
 #define STARBOARD_ANDROID_SHARED_MEDIA_COMMON_H_
 
-#include <deque>
-#include <queue>
+#include <cstring>
 
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
 #include "starboard/common/optional.h"
-#include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/media.h"
 #include "starboard/shared/starboard/player/filter/audio_frame_tracker.h"
@@ -34,10 +32,6 @@ namespace shared {
 inline bool IsWidevineL1(const char* key_system) {
   return strcmp(key_system, "com.widevine") == 0 ||
          strcmp(key_system, "com.widevine.alpha") == 0;
-}
-
-inline bool IsWidevineL3(const char* key_system) {
-  return strcmp(key_system, "com.youtube.widevine.l3") == 0;
 }
 
 // Map a supported |SbMediaAudioCodec| into its corresponding mime type
