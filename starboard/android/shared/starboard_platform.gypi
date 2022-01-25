@@ -13,7 +13,7 @@
 # limitations under the License.
 {
   'variables': {
-    'has_input_events_filter' : '<!pymod_do_main(starboard.build.gyp_functions file_exists <(DEPTH)/starboard/android/shared/input_events_filter.cc)',
+    'has_input_events_filter' : '<!pymod_do_main(starboard.build.gyp_functions file_exists <(DEPTH)/starboard/android/shared/internal/input_events_filter.cc)',
     'has_drm_system_extension%': '<!pymod_do_main(starboard.build.gyp_functions file_exists <(DEPTH)/starboard/android/shared/drm_system_extension/drm_system_extension.gyp)',
   },
   'includes': [
@@ -476,8 +476,8 @@
       'conditions': [
         ['has_input_events_filter==1', {
           'sources': [
-            'input_events_filter.cc',
-            'input_events_filter.h',
+            'internal/input_events_filter.cc',
+            'internal/input_events_filter.h',
           ],
           'defines': [
             'STARBOARD_INPUT_EVENTS_FILTER',

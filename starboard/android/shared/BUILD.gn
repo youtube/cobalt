@@ -453,8 +453,8 @@ static_library("starboard_platform") {
 
   if (is_internal_build) {
     sources += [
-      "input_events_filter.cc",
-      "input_events_filter.h",
+      "internal/input_events_filter.cc",
+      "internal/input_events_filter.h",
     ]
     defines = [ "STARBOARD_INPUT_EVENTS_FILTER" ]
     deps += [ "//starboard/android/shared/drm_system_extension" ]
