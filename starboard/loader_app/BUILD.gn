@@ -166,7 +166,7 @@ static_library("installation_manager") {
     "//starboard",
   ]
 
-  if (sb_evergreen_compatible_enable_lite) {
+  if (!sb_evergreen_compatible_enable_lite) {
     deps += [ ":pending_restart" ]
   }
 }

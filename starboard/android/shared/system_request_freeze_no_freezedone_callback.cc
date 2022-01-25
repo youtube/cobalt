@@ -18,7 +18,7 @@
 #include "starboard/shared/starboard/application.h"
 
 #if SB_IS(EVERGREEN_COMPATIBLE) && !SB_IS(EVERGREEN_COMPATIBLE_LITE)
-#include "starboard/loader_app/pending_restart.h"
+#include "starboard/loader_app/pending_restart.h"  // nogncheck
 #endif  // SB_IS(EVERGREEN_COMPATIBLE) && !SB_IS(EVERGREEN_COMPATIBLE_LITE)
 
 #if SB_API_VERSION >= 13
