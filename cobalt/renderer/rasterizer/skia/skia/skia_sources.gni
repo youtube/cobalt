@@ -156,6 +156,7 @@ sksl_sources = [
   "//third_party/skia/src/sksl/SkSLUtil.h",
   "//third_party/skia/src/sksl/analysis/SkSLCanExitWithoutReturningValue.cpp",
   "//third_party/skia/src/sksl/analysis/SkSLCheckProgramUnrolledSize.cpp",
+  "//third_party/skia/src/sksl/analysis/SkSLFinalizationChecks.cpp",
   "//third_party/skia/src/sksl/analysis/SkSLGetLoopUnrollInfo.cpp",
   "//third_party/skia/src/sksl/analysis/SkSLIsConstantExpression.cpp",
   "//third_party/skia/src/sksl/analysis/SkSLProgramUsage.cpp",
