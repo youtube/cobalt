@@ -419,7 +419,7 @@ static_library("starboard_platform_sources") {
   if (is_internal_build) {
     sources += [
       "//starboard/linux/shared/drm_create_system.cc",
-      "//starboard/linux/shared/oemcrypto_engine_device_properties_linux.cc",
+      "//starboard/linux/shared/internal/oemcrypto_engine_device_properties_linux.cc",
       "//starboard/shared/starboard/drm/drm_close_session.cc",
       "//starboard/shared/starboard/drm/drm_destroy_system.cc",
       "//starboard/shared/starboard/drm/drm_generate_session_update_request.cc",

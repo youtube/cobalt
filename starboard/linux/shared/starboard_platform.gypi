@@ -381,7 +381,7 @@
         ],
         'starboard_platform_sources': [
           '<(DEPTH)/starboard/linux/shared/drm_create_system.cc',
-          '<(DEPTH)/starboard/linux/shared/oemcrypto_engine_device_properties_linux.cc',
+          '<(DEPTH)/starboard/linux/shared/internal/oemcrypto_engine_device_properties_linux.cc',
 
           '<(DEPTH)/starboard/shared/starboard/drm/drm_close_session.cc',
           '<(DEPTH)/starboard/shared/starboard/drm/drm_destroy_system.cc',
