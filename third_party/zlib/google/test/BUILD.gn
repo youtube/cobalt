@@ -13,6 +13,10 @@
 # limitations under the License.
 
 copy("zip_unittest_files") {
+  if (is_starboard) {
+    install_content = true
+  }
+
   sources = [
     "data/create_test_zip.sh",
     "data/evil.zip",

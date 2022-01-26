@@ -501,5 +501,7 @@ target(gtest_target_type, "zip_unittests") {
   if (is_starboard) {
     configs -= [ "//starboard/build/config:size" ]
     configs += [ "//starboard/build/config:speed" ]
+
+    content_deps = [ "//third_party/icu:icudata", "//third_party/zlib/google/test:zip_unittest_files" ]
   }
 }

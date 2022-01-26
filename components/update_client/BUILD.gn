@@ -247,4 +247,6 @@ target(gtest_target_type, "cobalt_slot_management_test") {
     "//testing/gmock",
     "//testing/gtest",
   ]
+
+  content_deps = [ "//third_party/icu:icudata" ]
 }

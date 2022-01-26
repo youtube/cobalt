@@ -30,7 +30,6 @@ static_library("renderer_backend") {
 target(gtest_target_type, "graphics_system_test") {
   testonly = true
   sources = [ "graphics_system_test.cc" ]
-
   deps = [
     ":renderer_backend",
     "//cobalt/base",
@@ -39,4 +38,5 @@ target(gtest_target_type, "graphics_system_test") {
     "//testing/gmock",
     "//testing/gtest",
   ]
+  content_deps = [ "//third_party/icu:icudata" ]
 }

@@ -91,6 +91,7 @@ target(gtest_target_type, "app_key_files_test") {
     "//testing/gmock",
     "//testing/gtest",
   ]
+  content_deps = [ "//third_party/icu:icudata" ]
 }
 
 static_library("app_key") {
@@ -117,6 +118,7 @@ target(gtest_target_type, "app_key_test") {
     "//testing/gmock",
     "//testing/gtest",
   ]
+  content_deps = [ "//third_party/icu:icudata" ]
 }
 
 static_library("drain_file") {
@@ -140,6 +142,7 @@ target(gtest_target_type, "drain_file_test") {
     "//testing/gmock",
     "//testing/gtest",
   ]
+  content_deps = [ "//third_party/icu:icudata" ]
 }
 
 static_library("installation_store_proto") {
@@ -186,6 +189,7 @@ target(gtest_target_type, "installation_manager_test") {
     "//testing/gmock",
     "//testing/gtest",
   ]
+  content_deps = [ "//third_party/icu:icudata" ]
 }
 
 static_library("slot_management") {

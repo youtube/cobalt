@@ -30,6 +30,8 @@ static_library("video_dmp") {
 }
 
 action("player_download_test_data") {
+  install_content = true
+
   script = "//tools/download_from_gcs.py"
 
   sha_sources = []

@@ -40,6 +40,11 @@ target(gtest_target_type, "player_filter_tests") {
   ]
 
   deps = cobalt_platform_dependencies
+
+  content_deps = [
+    "//starboard/shared/starboard/player:player_download_test_data",
+    "//third_party/icu:icudata",
+  ]
 }
 
 if (host_os != "win") {
