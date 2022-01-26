@@ -159,6 +159,7 @@ static_library("browser") {
     "//cobalt/ui_navigation",
     "//cobalt/webdriver",
     "//cobalt/websocket",
+    "//cobalt/worker",
     "//cobalt/xhr",
     "//crypto",
     "//nb",

@@ -358,6 +358,7 @@ static_library("dom") {
     "//cobalt/system_window",
     "//cobalt/ui_navigation",
     "//cobalt/web_animations",
+    "//cobalt/worker",
     "//crypto",
     "//nb",
     "//net",

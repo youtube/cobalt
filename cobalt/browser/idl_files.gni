@@ -228,6 +228,8 @@ source_idl_files = [
   "//cobalt/websocket/close_event.idl",
   "//cobalt/websocket/web_socket.idl",
 
+  "//cobalt/worker/service_worker_container.idl",
+
   "//cobalt/xhr/xml_http_request.idl",
   "//cobalt/xhr/xml_http_request_event_target.idl",
   "//cobalt/xhr/xml_http_request_upload.idl",
@@ -373,4 +375,5 @@ dependency_idl_files = [
   "//cobalt/dom/window_timers.idl",
   "//cobalt/media_capture/navigator.idl",
   "//cobalt/media_session/navigator_media_session.idl",
+  "//cobalt/worker/navigator.idl",
 ]

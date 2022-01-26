@@ -237,6 +237,8 @@
         '../websocket/close_event.idl',
         '../websocket/web_socket.idl',
 
+        '../worker/service_worker_container.idl',
+
         '../xhr/xml_http_request.idl',
         '../xhr/xml_http_request_event_target.idl',
         '../xhr/xml_http_request_upload.idl',
@@ -376,6 +378,7 @@
         '../dom/window_timers.idl',
         '../media_capture/navigator.idl',
         '../media_session/navigator_media_session.idl',
+        '../worker/navigator.idl',
     ],
 
     'conditions': [

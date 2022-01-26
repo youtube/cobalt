@@ -83,6 +83,7 @@
         '<(DEPTH)/cobalt/webdriver/webdriver.gyp:*',
         '<(DEPTH)/cobalt/webdriver/webdriver_test.gyp:*',
         '<(DEPTH)/cobalt/websocket/websocket.gyp:*',
+        '<(DEPTH)/cobalt/worker/worker.gyp:*',
         '<(DEPTH)/cobalt/xhr/xhr.gyp:*',
         '<(DEPTH)/crypto/crypto.gyp:crypto_unittests_deploy',
         '<(DEPTH)/third_party/boringssl/boringssl_tool.gyp:*',
