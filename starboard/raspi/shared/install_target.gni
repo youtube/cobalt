@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("toolchain/raspi_shared_toolchain.gni")
+import("//starboard/raspi/shared/toolchain/raspi_shared_toolchain.gni")
 template("install_target") {
   forward_variables_from(invoker, [ "installable_target_name" ])
 
