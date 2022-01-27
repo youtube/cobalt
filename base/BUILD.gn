@@ -2674,6 +2674,8 @@ target(gtest_target_type, "base_unittests") {
     "bit_cast_unittest.cc",
     "bits_unittest.cc",
     "build_time_unittest.cc",
+    # TODO(b/216774170): Fix this test cases, then move to right order.
+    "metrics/persistent_histogram_storage_unittest.cc",
     "callback_helpers_unittest.cc",
     "callback_list_unittest.cc",
     "callback_unittest.cc",
@@ -2796,7 +2798,6 @@ target(gtest_target_type, "base_unittests") {
     "metrics/histogram_unittest.cc",
     "metrics/metrics_hashes_unittest.cc",
     "metrics/persistent_histogram_allocator_unittest.cc",
-    "metrics/persistent_histogram_storage_unittest.cc",
     "metrics/persistent_memory_allocator_unittest.cc",
     "metrics/persistent_sample_map_unittest.cc",
     "metrics/sample_map_unittest.cc",
