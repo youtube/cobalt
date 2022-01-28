@@ -77,6 +77,7 @@
       "front_end/cm_headless/module.json",
       "front_end/cm_modes/module.json",
       "front_end/cm_web_modes/module.json",
+      "front_end/cobalt/module.json",
       "front_end/color_picker/module.json",
       "front_end/color_picker/spectrum.css",
       "front_end/common/module.json",
@@ -548,6 +549,7 @@
     # (Not important since Cobalt doesn't need lighthouse)
 
     'all_devtools_modules': [
+      "front_end/cobalt/cobalt.js",
       "front_end/network/network.js",
       "front_end/network/SignedExchangeInfoView.js",
       "front_end/network/ResourceWebSocketFrameView.js",
@@ -1273,6 +1275,7 @@
     ],
 
     'copied_devtools_modules': [
+      "<(resources_out_dir)/cobalt/cobalt.js",
       "<(resources_out_dir)/network/network.js",
       "<(resources_out_dir)/network/SignedExchangeInfoView.js",
       "<(resources_out_dir)/network/ResourceWebSocketFrameView.js",
