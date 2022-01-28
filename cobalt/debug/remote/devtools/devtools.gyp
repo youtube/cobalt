@@ -150,6 +150,8 @@
       "front_end/cm_web_modes/htmlmixed.js",
       "front_end/cm_web_modes/javascript.js",
       "front_end/cm_web_modes/xml.js",
+      "front_end/cobalt/cobalt.js",
+      "front_end/cobalt/module.json",
       "front_end/color_picker/ContrastDetails.js",
       "front_end/color_picker/ContrastInfo.js",
       "front_end/color_picker/ContrastOverlay.js",
@@ -1034,6 +1036,7 @@
     ],
 
     'generated_non_autostart_non_remote_modules': [
+      "<(resources_out_dir)/cobalt/cobalt.js",
       # "<(resources_out_dir)/animation/animation_module.js",
       # "<(resources_out_dir)/audits2/audits2_module.js",
       "<(resources_out_dir)/browser_console/browser_console_module.js",

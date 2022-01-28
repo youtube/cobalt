@@ -10,6 +10,7 @@
     // { "name": "audits2" },
     { "name": "browser_console" },
     { "name": "browser_debugger" },
+    { "name": "cobalt" },
     // { "name": "cookie_table" },
     // { "name": "devices" },
     { "name": "elements" },
