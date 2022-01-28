@@ -1,0 +1,19 @@
+{
+    "extensions": [
+        {
+            "type": "view",
+            "location": "panel",
+            "id": "cobalt",
+            "title": "Cobalt",
+            "order": 100,
+            "persistence": "permanent",
+            "className": "Cobalt.CobaltPanel"
+        }
+    ],
+    "dependencies": [],
+    "scripts": [],
+    "modules": [
+        "cobalt.js",
+    ],
+    "resources": []
+}
