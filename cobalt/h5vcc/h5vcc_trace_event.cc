@@ -14,6 +14,8 @@
 
 #include "cobalt/h5vcc/h5vcc_trace_event.h"
 
+#include "base/files/file_util.h"
+
 namespace cobalt {
 namespace h5vcc {
 
@@ -29,17 +31,31 @@ void H5vccTraceEvent::Start(const std::string& output_filename) {
   } else {
     base::FilePath output_filepath(
         output_filename.empty() ? kOutputTraceFilename : output_filename);
+    last_absolute_path_.clear();
     trace_to_file_.reset(new trace_event::ScopedTraceToFile(output_filepath));
   }
 }
 
 void H5vccTraceEvent::Stop() {
   if (trace_to_file_) {
+    last_absolute_path_ = trace_to_file_->absolute_output_path();
     trace_to_file_.reset();
   } else {
     DLOG(WARNING) << "H5vccTraceEvent is already stopped.";
   }
 }
+
+std::string H5vccTraceEvent::Read() {
+  if (trace_to_file_) {
+    Stop();
+  }
+  std::string trace;
+  if (!last_absolute_path_.empty()) {
+    ReadFileToString(last_absolute_path_, &trace);
+  }
+  return trace;
+}
+
 
 }  // namespace h5vcc
 }  // namespace cobalt
