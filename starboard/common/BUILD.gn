@@ -24,11 +24,12 @@ source_set("common_headers_only") {
 }
 
 static_library("common") {
+  check_includes = false
+
   public_deps = [
     ":common_headers_only",
     "//starboard:starboard_headers_only",
   ]
-  check_includes = false
 
   sources = [
     "//starboard/shared/media_session/playback_state.cc",
@@ -81,4 +82,19 @@ static_library("common") {
     "thread_collision_warner.cc",
     "thread_collision_warner.h",
   ]
+}
+
+target(gtest_target_type, "common_test") {
+  testonly = true
+  sources = [
+    "memory_test.cc",
+    "socket_test.cc",
+    "test_main.cc",
+  ]
+  deps = [
+    ":common",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+  content_deps = [ "//third_party/icu:icudata" ]
 }
