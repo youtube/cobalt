@@ -51,6 +51,7 @@ class H5vccTraceEvent : public script::Wrappable {
 
   void Start(const std::string& output_filename);
   void Stop();
+  std::string Read();
 
   TRACE_EVENT0_FOR_EACH(DEFINE_H5VCC_TRACE_EVENT0)
   TRACE_EVENT1_FOR_EACH(DEFINE_H5VCC_TRACE_EVENT1)
@@ -61,6 +62,8 @@ class H5vccTraceEvent : public script::Wrappable {
   // This object can be set to start a trace.
   // While initialized, it means that a trace is on-going.
   std::unique_ptr<trace_event::ScopedTraceToFile> trace_to_file_;
+
+  base::FilePath last_absolute_path_;
 
   DISALLOW_COPY_AND_ASSIGN(H5vccTraceEvent);
 };

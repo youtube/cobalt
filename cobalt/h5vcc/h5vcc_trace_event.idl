@@ -19,6 +19,7 @@ interface H5vccTraceEvent {
   // will be used.
   void start(optional DOMString output_filename = "");
   void stop();
+  DOMString read();
 
   void traceBegin(DOMString category, DOMString name);
   void traceEnd(DOMString category, DOMString name);
