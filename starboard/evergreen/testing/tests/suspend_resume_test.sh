@@ -39,7 +39,7 @@ function run_test() {
   clear_storage
 
   LOG="${TEST_NAME}.0.log"
-  start_cobalt "file:///tests/${TEST_FILE}?channel=test" "${LOG}" LOADER --update_check_delay=1
+  start_cobalt "file:///tests/${TEST_FILE}?channel=test" "${LOG}" LOADER --update_check_delay_seconds=1
 
   VAR=1
 
