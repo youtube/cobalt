@@ -16,8 +16,21 @@
 
 #include <time.h>
 
-const char* SbTimeZoneGetName() {
-  // Note tzset() is called in ApplicationAndroid::Initialize()
+#include "starboard/android/shared/jni_env_ext.h"
+#include "starboard/android/shared/jni_utils.h"
 
-  return tzname[0];
+using starboard::android::shared::JniEnvExt;
+using starboard::android::shared::ScopedLocalJavaRef;
+
+const char* SbTimeZoneGetName() {
+  static char s_time_zone_id[64];
+  // Note tzset() is called in ApplicationAndroid::Initialize()
+  JniEnvExt* env = JniEnvExt::Get();
+  ScopedLocalJavaRef<jstring> result(env->CallStarboardObjectMethodOrAbort(
+      "getTimeZoneId", "()Ljava/lang/String;"));
+  std::string time_zone_id = env->GetStringStandardUTFOrAbort(result.Get());
+  time_zone_id.push_back('\0');
+  strncpy(s_time_zone_id, time_zone_id.c_str(), sizeof(s_time_zone_id));
+  s_time_zone_id[sizeof(s_time_zone_id) - 1] = 0;
+  return s_time_zone_id;
 }
