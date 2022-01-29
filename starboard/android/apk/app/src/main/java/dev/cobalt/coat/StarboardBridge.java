@@ -51,8 +51,10 @@ import dev.cobalt.util.Holder;
 import dev.cobalt.util.Log;
 import dev.cobalt.util.UsedByNative;
 import java.lang.reflect.Method;
+import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Locale;
+import java.util.TimeZone;
 
 /** Implementation of the required JNI methods called by the Starboard C++ code. */
 public class StarboardBridge {
@@ -98,6 +100,7 @@ public class StarboardBridge {
   private final HashMap<String, CobaltService.Factory> cobaltServiceFactories = new HashMap<>();
   private final HashMap<String, CobaltService> cobaltServices = new HashMap<>();
 
+  private static final TimeZone DEFAULT_TIME_ZONE = TimeZone.getTimeZone("America/Los_Angeles");
   private final long timeNanosecondsPerMicrosecond = 1000;
 
   public StarboardBridge(
@@ -381,6 +384,18 @@ public class StarboardBridge {
   @UsedByNative
   String systemGetLocaleId() {
     return Locale.getDefault().toLanguageTag();
+  }
+
+  @SuppressWarnings("unused")
+  @UsedByNative
+  String getTimeZoneId() {
+    Locale locale = Locale.getDefault();
+    Calendar calendar = Calendar.getInstance(locale);
+    TimeZone timeZone = DEFAULT_TIME_ZONE;
+    if (calendar != null) {
+      timeZone = calendar.getTimeZone();
+    }
+    return timeZone.getID();
   }
 
   @SuppressWarnings("unused")
