@@ -51,14 +51,20 @@ target(final_executable_type, "cobalt") {
     "//net",
   ]
   content_deps = [
-    "//cobalt/content/fonts:copy_fonts",
-    "//cobalt/content/fonts:fonts_xml",
     "//cobalt/dom:licenses",
     "//cobalt/network:copy_ssl_certificates",
     "//cobalt/speech:speech_testdata",
     "//cobalt/webdriver:copy_webdriver_data",
     "//third_party/icu:icudata",
   ]
+  if (cobalt_font_package == "empty") {
+    content_deps += [ "//cobalt/content/fonts:copy_font_data" ]
+  } else {
+    content_deps += [
+      "//cobalt/content/fonts:copy_fonts",
+      "//cobalt/content/fonts:fonts_xml",
+    ]
+  }
   if (!is_gold) {
     content_deps += [ "//cobalt/debug:copy_backend_web_files" ]
   }
