@@ -466,7 +466,7 @@ copy("renderer_copy_test_data") {
     "rasterizer/testdata/ytk_ink_logo_rotate.json",
   ]
   file_path = "{{source_root_relative_dir}}/{{source_file_part}}"
-  outputs = [ "$root_build_dir/content/test/$file_path" ]
+  outputs = [ "$sb_static_contents_output_data_dir/test/$file_path" ]
 }
 
 _lottie_resource_path = "rasterizer/testdata/lottie_coverage"
@@ -476,7 +476,7 @@ copy("renderer_copy_lottie_test_data") {
   sources = [ _lottie_resource_path ]
   deps = [ ":renderer_download_lottie_test_data" ]
   file_path = "{{source_root_relative_dir}}/{{source_file_part}}"
-  outputs = [ "$root_build_dir/content/test/$file_path" ]
+  outputs = [ "$sb_static_contents_output_data_dir/test/$file_path" ]
 }
 
 action("renderer_download_lottie_test_data") {

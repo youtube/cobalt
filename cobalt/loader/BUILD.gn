@@ -259,5 +259,5 @@ copy("copy_loader_test_data") {
   ]
 
   file_path = "{{source_root_relative_dir}}/{{source_file_part}}"
-  outputs = [ "$root_build_dir/content/test/$file_path" ]
+  outputs = [ "$sb_static_contents_output_data_dir/test/$file_path" ]
 }

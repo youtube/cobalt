@@ -29,5 +29,5 @@ copy("zip_unittest_files") {
     "data/test/foo/bar/.hidden",
   ]
 
-  outputs = [ "$root_build_dir/content/test/zlib/{{source_target_relative}}" ]
+  outputs = [ "$sb_static_contents_output_data_dir/test/zlib/{{source_target_relative}}" ]
 }

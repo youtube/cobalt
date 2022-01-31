@@ -2895,7 +2895,7 @@ copy("net_unittest_files") {
     "data/url_fetcher_impl_unittest/simple.html",
   ]
 
-  outputs = [ "$root_build_dir/content/test/{{source_root_relative_dir}}/{{source_file_part}}" ]
+  outputs = [ "$sb_static_contents_output_data_dir/test/{{source_root_relative_dir}}/{{source_file_part}}" ]
 }
 
 copy("third_party_unittest_files") {
@@ -3480,7 +3480,7 @@ copy("third_party_unittest_files") {
     "third_party/nist-pkits/crls/WrongCRLCACRL.crl",
   ]
 
-  outputs = [ "$root_build_dir/content/test/{{source_root_relative_dir}}/{{source_file_part}}" ]
+  outputs = [ "$sb_static_contents_output_data_dir/test/{{source_root_relative_dir}}/{{source_file_part}}" ]
 }
 
 if (!is_win) {
