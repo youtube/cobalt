@@ -40,9 +40,6 @@ template("install_target") {
     ]
 
     deps += [ ":$installable_target_name" ]
-    if (defined(invoker.content_deps)) {
-      deps += invoker.content_deps
-    }
 
     outputs = [ "$sb_install_output_dir/$install_subdir/$source_name" ]
 
