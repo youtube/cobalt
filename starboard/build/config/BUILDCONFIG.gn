@@ -276,7 +276,11 @@ template("executable") {
       forward_variables_from(invoker, [ "testonly" ])
       installable_target_name = executable_target_name
       type = "executable"
-      deps = []
+      if (defined(invoker.deps)) {
+        deps = invoker.deps
+      } else {
+        deps = []
+      }
       if (defined(invoker.content_deps)) {
         foreach(content_dep, invoker.content_deps) {
           deps += [ "${content_dep}_install_content" ]
@@ -303,7 +307,11 @@ template("shared_library") {
       forward_variables_from(invoker, [ "testonly" ])
       installable_target_name = shared_library_target_name
       type = "shared_library"
-      deps = []
+      if (defined(invoker.deps)) {
+        deps = invoker.deps
+      } else {
+        deps = []
+      }
       if (defined(invoker.content_deps)) {
         foreach(content_dep, invoker.content_deps) {
           deps += [ "${content_dep}_install_content" ]
