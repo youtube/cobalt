@@ -83,12 +83,6 @@ config("compiler_flags") {
     "-std=c99",
   ]
   cflags_cc = [ "-std=gnu++14" ]
-  ldflags += [
-    "-Wl,-rpath=\$ORIGIN/lib",
-
-    # Cleanup unused sections
-    "-Wl,-gc-sections",
-  ]
 
   if (use_asan) {
     cflags += [

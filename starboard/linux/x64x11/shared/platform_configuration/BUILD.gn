@@ -18,6 +18,7 @@ config("platform_configuration") {
       ":libraries",
       "//starboard/linux/shared/platform_configuration",
       "//starboard/linux/shared/platform_configuration:compiler_flags",
+      ":linker_flags",
     ]
   } else {
     cflags = [ "-O2" ]
@@ -29,5 +30,14 @@ config("libraries") {
   libs = [
     "//third_party/libdav1d/platforms/linux-x64/libdav1d.a",
     "//third_party/libvpx/platforms/linux-x64/libvpx.a",
+  ]
+}
+
+config("linker_flags") {
+  ldflags = [
+    "-Wl,-rpath=\$ORIGIN/lib",
+
+    # Cleanup unused sections
+    "-Wl,-gc-sections",
   ]
 }

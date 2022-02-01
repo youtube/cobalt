@@ -24,6 +24,7 @@ PLATFORMS = {
     'linux-x64x11-egl': 'starboard/linux/x64x11/egl',
     'linux-x64x11-internal': 'starboard/linux/x64x11/internal',
     'linux-x64x11-skia': 'starboard/linux/x64x11/skia',
+    'linux-x64x11-clang-crosstool': 'starboard/linux/x64x11/clang/crosstool',
     'android-arm': 'starboard/android/arm',
     'android-arm64': 'starboard/android/arm64',
     'android-arm64-vulkan': 'starboard/android/arm64/vulkan',
