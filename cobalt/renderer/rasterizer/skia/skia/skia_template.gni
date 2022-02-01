@@ -15,6 +15,8 @@
 # This file handles the removal of platform-specific files from the
 # Skia build.
 
+import("//cobalt/renderer/rasterizer/skia/skia/skia_next.gni")
+
 template("skia_common") {
   # This list will contain all defines that also need to be exported to
   # dependent components.
@@ -57,12 +59,16 @@ template("skia_common") {
     forward_variables_from(invoker, "*", [ "configs" ])
 
     if (defined(include_dirs)) {
-      include_dirs += [ "//third_party/skia" ]
+      include_dirs += [ "//third_party/$skia_subdir" ]
     } else {
-      include_dirs = [ "//third_party/skia" ]
+      include_dirs = [ "//third_party/$skia_subdir" ]
     }
 
-    defines = [
+    if (!defined(defines)) {
+      defines = []
+    }
+
+    defines += [
       # skia uses static initializers to initialize the serialization logic
       # of its "pictures" library. This is currently not used in Cobalt; if
       # it ever gets used the processes that use it need to call
