@@ -205,7 +205,7 @@ config("better_linux_stack_traces") {
   }
 }
 
-_use_copy_compiler_dll = angle_has_build && is_win && target_cpu != "arm64"
+_use_copy_compiler_dll = !is_starboard && angle_has_build && is_win && target_cpu != "arm64"
 
 # Windows ARM64 is available since 10.0.16299 so no need to copy
 # d3dcompiler_47.dll because this file is available as inbox.
