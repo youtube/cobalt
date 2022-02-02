@@ -28,7 +28,7 @@ from starboard.tools.toolchain import cmd
 from starboard.tools.toolchain import msvc
 from starboard.tools.toolchain import python
 
-MSVS_VERSION = 2017;
+MSVS_VERSION = 2017
 
 
 def GetWindowsVersion():
@@ -75,8 +75,7 @@ class Win32SharedConfiguration(config.base.PlatformConfigBase):
     self.sdk_checker_fcn = sdk_checker_fcn
     self.sabi_json_path = sabi_json_path
     # Sets sccache as build accelerator.
-    self.build_accelerator = self.GetBuildAccelerator(
-        cache.Accelerator.SCCACHE)
+    self.build_accelerator = self.GetBuildAccelerator(cache.Accelerator.SCCACHE)
 
   def GetSdk(self):
     # Lazy load sdk to avoid any sdk checks running until it is used.
@@ -106,7 +105,6 @@ class Win32SharedConfiguration(config.base.PlatformConfigBase):
     compiler_options = ' '.join(self.AdditionalPlatformCompilerOptions())
     variables.update({
         'additional_platform_compiler_options': compiler_options,
-        'include_path_platform_deploy_gypi': 'starboard/win/win32/platform_deploy.gypi',
         'msvc_redist_version': sdk.msvc_redist_version,
         'ucrtbased_dll_path': sdk.ucrtbased_dll_path,
         'visual_studio_base_path': sdk.vs_install_dir,
@@ -118,8 +116,8 @@ class Win32SharedConfiguration(config.base.PlatformConfigBase):
 
   def GetEnvironmentVariables(self):
     sdk = self.GetSdk()
-    cl = self.build_accelerator + ' ' + _QuotePath(os.path.join(
-             sdk.vs_host_tools_path, 'cl.exe'))
+    cl = self.build_accelerator + ' ' + _QuotePath(
+        os.path.join(sdk.vs_host_tools_path, 'cl.exe'))
     lib = _QuotePath(os.path.join(sdk.vs_host_tools_path, 'lib.exe'))
     link = _QuotePath(os.path.join(sdk.vs_host_tools_path, 'link.exe'))
     ml = _QuotePath(os.path.join(sdk.vs_host_tools_path, 'ml64.exe'))
