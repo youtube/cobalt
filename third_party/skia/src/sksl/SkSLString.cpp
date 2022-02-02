@@ -40,7 +40,7 @@ std::string skstd::to_string(double value) {
     if (s.size() > 0 && s[0] == '.') {
       s = "0" + s;
     }
-    return String(s.c_str());
+    return std::string(s.c_str());
 #else
     std::stringstream buffer;
     buffer.imbue(std::locale::classic());
