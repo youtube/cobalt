@@ -1,4 +1,4 @@
-# Copyright 2021 The Cobalt Authors. All Rights Reserved.
+# Copyright 2022 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,9 +14,10 @@
 
 config("sabi_flags") {
   cflags = [
-    "-march=x86-64",
+    "-march=armv7a",
+    "-mfloat-abi=hard",
     "-target",
-    "x86_64-unknown-linux-elf",
+    "armv7a-none-eabihf",
   ]
 }
 
@@ -29,12 +30,12 @@ config("platform_configuration") {
       "//starboard/evergreen/shared/platform_configuration",
     ]
 
-    cflags = [ "-isystem" +
-               rebase_path("//third_party/musl/arch/x86_64", root_build_dir) ]
+    cflags = [
+      "-isystem" + rebase_path("//third_party/musl/arch/arm", root_build_dir),
 
-    if (is_clang) {
-      ldflags = [ "-fuse-ld=lld" ]
-    }
+      # Force char to be signed.
+      "-fsigned-char",
+    ]
   } else {
     cflags = [ "-O2" ]
   }

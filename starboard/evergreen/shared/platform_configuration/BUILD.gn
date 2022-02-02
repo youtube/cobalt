@@ -79,10 +79,7 @@ config("platform_configuration") {
   }
 
   if (is_clang) {
-    ldflags += [
-      "-fuse-ld=lld",
-      "-nostdlib",
-    ]
+    ldflags += [ "-nostdlib" ]
     cflags += [
       "-fcolor-diagnostics",
 

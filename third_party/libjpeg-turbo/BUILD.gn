@@ -146,6 +146,16 @@ if (yasm_exists && (current_cpu == "x86" || current_cpu == "x64")) {
   }
 }
 
+# TODO(b/206642994): look into whether we should condition on the
+# floating_point_fpu SABI variable, rather than sb_is_evergreen, here as we did
+# in third_party/libjpeg-turbo/libjpeg.gyp.
+if (is_starboard && sb_is_evergreen &&
+    (current_cpu == "arm" || current_cpu == "arm64") && arm_use_neon) {
+  config("simd_arm_config") {
+    cflags = [ "-mfpu=neon" ]
+  }
+}
+
 static_library("simd") {
   include_dirs = [ "." ]
   deps = [ ":libjpeg_headers" ]
@@ -192,6 +202,10 @@ static_library("simd") {
       configs -= [ "//build/config/compiler:default_optimization" ]
     }
     configs += [ "//build/config/compiler:optimize_speed" ]
+
+    if (is_starboard && sb_is_evergreen) {
+      configs += [ ":simd_arm_config" ]
+    }
   } else {
     sources = [ "jsimd_none.c" ]
   }

@@ -195,3 +195,15 @@ config("warnings_as_errors") {
     cflags = [ "/WX" ]
   }
 }
+
+# This config is defined here and added as a default config so that the flags
+# specified in it can be overridden by targets. It's not possible for targets to
+# override flags specified in a platform's "platform_configuration" config,
+# which is where these particular flags would otherwise naturally fit.
+config("default_compiler_flags") {
+  if (current_toolchain == default_toolchain && sb_is_evergreen &&
+      target_cpu == "arm") {
+    cflags = [ "-mfpu=vfpv3" ]
+    asmflags = cflags
+  }
+}

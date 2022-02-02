@@ -3,7 +3,6 @@
 # found in the LICENSE file.
 
 import("//build/config/compiler/compiler.gni")
-
 if (current_cpu == "arm" || current_cpu == "arm64") {
   import("//build/config/arm.gni")
 }
@@ -20,6 +19,16 @@ use_arm_neon_optimizations = false
 if (current_cpu == "arm" || current_cpu == "arm64") {
   if (arm_use_neon) {
     use_arm_neon_optimizations = true
+  }
+}
+
+# TODO(b/206642994): look into whether we should condition on the
+# floating_point_fpu SABI variable, rather than sb_is_evergreen, here as we did
+# in third_party/zlib/zlib.gyp.
+if (is_starboard && sb_is_evergreen && use_arm_neon_optimizations) {
+  config("zlib_neon_fpu_config") {
+    cflags = [ "-mfpu=neon" ]
+    asmflags = cflags
   }
 }
 
@@ -55,6 +64,7 @@ source_set("zlib_adler32_simd") {
       "adler32_simd.c",
       "adler32_simd.h",
     ]
+
     if (!is_debug) {
       # Use optimize_speed (-O3) to output the _smallest_ code.
       if(!is_starboard) {
@@ -68,6 +78,10 @@ source_set("zlib_adler32_simd") {
   if (is_starboard && !is_debug) {
     configs -= [ "//starboard/build/config:size" ]
     configs += [ "//starboard/build/config:speed" ]
+  }
+
+  if (is_starboard && sb_is_evergreen && use_arm_neon_optimizations) {
+    configs += [ ":zlib_neon_fpu_config" ]
   }
 
   public_configs = [ ":zlib_adler32_simd_config" ]
@@ -122,6 +136,13 @@ if (use_arm_neon_optimizations) {
         "crc32_simd.h",
       ]
 
+      if (is_starboard && use_arm_neon_optimizations) {
+        sources += [
+          "contrib/optimizations/slide_hash_neon.c",
+          "contrib/optimizations/slide_hash_neon.h",
+        ]
+      }
+
       if (!is_debug) {
         if(!is_starboard) {
           configs -= [ "//build/config/compiler:default_optimization" ]
@@ -137,6 +158,10 @@ if (use_arm_neon_optimizations) {
     }
     if (is_starboard) {
       deps = [ "//starboard:starboard_headers_only" ]
+    }
+
+    if (is_starboard && sb_is_evergreen && use_arm_neon_optimizations) {
+      configs += [ ":zlib_neon_fpu_config" ]
     }
 
     public_configs = [ ":zlib_arm_crc32_config" ]
@@ -197,6 +222,10 @@ source_set("zlib_inflate_chunk_simd") {
   if (is_starboard && !is_debug) {
     configs -= [ "//starboard/build/config:size" ]
     configs += [ "//starboard/build/config:speed" ]
+  }
+
+  if (is_starboard && sb_is_evergreen && use_arm_neon_optimizations) {
+    configs += [ ":zlib_neon_fpu_config" ]
   }
 
   public_configs = [ ":zlib_inflate_chunk_simd_config" ]
@@ -322,10 +351,14 @@ component("zlib_hidden") {
       }
       deps += [ ":zlib_crc32_simd" ]
     } else if (use_arm_neon_optimizations) {
-      sources += [
-        "contrib/optimizations/slide_hash_neon.c",
-        "contrib/optimizations/slide_hash_neon.h",
-      ]
+      if (!is_starboard) {
+        # The slide_hash_neon sources are moved to zlib_arm_crc32 so that they
+        # can be compiled with ARM NEON support.
+        sources += [
+          "contrib/optimizations/slide_hash_neon.c",
+          "contrib/optimizations/slide_hash_neon.h",
+        ]
+      }
       deps += [ ":zlib_arm_crc32" ]
     }
   } else {
