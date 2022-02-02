@@ -22,6 +22,7 @@ PLATFORMS = {
     'stub': 'starboard/stub',
     'linux-x64x11': 'starboard/linux/x64x11',
     'linux-x64x11-egl': 'starboard/linux/x64x11/egl',
+    'linux-x64x11-gcc-6-3': 'starboard/linux/x64x11/gcc/6.3',
     'linux-x64x11-internal': 'starboard/linux/x64x11/internal',
     'linux-x64x11-skia': 'starboard/linux/x64x11/skia',
     'linux-x64x11-clang-crosstool': 'starboard/linux/x64x11/clang/crosstool',

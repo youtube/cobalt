@@ -1,0 +1,112 @@
+# Copyright 2022 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+config("compiler_flags") {
+  cflags = []
+  cflags_c = []
+  cflags_cc = []
+  ldflags = []
+
+  # from common_compiler_flags
+  cflags += [
+    # Default visibility to hidden, to enable dead stripping.
+    "-fvisibility=hidden",
+
+    # protobuf uses hash_map.
+    "-fno-exceptions",
+
+    # Don't warn about the "struct foo f = {0};" initialization pattern.
+    "-Wno-missing-field-initializers",
+    "-fno-strict-aliasing",  # See http://crbug.com/32204
+
+    # Don't warn about any conversions.
+    "-Wno-conversion",
+
+    # Don't warn about unreachable code. See
+    # http://gcc.gnu.org/bugzilla/show_bug.cgi?id=46158
+    "-Wno-unreachable-code",
+    "-Wno-deprecated-declarations",
+
+    # Disable warning:
+    # 'comparison is always true due to limited range of data type'
+    "-Wno-extra",
+
+    # Don't warn about inlining
+    "-Wno-inline",
+
+    # Disable warning: 'typedef locally defined but not used'.
+    "-Wno-unused-local-typedefs",
+
+    # Disable warning: 'narrowing conversion'
+    "-Wno-narrowing",
+
+    # Do not remove null this checks.
+    "-fno-delete-null-pointer-checks",
+
+    # Do not warn about unused function params.
+    "-Wno-unused-parameter",
+
+    # Do not warn about multi-character character constant values.
+    "-Wno-multichar",
+
+    # Do not warn for ignoring return value declared with attribute warn_unused_result.
+    "-Wno-unused-result",
+
+    # Do now warn for unknown pragmas.
+    "-Wno-unknown-pragmas",
+  ]
+
+  ldflags += [ "-Wl,-rpath=/usr/lib/gcc/x86_64-linux-gnu/6" ]
+
+  cflags_c += [
+    # Limit to C99. This allows Linux to be a canary build for any
+    # C11 features that are not supported on some platforms' compilers.
+    "-std=c99",
+  ]
+
+  cflags_cc += [
+    "-std=gnu++14",
+
+    # Don't warn for invalid access to non-static data member of NULL object.
+    "-Wno-invalid-offsetof",
+
+    # Don't warn about deprecated use
+    "-Wno-deprecated",
+  ]
+
+  if (is_debug) {
+    cflags += [ "-O0" ]
+  } else if (is_devel) {
+    cflags += [ "-O2" ]
+  } else if (is_qa) {
+    cflags += [ "-O2" ]
+  }
+
+  if (!cobalt_fastbuild && (is_debug || is_devel)) {
+    cflags += [ "-g" ]
+  }
+}
+
+config("platform_configuration") {
+  if (current_toolchain == default_toolchain) {
+    configs = [
+      "//starboard/linux/shared/platform_configuration",
+      "//starboard/linux/x64x11/shared/platform_configuration:libraries",
+      "//starboard/build/config/sabi",
+      ":compiler_flags",
+    ]
+  } else {
+    cflags = [ "-O2" ]
+  }
+}
