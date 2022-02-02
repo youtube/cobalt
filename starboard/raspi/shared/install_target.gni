@@ -14,7 +14,7 @@
 
 import("//starboard/raspi/shared/toolchain/raspi_shared_toolchain.gni")
 template("install_target") {
-  forward_variables_from(invoker, [ "installable_target_name" ])
+  installable_target_name = invoker.installable_target_name
 
   if (invoker.type == "executable") {
     install_subdir = "bin"
@@ -27,18 +27,17 @@ template("install_target") {
   }
 
   action(target_name) {
-    forward_variables_from(invoker,
-                           [
-                             "deps",
-                             "testonly",
-                           ])
+    forward_variables_from(invoker, [ "testonly" ])
+
     script = "//starboard/build/run_bash.py"
+
     strip_executable = gcc_toolchain_strip
     inputs = [
       strip_executable,
       "$root_out_dir/$source_name",
     ]
 
+    deps = invoker.deps
     deps += [ ":$installable_target_name" ]
 
     outputs = [ "$sb_install_output_dir/$install_subdir/$source_name" ]

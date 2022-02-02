@@ -13,7 +13,7 @@
 # limitations under the License.
 
 template("strip_install_target") {
-  forward_variables_from(invoker, [ "installable_target_name" ])
+  installable_target_name = invoker.installable_target_name
 
   assert(defined(invoker.strip_executable) && invoker.strip_executable != "",
          "strip executable required for stripping")
@@ -29,16 +29,13 @@ template("strip_install_target") {
   }
 
   action(target_name) {
-    forward_variables_from(invoker,
-                           [
-                             "deps",
-                             "testonly",
-                           ])
+    forward_variables_from(invoker, [ "testonly" ])
 
     script = "//starboard/build/run_bash.py"
 
     inputs = [ "$root_out_dir/$source_name" ]
 
+    deps = invoker.deps
     deps += [ ":$installable_target_name" ]
 
     outputs = [ "$sb_install_output_dir/$install_subdir/$source_name" ]

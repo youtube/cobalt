@@ -18,15 +18,12 @@ import("//starboard/build/config/install.gni")
 template("install_target") {
   not_needed(invoker, [ "type" ])
 
-  forward_variables_from(invoker, [ "installable_target_name" ])
+  installable_target_name = invoker.installable_target_name
 
   action("build_${target_name}_apk") {
-    forward_variables_from(invoker,
-                           [
-                             "deps",
-                             "testonly",
-                           ])
+    forward_variables_from(invoker, [ "testonly" ])
 
+    deps = invoker.deps
     deps += [
       ":$installable_target_name",
       "//starboard/android/apk:apk_sources",
