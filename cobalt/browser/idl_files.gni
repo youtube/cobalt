@@ -228,6 +228,7 @@ source_idl_files = [
   "//cobalt/websocket/close_event.idl",
   "//cobalt/websocket/web_socket.idl",
 
+  "//cobalt/worker/service_worker.idl",
   "//cobalt/worker/service_worker_container.idl",
 
   "//cobalt/xhr/xml_http_request.idl",
@@ -322,6 +323,7 @@ generated_header_idl_files = [
   "//cobalt/web_animations/animation_fill_mode.idl",
   "//cobalt/web_animations/animation_playback_direction.idl",
   "//cobalt/websocket/close_event_init.idl",
+  "//cobalt/worker/service_worker_state.idl",
 ]
 
 # Partial interfaces and the right-side of "implements". Also includes

@@ -237,6 +237,7 @@
         '../websocket/close_event.idl',
         '../websocket/web_socket.idl',
 
+        '../worker/service_worker.idl',
         '../worker/service_worker_container.idl',
 
         '../xhr/xml_http_request.idl',
@@ -324,6 +325,7 @@
         '../web_animations/animation_fill_mode.idl',
         '../web_animations/animation_playback_direction.idl',
         '../websocket/close_event_init.idl',
+        '../worker/service_worker_state.idl',
         '<@(cobalt_webapi_extension_generated_header_idl_files)',
     ],
 
