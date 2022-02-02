@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media/formats/mp2t/es_parser.h"
+#include "cobalt/media/formats/mp2t/es_parser.h"
 
-#include "media/base/timestamp_constants.h"
-#include "media/formats/common/offset_byte_queue.h"
+#include "cobalt/media/base/timestamp_constants.h"
+#include "cobalt/media/formats/common/offset_byte_queue.h"
 
 namespace cobalt {
 namespace media {

@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media/base/simd/convert_rgb_to_yuv.h"
+#include "cobalt/media/base/simd/convert_rgb_to_yuv.h"
 
 #include "build/build_config.h"
-#include "media/base/simd/convert_rgb_to_yuv_ssse3.h"
+#include "cobalt/media/base/simd/convert_rgb_to_yuv_ssse3.h"
 
 namespace cobalt {
 namespace media {

@@ -2,27 +2,27 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media/formats/mp2t/mp2t_stream_parser.h"
+#include "cobalt/media/formats/mp2t/mp2t_stream_parser.h"
 
 #include <memory>
 #include <utility>
 
 #include "base/bind.h"
 #include "base/callback_helpers.h"
-#include "media/base/media_tracks.h"
-#include "media/base/stream_parser_buffer.h"
-#include "media/base/text_track_config.h"
-#include "media/base/timestamp_constants.h"
-#include "media/formats/mp2t/es_parser.h"
-#include "media/formats/mp2t/es_parser_adts.h"
-#include "media/formats/mp2t/es_parser_h264.h"
-#include "media/formats/mp2t/es_parser_mpeg1audio.h"
-#include "media/formats/mp2t/mp2t_common.h"
-#include "media/formats/mp2t/ts_packet.h"
-#include "media/formats/mp2t/ts_section.h"
-#include "media/formats/mp2t/ts_section_pat.h"
-#include "media/formats/mp2t/ts_section_pes.h"
-#include "media/formats/mp2t/ts_section_pmt.h"
+#include "cobalt/media/base/media_tracks.h"
+#include "cobalt/media/base/stream_parser_buffer.h"
+#include "cobalt/media/base/text_track_config.h"
+#include "cobalt/media/base/timestamp_constants.h"
+#include "cobalt/media/formats/mp2t/es_parser.h"
+#include "cobalt/media/formats/mp2t/es_parser_adts.h"
+#include "cobalt/media/formats/mp2t/es_parser_h264.h"
+#include "cobalt/media/formats/mp2t/es_parser_mpeg1audio.h"
+#include "cobalt/media/formats/mp2t/mp2t_common.h"
+#include "cobalt/media/formats/mp2t/ts_packet.h"
+#include "cobalt/media/formats/mp2t/ts_section.h"
+#include "cobalt/media/formats/mp2t/ts_section_pat.h"
+#include "cobalt/media/formats/mp2t/ts_section_pes.h"
+#include "cobalt/media/formats/mp2t/ts_section_pmt.h"
 
 namespace cobalt {
 namespace media {

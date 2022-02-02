@@ -17,7 +17,7 @@
 #ifndef COBALT_MEDIA_PROGRESSIVE_MOCK_DATA_SOURCE_READER_H_
 #define COBALT_MEDIA_PROGRESSIVE_MOCK_DATA_SOURCE_READER_H_
 
-#include "media/progressive/data_source_reader.h"
+#include "cobalt/media/progressive/data_source_reader.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
 namespace cobalt {

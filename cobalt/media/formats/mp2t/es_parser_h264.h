@@ -12,10 +12,10 @@
 #include "base/compiler_specific.h"
 #include "base/macros.h"
 #include "base/time/time.h"
-#include "media/base/media_export.h"
-#include "media/base/video_decoder_config.h"
-#include "media/formats/mp2t/es_adapter_video.h"
-#include "media/formats/mp2t/es_parser.h"
+#include "cobalt/media/base/media_export.h"
+#include "cobalt/media/base/video_decoder_config.h"
+#include "cobalt/media/formats/mp2t/es_adapter_video.h"
+#include "cobalt/media/formats/mp2t/es_parser.h"
 #include "starboard/types.h"
 
 namespace cobalt {
@@ -25,6 +25,7 @@ class H264Parser;
 struct H264SPS;
 class OffsetByteQueue;
 }  // namespace media
+}  // namespace cobalt
 
 namespace cobalt {
 namespace media {

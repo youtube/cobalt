@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media/formats/mp2t/es_parser_h264.h"
+#include "cobalt/media/formats/mp2t/es_parser_h264.h"
 
 #include <limits>
 
@@ -11,14 +11,14 @@
 #include "base/optional.h"
 #include "cobalt/math/geometry/rect.h"
 #include "cobalt/math/geometry/size.h"
-#include "media/base/encryption_scheme.h"
-#include "media/base/media_util.h"
-#include "media/base/stream_parser_buffer.h"
-#include "media/base/timestamp_constants.h"
-#include "media/base/video_frame.h"
-#include "media/filters/h264_parser.h"
-#include "media/formats/common/offset_byte_queue.h"
-#include "media/formats/mp2t/mp2t_common.h"
+#include "cobalt/media/base/encryption_scheme.h"
+#include "cobalt/media/base/media_util.h"
+#include "cobalt/media/base/stream_parser_buffer.h"
+#include "cobalt/media/base/timestamp_constants.h"
+#include "cobalt/media/base/video_frame.h"
+#include "cobalt/media/filters/h264_parser.h"
+#include "cobalt/media/formats/common/offset_byte_queue.h"
+#include "cobalt/media/formats/mp2t/mp2t_common.h"
 
 namespace cobalt {
 namespace media {

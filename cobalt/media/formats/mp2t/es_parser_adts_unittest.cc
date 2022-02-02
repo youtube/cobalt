@@ -8,9 +8,9 @@
 #include "base/logging.h"
 #include "base/macros.h"
 #include "base/time/time.h"
-#include "media/base/stream_parser_buffer.h"
-#include "media/formats/mp2t/es_parser_adts.h"
-#include "media/formats/mp2t/es_parser_test_base.h"
+#include "cobalt/media/base/stream_parser_buffer.h"
+#include "cobalt/media/formats/mp2t/es_parser_adts.h"
+#include "cobalt/media/formats/mp2t/es_parser_test_base.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {

@@ -107,6 +107,7 @@ repos:
         stages: [push]
         exclude: |
             (?x)^(
+                cobalt/media/|
                 cobalt/layout_tests/testdata/|
                 starboard/android/apk/app/src/main/java/dev/cobalt/media/MediaDrmBridge.java$
             )

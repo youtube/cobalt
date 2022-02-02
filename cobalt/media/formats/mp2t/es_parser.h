@@ -13,8 +13,8 @@
 #include "base/macros.h"
 #include "base/memory/ref_counted.h"
 #include "base/time/time.h"
-#include "media/base/media_export.h"
-#include "media/base/stream_parser_buffer.h"
+#include "cobalt/media/base/media_export.h"
+#include "cobalt/media/base/stream_parser_buffer.h"
 #include "starboard/types.h"
 
 namespace cobalt {

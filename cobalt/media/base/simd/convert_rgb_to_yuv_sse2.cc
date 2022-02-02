@@ -3,13 +3,15 @@
 // found in the LICENSE file.
 
 #include "build/build_config.h"
-#include "media/base/simd/convert_rgb_to_yuv.h"
+#include "cobalt/media/base/simd/convert_rgb_to_yuv.h"
 
 #if defined(COMPILER_MSVC)
 #include <intrin.h>
 #else
+// clang-format off
 #include <mmintrin.h>
 #include <emmintrin.h>
+// clang-format on
 
 #include "starboard/types.h"
 #endif

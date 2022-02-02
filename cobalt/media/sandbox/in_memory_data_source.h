@@ -18,7 +18,7 @@
 #include <vector>
 
 #include "base/compiler_specific.h"
-#include "media/base/data_source.h"
+#include "cobalt/media/base/data_source.h"
 
 namespace cobalt {
 namespace media {

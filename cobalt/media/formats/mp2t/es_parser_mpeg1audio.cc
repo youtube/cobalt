@@ -2,22 +2,22 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media/formats/mp2t/es_parser_mpeg1audio.h"
+#include "cobalt/media/formats/mp2t/es_parser_mpeg1audio.h"
 
 #include <vector>
 
 #include "base/bind.h"
 #include "base/logging.h"
 #include "base/strings/string_number_conversions.h"
-#include "media/base/audio_timestamp_helper.h"
-#include "media/base/bit_reader.h"
-#include "media/base/channel_layout.h"
-#include "media/base/media_util.h"
-#include "media/base/stream_parser_buffer.h"
-#include "media/base/timestamp_constants.h"
-#include "media/formats/common/offset_byte_queue.h"
-#include "media/formats/mp2t/mp2t_common.h"
-#include "media/formats/mpeg/mpeg1_audio_stream_parser.h"
+#include "cobalt/media/base/audio_timestamp_helper.h"
+#include "cobalt/media/base/bit_reader.h"
+#include "cobalt/media/base/channel_layout.h"
+#include "cobalt/media/base/media_util.h"
+#include "cobalt/media/base/stream_parser_buffer.h"
+#include "cobalt/media/base/timestamp_constants.h"
+#include "cobalt/media/formats/common/offset_byte_queue.h"
+#include "cobalt/media/formats/mp2t/mp2t_common.h"
+#include "cobalt/media/formats/mpeg/mpeg1_audio_stream_parser.h"
 
 namespace cobalt {
 namespace media {

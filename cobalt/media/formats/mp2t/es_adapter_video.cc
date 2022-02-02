@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media/formats/mp2t/es_adapter_video.h"
+#include "cobalt/media/formats/mp2t/es_adapter_video.h"
 
-#include "media/base/timestamp_constants.h"
-#include "media/base/video_decoder_config.h"
-#include "media/formats/mp2t/mp2t_common.h"
+#include "cobalt/media/base/timestamp_constants.h"
+#include "cobalt/media/base/video_decoder_config.h"
+#include "cobalt/media/formats/mp2t/mp2t_common.h"
 #include "starboard/types.h"
 
 namespace cobalt {

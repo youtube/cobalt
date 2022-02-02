@@ -2,17 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media/formats/mp2t/ts_section_pes.h"
+#include "cobalt/media/formats/mp2t/ts_section_pes.h"
 
 #include <memory>
 
 #include "base/logging.h"
 #include "base/strings/string_number_conversions.h"
-#include "media/base/bit_reader.h"
-#include "media/base/timestamp_constants.h"
-#include "media/formats/mp2t/es_parser.h"
-#include "media/formats/mp2t/mp2t_common.h"
-#include "media/formats/mp2t/timestamp_unroller.h"
+#include "cobalt/media/base/bit_reader.h"
+#include "cobalt/media/base/timestamp_constants.h"
+#include "cobalt/media/formats/mp2t/es_parser.h"
+#include "cobalt/media/formats/mp2t/mp2t_common.h"
+#include "cobalt/media/formats/mp2t/timestamp_unroller.h"
 
 static const int kPesStartCode = 0x000001;
 

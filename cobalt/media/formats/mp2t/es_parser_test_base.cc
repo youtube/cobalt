@@ -2,16 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media/formats/mp2t/es_parser_test_base.h"
+#include "cobalt/media/formats/mp2t/es_parser_test_base.h"
 
 #include "base/files/memory_mapped_file.h"
 #include "base/logging.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
-#include "media/base/stream_parser_buffer.h"
-#include "media/base/test_data_util.h"
-#include "media/base/timestamp_constants.h"
-#include "media/formats/mp2t/es_parser.h"
+#include "cobalt/media/base/stream_parser_buffer.h"
+#include "cobalt/media/base/test_data_util.h"
+#include "cobalt/media/base/timestamp_constants.h"
+#include "cobalt/media/formats/mp2t/es_parser.h"
 #include "starboard/memory.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

@@ -8,8 +8,8 @@
 #include <mmintrin.h>
 #endif
 
-#include "media/base/simd/convert_yuv_to_rgb.h"
-#include "media/base/yuv_convert.h"
+#include "cobalt/media/base/simd/convert_yuv_to_rgb.h"
+#include "cobalt/media/base/yuv_convert.h"
 #include "starboard/types.h"
 
 namespace cobalt {
