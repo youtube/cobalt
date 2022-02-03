@@ -23,9 +23,5 @@ declare_args() {
 }
 
 if (sb_install_content_subdir == "") {
-  if (is_linux || is_mac) {
-    sb_install_content_subdir = "usr/share/cobalt"
-  } else if (is_win) {
-    # TODO(b/206808442): Use a better default for windows.
-  }
+  sb_install_content_subdir = "usr/share/cobalt"
 }
