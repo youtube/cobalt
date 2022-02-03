@@ -19,7 +19,7 @@ gl_type = "angle"
 
 sabi_path = "//starboard/sabi/x64/windows/sabi-v$sb_api_version.json"
 
-install_target_path = "//starboard/build/install/mock_install.gni"
+install_target_path = "//starboard/build/install/no_install.gni"
 
 no_pedantic_warnings_config_path =
     "//starboard/win/shared/platform_configuration:no_pedantic_warnings"

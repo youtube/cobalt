@@ -88,7 +88,7 @@ declare_args() {
 
   # The path to the gni file containing the install_target template which
   # defines how the build should produce the install/ directory.
-  install_target_path = "//starboard/build/install/mock_install.gni"
+  install_target_path = "//starboard/build/install/no_install.gni"
 
   # Target-specific configurations for each platform.
   executable_configs = []
