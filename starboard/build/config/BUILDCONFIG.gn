@@ -59,17 +59,6 @@ if (current_cpu == "") {
 }
 import("//starboard/build/config/os_definitions.gni")
 
-declare_args() {
-  use_tsan = getenv("USE_TSAN") == 1
-}
-
-declare_args() {
-  use_asan = (is_debug || is_devel || getenv("USE_ASAN") == 1) && !use_tsan &&
-             !is_android
-}
-
-assert(!(use_tsan && use_asan), "ASAN and TSAN are mutually exclusive.")
-
 if (is_mac) {
   declare_args() {
     use_system_xcode = true
@@ -89,6 +78,18 @@ set_default_toolchain(_default_toolchain)
 
 import("//$starboard_path/platform_configuration/configuration.gni")
 import("//starboard/build/config/build_assertions.gni")
+
+declare_args() {
+  use_tsan = getenv("USE_TSAN") == 1
+}
+
+_use_asan_default = (is_debug || is_devel) && (is_linux || is_mac) &&
+                    is_clang && !sb_is_evergreen
+declare_args() {
+  use_asan = (_use_asan_default || getenv("USE_ASAN") == 1) && !use_tsan
+}
+
+assert(!(use_tsan && use_asan), "ASAN and TSAN are mutually exclusive.")
 
 # =============================================================================
 # TARGET DEFAULTS
