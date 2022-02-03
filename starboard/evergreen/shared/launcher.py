@@ -32,7 +32,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
   This Evergreen launcher leverages the platform-specific launchers to start the
   Evergreen loader on a particular device. A staging directory is built that
-  resembles a typical deploy directory, with the Evergreen target and its
+  resembles a typical install directory, with the Evergreen target and its
   content included in the Evergreen loader's content. The platform-specific
   launcher, given command-line switches to tell the Evergreen loader where the
   Evergreen target and its content are, can run the loader without needing to
@@ -146,7 +146,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
     regardless of whether or not we are running locally:
 
              platform:    raspi-2          raspi-2_devel
-             config:      devel             +-- deploy
+             config:      devel             +-- install
              target_name: nplb                   +-- nplb
                                                       +-- content
                                                       +-- nplb
@@ -154,15 +154,55 @@ class Launcher(abstract_launcher.AbstractLauncher):
     This function effectively builds a directory structure that matches both of
     these expectations while minimizing the hard copies made.
 
-    Note: The Linux launcher does not yet look in the deploy directory and
+    Note: The Linux launcher does not yet look in the install directory and
           instead runs the target from the top of its out-directory. This will
           be changed in the future.
     """
-
     if os.path.exists(self.staging_directory):
       shutil.rmtree(self.staging_directory)
     os.makedirs(self.staging_directory)
 
+    if os.path.exists(os.path.join(self.loader_out_directory, 'install')):
+      self._StageTargetsAndContentsGn()
+    else:
+      self._StageTargetsAndContentsGyp()
+
+  def _StageTargetsAndContentsGn(self):
+    content_subdir = os.path.join('usr', 'share', 'cobalt')
+
+    # Copy loader content and binaries
+    loader_install_path = os.path.join(self.loader_out_directory, 'install')
+
+    loader_content_src = os.path.join(loader_install_path, content_subdir)
+    loader_content_dst = os.path.join(self.staging_directory, 'content')
+    shutil.copytree(loader_content_src, loader_content_dst)
+
+    loader_target_src = os.path.join(loader_install_path, 'bin',
+                                     self.loader_target)
+    loader_target_dst = os.path.join(self.staging_directory, self.loader_target)
+    shutil.copy(loader_target_src, loader_target_dst)
+
+    crashpad_target_src = os.path.join(loader_install_path, 'bin',
+                                       _CRASHPAD_TARGET)
+    crashpad_target_dst = os.path.join(self.staging_directory, _CRASHPAD_TARGET)
+    shutil.copy(crashpad_target_src, crashpad_target_dst)
+
+    # Copy target content and binary
+    target_install_path = os.path.join(self.out_directory, 'install')
+    target_staging_dir = os.path.join(self.staging_directory, 'content', 'app',
+                                      self.target_name)
+
+    target_content_src = os.path.join(target_install_path, content_subdir)
+    target_content_dst = os.path.join(target_staging_dir, 'content')
+    shutil.copytree(target_content_src, target_content_dst)
+
+    shlib_name = 'lib{}.so'.format(self.target_name)
+    target_binary_src = os.path.join(target_install_path, 'lib', shlib_name)
+    target_binary_dst = os.path.join(target_staging_dir, 'lib', shlib_name)
+    os.makedirs(os.path.join(target_staging_dir, 'lib'))
+    shutil.copy(target_binary_src, target_binary_dst)
+
+  def _StageTargetsAndContentsGyp(self):
     # <outpath>/deploy/elf_loader_sandbox
     staging_directory_loader = os.path.join(self.staging_directory, 'deploy',
                                             self.loader_target)
@@ -172,7 +212,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
                                                'content', 'app',
                                                self.target_name)
 
-    # Make a hard copy of the ELF Loader's deploy directory in the location
+    # Make a hard copy of the ELF Loader's install_directory in the location
     # specified by |staging_directory_loader|. A symbolic link here would cause
     # future symbolic links to fall through to the original out-directories.
     shutil.copytree(
@@ -186,7 +226,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
         os.path.join(self.out_directory, 'deploy', self.target_name),
         staging_directory_evergreen)
 
-    # TODO: Make the Linux launcher run from the deploy directory, no longer
+    # TODO: Make the Linux launcher run from the install_directory, no longer
     #       create these symlinks, and remove the NOTE from the docstring.
     port_symlink.MakeSymLink(
         os.path.join(staging_directory_loader, self.loader_target),
