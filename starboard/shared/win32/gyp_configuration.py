@@ -50,9 +50,9 @@ def GetCompilerOptionsFromWinSdk(win_sdk):
     if not os.path.exists(f):
       missing_files.append(f)
   if missing_files:
-    logging.critical('\n***** Missing files *****: \n' + \
-                     '\n'.join(missing_files) + \
-                     '\nCompiling may have problems.\n')
+    logging.critical(
+        '\n***** Missing files *****: \n%s\nCompiling may have problems.\n',
+        '\n'.join(missing_files))
   # /FU"path" will force include that path for every file compiled.
   compiler_options = ['/FU' + _QuotePath(f) for f in force_include_files]
   return compiler_options
@@ -80,7 +80,7 @@ class Win32SharedConfiguration(config.base.PlatformConfigBase):
   def GetSdk(self):
     # Lazy load sdk to avoid any sdk checks running until it is used.
     d = self.GetSdk.__dict__
-    if not 'sdk' in d:
+    if 'sdk' not in d:
       d['sdk'] = win_sdk_configuration.SdkConfiguration(self.sdk_name)
       if self.sdk_checker_fcn:
         self.sdk_checker_fcn()
@@ -88,11 +88,11 @@ class Win32SharedConfiguration(config.base.PlatformConfigBase):
 
   def GetVideoProcessorDescription(self):
     try:
-      cmd = ('powershell -command "(Get-WmiObject '
-             'Win32_VideoController).Description"')
-      return subprocess.check_output(cmd, shell=True).splitlines()[0]
-    except Exception as err:
-      logging.error('Could not detect video card because: ' + str(err))
+      ps1_cmd = ('powershell -command "(Get-WmiObject '
+                 'Win32_VideoController).Description"')
+      return subprocess.check_output(ps1_cmd, shell=True).splitlines()[0]
+    except Exception as err:  # pylint:disable=broad-except
+      logging.error('Could not detect video card because: %s', str(err))
       return 'UNKNOWN'
 
   def AdditionalPlatformCompilerOptions(self):
@@ -160,7 +160,7 @@ class Win32SharedConfiguration(config.base.PlatformConfigBase):
 
   def GetToolchain(self):
     sys.path.append(os.path.join(STARBOARD_ROOT, 'shared', 'msvc', 'uwp'))
-    from msvc_toolchain import MSVCUWPToolchain  # pylint: disable=g-import-not-at-top,g-bad-import-order
+    from msvc_toolchain import MSVCUWPToolchain  # pylint: disable=import-outside-toplevel
     return MSVCUWPToolchain()
 
   def GetTestFilters(self):
@@ -170,11 +170,11 @@ class Win32SharedConfiguration(config.base.PlatformConfigBase):
       A list of initialized TestFilter objects.
     """
     filters = super(Win32SharedConfiguration, self).GetTestFilters()
-    for target, tests in self.__FILTERED_TESTS.iteritems():
+    for target, tests in self._FILTERED_TESTS.iteritems():
       filters.extend(test_filter.TestFilter(target, test) for test in tests)
     return filters
 
-  __FILTERED_TESTS = {}
+  _FILTERED_TESTS = {}
 
   def GetPathToSabiJsonFile(self):
     return self.sabi_json_path
@@ -220,7 +220,7 @@ class Win32SharedConfiguration(config.base.PlatformConfigBase):
           manifest_name = gyp_path_to_unique_output(
               compute_output_file_name(spec))
           is_executable = spec['type'] == 'executable'
-          ldflags, manifest_files = compiler_settings.GetLdFlags(
+          ldflags, _ = compiler_settings.GetLdFlags(
               config_name,
               gyp_path_to_ninja=gyp_path_to_ninja,
               expand_special=expand_special,
@@ -273,6 +273,5 @@ class Win32SharedConfiguration(config.base.PlatformConfigBase):
 
   def GetCompilerSettings(self, spec, generator_flags):
     sys.path.append(os.path.join(STARBOARD_ROOT, 'shared', 'msvc', 'uwp'))
-    # pylint: disable=g-import-not-at-top,g-bad-import-order
-    from msvc_toolchain import MsvsSettings
+    from msvc_toolchain import MsvsSettings  # pylint: disable=import-outside-toplevel
     return MsvsSettings(spec, generator_flags)
