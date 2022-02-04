@@ -16,7 +16,7 @@ group("gn_all") {
   testonly = true
 
   deps = [
-    ":starboard",
+    ":default",
     "//starboard/client_porting/cwrappers:cwrappers_test",
     "//starboard/client_porting/eztime",
     "//starboard/client_porting/eztime:eztime_test",
@@ -26,7 +26,6 @@ group("gn_all") {
     "//starboard/loader_app:app_key_files_test",
     "//starboard/nplb",
     "//starboard/nplb/nplb_evergreen_compat_tests",
-    "//starboard/tools:build_app_launcher_zip",
   ]
 
   if (gl_type != "none") {
@@ -65,6 +64,13 @@ group("gn_all") {
       data_deps = [ "//starboard/loader_app" ]
     }
   }
+}
+
+group("default") {
+  deps = [
+    ":starboard",
+    "//starboard/tools:build_app_launcher_zip",
+  ]
 }
 
 group("starboard") {
