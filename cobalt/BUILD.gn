@@ -54,6 +54,7 @@ group("gn_all") {
 group("default") {
   deps = [
     "//cobalt/browser:cobalt",
+    "//cobalt/browser:cobalt_install",
     "//cobalt/renderer:default_options",
     "//cobalt/script:engine_shell",
     "//third_party/brotli:dec_no_dictionary_data",
