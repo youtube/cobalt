@@ -33,7 +33,8 @@ class SoftMicPlatformServiceTest(black_box_tests.BlackBoxTestCase):
       url = server.GetURL(
           file_name='testdata/soft_mic_platform_service_test.html')
 
-      # The webpage listens for NUMPAD0 through NUMPAD9 at opening.
+      # The webpage listens for NUMPAD0 through NUMPAD9 at opening
+      # to test hasHardMicSupport and hasSoftMicSupport switch values.
       with self.CreateCobaltRunner(url=url) as runner:
         # Press NUMPAD0 to test testIncorrectRequests
         runner.SendKeys(keys.Keys.NUMPAD0)
@@ -102,4 +103,29 @@ class SoftMicPlatformServiceTest(black_box_tests.BlackBoxTestCase):
           ])) as runner:
         # Press NUMPAD9 to test hardMicFalseSoftMicFalse
         runner.SendKeys(keys.Keys.NUMPAD9)
+        self.assertTrue(runner.JSTestsSucceeded())
+
+      # The webpage listens for NUMPAD0 through NUMPAD9 at opening with SHIFT
+      # to test micGesture tap and hold switch values.
+      with self.CreateCobaltRunner(url=url) as runner:
+        # Press SHIFT, NUMPAD0 to test micGestureNull
+        runner.SendKeys([keys.Keys.SHIFT, keys.Keys.NUMPAD0])
+        self.assertTrue(runner.JSTestsSucceeded())
+
+      with self.CreateCobaltRunner(
+          url=url, target_params=['--mic_gesture=foo']) as runner:
+        # Press SHIFT, NUMPAD0 to test micGestureNull
+        runner.SendKeys([keys.Keys.SHIFT, keys.Keys.NUMPAD0])
+        self.assertTrue(runner.JSTestsSucceeded())
+
+      with self.CreateCobaltRunner(
+          url=url, target_params=['--mic_gesture=hold']) as runner:
+        # Press SHIFT, NUMPAD1 to test micGestureHold
+        runner.SendKeys([keys.Keys.SHIFT, keys.Keys.NUMPAD1])
+        self.assertTrue(runner.JSTestsSucceeded())
+
+      with self.CreateCobaltRunner(
+          url=url, target_params=['--mic_gesture=tap']) as runner:
+        # Press SHIFT, NUMPAD2 to test micGestureTap
+        runner.SendKeys([keys.Keys.SHIFT, keys.Keys.NUMPAD2])
         self.assertTrue(runner.JSTestsSucceeded())

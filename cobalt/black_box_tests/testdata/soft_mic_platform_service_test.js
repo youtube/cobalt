@@ -87,7 +87,26 @@ function hardMicFalseSoftMicFalse(hard_mic, soft_mic) {
   assertFalse(soft_mic);
 }
 
-function testService(assertCallback) {
+function micGestureNull(micGesture) {
+  assertFalse(micGesture);
+  assertTrue(micGesture == null);
+}
+
+function micGestureHold(micGesture) {
+  assertTrue(micGesture);
+  assertTrue(micGesture == "HOLD");
+}
+
+function micGestureTap(micGesture) {
+  assertTrue(micGesture);
+  assertTrue(micGesture == "TAP");
+}
+
+/**
+* @param {function} assertCallback
+* @param {boolean} testMicGestureOnly
+*/
+function testService(assertCallback, testMicGestureOnly = false) {
   var service_send_done = false;
   var service_response_received = false;
 
@@ -106,16 +125,24 @@ function testService(assertCallback) {
   /**
   * @param {ArrayBuffer} data
   */
-   function receiveCallback(service, data) {
+  function receiveCallback(service, data) {
     var str_response = ab2str(data);
 
     try {
       var response = JSON.parse(str_response);
       var has_hard_mic = response["hasHardMicSupport"];
       var has_soft_mic = response["hasSoftMicSupport"];
-      console.log(`receiveCallback, has_hard_mic: ${has_hard_mic}, has_soft_mic: ${has_soft_mic}`);
+      var mic_gesture = response["micGesture"];
 
-      assertCallback(has_hard_mic, has_soft_mic);
+      console.log(`receiveCallback() response:
+                  has_hard_mic: ${has_hard_mic},
+                  has_soft_mic: ${has_soft_mic},
+                  micGesture: ${mic_gesture}`);
+
+      if (testMicGestureOnly)
+        assertCallback(mic_gesture);
+      else
+        assertCallback(has_hard_mic, has_soft_mic);
     } catch (error) {
       console.log(`receiveCallback() error: ${error}`);
       failTest();
@@ -223,26 +250,47 @@ function testIncorrectRequests() {
   onEndTest();
 }
 
+/**
+* @param {KeyboardEvent} event
+*/
 window.onkeydown = function(event) {
-  if (event.keyCode === 96) {
+  if (event.shiftKey) {
+    testMicGesture(event)
+    return;
+  }
+
+  if (event.key == 0) {
     testIncorrectRequests();
-  } else if (event.keyCode === 97) {
+  } else if (event.key == 1) {
     testService(bothUndefined);
-  } else if (event.keyCode === 98) {
+  } else if (event.key == 2) {
     testService(hardMicUndefinedSoftMicTrue);
-  } else if (event.keyCode === 99) {
+  } else if (event.key == 3) {
     testService(hardMicUndefinedSoftMicFalse);
-  } else if (event.keyCode === 100) {
+  } else if (event.key == 4) {
     testService(hardMicTrueSoftMicUndefined);
-  } else if (event.keyCode === 101) {
+  } else if (event.key == 5) {
     testService(hardMicTrueSoftMicTrue);
-  } else if (event.keyCode === 102) {
+  } else if (event.key == 6) {
     testService(hardMicTrueSoftMicFalse);
-  } else if (event.keyCode === 103) {
+  } else if (event.key == 7) {
     testService(hardMicFalseSoftMicUndefined);
-  } else if (event.keyCode === 104) {
+  } else if (event.key == 8) {
     testService(hardMicFalseSoftMicTrue);
-  } else if (event.keyCode === 105) {
+  } else if (event.key == 9) {
     testService(hardMicFalseSoftMicFalse);
+  }
+}
+
+/**
+* @param {KeyboardEvent} event
+*/
+function testMicGesture(event) {
+  if (event.key == 0) {
+    testService(micGestureNull, true);
+  } else if (event.key == 1) {
+    testService(micGestureHold, true);
+  } else if (event.key == 2) {
+    testService(micGestureTap, true);
   }
 }

@@ -68,7 +68,11 @@ out/linux-x64x11_debug/cobalt --url=http://localhost:8000/soft_mic_platform_serv
           var response = JSON.parse(str_response);
           has_hard_mic = response["hasHardMicSupport"];
           has_soft_mic = response["hasSoftMicSupport"];
-          console.log(`receiveCallback, has_hard_mic: ${has_hard_mic}, has_soft_mic: ${has_soft_mic}`);
+          var mic_gesture = response["micGesture"];
+          console.log(`receiveCallback() response:\n
+                       has_hard_mic: ${has_hard_mic}\n
+                       has_soft_mic: ${has_soft_mic}\n
+                       micGesture: ${mic_gesture}`);
 
           // It is now safe to close the platform service.
           if (service_send_done)

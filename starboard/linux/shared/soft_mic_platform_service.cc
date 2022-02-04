@@ -42,6 +42,9 @@ const char kNotifySearchActive[] = "\"notifySearchActive\"";
 const char kNotifySearchInactive[] = "\"notifySearchInactive\"";
 const char kHasHardMicSupport[] = "has_hard_mic_support";
 const char kHasSoftMicSupport[] = "has_soft_mic_support";
+const char kMicGesture[] = "mic_gesture";
+const char kJSONTrue[] = "true";
+const char kJSONFalse[] = "false";
 
 bool Has(const char* name) {
   // Check if platform has service name.
@@ -86,7 +89,7 @@ CobaltExtensionPlatformService Open(void* context,
 }
 
 void Close(CobaltExtensionPlatformService service) {
-  SB_LOG(INFO) << "Close() Service";
+  SB_LOG(INFO) << "Close() Service.";
   delete static_cast<CobaltExtensionPlatformServicePrivate*>(service);
 }
 
@@ -114,39 +117,55 @@ void* Send(CobaltExtensionPlatformService service,
 
   if (strcmp(message, kGetMicSupport) == 0) {
     // Process "getMicSupport" web app message.
-    SB_LOG(INFO) << "Send() kGetMicSupport message received";
+    SB_LOG(INFO) << "Send() kGetMicSupport message received.";
 
     auto has_hard_mic = false;
     auto has_soft_mic = true;
+    auto mic_gesture_hold = false;
+    auto mic_gesture_tap = false;
 
 #if !defined(COBALT_BUILD_TYPE_GOLD)
     using shared::starboard::Application;
 
-    // Check for explicit true or false switch value for kHasHardMicSupport and
-    // kHasSoftMicSupport optional target params. If neither are set use
-    // defaults.
+    // Check for explicit true or false switch value for kHasHardMicSupport,
+    // kHasSoftMicSupport, kMicGestureHold, and kMicGestureTap optional target
+    // params. Use default values if none are set.
     auto command_line = Application::Get()->GetCommandLine();
 
     auto hard_mic_switch_value =
         command_line->GetSwitchValue(kHasHardMicSupport);
-    if (strcmp("true", hard_mic_switch_value.c_str()) == 0) {
+    if (hard_mic_switch_value == kJSONTrue) {
       has_hard_mic = true;
-    } else if (strcmp("false", hard_mic_switch_value.c_str()) == 0) {
+    } else if (hard_mic_switch_value == kJSONFalse) {
       has_hard_mic = false;
     }
 
     auto soft_mic_switch_value =
         command_line->GetSwitchValue(kHasSoftMicSupport);
-    if (strcmp("true", soft_mic_switch_value.c_str()) == 0) {
+    if (soft_mic_switch_value == kJSONTrue) {
       has_soft_mic = true;
-    } else if (strcmp("false", soft_mic_switch_value.c_str()) == 0) {
+    } else if (soft_mic_switch_value == kJSONFalse) {
       has_soft_mic = false;
     }
+
+    auto mic_gesture_switch_value = command_line->GetSwitchValue(kMicGesture);
+    mic_gesture_hold = mic_gesture_switch_value == "hold";
+    mic_gesture_tap = mic_gesture_switch_value == "tap";
 #endif  // !defined(COBALT_BUILD_TYPE_GOLD)
 
+    auto mic_gesture = "null";
+    if (mic_gesture_hold)
+      mic_gesture = "\"HOLD\"";
+    else if (mic_gesture_tap)
+      mic_gesture = "\"TAP\"";
+
     auto response = FormatString(
-        "{\"hasHardMicSupport\": %s, \"hasSoftMicSupport\": %s}",
-        (has_hard_mic ? "true" : "false"), (has_soft_mic ? "true" : "false"));
+        "{\"hasHardMicSupport\": %s, \"hasSoftMicSupport\": %s, "
+        "\"micGesture\": %s}",
+        (has_hard_mic ? kJSONTrue : kJSONFalse),
+        (has_soft_mic ? kJSONTrue : kJSONFalse), mic_gesture);
+
+    SB_LOG(INFO) << "Send() kGetMicSupport response: " << response;
 
     // Here we are synchronously calling the receive_callback() from within
     // Send() which is unnecessary. Implementations should prioritize
