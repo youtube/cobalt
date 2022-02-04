@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-config("webdriver_public_config") {
+config("webdriver_all_dependent_config") {
   defines = [ "ENABLE_WEBDRIVER" ]
 }
 
@@ -104,7 +104,7 @@ static_library("webdriver") {
       "window_driver.h",
     ]
     deps += [ ":copy_webdriver_data" ]
-    public_configs = [ ":webdriver_public_config" ]
+    all_dependent_configs = [ ":webdriver_all_dependent_config" ]
   }
 }
 
