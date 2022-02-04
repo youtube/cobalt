@@ -278,7 +278,8 @@ template("executable") {
                            ])
   }
 
-  if (!defined(invoker.install_target) || invoker.install_target) {
+  if (current_toolchain == default_toolchain &&
+      (!defined(invoker.install_target) || invoker.install_target)) {
     executable_target_name = target_name
     install_target(target_name + "_install") {
       forward_variables_from(invoker, [ "testonly" ])
@@ -309,7 +310,8 @@ template("shared_library") {
                            ])
   }
 
-  if (!defined(invoker.install_target) || invoker.install_target) {
+  if (current_toolchain == default_toolchain &&
+      (!defined(invoker.install_target) || invoker.install_target)) {
     shared_library_target_name = target_name
     install_target(target_name + "_install") {
       forward_variables_from(invoker, [ "testonly" ])
