@@ -12,24 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-config("sabi_flags") {
-  cflags = [
-    "-mfloat-abi=hard",
-    "-target",
-    "armv7a-none-eabihf",
-  ]
-}
+import("//starboard/evergreen/shared/platform_configuration/configuration.gni")
 
-config("platform_configuration") {
-  configs = [ "//starboard/build/config/sabi" ]
-
-  if (current_toolchain == default_toolchain) {
-    configs += [
-      "//starboard/evergreen/arm/shared/platform_configuration:sabi_flags",
-      ":sabi_flags",
-      "//starboard/evergreen/arm/shared/platform_configuration",
-    ]
-  } else {
-    cflags = [ "-O2" ]
-  }
-}
+sabi_path = "//starboard/sabi/arm/softfp/sabi-v$sb_api_version.json"

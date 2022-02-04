@@ -13,23 +13,19 @@
 # limitations under the License.
 
 config("sabi_flags") {
-  cflags = [
-    "-mfloat-abi=hard",
-    "-target",
-    "armv7a-none-eabihf",
-  ]
+  cflags = [ "-march=armv7a" ]
 }
 
 config("platform_configuration") {
-  configs = [ "//starboard/build/config/sabi" ]
+  configs = [
+    ":sabi_flags",
+    "//starboard/evergreen/shared/platform_configuration",
+  ]
 
-  if (current_toolchain == default_toolchain) {
-    configs += [
-      "//starboard/evergreen/arm/shared/platform_configuration:sabi_flags",
-      ":sabi_flags",
-      "//starboard/evergreen/arm/shared/platform_configuration",
-    ]
-  } else {
-    cflags = [ "-O2" ]
-  }
+  cflags = [
+    "-isystem" + rebase_path("//third_party/musl/arch/arm", root_build_dir),
+
+    # Force char to be signed.
+    "-fsigned-char",
+  ]
 }

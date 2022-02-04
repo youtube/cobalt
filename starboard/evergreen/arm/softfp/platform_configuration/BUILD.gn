@@ -14,9 +14,9 @@
 
 config("sabi_flags") {
   cflags = [
-    "-mfloat-abi=hard",
+    "-mfloat-abi=softfp",
     "-target",
-    "armv7a-none-eabihf",
+    "armv7a-none-eabi",
   ]
 }
 

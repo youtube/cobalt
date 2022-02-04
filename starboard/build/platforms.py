@@ -36,6 +36,7 @@ PLATFORMS = {
     'darwin-tvos-simulator': 'starboard/darwin/tvos/simulator',
     'evergreen-x64': 'starboard/evergreen/x64',
     'evergreen-arm-hardfp': 'starboard/evergreen/arm/hardfp',
+    'evergreen-arm-softfp': 'starboard/evergreen/arm/softfp',
     'nxswitch': 'starboard/nxswitch',
     'xb1': 'starboard/xb1',
     'ps4': 'starboard/ps4',
