@@ -30,3 +30,18 @@ static_library("speech") {
     "//cobalt/media",
   ]
 }
+
+target(gtest_target_type, "speech_test") {
+  testonly = true
+  sources = [
+    "chunked_byte_buffer_unittest.cc",
+    "endpointer/endpointer_unittest.cc",
+  ]
+  deps = [
+    ":speech",
+    "//cobalt/media",
+    "//cobalt/test:run_all_unittests",
+    "//starboard",
+    "//testing/gtest",
+  ]
+}
