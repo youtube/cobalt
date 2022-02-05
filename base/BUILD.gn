@@ -2579,6 +2579,9 @@ if (!is_starboard && (is_win || is_mac)) {
 
 copy("base_unittests_bundle_data") {
   testonly = true
+  if (is_starboard) {
+    install_content = true
+  }
   sources = [
     "//tools/metrics/histograms/enums.xml",
     "test/data/file_util/binary_file.bin",
@@ -3175,6 +3178,9 @@ target(gtest_target_type, "base_unittests") {
   public_deps = [
     ":base_unittests_bundle_data",
   ]
+  if (is_starboard){
+    content_deps = [ ":base_unittests_bundle_data" ]
+  }
 
   data = [
     "test/data/",

@@ -125,9 +125,6 @@ target(gtest_target_type, "renderer_test") {
   deps = [
     ":render_tree_pixel_tester",
     ":renderer",
-    ":renderer_copy_lottie_test_data",
-    ":renderer_copy_test_data",
-    ":renderer_download_lottie_test_data",
     ":renderer_headers_only",
     "//base:i18n",
     "//cobalt/base",
@@ -141,9 +138,18 @@ target(gtest_target_type, "renderer_test") {
     "//testing/gtest",
     "//third_party/icu:icuuc",
   ]
+
+  data_deps = [
+    ":renderer_copy_lottie_test_data",
+    ":renderer_copy_test_data",
+    ":renderer_download_lottie_test_data",
+  ]
+
+  content_deps = data_deps
 }
 
 copy("renderer_copy_test_data") {
+  install_content = true
   sources = [
     "rasterizer/testdata/2xSpeedLottieAnimationTest-expected.png",
     "rasterizer/testdata/AlmostCircleViaRoundedCorners-expected.png",
@@ -478,6 +484,8 @@ copy("renderer_copy_test_data") {
 _lottie_resource_path = "rasterizer/testdata/lottie_coverage"
 
 copy("renderer_copy_lottie_test_data") {
+  install_content = true
+
   # TODO(b/211909342): List the individual files that are to be copied.
   sources = [ _lottie_resource_path ]
   deps = [ ":renderer_download_lottie_test_data" ]
@@ -486,6 +494,8 @@ copy("renderer_copy_lottie_test_data") {
 }
 
 action("renderer_download_lottie_test_data") {
+  install_content = true
+
   script = "//tools/download_from_gcs.py"
 
   inputs = [

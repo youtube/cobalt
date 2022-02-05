@@ -190,7 +190,6 @@ target(gtest_target_type, "loader_test") {
   configs += [ "//starboard/build/config:speed" ]
 
   deps = [
-    ":copy_loader_test_data",
     ":loader",
     "//cobalt/base:base",
     "//cobalt/dom",
@@ -203,10 +202,14 @@ target(gtest_target_type, "loader_test") {
     "//third_party/ots:ots",
   ]
 
-  deps += cobalt_platform_dependencies
+  data_deps = [ ":copy_loader_test_data" ]
+
+  content_deps = [ ":copy_loader_test_data" ]
 }
 
 copy("copy_loader_test_data") {
+  install_content = true
+
   sources = [
     "testdata/baseline_jpeg.jpg",
     "testdata/empty.txt",

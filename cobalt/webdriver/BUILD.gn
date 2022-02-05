@@ -116,6 +116,7 @@ copy("copy_webdriver_data") {
 }
 
 copy("webdriver_copy_test_data") {
+  install_content = true
   sources = [
     "testdata/displayed_test.html",
     "testdata/map.png",
@@ -137,7 +138,6 @@ target(gtest_target_type, "webdriver_test") {
 
   deps = [
     ":webdriver",
-    ":webdriver_copy_test_data",
     "//cobalt/base",
     "//cobalt/browser",
     "//cobalt/css_parser:css_parser",
@@ -149,4 +149,8 @@ target(gtest_target_type, "webdriver_test") {
     "//testing/gtest",
     "//third_party/devtools:devtools_all_files",
   ]
+
+  data_deps = [ ":webdriver_copy_test_data" ]
+
+  content_deps = data_deps
 }
