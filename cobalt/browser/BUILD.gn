@@ -389,3 +389,14 @@ cache_lex_tables("cached_lex_yacc_tables") {
 cache_templates("cached_jinja_templates") {
   output_dir = _bindings_scripts_output_dir
 }
+
+target(final_executable_type, "snapshot_app_stats") {
+  sources = [ "snapshot_app_stats.cc" ]
+  deps = [
+    ":browser",
+    ":browser_switches",
+    ":cobalt",
+    "//cobalt/base",
+    "//third_party/protobuf:protobuf_lite",
+  ]
+}
