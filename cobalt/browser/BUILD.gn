@@ -16,6 +16,13 @@ import("//cobalt/bindings/bindings_templates.gni")
 import("//cobalt/browser/idl_files.gni")
 import("//cobalt/script/v8c/v8c_variables.gni")
 
+# This GN target must implement the functions defined in
+# //cobalt/browser/idl_extensions.h.  See cobalt/doc/webapi_extension.md for
+# more information.
+declare_args() {
+  cobalt_webapi_extension_gn_target = ":null_webapi_extension"
+}
+
 ##########################################################
 # Configuration variables for bindings generation scripts.
 ##########################################################
@@ -174,6 +181,7 @@ static_library("browser") {
     "//third_party/icu:icui18n",
     "//third_party/protobuf:protobuf_lite",
     "//url",
+    cobalt_webapi_extension_gn_target,
   ]
 
   if (!is_gold) {
@@ -398,5 +406,14 @@ target(final_executable_type, "snapshot_app_stats") {
     ":cobalt",
     "//cobalt/base",
     "//third_party/protobuf:protobuf_lite",
+  ]
+}
+
+static_library("null_webapi_extension") {
+  sources = [ "null_webapi_extension.cc" ]
+  deps = [
+    "//base",
+    "//cobalt/dom",
+    "//cobalt/script",
   ]
 }
