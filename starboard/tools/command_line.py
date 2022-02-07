@@ -20,7 +20,7 @@ import _env  # pylint: disable=unused-import
 from starboard.tools import build
 from starboard.tools import params
 import starboard.tools.config
-import starboard.tools.starboard_platform
+import starboard.tools.platform
 
 
 def AddLoggingArguments(arg_parser, default='info'):
@@ -46,7 +46,7 @@ def AddPlatformConfigArguments(arg_parser):
   arg_parser.add_argument(
       '-p',
       '--platform',
-      choices=starboard.tools.starboard_platform.GetAll(),
+      choices=starboard.tools.platform.GetAll(),
       default=default_platform,
       required=not default_platform,
       help="Device platform, eg 'linux-x64x11'. Requires that you have "
@@ -77,10 +77,7 @@ def AddPlatformConfigArguments(arg_parser):
 
 
 def AddLauncherArguments(arg_parser):
-  """
-  Adds the platform configuration and device information arguments require by
-  launchers.
-  """
+  """Adds the platform configuration and device information arguments require by launchers."""
   AddPlatformConfigArguments(arg_parser)
   arg_parser.add_argument(
       '-d', '--device_id', help='Devkit or IP address for the target device.')

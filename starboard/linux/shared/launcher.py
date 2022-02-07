@@ -23,7 +23,7 @@ import sys
 import time
 import traceback
 
-import _env  # pylint: disable=unused-import, relative-import
+import _env  # pylint: disable=unused-import
 from starboard.tools import abstract_launcher
 from starboard.tools import send_link
 

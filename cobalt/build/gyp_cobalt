@@ -28,7 +28,7 @@ from starboard.tools import build
 from starboard.tools import command_line
 from starboard.tools import config
 from starboard.tools import log_level
-from starboard.tools import starboard_platform
+from starboard.tools import platform
 
 # Return values used by main().
 RETVAL_SUCCESS = 0
@@ -82,10 +82,10 @@ def _ParseCommandLineArguments(argv):
       "logging level use '--log_level' instead.")
   parser.add_argument(
       'platform',
-      choices=starboard_platform.GetAll(),
+      choices=platform.GetAll(),
       metavar='platform',
       help='Target platform. Supported platforms are: %s.' %
-      (_ListAsString(starboard_platform.GetAll())))
+      (_ListAsString(platform.GetAll())))
   parser.add_argument(
       'build_file',
       nargs='?',

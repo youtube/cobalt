@@ -25,7 +25,7 @@ from starboard.sabi import sabi
 from starboard.tools import cache
 from starboard.tools import environment
 from starboard.tools import paths
-from starboard.tools import starboard_platform
+from starboard.tools import platform
 from starboard.tools.config import Config
 
 
@@ -182,7 +182,7 @@ class PlatformConfiguration(object):
     Returns:
       An ordered list containing absolute paths to .gypi files.
     """
-    platform_info = starboard_platform.Get(self.GetName())
+    platform_info = platform.Get(self.GetName())
     if not platform_info:
       return []
 

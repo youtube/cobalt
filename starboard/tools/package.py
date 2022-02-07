@@ -22,7 +22,7 @@ import os
 
 import _env  # pylint: disable=unused-import
 import starboard
-from starboard.tools import starboard_platform
+from starboard.tools import platform
 
 
 def _ImportModule(path, root_module, module_name=None):
@@ -56,10 +56,7 @@ def _ImportModule(path, root_module, module_name=None):
 
 
 def _GetPackageClass(platform_info):
-  """
-  Loads the package class associated with the given
-  starboard_platform.PlatformInfo.
-  """
+  """Loads the package class associated with the given platform.PlatformInfo."""
   try:
     module = _ImportModule(platform_info.path, starboard)
   except ImportError as e:
@@ -80,8 +77,8 @@ def _GetPlatformInfosDict():
     A dict of [platform_name, Class] where Class inherits from PackageBase
   """
   packager_modules = {}
-  for platform_name in starboard_platform.GetAll():
-    platform_info = starboard_platform.Get(platform_name)
+  for platform_name in platform.GetAll():
+    platform_info = platform.Get(platform_name)
     # From the relative path to the starboard directory, construct a full
     # python package name and attempt to load it.
     package_class = _GetPackageClass(platform_info)

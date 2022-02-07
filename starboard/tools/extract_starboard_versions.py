@@ -28,13 +28,13 @@ import sys
 
 import _env  # pylint: disable=unused-import
 from starboard.tools import paths
-from starboard.tools import starboard_platform
+from starboard.tools import platform
 
 
 # Sometimes files have weird encodings. This function will use a variety of
 # hand selected encoders that work on the starboard codebase.
 def AutoDecodeString(file_data):
-  for encoding in ['UTF-8', 'utf_16', 'windows-1253', 'iso-8859-7', 'macgreek']:
+  for encoding in {'UTF-8', 'utf_16', 'windows-1253', 'iso-8859-7', 'macgreek'}:
     try:
       return file_data.decode(encoding)
     except ValueError:
@@ -127,7 +127,7 @@ def GeneratePlatformPathMap():
       raise IOError('Could not find path ' + full_path)
     return full_path
 
-  return {p.name: GenPath(p) for p in starboard_platform.GetAllInfos()}
+  return {p.name: GenPath(p) for p in platform.GetAllInfos()}
 
 
 # Given the root starboard directory, and the full path to the platform,

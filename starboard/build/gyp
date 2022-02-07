@@ -27,7 +27,8 @@ from starboard.tools import build
 from starboard.tools import command_line
 from starboard.tools import config
 from starboard.tools import log_level
-from starboard.tools import starboard_platform
+from starboard.tools import paths
+from starboard.tools import platform
 
 # Return values used by main().
 RETVAL_SUCCESS = 0
@@ -46,61 +47,43 @@ def _ParseCommandLineArguments(argv):
       description=textwrap.dedent(__doc__))
 
   default_config, default_platform = build.GetDefaultConfigAndPlatform()
-  parser.add_argument(
-      '-c',
-      '--config',
-      dest='build_configs',
-      metavar='CONFIG',
-      action='append',
-      choices=config.GetAll(),
-      default=([default_config] if default_config else config.GetAll()),
-      help='Specifies build configurations. Supported '
-      'configurations are %s. Can be specified multiple '
-      'times. Creates all configurations if nothing is '
-      'given.' % _ListAsString(config.GetAll()))
-  parser.add_argument(
-      '-p',
-      '--platform',
-      choices=starboard_platform.GetAll(),
-      metavar='platform',
-      default=default_platform,
-      required=not default_platform,
-      help='Target platform. Supported platforms are: %s.' %
-      (_ListAsString(starboard_platform.GetAll())))
+  parser.add_argument('-c', '--config', dest='build_configs', metavar='CONFIG',
+                      action='append',
+                      choices=config.GetAll(),
+                      default=([default_config] if default_config
+                               else config.GetAll()),
+                      help='Specifies build configurations. Supported '
+                      'configurations are %s. Can be specified multiple '
+                      'times. Creates all configurations if nothing is '
+                      'given.' % _ListAsString(config.GetAll()))
+  parser.add_argument('-p', '--platform', choices=platform.GetAll(),
+                      metavar='platform',
+                      default=default_platform,
+                      required=not default_platform,
+                      help='Target platform. Supported platforms are: %s.' % (
+                          _ListAsString(platform.GetAll())))
 
   gyp_debug_options = build.GypDebugOptions()
-  parser.add_argument(
-      '-d',
-      '--debug',
-      dest='debug',
-      metavar='DEBUGMODE',
-      action='append',
-      default=[],
-      choices=gyp_debug_options + ['all'],
-      help='Turn on a debugging mode for debugging GYP. '
-      'Supported modes are %s or "all" for all of '
-      'them.' % _ListAsString(gyp_debug_options))
+  parser.add_argument('-d', '--debug', dest='debug', metavar='DEBUGMODE',
+                      action='append', default=[],
+                      choices=gyp_debug_options + ['all'],
+                      help='Turn on a debugging mode for debugging GYP. '
+                      'Supported modes are %s or "all" for all of '
+                      'them.' % _ListAsString(gyp_debug_options))
 
-  parser.add_argument(
-      '--check', action='store_true', help='Check format of gyp files.')
-  parser.add_argument(
-      '-v',
-      '--verbose',
-      action='store_true',
-      help='Enables verbose logging. For more control over the '
-      "logging level use '--log_level' instead.")
-  parser.add_argument(
-      '-a',
-      '--application',
-      metavar='application',
-      default='cobalt',
-      required=False,
-      help='The application being built, if any.')
-  parser.add_argument(
-      'build_file',
-      nargs='?',
-      default=None,
-      help='Root GYP build file. Default: starboard_all.gyp')
+  parser.add_argument('--check', action='store_true',
+                      help='Check format of gyp files.')
+  parser.add_argument('-v', '--verbose', action='store_true',
+                      help='Enables verbose logging. For more control over the '
+                      "logging level use '--log_level' instead.")
+  parser.add_argument('-a', '--application',
+                      metavar='application',
+                      default='cobalt',
+                      required=False,
+                      help='The application being built, if any.')
+  parser.add_argument('build_file', nargs='?',
+                      default=None,
+                      help='Root GYP build file. Default: starboard_all.gyp')
 
   command_line.AddLoggingArguments(parser, default='warning')
 
@@ -118,7 +101,7 @@ def main(argv):
 
   try:
     gyp_runner = GypRunner(options)
-  except RuntimeError:
+  except RuntimeError as e:
     logging.exception('Failed to construct GypRunner.')
     return RETVAL_ERROR
 
