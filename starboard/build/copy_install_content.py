@@ -68,7 +68,15 @@ if __name__ == '__main__':
       required=True,
       help='source base directory')
   parser.add_argument(
-      'input_paths', metavar='path', nargs='+', help='path to an input file')
+      '--files_list',
+      dest='files_list',
+      required=True,
+      help='path to file containing list of input files')
   options = parser.parse_args()
 
-  copy_files(options.input_paths, options.base_dir, options.output_dir)
+  # Load file names from the file containing the list of file names.
+  # The file name list must be passed in a file to due to command line limits.
+  with open(options.files_list) as input_file:
+    file_names = [line.strip() for line in input_file]
+
+  copy_files(file_names, options.base_dir, options.output_dir)

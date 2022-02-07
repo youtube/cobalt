@@ -228,14 +228,20 @@ template("install_content") {
         outputs += [ output_path ]
       }
 
+      # Write the file list to a unique temp file to avoid blowing out the
+      # command line length limit.
+      files_list = "$target_gen_dir/${target_name}_files.tmp"
+      write_file(files_list, rebase_path(sources, root_build_dir))
+
       script = "//starboard/build/copy_install_content.py"
       args = [
         "--output_dir",
         rebase_path(install_content_dir, root_build_dir),
         "--base_dir",
         rebase_path(sb_static_contents_output_data_dir, root_build_dir),
+        "--files_list",
+        rebase_path(files_list, root_build_dir),
       ]
-      args += rebase_path(sources, root_build_dir)
     }
   }
 }
