@@ -37,6 +37,7 @@ x-build-common-definitions: &build-common-definitions
 x-shared-build-env: &shared-build-env
   NINJA_PARALLEL: ${NINJA_PARALLEL:-32}
   IS_CI: ${IS_CI:-0}
+  IS_DOCKER: 1
 
 services:
 #### Tools
@@ -201,7 +202,6 @@ services:
     depends_on: [ build-android ]
     environment:
       <<: *shared-build-env
-      IS_DOCKER: 1
       PLATFORM: android-x86
       CONFIG: ${CONFIG:-debug}
 
@@ -214,7 +214,6 @@ services:
       dockerfile: ./gn/Dockerfile
     environment:
       <<: *shared-build-env
-      IS_DOCKER: 1
       PLATFORM: android-x86
       CONFIG: ${CONFIG:-debug}
       TARGET_CPU: ${TARGET_CPU:-x86}
@@ -225,7 +224,6 @@ services:
     depends_on: [ build-android ]
     environment:
       <<: *shared-build-env
-      IS_DOCKER: 1
       PLATFORM: android-arm
       CONFIG: ${CONFIG:-debug}
 
@@ -238,7 +236,6 @@ services:
       dockerfile: ./gn/Dockerfile
     environment:
       <<: *shared-build-env
-      IS_DOCKER: 1
       PLATFORM: android-arm
       CONFIG: ${CONFIG:-debug}
       TARGET_CPU: ${TARGET_CPU:-arm}
@@ -249,7 +246,6 @@ services:
     depends_on: [ build-android ]
     environment:
       <<: *shared-build-env
-      IS_DOCKER: 1
       PLATFORM: android-arm64
       CONFIG: ${CONFIG:-debug}
 
@@ -262,7 +258,6 @@ services:
       dockerfile: ./gn/Dockerfile
     environment:
       <<: *shared-build-env
-      IS_DOCKER: 1
       PLATFORM: android-arm64
       CONFIG: ${CONFIG:-debug}
       TARGET_CPU: ${TARGET_CPU:-arm64}
