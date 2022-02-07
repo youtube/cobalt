@@ -8,6 +8,11 @@
 #ifndef SkTypes_DEFINED
 #define SkTypes_DEFINED
 
+#ifdef USE_SKIA_NEXT
+#error Including a skia header in a skia_next build. \
+Check include paths order and use_skia_next argument usage in build configs.
+#endif
+
 // IWYU pragma: begin_exports
 #include "include/core/SkPreConfig.h"
 #if defined (SK_USER_CONFIG_HEADER)
