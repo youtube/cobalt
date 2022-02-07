@@ -24,10 +24,6 @@ config("media_config") {
   defines = [ "MEDIA_IMPLEMENTATION" ]
 }
 
-config("media_config_public") {
-  include_dirs = [ ".." ]
-}
-
 component("media") {
   sources = [
     "base/audio_bus.cc",
@@ -231,8 +227,6 @@ component("media") {
     "//starboard/build/config:speed",
     ":media_config",
   ]
-
-  public_configs = [ ":media_config_public" ]
 
   deps = [
     "//base",
