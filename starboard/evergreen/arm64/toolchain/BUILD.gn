@@ -21,7 +21,7 @@ clang_toolchain("host") {
 
   toolchain_args = {
     current_os = "linux"
-    current_cpu = "x86"
+    current_cpu = "x64"
   }
 }
 
@@ -32,7 +32,7 @@ gcc_toolchain("target") {
   ar = evergreen_target_ar
   nm = evergreen_target_nm
 
-  evergreen_target_extra_ldflags += [ "-m armelf" ]
+  evergreen_target_extra_ldflags += [ "-m aarch64elf" ]
   extra_ldflags = string_join(" ", evergreen_target_extra_ldflags)
 
   toolchain_args = {

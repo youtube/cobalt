@@ -37,6 +37,7 @@ PLATFORMS = {
     'evergreen-x64': 'starboard/evergreen/x64',
     'evergreen-arm-hardfp': 'starboard/evergreen/arm/hardfp',
     'evergreen-arm-softfp': 'starboard/evergreen/arm/softfp',
+    'evergreen-arm64': 'starboard/evergreen/arm64',
     'nxswitch': 'starboard/nxswitch',
     'xb1': 'starboard/xb1',
     'ps4': 'starboard/ps4',

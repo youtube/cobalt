@@ -14,13 +14,23 @@
 
 import("//build/config/clang/clang.gni")
 import("//build/toolchain/gcc_toolchain.gni")
+import("//starboard/evergreen/shared/toolchain/toolchain.gni")
 
 clang_toolchain("host") {
   clang_base_path = clang_base_path
 }
 
-clang_toolchain("target") {
-  clang_base_path = clang_base_path
-  # TODO: additional work is likely needed to configure the linker for
-  # evergreen (see //starboard/tools/toolchain/evergreen_linker.py).
+gcc_toolchain("target") {
+  cc = evergreen_target_cc
+  cxx = evergreen_target_cxx
+  ld = evergreen_target_ld
+  ar = evergreen_target_ar
+  nm = evergreen_target_nm
+
+  evergreen_target_extra_ldflags += [ "-m elf_x86_64" ]
+  extra_ldflags = string_join(" ", evergreen_target_extra_ldflags)
+
+  toolchain_args = {
+    is_clang = false
+  }
 }

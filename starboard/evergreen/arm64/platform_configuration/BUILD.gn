@@ -12,30 +12,29 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//build/config/clang/clang.gni")
-import("//build/toolchain/gcc_toolchain.gni")
-import("//starboard/evergreen/shared/toolchain/toolchain.gni")
+config("sabi_flags") {
+  cflags = [
+    "-march=arm64v8a",
+    "-target",
+    "arm64v8a-unknown-unknown-elf",
 
-clang_toolchain("host") {
-  clang_base_path = clang_base_path
-
-  toolchain_args = {
-    current_os = "linux"
-    current_cpu = "x86"
-  }
+    # char is unsigned by default for arm64.
+    "-fsigned-char",
+  ]
 }
 
-gcc_toolchain("target") {
-  cc = evergreen_target_cc
-  cxx = evergreen_target_cxx
-  ld = evergreen_target_ld
-  ar = evergreen_target_ar
-  nm = evergreen_target_nm
+config("platform_configuration") {
+  configs = [ "//starboard/build/config/sabi" ]
 
-  evergreen_target_extra_ldflags += [ "-m armelf" ]
-  extra_ldflags = string_join(" ", evergreen_target_extra_ldflags)
+  if (current_toolchain == default_toolchain) {
+    configs += [
+      ":sabi_flags",
+      "//starboard/evergreen/shared/platform_configuration",
+    ]
 
-  toolchain_args = {
-    is_clang = false
+    cflags = [ "-isystem" +
+               rebase_path("//third_party/musl/arch/aarch64", root_build_dir) ]
+  } else {
+    cflags = [ "-O2" ]
   }
 }

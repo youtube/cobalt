@@ -14,7 +14,7 @@
 
 import("//build/config/clang/clang.gni")
 import("//build/toolchain/gcc_toolchain.gni")
-import("//starboard/evergreen/arm/shared/toolchain/toolchain.gni")
+import("//starboard/evergreen/shared/toolchain/toolchain.gni")
 
 clang_toolchain("host") {
   clang_base_path = clang_base_path
@@ -26,12 +26,14 @@ clang_toolchain("host") {
 }
 
 gcc_toolchain("target") {
-  cc = evergreen_arm_target_cc
-  cxx = evergreen_arm_target_cxx
-  ld = evergreen_arm_target_ld
-  ar = evergreen_arm_target_ar
-  nm = evergreen_arm_target_nm
-  extra_ldflags = evergreen_arm_target_extra_ldflags
+  cc = evergreen_target_cc
+  cxx = evergreen_target_cxx
+  ld = evergreen_target_ld
+  ar = evergreen_target_ar
+  nm = evergreen_target_nm
+
+  evergreen_target_extra_ldflags += [ "-m armelf" ]
+  extra_ldflags = string_join(" ", evergreen_target_extra_ldflags)
 
   toolchain_args = {
     is_clang = false
