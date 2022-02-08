@@ -36,3 +36,5 @@ no_pedantic_warnings_config_path =
     "//starboard/evergreen/shared/platform_configuration:no_pedantic_warnings"
 
 cobalt_licenses_platform = "evergreen"
+
+install_target_path = "//starboard/build/install/install_target.gni"

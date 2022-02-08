@@ -15,21 +15,7 @@
 import("//starboard/build/config/base_configuration.gni")
 
 declare_args() {
-  android_sdk_path = getenv("ANDROID_HOME")
-  android_ndk_path = ""
-  sb_android_ndk_version = "21.1.6352462"
-  android_ndk_api_level = 21
-
   enable_vulkan = false
-}
-
-if (android_sdk_path == "") {
-  _home_dir = getenv("HOME")
-  android_sdk_path = "$_home_dir/starboard-toolchains/AndroidSdk"
-}
-
-if (android_ndk_path == "") {
-  android_ndk_path = "$android_sdk_path/ndk/$sb_android_ndk_version"
 }
 
 final_executable_type = "shared_library"

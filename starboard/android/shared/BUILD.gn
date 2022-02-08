@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//starboard/android/shared/toolchain/toolchain.gni")
 import("//starboard/shared/starboard/media/media_tests.gni")
 import("//starboard/shared/starboard/player/buildfiles.gni")
 import("//starboard/shared/starboard/player/player_tests.gni")
@@ -224,7 +225,6 @@ static_library("starboard_platform") {
     "//starboard/shared/starboard/media/media_get_buffer_storage_type.cc",
     "//starboard/shared/starboard/media/media_get_progressive_buffer_budget.cc",
     "//starboard/shared/starboard/media/media_get_video_buffer_budget.cc",
-    "//starboard/shared/starboard/media/media_is_buffer_pool_allocate_on_demand.cc",
     "//starboard/shared/starboard/media/media_is_buffer_using_memory_pool.cc",
     "//starboard/shared/starboard/media/mime_type.cc",
     "//starboard/shared/starboard/media/mime_type.h",
@@ -361,6 +361,7 @@ static_library("starboard_platform") {
     "media_get_initial_buffer_capacity.cc",
     "media_get_max_buffer_capacity.cc",
     "media_is_audio_supported.cc",
+    "media_is_buffer_pool_allocate_on_demand.cc",
     "media_is_video_supported.cc",
     "microphone_impl.cc",
     "network_status_impl.cc",
@@ -452,8 +453,8 @@ static_library("starboard_platform") {
 
   if (is_internal_build) {
     sources += [
-      "input_events_filter.cc",
-      "input_events_filter.h",
+      "internal/input_events_filter.cc",
+      "internal/input_events_filter.h",
     ]
     defines = [ "STARBOARD_INPUT_EVENTS_FILTER" ]
     deps += [ "//starboard/android/shared/drm_system_extension" ]

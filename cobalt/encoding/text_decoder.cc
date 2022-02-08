@@ -143,7 +143,7 @@ void TextDecoder::Decode(const char* start, int32_t length,
   if (!do_not_flush_) {
     bom_seen_ = false;
   }
-  if (!ignore_bom_ && !bom_seen_) {
+  if (!ignore_bom_ && !bom_seen_ && length) {
     bom_seen_ = true;
     if (!RemoveBOM(start, length, exception_state)) {
       return;

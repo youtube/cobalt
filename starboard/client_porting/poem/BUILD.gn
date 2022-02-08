@@ -25,4 +25,6 @@ target(gtest_target_type, "poem_unittests") {
     "//starboard",
     "//testing/gtest",
   ]
+
+  content_deps = [ "//third_party/icu:icudata" ]
 }

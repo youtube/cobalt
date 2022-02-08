@@ -31,6 +31,7 @@
 #include "cobalt/script/script_value_factory.h"
 #include "cobalt/script/sequence.h"
 #include "cobalt/script/wrappable.h"
+#include "cobalt/worker/service_worker_container.h"
 
 namespace cobalt {
 namespace dom {
@@ -70,6 +71,9 @@ class Navigator : public script::Wrappable {
 
   // Web API: MediaDevices
   scoped_refptr<media_capture::MediaDevices> media_devices();
+
+  // Web API: ServiceWorker
+  scoped_refptr<worker::ServiceWorkerContainer> service_worker();
 
   const scoped_refptr<MimeTypeArray>& mime_types() const;
   const scoped_refptr<PluginArray>& plugins() const;
@@ -135,6 +139,7 @@ class Navigator : public script::Wrappable {
   scoped_refptr<PluginArray> plugins_;
   scoped_refptr<cobalt::media_session::MediaSession> media_session_;
   scoped_refptr<cobalt::media_capture::MediaDevices> media_devices_;
+  scoped_refptr<cobalt::worker::ServiceWorkerContainer> service_worker_;
   scoped_refptr<cobalt::dom::captions::SystemCaptionSettings>
       system_caption_settings_;
   script::ScriptValueFactory* script_value_factory_;

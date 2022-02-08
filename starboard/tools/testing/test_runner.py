@@ -242,8 +242,11 @@ class TestRunner(object):
 
     logging.info("Getting platform configuration")
     self._platform_config = build.GetPlatformConfig(platform)
+    self._platform_test_filters = build.GetPlatformTestFilters(platform)
     if self.loader_platform:
       self._loader_platform_config = build.GetPlatformConfig(loader_platform)
+      self._loader_platform_test_filters = build.GetPlatformTestFilters(
+          loader_platform)
     logging.info("Got platform configuration")
     logging.info("Getting application configuration")
     self._app_config = self._platform_config.GetApplicationConfiguration(
@@ -347,7 +350,7 @@ class TestRunner(object):
 
   def _GetTestFilters(self):
     """Get test filters for a given platform and configuration."""
-    filters = self._platform_config.GetTestFilters()
+    filters = self._platform_test_filters.GetTestFilters()
     app_filters = self._app_config.GetTestFilters()
     if app_filters:
       filters.extend(app_filters)
@@ -357,9 +360,11 @@ class TestRunner(object):
     # filtered tests when it is running on a Raspberry Pi 2.
     if self.loader_platform and self.loader_config:
       loader_platform_config = build.GetPlatformConfig(self.loader_platform)
+      loader_platform_test_filters = build.GetPlatformTestFilters(
+          self.loader_platform)
       loader_app_config = loader_platform_config.GetApplicationConfiguration(
           self.application_name)
-      for filter_ in (loader_platform_config.GetTestFilters() +
+      for filter_ in (loader_platform_test_filters.GetTestFilters() +
                       loader_app_config.GetTestFilters()):
         if filter_ not in filters:
           filters.append(filter_)

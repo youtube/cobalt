@@ -13,7 +13,7 @@
 # limitations under the License.
 {
   'variables': {
-    'has_input_events_filter' : '<!pymod_do_main(starboard.build.gyp_functions file_exists <(DEPTH)/starboard/android/shared/input_events_filter.cc)',
+    'has_input_events_filter' : '<!pymod_do_main(starboard.build.gyp_functions file_exists <(DEPTH)/starboard/android/shared/internal/input_events_filter.cc)',
     'has_drm_system_extension%': '<!pymod_do_main(starboard.build.gyp_functions file_exists <(DEPTH)/starboard/android/shared/drm_system_extension/drm_system_extension.gyp)',
   },
   'includes': [
@@ -141,6 +141,7 @@
         'media_get_initial_buffer_capacity.cc',
         'media_get_max_buffer_capacity.cc',
         'media_is_audio_supported.cc',
+        'media_is_buffer_pool_allocate_on_demand.cc',
         'media_is_video_supported.cc',
         'network_status_impl.cc',
         'microphone_impl.cc',
@@ -401,7 +402,6 @@
         '<(DEPTH)/starboard/shared/starboard/media/media_get_buffer_storage_type.cc',
         '<(DEPTH)/starboard/shared/starboard/media/media_get_progressive_buffer_budget.cc',
         '<(DEPTH)/starboard/shared/starboard/media/media_get_video_buffer_budget.cc',
-        '<(DEPTH)/starboard/shared/starboard/media/media_is_buffer_pool_allocate_on_demand.cc',
         '<(DEPTH)/starboard/shared/starboard/media/media_is_buffer_using_memory_pool.cc',
         '<(DEPTH)/starboard/shared/starboard/media/mime_type.cc',
         '<(DEPTH)/starboard/shared/starboard/media/mime_type.h',
@@ -476,8 +476,8 @@
       'conditions': [
         ['has_input_events_filter==1', {
           'sources': [
-            'input_events_filter.cc',
-            'input_events_filter.h',
+            'internal/input_events_filter.cc',
+            'internal/input_events_filter.h',
           ],
           'defines': [
             'STARBOARD_INPUT_EVENTS_FILTER',

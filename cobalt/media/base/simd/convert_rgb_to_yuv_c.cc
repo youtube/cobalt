@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include "build/build_config.h"
-#include "media/base/simd/convert_rgb_to_yuv.h"
+#include "cobalt/media/base/simd/convert_rgb_to_yuv.h"
 #include "starboard/types.h"
 
 namespace cobalt {

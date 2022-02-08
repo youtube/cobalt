@@ -39,3 +39,19 @@ static_library("media_session") {
     "//starboard:starboard_headers_only",
   ]
 }
+
+target(gtest_target_type, "media_session_test") {
+  testonly = true
+
+  sources = [ "media_session_test.cc" ]
+
+  deps = [
+    ":media_session",
+    "//cobalt/base",
+    "//cobalt/browser",
+    "//cobalt/script",
+    "//cobalt/test:run_all_unittests",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+}

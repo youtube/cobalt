@@ -29,6 +29,8 @@ import requests
 
 from starboard.tools import build
 
+# pylint: disable=consider-using-with
+
 # Which version of the Android NDK and CMake to install and build with.
 # Note that build.gradle parses these out of this file too.
 _NDK_VERSION = '21.1.6352462'
@@ -54,7 +56,8 @@ _SDK_LICENSE_PROMPT_SLEEP_SECONDS = 5
 
 # Location from which to download the SDK command-line tools
 # see https://developer.android.com/studio/index.html#command-tools
-_SDK_URL = 'https://dl.google.com/android/repository/commandlinetools-linux-6200805_latest.zip'
+_SDK_URL = ('https://dl.google.com/android/repository/'
+            'commandlinetools-linux-6200805_latest.zip')
 
 # Location from which to download the Android NDK.
 # see https://developer.android.com/ndk/downloads (perhaps in "NDK archives")
@@ -107,7 +110,7 @@ def _UnzipFile(zip_path, dest_path):
   zip_file = zipfile.ZipFile(zip_path)
   for info in zip_file.infolist():
     zip_file.extract(info.filename, dest_path)
-    os.chmod(os.path.join(dest_path, info.filename), info.external_attr >> 16L)
+    os.chmod(os.path.join(dest_path, info.filename), info.external_attr >> 16)
 
 
 def InstallSdkIfNeeded():
@@ -138,6 +141,7 @@ def InstallSdkIfNeeded():
         logging.error('Error: ANDROID_HOME is is missing NDK %s.', _NDK_VERSION)
         sys.exit(1)
 
+      # pylint: disable=undefined-variable
       reply = raw_input(
           'Do you want to continue using your custom Android tools? [y/N]')
       if reply.upper() != 'Y':
@@ -225,6 +229,9 @@ def _DownloadInstallOrUpdateSdk():
 
   # If we can't access the "sdkmanager" tool, we need to download the SDK
   if not os.access(_SDKMANAGER_TOOL, os.X_OK):
+    if os.getenv('IS_CI', '') == '1':
+      raise Exception('Dynamic toolchain downloads are disabled in CI')
+
     logging.warning('Downloading Android SDK to %s',
                     _STARBOARD_TOOLCHAINS_SDK_DIR)
     if os.path.exists(_STARBOARD_TOOLCHAINS_SDK_DIR):

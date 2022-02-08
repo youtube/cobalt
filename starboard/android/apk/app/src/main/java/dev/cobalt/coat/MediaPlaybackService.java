@@ -40,13 +40,14 @@ public class MediaPlaybackService extends Service {
 
   @Override
   public void onCreate() {
-    super.onCreate();
-    Log.i(TAG, "Creating a Media playback foreground service.");
     if (getStarboardBridge() == null) {
       Log.e(TAG, "StarboardBridge already destroyed.");
       return;
     }
+    Log.i(TAG, "Creating a Media playback foreground service.");
+    super.onCreate();
     getStarboardBridge().onServiceStart(this);
+    createNotificationChannel();
   }
 
   @Override
@@ -69,13 +70,12 @@ public class MediaPlaybackService extends Service {
       Log.e(TAG, "StarboardBridge already destroyed.");
       return;
     }
+    Log.i(TAG, "Destroying the Media playback service.");
     getStarboardBridge().onServiceDestroy(this);
     super.onDestroy();
-    Log.i(TAG, "Destroying the Media playback service.");
   }
 
   public void startService() {
-    createChannel();
     try {
       startForeground(NOTIFICATION_ID, buildNotification());
     } catch (IllegalStateException e) {
@@ -84,25 +84,15 @@ public class MediaPlaybackService extends Service {
   }
 
   public void stopService() {
-    // Do not remove notification here.
-    stopForeground(false);
+    // Let service itself handle notification deletion.
+    stopForeground(true);
     stopSelf();
-    // Delete notification after foreground stopped.
-    deleteChannel();
-    hideNotification();
   }
 
-  private void hideNotification() {
-    Log.i(TAG, "Hiding notification after stopped the service");
-    NotificationManager notificationManager =
-        (NotificationManager) this.getSystemService(Context.NOTIFICATION_SERVICE);
-    notificationManager.cancel(NOTIFICATION_ID);
-  }
-
-  private void createChannel() {
+  private void createNotificationChannel() {
     if (Build.VERSION.SDK_INT >= 26) {
       try {
-        createChannelInternalV26();
+        createNotificationChannelInternalV26();
       } catch (RemoteException e) {
         Log.e(TAG, "Failed to create Notification Channel.", e);
       }
@@ -110,7 +100,7 @@ public class MediaPlaybackService extends Service {
   }
 
   @RequiresApi(26)
-  private void createChannelInternalV26() throws RemoteException {
+  private void createNotificationChannelInternalV26() throws RemoteException {
     NotificationManager notificationManager =
         (NotificationManager) this.getSystemService(Context.NOTIFICATION_SERVICE);
     NotificationChannel channel =
@@ -120,19 +110,6 @@ public class MediaPlaybackService extends Service {
             notificationManager.IMPORTANCE_DEFAULT);
     channel.setDescription("Channel for showing persistent notification");
     notificationManager.createNotificationChannel(channel);
-  }
-
-  public void deleteChannel() {
-    if (Build.VERSION.SDK_INT >= 26) {
-      deleteChannelInternalV26();
-    }
-  }
-
-  @RequiresApi(26)
-  private void deleteChannelInternalV26() {
-    NotificationManager notificationManager =
-        (NotificationManager) this.getSystemService(Context.NOTIFICATION_SERVICE);
-    notificationManager.deleteNotificationChannel(NOTIFICATION_CHANNEL_ID);
   }
 
   Notification buildNotification() {

@@ -215,8 +215,14 @@ void UnpackCompleteOnBlockingTaskRunner(
     // When there is an error unpacking the downloaded CRX, such as a failure to
     // verify the package, we should remember to clear out any drain files.
     if (base::DirectoryExists(crx_path.DirName())) {
-      CobaltSlotManagement cobalt_slot_management;
-      cobalt_slot_management.CleanupAllDrainFiles(crx_path.DirName());
+      const auto installation_api =
+        static_cast<const CobaltExtensionInstallationManagerApi*>(
+          SbSystemGetExtension(kCobaltExtensionInstallationManagerName));
+      if (installation_api) {
+        CobaltSlotManagement cobalt_slot_management;
+        cobalt_slot_management.Init(installation_api);
+        cobalt_slot_management.CleanupAllDrainFiles(crx_path.DirName());
+      }
     }
 #endif
     main_task_runner->PostTask(

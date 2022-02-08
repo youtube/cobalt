@@ -22,10 +22,13 @@ target(final_executable_type, "audio_dmp_player") {
     "//starboard/shared/starboard/player/video_dmp_reader.h",
     "audio_dmp_player.cc",
   ]
-
   configs += [ "//starboard/build/config:starboard_implementation" ]
   public_deps = [
     "//starboard",
     "//starboard/shared/starboard/player:player_download_test_data",
+  ]
+  content_deps = [
+    "//starboard/shared/starboard/player:player_download_test_data",
+    "//third_party/icu:icudata",
   ]
 }

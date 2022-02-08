@@ -44,4 +44,5 @@ target(gtest_target_type, "overlay_info_test") {
     "//cobalt/test:run_all_unittests",
     "//testing/gtest",
   ]
+  content_deps = [ "//third_party/icu:icudata" ]
 }

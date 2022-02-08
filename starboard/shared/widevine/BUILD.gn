@@ -31,8 +31,8 @@ static_library("oemcrypto") {
   sources = [
     "//starboard/keyboxes/${sb_widevine_platform}/${sb_widevine_platform}.h",
     "//starboard/keyboxes/${sb_widevine_platform}/${sb_widevine_platform}_client.c",
+    "//starboard/shared/widevine/internal/wv_keybox.cc",
     "//starboard/shared/widevine/widevine_keybox_hash.cc",
-    "//starboard/shared/widevine/wv_keybox.cc",
   ]
 
   public_configs = [ ":oemcrypto_external" ]

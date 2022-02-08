@@ -274,6 +274,8 @@
         '<(DEPTH)/starboard/shared/pthread/thread_yield.cc',
         '<(DEPTH)/starboard/shared/signal/crash_signals.cc',
         '<(DEPTH)/starboard/shared/signal/crash_signals.h',
+        '<(DEPTH)/starboard/shared/signal/debug_signals.cc',
+        '<(DEPTH)/starboard/shared/signal/debug_signals.h',
         '<(DEPTH)/starboard/shared/signal/suspend_signals.cc',
         '<(DEPTH)/starboard/shared/signal/suspend_signals.h',
         '<(DEPTH)/starboard/shared/signal/system_request_conceal.cc',

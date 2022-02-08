@@ -36,4 +36,6 @@ target(gtest_target_type, "nplb_evergreen_compat_tests") {
     "//starboard",
     "//testing/gmock",
   ]
+
+  content_deps = [ "//third_party/icu:icudata" ]
 }

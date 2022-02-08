@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media/base/simd/convert_rgb_to_yuv.h"
+#include "cobalt/media/base/simd/convert_rgb_to_yuv.h"
 
 #include <algorithm>
 #include <memory>

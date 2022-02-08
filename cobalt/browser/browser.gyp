@@ -134,6 +134,7 @@
         '<(DEPTH)/cobalt/ui_navigation/ui_navigation.gyp:ui_navigation',
         '<(DEPTH)/cobalt/webdriver/webdriver.gyp:webdriver',
         '<(DEPTH)/cobalt/websocket/websocket.gyp:websocket',
+        '<(DEPTH)/cobalt/worker/worker.gyp:*',
         '<(DEPTH)/cobalt/xhr/xhr.gyp:xhr',
         '<(DEPTH)/net/net.gyp:net',
         '<(DEPTH)/nb/nb.gyp:nb',

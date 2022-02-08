@@ -11,12 +11,12 @@
 
 #include "base/macros.h"
 #include "base/memory/ref_counted.h"
-#include "media/base/audio_decoder_config.h"
-#include "media/base/byte_queue.h"
-#include "media/base/media_export.h"
-#include "media/base/stream_parser.h"
-#include "media/base/video_decoder_config.h"
-#include "media/formats/mp2t/timestamp_unroller.h"
+#include "cobalt/media/base/audio_decoder_config.h"
+#include "cobalt/media/base/byte_queue.h"
+#include "cobalt/media/base/media_export.h"
+#include "cobalt/media/base/stream_parser.h"
+#include "cobalt/media/base/video_decoder_config.h"
+#include "cobalt/media/formats/mp2t/timestamp_unroller.h"
 #include "starboard/types.h"
 
 namespace cobalt {
@@ -64,7 +64,7 @@ class MEDIA_EXPORT Mp2tStreamParser : public StreamParser {
   // Callback invoked to register a PES pid.
   // Possible values for |stream_type| are defined in:
   // ISO-13818.1 / ITU H.222 Table 2.34 "Stream type assignments".
-  // |pes_pid| is part of the Program Map Table refered by |pmt_pid|.
+  // |pes_pid| is part of the Program Map Table referred by |pmt_pid|.
   void RegisterPes(int pmt_pid, int pes_pid, int stream_type);
 
   // Since the StreamParser interface allows only one audio & video streams,

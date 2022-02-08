@@ -30,3 +30,24 @@ static_library("text_encoding") {
     "//third_party/icu:icuuc",
   ]
 }
+
+target(gtest_target_type, "text_encoding_test") {
+  testonly = true
+  has_pedantic_warnings = true
+
+  sources = [
+    "text_decoder_test.cc",
+    "text_encoder_test.cc",
+  ]
+
+  deps = [
+    ":text_encoding",
+    "//cobalt/base",
+    "//cobalt/dom",
+    "//cobalt/dom/testing:dom_testing",
+    "//cobalt/script",
+    "//cobalt/test:run_all_unittests",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+}

@@ -12,19 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <malloc.h>
 #include <time.h>
 
 #include "starboard/configuration.h"
 #include "starboard/raspi/shared/application_dispmanx.h"
 #include "starboard/shared/signal/crash_signals.h"
+#include "starboard/shared/signal/debug_signals.h"
 #include "starboard/shared/signal/suspend_signals.h"
 
 #include "third_party/crashpad/wrapper/wrapper.h"
 
 int main(int argc, char** argv) {
+  // Set M_ARENA_MAX to a low value to slow memory growth due to fragmentation.
+  SB_CHECK(mallopt(M_ARENA_MAX, 2));
   tzset();
 
   starboard::shared::signal::InstallCrashSignalHandlers();
+  starboard::shared::signal::InstallDebugSignalHandlers();
   starboard::shared::signal::InstallSuspendSignalHandlers();
 
 #if SB_IS(EVERGREEN_COMPATIBLE)
@@ -33,6 +38,7 @@ int main(int argc, char** argv) {
   starboard::raspi::shared::ApplicationDispmanx application;
   int result = application.Run(argc, argv);
   starboard::shared::signal::UninstallSuspendSignalHandlers();
+  starboard::shared::signal::UninstallDebugSignalHandlers();
   starboard::shared::signal::UninstallCrashSignalHandlers();
   return result;
 }

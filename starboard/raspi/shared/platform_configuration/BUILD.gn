@@ -130,7 +130,6 @@ config("platform_configuration") {
     "avcodec",
     "avformat",
     "avutil",
-    ":libpthread.so.0",
     "pthread",
     "rt",
     "openmaxil",

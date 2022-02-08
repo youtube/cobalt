@@ -19,7 +19,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/message_loop/message_loop.h"
 #include "cobalt/loader/fetcher_factory.h"
-#include "media/base/demuxer.h"
+#include "cobalt/media/base/demuxer.h"
 #include "url/gurl.h"
 
 namespace cobalt {

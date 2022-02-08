@@ -12,10 +12,10 @@
 #include "base/macros.h"
 #include "base/strings/string_util.h"
 #include "base/time/time.h"
-#include "media/base/stream_parser_buffer.h"
-#include "media/filters/h264_parser.h"
-#include "media/formats/mp2t/es_parser_h264.h"
-#include "media/formats/mp2t/es_parser_test_base.h"
+#include "cobalt/media/base/stream_parser_buffer.h"
+#include "cobalt/media/filters/h264_parser.h"
+#include "cobalt/media/formats/mp2t/es_parser_h264.h"
+#include "cobalt/media/formats/mp2t/es_parser_test_base.h"
 #include "starboard/memory.h"
 #include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -122,7 +122,7 @@ void EsParserH264Test::InsertAUD() {
     offset += sizeof(aud);
 
     memcpy(&stream_with_aud[offset], &stream_[access_units_[k].offset],
-                 access_units_[k].size);
+           access_units_[k].size);
     offset += access_units_[k].size;
   }
 

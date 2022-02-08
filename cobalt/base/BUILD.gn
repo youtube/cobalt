@@ -115,7 +115,6 @@ target(gtest_target_type, "base_test") {
     "fixed_size_lru_cache_test.cc",
     "token_test.cc",
   ]
-
   deps = [
     ":base",
     "//cobalt/test:run_all_unittests",
@@ -123,4 +122,5 @@ target(gtest_target_type, "base_test") {
     "//testing/gmock",
     "//testing/gtest",
   ]
+  content_deps = [ "//third_party/icu:icudata" ]
 }

@@ -9,7 +9,7 @@
 #include <mmintrin.h>
 #endif
 
-#include "media/base/simd/filter_yuv.h"
+#include "cobalt/media/base/simd/filter_yuv.h"
 #include "starboard/types.h"
 
 namespace cobalt {

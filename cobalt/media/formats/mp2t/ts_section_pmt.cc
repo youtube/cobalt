@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media/formats/mp2t/ts_section_pmt.h"
+#include "cobalt/media/formats/mp2t/ts_section_pmt.h"
 
 #include <map>
 #include <utility>
 
 #include "base/logging.h"
-#include "media/base/bit_reader.h"
-#include "media/formats/mp2t/mp2t_common.h"
+#include "cobalt/media/base/bit_reader.h"
+#include "cobalt/media/formats/mp2t/mp2t_common.h"
 
 namespace cobalt {
 namespace media {
@@ -71,7 +71,7 @@ bool TsSectionPmt::ParsePsiSection(BitReader* bit_reader) {
   RCHECK(program_info_length < 1024);
 
   // Read the program info descriptor.
-  // TODO(damienv): check wether any of the descriptors could be useful.
+  // TODO(damienv): check whether any of the descriptors could be useful.
   // Defined in section 2.6 of ISO-13818.
   RCHECK(bit_reader->SkipBits(8 * program_info_length));
 
@@ -97,7 +97,7 @@ bool TsSectionPmt::ParsePsiSection(BitReader* bit_reader) {
     pid_map.insert(std::pair<int, int>(pid_es, stream_type));
 
     // Read the ES info descriptors.
-    // TODO(damienv): check wether any of the descriptors could be useful.
+    // TODO(damienv): check whether any of the descriptors could be useful.
     // Defined in section 2.6 of ISO-13818.
     RCHECK(bit_reader->SkipBits(8 * es_info_length));
   }

@@ -365,6 +365,7 @@
         '<(DEPTH)/cobalt/system_window/system_window.gyp:system_window',
         '<(DEPTH)/cobalt/ui_navigation/ui_navigation.gyp:ui_navigation',
         '<(DEPTH)/cobalt/web_animations/web_animations.gyp:web_animations',
+        '<(DEPTH)/cobalt/worker/worker.gyp:worker',
         '<(DEPTH)/nb/nb.gyp:nb',
         '<(DEPTH)/net/net.gyp:net',
         '<(DEPTH)/third_party/icu/icu.gyp:icuuc',

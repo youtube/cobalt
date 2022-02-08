@@ -21,17 +21,28 @@ namespace h5vcc {
 
 H5vccSettings::H5vccSettings(media::MediaModule* media_module,
                              cobalt::network::NetworkModule* network_module,
+#if SB_IS(EVERGREEN)
+                             cobalt::updater::UpdaterModule* updater_module,
+#endif
                              dom::NavigatorUAData* user_agent_data,
                              script::GlobalEnvironment* global_environment)
     : media_module_(media_module),
       network_module_(network_module),
+#if SB_IS(EVERGREEN)
+      updater_module_(updater_module),
+#endif
       user_agent_data_(user_agent_data),
-      global_environment_(global_environment) {}
+      global_environment_(global_environment) {
+}
 
 bool H5vccSettings::Set(const std::string& name, int32 value) const {
   const char kMediaPrefix[] = "Media.";
   const char kNavigatorUAData[] = "NavigatorUAData";
   const char kQUIC[] = "QUIC";
+
+#if SB_IS(EVERGREEN)
+  const char kUpdaterMinFreeSpaceBytes[] = "Updater.MinFreeSpaceBytes";
+#endif
 
   if (name.compare(kMediaPrefix) == 0) {
     return media_module_ ? media_module_->SetConfiguration(name, value) : false;
@@ -51,6 +62,12 @@ bool H5vccSettings::Set(const std::string& name, int32 value) const {
     }
   }
 
+#if SB_IS(EVERGREEN)
+  if (name.compare(kUpdaterMinFreeSpaceBytes) == 0) {
+    updater_module_->SetMinFreeSpaceBytes(value);
+    return true;
+  }
+#endif
   return false;
 }
 

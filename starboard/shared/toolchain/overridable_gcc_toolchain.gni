@@ -1,0 +1,144 @@
+# Copyright 2022 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("//build/toolchain/gcc_toolchain.gni")
+
+# The environment variables that override arguments of
+# overridable_gcc_toolchain and overridable_clang_toolchain
+# templates in this file.
+declare_args() {
+  # The full path to the compiler for AR.
+  ar_compiler_override = getenv("GN_AR_COMPILER")
+
+  # The full path to the compiler for CC.
+  cc_compiler_override = getenv("GN_CC_COMPILER")
+
+  # The full path to the compiler for CXX.
+  cxx_compiler_override = getenv("GN_CXX_COMPILER")
+
+  # The full path to the compiler for LD.
+  ld_compiler_override = getenv("GN_LD_COMPILER")
+
+  # Optional parameters that control the tools:
+
+  # Extra flags to be appended when compiling C files (but not C++ files).
+  c_flags_override = getenv("GN_C_FLAGS")
+
+  # Extra flags to be appended when compiling both C and C++ files. "CPP"
+  # stands for "C PreProcessor" in this context, although it can be
+  # used for non-preprocessor flags as well. Not to be confused with
+  # "CXX" (which follows).
+  cpp_flags_override = getenv("GN_CPP_FLAGS")
+
+  # Extra flags to be appended when compiling C++ files (but not C files).
+  cxx_flags_override = getenv("GN_CXX_FLAGS")
+
+  # Extra flags to be appended when compiling assembly.
+  asm_flags_override = getenv("GN_ASM_FLAGS")
+
+  # Extra flags to be appended when linking.
+  ld_flags_override = getenv("GN_LD_FLAGS")
+}
+
+# This template applies environment variables overrides to gcc_toolchain in
+# build/toolchain/gcc_toolchain.gni.
+# The environment variables/gn arguments overrides specified in this file
+# will take precedence over the corresponding arguments passed in from the
+# invoked gcc_toolchain.
+template("overridable_gcc_toolchain") {
+  gcc_toolchain(target_name) {
+    forward_variables_from(invoker, "*")
+
+    if (ar_compiler_override != "") {
+      ar = ar_compiler_override
+    }
+
+    if (cc_compiler_override != "") {
+      cc = cc_compiler_override
+    }
+
+    if (cxx_compiler_override != "") {
+      cxx = cxx_compiler_override
+    }
+
+    if (ld_compiler_override != "") {
+      ld = ld_compiler_override
+    }
+
+    if (c_flags_override != "") {
+      extra_cflags = c_flags_override
+    }
+
+    if (cpp_flags_override != "") {
+      extra_cppflags = cpp_flags_override
+    }
+
+    if (cxx_flags_override != "") {
+      extra_cxxflags = cxx_flags_override
+    }
+
+    if (asm_flags_override != "") {
+      extra_asmflags = asm_flags_override
+    }
+
+    if (ld_flags_override != "") {
+      extra_ldflags = ld_flags_override
+    }
+  }
+}
+
+# This template applies environment variables overrides to clang_toolchain
+# in build/toolchain/gcc_toolchain.gni.
+# This is a shorthand for gcc_toolchain_set_env_vars instances based on the
+# Chromium-built version of Clang. Only the toolchain_cpu and toolchain_os
+# variables need to be specified by the invoker, and optionally toolprefix if
+# it's a cross-compile case. Note that for a cross-compile case this toolchain
+# requires a config to pass the appropriate -target option, or else it will
+# actually just be doing a native compile. The invoker can optionally override
+# use_gold too.
+template("overridable_clang_toolchain") {
+  if (defined(invoker.toolprefix)) {
+    toolprefix = invoker.toolprefix
+  } else {
+    toolprefix = ""
+  }
+  if (is_starboard) {
+    clang_base_path = invoker.clang_base_path
+  }
+
+  overridable_gcc_toolchain(target_name) {
+    prefix = rebase_path("$clang_base_path/bin", root_build_dir)
+    cc = "$prefix/clang"
+    cxx = "$prefix/clang++"
+    ld = cxx
+    readelf = "${toolprefix}readelf"
+    ar = "${prefix}/llvm-ar"
+    nm = "nm"
+
+    forward_variables_from(invoker,
+                           [
+                             "strip",
+                             "default_shlib_subdir",
+                             "enable_linker_map",
+                             "use_unstripped_as_runtime_outputs",
+                           ])
+
+    toolchain_args = {
+      if (defined(invoker.toolchain_args)) {
+        forward_variables_from(invoker.toolchain_args, "*")
+      }
+      is_clang = true
+    }
+  }
+}

@@ -203,6 +203,8 @@ void MediaModule::Suspend() {
     }
   }
 
+  decoder_buffer_allocator_.Suspend();
+
   resource_provider_ = NULL;
 }
 
@@ -215,6 +217,8 @@ void MediaModule::Resume(render_tree::ResourceProvider* resource_provider) {
   if (system_window_) {
     window = system_window_->GetSbWindow();
   }
+
+  decoder_buffer_allocator_.Resume();
 
   for (Players::iterator iter = players_.begin(); iter != players_.end();
        ++iter) {

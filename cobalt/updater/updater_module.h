@@ -151,6 +151,8 @@ class UpdaterModule {
 
   int GetInstallationIndex() const;
 
+  void SetMinFreeSpaceBytes(uint64_t bytes);
+
  private:
   std::unique_ptr<base::Thread> updater_thread_;
   scoped_refptr<update_client::UpdateClient> update_client_;

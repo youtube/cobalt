@@ -74,10 +74,13 @@ target(gtest_target_type, "audio_test") {
   deps = [
     ":audio",
     "//cobalt/dom",
+    "//cobalt/dom/testing:dom_testing",
     "//cobalt/media",
     "//cobalt/script",
     "//cobalt/test:run_all_unittests",
     "//testing/gtest",
   ]
   deps += cobalt_platform_dependencies
+
+  content_deps = [ "//third_party/icu:icudata" ]
 }

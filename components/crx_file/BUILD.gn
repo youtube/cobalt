@@ -1,0 +1,37 @@
+# Copyright 2021 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("//third_party/protobuf/proto_library.gni")
+
+# The accompanying crx_creator target has been left behind during the migration
+# from GYP to GN because it introduces some -Wc++11-narrowing compiler errors
+# and isn't actually used in Cobalt. If it's at some point needed we can
+# likely pull in the narrowing fixes made by the Chromium team in
+# https://source.chromium.org/chromium/chromium/src/+/379c52be13901beae4f773fe9e8054ad42a186c4.
+static_library("crx_file") {
+  sources = [
+    "crx3.pb.cc",
+    "crx3.pb.h",
+    "crx_file.h",
+    "crx_verifier.cc",
+    "crx_verifier.h",
+    "id_util.cc",
+    "id_util.h",
+  ]
+  deps = [
+    "//base",
+    "//crypto",
+    "//third_party/protobuf:protobuf_lite",
+  ]
+}

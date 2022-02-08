@@ -15,7 +15,7 @@
 #include "starboard/common/log.h"
 
 #if SB_IS(EVERGREEN_COMPATIBLE)
-#include "starboard/elf_loader/evergreen_info.h"
+#include "starboard/elf_loader/evergreen_info.h"  // nogncheck
 #include "starboard/memory.h"
 #endif
 #include "starboard/system.h"

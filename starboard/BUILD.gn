@@ -16,17 +16,16 @@ group("gn_all") {
   testonly = true
 
   deps = [
-    ":starboard",
+    ":default",
     "//starboard/client_porting/cwrappers:cwrappers_test",
     "//starboard/client_porting/eztime",
     "//starboard/client_porting/eztime:eztime_test",
     "//starboard/client_porting/icu_init",
     "//starboard/client_porting/poem:poem_unittests",
     "//starboard/examples/window:starboard_window_example",
+    "//starboard/loader_app:app_key_files_test",
     "//starboard/nplb",
     "//starboard/nplb/nplb_evergreen_compat_tests",
-
-    # "//starboard/tools",  TODO(andrewsavage)
   ]
 
   if (gl_type != "none") {
@@ -65,6 +64,13 @@ group("gn_all") {
       data_deps = [ "//starboard/loader_app" ]
     }
   }
+}
+
+group("default") {
+  deps = [
+    ":starboard",
+    "//starboard/tools:build_app_launcher_zip",
+  ]
 }
 
 group("starboard") {
@@ -150,10 +156,11 @@ source_set("starboard_headers_only") {
     "types.h",
     "user.h",
     "window.h",
-
-    # Include private headers, if present.
-    # "<!@pymod_do_main(starboard.build.gyp_functions file_glob <(DEPTH)/starboard/private *.h)",
   ]
+
+  if (is_internal_build) {
+    public_deps = [ "//starboard/private:private_starboard_headers" ]
+  }
 }
 
 if (platform_tests_path == "") {
@@ -168,5 +175,7 @@ if (platform_tests_path == "") {
       ":starboard",
       "//testing/gmock",
     ]
+
+    content_deps = [ "//third_party/icu:icudata" ]
   }
 }

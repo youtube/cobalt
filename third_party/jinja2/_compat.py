@@ -110,7 +110,10 @@ def with_metaclass(meta, *bases):
 
 
 try:
-    from collections import Mapping as mapping_types
+    if PY2:
+        from collections import Mapping as mapping_types
+    else:
+        from collections.abc import Mapping as mapping_types
 except ImportError:
     import UserDict
     mapping_types = (UserDict.UserDict, UserDict.DictMixin, dict)

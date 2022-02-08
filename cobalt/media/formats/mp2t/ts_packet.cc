@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media/formats/mp2t/ts_packet.h"
+#include "cobalt/media/formats/mp2t/ts_packet.h"
 
 #include <memory>
 
-#include "media/base/bit_reader.h"
-#include "media/formats/mp2t/mp2t_common.h"
+#include "cobalt/media/base/bit_reader.h"
+#include "cobalt/media/formats/mp2t/mp2t_common.h"
 
 namespace cobalt {
 namespace media {

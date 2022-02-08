@@ -15,7 +15,7 @@
 #
 """Build related constants and helper functions."""
 
-import imp
+import imp  # pylint: disable=deprecated-module
 import importlib
 import logging
 import os
@@ -198,6 +198,51 @@ def _ModuleLoaded(module_name, module_path):
   return extensionless_loaded_path == extensionless_module_path
 
 
+def _LoadPlatformModule(platform_name, file_name, function_name):
+  """Loads a platform module.
+
+  The function will use the provided platform name to load
+  a python file with a matching name that contains the module.
+
+  Args:
+    platform_name: Platform name.
+    file_name: The file that contains the module. It can be
+               gyp_configuration.py or test_filters.py
+    function_name: The function name of the module.
+                   For gyp_configuration.py, it is CreatePlatformConfig.
+                   For test_filters.py, it is GetTestFilters
+
+  Returns: Instance of a class derived from module path.
+  """
+  try:
+    logging.debug('Loading platform %s for "%s".', file_name, platform_name)
+    if platform.IsValid(platform_name):
+      platform_path = os.path.join(paths.REPOSITORY_ROOT,
+                                   platform.Get(platform_name).path)
+      module_path = os.path.join(platform_path, file_name)
+      if not _ModuleLoaded('platform_module', module_path):
+        platform_module = imp.load_source('platform_module', module_path)
+      else:
+        platform_module = sys.modules['platform_module']
+    else:
+      module_path = os.path.join('config', '%s.py' % platform_name)
+      platform_module = importlib.import_module('config.%s' % platform_name)
+  except (ImportError, IOError):
+    logging.exception('Unable to import "%s".', module_path)
+    return None
+
+  if not hasattr(platform_module, function_name):
+    logging.error('"%s" does not contain %s.', module_path, function_name)
+    return None
+
+  try:
+    platform_attr = getattr(platform_module, function_name)()
+    return platform_attr, platform_path
+  except RuntimeError:
+    logging.exception('Exception in %s.', function_name)
+    return None
+
+
 def _LoadPlatformConfig(platform_name):
   """Loads a platform specific configuration.
 
@@ -211,39 +256,35 @@ def _LoadPlatformConfig(platform_name):
   Returns:
     Instance of a class derived from PlatformConfigBase.
   """
-  try:
-    logging.debug('Loading platform configuration for "%s".', platform_name)
-    if platform.IsValid(platform_name):
-      platform_path = os.path.join(paths.REPOSITORY_ROOT,
-                                   platform.Get(platform_name).path)
-      module_path = os.path.join(platform_path, 'gyp_configuration.py')
-      if not _ModuleLoaded('platform_module', module_path):
-        platform_module = imp.load_source('platform_module', module_path)
-      else:
-        platform_module = sys.modules['platform_module']
-    else:
-      module_path = os.path.join('config', '%s.py' % platform_name)
-      platform_module = importlib.import_module('config.%s' % platform_name)
-  except (ImportError, IOError):
-    logging.exception('Unable to import "%s".', module_path)
-    return None
+  platform_configuration, platform_path = _LoadPlatformModule(
+      platform_name, 'gyp_configuration.py', 'CreatePlatformConfig')
+  platform_configuration.SetDirectory(platform_path)
+  return platform_configuration
 
-  if not hasattr(platform_module, 'CreatePlatformConfig'):
-    logging.error('"%s" does not contain CreatePlatformConfig.', module_path)
-    return None
 
-  try:
-    platform_configuration = platform_module.CreatePlatformConfig()
-    platform_configuration.SetDirectory(platform_path)
-    return platform_configuration
-  except RuntimeError:
-    logging.exception('Exception in CreatePlatformConfig.')
-    return None
+def _LoadPlatformTestFilters(platform_name):
+  """Loads the platform specific test filters.
+
+  The function will use the provided platform name to load
+  a python file with a matching name that contains the platform
+  specific test filters.
+
+  Args:
+    platform_name: Platform name.
+
+  Returns:
+    Instance of a class derived from TestFilters.
+  """
+  platform_test_filters, _ = _LoadPlatformModule(platform_name,
+                                                 'test_filters.py',
+                                                 'CreateTestFilters')
+  return platform_test_filters
 
 
 # Global cache of the platform configurations, so that platform config objects
 # are only created once.
 _PLATFORM_CONFIG_DICT = {}
+_PLATFORM_TEST_FILTERS_DICT = {}
 
 
 def GetPlatformConfig(platform_name):
@@ -261,5 +302,22 @@ def GetPlatformConfig(platform_name):
 
   if platform_name not in _PLATFORM_CONFIG_DICT:
     _PLATFORM_CONFIG_DICT[platform_name] = _LoadPlatformConfig(platform_name)
+
+  return _PLATFORM_CONFIG_DICT[platform_name]
+
+
+def GetPlatformTestFilters(platform_name):
+  """Returns a platform specific test filters.
+
+  Args:
+    platform_name: Platform name.
+
+  Returns:
+    Instance of a class derived from TestFilters.
+  """
+
+  if platform_name not in _PLATFORM_TEST_FILTERS_DICT:
+    _PLATFORM_TEST_FILTERS_DICT[platform_name] = _LoadPlatformTestFilters(
+        platform_name)
 
   return _PLATFORM_CONFIG_DICT[platform_name]

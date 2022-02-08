@@ -205,6 +205,158 @@ static const char* kHdrQueryParams[] = {
     "audio/webm; codecs=\"opus\"; channels=2",
     "audio/webm; codecs=\"opus\"; channels=2"};
 
+// Query params from https://youtu.be/1mSzHxMpji0.
+static const char* kDrmQueryParams[] = {
+    "video/mp4; codecs=\"avc1.4d4015\"; width=426; height=240; framerate=24; "
+    "bitrate=281854",
+    "video/mp4; codecs=\"avc1.4d401e\"; width=640; height=360; framerate=24; "
+    "bitrate=637760",
+    "video/mp4; codecs=\"avc1.4d401e\"; width=854; height=480; framerate=24; "
+    "bitrate=1164612",
+    "video/mp4; codecs=\"avc1.640028\"; width=1920; height=1080; framerate=24; "
+    "bitrate=4362827",
+    "audio/mp4; codecs=\"mp4a.40.2\"; channels=2",
+    "video/mp4; codecs=\"avc1.4d400c\"; width=256; height=144; framerate=24; "
+    "bitrate=138907",
+    "video/mp4; codecs=\"avc1.4d401e\"; width=854; height=480; framerate=24; "
+    "bitrate=1746306",
+    "video/mp4; codecs=\"avc1.4d401e\"; width=854; height=480; framerate=24; "
+    "bitrate=3473564",
+    "video/mp4; codecs=\"avc1.4d401f\"; width=1280; height=720; framerate=24; "
+    "bitrate=3481130",
+    "video/mp4; codecs=\"avc1.4d401f\"; width=1280; height=720; framerate=24; "
+    "bitrate=5789806",
+    "video/mp4; codecs=\"avc1.640028\"; width=1920; height=1080; framerate=24; "
+    "bitrate=5856175",
+    "video/webm; codecs=\"vp09.00.51.08.01.01.01.01.00\"; width=854; "
+    "height=480; framerate=24; bitrate=2629046; eotf=bt709; "
+    "cryptoblockformat=subsample",
+    "video/webm; codecs=\"vp09.00.51.08.01.01.01.01.00\"; width=1280; "
+    "height=720; framerate=24; bitrate=1328071; eotf=bt709; "
+    "cryptoblockformat=subsample",
+    "video/webm; codecs=\"vp09.00.51.08.01.01.01.01.00\"; width=1920; "
+    "height=1080; framerate=24; bitrate=2375894; eotf=bt709; "
+    "cryptoblockformat=subsample",
+    "video/webm; codecs=\"vp09.00.51.08.01.01.01.01.00\"; width=426; "
+    "height=240; framerate=24; bitrate=229634; eotf=bt709; "
+    "cryptoblockformat=subsample",
+    "video/webm; codecs=\"vp09.00.51.08.01.01.01.01.00\"; width=640; "
+    "height=360; framerate=24; bitrate=324585; eotf=bt709; "
+    "cryptoblockformat=subsample",
+    "video/webm; codecs=\"vp09.00.51.08.01.01.01.01.00\"; width=854; "
+    "height=480; framerate=24; bitrate=639196; eotf=bt709; "
+    "cryptoblockformat=subsample",
+    "video/webm; codecs=\"vp09.00.51.08.01.01.01.01.00\"; width=854; "
+    "height=480; framerate=24; bitrate=1055128; eotf=bt709; "
+    "cryptoblockformat=subsample",
+    "audio/mp4; codecs=\"ec-3\"; channels=6",
+    "video/webm; codecs=\"vp09.00.51.08.01.01.01.01.00\"; width=1280; "
+    "height=720; framerate=24; bitrate=2111149; eotf=bt709; "
+    "cryptoblockformat=subsample",
+    "video/webm; codecs=\"vp09.00.51.08.01.01.01.01.00\"; width=1280; "
+    "height=720; framerate=24; bitrate=3709033; eotf=bt709; "
+    "cryptoblockformat=subsample",
+    "video/webm; codecs=\"vp09.00.51.08.01.01.01.01.00\"; width=1920; "
+    "height=1080; framerate=24; bitrate=3679792; eotf=bt709; "
+    "cryptoblockformat=subsample",
+    "video/webm; codecs=\"vp09.00.51.08.01.01.01.01.00\"; width=1920; "
+    "height=1080; framerate=24; bitrate=5524689; eotf=bt709; "
+    "cryptoblockformat=subsample",
+    "audio/mp4; codecs=\"ac-3\"; channels=6",
+    "video/mp4; codecs=\"avc1.4d4015\"; width=426; height=240; framerate=24; "
+    "bitrate=281854",
+    "video/mp4; codecs=\"avc1.4d401e\"; width=640; height=360; framerate=24; "
+    "bitrate=637760",
+    "video/mp4; codecs=\"avc1.4d401e\"; width=854; height=480; framerate=24; "
+    "bitrate=1164612",
+    "video/mp4; codecs=\"avc1.640028\"; width=1920; height=1080; framerate=24; "
+    "bitrate=4362827",
+    "audio/mp4; codecs=\"mp4a.40.2\"; channels=2",
+    "video/mp4; codecs=\"avc1.4d400c\"; width=256; height=144; framerate=24; "
+    "bitrate=138907",
+    "video/mp4; codecs=\"avc1.4d401e\"; width=854; height=480; framerate=24; "
+    "bitrate=1746306",
+    "video/mp4; codecs=\"avc1.4d401e\"; width=854; height=480; framerate=24; "
+    "bitrate=3473564",
+    "video/mp4; codecs=\"avc1.4d401f\"; width=1280; height=720; framerate=24; "
+    "bitrate=3481130",
+    "video/mp4; codecs=\"avc1.4d401f\"; width=1280; height=720; framerate=24; "
+    "bitrate=5789806",
+    "video/mp4; codecs=\"avc1.640028\"; width=1920; height=1080; framerate=24; "
+    "bitrate=5856175",
+    "video/webm; codecs=\"vp09.00.51.08.01.01.01.01.00\"; width=854; "
+    "height=480; framerate=24; bitrate=2629046; eotf=bt709; "
+    "cryptoblockformat=subsample",
+    "video/webm; codecs=\"vp09.00.51.08.01.01.01.01.00\"; width=1280; "
+    "height=720; framerate=24; bitrate=1328071; eotf=bt709; "
+    "cryptoblockformat=subsample",
+    "video/webm; codecs=\"vp09.00.51.08.01.01.01.01.00\"; width=1920; "
+    "height=1080; framerate=24; bitrate=2375894; eotf=bt709; "
+    "cryptoblockformat=subsample",
+    "video/webm; codecs=\"vp09.00.51.08.01.01.01.01.00\"; width=426; "
+    "height=240; framerate=24; bitrate=229634; eotf=bt709; "
+    "cryptoblockformat=subsample",
+    "video/webm; codecs=\"vp09.00.51.08.01.01.01.01.00\"; width=640; "
+    "height=360; framerate=24; bitrate=324585; eotf=bt709; "
+    "cryptoblockformat=subsample",
+    "video/webm; codecs=\"vp09.00.51.08.01.01.01.01.00\"; width=854; "
+    "height=480; framerate=24; bitrate=639196; eotf=bt709; "
+    "cryptoblockformat=subsample",
+    "video/webm; codecs=\"vp09.00.51.08.01.01.01.01.00\"; width=854; "
+    "height=480; framerate=24; bitrate=1055128; eotf=bt709; "
+    "cryptoblockformat=subsample",
+    "audio/mp4; codecs=\"ec-3\"; channels=6",
+    "video/webm; codecs=\"vp09.00.51.08.01.01.01.01.00\"; width=1280; "
+    "height=720; framerate=24; bitrate=2111149; eotf=bt709; "
+    "cryptoblockformat=subsample",
+    "video/webm; codecs=\"vp09.00.51.08.01.01.01.01.00\"; width=1280; "
+    "height=720; framerate=24; bitrate=3709033; eotf=bt709; "
+    "cryptoblockformat=subsample",
+    "video/webm; codecs=\"vp09.00.51.08.01.01.01.01.00\"; width=1920; "
+    "height=1080; framerate=24; bitrate=3679792; eotf=bt709; "
+    "cryptoblockformat=subsample",
+    "video/webm; codecs=\"vp09.00.51.08.01.01.01.01.00\"; width=1920; "
+    "height=1080; framerate=24; bitrate=5524689; eotf=bt709; "
+    "cryptoblockformat=subsample",
+    "audio/mp4; codecs=\"ac-3\"; channels=6",
+    "video/mp4; codecs=\"avc1.4d4015\"; width=426; height=240; framerate=24; "
+    "bitrate=149590",
+    "video/mp4; codecs=\"avc1.4d401e\"; width=640; height=360; framerate=24; "
+    "bitrate=261202",
+    "video/mp4; codecs=\"avc1.4d401e\"; width=854; height=480; framerate=24; "
+    "bitrate=368187",
+    "video/mp4; codecs=\"avc1.4d401f\"; width=1280; height=720; framerate=24; "
+    "bitrate=676316",
+    "video/mp4; codecs=\"avc1.640028\"; width=1920; height=1080; framerate=24; "
+    "bitrate=2691722",
+    "audio/mp4; codecs=\"mp4a.40.2\"; channels=2",
+    "video/mp4; codecs=\"avc1.4d400c\"; width=256; height=144; framerate=24; "
+    "bitrate=84646",
+    "video/webm; codecs=\"vp09.00.51.08.01.01.01.01.00\"; width=426; "
+    "height=240; framerate=24; bitrate=192698; eotf=bt709",
+    "video/webm; codecs=\"vp09.00.51.08.01.01.01.01.00\"; width=640; "
+    "height=360; framerate=24; bitrate=342403; eotf=bt709",
+    "video/webm; codecs=\"vp09.00.51.08.01.01.01.01.00\"; width=854; "
+    "height=480; framerate=24; bitrate=514976; eotf=bt709",
+    "video/webm; codecs=\"vp09.00.51.08.01.01.01.01.00\"; width=1280; "
+    "height=720; framerate=24; bitrate=852689; eotf=bt709",
+    "video/webm; codecs=\"vp09.00.51.08.01.01.01.01.00\"; width=1920; "
+    "height=1080; framerate=24; bitrate=2389269; eotf=bt709",
+    "audio/webm; codecs=\"opus\"; channels=2",
+    "audio/webm; codecs=\"opus\"; channels=2",
+    "video/mp4; codecs=\"av01.0.00M.08\"; width=256; height=144; framerate=24; "
+    "bitrate=74957; eotf=bt709",
+    "video/mp4; codecs=\"av01.0.00M.08\"; width=426; height=240; framerate=24; "
+    "bitrate=148691; eotf=bt709",
+    "video/mp4; codecs=\"av01.0.01M.08\"; width=640; height=360; framerate=24; "
+    "bitrate=305616; eotf=bt709",
+    "video/mp4; codecs=\"av01.0.04M.08\"; width=854; height=480; framerate=24; "
+    "bitrate=577104; eotf=bt709",
+    "video/mp4; codecs=\"av01.0.05M.08\"; width=1280; height=720; "
+    "framerate=24; bitrate=989646; eotf=bt709",
+    "video/mp4; codecs=\"av01.0.08M.08\"; width=1920; height=1080; "
+    "framerate=24; bitrate=1766589; eotf=bt709"};
+
 }  // namespace nplb
 }  // namespace starboard
 

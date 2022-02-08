@@ -68,6 +68,10 @@ static_library("nb") {
       "//starboard:starboard_headers_only",
       "//starboard/common",
     ]
+
+    if (defined(has_nb_platform) && has_nb_platform) {
+      deps += [ "//nb/${target_platform}:nb_platform" ]
+    }
   }
 }
 
@@ -101,5 +105,7 @@ target(gtest_target_type, "nb_test") {
       "//testing/gmock:gmock",
       "//testing/gtest",
     ]
+
+    content_deps = [ "//third_party/icu:icudata" ]
   }
 }

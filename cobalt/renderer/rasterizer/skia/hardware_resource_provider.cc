@@ -19,6 +19,7 @@
 #include "cobalt/renderer/rasterizer/skia/hardware_resource_provider.h"
 
 #include <memory>
+#include <utility>
 
 #include "base/synchronization/waitable_event.h"
 #include "base/trace_event/trace_event.h"
@@ -205,6 +206,7 @@ uint32_t DecodeTargetFormatToGLFormat(
       }
     } break;
     case kSbDecodeTargetFormat3Plane10BitYUVI420:
+    case kSbDecodeTargetFormat3Plane10BitYUVI420Compact:
     case kSbDecodeTargetFormat3PlaneYUVI420: {
       DCHECK_LT(plane, 3);
 #if defined(GL_RED_EXT)
@@ -233,6 +235,9 @@ DecodeTargetFormatToRenderTreeMultiPlaneFormat(SbDecodeTargetFormat format) {
     case kSbDecodeTargetFormat3Plane10BitYUVI420: {
       return render_tree::kMultiPlaneImageFormatYUV3Plane10BitBT2020;
     } break;
+    case kSbDecodeTargetFormat3Plane10BitYUVI420Compact: {
+      return render_tree::kMultiPlaneImageFormatYUV3Plane10BitCompactedBT2020;
+    }
     default: { NOTREACHED(); }
   }
   return render_tree::kMultiPlaneImageFormatYUV2PlaneBT709;

@@ -170,7 +170,7 @@
         <font weight="400" style="normal">NotoSansHebrew-Regular.ttf</font>
         <font weight="700" style="normal">NotoSansHebrew-Bold.ttf</font>
     </family>
-    <family>
+    <family lang="und-Thai">
         <font weight="400" style="normal">NotoSansThaiUI-Regular.ttf</font>
         <font weight="700" style="normal">NotoSansThaiUI-Bold.ttf</font>
     </family>

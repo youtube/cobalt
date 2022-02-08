@@ -12,23 +12,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//starboard/android/shared/toolchain/toolchain.gni")
+import("//starboard/build/config/install.gni")
+
 template("install_target") {
   not_needed(invoker, [ "type" ])
-  content_dir = "usr/share/cobalt"
+
+  installable_target_name = invoker.installable_target_name
 
   action("build_${target_name}_apk") {
-    forward_variables_from(invoker,
-                           [
-                             "installable_target_name",
-                             "testonly",
-                           ])
-    deps = [
+    forward_variables_from(invoker, [ "testonly" ])
+
+    deps = invoker.deps
+    deps += [
       ":$installable_target_name",
       "//starboard/android/apk:apk_sources",
     ]
 
     target_output = "$root_out_dir/lib${installable_target_name}.so"
-    gradle_content_dir = "$sb_install_output_dir/$content_dir"
+    gradle_content_dir = "$sb_install_output_dir/$sb_install_content_subdir"
     gradle_files_dir = "$root_out_dir/gradle/$installable_target_name"
     if (is_gold) {
       gradle_build_type = "release"
@@ -78,6 +80,14 @@ template("install_target") {
       "-P",
       "enableVulkan=$enable_vulkan",
       "assembleCobalt_$gradle_build_type",
+    ]
+  }
+
+  group(target_name) {
+    forward_variables_from(invoker, [ "testonly" ])
+    deps = [
+      ":$installable_target_name",
+      ":build_${target_name}_apk",
     ]
   }
 }

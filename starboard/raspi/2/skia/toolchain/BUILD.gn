@@ -12,11 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//build/config/clang/clang.gni")
 import("//build/toolchain/gcc_toolchain.gni")
 import("//starboard/raspi/shared/toolchain/raspi_shared_toolchain.gni")
 
 clang_toolchain("host") {
-  clang_base_path = raspi_clang_base_path
+  clang_base_path = clang_base_path
 
   toolchain_args = {
     current_os = "linux"
@@ -25,11 +26,13 @@ clang_toolchain("host") {
 }
 
 gcc_toolchain("target") {
-  cc = "$gcc_toolchain_cc"
-  cxx = "$gcc_toolchain_cxx"
+  cc = gcc_toolchain_cc
+  cxx = gcc_toolchain_cxx
   ld = cxx
 
-  ar = "$gcc_toolchain_ar"
+  ar = gcc_toolchain_ar
+
+  tail_lib_dependencies = "-l:libpthread.so.0"
 
   toolchain_args = {
     is_clang = false

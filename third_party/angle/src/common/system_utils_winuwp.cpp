@@ -16,7 +16,7 @@
 #include <string>
 #include <vector>
 
-#include "common/debug.h"
+#include "common/debug.h"  // nogncheck
 
 namespace angle
 {

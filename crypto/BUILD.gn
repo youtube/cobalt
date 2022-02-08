@@ -148,6 +148,7 @@ component("crypto") {
 
 target(gtest_target_type, "crypto_unittests") {
   testonly = true
+
   sources = [
     "aead_unittest.cc",
     "ec_private_key_unittest.cc",
@@ -187,6 +188,8 @@ target(gtest_target_type, "crypto_unittests") {
     "//testing/gmock",
     "//testing/gtest",
   ]
+
+  content_deps = [ "//third_party/icu:icudata" ]
 }
 
 # This has no sources in some cases so can't be a static library.

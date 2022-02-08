@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//starboard/android/shared/toolchain/toolchain.gni")
+
 config("platform_configuration") {
   configs = [ "//starboard/build/config/sabi" ]
   cflags = []
@@ -26,9 +28,6 @@ config("platform_configuration") {
       # those, rather use lld everywhere. See release notes for NDK 19:
       # https://developer.android.com/ndk/downloads/revision_history
       "-fuse-ld=lld",
-
-      # Mimic build/cmake/android.toolchain.cmake in the Android NDK.
-      "-Wl,--exclude-libs,libunwind.a",
     ]
     if (is_debug) {
       cflags += [ "-O0" ]

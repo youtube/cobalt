@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-config("webdriver_public_config") {
+config("webdriver_all_dependent_config") {
   defines = [ "ENABLE_WEBDRIVER" ]
 }
 
@@ -104,14 +104,49 @@ static_library("webdriver") {
       "window_driver.h",
     ]
     deps += [ ":copy_webdriver_data" ]
-    public_configs = [ ":webdriver_public_config" ]
+    all_dependent_configs = [ ":webdriver_all_dependent_config" ]
   }
 }
 
-# TODO: This declares content_deploy_subdirs which should be migrated for
-#       install targets.
 copy("copy_webdriver_data") {
+  install_content = true
   sources = [ "content/webdriver-init.js" ]
   outputs =
       [ "$sb_static_contents_output_data_dir/webdriver/webdriver-init.js" ]
+}
+
+copy("webdriver_copy_test_data") {
+  sources = [
+    "testdata/displayed_test.html",
+    "testdata/map.png",
+    "testdata/simple_test.py",
+  ]
+
+  outputs = [ "$sb_static_contents_output_data_dir/test/cobalt/webdriver_test/{{source_file_part}}" ]
+}
+
+target(gtest_target_type, "webdriver_test") {
+  testonly = true
+
+  sources = [
+    "execute_test.cc",
+    "get_element_text_test.cc",
+    "is_displayed_test.cc",
+    "keyboard_test.cc",
+  ]
+
+  deps = [
+    ":webdriver",
+    ":webdriver_copy_test_data",
+    "//cobalt/base",
+    "//cobalt/browser",
+    "//cobalt/css_parser:css_parser",
+    "//cobalt/cssom:cssom",
+    "//cobalt/dom/testing:dom_testing",
+    "//cobalt/script",
+    "//cobalt/test:run_all_unittests",
+    "//testing/gmock",
+    "//testing/gtest",
+    "//third_party/devtools:devtools_all_files",
+  ]
 }

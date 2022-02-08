@@ -45,9 +45,21 @@ function run_test() {
 
   OLD_TIMEOUT="${TIMEOUT}"
   TIMEOUT=300
+  RESULT=0
 
-  cycle_cobalt "file:///tests/${TEST_FILE}?channel=test" "${TEST_NAME}.0.log" "Failed to update, log \"error\" code is 12"
+  cycle_cobalt "file:///tests/${TEST_FILE}?channel=test" "${TEST_NAME}.0.log" "Failed to update, error code is 22"
+  if [[ $? -ne 0 ]]; then
+    log "error" "Failed to run out of storage"
+    RESULT=1
+  fi
 
+  if [[ $RESULT -ne 1 ]]; then
+    cycle_cobalt "file:///tests/${TEST_FILE}?channel=test\&min_storage=5" "${TEST_NAME}.0.log" "Failed to update, error code is 200"
+    if [[ $? -ne 0 ]]; then
+      log "error" "Failed to run out of storage"
+      RESULT=1
+    fi
+  fi
   # Remove the symbolic link.
   run_command "rm -f ${STORAGE_DIR}" 1> /dev/null
 
@@ -56,12 +68,7 @@ function run_test() {
     run_command "mv \"${STORAGE_DIR}.tmp\" \"${STORAGE_DIR}\"" 1> /dev/null
   fi
 
-  if [[ $? -ne 0 ]]; then
-    log "error" "Failed to run out of storage"
-    return 1
-  fi
-
   TIMEOUT="${OLD_TIMEOUT}"
 
-  return 0
+  return $RESULT
 }

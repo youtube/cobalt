@@ -171,6 +171,7 @@ if (!crashpad_is_ios) {
   crashpad_executable("crashpad_handler") {
     if (crashpad_is_in_starboard) {
       check_includes = false
+      content_deps = [ "//third_party/icu:icudata" ]
     }
 
     sources = [ "main.cc" ]

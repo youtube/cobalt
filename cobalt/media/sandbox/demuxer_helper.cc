@@ -19,12 +19,12 @@
 #include "base/bind_helpers.h"
 #include "base/callback_helpers.h"
 #include "base/logging.h"
+#include "cobalt/media/base/audio_decoder_config.h"
+#include "cobalt/media/base/bind_to_loop.h"
+#include "cobalt/media/base/decoder_buffer.h"
+#include "cobalt/media/base/video_decoder_config.h"
 #include "cobalt/media/fetcher_buffered_data_source.h"
-#include "media/base/audio_decoder_config.h"
-#include "media/base/bind_to_loop.h"
-#include "media/base/decoder_buffer.h"
-#include "media/base/video_decoder_config.h"
-#include "media/progressive/progressive_demuxer.h"
+#include "cobalt/media/progressive/progressive_demuxer.h"
 
 namespace cobalt {
 namespace media {
@@ -212,19 +212,14 @@ class DemuxerCache : public ::media::Demuxer {
 class DemuxerHelper::DemuxerHostStub : public ::media::DemuxerHost {
  private:
   // DataSourceHost methods
-  void SetTotalBytes(int64 total_bytes) override {
-  }
-  void AddBufferedByteRange(int64 start, int64 end) override {
-  }
+  void SetTotalBytes(int64 total_bytes) override {}
+  void AddBufferedByteRange(int64 start, int64 end) override {}
   void AddBufferedTimeRange(base::TimeDelta start,
-                            base::TimeDelta end) override {
-  }
+                            base::TimeDelta end) override {}
 
   // DemuxerHost methods
-  void SetDuration(base::TimeDelta duration) override {
-  }
-  void OnDemuxerError(::media::PipelineStatus error) override {
-  }
+  void SetDuration(base::TimeDelta duration) override {}
+  void OnDemuxerError(::media::PipelineStatus error) override {}
 };
 
 DemuxerHelper::DemuxerHelper(

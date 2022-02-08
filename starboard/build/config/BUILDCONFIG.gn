@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//starboard/build/platforms.gni")
+_is_python2 = exec_script("//build/util/is_python2.py", [], "json")
+assert(!_is_python2, "`python` must resolve to Python 3 when building with GN.")
 
 declare_args() {
   is_clang = true
@@ -23,11 +24,11 @@ declare_args() {
 
   is_starboard = true
 
-  cobalt_fastbuild = getenv("IS_CI") == 1
+  cobalt_fastbuild = getenv("IS_CI") == "1"
 
-  is_internal_build = false
+  is_internal_build = getenv("COBALT_USE_INTERNAL_BUILD") == "1"
 
-  is_docker_build = getenv("IS_DOCKER") == 1
+  is_docker_build = getenv("IS_DOCKER") == "1"
 }
 
 is_debug = build_type == "debug"
@@ -36,20 +37,11 @@ is_qa = build_type == "qa"
 is_gold = build_type == "gold"
 assert(is_debug || is_devel || is_qa || is_gold)
 
-declare_args() {
-  use_tsan = getenv("USE_TSAN") == 1
-}
-
-declare_args() {
-  use_asan = (is_debug || is_devel || getenv("USE_ASAN") == 1) && !use_tsan
-}
-
-assert(!(use_tsan && use_asan), "ASAN and TSAN are mutually exclusive.")
-
 # Set some variables we never want to change.
 sb_allows_memory_tracking = !is_gold
 host_byteorder = "little"
 is_official_build = false  # Chromium's build files expect this to be set.
+is_component_build = false
 
 # The os/cpu definitions are here to set the current platform type in
 # os_definitions.gni below.
@@ -75,19 +67,29 @@ if (is_mac) {
 
 # Get the path to the starboard implementation and include its GN
 # configuration.
-foreach(platform, platforms) {
-  if (platform.name == target_platform) {
-    starboard_path = platform.path
-  }
-}
+starboard_path = exec_script("//starboard/build/platforms.py",
+                             [ target_platform ],
+                             "trim string")
 assert(defined(starboard_path),
-       "Please port your platform to starboard/build/platforms.gni")
+       "Please add your platform to starboard/build/platforms.py")
 host_toolchain = "//$starboard_path/toolchain:host"
 _default_toolchain = "//$starboard_path/toolchain:target"
 set_default_toolchain(_default_toolchain)
 
 import("//$starboard_path/platform_configuration/configuration.gni")
 import("//starboard/build/config/build_assertions.gni")
+
+declare_args() {
+  use_tsan = getenv("USE_TSAN") == 1
+}
+
+_use_asan_default = (is_debug || is_devel) && (is_linux || is_mac) &&
+                    is_clang && !sb_is_evergreen
+declare_args() {
+  use_asan = (_use_asan_default || getenv("USE_ASAN") == 1) && !use_tsan
+}
+
+assert(!(use_tsan && use_asan), "ASAN and TSAN are mutually exclusive.")
 
 # =============================================================================
 # TARGET DEFAULTS
@@ -109,18 +111,23 @@ import("//starboard/build/config/build_assertions.gni")
 default_compiler_configs = [
   "//build/config/compiler:default_include_dirs",
   "//build/config/compiler:no_exceptions",
-  "//build/config/compiler:thin_archive",
   "//starboard/build/config:base",
   "//starboard/build/config:host",
   "//starboard/build/config:size",
   "//starboard/build/config:target",
+  "//starboard/build/config:warnings_as_errors",
+  "//starboard/build/config:default_compiler_flags",
 ]
+
+if (use_thin_archive) {
+  default_compiler_configs += [ "//build/config/compiler:thin_archive" ]
+}
 
 if (is_starboard) {
   default_compiler_configs += [ "//starboard/build/config:starboard" ]
 }
 
-if (is_qa || is_gold) {
+if (is_qa || is_gold || sb_use_no_rtti) {
   default_compiler_configs += [ "//build/config/compiler:no_rtti" ]
 }
 
@@ -190,25 +197,97 @@ template("loadable_module") {
   }
 }
 
+# Import configuration variables needed for the install targets and install
+# content targets.
+import("//starboard/build/config/install.gni")
+
 # Set up the method of generating the install targets as defined by the
 # platform.
 import("$install_target_path")
+template("install_content") {
+  target(invoker.target_type, target_name) {
+    forward_variables_from(invoker, "*", [ "install_content" ])
+    if (defined(visibility)) {
+      visibility += [ ":${target_name}_install_content" ]
+    }
+  }
+
+  if (defined(invoker.install_content) && invoker.install_content) {
+    action("${target_name}_install_content") {
+      forward_variables_from(invoker, [ "testonly" ])
+
+      deps = [ ":${invoker.target_name}" ]
+
+      sources = get_target_outputs(":${invoker.target_name}")
+
+      install_content_dir = "$sb_install_output_dir/$sb_install_content_subdir"
+      outputs = []
+      foreach(source, sources) {
+        output_path = install_content_dir + "/" +
+                      rebase_path(source, "$sb_static_contents_output_data_dir")
+        outputs += [ output_path ]
+      }
+
+      script = "//starboard/build/copy_install_content.py"
+      args = [
+        "--output_dir",
+        rebase_path(install_content_dir, root_build_dir),
+        "--base_dir",
+        rebase_path(sb_static_contents_output_data_dir, root_build_dir),
+      ]
+      args += rebase_path(sources, root_build_dir)
+    }
+  }
+}
+
+template("action") {
+  install_content(target_name) {
+    forward_variables_from(invoker, "*")
+    target_type = "action"
+  }
+}
+
+template("action_foreach") {
+  install_content(target_name) {
+    forward_variables_from(invoker, "*")
+    target_type = "action_foreach"
+  }
+}
+
+template("copy") {
+  install_content(target_name) {
+    forward_variables_from(invoker, "*")
+    target_type = "copy"
+  }
+}
+
 template("executable") {
   target_with_platform_configs(target_name) {
     target_type = "executable"
-    forward_variables_from(invoker, "*", [ "install_target" ])
+    forward_variables_from(invoker,
+                           "*",
+                           [
+                             "install_target",
+                             "content_deps",
+                           ])
   }
 
   if (!defined(invoker.install_target) || invoker.install_target) {
     executable_target_name = target_name
     install_target(target_name + "_install") {
-      forward_variables_from(invoker,
-                             [
-                               "content",
-                               "testonly",
-                             ])
+      forward_variables_from(invoker, [ "testonly" ])
       installable_target_name = executable_target_name
       type = "executable"
+      if (defined(invoker.deps)) {
+        deps = invoker.deps
+      } else {
+        deps = []
+      }
+      if (defined(invoker.content_deps)) {
+        foreach(content_dep, invoker.content_deps) {
+          deps += [ "${content_dep}_install_content" ]
+        }
+      }
     }
   }
 }
@@ -216,19 +295,30 @@ template("executable") {
 template("shared_library") {
   target_with_platform_configs(target_name) {
     target_type = "shared_library"
-    forward_variables_from(invoker, "*", [ "install_target" ])
+    forward_variables_from(invoker,
+                           "*",
+                           [
+                             "install_target",
+                             "content_deps",
+                           ])
   }
 
   if (!defined(invoker.install_target) || invoker.install_target) {
     shared_library_target_name = target_name
     install_target(target_name + "_install") {
-      forward_variables_from(invoker,
-                             [
-                               "content",
-                               "testonly",
-                             ])
+      forward_variables_from(invoker, [ "testonly" ])
       installable_target_name = shared_library_target_name
       type = "shared_library"
+      if (defined(invoker.deps)) {
+        deps = invoker.deps
+      } else {
+        deps = []
+      }
+      if (defined(invoker.content_deps)) {
+        foreach(content_dep, invoker.content_deps) {
+          deps += [ "${content_dep}_install_content" ]
+        }
+      }
     }
   }
 }

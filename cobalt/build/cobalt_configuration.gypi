@@ -504,6 +504,8 @@
     # further reduced on systems with extremely low memory.
     'cobalt_media_source_garbage_collection_duration_threshold_in_seconds%': -1,
 
+    # TODO(b/212641065): Evaluate if any flags in defines_debug, defines_devel
+    # defines_qa need to be added to GN.
     'defines_debug': [
       'ALLOCATOR_STATS_TRACKING',
       'COBALT_BOX_DUMP_ENABLED',

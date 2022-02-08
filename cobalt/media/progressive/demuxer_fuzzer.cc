@@ -20,12 +20,12 @@
 #include "base/files/file_path.h"
 #include "base/memory/ref_counted.h"
 #include "cobalt/base/wrap_main.h"
+#include "cobalt/media/base/bind_to_loop.h"
+#include "cobalt/media/base/pipeline_status.h"
+#include "cobalt/media/progressive/progressive_demuxer.h"
 #include "cobalt/media/sandbox/fuzzer_app.h"
 #include "cobalt/media/sandbox/in_memory_data_source.h"
 #include "cobalt/media/sandbox/media_sandbox.h"
-#include "media/base/bind_to_loop.h"
-#include "media/base/pipeline_status.h"
-#include "media/progressive/progressive_demuxer.h"
 
 namespace cobalt {
 namespace media {
@@ -69,22 +69,16 @@ class DemuxerFuzzer : DemuxerHost {
 
  private:
   // DataSourceHost methods (parent class of DemuxerHost)
-  void SetTotalBytes(int64 total_bytes) override {
-  }
+  void SetTotalBytes(int64 total_bytes) override {}
 
-  void AddBufferedByteRange(int64 start, int64 end) override {
-  }
+  void AddBufferedByteRange(int64 start, int64 end) override {}
 
   void AddBufferedTimeRange(base::TimeDelta start,
-                            base::TimeDelta end) override {
-  }
+                            base::TimeDelta end) override {}
 
   // DemuxerHost methods
-  void SetDuration(base::TimeDelta duration) override {
-  }
-  void OnDemuxerError(PipelineStatus error) override {
-    error_occurred_ = true;
-  }
+  void SetDuration(base::TimeDelta duration) override {}
+  void OnDemuxerError(PipelineStatus error) override { error_occurred_ = true; }
 
   void InitializeCB(PipelineStatus status) {
     DCHECK(!error_occurred_);

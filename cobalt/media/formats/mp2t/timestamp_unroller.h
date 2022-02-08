@@ -6,7 +6,7 @@
 #define COBALT_MEDIA_FORMATS_MP2T_TIMESTAMP_UNROLLER_H_
 
 #include "base/macros.h"
-#include "media/base/media_export.h"
+#include "cobalt/media/base/media_export.h"
 #include "starboard/types.h"
 
 namespace cobalt {

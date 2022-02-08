@@ -100,6 +100,10 @@ const float k10BitBT2020ColorMatrix[16] = {
     64 * 1.1678f, 64 * 2.1479f,  0.0f,          -1.1469f,
     0.0f,         0.0f,          0.0f,          1.0f};
 
+const float k10BitBT2020ColorMatrixCompacted[16] = {
+    1.1678f, 0.0f,    1.6835f, -0.9147f, 1.1678f, -0.1878f, -0.6522f, 0.347f,
+    1.1678f, 2.1479f, 0.0f,    -1.1469f, 0.0f,    0.0f,     0.0f,     1.0f};
+
 const float* GetColorMatrixForImageType(
     TexturedMeshRenderer::Image::Type type) {
   switch (type) {
@@ -114,6 +118,9 @@ const float* GetColorMatrixForImageType(
     case TexturedMeshRenderer::Image::YUV_3PLANE_BT709:
     case TexturedMeshRenderer::Image::YUV_UYVY_422_BT709: {
       return kBT709ColorMatrix;
+    } break;
+    case TexturedMeshRenderer::Image::YUV_3PLANE_10BIT_COMPACT_BT2020: {
+      return k10BitBT2020ColorMatrixCompacted;
     } break;
     case TexturedMeshRenderer::Image::YUV_3PLANE_10BIT_BT2020: {
       return k10BitBT2020ColorMatrix;
@@ -175,6 +182,25 @@ void TexturedMeshRenderer::RenderVBO(uint32 vbo, int num_vertices, uint32 mode,
         scale_translate_vector);
     GL_CALL(glUniform4fv(blit_program.texcoord_scale_translate_uniforms[i], 1,
                          scale_translate_vector));
+  }
+
+  if (image.type == Image::YUV_3PLANE_10BIT_COMPACT_BT2020) {
+    math::Size viewport_size = graphics_context_->GetWindowSize();
+    GL_CALL(glUniform2f(blit_program.viewport_size_uniform,
+                        viewport_size.width(), viewport_size.height()));
+
+    SB_DCHECK(image.num_textures() >= 1);
+    math::Size texture_size = image.textures[0].texture->GetSize();
+    GL_CALL(glUniform2f(
+        blit_program.viewport_to_texture_size_ratio_uniform,
+        viewport_size.width() / static_cast<float>(texture_size.width()),
+        viewport_size.height() / static_cast<float>(texture_size.height())));
+
+    // The pixel shader requires the actual frame size of the first plane
+    // for calculations.
+    size_t subtexture_width = (texture_size.width() + 2) / 3;
+    GL_CALL(glUniform2f(blit_program.subtexture_size_uniform, subtexture_width,
+                        texture_size.height()));
   }
 
   GL_CALL(glDrawArrays(mode, 0, num_vertices));
@@ -472,6 +498,71 @@ uint32 TexturedMeshRenderer::CreateUYVYFragmentShader(uint32 texture_target,
   return CompileShader(blit_fragment_shader_source);
 }
 
+uint32 TexturedMeshRenderer::CreateYUVCompactedTexturesFragmentShader(
+    uint32 texture_target) {
+  SamplerInfo sampler_info = GetSamplerInfo(texture_target);
+
+  std::string blit_fragment_shader_source = sampler_info.preamble;
+
+  // The fragment shader below performs YUV->RGB transform for
+  // compacted 10-bit yuv420 textures
+  blit_fragment_shader_source +=
+      "precision mediump float;"
+      "varying vec2 v_tex_coord_y;"
+      "varying vec2 v_tex_coord_u;"
+      "varying vec2 v_tex_coord_v;"
+      "uniform sampler2D texture_y;"
+      "uniform sampler2D texture_u;"
+      "uniform sampler2D texture_v;"
+      "uniform vec2 viewport_size;"
+      "uniform vec2 viewport_to_texture_ratio;"
+      "uniform vec2 texture_size;"
+      "uniform mat4 to_rgb_color_matrix;"
+      // In a compacted YUV image each channel, Y, U and V, is stored as a
+      // separate single-channel image plane. Its pixels are stored in 32-bit
+      // and each represents 3 10-bit pixels with 2 bits of gap.
+      // In order to extract compacted pixels, the horizontal position at the
+      // compacted texture is calculated as:
+      // index = compacted_position % 3;
+      // decompacted_position = compacted_position / 3;
+      // pixel = CompactedTexture.Sample(Sampler, decompacted_position)[index];
+      "void main() {"
+      // Take into account display size to texture size ratio for Y component.
+      "vec2 DTid = vec2(floor(v_tex_coord_y * viewport_size));"
+      "vec2 compact_pos_Y = vec2((DTid + 0.5) / viewport_to_texture_ratio);"
+      // Calculate the position of 10-bit pixel for Y.
+      "vec2 decompact_pos_Y;"
+      "decompact_pos_Y.x = (floor(compact_pos_Y.x / 3.0) + 0.5) / "
+      "texture_size.x;"
+      "decompact_pos_Y.y = compact_pos_Y.y / texture_size.y;"
+      // Calculate the index of 10-bit pixel for Y.
+      "int index_Y = int(mod(floor(compact_pos_Y.x), 3.0));"
+      // Extract Y component.
+      "float Y_component = texture2D(texture_y, decompact_pos_Y)[index_Y];"
+      // For yuv420 U and V textures have dimensions twice less than Y.
+      "DTid = vec2(DTid / 2.0);"
+      "vec2 texture_size_UV = vec2(texture_size / 2.0);"
+      "vec2 compact_pos_UV = vec2((DTid + 0.5) / viewport_to_texture_ratio);"
+      // Calculate the position of 10-bit pixels for U and V.
+      "vec2 decompact_pos_UV;"
+      "decompact_pos_UV.x = (floor(compact_pos_UV.x / 3.0) + 0.5) / "
+      "texture_size_UV.x;"
+      "decompact_pos_UV.y = (floor(compact_pos_UV.y) + 0.5) / "
+      "texture_size_UV.y;"
+      // Calculate the index of 10-bit pixels for U and V.
+      "int index_UV = int(mod(floor(compact_pos_UV), 3.0));"
+      // Extract U and V components.
+      "float U_component = texture2D(texture_u, decompact_pos_UV)[index_UV];"
+      "float V_component =  texture2D(texture_v, decompact_pos_UV)[index_UV];"
+      // Perform the YUV->RGB transform and output the color value.
+      "vec4 untransformed_color = vec4(Y_component, U_component, V_component, "
+      "1.0);"
+      "gl_FragColor = untransformed_color * to_rgb_color_matrix;"
+      "}";
+
+  return CompileShader(blit_fragment_shader_source);
+}
+
 // static
 TexturedMeshRenderer::ProgramInfo TexturedMeshRenderer::MakeBlitProgram(
     const float* color_matrix, const std::vector<TextureInfo>& textures,
@@ -530,7 +621,20 @@ TexturedMeshRenderer::ProgramInfo TexturedMeshRenderer::MakeBlitProgram(
         glGetUniformLocation(result.gl_program_id, "to_rgb_color_matrix"));
     GL_CALL(glUniformMatrix4fv(to_rgb_color_matrix_uniform, 1, GL_FALSE,
                                color_matrix));
+    if (color_matrix == k10BitBT2020ColorMatrixCompacted) {
+      result.viewport_size_uniform = GL_CALL_SIMPLE(
+          glGetUniformLocation(result.gl_program_id, "viewport_size"));
+      DCHECK_EQ(GL_NO_ERROR, GL_CALL_SIMPLE(glGetError()));
+      result.viewport_to_texture_size_ratio_uniform =
+          GL_CALL_SIMPLE(glGetUniformLocation(result.gl_program_id,
+                                              "viewport_to_texture_ratio"));
+      DCHECK_EQ(GL_NO_ERROR, GL_CALL_SIMPLE(glGetError()));
+      result.subtexture_size_uniform = GL_CALL_SIMPLE(
+          glGetUniformLocation(result.gl_program_id, "texture_size"));
+      DCHECK_EQ(GL_NO_ERROR, GL_CALL_SIMPLE(glGetError()));
+    }
   }
+
   GL_CALL(glUseProgram(0));
 
   GL_CALL(glDeleteShader(blit_fragment_shader));
@@ -599,7 +703,8 @@ TexturedMeshRenderer::ProgramInfo TexturedMeshRenderer::GetBlitProgram(
       } break;
       case Image::YUV_3PLANE_BT601_FULL_RANGE:
       case Image::YUV_3PLANE_BT709:
-      case Image::YUV_3PLANE_10BIT_BT2020: {
+      case Image::YUV_3PLANE_10BIT_BT2020:
+      case Image::YUV_3PLANE_10BIT_COMPACT_BT2020: {
         std::vector<TextureInfo> texture_infos;
 #if defined(GL_RED_EXT)
         if (image.textures[0].texture->GetFormat() == GL_RED_EXT) {
@@ -622,9 +727,15 @@ TexturedMeshRenderer::ProgramInfo TexturedMeshRenderer::GetBlitProgram(
         texture_infos.push_back(TextureInfo("u", "a"));
         texture_infos.push_back(TextureInfo("v", "a"));
 #endif  // defined(GL_RED_EXT)
-        result = MakeBlitProgram(
-            color_matrix, texture_infos,
-            CreateFragmentShader(texture_target, texture_infos, color_matrix));
+        uint32 shader_program;
+        if (type == Image::YUV_3PLANE_10BIT_COMPACT_BT2020) {
+          shader_program =
+              CreateYUVCompactedTexturesFragmentShader(texture_target);
+        } else {
+          shader_program =
+              CreateFragmentShader(texture_target, texture_infos, color_matrix);
+        }
+        result = MakeBlitProgram(color_matrix, texture_infos, shader_program);
       } break;
       case Image::YUV_UYVY_422_BT709: {
         std::vector<TextureInfo> texture_infos;

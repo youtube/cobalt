@@ -113,8 +113,6 @@ template("nasm_assemble") {
       rebase_path(outputs[0], root_build_dir),
       "{{source}}",
     ]
-
-    depfile = outputs[0] + ".d"
   }
 
   # Gather the .o files into a linkable thing. This doesn't actually link

@@ -1089,6 +1089,15 @@ class MediaCodecBridge {
   // https://github.com/google/ExoPlayer/blob/8595c65678a181296cdf673eacb93d8135479340/library/src/main/java/com/google/android/exoplayer/MediaCodecVideoTrackRenderer.java
   private void maybeSetMaxInputSize(MediaFormat format) {
     if (format.containsKey(android.media.MediaFormat.KEY_MAX_INPUT_SIZE)) {
+      try {
+        Log.i(
+            TAG,
+            "Use default value for KEY_MAX_INPUT_SIZE: "
+                + format.getInteger(android.media.MediaFormat.KEY_MAX_INPUT_SIZE)
+                + '.');
+      } catch (Exception e) {
+        Log.w(TAG, "MediaFormat.getInteger(KEY_MAX_INPUT_SIZE) failed with exception: ", e);
+      }
       // Already set. The source of the format may know better, so do nothing.
       return;
     }
@@ -1131,6 +1140,17 @@ class MediaCodecBridge {
     // Estimate the maximum input size assuming three channel 4:2:0 subsampled input frames.
     int maxInputSize = (maxPixels * 3) / (2 * minCompressionRatio);
     format.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, maxInputSize);
+    try {
+      Log.i(
+          TAG,
+          "KEY_MAX_INPUT_SIZE is "
+              + format.getInteger(android.media.MediaFormat.KEY_MAX_INPUT_SIZE)
+              + " after setting it to "
+              + maxInputSize
+              + '.');
+    } catch (Exception e) {
+      Log.w(TAG, "MediaFormat.getInteger(KEY_MAX_INPUT_SIZE) failed with exception: ", e);
+    }
   }
 
   @SuppressWarnings("unused")

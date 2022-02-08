@@ -10,6 +10,8 @@ exclude: |
         (
             base|
             build|
+            buildtools|
+            crypto|
             net|
             testing|
             third_party|
@@ -68,17 +70,8 @@ repos:
         exclude: |
             (?x)(
                 ^cobalt/bindings/(templates|generated)/|
-                ^starboard/shared/uikit/.*\.h$|
-                tests?\.(cc|h)$
+                ^starboard/shared/uikit/.*\.h$
             )
-    -   id: cpplint_test
-        name: cpplint_test
-        entry: cpplint
-        language: system
-        types: [c++]
-        args: [--verbose=5, --quiet]
-        files: '.*tests?.(cc|h)$'
-        exclude: '^starboard/shared/uikit/.*\.h$'
     -   id: yapf
         name: yapf
         description: Run yapf (the python formatter) in-place on changed files.
@@ -114,10 +107,12 @@ repos:
         stages: [push]
         exclude: |
             (?x)^(
+                cobalt/media/|
                 cobalt/layout_tests/testdata/|
                 starboard/android/apk/app/src/main/java/dev/cobalt/media/MediaDrmBridge.java$
             )
         exclude_types: [markdown]
+        verbose: true
     -   id: check-if-starboard-interface-changed
         name: check if starboard interface changed
         entry: python ./precommit_hooks/warn_that_starboard_interface_changed_wrapper.py
@@ -174,7 +169,7 @@ repos:
         types: [text]
         # TODO: Remove docker-compose-windows.yml after internal check evaluates
         # properly on it.
-        exclude: '(^docker-compose-windows.yml|EXCLUDE\.FILES(\.RECURSIVE)?)$'
+        exclude: '(^docker-compose-windows.yml|EXCLUDE\.FILES(\.RECURSIVE)?|codereview\.settings)$'
     -   id: gn-format
         name: GN format
         entry: gn format

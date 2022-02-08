@@ -22,7 +22,7 @@ action("css_grammar") {
   script = "//starboard/build/run_bash.py"
 
   # Define the platform specific Bison binary.
-  if (is_win) {
+  if (host_os == "win") {
     bison_executable = "win_bison"
   } else {
     bison_executable = "bison"

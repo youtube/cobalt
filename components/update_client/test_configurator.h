@@ -135,6 +135,10 @@ class TestConfigurator : public Configurator {
 
   std::string GetPreviousUpdaterStatus() const override { return ""; }
   void SetPreviousUpdaterStatus(const std::string& status) override {}
+
+  void SetMinFreeSpaceBytes(uint64_t bytes) override {}
+
+  uint64_t GetMinFreeSpaceBytes() override { return 0; }
 #else
   network::TestURLLoaderFactory* test_url_loader_factory() {
     return &test_url_loader_factory_;

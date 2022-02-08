@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//build/config/compiler/compiler.gni")
+
 config("base") {
   defines = []
 
@@ -92,6 +94,8 @@ config("target") {
   }
 }
 
+# TODO(b/212641065): Scope global defines migrated from
+# cobalt_configuration.gypi to only the targets they're necessary in.
 config("starboard") {
   if (current_toolchain == default_toolchain) {
     defines = [
@@ -109,6 +113,7 @@ config("starboard") {
       defines += [
         "ENABLE_DEBUGGER",
         "ENABLE_DEBUG_COMMAND_LINE_SWITCHES",
+        "ENABLE_TEST_RUNNER",
       ]
     }
 
@@ -182,5 +187,23 @@ config("no_pedantic_warnings") {
     if (defined(no_pedantic_warnings_config_path)) {
       configs = [ no_pedantic_warnings_config_path ]
     }
+  }
+}
+
+config("warnings_as_errors") {
+  if (is_win && treat_warnings_as_errors) {
+    cflags = [ "/WX" ]
+  }
+}
+
+# This config is defined here and added as a default config so that the flags
+# specified in it can be overridden by targets. It's not possible for targets to
+# override flags specified in a platform's "platform_configuration" config,
+# which is where these particular flags would otherwise naturally fit.
+config("default_compiler_flags") {
+  if (current_toolchain == default_toolchain && sb_is_evergreen &&
+      target_cpu == "arm") {
+    cflags = [ "-mfpu=vfpv3" ]
+    asmflags = cflags
   }
 }

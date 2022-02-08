@@ -1,0 +1,8 @@
+/*#pragma settings NoInline*/
+
+uniform half2  ah, bh;
+uniform float2 af, bf;
+void main() {
+    sk_FragColor.x = cross(ah, bh);
+    sk_FragColor.y = half(cross(af, bf));
+}

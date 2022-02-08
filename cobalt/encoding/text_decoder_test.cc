@@ -89,6 +89,7 @@ TEST_F(TextDecoderTest, DecodeUTF8) {
       .Times(0);
   scoped_refptr<TextDecoder> text_decoder_ = new TextDecoder(&exception_state_);
   std::vector<std::pair<std::vector<uint8>, std::string>> tests = {
+      {{}, ""},
       {{72, 101, 108, 108, 111, 32, 119, 111, 114, 108, 100, 33},
        "Hello world!"},
       {{72,  101, 106, 33, 32, 208, 159, 209, 128, 208, 184, 208, 178, 208,

@@ -37,7 +37,7 @@ volatile SbAtomic32 s_max_video_width = 0;
 volatile SbAtomic32 s_max_video_height = 0;
 volatile SbAtomic32 s_last_working_codec = kUnknownVideoCodec;
 
-int64_t RoundValues(int64_t value) {
+int64_t RoundValue(int64_t value) {
   if (value < 10) {
     return value;
   }
@@ -225,10 +225,10 @@ std::string PlaybackStatistics::GetStatistics(
       (current_video_config.is_encrypted() ? "Y" : "N"), video_width_.value(),
       video_height_.value(), SbAtomicNoBarrier_Load(&s_active_instances),
       SbAtomicNoBarrier_Load(&s_max_active_instances),
-      RoundValues(SbAtomicNoBarrier_Load(&s_av1_played)),
-      RoundValues(SbAtomicNoBarrier_Load(&s_h264_played)),
-      RoundValues(SbAtomicNoBarrier_Load(&s_hevc_played)),
-      RoundValues(SbAtomicNoBarrier_Load(&s_vp9_played)),
+      RoundValue(SbAtomicNoBarrier_Load(&s_av1_played)),
+      RoundValue(SbAtomicNoBarrier_Load(&s_h264_played)),
+      RoundValue(SbAtomicNoBarrier_Load(&s_hevc_played)),
+      RoundValue(SbAtomicNoBarrier_Load(&s_vp9_played)),
       SbAtomicNoBarrier_Load(&s_min_video_width),
       SbAtomicNoBarrier_Load(&s_min_video_height),
       SbAtomicNoBarrier_Load(&s_max_video_width),
@@ -238,16 +238,16 @@ std::string PlaybackStatistics::GetStatistics(
           .c_str(),
       ValToString(seek_time_).c_str(),
       is_first_audio_buffer_written_
-          ? RoundValues(first_written_audio_timestamp_.value().InSeconds())
+          ? RoundValue(first_written_audio_timestamp_.value().InSeconds())
           : -1,
       is_first_video_buffer_written_
-          ? RoundValues(first_written_video_timestamp_.value().InSeconds())
+          ? RoundValue(first_written_video_timestamp_.value().InSeconds())
           : -1,
       is_first_audio_buffer_written_
-          ? RoundValues(last_written_audio_timestamp_.value().InSeconds())
+          ? RoundValue(last_written_audio_timestamp_.value().InSeconds())
           : -1,
       is_first_video_buffer_written_
-          ? RoundValues(last_written_video_timestamp_.value().InSeconds())
+          ? RoundValue(last_written_video_timestamp_.value().InSeconds())
           : -1);
 }
 

@@ -81,6 +81,7 @@ static_library("network") {
 }
 
 copy("copy_ssl_certificates") {
+  install_content = true
   sources = [
     "//cobalt/content/ssl/certs/002c0b4f.0",
     "//cobalt/content/ssl/certs/02265526.0",
@@ -119,7 +120,6 @@ copy("copy_ssl_certificates") {
     "//cobalt/content/ssl/certs/406c9bb1.0",
     "//cobalt/content/ssl/certs/4304c5e5.0",
     "//cobalt/content/ssl/certs/48bec511.0",
-    "//cobalt/content/ssl/certs/4a6481c9.0",
     "//cobalt/content/ssl/certs/4b718d9b.0",
     "//cobalt/content/ssl/certs/4bfab552.0",
     "//cobalt/content/ssl/certs/4f316efb.0",
@@ -143,7 +143,6 @@ copy("copy_ssl_certificates") {
     "//cobalt/content/ssl/certs/706f604c.0",
     "//cobalt/content/ssl/certs/749e9e03.0",
     "//cobalt/content/ssl/certs/75d1b2ed.0",
-    "//cobalt/content/ssl/certs/76cb8f92.0",
     "//cobalt/content/ssl/certs/76faf6c0.0",
     "//cobalt/content/ssl/certs/7719f463.0",
     "//cobalt/content/ssl/certs/773e07ad.0",
@@ -213,12 +212,11 @@ copy("copy_ssl_certificates") {
     "//cobalt/content/ssl/certs/feffd413.0",
     "//cobalt/content/ssl/certs/ff34af3f.0",
   ]
-
   outputs =
       [ "$sb_static_contents_output_data_dir/ssl/certs/{{source_file_part}}" ]
 }
 
-target(gtest_target_type, "network_base_test") {
+target(gtest_target_type, "network_test") {
   testonly = true
   has_pedantic_warnings = true
 

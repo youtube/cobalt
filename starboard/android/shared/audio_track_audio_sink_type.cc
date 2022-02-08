@@ -83,6 +83,8 @@ AudioTrackAudioSink::AudioTrackAudioSink(
     SbTime start_time,
     int tunnel_mode_audio_session_id,
     bool enable_audio_device_callback,
+    bool enable_pcm_content_type_movie,
+    bool is_web_audio,
     void* context)
     : type_(type),
       channels_(channels),
@@ -106,7 +108,9 @@ AudioTrackAudioSink::AudioTrackAudioSink(
               sampling_frequency_hz,
               preferred_buffer_size_in_bytes,
               enable_audio_device_callback,
-              tunnel_mode_audio_session_id) {
+              enable_pcm_content_type_movie,
+              tunnel_mode_audio_session_id,
+              is_web_audio) {
   SB_DCHECK(update_source_status_func_);
   SB_DCHECK(consume_frames_func_);
   SB_DCHECK(frame_buffer_);
@@ -167,11 +171,7 @@ void AudioTrackAudioSink::AudioThreadFunc() {
   SB_LOG(INFO) << "AudioTrackAudioSink thread started.";
 
   int accumulated_written_frames = 0;
-  // TODO: |last_playback_head_changed_at| is also reset when a warning is
-  //       logged after the playback head position hasn't been updated for a
-  //       while.  We should refine the name to make it better reflect its
-  //       usage.
-  SbTime last_playback_head_changed_at = -1;
+  SbTime last_playback_head_event_at = -1;
   SbTime playback_head_not_changed_duration = 0;
   SbTime last_written_succeeded_at = -1;
 
@@ -197,21 +197,21 @@ void AudioTrackAudioSink::AudioThreadFunc() {
           playback_head_position - last_playback_head_position_;
       SbTime now = SbTimeGetMonotonicNow();
 
-      if (last_playback_head_changed_at == -1) {
-        last_playback_head_changed_at = now;
+      if (last_playback_head_event_at == -1) {
+        last_playback_head_event_at = now;
       }
       if (last_playback_head_position_ == playback_head_position) {
-        SbTime elapsed = now - last_playback_head_changed_at;
+        SbTime elapsed = now - last_playback_head_event_at;
         if (elapsed > 5 * kSbTimeSecond) {
           playback_head_not_changed_duration += elapsed;
-          last_playback_head_changed_at = now;
+          last_playback_head_event_at = now;
           SB_LOG(INFO) << "last playback head position is "
                        << last_playback_head_position_
                        << " and it hasn't been updated for " << elapsed
                        << " microseconds.";
         }
       } else {
-        last_playback_head_changed_at = now;
+        last_playback_head_event_at = now;
         playback_head_not_changed_duration = 0;
       }
 
@@ -243,7 +243,7 @@ void AudioTrackAudioSink::AudioThreadFunc() {
       bridge_.Pause();
     } else if (!was_playing && is_playing) {
       was_playing = true;
-      last_playback_head_changed_at = -1;
+      last_playback_head_event_at = -1;
       playback_head_not_changed_duration = 0;
       last_written_succeeded_at = -1;
       bridge_.Play();
@@ -424,11 +424,15 @@ SbAudioSink AudioTrackAudioSinkType::Create(
   const int kTunnelModeAudioSessionId = -1;
   // Disable AudioDeviceCallback for WebAudio.
   const bool kEnableAudioDeviceCallback = false;
+  const bool kIsWebAudio = true;
+  // Disable AudioAttributes::CONTENT_TYPE_MOVIE for WebAudio.
+  const bool kEnablePcmContentTypeMovie = false;
   return Create(channels, sampling_frequency_hz, audio_sample_type,
                 audio_frame_storage_type, frame_buffers, frames_per_channel,
                 update_source_status_func, consume_frames_func, error_func,
                 kStartTime, kTunnelModeAudioSessionId,
-                kEnableAudioDeviceCallback, context);
+                kEnableAudioDeviceCallback, kEnablePcmContentTypeMovie,
+                kIsWebAudio, context);
 }
 
 SbAudioSink AudioTrackAudioSinkType::Create(
@@ -444,6 +448,8 @@ SbAudioSink AudioTrackAudioSinkType::Create(
     SbTime start_media_time,
     int tunnel_mode_audio_session_id,
     bool enable_audio_device_callback,
+    bool enable_pcm_content_type_movie,
+    bool is_web_audio,
     void* context) {
   int min_required_frames = SbAudioSinkGetMinBufferSizeInFrames(
       channels, audio_sample_type, sampling_frequency_hz);
@@ -455,7 +461,8 @@ SbAudioSink AudioTrackAudioSinkType::Create(
       frames_per_channel, preferred_buffer_size_in_bytes,
       update_source_status_func, consume_frames_func, error_func,
       start_media_time, tunnel_mode_audio_session_id,
-      enable_audio_device_callback, context);
+      enable_audio_device_callback, enable_pcm_content_type_movie, is_web_audio,
+      context);
   if (!audio_sink->IsAudioTrackValid()) {
     SB_DLOG(ERROR)
         << "AudioTrackAudioSinkType::Create failed to create audio track";

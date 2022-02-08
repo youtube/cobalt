@@ -1,0 +1,7 @@
+// Runtime color filters may not use sk_FragCoord
+
+// Expect 1 error
+
+half4 main(half4 color) {
+    return sk_FragCoord.xy01;
+}

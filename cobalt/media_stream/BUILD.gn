@@ -50,3 +50,44 @@ static_library("media_stream") {
     "//starboard",
   ]
 }
+
+target(gtest_target_type, "media_stream_test") {
+  testonly = true
+  has_pedantic_warnings = true
+
+  sources = [
+    "audio_parameters_test.cc",
+    "media_stream_audio_source_test.cc",
+    "media_stream_audio_track_test.cc",
+    "media_stream_test.cc",
+  ]
+
+  deps = [
+    ":media_stream",
+    ":media_stream_test_headers",
+    "//cobalt/dom/testing:dom_testing",
+    "//cobalt/media",
+    "//cobalt/script",
+    "//cobalt/test:run_all_unittests",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+
+  deps += cobalt_platform_dependencies
+}
+
+source_set("media_stream_test_headers") {
+  testonly = true
+
+  sources = [
+    "testing/mock_media_stream_audio_sink.h",
+    "testing/mock_media_stream_audio_source.h",
+    "testing/mock_media_stream_audio_track.h",
+  ]
+
+  deps = [
+    ":media_stream",
+    "//cobalt/script",
+    "//testing/gmock",
+  ]
+}

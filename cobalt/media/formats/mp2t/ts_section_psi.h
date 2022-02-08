@@ -7,8 +7,8 @@
 
 #include "base/compiler_specific.h"
 #include "base/macros.h"
-#include "media/base/byte_queue.h"
-#include "media/formats/mp2t/ts_section.h"
+#include "cobalt/media/base/byte_queue.h"
+#include "cobalt/media/formats/mp2t/ts_section.h"
 #include "starboard/types.h"
 
 namespace cobalt {

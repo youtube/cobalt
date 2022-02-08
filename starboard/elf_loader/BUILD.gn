@@ -60,31 +60,43 @@ static_library("elf_loader") {
   ]
 }
 
-static_library("elf_loader_sys") {
-  # System loader based on dlopen/dlsym.
-  # Should be used only for debugging/troubleshooting.
-  sources = _elf_loader_sources + [
-              "elf_loader_impl.h",
-              "elf_loader_sys_impl.cc",
-              "elf_loader_sys_impl.h",
-            ]
+if (sb_is_evergreen_compatible) {
+  static_library("elf_loader_sys") {
+    # System loader based on dlopen/dlsym.
+    # Should be used only for debugging/troubleshooting.
+    sources = _elf_loader_sources + [
+                "elf_loader_impl.h",
+                "elf_loader_sys_impl.cc",
+                "elf_loader_sys_impl.h",
+              ]
 
-  configs += [ ":elf_loader_config" ]
+    configs += [ ":elf_loader_config" ]
 
-  deps = [
-    ":evergreen_config",
-    ":evergreen_info",
-    "//starboard",
-  ]
+    deps = [
+      ":evergreen_config",
+      ":evergreen_info",
+      "//starboard",
+    ]
 
-  if (sb_is_evergreen_compatible) {
-    deps += [ "//third_party/crashpad/wrapper" ]
-  } else {
-    deps += [ "//third_party/crashpad/wrapper:wrapper_stub" ]
+    if (sb_is_evergreen_compatible) {
+      deps += [ "//third_party/crashpad/wrapper" ]
+    } else {
+      deps += [ "//third_party/crashpad/wrapper:wrapper_stub" ]
+    }
   }
 }
 
 target(final_executable_type, "elf_loader_sandbox") {
+  content_deps = [ "//third_party/icu:icudata" ]
+  if (cobalt_font_package == "empty") {
+    content_deps += [ "//cobalt/content/fonts:copy_font_data" ]
+  } else {
+    content_deps += [
+      "//cobalt/content/fonts:copy_fonts",
+      "//cobalt/content/fonts:fonts_xml",
+    ]
+  }
+
   sources = [ "sandbox.cc" ]
   configs += [ ":elf_loader_config" ]
 
@@ -104,34 +116,36 @@ target(final_executable_type, "elf_loader_sandbox") {
   }
 }
 
-target(final_executable_type, "elf_loader_sys_sandbox") {
-  # To properly function the system loader requires the starboard
-  # symbols to be exported from the binary.
-  # To allow symbols to be exported remove the '-fvisibility=hidden' flag
-  # from your compiler_flags.gypi. For Linux this would be:
-  #   starboard/linux/shared/compiler_flags.gypi
-  # Example run:
-  # export LD_LIBRARY_PATH=.
-  # ./elf_loader_sys_sandbox --evergreen_library=app/cobalt/lib/libcobalt.so --evergreen_content=app/cobalt/content
-  sources = [ "sandbox.cc" ]
-  configs += [ ":elf_loader_config" ]
+if (sb_is_evergreen_compatible) {
+  target(final_executable_type, "elf_loader_sys_sandbox") {
+    # To properly function the system loader requires the starboard
+    # symbols to be exported from the binary.
+    # To allow symbols to be exported remove the '-fvisibility=hidden' flag
+    # from your compiler_flags.gypi. For Linux this would be:
+    #   starboard/linux/shared/compiler_flags.gypi
+    # Example run:
+    # export LD_LIBRARY_PATH=.
+    # ./elf_loader_sys_sandbox --evergreen_library=app/cobalt/lib/libcobalt.so --evergreen_content=app/cobalt/content
+    sources = [ "sandbox.cc" ]
+    configs += [ ":elf_loader_config" ]
 
-  starboard_syms_path =
-      rebase_path("//starboard/starboard.syms", root_build_dir)
-  ldflags = [
-    "-Wl,--dynamic-list=$starboard_syms_path",
-    "-ldl",
-  ]
+    starboard_syms_path =
+        rebase_path("//starboard/starboard.syms", root_build_dir)
+    ldflags = [
+      "-Wl,--dynamic-list=$starboard_syms_path",
+      "-ldl",
+    ]
 
-  deps = [
-    ":elf_loader_sys",
-    ":evergreen_info",
-    ":sabi_string",
-    "//starboard",
-  ]
+    deps = [
+      ":elf_loader_sys",
+      ":evergreen_info",
+      ":sabi_string",
+      "//starboard",
+    ]
 
-  if (!sb_is_evergreen_compatible) {
-    deps += [ "//third_party/crashpad/wrapper:wrapper_stub" ]
+    if (!sb_is_evergreen_compatible) {
+      deps += [ "//third_party/crashpad/wrapper:wrapper_stub" ]
+    }
   }
 }
 
@@ -158,11 +172,18 @@ target(gtest_target_type, "elf_loader_test") {
       ":copy_elf_loader_testdata",
       ":elf_loader",
     ]
+
+    # TODO: Remove this dependency once MediaSession is migrated to use CobaltExtensions.
     deps += cobalt_platform_dependencies
+    content_deps = [
+      ":copy_elf_loader_testdata",
+      "//third_party/icu:icudata",
+    ]
   }
 }
 
 copy("copy_elf_loader_testdata") {
+  install_content = true
   sources = [
     "testdata/compressed.lz4",
     "testdata/uncompressed",

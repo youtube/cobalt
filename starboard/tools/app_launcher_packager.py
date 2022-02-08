@@ -259,6 +259,10 @@ def main(command_args):
       help='List to stdout the application resources relative to the current '
       'directory.')
   parser.add_argument(
+      '--return_list',
+      action='store_true',
+      help='Return the application resources instead of printing them.')
+  parser.add_argument(
       '-v',
       '--verbose',
       action='store_true',
@@ -289,7 +293,10 @@ def main(command_args):
       src_file = src_file.replace('\\', '/')
       src_files.append(src_file)
     out = ' '.join(src_files)
-    return out.strip()
+    if args.return_list:
+      return out.strip()
+    else:
+      print(out.strip())
   return 0
 
 

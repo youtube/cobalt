@@ -73,11 +73,11 @@
 #if defined(ENABLE_DEBUGGER)
 #include "cobalt/browser/debug_console.h"
 #include "cobalt/browser/lifecycle_console_commands.h"
-#include "cobalt/debug/backend/debug_dispatcher.h"
+#include "cobalt/debug/backend/debug_dispatcher.h"  // nogncheck
 #include "cobalt/debug/backend/debugger_state.h"
 #include "cobalt/debug/console/command_manager.h"
-#include "cobalt/debug/debug_client.h"
-#endif  // ENABLE_DEBUGGER
+#include "cobalt/debug/debug_client.h"  // nogncheck
+#endif                                  // ENABLE_DEBUGGER
 
 #if SB_IS(EVERGREEN)
 #include "cobalt/updater/updater_module.h"
@@ -234,6 +234,7 @@ class BrowserModule {
                                              SbTimeMonotonic timestamp);
   // Pass the deeplink timestamp from Starboard.
   void SetDeepLinkTimestamp(SbTimeMonotonic timestamp);
+
  private:
 #if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
   static void CoreDumpHandler(void* browser_module_as_void);

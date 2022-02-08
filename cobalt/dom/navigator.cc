@@ -25,6 +25,7 @@
 #include "cobalt/media_capture/media_devices.h"
 #include "cobalt/media_session/media_session_client.h"
 #include "cobalt/script/script_value_factory.h"
+#include "cobalt/worker/service_worker_container.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/file.h"
 #include "starboard/media.h"
@@ -156,6 +157,7 @@ Navigator::Navigator(
       plugins_(new PluginArray()),
       media_devices_(
           new media_capture::MediaDevices(settings, script_value_factory)),
+      service_worker_(new worker::ServiceWorkerContainer(script_value_factory)),
       system_caption_settings_(captions),
       script_value_factory_(script_value_factory) {}
 
@@ -232,6 +234,10 @@ bool Navigator::on_line() const {
 
 scoped_refptr<media_capture::MediaDevices> Navigator::media_devices() {
   return media_devices_;
+}
+
+scoped_refptr<worker::ServiceWorkerContainer> Navigator::service_worker() {
+  return service_worker_;
 }
 
 const scoped_refptr<MimeTypeArray>& Navigator::mime_types() const {
