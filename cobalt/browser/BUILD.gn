@@ -75,6 +75,9 @@ target(final_executable_type, "cobalt") {
   if (!is_gold) {
     content_deps += [ "//cobalt/debug:copy_backend_web_files" ]
   }
+  if (defined(platform_i18n_config_path)) {
+    content_deps += [ platform_i18n_config_path ]
+  }
 }
 
 ##############################

@@ -18,6 +18,7 @@
 
 template("convert_i18n_data") {
   action_foreach(target_name) {
+    forward_variables_from(invoker, [ "install_content" ])
     script = "//starboard/build/convert_i18n_data.py"
 
     sources = invoker.xlb_files

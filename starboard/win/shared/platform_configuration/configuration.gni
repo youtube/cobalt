@@ -27,3 +27,5 @@ pedantic_warnings_config_path =
     "//starboard/win/shared/platform_configuration:pedantic_warnings"
 
 cobalt_platform_dependencies = [ "//starboard/egl_and_gles" ]
+
+platform_i18n_config_path = "//cobalt/content/i18n/platform/xb1:xb1"
