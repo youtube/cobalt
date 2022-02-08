@@ -338,14 +338,6 @@ class PlatformConfiguration(object):
     """Gets a dict of environment variables needed by unit test binaries."""
     return {}
 
-  def GetTestFilters(self):
-    """Gets all tests to be excluded from a unit test run.
-
-    Returns:
-      A list of initialized starboard.tools.testing.TestFilter objects.
-    """
-    return []
-
   def GetDeployPathPatterns(self):
     """Gets deployment paths patterns for files to be included for deployment.
 

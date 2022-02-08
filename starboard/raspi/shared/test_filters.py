@@ -15,42 +15,42 @@
 
 from starboard.tools.testing import test_filter
 
+_FILTERED_TESTS = {
+    'nplb': [
+        'SbAudioSinkTest.*',
+
+        # Permanently filter out drm system related tests as raspi doesn't
+        # support any drm systems and there is no plan to implement such
+        # support.
+        'SbDrmTest.AnySupportedKeySystems',
+        'SbMediaCanPlayMimeAndKeySystem.AnySupportedKeySystems',
+        'SbMediaCanPlayMimeAndKeySystem.KeySystemWithAttributes',
+        'SbMediaCanPlayMimeAndKeySystem.MinimumSupport',
+        'SbMediaSetAudioWriteDurationTests/*',
+        'SbPlayerWriteSampleTests*',
+        'SbUndefinedBehaviorTest.CallThisPointerIsNullRainyDay',
+        'SbSystemGetPropertyTest.FLAKY_ReturnsRequired',
+    ],
+    'player_filter_tests': [
+        # The implementations for the raspberry pi (0 and 2) are incomplete
+        # and not meant to be a reference implementation. As such we will
+        # not repair these failing tests for now.
+        'VideoDecoderTests/VideoDecoderTest.EndOfStreamWithoutAnyInput/0',
+        'VideoDecoderTests/VideoDecoderTest.MultipleResets/0',
+        # Filter failed tests.
+        'PlayerComponentsTests/PlayerComponentsTest.*',
+    ],
+}
+
 
 class TestFilters(object):
   """Starboard Raspberry Pi platform test filters."""
 
   def GetTestFilters(self):
     filters = []
-    for target, tests in self._FILTERED_TESTS.iteritems():
+    for target, tests in _FILTERED_TESTS.iteritems():
       filters.extend(test_filter.TestFilter(target, test) for test in tests)
     return filters
-
-  _FILTERED_TESTS = {
-      'nplb': [
-          'SbAudioSinkTest.*',
-
-          # Permanently filter out drm system related tests as raspi doesn't
-          # support any drm systems and there is no plan to implement such
-          # support.
-          'SbDrmTest.AnySupportedKeySystems',
-          'SbMediaCanPlayMimeAndKeySystem.AnySupportedKeySystems',
-          'SbMediaCanPlayMimeAndKeySystem.KeySystemWithAttributes',
-          'SbMediaCanPlayMimeAndKeySystem.MinimumSupport',
-          'SbMediaSetAudioWriteDurationTests/*',
-          'SbPlayerWriteSampleTests*',
-          'SbUndefinedBehaviorTest.CallThisPointerIsNullRainyDay',
-          'SbSystemGetPropertyTest.FLAKY_ReturnsRequired',
-      ],
-      'player_filter_tests': [
-          # The implementations for the raspberry pi (0 and 2) are incomplete
-          # and not meant to be a reference implementation. As such we will
-          # not repair these failing tests for now.
-          'VideoDecoderTests/VideoDecoderTest.EndOfStreamWithoutAnyInput/0',
-          'VideoDecoderTests/VideoDecoderTest.MultipleResets/0',
-          # Filter failed tests.
-          'PlayerComponentsTests/PlayerComponentsTest.*',
-      ],
-  }
 
 
 def CreateTestFilters():

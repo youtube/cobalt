@@ -19,7 +19,6 @@ from starboard.build import clang
 from starboard.build import platform_configuration
 from starboard.tools import build
 from starboard.tools import paths
-from starboard.tools.testing import test_filter
 
 
 class EvergreenConfiguration(platform_configuration.PlatformConfiguration):
@@ -77,25 +76,6 @@ class EvergreenConfiguration(platform_configuration.PlatformConfiguration):
 
   def GetPathToSabiJsonFile(self):
     return self.sabi_json_path
-
-  def GetTestFilters(self):
-    filters = super(EvergreenConfiguration, self).GetTestFilters()
-    for target, tests in self.__FILTERED_TESTS.iteritems():
-      filters.extend(test_filter.TestFilter(target, test) for test in tests)
-    return filters
-
-  __FILTERED_TESTS = {  # pylint: disable=invalid-name
-      'nplb': ['MemoryReportingTest.CapturesOperatorDeleteNothrow',
-               'SbAudioSinkTest.*',
-               'SbDrmTest.AnySupportedKeySystems'],
-
-      # player_filter_tests test the platform's Starboard implementation of
-      # the filter-based player, which is not exposed through the Starboard
-      # interface. Since Evergreen has no visibility of the platform's
-      # specific Starboard implementation, rely on the platform to test this
-      # directly instead.
-      'player_filter_tests': [test_filter.FILTER_ALL],
-  }
 
   def GetTestTargets(self):
     tests = super(EvergreenConfiguration, self).GetTestTargets()

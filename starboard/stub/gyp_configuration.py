@@ -92,13 +92,5 @@ class StubConfiguration(config.base.PlatformConfigBase):
         bash.Shell(),
     ]
 
-  def GetTestFilters(self):
-    """Gets all tests to be excluded from a unit test run.
-
-    Returns:
-      A list of initialized TestFilter objects.
-    """
-    return []
-
   def GetPathToSabiJsonFile(self):
     return _SABI_JSON_PATH

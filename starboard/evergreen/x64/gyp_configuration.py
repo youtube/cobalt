@@ -15,9 +15,7 @@
 
 import os.path
 
-from starboard.build import clang as clang_build
 from starboard.evergreen.shared import gyp_configuration as shared_configuration
-from starboard.tools import paths
 from starboard.tools.toolchain import ar
 from starboard.tools.toolchain import bash
 from starboard.tools.toolchain import clang
@@ -34,9 +32,8 @@ class EvergreenX64Configuration(shared_configuration.EvergreenConfiguration):
                platform='evergreen-x64',
                asan_enabled_by_default=False,
                sabi_json_path='starboard/sabi/default/sabi.json'):
-    super(EvergreenX64Configuration, self).__init__(platform,
-                                                    asan_enabled_by_default,
-                                                    sabi_json_path)
+    super(EvergreenX64Configuration,
+          self).__init__(platform, asan_enabled_by_default, sabi_json_path)
 
     self.AppendApplicationConfigurationPath(os.path.dirname(__file__))
 
@@ -71,28 +68,8 @@ class EvergreenX64Configuration(shared_configuration.EvergreenConfiguration):
       ]
     return self._host_toolchain
 
-  def GetTestFilters(self):
-    filters = super(EvergreenX64Configuration, self).GetTestFilters()
-    # Remove the exclusion filter on SbDrmTest.AnySupportedKeySystems.
-    # Generally, children of linux/shared do not support widevine, but children
-    # of linux/x64x11 do, if the content decryption module is present.
-
-    has_cdm = os.path.isfile(
-        os.path.join(paths.REPOSITORY_ROOT, 'third_party', 'cdm', 'cdm',
-                     'include', 'content_decryption_module.h'))
-
-    if not has_cdm:
-      return filters
-
-    for test_filter in filters:
-      if (test_filter.target_name == 'nplb' and
-          test_filter.test_name == 'SbDrmTest.AnySupportedKeySystems'):
-        filters.remove(test_filter)
-    return filters
-
-  def GetVariables(self, configuration):
-    variables = super(EvergreenX64Configuration,
-                      self).GetVariables(configuration)
+  def GetVariables(self, config_name):
+    variables = super(EvergreenX64Configuration, self).GetVariables(config_name)
     variables.update({
         'include_path_platform_deploy_gypi':
             'starboard/evergreen/x64/platform_deploy.gypi',

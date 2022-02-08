@@ -16,6 +16,29 @@
 from starboard.android.shared import test_filters as shared_test_filters
 from starboard.tools.testing import test_filter
 
+# A map of failing or crashing tests per target
+_FILTERED_TESTS = {
+    'nplb': [
+        'SbAccessibilityTest.CallSetCaptionsEnabled',
+        'SbAccessibilityTest.GetCaptionSettingsReturnIsValid',
+        'SbAudioSinkTest.*',
+        'SbMediaCanPlayMimeAndKeySystem.*',
+        'SbMicrophoneCloseTest.*',
+        'SbMicrophoneOpenTest.*',
+        'SbMicrophoneReadTest.*',
+        'SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.*',
+        'SbMediaSetAudioWriteDurationTests/SbMediaSetAudioWriteDurationTest'
+        '.WriteContinuedLimitedInput/*',
+        'SbMediaSetAudioWriteDurationTests/SbMediaSetAudioWriteDurationTest'
+        '.WriteLimitedInput/*',
+    ],
+    'player_filter_tests': [
+        'AudioDecoderTests/*',
+        'VideoDecoderTests/*',
+        'PlayerComponentsTests/*',
+    ],
+}
+
 
 def CreateTestFilters():
   return AndroidX86TestFilters()
@@ -26,29 +49,6 @@ class AndroidX86TestFilters(shared_test_filters.TestFilters):
 
   def GetTestFilters(self):
     filters = super(AndroidX86TestFilters, self).GetTestFilters()
-    for target, tests in self._FILTERED_TESTS.iteritems():
+    for target, tests in _FILTERED_TESTS.iteritems():
       filters.extend(test_filter.TestFilter(target, test) for test in tests)
     return filters
-
-  # A map of failing or crashing tests per target
-  _FILTERED_TESTS = {
-      'nplb': [
-          'SbAccessibilityTest.CallSetCaptionsEnabled',
-          'SbAccessibilityTest.GetCaptionSettingsReturnIsValid',
-          'SbAudioSinkTest.*',
-          'SbMediaCanPlayMimeAndKeySystem.*',
-          'SbMicrophoneCloseTest.*',
-          'SbMicrophoneOpenTest.*',
-          'SbMicrophoneReadTest.*',
-          'SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.*',
-          'SbMediaSetAudioWriteDurationTests/SbMediaSetAudioWriteDurationTest'
-          '.WriteContinuedLimitedInput/*',
-          'SbMediaSetAudioWriteDurationTests/SbMediaSetAudioWriteDurationTest'
-          '.WriteLimitedInput/*',
-      ],
-      'player_filter_tests': [
-          'AudioDecoderTests/*',
-          'VideoDecoderTests/*',
-          'PlayerComponentsTests/*',
-      ],
-  }

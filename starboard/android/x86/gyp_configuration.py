@@ -14,44 +14,10 @@
 """Starboard Android x86 platform build configuration."""
 
 from starboard.android.shared import gyp_configuration as shared_configuration
-from starboard.tools.testing import test_filter
 
 
 def CreatePlatformConfig():
-  return Androidx86Configuration(
+  return shared_configuration.AndroidConfiguration(
       'android-x86',
       'x86',
       sabi_json_path='starboard/sabi/x86/sabi-v{sb_api_version}.json')
-
-
-class Androidx86Configuration(shared_configuration.AndroidConfiguration):
-
-  def GetTestFilters(self):
-    filters = super(Androidx86Configuration, self).GetTestFilters()
-    for target, tests in self.__FILTERED_TESTS.iteritems():
-      filters.extend(test_filter.TestFilter(target, test) for test in tests)
-    return filters
-
-  # A map of failing or crashing tests per target
-  __FILTERED_TESTS = {  # pylint: disable=invalid-name
-      'nplb': [
-          'SbAccessibilityTest.CallSetCaptionsEnabled',
-          'SbAccessibilityTest.GetCaptionSettingsReturnIsValid',
-          'SbAudioSinkTest.*',
-          'SbMediaCanPlayMimeAndKeySystem.*',
-          'SbMicrophoneCloseTest.*',
-          'SbMicrophoneOpenTest.*',
-          'SbMicrophoneReadTest.*',
-          'SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.*',
-          'SbMediaSetAudioWriteDurationTests/SbMediaSetAudioWriteDurationTest'
-          '.WriteContinuedLimitedInput/*',
-          'SbMediaSetAudioWriteDurationTests/SbMediaSetAudioWriteDurationTest'
-          '.WriteLimitedInput/*',
-      ],
-      'player_filter_tests': [
-          'AudioDecoderTests/*',
-          'VideoDecoderTests/*',
-
-          'PlayerComponentsTests/*',
-      ],
-  }

@@ -79,10 +79,9 @@ def _FilterTests(target_list, filters, config_name):
   return targets
 
 
-def _VerifyConfig(config):
+def _VerifyConfig(config, filters):
   """Ensures a platform or app config is self-consistent."""
   targets = config.GetTestTargets()
-  filters = config.GetTestFilters()
   filter_targets = [
       f.target_name for f in filters if f != test_filter.DISABLE_TESTING
   ]
@@ -259,13 +258,15 @@ class TestRunner(object):
     self.threads = []
 
     _EnsureBuildDirectoryExists(self.out_directory)
-    _VerifyConfig(self._platform_config)
+    _VerifyConfig(self._platform_config,
+                  self._platform_test_filters.GetTestFilters())
 
     if self.loader_platform:
       _EnsureBuildDirectoryExists(self.loader_out_directory)
-      _VerifyConfig(self._loader_platform_config)
+      _VerifyConfig(self._loader_platform_config,
+                    self._loader_platform_test_filters.GetTestFilters())
 
-    _VerifyConfig(self._app_config)
+    _VerifyConfig(self._app_config, self._app_config.GetTestFilters())
 
     # If a particular test binary has been provided, configure only that one.
     logging.info("Getting test targets")

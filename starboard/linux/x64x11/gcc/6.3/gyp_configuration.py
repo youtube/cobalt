@@ -16,7 +16,6 @@
 import os
 
 from starboard.linux.shared import gyp_configuration as shared_configuration
-from starboard.tools.testing import test_filter
 from starboard.tools.toolchain import ar
 from starboard.tools.toolchain import bash
 from starboard.tools.toolchain import clang
@@ -109,17 +108,6 @@ class LinuxX64X11Gcc63Configuration(shared_configuration.LinuxConfiguration):
         touch.Stamp(),
         bash.Shell(),
     ]
-
-  def GetTestFilters(self):
-    filters = super(LinuxX64X11Gcc63Configuration, self).GetTestFilters()
-    for target, tests in self._FILTERED_TESTS.iteritems():
-      filters.extend(test_filter.TestFilter(target, test) for test in tests)
-    return filters
-
-  _FILTERED_TESTS = {
-      # TODO(b/206117361): Re-enable starboard_platform_tests once fixed.
-      'starboard_platform_tests': ['JobQueueTest.JobsAreMovedAndNotCopied',],
-  }
 
 
 def CreatePlatformConfig():

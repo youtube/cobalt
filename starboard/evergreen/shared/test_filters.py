@@ -15,26 +15,26 @@
 
 from starboard.tools.testing import test_filter
 
+_FILTERED_TESTS = {
+    'nplb': [
+        'MemoryReportingTest.CapturesOperatorDeleteNothrow',
+        'SbAudioSinkTest.*', 'SbDrmTest.AnySupportedKeySystems'
+    ],
+
+    # player_filter_tests test the platform's Starboard implementation of
+    # the filter-based player, which is not exposed through the Starboard
+    # interface. Since Evergreen has no visibility of the platform's
+    # specific Starboard implementation, rely on the platform to test this
+    # directly instead.
+    'player_filter_tests': [test_filter.FILTER_ALL],
+}
+
 
 class TestFilters(object):
   """Starboard Evergreen platform test filters."""
 
   def GetTestFilters(self):
     filters = []
-    for target, tests in self._FILTERED_TESTS.iteritems():
+    for target, tests in _FILTERED_TESTS.iteritems():
       filters.extend(test_filter.TestFilter(target, test) for test in tests)
     return filters
-
-  _FILTERED_TESTS = {
-      'nplb': [
-          'MemoryReportingTest.CapturesOperatorDeleteNothrow',
-          'SbAudioSinkTest.*', 'SbDrmTest.AnySupportedKeySystems'
-      ],
-
-      # player_filter_tests test the platform's Starboard implementation of
-      # the filter-based player, which is not exposed through the Starboard
-      # interface. Since Evergreen has no visibility of the platform's
-      # specific Starboard implementation, rely on the platform to test this
-      # directly instead.
-      'player_filter_tests': [test_filter.FILTER_ALL],
-  }

@@ -13,7 +13,6 @@
 # limitations under the License.
 """Starboard evergreen-arm64 platform configuration for gyp_cobalt."""
 
-from starboard.build import clang as clang_build
 from starboard.evergreen.shared import gyp_configuration as shared_configuration
 from starboard.tools.toolchain import ar
 from starboard.tools.toolchain import bash
@@ -32,9 +31,8 @@ class EvergreenArm64Configuration(shared_configuration.EvergreenConfiguration):
                asan_enabled_by_default=False,
                sabi_json_path='starboard/sabi/default/sabi.json'):
     # pylint: disable=useless-super-delegation
-    super(EvergreenArm64Configuration, self).__init__(platform,
-                                                      asan_enabled_by_default,
-                                                      sabi_json_path)
+    super(EvergreenArm64Configuration,
+          self).__init__(platform, asan_enabled_by_default, sabi_json_path)
 
   def GetTargetToolchain(self, **kwargs):
     return self.GetHostToolchain(**kwargs)
@@ -67,13 +65,9 @@ class EvergreenArm64Configuration(shared_configuration.EvergreenConfiguration):
       ]
     return self._host_toolchain
 
-  def GetTestFilters(self):
-    # pylint: disable=useless-super-delegation
-    return super(EvergreenArm64Configuration, self).GetTestFilters()
-
-  def GetVariables(self, configuration):
+  def GetVariables(self, config_name):
     variables = super(EvergreenArm64Configuration,
-                      self).GetVariables(configuration)
+                      self).GetVariables(config_name)
     variables.update({
         'include_path_platform_deploy_gypi':
             'starboard/evergreen/arm64/platform_deploy.gypi',

@@ -15,70 +15,70 @@
 
 from starboard.tools.testing import test_filter
 
+# A map of failing or crashing tests per target.
+_FILTERED_TESTS = {
+    'player_filter_tests': [
+        # GetMaxNumberOfCachedFrames() on Android is device dependent,
+        # and Android doesn't provide an API to get it. So, this function
+        # doesn't make sense on Android. But HoldFramesUntilFull tests depend
+        # on this number strictly.
+        'VideoDecoderTests/VideoDecoderTest.HoldFramesUntilFull/*',
+
+        # Currently, invalid input tests are not supported.
+        'VideoDecoderTests/VideoDecoderTest.SingleInvalidInput/*',
+        'VideoDecoderTests/VideoDecoderTest'
+        '.MultipleValidInputsAfterInvalidKeyFrame/*',
+        'VideoDecoderTests/VideoDecoderTest.MultipleInvalidInput/*',
+
+        # Android currently does not support multi-video playback, which
+        # the following tests depend upon.
+        'VideoDecoderTests/VideoDecoderTest.ThreeMoreDecoders/*',
+
+        # The video pipeline will hang if it doesn't receive any input.
+        'PlayerComponentsTests/PlayerComponentsTest.EOSWithoutInput/*',
+
+        # The e/eac3 audio time reporting during pause will be revisitied.
+        'PlayerComponentsTests/PlayerComponentsTest.Pause/15',
+    ],
+    'nplb': [
+        # This test is failing because localhost is not defined for IPv6 in
+        # /etc/hosts.
+        'SbSocketAddressTypes/SbSocketResolveTest.Localhost/1',
+
+        # These tests are taking longer due to interop on android. Work is
+        # underway to investigate whether this is acceptable.
+        'SbMediaCanPlayMimeAndKeySystem.ValidatePerformance',
+        'SbMediaConfigurationTest.ValidatePerformance',
+
+        # SbDirectory has problems with empty Asset dirs.
+        'SbDirectoryCanOpenTest.SunnyDayStaticContent',
+        'SbDirectoryGetNextTest.SunnyDayStaticContent',
+        'SbDirectoryOpenTest.SunnyDayStaticContent',
+        'SbFileGetPathInfoTest.WorksOnStaticContentDirectories',
+
+        # These tests are disabled due to not receiving the kEndOfStream
+        # player state update within the specified timeout.
+        'SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.NoInput/*',
+
+        # Android does not use SbDrmSessionClosedFunc, which these tests
+        # depend on.
+        'SbDrmSessionTest.SunnyDay',
+        'SbDrmSessionTest.CloseDrmSessionBeforeUpdateSession',
+
+        # This test is failing because Android calls the
+        # SbDrmSessionUpdateRequestFunc with SbDrmStatus::kSbDrmStatusSuccess
+        # when invalid initialization data is passed to
+        # SbDrmGenerateSessionUpdateRequest().
+        'SbDrmSessionTest.InvalidSessionUpdateRequestParams',
+    ],
+}
+
 
 class TestFilters(object):
   """Starboard Android platform test filters."""
 
   def GetTestFilters(self):
     filters = []
-    for target, tests in self._FILTERED_TESTS.iteritems():
+    for target, tests in _FILTERED_TESTS.iteritems():
       filters.extend(test_filter.TestFilter(target, test) for test in tests)
     return filters
-
-  # A map of failing or crashing tests per target.
-  _FILTERED_TESTS = {
-      'player_filter_tests': [
-          # GetMaxNumberOfCachedFrames() on Android is device dependent,
-          # and Android doesn't provide an API to get it. So, this function
-          # doesn't make sense on Android. But HoldFramesUntilFull tests depend
-          # on this number strictly.
-          'VideoDecoderTests/VideoDecoderTest.HoldFramesUntilFull/*',
-
-          # Currently, invalid input tests are not supported.
-          'VideoDecoderTests/VideoDecoderTest.SingleInvalidInput/*',
-          'VideoDecoderTests/VideoDecoderTest'
-          '.MultipleValidInputsAfterInvalidKeyFrame/*',
-          'VideoDecoderTests/VideoDecoderTest.MultipleInvalidInput/*',
-
-          # Android currently does not support multi-video playback, which
-          # the following tests depend upon.
-          'VideoDecoderTests/VideoDecoderTest.ThreeMoreDecoders/*',
-
-          # The video pipeline will hang if it doesn't receive any input.
-          'PlayerComponentsTests/PlayerComponentsTest.EOSWithoutInput/*',
-
-          # The e/eac3 audio time reporting during pause will be revisitied.
-          'PlayerComponentsTests/PlayerComponentsTest.Pause/15',
-      ],
-      'nplb': [
-          # This test is failing because localhost is not defined for IPv6 in
-          # /etc/hosts.
-          'SbSocketAddressTypes/SbSocketResolveTest.Localhost/1',
-
-          # These tests are taking longer due to interop on android. Work is
-          # underway to investigate whether this is acceptable.
-          'SbMediaCanPlayMimeAndKeySystem.ValidatePerformance',
-          'SbMediaConfigurationTest.ValidatePerformance',
-
-          # SbDirectory has problems with empty Asset dirs.
-          'SbDirectoryCanOpenTest.SunnyDayStaticContent',
-          'SbDirectoryGetNextTest.SunnyDayStaticContent',
-          'SbDirectoryOpenTest.SunnyDayStaticContent',
-          'SbFileGetPathInfoTest.WorksOnStaticContentDirectories',
-
-          # These tests are disabled due to not receiving the kEndOfStream
-          # player state update within the specified timeout.
-          'SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.NoInput/*',
-
-          # Android does not use SbDrmSessionClosedFunc, which these tests
-          # depend on.
-          'SbDrmSessionTest.SunnyDay',
-          'SbDrmSessionTest.CloseDrmSessionBeforeUpdateSession',
-
-          # This test is failing because Android calls the
-          # SbDrmSessionUpdateRequestFunc with SbDrmStatus::kSbDrmStatusSuccess
-          # when invalid initialization data is passed to
-          # SbDrmGenerateSessionUpdateRequest().
-          'SbDrmSessionTest.InvalidSessionUpdateRequestParams',
-      ],
-  }

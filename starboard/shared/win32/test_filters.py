@@ -15,6 +15,8 @@
 
 from starboard.tools.testing import test_filter
 
+_FILTERED_TESTS = {}
+
 
 class TestFilters(object):
   """Starboard Win32 platform test filters."""
@@ -26,8 +28,6 @@ class TestFilters(object):
       A list of initialized TestFilter objects.
     """
     filters = []
-    for target, tests in self._FILTERED_TESTS.iteritems():
+    for target, tests in _FILTERED_TESTS.iteritems():
       filters.extend(test_filter.TestFilter(target, test) for test in tests)
     return filters
-
-  _FILTERED_TESTS = {}

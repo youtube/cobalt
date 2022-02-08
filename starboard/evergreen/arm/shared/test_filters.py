@@ -16,6 +16,15 @@
 from starboard.evergreen.shared import test_filters as shared_test_filters
 from starboard.tools.testing import test_filter
 
+_FILTERED_TESTS = {
+    'nplb': [
+        'SbSystemGetStackTest.SunnyDayStackDirection',
+        'SbSystemGetStackTest.SunnyDay',
+        'SbSystemGetStackTest.SunnyDayShortStack',
+        'SbSystemSymbolizeTest.SunnyDay'
+    ],
+}
+
 
 def CreateTestFilters():
   return EvergreenArmTestFilters()
@@ -26,15 +35,6 @@ class EvergreenArmTestFilters(shared_test_filters.TestFilters):
 
   def GetTestFilters(self):
     filters = super(EvergreenArmTestFilters, self).GetTestFilters()
-    for target, tests in self._FILTERED_TESTS.iteritems():
+    for target, tests in _FILTERED_TESTS.iteritems():
       filters.extend(test_filter.TestFilter(target, test) for test in tests)
     return filters
-
-  _FILTERED_TESTS = {
-      'nplb': [
-          'SbSystemGetStackTest.SunnyDayStackDirection',
-          'SbSystemGetStackTest.SunnyDay',
-          'SbSystemGetStackTest.SunnyDayShortStack',
-          'SbSystemSymbolizeTest.SunnyDay'
-      ],
-  }

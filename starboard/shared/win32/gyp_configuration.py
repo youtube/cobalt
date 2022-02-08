@@ -23,7 +23,6 @@ import config.base
 import starboard.shared.win32.sdk_configuration as win_sdk_configuration
 from starboard.tools import cache
 from starboard.tools.paths import STARBOARD_ROOT
-from starboard.tools.testing import test_filter
 from starboard.tools.toolchain import cmd
 from starboard.tools.toolchain import msvc
 from starboard.tools.toolchain import python
@@ -162,19 +161,6 @@ class Win32SharedConfiguration(config.base.PlatformConfigBase):
     sys.path.append(os.path.join(STARBOARD_ROOT, 'shared', 'msvc', 'uwp'))
     from msvc_toolchain import MSVCUWPToolchain  # pylint: disable=import-outside-toplevel
     return MSVCUWPToolchain()
-
-  def GetTestFilters(self):
-    """Gets all tests to be excluded from a unit test run.
-
-    Returns:
-      A list of initialized TestFilter objects.
-    """
-    filters = super(Win32SharedConfiguration, self).GetTestFilters()
-    for target, tests in self._FILTERED_TESTS.iteritems():
-      filters.extend(test_filter.TestFilter(target, test) for test in tests)
-    return filters
-
-  _FILTERED_TESTS = {}
 
   def GetPathToSabiJsonFile(self):
     return self.sabi_json_path

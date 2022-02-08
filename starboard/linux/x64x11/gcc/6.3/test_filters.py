@@ -16,6 +16,11 @@
 from starboard.linux.shared import test_filters as shared_test_filters
 from starboard.tools.testing import test_filter
 
+_FILTERED_TESTS = {
+    # TODO(b/206117361): Re-enable starboard_platform_tests once fixed.
+    'starboard_platform_tests': ['JobQueueTest.JobsAreMovedAndNotCopied',],
+}
+
 
 def CreateTestFilters():
   return LinuxX64X11Gcc63TestFilters()
@@ -26,11 +31,6 @@ class LinuxX64X11Gcc63TestFilters(shared_test_filters.TestFilters):
 
   def GetTestFilters(self):
     filters = super(LinuxX64X11Gcc63TestFilters, self).GetTestFilters()
-    for target, tests in self._FILTERED_TESTS.iteritems():
+    for target, tests in _FILTERED_TESTS.iteritems():
       filters.extend(test_filter.TestFilter(target, test) for test in tests)
     return filters
-
-  _FILTERED_TESTS = {
-      # TODO(b/206117361): Re-enable starboard_platform_tests once fixed.
-      'starboard_platform_tests': ['JobQueueTest.JobsAreMovedAndNotCopied',],
-  }

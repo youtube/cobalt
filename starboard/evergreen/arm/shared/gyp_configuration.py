@@ -15,9 +15,7 @@
 
 import os.path
 
-from starboard.build import clang as clang_build
 from starboard.evergreen.shared import gyp_configuration as shared_configuration
-from starboard.tools.testing import test_filter
 from starboard.tools.toolchain import ar
 from starboard.tools.toolchain import bash
 from starboard.tools.toolchain import clang
@@ -34,9 +32,8 @@ class EvergreenArmConfiguration(shared_configuration.EvergreenConfiguration):
                platform='evergreen-arm',
                asan_enabled_by_default=False,
                sabi_json_path='starboard/sabi/default/sabi.json'):
-    super(EvergreenArmConfiguration, self).__init__(platform,
-                                                    asan_enabled_by_default,
-                                                    sabi_json_path)
+    super(EvergreenArmConfiguration,
+          self).__init__(platform, asan_enabled_by_default, sabi_json_path)
 
     self.AppendApplicationConfigurationPath(os.path.dirname(__file__))
 
@@ -71,27 +68,13 @@ class EvergreenArmConfiguration(shared_configuration.EvergreenConfiguration):
       ]
     return self._host_toolchain
 
-  def GetTestFilters(self):
-    filters = super(EvergreenArmConfiguration, self).GetTestFilters()
-    for target, tests in self.__FILTERED_TESTS.iteritems():
-      filters.extend(test_filter.TestFilter(target, test) for test in tests)
-    return filters
-
-  def GetVariables(self, configuration):
-    variables = super(EvergreenArmConfiguration,
-                      self).GetVariables(configuration)
+  def GetVariables(self, config_name):
+    variables = super(EvergreenArmConfiguration, self).GetVariables(config_name)
     variables.update({
         'include_path_platform_deploy_gypi':
             'starboard/evergreen/arm/shared/platform_deploy.gypi',
     })
     return variables
-
-  __FILTERED_TESTS = {  # pylint: disable=invalid-name
-      'nplb': ['SbSystemGetStackTest.SunnyDayStackDirection',
-               'SbSystemGetStackTest.SunnyDay',
-               'SbSystemGetStackTest.SunnyDayShortStack',
-               'SbSystemSymbolizeTest.SunnyDay'],
-  }
 
 
 def CreatePlatformConfig():

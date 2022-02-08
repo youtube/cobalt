@@ -320,4 +320,4 @@ def GetPlatformTestFilters(platform_name):
     _PLATFORM_TEST_FILTERS_DICT[platform_name] = _LoadPlatformTestFilters(
         platform_name)
 
-  return _PLATFORM_CONFIG_DICT[platform_name]
+  return _PLATFORM_TEST_FILTERS_DICT[platform_name]

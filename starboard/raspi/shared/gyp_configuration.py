@@ -18,7 +18,6 @@ import os
 from starboard.build import clang as clang_specification
 from starboard.build import platform_configuration
 from starboard.tools import build
-from starboard.tools.testing import test_filter
 from starboard.tools.toolchain import ar
 from starboard.tools.toolchain import bash
 from starboard.tools.toolchain import clang
@@ -146,41 +145,6 @@ class RaspiPlatformConfig(platform_configuration.PlatformConfiguration):
         'qtcreator_session_name_prefix': 'cobalt',
     }
     return generator_variables
-
-  def GetTestFilters(self):
-    filters = super(RaspiPlatformConfig, self).GetTestFilters()
-    for target, tests in self.__FILTERED_TESTS.iteritems():
-      filters.extend(test_filter.TestFilter(target, test) for test in tests)
-    return filters
-
-  __FILTERED_TESTS = {  # pylint: disable=invalid-name
-      'nplb': [
-          'SbAudioSinkTest.*',
-
-          # Permanently filter out drm system related tests as raspi doesn't
-          # support any drm systems and there is no plan to implement such
-          # support.
-          'SbDrmTest.AnySupportedKeySystems',
-          'SbMediaCanPlayMimeAndKeySystem.AnySupportedKeySystems',
-          'SbMediaCanPlayMimeAndKeySystem.KeySystemWithAttributes',
-          'SbMediaCanPlayMimeAndKeySystem.MinimumSupport',
-
-          'SbMediaSetAudioWriteDurationTests/*',
-          'SbPlayerWriteSampleTests*',
-          'SbUndefinedBehaviorTest.CallThisPointerIsNullRainyDay',
-          'SbSystemGetPropertyTest.FLAKY_ReturnsRequired',
-      ],
-      'player_filter_tests': [
-          # The implementations for the raspberry pi (0 and 2) are incomplete
-          # and not meant to be a reference implementation. As such we will
-          # not repair these failing tests for now.
-          'VideoDecoderTests/VideoDecoderTest.EndOfStreamWithoutAnyInput/0',
-          'VideoDecoderTests/VideoDecoderTest.MultipleResets/0',
-          # Filter failed tests.
-          'PlayerComponentsTests/PlayerComponentsTest.*',
-
-      ],
-  }
 
   def GetPathToSabiJsonFile(self):
     return self.sabi_json_path
