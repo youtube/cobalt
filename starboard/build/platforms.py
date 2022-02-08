@@ -18,14 +18,17 @@ style to this dictionary.
 
 import sys
 
+try:
+  from starboard.build.internal.internal_platforms import INTERNAL_PLATFORMS
+except ImportError:
+  INTERNAL_PLATFORMS = {}
+
 PLATFORMS = {
     'stub': 'starboard/stub',
     'linux-x64x11': 'starboard/linux/x64x11',
     'linux-x64x11-egl': 'starboard/linux/x64x11/egl',
     'linux-x64x11-gcc-6-3': 'starboard/linux/x64x11/gcc/6.3',
-    'linux-x64x11-internal': 'starboard/linux/x64x11/internal',
     'linux-x64x11-skia': 'starboard/linux/x64x11/skia',
-    'linux-x64x11-clang-crosstool': 'starboard/linux/x64x11/clang/crosstool',
     'linux-x64x11-clang-3-9': 'starboard/linux/x64x11/clang/3.9',
     'android-arm': 'starboard/android/arm',
     'android-arm64': 'starboard/android/arm64',
@@ -33,19 +36,13 @@ PLATFORMS = {
     'android-x86': 'starboard/android/x86',
     'raspi-2': 'starboard/raspi/2',
     'raspi-2-skia': 'starboard/raspi/2/skia',
-    'win-win32': 'starboard/win/win32',
-    'darwin-tvos-arm64': 'starboard/darwin/tvos/arm64',
-    'darwin-tvos-simulator': 'starboard/darwin/tvos/simulator',
     'evergreen-x64': 'starboard/evergreen/x64',
     'evergreen-x86': 'starboard/evergreen/x86',
     'evergreen-arm-hardfp': 'starboard/evergreen/arm/hardfp',
     'evergreen-arm-softfp': 'starboard/evergreen/arm/softfp',
     'evergreen-arm64': 'starboard/evergreen/arm64',
-    'nxswitch': 'starboard/nxswitch',
-    'xb1': 'starboard/xb1',
-    'ps4': 'starboard/ps4',
-    'ps5': 'starboard/ps5',
 }
+PLATFORMS.update(INTERNAL_PLATFORMS)
 
 if __name__ == '__main__':
   if len(sys.argv) != 2:
