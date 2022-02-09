@@ -14,7 +14,7 @@
 
 #include "cobalt/dom/html_link_element.h"
 #include "base/message_loop/message_loop.h"
-#include "cobalt/cssom/testing/mock_css_parser.h"
+#include "cobalt/cssom/testing/mock_css_parser.h"  // nogncheck
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/dom_stat_tracker.h"
 #include "cobalt/dom/testing/stub_environment_settings.h"

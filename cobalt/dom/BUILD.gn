@@ -455,7 +455,6 @@ target(gtest_target_type, "dom_test") {
     "//cobalt/csp",
     "//cobalt/css_parser",
     "//cobalt/cssom",
-    "//cobalt/cssom:cssom_test",
     "//cobalt/dom/testing:dom_testing",
     "//cobalt/dom_parser",
     "//cobalt/h5vcc",
