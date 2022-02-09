@@ -80,7 +80,7 @@ bool ProgramTable::LoadProgramHeader(const Ehdr* elf_header, File* elf_file) {
   SB_DLOG(INFO) << "page_max - page_min=" << page_max - page_min;
 
   if (memory_mapped_file_extension_) {
-    SB_DLOG(INFO) << "Memory mapped file for the program header";
+    SB_LOG(INFO) << "Using memory mapped file for the program header";
     phdr_mmap_ = memory_mapped_file_extension_->MemoryMapFile(
         NULL, elf_file->GetName().c_str(), kSbMemoryMapProtectRead, page_min,
         phdr_size_);

@@ -59,7 +59,9 @@ ElfLoader* ElfLoader::Get() {
 bool ElfLoader::Load(const std::string& library_path,
                      const std::string& content_path,
                      bool is_relative_path,
-                     const void* (*custom_get_extension)(const char* name)) {
+                     const void* (*custom_get_extension)(const char* name),
+                     bool use_compression,
+                     bool use_memory_mapped_file) {
   if (is_relative_path) {
     library_path_ = MakeRelativeToContentPath(library_path);
     content_path_ = MakeRelativeToContentPath(content_path);
@@ -76,7 +78,8 @@ bool ElfLoader::Load(const std::string& library_path,
                           custom_get_extension);
   SB_LOG(INFO) << "evergreen_config: content_path=" << content_path_;
   SbTime start_time = SbTimeGetMonotonicNow();
-  bool res = impl_->Load(library_path_.c_str(), custom_get_extension);
+  bool res = impl_->Load(library_path_.c_str(), custom_get_extension,
+                         use_compression, use_memory_mapped_file);
   SbTime end_time = SbTimeGetMonotonicNow();
   SB_LOG(INFO) << "Loading took: "
                << (end_time - start_time) / kSbTimeMillisecond << " ms";

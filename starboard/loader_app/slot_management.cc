@@ -43,6 +43,9 @@ const char kCobaltLibraryPath[] = "lib";
 // Filename for the Cobalt binary.
 const char kCobaltLibraryName[] = "libcobalt.so";
 
+// Filename for the compressed Cobalt binary.
+const char kCompressedCobaltLibraryName[] = "libcobalt.lz4";
+
 // Relative path for the content directory of
 // the Cobalt installation.
 const char kCobaltContentPath[] = "content";
@@ -124,7 +127,9 @@ bool AdoptInstallation(int current_installation,
 
 void* LoadSlotManagedLibrary(const std::string& app_key,
                              const std::string& alternative_content_path,
-                             LibraryLoader* library_loader) {
+                             LibraryLoader* library_loader,
+                             bool use_compression,
+                             bool use_memory_mapped_file) {
   // Initialize the Installation Manager.
   SB_CHECK(ImInitialize(kMaxNumInstallations, app_key.c_str()) == IM_SUCCESS)
       << "Abort. Failed to initialize Installation Manager";
@@ -204,15 +209,16 @@ void* LoadSlotManagedLibrary(const std::string& app_key,
 
     // installation_n/lib/libcobalt.so
     std::vector<char> lib_path(kSbFileMaxPath);
+    std::string library_name;
+    if (use_compression) {
+      library_name = kCompressedCobaltLibraryName;
+    } else {
+      library_name = kCobaltLibraryName;
+    }
     SbStringFormatF(lib_path.data(), kSbFileMaxPath, "%s%s%s%s%s",
                     installation_path.data(), kSbFileSepString,
-                    kCobaltLibraryPath, kSbFileSepString, kCobaltLibraryName);
-    if (!SbFileExists(lib_path.data())) {
-      // Try the compressed path if the binary doesn't exits.
-      starboard::strlcat(lib_path.data(),
-                         starboard::elf_loader::kCompressionSuffix,
-                         kSbFileMaxPath);
-    }
+                    kCobaltLibraryPath, kSbFileSepString, library_name.c_str());
+
     SB_LOG(INFO) << "lib_path=" << lib_path.data();
 
     std::string content;
@@ -229,7 +235,8 @@ void* LoadSlotManagedLibrary(const std::string& app_key,
 
     SB_LOG(INFO) << "content=" << content;
 
-    if (!library_loader->Load(lib_path.data(), content.c_str())) {
+    if (!library_loader->Load(lib_path.data(), content.c_str(), use_compression,
+                              use_memory_mapped_file)) {
       SB_LOG(WARNING) << "Failed to load Cobalt!";
 
       // Hard failure. Discard the image and auto rollback, but only if
