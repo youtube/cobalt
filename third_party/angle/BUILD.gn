@@ -182,6 +182,16 @@ config("extra_warnings") {
       "-Wunreachable-code",
       "-Wshorten-64-to-32",
     ]
+
+    if(using_old_compiler){
+      cflags -= [
+        "-Wextra-semi-stmt",
+        "-Winconsistent-missing-destructor-override",
+        "-Wredundant-parens",
+        "-Wshadow-field",
+        "-Wtautological-type-limit-compare",
+      ]
+    }
   }
 
   if (angle_is_winuwp) {

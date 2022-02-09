@@ -29,6 +29,8 @@ declare_args() {
   is_internal_build = getenv("COBALT_USE_INTERNAL_BUILD") == "1"
 
   is_docker_build = getenv("IS_DOCKER") == "1"
+
+  using_old_compiler = false
 }
 
 is_debug = build_type == "debug"
