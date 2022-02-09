@@ -60,7 +60,7 @@ template("install_target") {
       "--sdk",
       android_sdk_path,
       "--cache",
-      rebase_path(root_build_dir),
+      rebase_path("$root_build_dir/gradle/$installable_target_name/cache"),
       "--project-dir",
       cobalt_project_dir,
       "-P",
