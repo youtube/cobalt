@@ -247,9 +247,9 @@ if (!use_cobalt_customizations) {
         } else if (target_cpu == "arm64") {
           sources += crypto_sources_linux_aarch64
         }
-      } else if (is_mac) {
+      } else if (is_apple) {
         if (target_cpu == "arm64") {
-          sources += crypto_sources_ios_aarch64
+          sources += crypto_sources_apple_aarch64
         } else if (target_cpu == "x64") {
           defines = [ "OPENSSL_NO_ASM" ]
         }
