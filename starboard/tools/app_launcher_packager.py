@@ -287,8 +287,6 @@ def main(command_args):
       # Skip paths with '$' since they won't get through the Ninja generator.
       if '$' in src_file:
         continue
-      # Relative to CWD where gyp ran this; same as '<(DEPTH)' in gyp file.
-      src_file = os.path.relpath(src_file)
       # Forward slashes for gyp, even on Windows.
       src_file = src_file.replace('\\', '/')
       src_files.append(src_file)
