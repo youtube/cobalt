@@ -1804,6 +1804,9 @@ action_foreach("net_generated_registry_controlled_domains") {
 }
 
 copy("net_unittest_files") {
+  if (is_starboard) {
+    install_content = true
+  }
   sources = [
     "data/test.html",
     "data/cert_issuer_source_static_unittest/c1.pem",
@@ -2899,6 +2902,9 @@ copy("net_unittest_files") {
 }
 
 copy("third_party_unittest_files") {
+  if (is_starboard) {
+    install_content = true
+  }
   sources = [
     "third_party/nist-pkits/certs/AllCertificatesanyPolicyTest11EE.crt",
     "third_party/nist-pkits/certs/AllCertificatesNoPoliciesTest2EE.crt",
@@ -4220,6 +4226,13 @@ target(gtest_target_type, "net_unittests") {
     "//url",
     "//url:url_features",
   ]
+
+  if (is_starboard) {
+    content_deps = [
+      ":net_unittest_files",
+      ":third_party_unittest_files",
+    ]
+  }
 }
 
 static_library("test_support") {
