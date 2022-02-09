@@ -54,7 +54,6 @@ source_set("zlib_adler32_simd") {
       "adler32_simd.c",
       "adler32_simd.h",
     ]
-
     if (!is_win || is_clang) {
       cflags = [ "-mssse3" ]
     }
@@ -177,6 +176,10 @@ config("zlib_inflate_chunk_simd_config") {
 
     if (current_cpu == "x64") {
       defines += [ "INFLATE_CHUNK_READ_64LE" ]
+    }
+
+    if (is_starboard && current_cpu == "x86") {
+      cflags = [ "-msse2" ]
     }
   }
 
