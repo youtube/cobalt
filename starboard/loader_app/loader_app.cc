@@ -45,6 +45,9 @@ const char kSystemImageContentPath[] = "app/cobalt/content";
 // Relative path to the Cobalt's system image library.
 const char kSystemImageLibraryPath[] = "app/cobalt/lib/libcobalt.so";
 
+// Relative path to the compressed Cobalt's system image library.
+const char kSystemImageCompressedLibraryPath[] = "app/cobalt/lib/libcobalt.lz4";
+
 // Cobalt default URL.
 const char kCobaltDefaultUrl[] = "https://www.youtube.com/tv";
 
@@ -58,9 +61,12 @@ void (*g_sb_event_func)(const SbEvent*) = NULL;
 class CobaltLibraryLoader : public starboard::loader_app::LibraryLoader {
  public:
   virtual bool Load(const std::string& library_path,
-                    const std::string& content_path) {
+                    const std::string& content_path,
+                    bool use_compression,
+                    bool use_memory_mapped_file) {
     return g_elf_loader.Load(library_path, content_path, false,
-                             &starboard::loader_app::SbSystemGetExtensionShim);
+                             &starboard::loader_app::SbSystemGetExtensionShim,
+                             use_compression, use_memory_mapped_file);
   }
   virtual void* Resolve(const std::string& symbol) {
     return g_elf_loader.LookupSymbol(symbol.c_str());
@@ -79,7 +85,9 @@ bool GetContentDir(std::string* content) {
   return true;
 }
 
-void LoadLibraryAndInitialize(const std::string& alternative_content_path) {
+void LoadLibraryAndInitialize(const std::string& alternative_content_path,
+                              bool use_compression,
+                              bool use_memory_mapped_file) {
   std::string content_dir;
   if (!GetContentDir(&content_dir)) {
     SB_LOG(ERROR) << "Failed to get the content dir";
@@ -95,10 +103,11 @@ void LoadLibraryAndInitialize(const std::string& alternative_content_path) {
   }
   std::string library_path = content_dir;
   library_path += kSbFileSepString;
-  library_path += kSystemImageLibraryPath;
-  if (!SbFileExists(library_path.c_str())) {
-    // Try the compressed path if the binary doesn't exits.
-    library_path += starboard::elf_loader::kCompressionSuffix;
+
+  if (use_compression) {
+    library_path = kSystemImageCompressedLibraryPath;
+  } else {
+    library_path = kSystemImageLibraryPath;
   }
 
   if (!g_elf_loader.Load(library_path, content_path, false)) {
@@ -189,8 +198,16 @@ void SbEventHandle(const SbEvent* event) {
         command_line.GetSwitchValue(starboard::loader_app::kContent);
     SB_LOG(INFO) << "alternative_content=" << alternative_content;
 
+    bool use_compression =
+        command_line.HasSwitch(starboard::loader_app::kLoaderUseCompression);
+
+    bool use_memory_mapped_file = command_line.HasSwitch(
+        starboard::loader_app::kLoaderUseMemoryMappedFile);
+    SB_LOG(INFO) << "loader_app: use_compression=" << use_compression
+                 << " use_memory_mapped_file=" << use_memory_mapped_file;
     if (is_evergreen_lite) {
-      LoadLibraryAndInitialize(alternative_content);
+      LoadLibraryAndInitialize(alternative_content, use_compression,
+                               use_memory_mapped_file);
     } else {
       std::string url =
           command_line.GetSwitchValue(starboard::loader_app::kURL);
@@ -202,7 +219,8 @@ void SbEventHandle(const SbEvent* event) {
 
       g_sb_event_func = reinterpret_cast<void (*)(const SbEvent*)>(
           starboard::loader_app::LoadSlotManagedLibrary(
-              app_key, alternative_content, &g_cobalt_library_loader));
+              app_key, alternative_content, &g_cobalt_library_loader,
+              use_compression, use_memory_mapped_file));
     }
     SB_CHECK(g_sb_event_func);
   }

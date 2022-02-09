@@ -25,7 +25,9 @@ class ElfLoaderImpl {
  public:
   ElfLoaderImpl();
   bool Load(const char* file_name,
-            const void* (*custom_get_extension)(const char* name) = NULL);
+            const void* (*custom_get_extension)(const char* name) = NULL,
+            bool use_compression = false,
+            bool use_memory_mapped_file = false);
   void* LookupSymbol(const char* symbol);
   ~ElfLoaderImpl();
 

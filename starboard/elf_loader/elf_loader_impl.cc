@@ -47,10 +47,16 @@ ElfLoaderImpl::ElfLoaderImpl() {
 #endif
 }
 
-bool ElfLoaderImpl::Load(
-    const char* name,
-    const void* (*custom_get_extension)(const char* name)) {
-  if (EndsWith(name, kCompressionSuffix)) {
+bool ElfLoaderImpl::Load(const char* name,
+                         const void* (*custom_get_extension)(const char* name),
+                         bool use_compression,
+                         bool use_memory_mapped_files) {
+  if (use_compression && use_memory_mapped_files) {
+    SB_LOG(ERROR) << "Loading " << name
+                  << " Compression is not supported with memory mapped files.";
+    return false;
+  }
+  if (use_compression && EndsWith(name, kCompressionSuffix)) {
     elf_file_.reset(new LZ4FileImpl());
     SB_LOG(INFO) << "Loading " << name << " using compression";
   } else {
@@ -67,13 +73,18 @@ bool ElfLoaderImpl::Load(
 
   SB_DLOG(INFO) << "Loaded ELF header";
 
-  const auto* memory_mapped_file_extension =
-      reinterpret_cast<const CobaltExtensionMemoryMappedFileApi*>(
-          SbSystemGetExtension(kCobaltExtensionMemoryMappedFileName));
-  if (memory_mapped_file_extension &&
-      strcmp(memory_mapped_file_extension->name,
-             kCobaltExtensionMemoryMappedFileName) == 0 &&
-      memory_mapped_file_extension->version >= 1) {
+  if (use_memory_mapped_files) {
+    const auto* memory_mapped_file_extension =
+        reinterpret_cast<const CobaltExtensionMemoryMappedFileApi*>(
+            SbSystemGetExtension(kCobaltExtensionMemoryMappedFileName));
+
+    if (!memory_mapped_file_extension ||
+        strcmp(memory_mapped_file_extension->name,
+               kCobaltExtensionMemoryMappedFileName) != 0 ||
+        memory_mapped_file_extension->version < 1) {
+      SB_LOG(ERROR) << "CobaltExtensionMemoryMappedFileApi not implemented";
+      return false;
+    }
     program_table_.reset(new ProgramTable(memory_mapped_file_extension));
   } else {
     program_table_.reset(new ProgramTable(nullptr));
