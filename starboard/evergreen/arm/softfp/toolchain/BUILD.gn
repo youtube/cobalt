@@ -36,6 +36,6 @@ gcc_toolchain("target") {
   extra_ldflags = string_join(" ", evergreen_target_extra_ldflags)
 
   toolchain_args = {
-    is_clang = false
+    is_clang = true
   }
 }
