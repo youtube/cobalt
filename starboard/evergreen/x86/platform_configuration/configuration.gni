@@ -15,3 +15,4 @@
 import("//starboard/evergreen/shared/platform_configuration/configuration.gni")
 
 sabi_path = "//starboard/sabi/x86/sabi-v$sb_api_version.json"
+install_target_path = "//starboard/evergreen/x86/install_target.gni"

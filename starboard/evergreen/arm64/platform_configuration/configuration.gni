@@ -16,3 +16,4 @@ import("//starboard/evergreen/shared/platform_configuration/configuration.gni")
 
 sabi_path = "//starboard/sabi/arm64/sabi-v$sb_api_version.json"
 arm_version = 8
+install_target_path = "//starboard/evergreen/arm64/install_target.gni"
