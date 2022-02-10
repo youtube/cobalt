@@ -56,7 +56,7 @@ class PerformanceResourceTiming : public PerformanceEntry {
   // response start instead.
   // TODO: Add response_end into LoadTimingInfo.
   DOMHighResTimeStamp response_end() const;
-  unsigned long long transfer_size() const;
+  uint64_t transfer_size() const;
 
   std::string entry_type() const override { return "resource"; }
   PerformanceEntryType EntryTypeEnum() const override {

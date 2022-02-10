@@ -19,7 +19,7 @@ namespace cobalt {
 namespace dom {
 
 namespace {
-  const std::string kPerformanceResourceTimingCacheMode = "local";
+const char kPerformanceResourceTimingCacheMode[] = "local";
 }
 
 PerformanceResourceTiming::PerformanceResourceTiming(
@@ -31,12 +31,11 @@ PerformanceResourceTiming::PerformanceResourceTiming(
     const net::LoadTimingInfo& timing_info, const std::string& initiator_type,
     const std::string& requested_url, Performance* performance,
     base::TimeTicks time_origin)
-    : PerformanceEntry(
-          requested_url,
-          Performance::MonotonicTimeToDOMHighResTimeStamp(time_origin,
-              timing_info.request_start),
-          Performance::MonotonicTimeToDOMHighResTimeStamp(time_origin,
-              timing_info.receive_headers_end)),
+    : PerformanceEntry(requested_url,
+                       Performance::MonotonicTimeToDOMHighResTimeStamp(
+                           time_origin, timing_info.request_start),
+                       Performance::MonotonicTimeToDOMHighResTimeStamp(
+                           time_origin, timing_info.receive_headers_end)),
       initiator_type_(initiator_type),
       cache_mode_(kPerformanceResourceTimingCacheMode),
       transfer_size_(0),
@@ -51,71 +50,71 @@ DOMHighResTimeStamp PerformanceResourceTiming::fetch_start() const {
   if (timing_info_.request_start.is_null()) {
     return PerformanceEntry::start_time();
   }
-  return Performance::MonotonicTimeToDOMHighResTimeStamp(time_origin_,
-      timing_info_.request_start);
+  return Performance::MonotonicTimeToDOMHighResTimeStamp(
+      time_origin_, timing_info_.request_start);
 }
 
 DOMHighResTimeStamp PerformanceResourceTiming::domain_lookup_start() const {
   if (timing_info_.connect_timing.dns_start.is_null()) {
     return PerformanceEntry::start_time();
   }
-  return Performance::MonotonicTimeToDOMHighResTimeStamp(time_origin_,
-      timing_info_.connect_timing.dns_start);
+  return Performance::MonotonicTimeToDOMHighResTimeStamp(
+      time_origin_, timing_info_.connect_timing.dns_start);
 }
 
 DOMHighResTimeStamp PerformanceResourceTiming::domain_lookup_end() const {
   if (timing_info_.connect_timing.dns_end.is_null()) {
     return PerformanceEntry::start_time();
   }
-  return Performance::MonotonicTimeToDOMHighResTimeStamp(time_origin_,
-      timing_info_.connect_timing.dns_end);
+  return Performance::MonotonicTimeToDOMHighResTimeStamp(
+      time_origin_, timing_info_.connect_timing.dns_end);
 }
 
 DOMHighResTimeStamp PerformanceResourceTiming::connect_start() const {
   if (timing_info_.connect_timing.connect_start.is_null()) {
     return PerformanceEntry::start_time();
   }
-  return Performance::MonotonicTimeToDOMHighResTimeStamp(time_origin_,
-      timing_info_.connect_timing.connect_start);
+  return Performance::MonotonicTimeToDOMHighResTimeStamp(
+      time_origin_, timing_info_.connect_timing.connect_start);
 }
 
 DOMHighResTimeStamp PerformanceResourceTiming::connect_end() const {
   if (timing_info_.connect_timing.connect_end.is_null()) {
     return PerformanceEntry::start_time();
   }
-  return Performance::MonotonicTimeToDOMHighResTimeStamp(time_origin_,
-      timing_info_.connect_timing.connect_end);
+  return Performance::MonotonicTimeToDOMHighResTimeStamp(
+      time_origin_, timing_info_.connect_timing.connect_end);
 }
 
 DOMHighResTimeStamp PerformanceResourceTiming::secure_connection_start() const {
   if (timing_info_.connect_timing.ssl_start.is_null()) {
     return 0.0;
   }
-  return Performance::MonotonicTimeToDOMHighResTimeStamp(time_origin_,
-      timing_info_.connect_timing.ssl_start);
+  return Performance::MonotonicTimeToDOMHighResTimeStamp(
+      time_origin_, timing_info_.connect_timing.ssl_start);
 }
 
 DOMHighResTimeStamp PerformanceResourceTiming::request_start() const {
   if (timing_info_.send_start.is_null()) {
     return PerformanceEntry::start_time();
   }
-  return Performance::MonotonicTimeToDOMHighResTimeStamp(time_origin_,
-      timing_info_.send_start);
+  return Performance::MonotonicTimeToDOMHighResTimeStamp(
+      time_origin_, timing_info_.send_start);
 }
 
 DOMHighResTimeStamp PerformanceResourceTiming::response_start() const {
   if (timing_info_.receive_headers_end.is_null()) {
     PerformanceEntry::start_time();
   }
-  return Performance::MonotonicTimeToDOMHighResTimeStamp(time_origin_,
-      timing_info_.receive_headers_end);
+  return Performance::MonotonicTimeToDOMHighResTimeStamp(
+      time_origin_, timing_info_.receive_headers_end);
 }
 
 DOMHighResTimeStamp PerformanceResourceTiming::response_end() const {
   return response_start();
 }
 
-unsigned long long PerformanceResourceTiming::transfer_size() const {
+uint64_t PerformanceResourceTiming::transfer_size() const {
   return transfer_size_;
 }
 
