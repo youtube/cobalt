@@ -130,7 +130,6 @@ skia_common("skia") {
     "src/ports/SkOSFile_cobalt.h",
     "src/ports/SkStream_cobalt.cc",
     "src/ports/SkStream_cobalt.h",
-    "src/ports/SkTLS_cobalt.cc",
     "src/ports/SkTime_cobalt.cc",
     "src/ports/SkTypeface_cobalt.cc",
     "src/ports/SkTypeface_cobalt.h",
@@ -138,6 +137,10 @@ skia_common("skia") {
 
   if (is_starboard) {
     sources += [ "src/ports/SkMemory_starboard.cc" ]
+  }
+
+  if (!use_skia_next) {
+    sources += [ "src/ports/SkTLS_cobalt.cc" ]
   }
 
   include_dirs = [ target_gen_dir ]
