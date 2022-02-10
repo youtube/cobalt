@@ -306,12 +306,16 @@ def GetAllShaderFiles(input_files_filename, input_files_dir):
   with open(input_files_filename) as input_files_file:
     files = [x.strip() for x in input_files_file.readlines()]
 
-  # We filter out files that already have a full path (the case in GN).
-  return [os.path.join(input_files_dir, x) for x in files if '/' not in x]
+  for filename in files:
+    # We filter out files that already have a full path (the case in GN).
+    if '/' in filename:
+      yield filename
+    else:
+      yield os.path.join(input_files_dir, filename)
 
 
 def main(output_path, input_files_filename, input_files_dir):
-  all_shaders = GetAllShaderFiles(input_files_filename, input_files_dir)
+  all_shaders = list(GetAllShaderFiles(input_files_filename, input_files_dir))
 
   glsl_to_shader_map = AssociateGLSLFilesWithPlatformFiles(all_shaders)
 
