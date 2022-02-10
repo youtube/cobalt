@@ -474,4 +474,6 @@ target(gtest_target_type, "dom_test") {
     "//testing/gtest",
     "//url",
   ]
+
+  content_deps = [ ":licenses" ]
 }

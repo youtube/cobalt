@@ -2616,6 +2616,13 @@ copy("base_unittests_bundle_data") {
     "test/data/serializer_test_nowhitespace.json",
   ]
   if (is_starboard) {
+    sources += [
+      "test/data/file_util/red.png",
+      "test/data/file_version_info_unittest/FileVersionInfoTest1.dll",
+      "test/data/file_version_info_unittest/FileVersionInfoTest2.dll",
+      "test/data/pe_image/pe_image_test_32.dll",
+      "test/data/pe_image/pe_image_test_64.dll",
+    ]
     sources -= [ "//tools/metrics/histograms/enums.xml" ]
     outputs = [ "$sb_static_contents_output_data_dir/test/base/{{source_target_relative}}" ]
   } else {
@@ -3188,7 +3195,10 @@ target(gtest_target_type, "base_unittests") {
     ":base_unittests_bundle_data",
   ]
   if (is_starboard){
-    content_deps = [ ":base_unittests_bundle_data" ]
+    content_deps = [
+      ":base_unittests_bundle_data",
+      "//third_party/icu:icudata",
+    ]
   }
 
   data = [
