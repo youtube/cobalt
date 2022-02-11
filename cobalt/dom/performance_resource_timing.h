@@ -52,8 +52,9 @@ class PerformanceResourceTiming : public PerformanceEntry {
   DOMHighResTimeStamp secure_connection_start() const;
   DOMHighResTimeStamp request_start() const;
   DOMHighResTimeStamp response_start() const;
-  // As we don't have response end in LoadTimingInfo, we collect the timestamp
-  // of loading completes instead.
+  // As we don't have response start in LoadTimingInfo, we use
+  // response start instead.
+  // TODO: Add response_end into LoadTimingInfo.
   DOMHighResTimeStamp response_end() const;
   unsigned long long transfer_size() const;
 
@@ -76,7 +77,6 @@ class PerformanceResourceTiming : public PerformanceEntry {
   std::string requested_url_;
   net::LoadTimingInfo timing_info_;
   base::TimeTicks time_origin_;
-  DOMHighResTimeStamp timing_info_response_end_;
 
   DISALLOW_COPY_AND_ASSIGN(PerformanceResourceTiming);
 };
