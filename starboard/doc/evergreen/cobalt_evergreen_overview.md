@@ -452,7 +452,6 @@ Image required for all slot configurations:
 │       └── cobalt <--(SLOT_0)
 │           ├── content <--(relative path defined in kSystemImageContentPath)
 │           │   ├── fonts <--(`empty` configuration)
-│           │   ├── (icu) <--(only present when it needs to be updated by Cobalt Update)
 │           │   ├── licenses
 │           │   ├── ssl
 │           ├── lib
