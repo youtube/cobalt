@@ -295,6 +295,9 @@ template("executable") {
           deps += [ "${content_dep}_install_content" ]
         }
       }
+      if (defined(platform_i18n_config_path)) {
+        deps += [ "${platform_i18n_config_path}_install_content" ]
+      }
     }
   }
 }
