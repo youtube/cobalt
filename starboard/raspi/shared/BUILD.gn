@@ -397,7 +397,7 @@ static_library("starboard_platform_sources") {
   public_deps = [
     ":starboard_base_symbolize",
     "//starboard:starboard_headers_only",
-    "//starboard/common/",
+    "//starboard/common",
     "//starboard/shared/ffmpeg:ffmpeg_linked",
     "//starboard/shared/starboard/media:media_util",
     "//starboard/shared/starboard/player/filter:filter_based_player_sources",
