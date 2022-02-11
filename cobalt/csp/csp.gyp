@@ -60,7 +60,6 @@
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
         'csp',
-        'csp_copy_test_data',
       ],
       'includes': [ '<(DEPTH)/cobalt/test/test.gypi' ],
     },
@@ -75,18 +74,6 @@
         'executable_name': 'csp_test',
       },
       'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
-    },
-
-    {
-      'target_name': 'csp_copy_test_data',
-      'type': 'none',
-      'variables': {
-        'content_test_input_files': [
-          '<(DEPTH)/cobalt/csp/testdata/',
-        ],
-        'content_test_output_subdir': 'cobalt/csp/testdata/',
-      },
-      'includes': [ '<(DEPTH)/starboard/build/copy_test_data.gypi' ],
     },
   ],
 }
