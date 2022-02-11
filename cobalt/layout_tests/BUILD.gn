@@ -63,6 +63,8 @@ target(gtest_target_type, "layout_tests") {
     "//testing/gtest",
     "//url",
   ]
+
+  content_deps = [ "//cobalt/layout_tests/testdata:layout_copy_test_data" ]
 }
 
 target(gtest_target_type, "web_platform_tests") {
@@ -84,4 +86,6 @@ target(gtest_target_type, "web_platform_tests") {
     "//testing/gtest",
     "//url",
   ]
+
+  content_deps = [ "//cobalt/layout_tests/testdata:layout_copy_test_data" ]
 }
