@@ -14,10 +14,10 @@
 
 #include "starboard/android/shared/video_window.h"
 
-#include <android/native_window.h>
-#include <android/native_window_jni.h>
 #include <EGL/egl.h>
 #include <GLES2/gl2.h>
+#include <android/native_window.h>
+#include <android/native_window_jni.h>
 #include <jni.h>
 
 #include "starboard/android/shared/jni_env_ext.h"
@@ -118,7 +118,7 @@ bool VideoSurfaceHolder::GetVideoWindowSize(int* width, int* height) {
   }
 }
 
-void VideoSurfaceHolder::ClearVideoWindow() {
+void VideoSurfaceHolder::ClearVideoWindow(bool force_reset_surface) {
   // Lock *GetViewSurfaceMutex() here, to avoid releasing g_native_video_window
   // during painting.
   ScopedLock lock(*GetViewSurfaceMutex());
@@ -128,7 +128,11 @@ void VideoSurfaceHolder::ClearVideoWindow() {
     return;
   }
 
-  if (g_reset_surface_on_clear_window) {
+  if (force_reset_surface) {
+    JniEnvExt::Get()->CallStarboardVoidMethodOrAbort("resetVideoSurface",
+                                                     "()V");
+    return;
+  } else if (g_reset_surface_on_clear_window) {
     int width = ANativeWindow_getWidth(g_native_video_window);
     int height = ANativeWindow_getHeight(g_native_video_window);
     if (width <= height) {

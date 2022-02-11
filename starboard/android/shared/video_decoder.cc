@@ -218,6 +218,7 @@ VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec,
                            const char* max_video_capabilities,
                            int tunnel_mode_audio_session_id,
                            bool force_secure_pipeline_under_tunnel_mode,
+                           bool force_reset_surface_under_tunnel_mode,
                            bool force_big_endian_hdr_metadata,
                            std::string* error_message)
     : video_codec_(video_codec),
@@ -226,6 +227,8 @@ VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec,
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
       tunnel_mode_audio_session_id_(tunnel_mode_audio_session_id),
+      force_reset_surface_under_tunnel_mode_(
+          force_reset_surface_under_tunnel_mode),
       has_new_texture_available_(false),
       surface_condition_variable_(surface_destroy_mutex_),
       require_software_codec_(max_video_capabilities &&
@@ -264,7 +267,11 @@ VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec,
 
 VideoDecoder::~VideoDecoder() {
   TeardownCodec();
-  ClearVideoWindow();
+  if (tunnel_mode_audio_session_id_ != -1) {
+    ClearVideoWindow(force_reset_surface_under_tunnel_mode_);
+  } else {
+    ClearVideoWindow(false);
+  }
 
   if (!require_software_codec_) {
     number_of_hardware_decoders_--;

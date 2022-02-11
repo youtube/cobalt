@@ -64,6 +64,10 @@ constexpr bool kForcePlatformOpusDecoder = false;
 // TODO: Allow this to be configured per playback at run time from the web app.
 constexpr bool kForceSecurePipelineInTunnelModeWhenRequired = true;
 
+// Forces video surface to reset after tunnel mode playbacks. This prevents
+// video distortion on some platforms.
+constexpr bool kForceResetSurfaceUnderTunnelMode = true;
+
 // This class allows us to force int16 sample type when tunnel mode is enabled.
 class AudioRendererSinkAndroid : public ::starboard::shared::starboard::player::
                                      filter::AudioRendererSinkImpl {
@@ -351,6 +355,10 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
     if (tunnel_mode_audio_session_id == -1) {
       SB_LOG(INFO) << "Create non-tunnel mode pipeline.";
     } else {
+      SB_LOG_IF(INFO, !kForceResetSurfaceUnderTunnelMode)
+          << "`kForceResetSurfaceUnderTunnelMode` is set to false, the video "
+             "surface will not be forced to reset after "
+             "tunneled playback.";
       SB_LOG(INFO) << "Create tunnel mode pipeline with audio session id "
                    << tunnel_mode_audio_session_id << '.';
     }
@@ -491,7 +499,8 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
         creation_parameters.decode_target_graphics_context_provider(),
         creation_parameters.max_video_capabilities(),
         tunnel_mode_audio_session_id, force_secure_pipeline_under_tunnel_mode,
-        force_big_endian_hdr_metadata, error_message));
+        kForceResetSurfaceUnderTunnelMode, force_big_endian_hdr_metadata,
+        error_message));
     if (creation_parameters.video_codec() == kSbMediaVideoCodecAv1 ||
         video_decoder->is_decoder_created()) {
       return video_decoder.Pass();
