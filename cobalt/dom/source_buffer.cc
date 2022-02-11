@@ -49,6 +49,7 @@
 #include "base/compiler_specific.h"
 #include "base/logging.h"
 #include "base/time/time.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/media_source.h"
@@ -215,6 +216,8 @@ void SourceBuffer::set_append_window_end(
 
 void SourceBuffer::AppendBuffer(const script::Handle<script::ArrayBuffer>& data,
                                 script::ExceptionState* exception_state) {
+  TRACE_EVENT1("cobalt::dom", "SourceBuffer::AppendBuffer()", "size",
+               data->ByteLength());
   AppendBufferInternal(static_cast<const unsigned char*>(data->Data()),
                        data->ByteLength(), exception_state);
 }
@@ -222,11 +225,15 @@ void SourceBuffer::AppendBuffer(const script::Handle<script::ArrayBuffer>& data,
 void SourceBuffer::AppendBuffer(
     const script::Handle<script::ArrayBufferView>& data,
     script::ExceptionState* exception_state) {
+  TRACE_EVENT1("cobalt::dom", "SourceBuffer::AppendBuffer()", "size",
+               data->ByteLength());
   AppendBufferInternal(static_cast<const unsigned char*>(data->RawData()),
                        data->ByteLength(), exception_state);
 }
 
 void SourceBuffer::Abort(script::ExceptionState* exception_state) {
+  TRACE_EVENT0("cobalt::dom", "SourceBuffer::Abort()");
+
   if (media_source_ == NULL) {
     DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
     return;
@@ -427,6 +434,7 @@ void SourceBuffer::AppendBufferInternal(
 }
 
 void SourceBuffer::OnAppendTimer() {
+  TRACE_EVENT0("cobalt::dom", "SourceBuffer::OnAppendTimer()");
   const size_t kMaxAppendSize = 128 * 1024;
 
   DCHECK(updating_);
