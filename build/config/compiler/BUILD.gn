@@ -1889,7 +1889,7 @@ config("no_exceptions") {
     }
   } else {
     # This hack ensures raspi does not compile anything with -fno-exceptions.
-    if (defined(enable_exceptions_override) && !enable_exceptions_override) {
+    if (!defined(enable_exceptions_override) || !enable_exceptions_override) {
       cflags_cc = [ "-fno-exceptions" ]
       cflags_objcc = cflags_cc
     }
