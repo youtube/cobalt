@@ -2283,10 +2283,13 @@ component("base") {
 
   configs += [ "//build/config/compiler:wexit_time_destructors" ]
   if (!is_debug) {
-    if (!is_starboard) {
+    if (is_starboard) {
+      configs -= [ "//starboard/build/config:size" ]
+      configs += [ "//starboard/build/config:speed" ]
+    } else {
       configs -= [ "//build/config/compiler:default_optimization" ]
+      configs += [ "//build/config/compiler:optimize_max" ]
     }
-    configs += [ "//build/config/compiler:optimize_max" ]
   }
 }
 
@@ -2388,10 +2391,13 @@ static_library("base_static") {
   }
 
   if (!is_debug) {
-    if (!is_starboard) {
+    if (is_starboard) {
+      configs -= [ "//starboard/build/config:size" ]
+      configs += [ "//starboard/build/config:speed" ]
+    } else {
       configs -= [ "//build/config/compiler:default_optimization" ]
+      configs += [ "//build/config/compiler:optimize_max" ]
     }
-    configs += [ "//build/config/compiler:optimize_max" ]
   }
 }
 
@@ -2459,10 +2465,13 @@ component("i18n") {
   }
 
   if (!is_debug) {
-    if (!is_starboard) {
+    if (is_starboard) {
+      configs -= [ "//starboard/build/config:size" ]
+      configs += [ "//starboard/build/config:speed" ]
+    } else {
       configs -= [ "//build/config/compiler:default_optimization" ]
+      configs += [ "//build/config/compiler:optimize_max" ]
     }
-    configs += [ "//build/config/compiler:optimize_max" ]
   }
 
   # TODO(jschuh): crbug.com/167187 fix size_t to int truncations.
