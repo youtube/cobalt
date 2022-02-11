@@ -16,8 +16,12 @@ import("//starboard/raspi/shared/toolchain/raspi_shared_toolchain.gni")
 template("install_target") {
   installable_target_name = invoker.installable_target_name
 
+  # TODO(b/218889313): raspi relies on install_content being adjacent to the
+  # executable. In order to make tests pass we need to overload the install
+  # subdir and install content subdir.
   if (invoker.type == "executable") {
-    install_subdir = "bin"
+    # install_subdir = "bin"
+    install_subdir = ""
     source_name = installable_target_name
   } else if (invoker.type == "shared_library") {
     install_subdir = "lib"

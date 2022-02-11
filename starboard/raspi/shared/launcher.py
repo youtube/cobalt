@@ -107,7 +107,9 @@ class Launcher(abstract_launcher.AbstractLauncher):
   def _InitPexpectCommands(self):
     """Initializes all of the pexpect commands needed for running the test."""
 
-    test_dir = os.path.join(self.out_directory, 'install', 'bin')
+    # TODO(b/218889313): This should reference the bin/ subdir when that's
+    # used.
+    test_dir = os.path.join(self.out_directory, 'install')
     # TODO(b/216356058): Delete this conditional that's just for GYP.
     if not os.path.isdir(test_dir):
       test_dir = os.path.join(self.out_directory, 'deploy', self.target_name)
