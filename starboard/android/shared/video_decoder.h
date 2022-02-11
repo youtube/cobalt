@@ -67,6 +67,7 @@ class VideoDecoder
                const char* max_video_capabilities,
                int tunnel_mode_audio_session_id,
                bool force_secure_pipeline_under_tunnel_mode,
+               bool force_reset_surface_under_tunnel_mode,
                bool force_big_endian_hdr_metadata,
                std::string* error_message);
   ~VideoDecoder() override;
@@ -140,6 +141,10 @@ class VideoDecoder
   const bool force_big_endian_hdr_metadata_;
 
   const int tunnel_mode_audio_session_id_ = -1;
+
+  // Force resetting the video surface after tunnel mode playback, which
+  // prevents video distortion on some devices.
+  const bool force_reset_surface_under_tunnel_mode_;
   // On some platforms tunnel mode is only supported in the secure pipeline.  So
   // we create a dummy drm system to force the video playing in secure pipeline
   // to enable tunnel mode.
