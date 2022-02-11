@@ -12,20 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// https://w3c.github.io/ServiceWorker/#serviceworkerregistration-interface
-[
-    Exposed=(Window,ServiceWorker)
-] interface ServiceWorkerRegistration : EventTarget {
-    readonly attribute ServiceWorker? installing;
-    readonly attribute ServiceWorker? waiting;
-    readonly attribute ServiceWorker? active;
-    readonly attribute NavigationPreloadManager navigationPreload;
-
-    readonly attribute USVString scope;
-    readonly attribute ServiceWorkerUpdateViaCache updateViaCache;
-
-    Promise<void> update();
-    Promise<void> unregister();
-
-    attribute EventHandler onupdatefound;
+// https://w3c.github.io/ServiceWorker/#navigation-preload-manager
+dictionary NavigationPreloadState {
+  boolean enabled = false;
+  // Todo: Support ByteString type in dictionary
+  DOMString headerValue;
 };

@@ -45,5 +45,13 @@ std::string ServiceWorkerRegistration::scope() const {
   return scope_.GetContent();
 }
 
+void ServiceWorkerRegistration::EnableNavigationPreload(bool enable) {
+  // Todo: Implement the logic for set header
+}
+
+void ServiceWorkerRegistration::SetNavigationPreloadHeader() {
+  // Todo: Implement the logic for set header
+}
+
 }  // namespace worker
 }  // namespace cobalt

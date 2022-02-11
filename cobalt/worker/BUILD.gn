@@ -17,6 +17,8 @@ static_library("worker") {
   check_includes = false
 
   sources = [
+    "navigation_preload_manager.cc",
+    "navigation_preload_manager.h",
     "service_worker.cc",
     "service_worker.h",
     "service_worker_container.cc",

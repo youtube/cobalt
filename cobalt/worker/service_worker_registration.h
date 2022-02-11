@@ -25,6 +25,7 @@
 #include "cobalt/script/script_value.h"
 #include "cobalt/script/script_value_factory.h"
 #include "cobalt/script/wrappable.h"
+#include "cobalt/worker/navigation_preload_manager.h"
 #include "cobalt/worker/service_worker.h"
 #include "cobalt/worker/service_worker_state.h"
 #include "cobalt/worker/service_worker_update_via_cache.h"
@@ -58,11 +59,17 @@ class ServiceWorkerRegistration : public dom::EventTarget {
   scoped_refptr<ServiceWorker> installing() { return installing_; }
   scoped_refptr<ServiceWorker> waiting() { return waiting_; }
   scoped_refptr<ServiceWorker> active() { return active_; }
+  scoped_refptr<NavigationPreloadManager> navigation_preload() {
+    return navigation_preload_;
+  }
 
   std::string scope() const;
   ServiceWorkerUpdateViaCache update_via_cache() const {
     return update_via_cache_;
   }
+
+  void EnableNavigationPreload(bool enable);
+  void SetNavigationPreloadHeader();
 
   script::Handle<script::Promise<void>> Update();
   script::Handle<script::Promise<void>> Unregister();
@@ -81,6 +88,7 @@ class ServiceWorkerRegistration : public dom::EventTarget {
   scoped_refptr<ServiceWorker> installing_;
   scoped_refptr<ServiceWorker> waiting_;
   scoped_refptr<ServiceWorker> active_;
+  scoped_refptr<NavigationPreloadManager> navigation_preload_;
 
   const int32_t registration_id_;
   const GURL scope_;

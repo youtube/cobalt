@@ -228,6 +228,7 @@ source_idl_files = [
   "//cobalt/websocket/close_event.idl",
   "//cobalt/websocket/web_socket.idl",
 
+  "//cobalt/worker/navigation_preload_manager.idl",
   "//cobalt/worker/service_worker.idl",
   "//cobalt/worker/service_worker_container.idl",
   "//cobalt/worker/service_worker_registration.idl",
@@ -324,6 +325,7 @@ generated_header_idl_files = [
   "//cobalt/web_animations/animation_fill_mode.idl",
   "//cobalt/web_animations/animation_playback_direction.idl",
   "//cobalt/websocket/close_event_init.idl",
+  "//cobalt/worker/navigation_preload_state.idl",
   "//cobalt/worker/service_worker_state.idl",
   "//cobalt/worker/service_worker_update_via_cache.idl",
 ]
