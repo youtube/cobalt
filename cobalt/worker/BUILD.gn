@@ -25,6 +25,17 @@ static_library("worker") {
     "service_worker_container.h",
     "service_worker_registration.cc",
     "service_worker_registration.h",
+    "abstract_worker.h",
+    "dedicated_worker.cc",
+    "dedicated_worker.h",
+    "message_port.cc",
+    "message_port.h",
+    "service_worker_container.cc",
+    "service_worker_container.h",
+    "worker.cc",
+    "worker.h",
+    "worker_settings.cc",
+    "worker_settings.h",
   ]
 
   public_deps = [

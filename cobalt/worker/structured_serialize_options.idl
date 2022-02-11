@@ -1,0 +1,4 @@
+dictionary StructuredSerializeOptions {
+  //sequence<object> transfer = [];
+  sequence<DOMString> transfer;
+};
