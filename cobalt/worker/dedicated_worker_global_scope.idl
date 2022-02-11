@@ -12,24 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// https://html.spec.whatwg.org/multipage/workers.html#dedicated-workers-and-the-worker-interface
-// https://html.spec.whatwg.org/dev/workers.html#workers
+// https://html.spec.whatwg.org/multipage/workers.html#dedicated-workers-and-the-dedicatedworkerglobalscope-interface
 
-[Exposed=Window,
- ImplementedAs=DedicatedWorker,
- ConstructorCallWith=EnvironmentSettings,
- Constructor(USVString scriptURL, optional WorkerOptions options)
-]
-interface Worker : EventTarget {
-  void terminate();
+[Global] interface DedicatedWorkerGlobalScope : WorkerGlobalScope {
+  [Replaceable] readonly attribute DOMString name;
 
   void postMessage(any message, sequence<DOMString> transfer);
   // TODO: Support sequence<object>: b/218501774
   // void postMessage(any message, sequence<object> transfer);
   // TODO: Support overloads with dictionary parameter: b/218506730
-  // void postMessage(any message, optional StructuredSerializeOptions options);
+  // void postMessage(any message,
+  //                  optional StructuredSerializeOptions options = {});
+
+  void close();
+
   attribute EventHandler onmessage;
   attribute EventHandler onmessageerror;
 };
-
-Worker implements AbstractWorker;

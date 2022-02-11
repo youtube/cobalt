@@ -66,6 +66,7 @@ namespace base {
     MacroOpWithNameOnly(keypress)                                    \
     MacroOpWithNameOnly(keystatuseschange)                           \
     MacroOpWithNameOnly(keyup)                                       \
+    MacroOpWithNameOnly(languagechange)                              \
     MacroOpWithNameOnly(load)                                        \
     MacroOpWithNameOnly(loadeddata)                                  \
     MacroOpWithNameOnly(loadedmetadata)                              \
@@ -103,6 +104,7 @@ namespace base {
     MacroOpWithNameOnly(ratechange)                                  \
     MacroOpWithNameOnly(ready)                                       \
     MacroOpWithNameOnly(readystatechange)                            \
+    MacroOpWithNameOnly(rejectionhandled)                            \
     MacroOpWithNameOnly(removals)                                    \
     MacroOpWithNameOnly(removesourcebuffer)                          \
     MacroOpWithNameOnly(removetrack)                                 \
@@ -131,6 +133,7 @@ namespace base {
     MacroOpWithNameOnly(timeout)                                     \
     MacroOpWithNameOnly(timeupdate)                                  \
     MacroOpWithNameOnly(transitionend)                               \
+    MacroOpWithNameOnly(unhandledrejection)                          \
     MacroOpWithNameOnly(unload)                                      \
     MacroOpWithNameOnly(update)                                      \
     MacroOpWithNameOnly(updateend)                                   \

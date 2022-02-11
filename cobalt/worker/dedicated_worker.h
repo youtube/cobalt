@@ -18,6 +18,7 @@
 #include <memory>
 #include <string>
 
+#include "base/memory/scoped_refptr.h"
 #include "cobalt/dom/event_target.h"
 #include "cobalt/dom/event_target_listener_info.h"
 #include "cobalt/script/environment_settings.h"
@@ -28,7 +29,6 @@
 
 namespace cobalt {
 namespace worker {
-
 
 // Implementation of Dedicated workers and the Worker interface.
 //   https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#dedicated-workers-and-the-worker-interface
@@ -62,6 +62,8 @@ class DedicatedWorker : public AbstractWorker, public dom::EventTarget {
     SetAttributeEventListener(base::Tokens::messageerror(), event_listener);
   }
 
+  void Terminate();
+
   // Web API: Abstract Worker
   //
   const EventListenerScriptValue* onerror() const override {
@@ -71,7 +73,6 @@ class DedicatedWorker : public AbstractWorker, public dom::EventTarget {
     SetAttributeEventListener(base::Tokens::error(), event_listener);
   }
 
-  void Terminate();
   DEFINE_WRAPPABLE_TYPE(DedicatedWorker);
 
  private:
@@ -81,8 +82,8 @@ class DedicatedWorker : public AbstractWorker, public dom::EventTarget {
 
   script::EnvironmentSettings* settings_;
   const std::string script_url_;
-  const WorkerOptions options_;
-  std::unique_ptr<MessagePort> outside_port_;
+  const WorkerOptions worker_options_;
+  scoped_refptr<MessagePort> outside_port_;
   std::unique_ptr<Worker> worker_;
 };
 

@@ -140,6 +140,7 @@ bool V8cGlobalEnvironment::EvaluateScript(
   TRACE_EVENT0("cobalt::script", "V8cGlobalEnvironment::EvaluateScript()");
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
+  DCHECK(isolate_);
   EntryScope entry_scope(isolate_);
   v8::Local<v8::Context> context = isolate_->GetCurrentContext();
   v8::TryCatch try_catch(isolate_);

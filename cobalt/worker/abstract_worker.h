@@ -32,6 +32,9 @@ class AbstractWorker {
   virtual void set_onerror(
       const dom::EventTargetListenerInfo::EventListenerScriptValue&
           event_listener) = 0;
+
+ protected:
+  virtual ~AbstractWorker() {}
 };
 
 }  // namespace worker

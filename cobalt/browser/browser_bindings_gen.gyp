@@ -237,10 +237,12 @@
         '../websocket/close_event.idl',
         '../websocket/web_socket.idl',
 
+        '../worker/dedicated_worker_global_scope.idl',
         '../worker/navigation_preload_manager.idl',
         '../worker/service_worker.idl',
         '../worker/message_port.idl',
         '../worker/worker.idl',
+        '../worker/worker_global_scope.idl',
         '../worker/service_worker_container.idl',
         '../worker/service_worker_registration.idl',
 

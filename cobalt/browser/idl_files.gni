@@ -228,12 +228,14 @@ source_idl_files = [
   "//cobalt/websocket/close_event.idl",
   "//cobalt/websocket/web_socket.idl",
 
+  "//cobalt/worker/dedicated_worker_global_scope.idl",
   "//cobalt/worker/message_port.idl",
   "//cobalt/worker/navigation_preload_manager.idl",
   "//cobalt/worker/service_worker.idl",
   "//cobalt/worker/service_worker_container.idl",
   "//cobalt/worker/service_worker_registration.idl",
   "//cobalt/worker/worker.idl",
+  "//cobalt/worker/worker_global_scope.idl",
 
   "//cobalt/xhr/xml_http_request.idl",
   "//cobalt/xhr/xml_http_request_event_target.idl",

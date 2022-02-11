@@ -30,6 +30,8 @@ const size_t kBaseStackSize = 768 * 1024;
 #endif
 const size_t kWebModuleStackSize =
     kBaseStackSize + base::kAsanAdditionalStackSize;
+
+const size_t kWorkerStackSize = kBaseStackSize + base::kAsanAdditionalStackSize;
 }  // namespace browser
 }  // namespace cobalt
 

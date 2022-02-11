@@ -26,6 +26,10 @@
 namespace cobalt {
 namespace worker {
 
+namespace {
+const char kDedicatedWorkerName[] = "DedicatedWorker";
+}  // namespace
+
 DedicatedWorker::DedicatedWorker(script::EnvironmentSettings* settings,
                                  const std::string& scriptURL)
     : EventTarget(settings), settings_(settings), script_url_(scriptURL) {
@@ -34,16 +38,17 @@ DedicatedWorker::DedicatedWorker(script::EnvironmentSettings* settings,
 
 DedicatedWorker::DedicatedWorker(script::EnvironmentSettings* settings,
                                  const std::string& scriptURL,
-                                 const WorkerOptions& options)
+                                 const WorkerOptions& worker_options)
     : EventTarget(settings),
       settings_(settings),
       script_url_(scriptURL),
-      options_(options) {
+      worker_options_(worker_options) {
   Initialize();
 }
 
 void DedicatedWorker::Initialize() {
-  // https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#dom-worker
+  // Algorithm for the Worker constructor.
+  //   https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#dom-worker
 
   // 1. The user agent may throw a "SecurityError" DOMException if the request
   //    violates a policy decision (e.g. if the user agent is configured to
@@ -53,15 +58,21 @@ void DedicatedWorker::Initialize() {
   // 3. Parse the scriptURL argument relative to outside settings.
   // 4. If this fails, throw a "SyntaxError" DOMException.
   // 5. Let worker URL be the resulting URL record.
-  std::string worker_url = script_url_;
+  Worker::Options options;
+  options.url = script_url_;
   // 6. Let worker be a new Worker object.
-  worker_.reset(new Worker);
+  worker_.reset(new Worker(kDedicatedWorkerName));
   // 7. Let outside port be a new MessagePort in outside settings's Realm.
   // 8. Associate the outside port with worker.
-  outside_port_.reset(new MessagePort(this, settings_));
+  outside_port_ = new MessagePort(this, settings_);
+  // 9. Run this step in parallel:
   //    1. Run a worker given worker, worker URL, outside settings, outside
   //    port, and options.
-  worker_->RunDedicated(worker_url, settings_, outside_port_.get(), options_);
+  options.outside_settings = settings_;
+  options.outside_port = outside_port_.get();
+  options.options = worker_options_;
+
+  worker_->Run(options);
   // 10. Return worker.
 }
 
@@ -75,8 +86,8 @@ void DedicatedWorker::Terminate() {}
 void DedicatedWorker::PostMessage(
     const script::ValueHandleHolder& message,
     const script::Sequence<std::string>& options) {
-  if (worker_ && worker_->inside_port())
-    worker_->inside_port()->PostMessage(message, options);
+  if (worker_ && worker_->message_port())
+    worker_->message_port()->PostMessage(message, options);
 }
 
 

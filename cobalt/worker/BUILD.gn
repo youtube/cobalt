@@ -20,6 +20,8 @@ static_library("worker") {
     "abstract_worker.h",
     "dedicated_worker.cc",
     "dedicated_worker.h",
+    "dedicated_worker_global_scope.cc",
+    "dedicated_worker_global_scope.h",
     "message_port.cc",
     "message_port.h",
     "navigation_preload_manager.cc",
@@ -32,6 +34,8 @@ static_library("worker") {
     "service_worker_registration.h",
     "worker.cc",
     "worker.h",
+    "worker_global_scope.cc",
+    "worker_global_scope.h",
     "worker_settings.cc",
     "worker_settings.h",
   ]
