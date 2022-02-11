@@ -15,7 +15,8 @@
 
 import os
 
-from cobalt.build.path_conversion import ConvertPath
+from path_conversion import ConvertPath
+from name_conversion import convert_to_cobalt_name
 
 
 def _NormalizeSlashes(path):
@@ -58,7 +59,7 @@ class PathBuilder(object):
       enum_info = self.info_provider.enumerations[interface_name]
       idl_path = enum_info['full_path']
     else:
-      raise KeyError('Unknown interface name %s', interface_name)
+      raise KeyError('Unknown interface name %s' % interface_name)
 
     rel_idl_path = os.path.relpath(idl_path, self.interfaces_root)
     components = os.path.dirname(rel_idl_path).split(os.sep)
@@ -67,8 +68,9 @@ class PathBuilder(object):
     # we treat it as an extension IDL.
     real_interfaces_root = os.path.realpath(self.interfaces_root)
     real_idl_path = os.path.realpath(os.path.dirname(idl_path))
-    interfaces_root_is_in_components_path = (os.path.commonprefix(
-        [real_interfaces_root, real_idl_path]) == real_interfaces_root)
+    interfaces_root_is_in_components_path = (
+        os.path.commonprefix([real_interfaces_root,
+                              real_idl_path]) == real_interfaces_root)
 
     if interfaces_root_is_in_components_path:
       return [os.path.basename(self.interfaces_root)] + components
@@ -86,22 +88,27 @@ class PathBuilder(object):
     """Get the name of the generated bindings class."""
     return self.engine_prefix.capitalize() + interface_name
 
-  def FullBindingsClassName(self, interface_name):
+  def FullBindingsClassName(self, impl_name, interface_name):
     """Get the fully qualified name of the generated bindings class."""
     return '%s::%s' % (self.Namespace(interface_name),
-                       self.BindingsClass(interface_name))
+                       self.BindingsClass(impl_name))
 
-  def FullClassName(self, interface_name):
+  def FullClassName(self, impl_name, interface_name=None):
     """Get the fully qualified name of the implementation class."""
+    interface_name = interface_name or impl_name
     components = self.NamespaceComponents(interface_name)
-    return '::'.join(components + [interface_name])
+    return '::'.join(components + [impl_name])
 
   def ImplementationHeaderPath(self, interface_name):
     """Get an #include path to the interface's implementation .h file."""
     interface_info = self.interfaces_info[interface_name]
     path = ConvertPath(
         interface_info['full_path'], forward_slashes=True, output_extension='h')
-    return os.path.relpath(path, os.path.dirname(self.interfaces_root))
+    dirname = os.path.dirname(
+        os.path.relpath(path, os.path.dirname(self.interfaces_root)))
+    name = convert_to_cobalt_name(
+        interface_info.get('implemented_as') or interface_name)
+    return dirname + '/' + name + '.h'
 
   def BindingsHeaderIncludePath(self, interface_name):
     """Get an #include path to the interface's generated .h file."""

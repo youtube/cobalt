@@ -540,8 +540,8 @@ void InitializeTemplate(v8::Isolate* isolate) {
     v8::Local<v8::FunctionTemplate> parent_template = {{parent_interface}}::GetTemplate(isolate);
     function_template->Inherit(parent_template);
     static_assert(
-        std::is_base_of<{{parent_interface_name}}, {{interface_name}}>::value,
-        "Expected {{interface_name}} to have C++ parent class "
+        std::is_base_of<{{parent_interface_name}}, {{impl_class}}>::value,
+        "Expected {{impl_class}} to have C++ parent class "
         "{{parent_interface_name}}, because that is its WebIDL parent.");
   }
 {% elif is_exception_interface %}
@@ -637,9 +637,7 @@ void InitializeTemplate(v8::Isolate* isolate) {
 {% if attribute.interface_name == interface_name %}
           function_template
 {% else %}
-          // Note that we use "attribute.interface_name", and not
-          // "attribute.idl_name", because of named constructors.
-          V8c{{attribute.interface_name}}::GetTemplate(isolate)
+          V8c{{attribute.impl_class}}::GetTemplate(isolate)
 {% endif %}
       );
     }
@@ -859,9 +857,9 @@ void V8cGlobalEnvironment::CreateGlobalObject(
 #if defined({{interface.conditional}})
 {% endif %}
   wrapper_factory_->RegisterWrappableType(
-      {{interface.name}}::{{interface.name}}WrappableType(),
-      base::Bind(V8c{{interface.name}}::CreateWrapper),
-      base::Bind(V8c{{interface.name}}::GetTemplate));
+      {{interface.impl_name}}::{{interface.impl_name}}WrappableType(),
+      base::Bind(V8c{{interface.impl_name}}::CreateWrapper),
+      base::Bind(V8c{{interface.impl_name}}::GetTemplate));
 {% if interface.conditional %}
 #endif  // defined({{interface.conditional}})
 {% endif %}

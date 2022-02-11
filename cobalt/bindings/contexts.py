@@ -262,6 +262,13 @@ class ContextBuilder(object):
     return '::cobalt::script::UnionType%d<%s >' % (len(cobalt_types),
                                                    ', '.join(cobalt_types))
 
+  def get_implemented_interface_name(self, idl_type):
+    interface_name = get_interface_name(idl_type)
+    interface_info = self.info_provider.interfaces_info.get(interface_name)
+    name = (interface_info['implemented_as']
+            if interface_info else None) or interface_name
+    return name
+
   def idl_type_to_cobalt_type(self, idl_type):
     """Map IDL type to C++ type."""
     assert not isinstance(idl_type, IdlTypedef)
@@ -272,9 +279,10 @@ class ContextBuilder(object):
       cobalt_type = idl_string_type_to_cobalt(idl_type)
     elif idl_type.is_callback_interface:
       cobalt_type = '::cobalt::script::CallbackInterfaceTraits<%s >' % (
-          get_interface_name(idl_type))
+          self.get_implemented_interface_name(idl_type))
     elif idl_type.is_interface_type:
-      cobalt_type = 'scoped_refptr<%s>' % get_interface_name(idl_type)
+      cobalt_type = 'scoped_refptr<%s>' % self.get_implemented_interface_name(
+          idl_type)
     elif idl_type.is_union_type:
       cobalt_type = self.idl_union_type_to_cobalt(idl_type)
     elif idl_type.is_enum:
@@ -306,7 +314,8 @@ class ContextBuilder(object):
     """Map type of IDL TypedObject to C++ type."""
     idl_type = self.resolve_typedef(typed_object.idl_type)
     if idl_type.is_callback_function:
-      cobalt_type = interface.name + '::' + get_interface_name(idl_type)
+      cobalt_type = interface.name + '::' + self.get_implemented_interface_name(
+          idl_type)
     else:
       cobalt_type = self.idl_type_to_cobalt_type(idl_type)
     if getattr(typed_object, 'is_variadic', False):
@@ -379,8 +388,9 @@ class ContextBuilder(object):
     context = {
         'call_with':
             interface.extended_attributes.get('ConstructorCallWith', None),
-        'raises_exception': (interface.extended_attributes.get(
-            'RaisesException', None) == 'Constructor'),
+        'raises_exception':
+            (interface.extended_attributes.get('RaisesException',
+                                               None) == 'Constructor'),
     }
 
     context.update(self.partial_context(interface, constructor))
@@ -525,13 +535,17 @@ class ContextBuilder(object):
           if a.name == forwarded_attribute_name
       ]
       assert len(matching_attributes) == 1
-      context['put_forwards'] = self.attribute_context(
-          forwarded_interface, matching_attributes[0], definitions)
+      context['put_forwards'] = self.attribute_context(forwarded_interface,
+                                                       matching_attributes[0],
+                                                       definitions)
     context[
         'has_setter'] = not attribute.is_read_only or forwarded_attribute_name
     if is_constructor_attribute(attribute):
+      interface_name = get_interface_name(attribute.idl_type)
+      impl_class = self.get_implemented_interface_name(attribute.idl_type)
       context['is_constructor_attribute'] = True
-      context['interface_name'] = get_interface_name(attribute.idl_type)
+      context['interface_name'] = interface_name
+      context['impl_class'] = impl_class
       # Blink's IDL parser uses the convention that attributes ending with
       # 'ConstructorConstructor' are for Named Constructors.
       context['is_named_constructor_attribute'] = (
