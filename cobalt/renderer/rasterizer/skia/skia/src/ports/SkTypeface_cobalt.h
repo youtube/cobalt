@@ -66,6 +66,9 @@ class SkTypeface_CobaltStream : public SkTypeface_Cobalt {
                            bool* serialize) const override;
 
   std::unique_ptr<SkStreamAsset> onOpenStream(int* face_index) const override;
+#ifdef USE_SKIA_NEXT
+  std::unique_ptr<SkFontData> onMakeFontData() const override;
+#endif
 
   size_t GetStreamLength() const override;
 
@@ -87,6 +90,9 @@ class SkTypeface_CobaltStreamProvider : public SkTypeface_Cobalt {
                            bool* serialize) const override;
 
   std::unique_ptr<SkStreamAsset> onOpenStream(int* face_index) const override;
+#ifdef USE_SKIA_NEXT
+  std::unique_ptr<SkFontData> onMakeFontData() const override;
+#endif
 
   size_t GetStreamLength() const override;
 

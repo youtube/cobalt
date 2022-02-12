@@ -93,6 +93,17 @@ size_t SkTypeface_CobaltStream::GetStreamLength() const {
   return stream_->getLength();
 }
 
+#ifdef USE_SKIA_NEXT
+std::unique_ptr<SkFontData> SkTypeface_CobaltStream::onMakeFontData() const {
+  int index;
+  std::unique_ptr<SkStreamAsset> stream(this->onOpenStream(&index));
+  if (!stream) {
+    return nullptr;
+  }
+  return std::make_unique<SkFontData>(std::move(stream), index, nullptr, 0);
+}
+#endif
+
 SkTypeface_CobaltStreamProvider::SkTypeface_CobaltStreamProvider(
     SkFileMemoryChunkStreamProvider* stream_provider, int face_index,
     SkFontStyle style, bool is_fixed_pitch, const SkString& family_name,
@@ -132,3 +143,15 @@ size_t SkTypeface_CobaltStreamProvider::GetStreamLength() const {
       stream_provider_->OpenStream());
   return stream->getLength();
 }
+
+#ifdef USE_SKIA_NEXT
+std::unique_ptr<SkFontData> SkTypeface_CobaltStreamProvider::onMakeFontData()
+    const {
+  int index;
+  std::unique_ptr<SkStreamAsset> stream(this->onOpenStream(&index));
+  if (!stream) {
+    return nullptr;
+  }
+  return std::make_unique<SkFontData>(std::move(stream), index, nullptr, 0);
+}
+#endif
