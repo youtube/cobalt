@@ -46,6 +46,7 @@ RUN cd /tmp \
   && echo yes | ${ANDROID_SDK_ROOT}/tools/bin/sdkmanager \
       --sdk_root=${ANDROID_SDK_ROOT} \
     "build-tools;30.0.0" \
+    "build-tools;31.0.0" \
     "cmake;3.10.2.4988404" \
     "cmdline-tools;1.0" \
     "extras;android;m2repository" \
@@ -53,6 +54,7 @@ RUN cd /tmp \
     "ndk;21.1.6352462" \
     "patcher;v4" \
     "platforms;android-30" \
+    "platforms;android-31" \
     "platform-tools" \
   && echo "Android SDK installed"
 
