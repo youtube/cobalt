@@ -60,11 +60,11 @@ static_library("debug") {
   ]
   deps = [
     ":console_command_manager",
-    ":copy_backend_web_files",
-    ":copy_console_web_files",
-    ":copy_remote_web_files",
     "//cobalt/base",
     "//cobalt/cssom",
+    "//cobalt/debug/backend/content:copy_backend_web_files",
+    "//cobalt/debug/console/content:copy_console_web_files",
+    "//cobalt/debug/remote/content:copy_remote_web_files",
     "//cobalt/dom",
     "//cobalt/layout",
     "//cobalt/math",
@@ -90,54 +90,4 @@ static_library("console_command_manager") {
     ]
     deps = [ "//cobalt/base" ]
   }
-}
-
-copy("copy_backend_web_files") {
-  install_content = true
-
-  sources = [
-    "backend/content/css_agent.js",
-    "backend/content/dom_agent.js",
-    "backend/content/overlay_agent.js",
-  ]
-
-  # Canonically this should be "cobalt/debug/backend" to match the source
-  # path, but we put it in the root of the content dir to reduce depth.
-  outputs = [ "$sb_static_contents_output_data_dir/web/debug_backend/{{source_file_part}}" ]
-}
-
-copy("copy_console_web_files") {
-  sources = [
-    "console/content/command_input.js",
-    "console/content/console_manager.js",
-    "console/content/console_values.js",
-    "console/content/debug_commands.js",
-    "console/content/debug_console.css",
-    "console/content/debug_console.html",
-    "console/content/debug_console.js",
-    "console/content/debugger_client.js",
-    "console/content/media_console.js",
-    "console/content/media_console_context.js",
-    "console/content/message_log.js",
-    "console/content/pirate.jpg",
-  ]
-
-  # Canonically this should be "cobalt/debug/console" to match the source
-  # path, but we put it in the root of the content dir to reduce depth.
-  outputs = [ "$sb_static_contents_output_data_dir/web/debug_console/{{source_file_part}}" ]
-}
-
-copy("copy_remote_web_files") {
-  sources = [
-    "remote/content/cobalt-logo-180.png",
-    "remote/content/favicon.ico",
-    "remote/content/index.html",
-    "remote/content/json/index.json",
-  ]
-
-  # Canonically this should be "cobalt/debug/remote" to match the source
-  # path, but we put it in the root of the content dir to reduce depth.
-  outputs = [
-    "$sb_static_contents_output_data_dir/web/debug_remote/{{source_file_part}}",
-  ]
 }
