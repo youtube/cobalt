@@ -130,6 +130,10 @@ declare_args() {
   # List of platform-specific targets that get compiled into cobalt.
   cobalt_platform_dependencies = []
 
+  # Some compiler can not compile with raw assembly(.S files) and v8
+  # converts asm to inline assembly for these platforms.
+  cobalt_v8_emit_builtins_as_inline_asm = false
+
   # Set to true to enable pointer compression for v8.
   v8_enable_pointer_compression_override = true
 

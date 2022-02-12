@@ -24,7 +24,7 @@ target_is_simulator = (target_cpu != v8_target_cpu && !v8_multi_arch_build) ||
                       (current_cpu != v8_current_cpu && v8_multi_arch_build)
 
 # For faster Windows builds. See https://crbug.com/v8/8475.
-emit_builtins_as_inline_asm = is_win && is_clang
+emit_builtins_as_inline_asm = is_win && is_clang || cobalt_v8_emit_builtins_as_inline_asm
 
 declare_args() {
   # Print to stdout on Android.
