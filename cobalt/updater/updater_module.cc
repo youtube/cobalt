@@ -92,7 +92,8 @@ ComponentStateToCobaltExtensionUpdaterNotificationState(
 namespace cobalt {
 namespace updater {
 
-const uint64_t kDefaultUpdateCheckDelaySeconds = 60;
+// The delay in seconds before the first update check.
+const uint64_t kDefaultUpdateCheckDelaySeconds = 15;
 
 void Observer::OnEvent(Events event, const std::string& id) {
   LOG(INFO) << "Observer::OnEvent id=" << id;
