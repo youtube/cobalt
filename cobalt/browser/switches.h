@@ -98,6 +98,8 @@ extern const char kDisableOnScreenKeyboardHelp[];
         // SB_HAS(ON_SCREEN_KEYBOARD)
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
+extern const char kCompressUpdate[];
+extern const char kCompressUpdateHelp[];
 extern const char kDisableJavaScriptJit[];
 extern const char kDisableJavaScriptJitHelp[];
 extern const char kDisableMapToMesh[];

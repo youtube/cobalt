@@ -42,6 +42,11 @@ class WriterDelegate {
 
   // Sets the last-modified time of the data.
   virtual void SetTimeModified(const base::Time& time) = 0;
+
+#ifdef STARBOARD
+  // Returns true if the writer finished successfully.
+  virtual bool IsSuccessful() = 0;
+#endif
 };
 
 // This class is used for reading zip files. A typical use case of this
@@ -255,6 +260,10 @@ class FileWriterDelegate : public WriterDelegate {
   // Sets the last-modified time of the data.
   void SetTimeModified(const base::Time& time) override;
 
+#ifdef STARBOARD
+  bool IsSuccessful() override;
+#endif
+
   // Return the actual size of the file.
   int64_t file_length() { return file_length_; }
 
@@ -289,6 +298,9 @@ class FilePathWriterDelegate : public WriterDelegate {
   // Sets the last-modified time of the data.
   void SetTimeModified(const base::Time& time) override;
 
+#ifdef STARBOARD
+  bool IsSuccessful() override;
+#endif
  private:
   base::FilePath output_file_path_;
   base::File file_;
