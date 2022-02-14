@@ -115,6 +115,9 @@ class MockUnzipListener : public base::SupportsWeakPtr<MockUnzipListener> {
 class MockWriterDelegate : public zip::WriterDelegate {
  public:
   MOCK_METHOD0(PrepareOutput, bool());
+#if defined(STARBOARD)
+  MOCK_METHOD0(IsSuccessful, bool());
+#endif
   MOCK_METHOD2(WriteBytes, bool(const char*, int));
   MOCK_METHOD1(SetTimeModified, void(const base::Time&));
 };
@@ -644,6 +647,10 @@ TEST_F(ZipReaderTest, ExtractCurrentEntrySuccess) {
   EXPECT_CALL(mock_writer, WriteBytes(_, _))
       .WillRepeatedly(Return(true));
   EXPECT_CALL(mock_writer, SetTimeModified(_));
+#if defined(STARBOARD)
+  EXPECT_CALL(mock_writer, IsSuccessful())
+      .WillOnce(Return(true));
+#endif
 
   base::FilePath target_path(FILE_PATH_LITERAL("foo/bar/quux.txt"));
   ZipReader reader;
