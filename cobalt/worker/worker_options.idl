@@ -1,0 +1,5 @@
+dictionary WorkerOptions {
+  WorkerType type = "classic";
+  //RequestCredentials credentials = "same-origin"; // credentials is only used if type is "module"
+  DOMString name = "";
+};

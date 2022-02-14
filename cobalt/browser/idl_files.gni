@@ -228,10 +228,12 @@ source_idl_files = [
   "//cobalt/websocket/close_event.idl",
   "//cobalt/websocket/web_socket.idl",
 
+  "//cobalt/worker/message_port.idl",
   "//cobalt/worker/navigation_preload_manager.idl",
   "//cobalt/worker/service_worker.idl",
   "//cobalt/worker/service_worker_container.idl",
   "//cobalt/worker/service_worker_registration.idl",
+  "//cobalt/worker/worker.idl",
 
   "//cobalt/xhr/xml_http_request.idl",
   "//cobalt/xhr/xml_http_request_event_target.idl",
@@ -328,6 +330,9 @@ generated_header_idl_files = [
   "//cobalt/worker/navigation_preload_state.idl",
   "//cobalt/worker/service_worker_state.idl",
   "//cobalt/worker/service_worker_update_via_cache.idl",
+  "//cobalt/worker/structured_serialize_options.idl",
+  "//cobalt/worker/worker_options.idl",
+  "//cobalt/worker/worker_type.idl",
 ]
 
 # Partial interfaces and the right-side of "implements". Also includes
@@ -381,5 +386,6 @@ dependency_idl_files = [
   "//cobalt/dom/window_timers.idl",
   "//cobalt/media_capture/navigator.idl",
   "//cobalt/media_session/navigator_media_session.idl",
+  "//cobalt/worker/abstract_worker.idl",
   "//cobalt/worker/navigator.idl",
 ]

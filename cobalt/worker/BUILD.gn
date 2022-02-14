@@ -17,6 +17,11 @@ static_library("worker") {
   check_includes = false
 
   sources = [
+    "abstract_worker.h",
+    "dedicated_worker.cc",
+    "dedicated_worker.h",
+    "message_port.cc",
+    "message_port.h",
     "navigation_preload_manager.cc",
     "navigation_preload_manager.h",
     "service_worker.cc",
@@ -25,6 +30,10 @@ static_library("worker") {
     "service_worker_container.h",
     "service_worker_registration.cc",
     "service_worker_registration.h",
+    "worker.cc",
+    "worker.h",
+    "worker_settings.cc",
+    "worker_settings.h",
   ]
 
   public_deps = [
