@@ -74,7 +74,6 @@ namespace base {
     MacroOpWithNameOnly(lostpointercapture)                          \
     MacroOpWithNameOnly(mark)                                        \
     MacroOpWithNameOnly(message)                                     \
-    MacroOpWithNameOnly(messageerror)                                \
     MacroOpWithNameOnly(mousedown)                                   \
     MacroOpWithNameOnly(mouseenter)                                  \
     MacroOpWithNameOnly(mouseleave)                                  \

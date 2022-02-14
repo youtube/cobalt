@@ -239,8 +239,6 @@
 
         '../worker/navigation_preload_manager.idl',
         '../worker/service_worker.idl',
-        '../worker/message_port.idl',
-        '../worker/worker.idl',
         '../worker/service_worker_container.idl',
         '../worker/service_worker_registration.idl',
 
@@ -332,9 +330,6 @@
         '../worker/navigation_preload_state.idl',
         '../worker/service_worker_state.idl',
         '../worker/service_worker_update_via_cache.idl',
-        '../worker/structured_serialize_options.idl',
-        '../worker/worker_options.idl',
-        '../worker/worker_type.idl',
         '<@(cobalt_webapi_extension_generated_header_idl_files)',
     ],
 
@@ -389,7 +384,6 @@
         '../dom/window_timers.idl',
         '../media_capture/navigator.idl',
         '../media_session/navigator_media_session.idl',
-        '../worker/abstract_worker.idl',
         '../worker/navigator.idl',
     ],
 

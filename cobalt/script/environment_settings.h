@@ -23,7 +23,7 @@ namespace cobalt {
 namespace script {
 
 // Environment Settings object as described in
-// https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#environment-settings-objects
+// https://www.w3.org/html/wg/drafts/html/master/webappapis.html#environment-settings-object
 class EnvironmentSettings {
  public:
   EnvironmentSettings() {}
