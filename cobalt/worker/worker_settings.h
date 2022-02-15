@@ -16,6 +16,8 @@
 #define COBALT_WORKER_WORKER_SETTINGS_H_
 
 #include "cobalt/script/environment_settings.h"
+#include "cobalt/script/global_environment.h"
+#include "cobalt/script/javascript_engine.h"
 
 namespace cobalt {
 namespace worker {
@@ -25,7 +27,8 @@ namespace worker {
 
 class WorkerSettings : public script::EnvironmentSettings {
  public:
-  WorkerSettings();
+  WorkerSettings(script::JavaScriptEngine* engine,
+                 script::GlobalEnvironment* global_environment);
 
  private:
 };

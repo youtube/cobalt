@@ -32,7 +32,8 @@ DOMSettings::DOMSettings(
     const base::DebuggerHooks& debugger_hooks,
     MutationObserverTaskManager* mutation_observer_task_manager,
     const Options& options)
-    : max_dom_element_depth_(max_dom_element_depth),
+    : EnvironmentSettings(engine, global_environment, debugger_hooks),
+      max_dom_element_depth_(max_dom_element_depth),
       microphone_options_(options.microphone_options),
       fetcher_factory_(fetcher_factory),
       network_module_(network_module),
@@ -40,9 +41,6 @@ DOMSettings::DOMSettings(
       blob_registry_(blob_registry),
       can_play_type_handler_(can_play_type_handler),
       decoder_buffer_memory_info_(decoder_buffer_memory_info),
-      javascript_engine_(engine),
-      global_environment_(global_environment),
-      debugger_hooks_(debugger_hooks),
       mutation_observer_task_manager_(mutation_observer_task_manager) {}
 
 DOMSettings::~DOMSettings() {}

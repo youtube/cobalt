@@ -14,10 +14,17 @@
 
 #include "cobalt/worker/worker_settings.h"
 
+#include "cobalt/base/debugger_hooks.h"
+#include "cobalt/script/environment_settings.h"
+#include "cobalt/script/global_environment.h"
+#include "cobalt/script/javascript_engine.h"
+
 namespace cobalt {
 namespace worker {
-
-WorkerSettings::WorkerSettings() {}
-
+// TODO: Only use NullDebuggerHooks if !ENABLE_DEBUGGER.
+WorkerSettings::WorkerSettings(script::JavaScriptEngine* engine,
+                               script::GlobalEnvironment* global_environment)
+    : EnvironmentSettings(engine, global_environment,
+                          base::NullDebuggerHooks()) {}
 }  // namespace worker
 }  // namespace cobalt

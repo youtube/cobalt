@@ -18,6 +18,9 @@
 #include <memory>
 
 #include "base/memory/ref_counted.h"
+#include "cobalt/base/debugger_hooks.h"
+#include "cobalt/script/global_environment.h"
+#include "cobalt/script/javascript_engine.h"
 
 namespace cobalt {
 namespace script {
@@ -26,14 +29,32 @@ namespace script {
 // https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#environment-settings-objects
 class EnvironmentSettings {
  public:
-  EnvironmentSettings() {}
+  EnvironmentSettings(script::JavaScriptEngine* engine,
+                      script::GlobalEnvironment* global_environment,
+                      const base::DebuggerHooks& debugger_hooks)
+      : javascript_engine_(engine),
+        global_environment_(global_environment),
+        debugger_hooks_(debugger_hooks) {}
   virtual ~EnvironmentSettings() {}
+
+  script::JavaScriptEngine* javascript_engine() const {
+    return javascript_engine_;
+  }
+  script::GlobalEnvironment* global_environment() const {
+    return global_environment_;
+  }
+
+  const base::DebuggerHooks& debugger_hooks() const { return debugger_hooks_; }
 
  protected:
   friend std::unique_ptr<EnvironmentSettings>::deleter_type;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(EnvironmentSettings);
+
+  script::JavaScriptEngine* javascript_engine_;
+  script::GlobalEnvironment* global_environment_;
+  const base::DebuggerHooks& debugger_hooks_;
 };
 
 }  // namespace script

@@ -47,18 +47,22 @@ namespace testing {
 class BindingsTestBase : public ::testing::Test {
  protected:
   BindingsTestBase()
-      : environment_settings_(new script::EnvironmentSettings),
-        engine_(script::JavaScriptEngine::CreateEngine()),
+      : engine_(script::JavaScriptEngine::CreateEngine()),
         global_environment_(engine_->CreateGlobalEnvironment()),
+        environment_settings_(new script::EnvironmentSettings(
+            engine_.get(), global_environment_.get(),
+            base::NullDebuggerHooks())),
         window_(new Window()) {
     global_environment_->CreateGlobalObject(window_,
                                             environment_settings_.get());
   }
 
   explicit BindingsTestBase(const scoped_refptr<Window> window)
-      : environment_settings_(new script::EnvironmentSettings),
-        engine_(script::JavaScriptEngine::CreateEngine()),
+      : engine_(script::JavaScriptEngine::CreateEngine()),
         global_environment_(engine_->CreateGlobalEnvironment()),
+        environment_settings_(new script::EnvironmentSettings(
+            engine_.get(), global_environment_.get(),
+            base::NullDebuggerHooks())),
         window_(window) {
     global_environment_->CreateGlobalObject(window_,
                                             environment_settings_.get());
@@ -89,9 +93,9 @@ class BindingsTestBase : public ::testing::Test {
 
  protected:
   base::test::ScopedTaskEnvironment task_env_;
-  const std::unique_ptr<script::EnvironmentSettings> environment_settings_;
   const std::unique_ptr<script::JavaScriptEngine> engine_;
   const scoped_refptr<script::GlobalEnvironment> global_environment_;
+  const std::unique_ptr<script::EnvironmentSettings> environment_settings_;
   const scoped_refptr<Window> window_;
 };
 

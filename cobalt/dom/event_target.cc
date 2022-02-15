@@ -24,8 +24,8 @@
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/dom/dom_exception.h"
-#include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/global_stats.h"
+#include "cobalt/script/environment_settings.h"
 #include "cobalt/xhr/xml_http_request_event_target.h"
 #include "nb/memory_scope.h"
 
@@ -35,8 +35,7 @@ namespace dom {
 EventTarget::EventTarget(
     script::EnvironmentSettings* settings,
     UnpackOnErrorEventsBool onerror_event_parameter_handling)
-    : debugger_hooks_(
-          base::polymorphic_downcast<DOMSettings*>(settings)->debugger_hooks()),
+    : debugger_hooks_(settings->debugger_hooks()),
       unpack_onerror_events_(onerror_event_parameter_handling ==
                              kUnpackOnErrorEvents) {}
 

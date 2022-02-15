@@ -83,12 +83,6 @@ class DOMSettings : public script::EnvironmentSettings {
     network_module_ = network_module;
   }
   network::NetworkModule* network_module() const { return network_module_; }
-  script::JavaScriptEngine* javascript_engine() const {
-    return javascript_engine_;
-  }
-  script::GlobalEnvironment* global_environment() const {
-    return global_environment_;
-  }
   MediaSourceRegistry* media_source_registry() const {
     return media_source_registry_;
   }
@@ -114,7 +108,6 @@ class DOMSettings : public script::EnvironmentSettings {
   media::CanPlayTypeHandler* can_play_type_handler() const {
     return can_play_type_handler_;
   }
-  const base::DebuggerHooks& debugger_hooks() const { return debugger_hooks_; }
   MutationObserverTaskManager* mutation_observer_task_manager() const {
     return mutation_observer_task_manager_;
   }
@@ -136,9 +129,6 @@ class DOMSettings : public script::EnvironmentSettings {
   Blob::Registry* blob_registry_;
   media::CanPlayTypeHandler* can_play_type_handler_;
   const media::DecoderBufferMemoryInfo* decoder_buffer_memory_info_;
-  script::JavaScriptEngine* javascript_engine_;
-  script::GlobalEnvironment* global_environment_;
-  const base::DebuggerHooks& debugger_hooks_;
   MutationObserverTaskManager* mutation_observer_task_manager_;
 
   DISALLOW_COPY_AND_ASSIGN(DOMSettings);
