@@ -88,6 +88,10 @@ bool GetContentDir(std::string* content) {
 void LoadLibraryAndInitialize(const std::string& alternative_content_path,
                               bool use_compression,
                               bool use_memory_mapped_file) {
+  if (use_compression && use_memory_mapped_file) {
+    SB_LOG(ERROR) << "Using both compression and mmap files is not supported";
+    return;
+  }
   std::string content_dir;
   if (!GetContentDir(&content_dir)) {
     SB_LOG(ERROR) << "Failed to get the content dir";
@@ -110,7 +114,8 @@ void LoadLibraryAndInitialize(const std::string& alternative_content_path,
     library_path = kSystemImageLibraryPath;
   }
 
-  if (!g_elf_loader.Load(library_path, content_path, false)) {
+  if (!g_elf_loader.Load(library_path, content_path, false, nullptr,
+                         use_compression, use_memory_mapped_file)) {
     SB_NOTREACHED() << "Failed to load library at '"
                     << g_elf_loader.GetLibraryPath() << "'.";
     return;

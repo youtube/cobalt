@@ -130,6 +130,10 @@ void* LoadSlotManagedLibrary(const std::string& app_key,
                              LibraryLoader* library_loader,
                              bool use_compression,
                              bool use_memory_mapped_file) {
+  if (use_compression && use_memory_mapped_file) {
+    SB_LOG(ERROR) << "Using both compression and mmap files is not supported";
+    return NULL;
+  }
   // Initialize the Installation Manager.
   SB_CHECK(ImInitialize(kMaxNumInstallations, app_key.c_str()) == IM_SUCCESS)
       << "Abort. Failed to initialize Installation Manager";
