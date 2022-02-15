@@ -41,9 +41,15 @@
 #include "third_party/skia/include/core/SkCanvas.h"
 #include "third_party/skia/include/core/SkSurface.h"
 #include "third_party/skia/include/gpu/GrBackendSurface.h"
+#ifdef USE_SKIA_NEXT
+#include "third_party/skia/include/gpu/GrDirectContext.h"
+#else
 #include "third_party/skia/include/gpu/GrContext.h"
+#endif
 #include "third_party/skia/include/gpu/GrContextOptions.h"
+#ifndef USE_SKIA_NEXT
 #include "third_party/skia/include/gpu/GrTexture.h"
+#endif
 #include "third_party/skia/include/gpu/gl/GrGLInterface.h"
 #include "third_party/skia/src/gpu/GrRenderTarget.h"
 #include "third_party/skia/src/gpu/GrResourceProvider.h"

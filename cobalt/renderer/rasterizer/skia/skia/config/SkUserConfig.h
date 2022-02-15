@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef SkUserConfig_DEFINED
-#define SkUserConfig_DEFINED
+#ifndef SkUserConfig_DEFINED  // NOLINT
+#define SkUserConfig_DEFINED  // NOLINT
 
 #if defined(STARBOARD)
 #include "starboard/configuration.h"
@@ -23,11 +23,11 @@
 #include "starboard/types.h"
 #endif
 
+// clang-format off
 /*  SkTypes.h, the root of the public header files, does the following trick:
-
-    #include <SkPostConfig.h>
     #include <SkPreConfig.h>
     #include <SkUserConfig.h>
+    #include <SkPostConfig.h>
 
     SkPreConfig.h runs first, and it is responsible for initializing certain
     skia defines.
@@ -47,6 +47,7 @@
     By default, this include file will always default to having all of the flags
     commented out, so including it will have no effect.
 */
+// clang-format on
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -54,8 +55,8 @@
     floats or 16.16 integers (fixed). Exactly one of these two symbols must be
     defined.
 */
-//#define SK_SCALAR_IS_FLOAT
-//#define SK_SCALAR_IS_FIXED
+// #define SK_SCALAR_IS_FLOAT
+// #define SK_SCALAR_IS_FIXED
 
 
 /*  Somewhat independent of how SkScalar is implemented, Skia also wants to know
@@ -63,14 +64,14 @@
     then so muse SK_CAN_USE_FLOAT, but if scalars are fixed, SK_CAN_USE_FLOAT
     can go either way.
  */
-//#define SK_CAN_USE_FLOAT
+// #define SK_CAN_USE_FLOAT
 
 /*  For some performance-critical scalar operations, skia will optionally work
     around the standard float operators if it knows that the CPU does not have
     native support for floats. If your environment uses software floating point,
     define this flag.
  */
-//#define SK_SOFTWARE_FLOAT
+// #define SK_SOFTWARE_FLOAT
 
 
 /*  Skia has lots of debug-only code. Often this is just null checks or other
@@ -82,22 +83,22 @@
     based on the presence or absence of NDEBUG, but that decision can be changed
     here.
  */
-//#define SK_DEBUG
-//#define SK_RELEASE
+// #define SK_DEBUG
+// #define SK_RELEASE
 
 
 /*  If, in debugging mode, Skia needs to stop (presumably to invoke a debugger)
     it will call SK_CRASH(). If this is not defined it, it is defined in
     SkPostConfig.h to write to an illegal address
  */
-//#define SK_CRASH() *(int *)(uintptr_t)0 = 0
+// #define SK_CRASH() *(int *)(uintptr_t)0 = 0
 
 
 /*  preconfig will have attempted to determine the endianness of the system,
     but you can change these mutually exclusive flags here.
  */
-//#define SK_CPU_BENDIAN
-//#define SK_CPU_LENDIAN
+// #define SK_CPU_BENDIAN
+// #define SK_CPU_LENDIAN
 
 // The following defines dictate the native pixel color format of Skia surfaces.
 // Render target RGBA support is limited to either RGBA or BGRA, and must be
@@ -161,36 +162,36 @@ const uint8_t r32_or_bendian_a32_shift =
 /*  Some compilers don't support long long for 64bit integers. If yours does
     not, define this to the appropriate type.
  */
-//#define SkLONGLONG int64_t
+// #define SkLONGLONG int64_t
 
 
 /*  Some environments do not support writable globals (eek!). If yours does not,
     define this flag.
  */
-//#define SK_USE_RUNTIME_GLOBALS
+// #define SK_USE_RUNTIME_GLOBALS
 
 /*  If zlib is available and you want to support the flate compression
     algorithm (used in PDF generation), define SK_ZLIB_INCLUDE to be the
     include path.
  */
-//#define SK_ZLIB_INCLUDE <zlib.h>
+// #define SK_ZLIB_INCLUDE <zlib.h>
 #define SK_ZLIB_INCLUDE "third_party/zlib/zlib.h"
 
 /*  Define this to allow PDF scalars above 32k.  The PDF/A spec doesn't allow
     them, but modern PDF interpreters should handle them just fine.
  */
-//#define SK_ALLOW_LARGE_PDF_SCALARS
+// #define SK_ALLOW_LARGE_PDF_SCALARS
 
 /*  Define this to provide font subsetter for font subsetting when generating
     PDF documents.
  */
-//#define SK_SFNTLY_SUBSETTER "sfntly/subsetter/font_subsetter.h"
+// #define SK_SFNTLY_SUBSETTER "sfntly/subsetter/font_subsetter.h"
 
 /*  To write debug messages to a console, skia will call SkDebugf(...) following
     printf conventions (e.g. const char* format, ...). If you want to redirect
     this to something other than printf, define yours here
  */
-//#define SkDebugf(...)  MyFunction(__VA_ARGS__)
+// #define SkDebugf(...)  MyFunction(__VA_ARGS__)
 
 
 /*  If SK_DEBUG is defined, then you can optionally define SK_SUPPORT_UNITTEST
@@ -266,4 +267,19 @@ SK_API void SkDebugf_FileLine(const char* file, int line, bool fatal,
 // do not fail by running out of memory.
 #define GR_GL_CHECK_ALLOC_WITH_GET_ERROR 0
 
-#endif  // SkUserConfig_DEFINED
+// The block below is copied from Skia m79's SkPostConfig.h to preserve the
+// behavior of SK_GL being defined by default.
+#ifdef USE_SKIA_NEXT
+/**
+ * If GPU is enabled but no GPU backends are enabled then enable GL by default.
+ * Traditionally clients have relied on Skia always building with the GL backend
+ * and opting in to additional backends. TODO: Require explicit opt in for GL.
+ */
+#if SK_SUPPORT_GPU
+#if !defined(SK_GL) && !defined(SK_VULKAN) && !defined(SK_METAL)
+#define SK_GL
+#endif
+#endif
+#endif
+
+#endif  // SkUserConfig_DEFINED  NOLINT
