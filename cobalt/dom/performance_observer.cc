@@ -30,15 +30,18 @@ namespace {
 // Implement the CallbackInternal interface for a JavaScript callback.
 class ScriptCallback : public PerformanceObserver::CallbackInternal {
  public:
-  ScriptCallback(const PerformanceObserver::PerformanceObserverCallbackArg& callback,
-                 PerformanceObserver* observer)
+  ScriptCallback(
+      const PerformanceObserver::PerformanceObserverCallbackArg& callback,
+      PerformanceObserver* observer)
       : callback_(observer, callback) {}
-  bool RunCallback(const scoped_refptr<PerformanceObserverEntryList>& entries,
-                   const scoped_refptr<PerformanceObserver>& observer) override {
+  bool RunCallback(
+      const scoped_refptr<PerformanceObserverEntryList>& entries,
+      const scoped_refptr<PerformanceObserver>& observer) override {
     // ScriptCallback's lifetime is bined with JS PerformanceObserver object. We
     // should not run callback, When JS object has been destroyed.
     if (callback_.referenced_value().IsNull()) return false;
-    script::CallbackResult<void> result = callback_.value().Run(entries, observer);
+    script::CallbackResult<void> result =
+        callback_.value().Run(entries, observer);
     return !result.exception;
   }
 
@@ -52,8 +55,9 @@ class NativeCallback : public PerformanceObserver::CallbackInternal {
   explicit NativeCallback(
       const PerformanceObserver::NativePerformanceObserverCallback& callback)
       : callback_(callback) {}
-  bool RunCallback(const scoped_refptr<PerformanceObserverEntryList>& entries,
-                   const scoped_refptr<PerformanceObserver>& observer) override {
+  bool RunCallback(
+      const scoped_refptr<PerformanceObserverEntryList>& entries,
+      const scoped_refptr<PerformanceObserver>& observer) override {
     callback_.Run(entries, observer);
     return true;
   }
@@ -68,8 +72,8 @@ PerformanceObserver::PerformanceObserver(
     const NativePerformanceObserverCallback& native_callback,
     const scoped_refptr<Performance>& performance)
     : performance_(base::AsWeakPtr(performance.get())),
-    observer_type_(PerformanceObserverType::kUndefined),
-    is_registered_(false) {
+      observer_type_(PerformanceObserverType::kUndefined),
+      is_registered_(false) {
   callback_.reset(new NativeCallback(native_callback));
 }
 
@@ -77,19 +81,19 @@ PerformanceObserver::PerformanceObserver(
     script::EnvironmentSettings* env_settings,
     const PerformanceObserverCallbackArg& callback)
     : performance_(
-          base::AsWeakPtr(base::polymorphic_downcast<DOMSettings*>(
-          env_settings)
-          ->window()
-          ->performance().get())),
-    observer_type_(PerformanceObserverType::kUndefined),
-    is_registered_(false) {
+          base::AsWeakPtr(base::polymorphic_downcast<DOMSettings*>(env_settings)
+                              ->window()
+                              ->performance()
+                              .get())),
+      observer_type_(PerformanceObserverType::kUndefined),
+      is_registered_(false) {
   callback_.reset(new ScriptCallback(callback, this));
 }
 
 PerformanceObserver::~PerformanceObserver() {}
 
 void PerformanceObserver::Observe(const PerformanceObserverInit& options,
-    script::ExceptionState* exception_state) {
+                                  script::ExceptionState* exception_state) {
   // The algorithm for registering the observer.
   //   https://www.w3.org/TR/2019/WD-performance-timeline-2-20191024/#observe-method
   // 1.  Let observer be the context object.
@@ -106,8 +110,7 @@ void PerformanceObserver::Observe(const PerformanceObserverInit& options,
   }
   // 4.  If options's entryTypes is present and any other member is also
   // present, then throw a SyntaxError.
-  bool entry_types_present = has_entry_types &&
-     !options.entry_types().empty();
+  bool entry_types_present = has_entry_types && !options.entry_types().empty();
   bool type_present = has_type && !options.type().empty();
   if (entry_types_present && type_present) {
     DOMException::Raise(DOMException::kSyntaxErr, exception_state);
@@ -134,8 +137,7 @@ void PerformanceObserver::Observe(const PerformanceObserverInit& options,
   }
   // 5.3  If observer's observer type is "multiple" and options's type member
   // is present, then throw an InvalidModificationError.
-  if (observer_type_ == PerformanceObserverType::kMultiple &&
-      type_present) {
+  if (observer_type_ == PerformanceObserverType::kMultiple && type_present) {
     DOMException::Raise(DOMException::kInvalidModificationErr, exception_state);
   }
   // 6  If observer's observer type is "multiple", run the following steps:
@@ -153,7 +155,7 @@ void PerformanceObserver::Observe(const PerformanceObserverInit& options,
         entry_types.push_back(entry_type_string);
       } else {
         DLOG(WARNING) << "The entry type " + entry_type_string +
-            " does not exist or isn't supported.";
+                             " does not exist or isn't supported.";
       }
     }
     // 6.3  If the resulting entry types sequence is an empty sequence,
@@ -171,16 +173,16 @@ void PerformanceObserver::Observe(const PerformanceObserverInit& options,
     if (is_registered_) {
       performance_->ReplaceRegisteredPerformanceObserverOptionsList(
           base::WrapRefCounted(this), options);
-    // 6.5  Otherwise, create and append a registered performance observer
-    // object to the list of registered performance observer objects of
-    // relevantGlobal, with observer set to the context object and options list
-    // set to a list containing options as its only item.
+      // 6.5  Otherwise, create and append a registered performance observer
+      // object to the list of registered performance observer objects of
+      // relevantGlobal, with observer set to the context object and options
+      // list set to a list containing options as its only item.
     } else {
-      performance_->RegisterPerformanceObserver(
-          base::WrapRefCounted(this), options);
+      performance_->RegisterPerformanceObserver(base::WrapRefCounted(this),
+                                                options);
       is_registered_ = true;
     }
-  // 7.  Otherwise, run the following steps:
+    // 7.  Otherwise, run the following steps:
   } else {
     // 7.1  Assert that observer's observer type is "single".
     DCHECK(observer_type_ == PerformanceObserverType::kSingle);
@@ -188,10 +190,10 @@ void PerformanceObserver::Observe(const PerformanceObserverInit& options,
     // array of supported entry types, abort these steps. The user agent SHOULD
     // notify developers when this happens, for instance via a console warning.
     PerformanceEntryType options_type =
-          PerformanceEntry::ToEntryTypeEnum(options.type());
+        PerformanceEntry::ToEntryTypeEnum(options.type());
     if (options_type == PerformanceEntry::kInvalid) {
       DLOG(WARNING) << "The type " + options.type() +
-            " does not exist or isn't supported.";
+                           " does not exist or isn't supported.";
       return;
     }
     // 7.3  If the list of registered performance observer objects of
@@ -204,13 +206,13 @@ void PerformanceObserver::Observe(const PerformanceObserverInit& options,
       // 7.3.2  Otherwise, append options to obs's options list.
       performance_->UpdateRegisteredPerformanceObserverOptionsList(
           base::WrapRefCounted(this), options);
-    // 7.4  Otherwise, create and append a registered performance observer
-    // object to the list of registered performance observer objects of
-    // relevantGlobal, with observer set to the context object and options
-    // list set to a list containing options as its only item.
+      // 7.4  Otherwise, create and append a registered performance observer
+      // object to the list of registered performance observer objects of
+      // relevantGlobal, with observer set to the context object and options
+      // list set to a list containing options as its only item.
     } else {
-      performance_->RegisterPerformanceObserver(
-          base::WrapRefCounted(this), options);
+      performance_->RegisterPerformanceObserver(base::WrapRefCounted(this),
+                                                options);
       is_registered_ = true;
     }
   }
