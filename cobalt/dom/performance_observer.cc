@@ -35,6 +35,9 @@ class ScriptCallback : public PerformanceObserver::CallbackInternal {
       : callback_(observer, callback) {}
   bool RunCallback(const scoped_refptr<PerformanceObserverEntryList>& entries,
                    const scoped_refptr<PerformanceObserver>& observer) override {
+    // ScriptCallback's lifetime is bined with JS PerformanceObserver object. We
+    // should not run callback, When JS object has been destroyed.
+    if (callback_.referenced_value().IsNull()) return false;
     script::CallbackResult<void> result = callback_.value().Run(entries, observer);
     return !result.exception;
   }
