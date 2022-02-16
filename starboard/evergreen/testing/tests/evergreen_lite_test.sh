@@ -46,5 +46,11 @@ function run_test() {
     return 1
   fi
 
+  cycle_cobalt "file:///tests/${TEST_FILE}?channel=test" "${TEST_NAME}.2.log" "Loaded WebModule" "--evergreen_lite"
+
+  if [[ $? -ne 0 ]]; then
+    log "error" "Failed to run system installation"
+    return 1
+  fi
   return 0
 }
