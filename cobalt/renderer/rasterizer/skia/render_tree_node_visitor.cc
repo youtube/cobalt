@@ -56,9 +56,15 @@
 #include "third_party/skia/include/core/SkRegion.h"
 #include "third_party/skia/include/core/SkSurface.h"
 #include "third_party/skia/include/core/SkTypeface.h"
+#ifdef USE_SKIA_NEXT
+#include "third_party/skia/include/effects/SkImageFilters.h"
+#else
 #include "third_party/skia/include/effects/SkBlurImageFilter.h"
+#endif
 #include "third_party/skia/include/effects/SkBlurMaskFilter.h"
+#ifndef USE_SKIA_NEXT
 #include "third_party/skia/include/effects/SkDropShadowImageFilter.h"
+#endif
 #include "third_party/skia/include/effects/SkGradientShader.h"
 
 // Setting this define to 1 will enable TRACE_EVENT calls to be made from
@@ -214,8 +220,12 @@ SkPath RoundedRectToSkiaPath(
     const math::RectF& rect,
     const render_tree::RoundedCorners& rounded_corners) {
   SkPath path;
+#ifdef USE_SKIA_NEXT
+  path.addRRect(RoundedRectToSkia(rect, rounded_corners), SkPathDirection::kCW);
+#else
   path.addRRect(RoundedRectToSkia(rect, rounded_corners),
                 SkPath::kCW_Direction);
+#endif
   return path;
 }
 
@@ -246,8 +256,13 @@ void ApplyBlurFilterToPaint(
     SkPaint* paint,
     const base::Optional<render_tree::BlurFilter>& blur_filter) {
   if (blur_filter && blur_filter->blur_sigma() > 0.0f) {
+#ifdef USE_SKIA_NEXT
+    sk_sp<SkImageFilter> skia_blur_filter(SkImageFilters::Blur(
+        blur_filter->blur_sigma(), blur_filter->blur_sigma(), nullptr));
+#else
     sk_sp<SkImageFilter> skia_blur_filter(SkBlurImageFilter::Make(
         blur_filter->blur_sigma(), blur_filter->blur_sigma(), nullptr));
+#endif
     paint->setImageFilter(skia_blur_filter);
   }
 }
@@ -318,9 +333,11 @@ void RenderTreeNodeVisitor::RenderFilterViaOffscreenSurface(
   if (filter_node.opacity_filter) {
     paint.setARGB(filter_node.opacity_filter->opacity() * 255, 255, 255, 255);
   }
+#ifndef USE_SKIA_NEXT
   // Use nearest neighbor when filtering texture data, since the source and
   // destination rectangles should be exactly equal.
   paint.setFilterQuality(kNone_SkFilterQuality);
+#endif
 
   // We've already used the draw_state_.render_target's scale when rendering to
   // the offscreen surface, so reset the scale for now.
@@ -340,8 +357,14 @@ void RenderTreeNodeVisitor::RenderFilterViaOffscreenSurface(
   SkRect source_rect =
       SkRect::MakeWH(surface_bounds.width(), surface_bounds.height());
 
+#ifdef USE_SKIA_NEXT
+  draw_state_.render_target->drawImageRect(image.get(), source_rect, dest_rect,
+                                           SkSamplingOptions(), &paint,
+                                           SkCanvas::kStrict_SrcRectConstraint);
+#else
   draw_state_.render_target->drawImageRect(image.get(), source_rect, dest_rect,
                                            &paint);
+#endif
 
   // Finally restore our parent render target's original transform for the
   // next draw call.
@@ -559,8 +582,10 @@ bool LocalCoordsStaysWithinUnitBox(const math::Matrix3F& mat) {
 SkPaint CreateSkPaintForImageRendering(
     const RenderTreeNodeVisitorDrawState& draw_state, bool is_opaque) {
   SkPaint paint;
+#ifndef USE_SKIA_NEXT
   // |kLow_SkFilterQuality| is used for bilinear interpolation of images.
   paint.setFilterQuality(kLow_SkFilterQuality);
+#endif
 
   if (!IsOpaque(draw_state.opacity)) {
     paint.setAlpha(draw_state.opacity * 255);
@@ -600,8 +625,14 @@ void RenderSinglePlaneImage(SinglePlaneImage* single_plane_image,
 
     if (image) {
       SkRect src = SkRect::MakeXYWH(x, y, width, height);
+#ifdef USE_SKIA_NEXT
+      draw_state->render_target->drawImageRect(
+          image.get(), src, CobaltRectFToSkiaRect(destination_rect),
+          SkSamplingOptions(), &paint, SkCanvas::kStrict_SrcRectConstraint);
+#else
       draw_state->render_target->drawImageRect(
           image, src, CobaltRectFToSkiaRect(destination_rect), &paint);
+#endif
     }
   } else {
     // Use the more general approach which allows arbitrary local texture
@@ -612,8 +643,14 @@ void RenderSinglePlaneImage(SinglePlaneImage* single_plane_image,
                                                   &skia_local_transform);
 
     if (image) {
+#ifdef USE_SKIA_NEXT
+      sk_sp<SkShader> image_shader =
+          image->makeShader(SkTileMode::kRepeat, SkTileMode::kRepeat,
+                            SkSamplingOptions(), &skia_local_transform);
+#else
       sk_sp<SkShader> image_shader = image->makeShader(
           SkTileMode::kRepeat, SkTileMode::kRepeat, &skia_local_transform);
+#endif
 
       paint.setShader(image_shader);
 
@@ -1335,7 +1372,6 @@ void DrawSolidRoundedRectBorderByEdge(
     DCHECK_EQ(border.top.style, render_tree::kBorderStyleNone);
   }
 
-
   // Left
   if (border.left.style == render_tree::kBorderStyleSolid) {
     SkPoint left_points[4] = {top_left_outer, bottom_left_outer,   // A, C
@@ -1347,7 +1383,6 @@ void DrawSolidRoundedRectBorderByEdge(
   } else {
     DCHECK_EQ(border.left.style, render_tree::kBorderStyleNone);
   }
-
 
   // Bottom
   if (border.bottom.style == render_tree::kBorderStyleSolid) {
@@ -1361,7 +1396,6 @@ void DrawSolidRoundedRectBorderByEdge(
   } else {
     DCHECK_EQ(border.bottom.style, render_tree::kBorderStyleNone);
   }
-
 
   // Right
   if (border.right.style == render_tree::kBorderStyleSolid) {
@@ -1418,9 +1452,16 @@ void DrawSolidRoundedRectBorderSoftware(
   canvas.flush();
 
   SkPaint render_target_paint;
+#ifdef USE_SKIA_NEXT
+  bitmap.setImmutable();
+  sk_sp<SkImage> image = SkImage::MakeFromBitmap(bitmap);
+  draw_state->render_target->drawImage(
+      image, rect.x(), rect.y(), SkSamplingOptions(), &render_target_paint);
+#else
   render_target_paint.setFilterQuality(kNone_SkFilterQuality);
   draw_state->render_target->drawBitmap(bitmap, rect.x(), rect.y(),
                                         &render_target_paint);
+#endif
 }
 
 void DrawSolidRoundedRectBorder(
@@ -1739,7 +1780,9 @@ void RenderText(SkCanvas* render_target,
     if (blur_sigma > 0.0f) {
       sk_sp<SkMaskFilter> mf(
           SkMaskFilter::MakeBlur(kNormal_SkBlurStyle, blur_sigma));
+#ifndef USE_SKIA_NEXT
       paint.setFilterQuality(SkFilterQuality::kHigh_SkFilterQuality);
+#endif
       paint.setMaskFilter(mf);
     }
 

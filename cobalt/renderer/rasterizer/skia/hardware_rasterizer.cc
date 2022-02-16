@@ -153,7 +153,11 @@ namespace {
 
 SkSurfaceProps GetRenderTargetSurfaceProps(bool force_deterministic_rendering) {
   uint32_t flags = 0;
+#ifdef USE_SKIA_NEXT
+  return SkSurfaceProps(flags, kUnknown_SkPixelGeometry);
+#else
   return SkSurfaceProps(flags, SkSurfaceProps::kLegacyFontHost_InitType);
+#endif
 }
 
 // Takes meta-data from a Cobalt RenderTarget object and uses it to fill out
@@ -513,11 +517,17 @@ void HardwareRasterizer::Impl::RenderTextureEGL(
                                         model_view_projection_matrix);
   }
 
-  // Let Skia know that we've modified GL state.
+// Let Skia know that we've modified GL state.
+#ifdef USE_SKIA_NEXT
+  uint32_t untouched_states =
+      kMSAAEnable_GrGLBackendState | kStencil_GrGLBackendState |
+      kPixelStore_GrGLBackendState | kFixedFunction_GrGLBackendState;
+#else
   uint32_t untouched_states =
       kMSAAEnable_GrGLBackendState | kStencil_GrGLBackendState |
       kPixelStore_GrGLBackendState | kFixedFunction_GrGLBackendState |
       kPathRendering_GrGLBackendState;
+#endif
   gr_context_->resetContext(~untouched_states & kAll_GrBackendState);
 }
 
