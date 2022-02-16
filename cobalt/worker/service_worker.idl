@@ -15,15 +15,16 @@
 // https://w3c.github.io/ServiceWorker/#serviceworker-interface
 
 [Exposed = (Window, ServiceWorker)] interface ServiceWorker : EventTarget {
-  // Todo: Implement postMessage
+
+  // Todo: Implement postMessage b/219986442
   // void postMessage(any message, sequence<object> transfer);
   // void postMessage(any message, optional PostMessageOptions options = {});
 
   readonly attribute USVString scriptURL;
   readonly attribute ServiceWorkerState state;
 
-  // attribute EventHandler onstatechange;
+  // event
+  attribute EventHandler onstatechange;
 };
 
-// Todo: Implement abstractWorker
-// ServiceWorker includes AbstractWorker;
+ServiceWorker implements AbstractWorker;

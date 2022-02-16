@@ -20,32 +20,55 @@
 #include <utility>
 
 #include "cobalt/dom/event_target.h"
+#include "cobalt/dom/event_target_listener_info.h"
+#include "cobalt/script/environment_settings.h"
 #include "cobalt/script/wrappable.h"
+#include "cobalt/worker/abstract_worker.h"
 #include "cobalt/worker/service_worker_state.h"
-#include "url/gurl.h"
 
 namespace cobalt {
 namespace worker {
 
-class ServiceWorker : public dom::EventTarget {
+class ServiceWorker : public AbstractWorker, public dom::EventTarget {
  public:
   struct Options {
-    explicit Options(ServiceWorkerState state, GURL url)
-        : state(state), url(std::move(url)) {}
+    explicit Options(ServiceWorkerState state, const std::string scriptURL)
+        : state(state), script_url(std::move(scriptURL)) {}
     ServiceWorkerState state;
-    GURL url;
+    const std::string script_url;
   };
 
   explicit ServiceWorker(script::EnvironmentSettings* settings,
                          const Options& options);
-  ~ServiceWorker() override = default;
-  std::string script_url() const;
+
+  // The scriptURL getter steps are to return the
+  // service worker's serialized script url.
+  std::string script_url() const { return script_url_; }
   ServiceWorkerState state() const { return state_; }
+
+  const EventListenerScriptValue* onstatechange() const {
+    return GetAttributeEventListener(base::Tokens::statechange());
+  }
+  void set_onstatechange(const EventListenerScriptValue& event_listener) {
+    SetAttributeEventListener(base::Tokens::statechange(), event_listener);
+  }
+
+  // Web API: Abstract Worker
+  //
+  const EventListenerScriptValue* onerror() const override {
+    return GetAttributeEventListener(base::Tokens::error());
+  }
+  void set_onerror(const EventListenerScriptValue& event_listener) override {
+    SetAttributeEventListener(base::Tokens::error(), event_listener);
+  }
 
   DEFINE_WRAPPABLE_TYPE(ServiceWorker);
 
  private:
-  const GURL url_;
+  ~ServiceWorker() override = default;
+  DISALLOW_COPY_AND_ASSIGN(ServiceWorker);
+
+  const std::string script_url_;
   ServiceWorkerState state_;
 };
 

@@ -120,6 +120,7 @@ namespace base {
     MacroOpWithNameOnly(sourceended)                                 \
     MacroOpWithNameOnly(sourceopen)                                  \
     MacroOpWithNameOnly(start)                                       \
+    MacroOpWithNameOnly(statechange)                                 \
     MacroOpWithNameOnly(stop)                                        \
     MacroOpWithNameOnly(storage)                                     \
     MacroOpWithNameOnly(stalled)                                     \

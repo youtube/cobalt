@@ -22,12 +22,9 @@ namespace worker {
 
 ServiceWorker::ServiceWorker(script::EnvironmentSettings* settings,
                              const Options& options)
-    : dom::EventTarget(settings), url_(options.url), state_(options.state) {}
-
-std::string ServiceWorker::script_url() const {
-  // Todo: return real URL.
-  return "";
-}
+    : dom::EventTarget(settings),
+      script_url_(options.script_url),
+      state_(options.state) {}
 
 }  // namespace worker
 }  // namespace cobalt
