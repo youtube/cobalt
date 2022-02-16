@@ -109,9 +109,9 @@ void LoadLibraryAndInitialize(const std::string& alternative_content_path,
   library_path += kSbFileSepString;
 
   if (use_compression) {
-    library_path = kSystemImageCompressedLibraryPath;
+    library_path += kSystemImageCompressedLibraryPath;
   } else {
-    library_path = kSystemImageLibraryPath;
+    library_path += kSystemImageLibraryPath;
   }
 
   if (!g_elf_loader.Load(library_path, content_path, false, nullptr,
