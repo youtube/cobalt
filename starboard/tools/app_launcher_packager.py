@@ -37,14 +37,14 @@ sys.path.append(THIRD_PARTY_ROOT)
 from starboard.tools import command_line
 from starboard.tools import log_level
 from starboard.tools import port_symlink
-import starboard.tools.platform
+import starboard.tools.starboard_platform
 
 # Default directories to app launcher resources.
 _INCLUDE_FILE_PATTERNS = [
     ('cobalt', '*.py'),
     ('starboard', '*.py'),
     ('starboard', '*.pfx'),
-    ('starboard/tools', 'platform.py.template'),
+    ('starboard/tools', 'starboard_platform.py.template'),
     # Just match everything since the Evergreen tests are written using shell
     # scripts and html files.
     ('starboard/evergreen/testing', '*')
@@ -108,13 +108,15 @@ def _FindFilesRecursive(  # pylint: disable=missing-docstring
 
 
 def _WritePlatformsInfo(repo_root, dest_root):
-  """Get platforms' information and write the platform.py based on a template.
+  """
+  Get platforms' information and write the starboard_platform.py based on a
+  template.
 
   Platform.py is responsible for enumerating all supported platforms in the
   Cobalt source tree.  Since we are extracting the app launcher script from the
   Cobalt source tree, this function records which platforms are supported while
   the Cobalt source tree is still available and bakes them in to a newly created
-  platform.py file that does not depend on the Cobalt source tree.
+  starboard_platform.py file that does not depend on the Cobalt source tree.
 
   Args:
     repo_root: Absolute path to the root of the repository where platforms'
@@ -127,15 +129,15 @@ def _WritePlatformsInfo(repo_root, dest_root):
   current_dir = os.path.dirname(current_file)
   dest_dir = os.path.join(dest_root, 'starboard', 'tools')
   platforms_map = {}
-  for p in starboard.tools.platform.GetAll():
+  for p in starboard.tools.starboard_platform.GetAll():
     platform_path = os.path.relpath(
-        starboard.tools.platform.Get(p).path, repo_root)
+        starboard.tools.starboard_platform.Get(p).path, repo_root)
     # Store posix paths even on Windows so MH Linux hosts can use them.
     # The template has code to re-normalize them when used on Windows hosts.
     platforms_map[p] = platform_path.replace('\\', '/')
-  with open(os.path.join(current_dir, 'platform.py.template')) as c:
+  with open(os.path.join(current_dir, 'starboard_platform.py.template')) as c:
     template = string.Template(c.read())
-    with open(os.path.join(dest_dir, 'platform.py'), 'w+') as f:
+    with open(os.path.join(dest_dir, 'starboard_platform.py'), 'w+') as f:
       sub = template.substitute(platforms_map=platforms_map)
       f.write(sub.encode('utf-8'))
   logging.info('Finished baking in platform info files.')

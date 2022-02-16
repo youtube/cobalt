@@ -24,7 +24,7 @@ import sys
 import _env  # pylint: disable=unused-import
 from starboard.tools import config
 from starboard.tools import paths
-from starboard.tools import platform
+from starboard.tools import starboard_platform
 from starboard.tools import download_clang
 
 _STARBOARD_TOOLCHAINS_DIR_KEY = 'STARBOARD_TOOLCHAINS_DIR'
@@ -57,12 +57,12 @@ def _CheckConfig(key, raw_value, value):
 
 
 def _CheckPlatform(key, raw_value, value):
-  if platform.IsValid(value):
+  if starboard_platform.IsValid(value):
     return True
 
   logging.warning("Environment variable '%s' is '%s', which is invalid.", key,
                   raw_value)
-  logging.warning('Valid platforms: %s', platform.GetAll())
+  logging.warning('Valid platforms: %s', starboard_platform.GetAll())
   return False
 
 
@@ -216,9 +216,9 @@ def _LoadPlatformModule(platform_name, file_name, function_name):
   """
   try:
     logging.debug('Loading platform %s for "%s".', file_name, platform_name)
-    if platform.IsValid(platform_name):
+    if starboard_platform.IsValid(platform_name):
       platform_path = os.path.join(paths.REPOSITORY_ROOT,
-                                   platform.Get(platform_name).path)
+                                   starboard_platform.Get(platform_name).path)
       module_path = os.path.join(platform_path, file_name)
       if not _ModuleLoaded('platform_module', module_path):
         platform_module = imp.load_source('platform_module', module_path)

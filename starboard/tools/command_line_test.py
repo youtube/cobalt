@@ -23,10 +23,10 @@ import unittest
 import _env  # pylint: disable=unused-import
 from starboard.tools import command_line
 import starboard.tools.config
-import starboard.tools.platform
+import starboard.tools.starboard_platform
 
 _A_CONFIG = starboard.tools.config.GetAll()[0]
-_A_PLATFORM = starboard.tools.platform.GetAll()[0]
+_A_PLATFORM = starboard.tools.starboard_platform.GetAll()[0]
 
 
 def _RestoreMapping(target, source):
