@@ -330,6 +330,7 @@
         '../web_animations/animation_playback_direction.idl',
         '../websocket/close_event_init.idl',
         '../worker/navigation_preload_state.idl',
+        '../worker/registration_options.idl',
         '../worker/service_worker_state.idl',
         '../worker/service_worker_update_via_cache.idl',
         '../worker/structured_serialize_options.idl',

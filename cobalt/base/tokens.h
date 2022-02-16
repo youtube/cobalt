@@ -46,6 +46,7 @@ namespace base {
     MacroOpWithNameOnly(click)                                       \
     MacroOpWithNameOnly(close)                                       \
     MacroOpWithNameOnly(complete)                                    \
+    MacroOpWithNameOnly(controllerchange)                            \
     MacroOpWithNameOnly(dataavailable)                               \
     MacroOpWithNameOnly(deviceorientation)                           \
     MacroOpWithNameOnly(durationchange)                              \

@@ -328,6 +328,7 @@ generated_header_idl_files = [
   "//cobalt/web_animations/animation_playback_direction.idl",
   "//cobalt/websocket/close_event_init.idl",
   "//cobalt/worker/navigation_preload_state.idl",
+  "//cobalt/worker/registration_options.idl",
   "//cobalt/worker/service_worker_state.idl",
   "//cobalt/worker/service_worker_update_via_cache.idl",
   "//cobalt/worker/structured_serialize_options.idl",

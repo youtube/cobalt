@@ -16,26 +16,65 @@
 #define COBALT_WORKER_SERVICE_WORKER_CONTAINER_H_
 
 #include <memory>
+#include <string>
 
+#include "cobalt/dom/event_target.h"
+#include "cobalt/dom/event_target_listener_info.h"
 #include "cobalt/script/promise.h"
 #include "cobalt/script/script_value.h"
 #include "cobalt/script/script_value_factory.h"
 #include "cobalt/script/wrappable.h"
+#include "cobalt/worker/registration_options.h"
+#include "cobalt/worker/service_worker_registration.h"
 
 namespace cobalt {
 namespace worker {
 
-class ServiceWorkerContainer : public script::Wrappable {
+class ServiceWorkerContainer : public dom::EventTarget {
  public:
-  explicit ServiceWorkerContainer(
-      script::ScriptValueFactory* script_value_factory);
+  ServiceWorkerContainer(script::EnvironmentSettings* settings,
+                         script::ScriptValueFactory* script_value_factory);
 
-  script::Handle<script::Promise<void>> Register();
+  scoped_refptr<ServiceWorker> controller() { return controller_; }
+  script::Handle<script::Promise<void>> ready();
+
+  script::Handle<script::Promise<void>> Register(const std::string& url);
+  script::Handle<script::Promise<void>> Register(
+      const std::string& url, const RegistrationOptions& options);
+  script::Handle<script::Promise<void>> GetRegistration(const std::string& url);
+  script::Handle<script::Promise<void>> GetRegistrations();
+
+  void StartMessages();
+
+  const EventListenerScriptValue* oncontrollerchange() const {
+    return GetAttributeEventListener(base::Tokens::controllerchange());
+  }
+  void set_oncontrollerchange(const EventListenerScriptValue& event_listener) {
+    SetAttributeEventListener(base::Tokens::controllerchange(), event_listener);
+  }
+
+  const EventListenerScriptValue* onmessage() const {
+    return GetAttributeEventListener(base::Tokens::message());
+  }
+  void set_onmessage(const EventListenerScriptValue& event_listener) {
+    SetAttributeEventListener(base::Tokens::message(), event_listener);
+  }
+
+  const EventListenerScriptValue* onmessageerror() const {
+    return GetAttributeEventListener(base::Tokens::messageerror());
+  }
+  void set_onmessageerror(const EventListenerScriptValue& event_listener) {
+    SetAttributeEventListener(base::Tokens::messageerror(), event_listener);
+  }
 
   DEFINE_WRAPPABLE_TYPE(ServiceWorkerContainer);
 
  private:
+  scoped_refptr<ServiceWorker> controller_;
+  scoped_refptr<ServiceWorker> ready_;
   script::ScriptValueFactory* script_value_factory_;
+
+  ~ServiceWorkerContainer() override = default;
 };
 
 }  // namespace worker

@@ -12,20 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// https://w3c.github.io/ServiceWorker/#serviceworkercontainer-interface
-
-[Exposed = Window] interface ServiceWorkerContainer : EventTarget {
-  readonly attribute ServiceWorker ? controller;
-  readonly attribute Promise<ServiceWorkerRegistration> ready;
-
-  Promise<void> register(USVString url,
-                         optional RegistrationOptions options);
-  Promise<void> getRegistration(optional USVString documentURL = "");
-  Promise<void> getRegistrations();
-
-  void startMessages();
-
-  attribute EventHandler oncontrollerchange;
-  attribute EventHandler onmessage;
-  attribute EventHandler onmessageerror;
+// https://w3c.github.io/ServiceWorker/#dictdef-registrationoptions
+dictionary RegistrationOptions {
+    USVString scope;
+    WorkerType type = "classic";
+    ServiceWorkerUpdateViaCache updateViaCache = "imports";
 };

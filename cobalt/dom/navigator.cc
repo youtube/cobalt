@@ -157,7 +157,8 @@ Navigator::Navigator(
       plugins_(new PluginArray()),
       media_devices_(
           new media_capture::MediaDevices(settings, script_value_factory)),
-      service_worker_(new worker::ServiceWorkerContainer(script_value_factory)),
+      service_worker_(
+          new worker::ServiceWorkerContainer(settings, script_value_factory)),
       system_caption_settings_(captions),
       script_value_factory_(script_value_factory) {}
 
