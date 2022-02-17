@@ -50,3 +50,5 @@ cobalt_platform_dependencies =
     [ "//starboard/android/shared/cobalt:cobalt_platform" ]
 
 cobalt_font_package = "android_system"
+
+separate_install_targets_for_bundling = true

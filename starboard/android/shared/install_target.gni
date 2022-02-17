@@ -30,7 +30,7 @@ template("install_target") {
     ]
 
     target_output = "$root_out_dir/lib${installable_target_name}.so"
-    gradle_content_dir = "$sb_install_output_dir/$sb_install_content_subdir"
+    gradle_content_dir = "$sb_install_output_dir/$installable_target_name/$sb_install_content_subdir"
     gradle_files_dir = "$root_out_dir/gradle/$installable_target_name"
     if (is_gold) {
       gradle_build_type = "release"

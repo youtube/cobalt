@@ -141,4 +141,7 @@ declare_args() {
   use_thin_archive = true
 
   sb_use_no_rtti = false
+
+  # Set to true to separate install target directories.
+  separate_install_targets_for_bundling = false
 }
