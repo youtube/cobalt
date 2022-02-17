@@ -17,6 +17,7 @@
 #include <cmath>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "base/bind.h"
@@ -2080,6 +2081,32 @@ TEST_F(ParserTest, ParsesBackgroundColor) {
           style->GetPropertyValue(cssom::kBackgroundColorProperty).get());
   ASSERT_TRUE(background_color);
   EXPECT_EQ(0xffffffff, background_color->value());
+}
+
+TEST_F(ParserTest, ParsesBackgroundColorHsl) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList(
+          "background-color: hsl(100, 100%, 50%);", source_location_);
+
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundColorProperty));
+  scoped_refptr<cssom::RGBAColorValue> background_color =
+      dynamic_cast<cssom::RGBAColorValue*>(
+          style->GetPropertyValue(cssom::kBackgroundColorProperty).get());
+  ASSERT_TRUE(background_color);
+  EXPECT_EQ(0x54ff00ff, background_color->value());
+}
+
+TEST_F(ParserTest, ParsesBackgroundColorHsla) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList(
+          "background-color: hsla(100, 100%, 50%, 0.8);", source_location_);
+
+  ASSERT_TRUE(style->IsDeclared(cssom::kBackgroundColorProperty));
+  scoped_refptr<cssom::RGBAColorValue> background_color =
+      dynamic_cast<cssom::RGBAColorValue*>(
+          style->GetPropertyValue(cssom::kBackgroundColorProperty).get());
+  ASSERT_TRUE(background_color);
+  EXPECT_EQ(0x54ff00cc, background_color->value());
 }
 
 TEST_F(ParserTest, ParsesBackgroundColorWithKeywordAqua) {

@@ -394,6 +394,8 @@
 %token kCubicBezierFunctionToken        // cubic-bezier(
 %token kCueFunctionToken                // cue(
 %token kFormatFunctionToken             // format(
+%token kHslFunctionToken                // hsl(
+%token kHslaFunctionToken               // hsla(
 %token kLinearGradientFunctionToken     // linear-gradient(
 %token kLocalFunctionToken              // local(
 %token kMapToMeshFunctionToken          // map-to-mesh(
@@ -2750,6 +2752,25 @@ color:
     float a = $9;  // Already clamped.
     $$ = AddRef(
         new cssom::RGBAColorValue(r, g, b, static_cast<uint8>(a * 0xff)));
+  }
+  // HSL color model.
+  //   https://www.w3.org/TR/css-color-3/#hsl-color
+  | kHslFunctionToken maybe_whitespace integer comma positive_percentage comma
+      positive_percentage ')' {
+    uint8 h = static_cast<uint8>(ClampToRange(0, 360, $3));
+    $$ = AddRef(cssom::RGBAColorValue::FromHsla(h,
+      MakeScopedRefPtrAndRelease($5), MakeScopedRefPtrAndRelease($7), 0xff)
+        .get());
+  }
+  // HSLA color model.
+  //   https://www.w3.org/TR/css-color-3/#hsla-color
+  | kHslaFunctionToken maybe_whitespace integer comma positive_percentage comma
+      positive_percentage comma alpha')' {
+    uint8 h = static_cast<uint8>(ClampToRange(0, 360, $3));
+    float a = $9;  // Already clamped.
+    $$ = AddRef(cssom::RGBAColorValue::FromHsla(h,
+      MakeScopedRefPtrAndRelease($5), MakeScopedRefPtrAndRelease($7),
+      static_cast<uint8>(a * 0xff)).get());
   }
   | kAquaToken maybe_whitespace {
     $$ = AddRef(cssom::RGBAColorValue::GetAqua().get());

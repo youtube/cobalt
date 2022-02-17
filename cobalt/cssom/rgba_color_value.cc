@@ -85,6 +85,60 @@ struct NonTrivialStaticFields {
   DISALLOW_COPY_AND_ASSIGN(NonTrivialStaticFields);
 };
 
+// Algorithm is adapted from
+// https://github.com/google/closure-library/blob/master/closure/goog/color/color.js#L297
+static float HueToRgb(float p, float q, float hue) {
+  const float one_sixth = 1.f / 6;
+  const float half = 1.f / 2;
+  const float two_third = 2.f / 3;
+
+  if (hue < 0) hue += 1;
+  if (hue > 1) hue -= 1;
+  if (hue < one_sixth) return p + (q - p) * 6 * hue;
+  if (hue < half) return q;
+  if (hue < two_third) return p + (q - p) * (two_third - hue) * 6;
+  return p;
+}
+
+scoped_refptr<RGBAColorValue> RGBAColorValue::FromHsla(int h, float s, float l,
+                                                       uint8 a) {
+  DCHECK_GE(h, 0);
+  DCHECK_LE(h, 360);
+  DCHECK_GE(s, 0);
+  DCHECK_LE(s, 1);
+  DCHECK_GE(l, 0);
+  DCHECK_LE(l, 1);
+
+  float h_norm = static_cast<float>(h) / 360;
+
+  float r = 0;
+  float g = 0;
+  float b = 0;
+
+  if (fabs(s) < 0.0000001) {
+    r = l;
+    g = l;
+    b = l;
+  } else {
+    float q = (l < 0.5) ? l * (1 + s) : l + s - l * s;
+    float p = 2 * l - q;
+
+    const float one_third = 1.f / 3;
+    r = HueToRgb(p, q, h_norm + one_third);
+    g = HueToRgb(p, q, h_norm);
+    b = HueToRgb(p, q, h_norm - one_third);
+  }
+
+  return base::MakeRefCounted<RGBAColorValue>(static_cast<uint8>(r * 0xff),
+                                              static_cast<uint8>(g * 0xff),
+                                              static_cast<uint8>(b * 0xff), a);
+}
+
+scoped_refptr<RGBAColorValue> RGBAColorValue::FromHsla(
+    int h, cssom::PercentageValue* s, cssom::PercentageValue* l, uint8 a) {
+  return FromHsla(h, s->value(), l->value(), a);
+}
+
 namespace {
 
 base::LazyInstance<NonTrivialStaticFields>::DestructorAtExit

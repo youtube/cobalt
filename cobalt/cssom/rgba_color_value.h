@@ -20,6 +20,7 @@
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "cobalt/base/polymorphic_equatable.h"
+#include "cobalt/cssom/percentage_value.h"
 #include "cobalt/cssom/property_value.h"
 
 namespace cobalt {
@@ -35,7 +36,7 @@ class PropertyValueVisitor;
 //   - hsl(120, 75%, 75%)
 //   - fuchsia
 //
-// The data is maintained as a 32 bit integer layed out as RRGGBBAA, with
+// The data is maintained as a 32 bit integer laid out as RRGGBBAA, with
 // the red bytes being the most significant.
 //
 // Applies to properties such as background-color, color, etc.
@@ -60,6 +61,13 @@ class RGBAColorValue : public PropertyValue {
   static const scoped_refptr<RGBAColorValue>& GetTransparent();
   static const scoped_refptr<RGBAColorValue>& GetWhite();
   static const scoped_refptr<RGBAColorValue>& GetYellow();
+
+  static scoped_refptr<RGBAColorValue> FromHsla(int h,
+                                                cssom::PercentageValue* s,
+                                                cssom::PercentageValue* l,
+                                                uint8 a);
+  static scoped_refptr<RGBAColorValue> FromHsla(int h, float s, float l,
+                                                uint8 a);
 
   explicit RGBAColorValue(uint32 value) : value_(value) {}
 
