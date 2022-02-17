@@ -16,6 +16,7 @@
 #define COBALT_AUDIO_AUDIO_FILE_READER_WAV_H_
 
 #include <memory>
+#include <utility>
 
 #include "cobalt/audio/audio_file_reader.h"
 #include "cobalt/audio/audio_helpers.h"
@@ -47,7 +48,7 @@ class AudioFileReaderWAV : public AudioFileReader {
   void ParseChunks(const uint8* data, size_t size);
   bool ParseWAV_fmt(const uint8* data, size_t offset, size_t size,
                     bool* is_src_sample_in_float);
-  bool ParseWAV_data(const uint8* data, size_t offset, size_t size,
+  void ParseWAV_data(const uint8* data, size_t offset, size_t size,
                      bool is_src_sample_in_float);
 
   bool is_valid() { return audio_bus_ != NULL; }
