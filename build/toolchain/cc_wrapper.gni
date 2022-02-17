@@ -42,8 +42,13 @@ if (is_starboard && cc_wrapper == "") {
   if (host_os == "win" && cobalt_fastbuild) {
     cc_wrapper = "sccache.exe"
   } else if (host_os != "win") {
-    cc_wrapper = "ccache"
+    if (using_sccache) {
+      cc_wrapper = "sccache"
+    } else {
+      cc_wrapper = "ccache"
+    }
   }
+  print("Build Accelerator: " + cc_wrapper)
 }
 
 assert(!use_goma || cc_wrapper == "",
