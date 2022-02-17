@@ -115,6 +115,9 @@ def main(argv):
 
   log_level.InitializeLogging(options)
 
+  print('Note: GN is now the default build system for cobalt.')
+  print('Please use cobalt/build/gn.py to generate the build files.')
+
   if os.environ.get('GYP_DEFINES'):
     logging.error('GYP_DEFINES environment variable is not supported.')
     return RETVAL_ERROR

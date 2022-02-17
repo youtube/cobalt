@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # Copyright 2021 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -38,9 +39,12 @@ def main(out_directory: str, platform: str, build_type: str,
 
   if overwrite_args or not os.path.exists(dst_args_gn_file):
     shutil.copy(src_args_gn_file, dst_args_gn_file)
-
     with open(dst_args_gn_file, 'a') as f:
       f.write(f'build_type = "{build_type}"\n')
+  else:
+    print(f'{dst_args_gn_file} already exists.' +
+          ' Running ninja will regenerate build files automatically.')
+
   extra_args = []
   if check_dependencies:
     extra_args += ['--check']
