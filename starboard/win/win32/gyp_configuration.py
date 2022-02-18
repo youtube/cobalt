@@ -20,7 +20,7 @@ import logging
 import os
 import sys
 
-import _env  # pylint: disable=unused-import
+import _env  # pylint: disable=unused-import, syntax-error
 from starboard.shared.win32 import gyp_configuration
 
 try:
