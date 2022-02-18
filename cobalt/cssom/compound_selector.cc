@@ -16,6 +16,7 @@
 
 #include <algorithm>
 #include <memory>
+#include <utility>
 
 #include "cobalt/cssom/pseudo_element.h"
 #include "cobalt/cssom/selector_visitor.h"
@@ -36,6 +37,12 @@ bool SimpleSelectorsLessThan(const std::unique_ptr<SimpleSelector>& lhs,
     return true;
   }
   if (rhs->text() < lhs->text()) {
+    return false;
+  }
+  if (lhs->value() < rhs->value()) {
+    return true;
+  }
+  if (rhs->value() < lhs->value()) {
     return false;
   }
 
