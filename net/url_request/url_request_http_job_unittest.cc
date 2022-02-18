@@ -282,7 +282,6 @@ TEST(URLRequestHttpJobWithProxy, TestSuccessfulWithOneProxy) {
   // When request fails due to proxy connection errors, the proxy server should
   // still be set on the |request|.
   EXPECT_EQ(proxy_server, request->proxy_server());
-#ifndef HTTP_CACHE_DISABLED_FOR_STARBOARD
   // This bool is set by HttpNetworkTransaction but not by HTTPCacheTransaction.
   // If Cobalt use HTTPNetworkLayer instead of HTTPCache as the transaction
   // factory, the behavior is then different in this case.
@@ -292,7 +291,6 @@ TEST(URLRequestHttpJobWithProxy, TestSuccessfulWithOneProxy) {
   // But since the request fails here, was_fetched_via_proxy is meaningless and
   // unimportant.
   EXPECT_FALSE(request->was_fetched_via_proxy());
-#endif
   EXPECT_EQ(0, request->received_response_content_length());
   EXPECT_EQ(CountWriteBytes(writes), request->GetTotalSentBytes());
   EXPECT_EQ(0, request->GetTotalReceivedBytes());
@@ -491,7 +489,7 @@ TEST_F(URLRequestHttpJobWithMockSocketsTest, TestSuccessfulHeadWithContent) {
             network_delegate_.total_network_bytes_received());
 }
 
-#if !defined(HTTP_CACHE_DISABLED_FOR_STARBOARD)
+#if !defined(HTTP_CACHE_TESTING_DISABLED)
 TEST_F(URLRequestHttpJobWithMockSocketsTest, TestSuccessfulCachedHeadRequest) {
   // Cache the response.
   {

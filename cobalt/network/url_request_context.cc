@@ -16,6 +16,8 @@
 
 #include <memory>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/configuration/configuration.h"
@@ -167,8 +169,24 @@ URLRequestContext::URLRequestContext(
 
   storage_.set_http_network_session(
       std::make_unique<net::HttpNetworkSession>(params, context));
-  storage_.set_http_transaction_factory(std::unique_ptr<net::HttpNetworkLayer>(
-      new net::HttpNetworkLayer(storage_.http_network_session())));
+  std::vector<char> path(kSbFileMaxPath, 0);
+  if (!SbSystemGetPath(kSbSystemPathCacheDirectory, path.data(),
+                       kSbFileMaxPath)) {
+    storage_.set_http_transaction_factory(
+        std::unique_ptr<net::HttpNetworkLayer>(
+            new net::HttpNetworkLayer(storage_.http_network_session())));
+  } else {
+    // TODO: Set max size of cache in Starboard.
+    const int cache_size_mb = 24;
+    auto http_cache = std::make_unique<net::HttpCache>(
+        storage_.http_network_session(),
+        std::make_unique<net::HttpCache::DefaultBackend>(
+            net::DISK_CACHE, net::CACHE_BACKEND_COBALT,
+            base::FilePath(std::string(path.data())),
+            /* max_bytes */ 1024 * 1024 * cache_size_mb),
+        true);
+    storage_.set_http_transaction_factory(std::move(http_cache));
+  }
 
   auto* job_factory = new net::URLRequestJobFactoryImpl();
   job_factory->SetProtocolHandler(url::kDataScheme,

@@ -174,11 +174,9 @@ bool URLRequestContext::OnMemoryDump(
     HttpNetworkSession* network_session = transaction_factory->GetSession();
     if (network_session)
       network_session->DumpMemoryStats(pmd, dump->absolute_name());
-#ifndef HTTP_CACHE_DISABLED_FOR_STARBOARD
     HttpCache* http_cache = transaction_factory->GetCache();
     if (http_cache)
       http_cache->DumpMemoryStats(pmd, dump->absolute_name());
-#endif
   }
   if (cookie_store_) {
     cookie_store_->DumpMemoryStats(pmd, dump->absolute_name());
