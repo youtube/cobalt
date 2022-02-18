@@ -40,13 +40,14 @@ def copy_files(files_to_copy, base_dir, output_dir):
     # if not os.path.isfile(path):
     #   raise InvalidArgumentException(path + ' is not a file.')
 
-    # Get the path of the file relative to the source base_dir.
-    rel_path = os.path.relpath(path, base_dir)
-
     # In certain cases, files would fail to open on windows if relative paths
     # were provided.  Using absolute paths fixes this.
-    filename = os.path.abspath(os.path.join(base_dir, rel_path))
+    filename = os.path.abspath(path)
+
+    # Get the path of the file relative to the source base_dir.
+    rel_path = os.path.relpath(path, base_dir)
     output_dir = os.path.abspath(output_dir)
+    # Use rel_path to preserve the input folder structure in the output.
     output_filename = os.path.abspath(os.path.join(output_dir, rel_path))
 
     # In cases where a directory has turned into a file or vice versa, delete it
