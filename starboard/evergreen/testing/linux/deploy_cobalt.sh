@@ -20,11 +20,20 @@ function deploy_cobalt() {
     exit 1
   fi
 
-  echo " Checking '${OUT}'"
+  declare staging_dir=""
+  if [[ -e "${OUT}/deploy/loader_app" ]]; then
+    # Expected after launcher is run for a GYP build.
+    staging_dir="${OUT}/deploy/loader_app"
+  else
+    # Expected after launcher is run for a GN build.
+    staging_dir="${OUT}"
+  fi
 
-  PATHS=("${OUT}/deploy/loader_app/loader_app"                          \
-         "${OUT}/deploy/loader_app/content/app/cobalt/lib/libcobalt.so" \
-         "${OUT}/deploy/loader_app/content/app/cobalt/content/")
+  echo " Checking '${staging_dir}'"
+
+  PATHS=("${staging_dir}/loader_app"                          \
+         "${staging_dir}/content/app/cobalt/lib/libcobalt.so" \
+         "${staging_dir}/content/app/cobalt/content/")
 
   for file in "${PATHS[@]}"; do
     if [[ ! -e "${file}" ]]; then
@@ -33,15 +42,15 @@ function deploy_cobalt() {
     fi
   done
 
-  echo " Required files were found within '${OUT}'"
+  echo " Required files were found within '${staging_dir}'"
 
   echo " Deploying Cobalt on local device"
 
   echo " Generating HTML test directory"
-  eval "mkdir -p ${OUT}/deploy/loader_app/content/app/cobalt/content/web/tests/" 1> /dev/null
+  eval "mkdir -p ${staging_dir}/content/app/cobalt/content/web/tests/" 1> /dev/null
 
   echo " Copying HTML test files to HTML test directory"
-  eval "cp ${1}/../tests/*.html ${OUT}/deploy/loader_app/content/app/cobalt/content/web/tests/" 1> /dev/null
+  eval "cp ${1}/../tests/*.html ${staging_dir}/content/app/cobalt/content/web/tests/" 1> /dev/null
 
   clear_storage
 
