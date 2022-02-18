@@ -193,22 +193,22 @@ jobs:
           ninja -v -j 8 -C $GITHUB_WORKSPACE/out/${{ matrix.platform }}_${{ matrix.config }} eztime_test_deploy nplb_deploy app_launcher_zip
 
   # Win-Win32 Jobs.
-  win-win32:
-    needs: docker-image-build
+  #win-win32:
+  #  needs: docker-image-build
     # The type of runner that the job will run on
-    runs-on: [self-hosted, X64, windows]
-    name: ${{matrix.platform}}-${{matrix.config}}
+    #  runs-on: [self-hosted, X64, windows]
+    #name: ${{matrix.platform}}-${{matrix.config}}
     # Create config matrix
-    strategy:
-      fail-fast: false
-      matrix:
-        platform: [win-win32]
-        config: [devel, debug]
+    #strategy:
+    #  fail-fast: false
+    #  matrix:
+    #    platform: [win-win32]
+    #    config: [devel, debug]
     # Steps represent a sequence of tasks that will be executed as part of the job
-    steps:
+    #steps:
       # Checkout cobalt repo.
-      - uses: actions/checkout@v2
+      # - uses: actions/checkout@v2
       # Run build
-      - name: echo
-        run: |
-          powershell echo ${{matrix.platform}}-${{matrix.config}}
+      # - name: echo
+      #  run: |
+      #    powershell echo ${{matrix.platform}}-${{matrix.config}}
