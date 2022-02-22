@@ -48,8 +48,6 @@ class CobaltAndroidX86Configuration(configuration.CobaltAndroidConfiguration):
       ],
       'renderer_test': [
           'LottieCoveragePixelTest*skottie_matte_blendmode_json',
-          'PixelTest.SimpleTextInRed40PtChineseFont',
-          'PixelTest.SimpleTextInRed40PtThaiFont',
           'PixelTest.YUV422UYVYImageScaledUpSupport',
           'PixelTest.YUV422UYVYImageScaledAndTranslated',
       ],

@@ -48,3 +48,5 @@ enable_account_manager = true
 
 cobalt_platform_dependencies =
     [ "//starboard/android/shared/cobalt:cobalt_platform" ]
+
+cobalt_font_package = "android_system"
