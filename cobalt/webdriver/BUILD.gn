@@ -150,7 +150,10 @@ target(gtest_target_type, "webdriver_test") {
     "//third_party/devtools:devtools_all_files",
   ]
 
-  data_deps = [ ":webdriver_copy_test_data" ]
+  data_deps = [
+    ":copy_webdriver_data",
+    ":webdriver_copy_test_data",
+  ]
 
   content_deps = data_deps
 }

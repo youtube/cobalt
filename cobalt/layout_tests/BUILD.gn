@@ -66,6 +66,7 @@ target(gtest_target_type, "layout_tests") {
 
   content_deps = [
     "//cobalt/layout_tests/testdata:layout_copy_test_data",
+    "//cobalt/network:copy_ssl_certificates",
     "//third_party/icu:icudata",
   ]
   if (cobalt_font_package == "empty") {
