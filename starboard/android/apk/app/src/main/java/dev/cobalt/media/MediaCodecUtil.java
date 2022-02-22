@@ -397,6 +397,7 @@ public class MediaCodecUtil {
       boolean mustSupportSecure,
       boolean mustSupportHdr,
       boolean mustSupportTunnelMode,
+      boolean forceImprovedSupportCheck,
       int frameWidth,
       int frameHeight,
       int bitrate,
@@ -408,6 +409,7 @@ public class MediaCodecUtil {
             mustSupportHdr,
             false /* mustSupportSoftwareCodec */,
             mustSupportTunnelMode,
+            forceImprovedSupportCheck,
             frameWidth,
             frameHeight,
             bitrate,
@@ -433,7 +435,8 @@ public class MediaCodecUtil {
    */
   @SuppressWarnings("unused")
   @UsedByNative
-  public static boolean hasHdrCapableVideoDecoder(String mimeType) {
+  public static boolean hasHdrCapableVideoDecoder(
+      String mimeType, boolean forceImprovedSupportCheck) {
     // VP9Profile* values were not added until API level 24.  See
     // https://developer.android.com/reference/android/media/MediaCodecInfo.CodecProfileLevel.html.
     if (Build.VERSION.SDK_INT < 24) {
@@ -446,7 +449,8 @@ public class MediaCodecUtil {
     }
 
     FindVideoDecoderResult findVideoDecoderResult =
-        findVideoDecoder(mimeType, false, true, false, false, 0, 0, 0, 0);
+        findVideoDecoder(
+            mimeType, false, true, false, false, forceImprovedSupportCheck, 0, 0, 0, 0);
     return isHdrCapableVideoDecoder(mimeType, findVideoDecoderResult);
   }
 
@@ -487,6 +491,7 @@ public class MediaCodecUtil {
       boolean mustSupportHdr,
       boolean mustSupportSoftwareCodec,
       boolean mustSupportTunnelMode,
+      boolean forceImprovedSupportCheck,
       int frameWidth,
       int frameHeight,
       int bitrate,
@@ -496,7 +501,8 @@ public class MediaCodecUtil {
         String.format(
             "Searching for video decoder with parameters mimeType: %s, secure: %b, frameWidth: %d,"
                 + " frameHeight: %d, bitrate: %d, fps: %d, mustSupportHdr: %b,"
-                + " mustSupportSoftwareCodec: %b, mustSupportTunnelMode: %b",
+                + " mustSupportSoftwareCodec: %b, mustSupportTunnelMode: %b,"
+                + " forceImprovedSupportCheck: %b",
             mimeType,
             mustSupportSecure,
             frameWidth,
@@ -505,7 +511,8 @@ public class MediaCodecUtil {
             fps,
             mustSupportHdr,
             mustSupportSoftwareCodec,
-            mustSupportTunnelMode));
+            mustSupportTunnelMode,
+            forceImprovedSupportCheck));
     Log.v(
         TAG,
         String.format(
@@ -609,8 +616,9 @@ public class MediaCodecUtil {
         // Enable the improved support check based on more specific APIs, like isSizeSupported() or
         // areSizeAndRateSupported(), for 8k content. These APIs are theoretically more accurate,
         // but we are unsure about their level of support on various Android TV platforms.
-        final boolean enableImprovedCheck = frameWidth > 3840 || frameHeight > 2160;
-        if (enableImprovedCheck) {
+        final boolean enableImprovedSupportCheck =
+            forceImprovedSupportCheck || (frameWidth > 3840 || frameHeight > 2160);
+        if (enableImprovedSupportCheck) {
           if (frameWidth != 0 && frameHeight != 0) {
             if (!videoCapabilities.isSizeSupported(frameWidth, frameHeight)) {
               String format = "Rejecting %s, reason: width %s is not compatible with height %d";
@@ -651,7 +659,7 @@ public class MediaCodecUtil {
         }
 
         Range<Integer> supportedFrameRates = videoCapabilities.getSupportedFrameRates();
-        if (enableImprovedCheck) {
+        if (enableImprovedSupportCheck) {
           if (fps != 0) {
             if (frameHeight != 0 && frameWidth != 0) {
               if (!videoCapabilities.areSizeAndRateSupported(frameWidth, frameHeight, fps)) {

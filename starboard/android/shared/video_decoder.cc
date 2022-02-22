@@ -220,6 +220,7 @@ VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec,
                            bool force_secure_pipeline_under_tunnel_mode,
                            bool force_reset_surface_under_tunnel_mode,
                            bool force_big_endian_hdr_metadata,
+                           bool force_improved_support_check,
                            std::string* error_message)
     : video_codec_(video_codec),
       drm_system_(static_cast<DrmSystem*>(drm_system)),
@@ -233,7 +234,8 @@ VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec,
       surface_condition_variable_(surface_destroy_mutex_),
       require_software_codec_(max_video_capabilities &&
                               strlen(max_video_capabilities) > 0),
-      force_big_endian_hdr_metadata_(force_big_endian_hdr_metadata) {
+      force_big_endian_hdr_metadata_(force_big_endian_hdr_metadata),
+      force_improved_support_check_(force_improved_support_check) {
   SB_DCHECK(error_message);
 
   if (tunnel_mode_audio_session_id != -1) {
@@ -566,7 +568,7 @@ bool VideoDecoder::InitializeCodec(std::string* error_message) {
       require_software_codec_,
       std::bind(&VideoDecoder::OnTunnelModeFrameRendered, this, _1),
       tunnel_mode_audio_session_id_, force_big_endian_hdr_metadata_,
-      error_message));
+      force_improved_support_check_, error_message));
   if (media_decoder_->is_valid()) {
     if (error_cb_) {
       media_decoder_->Initialize(

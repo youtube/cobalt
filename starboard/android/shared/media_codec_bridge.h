@@ -113,6 +113,7 @@ class MediaCodecBridge {
       bool require_software_codec,
       int tunnel_mode_audio_session_id,
       bool force_big_endian_hdr_metadata,
+      bool force_improved_support_check,
       std::string* error_message);
 
   ~MediaCodecBridge();
