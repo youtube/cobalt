@@ -48,7 +48,7 @@ bool IsHDRTransferCharacteristicsSupported(SbMediaVideoCodec video_codec,
   bool has_hdr_capable_decoder =
       JniEnvExt::Get()->CallStaticBooleanMethodOrAbort(
           "dev/cobalt/media/MediaCodecUtil", "hasHdrCapableVideoDecoder",
-          "(Ljava/lang/String;)Z", j_mime.Get()) == JNI_TRUE;
+          "(Ljava/lang/String;Z)Z", j_mime.Get(), false) == JNI_TRUE;
   if (!has_hdr_capable_decoder) {
     return false;
   }
@@ -104,6 +104,9 @@ bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
     mime_type.RegisterBoolParameter("tunnelmode");
     // Override endianness on HDR Info header. Defaults to little.
     mime_type.RegisterStringParameter("hdrinfoendianness", "big|little");
+    // Forces the use of specific Android APIs (isSizeSupported() and
+    // areSizeAndRateSupported()) to determine format support.
+    mime_type.RegisterBoolParameter("forceimprovedsupportcheck");
 
     if (!mime_type.is_valid()) {
       return false;
@@ -128,10 +131,13 @@ bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
   // tunneled playback to be encrypted, so we must align the tunnel mode
   // requirement with the secure playback requirement.
   const bool require_secure_playback = must_support_tunnel_mode;
+  const bool force_improved_support_check =
+      mime_type.GetParamBoolValue("forceimprovedsupportcheck", true);
   return env->CallStaticBooleanMethodOrAbort(
              "dev/cobalt/media/MediaCodecUtil", "hasVideoDecoderFor",
-             "(Ljava/lang/String;ZZZIIII)Z", j_mime.Get(),
+             "(Ljava/lang/String;ZZZZIIII)Z", j_mime.Get(),
              require_secure_playback, must_support_hdr,
-             must_support_tunnel_mode, frame_width, frame_height,
-             static_cast<jint>(bitrate), fps) == JNI_TRUE;
+             must_support_tunnel_mode, force_improved_support_check,
+             frame_width, frame_height, static_cast<jint>(bitrate),
+             fps) == JNI_TRUE;
 }
