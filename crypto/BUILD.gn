@@ -188,8 +188,6 @@ target(gtest_target_type, "crypto_unittests") {
     "//testing/gmock",
     "//testing/gtest",
   ]
-
-  content_deps = [ "//third_party/icu:icudata" ]
 }
 
 # This has no sources in some cases so can't be a static library.

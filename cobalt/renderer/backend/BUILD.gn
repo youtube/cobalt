@@ -38,5 +38,4 @@ target(gtest_target_type, "graphics_system_test") {
     "//testing/gmock",
     "//testing/gtest",
   ]
-  content_deps = [ "//third_party/icu:icudata" ]
 }

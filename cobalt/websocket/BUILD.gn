@@ -70,6 +70,4 @@ target(gtest_target_type, "websocket_test") {
   if (!is_gold) {
     deps += [ "//cobalt/debug" ]
   }
-
-  content_deps = [ "//third_party/icu:icudata" ]
 }

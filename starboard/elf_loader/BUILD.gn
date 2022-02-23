@@ -176,10 +176,7 @@ target(gtest_target_type, "elf_loader_test") {
     # TODO: Remove this dependency once MediaSession is migrated to use CobaltExtensions.
     deps += cobalt_platform_dependencies
 
-    content_deps = [
-      ":copy_elf_loader_testdata",
-      "//third_party/icu:icudata",
-    ]
+    content_deps = [ ":copy_elf_loader_testdata" ]
   }
 }
 

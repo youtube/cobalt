@@ -105,8 +105,6 @@ target(gtest_target_type, "nb_test") {
       "//testing/gmock:gmock",
       "//testing/gtest",
     ]
-
-    content_deps = [ "//third_party/icu:icudata" ]
   }
 }
 

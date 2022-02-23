@@ -26,5 +26,4 @@ target(gtest_target_type, "extension_test") {
   if (sb_is_evergreen) {
     deps += cobalt_platform_dependencies
   }
-  content_deps = [ "//third_party/icu:icudata" ]
 }

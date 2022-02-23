@@ -24,8 +24,6 @@ target(final_executable_type, "media_sandbox") {
     "//cobalt/media",
     "//starboard",
   ]
-
-  content_deps = [ "//third_party/icu:icudata" ]
 }
 
 target(final_executable_type, "web_media_player_sandbox") {

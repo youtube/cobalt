@@ -175,7 +175,5 @@ if (platform_tests_path == "") {
       ":starboard",
       "//testing/gmock",
     ]
-
-    content_deps = [ "//third_party/icu:icudata" ]
   }
 }

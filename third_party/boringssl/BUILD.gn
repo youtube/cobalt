@@ -183,5 +183,4 @@ target(final_executable_type, "crypto_tool") {
     ":crypto",
     "//starboard",
   ]
-  content_deps = [ "//third_party/icu:icudata" ]
 }
