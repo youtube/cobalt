@@ -19,7 +19,19 @@
 # availability of "find", "grep", "ln", "mv", and "rm".
 
 DIR="$(dirname "${0}")"
-DEVICE_ID="${2}"
+
+AUTH_METHOD="public-key"
+while getopts "d:a:" o; do
+    case "${o}" in
+        d)
+            DEVICE_ID=${OPTARG}
+            ;;
+        a)
+            AUTH_METHOD=${OPTARG}
+            ;;
+    esac
+done
+shift $((OPTIND-1))
 
 if [[ ! -f "${DIR}/setup.sh" ]]; then
   echo "The script 'setup.sh' is required"

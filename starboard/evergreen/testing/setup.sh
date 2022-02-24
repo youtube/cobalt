@@ -26,7 +26,7 @@ source $DIR/pprint.sh
 
 log "info" " [==========] Preparing Cobalt."
 
-if [[ $# -lt 1 ]]; then
+if [[ -z ${1} ]]; then
   log "error" "A platform must be provided"
   exit 1
 fi

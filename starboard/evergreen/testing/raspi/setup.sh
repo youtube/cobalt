@@ -16,6 +16,7 @@
 
 source $1/../pprint.sh
 source $1/run_command.sh
+source $1/secure_communication.sh
 
 CACHE_DIR="/home/pi/.cache/cobalt"
 CONTENT="/home/pi/coeg/content/app/cobalt/content"
@@ -37,18 +38,30 @@ if [[ -z "${RASPI_ADDR}" ]]; then
   exit 1
 fi
 
-KEYPATH="${HOME}/.ssh/raspi"
-
-if [[ ! -f "${KEYPATH}" ]]; then
-  ssh-keygen -t rsa -q -f "${KEYPATH}" -N "" 1> /dev/null
-  ssh-copy-id -i "${KEYPATH}.pub" pi@"${RASPI_ADDR}" 1> /dev/null
-  echo " Generated SSH key-pair for Raspberry Pi 2 at ${KEYPATH}"
-else
-  echo " Re-using existing SSH key-pair for Raspberry Pi 2 at ${KEYPATH}"
+declare auth_methods=("public-key" "password")
+if [[ ! "${auth_methods[@]}" =~ "${AUTH_METHOD}" ]] ; then
+  log "error" "The authentication method for connecting to the Raspberry Pi 2 must be one of: ${auth_methods[*]}"
+  exit 1
 fi
+echo " Using ${AUTH_METHOD} authentication with remote Raspberry Pi 2"
 
-SSH="ssh -i ${KEYPATH} pi@${RASPI_ADDR} "
-SCP="scp -i ${KEYPATH} "
+if [[ "${AUTH_METHOD}" == "password" ]]; then
+  SSH="ssh_with_password "
+  SCP="scp_with_password "
+else
+  KEYPATH="${HOME}/.ssh/raspi"
+
+  if [[ ! -f "${KEYPATH}" ]]; then
+    ssh-keygen -t rsa -q -f "${KEYPATH}" -N "" 1> /dev/null
+    ssh-copy-id -i "${KEYPATH}.pub" pi@"${RASPI_ADDR}" 1> /dev/null
+    echo " Generated SSH key-pair for Raspberry Pi 2 at ${KEYPATH}"
+  else
+    echo " Re-using existing SSH key-pair for Raspberry Pi 2 at ${KEYPATH}"
+  fi
+
+  SSH="ssh_with_key "
+  SCP="scp_with_key "
+fi
 
 echo " Targeting the Raspberry Pi 2 at ${RASPI_ADDR}"
 

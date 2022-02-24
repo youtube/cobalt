@@ -59,6 +59,15 @@ def main():
       '--platform_under_test',
       default=_DEFAULT_PLATFORM_UNDER_TEST,
       help='The platform to run the tests on (e.g., linux or raspi).')
+  authentication_method = arg_parser.add_mutually_exclusive_group()
+  authentication_method.add_argument(
+      '--public-key-auth',
+      help='Public key authentication should be used with the remote device.',
+      action='store_true')
+  authentication_method.add_argument(
+      '--password-auth',
+      help='Password authentication should be used with the remote device.',
+      action='store_true')
   command_line.AddLauncherArguments(arg_parser)
   args = arg_parser.parse_args()
 
@@ -97,11 +106,21 @@ def main():
                                'starboard/evergreen/testing/run_all_tests.sh')
 
   # /bin/bash is executed since run_all_tests.sh may not be executable.
-  command = ['/bin/bash', run_all_tests, args.platform_under_test]
+  command = ['/bin/bash', run_all_tests]
 
   if launcher.device_id:
     # The automated tests run on this host should target a remote device.
+    command.append('-d')
     command.append(launcher.device_id)
+
+  if args.public_key_auth:
+    command.append('-a')
+    command.append('public-key')
+  elif args.password_auth:
+    command.append('-a')
+    command.append('password')
+
+  command.append(args.platform_under_test)
 
   return _Exec(command, env)
 

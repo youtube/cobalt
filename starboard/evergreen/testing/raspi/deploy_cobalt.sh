@@ -20,11 +20,20 @@ function deploy_cobalt() {
     exit 1
   fi
 
-  echo " Checking '${OUT}'"
+  declare staging_dir=""
+  if [[ -e "${OUT}/deploy/loader_app" ]]; then
+    # Expected after launcher is run for a GYP build.
+    staging_dir="${OUT}/deploy/loader_app"
+  else
+    # Expected after launcher is run for a GN build.
+    staging_dir="${OUT}"
+  fi
 
-  PATHS=("${OUT}/deploy/loader_app/loader_app"                          \
-         "${OUT}/deploy/loader_app/content/app/cobalt/lib/libcobalt.so" \
-         "${OUT}/deploy/loader_app/content/app/cobalt/content/")
+  echo " Checking '${staging_dir}'"
+
+  PATHS=("${staging_dir}/loader_app"                          \
+         "${staging_dir}/content/app/cobalt/lib/libcobalt.so" \
+         "${staging_dir}/content/app/cobalt/content/")
 
   for file in "${PATHS[@]}"; do
     if [[ ! -e "${file}" ]]; then
@@ -38,32 +47,34 @@ function deploy_cobalt() {
   echo " Deploying to the Raspberry Pi 2 at ${RASPI_ADDR}"
 
   echo " Regenerating Cobalt-on-Evergreen directory"
-  eval "${SSH} rm -rf /home/pi/coeg/" 1> /dev/null
-  eval "${SSH} mkdir /home/pi/coeg/" 1> /dev/null
+  eval "${SSH} \"rm -rf /home/pi/coeg/\"" 1> /dev/null
+  eval "${SSH} \"mkdir /home/pi/coeg/\"" 1> /dev/null
 
   echo " Copying loader_app to Cobalt-on-Evergreen directory"
-  eval "${SCP} ${OUT}/deploy/loader_app/loader_app pi@${RASPI_ADDR}:/home/pi/coeg/" 1> /dev/null
+  eval "${SCP} \"${staging_dir}/loader_app pi@${RASPI_ADDR}:/home/pi/coeg/\"" 1> /dev/null
 
   echo " Copying crashpad_handler to Cobalt-on-Evergreen directory"
-  eval "${SCP} ${OUT}/deploy/loader_app/crashpad_handler pi@${RASPI_ADDR}:/home/pi/coeg/" 1> /dev/null
+  eval "${SCP} \"${staging_dir}/crashpad_handler pi@${RASPI_ADDR}:/home/pi/coeg/\"" 1> /dev/null
 
   echo " Regenerating system image directory"
-  eval "${SSH} mkdir -p /home/pi/coeg/content/app/cobalt/lib" 1> /dev/null
+  eval "${SSH} \"mkdir -p /home/pi/coeg/content/app/cobalt/lib\"" 1> /dev/null
 
   echo " Copying cobalt to system image directory"
-  eval "${SCP} ${OUT}/deploy/loader_app/content/app/cobalt/lib/libcobalt.so pi@${RASPI_ADDR}:/home/pi/coeg/content/app/cobalt/lib/" 1> /dev/null
+  eval "${SCP} \"${staging_dir}/content/app/cobalt/lib/libcobalt.so pi@${RASPI_ADDR}:/home/pi/coeg/content/app/cobalt/lib/\"" 1> /dev/null
 
   echo " Copying content to system image directory"
-  eval "${SCP} -r ${OUT}/deploy/loader_app/content/app/cobalt/content/ pi@${RASPI_ADDR}:/home/pi/coeg/content/app/cobalt/" 1> /dev/null
+  eval "${SCP} \"-r ${staging_dir}/content/app/cobalt/content/ pi@${RASPI_ADDR}:/home/pi/coeg/content/app/cobalt/\"" 1> /dev/null
 
   echo " Copying fonts to system content directory"
-  eval "${SCP} -r ${OUT}/content/fonts/ pi@${RASPI_ADDR}:/home/pi/coeg/content/" 1> /dev/null
+  eval "${SCP} \"-r ${OUT}/content/fonts/ pi@${RASPI_ADDR}:/home/pi/coeg/content/\"" 1> /dev/null
 
   echo " Generating HTML test directory"
-  eval "${SSH} mkdir -p /home/pi/coeg/content/app/cobalt/content/web/tests/" 1> /dev/null
+  eval "${SSH} \"mkdir -p /home/pi/coeg/content/app/cobalt/content/web/tests/\"" 1> /dev/null
 
   echo " Copying HTML test files to HTML test directory"
-  eval "${SCP} ${1}/../tests/*.html pi@${RASPI_ADDR}:/home/pi/coeg/content/app/cobalt/content/web/tests/" 1> /dev/null
+  eval "${SCP} \"${1}/../tests/empty.html pi@${RASPI_ADDR}:/home/pi/coeg/content/app/cobalt/content/web/tests/\"" 1> /dev/null
+  eval "${SCP} \"${1}/../tests/test.html pi@${RASPI_ADDR}:/home/pi/coeg/content/app/cobalt/content/web/tests/\"" 1> /dev/null
+  eval "${SCP} \"${1}/../tests/tseries.html pi@${RASPI_ADDR}:/home/pi/coeg/content/app/cobalt/content/web/tests/\"" 1> /dev/null
 
   echo " Successfully deployed!"
 }
