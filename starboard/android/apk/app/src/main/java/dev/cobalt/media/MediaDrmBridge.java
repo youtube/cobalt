@@ -76,6 +76,14 @@ public class MediaDrmBridge {
   @SuppressWarnings("deprecation")
   private static final int MEDIA_DRM_EVENT_KEY_EXPIRED = MediaDrm.EVENT_KEY_EXPIRED;
 
+  // Deprecated in API 23, but we still log it on earlier devices.
+  @SuppressWarnings("deprecation")
+  private static final int MEDIA_DRM_EVENT_PROVISION_REQUIRED = MediaDrm.EVENT_PROVISION_REQUIRED;
+
+  // Added in API 23.
+  private static final int MEDIA_DRM_EVENT_SESSION_RECLAIMED =
+      Build.VERSION.SDK_INT >= 23 ? MediaDrm.EVENT_SESSION_RECLAIMED : 5;
+
   private MediaDrm mMediaDrm;
   private long mNativeMediaDrmBridge;
   private UUID mSchemeUUID;
@@ -400,47 +408,48 @@ public class MediaDrmBridge {
                   String.format("EventListener: Invalid session %s", bytesToHexString(sessionId)));
               return;
             }
-            switch (event) {
-              case MediaDrm.EVENT_KEY_REQUIRED:
-                Log.d(TAG, "MediaDrm.EVENT_KEY_REQUIRED");
-                String mime = mSessionIds.get(ByteBuffer.wrap(sessionId));
-                MediaDrm.KeyRequest request = null;
-                try {
-                  request = getKeyRequest(sessionId, data, mime);
-                } catch (NotProvisionedException e) {
-                  Log.e(TAG, "Device not provisioned", e);
-                  if (!attemptProvisioning()) {
-                    Log.e(TAG, "Failed to provision device when responding to EVENT_KEY_REQUIRED");
-                    return;
-                  }
-                  // If we supposedly successfully provisioned ourselves, then try to create a
-                  // request again.
-                  try {
-                    request = getKeyRequest(sessionId, data, mime);
-                  } catch (NotProvisionedException e2) {
-                    Log.e(
-                        TAG,
-                        "Device still not provisioned after supposedly successful provisioning",
-                        e2);
-                    return;
-                  }
-                }
-                if (request != null) {
-                  onSessionMessage(SB_DRM_TICKET_INVALID, sessionId, request);
-                } else {
-                  Log.e(TAG, "EventListener: getKeyRequest failed.");
+
+            if (event == MediaDrm.EVENT_KEY_REQUIRED) {
+              Log.d(TAG, "MediaDrm.EVENT_KEY_REQUIRED");
+              String mime = mSessionIds.get(ByteBuffer.wrap(sessionId));
+              MediaDrm.KeyRequest request = null;
+              try {
+                request = getKeyRequest(sessionId, data, mime);
+              } catch (NotProvisionedException e) {
+                Log.e(TAG, "Device not provisioned", e);
+                if (!attemptProvisioning()) {
+                  Log.e(TAG, "Failed to provision device when responding to EVENT_KEY_REQUIRED");
                   return;
                 }
-                break;
-              case MEDIA_DRM_EVENT_KEY_EXPIRED:
-                Log.d(TAG, "MediaDrm.EVENT_KEY_EXPIRED");
-                break;
-              case MediaDrm.EVENT_VENDOR_DEFINED:
-                Log.d(TAG, "MediaDrm.EVENT_VENDOR_DEFINED");
-                break;
-              default:
-                Log.e(TAG, "Invalid DRM event " + event);
+                // If we supposedly successfully provisioned ourselves, then try to create a
+                // request again.
+                try {
+                  request = getKeyRequest(sessionId, data, mime);
+                } catch (NotProvisionedException e2) {
+                  Log.e(
+                      TAG,
+                      "Device still not provisioned after supposedly successful provisioning",
+                      e2);
+                  return;
+                }
+              }
+              if (request != null) {
+                onSessionMessage(SB_DRM_TICKET_INVALID, sessionId, request);
+              } else {
+                Log.e(TAG, "EventListener: getKeyRequest failed.");
                 return;
+              }
+            } else if (event == MEDIA_DRM_EVENT_KEY_EXPIRED) {
+              Log.d(TAG, "MediaDrm.EVENT_KEY_EXPIRED");
+            } else if (event == MediaDrm.EVENT_VENDOR_DEFINED) {
+              Log.d(TAG, "MediaDrm.EVENT_VENDOR_DEFINED");
+            } else if (event == MEDIA_DRM_EVENT_PROVISION_REQUIRED) {
+              Log.d(TAG, "MediaDrm.EVENT_PROVISION_REQUIRED");
+            } else if (event == MEDIA_DRM_EVENT_SESSION_RECLAIMED) {
+              Log.d(TAG, "MediaDrm.EVENT_SESSION_RECLAIMED");
+            } else {
+              Log.e(TAG, "Invalid DRM event " + event);
+              return;
             }
           }
         });
