@@ -14,9 +14,10 @@
 
 #include "cobalt/worker/navigation_preload_manager.h"
 
+#include <vector>
+
 #include "cobalt/dom/dom_exception.h"
 #include "cobalt/worker/service_worker_registration.h"
-
 
 namespace cobalt {
 namespace worker {
@@ -35,8 +36,8 @@ script::Handle<script::Promise<void>> NavigationPreloadManager::Disable() {
   return SetEnabled(false);
 }
 
-script::Handle<script::Promise<void>>
-NavigationPreloadManager::SetHeaderValue() {
+script::Handle<script::Promise<void>> NavigationPreloadManager::SetHeaderValue(
+    std::vector<uint8_t> value) {
   script::Handle<script::Promise<void>> promise =
       script_value_factory_->CreateBasicPromise<void>();
 

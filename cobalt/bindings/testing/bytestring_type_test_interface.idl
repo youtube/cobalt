@@ -12,8 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// https://w3c.github.io/ServiceWorker/#navigation-preload-manager
-dictionary NavigationPreloadState {
-  boolean enabled = false;
-  ByteString headerValue;
+interface BytestringTypeTestInterface {
+  ByteString bytestringReturnOperation();
+  ByteString bytestringArgumentOperation(ByteString arg1);
 };

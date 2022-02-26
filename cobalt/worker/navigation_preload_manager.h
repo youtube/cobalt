@@ -16,6 +16,7 @@
 #define COBALT_WORKER_NAVIGATION_PRELOAD_MANAGER_H_
 
 #include <memory>
+#include <vector>
 
 #include "cobalt/script/exception_state.h"
 #include "cobalt/script/promise.h"
@@ -23,6 +24,7 @@
 #include "cobalt/script/script_value_factory.h"
 #include "cobalt/script/wrappable.h"
 #include "cobalt/worker/navigation_preload_state.h"
+
 
 namespace cobalt {
 namespace worker {
@@ -38,7 +40,8 @@ class NavigationPreloadManager final : public script::Wrappable {
 
   script::Handle<script::Promise<void>> Enable();
   script::Handle<script::Promise<void>> Disable();
-  script::Handle<script::Promise<void>> SetHeaderValue();
+  script::Handle<script::Promise<void>> SetHeaderValue(
+      std::vector<uint8_t> value);
   script::Handle<NavigationPreloadStatePromise> GetState();
 
   DEFINE_WRAPPABLE_TYPE(NavigationPreloadManager);
