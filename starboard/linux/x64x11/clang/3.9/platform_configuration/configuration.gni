@@ -38,9 +38,6 @@ platform_tests_path = "//starboard/linux/shared:starboard_platform_tests"
 
 in_app_dial = true
 
-sb_is_evergreen_compatible = true
-sb_evergreen_compatible_use_libunwind = true
-
 sabi_path = "//starboard/sabi/x64/sysv/sabi-v$sb_api_version.json"
 
 gl_type = "angle"
