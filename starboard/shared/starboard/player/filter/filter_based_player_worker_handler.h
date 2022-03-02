@@ -62,8 +62,7 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
             UpdateMediaInfoCB update_media_info_cb,
             GetPlayerStateCB get_player_state_cb,
             UpdatePlayerStateCB update_player_state_cb,
-            UpdatePlayerErrorCB update_player_error_cb,
-            std::string* error_message) override;
+            UpdatePlayerErrorCB update_player_error_cb) override;
   bool Seek(SbTime seek_to_time, int ticket) override;
   bool WriteSample(const scoped_refptr<InputBuffer>& input_buffer,
                    bool* written) override;
