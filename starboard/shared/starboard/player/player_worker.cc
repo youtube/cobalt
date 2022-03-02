@@ -159,14 +159,15 @@ void PlayerWorker::UpdatePlayerState(SbPlayerState player_state) {
 
 void PlayerWorker::UpdatePlayerError(SbPlayerError error,
                                      const std::string& error_message) {
-  error_occurred_ = true;
   SB_LOG(WARNING) << "Encountered player error " << error
                   << " with message: " << error_message;
-
+  // Only report the first error.
+  if (error_occurred_.exchange(true)) {
+    return;
+  }
   if (!player_error_func_) {
     return;
   }
-
   player_error_func_(player_, context_, error, error_message.c_str());
 }
 
@@ -198,17 +199,15 @@ void PlayerWorker::DoInit() {
   Handler::UpdatePlayerErrorCB update_player_error_cb;
   update_player_error_cb =
       std::bind(&PlayerWorker::UpdatePlayerError, this, _1, _2);
-  std::string error_message;
   if (handler_->Init(
           player_, std::bind(&PlayerWorker::UpdateMediaInfo, this, _1, _2, _3),
           std::bind(&PlayerWorker::player_state, this),
           std::bind(&PlayerWorker::UpdatePlayerState, this, _1),
-          update_player_error_cb, &error_message)) {
+          update_player_error_cb)) {
     UpdatePlayerState(kSbPlayerStateInitialized);
   } else {
-    UpdatePlayerError(
-        kSbPlayerErrorDecode,
-        "Failed to initialize PlayerWorker with error: " + error_message);
+    UpdatePlayerError(kSbPlayerErrorDecode,
+                      "Failed to initialize PlayerWorker with unknown error.");
   }
 }
 
