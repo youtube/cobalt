@@ -72,6 +72,7 @@ public class StarboardBridge {
   private AudioPermissionRequester audioPermissionRequester;
   private KeyboardEditor keyboardEditor;
   private NetworkStatus networkStatus;
+  private ResourceOverlay resourceOverlay;
 
   static {
     // Even though NativeActivity already loads our library from C++,
@@ -124,6 +125,7 @@ public class StarboardBridge {
         new CobaltMediaSession(appContext, activityHolder, audioOutputManager);
     this.audioPermissionRequester = new AudioPermissionRequester(appContext, activityHolder);
     this.networkStatus = new NetworkStatus(appContext);
+    this.resourceOverlay = new ResourceOverlay(appContext);
   }
 
   private native boolean nativeInitialize();
@@ -363,7 +365,9 @@ public class StarboardBridge {
     return ttsHelper;
   }
 
-  /** @return A new CaptionSettings object with the current system caption settings. */
+  /**
+   * @return A new CaptionSettings object with the current system caption settings.
+   */
   @SuppressWarnings("unused")
   @UsedByNative
   CaptionSettings getCaptionSettings() {
@@ -389,6 +393,12 @@ public class StarboardBridge {
   @UsedByNative
   Size getDisplaySize() {
     return DisplayUtil.getSystemDisplaySize();
+  }
+
+  @SuppressWarnings("unused")
+  @UsedByNative
+  public ResourceOverlay getResourceOverlay() {
+    return resourceOverlay;
   }
 
   @Nullable
@@ -486,7 +496,9 @@ public class StarboardBridge {
     return audioManager.isMicrophoneMute();
   }
 
-  /** @return true if we have an active network connection and it's on an wireless network. */
+  /**
+   * @return true if we have an active network connection and it's on an wireless network.
+   */
   @SuppressWarnings("unused")
   @UsedByNative
   boolean isCurrentNetworkWireless() {

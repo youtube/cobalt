@@ -116,9 +116,21 @@ ApplicationAndroid::ApplicationAndroid(ALooper* looper)
   keyboard_inject_writefd_ = pipefd[1];
   ALooper_addFd(looper_, keyboard_inject_readfd_, kLooperIdKeyboardInject,
                 ALOOPER_EVENT_INPUT, NULL, NULL);
+
+  // Load and cache the RRO variables.
+  JniEnvExt* env = JniEnvExt::Get();
+  jobject local_ref = env->CallStarboardObjectMethodOrAbort(
+      "getResourceOverlay", "()Ldev/cobalt/coat/ResourceOverlay;");
+  resource_overlay_ = env->ConvertLocalRefToGlobalRef(local_ref);
 }
 
 ApplicationAndroid::~ApplicationAndroid() {
+  // Release the global reference.
+  if (resource_overlay_) {
+    JniEnvExt* env = JniEnvExt::Get();
+    env->DeleteGlobalRef(resource_overlay_);
+    resource_overlay_ = nullptr;
+  }
   ALooper_removeFd(looper_, android_command_readfd_);
   close(android_command_readfd_);
   close(android_command_writefd_);
@@ -679,6 +691,25 @@ Java_dev_cobalt_coat_CobaltSystemConfigChangeReceiver_nativeDateTimeConfiguratio
     JNIEnv* env,
     jobject jcaller) {
   ApplicationAndroid::Get()->SendDateTimeConfigurationChangedEvent();
+}
+
+int ApplicationAndroid::GetOverlayedIntValue(const char* var_name) {
+  JniEnvExt* env = JniEnvExt::Get();
+  jint value = env->GetIntFieldOrAbort(resource_overlay_, var_name, "I");
+  return value;
+}
+
+std::string ApplicationAndroid::GetOverlayedStringValue(const char* var_name) {
+  JniEnvExt* env = JniEnvExt::Get();
+  jstring value = env->GetStringFieldOrAbort(resource_overlay_, var_name);
+  return env->GetStringStandardUTFOrAbort(value);
+}
+
+bool ApplicationAndroid::GetOverlayedBoolValue(const char* var_name) {
+  JniEnvExt* env = JniEnvExt::Get();
+  jboolean value =
+      env->GetBooleanFieldOrAbort(resource_overlay_, var_name, "Z");
+  return value;
 }
 
 }  // namespace shared
