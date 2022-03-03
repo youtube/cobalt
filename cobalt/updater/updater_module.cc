@@ -37,6 +37,7 @@
 #include "cobalt/updater/crash_reporter.h"
 #include "cobalt/updater/utils.h"
 #include "components/crx_file/crx_verifier.h"
+#include "components/update_client/cobalt_slot_management.h"
 #include "components/update_client/utils.h"
 #include "starboard/common/file.h"
 #include "starboard/configuration_constants.h"
@@ -44,6 +45,7 @@
 namespace {
 
 using update_client::ComponentState;
+using update_client::CobaltSlotManagement;
 
 // The SHA256 hash of the "cobalt_evergreen_public" key.
 constexpr uint8_t kCobaltPublicKeyHash[] = {
@@ -221,6 +223,17 @@ void UpdaterModule::Finalize() {
   }
 
   updater_configurator_ = nullptr;
+
+  // Cleanup drain files
+  const auto installation_manager =
+      static_cast<const CobaltExtensionInstallationManagerApi*>(
+          SbSystemGetExtension(kCobaltExtensionInstallationManagerName));
+  if (installation_manager) {
+    CobaltSlotManagement cobalt_slot_management;
+    if (cobalt_slot_management.Init(installation_manager)) {
+      cobalt_slot_management.CleanupAllDrainFiles();
+    }
+  }
   LOG(INFO) << "UpdaterModule::Finalize end";
 }
 

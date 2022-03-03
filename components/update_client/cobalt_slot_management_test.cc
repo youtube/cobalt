@@ -186,6 +186,19 @@ TEST_F(CobaltSlotManagementTest, ConfirmSlot) {
   ASSERT_EQ(IM_MAX_NUM_TRIES, ImGetInstallationNumTriesLeft(1));
 }
 
+TEST_F(CobaltSlotManagementTest, CleanupAllDrainFiles) {
+  if (!storage_path_implemented_) {
+    return;
+  }
+  CobaltSlotManagement cobalt_slot_management;
+  ASSERT_TRUE(cobalt_slot_management.Init(api_));
+  base::FilePath dir;
+  ASSERT_TRUE(cobalt_slot_management.SelectSlot(&dir));
+  ASSERT_TRUE(DrainFileDraining(dir.value().c_str(), kTestAppKey1));
+  cobalt_slot_management.CleanupAllDrainFiles();
+  ASSERT_FALSE(DrainFileDraining(dir.value().c_str(), kTestAppKey1));
+}
+
 TEST_F(CobaltSlotManagementTest, CobaltFinishInstallation) {
   std::string slot_path = storage_path_;
   slot_path += kSbFileSepString;
