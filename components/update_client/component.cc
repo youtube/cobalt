@@ -224,8 +224,9 @@ void UnpackCompleteOnBlockingTaskRunner(
           SbSystemGetExtension(kCobaltExtensionInstallationManagerName));
       if (installation_api) {
         CobaltSlotManagement cobalt_slot_management;
-        cobalt_slot_management.Init(installation_api);
-        cobalt_slot_management.CleanupAllDrainFiles(crx_path.DirName());
+        if (cobalt_slot_management.Init(installation_api)) {
+          cobalt_slot_management.CleanupAllDrainFiles();
+        }
       }
     }
 #endif

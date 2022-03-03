@@ -89,11 +89,15 @@ bool CobaltSlotManagement::Init(
     return false;
   }
   app_key_ = app_key;
+  initialized_ = true;
   return true;
 }
 
 bool CobaltSlotManagement::SelectSlot(base::FilePath* dir) {
-  SB_DCHECK(installation_api_);
+  SB_DCHECK(initialized_);
+  if (!initialized_) {
+    return false;
+  }
   LOG(INFO) << "CobaltSlotManagement::SelectSlot";
   int max_slots = installation_api_->GetMaxNumberInstallations();
   if (max_slots == IM_EXT_ERROR) {
@@ -175,7 +179,10 @@ bool CobaltSlotManagement::SelectSlot(base::FilePath* dir) {
 }
 
 bool CobaltSlotManagement::ConfirmSlot(const base::FilePath& dir) {
-  SB_DCHECK(installation_api_);
+  SB_DCHECK(initialized_);
+  if (!initialized_) {
+    return false;
+  }
   LOG(INFO) << "CobaltSlotManagement::ConfirmSlot ";
   if (!DrainFileRankAndCheck(dir.value().c_str(), app_key_.c_str())) {
     LOG(INFO) << "CobaltSlotManagement::ConfirmSlot: failed to lock slot ";
@@ -198,13 +205,49 @@ bool CobaltSlotManagement::ConfirmSlot(const base::FilePath& dir) {
   return true;
 }
 
-void CobaltSlotManagement::CleanupAllDrainFiles(const base::FilePath& dir) {
-  if (!dir.empty() && !app_key_.empty()) {
-    DrainFileRemove(dir.value().c_str(), app_key_.c_str());
+void CobaltSlotManagement::CleanupAllDrainFiles() {
+  SB_DCHECK(initialized_);
+  if (!initialized_) {
+    return;
+  }
+
+  int max_slots = installation_api_->GetMaxNumberInstallations();
+  if (max_slots == IM_EXT_ERROR) {
+    LOG(ERROR) << "CobaltSlotManagement::CleanupAllDrainFile: Failed to get "
+                  "max number of slots";
+    return;
+  }
+
+  // Iterate over all writeable installation slots.
+  for (int i = 1; i < max_slots; i++) {
+    LOG(INFO) << "CobaltSlotManagement::CleanupAllDrainFile iterating slot="
+              << i;
+    std::vector<char> installation_path(kSbFileMaxPath);
+    if (installation_api_->GetInstallationPath(i, installation_path.data(),
+                                               installation_path.size()) ==
+        IM_EXT_ERROR) {
+      LOG(ERROR) << "CobaltSlotManagement::CleanupAllDrainFile: Failed to get "
+                    "installation path for slot="
+                 << i;
+      continue;
+    }
+
+    LOG(INFO)
+        << "CobaltSlotManagement::CleanupAllDrainFile: installation_path = "
+        << installation_path.data();
+
+    base::FilePath installation_dir(
+        std::string(installation_path.begin(), installation_path.end()));
+
+    DrainFileRemove(installation_dir.value().c_str(), app_key_.c_str());
   }
 }
 
 int CobaltSlotManagement::GetInstallationIndex() {
+  SB_DCHECK(initialized_);
+  if (!initialized_) {
+    return false;
+  }
   return installation_index_;
 }
 

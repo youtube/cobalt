@@ -194,7 +194,7 @@ void UrlFetcherDownloader::ReportDownloadFailure(const GURL& url) {
 #endif
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 #if defined(STARBOARD)
-  cobalt_slot_management_.CleanupAllDrainFiles(download_dir_);
+  cobalt_slot_management_.CleanupAllDrainFiles();
 #endif
   Result result;
 #if defined(STARBOARD)
