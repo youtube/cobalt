@@ -96,6 +96,14 @@ class ApplicationAndroid
 
   void SendDateTimeConfigurationChangedEvent();
 
+  // Methods to get the Runtime Resource Overlay variables.
+  // All RRO variables which can be retrieved here must be defined
+  // in res/values/rro_variables.xml and be loaded in
+  // dev/cobalt/coat/ResourceOverlay.java.
+  int GetOverlayedIntValue(const char* var_name);
+  std::string GetOverlayedStringValue(const char* var_name);
+  bool GetOverlayedBoolValue(const char* var_name);
+
   // Methods to start/stop Media playback service.
   void StartMediaPlaybackService();
   void StopMediaPlaybackService();
@@ -138,6 +146,8 @@ class ApplicationAndroid
   scoped_ptr<InputEventsGenerator> input_events_generator_;
 
   bool last_is_accessibility_high_contrast_text_enabled_;
+
+  jobject resource_overlay_;
 
   // Methods to process pipes attached to the Looper.
   void ProcessAndroidCommand();
