@@ -246,14 +246,14 @@ void UpdateCheckerImpl::CheckForUpdatesHelper(
       return;
     }
 
-    std::string unpacked_version =
-        GetPersistedData()->GetLastUnpackedVersion(app_id);
-    // If the version of the last unpacked update package is higher than the
+    std::string last_installed_version =
+        GetPersistedData()->GetLastInstalledVersion(app_id);
+    // If the version of the last installed update package is higher than the
     // version of the running binary, use the former to indicate the current
     // update version in the update check request.
-    if (!unpacked_version.empty() &&
-        base::Version(unpacked_version).CompareTo(current_version) > 0) {
-      current_version = base::Version(unpacked_version);
+    if (!last_installed_version.empty() &&
+        base::Version(last_installed_version).CompareTo(current_version) > 0) {
+      current_version = base::Version(last_installed_version);
     }
 
     if (CobaltQuickUpdate(installation_api, current_version)) {

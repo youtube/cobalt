@@ -51,10 +51,10 @@ class PersistedData {
   int GetDateLastActive(const std::string& id) const;
 
 #if defined(STARBOARD)
-  // Returns the version of the update that was last successfully unpacked for
+  // Returns the version of the update that was last successfully installed for
   // the specified |id|. "" indicates that there is no recorded version value
   // for the |id|.
-  std::string GetLastUnpackedVersion(const std::string& id) const;
+  std::string GetLastInstalledVersion(const std::string& id) const;
 
   // Returns the updater channel that is set for the specified |id|. ""
   // indicates that there is no recorded updater channel value for the |id|.
@@ -82,9 +82,9 @@ class PersistedData {
   void SetDateLastActive(const std::vector<std::string>& ids, int datenum);
 
 #if defined(STARBOARD)
-  // Records the version of the update that is successfully unpacked for
+  // Records the version of the update that is successfully installed for
   // the specified |id|.
-  void SetLastUnpackedVersion(const std::string& id,
+  void SetLastInstalledVersion(const std::string& id,
                               const std::string& version);
 
   // Records the updater channel that is set for the specified |id|.

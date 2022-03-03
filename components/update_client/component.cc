@@ -121,6 +121,9 @@ void InstallOnBlockingTaskRunner(
     const std::string& public_key,
 #if defined(STARBOARD)
     const int installation_index,
+    PersistedData* metadata,
+    const std::string& id,
+    const std::string& version,
 #endif
     const std::string& fingerprint,
     scoped_refptr<CrxInstaller> installer,
@@ -170,8 +173,16 @@ void InstallOnBlockingTaskRunner(
       // TODO: add correct error code.
       install_error = InstallError::GENERIC_ERROR;
     } else {
-      if (!CobaltFinishInstallation(installation_api, installation_index,
+      if (CobaltFinishInstallation(installation_api, installation_index,
                                     unpack_path.value(), app_key)) {
+        // Write the version of the unpacked update package to the persisted data.
+        if (metadata != nullptr) {
+          main_task_runner->PostTask(
+              FROM_HERE, base::BindOnce(&PersistedData::SetLastInstalledVersion,
+                                        base::Unretained(metadata), id, version));
+        }
+      } else {
+
         // TODO: add correct error code.
         install_error = InstallError::GENERIC_ERROR;
       }
@@ -232,21 +243,15 @@ void UnpackCompleteOnBlockingTaskRunner(
     return;
   }
 
-#if defined(STARBOARD)
-  // Write the version of the unpacked update package to the persisted data.
-  if (metadata != nullptr) {
-    main_task_runner->PostTask(
-        FROM_HERE, base::BindOnce(&PersistedData::SetLastUnpackedVersion,
-                                  base::Unretained(metadata), id, version));
-  }
-#endif
-
   base::PostTaskWithTraits(
       FROM_HERE, kTaskTraits,
       base::BindOnce(&InstallOnBlockingTaskRunner, main_task_runner,
                      result.unpack_path, result.public_key,
 #if defined(STARBOARD)
                      installation_index,
+                     metadata,
+                     id,
+                     version,
 #endif
                      fingerprint, installer, std::move(callback)));
 }
