@@ -43,7 +43,7 @@ class PerformanceResourceTiming : public PerformanceEntry {
                             base::TimeTicks time_origin);
 
   // Web API.
-  std::string initiator_type() const;
+  virtual std::string initiator_type() const;
   DOMHighResTimeStamp fetch_start() const;
   DOMHighResTimeStamp domain_lookup_start() const;
   DOMHighResTimeStamp domain_lookup_end() const;
