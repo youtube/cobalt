@@ -59,6 +59,7 @@
 #include "cobalt/dom/mouse_event.h"
 #include "cobalt/dom/named_node_map.h"
 #include "cobalt/dom/node_descendants_iterator.h"
+#include "cobalt/dom/performance.h"
 #include "cobalt/dom/text.h"
 #include "cobalt/dom/ui_event.h"
 #include "cobalt/dom/wheel_event.h"
@@ -1146,6 +1147,38 @@ void Document::TraceMembers(script::Tracer* tracer) {
   tracer->Trace(default_timeline_);
   tracer->Trace(user_agent_style_sheet_);
   tracer->Trace(initial_computed_style_declaration_);
+}
+
+void Document::CreatePerformanceNavigationTiming(
+    Performance* performance, net::LoadTimingInfo timing_info) {
+  // To create the navigation timing entry for document, given a loadTiminginfo,
+  // a navigationType and a null service worker timing info, do the following:
+  //   https://www.w3.org/TR/2022/WD-navigation-timing-2-20220224/#marking-navigation-timing
+  // 1. Let global be document's relevant global object.
+  // 2. Let navigationTimingEntry be a new PerformanceNavigationTiming object
+  // in global's realm.
+  // 3. Setup the resource timing entry for navigationTimingEntry given
+  // "navigation", document's address, and fetchTiming.
+  // 4. Set navigationTimingEntry's document load timing to document's
+  // load timing info.
+  // 5. Set navigationTimingEntry's previous document unload timing to
+  // document's previous document unload timing.
+  // 6. Set navigationTimingEntry's redirect count to redirectCount.
+  // 7. Set navigationTimingEntry's navigation type to navigationType.
+  // 8. Set navigationTimingEntry's service worker timing to
+  // serviceWorkerTiming.
+  scoped_refptr<PerformanceNavigationTiming> navigation_timing(
+      new PerformanceNavigationTiming(timing_info, location_->url().spec(),
+                                      performance, this,
+                                      performance->GetTimeOrigin()));
+
+  // 9. Set document's navigation timing entry to
+  // navigationTimingEntry.
+  navigation_timing_entry_ = navigation_timing;
+  // 10. add navigationTimingEntry to global's performance entry buffer.
+  // 11. To queue the navigation timing entry for Document document, queue
+  // document's navigation timing entry.
+  performance->QueuePerformanceEntry(navigation_timing_entry_);
 }
 
 void Document::set_render_postponed(bool render_postponed) {
