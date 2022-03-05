@@ -651,7 +651,7 @@ void BrowserModule::Navigate(const GURL& url_reference) {
       options));
   lifecycle_observers_.AddObserver(web_module_.get());
   if (!web_module_created_callback_.is_null()) {
-    web_module_created_callback_.Run();
+    web_module_created_callback_.Run(web_module_.get());
   }
 
   if (system_window_) {
@@ -2104,12 +2104,6 @@ scoped_refptr<script::Wrappable> BrowserModule::CreateH5vcc(
   h5vcc_settings.global_environment = global_environment;
 
   return scoped_refptr<script::Wrappable>(new h5vcc::H5vcc(h5vcc_settings));
-}
-
-void BrowserModule::SetApplicationStartOrPreloadTimestamp(
-    bool is_preload, SbTimeMonotonic timestamp) {
-  DCHECK(web_module_);
-  web_module_->SetApplicationStartOrPreloadTimestamp(is_preload, timestamp);
 }
 
 void BrowserModule::SetDeepLinkTimestamp(SbTimeMonotonic timestamp) {

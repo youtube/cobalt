@@ -29,6 +29,7 @@
 #include "cobalt/browser/browser_module.h"
 #include "cobalt/browser/memory_tracker/tool.h"
 #include "cobalt/system_window/system_window.h"
+#include "starboard/time.h"
 #if SB_IS(EVERGREEN)
 #include "cobalt/updater/updater_module.h"
 #endif
@@ -94,7 +95,7 @@ class Application {
 #endif
 
   // Called when a navigation occurs in the BrowserModule.
-  void WebModuleCreated();
+  void WebModuleCreated(WebModule* web_module);
 
   // A conduit for system events.
   base::EventDispatcher event_dispatcher_;
@@ -193,6 +194,9 @@ class Application {
   void UpdateUserAgent();
   void UpdatePeriodicStats();
   void DispatchEventInternal(base::Event* event);
+
+  base::Optional<SbTimeMonotonic> preload_timestamp_;
+  base::Optional<SbTimeMonotonic> start_timestamp_;
 
   // The message loop that will handle UI events.
   base::MessageLoop* message_loop_;

@@ -587,6 +587,11 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
 #endif  // defined(ENABLE_DEBUGGER) && defined(STARBOARD_ALLOWS_MEMORY_TRACKING)
 {
   DCHECK(!quit_closure_.is_null());
+  if (should_preload) {
+    preload_timestamp_ = timestamp;
+  } else {
+    start_timestamp_ = timestamp;
+  }
   // Check to see if a timed_trace has been set, indicating that we should
   // begin a timed trace upon startup.
   base::TimeDelta trace_duration = GetTimedTraceDuration();
@@ -845,9 +850,6 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
 #endif
       options));
 
-  DCHECK(browser_module_);
-  browser_module_->SetApplicationStartOrPreloadTimestamp(should_preload,
-                                                         timestamp);
   UpdateUserAgent();
 
   // Register event callbacks.
@@ -1006,10 +1008,12 @@ void Application::Start(SbTimeMonotonic timestamp) {
         base::Bind(&Application::Start, base::Unretained(this), timestamp));
     return;
   }
+  DCHECK_CALLED_ON_VALID_THREAD(application_event_thread_checker_);
 
+  if (!start_timestamp_.has_value()) {
+    start_timestamp_ = timestamp;
+  }
   OnApplicationEvent(kSbEventTypeStart, timestamp);
-  browser_module_->SetApplicationStartOrPreloadTimestamp(false /*is_preload*/,
-                                                         timestamp);
 }
 
 void Application::Quit() {
@@ -1018,6 +1022,7 @@ void Application::Quit() {
         FROM_HERE, base::Bind(&Application::Quit, base::Unretained(this)));
     return;
   }
+  DCHECK_CALLED_ON_VALID_THREAD(application_event_thread_checker_);
 
   quit_closure_.Run();
 }
@@ -1378,8 +1383,17 @@ void Application::OnDateTimeConfigurationChangedEvent(
 }
 #endif
 
-void Application::WebModuleCreated() {
+void Application::WebModuleCreated(WebModule* web_module) {
   TRACE_EVENT0("cobalt::browser", "Application::WebModuleCreated()");
+  DCHECK(web_module);
+  if (preload_timestamp_.has_value()) {
+    web_module->SetApplicationStartOrPreloadTimestamp(
+        true, preload_timestamp_.value());
+  }
+  if (start_timestamp_.has_value()) {
+    web_module->SetApplicationStartOrPreloadTimestamp(false,
+                                                      start_timestamp_.value());
+  }
   DispatchDeepLinkIfNotConsumed();
 #if defined(ENABLE_WEBDRIVER)
   if (web_driver_module_) {

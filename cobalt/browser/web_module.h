@@ -409,6 +409,7 @@ class WebModule : public LifecycleObserver {
 
   scoped_refptr<render_tree::Node> DoSynchronousLayoutAndGetRenderTree();
 
+  // Pass the application preload or start timestamps from Starboard.
   void SetApplicationStartOrPreloadTimestamp(bool is_preload,
                                              SbTimeMonotonic timestamp);
   void SetDeepLinkTimestamp(SbTimeMonotonic timestamp);
