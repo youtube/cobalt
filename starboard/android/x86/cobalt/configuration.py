@@ -22,7 +22,7 @@ class CobaltAndroidX86Configuration(configuration.CobaltAndroidConfiguration):
 
   def GetTestFilters(self):
     filters = super(CobaltAndroidX86Configuration, self).GetTestFilters()
-    for target, tests in self.__FILTERED_TESTS.iteritems():
+    for target, tests in self.__FILTERED_TESTS.items():
       filters.extend(test_filter.TestFilter(target, test) for test in tests)
     return filters
 
@@ -32,16 +32,16 @@ class CobaltAndroidX86Configuration(configuration.CobaltAndroidConfiguration):
           test_filter.FILTER_ALL
       ],
       'layout_tests': [  # Old Android versions don't have matching fonts
-          'CSS3FontsLayoutTests/Layout.Test'
-          '/5_2_use_first_available_listed_font_family',
-          'CSS3FontsLayoutTests/Layout.Test'
-          '/5_2_use_specified_font_family_if_available',
-          'CSS3FontsLayoutTests/Layout.Test'
-          '/5_2_use_system_fallback_if_no_matching_family_is_found*',
-          'CSS3FontsLayoutTests/Layout.Test'
-          '/synthetic_bolding_should_not_occur_on_bold_font',
-          'CSS3FontsLayoutTests/Layout.Test'
-          '/synthetic_bolding_should_occur_on_non_bold_font',
+          ('CSS3FontsLayoutTests/Layout.Test'
+           '/5_2_use_first_available_listed_font_family'),
+          ('CSS3FontsLayoutTests/Layout.Test'
+           '/5_2_use_specified_font_family_if_available'),
+          ('CSS3FontsLayoutTests/Layout.Test'
+           '/5_2_use_system_fallback_if_no_matching_family_is_found*'),
+          ('CSS3FontsLayoutTests/Layout.Test'
+           '/synthetic_bolding_should_not_occur_on_bold_font'),
+          ('CSS3FontsLayoutTests/Layout.Test'
+           '/synthetic_bolding_should_occur_on_non_bold_font'),
       ],
       'net_unittests': [  # Net tests are very unstable on Android L
           test_filter.FILTER_ALL

@@ -35,6 +35,6 @@ class EvergreenArmTestFilters(shared_test_filters.TestFilters):
 
   def GetTestFilters(self):
     filters = super(EvergreenArmTestFilters, self).GetTestFilters()
-    for target, tests in _FILTERED_TESTS.iteritems():
+    for target, tests in _FILTERED_TESTS.items():
       filters.extend(test_filter.TestFilter(target, test) for test in tests)
     return filters

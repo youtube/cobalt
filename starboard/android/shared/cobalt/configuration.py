@@ -41,7 +41,7 @@ class CobaltAndroidConfiguration(cobalt_configuration.CobaltConfiguration):
 
   def GetTestFilters(self):
     filters = super(CobaltAndroidConfiguration, self).GetTestFilters()
-    for target, tests in self.__FILTERED_TESTS.iteritems():
+    for target, tests in self.__FILTERED_TESTS.items():
       filters.extend(test_filter.TestFilter(target, test) for test in tests)
     return filters
 

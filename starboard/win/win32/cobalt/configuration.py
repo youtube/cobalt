@@ -13,8 +13,6 @@
 # limitations under the License.
 """Starboard Win32 Cobalt configuration."""
 
-import os
-
 from cobalt.build import cobalt_configuration
 from starboard.tools.testing import test_filter
 
@@ -24,8 +22,9 @@ class CobaltWinWin32Configuration(cobalt_configuration.CobaltConfiguration):
 
   def __init__(self, platform_configuration, application_name,
                application_directory):
-    super(CobaltWinWin32Configuration, self).__init__(
-        platform_configuration, application_name, application_directory)
+    super(CobaltWinWin32Configuration,
+          self).__init__(platform_configuration, application_name,
+                         application_directory)
     self.vmware = platform_configuration.vmware
 
   def WebdriverBenchmarksEnabled(self):
@@ -33,18 +32,19 @@ class CobaltWinWin32Configuration(cobalt_configuration.CobaltConfiguration):
 
   def GetTestFilters(self):
     filters = super(CobaltWinWin32Configuration, self).GetTestFilters()
-    for target, tests in self.__FILTERED_TESTS.iteritems():
+    for target, tests in self.__FILTERED_TESTS.items():
       filters.extend(test_filter.TestFilter(target, test) for test in tests)
     return filters
 
   def GetWebPlatformTestFilters(self):
-    filters = super(CobaltWinWin32Configuration, self).GetWebPlatformTestFilters()
+    filters = super(CobaltWinWin32Configuration,
+                    self).GetWebPlatformTestFilters()
     filters += [
         '*WebPlatformTest.Run*',
     ]
     return filters
 
-  __FILTERED_TESTS = {
+  __FILTERED_TESTS = {  # pylint: disable=invalid-name
       # These unittest cases are failing after C++14 migration. They will be
       # fixed soon and re-enabled.
       'base_unittests': [
@@ -53,11 +53,10 @@ class CobaltWinWin32Configuration(cobalt_configuration.CobaltConfiguration):
       ],
       'renderer_test': [
           # Flaky test is still being counted as a fail.
-          'RendererPipelineTest'
-          '.FLAKY'
-          '_RasterizerSubmitCalledAtExpectedFrequencyAfterManyPipelineSubmits',
-          'RendererPipelineTest'
-          '.FLAKY'
-          '_RasterizerSubmitCalledAtExpectedFrequencyAfterSinglePipelineSubmit',
+          ('RendererPipelineTest.FLAKY_'
+           'RasterizerSubmitCalledAtExpectedFrequencyAfterManyPipelineSubmits'),
+          ('RendererPipelineTest.FLAKY_'
+           'RasterizerSubmitCalledAtExpectedFrequencyAfterSinglePipelineSubmit'
+           ),
       ],
   }

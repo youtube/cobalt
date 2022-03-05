@@ -13,8 +13,6 @@
 # limitations under the License.
 """Starboard Linux x64x11 Clang 3.9 Cobalt configuration."""
 
-import os
-
 from starboard.linux.shared.cobalt import configuration as shared_configuration
 from starboard.tools.testing import test_filter
 
@@ -26,12 +24,12 @@ class CobaltLinuxX64X11Clang39Configuration(
   def GetTestFilters(self):
     filters = super(CobaltLinuxX64X11Clang39Configuration,
                     self).GetTestFilters()
-    for target, tests in self.__FILTERED_TESTS.iteritems():
+    for target, tests in self.__FILTERED_TESTS.items():
       filters.extend(test_filter.TestFilter(target, test) for test in tests)
     return filters
 
   # A map of failing or crashing tests per target.
-  __FILTERED_TESTS = {
+  __FILTERED_TESTS = {  # pylint: disable=invalid-name
       'zip_unittests': [
           'ZipReaderTest.ExtractToFileAsync_RegularFile',
       ],

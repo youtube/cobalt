@@ -27,10 +27,10 @@ _FILTERED_TESTS = {
         'SbMicrophoneOpenTest.*',
         'SbMicrophoneReadTest.*',
         'SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.*',
-        'SbMediaSetAudioWriteDurationTests/SbMediaSetAudioWriteDurationTest'
-        '.WriteContinuedLimitedInput/*',
-        'SbMediaSetAudioWriteDurationTests/SbMediaSetAudioWriteDurationTest'
-        '.WriteLimitedInput/*',
+        ('SbMediaSetAudioWriteDurationTests/SbMediaSetAudioWriteDurationTest'
+         '.WriteContinuedLimitedInput/*'),
+        ('SbMediaSetAudioWriteDurationTests/SbMediaSetAudioWriteDurationTest'
+         '.WriteLimitedInput/*'),
     ],
     'player_filter_tests': [
         'AudioDecoderTests/*',
@@ -49,6 +49,6 @@ class AndroidX86TestFilters(shared_test_filters.TestFilters):
 
   def GetTestFilters(self):
     filters = super(AndroidX86TestFilters, self).GetTestFilters()
-    for target, tests in _FILTERED_TESTS.iteritems():
+    for target, tests in _FILTERED_TESTS.items():
       filters.extend(test_filter.TestFilter(target, test) for test in tests)
     return filters

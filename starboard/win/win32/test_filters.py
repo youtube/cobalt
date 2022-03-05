@@ -99,7 +99,7 @@ class WinWin32TestFilters(shared_test_filters.TestFilters):
       return [test_filter.DISABLE_TESTING]
     else:
       filters = super(WinWin32TestFilters, self).GetTestFilters()
-      for target, tests in _FILTERED_TESTS.iteritems():
+      for target, tests in _FILTERED_TESTS.items():
         filters.extend(test_filter.TestFilter(target, test) for test in tests)
       if os.environ.get('EXPERIMENTAL_CI', '0') == '1':
         # Disable these tests in the experimental CI due to pending failures.
@@ -110,6 +110,6 @@ class WinWin32TestFilters(shared_test_filters.TestFilters):
                 'DrainFileTest.RainyDayDrainFileAlreadyExists'
             ]
         }
-        for target, tests in experimental_filtered_tests.iteritems():
+        for target, tests in experimental_filtered_tests.items():
           filters.extend(test_filter.TestFilter(target, test) for test in tests)
       return filters

@@ -31,6 +31,6 @@ class LinuxX64X11Gcc63TestFilters(shared_test_filters.TestFilters):
 
   def GetTestFilters(self):
     filters = super(LinuxX64X11Gcc63TestFilters, self).GetTestFilters()
-    for target, tests in _FILTERED_TESTS.iteritems():
+    for target, tests in _FILTERED_TESTS.items():
       filters.extend(test_filter.TestFilter(target, test) for test in tests)
     return filters

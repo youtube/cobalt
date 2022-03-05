@@ -26,8 +26,8 @@ _FILTERED_TESTS = {
 
         # Currently, invalid input tests are not supported.
         'VideoDecoderTests/VideoDecoderTest.SingleInvalidInput/*',
-        'VideoDecoderTests/VideoDecoderTest'
-        '.MultipleValidInputsAfterInvalidKeyFrame/*',
+        ('VideoDecoderTests/VideoDecoderTest'
+         '.MultipleValidInputsAfterInvalidKeyFrame/*'),
         'VideoDecoderTests/VideoDecoderTest.MultipleInvalidInput/*',
 
         # Android currently does not support multi-video playback, which
@@ -79,6 +79,6 @@ class TestFilters(object):
 
   def GetTestFilters(self):
     filters = []
-    for target, tests in _FILTERED_TESTS.iteritems():
+    for target, tests in _FILTERED_TESTS.items():
       filters.extend(test_filter.TestFilter(target, test) for test in tests)
     return filters

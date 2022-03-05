@@ -48,7 +48,7 @@ class TestFilters(object):
 
   def GetTestFilters(self):
     filters = []
-    for target, tests in _FILTERED_TESTS.iteritems():
+    for target, tests in _FILTERED_TESTS.items():
       filters.extend(test_filter.TestFilter(target, test) for test in tests)
     return filters
 

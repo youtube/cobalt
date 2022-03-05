@@ -65,14 +65,14 @@ class TestFilters(object):
         os.path.join(paths.REPOSITORY_ROOT, 'third_party', 'ce_cdm', 'cdm',
                      'include', 'cdm.h'))
 
-    for target, tests in _FILTERED_TESTS.iteritems():
+    for target, tests in _FILTERED_TESTS.items():
       filters.extend(test_filter.TestFilter(target, test) for test in tests)
 
     if has_cdm:
       return filters
 
     # Filter the drm related tests, as ce_cdm is not present.
-    for target, tests in self._DRM_RELATED_TESTS.iteritems():
+    for target, tests in self._DRM_RELATED_TESTS.items():
       filters.extend(test_filter.TestFilter(target, test) for test in tests)
     return filters
 
