@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "base/observer_list.h"
+#include "base/optional.h"
 #include "base/synchronization/lock.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/thread.h"
@@ -91,6 +92,7 @@ namespace browser {
 // different subsystems together.
 class BrowserModule {
  public:
+  typedef base::Callback<void(WebModule*)> WebModuleCreatedCallback;
   // All browser subcomponent options should have default constructors that
   // setup reasonable default options.
   struct Options {
@@ -103,7 +105,7 @@ class BrowserModule {
     renderer::RendererModule::Options renderer_module_options;
     WebModule::Options web_module_options;
     media::MediaModule::Options media_module_options;
-    base::Closure web_module_created_callback;
+    WebModuleCreatedCallback web_module_created_callback;
     memory_settings::AutoMemSettings command_line_auto_mem_settings;
     memory_settings::AutoMemSettings build_auto_mem_settings;
     base::Optional<GURL> fallback_splash_screen_url;
@@ -229,9 +231,6 @@ class BrowserModule {
   static void GetParamMap(const std::string& url,
                           std::map<std::string, std::string>& map);
 
-  // Pass the application preload or start timestamps from Starboard.
-  void SetApplicationStartOrPreloadTimestamp(bool is_preload,
-                                             SbTimeMonotonic timestamp);
   // Pass the deeplink timestamp from Starboard.
   void SetDeepLinkTimestamp(SbTimeMonotonic timestamp);
  private:
@@ -587,7 +586,7 @@ class BrowserModule {
 
   // This will be called after a WebModule has been recreated, which could occur
   // on navigation.
-  base::Closure web_module_created_callback_;
+  WebModuleCreatedCallback web_module_created_callback_;
 
   // The time when a URL navigation starts. This is recorded after the previous
   // WebModule is destroyed.

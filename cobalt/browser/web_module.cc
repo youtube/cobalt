@@ -1031,6 +1031,7 @@ void WebModule::Impl::DoSynchronousLayoutAndGetRenderTree(
 void WebModule::Impl::SetApplicationStartOrPreloadTimestamp(
     bool is_preload, SbTimeMonotonic timestamp) {
   DCHECK(window_);
+  DCHECK(window_->performance());
   window_->performance()->SetApplicationStartOrPreloadTimestamp(is_preload,
                                                                 timestamp);
 }
@@ -1832,13 +1833,12 @@ void WebModule::SetApplicationStartOrPreloadTimestamp(
   TRACE_EVENT0("cobalt::browser",
                "WebModule::SetApplicationStartOrPreloadTimestamp()");
   DCHECK(message_loop());
-  DCHECK(impl_);
   if (base::MessageLoop::current() != message_loop()) {
-    message_loop()->task_runner()->PostBlockingTask(
-        FROM_HERE,
-        base::Bind(&WebModule::Impl::SetApplicationStartOrPreloadTimestamp,
-                   base::Unretained(impl_.get()), is_preload, timestamp));
+    message_loop()->task_runner()->PostTask(
+        FROM_HERE, base::Bind(&WebModule::SetApplicationStartOrPreloadTimestamp,
+                              base::Unretained(this), is_preload, timestamp));
   } else {
+    DCHECK(impl_);
     impl_->SetApplicationStartOrPreloadTimestamp(is_preload, timestamp);
   }
 }
