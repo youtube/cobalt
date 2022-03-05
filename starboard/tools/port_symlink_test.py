@@ -13,6 +13,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""Unit tests for port_symlink.py."""
 
 import os
 import shutil
@@ -53,14 +54,11 @@ class PortSymlinkTest(unittest.TestCase):
 
   def setUp(self):
     super(PortSymlinkTest, self).setUp()
-    self.tmp_dir = os.path.join(tempfile.gettempdir(), 'port_symlink')
-    if os.path.exists(self.tmp_dir):
-      Rmtree(self.tmp_dir)
+    self.tmp_dir = tempfile.mkdtemp(prefix='port_symlink_')
     self.target_dir = os.path.join(self.tmp_dir, 'target')
     self.inner_dir = os.path.join(self.target_dir, 'inner')
     self.link_dir = os.path.join(self.tmp_dir, 'link')
     self.target_file = os.path.join(self.target_dir, _TARGET_FILENAME)
-    _MakeDirs(self.tmp_dir)
     _MakeDirs(self.target_dir)
     _MakeDirs(self.inner_dir)
     with open(self.target_file, 'w') as fd:
@@ -135,13 +133,13 @@ class PortSymlinkTest(unittest.TestCase):
   def testOsWalk(self):
     paths_nofollow_links = _GetAllPaths(self.tmp_dir, followlinks=False)
     paths_follow_links = _GetAllPaths(self.tmp_dir, followlinks=True)
-    print '\nOsWalk Follow links:'
+    print('\nOsWalk Follow links:')
     for path in paths_follow_links:
-      print '  ' + path + ' (' + _PathTypeToString(path) + ')'
-    print '\nOsWalk No-Follow links:'
+      print('  ' + path + ' (' + _PathTypeToString(path) + ')')
+    print('\nOsWalk No-Follow links:')
     for path in paths_nofollow_links:
-      print '  ' + path + ' (' + _PathTypeToString(path) + ')'
-    print ''
+      print('  ' + path + ' (' + _PathTypeToString(path) + ')')
+    print('')
     self.assertIn(self.link_dir, paths_nofollow_links)
     self.assertIn(self.link_dir, paths_follow_links)
     self.assertIn(
