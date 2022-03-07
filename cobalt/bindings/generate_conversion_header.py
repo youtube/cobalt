@@ -17,7 +17,7 @@ Generate a header with forward declarations for conversion functions to and from
 JavaScript values.
 """
 
-from optparse import OptionParser
+from optparse import OptionParser  # pylint: disable=deprecated-module
 import os
 import pickle
 
@@ -26,9 +26,9 @@ from utilities import write_file
 
 
 def create_component_info_provider(interfaces_info_path, component_info_path):
-  with open(os.path.join(interfaces_info_path)) as interface_info_file:
+  with open(os.path.join(interfaces_info_path), 'rb') as interface_info_file:
     interfaces_info = pickle.load(interface_info_file)
-  with open(os.path.join(component_info_path)) as component_info_file:
+  with open(os.path.join(component_info_path), 'rb') as component_info_file:
     component_info = pickle.load(component_info_file)
   return ComponentInfoProviderCobalt(interfaces_info, component_info)
 

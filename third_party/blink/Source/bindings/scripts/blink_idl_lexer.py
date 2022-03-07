@@ -135,7 +135,7 @@ def main(argv):
     try:
         outputdir = argv[1]
     except IndexError as err:
-        print 'Usage: %s OUTPUT_DIR' % argv[0]
+        print('Usage: %s OUTPUT_DIR' % argv[0])
         return 1
     # Important: rewrite_tables=True causes the cache file to be deleted if it
     # exists, thus making sure that PLY doesn't load it instead of regenerating

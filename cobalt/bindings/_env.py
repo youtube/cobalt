@@ -15,20 +15,11 @@
 #
 """Ask the parent directory to load the project environment."""
 
-from imp import load_source
 import os
-from os import path
 import sys
 
-_ENV = path.abspath(path.join(path.dirname(__file__), path.pardir, '_env.py'))
-if not path.exists(_ENV):
-  print '%s: Can\'t find repo root.\nMissing parent: %s' % (__file__, _ENV)
-  sys.exit(1)
-load_source('', _ENV)
-
 # Add blink's Python tools to the path.
-
-from cobalt.tools import paths  # pylint: disable=g-import-not-at-top
+from cobalt.tools import paths
 
 sys.path.append(
     os.path.normpath(

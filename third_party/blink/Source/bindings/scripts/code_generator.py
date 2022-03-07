@@ -171,7 +171,7 @@ def main(argv):
         cache_dir = argv[1]
         dummy_filename = argv[2]
     except IndexError:
-        print 'Usage: %s CACHE_DIR DUMMY_FILENAME' % argv[0]
+        print('Usage: %s CACHE_DIR DUMMY_FILENAME' % argv[0])
         return 1
 
     # Cache templates

@@ -1180,11 +1180,11 @@ class IDLParser(object):
       out = IDLNode(cls, filename, lineno, pos, childlist)
       return out
     except:
-      print 'Exception while parsing:'
+      print('Exception while parsing:')
       for num, item in enumerate(p):
-        print '  [%d] %s' % (num, ExpandProduction(item))
+        print('  [%d] %s' % (num, ExpandProduction(item)))
       if self.LastToken():
-        print 'Last token: %s' % str(self.LastToken())
+        print('Last token: %s' % str(self.LastToken()))
       raise
 
   def BuildNamed(self, cls, p, index, childlist=None):
@@ -1313,9 +1313,9 @@ def main(argv):
 
   ast = IDLNode('AST', '__AST__', 0, 0, nodes)
 
-  print '\n'.join(ast.Tree(accept_props=['PROD']))
+  print('\n'.join(ast.Tree(accept_props=['PROD'])))
   if errors:
-    print '\nFound %d errors.\n' % errors
+    print('\nFound %d errors.\n' % errors)
 
   return errors
 

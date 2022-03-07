@@ -37,8 +37,7 @@ _bindings_extra_inputs += idl_compiler_files
 # Template definitions.
 template("idl_compile") {
   action_foreach(target_name) {
-    script = "//starboard/build/run_bash.py"
-    py_script = engine_idl_compiler
+    script = engine_idl_compiler
 
     sources = invoker.sources
 
@@ -54,7 +53,6 @@ template("idl_compile") {
       _extended_attributes_file,
       invoker.component_info,
       invoker.interfaces_info,
-      py_script,
     ]
     inputs += _bindings_extra_inputs
 
@@ -73,8 +71,6 @@ template("idl_compile") {
     ]
 
     args = [
-      "python2",
-      rebase_path(py_script, root_build_dir),
       "--cache-directory",
       rebase_path(invoker.cache_directory),
       "--output-directory",
@@ -92,15 +88,13 @@ template("idl_compile") {
 
 template("generate_type_conversion") {
   action(target_name) {
-    script = "//starboard/build/run_bash.py"
-    py_script = engine_conversion_header_generator_script
+    script = engine_conversion_header_generator_script
 
     deps = invoker.deps
 
     public_deps = engine_dependencies
 
     inputs = [
-      py_script,
       _extended_attributes_file,
       invoker.global_names_idl_file,
       "//cobalt/bindings/shared/idl_conditional_macros.h",
@@ -113,8 +107,6 @@ template("generate_type_conversion") {
     outputs = [ "${invoker.output_dir}/${generated_bindings_prefix}_gen_type_conversion.h" ]
 
     args = [
-      "python2",
-      rebase_path(py_script, root_build_dir),
       "--cache-directory",
       rebase_path(invoker.cache_directory, root_build_dir),
       "--output-dir",
@@ -129,13 +121,9 @@ template("generate_type_conversion") {
 
 template("compute_global_objects") {
   action(target_name) {
-    script = "//starboard/build/run_bash.py"
-    py_script = "$bindings_scripts_dir/compute_global_objects.py"
+    script = "$bindings_scripts_dir/compute_global_objects.py"
 
-    inputs = [
-      py_script,
-      "$bindings_scripts_dir/utilities.py",
-    ]
+    inputs = [ "$bindings_scripts_dir/utilities.py" ]
     inputs += invoker.idl_files
 
     outputs = [ invoker.global_objects_file ]
@@ -144,8 +132,6 @@ template("compute_global_objects") {
     write_file(idl_files_list, rebase_path(invoker.idl_files, root_build_dir))
 
     args = [
-      "python2",
-      rebase_path(py_script, root_build_dir),
       "--idl-files-list",
       rebase_path(idl_files_list, root_build_dir),
       "--",
@@ -156,13 +142,11 @@ template("compute_global_objects") {
 
 template("compute_global_constructors_idls") {
   action(target_name) {
-    script = "//starboard/build/run_bash.py"
-    py_script = "$bindings_scripts_dir/generate_global_constructors.py"
+    script = "$bindings_scripts_dir/generate_global_constructors.py"
 
     deps = invoker.deps
 
     inputs = [
-      py_script,
       "$bindings_scripts_dir/utilities.py",
       invoker.global_objects_file,
     ]
@@ -179,8 +163,6 @@ template("compute_global_constructors_idls") {
     write_file(idl_files_list, rebase_path(invoker.idl_files, root_build_dir))
 
     args = [
-      "python2",
-      rebase_path(py_script, root_build_dir),
       "--idl-files-list",
       rebase_path(idl_files_list, root_build_dir),
       "--global-objects-file",
@@ -194,13 +176,11 @@ template("compute_global_constructors_idls") {
 
 template("compute_interfaces_info_individual") {
   action(target_name) {
-    script = "//starboard/build/run_bash.py"
-    py_script = "$bindings_scripts_dir/compute_interfaces_info_individual.py"
+    script = "$bindings_scripts_dir/compute_interfaces_info_individual.py"
 
     deps = invoker.deps
 
     inputs = [
-      py_script,
       "$bindings_scripts_dir/utilities.py",
       _extended_attributes_file,
       invoker.generated_idl_files,
@@ -221,8 +201,6 @@ template("compute_interfaces_info_individual") {
         rebase_path(invoker.dependency_idl_files, root_build_dir)
     dependency_idl_files_list = string_join(" ", dependency_idl_files_paths)
     args = [
-      "python2",
-      rebase_path(py_script, root_build_dir),
       "--cache-directory",
       rebase_path(invoker.cache_directory, root_build_dir),
       "--root-directory",
@@ -247,21 +225,15 @@ template("compute_interfaces_info_individual") {
 
 template("generate_interfaces_info_overall") {
   action(target_name) {
-    script = "//starboard/build/run_bash.py"
-    py_script = "$bindings_scripts_dir/compute_interfaces_info_overall.py"
+    script = "$bindings_scripts_dir/compute_interfaces_info_overall.py"
 
     deps = invoker.deps
 
-    inputs = [
-      py_script,
-      invoker.individual_interfaces_file,
-    ]
+    inputs = [ invoker.individual_interfaces_file ]
 
     outputs = [ invoker.combined_interfaces_file ]
 
     args = [
-      "python2",
-      rebase_path(py_script, root_build_dir),
       "--",
       rebase_path(invoker.individual_interfaces_file, root_build_dir),
       rebase_path(invoker.combined_interfaces_file, root_build_dir),
@@ -271,32 +243,23 @@ template("generate_interfaces_info_overall") {
 
 template("cache_lex_tables") {
   action(target_name) {
-    script = "//starboard/build/run_bash.py"
-    py_script = "$bindings_scripts_dir/blink_idl_parser.py"
+    script = "$bindings_scripts_dir/blink_idl_parser.py"
 
-    inputs = [ py_script ]
-    inputs += idl_lexer_parser_files
-
+    inputs = idl_lexer_parser_files
     outputs = [
       "${invoker.output_dir}/lextab.py",
       "${invoker.output_dir}/parsetab.pickle",
     ]
 
-    args = [
-      "python2",
-      rebase_path(py_script, root_build_dir),
-      rebase_path(invoker.output_dir, root_build_dir),
-    ]
+    args = [ rebase_path(invoker.output_dir, root_build_dir) ]
   }
 }
 
 template("cache_templates") {
   action(target_name) {
-    script = "//starboard/build/run_bash.py"
-    py_script = "//cobalt/bindings/code_generator_cobalt.py"
+    script = "//cobalt/bindings/code_generator_cobalt.py"
 
     inputs = [
-      py_script,
       "//cobalt/bindings/path_generator.py",
       "//third_party/jinja2/__init__.py",
       "//third_party/markupsafe/__init__.py",  # jinja2 dep
@@ -333,8 +296,6 @@ template("cache_templates") {
     ]
 
     args = [
-      "python2",
-      rebase_path(py_script, root_build_dir),
       rebase_path("${invoker.output_dir}", root_build_dir),
       rebase_path("$engine_templates_dir", root_build_dir),
       rebase_path("${invoker.output_dir}/cached_jinja_templates.stamp",

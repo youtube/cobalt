@@ -18,6 +18,12 @@ Extract the relevant information from the IdlParser objects and store them in
 dicts that will be used by Jinja in JS bindings generation.
 """
 
+import os
+import sys
+
+sys.path.append(os.path.dirname(__file__))
+
+# pylint: disable=wrong-import-position
 import _env  # pylint: disable=unused-import
 from idl_definitions import IdlTypedef
 from idl_types import IdlPromiseType
@@ -31,6 +37,7 @@ from overload_context import get_overload_contexts
 from v8_attributes import is_constructor_attribute
 from v8_interface import method_overloads_by_name
 import v8_utilities
+# pylint: enable=wrong-import-position
 
 
 def is_date_type(idl_type):
@@ -200,7 +207,7 @@ def get_conversion_flags(idl_type, extended_attributes):
     elif extended_attributes.get('TreatUndefinedAs', '') == 'EmptyString':
       flags.append('kConversionFlagTreatUndefinedAsEmptyString')
 
-  if extended_attributes.has_key('Clamp'):
+  if 'Clamp' in extended_attributes:
     flags.append('kConversionFlagClamped')
 
   if is_object_type(idl_type):
@@ -399,28 +406,17 @@ class ContextBuilder(object):
   def method_context(self, interface, operation):
     """Create template values for generating method bindings."""
     context = {
-        'idl_name':
-            operation.name,
-        'name':
-            capitalize_function_name(operation.name),
-        'type':
-            self.typed_object_to_cobalt_type(interface, operation),
-        'is_static':
-            operation.is_static,
-        'on_instance':
-            v8_utilities.on_instance(interface, operation),
-        'on_interface':
-            v8_utilities.on_interface(interface, operation),
-        'on_prototype':
-            v8_utilities.on_prototype(interface, operation),
-        'call_with':
-            operation.extended_attributes.get('CallWith', None),
-        'raises_exception':
-            operation.extended_attributes.has_key('RaisesException'),
-        'conditional':
-            operation.extended_attributes.get('Conditional', None),
-        'unsupported':
-            'NotSupported' in operation.extended_attributes,
+        'idl_name': operation.name,
+        'name': capitalize_function_name(operation.name),
+        'type': self.typed_object_to_cobalt_type(interface, operation),
+        'is_static': operation.is_static,
+        'on_instance': v8_utilities.on_instance(interface, operation),
+        'on_interface': v8_utilities.on_interface(interface, operation),
+        'on_prototype': v8_utilities.on_prototype(interface, operation),
+        'call_with': operation.extended_attributes.get('CallWith', None),
+        'raises_exception': 'RaisesException' in operation.extended_attributes,
+        'conditional': operation.extended_attributes.get('Conditional', None),
+        'unsupported': 'NotSupported' in operation.extended_attributes,
     }
     context.update(self.partial_context(interface, operation))
     return context
@@ -468,10 +464,8 @@ class ContextBuilder(object):
       cobalt_name = 'AnonymousNamed%s' % function_suffix[special_type]
 
     context = {
-        'name':
-            cobalt_name,
-        'raises_exception':
-            operation.extended_attributes.has_key('RaisesException'),
+        'name': cobalt_name,
+        'raises_exception': 'RaisesException' in operation.extended_attributes,
     }
 
     if special_type in ('getter', 'deleter'):
@@ -512,7 +506,7 @@ class ContextBuilder(object):
         'call_with':
             attribute.extended_attributes.get('CallWith', None),
         'raises_exception':
-            attribute.extended_attributes.has_key('RaisesException'),
+            'RaisesException' in attribute.extended_attributes,
         'conversion_flags':
             get_conversion_flags(
                 self.resolve_typedef(attribute.idl_type),

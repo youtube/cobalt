@@ -15,8 +15,8 @@
 
 import os
 
-from path_conversion import ConvertPath
-from name_conversion import convert_to_cobalt_name
+from cobalt.bindings.name_conversion import convert_to_cobalt_name
+from cobalt.build.path_conversion import ConvertPath
 
 
 def _NormalizeSlashes(path):
