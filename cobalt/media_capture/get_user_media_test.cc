@@ -23,37 +23,29 @@
 #include "cobalt/script/global_environment.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace {
-
-std::unique_ptr<cobalt::script::EnvironmentSettings> CreateDOMSettings() {
-  cobalt::dom::DOMSettings::Options options;
-#if defined(ENABLE_FAKE_MICROPHONE)
-  options.microphone_options.enable_fake_microphone = true;
-#endif  // defined(ENABLE_FAKE_MICROPHONE)
-
-  return std::unique_ptr<cobalt::script::EnvironmentSettings>(
-      new cobalt::dom::testing::StubEnvironmentSettings(options));
-}
-
-}  // namespace.
-
 namespace cobalt {
 namespace media_capture {
 
 class GetUserMediaTest : public ::testing::Test {
  protected:
-  GetUserMediaTest()
-      : window_(CreateDOMSettings()),
-        media_devices_(new MediaDevices(
-            window_.environment_settings(),
-            window_.global_environment()->script_value_factory())) {}
+  GetUserMediaTest() {
+    cobalt::dom::DOMSettings::Options options;
+#if defined(ENABLE_FAKE_MICROPHONE)
+    options.microphone_options.enable_fake_microphone = true;
+#endif  // defined(ENABLE_FAKE_MICROPHONE)
+
+    window_.reset(new dom::testing::StubWindow(options));
+    media_devices_ =
+        new MediaDevices(window_->environment_settings(),
+                         window_->global_environment()->script_value_factory());
+  }
 
   media_stream::MicrophoneAudioSource* GetMicrophoneAudioSource() {
     return base::polymorphic_downcast<media_stream::MicrophoneAudioSource*>(
         media_devices_->audio_source_.get());
   }
 
-  dom::testing::StubWindow window_;
+  std::unique_ptr<dom::testing::StubWindow> window_;
   scoped_refptr<MediaDevices> media_devices_;
 };
 

@@ -19,7 +19,6 @@
 
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/dom/dom_exception.h"
-#include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/eme/eme_helpers.h"
 #include "cobalt/dom/eme/media_key_message_event.h"
 #include "cobalt/dom/eme/media_key_message_event_init.h"
@@ -27,6 +26,8 @@
 #include "cobalt/script/array_buffer.h"
 #include "cobalt/script/array_buffer_view.h"
 #include "cobalt/script/script_value_factory.h"
+#include "cobalt/web/context.h"
+#include "cobalt/web/environment_settings.h"
 
 namespace cobalt {
 namespace dom {
@@ -230,9 +231,10 @@ void MediaKeySession::OnSessionUpdateRequestGenerated(
     SbDrmSessionRequestType type, std::unique_ptr<uint8[]> message,
     int message_size) {
   DCHECK(settings);
-  DOMSettings* dom_settings =
-      base::polymorphic_downcast<DOMSettings*>(settings);
-  auto* global_environment = dom_settings->global_environment();
+  auto* global_environment =
+      base::polymorphic_downcast<web::EnvironmentSettings*>(settings)
+          ->context()
+          ->global_environment();
   DCHECK(global_environment);
   MediaKeyMessageEventInit media_key_message_event_init;
   // 10.9.4. If a license request for the requested license type can be

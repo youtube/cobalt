@@ -209,11 +209,13 @@ std::string RunWebPlatformTest(const GURL& url, bool* got_results) {
       dom::kCspEnforcementEnable, CspDelegatePermissive::Create);
   // Use test runner mode to allow the content itself to dictate when it is
   // ready for layout should be performed.  See cobalt/dom/test_runner.h.
-  browser::WebModule::Options web_module_options;
+  browser::WebModule::Options web_module_options("RunWebPlatformTest");
   web_module_options.layout_trigger = layout::LayoutManager::kTestRunnerMode;
   // We assume that we won't suspend/resume while running the tests, and so
   // we take advantage of the convenience of inline script tags.
   web_module_options.enable_inline_script_warnings = false;
+
+  web_module_options.web_options.network_module = &network_module;
 
   // Prepare a slot for our results to be placed when ready.
   base::Optional<browser::WebModule::LayoutResults> results;
@@ -227,8 +229,8 @@ std::string RunWebPlatformTest(const GURL& url, bool* got_results) {
                  base::MessageLoop::current()),
       base::Bind(&WindowCloseCallback, &run_loop, base::MessageLoop::current()),
       base::Closure() /* window_minimize_callback */,
-      can_play_type_handler.get(), media_module.get(), &network_module,
-      kDefaultViewportSize, &resource_provider, 60.0f, web_module_options);
+      can_play_type_handler.get(), media_module.get(), kDefaultViewportSize,
+      &resource_provider, 60.0f, web_module_options);
   run_loop.Run();
   const std::string extract_results =
       "document.getElementById(\"__testharness__results__\").textContent;";

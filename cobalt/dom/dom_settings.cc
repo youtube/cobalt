@@ -22,23 +22,16 @@ namespace cobalt {
 namespace dom {
 
 DOMSettings::DOMSettings(
-    const int max_dom_element_depth, loader::FetcherFactory* fetcher_factory,
-    network::NetworkModule* network_module,
-    MediaSourceRegistry* media_source_registry, Blob::Registry* blob_registry,
+    const base::DebuggerHooks& debugger_hooks, const int max_dom_element_depth,
+    MediaSourceRegistry* media_source_registry,
     media::CanPlayTypeHandler* can_play_type_handler,
     const media::DecoderBufferMemoryInfo* decoder_buffer_memory_info,
-    script::JavaScriptEngine* engine,
-    script::GlobalEnvironment* global_environment,
-    const base::DebuggerHooks& debugger_hooks,
     MutationObserverTaskManager* mutation_observer_task_manager,
     const Options& options)
-    : EnvironmentSettings(engine, global_environment, debugger_hooks),
+    : EnvironmentSettings(debugger_hooks),
       max_dom_element_depth_(max_dom_element_depth),
       microphone_options_(options.microphone_options),
-      fetcher_factory_(fetcher_factory),
-      network_module_(network_module),
       media_source_registry_(media_source_registry),
-      blob_registry_(blob_registry),
       can_play_type_handler_(can_play_type_handler),
       decoder_buffer_memory_info_(decoder_buffer_memory_info),
       mutation_observer_task_manager_(mutation_observer_task_manager) {}
@@ -47,12 +40,9 @@ DOMSettings::~DOMSettings() {}
 
 void DOMSettings::set_window(const scoped_refptr<Window>& window) {
   window_ = window;
+  set_base_url(window->document()->url_as_gurl());
 }
 scoped_refptr<Window> DOMSettings::window() const { return window_; }
-
-const GURL& DOMSettings::base_url() const {
-  return window()->document()->url_as_gurl();
-}
 
 loader::Origin DOMSettings::document_origin() const {
   return window()->document()->location()->GetOriginAsObject();

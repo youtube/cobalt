@@ -42,6 +42,7 @@ static_library("dom_testing") {
     "//cobalt/dom_parser",
     "//cobalt/loader",
     "//cobalt/script",
+    "//cobalt/web",
     "//testing/gmock",
     "//testing/gtest",
     "//url",

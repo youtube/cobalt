@@ -1,0 +1,281 @@
+// Copyright 2022 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#include "cobalt/web/agent.h"
+
+#include <memory>
+
+#include "base/trace_event/trace_event.h"
+#include "cobalt/dom/blob.h"
+#include "cobalt/dom/url.h"
+#include "cobalt/loader/fetcher_factory.h"
+#include "cobalt/script/environment_settings.h"
+#include "cobalt/script/error_report.h"
+#include "cobalt/script/execution_state.h"
+#include "cobalt/script/global_environment.h"
+#include "cobalt/script/javascript_engine.h"
+#include "cobalt/script/script_runner.h"
+#include "cobalt/script/wrappable.h"
+#include "cobalt/web/context.h"
+#include "cobalt/web/environment_settings.h"
+
+namespace cobalt {
+namespace web {
+// Private Web Context implementation. Each Agent owns a single instance of
+// this class, which performs all the actual work. All functions of this class
+// must be called on the message loop of the Agent thread, so they
+// execute synchronously with respect to one another.
+namespace {
+class Impl : public Context {
+ public:
+  explicit Impl(const Agent::Options& options);
+  virtual ~Impl();
+
+  // Context
+  //
+  void ShutDownJavaScriptEngine() final;
+  void set_fetcher_factory(loader::FetcherFactory* factory) final {
+    fetcher_factory_.reset(factory);
+  }
+  loader::FetcherFactory* fetcher_factory() const final {
+    return fetcher_factory_.get();
+  }
+  script::JavaScriptEngine* javascript_engine() const final {
+    return javascript_engine_.get();
+  }
+  script::GlobalEnvironment* global_environment() const final {
+    return global_environment_.get();
+  }
+  script::ExecutionState* execution_state() const final {
+    return execution_state_.get();
+  }
+  script::ScriptRunner* script_runner() const final {
+    return script_runner_.get();
+  }
+  dom::Blob::Registry* blob_registry() const final {
+    return blob_registry_.get();
+  }
+  network::NetworkModule* network_module() const final {
+    DCHECK(fetcher_factory_);
+    return fetcher_factory_->network_module();
+  }
+
+  const std::string& name() const final { return name_; };
+  void setup_environment_settings(
+      EnvironmentSettings* environment_settings) final {
+    environment_settings_.reset(environment_settings);
+    if (environment_settings_) environment_settings_->set_context(this);
+  }
+  web::EnvironmentSettings* environment_settings() const final {
+    DCHECK_EQ(environment_settings_->context(), this);
+    return environment_settings_.get();
+  }
+
+ private:
+  // Injects a list of attributes into the Web Context's global object.
+  void InjectGlobalObjectAttributes(
+      const Agent::Options::InjectedGlobalObjectAttributes& attributes);
+
+  // Thread checker ensures all calls to the Context are made from the same
+  // thread that it is created in.
+  THREAD_CHECKER(thread_checker_);
+
+  // Name of the web instance.
+  std::string name_;
+  // FetcherFactory that is used to create a fetcher according to URL.
+  std::unique_ptr<loader::FetcherFactory> fetcher_factory_;
+
+  // JavaScript engine for the browser.
+  std::unique_ptr<script::JavaScriptEngine> javascript_engine_;
+
+  // JavaScript Global Object for the browser. There should be one per window,
+  // but since there is only one window, we can have one per browser.
+  scoped_refptr<script::GlobalEnvironment> global_environment_;
+
+  // Used by |Console| to obtain a JavaScript stack trace.
+  std::unique_ptr<script::ExecutionState> execution_state_;
+
+  // Interface for the document to execute JavaScript code.
+  std::unique_ptr<script::ScriptRunner> script_runner_;
+
+  // Object to register and retrieve Blob objects with a string key.
+  std::unique_ptr<dom::Blob::Registry> blob_registry_;
+
+  // Environment Settings object
+  std::unique_ptr<web::EnvironmentSettings> environment_settings_;
+};
+
+Impl::Impl(const Agent::Options& options) : name_(options.name) {
+  TRACE_EVENT0("cobalt::web", "Agent::Impl::Impl()");
+  blob_registry_.reset(new dom::Blob::Registry);
+
+  fetcher_factory_.reset(new loader::FetcherFactory(
+      options.network_module, options.extra_web_file_dir,
+      dom::URL::MakeBlobResolverCallback(blob_registry_.get()),
+      options.read_cache_callback));
+  DCHECK(fetcher_factory_);
+
+  javascript_engine_ =
+      script::JavaScriptEngine::CreateEngine(options.javascript_engine_options);
+  DCHECK(javascript_engine_);
+
+  global_environment_ = javascript_engine_->CreateGlobalEnvironment();
+  DCHECK(global_environment_);
+
+  global_environment_->AddRoot(blob_registry_.get());
+
+  execution_state_ =
+      script::ExecutionState::CreateExecutionState(global_environment_);
+  DCHECK(execution_state_);
+
+  script_runner_ =
+      script::ScriptRunner::CreateScriptRunner(global_environment_);
+  DCHECK(script_runner_);
+
+  // Schedule the injected global attributes to be added later, to ensure they
+  // are added after the global object is created.
+  if (!options.injected_global_object_attributes.empty()) {
+    DCHECK(base::MessageLoop::current());
+    base::MessageLoop::current()->task_runner()->PostTask(
+        FROM_HERE,
+        base::Bind(&Impl::InjectGlobalObjectAttributes, base::Unretained(this),
+                   options.injected_global_object_attributes));
+  }
+}
+
+void Impl::ShutDownJavaScriptEngine() {
+  // TODO: Disentangle shutdown of the JS engine with the various tracking and
+  // caching in the WebModule.
+  if (global_environment_) {
+    global_environment_->SetReportEvalCallback(base::Closure());
+    global_environment_->SetReportErrorCallback(
+        script::GlobalEnvironment::ReportErrorCallback());
+  }
+
+  setup_environment_settings(nullptr);
+  blob_registry_.reset();
+  script_runner_.reset();
+  execution_state_.reset();
+  global_environment_ = NULL;
+  javascript_engine_.reset();
+  fetcher_factory_.reset();
+}
+
+Impl::~Impl() { ShutDownJavaScriptEngine(); }
+
+void Impl::InjectGlobalObjectAttributes(
+    const Agent::Options::InjectedGlobalObjectAttributes& attributes) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK(global_environment_);
+
+  for (Agent::Options::InjectedGlobalObjectAttributes::const_iterator iter =
+           attributes.begin();
+       iter != attributes.end(); ++iter) {
+    global_environment_->Bind(iter->first,
+                              iter->second.Run(environment_settings()));
+  }
+}
+
+// Signals the given WaitableEvent.
+void SignalWaitableEvent(base::WaitableEvent* event) { event->Signal(); }
+}  // namespace
+
+void Agent::WillDestroyCurrentMessageLoop() { context_.reset(); }
+
+Agent::Agent(const Options& options, InitializeCallback initialize_callback,
+             DestructionObserver* destruction_observer)
+    : thread_(options.name) {
+  // Start the dedicated thread and create the internal implementation
+  // object on that thread.
+  base::Thread::Options thread_options(base::MessageLoop::TYPE_DEFAULT,
+                                       options.stack_size);
+  thread_options.priority = options.thread_priority;
+  if (!thread_.StartWithOptions(thread_options)) return;
+  DCHECK(message_loop());
+
+  message_loop()->task_runner()->PostTask(
+      FROM_HERE, base::Bind(&Agent::Initialize, base::Unretained(this), options,
+                            initialize_callback));
+
+  if (destruction_observer) {
+    message_loop()->task_runner()->PostTask(
+        FROM_HERE, base::Bind(&base::MessageLoop::AddDestructionObserver,
+                              base::Unretained(message_loop()),
+                              base::Unretained(destruction_observer)));
+  }
+  // Register as a destruction observer to shut down the Web Agent once all
+  // pending tasks have been executed and the message loop is about to be
+  // destroyed. This allows us to safely stop the thread, drain the task queue,
+  // then destroy the internal components before the message loop is reset.
+  // No posted tasks will be executed once the thread is stopped.
+  message_loop()->task_runner()->PostTask(
+      FROM_HERE,
+      base::Bind(&base::MessageLoop::AddDestructionObserver,
+                 base::Unretained(message_loop()), base::Unretained(this)));
+
+  // This works almost like a PostBlockingTask, except that any blocking that
+  // may be necessary happens when Stop() is called instead of right now.
+  message_loop()->task_runner()->PostTask(
+      FROM_HERE, base::Bind(&SignalWaitableEvent,
+                            base::Unretained(&destruction_observer_added_)));
+}
+
+Agent::~Agent() {
+  DCHECK(message_loop());
+  DCHECK(thread_.IsRunning());
+
+  // Ensure that the destruction observer got added before stopping the thread.
+  destruction_observer_added_.Wait();
+  // Stop the thread. This will cause the destruction observer to be notified.
+  thread_.Stop();
+}
+
+void Agent::Initialize(const Options& options,
+                       InitializeCallback initialize_callback) {
+  DCHECK_EQ(base::MessageLoop::current(), message_loop());
+  context_.reset(CreateContext(options));
+  initialize_callback.Run(context_.get());
+}
+
+Context* Agent::CreateContext(const Options& options) {
+  return new Impl(options);
+}
+
+void Agent::WaitUntilDone() {
+  DCHECK(message_loop());
+  if (base::MessageLoop::current() != message_loop()) {
+    message_loop()->task_runner()->PostBlockingTask(
+        FROM_HERE, base::Bind(&Agent::WaitUntilDone, base::Unretained(this)));
+    return;
+  }
+  DCHECK_EQ(base::MessageLoop::current(), message_loop());
+}
+
+void Agent::RequestJavaScriptHeapStatistics(
+    const JavaScriptHeapStatisticsCallback& callback) {
+  TRACE_EVENT0("cobalt::web", "Agent::RequestJavaScriptHeapStatistics()");
+  DCHECK(message_loop());
+  if (base::MessageLoop::current() != message_loop()) {
+    message_loop()->task_runner()->PostTask(
+        FROM_HERE, base::Bind(&Agent::RequestJavaScriptHeapStatistics,
+                              base::Unretained(this), callback));
+    return;
+  }
+  script::HeapStatistics heap_statistics =
+      context_->javascript_engine()->GetHeapStatistics();
+  callback.Run(heap_statistics);
+}
+
+}  // namespace web
+}  // namespace cobalt

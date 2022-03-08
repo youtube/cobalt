@@ -17,8 +17,10 @@
 #include "base/bind.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/dom/dom_exception.h"
+#include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/eme/eme_helpers.h"
 #include "cobalt/dom/eme/media_key_session.h"
+#include "cobalt/web/context.h"
 
 namespace cobalt {
 namespace dom {
@@ -100,8 +102,9 @@ script::Handle<script::Uint8Array> MediaKeys::GetMetrics(
     script::ExceptionState* exception_state) {
   std::vector<uint8_t> metrics;
   if (drm_system_->GetMetrics(&metrics)) {
-    return script::Uint8Array::New(dom_settings_->global_environment(),
-                                   metrics.data(), metrics.size());
+    return script::Uint8Array::New(
+        dom_settings_->context()->global_environment(), metrics.data(),
+        metrics.size());
   }
   DOMException::Raise(DOMException::kNotSupportedErr, exception_state);
   return script::Handle<script::Uint8Array>();

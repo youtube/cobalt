@@ -47,6 +47,7 @@ Handle<ArrayBuffer> ArrayBuffer::New(GlobalEnvironment* global_environment,
       base::polymorphic_downcast<v8c::V8cGlobalEnvironment*>(
           global_environment);
   v8::Isolate* isolate = v8c_global_environment->isolate();
+  DCHECK(isolate);
   v8c::EntryScope entry_scope(isolate);
   v8::Local<v8::ArrayBuffer> array_buffer =
       v8::ArrayBuffer::New(isolate, byte_length);

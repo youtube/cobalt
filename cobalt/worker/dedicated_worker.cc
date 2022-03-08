@@ -17,6 +17,7 @@
 #include <memory>
 #include <string>
 
+#include "cobalt/browser/stack_size_constants.h"
 #include "cobalt/dom/event_target.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/worker/message_port.h"
@@ -58,10 +59,11 @@ void DedicatedWorker::Initialize() {
   // 3. Parse the scriptURL argument relative to outside settings.
   // 4. If this fails, throw a "SyntaxError" DOMException.
   // 5. Let worker URL be the resulting URL record.
-  Worker::Options options;
+  Worker::Options options(kDedicatedWorkerName);
   options.url = script_url_;
+  options.web_options.stack_size = cobalt::browser::kWorkerStackSize;
   // 6. Let worker be a new Worker object.
-  worker_.reset(new Worker(kDedicatedWorkerName));
+  worker_.reset(new Worker());
   // 7. Let outside port be a new MessagePort in outside settings's Realm.
   // 8. Associate the outside port with worker.
   outside_port_ = new MessagePort(this, settings_);

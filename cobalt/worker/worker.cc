@@ -19,7 +19,6 @@
 
 #include "base/message_loop/message_loop.h"
 #include "base/threading/thread.h"
-#include "cobalt/browser/stack_size_constants.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/worker/dedicated_worker_global_scope.h"
 #include "cobalt/worker/message_port.h"
@@ -30,30 +29,7 @@
 namespace cobalt {
 namespace worker {
 
-Worker::Worker(const std::string& name) : thread_(name) {}
-
-Worker::DestructionObserver::DestructionObserver(Worker* worker)
-    : worker_(worker) {}
-
-void Worker::DestructionObserver::WillDestroyCurrentMessageLoop() {
-  worker_->Finalize();
-}
-
-Worker::~Worker() {
-  DCHECK(message_loop());
-
-  DestructionObserver destruction_observer(this);
-  message_loop()->task_runner()->PostBlockingTask(
-      FROM_HERE, base::Bind(&base::MessageLoop::AddDestructionObserver,
-                            base::Unretained(message_loop()),
-                            base::Unretained(&destruction_observer)));
-
-  // This will cancel the timers for tasks, which help the thread exit
-  ClearAllIntervalsAndTimeouts();
-
-  // Stop the thread. This will cause the destruction observer to be notified.
-  thread_.Stop();
-}
+Worker::Worker() {}
 
 void Worker::ClearAllIntervalsAndTimeouts() {
   // TODO
@@ -73,47 +49,30 @@ bool Worker::Run(const Options& options) {
   // 6. Let agent be the result of obtaining a dedicated/shared worker agent
   //    given outside settings and is shared. Run the rest of these steps in
   //    that agent.
-  base::Thread::Options thread_options(base::MessageLoop::TYPE_DEFAULT,
-                                       cobalt::browser::kWorkerStackSize);
-  thread_options.priority = options.thread_priority;
-  if (!thread_.StartWithOptions(thread_options)) return false;
-  DCHECK(message_loop());
-
-  message_loop()->task_runner()->PostTask(
-      FROM_HERE,
-      base::Bind(&Worker::Initialize, base::Unretained(this), options));
-  return true;
+  web_agent_.reset(new web::Agent(
+      options.web_options,
+      base::Bind(&Worker::Initialize, base::Unretained(this), options)));
+  return !!message_loop();
 }
 
-void Worker::Initialize(const Options& options) {
+void Worker::Initialize(const Options& options, web::Context* context) {
   LOG(INFO) << "Look at me, I'm running a worker thread";
 
+  web_context_ = context;
   // 7. Let realm execution context be the result of creating a new
   // JavaScript
   //    realm given agent and the following customizations:
   //    . For the global object, if is shared is true, create a new
   //      SharedWorkerGlobalScope object. Otherwise, create a new
   //      DedicatedWorkerGlobalScope object.
-
-  javascript_engine_ =
-      script::JavaScriptEngine::CreateEngine(options.javascript_engine_options);
-  DCHECK(javascript_engine_);
-
-  global_environment_ = javascript_engine_->CreateGlobalEnvironment();
-  DCHECK(global_environment_);
-
-  script_runner_ =
-      script::ScriptRunner::CreateScriptRunner(global_environment_);
-  DCHECK(script_runner_);
-
   // 8. Let worker global scope be the global object of realm execution
   //    context's Realm component.
   // 9. Set up a worker environment settings object with realm execution
   //    context, outside settings, and unsafeWorkerCreationTime, and let
   //    inside settings be the result.
 
-  environment_settings_.reset(
-      new WorkerSettings(javascript_engine_.get(), global_environment_.get()));
+  web_context_->setup_environment_settings(
+      new WorkerSettings(GURL(options.url)));
 
   // 10. Set worker global scope's name to the value of options's name member.
   // 11. Append owner to worker global scope's owner set.
@@ -196,12 +155,15 @@ void Worker::Execute(const std::string& content,
   // 17. Associate inside port with worker global scope.
   // TODO: Actual type here should depend on derived class (e.g. dedicated,
   // shared, service)
-  worker_global_scope_ =
-      new DedicatedWorkerGlobalScope(environment_settings_.get());
-  message_port_ =
-      new MessagePort(worker_global_scope_, environment_settings_.get());
-  global_environment_->CreateGlobalObject(worker_global_scope_,
-                                          environment_settings_.get());
+  scoped_refptr<DedicatedWorkerGlobalScope> dedicated_worker_global_scope =
+      new DedicatedWorkerGlobalScope(web_context_->environment_settings());
+  worker_global_scope_ = dedicated_worker_global_scope;
+  message_port_ = new MessagePort(worker_global_scope_,
+                                  web_context_->environment_settings());
+
+  web_context_->global_environment()->CreateGlobalObject(
+      dedicated_worker_global_scope, web_context_->environment_settings());
+
   // 18. Entangle outside port and inside port.
   // 19. Create a new WorkerLocation object and associate it with worker global
   //     scope.
@@ -221,8 +183,8 @@ void Worker::Execute(const std::string& content,
   bool mute_errors = false;
   bool succeeded = false;
   LOG(INFO) << "Script Executing \"" << content << "\".";
-  std::string retval = script_runner_->Execute(content, script_location,
-                                               mute_errors, &succeeded);
+  std::string retval = web_context_->script_runner()->Execute(
+      content, script_location, mute_errors, &succeeded);
   LOG(INFO) << "Script Executed " << (succeeded ? "and" : ", but not")
             << " succeeded: \"" << retval << "\"";
 
@@ -243,19 +205,17 @@ void Worker::Execute(const std::string& content,
   // Finalize();
 }
 
-void Worker::Finalize() {
+Worker::~Worker() {
   // 29. Clear the worker global scope's map of active timers.
   // 30. Disentangle all the ports in the list of the worker's ports.
   // 31. Empty worker global scope's owner set.
-
-  global_environment_->SetReportEvalCallback(base::Closure());
-  global_environment_->SetReportErrorCallback(
-      script::GlobalEnvironment::ReportErrorCallback());
-
-  script_runner_.reset();
-  global_environment_ = NULL;
-  javascript_engine_.reset();
+  if (web_agent_) {
+    DCHECK(message_loop());
+    web_agent_->WaitUntilDone();
+    web_agent_.reset();
+  }
 }
+
 
 // Algorithm for 'Terminate a worker'
 //   https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#terminate-a-worker

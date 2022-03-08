@@ -16,9 +16,10 @@
 
 #include "base/logging.h"
 #include "cobalt/base/polymorphic_downcast.h"
-#include "cobalt/dom/dom_settings.h"
 #include "cobalt/script/array_buffer.h"
 #include "cobalt/script/array_buffer_view.h"
+#include "cobalt/web/context.h"
+#include "cobalt/web/environment_settings.h"
 
 namespace cobalt {
 namespace dom {
@@ -61,11 +62,13 @@ std::string ConvertKeyStatusToString(MediaKeyStatus key_status) {
 BufferSource ConvertStringToBufferSource(script::EnvironmentSettings* settings,
                                          const std::string& str) {
   DCHECK(settings);
-  DOMSettings* dom_settings =
-      base::polymorphic_downcast<dom::DOMSettings*>(settings);
-  DCHECK(dom_settings->global_environment());
-  script::Handle<script::ArrayBuffer> array_buffer = script::ArrayBuffer::New(
-      dom_settings->global_environment(), str.data(), str.size());
+  auto* global_environment =
+      base::polymorphic_downcast<web::EnvironmentSettings*>(settings)
+          ->context()
+          ->global_environment();
+  DCHECK(global_environment);
+  script::Handle<script::ArrayBuffer> array_buffer =
+      script::ArrayBuffer::New(global_environment, str.data(), str.size());
   return BufferSource(array_buffer);
 }
 

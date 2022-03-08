@@ -21,7 +21,6 @@
 
 #include "base/callback.h"
 #include "base/containers/hash_tables.h"
-#include "base/files/file_path.h"
 #include "base/message_loop/message_loop.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/thread.h"
@@ -52,13 +51,11 @@
 #include "cobalt/math/size.h"
 #include "cobalt/media/can_play_type_handler.h"
 #include "cobalt/media/media_module.h"
-#include "cobalt/network/network_module.h"
 #include "cobalt/render_tree/node.h"
 #include "cobalt/render_tree/resource_provider.h"
-#include "cobalt/script/global_environment.h"
-#include "cobalt/script/javascript_engine.h"
-#include "cobalt/script/script_runner.h"
 #include "cobalt/ui_navigation/nav_item.h"
+#include "cobalt/web/agent.h"
+#include "cobalt/web/context.h"
 #include "cobalt/webdriver/session_driver.h"
 #include "starboard/atomic.h"
 #include "url/gurl.h"
@@ -89,33 +86,20 @@ namespace browser {
 // This necessarily implies that details contained within WebModule, such as the
 // DOM, are intentionally kept private, since these structures expect to be
 // accessed from only one thread.
-class WebModule : public LifecycleObserver {
+class WebModule : public base::MessageLoop::DestructionObserver,
+                  public LifecycleObserver {
  public:
   struct Options {
-    typedef base::Callback<scoped_refptr<script::Wrappable>(
-        const scoped_refptr<dom::Window>& window,
-        script::GlobalEnvironment* global_environment)>
-        CreateObjectFunction;
-    typedef base::hash_map<std::string, CreateObjectFunction>
-        InjectedWindowAttributes;
-
     // All optional parameters defined in this structure should have their
     // values initialized in the default constructor to useful defaults.
-    Options();
+    explicit Options(const std::string& name);
 
-    // The name of the WebModule.  This is useful for debugging purposes as in
-    // the case where multiple WebModule objects exist, it can be used to
-    // differentiate which objects belong to which WebModule.  It is used
-    // to name some CVals.
-    std::string name;
+    web::Agent::Options web_options;
 
     // The LayoutTrigger parameter dictates when a layout should be triggered.
     // Tests will often set this up so that layouts are only performed when
     // we specifically request them to be.
     layout::LayoutManager::LayoutTrigger layout_trigger;
-
-    // Optional directory to add to the search path for web files (file://).
-    base::FilePath extra_web_file_dir;
 
     // The navigation_callback functor will be called when JavaScript internal
     // to the WebModule requests a page navigation, e.g. by modifying
@@ -124,11 +108,6 @@ class WebModule : public LifecycleObserver {
 
     // A list of callbacks to be called once the web page finishes loading.
     std::vector<base::Closure> loaded_callbacks;
-
-    // injected_window_attributes contains a map of attributes to be injected
-    // into the WebModule's window object upon construction.  This provides
-    // a mechanism to inject custom APIs into the WebModule object.
-    InjectedWindowAttributes injected_window_attributes;
 
     // Options to customize DOMSettings.
     dom::DOMSettings::Options dom_settings_options;
@@ -156,7 +135,7 @@ class WebModule : public LifecycleObserver {
     int remote_typeface_cache_capacity = 4 * 1024 * 1024;
 
     // Mesh cache capacity in bytes.
-    int mesh_cache_capacity;
+    int mesh_cache_capacity = 0;
 
     // Whether map-to-mesh is enabled.
     bool enable_map_to_mesh = true;
@@ -176,11 +155,6 @@ class WebModule : public LifecycleObserver {
     // help for platforms that are low on image memory while playing a video.
     float image_cache_capacity_multiplier_when_playing_video = 1.0f;
 
-    // Specifies the priority of the web module's thread.  This is the thread
-    // that is responsible for executing JavaScript, managing the DOM, and
-    // performing layouts.  The default value is base::ThreadPriority::NORMAL.
-    base::ThreadPriority thread_priority = base::ThreadPriority::NORMAL;
-
     // Specifies the priority that the web module's corresponding loader thread
     // will be assigned.  This is the thread responsible for performing resource
     // decoding, such as image decoding.  The default value is
@@ -198,8 +172,6 @@ class WebModule : public LifecycleObserver {
     // To support 3D camera movements.
     scoped_refptr<input::Camera3D> camera_3d;
 
-    script::JavaScriptEngine::Options javascript_engine_options;
-
     // The video playback rate will be multiplied with the following value.  Its
     // default value is 1.0.
     float video_playback_rate_multiplier = 1.f;
@@ -213,7 +185,7 @@ class WebModule : public LifecycleObserver {
     bool should_retain_remote_typeface_cache_on_freeze = false;
 
     // The splash screen cache object, owned by the BrowserModule.
-    SplashScreenCache* splash_screen_cache;
+    SplashScreenCache* splash_screen_cache = nullptr;
 
     // The beforeunload event can give a web page a chance to shut
     // itself down softly and ultimately call window.close(), however
@@ -223,12 +195,8 @@ class WebModule : public LifecycleObserver {
     // no window.close() call pending.
     base::Closure on_before_unload_fired_but_not_handled;
 
-    // Whether or not the WebModule is allowed to fetch from cache via
-    // h5vcc-cache://.
-    bool can_fetch_cache = false;
-
     // The dom::OnScreenKeyboard forwards calls to this interface.
-    dom::OnScreenKeyboardBridge* on_screen_keyboard_bridge = NULL;
+    dom::OnScreenKeyboardBridge* on_screen_keyboard_bridge = nullptr;
 
     // This function takes in a render tree as input, and then calls the 2nd
     // argument (which is another callback) when the screenshot is available.
@@ -279,8 +247,6 @@ class WebModule : public LifecycleObserver {
       OnRenderTreeProducedCallback;
   typedef base::Callback<void(const GURL&, const std::string&)> OnErrorCallback;
   typedef dom::Window::CloseCallback CloseCallback;
-  typedef base::Callback<void(const script::HeapStatistics&)>
-      JavaScriptHeapStatisticsCallback;
 
   WebModule(const GURL& initial_url,
             base::ApplicationState initial_application_state,
@@ -290,7 +256,6 @@ class WebModule : public LifecycleObserver {
             const base::Closure& window_minimize_callback,
             media::CanPlayTypeHandler* can_play_type_handler,
             media::MediaModule* media_module,
-            network::NetworkModule* network_module,
             const cssom::ViewportSize& window_dimensions,
             render_tree::ResourceProvider* resource_provider,
             float layout_refresh_rate, const Options& options);
@@ -406,7 +371,7 @@ class WebModule : public LifecycleObserver {
   // thread.  It is the responsibility of |callback| to get back to its
   // intended thread should it want to.
   void RequestJavaScriptHeapStatistics(
-      const JavaScriptHeapStatisticsCallback& callback);
+      const web::Agent::JavaScriptHeapStatisticsCallback& callback);
 
   // Indicate the web module is ready to freeze.
   bool IsReadyToFreeze();
@@ -418,6 +383,9 @@ class WebModule : public LifecycleObserver {
   void SetApplicationStartOrPreloadTimestamp(bool is_preload,
                                              SbTimeMonotonic timestamp);
   void SetDeepLinkTimestamp(SbTimeMonotonic timestamp);
+
+  // From base::MessageLoop::DestructionObserver.
+  void WillDestroyCurrentMessageLoop() override;
 
  private:
   // Data required to construct a WebModule, initialized in the constructor and
@@ -431,7 +399,6 @@ class WebModule : public LifecycleObserver {
                      base::Closure window_minimize_callback,
                      media::CanPlayTypeHandler* can_play_type_handler,
                      media::MediaModule* media_module,
-                     network::NetworkModule* network_module,
                      const cssom::ViewportSize& window_dimensions,
                      render_tree::ResourceProvider* resource_provider,
                      int dom_max_element_depth, float layout_refresh_rate,
@@ -449,7 +416,6 @@ class WebModule : public LifecycleObserver {
           window_minimize_callback(window_minimize_callback),
           can_play_type_handler(can_play_type_handler),
           media_module(media_module),
-          network_module(network_module),
           window_dimensions(window_dimensions),
           resource_provider(resource_provider),
           dom_max_element_depth(dom_max_element_depth),
@@ -470,7 +436,6 @@ class WebModule : public LifecycleObserver {
     base::Closure window_minimize_callback;
     media::CanPlayTypeHandler* can_play_type_handler;
     media::MediaModule* media_module;
-    network::NetworkModule* network_module;
     cssom::ViewportSize window_dimensions;
     render_tree::ResourceProvider* resource_provider;
     int dom_max_element_depth;
@@ -486,20 +451,9 @@ class WebModule : public LifecycleObserver {
   // Forward declaration of the private implementation class.
   class Impl;
 
-  // Destruction observer used to safely tear down this WebModule after the
-  // thread has been stopped.
-  class DestructionObserver : public base::MessageLoop::DestructionObserver {
-   public:
-    explicit DestructionObserver(WebModule* web_module);
-    void WillDestroyCurrentMessageLoop() override;
-
-   private:
-    WebModule* web_module_;
-  };
-
   // Called by the constructor to create the private implementation object and
   // perform any other initialization required on the dedicated thread.
-  void Initialize(const ConstructionData& data);
+  void Initialize(const ConstructionData& data, web::Context* context);
 
   void ClearAllIntervalsAndTimeouts();
 
@@ -508,15 +462,18 @@ class WebModule : public LifecycleObserver {
   void GetIsReadyToFreeze(volatile bool* is_ready_to_freeze);
 
   // The message loop this object is running on.
-  base::MessageLoop* message_loop() const { return thread_.message_loop(); }
+  base::MessageLoop* message_loop() const {
+    DCHECK(web_agent_);
+    return web_agent_->message_loop();
+  }
 
   // Private implementation object.
   std::unique_ptr<Impl> impl_;
 
-  // The thread created and owned by this WebModule.
-  // All sub-objects of this object are created on this thread, and all public
-  // member functions are re-posted to this thread if necessary.
-  base::Thread thread_;
+  web::Agent* web_agent() const { return web_agent_.get(); }
+
+  // The Web Agent.
+  std::unique_ptr<web::Agent> web_agent_;
 
   // This is the root UI navigation container which contains all active UI
   // navigation items created by this web module.

@@ -15,9 +15,9 @@
 #ifndef COBALT_WORKER_WORKER_SETTINGS_H_
 #define COBALT_WORKER_WORKER_SETTINGS_H_
 
-#include "cobalt/script/environment_settings.h"
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/javascript_engine.h"
+#include "cobalt/web/environment_settings.h"
 
 namespace cobalt {
 namespace worker {
@@ -25,10 +25,9 @@ namespace worker {
 // Worker Environment Settings object as described in
 // https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#script-settings-for-workers
 
-class WorkerSettings : public script::EnvironmentSettings {
+class WorkerSettings : public web::EnvironmentSettings {
  public:
-  WorkerSettings(script::JavaScriptEngine* engine,
-                 script::GlobalEnvironment* global_environment);
+  explicit WorkerSettings(const GURL& base);
 
  private:
 };

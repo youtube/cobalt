@@ -27,7 +27,6 @@
 #include "cobalt/dom/blob.h"
 #include "cobalt/dom/csp_delegate.h"
 #include "cobalt/dom/dom_exception.h"
-#include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/event_target.h"
 #include "cobalt/dom/message_event.h"
 #include "cobalt/script/array_buffer.h"
@@ -35,6 +34,7 @@
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/wrappable.h"
+#include "cobalt/web/environment_settings.h"
 #include "cobalt/websocket/web_socket_impl.h"
 
 namespace cobalt {
@@ -218,7 +218,7 @@ class WebSocket : public dom::EventTarget {
   std::string entry_script_origin_;
 
   bool require_network_module_;
-  dom::DOMSettings* settings_;
+  web::EnvironmentSettings* settings_;
   scoped_refptr<WebSocketImpl> impl_;
 
   std::unique_ptr<script::GlobalEnvironment::ScopedPreventGarbageCollection>

@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <cmath>
 #include <memory>
+#include <utility>
 
 #include "base/bind.h"
 #include "base/callback_helpers.h"
@@ -28,7 +29,6 @@
 #include "cobalt/base/tokens.h"
 #include "cobalt/dom/blob.h"
 #include "cobalt/dom/dom_exception.h"
-#include "cobalt/dom/dom_settings.h"
 #include "cobalt/media_capture/blob_event.h"
 #include "cobalt/media_capture/encoders/flac_audio_encoder.h"
 #include "cobalt/media_capture/encoders/linear16_audio_encoder.h"
@@ -37,6 +37,8 @@
 #include "cobalt/media_stream/media_stream_track.h"
 #include "cobalt/media_stream/media_track_settings.h"
 #include "cobalt/script/array_buffer.h"
+#include "cobalt/web/context.h"
+#include "cobalt/web/environment_settings.h"
 
 namespace {
 
@@ -314,7 +316,8 @@ void MediaRecorder::DoOnDataCallback(base::TimeTicks timecode) {
   DCHECK_LE(buffer_.size(), kuint32max);
 
   auto array_buffer = script::ArrayBuffer::New(
-      base::polymorphic_downcast<dom::DOMSettings*>(settings_)
+      base::polymorphic_downcast<web::EnvironmentSettings*>(settings_)
+          ->context()
           ->global_environment(),
       buffer_.data(), buffer_.size());
 

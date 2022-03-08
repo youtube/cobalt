@@ -25,8 +25,8 @@ namespace testing {
 class StubEnvironmentSettings : public DOMSettings {
  public:
   explicit StubEnvironmentSettings(const Options& options = Options())
-      : DOMSettings(0, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
-                    nullptr, nullptr, null_debugger_hooks_, nullptr, options) {}
+      : DOMSettings(null_debugger_hooks_, 0, nullptr, nullptr, nullptr, nullptr,
+                    options) {}
   ~StubEnvironmentSettings() override {}
 
  private:

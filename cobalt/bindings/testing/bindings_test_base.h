@@ -49,9 +49,7 @@ class BindingsTestBase : public ::testing::Test {
   BindingsTestBase()
       : engine_(script::JavaScriptEngine::CreateEngine()),
         global_environment_(engine_->CreateGlobalEnvironment()),
-        environment_settings_(new script::EnvironmentSettings(
-            engine_.get(), global_environment_.get(),
-            base::NullDebuggerHooks())),
+        environment_settings_(new script::EnvironmentSettings()),
         window_(new Window()) {
     global_environment_->CreateGlobalObject(window_,
                                             environment_settings_.get());
@@ -60,9 +58,7 @@ class BindingsTestBase : public ::testing::Test {
   explicit BindingsTestBase(const scoped_refptr<Window> window)
       : engine_(script::JavaScriptEngine::CreateEngine()),
         global_environment_(engine_->CreateGlobalEnvironment()),
-        environment_settings_(new script::EnvironmentSettings(
-            engine_.get(), global_environment_.get(),
-            base::NullDebuggerHooks())),
+        environment_settings_(new script::EnvironmentSettings()),
         window_(window) {
     global_environment_->CreateGlobalObject(window_,
                                             environment_settings_.get());

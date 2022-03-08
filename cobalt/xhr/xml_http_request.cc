@@ -40,6 +40,8 @@
 #include "cobalt/loader/url_fetcher_string_writer.h"
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/javascript_engine.h"
+#include "cobalt/web/context.h"
+#include "cobalt/web/environment_settings.h"
 #include "cobalt/xhr/xhr_modify_headers.h"
 #include "nb/memory_scope.h"
 #include "net/http/http_util.h"
@@ -725,7 +727,7 @@ void XMLHttpRequest::OnURLFetchDownloadProgress(const net::URLFetcher* source,
     std::string downloaded_data;
     response_body_->GetAndResetDataAndDownloadProgress(&downloaded_data);
     script::Handle<script::Uint8Array> data =
-        script::Uint8Array::New(settings_->global_environment(),
+        script::Uint8Array::New(settings_->context()->global_environment(),
                                 downloaded_data.data(), downloaded_data.size());
     fetch_callback_->value().Run(data);
   }
@@ -963,7 +965,8 @@ void XMLHttpRequest::HandleRequestError(
       << __FUNCTION__ << " (" << RequestErrorTypeName(request_error_type)
       << ") " << *this << std::endl
       << script::StackTraceToString(
-             settings_->global_environment()->GetStackTrace(0 /*max_frames*/));
+             settings_->context()->global_environment()->GetStackTrace(
+                 0 /*max_frames*/));
   stop_timeout_ = true;
   // Step 1
   TerminateRequest();
@@ -1039,7 +1042,7 @@ script::Handle<script::ArrayBuffer> XMLHttpRequest::response_array_buffer() {
         new script::PreallocatedArrayBufferData());
     response_body_->GetAndResetData(downloaded_data.get());
     auto array_buffer = script::ArrayBuffer::New(
-        settings_->global_environment(), std::move(downloaded_data));
+        settings_->context()->global_environment(), std::move(downloaded_data));
     response_array_buffer_reference_.reset(
         new script::ScriptValue<script::ArrayBuffer>::Reference(this,
                                                                 array_buffer));
@@ -1077,9 +1080,11 @@ void XMLHttpRequest::UpdateProgress(int64_t received_length) {
 
 void XMLHttpRequest::IncrementActiveRequests() {
   if (active_requests_count_ == 0) {
+    DCHECK(settings_);
+    DCHECK(settings_->context());
     prevent_gc_until_send_complete_.reset(
         new script::GlobalEnvironment::ScopedPreventGarbageCollection(
-            settings_->global_environment(), this));
+            settings_->context()->global_environment(), this));
   }
   active_requests_count_++;
 }
@@ -1111,7 +1116,7 @@ void XMLHttpRequest::StartRequest(const std::string& request_body) {
   response_array_buffer_reference_.reset();
 
   network::NetworkModule* network_module =
-      settings_->fetcher_factory()->network_module();
+      settings_->context()->fetcher_factory()->network_module();
   url_fetcher_ = net::URLFetcher::Create(request_url_, method_, this);
   ++url_fetcher_generation_;
   url_fetcher_->SetRequestContext(network_module->url_request_context_getter());
@@ -1183,8 +1188,8 @@ void XMLHttpRequest::StartRequest(const std::string& request_body) {
   }
   DLOG_IF(INFO, verbose()) << __FUNCTION__ << *this;
   if (!dopreflight) {
-    DCHECK(settings_->network_module());
-    StartURLFetcher(settings_->network_module()->max_network_delay(),
+    DCHECK(settings_->context()->network_module());
+    StartURLFetcher(settings_->context()->network_module()->max_network_delay(),
                     url_fetcher_generation_);
   }
 }
@@ -1194,8 +1199,8 @@ void XMLHttpRequest::CORSPreflightErrorCallback() {
 }
 
 void XMLHttpRequest::CORSPreflightSuccessCallback() {
-  DCHECK(settings_->network_module());
-  StartURLFetcher(settings_->network_module()->max_network_delay(),
+  DCHECK(settings_->context()->network_module());
+  StartURLFetcher(settings_->context()->network_module()->max_network_delay(),
                   url_fetcher_generation_);
 }
 

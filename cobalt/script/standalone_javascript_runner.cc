@@ -91,8 +91,7 @@ void StandaloneJavascriptRunner::CommonInitialization(
     const JavaScriptEngine::Options& javascript_engine_options) {
   engine_ = JavaScriptEngine::CreateEngine(javascript_engine_options);
   global_environment_ = engine_->CreateGlobalEnvironment();
-  environment_settings_.reset(new EnvironmentSettings(
-      engine_.get(), global_environment_.get(), base::NullDebuggerHooks()));
+  environment_settings_.reset(new EnvironmentSettings());
 }
 
 void StandaloneJavascriptRunner::ExecuteAndPrintResult(

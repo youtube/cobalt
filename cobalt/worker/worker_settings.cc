@@ -18,13 +18,11 @@
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/javascript_engine.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace worker {
 // TODO: Only use NullDebuggerHooks if !ENABLE_DEBUGGER.
-WorkerSettings::WorkerSettings(script::JavaScriptEngine* engine,
-                               script::GlobalEnvironment* global_environment)
-    : EnvironmentSettings(engine, global_environment,
-                          base::NullDebuggerHooks()) {}
+WorkerSettings::WorkerSettings(const GURL& base) { set_base_url(base); }
 }  // namespace worker
 }  // namespace cobalt

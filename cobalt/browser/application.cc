@@ -649,12 +649,11 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
   unconsumed_deep_link_ = GetInitialDeepLink();
   DLOG(INFO) << "Initial deep link: " << unconsumed_deep_link_;
 
-  WebModule::Options web_options;
+  WebModule::Options web_options("MainWebModule");
   storage::StorageManager::Options storage_manager_options;
   network::NetworkModule::Options network_module_options;
   // Create the main components of our browser.
   BrowserModule::Options options(web_options);
-  options.web_module_options.name = "MainWebModule";
   network_module_options.preferred_language = language;
   options.command_line_auto_mem_settings =
       memory_settings::GetSettings(*command_line);
@@ -674,7 +673,8 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
   ApplyCommandLineSettingsToRendererOptions(&options.renderer_module_options);
 
   if (command_line->HasSwitch(browser::switches::kDisableJavaScriptJit)) {
-    options.web_module_options.javascript_engine_options.disable_jit = true;
+    options.web_module_options.web_options.javascript_engine_options
+        .disable_jit = true;
   }
 
   if (command_line->HasSwitch(
@@ -732,7 +732,8 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
   }
 
   // User can specify an extra search path entry for files loaded via file://.
-  options.web_module_options.extra_web_file_dir = GetExtraWebFileDir();
+  options.web_module_options.web_options.extra_web_file_dir =
+      GetExtraWebFileDir();
   SecurityFlags security_flags{csp::kCSPRequired, network::kHTTPSRequired};
   // Set callback to be notified when a navigation occurs that destroys the
   // underlying WebModule.

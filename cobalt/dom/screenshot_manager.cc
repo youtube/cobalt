@@ -15,12 +15,15 @@
 #include "cobalt/dom/screenshot_manager.h"
 
 #include <memory>
+#include <utility>
 
 #include "base/time/time.h"
 #include "cobalt/dom/screenshot.h"
 #include "cobalt/render_tree/node.h"
 #include "cobalt/render_tree/resource_provider_stub.h"
 #include "cobalt/script/array_buffer.h"
+#include "cobalt/web/context.h"
+#include "cobalt/web/environment_settings.h"
 
 namespace cobalt {
 namespace dom {
@@ -96,11 +99,12 @@ void ScreenshotManager::FillScreenshot(
       break;
     }
     DLOG(INFO) << "Filling data in for the screenshot.";
-    DOMSettings* dom_settings =
-        base::polymorphic_downcast<dom::DOMSettings*>(environment_settings_);
-    script::Handle<script::ArrayBuffer> pixel_data =
-        script::ArrayBuffer::New(dom_settings->global_environment(),
-                                 encoded_image_data->GetMemory(), encoded_size);
+    script::Handle<script::ArrayBuffer> pixel_data = script::ArrayBuffer::New(
+        base::polymorphic_downcast<web::EnvironmentSettings*>(
+            environment_settings_)
+            ->context()
+            ->global_environment(),
+        encoded_image_data->GetMemory(), encoded_size);
     scoped_refptr<script::Wrappable> promise_result =
         new dom::Screenshot(pixel_data);
     promise.Resolve(promise_result);

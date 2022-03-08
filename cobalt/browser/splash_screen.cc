@@ -65,12 +65,12 @@ SplashScreen::SplashScreen(
       self_message_loop_(base::MessageLoop::current()),
       on_splash_screen_shutdown_complete_(on_splash_screen_shutdown_complete),
       shutdown_signaled_(false) {
-  WebModule::Options web_module_options;
-  web_module_options.name = "SplashScreenWebModule";
+  WebModule::Options web_module_options("SplashScreenWebModule");
 
   // We want the splash screen to load and appear as quickly as possible, so
   // we set it and its image decoding thread to be high priority.
-  web_module_options.thread_priority = base::ThreadPriority::HIGHEST;
+  web_module_options.web_options.thread_priority =
+      base::ThreadPriority::HIGHEST;
   web_module_options.loader_thread_priority = base::ThreadPriority::HIGHEST;
   web_module_options.animated_image_decode_thread_priority =
       base::ThreadPriority::HIGHEST;
@@ -80,7 +80,10 @@ SplashScreen::SplashScreen(
          (splash_screen_cache && splash_screen_cache->IsSplashScreenCached()));
   if (splash_screen_cache && splash_screen_cache->IsSplashScreenCached()) {
     url_to_pass = splash_screen_cache->GetCachedSplashScreenUrl();
-    web_module_options.can_fetch_cache = true;
+    web_module_options.web_options.read_cache_callback =
+        base::Bind(&browser::SplashScreenCache::ReadCachedSplashScreen,
+                   base::Unretained(splash_screen_cache));
+
     web_module_options.splash_screen_cache = splash_screen_cache;
   }
 
@@ -97,13 +100,15 @@ SplashScreen::SplashScreen(
   // Pass down this callback from Browser module to Web module eventually.
   web_module_options.maybe_freeze_callback = maybe_freeze_callback;
 
+  web_module_options.web_options.network_module = network_module;
+
   DCHECK(url_to_pass);
   web_module_.reset(new WebModule(
       *url_to_pass, initial_application_state, render_tree_produced_callback_,
       base::Bind(&OnError), on_window_close,
       base::Closure(),  // window_minimize_callback
       NULL /* can_play_type_handler */, NULL /* media_module */,
-      network_module, window_dimensions, resource_provider, layout_refresh_rate,
+      window_dimensions, resource_provider, layout_refresh_rate,
       web_module_options));
 }
 

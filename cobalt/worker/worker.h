@@ -26,11 +26,14 @@
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/script/script_runner.h"
 #include "cobalt/script/wrappable.h"
+#include "cobalt/web/agent.h"
+#include "cobalt/web/context.h"
 #include "cobalt/worker/dedicated_worker_global_scope.h"
 #include "cobalt/worker/message_port.h"
 #include "cobalt/worker/worker_global_scope.h"
 #include "cobalt/worker/worker_options.h"
 #include "cobalt/worker/worker_settings.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace worker {
@@ -39,6 +42,10 @@ class Worker {
  public:
   // Worker Options needed at thread run time.
   struct Options {
+    explicit Options(const std::string& name) : web_options(name) {}
+
+    web::Agent::Options web_options;
+
     // True if worker is a SharedWorker object, and false otherwise.
     bool is_shared;
 
@@ -48,24 +55,9 @@ class Worker {
     script::EnvironmentSettings* outside_settings;
     MessagePort* outside_port;
     WorkerOptions options;
-
-    script::JavaScriptEngine::Options javascript_engine_options;
-
-    // The priority of the Worker thread.
-    base::ThreadPriority thread_priority = base::ThreadPriority::NORMAL;
   };
 
-  class DestructionObserver : public base::MessageLoop::DestructionObserver {
-   public:
-    explicit DestructionObserver(Worker* worker);
-    void WillDestroyCurrentMessageLoop() override;
-
-   private:
-    Worker* worker_;
-  };
-
-
-  explicit Worker(const std::string& name);
+  Worker();
   ~Worker();
 
   // Start the worker thread. Returns true if successful.
@@ -78,39 +70,28 @@ class Worker {
   MessagePort* message_port() const { return message_port_.get(); }
 
   // The message loop this object is running on.
-  base::MessageLoop* message_loop() const { return thread_.message_loop(); }
+  base::MessageLoop* message_loop() const { return web_agent_->message_loop(); }
 
  private:
   DISALLOW_COPY_AND_ASSIGN(Worker);
   // Called by |Run| to perform initialization required on the dedicated
   // thread.
-  void Initialize(const Options& options);
+  void Initialize(const Options& options, web::Context* context);
 
   void Obtain(const std::string& url);
   void Execute(const std::string& content,
                const base::SourceLocation& script_location);
-  void Finalize();
+
+  web::Agent* web_agent() const { return web_agent_.get(); }
+
+  // The Web Context includes the Script Agent and Realm.
+  std::unique_ptr<web::Agent> web_agent_;
+
+  web::Context* web_context_;
 
   bool is_shared_;
 
-  std::unique_ptr<WorkerSettings> environment_settings_;
-
-  // The thread created and owned by this Worker. This is the thread
-  // that is responsible for executing the worker JavaScript.
-  base::Thread thread_;
-
-  // JavaScript engine for the browser.
-  std::unique_ptr<script::JavaScriptEngine> javascript_engine_;
-
-  // TODO: Actual type here should depend on derived class (e.g. dedicated,
-  // shared, service)
-  scoped_refptr<DedicatedWorkerGlobalScope> worker_global_scope_;
-
-  // JavaScript Global Object for the worker.
-  scoped_refptr<script::GlobalEnvironment> global_environment_;
-
-  // Interface for the worker to execute JavaScript code.
-  std::unique_ptr<script::ScriptRunner> script_runner_;
+  scoped_refptr<WorkerGlobalScope> worker_global_scope_;
 
   // Inner message port.
   scoped_refptr<MessagePort> message_port_;

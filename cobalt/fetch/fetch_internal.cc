@@ -16,7 +16,10 @@
 
 #include "base/strings/string_util.h"
 #include "cobalt/base/polymorphic_downcast.h"
-#include "cobalt/dom/dom_settings.h"
+#include "cobalt/dom/blob.h"
+#include "cobalt/script/environment_settings.h"
+#include "cobalt/web/context.h"
+#include "cobalt/web/environment_settings.h"
 #include "url/gurl.h"
 
 namespace cobalt {
@@ -25,9 +28,7 @@ namespace fetch {
 // static
 bool FetchInternal::IsUrlValid(script::EnvironmentSettings* settings,
                                const std::string& url, bool allow_credentials) {
-  dom::DOMSettings* dom_settings =
-      base::polymorphic_downcast<dom::DOMSettings*>(settings);
-  GURL gurl = dom_settings->base_url().Resolve(url);
+  GURL gurl = settings->base_url().Resolve(url);
   return gurl.is_valid() &&
          (allow_credentials || (!gurl.has_username() && !gurl.has_password()));
 }
@@ -36,12 +37,13 @@ bool FetchInternal::IsUrlValid(script::EnvironmentSettings* settings,
 script::Handle<script::Uint8Array> FetchInternal::EncodeToUTF8(
     script::EnvironmentSettings* settings, const std::string& text,
     script::ExceptionState* exception_state) {
-  dom::DOMSettings* dom_settings =
-      base::polymorphic_downcast<dom::DOMSettings*>(settings);
   // The conversion helper already translated the JSValue into a UTF-8 encoded
   // string. So just wrap the result in a Uint8Array.
-  return script::Uint8Array::New(dom_settings->global_environment(),
-                                 text.data(), text.size());
+  return script::Uint8Array::New(
+      base::polymorphic_downcast<web::EnvironmentSettings*>(settings)
+          ->context()
+          ->global_environment(),
+      text.data(), text.size());
 }
 
 // static
@@ -73,11 +75,12 @@ std::string FetchInternal::DecodeFromUTF8(
 script::Handle<script::ArrayBuffer> FetchInternal::BlobToArrayBuffer(
     script::EnvironmentSettings* settings,
     const scoped_refptr<dom::Blob>& blob) {
-  dom::DOMSettings* dom_settings =
-      base::polymorphic_downcast<dom::DOMSettings*>(settings);
   // Create a copy of the data so that the caller cannot modify the Blob.
-  return script::ArrayBuffer::New(dom_settings->global_environment(),
-                                  blob->data(), blob->size());
+  return script::ArrayBuffer::New(
+      base::polymorphic_downcast<web::EnvironmentSettings*>(settings)
+          ->context()
+          ->global_environment(),
+      blob->data(), blob->size());
 }
 
 }  // namespace fetch

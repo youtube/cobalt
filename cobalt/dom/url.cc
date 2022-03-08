@@ -18,6 +18,8 @@
 #include "base/logging.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/dom/dom_settings.h"
+#include "cobalt/web/context.h"
+#include "cobalt/web/environment_settings.h"
 #include "url/gurl.h"
 
 namespace cobalt {
@@ -51,17 +53,18 @@ std::string URL::CreateObjectURL(
 std::string URL::CreateObjectURL(
     script::EnvironmentSettings* environment_settings,
     const scoped_refptr<Blob>& blob) {
-  DOMSettings* dom_settings =
-      base::polymorphic_downcast<DOMSettings*>(environment_settings);
-  DCHECK(dom_settings);
-  DCHECK(dom_settings->blob_registry());
+  web::EnvironmentSettings* web_settings =
+      base::polymorphic_downcast<web::EnvironmentSettings*>(
+          environment_settings);
+  DCHECK(web_settings);
+  DCHECK(web_settings->context()->blob_registry());
   if (!blob) {
     return "";
   }
 
   std::string blob_url = kBlobUrlProtocol;
   blob_url += ':' + base::GenerateGUID();
-  dom_settings->blob_registry()->Register(blob_url, blob);
+  web_settings->context()->blob_registry()->Register(blob_url, blob);
   return blob_url;
 }
 
@@ -86,7 +89,7 @@ void URL::RevokeObjectURL(script::EnvironmentSettings* environment_settings,
   // 2. Otherwise, user agents must remove the entry from the Blob URL Store for
   // url.
   if (!dom_settings->media_source_registry()->Unregister(url) &&
-      !dom_settings->blob_registry()->Unregister(url)) {
+      !dom_settings->context()->blob_registry()->Unregister(url)) {
     DLOG(WARNING) << "Cannot find object for blob url " << url;
   }
 }

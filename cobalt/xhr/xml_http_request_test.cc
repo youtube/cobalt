@@ -24,6 +24,7 @@
 #include "cobalt/script/testing/fake_script_value.h"
 #include "cobalt/script/testing/mock_exception_state.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "url/gurl.h"
 
 using cobalt::dom::EventListener;
 using cobalt::dom::testing::MockEventListener;
@@ -90,11 +91,7 @@ ScopedLogInterceptor* ScopedLogInterceptor::log_interceptor_;
 
 class FakeSettings : public dom::testing::StubEnvironmentSettings {
  public:
-  FakeSettings() : example_("http://example.com") {}
-  const GURL& base_url() const override { return example_; }
-
- private:
-  GURL example_;
+  FakeSettings() { set_base_url(GURL("http://example.com")); }
 };
 
 class MockCspDelegate : public dom::CspDelegateInsecure {

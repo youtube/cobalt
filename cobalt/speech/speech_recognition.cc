@@ -16,6 +16,9 @@
 
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/dom/dom_settings.h"
+#include "cobalt/script/environment_settings.h"
+#include "cobalt/web/context.h"
+#include "cobalt/web/environment_settings.h"
 
 namespace cobalt {
 namespace speech {
@@ -26,13 +29,14 @@ namespace speech {
 // max alternatives: 1.
 SpeechRecognition::SpeechRecognition(script::EnvironmentSettings* settings)
     : dom::EventTarget(settings),
-      ALLOW_THIS_IN_INITIALIZER_LIST(
-          manager_(base::polymorphic_downcast<dom::DOMSettings*>(settings)
-                       ->network_module(),
-                   base::Bind(&SpeechRecognition::OnEventAvailable,
-                              base::Unretained(this)),
-                   base::polymorphic_downcast<dom::DOMSettings*>(settings)
-                       ->microphone_options())),
+      ALLOW_THIS_IN_INITIALIZER_LIST(manager_(
+          base::polymorphic_downcast<web::EnvironmentSettings*>(settings)
+              ->context()
+              ->network_module(),
+          base::Bind(&SpeechRecognition::OnEventAvailable,
+                     base::Unretained(this)),
+          base::polymorphic_downcast<dom::DOMSettings*>(settings)
+              ->microphone_options())),
       config_("" /*lang*/, false /*continuous*/, false /*interim_results*/,
               1 /*max alternatives*/) {}
 

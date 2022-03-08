@@ -59,6 +59,7 @@ static_library("script") {
     "//cobalt/base",
     "//nb",
     "//starboard:starboard_headers_only",
+    "//url",
   ]
 }
 

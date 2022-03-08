@@ -24,6 +24,7 @@
 #include "cobalt/dom/csp_delegate_factory.h"
 #include "cobalt/dom/mutation_observer_task_manager.h"
 #include "cobalt/dom/window.h"
+#include "cobalt/web/context.h"
 
 namespace cobalt {
 namespace browser {
@@ -95,8 +96,7 @@ int GetInitialMode() {
 scoped_refptr<script::Wrappable> CreateDebugHub(
     const debug::console::DebugHub::GetHudModeCallback& get_hud_mode_function,
     const debug::CreateDebugClientCallback& create_debug_client_callback,
-    const scoped_refptr<dom::Window>& window,
-    script::GlobalEnvironment* global_environment) {
+    script::EnvironmentSettings* settings) {
   return new debug::console::DebugHub(get_hud_mode_function,
                                       create_debug_client_callback);
 }
@@ -114,8 +114,7 @@ DebugConsole::DebugConsole(
     const base::Closure& maybe_freeze_callback) {
   mode_ = GetInitialMode();
 
-  WebModule::Options web_module_options;
-  web_module_options.name = "DebugConsoleWebModule";
+  WebModule::Options web_module_options("DebugConsoleWebModule");
   // The debug console does not load any image assets.
   web_module_options.image_cache_capacity = 0;
   // Disable CSP for the Debugger's WebModule. This will also allow eval() in
@@ -131,7 +130,7 @@ DebugConsole::DebugConsole(
   // Attach a DebugHub object to the "debugHub" Window attribute for this
   // web module so that JavaScript within this WebModule has access to DebugHub
   // functionality.
-  web_module_options.injected_window_attributes["debugHub"] =
+  web_module_options.web_options.injected_global_object_attributes["debugHub"] =
       base::Bind(&CreateDebugHub,
                  base::Bind(&DebugConsole::GetMode, base::Unretained(this)),
                  create_debug_client_callback);
@@ -139,15 +138,17 @@ DebugConsole::DebugConsole(
   // Pass down this callback from Browser module to Web module eventually.
   web_module_options.maybe_freeze_callback = maybe_freeze_callback;
 
-  web_module_.reset(new WebModule(
-      GURL(kInitialDebugConsoleUrl), initial_application_state,
-      render_tree_produced_callback,
-      base::Bind(&DebugConsole::OnError, base::Unretained(this)),
-      WebModule::CloseCallback(), /* window_close_callback */
-      base::Closure(),            /* window_minimize_callback */
-      NULL /* can_play_type_handler */, NULL /* media_module */,
-      network_module, window_dimensions, resource_provider, layout_refresh_rate,
-      web_module_options));
+  web_module_options.web_options.network_module = network_module;
+
+  web_module_.reset(
+      new WebModule(GURL(kInitialDebugConsoleUrl), initial_application_state,
+                    render_tree_produced_callback,
+                    base::Bind(&DebugConsole::OnError, base::Unretained(this)),
+                    WebModule::CloseCallback(), /* window_close_callback */
+                    base::Closure(),            /* window_minimize_callback */
+                    NULL /* can_play_type_handler */, NULL /* media_module */,
+                    window_dimensions, resource_provider, layout_refresh_rate,
+                    web_module_options));
 }
 
 DebugConsole::~DebugConsole() {}

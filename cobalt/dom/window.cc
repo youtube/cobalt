@@ -29,7 +29,6 @@
 #include "cobalt/dom/camera_3d.h"
 #include "cobalt/dom/device_orientation_event.h"
 #include "cobalt/dom/document.h"
-#include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/element.h"
 #include "cobalt/dom/error_event.h"
 #include "cobalt/dom/error_event_init.h"
@@ -56,6 +55,8 @@
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/speech/speech_synthesis.h"
+#include "cobalt/web/context.h"
+#include "cobalt/web/environment_settings.h"
 #include "starboard/file.h"
 
 using cobalt::cssom::ViewportSize;
@@ -465,9 +466,10 @@ const scoped_refptr<TestRunner>& Window::test_runner() const {
 
 void Window::Gc(script::EnvironmentSettings* settings) {
   if (settings) {
-    DOMSettings* dom_settings =
-        base::polymorphic_downcast<dom::DOMSettings*>(settings);
-    dom_settings->javascript_engine()->CollectGarbage();
+    base::polymorphic_downcast<web::EnvironmentSettings*>(settings)
+        ->context()
+        ->javascript_engine()
+        ->CollectGarbage();
   }
 }
 

@@ -360,9 +360,11 @@ BrowserModule::BrowserModule(const GURL& url,
   }
 
   // Setup our main web module to have the H5VCC API injected into it.
-  DCHECK(!ContainsKey(options_.web_module_options.injected_window_attributes,
-                      "h5vcc"));
-  options_.web_module_options.injected_window_attributes["h5vcc"] =
+  DCHECK(!ContainsKey(
+      options_.web_module_options.web_options.injected_global_object_attributes,
+      "h5vcc"));
+  options_.web_module_options.web_options
+      .injected_global_object_attributes["h5vcc"] =
       base::Bind(&BrowserModule::CreateH5vcc, base::Unretained(this));
 
   if (command_line->HasSwitch(switches::kDisableTimerResolutionLimit)) {
@@ -637,6 +639,8 @@ void BrowserModule::Navigate(const GURL& url_reference) {
   options.maybe_freeze_callback =
       base::Bind(&BrowserModule::OnMaybeFreeze, base::Unretained(this));
 
+  options.web_options.network_module = network_module_;
+
   web_module_.reset(new WebModule(
       url, application_state_,
       base::Bind(&BrowserModule::QueueOnRenderTreeProduced,
@@ -644,9 +648,8 @@ void BrowserModule::Navigate(const GURL& url_reference) {
       base::Bind(&BrowserModule::OnError, base::Unretained(this)),
       base::Bind(&BrowserModule::OnWindowClose, base::Unretained(this)),
       base::Bind(&BrowserModule::OnWindowMinimize, base::Unretained(this)),
-      can_play_type_handler_.get(), media_module_.get(), network_module_,
-      viewport_size, GetResourceProvider(), kLayoutMaxRefreshFrequencyInHz,
-      options));
+      can_play_type_handler_.get(), media_module_.get(), viewport_size,
+      GetResourceProvider(), kLayoutMaxRefreshFrequencyInHz, options));
   lifecycle_observers_.AddObserver(web_module_.get());
 
   if (system_window_) {
@@ -2084,8 +2087,7 @@ void BrowserModule::GetParamMap(const std::string& url,
 }
 
 scoped_refptr<script::Wrappable> BrowserModule::CreateH5vcc(
-    const scoped_refptr<dom::Window>& window,
-    script::GlobalEnvironment* global_environment) {
+    script::EnvironmentSettings* settings) {
   h5vcc::H5vcc::Settings h5vcc_settings;
   h5vcc_settings.media_module = media_module_.get();
   h5vcc_settings.network_module = network_module_;
@@ -2094,8 +2096,13 @@ scoped_refptr<script::Wrappable> BrowserModule::CreateH5vcc(
 #endif
   h5vcc_settings.account_manager = account_manager_;
   h5vcc_settings.event_dispatcher = event_dispatcher_;
-  h5vcc_settings.user_agent_data = window->navigator()->user_agent_data();
-  h5vcc_settings.global_environment = global_environment;
+
+  auto* dom_settings = base::polymorphic_downcast<dom::DOMSettings*>(settings);
+
+  h5vcc_settings.user_agent_data =
+      dom_settings->window()->navigator()->user_agent_data();
+  h5vcc_settings.global_environment =
+      dom_settings->context()->global_environment();
 
   auto* h5vcc_object = new h5vcc::H5vcc(h5vcc_settings);
   if (!web_module_created_callback_.is_null()) {

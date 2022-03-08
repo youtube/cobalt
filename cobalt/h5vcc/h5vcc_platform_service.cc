@@ -18,7 +18,8 @@
 #include <vector>
 
 #include "cobalt/base/polymorphic_downcast.h"
-#include "cobalt/dom/dom_settings.h"
+#include "cobalt/web/context.h"
+#include "cobalt/web/environment_settings.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
 
@@ -30,9 +31,10 @@ scoped_refptr<H5vccPlatformService> H5vccPlatformService::Open(
     script::EnvironmentSettings* settings, const std::string service_name,
     const ReceiveCallbackArg& receive_callback) {
   DCHECK(settings);
-  dom::DOMSettings* dom_settings =
-      base::polymorphic_downcast<dom::DOMSettings*>(settings);
-  auto* global_environment = dom_settings->global_environment();
+  auto* global_environment =
+      base::polymorphic_downcast<web::EnvironmentSettings*>(settings)
+          ->context()
+          ->global_environment();
   DCHECK(global_environment);
 
   const ExtPlatformServiceApi* platform_service_api =

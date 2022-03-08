@@ -1,4 +1,4 @@
-// Copyright 2014 The Cobalt Authors. All Rights Reserved.
+// Copyright 2022 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,33 +12,34 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_SCRIPT_ENVIRONMENT_SETTINGS_H_
-#define COBALT_SCRIPT_ENVIRONMENT_SETTINGS_H_
+#ifndef COBALT_WEB_ENVIRONMENT_SETTINGS_H_
+#define COBALT_WEB_ENVIRONMENT_SETTINGS_H_
 
 #include <memory>
+#include <string>
 
-#include "base/memory/ref_counted.h"
 #include "cobalt/base/debugger_hooks.h"
-#include "url/gurl.h"
+#include "cobalt/script/environment_settings.h"
 
 namespace cobalt {
-namespace script {
+namespace web {
+
+class Context;
 
 // Environment Settings object as described in
 // https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#environment-settings-objects
-class EnvironmentSettings {
+class EnvironmentSettings : public script::EnvironmentSettings {
  public:
   explicit EnvironmentSettings(
       const base::DebuggerHooks& debugger_hooks = base::NullDebuggerHooks())
-      : debugger_hooks_(debugger_hooks) {}
-  virtual ~EnvironmentSettings() {}
+      : script::EnvironmentSettings(debugger_hooks) {}
+  ~EnvironmentSettings() override {}
 
-  // The API base URL.
-  //   https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#api-base-url
-  void set_base_url(const GURL& url) { base_url_ = url; }
-  const GURL& base_url() const { return base_url_; }
-
-  const base::DebuggerHooks& debugger_hooks() const { return debugger_hooks_; }
+  Context* context() const {
+    DCHECK(context_);
+    return context_;
+  }
+  void set_context(Context* context) { context_ = context; }
 
  protected:
   friend std::unique_ptr<EnvironmentSettings>::deleter_type;
@@ -46,11 +47,10 @@ class EnvironmentSettings {
  private:
   DISALLOW_COPY_AND_ASSIGN(EnvironmentSettings);
 
-  const base::DebuggerHooks& debugger_hooks_;
-  GURL base_url_;
+  Context* context_ = nullptr;
 };
 
-}  // namespace script
+}  // namespace web
 }  // namespace cobalt
 
-#endif  // COBALT_SCRIPT_ENVIRONMENT_SETTINGS_H_
+#endif  // COBALT_WEB_ENVIRONMENT_SETTINGS_H_

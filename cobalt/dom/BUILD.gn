@@ -335,7 +335,10 @@ static_library("dom") {
     "xml_serializer.h",
   ]
 
-  public_deps = [ "//cobalt/browser:generated_types" ]
+  public_deps = [
+    "//cobalt/browser:generated_types",
+    "//cobalt/web",
+  ]
 
   deps = [
     ":dom_exception",
@@ -360,6 +363,7 @@ static_library("dom") {
     "//cobalt/storage/store:memory_store",
     "//cobalt/system_window",
     "//cobalt/ui_navigation",
+    "//cobalt/web",
     "//cobalt/web_animations",
     "//cobalt/worker",
     "//crypto",

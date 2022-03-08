@@ -28,6 +28,8 @@
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/script/global_environment.h"
+#include "cobalt/web/context.h"
+#include "cobalt/web/environment_settings.h"
 #include "cobalt/websocket/close_event.h"
 #include "net/base/port_util.h"
 #include "net/base/url_util.h"
@@ -40,12 +42,12 @@ namespace {
 
 typedef uint16 SerializedCloseStatusCodeType;
 
-static const std::string kComma = ",";
+static const char kComma[] = ",";
 
-bool IsURLAbsolute(cobalt::dom::DOMSettings* dom_settings,
+bool IsURLAbsolute(cobalt::web::EnvironmentSettings* settings,
                    const std::string& url) {
   // This is a requirement for calling spec()
-  DCHECK(dom_settings->base_url().is_valid());
+  DCHECK(settings->base_url().is_valid());
 
   url::RawCanonOutputT<char> whitespace_buffer;
   int relative_length;
@@ -56,7 +58,7 @@ bool IsURLAbsolute(cobalt::dom::DOMSettings* dom_settings,
 
   url::Component relative_component;
 
-  const std::string& base_url(dom_settings->base_url().spec());
+  const std::string& base_url(settings->base_url().spec());
   url::Parsed parsed;
 
   url::ParseStandardURL(base_url.c_str(), static_cast<int>(base_url.length()),
@@ -437,16 +439,17 @@ void WebSocket::Initialize(script::EnvironmentSettings* settings,
   port_ = -1;
   SetReadyState(kConnecting);
 
-  settings_ = base::polymorphic_downcast<dom::DOMSettings*>(settings);
+  settings_ = base::polymorphic_downcast<web::EnvironmentSettings*>(settings);
   if (!settings_) {
-    dom::DOMException::Raise(dom::DOMException::kNone,
-                             "Internal error: Unable to get DOM settings.",
-                             exception_state);
+    dom::DOMException::Raise(
+        dom::DOMException::kNone,
+        "Internal error: Unable to get Web Environment Settings.",
+        exception_state);
     NOTREACHED() << "Unable to get DOM settings.";
     return;
   }
 
-  if (require_network_module_ && !settings_->network_module()) {
+  if (require_network_module_ && !settings_->context()->network_module()) {
     dom::DOMException::Raise(dom::DOMException::kNone,
                              "Internal error: Unable to get network module.",
                              exception_state);
@@ -563,8 +566,11 @@ dom::CspDelegate* WebSocket::csp_delegate() const {
   if (!settings_) {
     return NULL;
   }
-  if (settings_->window() && settings_->window()->document()) {
-    return settings_->window()->document()->csp_delegate();
+  dom::DOMSettings* dom_settings =
+      base::polymorphic_downcast<dom::DOMSettings*>(settings_);
+  if (dom_settings && dom_settings->window() &&
+      dom_settings->window()->document()) {
+    return dom_settings->window()->document()->csp_delegate();
   } else {
     return NULL;
   }
@@ -578,8 +584,9 @@ void WebSocket::Connect(const GURL& url,
   GURL origin_gurl = settings_->base_url().GetOrigin();
   const std::string& origin = origin_gurl.possibly_invalid_spec();
 
+  DCHECK(settings_->context());
   impl_ = base::WrapRefCounted(
-      new WebSocketImpl(settings_->network_module(), this));
+      new WebSocketImpl(settings_->context()->network_module(), this));
 
   impl_->Connect(origin, url, sub_protocols);
 }
@@ -657,7 +664,7 @@ void WebSocket::PotentiallyAllowGarbageCollection() {
     if (prevent_gc) {
       prevent_gc_while_listening_.reset(
           new script::GlobalEnvironment::ScopedPreventGarbageCollection(
-              settings_->global_environment(), this));
+              settings_->context()->global_environment(), this));
     } else {
       // Note: the fall through in this switch statement is on purpose.
       switch (ready_state_) {

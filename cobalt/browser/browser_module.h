@@ -476,8 +476,7 @@ class BrowserModule {
 
   // Function that creates the H5vcc object that will be injected into WebModule
   scoped_refptr<script::Wrappable> CreateH5vcc(
-      const scoped_refptr<dom::Window>& window,
-      script::GlobalEnvironment* global_environment);
+      script::EnvironmentSettings* settings);
 
   // TODO:
   //     WeakPtr usage here can be avoided if BrowserModule has a thread to
