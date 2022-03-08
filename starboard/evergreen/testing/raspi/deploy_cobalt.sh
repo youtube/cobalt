@@ -26,7 +26,7 @@ function deploy_cobalt() {
     staging_dir="${OUT}/deploy/loader_app"
   else
     # Expected after launcher is run for a GN build.
-    staging_dir="${OUT}"
+    staging_dir="${OUT}/install"
   fi
 
   echo " Checking '${staging_dir}'"
@@ -66,7 +66,7 @@ function deploy_cobalt() {
   eval "${SCP} \"-r ${staging_dir}/content/app/cobalt/content/ pi@${RASPI_ADDR}:/home/pi/coeg/content/app/cobalt/\"" 1> /dev/null
 
   echo " Copying fonts to system content directory"
-  eval "${SCP} \"-r ${OUT}/content/fonts/ pi@${RASPI_ADDR}:/home/pi/coeg/content/\"" 1> /dev/null
+  eval "${SCP} \"-r ${staging_dir}/content/fonts/ pi@${RASPI_ADDR}:/home/pi/coeg/content/\"" 1> /dev/null
 
   echo " Generating HTML test directory"
   eval "${SSH} \"mkdir -p /home/pi/coeg/content/app/cobalt/content/web/tests/\"" 1> /dev/null
