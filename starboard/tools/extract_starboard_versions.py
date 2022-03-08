@@ -165,13 +165,13 @@ def Main():
 
   print('Experimental API Version: ' + str(experimental_api_version) + '\n')
 
-  for platform_name, platform_path in port_dict.iteritems():
+  for platform_name, platform_path in port_dict.items():
     version_str = FindVersionRecursive(paths.STARBOARD_ROOT, platform_path)
     if 'SB_EXPERIMENTAL_API_VERSION' in version_str:
       version_str = str(experimental_api_version)
     path_map[platform_name] = version_str
 
-  for platform_name, api_version in sorted(path_map.iteritems()):
+  for platform_name, api_version in sorted(path_map.items()):
     print(platform_name + ': ' + api_version)
 
   return 0

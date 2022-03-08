@@ -31,7 +31,7 @@ _A_PLATFORM = starboard.tools.starboard_platform.GetAll()[0]
 
 def _RestoreMapping(target, source):
   target.clear()
-  for key, value in source.iteritems():
+  for key, value in source.items():
     target[key] = value
 
 
@@ -71,11 +71,13 @@ def _SetEnviron(config, platform):
 class CommandLineTest(unittest.TestCase):
 
   def setUp(self):
+    super(CommandLineTest, self).setUp()
     self.environ = os.environ.copy()
     _ClearEnviron()
 
   def tearDown(self):
     _RestoreMapping(os.environ, self.environ)
+    super(CommandLineTest, self).tearDown()
 
   def testNoEnvironmentRainyDayNoArgs(self):
     arg_parser = _CreateParser()
