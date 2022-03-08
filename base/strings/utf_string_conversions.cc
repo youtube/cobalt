@@ -200,7 +200,10 @@ bool UTFConversion(const InputString& src_str, DestString* dest_str) {
   bool res = DoUTFConversion(src_str.data(), src_len32, dest, &dest_len32);
 
   dest_str->resize(dest_len32);
-  dest_str->shrink_to_fit();
+  // dest_str->shrink_to_fit();
+  // Workaround for missing symbols linking issue for Xcode 13.2.1
+  // Mac builds.
+  dest_str->reserve(0);
 
   return res;
 }
