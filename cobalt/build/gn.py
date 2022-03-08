@@ -30,7 +30,7 @@ _BUILD_TYPES = ['debug', 'devel', 'qa', 'gold']
 
 
 def main(out_directory: str, platform: str, build_type: str,
-         overwrite_args: bool, check_dependencies: bool):
+         overwrite_args: bool, check_dependencies: bool, ide: str):
   platform_path = PLATFORMS[platform]
   dst_args_gn_file = os.path.join(out_directory, 'args.gn')
   src_args_gn_file = os.path.join(platform_path, 'args.gn')
@@ -48,6 +48,8 @@ def main(out_directory: str, platform: str, build_type: str,
   extra_args = []
   if check_dependencies:
     extra_args += ['--check']
+  if ide:
+    extra_args += ['--ide={}'.format(ide)]
   gn_command = ['gn', 'gen', out_directory] + extra_args
   print(' '.join(gn_command))
   subprocess.check_call(gn_command)
@@ -95,6 +97,12 @@ if __name__ == '__main__':
       action='store_true',
       help='Whether or not to generate the ninja files with the gn --check '
       'option.')
+  parser.add_argument(
+      '--ide',
+      type=str,
+      help='Specify which IDE to use. Refer'
+      'https://gn.googlesource.com/gn/+/master/docs/reference.md#ide-options'
+      'for IDE values.')
   args = parser.parse_args()
 
   if args.out_directory:
@@ -106,4 +114,4 @@ if __name__ == '__main__':
                                         f'{args.platform}_{args.build_type}')
 
   main(builds_out_directory, args.platform, args.build_type,
-       args.overwrite_args, args.check)
+       args.overwrite_args, args.check, args.ide)
