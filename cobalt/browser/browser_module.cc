@@ -533,10 +533,8 @@ void BrowserModule::Navigate(const GURL& url_reference) {
   pending_navigate_url_ = GURL::EmptyGURL();
 
 #if defined(ENABLE_DEBUGGER)
-  // Save the debugger state to be restored in the new WebModule.
-  std::unique_ptr<debug::backend::DebuggerState> debugger_state;
   if (web_module_) {
-    debugger_state = web_module_->FreezeDebugger();
+    web_module_->FreezeDebugger(&debugger_state_);
   }
 #endif  // defined(ENABLE_DEBUGGER)
 
@@ -632,7 +630,7 @@ void BrowserModule::Navigate(const GURL& url_reference) {
         (wait_for_generation == main_web_module_generation_);
   }
 
-  options.debugger_state = debugger_state.get();
+  options.debugger_state = debugger_state_.get();
 #endif  // ENABLE_DEBUGGER
 
   // Pass down this callback from to Web module.
@@ -650,9 +648,6 @@ void BrowserModule::Navigate(const GURL& url_reference) {
       viewport_size, GetResourceProvider(), kLayoutMaxRefreshFrequencyInHz,
       options));
   lifecycle_observers_.AddObserver(web_module_.get());
-  if (!web_module_created_callback_.is_null()) {
-    web_module_created_callback_.Run(web_module_.get());
-  }
 
   if (system_window_) {
     web_module_->GetUiNavRoot()->SetContainerWindow(
@@ -666,8 +661,7 @@ void BrowserModule::Reload() {
   DCHECK(web_module_);
   web_module_->ExecuteJavascript(
       "location.reload();",
-      base::SourceLocation("[object BrowserModule]", 1, 1),
-      NULL /* output: succeeded */);
+      base::SourceLocation("[object BrowserModule]", 1, 1));
 }
 
 #if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
@@ -721,8 +715,8 @@ void BrowserModule::RequestScreenshotToFile(
   TRACE_EVENT0("cobalt::browser", "BrowserModule::RequestScreenshotToFile()");
   DCHECK(screen_shot_writer_);
 
-  scoped_refptr<render_tree::Node> render_tree =
-      web_module_->DoSynchronousLayoutAndGetRenderTree();
+  scoped_refptr<render_tree::Node> render_tree;
+  web_module_->DoSynchronousLayoutAndGetRenderTree(&render_tree);
   if (!render_tree) {
     LOG(WARNING) << "Unable to get animated render tree";
     return;
@@ -739,8 +733,8 @@ void BrowserModule::RequestScreenshotToMemory(
   TRACE_EVENT0("cobalt::browser", "BrowserModule::RequestScreenshotToMemory()");
   DCHECK(screen_shot_writer_);
 
-  scoped_refptr<render_tree::Node> render_tree =
-      web_module_->DoSynchronousLayoutAndGetRenderTree();
+  scoped_refptr<render_tree::Node> render_tree;
+  web_module_->DoSynchronousLayoutAndGetRenderTree(&render_tree);
   if (!render_tree) {
     LOG(WARNING) << "Unable to get animated render tree";
     return;
@@ -1434,7 +1428,7 @@ void BrowserModule::CreateWindowDriverInternal(
     std::unique_ptr<webdriver::WindowDriver>* out_window_driver) {
   DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
   DCHECK(web_module_);
-  *out_window_driver = web_module_->CreateWindowDriver(window_id);
+  web_module_->CreateWindowDriver(window_id, out_window_driver);
 }
 #endif  // defined(ENABLE_WEBDRIVER)
 
@@ -1442,7 +1436,7 @@ void BrowserModule::CreateWindowDriverInternal(
 std::unique_ptr<debug::DebugClient> BrowserModule::CreateDebugClient(
     debug::DebugClient::Delegate* delegate) {
   // Repost to our message loop to ensure synchronous access to |web_module_|.
-  debug::backend::DebugDispatcher* debug_dispatcher = NULL;
+  debug::backend::DebugDispatcher* debug_dispatcher = nullptr;
   self_message_loop_->task_runner()->PostBlockingTask(
       FROM_HERE,
       base::Bind(&BrowserModule::GetDebugDispatcherInternal,
@@ -1456,7 +1450,7 @@ void BrowserModule::GetDebugDispatcherInternal(
     debug::backend::DebugDispatcher** out_debug_dispatcher) {
   DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
   DCHECK(web_module_);
-  *out_debug_dispatcher = web_module_->GetDebugDispatcher();
+  web_module_->GetDebugDispatcher(out_debug_dispatcher);
 }
 #endif  // ENABLE_DEBUGGER
 
@@ -2103,7 +2097,11 @@ scoped_refptr<script::Wrappable> BrowserModule::CreateH5vcc(
   h5vcc_settings.user_agent_data = window->navigator()->user_agent_data();
   h5vcc_settings.global_environment = global_environment;
 
-  return scoped_refptr<script::Wrappable>(new h5vcc::H5vcc(h5vcc_settings));
+  auto* h5vcc_object = new h5vcc::H5vcc(h5vcc_settings);
+  if (!web_module_created_callback_.is_null()) {
+    web_module_created_callback_.Run(web_module_.get());
+  }
+  return scoped_refptr<script::Wrappable>(h5vcc_object);
 }
 
 void BrowserModule::SetDeepLinkTimestamp(SbTimeMonotonic timestamp) {

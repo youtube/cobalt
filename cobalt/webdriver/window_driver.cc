@@ -500,8 +500,8 @@ util::CommandResult<void> WindowDriver::SendKeysInternal(
   }
 
   for (size_t i = 0; i < events->size(); ++i) {
-    keyboard_event_injector_.Run(scoped_refptr<dom::Element>(),
-                                 (*events)[i].first, (*events)[i].second);
+    keyboard_event_injector_.Run((*events)[i].first, (*events)[i].second,
+                                 scoped_refptr<dom::Element>());
   }
   return CommandResult(protocol::Response::kSuccess);
 }
@@ -557,12 +557,12 @@ void WindowDriver::InitPointerEvent(dom::PointerEventInit* event) {
   event->set_is_primary(true);
 }
 
-void WindowDriver::InjectPointerEvent(scoped_refptr<dom::Element> element,
-                                      base::Token type,
-                                      const dom::PointerEventInit& event) {
+void WindowDriver::InjectPointerEvent(base::Token type,
+                                      const dom::PointerEventInit& event,
+                                      scoped_refptr<dom::Element> element) {
   pointer_x_ = event.screen_x();
   pointer_y_ = event.screen_y();
-  pointer_event_injector_.Run(element, type, event);
+  pointer_event_injector_.Run(type, event, element);
 }
 
 util::CommandResult<void> WindowDriver::MouseMoveToInternal(
@@ -623,8 +623,8 @@ util::CommandResult<void> WindowDriver::MouseMoveToInternal(
 
   dom::PointerEventInit event;
   InitPointerEvent(&event);
-  pointer_event_injector_.Run(scoped_refptr<dom::Element>(),
-                              base::Tokens::pointermove(), event);
+  pointer_event_injector_.Run(base::Tokens::pointermove(), event,
+                              scoped_refptr<dom::Element>());
 
   return CommandResult(protocol::Response::kSuccess);
 }
@@ -642,8 +642,8 @@ void WindowDriver::InjectMouseButtonUp(const protocol::Button& button) {
 
   InitPointerEvent(&event);
 
-  pointer_event_injector_.Run(scoped_refptr<dom::Element>(),
-                              base::Tokens::pointerup(), event);
+  pointer_event_injector_.Run(base::Tokens::pointerup(), event,
+                              scoped_refptr<dom::Element>());
 }
 
 void WindowDriver::InjectMouseButtonDown(const protocol::Button& button) {
@@ -659,8 +659,8 @@ void WindowDriver::InjectMouseButtonDown(const protocol::Button& button) {
 
   InitPointerEvent(&event);
 
-  pointer_event_injector_.Run(scoped_refptr<dom::Element>(),
-                              base::Tokens::pointerdown(), event);
+  pointer_event_injector_.Run(base::Tokens::pointerdown(), event,
+                              scoped_refptr<dom::Element>());
 }
 
 util::CommandResult<void> WindowDriver::MouseButtonDownInternal(

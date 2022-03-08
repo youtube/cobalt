@@ -179,6 +179,11 @@ scoped_refptr<HTMLElement> HTMLElementFactory::CreateHTMLElement(
   } else {
     LOG_IF(WARNING, !IsValidCustomElementName(tag_name))
         << "Unknown HTML element: <" << tag_name << ">.";
+
+    // Check some common tags that should always be found.
+    DCHECK(tag_name != "script");
+    DCHECK(tag_name != "div");
+    DCHECK(tag_name != "html");
     return new HTMLUnknownElement(document, tag_name);
   }
 }

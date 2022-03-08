@@ -60,6 +60,7 @@
 #include "cobalt/script/script_runner.h"
 #include "cobalt/ui_navigation/nav_item.h"
 #include "cobalt/webdriver/session_driver.h"
+#include "starboard/atomic.h"
 #include "url/gurl.h"
 
 #if defined(ENABLE_DEBUGGER)
@@ -284,7 +285,7 @@ class WebModule : public LifecycleObserver {
   WebModule(const GURL& initial_url,
             base::ApplicationState initial_application_state,
             const OnRenderTreeProducedCallback& render_tree_produced_callback,
-            const OnErrorCallback& error_callback,
+            OnErrorCallback error_callback,
             const CloseCallback& window_close_callback,
             const base::Closure& window_minimize_callback,
             media::CanPlayTypeHandler* can_play_type_handler,
@@ -343,26 +344,29 @@ class WebModule : public LifecycleObserver {
   // Executes Javascript code in this web module.  The calling thread will
   // block until the JavaScript has executed and the output results are
   // available.
-  std::string ExecuteJavascript(const std::string& script_utf8,
-                                const base::SourceLocation& script_location,
-                                bool* out_succeeded);
+  void ExecuteJavascript(const std::string& script_utf8,
+                         const base::SourceLocation& script_location,
+                         std::string* out_result = nullptr,
+                         bool* out_succeeded = nullptr);
 
 #if defined(ENABLE_WEBDRIVER)
   // Creates a new webdriver::WindowDriver that interacts with the Window that
   // is owned by this WebModule instance.
-  std::unique_ptr<webdriver::WindowDriver> CreateWindowDriver(
-      const webdriver::protocol::WindowId& window_id);
+  void CreateWindowDriver(
+      const webdriver::protocol::WindowId& window_id,
+      std::unique_ptr<webdriver::WindowDriver>* window_driver_out);
 #endif
 
 #if defined(ENABLE_DEBUGGER)
   // Gets a reference to the debug dispatcher that interacts with this web
   // module. The debug dispatcher is part of the debug module owned by this web
   // module, which is lazily created by this function if necessary.
-  debug::backend::DebugDispatcher* GetDebugDispatcher();
+  void GetDebugDispatcher(debug::backend::DebugDispatcher** dispatcher);
 
   // Moves the debugger state out of this WebModule prior to navigating so that
   // it can be restored in the new WebModule after the navigation.
-  std::unique_ptr<debug::backend::DebuggerState> FreezeDebugger();
+  void FreezeDebugger(
+      std::unique_ptr<debug::backend::DebuggerState>* debugger_state);
 #endif  // ENABLE_DEBUGGER
 
   // Sets the size of this web module, possibly causing relayout and re-render
@@ -407,7 +411,8 @@ class WebModule : public LifecycleObserver {
   // Indicate the web module is ready to freeze.
   bool IsReadyToFreeze();
 
-  scoped_refptr<render_tree::Node> DoSynchronousLayoutAndGetRenderTree();
+  void DoSynchronousLayoutAndGetRenderTree(
+      scoped_refptr<render_tree::Node>* render_tree = nullptr);
 
   // Pass the application preload or start timestamps from Starboard.
   void SetApplicationStartOrPreloadTimestamp(bool is_preload,
@@ -418,21 +423,24 @@ class WebModule : public LifecycleObserver {
   // Data required to construct a WebModule, initialized in the constructor and
   // passed to |Initialize|.
   struct ConstructionData {
-    ConstructionData(
-        const GURL& initial_url,
-        base::ApplicationState initial_application_state,
-        const OnRenderTreeProducedCallback& render_tree_produced_callback,
-        const OnErrorCallback& error_callback,
-        const CloseCallback& window_close_callback,
-        const base::Closure& window_minimize_callback,
-        media::CanPlayTypeHandler* can_play_type_handler,
-        media::MediaModule* media_module,
-        network::NetworkModule* network_module,
-        const cssom::ViewportSize& window_dimensions,
-        render_tree::ResourceProvider* resource_provider,
-        int dom_max_element_depth, float layout_refresh_rate,
-        const scoped_refptr<ui_navigation::NavItem>& ui_nav_root,
-        const Options& options)
+    ConstructionData(const GURL& initial_url,
+                     base::ApplicationState initial_application_state,
+                     OnRenderTreeProducedCallback render_tree_produced_callback,
+                     const OnErrorCallback& error_callback,
+                     CloseCallback window_close_callback,
+                     base::Closure window_minimize_callback,
+                     media::CanPlayTypeHandler* can_play_type_handler,
+                     media::MediaModule* media_module,
+                     network::NetworkModule* network_module,
+                     const cssom::ViewportSize& window_dimensions,
+                     render_tree::ResourceProvider* resource_provider,
+                     int dom_max_element_depth, float layout_refresh_rate,
+                     const scoped_refptr<ui_navigation::NavItem>& ui_nav_root,
+#if defined(ENABLE_DEBUGGER)
+                     starboard::atomic_bool* waiting_for_web_debugger,
+#endif  // defined(ENABLE_DEBUGGER)
+                     base::WaitableEvent* synchronous_loader_interrupt,
+                     const Options& options)
         : initial_url(initial_url),
           initial_application_state(initial_application_state),
           render_tree_produced_callback(render_tree_produced_callback),
@@ -447,14 +455,19 @@ class WebModule : public LifecycleObserver {
           dom_max_element_depth(dom_max_element_depth),
           layout_refresh_rate(layout_refresh_rate),
           ui_nav_root(ui_nav_root),
-          options(options) {}
+#if defined(ENABLE_DEBUGGER)
+          waiting_for_web_debugger(waiting_for_web_debugger),
+#endif  // defined(ENABLE_DEBUGGER)
+          synchronous_loader_interrupt(synchronous_loader_interrupt),
+          options(options) {
+    }
 
     GURL initial_url;
     base::ApplicationState initial_application_state;
     OnRenderTreeProducedCallback render_tree_produced_callback;
     OnErrorCallback error_callback;
-    const CloseCallback& window_close_callback;
-    const base::Closure& window_minimize_callback;
+    CloseCallback window_close_callback;
+    base::Closure window_minimize_callback;
     media::CanPlayTypeHandler* can_play_type_handler;
     media::MediaModule* media_module;
     network::NetworkModule* network_module;
@@ -463,6 +476,10 @@ class WebModule : public LifecycleObserver {
     int dom_max_element_depth;
     float layout_refresh_rate;
     scoped_refptr<ui_navigation::NavItem> ui_nav_root;
+#if defined(ENABLE_DEBUGGER)
+    starboard::atomic_bool* waiting_for_web_debugger;
+#endif  // defined(ENABLE_DEBUGGER)
+    base::WaitableEvent* synchronous_loader_interrupt;
     Options options;
   };
 
@@ -488,6 +505,8 @@ class WebModule : public LifecycleObserver {
 
   void CancelSynchronousLoads();
 
+  void GetIsReadyToFreeze(volatile bool* is_ready_to_freeze);
+
   // The message loop this object is running on.
   base::MessageLoop* message_loop() const { return thread_.message_loop(); }
 
@@ -502,6 +521,20 @@ class WebModule : public LifecycleObserver {
   // This is the root UI navigation container which contains all active UI
   // navigation items created by this web module.
   scoped_refptr<ui_navigation::NavItem> ui_nav_root_;
+
+#if defined(ENABLE_DEBUGGER)
+  // Used to avoid a deadlock when running |Blur| while waiting for the web
+  // debugger to connect. Initializes to false.
+  starboard::atomic_bool waiting_for_web_debugger_;
+#endif  // defined(ENABLE_DEBUGGER)
+
+  // This event is used to interrupt the loader when JavaScript is loaded
+  // synchronously.  It is manually reset so that events like Freeze can be
+  // correctly execute, even if there are multiple synchronous loads in queue
+  // before the freeze (or other) event handlers.
+  base::WaitableEvent synchronous_loader_interrupt_ = {
+      base::WaitableEvent::ResetPolicy::MANUAL,
+      base::WaitableEvent::InitialState::NOT_SIGNALED};
 };
 
 }  // namespace browser

@@ -163,8 +163,8 @@ class Window : public EventTarget, public ApplicationLifecycleState::Observer {
       dom::CspEnforcementType csp_enforcement_mode,
       const base::Closure& csp_policy_changed_callback,
       const base::Closure& ran_animation_frame_callbacks_callback,
-      const CloseCallback& window_close_callback,
-      const base::Closure& window_minimize_callback,
+      CloseCallback window_close_callback,
+      base::Closure window_minimize_callback,
       OnScreenKeyboardBridge* on_screen_keyboard_bridge,
       const scoped_refptr<input::Camera3D>& camera_3d,
       const OnStartDispatchEventCallback&

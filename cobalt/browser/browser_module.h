@@ -636,6 +636,9 @@ class BrowserModule {
   // An object that registers and owns console commands for controlling
   // Cobalt's lifecycle.
   LifecycleConsoleCommands lifecycle_console_commands_;
+
+  // Saves the previous debugger state to be restored in the new WebModule.
+  std::unique_ptr<debug::backend::DebuggerState> debugger_state_;
 #endif  // defined(ENABLE_DEBUGGER)
 
   // The splash screen. The pointer wrapped here should be non-NULL iff

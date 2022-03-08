@@ -232,9 +232,10 @@ std::string RunWebPlatformTest(const GURL& url, bool* got_results) {
   run_loop.Run();
   const std::string extract_results =
       "document.getElementById(\"__testharness__results__\").textContent;";
-  std::string output = web_module.ExecuteJavascript(
-      extract_results, base::SourceLocation(__FILE__, __LINE__, 1),
-      got_results);
+  std::string output;
+  web_module.ExecuteJavascript(extract_results,
+                               base::SourceLocation(__FILE__, __LINE__, 1),
+                               &output, got_results);
   return output;
 }
 

@@ -115,6 +115,7 @@ void HTMLScriptElement::OnParserStartTag(
 void HTMLScriptElement::OnParserEndTag() { Prepare(); }
 
 scoped_refptr<HTMLScriptElement> HTMLScriptElement::AsHTMLScriptElement() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   return this;
 }
 
