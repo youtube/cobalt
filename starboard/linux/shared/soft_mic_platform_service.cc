@@ -48,7 +48,6 @@ const char kJSONFalse[] = "false";
 
 bool Has(const char* name) {
   // Check if platform has service name.
-  SB_LOG(INFO) << "Has(): " << name;
   return strcmp(name, "com.google.youtube.tv.SoftMic") == 0;
 }
 
