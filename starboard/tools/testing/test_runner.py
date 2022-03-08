@@ -26,8 +26,7 @@ import sys
 import threading
 import traceback
 
-import _env  # pylint: disable=unused-import, relative-import
-import cStringIO
+from six.moves import cStringIO as StringIO
 from starboard.tools import abstract_launcher
 from starboard.tools import build
 from starboard.tools import command_line
@@ -104,7 +103,7 @@ class TestLineReader(object):
 
   def __init__(self, read_pipe):
     self.read_pipe = read_pipe
-    self.output_lines = cStringIO.StringIO()
+    self.output_lines = StringIO()
     self.stop_event = threading.Event()
     self.reader_thread = threading.Thread(target=self._ReadLines)
 
@@ -374,7 +373,7 @@ class TestRunner(object):
   def _GetAllTestEnvVariables(self):
     """Gets all environment variables used for tests on the given platform."""
     env_variables = {}
-    for test, test_env in self._app_config.GetTestEnvVariables().iteritems():
+    for test, test_env in self._app_config.GetTestEnvVariables().items():
       if test in env_variables:
         env_variables[test].update(test_env)
       else:
