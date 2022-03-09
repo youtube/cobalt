@@ -29,6 +29,7 @@
 #include "cobalt/loader/image/image_decoder.h"
 #include "cobalt/loader/loader.h"
 #include "cobalt/loader/mesh/mesh_decoder.h"
+#include "cobalt/loader/script_loader_factory.h"
 #include "cobalt/loader/text_decoder.h"
 #include "cobalt/render_tree/resource_provider.h"
 #include "url/gurl.h"
@@ -39,7 +40,7 @@ namespace loader {
 // The LoaderFactory provides a central loader creator object from which clients
 // can request the creation of loaders of various types.  The LoaderFactory
 // maintains all context necessary to create the various resource types.
-class LoaderFactory {
+class LoaderFactory : public ScriptLoaderFactory {
  public:
   LoaderFactory(const char* name, FetcherFactory* fetcher_factory,
                 render_tree::ResourceProvider* resource_provider,
@@ -70,13 +71,6 @@ class LoaderFactory {
       const mesh::MeshDecoder::MeshAvailableCallback& mesh_available_callback,
       const Loader::OnCompleteFunction& load_complete_callback);
 
-  // Creates a loader that fetches and decodes a Javascript resource.
-  std::unique_ptr<Loader> CreateScriptLoader(
-      const GURL& url, const Origin& origin,
-      const csp::SecurityCallback& url_security_callback,
-      const TextDecoder::TextAvailableCallback& script_available_callback,
-      const Loader::OnCompleteFunction& load_complete_callback);
-
   // Creates a loader that fetches and decodes a render_tree::Typeface.
   std::unique_ptr<Loader> CreateTypefaceLoader(
       const GURL& url, const Origin& origin,
@@ -85,9 +79,6 @@ class LoaderFactory {
           typeface_available_callback,
       const Loader::OnCompleteFunction& load_complete_callback);
 
-  // Notify the LoaderFactory that the resource identified by "url" is being
-  // requested again.
-  void NotifyResourceRequested(const std::string& url);
 
   // Clears out the loader factory's resource provider, aborting any in-progress
   // loads.
@@ -102,49 +93,16 @@ class LoaderFactory {
   // called.
   void UpdateResourceProvider(render_tree::ResourceProvider* resource_provider);
 
+  // Notify the LoaderFactory that the resource identified by "url" is being
+  // requested again.
+  void NotifyResourceRequested(const std::string& url);
+
  private:
-  void OnLoaderCreated(Loader* loader);
-  void OnLoaderDestroyed(Loader* loader);
   void SuspendActiveLoaders();
   void ResumeActiveLoaders(render_tree::ResourceProvider* resource_provider);
 
-  Loader::FetcherCreator MakeFetcherCreator(
-      const GURL& url, const csp::SecurityCallback& url_security_callback,
-      RequestMode request_mode, const Origin& origin);
-  Loader::FetcherCreator MakeCachedFetcherCreator(
-      const GURL& url, const csp::SecurityCallback& url_security_callback,
-      RequestMode request_mode, const Origin& origin);
-
-  // Ensures that the LoaderFactory methods are only called from the same
-  // thread.
-  THREAD_CHECKER(thread_checker_);
-
-  // Used to create the Fetcher component of the loaders.
-  FetcherFactory* fetcher_factory_;
-
-  // Used to cache the fetched raw data.  Note that currently the cache is only
-  // used to cache Image data.  We may introduce more caches once we want to
-  // cache fetched data for other resource types.
-  std::unique_ptr<FetcherCache> fetcher_cache_;
-
   // Used to create render_tree resources.
   render_tree::ResourceProvider* resource_provider_;
-
-  // Used with CLOG to report errors with the image source.
-  const base::DebuggerHooks& debugger_hooks_;
-
-  // Keeps track of all active loaders so that if a suspend event occurs they
-  // can be aborted.
-  typedef std::set<Loader*> LoaderSet;
-  LoaderSet active_loaders_;
-
-  // Thread to run asynchronous fetchers and decoders on.  At the moment,
-  // image decoding is the only thing done on this thread.
-  base::Thread load_thread_;
-
-  // Whether or not the LoaderFactory is currently suspended. While it is, all
-  // loaders created by it begin in a suspended state.
-  bool is_suspended_;
 };
 
 }  // namespace loader

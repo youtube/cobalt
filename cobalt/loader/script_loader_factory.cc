@@ -1,0 +1,111 @@
+// Copyright 2016 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#include "cobalt/loader/script_loader_factory.h"
+
+#include <memory>
+
+#include "base/threading/platform_thread.h"
+#include "cobalt/loader/image/threaded_image_decoder_proxy.h"
+
+namespace cobalt {
+namespace loader {
+
+namespace {
+
+// The ResourceLoader thread uses the default stack size, which is requested
+// by passing in 0 for its stack size.
+const size_t kLoadThreadStackSize = 0;
+
+}  // namespace
+
+ScriptLoaderFactory::ScriptLoaderFactory(
+    const char* name, FetcherFactory* fetcher_factory,
+    const base::DebuggerHooks& debugger_hooks,
+    size_t encoded_image_cache_capacity,
+    base::ThreadPriority loader_thread_priority)
+    : fetcher_factory_(fetcher_factory),
+      debugger_hooks_(debugger_hooks),
+      load_thread_("ResourceLoader"),
+      is_suspended_(false) {
+  if (encoded_image_cache_capacity > 0) {
+    fetcher_cache_.reset(new FetcherCache(name, encoded_image_cache_capacity));
+  }
+
+  base::Thread::Options options(base::MessageLoop::TYPE_DEFAULT,
+                                kLoadThreadStackSize);
+  options.priority = loader_thread_priority;
+  load_thread_.StartWithOptions(options);
+}
+
+std::unique_ptr<Loader> ScriptLoaderFactory::CreateScriptLoader(
+    const GURL& url, const Origin& origin,
+    const csp::SecurityCallback& url_security_callback,
+    const TextDecoder::TextAvailableCallback& script_available_callback,
+    const Loader::OnCompleteFunction& load_complete_callback) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+
+  Loader::FetcherCreator fetcher_creator =
+      MakeFetcherCreator(url, url_security_callback, kNoCORSMode, origin);
+
+  std::unique_ptr<Loader> loader(new Loader(
+      fetcher_creator,
+      base::Bind(&loader::TextDecoder::Create, script_available_callback),
+      load_complete_callback,
+      base::Bind(&ScriptLoaderFactory::OnLoaderDestroyed,
+                 base::Unretained(this)),
+      is_suspended_));
+
+  OnLoaderCreated(loader.get());
+  return loader;
+}
+
+Loader::FetcherCreator ScriptLoaderFactory::MakeFetcherCreator(
+    const GURL& url, const csp::SecurityCallback& url_security_callback,
+    RequestMode request_mode, const Origin& origin) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+
+  return base::Bind(&FetcherFactory::CreateSecureFetcher,
+                    base::Unretained(fetcher_factory_), url,
+                    url_security_callback, request_mode, origin);
+}
+
+Loader::FetcherCreator ScriptLoaderFactory::MakeCachedFetcherCreator(
+    const GURL& url, const csp::SecurityCallback& url_security_callback,
+    RequestMode request_mode, const Origin& origin) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+
+  auto fetcher_creator =
+      MakeFetcherCreator(url, url_security_callback, request_mode, origin);
+
+  if (fetcher_cache_) {
+    return fetcher_cache_->GetFetcherCreator(url, fetcher_creator);
+  }
+  return fetcher_creator;
+}
+
+void ScriptLoaderFactory::OnLoaderCreated(Loader* loader) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK(active_loaders_.find(loader) == active_loaders_.end());
+  active_loaders_.insert(loader);
+}
+
+void ScriptLoaderFactory::OnLoaderDestroyed(Loader* loader) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK(active_loaders_.find(loader) != active_loaders_.end());
+  active_loaders_.erase(loader);
+}
+
+}  // namespace loader
+}  // namespace cobalt

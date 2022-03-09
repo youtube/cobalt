@@ -94,6 +94,8 @@
         'net_fetcher.h',
         'resource_cache.cc',
         'resource_cache.h',
+        'script_loader_factory.cc',
+        'script_loader_factory.h',
         'switches.cc',
         'switches.h',
         'sync_loader.cc',
