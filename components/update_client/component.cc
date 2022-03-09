@@ -728,8 +728,15 @@ void Component::StateUpdateError::DoHandle() {
   DCHECK_NE(ErrorCategory::kNone, component.error_category_);
   DCHECK_NE(0, component.error_code_);
 
+#if defined(STARBOARD)
+  // Create an event when the server response included an update, or when it's
+  // an update check error, like quick roll-forward or out of space
+  if (component.IsUpdateAvailable() ||
+      component.error_category_ == ErrorCategory::kUpdateCheck)
+#else
   // Create an event only when the server response included an update.
   if (component.IsUpdateAvailable())
+#endif
     component.AppendEvent(component.MakeEventUpdateComplete());
 
   EndState();
