@@ -1642,7 +1642,12 @@ config("default_warnings") {
 
 config("chromium_code") {
   if (is_win) {
-    cflags = [ "/W4" ]  # Warning level 4.
+    if (is_starboard) {
+      # The platform should set warning flags.
+      cflags = []
+    } else {
+      cflags = [ "/W4" ]  # Warning level 4.
+    }
 
     if (is_clang) {
       # Opt in to additional [[nodiscard]] on standard library methods.
@@ -1748,6 +1753,10 @@ config("no_chromium_code") {
       "/wd4267",  # TODO(jschuh): size_t to int.
       "/wd4996",  # Deprecated function warning.
     ]
+    if (is_starboard) {
+      # The platform should set warning flags.
+      cflags -= [ "/W3" ]
+    }
     defines += [
       "_CRT_NONSTDC_NO_WARNINGS",
       "_CRT_NONSTDC_NO_DEPRECATE",
