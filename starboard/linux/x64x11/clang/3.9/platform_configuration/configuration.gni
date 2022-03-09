@@ -36,7 +36,7 @@ sb_widevine_platform = "linux"
 has_drm_support = is_internal_build
 platform_tests_path = "//starboard/linux/shared:starboard_platform_tests"
 
-in_app_dial = true
+enable_in_app_dial = true
 
 sabi_path = "//starboard/sabi/x64/sysv/sabi-v$sb_api_version.json"
 

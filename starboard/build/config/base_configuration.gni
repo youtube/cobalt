@@ -105,7 +105,7 @@ declare_args() {
 
   # Enables or disables the DIAL server that runs inside Cobalt.
   # Note: Only enable if there's no system-wide DIAL support.
-  in_app_dial = false
+  enable_in_app_dial = false
 
   # Override this value to adjust the default rasterizer setting for your
   # platform.

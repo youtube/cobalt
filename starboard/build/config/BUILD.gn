@@ -52,7 +52,7 @@ config("base") {
     ]
   }
 
-  if (in_app_dial) {
+  if (enable_in_app_dial) {
     defines += [ "DIAL_SERVER" ]
   }
 }

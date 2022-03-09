@@ -18,4 +18,4 @@ sabi_path = "//starboard/sabi/x64/sysv/sabi-v$sb_api_version.json"
 
 install_target_path = "//starboard/evergreen/x64/install_target.gni"
 
-in_app_dial = true
+enable_in_app_dial = true
