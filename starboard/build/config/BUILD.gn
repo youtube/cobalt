@@ -46,6 +46,7 @@ config("base") {
       "STARBOARD_BUILD_TYPE_GOLD",
       "COBALT_BUILD_TYPE_GOLD",
       "NDEBUG",
+      "OFFICIAL_BUILD",
     ]
   }
 }
