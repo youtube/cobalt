@@ -47,7 +47,12 @@ config("base") {
       "COBALT_BUILD_TYPE_GOLD",
       "NDEBUG",
       "OFFICIAL_BUILD",
+      "TRACING_DISABLED",
     ]
+  }
+
+  if (in_app_dial) {
+    defines += [ "DIAL_SERVER" ]
   }
 }
 
