@@ -196,7 +196,9 @@ static_library("browser") {
     cobalt_webapi_extension_gn_target,
   ]
 
-  if (!is_gold) {
+  if (is_gold) {
+    defines = [ "COBALT_FORCE_HTTPS" ]
+  } else {
     sources += [
       "debug_console.cc",
       "debug_console.h",

@@ -48,6 +48,7 @@ config("base") {
       "NDEBUG",
       "OFFICIAL_BUILD",
       "TRACING_DISABLED",
+      "COBALT_FORCE_CSP",
     ]
   }
 
