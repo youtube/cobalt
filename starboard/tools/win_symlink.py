@@ -12,7 +12,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """Provides functions for symlinking on Windows.
 
 Reparse points: Are os-level symlinks for folders which can be created without
@@ -32,7 +31,6 @@ import stat
 import subprocess
 import time
 
-
 _RETRY_TIMES = 10
 
 
@@ -48,7 +46,9 @@ def ToDevicePath(dos_path, encoding=None):
   Returns:
     Absolute device path starting with "\\?\".
   """
-  if not isinstance(dos_path, unicode) and encoding is not None:
+  # This type is compatible with both python 2 and 3.
+  unicode_type = type(u'')
+  if not isinstance(dos_path, unicode_type) and encoding is not None:
     dos_path = dos_path.decode(encoding)
   path = os.path.abspath(dos_path)
   if path.startswith(u'\\\\'):
@@ -64,7 +64,7 @@ def _RemoveEmptyDirectory(path):
       os.rmdir(path)
       return
     except Exception:  # pylint: disable=broad-except
-      if i == _RETRY_TIMES-1:
+      if i == _RETRY_TIMES - 1:
         raise
       else:
         time.sleep(.1)
@@ -143,7 +143,7 @@ def ReadReparsePointShell(path):
 def ReadReparsePoint(path):
   """Mimics os.readlink for usage."""
   try:
-    # pylint: disable=g-import-not-at-top
+    # pylint: disable=import-outside-toplevel
     import win_symlink_fast
     return win_symlink_fast.FastReadReparseLink(path)
   except Exception as err:  # pylint: disable=broad-except
@@ -154,10 +154,10 @@ def ReadReparsePoint(path):
 def IsReparsePoint(path):
   """Mimics os.islink for usage."""
   try:
-    # pylint: disable=g-import-not-at-top
+    # pylint: disable=import-outside-toplevel
     import win_symlink_fast
     return win_symlink_fast.FastIsReparseLink(path)
-  except  Exception as err:  # pylint: disable=broad-except
+  except Exception as err:  # pylint: disable=broad-except
     logging.exception(' error: %s, falling back to command line version.', err)
     return None is not ReadReparsePointShell(path)
 
@@ -180,15 +180,16 @@ def CreateReparsePoint(from_folder, link_folder):
   else:
     UnlinkReparsePoint(link_folder)  # Deletes if it exists.
   try:
-    # pylint: disable=g-import-not-at-top
+    # pylint: disable=import-outside-toplevel
     import win_symlink_fast
     win_symlink_fast.FastCreateReparseLink(from_folder, link_folder)
     return
   except OSError:
     pass
   except Exception as err:  # pylint: disable=broad-except
-    logging.exception('unexpected error: %s, from=%s, link=%s, falling back to '
-                      'command line version.', err, from_folder, link_folder)
+    logging.exception(
+        'unexpected error: %s, from=%s, link=%s, falling back to '
+        'command line version.', err, from_folder, link_folder)
   par_dir = os.path.dirname(link_folder)
   if not os.path.isdir(par_dir):
     os.makedirs(par_dir)

@@ -28,14 +28,10 @@ import string
 import sys
 import tempfile
 
-from paths import REPOSITORY_ROOT
-from paths import THIRD_PARTY_ROOT
-
-sys.path.append(THIRD_PARTY_ROOT)
-# pylint: disable=g-import-not-at-top,g-bad-import-order,wrong-import-position
 from starboard.tools import command_line
 from starboard.tools import log_level
 from starboard.tools import port_symlink
+from starboard.tools.paths import REPOSITORY_ROOT
 import starboard.tools.starboard_platform
 
 # Default directories to app launcher resources.
@@ -136,7 +132,7 @@ def _WritePlatformsInfo(repo_root, dest_root):
     platforms_map[p] = platform_path.replace('\\', '/')
   with open(os.path.join(current_dir, 'starboard_platform.py.template')) as c:
     template = string.Template(c.read())
-    with open(os.path.join(dest_dir, 'starboard_platform.py'), 'w+') as f:
+    with open(os.path.join(dest_dir, 'starboard_platform.py'), 'wb') as f:
       sub = template.substitute(platforms_map=platforms_map)
       f.write(sub.encode('utf-8'))
   logging.info('Finished baking in platform info files.')

@@ -13,24 +13,13 @@
 # limitations under the License.
 
 action("build_app_launcher_zip") {
-  script = "//starboard/build/run_bash.py"
-  py_script = "//starboard/tools/app_launcher_packager.py"
+  script = "//starboard/tools/app_launcher_packager.py"
 
-  file_list = exec_script("//starboard/build/run_bash.py",
-                          [
-                            "python2",
-                            rebase_path(py_script, root_build_dir),
-                            "-l",
-                          ],
-                          "trim string",
-                          [ py_script ])
+  file_list = exec_script(script, [ "-l" ], "trim string")
   inputs = string_split(file_list)
-  inputs += [ py_script ]
   outputs = [ "$root_out_dir/app_launcher.zip" ]
 
   args = [
-    "python2",
-    rebase_path(py_script, root_build_dir),
     "-z",
     rebase_path(outputs[0], root_build_dir),
   ]
