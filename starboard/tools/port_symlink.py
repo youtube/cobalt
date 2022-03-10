@@ -21,8 +21,6 @@ import os
 import shutil
 import sys
 
-import _env  # pylint: disable=relative-import,unused-import
-
 from starboard.tools import util
 
 

@@ -21,7 +21,6 @@ import logging
 import os
 import sys
 
-import _env  # pylint: disable=unused-import
 from starboard.tools import config
 from starboard.tools import paths
 from starboard.tools import starboard_platform

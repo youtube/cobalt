@@ -16,7 +16,6 @@
 """Provides a consistent mechanism for the initialize of logging."""
 
 import logging
-import _env  # pylint: disable=unused-import
 
 _NAME_TO_LEVEL = {
     'info': logging.INFO,

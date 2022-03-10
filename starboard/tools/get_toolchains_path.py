@@ -17,7 +17,6 @@
 
 import sys
 
-import _env  # pylint: disable=unused-import
 from starboard.tools import build
 
 

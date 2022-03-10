@@ -20,7 +20,6 @@ import importlib
 import logging
 import os
 
-import _env  # pylint: disable=unused-import
 import starboard
 from starboard.tools import starboard_platform
 

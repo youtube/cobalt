@@ -31,7 +31,6 @@ import os
 import sys
 import textwrap
 
-import _env  # pylint: disable=unused-import
 from starboard.tools import log_level
 from starboard.tools import paths
 import starboard.tools.environment as environment

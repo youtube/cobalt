@@ -20,7 +20,6 @@ import argparse
 import os
 import unittest
 
-import _env  # pylint: disable=unused-import
 from starboard.tools import command_line
 import starboard.tools.config
 import starboard.tools.starboard_platform

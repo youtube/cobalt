@@ -16,7 +16,6 @@
 """Adds common command-line arguments to a provided argument parser."""
 
 import argparse
-import _env  # pylint: disable=unused-import
 from starboard.tools import build
 from starboard.tools import params
 import starboard.tools.config

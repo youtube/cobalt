@@ -28,7 +28,6 @@ import string
 import sys
 import tempfile
 
-import _env  # pylint: disable=unused-import
 from paths import REPOSITORY_ROOT
 from paths import THIRD_PARTY_ROOT
 

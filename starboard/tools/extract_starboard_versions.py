@@ -26,7 +26,6 @@ import os
 import re
 import sys
 
-import _env  # pylint: disable=unused-import, syntax-error
 from starboard.tools import paths
 from starboard.tools import starboard_platform
 

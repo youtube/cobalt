@@ -20,7 +20,7 @@ import argparse
 import logging
 import mock
 import unittest
-import _env  # pylint: disable=unused-import
+
 from starboard.tools import log_level
 
 _INITIALIZE_LOGGING_MOCK = 'starboard.tools.log_level.InitializeLoggingWithLevel'

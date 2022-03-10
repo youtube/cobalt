@@ -19,9 +19,6 @@ import sys
 import unittest
 
 
-import _env  # pylint: disable=relative-import,unused-import
-
-
 if __name__ == '__main__' and sys.platform == 'win32':
   from starboard.tools import port_symlink_test  # pylint: disable=g-import-not-at-top
   from starboard.tools import util  # pylint: disable=g-import-not-at-top
