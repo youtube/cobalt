@@ -16,12 +16,12 @@
 """A portable interface for symlinking."""
 
 import argparse
-import logging
 import os
 import shutil
 import sys
 
 from starboard.tools import util
+from starboard.tools import win_symlink
 
 
 def IsWindows():
@@ -31,8 +31,6 @@ def IsWindows():
 def ToLongPath(path):
   """Converts to a path that supports long filenames."""
   if IsWindows():
-    # pylint: disable=g-import-not-at-top
-    from starboard.tools import win_symlink
     return win_symlink.ToDevicePath(path)
   else:
     return path
@@ -41,8 +39,6 @@ def ToLongPath(path):
 def IsSymLink(path):
   """Platform neutral version os os.path.islink()."""
   if IsWindows():
-    # pylint: disable=g-import-not-at-top
-    from starboard.tools import win_symlink
     return win_symlink.IsReparsePoint(path)
   else:
     return os.path.islink(path)
@@ -59,8 +55,6 @@ def MakeSymLink(target_path, link_path):
     None
   """
   if IsWindows():
-    # pylint: disable=g-import-not-at-top
-    from starboard.tools import win_symlink
     win_symlink.CreateReparsePoint(target_path, link_path)
   else:
     util.MakeDirs(os.path.dirname(link_path))
@@ -70,8 +64,6 @@ def MakeSymLink(target_path, link_path):
 def ReadSymLink(link_path):
   """Returns the path (abs. or rel.) to the folder referred to by link_path."""
   if IsWindows():
-    # pylint: disable=g-import-not-at-top
-    from starboard.tools import win_symlink
     path = win_symlink.ReadReparsePoint(link_path)
   else:
     try:
@@ -83,8 +75,6 @@ def ReadSymLink(link_path):
 
 def DelSymLink(link_path):
   if IsWindows():
-    # pylint: disable=g-import-not-at-top
-    from starboard.tools import win_symlink
     win_symlink.UnlinkReparsePoint(link_path)
   else:
     os.unlink(link_path)
@@ -93,8 +83,6 @@ def DelSymLink(link_path):
 def Rmtree(path):
   """See Rmtree() for documentation of this function."""
   if IsWindows():
-    # pylint: disable=g-import-not-at-top
-    from starboard.tools import win_symlink
     func = win_symlink.RmtreeShallow
   elif not os.path.islink(path):
     func = shutil.rmtree
@@ -107,8 +95,6 @@ def Rmtree(path):
 
 def OsWalk(root_dir, topdown=True, onerror=None, followlinks=False):
   if IsWindows():
-    # pylint: disable=g-import-not-at-top
-    from starboard.tools import win_symlink
     return win_symlink.OsWalk(root_dir, topdown, onerror, followlinks)
   else:
     return os.walk(root_dir, topdown, onerror, followlinks)

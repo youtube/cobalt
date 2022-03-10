@@ -23,7 +23,7 @@ import unittest
 
 from starboard.tools import log_level
 
-_INITIALIZE_LOGGING_MOCK = 'starboard.tools.log_level.InitializeLoggingWithLevel'
+_INITIALIZE_LOGGING_MOCK = 'starboard.tools.log_level.InitializeLoggingWithLevel'  # pylint:disable=line-too-long
 
 
 class LogLevelTest(unittest.TestCase):
@@ -40,7 +40,7 @@ class LogLevelTest(unittest.TestCase):
 
   @mock.patch(_INITIALIZE_LOGGING_MOCK)
   def testSunnyDayCorrectLevels(self, initialize_logging_mock):
-    for name, level in log_level._NAME_TO_LEVEL.items():
+    for name, level in log_level._NAME_TO_LEVEL.items():  # pylint:disable=protected-access
       args = argparse.Namespace()
       args.log_level = name
       log_level.InitializeLogging(args)

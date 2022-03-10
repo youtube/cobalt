@@ -12,7 +12,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """Tests win_symlink."""
 
 import os
@@ -20,7 +19,6 @@ import shutil
 import sys
 import tempfile
 import unittest
-
 
 if __name__ == '__main__' and sys.platform == 'win32':
   from starboard.tools import port_symlink_test  # pylint: disable=g-import-not-at-top
@@ -62,7 +60,7 @@ if __name__ == '__main__' and sys.platform == 'win32':
           fd.write('HI')
         link_dir = os.path.join(self.tmp_dir, 'foo', 'link_dir')
         MakeSymLink(external_temp_file, link_dir)
-        win_symlink._RmtreeOsWalk(self.tmp_dir)
+        win_symlink._RmtreeOsWalk(self.tmp_dir)  # pylint:disable=protected-access
         # The target file should still exist
         self.assertTrue(os.path.isfile(external_temp_file))
       finally:
@@ -77,12 +75,11 @@ if __name__ == '__main__' and sys.platform == 'win32':
           fd.write('HI')
         link_dir = os.path.join(self.tmp_dir, 'foo', 'link_dir')
         MakeSymLink(external_temp_file, link_dir)
-        win_symlink._RmtreeShellCmd(self.tmp_dir)
+        win_symlink._RmtreeShellCmd(self.tmp_dir)  # pylint:disable=protected-access
         # The target file should still exist
         self.assertTrue(os.path.isfile(external_temp_file))
       finally:
         shutil.rmtree(external_temp_dir, ignore_errors=True)
-
 
   util.SetupDefaultLoggingConfig()
   unittest.main(verbosity=2)

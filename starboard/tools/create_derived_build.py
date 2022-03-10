@@ -31,9 +31,9 @@ import os
 import sys
 import textwrap
 
+from starboard.tools import environment
 from starboard.tools import log_level
 from starboard.tools import paths
-import starboard.tools.environment as environment
 
 TEMPLATE_DIRECTORY = (
     os.path.join(os.path.dirname(__file__), 'create_derived_build_templates'))
@@ -101,8 +101,9 @@ def _GetPathRelativeToRepository(path):
 def _GetIncludeGuard(output_file_path):
   """Returns the include guard define to be used in generated C++ headers."""
   repository_relative_path = _GetPathRelativeToRepository(output_file_path)
-  return (repository_relative_path.upper().replace(os.sep, '_').replace(
-      '.', '_') + '_')
+  return (
+      repository_relative_path.upper().replace(os.sep, '_').replace('.', '_') +
+      '_')
 
 
 def _GetBuildName(output_build_path):

@@ -12,12 +12,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """Tests the win_symlink_fast functionality."""
 
 import sys
 import unittest
-
 
 if __name__ == '__main__' and sys.platform == 'win32':
   from starboard.tools import port_symlink_test  # pylint: disable=g-import-not-at-top
