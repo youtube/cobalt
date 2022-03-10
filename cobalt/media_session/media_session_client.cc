@@ -321,6 +321,12 @@ void MediaSessionClient::OnMediaSessionStateChanged(
           const MediaImage& media_image(artwork.at(i));
           CobaltExtensionMediaImage ext_image;
           ext_image.src = media_image.src().c_str();
+          if (ext_image.src == nullptr) {
+            // src() is required, but Cobalt IDL parser doesn't enforce it.
+            // http://***REMOVED***cobalt/cobalt/media_session/media_image.idl?l=19
+            // https://wicg.github.io/mediasession/#dictdef-mediaimage
+            LOG(ERROR) << "Required src string for MediaImage is missing.";
+          }
           ext_image.size = media_image.sizes().c_str();
           ext_image.type = media_image.type().c_str();
           ext_artwork[i] = ext_image;
