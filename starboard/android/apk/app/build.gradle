@@ -42,8 +42,8 @@ ext {
 println "TARGET: ${cobaltTarget}"
 
 android {
-    compileSdkVersion 'android-30'
-    buildToolsVersion '30.0.0'
+    compileSdkVersion 'android-31'
+    buildToolsVersion '31.0.0'
     ndkVersion NDK_VERSION
 
     aaptOptions {
@@ -67,8 +67,8 @@ android {
     }
     defaultConfig {
         applicationId "dev.cobalt.coat"
-        minSdkVersion 21
-        targetSdkVersion 30
+        minSdkVersion 24
+        targetSdkVersion 31
         versionCode 1
         versionName "${buildId}"
         manifestPlaceholders = [applicationName: "CoAT: ${cobaltTarget}"]
@@ -135,16 +135,16 @@ android {
         }
         // Add the directories symlinked by the CMake "cobalt_content" custom command.
         debug {
-            assets.srcDir "${buildDir}/intermediates/cmake/debug/cobalt_content"
+            assets.srcDir "${buildDir}/intermediates/cxx/cobalt_content"
         }
         devel {
-            assets.srcDir "${buildDir}/intermediates/cmake/devel/cobalt_content"
+            assets.srcDir "${buildDir}/intermediates/cxx/cobalt_content"
         }
         qa {
-            assets.srcDir "${buildDir}/intermediates/cmake/qa/cobalt_content"
+            assets.srcDir "${buildDir}/intermediates/cxx/cobalt_content"
         }
         release {
-            assets.srcDir "${buildDir}/intermediates/cmake/release/cobalt_content"
+            assets.srcDir "${buildDir}/intermediates/cxx/cobalt_content"
         }
     }
     externalNativeBuild {

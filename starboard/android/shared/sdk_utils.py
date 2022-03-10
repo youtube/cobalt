@@ -37,7 +37,7 @@ _CMAKE_VERSION = '3.10.2.4988404'
 # Packages to install in the Android SDK.
 # Get available packages from "sdkmanager --list --verbose"
 _ANDROID_SDK_PACKAGES = [
-    'build-tools;30.0.0',
+    'build-tools;31.0.0',
     'cmake;' + _CMAKE_VERSION,
     'cmdline-tools;1.0',
     'emulator',
@@ -45,7 +45,7 @@ _ANDROID_SDK_PACKAGES = [
     'extras;google;m2repository',
     'ndk;' + _NDK_VERSION,
     'patcher;v4',
-    'platforms;android-30',
+    'platforms;android-31',
     'platform-tools',
 ]
 
