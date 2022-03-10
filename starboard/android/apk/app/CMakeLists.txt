@@ -78,7 +78,7 @@ add_custom_command(OUTPUT cobalt_content
     DEPENDS coat_lib
     COMMAND ${CMAKE_COMMAND} -E create_symlink
             ${COBALT_CONTENT_DIR}
-            ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/../../cobalt_content
+            ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/../../../../cobalt_content
 )
 
 # We need a target (not a file) for the phony native dependency below.
