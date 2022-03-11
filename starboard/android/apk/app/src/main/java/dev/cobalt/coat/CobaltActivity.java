@@ -25,6 +25,7 @@ import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.util.Pair;
+import android.view.View;
 import android.view.ViewGroup.LayoutParams;
 import android.view.ViewParent;
 import android.widget.FrameLayout;
@@ -33,7 +34,6 @@ import dev.cobalt.media.VideoSurfaceView;
 import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.Log;
 import dev.cobalt.util.UsedByNative;
-import java.security.Timestamp;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -143,6 +143,10 @@ public abstract class CobaltActivity extends NativeActivity {
     if (VideoSurfaceView.getCurrentSurface() != null) {
       forceCreateNewVideoSurfaceView = true;
     }
+
+    // Set the SurfaceView to fullscreen.
+    View rootView = getWindow().getDecorView();
+    setVideoSurfaceBounds(0, 0, rootView.getWidth(), rootView.getHeight());
   }
 
   @Override
@@ -298,6 +302,10 @@ public abstract class CobaltActivity extends NativeActivity {
   }
 
   public void setVideoSurfaceBounds(final int x, final int y, final int width, final int height) {
+    if (width == 0 || height == 0) {
+      // The SurfaceView should be covered by our UI layer in this case.
+      return;
+    }
     runOnUiThread(
         new Runnable() {
           @Override
