@@ -217,28 +217,33 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
     # Copy loader content and binaries to
     loader_install_path = os.path.join(self.loader_out_directory, 'install')
-    # <staging path>/install/elf_loader_sandbox
-    staging_directory_loader = os.path.join(self.staging_directory, 'install')
+    # raspi is a packaged platform and the loader target is the staging target.
+    staging_directory_loader = os.path.join(self.staging_directory, 'install',
+                                            self.loader_target)
 
     loader_content_src = os.path.join(loader_install_path, content_subdir)
     loader_content_dst = os.path.join(staging_directory_loader, 'content')
     shutil.copytree(loader_content_src, loader_content_dst)
 
     loader_binary_src = os.path.join(loader_install_path, bin_subdir)
-    loader_target_src = os.path.join(loader_binary_src, self.loader_target)
+    loader_target_src = os.path.join(loader_binary_src, self.loader_target,
+                                     self.loader_target)
     loader_target_dst = os.path.join(staging_directory_loader,
                                      self.loader_target)
     shutil.copy(loader_target_src, loader_target_dst)
 
-    crashpad_target_src = os.path.join(loader_binary_src, _CRASHPAD_TARGET)
+    crashpad_target_src = os.path.join(loader_binary_src, _CRASHPAD_TARGET,
+                                       _CRASHPAD_TARGET)
     crashpad_target_dst = os.path.join(staging_directory_loader,
                                        _CRASHPAD_TARGET)
+    os.makedirs(crashpad_target_dst)
     shutil.copy(crashpad_target_src, crashpad_target_dst)
 
     # Copy target content and binary
     target_install_path = os.path.join(self.out_directory, 'install')
     target_staging_dir = os.path.join(staging_directory_loader, 'content',
                                       'app', self.target_name)
+    os.makedirs(target_staging_dir)
 
     # TODO(b/218889313): Reset the content path for the evergreen artifacts.
     content_subdir = os.path.join('usr', 'share', 'cobalt')

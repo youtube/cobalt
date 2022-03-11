@@ -109,7 +109,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
     # TODO(b/218889313): This should reference the bin/ subdir when that's
     # used.
-    test_dir = os.path.join(self.out_directory, 'install')
+    test_dir = os.path.join(self.out_directory, 'install', self.target_name)
     # TODO(b/216356058): Delete this conditional that's just for GYP.
     if not os.path.isdir(test_dir):
       test_dir = os.path.join(self.out_directory, 'deploy', self.target_name)
@@ -127,7 +127,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
     raspi_test_path = os.path.join(raspi_test_dir, test_file)
 
     # rsync command setup
-    options = '-avzLh'
+    options = '-avzLhc'
     source = test_dir + '/'
     destination = '{}:~/{}/'.format(raspi_user_hostname, raspi_test_dir)
     self.rsync_command = 'rsync ' + options + ' ' + source + ' ' + \
