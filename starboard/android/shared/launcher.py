@@ -24,8 +24,6 @@ import threading
 import time
 import Queue
 
-import _env  # pylint: disable=unused-import,g-bad-import-order
-
 from starboard.android.shared import sdk_utils
 from starboard.tools import abstract_launcher
 
