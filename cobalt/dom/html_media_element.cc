@@ -271,8 +271,6 @@ std::string HTMLMediaElement::CanPlayType(const std::string& mime_type,
       NOTREACHED();
   }
   MLOG() << "(" << mime_type << ", " << key_system << ") => " << result;
-  LOG(INFO) << "HTMLMediaElement::canPlayType(" << mime_type << ", "
-            << key_system << ") -> " << result;
   return result;
 }
 

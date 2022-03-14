@@ -68,6 +68,8 @@
         "base/encryption_pattern.h",
         'base/encryption_scheme.cc',
         'base/encryption_scheme.h',
+        'base/format_support_query_metrics.cc',
+        'base/format_support_query_metrics.h',
         'base/hdr_metadata.cc',
         'base/hdr_metadata.h',
         'base/interleaved_sinc_resampler.cc',
