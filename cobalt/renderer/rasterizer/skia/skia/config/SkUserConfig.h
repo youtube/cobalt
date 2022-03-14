@@ -18,6 +18,9 @@
 #define SkUserConfig_DEFINED  // NOLINT
 
 #if defined(STARBOARD)
+#if defined(USE_SKIA_NEXT)
+#include "base/logging.h"
+#endif
 #include "starboard/configuration.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/types.h"
