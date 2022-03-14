@@ -41,7 +41,8 @@ PerformanceResourceTiming::PerformanceResourceTiming(
       cache_mode_(kPerformanceResourceTimingCacheMode),
       transfer_size_(0),
       timing_info_(timing_info),
-      time_origin_(time_origin) {}
+      time_origin_(time_origin),
+      timing_info_response_end_(performance->Now()) {}
 
 std::string PerformanceResourceTiming::initiator_type() const {
   return initiator_type_;
@@ -112,7 +113,7 @@ DOMHighResTimeStamp PerformanceResourceTiming::response_start() const {
 }
 
 DOMHighResTimeStamp PerformanceResourceTiming::response_end() const {
-  return response_start();
+  return timing_info_response_end_;
 }
 
 unsigned long long PerformanceResourceTiming::transfer_size() const {
