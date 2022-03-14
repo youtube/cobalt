@@ -22,6 +22,7 @@
 #include "base/location.h"
 #include "base/logging.h"
 #include "base/trace_event/trace_event.h"
+#include "cobalt/media/base/format_support_query_metrics.h"
 #include "cobalt/media/base/starboard_utils.h"
 #include "starboard/common/media.h"
 #include "starboard/configuration.h"
@@ -518,6 +519,11 @@ void StarboardPlayer::CreateUrlPlayer(const std::string& url) {
 
   DCHECK(!on_encrypted_media_init_data_encountered_cb_.is_null());
   LOG(INFO) << "CreateUrlPlayer passed url " << url;
+
+  if (max_video_capabilities_.empty()) {
+    FormatSupportQueryMetrics::PrintAndResetFormatSupportQueryMetrics();
+  }
+
   player_ =
       SbUrlPlayerCreate(url.c_str(), window_, &StarboardPlayer::PlayerStatusCB,
                         &StarboardPlayer::EncryptedMediaInitDataEncounteredCB,
@@ -555,6 +561,10 @@ void StarboardPlayer::CreatePlayer() {
   bool has_audio = audio_codec != kSbMediaAudioCodecNone;
 
   is_creating_player_ = true;
+
+  if (max_video_capabilities_.empty()) {
+    FormatSupportQueryMetrics::PrintAndResetFormatSupportQueryMetrics();
+  }
 
 #if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 
