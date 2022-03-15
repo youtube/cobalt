@@ -2,7 +2,6 @@
 # Copyright (c) 2013 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
-
 """ Parser for PPAPI IDL """
 
 #
@@ -29,6 +28,8 @@
 # pylint: disable=R0201
 # pylint: disable=C0301
 
+# pylint: disable=unidiomatic-typecheck,invalid-name
+
 import os.path
 import sys
 import time
@@ -38,9 +39,8 @@ from idl_node import IDLAttribute, IDLNode
 
 SRC_DIR = os.path.join(os.path.dirname(__file__), os.pardir, os.pardir)
 sys.path.insert(0, os.path.join(SRC_DIR, 'third_party'))
-from ply import lex
-from ply import yacc
-
+from ply import lex  # pylint:disable=wrong-import-position
+from ply import yacc  # pylint:disable=wrong-import-position
 
 #
 # ERROR_REMAP
@@ -48,14 +48,14 @@ from ply import yacc
 # Maps the standard error formula into a more friendly error message.
 #
 ERROR_REMAP = {
-  'Unexpected ")" after "(".' : 'Empty argument list.',
-  'Unexpected ")" after ",".' : 'Missing argument.',
-  'Unexpected "}" after ",".' : 'Trailing comma in block.',
-  'Unexpected "}" after "{".' : 'Unexpected empty block.',
-  'Unexpected comment after "}".' : 'Unexpected trailing comment.',
-  'Unexpected "{" after keyword "enum".' : 'Enum missing name.',
-  'Unexpected "{" after keyword "struct".' : 'Struct missing name.',
-  'Unexpected "{" after keyword "interface".' : 'Interface missing name.',
+    'Unexpected ")" after "(".': 'Empty argument list.',
+    'Unexpected ")" after ",".': 'Missing argument.',
+    'Unexpected "}" after ",".': 'Trailing comma in block.',
+    'Unexpected "}" after "{".': 'Unexpected empty block.',
+    'Unexpected comment after "}".': 'Unexpected trailing comment.',
+    'Unexpected "{" after keyword "enum".': 'Enum missing name.',
+    'Unexpected "{" after keyword "struct".': 'Struct missing name.',
+    'Unexpected "{" after keyword "interface".': 'Interface missing name.',
 }
 
 
@@ -79,6 +79,7 @@ def ListFromConcat(*items):
 
   return itemsout
 
+
 def ExpandProduction(p):
   if type(p) == list:
     return '[' + ', '.join([ExpandProduction(x) for x in p]) + ']'
@@ -90,6 +91,7 @@ def ExpandProduction(p):
     return 'str:' + p
   return '%s:%s' % (p.__class__.__name__, str(p))
 
+
 # TokenTypeName
 #
 # Generate a string which has the type and value of the token.
@@ -99,9 +101,9 @@ def TokenTypeName(t):
     return 'symbol %s' % t.value
   if t.type in ['HEX', 'INT', 'OCT', 'FLOAT']:
     return 'value %s' % t.value
-  if t.type == 'string' :
+  if t.type == 'string':
     return 'string "%s"' % t.value
-  if t.type == 'COMMENT' :
+  if t.type == 'COMMENT':
     return 'comment'
   if t.type == t.value:
     return '"%s"' % t.value
@@ -117,8 +119,8 @@ def TokenTypeName(t):
 #
 # The Parser inherits the from the Lexer to provide PLY with the tokenizing
 # definitions.  Parsing patterns are encoded as functions where p_<name> is
-# is called any time a patern matching the function documentation is found.
-# Paterns are expressed in the form of:
+# is called any time a pattern matching the function documentation is found.
+# Patterns are expressed in the form of:
 # """ <new item> : <item> ....
 #                | <item> ...."""
 #
@@ -143,12 +145,12 @@ def TokenTypeName(t):
 #
 
 
-class IDLParser(object):
-#
-# We force all input files to start with two comments.  The first comment is a
-# Copyright notice followed by a file comment and finally by file level
-# productions.
-#
+class IDLParser(object):  # pylint: disable=missing-class-docstring
+  #
+  # We force all input files to start with two comments.  The first comment is a
+  # Copyright notice followed by a file comment and finally by file level
+  # productions.
+  #
   # [0] Insert a TOP definition for Copyright and Comments
   def p_Top(self, p):
     """Top : COMMENT COMMENT Definitions"""
@@ -169,11 +171,10 @@ class IDLParser(object):
     if len(p) > 1:
       p[0] = ListFromConcat(self.BuildComment('Comment', p, 1), p[2])
 
-
-#
-#The parser is based on the WebIDL standard.  See:
-# http://heycam.github.io/webidl/#idl-grammar
-#
+  #
+  # The parser is based on the WebIDL standard.  See:
+  # http://heycam.github.io/webidl/#idl-grammar
+  #
   # [1]
   def p_Definitions(self, p):
     """Definitions : ExtendedAttributeList Definition Definitions
@@ -343,11 +344,13 @@ class IDLParser(object):
                     | string
                     | '[' ']'"""
     if len(p) == 3:
-      p[0] = ListFromConcat(self.BuildAttribute('TYPE', 'sequence'),
-                            self.BuildAttribute('VALUE', '[]'))
+      p[0] = ListFromConcat(
+          self.BuildAttribute('TYPE', 'sequence'),
+          self.BuildAttribute('VALUE', '[]'))
     elif type(p[1]) == str:
-      p[0] = ListFromConcat(self.BuildAttribute('TYPE', 'DOMString'),
-                            self.BuildAttribute('NAME', p[1]))
+      p[0] = ListFromConcat(
+          self.BuildAttribute('TYPE', 'DOMString'),
+          self.BuildAttribute('NAME', p[1]))
     else:
       p[0] = p[1]
 
@@ -430,7 +433,7 @@ class IDLParser(object):
     p[0] = self.BuildNamed('Implements', p, 1, name)
 
   # [26]
-  def p_Const(self,  p):
+  def p_Const(self, p):
     """Const : CONST ConstType identifier '=' ConstValue ';'"""
     value = self.BuildProduction('Value', p, 5, p[5])
     p[0] = self.BuildNamed('Const', p, 3, ListFromConcat(p[2], value))
@@ -442,16 +445,18 @@ class IDLParser(object):
                   | integer
                   | null"""
     if type(p[1]) == str:
-      p[0] = ListFromConcat(self.BuildAttribute('TYPE', 'integer'),
-                            self.BuildAttribute('NAME', p[1]))
+      p[0] = ListFromConcat(
+          self.BuildAttribute('TYPE', 'integer'),
+          self.BuildAttribute('NAME', p[1]))
     else:
       p[0] = p[1]
 
   # [27.1] Add definition for NULL
   def p_null(self, p):
     """null : NULL"""
-    p[0] = ListFromConcat(self.BuildAttribute('TYPE', 'NULL'),
-                          self.BuildAttribute('NAME', 'NULL'))
+    p[0] = ListFromConcat(
+        self.BuildAttribute('TYPE', 'NULL'),
+        self.BuildAttribute('NAME', 'NULL'))
 
   # [28]
   def p_BooleanLiteral(self, p):
@@ -470,8 +475,8 @@ class IDLParser(object):
       val = '-Infinity'
     else:
       val = p[1]
-    p[0] = ListFromConcat(self.BuildAttribute('TYPE', 'float'),
-                          self.BuildAttribute('VALUE', val))
+    p[0] = ListFromConcat(
+        self.BuildAttribute('TYPE', 'float'), self.BuildAttribute('VALUE', val))
 
   # [30]
   def p_Serializer(self, p):
@@ -918,7 +923,7 @@ class IDLParser(object):
   # [79] NOT IMPLEMENTED (BufferRelatedType)
 
   # [80]
-  def p_ConstType(self,  p):
+  def p_ConstType(self, p):
     """ConstType : PrimitiveType Null
                  | identifier Null"""
     if type(p[1]) == str:
@@ -926,7 +931,6 @@ class IDLParser(object):
     else:
       p[1].AddChildren(p[2])
       p[0] = p[1]
-
 
   # [81] Added StringType, OBJECT, DATE, REGEXP
   def p_PrimitiveType(self, p):
@@ -944,7 +948,6 @@ class IDLParser(object):
     else:
       p[0] = p[1]
 
-
   # [82]
   def p_UnrestrictedFloatType(self, p):
     """UnrestrictedFloatType : UNRESTRICTED FloatType
@@ -955,7 +958,6 @@ class IDLParser(object):
       typeref = self.BuildNamed('PrimitiveType', p, 2)
       typeref.AddChildren(self.BuildTrue('UNRESTRICTED'))
     p[0] = typeref
-
 
   # [83]
   def p_FloatType(self, p):
@@ -1018,7 +1020,6 @@ class IDLParser(object):
 
     if len(p) == 3:
       p[0] = ListFromConcat(self.BuildTrue('NULLABLE'), p[2])
-
 
   # [89]
   def p_TypeSuffixStartingWithArray(self, p):
@@ -1112,26 +1113,26 @@ class IDLParser(object):
 # p_<type>_error functions defined above are called.  This allows the parser
 # to continue so as to capture more than one error per file.
 #
+
   def p_error(self, t):
     if t:
       lineno = t.lineno
       pos = t.lexpos
       prev = self.yaccobj.symstack[-1]
       if type(prev) == lex.LexToken:
-        msg = "Unexpected %s after %s." % (
-            TokenTypeName(t), TokenTypeName(prev))
+        msg = 'Unexpected %s after %s.' % (TokenTypeName(t),
+                                           TokenTypeName(prev))
       else:
-        msg = "Unexpected %s." % (t.value)
+        msg = 'Unexpected %s.' % (t.value)
     else:
       last = self.LastToken()
       lineno = last.lineno
       pos = last.lexpos
-      msg = "Unexpected end of file after %s." % TokenTypeName(last)
+      msg = 'Unexpected end of file after %s.' % TokenTypeName(last)
       self.yaccobj.restart()
 
     # Attempt to remap the error to a friendlier form
-    if msg in ERROR_REMAP:
-      msg = ERROR_REMAP[msg]
+    msg = ERROR_REMAP.get(msg, msg)
 
     self._last_error_msg = msg
     self._last_error_lineno = lineno
@@ -1147,8 +1148,8 @@ class IDLParser(object):
   def __init__(self, lexer, verbose=False, debug=False, mute_error=False):
     self.lexer = lexer
     self.tokens = lexer.KnownTokens()
-    self.yaccobj = yacc.yacc(module=self, tabmodule=None, debug=debug,
-                             optimize=0, write_tables=0)
+    self.yaccobj = yacc.yacc(
+        module=self, tabmodule=None, debug=debug, optimize=0, write_tables=0)
     self.parse_debug = debug
     self.verbose = verbose
     self.mute_error = mute_error
@@ -1158,17 +1159,17 @@ class IDLParser(object):
     self._last_error_lineno = 0
     self._last_error_pos = 0
 
-
 #
 # BuildProduction
 #
 # Production is the set of items sent to a grammar rule resulting in a new
 # item being returned.
 #
-# cls - The type of item being producted
+# cls - The type of item being produced
 # p - Is the Yacc production object containing the stack of items
 # index - Index into the production of the name for the item being produced.
 # childlist - The children of the new item
+
   def BuildProduction(self, cls, p, index, childlist=None):
     try:
       if not childlist:
@@ -1203,7 +1204,7 @@ class IDLParser(object):
       form = 'cc'
       for line in name.split('\n'):
         start = line.find('//')
-        lines.append(line[start+2:])
+        lines.append(line[start + 2:])
     else:
       # For C style, remove ending '*/''
       form = 'c'
@@ -1217,16 +1218,19 @@ class IDLParser(object):
           line = ''
         lines.append(line)
     name = '\n'.join(lines)
-    childlist = [self.BuildAttribute('NAME', name),
-                 self.BuildAttribute('FORM', form)]
+    childlist = [
+        self.BuildAttribute('NAME', name),
+        self.BuildAttribute('FORM', form)
+    ]
     return self.BuildProduction(cls, p, index, childlist)
 
 #
 # BuildError
 #
-# Build and Errror node as part of the recovery process.
+# Build and Error node as part of the recovery process.
 #
 #
+
   def BuildError(self, p, prod):
     self._parse_errors += 1
     name = self.BuildAttribute('NAME', self._last_error_msg)
@@ -1248,6 +1252,7 @@ class IDLParser(object):
 # which is applied to the adjacent item.  Attributes have no children and
 # instead represent key/value pairs.
 #
+
   def BuildAttribute(self, key, val):
     return IDLAttribute(key, val)
 
@@ -1262,11 +1267,13 @@ class IDLParser(object):
     # pylint: disable=W0212
     return self._parse_errors + self.lexer._lex_errors
 
+
 #
 # ParseData
 #
 # Attempts to parse the current data loaded in the lexer.
 #
+
   def ParseText(self, filename, data):
     self._parse_errors = 0
     self._parse_warnings = 0
@@ -1285,7 +1292,6 @@ class IDLParser(object):
     return None
 
 
-
 def ParseFile(parser, filename):
   """Parse a file and return a File type of node."""
   with open(filename) as fileobject:
@@ -1295,10 +1301,10 @@ def ParseFile(parser, filename):
       out.SetProperty('ERRORS', parser.GetErrors())
       return out
 
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-except
       last = parser.LastToken()
-      sys.stderr.write('%s(%d) : Internal parsing error\n\t%s.\n' % (
-                       filename, last.lineno, str(e)))
+      sys.stderr.write('%s(%d) : Internal parsing error\n\t%s.\n' %
+                       (filename, last.lineno, str(e)))
 
 
 def main(argv):
@@ -1307,7 +1313,7 @@ def main(argv):
   errors = 0
   for filename in argv:
     filenode = ParseFile(parser, filename)
-    if (filenode):
+    if filenode:
       errors += filenode.GetProperty('ERRORS')
       nodes.append(filenode)
 
