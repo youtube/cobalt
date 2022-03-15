@@ -17,7 +17,6 @@ import logging
 import os
 import shutil
 
-import _env  # pylint: disable=unused-import
 from starboard.tools import abstract_launcher
 from starboard.tools import paths
 from starboard.tools import port_symlink
