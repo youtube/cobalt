@@ -43,6 +43,10 @@ void TaskUpdate::Run() {
   DCHECK(thread_checker_.CalledOnValidThread());
 #if defined(STARBOARD)
   LOG(INFO) << "TaskUpdate::Run begin";
+  if(is_completed_) {
+    LOG(WARNING) << "TaskUpdate::Run already completed";
+    return;
+  }
 #endif
 
   if (ids_.empty()) {
