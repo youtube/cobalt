@@ -40,8 +40,9 @@ int WindowTimers::TryAddNewTimer(Timer::TimerType type,
   }
 
   if (callbacks_active_) {
-    auto* timer = new Timer(type, owner_, dom_stat_tracker_, debugger_hooks_,
-                            handler, timeout, handle, this);
+    scoped_refptr<Timer> timer =
+        new Timer(type, owner_, dom_stat_tracker_, debugger_hooks_, handler,
+                  timeout, handle, this);
     if (application_state_ != base::kApplicationStateFrozen) {
       timer->StartOrResume();
     }
@@ -58,19 +59,31 @@ int WindowTimers::SetTimeout(const TimerCallbackArg& handler, int timeout) {
   return TryAddNewTimer(Timer::kOneShot, handler, timeout);
 }
 
-void WindowTimers::ClearTimeout(int handle) { timers_.erase(handle); }
+void WindowTimers::ClearTimeout(int handle) {
+  Timers::iterator timer = timers_.find(handle);
+  if (timer == timers_.end()) {
+    return;
+  }
+  if (timer->second) {
+    timer->second->Disable();
+  }
+  timers_.erase(timer);
+}
 
 int WindowTimers::SetInterval(const TimerCallbackArg& handler, int timeout) {
   TRACK_MEMORY_SCOPE("DOM");
   return TryAddNewTimer(Timer::kRepeating, handler, timeout);
 }
 
-void WindowTimers::ClearInterval(int handle) { timers_.erase(handle); }
+void WindowTimers::ClearInterval(int handle) { ClearTimeout(handle); }
 
 void WindowTimers::DisableCallbacks() {
   callbacks_active_ = false;
   // Immediately cancel any pending timers.
   for (auto& timer_entry : timers_) {
+    if (timer_entry.second) {
+      timer_entry.second->Disable();
+    }
     timer_entry.second = nullptr;
   }
 }
@@ -93,36 +106,6 @@ int WindowTimers::GetFreeTimerHandle() {
   }
   DLOG(INFO) << "No available timer handle.";
   return 0;
-}
-
-void WindowTimers::RunTimerCallback(int handle) {
-  TRACE_EVENT0("cobalt::dom", "WindowTimers::RunTimerCallback");
-  DCHECK(callbacks_active_)
-      << "All timer callbacks should have already been cancelled.";
-  Timers::iterator timer = timers_.find(handle);
-  DCHECK(timer != timers_.end());
-
-  // The callback is now being run. Track it in the global stats.
-  GlobalStats::GetInstance()->StartJavaScriptEvent();
-
-  {
-    // Keep a |TimerInfo| reference, so it won't be released when running the
-    // callback.
-    scoped_refptr<Timer> timer_info(timer->second);
-    timer_info->Run();
-  }
-
-  // After running the callback, double check whether the timer is still there
-  // since it might be deleted inside the callback.
-  timer = timers_.find(handle);
-  // If the timer is not deleted and is not running, it means it is an oneshot
-  // timer and has just fired the shot, and it should be deleted now.
-  if (timer != timers_.end() && !timer->second->timer()->IsRunning()) {
-    timers_.erase(timer);
-  }
-
-  // The callback has finished running. Stop tracking it in the global stats.
-  GlobalStats::GetInstance()->StopJavaScriptEvent();
 }
 
 void WindowTimers::SetApplicationState(base::ApplicationState state) {
@@ -159,6 +142,7 @@ WindowTimers::Timer::Timer(TimerType type, script::Wrappable* const owner,
       debugger_hooks_(debugger_hooks),
       timeout_(timeout),
       handle_(handle),
+      active_(false),
       window_timers_(window_timers) {
   debugger_hooks_.AsyncTaskScheduled(
       this, type == Timer::kOneShot ? "SetTimeout" : "SetInterval",
@@ -188,8 +172,25 @@ WindowTimers::Timer::~Timer() {
 }
 
 void WindowTimers::Timer::Run() {
-  base::ScopedAsyncTask async_task(debugger_hooks_, this);
-  callback_.value().Run();
+  if (!active_) {
+    return;
+  }
+
+  // The callback is now being run. Track it in the global stats.
+  GlobalStats::GetInstance()->StartJavaScriptEvent();
+
+  {
+    base::ScopedAsyncTask async_task(debugger_hooks_, this);
+    callback_.value().Run();
+  }
+
+  // Remove one-shot timers from the timers list.
+  if (active_ && !timer_->IsRunning()) {
+    window_timers_->ClearTimeout(handle_);
+  }
+
+  // The callback has finished running. Stop tracking it in the global stats.
+  GlobalStats::GetInstance()->StopJavaScriptEvent();
 }
 
 void WindowTimers::Timer::Pause() {
@@ -203,6 +204,7 @@ void WindowTimers::Timer::Pause() {
 
 void WindowTimers::Timer::StartOrResume() {
   if (timer_ != nullptr) return;
+  active_ = true;
   switch (type_) {
     case kOneShot:
       if (desired_run_time_) {
@@ -230,11 +232,19 @@ void WindowTimers::Timer::StartOrResume() {
         // The timer was paused and the desired run time is in the past.
         // Call the callback once before continuing the repeating timer.
         base::SequencedTaskRunnerHandle::Get()->PostTask(
-            FROM_HERE, base::Bind(&WindowTimers::RunTimerCallback,
-                                  base::Unretained(window_timers_), handle_));
+            FROM_HERE, base::Bind(&WindowTimers::Timer::Run, this));
       }
       break;
   }
+}
+
+void WindowTimers::Timer::Disable() {
+  // Prevent the timer callback from doing anything.
+  active_ = false;
+
+  // Clear the TimerBase object to release the reference to |this| in the
+  // user callback.
+  timer_.reset();
 }
 
 template <class TimerClass>
@@ -242,8 +252,7 @@ std::unique_ptr<base::internal::TimerBase>
 WindowTimers::Timer::CreateAndStart() {
   auto* timer = new TimerClass();
   timer->Start(FROM_HERE, base::TimeDelta::FromMilliseconds(timeout_),
-               base::Bind(&WindowTimers::RunTimerCallback,
-                          base::Unretained(window_timers_), handle_));
+               base::Bind(&WindowTimers::Timer::Run, this));
   return std::unique_ptr<base::internal::TimerBase>(timer);
 }
 
