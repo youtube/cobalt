@@ -45,7 +45,10 @@ skia_common("skia_library_no_asan") {
   if (use_skia_next) {
     include_dirs = [ skia_include_dir ]
     defines = [ "USE_SKIA_NEXT" ]
-    cflags_cc = [ "-Wno-c++17-extensions" ]
+    cflags_cc = [
+      "-Wno-c++17-extensions",
+      "-Wno-invalid-offsetof",
+    ]
   }
 
   # TODO(b/207398024): If this is a target we need to build, then we'll
@@ -82,7 +85,10 @@ config("skia_library_config_public") {
 
   if (use_skia_next) {
     defines += [ "USE_SKIA_NEXT" ]
-    cflags_cc = [ "-Wno-c++17-extensions" ]
+    cflags_cc = [
+      "-Wno-c++17-extensions",
+      "-Wno-invalid-offsetof",
+    ]
   }
 }
 
