@@ -19,6 +19,7 @@
 
 #include "cobalt/dom/blob.h"
 #include "cobalt/loader/fetcher_factory.h"
+#include "cobalt/loader/script_loader_factory.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/execution_state.h"
@@ -36,6 +37,7 @@ class Context {
   virtual void ShutDownJavaScriptEngine() = 0;
   virtual void set_fetcher_factory(loader::FetcherFactory* factory) = 0;
   virtual loader::FetcherFactory* fetcher_factory() const = 0;
+  virtual loader::ScriptLoaderFactory* script_loader_factory() const = 0;
   virtual script::JavaScriptEngine* javascript_engine() const = 0;
   virtual script::GlobalEnvironment* global_environment() const = 0;
   virtual script::ExecutionState* execution_state() const = 0;

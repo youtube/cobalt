@@ -20,6 +20,7 @@
 #include "cobalt/dom/blob.h"
 #include "cobalt/dom/url.h"
 #include "cobalt/loader/fetcher_factory.h"
+#include "cobalt/loader/script_loader_factory.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/error_report.h"
 #include "cobalt/script/execution_state.h"
@@ -50,6 +51,9 @@ class Impl : public Context {
   }
   loader::FetcherFactory* fetcher_factory() const final {
     return fetcher_factory_.get();
+  }
+  loader::ScriptLoaderFactory* script_loader_factory() const final {
+    return script_loader_factory_.get();
   }
   script::JavaScriptEngine* javascript_engine() const final {
     return javascript_engine_.get();
@@ -96,6 +100,10 @@ class Impl : public Context {
   // FetcherFactory that is used to create a fetcher according to URL.
   std::unique_ptr<loader::FetcherFactory> fetcher_factory_;
 
+  // LoaderFactory that is used to acquire references to resources from a
+  // URL.
+  std::unique_ptr<loader::ScriptLoaderFactory> script_loader_factory_;
+
   // JavaScript engine for the browser.
   std::unique_ptr<script::JavaScriptEngine> javascript_engine_;
 
@@ -125,6 +133,10 @@ Impl::Impl(const Agent::Options& options) : name_(options.name) {
       dom::URL::MakeBlobResolverCallback(blob_registry_.get()),
       options.read_cache_callback));
   DCHECK(fetcher_factory_);
+
+  script_loader_factory_.reset(new loader::ScriptLoaderFactory(
+      options.name.c_str(), fetcher_factory_.get(), options.thread_priority));
+  DCHECK(script_loader_factory_);
 
   javascript_engine_ =
       script::JavaScriptEngine::CreateEngine(options.javascript_engine_options);
@@ -170,6 +182,7 @@ void Impl::ShutDownJavaScriptEngine() {
   global_environment_ = NULL;
   javascript_engine_.reset();
   fetcher_factory_.reset();
+  script_loader_factory_.reset();
 }
 
 Impl::~Impl() { ShutDownJavaScriptEngine(); }
