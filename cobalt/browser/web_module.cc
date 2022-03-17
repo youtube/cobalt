@@ -52,6 +52,7 @@
 #include "cobalt/dom/keyboard_event_init.h"
 #include "cobalt/dom/local_storage_database.h"
 #include "cobalt/dom/mutation_observer_task_manager.h"
+#include "cobalt/dom/navigation_type.h"
 #include "cobalt/dom/navigator.h"
 #include "cobalt/dom/pointer_event.h"
 #include "cobalt/dom/storage.h"
@@ -259,6 +260,9 @@ class WebModule::Impl {
                                              SbTimeMonotonic timestamp);
   void SetDeepLinkTimestamp(SbTimeMonotonic timestamp);
 
+  void SetUnloadEventTimingInfo(base::TimeTicks start_time,
+                                base::TimeTicks end_time);
+
  private:
   class DocumentLoadedObserver;
 
@@ -298,6 +302,22 @@ class WebModule::Impl {
 
   void OnLoadComplete(const base::Optional<std::string>& error) {
     if (error) error_callback_.Run(window_->location()->url(), *error);
+
+    // Create Performance navigation timing info after document loading
+    // completed.
+    DCHECK(window_);
+    DCHECK(window_->performance());
+    if (window_->GetDocumentLoader()) {
+      net::LoadTimingInfo load_timing_info =
+          window_->GetDocumentLoader()->get_load_timing_info();
+      // Check if the load happens through net mdoule.
+      bool is_load_timing_info_valid =
+          !load_timing_info.request_start.is_null();
+      if (is_load_timing_info_valid) {
+        window_->document()->CreatePerformanceNavigationTiming(
+            window_->performance(), load_timing_info);
+      }
+    }
   }
 
   // Report an error encountered while running JS.
@@ -439,6 +459,9 @@ class WebModule::Impl {
   // correctly execute, even if there are multiple synchronous loads in queue
   // before the freeze (or other) event handlers.
   base::WaitableEvent* synchronous_loader_interrupt_;
+
+  base::Callback<void(base::TimeTicks, base::TimeTicks)>
+      report_unload_timing_info_callback_;
 };
 
 void WebModule::WillDestroyCurrentMessageLoop() { impl_.reset(); }
@@ -710,6 +733,9 @@ WebModule::Impl::Impl(web::Context* web_context, const ConstructionData& data)
       data.options.debugger_state));
 #endif  // ENABLE_DEBUGGER
 
+  report_unload_timing_info_callback_ =
+      data.options.collect_unload_event_time_callback;
+
   is_running_ = true;
 }
 
@@ -717,7 +743,21 @@ WebModule::Impl::~Impl() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(is_running_);
   is_running_ = false;
+
+  // Collect document's unload event start time.
+  base::TimeTicks unload_event_start_time = base::TimeTicks::Now();
+
   window_->DispatchEvent(new dom::Event(base::Tokens::unload()));
+
+  // Collect document's unload event end time.
+  base::TimeTicks unload_event_end_time = base::TimeTicks::Now();
+
+  // Send the unload event start/end time back to application.
+  if (!report_unload_timing_info_callback_.is_null()) {
+    report_unload_timing_info_callback_.Run(unload_event_start_time,
+                                            unload_event_end_time);
+  }
+
   document_load_observer_.reset();
 
 #if defined(ENABLE_DEBUGGER)
@@ -968,6 +1008,14 @@ void WebModule::Impl::SetApplicationStartOrPreloadTimestamp(
 void WebModule::Impl::SetDeepLinkTimestamp(SbTimeMonotonic timestamp) {
   DCHECK(window_);
   window_->performance()->SetDeepLinkTimestamp(timestamp);
+}
+
+void WebModule::Impl::SetUnloadEventTimingInfo(base::TimeTicks start_time,
+                                               base::TimeTicks end_time) {
+  DCHECK(window_);
+  if (window_->document()) {
+    window_->document()->SetUnloadEventTimingInfo(start_time, end_time);
+  }
 }
 
 void WebModule::Impl::OnCspPolicyChanged() {
@@ -1663,6 +1711,13 @@ void WebModule::SetDeepLinkTimestamp(SbTimeMonotonic timestamp) {
   TRACE_EVENT0("cobalt::browser", "WebModule::SetDeepLinkTimestamp()");
   POST_AND_BLOCK_TO_ENSURE_IMPL_ON_THREAD(SetDeepLinkTimestamp, timestamp);
   impl_->SetDeepLinkTimestamp(timestamp);
+}
+
+void WebModule::SetUnloadEventTimingInfo(base::TimeTicks start_time,
+                                         base::TimeTicks end_time) {
+  TRACE_EVENT0("cobalt::browser", "WebModule::SetUnloadEventTimingInfo()");
+  POST_TO_ENSURE_IMPL_ON_THREAD(SetUnloadEventTimingInfo, start_time, end_time);
+  impl_->SetUnloadEventTimingInfo(start_time, end_time);
 }
 
 }  // namespace browser

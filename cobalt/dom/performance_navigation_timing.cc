@@ -31,18 +31,31 @@ PerformanceNavigationTiming::PerformanceNavigationTiming(
     : PerformanceResourceTiming(timing_info,
                                 kPerformanceNavigationInitiatorType,
                                 requested_url, performance, time_origin),
-      document_(base::AsWeakPtr(document)) {}
+      document_(base::AsWeakPtr(document)),
+      time_origin_(time_origin) {}
 
 std::string PerformanceNavigationTiming::initiator_type() const {
   return kPerformanceNavigationInitiatorType;
 }
 
 DOMHighResTimeStamp PerformanceNavigationTiming::unload_event_start() const {
-  return document_->GetDocumenUnloadEventStartTime();
+  base::TimeTicks start_time = document_->GetDocumentUnloadEventStartTime();
+  if (start_time.is_null()) {
+    return 0.0;
+  }
+
+  return Performance::MonotonicTimeToDOMHighResTimeStamp(time_origin_,
+                                                         start_time);
 }
 
 DOMHighResTimeStamp PerformanceNavigationTiming::unload_event_end() const {
-  return document_->GetDocumentUnloadEventEndTime();
+  base::TimeTicks end_time = document_->GetDocumentUnloadEventEndTime();
+  if (end_time.is_null()) {
+    return 0.0;
+  }
+
+  return Performance::MonotonicTimeToDOMHighResTimeStamp(time_origin_,
+                                                         end_time);
 }
 
 DOMHighResTimeStamp

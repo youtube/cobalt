@@ -62,8 +62,10 @@ class LocationTestWithParams : public testing::TestWithParam<bool> {
   void Init(const GURL& url, const base::Closure& hashchange_callback,
             const base::Callback<void(const GURL&)>& navigation_callback,
             const csp::SecurityCallback& security_callback) {
+    base::Callback<void(NavigationType)> null_cb;
     location_ = new Location(url, hashchange_callback, navigation_callback,
-                             security_callback);
+                             security_callback,
+                             null_cb /*set_navigation_type_callback*/);
   }
 
   scoped_refptr<Location> location_;

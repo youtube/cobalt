@@ -235,6 +235,11 @@ class WebModule : public base::MessageLoop::DestructionObserver,
     // there is no playback during Concealed state, we should provide a chance
     // for Cobalt to freeze.
     base::Closure maybe_freeze_callback;
+
+    // This callback is for collecting previous document unload event start/end
+    // time.
+    base::Callback<void(base::TimeTicks, base::TimeTicks)>
+        collect_unload_event_time_callback;
   };
 
   typedef layout::LayoutManager::LayoutResults LayoutResults;
@@ -381,6 +386,10 @@ class WebModule : public base::MessageLoop::DestructionObserver,
 
   // From base::MessageLoop::DestructionObserver.
   void WillDestroyCurrentMessageLoop() override;
+
+  // Set document's load timing info's unload event start/end time.
+  void SetUnloadEventTimingInfo(base::TimeTicks start_time,
+                                base::TimeTicks end_time);
 
  private:
   // Data required to construct a WebModule, initialized in the constructor and

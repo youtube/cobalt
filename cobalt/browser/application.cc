@@ -811,6 +811,12 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
   options.web_module_options.csp_enforcement_mode = dom::kCspEnforcementEnable;
 
   options.requested_viewport_size = requested_viewport_size;
+
+  // Set callback to collect unload event time before firing document's unload
+  // event.
+  options.web_module_options.collect_unload_event_time_callback = base::Bind(
+      &Application::CollectUnloadEventTimingInfo, base::Unretained(this));
+
   account_manager_.reset(new account::AccountManager());
 
   storage_manager_.reset(new storage::StorageManager(storage_manager_options));
@@ -1401,6 +1407,17 @@ void Application::WebModuleCreated(WebModule* web_module) {
     web_driver_module_->OnWindowRecreated();
   }
 #endif
+  if (!unload_event_start_time_.is_null() ||
+      !unload_event_end_time_.is_null()) {
+    web_module->SetUnloadEventTimingInfo(unload_event_start_time_,
+                                         unload_event_end_time_);
+  }
+}
+
+void Application::CollectUnloadEventTimingInfo(base::TimeTicks start_time,
+                                               base::TimeTicks end_time) {
+  unload_event_start_time_ = start_time;
+  unload_event_end_time_ = end_time;
 }
 
 Application::CValStats::CValStats()

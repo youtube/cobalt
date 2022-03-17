@@ -97,6 +97,9 @@ class Application {
   // Called when a navigation occurs in the BrowserModule.
   void WebModuleCreated(WebModule* web_module);
 
+  void CollectUnloadEventTimingInfo(base::TimeTicks start_time,
+                                    base::TimeTicks end_time);
+
   // A conduit for system events.
   base::EventDispatcher event_dispatcher_;
 
@@ -197,6 +200,11 @@ class Application {
 
   base::Optional<SbTimeMonotonic> preload_timestamp_;
   base::Optional<SbTimeMonotonic> start_timestamp_;
+
+  // These represent the 'document unload timing info' from the spec to be
+  // passed to the next document.
+  base::TimeTicks unload_event_start_time_;
+  base::TimeTicks unload_event_end_time_;
 
   // The message loop that will handle UI events.
   base::MessageLoop* message_loop_;

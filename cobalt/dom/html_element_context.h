@@ -25,8 +25,8 @@
 #include "cobalt/dom/application_lifecycle_state.h"
 #include "cobalt/dom/dom_stat_tracker.h"
 #include "cobalt/dom/parser.h"
-#include "cobalt/dom/url_registry.h"
 #include "cobalt/dom/performance.h"
+#include "cobalt/dom/url_registry.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/loader/font/remote_typeface_cache.h"
 #include "cobalt/loader/image/animated_image_tracker.h"
@@ -75,8 +75,7 @@ class HTMLElementContext {
       const std::string& font_language_script,
       base::ApplicationState initial_application_state,
       base::WaitableEvent* synchronous_loader_interrupt,
-      Performance* performance,
-      bool enable_inline_script_warnings = false,
+      Performance* performance, bool enable_inline_script_warnings = false,
       float video_playback_rate_multiplier = 1.0);
   ~HTMLElementContext();
 
