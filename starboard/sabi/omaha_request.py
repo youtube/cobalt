@@ -69,9 +69,6 @@ _REQUEST = {
         'requestid': '',
         'sessionid': '',
         'uastring': '',
-        'updaterchannelchanged': 'False',
-        'updaterversion': '21',
-        'year': ''
     }
 }
 
@@ -91,6 +88,20 @@ def main():
       help='Which channel to use.',
   )
   arg_parser.add_argument(
+      '-f',
+      '--channel_changed',
+      action='store_true',
+      default=False,
+      help='Whether this is a request from changing channels.',
+  )
+  arg_parser.add_argument(
+      '-p',
+      '--print_request',
+      action='store_true',
+      default=False,
+      help='Print the request sent to Omaha, including the server used.',
+  )
+  arg_parser.add_argument(
       '-q',
       '--qa',
       action='store_true',
@@ -104,21 +115,37 @@ def main():
       help='Which Starboard API version to use.',
   )
   arg_parser.add_argument(
+      '-u',
+      '--updater_version',
+      default='21',
+      help='Which Cobalt (updater) version to use. e.g. 21, 22',
+  )
+  arg_parser.add_argument(
       '-v',
       '--version',
       default='1.0.0',
       help='Which Evergreen version to use.',
+  )
+  arg_parser.add_argument(
+      '-y',
+      '--year',
+      default='2022',
+      help='Which device year to use.',
   )
   args, _ = arg_parser.parse_known_args()
 
   _REQUEST['request']['SABI'] = generate_sabi_id.DoMain()
   _REQUEST['request']['brand'] = args.brand
   _REQUEST['request']['updaterchannel'] = args.channel
+  _REQUEST['request']['updaterchannelchanged'] = args.channel_changed
   _REQUEST['request']['sbversion'] = args.sbversion
+  _REQUEST['request']['updaterversion'] = args.updater_version
+  _REQUEST['request']['year'] = args.year
   _REQUEST['request']['app'][0]['version'] = args.version
 
-  print('Querying: [[ {} ]]'.format(_ENDPOINT_QA if args.qa else _ENDPOINT))
-  print('Request:  [[ {} ]]'.format(json.dumps(_REQUEST)))
+  if args.print_request:
+    print('Querying server: {}'.format(_ENDPOINT_QA if args.qa else _ENDPOINT))
+    print('Sending request: {}'.format(json.dumps(_REQUEST)))
 
   print(
       requests.post(
