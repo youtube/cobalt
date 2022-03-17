@@ -8,3 +8,4 @@
 .idea
 /venv/*
 _certs/
+.coverage
