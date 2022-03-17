@@ -206,7 +206,10 @@ static_library("browser") {
       "lifecycle_console_commands.cc",
       "lifecycle_console_commands.h",
     ]
-    defines = [ "ENABLE_ABOUT_SCHEME" ]
+    defines = [
+      "ENABLE_ABOUT_SCHEME",
+      "COBALT_ENABLE_JAVASCRIPT_ERROR_LOGGING",
+    ]
     deps += [
       "//cobalt/debug",
       "//cobalt/debug:console_command_manager",
