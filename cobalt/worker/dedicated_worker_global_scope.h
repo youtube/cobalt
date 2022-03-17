@@ -34,11 +34,16 @@ namespace worker {
 
 class DedicatedWorkerGlobalScope : public WorkerGlobalScope {
  public:
-  explicit DedicatedWorkerGlobalScope(script::EnvironmentSettings* settings);
+  explicit DedicatedWorkerGlobalScope(
+      script::EnvironmentSettings* settings,
+      bool parent_cross_origin_isolated_capability);
 
   // Web API: DedicatedWorkerGlobalScope
   //
   std::string name() { return std::string("placeholder"); }
+
+  void Initialize(const std::string& content) override;
+
   void PostMessage(const script::ValueHandleHolder& message,
                    const script::Sequence<std::string>& options) {}
 
@@ -69,6 +74,7 @@ class DedicatedWorkerGlobalScope : public WorkerGlobalScope {
 
  private:
   DISALLOW_COPY_AND_ASSIGN(DedicatedWorkerGlobalScope);
+  bool cross_origin_isolated_capability_;
 };
 
 }  // namespace worker

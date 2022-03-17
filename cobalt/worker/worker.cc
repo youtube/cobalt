@@ -29,6 +29,10 @@
 namespace cobalt {
 namespace worker {
 
+namespace {
+bool PermitAnyURL(const GURL&, bool) { return true; }
+}  // namespace
+
 Worker::Worker() {}
 
 void Worker::ClearAllIntervalsAndTimeouts() {
@@ -93,6 +97,7 @@ void Worker::Initialize(const Options& options, web::Context* context) {
   Obtain(options.url);
 }
 
+// Fetch and Run classic script
 void Worker::Obtain(const std::string& url) {
   // 14. Obtain script by switching on the value of options's type member:
   //     - "classic"
@@ -108,42 +113,45 @@ void Worker::Obtain(const std::string& url) {
   //     1. Set request's reserved client to inside settings.
   //     2. Fetch request, and asynchronously wait to run the remaining steps as
   //        part of fetch's process response for the response response.
-  //     3. Set worker global scope's url to response's url.
-  //     4. Initialize worker global scope's policy container given worker
-  //        global scope, response, and inside settings.
-  //     5. If the Run CSP initialization for a global object algorithm returns
-  //        "Blocked" when executed upon worker global scope, set response to a
-  //        network error. [CSP]
-  //     6. If worker global scope's embedder policy's value is compatible with
-  //        cross-origin isolation and is shared is true, then set agent's agent
-  //        cluster's cross-origin isolation mode to "logical" or "concrete".
-  //        The one chosen is implementation-defined.
-  //     7. If the result of checking a global object's embedder policy with
-  //        worker global scope, outside settings, and response is false, then
-  //        set response to a network error.
-  //     8. Set worker global scope's cross-origin isolated capability to true
-  //        if agent's agent cluster's cross-origin isolation mode is
-  //        "concrete".
-  //     9. If is shared is false and owner's cross-origin isolated capability
-  //        is false, then set worker global scope's cross-origin isolated
-  //        capability to false.
-  //     10. If is shared is false and response's url's scheme is "data", then
-  //         set worker global scope's cross-origin isolated capability to
-  //         false.
-  //     11. Asynchronously complete the perform the fetch steps with response.
+  GURL gurl = GURL(url);
+  loader::Origin origin = loader::Origin(gurl.GetOrigin());
 
+  // Todo: implement csp check (b/225037465)
+  csp::SecurityCallback csp_callback = base::Bind(&PermitAnyURL);
+
+  loader_ = web_context_->script_loader_factory()->CreateScriptLoader(
+      gurl, origin, csp_callback,
+      base::Bind(&Worker::OnContentProduced, base::Unretained(this)),
+      base::Bind(&Worker::OnLoadingComplete, base::Unretained(this)));
+}
+
+void Worker::OnContentProduced(const loader::Origin& last_url_origin,
+                               std::unique_ptr<std::string> content) {
+  DCHECK(content);
+  // 14.11. Asynchronously complete the perform the fetch steps with response.
+  content_ = std::move(content);
+  OnReadyToExecute();
+}
+
+void Worker::OnLoadingComplete(const base::Optional<std::string>& error) {
+  error_ = error;
   //     If the algorithm asynchronously completes with null or with a script
   //     whose error to rethrow is non-null, then:
-  //     1. Queue a global task on the DOM manipulation task source given
-  //        worker's relevant global object to fire an event named error at
-  //        worker.
-  //     2. Run the environment discarding steps for inside settings.
-  //     3. Return.
+  if (error_ || !content_) {
+    //     1. Queue a global task on the DOM manipulation task source given
+    //        worker's relevant global object to fire an event named error at
+    //        worker.
+    //     2. Run the environment discarding steps for inside settings.
+    //     3. Return.
+    return;
+  }
+  OnReadyToExecute();
+}
 
-  //     Otherwise, continue the rest of these steps after the algorithm's
-  //     asynchronous completion, with script being the asynchronous completion
-  //     value.
-  Execute(url, base::SourceLocation("[object Worker::RunLoop]", 1, 1));
+void Worker::OnReadyToExecute() {
+  DCHECK(content_);
+  Execute(*content_, base::SourceLocation("[object Worker::RunLoop]", 1, 1));
+  content_.reset();
 }
 
 void Worker::Execute(const std::string& content,
@@ -156,8 +164,11 @@ void Worker::Execute(const std::string& content,
   // TODO: Actual type here should depend on derived class (e.g. dedicated,
   // shared, service)
   scoped_refptr<DedicatedWorkerGlobalScope> dedicated_worker_global_scope =
-      new DedicatedWorkerGlobalScope(web_context_->environment_settings());
+      new DedicatedWorkerGlobalScope(web_context_->environment_settings(),
+                                     false);
   worker_global_scope_ = dedicated_worker_global_scope;
+  // 14.3 - 14.10 initialize worker global scope
+  worker_global_scope_->Initialize(*content_);
   message_port_ = new MessagePort(worker_global_scope_,
                                   web_context_->environment_settings());
 

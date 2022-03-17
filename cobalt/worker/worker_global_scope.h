@@ -26,6 +26,8 @@
 #include "cobalt/script/sequence.h"
 #include "cobalt/script/value_handle.h"
 #include "cobalt/script/wrappable.h"
+#include "net/url_request/url_request.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace worker {
@@ -42,6 +44,12 @@ class WorkerGlobalScope : public dom::EventTarget {
   scoped_refptr<WorkerGlobalScope> self() { return this; }
 
   void ImportScripts(const std::vector<std::string>& urls) {}
+
+  virtual void Initialize(const std::string& content) = 0;
+
+  void InitializeURL(const std::string& url);
+
+  const GURL Url() const { return url_; }
 
   const dom::EventTargetListenerInfo::EventListenerScriptValue*
   onlanguagechange() {
@@ -80,6 +88,10 @@ class WorkerGlobalScope : public dom::EventTarget {
 
  private:
   DISALLOW_COPY_AND_ASSIGN(WorkerGlobalScope);
+
+  // WorkerGlobalScope Attribute
+  // https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#concept-workerglobalscope
+  GURL url_;
 };
 
 }  // namespace worker

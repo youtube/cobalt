@@ -100,8 +100,9 @@ class Impl : public Context {
   // FetcherFactory that is used to create a fetcher according to URL.
   std::unique_ptr<loader::FetcherFactory> fetcher_factory_;
 
-  // LoaderFactory that is used to acquire references to resources from a
-  // URL.
+  // Todo: b/225410588 This is not used by WebModule. Should live in a
+  // better place.
+  // LoaderFactory that is used to acquire references to resources from a URL.
   std::unique_ptr<loader::ScriptLoaderFactory> script_loader_factory_;
 
   // JavaScript engine for the browser.

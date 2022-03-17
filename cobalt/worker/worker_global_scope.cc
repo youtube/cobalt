@@ -18,5 +18,10 @@ namespace cobalt {
 namespace worker {
 WorkerGlobalScope::WorkerGlobalScope(script::EnvironmentSettings* settings)
     : EventTarget(settings) {}
+
+void WorkerGlobalScope::InitializeURL(const std::string& url) {
+  url_ = GURL(url);
+}
+
 }  // namespace worker
 }  // namespace cobalt

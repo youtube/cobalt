@@ -18,8 +18,10 @@
 #include <memory>
 #include <string>
 
+#include "base/bind.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/threading/thread.h"
+#include "cobalt/csp/content_security_policy.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/execution_state.h"
 #include "cobalt/script/global_environment.h"
@@ -78,6 +80,11 @@ class Worker {
   // thread.
   void Initialize(const Options& options, web::Context* context);
 
+  void OnContentProduced(const loader::Origin& last_url_origin,
+                         std::unique_ptr<std::string> content);
+  void OnLoadingComplete(const base::Optional<std::string>& error);
+  void OnReadyToExecute();
+
   void Obtain(const std::string& url);
   void Execute(const std::string& content,
                const base::SourceLocation& script_location);
@@ -95,6 +102,15 @@ class Worker {
 
   // Inner message port.
   scoped_refptr<MessagePort> message_port_;
+
+  // The loader that is used for asynchronous loads.
+  std::unique_ptr<loader::Loader> loader_;
+
+  // Content of the script. Released after Execute is called.
+  std::unique_ptr<std::string> content_;
+
+  // If the script failed, contains the error message.
+  base::Optional<std::string> error_;
 };
 
 }  // namespace worker
