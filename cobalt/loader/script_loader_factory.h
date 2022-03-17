@@ -38,8 +38,6 @@ namespace loader {
 class ScriptLoaderFactory {
  public:
   ScriptLoaderFactory(const char* name, FetcherFactory* fetcher_factory,
-                      const base::DebuggerHooks& debugger_hooks,
-                      size_t encoded_image_cache_capacity,
                       base::ThreadPriority loader_thread_priority);
 
   // Creates a loader that fetches and decodes a Javascript resource.
@@ -56,9 +54,6 @@ class ScriptLoaderFactory {
   Loader::FetcherCreator MakeFetcherCreator(
       const GURL& url, const csp::SecurityCallback& url_security_callback,
       RequestMode request_mode, const Origin& origin);
-  Loader::FetcherCreator MakeCachedFetcherCreator(
-      const GURL& url, const csp::SecurityCallback& url_security_callback,
-      RequestMode request_mode, const Origin& origin);
 
   // Ensures that the LoaderFactory methods are only called from the same
   // thread.
@@ -66,14 +61,6 @@ class ScriptLoaderFactory {
 
   // Used to create the Fetcher component of the loaders.
   FetcherFactory* fetcher_factory_;
-
-  // Used to cache the fetched raw data.  Note that currently the cache is only
-  // used to cache Image data.  We may introduce more caches once we want to
-  // cache fetched data for other resource types.
-  std::unique_ptr<FetcherCache> fetcher_cache_;
-
-  // Used with CLOG to report errors with the image source.
-  const base::DebuggerHooks& debugger_hooks_;
 
   // Keeps track of all active loaders so that if a suspend event occurs they
   // can be aborted.

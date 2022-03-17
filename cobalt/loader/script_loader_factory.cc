@@ -32,17 +32,10 @@ const size_t kLoadThreadStackSize = 0;
 
 ScriptLoaderFactory::ScriptLoaderFactory(
     const char* name, FetcherFactory* fetcher_factory,
-    const base::DebuggerHooks& debugger_hooks,
-    size_t encoded_image_cache_capacity,
     base::ThreadPriority loader_thread_priority)
     : fetcher_factory_(fetcher_factory),
-      debugger_hooks_(debugger_hooks),
       load_thread_("ResourceLoader"),
       is_suspended_(false) {
-  if (encoded_image_cache_capacity > 0) {
-    fetcher_cache_.reset(new FetcherCache(name, encoded_image_cache_capacity));
-  }
-
   base::Thread::Options options(base::MessageLoop::TYPE_DEFAULT,
                                 kLoadThreadStackSize);
   options.priority = loader_thread_priority;
@@ -79,20 +72,6 @@ Loader::FetcherCreator ScriptLoaderFactory::MakeFetcherCreator(
   return base::Bind(&FetcherFactory::CreateSecureFetcher,
                     base::Unretained(fetcher_factory_), url,
                     url_security_callback, request_mode, origin);
-}
-
-Loader::FetcherCreator ScriptLoaderFactory::MakeCachedFetcherCreator(
-    const GURL& url, const csp::SecurityCallback& url_security_callback,
-    RequestMode request_mode, const Origin& origin) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-
-  auto fetcher_creator =
-      MakeFetcherCreator(url, url_security_callback, request_mode, origin);
-
-  if (fetcher_cache_) {
-    return fetcher_cache_->GetFetcherCreator(url, fetcher_creator);
-  }
-  return fetcher_creator;
 }
 
 void ScriptLoaderFactory::OnLoaderCreated(Loader* loader) {

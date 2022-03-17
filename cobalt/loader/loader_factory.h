@@ -79,6 +79,9 @@ class LoaderFactory : public ScriptLoaderFactory {
           typeface_available_callback,
       const Loader::OnCompleteFunction& load_complete_callback);
 
+  Loader::FetcherCreator MakeCachedFetcherCreator(
+      const GURL& url, const csp::SecurityCallback& url_security_callback,
+      RequestMode request_mode, const Origin& origin);
 
   // Clears out the loader factory's resource provider, aborting any in-progress
   // loads.
@@ -100,6 +103,14 @@ class LoaderFactory : public ScriptLoaderFactory {
  private:
   void SuspendActiveLoaders();
   void ResumeActiveLoaders(render_tree::ResourceProvider* resource_provider);
+
+  // Used to cache the fetched raw data.  Note that currently the cache is only
+  // used to cache Image data.  We may introduce more caches once we want to
+  // cache fetched data for other resource types.
+  std::unique_ptr<FetcherCache> fetcher_cache_;
+
+  // Used with CLOG to report errors with the image source.
+  const base::DebuggerHooks& debugger_hooks_;
 
   // Used to create render_tree resources.
   render_tree::ResourceProvider* resource_provider_;
