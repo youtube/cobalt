@@ -12,15 +12,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-
 """Provides functions for symlinking on Windows."""
-
 
 import ctypes
 from ctypes import wintypes
 import os
-
 
 DWORD = wintypes.DWORD
 LPCWSTR = wintypes.LPCWSTR
@@ -31,54 +27,48 @@ USHORT = wintypes.USHORT
 ULONG = wintypes.ULONG
 WCHAR = wintypes.WCHAR
 
-
-kernel32 = wintypes.WinDLL('kernel32')
+kernel32 = ctypes.windll.kernel32
 LPDWORD = ctypes.POINTER(DWORD)
 UCHAR = ctypes.c_ubyte
-
 
 GetFileAttributesW = kernel32.GetFileAttributesW
 GetFileAttributesW.restype = DWORD
 GetFileAttributesW.argtypes = (LPCWSTR,)  # lpFileName In
 
-
 INVALID_FILE_ATTRIBUTES = 0xFFFFFFFF
 FILE_ATTRIBUTE_REPARSE_POINT = 0x00400
 
-
 CreateFileW = kernel32.CreateFileW
 CreateFileW.restype = HANDLE
-CreateFileW.argtypes = (LPCWSTR,  # lpFileName In
-                        DWORD,    # dwDesiredAccess In
-                        DWORD,    # dwShareMode In
-                        LPVOID,   # lpSecurityAttributes In_opt
-                        DWORD,    # dwCreationDisposition In
-                        DWORD,    # dwFlagsAndAttributes In
-                        HANDLE)   # hTemplateFile In_opt
-
+CreateFileW.argtypes = (
+    LPCWSTR,  # lpFileName In
+    DWORD,  # dwDesiredAccess In
+    DWORD,  # dwShareMode In
+    LPVOID,  # lpSecurityAttributes In_opt
+    DWORD,  # dwCreationDisposition In
+    DWORD,  # dwFlagsAndAttributes In
+    HANDLE)  # hTemplateFile In_opt
 
 CloseHandle = kernel32.CloseHandle
 CloseHandle.restype = BOOL
 CloseHandle.argtypes = (HANDLE,)  # hObject In
 
-
-INVALID_HANDLE_VALUE = HANDLE(-1).value
+INVALID_HANDLE_VALUE = HANDLE(-1).value  # pylint:disable=invalid-name
 OPEN_EXISTING = 3
 FILE_FLAG_BACKUP_SEMANTICS = 0x02000000
 FILE_FLAG_OPEN_REPARSE_POINT = 0x00200000
 
-
 DeviceIoControl = kernel32.DeviceIoControl
 DeviceIoControl.restype = BOOL
-DeviceIoControl.argtypes = (HANDLE,   # hDevice In
-                            DWORD,    # dwIoControlCode In
-                            LPVOID,   # lpInBuffer In_opt
-                            DWORD,    # nInBufferSize In
-                            LPVOID,   # lpOutBuffer Out_opt
-                            DWORD,    # nOutBufferSize In
-                            LPDWORD,  # lpBytesReturned Out_opt
-                            LPVOID)   # lpOverlapped Inout_opt
-
+DeviceIoControl.argtypes = (
+    HANDLE,  # hDevice In
+    DWORD,  # dwIoControlCode In
+    LPVOID,  # lpInBuffer In_opt
+    DWORD,  # nInBufferSize In
+    LPVOID,  # lpOutBuffer Out_opt
+    DWORD,  # nOutBufferSize In
+    LPDWORD,  # lpBytesReturned Out_opt
+    LPVOID)  # lpOverlapped Inout_opt
 
 FSCTL_GET_REPARSE_POINT = 0x000900A8
 IO_REPARSE_TAG_MOUNT_POINT = 0xA0000003
@@ -99,11 +89,9 @@ class SymbolicLinkReparseBuffer(ctypes.Structure):
   """Win32 api data structure."""
 
   _fields_ = (('SubstituteNameOffset', USHORT),
-              ('SubstituteNameLength', USHORT),
-              ('PrintNameOffset', USHORT),
-              ('PrintNameLength', USHORT),
-              ('Flags', ULONG),
-              ('PathBuffer', WCHAR * 1))
+              ('SubstituteNameLength', USHORT), ('PrintNameOffset', USHORT),
+              ('PrintNameLength', USHORT), ('Flags', ULONG), ('PathBuffer',
+                                                              WCHAR * 1))
 
   @property
   def print_name(self):
@@ -125,10 +113,8 @@ class SymbolicLinkReparseBuffer(ctypes.Structure):
 class MountPointReparseBuffer(ctypes.Structure):
   """Win32 api data structure."""
   _fields_ = (('SubstituteNameOffset', USHORT),
-              ('SubstituteNameLength', USHORT),
-              ('PrintNameOffset', USHORT),
-              ('PrintNameLength', USHORT),
-              ('PathBuffer', WCHAR * 1))
+              ('SubstituteNameLength', USHORT), ('PrintNameOffset', USHORT),
+              ('PrintNameLength', USHORT), ('PathBuffer', WCHAR * 1))
 
   @property
   def print_name(self):
@@ -151,15 +137,17 @@ class ReparseDataBuffer(ctypes.Structure):
     _fields_ = (('SymbolicLinkReparseBuffer', SymbolicLinkReparseBuffer),
                 ('MountPointReparseBuffer', MountPointReparseBuffer),
                 ('GenericReparseBuffer', GenericReparseBuffer))
-  _fields_ = (('ReparseTag', ULONG),
-              ('ReparseDataLength', USHORT),
-              ('Reserved', USHORT),
-              ('ReparseBuffer', ReparseBuffer))
+
+  _fields_ = (('ReparseTag', ULONG), ('ReparseDataLength', USHORT),
+              ('Reserved', USHORT), ('ReparseBuffer', ReparseBuffer))
   _anonymous_ = ('ReparseBuffer',)
 
 
 def _ToUnicode(s):
-  return s.decode('utf-8')
+  try:
+    return s.decode('utf-8')
+  except AttributeError:
+    return s
 
 
 _kdll = None
@@ -212,26 +200,18 @@ def FastIsReparseLink(path):
 def FastReadReparseLink(path):
   """See api docstring, above."""
   path = _ToUnicode(path)
-  reparse_point_handle = CreateFileW(path,
-                                     0,
-                                     0,
-                                     None,
-                                     OPEN_EXISTING,
-                                     FILE_FLAG_OPEN_REPARSE_POINT |
-                                     FILE_FLAG_BACKUP_SEMANTICS,
-                                     None)
+  reparse_point_handle = CreateFileW(
+      path, 0, 0, None, OPEN_EXISTING,
+      FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS, None)
   if reparse_point_handle == INVALID_HANDLE_VALUE:
     return None
   # Remove false positive below.
   # pylint: disable=deprecated-method
   target_buffer = ctypes.c_buffer(MAXIMUM_REPARSE_DATA_BUFFER_SIZE)
   n_bytes_returned = DWORD()
-  io_result = DeviceIoControl(reparse_point_handle,
-                              FSCTL_GET_REPARSE_POINT,
-                              None, 0,
-                              target_buffer, len(target_buffer),
-                              ctypes.byref(n_bytes_returned),
-                              None)
+  io_result = DeviceIoControl(reparse_point_handle, FSCTL_GET_REPARSE_POINT,
+                              None, 0, target_buffer, len(target_buffer),
+                              ctypes.byref(n_bytes_returned), None)
   CloseHandle(reparse_point_handle)
   if not io_result:
     return None

@@ -144,7 +144,7 @@ def ReadReparsePoint(path):
   """Mimics os.readlink for usage."""
   try:
     # pylint: disable=import-outside-toplevel
-    import win_symlink_fast
+    from starboard.tools import win_symlink_fast
     return win_symlink_fast.FastReadReparseLink(path)
   except Exception as err:  # pylint: disable=broad-except
     logging.exception(' error: %s, falling back to command line version.', err)
@@ -155,7 +155,7 @@ def IsReparsePoint(path):
   """Mimics os.islink for usage."""
   try:
     # pylint: disable=import-outside-toplevel
-    import win_symlink_fast
+    from starboard.tools import win_symlink_fast
     return win_symlink_fast.FastIsReparseLink(path)
   except Exception as err:  # pylint: disable=broad-except
     logging.exception(' error: %s, falling back to command line version.', err)
@@ -181,7 +181,7 @@ def CreateReparsePoint(from_folder, link_folder):
     UnlinkReparsePoint(link_folder)  # Deletes if it exists.
   try:
     # pylint: disable=import-outside-toplevel
-    import win_symlink_fast
+    from starboard.tools import win_symlink_fast
     win_symlink_fast.FastCreateReparseLink(from_folder, link_folder)
     return
   except OSError:
