@@ -22,6 +22,7 @@ config("base") {
       "STARBOARD_BUILD_TYPE_DEBUG",
       "COBALT_BUILD_TYPE_DEBUG",
       "_DEBUG",
+      "COBALT_LOGGING_ENABLED",
     ]
   }
 
@@ -30,6 +31,7 @@ config("base") {
       "STARBOARD_BUILD_TYPE_DEVEL",
       "COBALT_BUILD_TYPE_DEVEL",
       "_DEBUG",
+      "COBALT_LOGGING_ENABLED",
     ]
   }
 
@@ -121,6 +123,7 @@ config("starboard") {
         "ENABLE_DEBUGGER",
         "ENABLE_DEBUG_COMMAND_LINE_SWITCHES",
         "ENABLE_TEST_RUNNER",
+        "ENABLE_IGNORE_CERTIFICATE_ERRORS",
       ]
     }
 
