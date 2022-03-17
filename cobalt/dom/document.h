@@ -387,11 +387,6 @@ class Document : public Node,
 
   CspDelegate* csp_delegate() const { return csp_delegate_.get(); }
 
-#if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
-  bool partial_layout_is_enabled() { return partial_layout_is_enabled_; }
-  void SetPartialLayout(bool enabled);
-#endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
-
   // Triggers a synchronous layout.
   scoped_refptr<render_tree::Node> DoSynchronousLayoutAndGetRenderTree();
   void DoSynchronousLayout();
@@ -584,9 +579,6 @@ class Document : public Node,
   bool is_computed_style_dirty_;
   bool are_font_faces_dirty_;
   bool are_keyframes_dirty_;
-#if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
-  bool partial_layout_is_enabled_;
-#endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
 
   // Viewport size.
   base::Optional<cssom::ViewportSize> viewport_size_;

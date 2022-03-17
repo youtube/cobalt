@@ -64,8 +64,6 @@ extern const char kMinCompatibilityVersion[];
 extern const char kMinCompatibilityVersionHelp[];
 extern const char kNullSavegame[];
 extern const char kNullSavegameHelp[];
-extern const char kDisablePartialLayout[];
-extern const char kDisablePartialLayoutHelp[];
 extern const char kProd[];
 extern const char kProdHelp[];
 extern const char kRequireCSP[];

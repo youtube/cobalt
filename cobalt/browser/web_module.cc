@@ -700,10 +700,6 @@ WebModule::Impl::Impl(web::Context* web_context, const ConstructionData& data)
     window_->document()->AddObserver(document_load_observer_.get());
   }
 
-#if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
-  window_->document()->SetPartialLayout(data.options.enable_partial_layout);
-#endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
-
 #if defined(ENABLE_DEBUGGER)
   debug_overlay_.reset(
       new debug::backend::RenderOverlay(render_tree_produced_callback_));

@@ -221,11 +221,6 @@ class WebModule : public base::MessageLoop::DestructionObserver,
     // can allow the limit to be disabled.
     bool limit_performance_timer_resolution = true;
 
-#if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
-    // Whether layout is optimized to re-use boxes for still-valid elements.
-    bool enable_partial_layout = true;
-#endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
-
 #if defined(ENABLE_DEBUGGER)
     // Whether the debugger should block until remote devtools connects.
     bool wait_for_web_debugger = false;

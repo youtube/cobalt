@@ -88,9 +88,6 @@ Document::Document(HTMLElementContext* html_element_context,
       is_computed_style_dirty_(true),
       are_font_faces_dirty_(true),
       are_keyframes_dirty_(true),
-#if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
-      partial_layout_is_enabled_(true),
-#endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
       selector_tree_(new cssom::SelectorTree()),
       should_recreate_selector_tree_(false),
       navigation_start_clock_(options.navigation_start_clock
@@ -900,12 +897,6 @@ bool Document::TrySetUiNavFocusElement(const void* focus_element,
 }
 
 void Document::SampleTimelineTime() { default_timeline_->Sample(); }
-
-#if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
-void Document::SetPartialLayout(bool enabled) {
-  partial_layout_is_enabled_ = enabled;
-}
-#endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
 
 ViewportSize Document::viewport_size() {
   return viewport_size_.value_or(ViewportSize());
