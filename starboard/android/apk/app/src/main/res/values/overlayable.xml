@@ -15,7 +15,8 @@
   limitations under the License.
 -->
 
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools"
+           tools:ignore="DuplicateDefinition">
   <overlayable name="CobaltOverlay">
     <policy type="vendor|product">
       <item type="integer" name="increase_audio_buffer_size" />
