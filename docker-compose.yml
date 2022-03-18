@@ -53,6 +53,14 @@ services:
       FROM_REF: ${FROM_REF:-HEAD^1}
       TO_REF: ${TO_REF:-HEAD}
 
+  pytest:
+    build:
+      context: ./docker/pytest
+      dockerfile: Dockerfile
+    image: pytest
+    volumes:
+    - ${COBALT_SRC:-.}:/code/
+
 #### Cobalt build containers
   base:
     build:
