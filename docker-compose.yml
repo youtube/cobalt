@@ -38,6 +38,7 @@ x-shared-build-env: &shared-build-env
   NINJA_PARALLEL: ${NINJA_PARALLEL:-32}
   IS_CI: ${IS_CI:-0}
   IS_DOCKER: 1
+  PYTHONPATH: /code
 
 services:
 #### Tools
