@@ -99,7 +99,7 @@ AudioLoader::AudioLoader(const GURL& url,
   fetcher_factory_.reset(new loader::FetcherFactory(network_module_));
   loader_ = base::WrapUnique(new loader::Loader(
       base::Bind(&loader::FetcherFactory::CreateFetcher,
-                 base::Unretained(fetcher_factory_.get()), url),
+                 base::Unretained(fetcher_factory_.get()), url, loader::kOther),
       base::Bind(&DummyDecoder::Create, base::Bind(&AudioLoader::OnLoadingDone,
                                                    base::Unretained(this))),
       base::Bind(&AudioLoader::OnLoadingError, base::Unretained(this))));

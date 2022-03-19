@@ -41,6 +41,7 @@ class NET_EXPORT_PRIVATE CobaltBackendImpl final : public Backend {
   net::Error OpenEntry(const std::string& key,
                        net::RequestPriority request_priority,
                        Entry** entry,
+                       std::string type,
                        CompletionOnceCallback callback) override;
   net::Error CreateEntry(const std::string& key,
                          net::RequestPriority request_priority,

@@ -165,10 +165,18 @@ class NET_EXPORT Backend {
   // will be invoked when the entry is available. The pointer to receive the
   // |entry| must remain valid until the operation completes. The |priority|
   // of the entry determines its priority in the background worker pools.
+#ifdef STARBOARD
+  virtual net::Error OpenEntry(const std::string& key,
+                               net::RequestPriority priority,
+                               Entry** entry,
+                               std::string type,
+                               CompletionOnceCallback callback) = 0;
+#else
   virtual net::Error OpenEntry(const std::string& key,
                                net::RequestPriority priority,
                                Entry** entry,
                                CompletionOnceCallback callback) = 0;
+#endif
 
   // Creates a new entry. Upon success, the out param holds a pointer to an
   // Entry object representing the newly created disk cache entry. When the

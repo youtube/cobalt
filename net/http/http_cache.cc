@@ -777,10 +777,18 @@ int HttpCache::OpenEntry(const std::string& key, ActiveEntry** entry,
 
   pending_op->writer = std::move(item);
 
+#ifdef STARBOARD
+  int rv = disk_cache_->OpenEntry(
+      key, trans->priority(), &(pending_op->disk_entry),  trans->type(),
+      base::BindOnce(&HttpCache::OnPendingOpComplete, GetWeakPtr(),
+                     pending_op));
+#else
   int rv =
       disk_cache_->OpenEntry(key, trans->priority(), &(pending_op->disk_entry),
                              base::BindOnce(&HttpCache::OnPendingOpComplete,
                                             GetWeakPtr(), pending_op));
+#endif
+
   if (rv == ERR_IO_PENDING) {
     pending_op->callback_will_delete = true;
     return rv;

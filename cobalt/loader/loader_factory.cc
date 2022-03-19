@@ -42,8 +42,8 @@ std::unique_ptr<Loader> LoaderFactory::CreateImageLoader(
     const Loader::OnCompleteFunction& load_complete_callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
-  Loader::FetcherCreator fetcher_creator =
-      MakeCachedFetcherCreator(url, url_security_callback, kNoCORSMode, origin);
+  Loader::FetcherCreator fetcher_creator = MakeCachedFetcherCreator(
+      url, url_security_callback, kNoCORSMode, origin, kImage);
 
   std::unique_ptr<Loader> loader(new Loader(
       fetcher_creator,
@@ -61,13 +61,13 @@ std::unique_ptr<Loader> LoaderFactory::CreateImageLoader(
 std::unique_ptr<Loader> LoaderFactory::CreateLinkLoader(
     const GURL& url, const Origin& origin,
     const csp::SecurityCallback& url_security_callback,
-    const loader::RequestMode cors_mode,
+    const loader::RequestMode cors_mode, const loader::ResourceType type,
     const TextDecoder::TextAvailableCallback& link_available_callback,
     const Loader::OnCompleteFunction& load_complete_callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   Loader::FetcherCreator fetcher_creator =
-      MakeFetcherCreator(url, url_security_callback, cors_mode, origin);
+      MakeFetcherCreator(url, url_security_callback, cors_mode, origin, type);
 
   std::unique_ptr<Loader> loader(new Loader(
       fetcher_creator,
@@ -111,8 +111,9 @@ std::unique_ptr<Loader> LoaderFactory::CreateTypefaceLoader(
     const Loader::OnCompleteFunction& load_complete_callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
-  Loader::FetcherCreator fetcher_creator = MakeFetcherCreator(
-      url, url_security_callback, kCORSModeSameOriginCredentials, origin);
+  Loader::FetcherCreator fetcher_creator =
+      MakeFetcherCreator(url, url_security_callback,
+                         kCORSModeSameOriginCredentials, origin, kFont);
 
   std::unique_ptr<Loader> loader(new Loader(
       fetcher_creator,
@@ -128,11 +129,11 @@ std::unique_ptr<Loader> LoaderFactory::CreateTypefaceLoader(
 
 Loader::FetcherCreator LoaderFactory::MakeCachedFetcherCreator(
     const GURL& url, const csp::SecurityCallback& url_security_callback,
-    RequestMode request_mode, const Origin& origin) {
+    RequestMode request_mode, const Origin& origin, ResourceType type) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
-  auto fetcher_creator =
-      MakeFetcherCreator(url, url_security_callback, request_mode, origin);
+  auto fetcher_creator = MakeFetcherCreator(url, url_security_callback,
+                                            request_mode, origin, type);
 
   if (fetcher_cache_) {
     return fetcher_cache_->GetFetcherCreator(url, fetcher_creator);

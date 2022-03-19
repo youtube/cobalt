@@ -16,6 +16,7 @@
 
 #include <memory>
 #include <string>
+#include <utility>
 
 #include "base/strings/stringprintf.h"
 #include "cobalt/base/polymorphic_downcast.h"
@@ -96,6 +97,10 @@ NetFetcher::NetFetcher(const GURL& url,
     request_cross_origin_ = true;
     url_fetcher_->AddExtraRequestHeader("Origin:" + origin.SerializedOrigin());
   }
+  std::string content_type =
+      std::string(net::HttpRequestHeaders::kResourceType) + ":" +
+      std::to_string(options.resource_type);
+  url_fetcher_->AddExtraRequestHeader(content_type);
   if ((request_cross_origin_ &&
        (request_mode == kCORSModeSameOriginCredentials)) ||
       request_mode == kCORSModeOmitCredentials) {
@@ -128,7 +133,7 @@ void NetFetcher::Start() {
 void NetFetcher::OnURLFetchResponseStarted(const net::URLFetcher* source) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   if (source->GetURL() != source->GetOriginalURL()) {
-    // A redirect occured. Re-check the security policy.
+    // A redirect occurred. Re-check the security policy.
     if (!security_callback_.is_null() &&
         !security_callback_.Run(source->GetURL(), true /* did redirect */)) {
       std::string msg(base::StringPrintf(
@@ -224,8 +229,7 @@ void NetFetcher::OnURLFetchDownloadProgress(const net::URLFetcher* source,
   }
 }
 
-void NetFetcher::ReportLoadTimingInfo(
-    const net::LoadTimingInfo& timing_info) {
+void NetFetcher::ReportLoadTimingInfo(const net::LoadTimingInfo& timing_info) {
   handler()->SetLoadTimingInfo(timing_info);
 }
 

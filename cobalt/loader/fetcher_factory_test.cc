@@ -85,7 +85,7 @@ TEST_F(FetcherFactoryTest, InvalidURL) {
   base::RunLoop run_loop;
   StubFetcherHandler stub_fetcher_handler(&run_loop);
 
-  fetcher_ = fetcher_factory_.CreateFetcher(GURL("invalid-url"),
+  fetcher_ = fetcher_factory_.CreateFetcher(GURL("invalid-url"), kOther,
                                             &stub_fetcher_handler);
   EXPECT_TRUE(fetcher_);
 
@@ -98,8 +98,8 @@ TEST_F(FetcherFactoryTest, EmptyFileURL) {
   base::RunLoop run_loop;
   StubFetcherHandler stub_fetcher_handler(&run_loop);
 
-  fetcher_ =
-      fetcher_factory_.CreateFetcher(GURL("file:///"), &stub_fetcher_handler);
+  fetcher_ = fetcher_factory_.CreateFetcher(GURL("file:///"), kOther,
+                                            &stub_fetcher_handler);
   EXPECT_TRUE(fetcher_);
 
   run_loop.Run();
@@ -111,7 +111,7 @@ TEST_F(FetcherFactoryTest, FileURLCannotConvertToFilePath) {
   base::RunLoop run_loop;
   StubFetcherHandler stub_fetcher_handler(&run_loop);
 
-  fetcher_ = fetcher_factory_.CreateFetcher(GURL("file://file.txt"),
+  fetcher_ = fetcher_factory_.CreateFetcher(GURL("file://file.txt"), kOther,
                                             &stub_fetcher_handler);
   EXPECT_TRUE(fetcher_);
 
@@ -128,11 +128,11 @@ TEST_F(FetcherFactoryTest, MultipleCreations) {
   StubFetcherHandler stub_fetcher_handler(&run_loop);
 
   fetcher_ = fetcher_factory_.CreateFetcher(GURL("file:///nonempty-url-1"),
-                                            &stub_fetcher_handler);
+                                            kOther, &stub_fetcher_handler);
   EXPECT_TRUE(fetcher_);
 
   fetcher_ = fetcher_factory_.CreateFetcher(GURL("file:///nonempty-url-2"),
-                                            &stub_fetcher_handler);
+                                            kOther, &stub_fetcher_handler);
   EXPECT_TRUE(fetcher_);
   run_loop.Run();
   EXPECT_EQ(fetcher_.get(), stub_fetcher_handler.fetcher());

@@ -330,7 +330,8 @@ void HTMLScriptElement::Prepare() {
               base::Unretained(html_element_context()->fetcher_factory()), url_,
               csp_callback, request_mode_,
               document_->location() ? document_->location()->GetOriginAsObject()
-                                    : loader::Origin()),
+                                    : loader::Origin(),
+              loader::kScript),
           base::Bind(&loader::TextDecoder::Create,
                      base::Bind(&HTMLScriptElement::OnSyncContentProduced,
                                 base::Unretained(this)),

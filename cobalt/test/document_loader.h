@@ -72,8 +72,7 @@ class DocumentLoader : public dom::DocumentObserver {
             NULL /* remote_font_cache */, NULL /* mesh_cache */,
             dom_stat_tracker_.get(), "" /* language */,
             base::kApplicationStateStarted,
-            NULL /* synchronous_loader_interrupt */,
-            NULL /* performance */) {}
+            NULL /* synchronous_loader_interrupt */, NULL /* performance */) {}
   void Load(const GURL& url) {
     // Load the document in a nested message loop.
     dom::Document::Options options(url);
@@ -83,7 +82,7 @@ class DocumentLoader : public dom::DocumentObserver {
     document_->AddObserver(this);
     document_loader_.reset(new loader::Loader(
         base::Bind(&loader::FetcherFactory::CreateFetcher,
-                   base::Unretained(&fetcher_factory_), url),
+                   base::Unretained(&fetcher_factory_), url, loader::kHTML),
         base::Bind(&dom_parser::Parser::ParseDocumentAsync,
                    base::Unretained(dom_parser_.get()), document_,
                    base::SourceLocation(url.spec(), 1, 1)),

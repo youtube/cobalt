@@ -38,8 +38,9 @@ class NetFetcher : public Fetcher, public net::URLFetcherDelegate {
  public:
   struct Options {
    public:
-    Options() : request_method(net::URLFetcher::GET) {}
+    Options() : request_method(net::URLFetcher::GET), resource_type(kOther) {}
     net::URLFetcher::RequestType request_method;
+    ResourceType resource_type;
   };
 
   NetFetcher(const GURL& url, const csp::SecurityCallback& security_callback,

@@ -216,7 +216,7 @@ void Window::StartDocumentLoad(
     const loader::Decoder::OnCompleteFunction& load_complete_callback) {
   document_loader_.reset(new loader::Loader(
       base::Bind(&loader::FetcherFactory::CreateFetcher,
-                 base::Unretained(fetcher_factory), url),
+                 base::Unretained(fetcher_factory), url, loader::kHTML),
       base::Bind(&Parser::ParseDocumentAsync, base::Unretained(dom_parser),
                  document_, base::SourceLocation(url.spec(), 1, 1)),
       load_complete_callback));

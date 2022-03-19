@@ -55,6 +55,7 @@ int32_t CobaltBackendImpl::GetEntryCount() const {
 net::Error CobaltBackendImpl::OpenEntry(const std::string& key,
                                         net::RequestPriority request_priority,
                                         Entry** entry,
+                                        std::string type,
                                         CompletionOnceCallback callback) {
   // TODO: Implement
   return net::ERR_FAILED;

@@ -209,9 +209,19 @@ void HTMLLinkElement::Obtain() {
   loader::Origin origin = document->location()
                               ? document->location()->GetOriginAsObject()
                               : loader::Origin();
+  loader::ResourceType type;
+  if (rel() == "stylesheet") {
+    type = loader::kCSS;
+  } else if (IsValidSplashScreenFormat(rel())) {
+    type = loader::kSplashScreen;
+  } else {
+    LOG(WARNING) << "<link> has unsupported rel value: " << rel() << ".";
+    NOTIMPLEMENTED();
+    return;
+  }
 
   loader_ = html_element_context()->loader_factory()->CreateLinkLoader(
-      absolute_url_, origin, csp_callback, request_mode_,
+      absolute_url_, origin, csp_callback, request_mode_, type,
       base::Bind(&HTMLLinkElement::OnContentProduced, base::Unretained(this)),
       base::Bind(&HTMLLinkElement::OnLoadingComplete, base::Unretained(this)));
 }

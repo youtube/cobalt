@@ -47,12 +47,12 @@ class FetcherFactory {
           base::Callback<int(const std::string&, std::unique_ptr<char[]>*)>());
 
   // Creates a fetcher. Returns NULL if the creation fails.
-  std::unique_ptr<Fetcher> CreateFetcher(const GURL& url,
+  std::unique_ptr<Fetcher> CreateFetcher(const GURL& url, ResourceType type,
                                          Fetcher::Handler* handler);
 
   std::unique_ptr<Fetcher> CreateSecureFetcher(
       const GURL& url, const csp::SecurityCallback& url_security_callback,
-      RequestMode request_mode, const Origin& origin,
+      RequestMode request_mode, const Origin& origin, ResourceType type,
       Fetcher::Handler* handler);
 
   network::NetworkModule* network_module() const { return network_module_; }

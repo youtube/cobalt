@@ -195,6 +195,11 @@ class NET_EXPORT_PRIVATE HttpCache::Transaction : public HttpTransaction {
   // value has been set to something other than PARALLEL_WRITING_NONE.
   void MaybeSetParallelWritingPatternForMetrics(ParallelWritingPattern pattern);
 
+#if defined(STARBOARD)
+  // Returns resource type of request, if set.
+  std::string type() { return type_; }
+#endif
+
  private:
   static const size_t kNumValidationHeaders = 2;
   // Helper struct to pair a header name with its value, for
@@ -582,6 +587,10 @@ class NET_EXPORT_PRIVATE HttpCache::Transaction : public HttpTransaction {
   // If extra_headers specified a "if-modified-since" or "if-none-match",
   // |external_validation_| contains the value of those headers.
   ValidationHeaders external_validation_;
+#if defined(STARBOARD)
+  // If extra_headers specified a resource type.
+  std::string type_;
+#endif
   base::WeakPtr<HttpCache> cache_;
   HttpCache::ActiveEntry* entry_;
   HttpCache::ActiveEntry* new_entry_;

@@ -94,14 +94,15 @@ FetcherFactory::FetcherFactory(
 }
 
 std::unique_ptr<Fetcher> FetcherFactory::CreateFetcher(
-    const GURL& url, Fetcher::Handler* handler) {
+    const GURL& url, ResourceType type, Fetcher::Handler* handler) {
   return CreateSecureFetcher(url, csp::SecurityCallback(), kNoCORSMode,
-                             Origin(), handler);
+                             Origin(), type, handler);
 }
 
 std::unique_ptr<Fetcher> FetcherFactory::CreateSecureFetcher(
     const GURL& url, const csp::SecurityCallback& url_security_callback,
-    RequestMode request_mode, const Origin& origin, Fetcher::Handler* handler) {
+    RequestMode request_mode, const Origin& origin, ResourceType type,
+    Fetcher::Handler* handler) {
   LOG(INFO) << "Fetching: " << ClipUrl(url, 200);
 
   if (!url.is_valid()) {
@@ -114,6 +115,7 @@ std::unique_ptr<Fetcher> FetcherFactory::CreateSecureFetcher(
   if ((url.SchemeIs("https") || url.SchemeIs("http") || url.SchemeIs("data")) &&
       network_module_) {
     NetFetcher::Options options;
+    options.resource_type = type;
     return std::unique_ptr<Fetcher>(
         new NetFetcher(url, url_security_callback, handler, network_module_,
                        options, request_mode, origin));

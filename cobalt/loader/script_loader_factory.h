@@ -53,7 +53,8 @@ class ScriptLoaderFactory {
 
   Loader::FetcherCreator MakeFetcherCreator(
       const GURL& url, const csp::SecurityCallback& url_security_callback,
-      RequestMode request_mode, const Origin& origin);
+      RequestMode request_mode, const Origin& origin,
+      ResourceType type = kOther);
 
   // Ensures that the LoaderFactory methods are only called from the same
   // thread.
