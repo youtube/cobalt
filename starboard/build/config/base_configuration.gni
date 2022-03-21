@@ -145,4 +145,7 @@ declare_args() {
 
   # Set to true to separate install target directories.
   separate_install_targets_for_bundling = false
+
+  # Enables an NPLB audit of C++17 support.
+  sb_enable_cpp17_audit = true
 }

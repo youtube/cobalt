@@ -270,19 +270,34 @@ target(gtest_target_type, "nplb") {
     ]
   }
 
-  deps = cobalt_platform_dependencies
+  configs += [
+    "//build/config/compiler:exceptions",
+    "//starboard/build/config:starboard_implementation",
+  ]
+  configs -= [ "//build/config/compiler:no_exceptions" ]
+
+  deps = [
+    "//starboard",
+    "//starboard/common",
+    "//starboard/nplb/compiler_compliance:cpp14_supported",
+    "//starboard/shared/starboard/media:media_util",
+    "//starboard/shared/starboard/player:video_dmp",
+    "//testing/gmock",
+  ]
+
+  deps += cobalt_platform_dependencies
 
   if (is_internal_build) {
     deps += [ "//starboard/private/nplb:nplb_private" ]
   }
 
-  public_deps = [
-    "//starboard",
-    "//starboard/common",
-    "//starboard/shared/starboard/media:media_util",
-    "//starboard/shared/starboard/player:video_dmp",
-    "//testing/gmock",
-  ]
+  if (gl_type != "none") {
+    deps += [ "//starboard/egl_and_gles" ]
+  }
+
+  if (sb_enable_cpp17_audit) {
+    deps += [ "//starboard/nplb/compiler_compliance:cpp17_supported" ]
+  }
 
   data_deps = [
     "//starboard/nplb/testdata/file_tests:nplb_file_tests_data",
@@ -294,14 +309,4 @@ target(gtest_target_type, "nplb") {
     "//starboard/shared/starboard/player:player_download_test_data",
     "//third_party/icu:icudata",
   ]
-
-  if (gl_type != "none") {
-    public_deps += [ "//starboard/egl_and_gles" ]
-  }
-
-  configs += [
-    "//build/config/compiler:exceptions",
-    "//starboard/build/config:starboard_implementation",
-  ]
-  configs -= [ "//build/config/compiler:no_exceptions" ]
 }
