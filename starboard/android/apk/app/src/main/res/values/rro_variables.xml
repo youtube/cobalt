@@ -15,6 +15,6 @@
   limitations under the License.
 -->
 
-<resources>
-  <integer name="increase_audio_buffer_size">256</integer>
+<resources xmlns:tools="http://schemas.android.com/tools">
+  <integer name="increase_audio_buffer_size" tools:ignore="DuplicateDefinition">256</integer>
 </resources>
