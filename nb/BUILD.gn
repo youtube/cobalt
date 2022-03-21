@@ -109,3 +109,24 @@ target(gtest_target_type, "nb_test") {
     content_deps = [ "//third_party/icu:icudata" ]
   }
 }
+
+target(gtest_target_type, "reuse_allocator_benchmark") {
+  testonly = true
+  sources = [ "reuse_allocator_benchmark.cc" ]
+  deps = [
+    ":nb",
+    ":nb_copy_test_data",
+    "//starboard",
+  ]
+}
+
+copy("nb_copy_test_data") {
+  sources = [
+    "testdata/mem_history_cobalt.txt",
+    "testdata/mem_history_gpu.txt",
+    "testdata/mem_history_main.txt",
+  ]
+  outputs = [
+    "$sb_static_contents_output_data_dir/test/nb/{{source_target_relative}}",
+  ]
+}
