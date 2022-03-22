@@ -130,6 +130,10 @@ class StarboardPlayer {
   SbDecodeTarget GetCurrentSbDecodeTarget();
   SbPlayerOutputMode GetSbPlayerOutputMode();
 
+  void RecordSetDrmSystemReadyTime(SbTimeMonotonic timestamp) {
+    set_drm_system_ready_cb_time_ = timestamp;
+  }
+
  private:
   enum State {
     kPlaying,
@@ -216,6 +220,8 @@ class StarboardPlayer {
   SbPlayerOutputMode ComputeSbPlayerOutputMode(
       bool prefer_decode_to_texture) const;
 
+  void LogStartupLatency() const;
+
 // The following variables are initialized in the ctor and never changed.
 #if SB_HAS(PLAYER_WITH_URL)
   std::string url_;
@@ -268,6 +274,15 @@ class StarboardPlayer {
   // Keep track of errors during player creation.
   bool is_creating_player_ = false;
   std::string player_creation_error_message_;
+
+  // Variables related to tracking player startup latencies.
+  SbTimeMonotonic set_drm_system_ready_cb_time_ = -1;
+  SbTimeMonotonic player_creation_time_ = 0;
+  SbTimeMonotonic sb_player_state_initialized_time_ = 0;
+  SbTimeMonotonic sb_player_state_prerolling_time_ = 0;
+  SbTimeMonotonic first_audio_sample_time_ = 0;
+  SbTimeMonotonic first_video_sample_time_ = 0;
+  SbTimeMonotonic sb_player_state_presenting_time_ = 0;
 
 #if SB_HAS(PLAYER_WITH_URL)
   const bool is_url_based_;

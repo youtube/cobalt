@@ -200,6 +200,8 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   // playback resume.
   std::string GetTimeInformation() const;
 
+  void RunSetDrmSystemReadyCB();
+
   // An identifier string for the pipeline, used in CVal to identify multiple
   // pipelines.
   const std::string pipeline_identifier_;
@@ -325,6 +327,8 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   PlaybackStatistics playback_statistics_;
 
   SbTimeMonotonic last_resume_time_ = -1;
+
+  SbTimeMonotonic set_drm_system_ready_cb_time_ = -1;
 
   DISALLOW_COPY_AND_ASSIGN(SbPlayerPipeline);
 };
@@ -515,8 +519,7 @@ void SbPlayerPipeline::Start(const SetDrmSystemReadyCB& set_drm_system_ready_cb,
                  on_encrypted_media_init_data_encountered_cb);
   set_drm_system_ready_cb_ = parameters.set_drm_system_ready_cb;
   DCHECK(!set_drm_system_ready_cb_.is_null());
-  set_drm_system_ready_cb_.Run(
-      base::Bind(&SbPlayerPipeline::SetDrmSystem, this));
+  RunSetDrmSystemReadyCB();
 
   task_runner_->PostTask(
       FROM_HERE, base::Bind(&SbPlayerPipeline::StartTask, this, parameters));
@@ -963,6 +966,7 @@ void SbPlayerPipeline::SetDrmSystem(SbDrmSystem drm_system) {
   }
 
   if (player_->IsValid()) {
+    player_->RecordSetDrmSystemReadyTime(set_drm_system_ready_cb_time_);
     player_->SetDrmSystem(drm_system);
   }
 }
@@ -1032,6 +1036,7 @@ void SbPlayerPipeline::CreatePlayer(SbDrmSystem drm_system) {
   }
 
   if (player_ && player_->IsValid()) {
+    player_->RecordSetDrmSystemReadyTime(set_drm_system_ready_cb_time_);
     base::Closure output_mode_change_cb;
     {
       base::AutoLock auto_lock(lock_);
@@ -1117,8 +1122,7 @@ void SbPlayerPipeline::OnDemuxerInitialized(PipelineStatus status) {
       content_size_change_cb_.Run();
     }
     if (is_encrypted) {
-      set_drm_system_ready_cb_.Run(
-          BindToCurrentLoop(base::Bind(&SbPlayerPipeline::CreatePlayer, this)));
+      RunSetDrmSystemReadyCB();
       return;
     }
   }
@@ -1525,6 +1529,18 @@ std::string SbPlayerPipeline::GetTimeInformation() const {
           : "null";
   return "time since app start: " + time_since_start +
          ", time since last resume: " + time_since_resume;
+}
+
+void SbPlayerPipeline::RunSetDrmSystemReadyCB() {
+  TRACE_EVENT0("cobalt::media", "SbPlayerPipeline::RunSetDrmSystemReadyCB");
+  set_drm_system_ready_cb_time_ = SbTimeGetMonotonicNow();
+#if SB_HAS(PLAYER_WITH_URL)
+  set_drm_system_ready_cb_.Run(
+      base::Bind(&SbPlayerPipeline::SetDrmSystem, this));
+#else   // SB_HAS(PLAYER_WITH_URL)
+  set_drm_system_ready_cb_.Run(
+      BindToCurrentLoop(base::Bind(&SbPlayerPipeline::CreatePlayer, this)));
+#endif  // SB_HAS(PLAYER_WITH_URL)
 }
 
 }  // namespace
