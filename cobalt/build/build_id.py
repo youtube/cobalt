@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """Generate a Cobalt build ID header."""
 
 import datetime
@@ -37,7 +36,7 @@ def BuildId(output_path, version_number):
 
   Args:
     output_path: Location of the build id header to write.
-    version_number: Build version number, generated when gyp_cobalt is run.
+    version_number: Build version number, generated when gn gen is run.
   Returns:
     0 on success.
   """
@@ -48,11 +47,12 @@ def BuildId(output_path, version_number):
   date_rep = datetime.datetime.fromtimestamp(timestamp).strftime('%c')
 
   with open(output_path, 'w') as f:
-    f.write(template.format(
-        date_rep=date_rep,
-        timestamp=int(timestamp),
-        version_number=version_number,
-        username=username))
+    f.write(
+        template.format(
+            date_rep=date_rep,
+            timestamp=int(timestamp),
+            version_number=version_number,
+            username=username))
   return 0
 
 

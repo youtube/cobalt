@@ -19,7 +19,6 @@
 *.y                     text eol=lf
 .clang-format           text eol=lf
 codereview.settings     text eol=lf
-gyp_cobalt              text eol=lf
 
 # Images should be treated as binary files.
 *.exe                   binary
