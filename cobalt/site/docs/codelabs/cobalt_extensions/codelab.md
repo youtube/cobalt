@@ -715,7 +715,7 @@ built from our `extension_test.cc` source file. We can build that target for our
 platform and then run the executable to run the tests.
 
 ```
-$ cobalt/build/gyp_cobalt linux-x64x11
+$ cobalt/build/gn.py -p linux-x64x11
 ```
 
 ```

@@ -179,14 +179,13 @@ files that you want to build as your new Starboard implementation. The
 relative to the directory the `.gyp` or `.gypi` file is in.
 
 In order to use a new platform configuration in a build, you need to ensure that
-you have a `gyp_configuration.py`, `gyp_configuration.gypi`, and
-`starboard_platform.gyp` in their own directory for each binary variant, plus
-the header files `configuration_public.h`, `atomic_public.h`, and
-`thread_types_public.h`. `gyp_cobalt` will scan your directories for these
-files, and then calculate a port name based on the directories between
-`src/third_party/starboard` and your `gyp_configuration.*` files. (e.g. for
-`src/third_party/starboard/bobbox/armeb/gyp_configuration.py`, it would choose
-the platform configuration name `bobbox-armeb`.)
+you have a `BUILD.gn`, `toolchain/BUILD.gn`,
+`platform_configuration/configuration.gni`, and
+`platform_configuration/BUILD.gn` in their own directory for each binary
+variant, plus the header files `configuration_public.h`, `atomic_public.h`, and
+`thread_types_public.h`. You must add your platform name to
+`starboard/build/platforms.py` along with the path to the port to be able to
+build it.
 
 #### GN Instructions
 
@@ -253,9 +252,10 @@ platform configuration name `bobbox-armeb`.)
      at the appropriate shared or custom implementations.
 
 
-You should now be able to run gyp with your new port. From your `src/` directory:
+You should now be able to run gyp with your new port. From your the top level
+directory:
 
-    $ cobalt/build/gyp_cobalt -C debug bobbox-armeb
+    $ cobalt/build/gn.py -c debug -p bobbox-armeb
     $ ninja -C out/bobbox-armeb_debug nplb
 
 This will attempt to build the "No Platform Left Behind" test suite with your

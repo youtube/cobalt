@@ -14,12 +14,12 @@ $ git clone https://cobalt.googlesource.com/cobalt
 
 ## Build the loader app (new entry point)
 $ cd cobalt/src
-$ cobalt/build/gyp_cobalt -v raspi-2-sbversion-12 -C qa
-$ ninja -C out/raspi-2-sbversion-12_qa loader_app crashpad_handler
+$ cobalt/build/gn.py -p raspi-2 -c qa
+$ ninja -C out/raspi-2_qa loader_app crashpad_handler
 
 ## Create package directory for Cobalt Evergreen
 $ export COEG_PATH=coeg
-$ cp out/raspi-2-sbversion-12_qa/loader_app $COEG_PATH
+$ cp out/raspi-2_qa/loader_app $COEG_PATH
 
 ## Create directory structure for the initial installation
 [2-slot configuration]
@@ -46,12 +46,12 @@ shared library and supplementary components.
 ```
 ## Build Cobalt core locally
 $ cd cobalt/src
-$ cobalt/build/gyp_cobalt -v evergreen-arm-hardfp-sbversion-12 -C qa
-$ ninja -C out/evergreen-arm-hardfp-sbversion-12_qa cobalt
+$ cobalt/build/gn.py -p evergreen-arm-hardfp -c qa
+$ ninja -C out/evergreen-arm-hardfp_qa cobalt
 
 ## Copy the generated files to the package directory for Cobalt Evergreen
-$ cp -r out/evergreen-arm-hardfp-sbversion-12_qa/lib   $COEG_PATH/content/app/cobalt/
-$ cp -r out/evergreen-arm-hardfp-sbversion-12_qa/content   $COEG_PATH/content/app/cobalt/
+$ cp -r out/evergreen-arm-hardfp_qa/lib   $COEG_PATH/content/app/cobalt/
+$ cp -r out/evergreen-arm-hardfp_qa/content   $COEG_PATH/content/app/cobalt/
 
 ## Create a file named manifest.json with the following content, and put it under $COEG_PATH/content/app/cobalt/
 $ cat > $COEG_PATH/content/app/cobalt/manifest.json <<EOF

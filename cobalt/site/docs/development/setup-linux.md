@@ -108,11 +108,8 @@ Required libraries can differ depending on your Linux distribution and version.
     are built.
 
     ```
-    $ cobalt/build/gyp_cobalt [-C <build_type>] <platform>
+    $ cobalt/build/gn.py [-C <build_type>] -p <platform>
     ```
-
-    <aside class="note"><b>Important:</b> You need to rerun gyp_cobalt every
-    time a change is made to a `.gyp` file.</aside>
 
 1.  Compile the code from the `cobalt/` directory:
 

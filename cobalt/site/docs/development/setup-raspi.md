@@ -83,7 +83,7 @@ Raspberry Pi.
     following command:
 
     ```
-    $ cobalt/build/gyp_cobalt raspi-2
+    $ cobalt/build/gn.py -p raspi-2
     ```
 
 1.  Compile the code from the `cobalt/` directory:
