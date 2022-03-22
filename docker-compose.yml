@@ -60,6 +60,8 @@ services:
     image: pytest
     volumes:
     - ${COBALT_SRC:-.}:/code/
+    depends_on:
+      - base
 
 #### Cobalt build containers
   base:
