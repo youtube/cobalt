@@ -58,5 +58,5 @@ RUN cd /tmp \
     "platform-tools" \
   && echo "Android SDK installed"
 
-CMD /code/cobalt/build/gyp_cobalt -v -C ${CONFIG} ${PLATFORM} \
-    && ninja -v -j ${NINJA_PARALLEL} -C ${OUTDIR}/${PLATFORM}_${CONFIG} ${TARGET:-cobalt_deploy}
+CMD gn gen ${OUTDIR}/${PLATFORM}_${CONFIG} --args="target_platform=\"${PLATFORM}\" build_type=\"${CONFIG}\" target_os=\"android\" target_cpu=\"${TARGET_CPU}\"" && \
+    ninja -v -j ${NINJA_PARALLEL} -C ${OUTDIR}/${PLATFORM}_${CONFIG} ${TARGET:-cobalt_install}

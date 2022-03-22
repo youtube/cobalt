@@ -120,18 +120,6 @@ services:
       PLATFORM: stub
       CONFIG: ${CONFIG:-debug}
 
-  stub-gn:
-    <<: *build-common-definitions
-    build:
-      context: ./docker/linux
-      dockerfile: stub/gn/Dockerfile
-    image: cobalt-build-linux-stub-gn
-    depends_on: [ stub ]
-    environment:
-      <<: *shared-build-env
-      PLATFORM: stub
-      CONFIG: ${CONFIG:-debug}
-
   linux-x64x11:
     <<: *build-common-definitions
     build:
@@ -144,18 +132,6 @@ services:
       PLATFORM: linux-x64x11
       CONFIG: ${CONFIG:-debug}
       TARGET: ${TARGET:-cobalt_deploy}
-
-  linux-x64x11-gn:
-    <<: *build-common-definitions
-    build:
-      context: ./docker/linux
-      dockerfile: linux-x64x11/gn/Dockerfile
-    image: cobalt-build-linux-gn
-    depends_on: [ linux-x64x11 ]
-    environment:
-      <<: *shared-build-env
-      PLATFORM: linux-x64x11
-      CONFIG: ${CONFIG:-debug}
 
   linux-x64x11-bionic:
     <<: *common-definitions
@@ -215,36 +191,12 @@ services:
       <<: *shared-build-env
       PLATFORM: android-x86
       CONFIG: ${CONFIG:-debug}
-
-  android-x86-gn:
-    <<: *build-common-definitions
-    image: cobalt-build-android-gn
-    depends_on: [ android-x86 ]
-    build:
-      context: ./docker/linux/android
-      dockerfile: ./gn/Dockerfile
-    environment:
-      <<: *shared-build-env
-      PLATFORM: android-x86
-      CONFIG: ${CONFIG:-debug}
       TARGET_CPU: ${TARGET_CPU:-x86}
 
   android-arm:
     <<: *build-common-definitions
     image: cobalt-build-android
     depends_on: [ build-android ]
-    environment:
-      <<: *shared-build-env
-      PLATFORM: android-arm
-      CONFIG: ${CONFIG:-debug}
-
-  android-arm-gn:
-    <<: *build-common-definitions
-    image: cobalt-build-android-gn
-    depends_on: [ android-arm ]
-    build:
-      context: ./docker/linux/android
-      dockerfile: ./gn/Dockerfile
     environment:
       <<: *shared-build-env
       PLATFORM: android-arm
@@ -259,18 +211,6 @@ services:
       <<: *shared-build-env
       PLATFORM: android-arm64
       CONFIG: ${CONFIG:-debug}
-
-  android-arm64-gn:
-    <<: *build-common-definitions
-    image: cobalt-build-android-gn
-    depends_on: [ android-arm64 ]
-    build:
-      context: ./docker/linux/android
-      dockerfile: ./gn/Dockerfile
-    environment:
-      <<: *shared-build-env
-      PLATFORM: android-arm64
-      CONFIG: ${CONFIG:-debug}
       TARGET_CPU: ${TARGET_CPU:-arm64}
 
   raspi:
@@ -279,17 +219,6 @@ services:
       context: ./docker/linux/raspi
       dockerfile: ./Dockerfile
     image: cobalt-build-raspi
-    environment:
-      <<: *shared-build-env
-      PLATFORM: ${PLATFORM:-raspi-2}
-      CONFIG: ${CONFIG:-debug}
-
-  raspi-gn:
-    <<: *build-common-definitions
-    build:
-      context: ./docker/linux/raspi
-      dockerfile: ./gn/Dockerfile
-    image: cobalt-build-raspi-gn
     environment:
       <<: *shared-build-env
       PLATFORM: ${PLATFORM:-raspi-2}
@@ -313,6 +242,7 @@ services:
     environment:
       <<: *shared-build-env
       PLATFORM: evergreen-x64
+      TARGET_CPU: ${TARGET_CPU:-x64}
 
   evergreen-x64-sbversion-12:
     <<: *build-common-definitions
@@ -321,6 +251,8 @@ services:
     environment:
       <<: *shared-build-env
       PLATFORM: evergreen-x64-sbversion-12
+      TARGET_CPU: ${TARGET_CPU:-x64}
+      SB_API_VERSION: 12
 
   evergreen-x86:
     <<: *build-common-definitions
@@ -329,6 +261,7 @@ services:
     environment:
       <<: *shared-build-env
       PLATFORM: evergreen-x86
+      TARGET_CPU: ${TARGET_CPU:-x86}
 
   evergreen-x86-sbversion-12:
     <<: *build-common-definitions
@@ -337,6 +270,8 @@ services:
     environment:
       <<: *shared-build-env
       PLATFORM: evergreen-x86-sbversion-12
+      TARGET_CPU: ${TARGET_CPU:-x86}
+      SB_API_VERSION: 12
 
   evergreen-arm64:
     <<: *build-common-definitions
@@ -345,6 +280,7 @@ services:
     environment:
       <<: *shared-build-env
       PLATFORM: evergreen-arm64
+      TARGET_CPU: ${TARGET_CPU:-arm64}
 
   evergreen-arm64-sbversion-12:
     <<: *build-common-definitions
@@ -353,6 +289,8 @@ services:
     environment:
       <<: *shared-build-env
       PLATFORM: evergreen-arm64-sbversion-12
+      TARGET_CPU: ${TARGET_CPU:-arm64}
+      SB_API_VERSION: 12
 
   evergreen-arm-hardfp:
     <<: *build-common-definitions
@@ -361,6 +299,7 @@ services:
     environment:
       <<: *shared-build-env
       PLATFORM: evergreen-arm-hardfp
+      TARGET_CPU: ${TARGET_CPU:-arm}
 
   evergreen-arm-hardfp-sbversion-12:
     <<: *build-common-definitions
@@ -369,6 +308,8 @@ services:
     environment:
       <<: *shared-build-env
       PLATFORM: evergreen-arm-hardfp-sbversion-12
+      TARGET_CPU: ${TARGET_CPU:-arm}
+      SB_API_VERSION: 12
 
   evergreen-arm-softfp:
     <<: *build-common-definitions
@@ -377,6 +318,7 @@ services:
     environment:
       <<: *shared-build-env
       PLATFORM: evergreen-arm-softfp
+      TARGET_CPU: ${TARGET_CPU:-arm}
 
   evergreen-arm-softfp-sbversion-12:
     <<: *build-common-definitions
@@ -385,6 +327,8 @@ services:
     environment:
       <<: *shared-build-env
       PLATFORM: evergreen-arm-softfp-sbversion-12
+      TARGET_CPU: ${TARGET_CPU:-arm}
+      SB_API_VERSION: 12
 
   linux-x64x11-sbversion12-evergreen:
     <<: *build-common-definitions
@@ -399,6 +343,7 @@ services:
       <<: *shared-build-env
       PLATFORM: linux-x64x11-sbversion-12
       CONFIG: ${CONFIG:-debug}
+      SB_API_VERSION: 12
 
   # Example usage of unittest:
   # 1. Build the containers for which you want to unittest

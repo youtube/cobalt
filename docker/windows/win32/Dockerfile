@@ -20,11 +20,7 @@ SHELL ["powershell", "-ExecutionPolicy", "Unrestricted", "-Command", `
 
 WORKDIR "C:\code"
 
-CMD Invoke-Command -ScriptBlock {`
-      python2 cobalt/build/gyp_cobalt -vvv $env:PLATFORM -C $env:CONFIG;`
-    } | Out-Default;`
+CMD python3 cobalt/build/gn.py -p $env:PLATFORM -c $env:CONFIG out/${env:PLATFORM}_${env:CONFIG};`
     if ($?) {`
-      Invoke-Command -ScriptBlock {`
-        ninja $env:NINJA_FLAGS -C out/${env:PLATFORM}_$env:CONFIG $env:TARGET;`
-      } | Out-Default`
+      ninja $env:NINJA_FLAGS -C out/${env:PLATFORM}_$env:CONFIG $env:TARGET;`
     }
