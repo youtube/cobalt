@@ -24,7 +24,7 @@ sys.path.append(PYJSON5_DIR)
 import json5 as json # pylint: disable=import-error
 
 def read_file(filename):
-    with open(path.normpath(filename), 'rt') as input:
+    with open(path.normpath(filename), 'rt', encoding="utf-8") as input:
         return input.read()
 
 
@@ -34,7 +34,7 @@ def write_file(filename, content):
     directory = path.dirname(filename)
     if not path.exists(directory):
         os.makedirs(directory)
-    with open(filename, 'wt') as output:
+    with open(filename, 'wt', encoding="utf-8") as output:
         output.write(content)
 
 
