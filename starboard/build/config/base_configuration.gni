@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//build/config/clang/clang.gni")
 import("//cobalt/content/fonts/font_configuration.gni")
 import("//starboard/build/config/enable_vr.gni")
 
@@ -112,7 +113,7 @@ declare_args() {
   default_renderer_options_dependency = "//cobalt/renderer:default_options"
 
   # A symbolizer path for ASAN can be added to allow translation of callstacks.
-  asan_symbolizer_path = ""
+  asan_symbolizer_path = "$clang_base_path/bin/llvm-symbolizer"
 
   # Sub-directory to copy license file to.
   cobalt_licenses_platform = "default"
