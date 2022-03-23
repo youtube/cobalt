@@ -65,6 +65,11 @@
 //   //   exposes functionality for my new feature.
 //   #define SB_MY_EXPERIMENTAL_FEATURE_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Introduce a new format kSbDecodeTargetFormat3Plane10BitYUVI420Compact.
+//   A decoder target format consisting of 10bit Y, U, and V planes.
+#define SB_DECODE_TARGET_FORMAT_YUVI420_COMPACT_API_VERSION \
+  SB_EXPERIMENTAL_API_VERSION
+
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------
@@ -926,21 +931,6 @@ SB_COMPILE_ASSERT(sizeof(long) == SB_SIZE_OF_LONG,  // NOLINT(runtime/int)
     "SB_HAS_QUIRK_SEEK_TO_KEYFRAME is deprecated in Starboard 12 or later." \
          " Please see configuration-public.md for more details."
 #endif  // SB_API_VERSION >= 12 && SB_HAS_QUIRK(SEEK_TO_KEYFRAME)
-
-#if SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
-#if !defined(SB_HAS_COMPACT_10BITS_FRAME)
-#define SB_HAS_COMPACT_10BITS_FRAME 1
-#elif !SB_HAS(SB_HAS_COMPACT_10BITS_FRAME)
-#error "SB_HAS_COMPACT_10BITS_FRAME is required in this API version."
-#endif
-#endif  // SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
-#if SB_HAS(SB_HAS_COMPACT_10BITS_FRAME)
-#if SB_API_VERSION < SB_EXPERIMENTAL_API_VERSION
-#error \
-    "SB_HAS(SB_HAS_COMPACT_10BITS_FRAME) requires " \
-     "SB_API_VERSION SB_EXPERIMENTAL_API_VERSION or later."
-#endif  // SB_API_VERSION < SB_EXPERIMENTAL_API_VERSION
-#endif  // SB_HAS(SB_HAS_COMPACT_10BITS_FRAME)
 
 // --- Derived Configuration -------------------------------------------------
 
