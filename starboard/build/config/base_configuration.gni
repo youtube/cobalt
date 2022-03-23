@@ -145,4 +145,7 @@ declare_args() {
 
   # Enables an NPLB audit of C++17 support.
   sb_enable_cpp17_audit = true
+
+  # Set to true to use Skia m97.
+  use_skia_next = false
 }
