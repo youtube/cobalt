@@ -18,19 +18,16 @@ import argparse
 import os
 import shutil
 import subprocess
-import sys
 from pathlib import Path
+from typing import List
 
-_REPOSITORY_ROOT = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), os.pardir, os.pardir))
-sys.path.append(_REPOSITORY_ROOT)
-from starboard.build.platforms import PLATFORMS  # pylint:disable=wrong-import-position
+from starboard.build.platforms import PLATFORMS
 
 _BUILD_TYPES = ['debug', 'devel', 'qa', 'gold']
 
 
 def main(out_directory: str, platform: str, build_type: str,
-         overwrite_args: bool, check_dependencies: bool, ide: str):
+         overwrite_args: bool, gn_gen_args: List[str]):
   platform_path = PLATFORMS[platform]
   dst_args_gn_file = os.path.join(out_directory, 'args.gn')
   src_args_gn_file = os.path.join(platform_path, 'args.gn')
@@ -45,12 +42,7 @@ def main(out_directory: str, platform: str, build_type: str,
     print(f'{dst_args_gn_file} already exists.' +
           ' Running ninja will regenerate build files automatically.')
 
-  extra_args = []
-  if check_dependencies:
-    extra_args += ['--check']
-  if ide:
-    extra_args += ['--ide={}'.format(ide)]
-  gn_command = ['gn', 'gen', out_directory] + extra_args
+  gn_command = ['gn', 'gen', out_directory] + gn_gen_args
   print(' '.join(gn_command))
   subprocess.check_call(gn_command)
 
@@ -70,7 +62,6 @@ if __name__ == '__main__':
       type=str,
       help='Path to the directory a named build folder, <platform>_<config>/, '
       'will be created in.')
-
   parser.add_argument(
       '-p',
       '--platform',
@@ -91,27 +82,15 @@ if __name__ == '__main__':
       help='Whether or not to overwrite an existing args.gn file if one exists '
       'in the out directory. In general, if the file exists, you should run '
       '`gn args <out_directory>` to edit it instead.')
-  parser.add_argument(
-      '--check',
-      default=False,
-      action='store_true',
-      help='Whether or not to generate the ninja files with the gn --check '
-      'option.')
-  parser.add_argument(
-      '--ide',
-      type=str,
-      help='Specify which IDE to use. Refer'
-      'https://gn.googlesource.com/gn/+/master/docs/reference.md#ide-options'
-      'for IDE values.')
-  args = parser.parse_args()
+  known_args, unknown_args = parser.parse_known_args()
 
-  if args.out_directory:
-    builds_out_directory = args.out_directory
+  if known_args.out_directory:
+    builds_out_directory = known_args.out_directory
   else:
     builds_directory = os.getenv('COBALT_BUILDS_DIRECTORY',
-                                 args.builds_directory or 'out')
-    builds_out_directory = os.path.join(builds_directory,
-                                        f'{args.platform}_{args.build_type}')
+                                 known_args.builds_directory or 'out')
+    builds_out_directory = os.path.join(
+        builds_directory, f'{known_args.platform}_{known_args.build_type}')
 
-  main(builds_out_directory, args.platform, args.build_type,
-       args.overwrite_args, args.check, args.ide)
+  main(builds_out_directory, known_args.platform, known_args.build_type,
+       known_args.overwrite_args, unknown_args)
