@@ -62,6 +62,10 @@ void DedicatedWorker::Initialize() {
   Worker::Options options(kDedicatedWorkerName);
   options.url = script_url_;
   options.web_options.stack_size = cobalt::browser::kWorkerStackSize;
+  options.web_options.network_module =
+      base::polymorphic_downcast<web::EnvironmentSettings*>(settings_)
+          ->context()
+          ->network_module();
   // 6. Let worker be a new Worker object.
   worker_.reset(new Worker());
   // 7. Let outside port be a new MessagePort in outside settings's Realm.
