@@ -162,7 +162,9 @@ bool ReadLines(jpeg_decompress_struct* info,
       case kSbDecodeTargetFormat2PlaneYUVNV12:
       case kSbDecodeTargetFormat3PlaneYUVI420:
       case kSbDecodeTargetFormat3Plane10BitYUVI420:
+#if SB_API_VERSION >= SB_DECODE_TARGET_FORMAT_YUVI420_COMPACT_API_VERSION
       case kSbDecodeTargetFormat3Plane10BitYUVI420Compact:
+#endif  // SB_API_VERSION >= SB_DECODE_TARGET_FORMAT_YUVI420_COMPACT_API_VERSION
       case kSbDecodeTargetFormat1PlaneUYVY:
       case kSbDecodeTargetFormatInvalid:
         SB_NOTREACHED();
