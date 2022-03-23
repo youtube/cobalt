@@ -43,7 +43,7 @@ def _SigIntOrSigTermHandler(signum, frame):
 # First call returns True, otherwise return false.
 def FirstRun():
   v = globals()
-  if not v.has_key('first_run'):
+  if 'first_run' not in v:
     v['first_run'] = False
     return True
   return False
@@ -207,7 +207,8 @@ class Launcher(abstract_launcher.AbstractLauncher):
       try:
         # Sanitize the line to remove ansi color codes.
         line = Launcher._PEXPECT_SANITIZE_LINE_RE.sub(
-            '', self.pexpect_process.readline())
+            '',
+            self.pexpect_process.readline().decode('utf-8'))
         self.output_file.flush()
         if not line:
           break
