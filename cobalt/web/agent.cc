@@ -81,6 +81,7 @@ class Impl : public Context {
     environment_settings_.reset(environment_settings);
     if (environment_settings_) environment_settings_->set_context(this);
   }
+
   web::EnvironmentSettings* environment_settings() const final {
     DCHECK_EQ(environment_settings_->context(), this);
     return environment_settings_.get();

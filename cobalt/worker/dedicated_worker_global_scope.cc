@@ -14,6 +14,8 @@
 
 #include "cobalt/worker/dedicated_worker_global_scope.h"
 
+#include "cobalt/worker/worker_settings.h"
+
 namespace cobalt {
 namespace worker {
 DedicatedWorkerGlobalScope::DedicatedWorkerGlobalScope(
@@ -30,10 +32,9 @@ DedicatedWorkerGlobalScope::DedicatedWorkerGlobalScope(
   }
 }
 
-void DedicatedWorkerGlobalScope::Initialize(const std::string& content) {
+void DedicatedWorkerGlobalScope::Initialize() {
   // Algorithm for 'run a worker'
   //   https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#run-a-worker
-  // Step 14.3. "Set worker global scope's url to response's url."
   //     14.4. Initialize worker global scope's policy container given worker
   //        global scope, response, and inside settings.
   //     14.5. If the Run CSP initialization for a global object algorithm
@@ -64,6 +65,13 @@ void DedicatedWorkerGlobalScope::Initialize(const std::string& content) {
     cross_origin_isolated_capability_ = false;
   }
 }
+
+void DedicatedWorkerGlobalScope::PostMessage(const std::string& message) {
+  base::polymorphic_downcast<worker::WorkerSettings*>(environment_settings())
+      ->message_port()
+      ->PostMessage(message);
+}
+
 
 }  // namespace worker
 }  // namespace cobalt

@@ -40,13 +40,12 @@ class DedicatedWorkerGlobalScope : public WorkerGlobalScope {
 
   // Web API: DedicatedWorkerGlobalScope
   //
-  std::string name() { return std::string("placeholder"); }
+  void set_name(const std::string& name) { name_ = name; }
+  std::string name() { return name_; }
 
-  void Initialize(const std::string& content) override;
+  void Initialize() override;
 
-  void PostMessage(const script::ValueHandleHolder& message,
-                   const script::Sequence<std::string>& options) {}
-
+  void PostMessage(const std::string& message);
   void Close() {}
 
   const dom::EventTargetListenerInfo::EventListenerScriptValue* onmessage() {
@@ -75,6 +74,8 @@ class DedicatedWorkerGlobalScope : public WorkerGlobalScope {
  private:
   DISALLOW_COPY_AND_ASSIGN(DedicatedWorkerGlobalScope);
   bool cross_origin_isolated_capability_;
+
+  std::string name_;
 };
 
 }  // namespace worker

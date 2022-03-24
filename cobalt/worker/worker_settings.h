@@ -18,6 +18,7 @@
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/web/environment_settings.h"
+#include "cobalt/worker/message_port.h"
 
 namespace cobalt {
 namespace worker {
@@ -27,9 +28,13 @@ namespace worker {
 
 class WorkerSettings : public web::EnvironmentSettings {
  public:
-  explicit WorkerSettings(const GURL& base);
+  WorkerSettings(worker::MessagePort* message_port, const GURL& base);
+
+  worker::MessagePort* message_port() const { return message_port_; }
 
  private:
+  // Outer message port.
+  worker::MessagePort* message_port_;
 };
 
 }  // namespace worker

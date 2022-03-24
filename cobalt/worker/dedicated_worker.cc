@@ -23,6 +23,7 @@
 #include "cobalt/worker/message_port.h"
 #include "cobalt/worker/worker.h"
 #include "cobalt/worker/worker_options.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace worker {
@@ -57,10 +58,15 @@ void DedicatedWorker::Initialize() {
   //    allow the page to start dedicated workers).
   // 2. Let outside settings be the current settings object.
   // 3. Parse the scriptURL argument relative to outside settings.
+  Worker::Options options(kDedicatedWorkerName);
+  const GURL& base_url = environment_settings()->base_url();
+  options.url = base_url.Resolve(script_url_);
+
+  LOG_IF(WARNING, !options.url.is_valid())
+      << script_url_ << " cannot be resolved based on " << base_url << ".";
+
   // 4. If this fails, throw a "SyntaxError" DOMException.
   // 5. Let worker URL be the resulting URL record.
-  Worker::Options options(kDedicatedWorkerName);
-  options.url = script_url_;
   options.web_options.stack_size = cobalt::browser::kWorkerStackSize;
   options.web_options.network_module =
       base::polymorphic_downcast<web::EnvironmentSettings*>(settings_)
@@ -89,11 +95,9 @@ void DedicatedWorker::Terminate() {}
 // void postMessage(any message, object transfer);
 // -> void PostMessage(const script::ValueHandleHolder& message,
 //                     script::Sequence<script::ValueHandle*> transfer) {}
-void DedicatedWorker::PostMessage(
-    const script::ValueHandleHolder& message,
-    const script::Sequence<std::string>& options) {
-  if (worker_ && worker_->message_port())
-    worker_->message_port()->PostMessage(message, options);
+void DedicatedWorker::PostMessage(const std::string& message) {
+  DCHECK(worker_);
+  worker_->PostMessage(message);
 }
 
 

@@ -30,8 +30,8 @@ class Context;
 // https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#environment-settings-objects
 class EnvironmentSettings : public script::EnvironmentSettings {
  public:
-  explicit EnvironmentSettings(
-      const base::DebuggerHooks& debugger_hooks = base::NullDebuggerHooks())
+  EnvironmentSettings() {}
+  explicit EnvironmentSettings(const base::DebuggerHooks& debugger_hooks)
       : script::EnvironmentSettings(debugger_hooks) {}
   ~EnvironmentSettings() override {}
 

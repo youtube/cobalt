@@ -45,9 +45,9 @@ class WorkerGlobalScope : public dom::EventTarget {
 
   void ImportScripts(const std::vector<std::string>& urls) {}
 
-  virtual void Initialize(const std::string& content) = 0;
+  virtual void Initialize() = 0;
 
-  void InitializeURL(const std::string& url);
+  void set_url(const GURL& url) { url_ = url; }
 
   const GURL Url() const { return url_; }
 
@@ -90,7 +90,7 @@ class WorkerGlobalScope : public dom::EventTarget {
   DISALLOW_COPY_AND_ASSIGN(WorkerGlobalScope);
 
   // WorkerGlobalScope Attribute
-  // https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#concept-workerglobalscope
+  // https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#concept-workerglobalscope-url
   GURL url_;
 };
 

@@ -29,7 +29,7 @@ namespace script {
 class EnvironmentSettings {
  public:
   explicit EnvironmentSettings(
-      const base::DebuggerHooks& debugger_hooks = base::NullDebuggerHooks())
+      const base::DebuggerHooks& debugger_hooks = null_debugger_hooks_)
       : debugger_hooks_(debugger_hooks) {}
   virtual ~EnvironmentSettings() {}
 
@@ -46,6 +46,7 @@ class EnvironmentSettings {
  private:
   DISALLOW_COPY_AND_ASSIGN(EnvironmentSettings);
 
+  static const base::NullDebuggerHooks null_debugger_hooks_;
   const base::DebuggerHooks& debugger_hooks_;
   GURL base_url_;
 };

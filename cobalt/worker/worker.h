@@ -27,6 +27,7 @@
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/script/script_runner.h"
+#include "cobalt/script/value_handle.h"
 #include "cobalt/script/wrappable.h"
 #include "cobalt/web/agent.h"
 #include "cobalt/web/context.h"
@@ -40,7 +41,7 @@
 namespace cobalt {
 namespace worker {
 
-class Worker {
+class Worker : public base::MessageLoop::DestructionObserver {
  public:
   // Worker Options needed at thread run time.
   struct Options {
@@ -53,7 +54,7 @@ class Worker {
 
     // Parameters from 'Run a worker' step 9.1 in the spec.
     //   https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#dom-worker
-    std::string url;
+    GURL url;
     script::EnvironmentSettings* outside_settings;
     MessagePort* outside_port;
     WorkerOptions options;
@@ -74,6 +75,11 @@ class Worker {
   // The message loop this object is running on.
   base::MessageLoop* message_loop() const { return web_agent_->message_loop(); }
 
+  void PostMessage(const std::string& message);
+
+  // From base::MessageLoop::DestructionObserver.
+  void WillDestroyCurrentMessageLoop() override;
+
  private:
   DISALLOW_COPY_AND_ASSIGN(Worker);
   // Called by |Run| to perform initialization required on the dedicated
@@ -85,7 +91,7 @@ class Worker {
   void OnLoadingComplete(const base::Optional<std::string>& error);
   void OnReadyToExecute();
 
-  void Obtain(const std::string& url);
+  void Obtain();
   void Execute(const std::string& content,
                const base::SourceLocation& script_location);
 
@@ -111,6 +117,12 @@ class Worker {
 
   // If the script failed, contains the error message.
   base::Optional<std::string> error_;
+
+  // The execution ready flag.
+  //   https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#concept-environment-execution-ready-flag
+  base::WaitableEvent execution_ready_ = {
+      base::WaitableEvent::ResetPolicy::MANUAL,
+      base::WaitableEvent::InitialState::NOT_SIGNALED};
 };
 
 }  // namespace worker

@@ -1,4 +1,4 @@
-// Copyright 2022 The Cobalt Authors. All Rights Reserved.
+// Copyright 2022 The Cobalt Authors.All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,12 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/worker/worker_global_scope.h"
-
-namespace cobalt {
-namespace worker {
-WorkerGlobalScope::WorkerGlobalScope(script::EnvironmentSettings* settings)
-    : EventTarget(settings) {}
-
-}  // namespace worker
-}  // namespace cobalt
+var data = "worker data";
+this.postMessage(data);
+this.onmessage = function (event) {
+    var data = "worker reply data";
+    this.postMessage(data);
+};
+this

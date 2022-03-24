@@ -26,6 +26,7 @@
         'callback_function.h',
         'callback_interface_traits.h',
         'data_view.h',
+        'environment_settings.cc',
         'environment_settings.h',
         'error_report.h',
         'exception_message.cc',

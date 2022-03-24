@@ -12,21 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/worker/worker_settings.h"
-
-#include "cobalt/base/debugger_hooks.h"
 #include "cobalt/script/environment_settings.h"
-#include "cobalt/script/global_environment.h"
-#include "cobalt/script/javascript_engine.h"
-#include "url/gurl.h"
 
 namespace cobalt {
-namespace worker {
-// TODO: Only use NullDebuggerHooks if !ENABLE_DEBUGGER.
-WorkerSettings::WorkerSettings(worker::MessagePort* message_port,
-                               const GURL& base)
-    : web::EnvironmentSettings(), message_port_(message_port) {
-  set_base_url(base);
-}
-}  // namespace worker
+namespace script {
+
+// static
+const base::NullDebuggerHooks EnvironmentSettings::null_debugger_hooks_;
+
+}  // namespace script
 }  // namespace cobalt

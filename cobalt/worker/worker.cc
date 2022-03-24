@@ -55,50 +55,63 @@ bool Worker::Run(const Options& options) {
   //    that agent.
   web_agent_.reset(new web::Agent(
       options.web_options,
-      base::Bind(&Worker::Initialize, base::Unretained(this), options)));
+      base::Bind(&Worker::Initialize, base::Unretained(this), options), this));
   return !!message_loop();
+}
+
+void Worker::WillDestroyCurrentMessageLoop() {
+  // Destroy members that were constructed in the worker thread.
+  loader_.reset();
+  worker_global_scope_ = nullptr;
+  message_port_ = nullptr;
+  content_.reset();
+  error_.reset();
 }
 
 void Worker::Initialize(const Options& options, web::Context* context) {
   LOG(INFO) << "Look at me, I'm running a worker thread";
 
-  web_context_ = context;
   // 7. Let realm execution context be the result of creating a new
-  // JavaScript
-  //    realm given agent and the following customizations:
+  // JavaScript realm given agent and the following customizations:
+  web_context_ = context;
   //    . For the global object, if is shared is true, create a new
   //      SharedWorkerGlobalScope object. Otherwise, create a new
   //      DedicatedWorkerGlobalScope object.
+  // TODO: Actual type here should depend on derived class (e.g. dedicated,
+  // shared, service)
+  web_context_->setup_environment_settings(
+      new WorkerSettings(options.outside_port, options.url));
   // 8. Let worker global scope be the global object of realm execution
   //    context's Realm component.
+  scoped_refptr<DedicatedWorkerGlobalScope> dedicated_worker_global_scope =
+      new DedicatedWorkerGlobalScope(web_context_->environment_settings(),
+                                     false);
+  worker_global_scope_ = dedicated_worker_global_scope;
   // 9. Set up a worker environment settings object with realm execution
   //    context, outside settings, and unsafeWorkerCreationTime, and let
   //    inside settings be the result.
-
-  web_context_->setup_environment_settings(
-      new WorkerSettings(GURL(options.url)));
+  web_context_->global_environment()->CreateGlobalObject(
+      dedicated_worker_global_scope, web_context_->environment_settings());
 
   // 10. Set worker global scope's name to the value of options's name member.
+  dedicated_worker_global_scope->set_name(options.web_options.name);
   // 11. Append owner to worker global scope's owner set.
   // 12. If is shared is true, then:
-  //     1. Set worker global scope's constructor origin to outside
-  //     settings's
+  //     1. Set worker global scope's constructor origin to outside settings's
   //        origin.
   //     2. Set worker global scope's constructor url to url.
   //     3. Set worker global scope's type to the value of options's type
   //        member.
-  //     4. Set worker global scope's credentials to the value of
-  //     options's
+  //     4. Set worker global scope's credentials to the value of options's
   //        credentials member.
   // 13. Let destination be "sharedworker" if is shared is true, and
-  // "worker"
-  //     otherwise.
+  // "worker" otherwise.
   // 14. Obtain script
-  Obtain(options.url);
+  Obtain();
 }
 
 // Fetch and Run classic script
-void Worker::Obtain(const std::string& url) {
+void Worker::Obtain() {
   // 14. Obtain script by switching on the value of options's type member:
   //     - "classic"
   //         Fetch a classic worker script given url, outside settings,
@@ -113,14 +126,14 @@ void Worker::Obtain(const std::string& url) {
   //     1. Set request's reserved client to inside settings.
   //     2. Fetch request, and asynchronously wait to run the remaining steps as
   //        part of fetch's process response for the response response.
-  GURL gurl = GURL(url);
-  loader::Origin origin = loader::Origin(gurl.GetOrigin());
+  const GURL& url = web_context_->environment_settings()->base_url();
+  loader::Origin origin = loader::Origin(url.GetOrigin());
 
   // Todo: implement csp check (b/225037465)
   csp::SecurityCallback csp_callback = base::Bind(&PermitAnyURL);
 
   loader_ = web_context_->script_loader_factory()->CreateScriptLoader(
-      gurl, origin, csp_callback,
+      url, origin, csp_callback,
       base::Bind(&Worker::OnContentProduced, base::Unretained(this)),
       base::Bind(&Worker::OnLoadingComplete, base::Unretained(this)));
 }
@@ -128,6 +141,11 @@ void Worker::Obtain(const std::string& url) {
 void Worker::OnContentProduced(const loader::Origin& last_url_origin,
                                std::unique_ptr<std::string> content) {
   DCHECK(content);
+  // 14.3. "Set worker global scope's url to response's url."
+  worker_global_scope_->set_url(
+      web_context_->environment_settings()->base_url());
+  // 14.4 - 14.10 initialize worker global scope
+  worker_global_scope_->Initialize();
   // 14.11. Asynchronously complete the perform the fetch steps with response.
   content_ = std::move(content);
   OnReadyToExecute();
@@ -158,23 +176,9 @@ void Worker::Execute(const std::string& content,
                      const base::SourceLocation& script_location) {
   // 15. Associate worker with worker global scope.
   // 16. Let inside port be a new MessagePort object in inside settings's Realm.
-  // Note: This will need the EventTarget and the EnvironmentSettings of the
-  // Worker thread.
   // 17. Associate inside port with worker global scope.
-  // TODO: Actual type here should depend on derived class (e.g. dedicated,
-  // shared, service)
-  scoped_refptr<DedicatedWorkerGlobalScope> dedicated_worker_global_scope =
-      new DedicatedWorkerGlobalScope(web_context_->environment_settings(),
-                                     false);
-  worker_global_scope_ = dedicated_worker_global_scope;
-  // 14.3 - 14.10 initialize worker global scope
-  worker_global_scope_->Initialize(*content_);
   message_port_ = new MessagePort(worker_global_scope_,
                                   web_context_->environment_settings());
-
-  web_context_->global_environment()->CreateGlobalObject(
-      dedicated_worker_global_scope, web_context_->environment_settings());
-
   // 18. Entangle outside port and inside port.
   // 19. Create a new WorkerLocation object and associate it with worker global
   //     scope.
@@ -188,6 +192,7 @@ void Worker::Execute(const std::string& content,
   //     worker until such time as either the closing flag switches to true or
   //     the worker stops being a suspendable worker.
   // 22. Set inside settings's execution ready flag.
+  execution_ready_.Signal();
   // 23. If script is a classic script, then run the classic script script.
   //     Otherwise, it is a module script; run the module script script.
 
@@ -227,7 +232,6 @@ Worker::~Worker() {
   }
 }
 
-
 // Algorithm for 'Terminate a worker'
 //   https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#terminate-a-worker
 void Worker::Terminate() {
@@ -239,6 +243,26 @@ void Worker::Terminate() {
   //    DedicatedWorkerGlobalScope object (i.e. the worker is a dedicated
   //    worker), then empty the port message queue of the port that the worker's
   //    implicit port is entangled with.
+}
+
+// void postMessage(any message, object transfer);
+// -> void PostMessage(const script::ValueHandleHolder& message,
+//                     script::Sequence<script::ValueHandle*> transfer) {}
+void Worker::PostMessage(const std::string& message) {
+  DCHECK(message_loop());
+  if (base::MessageLoop::current() != message_loop()) {
+    // Block until the worker thread is ready to execute code to handle the
+    // event.
+    execution_ready_.Wait();
+    message_loop()->task_runner()->PostTask(
+        FROM_HERE,
+        base::BindOnce(&Worker::PostMessage, base::Unretained(this), message));
+    return;
+  } else {
+    DCHECK(execution_ready_.IsSignaled());
+    DCHECK(message_port());
+    if (message_port()) message_port()->PostMessage(message);
+  }
 }
 
 }  // namespace worker

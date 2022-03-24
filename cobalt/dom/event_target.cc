@@ -35,7 +35,7 @@ namespace dom {
 EventTarget::EventTarget(
     script::EnvironmentSettings* settings,
     UnpackOnErrorEventsBool onerror_event_parameter_handling)
-    : debugger_hooks_(settings->debugger_hooks()),
+    : environment_settings_(settings),
       unpack_onerror_events_(onerror_event_parameter_handling ==
                              kUnpackOnErrorEvents) {}
 
@@ -66,7 +66,7 @@ void EventTarget::RemoveEventListener(const std::string& type,
   for (EventListenerInfos::iterator iter = event_listener_infos_.begin();
        iter != event_listener_infos_.end(); ++iter) {
     if ((*iter)->EqualTo(listener_info)) {
-      debugger_hooks_.AsyncTaskCanceled((*iter)->task());
+      debugger_hooks().AsyncTaskCanceled((*iter)->task());
       event_listener_infos_.erase(iter);
       return;
     }
@@ -253,7 +253,7 @@ void EventTarget::FireEventOnListeners(const scoped_refptr<Event>& event) {
       continue;
     }
 
-    base::ScopedAsyncTask async_task(debugger_hooks_, (*iter)->task());
+    base::ScopedAsyncTask async_task(debugger_hooks(), (*iter)->task());
     (*iter)->HandleEvent(event);
   }
 
@@ -274,7 +274,7 @@ void EventTarget::AddEventListenerInternal(
     for (EventListenerInfos::iterator iter = event_listener_infos_.begin();
          iter != event_listener_infos_.end(); ++iter) {
       if ((*iter)->is_attribute() && (*iter)->type() == listener_info->type()) {
-        debugger_hooks_.AsyncTaskCanceled((*iter)->task());
+        debugger_hooks().AsyncTaskCanceled((*iter)->task());
         event_listener_infos_.erase(iter);
         break;
       }
@@ -294,7 +294,7 @@ void EventTarget::AddEventListenerInternal(
     }
   }
 
-  debugger_hooks_.AsyncTaskScheduled(
+  debugger_hooks().AsyncTaskScheduled(
       listener_info->task(), listener_info->type().c_str(),
       base::DebuggerHooks::AsyncTaskFrequency::kRecurring);
   event_listener_infos_.push_back(std::move(listener_info));
