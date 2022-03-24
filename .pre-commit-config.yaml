@@ -117,7 +117,7 @@ repos:
         name: check if starboard interface changed
         entry: python ./precommit_hooks/warn_that_starboard_interface_changed_wrapper.py
         language: python
-        files: '^starboard/*.h$'
+        files: '^starboard/.*\.h$'
         stages: [push]
     -   id: download-resources
         name: download resources
