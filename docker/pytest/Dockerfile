@@ -14,8 +14,9 @@
 
 FROM cobalt-base
 
-RUN pip3 install "pytest<8" "coverage<7"
+COPY requirements.txt /opt/requirements.txt
+RUN pip3 install -r /opt/requirements.txt
 
 WORKDIR /code
 
-CMD pip3 install -r requirements.txt && pytest
+CMD pytest
