@@ -57,7 +57,7 @@ services:
     build:
       context: ./docker/pytest
       dockerfile: Dockerfile
-    image: pytest
+    image: cobalt-build-pytest
     volumes:
     - ${COBALT_SRC:-.}:/code/
     depends_on:
