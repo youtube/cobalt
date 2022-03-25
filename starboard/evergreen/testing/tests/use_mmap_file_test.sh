@@ -23,6 +23,11 @@ TEST_NAME="UseMemoryMappedFile"
 TEST_FILE="test.html"
 
 function run_test() {
+  if [[ "${PLATFORM}" == "raspi" ]]; then
+    echo " MemoryMappedFile extension not implemented for raspi, skipping"
+    return 2
+  fi
+
   clear_storage
 
   cycle_cobalt "file:///tests/${TEST_FILE}?channel=test" "${TEST_NAME}.2.log" "Using memory mapped file for the program header" "--loader_use_mmap_file"

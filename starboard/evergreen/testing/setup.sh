@@ -32,11 +32,11 @@ if [[ -z ${1} ]]; then
 fi
 
 PLATFORMS=("linux" "raspi")
-
 if [[ ! "${PLATFORMS[@]}" =~ "${1}" ]] && [[ ! -d "${DIR}/${1}" ]]; then
   log "error" "The platform provided must be one of the following: ${PLATFORMS[*]}"
   exit 1
 fi
+PLATFORM="${1}"
 
 # List of all required scripts.
 SCRIPTS=("${DIR}/shared/app_key.sh"           \
@@ -48,17 +48,17 @@ SCRIPTS=("${DIR}/shared/app_key.sh"           \
 
          # Each of the following scripts must be provided for the targeted
          # platform. The script 'setup.sh' must be source'd first.
-         "${DIR}/${1}/setup.sh"               \
+         "${DIR}/${PLATFORM}/setup.sh"               \
 
-         "${DIR}/${1}/clean_up.sh"            \
-         "${DIR}/${1}/clear_storage.sh"       \
-         "${DIR}/${1}/create_file.sh"         \
-         "${DIR}/${1}/delete_file.sh"         \
-         "${DIR}/${1}/deploy_cobalt.sh"       \
-         "${DIR}/${1}/run_command.sh"         \
-         "${DIR}/${1}/start_cobalt.sh"        \
-         "${DIR}/${1}/stop_cobalt.sh"         \
-         "${DIR}/${1}/stop_process.sh")
+         "${DIR}/${PLATFORM}/clean_up.sh"            \
+         "${DIR}/${PLATFORM}/clear_storage.sh"       \
+         "${DIR}/${PLATFORM}/create_file.sh"         \
+         "${DIR}/${PLATFORM}/delete_file.sh"         \
+         "${DIR}/${PLATFORM}/deploy_cobalt.sh"       \
+         "${DIR}/${PLATFORM}/run_command.sh"         \
+         "${DIR}/${PLATFORM}/start_cobalt.sh"        \
+         "${DIR}/${PLATFORM}/stop_cobalt.sh"         \
+         "${DIR}/${PLATFORM}/stop_process.sh")
 
 for script in "${SCRIPTS[@]}"; do
   if [[ ! -f "${script}" ]]; then
@@ -66,5 +66,5 @@ for script in "${SCRIPTS[@]}"; do
     exit 1
   fi
 
-  source $script "${DIR}/${1}"
+  source $script "${DIR}/${PLATFORM}"
 done
