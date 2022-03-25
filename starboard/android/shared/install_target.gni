@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//starboard/android/apk/apk_sources.gni")
 import("//starboard/android/shared/toolchain/toolchain.gni")
 import("//starboard/build/config/install.gni")
 
@@ -24,10 +25,7 @@ template("install_target") {
     forward_variables_from(invoker, [ "testonly" ])
 
     deps = invoker.deps
-    deps += [
-      ":$installable_target_name",
-      "//starboard/android/apk:apk_sources",
-    ]
+    deps += [ ":$installable_target_name" ]
 
     target_output = "$root_out_dir/lib${installable_target_name}.so"
     gradle_content_dir = "$sb_install_output_dir/$installable_target_name/$sb_install_content_subdir"
@@ -38,10 +36,13 @@ template("install_target") {
       gradle_build_type = build_type
     }
 
+    bash_script = "//starboard/android/apk/cobalt-gradle.sh"
+
     sources = [
-      "$root_out_dir/gradle/apk_sources.stamp",
+      bash_script,
       target_output,
     ]
+    sources += apk_sources
 
     outputs = [ "$root_out_dir/${installable_target_name}.apk" ]
 
@@ -53,10 +54,8 @@ template("install_target") {
     cobalt_library_dir = rebase_path(root_out_dir)
 
     script = "//starboard/build/run_bash.py"
-    bash_script =
-        rebase_path("//starboard/android/apk/cobalt-gradle.sh", root_build_dir)
     args = [
-      bash_script,
+      rebase_path(bash_script, root_build_dir),
       "--sdk",
       android_sdk_path,
       "--cache",
