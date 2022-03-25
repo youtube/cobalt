@@ -153,7 +153,7 @@ repos:
         description: Run Python 2 unittests
         entry: python precommit_hooks/run_python2_unittests.py
         language: python
-        language_version: python2
+        language_version: python2.7
         additional_dependencies: ['mock']
         types: [python]
     -   id: osslint
