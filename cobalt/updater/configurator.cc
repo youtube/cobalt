@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "base/version.h"
+#include "cobalt/browser/switches.h"
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/updater/network_fetcher.h"
 #include "cobalt/updater/patcher.h"
