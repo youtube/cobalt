@@ -628,7 +628,8 @@ void RenderSinglePlaneImage(SinglePlaneImage* single_plane_image,
 #ifdef USE_SKIA_NEXT
       draw_state->render_target->drawImageRect(
           image.get(), src, CobaltRectFToSkiaRect(destination_rect),
-          SkSamplingOptions(), &paint, SkCanvas::kStrict_SrcRectConstraint);
+          SkSamplingOptions(SkFilterMode::kLinear, SkMipmapMode::kNone), &paint,
+          SkCanvas::kStrict_SrcRectConstraint);
 #else
       draw_state->render_target->drawImageRect(
           image, src, CobaltRectFToSkiaRect(destination_rect), &paint);
@@ -644,9 +645,10 @@ void RenderSinglePlaneImage(SinglePlaneImage* single_plane_image,
 
     if (image) {
 #ifdef USE_SKIA_NEXT
-      sk_sp<SkShader> image_shader =
-          image->makeShader(SkTileMode::kRepeat, SkTileMode::kRepeat,
-                            SkSamplingOptions(), &skia_local_transform);
+      sk_sp<SkShader> image_shader = image->makeShader(
+          SkTileMode::kRepeat, SkTileMode::kRepeat,
+          SkSamplingOptions(SkFilterMode::kLinear, SkMipmapMode::kNone),
+          &skia_local_transform);
 #else
       sk_sp<SkShader> image_shader = image->makeShader(
           SkTileMode::kRepeat, SkTileMode::kRepeat, &skia_local_transform);

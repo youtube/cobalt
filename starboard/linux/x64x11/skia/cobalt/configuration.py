@@ -29,6 +29,13 @@ class CobaltLinuxX64X11SkiaConfiguration(
 
   # A map of failing or crashing tests per target.
   __FILTERED_TESTS = {  # pylint: disable=invalid-name
-      # Tracked by b/181270083
-      'renderer_test': ['PixelTest.RectWithRoundedCornersOnSolidColor',],
+      # Tracked by b/181270083, b/226999079.
+      'renderer_test': [
+          'PixelTest.RectWithRoundedCornersOnSolidColor',
+          'LottieCoveragePixelTest*skottie_linear_wipe_effect_json',
+          'LottieCoveragePixelTest*skottie_matte_blendmode_json',
+          'LottieCoveragePixelTest*skottie_shift_channels_effect_json',
+          'LottieCoveragePixelTest*skottie_3d_2planes_json',
+          'LottieCoveragePixelTest*skottie_venetianblinds_effect_json',
+      ],
   }
