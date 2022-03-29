@@ -18,6 +18,7 @@
 #include <android/looper.h>
 #include <android/native_window.h>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "starboard/android/shared/input_events_generator.h"
@@ -148,6 +149,11 @@ class ApplicationAndroid
   bool last_is_accessibility_high_contrast_text_enabled_;
 
   jobject resource_overlay_;
+
+  Mutex overlay_mutex_;
+  std::unordered_map<std::string, bool> overlayed_bool_variables_;
+  std::unordered_map<std::string, int> overlayed_int_variables_;
+  std::unordered_map<std::string, std::string> overlayed_string_variables_;
 
   // Methods to process pipes attached to the Looper.
   void ProcessAndroidCommand();
