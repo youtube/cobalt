@@ -793,7 +793,7 @@ WebModule::Impl::~Impl() {
 void WebModule::Impl::InjectInputEvent(scoped_refptr<dom::Element> element,
                                        const scoped_refptr<dom::Event>& event) {
   TRACE_EVENT1("cobalt::browser", "WebModule::Impl::InjectInputEvent()",
-               "event", event->type().c_str());
+               "event", TRACE_STR_COPY(event->type().c_str()));
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(is_running_);
   DCHECK(window_);
@@ -1425,7 +1425,7 @@ void WebModule::InjectOnScreenKeyboardInputEvent(
     base::Token type, const dom::InputEventInit& event) {
   TRACE_EVENT1("cobalt::browser",
                "WebModule::InjectOnScreenKeyboardInputEvent()", "type",
-               type.c_str());
+               TRACE_STR_COPY(type.c_str()));
   POST_TO_ENSURE_IMPL_ON_THREAD(InjectOnScreenKeyboardInputEvent, type, event);
   impl_->InjectOnScreenKeyboardInputEvent(type, event);
 }
@@ -1476,7 +1476,7 @@ void WebModule::InjectOnScreenKeyboardSuggestionsUpdatedEvent(int ticket) {
 void WebModule::InjectKeyboardEvent(base::Token type,
                                     const dom::KeyboardEventInit& event) {
   TRACE_EVENT1("cobalt::browser", "WebModule::InjectKeyboardEvent()", "type",
-               type.c_str());
+               TRACE_STR_COPY(type.c_str()));
   POST_TO_ENSURE_IMPL_ON_THREAD(InjectKeyboardEvent, type, event);
   impl_->InjectKeyboardEvent(type, event);
 }
@@ -1484,7 +1484,7 @@ void WebModule::InjectKeyboardEvent(base::Token type,
 void WebModule::InjectPointerEvent(base::Token type,
                                    const dom::PointerEventInit& event) {
   TRACE_EVENT1("cobalt::browser", "WebModule::InjectPointerEvent()", "type",
-               type.c_str());
+               TRACE_STR_COPY(type.c_str()));
   POST_TO_ENSURE_IMPL_ON_THREAD(InjectPointerEvent, type, event);
   impl_->InjectPointerEvent(type, event);
 }
@@ -1492,7 +1492,7 @@ void WebModule::InjectPointerEvent(base::Token type,
 void WebModule::InjectWheelEvent(base::Token type,
                                  const dom::WheelEventInit& event) {
   TRACE_EVENT1("cobalt::browser", "WebModule::InjectWheelEvent()", "type",
-               type.c_str());
+               TRACE_STR_COPY(type.c_str()));
   POST_TO_ENSURE_IMPL_ON_THREAD(InjectWheelEvent, type, event);
   impl_->InjectWheelEvent(type, event);
 }
