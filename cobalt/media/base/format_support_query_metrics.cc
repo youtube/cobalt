@@ -25,22 +25,13 @@ namespace media {
 
 #if !defined(COBALT_BUILD_TYPE_GOLD)
 
-// static
-SbTimeMonotonic FormatSupportQueryMetrics::cached_query_durations_[] = {0};
-char FormatSupportQueryMetrics::max_query_description_[] = {};
-SbTimeMonotonic FormatSupportQueryMetrics::max_query_duration_ = 0;
-SbTimeMonotonic FormatSupportQueryMetrics::total_query_duration_ = 0;
-int FormatSupportQueryMetrics::total_num_queries_ = 0;
+namespace {
 
-FormatSupportQueryMetrics::FormatSupportQueryMetrics() {
-  query_start_time_ = SbTimeGetMonotonicNow();
-}
-
-
-void FormatSupportQueryMetrics::RecordQuery(const char* query_name,
-                                            const std::string& mime_type,
-                                            const std::string& key_system,
-                                            SbMediaSupportType support_type) {
+std::string CreateQueryDescription(const char* query_name,
+                                   const std::string& mime_type,
+                                   const std::string& key_system,
+                                   SbMediaSupportType support_type,
+                                   SbTimeMonotonic query_duration) {
   auto get_support_type_str = [](SbMediaSupportType support_type) {
     switch (support_type) {
       case kSbMediaSupportTypeNotSupported:
@@ -55,28 +46,52 @@ void FormatSupportQueryMetrics::RecordQuery(const char* query_name,
     }
   };
 
-  SbTimeMonotonic duration = SbTimeGetMonotonicNow() - query_start_time_;
-  total_query_duration_ += duration;
-
-  std::string query_description = starboard::FormatString(
-      "%s(%s%s%s, %" PRId64 " μs", query_name, mime_type.c_str(),
+  return starboard::FormatString(
+      "%s(%s%s%s, %" PRId64 " us", query_name, mime_type.c_str(),
       (key_system.empty() ? ")" : ", " + key_system + ")").c_str(),
-      get_support_type_str(support_type), duration);
+      get_support_type_str(support_type), query_duration);
+}
+
+}  // namespace
+
+// static
+SbTimeMonotonic FormatSupportQueryMetrics::cached_query_durations_
+    [kMaxCachedQueryDurations] = {};
+char FormatSupportQueryMetrics::max_query_description_
+    [kMaxQueryDescriptionLength] = {};
+SbTimeMonotonic FormatSupportQueryMetrics::max_query_duration_ = 0;
+SbTimeMonotonic FormatSupportQueryMetrics::total_query_duration_ = 0;
+int FormatSupportQueryMetrics::total_num_queries_ = 0;
+
+FormatSupportQueryMetrics::FormatSupportQueryMetrics() {
+  start_time_ = SbTimeGetMonotonicNow();
+}
+
+void FormatSupportQueryMetrics::RecordAndLogQuery(
+    const char* query_name, const std::string& mime_type,
+    const std::string& key_system, SbMediaSupportType support_type) {
+  SbTimeMonotonic query_duration = SbTimeGetMonotonicNow() - start_time_;
+  total_query_duration_ += query_duration;
+
+  std::string query_description = CreateQueryDescription(
+      query_name, mime_type, key_system, support_type, query_duration);
   LOG(INFO) << query_description;
 
   if (total_num_queries_ < SB_ARRAY_SIZE_INT(cached_query_durations_)) {
-    cached_query_durations_[total_num_queries_] = duration;
+    cached_query_durations_[total_num_queries_] = query_duration;
   }
-  ++total_num_queries_;
-  if (duration > max_query_duration_) {
-    max_query_duration_ = duration;
+
+  if (query_duration > max_query_duration_) {
+    max_query_duration_ = query_duration;
     base::strlcpy(max_query_description_, query_description.c_str(),
                   SB_ARRAY_SIZE_INT(max_query_description_));
   }
+
+  ++total_num_queries_;
 }
 
 // static
-void FormatSupportQueryMetrics::PrintAndResetFormatSupportQueryMetrics() {
+void FormatSupportQueryMetrics::PrintAndResetMetrics() {
   if (total_num_queries_ == 0) {
     LOG(INFO) << "Format support query metrics:\n\tNumber of queries: 0";
     return;
@@ -96,10 +111,10 @@ void FormatSupportQueryMetrics::PrintAndResetFormatSupportQueryMetrics() {
   LOG(INFO) << "Format support query metrics:\n\tNumber of queries: "
             << total_num_queries_
             << "\n\tTotal query time: " << total_query_duration_
-            << " μs\n\tAverage query time: "
+            << " us\n\tAverage query time: "
             << total_query_duration_ / total_num_queries_
-            << " μs\n\tMedian query time: ~" << get_median()
-            << " μs\n\tLongest query: " << max_query_description_;
+            << " us\n\tMedian query time: ~" << get_median()
+            << " us\n\tLongest query: " << max_query_description_;
 
   max_query_description_[0] = 0;
   max_query_duration_ = 0;

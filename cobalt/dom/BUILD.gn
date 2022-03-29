@@ -269,6 +269,8 @@ static_library("dom") {
     "source_buffer.h",
     "source_buffer_list.cc",
     "source_buffer_list.h",
+    "source_buffer_metrics.cc",
+    "source_buffer_metrics.h",
     "storage.cc",
     "storage.h",
     "storage_area.cc",
