@@ -16,5 +16,5 @@
 -->
 
 <resources xmlns:tools="http://schemas.android.com/tools">
-  <integer name="increase_audio_buffer_size" tools:ignore="DuplicateDefinition">256</integer>
+  <bool name="supportSphericalVideo" tools:ignore="DuplicateDefinition">true</bool>
 </resources>

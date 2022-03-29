@@ -117,7 +117,6 @@ ApplicationAndroid::ApplicationAndroid(ALooper* looper)
   ALooper_addFd(looper_, keyboard_inject_readfd_, kLooperIdKeyboardInject,
                 ALOOPER_EVENT_INPUT, NULL, NULL);
 
-  // Load and cache the RRO variables.
   JniEnvExt* env = JniEnvExt::Get();
   jobject local_ref = env->CallStarboardObjectMethodOrAbort(
       "getResourceOverlay", "()Ldev/cobalt/coat/ResourceOverlay;");
@@ -694,21 +693,40 @@ Java_dev_cobalt_coat_CobaltSystemConfigChangeReceiver_nativeDateTimeConfiguratio
 }
 
 int ApplicationAndroid::GetOverlayedIntValue(const char* var_name) {
+  ScopedLock lock(overlay_mutex_);
+  if (overlayed_int_variables_.find(var_name) !=
+      overlayed_int_variables_.end()) {
+    return overlayed_int_variables_[var_name];
+  }
   JniEnvExt* env = JniEnvExt::Get();
   jint value = env->GetIntFieldOrAbort(resource_overlay_, var_name, "I");
+  overlayed_int_variables_[var_name] = value;
   return value;
 }
 
 std::string ApplicationAndroid::GetOverlayedStringValue(const char* var_name) {
+  ScopedLock lock(overlay_mutex_);
+  if (overlayed_string_variables_.find(var_name) !=
+      overlayed_string_variables_.end()) {
+    return overlayed_string_variables_[var_name];
+  }
   JniEnvExt* env = JniEnvExt::Get();
-  jstring value = env->GetStringFieldOrAbort(resource_overlay_, var_name);
-  return env->GetStringStandardUTFOrAbort(value);
+  std::string value = env->GetStringStandardUTFOrAbort(
+      env->GetStringFieldOrAbort(resource_overlay_, var_name));
+  overlayed_string_variables_[var_name] = value;
+  return value;
 }
 
 bool ApplicationAndroid::GetOverlayedBoolValue(const char* var_name) {
+  ScopedLock lock(overlay_mutex_);
+  if (overlayed_bool_variables_.find(var_name) !=
+      overlayed_bool_variables_.end()) {
+    return overlayed_bool_variables_[var_name];
+  }
   JniEnvExt* env = JniEnvExt::Get();
   jboolean value =
       env->GetBooleanFieldOrAbort(resource_overlay_, var_name, "Z");
+  overlayed_bool_variables_[var_name] = value;
   return value;
 }
 

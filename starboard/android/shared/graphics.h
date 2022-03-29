@@ -12,20 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package dev.cobalt.coat;
+#ifndef STARBOARD_ANDROID_SHARED_GRAPHICS_H_
+#define STARBOARD_ANDROID_SHARED_GRAPHICS_H_
 
-import android.content.Context;
-import dev.cobalt.util.UsedByNative;
+namespace starboard {
+namespace android {
+namespace shared {
 
-/**
- * A class for managing the resource overlays of Cobalt. Client can turn on certain feature by
- * setting the resource overlay.
- */
-public class ResourceOverlay {
-  @UsedByNative public final boolean supportSphericalVideo;
+const void* GetGraphicsApi();
 
-  public ResourceOverlay(Context context) {
-    // Load the values for all Overlay variables.
-    this.supportSphericalVideo = context.getResources().getBoolean(R.bool.supportSphericalVideo);
-  }
-}
+}  // namespace shared
+}  // namespace android
+}  // namespace starboard
+
+#endif  // STARBOARD_ANDROID_SHARED_GRAPHICS_H_
