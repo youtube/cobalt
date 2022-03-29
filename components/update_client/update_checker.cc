@@ -21,7 +21,6 @@
 #include "base/task/post_task.h"
 #include "base/threading/thread_checker.h"
 #if defined(STARBOARD)
-#include "base/threading/thread_id_name_manager.h"
 #include "cobalt/extension/free_space.h"
 #endif
 #include "base/threading/thread_task_runner_handle.h"
@@ -168,8 +167,7 @@ void UpdateCheckerImpl::CheckForUpdates(
 // This function runs on the blocking pool task runner.
 void UpdateCheckerImpl::ReadUpdaterStateAttributes() {
 #if defined(STARBOARD)
-  LOG(INFO) << "UpdateCheckerImpl::ReadUpdaterStateAttributes current_thread="
-    << base::ThreadIdNameManager::GetInstance()->GetNameForCurrentThread();
+  LOG(INFO) << "UpdateCheckerImpl::ReadUpdaterStateAttributes";
 #endif
 
 #if defined(OS_WIN)

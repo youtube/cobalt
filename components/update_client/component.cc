@@ -15,9 +15,6 @@
 #include "base/single_thread_task_runner.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/task/post_task.h"
-#if defined(STARBOARD)
-#include "base/threading/thread_id_name_manager.h"
-#endif
 #include "base/threading/thread_task_runner_handle.h"
 #include "base/values.h"
 #include "components/update_client/action_runner.h"
@@ -85,8 +82,7 @@ void InstallComplete(
     const base::FilePath& unpack_path,
     const CrxInstaller::Result& result) {
 #if defined(STARBOARD)
-    LOG(INFO) << "InstallComplete thread_name="
-              << base::ThreadIdNameManager::GetInstance()->GetNameForCurrentThread();
+    LOG(INFO) << "InstallComplete";
 #endif
   base::PostTaskWithTraits(
       FROM_HERE, {base::TaskPriority::BEST_EFFORT, base::MayBlock()},
@@ -96,8 +92,7 @@ void InstallComplete(
              const base::FilePath& unpack_path,
              const CrxInstaller::Result& result) {
 #if defined(STARBOARD)
-            LOG(INFO) << "Closure kicked off from InstallComplete thread_name="
-              << base::ThreadIdNameManager::GetInstance()->GetNameForCurrentThread();
+            LOG(INFO) << "Closure kicked off from InstallComplete";
 #endif
 // For Cobalt, don't delete the unpack_path, which is not a temp directory.
 // Cobalt uses a dedicated installation slot obtained from the Installation
@@ -131,8 +126,7 @@ void InstallOnBlockingTaskRunner(
   DCHECK(base::DirectoryExists(unpack_path));
 
 #if defined(STARBOARD)
-  LOG(INFO) << "InstallOnBlockingTaskRunner thread_name="
-              << base::ThreadIdNameManager::GetInstance()->GetNameForCurrentThread();
+  LOG(INFO) << "InstallOnBlockingTaskRunner";
 #endif
 
 #if !defined(STARBOARD)
@@ -214,8 +208,7 @@ void UnpackCompleteOnBlockingTaskRunner(
     InstallOnBlockingTaskRunnerCompleteCallback callback,
     const ComponentUnpacker::Result& result) {
 #if defined(STARBOARD)
-  LOG(INFO) << "UnpackCompleteOnBlockingTaskRunner thread_name="
-              << base::ThreadIdNameManager::GetInstance()->GetNameForCurrentThread();
+  LOG(INFO) << "UnpackCompleteOnBlockingTaskRunner";
   base::DeleteFile(crx_path, false);
 #else
   update_client::DeleteFileAndEmptyParentDirectory(crx_path);
@@ -273,8 +266,7 @@ void StartInstallOnBlockingTaskRunner(
     crx_file::VerifierFormat crx_format,
     InstallOnBlockingTaskRunnerCompleteCallback callback) {
 #if defined(STARBOARD)
-  LOG(INFO) << "StartInstallOnBlockingTaskRunner thread_name="
-              << base::ThreadIdNameManager::GetInstance()->GetNameForCurrentThread();
+  LOG(INFO) << "StartInstallOnBlockingTaskRunner";
 #endif
   auto unpacker = base::MakeRefCounted<ComponentUnpacker>(
       pk_hash, crx_path, installer, std::move(unzipper_), std::move(patcher_),
@@ -1042,8 +1034,7 @@ Component::StateUpdating::~StateUpdating() {
 
 void Component::StateUpdating::DoHandle() {
 #if defined(STARBOARD)
-  LOG(INFO) << "Component::StateUpdating::DoHandle() thread_name="
-              << base::ThreadIdNameManager::GetInstance()->GetNameForCurrentThread();
+  LOG(INFO) << "Component::StateUpdating::DoHandle()";
 #endif
   DCHECK(thread_checker_.CalledOnValidThread());
 
