@@ -526,7 +526,7 @@ void StarboardPlayer::CreateUrlPlayer(const std::string& url) {
   LOG(INFO) << "CreateUrlPlayer passed url " << url;
 
   if (max_video_capabilities_.empty()) {
-    FormatSupportQueryMetrics::PrintAndResetFormatSupportQueryMetrics();
+    FormatSupportQueryMetrics::PrintAndResetMetrics();
   }
 
   player_creation_time_ = SbTimeGetMonotonicNow();
@@ -570,7 +570,7 @@ void StarboardPlayer::CreatePlayer() {
   is_creating_player_ = true;
 
   if (max_video_capabilities_.empty()) {
-    FormatSupportQueryMetrics::PrintAndResetFormatSupportQueryMetrics();
+    FormatSupportQueryMetrics::PrintAndResetMetrics();
   }
 
   player_creation_time_ = SbTimeGetMonotonicNow();

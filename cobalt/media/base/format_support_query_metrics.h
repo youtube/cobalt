@@ -29,10 +29,11 @@ class FormatSupportQueryMetrics {
  public:
   FormatSupportQueryMetrics() = default;
   ~FormatSupportQueryMetrics() = default;
-  void RecordQuery(const char* query_name, const std::string& mime_type,
-                   const std::string& key_system,
-                   SbMediaSupportType support_type) {}
-  static void PrintAndResetFormatSupportQueryMetrics() {}
+
+  void RecordAndLogQuery(const char* query_name, const std::string& mime_type,
+                         const std::string& key_system,
+                         SbMediaSupportType support_type) {}
+  static void PrintAndResetMetrics() {}
 };
 
 #else  // defined(COBALT_BUILD_TYPE_GOLD)
@@ -40,13 +41,12 @@ class FormatSupportQueryMetrics {
 class FormatSupportQueryMetrics {
  public:
   FormatSupportQueryMetrics();
-  ~FormatSupportQueryMetrics() {}
+  ~FormatSupportQueryMetrics() = default;
 
-  void RecordQuery(const char* query_name, const std::string& mime_type,
-                   const std::string& key_system,
-                   SbMediaSupportType support_type);
-
-  static void PrintAndResetFormatSupportQueryMetrics();
+  void RecordAndLogQuery(const char* query_name, const std::string& mime_type,
+                         const std::string& key_system,
+                         SbMediaSupportType support_type);
+  static void PrintAndResetMetrics();
 
  private:
   static constexpr int kMaxCachedQueryDurations = 150;
@@ -58,7 +58,7 @@ class FormatSupportQueryMetrics {
   static SbTimeMonotonic total_query_duration_;
   static int total_num_queries_;
 
-  SbTimeMonotonic query_start_time_ = 0;
+  SbTimeMonotonic start_time_ = 0;
 };
 
 #endif  // defined(COBALT_BUILD_TYPE_GOLD)
