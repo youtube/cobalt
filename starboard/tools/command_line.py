@@ -16,10 +16,10 @@
 """Adds common command-line arguments to a provided argument parser."""
 
 import argparse
+from starboard.build.platforms import PLATFORMS
 from starboard.tools import build
 from starboard.tools import params
 import starboard.tools.config
-import starboard.tools.starboard_platform
 
 
 def AddLoggingArguments(arg_parser, default='info'):
@@ -45,7 +45,7 @@ def AddPlatformConfigArguments(arg_parser):
   arg_parser.add_argument(
       '-p',
       '--platform',
-      choices=starboard.tools.starboard_platform.GetAll(),
+      choices=list(PLATFORMS.keys()),
       default=default_platform,
       required=not default_platform,
       help="Device platform, eg 'linux-x64x11'. Requires that you have "

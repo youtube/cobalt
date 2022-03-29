@@ -25,7 +25,6 @@ from starboard.sabi import sabi
 from starboard.tools import cache
 from starboard.tools import environment
 from starboard.tools import paths
-from starboard.tools import starboard_platform
 from starboard.tools.config import Config
 
 
@@ -171,22 +170,6 @@ class PlatformConfiguration(object):
       build_number: The number identifying this build, generated at GYP time.
     """
     pass
-
-  def GetIncludes(self):
-    """Get a list of absolute paths to gypi files to include in order.
-
-    These files will be included by GYP before any processed .gyp file. The
-    application may add more gypi files to be processed before or after the
-    files specified by this function.
-
-    Returns:
-      An ordered list containing absolute paths to .gypi files.
-    """
-    platform_info = starboard_platform.Get(self.GetName())
-    if not platform_info:
-      return []
-
-    return [os.path.join(platform_info.path, 'gyp_configuration.gypi')]
 
   def GetEnvironmentVariables(self):
     """Get a Mapping of environment variable overrides.

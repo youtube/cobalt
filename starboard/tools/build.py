@@ -21,9 +21,9 @@ import logging
 import os
 import sys
 
+from starboard.build.platforms import PLATFORMS
 from starboard.tools import config
 from starboard.tools import paths
-from starboard.tools import starboard_platform
 from starboard.tools import download_clang
 
 _STARBOARD_TOOLCHAINS_DIR_KEY = 'STARBOARD_TOOLCHAINS_DIR'
@@ -56,12 +56,12 @@ def _CheckConfig(key, raw_value, value):
 
 
 def _CheckPlatform(key, raw_value, value):
-  if starboard_platform.IsValid(value):
+  if value in PLATFORMS:
     return True
 
   logging.warning("Environment variable '%s' is '%s', which is invalid.", key,
                   raw_value)
-  logging.warning('Valid platforms: %s', starboard_platform.GetAll())
+  logging.warning('Valid platforms: %s', list(PLATFORMS.keys()))
   return False
 
 
@@ -215,9 +215,9 @@ def _LoadPlatformModule(platform_name, file_name, function_name):
   """
   try:
     logging.debug('Loading platform %s for "%s".', file_name, platform_name)
-    if starboard_platform.IsValid(platform_name):
+    if platform_name in PLATFORMS:
       platform_path = os.path.join(paths.REPOSITORY_ROOT,
-                                   starboard_platform.Get(platform_name).path)
+                                   PLATFORMS[platform_name])
       module_path = os.path.join(platform_path, file_name)
       if not _ModuleLoaded('platform_module', module_path):
         platform_module = imp.load_source('platform_module', module_path)

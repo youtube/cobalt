@@ -26,8 +26,8 @@ import os
 import re
 import sys
 
+from starboard.build.platforms import PLATFORMS
 from starboard.tools import paths
-from starboard.tools import starboard_platform
 
 
 # Sometimes files have weird encodings. This function will use a variety of
@@ -120,13 +120,17 @@ def FindConfigIncludefile(platform_path_config_file):
 def GeneratePlatformPathMap():
   """Return a map of platform-name -> full-path-to-platform-config-header."""
 
-  def GenPath(p):
-    full_path = os.path.abspath(os.path.join(p.path, 'configuration_public.h'))
+  def GenPath(platform_path):
+    full_path = os.path.abspath(
+        os.path.join(platform_path, 'configuration_public.h'))
     if not os.path.exists(full_path):
       raise IOError('Could not find path ' + full_path)
     return full_path
 
-  return {p.name: GenPath(p) for p in starboard_platform.GetAllInfos()}
+  return {
+      platform_name: GenPath(platform_path)
+      for platform_name, platform_path in PLATFORMS.items()
+  }
 
 
 # Given the root starboard directory, and the full path to the platform,

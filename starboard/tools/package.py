@@ -21,7 +21,7 @@ import logging
 import os
 
 import starboard
-from starboard.tools import starboard_platform
+from starboard.build.platforms import PLATFORMS
 
 
 def _ImportModule(path, root_module, module_name=None):
@@ -54,16 +54,15 @@ def _ImportModule(path, root_module, module_name=None):
   return importlib.import_module(full_package_name)
 
 
-def _GetPackageClass(platform_info):
+def _GetPackageClass(platform_name, platform_path):
   """
-  Loads the package class associated with the given
-  starboard_platform.PlatformInfo.
+  Loads the package class associated with the given platform.
   """
   try:
-    module = _ImportModule(platform_info.path, starboard)
+    module = _ImportModule(platform_path, starboard)
   except ImportError as e:
     logging.debug('Failed to import module for platform %s with error: %s',
-                  platform_info.name, e)
+                  platform_name, e)
     return None
 
   if not hasattr(module, 'Package'):
@@ -79,11 +78,10 @@ def _GetPlatformInfosDict():
     A dict of [platform_name, Class] where Class inherits from PackageBase
   """
   packager_modules = {}
-  for platform_name in starboard_platform.GetAll():
-    platform_info = starboard_platform.Get(platform_name)
+  for platform_name, platform_path in PLATFORMS.items():
     # From the relative path to the starboard directory, construct a full
     # python package name and attempt to load it.
-    package_class = _GetPackageClass(platform_info)
+    package_class = _GetPackageClass(platform_name, platform_path)
     if not package_class:
       continue
     # Populate a mapping from platform name to the module containing the
@@ -94,13 +92,13 @@ def _GetPlatformInfosDict():
           logging.warning('Packager for %s is defined in multiple modules.',
                           supported_name)
         else:
-          packager_modules[supported_name] = platform_info
+          packager_modules[supported_name] = platform_path
     except Exception as e:  # pylint: disable=broad-except
       # Catch all exceptions to avoid an error in one platform's Packager
       # halting the script for other platforms' packagers.
       logging.warning(
           'Exception iterating supported platform for platform '
-          '%s: %s.', platform_info.name, e)
+          '%s: %s.', platform_name, e)
 
   return packager_modules
 
@@ -174,9 +172,9 @@ class Packager(object):
 
   def GetApplicationPackageInfo(self, platform_name, application_name):
     """Get application-specific packaging information."""
-    platform_info = self.GetPlatformInfo(platform_name)
+    platform_path = self.GetPlatformInfo(platform_name)
     try:
-      return _ImportModule(platform_info.path, starboard,
+      return _ImportModule(platform_path, starboard,
                            '%s.package' % application_name)
     except ImportError as e:
       # No package parameters specified for this platform.
@@ -195,13 +193,16 @@ class Packager(object):
     Returns:
       A PackageBase instance.
     """
-    package_class = _GetPackageClass(self.platform_infos[platform_name])
+    package_class = _GetPackageClass(platform_name,
+                                     self.platform_infos[platform_name])
     return package_class(source_dir=source_dir, output_dir=output_dir, **kwargs)
 
   def AddPlatformArguments(self, platform_name, argparser):
-    package_class = _GetPackageClass(self.platform_infos[platform_name])
+    package_class = _GetPackageClass(platform_name,
+                                     self.platform_infos[platform_name])
     package_class.AddArguments(argparser)
 
   def ExtractPlatformArguments(self, platform_name, options):
-    package_class = _GetPackageClass(self.platform_infos[platform_name])
+    package_class = _GetPackageClass(platform_name,
+                                     self.platform_infos[platform_name])
     return package_class.ExtractArguments(options)

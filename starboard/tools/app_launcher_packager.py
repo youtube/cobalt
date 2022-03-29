@@ -24,7 +24,6 @@ import fnmatch
 import logging
 import os
 import shutil
-import string
 import sys
 import tempfile
 
@@ -32,14 +31,12 @@ from starboard.tools import command_line
 from starboard.tools import log_level
 from starboard.tools import port_symlink
 from starboard.tools.paths import REPOSITORY_ROOT
-import starboard.tools.starboard_platform
 
 # Default directories to app launcher resources.
 _INCLUDE_FILE_PATTERNS = [
     ('cobalt', '*.py'),
     ('starboard', '*.py'),
     ('starboard', '*.pfx'),
-    ('starboard/tools', 'starboard_platform.py.template'),
     # Just match everything since the Evergreen tests are written using shell
     # scripts and html files.
     ('starboard/evergreen/testing', '*')
@@ -100,42 +97,6 @@ def _FindFilesRecursive(  # pylint: disable=missing-docstring
     for f in files:
       file_list.append(os.path.join(root, f))
   return file_list
-
-
-def _WritePlatformsInfo(repo_root, dest_root):
-  """
-  Get platforms' information and write the starboard_platform.py based on a
-  template.
-
-  Platform.py is responsible for enumerating all supported platforms in the
-  Cobalt source tree.  Since we are extracting the app launcher script from the
-  Cobalt source tree, this function records which platforms are supported while
-  the Cobalt source tree is still available and bakes them in to a newly created
-  starboard_platform.py file that does not depend on the Cobalt source tree.
-
-  Args:
-    repo_root: Absolute path to the root of the repository where platforms'
-      information is retrieved.
-    dest_root: Absolute path to the root of the new repository into which
-      platforms' information to be written.
-  """
-  logging.info('Baking platform info files.')
-  current_file = os.path.abspath(__file__)
-  current_dir = os.path.dirname(current_file)
-  dest_dir = os.path.join(dest_root, 'starboard', 'tools')
-  platforms_map = {}
-  for p in starboard.tools.starboard_platform.GetAll():
-    platform_path = os.path.relpath(
-        starboard.tools.starboard_platform.Get(p).path, repo_root)
-    # Store posix paths even on Windows so MH Linux hosts can use them.
-    # The template has code to re-normalize them when used on Windows hosts.
-    platforms_map[p] = platform_path.replace('\\', '/')
-  with open(os.path.join(current_dir, 'starboard_platform.py.template')) as c:
-    template = string.Template(c.read())
-    with open(os.path.join(dest_dir, 'starboard_platform.py'), 'wb') as f:
-      sub = template.substitute(platforms_map=platforms_map)
-      f.write(sub.encode('utf-8'))
-  logging.info('Finished baking in platform info files.')
 
 
 def CopyAppLauncherTools(repo_root,
@@ -213,8 +174,6 @@ def _CopyFiles(  # pylint: disable=missing-docstring
       folders_logged.add(src_folder)
       logging.info(src_folder + ' -> ' + os.path.dirname(dst))
     shutil.copy2(src, dst)
-  # Re-write the platform infos file in the new repo copy.
-  _WritePlatformsInfo(repo_root, dest_root)
 
 
 def MakeZipArchive(src, output_zip):

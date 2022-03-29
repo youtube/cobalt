@@ -20,12 +20,12 @@ import argparse
 import os
 import unittest
 
+from starboard.build.platforms import PLATFORMS
 from starboard.tools import command_line
 import starboard.tools.config
-import starboard.tools.starboard_platform
 
 _A_CONFIG = starboard.tools.config.GetAll()[0]
-_A_PLATFORM = starboard.tools.starboard_platform.GetAll()[0]
+_A_PLATFORM = list(PLATFORMS.keys())[0]
 
 
 def _RestoreMapping(target, source):
