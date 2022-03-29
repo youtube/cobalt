@@ -15,7 +15,6 @@
 #include "cobalt/dom/event_target.h"
 
 #include <memory>
-#include <utility>
 
 #include "base/bind.h"
 #include "base/bind_helpers.h"
@@ -90,9 +89,8 @@ bool EventTarget::DispatchEvent(const scoped_refptr<Event>& event) {
   DCHECK(event);
   DCHECK(!event->IsBeingDispatched());
   DCHECK(event->initialized_flag());
-  TRACE_EVENT2("cobalt::dom", "EventTarget::DispatchEvent", "name",
-               GetDebugName().c_str(), "event", event->type().c_str());
-
+  TRACE_EVENT1("cobalt::dom", "EventTarget::DispatchEvent", "event",
+               event->type().c_str());
   if (!event || event->IsBeingDispatched() || !event->initialized_flag()) {
     return false;
   }
