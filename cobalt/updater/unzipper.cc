@@ -94,7 +94,8 @@ class LZ4WriterDelegate : public zip::WriterDelegate {
     }
 
     LOG(INFO) << "LZ4WriterDelegate::WriteBytes: Writing "
-              << (unsigned)compressed_size << " bytes";
+              << (unsigned)compressed_size << " bytes "
+              << "(if zero, input data just buffered to LZ4 internal buffer)";
     if (compressed_size !=
         file_.WriteAtCurrentPos(out_buffer_.data(), compressed_size)) {
       LOG(ERROR) << "LZ4WriterDelegate::WriteBytes: failed to write "
