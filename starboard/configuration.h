@@ -168,9 +168,9 @@ struct CompileAssert {};
 
 // --- Platform Configuration ------------------------------------------------
 
-// Include the platform-specific configuration. This macro is set by GYP in
-// starboard_base_target.gypi and passed in on the command line for all targets
-// and all configurations.
+// Include the platform-specific configuration. This macro is set by GN in
+// starboard/build/config/BUILD.gn and passed in on the command line for all
+// targets and all configurations.
 #include STARBOARD_CONFIGURATION_INCLUDE
 
 #if SB_API_VERSION < 12

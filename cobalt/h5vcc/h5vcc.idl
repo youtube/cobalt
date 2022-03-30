@@ -27,7 +27,7 @@
 // during construction.
 
 // Note: every attribute defined here must have a corresponding interface idl
-// file included in browser_bindings_gen.gyp unconditionally, even if there is
+// file included in BUILD.gn unconditionally, even if there is
 // a condition before the declaration of the attribute.
 
 interface H5vcc {

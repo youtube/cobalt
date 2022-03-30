@@ -102,13 +102,13 @@ Required libraries can differ depending on your Linux distribution and version.
     directory. You must specify a platform when running this command. On Ubuntu
     Linux, the canonical platform is `linux-x64x11`.
 
-    You can also use the `-C` command-line flag to specify a `build_type`.
+    You can also use the `-c` command-line flag to specify a `build_type`.
     Valid build types are `debug`, `devel`, `qa`, and `gold`. If you
     specify a build type, the command finishes sooner. Otherwise, all types
     are built.
 
     ```
-    $ cobalt/build/gn.py [-C <build_type>] -p <platform>
+    $ python cobalt/build/gn.py [-c <build_type>] -p <platform>
     ```
 
 1.  Compile the code from the `cobalt/` directory:
@@ -125,10 +125,7 @@ Required libraries can differ depending on your Linux distribution and version.
         guide, it contains a `family name` (like `linux`) and a
         `binary variant` (like `x64x11`), separated by a hyphen.
     1.  `<build_type>` is the build you are compiling. Possible values are
-        `debug`, `devel`, `qa`, and `gold`. These values are also described in
-        the Starboard porting guide under the [required file modifications](
-        /starboard/porting.html#4-make-required-file-modifications) for the
-        `gyp_configuration.gypi` file.
+        `debug`, `devel`, `qa`, and `gold`.
     1.  `<target_name>` is the name assigned to the compiled code and it is
         used to run the code compiled in this step. The most common names are
         `cobalt`, `nplb`, and `all`:

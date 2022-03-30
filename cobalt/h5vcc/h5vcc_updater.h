@@ -14,7 +14,7 @@
 
 // Note: this header will be used to generate bindings for the H5vccUpdater
 // interface even on non-evergreen platforms where this header is not included
-// in the h5vcc.gyp file. But eventually the updater attribute/interface will
+// in the BUILD.gn file. But eventually the updater attribute/interface will
 // not be present in the window.H5vcc interface on non-evergreen platforms.
 
 #ifndef COBALT_H5VCC_H5VCC_UPDATER_H_

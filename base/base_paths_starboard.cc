@@ -58,7 +58,7 @@ bool PathProviderStarboard(int key, FilePath *result) {
                                      path.size());
       DCHECK(success);
       if (success) {
-        // Append "test" to match the output of copy_test_data.gypi
+        // Append "test" to match the output of the files copied during builds.
         *result = FilePath(path.data()).Append(FILE_PATH_LITERAL("test"));
         return true;
       }

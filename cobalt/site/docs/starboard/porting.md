@@ -103,11 +103,12 @@ Each `binary-variant` directory that you created in step 2 must contain
 the following files:
 
 *   `atomic_public.h`
+*   `BUILD.gn`
 *   `configuration_public.h`
-*   `gyp_configuration.gypi`
-*   `gyp_configuration.py`
-*   `starboard_platform.gyp`
 *   `thread_types_public.h`
+*   `platform_configuration/BUILD.gn`
+*   `platform_configuration/configuration.gni`
+*   `toolchain/BUILD.gn`
 
 We recommend that you copy the files from the Stub reference implementation,
 located at `starboard/stub/` to your `binary-variant` directories.
@@ -161,8 +162,8 @@ base class along with variant-specific subclasses.
 
 ### 4. Make required file modifications
 
-To port your code, you must make the following modifications to the files
-that you copied in step 3:
+To port your code, you must add your platform to `starboard/build/platforms.py`
+then make the following modifications to the files that you copied in step 3:
 
 
 1.  **`atomic_public.h`** - Ensure that this file points at the appropriate
@@ -172,136 +173,56 @@ that you copied in step 3:
     ../../reference/starboard/configuration-public.html) as appropriate for
     your platform.
 
-1.  **`gyp_configuration.py`**
-    1.  Modify the `CreatePlatformConfig()` function to return the platform
-        configuration that you defined in step 1. The example below shows that
-        function as it appears in the Stub implementation and the Desktop
-        Linux port:
+1.  **`thread_types_public.h`** - Ensure that this file points at the
+    appropriate shared or custom implementation.
 
-        <pre>
-        # Stub:
-        def CreatePlatformConfig():
-          try:
-            return PlatformConfig('<b>stub</b>')
-          except RuntimeError as e:
-            logging.critical(e)
-            return None
+1.  **`platform_configuration/BUILD.gn`**
+    1.  Update your platform command-line flags and libraries. Ensure that
+        you do not assume a particular workstation layout since that layout
+        may vary from user to user.
 
-        # Desktop Linux
-        def CreatePlatformConfig():
-          try:
-            return gyp_configuration.PlatformConfig('<b>linux-x64x11</b>')
-          except RuntimeError as e:
-            logging.critical(e)
-            return None
-        </pre>
-
-        Note that the third line is the only one that is different. The
-        key difference in terms of these instructions is changing `stub`
-        to `linux-x64x11`. The Desktop Linux port also uses a shared copy
-        of `gyp_configuration.py`, which is why the rest of the line is
-        different.
-
-    1.  In the `GetVariables` function, ensure that the `clang` variable
-        is set to `1` if your toolchain uses clang:
-
-        <pre>
-        variables = super(PlatformConfig, self).GetVariables(configuration)
-        <b>variables.update({'clang': 1,})</b>
-        return variables
-        </pre>
-
-    1.  In the `GetEnvironmentVariables` function, set these dictionary values
-        to the toolchain analogs for your platform. Note that "target platform"
-        refers to the platform being targeted by the port (e.g. Android TV,
-        Raspberry Pi) and "host platform" is the workstation platform running
-        the cross-compiler to the target (e.g. desktop Linux, desktop Windows).
-        *   `CC` - the C compiler for the target platform. Example: `clang`.
-        *   `CXX` - the C++ compiler for the target platform.
-            Example: `clang++`.
-        *   `CC_HOST` - the C compiler for the host platform. Example: `clang`.
-        *   `CXX_HOST` - the C++ compiler for the host platform.
-            Example: `clang++`.
-        *   `LD_HOST` - the C++ linker for the host platform.
-            Example: `clang++`.
-        *   `ARFLAGS_HOST` - Archiver flags for the host platform. The
-            archiver is the toolchain program that creates static libraries.
-            Example: `rcs`.
-        *   `ARTHINFLAGS_HOST` - Archiver flags for the host platform for
-            creating "thin" archives, which are faster for intermediate
-            libraries that aren't for direct publishing. Example: `rcsT`.
-
-1.  **`gyp_configuration.gypi`**
-    1.  Update the value of the `default_configuration` property and the keys
-        in the `configurations` property to be
-        `<platform-configuration>_<build-type>` where:
-        1.  `<platform-configuration>` is the value that you defined in step 1.
-        1.  `<build-type>` is one of the following values:
-            *   `debug`
-            *   `devel`
-            *   `qa`
-            *   `gold`
-
-        The following snippet from the configuration file shows how these
-        properties appear in the Stub implementation. The Desktop Linux port
-        replaces the string `stub` with `linux-x64x11` everywhere that it
-        appears:
-
-        ```
-        'target_defaults': {
-          'default_configuration': 'stub_debug',
-          'configurations': {
-            'stub_debug': {
-              'inherit_from': ['debug_base'],
-            },
-            'stub_devel': {
-              'inherit_from': ['devel_base'],
-            },
-            'stub_qa': {
-              'inherit_from': ['qa_base'],
-            },
-            'stub_gold': {
-              'inherit_from': ['gold_base'],
-            },
-          }, # end of configurations
-          ...
-        }
-        ```
-
-    1.  Update the following properties in the `variables` dictionary:
-        *   `target_arch` - Identifies your architecture. Supported values
-            are `arm`, `x64`, and `x86`.
-        *   `target_os` - Set to `linux` if your platform is Linux-based.
-            Otherwise, remove this variable.
+1.  **`platform_configuration/configuration.gni`**
+    1.  Update the following variables in the file from their default in
+        `starboard/build/config/base_configuration.gni` if necessary:
         *   `gl_type` - Set to `system_gles2` if you are using the system EGL
             \+ GLES2 implementation and otherwise set the value to `none`.
-        *   `in_app_dial` - Enables (or disables) the DIAL server that runs
-            inside Cobalt. (This server only runs when Cobalt is running.)
+        *   `enable_in_app_dial` - Enables (or disables) the DIAL server that
+            runs inside Cobalt. (This server only runs when Cobalt is running.)
             The [DIAL protocol](http://www.dial-multiscreen.org/home) enables
             second-screen devices (like tablets and phones) to discover,
             launch, and interface with applications on first-screen devices
             (like televisions, set-top boxes, and Blu-ray players).
-            *   Set this value to `0` if you already have system-wide DIAL
-                support. In that case, a DIAL server running inside Cobalt would
-                be redundant.
-            *   Set this value to `1` if you want Cobalt to run a DIAL server
-                whenever it is running. That server could only be used to
-                connect with the current Cobalt application (e.g. YouTube).
+            *   Set this value to `false` if you already have system-wide DIAL
+                support. In that case, a DIAL server running inside Cobalt
+                would be redundant.
+            *   Set this value to `true` if you want Cobalt to run a DIAL
+                server whenever it is running. That server could only be used
+                to connect with the current Cobalt application (e.g. YouTube).
 
+1.  **`toolchain/BUILD.gn`**
+    1.  If your platform uses a simple clang toolchain, simply pass the path to
+        the toolchain to the `clang_toolchain` template. This template will
+        assume names for each of the tools, i.e. the `clang++` executable
+        should be at `${clang_base_path}/clang++`.
+
+        Modify the host's `toolchain_args` to pass the correct OS and CPU for
+        your host platform.
+
+        If your toolchain uses GCC or has tool names that differ from what
+        the `clang_toolchain` template assumes, use the `gcc_toolchain`
+        template (also provided in `"//build/toolchain/gcc_toolchain.gni"`).
+        To use this template, pass full paths to each of the required tools
+        (`ar`, `cc`, `cxx`, and `ld`), as well as any optional tools you want
+        to use. If your toolchain uses clang, make sure you pass
+        `is_clang = true` in `toolchain_args`.
 
     1.  Update your toolchain command-line flags and libraries. Ensure that
         you do not assume a particular workstation layout since that layout
         may vary from user to user.
 
-    1.  Update the global defines in the `target_defaults.defines` dictionary,
-        if necessary.
-
-1.  **`thread_types_public.h`** - Ensure that this file points at the
-    appropriate shared or custom implementation.
-
 ### 5. Port modules to work on your platform
 
-The `starboard_platform.gyp` file points to all of the source files included
+The `BUILD.gn` file points to all of the source files included
 in your new Starboard implementation. If you are starting with a copy of the
 Stub implementation, then that file will initially include a lot of files
 from the `starboard/shared/stub/` directory. Similarly, if you are starting
@@ -319,7 +240,7 @@ Function-by-function and module-by-module, you can now replace stub
 implementations with either custom implementations or with other ported
 implementations from the `starboard/shared/` directory until you have
 gone through all of the modules. As you do, update the
-`starboard_platform.gyp` file to identify the appropriate source files.
+`BUILD.gn` file to identify the appropriate source files.
 
 Due to dependencies between modules, you will find it easier to get some
 modules to pass the NPLB tests before other modules. We recommend porting

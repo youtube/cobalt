@@ -390,7 +390,7 @@ const char kFallbackSplashScreenURLHelp[] =
     "(for example h5vcc-embedded://foobar.html) and all files referenced must "
     "be content or embedded files as well. If none is passed "
     "(case-insensitive), no splash screen will be constructed. If "
-    "no value is set, the URL in gyp_configuration.gypi or base.gypi will be "
+    "no value is set, the URL in the Cobalt configuration extension will be "
     "used.";
 
 const char kFallbackSplashScreenTopics[] = "fallback_splash_screen_topics";

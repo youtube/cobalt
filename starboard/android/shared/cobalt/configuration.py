@@ -13,28 +13,12 @@
 # limitations under the License.
 """Starboard Android Cobalt shared configuration."""
 
-import os
-
 from cobalt.build import cobalt_configuration
 from starboard.tools.testing import test_filter
 
 
 class CobaltAndroidConfiguration(cobalt_configuration.CobaltConfiguration):
   """Starboard Android Cobalt shared configuration."""
-
-  def GetPostIncludes(self):
-    # If there isn't a configuration.gypi found in the usual place, we'll
-    # supplement with our shared implementation.
-    includes = super(CobaltAndroidConfiguration, self).GetPostIncludes()
-    for include in includes:
-      if os.path.basename(include) == 'configuration.gypi':
-        return includes
-
-    shared_gypi_path = os.path.join(
-        os.path.dirname(__file__), 'configuration.gypi')
-    if os.path.isfile(shared_gypi_path):
-      includes.append(shared_gypi_path)
-    return includes
 
   def WebdriverBenchmarksEnabled(self):
     return True
