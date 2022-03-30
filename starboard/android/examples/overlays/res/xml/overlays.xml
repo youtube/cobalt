@@ -17,5 +17,5 @@
 
 <overlay>
   <!-- Example of adding an overlay variable in RRO package. -->
-  <item target="integer/increase_audio_buffer_size" value="@integer/increase_audio_buffer_size_overlay" />
+  <item target="bool/supportSphericalVideo" value="false" />
 </overlay>
