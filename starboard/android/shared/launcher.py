@@ -24,7 +24,7 @@ import threading
 import time
 import Queue
 
-from starboard.android.shared import sdk_utils
+from starboard.android.shared.sdk_utils import SDK_PATH
 from starboard.tools import abstract_launcher
 
 _APP_PACKAGE_NAME = 'dev.cobalt.coat'
@@ -136,7 +136,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
       # Use default adb binary from path.
       self.adb = 'adb'
     else:
-      self.adb = os.path.join(sdk_utils.GetSdkPath(), 'platform-tools', 'adb')
+      self.adb = os.path.join(SDK_PATH, 'platform-tools', 'adb')
 
     self.adb_builder = AdbCommandBuilder(self.adb)
 

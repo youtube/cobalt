@@ -15,67 +15,15 @@
 
 import os
 
-from starboard.build import clang
 from starboard.build import platform_configuration
-from starboard.tools import build
-from starboard.tools import paths
 
 
 class EvergreenConfiguration(platform_configuration.PlatformConfiguration):
   """Starboard Evergreen platform configuration."""
 
-  def __init__(self,
-               platform,
-               asan_enabled_by_default=True,
-               sabi_json_path='starboard/sabi/default/sabi.json'):
-    super(EvergreenConfiguration, self).__init__(platform,
-                                                 asan_enabled_by_default)
-
-    self.sabi_json_path = sabi_json_path
-
-  def GetBuildFormat(self):
-    """Returns the desired build format."""
-    # The comma means that ninja and qtcreator_ninja will be chained and use the
-    # same input information so that .gyp files will only have to be parsed
-    # once.
-    return 'ninja,qtcreator_ninja'
-
-  def GetVariables(self, config_name):
-    variables = super(EvergreenConfiguration, self).GetVariables(
-        config_name, use_clang=1)
-    variables.update({
-        'cobalt_repo_root':
-            paths.REPOSITORY_ROOT,
-        'include_path_platform_deploy_gypi':
-            'starboard/evergreen/shared/platform_deploy.gypi',
-    })
-    return variables
-
   def GetLauncherPath(self):
     """Gets the path to the launcher module for this platform."""
     return os.path.dirname(__file__)
-
-  def GetGeneratorVariables(self, config_name):
-    del config_name
-    generator_variables = {
-        'qtcreator_session_name_prefix': 'cobalt',
-    }
-    return generator_variables
-
-  def GetEnvironmentVariables(self):
-    if not hasattr(self, '_host_compiler_environment'):
-      self._host_compiler_environment = build.GetHostCompilerEnvironment(
-          clang.GetClangSpecification(), self.build_accelerator)
-
-    env_variables = self._host_compiler_environment
-    env_variables.update({
-        'CC': self._host_compiler_environment['CC_host'],
-        'CXX': self._host_compiler_environment['CXX_host'],
-    })
-    return env_variables
-
-  def GetPathToSabiJsonFile(self):
-    return self.sabi_json_path
 
   def GetTestTargets(self):
     tests = super(EvergreenConfiguration, self).GetTestTargets()

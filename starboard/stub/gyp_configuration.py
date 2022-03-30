@@ -16,16 +16,6 @@
 import logging
 
 from cobalt.build.config.base import PlatformConfigBase
-from starboard.build import clang as clang_specification
-from starboard.tools import build
-from starboard.tools.toolchain import ar
-from starboard.tools.toolchain import bash
-from starboard.tools.toolchain import clang
-from starboard.tools.toolchain import clangxx
-from starboard.tools.toolchain import cp
-from starboard.tools.toolchain import touch
-
-_SABI_JSON_PATH = 'starboard/sabi/x64/sysv/sabi-v{sb_api_version}.json'
 
 
 def CreatePlatformConfig():
@@ -38,59 +28,4 @@ def CreatePlatformConfig():
 
 class StubConfiguration(PlatformConfigBase):
   """Starboard stub platform configuration."""
-
-  def GetVariables(self, configuration):
-    variables = super(StubConfiguration, self).GetVariables(
-        configuration, use_clang=1)
-    return variables
-
-  def GetEnvironmentVariables(self):
-    if not hasattr(self, 'host_compiler_environment'):
-      self.host_compiler_environment = build.GetHostCompilerEnvironment(
-          clang_specification.GetClangSpecification(), 'ccache')
-
-    env_variables = self.host_compiler_environment
-    env_variables.update({
-        'CC': self.host_compiler_environment['CC_host'],
-        'CXX': self.host_compiler_environment['CXX_host'],
-    })
-    return env_variables
-
-  def GetTargetToolchain(self, **kwargs):  # pylint: disable=unused-argument
-    environment_variables = self.GetEnvironmentVariables()
-    cc_path = environment_variables['CC']
-    cxx_path = environment_variables['CXX']
-
-    return [
-        clang.CCompiler(path=cc_path),
-        clang.CxxCompiler(path=cxx_path),
-        clang.AssemblerWithCPreprocessor(path=cc_path),
-        ar.StaticThinLinker(),
-        ar.StaticLinker(),
-        clangxx.ExecutableLinker(path=cxx_path, write_group=True),
-        clangxx.SharedLibraryLinker(path=cxx_path),
-        cp.Copy(),
-        touch.Stamp(),
-        bash.Shell(),
-    ]
-
-  def GetHostToolchain(self, **kwargs):  # pylint: disable=unused-argument
-    environment_variables = self.GetEnvironmentVariables()
-    cc_path = environment_variables['CC_host']
-    cxx_path = environment_variables['CXX_host']
-
-    return [
-        clang.CCompiler(path=cc_path),
-        clang.CxxCompiler(path=cxx_path),
-        clang.AssemblerWithCPreprocessor(path=cc_path),
-        ar.StaticThinLinker(),
-        ar.StaticLinker(),
-        clangxx.ExecutableLinker(path=cxx_path, write_group=True),
-        clangxx.SharedLibraryLinker(path=cxx_path),
-        cp.Copy(),
-        touch.Stamp(),
-        bash.Shell(),
-    ]
-
-  def GetPathToSabiJsonFile(self):
-    return _SABI_JSON_PATH
+  pass

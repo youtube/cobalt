@@ -20,13 +20,6 @@ from starboard.tools.testing import test_filter
 class CobaltWinWin32Configuration(cobalt_configuration.CobaltConfiguration):
   """Starboard Nintendo Switch Cobalt configuration."""
 
-  def __init__(self, platform_configuration, application_name,
-               application_directory):
-    super(CobaltWinWin32Configuration,
-          self).__init__(platform_configuration, application_name,
-                         application_directory)
-    self.vmware = platform_configuration.vmware
-
   def WebdriverBenchmarksEnabled(self):
     return False
 

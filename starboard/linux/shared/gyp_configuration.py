@@ -15,61 +15,19 @@
 
 import os
 
-from starboard.build import clang
 from starboard.build import platform_configuration
-from starboard.tools import build
 
 
 class LinuxConfiguration(platform_configuration.PlatformConfiguration):
   """Starboard Linux platform configuration."""
 
-  def __init__(self,
-               platform,
-               asan_enabled_by_default=True,
-               sabi_json_path='starboard/sabi/default/sabi.json'):
-    super(LinuxConfiguration, self).__init__(platform, asan_enabled_by_default)
-
-    self.sabi_json_path = sabi_json_path
+  def __init__(self, platform):
+    super(LinuxConfiguration, self).__init__(platform)
     self.AppendApplicationConfigurationPath(os.path.dirname(__file__))
-
-  def GetBuildFormat(self):
-    """Returns the desired build format."""
-    # The comma means that ninja and qtcreator_ninja will be chained and use the
-    # same input information so that .gyp files will only have to be parsed
-    # once.
-    return 'ninja,qtcreator_ninja'
-
-  def GetVariables(self, config_name):
-    variables = super(LinuxConfiguration, self).GetVariables(
-        config_name, use_clang=1)
-    variables.update({
-        'include_path_platform_deploy_gypi':
-            'starboard/linux/shared/platform_deploy.gypi',
-    })
-    return variables
 
   def GetLauncherPath(self):
     """Gets the path to the launcher module for this platform."""
     return os.path.dirname(__file__)
-
-  def GetGeneratorVariables(self, config_name):
-    del config_name
-    generator_variables = {
-        'qtcreator_session_name_prefix': 'cobalt',
-    }
-    return generator_variables
-
-  def GetEnvironmentVariables(self):
-    if not hasattr(self, '_host_compiler_environment'):
-      self._host_compiler_environment = build.GetHostCompilerEnvironment(
-          clang.GetClangSpecification(), self.build_accelerator)
-
-    env_variables = self._host_compiler_environment
-    env_variables.update({
-        'CC': self._host_compiler_environment['CC_host'],
-        'CXX': self._host_compiler_environment['CXX_host'],
-    })
-    return env_variables
 
   def GetTestEnvVariables(self):
     # Due to fragile nature of dynamic TLS tracking, in particular LSAN reliance
@@ -82,6 +40,3 @@ class LinuxConfiguration(platform_configuration.PlatformConfiguration):
     # be printed at test shutdown, and env var LSAN_OPTIONS=verbosity=2 would
     # further point to 'Scanning DTLS range ..' prior to crash.
     return {'ASAN_OPTIONS': 'intercept_tls_get_addr=0'}
-
-  def GetPathToSabiJsonFile(self):
-    return self.sabi_json_path
