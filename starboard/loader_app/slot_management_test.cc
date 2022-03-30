@@ -269,7 +269,7 @@ TEST_P(SlotManagementTest, DrainingSlot) {
   ImUninitialize();
   VerifyLoad(slot_0_libcobalt_path_, slot_0_content_path_);
   VerifyGoodFile(1, kTestAppKey, false);
-  VerifyBadFile(1, kTestAppKey, true);
+  VerifyBadFile(1, kTestAppKey, false);
 }
 
 TEST_P(SlotManagementTest, AlternativeContent) {

@@ -52,27 +52,32 @@ const char kCobaltContentPath[] = "content";
 
 }  // namespace
 
-int RevertBack(int current_installation, const std::string& app_key) {
+int RevertBack(int current_installation,
+               const std::string& app_key,
+               bool mark_bad) {
   SB_LOG(INFO) << "RevertBack current_installation=" << current_installation;
   SB_DCHECK(current_installation != 0);
-  std::vector<char> installation_path(kSbFileMaxPath);
-  if (ImGetInstallationPath(current_installation, installation_path.data(),
-                            kSbFileMaxPath) != IM_ERROR) {
-    std::string bad_app_key_file_path =
-        starboard::loader_app::GetBadAppKeyFilePath(installation_path.data(),
-                                                    app_key);
-    if (bad_app_key_file_path.empty()) {
-      SB_LOG(WARNING) << "Failed to get bad app key file path for path="
-                      << installation_path.data() << " and app_key=" << app_key;
-    } else {
-      if (!starboard::loader_app::CreateAppKeyFile(bad_app_key_file_path)) {
-        SB_LOG(WARNING) << "Failed to create bad app key file: "
-                        << bad_app_key_file_path;
+  if (mark_bad) {
+    std::vector<char> installation_path(kSbFileMaxPath);
+    if (ImGetInstallationPath(current_installation, installation_path.data(),
+                              kSbFileMaxPath) != IM_ERROR) {
+      std::string bad_app_key_file_path =
+          starboard::loader_app::GetBadAppKeyFilePath(installation_path.data(),
+                                                      app_key);
+      if (bad_app_key_file_path.empty()) {
+        SB_LOG(WARNING) << "Failed to get bad app key file path for path="
+                        << installation_path.data()
+                        << " and app_key=" << app_key;
+      } else {
+        if (!starboard::loader_app::CreateAppKeyFile(bad_app_key_file_path)) {
+          SB_LOG(WARNING) << "Failed to create bad app key file: "
+                          << bad_app_key_file_path;
+        }
       }
+    } else {
+      SB_LOG(WARNING) << "Failed to get installation path for index: "
+                      << current_installation;
     }
-  } else {
-    SB_LOG(WARNING) << "Failed to get installation path for index: "
-                    << current_installation;
   }
   current_installation = ImRevertToSuccessfulInstallation();
   return current_installation;
@@ -159,7 +164,8 @@ void* LoadSlotManagedLibrary(const std::string& app_key,
         // discard the image and auto rollback, but only if
         // the current image is not the system image.
         if (current_installation != 0) {
-          current_installation = RevertBack(current_installation, app_key);
+          current_installation =
+              RevertBack(current_installation, app_key, true /* mark_bad */);
         }
       }
     }
@@ -176,7 +182,8 @@ void* LoadSlotManagedLibrary(const std::string& app_key,
       // Hard failure. Discard the image and auto rollback, but only if
       // the current image is not the system image.
       if (current_installation != 0) {
-        current_installation = RevertBack(current_installation, app_key);
+        current_installation =
+            RevertBack(current_installation, app_key, true /* mark_bad */);
         continue;
       } else {
         // The system image at index 0 failed.
@@ -196,21 +203,24 @@ void* LoadSlotManagedLibrary(const std::string& app_key,
       // Check for bad file.
       if (CheckBadFileExists(installation_path.data(), app_key.c_str())) {
         SB_LOG(INFO) << "Bad app key file";
-        current_installation = RevertBack(current_installation, app_key);
+        current_installation =
+            RevertBack(current_installation, app_key, true /* mark_bad */);
         continue;
       }
       // If the current installation is in use by an updater roll back.
       if (DrainFileIsAnotherAppDraining(installation_path.data(),
                                         app_key.c_str())) {
         SB_LOG(INFO) << "Active slot draining";
-        current_installation = RevertBack(current_installation, app_key);
+        current_installation =
+            RevertBack(current_installation, app_key, false /* mark_bad */);
         continue;
       }
       // Adopt installation performed from different app.
       if (!AdoptInstallation(current_installation, installation_path.data(),
                              app_key.c_str())) {
         SB_LOG(INFO) << "Unable to adopt installation";
-        current_installation = RevertBack(current_installation, app_key);
+        current_installation =
+            RevertBack(current_installation, app_key, true /* mark_bad */);
         continue;
       }
     }
@@ -250,7 +260,8 @@ void* LoadSlotManagedLibrary(const std::string& app_key,
       // Hard failure. Discard the image and auto rollback, but only if
       // the current image is not the system image.
       if (current_installation != 0) {
-        current_installation = RevertBack(current_installation, app_key);
+        current_installation =
+            RevertBack(current_installation, app_key, true /* mark_bad */);
         continue;
       } else {
         // The system image at index 0 failed.
@@ -276,7 +287,8 @@ void* LoadSlotManagedLibrary(const std::string& app_key,
       // Hard failure. Discard the image and auto rollback, but only if
       // the current image is not the system image.
       if (current_installation != 0) {
-        current_installation = RevertBack(current_installation, app_key);
+        current_installation =
+            RevertBack(current_installation, app_key, true /* mark_bad */);
         continue;
       } else {
         // The system image at index 0 failed.
@@ -309,7 +321,8 @@ void* LoadSlotManagedLibrary(const std::string& app_key,
       // Hard failure. Discard the image and auto rollback, but only if
       // the current image is not the system image.
       if (current_installation != 0) {
-        current_installation = RevertBack(current_installation, app_key);
+        current_installation =
+            RevertBack(current_installation, app_key, true /* mark_bad */);
         continue;
       } else {
         // The system image at index 0 failed.
