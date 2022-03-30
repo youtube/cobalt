@@ -33,8 +33,8 @@ struct DocumentLoadTimingInfo {
   // unload event of the previous document. If there is no previous document
   // or the previous document has a different origin than the current document,
   // these attributes will be zero.
-  DOMHighResTimeStamp unload_event_start = 0.0;
-  DOMHighResTimeStamp unload_event_end = 0.0;
+  base::TimeTicks unload_event_start;
+  base::TimeTicks unload_event_end;
 
   // This timestamp is measured before the user agent dispatches the
   // DOMContentLoaded event.

@@ -167,8 +167,8 @@ void EndElement(void* context, const xmlChar* name) {
 }
 
 void Characters(void* context, const xmlChar* ch, int len) {
-  ToLibxmlParserWrapper(context)
-      ->OnCharacters(std::string(ToCString(ch), static_cast<size_t>(len)));
+  ToLibxmlParserWrapper(context)->OnCharacters(
+      std::string(ToCString(ch), static_cast<size_t>(len)));
 }
 
 void Comment(void* context, const xmlChar* value) {
@@ -200,8 +200,8 @@ void ParserFatal(void* context, const char* message, ...) {
 }
 
 void CDATABlock(void* context, const xmlChar* value, int len) {
-  ToLibxmlParserWrapper(context)
-      ->OnCDATABlock(std::string(ToCString(value), static_cast<size_t>(len)));
+  ToLibxmlParserWrapper(context)->OnCDATABlock(
+      std::string(ToCString(value), static_cast<size_t>(len)));
 }
 
 //////////////////////////////////////////////////////////////////
@@ -230,8 +230,9 @@ void LibxmlParserWrapper::OnEndDocument() {
   }
 
   if (IsFullDocument()) {
-    document_->PostToDispatchEventName(FROM_HERE,
-                                       base::Tokens::domcontentloaded());
+    // Collect dom content loaded timing info and dispatch dom content
+    // loaded event.
+    document_->CollectTimingInfoAndDispatchEvent();
   }
 }
 

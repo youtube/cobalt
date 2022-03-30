@@ -409,6 +409,8 @@ class Window : public EventTarget, public ApplicationLifecycleState::Observer {
 
   const scoped_refptr<media_session::MediaSession> media_session() const;
 
+  loader::Loader* GetDocumentLoader() const { return document_loader_.get(); }
+
   DEFINE_WRAPPABLE_TYPE(Window);
 
  private:

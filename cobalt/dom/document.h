@@ -485,12 +485,12 @@ class Document : public Node,
   void TraceMembers(script::Tracer* tracer) override;
 
   // PerformanceNavigationTiming related API.
-  void CreatePerformanceNavigationTiming(Performance* performance,
-                                         net::LoadTimingInfo timing_info);
-  DOMHighResTimeStamp GetDocumenUnloadEventStartTime() const {
+  void CreatePerformanceNavigationTiming(
+      Performance* performance, const net::LoadTimingInfo& timing_info);
+  base::TimeTicks GetDocumentUnloadEventStartTime() const {
     return document_load_timing_info_.unload_event_start;
   }
-  DOMHighResTimeStamp GetDocumentUnloadEventEndTime() const {
+  base::TimeTicks GetDocumentUnloadEventEndTime() const {
     return document_load_timing_info_.unload_event_end;
   }
   DOMHighResTimeStamp GetDocumentContentLoadedEventStartTime() const {
@@ -509,6 +509,17 @@ class Document : public Node,
     return document_load_timing_info_.load_event_end;
   }
   NavigationType GetNavigationType() const { return navigation_type_; }
+
+  // Collect dom content loaded timing info and dispatch dom content loaded
+  // event.
+  void CollectTimingInfoAndDispatchEvent();
+
+  void SetNavigationType(NavigationType navigation_type) {
+    navigation_type_ = navigation_type;
+  }
+
+  void SetUnloadEventTimingInfo(base::TimeTicks start_time,
+                                base::TimeTicks end_time);
 
  protected:
   ~Document() override;
