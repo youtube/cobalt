@@ -321,6 +321,9 @@ bool CobaltQuickUpdate(
     base::Version installed_version =
         cobalt::updater::ReadEvergreenVersion(installation_dir);
 
+    std::string good_app_key_file_path =
+        starboard::loader_app::GetGoodAppKeyFilePath(
+            installation_dir.value().c_str(), app_key);
     if (!installed_version.IsValid()) {
       LOG(WARNING) << "CobaltQuickInstallation: invalid version ";
       continue;
@@ -329,11 +332,13 @@ bool CobaltQuickUpdate(
                !DrainFileIsAnotherAppDraining(installation_dir.value().c_str(),
                                               app_key) &&
                !CheckBadFileExists(installation_dir.value().c_str(), app_key) &&
+               !SbFileExists(good_app_key_file_path.c_str()) &&
                starboard::loader_app::AnyGoodAppKeyFile(
                    installation_dir.value().c_str())) {
       // Found a slot with newer version than the current version that's not
       // draining, and no bad file of current app exists, and a good file
-      // exists. The final candidate is the newest version of the valid
+      // exists from a another app, but not from the current app.
+      // The final candidate is the newest version of the valid
       // candidates.
       LOG(INFO) << "CobaltQuickInstallation: slot candidate: " << i;
       slot_candidate_version = installed_version;

@@ -244,16 +244,6 @@ void UpdateCheckerImpl::CheckForUpdatesHelper(
       return;
     }
 
-    std::string last_installed_version =
-        GetPersistedData()->GetLastInstalledVersion(app_id);
-    // If the version of the last installed update package is higher than the
-    // version of the running binary, use the former to indicate the current
-    // update version in the update check request.
-    if (!last_installed_version.empty() &&
-        base::Version(last_installed_version).CompareTo(current_version) > 0) {
-      current_version = base::Version(last_installed_version);
-    }
-
     if (CobaltQuickUpdate(installation_api, current_version)) {
       // The last parameter in UpdateCheckFailed below, which is to be passed to
       // update_check_callback_, indicates a throttling by the update server.
@@ -266,6 +256,15 @@ void UpdateCheckerImpl::CheckForUpdatesHelper(
       return;
     }
 
+    std::string last_installed_version =
+        GetPersistedData()->GetLastInstalledVersion(app_id);
+    // If the version of the last installed update package is higher than the
+    // version of the running binary, use the former to indicate the current
+    // update version in the update check request.
+    if (!last_installed_version.empty() &&
+        base::Version(last_installed_version).CompareTo(current_version) > 0) {
+      current_version = base::Version(last_installed_version);
+    }
 // If the quick roll forward update slot candidate doesn't exist, continue
 // with update check.
 #endif
