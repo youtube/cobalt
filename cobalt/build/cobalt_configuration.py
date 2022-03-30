@@ -15,7 +15,6 @@
 
 import os
 
-import _env  # pylint: disable=unused-import
 from cobalt.tools import paths
 import cobalt.tools.webdriver_benchmark_config as wb_config
 from starboard.build import application_configuration

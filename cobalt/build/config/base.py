@@ -19,12 +19,9 @@ backwards compatibility. Please use starboard.build.PlatformConfiguration or
 cobalt.build.CobaltConfiguration instead, as appropriate.
 """
 
-import _env  # pylint: disable=unused-import
 from starboard.build.platform_configuration import PlatformConfiguration
 
-
 PlatformConfigBase = PlatformConfiguration  # pylint: disable=invalid-name
-
 
 # TODO: Add deprecation logging.warning() here once references are mostly
 # cleaned up.

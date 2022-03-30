@@ -14,7 +14,6 @@ import time
 import traceback
 import thread
 
-import _env  # pylint: disable=unused-import
 from cobalt.tools.automated_testing import c_val_names
 from cobalt.tools.automated_testing import webdriver_utils
 from starboard.tools import abstract_launcher
