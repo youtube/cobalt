@@ -16,9 +16,7 @@
 import json
 import logging
 import os
-import re
 import subprocess
-import sys
 from six.moves import urllib
 import _env  # pylint: disable=unused-import
 from cobalt.tools import paths
@@ -124,34 +122,3 @@ def GetOrGenerateNewBuildNumber(version_server=_VERSION_SERVER_URL):
   except urllib.error.URLError as e:
     logging.warning('Could not connect to %s: %s', version_server, e)
     return 0
-
-
-def GetConstantValue(file_path, constant_name):
-  """Return an rvalue from a C++ header file.
-
-  Search a C/C++ header file at |file_path| for an assignment to the
-  constant named |constant_name|. The rvalue for the assignment must be a
-  literal constant or an expression of literal constants.
-
-  Args:
-    file_path: Header file to search.
-    constant_name: Name of C++ rvalue to evaluate.
-
-  Returns:
-    constant_name as an evaluated expression.
-  """
-
-  search_re = re.compile(r'%s\s*=\s*([\d\+\-*/\s\(\)]*);' % constant_name)
-  with open(file_path, 'r') as f:
-    match = search_re.search(f.read())
-
-  if not match:
-    logging.critical(
-        'Could not query constant value.  The expression '
-        'should only have numbers, operators, spaces, and '
-        'parens.  Please check "%s" in %s.\n', constant_name, file_path)
-    sys.exit(1)
-
-  expression = match.group(1)
-  value = eval(expression)  # pylint:disable=eval-used
-  return value

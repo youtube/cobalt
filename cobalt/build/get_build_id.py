@@ -15,7 +15,7 @@
 """Prints out the Cobalt Build ID."""
 
 import os
-from gyp_utils import GetOrGenerateNewBuildNumber
+from cobalt.build.build_number import GetOrGenerateNewBuildNumber
 
 
 def main():

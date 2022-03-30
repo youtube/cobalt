@@ -20,10 +20,10 @@ import os
 import sys
 import textwrap
 
-import gyp_utils
+from cobalt.build import build_number
 
 _SCRIPT_DIR = os.path.abspath(os.path.dirname(__file__))
-_BUILD_ID_PATH = gyp_utils.BUILD_ID_PATH
+_BUILD_ID_PATH = build_number.BUILD_ID_PATH
 
 # Return values used by main().
 RETVAL_SUCCESS = 0
@@ -65,10 +65,10 @@ def main():
   if not options.build_id:
     build_id_server_url = os.environ.get('BUILD_ID_SERVER_URL')
     if build_id_server_url:
-      options.build_id = gyp_utils.GetOrGenerateNewBuildNumber(
+      options.build_id = build_number.GetOrGenerateNewBuildNumber(
           version_server=build_id_server_url)
     else:
-      options.build_id = gyp_utils.GetOrGenerateNewBuildNumber()
+      options.build_id = build_number.GetOrGenerateNewBuildNumber()
 
   if not options.build_id:
     logging.error('Unable to retrieve build id.')
