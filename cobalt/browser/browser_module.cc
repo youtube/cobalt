@@ -1830,7 +1830,7 @@ void BrowserModule::UnfreezeInternal(SbTimeMonotonic timestamp) {
 // Set the Stub resource provider to media module and to web module
 // at Concealed state.
 #if SB_API_VERSION >= 13
-  media_module_->Resume(GetResourceProvider());
+  if (media_module_) media_module_->Resume(GetResourceProvider());
 #endif  // SB_API_VERSION >= 13
 
   FOR_EACH_OBSERVER(LifecycleObserver, lifecycle_observers_,
