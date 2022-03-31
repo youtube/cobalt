@@ -511,7 +511,7 @@ bool Window::HasPendingAnimationFrameCallbacks() const {
 
 void Window::InjectEvent(const scoped_refptr<Event>& event) {
   TRACE_EVENT1("cobalt::dom", "Window::InjectEvent()", "event",
-               event->type().c_str());
+               TRACE_STR_COPY(event->type().c_str()));
 
   // Forward the event on to the correct object in DOM.
   if (event->GetWrappableType() == base::GetTypeId<KeyboardEvent>()) {

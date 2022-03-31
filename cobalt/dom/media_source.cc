@@ -150,8 +150,7 @@ void MediaSource::set_duration(double duration,
 scoped_refptr<SourceBuffer> MediaSource::AddSourceBuffer(
     script::EnvironmentSettings* settings, const std::string& type,
     script::ExceptionState* exception_state) {
-  TRACE_EVENT1("cobalt::dom", "MediaSource::AddSourceBuffer()", "type",
-               type.c_str());
+  TRACE_EVENT1("cobalt::dom", "MediaSource::AddSourceBuffer()", "type", type);
   DLOG(INFO) << "add SourceBuffer with type " << type;
 
   if (type.empty()) {
@@ -271,8 +270,7 @@ void MediaSource::ClearLiveSeekableRange(
 // static
 bool MediaSource::IsTypeSupported(script::EnvironmentSettings* settings,
                                   const std::string& type) {
-  TRACE_EVENT1("cobalt::dom", "MediaSource::IsTypeSupported()", "type",
-               type.c_str());
+  TRACE_EVENT1("cobalt::dom", "MediaSource::IsTypeSupported()", "type", type);
   DCHECK(settings);
   DOMSettings* dom_settings =
       base::polymorphic_downcast<DOMSettings*>(settings);

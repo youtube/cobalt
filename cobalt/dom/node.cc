@@ -15,6 +15,7 @@
 #include "cobalt/dom/node.h"
 
 #include <memory>
+#include <utility>
 #include <vector>
 
 #include "base/lazy_instance.h"
@@ -58,7 +59,7 @@ bool Node::DispatchEvent(const scoped_refptr<Event>& event) {
   DCHECK(event->initialized_flag());
 
   TRACE_EVENT1("cobalt::dom", "Node::DispatchEvent", "event",
-               event->type().c_str());
+               TRACE_STR_COPY(event->type().c_str()));
 
   if (!event || event->IsBeingDispatched() || !event->initialized_flag()) {
     return false;

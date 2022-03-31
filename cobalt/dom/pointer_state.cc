@@ -15,6 +15,7 @@
 #include "cobalt/dom/pointer_state.h"
 
 #include <algorithm>
+#include <utility>
 
 #include "base/trace_event/trace_event.h"
 #include "cobalt/dom/mouse_event.h"
@@ -27,7 +28,7 @@ namespace dom {
 
 void PointerState::QueuePointerEvent(const scoped_refptr<Event>& event) {
   TRACE_EVENT1("cobalt::dom", "PointerState::QueuePointerEvent()", "event",
-               event->type().c_str());
+               TRACE_STR_COPY(event->type().c_str()));
 
   // Only accept this for event types that are MouseEvents or known derivatives.
   SB_DCHECK(CanQueueEvent(event));
