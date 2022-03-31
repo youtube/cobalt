@@ -43,15 +43,15 @@ cd "${CURRENT_WORKING_DIRECTORY}"
 echo "Updating the SDK..."
 
 # Update the installation
-${SDK_MANAGER_TOOL} --sdk_root=${ANDROID_SDK_ROOT}
-    "build-tools;30.0.0"
-    "cmake;3.10.2.4988404"
-    "cmdline-tools;1.0"
-    "extras;android;m2repository"
-    "extras;google;m2repository"
-    "ndk;21.1.6352462"
-    "patcher;v4"
-    "platforms;android-30"
+${SDK_MANAGER_TOOL} --sdk_root=${ANDROID_SDK_ROOT} \
+    "build-tools;30.0.0" \
+    "cmake;3.10.2.4988404" \
+    "cmdline-tools;1.0" \
+    "extras;android;m2repository" \
+    "extras;google;m2repository" \
+    "ndk;21.1.6352462" \
+    "patcher;v4" \
+    "platforms;android-30" \
     "platform-tools"
 
 echo "Android SDK updated."
