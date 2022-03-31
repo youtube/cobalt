@@ -21,6 +21,7 @@ cobalt.build.CobaltConfiguration instead, as appropriate.
 
 import sys
 
+import _env  # pylint: disable=unused-import
 import base
 import starboard
 from starboard.tools.build import GetPlatformConfig

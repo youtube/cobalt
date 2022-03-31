@@ -1,5 +1,5 @@
 #
-# Copyright 2016 The Cobalt Authors. All Rights Reserved.
+# Copyright 2017 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,25 +13,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-"""Constants and functions for commonly referenced paths."""
+"""Ask the parent directory to load the project environment."""
 
+from imp import load_source
 from os import path
+import sys
 
-import _env  # pylint: disable=unused-import
-from starboard.tools import paths
-
-STARBOARD_ROOT = paths.STARBOARD_ROOT
-
-REPOSITORY_ROOT = paths.REPOSITORY_ROOT
-
-COBALT_ROOT = path.join(REPOSITORY_ROOT, 'cobalt')
-
-BUILD_ROOT = path.join(COBALT_ROOT, 'build')
-
-THIRD_PARTY_ROOT = paths.THIRD_PARTY_ROOT
-
-BUILD_OUTPUT_ROOT = paths.BUILD_OUTPUT_ROOT
-
-
-def BuildOutputDirectory(platform, config):
-  return paths.BuildOutputDirectory(platform, config)
+_ENV = path.abspath(path.join(path.dirname(__file__), path.pardir, '_env.py'))
+if not path.exists(_ENV):
+  print '%s: Can\'t find repo root.\nMissing parent: %s' % (__file__, _ENV)
+  sys.exit(1)
+load_source('', _ENV)
