@@ -26,6 +26,9 @@ if __name__ == '__main__':
   gcheckstyle_args = sys.argv[1:]
   try:
     sys.exit(subprocess.call([checkstyle_path] + gcheckstyle_args))
-  except OSError:
+  except FileNotFoundError:
     print('Checkstyle not found, skipping.')
     sys.exit(0)
+  except OSError as e:
+    print('You may need to run gcert.')
+    raise e
