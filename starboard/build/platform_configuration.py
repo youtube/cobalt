@@ -18,7 +18,6 @@ import inspect
 import logging
 import os
 
-import _env  # pylint: disable=unused-import, relative-import, syntax-error
 from starboard.build.application_configuration import ApplicationConfiguration
 from starboard.optional import get_optional_tests
 from starboard.sabi import sabi

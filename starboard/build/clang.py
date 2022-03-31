@@ -13,7 +13,6 @@
 # limitations under the License.
 """Canonical location for the Clang specification."""
 
-import _env  # pylint: disable=unused-import
 from starboard.tools.build import ClangSpecification
 
 

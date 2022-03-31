@@ -15,14 +15,10 @@
 # limitations under the License.
 """Returns optional test targets for use in GYP or Python."""
 
-import _env  # pylint: disable=unused-import
-
 import argparse
 import os
 import posixpath
 import sys
-
-from starboard.tools import paths
 
 
 def _Posixify(path):
@@ -63,7 +59,7 @@ def GetOptionalTestTargets(as_gyp_dependencies=False, depth=''):
     string or an empty list.
   """
   try:
-    # pylint: disable=g-import-not-at-top
+    # pylint: disable=g-import-not-at-top,import-outside-toplevel
     from starboard.optional.internal import test_targets
     if as_gyp_dependencies:
       return '\n'.join([

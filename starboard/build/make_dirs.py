@@ -18,18 +18,19 @@ import argparse
 import os
 import sys
 
-import _env  # pylint: disable=unused-import, relative-import
 from starboard.tools import port_symlink
 
 
 def main():
   parser = argparse.ArgumentParser(description=__doc__)
   parser.add_argument(
-      '-c', '--clean',
+      '-c',
+      '--clean',
       action='store_true',
       help='Delete the contents of any existing directory.')
   parser.add_argument(
-      '-s', '--stamp_file',
+      '-s',
+      '--stamp_file',
       type=str,
       help='Path to the stamp file to touch after making the directory.')
   parser.add_argument('directory', help='Path to the directory to be created.')
@@ -42,7 +43,7 @@ def main():
     os.makedirs(arguments.directory)
 
   if arguments.stamp_file:
-    open(arguments.stamp_file, 'a').close()
+    open(arguments.stamp_file, 'a').close()  # pylint: disable=consider-using-with
 
 
 if __name__ == '__main__':

@@ -15,8 +15,6 @@
 # limitations under the License.
 """Posts an Evergreen update check against Omaha backends."""
 
-import _env  # pylint: disable=unused-import
-
 import argparse
 import sys
 import requests
