@@ -20,7 +20,6 @@ import re
 import subprocess
 import sys
 from six.moves import urllib
-import _env  # pylint: disable=unused-import
 from cobalt.tools import paths
 
 _SUBREPO_PATHS = ['starboard/keyboxes']

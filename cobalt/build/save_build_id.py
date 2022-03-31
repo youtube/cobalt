@@ -20,9 +20,8 @@ import os
 import sys
 import textwrap
 
-import gyp_utils
+from cobalt.build import gyp_utils
 
-_SCRIPT_DIR = os.path.abspath(os.path.dirname(__file__))
 _BUILD_ID_PATH = gyp_utils.BUILD_ID_PATH
 
 # Return values used by main().
