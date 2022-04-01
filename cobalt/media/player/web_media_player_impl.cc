@@ -4,6 +4,7 @@
 #include "cobalt/media/player/web_media_player_impl.h"
 
 #include <cmath>
+#include <cstring>
 #include <limits>
 #include <memory>
 #include <string>
@@ -21,7 +22,10 @@
 #include "cobalt/base/instance_counter.h"
 #include "cobalt/media/base/drm_system.h"
 #include "cobalt/media/player/web_media_player_proxy.h"
+#include "cobalt/media/progressive/data_source_reader.h"
+#include "cobalt/media/progressive/demuxer_extension_wrapper.h"
 #include "cobalt/media/progressive/progressive_demuxer.h"
+#include "starboard/system.h"
 #include "starboard/types.h"
 #include "third_party/chromium/media/base/bind_to_current_loop.h"
 #include "third_party/chromium/media/base/limits.h"
@@ -275,8 +279,19 @@ void WebMediaPlayerImpl::LoadProgressive(
 
   is_local_source_ = !url.SchemeIs("http") && !url.SchemeIs("https");
 
-  progressive_demuxer_.reset(new ProgressiveDemuxer(
-      pipeline_thread_.task_runner(), proxy_->data_source(), media_log_));
+  // Attempt to use the demuxer provided via Cobalt Extension, if available.
+  progressive_demuxer_ = DemuxerExtensionWrapper::Create(
+      proxy_->data_source(), pipeline_thread_.task_runner());
+
+  if (progressive_demuxer_) {
+    LOG(INFO) << "Using DemuxerExtensionWrapper.";
+  } else {
+    // Either the demuxer Cobalt extension was not provided, or it failed to
+    // create a demuxer; fall back to the ProgressiveDemuxer.
+    LOG(INFO) << "Using ProgressiveDemuxer.";
+    progressive_demuxer_.reset(new ProgressiveDemuxer(
+        pipeline_thread_.task_runner(), proxy_->data_source(), media_log_));
+  }
 
   state_.is_progressive = true;
   StartPipeline(progressive_demuxer_.get());
