@@ -16,6 +16,7 @@
 
 #include <memory>
 #include <string>
+#include <utility>
 
 #include "base/strings/string_number_conversions.h"
 #include "base/trace_event/trace_event.h"
@@ -124,8 +125,12 @@ std::string LottiePlayer::preserve_aspect_ratio() const {
 }
 
 std::string LottiePlayer::renderer() const {
-  // Cobalt uses a custom compiled-in renderer.
+// Cobalt uses a custom compiled-in renderer.
+#if defined(USE_SKIA_NEXT)
+  return "skottie-m97";
+#else
   return "skottie-m79";
+#endif
 }
 
 void LottiePlayer::Load(std::string src) {
