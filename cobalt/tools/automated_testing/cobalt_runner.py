@@ -434,7 +434,7 @@ class CobaltRunner(object):
       Underlying WebDriver exceptions
     """
     start_time = time.time()
-    while ((not self.FindElements(css_selector)) and
+    while (not self.FindElements(css_selector) and
            (time.time() - start_time < PAGE_LOAD_WAIT_SECONDS)):
       time.sleep(1)
     if expected_num:
