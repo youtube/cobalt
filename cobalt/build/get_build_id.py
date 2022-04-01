@@ -19,9 +19,13 @@ from gyp_utils import GetOrGenerateNewBuildNumber
 
 
 def main():
+  # Note $BUILD_ID_SERVER_URL will always be set in CI.
   build_id_server_url = os.environ.get('BUILD_ID_SERVER_URL')
   if build_id_server_url:
-    print(GetOrGenerateNewBuildNumber(version_server=build_id_server_url))
+    build_num = GetOrGenerateNewBuildNumber(version_server=build_id_server_url)
+    if build_num == 0:
+      raise ValueError('The build number received was zero.')
+    print(build_num)
   else:
     # No need to generate a build id for local builds.
     print('0')
