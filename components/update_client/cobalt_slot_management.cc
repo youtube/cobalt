@@ -129,16 +129,18 @@ bool CobaltSlotManagement::SelectSlot(base::FilePath* dir) {
     base::FilePath installation_dir(
         std::string(installation_path.begin(), installation_path.end()));
 
-    // Cleanup expired drain files.
-    DrainFileClear(installation_dir.value().c_str(), app_key_.c_str(), true);
+    // Cleanup all expired files from all apps.
+    DrainFileClearExpired(installation_dir.value().c_str());
 
     // Cleanup all drain files from the current app.
-    DrainFileRemove(installation_dir.value().c_str(), app_key_.c_str());
+    DrainFileClearForApp(installation_dir.value().c_str(), app_key_.c_str());
+
     base::Version version =
         cobalt::updater::ReadEvergreenVersion(installation_dir);
     if (!version.IsValid()) {
       LOG(INFO) << "CobaltSlotManagement::SelectSlot installed version invalid";
-      if (!DrainFileDraining(installation_dir.value().c_str(), "")) {
+      if (!DrainFileIsAnotherAppDraining(installation_dir.value().c_str(),
+                                         app_key_.c_str())) {
         LOG(INFO) << "CobaltSlotManagement::SelectSlot not draining";
         // Found empty slot.
         slot_candidate = i;
@@ -151,7 +153,8 @@ bool CobaltSlotManagement::SelectSlot(base::FilePath* dir) {
       }
     } else if ((!slot_candidate_version.IsValid() ||
                 slot_candidate_version > version)) {
-      if (!DrainFileDraining(installation_dir.value().c_str(), "")) {
+      if (!DrainFileIsAnotherAppDraining(installation_dir.value().c_str(),
+                                         app_key_.c_str())) {
         // Found a slot with older version that's not draining.
         LOG(INFO) << "CobaltSlotManagement::SelectSlot slot candidate: " << i;
         slot_candidate_version = version;
@@ -239,7 +242,7 @@ void CobaltSlotManagement::CleanupAllDrainFiles() {
     base::FilePath installation_dir(
         std::string(installation_path.begin(), installation_path.end()));
 
-    DrainFileRemove(installation_dir.value().c_str(), app_key_.c_str());
+    DrainFileClearForApp(installation_dir.value().c_str(), app_key_.c_str());
   }
 }
 
@@ -262,7 +265,7 @@ bool CobaltFinishInstallation(
   if (!starboard::loader_app::CreateAppKeyFile(good_app_key_file_path)) {
     LOG(WARNING) << "Failed to create good app key file";
   }
-  DrainFileRemove(dir.c_str(), app_key.c_str());
+  DrainFileClearForApp(dir.c_str(), app_key.c_str());
   int ret =
       installation_api->RequestRollForwardToInstallation(installation_index);
   if (ret == IM_EXT_ERROR) {
@@ -323,7 +326,8 @@ bool CobaltQuickUpdate(
       continue;
     } else if (slot_candidate_version < installed_version &&
                current_version < installed_version &&
-               !DrainFileDraining(installation_dir.value().c_str(), "") &&
+               !DrainFileIsAnotherAppDraining(installation_dir.value().c_str(),
+                                              app_key) &&
                !CheckBadFileExists(installation_dir.value().c_str(), app_key) &&
                starboard::loader_app::AnyGoodAppKeyFile(
                    installation_dir.value().c_str())) {
