@@ -19,7 +19,7 @@ import re
 import subprocess
 import sys
 
-import config.base
+from cobalt.build.config.base import PlatformConfigBase
 import starboard.shared.win32.sdk_configuration as win_sdk_configuration
 from starboard.tools import cache
 from starboard.tools.paths import STARBOARD_ROOT
@@ -61,7 +61,7 @@ def _QuotePath(path):
   return '"' + path + '"'
 
 
-class Win32SharedConfiguration(config.base.PlatformConfigBase):
+class Win32SharedConfiguration(PlatformConfigBase):
   """Starboard Microsoft Windows platform configuration."""
 
   def __init__(self,
@@ -145,9 +145,9 @@ class Win32SharedConfiguration(config.base.PlatformConfigBase):
     # once.
     return 'ninja,msvs_makefile'
 
-  def GetGeneratorVariables(self, configuration):
+  def GetGeneratorVariables(self, config_name):
     """Returns a dict of generator variables for the given configuration."""
-    _ = configuration
+    _ = config_name
     generator_variables = {
         'msvs_version': MSVS_VERSION,
         'msvs_platform': 'x64',
