@@ -42,24 +42,23 @@ bool DrainFileTryDrain(const char* dir, const char* app_key);
 // match, otherwise |false|.
 bool DrainFileRankAndCheck(const char* dir, const char* app_key);
 
-// Removed the drain files in |dir| whose app key matches |app_key|. Returns
-// |true| if no files were found, or they were removed, otherwise returns
-// |false|.
-bool DrainFileRemove(const char* dir, const char* app_key);
+// Clears all expired drain files in |dir| for all apps.
+void DrainFileClearExpired(const char* dir);
 
-// Clears the drain files in |dir|. If |app_key| is provided, all drain files
-// with matching app keys are ignored. If |expired| is |true|, all non-expired
-// drain files are ignored.
-void DrainFileClear(const char* dir, const char* app_key, bool expired);
+// Clears the drain files in |dir| with an app key matching |app_key|.
+void DrainFileClearForApp(const char* dir, const char* app_key);
 
 // Clears all files and directories in |dir| except for the drain file with an
 // app key matching |app_key|.
 void DrainFilePrepareDirectory(const char* dir, const char* app_key);
 
-// Checks whether a non-expired drain file exists in |dir|. If |app_key| is
-// provided, only drain files with a matching |app_key| are considered. Returns
-// |true| if there is, otherwise |false|.
-bool DrainFileDraining(const char* dir, const char* app_key);
+// Checks whether a non-expired drain file exists in |dir| for an app
+// with key |app_key|.
+bool DrainFileIsAppDraining(const char* dir, const char* app_key);
+
+// Checks whether a non-expired drain file exists in |dir| for an app
+// with key different from |app_key|.
+bool DrainFileIsAnotherAppDraining(const char* dir, const char* app_key);
 
 #ifdef __cplusplus
 }  // extern "C"

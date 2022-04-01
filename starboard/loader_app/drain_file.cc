@@ -195,7 +195,23 @@ bool RankAndCheck(const char* dir, const char* app_key) {
   return !strcmp(ranking_app_key.data(), app_key);
 }
 
-bool Remove(const char* dir, const char* app_key) {
+void ClearExpired(const char* dir) {
+  SB_DCHECK(dir);
+  std::vector<std::string> filenames = FindAllWithPrefix(dir, kDrainFilePrefix);
+
+  for (const auto& filename : filenames) {
+    if (!IsExpired(filename)) {
+      continue;
+    }
+    const std::string path = dir + std::string(kSbFileSepString) + filename;
+    if (!SbFileDelete(path.c_str())) {
+      SB_LOG(ERROR) << "Failed to remove expired drain file at '" << path
+                    << "'";
+    }
+  }
+}
+
+void ClearForApp(const char* dir, const char* app_key) {
   SB_DCHECK(dir);
   SB_DCHECK(app_key);
 
@@ -205,29 +221,9 @@ bool Remove(const char* dir, const char* app_key) {
 
   for (const auto& filename : filenames) {
     const std::string path = dir + std::string(kSbFileSepString) + filename;
-
-    if (!SbFileDelete(path.c_str()))
-      return false;
-  }
-  return true;
-}
-
-void Clear(const char* dir, const char* app_key, bool expired) {
-  SB_DCHECK(dir);
-
-  std::vector<std::string> filenames = FindAllWithPrefix(dir, kDrainFilePrefix);
-
-  for (const auto& filename : filenames) {
-    if (expired && !IsExpired(filename))
-      continue;
-    if (app_key && (filename.find(app_key) != std::string::npos))
-      continue;
-
-    const std::string path = dir + std::string(kSbFileSepString) + filename;
-
-    if (!SbFileDelete(path.c_str()))
-      SB_LOG(ERROR) << "Failed to remove expired drain file at '" << filename
-                    << "'";
+    if (!SbFileDelete(path.c_str())) {
+      SB_LOG(ERROR) << "Failed to remove drain file at '" << path << "'";
+    }
   }
 }
 
@@ -250,13 +246,13 @@ void PrepareDirectory(const char* dir, const char* app_key) {
   }
 }
 
-bool Draining(const char* dir, const char* app_key) {
+bool IsAppDraining(const char* dir, const char* app_key) {
   SB_DCHECK(dir);
+  SB_DCHECK(app_key);
+  SB_DCHECK(strlen(app_key));
 
   std::string prefix(kDrainFilePrefix);
-
-  if (app_key)
-    prefix.append(app_key);
+  prefix.append(app_key);
 
   const std::vector<std::string> filenames =
       FindAllWithPrefix(dir, prefix.c_str());
@@ -264,6 +260,23 @@ bool Draining(const char* dir, const char* app_key) {
   for (const auto& filename : filenames) {
     if (!IsExpired(filename))
       return true;
+  }
+  return false;
+}
+
+bool IsAnotherAppDraining(const char* dir, const char* app_key) {
+  SB_DCHECK(dir);
+  SB_DCHECK(app_key);
+  SB_DCHECK(strlen(app_key));
+  std::vector<std::string> filenames = FindAllWithPrefix(dir, kDrainFilePrefix);
+
+  for (const auto& filename : filenames) {
+    if ((filename.find(app_key) != std::string::npos)) {
+      continue;
+    }
+    if (!IsExpired(filename)) {
+      return true;
+    }
   }
   return false;
 }
@@ -284,20 +297,24 @@ bool DrainFileRankAndCheck(const char* dir, const char* app_key) {
   return starboard::loader_app::drain_file::RankAndCheck(dir, app_key);
 }
 
-bool DrainFileRemove(const char* dir, const char* app_key) {
-  return starboard::loader_app::drain_file::Remove(dir, app_key);
+void DrainFileClearExpired(const char* dir) {
+  starboard::loader_app::drain_file::ClearExpired(dir);
 }
 
-void DrainFileClear(const char* dir, const char* app_key, bool expired) {
-  starboard::loader_app::drain_file::Clear(dir, app_key, expired);
+void DrainFileClearForApp(const char* dir, const char* app_key) {
+  starboard::loader_app::drain_file::ClearForApp(dir, app_key);
 }
 
 void DrainFilePrepareDirectory(const char* dir, const char* app_key) {
   starboard::loader_app::drain_file::PrepareDirectory(dir, app_key);
 }
 
-bool DrainFileDraining(const char* dir, const char* app_key) {
-  return starboard::loader_app::drain_file::Draining(dir, app_key);
+bool DrainFileIsAppDraining(const char* dir, const char* app_key) {
+  return starboard::loader_app::drain_file::IsAppDraining(dir, app_key);
+}
+
+bool DrainFileIsAnotherAppDraining(const char* dir, const char* app_key) {
+  return starboard::loader_app::drain_file::IsAnotherAppDraining(dir, app_key);
 }
 
 #ifdef __cplusplus

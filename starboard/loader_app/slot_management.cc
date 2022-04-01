@@ -187,8 +187,11 @@ void* LoadSlotManagedLibrary(const std::string& app_key,
     SB_DLOG(INFO) << "installation_path=" << installation_path.data();
 
     if (current_installation != 0) {
-      // Cleanup expired drain files
-      DrainFileClear(installation_path.data(), app_key.c_str(), true);
+      // Cleanup all expired files from all apps.
+      DrainFileClearExpired(installation_path.data());
+
+      // Cleanup all drain files from the current app.
+      DrainFileClearForApp(installation_path.data(), app_key.c_str());
 
       // Check for bad file.
       if (CheckBadFileExists(installation_path.data(), app_key.c_str())) {
@@ -197,7 +200,8 @@ void* LoadSlotManagedLibrary(const std::string& app_key,
         continue;
       }
       // If the current installation is in use by an updater roll back.
-      if (DrainFileDraining(installation_path.data(), "")) {
+      if (DrainFileIsAnotherAppDraining(installation_path.data(),
+                                        app_key.c_str())) {
         SB_LOG(INFO) << "Active slot draining";
         current_installation = RevertBack(current_installation, app_key);
         continue;
