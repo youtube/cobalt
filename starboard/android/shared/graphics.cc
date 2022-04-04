@@ -30,7 +30,7 @@ float GetMaximumFrameIntervalInMilliseconds() {
 }
 
 float GetMinimumFrameIntervalInMilliseconds() {
-  return -1.0f;
+  return 16.0f;
 }
 
 bool IsMapToMeshEnabled() {
