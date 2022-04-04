@@ -22,7 +22,7 @@ import subprocess
 import sys
 import threading
 import time
-import Queue
+from six.moves import queue
 
 from starboard.android.shared.sdk_utils import SDK_PATH
 from starboard.tools import abstract_launcher
@@ -301,7 +301,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
         self._CheckCallAdb('shell', 'pm', 'grant', _APP_PACKAGE_NAME,
                            permission)
 
-    done_queue = Queue.Queue()
+    done_queue = queue.Queue()
     am_monitor = AdbAmMonitorWatcher(self, done_queue)
 
     # Increases the size of the logcat buffer.  Without this, the log buffer
