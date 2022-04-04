@@ -3,11 +3,11 @@
 # Cobalt doesn't support Workers, so disable related tests.
 # Cobalt fetch implementation only supports the Body mixin types text(),
 #   json(), and arrayBuffer(). Blob, URLSearchParams, and FormData are not
-#   well-supported by the javascript engine. Certain tests may be substitued
+#   well-supported by the javascript engine. Certain tests may be substituted
 #   with *.cobalt.html versions to accommodate this limitation.
 
 # Failure is not specific to fetch.
-api/basic/block-mime-as-script.html,DISABLE
+api/basic/block-mime-as-script.html,PASS
 # Caching responses is not supported.
 api/basic/conditional-get.html,DISABLE
 api/basic/error-after-response.html,PASS

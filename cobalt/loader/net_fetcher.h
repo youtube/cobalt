@@ -108,6 +108,9 @@ class NetFetcher : public Fetcher, public net::URLFetcherDelegate {
   // transient, indicating that the same fetch may later succeed.
   bool did_fail_from_transient_error_ = false;
 
+  // True when the requested resource type is script.
+  bool request_script_;
+
   DISALLOW_COPY_AND_ASSIGN(NetFetcher);
 };
 
