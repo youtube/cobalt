@@ -20,34 +20,18 @@ import importlib
 import logging
 import os
 
-import starboard
 from starboard.build.platforms import PLATFORMS
 
 
-def _ImportModule(path, root_module, module_name=None):
-  """Load a platform specific python module using importlib.
-
-  Load the python module named |module_name| relative to |root_module|.
-  Args:
-    path: Path to the platform
-    root_module: An already-loaded module
-    module_name: Name of a python module to load. If None, load the platform
-      directory as a python module.
+def _ImportModule(path, module_name=None):
+  """Convert a filepath to a python-style import path and import it.
 
   Returns:
     A module loaded with importlib.import_module
   Throws:
     ImportError if the module fails to be loaded.
   """
-  # From the relative path to the |root_module|'s directory, construct a full
-  # python package name and attempt to load it.
-  relative_path = os.path.relpath(path, os.path.dirname(root_module.__file__))
-  full_path = os.path.join(root_module.__name__, relative_path)
-
-  # This normpath may collapse out the root module. This is generally OK as long
-  # as we stay within the workspace, as _env will add the workspace root to the
-  # system import path.
-  components = os.path.normpath(full_path).split(os.sep)
+  components = os.path.normpath(path).split(os.sep)
   if module_name:
     components.append(module_name)
   full_package_name = '.'.join(components)
@@ -59,7 +43,7 @@ def _GetPackageClass(platform_name, platform_path):
   Loads the package class associated with the given platform.
   """
   try:
-    module = _ImportModule(platform_path, starboard)
+    module = _ImportModule(platform_path)
   except ImportError as e:
     logging.debug('Failed to import module for platform %s with error: %s',
                   platform_name, e)
@@ -174,8 +158,7 @@ class Packager(object):
     """Get application-specific packaging information."""
     platform_path = self.GetPlatformInfo(platform_name)
     try:
-      return _ImportModule(platform_path, starboard,
-                           '%s.package' % application_name)
+      return _ImportModule(platform_path, '{}.package'.format(application_name))
     except ImportError as e:
       # No package parameters specified for this platform.
       logging.debug('Failed to import cobalt.package: %s', e)
