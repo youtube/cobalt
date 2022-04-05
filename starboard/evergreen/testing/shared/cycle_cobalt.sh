@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-TIMEOUT=150
+TIMEOUT=200
 
 # Watches Cobalt's logs.
 #
