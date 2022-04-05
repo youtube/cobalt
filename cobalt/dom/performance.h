@@ -20,9 +20,9 @@
 #include <map>
 #include <string>
 
+#include "base/time/default_tick_clock.h"
 #include "base/threading/thread.h"
 #include "base/threading/thread_checker.h"
-#include "base/time/default_tick_clock.h"
 #include "cobalt/base/application_state.h"
 #include "cobalt/base/clock.h"
 #include "cobalt/dom/event_target.h"
@@ -71,7 +71,8 @@ class Performance : public EventTarget {
       base::TimeTicks monotonic_time) const;
 
   static DOMHighResTimeStamp MonotonicTimeToDOMHighResTimeStamp(
-      base::TimeTicks time_origin, base::TimeTicks monotonic_time);
+      base::TimeTicks time_origin,
+      base::TimeTicks monotonic_time);
 
   // Web API: Performance Timeline extensions to the Performance.
   //   https://www.w3.org/TR/performance-timeline-2/#extensions-to-the-performance-interface
@@ -110,13 +111,12 @@ class Performance : public EventTarget {
   void CreatePerformanceResourceTiming(const net::LoadTimingInfo& timing_info,
                                        const std::string& initiator_type,
                                        const std::string& requested_url);
-  void AddEntryToPerformanceEntryBuffer(
-      const scoped_refptr<PerformanceEntry>& entry) {
-    performance_entry_buffer_.push_back(entry);
-  }
+  void CreatePerformanceLifecycleTiming();
   // Custom, not in any spec.
   // Internal getter method for the time origin value.
-  base::TimeTicks GetTimeOrigin() const { return time_origin_; }
+  base::TimeTicks GetTimeOrigin() const {
+      return time_origin_;
+  }
   // Register and unregisterthe performance observer.
   void UnregisterPerformanceObserver(
       const scoped_refptr<PerformanceObserver>& observer);
@@ -135,8 +135,8 @@ class Performance : public EventTarget {
   void SetApplicationState(base::ApplicationState state,
                            SbTimeMonotonic timestamp);
 
-  void SetApplicationStartOrPreloadTimestamp(bool is_preload,
-                                             SbTimeMonotonic timestamp);
+  void SetApplicationStartOrPreloadTimestamp(
+      bool is_preload, SbTimeMonotonic timestamp);
 
   void SetDeepLinkTimestamp(SbTimeMonotonic timestamp);
 
@@ -175,7 +175,8 @@ class Performance : public EventTarget {
   unsigned long resource_timing_buffer_size_limit_;
   unsigned long resource_timing_buffer_current_size_;
   bool resource_timing_buffer_full_event_pending_flag_;
-  unsigned long resource_timing_secondary_buffer_current_size_;
+  unsigned long
+      resource_timing_secondary_buffer_current_size_;
   std::deque<scoped_refptr<PerformanceResourceTiming>>
       resource_timing_secondary_buffer_;
 
