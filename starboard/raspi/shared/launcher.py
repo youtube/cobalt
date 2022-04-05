@@ -23,7 +23,6 @@ import sys
 import threading
 import time
 
-import _env  # pylint: disable=unused-import
 import pexpect
 from starboard.tools import abstract_launcher
 
