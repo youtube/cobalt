@@ -1,11 +1,14 @@
-from cgi import escape
 import gzip as gzip_module
 import re
 import time
 import types
 import uuid
-from cStringIO import StringIO
+from io import BytesIO
 
+try:
+    from cgi import escape
+except ImportError:
+    from html import escape
 
 def resolve_content(response):
     return b"".join(item for item in response.iter_content(read_file=True))
@@ -436,7 +439,7 @@ def gzip(request, response):
     content = resolve_content(response)
     response.headers.set("Content-Encoding", "gzip")
 
-    out = StringIO()
+    out = BytesIO()
     with gzip_module.GzipFile(fileobj=out, mode="w") as f:
         f.write(content)
     response.content = out.getvalue()

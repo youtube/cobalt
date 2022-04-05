@@ -39,10 +39,10 @@ from __future__ import print_function
 
 import logging
 import os
-import SimpleHTTPServer
+from six.moves import SimpleHTTPServer
+from six.moves.urllib.parse import urlparse
 import threading
 import traceback
-import urlparse
 
 from cobalt.black_box_tests import black_box_tests
 from cobalt.black_box_tests.threaded_web_server import MakeRequestHandlerClass
@@ -67,7 +67,7 @@ class JavascriptRequestDetector(MakeRequestHandlerClass(_SERVER_ROOT_PATH)):
   def do_GET(self):  # pylint: disable=invalid-name
     """Handles HTTP GET requests for resources."""
 
-    parsed_path = urlparse.urlparse(self.path)
+    parsed_path = urlparse(self.path)
 
     if parsed_path.path == '/testdata/' + _JS_FILE_TO_REQUEST:
       _received_script_resource_request.set()

@@ -31,6 +31,7 @@ SRC_DIR = os.path.join(os.path.dirname(__file__), os.pardir, os.pardir)
 
 
 class ProxyServer(object):
+  """HTTP Proxy Server."""
 
   def __init__(self,
                hostname='0.0.0.0',
@@ -45,7 +46,7 @@ class ProxyServer(object):
     self.host_resolver_path = None
 
     if host_resolve_map:
-      with tempfile.NamedTemporaryFile(delete=False) as hosts:
+      with tempfile.NamedTemporaryFile('w', delete=False) as hosts:
         json.dump(host_resolve_map, hosts)
       self.host_resolver_path = hosts.name
       self.command += ['--host_resolver', self.host_resolver_path]

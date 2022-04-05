@@ -19,13 +19,13 @@ from __future__ import print_function
 
 import logging
 import os
-import SimpleHTTPServer
+from six.moves import SimpleHTTPServer
+from six.moves import socketserver
 import socket
-import SocketServer
 import threading
 
 
-class _ThreadedTCPServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
+class _ThreadedTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
   pass
 
 
@@ -54,8 +54,8 @@ def MakeRequestHandlerClass(base_path):
                                               self._base_path)
       return potential_path
 
-    def log_message(self, format, *args):
-      logging.info(format % (args))
+    def log_message(self, format_string, *args):
+      logging.info(format_string % (args))  # pylint: disable=logging-not-lazy
 
   return TestDataHTTPRequestHandler
 

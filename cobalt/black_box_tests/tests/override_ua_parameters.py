@@ -18,7 +18,7 @@ from __future__ import division
 from __future__ import print_function
 
 import os
-import SimpleHTTPServer
+from six.moves import SimpleHTTPServer
 
 from cobalt.black_box_tests import black_box_tests
 from cobalt.black_box_tests.threaded_web_server import MakeRequestHandlerClass

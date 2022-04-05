@@ -35,6 +35,8 @@ from __future__ import print_function
 import inspect
 import logging
 import os
+from six.moves import SimpleHTTPServer
+from six.moves.urllib.parse import urlparse
 import threading
 import time
 import traceback
@@ -42,9 +44,6 @@ import traceback
 from cobalt.black_box_tests import black_box_tests
 from cobalt.black_box_tests.threaded_web_server import MakeRequestHandlerClass
 from cobalt.black_box_tests.threaded_web_server import ThreadedWebServer
-
-import SimpleHTTPServer
-import urlparse
 
 _DEEP_LINKS_HTML = 'deep_links.html'
 _DEEP_LINKS_JS = 'deep_links.js'
@@ -62,7 +61,7 @@ class JavascriptRequestDetector(MakeRequestHandlerClass(_SERVER_ROOT_PATH)):
   def do_GET(self):  # pylint: disable=invalid-name
     """Handles HTTP GET requests for resources."""
 
-    parsed_path = urlparse.urlparse(self.path)
+    parsed_path = urlparse(self.path)
     if parsed_path.path == '/testdata/' + _DEEP_LINKS_JS:
       # It is important not to send any response back, so we block.
       logging.info('Waiting on links to be fired.')

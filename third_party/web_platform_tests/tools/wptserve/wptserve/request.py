@@ -1,9 +1,9 @@
 import base64
 import cgi
-import Cookie
-import StringIO
+from six import StringIO
 import tempfile
 
+from six.moves import http_cookies
 from six.moves.urllib.parse import parse_qsl, urlsplit
 
 from . import stash
@@ -52,7 +52,7 @@ class InputFile(object):
         if length > self.max_buffer_size:
             self._buf = tempfile.TemporaryFile(mode="rw+b")
         else:
-            self._buf = StringIO.StringIO()
+            self._buf = StringIO()
 
     @property
     def _buf_position(self):
@@ -314,7 +314,7 @@ class Request(object):
     @property
     def cookies(self):
         if self._cookies is None:
-            parser = Cookie.BaseCookie()
+            parser = http_cookies.BaseCookie()
             cookie_headers = self.headers.get("cookie", "")
             parser.load(cookie_headers)
             cookies = Cookies()

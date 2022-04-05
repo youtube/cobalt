@@ -1,6 +1,6 @@
 from collections import OrderedDict
 from datetime import datetime, timedelta
-import Cookie
+from six.moves import http_cookies
 import json
 import os
 import types
@@ -133,7 +133,7 @@ class Response(object):
                 max_age = int(max_age.total_seconds())
             max_age = "%.0d" % max_age
 
-        m = Cookie.Morsel()
+        m = http_cookies.Morsel()
 
         def maybe_set(key, value):
             if value is not None and value is not False:
@@ -153,7 +153,7 @@ class Response(object):
     def unset_cookie(self, name):
         """Remove a cookie from those that are being sent with the response"""
         cookies = self.headers.get("Set-Cookie")
-        parser = Cookie.BaseCookie()
+        parser = http_cookies.BaseCookie()
         for cookie in cookies:
             parser.load(cookie)
 
