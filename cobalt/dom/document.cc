@@ -1169,6 +1169,7 @@ void Document::CreatePerformanceNavigationTiming(
   // navigationTimingEntry.
   navigation_timing_entry_ = navigation_timing;
   // 10. add navigationTimingEntry to global's performance entry buffer.
+  performance->AddEntryToPerformanceEntryBuffer(navigation_timing_entry_);
   // 11. To queue the navigation timing entry for Document document, queue
   // document's navigation timing entry.
   performance->QueuePerformanceEntry(navigation_timing_entry_);
