@@ -1,0 +1,7 @@
+void main() {
+    void();
+}
+
+/*%%*
+cannot construct 'void'
+*%%*/

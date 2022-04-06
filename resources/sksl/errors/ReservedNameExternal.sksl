@@ -1,0 +1,5 @@
+int external;
+
+/*%%*
+'external' is a reserved word
+*%%*/
