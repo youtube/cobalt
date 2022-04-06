@@ -13,11 +13,11 @@
 # limitations under the License.
 """Starboard win32 shared platform configuration for gyp_cobalt."""
 
-from cobalt.build.config.base import PlatformConfigBase
+from starboard.build import platform_configuration
 
 MSVS_VERSION = 2017
 
 
-class Win32SharedConfiguration(PlatformConfigBase):
+class Win32SharedConfiguration(platform_configuration.PlatformConfiguration):
   """Starboard Microsoft Windows platform configuration."""
   pass
