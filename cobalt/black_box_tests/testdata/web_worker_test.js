@@ -15,7 +15,12 @@
 var data = "worker data";
 this.postMessage(data);
 this.onmessage = function (event) {
-    var data = "worker reply data";
+    if (event.data === 'window data') {
+        this.postMessage('worker received correct message');
+    } else {
+        this.postMessage('worker received wrong message')
+    }
+    var data = event.data.toUpperCase();
     this.postMessage(data);
 };
 this

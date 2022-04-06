@@ -32,16 +32,23 @@
     console.log(worker);
     var data = "window data";
     worker.onmessage = function (event) {
-        console.log('window got onmessage');
+        console.log('window got onmessage from worker: ' + event.data);
         message_event_count += 1;
-        if (message_event_count == 3) {
+        if (message_event_count == 1) {
+            assertEqual(event.data, 'worker data');
+        } else if (message_event_count % 2 == 0) {
+            assertEqual(event.data, 'worker received correct message');
+        } else {
+            assertEqual(event.data, data.toUpperCase());
+        }
+        if (message_event_count == 5) {
             window.setTimeout(
                 () => {
-                    assertEqual(message_event_count, 3);
+                    assertEqual(message_event_count, 5);
                     onEndTest();
                 }, 250);
         }
-        if (message_event_count > 3) {
+        if (message_event_count > 5) {
             notReached();
         }
     };
