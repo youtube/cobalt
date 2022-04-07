@@ -48,14 +48,11 @@ _REQUEST = {
             'updatecheck': {},
         }],
         'arch': '',
-        'chipset': '',
         'dedup': 'cr',
-        'firmware': '',
         'hw': {},
         'jsengine': 'v8/8.8.278.8-jit',
         'lang': 'en_US',
         'manufacturer': '',
-        'model': '',
         'nacl_arch': '',
         'os': {
             'arch': '',
@@ -86,11 +83,23 @@ def main():
       help='Which channel to use.',
   )
   arg_parser.add_argument(
-      '-f',
+      '-d',
       '--channel_changed',
       action='store_true',
       default=False,
       help='Whether this is a request from changing channels.',
+  )
+  arg_parser.add_argument(
+      '-i',
+      '--chipset',
+      default='',
+      help='Which device chipset to use.',
+  )
+  arg_parser.add_argument(
+      '-m',
+      '--model',
+      default='',
+      help='Which device model to use.',
   )
   arg_parser.add_argument(
       '-p',
@@ -105,6 +114,12 @@ def main():
       action='store_true',
       default=False,
       help='Whether to use the Omaha QA backend.',
+  )
+  arg_parser.add_argument(
+      '-r',
+      '--firmware',
+      default='',
+      help='Which device firmware to use.',
   )
   arg_parser.add_argument(
       '-s',
@@ -134,6 +149,9 @@ def main():
 
   _REQUEST['request']['SABI'] = generate_sabi_id.DoMain()
   _REQUEST['request']['brand'] = args.brand
+  _REQUEST['request']['chipset'] = args.chipset
+  _REQUEST['request']['firmware'] = args.firmware
+  _REQUEST['request']['model'] = args.model
   _REQUEST['request']['updaterchannel'] = args.channel
   _REQUEST['request']['updaterchannelchanged'] = args.channel_changed
   _REQUEST['request']['sbversion'] = args.sbversion
