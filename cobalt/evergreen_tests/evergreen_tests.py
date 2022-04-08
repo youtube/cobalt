@@ -22,8 +22,6 @@ import os
 import subprocess
 import sys
 
-import _env  # pylint: disable=unused-import
-
 from starboard.tools import abstract_launcher
 from starboard.tools import command_line
 from starboard.tools import log_level
