@@ -21,11 +21,11 @@ import json
 import logging
 import os
 import re
+from six.moves import _thread
 import sys
 import threading
 import time
 import traceback
-import thread
 
 from cobalt.tools.automated_testing import c_val_names
 from cobalt.tools.automated_testing import webdriver_utils
@@ -273,7 +273,7 @@ class CobaltRunner(object):
     try:
       self.WaitForStart()
     except KeyboardInterrupt:
-      # potentially from thread.interrupt_main(). We will treat as
+      # potentially from _thread.interrupt_main(). We will treat as
       # a timeout regardless.
 
       self.Exit(should_fail=True)
@@ -364,7 +364,7 @@ class CobaltRunner(object):
       if not self.should_exit.is_set():
         # If the main thread is not expecting us to exit,
         # we must interrupt it.
-        thread.interrupt_main()
+        _thread.interrupt_main()
     return 0
 
   def CanExecuteJavaScript(self):

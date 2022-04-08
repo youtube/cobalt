@@ -15,8 +15,6 @@
 
 from collections import OrderedDict
 
-import _env  # pylint: disable=unused-import
-
 
 class MimeStrings():
   """

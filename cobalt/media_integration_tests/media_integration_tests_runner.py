@@ -15,11 +15,11 @@
 
 Usage:
   To run all tests of a specific type:
-      "python media_integration_tests_runner.py
+      "python3 media_integration_tests_runner.py
       -p android-arm64 -c devel -w noinstall -log-level info
       --type functionality"
   To run a specific test (suspend_resume):
-      python media_integration_tests_runner.py
+      python3 media_integration_tests_runner.py
       -p android-arm64 -c devel -w noinstall -log-level info
       --type functionality --test_name suspend_resume"
 
@@ -28,11 +28,11 @@ Usage:
 import argparse
 import importlib
 import logging
+import os
 import pkgutil
 import sys
 import unittest
 
-import _env  # pylint: disable=unused-import
 from cobalt.media_integration_tests.test_app import Features
 from cobalt.media_integration_tests.test_case import SetLauncherParams, SetSupportedFeatures
 from starboard.tools import abstract_launcher
@@ -66,7 +66,7 @@ def GetSupportedFeatures(launcher_params):
 
 
 def GetTestPackagePath(test_type):
-  if _TESTS_PATH.has_key(test_type):
+  if test_type in _TESTS_PATH:
     return _TESTS_PATH[test_type]
   return None
 
@@ -74,9 +74,12 @@ def GetTestPackagePath(test_type):
 def GetAllTestNamesInPackage(package_path):
   test_names = []
   loader = pkgutil.get_loader(package_path)
-  for sub_module in pkgutil.walk_packages([loader.filename]):
+  raw_path = loader.get_filename(package_path)
+  path = os.path.dirname(raw_path) if loader.is_package(
+      package_path) else raw_path
+  for sub_module in pkgutil.walk_packages([path]):
     _, sub_module_name, _ = sub_module
-    # Filter '_env' and '__init__'.
+    # Filter '__init__'.
     if sub_module_name[0] == '_':
       continue
     if not sub_module_name in test_names:

@@ -18,7 +18,6 @@ import logging
 import threading
 import time
 
-import _env  # pylint: disable=unused-import
 from cobalt.tools.automated_testing import cobalt_runner
 from cobalt.tools.automated_testing import webdriver_utils
 
@@ -41,7 +40,7 @@ def GetValueFromQueryResult(query_result, key, default):
   if not isinstance(query_result, dict):
     return default
 
-  if not query_result.has_key(key):
+  if key not in query_result:
     return default
 
   value = query_result[key]
@@ -330,7 +329,7 @@ class MediaSessionState():
       raise NotImplementedError
 
     metadata = None
-    if isinstance(query_result, dict) and query_result.has_key('metadata'):
+    if isinstance(query_result, dict) and 'metadata' in query_result:
       metadata = query_result['metadata']
 
     self.title = GetValueFromQueryResult(metadata, 'title', '')

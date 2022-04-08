@@ -16,7 +16,6 @@
 import logging
 import time
 
-import _env  # pylint: disable=unused-import
 from cobalt.media_integration_tests.test_app import Features
 from cobalt.media_integration_tests.test_case import TestCase
 from cobalt.media_integration_tests.test_util import MimeStrings, PlaybackUrls

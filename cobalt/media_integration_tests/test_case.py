@@ -16,7 +16,6 @@
 import logging
 import unittest
 
-import _env  # pylint: disable=unused-import
 from cobalt.media_integration_tests.test_app import TestApp
 
 # Global variables
@@ -57,7 +56,6 @@ class TestCase(unittest.TestCase):
 
   @staticmethod
   def IsFeatureSupported(feature):
-    global _supported_features
     return _supported_features[feature]
 
   @staticmethod
