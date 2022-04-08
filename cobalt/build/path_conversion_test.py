@@ -12,12 +12,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+"""Path conversion test."""
 
 import os
 import unittest
 
-import _env  # pylint: disable=unused-import,relative-import
 from cobalt.build.path_conversion import ConvertPath
 
 
