@@ -13,8 +13,6 @@
 # limitations under the License.
 """Tests basic Web Worker functionality."""
 
-import _env  # pylint: disable=unused-import
-
 from cobalt.black_box_tests import black_box_tests
 from cobalt.black_box_tests.threaded_web_server import ThreadedWebServer
 

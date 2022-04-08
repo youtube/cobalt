@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""Tests if Cobalt signal handler is robust."""
 
 from __future__ import absolute_import
 from __future__ import division
@@ -19,8 +20,6 @@ from __future__ import print_function
 import signal
 import time
 
-import _env  # pylint: disable=unused-import
-
 from cobalt.black_box_tests import black_box_tests
 
 
@@ -28,7 +27,7 @@ class SignalHandlerDoesntCrashTest(black_box_tests.BlackBoxTestCase):
   """Flood the process with CONT signals, ensuring signal handler is robust."""
 
   def setUp(self):
-    if 'linux' not in self.launcher_params.platform:
+    if 'linux' not in self.launcher_params.platform:  # pylint: disable=unsupported-membership-test
       self.skipTest('This test needs POSIX system signal handlers')
 
   def test_simple(self):

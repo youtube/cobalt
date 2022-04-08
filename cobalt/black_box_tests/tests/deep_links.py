@@ -32,8 +32,6 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import _env  # pylint: disable=unused-import,g-bad-import-order
-
 import inspect
 import logging
 import os
@@ -81,7 +79,7 @@ class JavascriptRequestDetector(MakeRequestHandlerClass(_SERVER_ROOT_PATH)):
 class DeepLink(black_box_tests.BlackBoxTestCase):
   """Tests firing deep links before web module is loaded."""
 
-  def _LoadPage(self, webdriver, url):
+  def _load_page(self, webdriver, url):
     """Instructs webdriver to navigate to url."""
     try:
       # Note: The following is a blocking request, and returns only when the
@@ -91,7 +89,7 @@ class DeepLink(black_box_tests.BlackBoxTestCase):
     except:  # pylint: disable=bare-except
       traceback.print_exc()
 
-  def _SendLink(self, query_parameter=''):
+  def _send_link(self, query_parameter=''):
     """Test sending links into Cobalt after it's started."""
 
     logging.info('[ RUN ] ' + inspect.stack()[1][3] + ' ' + query_parameter)
@@ -105,14 +103,14 @@ class DeepLink(black_box_tests.BlackBoxTestCase):
           if query_parameter != '':
             target_url += '?' + query_parameter
           cobalt_launcher_thread = threading.Thread(
-              target=DeepLink._LoadPage,
+              target=DeepLink._load_page,
               args=(self, runner.webdriver, target_url))
           cobalt_launcher_thread.start()
 
           # Step 3. Send 3 deep links
           for i in range(1, 4):
             link = 'link ' + str(i)
-            logging.info('Sending link : ' + link)
+            logging.info('Sending link : %s', link)
             self.assertTrue(runner.SendDeepLink(link))
           logging.info('Links fired.')
           # Step 4. Load & run the javascript resource.
@@ -123,19 +121,19 @@ class DeepLink(black_box_tests.BlackBoxTestCase):
           # of time (current default is 30 seconds).
           success = runner.JSTestsSucceeded()
           if success:
-            logging.info('[ OK ] ' + inspect.stack()[1][3])
+            logging.info('[ OK ] %s', inspect.stack()[1][3])
           else:
-            logging.info('[ FAILED ] ' + inspect.stack()[1][3])
+            logging.info('[ FAILED ] %s', inspect.stack()[1][3])
           self.assertTrue(success)
     except:  # pylint: disable=bare-except
       traceback.print_exc()
       # Consider an exception being thrown as a test failure.
-      self.assertTrue(False)
+      self.fail('Test failure')
     finally:
       logging.info('Cleaning up.')
       _script_loading_signal.set()
 
-  def _StartLink(self, query_parameter=''):
+  def _start_link(self, query_parameter=''):
     """Test the initial link provided when starting Cobalt."""
 
     logging.info('[ RUN ] ' + inspect.stack()[1][3] + ' ' + query_parameter)
@@ -149,12 +147,12 @@ class DeepLink(black_box_tests.BlackBoxTestCase):
           url=url, target_params=['--link=' + initial_deep_link]) as runner:
         success = runner.JSTestsSucceeded()
         if success:
-          logging.info('[ OK ] ' + inspect.stack()[1][3])
+          logging.info('[ OK ] %s', inspect.stack()[1][3])
         else:
-          logging.info('[ FAILED ] ' + inspect.stack()[1][3])
+          logging.info('[ FAILED ] %s', inspect.stack()[1][3])
         self.assertTrue(success)
 
-  def _DelayedLink(self, query_parameter=''):
+  def _delayed_link(self, query_parameter=''):
     """Test sending links into Cobalt after it's started."""
 
     logging.info('[ RUN ] ' + inspect.stack()[1][3] + ' ' + query_parameter)
@@ -168,7 +166,7 @@ class DeepLink(black_box_tests.BlackBoxTestCase):
           if query_parameter != '':
             target_url += '?' + query_parameter
           cobalt_launcher_thread = threading.Thread(
-              target=DeepLink._LoadPage,
+              target=DeepLink._load_page,
               args=(self, runner.webdriver, target_url))
           cobalt_launcher_thread.start()
 
@@ -180,7 +178,7 @@ class DeepLink(black_box_tests.BlackBoxTestCase):
 
           # Step 5. Send deep link
           link = 'link 3'  # Expected by our test JS
-          logging.info('Sending link : ' + link)
+          logging.info('Sending link : %s', link)
           self.assertTrue(runner.SendDeepLink(link))
           logging.info('Links fired.')
 
@@ -189,104 +187,116 @@ class DeepLink(black_box_tests.BlackBoxTestCase):
           # of time (current default is 30 seconds).
           success = runner.JSTestsSucceeded()
           if success:
-            logging.info('[ OK ] ' + inspect.stack()[1][3])
+            logging.info('[ OK ] %s', inspect.stack()[1][3])
           else:
-            logging.info('[ FAILED ] ' + inspect.stack()[1][3])
+            logging.info('[ FAILED ] %s', inspect.stack()[1][3])
           self.assertTrue(success)
     except:  # pylint: disable=bare-except
       traceback.print_exc()
       # Consider an exception being thrown as a test failure.
-      self.assertTrue(False)
+      self.fail('Test failure')
     finally:
       logging.info('Cleaning up.')
       _script_loading_signal.set()
 
   def test_delayed_link_unconsumed(self):
     """Test that a deep link does not have to be consumed."""
-    return self._DelayedLink('consumed&delayedlink')
+    return self._delayed_link('consumed&delayedlink')
 
   def test_delayed_link_and_consume(self):
     """Test that a deep link is received."""
-    return self._DelayedLink('consume&delayedlink')
+    return self._delayed_link('consume&delayedlink')
 
   def test_send_link_unconsumed(self):
     """Test that the link does not have to be consumed."""
-    return self._SendLink()
+    return self._send_link()
 
   def test_send_link_and_consume(self):
     """Test that the last link is received."""
-    return self._SendLink('consume')
+    return self._send_link('consume')
 
   def test_send_link_and_consume_with_initial_deep_link(self):
     """Test that the link is visible in initialDeepLink."""
-    return self._SendLink('consume&initial')
+    return self._send_link('consume&initial')
 
   def test_send_link_and_navigate_and_consume(self):
     """Test that the link is received after navigating."""
-    return self._SendLink('navigate_immediate')
+    return self._send_link('navigate_immediate')
 
   def test_send_link_and_navigate_with_delay_and_consume(self):
     """Test that the link is received after navigating with a delay."""
-    return self._SendLink('navigate_delayed')
+    return self._send_link('navigate_delayed')
 
   def test_send_link_and_navigate_and_consume_with_initial_deep_link(self):
     """Test that the link is received in initialDeepLink after navigating."""
-    return self._SendLink('navigate_immediate&initial')
+    return self._send_link('navigate_immediate&initial')
 
   def test_send_link_and_navigate_with_delay_and_consume_with_initial_deep_link(
       self):
-    """Test that the link is received in initialDeepLink after navigating with a delay."""
-    return self._SendLink('navigate_delayed&initial')
+    """Test that the link is received in initialDeepLink after navigating with
+    a delay.
+    """
+    return self._send_link('navigate_delayed&initial')
 
   def test_send_link_and_consume_and_navigate(self):
     """Test that a consumed link is not received again after navigating."""
-    return self._SendLink('consume&navigate_immediate')
+    return self._send_link('consume&navigate_immediate')
 
   def test_send_link_and_consume_and_navigate_with_delay(self):
-    """Test that a consumed link is not received again after navigating with a delay."""
-    return self._SendLink('consume&navigate_delayed')
+    """Test that a consumed link is not received again after navigating with a
+    delay.
+    """
+    return self._send_link('consume&navigate_delayed')
 
   def test_send_link_and_consume_with_initial_deep_link_and_navigate(self):
-    """Test that a link consumed with initialDeepLink is not received again after navigating."""
-    return self._SendLink('consume&initial&navigate_immediate')
+    """Test that a link consumed with initialDeepLink is not received again
+    after navigating.
+    """
+    return self._send_link('consume&initial&navigate_immediate')
 
   def test_start_link_unconsumed(self):
     """Test that the link does not have to be consumed."""
-    return self._StartLink()
+    return self._start_link()
 
   def test_start_link_and_consume(self):
     """Test that the last link is received."""
-    return self._StartLink('consume')
+    return self._start_link('consume')
 
   def test_start_link_and_consume_with_initial_deep_link(self):
     """Test that the link is visible in initialDeepLink."""
-    return self._StartLink('consume&initial')
+    return self._start_link('consume&initial')
 
   def test_start_link_and_navigate_and_consume(self):
     """Test that the link is received after navigating."""
-    return self._StartLink('navigate_immediate')
+    return self._start_link('navigate_immediate')
 
   def test_start_link_and_navigate_with_delay_and_consume(self):
     """Test that the link is received after navigating with a delay."""
-    return self._StartLink('navigate_delayed')
+    return self._start_link('navigate_delayed')
 
   def test_start_link_and_navigate_and_consume_with_initial_deep_link(self):
     """Test that the link is received in initialDeepLink after navigating."""
-    return self._StartLink('navigate_immediate&initial')
+    return self._start_link('navigate_immediate&initial')
 
-  def test_start_link_and_navigate_with_delay_and_consume_with_initial_deep_link(
+  def test_start_link_and_navigate_with_delay_and_consume_with_initial_deep_link(  # pylint:disable=line-too-long
       self):
-    """Test that the link is received in initialDeepLink after navigating with a delay."""
-    return self._StartLink('navigate_delayed&initial')
+    """Test that the link is received in initialDeepLink after navigating with a
+    delay.
+    """
+    return self._start_link('navigate_delayed&initial')
 
   def test_start_link_and_consume_and_navigate(self):
     """Test that a consumed link is not received again after navigating."""
-    return self._StartLink('consume&navigate_immediate')
+    return self._start_link('consume&navigate_immediate')
 
   def test_start_link_and_consume_and_navigate_with_delay(self):
-    """Test that a consumed link is not received again after navigating with a delay."""
-    return self._StartLink('consume&navigate_delayed')
+    """Test that a consumed link is not received again after navigating with a
+    delay.
+    """
+    return self._start_link('consume&navigate_delayed')
 
   def test_start_link_and_consume_with_initial_deep_link_and_navigate(self):
-    """Test that a link consumed with initialDeepLink is not received again after navigating."""
-    return self._StartLink('consume&initial&navigate_immediate')
+    """Test that a link consumed with initialDeepLink is not received again
+    after navigating.
+    """
+    return self._start_link('consume&initial&navigate_immediate')

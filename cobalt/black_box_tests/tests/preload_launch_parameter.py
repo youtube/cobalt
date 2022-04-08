@@ -11,12 +11,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""Tests preload launch parameter."""
 
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
-
-import _env  # pylint: disable=unused-import
 
 from cobalt.black_box_tests import black_box_tests
 from cobalt.black_box_tests.threaded_web_server import ThreadedWebServer
@@ -40,7 +39,7 @@ class PreloadLaunchParameterTest(black_box_tests.BlackBoxTestCase):
 
       # Test with another parameter.
       with self.CreateCobaltRunner(
-          url=url + "?foo=bar", target_params=['--preload']) as runner:
+          url=url + '?foo=bar', target_params=['--preload']) as runner:
         runner.WaitForJSTestsSetup()
         self.assertTrue(runner.IsInPreload())
         runner.SendResume()

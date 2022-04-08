@@ -37,8 +37,6 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import _env  # pylint: disable=unused-import,g-bad-import-order
-
 import logging
 import os
 import SimpleHTTPServer
@@ -92,7 +90,7 @@ class JavascriptRequestDetector(MakeRequestHandlerClass(_SERVER_ROOT_PATH)):
 class RetryAsyncScriptLoadsAfterSuspend(black_box_tests.BlackBoxTestCase):
   """Tests cancellation of synchronous loading of scripts on Suspend."""
 
-  def _LoadPage(self, webdriver, url):
+  def _load_page(self, webdriver, url):
     """Instructs webdriver to navigate to url."""
     try:
       # Note: The following is a blocking request, and returns only when the
@@ -112,7 +110,7 @@ class RetryAsyncScriptLoadsAfterSuspend(black_box_tests.BlackBoxTestCase):
           target_url = server.GetURL(file_name='../testdata/' +
                                      _HTML_FILE_TO_REQUEST)
           cobalt_launcher_thread = threading.Thread(
-              target=RetryAsyncScriptLoadsAfterSuspend._LoadPage,
+              target=RetryAsyncScriptLoadsAfterSuspend._load_page,
               args=(self, runner.webdriver, target_url))
           cobalt_launcher_thread.start()
 
@@ -120,7 +118,7 @@ class RetryAsyncScriptLoadsAfterSuspend(black_box_tests.BlackBoxTestCase):
           logging.info('Waiting for script resource request')
           request_received = _received_script_resource_request.wait(
               _MAX_ALLOTTED_TIME_SECONDS)
-          logging.info('Request received: {}'.format(request_received))
+          logging.info('Request received: %s', request_received)
           # Step 5. Wait for a request for javascript resource.
           self.assertTrue(request_received)
 
@@ -139,7 +137,7 @@ class RetryAsyncScriptLoadsAfterSuspend(black_box_tests.BlackBoxTestCase):
     except:  # pylint: disable=bare-except
       traceback.print_exc()
       # Consider an exception being thrown as a test failure.
-      self.assertTrue(False)
+      self.fail('Test failure')
     finally:
       logging.info('Cleaning up.')
       _test_finished.set()

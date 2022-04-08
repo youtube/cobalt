@@ -11,12 +11,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""Tests Cobalt web platforms."""
 
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
-
-import _env  # pylint: disable=unused-import
 
 from cobalt.black_box_tests import black_box_tests
 from cobalt.black_box_tests.web_platform_test_server import WebPlatformTestServer
@@ -47,27 +46,27 @@ class WebPlatformTests(black_box_tests.BlackBoxTestCase):
       if self.launcher_params.IsEvergreen():
         loader_platform_config = build.GetPlatformConfig(
             self.launcher_params.loader_platform)
-        loader_platform_cobalt_config = loader_platform_config.GetApplicationConfiguration(
+        cobalt_config = loader_platform_config.GetApplicationConfiguration(
             'cobalt')
-        for filter in loader_platform_cobalt_config.GetWebPlatformTestFilters():
-          if filter not in filters:
-            filters.append(filter)
+        for filter_ in cobalt_config.GetWebPlatformTestFilters():
+          if filter_ not in filters:
+            filters.append(filter_)
 
       used_filters = []
 
-      for filter in filters:
-        if filter == test_filter.DISABLE_TESTING:
+      for filter_ in filters:
+        if filter_ == test_filter.DISABLE_TESTING:
           return
-        if filter == test_filter.FILTER_ALL:
+        if filter_ == test_filter.FILTER_ALL:
           return
-        if isinstance(filter, test_filter.TestFilter):
-          if filter.config and filter.config != self.launcher_params.config:
+        if isinstance(filter_, test_filter.TestFilter):
+          if filter_.config and filter_.config != self.launcher_params.config:
             continue
-          if filter.test_name and filter.test_name == test_filter.FILTER_ALL:
+          if filter_.test_name and filter_.test_name == test_filter.FILTER_ALL:
             return
-          used_filters.append(filter.test_name)
+          used_filters.append(filter_.test_name)
         else:
-          used_filters.append(filter)
+          used_filters.append(filter_)
 
       if used_filters:
         target_params.append('--gtest_filter=-{}'.format(

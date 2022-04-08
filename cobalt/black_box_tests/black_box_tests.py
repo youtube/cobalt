@@ -25,9 +25,8 @@ import socket
 import sys
 import unittest
 
-import _env  # pylint: disable=unused-import
 from cobalt.black_box_tests import black_box_cobalt_runner
-from proxy_server import ProxyServer
+from cobalt.black_box_tests.proxy_server import ProxyServer
 from starboard.tools import abstract_launcher
 from starboard.tools import build
 from starboard.tools import command_line
