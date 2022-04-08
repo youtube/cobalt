@@ -118,6 +118,8 @@
         'file_truncate.cc',
         'file_write.cc',
         'get_home_directory.cc',
+        'graphics.cc',
+        'graphics.h',
         'input_events_generator.cc',
         'input_events_generator.h',
         'jni_env_ext.cc',
