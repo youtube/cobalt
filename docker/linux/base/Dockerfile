@@ -27,10 +27,14 @@ RUN apt update -qqy \
         python-requests \
         python-setuptools \
         python-wheel \
+        python3-dev \
         python3-pip \
         python3-requests \
+        python3-setuptools \
         git ccache \
         curl xz-utils \
     && /opt/clean-after-apt.sh
+
+RUN python3 -m pip install --upgrade pip
 
 CMD ["/usr/bin/python","--version"]

@@ -27,5 +27,7 @@ RUN apt update -qqy \
         libxi-dev \
     && /opt/clean-after-apt.sh
 
+RUN python3 -m pip install "selenium<5"
+
 CMD gn gen ${OUTDIR}/${PLATFORM}_${CONFIG} --args="target_platform=\"${PLATFORM}\" build_type=\"${CONFIG}\" sb_api_version=${SB_API_VERSION:-14}" && \
     ninja -v -j ${NINJA_PARALLEL} -C ${OUTDIR}/${PLATFORM}_${CONFIG} ${TARGET:-cobalt_install}
