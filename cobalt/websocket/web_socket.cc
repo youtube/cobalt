@@ -420,8 +420,8 @@ void WebSocket::OnReceivedData(bool is_text_frame,
   if (is_text_frame) {
     response_type_code = dom::MessageEvent::kText;
   }
-  this->DispatchEvent(new dom::MessageEvent(base::Tokens::message(), settings_,
-                                            response_type_code, data));
+  this->DispatchEvent(
+      new dom::MessageEvent(base::Tokens::message(), response_type_code, data));
 }
 
 void WebSocket::OnWriteDone(uint64_t bytes_written) {

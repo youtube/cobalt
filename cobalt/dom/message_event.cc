@@ -55,7 +55,8 @@ MessageEvent::ResponseTypeCode MessageEvent::GetResponseTypeCode(
   return kResponseTypeCodeMax;
 }
 
-MessageEvent::ResponseType MessageEvent::data() const {
+MessageEvent::ResponseType MessageEvent::data(
+    script::EnvironmentSettings* settings) const {
   const char* data_pointer = NULL;
   int data_length = 0;
   if (data_) {
@@ -64,7 +65,7 @@ MessageEvent::ResponseType MessageEvent::data() const {
   }
 
   auto* global_environment =
-      base::polymorphic_downcast<web::EnvironmentSettings*>(settings_)
+      base::polymorphic_downcast<web::EnvironmentSettings*>(settings)
           ->context()
           ->global_environment();
   script::Handle<script::ArrayBuffer> response_buffer;
@@ -81,7 +82,7 @@ MessageEvent::ResponseType MessageEvent::data() const {
       return ResponseType(string_response);
     }
     case kBlob: {
-      scoped_refptr<dom::Blob> blob = new dom::Blob(settings_, response_buffer);
+      scoped_refptr<dom::Blob> blob = new dom::Blob(settings, response_buffer);
       return ResponseType(blob);
     }
     case kArrayBuffer: {
