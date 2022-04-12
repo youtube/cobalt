@@ -466,6 +466,10 @@ INSTANTIATE_TEST_CASE_P(
     GetTestName());
 
 INSTANTIATE_TEST_CASE_P(
+    workers, WebPlatformTest,
+    ::testing::ValuesIn(EnumerateWebPlatformTests("workers")), GetTestName());
+
+INSTANTIATE_TEST_CASE_P(
     encoding, WebPlatformTest,
     ::testing::ValuesIn(EnumerateWebPlatformTests("encoding")), GetTestName());
 
