@@ -308,6 +308,8 @@ generated_header_idl_files = [
   "//cobalt/encoding/text_decoder_options.idl",
   "//cobalt/encoding/text_encoder_encode_into_result.idl",
   "//cobalt/h5vcc/h5vcc_crash_type.idl",
+  "//cobalt/h5vcc/watchdog_state.idl",
+  "//cobalt/h5vcc/watchdog_replace.idl",
   "//cobalt/media_capture/blob_event_init.idl",
   "//cobalt/media_capture/media_device_kind.idl",
   "//cobalt/media_capture/media_recorder_options.idl",

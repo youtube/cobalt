@@ -89,6 +89,7 @@ static_library("h5vcc") {
     "//net",
     "//net:http_server",
     "//starboard",
+    "//starboard/shared/watchdog",
     "//third_party/protobuf:protobuf_lite",
   ]
 
