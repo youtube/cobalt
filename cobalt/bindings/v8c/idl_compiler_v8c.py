@@ -19,7 +19,6 @@ CodeGenerator class.
 
 import sys
 
-import _env  # pylint: disable=unused-import
 from cobalt.bindings.idl_compiler_cobalt import generate_bindings
 from cobalt.bindings.v8c.code_generator_v8c import CodeGeneratorV8c
 

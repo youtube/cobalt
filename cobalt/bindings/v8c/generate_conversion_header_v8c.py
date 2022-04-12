@@ -15,7 +15,8 @@
 
 import sys
 
-import _env  # pylint: disable=unused-import
+# _blink_env sets //third_party/blink PYTHONPATHS
+import cobalt.bindings._blink_env  # pylint: disable=unused-import
 from cobalt.bindings.generate_conversion_header import generate_header
 from cobalt.bindings.v8c.code_generator_v8c import CodeGeneratorV8c
 

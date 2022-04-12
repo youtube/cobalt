@@ -15,7 +15,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
 """Generate IDL files for interfaces that are not implemented in Cobalt.
 
 This will do a shallow clone of the chromium repository and gather the set of
@@ -36,7 +35,7 @@ import sys
 import tempfile
 import textwrap
 
-from flatten_idls import FlattenedInterface
+from cobalt.bindings.flatten_idls import FlattenedInterface
 
 _SCRIPT_DIR = os.path.dirname(__file__)
 _CHROMIUM_REPOSITORY_URL = 'https://chromium.googlesource.com/chromium/src'
@@ -59,8 +58,10 @@ def _CloneChromium(branch, destination_dir):
     branch: Name of a branch in Chromium's git repository.
     destination_dir: Directory into which Chromium repository will be cloned.
   """
-  clone_command = ['git', 'clone', '--depth', '1', '--branch', branch,
-                   _CHROMIUM_REPOSITORY_URL, '.']
+  clone_command = [
+      'git', 'clone', '--depth', '1', '--branch', branch,
+      _CHROMIUM_REPOSITORY_URL, '.'
+  ]
   subprocess.check_call(clone_command, cwd=destination_dir)
 
 
@@ -121,16 +122,16 @@ def main(argv):
       help='Directory containing a chromium repository. If the --branch '
       'argument is set, the directory will be clobbered and the specified '
       'branch will be cloned into this directory.')
-  parser.add_argument('--output_dir',
-                      required=True,
-                      help='Directory into which IDL files will be placed. '
-                      'The current contents will be clobbered.')
+  parser.add_argument(
+      '--output_dir',
+      required=True,
+      help='Directory into which IDL files will be placed. '
+      'The current contents will be clobbered.')
 
   options = parser.parse_args(argv)
   logging_format = '%(asctime)s %(levelname)-8s %(message)s'
-  logging.basicConfig(level=logging.INFO,
-                      format=logging_format,
-                      datefmt='%m-%d %H:%M')
+  logging.basicConfig(
+      level=logging.INFO, format=logging_format, datefmt='%m-%d %H:%M')
 
   temp_dir = tempfile.mkdtemp()
 
@@ -153,25 +154,28 @@ def main(argv):
     # Gather the blink IDLs
     logging.info('Gathering blink IDLs.')
     blink_pickle_file = os.path.join(temp_dir, 'blink_idl.pickle')
-    subprocess.check_call(
-        ['python', 'flatten_idls.py', '--directory', os.path.join(
-            chromium_dir, 'third_party/WebKit/Source/core'), '--directory',
-         os.path.join(chromium_dir, 'third_party/WebKit/Source/modules'),
-         '--ignore', '*/InspectorInstrumentation.idl', '--blink_scripts_dir',
-         os.path.join(chromium_dir,
-                      'third_party/WebKit/Source/bindings/scripts'),
-         '--output_path', blink_pickle_file])
+    subprocess.check_call([
+        'python', 'flatten_idls.py', '--directory',
+        os.path.join(chromium_dir,
+                     'third_party/WebKit/Source/core'), '--directory',
+        os.path.join(chromium_dir, 'third_party/WebKit/Source/modules'),
+        '--ignore', '*/InspectorInstrumentation.idl', '--blink_scripts_dir',
+        os.path.join(chromium_dir,
+                     'third_party/WebKit/Source/bindings/scripts'),
+        '--output_path', blink_pickle_file
+    ])
 
     # Gather Cobalt's IDLs
     logging.info('Gathering Cobalt IDLs.')
     cobalt_root = os.path.join(_SCRIPT_DIR, '../../../')
     cobalt_pickle_file = os.path.join(temp_dir, 'cobalt_idl.pickle')
-    subprocess.check_call(
-        ['python', 'flatten_idls.py', '--directory', os.path.join(
-            cobalt_root, 'cobalt'), '--ignore', '*/cobalt/bindings/*',
-         '--blink_scripts_dir', os.path.join(
-             cobalt_root, 'third_party/blink/Source/bindings/scripts'),
-         '--output_path', cobalt_pickle_file])
+    subprocess.check_call([
+        'python', 'flatten_idls.py', '--directory',
+        os.path.join(cobalt_root, 'cobalt'), '--ignore', '*/cobalt/bindings/*',
+        '--blink_scripts_dir',
+        os.path.join(cobalt_root, 'third_party/blink/Source/bindings/scripts'),
+        '--output_path', cobalt_pickle_file
+    ])
 
     # Unpickle the files.
     blink_interfaces = _LoadInterfaces(blink_pickle_file)

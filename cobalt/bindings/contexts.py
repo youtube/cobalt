@@ -18,26 +18,20 @@ Extract the relevant information from the IdlParser objects and store them in
 dicts that will be used by Jinja in JS bindings generation.
 """
 
-import os
-import sys
-
-sys.path.append(os.path.dirname(__file__))
-
-# pylint: disable=wrong-import-position
-import _env  # pylint: disable=unused-import
+# _blink_env sets //third_party/blink PYTHONPATHS
+import cobalt.bindings._blink_env  # pylint: disable=unused-import
+from cobalt.bindings.name_conversion import capitalize_function_name
+from cobalt.bindings.name_conversion import convert_to_cobalt_constant_name
+from cobalt.bindings.name_conversion import convert_to_cobalt_enumeration_value
+from cobalt.bindings.name_conversion import convert_to_cobalt_name
+from cobalt.bindings.name_conversion import get_interface_name
+from cobalt.bindings.overload_context import get_overload_contexts
 from idl_definitions import IdlTypedef
 from idl_types import IdlPromiseType
 from idl_types import IdlSequenceType
-from name_conversion import capitalize_function_name
-from name_conversion import convert_to_cobalt_constant_name
-from name_conversion import convert_to_cobalt_enumeration_value
-from name_conversion import convert_to_cobalt_name
-from name_conversion import get_interface_name
-from overload_context import get_overload_contexts
 from v8_attributes import is_constructor_attribute
 from v8_interface import method_overloads_by_name
 import v8_utilities
-# pylint: enable=wrong-import-position
 
 
 def is_date_type(idl_type):
