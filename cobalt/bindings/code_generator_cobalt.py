@@ -22,8 +22,7 @@ from datetime import date
 import os
 import sys
 
-# _blink_env sets //third_party/blink PYTHONPATHS
-import cobalt.bindings._blink_env  # pylint: disable=unused-import
+import _env  # pylint: disable=unused-import
 from cobalt.bindings import path_generator
 from cobalt.bindings.contexts import ContextBuilder
 from cobalt.bindings.name_conversion import get_interface_name

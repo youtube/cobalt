@@ -21,8 +21,7 @@ from optparse import OptionParser  # pylint: disable=deprecated-module
 import os
 import pickle
 
-# _blink_env sets //third_party/blink PYTHONPATHS
-import cobalt.bindings._blink_env  # pylint: disable=unused-import
+import _env  # pylint: disable=unused-import
 from idl_compiler import IdlCompiler
 from utilities import ComponentInfoProviderCobalt
 from utilities import idl_filename_to_interface_name

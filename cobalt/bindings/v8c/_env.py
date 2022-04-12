@@ -1,3 +1,4 @@
+#
 # Copyright 2017 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -11,13 +12,15 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Generate a conversion header for V8."""
+#
+"""Ask the parent directory to load the project environment."""
 
+from imp import load_source  # pylint: disable=deprecated-module
+from os import path
 import sys
 
-import _env  # pylint: disable=unused-import
-from cobalt.bindings.generate_conversion_header import generate_header
-from cobalt.bindings.v8c.code_generator_v8c import CodeGeneratorV8c
-
-if __name__ == '__main__':
-  sys.exit(generate_header(CodeGeneratorV8c))
+_ENV = path.abspath(path.join(path.dirname(__file__), path.pardir, '_env.py'))
+if not path.exists(_ENV):
+  print('%s: Can\'t find repo root.\nMissing parent: %s' % (__file__, _ENV))
+  sys.exit(1)
+load_source('', _ENV)
