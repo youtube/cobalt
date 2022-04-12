@@ -30,8 +30,6 @@
 namespace cobalt {
 namespace h5vcc {
 
-using ::starboard::shared::watchdog::Watchdog;
-
 // We keep a global mapping of all registered logs.  When a crash occurs, we
 // will iterate through the mapping in this dictionary to extract all
 // logged entries and write them to the system's crash logger via Starboard.
@@ -123,42 +121,6 @@ void H5vccCrashLog::TriggerCrash(H5vccCrashType intent) {
   if (intent == kH5vccCrashTypeOutOfMemory) {
     SbMemoryAllocateAligned(128, SIZE_MAX);
   }
-}
-
-bool H5vccCrashLog::Register(const std::string& name,
-                             const std::string& description,
-                             starboard::shared::watchdog::State monitor_state,
-                             int64_t time_interval, int64_t time_wait,
-                             starboard::shared::watchdog::Replace replace) {
-  Watchdog* watchdog = Watchdog::GetInstance();
-  if (watchdog != nullptr)
-    return watchdog->Register(name, description, monitor_state, time_interval,
-                              time_wait, replace);
-  return false;
-}
-
-bool H5vccCrashLog::Unregister(const std::string& name) {
-  Watchdog* watchdog = Watchdog::GetInstance();
-  if (watchdog != nullptr) return watchdog->Unregister(name);
-  return false;
-}
-
-bool H5vccCrashLog::Ping(const std::string& name, const std::string& info) {
-  Watchdog* watchdog = Watchdog::GetInstance();
-  if (watchdog != nullptr) return watchdog->Ping(name, info);
-  return false;
-}
-
-std::string H5vccCrashLog::GetWatchdogViolations(bool current) {
-  Watchdog* watchdog = Watchdog::GetInstance();
-  if (watchdog != nullptr) return watchdog->GetWatchdogViolations(current);
-  return "";
-}
-
-std::string H5vccCrashLog::GetSerializedWatchdogIndex() {
-  Watchdog* watchdog = Watchdog::GetInstance();
-  if (watchdog != nullptr) return watchdog->GetSerializedWatchdogIndex();
-  return "";
 }
 
 }  // namespace h5vcc

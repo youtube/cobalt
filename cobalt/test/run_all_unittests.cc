@@ -19,7 +19,6 @@
 #include "cobalt/base/cobalt_paths.h"
 #include "cobalt/base/path_provider.h"
 #include "starboard/client_porting/wrap_main/wrap_main.h"
-#include "starboard/shared/watchdog/watchdog.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace {
@@ -30,7 +29,7 @@ int InitAndRunAllTests(int argc, char** argv) {
   base::PathService::RegisterProvider(&cobalt::PathProvider,
                                       cobalt::paths::PATH_COBALT_START,
                                       cobalt::paths::PATH_COBALT_END);
-  starboard::shared::watchdog::Watchdog::CreateStubInstance();
+
   return test_suite.Run();
 }
 }  // namespace

@@ -66,7 +66,6 @@ static_library("renderer") {
     "//cobalt/system_window",
     "//nb",
     "//starboard:starboard_headers_only",
-    "//starboard/shared/watchdog",
   ]
 
   if (is_starboard) {

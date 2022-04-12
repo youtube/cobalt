@@ -70,9 +70,6 @@ Application::Application()
       thread_(SbThreadGetCurrent()),
       start_link_(NULL),
       state_(kStateUnstarted) {
-  watchdog_ = watchdog::Watchdog::CreateInstance();
-  SB_DCHECK(watchdog_);
-
   Application* old_instance =
       reinterpret_cast<Application*>(SbAtomicAcquire_CompareAndSwapPtr(
           reinterpret_cast<SbAtomicPtr*>(&g_instance),
@@ -82,8 +79,6 @@ Application::Application()
 }
 
 Application::~Application() {
-  watchdog::Watchdog::DeleteInstance();
-
   Application* old_instance =
       reinterpret_cast<Application*>(SbAtomicAcquire_CompareAndSwapPtr(
           reinterpret_cast<SbAtomicPtr*>(&g_instance),
@@ -504,47 +499,38 @@ bool Application::DispatchAndDelete(Application::Event* event) {
     case kSbEventTypePreload:
       SB_DCHECK(state() == kStateUnstarted);
       state_ = kStateConcealed;
-      watchdog_->UpdateState(watchdog::CONCEALED);
       break;
     case kSbEventTypeStart:
       SB_DCHECK(state() == kStateUnstarted);
       state_ = kStateStarted;
-      watchdog_->UpdateState(watchdog::STARTED);
       break;
     case kSbEventTypeBlur:
       SB_DCHECK(state() == kStateStarted);
       state_ = kStateBlurred;
-      watchdog_->UpdateState(watchdog::BLURRED);
       break;
     case kSbEventTypeFocus:
       SB_DCHECK(state() == kStateBlurred);
       state_ = kStateStarted;
-      watchdog_->UpdateState(watchdog::STARTED);
       break;
     case kSbEventTypeConceal:
       SB_DCHECK(state() == kStateBlurred);
       state_ = kStateConcealed;
-      watchdog_->UpdateState(watchdog::CONCEALED);
       break;
     case kSbEventTypeReveal:
       SB_DCHECK(state() == kStateConcealed);
       state_ = kStateBlurred;
-      watchdog_->UpdateState(watchdog::BLURRED);
       break;
     case kSbEventTypeFreeze:
       SB_DCHECK(state() == kStateConcealed);
       state_ = kStateFrozen;
-      watchdog_->UpdateState(watchdog::FROZEN);
       break;
     case kSbEventTypeUnfreeze:
       SB_DCHECK(state() == kStateFrozen);
       state_ = kStateConcealed;
-      watchdog_->UpdateState(watchdog::CONCEALED);
       break;
     case kSbEventTypeStop:
       SB_DCHECK(state() == kStateFrozen);
       state_ = kStateStopped;
-      watchdog_->UpdateState(watchdog::STOPPED);
       return false;
     default:
       break;
@@ -558,33 +544,27 @@ bool Application::DispatchAndDelete(Application::Event* event) {
     case kSbEventTypeStart:
       SB_DCHECK(state() == kStatePreloading || state() == kStateUnstarted);
       state_ = kStateStarted;
-      watchdog_->UpdateState(watchdog::STARTED);
       break;
     case kSbEventTypePause:
       SB_DCHECK(state() == kStateStarted);
       state_ = kStatePaused;
-      watchdog_->UpdateState(watchdog::BLURRED);
       break;
     case kSbEventTypeUnpause:
       SB_DCHECK(state() == kStatePaused);
       state_ = kStateStarted;
-      watchdog_->UpdateState(watchdog::STARTED);
       break;
     case kSbEventTypeSuspend:
       SB_DCHECK(state() == kStatePreloading || state() == kStatePaused);
       state_ = kStateSuspended;
-      watchdog_->UpdateState(watchdog::FROZEN);
       OnSuspend();
       break;
     case kSbEventTypeResume:
       SB_DCHECK(state() == kStateSuspended);
       state_ = kStatePaused;
-      watchdog_->UpdateState(watchdog::BLURRED);
       break;
     case kSbEventTypeStop:
       SB_DCHECK(state() == kStateSuspended);
       state_ = kStateStopped;
-      watchdog_->UpdateState(watchdog::STOPPED);
       return false;
     default:
       break;
@@ -620,7 +600,6 @@ Application::Event* Application::CreateInitialEvent(SbEventType type) {
     start_data->argument_values[i] = const_cast<char*>(args[i].c_str());
   }
   start_data->link = start_link_;
-
 #if SB_API_VERSION >= 13
   return new Event(type, timestamp, start_data, &DeleteStartData);
 #else  // SB_API_VERSION >= 13

@@ -18,7 +18,6 @@ source_set("run_all_unittests") {
   public_deps = [ "//base/test:test_support" ]
   deps = [
     "//cobalt/base",
-    "//starboard/shared/watchdog",
     "//testing/gtest",
   ]
 }

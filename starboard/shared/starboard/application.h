@@ -30,7 +30,6 @@
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/command_line.h"
 #include "starboard/shared/starboard/player/filter/video_frame_internal.h"
-#include "starboard/shared/watchdog/watchdog.h"
 #include "starboard/thread.h"
 #include "starboard/time.h"
 #include "starboard/types.h"
@@ -146,10 +145,8 @@ class Application {
   // deleted.
   struct Event {
 #if SB_API_VERSION >= 13
-    Event(SbEventType type,
-          SbTimeMonotonic timestamp,
-          void* data,
-          SbEventDataDestructor destructor)
+     Event(SbEventType type, SbTimeMonotonic timestamp,
+           void* data, SbEventDataDestructor destructor)
         : event(new SbEvent()), destructor(destructor), error_level(0) {
       event->type = type;
       event->timestamp = timestamp;
@@ -171,7 +168,7 @@ class Application {
       event->timestamp = SbTimeGetMonotonicNow();
       event->data = data;
     }
-#else   // SB_API_VERSION >= 13
+#else  // SB_API_VERSION >= 13
     Event(SbEventType type, void* data, SbEventDataDestructor destructor)
         : event(new SbEvent()), destructor(destructor), error_level(0) {
       event->type = type;
@@ -476,11 +473,11 @@ class Application {
   // some point.
   virtual bool IsStartImmediate() { return true; }
 
-// Synchronously dispatches a Start event to the system event handler. Must be
-// called on the main dispatch thread.
+  // Synchronously dispatches a Start event to the system event handler. Must be
+  // called on the main dispatch thread.
 #if SB_API_VERSION >= 13
   void DispatchStart(SbTimeMonotonic timestamp);
-#else   // SB_API_VERSION >= 13
+#else  // SB_API_VERSION >= 13
   void DispatchStart();
 #endif  // SB_API_VERSION >= 13
 
@@ -491,11 +488,11 @@ class Application {
   // |IsPreloadImmediate|, if true, takes precedence over |IsStartImmediate|.
   virtual bool IsPreloadImmediate() { return false; }
 
-// Synchronously dispatches a Preload event to the system event handler. Must
-// be called on the main dispatch thread.
+  // Synchronously dispatches a Preload event to the system event handler. Must
+  // be called on the main dispatch thread.
 #if SB_API_VERSION >= 13
   void DispatchPreload(SbTimeMonotonic timestamp);
-#else   // SB_API_VERSION >= 13
+#else  // SB_API_VERSION >= 13
   void DispatchPreload();
 #endif  // SB_API_VERSION >= 13
 
@@ -513,11 +510,11 @@ class Application {
   void CallTeardownCallbacks();
 
  private:
-// Creates an initial event type of either Start or Preload with the original
-// command line and deep link.
+  // Creates an initial event type of either Start or Preload with the original
+  // command line and deep link.
 #if SB_API_VERSION >= 13
   Event* CreateInitialEvent(SbEventType type, SbTimeMonotonic timestamp);
-#else   // SB_API_VERSION >= 13
+#else  // SB_API_VERSION >= 13
   Event* CreateInitialEvent(SbEventType type);
 #endif  // SB_API_VERSION >= 13
 
@@ -550,9 +547,6 @@ class Application {
 
   // Callbacks that must be called when Teardown is called.
   std::vector<TeardownCallback> teardown_callbacks_;
-
-  // The watchdog instance.
-  watchdog::Watchdog* watchdog_;
 };
 
 }  // namespace starboard
