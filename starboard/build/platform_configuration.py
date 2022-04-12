@@ -20,7 +20,7 @@ import os
 
 from starboard.build.application_configuration import ApplicationConfiguration
 from starboard.optional import get_optional_tests
-from starboard.tools import environment
+import starboard_configuration  # Should be at root of source tree
 
 
 def _GetApplicationConfigurationClass(application_path):
@@ -113,7 +113,8 @@ class PlatformConfiguration(object):
           break
 
       if not configuration_class:
-        configuration_class = environment.GetApplicationClass(application_name)
+        configuration_class = starboard_configuration.APPLICATIONS.get(
+            application_name)
         if configuration_class:
           logging.info('Using default ApplicationConfiguration for %s.',
                        application_name)
