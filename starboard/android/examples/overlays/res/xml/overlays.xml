@@ -16,6 +16,6 @@
 -->
 
 <overlay>
-  <!-- Example of adding an overlay variable in RRO package. -->
-  <item target="bool/supportSphericalVideo" value="false" />
+  <!-- This flag indicates whether 360 videos can be played. -->
+  <item target="bool/supports_spherical_video" value="true" />
 </overlay>

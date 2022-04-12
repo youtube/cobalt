@@ -36,7 +36,7 @@ float GetMinimumFrameIntervalInMilliseconds() {
 bool IsMapToMeshEnabled() {
   bool support_spherical_video =
       starboard::android::shared::ApplicationAndroid::Get()
-          ->GetOverlayedBoolValue("supportSphericalVideo");
+          ->GetOverlayedBoolValue("supports_spherical_video");
   return support_spherical_video;
 }
 

@@ -16,5 +16,5 @@
 -->
 
 <resources xmlns:tools="http://schemas.android.com/tools">
-  <bool name="supportSphericalVideo" tools:ignore="DuplicateDefinition">true</bool>
+  <bool name="supports_spherical_video" tools:ignore="DuplicateDefinition">true</bool>
 </resources>

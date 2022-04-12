@@ -22,10 +22,15 @@ import dev.cobalt.util.UsedByNative;
  * setting the resource overlay.
  */
 public class ResourceOverlay {
-  @UsedByNative public final boolean supportSphericalVideo;
+  // To facilitate maintenance, these member names should match what is in the
+  // resource XML file.
+  @SuppressWarnings("MemberName")
+  @UsedByNative
+  public final boolean supports_spherical_video;
 
   public ResourceOverlay(Context context) {
     // Load the values for all Overlay variables.
-    this.supportSphericalVideo = context.getResources().getBoolean(R.bool.supportSphericalVideo);
+    this.supports_spherical_video =
+        context.getResources().getBoolean(R.bool.supports_spherical_video);
   }
 }
