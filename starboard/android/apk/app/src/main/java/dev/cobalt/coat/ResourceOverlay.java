@@ -26,11 +26,11 @@ public class ResourceOverlay {
   // resource XML file.
   @SuppressWarnings("MemberName")
   @UsedByNative
-  public final boolean supports_spherical_video;
+  public final boolean supports_spherical_videos;
 
   public ResourceOverlay(Context context) {
     // Load the values for all Overlay variables.
-    this.supports_spherical_video =
-        context.getResources().getBoolean(R.bool.supports_spherical_video);
+    this.supports_spherical_videos =
+        context.getResources().getBoolean(R.bool.supports_spherical_videos);
   }
 }

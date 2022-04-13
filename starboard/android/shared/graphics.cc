@@ -34,10 +34,10 @@ float GetMinimumFrameIntervalInMilliseconds() {
 }
 
 bool IsMapToMeshEnabled() {
-  bool support_spherical_video =
+  bool supports_spherical_videos =
       starboard::android::shared::ApplicationAndroid::Get()
-          ->GetOverlayedBoolValue("supports_spherical_video");
-  return support_spherical_video;
+          ->GetOverlayedBoolValue("supports_spherical_videos");
+  return supports_spherical_videos;
 }
 
 const CobaltExtensionGraphicsApi kGraphicsApi = {
