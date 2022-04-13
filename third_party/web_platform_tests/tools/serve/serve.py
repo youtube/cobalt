@@ -12,7 +12,7 @@ import sys
 import threading
 import time
 import traceback
-import urllib2
+from six.moves import urllib
 import uuid
 from collections import defaultdict, OrderedDict
 from multiprocessing import Process, Event
@@ -443,10 +443,10 @@ def check_subdomains(host, paths, bind_hostname, ssl_config, aliases):
     connected = False
     for i in range(10):
         try:
-            urllib2.urlopen("http://%s:%d/" % (host, port))
+            urllib.request.urlopen("http://%s:%d/" % (host, port))
             connected = True
             break
-        except urllib2.URLError:
+        except urllib.error.URLError:
             time.sleep(1)
 
     if not connected:
@@ -456,7 +456,7 @@ def check_subdomains(host, paths, bind_hostname, ssl_config, aliases):
     for subdomain, (punycode, host) in subdomains.iteritems():
         domain = "%s.%s" % (punycode, host)
         try:
-            urllib2.urlopen("http://%s:%d/" % (domain, port))
+            urllib.request.urlopen("http://%s:%d/" % (domain, port))
         except Exception as e:
             logger.critical("Failed probing domain %s. You may need to edit /etc/hosts or similar." % domain)
             sys.exit(1)
@@ -702,7 +702,7 @@ def set_computed_defaults(config):
 
 def merge_json(base_obj, override_obj):
     rv = {}
-    for key, value in base_obj.iteritems():
+    for key, value in base_obj.items():
         if key not in override_obj:
             rv[key] = value
         else:

@@ -60,7 +60,7 @@ class XHRBenchmarkHandler(object):
         bytes_to_send = request_array[0]
         try:
             bytes_to_send = int(bytes_to_send)
-        except ValueError, e:
+        except ValueError as e:
             self._logger.debug('Malformed size parameter: %r', bytes_to_send)
             return
         self._logger.debug('Requested to send %s bytes', bytes_to_send)

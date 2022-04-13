@@ -48,7 +48,7 @@ except ImportError:
     md5_hash = md5.md5
     sha1_hash = sha.sha
 
-import StringIO
+from io import StringIO
 import logging
 import os
 import re
@@ -70,7 +70,7 @@ def get_stack_trace():
           Use traceback.format_exc instead.
     """
 
-    out = StringIO.StringIO()
+    out = StringIO()
     traceback.print_exc(file=out)
     return out.getvalue()
 
