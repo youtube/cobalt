@@ -20,7 +20,7 @@
   <overlayable name="CobaltOverlay" >
     <policy type="vendor|product|system">
       <!-- This flag indicates whether 360 videos can be played. -->
-      <item type="bool" name="supports_spherical_video" />
+      <item type="bool" name="supports_spherical_videos" />
     </policy>
   </overlayable>
 </resources>

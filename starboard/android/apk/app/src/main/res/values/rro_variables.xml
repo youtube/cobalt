@@ -16,5 +16,6 @@
 -->
 
 <resources xmlns:tools="http://schemas.android.com/tools">
-  <bool name="supports_spherical_video" tools:ignore="DuplicateDefinition">true</bool>
+  <!-- This flag indicates whether 360 videos can be played. -->
+  <bool name="supports_spherical_videos" tools:ignore="DuplicateDefinition">true</bool>
 </resources>
