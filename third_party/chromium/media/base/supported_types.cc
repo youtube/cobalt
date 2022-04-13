@@ -15,6 +15,7 @@
 #include "media/base/media_client.h"
 #include "media/base/media_switches.h"
 #include "media/media_buildflags.h"
+#if !defined(STARBOARD)
 #include "ui/display/display_switches.h"
 
 #if BUILDFLAG(ENABLE_LIBVPX)
@@ -23,6 +24,8 @@
 #include "third_party/libvpx/source/libvpx/vpx/vp8dx.h"
 #include "third_party/libvpx/source/libvpx/vpx/vpx_codec.h"
 #endif
+
+#endif  // !defined(STARBOARD)
 
 #if defined(OS_ANDROID)
 #include "base/android/build_info.h"
@@ -78,17 +81,21 @@ bool IsHevcProfileSupported(VideoCodecProfile profile) {
 }  // namespace
 
 bool IsSupportedAudioType(const AudioType& type) {
+#if !defined(STARBOARD)
   MediaClient* media_client = GetMediaClient();
   if (media_client)
     return media_client->IsSupportedAudioType(type);
+#endif  // !defined(STARBOARD)
 
   return IsDefaultSupportedAudioType(type);
 }
 
 bool IsSupportedVideoType(const VideoType& type) {
+#if !defined(STARBOARD)
   MediaClient* media_client = GetMediaClient();
   if (media_client)
     return media_client->IsSupportedVideoType(type);
+#endif  // !defined(STARBOARD)
 
   return IsDefaultSupportedVideoType(type);
 }
@@ -176,6 +183,12 @@ bool IsColorSpaceSupported(const VideoColorSpace& color_space) {
 }
 
 bool IsVp9ProfileSupported(VideoCodecProfile profile) {
+#if defined(STARBOARD)
+  // Assume all profiles are supported, and let the Starboard implementation to
+  // filter it out.
+  return profile == VP9PROFILE_PROFILE0 || profile == VP9PROFILE_PROFILE1 ||
+         profile == VP9PROFILE_PROFILE2 || profile == VP9PROFILE_PROFILE3;
+#else  // defined(STARBOARD)
 #if BUILDFLAG(ENABLE_LIBVPX)
   // High bit depth capabilities may be toggled via LibVPX config flags.
   static const bool vpx_supports_hbd = (vpx_codec_get_caps(vpx_codec_vp9_dx()) &
@@ -202,6 +215,7 @@ bool IsVp9ProfileSupported(VideoCodecProfile profile) {
   }
 #endif
   return false;
+#endif  // defined(STARBOARD)
 }
 
 bool IsAudioCodecProprietary(AudioCodec codec) {

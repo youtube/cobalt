@@ -34,6 +34,8 @@
 #include "starboard/event.h"
 #include "starboard/log.h"
 #include "starboard/system.h"
+#include "third_party/chromium/media/base/timestamp_constants.h"
+#include "third_party/chromium/media/filters/chunk_demuxer.h"
 
 namespace cobalt {
 namespace media {
@@ -48,9 +50,9 @@ void PrintUsage(const char* executable_path_name) {
   std::string executable_file_name =
       base::FilePath(executable_path_name).BaseName().value();
   const char kExampleAdaptiveAudioPathName[] =
-      "cobalt/demos/media-element-demo/dash-audio.mp4";
+      "demos/media-element-demo/public/assets/dash-audio.mp4";
   const char kExampleAdaptiveVideoPathName[] =
-      "cobalt/demos/media-element-demo/dash-video-1080p.mp4";
+      "demos/media-element-demo/public/assets/dash-video-1080p.mp4";
   const char kExampleProgressiveUrl[] =
       "https://storage.googleapis.com/yt-cobalt-media-element-demo/"
       "progressive.mp4";
@@ -90,8 +92,7 @@ void PrintUsage(const char* executable_path_name) {
   SbLogRaw(ss.str().c_str());
 }
 
-void OnInitSegmentReceived(std::unique_ptr<MediaTracks> tracks) {
-}
+void OnInitSegmentReceived(std::unique_ptr<::media::MediaTracks> tracks) {}
 
 class InitCobaltHelper {
  public:
@@ -150,6 +151,8 @@ class Application {
   ~Application() { media_sandbox_.RegisterFrameCB(MediaSandbox::FrameCB()); }
 
  private:
+  typedef ::media::ChunkDemuxer ChunkDemuxer;
+
   void InitializeAdaptivePlayback(const FormatGuesstimator& guesstimator) {
     is_adaptive_playback_ = true;
 
@@ -183,6 +186,11 @@ class Application {
     CHECK_EQ(status, ChunkDemuxer::kOk);
 
     chunk_demuxer_->SetTracksWatcher(id, base::Bind(OnInitSegmentReceived));
+    chunk_demuxer_->SetParseWarningCallback(
+        id, base::BindRepeating([](::media::SourceBufferParseWarning warning) {
+          LOG(WARNING) << "Encountered SourceBufferParseWarning "
+                       << static_cast<int>(warning);
+        }));
     player_ = player_helper_->player();
 
     media_sandbox_.RegisterFrameCB(
@@ -239,8 +247,20 @@ class Application {
 
     chunk_demuxer_->SetTracksWatcher(kAudioId,
                                      base::Bind(OnInitSegmentReceived));
+    chunk_demuxer_->SetParseWarningCallback(
+        kAudioId,
+        base::BindRepeating([](::media::SourceBufferParseWarning warning) {
+          LOG(WARNING) << "Encountered SourceBufferParseWarning "
+                       << static_cast<int>(warning);
+        }));
     chunk_demuxer_->SetTracksWatcher(kVideoId,
                                      base::Bind(OnInitSegmentReceived));
+    chunk_demuxer_->SetParseWarningCallback(
+        kVideoId,
+        base::BindRepeating([](::media::SourceBufferParseWarning warning) {
+          LOG(WARNING) << "Encountered SourceBufferParseWarning "
+                       << static_cast<int>(warning);
+        }));
     player_ = player_helper_->player();
 
     media_sandbox_.RegisterFrameCB(
@@ -291,7 +311,7 @@ class Application {
       bool audio_eos = !audio_file_ || audio_offset_ == audio_file_->GetSize();
       bool video_eos = !video_file_ || video_offset_ == video_file_->GetSize();
       if (audio_eos && video_eos) {
-        chunk_demuxer_->MarkEndOfStream(PIPELINE_OK);
+        chunk_demuxer_->MarkEndOfStream(::media::PIPELINE_OK);
         eos_appended_ = true;
       }
     }
@@ -314,7 +334,7 @@ class Application {
     std::vector<uint8_t> buffer(kMaxBytesToAppend);
 
     while (*offset < file->GetSize()) {
-      Ranges<TimeDelta> ranges = chunk_demuxer_->GetBufferedRanges(id);
+      ::media::Ranges<TimeDelta> ranges = chunk_demuxer_->GetBufferedRanges(id);
       float end_of_buffer =
           ranges.size() == 0 ? 0.f : ranges.end(ranges.size() - 1).InSecondsF();
       if (end_of_buffer - player_->GetCurrentTime() > kLowWaterMarkInSeconds) {
@@ -332,7 +352,7 @@ class Application {
       base::TimeDelta timestamp_offset;
       auto appended = chunk_demuxer_->AppendData(
           id, buffer.data(), bytes_to_append, base::TimeDelta(),
-          media::kInfiniteDuration, &timestamp_offset);
+          ::media::kInfiniteDuration, &timestamp_offset);
       SB_DCHECK(appended);
 
       *offset += bytes_to_append;

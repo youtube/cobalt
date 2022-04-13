@@ -20,8 +20,8 @@
 
 #include "base/strings/stringprintf.h"
 #include "cobalt/media/base/endian_util.h"
-#include "cobalt/media/formats/mp4/es_descriptor.h"
 #include "starboard/types.h"
+#include "third_party/chromium/media/formats/mp4/es_descriptor.h"
 
 namespace cobalt {
 namespace media {
@@ -67,10 +67,9 @@ static const int kMapTableAtomCacheEntries_co64 = 740212 / kEntrySize_co64;
 static const int kMapTableAtomCacheEntries_ctts = 51543 / kEntrySize_ctts;
 
 // static
-PipelineStatus MP4Parser::Construct(scoped_refptr<DataSourceReader> reader,
-                                    const uint8* construction_header,
-                                    scoped_refptr<ProgressiveParser>* parser,
-                                    const scoped_refptr<MediaLog>& media_log) {
+::media::PipelineStatus MP4Parser::Construct(
+    scoped_refptr<DataSourceReader> reader, const uint8* construction_header,
+    scoped_refptr<ProgressiveParser>* parser, MediaLog* media_log) {
   DCHECK(parser);
   DCHECK(media_log);
   *parser = NULL;
@@ -79,24 +78,23 @@ PipelineStatus MP4Parser::Construct(scoped_refptr<DataSourceReader> reader,
   uint32 ftyp = endian_util::load_uint32_big_endian(construction_header + 4);
   if (ftyp != kAtomType_ftyp) {
     // not an mp4
-    return DEMUXER_ERROR_COULD_NOT_PARSE;
+    return ::media::DEMUXER_ERROR_COULD_NOT_PARSE;
   }
 
   // first 4 bytes will be the size of the ftyp atom
   uint32 ftyp_atom_size =
       endian_util::load_uint32_big_endian(construction_header);
   if (ftyp_atom_size < kAtomMinSize) {
-    return DEMUXER_ERROR_COULD_NOT_PARSE;
+    return ::media::DEMUXER_ERROR_COULD_NOT_PARSE;
   }
 
   // construct new mp4 parser
   *parser = new MP4Parser(reader, ftyp_atom_size, media_log);
-  return PIPELINE_OK;
+  return ::media::PIPELINE_OK;
 }
 
 MP4Parser::MP4Parser(scoped_refptr<DataSourceReader> reader,
-                     uint32 ftyp_atom_size,
-                     const scoped_refptr<MediaLog>& media_log)
+                     uint32 ftyp_atom_size, MediaLog* media_log)
     : AVCParser(reader, media_log),
       atom_offset_(ftyp_atom_size),  // start at next atom, skipping over ftyp
       current_trak_is_video_(false),
@@ -485,7 +483,7 @@ bool MP4Parser::ParseMP4_esds(uint64 atom_data_size) {
     DLOG(WARNING) << "failed to download esds";
     return false;
   }
-  mp4::ESDescriptor es_descriptor;
+  ::media::mp4::ESDescriptor es_descriptor;
   std::vector<uint8> data(esds, esds + esds_size);
   if (es_descriptor.Parse(data)) {
     const std::vector<uint8>& dsi = es_descriptor.decoder_specific_info();

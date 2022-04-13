@@ -748,7 +748,8 @@ void RenderTreeNodeVisitor::Visit(
   const render_tree::PunchThroughVideoNode::Builder& data = video_node->data();
   math::RectF mapped_rect_float = draw_state_.transform.MapRect(data.rect);
   math::Rect mapped_rect = math::Rect::RoundFromRectF(mapped_rect_float);
-  data.set_bounds_cb.Run(mapped_rect);
+  data.set_bounds_cb.Run(mapped_rect.x(), mapped_rect.y(), mapped_rect.width(),
+                         mapped_rect.height());
 
   DCHECK_EQ(data.rect, video_node->GetBounds());
   AddClear(data.rect, kTransparentBlack);

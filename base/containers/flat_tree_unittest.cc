@@ -1165,6 +1165,22 @@ TEST(FlatTree, Find) {
   }
 }
 
+// bool contains(const key_type& key) const
+
+TEST(FlatTree, Contains) {
+  const IntTree cont({5, 6, 7, 8, 9, 10, 11, 12});
+
+  EXPECT_TRUE(cont.contains(5));
+  EXPECT_TRUE(cont.contains(6));
+  EXPECT_TRUE(cont.contains(7));
+  EXPECT_TRUE(cont.contains(8));
+  EXPECT_TRUE(cont.contains(9));
+  EXPECT_TRUE(cont.contains(10));
+  EXPECT_TRUE(cont.contains(11));
+  EXPECT_TRUE(cont.contains(12));
+  EXPECT_FALSE(cont.contains(4));
+}
+
 // pair<iterator, iterator> equal_range(const key_type& key)
 // pair<const_iterator, const_iterator> equal_range(const key_type& key) const
 

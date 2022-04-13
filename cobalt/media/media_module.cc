@@ -25,8 +25,6 @@
 #include "base/strings/string_split.h"
 #include "base/synchronization/waitable_event.h"
 #include "cobalt/media/base/format_support_query_metrics.h"
-#include "cobalt/media/base/media_log.h"
-#include "cobalt/media/base/mime_util.h"
 #include "nb/memory_scope.h"
 #include "starboard/common/string.h"
 #include "starboard/media.h"
@@ -61,7 +59,9 @@ static std::vector<std::string> ExtractCodecs(const std::string& mime_type) {
       continue;
     }
     if (name_and_value[0] == "codecs") {
-      ParseCodecString(name_and_value[1], &codecs, /* strip= */ false);
+      // TODO(b/230888580): Revive ParseCodecString() to enable returning of
+      // `codecs`.
+      //   ParseCodecString(name_and_value[1], &codecs, /* strip= */ false);
       return codecs;
     }
   }
@@ -196,8 +196,7 @@ std::unique_ptr<WebMediaPlayer> MediaModule::CreateWebMediaPlayer(
       window,
       base::Bind(&MediaModule::GetSbDecodeTargetGraphicsContextProvider,
                  base::Unretained(this)),
-      client, this, &decoder_buffer_allocator_,
-      options_.allow_resume_after_suspend, new media::MediaLog));
+      client, this, options_.allow_resume_after_suspend, &media_log_));
 }
 
 void MediaModule::Suspend() {

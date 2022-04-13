@@ -17,6 +17,9 @@
 #include "media/base/demuxer_memory_limit.h"
 #include "media/base/media_switches.h"
 #include "media/base/timestamp_constants.h"
+#if defined(STARBOARD)
+#include "starboard/media.h"
+#endif  // defined(STARBOARD)
 
 namespace media {
 
@@ -156,9 +159,17 @@ SourceBufferRange::GapPolicy TypeToGapPolicy(SourceBufferStreamType type) {
 
 }  // namespace
 
+#if defined(STARBOARD)
+SourceBufferStream::SourceBufferStream(const std::string& mime_type,
+                                       const AudioDecoderConfig& audio_config,
+                                       MediaLog* media_log)
+    : mime_type_(mime_type),
+      media_log_(media_log),
+#else  // defined (STARBOARD)
 SourceBufferStream::SourceBufferStream(const AudioDecoderConfig& audio_config,
                                        MediaLog* media_log)
     : media_log_(media_log),
+#endif  // defined (STARBOARD)
       seek_buffer_timestamp_(kNoTimestamp),
       coded_frame_group_start_pts_(kNoTimestamp),
       range_for_next_append_(ranges_.end()),
@@ -171,9 +182,17 @@ SourceBufferStream::SourceBufferStream(const AudioDecoderConfig& audio_config,
   DVLOG(2) << __func__ << ": audio_buffer_size= " << memory_limit_;
 }
 
+#if defined(STARBOARD)
+SourceBufferStream::SourceBufferStream(const std::string& mime_type,
+                                       const VideoDecoderConfig& video_config,
+                                       MediaLog* media_log)
+    : mime_type_(mime_type),
+      media_log_(media_log),
+#else  // defined (STARBOARD)
 SourceBufferStream::SourceBufferStream(const VideoDecoderConfig& video_config,
                                        MediaLog* media_log)
     : media_log_(media_log),
+#endif  // defined (STARBOARD)
       seek_buffer_timestamp_(kNoTimestamp),
       coded_frame_group_start_pts_(kNoTimestamp),
       range_for_next_append_(ranges_.end()),
@@ -782,8 +801,16 @@ bool SourceBufferStream::GarbageCollectIfNeeded(base::TimeDelta media_time,
   // which should not happen in end-of-stream state. Unless we also allow GC to
   // happen on memory pressure notifications, which might happen even in EOS
   // state.
+#if defined(STARBOARD)
+  // TODO: Check if we should enable `kEnableMemoryPressureBasedSourceBufferGC`.
+  constexpr bool kEnableMemoryPressureBasedSourceBufferGC = true;
+  if (!kEnableMemoryPressureBasedSourceBufferGC) {
+    DCHECK(!end_of_stream_);
+  }
+#else // defined(STARBOARD)
   if (!base::FeatureList::IsEnabled(kMemoryPressureBasedSourceBufferGC))
     DCHECK(!end_of_stream_);
+#endif // defined(STARBOARD)
   // Compute size of |ranges_|.
   size_t ranges_size = GetBufferedSize();
 
@@ -800,7 +827,11 @@ bool SourceBufferStream::GarbageCollectIfNeeded(base::TimeDelta media_time,
   }
 
   size_t effective_memory_limit = memory_limit_;
+#if defined(STARBOARD)
+  if (kEnableMemoryPressureBasedSourceBufferGC) {
+#else // defined(STARBOARD)
   if (base::FeatureList::IsEnabled(kMemoryPressureBasedSourceBufferGC)) {
+#endif // defined(STARBOARD)
     switch (memory_pressure_level_) {
       case base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_MODERATE:
         effective_memory_limit = memory_limit_ / 2;
@@ -812,6 +843,17 @@ bool SourceBufferStream::GarbageCollectIfNeeded(base::TimeDelta media_time,
         break;
     }
   }
+
+#if defined(STARBOARD)
+  // Address duration based GC.
+  base::TimeDelta duration = GetBufferedDurationForGarbageCollection();
+  const SbTime duration_gc_threadold =
+      SbMediaGetBufferGarbageCollectionDurationThreshold();
+  if (duration.ToSbTime() > duration_gc_threadold) {
+    effective_memory_limit = ranges_size * duration_gc_threadold /
+                             duration.ToSbTime();
+  }
+#endif  // defined(STARBOARD)
 
   // Return if we're under or at the memory limit.
   if (ranges_size + newDataSize <= effective_memory_limit)
@@ -1854,6 +1896,14 @@ bool SourceBufferStream::UpdateVideoConfig(const VideoDecoderConfig& config,
   DVLOG(2) << "New video config - index: " << append_config_index_;
   video_configs_.resize(video_configs_.size() + 1);
   video_configs_[append_config_index_] = config;
+
+#if defined(STARBOARD)
+  // Dynamically increase |memory_limit_| when video resolution goes up.
+  memory_limit_ = std::max(
+      memory_limit_,
+      GetDemuxerStreamVideoMemoryLimit(Demuxer::DemuxerTypes::kChunkDemuxer,
+                                       &config));
+#endif  // defined(STARBOARD)
   return true;
 }
 
@@ -2019,5 +2069,18 @@ bool SourceBufferStream::SetPendingBuffer(
   pending_buffers_complete_ = false;
   return true;
 }
+
+#if defined(STARBOARD)
+
+base::TimeDelta SourceBufferStream::GetBufferedDurationForGarbageCollection()
+    const {
+  base::TimeDelta duration;
+  for (auto&& range : ranges_) {
+    duration += range->GetEndTimestamp() - range->GetStartTimestamp();
+  }
+  return duration;
+}
+
+#endif  // defined (STARBOARD)
 
 }  // namespace media

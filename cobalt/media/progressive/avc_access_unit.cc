@@ -16,15 +16,18 @@
 
 #include <algorithm>
 
-#include "cobalt/media/base/decoder_buffer.h"
 #include "cobalt/media/base/endian_util.h"
-#include "cobalt/media/base/timestamp_constants.h"
 #include "cobalt/media/progressive/progressive_parser.h"
+#include "third_party/chromium/media/base/decoder_buffer.h"
+#include "third_party/chromium/media/base/timestamp_constants.h"
 
 namespace cobalt {
 namespace media {
 
 namespace {
+
+using ::media::DecoderBuffer;
+using ::media::DemuxerStream;
 
 bool ReadBytes(uint64 offset, size_t size, uint8* buffer,
                DataSourceReader* reader) {
@@ -35,44 +38,14 @@ bool ReadBytes(uint64 offset, size_t size, uint8* buffer,
   return true;
 }
 
-bool ReadBytes(uint64 offset, size_t size, DecoderBuffer* decoder_buffer,
-               uint64 decoder_buffer_offset, DataSourceReader* reader) {
-  size_t buffer_index = 0;
-  auto& allocations = decoder_buffer->allocations();
-  while (size > 0) {
-    if (buffer_index >= allocations.number_of_buffers()) {
-      NOTREACHED();
-      return false;
-    }
-    size_t buffer_size = allocations.buffer_sizes()[buffer_index];
-    if (buffer_size <= decoder_buffer_offset) {
-      decoder_buffer_offset -= buffer_size;
-    } else {
-      size_t bytes_to_read = std::min(
-          size, buffer_size - static_cast<size_t>(decoder_buffer_offset));
-      uint8_t* destination =
-          static_cast<uint8_t*>(allocations.buffers()[buffer_index]);
-      if (reader->BlockingRead(offset, bytes_to_read,
-                               destination + decoder_buffer_offset) !=
-          bytes_to_read) {
-        DLOG(ERROR) << "unable to download AU";
-        return false;
-      }
-      decoder_buffer_offset = 0;
-      size -= bytes_to_read;
-    }
-    ++buffer_index;
-  }
-
-  return true;
-}
-
 // ==== EndOfStreamAU ==================================================
 
 class EndOfStreamAU : public AvcAccessUnit {
  public:
   EndOfStreamAU(Type type, TimeDelta timestamp)
-      : type_(type), timestamp_(timestamp), duration_(kInfiniteDuration) {}
+      : type_(type),
+        timestamp_(timestamp),
+        duration_(::media::kInfiniteDuration) {}
 
  private:
   bool IsEndOfStream() const override { return true; }
@@ -112,7 +85,7 @@ class AudioAU : public AvcAccessUnit {
  private:
   bool IsEndOfStream() const override { return false; }
   bool IsValid() const override {
-    return offset_ != 0 && size_ != 0 && timestamp_ != kNoTimestamp;
+    return offset_ != 0 && size_ != 0 && timestamp_ != ::media::kNoTimestamp;
   }
   bool Read(DataSourceReader* reader, DecoderBuffer* buffer) override;
   Type GetType() const override { return DemuxerStream::AUDIO; }
@@ -147,7 +120,9 @@ AudioAU::AudioAU(uint64 offset, size_t size, size_t prepend_size,
 
 bool AudioAU::Read(DataSourceReader* reader, DecoderBuffer* buffer) {
   DCHECK_LE(size_ + prepend_size_, buffer->data_size());
-  if (!ReadBytes(offset_, size_, buffer, prepend_size_, reader)) return false;
+  if (!ReadBytes(offset_, size_, buffer->writable_data() + prepend_size_,
+                 reader))
+    return false;
 
   if (!parser_->Prepend(this, buffer)) {
     DLOG(ERROR) << "prepend fail";
@@ -168,7 +143,7 @@ class VideoAU : public AvcAccessUnit {
  private:
   bool IsEndOfStream() const override { return false; }
   bool IsValid() const override {
-    return offset_ != 0 && size_ != 0 && timestamp_ != kNoTimestamp;
+    return offset_ != 0 && size_ != 0 && timestamp_ != ::media::kNoTimestamp;
   }
   bool Read(DataSourceReader* reader, DecoderBuffer* buffer) override;
   Type GetType() const override { return DemuxerStream::VIDEO; }
@@ -226,8 +201,8 @@ bool VideoAU::Read(DataSourceReader* reader, DecoderBuffer* buffer) {
     uint32 nal_size;
 
     // Store [start code]
-    buffer->allocations().Write(decoder_buffer_offset, kAnnexBStartCode,
-                                kAnnexBStartCodeSize);
+    memcpy(buffer->writable_data() + decoder_buffer_offset, kAnnexBStartCode,
+           kAnnexBStartCodeSize);
     decoder_buffer_offset += kAnnexBStartCodeSize;
     buf_left -= kAnnexBStartCodeSize;
 
@@ -250,8 +225,8 @@ bool VideoAU::Read(DataSourceReader* reader, DecoderBuffer* buffer) {
     if (au_left < nal_size || buf_left < nal_size) break;
 
     // Read the [data] from reader into buf
-    if (!ReadBytes(au_offset, nal_size, buffer, decoder_buffer_offset,
-                   reader)) {
+    if (!ReadBytes(au_offset, nal_size,
+                   buffer->writable_data() + decoder_buffer_offset, reader)) {
       return false;
     }
 

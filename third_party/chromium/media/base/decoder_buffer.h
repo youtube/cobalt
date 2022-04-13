@@ -21,7 +21,9 @@
 #include "media/base/decrypt_config.h"
 #include "media/base/media_export.h"
 #include "media/base/timestamp_constants.h"
+#if !defined(STARBOARD)
 #include "media/base/unaligned_shared_memory.h"
+#endif  // !defined(STARBOARD)
 
 namespace media {
 
@@ -42,6 +44,21 @@ class MEDIA_EXPORT DecoderBuffer
 #endif
   };
 
+#if defined(STARBOARD)
+  class Allocator {
+    public:
+      // The function should never return nullptr.  It may terminate the app on
+      // allocation failure.
+      virtual void* Allocate(size_t size, size_t alignment) = 0;
+      virtual void Free(void* p, size_t size) = 0;
+
+    protected:
+      ~Allocator() {}
+
+      static void Set(Allocator* allocator);
+  };
+#endif  // defined(STARBOARD)
+
   // Allocates buffer with |size| >= 0. |is_key_frame_| will default to false.
   explicit DecoderBuffer(size_t size);
 
@@ -59,6 +76,7 @@ class MEDIA_EXPORT DecoderBuffer
                                                const uint8_t* side_data,
                                                size_t side_data_size);
 
+#if !defined(STARBOARD)
   // Create a DecoderBuffer where data() of |size| bytes resides within the heap
   // as byte array. The buffer's |is_key_frame_| will default to false.
   //
@@ -87,6 +105,7 @@ class MEDIA_EXPORT DecoderBuffer
       base::ReadOnlySharedMemoryRegion region,
       off_t offset,
       size_t size);
+#endif  // !defined(STARBOARD)
 
   // Create a DecoderBuffer indicating we've reached end of stream.
   //
@@ -118,19 +137,29 @@ class MEDIA_EXPORT DecoderBuffer
 
   const uint8_t* data() const {
     DCHECK(!end_of_stream());
+
+#if defined(STARBOARD)
+    return data_;
+#else  // defined(STARBOARD)
     if (shared_mem_mapping_ && shared_mem_mapping_->IsValid())
       return static_cast<const uint8_t*>(shared_mem_mapping_->memory());
     if (shm_)
       return static_cast<uint8_t*>(shm_->memory());
     return data_.get();
+#endif  // defined(STARBOARD)
   }
 
   // TODO(sandersd): Remove writable_data(). https://crbug.com/834088
   uint8_t* writable_data() const {
     DCHECK(!end_of_stream());
+
+#if defined(STARBOARD)
+    return data_;
+#else  // defined(STARBOARD)
     DCHECK(!shm_);
     DCHECK(!shared_mem_mapping_);
     return data_.get();
+#endif  // defined(STARBOARD)
   }
 
   size_t data_size() const {
@@ -172,7 +201,12 @@ class MEDIA_EXPORT DecoderBuffer
   }
 
   // If there's no data in this buffer, it represents end of stream.
+#if defined(STARBOARD)
+  bool end_of_stream() const { return !data_; }
+  void shrink_to(size_t size) { DCHECK_LE(size, size_); size_ = size; }
+#else  // defined(STARBOARD)
   bool end_of_stream() const { return !shared_mem_mapping_ && !shm_ && !data_; }
+#endif  // defined(STARBOARD)
 
   bool is_key_frame() const {
     DCHECK(!end_of_stream());
@@ -205,17 +239,25 @@ class MEDIA_EXPORT DecoderBuffer
                 const uint8_t* side_data,
                 size_t side_data_size);
 
+#if !defined(STARBOARD)
   DecoderBuffer(std::unique_ptr<uint8_t[]> data, size_t size);
 
   DecoderBuffer(std::unique_ptr<UnalignedSharedMemory> shm, size_t size);
 
   DecoderBuffer(std::unique_ptr<ReadOnlyUnalignedMapping> shared_mem_mapping,
                 size_t size);
+#endif  // !defined(STARBOARD)
 
   virtual ~DecoderBuffer();
 
+#if defined(STARBOARD)
+  // Encoded data, allocated from DecoderBuffer::Allocator.
+  uint8_t* data_ = nullptr;
+  size_t allocated_size_ = 0;
+#else  // defined(STARBOARD)
   // Encoded data, if it is stored on the heap.
   std::unique_ptr<uint8_t[]> data_;
+#endif  // defined(STARBOARD)
 
  private:
   // Presentation time of the frame.
@@ -230,11 +272,13 @@ class MEDIA_EXPORT DecoderBuffer
   size_t side_data_size_;
   std::unique_ptr<uint8_t[]> side_data_;
 
+#if !defined(STARBOARD)
   // Encoded data, if it is stored in a shared memory mapping.
   std::unique_ptr<ReadOnlyUnalignedMapping> shared_mem_mapping_;
 
   // Encoded data, if it is stored in SHM.
   std::unique_ptr<UnalignedSharedMemory> shm_;
+#endif  // !defined(STARBOARD)
 
   // Encryption parameters for the encoded data.
   std::unique_ptr<DecryptConfig> decrypt_config_;

@@ -57,16 +57,16 @@
 #include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/event.h"
-#include "cobalt/media/base/pipeline_status.h"
 #include "starboard/media.h"
+#include "third_party/chromium/media/base/pipeline_status.h"
 
 namespace cobalt {
 namespace dom {
 
-using media::CHUNK_DEMUXER_ERROR_EOS_STATUS_DECODE_ERROR;
-using media::CHUNK_DEMUXER_ERROR_EOS_STATUS_NETWORK_ERROR;
-using media::PIPELINE_OK;
-using media::PipelineStatus;
+using ::media::CHUNK_DEMUXER_ERROR_EOS_STATUS_DECODE_ERROR;
+using ::media::CHUNK_DEMUXER_ERROR_EOS_STATUS_NETWORK_ERROR;
+using ::media::PIPELINE_OK;
+using ::media::PipelineStatus;
 
 MediaSource::MediaSource(script::EnvironmentSettings* settings)
     : EventTarget(settings),

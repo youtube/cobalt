@@ -61,10 +61,20 @@ class MEDIA_EXPORT SourceBufferStream {
                                    base::TimeDelta* start,
                                    base::TimeDelta* end);
 
+#if defined(STARBOARD)
+  SourceBufferStream(const std::string& mime_type,
+                     const AudioDecoderConfig& audio_config,
+                     MediaLog* media_log);
+  SourceBufferStream(const std::string& mime_type,
+                     const VideoDecoderConfig& video_config,
+                     MediaLog* media_log);
+#else  // defined (STARBOARD)
   SourceBufferStream(const AudioDecoderConfig& audio_config,
                      MediaLog* media_log);
   SourceBufferStream(const VideoDecoderConfig& video_config,
                      MediaLog* media_log);
+#endif  // defined (STARBOARD)
+
   SourceBufferStream(const TextTrackConfig& text_config, MediaLog* media_log);
 
   SourceBufferStream(const SourceBufferStream&) = delete;
@@ -388,6 +398,14 @@ class MEDIA_EXPORT SourceBufferStream {
   // If |out_buffer| has preroll, sets |pending_buffer_| to feed out preroll and
   // returns true.  Otherwise returns false.
   bool SetPendingBuffer(scoped_refptr<StreamParserBuffer>* out_buffer);
+
+#if defined(STARBOARD)
+  // Returns the accumulated duration of all ranges.  This is solely used by
+  // duration base garbage collection.
+  base::TimeDelta GetBufferedDurationForGarbageCollection() const;
+
+  const std::string mime_type_;
+#endif  // defined (STARBOARD)
 
   // Used to report log messages that can help the web developer figure out what
   // is wrong with the content.

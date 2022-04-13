@@ -121,9 +121,9 @@ StarboardPlayer::StarboardPlayer(
     const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
     const GetDecodeTargetGraphicsContextProviderFunc&
         get_decode_target_graphics_context_provider_func,
-    const AudioDecoderConfig& audio_config,
-    const VideoDecoderConfig& video_config, SbWindow window,
-    SbDrmSystem drm_system, Host* host,
+    const AudioDecoderConfig& audio_config, const std::string& audio_mime_type,
+    const VideoDecoderConfig& video_config, const std::string& video_mime_type,
+    SbWindow window, SbDrmSystem drm_system, Host* host,
     SbPlayerSetBoundsHelper* set_bounds_helper, bool allow_resume_after_suspend,
     bool prefer_decode_to_texture,
     VideoFrameProvider* const video_frame_provider,
@@ -157,10 +157,10 @@ StarboardPlayer::StarboardPlayer(
   video_sample_info_.codec = kSbMediaVideoCodecNone;
 
   if (audio_config.IsValidConfig()) {
-    UpdateAudioConfig(audio_config);
+    UpdateAudioConfig(audio_config, audio_mime_type);
   }
   if (video_config.IsValidConfig()) {
-    UpdateVideoConfig(video_config);
+    UpdateVideoConfig(video_config, video_mime_type);
   }
 
   output_mode_ = ComputeSbPlayerOutputMode(prefer_decode_to_texture);
@@ -189,8 +189,8 @@ StarboardPlayer::~StarboardPlayer() {
   }
 }
 
-void StarboardPlayer::UpdateAudioConfig(
-    const AudioDecoderConfig& audio_config) {
+void StarboardPlayer::UpdateAudioConfig(const AudioDecoderConfig& audio_config,
+                                        const std::string& mime_type) {
   DCHECK(task_runner_->BelongsToCurrentThread());
   DCHECK(audio_config.IsValidConfig());
 
@@ -198,12 +198,14 @@ void StarboardPlayer::UpdateAudioConfig(
             << audio_config.AsHumanReadableString();
 
   audio_config_ = audio_config;
-  audio_sample_info_ = MediaAudioConfigToSbMediaAudioSampleInfo(audio_config_);
+  audio_mime_type_ = mime_type;
+  audio_sample_info_ = MediaAudioConfigToSbMediaAudioSampleInfo(
+      audio_config_, audio_mime_type_.c_str());
   LOG(INFO) << "Converted to SbMediaAudioSampleInfo -- " << audio_sample_info_;
 }
 
-void StarboardPlayer::UpdateVideoConfig(
-    const VideoDecoderConfig& video_config) {
+void StarboardPlayer::UpdateVideoConfig(const VideoDecoderConfig& video_config,
+                                        const std::string& mime_type) {
   DCHECK(task_runner_->BelongsToCurrentThread());
   DCHECK(video_config.IsValidConfig());
 
@@ -217,11 +219,11 @@ void StarboardPlayer::UpdateVideoConfig(
       static_cast<int>(video_config_.natural_size().height());
   video_sample_info_.codec =
       MediaVideoCodecToSbMediaVideoCodec(video_config_.codec());
-  video_sample_info_.color_metadata =
-      MediaToSbMediaColorMetadata(video_config_.webm_color_metadata());
-  video_sample_info_.mime = video_config_.mime().c_str();
+  video_sample_info_.color_metadata = MediaToSbMediaColorMetadata(
+      video_config_.color_space_info(), video_config_.hdr_metadata());
+  video_mime_type_ = mime_type;
+  video_sample_info_.mime = video_mime_type_.c_str();
   video_sample_info_.max_video_capabilities = max_video_capabilities_.c_str();
-
   LOG(INFO) << "Converted to SbMediaVideoSampleInfo -- " << video_sample_info_;
 }
 
@@ -245,7 +247,7 @@ void StarboardPlayer::WriteBuffer(DemuxerStream::Type type,
   WriteBufferInternal(type, buffer);
 }
 
-void StarboardPlayer::SetBounds(int z_index, const math::Rect& rect) {
+void StarboardPlayer::SetBounds(int z_index, const gfx::Rect& rect) {
   base::AutoLock auto_lock(lock_);
 
   set_bounds_z_index_ = z_index;
@@ -636,13 +638,9 @@ void StarboardPlayer::WriteBufferInternal(
     return;
   }
 
-  const auto& allocations = buffer->allocations();
-  DCHECK_EQ(allocations.number_of_buffers(), 1);
-
-  DecodingBuffers::iterator iter =
-      decoding_buffers_.find(allocations.buffers()[0]);
+  DecodingBuffers::iterator iter = decoding_buffers_.find(buffer->data());
   if (iter == decoding_buffers_.end()) {
-    decoding_buffers_[allocations.buffers()[0]] = std::make_pair(buffer, 1);
+    decoding_buffers_[buffer->data()] = std::make_pair(buffer, 1);
   } else {
     ++iter->second.second;
   }
@@ -668,8 +666,8 @@ void StarboardPlayer::WriteBufferInternal(
   SbPlayerSampleSideData side_data = {};
   SbPlayerSampleInfo sample_info = {};
   sample_info.type = sample_type;
-  sample_info.buffer = allocations.buffers()[0];
-  sample_info.buffer_size = allocations.buffer_sizes()[0];
+  sample_info.buffer = buffer->data();
+  sample_info.buffer_size = buffer->data_size();
   sample_info.timestamp = buffer->timestamp().InMicroseconds();
 
   if (buffer->side_data_size() > 0) {

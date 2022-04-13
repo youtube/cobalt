@@ -18,6 +18,7 @@
 #include "base/logging.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/dom/dom_settings.h"
+#include "cobalt/dom/media_source.h"
 #include "cobalt/web/context.h"
 #include "cobalt/web/environment_settings.h"
 #include "url/gurl.h"

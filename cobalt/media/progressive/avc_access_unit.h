@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_MEDIA_PROGRESSIVE_ACCESS_UNIT_H_
-#define COBALT_MEDIA_PROGRESSIVE_ACCESS_UNIT_H_
+#ifndef COBALT_MEDIA_PROGRESSIVE_AVC_ACCESS_UNIT_H_
+#define COBALT_MEDIA_PROGRESSIVE_AVC_ACCESS_UNIT_H_
 
 #include "base/memory/ref_counted.h"
-#include "cobalt/media/base/demuxer_stream.h"
 #include "cobalt/media/progressive/data_source_reader.h"
+#include "media/base/demuxer_stream.h"
 
 namespace cobalt {
 namespace media {
@@ -33,7 +33,7 @@ static const uint8_t kAnnexBStartCode[] = {0, 0, 0, 1};
 class AvcAccessUnit : public base::RefCountedThreadSafe<AvcAccessUnit> {
  public:
   typedef base::TimeDelta TimeDelta;
-  typedef DemuxerStream::Type Type;
+  typedef ::media::DemuxerStream::Type Type;
 
   static scoped_refptr<AvcAccessUnit> CreateEndOfStreamAU(Type type,
                                                           TimeDelta timestamp);
@@ -49,7 +49,8 @@ class AvcAccessUnit : public base::RefCountedThreadSafe<AvcAccessUnit> {
   virtual bool IsValid() const = 0;
   // Read an AU from reader to buffer and also do all the necessary operations
   // like prepending head to make it ready to decode.
-  virtual bool Read(DataSourceReader* reader, DecoderBuffer* buffer) = 0;
+  virtual bool Read(DataSourceReader* reader,
+                    ::media::DecoderBuffer* buffer) = 0;
   virtual Type GetType() const = 0;
   virtual bool IsKeyframe() const = 0;
   virtual bool AddPrepend() const = 0;
@@ -72,4 +73,4 @@ class AvcAccessUnit : public base::RefCountedThreadSafe<AvcAccessUnit> {
 }  // namespace media
 }  // namespace cobalt
 
-#endif  // COBALT_MEDIA_PROGRESSIVE_ACCESS_UNIT_H_
+#endif  // COBALT_MEDIA_PROGRESSIVE_AVC_ACCESS_UNIT_H_

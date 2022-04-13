@@ -23,41 +23,40 @@
 #include "base/logging.h"
 #include "base/message_loop/message_loop.h"
 #include "base/threading/thread.h"
-#include "cobalt/media/base/decoder_buffer.h"
-#include "cobalt/media/base/demuxer.h"
-#include "cobalt/media/base/demuxer_stream.h"
-#include "cobalt/media/base/media_log.h"
-#include "cobalt/media/base/ranges.h"
 #include "cobalt/media/progressive/progressive_parser.h"
+#include "third_party/chromium/media/base/decoder_buffer.h"
+#include "third_party/chromium/media/base/demuxer.h"
+#include "third_party/chromium/media/base/demuxer_stream.h"
+#include "third_party/chromium/media/base/media_log.h"
+#include "third_party/chromium/media/base/ranges.h"
+
+namespace media {
+class DecoderBuffer;
+}  // namespace media
 
 namespace cobalt {
 namespace media {
 
-class DecoderBuffer;
 class ProgressiveDemuxer;
 
-class ProgressiveDemuxerStream : public DemuxerStream {
+class ProgressiveDemuxerStream : public ::media::DemuxerStream {
  public:
+  typedef ::media::AudioDecoderConfig AudioDecoderConfig;
+  typedef ::media::DecoderBuffer DecoderBuffer;
+  typedef ::media::VideoDecoderConfig VideoDecoderConfig;
+
   ProgressiveDemuxerStream(ProgressiveDemuxer* demuxer, Type type);
 
   // DemuxerStream implementation
-  void Read(const ReadCB& read_cb) override;
+  void Read(ReadCB read_cb) override;
   AudioDecoderConfig audio_decoder_config() override;
   VideoDecoderConfig video_decoder_config() override;
   Type type() const override;
   void EnableBitstreamConverter() override;
   bool SupportsConfigChanges() override { return false; }
-  VideoRotation video_rotation() override { return VIDEO_ROTATION_0; }
-  bool enabled() const override { return true; }
-  void set_enabled(bool enabled, base::TimeDelta timestamp) override {
-    DCHECK(enabled);
-  }
-  void SetStreamStatusChangeCB(const StreamStatusChangeCB& cb) override {
-    NOTREACHED();
-  }
 
   // Functions used by ProgressiveDemuxer
-  Ranges<base::TimeDelta> GetBufferedRanges();
+  ::media::Ranges<base::TimeDelta> GetBufferedRanges();
   void EnqueueBuffer(scoped_refptr<DecoderBuffer> buffer);
   void FlushBuffers();
   void Stop();
@@ -80,15 +79,15 @@ class ProgressiveDemuxerStream : public DemuxerStream {
   // Keeps track of all time ranges this object has seen since creation.
   // The demuxer uses these ranges to update the pipeline about what data
   // it has demuxed.
-  Ranges<base::TimeDelta> buffered_ranges_;
+  ::media::Ranges<base::TimeDelta> buffered_ranges_;
   // The last timestamp of buffer enqueued. This is used in two places:
   //   1. Used with the timestamp of the current frame to calculate the
   //      buffer range.
   //   2. Used by the demuxer to deteminate what type of frame to get next.
-  base::TimeDelta last_buffer_timestamp_ = kNoTimestamp;
+  base::TimeDelta last_buffer_timestamp_ = ::media::kNoTimestamp;
   bool stopped_ = false;
 
-  typedef std::deque<scoped_refptr<DecoderBuffer> > BufferQueue;
+  typedef std::deque<scoped_refptr<DecoderBuffer>> BufferQueue;
   BufferQueue buffer_queue_;
 
   typedef std::deque<ReadCB> ReadQueue;
@@ -100,36 +99,50 @@ class ProgressiveDemuxerStream : public DemuxerStream {
   DISALLOW_COPY_AND_ASSIGN(ProgressiveDemuxerStream);
 };
 
-class MEDIA_EXPORT ProgressiveDemuxer : public Demuxer {
+class MEDIA_EXPORT ProgressiveDemuxer : public ::media::Demuxer {
  public:
+  typedef ::media::AudioDecoderConfig AudioDecoderConfig;
+  typedef ::media::DecoderBuffer DecoderBuffer;
+  typedef ::media::DemuxerHost DemuxerHost;
+  typedef ::media::DemuxerStream DemuxerStream;
+  typedef ::media::MediaLog MediaLog;
+  typedef ::media::PipelineStatus PipelineStatus;
+  typedef ::media::PipelineStatusCallback PipelineStatusCallback;
+  typedef ::media::VideoDecoderConfig VideoDecoderConfig;
+
   ProgressiveDemuxer(
       const scoped_refptr<base::SingleThreadTaskRunner>& message_loop,
-      DecoderBuffer::Allocator* buffer_allocator, DataSource* data_source,
-      const scoped_refptr<MediaLog>& media_log);
+      DataSource* data_source, MediaLog* const media_log);
   ~ProgressiveDemuxer() override;
 
   // Demuxer implementation.
   std::string GetDisplayName() const override { return "ProgressiveDemuxer"; }
-  void Initialize(DemuxerHost* host, const PipelineStatusCB& status_cb,
-                  bool enable_text_tracks) override;
+  void Initialize(DemuxerHost* host, PipelineStatusCallback status_cb) override;
   void AbortPendingReads() override {}
   void StartWaitingForSeek(base::TimeDelta seek_time) override {}
   void CancelPendingSeek(base::TimeDelta seek_time) override {}
   void Stop() override;
-  void Seek(base::TimeDelta time, const PipelineStatusCB& cb) override;
-  DemuxerStream* GetStream(DemuxerStream::Type type) override;
+  void Seek(base::TimeDelta time, PipelineStatusCallback cb) override;
+  std::vector<DemuxerStream*> GetAllStreams() override;
   base::TimeDelta GetStartTime() const override;
   base::Time GetTimelineOffset() const override { return base::Time(); }
   int64_t GetMemoryUsage() const override {
     NOTREACHED();
     return 0;
   }
-  void OnEnabledAudioTracksChanged(const std::vector<MediaTrack::Id>& track_ids,
-                                   base::TimeDelta currTime) override {
+  absl::optional<::media::container_names::MediaContainerName>
+  GetContainerForMetrics() const override {
+    NOTREACHED();
+    return absl::nullopt;
+  }
+  void OnEnabledAudioTracksChanged(
+      const std::vector<::media::MediaTrack::Id>& track_ids,
+      base::TimeDelta currTime, TrackChangeCB change_completed_cb) override {
     NOTREACHED();
   }
-  void OnSelectedVideoTrackChanged(const std::vector<MediaTrack::Id>& track_ids,
-                                   base::TimeDelta currTime) override {
+  void OnSelectedVideoTrackChanged(
+      const std::vector<::media::MediaTrack::Id>& track_ids,
+      base::TimeDelta currTime, TrackChangeCB change_completed_cb) override {
     NOTREACHED();
   }
 
@@ -149,27 +162,25 @@ class MEDIA_EXPORT ProgressiveDemuxer : public Demuxer {
   bool MessageLoopBelongsToCurrentThread() const;
 
  private:
-  void ParseConfigDone(const PipelineStatusCB& status_cb,
-                       PipelineStatus status);
+  void ParseConfigDone(PipelineStatusCallback status_cb, PipelineStatus status);
   void DataSourceStopped(const base::Closure& callback);
   bool HasStopCalled();
 
   // methods that perform blocking I/O, and are therefore run on the
   // blocking_thread_ download enough of the stream to parse the configuration.
-  void ParseConfigBlocking(const PipelineStatusCB& status_cb);
+  void ParseConfigBlocking(PipelineStatusCallback status_cb);
   void AllocateBuffer();
   void Download(scoped_refptr<DecoderBuffer> buffer);
   void IssueNextRequest();
-  void SeekTask(base::TimeDelta time, const PipelineStatusCB& cb);
+  void SeekTask(base::TimeDelta time, PipelineStatusCallback cb);
 
   scoped_refptr<base::SingleThreadTaskRunner> message_loop_;
-  DecoderBuffer::Allocator* buffer_allocator_;
   DemuxerHost* host_;
 
   // Thread on which all blocking operations are executed.
   base::Thread blocking_thread_;
   DataSource* data_source_;
-  scoped_refptr<MediaLog> media_log_;
+  MediaLog* media_log_;
   scoped_refptr<DataSourceReader> reader_;
 
   base::Lock lock_for_stopped_;

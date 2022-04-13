@@ -15,6 +15,24 @@
 
 namespace media {
 
+#if defined(STARBOARD)
+
+template <typename... Args>
+inline base::RepeatingCallback<void(Args...)> BindToCurrentLoop(
+    base::RepeatingCallback<void(Args...)> cb) {
+  return base::BindPostTask(base::SequencedTaskRunnerHandle::Get(),
+                            std::move(cb), FROM_HERE);
+}
+
+template <typename... Args>
+inline base::OnceCallback<void(Args...)> BindToCurrentLoop(
+    base::OnceCallback<void(Args...)> cb) {
+  return base::BindPostTask(base::SequencedTaskRunnerHandle::Get(),
+                            std::move(cb), FROM_HERE);
+}
+
+#else  // defined(STARBOARD)
+
 template <typename... Args>
 inline base::RepeatingCallback<void(Args...)> BindToCurrentLoop(
     base::RepeatingCallback<void(Args...)> cb,
@@ -30,6 +48,8 @@ inline base::OnceCallback<void(Args...)> BindToCurrentLoop(
   return base::BindPostTask(base::SequencedTaskRunnerHandle::Get(),
                             std::move(cb), location);
 }
+
+#endif  // defined(STARBOARD)
 
 }  // namespace media
 

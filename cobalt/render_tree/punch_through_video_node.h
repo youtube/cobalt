@@ -15,6 +15,8 @@
 #ifndef COBALT_RENDER_TREE_PUNCH_THROUGH_VIDEO_NODE_H_
 #define COBALT_RENDER_TREE_PUNCH_THROUGH_VIDEO_NODE_H_
 
+#include <utility>
+
 #include "base/callback.h"
 #include "base/compiler_specific.h"
 #include "cobalt/base/type_id.h"
@@ -39,7 +41,7 @@ namespace render_tree {
 //          support punch out video rendering.
 class PunchThroughVideoNode : public Node {
  public:
-  typedef base::Callback<bool(const math::Rect&)> SetBoundsCB;
+  typedef base::Callback<bool(int x, int y, int width, int height)> SetBoundsCB;
 
   struct Builder {
     Builder(const Builder&) = default;
@@ -57,7 +59,8 @@ class PunchThroughVideoNode : public Node {
 
   // Forwarding constructor to the set of Builder constructors.
   template <typename... Args>
-  PunchThroughVideoNode(Args&&... args) : data_(std::forward<Args>(args)...) {}
+  explicit PunchThroughVideoNode(Args&&... args)
+      : data_(std::forward<Args>(args)...) {}
 
   void Accept(NodeVisitor* visitor) override;
   math::RectF GetBounds() const override;

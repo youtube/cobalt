@@ -25,6 +25,9 @@ namespace cobalt {
 namespace media {
 namespace {
 
+using ::media::GetCodecName;
+using ::media::VideoCodec;
+
 volatile SbAtomic32 s_max_active_instances = 0;
 volatile SbAtomic32 s_active_instances = 0;
 volatile SbAtomic32 s_av1_played = 0;
@@ -35,7 +38,8 @@ volatile SbAtomic32 s_min_video_width = 999999;
 volatile SbAtomic32 s_min_video_height = 999999;
 volatile SbAtomic32 s_max_video_width = 0;
 volatile SbAtomic32 s_max_video_height = 0;
-volatile SbAtomic32 s_last_working_codec = kUnknownVideoCodec;
+volatile SbAtomic32 s_last_working_codec =
+    static_cast<SbAtomic32>(VideoCodec::kUnknown);
 
 int64_t RoundValue(int64_t value) {
   if (value < 10) {
@@ -121,7 +125,8 @@ PlaybackStatistics::PlaybackStatistics(const std::string& pipeline_identifier)
           false, "Indicator of if the video eos is written."),
       pipeline_status_(base::StringPrintf("Media.Pipeline.%s.PipelineStatus",
                                           pipeline_identifier.c_str()),
-                       PIPELINE_OK, "The status of the media pipeline."),
+                       ::media::PIPELINE_OK,
+                       "The status of the media pipeline."),
       error_message_(base::StringPrintf("Media.Pipeline.%s.ErrorMessage",
                                         pipeline_identifier.c_str()),
                      "", "The error message of the media pipeline error.") {}
@@ -142,13 +147,13 @@ void PlaybackStatistics::UpdateVideoConfig(
 
     UpdateMaxValue(s_active_instances, &s_max_active_instances);
 
-    if (video_config.codec() == kCodecAV1) {
+    if (video_config.codec() == VideoCodec::kAV1) {
       SbAtomicBarrier_Increment(&s_av1_played, 1);
-    } else if (video_config.codec() == kCodecH264) {
+    } else if (video_config.codec() == VideoCodec::kH264) {
       SbAtomicBarrier_Increment(&s_h264_played, 1);
-    } else if (video_config.codec() == kCodecHEVC) {
+    } else if (video_config.codec() == VideoCodec::kHEVC) {
       SbAtomicBarrier_Increment(&s_hevc_played, 1);
-    } else if (video_config.codec() == kCodecVP9) {
+    } else if (video_config.codec() == VideoCodec::kVP9) {
       SbAtomicBarrier_Increment(&s_vp9_played, 1);
     } else {
       SB_NOTREACHED();
@@ -172,7 +177,8 @@ void PlaybackStatistics::UpdateVideoConfig(
 
 
 void PlaybackStatistics::OnPresenting(const VideoDecoderConfig& video_config) {
-  SbAtomicNoBarrier_Store(&s_last_working_codec, video_config.codec());
+  SbAtomicNoBarrier_Store(&s_last_working_codec,
+                          static_cast<SbAtomic32>(video_config.codec()));
 }
 
 void PlaybackStatistics::OnSeek(const base::TimeDelta& seek_time) {

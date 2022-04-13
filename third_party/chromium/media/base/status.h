@@ -17,6 +17,7 @@
 #include "media/base/media_export.h"
 #include "media/base/media_serializers_base.h"
 #include "media/base/status_codes.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 // Mojo namespaces for serialization friend declarations.
 namespace mojo {

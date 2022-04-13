@@ -832,7 +832,9 @@ void RenderTreeNodeVisitor::Visit(
       sk_rect_transformed.x(), sk_rect_transformed.y(),
       sk_rect_transformed.width(), sk_rect_transformed.height());
   math::Rect transformed_rect = math::Rect::RoundFromRectF(transformed_rectf);
-  punch_through_video_node->data().set_bounds_cb.Run(transformed_rect);
+  punch_through_video_node->data().set_bounds_cb.Run(
+      transformed_rect.x(), transformed_rect.y(), transformed_rect.width(),
+      transformed_rect.height());
 
   DrawClearRect(draw_state_.render_target, math_rect,
                 render_tree::ColorRGBA(0, 0, 0, 0));

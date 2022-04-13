@@ -72,6 +72,22 @@ class BASE_EXPORT Location {
                                  const char* file_name,
                                  int line_number);
 
+// The macros defined here will expand to the Current function.
+#if BUILDFLAG(ENABLE_LOCATION_SOURCE)
+
+  static Location Current(const char* file_name = __FILE__,
+                        int line_number = __LINE__) {
+    return Location("", file_name, line_number, nullptr);
+  }
+
+#else  // BUILDFLAG(ENABLE_LOCATION_SOURCE)
+
+  static Location Current() {
+    return Location(nullptr, nullptr);
+  }
+
+#endif  // BUILDFLAG(ENABLE_LOCATION_SOURCE)
+
  private:
   const char* function_name_ = nullptr;
   const char* file_name_ = nullptr;

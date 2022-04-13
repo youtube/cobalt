@@ -19,14 +19,16 @@
 #include "base/synchronization/waitable_event.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/instance_counter.h"
-#include "cobalt/media/base/bind_to_current_loop.h"
 #include "cobalt/media/base/drm_system.h"
-#include "cobalt/media/base/limits.h"
-#include "cobalt/media/base/media_log.h"
-#include "cobalt/media/filters/chunk_demuxer.h"
 #include "cobalt/media/player/web_media_player_proxy.h"
 #include "cobalt/media/progressive/progressive_demuxer.h"
 #include "starboard/types.h"
+#include "third_party/chromium/media/base/bind_to_current_loop.h"
+#include "third_party/chromium/media/base/limits.h"
+#include "third_party/chromium/media/base/timestamp_constants.h"
+#include "third_party/chromium/media/cobalt/ui/gfx/geometry/rect.h"
+#include "third_party/chromium/media/cobalt/ui/gfx/geometry/size.h"
+#include "third_party/chromium/media/filters/chunk_demuxer.h"
 
 namespace cobalt {
 namespace media {
@@ -94,10 +96,10 @@ base::TimeDelta ConvertSecondsToTimestamp(float seconds) {
 }  // namespace
 
 #define BIND_TO_RENDER_LOOP(function) \
-  BindToCurrentLoop(base::Bind(function, AsWeakPtr()))
+  ::media::BindToCurrentLoop(base::Bind(function, AsWeakPtr()))
 
 #define BIND_TO_RENDER_LOOP_2(function, arg1, arg2) \
-  BindToCurrentLoop(base::Bind(function, AsWeakPtr(), arg1, arg2))
+  ::media::BindToCurrentLoop(base::Bind(function, AsWeakPtr(), arg1, arg2))
 
 // TODO(acolwell): Investigate whether the key_system & session_id parameters
 // are really necessary.
@@ -110,15 +112,13 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
     const Pipeline::GetDecodeTargetGraphicsContextProviderFunc&
         get_decode_target_graphics_context_provider_func,
     WebMediaPlayerClient* client, WebMediaPlayerDelegate* delegate,
-    DecoderBuffer::Allocator* buffer_allocator, bool allow_resume_after_suspend,
-    const scoped_refptr<MediaLog>& media_log)
+    bool allow_resume_after_suspend, ::media::MediaLog* const media_log)
     : pipeline_thread_("media_pipeline"),
       network_state_(WebMediaPlayer::kNetworkStateEmpty),
       ready_state_(WebMediaPlayer::kReadyStateHaveNothing),
       main_loop_(base::MessageLoop::current()),
       client_(client),
       delegate_(delegate),
-      buffer_allocator_(buffer_allocator),
       allow_resume_after_suspend_(allow_resume_after_suspend),
       proxy_(new WebMediaPlayerProxy(main_loop_->task_runner(), this)),
       media_log_(media_log),
@@ -134,14 +134,12 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
 
   video_frame_provider_ = new VideoFrameProvider();
 
-  DCHECK(buffer_allocator_);
-  media_log_->AddEvent(
-      media_log_->CreateEvent(MediaLogEvent::WEBMEDIAPLAYER_CREATED));
+  media_log_->AddEvent<::media::MediaLogEvent::kWebMediaPlayerCreated>();
 
   pipeline_thread_.Start();
   pipeline_ = Pipeline::Create(window, pipeline_thread_.task_runner(),
                                get_decode_target_graphics_context_provider_func,
-                               allow_resume_after_suspend_, media_log_.get(),
+                               allow_resume_after_suspend_, media_log_,
                                video_frame_provider_.get());
 
   // Also we want to be notified of |main_loop_| destruction.
@@ -167,8 +165,7 @@ WebMediaPlayerImpl::~WebMediaPlayerImpl() {
   progressive_demuxer_.reset();
   chunk_demuxer_.reset();
 
-  media_log_->AddEvent(
-      media_log_->CreateEvent(MediaLogEvent::WEBMEDIAPLAYER_DESTROYED));
+  media_log_->AddEvent<::media::MediaLogEvent::kWebMediaPlayerDestroyed>();
 
   // Finally tell the |main_loop_| we don't want to be notified of destruction
   // event.
@@ -226,7 +223,7 @@ void WebMediaPlayerImpl::LoadUrl(const GURL& url) {
   // TODO: Set networkState to WebMediaPlayer::kNetworkStateIdle on stop.
   SetNetworkState(WebMediaPlayer::kNetworkStateLoading);
   SetReadyState(WebMediaPlayer::kReadyStateHaveNothing);
-  media_log_->AddEvent(media_log_->CreateLoadEvent(url.spec()));
+  media_log_->AddEvent<::media::MediaLogEvent::kLoad>(url.spec());
 
   is_local_source_ = !url.SchemeIs("http") && !url.SchemeIs("https");
 
@@ -247,12 +244,13 @@ void WebMediaPlayerImpl::LoadMediaSource() {
   SetReadyState(WebMediaPlayer::kReadyStateHaveNothing);
 
   // Media source pipelines can start immediately.
-  chunk_demuxer_.reset(new ChunkDemuxer(
-      buffer_allocator_,
+  chunk_demuxer_.reset(new ::media::ChunkDemuxer(
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnDemuxerOpened),
+      // TODO(b/230878852): Handle progress callback.
+      base::BindRepeating([]() {}),
       BIND_TO_RENDER_LOOP(
-          &WebMediaPlayerImpl::OnEncryptedMediaInitDataEncountered),
-      media_log_, true));
+          &WebMediaPlayerImpl::OnEncryptedMediaInitDataEncounteredWrapper),
+      media_log_));
 
   supports_save_ = false;
   state_.is_media_source = true;
@@ -272,7 +270,7 @@ void WebMediaPlayerImpl::LoadProgressive(
 
   SetNetworkState(WebMediaPlayer::kNetworkStateLoading);
   SetReadyState(WebMediaPlayer::kReadyStateHaveNothing);
-  media_log_->AddEvent(media_log_->CreateLoadEvent(url.spec()));
+  media_log_->AddEvent<::media::MediaLogEvent::kLoad>(url.spec());
 
   data_source->SetDownloadingStatusCB(
       base::Bind(&WebMediaPlayerImpl::OnDownloadingStatusChanged, AsWeakPtr()));
@@ -280,9 +278,8 @@ void WebMediaPlayerImpl::LoadProgressive(
 
   is_local_source_ = !url.SchemeIs("http") && !url.SchemeIs("https");
 
-  progressive_demuxer_.reset(
-      new ProgressiveDemuxer(pipeline_thread_.task_runner(), buffer_allocator_,
-                             proxy_->data_source(), media_log_));
+  progressive_demuxer_.reset(new ProgressiveDemuxer(
+      pipeline_thread_.task_runner(), proxy_->data_source(), media_log_));
 
   state_.is_progressive = true;
   StartPipeline(progressive_demuxer_.get());
@@ -300,7 +297,7 @@ void WebMediaPlayerImpl::Play() {
   state_.paused = false;
   pipeline_->SetPlaybackRate(state_.playback_rate);
 
-  media_log_->AddEvent(media_log_->CreateEvent(MediaLogEvent::PLAY));
+  media_log_->AddEvent<::media::MediaLogEvent::kPlay>();
 }
 
 void WebMediaPlayerImpl::Pause() {
@@ -310,7 +307,7 @@ void WebMediaPlayerImpl::Pause() {
   pipeline_->SetPlaybackRate(0.0f);
   state_.paused_time = pipeline_->GetMediaTime();
 
-  media_log_->AddEvent(media_log_->CreateEvent(MediaLogEvent::PAUSE));
+  media_log_->AddEvent<::media::MediaLogEvent::kPause>();
 }
 
 bool WebMediaPlayerImpl::SupportsFullscreen() const {
@@ -345,7 +342,7 @@ void WebMediaPlayerImpl::Seek(float seconds) {
     return;
   }
 
-  media_log_->AddEvent(media_log_->CreateSeekEvent(seconds));
+  media_log_->AddEvent<::media::MediaLogEvent::kSeek>(seconds);
 
   base::TimeDelta seek_time = ConvertSecondsToTimestamp(seconds);
 
@@ -416,12 +413,20 @@ bool WebMediaPlayerImpl::HasAudio() const {
   return pipeline_->HasAudio();
 }
 
-math::Size WebMediaPlayerImpl::GetNaturalSize() const {
+int WebMediaPlayerImpl::GetNaturalWidth() const {
   DCHECK_EQ(main_loop_, base::MessageLoop::current());
 
-  math::Size size;
+  gfx::Size size;
   pipeline_->GetNaturalVideoSize(&size);
-  return size;
+  return size.width();
+}
+
+int WebMediaPlayerImpl::GetNaturalHeight() const {
+  DCHECK_EQ(main_loop_, base::MessageLoop::current());
+
+  gfx::Size size;
+  pipeline_->GetNaturalVideoSize(&size);
+  return size.height();
 }
 
 bool WebMediaPlayerImpl::IsPaused() const {
@@ -448,7 +453,7 @@ float WebMediaPlayerImpl::GetDuration() const {
 
   // Return positive infinity if the resource is unbounded.
   // http://www.whatwg.org/specs/web-apps/current-work/multipage/video.html#dom-media-duration
-  if (duration == kInfiniteDuration)
+  if (duration == ::media::kInfiniteDuration)
     return std::numeric_limits<float>::infinity();
 
   return static_cast<float>(duration.InSecondsF());
@@ -498,10 +503,16 @@ WebMediaPlayer::ReadyState WebMediaPlayerImpl::GetReadyState() const {
   return ready_state_;
 }
 
-const Ranges<base::TimeDelta>& WebMediaPlayerImpl::GetBufferedTimeRanges() {
+void WebMediaPlayerImpl::UpdateBufferedTimeRanges(
+    const AddRangeCB& add_range_cb) {
   DCHECK_EQ(main_loop_, base::MessageLoop::current());
-  buffered_ = pipeline_->GetBufferedTimeRanges();
-  return buffered_;
+  DCHECK(add_range_cb);
+
+  auto buffered = pipeline_->GetBufferedTimeRanges();
+
+  for (int i = 0; i < static_cast<int>(buffered.size()); ++i) {
+    add_range_cb(buffered.start(i).InSecondsF(), buffered.end(i).InSecondsF());
+  }
 }
 
 float WebMediaPlayerImpl::GetMaxTimeSeekable() const {
@@ -545,7 +556,7 @@ WebMediaPlayer::PlayerStatistics WebMediaPlayerImpl::GetStatistics() const {
   DCHECK_EQ(main_loop_, base::MessageLoop::current());
 
   PlayerStatistics statistics;
-  PipelineStatistics pipeline_stats = pipeline_->GetStatistics();
+  ::media::PipelineStatistics pipeline_stats = pipeline_->GetStatistics();
   statistics.audio_bytes_decoded = pipeline_stats.audio_bytes_decoded;
   statistics.video_bytes_decoded = pipeline_stats.video_bytes_decoded;
   statistics.video_frames_decoded = pipeline_stats.video_frames_decoded;
@@ -594,7 +605,7 @@ void WebMediaPlayerImpl::SetDrmSystemReadyCB(
   }
 }
 
-void WebMediaPlayerImpl::OnPipelineSeek(PipelineStatus status,
+void WebMediaPlayerImpl::OnPipelineSeek(::media::PipelineStatus status,
                                         bool is_initial_preroll,
                                         const std::string& error_message) {
   DCHECK_EQ(main_loop_, base::MessageLoop::current());
@@ -606,7 +617,7 @@ void WebMediaPlayerImpl::OnPipelineSeek(PipelineStatus status,
     return;
   }
 
-  if (status != PIPELINE_OK) {
+  if (status != ::media::PIPELINE_OK) {
     OnPipelineError(status,
                     "Failed pipeline seek with error: " + error_message + ".");
     return;
@@ -621,9 +632,9 @@ void WebMediaPlayerImpl::OnPipelineSeek(PipelineStatus status,
   }
 }
 
-void WebMediaPlayerImpl::OnPipelineEnded(PipelineStatus status) {
+void WebMediaPlayerImpl::OnPipelineEnded(::media::PipelineStatus status) {
   DCHECK_EQ(main_loop_, base::MessageLoop::current());
-  if (status != PIPELINE_OK) {
+  if (status != ::media::PIPELINE_OK) {
     OnPipelineError(status, "Failed pipeline end.");
     return;
   }
@@ -632,13 +643,13 @@ void WebMediaPlayerImpl::OnPipelineEnded(PipelineStatus status) {
   GetClient()->TimeChanged(kEosPlayed);
 }
 
-void WebMediaPlayerImpl::OnPipelineError(PipelineStatus error,
+void WebMediaPlayerImpl::OnPipelineError(::media::PipelineStatus error,
                                          const std::string& message) {
   DCHECK_EQ(main_loop_, base::MessageLoop::current());
 
   if (suppress_destruction_errors_) return;
 
-  media_log_->AddEvent(media_log_->CreatePipelineErrorEvent(error));
+  media_log_->NotifyError(error);
 
   if (ready_state_ == WebMediaPlayer::kReadyStateHaveNothing) {
     // Any error that occurs before reaching ReadyStateHaveMetadata should
@@ -651,19 +662,19 @@ void WebMediaPlayerImpl::OnPipelineError(PipelineStatus error,
 
   std::string default_message;
   switch (error) {
-    case PIPELINE_OK:
+    case ::media::PIPELINE_OK:
       NOTREACHED() << "PIPELINE_OK isn't an error!";
       break;
 
-    case PIPELINE_ERROR_NETWORK:
+    case ::media::PIPELINE_ERROR_NETWORK:
       SetNetworkError(WebMediaPlayer::kNetworkStateNetworkError,
                       message.empty() ? "Pipeline network error." : message);
       break;
-    case PIPELINE_ERROR_READ:
+    case ::media::PIPELINE_ERROR_READ:
       SetNetworkError(WebMediaPlayer::kNetworkStateNetworkError,
                       message.empty() ? "Pipeline read error." : message);
       break;
-    case CHUNK_DEMUXER_ERROR_EOS_STATUS_NETWORK_ERROR:
+    case ::media::CHUNK_DEMUXER_ERROR_EOS_STATUS_NETWORK_ERROR:
       SetNetworkError(
           WebMediaPlayer::kNetworkStateNetworkError,
           message.empty() ? "Chunk demuxer eos network error." : message);
@@ -672,72 +683,71 @@ void WebMediaPlayerImpl::OnPipelineError(PipelineStatus error,
     // TODO(vrk): Because OnPipelineInitialize() directly reports the
     // NetworkStateFormatError instead of calling OnPipelineError(), I believe
     // this block can be deleted. Should look into it! (crbug.com/126070)
-    case PIPELINE_ERROR_INITIALIZATION_FAILED:
+    case ::media::PIPELINE_ERROR_INITIALIZATION_FAILED:
       SetNetworkError(
           WebMediaPlayer::kNetworkStateFormatError,
           message.empty() ? "Pipeline initialization failed." : message);
       break;
-    case PIPELINE_ERROR_COULD_NOT_RENDER:
+    case ::media::PIPELINE_ERROR_COULD_NOT_RENDER:
       SetNetworkError(WebMediaPlayer::kNetworkStateFormatError,
                       message.empty() ? "Pipeline could not render." : message);
       break;
-    case PIPELINE_ERROR_EXTERNAL_RENDERER_FAILED:
+    case ::media::PIPELINE_ERROR_EXTERNAL_RENDERER_FAILED:
       SetNetworkError(
           WebMediaPlayer::kNetworkStateFormatError,
           message.empty() ? "Pipeline external renderer failed." : message);
       break;
-    case DEMUXER_ERROR_COULD_NOT_OPEN:
+    case ::media::DEMUXER_ERROR_COULD_NOT_OPEN:
       SetNetworkError(WebMediaPlayer::kNetworkStateFormatError,
                       message.empty() ? "Demuxer could not open." : message);
       break;
-    case DEMUXER_ERROR_COULD_NOT_PARSE:
+    case ::media::DEMUXER_ERROR_COULD_NOT_PARSE:
       SetNetworkError(WebMediaPlayer::kNetworkStateFormatError,
                       message.empty() ? "Demuxer could not parse." : message);
       break;
-    case DEMUXER_ERROR_NO_SUPPORTED_STREAMS:
+    case ::media::DEMUXER_ERROR_NO_SUPPORTED_STREAMS:
       SetNetworkError(
           WebMediaPlayer::kNetworkStateFormatError,
           message.empty() ? "Demuxer no supported streams." : message);
       break;
-    case DECODER_ERROR_NOT_SUPPORTED:
+    case ::media::DECODER_ERROR_NOT_SUPPORTED:
       SetNetworkError(WebMediaPlayer::kNetworkStateFormatError,
                       message.empty() ? "Decoder not supported." : message);
       break;
 
-    case PIPELINE_ERROR_DECODE:
+    case ::media::PIPELINE_ERROR_DECODE:
       SetNetworkError(WebMediaPlayer::kNetworkStateDecodeError,
                       message.empty() ? "Pipeline decode error." : message);
       break;
-    case PIPELINE_ERROR_ABORT:
+    case ::media::PIPELINE_ERROR_ABORT:
       SetNetworkError(WebMediaPlayer::kNetworkStateDecodeError,
                       message.empty() ? "Pipeline abort." : message);
       break;
-    case PIPELINE_ERROR_INVALID_STATE:
+    case ::media::PIPELINE_ERROR_INVALID_STATE:
       SetNetworkError(WebMediaPlayer::kNetworkStateDecodeError,
                       message.empty() ? "Pipeline invalid state." : message);
       break;
-    case CHUNK_DEMUXER_ERROR_APPEND_FAILED:
+    case ::media::CHUNK_DEMUXER_ERROR_APPEND_FAILED:
       SetNetworkError(
           WebMediaPlayer::kNetworkStateDecodeError,
           message.empty() ? "Chunk demuxer append failed." : message);
       break;
-    case CHUNK_DEMUXER_ERROR_EOS_STATUS_DECODE_ERROR:
+    case ::media::CHUNK_DEMUXER_ERROR_EOS_STATUS_DECODE_ERROR:
       SetNetworkError(
           WebMediaPlayer::kNetworkStateDecodeError,
           message.empty() ? "Chunk demuxer eos decode error." : message);
       break;
-    case AUDIO_RENDERER_ERROR:
+    case ::media::AUDIO_RENDERER_ERROR:
       SetNetworkError(WebMediaPlayer::kNetworkStateDecodeError,
                       message.empty() ? "Audio renderer error." : message);
       break;
-    case AUDIO_RENDERER_ERROR_SPLICE_FAILED:
-      SetNetworkError(
-          WebMediaPlayer::kNetworkStateDecodeError,
-          message.empty() ? "Audio renderer splice failed." : message);
-      break;
-    case PLAYBACK_CAPABILITY_CHANGED:
+    case ::media::PLAYBACK_CAPABILITY_CHANGED:
       SetNetworkError(WebMediaPlayer::kNetworkStateCapabilityChangedError,
                       message.empty() ? "Capability changed." : message);
+      break;
+    default:
+      // TODO(b/230881576): Handle any new enum values that not handled.
+      NOTREACHED();
       break;
   }
 }
@@ -783,9 +793,6 @@ void WebMediaPlayerImpl::OnDownloadingStatusChanged(bool is_downloading) {
   else if (is_downloading &&
            network_state_ == WebMediaPlayer::kNetworkStateIdle)
     SetNetworkState(WebMediaPlayer::kNetworkStateLoading);
-  media_log_->AddEvent(
-      media_log_->CreateBooleanEvent(MediaLogEvent::NETWORK_ACTIVITY_SET,
-                                     "is_downloading_data", is_downloading));
 }
 
 #if SB_HAS(PLAYER_WITH_URL)
@@ -808,7 +815,8 @@ void WebMediaPlayerImpl::StartPipeline(const GURL& url) {
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnContentSizeChanged));
 }
 #endif  // SB_HAS(PLAYER_WITH_URL)
-void WebMediaPlayerImpl::StartPipeline(Demuxer* demuxer) {
+
+void WebMediaPlayerImpl::StartPipeline(::media::Demuxer* demuxer) {
   TRACE_EVENT0("cobalt::media", "WebMediaPlayerImpl::StartPipeline");
 
   state_.starting = true;
@@ -910,11 +918,38 @@ void WebMediaPlayerImpl::GetMediaTimeAndSeekingState(
 }
 
 void WebMediaPlayerImpl::OnEncryptedMediaInitDataEncountered(
-    EmeInitDataType init_data_type, const std::vector<uint8_t>& init_data) {
+    const char* init_data_type, const std::vector<uint8_t>& init_data) {
   DCHECK_EQ(main_loop_, base::MessageLoop::current());
 
   GetClient()->EncryptedMediaInitDataEncountered(init_data_type, &init_data[0],
                                                  init_data.size());
+}
+
+void WebMediaPlayerImpl::OnEncryptedMediaInitDataEncounteredWrapper(
+    ::media::EmeInitDataType init_data_type,
+    const std::vector<uint8_t>& init_data) {
+  DCHECK_EQ(main_loop_, base::MessageLoop::current());
+
+  // Initialization data types are defined in
+  // https://www.w3.org/TR/eme-initdata-registry/#registry.
+  switch (init_data_type) {
+    case ::media::EmeInitDataType::UNKNOWN:
+      LOG(WARNING) << "Unknown EME initialization data type.";
+      OnEncryptedMediaInitDataEncountered("", init_data);
+      break;
+    case ::media::EmeInitDataType::WEBM:
+      OnEncryptedMediaInitDataEncountered("webm", init_data);
+      break;
+    case ::media::EmeInitDataType::CENC:
+      OnEncryptedMediaInitDataEncountered("cenc", init_data);
+      break;
+    case ::media::EmeInitDataType::KEYIDS:
+      OnEncryptedMediaInitDataEncountered("keyids", init_data);
+      break;
+    default:
+      NOTREACHED();
+      break;
+  }
 }
 
 WebMediaPlayerClient* WebMediaPlayerImpl::GetClient() {

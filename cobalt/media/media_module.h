@@ -34,6 +34,7 @@
 #include "cobalt/render_tree/resource_provider.h"
 #include "cobalt/system_window/system_window.h"
 #include "starboard/common/mutex.h"
+#include "third_party/chromium/media/base/media_log.h"
 
 namespace cobalt {
 namespace media {
@@ -108,6 +109,8 @@ class MediaModule : public WebMediaPlayerFactory,
   const Options options_;
   system_window::SystemWindow* system_window_;
   cobalt::render_tree::ResourceProvider* resource_provider_;
+
+  ::media::MediaLog media_log_;
 
   // Protect access to the list of players.
   starboard::Mutex players_lock_;

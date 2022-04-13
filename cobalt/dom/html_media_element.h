@@ -38,14 +38,15 @@ namespace dom {
 
 class MediaSource;
 
-typedef media::ChunkDemuxer ChunkDemuxer;
-typedef media::WebMediaPlayer WebMediaPlayer;
-typedef media::WebMediaPlayerClient WebMediaPlayerClient;
-
 // The HTMLMediaElement is the base of HTMLAudioElement and HTMLVideoElement.
 //   https://www.w3.org/TR/html50/embedded-content-0.html#media-element
-class HTMLMediaElement : public HTMLElement, private WebMediaPlayerClient {
+class HTMLMediaElement : public HTMLElement,
+                         private cobalt::media::WebMediaPlayerClient {
  public:
+  typedef ::media::ChunkDemuxer ChunkDemuxer;
+  typedef ::cobalt::media::WebMediaPlayer WebMediaPlayer;
+  typedef ::cobalt::media::WebMediaPlayerClient WebMediaPlayerClient;
+
   HTMLMediaElement(Document* document, base::Token tag_name);
   ~HTMLMediaElement() override;
 
@@ -236,7 +237,7 @@ class HTMLMediaElement : public HTMLElement, private WebMediaPlayerClient {
   std::string MaxVideoCapabilities() const override;
   bool PreferDecodeToTexture() override;
   void EncryptedMediaInitDataEncountered(
-      media::EmeInitDataType init_data_type, const unsigned char* init_data,
+      const char* init_data_type, const unsigned char* init_data,
       unsigned int init_data_length) override;
   void ClearMediaSource();
 

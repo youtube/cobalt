@@ -59,6 +59,7 @@
 #include "base/base_export.h"
 #include "base/compiler_specific.h"
 #include "base/logging.h"
+#include "base/numerics/clamped_math.h"
 #include "base/numerics/safe_math.h"
 #include "build/build_config.h"
 
@@ -725,6 +726,47 @@ class BASE_EXPORT Time : public time_internal::TimeBase<Time> {
   static bool ExplodedMostlyEquals(const Exploded& lhs,
                                    const Exploded& rhs) WARN_UNUSED_RESULT;
 };
+
+template <typename T>
+constexpr TimeDelta Days(T n) {
+  return TimeDelta::FromInternalValue(MakeClampedNum(n) *
+                                      Time::kMicrosecondsPerDay);
+}
+template <typename T>
+constexpr TimeDelta Hours(T n) {
+  return TimeDelta::FromInternalValue(MakeClampedNum(n) *
+                                      Time::kMicrosecondsPerHour);
+}
+template <typename T>
+constexpr TimeDelta Minutes(T n) {
+  return TimeDelta::FromInternalValue(MakeClampedNum(n) *
+                                      Time::kMicrosecondsPerMinute);
+}
+template <typename T>
+constexpr TimeDelta Seconds(T n) {
+  return TimeDelta::FromInternalValue(MakeClampedNum(n) *
+                                      Time::kMicrosecondsPerSecond);
+}
+template <typename T>
+constexpr TimeDelta Milliseconds(T n) {
+  return TimeDelta::FromInternalValue(MakeClampedNum(n) *
+                                      Time::kMicrosecondsPerMillisecond);
+}
+template <typename T>
+constexpr TimeDelta Microseconds(T n) {
+  return TimeDelta::FromInternalValue(MakeClampedNum(n));
+}
+template <typename T>
+constexpr TimeDelta Nanoseconds(T n) {
+  return TimeDelta::FromInternalValue(MakeClampedNum(n) /
+                                      Time::kNanosecondsPerMicrosecond);
+}
+template <typename T>
+constexpr TimeDelta Hertz(T n) {
+  return n ? TimeDelta::FromInternalValue(Time::kMicrosecondsPerSecond /
+                                          MakeClampedNum(n))
+           : TimeDelta::Max();
+}
 
 // static
 constexpr TimeDelta TimeDelta::FromDays(int days) {

@@ -7,8 +7,23 @@
 #include <sstream>
 
 #include "base/debug/alias.h"
+#if defined(STARBOARD)
+#include "starboard/media.h"
+#endif  // defined(STARBOARD)
 
 namespace media {
+
+#if defined(STARBOARD)
+
+namespace {
+DecoderBuffer::Allocator* s_allocator = nullptr;
+}  // namespace
+
+// static
+void DecoderBuffer::Allocator::Set(Allocator* allocator) {
+  s_allocator = allocator;
+}
+#endif  // defined(STARBOARD)
 
 DecoderBuffer::DecoderBuffer(size_t size)
     : size_(size), side_data_size_(0), is_key_frame_(false) {
@@ -28,7 +43,11 @@ DecoderBuffer::DecoderBuffer(const uint8_t* data,
 
   Initialize();
 
+#if defined(STARBOARD)
+  memcpy(data_, data, size_);
+#else  // defined(STARBOARD)
   memcpy(data_.get(), data, size_);
+#endif  // defined(STARBOARD)
 
   if (!side_data) {
     CHECK_EQ(side_data_size, 0u);
@@ -39,6 +58,7 @@ DecoderBuffer::DecoderBuffer(const uint8_t* data,
   memcpy(side_data_.get(), side_data, side_data_size_);
 }
 
+#if !defined(STARBOARD)
 DecoderBuffer::DecoderBuffer(std::unique_ptr<uint8_t[]> data, size_t size)
     : data_(std::move(data)),
       size_(size),
@@ -59,14 +79,31 @@ DecoderBuffer::DecoderBuffer(
       side_data_size_(0),
       shared_mem_mapping_(std::move(shared_mem_mapping)),
       is_key_frame_(false) {}
+#endif  // !defined(STARBOARD)
 
 DecoderBuffer::~DecoderBuffer() {
+#if defined(STARBOARD)
+  DCHECK(s_allocator);
+  s_allocator->Free(data_, allocated_size_);
+#else  // defined(STARBOARD)
   data_.reset();
+#endif  // defined(STARBOARD)
   side_data_.reset();
 }
 
 void DecoderBuffer::Initialize() {
+#if defined(STARBOARD)
+  DCHECK(s_allocator);
+  DCHECK(!data_);
+  // TODO(b/230887703): Consider deprecate type parameter to
+  // `SbMediaGetBufferAlignment()`.
+  data_ = static_cast<uint8_t*>(
+              s_allocator->Allocate(
+                  size_, SbMediaGetBufferAlignment(kSbMediaTypeVideo)));
+  allocated_size_ = size_;
+#else  // defined(STARBOARD)
   data_.reset(new uint8_t[size_]);
+#endif  // defined(STARBOARD)
   if (side_data_size_ > 0)
     side_data_.reset(new uint8_t[side_data_size_]);
 }
@@ -90,6 +127,8 @@ scoped_refptr<DecoderBuffer> DecoderBuffer::CopyFrom(const uint8_t* data,
   return base::WrapRefCounted(
       new DecoderBuffer(data, data_size, side_data, side_data_size));
 }
+
+#if !defined(STARBOARD)
 
 // static
 scoped_refptr<DecoderBuffer> DecoderBuffer::FromArray(
@@ -130,6 +169,8 @@ scoped_refptr<DecoderBuffer> DecoderBuffer::FromSharedMemoryRegion(
   return base::WrapRefCounted(
       new DecoderBuffer(std::move(unaligned_mapping), size));
 }
+
+#endif  // !defined(STARBOARD)
 
 // static
 scoped_refptr<DecoderBuffer> DecoderBuffer::CreateEOSBuffer() {

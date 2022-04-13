@@ -22,8 +22,8 @@
 #include "base/synchronization/lock.h"
 #include "base/task/task_scheduler/task_scheduler.h"
 #include "cobalt/base/event_dispatcher.h"
+#include "cobalt/math/rect.h"
 #include "cobalt/math/size.h"
-#include "cobalt/math/size_f.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/render_tree/animations/animate_node.h"
 #include "cobalt/render_tree/image_node.h"
@@ -33,6 +33,7 @@
 #include "cobalt/storage/storage_manager.h"
 #include "cobalt/system_window/system_window.h"
 #include "cobalt/trace_event/scoped_trace_to_file.h"
+#include "third_party/chromium/media/cobalt/ui/gfx/geometry/size.h"
 
 namespace cobalt {
 namespace media {
@@ -53,8 +54,8 @@ class MediaSandbox::Impl {
   render_tree::ResourceProvider* GetResourceProvider() {
     return renderer_module_->pipeline()->GetResourceProvider();
   }
-  math::Size GetViewportSize() const {
-    return math::Size(kViewportWidth, kViewportHeight);
+  gfx::Size GetViewportSize() const {
+    return gfx::Size(kViewportWidth, kViewportHeight);
   }
 
  private:
@@ -88,9 +89,10 @@ MediaSandbox::Impl::Impl(int argc, char** argv,
 
   network_module_.reset(new network::NetworkModule(network_options));
   fetcher_factory_.reset(new loader::FetcherFactory(network_module_.get()));
-  math::Size view_size(kViewportWidth, kViewportHeight);
-  system_window_.reset(
-      new system_window::SystemWindow(&event_dispatcher_, view_size));
+  gfx::Size view_size(kViewportWidth, kViewportHeight);
+  system_window_.reset(new system_window::SystemWindow(
+      &event_dispatcher_,
+      cobalt::math::Size(view_size.width(), view_size.height())));
 
   renderer::RendererModule::Options renderer_options;
   renderer_module_.reset(
@@ -109,7 +111,9 @@ void MediaSandbox::Impl::RegisterFrameCB(
 void MediaSandbox::Impl::AnimateCB(render_tree::ImageNode::Builder* image_node,
                                    base::TimeDelta time) {
   DCHECK(image_node);
-  math::SizeF output_size(renderer_module_->render_target()->GetSize());
+  const auto render_target_size = renderer_module_->render_target()->GetSize();
+  math::SizeF output_size(render_target_size.width(),
+                          render_target_size.height());
   image_node->destination_rect = math::RectF(output_size);
   base::AutoLock auto_lock(lock_);
   image_node->source = frame_cb_.is_null() ? NULL : frame_cb_.Run(time);
@@ -159,7 +163,7 @@ render_tree::ResourceProvider* MediaSandbox::resource_provider() {
   return impl_->GetResourceProvider();
 }
 
-math::Size MediaSandbox::GetViewportSize() const {
+gfx::Size MediaSandbox::GetViewportSize() const {
   DCHECK(impl_);
   return impl_->GetViewportSize();
 }

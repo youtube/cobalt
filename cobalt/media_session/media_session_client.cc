@@ -37,6 +37,14 @@ const base::TimeDelta kUpdateDelay = base::TimeDelta::FromMilliseconds(250);
 const base::TimeDelta kMaybeFreezeDelay =
     base::TimeDelta::FromMilliseconds(1500);
 
+int64_t GetPlaybackArea(const media::WebMediaPlayer* player) {
+  int width = player->GetNaturalWidth();
+  int height = player->GetNaturalHeight();
+  DCHECK_GE(width, 0);
+  DCHECK_GE(height, 0);
+  return static_cast<int64_t>(width) * height;
+}
+
 // Guess the media position state for the media session.
 void GuessMediaPositionState(MediaSessionState* session_state,
                              const media::WebMediaPlayer** guess_player,
@@ -45,8 +53,7 @@ void GuessMediaPositionState(MediaSessionState* session_state,
   // media session. This isn't perfect, so it's best that the web app set the
   // media position state explicitly.
   if (*guess_player == nullptr ||
-      (*guess_player)->GetNaturalSize().GetArea() <
-          current_player->GetNaturalSize().GetArea()) {
+      GetPlaybackArea(*guess_player) < GetPlaybackArea(current_player)) {
     *guess_player = current_player;
 
     MediaPositionState position_state;

@@ -136,7 +136,9 @@ namespace rasterizer {
 
 namespace {
 
-bool SetBounds(bool result, const math::Rect&) { return result; }
+bool SetBounds(bool result, int x, int y, int width, int height) {
+  return result;
+}
 
 }  // namespace
 

@@ -61,9 +61,9 @@
 #include "cobalt/dom/time_ranges.h"
 #include "cobalt/dom/url_registry.h"
 #include "cobalt/dom/video_track.h"
-#include "cobalt/media/filters/chunk_demuxer.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/exception_state.h"
+#include "third_party/chromium/media/filters/chunk_demuxer.h"
 
 namespace cobalt {
 namespace dom {
@@ -73,6 +73,7 @@ namespace dom {
 //   https://www.w3.org/TR/2016/CR-media-source-20160705/#idl-def-MediaSource
 class MediaSource : public EventTarget {
  public:
+  typedef ::media::ChunkDemuxer ChunkDemuxer;
   typedef UrlRegistry<MediaSource> Registry;
 
   // Custom, not in any spec.
@@ -108,7 +109,7 @@ class MediaSource : public EventTarget {
   //
   // HTMLMediaSource
   bool AttachToElement(HTMLMediaElement* media_element);
-  void SetChunkDemuxerAndOpen(media::ChunkDemuxer* chunk_demuxer);
+  void SetChunkDemuxerAndOpen(ChunkDemuxer* chunk_demuxer);
   void Close();
   bool IsClosed() const;
   scoped_refptr<TimeRanges> GetBufferedRange() const;
@@ -130,7 +131,7 @@ class MediaSource : public EventTarget {
   bool IsUpdating() const;
   void ScheduleEvent(base::Token event_name);
 
-  media::ChunkDemuxer* chunk_demuxer_;
+  ChunkDemuxer* chunk_demuxer_;
   MediaSourceReadyState ready_state_;
   EventQueue event_queue_;
   base::WeakPtr<HTMLMediaElement> attached_element_;

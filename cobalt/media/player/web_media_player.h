@@ -8,6 +8,7 @@
 // The temporary home for WebMediaPlayer and WebMediaPlayerClient. They are the
 // interface between the HTMLMediaElement and the media stack.
 
+#include <functional>
 #include <memory>
 #include <string>
 #include <vector>
@@ -18,13 +19,16 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
-#include "cobalt/math/rect.h"
-#include "cobalt/math/size.h"
-#include "cobalt/media/base/ranges.h"
 #include "cobalt/media/base/video_frame_provider.h"
-#include "cobalt/media/filters/chunk_demuxer.h"
 #include "cobalt/media/player/buffered_data_source.h"
 #include "url/gurl.h"
+
+namespace media {
+
+class ChunkDemuxer;
+class TimeRanges;
+
+}  // namespace media
 
 namespace cobalt {
 namespace media {
@@ -35,7 +39,8 @@ class WebMediaPlayer {
  public:
   // Return true if the punch through box should be rendered.  Return false if
   // no punch through box should be rendered.
-  typedef base::Callback<bool(const math::Rect&)> SetBoundsCB;
+  typedef base::Callback<bool(int x, int y, int width, int height)> SetBoundsCB;
+  typedef std::function<void(float start, float end)> AddRangeCB;
 
   enum NetworkState {
     kNetworkStateEmpty,
@@ -110,7 +115,7 @@ class WebMediaPlayer {
   virtual void SetRate(float rate) = 0;
   virtual void SetVolume(float volume) = 0;
   virtual void SetVisible(bool visible) = 0;
-  virtual const Ranges<base::TimeDelta>& GetBufferedTimeRanges() = 0;
+  virtual void UpdateBufferedTimeRanges(const AddRangeCB& add_range_cb) = 0;
   virtual float GetMaxTimeSeekable() const = 0;
 
   // Suspend/Resume
@@ -124,7 +129,8 @@ class WebMediaPlayer {
   virtual bool HasAudio() const = 0;
 
   // Dimension of the video.
-  virtual math::Size GetNaturalSize() const = 0;
+  virtual int GetNaturalWidth() const = 0;
+  virtual int GetNaturalHeight() const = 0;
 
   // Getters of playback state.
   virtual bool IsPaused() const = 0;
@@ -162,9 +168,6 @@ class WebMediaPlayer {
     return kAddIdStatusNotSupported;
   }
   virtual bool SourceRemoveId(const std::string& id) { return false; }
-  virtual Ranges<base::TimeDelta> SourceBuffered(const std::string& id) {
-    return Ranges<base::TimeDelta>();
-  }
   virtual bool SourceAppend(const std::string& id, const unsigned char* data,
                             unsigned length) {
     return false;
@@ -216,7 +219,7 @@ class WebMediaPlayerClient {
   virtual void SetOpaque(bool opaque) {}
   virtual void SawUnsupportedTracks() = 0;
   virtual float Volume() const = 0;
-  virtual void SourceOpened(ChunkDemuxer* chunk_demuxer) = 0;
+  virtual void SourceOpened(::media::ChunkDemuxer* chunk_demuxer) = 0;
   virtual std::string SourceURL() const = 0;
   virtual std::string MaxVideoCapabilities() const = 0;
 
@@ -229,7 +232,7 @@ class WebMediaPlayerClient {
   // Notifies the client that a video is encrypted. Client is supposed to call
   // |WebMediaPlayer::SetDrmSystem| as soon as possible to avoid stalling
   // playback.
-  virtual void EncryptedMediaInitDataEncountered(EmeInitDataType init_data_type,
+  virtual void EncryptedMediaInitDataEncountered(const char* init_data_type,
                                                  const unsigned char* init_data,
                                                  unsigned init_data_length) = 0;
   // TODO: Revisit the necessity of the following functions.

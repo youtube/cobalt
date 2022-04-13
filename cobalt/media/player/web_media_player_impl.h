@@ -59,14 +59,13 @@
 #include "base/threading/thread.h"
 #include "base/time/time.h"
 #include "cobalt/math/size.h"
-#include "cobalt/media/base/decoder_buffer.h"
-#include "cobalt/media/base/demuxer.h"
-#include "cobalt/media/base/eme_constants.h"
 #include "cobalt/media/base/pipeline.h"
-#include "cobalt/media/base/ranges.h"
 #include "cobalt/media/base/video_frame_provider.h"
 #include "cobalt/media/player/web_media_player.h"
 #include "cobalt/media/player/web_media_player_delegate.h"
+#include "third_party/chromium/media/base/demuxer.h"
+#include "third_party/chromium/media/base/eme_constants.h"
+#include "third_party/chromium/media/base/media_log.h"
 #include "url/gurl.h"
 
 #if defined(STARBOARD)
@@ -79,8 +78,6 @@
 namespace cobalt {
 namespace media {
 
-class ChunkDemuxer;
-class MediaLog;
 class WebMediaPlayerProxy;
 
 class WebMediaPlayerImpl : public WebMediaPlayer,
@@ -110,9 +107,8 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
                          get_decode_target_graphics_context_provider_func,
                      WebMediaPlayerClient* client,
                      WebMediaPlayerDelegate* delegate,
-                     DecoderBuffer::Allocator* buffer_allocator,
                      bool allow_resume_after_suspend,
-                     const scoped_refptr<MediaLog>& media_log);
+                     ::media::MediaLog* const media_log);
   ~WebMediaPlayerImpl() override;
 
 #if SB_HAS(PLAYER_WITH_URL)
@@ -135,7 +131,7 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   void SetRate(float rate) override;
   void SetVolume(float volume) override;
   void SetVisible(bool visible) override;
-  const Ranges<base::TimeDelta>& GetBufferedTimeRanges() override;
+  void UpdateBufferedTimeRanges(const AddRangeCB& add_range_cb) override;
   float GetMaxTimeSeekable() const override;
 
   // Suspend/Resume
@@ -149,7 +145,8 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   bool HasAudio() const override;
 
   // Dimensions of the video.
-  math::Size GetNaturalSize() const override;
+  int GetNaturalWidth() const override;
+  int GetNaturalHeight() const override;
 
   // Getters of playback state.
   bool IsPaused() const override;
@@ -194,10 +191,11 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   void SetDrmSystem(const scoped_refptr<media::DrmSystem>& drm_system) override;
   void SetDrmSystemReadyCB(const DrmSystemReadyCB& drm_system_ready_cb);
 
-  void OnPipelineSeek(PipelineStatus status, bool is_initial_preroll,
+  void OnPipelineSeek(::media::PipelineStatus status, bool is_initial_preroll,
                       const std::string& error_message);
-  void OnPipelineEnded(PipelineStatus status);
-  void OnPipelineError(PipelineStatus error, const std::string& message);
+  void OnPipelineEnded(::media::PipelineStatus status);
+  void OnPipelineError(::media::PipelineStatus error,
+                       const std::string& message);
   void OnPipelineBufferingState(Pipeline::BufferingState buffering_state);
   void OnDemuxerOpened();
   void SetOpaque(bool);
@@ -210,7 +208,7 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
 #if SB_HAS(PLAYER_WITH_URL)
   void StartPipeline(const GURL& url);
 #endif  // SB_HAS(PLAYER_WITH_URL)
-  void StartPipeline(Demuxer* demuxer);
+  void StartPipeline(::media::Demuxer* demuxer);
 
   // Helpers that set the network/ready state and notifies the client if
   // they've changed.
@@ -223,11 +221,11 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
 
   void GetMediaTimeAndSeekingState(base::TimeDelta* media_time,
                                    bool* is_seeking) const;
-  void OnEncryptedMediaInitDataEncountered(
-      EmeInitDataType init_data_type, const std::vector<uint8_t>& init_data);
   void OnEncryptedMediaInitDataEncounteredWrapper(
-      const char* init_data_type, const unsigned char* init_data,
-      unsigned int init_data_length);
+      ::media::EmeInitDataType init_data_type,
+      const std::vector<uint8_t>& init_data);
+  void OnEncryptedMediaInitDataEncountered(
+      const char* init_data_type, const std::vector<uint8_t>& init_data);
 
   // Getter method to |client_|.
   WebMediaPlayerClient* GetClient();
@@ -243,9 +241,6 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   // TODO(hclam): get rid of these members and read from the pipeline directly.
   NetworkState network_state_;
   ReadyState ready_state_;
-
-  // Keep a list of buffered time ranges.
-  Ranges<base::TimeDelta> buffered_;
 
   // Message loops for posting tasks between Chrome's main thread. Also used
   // for DCHECKs so methods calls won't execute in the wrong thread.
@@ -300,21 +295,20 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
 
   WebMediaPlayerClient* client_;
   WebMediaPlayerDelegate* delegate_;
-  DecoderBuffer::Allocator* buffer_allocator_;
   bool allow_resume_after_suspend_;
   scoped_refptr<VideoFrameProvider> video_frame_provider_;
 
   scoped_refptr<WebMediaPlayerProxy> proxy_;
 
-  scoped_refptr<MediaLog> media_log_;
+  ::media::MediaLog* const media_log_;
 
   bool incremented_externally_allocated_memory_;
 
   bool is_local_source_;
   bool supports_save_;
 
-  std::unique_ptr<Demuxer> progressive_demuxer_;
-  std::unique_ptr<ChunkDemuxer> chunk_demuxer_;
+  std::unique_ptr<::media::Demuxer> progressive_demuxer_;
+  std::unique_ptr<::media::ChunkDemuxer> chunk_demuxer_;
 
   // Suppresses calls to OnPipelineError() after destruction / shutdown has been
   // started; prevents us from spuriously logging errors that are transient or

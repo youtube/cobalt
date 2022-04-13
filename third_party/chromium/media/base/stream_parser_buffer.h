@@ -63,7 +63,9 @@ class DecodeTimestamp {
   }
 
   double operator/(base::TimeDelta rhs) const { return ts_ / rhs; }
+#if !defined(STARBOARD)
   int64_t IntDiv(base::TimeDelta rhs) const { return ts_.IntDiv(rhs); }
+#endif  // !defined(STARBOARD)
 
   static DecodeTimestamp FromSecondsD(double seconds) {
     return DecodeTimestamp(base::Seconds(seconds));

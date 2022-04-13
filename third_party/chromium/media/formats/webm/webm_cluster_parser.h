@@ -33,6 +33,16 @@ class MEDIA_EXPORT WebMClusterParser : public WebMParserClient {
 
   // Numbers chosen to estimate the duration of a buffer if none is set and
   // there is not enough information to get a better estimate.
+#if defined(STARBOARD)
+  // Our version of base::ClampedNumeric() doesn't support enum as underlying
+  // type.
+
+  // Common 1k samples @44.1kHz
+  static constexpr int kDefaultAudioBufferDurationInMs = 23;
+  // Chosen to represent 16fps duration, which will prevent MSE stalls in videos
+  // with frame-rates as low as 8fps.
+  static constexpr int kDefaultVideoBufferDurationInMs = 63;
+#else // defined(STARBOARD)
   enum {
     // Common 1k samples @44.1kHz
     kDefaultAudioBufferDurationInMs = 23,
@@ -41,6 +51,7 @@ class MEDIA_EXPORT WebMClusterParser : public WebMParserClient {
     // videos with frame-rates as low as 8fps.
     kDefaultVideoBufferDurationInMs = 63
   };
+#endif  // defined(STARBOARD)
 
   // Opus packets encode the duration and other parameters in the 5 most
   // significant bits of the first byte. The index in this array corresponds

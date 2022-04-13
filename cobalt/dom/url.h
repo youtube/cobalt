@@ -18,13 +18,14 @@
 #include <string>
 
 #include "cobalt/dom/blob.h"
-#include "cobalt/dom/media_source.h"
 #include "cobalt/loader/blob_fetcher.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
 namespace dom {
+
+class MediaSource;
 
 // The URL interface contains static functions CreateObjectURL() and
 // RevokeObjectURL().  The former is used to create urls in string from

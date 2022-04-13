@@ -12,16 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_MEDIA_PROGRESSIVE_PARSER_H_
-#define COBALT_MEDIA_PROGRESSIVE_PARSER_H_
+#ifndef COBALT_MEDIA_PROGRESSIVE_PROGRESSIVE_PARSER_H_
+#define COBALT_MEDIA_PROGRESSIVE_PROGRESSIVE_PARSER_H_
+
 #include "base/memory/ref_counted.h"
-#include "cobalt/media/base/audio_decoder_config.h"
-#include "cobalt/media/base/demuxer_stream.h"
-#include "cobalt/media/base/media_log.h"
 #include "cobalt/media/base/pipeline.h"
-#include "cobalt/media/base/video_decoder_config.h"
 #include "cobalt/media/progressive/avc_access_unit.h"
 #include "cobalt/media/progressive/data_source_reader.h"
+#include "third_party/chromium/media/base/audio_decoder_config.h"
+#include "third_party/chromium/media/base/demuxer_stream.h"
+#include "third_party/chromium/media/base/media_log.h"
+#include "third_party/chromium/media/base/video_decoder_config.h"
 
 namespace cobalt {
 namespace media {
@@ -30,12 +31,19 @@ namespace media {
 // ProgressiveDemuxer.
 class ProgressiveParser : public base::RefCountedThreadSafe<ProgressiveParser> {
  public:
+  typedef ::media::AudioDecoderConfig AudioDecoderConfig;
+  typedef ::media::DecoderBuffer DecoderBuffer;
+  typedef ::media::DemuxerStream DemuxerStream;
+  typedef ::media::MediaLog MediaLog;
+  typedef ::media::PipelineStatus PipelineStatus;
+  typedef ::media::VideoDecoderConfig VideoDecoderConfig;
+
   static const int kInitialHeaderSize;
   // Determine stream type, construct appropriate parser object, and returns
   // PIPELINE_OK on success or error code.
   static PipelineStatus Construct(scoped_refptr<DataSourceReader> reader,
                                   scoped_refptr<ProgressiveParser>* parser,
-                                  const scoped_refptr<MediaLog>& media_log);
+                                  MediaLog* media_log);
   explicit ProgressiveParser(scoped_refptr<DataSourceReader> reader);
 
   // Seek through the file looking for audio and video configuration info,
@@ -80,4 +88,4 @@ class ProgressiveParser : public base::RefCountedThreadSafe<ProgressiveParser> {
 }  // namespace media
 }  // namespace cobalt
 
-#endif  // COBALT_MEDIA_PROGRESSIVE_PARSER_H_
+#endif  // COBALT_MEDIA_PROGRESSIVE_PROGRESSIVE_PARSER_H_
