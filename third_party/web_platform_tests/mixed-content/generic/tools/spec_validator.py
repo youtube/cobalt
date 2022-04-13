@@ -65,7 +65,7 @@ def assert_valid_artifact(exp_pattern, artifact_key, schema):
                                          ["*"] + schema)
         return
 
-    for sub_artifact_key, sub_schema in schema.iteritems():
+    for sub_artifact_key, sub_schema in schema.items():
         assert_valid_artifact(exp_pattern[artifact_key], sub_artifact_key,
                               sub_schema)
 

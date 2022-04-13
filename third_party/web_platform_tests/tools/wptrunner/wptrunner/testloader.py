@@ -198,7 +198,7 @@ class EqualTimeChunker(TestChunker):
                 break
 
         self.logger.debug(self.expected_time)
-        for i, chunk in chunks.iteritems():
+        for i, chunk in chunks.items():
             self.logger.debug("%i: %i, %i" % (i + 1, chunk.time, chunk.badness))
 
         assert self._all_tests(by_dir) == self._chunked_tests(chunks)
@@ -208,13 +208,13 @@ class EqualTimeChunker(TestChunker):
     @staticmethod
     def _all_tests(by_dir):
         """Return a set of all tests in the manifest from a grouping by directory"""
-        return set(x[0] for item in by_dir.itervalues()
+        return set(x[0] for item in by_dir.values()
                    for x in item.tests)
 
     @staticmethod
     def _chunked_tests(chunks):
         """Return a set of all tests in the manifest from the chunk list"""
-        return set(x[0] for chunk in chunks.itervalues()
+        return set(x[0] for chunk in chunks.values()
                    for path in chunk.paths
                    for x in path.tests)
 
@@ -381,7 +381,7 @@ class ManifestLoader(object):
 
     def load(self):
         rv = {}
-        for url_base, paths in self.test_paths.iteritems():
+        for url_base, paths in self.test_paths.items():
             manifest_file = self.load_manifest(url_base=url_base,
                                                **paths)
             path_data = {"url_base": url_base}

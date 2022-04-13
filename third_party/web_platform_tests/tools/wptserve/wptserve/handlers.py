@@ -362,7 +362,7 @@ class StaticHandler(object):
             self.data = f.read() % format_args
 
         self.resp_headers = [("Content-Type", content_type)]
-        for k, v in headers.iteritems():
+        for k, v in headers.items():
             resp_headers.append((k.replace("_", "-"), v))
 
         self.handler = handler(self.handle_request)

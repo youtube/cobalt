@@ -102,7 +102,7 @@ def copy_extra_files(chromium_root, tmp_dir):
 def sub_changed_filenames(filename_changes, f):
     rv = []
     for line in f:
-        for in_name, out_name in filename_changes.iteritems():
+        for in_name, out_name in filename_changes.items():
             line = line.replace(in_name, out_name)
         rv.append(line)
     return "".join(rv)
@@ -182,7 +182,7 @@ def main():
 
     filename_changes = {}
 
-    for k, v in path_changes.iteritems():
+    for k, v in path_changes.items():
         if os.path.basename(k) in filename_changes:
             print "Got duplicate name:" + os.path.basename(k)
         filename_changes[os.path.basename(k)] = os.path.basename(v)

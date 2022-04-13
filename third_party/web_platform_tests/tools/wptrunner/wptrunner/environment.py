@@ -113,7 +113,7 @@ class TestEnvironment(object):
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.process_interrupts()
 
-        for scheme, servers in self.servers.iteritems():
+        for scheme, servers in self.servers.items():
             for port, server in servers:
                 server.kill()
         for cm in self.env_extras:
@@ -189,7 +189,7 @@ class TestEnvironment(object):
             path = os.path.normpath(os.path.join(here, path))
             route_builder.add_static(path, format_args, content_type, route)
 
-        for url_base, paths in self.test_paths.iteritems():
+        for url_base, paths in self.test_paths.items():
             if url_base == "/":
                 continue
             route_builder.add_mount_point(url_base, paths["tests_path"])
@@ -210,7 +210,7 @@ class TestEnvironment(object):
 
     def test_servers(self):
         failed = []
-        for scheme, servers in self.servers.iteritems():
+        for scheme, servers in self.servers.items():
             for port, server in servers:
                 if self.test_server_port:
                     s = socket.socket()

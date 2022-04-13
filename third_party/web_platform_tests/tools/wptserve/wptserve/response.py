@@ -336,7 +336,7 @@ class ResponseHeaders(object):
         self.set(key, value)
 
     def __iter__(self):
-        for key, values in self.data.itervalues():
+        for key, values in self.data.values():
             for value in values:
                 yield key, value
 

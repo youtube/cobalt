@@ -297,7 +297,7 @@ def setup_wptrunner(venv, prompt=True, install=False, **kwargs):
 
     global logger
 
-    kwargs = utils.Kwargs(kwargs.iteritems())
+    kwargs = utils.Kwargs(kwargs.items())
 
     product_parts = kwargs["product"].split(":")
     kwargs["product"] = product_parts[0]

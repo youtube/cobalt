@@ -192,14 +192,14 @@ class MarionetteProtocol(Protocol):
 
     def on_environment_change(self, old_environment, new_environment):
         #Unset all the old prefs
-        for name in old_environment.get("prefs", {}).iterkeys():
+        for name in old_environment.get("prefs", {}).keys():
             value = self.executor.original_pref_values[name]
             if value is None:
                 self.clear_user_pref(name)
             else:
                 self.set_pref(name, value)
 
-        for name, value in new_environment.get("prefs", {}).iteritems():
+        for name, value in new_environment.get("prefs", {}).items():
             self.executor.original_pref_values[name] = self.get_pref(name)
             self.set_pref(name, value)
 
@@ -576,7 +576,7 @@ class InternalRefTestImplementation(object):
         data = {"screenshot": screenshot}
         if self.executor.group_metadata is not None:
             data["urlCount"] = {urlparse.urljoin(self.executor.server_url(key[0]), key[1]):value
-                                for key, value in self.executor.group_metadata.get("url_count", {}).iteritems()
+                                for key, value in self.executor.group_metadata.get("url_count", {}).items()
                                 if value > 1}
         self.executor.protocol.marionette.set_context(self.executor.protocol.marionette.CONTEXT_CHROME)
         self.executor.protocol.marionette._send_message("reftest:setup", data)

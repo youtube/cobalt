@@ -318,7 +318,7 @@ class Request(object):
             cookie_headers = self.headers.get("cookie", "")
             parser.load(cookie_headers)
             cookies = Cookies()
-            for key, value in parser.iteritems():
+            for key, value in parser.items():
                 cookies[key] = CookieValue(value)
             self._cookies = cookies
         return self._cookies
@@ -394,11 +394,11 @@ class RequestHeaders(dict):
     def __contains__(self, key):
         return dict.__contains__(self, key.lower())
 
-    def iteritems(self):
+    def items(self):
         for item in self:
             yield item, self[item]
 
-    def itervalues(self):
+    def values(self):
         for item in self:
             yield self[item]
 

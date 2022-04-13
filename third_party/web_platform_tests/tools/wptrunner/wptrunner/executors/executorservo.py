@@ -76,7 +76,7 @@ class ServoTestharnessExecutor(ProcessTestExecutor):
         ]
         for stylesheet in self.browser.user_stylesheets:
             args += ["--user-stylesheet", stylesheet]
-        for pref, value in test.environment.get('prefs', {}).iteritems():
+        for pref, value in test.environment.get('prefs', {}).items():
             args += ["--pref", "%s=%s" % (pref, value)]
         if self.browser.ca_certificate_path:
             args += ["--certificate-path", self.browser.ca_certificate_path]
@@ -219,7 +219,7 @@ class ServoRefTestExecutor(ProcessTestExecutor):
             for stylesheet in self.browser.user_stylesheets:
                 command += ["--user-stylesheet", stylesheet]
 
-            for pref, value in test.environment.get('prefs', {}).iteritems():
+            for pref, value in test.environment.get('prefs', {}).items():
                 command += ["--pref", "%s=%s" % (pref, value)]
 
             command += ["--resolution", viewport_size or "800x600"]

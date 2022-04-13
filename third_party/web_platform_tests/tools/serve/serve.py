@@ -453,7 +453,7 @@ def check_subdomains(host, paths, bind_hostname, ssl_config, aliases):
         logger.critical("Failed to connect to test server on http://%s:%s You may need to edit /etc/hosts or similar" % (host, port))
         sys.exit(1)
 
-    for subdomain, (punycode, host) in subdomains.iteritems():
+    for subdomain, (punycode, host) in subdomains.items():
         domain = "%s.%s" % (punycode, host)
         try:
             urllib.request.urlopen("http://%s:%d/" % (domain, port))
@@ -473,7 +473,7 @@ def get_subdomains(host):
 def start_servers(host, ports, paths, routes, bind_hostname, external_config, ssl_config,
                   **kwargs):
     servers = defaultdict(list)
-    for scheme, ports in ports.iteritems():
+    for scheme, ports in ports.items():
         assert len(ports) == {"http":2}.get(scheme, 1)
 
         for port in ports:
@@ -612,7 +612,7 @@ def start_wss_server(host, port, paths, routes, bind_hostname, external_config, 
 
 def get_ports(config, ssl_environment):
     rv = defaultdict(list)
-    for scheme, ports in config["ports"].iteritems():
+    for scheme, ports in config["ports"].items():
         for i, port in enumerate(ports):
             if scheme in ["wss", "https"] and not ssl_environment.ssl_enabled:
                 port = None
@@ -629,16 +629,16 @@ def normalise_config(config, ports):
     host = config["external_host"] if config["external_host"] else config["host"]
     domains = get_subdomains(host)
     ports_ = {}
-    for scheme, ports_used in ports.iteritems():
+    for scheme, ports_used in ports.items():
         ports_[scheme] = ports_used
 
-    for key, value in domains.iteritems():
+    for key, value in domains.items():
         domains[key] = ".".join(value)
 
     domains[""] = host
 
     ports_ = {}
-    for scheme, ports_used in ports.iteritems():
+    for scheme, ports_used in ports.items():
         ports_[scheme] = ports_used
 
     return {"host": host,

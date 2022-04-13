@@ -57,7 +57,7 @@ class CreateMetadataPatch(Step):
 
         if not local_tree.is_clean:
             metadata_paths = [manifest_path["metadata_path"]
-                              for manifest_path in state.paths.itervalues()]
+                              for manifest_path in state.paths.values()]
             for path in metadata_paths:
                 local_tree.add_new(os.path.relpath(path, local_tree.root))
             local_tree.update_patch(include=metadata_paths)
