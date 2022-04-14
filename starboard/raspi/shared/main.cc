@@ -18,6 +18,10 @@
 #include "starboard/raspi/shared/application_dispmanx.h"
 #include "starboard/shared/signal/crash_signals.h"
 #include "starboard/shared/signal/suspend_signals.h"
+#if SB_IS(EVERGREEN_COMPATIBLE)
+#include "starboard/shared/starboard/command_line.h"
+#include "starboard/shared/starboard/starboard_switches.h"
+#endif
 
 #include "third_party/crashpad/wrapper/wrapper.h"
 
@@ -28,7 +32,12 @@ int main(int argc, char** argv) {
   starboard::shared::signal::InstallSuspendSignalHandlers();
 
 #if SB_IS(EVERGREEN_COMPATIBLE)
-  third_party::crashpad::wrapper::InstallCrashpadHandler();
+  if (starboard::shared::starboard::CommandLine(argc, argv)
+          .HasSwitch(starboard::shared::starboard::kStartHandlerAtCrash)) {
+    third_party::crashpad::wrapper::InstallCrashpadHandler(true);
+  } else {
+    third_party::crashpad::wrapper::InstallCrashpadHandler(false);
+  }
 #endif
   starboard::raspi::shared::ApplicationDispmanx application;
   int result = application.Run(argc, argv);

@@ -311,6 +311,8 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/starboard/memory.cc",
     "//starboard/shared/starboard/new.cc",
     "//starboard/shared/starboard/queue_application.cc",
+    "//starboard/shared/starboard/starboard_switches.cc",
+    "//starboard/shared/starboard/starboard_switches.h",
     "//starboard/shared/starboard/string_concat.cc",
     "//starboard/shared/starboard/string_concat_wide.cc",
     "//starboard/shared/starboard/string_copy.cc",
