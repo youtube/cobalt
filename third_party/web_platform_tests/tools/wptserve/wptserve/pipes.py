@@ -4,11 +4,13 @@ import time
 import types
 import uuid
 from io import BytesIO
+import six
 
-try:
+if six.PY2:
     from cgi import escape
-except ImportError:
+else:
     from html import escape
+    unicode = lambda s, *args: str(s)
 
 def resolve_content(response):
     return b"".join(item for item in response.iter_content(read_file=True))
@@ -411,7 +413,9 @@ def template(request, content, escape_type="html"):
         for item in tokens[1:]:
             value = value[item[1]]
 
-        assert isinstance(value, (int,) + types.StringTypes), tokens
+        if isinstance(value, bytes):
+            value = value.decode()
+        assert isinstance(value, (int,) + six.string_types), tokens
 
         if variable is not None:
             variables[variable] = value

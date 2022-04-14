@@ -3,11 +3,17 @@ import cgi
 from six import StringIO
 import tempfile
 
+import six
 from six.moves import http_cookies
 from six.moves.urllib.parse import parse_qsl, urlsplit
 
 from . import stash
 from .utils import HTTPException
+
+if six.PY2:
+    base64.decodebytes = base64.decodestring
+else:
+    unicode = lambda s, *args: str(s)
 
 missing = object()
 
@@ -586,5 +592,5 @@ class Authentication(object):
                 raise HTTPException(400, "Unsupported authentication scheme %s" % auth_type)
 
     def decode_basic(self, data):
-        decoded_data = base64.decodestring(data)
+        decoded_data = base64.decodebytes(data)
         return decoded_data.split(":", 1)

@@ -229,6 +229,11 @@ class PythonScriptHandler(object):
     def __call__(self, request, response):
         path = filesystem_path(self.base_path, request, self.url_base)
 
+        def execfile(path, global_environ, local_environ):
+            with open(path) as f:
+                contents = f.read()
+                exec(contents, global_environ, local_environ)
+
         try:
             environ = {"__file__": path}
             execfile(path, environ, environ)

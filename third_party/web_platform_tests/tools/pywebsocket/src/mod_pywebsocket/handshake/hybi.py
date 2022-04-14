@@ -82,7 +82,7 @@ def compute_accept(key):
     """
 
     accept_binary = util.sha1_hash(
-        key + common.WEBSOCKET_ACCEPT_UUID).digest()
+        (key + common.WEBSOCKET_ACCEPT_UUID).encode()).digest()
     accept = base64.b64encode(accept_binary)
 
     return (accept, accept_binary)

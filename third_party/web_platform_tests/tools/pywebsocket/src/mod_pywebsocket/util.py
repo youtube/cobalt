@@ -52,6 +52,7 @@ from io import StringIO
 import logging
 import os
 import re
+import six
 import socket
 import traceback
 import zlib
@@ -63,16 +64,8 @@ except ImportError:
 
 
 def get_stack_trace():
-    """Get the current stack trace as string.
-
-    This is needed to support Python 2.3.
-    TODO: Remove this when we only support Python 2.4 and above.
-          Use traceback.format_exc instead.
-    """
-
-    out = StringIO()
-    traceback.print_exc(file=out)
-    return out.getvalue()
+    """Get the current stack trace as string."""
+    return traceback.format_exc()
 
 
 def prepend_message_to_exception(message, exc):
@@ -147,7 +140,10 @@ def wrap_popen3_for_win(cygwin_path):
 
 
 def hexify(s):
-    return ' '.join(map(lambda x: '%02x' % ord(x), s))
+    if six.PY3:
+        return ' '.join(map(lambda x: '{0:02x}'.format(x), s))
+    else:
+        return ' '.join(map(lambda x: '%02x' % ord(x), s))
 
 
 def get_class_logger(o):
