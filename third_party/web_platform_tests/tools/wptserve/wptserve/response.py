@@ -6,6 +6,8 @@ import os
 import types
 import uuid
 import socket
+import io
+import six
 
 from .constants import response_codes
 from .logger import get_logger
@@ -181,7 +183,7 @@ class Response(object):
         True, the entire content of the file will be returned as a string facilitating
         non-streaming operations like template substitution.
         """
-        if isinstance(self.content, types.StringTypes):
+        if isinstance(self.content, six.string_types):
             yield self.content
         elif hasattr(self.content, "read"):
             if read_file:
@@ -401,12 +403,14 @@ class ResponseWriter(object):
             if name.lower() not in self._headers_seen:
                 self.write_header(name, f())
 
-        if (type(self._response.content) in (str, unicode) and
+
+        if (isinstance(self._response.content, six.string_types) and
             "content-length" not in self._headers_seen):
             #Would be nice to avoid double-encoding here
             self.write_header("Content-Length", len(self.encode(self._response.content)))
 
-        if (type(self._response.content) in (file,) and
+        file_type = file if six.PY2 else io.IOBase
+        if (isinstance(self._response.content, file_type) and
             "content-length" not in self._headers_seen):
             file_size = os.stat( self._response.content.name ).st_size
             self.write_header("Content-Length", file_size )
@@ -430,7 +434,7 @@ class ResponseWriter(object):
 
     def write_content(self, data):
         """Write the body of the response."""
-        if isinstance(data, types.StringTypes):
+        if isinstance(data, six.string_types):
             self.write(data)
         else:
             self.write_content_file(data)
@@ -463,10 +467,10 @@ class ResponseWriter(object):
 
     def encode(self, data):
         """Convert unicode to bytes according to response.encoding."""
+        if six.PY3 or isinstance(data, unicode):
+            return data.encode(self._response.encoding)
         if isinstance(data, str):
             return data
-        elif isinstance(data, unicode):
-            return data.encode(self._response.encoding)
         else:
             raise ValueError
 

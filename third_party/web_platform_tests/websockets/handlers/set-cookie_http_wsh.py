@@ -2,7 +2,7 @@
 
 from mod_pywebsocket import common, msgutil, util
 from mod_pywebsocket.handshake import hybi
-import urlparse
+from six.moves.urllib import parse as urlparse
 
 def web_socket_do_extra_handshake(request):
     url_parts = urlparse.urlsplit(request.uri)

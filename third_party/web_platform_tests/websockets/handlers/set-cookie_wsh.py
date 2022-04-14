@@ -1,5 +1,5 @@
 #!/usr/bin/python
-import urlparse
+from six.moves.urllib import parse as urlparse
 
 from mod_pywebsocket import common, msgutil, util
 from mod_pywebsocket.handshake import hybi
