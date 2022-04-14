@@ -1,4 +1,4 @@
-// Copyright 2020 The Cobalt Authors. All Rights Reserved.
+// Copyright 2022 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,22 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "third_party/crashpad/wrapper/wrapper.h"
+#include "starboard/shared/starboard/starboard_switches.h"
 
-namespace third_party {
-namespace crashpad {
-namespace wrapper {
+namespace starboard {
+namespace shared {
+namespace starboard {
 
-void InstallCrashpadHandler(bool start_at_crash) {}
+const char kStartHandlerAtCrash[] = "start_handler_at_crash";
 
-bool AddEvergreenInfoToCrashpad(EvergreenInfo evergreen_info) {
-  return false;
-}
-
-bool AddAnnotationsToCrashpad(CrashpadAnnotations annotations) {
-  return false;
-}
-
-}  // namespace wrapper
-}  // namespace crashpad
-}  // namespace third_party
+}  // namespace starboard
+}  // namespace shared
+}  // namespace starboard

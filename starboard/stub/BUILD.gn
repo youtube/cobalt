@@ -42,6 +42,8 @@ static_library("stub_sources") {
     "//starboard/shared/starboard/file_mode_string_to_flags.cc",
     "//starboard/shared/starboard/memory.cc",
     "//starboard/shared/starboard/queue_application.cc",
+    "//starboard/shared/starboard/starboard_switches.cc",
+    "//starboard/shared/starboard/starboard_switches.h",
     "//starboard/shared/stub/accessibility_get_caption_settings.cc",
     "//starboard/shared/stub/accessibility_get_display_settings.cc",
     "//starboard/shared/stub/accessibility_get_text_to_speech_settings.cc",
