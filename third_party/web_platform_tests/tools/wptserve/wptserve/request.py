@@ -1,6 +1,5 @@
 import base64
 import cgi
-from six import StringIO
 import tempfile
 
 import six
@@ -58,7 +57,7 @@ class InputFile(object):
         if length > self.max_buffer_size:
             self._buf = tempfile.TemporaryFile(mode="rw+b")
         else:
-            self._buf = StringIO()
+            self._buf = six.BytesIO()
 
     @property
     def _buf_position(self):
@@ -81,7 +80,7 @@ class InputFile(object):
             old_data = self._buf.read(buf_bytes)
             bytes_remaining -= buf_bytes
         else:
-            old_data = ""
+            old_data = b""
 
         assert self._buf_position == self._file_position, (
             "Before reading buffer position (%i) didn't match file position (%i)" %
@@ -592,5 +591,5 @@ class Authentication(object):
                 raise HTTPException(400, "Unsupported authentication scheme %s" % auth_type)
 
     def decode_basic(self, data):
-        decoded_data = base64.decodebytes(data)
+        decoded_data = base64.decodebytes(data.encode()).decode()
         return decoded_data.split(":", 1)

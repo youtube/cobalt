@@ -425,9 +425,13 @@ def template(request, content, escape_type="html"):
 
         #Should possibly support escaping for other contexts e.g. script
         #TODO: read the encoding of the response
-        return escape_func(unicode(value)).encode("utf-8")
+        if isinstance(value, bytes):
+            value = value.decode()
+        elif isinstance(value, int):
+            value = str(value)
+        return escape_func(unicode(value)).encode()
 
-    template_regexp = re.compile(r"{{([^}]*)}}")
+    template_regexp = re.compile(br"{{([^}]*)}}")
     new_content = template_regexp.sub(config_replacement, content)
 
     return new_content

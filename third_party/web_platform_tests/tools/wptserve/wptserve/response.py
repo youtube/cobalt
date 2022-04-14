@@ -434,7 +434,7 @@ class ResponseWriter(object):
 
     def write_content(self, data):
         """Write the body of the response."""
-        if isinstance(data, six.string_types):
+        if isinstance(data, (bytes,) + six.string_types):
             self.write(data)
         else:
             self.write_content_file(data)
@@ -446,7 +446,9 @@ class ResponseWriter(object):
         according to response.encoding. Does not flush."""
         self.content_written = True
         try:
-            self._wfile.write(self.encode(data))
+            if not isinstance(data, bytes):
+                data = self.encode(data)
+            self._wfile.write(data)
         except socket.error:
             # This can happen if the socket got closed by the remote end
             pass
