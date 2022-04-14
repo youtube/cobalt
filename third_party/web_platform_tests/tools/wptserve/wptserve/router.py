@@ -1,6 +1,6 @@
 import itertools
 import re
-import types
+import six
 
 from .logger import get_logger
 
@@ -47,7 +47,10 @@ class RouteCompiler(object):
             tokens = itertools.chain([("slash", None)], tokens)
 
         for token in tokens:
-            re_parts.append(func_map[token[0]](token))
+            re_part = func_map[token[0]](token)
+            if isinstance(re_part, bytes):
+                re_part = re_part.decode()
+            re_parts.append(re_part)
 
         if self.star_seen:
             re_parts.append(")")
@@ -77,6 +80,9 @@ def compile_path_match(route_pattern):
 
     tokenizer = RouteTokenizer()
     tokens, unmatched = tokenizer.scan(route_pattern)
+
+    if isinstance(unmatched, bytes):
+        unmatched = unmatched.decode()
 
     assert unmatched == "", unmatched
 
@@ -135,7 +141,7 @@ class Router(object):
                         object and the response object.
 
         """
-        if type(methods) in types.StringTypes or methods in (any_method, "*"):
+        if isinstance(methods, six.string_types) or methods in (any_method, "*"):
             methods = [methods]
         for method in methods:
             self.routes.append((method, compile_path_match(path), handler))

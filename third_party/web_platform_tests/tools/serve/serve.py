@@ -251,7 +251,7 @@ class RoutesBuilder(object):
         for (method, suffix, handler_cls) in routes:
             self.mountpoint_routes[url_base].append(
                 (method,
-                 b"%s%s" % (str(url_base) if url_base != "/" else "", str(suffix)),
+                 "{}{}".format(str(url_base) if url_base != "/" else "", str(suffix)).encode(),
                  handler_cls(base_path=path, url_base=url_base)))
 
     def add_file_mount_point(self, file_url, base_path):
@@ -466,7 +466,7 @@ def check_subdomains(host, paths, bind_hostname, ssl_config, aliases):
 
 def get_subdomains(host):
     #This assumes that the tld is ascii-only or already in punycode
-    return {subdomain: (subdomain.encode("idna"), host)
+    return {subdomain: (subdomain.encode("idna"), host.encode())
             for subdomain in subdomains}
 
 
@@ -633,7 +633,7 @@ def normalise_config(config, ports):
         ports_[scheme] = ports_used
 
     for key, value in domains.items():
-        domains[key] = ".".join(value)
+        domains[key] = b".".join(value)
 
     domains[""] = host
 
