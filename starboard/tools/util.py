@@ -32,6 +32,7 @@ def Which(filename):
       return full_name
   return None
 
+
 def MakeDirs(destination_dir):
   """Wrapper around os.makedirs that is a noop if the directory exists."""
   if os.path.isdir(destination_dir):
@@ -82,39 +83,14 @@ def SpawnProcess(cmd_line, env=None, cwd=None, shell=None):
 
   logging.debug('shell is %r', shell)
 
-  return subprocess.Popen(cmd_line,
-                          shell=shell,
-                          stdout=subprocess.PIPE,
-                          stderr=subprocess.STDOUT,
-                          env=env,
-                          cwd=cwd,
-                          universal_newlines=True)
-
-
-def Execute(cmd_line, env=None, cwd=None, shell=None):
-  """Run the specific command line and handle error.
-
-  Args:
-    cmd_line: Command line. Can either be a list of args or a string.
-    env: Dict of environment variables.
-    cwd: Working directory for the process.
-    shell: Set to True to spawn a shell for the process.
-  Raises:
-    RuntimeError: if process returns an error.
-  Returns:
-    bytearray containing any command output.
-  """
-
-  proc = SpawnProcess(cmd_line, env, cwd, shell)
-  output = bytearray()
-  for line in proc.stdout:
-    logging.info(line.rstrip())
-    output += line
-
-  if proc.wait() != 0:
-    msg = '%s failed (%d):\n%s' % (cmd_line, proc.returncode, output)
-    raise RuntimeError(msg)
-  return output
+  return subprocess.Popen(
+      cmd_line,
+      shell=shell,
+      stdout=subprocess.PIPE,
+      stderr=subprocess.STDOUT,
+      env=env,
+      cwd=cwd,
+      universal_newlines=True)
 
 
 def ExecuteMultiple(cmd_line_list,
@@ -190,7 +166,7 @@ def Decompress(archive_file, destination_dir):
   """
   MakeCleanDirs(destination_dir)
   logging.info('Decompressing %s -> %s', archive_file, destination_dir)
-  zip_file = zipfile.ZipFile(archive_file, mode='r')
+  zip_file = zipfile.ZipFile(archive_file, mode='r')  # pylint: disable=consider-using-with
   zip_file.extractall(destination_dir)
 
 
@@ -212,9 +188,9 @@ def Compress(job_list):
   for source, dest in job_list:
     logging.info('Compressing %s -> %s.zip', source, dest)
     outputs.append('%s.zip' % dest)
-    compress_procs.append(multiprocessing.Process(target=shutil.make_archive,
-                                                  args=(dest, 'zip', source,
-                                                        None)))
+    compress_procs.append(
+        multiprocessing.Process(
+            target=shutil.make_archive, args=(dest, 'zip', source, None)))
 
   for proc in compress_procs:
     proc.start()
@@ -223,6 +199,7 @@ def Compress(job_list):
   for proc in compress_procs:
     proc.join()
   return outputs
+
 
 def SetupDefaultLoggingConfig(logging_lvl=logging.INFO):
   fmt = '[%(filename)s:%(lineno)s:%(levelname)s] %(message)s'
