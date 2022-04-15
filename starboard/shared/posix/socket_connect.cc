@@ -30,15 +30,15 @@ SbSocketError SbSocketConnect(SbSocket socket, const SbSocketAddress* address) {
 
   sbposix::SockAddr sock_addr;
   if (!sock_addr.FromSbSocketAddress(address)) {
-    SB_DLOG(ERROR) << __FUNCTION__ << ": Invalid address";
+    SB_LOG(ERROR) << __FUNCTION__ << ": Invalid address";
     return (socket->error = kSbSocketErrorFailed);
   }
 
   SB_DCHECK(socket->socket_fd >= 0);
   if (address->type != socket->address_type) {
-    SB_DLOG(ERROR) << __FUNCTION__ << ": Incompatible addresses: "
-                   << "socket type = " << socket->address_type
-                   << ", argument type = " << address->type;
+    SB_LOG(ERROR) << __FUNCTION__ << ": Incompatible addresses: "
+                  << "socket type = " << socket->address_type
+                  << ", argument type = " << address->type;
     return (socket->error = kSbSocketErrorFailed);
   }
 
@@ -49,7 +49,7 @@ SbSocketError SbSocketConnect(SbSocket socket, const SbSocketAddress* address) {
   }
 
   if (result != 0) {
-    SB_DLOG(ERROR) << __FUNCTION__ << ": connect failed: " << errno;
+    SB_LOG(ERROR) << __FUNCTION__ << ": connect failed: " << errno;
     return (socket->error = kSbSocketErrorFailed);
   }
 

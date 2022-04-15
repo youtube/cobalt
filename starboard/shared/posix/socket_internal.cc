@@ -34,7 +34,7 @@ const socklen_t kAddressLengthIpv6 = 16;
 const socklen_t kAddressStructLengthIpv6 =
     static_cast<socklen_t>(sizeof(struct sockaddr_in6));
 #endif
-}
+}  // namespace
 
 SbSocketError TranslateSocketErrno(int error) {
   switch (error) {
@@ -73,8 +73,8 @@ bool SetBooleanSocketOption(SbSocket socket,
   int result =
       setsockopt(socket->socket_fd, level, option_code, &on, sizeof(on));
   if (result != 0) {
-    SB_DLOG(ERROR) << "Failed to set " << option_name << " on socket "
-                   << socket->socket_fd << ", errno = " << errno;
+    SB_LOG(ERROR) << "Failed to set " << option_name << " on socket "
+                  << socket->socket_fd << ", errno = " << errno;
     socket->error = TranslateSocketErrno(errno);
     return false;
   }
@@ -97,8 +97,8 @@ bool SetIntegerSocketOption(SbSocket socket,
   int result =
       setsockopt(socket->socket_fd, level, option_code, &value, sizeof(value));
   if (result != 0) {
-    SB_DLOG(ERROR) << "Failed to set " << option_name << " on socket "
-                   << socket->socket_fd << ", errno = " << errno;
+    SB_LOG(ERROR) << "Failed to set " << option_name << " on socket "
+                  << socket->socket_fd << ", errno = " << errno;
     socket->error = TranslateSocketErrno(errno);
     return false;
   }
@@ -147,7 +147,7 @@ bool SockAddr::ToSbSocketAddress(SbSocketAddress* out_address) const {
     return false;
   }
 
-  // Check that we have been properly initialized.
+// Check that we have been properly initialized.
 #if SB_HAS(IPV6)
   SB_DCHECK(length == kAddressStructLengthIpv4 ||
             length == kAddressStructLengthIpv6);
@@ -209,7 +209,7 @@ bool SockAddr::FromSockaddr(const struct sockaddr* sock_addr) {
 #endif
   }
 
-  SB_DLOG(WARNING) << "Unrecognized address family: " << family;
+  SB_LOG(WARNING) << "Unrecognized address family: " << family;
   return false;
 }
 
