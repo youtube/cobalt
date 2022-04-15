@@ -45,8 +45,8 @@ bool SbSocketJoinMulticastGroup(SbSocket socket,
   int result = setsockopt(socket->socket_fd, IPPROTO_IP, IP_ADD_MEMBERSHIP,
                           &imreq, sizeof(imreq));
   if (result != 0) {
-    SB_DLOG(ERROR) << "Failed to IP_ADD_MEMBERSHIP on socket "
-                   << socket->socket_fd << ", errno = " << errno;
+    SB_LOG(ERROR) << "Failed to IP_ADD_MEMBERSHIP on socket "
+                  << socket->socket_fd << ", errno = " << errno;
     socket->error = sbposix::TranslateSocketErrno(errno);
     return false;
   }

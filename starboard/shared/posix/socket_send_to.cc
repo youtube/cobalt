@@ -39,7 +39,7 @@ int SbSocketSendTo(SbSocket socket,
   SB_DCHECK(socket->socket_fd >= 0);
   if (socket->protocol == kSbSocketProtocolTcp) {
     if (destination) {
-      SB_DLOG(FATAL) << "Destination passed to TCP send.";
+      SB_LOG(FATAL) << "Destination passed to TCP send.";
       socket->error = kSbSocketErrorFailed;
       return -1;
     }
@@ -52,13 +52,13 @@ int SbSocketSendTo(SbSocket socket,
     }
 
     if (errno != EAGAIN && errno != EWOULDBLOCK) {
-      SB_DLOG(ERROR) << "send failed, errno = " << errno;
+      SB_LOG(ERROR) << "send failed, errno = " << errno;
     }
     socket->error = sbposix::TranslateSocketErrno(errno);
     return -1;
   } else if (socket->protocol == kSbSocketProtocolUdp) {
     if (!destination) {
-      SB_DLOG(FATAL) << "No destination passed to UDP send.";
+      SB_LOG(FATAL) << "No destination passed to UDP send.";
       socket->error = kSbSocketErrorFailed;
       return -1;
     }
@@ -68,7 +68,7 @@ int SbSocketSendTo(SbSocket socket,
     socklen_t sockaddr_length = 0;
     if (destination) {
       if (!sock_addr.FromSbSocketAddress(destination)) {
-        SB_DLOG(FATAL) << "Invalid destination passed to UDP send.";
+        SB_LOG(FATAL) << "Invalid destination passed to UDP send.";
         socket->error = kSbSocketErrorFailed;
         return -1;
       }
@@ -84,7 +84,7 @@ int SbSocketSendTo(SbSocket socket,
     }
 
     if (errno != EAGAIN && errno != EWOULDBLOCK) {
-      SB_DLOG(ERROR) << "sendto failed, errno = " << errno;
+      SB_LOG(ERROR) << "sendto failed, errno = " << errno;
     }
     socket->error = sbposix::TranslateSocketErrno(errno);
     return -1;

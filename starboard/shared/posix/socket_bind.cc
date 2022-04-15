@@ -28,21 +28,21 @@ SbSocketError SbSocketBind(SbSocket socket,
                            const SbSocketAddress* local_address) {
   if (!SbSocketIsValid(socket)) {
     errno = EBADF;
-    SB_DLOG(ERROR) << __FUNCTION__ << ": Invalid socket";
+    SB_LOG(ERROR) << __FUNCTION__ << ": Invalid socket";
     return kSbSocketErrorFailed;
   }
 
   sbposix::SockAddr sock_addr;
   if (!sock_addr.FromSbSocketAddress(local_address)) {
-    SB_DLOG(ERROR) << __FUNCTION__ << ": Invalid address";
+    SB_LOG(ERROR) << __FUNCTION__ << ": Invalid address";
     return (socket->error = sbposix::TranslateSocketErrno(EINVAL));
   }
 
   SB_DCHECK(socket->socket_fd >= 0);
   if (local_address->type != socket->address_type) {
-    SB_DLOG(ERROR) << __FUNCTION__ << ": Incompatible addresses: "
-                   << "socket type = " << socket->address_type
-                   << ", argument type = " << local_address->type;
+    SB_LOG(ERROR) << __FUNCTION__ << ": Incompatible addresses: "
+                  << "socket type = " << socket->address_type
+                  << ", argument type = " << local_address->type;
     return (socket->error = sbposix::TranslateSocketErrno(EAFNOSUPPORT));
   }
 
@@ -63,7 +63,7 @@ SbSocketError SbSocketBind(SbSocket socket,
   int result = HANDLE_EINTR(
       bind(socket->socket_fd, sock_addr.sockaddr(), sock_addr.length));
   if (result != 0) {
-    SB_DLOG(ERROR) << __FUNCTION__ << ": Bind failed. errno=" << errno;
+    SB_LOG(ERROR) << __FUNCTION__ << ": Bind failed. errno=" << errno;
     return (socket->error = sbposix::TranslateSocketErrno(errno));
   }
 
