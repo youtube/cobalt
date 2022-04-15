@@ -75,11 +75,9 @@ RUN mkdir C:\pip-cache;`
     cmd /S /C setx /M IS_DOCKER '1'
 
 # Setup Sccache
-ADD https://storage.googleapis.com/cobalt-docker-resources/sccache-cobalt.exe /sccache/sccache.exe
-COPY ./setup_sccache.ps1 /sccache/setup_sccache.ps1
-ARG encoded_keyfile
-RUN C:\sccache\setup_sccache.ps1;`
-    Remove-Item C:\sccache\setup_sccache.ps1
+ADD https://storage.googleapis.com/cobalt-docker-resources/sccache-0.2.16-alpha.0.exe /sccache/sccache.exe
+RUN mkdir C:\root\sccache;`
+    setx /M PATH $($Env:PATH + ';C:\sccache')
 
 # Set up GN
 RUN (New-Object Net.WebClient).DownloadFile(`
@@ -90,6 +88,7 @@ RUN (New-Object Net.WebClient).DownloadFile(`
     setx /M PATH $($Env:PATH + ';C:\gn')
 
 # Install gsutil helpers to download from GCS. This helps download required SDKs.
+ARG encoded_keyfile
 COPY .boto /Users/ContainerAdministrator/.boto
 COPY download_from_gcs.ps1 /download_from_gcs.ps1
 RUN (New-Object Net.WebClient).DownloadFile(`
