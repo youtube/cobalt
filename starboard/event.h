@@ -452,7 +452,7 @@ typedef enum SbEventType {
   // the device is just connected to the internet. This event is used
   // to implement window.ononline DOM event.
   kSbEventTypeOsNetworkConnected,
-#endif  // SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
+#endif  // SB_API_VERSION >= 13
 
 #if SB_API_VERSION >= 13
   // The platform has detected a date and/or time configuration change (such
