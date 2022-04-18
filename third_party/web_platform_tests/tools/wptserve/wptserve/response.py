@@ -177,14 +177,18 @@ class Response(object):
         If any part of the content is a function, this will be called
         and the resulting value (if any) returned.
 
-        :param read_file: - boolean controlling the behaviour when content
-        is a file handle. When set to False the handle will be returned directly
-        allowing the file to be passed to the output in small chunks. When set to
-        True, the entire content of the file will be returned as a string facilitating
-        non-streaming operations like template substitution.
+        :param read_file: boolean controlling the behaviour when content is a
+                          file handle. When set to False the handle will be
+                          returned directly allowing the file to be passed to
+                          the output in small chunks. When set to True, the
+                          entire content of the file will be returned as a
+                          string facilitating non-streaming operations like
+                          template substitution.
         """
-        if isinstance(self.content, six.string_types):
+        if isinstance(self.content, bytes):
             yield self.content
+        elif isinstance(self.content, str):
+            yield self.content.encode(self.encoding)
         elif hasattr(self.content, "read"):
             if read_file:
                 yield self.content.read()
@@ -383,8 +387,12 @@ class ResponseWriter(object):
                 message = response_codes[code][0]
             else:
                 message = ''
-        self.write("%s %d %s\r\n" %
-                   (self._response.request.protocol_version, code, message))
+        
+        protocol_version = self._response.request.protocol_version
+        if isinstance(protocol_version, bytes):
+            protocol_version = protocol_version.decode()
+
+        self.write("%s %d %s\r\n" % (protocol_version, code, message))
 
     def write_header(self, name, value):
         """Write out a single header for the response.
@@ -392,6 +400,10 @@ class ResponseWriter(object):
         :param name: Name of the header field
         :param value: Value of the header field
         """
+        if isinstance(value, bytes):
+            value = value.decode()
+        if isinstance(name, bytes):
+            name = name.decode()
         self._headers_seen.add(name.lower())
         self.write("%s: %s\r\n" % (name, value))
         if not self._response.explicit_flush:
@@ -404,7 +416,7 @@ class ResponseWriter(object):
                 self.write_header(name, f())
 
 
-        if (isinstance(self._response.content, six.string_types) and
+        if (isinstance(self._response.content, (bytes,) + six.string_types) and
             "content-length" not in self._headers_seen):
             #Would be nice to avoid double-encoding here
             self.write_header("Content-Length", len(self.encode(self._response.content)))
@@ -446,9 +458,7 @@ class ResponseWriter(object):
         according to response.encoding. Does not flush."""
         self.content_written = True
         try:
-            if not isinstance(data, bytes):
-                data = self.encode(data)
-            self._wfile.write(data)
+            self._wfile.write(self.encode(data))
         except socket.error:
             # This can happen if the socket got closed by the remote end
             pass
@@ -469,9 +479,11 @@ class ResponseWriter(object):
 
     def encode(self, data):
         """Convert unicode to bytes according to response.encoding."""
-        if six.PY3 or isinstance(data, unicode):
+        if isinstance(data, bytes):
+            return data
+        elif six.PY3 or isinstance(data, unicode):
             return data.encode(self._response.encoding)
-        if isinstance(data, str):
+        elif isinstance(data, str):
             return data
         else:
             raise ValueError

@@ -169,14 +169,14 @@ class FileHandler(object):
             use_sub = False
 
         try:
-            with open(headers_path) as headers_file:
+            with open(headers_path, "rb") as headers_file:
                 data = headers_file.read()
         except IOError:
             return []
         else:
             if use_sub:
                 data = template(request, data, escape_type="none")
-            return [tuple(item.strip() for item in line.split(":", 1))
+            return [tuple(item.strip() for item in line.split(b":", 1))
                     for line in data.splitlines() if line]
 
     def get_data(self, response, path, byte_ranges):

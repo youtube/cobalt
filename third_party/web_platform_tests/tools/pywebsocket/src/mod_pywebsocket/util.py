@@ -182,22 +182,26 @@ class RepeatedXorMasker(object):
         return masked_data
 
     def _mask_using_array(self, s):
-        result = array.array('B')
-        result.fromstring(s)
+        """Perform the mask via python."""
+        if isinstance(s, six.text_type):
+            raise Exception(
+                'Masking Operation should not process unicode strings')
+
+        result = bytearray(s)
 
         # Use temporary local variables to eliminate the cost to access
         # attributes
-        masking_key = map(ord, self._masking_key)
+        masking_key = [c for c in six.iterbytes(self._masking_key)]
         masking_key_size = len(masking_key)
         masking_key_index = self._masking_key_index
 
-        for i in xrange(len(result)):
+        for i in range(len(result)):
             result[i] ^= masking_key[masking_key_index]
             masking_key_index = (masking_key_index + 1) % masking_key_size
 
         self._masking_key_index = masking_key_index
 
-        return result.tostring()
+        return bytes(result)
 
     if 'fast_masking' in globals():
         mask = _mask_using_swig

@@ -275,26 +275,31 @@ def slice(request, response, start, end=None):
 
 class ReplacementTokenizer(object):
     def ident(scanner, token):
-        return ("ident", token)
+        return ("ident", token.decode())
 
     def index(scanner, token):
         token = token[1:-1]
+        if six.PY3:
+            token = token.decode()
         try:
             token = int(token)
         except ValueError:
-            token = unicode(token, "utf8")
+            if six.PY2:
+                token = unicode(token, "utf8")
+            else:
+                token = token
         return ("index", token)
 
     def var(scanner, token):
-        token = token[:-1]
+        token = token[:-1].decode()
         return ("var", token)
 
     def tokenize(self, string):
         return self.scanner.scan(string)[0]
 
-    scanner = re.Scanner([(r"\$\w+:", var),
-                          (r"\$?\w+(?:\(\))?", ident),
-                          (r"\[[^\]]*\]", index)])
+    scanner = re.Scanner([(br"\$\w+:", var),
+                          (br"\$?\w+(?:\(\))?", ident),
+                          (br"\[[^\]]*\]", index)])
 
 
 class FirstWrapper(object):

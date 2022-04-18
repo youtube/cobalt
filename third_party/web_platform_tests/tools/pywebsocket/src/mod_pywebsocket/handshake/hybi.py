@@ -182,8 +182,8 @@ class Handshaker(object):
 
             # Extra handshake handler may modify/remove processors.
             self._dispatcher.do_extra_handshake(self._request)
-            processors = filter(lambda processor: processor is not None,
-                                self._request.ws_extension_processors)
+            processors = list(filter(lambda processor: processor is not None,
+                                self._request.ws_extension_processors))
 
             # Ask each processor if there are extensions on the request which
             # cannot co-exist. When processor decided other processors cannot
@@ -391,7 +391,7 @@ class Handshaker(object):
         response.append(format_header(
             common.CONNECTION_HEADER, common.UPGRADE_CONNECTION_TYPE))
         response.append(format_header(
-            common.SEC_WEBSOCKET_ACCEPT_HEADER, accept))
+            common.SEC_WEBSOCKET_ACCEPT_HEADER, accept.decode()))
         if self._request.ws_protocol is not None:
             response.append(format_header(
                 common.SEC_WEBSOCKET_PROTOCOL_HEADER,

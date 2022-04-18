@@ -280,7 +280,7 @@ class Request(object):
         self._headers = None
 
         self.raw_input = InputFile(request_handler.rfile,
-                                   int(self.headers.get("Content-Length", 0)))
+                                   int(self.raw_headers.get("Content-Length", 0)))
         self._body = None
 
         self._GET = None
@@ -308,10 +308,15 @@ class Request(object):
             #Work out the post parameters
             pos = self.raw_input.tell()
             self.raw_input.seek(0)
-            fs = cgi.FieldStorage(fp=self.raw_input,
-                                  environ={"REQUEST_METHOD": self.method},
-                                  headers=self.headers,
-                                  keep_blank_values=True)
+            kwargs = {
+                "fp": self.raw_input,
+                "environ": {"REQUEST_METHOD": self.method},
+                "headers": self.raw_headers,
+                "keep_blank_values": True,
+            }
+            if six.PY3:
+                kwargs.update({"encoding": "iso-8859-1"})
+            fs = cgi.FieldStorage(**kwargs)
             self._POST = MultiDict.from_field_storage(fs)
             self.raw_input.seek(pos)
         return self._POST
