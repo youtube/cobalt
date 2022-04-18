@@ -14,6 +14,22 @@
 """Starboard Android ARM-64 Platform Test Filters."""
 
 from starboard.android.shared import test_filters as shared_test_filters
+from starboard.tools.testing import test_filter
+
+# pylint:disable=line-too-long
+# A map of failing or crashing tests per target.
+_FILTERED_TESTS = {
+    'nplb': [
+        # NetlinkConnection::SendRequest() fails, send() failed, errno=13.
+        'SbSocketBindTest.SunnyDayLocalInterface',
+        'SbSocketGetInterfaceAddressTest.SunnyDay',
+        'SbSocketGetInterfaceAddressTest.SunnyDayNullDestination',
+        'SbSocketGetLocalAddressTest.SunnyDayBoundSpecified',
+        'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest.SunnyDayDestination/*',
+        'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest.SunnyDaySourceForDestination/*',
+        'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest.SunnyDaySourceNotLoopback/*',
+    ],
+}
 
 
 def CreateTestFilters():
@@ -25,4 +41,6 @@ class AndroidArm64TestFilters(shared_test_filters.TestFilters):
 
   def GetTestFilters(self):
     filters = super(AndroidArm64TestFilters, self).GetTestFilters()
+    for target, tests in _FILTERED_TESTS.items():
+      filters.extend(test_filter.TestFilter(target, test) for test in tests)
     return filters
