@@ -255,7 +255,11 @@ class WebTestRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
                 except HTTPException as e:
                     response.set_error(e.code, e.message)
                 except Exception as e:
-                    err = [str(e)]
+                    message = str(e)
+                    if message:
+                        err = [message]
+                    else:
+                        err = []
                     err.append(traceback.format_exc())
                     response.set_error(500, "\n".join(err))
             self.logger.debug("%i %s %s (%s) %i" % (response.status[0],
