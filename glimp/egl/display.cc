@@ -31,10 +31,9 @@ namespace egl {
 // https://ps4.siedev.net/resources/documents/SDK/9.500/Programming-Startup_Guide/0006.html#__document_toc_00000034
 // sce::Gnm::submitDone() gets called regularly in the rasterizer thread and
 // should be called from the main thread when the app is in suspended state.
-// We don't want to call this event very often and consume cycles on the main
-// thread so we decided to schedule the callback every 4 secs, keeping 1 sec
-// as buffer.
-const SbTime kSubmitDoneDelay = 4 * kSbTimeSecond;
+// kSubmitDoneDelay is set to 1/60sec (same scheduling frequency as
+// the app in foreground)
+const SbTime kSubmitDoneDelay = kSbTimeSecond / 60;
 
 namespace {
 void ScheduleSubmitDoneCallback(void* context) {
