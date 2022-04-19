@@ -108,6 +108,14 @@ void SystemWindow::DispatchInputEvent(const SbEvent* event,
                                       InputEvent::Type type, bool is_repeat) {
   DCHECK(event);
   DCHECK(event->data);
+  if (event == nullptr) {
+    LOG(ERROR) << "SystemWindow::DispatchInputEvent: missing event";
+    return;
+  }
+  if (event->data == nullptr) {
+    LOG(ERROR) << "SystemWindow::DispatchInputEvent: missing event data";
+    return;
+  }
   SbInputData* input_data = static_cast<SbInputData*>(event->data);
   const SbInputData& data = *input_data;
 
@@ -115,7 +123,7 @@ void SystemWindow::DispatchInputEvent(const SbEvent* event,
   SbTimeMonotonic timestamp = 0;
 #if SB_API_VERSION >= 13
   timestamp = event->timestamp;
-#else  // SB_API_VERSION >= 13
+#else   // SB_API_VERSION >= 13
   bool use_input_timestamp =
       SbSystemHasCapability(kSbSystemCapabilitySetsInputTimestamp);
   if (use_input_timestamp) {
