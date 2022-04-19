@@ -1207,7 +1207,7 @@ TYPED_TEST_P(CookieStoreTest, TestCookieDeletion) {
   // Create a persistent cookie.
   EXPECT_TRUE(this->SetCookie(
       cs, this->http_www_foo_.url(),
-      std::string(kValidCookieLine) + "; expires=Mon, 18-Apr-22 22:50:13 GMT"));
+      std::string(kValidCookieLine) + "; expires=Mon, 18-Apr-62 22:50:13 GMT"));
 
   this->MatchCookieLines("A=B",
                          this->GetCookies(cs, this->http_www_foo_.url()));
@@ -1220,7 +1220,7 @@ TYPED_TEST_P(CookieStoreTest, TestCookieDeletion) {
   // Create a persistent cookie.
   EXPECT_TRUE(this->SetCookie(
       cs, this->http_www_foo_.url(),
-      std::string(kValidCookieLine) + "; expires=Mon, 18-Apr-22 22:50:13 GMT"));
+      std::string(kValidCookieLine) + "; expires=Mon, 18-Apr-62 22:50:13 GMT"));
   this->MatchCookieLines("A=B",
                          this->GetCookies(cs, this->http_www_foo_.url()));
   // Delete it via Expires.
@@ -1233,13 +1233,13 @@ TYPED_TEST_P(CookieStoreTest, TestCookieDeletion) {
   // Create a persistent cookie.
   EXPECT_TRUE(this->SetCookie(
       cs, this->http_www_foo_.url(),
-      std::string(kValidCookieLine) + "; expires=Mon, 18-Apr-22 22:50:13 GMT"));
+      std::string(kValidCookieLine) + "; expires=Mon, 18-Apr-62 22:50:13 GMT"));
   this->MatchCookieLines("A=B",
                          this->GetCookies(cs, this->http_www_foo_.url()));
   // Check that it is not deleted with significant enough clock skew.
   base::Time server_time;
-  EXPECT_TRUE(base::Time::FromString("Sun, 17-Apr-1977 22:50:13 GMT",
-                                     &server_time));
+  EXPECT_TRUE(
+      base::Time::FromString("Sun, 17-Apr-1977 22:50:13 GMT", &server_time));
   EXPECT_TRUE(this->SetCookieWithServerTime(
       cs, this->http_www_foo_.url(),
       std::string(kValidCookieLine) + "; expires=Mon, 18-Apr-1977 22:50:13 GMT",
@@ -1250,7 +1250,7 @@ TYPED_TEST_P(CookieStoreTest, TestCookieDeletion) {
   // Create a persistent cookie.
   EXPECT_TRUE(this->SetCookie(
       cs, this->http_www_foo_.url(),
-      std::string(kValidCookieLine) + "; expires=Mon, 18-Apr-22 22:50:13 GMT"));
+      std::string(kValidCookieLine) + "; expires=Mon, 18-Apr-62 22:50:13 GMT"));
   this->MatchCookieLines("A=B",
                          this->GetCookies(cs, this->http_www_foo_.url()));
   // Delete it via Expires, with a unix epoch of 0.
@@ -1270,7 +1270,7 @@ TYPED_TEST_P(CookieStoreTest, TestDeleteAll) {
 
   // Set a persistent cookie.
   EXPECT_TRUE(this->SetCookie(cs, this->http_www_foo_.url(),
-                              "C=D; expires=Mon, 18-Apr-22 22:50:13 GMT"));
+                              "C=D; expires=Mon, 18-Apr-62 22:50:13 GMT"));
 
   EXPECT_EQ(2u, this->GetAllCookies(cs).size());
 
@@ -1420,12 +1420,12 @@ TYPED_TEST_P(CookieStoreTest, OverwritePersistentCookie) {
   // Insert a cookie "a" for path "/path1"
   EXPECT_TRUE(this->SetCookie(cs, url_foo,
                               "a=val1; path=/path1; "
-                              "expires=Mon, 18-Apr-22 22:50:13 GMT"));
+                              "expires=Mon, 18-Apr-62 22:50:13 GMT"));
 
   // Insert a cookie "b" for path "/path1"
   EXPECT_TRUE(this->SetCookie(cs, url_foo,
                               "b=val1; path=/path1; "
-                              "expires=Mon, 18-Apr-22 22:50:14 GMT"));
+                              "expires=Mon, 18-Apr-62 22:50:14 GMT"));
 
   // Insert a cookie "b" for path "/path1", that is httponly. This should
   // overwrite the non-http-only version.
@@ -1433,26 +1433,26 @@ TYPED_TEST_P(CookieStoreTest, OverwritePersistentCookie) {
   allow_httponly.set_include_httponly();
   EXPECT_TRUE(this->SetCookieWithOptions(cs, url_foo,
                                          "b=val2; path=/path1; httponly; "
-                                         "expires=Mon, 18-Apr-22 22:50:14 GMT",
+                                         "expires=Mon, 18-Apr-62 22:50:14 GMT",
                                          allow_httponly));
 
   // Insert a cookie "a" for path "/path1". This should overwrite.
   EXPECT_TRUE(this->SetCookie(cs, url_foo,
                               "a=val33; path=/path1; "
-                              "expires=Mon, 18-Apr-22 22:50:14 GMT"));
+                              "expires=Mon, 18-Apr-62 22:50:14 GMT"));
 
   // Insert a cookie "a" for path "/path2". This should NOT overwrite
   // cookie "a", since the path is different.
   EXPECT_TRUE(this->SetCookie(cs, url_foo,
                               "a=val9; path=/path2; "
-                              "expires=Mon, 18-Apr-22 22:50:14 GMT"));
+                              "expires=Mon, 18-Apr-62 22:50:14 GMT"));
 
   // Insert a cookie "a" for path "/path1", but this time for "chromium.org".
   // Although the name and path match, the hostnames do not, so shouldn't
   // overwrite.
   EXPECT_TRUE(this->SetCookie(cs, url_chromium,
                               "a=val99; path=/path1; "
-                              "expires=Mon, 18-Apr-22 22:50:14 GMT"));
+                              "expires=Mon, 18-Apr-62 22:50:14 GMT"));
 
   if (TypeParam::supports_http_only) {
     this->MatchCookieLines(
@@ -1654,7 +1654,7 @@ TYPED_TEST_P(CookieStoreTest, DeleteSessionCookie) {
   EXPECT_TRUE(this->SetCookie(
       cs, this->http_www_foo_.url(),
       this->http_www_foo_.Format("C=D; path=/; domain=%D;"
-                                 "expires=Mon, 18-Apr-22 22:50:13 GMT")));
+                                 "expires=Mon, 18-Apr-62 22:50:13 GMT")));
   this->MatchCookieLines("A=B; C=D",
                          this->GetCookies(cs, this->http_www_foo_.url()));
   // Delete the session cookie.
