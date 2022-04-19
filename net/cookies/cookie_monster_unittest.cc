@@ -602,7 +602,7 @@ class DeferredCookieTaskTest : public CookieMonsterTest {
 
 TEST_F(DeferredCookieTaskTest, DeferredGetCookies) {
   DeclareLoadedCookie("www.google.izzle",
-                      "X=1; path=/; expires=Mon, 18-Apr-22 22:50:14 GMT",
+                      "X=1; path=/; expires=Mon, 18-Apr-62 22:50:14 GMT",
                       Time::Now() + TimeDelta::FromDays(3));
 
   MockGetCookiesCallback get_cookies_callback;
@@ -622,7 +622,7 @@ TEST_F(DeferredCookieTaskTest, DeferredGetCookies) {
 
 TEST_F(DeferredCookieTaskTest, DeferredGetCookiesWithInfo) {
   DeclareLoadedCookie("www.google.izzle",
-                      "X=1; path=/; expires=Mon, 18-Apr-22 22:50:14 GMT",
+                      "X=1; path=/; expires=Mon, 18-Apr-62 22:50:14 GMT",
                       Time::Now() + TimeDelta::FromDays(3));
 
   MockGetCookieInfoCallback get_cookie_info_callback;
@@ -696,7 +696,7 @@ TEST_F(DeferredCookieTaskTest, DeferredSetCookieWithDetails) {
 
 TEST_F(DeferredCookieTaskTest, DeferredGetAllCookies) {
   DeclareLoadedCookie("www.google.izzle",
-                      "X=1; path=/; expires=Mon, 18-Apr-22 22:50:14 GMT",
+                      "X=1; path=/; expires=Mon, 18-Apr-62 22:50:14 GMT",
                       Time::Now() + TimeDelta::FromDays(3));
 
   MockGetCookieListCallback get_cookie_list_callback;
@@ -716,7 +716,7 @@ TEST_F(DeferredCookieTaskTest, DeferredGetAllCookies) {
 
 TEST_F(DeferredCookieTaskTest, DeferredGetAllForUrlCookies) {
   DeclareLoadedCookie("www.google.izzle",
-                      "X=1; path=/; expires=Mon, 18-Apr-22 22:50:14 GMT",
+                      "X=1; path=/; expires=Mon, 18-Apr-62 22:50:14 GMT",
                       Time::Now() + TimeDelta::FromDays(3));
 
   MockGetCookieListCallback get_cookie_list_callback;
@@ -737,7 +737,7 @@ TEST_F(DeferredCookieTaskTest, DeferredGetAllForUrlCookies) {
 
 TEST_F(DeferredCookieTaskTest, DeferredGetAllForUrlWithOptionsCookies) {
   DeclareLoadedCookie("www.google.izzle",
-                      "X=1; path=/; expires=Mon, 18-Apr-22 22:50:14 GMT",
+                      "X=1; path=/; expires=Mon, 18-Apr-62 22:50:14 GMT",
                       Time::Now() + TimeDelta::FromDays(3));
 
   MockGetCookieListCallback get_cookie_list_callback;
@@ -849,7 +849,7 @@ TEST_F(DeferredCookieTaskTest, DeferredDeleteSessionCookies) {
 // being dispatched go to the end of the queue.
 TEST_F(DeferredCookieTaskTest, DeferredTaskOrder) {
   DeclareLoadedCookie("www.google.izzle",
-                      "X=1; path=/; expires=Mon, 18-Apr-22 22:50:14 GMT",
+                      "X=1; path=/; expires=Mon, 18-Apr-62 22:50:14 GMT",
                       Time::Now() + TimeDelta::FromDays(3));
 
   MockGetCookiesCallback get_cookies_callback;
@@ -900,7 +900,7 @@ TEST_F(CookieMonsterTest, TestCookieDeleteAll) {
   // Create a persistent cookie.
   EXPECT_TRUE(SetCookie(cm, url_google_,
                         std::string(kValidCookieLine) +
-                        "; expires=Mon, 18-Apr-22 22:50:13 GMT"));
+                        "; expires=Mon, 18-Apr-62 22:50:13 GMT"));
   ASSERT_EQ(1u, store->commands().size());
   EXPECT_EQ(CookieStoreCommand::ADD, store->commands()[0].type);
 
@@ -1194,23 +1194,23 @@ TEST_F(CookieMonsterTest, DontImportDuplicateCookies) {
   // the import.
 
   AddCookieToList("www.google.com",
-                  "X=1; path=/; expires=Mon, 18-Apr-22 22:50:14 GMT",
+                  "X=1; path=/; expires=Mon, 18-Apr-62 22:50:14 GMT",
                   Time::Now() + TimeDelta::FromDays(3),
                   &initial_cookies);
 
   AddCookieToList("www.google.com",
-                  "X=2; path=/; expires=Mon, 18-Apr-22 22:50:14 GMT",
+                  "X=2; path=/; expires=Mon, 18-Apr-62 22:50:14 GMT",
                   Time::Now() + TimeDelta::FromDays(1),
                   &initial_cookies);
 
   // ===> This one is the WINNER (biggest creation time).  <====
   AddCookieToList("www.google.com",
-                  "X=3; path=/; expires=Mon, 18-Apr-22 22:50:14 GMT",
+                  "X=3; path=/; expires=Mon, 18-Apr-62 22:50:14 GMT",
                   Time::Now() + TimeDelta::FromDays(4),
                   &initial_cookies);
 
   AddCookieToList("www.google.com",
-                  "X=4; path=/; expires=Mon, 18-Apr-22 22:50:14 GMT",
+                  "X=4; path=/; expires=Mon, 18-Apr-62 22:50:14 GMT",
                   Time::Now(),
                   &initial_cookies);
 
@@ -1219,18 +1219,18 @@ TEST_F(CookieMonsterTest, DontImportDuplicateCookies) {
 
   // ===> This one is the WINNER (biggest creation time).  <====
   AddCookieToList("www.google.com",
-                  "X=a1; path=/2; expires=Mon, 18-Apr-22 22:50:14 GMT",
+                  "X=a1; path=/2; expires=Mon, 18-Apr-62 22:50:14 GMT",
                   Time::Now() + TimeDelta::FromDays(9),
                   &initial_cookies);
 
   AddCookieToList("www.google.com",
-                  "X=a2; path=/2; expires=Mon, 18-Apr-22 22:50:14 GMT",
+                  "X=a2; path=/2; expires=Mon, 18-Apr-62 22:50:14 GMT",
                   Time::Now() + TimeDelta::FromDays(2),
                   &initial_cookies);
 
   // Insert 1 cookie with name "Y" on path "/".
   AddCookieToList("www.google.com",
-                  "Y=a; path=/; expires=Mon, 18-Apr-22 22:50:14 GMT",
+                  "Y=a; path=/; expires=Mon, 18-Apr-62 22:50:14 GMT",
                   Time::Now() + TimeDelta::FromDays(10),
                   &initial_cookies);
 
@@ -1340,7 +1340,7 @@ TEST_F(CookieMonsterTest, Delegate) {
   // Insert a cookie "a" for path "/path1"
   EXPECT_TRUE(
       SetCookie(cm, url_google_, "a=val1; path=/path1; "
-                                "expires=Mon, 18-Apr-22 22:50:13 GMT"));
+                                "expires=Mon, 18-Apr-62 22:50:13 GMT"));
   ASSERT_EQ(1u, store->commands().size());
   EXPECT_EQ(CookieStoreCommand::ADD, store->commands()[0].type);
   ASSERT_EQ(1u, delegate->changes().size());
@@ -1357,7 +1357,7 @@ TEST_F(CookieMonsterTest, Delegate) {
   EXPECT_TRUE(
     SetCookieWithOptions(cm, url_google_,
                          "a=val2; path=/path1; httponly; "
-                         "expires=Mon, 18-Apr-22 22:50:14 GMT",
+                         "expires=Mon, 18-Apr-62 22:50:14 GMT",
                          allow_httponly));
   ASSERT_EQ(3u, store->commands().size());
   EXPECT_EQ(CookieStoreCommand::REMOVE, store->commands()[1].type);
@@ -1785,7 +1785,7 @@ TEST_F(CookieMonsterTest, KeepExpiredCookies) {
   // Set a persistent cookie.
   ASSERT_TRUE(SetCookieWithOptions(
       cm, url_google_,
-      std::string(kValidCookieLine) + "; expires=Mon, 18-Apr-22 22:50:13 GMT",
+      std::string(kValidCookieLine) + "; expires=Mon, 18-Apr-62 22:50:13 GMT",
       options));
 
   // Get the canonical cookie.
@@ -2234,7 +2234,7 @@ TEST_F(CookieMonsterTest, PersisentCookieStorageTest) {
 
   // Add a cookie.
   EXPECT_TRUE(SetCookie(cm, url_google_,
-                        "A=B; expires=Mon, 18-Apr-22 22:50:13 GMT"));
+                        "A=B; expires=Mon, 18-Apr-62 22:50:13 GMT"));
   this->MatchCookieLines("A=B", GetCookies(cm, url_google_));
   ASSERT_EQ(1u, store->commands().size());
   EXPECT_EQ(CookieStoreCommand::ADD, store->commands()[0].type);
@@ -2246,13 +2246,13 @@ TEST_F(CookieMonsterTest, PersisentCookieStorageTest) {
 
   // Add a cookie.
   EXPECT_TRUE(SetCookie(cm, url_google_,
-                        "A=B; expires=Mon, 18-Apr-22 22:50:13 GMT"));
+                        "A=B; expires=Mon, 18-Apr-62 22:50:13 GMT"));
   this->MatchCookieLines("A=B", GetCookies(cm, url_google_));
   ASSERT_EQ(3u, store->commands().size());
   EXPECT_EQ(CookieStoreCommand::ADD, store->commands()[2].type);
   // Overwrite it.
   EXPECT_TRUE(SetCookie(cm, url_google_,
-                        "A=Foo; expires=Mon, 18-Apr-22 22:50:14 GMT"));
+                        "A=Foo; expires=Mon, 18-Apr-62 22:50:14 GMT"));
   this->MatchCookieLines("A=Foo", GetCookies(cm, url_google_));
   ASSERT_EQ(5u, store->commands().size());
   EXPECT_EQ(CookieStoreCommand::REMOVE, store->commands()[3].type);
