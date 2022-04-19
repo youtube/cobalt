@@ -18,4 +18,10 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
   <!-- This flag indicates whether 360 videos can be played. -->
   <bool name="supports_spherical_videos" tools:ignore="DuplicateDefinition">true</bool>
+  <!--
+    When set, the return value of SbMediaGetVideoBufferBudget() is capped to
+    this value in MB. Set to 0 to use default values.
+  -->
+  <integer name="max_video_buffer_budget"
+           tools:ignore="DuplicateDefinition">0</integer>
 </resources>

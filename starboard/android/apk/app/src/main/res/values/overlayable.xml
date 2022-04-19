@@ -21,6 +21,11 @@
     <policy type="vendor|product|system">
       <!-- This flag indicates whether 360 videos can be played. -->
       <item type="bool" name="supports_spherical_videos" />
+      <!--
+        When set, the return value of SbMediaGetVideoBufferBudget() is capped
+        to this value in MB. Set to 0 to use default values.
+      -->
+      <item type="integer" name="max_video_buffer_budget" />
     </policy>
   </overlayable>
 </resources>
