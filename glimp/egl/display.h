@@ -35,7 +35,8 @@ namespace egl {
 // upon construction.
 class Display {
  public:
-  static void RepeatSubmitDoneDuringSuspend(bool repeat);
+  static void RepeatSubmitDoneDuringSuspend();
+  static bool repeat_submit_done_during_suspend;
 
   // In order to create a display, it must have a platform-specific
   // implementation injected into it, where many methods will forward to.
