@@ -35,15 +35,22 @@ namespace egl {
 // the app in foreground)
 const SbTime kSubmitDoneDelay = kSbTimeSecond / 60;
 
+// Don't repeat the submitDone callback during suspension
+// until specified by eglTerminate.
+bool Display::repeat_submit_done_during_suspend = false;
+
 namespace {
 void ScheduleSubmitDoneCallback(void* context) {
-  DisplayImpl::CallSubmitDone();
+  if (Display::repeat_submit_done_during_suspend) {
+    DisplayImpl::CallSubmitDone();
+    Display::RepeatSubmitDoneDuringSuspend();
+  }
 }
 }  // namespace
 
-void Display::RepeatSubmitDoneDuringSuspend(bool repeat) {
+void Display::RepeatSubmitDoneDuringSuspend() {
   static SbEventId submit_done_repeating_callback_event = kSbEventIdInvalid;
-  if (repeat) {
+  if (Display::repeat_submit_done_during_suspend) {
     submit_done_repeating_callback_event =
         SbEventSchedule(&ScheduleSubmitDoneCallback, NULL, kSubmitDoneDelay);
   } else {

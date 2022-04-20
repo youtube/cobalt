@@ -197,7 +197,8 @@ EGLBoolean EGLAPIENTRY eglInitialize(EGLDisplay dpy,
   display->GetVersionInfo(major, minor);
 
   egl::SetError(EGL_SUCCESS);
-  egl::Display::RepeatSubmitDoneDuringSuspend(false);
+  egl::Display::repeat_submit_done_during_suspend = false;
+  egl::Display::RepeatSubmitDoneDuringSuspend();
   return true;
 }
 
@@ -265,7 +266,8 @@ EGLBoolean EGLAPIENTRY eglTerminate(EGLDisplay dpy) {
   egl::DisplayRegistry::TerminateDisplay(dpy);
 
   egl::SetError(EGL_SUCCESS);
-  egl::Display::RepeatSubmitDoneDuringSuspend(true);
+  egl::Display::repeat_submit_done_during_suspend = true;
+  egl::Display::RepeatSubmitDoneDuringSuspend();
   return true;
 }
 
