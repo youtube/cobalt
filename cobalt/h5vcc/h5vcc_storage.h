@@ -15,7 +15,11 @@
 #ifndef COBALT_H5VCC_H5VCC_STORAGE_H_
 #define COBALT_H5VCC_H5VCC_STORAGE_H_
 
+#include <string>
+
 #include "base/optional.h"
+#include "cobalt/h5vcc/h5vcc_storage_verify_test_dictionary.h"
+#include "cobalt/h5vcc/h5vcc_storage_write_test_dictionary.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/script/wrappable.h"
 
@@ -29,6 +33,15 @@ class H5vccStorage : public script::Wrappable {
   void Flush(const base::Optional<bool>& sync);
   bool GetCookiesEnabled();
   void SetCookiesEnabled(bool enabled);
+
+  // Write test_size bytes of a repeating test_string to a test_file in the
+  // kSbSystemPathCacheDirectory.
+  H5vccStorageWriteTestDictionary WriteTest(uint32 test_size,
+                                            std::string test_string);
+  // Read the test_file and verify the file data matches the repeating
+  // test_string and is at least test_size bytes.
+  H5vccStorageVerifyTestDictionary VerifyTest(uint32 test_size,
+                                              std::string test_string);
 
   DEFINE_WRAPPABLE_TYPE(H5vccStorage);
 
