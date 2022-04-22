@@ -72,6 +72,7 @@
 #endif  // defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
 #include "cobalt/system_window/input_event.h"
 #include "cobalt/trace_event/scoped_trace_to_file.h"
+#include "cobalt/watchdog/watchdog.h"
 #include "starboard/configuration.h"
 #include "starboard/event.h"
 #include "starboard/system.h"
@@ -580,6 +581,9 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
           kMemoryTrackerCommandShortHelp, kMemoryTrackerCommandLongHelp))
 #endif  // defined(ENABLE_DEBUGGER) && defined(STARBOARD_ALLOWS_MEMORY_TRACKING)
 {
+  watchdog::Watchdog* watchdog = watchdog::Watchdog::CreateInstance();
+  DCHECK(watchdog);
+
   DCHECK(!quit_closure_.is_null());
   if (should_preload) {
     preload_timestamp_ = timestamp;
@@ -953,10 +957,12 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
 }
 
 Application::~Application() {
-// explicitly reset here because the destruction of the object is complex
-// and involves a thread join. If this were to hang the app then having
-// the destruction at this point gives a real file-line number and a place
-// for the debugger to land.
+  // explicitly reset here because the destruction of the object is complex
+  // and involves a thread join. If this were to hang the app then having
+  // the destruction at this point gives a real file-line number and a place
+  // for the debugger to land.
+  watchdog::Watchdog::DeleteInstance();
+
 #if defined(ENABLE_DEBUGGER) && defined(STARBOARD_ALLOWS_MEMORY_TRACKING)
   memory_tracker_tool_.reset(NULL);
 #endif  // defined(ENABLE_DEBUGGER) && defined(STARBOARD_ALLOWS_MEMORY_TRACKING)
@@ -1136,43 +1142,53 @@ void Application::OnApplicationEvent(SbEventType event_type,
   TRACE_EVENT0("cobalt::browser", "Application::OnApplicationEvent()");
   DCHECK_CALLED_ON_VALID_THREAD(application_event_thread_checker_);
 
+  watchdog::Watchdog* watchdog = watchdog::Watchdog::GetInstance();
+
   switch (event_type) {
     case kSbEventTypeStop:
       LOG(INFO) << "Got quit event.";
+      if (watchdog) watchdog->UpdateState(watchdog::STOPPED);
       Quit();
       LOG(INFO) << "Finished quitting.";
       break;
     case kSbEventTypeStart:
       LOG(INFO) << "Got start event.";
       browser_module_->Reveal(timestamp);
+      if (watchdog) watchdog->UpdateState(watchdog::BLURRED);
       browser_module_->Focus(timestamp);
+      if (watchdog) watchdog->UpdateState(watchdog::STARTED);
       LOG(INFO) << "Finished starting.";
       break;
 #if SB_API_VERSION >= 13
     case kSbEventTypeBlur:
       LOG(INFO) << "Got blur event.";
       browser_module_->Blur(timestamp);
+      if (watchdog) watchdog->UpdateState(watchdog::BLURRED);
       LOG(INFO) << "Finished blurring.";
       break;
     case kSbEventTypeFocus:
       LOG(INFO) << "Got focus event.";
       browser_module_->Focus(timestamp);
+      if (watchdog) watchdog->UpdateState(watchdog::STARTED);
       LOG(INFO) << "Finished focusing.";
       break;
     case kSbEventTypeConceal:
       LOG(INFO) << "Got conceal event.";
       browser_module_->Conceal(timestamp);
+      if (watchdog) watchdog->UpdateState(watchdog::CONCEALED);
       LOG(INFO) << "Finished concealing.";
       break;
     case kSbEventTypeReveal:
       DCHECK(SbSystemSupportsResume());
       LOG(INFO) << "Got reveal event.";
       browser_module_->Reveal(timestamp);
+      if (watchdog) watchdog->UpdateState(watchdog::BLURRED);
       LOG(INFO) << "Finished revealing.";
       break;
     case kSbEventTypeFreeze:
       LOG(INFO) << "Got freeze event.";
       browser_module_->Freeze(timestamp);
+      if (watchdog) watchdog->UpdateState(watchdog::FROZEN);
 #if SB_IS(EVERGREEN)
       if (updater_module_) updater_module_->Suspend();
 #endif
@@ -1181,6 +1197,7 @@ void Application::OnApplicationEvent(SbEventType event_type,
     case kSbEventTypeUnfreeze:
       LOG(INFO) << "Got unfreeze event.";
       browser_module_->Unfreeze(timestamp);
+      if (watchdog) watchdog->UpdateState(watchdog::CONCEALED);
 #if SB_IS(EVERGREEN)
       if (updater_module_) updater_module_->Resume();
 #endif
@@ -1190,17 +1207,21 @@ void Application::OnApplicationEvent(SbEventType event_type,
     case kSbEventTypePause:
       LOG(INFO) << "Got pause event.";
       browser_module_->Blur(timestamp);
+      if (watchdog) watchdog->UpdateState(watchdog::BLURRED);
       LOG(INFO) << "Finished pausing.";
       break;
     case kSbEventTypeUnpause:
       LOG(INFO) << "Got unpause event.";
       browser_module_->Focus(timestamp);
+      if (watchdog) watchdog->UpdateState(watchdog::STARTED);
       LOG(INFO) << "Finished unpausing.";
       break;
     case kSbEventTypeSuspend:
       LOG(INFO) << "Got suspend event.";
       browser_module_->Conceal(timestamp);
+      if (watchdog) watchdog->UpdateState(watchdog::CONCEALED);
       browser_module_->Freeze(timestamp);
+      if (watchdog) watchdog->UpdateState(watchdog::FROZEN);
 #if SB_IS(EVERGREEN)
       if (updater_module_) updater_module_->Suspend();
 #endif
@@ -1210,7 +1231,9 @@ void Application::OnApplicationEvent(SbEventType event_type,
       DCHECK(SbSystemSupportsResume());
       LOG(INFO) << "Got resume event.";
       browser_module_->Unfreeze(timestamp);
+      if (watchdog) watchdog->UpdateState(watchdog::CONCEALED);
       browser_module_->Reveal(timestamp);
+      if (watchdog) watchdog->UpdateState(watchdog::BLURRED);
 #if SB_IS(EVERGREEN)
       if (updater_module_) updater_module_->Resume();
 #endif

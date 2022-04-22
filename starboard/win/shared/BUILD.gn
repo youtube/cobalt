@@ -373,7 +373,6 @@ static_library("starboard_platform") {
     "//starboard/egl_and_gles",
     "//starboard/shared/starboard/media:media_util",
     "//starboard/shared/starboard/player/filter:filter_based_player_sources",
-    "//starboard/shared/watchdog",
     "//third_party/opus",
   ]
 

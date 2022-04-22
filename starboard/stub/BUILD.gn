@@ -334,9 +334,7 @@ static_library("stub_sources") {
     "//starboard/common",
   ]
 
-  deps = [ "//starboard/shared/watchdog" ]
-
   if (is_internal_build) {
-    deps += [ "//starboard/private/shared/stub:private_sources" ]
+    deps = [ "//starboard/private/shared/stub:private_sources" ]
   }
 }

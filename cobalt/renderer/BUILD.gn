@@ -64,9 +64,9 @@ static_library("renderer") {
     "//cobalt/renderer/rasterizer/skia:hardware_rasterizer",
     "//cobalt/renderer/rasterizer/skia:software_rasterizer",
     "//cobalt/system_window",
+    "//cobalt/watchdog",
     "//nb",
     "//starboard:starboard_headers_only",
-    "//starboard/shared/watchdog",
   ]
 
   if (is_starboard) {

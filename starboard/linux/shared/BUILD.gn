@@ -26,7 +26,6 @@ group("starboard_platform") {
   ]
 
   deps = [
-    "//starboard/shared/watchdog",
     "//third_party/libevent",
     "//third_party/opus",
   ]

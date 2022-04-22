@@ -1,4 +1,4 @@
-# Copyright 2021 The Cobalt Authors. All Rights Reserved.
+# Copyright 2022 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,12 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-source_set("run_all_unittests") {
-  testonly = true
-  sources = [ "run_all_unittests.cc" ]
-  public_deps = [ "//base/test:test_support" ]
-  deps = [
-    "//cobalt/base",
-    "//testing/gtest",
+static_library("watchdog") {
+  sources = [
+    "watchdog.cc",
+    "watchdog.h",
   ]
+
+  deps = [ "//starboard/common" ]
 }

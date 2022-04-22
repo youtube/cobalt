@@ -405,7 +405,6 @@ static_library("starboard_platform_sources") {
   }
 
   deps = [
-    "//starboard/shared/watchdog",
     "//third_party/libevent",
     "//third_party/opus",
   ]
