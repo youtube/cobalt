@@ -15,7 +15,7 @@
 // Adapted from:
 // lbshell/src/platform/linux/posix_emulation/lb_shell/lb_memory_pages_linux.cc
 
-#include "starboard/shared/dlmalloc/page_internal.h"
+#include "starboard/shared/posix/page_internal.h"
 
 #include <fcntl.h>
 #include <stdio.h>
@@ -63,17 +63,6 @@ int SbMemoryMapFlagsToMmapProtect(int sb_flags) {
   return mmap_protect;
 }
 
-}  // namespace
-
-void* SbPageMap(size_t size_bytes, int flags, const char* unused_name) {
-  void* ret = SbPageMapUntracked(size_bytes, flags, NULL);
-  if (ret != SB_MEMORY_MAP_FAILED) {
-    SbAtomicNoBarrier_Increment(&s_tracked_page_count,
-                                GetPageCount(size_bytes));
-  }
-  return ret;
-}
-
 void* SbPageMapUntracked(size_t size_bytes,
                          int flags,
                          const char* unused_name) {
@@ -86,6 +75,21 @@ void* SbPageMapUntracked(size_t size_bytes,
   int mmap_protect = SbMemoryMapFlagsToMmapProtect(flags);
   void* mem = mmap(0, size_bytes, mmap_protect, MAP_PRIVATE | MAP_ANON, -1, 0);
   return mem;
+}
+
+bool SbPageUnmapUntracked(void* ptr, size_t size_bytes) {
+  return munmap(ptr, size_bytes) == 0;
+}
+
+}  // namespace
+
+void* SbPageMap(size_t size_bytes, int flags, const char* unused_name) {
+  void* ret = SbPageMapUntracked(size_bytes, flags, NULL);
+  if (ret != SB_MEMORY_MAP_FAILED) {
+    SbAtomicNoBarrier_Increment(&s_tracked_page_count,
+                                GetPageCount(size_bytes));
+  }
+  return ret;
 }
 
 void* SbPageMapFile(void* addr,
@@ -125,39 +129,9 @@ bool SbPageUnmap(void* ptr, size_t size_bytes) {
   return SbPageUnmapUntracked(ptr, size_bytes);
 }
 
-bool SbPageUnmapUntracked(void* ptr, size_t size_bytes) {
-  return munmap(ptr, size_bytes) == 0;
-}
-
 bool SbPageProtect(void* virtual_address, int64_t size_bytes, int flags) {
   int mmap_protect = SbMemoryMapFlagsToMmapProtect(flags);
   return mprotect(virtual_address, size_bytes, mmap_protect) == 0;
-}
-
-size_t SbPageGetTotalPhysicalMemoryBytes() {
-  // Limit ourselves to remain similar to more constrained platforms.
-  return 1024U * 1024 * 1024;
-}
-
-int64_t SbPageGetUnallocatedPhysicalMemoryBytes() {
-  // Computes unallocated memory as the total system memory (our fake 1GB limit)
-  // minus the # of resident pages.
-
-  // statm provides info about our memory usage.
-  // Columns are: size, resident, share, text, lib, data, and dt.
-  // Just consider "resident" pages for our purposes.
-  const char* kStatmPath = "/proc/self/statm";
-  FILE* f = fopen(kStatmPath, "r");
-  if (!f) {
-    SB_DLOG(FATAL) << "Failed to open " << kStatmPath;
-    return 0;
-  }
-  size_t program_size = 0;
-  size_t resident = 0;
-
-  fscanf(f, "%zu %zu", &program_size, &resident);
-  fclose(f);
-  return SbPageGetTotalPhysicalMemoryBytes() - resident * kSbMemoryPageSize;
 }
 
 size_t SbPageGetMappedBytes() {

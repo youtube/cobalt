@@ -12,12 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This internal header defines a cross-platform interface for implementing
-// virtual memory management. A platform must implement this if it wants to use
-// dlmalloc.
-
-#ifndef STARBOARD_SHARED_DLMALLOC_PAGE_INTERNAL_H_
-#define STARBOARD_SHARED_DLMALLOC_PAGE_INTERNAL_H_
+#ifndef STARBOARD_SHARED_POSIX_PAGE_INTERNAL_H_
+#define STARBOARD_SHARED_POSIX_PAGE_INTERNAL_H_
 
 #include "starboard/memory.h"
 #include "starboard/shared/internal_only.h"
@@ -33,11 +29,6 @@ extern "C" {
 // and can be up to 32 bytes. Returns SB_MEMORY_MAP_FAILED on failure, as NULL
 // is a valid return value.
 void* SbPageMap(size_t size_bytes, int flags, const char* name);
-
-// Same as SbMap() but "untracked" means size will not be reflected in
-// SbGetMappedBytes(). This should only be called by dlmalloc so that memory
-// allocated by dlmalloc isn't counted twice.
-void* SbPageMapUntracked(size_t size_bytes, int flags, const char* name);
 
 // Memory maps a file to the specified |addr| starting with |file_offset| and
 // mapping |size| bytes. The |addr| should be reserved before calling. If
@@ -59,22 +50,10 @@ void* SbPageMapFile(void* addr,
 // 0x2000) should free both.
 bool SbPageUnmap(void* virtual_address, size_t size_bytes);
 
-// Same as SbUnmap(), but should be used only by dlmalloc to unmap pages
-// allocated via MapUntracked().
-bool SbPageUnmapUntracked(void* virtual_address, size_t size_bytes);
-
 // Change the protection of |size_bytes| of physical pages, starting from
 // |virtual_address|, to |flags|, returning |true| on success.
 bool SbPageProtect(void* virtual_address, int64_t size_bytes, int flags);
 #endif  // SB_API_VERSION >= 12 || SB_HAS(MMAP)
-
-// Returns the total amount, in bytes, of physical memory available. Should
-// always be a multiple of kSbMemoryPageSize.
-size_t SbPageGetTotalPhysicalMemoryBytes();
-
-// Returns the amount, in bytes, of physical memory that hasn't yet been mapped.
-// Should always be a multiple of the platform's physical page size.
-int64_t SbPageGetUnallocatedPhysicalMemoryBytes();
 
 // Returns the total amount, in bytes, currently allocated via Map().  Should
 // always be a multiple of kSbMemoryPageSize.
@@ -84,4 +63,4 @@ size_t SbPageGetMappedBytes();
 }  // extern "C"
 #endif
 
-#endif  // STARBOARD_SHARED_DLMALLOC_PAGE_INTERNAL_H_
+#endif  // STARBOARD_SHARED_POSIX_PAGE_INTERNAL_H_

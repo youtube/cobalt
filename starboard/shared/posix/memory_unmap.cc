@@ -13,8 +13,8 @@
 // limitations under the License.
 
 #include "starboard/memory.h"
+#include "starboard/shared/posix/page_internal.h"
 #include "starboard/shared/starboard/memory_reporter_internal.h"
-#include "starboard/shared/dlmalloc/page_internal.h"
 
 bool SbMemoryUnmap(void* virtual_address, int64_t size_bytes) {
   SbMemoryReporterReportUnmappedMemory(virtual_address, size_bytes);

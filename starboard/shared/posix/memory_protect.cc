@@ -14,7 +14,7 @@
 
 #include "starboard/configuration.h"
 #include "starboard/memory.h"
-#include "starboard/shared/dlmalloc/page_internal.h"
+#include "starboard/shared/posix/page_internal.h"
 
 bool SbMemoryProtect(void* virtual_address, int64_t size_bytes, int flags) {
   return SbPageProtect(virtual_address, size_bytes, flags);
