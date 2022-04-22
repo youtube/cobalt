@@ -423,10 +423,6 @@ void Pipeline::RasterizeCurrentTree() {
   // Gets watchdog instance.
   Watchdog* watchdog = Watchdog::GetInstance();
   if (watchdog != nullptr) {
-#if defined(_DEBUG)
-    // Injects delay based off of environment variables for watchdog debugging.
-    watchdog->MaybeInjectDebugDelay(std::string(kWatchdogName));
-#endif  // defined(_DEBUG)
     // Pings watchdog.
     watchdog->Ping(std::string(kWatchdogName));
   }
