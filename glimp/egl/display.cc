@@ -42,6 +42,8 @@ bool Display::repeat_submit_done_during_suspend = false;
 namespace {
 void ScheduleSubmitDoneCallback(void* context) {
   if (Display::repeat_submit_done_during_suspend) {
+    SB_DCHECK(true) << "Suspend mode is disabled. ScheduleSubmitDoneCallback "
+                       "shouldn't be triggered.";
     DisplayImpl::CallSubmitDone();
     Display::RepeatSubmitDoneDuringSuspend();
   }
