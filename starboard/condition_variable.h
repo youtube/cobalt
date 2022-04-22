@@ -21,15 +21,12 @@
 
 #include "starboard/export.h"
 #include "starboard/mutex.h"
-#include "starboard/thread_types.h"
 #include "starboard/time.h"
 #include "starboard/types.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#if SB_API_VERSION >= 12
 
 // Max size of the SbConditionVariable type.
 #define SB_CONDITION_VARIABLE_MAX_SIZE 80
@@ -53,8 +50,6 @@ typedef union SbConditionVariable {
 #define SB_CONDITION_VARIABLE_INITIALIZER \
   { 0 }
 #endif
-
-#endif  // SB_API_VERSION >= 12
 
 // Enumeration of possible results from waiting on a condvar.
 typedef enum SbConditionVariableResult {

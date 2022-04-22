@@ -576,28 +576,6 @@ SB_EXPORT bool SbMediaGetAudioConfiguration(
     int output_index,
     SbMediaAudioConfiguration* out_configuration);
 
-#if SB_API_VERSION < 12
-// Indicates whether output copy protection is currently enabled on all capable
-// outputs. If |true|, then non-protection-capable outputs are expected to be
-// blanked.
-//
-// presubmit: allow sb_export mismatch
-SB_EXPORT bool SbMediaIsOutputProtected();
-
-// Enables or disables output copy protection on all capable outputs. If
-// enabled, then non-protection-capable outputs are expected to be blanked.
-//
-// The return value indicates whether the operation was successful, and the
-// function returns a success even if the call is redundant in that it doesn't
-// change the current value.
-//
-// |enabled|: Indicates whether output protection is enabled (|true|) or
-//   disabled.
-//
-// presubmit: allow sb_export mismatch
-SB_EXPORT bool SbMediaSetOutputProtection(bool enabled);
-#endif  // SB_API_VERSION < 12
-
 // Value used when a video's resolution is not known.
 #define kSbMediaVideoResolutionDimensionInvalid 0
 // Value used when a video's bits per pixel is not known.

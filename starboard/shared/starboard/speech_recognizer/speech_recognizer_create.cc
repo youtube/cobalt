@@ -18,13 +18,9 @@
 #error Speech Recognizer is deprecated. Implement full Microphone instead.
 #endif
 
-#if SB_API_VERSION >= 12 || SB_HAS(SPEECH_RECOGNIZER)
-
 #include "starboard/shared/starboard/speech_recognizer/speech_recognizer_internal.h"
 
 SbSpeechRecognizer SbSpeechRecognizerCreate(
     const SbSpeechRecognizerHandler* handler) {
   return SbSpeechRecognizerPrivate::CreateSpeechRecognizer(handler);
 }
-
-#endif  // SB_API_VERSION >= 12 || SB_HAS(SPEECH_RECOGNIZER)

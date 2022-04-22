@@ -17,8 +17,6 @@
 #include "starboard/common/log.h"
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
 
-#if SB_API_VERSION >= 12
-
 const void* SbDrmGetMetrics(SbDrmSystem drm_system, int* size) {
   if (size == NULL) {
     SB_DLOG(WARNING) << "|size| cannot be NULL.";
@@ -34,5 +32,3 @@ const void* SbDrmGetMetrics(SbDrmSystem drm_system, int* size) {
 
   return drm_system->GetMetrics(size);
 }
-
-#endif  // SB_API_VERSION >= 12

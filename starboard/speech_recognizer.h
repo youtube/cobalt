@@ -39,8 +39,6 @@
 #error Speech Recognizer is deprecated, switch to microphone implementation.
 #endif
 
-#if SB_API_VERSION >= 12 || SB_HAS(SPEECH_RECOGNIZER)
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -149,10 +147,8 @@ struct SbSpeechRecognizerHandler {
   void* context;
 };
 
-#if SB_API_VERSION >= 12
 // Returns whether the platform supports SbSpeechRecognizer.
 SB_EXPORT bool SbSpeechRecognizerIsSupported();
-#endif
 
 // Creates a speech recognizer with a speech recognizer handler.
 //
@@ -202,7 +198,5 @@ SB_EXPORT void SbSpeechRecognizerDestroy(SbSpeechRecognizer recognizer);
 #ifdef __cplusplus
 }  // extern "C"
 #endif
-
-#endif  // SB_API_VERSION >= 12 || SB_HAS(SPEECH_RECOGNIZER)
 
 #endif  // STARBOARD_SPEECH_RECOGNIZER_H_

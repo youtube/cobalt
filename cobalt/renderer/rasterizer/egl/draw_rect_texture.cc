@@ -13,7 +13,6 @@
 // limitations under the License.
 
 #include "starboard/configuration.h"
-#if SB_API_VERSION >= 12 || SB_HAS(GLES2)
 
 #include "cobalt/renderer/rasterizer/egl/draw_rect_texture.h"
 
@@ -69,7 +68,7 @@ DrawRectTexture::DrawRectTexture(
       "color_transform_ and color_transform_in_column_major size mismatch");
 
   memcpy(color_transform_, color_transform_in_column_major,
-               sizeof(color_transform_));
+         sizeof(color_transform_));
   graphics_state->ReserveVertexData(4 * sizeof(VertexAttributes));
 }
 
@@ -190,5 +189,3 @@ base::TypeId DrawRectTexture::GetTypeId() const {
 }  // namespace rasterizer
 }  // namespace renderer
 }  // namespace cobalt
-
-#endif  // SB_API_VERSION >= 12 || SB_HAS(GLES2)

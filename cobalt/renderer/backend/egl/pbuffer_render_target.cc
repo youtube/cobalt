@@ -13,7 +13,6 @@
 // limitations under the License.
 
 #include "starboard/configuration.h"
-#if SB_API_VERSION >= 12 || SB_HAS(GLES2)
 
 #include "cobalt/renderer/backend/egl/pbuffer_render_target.h"
 
@@ -64,5 +63,3 @@ PBufferRenderTargetEGL::~PBufferRenderTargetEGL() {
 }  // namespace backend
 }  // namespace renderer
 }  // namespace cobalt
-
-#endif  // SB_API_VERSION >= 12 || SB_HAS(GLES2)

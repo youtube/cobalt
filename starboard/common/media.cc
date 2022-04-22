@@ -28,7 +28,6 @@ const char* GetMediaAudioCodecName(SbMediaAudioCodec codec) {
       return "none";
     case kSbMediaAudioCodecAac:
       return "aac";
-#if SB_API_VERSION >= 12 || SB_HAS(AC3_AUDIO)
     case kSbMediaAudioCodecAc3:
       if (!kSbHasAc3Audio) {
         SB_NOTREACHED() << "AC3 audio is not enabled on this platform. To "
@@ -43,8 +42,6 @@ const char* GetMediaAudioCodecName(SbMediaAudioCodec codec) {
         return "invalid";
       }
       return "ec3";
-#endif  // SB_API_VERSION >= 12 ||
-        // SB_HAS(AC3_AUDIO)
     case kSbMediaAudioCodecOpus:
       return "opus";
     case kSbMediaAudioCodecVorbis:

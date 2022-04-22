@@ -13,7 +13,6 @@
 // limitations under the License.
 
 #include "starboard/configuration.h"
-#if SB_API_VERSION >= 12 || SB_HAS(GLES2)
 
 #include "cobalt/renderer/backend/egl/resource_context.h"
 
@@ -60,7 +59,7 @@ void RunAndSignal(const base::Closure& function, base::WaitableEvent* event) {
   function.Run();
   event->Signal();
 }
-}
+}  // namespace
 
 void ResourceContext::RunSynchronouslyWithinResourceContext(
     const base::Closure& function) {
@@ -84,8 +83,8 @@ void ResourceContext::MakeCurrent() {
 }
 
 void ResourceContext::ShutdownOnResourceThread() {
-  EGL_CALL(eglMakeCurrent(
-      display_, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT));
+  EGL_CALL(
+      eglMakeCurrent(display_, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT));
 
   EGL_CALL(eglDestroySurface(display_, null_surface_));
   EGL_CALL(eglDestroyContext(display_, context_));
@@ -94,5 +93,3 @@ void ResourceContext::ShutdownOnResourceThread() {
 }  // namespace backend
 }  // namespace renderer
 }  // namespace cobalt
-
-#endif  // SB_API_VERSION >= 12 || SB_HAS(GLES2)

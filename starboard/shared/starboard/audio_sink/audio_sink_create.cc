@@ -31,8 +31,6 @@ SbAudioSink SbAudioSinkCreate(
       channels, sampling_frequency_hz, audio_sample_type,
       audio_frame_storage_type, frame_buffers, frame_buffers_size_in_frames,
       update_source_status_func, consume_frames_func,
-#if SB_API_VERSION >= 12
       NULL /*error_func*/,
-#endif  // SB_API_VERSION >= 12
       context);
 }

@@ -190,7 +190,6 @@ bool DebugConsole::FilterPointerEvent(base::Token type,
   return false;
 }
 
-#if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
 bool DebugConsole::FilterOnScreenKeyboardInputEvent(
     base::Token type, const dom::InputEventInit& event) {
   // Return true to indicate the event should still be handled.
@@ -199,8 +198,6 @@ bool DebugConsole::FilterOnScreenKeyboardInputEvent(
   web_module_->InjectOnScreenKeyboardInputEvent(type, event);
   return false;
 }
-#endif  // SB_API_VERSION >= 12 ||
-        // SB_HAS(ON_SCREEN_KEYBOARD)
 
 void DebugConsole::CycleMode() {
   base::AutoLock lock(mode_mutex_);

@@ -23,7 +23,6 @@
 #include "base/timer/mock_timer.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if SB_API_VERSION >= 12
 namespace base {
 
 namespace {
@@ -357,4 +356,3 @@ TEST_F(ImportantFileWriterTest, WriteFileAtomicallyHistogramSuffixTest) {
 
 }  // namespace base
 
-#endif  // SB_API_VERSION >= 12

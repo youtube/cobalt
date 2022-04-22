@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/browser/webapi_extension.h"
-
 #include "base/compiler_specific.h"
 #include "cobalt/script/global_environment.h"
 #include "starboard/shared/test_webapi_extension/my_new_interface.h"

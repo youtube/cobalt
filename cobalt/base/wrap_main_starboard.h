@@ -132,24 +132,17 @@ void BaseEventHandler(const SbEvent* event) {
 #endif  // SB_API_VERSION >= 13
     case kSbEventTypeLowMemory:
     case kSbEventTypeWindowSizeChanged:
-#if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
     case kSbEventTypeOnScreenKeyboardShown:
     case kSbEventTypeOnScreenKeyboardHidden:
     case kSbEventTypeOnScreenKeyboardFocused:
     case kSbEventTypeOnScreenKeyboardBlurred:
     case kSbEventTypeOnScreenKeyboardSuggestionsUpdated:
-#endif  // SB_API_VERSION >= 12 ||
-        // SB_HAS(ON_SCREEN_KEYBOARD)
-#if SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
     case kSbEventTypeAccessibilityCaptionSettingsChanged:
-#endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
-#if SB_API_VERSION >= 12
 #if SB_API_VERSION >= 13
     case kSbEventTypeAccessibilityTextToSpeechSettingsChanged:
 #else
     case kSbEventTypeAccessiblityTextToSpeechSettingsChanged:
 #endif  // SB_API_VERSION >= 13
-#endif  // SB_API_VERSION >= 12
 #if SB_API_VERSION >= 13
     case kSbEventTypeOsNetworkDisconnected:
     case kSbEventTypeOsNetworkConnected:

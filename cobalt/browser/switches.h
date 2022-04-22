@@ -86,12 +86,8 @@ extern const char kUseTTS[];
 extern const char kUseTTSHelp[];
 extern const char kWebDriverPort[];
 extern const char kWebDriverPortHelp[];
-
-#if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
 extern const char kDisableOnScreenKeyboard[];
 extern const char kDisableOnScreenKeyboardHelp[];
-#endif  // SB_API_VERSION >= 12 ||
-        // SB_HAS(ON_SCREEN_KEYBOARD)
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
 extern const char kCompressUpdate[];

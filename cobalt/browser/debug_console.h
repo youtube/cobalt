@@ -70,14 +70,11 @@ class DebugConsole : public LifecycleObserver {
   // false if it was consumed within this function.
   bool FilterWheelEvent(base::Token type, const dom::WheelEventInit& event);
 
-#if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
   // Filters an on screen keyboard input event.
   // Returns true if the event should be passed on to other handlers,
   // false if it was consumed within this function.
   bool FilterOnScreenKeyboardInputEvent(base::Token type,
                                         const dom::InputEventInit& event);
-#endif  // SB_API_VERSION >= 12 ||
-        // SB_HAS(ON_SCREEN_KEYBOARD)
 
   const WebModule& web_module() const { return *web_module_; }
   WebModule& web_module() { return *web_module_; }

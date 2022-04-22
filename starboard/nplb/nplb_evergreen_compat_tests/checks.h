@@ -19,20 +19,6 @@
 
 #if SB_IS(EVERGREEN_COMPATIBLE)
 
-#if SB_API_VERSION < 12
-#error "Evergreen requires starboard version 12 or higher!"
-#endif
-
-#if SB_API_VERSION < 12 && !SB_IS(EVERGREEN_COMPATIBLE_LITE)
-#error \
-    "Evergreen requires support for the kSbSystemPathStorageDirectory" \
-    " system property!"
-#endif
-
-#if SB_API_VERSION < 12
-#error "Evergreen requires memory mapping!"
-#endif
-
 #if !SB_CAN(MAP_EXECUTABLE_MEMORY)
 #error "Evergreen requires executable memory support!"
 #endif

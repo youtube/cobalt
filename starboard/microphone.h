@@ -43,8 +43,6 @@
 #include "starboard/export.h"
 #include "starboard/types.h"
 
-#if SB_API_VERSION >= 12 || SB_HAS(MICROPHONE)
-
 #define kSbMicrophoneLabelSize 256
 
 #ifdef __cplusplus
@@ -200,8 +198,5 @@ SB_EXPORT void SbMicrophoneDestroy(SbMicrophone microphone);
 #ifdef __cplusplus
 }  // extern "C"
 #endif
-
-#endif  // SB_API_VERSION >= 12 ||
-        // SB_HAS(MICROPHONE)
 
 #endif  // STARBOARD_MICROPHONE_H_

@@ -26,7 +26,6 @@
 #include "starboard/loader_app/system_get_extension_shim.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if SB_API_VERSION >= 12
 namespace update_client {
 namespace {
 
@@ -298,4 +297,3 @@ TEST_F(CobaltSlotManagementTest,
 }  // namespace
 
 }  // namespace update_client
-#endif  // SB_API_VERSION >= 12

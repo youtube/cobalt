@@ -90,12 +90,8 @@ bool CheckMapEquality(const MapA_Type& map_a, const MapB_Type& map_b) {
 }
 
 SbTimeMonotonic GetThreadTimeMonotonicNow() {
-#if SB_API_VERSION >= 12 || SB_HAS(TIME_THREAD_NOW)
-#if SB_API_VERSION >= 12
   if (SbTimeIsTimeThreadNowSupported())
-#endif
     return SbTimeGetMonotonicThreadNow();
-#endif
   return SbTimeGetMonotonicNow();
 }
 

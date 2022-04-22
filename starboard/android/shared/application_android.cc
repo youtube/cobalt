@@ -490,16 +490,8 @@ extern "C" SB_EXPORT_PLATFORM jboolean
 Java_dev_cobalt_coat_KeyboardInputConnection_nativeHasOnScreenKeyboard(
     JniEnvExt* env,
     jobject unused_this) {
-#if SB_API_VERSION >= 12
   return SbWindowOnScreenKeyboardIsSupported() ? JNI_TRUE : JNI_FALSE;
-#elif SB_HAS(ON_SCREEN_KEYBOARD)
-  return JNI_TRUE;
-#else
-  return JNI_FALSE;
-#endif
 }
-
-#if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
 
 void ApplicationAndroid::SbWindowShowOnScreenKeyboard(SbWindow window,
                                                       const char* input_text,
@@ -591,9 +583,6 @@ void ApplicationAndroid::SbWindowSendInputEvent(const char* input_text,
   Inject(new Event(kSbEventTypeInput, data, &DeleteSbInputDataWithText));
   return;
 }
-
-#endif  // SB_API_VERSION >= 12 ||
-        // SB_HAS(ON_SCREEN_KEYBOARD)
 
 bool ApplicationAndroid::OnSearchRequested() {
   for (int i = 0; i < 2; i++) {

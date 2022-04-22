@@ -13,7 +13,6 @@
 // limitations under the License.
 
 #include "starboard/configuration.h"
-#if SB_API_VERSION >= 12 || SB_HAS(GLES2)
 
 #include "cobalt/renderer/rasterizer/egl/draw_object_manager.h"
 
@@ -412,5 +411,3 @@ void DrawObjectManager::MergeSortedDraws(SortedDrawList* sorted_draw_list) {
 }  // namespace rasterizer
 }  // namespace renderer
 }  // namespace cobalt
-
-#endif  // SB_API_VERSION >= 12 || SB_HAS(GLES2)

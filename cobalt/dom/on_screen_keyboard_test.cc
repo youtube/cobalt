@@ -294,18 +294,12 @@ bool OnScreenKeyboardTest::EvaluateScript(const std::string& js_code,
 
 }  // namespace
 
-#if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
-
 bool SkipLocale() {
-#if SB_API_VERSION >= 12
   bool skipTests = !SbWindowOnScreenKeyboardIsSupported();
   if (skipTests) {
     SB_LOG(INFO) << "On screen keyboard not supported. Test skipped.";
   }
   return skipTests;
-#else
-  return false;
-#endif
 }
 
 TEST_F(OnScreenKeyboardTest, ObjectExists) {
@@ -708,36 +702,6 @@ TEST_F(OnScreenKeyboardTest, KeepFocus) {
   )";
   EXPECT_TRUE(EvaluateScript(script, NULL));
 }
-#else   // SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
-TEST_F(OnScreenKeyboardTest, ObjectDoesntExist) {
-  std::string result;
-
-  EXPECT_TRUE(
-      EvaluateScript("window.hasOwnProperty('onScreenKeyboard');", &result));
-  EXPECT_EQ("false", result);
-  EXPECT_TRUE(EvaluateScript("window.onScreenKeyboard;", &result));
-  EXPECT_FALSE(bindings::testing::IsAcceptablePrototypeString(
-      "OnScreenKeyboard", result));
-  EXPECT_TRUE(EvaluateScript("typeof window.onScreenKeyboard === 'undefined';",
-                             &result));
-  EXPECT_EQ("true", result);
-
-  // We should be able to assign anything we like to window.onScreenKeyboard.
-  const char number_script[] = R"(
-    window.onScreenKeyboard = 42;
-    window.onScreenKeyboard;
-  )";
-  EXPECT_TRUE(EvaluateScript(number_script, &result));
-  EXPECT_EQ("42", result);
-
-  const char object_script[] = R"(
-    window.onScreenKeyboard = {foo: 'bar'};
-    window.onScreenKeyboard.hasOwnProperty('foo');
-  )";
-  EXPECT_TRUE(EvaluateScript(object_script, &result));
-  EXPECT_EQ("true", result);
-}
-#endif  // SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
 
 }  // namespace dom
 }  // namespace cobalt

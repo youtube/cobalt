@@ -26,9 +26,7 @@ using starboard::shared::de265::is_de265_supported;
 using starboard::shared::starboard::media::IsSDRVideo;
 
 bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
-#if SB_API_VERSION >= 12
                              const char* content_type,
-#endif  // SB_API_VERSION >= 12
 #if SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
                              int profile,
                              int level,
@@ -44,12 +42,10 @@ bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
                              bool decode_to_texture_required) {
 #if SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
 
-#if SB_API_VERSION >= 12
   if (!content_type) {
     SB_LOG(WARNING) << "|content_type| cannot be nullptr.";
     return false;
   }
-#endif  // SB_API_VERSION >= 12
 
   if (!IsSDRVideo(bit_depth, primary_id, transfer_id, matrix_id)) {
     if (bit_depth != 10 && bit_depth != 12) {

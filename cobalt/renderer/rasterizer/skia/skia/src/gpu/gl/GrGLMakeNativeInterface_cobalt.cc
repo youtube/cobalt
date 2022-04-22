@@ -13,7 +13,6 @@
 // limitations under the License.
 
 #include "starboard/configuration.h"
-#if SB_API_VERSION >= 12 || SB_HAS(GLES2)
 
 #include "cobalt/renderer/egl_and_gles.h"
 #include "third_party/skia/include/gpu/gl/GrGLAssembleInterface.h"
@@ -74,9 +73,6 @@ GrGLFuncPtr GetGLProc(void* ctx, const char name[]) {
   REGISTER_GL_FUNCTION(GetShaderInfoLog);
   REGISTER_GL_FUNCTION(GetShaderiv);
   REGISTER_GL_FUNCTION(GetString);
-#if SB_API_VERSION < 12 && defined(GLES3_SUPPORTED)
-  REGISTER_GL_FUNCTION(GetStringi);
-#endif
   REGISTER_GL_FUNCTION(GetUniformLocation);
   REGISTER_GL_FUNCTION(IsTexture);
   REGISTER_GL_FUNCTION(LinkProgram);
@@ -149,12 +145,3 @@ sk_sp<const GrGLInterface> GrGLMakeNativeInterface() {
 const GrGLInterface* GrGLCreateNativeInterface() {
   return GrGLAssembleInterface(NULL, &GetGLProc);
 }
-#else  // SB_API_VERSION >= 12 || SB_HAS(GLES2)
-
-#include "third_party/skia/include/gpu/gl/GrGLInterface.h"
-
-sk_sp<const GrGLInterface> GrGLMakeNativeInterface() { return nullptr; }
-
-const GrGLInterface* GrGLCreateNativeInterface() { return nullptr; }
-
-#endif  // SB_API_VERSION >= 12 || SB_HAS(GLES2)

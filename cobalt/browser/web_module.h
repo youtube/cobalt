@@ -264,7 +264,6 @@ class WebModule : public base::MessageLoop::DestructionObserver,
             const Options& options);
   ~WebModule();
 
-#if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
   // Injects an on screen keyboard input event into the web module. The value
   // for type represents beforeinput or input.
   void InjectOnScreenKeyboardInputEvent(base::Token type,
@@ -280,8 +279,6 @@ class WebModule : public base::MessageLoop::DestructionObserver,
   // Injects an on screen keyboard suggestions updated event into the web
   // module.
   void InjectOnScreenKeyboardSuggestionsUpdatedEvent(int ticket);
-#endif  // SB_API_VERSION >= 12 ||
-        // SB_HAS(ON_SCREEN_KEYBOARD)
 
   void InjectWindowOnOnlineEvent(const base::Event* event);
   void InjectWindowOnOfflineEvent(const base::Event* event);

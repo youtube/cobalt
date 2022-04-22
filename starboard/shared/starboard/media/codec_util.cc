@@ -624,7 +624,6 @@ SbMediaAudioCodec GetAudioCodecFromString(const char* codec) {
   if (strncmp(codec, "mp4a.40.", 8) == 0) {
     return kSbMediaAudioCodecAac;
   }
-#if SB_API_VERSION >= 12 || defined(SB_HAS_AC3_AUDIO)
   if (kSbHasAc3Audio) {
     if (strcmp(codec, "ac-3") == 0) {
       return kSbMediaAudioCodecAc3;
@@ -633,8 +632,6 @@ SbMediaAudioCodec GetAudioCodecFromString(const char* codec) {
       return kSbMediaAudioCodecEac3;
     }
   }
-#endif  // SB_API_VERSION >= 12 ||
-        // defined(SB_HAS_AC3_AUDIO)
   if (strncmp(codec, "opus", 4) == 0) {
     return kSbMediaAudioCodecOpus;
   }

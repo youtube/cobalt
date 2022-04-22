@@ -80,7 +80,6 @@ std::vector<std::string> FindAllWithPrefix(const std::string& dir,
 
   std::vector<std::string> filenames;
 
-#if SB_API_VERSION >= 12
   std::vector<char> filename(kSbFileMaxName);
 
   while (SbDirectoryGetNext(slot, filename.data(), filename.size())) {
@@ -89,17 +88,6 @@ std::vector<std::string> FindAllWithPrefix(const std::string& dir,
     if (!strncmp(prefix.data(), filename.data(), prefix.size()))
       filenames.push_back(std::string(filename.data()));
   }
-#else
-  SbDirectoryEntry entry;
-
-  while (SbDirectoryGetNext(slot, &entry)) {
-    if (!strcmp(entry.name, ".") || !strcmp(entry.name, ".."))
-      continue;
-    if (!strncmp(prefix.data(), entry.name, prefix.size()))
-      filenames.push_back(std::string(entry.name));
-  }
-#endif
-
   SbDirectoryClose(slot);
   return filenames;
 }

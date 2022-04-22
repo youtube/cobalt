@@ -58,11 +58,7 @@ class TLSKeyManager {
   struct KeyRecord {
     bool valid;
     SbThreadLocalDestructor destructor;
-#if SB_API_VERSION >= 12
     std::vector<void*> values(kMaxThreads);
-#else   // SB_API_VERSION >= 12
-    void* values[kMaxThreads];
-#endif  // SB_API_VERSION >= 12
   };
 
   // Sets up the specified key.

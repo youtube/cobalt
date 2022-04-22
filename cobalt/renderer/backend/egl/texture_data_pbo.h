@@ -16,9 +16,7 @@
 #define COBALT_RENDERER_BACKEND_EGL_TEXTURE_DATA_PBO_H_
 
 #if defined(GLES3_SUPPORTED)
-#if SB_API_VERSION >= 12
 #error "Support for gles3 features has been deprecated."
-#endif
 
 #include <GLES3/gl3.h>
 

@@ -64,12 +64,8 @@ class InputEvent : public base::Event {
              const math::PointF& position = math::PointF(),
              const math::PointF& delta = math::PointF(), float pressure = 0,
              const math::PointF& size = math::PointF(),
-             const math::PointF& tilt = math::PointF()
-#if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
-                 ,
+             const math::PointF& tilt = math::PointF(),
              const std::string& input_text = "", bool is_composing = false
-#endif  // SB_API_VERSION >= 12 ||
-             // SB_HAS(ON_SCREEN_KEYBOARD)
              )
       : timestamp_(timestamp),
         type_(type),
@@ -81,13 +77,9 @@ class InputEvent : public base::Event {
         delta_(delta),
         pressure_(pressure),
         size_(size),
-        tilt_(tilt)
-#if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
-        ,
+        tilt_(tilt),
         input_text_(input_text),
         is_composing_(is_composing)
-#endif  // SB_API_VERSION >= 12 ||
-        // SB_HAS(ON_SCREEN_KEYBOARD)
   {
   }
 
@@ -104,11 +96,8 @@ class InputEvent : public base::Event {
   float pressure() const { return pressure_; }
   const math::PointF& size() const { return size_; }
   const math::PointF& tilt() const { return tilt_; }
-#if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
   const std::string& input_text() const { return input_text_; }
   bool is_composing() const { return is_composing_; }
-#endif  // SB_API_VERSION >= 12 ||
-        // SB_HAS(ON_SCREEN_KEYBOARD)
 
   BASE_EVENT_SUBCLASS(InputEvent);
 
@@ -124,11 +113,8 @@ class InputEvent : public base::Event {
   float pressure_;
   math::PointF size_;
   math::PointF tilt_;
-#if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
   std::string input_text_;
   bool is_composing_;
-#endif  // SB_API_VERSION >= 12 ||
-        // SB_HAS(ON_SCREEN_KEYBOARD)
 };
 
 // The Starboard Event handler SbHandleEvent should call this function on

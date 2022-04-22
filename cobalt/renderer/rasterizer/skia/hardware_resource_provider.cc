@@ -14,8 +14,6 @@
 
 #include "starboard/configuration.h"
 
-#if SB_API_VERSION >= 12 || SB_HAS(GLES2)
-
 #include "cobalt/renderer/rasterizer/skia/hardware_resource_provider.h"
 
 #include <memory>
@@ -573,5 +571,3 @@ scoped_refptr<render_tree::Image> HardwareResourceProvider::DrawOffscreenImage(
 }  // namespace rasterizer
 }  // namespace renderer
 }  // namespace cobalt
-
-#endif  // SB_API_VERSION >= 12 || SB_HAS(GLES2)

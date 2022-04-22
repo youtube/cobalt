@@ -24,14 +24,12 @@
 #include "starboard/shared/internal_only.h"
 
 struct SbAudioSinkPrivate {
-#if SB_API_VERSION >= 12
   // When |capability_changed| is true, it hints that the error is caused by a
   // a transient capability on the platform.  The app should retry playback to
   // recover from the error.
   typedef void (*ErrorFunc)(bool capability_changed,
                             const std::string& error_message,
                             void* context);
-#endif  // SB_API_VERSION >= 12
 
   typedef std::function<
       void(int frames_consumed, SbTime frames_consumed_at, void* context)>
@@ -51,9 +49,7 @@ struct SbAudioSinkPrivate {
         int frame_buffers_size_in_frames,
         SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
         ConsumeFramesFunc consume_frames_func,
-#if SB_API_VERSION >= 12
         ErrorFunc error_func,
-#endif  // SB_API_VERSION >= 12
         void* context) = 0;
     virtual bool IsValid(SbAudioSink audio_sink) = 0;
     virtual void Destroy(SbAudioSink audio_sink) = 0;
@@ -95,9 +91,7 @@ struct SbAudioSinkPrivate {
       int frame_buffers_size_in_frames,
       SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
       ConsumeFramesFunc consume_frames_func,
-#if SB_API_VERSION >= 12
       ErrorFunc error_func,
-#endif  // SB_API_VERSION >= 12
       void* context);
 
   static SbAudioSink Create(
@@ -109,9 +103,7 @@ struct SbAudioSinkPrivate {
       int frame_buffers_size_in_frames,
       SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
       SbAudioSinkConsumeFramesFunc sb_consume_frames_func,
-#if SB_API_VERSION >= 12
       ErrorFunc error_func,
-#endif  // SB_API_VERSION >= 12
       void* context);
 
   // Individual implementation has to provide implementation of the following

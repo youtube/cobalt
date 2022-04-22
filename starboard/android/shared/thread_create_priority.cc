@@ -23,8 +23,6 @@ namespace starboard {
 namespace shared {
 namespace pthread {
 
-#if SB_API_VERSION >= 12 || SB_HAS(THREAD_PRIORITY_SUPPORT)
-
 void SetNiceValue(int nice) {
   int result = setpriority(PRIO_PROCESS, 0, nice);
   if (result != 0) {
@@ -64,8 +62,6 @@ void ThreadSetPriority(SbThreadPriority priority) {
   }
 }
 
-#endif  // SB_API_VERSION >= 12 ||
-        // SB_HAS(THREAD_PRIORITY_SUPPORT)
 }  // namespace pthread
 }  // namespace shared
 }  // namespace starboard

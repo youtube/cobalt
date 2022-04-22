@@ -126,7 +126,6 @@ class WebModule::Impl {
   }
 #endif  // ENABLE_DEBUGGER
 
-#if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
   // Injects an on screen keyboard input event into the web module. Event is
   // directed at a specific element if the element is non-null. Otherwise, the
   // currently focused element receives the event. If element is specified, we
@@ -149,8 +148,6 @@ class WebModule::Impl {
   // Injects an on screen keyboard suggestions updated event into the web
   // module. Event is directed at the on screen keyboard element.
   void InjectOnScreenKeyboardSuggestionsUpdatedEvent(int ticket);
-#endif  // SB_API_VERSION >= 12 ||
-        // SB_HAS(ON_SCREEN_KEYBOARD)
 
   // Injects a keyboard event into the web module. Event is directed at a
   // specific element if the element is non-null. Otherwise, the currently
@@ -815,7 +812,6 @@ void WebModule::Impl::InjectInputEvent(scoped_refptr<dom::Element> element,
   }
 }
 
-#if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
 void WebModule::Impl::InjectOnScreenKeyboardInputEvent(
     base::Token type, const dom::InputEventInit& event,
     scoped_refptr<dom::Element> element) {
@@ -869,8 +865,7 @@ void WebModule::Impl::InjectOnScreenKeyboardSuggestionsUpdatedEvent(
 
   window_->on_screen_keyboard()->DispatchSuggestionsUpdatedEvent(ticket);
 }
-#endif  // SB_API_VERSION >= 12 ||
-        // SB_HAS(ON_SCREEN_KEYBOARD)
+
 
 void WebModule::Impl::InjectKeyboardEvent(base::Token type,
                                           const dom::KeyboardEventInit& event,
@@ -1420,7 +1415,6 @@ void WebModule::Initialize(const ConstructionData& data,
 #define POST_AND_BLOCK_TO_ENSURE_IMPL_ON_THREAD(function, ...) \
   TASK_TO_ENSURE_IMPL_ON_THREAD(PostBlockingTask, function, ##__VA_ARGS__)
 
-#if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
 void WebModule::InjectOnScreenKeyboardInputEvent(
     base::Token type, const dom::InputEventInit& event) {
   TRACE_EVENT1("cobalt::browser",
@@ -1470,8 +1464,7 @@ void WebModule::InjectOnScreenKeyboardSuggestionsUpdatedEvent(int ticket) {
                                 ticket);
   impl_->InjectOnScreenKeyboardSuggestionsUpdatedEvent(ticket);
 }
-#endif  // SB_API_VERSION >= 12 ||
-        // SB_HAS(ON_SCREEN_KEYBOARD)
+
 
 void WebModule::InjectKeyboardEvent(base::Token type,
                                     const dom::KeyboardEventInit& event) {

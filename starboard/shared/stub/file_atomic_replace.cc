@@ -14,12 +14,8 @@
 
 #include "starboard/file.h"
 
-#if SB_API_VERSION >= 12
-
 bool SbFileAtomicReplace(const char* path,
                          const char* data,
                          int64_t data_size) {
   return false;
 }
-
-#endif  // SB_API_VERSION >= 12

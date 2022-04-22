@@ -137,8 +137,6 @@ SB_EXPORT bool SbWindowGetSize(SbWindow window, SbWindowSize* size);
 // |window|: The SbWindow to retrieve the platform handle for.
 SB_EXPORT void* SbWindowGetPlatformHandle(SbWindow window);
 
-#if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
-
 // System-triggered OnScreenKeyboard events have ticket value
 // kSbEventOnScreenKeyboardInvalidTicket.
 #define kSbEventOnScreenKeyboardInvalidTicket (-1)
@@ -152,10 +150,8 @@ typedef struct SbWindowRect {
   float height;
 } SbWindowRect;
 
-#if SB_API_VERSION >= 12
 // Return whether the current platform supports an on screen keyboard
 SB_EXPORT bool SbWindowOnScreenKeyboardIsSupported();
-#endif
 
 // Determine if the on screen keyboard is shown.
 SB_EXPORT bool SbWindowIsOnScreenKeyboardShown(SbWindow window);
@@ -224,9 +220,6 @@ SB_EXPORT void SbWindowUpdateOnScreenKeyboardSuggestions(
 // returns false, then calling SbWindowUpdateOnScreenKeyboardSuggestions() will
 // be undefined.
 SB_EXPORT bool SbWindowOnScreenKeyboardSuggestionsSupported(SbWindow window);
-
-#endif  // SB_API_VERSION >= 12 ||
-        // SB_HAS(ON_SCREEN_KEYBOARD)
 
 #ifdef __cplusplus
 }  // extern "C"

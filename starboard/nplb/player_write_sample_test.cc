@@ -296,9 +296,7 @@ void SbPlayerWriteSampleTest::GetDecodeTargetWhenSupported() {
   fake_graphics_context_provider_.RunOnGlesContextThread([&]() {
     ASSERT_TRUE(SbPlayerIsValid(player_));
     if (output_mode_ != kSbPlayerOutputModeDecodeToTexture) {
-#if SB_API_VERSION >= 12
       ASSERT_EQ(SbPlayerGetCurrentFrame(player_), kSbDecodeTargetInvalid);
-#endif  // SB_API_VERSION >= 12
       return;
     }
     ASSERT_EQ(output_mode_, kSbPlayerOutputModeDecodeToTexture);
@@ -318,13 +316,6 @@ void SbPlayerWriteSampleTest::OnDecoderState(SbPlayer player,
     case kSbPlayerDecoderStateNeedsData:
       callback_event_queue_.Put(CallbackEvent(player, state, ticket));
       break;
-#if SB_API_VERSION < 12
-    // Note: we do not add these events to the queue since these states are not
-    // used in Cobalt and are being deprecated.
-    case kSbPlayerDecoderStateBufferFull:
-    case kSbPlayerDecoderStateDestroyed:
-      break;
-#endif  // SB_API_VERSION < 12
   }
 }
 

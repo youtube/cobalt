@@ -127,12 +127,6 @@
 
 // --- Memory Configuration --------------------------------------------------
 
-// Whether this platform has and should use an MMAP function to map physical
-// memory to the virtual address space.
-#if SB_API_VERSION < 12
-#define SB_HAS_MMAP 1
-#endif
-
 // Whether this platform can map executable memory. Implies SB_HAS_MMAP. This is
 // required for platforms that want to JIT.
 #define SB_CAN_MAP_EXECUTABLE_MEMORY 1

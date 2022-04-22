@@ -17,8 +17,6 @@
 
 #include "starboard/microphone.h"
 
-#if SB_API_VERSION >= 12 || SB_HAS(MICROPHONE)
-
 namespace starboard {
 namespace nplb {
 const int kMaxNumberOfMicrophone = 20;
@@ -26,8 +24,5 @@ const int kBufferSize = 32 * 1024;
 const int kNormallyUsedSampleRateInHz = 16000;
 }  // namespace nplb
 }  // namespace starboard
-
-#endif  // SB_API_VERSION >= 12 ||
-        // SB_HAS(MICROPHONE)
 
 #endif  // STARBOARD_NPLB_MICROPHONE_HELPERS_H_

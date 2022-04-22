@@ -23,13 +23,10 @@
 #include "starboard/configuration.h"
 #include "starboard/export.h"
 #include "starboard/thread.h"
-#include "starboard/thread_types.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#if SB_API_VERSION >= 12
 
 // Max size of the SbMutex type.
 #define SB_MUTEX_MAX_SIZE 80
@@ -53,8 +50,6 @@ typedef union SbMutex {
 #define SB_MUTEX_INITIALIZER \
   { 0 }
 #endif
-
-#endif  // SB_API_VERSION >= 12
 
 // Enumeration of possible results from acquiring a mutex.
 typedef enum SbMutexResult {
@@ -82,17 +77,10 @@ static SB_C_FORCE_INLINE bool SbMutexIsSuccess(SbMutexResult result) {
 // |out_mutex|: The handle to the newly created mutex.
 SB_EXPORT bool SbMutexCreate(SbMutex* out_mutex);
 
-#if SB_API_VERSION >= 12
 // Destroys a mutex. The return value indicates whether the destruction was
 // successful. Destroying a locked mutex results in undefined behavior.
 //
 // |mutex|: The mutex to be invalidated.
-#else   // SB_API_VERSION >= 12
-// Destroys a mutex. The return value indicates whether the destruction was
-// successful.
-//
-// |mutex|: The mutex to be invalidated.
-#endif  // SB_API_VERSION >= 12
 SB_EXPORT bool SbMutexDestroy(SbMutex* mutex);
 
 // Acquires |mutex|, blocking indefinitely. The return value identifies
@@ -102,19 +90,11 @@ SB_EXPORT bool SbMutexDestroy(SbMutex* mutex);
 // |mutex|: The mutex to be acquired.
 SB_EXPORT SbMutexResult SbMutexAcquire(SbMutex* mutex);
 
-#if SB_API_VERSION >= 12
 // Acquires |mutex|, without blocking. The return value identifies
 // the acquisition result. SbMutexes are not reentrant, so a recursive
 // acquisition has undefined behavior.
 //
 // |mutex|: The mutex to be acquired.
-#else   // SB_API_VERSION >= 12
-// Acquires |mutex|, without blocking. The return value identifies
-// the acquisition result. SbMutexes are not reentrant, so a recursive
-// acquisition always fails.
-//
-// |mutex|: The mutex to be acquired.
-#endif  // SB_API_VERSION >= 12
 SB_EXPORT SbMutexResult SbMutexAcquireTry(SbMutex* mutex);
 
 // Releases |mutex| held by the current thread. The return value indicates

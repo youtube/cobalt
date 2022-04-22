@@ -63,7 +63,6 @@ typedef struct SbAccessibilityDisplaySettings {
 SB_EXPORT bool SbAccessibilityGetDisplaySettings(
     SbAccessibilityDisplaySettings* out_settings);
 
-#if SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
 // Enum for possible closed captioning character edge styles.
 typedef enum SbAccessibilityCaptionCharacterEdgeStyle {
   kSbAccessibilityCaptionCharacterEdgeStyleNone,
@@ -223,8 +222,6 @@ SB_EXPORT bool SbAccessibilityGetCaptionSettings(
 // |enabled|: A boolean indicating whether captions should be turned on (true)
 //    or off (false).
 SB_EXPORT bool SbAccessibilitySetCaptionsEnabled(bool enabled);
-
-#endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
 
 #ifdef __cplusplus
 }  // extern "C"

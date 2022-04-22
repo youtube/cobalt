@@ -16,8 +16,6 @@
 #include "starboard/nplb/file_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if SB_API_VERSION >= 12
-
 namespace starboard {
 namespace nplb {
 namespace {
@@ -97,5 +95,3 @@ TEST(SbFileAtomicReplaceTest, FailsWithInvalidLength) {
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
-
-#endif  // SB_API_VERSION >= 12

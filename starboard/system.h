@@ -64,12 +64,10 @@ typedef enum SbSystemPathId {
   // Full path to the executable file.
   kSbSystemPathExecutableFile,
 
-#if SB_API_VERSION >= 12
   // Path to a directory for permanent file storage. Both read and write
   // access is required. This is where an app may store its persistent settings.
   // The location should be user agnostic if possible.
   kSbSystemPathStorageDirectory,
-#endif
 } SbSystemPathId;
 
 // System properties that can be queried for. Many of these are used in
@@ -109,16 +107,9 @@ typedef enum SbSystemPropertyId {
   // The year the device was launched, e.g. "2016".
   kSbSystemPropertyModelYear,
 
-#if SB_API_VERSION >= 12
   // The corporate entity responsible for submitting the device to YouTube
   // certification and for the device maintenance/updates.
   kSbSystemPropertySystemIntegratorName,
-#else
-  // The corporate entity responsible for the manufacturing/assembly of the
-  // device on behalf of the business entity owning the brand.  This is often
-  // abbreviated as ODM.
-  kSbSystemPropertyOriginalDesignManufacturerName,
-#endif
 
   // The name of the operating system and platform, suitable for inclusion in a
   // User-Agent, say.

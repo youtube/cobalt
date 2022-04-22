@@ -595,7 +595,6 @@ bool InstallationManager::SaveInstallationStore() {
   installation_store_.SerializeToArray(buf.data(),
                                        installation_store_.ByteSize());
 
-#if SB_API_VERSION >= 12
   if (!SbFileAtomicReplace(store_path_.c_str(), buf.data(),
                            installation_store_.ByteSize())) {
     SB_LOG(ERROR)
@@ -605,31 +604,17 @@ bool InstallationManager::SaveInstallationStore() {
   }
   SB_DLOG(INFO) << "SaveInstallationStore successful";
   return true;
-
-#else
-  SB_NOTREACHED()
-      << "SbFileAtomicReplace is not available before starboard version 12";
-  return false;
-#endif
 }
 
 bool InstallationManager::InitInstallationStorePath() {
   std::vector<char> storage_dir(kSbFileMaxPath);
-#if SB_API_VERSION >= 12
+
   if (!SbSystemGetPath(kSbSystemPathStorageDirectory, storage_dir.data(),
                        kSbFileMaxPath)) {
     SB_LOG(ERROR) << "InitInstallationStorePath: Failed to get "
                      "kSbSystemPathStorageDirectory";
     return false;
   }
-#else
-  SB_NOTREACHED() << "InitInstallationStorePath: kSbSystemPathStorageDirectory "
-                     "is not available before "
-                     "starboard version "
-                  << 12;
-  return false;
-
-#endif
   storage_dir_ = storage_dir.data();
   store_path_ = storage_dir.data();
   store_path_ += kSbFileSepString;

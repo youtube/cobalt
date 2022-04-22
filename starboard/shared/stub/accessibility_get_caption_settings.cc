@@ -17,7 +17,6 @@
 #include "starboard/accessibility.h"
 #include "starboard/common/memory.h"
 
-#if SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
 bool SbAccessibilityGetCaptionSettings(
     SbAccessibilityCaptionSettings* caption_settings) {
   if (!caption_settings ||
@@ -30,4 +29,3 @@ bool SbAccessibilityGetCaptionSettings(
   // explicitly set states to kSbAccessibilityCaptionStateUnsupported.
   return true;
 }
-#endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)

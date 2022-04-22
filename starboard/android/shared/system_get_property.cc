@@ -121,11 +121,7 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
       return CopyStringAndTestIfSuccess(out_value, value_length, year.c_str());
     }
 
-#if SB_API_VERSION >= 12
     case kSbSystemPropertySystemIntegratorName:
-#else
-    case kSbSystemPropertyOriginalDesignManufacturerName:
-#endif
       return GetAndroidSystemProperty("ro.product.manufacturer", out_value,
                                       value_length, kUnknownValue);
 

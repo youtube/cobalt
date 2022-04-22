@@ -10,7 +10,7 @@
 #ifndef SkPostConfig_DEFINED
 #define SkPostConfig_DEFINED
 
-#if defined(STARBOARD) && SB_API_VERSION >= 12
+#if defined(STARBOARD)
 #include "base/logging.h"
 #include "include/core/SkTypes.h"
 #endif
@@ -145,7 +145,7 @@
 // If SK_R32_SHIFT is set, we'll use that to choose RGBA or BGRA.
 // If not, we'll default to RGBA everywhere except BGRA on Windows.
 #if defined(SK_R32_SHIFT)
-#if !defined(STARBOARD) || SB_API_VERSION < 12
+#if !defined(STARBOARD)
     static_assert(SK_R32_SHIFT == 0 || SK_R32_SHIFT == 16, "");
 #endif
 #elif defined(SK_BUILD_FOR_WIN)
@@ -155,7 +155,7 @@
 #endif
 
 #if defined(SK_B32_SHIFT)
-#if !defined(STARBOARD) || SB_API_VERSION < 12
+#if !defined(STARBOARD)
     static_assert(SK_B32_SHIFT == (16-SK_R32_SHIFT), "");
 #endif
 #else
@@ -195,7 +195,7 @@
          SK_ ## C3 ## 32_SHIFT == 24)
 #endif
 
-#if defined(STARBOARD) && SB_API_VERSION >= 12
+#if defined(STARBOARD)
     typedef enum SkPmcolor { SkPmcolorIsRgba, SkPmcolorIsBgra } SkPmColor;
 
     inline SkPmcolor GetSkPmcolor() {

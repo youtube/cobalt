@@ -48,7 +48,6 @@ TEST(SbAccessibilityTest, CallDisplayWithInvalidArgument) {
   EXPECT_FALSE(SbAccessibilityGetDisplaySettings(NULL));
 }
 
-#if SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
 TEST(SbAccessibilityTest, CallGetCaptionSettingsWithInvalidArgument) {
   // |settings| should be zero-initialized.
   const int kInvalidValue = 0xFE;
@@ -156,7 +155,6 @@ TEST(SbAccessibilityTest, CallSetCaptionsEnabled) {
     EXPECT_EQ(settings.is_enabled, settings3.is_enabled);
   }
 }
-#endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
 
 }  // namespace
 }  // namespace nplb

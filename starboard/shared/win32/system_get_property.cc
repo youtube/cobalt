@@ -45,11 +45,7 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
     case kSbSystemPropertyFirmwareVersion:
     case kSbSystemPropertyModelName:
     case kSbSystemPropertyModelYear:
-#if SB_API_VERSION >= 12
     case kSbSystemPropertySystemIntegratorName:
-#else
-    case kSbSystemPropertyOriginalDesignManufacturerName:
-#endif
     case kSbSystemPropertySpeechApiKey:
       return false;
 

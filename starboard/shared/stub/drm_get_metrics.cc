@@ -14,8 +14,6 @@
 
 #include "starboard/drm.h"
 
-#if SB_API_VERSION >= 12
-
 const void* SbDrmGetMetrics(SbDrmSystem drm_system, int* size) {
   if (size != NULL) {
     *size = 0;
@@ -23,5 +21,3 @@ const void* SbDrmGetMetrics(SbDrmSystem drm_system, int* size) {
 
   return NULL;
 }
-
-#endif  // SB_API_VERSION >= 12

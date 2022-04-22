@@ -15,7 +15,6 @@
  */
 
 #include "starboard/configuration.h"
-#if SB_API_VERSION >= 12 || SB_HAS(GLES2)
 
 #include "cobalt/renderer/rasterizer/skia/hardware_mesh.h"
 
@@ -86,5 +85,3 @@ HardwareMesh::~HardwareMesh() {
 }  // namespace rasterizer
 }  // namespace renderer
 }  // namespace cobalt
-
-#endif  // SB_API_VERSION >= 12 || SB_HAS(GLES2)

@@ -13,7 +13,6 @@
 // limitations under the License.
 
 #include "starboard/configuration.h"
-#if SB_API_VERSION >= 12 || SB_HAS(GLES2)
 
 #include "cobalt/renderer/rasterizer/egl/draw_rrect_color_texture.h"
 
@@ -82,7 +81,7 @@ DrawRRectColorTexture::DrawRRectColorTexture(
       "color_transform_ and color_transform_in_column_major size mismatch");
 
   memcpy(color_transform_, color_transform_in_column_major,
-               sizeof(color_transform_));
+         sizeof(color_transform_));
   graphics_state->ReserveVertexData(kVertexCount * sizeof(VertexAttributes));
 
   // Extract scale from the transform and move it into the vertex attributes
@@ -163,7 +162,7 @@ void DrawRRectColorTexture::ExecuteUpdateVertexBuffer(
 
   for (int i = 1; i < SB_ARRAY_SIZE_INT(texcoord_clamps_); ++i) {
     memcpy(texcoord_clamps_[i], texcoord_clamps_[0],
-                 sizeof(texcoord_clamps_[0]));
+           sizeof(texcoord_clamps_[0]));
   }
   if (clamp_texcoords_) {
     // Inset 0.5-epsilon so the border texels are still sampled, but nothing
@@ -281,5 +280,3 @@ base::TypeId DrawRRectColorTexture::GetTypeId() const {
 }  // namespace rasterizer
 }  // namespace renderer
 }  // namespace cobalt
-
-#endif  // SB_API_VERSION >= 12 || SB_HAS(GLES2)

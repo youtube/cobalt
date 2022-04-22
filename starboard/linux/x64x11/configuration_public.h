@@ -45,12 +45,6 @@
 // Include the Linux configuration that's common between all Desktop Linuxes.
 #include "starboard/linux/shared/configuration_public.h"
 
-// Starboard API versions 11 and earlier must define this variable, and have
-// microphone supported.
-#if SB_API_VERSION < 12
-#define SB_HAS_MICROPHONE 1
-#endif  // SB_API_VERSION < 12
-
 // Whether the current platform implements the on screen keyboard interface.
 #define SB_HAS_ON_SCREEN_KEYBOARD 0
 

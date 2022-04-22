@@ -15,8 +15,6 @@
 #include "starboard/accessibility.h"
 #include "starboard/configuration.h"
 
-#if SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
 bool SbAccessibilitySetCaptionsEnabled(bool enabled) {
   return false;
 }
-#endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)

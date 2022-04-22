@@ -155,11 +155,7 @@ Application::Application() {
   SbEglInt32 context_attrib_list[] = {
       SB_EGL_CONTEXT_CLIENT_VERSION, 3, SB_EGL_NONE,
   };
-#if SB_API_VERSION < 12 && defined(GLES3_SUPPORTED)
-  // Attempt to create an OpenGL ES 3.0 context.
-  context_ = EGL_CALL_SIMPLE(eglCreateContext(
-      display_, config, SB_EGL_NO_CONTEXT, context_attrib_list));
-#endif
+
   if (context_ == SB_EGL_NO_CONTEXT) {
     // Create an OpenGL ES 2.0 context.
     context_attrib_list[1] = 2;

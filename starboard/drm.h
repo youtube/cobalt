@@ -83,8 +83,6 @@ typedef struct SbDrmKeyId {
   int identifier_size;
 } SbDrmKeyId;
 
-#if SB_API_VERSION >= 12
-
 // Encryption scheme of the input sample, as defined in ISO/IEC 23001 part 7.
 typedef enum SbDrmEncryptionScheme {
   kSbDrmEncryptionSchemeAesCtr,
@@ -97,17 +95,13 @@ typedef struct SbDrmEncryptionPattern {
   uint32_t skip_byte_block;
 } SbDrmEncryptionPattern;
 
-#endif  // SB_API_VERSION >= 12
-
 // All the optional information needed per sample for encrypted samples.
 typedef struct SbDrmSampleInfo {
-#if SB_API_VERSION >= 12
   // The encryption scheme of this sample.
   SbDrmEncryptionScheme encryption_scheme;
 
   // The encryption pattern of this sample.
   SbDrmEncryptionPattern encryption_pattern;
-#endif  // SB_API_VERSION >= 12
 
   // The Initialization Vector needed to decrypt this sample.
   uint8_t initialization_vector[16];
@@ -365,7 +359,6 @@ SB_EXPORT void SbDrmUpdateServerCertificate(SbDrmSystem drm_system,
                                             const void* certificate,
                                             int certificate_size);
 
-#if SB_API_VERSION >= 12
 // Get the metrics of the underlying drm system.
 //
 // When it is called on an implementation that supports drm system metrics, it
@@ -388,7 +381,6 @@ SB_EXPORT void SbDrmUpdateServerCertificate(SbDrmSystem drm_system,
 //
 // The caller will never set |size| to NULL.
 SB_EXPORT const void* SbDrmGetMetrics(SbDrmSystem drm_system, int* size);
-#endif  // SB_API_VERSION >= 12
 
 // Destroys |drm_system|, which implicitly removes all keys installed in it and
 // invalidates all outstanding session update requests. A DRM system cannot be

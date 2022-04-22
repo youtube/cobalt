@@ -35,14 +35,7 @@ void UpdateSourceStatusFuncStub(int* frames_in_buffer,
   *is_eos_reached = false;
 }
 
-#if SB_API_VERSION >= 12 || !SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
 void ConsumeFramesFuncStub(int frames_consumed, void* context) {}
-#else   // SB_API_VERSION >= 12 || !SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
-void ConsumeFramesFuncStub(int frames_consumed,
-                           SbTime frames_consumed_at,
-                           void* context) {}
-#endif  // SB_API_VERSION >= 12 || !SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
-
 }  // namespace
 
 TEST(SbAudioSinkCreateTest, SunnyDay) {

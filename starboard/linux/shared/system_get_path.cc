@@ -249,13 +249,11 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
       return false;
 #endif
 
-#if SB_API_VERSION >= 12
     case kSbSystemPathStorageDirectory:
       if (!GetStorageDirectory(path.data(), kPathSize)) {
         return false;
       }
       break;
-#endif
 
     default:
       SB_NOTIMPLEMENTED() << "SbSystemGetPath not implemented for "

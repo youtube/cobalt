@@ -194,10 +194,8 @@ typedef struct SbCPUFeaturesX86 {
 
   // SSE3 extensions.
   bool has_sse3;
-#if SB_API_VERSION >= 12
   // PCLMULQDQ instruction.
   bool has_pclmulqdq;
-#endif  // SB_API_VERSION >= 12
   // Supplemental SSE3 extensions.
   bool has_ssse3;
   // SSE-4.1 extensions.

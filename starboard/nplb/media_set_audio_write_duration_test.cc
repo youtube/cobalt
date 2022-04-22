@@ -279,9 +279,7 @@ std::vector<const char*> GetSupportedTests() {
     const SbMediaAudioSampleInfo* audio_sample_info =
         &dmp_reader.audio_sample_info();
     if (SbMediaIsAudioSupported(dmp_reader.audio_codec(),
-#if SB_API_VERSION >= 12
                                 "",  // content_type
-#endif // SB_API_VERSION >= 12
                                 dmp_reader.audio_bitrate())) {
       test_params.push_back(filename);
     }

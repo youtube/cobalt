@@ -150,7 +150,6 @@ source_set("starboard_headers_only") {
     "string.h",
     "system.h",
     "thread.h",
-    "thread_types.h",
     "time.h",
     "time_zone.h",
     "types.h",

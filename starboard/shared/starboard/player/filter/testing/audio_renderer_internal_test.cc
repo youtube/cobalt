@@ -273,19 +273,11 @@ class AudioRendererTest : public ::testing::Test {
 };
 
 bool HasAsyncAudioFramesReporting() {
-#if SB_API_VERSION >= 12
   // TODO: When deprecating Starboard API versions less than
   // 12 it is safe to assume that all tests can be run regardless of
   // whether the platform has asynchronous audio frames reporting.
   // This function can be removed then.
   return false;
-#else  // SB_API_VERSION >=  12
-#if SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
-  return true;
-#else   // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
-  return false;
-#endif  // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
-#endif  // SB_API_VERSION >=  12
 }
 
 // static

@@ -276,12 +276,6 @@ to achieve the same result as before when passing in a `SbDirectoryEntry`.
 A platform will define the extern constants declared in
 "starboard/configuration_constants.h". The definitions are done in
 "starboard/<PLATFORM_PATH>/configuration_constants.cc".
-
-The exact mapping between macros and extern variables can be found in
-"starboard/shared/starboard/configuration_constants_compatibility_defines.h"
-though the naming scheme is very nearly the same: the old SB_FOO macro will
-always become the constant kSbFoo.
-
 ### Improve player creation and output mode query.
 
 1. Introduce the new type SbPlayerCreationParam that holds the common

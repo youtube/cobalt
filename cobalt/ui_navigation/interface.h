@@ -21,8 +21,6 @@
 namespace cobalt {
 namespace ui_navigation {
 
-#if SB_API_VERSION >= 12
-
 // Alias the starboard interface. See starboard/ui_navigation.h for details.
 using NativeItem = SbUiNavItem;
 using NativeItemType = SbUiNavItemType;
@@ -33,39 +31,6 @@ using NativeMatrix2x3 = SbUiNavMatrix2x3;
 using NativeMatrix4 = SbUiNavMatrix4;
 using NativeCallbacks = SbUiNavCallbacks;
 #define kNativeItemInvalid kSbUiNavItemInvalid
-
-#else
-
-// Mimic the starboard interface. See starboard/ui_navigation.h for details.
-typedef void* NativeItem;
-
-enum NativeItemType {
-  kNativeItemTypeFocus,
-  kNativeItemTypeContainer,
-};
-
-struct NativeItemDir {
-  bool is_left_to_right;
-  bool is_top_to_bottom;
-};
-
-struct NativeMatrix2x3 {
-  float m[6];
-};
-
-struct NativeMatrix4 {
-  float m[16];
-};
-
-struct NativeCallbacks {
-  void (*onblur)(NativeItem item, void* callback_context);
-  void (*onfocus)(NativeItem item, void* callback_context);
-  void (*onscroll)(NativeItem item, void* callback_context);
-};
-
-#define kNativeItemInvalid nullptr
-
-#endif  // SB_API_VERSION >= 12
 
 struct NativeInterface {
   NativeItem (*create_item)(NativeItemType type,

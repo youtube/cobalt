@@ -15,8 +15,6 @@
 #include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if SB_API_VERSION >= 12
-
 namespace starboard {
 namespace sabi {
 namespace {
@@ -25,7 +23,7 @@ static constexpr int32_t kCobalt21 = 0xC0BA1721;
 
 #if SB_IS(BIG_ENDIAN)
 static constexpr uint8_t kBytes[] = {0xC0, 0xBA, 0x17, 0x21};
-#else  // !SB_IS(BIG_ENDIAN)
+#else   // !SB_IS(BIG_ENDIAN)
 static constexpr uint8_t kBytes[] = {0x21, 0x17, 0xBA, 0xC0};
 #endif  // SB_IS(BIG_ENDIAN)
 
@@ -39,5 +37,3 @@ TEST(SbSabiEndiannessTest, Endianness) {
 
 }  // namespace sabi
 }  // namespace starboard
-
-#endif  // SB_API_VERSION >= 12

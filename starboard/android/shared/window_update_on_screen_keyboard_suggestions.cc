@@ -16,7 +16,6 @@
 
 #include "starboard/android/shared/application_android.h"
 
-#if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
 void SbWindowUpdateOnScreenKeyboardSuggestions(SbWindow window,
                                                const char* suggestions[],
                                                int num_suggestions,
@@ -30,5 +29,3 @@ void SbWindowUpdateOnScreenKeyboardSuggestions(SbWindow window,
                                                   ticket);
   return;
 }
-#endif  // SB_API_VERSION >= 12 ||
-        // SB_HAS(ON_SCREEN_KEYBOARD)

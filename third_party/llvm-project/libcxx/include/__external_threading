@@ -9,7 +9,6 @@
 #include "starboard/mutex.h"
 #include "starboard/once.h"
 #include "starboard/thread.h"
-#include "starboard/thread_types.h"
 #include "starboard/time.h"
 
 _LIBCPP_PUSH_MACROS

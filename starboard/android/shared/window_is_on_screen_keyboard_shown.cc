@@ -20,7 +20,6 @@
 using starboard::android::shared::JniEnvExt;
 using starboard::android::shared::ScopedLocalJavaRef;
 
-#if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
 bool SbWindowIsOnScreenKeyboardShown(SbWindow window) {
   JniEnvExt* env = JniEnvExt::Get();
 
@@ -31,5 +30,3 @@ bool SbWindowIsOnScreenKeyboardShown(SbWindow window) {
       j_keyboard_editor.Get(), "isKeyboardShowing", "()Z");
   return is_keyboard_shown;
 }
-#endif  // SB_API_VERSION >= 12 ||
-        // SB_HAS(ON_SCREEN_KEYBOARD)

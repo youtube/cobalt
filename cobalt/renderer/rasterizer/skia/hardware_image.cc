@@ -13,7 +13,6 @@
 // limitations under the License.
 
 #include "starboard/configuration.h"
-#if SB_API_VERSION >= 12 || SB_HAS(GLES2)
 
 #include "cobalt/renderer/rasterizer/skia/hardware_image.h"
 
@@ -385,8 +384,7 @@ HardwareFrontendImage::~HardwareFrontendImage() {
   if (rasterizer_task_runner_) {
     if (!rasterizer_task_runner_->BelongsToCurrentThread() ||
         !backend_image_->TryDestroy()) {
-      rasterizer_task_runner_->DeleteSoon(
-          FROM_HERE, backend_image_.release());
+      rasterizer_task_runner_->DeleteSoon(FROM_HERE, backend_image_.release());
     }
   }  // else let the scoped pointer clean it up immediately.
 }
@@ -493,5 +491,3 @@ bool HardwareMultiPlaneImage::EnsureInitialized() {
 }  // namespace rasterizer
 }  // namespace renderer
 }  // namespace cobalt
-
-#endif  // SB_API_VERSION >= 12 || SB_HAS(GLES2)

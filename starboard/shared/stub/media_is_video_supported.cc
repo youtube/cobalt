@@ -17,9 +17,7 @@
 #include "starboard/media.h"
 
 bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
-#if SB_API_VERSION >= 12
                              const char* content_type,
-#endif  // SB_API_VERSION >= 12
 #if SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
                              int profile,
                              int level,

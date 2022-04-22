@@ -106,16 +106,9 @@ std::map<std::string, std::string> GetPlatformInfo() {
   const size_t kSystemPropertyMaxLength = 1024;
   std::vector<char> value(kSystemPropertyMaxLength);
   bool result;
-
-#if SB_API_VERSION >= 12
   result = SbSystemGetProperty(kSbSystemPropertySystemIntegratorName,
                                value.data(),
                                kSystemPropertyMaxLength);
-#else
-  result = SbSystemGetProperty(kSbSystemPropertyOriginalDesignManufacturerName,
-                               value.data(),
-                               kSystemPropertyMaxLength);
-#endif
   if (result) {
     platform_info.insert({"system_integrator_name", value.data()});
   }

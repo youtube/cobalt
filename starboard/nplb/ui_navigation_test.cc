@@ -19,15 +19,11 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-#if SB_API_VERSION >= 12
-
 // This verifies that the UI navigation API is not implemented.
 TEST(UiNavigationTest, GetInterface) {
   SbUiNavInterface interface;
   EXPECT_FALSE(SbUiNavGetInterface(&interface));
 }
-
-#endif  // SB_API_VERSION >= 12
 
 }  // namespace.
 }  // namespace nplb.

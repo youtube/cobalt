@@ -18,12 +18,10 @@
 #include "build/build_config.h"
 #include "starboard/configuration.h"
 
-#if SB_API_VERSION >= 12 || SB_HAS(MICROPHONE)
 #define SB_USE_SB_MICROPHONE 1
-#endif  // SB_API_VERSION >= 12 || SB_HAS(MICROPHONE)
 
 #if SB_API_VERSION == 12 || (SB_HAS(SPEECH_RECOGNIZER) && SB_API_VERSION < 13)
 #define SB_USE_SB_SPEECH_RECOGNIZER 1
-#endif  // SB_API_VERSION >= 12 || SB_HAS(SPEECH_RECOGNIZER)
+#endif  // SB_API_VERSION == 12 || SB_HAS(SPEECH_RECOGNIZER)
 
 #endif  // COBALT_SPEECH_SPEECH_CONFIGURATION_H_

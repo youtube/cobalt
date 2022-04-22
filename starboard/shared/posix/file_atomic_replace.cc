@@ -22,8 +22,6 @@
 #include "starboard/configuration_constants.h"
 #include "starboard/shared/starboard/file_atomic_replace_write_file.h"
 
-#if SB_API_VERSION >= 12
-
 namespace {
 
 const char kTempFileSuffix[] = ".temp";
@@ -55,5 +53,3 @@ bool SbFileAtomicReplace(const char* path,
   }
   return true;
 }
-
-#endif  // SB_API_VERSION >= 12

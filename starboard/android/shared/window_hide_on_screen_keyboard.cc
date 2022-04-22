@@ -16,11 +16,8 @@
 
 #include "starboard/android/shared/application_android.h"
 
-#if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
 void SbWindowHideOnScreenKeyboard(SbWindow window, int ticket) {
   starboard::android::shared::ApplicationAndroid::Get()
       ->SbWindowHideOnScreenKeyboard(window, ticket);
   return;
 }
-#endif  // SB_API_VERSION >= 12 ||
-        // SB_HAS(ON_SCREEN_KEYBOARD)

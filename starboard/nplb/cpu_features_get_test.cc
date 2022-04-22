@@ -68,9 +68,7 @@ void ExpectX86Invalid(const SbCPUFeatures& features) {
   EXPECT_EQ(false, features.x86.has_sse2);
   EXPECT_EQ(false, features.x86.has_tsc);
   EXPECT_EQ(false, features.x86.has_sse3);
-#if SB_API_VERSION >= 12
   EXPECT_EQ(false, features.x86.has_pclmulqdq);
-#endif  // SB_API_VERSION >= 12
   EXPECT_EQ(false, features.x86.has_ssse3);
   EXPECT_EQ(false, features.x86.has_sse41);
   EXPECT_EQ(false, features.x86.has_sse42);

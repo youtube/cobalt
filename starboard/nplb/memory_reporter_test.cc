@@ -336,7 +336,6 @@ TEST_F(MemoryReportingTest, CapturesRealloc) {
   EXPECT_EQ_NO_TRACKING(mem_reporter()->number_allocs(), 0);
 }
 
-#if SB_API_VERSION >= 12 || SB_HAS(MMAP)
 // Tests the assumption that the SbMemoryMap and SbMemoryUnmap
 // will report memory allocations.
 TEST_F(MemoryReportingTest, CapturesMemMapUnmap) {
@@ -359,7 +358,6 @@ TEST_F(MemoryReportingTest, CapturesMemMapUnmap) {
   // Call Clear() explicitly before TearDown() checks number_allocs_;
   mem_reporter()->Clear();
 }
-#endif  // SB_API_VERSION >= 12 || SB_HAS(MMAP)
 
 // Tests the assumption that the operator new/delete will report
 // memory allocations.

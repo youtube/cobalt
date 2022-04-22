@@ -3964,8 +3964,6 @@ TEST_F(PixelTest, DrawOffscreenYUVImage) {
   TestTree(new ImageNode(offscreen_rendered_image));
 }
 
-#if SB_API_VERSION >= 12 || ENABLE_MAP_TO_MESH
-
 namespace {
 scoped_refptr<Mesh> CreateCubeMesh(ResourceProvider* resource_provider) {
   // Defines a cube mesh where each face faces inward.  Each face has the entire
@@ -4087,9 +4085,6 @@ TEST_F(PixelTest, MapToMeshUYVYTest) {
       MakeUYVYImage(GetResourceProvider(), Size(200, 200));
   TestTree(CreateMapToMeshTestRenderTree(GetResourceProvider(), image));
 }
-
-#endif  // SB_API_VERSION >= 12 ||
-        // ENABLE_MAP_TO_MESH
 
 TEST_F(PixelTest, DrawNullImage) {
   // An ImageNode with no source is legal, though it should result in nothing

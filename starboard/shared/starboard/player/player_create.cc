@@ -156,9 +156,7 @@ SbPlayer SbPlayerCreate(SbWindow window,
   const int64_t kDefaultBitRate = 0;
   if (audio_codec != kSbMediaAudioCodecNone &&
       !SbMediaIsAudioSupported(audio_codec,
-#if SB_API_VERSION >= 12
                                audio_mime,
-#endif  // SB_API_VERSION >= 12
                                kDefaultBitRate)) {
     SB_LOG(ERROR) << "Unsupported audio codec "
                   << starboard::GetMediaAudioCodecName(audio_codec) << ".";
@@ -179,9 +177,7 @@ SbPlayer SbPlayerCreate(SbWindow window,
   if (video_codec != kSbMediaVideoCodecNone &&
       !SbMediaIsVideoSupported(
           video_codec,
-#if SB_API_VERSION >= 12
           video_mime,
-#endif  // SB_API_VERSION >= 12
 #if SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
           kDefaultProfile, kDefaultLevel, kDefaultColorDepth,
           kSbMediaPrimaryIdUnspecified, kSbMediaTransferIdUnspecified,

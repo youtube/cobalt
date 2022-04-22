@@ -18,7 +18,6 @@
 #ifndef STARBOARD_SHARED_WIN32_TYPES_INTERNAL_H_
 #define STARBOARD_SHARED_WIN32_TYPES_INTERNAL_H_
 
-#if SB_API_VERSION >= 12
 #define SB_WIN32_INTERNAL_MUTEX(mutex_ptr) \
   reinterpret_cast<PSRWLOCK>((mutex_ptr)->mutex_buffer)
 #define SB_WIN32_INTERNAL_CONDITION(condition_ptr) \
@@ -30,7 +29,5 @@
 #define SB_WIN32_INTERNAL_CONDITION(condition_ptr) \
   reinterpret_cast<PCONDITION_VARIABLE>(condition_ptr)
 #define SB_WIN32_INTERNAL_ONCE(once_ptr) reinterpret_cast<PINIT_ONCE>(once_ptr)
-
-#endif  // SB_API_VERSION >= 12
 
 #endif  // STARBOARD_SHARED_WIN32_TYPES_INTERNAL_H_

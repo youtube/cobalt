@@ -80,7 +80,7 @@
 #include "starboard/types.h"
 #endif
 
-#if defined(STARBOARD) && SB_API_VERSION >= 12
+#if defined(STARBOARD)
 #include "starboard/condition_variable.h"
 #endif
 

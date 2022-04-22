@@ -5,7 +5,6 @@
 #ifdef STARBOARD
 #include "starboard/common/log.h"
 #include "starboard/mutex.h"
-#include "starboard/thread_types.h"
 #include "starboard/types.h"
 #endif  // STARBOARD
 

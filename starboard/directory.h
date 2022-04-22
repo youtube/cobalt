@@ -34,14 +34,6 @@ struct SbDirectoryPrivate;
 // A handle to an open directory stream.
 typedef struct SbDirectoryPrivate* SbDirectory;
 
-#if SB_API_VERSION < 12
-// Represents a directory entry.
-typedef struct SbDirectoryEntry {
-  // The name of this directory entry.
-  char name[SB_FILE_MAX_NAME];
-} SbDirectoryEntry;
-#endif  // SB_API_VERSION < 12
-
 // Well-defined value for an invalid directory stream handle.
 #define kSbDirectoryInvalid ((SbDirectory)NULL)
 
@@ -66,7 +58,6 @@ SB_EXPORT SbDirectory SbDirectoryOpen(const char* path, SbFileError* out_error);
 // |directory|: The directory stream handle to close.
 SB_EXPORT bool SbDirectoryClose(SbDirectory directory);
 
-#if SB_API_VERSION >= 12
 // Populates |out_entry| with the next entry in the specified directory stream,
 // and moves the stream forward by one entry.
 //
@@ -87,22 +78,6 @@ SB_EXPORT bool SbDirectoryClose(SbDirectory directory);
 SB_EXPORT bool SbDirectoryGetNext(SbDirectory directory,
                                   char* out_entry,
                                   size_t out_entry_size);
-#else   // SB_API_VERSION >= 12
-// Populates |out_entry| with the next entry in the specified directory stream,
-// and moves the stream forward by one entry.
-//
-// Platforms may, but are not required to, return |.| (referring to the
-// directory itself) and/or |..| (referring to the directory's parent directory)
-// as entries in the directory stream.
-//
-// This function returns |true| if there was a next directory, and |false|
-// at the end of the directory stream.
-//
-// |directory|: The directory stream from which to retrieve the next directory.
-// |out_entry|: The variable to be populated with the next directory entry.
-SB_EXPORT bool SbDirectoryGetNext(SbDirectory directory,
-                                  SbDirectoryEntry* out_entry);
-#endif  // SB_API_VERSION >= 12
 
 // Indicates whether SbDirectoryOpen is allowed for the given |path|.
 //

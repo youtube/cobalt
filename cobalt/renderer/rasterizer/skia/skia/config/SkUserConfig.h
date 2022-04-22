@@ -113,7 +113,7 @@
 // would like these formats to match.
 // Always use OpenGL byte-order (RGBA).
 
-#if defined(STARBOARD) && SB_API_VERSION >= 12
+#if defined(STARBOARD)
 const uint8_t r32_or_bendian_a32_shift =
     kSbPreferredRgbaByteOrder == SB_PREFERRED_RGBA_BYTE_ORDER_BGRA ? 16 : 0;
 

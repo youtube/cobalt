@@ -18,7 +18,6 @@
 #include "starboard/configuration_constants.h"
 #include "starboard/nplb/thread_helpers.h"
 #include "starboard/thread.h"
-#include "starboard/thread_types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {

@@ -652,9 +652,7 @@ bool SbCPUFeaturesGet_X86(SbCPUFeatures* features) {
     features->x86.has_tsc = (cpuid_info[3] & (1 << 4)) != 0;
 
     features->x86.has_sse3 = (cpuid_info[2] & (1 << 0)) != 0;
-#if SB_API_VERSION >= 12
     features->x86.has_pclmulqdq = (cpuid_info[2] & (1 << 1)) != 0;
-#endif  // SB_API_VERSION >= 12
     features->x86.has_ssse3 = (cpuid_info[2] & (1 << 9)) != 0;
     features->x86.has_sse41 = (cpuid_info[2] & (1 << 19)) != 0;
     features->x86.has_sse42 = (cpuid_info[2] & (1 << 20)) != 0;

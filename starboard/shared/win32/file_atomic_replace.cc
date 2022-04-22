@@ -24,8 +24,6 @@
 #include "starboard/shared/win32/file_internal.h"
 #include "starboard/shared/win32/wchar_utils.h"
 
-#if SB_API_VERSION >= 12
-
 namespace {
 
 const char kTempFileSuffix[] = ".temp";
@@ -62,11 +60,9 @@ bool SbFileAtomicReplace(const char* path,
 
   // Try the full-blown replace if the move fails, as ReplaceFile will only
   // succeed when |to_path| does exist.
-  if (ReplaceFile(path_wstring.c_str(), temp_path_wstring.c_str(), NULL,
-                  0, NULL, NULL)) {
+  if (ReplaceFile(path_wstring.c_str(), temp_path_wstring.c_str(), NULL, 0,
+                  NULL, NULL)) {
     return true;
   }
   return false;
 }
-
-#endif  // SB_API_VERSION >= 12

@@ -30,11 +30,8 @@ TimeNowFunction g_time_now_from_system_time_function =
 TimeTicksNowFunction g_time_ticks_now_function =
     &subtle::TimeTicksNowIgnoringOverride;
 
-#if SB_API_VERSION >= 12 || SB_HAS(TIME_THREAD_NOW)
 ThreadTicksNowFunction g_thread_ticks_now_function =
     &subtle::ThreadTicksNowIgnoringOverride;
-#endif
-
 }  // namespace internal
 
 // TimeDelta ------------------------------------------------------------------
@@ -323,12 +320,8 @@ std::ostream& operator<<(std::ostream& os, TimeTicks time_ticks) {
 
 // static
 ThreadTicks ThreadTicks::Now() {
-#if SB_API_VERSION >= 12 || SB_HAS(TIME_THREAD_NOW)
-#if SB_API_VERSION >= 12
   if (SbTimeIsTimeThreadNowSupported())
-#endif
     return internal::g_thread_ticks_now_function();
-#endif
   return ThreadTicks();
 }
 

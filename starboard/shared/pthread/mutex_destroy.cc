@@ -29,25 +29,12 @@ bool SbMutexDestroy(SbMutex* mutex) {
     return false;
   }
 
-#if SB_API_VERSION >= 12
   if (!IsInitialized(&(SB_INTERNAL_MUTEX(mutex)->initialized_state))) {
     // If the mutex is not initialized there is nothing to destroy.
     return true;
   }
-#endif
 
-#if SB_API_VERSION >= 12
   // Both trying to recursively acquire a mutex that is locked by the calling
   // thread, as well as deleting a locked mutex, result in undefined behavior.
   return IsSuccess(pthread_mutex_destroy(SB_PTHREAD_INTERNAL_MUTEX(mutex)));
-#else   // SB_API_VERSION >= 12
-  // Destroying a locked mutex is undefined, so fail if the mutex is
-  // already locked,
-  if (!IsSuccess(pthread_mutex_trylock(SB_PTHREAD_INTERNAL_MUTEX(mutex)))) {
-    SB_LOG(ERROR) << "Trying to destroy a locked mutex";
-    return false;
-  }
-  return IsSuccess(pthread_mutex_unlock(SB_PTHREAD_INTERNAL_MUTEX(mutex))) &&
-         IsSuccess(pthread_mutex_destroy(SB_PTHREAD_INTERNAL_MUTEX(mutex)));
-#endif  // SB_API_VERSION >= 12
 }

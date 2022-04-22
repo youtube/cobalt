@@ -39,16 +39,8 @@ void WrapConsumeFramesFunc(SbAudioSinkConsumeFramesFunc sb_consume_frames_func,
                            int frames_consumed,
                            SbTime frames_consumed_at,
                            void* context) {
-#if SB_API_VERSION >= 12
   SB_UNREFERENCED_PARAMETER(frames_consumed_at);
   sb_consume_frames_func(frames_consumed, context);
-#else  // SB_API_VERSION >= 12
-  sb_consume_frames_func(frames_consumed,
-#if SB_HAS(SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING)
-                         frames_consumed_at,
-#endif
-                         context);
-#endif  // SB_API_VERSION >=  12
 }
 
 }  // namespace
@@ -117,9 +109,7 @@ SbAudioSink SbAudioSinkPrivate::Create(
     int frame_buffers_size_in_frames,
     SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
     ConsumeFramesFunc consume_frames_func,
-#if SB_API_VERSION >= 12
     ErrorFunc error_func,
-#endif  // SB_API_VERSION >= 12
     void* context) {
   if (channels <= 0 || channels > SbAudioSinkGetMaxChannels()) {
     SB_LOG(WARNING) << "Invalid audio channels " << channels;
@@ -169,9 +159,7 @@ SbAudioSink SbAudioSinkPrivate::Create(
         channels, sampling_frequency_hz, audio_sample_type,
         audio_frame_storage_type, frame_buffers, frame_buffers_size_in_frames,
         update_source_status_func, consume_frames_func,
-#if SB_API_VERSION >= 12
         error_func,
-#endif  // SB_API_VERSION >= 12
         context);
     if (audio_sink_type->IsValid(audio_sink)) {
       return audio_sink;
@@ -188,9 +176,7 @@ SbAudioSink SbAudioSinkPrivate::Create(
         channels, sampling_frequency_hz, audio_sample_type,
         audio_frame_storage_type, frame_buffers, frame_buffers_size_in_frames,
         update_source_status_func, consume_frames_func,
-#if SB_API_VERSION >= 12
         error_func,
-#endif  // SB_API_VERSION >= 12
         context);
     if (fallback_type->IsValid(audio_sink)) {
       return audio_sink;
@@ -213,9 +199,7 @@ SbAudioSink SbAudioSinkPrivate::Create(
     int frame_buffers_size_in_frames,
     SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
     SbAudioSinkConsumeFramesFunc sb_consume_frames_func,
-#if SB_API_VERSION >= 12
     ErrorFunc error_func,
-#endif  // SB_API_VERSION >= 12
     void* context) {
   return Create(channels, sampling_frequency_hz, audio_sample_type,
                 audio_frame_storage_type, frame_buffers,
@@ -224,8 +208,6 @@ SbAudioSink SbAudioSinkPrivate::Create(
                     ? std::bind(&::WrapConsumeFramesFunc,
                                 sb_consume_frames_func, _1, _2, _3)
                     : ConsumeFramesFunc(),
-#if SB_API_VERSION >= 12
                 error_func,
-#endif  // SB_API_VERSION >= 12
                 context);
 }

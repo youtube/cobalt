@@ -155,8 +155,6 @@ SB_EXPORT SbFile SbFileOpen(const char* path,
 // |file|: The absolute path of the file to be closed.
 SB_EXPORT bool SbFileClose(SbFile file);
 
-#if SB_API_VERSION >= 12
-
 // Replaces the content of the file at |path| with |data|. Returns whether the
 // contents of the file were replaced. The replacement of the content is an
 // atomic operation. The file will either have all of the data, or none.
@@ -167,8 +165,6 @@ SB_EXPORT bool SbFileClose(SbFile file);
 SB_EXPORT bool SbFileAtomicReplace(const char* path,
                                    const char* data,
                                    int64_t data_size);
-
-#endif  // SB_API_VERSION >= 12
 
 // Changes the current read/write position in |file|. The return value
 // identifies the resultant current read/write position in the file (relative
