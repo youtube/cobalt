@@ -495,7 +495,8 @@ const std::string& XMLHttpRequest::response_text(
   // isn't kDone isn't efficient for large responses.  Fortunately this feature
   // is rarely used.
   if (state_ == kLoading) {
-    LOG(WARNING) << "Retrieving responseText while loading can be inefficient.";
+    LOG_ONCE(WARNING)
+        << "Retrieving responseText while loading can be inefficient.";
     return response_body_->GetTemporaryReferenceOfString();
   }
   return response_body_->GetReferenceOfStringAndSeal();
