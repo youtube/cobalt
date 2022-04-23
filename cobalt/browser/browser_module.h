@@ -452,8 +452,8 @@ class BrowserModule {
   // Gets a viewport size to use for now. This may change depending on the
   // current application state. While concealed, this returns the requested
   // viewport size. If there was no requested viewport size, it returns a
-  // default viewport size of 1280x720 (720p). Once a system window is created,
-  // it returns the confirmed size of the window.
+  // default viewport size of 1920x1080 (1080p). Once a system window is
+  // created, it returns the confirmed size of the window.
   cssom::ViewportSize GetViewportSize();
 
   // Applies the current AutoMem settings to all applicable submodules.
@@ -498,7 +498,7 @@ class BrowserModule {
   base::WeakPtr<BrowserModule> weak_this_;
 
   // Memory configuration tool.
-  std::unique_ptr<memory_settings::AutoMem> auto_mem_;
+  memory_settings::AutoMem auto_mem_;
 
   // A copy of the BrowserModule Options passed into the constructor.
   Options options_;

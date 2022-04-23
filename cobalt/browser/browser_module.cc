@@ -608,10 +608,6 @@ void BrowserModule::Navigate(const GURL& url_reference) {
     options.camera_3d = input_device_manager_->camera_3d();
   }
 
-  // Make sure that automem has been run before creating the WebModule, so that
-  // we use properly configured options for all parameters.
-  DCHECK(auto_mem_);
-
   options.provide_screenshot_function =
       base::Bind(&ScreenShotWriter::RequestScreenshotToMemoryUnencoded,
                  base::Unretained(screen_shot_writer_.get()));
@@ -1529,11 +1525,7 @@ void BrowserModule::CheckMemory(
     const int64_t& used_cpu_memory,
     const base::Optional<int64_t>& used_gpu_memory) {
   DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
-  if (!auto_mem_) {
-    return;
-  }
-
-  memory_settings_checker_.RunChecks(*auto_mem_, used_cpu_memory,
+  memory_settings_checker_.RunChecks(auto_mem_, used_cpu_memory,
                                      used_gpu_memory);
 }
 
@@ -1936,7 +1928,7 @@ ViewportSize BrowserModule::GetViewportSize() {
 
   // No window and no viewport size was requested, so we return a conservative
   // default.
-  math::Size default_size(1280, 720);
+  math::Size default_size(1920, 1080);
   default_size =
       math::RoundOut(viewport_transform.MapRect(math::RectF(default_size)))
           .size();
@@ -1946,35 +1938,33 @@ ViewportSize BrowserModule::GetViewportSize() {
 
 void BrowserModule::ApplyAutoMemSettings() {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::ApplyAutoMemSettings()");
-  auto_mem_.reset(new memory_settings::AutoMem(
-      GetViewportSize().width_height(), options_.command_line_auto_mem_settings,
-      options_.build_auto_mem_settings));
-
-  LOG(INFO) << auto_mem_->ToPrettyPrintString(SbLogIsTty());
+  auto_mem_.ConstructSettings(GetViewportSize().width_height(),
+                              options_.command_line_auto_mem_settings,
+                              options_.build_auto_mem_settings);
 
   // Web Module options.
   options_.web_module_options.encoded_image_cache_capacity =
-      static_cast<int>(auto_mem_->encoded_image_cache_size_in_bytes()->value());
+      static_cast<int>(auto_mem_.encoded_image_cache_size_in_bytes()->value());
   options_.web_module_options.image_cache_capacity =
-      static_cast<int>(auto_mem_->image_cache_size_in_bytes()->value());
+      static_cast<int>(auto_mem_.image_cache_size_in_bytes()->value());
   options_.web_module_options.remote_typeface_cache_capacity = static_cast<int>(
-      auto_mem_->remote_typeface_cache_size_in_bytes()->value());
+      auto_mem_.remote_typeface_cache_size_in_bytes()->value());
   if (web_module_) {
     web_module_->SetImageCacheCapacity(
-        auto_mem_->image_cache_size_in_bytes()->value());
+        auto_mem_.image_cache_size_in_bytes()->value());
     web_module_->SetRemoteTypefaceCacheCapacity(
-        auto_mem_->remote_typeface_cache_size_in_bytes()->value());
+        auto_mem_.remote_typeface_cache_size_in_bytes()->value());
   }
 
   // Renderer Module options.
   options_.renderer_module_options.skia_cache_size_in_bytes =
-      static_cast<int>(auto_mem_->skia_cache_size_in_bytes()->value());
+      static_cast<int>(auto_mem_.skia_cache_size_in_bytes()->value());
   options_.renderer_module_options.offscreen_target_cache_size_in_bytes =
       static_cast<int>(
-          auto_mem_->offscreen_target_cache_size_in_bytes()->value());
+          auto_mem_.offscreen_target_cache_size_in_bytes()->value());
 
   const memory_settings::TextureDimensions skia_glyph_atlas_texture_dimensions =
-      auto_mem_->skia_atlas_texture_dimensions()->value();
+      auto_mem_.skia_atlas_texture_dimensions()->value();
   if (skia_glyph_atlas_texture_dimensions.bytes_per_pixel() > 0) {
     // Right now the bytes_per_pixel is assumed in the engine. Any other value
     // is currently forbidden.
