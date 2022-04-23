@@ -41,6 +41,7 @@
 #include "cobalt/browser/memory_settings/checker.h"
 #include "cobalt/browser/render_tree_combiner.h"
 #include "cobalt/browser/screen_shot_writer.h"
+#include "cobalt/browser/service_worker_registry.h"
 #include "cobalt/browser/splash_screen.h"
 #include "cobalt/browser/suspend_fuzzer.h"
 #include "cobalt/browser/system_platform_error_handler.h"
@@ -542,7 +543,7 @@ class BrowserModule {
   // Allows checking if particular media type can be played.
   std::unique_ptr<media::CanPlayTypeHandler> can_play_type_handler_;
 
-  // Sets up the network component for requesting internet resources.
+  // Manages the network component for requesting internet resources.
   network::NetworkModule* network_module_;
 
 #if SB_IS(EVERGREEN)
@@ -723,6 +724,9 @@ class BrowserModule {
   // Save the current window size before transitioning to Concealed state,
   // and reuse this value to recreate the window.
   math::Size window_size_;
+
+  // Manages the Service Workers.
+  ServiceWorkerRegistry service_worker_registry_;
 };
 
 }  // namespace browser

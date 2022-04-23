@@ -822,7 +822,7 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
   storage_manager_.reset(new storage::StorageManager(storage_manager_options));
 
   network_module_.reset(new network::NetworkModule(
-      CreateUserAgentString(browser::GetUserAgentPlatformInfoFromSystem()),
+      CreateUserAgentString(GetUserAgentPlatformInfoFromSystem()),
       storage_manager_.get(), &event_dispatcher_, network_module_options));
 
   AddCrashHandlerAnnotations();

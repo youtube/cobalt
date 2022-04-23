@@ -28,6 +28,7 @@
 #include "cobalt/base/event_dispatcher.h"
 #include "cobalt/browser/browser_module.h"
 #include "cobalt/browser/memory_tracker/tool.h"
+#include "cobalt/network/network_module.h"
 #include "cobalt/system_window/system_window.h"
 #include "starboard/time.h"
 #if SB_IS(EVERGREEN)

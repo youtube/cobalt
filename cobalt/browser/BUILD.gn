@@ -123,6 +123,8 @@ static_library("browser") {
     "render_tree_combiner.h",
     "screen_shot_writer.cc",
     "screen_shot_writer.h",
+    "service_worker_registry.cc",
+    "service_worker_registry.h",
     "splash_screen.cc",
     "splash_screen.h",
     "splash_screen_cache.cc",

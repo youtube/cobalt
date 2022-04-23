@@ -48,9 +48,8 @@ class Agent : public base::MessageLoop::DestructionObserver {
     // to name some CVals.
     std::string name;
 
-    // Specifies the priority of the web module's thread.  This is the thread
-    // that is responsible for executing JavaScript, managing the DOM, and
-    // performing layouts.  The default value is base::ThreadPriority::NORMAL.
+    // Specifies the priority of the web agent's thread.  This is the thread
+    // that is responsible for executing JavaScript.
     base::ThreadPriority thread_priority = base::ThreadPriority::NORMAL;
 
     size_t stack_size = 0;
