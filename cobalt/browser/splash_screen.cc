@@ -109,7 +109,7 @@ SplashScreen::SplashScreen(
       base::Closure(),  // window_minimize_callback
       NULL /* can_play_type_handler */, NULL /* media_module */,
       window_dimensions, resource_provider, layout_refresh_rate,
-      web_module_options));
+      NULL /* service_worker_jobs */, web_module_options));
 }
 
 SplashScreen::~SplashScreen() {

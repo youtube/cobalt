@@ -16,12 +16,24 @@
 
 #include <string>
 
+#include "base/optional.h"
+#include "base/trace_event/trace_event.h"
+#include "cobalt/dom/dom_exception.h"
+#include "cobalt/dom/dom_settings.h"
+#include "cobalt/script/promise.h"
+#include "cobalt/web/environment_settings.h"
+#include "cobalt/worker/registration_options.h"
+#include "cobalt/worker/service_worker_update_via_cache.h"
+#include "cobalt/worker/worker_type.h"
+#include "url/gurl.h"
+
 namespace cobalt {
 namespace worker {
 
 ServiceWorkerContainer::ServiceWorkerContainer(
     script::EnvironmentSettings* settings,
-    script::ScriptValueFactory* script_value_factory)
+    script::ScriptValueFactory* script_value_factory,
+    worker::ServiceWorkerJobs* service_worker_jobs)
     : dom::EventTarget(settings), script_value_factory_(script_value_factory) {}
 
 // TODO: Implement the service worker registration algorithm. b/219972966
@@ -53,45 +65,86 @@ script::Handle<script::Promise<void>> ServiceWorkerContainer::Register(
 
 script::Handle<script::Promise<void>> ServiceWorkerContainer::Register(
     const std::string& url, const RegistrationOptions& options) {
+  TRACE_EVENT0("cobalt::worker", "ServiceWorkerContainer::Register()");
   // https://w3c.github.io/ServiceWorker/#navigator-service-worker-registers
   // 1. Let p be a promise.
-  // 2. Let client be this's service worker client.
-  // 3. Let scriptURL be the result of parsing scriptURL with this's relevant
-  //    settings object’s API base URL.
-  // 4. Let scopeURL be null.
-  // 5. If options["scope"] exists, set scopeURL to the result of parsing
-  //    options["scope"] with this's relevant settings object’s API base URL.
-  // 6. Invoke Start Register with scopeURL, scriptURL, p, client, client’s
-  //    creation URL, options["type"], and options["updateViaCache"].
-  // 7. Return p.
-  LOG(INFO) << "The service worker is registered";
   script::Handle<script::Promise<void>> promise =
       script_value_factory_->CreateBasicPromise<void>();
+  // 2. Let client be this's service worker client.
+  web::EnvironmentSettings* client =
+      base::polymorphic_downcast<web::EnvironmentSettings*>(
+          environment_settings());
+  // 3. Let scriptURL be the result of parsing scriptURL with this's
+  // relevant settings object’s API base URL.
+  const GURL& base_url = environment_settings()->base_url();
+  GURL script_url = base_url.Resolve(url);
+  // 4. Let scopeURL be null.
+  base::Optional<GURL> scope_url;
+  // 5. If options["scope"] exists, set scopeURL to the result of parsing
+  //    options["scope"] with this's relevant settings object’s API base URL.
+  if (options.has_scope()) {
+    scope_url = base_url.Resolve(options.scope());
+  }
+  // 6. Invoke Start Register with scopeURL, scriptURL, p, client, client’s
+  //    creation URL, options["type"], and options["updateViaCache"].
+  base::polymorphic_downcast<dom::DOMSettings*>(environment_settings())
+      ->service_worker_jobs()
+      ->StartRegister(scope_url, script_url, promise, client, options.type(),
+                      options.update_via_cache());
+
+  // 7. Return p.
+  LOG(INFO) << "The service worker is registered";
   return promise;
 }
 
 script::Handle<script::Promise<void>> ServiceWorkerContainer::GetRegistration(
     const std::string& url) {
+  TRACE_EVENT0("cobalt::worker", "ServiceWorkerContainer::GetRegistration()");
   // https://w3c.github.io/ServiceWorker/#navigator-service-worker-getRegistration
   // 1. Let client be this's service worker client.
+  web::EnvironmentSettings* client =
+      base::polymorphic_downcast<web::EnvironmentSettings*>(
+          environment_settings());
   // 2. Let clientURL be the result of parsing clientURL with this's relevant
   //    settings object’s API base URL.
+  const GURL& base_url = environment_settings()->base_url();
+  GURL client_url = base_url.Resolve(url);
+
   // 3. If clientURL is failure, return a promise rejected with a TypeError.
+  script::Handle<script::Promise<void>> promise =
+      script_value_factory_->CreateBasicPromise<void>();
+  if (client_url.is_empty()) {
+    promise->Reject(script::kTypeError);
+    return promise;
+  }
+
   // 4. Set clientURL’s fragment to null.
+  url::Replacements<char> replacements;
+  replacements.ClearRef();
+  client_url = client_url.ReplaceComponents(replacements);
+  DCHECK(!client_url.has_ref() || client_url.ref().empty());
+
   // 5. If the origin of clientURL is not client’s origin, return a promise
   //    rejected with a "SecurityError" DOMException.
+  if (client_url.GetOrigin() != base_url.GetOrigin()) {
+    promise->Reject(new dom::DOMException(dom::DOMException::kSecurityErr));
+    return promise;
+  }
+
   // 6. Let promise be a new promise.
   // 7. Run the following substeps in parallel:
   //    1. Let registration be the result of running Match Service Worker
   //       Registration algorithm with clientURL as its argument.
+  // TODO handle parallelism, and add callback to resolve the promise.
+  base::polymorphic_downcast<dom::DOMSettings*>(environment_settings())
+      ->service_worker_jobs()
+      ->MatchServiceWorkerRegistration(client_url);
   //    2. If registration is null, resolve promise with undefined and abort
   //       these steps.
   //    3. Resolve promise with the result of getting the service worker
   //       registration object that represents registration in promise’s
   //       relevant settings object.
   // 8. Return promise.
-  script::Handle<script::Promise<void>> promise =
-      script_value_factory_->CreateBasicPromise<void>();
   return promise;
 }
 

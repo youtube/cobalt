@@ -26,11 +26,12 @@ void SignalWaitableEvent(base::WaitableEvent* event) { event->Signal(); }
 
 void ServiceWorkerRegistry::WillDestroyCurrentMessageLoop() {
   // TODO clear all member variables allocated form the thread.
+  service_worker_jobs_.reset();
 }
 
 ServiceWorkerRegistry::ServiceWorkerRegistry(
     network::NetworkModule* network_module)
-    : thread_("SvcWorkerRgstry") {
+    : thread_("ServiceWorkerRegistry") {
   if (!thread_.Start()) return;
   DCHECK(message_loop());
 
@@ -60,14 +61,22 @@ ServiceWorkerRegistry::~ServiceWorkerRegistry() {
   DCHECK(thread_.IsRunning());
 
   // Ensure that the destruction observer got added before stopping the thread.
-  destruction_observer_added_.Wait();
   // Stop the thread. This will cause the destruction observer to be notified.
+  destruction_observer_added_.Wait();
   thread_.Stop();
 }
 
+worker::ServiceWorkerJobs* ServiceWorkerRegistry::service_worker_jobs() {
+  // Ensure that the thread had a chance to allocate the object.
+  destruction_observer_added_.Wait();
+  return service_worker_jobs_.get();
+}
 
 void ServiceWorkerRegistry::Initialize(network::NetworkModule* network_module) {
   DCHECK_EQ(base::MessageLoop::current(), message_loop());
+  LOG(INFO) << "ServiceWorkerRegistry::Initialize";
+  service_worker_jobs_.reset(
+      new worker::ServiceWorkerJobs(network_module, message_loop()));
 }
 
 }  // namespace browser

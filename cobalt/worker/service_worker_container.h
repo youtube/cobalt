@@ -25,6 +25,7 @@
 #include "cobalt/script/script_value_factory.h"
 #include "cobalt/script/wrappable.h"
 #include "cobalt/worker/registration_options.h"
+#include "cobalt/worker/service_worker_jobs.h"
 #include "cobalt/worker/service_worker_registration.h"
 
 namespace cobalt {
@@ -33,7 +34,8 @@ namespace worker {
 class ServiceWorkerContainer : public dom::EventTarget {
  public:
   ServiceWorkerContainer(script::EnvironmentSettings* settings,
-                         script::ScriptValueFactory* script_value_factory);
+                         script::ScriptValueFactory* script_value_factory,
+                         worker::ServiceWorkerJobs* service_worker_jobs);
 
   scoped_refptr<ServiceWorker> controller() { return controller_; }
   script::Handle<script::Promise<void>> ready();

@@ -645,7 +645,8 @@ void BrowserModule::Navigate(const GURL& url_reference) {
       base::Bind(&BrowserModule::OnWindowClose, base::Unretained(this)),
       base::Bind(&BrowserModule::OnWindowMinimize, base::Unretained(this)),
       can_play_type_handler_.get(), media_module_.get(), viewport_size,
-      GetResourceProvider(), kLayoutMaxRefreshFrequencyInHz, options));
+      GetResourceProvider(), kLayoutMaxRefreshFrequencyInHz,
+      service_worker_registry_.service_worker_jobs(), options));
   lifecycle_observers_.AddObserver(web_module_.get());
 
   if (system_window_) {
