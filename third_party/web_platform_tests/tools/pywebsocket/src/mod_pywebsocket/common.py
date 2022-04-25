@@ -79,7 +79,7 @@ OPCODE_PING = 0x9
 OPCODE_PONG = 0xa
 
 # UUIDs used by HyBi 04 and later opening handshake and frame masking.
-WEBSOCKET_ACCEPT_UUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11'
+WEBSOCKET_ACCEPT_UUID = b'258EAFA5-E914-47DA-95CA-C5AB0DC85B11'
 
 # Opening handshake header names and expected values.
 UPGRADE_HEADER = 'Upgrade'

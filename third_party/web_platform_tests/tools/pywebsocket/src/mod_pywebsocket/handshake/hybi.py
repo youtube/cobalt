@@ -43,6 +43,7 @@ http://tools.ietf.org/html/rfc6455
 
 
 import base64
+from hashlib import sha1
 import logging
 import os
 import re
@@ -81,11 +82,20 @@ def compute_accept(key):
     Sec-WebSocket-Key header.
     """
 
-    accept_binary = util.sha1_hash(
-        (key + common.WEBSOCKET_ACCEPT_UUID).encode()).digest()
+    accept_binary = sha1(key + common.WEBSOCKET_ACCEPT_UUID).digest()
     accept = base64.b64encode(accept_binary)
 
     return (accept, accept_binary)
+
+
+def compute_accept_from_unicode(unicode_key):
+    """A wrapper function for compute_accept which takes a unicode string as an
+    argument, and encodes it to byte string. It then passes it on to
+    compute_accept.
+    """
+
+    key = unicode_key.encode('UTF-8')
+    return compute_accept(key)[0]
 
 
 class Handshaker(object):
@@ -375,7 +385,7 @@ class Handshaker(object):
             key,
             util.hexify(decoded_key))
 
-        return key
+        return key.encode()
 
     def _create_stream(self, stream_options):
         return Stream(self._request, stream_options)
@@ -412,7 +422,7 @@ class Handshaker(object):
 
     def _send_handshake(self, accept):
         raw_response = self._create_handshake_response(accept)
-        self._request.connection.write(raw_response)
+        self._request.connection.write(raw_response.encode())
         self._logger.debug('Sent server\'s opening handshake: %r',
                            raw_response)
 

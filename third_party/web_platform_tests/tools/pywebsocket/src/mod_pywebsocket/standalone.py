@@ -168,6 +168,7 @@ import optparse
 import os
 import re
 import select
+import six
 import socket
 import sys
 import threading
@@ -225,7 +226,6 @@ class _StandaloneConnection(object):
 
     def write(self, data):
         """Mimic mp_conn.write()."""
-
         return self._request_handler.wfile.write(data)
 
     def read(self, length):

@@ -4,15 +4,15 @@ import sys, urllib, time
 from mod_pywebsocket import common, msgutil, util
 
 def web_socket_do_extra_handshake(request):
-    request.connection.write('x')
+    request.connection.write(b'x')
     time.sleep(2)
-    request.connection.write('x')
+    request.connection.write(b'x')
     time.sleep(2)
-    request.connection.write('x')
+    request.connection.write(b'x')
     time.sleep(2)
-    request.connection.write('x')
+    request.connection.write(b'x')
     time.sleep(2)
-    request.connection.write('x')
+    request.connection.write(b'x')
     time.sleep(2)
     return
 

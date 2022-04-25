@@ -39,6 +39,7 @@ http://tools.ietf.org/html/rfc6455
 from collections import deque
 import logging
 import os
+import six
 import struct
 import time
 
@@ -90,11 +91,11 @@ def create_length_header(length, mask):
     if length < 0:
         raise ValueError('length must be non negative integer')
     elif length <= 125:
-        return chr(mask_bit | length)
+        return struct.pack('!B', mask_bit | length)
     elif length < (1 << 16):
-        return chr(mask_bit | 126) + struct.pack('!H', length)
+        return struct.pack('!B', mask_bit | 126) + struct.pack('!H', length)
     elif length < (1 << 63):
-        return chr(mask_bit | 127) + struct.pack('!Q', length)
+        return struct.pack('!B', mask_bit | 127) + struct.pack('!Q', length)
     else:
         raise ValueError('Payload is too big for one frame')
 
@@ -115,12 +116,12 @@ def create_header(opcode, payload_length, fin, rsv1, rsv2, rsv3, mask):
     if (fin | rsv1 | rsv2 | rsv3) & ~1:
         raise ValueError('FIN bit and Reserved bit parameter must be 0 or 1')
 
-    header = ''
+    header = b''
 
     first_byte = ((fin << 7)
                   | (rsv1 << 6) | (rsv2 << 5) | (rsv3 << 4)
                   | opcode)
-    header += chr(first_byte)
+    header += struct.pack('!B', first_byte)
     header += create_length_header(payload_length, mask)
 
     return header
@@ -189,16 +190,14 @@ def parse_frame(receive_bytes, logger=None,
 
     logger.log(common.LOGLEVEL_FINE, 'Receive the first 2 octets of a frame')
 
-    received = receive_bytes(2)
-
-    first_byte = ord(received[0])
+    first_byte = ord(receive_bytes(1))
     fin = (first_byte >> 7) & 1
     rsv1 = (first_byte >> 6) & 1
     rsv2 = (first_byte >> 5) & 1
     rsv3 = (first_byte >> 4) & 1
     opcode = first_byte & 0xf
 
-    second_byte = ord(received[1])
+    second_byte = ord(receive_bytes(1))
     mask = (second_byte >> 7) & 1
     payload_length = second_byte & 0x7f
 
@@ -501,7 +500,7 @@ class Stream(StreamBase):
             raise BadOperationException(
                 'Requested send_message after sending out a closing handshake')
 
-        if binary and isinstance(message, unicode):
+        if six.PY2 and binary and isinstance(message, unicode):
             raise BadOperationException(
                 'Message for binary frame must be instance of str')
 
@@ -830,7 +829,7 @@ class Stream(StreamBase):
                     'close reason must not be specified if code is None')
             reason = ''
         else:
-            if not isinstance(reason, str) and not isinstance(reason, unicode):
+            if not isinstance(reason, six.string_types):
                 raise BadOperationException(
                     'close reason must be an instance of str or unicode')
 
