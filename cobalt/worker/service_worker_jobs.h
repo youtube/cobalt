@@ -15,6 +15,13 @@
 #ifndef COBALT_WORKER_SERVICE_WORKER_JOBS_H_
 #define COBALT_WORKER_SERVICE_WORKER_JOBS_H_
 
+#include <map>
+#include <memory>
+#include <queue>
+#include <string>
+#include <utility>
+
+#include "base/synchronization/lock.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/script/promise.h"
 #include "cobalt/script/script_value.h"
@@ -33,6 +40,9 @@ class ServiceWorkerJobs {
                     base::MessageLoop* message_loop);
   ~ServiceWorkerJobs();
 
+  base::MessageLoop* message_loop() { return message_loop_; }
+  network::NetworkModule* network_module() { return network_module_; }
+
   // https://w3c.github.io/ServiceWorker/#start-register-algorithm
   void StartRegister(const base::Optional<GURL>& scope_url,
                      const GURL& script_url,
@@ -42,6 +52,103 @@ class ServiceWorkerJobs {
 
   // https://w3c.github.io/ServiceWorker/#scope-match-algorithm
   void MatchServiceWorkerRegistration(const GURL& client_url);
+
+ private:
+  // https://w3c.github.io/ServiceWorker/#dfn-job-type
+  enum JobType { kRegister, kUpdate, kUnregister };
+
+  class JobQueue;
+
+  // https://w3c.github.io/ServiceWorker/#dfn-job
+  struct Job {
+    Job(JobType type, const GURL& scope_url, const GURL& script_url,
+        const script::Handle<script::Promise<void>>& promise,
+        web::EnvironmentSettings* client)
+        : type(type),
+          scope_url(scope_url),
+          script_url(script_url),
+          promise(promise),
+          client(client) {}
+    JobType type;
+    const GURL& scope_url;
+    const GURL& script_url;
+    const script::Handle<script::Promise<void>>& promise;
+    web::EnvironmentSettings* client;
+    ServiceWorkerUpdateViaCache update_via_cache;
+    JobQueue* containing_job_queue = nullptr;
+    std::queue<std::unique_ptr<Job>> equivalent_jobs;
+    GURL referrer;
+
+    // This lock is for the list of equivalent jobs. It should also be held when
+    // resolving the promise.
+    base::Lock equivalent_jobs_promise_mutex;
+  };
+
+  // https://w3c.github.io/ServiceWorker/#dfn-job-queue
+  class JobQueue {
+   public:
+    bool empty() {
+      base::AutoLock lock(mutex_);
+      return jobs_.empty();
+    }
+    void Enqueue(std::unique_ptr<Job> job) {
+      base::AutoLock lock(mutex_);
+      jobs_.push(std::move(job));
+    }
+    std::unique_ptr<Job> Dequeue() {
+      base::AutoLock lock(mutex_);
+      std::unique_ptr<Job> job(std::move(jobs_.front()));
+      jobs_.pop();
+      return job;
+    }
+    Job* FirstItem() {
+      base::AutoLock lock(mutex_);
+      return jobs_.empty() ? nullptr : jobs_.front().get();
+    }
+    Job* LastItem() {
+      base::AutoLock lock(mutex_);
+      return jobs_.empty() ? nullptr : jobs_.back().get();
+    }
+
+   private:
+    base::Lock mutex_;
+    std::queue<std::unique_ptr<Job>> jobs_;
+  };
+
+  // https://w3c.github.io/ServiceWorker/#dfn-scope-to-job-queue-map
+  typedef std::map<std::string, std::unique_ptr<JobQueue>> JobQueueMap;
+
+  // https://w3c.github.io/ServiceWorker/#create-job
+  std::unique_ptr<Job> CreateJob(
+      JobType type, const GURL& scope_url, const GURL& script_url,
+      const script::Handle<script::Promise<void>>& promise,
+      web::EnvironmentSettings* client);
+
+  // https://w3c.github.io/ServiceWorker/#schedule-job
+  void ScheduleJob(std::unique_ptr<Job> job);
+
+  // https://w3c.github.io/ServiceWorker/#dfn-job-equivalent
+  bool EquivalentJobs(Job* one, Job* two);
+
+  // https://w3c.github.io/ServiceWorker/#run-job-algorithm
+  void RunJob(JobQueue* job_queue);
+
+  // Task for "Run Job" to run in the service worker thread.
+  void RunJobTask(JobQueue* job_queue);
+
+  // https://w3c.github.io/ServiceWorker/#register-algorithm
+  void Register(Job* job);
+
+  // https://w3c.github.io/ServiceWorker/#update-algorithm
+  void Update(Job* job);
+
+  // https://w3c.github.io/ServiceWorker/#unregister-algorithm
+  void Unregister(Job* job);
+
+  network::NetworkModule* network_module_;
+  base::MessageLoop* message_loop_;
+
+  JobQueueMap job_queue_map_;
 };
 
 }  // namespace worker

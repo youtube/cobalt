@@ -93,7 +93,6 @@ script::Handle<script::Promise<void>> ServiceWorkerContainer::Register(
                       options.update_via_cache());
 
   // 7. Return p.
-  LOG(INFO) << "The service worker is registered";
   return promise;
 }
 

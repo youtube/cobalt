@@ -38,6 +38,10 @@ class EnvironmentSettings {
   void set_base_url(const GURL& url) { base_url_ = url; }
   const GURL& base_url() const { return base_url_; }
 
+  // The API creation URL
+  //   https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#concept-environment-creation-url
+  const GURL& creation_url() const { return base_url(); }
+
   const base::DebuggerHooks& debugger_hooks() const { return debugger_hooks_; }
 
  protected:

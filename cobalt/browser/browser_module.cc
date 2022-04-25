@@ -1635,6 +1635,7 @@ void BrowserModule::InitializeSystemWindow() {
 }
 
 void BrowserModule::InstantiateRendererModule() {
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::InstantiateRendererModule()");
   DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
   DCHECK(system_window_);
   DCHECK(!renderer_module_);

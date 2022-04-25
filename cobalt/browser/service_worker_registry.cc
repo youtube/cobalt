@@ -16,6 +16,14 @@
 
 #include <string>
 
+#include "base/bind.h"
+#include "base/message_loop/message_loop.h"
+#include "base/synchronization/waitable_event.h"
+#include "base/threading/thread.h"
+#include "base/trace_event/trace_event.h"
+#include "cobalt/network/network_module.h"
+#include "cobalt/worker/service_worker_jobs.h"
+
 namespace cobalt {
 namespace browser {
 
@@ -73,8 +81,8 @@ worker::ServiceWorkerJobs* ServiceWorkerRegistry::service_worker_jobs() {
 }
 
 void ServiceWorkerRegistry::Initialize(network::NetworkModule* network_module) {
+  TRACE_EVENT0("cobalt::browser", "ServiceWorkerRegistry::Initialize()");
   DCHECK_EQ(base::MessageLoop::current(), message_loop());
-  LOG(INFO) << "ServiceWorkerRegistry::Initialize";
   service_worker_jobs_.reset(
       new worker::ServiceWorkerJobs(network_module, message_loop()));
 }
