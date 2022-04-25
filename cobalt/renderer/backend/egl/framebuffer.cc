@@ -33,10 +33,13 @@ FramebufferEGL::FramebufferEGL(GraphicsContextEGL* graphics_context,
     : graphics_context_(graphics_context), size_(size), error_(false) {
   GraphicsContextEGL::ScopedMakeCurrent scoped_make_current(graphics_context_);
 
+  SbGlEnum gl_error;
+
   // Create the framebuffer object.
   GL_CALL_SIMPLE(glGenFramebuffers(1, &framebuffer_handle_));
-  if (GL_CALL_SIMPLE(glGetError()) != GL_NO_ERROR) {
-    LOG(ERROR) << "Error creating new framebuffer.";
+  gl_error = GL_CALL_SIMPLE(glGetError());
+  if (gl_error != GL_NO_ERROR) {
+    LOG(ERROR) << "Error creating new framebuffer. Error = " << gl_error;
     error_ = true;
     return;
   }
@@ -45,8 +48,9 @@ FramebufferEGL::FramebufferEGL(GraphicsContextEGL* graphics_context,
   // Create and attach a texture for color.
   GLuint color_handle = 0;
   GL_CALL_SIMPLE(glGenTextures(1, &color_handle));
-  if (GL_CALL_SIMPLE(glGetError()) != GL_NO_ERROR) {
-    LOG(ERROR) << "Error creating new texture.";
+  gl_error = GL_CALL_SIMPLE(glGetError());
+  if (gl_error != GL_NO_ERROR) {
+    LOG(ERROR) << "Error creating new texture. Error = " << gl_error;
     error_ = true;
     GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, 0));
     GL_CALL(glDeleteFramebuffers(1, &framebuffer_handle_));

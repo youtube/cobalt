@@ -153,6 +153,7 @@ GraphicsSystemEGL::GraphicsSystemEGL(
     // mesa egl drivers still leak memory.
     ANNOTATE_SCOPED_MEMORY_LEAK;
     EGL_CALL(eglInitialize(display_, NULL, NULL));
+    LOG(INFO) << "eglInitialize returned " << EGL_CALL_SIMPLE(eglGetError());
   }
 
   // Setup our configuration to support RGBA and compatibility with PBuffer
@@ -221,6 +222,7 @@ GraphicsSystemEGL::~GraphicsSystemEGL() {
   }
 
   EGL_CALL_SIMPLE(eglTerminate(display_));
+  LOG(INFO) << "eglTerminate returned " << EGL_CALL_SIMPLE(eglGetError());
 }
 
 std::unique_ptr<Display> GraphicsSystemEGL::CreateDisplay(

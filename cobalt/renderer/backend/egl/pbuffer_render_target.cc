@@ -29,11 +29,9 @@ PBufferRenderTargetEGL::PBufferRenderTargetEGL(EGLDisplay display,
                                                const math::Size& dimensions)
     : display_(display), config_(config), size_(dimensions) {
   EGLint surface_attrib_list[] = {
-      EGL_WIDTH, dimensions.width(),
-      EGL_HEIGHT, dimensions.height(),
-      EGL_TEXTURE_TARGET, EGL_TEXTURE_2D,
-      EGL_TEXTURE_FORMAT, EGL_TEXTURE_RGBA,
-      EGL_NONE,
+      EGL_WIDTH,           dimensions.width(), EGL_HEIGHT,
+      dimensions.height(), EGL_TEXTURE_TARGET, EGL_TEXTURE_2D,
+      EGL_TEXTURE_FORMAT,  EGL_TEXTURE_RGBA,   EGL_NONE,
   };
   // When a dummy 0-area render target is requested, it will not be used as a
   // drawing target and we therefore don't require for it to be a texture.
@@ -46,16 +44,16 @@ PBufferRenderTargetEGL::PBufferRenderTargetEGL(EGLDisplay display,
 
   surface_ = EGL_CALL_SIMPLE(
       eglCreatePbufferSurface(display_, config_, surface_attrib_list));
-  if (EGL_CALL_SIMPLE(eglGetError()) != EGL_SUCCESS) {
+  SbEglInt32 egl_error = EGL_CALL_SIMPLE(eglGetError());
+  if (egl_error != EGL_SUCCESS) {
     surface_ = EGL_NO_SURFACE;
+    LOG(INFO) << "eglCreatePbufferSurface returned error " << egl_error;
   }
 }
 
 const math::Size& PBufferRenderTargetEGL::GetSize() const { return size_; }
 
-EGLSurface PBufferRenderTargetEGL::GetSurface() const {
-  return surface_;
-}
+EGLSurface PBufferRenderTargetEGL::GetSurface() const { return surface_; }
 
 PBufferRenderTargetEGL::~PBufferRenderTargetEGL() {
   if (surface_ != EGL_NO_SURFACE) {

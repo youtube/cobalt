@@ -1171,83 +1171,83 @@ void Application::OnApplicationEvent(SbEventType event_type,
 
   switch (event_type) {
     case kSbEventTypeStop:
-      DLOG(INFO) << "Got quit event.";
+      LOG(INFO) << "Got quit event.";
       Quit();
-      DLOG(INFO) << "Finished quitting.";
+      LOG(INFO) << "Finished quitting.";
       break;
     case kSbEventTypeStart:
-      DLOG(INFO) << "Got start event.";
+      LOG(INFO) << "Got start event.";
       browser_module_->Reveal(timestamp);
       browser_module_->Focus(timestamp);
-      DLOG(INFO) << "Finished starting.";
+      LOG(INFO) << "Finished starting.";
       break;
 #if SB_API_VERSION >= 13
     case kSbEventTypeBlur:
-      DLOG(INFO) << "Got blur event.";
+      LOG(INFO) << "Got blur event.";
       browser_module_->Blur(timestamp);
-      DLOG(INFO) << "Finished blurring.";
+      LOG(INFO) << "Finished blurring.";
       break;
     case kSbEventTypeFocus:
-      DLOG(INFO) << "Got focus event.";
+      LOG(INFO) << "Got focus event.";
       browser_module_->Focus(timestamp);
-      DLOG(INFO) << "Finished focusing.";
+      LOG(INFO) << "Finished focusing.";
       break;
     case kSbEventTypeConceal:
-      DLOG(INFO) << "Got conceal event.";
+      LOG(INFO) << "Got conceal event.";
       browser_module_->Conceal(timestamp);
-      DLOG(INFO) << "Finished concealing.";
+      LOG(INFO) << "Finished concealing.";
       break;
     case kSbEventTypeReveal:
       DCHECK(SbSystemSupportsResume());
-      DLOG(INFO) << "Got reveal event.";
+      LOG(INFO) << "Got reveal event.";
       browser_module_->Reveal(timestamp);
-      DLOG(INFO) << "Finished revealing.";
+      LOG(INFO) << "Finished revealing.";
       break;
     case kSbEventTypeFreeze:
-      DLOG(INFO) << "Got freeze event.";
+      LOG(INFO) << "Got freeze event.";
       browser_module_->Freeze(timestamp);
 #if SB_IS(EVERGREEN)
       if (updater_module_) updater_module_->Suspend();
 #endif
-      DLOG(INFO) << "Finished freezing.";
+      LOG(INFO) << "Finished freezing.";
       break;
     case kSbEventTypeUnfreeze:
-      DLOG(INFO) << "Got unfreeze event.";
+      LOG(INFO) << "Got unfreeze event.";
       browser_module_->Unfreeze(timestamp);
 #if SB_IS(EVERGREEN)
       if (updater_module_) updater_module_->Resume();
 #endif
-      DLOG(INFO) << "Finished unfreezing.";
+      LOG(INFO) << "Finished unfreezing.";
       break;
 #else
     case kSbEventTypePause:
-      DLOG(INFO) << "Got pause event.";
+      LOG(INFO) << "Got pause event.";
       browser_module_->Blur(timestamp);
-      DLOG(INFO) << "Finished pausing.";
+      LOG(INFO) << "Finished pausing.";
       break;
     case kSbEventTypeUnpause:
-      DLOG(INFO) << "Got unpause event.";
+      LOG(INFO) << "Got unpause event.";
       browser_module_->Focus(timestamp);
-      DLOG(INFO) << "Finished unpausing.";
+      LOG(INFO) << "Finished unpausing.";
       break;
     case kSbEventTypeSuspend:
-      DLOG(INFO) << "Got suspend event.";
+      LOG(INFO) << "Got suspend event.";
       browser_module_->Conceal(timestamp);
       browser_module_->Freeze(timestamp);
 #if SB_IS(EVERGREEN)
       if (updater_module_) updater_module_->Suspend();
 #endif
-      DLOG(INFO) << "Finished suspending.";
+      LOG(INFO) << "Finished suspending.";
       break;
     case kSbEventTypeResume:
       DCHECK(SbSystemSupportsResume());
-      DLOG(INFO) << "Got resume event.";
+      LOG(INFO) << "Got resume event.";
       browser_module_->Unfreeze(timestamp);
       browser_module_->Reveal(timestamp);
 #if SB_IS(EVERGREEN)
       if (updater_module_) updater_module_->Resume();
 #endif
-      DLOG(INFO) << "Finished resuming.";
+      LOG(INFO) << "Finished resuming.";
       break;
 #endif  // SB_API_VERSION >= 13
     case kSbEventTypeLowMemory:
