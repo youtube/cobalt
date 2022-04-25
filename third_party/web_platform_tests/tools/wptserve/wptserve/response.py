@@ -401,7 +401,7 @@ class ResponseWriter(object):
         :param value: Value of the header field
         """
         if isinstance(value, bytes):
-            value = value.decode()
+            value = value.decode("utf-8")
         if isinstance(name, bytes):
             name = name.decode()
         self._headers_seen.add(name.lower())

@@ -12,7 +12,7 @@ def web_socket_do_extra_handshake(request):
     msg += b'=test; Path=/\x0D\x0ASec-WebSocket-Origin: '
     msg += request.ws_origin.encode()
     msg += b'\x0D\x0ASec-WebSocket-Accept: '
-    msg += hybi.compute_accept_from_unicode(request.headers_in.get(common.SEC_WEBSOCKET_KEY_HEADER))[0]
+    msg += hybi.compute_accept_from_unicode(request.headers_in.get(common.SEC_WEBSOCKET_KEY_HEADER))
     msg += b'\x0D\x0A\x0D\x0A'
     request.connection.write(msg)
     return
