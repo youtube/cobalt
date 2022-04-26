@@ -14,9 +14,8 @@
 
 // Watchdog application state, used to start/stop monitoring as needed.
 enum WatchdogState {
-  "STARTED",
-  "BLURRED",
-  "CONCEALED",
-  "FROZEN",
-  "STOPPED",
+  "started",
+  "blurred",
+  "concealed",
+  "frozen",
 };

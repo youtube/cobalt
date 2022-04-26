@@ -15,7 +15,7 @@
 // Watchdog register behavior with previously registered clients of the same
 // name.
 enum WatchdogReplace {
-  "NONE",
-  "ALL",
-  "PARTIAL",
+  "none",
+  "ping",
+  "all",
 };

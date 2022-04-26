@@ -86,6 +86,7 @@ static_library("h5vcc") {
     "//cobalt/sso",
     "//cobalt/storage",
     "//cobalt/trace_event",
+    "//cobalt/watchdog",
     "//net",
     "//net:http_server",
     "//starboard",
