@@ -74,6 +74,22 @@ void ReleaseBuffer(AVCodecContext*, AVFrame* frame) {
 }
 #endif  // LIBAVUTIL_VERSION_INT >= LIBAVUTIL_VERSION_52_8
 
+AVCodecID GetFfmpegCodecIdByMediaCodec(SbMediaVideoCodec video_codec) {
+  // Note: although SbMediaVideoCodec values exist for them, MPEG2VIDEO, THEORA,
+  // and VC1 are not included here since we do not officially support them.
+  // Also, note that VP9 and HEVC use different decoders (not FFmpeg).
+  switch (video_codec) {
+    case kSbMediaVideoCodecH264:
+      return AV_CODEC_ID_H264;
+    case kSbMediaVideoCodecVp8:
+      return AV_CODEC_ID_VP8;
+    default:
+      SB_DLOG(WARNING) << "FFmpeg decoder does not support SbMediaVideoCodec "
+                       << video_codec;
+  }
+  return AV_CODEC_ID_NONE;
+}
+
 const bool g_registered =
     FFMPEGDispatch::RegisterSpecialization(FFMPEG,
                                            LIBAVCODEC_VERSION_MAJOR,
@@ -320,7 +336,7 @@ void VideoDecoderImpl<FFMPEG>::InitializeCodec() {
   }
 
   codec_context_->codec_type = AVMEDIA_TYPE_VIDEO;
-  codec_context_->codec_id = AV_CODEC_ID_H264;
+  codec_context_->codec_id = GetFfmpegCodecIdByMediaCodec(video_codec_);
   codec_context_->profile = FF_PROFILE_UNKNOWN;
   codec_context_->coded_width = 0;
   codec_context_->coded_height = 0;
