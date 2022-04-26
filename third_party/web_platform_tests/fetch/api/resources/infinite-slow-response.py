@@ -1,4 +1,5 @@
 import time
+from socket import error as socket_error
 
 
 def url_dir(request):
@@ -26,6 +27,11 @@ def main(request, response):
 
     while True:
         if not response.writer.flush():
+            break
+        # Trigger socket error on Python3, because flush doesn't
+        try:
+            response.writer._wfile._sock.getpeername()
+        except (OSError,socket_error):
             break
         if abortKey and request.server.stash.take(abortKey, url_dir(request)):
             break
