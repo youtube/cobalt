@@ -33,6 +33,7 @@ volatile SbAtomic32 s_active_instances = 0;
 volatile SbAtomic32 s_av1_played = 0;
 volatile SbAtomic32 s_h264_played = 0;
 volatile SbAtomic32 s_hevc_played = 0;
+volatile SbAtomic32 s_vp8_played = 0;
 volatile SbAtomic32 s_vp9_played = 0;
 volatile SbAtomic32 s_min_video_width = 999999;
 volatile SbAtomic32 s_min_video_height = 999999;
@@ -153,6 +154,8 @@ void PlaybackStatistics::UpdateVideoConfig(
       SbAtomicBarrier_Increment(&s_h264_played, 1);
     } else if (video_config.codec() == VideoCodec::kHEVC) {
       SbAtomicBarrier_Increment(&s_hevc_played, 1);
+    } else if (video_config.codec() == VideoCodec::kVP8) {
+      SbAtomicBarrier_Increment(&s_vp8_played, 1);
     } else if (video_config.codec() == VideoCodec::kVP9) {
       SbAtomicBarrier_Increment(&s_vp9_played, 1);
     } else {
@@ -222,7 +225,7 @@ std::string PlaybackStatistics::GetStatistics(
   return starboard::FormatString(
       "current_codec: %s, drm: %s, width: %d, height: %d"
       ", active_players (max): %d (%d), av1: ~%" PRId64 ", h264: ~%" PRId64
-      ", hevc: ~%" PRId64 ", vp9: ~%" PRId64
+      ", hevc: ~%" PRId64 ", vp8: ~%" PRId64 ", vp9: ~%" PRId64
       ", min_width: %d, min_height: %d, max_width: %d, max_height: %d"
       ", last_working_codec: %s, seek_time: %s"
       ", first_audio_time: ~%" PRId64 ", first_video_time: ~%" PRId64
@@ -234,6 +237,7 @@ std::string PlaybackStatistics::GetStatistics(
       RoundValue(SbAtomicNoBarrier_Load(&s_av1_played)),
       RoundValue(SbAtomicNoBarrier_Load(&s_h264_played)),
       RoundValue(SbAtomicNoBarrier_Load(&s_hevc_played)),
+      RoundValue(SbAtomicNoBarrier_Load(&s_vp8_played)),
       RoundValue(SbAtomicNoBarrier_Load(&s_vp9_played)),
       SbAtomicNoBarrier_Load(&s_min_video_width),
       SbAtomicNoBarrier_Load(&s_min_video_height),

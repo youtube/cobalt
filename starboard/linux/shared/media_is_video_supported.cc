@@ -67,6 +67,7 @@ bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
   return (video_codec == kSbMediaVideoCodecAv1 ||
           video_codec == kSbMediaVideoCodecH264 ||
           (video_codec == kSbMediaVideoCodecH265 && is_de265_supported()) ||
+          (video_codec == kSbMediaVideoCodecVp8) ||
           (video_codec == kSbMediaVideoCodecVp9)) &&
          frame_width <= 1920 && frame_height <= 1080 &&
          bitrate <= kSbMediaMaxVideoBitrateInBitsPerSecond && fps <= 60;
