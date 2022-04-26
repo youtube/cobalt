@@ -17,7 +17,8 @@
 #include <memory>
 #include <type_traits>
 
-#include "base/polymorphic_downcast.h"
+#include "base/trace_event/trace_event.h"
+#include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/eme/eme_helpers.h"
@@ -98,6 +99,8 @@ void MediaKeySession::set_onmessage(
 script::Handle<script::Promise<void>> MediaKeySession::GenerateRequest(
     script::EnvironmentSettings* settings, const std::string& init_data_type,
     const BufferSource& init_data) {
+  TRACE_EVENT1("cobalt::dom::eme", "MediaKeySession::GenerateRequest()",
+               "init_data_type", init_data_type);
   script::Handle<script::Promise<void>> promise =
       script_value_factory_->CreateBasicPromise<void>();
 
@@ -149,6 +152,7 @@ script::Handle<script::Promise<void>> MediaKeySession::GenerateRequest(
 // See https://www.w3.org/TR/encrypted-media/#dom-mediakeysession-update.
 script::Handle<script::Promise<void>> MediaKeySession::Update(
     const BufferSource& response) {
+  TRACE_EVENT0("cobalt::dom::eme", "MediaKeySession::Update()");
   script::Handle<script::Promise<void>> promise =
       script_value_factory_->CreateBasicPromise<void>();
 
@@ -191,6 +195,7 @@ script::Handle<script::Promise<void>> MediaKeySession::Update(
 
 // See https://www.w3.org/TR/encrypted-media/#dom-mediakeysession-close.
 script::Handle<script::Promise<void>> MediaKeySession::Close() {
+  TRACE_EVENT0("cobalt::dom::eme", "MediaKeySession::Close()");
   script::Handle<script::Promise<void>> promise =
       script_value_factory_->CreateBasicPromise<void>();
 

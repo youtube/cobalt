@@ -38,6 +38,7 @@ MediaKeySystemAccess::MediaKeySystemAccess(
 script::Handle<MediaKeySystemAccess::InterfacePromise>
 MediaKeySystemAccess::CreateMediaKeys(
     script::EnvironmentSettings* settings) const {
+  TRACE_EVENT0("cobalt::dom::eme", "MediaKeySystemAccess::CreateMediaKeys()");
   // 1. Let promise be a new promise.
   script::Handle<MediaKeySystemAccess::InterfacePromise> promise =
       script_value_factory_->CreateInterfacePromise<scoped_refptr<MediaKeys>>();

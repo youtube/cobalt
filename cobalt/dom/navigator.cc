@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "base/optional.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/dom/captions/system_caption_settings.h"
 #include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/dom_settings.h"
@@ -405,6 +406,8 @@ Navigator::RequestMediaKeySystemAccess(
     script::EnvironmentSettings* settings, const std::string& key_system,
     const script::Sequence<eme::MediaKeySystemConfiguration>&
         supported_configurations) {
+  TRACE_EVENT1("cobalt::dom", "Navigator::RequestMediaKeySystemAccess()",
+               "key_system", key_system);
   DCHECK(settings);
   DOMSettings* dom_settings =
       base::polymorphic_downcast<DOMSettings*>(settings);

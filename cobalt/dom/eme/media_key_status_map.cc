@@ -80,6 +80,7 @@ void MediaKeyStatusMap::Add(const std::string& key_id,
 
 void MediaKeyStatusMap::ForEach(script::EnvironmentSettings* settings,
                                 const ForEachCallbackArg& callback) {
+  TRACE_EVENT0("cobalt::dom::eme", "MediaKeyStatusMap::ForEach()");
   ForEachCallbackArg::Reference reference(this, callback);
 
   for (auto& key_status : key_statuses_) {

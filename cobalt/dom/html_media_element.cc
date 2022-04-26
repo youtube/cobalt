@@ -248,6 +248,8 @@ std::string HTMLMediaElement::CanPlayType(const std::string& mime_type) {
 
 std::string HTMLMediaElement::CanPlayType(const std::string& mime_type,
                                           const std::string& key_system) {
+  TRACE_EVENT2("cobalt::dom", "HTMLMediaElement::CanPlayType()", "mime_type",
+               mime_type, "key_system", key_system);
   DCHECK(html_element_context()->can_play_type_handler());
 
   DLOG_IF(ERROR, !key_system.empty())

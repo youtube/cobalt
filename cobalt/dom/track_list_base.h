@@ -21,6 +21,7 @@
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/dom/event.h"
 #include "cobalt/dom/event_target.h"
@@ -49,6 +50,7 @@ class TrackListBase : public EventTarget {
   }
 
   scoped_refptr<TrackType> GetTrackById(const std::string& id) const {
+    TRACE_EVENT1("cobalt::dom", "TrackListBase::GetTrackById()", "id", id);
     for (size_t i = 0; i < tracks_.size(); ++i) {
       if (tracks_[i]->id() == id) {
         return tracks_[i];

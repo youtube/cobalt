@@ -16,6 +16,7 @@
 
 #include "base/logging.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/performance.h"
 #include "cobalt/dom/window.h"
@@ -76,6 +77,7 @@ uint32 HTMLVideoElement::video_height() const {
 
 scoped_refptr<VideoPlaybackQuality> HTMLVideoElement::GetVideoPlaybackQuality(
     script::EnvironmentSettings* environment_settings) const {
+  TRACE_EVENT0("cobalt::dom", "HTMLVideoElement::GetVideoPlaybackQuality()");
   DOMSettings* dom_settings =
       base::polymorphic_downcast<DOMSettings*>(environment_settings);
   DCHECK(dom_settings);

@@ -242,6 +242,8 @@ void MediaSource::EndOfStream(MediaSourceEndOfStreamError error,
 
 void MediaSource::SetLiveSeekableRange(
     double start, double end, script::ExceptionState* exception_state) {
+  TRACE_EVENT2("cobalt::dom", "MediaSource::SetLiveSeekableRange()", "start",
+               start, "end", end);
   if (!IsOpen()) {
     DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
     return;
@@ -257,6 +259,7 @@ void MediaSource::SetLiveSeekableRange(
 
 void MediaSource::ClearLiveSeekableRange(
     script::ExceptionState* exception_state) {
+  TRACE_EVENT0("cobalt::dom", "MediaSource::ClearLiveSeekableRange()");
   if (!IsOpen()) {
     DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
     return;

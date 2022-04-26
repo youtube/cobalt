@@ -264,6 +264,8 @@ void SourceBuffer::Abort(script::ExceptionState* exception_state) {
 
 void SourceBuffer::Remove(double start, double end,
                           script::ExceptionState* exception_state) {
+  TRACE_EVENT2("cobalt::dom", "SourceBuffer::Remove()", "start", start, "end",
+               end);
   if (media_source_ == NULL) {
     DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
     return;
@@ -372,6 +374,8 @@ void SourceBuffer::ScheduleEvent(base::Token event_name) {
 
 bool SourceBuffer::PrepareAppend(size_t new_data_size,
                                  script::ExceptionState* exception_state) {
+  TRACE_EVENT1("cobalt::dom", "SourceBuffer::PrepareAppend()", "new_data_size",
+               new_data_size);
   if (media_source_ == NULL) {
     DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
     return false;
@@ -408,6 +412,8 @@ bool SourceBuffer::EvictCodedFrames(size_t new_data_size) {
 void SourceBuffer::AppendBufferInternal(
     const unsigned char* data, size_t size,
     script::ExceptionState* exception_state) {
+  TRACE_EVENT1("cobalt::dom", "SourceBuffer::AppendBufferInternal()", "size",
+               size);
   if (!PrepareAppend(size, exception_state)) {
     return;
   }
@@ -494,6 +500,7 @@ void SourceBuffer::AppendError() {
 }
 
 void SourceBuffer::OnRemoveTimer() {
+  TRACE_EVENT0("cobalt::dom", "SourceBuffer::OnRemoveTimer()");
   DCHECK(updating_);
   DCHECK_GE(pending_remove_start_, 0);
   DCHECK_LT(pending_remove_start_, pending_remove_end_);
