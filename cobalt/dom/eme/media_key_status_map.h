@@ -19,6 +19,7 @@
 #include <string>
 
 #include "base/memory/ref_counted.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/dom/buffer_source.h"
 #include "cobalt/dom/eme/media_key_status.h"
 #include "cobalt/script/callback_function.h"
@@ -53,6 +54,8 @@ class MediaKeyStatusMap : public script::Wrappable {
   //
   uint32_t size() const { return static_cast<uint32_t>(key_statuses_.size()); }
   MediaKeyStatus Get(const BufferSource& key_id) const {
+    TRACE_EVENT1("cobalt::dom::eme", "MediaKeyStatusMap::Get()", "key_id",
+                 GetStringFromBufferSource(key_id));
     std::string key_id_copy = GetStringFromBufferSource(key_id);
     const auto& iter = key_statuses_.find(key_id_copy);
     // TODO: Return "undefined" if `key_id` cannot be found.
@@ -61,6 +64,8 @@ class MediaKeyStatusMap : public script::Wrappable {
   }
 
   bool Has(const BufferSource& key_id) const {
+    TRACE_EVENT1("cobalt::dom::eme", "MediaKeyStatusMap::Has()", "key_id",
+                 GetStringFromBufferSource(key_id));
     std::string key_id_copy = GetStringFromBufferSource(key_id);
     return key_statuses_.find(key_id_copy) != key_statuses_.end();
   }

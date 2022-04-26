@@ -15,6 +15,7 @@
 #include "cobalt/dom/eme/media_keys.h"
 
 #include "base/bind.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/dom_settings.h"
@@ -39,6 +40,8 @@ MediaKeys::MediaKeys(script::EnvironmentSettings* settings,
 // See https://www.w3.org/TR/encrypted-media/#dom-mediakeys-createsession.
 scoped_refptr<MediaKeySession> MediaKeys::CreateSession(
     MediaKeySessionType session_type, script::ExceptionState* exception_state) {
+  TRACE_EVENT1("cobalt::dom::eme", "MediaKeys::CreateSession()", "session_type",
+               session_type);
   // 1. If this object's supported session types value does not contain
   //    sessionType, throw a NotSupportedError.
   if (session_type != kMediaKeySessionTypeTemporary) {
@@ -59,6 +62,7 @@ scoped_refptr<MediaKeySession> MediaKeys::CreateSession(
 
 MediaKeys::BoolPromiseHandle MediaKeys::SetServerCertificate(
     const BufferSource& server_certificate) {
+  TRACE_EVENT0("cobalt::dom::eme", "MediaKeys::SetServerCertificate()");
   BoolPromiseHandle promise = script_value_factory_->CreateBasicPromise<bool>();
 
   // 1. If the Key System implementation represented by this object's cdm
@@ -100,6 +104,7 @@ MediaKeys::BoolPromiseHandle MediaKeys::SetServerCertificate(
 
 script::Handle<script::Uint8Array> MediaKeys::GetMetrics(
     script::ExceptionState* exception_state) {
+  TRACE_EVENT0("cobalt::dom::eme", "MediaKeys::GetMetrics()");
   std::vector<uint8_t> metrics;
   if (drm_system_->GetMetrics(&metrics)) {
     return script::Uint8Array::New(
