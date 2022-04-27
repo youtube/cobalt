@@ -186,6 +186,9 @@ class BrowserModule {
   void Reveal(SbTimeMonotonic timestamp);
   void Focus(SbTimeMonotonic timestamp);
 
+  // Gets current application state.
+  base::ApplicationState GetApplicationState();
+
   // Attempt to reduce overall memory consumption. Called in response to a
   // system indication that memory usage is nearing a critical level.
   void ReduceMemory();

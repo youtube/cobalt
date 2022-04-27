@@ -102,7 +102,7 @@ void Watchdog::PreservePreviousWatchdogViolations() {
   }
 }
 
-void Watchdog::UpdateState(State state) {
+void Watchdog::UpdateState(base::ApplicationState state) {
   SB_CHECK(SbMutexAcquire(&mutex_) == kSbMutexAcquired);
   state_ = state;
   SB_CHECK(SbMutexRelease(&mutex_));
@@ -223,7 +223,9 @@ void Watchdog::SerializeWatchdogViolations(void* context) {
        << "      \"name\": \"" << it.second->name << "\",\n"
        << "      \"description\": \"" << it.second->description << "\",\n"
        << "      \"ping_infos\": " << ping_infos << ",\n"
-       << "      \"monitor_state\": " << it.second->monitor_state << ",\n"
+       << "      \"monitor_state\": \""
+       << std::string(GetApplicationStateString(it.second->monitor_state))
+       << "\",\n"
        << "      \"time_interval_microseconds\": "
        << it.second->time_interval_microseconds << ",\n"
        << "      \"time_wait_microseconds\": "
@@ -254,15 +256,16 @@ void Watchdog::SerializeWatchdogViolations(void* context) {
                          static_cast<int>(watchdog_json.size()));
 }
 
-bool Watchdog::Register(std::string name, State monitor_state,
+bool Watchdog::Register(std::string name, base::ApplicationState monitor_state,
                         int64_t time_interval, int64_t time_wait,
                         Replace replace) {
   return Register(name, name, monitor_state, time_interval, time_wait, replace);
 }
 
 bool Watchdog::Register(std::string name, std::string description,
-                        State monitor_state, int64_t time_interval,
-                        int64_t time_wait, Replace replace) {
+                        base::ApplicationState monitor_state,
+                        int64_t time_interval, int64_t time_wait,
+                        Replace replace) {
   // Watchdog stub
   if (is_stub_) return true;
 

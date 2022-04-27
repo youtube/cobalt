@@ -1147,48 +1147,41 @@ void Application::OnApplicationEvent(SbEventType event_type,
   switch (event_type) {
     case kSbEventTypeStop:
       LOG(INFO) << "Got quit event.";
-      if (watchdog) watchdog->UpdateState(watchdog::STOPPED);
+      if (watchdog) watchdog->UpdateState(base::kApplicationStateStopped);
       Quit();
       LOG(INFO) << "Finished quitting.";
       break;
     case kSbEventTypeStart:
       LOG(INFO) << "Got start event.";
       browser_module_->Reveal(timestamp);
-      if (watchdog) watchdog->UpdateState(watchdog::BLURRED);
       browser_module_->Focus(timestamp);
-      if (watchdog) watchdog->UpdateState(watchdog::STARTED);
       LOG(INFO) << "Finished starting.";
       break;
 #if SB_API_VERSION >= 13
     case kSbEventTypeBlur:
       LOG(INFO) << "Got blur event.";
       browser_module_->Blur(timestamp);
-      if (watchdog) watchdog->UpdateState(watchdog::BLURRED);
       LOG(INFO) << "Finished blurring.";
       break;
     case kSbEventTypeFocus:
       LOG(INFO) << "Got focus event.";
       browser_module_->Focus(timestamp);
-      if (watchdog) watchdog->UpdateState(watchdog::STARTED);
       LOG(INFO) << "Finished focusing.";
       break;
     case kSbEventTypeConceal:
       LOG(INFO) << "Got conceal event.";
       browser_module_->Conceal(timestamp);
-      if (watchdog) watchdog->UpdateState(watchdog::CONCEALED);
       LOG(INFO) << "Finished concealing.";
       break;
     case kSbEventTypeReveal:
       DCHECK(SbSystemSupportsResume());
       LOG(INFO) << "Got reveal event.";
       browser_module_->Reveal(timestamp);
-      if (watchdog) watchdog->UpdateState(watchdog::BLURRED);
       LOG(INFO) << "Finished revealing.";
       break;
     case kSbEventTypeFreeze:
       LOG(INFO) << "Got freeze event.";
       browser_module_->Freeze(timestamp);
-      if (watchdog) watchdog->UpdateState(watchdog::FROZEN);
 #if SB_IS(EVERGREEN)
       if (updater_module_) updater_module_->Suspend();
 #endif
@@ -1197,7 +1190,6 @@ void Application::OnApplicationEvent(SbEventType event_type,
     case kSbEventTypeUnfreeze:
       LOG(INFO) << "Got unfreeze event.";
       browser_module_->Unfreeze(timestamp);
-      if (watchdog) watchdog->UpdateState(watchdog::CONCEALED);
 #if SB_IS(EVERGREEN)
       if (updater_module_) updater_module_->Resume();
 #endif
@@ -1207,21 +1199,17 @@ void Application::OnApplicationEvent(SbEventType event_type,
     case kSbEventTypePause:
       LOG(INFO) << "Got pause event.";
       browser_module_->Blur(timestamp);
-      if (watchdog) watchdog->UpdateState(watchdog::BLURRED);
       LOG(INFO) << "Finished pausing.";
       break;
     case kSbEventTypeUnpause:
       LOG(INFO) << "Got unpause event.";
       browser_module_->Focus(timestamp);
-      if (watchdog) watchdog->UpdateState(watchdog::STARTED);
       LOG(INFO) << "Finished unpausing.";
       break;
     case kSbEventTypeSuspend:
       LOG(INFO) << "Got suspend event.";
       browser_module_->Conceal(timestamp);
-      if (watchdog) watchdog->UpdateState(watchdog::CONCEALED);
       browser_module_->Freeze(timestamp);
-      if (watchdog) watchdog->UpdateState(watchdog::FROZEN);
 #if SB_IS(EVERGREEN)
       if (updater_module_) updater_module_->Suspend();
 #endif
@@ -1231,9 +1219,7 @@ void Application::OnApplicationEvent(SbEventType event_type,
       DCHECK(SbSystemSupportsResume());
       LOG(INFO) << "Got resume event.";
       browser_module_->Unfreeze(timestamp);
-      if (watchdog) watchdog->UpdateState(watchdog::CONCEALED);
       browser_module_->Reveal(timestamp);
-      if (watchdog) watchdog->UpdateState(watchdog::BLURRED);
 #if SB_IS(EVERGREEN)
       if (updater_module_) updater_module_->Resume();
 #endif
@@ -1279,6 +1265,7 @@ void Application::OnApplicationEvent(SbEventType event_type,
       NOTREACHED() << "Unexpected event type: " << event_type;
       return;
   }
+  if (watchdog) watchdog->UpdateState(browser_module_->GetApplicationState());
 }
 
 void Application::OnWindowSizeChangedEvent(const base::Event* event) {

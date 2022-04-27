@@ -1438,20 +1438,21 @@ void BrowserModule::Conceal(SbTimeMonotonic timestamp) {
   ConcealInternal(timestamp);
 }
 
-void BrowserModule::Focus(SbTimeMonotonic timestamp) {
-  TRACE_EVENT0("cobalt::browser", "BrowserModule::Focus()");
-  DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
-  DCHECK(application_state_ == base::kApplicationStateBlurred);
-  FOR_EACH_OBSERVER(LifecycleObserver, lifecycle_observers_, Focus(timestamp));
-  application_state_ = base::kApplicationStateStarted;
-}
-
 void BrowserModule::Freeze(SbTimeMonotonic timestamp) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::Freeze()");
   DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
   DCHECK(application_state_ == base::kApplicationStateConcealed);
   application_state_ = base::kApplicationStateFrozen;
   FreezeInternal(timestamp);
+}
+
+void BrowserModule::Unfreeze(SbTimeMonotonic timestamp) {
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::Unfreeze()");
+  DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
+  DCHECK(application_state_ == base::kApplicationStateFrozen);
+  application_state_ = base::kApplicationStateConcealed;
+  UnfreezeInternal(timestamp);
+  NavigatePendingURL();
 }
 
 void BrowserModule::Reveal(SbTimeMonotonic timestamp) {
@@ -1462,13 +1463,16 @@ void BrowserModule::Reveal(SbTimeMonotonic timestamp) {
   RevealInternal(timestamp);
 }
 
-void BrowserModule::Unfreeze(SbTimeMonotonic timestamp) {
-  TRACE_EVENT0("cobalt::browser", "BrowserModule::Unfreeze()");
+void BrowserModule::Focus(SbTimeMonotonic timestamp) {
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::Focus()");
   DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
-  DCHECK(application_state_ == base::kApplicationStateFrozen);
-  application_state_ = base::kApplicationStateConcealed;
-  UnfreezeInternal(timestamp);
-  NavigatePendingURL();
+  DCHECK(application_state_ == base::kApplicationStateBlurred);
+  FOR_EACH_OBSERVER(LifecycleObserver, lifecycle_observers_, Focus(timestamp));
+  application_state_ = base::kApplicationStateStarted;
+}
+
+base::ApplicationState BrowserModule::GetApplicationState() {
+  return application_state_;
 }
 
 void BrowserModule::ReduceMemory() {

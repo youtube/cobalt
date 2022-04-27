@@ -130,22 +130,22 @@ bool H5vccCrashLog::Register(const std::string& name,
                              WatchdogReplace watchdog_replace) {
   watchdog::Watchdog* watchdog = watchdog::Watchdog::GetInstance();
   if (watchdog) {
-    watchdog::State monitor_state;
+    base::ApplicationState monitor_state;
     switch (watchdog_state) {
       case kWatchdogStateStarted:
-        monitor_state = watchdog::STARTED;
+        monitor_state = base::kApplicationStateStarted;
         break;
       case kWatchdogStateBlurred:
-        monitor_state = watchdog::BLURRED;
+        monitor_state = base::kApplicationStateBlurred;
         break;
       case kWatchdogStateConcealed:
-        monitor_state = watchdog::CONCEALED;
+        monitor_state = base::kApplicationStateConcealed;
         break;
       case kWatchdogStateFrozen:
-        monitor_state = watchdog::FROZEN;
+        monitor_state = base::kApplicationStateFrozen;
         break;
       default:
-        monitor_state = watchdog::STARTED;
+        monitor_state = base::kApplicationStateStarted;
     }
     watchdog::Replace replace;
     switch (watchdog_replace) {

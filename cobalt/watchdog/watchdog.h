@@ -20,6 +20,7 @@
 #include <string>
 #include <unordered_map>
 
+#include "cobalt/base/application_state.h"
 #include "cobalt/watchdog/singleton.h"
 #include "starboard/mutex.h"
 #include "starboard/thread.h"
@@ -28,15 +29,6 @@
 namespace cobalt {
 namespace watchdog {
 
-// Application state, used to start/stop monitoring as needed.
-enum State {
-  STARTED = 1,
-  BLURRED = 2,  // equivalent to PAUSED state
-  CONCEALED = 3,
-  FROZEN = 4,  // equivalent to SUSPENDED state
-  STOPPED = 5,
-};
-
 // Client to monitor
 typedef struct Client {
   std::string name;
@@ -44,7 +36,7 @@ typedef struct Client {
   // List of strings optionally provided with each Ping.
   std::queue<std::string> ping_infos;
   // Application state to continue monitoring client up to.
-  State monitor_state;
+  base::ApplicationState monitor_state;
   int64_t time_interval_microseconds;
   int64_t time_wait_microseconds;
   int64_t time_registered_microseconds;                    // since epoch
@@ -59,7 +51,7 @@ typedef struct Violation {
   // List of strings optionally provided with each Ping.
   std::queue<std::string> ping_infos;
   // Application state to continue monitoring client up to.
-  State monitor_state;
+  base::ApplicationState monitor_state;
   int64_t time_interval_microseconds;
   int64_t time_wait_microseconds;
   int64_t time_registered_microseconds;  // since epoch
@@ -92,12 +84,13 @@ class Watchdog : public Singleton<Watchdog> {
   bool Initialize();
   bool InitializeStub();
   void Uninitialize();
-  void UpdateState(State state);
-  bool Register(std::string name, State monitor_state, int64_t time_interval,
-                int64_t time_wait = 0, Replace replace = NONE);
-  bool Register(std::string name, std::string description, State monitor_state,
+  void UpdateState(base::ApplicationState state);
+  bool Register(std::string name, base::ApplicationState monitor_state,
                 int64_t time_interval, int64_t time_wait = 0,
                 Replace replace = NONE);
+  bool Register(std::string name, std::string description,
+                base::ApplicationState monitor_state, int64_t time_interval,
+                int64_t time_wait = 0, Replace replace = NONE);
   bool Unregister(const std::string& name, bool lock = true);
   bool Ping(const std::string& name);
   bool Ping(const std::string& name, const std::string& info);
@@ -127,7 +120,7 @@ class Watchdog : public Singleton<Watchdog> {
   // Monitor thread.
   SbThread watchdog_thread_;
   // Tracks application state.
-  State state_ = STARTED;
+  base::ApplicationState state_ = base::kApplicationStateStarted;
   // Dictionary of registered Watchdog clients.
   std::unordered_map<std::string, std::unique_ptr<Client>> watchdog_index_;
   // Dictionary of Watchdog violations.

@@ -337,9 +337,9 @@ void Pipeline::SetNewRenderTree(const Submission& render_tree_submission) {
   // Registers Pipeline as a watchdog client.
   watchdog::Watchdog* watchdog = watchdog::Watchdog::GetInstance();
   if (watchdog)
-    watchdog->Register(std::string(kWatchdogName), watchdog::STARTED,
-                       kWatchdogTimeInterval, kWatchdogTimeWait,
-                       watchdog::PING);
+    watchdog->Register(std::string(kWatchdogName),
+                       base::kApplicationStateStarted, kWatchdogTimeInterval,
+                       kWatchdogTimeWait, watchdog::PING);
 
   // If a time fence is active, save the submission to be queued only after
   // we pass the time fence.  Overwrite any existing waiting submission in this
