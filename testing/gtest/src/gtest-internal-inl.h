@@ -101,6 +101,10 @@ const char kStackTraceDepthFlag[] = "stack_trace_depth";
 const char kStreamResultToFlag[] = "stream_result_to";
 const char kThrowOnFailureFlag[] = "throw_on_failure";
 const char kFlagfileFlag[] = "flagfile";
+#if GTEST_OS_STARBOARD
+const char kTotalShardsFlag[] = "total_shards";
+const char kShardIndexFlag[] = "shard_index";
+#endif  // GTEST_OS_STARBOARD
 
 // A valid random seed must be in [1, kMaxRandomSeed].
 const int kMaxRandomSeed = 99999;

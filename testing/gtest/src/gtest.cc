@@ -312,6 +312,17 @@ GTEST_DEFINE_string_(
     "This flag specifies the flagfile to read command-line flags from.");
 #endif  // GTEST_USE_OWN_FLAGFILE_FLAG_
 
+#if GTEST_OS_STARBOARD
+GTEST_DEFINE_int32_(
+    total_shards,
+    internal::Int32FromGTestEnv("total_shards", -1),
+    "The total number of shards to split test cases into.");
+GTEST_DEFINE_int32_(
+    shard_index,
+    internal::Int32FromGTestEnv("shard_index", -1),
+    "The shard index that determines the subset of unit tests run in the shard.");
+#endif  // GTEST_OS_STARBOARD
+
 namespace internal {
 
 // Generates a random number from [0, range), using a Linear
@@ -3095,11 +3106,20 @@ void PrettyUnitTestResultPrinter::OnTestIterationStart(
   }
 
   if (internal::ShouldShard(kTestTotalShards, kTestShardIndex, false)) {
+#if GTEST_OS_STARBOARD
+    const Int32 shard_index = GTEST_FLAG(shard_index);
+    const Int32 total_shards = GTEST_FLAG(total_shards);
+    ColoredPrintf(COLOR_YELLOW,
+                  "Note: This is test shard %d of %d.\n",
+                  static_cast<int>(shard_index) + 1,
+                  static_cast<int>(total_shards));
+#else  // GTEST_OS_STARBOARD
     const Int32 shard_index = Int32FromEnvOrDie(kTestShardIndex, -1);
     ColoredPrintf(COLOR_YELLOW,
                   "Note: This is test shard %d of %s.\n",
                   static_cast<int>(shard_index) + 1,
                   internal::posix::GetEnv(kTestTotalShards));
+#endif  // GTEST_OS_STARBOARD
   }
 
   if (GTEST_FLAG(shuffle)) {
@@ -4799,15 +4819,17 @@ void WriteToShardStatusFileIfNeeded() {
 bool ShouldShard(const char* total_shards_env,
                  const char* shard_index_env,
                  bool in_subprocess_for_death_test) {
-#if GTEST_OS_STARBOARD
-  return false;
-#else  // GTEST_OS_STARBOARD
   if (in_subprocess_for_death_test) {
     return false;
   }
 
+#if GTEST_OS_STARBOARD
+  const Int32 total_shards = GTEST_FLAG(total_shards);
+  const Int32 shard_index = GTEST_FLAG(shard_index);
+#else  // GTEST_OS_STARBOARD
   const Int32 total_shards = Int32FromEnvOrDie(total_shards_env, -1);
   const Int32 shard_index = Int32FromEnvOrDie(shard_index_env, -1);
+#endif  // GTEST_OS_STARBOARD
 
   if (total_shards == -1 && shard_index == -1) {
     return false;
@@ -4839,7 +4861,6 @@ bool ShouldShard(const char* total_shards_env,
   }
 
   return total_shards > 1;
-#endif  // GTEST_OS_STARBOARD
 }
 
 // Parses the environment variable var as an Int32. If it is unset,
@@ -4875,10 +4896,17 @@ bool ShouldRunTestOnShard(int total_shards, int shard_index, int test_id) {
 // http://code.google.com/p/googletest/wiki/GoogleTestAdvancedGuide.
 // Returns the number of tests that should run.
 int UnitTestImpl::FilterTests(ReactionToSharding shard_tests) {
+#if GTEST_OS_STARBOARD
+  const Int32 total_shards = shard_tests == HONOR_SHARDING_PROTOCOL ?
+      GTEST_FLAG(total_shards) : -1;
+  const Int32 shard_index = shard_tests == HONOR_SHARDING_PROTOCOL ?
+      GTEST_FLAG(shard_index) : -1;
+#else  // GTEST_OS_STARBOARD
   const Int32 total_shards = shard_tests == HONOR_SHARDING_PROTOCOL ?
       Int32FromEnvOrDie(kTestTotalShards, -1) : -1;
   const Int32 shard_index = shard_tests == HONOR_SHARDING_PROTOCOL ?
       Int32FromEnvOrDie(kTestShardIndex, -1) : -1;
+#endif  // GTEST_OS_STARBOARD
 
   // num_runnable_tests are the number of tests that will
   // run across all shards (i.e., match filter and are not disabled).
@@ -5333,6 +5361,12 @@ bool ParseGoogleTestFlag(const char* const arg) {
                      &GTEST_FLAG(stack_trace_depth)) ||
       ParseStringFlag(arg, kStreamResultToFlag,
                       &GTEST_FLAG(stream_result_to)) ||
+#if GTEST_OS_STARBOARD
+      ParseInt32Flag(arg, kTotalShardsFlag,
+                     &GTEST_FLAG(total_shards)) ||
+      ParseInt32Flag(arg, kShardIndexFlag,
+                     &GTEST_FLAG(shard_index)) ||
+#endif  // GTEST_OS_STARBOARD
       ParseBoolFlag(arg, kThrowOnFailureFlag,
                     &GTEST_FLAG(throw_on_failure));
 }
