@@ -333,6 +333,8 @@
         '<(DEPTH)/starboard/shared/starboard/memory.cc',
         '<(DEPTH)/starboard/shared/starboard/new.cc',
         '<(DEPTH)/starboard/shared/starboard/queue_application.cc',
+        '<(DEPTH)/starboard/shared/starboard/starboard_switches.cc',
+        '<(DEPTH)/starboard/shared/starboard/starboard_switches.h',
         '<(DEPTH)/starboard/shared/starboard/string_concat_wide.cc',
         '<(DEPTH)/starboard/shared/starboard/string_concat.cc',
         '<(DEPTH)/starboard/shared/starboard/string_copy_wide.cc',

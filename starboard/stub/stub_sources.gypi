@@ -22,6 +22,8 @@
         '<(DEPTH)/starboard/shared/starboard/file_mode_string_to_flags.cc',
         '<(DEPTH)/starboard/shared/starboard/memory.cc',
         '<(DEPTH)/starboard/shared/starboard/queue_application.cc',
+        '<(DEPTH)/starboard/shared/starboard/starboard_switches.cc',
+        '<(DEPTH)/starboard/shared/starboard/starboard_switches.h',
         '<(DEPTH)/starboard/shared/stub/accessibility_get_caption_settings.cc',
         '<(DEPTH)/starboard/shared/stub/accessibility_get_display_settings.cc',
         '<(DEPTH)/starboard/shared/stub/accessibility_get_text_to_speech_settings.cc',
