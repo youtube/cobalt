@@ -258,7 +258,7 @@ class _Inflater(object):
         self._logger = get_class_logger(self)
         self._window_bits = window_bits
 
-        self._unconsumed = ''
+        self._unconsumed = b''
 
         self.reset()
 
@@ -266,7 +266,7 @@ class _Inflater(object):
         if not (size == -1 or size > 0):
             raise Exception('size must be -1 or positive')
 
-        data = ''
+        data = b''
 
         while True:
             if size == -1:
@@ -274,7 +274,7 @@ class _Inflater(object):
                 # See Python bug http://bugs.python.org/issue12050 to
                 # understand why the same code cannot be used for updating
                 # self._unconsumed for here and else block.
-                self._unconsumed = ''
+                self._unconsumed = b''
             else:
                 data += self._decompress.decompress(
                     self._unconsumed, size - len(data))
@@ -365,7 +365,7 @@ class _RFC1979Inflater(object):
     def filter(self, bytes):
         # Restore stripped LEN and NLEN field of a non-compressed block added
         # for Z_SYNC_FLUSH.
-        self._inflater.append(bytes + '\x00\x00\xff\xff')
+        self._inflater.append(bytes + b'\x00\x00\xff\xff')
         return self._inflater.decompress(-1)
 
 

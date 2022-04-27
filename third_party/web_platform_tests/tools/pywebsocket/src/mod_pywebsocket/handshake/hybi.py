@@ -204,8 +204,8 @@ class Handshaker(object):
                 if processor.is_active():
                     processor.check_consistency_with_other_processors(
                         processors)
-            processors = filter(lambda processor: processor.is_active(),
-                                processors)
+            processors = list(filter(lambda processor: processor.is_active(),
+                                     processors))
 
             accepted_extensions = []
 
@@ -230,8 +230,8 @@ class Handshaker(object):
                 self._request.mux_processor = processors[mux_index]
                 self._request.mux_processor.set_extensions(
                     logical_channel_extensions)
-                processors = filter(lambda processor: processor.is_active(),
-                                    processors)
+                processors = list(filter(lambda processor: processor.is_active(),
+                                         processors))
 
             stream_options = StreamOptions()
 
@@ -252,7 +252,7 @@ class Handshaker(object):
                     continue
 
                 # Inactivate all of the following compression extensions.
-                for j in xrange(index + 1, len(processors)):
+                for j in range(index + 1, len(processors)):
                     if is_compression_extension(processors[j].name()):
                         processors[j].set_active(False)
 
@@ -343,8 +343,8 @@ class Handshaker(object):
 
         self._logger.debug(
             'Extensions requested: %r',
-            map(common.ExtensionParameter.name,
-                self._request.ws_requested_extensions))
+            list(map(common.ExtensionParameter.name,
+                     self._request.ws_requested_extensions)))
 
     def _validate_key(self, key):
         if key.find(',') >= 0:
