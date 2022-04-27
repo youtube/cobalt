@@ -67,6 +67,7 @@ class ThreadedWebServer(object):
                handler=MakeRequestHandlerClass(os.path.dirname(__file__)),
                binding_address=None):
     _ThreadedTCPServer.allow_reuse_address = True
+    _ThreadedTCPServer.block_on_close = False
 
     if not binding_address:
       # No specific binding address specified. Bind to any interfaces instead.

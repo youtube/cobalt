@@ -36,7 +36,7 @@ def GetProcessStatus(pid):
     pid: process id of specified cobalt instance.
   """
   output = subprocess.check_output(["ps -o state= -p {}".format(pid)],
-                                   shell=True)
+                                   shell=True).decode()
   return output
 
 
