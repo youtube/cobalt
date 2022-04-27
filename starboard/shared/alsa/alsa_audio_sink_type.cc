@@ -191,7 +191,7 @@ AlsaAudioSink::AlsaAudioSink(
   SB_DCHECK(SbAudioSinkIsAudioSampleTypeSupported(sample_type_));
 
   memset(silence_frames_, 0,
-              channels * kFramesPerRequest * GetSampleSize(sample_type));
+         channels * kFramesPerRequest * GetSampleSize(sample_type));
 
   ScopedLock lock(mutex_);
   audio_out_thread_ =
@@ -385,7 +385,7 @@ void AlsaAudioSink::WriteFrames(double playback_rate,
       source_addr += static_cast<int>(offset_in_frames + source_frames) %
                      frames_per_channel_ * bytes_per_frame;
       memcpy(&resample_buffer_[0] + bytes_per_frame * target_frames,
-                   source_addr, bytes_per_frame);
+             source_addr, bytes_per_frame);
       ++target_frames;
       source_frames += playback_rate;
     }

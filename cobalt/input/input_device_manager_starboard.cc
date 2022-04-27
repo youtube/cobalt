@@ -28,8 +28,7 @@ std::unique_ptr<InputDeviceManager> InputDeviceManager::CreateFromWindow(
     system_window::SystemWindow* system_window) {
   return std::unique_ptr<InputDeviceManager>(new InputDeviceManagerDesktop(
       keyboard_event_callback, pointer_event_callback, wheel_event_callback,
-      input_event_callback,
-      system_window));
+      input_event_callback, system_window));
 }
 
 }  // namespace input

@@ -14,10 +14,10 @@
 
 #include "starboard/configuration.h"
 
-#include "cobalt/renderer/rasterizer/egl/draw_callback.h"
 #include "base/basictypes.h"
 #include "cobalt/renderer/backend/egl/utils.h"
 #include "cobalt/renderer/egl_and_gles.h"
+#include "cobalt/renderer/rasterizer/egl/draw_callback.h"
 #include "egl/generated_shader_impl.h"
 #include "starboard/memory.h"
 
@@ -30,8 +30,7 @@ DrawCallback::DrawCallback(const base::Closure& rasterize_callback)
     : rasterize_callback_(rasterize_callback) {}
 
 void DrawCallback::ExecuteUpdateVertexBuffer(
-    GraphicsState* graphics_state, ShaderProgramManager* program_manager) {
-}
+    GraphicsState* graphics_state, ShaderProgramManager* program_manager) {}
 
 void DrawCallback::ExecuteRasterize(GraphicsState* graphics_state,
                                     ShaderProgramManager* program_manager) {

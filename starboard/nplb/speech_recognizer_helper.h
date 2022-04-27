@@ -41,9 +41,7 @@ class SpeechRecognizerTest : public ::testing::Test {
                         int results_size,
                         bool is_final) {}
 
-  SbSpeechRecognizerHandler* handler() {
-    return &handler_;
-  }
+  SbSpeechRecognizerHandler* handler() { return &handler_; }
 
  protected:
   bool isTestFixtureSupported;

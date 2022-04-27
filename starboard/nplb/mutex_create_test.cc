@@ -47,13 +47,13 @@ TEST(SbMutexCreateTest, SunnyDayALot) {
 }
 
 TEST(SbMutexCreateTest, SunnyDayABunchAtOnce) {
-  SbMutex mutices[kABunch];
+  SbMutex mutexes[kABunch];
   for (int i = 0; i < kABunch; ++i) {
-    EXPECT_TRUE(SbMutexCreate(&mutices[i]));
+    EXPECT_TRUE(SbMutexCreate(&mutexes[i]));
   }
 
   for (int i = 0; i < kABunch; ++i) {
-    EXPECT_TRUE(SbMutexDestroy(&mutices[i]));
+    EXPECT_TRUE(SbMutexDestroy(&mutexes[i]));
   }
 }
 

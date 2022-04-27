@@ -65,8 +65,7 @@ class InputEvent : public base::Event {
              const math::PointF& delta = math::PointF(), float pressure = 0,
              const math::PointF& size = math::PointF(),
              const math::PointF& tilt = math::PointF(),
-             const std::string& input_text = "", bool is_composing = false
-             )
+             const std::string& input_text = "", bool is_composing = false)
       : timestamp_(timestamp),
         type_(type),
         device_id_(device_id),
@@ -79,9 +78,7 @@ class InputEvent : public base::Event {
         size_(size),
         tilt_(tilt),
         input_text_(input_text),
-        is_composing_(is_composing)
-  {
-  }
+        is_composing_(is_composing) {}
 
   ~InputEvent() {}
 

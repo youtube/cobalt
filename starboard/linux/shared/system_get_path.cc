@@ -123,8 +123,7 @@ bool GetExecutableDirectory(char* out_path, int path_size) {
     return false;
   }
 
-  char* last_slash =
-      const_cast<char *>(strrchr(out_path, '/'));
+  char* last_slash = const_cast<char*>(strrchr(out_path, '/'));
   if (!last_slash) {
     return false;
   }
@@ -256,8 +255,7 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
       break;
 
     default:
-      SB_NOTIMPLEMENTED() << "SbSystemGetPath not implemented for "
-                          << path_id;
+      SB_NOTIMPLEMENTED() << "SbSystemGetPath not implemented for " << path_id;
       return false;
   }
 

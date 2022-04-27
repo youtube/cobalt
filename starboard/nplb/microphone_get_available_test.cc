@@ -52,8 +52,8 @@ TEST(SbMicrophoneGetAvailableTest, RainyDayNULLInfoArray) {
   }
 }
 
-template<std::size_t N>
-bool IsNullTerminated(const char(&str)[N]) {
+template <std::size_t N>
+bool IsNullTerminated(const char (&str)[N]) {
   for (size_t i = 0; i < N; ++i) {
     if (str[i] == '\0') {
       return true;

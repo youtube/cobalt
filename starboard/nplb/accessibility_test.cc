@@ -88,36 +88,29 @@ TEST(SbAccessibilityTest, GetCaptionSettingsReturnIsValid) {
               kSbAccessibilityCaptionCharacterEdgeStyleDropShadow);
   }
 
-  if (settings.font_color_state !=
-      kSbAccessibilityCaptionStateUnsupported) {
+  if (settings.font_color_state != kSbAccessibilityCaptionStateUnsupported) {
     EXPECT_GE(settings.font_color, kSbAccessibilityCaptionColorBlue);
     EXPECT_LE(settings.font_color, kSbAccessibilityCaptionColorYellow);
   }
 
-  if (settings.font_family_state !=
-      kSbAccessibilityCaptionStateUnsupported) {
-    EXPECT_GE(settings.font_family,
-              kSbAccessibilityCaptionFontFamilyCasual);
+  if (settings.font_family_state != kSbAccessibilityCaptionStateUnsupported) {
+    EXPECT_GE(settings.font_family, kSbAccessibilityCaptionFontFamilyCasual);
     EXPECT_LE(settings.font_family,
               kSbAccessibilityCaptionFontFamilySmallCapitals);
   }
 
-  if (settings.font_opacity_state !=
-      kSbAccessibilityCaptionStateUnsupported) {
-    EXPECT_GE(settings.font_opacity,
-              kSbAccessibilityCaptionOpacityPercentage0);
+  if (settings.font_opacity_state != kSbAccessibilityCaptionStateUnsupported) {
+    EXPECT_GE(settings.font_opacity, kSbAccessibilityCaptionOpacityPercentage0);
     EXPECT_LE(settings.font_opacity,
               kSbAccessibilityCaptionOpacityPercentage100);
   }
 
-  if (settings.font_size_state !=
-      kSbAccessibilityCaptionStateUnsupported) {
+  if (settings.font_size_state != kSbAccessibilityCaptionStateUnsupported) {
     EXPECT_GE(settings.font_size, kSbAccessibilityCaptionFontSizePercentage25);
     EXPECT_LE(settings.font_size, kSbAccessibilityCaptionFontSizePercentage300);
   }
 
-  if (settings.window_color_state !=
-      kSbAccessibilityCaptionStateUnsupported) {
+  if (settings.window_color_state != kSbAccessibilityCaptionStateUnsupported) {
     EXPECT_GE(settings.window_color, kSbAccessibilityCaptionColorBlue);
     EXPECT_LE(settings.window_color, kSbAccessibilityCaptionColorYellow);
   }

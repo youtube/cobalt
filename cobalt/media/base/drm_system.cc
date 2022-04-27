@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <memory>
-
 #include "cobalt/media/base/drm_system.h"
+
+#include <memory>
+#include <utility>
 
 #include "base/bind.h"
 #include "base/compiler_specific.h"

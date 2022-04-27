@@ -173,9 +173,8 @@ TEST(SbMicrophoneCreateTest, RainyDayInvalidBufferSize_2G) {
     // This should wrap around to a negative value due to int
     // narrowing.
     int kBufferSize = static_cast<int>(kBufferSize64);
-    SbMicrophone microphone =
-        SbMicrophoneCreate(info_array[0].id, info_array[0].max_sample_rate_hz,
-                           kBufferSize);
+    SbMicrophone microphone = SbMicrophoneCreate(
+        info_array[0].id, info_array[0].max_sample_rate_hz, kBufferSize);
     EXPECT_FALSE(SbMicrophoneIsValid(microphone));
     SbMicrophoneDestroy(microphone);
   }

@@ -438,7 +438,7 @@ bool PulseAudioSinkType::Initialize() {
   if (!mainloop_) {
     return false;
   }
-  // Create pulse context.
+// Create pulse context.
 #if HAS_LEAK_SANITIZER
   __lsan_disable();
 #endif

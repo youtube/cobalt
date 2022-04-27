@@ -139,14 +139,14 @@ TEST(SbSystemGetPropertyTest, SpeechApiKeyNotLeaked) {
   }
 
   SbSystemPropertyId enum_values[] = {
-    kSbSystemPropertyChipsetModelNumber,
-    kSbSystemPropertyFirmwareVersion,
-    kSbSystemPropertyFriendlyName,
-    kSbSystemPropertyManufacturerName,
-    kSbSystemPropertyModelName,
-    kSbSystemPropertyModelYear,
-    kSbSystemPropertySystemIntegratorName,
-    kSbSystemPropertyPlatformName,
+      kSbSystemPropertyChipsetModelNumber,
+      kSbSystemPropertyFirmwareVersion,
+      kSbSystemPropertyFriendlyName,
+      kSbSystemPropertyManufacturerName,
+      kSbSystemPropertyModelName,
+      kSbSystemPropertyModelYear,
+      kSbSystemPropertySystemIntegratorName,
+      kSbSystemPropertyPlatformName,
   };
 
   for (SbSystemPropertyId val : enum_values) {

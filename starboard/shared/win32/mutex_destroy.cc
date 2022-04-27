@@ -22,16 +22,16 @@ bool SbMutexDestroy(SbMutex* mutex) {
   if (!mutex) {
     return false;
   }
-// On Windows a SRWLOCK is used in place of the heavier mutex. These locks
-// cannot be acquired recursively, and the behavior when this is attempted is
-// not clear in the documentation. A Microsoft DevBlog seems to suggest this
-// is undefined behavior:
-//
-//   It’s a programming error. It is your responsibility as a programmer not
-//   to call Acquire­SRW­Lock­Shared or Acquire­SRW­Lock­Exclusive from a
-//   thread that has already acquired the lock. Failing to comply with this
-//   rule will result in undefined behavior.
-//
-// https://devblogs.microsoft.com/oldnewthing/20160819-00/?p=94125
+  // On Windows a SRWLOCK is used in place of the heavier mutex. These locks
+  // cannot be acquired recursively, and the behavior when this is attempted is
+  // not clear in the documentation. A Microsoft DevBlog seems to suggest this
+  // is undefined behavior:
+  //
+  //   It’s a programming error. It is your responsibility as a programmer not
+  //   to call Acquire­SRW­Lock­Shared or Acquire­SRW­Lock­Exclusive from a
+  //   thread that has already acquired the lock. Failing to comply with this
+  //   rule will result in undefined behavior.
+  //
+  // https://devblogs.microsoft.com/oldnewthing/20160819-00/?p=94125
   return true;
 }

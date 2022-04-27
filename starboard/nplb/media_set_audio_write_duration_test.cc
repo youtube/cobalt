@@ -136,10 +136,9 @@ class SbMediaSetAudioWriteDurationTest
     SbPlayer player = SbPlayerCreate(
         fake_graphics_context_provider_.window(), kSbMediaVideoCodecNone,
         kAudioCodec, kSbDrmSystemInvalid, &audio_sample_info,
-        NULL /* max_video_capabilities */,
-        DummyDeallocateSampleFunc, DecoderStatusFunc, PlayerStatusFunc,
-        DummyErrorFunc, this /* context */, output_mode,
-        fake_graphics_context_provider_.decoder_target_provider());
+        NULL /* max_video_capabilities */, DummyDeallocateSampleFunc,
+        DecoderStatusFunc, PlayerStatusFunc, DummyErrorFunc, this /* context */,
+        output_mode, fake_graphics_context_provider_.decoder_target_provider());
 #endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 
     EXPECT_TRUE(SbPlayerIsValid(player));

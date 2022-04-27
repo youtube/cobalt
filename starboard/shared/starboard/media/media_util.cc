@@ -61,8 +61,7 @@ bool IsSupportedAudioCodec(const MimeType& mime_type,
   int bitrate = mime_type.GetParamIntValue("bitrate", kDefaultBitRate);
 
   if (!SbMediaIsAudioSupported(audio_codec,
-                               mime_type.raw_content_type().c_str(),
-                               bitrate)) {
+                               mime_type.raw_content_type().c_str(), bitrate)) {
     return false;
   }
 
@@ -160,11 +159,10 @@ bool IsSupportedVideoCodec(const MimeType& mime_type,
   }
 
 #if SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
-  if (!SbMediaIsVideoSupported(video_codec,
-                               mime_type.raw_content_type().c_str(),
-                               profile, level, bit_depth, primary_id,
-                               transfer_id, matrix_id, width, height, bitrate,
-                               fps, decode_to_texture_required)) {
+  if (!SbMediaIsVideoSupported(
+          video_codec, mime_type.raw_content_type().c_str(), profile, level,
+          bit_depth, primary_id, transfer_id, matrix_id, width, height, bitrate,
+          fps, decode_to_texture_required)) {
     return false;
   }
 #else   //  SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)

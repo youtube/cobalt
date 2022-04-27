@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/configuration.h"
-
 #include "cobalt/renderer/backend/egl/texture.h"
+
+#include <utility>
 
 #include "base/bind.h"
 #include "cobalt/base/polymorphic_downcast.h"
@@ -26,6 +26,8 @@
 #include "cobalt/renderer/backend/egl/texture_data_cpu.h"
 #include "cobalt/renderer/backend/egl/utils.h"
 #include "cobalt/renderer/egl_and_gles.h"
+#include "starboard/configuration.h"
+
 
 namespace cobalt {
 namespace renderer {

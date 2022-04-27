@@ -43,11 +43,8 @@ AudioRendererSinkImpl::AudioRendererSinkImpl()
                 channels, sampling_frequency_hz, audio_sample_type,
                 audio_frame_storage_type, frame_buffers,
                 frame_buffers_size_in_frames, update_source_status_func,
-                consume_frames_func,
-                error_func,
-                context);
-          }) {
-}
+                consume_frames_func, error_func, context);
+          }) {}
 
 AudioRendererSinkImpl::AudioRendererSinkImpl(
     CreateAudioSinkFunc create_audio_sink_func)
@@ -106,8 +103,7 @@ void AudioRendererSinkImpl::Start(
       audio_frame_storage_type, frame_buffers, frames_per_channel,
       &AudioRendererSinkImpl::UpdateSourceStatusFunc,
       &AudioRendererSinkImpl::ConsumeFramesFunc,
-      &AudioRendererSinkImpl::ErrorFunc,
-      this);
+      &AudioRendererSinkImpl::ErrorFunc, this);
   if (!SbAudioSinkIsValid(audio_sink_)) {
     return;
   }

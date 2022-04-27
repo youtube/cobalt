@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/configuration.h"
-
 #include "cobalt/renderer/rasterizer/egl/draw_object.h"
 
 #include <algorithm>
@@ -21,6 +19,7 @@
 
 #include "cobalt/math/transform_2d.h"
 #include "cobalt/renderer/backend/egl/utils.h"
+#include "starboard/configuration.h"
 
 namespace cobalt {
 namespace renderer {

@@ -49,8 +49,7 @@ bool ParseSocketAddress(const char* spec, const url::Component& host_component,
       out_socket_address->type = kSbSocketAddressTypeIpv4;
       DCHECK_GE(sizeof(address_v4),
                 static_cast<std::size_t>(num_ipv4_components));
-      memcpy(out_socket_address->address, address_v4,
-                   num_ipv4_components);
+      memcpy(out_socket_address->address, address_v4, num_ipv4_components);
 
       return true;
     case url::CanonHostInfo::NEUTRAL:

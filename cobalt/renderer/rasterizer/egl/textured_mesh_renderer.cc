@@ -12,11 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/configuration.h"
-
 #include "cobalt/renderer/rasterizer/egl/textured_mesh_renderer.h"
 
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "base/strings/string_number_conversions.h"
@@ -25,6 +24,7 @@
 #include "cobalt/math/size.h"
 #include "cobalt/renderer/backend/egl/utils.h"
 #include "cobalt/renderer/egl_and_gles.h"
+#include "starboard/configuration.h"
 #include "third_party/glm/glm/gtc/type_ptr.hpp"
 
 namespace cobalt {

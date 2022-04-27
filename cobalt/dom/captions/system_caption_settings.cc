@@ -467,8 +467,9 @@ bool SystemCaptionSettings::is_enabled() {
   bool success = SbAccessibilityGetCaptionSettings(&caption_settings);
   DCHECK(supports_is_enabled());
 
-  return (success && caption_settings.supports_is_enabled) ?
-             caption_settings.is_enabled : false;
+  return (success && caption_settings.supports_is_enabled)
+             ? caption_settings.is_enabled
+             : false;
 }
 
 void SystemCaptionSettings::set_is_enabled(bool active) {

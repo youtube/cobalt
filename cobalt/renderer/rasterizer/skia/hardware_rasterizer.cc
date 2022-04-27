@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/configuration.h"
-
 #include "cobalt/renderer/rasterizer/skia/hardware_rasterizer.h"
 
 #include <algorithm>
@@ -34,6 +32,7 @@
 #include "cobalt/renderer/rasterizer/skia/render_tree_node_visitor.h"
 #include "cobalt/renderer/rasterizer/skia/scratch_surface_cache.h"
 #include "cobalt/renderer/rasterizer/skia/vertex_buffer_object.h"
+#include "starboard/configuration.h"
 #include "third_party/glm/glm/gtc/matrix_inverse.hpp"
 #include "third_party/glm/glm/gtx/transform.hpp"
 #include "third_party/glm/glm/mat3x3.hpp"

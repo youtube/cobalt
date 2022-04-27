@@ -56,7 +56,7 @@ void BaseEventHandler(const SbEvent* event) {
 #if SB_API_VERSION >= 13
       preload_function(data->argument_count, data->argument_values, data->link,
                        base::Bind(&SbSystemRequestStop, 0), event->timestamp);
-#else  // SB_API_VERSION >= 13
+#else   // SB_API_VERSION >= 13
       preload_function(data->argument_count, data->argument_values, data->link,
                        base::Bind(&SbSystemRequestStop, 0),
                        SbTimeGetMonotonicNow());
@@ -82,7 +82,7 @@ void BaseEventHandler(const SbEvent* event) {
 #if SB_API_VERSION >= 13
       start_function(data->argument_count, data->argument_values, data->link,
                      base::Bind(&SbSystemRequestStop, 0), event->timestamp);
-#else  // SB_API_VERSION >= 13
+#else   // SB_API_VERSION >= 13
       start_function(data->argument_count, data->argument_values, data->link,
                      base::Bind(&SbSystemRequestStop, 0),
                      SbTimeGetMonotonicNow());

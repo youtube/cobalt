@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/configuration.h"
-
 #include "cobalt/renderer/rasterizer/egl/render_tree_node_visitor.h"
 
 #include <algorithm>
@@ -45,6 +43,7 @@
 #include "cobalt/renderer/rasterizer/skia/hardware_image.h"
 #include "cobalt/renderer/rasterizer/skia/image.h"              // nogncheck
 #include "cobalt/renderer/rasterizer/skia/skottie_animation.h"  // nogncheck
+#include "starboard/configuration.h"
 
 namespace cobalt {
 namespace renderer {

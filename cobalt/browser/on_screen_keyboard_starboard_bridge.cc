@@ -14,6 +14,8 @@
 
 #include "cobalt/browser/on_screen_keyboard_starboard_bridge.h"
 
+#include <memory>
+
 #include "base/bind.h"
 #include "base/callback.h"
 

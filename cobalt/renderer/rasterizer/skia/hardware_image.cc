@@ -12,11 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/configuration.h"
-
 #include "cobalt/renderer/rasterizer/skia/hardware_image.h"
 
 #include <memory>
+#include <utility>
 #include <vector>
 
 #include "base/bind.h"
@@ -27,6 +26,7 @@
 #include "cobalt/renderer/backend/egl/texture.h"
 #include "cobalt/renderer/rasterizer/skia/cobalt_skia_type_conversions.h"
 #include "cobalt/renderer/rasterizer/skia/gl_format_conversions.h"
+#include "starboard/configuration.h"
 #include "third_party/skia/include/core/SkImage.h"
 #include "third_party/skia/include/core/SkPixelRef.h"
 #include "third_party/skia/include/gpu/GrBackendSurface.h"

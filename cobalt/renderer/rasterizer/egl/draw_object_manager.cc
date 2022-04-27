@@ -12,15 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/configuration.h"
-
 #include "cobalt/renderer/rasterizer/egl/draw_object_manager.h"
 
 #include <algorithm>
 #include <memory>
+#include <utility>
 
 #include "base/logging.h"
 #include "base/trace_event/trace_event.h"
+#include "starboard/configuration.h"
 
 namespace cobalt {
 namespace renderer {

@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/configuration.h"
-
 #include "cobalt/renderer/rasterizer/skia/hardware_resource_provider.h"
 
 #include <memory>
@@ -35,6 +33,7 @@
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkTypeface_cobalt.h"
 #include "cobalt/renderer/rasterizer/skia/skottie_animation.h"
 #include "cobalt/renderer/rasterizer/skia/typeface.h"
+#include "starboard/configuration.h"
 #include "third_party/ots/include/opentype-sanitiser.h"
 #include "third_party/ots/include/ots-memory-stream.h"
 #include "third_party/skia/include/core/SkData.h"

@@ -23,7 +23,7 @@ namespace elf_loader {
 
 namespace {
 
-// TODO: implement using real shared library fro the file system.
+// TODO: implement using real shared library for the file system.
 class ElfLoaderTest : public ::testing::Test {
  protected:
   ElfLoaderTest() {}

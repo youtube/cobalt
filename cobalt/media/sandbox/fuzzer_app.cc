@@ -14,6 +14,8 @@
 
 #include "cobalt/media/sandbox/fuzzer_app.h"
 
+#include <utility>
+
 #include "base/files/file_util.h"
 #include "base/logging.h"
 #include "starboard/common/string.h"

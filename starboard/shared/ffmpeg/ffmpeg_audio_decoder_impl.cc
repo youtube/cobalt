@@ -157,14 +157,14 @@ void AudioDecoderImpl<FFMPEG>::Decode(
             starboard::media::GetBytesPerSample(GetSampleType()));
     if (GetStorageType() == kSbMediaAudioFrameStorageTypeInterleaved) {
       memcpy(decoded_audio->buffer(), *av_frame_->extended_data,
-                   decoded_audio->size());
+             decoded_audio->size());
     } else {
       SB_DCHECK(GetStorageType() == kSbMediaAudioFrameStorageTypePlanar);
       const int per_channel_size_in_bytes =
           decoded_audio->size() / decoded_audio->channels();
       for (int i = 0; i < decoded_audio->channels(); ++i) {
         memcpy(decoded_audio->buffer() + per_channel_size_in_bytes * i,
-                     av_frame_->extended_data[i], per_channel_size_in_bytes);
+               av_frame_->extended_data[i], per_channel_size_in_bytes);
       }
     }
     decoded_audios_.push(decoded_audio);
@@ -282,11 +282,10 @@ void AudioDecoderImpl<FFMPEG>::InitializeCodec() {
     codec_context_->extradata = static_cast<uint8_t*>(ffmpeg_->av_malloc(
         codec_context_->extradata_size + kAvInputBufferPaddingSize));
     SB_DCHECK(codec_context_->extradata);
-    memcpy(codec_context_->extradata,
-                 audio_sample_info_.audio_specific_config,
-                 codec_context_->extradata_size);
+    memcpy(codec_context_->extradata, audio_sample_info_.audio_specific_config,
+           codec_context_->extradata_size);
     memset(codec_context_->extradata + codec_context_->extradata_size, 0,
-                kAvInputBufferPaddingSize);
+           kAvInputBufferPaddingSize);
   }
 
   AVCodec* codec = ffmpeg_->avcodec_find_decoder(codec_context_->codec_id);

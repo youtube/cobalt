@@ -27,9 +27,7 @@
 
 namespace starboard {
 namespace shared {
-namespace pthread {
-
-}  // namespace pthread
+namespace pthread {}  // namespace pthread
 }  // namespace shared
 }  // namespace starboard
 

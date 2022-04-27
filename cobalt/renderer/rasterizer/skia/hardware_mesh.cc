@@ -14,12 +14,13 @@
  * limitations under the License.
  */
 
-#include "starboard/configuration.h"
-
 #include "cobalt/renderer/rasterizer/skia/hardware_mesh.h"
 
 #include <memory>
+#include <utility>
 #include <vector>
+
+#include "starboard/configuration.h"
 
 namespace cobalt {
 namespace renderer {

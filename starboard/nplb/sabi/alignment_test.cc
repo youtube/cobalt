@@ -35,7 +35,7 @@ SB_COMPILE_ASSERT(
     SB_ALIGNOF(int*) == SB_ALIGNMENT_OF_POINTER,
     SB_ALIGNMENT_OF_POINTER_is_inconsistent_with_SB_ALIGNOF_pointer);
 
-SB_COMPILE_ASSERT(SB_ALIGNOF(long) ==
+SB_COMPILE_ASSERT(SB_ALIGNOF(long) ==        // NOLINT(runtime/int)
                       SB_ALIGNMENT_OF_LONG,  // NOLINT(runtime/int)
                   SB_ALIGNMENT_OF_LONG_is_inconsistent_with_SB_ALIGNOF_long);
 
@@ -43,7 +43,7 @@ SB_COMPILE_ASSERT(
     SB_ALIGNOF(long long) == SB_ALIGNMENT_OF_LLONG,  // NOLINT(runtime/int)
     SB_ALIGNMENT_OF_LLONG_is_inconsistent_with_SB_ALIGNOF_long_long);
 
-SB_COMPILE_ASSERT(SB_ALIGNOF(short) ==
+SB_COMPILE_ASSERT(SB_ALIGNOF(short) ==        // NOLINT(runtime/int)
                       SB_ALIGNMENT_OF_SHORT,  // NOLINT(runtime/int)
                   SB_ALIGNMENT_OF_SHORT_is_inconsistent_with_SB_ALIGNOF_short);
 

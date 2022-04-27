@@ -153,7 +153,7 @@ void FillDrmSampleInfo(const scoped_refptr<DecoderBuffer>& buffer,
     drm_info->encryption_scheme = kSbDrmEncryptionSchemeAesCbc;
   }
 
-// Set content of |drm_info| to default or invalid values.
+  // Set content of |drm_info| to default or invalid values.
   drm_info->encryption_pattern.crypt_byte_block = 0;
   drm_info->encryption_pattern.skip_byte_block = 0;
   drm_info->initialization_vector_size = 0;
@@ -174,10 +174,9 @@ void FillDrmSampleInfo(const scoped_refptr<DecoderBuffer>& buffer,
   }
 
   memcpy(drm_info->initialization_vector, &config->iv()[0],
-               config->iv().size());
+         config->iv().size());
   drm_info->initialization_vector_size = config->iv().size();
-  memcpy(drm_info->identifier, &config->key_id()[0],
-               config->key_id().size());
+  memcpy(drm_info->identifier, &config->key_id()[0], config->key_id().size());
   drm_info->identifier_size = config->key_id().size();
   drm_info->subsample_count = config->subsamples().size();
 
@@ -346,8 +345,7 @@ SbMediaColorMetadata MediaToSbMediaColorMetadata(
       static_cast<SbMediaRangeId>(color_space.range());
   if (sb_media_color_metadata.primaries == kSbMediaPrimaryIdCustom) {
     const float* custom_primary_matrix = color_space.custom_primary_matrix();
-    memcpy(sb_media_color_metadata.custom_primary_matrix,
-           custom_primary_matrix,
+    memcpy(sb_media_color_metadata.custom_primary_matrix, custom_primary_matrix,
            sizeof(sb_media_color_metadata.custom_primary_matrix));
   }
 

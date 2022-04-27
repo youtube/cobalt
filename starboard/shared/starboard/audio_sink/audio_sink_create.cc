@@ -30,7 +30,6 @@ SbAudioSink SbAudioSinkCreate(
   return SbAudioSinkPrivate::Create(
       channels, sampling_frequency_hz, audio_sample_type,
       audio_frame_storage_type, frame_buffers, frame_buffers_size_in_frames,
-      update_source_status_func, consume_frames_func,
-      NULL /*error_func*/,
+      update_source_status_func, consume_frames_func, NULL /*error_func*/,
       context);
 }

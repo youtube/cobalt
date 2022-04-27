@@ -285,13 +285,11 @@ bool ParseAv1Info(std::string codec,
 // spec but this function only parses "avc1" and "avc3".  This function returns
 // false when |codec| doesn't contain a valid codec string.
 bool ParseH264Info(const char* codec, int* profile, int* level) {
-  if (strncmp(codec, "avc1.", 5) != 0 &&
-      strncmp(codec, "avc3.", 5) != 0) {
+  if (strncmp(codec, "avc1.", 5) != 0 && strncmp(codec, "avc3.", 5) != 0) {
     return false;
   }
 
-  if (strlen(codec) != 11 || !isxdigit(codec[9]) ||
-      !isxdigit(codec[10])) {
+  if (strlen(codec) != 11 || !isxdigit(codec[9]) || !isxdigit(codec[10])) {
     return false;
   }
 
@@ -313,8 +311,7 @@ bool ParseH264Info(const char* codec, int* profile, int* level) {
 // Please see the comment in the code for interactions between the various
 // parts.
 bool ParseH265Info(const char* codec, int* profile, int* level) {
-  if (strncmp(codec, "hev1.", 5) != 0 &&
-      strncmp(codec, "hvc1.", 5) != 0) {
+  if (strncmp(codec, "hev1.", 5) != 0 && strncmp(codec, "hvc1.", 5) != 0) {
     return false;
   }
 

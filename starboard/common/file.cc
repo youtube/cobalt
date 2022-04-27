@@ -58,8 +58,7 @@ bool SbFileDeleteRecursive(const char* path, bool preserve_root) {
   std::vector<char> entry(kSbFileMaxName);
 
   while (SbDirectoryGetNext(dir, entry.data(), kSbFileMaxName)) {
-    if (!strcmp(entry.data(), ".") ||
-        !strcmp(entry.data(), "..")) {
+    if (!strcmp(entry.data(), ".") || !strcmp(entry.data(), "..")) {
       continue;
     }
 

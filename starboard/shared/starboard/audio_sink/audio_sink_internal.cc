@@ -158,9 +158,7 @@ SbAudioSink SbAudioSinkPrivate::Create(
     auto audio_sink = audio_sink_type->Create(
         channels, sampling_frequency_hz, audio_sample_type,
         audio_frame_storage_type, frame_buffers, frame_buffers_size_in_frames,
-        update_source_status_func, consume_frames_func,
-        error_func,
-        context);
+        update_source_status_func, consume_frames_func, error_func, context);
     if (audio_sink_type->IsValid(audio_sink)) {
       return audio_sink;
     }
@@ -175,9 +173,7 @@ SbAudioSink SbAudioSinkPrivate::Create(
     auto audio_sink = fallback_type->Create(
         channels, sampling_frequency_hz, audio_sample_type,
         audio_frame_storage_type, frame_buffers, frame_buffers_size_in_frames,
-        update_source_status_func, consume_frames_func,
-        error_func,
-        context);
+        update_source_status_func, consume_frames_func, error_func, context);
     if (fallback_type->IsValid(audio_sink)) {
       return audio_sink;
     }
@@ -208,6 +204,5 @@ SbAudioSink SbAudioSinkPrivate::Create(
                     ? std::bind(&::WrapConsumeFramesFunc,
                                 sb_consume_frames_func, _1, _2, _3)
                     : ConsumeFramesFunc(),
-                error_func,
-                context);
+                error_func, context);
 }

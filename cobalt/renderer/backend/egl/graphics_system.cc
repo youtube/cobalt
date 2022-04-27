@@ -12,18 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/configuration.h"
+#include "cobalt/renderer/backend/egl/graphics_system.h"
 
 #include <memory>
 #include <utility>
-
-#include "cobalt/renderer/backend/egl/graphics_system.h"
 
 #include "base/debug/leak_annotations.h"
 #if defined(ENABLE_GLIMP_TRACING)
 #include "base/trace_event/trace_event.h"
 #endif
-#include "starboard/common/optional.h"
 
 #include "cobalt/configuration/configuration.h"
 #include "cobalt/renderer/backend/egl/display.h"
@@ -42,6 +39,8 @@
 #else
 #include "cobalt/renderer/backend/egl/texture_data_cpu.h"
 #endif
+#include "starboard/common/optional.h"
+#include "starboard/configuration.h"
 
 namespace cobalt {
 namespace renderer {
@@ -159,21 +158,19 @@ GraphicsSystemEGL::GraphicsSystemEGL(
       configuration::Configuration::GetInstance()->CobaltRenderDirtyRegionOnly()
           ? EGL_WINDOW_BIT | EGL_PBUFFER_BIT | EGL_SWAP_BEHAVIOR_PRESERVED_BIT
           : EGL_WINDOW_BIT | EGL_PBUFFER_BIT;
-  EGLint attribute_list[] = {
-    EGL_SURFACE_TYPE,  // this must be first
-    egl_bit,
-    EGL_RED_SIZE,
-    8,
-    EGL_GREEN_SIZE,
-    8,
-    EGL_BLUE_SIZE,
-    8,
-    EGL_ALPHA_SIZE,
-    8,
-    EGL_RENDERABLE_TYPE,
-    EGL_OPENGL_ES2_BIT,
-    EGL_NONE
-  };
+  EGLint attribute_list[] = {EGL_SURFACE_TYPE,  // this must be first
+                             egl_bit,
+                             EGL_RED_SIZE,
+                             8,
+                             EGL_GREEN_SIZE,
+                             8,
+                             EGL_BLUE_SIZE,
+                             8,
+                             EGL_ALPHA_SIZE,
+                             8,
+                             EGL_RENDERABLE_TYPE,
+                             EGL_OPENGL_ES2_BIT,
+                             EGL_NONE};
 
   base::Optional<ChooseConfigResult> choose_config_results =
       ChooseConfig(display_, attribute_list, system_window);
@@ -232,14 +229,14 @@ std::unique_ptr<Display> GraphicsSystemEGL::CreateDisplay(
 }
 
 std::unique_ptr<GraphicsContext> GraphicsSystemEGL::CreateGraphicsContext() {
-// If GLES3 is supported, we will make use of PBOs to allocate buffers for
-// texture data and populate them on separate threads.  In order to access
-// that data from graphics contexts created through this method, we must
-// enable sharing between them and the resource context, which is why we
-// must pass it in here.
-ResourceContext* resource_context = NULL;
-return std::unique_ptr<GraphicsContext>(
-    new GraphicsContextEGL(this, display_, config_, resource_context));
+  // If GLES3 is supported, we will make use of PBOs to allocate buffers for
+  // texture data and populate them on separate threads.  In order to access
+  // that data from graphics contexts created through this method, we must
+  // enable sharing between them and the resource context, which is why we
+  // must pass it in here.
+  ResourceContext* resource_context = NULL;
+  return std::unique_ptr<GraphicsContext>(
+      new GraphicsContextEGL(this, display_, config_, resource_context));
 }
 
 std::unique_ptr<TextureDataEGL> GraphicsSystemEGL::AllocateTextureData(

@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/configuration.h"
-
 #include "cobalt/renderer/rasterizer/egl/draw_rect_linear_gradient.h"
 
 #include <algorithm>
@@ -23,6 +21,7 @@
 #include "cobalt/renderer/egl_and_gles.h"
 #include "egl/generated_shader_impl.h"
 #include "starboard/common/log.h"
+#include "starboard/configuration.h"
 #include "starboard/memory.h"
 
 namespace cobalt {

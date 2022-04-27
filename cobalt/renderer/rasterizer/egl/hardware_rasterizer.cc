@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/configuration.h"
-
 #include "cobalt/renderer/rasterizer/egl/hardware_rasterizer.h"
 
 #include <memory>
@@ -35,6 +33,7 @@
 #include "cobalt/renderer/rasterizer/skia/cobalt_skia_type_conversions.h"  // nogncheck
 #include "cobalt/renderer/rasterizer/skia/gl_format_conversions.h"
 #include "cobalt/renderer/rasterizer/skia/hardware_rasterizer.h"
+#include "starboard/configuration.h"
 #include "third_party/skia/include/core/SkCanvas.h"
 #include "third_party/skia/include/core/SkRefCnt.h"
 #include "third_party/skia/include/core/SkSurface.h"

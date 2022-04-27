@@ -230,7 +230,7 @@ SbThreadLocalKey TLSKeyManager::CreateKey(SbThreadLocalDestructor destructor) {
 
   record->destructor = destructor;
   memset(record->values.data(), 0,
-              record->values.size() * sizeof(record->values[0]));
+         record->values.size() * sizeof(record->values[0]));
   record->valid = true;
 
   return key;

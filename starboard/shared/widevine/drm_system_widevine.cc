@@ -586,8 +586,7 @@ void DrmSystemWidevine::GenerateSessionUpdateRequestInternal(
     SB_DLOG(ERROR) << "GenerateKeyRequest status " << status;
     const char* session_id =
         SbDrmTicketIsValid(ticket) ? NULL : kFirstSbDrmSessionId;
-    int session_id_size =
-        session_id ? static_cast<int>(strlen(session_id)) : 0;
+    int session_id_size = session_id ? static_cast<int>(strlen(session_id)) : 0;
     session_update_request_callback_(
         this, context_, ticket, CdmStatusToSbDrmStatus(status),
         kSbDrmSessionRequestTypeLicenseRequest, "", session_id, session_id_size,
@@ -647,7 +646,7 @@ void DrmSystemWidevine::onKeyStatusesChange(
     SbDrmKeyId sb_key_id;
     SB_DCHECK(key_status.first.size() <= sizeof(sb_key_id.identifier));
     memcpy(sb_key_id.identifier, key_status.first.c_str(),
-                 key_status.first.size());
+           key_status.first.size());
     sb_key_id.identifier_size = static_cast<int>(key_status.first.size());
     sb_key_ids.push_back(sb_key_id);
     sb_key_statuses.push_back(CdmKeyStatusToSbDrmKeyStatus(key_status.second));
