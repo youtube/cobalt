@@ -26,6 +26,8 @@
 #include "cobalt/script/promise.h"
 #include "cobalt/script/script_value.h"
 #include "cobalt/web/environment_settings.h"
+#include "cobalt/worker/service_worker.h"
+#include "cobalt/worker/service_worker_registration.h"
 #include "cobalt/worker/service_worker_update_via_cache.h"
 #include "cobalt/worker/worker_type.h"
 #include "url/gurl.h"
@@ -144,6 +146,26 @@ class ServiceWorkerJobs {
 
   // https://w3c.github.io/ServiceWorker/#unregister-algorithm
   void Unregister(Job* job);
+
+  // https://w3c.github.io/ServiceWorker/#reject-job-promise
+  void RejectJobPromise(Job* job, const script::ScriptException* error_data);
+
+  // https://w3c.github.io/ServiceWorker/#resolve-job-promise-algorithm
+  void ResolveJobPromise(Job* job, ServiceWorkerRegistration* registration);
+
+  // https://w3c.github.io/ServiceWorker/#finish-job-algorithm
+  void FinishJob(Job* job);
+
+  // https://w3c.github.io/ServiceWorker/#get-registration-algorithm
+  ServiceWorkerRegistration* GetRegistration(const GURL& url);
+
+  // https://w3c.github.io/ServiceWorker/#set-registration-algorithm
+  ServiceWorkerRegistration* SetRegistration(
+      const GURL& scope_url,
+      const ServiceWorkerUpdateViaCache& update_via_cache);
+
+  // https://w3c.github.io/ServiceWorker/#get-newest-worker
+  ServiceWorker* GetNewestWorker(ServiceWorkerRegistration* registration);
 
   network::NetworkModule* network_module_;
   base::MessageLoop* message_loop_;

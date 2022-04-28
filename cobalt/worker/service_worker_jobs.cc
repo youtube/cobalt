@@ -22,14 +22,21 @@
 
 #include "base/bind.h"
 #include "base/message_loop/message_loop.h"
+#include "base/synchronization/lock.h"
 #include "base/trace_event/trace_event.h"
+#include "cobalt/dom/dom_exception.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/script/promise.h"
+#include "cobalt/script/script_exception.h"
 #include "cobalt/script/script_value.h"
 #include "cobalt/web/environment_settings.h"
+#include "cobalt/worker/service_worker.h"
+#include "cobalt/worker/service_worker_registration.h"
 #include "cobalt/worker/service_worker_update_via_cache.h"
 #include "cobalt/worker/worker_type.h"
+#include "net/base/url_util.h"
 #include "url/gurl.h"
+#include "url/origin.h"
 
 namespace cobalt {
 namespace worker {
@@ -41,6 +48,47 @@ bool PathContainsEscapedSlash(const GURL& url) {
           path.find("%2F") != std::string::npos ||
           path.find("%5c") != std::string::npos ||
           path.find("%5C") != std::string::npos);
+}
+
+bool IsOriginPotentiallyTrustworthy(const GURL& url) {
+  // Algorithm for 'potentially trustworthy origin'.
+  //   https://w3c.github.io/webappsec-secure-contexts/#potentially-trustworthy-origin
+
+  const url::Origin origin(url::Origin::Create(url));
+  // 1. If origin is an opaque origin, return "Not Trustworthy".
+  if (origin.unique()) return false;
+
+  // 2. Assert: origin is a tuple origin.
+  DCHECK(!origin.unique());
+  DCHECK(url.is_valid());
+
+  // 3. If origin’s scheme is either "https" or "wss", return "Potentially
+  // Trustworthy".
+  if (url.SchemeIsCryptographic()) return true;
+
+  // 4. If origin’s host matches one of the CIDR notations 127.0.0.0/8 or
+  // ::1/128 [RFC4632], return "Potentially Trustworthy".
+  if (net::IsLocalhost(url)) return true;
+
+  // 5. If the user agent conforms to the name resolution rules in
+  // [let-localhost-be-localhost] and one of the following is true:
+  //    origin’s host is "localhost" or "localhost."
+  //    origin’s host ends with ".localhost" or ".localhost."
+  // then return "Potentially Trustworthy".
+  // Covered by implementation of step 4.
+
+  // 6. If origin’s scheme is "file", return "Potentially Trustworthy".
+  if (url.SchemeIsFile()) return true;
+
+  // 7. If origin’s scheme component is one which the user agent considers to be
+  // authenticated, return "Potentially Trustworthy".
+  if (url.SchemeIs("h5vcc-embedded")) return true;
+
+  // 8. If origin has been configured as a trustworthy origin, return
+  // "Potentially Trustworthy".
+
+  // 9. Return "Not Trustworthy".
+  return false;
 }
 }  // namespace
 
@@ -307,6 +355,79 @@ void ServiceWorkerJobs::Register(Job* job) {
   DCHECK_EQ(message_loop(), base::MessageLoop::current());
   // Algorithm for "Register"
   //   https://w3c.github.io/ServiceWorker/#register-algorithm
+
+  // 1. If the result of running potentially trustworthy origin with the origin
+  // of job’s script url as the argument is Not Trusted, then:
+  if (!IsOriginPotentiallyTrustworthy(job->script_url)) {
+    LOG(WARNING)
+        << "Service Worker Register failed: Script url is Not Trusted.";
+    // 1.1. Invoke Reject Job Promise with job and "SecurityError" DOMException.
+    RejectJobPromise(job,
+                     new dom::DOMException(dom::DOMException::kSecurityErr));
+    // 1.2. Invoke Finish Job with job and abort these steps.
+    FinishJob(job);
+    return;
+  }
+
+  // 2. If job’s script url's origin and job’s referrer's origin are not same
+  // origin, then:
+  const url::Origin job_script_origin(url::Origin::Create(job->script_url));
+  const url::Origin job_referrer_origin(url::Origin::Create(job->referrer));
+  if (!job_script_origin.IsSameOriginWith(job_referrer_origin)) {
+    LOG(WARNING) << "Service Worker Register failed: Script url and referrer "
+                    "origin are not same.";
+    // 2.1. Invoke Reject Job Promise with job and "SecurityError" DOMException.
+    RejectJobPromise(job,
+                     new dom::DOMException(dom::DOMException::kSecurityErr));
+    // 2.2. Invoke Finish Job with job and abort these steps.
+    FinishJob(job);
+  }
+
+  // 3. If job’s scope url's origin and job’s referrer's origin are not same
+  // origin, then:
+  const url::Origin job_scope_origin(url::Origin::Create(job->scope_url));
+  if (!job_script_origin.IsSameOriginWith(job_referrer_origin)) {
+    LOG(WARNING) << "Service Worker Register failed: Scope url and referrer "
+                    "origin are not same.";
+    // 3.1. Invoke Reject Job Promise with job and "SecurityError" DOMException.
+    RejectJobPromise(job,
+                     new dom::DOMException(dom::DOMException::kSecurityErr));
+
+    // 3.2. Invoke Finish Job with job and abort these steps.
+    FinishJob(job);
+  }
+
+  // 4. Let registration be the result of running Get Registration given job’s
+  // storage key and job’s scope url.
+  ServiceWorkerRegistration* registration = GetRegistration(job->scope_url);
+
+  // 5. If registration is not null, then:
+  if (registration) {
+    // 5.1 Let newestWorker be the result of running the Get Newest Worker
+    // algorithm passing registration as the argument.
+    ServiceWorker* newest_worker = GetNewestWorker(registration);
+
+    // 5.2 If newestWorker is not null, job’s script url equals newestWorker’s
+    // script url, job’s worker type equals newestWorker’s type, and job’s
+    // update via cache mode's value equals registration’s update via cache
+    // mode, then:
+    if (newest_worker && job->script_url == newest_worker->script_url()) {
+      // 5.2.1 Invoke Resolve Job Promise with job and registration.
+      ResolveJobPromise(job, registration);
+
+      // 5.2.2 Invoke Finish Job with job and abort these steps.
+      FinishJob(job);
+    }
+  } else {
+    // 6. Else:
+
+    // 6.1 Invoke Set Registration algorithm with job’s storage key, job’s scope
+    // url, and job’s update via cache mode.
+    SetRegistration(job->scope_url, job->update_via_cache);
+  }
+
+  // 7. Invoke Update algorithm passing job as the argument.
+  Update(job);
 }
 
 void ServiceWorkerJobs::Update(Job* job) {
@@ -322,6 +443,36 @@ void ServiceWorkerJobs::Unregister(Job* job) {
   // Algorithm for "Unregister"
   //   https://w3c.github.io/ServiceWorker/#unregister-algorithm
 }
+
+// https://w3c.github.io/ServiceWorker/#reject-job-promise
+void ServiceWorkerJobs::RejectJobPromise(
+    Job* job, const script::ScriptException* error_data) {}
+
+// https://w3c.github.io/ServiceWorker/#resolve-job-promise-algorithm
+void ServiceWorkerJobs::ResolveJobPromise(
+    Job* job, ServiceWorkerRegistration* registration) {}
+
+// https://w3c.github.io/ServiceWorker/#finish-job-algorithm
+void ServiceWorkerJobs::FinishJob(Job* job) {}
+
+// https://w3c.github.io/ServiceWorker/#get-registration-algorithm
+ServiceWorkerRegistration* ServiceWorkerJobs::GetRegistration(const GURL& url) {
+  return nullptr;
+}
+
+// https://w3c.github.io/ServiceWorker/#set-registration-algorithm
+ServiceWorkerRegistration* ServiceWorkerJobs::SetRegistration(
+    const GURL& scope_url,
+    const ServiceWorkerUpdateViaCache& update_via_cache) {
+  return nullptr;
+}
+
+// https://w3c.github.io/ServiceWorker/#get-newest-worker
+ServiceWorker* ServiceWorkerJobs::GetNewestWorker(
+    ServiceWorkerRegistration* registration) {
+  return nullptr;
+}
+
 
 }  // namespace worker
 }  // namespace cobalt
