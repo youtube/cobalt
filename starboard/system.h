@@ -58,8 +58,10 @@ typedef enum SbSystemPathId {
   // Path to a directory where temporary files can be written.
   kSbSystemPathTempDirectory,
 
+#if SB_API_VERSION < SB_SYSTEM_PATH_TEST_OUTPUT_DIRECTORY_DEPRECATED
   // Path to a directory where test results can be written.
   kSbSystemPathTestOutputDirectory,
+#endif  // #if SB_API_VERSION < SB_SYSTEM_PATH_TEST_OUTPUT_DIRECTORY_DEPRECATED
 
   // Full path to the executable file.
   kSbSystemPathExecutableFile,

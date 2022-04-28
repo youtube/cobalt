@@ -70,6 +70,9 @@
 #define SB_DECODE_TARGET_FORMAT_YUVI420_COMPACT_API_VERSION \
   SB_EXPERIMENTAL_API_VERSION
 
+#define SB_SYSTEM_PATH_TEST_OUTPUT_DIRECTORY_DEPRECATED \
+  SB_EXPERIMENTAL_API_VERSION
+
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------

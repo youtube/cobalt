@@ -227,9 +227,11 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
       SbDirectoryCreate(path.data());
       break;
 
+#if SB_API_VERSION < SB_SYSTEM_PATH_TEST_OUTPUT_DIRECTORY_DEPRECATED
     case kSbSystemPathTestOutputDirectory:
       return SbSystemGetPath(kSbSystemPathDebugOutputDirectory, out_path,
                              path_size);
+#endif  // #if SB_API_VERSION < SB_SYSTEM_PATH_TEST_OUTPUT_DIRECTORY_DEPRECATED
 
     case kSbSystemPathExecutableFile:
       return GetExecutablePath(out_path, path_size);
