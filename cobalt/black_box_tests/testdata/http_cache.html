@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+
+<head>
+  <title>Cobalt HTTP Cache Test</title>
+  <script src="black_box_js_test_utils.js"></script>
+  <script>
+    var NUMBER_OF_CACHE_ELEMENTS = Number.MAX_SAFE_INTEGER;
+    var loadTimes = new Map();
+    var cacheSize = 0;
+
+    let url = window.location.search.substring(1);
+    let urlVars = url.split('&');
+    for (var i = 0; i < urlVars.length; i++) {
+      if (urlVars[i].includes('=')) {
+        var param = urlVars[i].split('=');
+        loadTimes.set(param[0], param[1]);
+      }
+    }
+
+    var initialLoadTime = loadTimes.has('initialLoadTime') ?
+      loadTimes.get('initialLoadTime') : new Date().getTime();
+    var reloadUrl = 'http_cache.html?initialLoadTime=' + initialLoadTime;
+
+    function measureLoadTime(element, initialTime) {
+      cacheSize++;
+      onLoadTime = new Date().getTime() - initialTime;
+      if (loadTimes.has(element)) {
+        // TODO: change to using transferSize once its implemented (b/231475964)
+        // Load times might give false positives, but should rarely give false
+        // negatives (i.e. this may pass when caching didn't actually occur,
+        // but will likely never fail when caching does occur).
+        console.log(element + ' first load time: ' + loadTimes.get(element));
+        console.log(element + ' second load time: ' + onLoadTime);
+        assertTrue(onLoadTime <= loadTimes.get(element));
+        if (cacheSize == NUMBER_OF_CACHE_ELEMENTS) {
+          onEndTest();
+        }
+      } else {
+        reloadUrl += '&' + element + '=' + onLoadTime;
+        if (cacheSize == NUMBER_OF_CACHE_ELEMENTS) {
+          setTimeout(() => { window.location.href = reloadUrl; }, 100);
+        }
+      }
+    }
+
+    // Add elements after window loads. In Cobalt, adding the onload property
+    // directly to an html tag doesn't execute.
+    window.onload = function () {
+      NUMBER_OF_CACHE_ELEMENTS = document.getElementsByTagName('div').length;
+      // Append the timestamp string to each resource url to force reload the
+      // files the first time the page is accessed each test run. The load time
+      // is recorded on the first run and passed to the second run to ensure
+      // the same url is used both times.
+      let timestampString = '?t=' + initialLoadTime;
+
+      let initialJsTime = new Date().getTime();
+      let script = document.createElement('script');
+      script.onload = () => {
+        measureLoadTime('javascript', initialJsTime);
+      };
+      script.onerror = () => {
+        notReached();
+      };
+      script.src = 'http_cache_test_resources/http_cache.js' + timestampString;
+      document.getElementById('js_div').appendChild(script);
+
+      let initialImgTime = new Date().getTime();
+      let image = document.createElement('img');
+      image.onload = () => {
+        measureLoadTime('image', initialImgTime);
+      };
+      image.onerror = (e) => {
+        notReached();
+      };
+      image.src = 'http_cache_test_resources/cobalt_logo.png' + timestampString;
+      image.alt = 'falied to load image';
+      document.getElementById('image_div').appendChild(image);
+
+      let initialCssTime = new Date().getTime();
+      let css = document.createElement('link');
+      css.onload = () => {
+        measureLoadTime('css', initialCssTime);
+      };
+      css.onerror = (e) => {
+        notReached();
+      };
+      css.rel = 'stylesheet';
+      css.href = 'http_cache_test_resources/http_cache.css' + timestampString;
+      document.getElementById('css_div').appendChild(css);
+    }
+
+  </script>
+</head>
+
+<body>
+  <h1>HTTP CACHE TEST</h1>
+  <div id="js_div">
+    <h2>Loading JS Script</h2>
+  </div>
+  <div id="image_div">
+    <h2>Loading image file (png)</h2>
+  </div>
+  <div id="css_div">
+    <h2>Loading CSS file</h2>
+  </div>
+</body>
