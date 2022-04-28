@@ -620,10 +620,6 @@ SB_EXPORT const void* SbSystemGetExtension(const char* name);
 // Computes a HMAC-SHA256 digest of |message| into |digest| using the
 // application's certification secret.
 //
-// This function may be implemented as an alternative to implementing
-// SbSystemGetProperty(kSbSystemPropertyBase64EncodedCertificationSecret),
-// however both should not be implemented.
-//
 // The output will be written into |digest|.  |digest_size_in_bytes| must be 32
 // (or greater), since 32-bytes will be written into it.
 // Returns false in the case of an error, or if it is not implemented.  In this
