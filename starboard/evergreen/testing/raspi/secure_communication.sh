@@ -20,7 +20,7 @@ RASPI_USERNAME="pi"
 RASPI_PASSWORD="raspberry"
 
 function ssh_with_password() {
-  expect -c "spawn -noecho ssh ${RASPI_USERNAME}@${RASPI_ADDR} \"$@\"; log_user 0; expect \"password\"; log_user 1; send \"${RASPI_PASSWORD}\\r\"; set timeout -1;  expect \"eof\""
+  expect -c "spawn -noecho ssh ${RASPI_USERNAME}@${RASPI_ADDR} \"$@\"; log_user 0; expect \"password\"; log_user 1; send \"${RASPI_PASSWORD}\\r\"; set timeout 360;  expect \"eof\""
 }
 
 function scp_with_password() {
