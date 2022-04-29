@@ -23,6 +23,7 @@
 #include "cobalt/script/promise.h"
 #include "cobalt/script/script_value.h"
 #include "cobalt/script/script_value_factory.h"
+#include "cobalt/script/sequence.h"
 #include "cobalt/script/wrappable.h"
 #include "cobalt/worker/registration_options.h"
 #include "cobalt/worker/service_worker_jobs.h"
@@ -31,20 +32,23 @@
 namespace cobalt {
 namespace worker {
 
+// The ServiceWorkerContainer interface represents the interface to register and
+// access service workers from a service worker client realm.
+//   https://w3c.github.io/ServiceWorker/#serviceworkercontainer-interface
 class ServiceWorkerContainer : public dom::EventTarget {
  public:
   ServiceWorkerContainer(script::EnvironmentSettings* settings,
-                         script::ScriptValueFactory* script_value_factory,
                          worker::ServiceWorkerJobs* service_worker_jobs);
 
   scoped_refptr<ServiceWorker> controller() { return controller_; }
-  script::Handle<script::Promise<void>> ready();
+  script::Handle<script::PromiseWrappable> ready();
 
-  script::Handle<script::Promise<void>> Register(const std::string& url);
-  script::Handle<script::Promise<void>> Register(
+  script::Handle<script::PromiseWrappable> Register(const std::string& url);
+  script::Handle<script::PromiseWrappable> Register(
       const std::string& url, const RegistrationOptions& options);
-  script::Handle<script::Promise<void>> GetRegistration(const std::string& url);
-  script::Handle<script::Promise<void>> GetRegistrations();
+  script::Handle<script::PromiseWrappable> GetRegistration(
+      const std::string& url);
+  script::Handle<script::PromiseSequenceWrappable> GetRegistrations();
 
   void StartMessages();
 
@@ -74,7 +78,6 @@ class ServiceWorkerContainer : public dom::EventTarget {
  private:
   scoped_refptr<ServiceWorker> controller_;
   scoped_refptr<ServiceWorker> ready_;
-  script::ScriptValueFactory* script_value_factory_;
 
   ~ServiceWorkerContainer() override = default;
 };

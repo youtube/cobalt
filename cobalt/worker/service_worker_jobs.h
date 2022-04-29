@@ -15,19 +15,24 @@
 #ifndef COBALT_WORKER_SERVICE_WORKER_JOBS_H_
 #define COBALT_WORKER_SERVICE_WORKER_JOBS_H_
 
+#include <deque>
 #include <map>
 #include <memory>
 #include <queue>
 #include <string>
 #include <utility>
 
+#include "base/memory/ref_counted.h"
 #include "base/synchronization/lock.h"
+#include "base/task/sequence_manager/moveable_auto_lock.h"
+#include "cobalt/dom/dom_exception.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/script/promise.h"
 #include "cobalt/script/script_value.h"
 #include "cobalt/web/environment_settings.h"
 #include "cobalt/worker/service_worker.h"
 #include "cobalt/worker/service_worker_registration.h"
+#include "cobalt/worker/service_worker_registration_object.h"
 #include "cobalt/worker/service_worker_update_via_cache.h"
 #include "cobalt/worker/worker_type.h"
 #include "url/gurl.h"
@@ -36,6 +41,7 @@ namespace cobalt {
 namespace worker {
 
 // Algorithms for Service Worker Jobs.
+//   https://w3c.github.io/ServiceWorker/#algorithms
 class ServiceWorkerJobs {
  public:
   ServiceWorkerJobs(network::NetworkModule* network_module,
@@ -48,7 +54,8 @@ class ServiceWorkerJobs {
   // https://w3c.github.io/ServiceWorker/#start-register-algorithm
   void StartRegister(const base::Optional<GURL>& scope_url,
                      const GURL& script_url,
-                     const script::Handle<script::Promise<void>>& promise,
+                     std::unique_ptr<script::ValuePromiseWrappable::Reference>
+                         promise_reference,
                      web::EnvironmentSettings* client, const WorkerType& type,
                      const ServiceWorkerUpdateViaCache& update_via_cache);
 
@@ -61,24 +68,58 @@ class ServiceWorkerJobs {
 
   class JobQueue;
 
+  // This type handles the different promise variants used in jobs.
+  class JobPromiseType {
+   public:
+    // Constructors for each promise variant that can be held.
+    explicit JobPromiseType(
+        std::unique_ptr<script::ValuePromiseBool::Reference> promise_reference);
+    explicit JobPromiseType(
+        std::unique_ptr<script::ValuePromiseWrappable::Reference>
+            promise_reference);
+
+    template <typename PromiseReference>
+    static std::unique_ptr<JobPromiseType> Create(
+        PromiseReference promise_reference) {
+      return std::unique_ptr<JobPromiseType>(
+          new JobPromiseType(std::move(promise_reference)));
+    }
+
+    void Resolve(const bool result);
+    void Resolve(const scoped_refptr<ServiceWorkerRegistration>& result);
+    void Reject(const scoped_refptr<script::ScriptException>& result);
+
+    script::PromiseState State();
+
+   private:
+    std::unique_ptr<script::ValuePromiseBool::Reference>
+        promise_bool_reference_;
+    std::unique_ptr<script::ValuePromiseWrappable::Reference>
+        promise_wrappable_reference_;
+  };
+
   // https://w3c.github.io/ServiceWorker/#dfn-job
   struct Job {
     Job(JobType type, const GURL& scope_url, const GURL& script_url,
-        const script::Handle<script::Promise<void>>& promise,
+        std::unique_ptr<JobPromiseType> promise,
         web::EnvironmentSettings* client)
         : type(type),
           scope_url(scope_url),
           script_url(script_url),
-          promise(promise),
+          promise(std::move(promise)),
           client(client) {}
+    ~Job() {
+      client = nullptr;
+      containing_job_queue = nullptr;
+    }
     JobType type;
-    const GURL& scope_url;
-    const GURL& script_url;
-    const script::Handle<script::Promise<void>>& promise;
+    GURL scope_url;
+    GURL script_url;
+    std::unique_ptr<JobPromiseType> promise;
     web::EnvironmentSettings* client;
     ServiceWorkerUpdateViaCache update_via_cache;
     JobQueue* containing_job_queue = nullptr;
-    std::queue<std::unique_ptr<Job>> equivalent_jobs;
+    std::deque<std::unique_ptr<Job>> equivalent_jobs;
     GURL referrer;
 
     // This lock is for the list of equivalent jobs. It should also be held when
@@ -99,7 +140,8 @@ class ServiceWorkerJobs {
     }
     std::unique_ptr<Job> Dequeue() {
       base::AutoLock lock(mutex_);
-      std::unique_ptr<Job> job(std::move(jobs_.front()));
+      std::unique_ptr<Job> job;
+      job.swap(jobs_.front());
       jobs_.pop();
       return job;
     }
@@ -107,9 +149,14 @@ class ServiceWorkerJobs {
       base::AutoLock lock(mutex_);
       return jobs_.empty() ? nullptr : jobs_.front().get();
     }
-    Job* LastItem() {
-      base::AutoLock lock(mutex_);
-      return jobs_.empty() ? nullptr : jobs_.back().get();
+
+    // Also return a held autolock, to ensure the item remains a valid item in
+    // the queue while it's in use.
+    std::pair<Job*, base::sequence_manager::MoveableAutoLock> LastItem() {
+      base::sequence_manager::MoveableAutoLock lock(mutex_);
+      Job* job = jobs_.empty() ? nullptr : jobs_.back().get();
+      return std::pair<Job*, base::sequence_manager::MoveableAutoLock>(
+          job, std::move(lock));
     }
 
    private:
@@ -121,10 +168,10 @@ class ServiceWorkerJobs {
   typedef std::map<std::string, std::unique_ptr<JobQueue>> JobQueueMap;
 
   // https://w3c.github.io/ServiceWorker/#create-job
-  std::unique_ptr<Job> CreateJob(
-      JobType type, const GURL& scope_url, const GURL& script_url,
-      const script::Handle<script::Promise<void>>& promise,
-      web::EnvironmentSettings* client);
+  std::unique_ptr<Job> CreateJob(JobType type, const GURL& scope_url,
+                                 const GURL& script_url,
+                                 std::unique_ptr<JobPromiseType> promise,
+                                 web::EnvironmentSettings* client);
 
   // https://w3c.github.io/ServiceWorker/#schedule-job
   void ScheduleJob(std::unique_ptr<Job> job);
@@ -148,24 +195,32 @@ class ServiceWorkerJobs {
   void Unregister(Job* job);
 
   // https://w3c.github.io/ServiceWorker/#reject-job-promise
-  void RejectJobPromise(Job* job, const script::ScriptException* error_data);
+  void RejectJobPromise(Job* job, const dom::DOMException::ExceptionCode& code,
+                        const std::string& message);
+  void RejectJobPromiseTask(std::unique_ptr<JobPromiseType> promise,
+                            const dom::DOMException::ExceptionCode& code,
+                            const std::string& message);
 
   // https://w3c.github.io/ServiceWorker/#resolve-job-promise-algorithm
-  void ResolveJobPromise(Job* job, ServiceWorkerRegistration* registration);
+  void ResolveJobPromise(Job* job, ServiceWorkerRegistrationObject* value);
+  void ResolveJobPromiseTask(JobType type,
+                             std::unique_ptr<JobPromiseType> promise,
+                             web::EnvironmentSettings* client,
+                             ServiceWorkerRegistrationObject* value);
 
   // https://w3c.github.io/ServiceWorker/#finish-job-algorithm
   void FinishJob(Job* job);
 
   // https://w3c.github.io/ServiceWorker/#get-registration-algorithm
-  ServiceWorkerRegistration* GetRegistration(const GURL& url);
+  ServiceWorkerRegistrationObject* GetRegistration(const GURL& url);
 
   // https://w3c.github.io/ServiceWorker/#set-registration-algorithm
-  ServiceWorkerRegistration* SetRegistration(
+  ServiceWorkerRegistrationObject* SetRegistration(
       const GURL& scope_url,
       const ServiceWorkerUpdateViaCache& update_via_cache);
 
   // https://w3c.github.io/ServiceWorker/#get-newest-worker
-  ServiceWorker* GetNewestWorker(ServiceWorkerRegistration* registration);
+  ServiceWorker* GetNewestWorker(ServiceWorkerRegistrationObject* registration);
 
   network::NetworkModule* network_module_;
   base::MessageLoop* message_loop_;

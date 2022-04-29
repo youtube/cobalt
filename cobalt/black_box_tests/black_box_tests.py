@@ -68,6 +68,7 @@ _TESTS_NO_SIGNAL = [
     'web_debugger',
     'web_platform_tests',
     'web_worker_test',
+    'service_worker_test',
 ]
 # These tests can only be run on platforms whose app launcher can send deep
 # links.

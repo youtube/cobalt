@@ -12,20 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// https://w3c.github.io/ServiceWorker/#serviceworkerregistration-interface
-[
-    Exposed=(Window,ServiceWorker)
-] interface ServiceWorkerRegistration : EventTarget {
-    readonly attribute ServiceWorker? installing;
-    readonly attribute ServiceWorker? waiting;
-    readonly attribute ServiceWorker? active;
-    readonly attribute NavigationPreloadManager navigationPreload;
+#include "cobalt/worker/service_worker_registration_object.h"
 
-    readonly attribute USVString scope;
-    readonly attribute ServiceWorkerUpdateViaCache updateViaCache;
+namespace cobalt {
+namespace worker {
 
-    Promise<ServiceWorkerRegistration> update();
-    Promise<boolean> unregister();
+ServiceWorkerRegistrationObject::ServiceWorkerRegistrationObject() {}
 
-    attribute EventHandler onupdatefound;
-};
+}  // namespace worker
+}  // namespace cobalt

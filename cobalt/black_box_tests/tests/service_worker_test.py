@@ -11,19 +11,19 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Tests basic Web Worker functionality."""
+"""Tests basic Service Worker functionality."""
 
 from cobalt.black_box_tests import black_box_tests
 from cobalt.black_box_tests.threaded_web_server import ThreadedWebServer
 
 
-class WebWorkerTest(black_box_tests.BlackBoxTestCase):
-  """Test basic Web Worker functionality."""
+class ServiceWorkerTest(black_box_tests.BlackBoxTestCase):
+  """Test basic Service Worker functionality."""
 
   def test_simple(self):
 
     with ThreadedWebServer(binding_address=self.GetBindingAddress()) as server:
-      url = server.GetURL(file_name='testdata/web_worker_test.html')
+      url = server.GetURL(file_name='testdata/service_worker_test.html')
 
       with self.CreateCobaltRunner(url=url) as runner:
         self.assertTrue(runner.JSTestsSucceeded())

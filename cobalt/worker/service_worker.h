@@ -29,6 +29,9 @@
 namespace cobalt {
 namespace worker {
 
+// The ServiceWorker interface represents a service worker within a service
+// worker client realm.
+//   https://w3c.github.io/ServiceWorker/#serviceworker-interface
 class ServiceWorker : public AbstractWorker, public dom::EventTarget {
  public:
   struct Options {

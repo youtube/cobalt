@@ -29,6 +29,7 @@
 #include "cobalt/script/promise.h"
 #include "cobalt/script/script_exception.h"
 #include "cobalt/script/script_value.h"
+#include "cobalt/web/context.h"
 #include "cobalt/web/environment_settings.h"
 #include "cobalt/worker/service_worker.h"
 #include "cobalt/worker/service_worker_registration.h"
@@ -101,17 +102,16 @@ ServiceWorkerJobs::~ServiceWorkerJobs() {}
 void ServiceWorkerJobs::StartRegister(
     const base::Optional<GURL>& maybe_scope_url,
     const GURL& script_url_with_fragment,
-    const script::Handle<script::Promise<void>>& promise,
+    std::unique_ptr<script::ValuePromiseWrappable::Reference> promise_reference,
     web::EnvironmentSettings* client, const WorkerType& type,
     const ServiceWorkerUpdateViaCache& update_via_cache) {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerJobs::StartRegister()");
-  NOTIMPLEMENTED();
   // Algorithm for "Start Register":
   //   https://w3c.github.io/ServiceWorker/#start-register-algorithm
   // 1. If scriptURL is failure, reject promise with a TypeError and abort these
   // steps.
   if (script_url_with_fragment.is_empty()) {
-    promise->Reject(script::kTypeError);
+    promise_reference->value().Reject(script::kTypeError);
     return;
   }
 
@@ -125,7 +125,7 @@ void ServiceWorkerJobs::StartRegister(
   // 3. If scriptURL’s scheme is not one of "http" and "https", reject promise
   // with a TypeError and abort these steps.
   if (!script_url.SchemeIsHTTPOrHTTPS()) {
-    promise->Reject(script::kTypeError);
+    promise_reference->value().Reject(script::kTypeError);
     return;
   }
 
@@ -133,7 +133,7 @@ void ServiceWorkerJobs::StartRegister(
   // case-insensitive "%2f" or ASCII case-insensitive "%5c", reject promise with
   // a TypeError and abort these steps.
   if (PathContainsEscapedSlash(script_url)) {
-    promise->Reject(script::kTypeError);
+    promise_reference->value().Reject(script::kTypeError);
     return;
   }
 
@@ -144,7 +144,7 @@ void ServiceWorkerJobs::StartRegister(
   // 6. If scopeURL is failure, reject promise with a TypeError and abort these
   // steps.
   if (scope_url.is_empty()) {
-    promise->Reject(script::kTypeError);
+    promise_reference->value().Reject(script::kTypeError);
     return;
   }
 
@@ -156,7 +156,7 @@ void ServiceWorkerJobs::StartRegister(
   // 8. If scopeURL’s scheme is not one of "http" and "https", reject promise
   // with a TypeError and abort these steps.
   if (!scope_url.SchemeIsHTTPOrHTTPS()) {
-    promise->Reject(script::kTypeError);
+    promise_reference->value().Reject(script::kTypeError);
     return;
   }
 
@@ -164,7 +164,7 @@ void ServiceWorkerJobs::StartRegister(
   // case-insensitive "%2f" or ASCII case-insensitive "%5c", reject promise with
   // a TypeError and abort these steps.
   if (PathContainsEscapedSlash(scope_url)) {
-    promise->Reject(script::kTypeError);
+    promise_reference->value().Reject(script::kTypeError);
     return;
   }
 
@@ -174,19 +174,24 @@ void ServiceWorkerJobs::StartRegister(
   // 11. Let job be the result of running Create Job with register, storage key,
   // scopeURL, scriptURL, promise, and client.
   std::unique_ptr<Job> job =
-      CreateJob(kRegister, scope_url, script_url, promise, client);
+      CreateJob(kRegister, scope_url, script_url,
+                JobPromiseType::Create(std::move(promise_reference)), client);
+  DCHECK(!promise_reference);
 
   // 12. Set job’s worker type to workerType.
   // Cobalt only supports 'classic' worker type.
 
   // 13. Set job’s update via cache mode to updateViaCache.
-  job->update_via_cache = kServiceWorkerUpdateViaCacheAll;
+  job->update_via_cache = update_via_cache;
 
   // 14. Set job’s referrer to referrer.
   // This is the same value as set in CreateJob().
 
   // 15. Invoke Schedule Job with job.
-  ScheduleJob(std::move(job));
+  message_loop()->task_runner()->PostTask(
+      FROM_HERE, base::Bind(&ServiceWorkerJobs::ScheduleJob,
+                            base::Unretained(this), base::Passed(&job)));
+  DCHECK(!job.get());
 }
 
 void ServiceWorkerJobs::MatchServiceWorkerRegistration(const GURL& client_url) {
@@ -198,8 +203,7 @@ void ServiceWorkerJobs::MatchServiceWorkerRegistration(const GURL& client_url) {
 
 std::unique_ptr<ServiceWorkerJobs::Job> ServiceWorkerJobs::CreateJob(
     JobType type, const GURL& scope_url, const GURL& script_url,
-    const script::Handle<script::Promise<void>>& promise,
-    web::EnvironmentSettings* client) {
+    std::unique_ptr<JobPromiseType> promise, web::EnvironmentSettings* client) {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerJobs::CreateJob()");
   // Algorithm for "Create Job":
   //   https://w3c.github.io/ServiceWorker/#create-job
@@ -211,7 +215,7 @@ std::unique_ptr<ServiceWorkerJobs::Job> ServiceWorkerJobs::CreateJob(
   // 6. Set job’s job promise to promise.
   // 7. Set job’s client to client.
   std::unique_ptr<Job> job(
-      new Job(kRegister, scope_url, script_url, promise, client));
+      new Job(kRegister, scope_url, script_url, std::move(promise), client));
   // 8. If client is not null, set job’s referrer to client’s creation URL.
   if (client) {
     job->referrer = client->creation_url();
@@ -222,9 +226,9 @@ std::unique_ptr<ServiceWorkerJobs::Job> ServiceWorkerJobs::CreateJob(
 
 void ServiceWorkerJobs::ScheduleJob(std::unique_ptr<Job> job) {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerJobs::ScheduleJob()");
+  DCHECK_EQ(base::MessageLoop::current(), message_loop());
   // Algorithm for "Schedule Job":
   //   https://w3c.github.io/ServiceWorker/#schedule-job
-
   // 1. Let jobQueue be null.
 
   // 2. Let jobScope be job’s scope url, serialized.
@@ -255,20 +259,24 @@ void ServiceWorkerJobs::ScheduleJob(std::unique_ptr<Job> job) {
   } else {
     // 6. Else:
     // 6.1. Let lastJob be the element at the back of jobQueue.
-    Job* last_job = job_queue->LastItem();
-
-    // 6.2. If job is equivalent to lastJob and lastJob’s job promise has not
-    // settled, append job to lastJob’s list of equivalent jobs.
     {
+      auto last_item = job_queue->LastItem();
+      Job* last_job = last_item.first;
+
+      // 6.2. If job is equivalent to lastJob and lastJob’s job promise has not
+      // settled, append job to lastJob’s list of equivalent jobs.
+      DCHECK(last_job);
       base::AutoLock lock(last_job->equivalent_jobs_promise_mutex);
-      if (EquivalentJobs(job.get(), last_job) &&
+      if (EquivalentJobs(job.get(), last_job) && last_job->promise &&
           last_job->promise->State() == script::PromiseState::kPending) {
-        last_job->equivalent_jobs.push(std::move(job));
+        last_job->equivalent_jobs.push_back(std::move(job));
+        return;
       }
     }
 
     // 6.3. Else, set job’s containing job queue to jobQueue, and enqueue job to
     // jobQueue.
+    DCHECK(job);
     job->containing_job_queue = job_queue;
     job_queue->Enqueue(std::move(job));
   }
@@ -283,7 +291,7 @@ bool ServiceWorkerJobs::EquivalentJobs(Job* one, Job* two) {
     return false;
   }
 
-  // when their job type is the same and:
+  // Two jobs are equivalent when their job type is the same and:
   if (one->type != two->type) {
     return false;
   }
@@ -298,11 +306,12 @@ bool ServiceWorkerJobs::EquivalentJobs(Job* one, Job* two) {
   }
 
   // For unregister jobs, their scope url is the same.
-  return (one->type != kUnregister) && (one->scope_url == two->scope_url);
+  return (one->type == kUnregister) && (one->scope_url == two->scope_url);
 }
 
 void ServiceWorkerJobs::RunJob(JobQueue* job_queue) {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerJobs::RunJob()");
+  DCHECK_EQ(base::MessageLoop::current(), message_loop());
   // Algorithm for "Run Job":
   //   https://w3c.github.io/ServiceWorker/#run-job-algorithm
 
@@ -325,10 +334,12 @@ void ServiceWorkerJobs::RunJobTask(JobQueue* job_queue) {
   //   https://w3c.github.io/ServiceWorker/#run-job-algorithm
   DCHECK(job_queue);
   if (!job_queue) return;
+  DCHECK(!job_queue->empty());
 
   // 2.1 Let job be the first item in jobQueue.
   Job* job = job_queue->FirstItem();
 
+  DCHECK(job);
   switch (job->type) {
     // 2.2 If job’s job type is register, run Register with job in parallel.
     case kRegister:
@@ -359,11 +370,10 @@ void ServiceWorkerJobs::Register(Job* job) {
   // 1. If the result of running potentially trustworthy origin with the origin
   // of job’s script url as the argument is Not Trusted, then:
   if (!IsOriginPotentiallyTrustworthy(job->script_url)) {
-    LOG(WARNING)
-        << "Service Worker Register failed: Script url is Not Trusted.";
     // 1.1. Invoke Reject Job Promise with job and "SecurityError" DOMException.
-    RejectJobPromise(job,
-                     new dom::DOMException(dom::DOMException::kSecurityErr));
+    RejectJobPromise(
+        job, dom::DOMException::kSecurityErr,
+        "Service Worker Register failed: Script URL is Not Trusted.");
     // 1.2. Invoke Finish Job with job and abort these steps.
     FinishJob(job);
     return;
@@ -371,35 +381,39 @@ void ServiceWorkerJobs::Register(Job* job) {
 
   // 2. If job’s script url's origin and job’s referrer's origin are not same
   // origin, then:
+  DCHECK(job);
   const url::Origin job_script_origin(url::Origin::Create(job->script_url));
   const url::Origin job_referrer_origin(url::Origin::Create(job->referrer));
   if (!job_script_origin.IsSameOriginWith(job_referrer_origin)) {
-    LOG(WARNING) << "Service Worker Register failed: Script url and referrer "
-                    "origin are not same.";
     // 2.1. Invoke Reject Job Promise with job and "SecurityError" DOMException.
-    RejectJobPromise(job,
-                     new dom::DOMException(dom::DOMException::kSecurityErr));
+    RejectJobPromise(job, dom::DOMException::kSecurityErr,
+                     "Service Worker Register failed: Script URL and referrer "
+                     "origin are not the same.");
     // 2.2. Invoke Finish Job with job and abort these steps.
     FinishJob(job);
+    return;
   }
 
   // 3. If job’s scope url's origin and job’s referrer's origin are not same
   // origin, then:
+  DCHECK(job);
   const url::Origin job_scope_origin(url::Origin::Create(job->scope_url));
-  if (!job_script_origin.IsSameOriginWith(job_referrer_origin)) {
-    LOG(WARNING) << "Service Worker Register failed: Scope url and referrer "
-                    "origin are not same.";
+  if (!job_scope_origin.IsSameOriginWith(job_referrer_origin)) {
     // 3.1. Invoke Reject Job Promise with job and "SecurityError" DOMException.
-    RejectJobPromise(job,
-                     new dom::DOMException(dom::DOMException::kSecurityErr));
+    RejectJobPromise(job, dom::DOMException::kSecurityErr,
+                     "Service Worker Register failed: Scope URL and referrer "
+                     "origin are not the same.");
 
     // 3.2. Invoke Finish Job with job and abort these steps.
     FinishJob(job);
+    return;
   }
 
   // 4. Let registration be the result of running Get Registration given job’s
   // storage key and job’s scope url.
-  ServiceWorkerRegistration* registration = GetRegistration(job->scope_url);
+  DCHECK(job);
+  ServiceWorkerRegistrationObject* registration =
+      GetRegistration(job->scope_url);
 
   // 5. If registration is not null, then:
   if (registration) {
@@ -417,16 +431,19 @@ void ServiceWorkerJobs::Register(Job* job) {
 
       // 5.2.2 Invoke Finish Job with job and abort these steps.
       FinishJob(job);
+      return;
     }
   } else {
     // 6. Else:
 
     // 6.1 Invoke Set Registration algorithm with job’s storage key, job’s scope
     // url, and job’s update via cache mode.
+    DCHECK(job);
     SetRegistration(job->scope_url, job->update_via_cache);
   }
 
   // 7. Invoke Update algorithm passing job as the argument.
+  DCHECK(job);
   Update(job);
 }
 
@@ -435,6 +452,8 @@ void ServiceWorkerJobs::Update(Job* job) {
   DCHECK_EQ(message_loop(), base::MessageLoop::current());
   // Algorithm for "Update"
   //   https://w3c.github.io/ServiceWorker/#update-algorithm
+  ResolveJobPromise(job, nullptr);
+  NOTIMPLEMENTED();
 }
 
 void ServiceWorkerJobs::Unregister(Job* job) {
@@ -442,37 +461,215 @@ void ServiceWorkerJobs::Unregister(Job* job) {
   DCHECK_EQ(message_loop(), base::MessageLoop::current());
   // Algorithm for "Unregister"
   //   https://w3c.github.io/ServiceWorker/#unregister-algorithm
+  NOTIMPLEMENTED();
 }
 
-// https://w3c.github.io/ServiceWorker/#reject-job-promise
 void ServiceWorkerJobs::RejectJobPromise(
-    Job* job, const script::ScriptException* error_data) {}
+    Job* job, const dom::DOMException::ExceptionCode& code,
+    const std::string& message) {
+  TRACE_EVENT1("cobalt::worker", "ServiceWorkerJobs::RejectJobPromise()",
+               "message", message);
+  DCHECK_EQ(message_loop(), base::MessageLoop::current());
+  // Algorithm for "Reject Job Promise"
+  //   https://w3c.github.io/ServiceWorker/#reject-job-promise
+  // 1. If job’s client is not null, queue a task, on job’s client's responsible
+  // event loop using the DOM manipulation task source, to reject job’s job
+  // promise with a new exception with errorData and a user agent-defined
+  // message, in job’s client's Realm.
+  if (job->client) {
+    base::AutoLock lock(job->equivalent_jobs_promise_mutex);
+    job->client->context()->message_loop()->task_runner()->PostTask(
+        FROM_HERE, base::Bind(&ServiceWorkerJobs::RejectJobPromiseTask,
+                              base::Unretained(this),
+                              base::Passed(&job->promise), code, message));
+    // Ensure that the promise is cleared, so that equivalent jobs won't get
+    // added from this point on.
+    CHECK(!job->promise);
+  }
+  // 2. For each equivalentJob in job’s list of equivalent jobs:
+  for (auto& equivalent_job : job->equivalent_jobs) {
+    // Equivalent jobs should never have equivalent jobs of their own.
+    DCHECK(equivalent_job->equivalent_jobs.empty());
 
-// https://w3c.github.io/ServiceWorker/#resolve-job-promise-algorithm
+    // 2.1. If equivalentJob’s client is null, continue.
+    if (equivalent_job->client) {
+      // 2.2. Queue a task, on equivalentJob’s client's responsible event loop
+      // using the DOM manipulation task source, to reject equivalentJob’s job
+      // promise with a new exception with errorData and a user agent-defined
+      // message, in equivalentJob’s client's Realm.
+      equivalent_job->client->context()
+          ->message_loop()
+          ->task_runner()
+          ->PostTask(FROM_HERE,
+                     base::Bind(&ServiceWorkerJobs::RejectJobPromiseTask,
+                                base::Unretained(this),
+                                base::Passed(&equivalent_job->promise), code,
+                                message));
+      // Check that the promise is cleared.
+      CHECK(!equivalent_job->promise);
+    }
+  }
+  job->equivalent_jobs.clear();
+}
+
+void ServiceWorkerJobs::RejectJobPromiseTask(
+    std::unique_ptr<JobPromiseType> promise,
+    const dom::DOMException::ExceptionCode& code, const std::string& message) {
+  TRACE_EVENT1("cobalt::worker", "ServiceWorkerJobs::RejectJobPromiseTask()",
+               "message", message);
+  DCHECK_NE(message_loop(), base::MessageLoop::current());
+  promise->Reject(new dom::DOMException(code, message));
+}
+
 void ServiceWorkerJobs::ResolveJobPromise(
-    Job* job, ServiceWorkerRegistration* registration) {}
+    Job* job, ServiceWorkerRegistrationObject* value) {
+  TRACE_EVENT0("cobalt::worker", "ServiceWorkerJobs::ResolveJobPromise()");
+  DCHECK_EQ(message_loop(), base::MessageLoop::current());
+  // Algorithm for "Resolve Job Promise".
+  //   https://w3c.github.io/ServiceWorker/#resolve-job-promise-algorithm
+
+  // 1. If job’s client is not null, queue a task, on job’s client's responsible
+  // event loop using the DOM manipulation task source, to run the following
+  // substeps:
+  if (job->client) {
+    base::AutoLock lock(job->equivalent_jobs_promise_mutex);
+    job->client->context()->message_loop()->task_runner()->PostTask(
+        FROM_HERE, base::Bind(&ServiceWorkerJobs::ResolveJobPromiseTask,
+                              base::Unretained(this), job->type,
+                              base::Passed(&job->promise), job->client, value));
+    // Ensure that the promise is cleared, so that equivalent jobs won't get
+    // added from this point on.
+    CHECK(!job->promise);
+  }
+
+  // 2. For each equivalentJob in job’s list of equivalent jobs:
+  for (auto& equivalent_job : job->equivalent_jobs) {
+    // Equivalent jobs should never have equivalent jobs of their own.
+    DCHECK(equivalent_job->equivalent_jobs.empty());
+
+    // 2.1. If equivalentJob’s client is null, continue to the next iteration of
+    // the loop.
+    if (equivalent_job->client) {
+      // 2.2. Queue a task, on equivalentJob’s client's responsible event loop
+      // using the DOM manipulation task source, to run the following substeps:
+      equivalent_job->client->context()
+          ->message_loop()
+          ->task_runner()
+          ->PostTask(FROM_HERE,
+                     base::Bind(&ServiceWorkerJobs::ResolveJobPromiseTask,
+                                base::Unretained(this), equivalent_job->type,
+                                base::Passed(&equivalent_job->promise),
+                                equivalent_job->client, value));
+      // Check that the promise is cleared.
+      CHECK(!equivalent_job->promise);
+    }
+  }
+  job->equivalent_jobs.clear();
+}
+
+void ServiceWorkerJobs::ResolveJobPromiseTask(
+    JobType type, std::unique_ptr<JobPromiseType> promise,
+    web::EnvironmentSettings* client, ServiceWorkerRegistrationObject* value) {
+  DCHECK_NE(message_loop(), base::MessageLoop::current());
+  // 1.1./2.2.1. Let convertedValue be null.
+  // 1.2./2.2.2. If job’s job type is either register or update, set
+  // convertedValue to the result of getting the service worker registration
+  // object that represents value in job’s client.
+  if (type == kRegister || type == kUpdate) {
+    auto converted_value =
+        client->context()->GetServiceWorkerRegistation(value);
+    // 1.4./2.2.4.  Resolve job’s job promise with convertedValue.
+    promise->Resolve(converted_value);
+  } else {
+    DCHECK_EQ(type, kUnregister);
+    // 1.3./2.2.3. Else, set convertedValue to value, in job’s client's Realm.
+    bool converted_value = value != nullptr;
+    // 1.4./2.2.4.  Resolve job’s job promise with convertedValue.
+    promise->Resolve(converted_value);
+  }
+}
 
 // https://w3c.github.io/ServiceWorker/#finish-job-algorithm
-void ServiceWorkerJobs::FinishJob(Job* job) {}
+void ServiceWorkerJobs::FinishJob(Job* job) {
+  DCHECK_EQ(message_loop(), base::MessageLoop::current());
+  // 1. Let jobQueue be job’s containing job queue.
+  JobQueue* job_queue = job->containing_job_queue;
+
+  // 2. Assert: the first item in jobQueue is job.
+  DCHECK_EQ(job_queue->FirstItem(), job);
+
+  // 3. Dequeue from jobQueue.
+  job_queue->Dequeue();
+
+  // 4. If jobQueue is not empty, invoke Run Job with jobQueue.
+  if (!job_queue->empty()) {
+    RunJob(job_queue);
+  }
+}
 
 // https://w3c.github.io/ServiceWorker/#get-registration-algorithm
-ServiceWorkerRegistration* ServiceWorkerJobs::GetRegistration(const GURL& url) {
+ServiceWorkerRegistrationObject* ServiceWorkerJobs::GetRegistration(
+    const GURL& url) {
+  NOTIMPLEMENTED();
   return nullptr;
 }
 
 // https://w3c.github.io/ServiceWorker/#set-registration-algorithm
-ServiceWorkerRegistration* ServiceWorkerJobs::SetRegistration(
+ServiceWorkerRegistrationObject* ServiceWorkerJobs::SetRegistration(
     const GURL& scope_url,
     const ServiceWorkerUpdateViaCache& update_via_cache) {
+  NOTIMPLEMENTED();
   return nullptr;
 }
 
 // https://w3c.github.io/ServiceWorker/#get-newest-worker
 ServiceWorker* ServiceWorkerJobs::GetNewestWorker(
-    ServiceWorkerRegistration* registration) {
+    ServiceWorkerRegistrationObject* registration) {
+  NOTIMPLEMENTED();
   return nullptr;
 }
 
+ServiceWorkerJobs::JobPromiseType::JobPromiseType(
+    std::unique_ptr<script::ValuePromiseBool::Reference> promise_reference)
+    : promise_bool_reference_(std::move(promise_reference)) {}
+ServiceWorkerJobs::JobPromiseType::JobPromiseType(
+    std::unique_ptr<script::ValuePromiseWrappable::Reference> promise_reference)
+    : promise_wrappable_reference_(std::move(promise_reference)) {}
+
+void ServiceWorkerJobs::JobPromiseType::Resolve(const bool result) {
+  DCHECK(promise_bool_reference_);
+  promise_bool_reference_->value().Resolve(result);
+}
+
+void ServiceWorkerJobs::JobPromiseType::Resolve(
+    const scoped_refptr<ServiceWorkerRegistration>& result) {
+  DCHECK(promise_wrappable_reference_);
+  promise_wrappable_reference_->value().Resolve(result);
+}
+
+void ServiceWorkerJobs::JobPromiseType::Reject(
+    const scoped_refptr<script::ScriptException>& result) {
+  if (promise_bool_reference_) {
+    promise_bool_reference_->value().Reject(result);
+    return;
+  }
+  if (promise_wrappable_reference_) {
+    promise_wrappable_reference_->value().Reject(result);
+    return;
+  }
+  NOTREACHED();
+}
+
+script::PromiseState ServiceWorkerJobs::JobPromiseType::State() {
+  if (promise_bool_reference_) {
+    return promise_bool_reference_->value().State();
+  }
+  if (promise_wrappable_reference_) {
+    return promise_wrappable_reference_->value().State();
+  }
+  NOTREACHED();
+  return script::PromiseState::kPending;
+}
 
 }  // namespace worker
 }  // namespace cobalt

@@ -78,7 +78,8 @@ class Agent : public base::MessageLoop::DestructionObserver {
         DestructionObserver* destruction_observer = nullptr);
   ~Agent();
 
-  static Context* CreateContext(const Options& options);
+  static Context* CreateContext(const Options& options,
+                                base::MessageLoop* message_loop = nullptr);
   static Context* CreateContext(const std::string& name) {
     return CreateContext(Options(name));
   }

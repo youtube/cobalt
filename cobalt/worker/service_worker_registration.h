@@ -34,6 +34,9 @@
 namespace cobalt {
 namespace worker {
 
+// The ServiceWorkerRegistration interface represents a service worker
+// registration within a service worker client realm.
+//   https://w3c.github.io/ServiceWorker/#serviceworker-interface
 class ServiceWorkerRegistration : public dom::EventTarget {
  public:
   struct Options {
@@ -52,9 +55,8 @@ class ServiceWorkerRegistration : public dom::EventTarget {
     ServiceWorker::Options active;
   };
 
-  explicit ServiceWorkerRegistration(
-      script::EnvironmentSettings* settings,
-      script::ScriptValueFactory* script_value_factory, const Options& options);
+  explicit ServiceWorkerRegistration(script::EnvironmentSettings* settings,
+                                     const Options& options);
   ~ServiceWorkerRegistration() override = default;
   scoped_refptr<ServiceWorker> installing() { return installing_; }
   scoped_refptr<ServiceWorker> waiting() { return waiting_; }
@@ -93,8 +95,6 @@ class ServiceWorkerRegistration : public dom::EventTarget {
   const int32_t registration_id_;
   const GURL scope_;
   ServiceWorkerUpdateViaCache update_via_cache_;
-
-  script::ScriptValueFactory* script_value_factory_;
 };
 
 }  // namespace worker

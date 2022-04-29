@@ -18,10 +18,11 @@
   readonly attribute ServiceWorker ? controller;
   readonly attribute Promise<ServiceWorkerRegistration> ready;
 
-  Promise<void> register(USVString url,
-                         optional RegistrationOptions options);
-  Promise<void> getRegistration(optional USVString documentURL = "");
-  Promise<void> getRegistrations();
+  Promise<ServiceWorkerRegistration> register(
+      USVString url, optional RegistrationOptions options);
+  Promise<ServiceWorkerRegistration> getRegistration(
+      optional USVString documentURL = "");
+  Promise<sequence<ServiceWorkerRegistration>> getRegistrations();
 
   void startMessages();
 

@@ -16,28 +16,39 @@
 
 #include <utility>
 
+#include "cobalt/web/context.h"
+#include "cobalt/web/environment_settings.h"
+
 namespace cobalt {
 namespace worker {
 
 ServiceWorkerRegistration::ServiceWorkerRegistration(
-    script::EnvironmentSettings* settings,
-    script::ScriptValueFactory* script_value_factory, const Options& options)
+    script::EnvironmentSettings* settings, const Options& options)
     : dom::EventTarget(settings),
       registration_id_(options.registration_id),
-      scope_(std::move(options.scope)),
-      script_value_factory_(script_value_factory) {}
+      scope_(std::move(options.scope)) {}
 
 script::Handle<script::Promise<void>> ServiceWorkerRegistration::Update() {
   // Todo: Add logic for update()
   script::Handle<script::Promise<void>> promise =
-      script_value_factory_->CreateBasicPromise<void>();
+      base::polymorphic_downcast<web::EnvironmentSettings*>(
+          environment_settings())
+          ->context()
+          ->global_environment()
+          ->script_value_factory()
+          ->CreateBasicPromise<void>();
   return promise;
 }
 
 script::Handle<script::Promise<void>> ServiceWorkerRegistration::Unregister() {
   // Todo: Add logic for unregister
   script::Handle<script::Promise<void>> promise =
-      script_value_factory_->CreateBasicPromise<void>();
+      base::polymorphic_downcast<web::EnvironmentSettings*>(
+          environment_settings())
+          ->context()
+          ->global_environment()
+          ->script_value_factory()
+          ->CreateBasicPromise<void>();
   return promise;
 }
 

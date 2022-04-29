@@ -30,6 +30,7 @@
 #include "cobalt/script/wrappable.h"
 #include "cobalt/web/context.h"
 #include "cobalt/web/environment_settings.h"
+#include "cobalt/worker/service_worker_registration.h"
 
 namespace cobalt {
 namespace web {
@@ -45,6 +46,10 @@ class Impl : public Context {
 
   // Context
   //
+  void set_message_loop(base::MessageLoop* message_loop) {
+    message_loop_ = message_loop;
+  }
+  base::MessageLoop* message_loop() const final { return message_loop_; }
   void ShutDownJavaScriptEngine() final;
   void set_fetcher_factory(loader::FetcherFactory* factory) final {
     fetcher_factory_.reset(factory);
@@ -87,6 +92,11 @@ class Impl : public Context {
     return environment_settings_.get();
   }
 
+  // https://w3c.github.io/ServiceWorker/#service-worker-registration-creation
+  virtual scoped_refptr<worker::ServiceWorkerRegistration>
+  GetServiceWorkerRegistation(
+      worker::ServiceWorkerRegistrationObject* registration);
+
  private:
   // Injects a list of attributes into the Web Context's global object.
   void InjectGlobalObjectAttributes(
@@ -95,6 +105,9 @@ class Impl : public Context {
   // Thread checker ensures all calls to the Context are made from the same
   // thread that it is created in.
   THREAD_CHECKER(thread_checker_);
+
+  // The message loop for the web context.
+  base::MessageLoop* message_loop_ = nullptr;
 
   // Name of the web instance.
   std::string name_;
@@ -202,6 +215,17 @@ void Impl::InjectGlobalObjectAttributes(
   }
 }
 
+scoped_refptr<worker::ServiceWorkerRegistration>
+Impl::GetServiceWorkerRegistation(
+    worker::ServiceWorkerRegistrationObject* registration) {
+  // Algorithm for 'get the service worker registration object'
+  //   https://w3c.github.io/ServiceWorker/#get-the-service-worker-registration-object
+
+  scoped_refptr<worker::ServiceWorkerRegistration> service_worker_registration;
+  NOTIMPLEMENTED();
+  return service_worker_registration;
+}
+
 // Signals the given WaitableEvent.
 void SignalWaitableEvent(base::WaitableEvent* event) { event->Signal(); }
 }  // namespace
@@ -259,12 +283,15 @@ Agent::~Agent() {
 void Agent::Initialize(const Options& options,
                        InitializeCallback initialize_callback) {
   DCHECK_EQ(base::MessageLoop::current(), message_loop());
-  context_.reset(CreateContext(options));
+  context_.reset(CreateContext(options, thread_.message_loop()));
   initialize_callback.Run(context_.get());
 }
 
-Context* Agent::CreateContext(const Options& options) {
-  return new Impl(options);
+Context* Agent::CreateContext(const Options& options,
+                              base::MessageLoop* message_loop) {
+  auto* context = new Impl(options);
+  context->set_message_loop(message_loop);
+  return context;
 }
 
 void Agent::WaitUntilDone() {

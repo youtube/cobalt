@@ -29,11 +29,16 @@
 #include "cobalt/web/environment_settings.h"
 
 namespace cobalt {
+namespace worker {
+class ServiceWorkerRegistration;
+class ServiceWorkerRegistrationObject;
+}  // namespace worker
 namespace web {
 
 class Context {
  public:
   virtual ~Context() {}
+  virtual base::MessageLoop* message_loop() const = 0;
   virtual void ShutDownJavaScriptEngine() = 0;
   virtual void set_fetcher_factory(loader::FetcherFactory* factory) = 0;
   virtual loader::FetcherFactory* fetcher_factory() const = 0;
@@ -48,6 +53,11 @@ class Context {
   virtual const std::string& name() const = 0;
   virtual void setup_environment_settings(EnvironmentSettings* settings) = 0;
   virtual EnvironmentSettings* environment_settings() const = 0;
+
+  // https://w3c.github.io/ServiceWorker/#get-the-service-worker-registration-object
+  virtual scoped_refptr<worker::ServiceWorkerRegistration>
+  GetServiceWorkerRegistation(
+      worker::ServiceWorkerRegistrationObject* registration) = 0;
 };
 
 }  // namespace web

@@ -15,12 +15,14 @@
 #include "cobalt/worker/service_worker_container.h"
 
 #include <string>
+#include <utility>
 
 #include "base/optional.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/script/promise.h"
+#include "cobalt/web/context.h"
 #include "cobalt/web/environment_settings.h"
 #include "cobalt/worker/registration_options.h"
 #include "cobalt/worker/service_worker_update_via_cache.h"
@@ -32,12 +34,11 @@ namespace worker {
 
 ServiceWorkerContainer::ServiceWorkerContainer(
     script::EnvironmentSettings* settings,
-    script::ScriptValueFactory* script_value_factory,
     worker::ServiceWorkerJobs* service_worker_jobs)
-    : dom::EventTarget(settings), script_value_factory_(script_value_factory) {}
+    : dom::EventTarget(settings) {}
 
-// TODO: Implement the service worker registration algorithm. b/219972966
-script::Handle<script::Promise<void>> ServiceWorkerContainer::ready() {
+// TODO: Implement the service worker ready algorithm. b/219972966
+script::Handle<script::PromiseWrappable> ServiceWorkerContainer::ready() {
   // https://w3c.github.io/ServiceWorker/#navigator-service-worker-ready
   // 1. If this's ready promise is null, then set this's ready promise to a new
   // promise.
@@ -52,24 +53,37 @@ script::Handle<script::Promise<void>> ServiceWorkerContainer::ready() {
   //    registration object that represents registration in readyPromise’s
   //    relevant settings object.
   // 4. Return readyPromise.
-  script::Handle<script::Promise<void>> promise =
-      script_value_factory_->CreateBasicPromise<void>();
+  auto promise =
+      base::polymorphic_downcast<web::EnvironmentSettings*>(
+          environment_settings())
+          ->context()
+          ->global_environment()
+          ->script_value_factory()
+          ->CreateInterfacePromise<scoped_refptr<ServiceWorkerRegistration>>();
   return promise;
 }
 
-script::Handle<script::Promise<void>> ServiceWorkerContainer::Register(
+script::Handle<script::PromiseWrappable> ServiceWorkerContainer::Register(
     const std::string& url) {
-  RegistrationOptions* options = new RegistrationOptions();
-  return ServiceWorkerContainer::Register(url, *options);
+  RegistrationOptions options;
+  return ServiceWorkerContainer::Register(url, options);
 }
 
-script::Handle<script::Promise<void>> ServiceWorkerContainer::Register(
+script::Handle<script::PromiseWrappable> ServiceWorkerContainer::Register(
     const std::string& url, const RegistrationOptions& options) {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerContainer::Register()");
   // https://w3c.github.io/ServiceWorker/#navigator-service-worker-registers
   // 1. Let p be a promise.
-  script::Handle<script::Promise<void>> promise =
-      script_value_factory_->CreateBasicPromise<void>();
+  script::HandlePromiseWrappable promise =
+      base::polymorphic_downcast<web::EnvironmentSettings*>(
+          environment_settings())
+          ->context()
+          ->global_environment()
+          ->script_value_factory()
+          ->CreateInterfacePromise<scoped_refptr<ServiceWorkerRegistration>>();
+  std::unique_ptr<script::ValuePromiseWrappable::Reference> promise_reference(
+      new script::ValuePromiseWrappable::Reference(this, promise));
+
   // 2. Let client be this's service worker client.
   web::EnvironmentSettings* client =
       base::polymorphic_downcast<web::EnvironmentSettings*>(
@@ -87,17 +101,25 @@ script::Handle<script::Promise<void>> ServiceWorkerContainer::Register(
   }
   // 6. Invoke Start Register with scopeURL, scriptURL, p, client, client’s
   //    creation URL, options["type"], and options["updateViaCache"].
-  base::polymorphic_downcast<dom::DOMSettings*>(environment_settings())
-      ->service_worker_jobs()
-      ->StartRegister(scope_url, script_url, promise, client, options.type(),
-                      options.update_via_cache());
-
+  base::polymorphic_downcast<web::EnvironmentSettings*>(environment_settings())
+      ->context()
+      ->message_loop()
+      ->task_runner()
+      ->PostTask(
+          FROM_HERE,
+          base::BindOnce(
+              &ServiceWorkerJobs::StartRegister,
+              base::Unretained(base::polymorphic_downcast<dom::DOMSettings*>(
+                                   environment_settings())
+                                   ->service_worker_jobs()),
+              scope_url, script_url, std::move(promise_reference), client,
+              options.type(), options.update_via_cache()));
   // 7. Return p.
   return promise;
 }
 
-script::Handle<script::Promise<void>> ServiceWorkerContainer::GetRegistration(
-    const std::string& url) {
+script::Handle<script::PromiseWrappable>
+ServiceWorkerContainer::GetRegistration(const std::string& url) {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerContainer::GetRegistration()");
   // https://w3c.github.io/ServiceWorker/#navigator-service-worker-getRegistration
   // 1. Let client be this's service worker client.
@@ -110,8 +132,13 @@ script::Handle<script::Promise<void>> ServiceWorkerContainer::GetRegistration(
   GURL client_url = base_url.Resolve(url);
 
   // 3. If clientURL is failure, return a promise rejected with a TypeError.
-  script::Handle<script::Promise<void>> promise =
-      script_value_factory_->CreateBasicPromise<void>();
+  auto promise =
+      base::polymorphic_downcast<web::EnvironmentSettings*>(
+          environment_settings())
+          ->context()
+          ->global_environment()
+          ->script_value_factory()
+          ->CreateInterfacePromise<scoped_refptr<ServiceWorkerRegistration>>();
   if (client_url.is_empty()) {
     promise->Reject(script::kTypeError);
     return promise;
@@ -147,7 +174,7 @@ script::Handle<script::Promise<void>> ServiceWorkerContainer::GetRegistration(
   return promise;
 }
 
-script::Handle<script::Promise<void>>
+script::Handle<script::PromiseSequenceWrappable>
 ServiceWorkerContainer::GetRegistrations() {
   // https://w3c.github.io/ServiceWorker/#navigator-service-worker-getRegistrations
   // 1. Let client be this's service worker client.
@@ -169,8 +196,13 @@ ServiceWorkerContainer::GetRegistrations() {
   //       3. Resolve promise with a new frozen array of registrationObjects in
   //          promise’s relevant Realm.
   // 4. Return promise.
-  script::Handle<script::Promise<void>> promise =
-      script_value_factory_->CreateBasicPromise<void>();
+  auto promise = base::polymorphic_downcast<web::EnvironmentSettings*>(
+                     environment_settings())
+                     ->context()
+                     ->global_environment()
+                     ->script_value_factory()
+                     ->CreateBasicPromise<script::SequenceWrappable>();
+
   return promise;
 }
 
