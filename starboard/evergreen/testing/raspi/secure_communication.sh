@@ -19,8 +19,12 @@
 RASPI_USERNAME="pi"
 RASPI_PASSWORD="raspberry"
 
+# The longest timeout for cycling Cobalt is 300 seconds. 360 seconds is used for
+# the expect timeout to allow Cobalt to be cycled, with a one minute cushion.
+EXPECT_TIMEOUT="360"
+
 function ssh_with_password() {
-  expect -c "spawn -noecho ssh ${RASPI_USERNAME}@${RASPI_ADDR} \"$@\"; log_user 0; expect \"password\"; log_user 1; send \"${RASPI_PASSWORD}\\r\"; set timeout 360;  expect \"eof\""
+  expect -c "spawn -noecho ssh ${RASPI_USERNAME}@${RASPI_ADDR} \"$@\"; log_user 0; expect \"password\"; log_user 1; send \"${RASPI_PASSWORD}\\r\"; set timeout ${EXPECT_TIMEOUT};  expect \"eof\""
 }
 
 function scp_with_password() {
