@@ -19,7 +19,6 @@ import logging
 import os
 
 from starboard.build.application_configuration import ApplicationConfiguration
-from starboard.optional import get_optional_tests
 import starboard_configuration  # Should be at root of source tree
 
 
@@ -166,7 +165,7 @@ class PlatformConfiguration(object):
     Returns:
       A list of strings of test target names.
     """
-    tests = [
+    return [
         'app_key_files_test',
         'app_key_test',
         'drain_file_test',
@@ -177,5 +176,3 @@ class PlatformConfiguration(object):
         'slot_management_test',
         'starboard_platform_tests',
     ]
-    tests.extend(get_optional_tests.GetOptionalTestTargets())
-    return tests
