@@ -86,10 +86,7 @@ void VideoDecoderTestFixture::Initialize() {
       output_mode, dmp_reader_.video_codec(), kSbDrmSystemInvalid));
 
   PlayerComponents::Factory::CreationParameters creation_parameters(
-      dmp_reader_.video_codec(),
-#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
-      GetVideoInputBuffer(0)->video_sample_info(),
-#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+      dmp_reader_.video_codec(), GetVideoInputBuffer(0)->video_sample_info(),
       &player_, output_mode,
       fake_graphics_context_provider_->decoder_target_provider(), nullptr);
 
@@ -266,7 +263,7 @@ void VideoDecoderTestFixture::WriteMultipleInputs(
       ++start_index;
       --number_of_inputs_to_write;
     } else if (event.status == kError || event.status == kTimeout) {
-      // Assume that the caller does't expect an error when |event_cb| isn't
+      // Assume that the caller doesn't expect an error when |event_cb| isn't
       // provided.
       ASSERT_TRUE(event_cb);
       bool continue_process = true;

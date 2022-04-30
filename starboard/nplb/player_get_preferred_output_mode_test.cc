@@ -18,8 +18,6 @@
 #include "starboard/nplb/player_creation_param_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
-
 namespace starboard {
 namespace nplb {
 namespace {
@@ -51,15 +49,9 @@ TEST(SbPlayerGetPreferredOutputModeTest, AllCodecs) {
       kSbMediaAudioCodecEac3, kSbMediaAudioCodecOpus, kSbMediaAudioCodecVorbis,
   };
   const SbMediaVideoCodec kVideoCodecs[] = {
-    kSbMediaVideoCodecNone,
-    kSbMediaVideoCodecH264,
-    kSbMediaVideoCodecH265,
-    kSbMediaVideoCodecMpeg2,
-    kSbMediaVideoCodecTheora,
-    kSbMediaVideoCodecVc1,
-    kSbMediaVideoCodecAv1,
-    kSbMediaVideoCodecVp8,
-    kSbMediaVideoCodecVp9,
+      kSbMediaVideoCodecNone,  kSbMediaVideoCodecH264,   kSbMediaVideoCodecH265,
+      kSbMediaVideoCodecMpeg2, kSbMediaVideoCodecTheora, kSbMediaVideoCodecVc1,
+      kSbMediaVideoCodecAv1,   kSbMediaVideoCodecVp8,    kSbMediaVideoCodecVp9,
   };
   const SbPlayerOutputMode kOutputModes[] = {
       kSbPlayerOutputModeDecodeToTexture, kSbPlayerOutputModePunchOut,
@@ -81,5 +73,3 @@ TEST(SbPlayerGetPreferredOutputModeTest, AllCodecs) {
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
-
-#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)

@@ -92,9 +92,7 @@ void Read(const ReadCB& read_cb,
           SbMediaAudioSampleInfoWithConfig* audio_sample_info) {
   Read(read_cb, reverse_byte_order, &audio_sample_info->codec);
 
-#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
   audio_sample_info->mime = "";
-#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 
   Read(read_cb, reverse_byte_order, &audio_sample_info->format_tag);
   Read(read_cb, reverse_byte_order, &audio_sample_info->number_of_channels);
@@ -170,10 +168,8 @@ void Read(const ReadCB& read_cb,
           SbMediaVideoSampleInfoWithOptionalColorMetadata* video_sample_info) {
   Read(read_cb, reverse_byte_order, &video_sample_info->codec);
 
-#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
   video_sample_info->mime = "";
   video_sample_info->max_video_capabilities = "";
-#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 
   Read(read_cb, reverse_byte_order, &video_sample_info->is_key_frame);
   Read(read_cb, reverse_byte_order, &video_sample_info->frame_width);

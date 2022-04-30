@@ -95,18 +95,14 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
 
 PlayerComponents::Factory::CreationParameters::CreationParameters(
     SbMediaVideoCodec video_codec,
-#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
     const SbMediaVideoSampleInfo& video_sample_info,
-#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
     SbPlayer player,
     SbPlayerOutputMode output_mode,
     SbDecodeTargetGraphicsContextProvider*
         decode_target_graphics_context_provider,
     SbDrmSystem drm_system)
     : video_codec_(video_codec),
-#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
       video_sample_info_(video_sample_info),
-#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
       player_(player),
       output_mode_(output_mode),
       decode_target_graphics_context_provider_(
@@ -121,9 +117,7 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
     SbMediaAudioCodec audio_codec,
     const SbMediaAudioSampleInfo& audio_sample_info,
     SbMediaVideoCodec video_codec,
-#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
     const SbMediaVideoSampleInfo& video_sample_info,
-#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
     SbPlayer player,
     SbPlayerOutputMode output_mode,
     SbDecodeTargetGraphicsContextProvider*
@@ -132,9 +126,7 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
     : audio_codec_(audio_codec),
       audio_sample_info_(audio_sample_info),
       video_codec_(video_codec),
-#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
       video_sample_info_(video_sample_info),
-#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
       player_(player),
       output_mode_(output_mode),
       decode_target_graphics_context_provider_(
@@ -150,9 +142,7 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
   this->audio_codec_ = that.audio_codec_;
   this->audio_sample_info_ = that.audio_sample_info_;
   this->video_codec_ = that.video_codec_;
-#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
   this->video_sample_info_ = that.video_sample_info_;
-#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
   this->player_ = that.player_;
   this->output_mode_ = that.output_mode_;
   this->decode_target_graphics_context_provider_ =

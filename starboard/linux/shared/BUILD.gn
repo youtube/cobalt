@@ -335,7 +335,6 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/starboard/media/mime_type.cc",
     "//starboard/shared/starboard/media/mime_type.h",
     "//starboard/shared/starboard/memory.cc",
-    "//starboard/shared/starboard/player/player_output_mode_supported.cc",
     "//starboard/shared/starboard/queue_application.cc",
     "//starboard/shared/starboard/starboard_switches.cc",
     "//starboard/shared/starboard/starboard_switches.h",

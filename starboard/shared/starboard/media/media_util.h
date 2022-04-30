@@ -34,9 +34,7 @@ struct AudioSampleInfo : SbMediaAudioSampleInfo {
   AudioSampleInfo& operator=(const SbMediaAudioSampleInfo& that);
 
  private:
-#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
   std::string mime_storage;
-#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
   std::vector<char> audio_specific_config_storage;
 };
 
@@ -46,10 +44,8 @@ struct VideoSampleInfo : SbMediaVideoSampleInfo {
   VideoSampleInfo& operator=(const SbMediaVideoSampleInfo& that);
 
  private:
-#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
   std::string mime_storage;
   std::string max_video_capabilities_storage;
-#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 };
 
 bool IsAudioOutputSupported(SbMediaAudioCodingType coding_type, int channels);

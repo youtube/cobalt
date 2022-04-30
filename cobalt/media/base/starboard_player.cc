@@ -219,10 +219,9 @@ void StarboardPlayer::UpdateVideoConfig(
       MediaVideoCodecToSbMediaVideoCodec(video_config_.codec());
   video_sample_info_.color_metadata =
       MediaToSbMediaColorMetadata(video_config_.webm_color_metadata());
-#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
   video_sample_info_.mime = video_config_.mime().c_str();
   video_sample_info_.max_video_capabilities = max_video_capabilities_.c_str();
-#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+
   LOG(INFO) << "Converted to SbMediaVideoSampleInfo -- " << video_sample_info_;
 }
 
@@ -573,8 +572,6 @@ void StarboardPlayer::CreatePlayer() {
 
   player_creation_time_ = SbTimeGetMonotonicNow();
 
-#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
-
   SbPlayerCreationParam creation_param = {};
   creation_param.drm_system = drm_system_;
   creation_param.audio_sample_info = audio_sample_info_;
@@ -591,25 +588,6 @@ void StarboardPlayer::CreatePlayer() {
       &StarboardPlayer::DecoderStatusCB, &StarboardPlayer::PlayerStatusCB,
       &StarboardPlayer::PlayerErrorCB, this,
       get_decode_target_graphics_context_provider_func_.Run());
-
-#else  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
-
-  DCHECK(SbPlayerOutputModeSupported(output_mode_, video_codec, drm_system_));
-  // TODO: This is temporary for supporting background media playback.
-  //       Need to be removed with media refactor.
-  if (!is_visible) {
-    DCHECK(audio_codec != kSbMediaAudioCodecNone);
-  }
-  player_ = SbPlayerCreate(
-      window_, video_codec, audio_codec, drm_system_,
-      has_audio ? &audio_sample_info_ : NULL,
-      max_video_capabilities_.length() > 0 ? max_video_capabilities_.c_str()
-                                           : NULL,
-      &StarboardPlayer::DeallocateSampleCB, &StarboardPlayer::DecoderStatusCB,
-      &StarboardPlayer::PlayerStatusCB, &StarboardPlayer::PlayerErrorCB, this,
-      output_mode_, get_decode_target_graphics_context_provider_func_.Run());
-
-#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 
   is_creating_player_ = false;
 
@@ -976,7 +954,6 @@ SbPlayerOutputMode StarboardPlayer::ComputeSbUrlPlayerOutputMode(
 // static
 SbPlayerOutputMode StarboardPlayer::ComputeSbPlayerOutputMode(
     bool prefer_decode_to_texture) const {
-#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
   SbPlayerCreationParam creation_param = {};
   creation_param.drm_system = drm_system_;
   creation_param.audio_sample_info = audio_sample_info_;
@@ -992,28 +969,6 @@ SbPlayerOutputMode StarboardPlayer::ComputeSbPlayerOutputMode(
   auto output_mode = SbPlayerGetPreferredOutputMode(&creation_param);
   CHECK_NE(kSbPlayerOutputModeInvalid, output_mode);
   return output_mode;
-#else   // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
-  SbMediaVideoCodec video_codec = kSbMediaVideoCodecNone;
-
-  video_codec = video_sample_info_.codec;
-
-  // Try to choose |kSbPlayerOutputModeDecodeToTexture| when
-  // |prefer_decode_to_texture| is true.
-  if (prefer_decode_to_texture) {
-    if (SbPlayerOutputModeSupported(kSbPlayerOutputModeDecodeToTexture,
-                                    video_codec, drm_system_)) {
-      return kSbPlayerOutputModeDecodeToTexture;
-    }
-  }
-
-  if (SbPlayerOutputModeSupported(kSbPlayerOutputModePunchOut, video_codec,
-                                  drm_system_)) {
-    return kSbPlayerOutputModePunchOut;
-  }
-  CHECK(SbPlayerOutputModeSupported(kSbPlayerOutputModeDecodeToTexture,
-                                    video_codec, drm_system_));
-  return kSbPlayerOutputModeDecodeToTexture;
-#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 }
 
 void StarboardPlayer::LogStartupLatency() const {

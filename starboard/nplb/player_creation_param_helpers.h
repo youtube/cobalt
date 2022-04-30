@@ -25,11 +25,8 @@ namespace nplb {
 
 SbMediaAudioSampleInfo CreateAudioSampleInfo(SbMediaAudioCodec codec);
 SbMediaVideoSampleInfo CreateVideoSampleInfo(SbMediaVideoCodec codec);
-
-#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 SbPlayerCreationParam CreatePlayerCreationParam(SbMediaAudioCodec audio_codec,
                                                 SbMediaVideoCodec video_codec);
-#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 
 }  // namespace nplb
 }  // namespace starboard

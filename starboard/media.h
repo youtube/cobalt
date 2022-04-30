@@ -376,7 +376,6 @@ typedef struct SbMediaVideoSampleInfo {
   // The video codec of this sample.
   SbMediaVideoCodec codec;
 
-#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
   // The mime of the video stream when |codec| isn't kSbMediaVideoCodecNone.  It
   // may point to an empty string if the mime is not available, and it can only
   // be set to NULL when |codec| is kSbMediaVideoCodecNone.
@@ -393,7 +392,6 @@ typedef struct SbMediaVideoSampleInfo {
   // When the maximums are unknown, this will be set to an empty string.  It can
   // only be set to NULL when |codec| is kSbMediaVideoCodecNone.
   const char* max_video_capabilities;
-#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 
   // Indicates whether the associated sample is a key frame (I-frame). Video key
   // frames must always start with SPS and PPS NAL units.
@@ -454,12 +452,10 @@ typedef struct SbMediaAudioSampleInfo {
   // The audio codec of this sample.
   SbMediaAudioCodec codec;
 
-#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
   // The mime of the audio stream when |codec| isn't kSbMediaAudioCodecNone.  It
   // may point to an empty string if the mime is not available, and it can only
   // be set to NULL when |codec| is kSbMediaAudioCodecNone.
   const char* mime;
-#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 
   // The waveform-audio format type code.
   uint16_t format_tag;

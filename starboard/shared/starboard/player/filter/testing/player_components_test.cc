@@ -91,10 +91,8 @@ class PlayerComponentsTest
       CreationParameters creation_parameters(
           audio_reader_->audio_codec(), audio_reader_->audio_sample_info(),
           video_reader_->video_codec(),
-#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
           video_reader_->GetPlayerSampleInfo(kSbMediaTypeVideo, 0)
               .video_sample_info,
-#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
           kDummyPlayer, output_mode_,
           fake_graphics_context_provider_.decoder_target_provider());
       player_components_ =
@@ -110,10 +108,8 @@ class PlayerComponentsTest
       ASSERT_TRUE(video_reader_);
       CreationParameters creation_parameters(
           video_reader_->video_codec(),
-#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
           video_reader_->GetPlayerSampleInfo(kSbMediaTypeVideo, 0)
               .video_sample_info,
-#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
           kDummyPlayer, output_mode_,
           fake_graphics_context_provider_.decoder_target_provider());
       player_components_ =

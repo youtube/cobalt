@@ -67,7 +67,6 @@ void DumpInputHash(const InputBuffer* input_buffer) {
 
 }  // namespace
 
-#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 FilterBasedPlayerWorkerHandler::FilterBasedPlayerWorkerHandler(
     const SbPlayerCreationParam* creation_param,
     SbDecodeTargetGraphicsContextProvider* provider)
@@ -81,26 +80,6 @@ FilterBasedPlayerWorkerHandler::FilterBasedPlayerWorkerHandler(
       video_sample_info_(creation_param->video_sample_info) {
   update_job_ = std::bind(&FilterBasedPlayerWorkerHandler::Update, this);
 }
-#else   // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
-FilterBasedPlayerWorkerHandler::FilterBasedPlayerWorkerHandler(
-    SbMediaVideoCodec video_codec,
-    SbMediaAudioCodec audio_codec,
-    SbDrmSystem drm_system,
-    const SbMediaAudioSampleInfo* audio_sample_info,
-    SbPlayerOutputMode output_mode,
-    SbDecodeTargetGraphicsContextProvider* provider)
-    : JobOwner(kDetached),
-      video_codec_(video_codec),
-      audio_codec_(audio_codec),
-      drm_system_(drm_system),
-      output_mode_(output_mode),
-      decode_target_graphics_context_provider_(provider) {
-  if (audio_sample_info) {
-    audio_sample_info_ = *audio_sample_info;
-  }
-  update_job_ = std::bind(&FilterBasedPlayerWorkerHandler::Update, this);
-}
-#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 
 bool FilterBasedPlayerWorkerHandler::Init(
     SbPlayer player,
@@ -148,10 +127,7 @@ bool FilterBasedPlayerWorkerHandler::Init(
   }
 
   PlayerComponents::Factory::CreationParameters creation_parameters(
-      audio_codec_, audio_sample_info_, video_codec_,
-#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
-      video_sample_info_,
-#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+      audio_codec_, audio_sample_info_, video_codec_, video_sample_info_,
       player_, output_mode_, decode_target_graphics_context_provider_,
       drm_system_);
 

@@ -14,6 +14,11 @@ A description of all changes currently in the experimental Starboard version
 can be found in the comments of the "Experimental Feature Defines" section of
 [configuration.h](configuration.h).
 
+### Deprecate the usage of SB_HAS_PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT.
+The improvements on player creation and output mode query (like
+`SbPlayerCreationParam` and `SbPlayerGetPreferredOutputMode()`) are always
+enabled.  This change also deprecates `SbPlayerOutputModeSupported()`.
+
 ## Version 13
 ### Changed lifecycle events to add support for a concealed state.
 

@@ -215,7 +215,7 @@ AudioSampleInfo& AudioSampleInfo::operator=(
            audio_specific_config_size);
     audio_specific_config = audio_specific_config_storage.data();
   }
-#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+
   if (codec == kSbMediaAudioCodecNone) {
     mime_storage.clear();
   } else {
@@ -223,7 +223,7 @@ AudioSampleInfo& AudioSampleInfo::operator=(
     mime_storage = that.mime;
   }
   mime = mime_storage.c_str();
-#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+
   return *this;
 }
 
@@ -239,7 +239,7 @@ VideoSampleInfo::VideoSampleInfo(const SbMediaVideoSampleInfo& that) {
 VideoSampleInfo& VideoSampleInfo::operator=(
     const SbMediaVideoSampleInfo& that) {
   *static_cast<SbMediaVideoSampleInfo*>(this) = that;
-#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+
   if (codec == kSbMediaVideoCodecNone) {
     mime_storage.clear();
     max_video_capabilities_storage.clear();
@@ -250,7 +250,7 @@ VideoSampleInfo& VideoSampleInfo::operator=(
   }
   mime = mime_storage.c_str();
   max_video_capabilities = max_video_capabilities_storage.c_str();
-#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+
   return *this;
 }
 
@@ -518,7 +518,6 @@ bool operator==(const SbMediaVideoSampleInfo& sample_info_1,
     return true;
   }
 
-#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
   if (strcmp(sample_info_1.mime, sample_info_2.mime) != 0) {
     return false;
   }
@@ -526,7 +525,6 @@ bool operator==(const SbMediaVideoSampleInfo& sample_info_1,
              sample_info_2.max_video_capabilities) != 0) {
     return false;
   }
-#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 
   if (sample_info_1.is_key_frame != sample_info_2.is_key_frame) {
     return false;

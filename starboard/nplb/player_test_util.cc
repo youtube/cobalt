@@ -151,8 +151,6 @@ SbPlayer CallSbPlayerCreate(
     void* context,
     SbPlayerOutputMode output_mode,
     SbDecodeTargetGraphicsContextProvider* context_provider) {
-#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
-
   if (audio_sample_info) {
     SB_CHECK(audio_sample_info->codec == audio_codec);
   } else {
@@ -172,30 +170,15 @@ SbPlayer CallSbPlayerCreate(
   return SbPlayerCreate(window, &creation_param, sample_deallocate_func,
                         decoder_status_func, player_status_func,
                         player_error_func, context, context_provider);
-
-#else  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
-
-  return SbPlayerCreate(window, video_codec, audio_codec, kSbDrmSystemInvalid,
-                        audio_sample_info, max_video_capabilities,
-                        sample_deallocate_func, decoder_status_func,
-                        player_status_func, player_error_func, context,
-                        output_mode, context_provider);
-
-#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 }
 
 bool IsOutputModeSupported(SbPlayerOutputMode output_mode,
                            SbMediaAudioCodec audio_codec,
                            SbMediaVideoCodec video_codec) {
-#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
   SbPlayerCreationParam creation_param =
       CreatePlayerCreationParam(audio_codec, video_codec);
   creation_param.output_mode = output_mode;
   return SbPlayerGetPreferredOutputMode(&creation_param) == output_mode;
-#else   // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
-  return SbPlayerOutputModeSupported(output_mode, video_codec,
-                                     kSbDrmSystemInvalid);
-#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 }
 
 }  // namespace nplb

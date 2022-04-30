@@ -247,9 +247,7 @@ class AudioRendererTest : public ::testing::Test {
     static starboard::media::AudioSampleInfo audio_sample_info = {};
 
     audio_sample_info.codec = kSbMediaAudioCodecAac;
-#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
     audio_sample_info.mime = "";
-#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
     audio_sample_info.number_of_channels = kDefaultNumberOfChannels;
     audio_sample_info.samples_per_second = kDefaultSamplesPerSecond;
     audio_sample_info.bits_per_sample = 32;

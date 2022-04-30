@@ -37,8 +37,6 @@ using starboard::shared::starboard::player::filter::
     FilterBasedPlayerWorkerHandler;
 using starboard::shared::starboard::player::PlayerWorker;
 
-#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
-
 SbPlayer SbPlayerCreate(SbWindow window,
                         const SbPlayerCreationParam* creation_param,
                         SbPlayerDeallocateSampleFunc sample_deallocate_func,
@@ -105,23 +103,6 @@ SbPlayer SbPlayerCreate(SbWindow window,
   const SbMediaAudioSampleInfo* audio_sample_info =
       &creation_param->audio_sample_info;
   const auto output_mode = creation_param->output_mode;
-
-#else   // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
-
-SbPlayer SbPlayerCreate(SbWindow window,
-                        SbMediaVideoCodec video_codec,
-                        SbMediaAudioCodec audio_codec,
-                        SbDrmSystem drm_system,
-                        const SbMediaAudioSampleInfo* audio_sample_info,
-                        const char* max_video_capabilities,
-                        SbPlayerDeallocateSampleFunc sample_deallocate_func,
-                        SbPlayerDecoderStatusFunc decoder_status_func,
-                        SbPlayerStatusFunc player_status_func,
-                        SbPlayerErrorFunc player_error_func,
-                        void* context,
-                        SbPlayerOutputMode output_mode,
-                        SbDecodeTargetGraphicsContextProvider* provider) {
-#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 
   if (!player_error_func) {
     SB_LOG(ERROR) << "|player_error_func| cannot be null.";
@@ -227,7 +208,6 @@ SbPlayer SbPlayerCreate(SbWindow window,
     return kSbPlayerInvalid;
   }
 
-#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
   if (SbPlayerGetPreferredOutputMode(creation_param) != output_mode) {
     error_message = starboard::FormatString("Unsupported player output mode %d",
                                             output_mode);
@@ -236,28 +216,11 @@ SbPlayer SbPlayerCreate(SbWindow window,
                       error_message.c_str());
     return kSbPlayerInvalid;
   }
-#else   // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
-  if (!SbPlayerOutputModeSupported(output_mode, video_codec, drm_system)) {
-    error_message = starboard::FormatString("Unsupported player output mode %d",
-                                            output_mode);
-    SB_LOG(ERROR) << error_message << ".";
-    player_error_func(kSbPlayerInvalid, context, kSbPlayerErrorDecode,
-                      error_message.c_str());
-    return kSbPlayerInvalid;
-  }
-#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 
   UpdateActiveSessionPlatformPlaybackState(kPlaying);
 
-#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
   starboard::scoped_ptr<PlayerWorker::Handler> handler(
       new FilterBasedPlayerWorkerHandler(creation_param, provider));
-#else   // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
-  starboard::scoped_ptr<PlayerWorker::Handler> handler(
-      new FilterBasedPlayerWorkerHandler(video_codec, audio_codec, drm_system,
-                                         audio_sample_info, output_mode,
-                                         provider));
-#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 
   SbPlayer player = SbPlayerPrivate::CreateInstance(
       audio_codec, video_codec, audio_sample_info, sample_deallocate_func,

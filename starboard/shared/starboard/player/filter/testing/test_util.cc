@@ -263,7 +263,6 @@ AssertionResult AlmostEqualTime(SbTime time1, SbTime time2) {
          << "time " << time1 << " doesn't match with time " << time2;
 }
 
-#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 media::VideoSampleInfo CreateVideoSampleInfo(SbMediaVideoCodec codec) {
   shared::starboard::media::VideoSampleInfo video_sample_info = {};
 
@@ -281,7 +280,6 @@ media::VideoSampleInfo CreateVideoSampleInfo(SbMediaVideoCodec codec) {
 
   return video_sample_info;
 }
-#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 
 }  // namespace testing
 }  // namespace filter

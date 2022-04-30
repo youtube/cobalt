@@ -1,10 +1,10 @@
 participant Application (e.g. Cobalt) as a [fillcolor="#ffd0d0"]
 participant Starboard as s [fillcolor="#d0d0ff"]
 
-a->s: SbPlayerOutputModeSupported(kSbPlayerOutputModeDecodeToTexture, ...)
-s-->a: returns bool
-Note over a: If SbPlayerOutputModeSupported()\nreturns true... [fillcolor="white"]
-a->s: SbPlayerCreate(..., kSbPlayerOutputModeDecodeToTexture, ...)
+a->s: SbPlayerGetPreferredOutputMode(creation_param->output_mode = kSbPlayerOutputModeDecodeToTexture, ...)
+s-->a: returns SbPlayerOutputMode
+Note over a: If SbPlayerGetPreferredOutputMode()\nreturns kSbPlayerOutputModeDecodeToTexture [fillcolor="white"]
+a->s: SbPlayerCreate(..., creation_param->output_mode = kSbPlayerOutputModeDecodeToTexture, ...)
 Note over a: Start of render loop [fillcolor="#ffffd0"]
 a->s: SbPlayerGetCurrentFrame()
 s-->a: returns SbDecodeTarget
