@@ -60,22 +60,22 @@ black_box_js_test_utils.js provides some utility functions that are meant to
 work with runner.JSTestsSucceeded() in the python test scripts. Together,
 they allow for test logic to exist in either the python test scripts or
 JavaScript test data.
-e.g. Call OnEndTest() to signal test completion in the JavaScripts,
+e.g. Call OnEndTest() to signal test completion on the JavaScript side,
 JSTestsSucceeded() will react to the signal and return the test status of
-JavaScript test logic; another example is that when python script wants to wait
-for some setup steps on JavaScript, call runner.WaitForJSTestsSetup(). Calling
-setupFinished() in JavaScript whenever ready will unblock the wait.
+JavaScript test logic; another example is that when the python script wants to
+wait for some setup steps on JavaScript, call runner.WaitForJSTestsSetup().
+Calling setupFinished() in JavaScript whenever ready will unblock the wait.
 
 
 ## Test Data
 
-A default local test server will be launcher before any unit test starts to
+A default local test server will be launched before any unit test starts to
 serve the test data in black_box_tests/testdata/. The server's port will be
 passed to the app launcher to fetch test data from.
-Test data can include target web page for Cobalt to open and any additional
-resource(font file, JavaScripts...).
+Test data can include the target web page for Cobalt to open and any additional
+resources (font file, JavaScripts...).
 Tests are free to start their own HTTP servers if the default test server is
-inadequate(e.g. The test is testing that Cobalt handles receipt of a specific
+inadequate (e.g. The test is testing that Cobalt handles receipt of a specific
 HTTP server generated error code properly).
 
 
