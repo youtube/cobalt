@@ -264,8 +264,6 @@ source_set("starboard_platform") {
     "//starboard/linux/shared/decode_target_release.cc",
     "//starboard/linux/shared/media_is_video_supported.cc",
     "//starboard/linux/shared/player_components_factory.cc",
-    "//starboard/linux/shared/soft_mic_platform_service.cc",
-    "//starboard/linux/shared/soft_mic_platform_service.h",
     "//starboard/linux/shared/system_get_connection_type.cc",
     "//starboard/linux/shared/system_get_device_type.cc",
     "//starboard/linux/shared/system_get_path.cc",
