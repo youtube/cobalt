@@ -26,6 +26,7 @@
 #include "cobalt/csp/content_security_policy.h"
 #include "cobalt/loader/fetcher.h"
 #include "cobalt/network/network_module.h"
+#include "net/disk_cache/cobalt/resource_type.h"
 #include "net/url_request/url_fetcher.h"
 #include "net/url_request/url_fetcher_delegate.h"
 #include "url/gurl.h"
@@ -38,9 +39,11 @@ class NetFetcher : public Fetcher, public net::URLFetcherDelegate {
  public:
   struct Options {
    public:
-    Options() : request_method(net::URLFetcher::GET), resource_type(kOther) {}
+    Options()
+        : request_method(net::URLFetcher::GET),
+          resource_type(disk_cache::kOther) {}
     net::URLFetcher::RequestType request_method;
-    ResourceType resource_type;
+    disk_cache::ResourceType resource_type;
   };
 
   NetFetcher(const GURL& url, const csp::SecurityCallback& security_callback,

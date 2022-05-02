@@ -50,7 +50,7 @@ std::unique_ptr<Loader> ScriptLoaderFactory::CreateScriptLoader(
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   Loader::FetcherCreator fetcher_creator = MakeFetcherCreator(
-      url, url_security_callback, kNoCORSMode, origin, kScript);
+      url, url_security_callback, kNoCORSMode, origin, disk_cache::kUncompiledScript);
 
   std::unique_ptr<Loader> loader(new Loader(
       fetcher_creator,
@@ -66,7 +66,8 @@ std::unique_ptr<Loader> ScriptLoaderFactory::CreateScriptLoader(
 
 Loader::FetcherCreator ScriptLoaderFactory::MakeFetcherCreator(
     const GURL& url, const csp::SecurityCallback& url_security_callback,
-    RequestMode request_mode, const Origin& origin, ResourceType type) {
+    RequestMode request_mode, const Origin& origin,
+    disk_cache::ResourceType type) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   return base::Bind(&FetcherFactory::CreateSecureFetcher,

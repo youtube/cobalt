@@ -100,7 +100,7 @@ NetFetcher::NetFetcher(const GURL& url,
           base::Bind(&NetFetcher::Start, base::Unretained(this)))),
       request_cross_origin_(false),
       origin_(origin),
-      request_script_(options.resource_type == ResourceType::kScript) {
+      request_script_(options.resource_type == disk_cache::kUncompiledScript) {
   url_fetcher_ = net::URLFetcher::Create(url, options.request_method, this);
   url_fetcher_->SetRequestContext(
       network_module->url_request_context_getter().get());

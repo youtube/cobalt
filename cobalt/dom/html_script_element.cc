@@ -331,7 +331,7 @@ void HTMLScriptElement::Prepare() {
               csp_callback, request_mode_,
               document_->location() ? document_->location()->GetOriginAsObject()
                                     : loader::Origin(),
-              loader::kScript),
+              disk_cache::kUncompiledScript),
           base::Bind(&loader::TextDecoder::Create,
                      base::Bind(&HTMLScriptElement::OnSyncContentProduced,
                                 base::Unretained(this)),

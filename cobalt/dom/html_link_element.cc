@@ -209,11 +209,11 @@ void HTMLLinkElement::Obtain() {
   loader::Origin origin = document->location()
                               ? document->location()->GetOriginAsObject()
                               : loader::Origin();
-  loader::ResourceType type;
+  disk_cache::ResourceType type;
   if (rel() == "stylesheet") {
-    type = loader::kCSS;
+    type = disk_cache::kCSS;
   } else if (IsValidSplashScreenFormat(rel())) {
-    type = loader::kSplashScreen;
+    type = disk_cache::kSplashScreen;
   } else {
     LOG(WARNING) << "<link> has unsupported rel value: " << rel() << ".";
     NOTIMPLEMENTED();

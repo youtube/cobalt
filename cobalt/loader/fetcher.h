@@ -39,16 +39,6 @@ enum RequestMode {
   kCORSModeIncludeCredentials,
 };
 
-enum ResourceType {
-  kOther = 0,
-  kHTML = 1,
-  kCSS = 2,
-  kScript = 3,
-  kImage = 4,
-  kFont = 5,
-  kSplashScreen = 6,
-};
-
 class Fetcher {
  public:
   class Handler {

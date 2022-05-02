@@ -94,15 +94,16 @@ FetcherFactory::FetcherFactory(
 }
 
 std::unique_ptr<Fetcher> FetcherFactory::CreateFetcher(
-    const GURL& url, ResourceType type, Fetcher::Handler* handler) {
+    const GURL& url, const disk_cache::ResourceType type,
+    Fetcher::Handler* handler) {
   return CreateSecureFetcher(url, csp::SecurityCallback(), kNoCORSMode,
                              Origin(), type, handler);
 }
 
 std::unique_ptr<Fetcher> FetcherFactory::CreateSecureFetcher(
     const GURL& url, const csp::SecurityCallback& url_security_callback,
-    RequestMode request_mode, const Origin& origin, ResourceType type,
-    Fetcher::Handler* handler) {
+    RequestMode request_mode, const Origin& origin,
+    const disk_cache::ResourceType type, Fetcher::Handler* handler) {
   LOG(INFO) << "Fetching: " << ClipUrl(url, 200);
 
   if (!url.is_valid()) {
