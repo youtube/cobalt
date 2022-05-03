@@ -325,6 +325,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
     # Actually running executable
     run_timer = StepTimer('running executable')
+    app_crashed = False
     try:
       args = ['shell', 'am', 'start']
       command_line_params = [
@@ -345,7 +346,6 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
       run_loop = abstract_launcher.ARG_DRYRUN not in self.launcher_args
 
-      app_crashed = False
       while run_loop:
         if not done_queue.empty():
           done_queue_code = done_queue.get_nowait()

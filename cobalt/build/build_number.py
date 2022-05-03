@@ -47,7 +47,7 @@ def GetRevinfo():
   try:
     repo_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel'
                                         ]).strip().decode('utf-8')
-  except subprocess.CalledProcessError as e:
+  except subprocess.CalledProcessError:
     logging.info('Could not get repo root. Trying again in src/')
     try:
       repo_root = subprocess.check_output(

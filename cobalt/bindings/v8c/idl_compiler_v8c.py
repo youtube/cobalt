@@ -27,9 +27,11 @@ if __name__ == '__main__':
   # TODO(b/225964218): The flakiness here should be resolved and retries
   # removed.
   # Retry up to 5 times as this can be flaky
+  latest_error = None
   for i in range(5):
     try:
       sys.exit(generate_bindings(CodeGeneratorV8c))
     except EOFError as e:
       latest_error = e
-  raise latest_error
+  if latest_error:
+    raise latest_error
