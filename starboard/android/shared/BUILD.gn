@@ -14,10 +14,6 @@
 
 import("//starboard/shared/starboard/player/buildfiles.gni")
 
-config("starboard_platform_config") {
-  include_dirs = [ "bionic" ]
-}
-
 static_library("starboard_platform") {
   sources = [
     "$target_gen_dir/ndk-sources/cpu-features.c",
@@ -296,13 +292,6 @@ static_library("starboard_platform") {
     "audio_track_audio_sink_type.h",
     "audio_track_bridge.cc",
     "audio_track_bridge.h",
-    "bionic/bionic_netlink.cpp",
-    "bionic/bionic_netlink.h",
-    "bionic/ifaddrs.cpp",
-    "bionic/ifaddrs.h",
-    "bionic/net_if.cpp",
-    "bionic/private/ErrnoRestorer.h",
-    "bionic/private/bionic_macros.h",
     "configuration.cc",
     "configuration.h",
     "configuration_constants.cc",
@@ -373,6 +362,7 @@ static_library("starboard_platform") {
     "player_set_bounds.cc",
     "player_set_playback_rate.cc",
     "sanitizer_options.cc",
+    "socket_get_interface_address.cc",
     "speech_synthesis_cancel.cc",
     "speech_synthesis_internal.cc",
     "speech_synthesis_is_supported.cc",
@@ -432,10 +422,7 @@ static_library("starboard_platform") {
     "//starboard/shared/starboard/player/player_set_playback_rate.cc",
   ]
 
-  configs += [
-    ":starboard_platform_config",
-    "//starboard/build/config:starboard_implementation",
-  ]
+  configs += [ "//starboard/build/config:starboard_implementation" ]
 
   public_deps = [
     ":ndk_sources",
