@@ -119,11 +119,18 @@
 
         // Finally, test a succeeding registration.
         navigator.serviceWorker.register('service_worker_test.js', {
-            scope: '/',
+            scope: '/registration/scope',
         })
             .then(function (registration) {
                 console.log(`(Expected) Registration Succeeded: ${registration}`);
-                assertEqual(null, registration);
+                assertNotEqual(null, registration);
+                assertEqual(null, registration.installing);
+                assertEqual(null, registration.waiting);
+                assertEqual(null, registration.active);
+
+                // The default value for RegistrationOptions.type is 'imports'.
+                assertEqual('imports', registration.updateViaCache);
+                assertTrue(registration.scope.endsWith('/registration/scope'));
                 message_event_count += 1;
             }, function (error) {
                 notReached();

@@ -14,7 +14,9 @@
 
 #include "cobalt/web/agent.h"
 
+#include <map>
 #include <memory>
+#include <utility>
 
 #include "base/trace_event/trace_event.h"
 #include "cobalt/dom/blob.h"
@@ -30,7 +32,10 @@
 #include "cobalt/script/wrappable.h"
 #include "cobalt/web/context.h"
 #include "cobalt/web/environment_settings.h"
+#include "cobalt/worker/service_worker.h"
+#include "cobalt/worker/service_worker_object.h"
 #include "cobalt/worker/service_worker_registration.h"
+#include "cobalt/worker/service_worker_registration_object.h"
 
 namespace cobalt {
 namespace web {
@@ -93,14 +98,17 @@ class Impl : public Context {
   }
 
   // https://w3c.github.io/ServiceWorker/#service-worker-registration-creation
-  virtual scoped_refptr<worker::ServiceWorkerRegistration>
-  GetServiceWorkerRegistation(
-      worker::ServiceWorkerRegistrationObject* registration);
+  scoped_refptr<worker::ServiceWorkerRegistration> GetServiceWorkerRegistration(
+      worker::ServiceWorkerRegistrationObject* registration) final;
 
  private:
   // Injects a list of attributes into the Web Context's global object.
   void InjectGlobalObjectAttributes(
       const Agent::Options::InjectedGlobalObjectAttributes& attributes);
+
+  // https://w3c.github.io/ServiceWorker/#get-the-service-worker-object
+  scoped_refptr<worker::ServiceWorker> GetServiceWorker(
+      worker::ServiceWorkerObject* worker);
 
   // Thread checker ensures all calls to the Context are made from the same
   // thread that it is created in.
@@ -137,6 +145,17 @@ class Impl : public Context {
 
   // Environment Settings object
   std::unique_ptr<web::EnvironmentSettings> environment_settings_;
+
+  // The service worker registration object map.
+  //   https://w3c.github.io/ServiceWorker/#environment-settings-object-service-worker-registration-object-map
+  std::map<worker::ServiceWorkerRegistrationObject*,
+           scoped_refptr<worker::ServiceWorkerRegistration>>
+      service_worker_registration_object_map_;
+
+  // The service worker object map.
+  //   https://w3c.github.io/ServiceWorker/#environment-settings-object-service-worker-object-map
+  std::map<worker::ServiceWorkerObject*, scoped_refptr<worker::ServiceWorker>>
+      service_worker_object_map_;
 };
 
 Impl::Impl(const Agent::Options& options) : name_(options.name) {
@@ -215,15 +234,93 @@ void Impl::InjectGlobalObjectAttributes(
   }
 }
 
-scoped_refptr<worker::ServiceWorkerRegistration>
-Impl::GetServiceWorkerRegistation(
-    worker::ServiceWorkerRegistrationObject* registration) {
-  // Algorithm for 'get the service worker registration object'
-  //   https://w3c.github.io/ServiceWorker/#get-the-service-worker-registration-object
 
-  scoped_refptr<worker::ServiceWorkerRegistration> service_worker_registration;
-  NOTIMPLEMENTED();
-  return service_worker_registration;
+scoped_refptr<worker::ServiceWorkerRegistration>
+Impl::GetServiceWorkerRegistration(
+    worker::ServiceWorkerRegistrationObject* registration) {
+  // Algorithm for 'get the service worker registration object':
+  //   https://w3c.github.io/ServiceWorker/#get-the-service-worker-registration-object
+  scoped_refptr<worker::ServiceWorkerRegistration> worker_registration;
+  if (!registration) {
+    NOTREACHED();
+    return worker_registration;
+  }
+
+  // 1. Let objectMap be environment’s service worker registration object map.
+  // 2. If objectMap[registration] does not exist, then:
+  auto registration_lookup =
+      service_worker_registration_object_map_.find(registration);
+  if (registration_lookup == service_worker_registration_object_map_.end()) {
+    // 2.1. Let registrationObject be a new ServiceWorkerRegistration in
+    // environment’s Realm.
+    // 2.2. Set registrationObject’s service worker registration to
+    // registration.
+    // 2.3. Set registrationObject’s installing attribute to null.
+    // 2.4. Set registrationObject’s waiting attribute to null.
+    // 2.5. Set registrationObject’s active attribute to null.
+    worker_registration = new worker::ServiceWorkerRegistration(
+        environment_settings(), registration);
+
+    // 2.6. If registration’s installing worker is not null, then set
+    // registrationObject’s installing attribute to the result of getting the
+    // service worker object that represents registration’s installing worker in
+    // environment.
+    if (registration->installing_worker()) {
+      worker_registration->set_installing(
+          GetServiceWorker(registration->installing_worker()));
+    }
+
+    // 2.7. If registration’s waiting worker is not null, then set
+    // registrationObject’s waiting attribute to the result of getting the
+    // service worker object that represents registration’s waiting worker in
+    // environment.
+    if (registration->waiting_worker()) {
+      worker_registration->set_waiting(
+          GetServiceWorker(registration->waiting_worker()));
+    }
+
+    // 2.8. If registration’s active worker is not null, then set
+    // registrationObject’s active attribute to the result of getting the
+    // service worker object that represents registration’s active worker in
+    // environment.
+    if (registration->active_worker()) {
+      worker_registration->set_active(
+          GetServiceWorker(registration->active_worker()));
+    }
+
+    // 2.9. Set objectMap[registration] to registrationObject.
+    service_worker_registration_object_map_.insert(
+        std::make_pair(registration, worker_registration));
+  } else {
+    worker_registration = registration_lookup->second;
+  }
+  // 3. Return objectMap[registration].
+  return worker_registration;
+}
+
+scoped_refptr<worker::ServiceWorker> Impl::GetServiceWorker(
+    worker::ServiceWorkerObject* worker) {
+  // Algorithm for 'get the service worker object':
+  //   https://w3c.github.io/ServiceWorker/#get-the-service-worker-object
+  scoped_refptr<worker::ServiceWorker> service_worker;
+
+  // 1. Let objectMap be environment’s service worker object map.
+  // 2. If objectMap[serviceWorker] does not exist, then:
+  auto worker_lookup = service_worker_object_map_.find(worker);
+  if (worker_lookup == service_worker_object_map_.end()) {
+    // 2.1. Let serviceWorkerObj be a new ServiceWorker in environment’s Realm,
+    // and associate it with serviceWorker.
+    // 2.2. Set serviceWorkerObj’s state to serviceWorker’s state.
+    service_worker = new worker::ServiceWorker(environment_settings(), worker);
+
+    // 2.3. Set objectMap[serviceWorker] to serviceWorkerObj.
+    service_worker_object_map_.insert(std::make_pair(worker, service_worker));
+  } else {
+    service_worker = worker_lookup->second;
+  }
+
+  // 3. Return objectMap[serviceWorker].
+  return service_worker;
 }
 
 // Signals the given WaitableEvent.

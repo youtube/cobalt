@@ -27,6 +27,7 @@
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/script/script_runner.h"
 #include "cobalt/web/environment_settings.h"
+#include "cobalt/worker/service_worker_registration_object.h"
 
 namespace cobalt {
 namespace worker {
@@ -56,7 +57,7 @@ class Context {
 
   // https://w3c.github.io/ServiceWorker/#get-the-service-worker-registration-object
   virtual scoped_refptr<worker::ServiceWorkerRegistration>
-  GetServiceWorkerRegistation(
+  GetServiceWorkerRegistration(
       worker::ServiceWorkerRegistrationObject* registration) = 0;
 };
 

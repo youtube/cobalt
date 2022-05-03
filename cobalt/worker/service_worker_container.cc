@@ -72,7 +72,7 @@ script::Handle<script::PromiseWrappable> ServiceWorkerContainer::Register(
 script::Handle<script::PromiseWrappable> ServiceWorkerContainer::Register(
     const std::string& url, const RegistrationOptions& options) {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerContainer::Register()");
-  // https://w3c.github.io/ServiceWorker/#navigator-service-worker-registers
+  // https://w3c.github.io/ServiceWorker/#navigator-service-worker-register
   // 1. Let p be a promise.
   script::HandlePromiseWrappable promise =
       base::polymorphic_downcast<web::EnvironmentSettings*>(

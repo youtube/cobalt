@@ -23,10 +23,9 @@ namespace cobalt {
 namespace worker {
 
 ServiceWorkerRegistration::ServiceWorkerRegistration(
-    script::EnvironmentSettings* settings, const Options& options)
-    : dom::EventTarget(settings),
-      registration_id_(options.registration_id),
-      scope_(std::move(options.scope)) {}
+    script::EnvironmentSettings* settings,
+    worker::ServiceWorkerRegistrationObject* registration)
+    : dom::EventTarget(settings), registration_(registration) {}
 
 script::Handle<script::Promise<void>> ServiceWorkerRegistration::Update() {
   // Todo: Add logic for update()
@@ -53,7 +52,12 @@ script::Handle<script::Promise<void>> ServiceWorkerRegistration::Unregister() {
 }
 
 std::string ServiceWorkerRegistration::scope() const {
-  return scope_.GetContent();
+  return registration_->scope_url().GetContent();
+}
+
+ServiceWorkerUpdateViaCache ServiceWorkerRegistration::update_via_cache()
+    const {
+  return registration_->update_via_cache_mode();
 }
 
 void ServiceWorkerRegistration::EnableNavigationPreload(bool enable) {

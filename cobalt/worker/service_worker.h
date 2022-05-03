@@ -24,6 +24,7 @@
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/wrappable.h"
 #include "cobalt/worker/abstract_worker.h"
+#include "cobalt/worker/service_worker_object.h"
 #include "cobalt/worker/service_worker_state.h"
 
 namespace cobalt {
@@ -34,15 +35,8 @@ namespace worker {
 //   https://w3c.github.io/ServiceWorker/#serviceworker-interface
 class ServiceWorker : public AbstractWorker, public dom::EventTarget {
  public:
-  struct Options {
-    explicit Options(ServiceWorkerState state, const std::string scriptURL)
-        : state(state), script_url(std::move(scriptURL)) {}
-    ServiceWorkerState state;
-    const std::string script_url;
-  };
-
-  explicit ServiceWorker(script::EnvironmentSettings* settings,
-                         const Options& options);
+  ServiceWorker(script::EnvironmentSettings* settings,
+                worker::ServiceWorkerObject* worker);
 
   // The scriptURL getter steps are to return the
   // service worker's serialized script url.
@@ -70,6 +64,8 @@ class ServiceWorker : public AbstractWorker, public dom::EventTarget {
  private:
   ~ServiceWorker() override = default;
   DISALLOW_COPY_AND_ASSIGN(ServiceWorker);
+
+  worker::ServiceWorkerObject* worker_;
 
   const std::string script_url_;
   ServiceWorkerState state_;

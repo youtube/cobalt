@@ -12,18 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/worker/service_worker.h"
 #include "cobalt/worker/service_worker_object.h"
-
-#include <memory>
-#include <utility>
 
 namespace cobalt {
 namespace worker {
 
-ServiceWorker::ServiceWorker(script::EnvironmentSettings* settings,
-                             worker::ServiceWorkerObject* worker)
-    : dom::EventTarget(settings), worker_(worker), state_(worker->state()) {}
+ServiceWorkerObject::ServiceWorkerObject() {}
 
 }  // namespace worker
 }  // namespace cobalt

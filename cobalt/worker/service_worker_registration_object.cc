@@ -14,10 +14,19 @@
 
 #include "cobalt/worker/service_worker_registration_object.h"
 
+#include "cobalt/worker/service_worker_update_via_cache.h"
+#include "url/gurl.h"
+#include "url/origin.h"
+
 namespace cobalt {
 namespace worker {
 
-ServiceWorkerRegistrationObject::ServiceWorkerRegistrationObject() {}
+ServiceWorkerRegistrationObject::ServiceWorkerRegistrationObject(
+    const url::Origin& storage_key, const GURL& scope_url,
+    const ServiceWorkerUpdateViaCache& update_via_cache_mode)
+    : storage_key_(storage_key),
+      scope_url_(scope_url),
+      update_via_cache_mode_(update_via_cache_mode) {}
 
 }  // namespace worker
 }  // namespace cobalt

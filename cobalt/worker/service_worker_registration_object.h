@@ -14,6 +14,12 @@
 
 #ifndef COBALT_WORKER_SERVICE_WORKER_REGISTRATION_OBJECT_H_
 #define COBALT_WORKER_SERVICE_WORKER_REGISTRATION_OBJECT_H_
+
+#include "cobalt/worker/service_worker_object.h"
+#include "cobalt/worker/service_worker_update_via_cache.h"
+#include "url/gurl.h"
+#include "url/origin.h"
+
 namespace cobalt {
 namespace worker {
 
@@ -27,8 +33,28 @@ namespace worker {
 //   https://w3c.github.io/ServiceWorker/#service-worker-registration-lifetime
 class ServiceWorkerRegistrationObject {
  public:
-  ServiceWorkerRegistrationObject();
+  ServiceWorkerRegistrationObject(
+      const url::Origin& storage_key, const GURL& scope_url,
+      const ServiceWorkerUpdateViaCache& update_via_cache_mode);
   ~ServiceWorkerRegistrationObject() {}
+
+  const url::Origin& storage_key() const { return storage_key_; }
+  const GURL& scope_url() const { return scope_url_; }
+  const ServiceWorkerUpdateViaCache& update_via_cache_mode() const {
+    return update_via_cache_mode_;
+  }
+
+  ServiceWorkerObject* installing_worker() const { return installing_worker_; }
+  ServiceWorkerObject* waiting_worker() const { return waiting_worker_; }
+  ServiceWorkerObject* active_worker() const { return active_worker_; }
+
+ private:
+  const url::Origin& storage_key_;
+  const GURL& scope_url_;
+  const ServiceWorkerUpdateViaCache& update_via_cache_mode_;
+  ServiceWorkerObject* installing_worker_ = nullptr;
+  ServiceWorkerObject* waiting_worker_ = nullptr;
+  ServiceWorkerObject* active_worker_ = nullptr;
 };
 
 }  // namespace worker

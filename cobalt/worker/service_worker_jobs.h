@@ -27,6 +27,7 @@
 #include "base/task/sequence_manager/moveable_auto_lock.h"
 #include "cobalt/dom/dom_exception.h"
 #include "cobalt/network/network_module.h"
+#include "cobalt/script/exception_message.h"
 #include "cobalt/script/promise.h"
 #include "cobalt/script/script_value.h"
 #include "cobalt/web/environment_settings.h"
@@ -87,6 +88,7 @@ class ServiceWorkerJobs {
 
     void Resolve(const bool result);
     void Resolve(const scoped_refptr<ServiceWorkerRegistration>& result);
+    void Reject(script::SimpleExceptionType exception);
     void Reject(const scoped_refptr<script::ScriptException>& result);
 
     script::PromiseState State();
@@ -100,10 +102,11 @@ class ServiceWorkerJobs {
 
   // https://w3c.github.io/ServiceWorker/#dfn-job
   struct Job {
-    Job(JobType type, const GURL& scope_url, const GURL& script_url,
-        std::unique_ptr<JobPromiseType> promise,
+    Job(JobType type, const url::Origin& storage_key, const GURL& scope_url,
+        const GURL& script_url, std::unique_ptr<JobPromiseType> promise,
         web::EnvironmentSettings* client)
         : type(type),
+          storage_key(storage_key),
           scope_url(scope_url),
           script_url(script_url),
           promise(std::move(promise)),
@@ -113,6 +116,7 @@ class ServiceWorkerJobs {
       containing_job_queue = nullptr;
     }
     JobType type;
+    url::Origin storage_key;
     GURL scope_url;
     GURL script_url;
     std::unique_ptr<JobPromiseType> promise;
@@ -165,11 +169,33 @@ class ServiceWorkerJobs {
   };
 
   // https://w3c.github.io/ServiceWorker/#dfn-scope-to-job-queue-map
-  typedef std::map<std::string, std::unique_ptr<JobQueue>> JobQueueMap;
+  using JobQueueMap = std::map<std::string, std::unique_ptr<JobQueue>>;
+
+  // Type to hold the errorData for rejection of promises.
+  class PromiseErrorData {
+   public:
+    explicit PromiseErrorData(const script::MessageType& message_type)
+        : message_type_(message_type),
+          exception_code_(dom::DOMException::kNone) {}
+    PromiseErrorData(const dom::DOMException::ExceptionCode& code,
+                     const std::string& message)
+        : message_type_(script::kNoError),
+          exception_code_(code),
+          message_(message) {}
+
+    void Reject(std::unique_ptr<JobPromiseType> promise) const;
+   private:
+    // Use script::MessageType because it can hold kNoError value to distinguish
+    // between simple exceptions and DOM exceptions.
+    script::MessageType message_type_;
+    const dom::DOMException::ExceptionCode exception_code_;
+    const std::string message_;
+  };
+
 
   // https://w3c.github.io/ServiceWorker/#create-job
-  std::unique_ptr<Job> CreateJob(JobType type, const GURL& scope_url,
-                                 const GURL& script_url,
+  std::unique_ptr<Job> CreateJob(JobType type, const url::Origin& storage_key,
+                                 const GURL& scope_url, const GURL& script_url,
                                  std::unique_ptr<JobPromiseType> promise,
                                  web::EnvironmentSettings* client);
 
@@ -195,11 +221,7 @@ class ServiceWorkerJobs {
   void Unregister(Job* job);
 
   // https://w3c.github.io/ServiceWorker/#reject-job-promise
-  void RejectJobPromise(Job* job, const dom::DOMException::ExceptionCode& code,
-                        const std::string& message);
-  void RejectJobPromiseTask(std::unique_ptr<JobPromiseType> promise,
-                            const dom::DOMException::ExceptionCode& code,
-                            const std::string& message);
+  void RejectJobPromise(Job* job, const PromiseErrorData& error_data);
 
   // https://w3c.github.io/ServiceWorker/#resolve-job-promise-algorithm
   void ResolveJobPromise(Job* job, ServiceWorkerRegistrationObject* value);
@@ -212,11 +234,12 @@ class ServiceWorkerJobs {
   void FinishJob(Job* job);
 
   // https://w3c.github.io/ServiceWorker/#get-registration-algorithm
-  ServiceWorkerRegistrationObject* GetRegistration(const GURL& url);
+  ServiceWorkerRegistrationObject* GetRegistration(
+      const url::Origin& storage_key, const GURL& scope);
 
   // https://w3c.github.io/ServiceWorker/#set-registration-algorithm
   ServiceWorkerRegistrationObject* SetRegistration(
-      const GURL& scope_url,
+      const url::Origin& storage_key, const GURL& scope,
       const ServiceWorkerUpdateViaCache& update_via_cache);
 
   // https://w3c.github.io/ServiceWorker/#get-newest-worker
@@ -226,7 +249,17 @@ class ServiceWorkerJobs {
   base::MessageLoop* message_loop_;
 
   JobQueueMap job_queue_map_;
-};
+
+  // A registration map is an ordered map where the keys are (storage key,
+  // serialized scope urls) and the values are service worker registrations.
+  //   https://w3c.github.io/ServiceWorker/#dfn-scope-to-registration-map
+  using RegistrationKey = std::pair<url::Origin, std::string>;
+  std::map<RegistrationKey, std::unique_ptr<ServiceWorkerRegistrationObject>>
+      registration_map_;
+
+  // This lock is to allow atomic operations on the registration map.
+  base::Lock registration_map_mutex_;
+  };
 
 }  // namespace worker
 }  // namespace cobalt

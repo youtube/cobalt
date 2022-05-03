@@ -27,6 +27,7 @@
 #include "cobalt/script/wrappable.h"
 #include "cobalt/worker/navigation_preload_manager.h"
 #include "cobalt/worker/service_worker.h"
+#include "cobalt/worker/service_worker_registration_object.h"
 #include "cobalt/worker/service_worker_state.h"
 #include "cobalt/worker/service_worker_update_via_cache.h"
 #include "url/gurl.h"
@@ -39,36 +40,25 @@ namespace worker {
 //   https://w3c.github.io/ServiceWorker/#serviceworker-interface
 class ServiceWorkerRegistration : public dom::EventTarget {
  public:
-  struct Options {
-    Options(int registration_id, GURL scope, ServiceWorker::Options installing,
-            ServiceWorker::Options waiting, ServiceWorker::Options active)
-        : registration_id(registration_id),
-          scope(std::move(scope)),
-          installing(std::move(installing)),
-          waiting(std::move(waiting)),
-          active(std::move(active)) {}
-
-    int registration_id;
-    GURL scope;
-    ServiceWorker::Options installing;
-    ServiceWorker::Options waiting;
-    ServiceWorker::Options active;
-  };
-
-  explicit ServiceWorkerRegistration(script::EnvironmentSettings* settings,
-                                     const Options& options);
+  ServiceWorkerRegistration(
+      script::EnvironmentSettings* settings,
+      worker::ServiceWorkerRegistrationObject* registration);
   ~ServiceWorkerRegistration() override = default;
-  scoped_refptr<ServiceWorker> installing() { return installing_; }
-  scoped_refptr<ServiceWorker> waiting() { return waiting_; }
-  scoped_refptr<ServiceWorker> active() { return active_; }
+
+  void set_installing(scoped_refptr<ServiceWorker> worker) {
+    installing_ = worker;
+  }
+  scoped_refptr<ServiceWorker> installing() const { return installing_; }
+  void set_waiting(scoped_refptr<ServiceWorker> worker) { waiting_ = worker; }
+  scoped_refptr<ServiceWorker> waiting() const { return waiting_; }
+  void set_active(scoped_refptr<ServiceWorker> worker) { active_ = worker; }
+  scoped_refptr<ServiceWorker> active() const { return active_; }
   scoped_refptr<NavigationPreloadManager> navigation_preload() {
     return navigation_preload_;
   }
 
   std::string scope() const;
-  ServiceWorkerUpdateViaCache update_via_cache() const {
-    return update_via_cache_;
-  }
+  ServiceWorkerUpdateViaCache update_via_cache() const;
 
   void EnableNavigationPreload(bool enable);
   void SetNavigationPreloadHeader();
@@ -87,14 +77,11 @@ class ServiceWorkerRegistration : public dom::EventTarget {
   DEFINE_WRAPPABLE_TYPE(ServiceWorkerRegistration);
 
  private:
+  worker::ServiceWorkerRegistrationObject* registration_;
   scoped_refptr<ServiceWorker> installing_;
   scoped_refptr<ServiceWorker> waiting_;
   scoped_refptr<ServiceWorker> active_;
   scoped_refptr<NavigationPreloadManager> navigation_preload_;
-
-  const int32_t registration_id_;
-  const GURL scope_;
-  ServiceWorkerUpdateViaCache update_via_cache_;
 };
 
 }  // namespace worker
