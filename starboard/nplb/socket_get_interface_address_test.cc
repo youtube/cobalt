@@ -126,7 +126,6 @@ TEST_P(SbSocketGetInterfaceAddressTest, SunnyDaySourceForDestination) {
   SbSocketGetInterfaceAddress(&destination_address, &source, &netmask);
 
   EXPECT_EQ(GetAddressType(), source.type);
-  EXPECT_NE(0, source.port);
   // A netmask that starts with 0 is likely incorrect.
   EXPECT_TRUE(netmask.address[0] & 0x80);
   EXPECT_EQ(GetAddressType(), netmask.type);
