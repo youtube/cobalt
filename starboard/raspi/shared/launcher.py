@@ -19,6 +19,7 @@ import logging
 import os
 import re
 import signal
+import six
 import sys
 import threading
 import time
@@ -165,8 +166,9 @@ class Launcher(abstract_launcher.AbstractLauncher):
     """
 
     logging.info('executing: %s', command)
+    kwargs = {} if six.PY2 else {'encoding': 'utf-8'}
     self.pexpect_process = pexpect.spawn(
-        command, timeout=Launcher._PEXPECT_TIMEOUT)
+        command, timeout=Launcher._PEXPECT_TIMEOUT, **kwargs)
     # Let pexpect output directly to our output stream
     self.pexpect_process.logfile_read = self.output_file
     retry_count = 0
@@ -207,8 +209,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
       try:
         # Sanitize the line to remove ansi color codes.
         line = Launcher._PEXPECT_SANITIZE_LINE_RE.sub(
-            '',
-            self.pexpect_process.readline().decode('utf-8'))
+            '', self.pexpect_process.readline())
         self.output_file.flush()
         if not line:
           break
