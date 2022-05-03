@@ -30,12 +30,12 @@ config("glimp_config") {
 
 group("glimp") {
   public_configs = [ ":glimp_config" ]
-  deps = [ "//glimp/${target_platform}:glimp_platform" ]
+  deps = [ "//starboard/${target_platform}/glimp:glimp_platform" ]
 }
 
 config("glimp_common_sources_public_config") {
   configs = [ ":glimp_config" ]
-  include_dirs = [ "$target_platform/platform" ]
+  include_dirs = [ "//starboard/$target_platform/glimp/platform" ]
 }
 
 source_set("glimp_common_sources") {
