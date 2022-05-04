@@ -43,6 +43,8 @@ extern const char kDisableMediaCodecs[];
 extern const char kDisableMediaCodecsHelp[];
 extern const char kDisableMediaEncryptionSchemes[];
 extern const char kDisableMediaEncryptionSchemesHelp[];
+extern const char kDisableOnScreenKeyboard[];
+extern const char kDisableOnScreenKeyboardHelp[];
 extern const char kDisableRasterizerCaching[];
 extern const char kDisableSignIn[];
 extern const char kDisableSignInHelp[];
@@ -84,10 +86,10 @@ extern const char kUserAgentOsNameVersion[];
 extern const char kUserAgentOsNameVersionHelp[];
 extern const char kUseTTS[];
 extern const char kUseTTSHelp[];
+extern const char kWatchdog[];
+extern const char kWatchdogHelp[];
 extern const char kWebDriverPort[];
 extern const char kWebDriverPortHelp[];
-extern const char kDisableOnScreenKeyboard[];
-extern const char kDisableOnScreenKeyboardHelp[];
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
 extern const char kCompressUpdate[];

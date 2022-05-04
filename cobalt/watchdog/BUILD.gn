@@ -18,5 +18,9 @@ static_library("watchdog") {
     "watchdog.h",
   ]
 
-  deps = [ "//starboard/common" ]
+  deps = [
+    "//base",
+    "//cobalt/browser:browser_switches",
+    "//starboard/common",
+  ]
 }
