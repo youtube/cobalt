@@ -34,7 +34,6 @@ class ElfLoaderImpl {
  public:
   ElfLoaderImpl();
   bool Load(const char* file_name,
-            const void* (*custom_get_extension)(const char* name),
             bool use_compression,
             bool use_memory_mapped_file);
   void* LookupSymbol(const char* symbol);
