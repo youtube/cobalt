@@ -18,7 +18,6 @@
 #include <memory>
 
 #include "base/compiler_specific.h"
-#include "cobalt/media/base/video_resolution.h"
 #include "cobalt/media/decoder_buffer_memory_info.h"
 #include "nb/bidirectional_fit_reuse_allocator.h"
 #include "nb/starboard_memory_allocator.h"

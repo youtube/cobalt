@@ -18,7 +18,6 @@
 
 #include "cobalt/math/size.h"
 #include "cobalt/media/base/starboard_utils.h"
-#include "cobalt/media/base/video_resolution.h"
 #include "nb/allocator.h"
 #include "nb/memory_scope.h"
 #include "starboard/configuration.h"

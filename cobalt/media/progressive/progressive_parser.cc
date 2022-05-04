@@ -15,8 +15,8 @@
 #include "cobalt/media/progressive/progressive_parser.h"
 
 #include "base/logging.h"
-#include "cobalt/media/base/timestamp_constants.h"
 #include "cobalt/media/progressive/mp4_parser.h"
+#include "third_party/chromium/media/base/timestamp_constants.h"
 
 namespace cobalt {
 namespace media {
