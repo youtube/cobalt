@@ -230,8 +230,8 @@ class PythonScriptHandler(object):
         path = filesystem_path(self.base_path, request, self.url_base)
 
         def execfile(path, global_environ, local_environ):
-            with open(path) as f:
-                contents = f.read()
+            with open(path, "rb") as f:
+                contents = f.read().decode()
                 exec(contents, global_environ, local_environ)
 
         try:
