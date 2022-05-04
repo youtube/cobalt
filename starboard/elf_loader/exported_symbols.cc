@@ -60,8 +60,7 @@
 namespace starboard {
 namespace elf_loader {
 
-ExportedSymbols::ExportedSymbols(
-    const void* (*custom_get_extension)(const char* name)) {
+ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbAccessibilityGetDisplaySettings);
   REGISTER_SYMBOL(SbAccessibilityGetTextToSpeechSettings);
   REGISTER_SYMBOL(SbAudioSinkCreate);

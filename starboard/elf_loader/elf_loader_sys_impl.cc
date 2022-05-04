@@ -25,7 +25,6 @@ namespace elf_loader {
 ElfLoaderImpl::ElfLoaderImpl() {}
 
 bool ElfLoaderImpl::Load(const char* name,
-                         const void* (*custom_get_extension)(const char* name),
                          bool use_compression,
                          bool use_memory_mapped_file) {
   SB_LOG(INFO) << "Loading: " << name;

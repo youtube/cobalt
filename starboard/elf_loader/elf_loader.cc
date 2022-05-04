@@ -78,8 +78,8 @@ bool ElfLoader::Load(const std::string& library_path,
                           custom_get_extension);
   SB_LOG(INFO) << "evergreen_config: content_path=" << content_path_;
   SbTime start_time = SbTimeGetMonotonicNow();
-  bool res = impl_->Load(library_path_.c_str(), custom_get_extension,
-                         use_compression, use_memory_mapped_file);
+  bool res = impl_->Load(library_path_.c_str(), use_compression,
+                         use_memory_mapped_file);
   SbTime end_time = SbTimeGetMonotonicNow();
   SB_LOG(INFO) << "Loading took: "
                << (end_time - start_time) / kSbTimeMillisecond << " ms";

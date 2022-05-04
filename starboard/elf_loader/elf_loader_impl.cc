@@ -48,7 +48,6 @@ ElfLoaderImpl::ElfLoaderImpl() {
 }
 
 bool ElfLoaderImpl::Load(const char* name,
-                         const void* (*custom_get_extension)(const char* name),
                          bool use_compression,
                          bool use_memory_mapped_files) {
   if (use_compression && use_memory_mapped_files) {
@@ -125,7 +124,7 @@ bool ElfLoaderImpl::Load(const char* name,
   }
   SB_DLOG(INFO) << "Initialized dynamic section";
 
-  exported_symbols_.reset(new ExportedSymbols(custom_get_extension));
+  exported_symbols_.reset(new ExportedSymbols());
   relocations_.reset(new Relocations(program_table_->GetBaseMemoryAddress(),
                                      dynamic_section_.get(),
                                      exported_symbols_.get()));
