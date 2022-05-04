@@ -15,7 +15,7 @@
 
 import logging
 
-from cobalt.build.config.base import PlatformConfigBase
+from starboard.build.platform_configuration import PlatformConfiguration
 
 
 def CreatePlatformConfig():
@@ -26,6 +26,6 @@ def CreatePlatformConfig():
     return None
 
 
-class StubConfiguration(PlatformConfigBase):
+class StubConfiguration(PlatformConfiguration):
   """Starboard stub platform configuration."""
   pass

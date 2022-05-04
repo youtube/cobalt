@@ -253,7 +253,7 @@ def _LoadPlatformConfig(platform_name):
     platform_name: Platform name.
 
   Returns:
-    Instance of a class derived from PlatformConfigBase.
+    Instance of a class derived from PlatformConfiguration.
   """
   platform_configuration, platform_path = _LoadPlatformModule(
       platform_name, 'gyp_configuration.py', 'CreatePlatformConfig')
@@ -296,7 +296,7 @@ def GetPlatformConfig(platform_name):
     platform_name: Platform name.
 
   Returns:
-    Instance of a class derived from PlatformConfigBase.
+    Instance of a class derived from PlatformConfiguration.
   """
 
   if platform_name not in _PLATFORM_CONFIG_DICT:
