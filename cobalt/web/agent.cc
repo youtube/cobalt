@@ -98,7 +98,7 @@ class Impl : public Context {
   }
 
   // https://w3c.github.io/ServiceWorker/#service-worker-registration-creation
-  scoped_refptr<worker::ServiceWorkerRegistration> GetServiceWorkerRegistration(
+  scoped_refptr<cobalt::script::Wrappable> GetServiceWorkerRegistration(
       worker::ServiceWorkerRegistrationObject* registration) final;
 
  private:
@@ -235,14 +235,13 @@ void Impl::InjectGlobalObjectAttributes(
 }
 
 
-scoped_refptr<worker::ServiceWorkerRegistration>
-Impl::GetServiceWorkerRegistration(
+scoped_refptr<cobalt::script::Wrappable> Impl::GetServiceWorkerRegistration(
     worker::ServiceWorkerRegistrationObject* registration) {
   // Algorithm for 'get the service worker registration object':
   //   https://w3c.github.io/ServiceWorker/#get-the-service-worker-registration-object
   scoped_refptr<worker::ServiceWorkerRegistration> worker_registration;
   if (!registration) {
-    NOTREACHED();
+    // Return undefined when registration is null.
     return worker_registration;
   }
 

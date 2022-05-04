@@ -15,6 +15,8 @@
 #ifndef COBALT_WORKER_SERVICE_WORKER_OBJECT_H_
 #define COBALT_WORKER_SERVICE_WORKER_OBJECT_H_
 
+#include <string>
+
 #include "cobalt/worker/service_worker_state.h"
 #include "url/gurl.h"
 

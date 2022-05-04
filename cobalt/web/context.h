@@ -56,8 +56,7 @@ class Context {
   virtual EnvironmentSettings* environment_settings() const = 0;
 
   // https://w3c.github.io/ServiceWorker/#get-the-service-worker-registration-object
-  virtual scoped_refptr<worker::ServiceWorkerRegistration>
-  GetServiceWorkerRegistration(
+  virtual scoped_refptr<cobalt::script::Wrappable> GetServiceWorkerRegistration(
       worker::ServiceWorkerRegistrationObject* registration) = 0;
 };
 

@@ -76,6 +76,11 @@ class ServiceWorkerContainer : public dom::EventTarget {
   DEFINE_WRAPPABLE_TYPE(ServiceWorkerContainer);
 
  private:
+  void GetRegistrationTask(
+      const std::string& url,
+      std::unique_ptr<script::ValuePromiseWrappable::Reference>
+          promise_reference);
+
   scoped_refptr<ServiceWorker> controller_;
   scoped_refptr<ServiceWorker> ready_;
 

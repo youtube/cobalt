@@ -14,6 +14,7 @@
 
 #include "cobalt/worker/service_worker_jobs.h"
 
+#include <list>
 #include <map>
 #include <memory>
 #include <queue>
@@ -33,6 +34,7 @@
 #include "cobalt/web/environment_settings.h"
 #include "cobalt/worker/service_worker.h"
 #include "cobalt/worker/service_worker_registration.h"
+#include "cobalt/worker/service_worker_registration_object.h"
 #include "cobalt/worker/service_worker_update_via_cache.h"
 #include "cobalt/worker/worker_type.h"
 #include "net/base/url_util.h"
@@ -52,7 +54,7 @@ bool PathContainsEscapedSlash(const GURL& url) {
 }
 
 bool IsOriginPotentiallyTrustworthy(const GURL& url) {
-  // Algorithm for 'potentially trustworthy origin'.
+  // Algorithm for potentially trustworthy origin:
   //   https://w3c.github.io/webappsec-secure-contexts/#potentially-trustworthy-origin
 
   const url::Origin origin(url::Origin::Create(url));
@@ -92,15 +94,6 @@ bool IsOriginPotentiallyTrustworthy(const GURL& url) {
   return false;
 }
 
-// Returns the serialized URL excluding the fragment.
-std::string SerializeExcludingFragment(const GURL& url) {
-  url::Replacements<char> replacements;
-  replacements.ClearRef();
-  GURL no_fragment_url = url.ReplaceComponents(replacements);
-  DCHECK(!no_fragment_url.has_ref() || no_fragment_url.ref().empty());
-  DCHECK(!no_fragment_url.is_empty());
-  return no_fragment_url.spec();
-}
 }  // namespace
 
 ServiceWorkerJobs::ServiceWorkerJobs(network::NetworkModule* network_module,
@@ -116,7 +109,9 @@ void ServiceWorkerJobs::StartRegister(
     web::EnvironmentSettings* client, const WorkerType& type,
     const ServiceWorkerUpdateViaCache& update_via_cache) {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerJobs::StartRegister()");
-  // Algorithm for "Start Register":
+  DCHECK_NE(base::MessageLoop::current(), message_loop());
+  DCHECK_EQ(base::MessageLoop::current(), client->context()->message_loop());
+  // Algorithm for Start Register:
   //   https://w3c.github.io/ServiceWorker/#start-register-algorithm
   // 1. If scriptURL is failure, reject promise with a TypeError and abort these
   // steps.
@@ -200,16 +195,9 @@ void ServiceWorkerJobs::StartRegister(
 
   // 15. Invoke Schedule Job with job.
   message_loop()->task_runner()->PostTask(
-      FROM_HERE, base::Bind(&ServiceWorkerJobs::ScheduleJob,
-                            base::Unretained(this), base::Passed(&job)));
+      FROM_HERE, base::BindOnce(&ServiceWorkerJobs::ScheduleJob,
+                                base::Unretained(this), std::move(job)));
   DCHECK(!job.get());
-}
-
-void ServiceWorkerJobs::MatchServiceWorkerRegistration(const GURL& client_url) {
-  TRACE_EVENT0("cobalt::worker",
-               "ServiceWorkerJobs::MatchServiceWorkerRegistration()");
-  // TODO this need a callback to return the matching registration.
-  NOTIMPLEMENTED();
 }
 
 void ServiceWorkerJobs::PromiseErrorData::Reject(
@@ -226,7 +214,7 @@ std::unique_ptr<ServiceWorkerJobs::Job> ServiceWorkerJobs::CreateJob(
     const GURL& script_url, std::unique_ptr<JobPromiseType> promise,
     web::EnvironmentSettings* client) {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerJobs::CreateJob()");
-  // Algorithm for "Create Job":
+  // Algorithm for Create Job:
   //   https://w3c.github.io/ServiceWorker/#create-job
   // 1. Let job be a new job.
   // 2. Set job’s job type to jobType.
@@ -249,7 +237,7 @@ void ServiceWorkerJobs::ScheduleJob(std::unique_ptr<Job> job) {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerJobs::ScheduleJob()");
   DCHECK_EQ(base::MessageLoop::current(), message_loop());
   DCHECK(job);
-  // Algorithm for "Schedule Job":
+  // Algorithm for Schedule Job:
   //   https://w3c.github.io/ServiceWorker/#schedule-job
   // 1. Let jobQueue be null.
 
@@ -305,7 +293,7 @@ void ServiceWorkerJobs::ScheduleJob(std::unique_ptr<Job> job) {
 }
 
 bool ServiceWorkerJobs::EquivalentJobs(Job* one, Job* two) {
-  // Algorithm for 'Two jobs are equivalent'
+  // Algorithm for Two jobs are equivalent:
   //   https://w3c.github.io/ServiceWorker/#dfn-job-equivalent
   DCHECK(one);
   DCHECK(two);
@@ -334,7 +322,7 @@ bool ServiceWorkerJobs::EquivalentJobs(Job* one, Job* two) {
 void ServiceWorkerJobs::RunJob(JobQueue* job_queue) {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerJobs::RunJob()");
   DCHECK_EQ(base::MessageLoop::current(), message_loop());
-  // Algorithm for "Run Job":
+  // Algorithm for Run Job:
   //   https://w3c.github.io/ServiceWorker/#run-job-algorithm
 
   // 1. Assert: jobQueue is not empty.
@@ -345,8 +333,8 @@ void ServiceWorkerJobs::RunJob(JobQueue* job_queue) {
 
   // 2. Queue a task to run these steps:
   message_loop()->task_runner()->PostTask(
-      FROM_HERE, base::Bind(&ServiceWorkerJobs::RunJobTask,
-                            base::Unretained(this), job_queue));
+      FROM_HERE, base::BindOnce(&ServiceWorkerJobs::RunJobTask,
+                                base::Unretained(this), job_queue));
 }
 
 void ServiceWorkerJobs::RunJobTask(JobQueue* job_queue) {
@@ -387,7 +375,7 @@ void ServiceWorkerJobs::Register(Job* job) {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerJobs::Register()");
   DCHECK_EQ(message_loop(), base::MessageLoop::current());
   DCHECK(job);
-  // Algorithm for "Register"
+  // Algorithm for Register:
   //   https://w3c.github.io/ServiceWorker/#register-algorithm
 
   // 1. If the result of running potentially trustworthy origin with the origin
@@ -438,7 +426,8 @@ void ServiceWorkerJobs::Register(Job* job) {
   // 4. Let registration be the result of running Get Registration given job’s
   // storage key and job’s scope url.
   ServiceWorkerRegistrationObject* registration =
-      GetRegistration(job->storage_key, job->scope_url);
+      scope_to_registration_map_.GetRegistration(job->storage_key,
+                                                 job->scope_url);
 
   // 5. If registration is not null, then:
   if (registration) {
@@ -463,8 +452,8 @@ void ServiceWorkerJobs::Register(Job* job) {
 
     // 6.1 Invoke Set Registration algorithm with job’s storage key, job’s scope
     // url, and job’s update via cache mode.
-    registration = SetRegistration(job->storage_key, job->scope_url,
-                                   job->update_via_cache);
+    registration = scope_to_registration_map_.SetRegistration(
+        job->storage_key, job->scope_url, job->update_via_cache);
   }
 
   // 7. Invoke Update algorithm passing job as the argument.
@@ -475,13 +464,14 @@ void ServiceWorkerJobs::Update(Job* job) {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerJobs::Update()");
   DCHECK_EQ(message_loop(), base::MessageLoop::current());
   DCHECK(job);
-  // Algorithm for "Update"
+  // Algorithm for Update:
   //   https://w3c.github.io/ServiceWorker/#update-algorithm
 
   // 1. Let registration be the result of running Get Registration given job’s
   // storage key and job’s scope url.
   ServiceWorkerRegistrationObject* registration =
-      GetRegistration(job->storage_key, job->scope_url);
+      scope_to_registration_map_.GetRegistration(job->storage_key,
+                                                 job->scope_url);
 
   // 2. If registration is null, then:
   if (!registration) {
@@ -508,7 +498,7 @@ void ServiceWorkerJobs::RejectJobPromise(Job* job,
                                          const PromiseErrorData& error_data) {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerJobs::RejectJobPromise()");
   DCHECK_EQ(message_loop(), base::MessageLoop::current());
-  // Algorithm for "Reject Job Promise"
+  // Algorithm for Reject Job Promise:
   //   https://w3c.github.io/ServiceWorker/#reject-job-promise
   // 1. If job’s client is not null, queue a task, on job’s client's responsible
   // event loop using the DOM manipulation task source, to reject job’s job
@@ -524,7 +514,7 @@ void ServiceWorkerJobs::RejectJobPromise(Job* job,
     base::AutoLock lock(job->equivalent_jobs_promise_mutex);
     job->client->context()->message_loop()->task_runner()->PostTask(
         FROM_HERE,
-        base::Bind(reject_task, base::Passed(&job->promise), error_data));
+        base::BindOnce(reject_task, std::move(job->promise), error_data));
     // Ensure that the promise is cleared, so that equivalent jobs won't get
     // added from this point on.
     CHECK(!job->promise);
@@ -543,10 +533,10 @@ void ServiceWorkerJobs::RejectJobPromise(Job* job,
       equivalent_job->client->context()
           ->message_loop()
           ->task_runner()
-          ->PostTask(FROM_HERE,
-                     base::BindOnce(reject_task,
-                                    base::Passed(&equivalent_job->promise),
-                                    error_data));
+          ->PostTask(
+              FROM_HERE,
+              base::BindOnce(reject_task, std::move(equivalent_job->promise),
+                             error_data));
       // Check that the promise is cleared.
       CHECK(!equivalent_job->promise);
     }
@@ -560,18 +550,38 @@ void ServiceWorkerJobs::ResolveJobPromise(
   DCHECK_EQ(message_loop(), base::MessageLoop::current());
   DCHECK(job);
   DCHECK(value);
-  // Algorithm for "Resolve Job Promise".
+  // Algorithm for Resolve Job Promise:
   //   https://w3c.github.io/ServiceWorker/#resolve-job-promise-algorithm
 
   // 1. If job’s client is not null, queue a task, on job’s client's responsible
   // event loop using the DOM manipulation task source, to run the following
   // substeps:
+  auto resolve_task = [](JobType type, web::EnvironmentSettings* client,
+                         std::unique_ptr<JobPromiseType> promise,
+                         ServiceWorkerRegistrationObject* value) {
+    // 1.1./2.2.1. Let convertedValue be null.
+    // 1.2./2.2.2. If job’s job type is either register or update, set
+    // convertedValue to the result of getting the service worker registration
+    // object that represents value in job’s client.
+    if (type == kRegister || type == kUpdate) {
+      auto converted_value =
+          client->context()->GetServiceWorkerRegistration(value);
+      // 1.4./2.2.4.  Resolve job’s job promise with convertedValue.
+      promise->Resolve(converted_value);
+    } else {
+      DCHECK_EQ(type, kUnregister);
+      // 1.3./2.2.3. Else, set convertedValue to value, in job’s client's Realm.
+      bool converted_value = value != nullptr;
+      // 1.4./2.2.4.  Resolve job’s job promise with convertedValue.
+      promise->Resolve(converted_value);
+    }
+  };
+
   if (job->client) {
     base::AutoLock lock(job->equivalent_jobs_promise_mutex);
     job->client->context()->message_loop()->task_runner()->PostTask(
-        FROM_HERE, base::Bind(&ServiceWorkerJobs::ResolveJobPromiseTask,
-                              base::Unretained(this), job->type,
-                              base::Passed(&job->promise), job->client, value));
+        FROM_HERE, base::BindOnce(resolve_task, job->type, job->client,
+                                  std::move(job->promise), value));
     // Ensure that the promise is cleared, so that equivalent jobs won't get
     // added from this point on.
     CHECK(!job->promise);
@@ -591,38 +601,14 @@ void ServiceWorkerJobs::ResolveJobPromise(
           ->message_loop()
           ->task_runner()
           ->PostTask(FROM_HERE,
-                     base::Bind(&ServiceWorkerJobs::ResolveJobPromiseTask,
-                                base::Unretained(this), equivalent_job->type,
-                                base::Passed(&equivalent_job->promise),
-                                equivalent_job->client, value));
+                     base::BindOnce(resolve_task, equivalent_job->type,
+                                    equivalent_job->client,
+                                    std::move(equivalent_job->promise), value));
       // Check that the promise is cleared.
       CHECK(!equivalent_job->promise);
     }
   }
   job->equivalent_jobs.clear();
-}
-
-void ServiceWorkerJobs::ResolveJobPromiseTask(
-    JobType type, std::unique_ptr<JobPromiseType> promise,
-    web::EnvironmentSettings* client, ServiceWorkerRegistrationObject* value) {
-  DCHECK_NE(message_loop(), base::MessageLoop::current());
-  DCHECK_EQ(base::MessageLoop::current(), client->context()->message_loop());
-  // 1.1./2.2.1. Let convertedValue be null.
-  // 1.2./2.2.2. If job’s job type is either register or update, set
-  // convertedValue to the result of getting the service worker registration
-  // object that represents value in job’s client.
-  if (type == kRegister || type == kUpdate) {
-    auto converted_value =
-        client->context()->GetServiceWorkerRegistration(value);
-    // 1.4./2.2.4.  Resolve job’s job promise with convertedValue.
-    promise->Resolve(converted_value);
-  } else {
-    DCHECK_EQ(type, kUnregister);
-    // 1.3./2.2.3. Else, set convertedValue to value, in job’s client's Realm.
-    bool converted_value = value != nullptr;
-    // 1.4./2.2.4.  Resolve job’s job promise with convertedValue.
-    promise->Resolve(converted_value);
-  }
 }
 
 // https://w3c.github.io/ServiceWorker/#finish-job-algorithm
@@ -643,67 +629,36 @@ void ServiceWorkerJobs::FinishJob(Job* job) {
   }
 }
 
-ServiceWorkerRegistrationObject* ServiceWorkerJobs::GetRegistration(
-    const url::Origin& storage_key, const GURL& scope) {
-  // Algorithm for 'Get Registration':
-  //   https://w3c.github.io/ServiceWorker/#get-registration-algorithm
+void ServiceWorkerJobs::GetRegistrationSubSteps(
+    const url::Origin& storage_key, const GURL& client_url,
+    web::EnvironmentSettings* client,
+    std::unique_ptr<script::ValuePromiseWrappable::Reference>
+        promise_reference) {
   DCHECK_EQ(message_loop(), base::MessageLoop::current());
+  // Algorithm for Sub steps of ServiceWorkerContainer.getRegistration():
+  //   https://w3c.github.io/ServiceWorker/#navigator-service-worker-getRegistration
 
-  // 1. Run the following steps atomically.
-  base::AutoLock lock(registration_map_mutex_);
-
-  // 2. Let scopeString be the empty string.
-  std::string scope_string;
-
-  // 3. If scope is not null, set scopeString to serialized scope with the
-  // exclude fragment flag set.
-  if (!scope.is_empty()) {
-    scope_string = SerializeExcludingFragment(scope);
-  }
-
-  RegistrationKey registration_key(storage_key, scope_string);
-  // 4. For each (entry storage key, entry scope) → registration of registration
-  // map:
-  for (const auto& entry : registration_map_) {
-    // 4.1. If storage key equals entry storage key and scopeString matches
-    // entry scope, then return registration.
-    if (entry.first == registration_key) {
-      return entry.second.get();
-    }
-  }
-
-  // 5. Return null.
-  return nullptr;
-}
-
-ServiceWorkerRegistrationObject* ServiceWorkerJobs::SetRegistration(
-    const url::Origin& storage_key, const GURL& scope,
-    const ServiceWorkerUpdateViaCache& update_via_cache) {
-  // Algorithm for 'Set Registration':
-  //   https://w3c.github.io/ServiceWorker/#set-registration-algorithm
-  DCHECK_EQ(message_loop(), base::MessageLoop::current());
-
-  // 1. Run the following steps atomically.
-  base::AutoLock lock(registration_map_mutex_);
-
-  // 2. Let scopeString be serialized scope with the exclude fragment flag set.
-  std::string scope_string = SerializeExcludingFragment(scope);
-
-  // 3. Let registration be a new service worker registration whose storage key
-  // is set to storage key, scope url is set to scope, and update via cache mode
-  // is set to updateViaCache.
-  ServiceWorkerRegistrationObject* registration(
-      new ServiceWorkerRegistrationObject(storage_key, scope,
-                                          update_via_cache));
-
-  // 4. Set registration map[(storage key, scopeString)] to registration.
-  RegistrationKey registration_key(storage_key, scope_string);
-  registration_map_.insert(std::make_pair(
-      registration_key,
-      std::unique_ptr<ServiceWorkerRegistrationObject>(registration)));
-
-  // 5. Return registration.
-  return registration;
+  // 1. Let registration be the result of running Match Service Worker
+  //    Registration algorithm with clientURL as its argument.
+  worker::ServiceWorkerRegistrationObject* registration =
+      scope_to_registration_map_.MatchServiceWorkerRegistration(storage_key,
+                                                                client_url);
+  // 2. If registration is null, resolve promise with undefined and abort
+  //    these steps.
+  // 3. Resolve promise with the result of getting the service worker
+  //    registration object that represents registration in promise’s
+  //    relevant settings object.
+  client->context()->message_loop()->task_runner()->PostTask(
+      FROM_HERE,
+      base::BindOnce(
+          [](web::EnvironmentSettings* settings,
+             std::unique_ptr<script::ValuePromiseWrappable::Reference> promise,
+             ServiceWorkerRegistrationObject* registration) {
+            promise->value().Resolve(
+                settings->context()->GetServiceWorkerRegistration(
+                    registration));
+          },
+          client, std::move(promise_reference), registration));
 }
 
 // https://w3c.github.io/ServiceWorker/#get-newest-worker
@@ -726,7 +681,7 @@ void ServiceWorkerJobs::JobPromiseType::Resolve(const bool result) {
 }
 
 void ServiceWorkerJobs::JobPromiseType::Resolve(
-    const scoped_refptr<ServiceWorkerRegistration>& result) {
+    const scoped_refptr<cobalt::script::Wrappable>& result) {
   DCHECK(promise_wrappable_reference_);
   promise_wrappable_reference_->value().Resolve(result);
 }
