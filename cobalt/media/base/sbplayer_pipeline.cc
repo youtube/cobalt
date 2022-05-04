@@ -1087,11 +1087,17 @@ void SbPlayerPipeline::OnDemuxerInitialized(PipelineStatus status) {
   DemuxerStream* video_stream = nullptr;
   for (auto&& stream : streams) {
     if (stream->type() == DemuxerStream::AUDIO) {
-      DCHECK(audio_stream == nullptr);
-      audio_stream = stream;
+      if (audio_stream == nullptr) {
+        audio_stream = stream;
+      } else {
+        LOG(WARNING) << "Encountered more than one audio streams.";
+      }
     } else if (stream->type() == DemuxerStream::VIDEO) {
-      DCHECK(video_stream == nullptr);
-      video_stream = stream;
+      if (video_stream == nullptr) {
+        video_stream = stream;
+      } else {
+        LOG(WARNING) << "Encountered more than one video streams.";
+      }
     }
   }
 
