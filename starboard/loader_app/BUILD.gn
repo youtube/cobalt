@@ -24,6 +24,7 @@ group("common_loader_app_dependencies") {
   public_deps = [
     ":app_key",
     ":installation_manager",
+    ":memory_tracker_thread",
     ":slot_management",
     "//starboard",
     "//starboard/elf_loader:evergreen_info",
@@ -234,4 +235,16 @@ static_library("pending_restart") {
   ]
 
   public_deps = [ "//starboard:starboard_headers_only" ]
+}
+
+static_library("memory_tracker_thread") {
+  sources = [
+    "memory_tracker_thread.cc",
+    "memory_tracker_thread.h",
+  ]
+
+  deps = [
+    "//starboard:starboard_headers_only",
+    "//starboard/common",
+  ]
 }

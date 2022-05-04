@@ -1,4 +1,4 @@
-// Copyright 2020 The Cobalt Authors. All Rights Reserved.
+// Copyright 2022 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,19 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/loader_app/loader_app_switches.h"
+#ifndef STARBOARD_LOADER_APP_MEMORY_TRACKER_THREAD_H_
+#define STARBOARD_LOADER_APP_MEMORY_TRACKER_THREAD_H_
+
+#include "starboard/common/thread.h"
+#include "starboard/types.h"
 
 namespace starboard {
 namespace loader_app {
 
-const char kContent[] = "content";
-const char kURL[] = "url";
-const char kEvergreenLite[] = "evergreen_lite";
-const char kLoaderAppVersion[] = "loader_app_version";
-const char kShowSABI[] = "show_sabi";
-const char kLoaderUseCompression[] = "loader_use_compression";
-const char kLoaderUseMemoryMappedFile[] = "loader_use_mmap_file";
-const char kLoaderTrackMemory[] = "loader_track_memory";
+// Periodically queries for and logs process memory usage when enabled.
+class MemoryTrackerThread : public starboard::Thread {
+ public:
+  explicit MemoryTrackerThread(int period_in_millis = 100);
+  ~MemoryTrackerThread();
+
+ private:
+  void Run() override;
+
+  const int period_in_millis_;
+  int64_t max_used_cpu_memory_ = 0;
+};
 
 }  // namespace loader_app
 }  // namespace starboard
+
+#endif  // STARBOARD_LOADER_APP_MEMORY_TRACKER_THREAD_H_

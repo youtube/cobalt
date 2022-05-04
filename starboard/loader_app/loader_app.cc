@@ -27,6 +27,7 @@
 #include "starboard/file.h"
 #include "starboard/loader_app/app_key.h"
 #include "starboard/loader_app/loader_app_switches.h"
+#include "starboard/loader_app/memory_tracker_thread.h"
 #include "starboard/loader_app/slot_management.h"
 #include "starboard/loader_app/system_get_extension_shim.h"
 #include "starboard/memory.h"
@@ -207,6 +208,20 @@ void SbEventHandle(const SbEvent* event) {
         starboard::loader_app::kLoaderUseMemoryMappedFile);
     SB_LOG(INFO) << "loader_app: use_compression=" << use_compression
                  << " use_memory_mapped_file=" << use_memory_mapped_file;
+
+    if (command_line.HasSwitch(starboard::loader_app::kLoaderTrackMemory)) {
+      std::string period = command_line.GetSwitchValue(
+          starboard::loader_app::kLoaderTrackMemory);
+      if (period.empty()) {
+        static starboard::loader_app::MemoryTrackerThread memory_tracker_thread;
+        memory_tracker_thread.Start();
+      } else {
+        static starboard::loader_app::MemoryTrackerThread memory_tracker_thread(
+            atoi(period.c_str()));
+        memory_tracker_thread.Start();
+      }
+    }
+
     if (is_evergreen_lite) {
       LoadLibraryAndInitialize(alternative_content, use_compression,
                                use_memory_mapped_file);
