@@ -14,10 +14,19 @@
 
 #include "cobalt/worker/service_worker_object.h"
 
+#include "cobalt/worker/service_worker_state.h"
+
 namespace cobalt {
 namespace worker {
 
-ServiceWorkerObject::ServiceWorkerObject() {}
+ServiceWorkerObject::ServiceWorkerObject(const GURL& script_url)
+    : state_(kServiceWorkerStateParsed), script_url_(script_url) {}
+
+
+std::string* ServiceWorkerObject::LookupScriptResource(const GURL& url) {
+  auto entry = script_resource_map_.find(url);
+  return entry != script_resource_map_.end() ? entry->second.get() : nullptr;
+}
 
 }  // namespace worker
 }  // namespace cobalt

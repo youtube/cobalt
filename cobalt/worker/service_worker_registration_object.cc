@@ -14,6 +14,8 @@
 
 #include "cobalt/worker/service_worker_registration_object.h"
 
+#include <string>
+
 #include "cobalt/worker/service_worker_update_via_cache.h"
 #include "url/gurl.h"
 #include "url/origin.h"
@@ -27,6 +29,33 @@ ServiceWorkerRegistrationObject::ServiceWorkerRegistrationObject(
     : storage_key_(storage_key),
       scope_url_(scope_url),
       update_via_cache_mode_(update_via_cache_mode) {}
+
+ServiceWorkerObject* ServiceWorkerRegistrationObject::GetNewestWorker() {
+  // Algorithm for Get Newest Worker:
+  //   https://w3c.github.io/ServiceWorker/#get-newest-worker
+  // 1. Run the following steps atomically.
+  base::AutoLock lock(mutex_);
+
+  // 2. Let newestWorker be null.
+  ServiceWorkerObject* newest_worker = nullptr;
+
+  // 3. If registration’s installing worker is not null, set newestWorker to
+  // registration’s installing worker.
+  if (installing_worker_) {
+    newest_worker = installing_worker_;
+    // 4. Else if registration’s waiting worker is not null, set newestWorker to
+    // registration’s waiting worker.
+  } else if (waiting_worker_) {
+    newest_worker = waiting_worker_;
+    // 5. Else if registration’s active worker is not null, set newestWorker to
+    // registration’s active worker.
+  } else if (active_worker_) {
+    newest_worker = active_worker_;
+  }
+
+  // 6. Return newestWorker.
+  return newest_worker;
+}
 
 }  // namespace worker
 }  // namespace cobalt

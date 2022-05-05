@@ -1,4 +1,4 @@
-// Copyright 2022 The Cobalt Authors. All Rights Reserved.
+// Copyright 2022 The Cobalt Authors.All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,18 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/worker/service_worker.h"
-#include "cobalt/worker/service_worker_object.h"
-
-#include <memory>
-#include <utility>
-
-namespace cobalt {
-namespace worker {
-
-ServiceWorker::ServiceWorker(script::EnvironmentSettings* settings,
-                             worker::ServiceWorkerObject* worker)
-    : dom::EventTarget(settings), worker_(worker) {}
-
-}  // namespace worker
-}  // namespace cobalt
+// Place Holder. This will return the type of the 'this' property as the string
+// result when this script is executed.
+this

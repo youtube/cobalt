@@ -22,6 +22,7 @@
 namespace cobalt {
 namespace worker {
 
+
 ServiceWorkerRegistration::ServiceWorkerRegistration(
     script::EnvironmentSettings* settings,
     worker::ServiceWorkerRegistrationObject* registration)

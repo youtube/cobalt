@@ -31,6 +31,7 @@
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('..:..')
                 .then(function (registration) {
+                    console.log(`(Unexpected) : ${registration}`);
                     notReached();
                 }, function (error) {
                     console.log(`(Expected) Test invalid script URL: ${error}`);
@@ -39,6 +40,7 @@
                 });
             navigator.serviceWorker.register('arg:service_worker_test.js')
                 .then(function (registration) {
+                    console.log(`(Unexpected) : ${registration}`);
                     notReached();
                 }, function (error) {
                     console.log(`(Expected) Test script URL that is not http or https: ${error}`);
@@ -47,6 +49,7 @@
                 });
             navigator.serviceWorker.register('http:%2fservice_worker_test.js')
                 .then(function (registration) {
+                    console.log(`(Unexpected) : ${registration}`);
                     notReached();
                 }, function (error) {
                     console.log(`(Expected) Test script URL with escaped slash: ${error}`);
@@ -57,6 +60,7 @@
                 scope: '..:..',
             })
                 .then(function (registration) {
+                    console.log(`(Unexpected) : ${registration}`);
                     notReached();
                 }, function (error) {
                     console.log(`(Expected) Test invalid scope URL: ${error}`);
@@ -67,6 +71,7 @@
                 scope: 'arg:/',
             })
                 .then(function (registration) {
+                    console.log(`(Unexpected) : ${registration}`);
                     notReached();
                 }, function (error) {
                     console.log(`(Expected) Test scope URL that is not http or https: ${error}`);
@@ -77,6 +82,7 @@
                 scope: '/%5c',
             })
                 .then(function (registration) {
+                    console.log(`(Unexpected) : ${registration}`);
                     notReached();
                 }, function (error) {
                     console.log(`(Expected) Test scope URL with escaped slash: ${error}`);
@@ -89,6 +95,7 @@
                     scope: '/',
                 })
                     .then(function (registration) {
+                        console.log(`(Unexpected) : ${registration}`);
                         notReached();
                     }, function (error) {
                         console.log(`(Expected) Test Script URL is not trusted: ${error}`);
@@ -98,6 +105,7 @@
             }
             navigator.serviceWorker.register('http://127.0.0.100:2345/')
                 .then(function (registration) {
+                    console.log(`(Unexpected) : ${registration}`);
                     notReached();
                 }, function (error) {
                     console.log(`(Expected) Test script URL with different origin: ${error}`);
@@ -109,6 +117,7 @@
                 scope: 'http://127.0.0.100:2345/',
             })
                 .then(function (registration) {
+                    console.log(`(Unexpected) : ${registration}`);
                     notReached();
                 }, function (error) {
                     console.log(`(Expected) Test scope URL with different origin: ${error}`);
@@ -139,6 +148,7 @@
                             assertEqual(null, registration);
                             message_event_count += 1;
                         }, function (error) {
+                            console.log(`(Unexpected) : ${error}`);
                             notReached();
                         });
 
@@ -151,10 +161,12 @@
                             assertTrue(registration.scope.endsWith('/registration/scope'));
                             message_event_count += 1;
                         }, function (error) {
+                            console.log(`(Unexpected) : ${error}`);
                             notReached();
                         });
 
                 }, function (error) {
+                    console.log(`(Unexpected) : ${error}`);
                     notReached();
                 });
         }

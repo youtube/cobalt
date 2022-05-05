@@ -22,10 +22,12 @@
 #include <utility>
 
 #include "base/bind.h"
+#include "base/logging.h"
 #include "base/message_loop/message_loop.h"
 #include "base/synchronization/lock.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/dom/dom_exception.h"
+#include "cobalt/loader/script_loader_factory.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/script/promise.h"
 #include "cobalt/script/script_exception.h"
@@ -94,11 +96,19 @@ bool IsOriginPotentiallyTrustworthy(const GURL& url) {
   return false;
 }
 
+bool PermitAnyURL(const GURL&, bool) { return true; }
 }  // namespace
 
 ServiceWorkerJobs::ServiceWorkerJobs(network::NetworkModule* network_module,
                                      base::MessageLoop* message_loop)
-    : network_module_(network_module), message_loop_(message_loop) {}
+    : network_module_(network_module), message_loop_(message_loop) {
+  fetcher_factory_.reset(new loader::FetcherFactory(network_module));
+  DCHECK(fetcher_factory_);
+
+  script_loader_factory_.reset(new loader::ScriptLoaderFactory(
+      "ServiceWorkerJobs", fetcher_factory_.get()));
+  DCHECK(script_loader_factory_);
+}
 
 ServiceWorkerJobs::~ServiceWorkerJobs() {}
 
@@ -224,7 +234,7 @@ std::unique_ptr<ServiceWorkerJobs::Job> ServiceWorkerJobs::CreateJob(
   // 6. Set job’s job promise to promise.
   // 7. Set job’s client to client.
   std::unique_ptr<Job> job(new Job(kRegister, storage_key, scope_url,
-                                   script_url, std::move(promise), client));
+                                   script_url, client, std::move(promise)));
   // 8. If client is not null, set job’s referrer to client’s creation URL.
   if (client) {
     job->referrer = client->creation_url();
@@ -433,7 +443,7 @@ void ServiceWorkerJobs::Register(Job* job) {
   if (registration) {
     // 5.1 Let newestWorker be the result of running the Get Newest Worker
     // algorithm passing registration as the argument.
-    ServiceWorker* newest_worker = GetNewestWorker(registration);
+    ServiceWorkerObject* newest_worker = registration->GetNewestWorker();
 
     // 5.2 If newestWorker is not null, job’s script url equals newestWorker’s
     // script url, job’s worker type equals newestWorker’s type, and job’s
@@ -468,7 +478,7 @@ void ServiceWorkerJobs::Update(Job* job) {
   //   https://w3c.github.io/ServiceWorker/#update-algorithm
 
   // 1. Let registration be the result of running Get Registration given job’s
-  // storage key and job’s scope url.
+  //    storage key and job’s scope url.
   ServiceWorkerRegistrationObject* registration =
       scope_to_registration_map_.GetRegistration(job->storage_key,
                                                  job->scope_url);
@@ -482,6 +492,259 @@ void ServiceWorkerJobs::Update(Job* job) {
     FinishJob(job);
     return;
   }
+  // 3. Let newestWorker be the result of running Get Newest Worker algorithm
+  //    passing registration as the argument.
+  ServiceWorkerObject* newest_worker = registration->GetNewestWorker();
+
+  // 4. If job’s job type is update, and newestWorker is not null and its script
+  //    url does not equal job’s script url, then:
+  if ((job->type == kUpdate) && newest_worker &&
+      (newest_worker->script_url() != job->script_url)) {
+    // 4.1 Invoke Reject Job Promise with job and TypeError.
+    RejectJobPromise(job, PromiseErrorData(script::kSimpleTypeError));
+
+    // 4.2 Invoke Finish Job with job and abort these steps.
+    FinishJob(job);
+    return;
+  }
+
+  auto state(
+      base::MakeRefCounted<UpdateJobState>(job, registration, newest_worker));
+
+  // 5. Let referrerPolicy be the empty string.
+  // 6. Let hasUpdatedResources be false.
+  state->has_updated_resources = false;
+  // 7. Let updatedResourceMap be an ordered map where the keys are URLs and the
+  //    values are responses.
+  // That is located in job->updated_resource_map.
+
+  // 8. Switching on job’s worker type, run these substeps with the following
+  //    options:
+  //    - "classic"
+  //        Fetch a classic worker script given job’s serialized script url,
+  //        job’s client, "serviceworker", and the to-be-created environment
+  //        settings object for this service worker.
+  //    - "module"
+  //        Fetch a module worker script graph given job’s serialized script
+  //        url, job’s client, "serviceworker", "omit", and the to-be-created
+  //        environment settings object for this service worker.
+  // To perform the fetch given request, run the following steps:
+  //   8.1.  Append `Service-Worker`/`script` to request’s header list.
+  //   8.2.  Set request’s cache mode to "no-cache" if any of the following are
+  //         true:
+  //          - registration’s update via cache mode is not "all".
+  //          - job’s force bypass cache flag is set.
+  //          - newestWorker is not null and registration is stale.
+  //   8.3.  Set request’s service-workers mode to "none".
+  //   8.4.  If the is top-level flag is unset, then return the result of
+  //         fetching request.
+  //   8.5.  Set request’s redirect mode to "error".
+  //   8.6.  Fetch request, and asynchronously wait to run the remaining steps
+  //         as part of fetch’s process response for the response response.
+  //   8.7.  Extract a MIME type from the response’s header list. If this MIME
+  //         type (ignoring parameters) is not a JavaScript MIME type, then:
+  //   8.7.1. Invoke Reject Job Promise with job and "SecurityError"
+  //          DOMException.
+  //   8.7.2. Asynchronously complete these steps with a network error.
+  //   8.8.  Let serviceWorkerAllowed be the result of extracting header list
+  //         values given `Service-Worker-Allowed` and response’s header list.
+  //   8.9.  Set policyContainer to the result of creating a policy container
+  //         from a fetch response given response.
+  //   8.10. If serviceWorkerAllowed is failure, then:
+  //   8.10.1  Asynchronously complete these steps with a network error.
+  //   8.11. Let scopeURL be registration’s scope url.
+  //   8.12. Let maxScopeString be null.
+  //   8.13. If serviceWorkerAllowed is null, then:
+  //   8.13.1. Let resolvedScope be the result of parsing "./" using job’s
+  //           script url as the base URL.
+  //   8.13.2. Set maxScopeString to "/", followed by the strings in
+  //           resolvedScope’s path (including empty strings), separated from
+  //           each other by "/".
+  //   8.14. Else:
+  //   8.14.1. Let maxScope be the result of parsing serviceWorkerAllowed using
+  //           job’s script url as the base URL.
+  //   8.14.2. If maxScope’s origin is job’s script url's origin, then:
+  //   8.14.2.1. Set maxScopeString to "/", followed by the strings in
+  //             maxScope’s path (including empty strings), separated from each
+  //             other by "/".
+  //   8.15. Let scopeString be "/", followed by the strings in scopeURL’s path
+  //         (including empty strings), separated from each other by "/".
+  //   8.16. If maxScopeString is null or scopeString does not start with
+  //         maxScopeString, then:
+  //   8.16.1. Invoke Reject Job Promise with job and "SecurityError"
+  //           DOMException.
+  //   8.16.2. Asynchronously complete these steps with a network error.
+
+  // TODO(b/225037465): Implement CSP check.
+  csp::SecurityCallback csp_callback = base::Bind(&PermitAnyURL);
+  loader::Origin origin = loader::Origin(job->script_url.GetOrigin());
+  job->loader = script_loader_factory_->CreateScriptLoader(
+      job->script_url, origin, csp_callback,
+      base::Bind(&ServiceWorkerJobs::UpdateOnContentProduced,
+                 base::Unretained(this), state),
+      base::Bind(&ServiceWorkerJobs::UpdateOnLoadingComplete,
+                 base::Unretained(this), state));
+}
+
+void ServiceWorkerJobs::UpdateOnContentProduced(
+    scoped_refptr<UpdateJobState> state, const loader::Origin& last_url_origin,
+    std::unique_ptr<std::string> content) {
+  TRACE_EVENT0("cobalt::worker",
+               "ServiceWorkerJobs::UpdateOnContentProduced()");
+  // Note: There seems to be missing handling of network errors here.
+  //   8.17. Let url be request’s url.
+  //   8.18. Set updatedResourceMap[url] to response.
+  state->updated_resource_map.insert(
+      std::make_pair(state->job->script_url, std::move(content)));
+  //   8.19. If response’s cache state is not "local", set registration’s last
+  //         update check time to the current time.
+  //   8.20. Set hasUpdatedResources to true if any of the following are true:
+  //          - newestWorker is null.
+  //          - newestWorker’s script url is not url or newestWorker’s type is
+  //            not job’s worker type.
+  // Note: Cobalt only supports 'classic' worker type.
+  //          - newestWorker’s script resource map[url]'s body is not
+  //            byte-for-byte identical with response’s body.
+  if (state->newest_worker == nullptr) {
+    state->has_updated_resources = true;
+  } else {
+    if (state->newest_worker->script_url() != state->job->script_url) {
+      state->has_updated_resources = true;
+    } else {
+      std::string* script_resource =
+          state->newest_worker->LookupScriptResource(state->job->script_url);
+      if (script_resource && content && (*script_resource != *content)) {
+        state->has_updated_resources = true;
+      }
+    }
+  }
+
+  // TODO(b/228900516): The logic below is needed for importScripts().
+  //   8.21. If hasUpdatedResources is false and newestWorker’s classic
+  //         scripts imported flag is set, then:
+  //   8.21.1. For each importUrl → storedResponse of newestWorker’s script
+  //           resource map:
+  //   8.21.1.1. If importUrl is url, then continue.
+  //   8.21.1.2. Let importRequest be a new request whose url is importUrl,
+  //             client is job’s client, destination is "script", parser
+  //             metadata is "not parser-inserted", synchronous flag is set,
+  //             and whose use-URL-credentials flag is set.
+  //   8.21.1.3. Set importRequest’s cache mode to "no-cache" if any of the
+  //             following are true:
+  //               - registration’s update via cache mode is "none".
+  //               - job’s force bypass cache flag is set.
+  //               - registration is stale.
+  //   8.21.1.4. Let fetchedResponse be the result of fetching importRequest.
+  //   8.21.1.5. Set updatedResourceMap[importRequest’s url] to
+  //             fetchedResponse.
+  //   8.21.1.6. Set fetchedResponse to fetchedResponse’s unsafe response.
+  //   8.21.1.7. If fetchedResponse’s cache state is not
+  //             "local", set registration’s last update check time to the
+  //             current time.
+  //   8.21.1.8. If fetchedResponse is a bad import script response, continue.
+  //   8.21.1.9. If fetchedResponse’s body is not byte-for-byte identical with
+  //             storedResponse’s unsafe response's body, set
+  //             hasUpdatedResources to true.
+  //   8.22. Asynchronously complete these steps with response.
+}
+
+void ServiceWorkerJobs::UpdateOnLoadingComplete(
+    scoped_refptr<UpdateJobState> state,
+    const base::Optional<std::string>& error) {
+  TRACE_EVENT0("cobalt::worker",
+               "ServiceWorkerJobs::UpdateOnLoadingComplete()");
+  // TODO: This shouldn't run until the load for each script from the script
+  // resource map completes (step 8.22).
+
+  // When the algorithm asynchronously completes, continue the rest of these
+  // steps, with script being the asynchronous completion value.
+  auto entry = state->updated_resource_map.find(state->job->script_url);
+  auto* script = entry != state->updated_resource_map.end()
+                     ? entry->second.get()
+                     : nullptr;
+  // 9. If script is null or Is Async Module with script’s record, script’s
+  //    base URL, and {} it true, then:
+  if (script == nullptr) {
+    // 9.1. Invoke Reject Job Promise with job and TypeError.
+    RejectJobPromise(state->job, PromiseErrorData(script::kSimpleTypeError));
+
+    // 9.2. If newestWorker is null, then remove registration
+    //      map[(registration’s storage key, serialized scopeURL)].
+    if (state->newest_worker == nullptr) {
+      scope_to_registration_map_.RemoveRegistration(state->job->storage_key,
+                                                    state->job->scope_url);
+    }
+    // 9.3. Invoke Finish Job with job and abort these steps.
+    FinishJob(state->job);
+    return;
+  }
+
+  // 10. If hasUpdatedResources is false, then:
+  if (!state->has_updated_resources) {
+    // 10.1. Set registration’s update via cache mode to job’s update via cache
+    //       mode.
+    state->registration->set_update_via_cache_mode(
+        state->job->update_via_cache);
+
+    // 10.2. Invoke Resolve Job Promise with job and registration.
+    ResolveJobPromise(state->job, state->registration);
+
+    // 10.3. Invoke Finish Job with job and abort these steps.
+    FinishJob(state->job);
+    return;
+  }
+  // 11. Let worker be a new service worker.
+  std::unique_ptr<ServiceWorkerObject> worker(
+      new ServiceWorkerObject(state->job->script_url));
+  // 12. Set worker’s script url to job’s script url, worker’s script
+  //     resource to script, worker’s type to job’s worker type, and worker’s
+  //     script resource map to updatedResourceMap.
+  // -> The worker's script resource is set in the resource map at step 8.18.
+  worker->set_script_resource_map(std::move(state->updated_resource_map));
+  // 13. Append url to worker’s set of used scripts.
+  // -> The script resource map contains the used scripts.
+  // 14. Set worker’s script resource’s policy container to policyContainer.
+  // 15. Let forceBypassCache be true if job’s force bypass cache flag is
+  //     set, and false otherwise.
+  bool force_bypass_cache = state->job->force_bypass_cache_flag;
+  // 16. Let runResult be the result of running the Run Service Worker
+  //     algorithm with worker and forceBypassCache.
+  bool run_result = RunServiceWorker(worker.get(), force_bypass_cache);
+  // 17. If runResult is failure or an abrupt completion, then:
+  if (!run_result) {
+    // 17.1. Invoke Reject Job Promise with job and TypeError.
+    RejectJobPromise(state->job, PromiseErrorData(script::kSimpleTypeError));
+    // 17.2. If newestWorker is null, then remove registration
+    //       map[(registration’s storage key, serialized scopeURL)].
+    if (state->newest_worker == nullptr) {
+      scope_to_registration_map_.RemoveRegistration(state->job->storage_key,
+                                                    state->job->scope_url);
+    }
+    // 17.3. Invoke Finish Job with job.
+    FinishJob(state->job);
+  } else {
+    // 18. Else, invoke Install algorithm with job, worker, and registration
+    //     as its arguments.
+    Install(state->job, worker.get(), state->registration);
+  }
+}
+
+bool ServiceWorkerJobs::RunServiceWorker(ServiceWorkerObject* worker,
+                                         bool force_bypass_cache) {
+  TRACE_EVENT0("cobalt::worker", "ServiceWorkerJobs::RunServiceWorker()");
+  DCHECK_EQ(message_loop(), base::MessageLoop::current());
+  // Algorithm for "Run Service Worker"
+  // https://w3c.github.io/ServiceWorker/#run-service-worker-algorithm
+  NOTIMPLEMENTED();
+  return true;
+}
+
+void ServiceWorkerJobs::Install(Job* job, ServiceWorkerObject* worker,
+                                ServiceWorkerRegistrationObject* registration) {
+  TRACE_EVENT0("cobalt::worker", "ServiceWorkerJobs::Install()");
+  DCHECK_EQ(message_loop(), base::MessageLoop::current());
+  // Algorithm for "Install"
+  //   https://w3c.github.io/ServiceWorker/#installation-algorithm
   ResolveJobPromise(job, registration);
   NOTIMPLEMENTED();
 }
@@ -501,9 +764,9 @@ void ServiceWorkerJobs::RejectJobPromise(Job* job,
   // Algorithm for Reject Job Promise:
   //   https://w3c.github.io/ServiceWorker/#reject-job-promise
   // 1. If job’s client is not null, queue a task, on job’s client's responsible
-  // event loop using the DOM manipulation task source, to reject job’s job
-  // promise with a new exception with errorData and a user agent-defined
-  // message, in job’s client's Realm.
+  //    event loop using the DOM manipulation task source, to reject job’s job
+  //    promise with a new exception with errorData and a user agent-defined
+  //    message, in job’s client's Realm.
 
   auto reject_task = [](std::unique_ptr<JobPromiseType> promise,
                         const PromiseErrorData& error_data) {
@@ -527,9 +790,9 @@ void ServiceWorkerJobs::RejectJobPromise(Job* job,
     // 2.1. If equivalentJob’s client is null, continue.
     if (equivalent_job->client) {
       // 2.2. Queue a task, on equivalentJob’s client's responsible event loop
-      // using the DOM manipulation task source, to reject equivalentJob’s job
-      // promise with a new exception with errorData and a user agent-defined
-      // message, in equivalentJob’s client's Realm.
+      //      using the DOM manipulation task source, to reject equivalentJob’s
+      //      job promise with a new exception with errorData and a user
+      //      agent-defined message, in equivalentJob’s client's Realm.
       equivalent_job->client->context()
           ->message_loop()
           ->task_runner()
@@ -554,15 +817,15 @@ void ServiceWorkerJobs::ResolveJobPromise(
   //   https://w3c.github.io/ServiceWorker/#resolve-job-promise-algorithm
 
   // 1. If job’s client is not null, queue a task, on job’s client's responsible
-  // event loop using the DOM manipulation task source, to run the following
-  // substeps:
+  //    event loop using the DOM manipulation task source, to run the following
+  //    substeps:
   auto resolve_task = [](JobType type, web::EnvironmentSettings* client,
                          std::unique_ptr<JobPromiseType> promise,
                          ServiceWorkerRegistrationObject* value) {
     // 1.1./2.2.1. Let convertedValue be null.
     // 1.2./2.2.2. If job’s job type is either register or update, set
-    // convertedValue to the result of getting the service worker registration
-    // object that represents value in job’s client.
+    //             convertedValue to the result of getting the service worker
+    //             registration object that represents value in job’s client.
     if (type == kRegister || type == kUpdate) {
       auto converted_value =
           client->context()->GetServiceWorkerRegistration(value);
@@ -593,10 +856,11 @@ void ServiceWorkerJobs::ResolveJobPromise(
     DCHECK(equivalent_job->equivalent_jobs.empty());
 
     // 2.1. If equivalentJob’s client is null, continue to the next iteration of
-    // the loop.
+    //      the loop.
     if (equivalent_job->client) {
       // 2.2. Queue a task, on equivalentJob’s client's responsible event loop
-      // using the DOM manipulation task source, to run the following substeps:
+      //      using the DOM manipulation task source, to run the following
+      //      substeps:
       equivalent_job->client->context()
           ->message_loop()
           ->task_runner()
@@ -659,13 +923,6 @@ void ServiceWorkerJobs::GetRegistrationSubSteps(
                     registration));
           },
           client, std::move(promise_reference), registration));
-}
-
-// https://w3c.github.io/ServiceWorker/#get-newest-worker
-ServiceWorker* ServiceWorkerJobs::GetNewestWorker(
-    ServiceWorkerRegistrationObject* registration) {
-  NOTIMPLEMENTED();
-  return nullptr;
 }
 
 ServiceWorkerJobs::JobPromiseType::JobPromiseType(

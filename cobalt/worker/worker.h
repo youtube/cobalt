@@ -22,6 +22,7 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/threading/thread.h"
 #include "cobalt/csp/content_security_policy.h"
+#include "cobalt/loader/script_loader_factory.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/execution_state.h"
 #include "cobalt/script/global_environment.h"

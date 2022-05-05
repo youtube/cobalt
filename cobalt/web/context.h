@@ -26,8 +26,8 @@
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/script/script_runner.h"
+#include "cobalt/script/wrappable.h"
 #include "cobalt/web/environment_settings.h"
-#include "cobalt/worker/service_worker_registration_object.h"
 
 namespace cobalt {
 namespace worker {

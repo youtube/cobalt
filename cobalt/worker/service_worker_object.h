@@ -15,7 +15,10 @@
 #ifndef COBALT_WORKER_SERVICE_WORKER_OBJECT_H_
 #define COBALT_WORKER_SERVICE_WORKER_OBJECT_H_
 
+#include <map>
+#include <memory>
 #include <string>
+#include <utility>
 
 #include "cobalt/worker/service_worker_state.h"
 #include "url/gurl.h"
@@ -34,13 +37,30 @@ namespace worker {
 //   https://w3c.github.io/ServiceWorker/#service-worker-lifetime
 class ServiceWorkerObject {
  public:
-  ServiceWorkerObject();
+  using ScriptResourceMap = std::map<GURL, std::unique_ptr<std::string>>;
+
+  explicit ServiceWorkerObject(const GURL& script_url);
   ~ServiceWorkerObject() {}
 
+  const GURL& script_url() const { return script_url_; }
+  void set_state(ServiceWorkerState state) { state_ = state; }
   ServiceWorkerState state() { return state_; }
 
+  void set_script_resource_map(ScriptResourceMap&& resource_map) {
+    script_resource_map_ = std::move(resource_map);
+  }
+
+  std::string* LookupScriptResource(const GURL& url);
+
  private:
+  // https://w3c.github.io/ServiceWorker/#dfn-state
   ServiceWorkerState state_;
+
+  // https://w3c.github.io/ServiceWorker/#dfn-script-url
+  const GURL script_url_;
+
+  // map of content or resources for the worker.
+  ScriptResourceMap script_resource_map_;
 };
 
 }  // namespace worker

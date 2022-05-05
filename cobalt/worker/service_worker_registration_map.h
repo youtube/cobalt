@@ -55,6 +55,8 @@ class ServiceWorkerRegistrationMap {
   ServiceWorkerRegistrationObject* MatchServiceWorkerRegistration(
       const url::Origin& storage_key, const GURL& client_url);
 
+  void RemoveRegistration(const url::Origin& storage_key, const GURL& scope);
+
  private:
   // ThreadChecker for use by the methods operating on the registration map.
   THREAD_CHECKER(thread_checker_);

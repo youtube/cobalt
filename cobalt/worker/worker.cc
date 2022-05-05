@@ -72,7 +72,7 @@ void Worker::Initialize(const Options& options, web::Context* context) {
   LOG(INFO) << "Look at me, I'm running a worker thread";
 
   // 7. Let realm execution context be the result of creating a new
-  // JavaScript realm given agent and the following customizations:
+  //    JavaScript realm given agent and the following customizations:
   web_context_ = context;
   //    . For the global object, if is shared is true, create a new
   //      SharedWorkerGlobalScope object. Otherwise, create a new

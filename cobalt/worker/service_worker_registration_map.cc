@@ -180,5 +180,16 @@ ServiceWorkerRegistrationObject* ServiceWorkerRegistrationMap::SetRegistration(
   return registration;
 }
 
+void ServiceWorkerRegistrationMap::RemoveRegistration(
+    const url::Origin& storage_key, const GURL& scope) {
+  std::string scope_string = SerializeExcludingFragment(scope);
+  Key registration_key(storage_key, scope_string);
+  auto entry = registration_map_.find(registration_key);
+  DCHECK(entry != registration_map_.end());
+  if (entry != registration_map_.end()) {
+    registration_map_.erase(entry);
+  }
+}
+
 }  // namespace worker
 }  // namespace cobalt

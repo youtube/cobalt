@@ -38,7 +38,8 @@ namespace loader {
 class ScriptLoaderFactory {
  public:
   ScriptLoaderFactory(const char* name, FetcherFactory* fetcher_factory,
-                      base::ThreadPriority loader_thread_priority);
+                      base::ThreadPriority loader_thread_priority =
+                          base::ThreadPriority::NORMAL);
 
   // Creates a loader that fetches and decodes a Javascript resource.
   std::unique_ptr<Loader> CreateScriptLoader(

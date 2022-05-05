@@ -17,6 +17,7 @@
 #include <string>
 #include <utility>
 
+#include "base/logging.h"
 #include "base/optional.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/dom/dom_exception.h"

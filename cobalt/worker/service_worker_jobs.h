@@ -23,20 +23,26 @@
 #include <utility>
 
 #include "base/memory/ref_counted.h"
+#include "base/message_loop/message_loop.h"
+#include "base/optional.h"
 #include "base/synchronization/lock.h"
 #include "base/task/sequence_manager/moveable_auto_lock.h"
 #include "cobalt/dom/dom_exception.h"
+#include "cobalt/loader/fetcher_factory.h"
+#include "cobalt/loader/script_loader_factory.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/script/exception_message.h"
 #include "cobalt/script/promise.h"
 #include "cobalt/script/script_value.h"
 #include "cobalt/web/environment_settings.h"
 #include "cobalt/worker/service_worker.h"
+#include "cobalt/worker/service_worker_object.h"
 #include "cobalt/worker/service_worker_registration.h"
 #include "cobalt/worker/service_worker_registration_map.h"
 #include "cobalt/worker/service_worker_registration_object.h"
 #include "cobalt/worker/service_worker_update_via_cache.h"
 #include "cobalt/worker/worker_type.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace worker {
@@ -108,32 +114,59 @@ class ServiceWorkerJobs {
   // https://w3c.github.io/ServiceWorker/#dfn-job
   struct Job {
     Job(JobType type, const url::Origin& storage_key, const GURL& scope_url,
-        const GURL& script_url, std::unique_ptr<JobPromiseType> promise,
-        web::EnvironmentSettings* client)
+        const GURL& script_url, web::EnvironmentSettings* client,
+        std::unique_ptr<JobPromiseType> promise)
         : type(type),
           storage_key(storage_key),
           scope_url(scope_url),
           script_url(script_url),
-          promise(std::move(promise)),
-          client(client) {}
+          client(client),
+          promise(std::move(promise)) {}
     ~Job() {
       client = nullptr;
       containing_job_queue = nullptr;
     }
+
+    // Job properties from the spec.
+    //
     JobType type;
     url::Origin storage_key;
     GURL scope_url;
     GURL script_url;
-    std::unique_ptr<JobPromiseType> promise;
-    web::EnvironmentSettings* client;
     ServiceWorkerUpdateViaCache update_via_cache;
+    web::EnvironmentSettings* client;
+    GURL referrer;
+    std::unique_ptr<JobPromiseType> promise;
     JobQueue* containing_job_queue = nullptr;
     std::deque<std::unique_ptr<Job>> equivalent_jobs;
-    GURL referrer;
+    bool force_bypass_cache_flag = false;
+
+    // Custom, not in the spec.
+    //
 
     // This lock is for the list of equivalent jobs. It should also be held when
     // resolving the promise.
     base::Lock equivalent_jobs_promise_mutex;
+
+    // The loader that is used for asynchronous loads.
+    std::unique_ptr<loader::Loader> loader;
+  };
+
+  // State used for the 'Update' algorithm.
+  struct UpdateJobState : public base::RefCounted<UpdateJobState> {
+    UpdateJobState(Job* job, ServiceWorkerRegistrationObject* registration,
+                   ServiceWorkerObject* newest_worker)
+        : job(job), registration(registration), newest_worker(newest_worker) {}
+    Job* job;
+    ServiceWorkerRegistrationObject* registration;
+    ServiceWorkerObject* newest_worker;
+
+    // map of content or resources for the worker.
+    ServiceWorkerObject::ScriptResourceMap updated_resource_map;
+
+    // This represents hasUpdatedResources of the Update algorithm.
+    // True if any of the resources has changed since last cached.
+    bool has_updated_resources = false;
   };
 
   // https://w3c.github.io/ServiceWorker/#dfn-job-queue
@@ -223,6 +256,12 @@ class ServiceWorkerJobs {
   // https://w3c.github.io/ServiceWorker/#update-algorithm
   void Update(Job* job);
 
+  void UpdateOnContentProduced(scoped_refptr<UpdateJobState> state,
+                               const loader::Origin& last_url_origin,
+                               std::unique_ptr<std::string> content);
+  void UpdateOnLoadingComplete(scoped_refptr<UpdateJobState> state,
+                               const base::Optional<std::string>& error);
+
   // https://w3c.github.io/ServiceWorker/#unregister-algorithm
   void Unregister(Job* job);
 
@@ -238,6 +277,18 @@ class ServiceWorkerJobs {
   // https://w3c.github.io/ServiceWorker/#get-newest-worker
   ServiceWorker* GetNewestWorker(ServiceWorkerRegistrationObject* registration);
 
+  // https://w3c.github.io/ServiceWorker/#run-service-worker-algorithm
+  // Returns true if successful
+  bool RunServiceWorker(ServiceWorkerObject* worker, bool force_bypass_cache);
+
+  // https://w3c.github.io/ServiceWorker/#installation-algorithm
+  void Install(Job* job, ServiceWorkerObject* worker,
+               ServiceWorkerRegistrationObject* registration);
+
+  // FetcherFactory that is used to create a fetcher according to URL.
+  std::unique_ptr<loader::FetcherFactory> fetcher_factory_;
+  // LoaderFactory that is used to acquire references to resources from a URL.
+  std::unique_ptr<loader::ScriptLoaderFactory> script_loader_factory_;
   network::NetworkModule* network_module_;
   base::MessageLoop* message_loop_;
 
