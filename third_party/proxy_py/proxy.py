@@ -384,6 +384,11 @@ class Server(Connection):
     def __init__(self, host, port, host_resolver=None):
         super(Server, self).__init__(b'server')
 
+        if isinstance(host, bytes):
+            host = host.decode()
+        if isinstance(port, bytes):
+            port = port.decode()
+
         # Hostname IP resolution.
         if host_resolver and host in host_resolver:
             host = host_resolver[host]
@@ -481,7 +486,11 @@ class Proxy(threading.Thread):
                     raise ProxyAuthenticationFailed()
 
             if self.request.method == b'CONNECT':
-                host, port = self.request.url.path.split(COLON)
+                if self.request.url.scheme != b'':
+                    host = self.request.url.scheme
+                    port = self.request.url.path
+                else:
+                    host, port = self.request.url.path.split(COLON)
             elif self.request.url:
                 host, port = self.request.url.hostname, self.request.url.port if self.request.url.port else 80
             else:

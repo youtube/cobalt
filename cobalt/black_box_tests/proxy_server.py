@@ -39,7 +39,7 @@ class ProxyServer(object):
                host_resolve_map=None,
                client_ips=None):
     self.command = [
-        'python',
+        'python3',
         os.path.join(SRC_DIR, 'third_party', 'proxy_py', 'proxy.py'),
         '--hostname', hostname, '--port', port, '--log-level', 'WARNING'
     ]
