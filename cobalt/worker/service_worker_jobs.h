@@ -184,6 +184,7 @@ class ServiceWorkerJobs {
           message_(message) {}
 
     void Reject(std::unique_ptr<JobPromiseType> promise) const;
+
    private:
     // Use script::MessageType because it can hold kNoError value to distinguish
     // between simple exceptions and DOM exceptions.
@@ -259,7 +260,7 @@ class ServiceWorkerJobs {
 
   // This lock is to allow atomic operations on the registration map.
   base::Lock registration_map_mutex_;
-  };
+};
 
 }  // namespace worker
 }  // namespace cobalt
