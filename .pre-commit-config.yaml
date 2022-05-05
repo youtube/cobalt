@@ -43,7 +43,7 @@ repos:
                --ignore-words-list, atleast]
         exclude: |
             (?x)^(
-                cobalt/content/i18n/platform/|
+                starboard/[^/]+/i18n/|
                 cobalt/content/licenses/
             )
 
