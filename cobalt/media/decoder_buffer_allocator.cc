@@ -150,6 +150,11 @@ void* DecoderBufferAllocator::Allocate(size_t size, size_t alignment) {
 void DecoderBufferAllocator::Free(void* p, size_t size) {
   TRACK_MEMORY_SCOPE("Media");
 
+  if (p == nullptr) {
+    DCHECK_EQ(size, 0);
+    return;
+  }
+
   if (!using_memory_pool_) {
     sbmemory_bytes_used_.fetch_sub(size);
     SbMemoryDeallocateAligned(p);
