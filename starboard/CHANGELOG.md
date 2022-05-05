@@ -19,6 +19,11 @@ The improvements on player creation and output mode query (like
 `SbPlayerCreationParam` and `SbPlayerGetPreferredOutputMode()`) are always
 enabled.  This change also deprecates `SbPlayerOutputModeSupported()`.
 
+### Deprecate the usage of SB_HAS_MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT
+The extra parameters (like `profile` and `level`) on `SbMediaIsVideoSupported()`
+are always enabled.  This change also deprecated
+`SbMediaIsTransferCharacteristicsSupported()`.
+
 ## Version 13
 ### Changed lifecycle events to add support for a concealed state.
 

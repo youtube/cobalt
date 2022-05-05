@@ -206,10 +206,8 @@ std::vector<VideoTestParam> GetSupportedVideoTests() {
 
       if (SbMediaIsVideoSupported(
               dmp_reader.video_codec(), dmp_reader.video_mime_type().c_str(),
-#if SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
               -1, -1, 8, kSbMediaPrimaryIdUnspecified,
               kSbMediaTransferIdUnspecified, kSbMediaMatrixIdUnspecified,
-#endif  // SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
               video_sample_info.frame_width, video_sample_info.frame_height,
               dmp_reader.video_bitrate(), dmp_reader.video_fps(), false)) {
         test_params.push_back(std::make_tuple(filename, output_mode));

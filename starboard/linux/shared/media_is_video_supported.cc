@@ -27,21 +27,17 @@ using starboard::shared::starboard::media::IsSDRVideo;
 
 bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
                              const char* content_type,
-#if SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
                              int profile,
                              int level,
                              int bit_depth,
                              SbMediaPrimaryId primary_id,
                              SbMediaTransferId transfer_id,
                              SbMediaMatrixId matrix_id,
-#endif  // SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
                              int frame_width,
                              int frame_height,
                              int64_t bitrate,
                              int fps,
                              bool decode_to_texture_required) {
-#if SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
-
   if (!content_type) {
     SB_LOG(WARNING) << "|content_type| cannot be nullptr.";
     return false;
@@ -57,7 +53,6 @@ bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
       return false;
     }
   }
-#endif  // SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
 
   if (decode_to_texture_required) {
     bool has_gles_support = SbGetGlesInterface();

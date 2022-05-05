@@ -133,11 +133,6 @@ bool IsSupportedVideoCodec(const MimeType& mime_type,
           << codec << "\" will be overwritten by the eotf attribute " << eotf;
     }
     transfer_id = transfer_id_from_eotf;
-#if !SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
-    if (!SbMediaIsTransferCharacteristicsSupported(transfer_id)) {
-      return false;
-    }
-#endif  // !SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
   }
 
   std::string cryptoblockformat =
@@ -158,19 +153,12 @@ bool IsSupportedVideoCodec(const MimeType& mime_type,
     return false;
   }
 
-#if SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
   if (!SbMediaIsVideoSupported(
           video_codec, mime_type.raw_content_type().c_str(), profile, level,
           bit_depth, primary_id, transfer_id, matrix_id, width, height, bitrate,
           fps, decode_to_texture_required)) {
     return false;
   }
-#else   //  SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
-  if (!SbMediaIsVideoSupported(video_codec, width, height, bitrate, fps,
-                               decode_to_texture_required)) {
-    return false;
-  }
-#endif  // SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
 
   switch (video_codec) {
     case kSbMediaVideoCodecNone:

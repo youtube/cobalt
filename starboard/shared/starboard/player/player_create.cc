@@ -155,12 +155,9 @@ SbPlayer SbPlayerCreate(SbWindow window,
   const int kDefaultFrameRate = 0;
   if (video_codec != kSbMediaVideoCodecNone &&
       !SbMediaIsVideoSupported(
-          video_codec, video_mime,
-#if SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
-          kDefaultProfile, kDefaultLevel, kDefaultColorDepth,
-          kSbMediaPrimaryIdUnspecified, kSbMediaTransferIdUnspecified,
-          kSbMediaMatrixIdUnspecified,
-#endif  // SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
+          video_codec, video_mime, kDefaultProfile, kDefaultLevel,
+          kDefaultColorDepth, kSbMediaPrimaryIdUnspecified,
+          kSbMediaTransferIdUnspecified, kSbMediaMatrixIdUnspecified,
           kDefaultFrameWidth, kDefaultFrameHeight, kDefaultBitRate,
           kDefaultFrameRate,
           output_mode == kSbPlayerOutputModeDecodeToTexture)) {

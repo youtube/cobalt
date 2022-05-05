@@ -739,13 +739,11 @@ struct CompileAssert {};
 #error "SB_HAS_AUDIOLESS_VIDEO is deprecated."
 #endif  // defined(SB_HAS_AUDIOLESS_VIDEO)
 
-#if !defined(SB_HAS_MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
-#define SB_HAS_MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT 1
-#elif !SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
+#if defined(SB_HAS_MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
 #error \
-    "SB_HAS_MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT is required in this API " \
-        "version."
-#endif
+    "SB_HAS_MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT should not be defined for " \
+           "API version >= 12."
+#endif  // defined(SB_HAS_MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
 
 #if defined(SB_HAS_DRM_SESSION_CLOSED)
 #error "SB_HAS_DRM_SESSION_CLOSED should not be defined for API version >= 10."
@@ -764,7 +762,7 @@ struct CompileAssert {};
 #if defined(SB_HAS_PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 #error \
     "SB_HAS_PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT should not be " \
-    "defined in API versions >= 12."
+        "defined in API versions >= 12."
 #endif  // defined(SB_HAS_PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 
 #if SB_HAS_QUIRK(SEEK_TO_KEYFRAME)
