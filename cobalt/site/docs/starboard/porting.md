@@ -105,7 +105,6 @@ the following files:
 *   `atomic_public.h`
 *   `BUILD.gn`
 *   `configuration_public.h`
-*   `thread_types_public.h`
 *   `platform_configuration/BUILD.gn`
 *   `platform_configuration/configuration.gni`
 *   `toolchain/BUILD.gn`
@@ -172,9 +171,6 @@ then make the following modifications to the files that you copied in step 3:
 1.  **`configuration_public.h`** - Adjust all of the [configuration values](
     ../../reference/starboard/configuration-public.html) as appropriate for
     your platform.
-
-1.  **`thread_types_public.h`** - Ensure that this file points at the
-    appropriate shared or custom implementation.
 
 1.  **`platform_configuration/BUILD.gn`**
     1.  Update your platform command-line flags and libraries. Ensure that

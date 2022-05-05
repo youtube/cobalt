@@ -74,7 +74,6 @@ static_library("starboard_platform") {
     "atomic_public.h",
     "configuration_public.h",
     "main.cc",
-    "thread_types_public.h",
   ]
 
   configs += [

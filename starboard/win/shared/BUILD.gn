@@ -339,7 +339,6 @@ static_library("starboard_platform") {
     "//starboard/shared/win32/thread_set_local_value.cc",
     "//starboard/shared/win32/thread_set_name.cc",
     "//starboard/shared/win32/thread_sleep.cc",
-    "//starboard/shared/win32/thread_types_public.h",
     "//starboard/shared/win32/thread_yield.cc",
     "//starboard/shared/win32/time_get_monotonic_now.cc",
     "//starboard/shared/win32/time_get_now.cc",

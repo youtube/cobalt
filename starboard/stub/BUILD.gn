@@ -26,7 +26,6 @@ static_library("starboard_platform") {
     "javascript_cache.h",
     "main.cc",
     "system_get_extensions.cc",
-    "thread_types_public.h",
   ]
 
   public_deps = [ ":stub_sources" ]
@@ -296,7 +295,6 @@ static_library("stub_sources") {
     "//starboard/shared/stub/thread_set_local_value.cc",
     "//starboard/shared/stub/thread_set_name.cc",
     "//starboard/shared/stub/thread_sleep.cc",
-    "//starboard/shared/stub/thread_types_public.h",
     "//starboard/shared/stub/thread_yield.cc",
     "//starboard/shared/stub/time_get_monotonic_now.cc",
     "//starboard/shared/stub/time_get_monotonic_thread_now.cc",
