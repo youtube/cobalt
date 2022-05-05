@@ -1,0 +1,61 @@
+#!/usr/bin/env python
+"""Entrypoint for running unit-tests shards in docker"""
+
+import logging
+import os
+import subprocess
+import sys
+import time
+
+log = logging.getLogger(__name__)
+
+
+def exc(cmd, check=False):
+  log.info(cmd)
+  try:
+    output = subprocess.check_output(cmd, shell=True)
+    log.info(output)
+  except subprocess.CalledProcessError:
+    if check:
+      raise
+
+
+def main(argv):
+  shard_index = None
+  if len(argv) >= 2:
+    shard_index = int(argv[1])
+
+  out_dir = '/out'
+
+  exc('unzip -q {}/app_launcher -d /app_launcher_out'.format(out_dir))
+
+  xvfb_prefix = ('xvfb-run -a --server-args="-screen 0 1920x1080x24'
+                 '+render +extension GLX -noreset"')
+  env_platform = os.getenv('PLATFORM')
+  env_config = os.getenv('CONFIG')
+  test_command = [
+      'python', '/app_launcher_out/starboard/tools/testing/test_runner.py',
+      '--run', '-o', out_dir, '-p', env_platform, '-c', env_config
+  ]
+
+  if shard_index is not None:
+    test_command.append('-s')
+    test_command.append(str(shard_index))
+
+  test_command = ' '.join(test_command)
+
+  start_t = time.time()
+  exc('{} {}'.format(xvfb_prefix, test_command))
+  end_t = time.time()
+
+  # Output shard timing information to file.
+  duration_t = (end_t-start_t)/60.0
+  out_str = 'SHARD TIME {}: {:5.2f}\n'.format(shard_index, duration_t)
+  f = open('{}/times'.format(out_dir,shard_index), 'a')
+  f.write(out_str)
+  f.close()
+
+
+if __name__ == '__main__':
+  logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
+  main(sys.argv)

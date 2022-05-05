@@ -40,6 +40,23 @@ x-shared-build-env: &shared-build-env
   IS_DOCKER: 1
   PYTHONPATH: /code
 
+x-shared-unittest-definitions: &shared-unittest-definitions
+  stdin_open: true
+  tty: true
+  build:
+    context: ./docker/linux
+    dockerfile: unittest/Dockerfile
+  image: cobalt-unittest
+  environment:
+    - PLATFORM=${PLATFORM:-linux-x64x11}
+    - CONFIG=${CONFIG:-devel}
+  volumes:
+    - ${COBALT_SRC:-.}/out/${PLATFORM:-linux-x64x11}_${CONFIG:-devel}:/out
+    - ${COBALT_SRC:-.}/starboard/tools/testing/sharding_configuration.json:/out/sharding_configuration.json
+  # TODO: Get NPLB unittests to run with IPv6 without using the host network.
+  network_mode: "host"
+  depends_on: [ base ]
+
 services:
 #### Tools
   pre-commit:
@@ -353,16 +370,20 @@ services:
   # 3. Run the unittests for that target.
   # PLATFORM=linux-x64x11 CONFIG=devel TARGET=all docker-compose run unittest
   unittest:
-    <<: *common-definitions
-    build:
-      context: ./docker/linux
-      dockerfile: unittest/Dockerfile
-    image: cobalt-unittest
-    environment:
-      - PLATFORM=${PLATFORM:-linux-x64x11}
-      - CONFIG=${CONFIG:-debug}
-    volumes:
-      - ${COBALT_SRC:-.}/out/${PLATFORM:-linux-x64x11}_${CONFIG:-debug}:/out
-    # TODO: Get NPLB unittests to run with IPv6 without using the host network.
-    network_mode: "host"
-    depends_on: [ base ]
+    <<: *shared-unittest-definitions
+
+  unittest-0:
+    <<: *shared-unittest-definitions
+    entrypoint: ["python", "/unittest_docker_launcher.py", "0"]
+
+  unittest-1:
+    <<: *shared-unittest-definitions
+    entrypoint: ["python", "/unittest_docker_launcher.py", "1"]
+
+  unittest-2:
+    <<: *shared-unittest-definitions
+    entrypoint: ["python", "/unittest_docker_launcher.py", "2"]
+
+  unittest-3:
+    <<: *shared-unittest-definitions
+    entrypoint: ["python", "/unittest_docker_launcher.py", "3"]
