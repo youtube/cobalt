@@ -59,7 +59,7 @@ class NetLog:
       ready_list, _, _ = select.select([self.server_socket], [], [])
       if not ready_list:
         return ''
-      result = self.server_socket.recv(1024)
+      result = self.server_socket.recv(1024).decode('utf-8')
       # An empty string is a flag that the connection has closed.
       if len(result) == 0:
         return None

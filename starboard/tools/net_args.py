@@ -27,7 +27,7 @@ import threading
 # Example:
 #  TryConnectAndSendNetArgs('1.2.3.4', '1234', ['--argument', '--switch=value'])
 def TryConnectAndSendNetArgs(host, port, arg_list):
-  arg_string = '\n'.join(arg_list)
+  arg_string = '\n'.join(arg_list).encode()
   try:
     server_socket = socket.create_connection((host, port), timeout=.5)
     server_socket.sendall(arg_string)
