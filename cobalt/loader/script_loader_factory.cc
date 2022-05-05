@@ -49,8 +49,9 @@ std::unique_ptr<Loader> ScriptLoaderFactory::CreateScriptLoader(
     const Loader::OnCompleteFunction& load_complete_callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
-  Loader::FetcherCreator fetcher_creator = MakeFetcherCreator(
-      url, url_security_callback, kNoCORSMode, origin, disk_cache::kUncompiledScript);
+  Loader::FetcherCreator fetcher_creator =
+      MakeFetcherCreator(url, url_security_callback, kNoCORSMode, origin,
+                         disk_cache::kUncompiledScript);
 
   std::unique_ptr<Loader> loader(new Loader(
       fetcher_creator,
