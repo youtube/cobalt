@@ -22,19 +22,6 @@ namespace starboard {
 namespace media {
 namespace {
 
-TEST(MimeTypeTest, RawContentType) {
-  {
-    const char kContentTypeWithSpace[] = " video/mp4; name0=123; name1=123.4 ";
-    MimeType mime_type(kContentTypeWithSpace);
-    EXPECT_EQ(mime_type.raw_content_type(), kContentTypeWithSpace);
-  }
-  {
-    const char kInvalidContentType[] = "video /mp4";
-    MimeType mime_type(kInvalidContentType);
-    EXPECT_EQ(mime_type.raw_content_type(), kInvalidContentType);
-  }
-}
-
 TEST(MimeTypeTest, EmptyString) {
   MimeType mime_type("");
   EXPECT_FALSE(mime_type.is_valid());
@@ -343,69 +330,116 @@ TEST(MimeTypeTest, ReadParamOfDifferentTypes) {
   EXPECT_FALSE(mime_type.GetParamBoolValue("float", false));
 }
 
-TEST(MimeTypeTest, RegisterAndValidateParamsWithPatterns) {
+TEST(MimeTypeTest, ParseInvalidParamString) {
+  EXPECT_FALSE(MimeType::ParseParamString("", nullptr));
+  EXPECT_FALSE(MimeType::ParseParamString("invalid", nullptr));
+  EXPECT_FALSE(MimeType::ParseParamString("val=0;", nullptr));
+  EXPECT_FALSE(MimeType::ParseParamString("val=a|b", nullptr));
+  EXPECT_FALSE(MimeType::ParseParamString("val=", nullptr));
+}
+
+TEST(MimeTypeTest, ParseValidParamString) {
+  MimeType::Param result;
+
+  EXPECT_TRUE(MimeType::ParseParamString("val=0", &result));
+  EXPECT_EQ(result.name, "val");
+  EXPECT_EQ(result.type, MimeType::kParamTypeInteger);
+  EXPECT_EQ(result.int_value, 0);
+
+  EXPECT_TRUE(MimeType::ParseParamString("val=1", &result));
+  EXPECT_EQ(result.name, "val");
+  EXPECT_EQ(result.type, MimeType::kParamTypeInteger);
+  EXPECT_EQ(result.int_value, 1);
+
+  EXPECT_TRUE(MimeType::ParseParamString("val=-1", &result));
+  EXPECT_EQ(result.name, "val");
+  EXPECT_EQ(result.type, MimeType::kParamTypeInteger);
+  EXPECT_EQ(result.int_value, -1);
+
+  EXPECT_TRUE(MimeType::ParseParamString("val=0.0", &result));
+  EXPECT_EQ(result.name, "val");
+  EXPECT_EQ(result.type, MimeType::kParamTypeFloat);
+  EXPECT_EQ(result.float_value, 0.0f);
+
+  EXPECT_TRUE(MimeType::ParseParamString("val=1.0", &result));
+  EXPECT_EQ(result.name, "val");
+  EXPECT_EQ(result.type, MimeType::kParamTypeFloat);
+  EXPECT_EQ(result.float_value, 1.0f);
+
+  EXPECT_TRUE(MimeType::ParseParamString("val=-1.0", &result));
+  EXPECT_EQ(result.name, "val");
+  EXPECT_EQ(result.type, MimeType::kParamTypeFloat);
+  EXPECT_EQ(result.float_value, -1.0f);
+
+  EXPECT_TRUE(MimeType::ParseParamString("val=true", &result));
+  EXPECT_EQ(result.name, "val");
+  EXPECT_EQ(result.type, MimeType::kParamTypeBoolean);
+  EXPECT_EQ(result.bool_value, true);
+
+  EXPECT_TRUE(MimeType::ParseParamString("val=false", &result));
+  EXPECT_EQ(result.name, "val");
+  EXPECT_EQ(result.type, MimeType::kParamTypeBoolean);
+  EXPECT_EQ(result.bool_value, false);
+
+  EXPECT_TRUE(MimeType::ParseParamString("val=\"\"", &result));
+  EXPECT_EQ(result.name, "val");
+  EXPECT_EQ(result.type, MimeType::kParamTypeString);
+  EXPECT_EQ(result.string_value, "");
+
+  EXPECT_TRUE(MimeType::ParseParamString("val=\"abc\"", &result));
+  EXPECT_EQ(result.name, "val");
+  EXPECT_EQ(result.type, MimeType::kParamTypeString);
+  EXPECT_EQ(result.string_value, "abc");
+
+  EXPECT_TRUE(MimeType::ParseParamString("val=abc", &result));
+  EXPECT_EQ(result.name, "val");
+  EXPECT_EQ(result.type, MimeType::kParamTypeString);
+  EXPECT_EQ(result.string_value, "abc");
+}
+
+TEST(MimeTypeTest, ValidateParamsWithPatterns) {
   MimeType mime_type("video/mp4; string=yes");
-  EXPECT_TRUE(mime_type.RegisterStringParameter("string", "yes"));
-  EXPECT_TRUE(mime_type.RegisterStringParameter("string", "yes|no"));
-  EXPECT_TRUE(mime_type.RegisterStringParameter("string", "no|yes|no"));
-  EXPECT_TRUE(mime_type.RegisterStringParameter("string", "no|no|yes"));
-  EXPECT_TRUE(mime_type.RegisterStringParameter("string", "noyes|yes"));
-  EXPECT_TRUE(mime_type.is_valid());
+  EXPECT_TRUE(mime_type.ValidateStringParameter("string", "yes"));
+  EXPECT_TRUE(mime_type.ValidateStringParameter("string", "yes|no"));
+  EXPECT_TRUE(mime_type.ValidateStringParameter("string", "no|yes|no"));
+  EXPECT_TRUE(mime_type.ValidateStringParameter("string", "no|no|yes"));
+  EXPECT_TRUE(mime_type.ValidateStringParameter("string", "noyes|yes"));
+  EXPECT_FALSE(mime_type.ValidateStringParameter("string", "no"));
 }
 
-TEST(MimeTypeTest, RegisterAndValidateParamsWithShortPatterns) {
+TEST(MimeTypeTest, ValidateParamsWithShortPatterns) {
   MimeType mime_type("video/mp4; string=y");
-  EXPECT_TRUE(mime_type.RegisterStringParameter("string", "y"));
-  EXPECT_TRUE(mime_type.RegisterStringParameter("string", "y|n"));
-  EXPECT_TRUE(mime_type.RegisterStringParameter("string", "n|y"));
-  EXPECT_TRUE(mime_type.is_valid());
+  EXPECT_TRUE(mime_type.ValidateStringParameter("string", "y"));
+  EXPECT_TRUE(mime_type.ValidateStringParameter("string", "y|n"));
+  EXPECT_TRUE(mime_type.ValidateStringParameter("string", "n|y"));
+  EXPECT_FALSE(mime_type.ValidateStringParameter("string", "n"));
 }
 
-TEST(MimeTypeTest, RegisterAndValidateParamsWithPartialMatches) {
-  {
-    MimeType mime_type("video/mp4; string=yes");
-    EXPECT_FALSE(mime_type.RegisterStringParameter("string", "yesno|no"));
-    EXPECT_FALSE(mime_type.is_valid());
-  }
-  {
-    MimeType mime_type("video/mp4; string=yes");
-    EXPECT_FALSE(mime_type.RegisterStringParameter("string", "noyes|no"));
-    EXPECT_FALSE(mime_type.is_valid());
-  }
-  {
-    MimeType mime_type("video/mp4; string=yes");
-    EXPECT_FALSE(mime_type.RegisterStringParameter("string", "no|yesno"));
-    EXPECT_FALSE(mime_type.is_valid());
-  }
-  {
-    MimeType mime_type("video/mp4; string=yes");
-    EXPECT_FALSE(mime_type.RegisterStringParameter("string", "no|noyes"));
-    EXPECT_FALSE(mime_type.is_valid());
-  }
+TEST(MimeTypeTest, ValidateParamsWithPartialMatches) {
+  MimeType mime_type("video/mp4; string=yes");
+  EXPECT_FALSE(mime_type.ValidateStringParameter("string", "yesno|no"));
+  EXPECT_FALSE(mime_type.ValidateStringParameter("string", "noyes|no"));
+  EXPECT_FALSE(mime_type.ValidateStringParameter("string", "no|yesno"));
+  EXPECT_FALSE(mime_type.ValidateStringParameter("string", "no|noyes"));
 }
 
-TEST(MimeTypeTest, MissingParamReturnsTrueOnRegistration) {
+TEST(MimeTypeTest, ValidateMissingParam) {
   MimeType mime_type("video/mp4");
-  EXPECT_TRUE(mime_type.RegisterStringParameter("string"));
-  EXPECT_TRUE(mime_type.is_valid());
+  EXPECT_TRUE(mime_type.ValidateStringParameter("string"));
   EXPECT_EQ(mime_type.GetParamStringValue("string", "default"), "default");
 }
 
-TEST(MimeTypeTest, RegisterAndValidateParamsWithEmptyishPattern) {
-  {
-    MimeType mime_type("video/mp4; string=yes");
-    EXPECT_FALSE(mime_type.RegisterStringParameter("string", "|"));
-  }
-  {
-    MimeType mime_type("video/mp4; string=yes");
-    EXPECT_FALSE(mime_type.RegisterStringParameter("string", "||"));
-  }
+TEST(MimeTypeTest, ValidateParamsWithEmptyishPattern) {
+  MimeType mime_type("video/mp4; string=yes");
+  EXPECT_TRUE(mime_type.ValidateStringParameter("string", ""));
+  EXPECT_FALSE(mime_type.ValidateStringParameter("string", "|"));
+  EXPECT_FALSE(mime_type.ValidateStringParameter("string", "||"));
 }
 
-TEST(MimeTypeTest, CannotRegisterParamWithInvalidMimeType) {
+TEST(MimeTypeTest, ValidateParamWithInvalidMimeType) {
   MimeType mime_type("video/mp4; string=");
   ASSERT_FALSE(mime_type.is_valid());
-  EXPECT_FALSE(mime_type.RegisterStringParameter("string"));
+  EXPECT_FALSE(mime_type.ValidateStringParameter("string"));
 }
 
 }  // namespace

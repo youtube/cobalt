@@ -31,7 +31,7 @@ namespace nplb {
 namespace {
 
 using ::starboard::testing::FakeGraphicsContextProvider;
-using shared::starboard::player::video_dmp::VideoDmpReader;
+using ::shared::starboard::player::video_dmp::VideoDmpReader;
 using ::testing::ValuesIn;
 
 const SbTime kDuration = kSbTimeSecond / 2;
@@ -261,8 +261,7 @@ std::vector<const char*> GetSupportedTests() {
 
     const SbMediaAudioSampleInfo* audio_sample_info =
         &dmp_reader.audio_sample_info();
-    if (SbMediaIsAudioSupported(dmp_reader.audio_codec(),
-                                "",  // content_type
+    if (SbMediaIsAudioSupported(dmp_reader.audio_codec(), nullptr,
                                 dmp_reader.audio_bitrate())) {
       test_params.push_back(filename);
     }

@@ -22,11 +22,12 @@
 #include "starboard/shared/libde265/de265_library_loader.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
-using starboard::shared::de265::is_de265_supported;
-using starboard::shared::starboard::media::IsSDRVideo;
+using ::starboard::shared::de265::is_de265_supported;
+using ::starboard::shared::starboard::media::IsSDRVideo;
+using ::starboard::shared::starboard::media::MimeType;
 
 bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
-                             const char* content_type,
+                             const MimeType* mime_type,
                              int profile,
                              int level,
                              int bit_depth,
@@ -38,11 +39,6 @@ bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
                              int64_t bitrate,
                              int fps,
                              bool decode_to_texture_required) {
-  if (!content_type) {
-    SB_LOG(WARNING) << "|content_type| cannot be nullptr.";
-    return false;
-  }
-
   if (!IsSDRVideo(bit_depth, primary_id, transfer_id, matrix_id)) {
     if (bit_depth != 10 && bit_depth != 12) {
       return false;

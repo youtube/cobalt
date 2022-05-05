@@ -21,9 +21,7 @@
 #include "starboard/common/media.h"
 #include "starboard/common/string.h"
 #include "starboard/log.h"
-#include "starboard/memory.h"
 #include "starboard/shared/starboard/media/codec_util.h"
-#include "starboard/shared/starboard/media/media_support_internal.h"
 #include "starboard/shared/starboard/media/mime_type.h"
 
 namespace starboard {
@@ -35,165 +33,6 @@ namespace {
 
 const int64_t kDefaultBitRate = 0;
 const int64_t kDefaultAudioChannels = 2;
-
-bool IsSupportedAudioCodec(const MimeType& mime_type,
-                           const std::string& codec,
-                           const char* key_system) {
-  SbMediaAudioCodec audio_codec = GetAudioCodecFromString(codec.c_str());
-  if (audio_codec == kSbMediaAudioCodecNone) {
-    return false;
-  }
-
-  // TODO: allow platform-specific rejection of a combination of codec &
-  // number of channels, by passing channels to SbMediaAudioIsSupported and /
-  // or SbMediaIsSupported.
-
-  if (strlen(key_system) != 0) {
-    if (!SbMediaIsSupported(kSbMediaVideoCodecNone, audio_codec, key_system)) {
-      return false;
-    }
-  }
-
-  int channels = mime_type.GetParamIntValue("channels", kDefaultAudioChannels);
-  if (!IsAudioOutputSupported(kSbMediaAudioCodingTypePcm, channels)) {
-    return false;
-  }
-
-  int bitrate = mime_type.GetParamIntValue("bitrate", kDefaultBitRate);
-
-  if (!SbMediaIsAudioSupported(audio_codec,
-                               mime_type.raw_content_type().c_str(), bitrate)) {
-    return false;
-  }
-
-  switch (audio_codec) {
-    case kSbMediaAudioCodecNone:
-      SB_NOTREACHED();
-      return false;
-    case kSbMediaAudioCodecAac:
-      return mime_type.subtype() == "mp4";
-    case kSbMediaAudioCodecAc3:
-      if (!kSbHasAc3Audio) {
-        SB_NOTREACHED() << "AC3 audio is not enabled on this platform. To "
-                        << "enable it, set kSbHasAc3Audio to |true|.";
-        return false;
-      }
-      return mime_type.subtype() == "mp4";
-    case kSbMediaAudioCodecEac3:
-      if (!kSbHasAc3Audio) {
-        SB_NOTREACHED() << "AC3 audio is not enabled on this platform. To "
-                        << "enable it, set kSbHasAc3Audio to |true|.";
-        return false;
-      }
-      return mime_type.subtype() == "mp4";
-    case kSbMediaAudioCodecOpus:
-    case kSbMediaAudioCodecVorbis:
-      return mime_type.subtype() == "webm";
-#if SB_API_VERSION >= 14
-    case kSbMediaAudioCodecMp3:
-      return mime_type.subtype() == "mpeg" || mime_type.subtype() == "mp3" ||
-             mime_type.subtype() == "mp4";
-    case kSbMediaAudioCodecPcm:
-      return mime_type.subtype() == "wav" || mime_type.subtype() == "wave" ||
-             mime_type.subtype() == "x-wav" ||
-             mime_type.subtype() == "x-pn-wav";
-    case kSbMediaAudioCodecFlac:
-      return mime_type.subtype() == "ogg";
-#endif  // SB_API_VERSION >= 14
-  }
-
-  SB_NOTREACHED();
-  return false;
-}
-
-bool IsSupportedVideoCodec(const MimeType& mime_type,
-                           const std::string& codec,
-                           const char* key_system,
-                           bool decode_to_texture_required) {
-  SbMediaVideoCodec video_codec;
-  int profile = -1;
-  int level = -1;
-  int bit_depth = 8;
-  SbMediaPrimaryId primary_id = kSbMediaPrimaryIdUnspecified;
-  SbMediaTransferId transfer_id = kSbMediaTransferIdUnspecified;
-  SbMediaMatrixId matrix_id = kSbMediaMatrixIdUnspecified;
-
-  if (!ParseVideoCodec(codec.c_str(), &video_codec, &profile, &level,
-                       &bit_depth, &primary_id, &transfer_id, &matrix_id)) {
-    return false;
-  }
-  SB_DCHECK(video_codec != kSbMediaVideoCodecNone);
-
-  if (strlen(key_system) != 0) {
-    if (!SbMediaIsSupported(video_codec, kSbMediaAudioCodecNone, key_system)) {
-      return false;
-    }
-  }
-
-  std::string eotf = mime_type.GetParamStringValue("eotf", "");
-  if (!eotf.empty()) {
-    SbMediaTransferId transfer_id_from_eotf = GetTransferIdFromString(eotf);
-    // If the eotf is not known, reject immediately - without checking with
-    // the platform.
-    if (transfer_id_from_eotf == kSbMediaTransferIdUnknown) {
-      return false;
-    }
-    if (transfer_id != kSbMediaTransferIdUnspecified &&
-        transfer_id != transfer_id_from_eotf) {
-      SB_LOG_IF(WARNING, transfer_id != kSbMediaTransferIdUnspecified)
-          << "transfer_id " << transfer_id << " set by the codec string \""
-          << codec << "\" will be overwritten by the eotf attribute " << eotf;
-    }
-    transfer_id = transfer_id_from_eotf;
-  }
-
-  std::string cryptoblockformat =
-      mime_type.GetParamStringValue("cryptoblockformat", "");
-  if (!cryptoblockformat.empty()) {
-    if (mime_type.subtype() != "webm" || cryptoblockformat != "subsample") {
-      return false;
-    }
-  }
-
-  int width = mime_type.GetParamIntValue("width", 0);
-  int height = mime_type.GetParamIntValue("height", 0);
-  int fps = mime_type.GetParamIntValue("framerate", 0);
-
-  int bitrate = mime_type.GetParamIntValue("bitrate", kDefaultBitRate);
-
-  if (width < 0 || height < 0 || fps < 0 || bitrate < 0) {
-    return false;
-  }
-
-  if (!SbMediaIsVideoSupported(
-          video_codec, mime_type.raw_content_type().c_str(), profile, level,
-          bit_depth, primary_id, transfer_id, matrix_id, width, height, bitrate,
-          fps, decode_to_texture_required)) {
-    return false;
-  }
-
-  switch (video_codec) {
-    case kSbMediaVideoCodecNone:
-      SB_NOTREACHED();
-      return false;
-    case kSbMediaVideoCodecH264:
-    case kSbMediaVideoCodecH265:
-      return mime_type.subtype() == "mp4";
-    case kSbMediaVideoCodecMpeg2:
-    case kSbMediaVideoCodecTheora:
-      return false;  // No associated container in YT.
-    case kSbMediaVideoCodecVc1:
-    case kSbMediaVideoCodecAv1:
-      return mime_type.subtype() == "mp4";
-    case kSbMediaVideoCodecVp8:
-      return mime_type.subtype() == "webm";
-    case kSbMediaVideoCodecVp9:
-      return mime_type.subtype() == "mp4" || mime_type.subtype() == "webm";
-  }
-
-  SB_NOTREACHED();
-  return false;
-}
 
 }  // namespace
 
@@ -252,24 +91,6 @@ VideoSampleInfo& VideoSampleInfo::operator=(
   max_video_capabilities = max_video_capabilities_storage.c_str();
 
   return *this;
-}
-
-bool IsAudioOutputSupported(SbMediaAudioCodingType coding_type, int channels) {
-  int count = SbMediaGetAudioOutputCount();
-
-  for (int output_index = 0; output_index < count; ++output_index) {
-    SbMediaAudioConfiguration configuration;
-    if (!SbMediaGetAudioConfiguration(output_index, &configuration)) {
-      continue;
-    }
-
-    if (configuration.coding_type == coding_type &&
-        configuration.number_of_channels >= channels) {
-      return true;
-    }
-  }
-
-  return false;
 }
 
 bool IsSDRVideo(int bit_depth,
@@ -346,17 +167,6 @@ bool IsSDRVideo(const char* mime) {
   return bit_depth == 8;
 }
 
-SbMediaTransferId GetTransferIdFromString(const std::string& transfer_id) {
-  if (transfer_id == "bt709") {
-    return kSbMediaTransferIdBt709;
-  } else if (transfer_id == "smpte2084") {
-    return kSbMediaTransferIdSmpteSt2084;
-  } else if (transfer_id == "arib-std-b67") {
-    return kSbMediaTransferIdAribStdB67;
-  }
-  return kSbMediaTransferIdUnknown;
-}
-
 int GetBytesPerSample(SbMediaAudioSampleType sample_type) {
   switch (sample_type) {
     case kSbMediaAudioSampleTypeInt16Deprecated:
@@ -367,84 +177,6 @@ int GetBytesPerSample(SbMediaAudioSampleType sample_type) {
 
   SB_NOTREACHED();
   return 4;
-}
-
-SbMediaSupportType CanPlayMimeAndKeySystem(const MimeType& mime_type,
-                                           const char* key_system) {
-  SB_DCHECK(mime_type.is_valid());
-
-  if (mime_type.type() != "audio" && mime_type.type() != "video") {
-    return kSbMediaSupportTypeNotSupported;
-  }
-
-  auto codecs = mime_type.GetCodecs();
-
-  // Pre-filter for |key_system|.
-  if (strlen(key_system) != 0) {
-    if (!SbMediaIsSupported(kSbMediaVideoCodecNone, kSbMediaAudioCodecNone,
-                            key_system)) {
-      return kSbMediaSupportTypeNotSupported;
-    }
-  }
-
-  bool decode_to_texture_required = false;
-  std::string decode_to_texture_value =
-      mime_type.GetParamStringValue("decode-to-texture", "false");
-  if (decode_to_texture_value == "true") {
-    decode_to_texture_required = true;
-  } else if (decode_to_texture_value != "false") {
-    // If an invalid value (e.g. not "true" or "false") is passed in for
-    // decode-to-texture, trivially reject.
-    return kSbMediaSupportTypeNotSupported;
-  }
-
-  if (codecs.size() == 0) {
-    // This happens when the H5 player is either querying for progressive
-    // playback support, or probing for generic mp4 support without specific
-    // codecs.  We only support "audio/mp4" and "video/mp4" for these cases.
-    if ((mime_type.type() == "audio" || mime_type.type() == "video") &&
-        mime_type.subtype() == "mp4") {
-      return kSbMediaSupportTypeMaybe;
-    }
-    return kSbMediaSupportTypeNotSupported;
-  }
-
-  if (codecs.size() > 2) {
-    return kSbMediaSupportTypeNotSupported;
-  }
-
-  bool has_audio_codec = false;
-  bool has_video_codec = false;
-  for (const auto& codec : codecs) {
-    if (IsSupportedAudioCodec(mime_type, codec, key_system)) {
-      if (has_audio_codec) {
-        // We don't support two audio codecs in one stream.
-        return kSbMediaSupportTypeNotSupported;
-      }
-      has_audio_codec = true;
-      continue;
-    }
-    if (IsSupportedVideoCodec(mime_type, codec, key_system,
-                              decode_to_texture_required)) {
-      if (mime_type.type() != "video") {
-        // Video can only be contained in "video/*", while audio can be
-        // contained in both "audio/*" and "video/*".
-        return kSbMediaSupportTypeNotSupported;
-      }
-      if (has_video_codec) {
-        // We don't support two video codecs in one stream.
-        return kSbMediaSupportTypeNotSupported;
-      }
-      has_video_codec = true;
-      continue;
-    }
-    return kSbMediaSupportTypeNotSupported;
-  }
-
-  if (has_audio_codec || has_video_codec) {
-    return kSbMediaSupportTypeProbably;
-  }
-  return kSbMediaSupportTypeNotSupported;
 }
 
 std::string GetStringRepresentation(const uint8_t* data, const int size) {

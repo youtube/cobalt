@@ -12,12 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/media.h"
-
 #include "starboard/common/log.h"
-#include "starboard/common/string.h"
-#include "starboard/shared/starboard/media/media_util.h"
-#include "starboard/shared/starboard/media/mime_type.h"
+#include "starboard/media.h"
+#include "starboard/shared/starboard/media/mime_util.h"
 
 SbMediaSupportType SbMediaCanPlayMimeAndKeySystem(const char* mime,
                                                   const char* key_system) {
@@ -31,11 +28,6 @@ SbMediaSupportType SbMediaCanPlayMimeAndKeySystem(const char* mime,
     return kSbMediaSupportTypeNotSupported;
   }
 
-  starboard::shared::starboard::media::MimeType mime_type(mime);
-  if (!mime_type.is_valid()) {
-    SB_DLOG(WARNING) << mime << " is not a valid mime type";
-    return kSbMediaSupportTypeNotSupported;
-  }
-
-  return CanPlayMimeAndKeySystem(mime_type, key_system);
+  return starboard::shared::starboard::media::CanPlayMimeAndKeySystem(
+      mime, key_system);
 }

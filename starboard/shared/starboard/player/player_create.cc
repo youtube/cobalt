@@ -30,12 +30,13 @@
 #include "starboard/shared/starboard/player/video_dmp_writer.h"
 #endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER
 
-using starboard::shared::media_session::
+using ::starboard::shared::media_session::
     UpdateActiveSessionPlatformPlaybackState;
-using starboard::shared::media_session::kPlaying;
-using starboard::shared::starboard::player::filter::
+using ::starboard::shared::media_session::kPlaying;
+using ::starboard::shared::starboard::media::MimeType;
+using ::starboard::shared::starboard::player::filter::
     FilterBasedPlayerWorkerHandler;
-using starboard::shared::starboard::player::PlayerWorker;
+using ::starboard::shared::starboard::player::PlayerWorker;
 
 SbPlayer SbPlayerCreate(SbWindow window,
                         const SbPlayerCreationParam* creation_param,
@@ -135,16 +136,19 @@ SbPlayer SbPlayerCreate(SbWindow window,
   }
 
   const int64_t kDefaultBitRate = 0;
-  if (audio_codec != kSbMediaAudioCodecNone &&
-      !SbMediaIsAudioSupported(audio_codec, audio_mime, kDefaultBitRate)) {
-    SB_LOG(ERROR) << "Unsupported audio codec "
-                  << starboard::GetMediaAudioCodecName(audio_codec) << ".";
-    player_error_func(
-        kSbPlayerInvalid, context, kSbPlayerErrorDecode,
-        starboard::FormatString("Unsupported audio codec: %s",
-                                starboard::GetMediaAudioCodecName(audio_codec))
-            .c_str());
-    return kSbPlayerInvalid;
+  if (audio_codec != kSbMediaAudioCodecNone) {
+    const MimeType audio_mime_type(audio_mime);
+    if (!SbMediaIsAudioSupported(audio_codec, &audio_mime_type,
+                                 kDefaultBitRate)) {
+      SB_LOG(ERROR) << "Unsupported audio codec "
+                    << starboard::GetMediaAudioCodecName(audio_codec) << ".";
+      player_error_func(kSbPlayerInvalid, context, kSbPlayerErrorDecode,
+                        starboard::FormatString(
+                            "Unsupported audio codec: %s",
+                            starboard::GetMediaAudioCodecName(audio_codec))
+                            .c_str());
+      return kSbPlayerInvalid;
+    }
   }
 
   const int kDefaultProfile = -1;
@@ -153,22 +157,24 @@ SbPlayer SbPlayerCreate(SbWindow window,
   const int kDefaultFrameWidth = 0;
   const int kDefaultFrameHeight = 0;
   const int kDefaultFrameRate = 0;
-  if (video_codec != kSbMediaVideoCodecNone &&
-      !SbMediaIsVideoSupported(
-          video_codec, video_mime, kDefaultProfile, kDefaultLevel,
-          kDefaultColorDepth, kSbMediaPrimaryIdUnspecified,
-          kSbMediaTransferIdUnspecified, kSbMediaMatrixIdUnspecified,
-          kDefaultFrameWidth, kDefaultFrameHeight, kDefaultBitRate,
-          kDefaultFrameRate,
-          output_mode == kSbPlayerOutputModeDecodeToTexture)) {
-    SB_LOG(ERROR) << "Unsupported video codec "
-                  << starboard::GetMediaVideoCodecName(video_codec) << ".";
-    player_error_func(
-        kSbPlayerInvalid, context, kSbPlayerErrorDecode,
-        starboard::FormatString("Unsupported video codec: %s",
-                                starboard::GetMediaVideoCodecName(video_codec))
-            .c_str());
-    return kSbPlayerInvalid;
+  if (video_codec != kSbMediaVideoCodecNone) {
+    const MimeType video_mime_type(video_mime);
+    if (!SbMediaIsVideoSupported(
+            video_codec, &video_mime_type, kDefaultProfile, kDefaultLevel,
+            kDefaultColorDepth, kSbMediaPrimaryIdUnspecified,
+            kSbMediaTransferIdUnspecified, kSbMediaMatrixIdUnspecified,
+            kDefaultFrameWidth, kDefaultFrameHeight, kDefaultBitRate,
+            kDefaultFrameRate,
+            output_mode == kSbPlayerOutputModeDecodeToTexture)) {
+      SB_LOG(ERROR) << "Unsupported video codec "
+                    << starboard::GetMediaVideoCodecName(video_codec) << ".";
+      player_error_func(kSbPlayerInvalid, context, kSbPlayerErrorDecode,
+                        starboard::FormatString(
+                            "Unsupported video codec: %s",
+                            starboard::GetMediaVideoCodecName(video_codec))
+                            .c_str());
+      return kSbPlayerInvalid;
+    }
   }
 
   if (audio_codec != kSbMediaAudioCodecNone && !audio_sample_info) {

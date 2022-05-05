@@ -33,8 +33,8 @@ bool SbMediaIsSupported(SbMediaVideoCodec video_codec,
   // `com.widevine.alpha; encryptionscheme="cenc"`. We prepend "key_system/"
   // to it, so it can be parsed by MimeType.
   MimeType mime_type(std::string("key_system/") + key_system);
-  mime_type.RegisterStringParameter("encryptionscheme", "cenc|cbcs|cbcs-1-9");
-  if (!mime_type.is_valid()) {
+  if (!mime_type.is_valid() || !mime_type.ValidateStringParameter(
+                                   "encryptionscheme", "cenc|cbcs|cbcs-1-9")) {
     return false;
   }
 
