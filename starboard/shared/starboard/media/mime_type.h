@@ -53,21 +53,36 @@ class MimeType {
     kParamTypeBoolean,
   };
 
+  struct Param {
+    ParamType type;
+    std::string name;
+    std::string string_value;
+    union {
+      int int_value;
+      float float_value;
+      bool bool_value;
+    };
+  };
+
   static const int kInvalidParamIndex;
+
+  // Expose the function as a helper function to parse a mime attribute.
+  static bool ParseParamString(const std::string& param_string, Param* param);
 
   explicit MimeType(const std::string& content_type);
 
-  const std::string& raw_content_type() const { return raw_content_type_; }
   bool is_valid() const { return is_valid_; }
 
   const std::string& type() const { return type_; }
   const std::string& subtype() const { return subtype_; }
-
-  const std::vector<std::string>& GetCodecs() const;
+  const std::vector<std::string>& GetCodecs() const { return codecs_; }
 
   int GetParamCount() const;
   ParamType GetParamType(int index) const;
   const std::string& GetParamName(int index) const;
+  // GetParamIndexByName() will return |kInvalidParamIndex| if the param name is
+  // not found.
+  int GetParamIndexByName(const char* name) const;
 
   int GetParamIntValue(int index) const;
   float GetParamFloatValue(int index) const;
@@ -81,42 +96,29 @@ class MimeType {
       const std::string& default_value) const;
   bool GetParamBoolValue(const char* name, bool default_value) const;
 
-  // Pre-register a mime parameter of type boolean.
-  // Returns true if the mime type is valid and the value passes validation.
-  // If the parameter validation fails this MimeType will be marked invalid.
-  // NOTE: The function returns true for missing parameters.
-  bool RegisterBoolParameter(const char* name);
-
-  // Pre-register a mime parameter of type string.
-  // Returns true if the mime type is valid and the value passes validation.
+  // Validate functions will return true if the param contains a valid value or
+  // if param name is not found.
+  bool ValidateIntParameter(const char* name) const;
+  bool ValidateFloatParameter(const char* name) const;
   // Allows passing a pattern on the format "value_1|...|value_n"
   // where the parameter value must match one of the values in the pattern in
   // order to be considered valid.
-  // If the parameter validation fails this MimeType will be marked invalid.
-  // NOTE: The function returns true for missing parameters.
-  bool RegisterStringParameter(const char* name,
-                               const std::string& pattern = "");
+  bool ValidateStringParameter(const char* name,
+                               const std::string& pattern = "") const;
+  bool ValidateBoolParameter(const char* name) const;
+
+  std::string ToString() const;
 
  private:
-  struct Param {
-    ParamType type;
-    std::string name;
-    std::string value;
-  };
-
   // Use std::vector as the number of components are usually small and we'd like
   // to keep the order of components.
   typedef std::vector<Param> Params;
 
-  int GetParamIndexByName(const char* name) const;
-  bool RegisterParameter(const char* name, ParamType type);
-
-  const std::string raw_content_type_;
-  bool is_valid_;
+  bool is_valid_ = false;
   std::string type_;
   std::string subtype_;
+  std::vector<std::string> codecs_;
   Params params_;
-  mutable std::vector<std::string> codecs_;
 };
 
 }  // namespace media

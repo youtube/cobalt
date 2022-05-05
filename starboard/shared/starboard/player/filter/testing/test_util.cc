@@ -18,6 +18,7 @@
 #include "starboard/common/log.h"
 #include "starboard/directory.h"
 #include "starboard/shared/starboard/media/media_support_internal.h"
+#include "starboard/shared/starboard/media/mime_type.h"
 #include "starboard/shared/starboard/player/filter/player_components.h"
 #include "starboard/shared/starboard/player/filter/stub_player_components_factory.h"
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
@@ -33,6 +34,7 @@ namespace filter {
 namespace testing {
 namespace {
 
+using ::starboard::shared::starboard::media::MimeType;
 using ::testing::AssertionFailure;
 using ::testing::AssertionResult;
 using ::testing::AssertionSuccess;
@@ -155,12 +157,11 @@ std::vector<const char*> GetSupportedAudioTestFiles(
     }
 
     // Filter files of unsupported codec.
-    if (!SbMediaIsAudioSupported(
-            audio_file_info.audio_codec,
-            GetContentTypeFromAudioCodec(audio_file_info.audio_codec,
-                                         extra_mime_attributes)
-                .c_str(),
-            audio_file_info.bitrate)) {
+    const std::string audio_mime = GetContentTypeFromAudioCodec(
+        audio_file_info.audio_codec, extra_mime_attributes);
+    const MimeType audio_mime_type(audio_mime.c_str());
+    if (!SbMediaIsAudioSupported(audio_file_info.audio_codec, &audio_mime_type,
+                                 audio_file_info.bitrate)) {
       continue;
     }
 
@@ -203,13 +204,15 @@ std::vector<VideoTestParam> GetSupportedVideoTests() {
       const auto& video_sample_info =
           dmp_reader.GetPlayerSampleInfo(kSbMediaTypeVideo, 0)
               .video_sample_info;
-
+      const std::string video_mime = dmp_reader.video_mime_type();
+      const MimeType video_mime_type(video_mime.c_str());
       if (SbMediaIsVideoSupported(
-              dmp_reader.video_codec(), dmp_reader.video_mime_type().c_str(),
-              -1, -1, 8, kSbMediaPrimaryIdUnspecified,
-              kSbMediaTransferIdUnspecified, kSbMediaMatrixIdUnspecified,
-              video_sample_info.frame_width, video_sample_info.frame_height,
-              dmp_reader.video_bitrate(), dmp_reader.video_fps(), false)) {
+              dmp_reader.video_codec(),
+              video_mime.size() > 0 ? &video_mime_type : nullptr, -1, -1, 8,
+              kSbMediaPrimaryIdUnspecified, kSbMediaTransferIdUnspecified,
+              kSbMediaMatrixIdUnspecified, video_sample_info.frame_width,
+              video_sample_info.frame_height, dmp_reader.video_bitrate(),
+              dmp_reader.video_fps(), false)) {
         test_params.push_back(std::make_tuple(filename, output_mode));
       }
     }

@@ -22,16 +22,14 @@
 #include "starboard/configuration_constants.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
+using ::starboard::shared::starboard::media::MimeType;
+
 namespace {
 
 #if SB_API_VERSION >= SB_RUNTIME_CONFIGS_VERSION || \
     defined(SB_HAS_MEDIA_WEBM_VP9_SUPPORT)
 // Cache the VP9 support status since the check may be expensive.
-enum Vp9Support {
-  kVp9SupportUnknown,
-  kVp9SupportYes,
-  kVp9SupportNo
-};
+enum Vp9Support { kVp9SupportUnknown, kVp9SupportYes, kVp9SupportNo };
 Vp9Support s_vp9_support = kVp9SupportUnknown;
 
 // Check for VP9 support. Since this is used by a starboard function, it
@@ -76,7 +74,7 @@ bool IsVp9Supported() {
   return s_vp9_support == kVp9SupportYes;
 }
 #else   // SB_API_VERSION >= SB_RUNTIME_CONFIGS_VERSION ||
-        // defined(SB_HAS_MEDIA_WEBM_VP9_SUPPORT)
+// defined(SB_HAS_MEDIA_WEBM_VP9_SUPPORT)
 bool IsVp9Supported() {
   return false;
 }
@@ -86,7 +84,7 @@ bool IsVp9Supported() {
 }  // namespace
 
 bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
-                             const char* content_type,
+                             const MimeType* mime_type,
                              int profile,
                              int level,
                              int bit_depth,
@@ -105,18 +103,18 @@ bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
   int max_height = 1080;
 
   if (video_codec == kSbMediaVideoCodecVp9) {
-    // Vp9 supports 8k only in whitelisted platforms, up to 4k in the others.
+// Vp9 supports 8k only in whitelisted platforms, up to 4k in the others.
 #ifdef ENABLE_VP9_8K_SUPPORT
     max_width = 7680;
     max_height = 4320;
-#else  // ENABLE_VP9_8K_SUPPORT
+#else   // ENABLE_VP9_8K_SUPPORT
     max_width = 3840;
     max_height = 2160;
 #endif  // ENABLE_VP9_8K_SUPPORT
   } else if (video_codec == kSbMediaVideoCodecH264) {
-    // Not all devices can support 4k H264; some (e.g. xb1) may crash in
-    // the decoder if provided too high of a resolution. Therefore
-    // platforms must explicitly opt-in to support 4k H264.
+// Not all devices can support 4k H264; some (e.g. xb1) may crash in
+// the decoder if provided too high of a resolution. Therefore
+// platforms must explicitly opt-in to support 4k H264.
 #ifdef ENABLE_H264_4K_SUPPORT
     max_width = 3840;
     max_height = 2160;

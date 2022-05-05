@@ -207,25 +207,26 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
                                                          error_message);
     }
 
-    MimeType audio_mime_type(creation_parameters.audio_mime());
+    bool enable_audio_device_callback = true;
 
     if (strlen(creation_parameters.audio_mime()) > 0) {
-      audio_mime_type.RegisterBoolParameter("enableaudiodevicecallback");
-      audio_mime_type.RegisterBoolParameter("audiopassthrough");
-      if (!audio_mime_type.is_valid()) {
+      MimeType audio_mime_type(creation_parameters.audio_mime());
+      if (!audio_mime_type.is_valid() ||
+          !audio_mime_type.ValidateBoolParameter("enableaudiodevicecallback") ||
+          !audio_mime_type.ValidateBoolParameter("audiopassthrough")) {
         return scoped_ptr<PlayerComponents>();
       }
-    }
 
-    bool enable_audio_device_callback =
-        audio_mime_type.GetParamBoolValue("enableaudiodevicecallback", true);
-    SB_LOG(INFO) << "AudioDeviceCallback is "
-                 << (enable_audio_device_callback ? "enabled." : "disabled.");
+      enable_audio_device_callback =
+          audio_mime_type.GetParamBoolValue("enableaudiodevicecallback", true);
+      SB_LOG(INFO) << "AudioDeviceCallback is "
+                   << (enable_audio_device_callback ? "enabled." : "disabled.");
 
-    if (!audio_mime_type.GetParamBoolValue("audiopassthrough", true)) {
-      SB_LOG(INFO) << "Mime attribute \"audiopassthrough\" is set to: "
-                      "false. Passthrough is disabled.";
-      return scoped_ptr<PlayerComponents>();
+      if (!audio_mime_type.GetParamBoolValue("audiopassthrough", true)) {
+        SB_LOG(INFO) << "Mime attribute \"audiopassthrough\" is set to: "
+                        "false. Passthrough is disabled.";
+        return scoped_ptr<PlayerComponents>();
+      }
     }
 
     SB_LOG(INFO) << "Creating passthrough components.";
@@ -245,15 +246,20 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
       constexpr int kTunnelModeAudioSessionId = -1;
       constexpr bool kForceSecurePipelineUnderTunnelMode = false;
 
-      MimeType video_mime_type(creation_parameters.video_mime());
-      video_mime_type.RegisterBoolParameter("forceimprovedsupportcheck");
-      if (!video_mime_type.is_valid()) {
-        return scoped_ptr<PlayerComponents>();
+      bool force_improved_support_check = true;
+
+      if (strlen(creation_parameters.video_mime()) > 0) {
+        MimeType video_mime_type(creation_parameters.video_mime());
+        if (!video_mime_type.is_valid() ||
+            !video_mime_type.ValidateBoolParameter(
+                "forceimprovedsupportcheck")) {
+          return scoped_ptr<PlayerComponents>();
+        }
+        force_improved_support_check = video_mime_type.GetParamBoolValue(
+            "forceimprovedsupportcheck", true);
+        SB_LOG_IF(INFO, !force_improved_support_check)
+            << "Improved support check is disabled for queries under 4K.";
       }
-      const bool force_improved_support_check =
-          video_mime_type.GetParamBoolValue("forceimprovedsupportcheck", true);
-      SB_LOG_IF(INFO, !force_improved_support_check)
-          << "Improved support check is disabled for queries under 4K.";
 
       scoped_ptr<VideoDecoder> video_decoder =
           CreateVideoDecoder(creation_parameters, kTunnelModeAudioSessionId,
@@ -293,13 +299,11 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
             ? creation_parameters.audio_mime()
             : "";
     MimeType audio_mime_type(audio_mime);
-    if (creation_parameters.audio_codec() != kSbMediaAudioCodecNone &&
-        strlen(creation_parameters.audio_mime()) > 0) {
-      audio_mime_type.RegisterBoolParameter("tunnelmode");
-      audio_mime_type.RegisterBoolParameter("enableaudiodevicecallback");
-      audio_mime_type.RegisterBoolParameter("enablepcmcontenttypemovie");
-
-      if (!audio_mime_type.is_valid()) {
+    if (strlen(audio_mime) > 0) {
+      if (!audio_mime_type.is_valid() ||
+          !audio_mime_type.ValidateBoolParameter("tunnelmode") ||
+          !audio_mime_type.ValidateBoolParameter("enableaudiodevicecallback") ||
+          !audio_mime_type.ValidateBoolParameter("enablepcmcontenttypemovie")) {
         *error_message =
             "Invalid audio MIME: '" + std::string(audio_mime) + "'";
         return false;
@@ -311,12 +315,10 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
             ? creation_parameters.video_mime()
             : "";
     MimeType video_mime_type(video_mime);
-    if (creation_parameters.video_codec() != kSbMediaVideoCodecNone &&
-        strlen(creation_parameters.video_mime()) > 0) {
-      video_mime_type.RegisterBoolParameter("tunnelmode");
-      video_mime_type.RegisterBoolParameter("forceimprovedsupportcheck");
-
-      if (!video_mime_type.is_valid()) {
+    if (strlen(video_mime) > 0) {
+      if (!video_mime_type.is_valid() ||
+          !video_mime_type.ValidateBoolParameter("tunnelmode") ||
+          !video_mime_type.ValidateBoolParameter("forceimprovedsupportcheck")) {
         *error_message =
             "Invalid video MIME: '" + std::string(video_mime) + "'";
         return false;
@@ -497,18 +499,18 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
       bool force_secure_pipeline_under_tunnel_mode,
       bool force_improved_support_check,
       std::string* error_message) {
-    // Use mime param to determine endianness of HDR metadata. If param is
-    // missing or invalid it defaults to Little Endian.
-    MimeType video_mime_type(creation_parameters.video_mime());
-
+    bool force_big_endian_hdr_metadata = false;
     if (strlen(creation_parameters.video_mime()) > 0) {
-      video_mime_type.RegisterStringParameter("hdrinfoendianness",
+      // Use mime param to determine endianness of HDR metadata. If param is
+      // missing or invalid it defaults to Little Endian.
+      MimeType video_mime_type(creation_parameters.video_mime());
+      video_mime_type.ValidateStringParameter("hdrinfoendianness",
                                               "big|little");
+      const std::string& hdr_info_endianness =
+          video_mime_type.GetParamStringValue("hdrinfoendianness",
+                                              /*default=*/"little");
+      force_big_endian_hdr_metadata = hdr_info_endianness == "big";
     }
-    const std::string& hdr_info_endianness =
-        video_mime_type.GetParamStringValue("hdrinfoendianness",
-                                            /*default=*/"little");
-    bool force_big_endian_hdr_metadata = hdr_info_endianness == "big";
 
     scoped_ptr<VideoDecoder> video_decoder(new VideoDecoder(
         creation_parameters.video_codec(),

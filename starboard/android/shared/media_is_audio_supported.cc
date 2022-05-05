@@ -21,16 +21,13 @@
 #include "starboard/configuration.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/media.h"
-#include "starboard/shared/starboard/media/mime_type.h"
 
-using starboard::android::shared::JniEnvExt;
 using starboard::android::shared::MediaCapabilitiesCache;
-using starboard::android::shared::ScopedLocalJavaRef;
 using starboard::android::shared::SupportedAudioCodecToMimeType;
 using starboard::shared::starboard::media::MimeType;
 
 bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec,
-                             const char* content_type,
+                             const MimeType* mime_type,
                              int64_t bitrate) {
   if (bitrate >= kSbMediaMaxAudioBitrateInBitsPerSecond) {
     return false;
@@ -43,28 +40,41 @@ bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec,
     return false;
   }
 
-  MimeType mime_type(content_type);
-  if (strlen(content_type) > 0) {
+  bool enable_tunnel_mode = false;
+  bool enable_audio_passthrough = true;
+  if (mime_type) {
+    if (!mime_type->is_valid()) {
+      return false;
+    }
     // Allows for disabling the use of the AudioDeviceCallback API to detect
     // when audio peripherals are connected. Enabled by default.
     // (https://developer.android.com/reference/android/media/AudioDeviceCallback)
-    mime_type.RegisterBoolParameter("enableaudiodevicecallback");
+    if (!mime_type->ValidateBoolParameter("enableaudiodevicecallback")) {
+      return false;
+    }
+
     // Allows for enabling tunneled playback. Disabled by default.
     // (https://source.android.com/devices/tv/multimedia-tunneling)
-    mime_type.RegisterBoolParameter("tunnelmode");
+    if (!mime_type->ValidateBoolParameter("tunnelmode")) {
+      return false;
+    }
+    enable_tunnel_mode = mime_type->GetParamBoolValue("tunnelmode", false);
+
     // Enables audio passthrough if the codec supports it.
-    mime_type.RegisterBoolParameter("audiopassthrough");
+    if (!mime_type->ValidateBoolParameter("audiopassthrough")) {
+      return false;
+    }
+    enable_audio_passthrough =
+        mime_type->GetParamBoolValue("audiopassthrough", true);
+
     // Allows for disabling the CONTENT_TYPE_MOVIE AudioAttribute for
     // non-tunneled playbacks with PCM audio. Enabled by default.
     // (https://developer.android.com/reference/android/media/AudioAttributes#CONTENT_TYPE_MOVIE)
-    mime_type.RegisterBoolParameter("enablepcmcontenttypemovie");
-
-    if (!mime_type.is_valid()) {
+    if (!mime_type->ValidateBoolParameter("enablepcmcontenttypemovie")) {
       return false;
     }
   }
 
-  bool enable_tunnel_mode = mime_type.GetParamBoolValue("tunnelmode", false);
   if (enable_tunnel_mode && !SbAudioSinkIsAudioSampleTypeSupported(
                                 kSbMediaAudioSampleTypeInt16Deprecated)) {
     SB_LOG(WARNING)
@@ -91,7 +101,7 @@ bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec,
     return true;
   }
 
-  if (!mime_type.GetParamBoolValue("audiopassthrough", true)) {
+  if (!enable_audio_passthrough) {
     SB_LOG(INFO) << "Passthrough codec is rejected because passthrough is "
                     "disabled through mime param.";
     return false;
