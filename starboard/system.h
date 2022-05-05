@@ -153,6 +153,11 @@ typedef enum SbSystemDeviceType {
   // An Android TV Device.
   kSbSystemDeviceTypeAndroidTV,
 
+#if SB_API_VERSION >= SB_SYSTEM_DEVICE_PROJECTOR_ADDED
+  // A wall video projector.
+  kSbSystemDeviceTypeVideoProjector,
+#endif  // SB_API_VERSION >= SB_SYSTEM_DEVICE_PROJECTOR_ADDED
+
   // Unknown device.
   kSbSystemDeviceTypeUnknown,
 } SbSystemDeviceType;

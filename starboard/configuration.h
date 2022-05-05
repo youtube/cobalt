@@ -73,6 +73,8 @@
 #define SB_SYSTEM_PATH_TEST_OUTPUT_DIRECTORY_DEPRECATED \
   SB_EXPERIMENTAL_API_VERSION
 
+#define SB_SYSTEM_DEVICE_PROJECTOR_ADDED SB_EXPERIMENTAL_API_VERSION
+
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------
