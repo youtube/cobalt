@@ -625,6 +625,11 @@ SB_EXPORT int SbMediaGetInitialBufferCapacity();
 
 // The maximum amount of memory that will be used to store media buffers. This
 // must be larger than sum of the video budget and audio budget.
+// This is a soft limit and the app will continue to allocate media buffers even
+// if the accumulated memory used by the media buffers exceeds the maximum
+// buffer capacity.  The allocation of media buffers may only fail when there is
+// not enough memory in the system to fulfill the request, under which case the
+// app will be terminated as under other OOM situations.
 //
 // |codec|: the video codec associated with the buffer.
 // |resolution_width|: the width of the video resolution.

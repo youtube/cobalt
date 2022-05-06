@@ -51,11 +51,7 @@ class DecoderBufferAllocator : public ::media::DecoderBuffer::Allocator,
   void UpdateVideoConfig(const ::media::VideoDecoderConfig& video_config);
 
  private:
-  void CreateReuseAllocator(int max_capacity);
-
-  // Update the Allocation record, and return false if allocation exceeds the
-  // max buffer capacity, or true otherwise.
-  bool UpdateAllocationRecord() const;
+  void EnsureReuseAllocatorIsCreated();
 
   const bool using_memory_pool_;
   const bool is_memory_pool_allocated_on_demand_;
@@ -66,10 +62,7 @@ class DecoderBufferAllocator : public ::media::DecoderBuffer::Allocator,
   nb::StarboardMemoryAllocator fallback_allocator_;
   std::unique_ptr<nb::BidirectionalFitReuseAllocator> reuse_allocator_;
 
-  SbMediaVideoCodec video_codec_ = kSbMediaVideoCodecNone;
-  int resolution_width_ = -1;
-  int resolution_height_ = -1;
-  int bits_per_pixel_ = -1;
+  int max_buffer_capacity_ = 0;
 
   // Monitor memory allocation and use when |using_memory_pool_| is false
   starboard::atomic_int32_t sbmemory_bytes_used_;

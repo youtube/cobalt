@@ -289,9 +289,9 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
     bool is_media_source;
   } state_;
 
-  WebMediaPlayerClient* client_;
-  WebMediaPlayerDelegate* delegate_;
-  bool allow_resume_after_suspend_;
+  WebMediaPlayerClient* const client_;
+  WebMediaPlayerDelegate* const delegate_;
+  const bool allow_resume_after_suspend_;
   scoped_refptr<VideoFrameProvider> video_frame_provider_;
 
   scoped_refptr<WebMediaPlayerProxy> proxy_;
