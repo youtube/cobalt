@@ -265,13 +265,10 @@ ENUM_EQ(kSbMediaMatrixIdBt2020NonconstantLuminance,
 ENUM_EQ(kSbMediaMatrixIdBt2020ConstantLuminance,
         VideoColorSpace::MatrixID::BT2020_CL);
 ENUM_EQ(kSbMediaMatrixIdYDzDx, VideoColorSpace::MatrixID::YDZDX);
-// TODO(b/230891177): Add `kSbMediaMatrixIdInvalid` to SbMediaMatrixId and set
-// it to 255 and uncomment and refine the section for `kSbMediaMatrixIdInvalid`
-// in MediaToSbMediaColorMetadata().
-// #if SB_API_VERSION >= SB_MEDIA_MATRIX_ID_INVALID_API_VERSION
-//   ENUM_EQ(kSbMediaMatrixIdInvalid,
-//           VideoColorSpace::MatrixID::INVALID);
-// #endif  // SB_API_VERSION >=  SB_MEDIA_MATRIX_ID_INVALID_API_VERSION
+
+#if SB_API_VERSION >= SB_MEDIA_MATRIX_ID_INVALID_API_VERSION
+ENUM_EQ(kSbMediaMatrixIdInvalid, VideoColorSpace::MatrixID::INVALID);
+#endif  // SB_API_VERSION >= SB_MEDIA_MATRIX_ID_INVALID_API_VERSION
 
 // Ensure RangeId enums convert correctly.
 ENUM_EQ(kSbMediaRangeIdUnspecified, gfx::ColorSpace::RangeID::INVALID);
@@ -340,13 +337,11 @@ SbMediaColorMetadata MediaToSbMediaColorMetadata(
   sb_media_color_metadata.matrix =
       static_cast<SbMediaMatrixId>(color_space.matrix);
 
-  // #if SB_API_VERSION < SB_MEDIA_MATRIX_ID_INVALID_API_VERSION
-  //   // Use `kSbMediaMatrixIdUnknown` when `kSbMediaMatrixIdInvalid` isn't
-  //   // available.
-  //   if (color_space.matrix == VideoColorSpace::MatrixID::INVALID) {
-  //     sb_media_color_metadata.matrix = kSbMediaMatrixIdUnknown;
-  //   }
-  // #endif  // SB_API_VERSION < SB_MEDIA_MATRIX_ID_INVALID_API_VERSION
+#if SB_API_VERSION < SB_MEDIA_MATRIX_ID_INVALID_API_VERSION
+  if (color_space.matrix == VideoColorSpace::MatrixID::INVALID) {
+    sb_media_color_metadata.matrix = kSbMediaMatrixIdUnknown;
+  }
+#endif  // SB_API_VERSION < SB_MEDIA_MATRIX_ID_INVALID_API_VERSION
 
   sb_media_color_metadata.range =
       static_cast<SbMediaRangeId>(color_space.range);

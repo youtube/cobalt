@@ -194,8 +194,13 @@ const char* GetMediaMatrixIdName(SbMediaMatrixId matrix_id) {
       return "Bt2020ConstantLuminance";
     case kSbMediaMatrixIdYDzDx:
       return "YDzDx";
+#if SB_API_VERSION >= SB_MEDIA_MATRIX_ID_INVALID_API_VERSION
+    case kSbMediaMatrixIdInvalid:
+      return "Invalid";
+#else   // SB_API_VERSION >= SB_MEDIA_MATRIX_ID_INVALID_API_VERSION
     case kSbMediaMatrixIdUnknown:
       return "Unknown";
+#endif  // SB_API_VERSION >= SB_MEDIA_MATRIX_ID_INVALID_API_VERSION
   }
   SB_NOTREACHED();
   return "Invalid";

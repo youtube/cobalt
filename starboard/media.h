@@ -256,10 +256,14 @@ typedef enum SbMediaMatrixId {
   kSbMediaMatrixIdYDzDx = 11,
 
   kSbMediaMatrixIdLastStandardValue = kSbMediaMatrixIdYDzDx,
-
-  // Chrome-specific values start at 1000
+#if SB_API_VERSION >= SB_MEDIA_MATRIX_ID_INVALID_API_VERSION
+  kSbMediaMatrixIdInvalid = 255,
+  kSbMediaMatrixIdLast = kSbMediaMatrixIdInvalid,
+#else   // SB_API_VERSION >= SB_MEDIA_MATRIX_ID_INVALID_API_VERSION
   kSbMediaMatrixIdUnknown = 1000,
   kSbMediaMatrixIdLast = kSbMediaMatrixIdUnknown,
+#endif  // SB_API_VERSION >= SB_MEDIA_MATRIX_ID_INVALID_API_VERSION
+
 } SbMediaMatrixId;
 
 // This corresponds to the WebM Range enum which is part of WebM color data (see

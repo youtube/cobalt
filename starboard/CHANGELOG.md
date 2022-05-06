@@ -24,6 +24,10 @@ The extra parameters (like `profile` and `level`) on `SbMediaIsVideoSupported()`
 are always enabled.  This change also deprecated
 `SbMediaIsTransferCharacteristicsSupported()`.
 
+### Deprecated kSbMediaMatrixIdUnknown and added kSbMediaMatrixIdInvalid.
+`kSbMediaMatrixIdUnknown` has been deprecated. `kSbMediaMatrixIdInvalid`
+was added.
+
 ## Version 13
 ### Changed lifecycle events to add support for a concealed state.
 
