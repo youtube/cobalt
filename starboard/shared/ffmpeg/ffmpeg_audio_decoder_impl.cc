@@ -46,6 +46,12 @@ AVCodecID GetFfmpegCodecIdByMediaCodec(SbMediaAudioCodec audio_codec) {
       return kSbHasAc3Audio ? AV_CODEC_ID_EAC3 : AV_CODEC_ID_NONE;
     case kSbMediaAudioCodecOpus:
       return AV_CODEC_ID_OPUS;
+    case kSbMediaAudioCodecVorbis:
+      return AV_CODEC_ID_VORBIS;
+#if SB_API_VERSION >= 14
+    case kSbMediaAudioCodecMp3:
+      return AV_CODEC_ID_MP3;
+#endif  // SB_API_VERSION >= 14
     default:
       return AV_CODEC_ID_NONE;
   }
@@ -272,7 +278,8 @@ void AudioDecoderImpl<FFMPEG>::InitializeCodec() {
   codec_context_->extradata = NULL;
   codec_context_->extradata_size = 0;
 
-  if (codec_context_->codec_id == AV_CODEC_ID_OPUS &&
+  if ((codec_context_->codec_id == AV_CODEC_ID_OPUS ||
+       codec_context_->codec_id == AV_CODEC_ID_VORBIS) &&
       audio_sample_info_.audio_specific_config_size > 0) {
     // AV_INPUT_BUFFER_PADDING_SIZE is not defined in ancient avcodec.h.  Use a
     // large enough padding here explicitly.
