@@ -166,6 +166,7 @@ class SourceBuffer : public dom::EventTarget {
       const std::string& byte_stream_track_id) const;
 
   const std::string id_;
+  const size_t evict_extra_in_bytes_;
   ChunkDemuxer* chunk_demuxer_;
   MediaSource* media_source_;
   scoped_refptr<TrackDefaultList> track_defaults_ = new TrackDefaultList(NULL);

@@ -50,8 +50,10 @@
 #include "base/logging.h"
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
+#include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/dom/dom_exception.h"
+#include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/media_source.h"
 #include "third_party/chromium/media/base/ranges.h"
 #include "third_party/chromium/media/base/timestamp_constants.h"
@@ -82,6 +84,16 @@ static base::TimeDelta DoubleToTimeDelta(double time) {
   return base::TimeDelta::FromSecondsD(time);
 }
 
+size_t GetEvictExtraInBytes(script::EnvironmentSettings* settings) {
+  DOMSettings* dom_settings =
+      base::polymorphic_downcast<DOMSettings*>(settings);
+  if (dom_settings && dom_settings->decoder_buffer_memory_info()) {
+    return dom_settings->decoder_buffer_memory_info()
+        ->GetSourceBufferEvictExtraInBytes();
+  }
+  return 0;
+}
+
 }  // namespace
 
 SourceBuffer::SourceBuffer(script::EnvironmentSettings* settings,
@@ -89,6 +101,7 @@ SourceBuffer::SourceBuffer(script::EnvironmentSettings* settings,
                            ChunkDemuxer* chunk_demuxer, EventQueue* event_queue)
     : EventTarget(settings),
       id_(id),
+      evict_extra_in_bytes_(GetEvictExtraInBytes(settings)),
       chunk_demuxer_(chunk_demuxer),
       media_source_(media_source),
       event_queue_(event_queue),
@@ -410,7 +423,8 @@ bool SourceBuffer::EvictCodedFrames(size_t new_data_size) {
   DCHECK(media_source_->GetMediaElement());
   double current_time = media_source_->GetMediaElement()->current_time(NULL);
   return chunk_demuxer_->EvictCodedFrames(
-      id_, base::TimeDelta::FromSecondsD(current_time), new_data_size);
+      id_, base::TimeDelta::FromSecondsD(current_time),
+      new_data_size + evict_extra_in_bytes_);
 }
 
 void SourceBuffer::AppendBufferInternal(

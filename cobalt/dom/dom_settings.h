@@ -74,27 +74,15 @@ class DOMSettings : public web::EnvironmentSettings {
   MediaSourceRegistry* media_source_registry() const {
     return media_source_registry_;
   }
-  std::size_t media_source_size_limit() const {
-    return decoder_buffer_memory_info_
-               ? decoder_buffer_memory_info_->GetMaximumMemoryCapacity()
-               : 0;
-  }
-  std::size_t total_media_source_size() const {
-    return decoder_buffer_memory_info_
-               ? decoder_buffer_memory_info_->GetCurrentMemoryCapacity()
-               : 0;
-  }
-  std::size_t used_media_source_memory_size() const {
-    return decoder_buffer_memory_info_
-               ? decoder_buffer_memory_info_->GetAllocatedMemory()
-               : 0;
-  }
   void set_decoder_buffer_memory_info(
       const media::DecoderBufferMemoryInfo* decoder_buffer_memory_info) {
     decoder_buffer_memory_info_ = decoder_buffer_memory_info;
   }
   media::CanPlayTypeHandler* can_play_type_handler() const {
     return can_play_type_handler_;
+  }
+  const media::DecoderBufferMemoryInfo* decoder_buffer_memory_info() {
+    return decoder_buffer_memory_info_;
   }
   MutationObserverTaskManager* mutation_observer_task_manager() const {
     return mutation_observer_task_manager_;

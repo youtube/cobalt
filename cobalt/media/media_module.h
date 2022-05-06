@@ -64,7 +64,7 @@ class MediaModule : public WebMediaPlayerFactory,
   // Returns true when the setting is set successfully or if the setting has
   // already been set to the expected value.  Returns false when the setting is
   // invalid or not set to the expected value.
-  bool SetConfiguration(const std::string& name, int32 value) { return false; }
+  bool SetConfiguration(const std::string& name, int32 value);
 
   const DecoderBufferAllocator* GetDecoderBufferAllocator() const {
     return &decoder_buffer_allocator_;
