@@ -11,11 +11,6 @@
 namespace cobalt {
 namespace media {
 
-// Limits the maximum outstanding repaints posted on render thread.
-// This number of 50 is a guess, it does not take too much memory on the task
-// queue but gives up a pretty good latency on repaint.
-static const int kMaxOutstandingRepaints = 50;
-
 WebMediaPlayerProxy::WebMediaPlayerProxy(
     const scoped_refptr<base::SingleThreadTaskRunner>& render_loop,
     WebMediaPlayerImpl* webmediaplayer)

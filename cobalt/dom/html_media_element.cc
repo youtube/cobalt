@@ -1612,8 +1612,6 @@ void HTMLMediaElement::PlaybackStateChanged() {
   EndProcessingMediaPlayerCallback();
 }
 
-void HTMLMediaElement::SawUnsupportedTracks() { NOTIMPLEMENTED(); }
-
 float HTMLMediaElement::Volume() const { return muted_ ? 0 : volume(NULL); }
 
 void HTMLMediaElement::SourceOpened(ChunkDemuxer* chunk_demuxer) {

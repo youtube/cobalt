@@ -230,7 +230,6 @@ class HTMLMediaElement : public HTMLElement,
   void OutputModeChanged() override;
   void ContentSizeChanged() override;
   void PlaybackStateChanged() override;
-  void SawUnsupportedTracks() override;
   float Volume() const override;
   void SourceOpened(ChunkDemuxer* chunk_demuxer) override;
   std::string SourceURL() const override;

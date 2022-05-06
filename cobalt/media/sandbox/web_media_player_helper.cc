@@ -45,8 +45,7 @@ class WebMediaPlayerHelper::WebMediaPlayerClientStub
   void OutputModeChanged() override {}
   void ContentSizeChanged() override {}
   void PlaybackStateChanged() override {}
-  void SawUnsupportedTracks() override {}
-  float Volume() const override { return 1.f; }
+  float Volume() const override { return 1.0f; }
   void SourceOpened(::media::ChunkDemuxer* chunk_demuxer) override {
     DCHECK(!chunk_demuxer_open_cb_.is_null());
     chunk_demuxer_open_cb_.Run(chunk_demuxer);
