@@ -17,7 +17,6 @@
 
 #include <cstddef>
 #include <cstdint>
-
 namespace starboard {
 namespace shared {
 namespace deviceauth {

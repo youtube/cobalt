@@ -28,7 +28,6 @@
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
 #include "starboard/testing/fake_graphics_context_provider.h"
 #include "testing/gtest/include/gtest/gtest.h"
-
 namespace starboard {
 namespace shared {
 namespace starboard {
@@ -426,30 +425,16 @@ class PlayerComponentsTest
   scoped_refptr<InputBuffer> GetAudioInputBuffer(size_t index) const {
     auto player_sample_info =
         audio_reader_->GetPlayerSampleInfo(kSbMediaTypeAudio, index);
-#if SB_API_VERSION >= 11
     auto input_buffer = new InputBuffer(StubDeallocateSampleFunc, nullptr,
                                         nullptr, player_sample_info);
-#else   // SB_API_VERSION >= 11
-    SbMediaAudioSampleInfo audio_sample_info =
-        audio_reader_->GetAudioSampleInfo(index);
-    auto input_buffer =
-        new InputBuffer(kSbMediaTypeAudio, StubDeallocateSampleFunc, nullptr,
-                        nullptr, player_sample_info, &audio_sample_info);
-#endif  // SB_API_VERSION >= 11
     return input_buffer;
   }
 
   scoped_refptr<InputBuffer> GetVideoInputBuffer(size_t index) const {
     auto video_sample_info =
         video_reader_->GetPlayerSampleInfo(kSbMediaTypeVideo, index);
-#if SB_API_VERSION >= 11
     auto input_buffer = new InputBuffer(StubDeallocateSampleFunc, NULL, NULL,
                                         video_sample_info);
-#else   // SB_API_VERSION >= 11
-    auto input_buffer =
-        new InputBuffer(kSbMediaTypeVideo, StubDeallocateSampleFunc, NULL, NULL,
-                        video_sample_info, NULL);
-#endif  // SB_API_VERSION >= 11
     return input_buffer;
   }
 
@@ -733,7 +718,6 @@ vector<PlayerComponentsTestParam> GetSupportedCreationParameters() {
 INSTANTIATE_TEST_CASE_P(PlayerComponentsTests,
                         PlayerComponentsTest,
                         ValuesIn(GetSupportedCreationParameters()));
-
 }  // namespace
 }  // namespace testing
 }  // namespace filter

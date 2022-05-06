@@ -12,20 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/system.h"
+#include "starboard/shared/deviceauth/deviceauth_internal.h"
 
 #include <string.h>
 #include <string>
 
 #include "starboard/common/log.h"
 #include "starboard/linux/x64x11/system_properties.h"
+#include "starboard/system.h"
 #include "third_party/boringssl/src/include/openssl/hmac.h"
 #include "third_party/modp_b64/modp_b64.h"
-
-#include "starboard/shared/deviceauth/deviceauth_internal.h"
-
-#if SB_API_VERSION >= 11
-
 namespace {
 bool Base64Decode(const std::string& input, std::string* output) {
   std::string temp;
@@ -82,10 +78,6 @@ bool SignWithCertificationSecretKey(const char* secret_key,
   return result == digest;
 }
 
-} // namespace deviceauth
-
-} // namespace shared
-
-} // namespace starboard
-
-#endif  // SB_API_VERSION >= 11
+}  // namespace deviceauth
+}  // namespace shared
+}  // namespace starboard
