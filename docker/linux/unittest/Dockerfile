@@ -41,4 +41,4 @@ ENV PYTHONPATH "/app_launcher_out"
 COPY unittest/unittest_docker_launcher.py /unittest_docker_launcher.py
 
 # Without arguments, it assumes no sharding and runs all tests in the container.
-CMD python /unittest_docker_launcher.py
+CMD python3 /unittest_docker_launcher.py

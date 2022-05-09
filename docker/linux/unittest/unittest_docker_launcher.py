@@ -14,6 +14,7 @@
 # limitations under the License.
 """Entrypoint for running unit-tests shards in docker"""
 
+import json
 import logging
 import os
 import subprocess
@@ -63,9 +64,15 @@ def main(argv):
 
   # Output shard timing information to file.
   duration_t = (end_t - start_t) / 60.0
-  out_str = 'SHARD TIME {}: {:5.2f}\n'.format(shard_index, duration_t)
-  with open('{}/times'.format(out_dir), 'a') as f:
-    f.write(out_str)
+  shard_timing_json = '{}/shard_timing.json'.format(out_dir)
+  try:
+    with open(shard_timing_json, 'r') as f:
+      json_content = json.loads(f.read())
+  except FileNotFoundError:
+    json_content = {}
+  json_content[str(shard_index)] = '{:.2f}'.format(duration_t)
+  with open(shard_timing_json, 'w+') as f:
+    json.dump(json_content, f, sort_keys=True, indent=2)
 
 
 if __name__ == '__main__':
