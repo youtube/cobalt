@@ -44,7 +44,20 @@ void FillDrmSampleInfo(const scoped_refptr<DecoderBuffer>& buffer,
 
 SbMediaColorMetadata MediaToSbMediaColorMetadata(
     const VideoColorSpace& color_space,
-    const absl::optional<gfx::HDRMetadata>& hdr_metadata);
+    const absl::optional<gfx::HDRMetadata>& hdr_metadata,
+    const std::string& mime_type);
+
+int GetSbMediaVideoBufferBudget(const VideoDecoderConfig* video_config,
+                                const std::string& mime_type);
+
+// Extract the value of "codecs" parameter from |mime_type|. It will return
+// "avc1.42E01E" for `video/mp4; codecs="avc1.42E01E"`.
+// Note that this function assumes that the input is always valid and does
+// minimum validation.
+// This function is exposed as a public function so it can be tested.
+// TODO(b/232559177): Unify the implementations once `MimeType` is moved to
+//                    "starboard/common".
+std::string ExtractCodecs(const std::string& mime_type);
 
 }  // namespace media
 

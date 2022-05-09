@@ -2,6 +2,24 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#if defined(STARBOARD)
+
+#include "starboard/client_porting/wrap_main/wrap_main.h"
+#include "starboard/event.h"
+#include "starboard/system.h"
+#include "testing/gtest/include/gtest/gtest.h"
+
+namespace {
+int InitAndRunAllTests(int argc, char** argv) {
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
+}
+}  // namespace
+
+STARBOARD_WRAP_SIMPLE_MAIN(InitAndRunAllTests);
+
+#else  // defined(STARBOARD)
+
 #include "base/bind.h"
 #include "base/test/launcher/unit_test_launcher.h"
 #include "base/test/test_discardable_memory_allocator.h"
@@ -56,3 +74,5 @@ int main(int argc, char** argv) {
       argc, argv,
       base::BindOnce(&TestSuiteNoAtExit::Run, base::Unretained(&test_suite)));
 }
+
+#endif  // defined(STARBOARD)

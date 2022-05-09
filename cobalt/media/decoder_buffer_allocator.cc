@@ -192,21 +192,6 @@ size_t DecoderBufferAllocator::GetSourceBufferEvictExtraInBytes() const {
   return source_buffer_evict_extra_in_bytes_;
 }
 
-void DecoderBufferAllocator::UpdateVideoConfig(
-    const ::media::VideoDecoderConfig& config) {
-  auto video_codec = MediaVideoCodecToSbMediaVideoCodec(config.codec());
-  auto resolution_width = config.visible_rect().size().width();
-  auto resolution_height = config.visible_rect().size().height();
-  // TODO(b/230799815): Consider infer |bits_per_pixel_| from the video codec,
-  // or deprecate it completely.
-  auto bits_per_pixel = 0;
-
-  ScopedLock scoped_lock(mutex_);
-
-  max_buffer_capacity_ = SbMediaGetMaxBufferCapacity(
-      video_codec, resolution_width, resolution_height, bits_per_pixel);
-}
-
 void DecoderBufferAllocator::EnsureReuseAllocatorIsCreated() {
   mutex_.DCheckAcquired();
 

@@ -201,7 +201,8 @@ SourceBufferStream::SourceBufferStream(const VideoDecoderConfig& video_config,
           base::Milliseconds(kMinimumInterbufferDistanceInMs)),
       memory_limit_(
           GetDemuxerStreamVideoMemoryLimit(Demuxer::DemuxerTypes::kChunkDemuxer,
-                                           &video_config)) {
+                                           &video_config,
+                                           mime_type_)) {
   DCHECK(video_config.IsValidConfig());
   video_configs_.push_back(video_config);
   DVLOG(2) << __func__ << ": video_buffer_size= " << memory_limit_;
@@ -1902,7 +1903,7 @@ bool SourceBufferStream::UpdateVideoConfig(const VideoDecoderConfig& config,
   memory_limit_ = std::max(
       memory_limit_,
       GetDemuxerStreamVideoMemoryLimit(Demuxer::DemuxerTypes::kChunkDemuxer,
-                                       &config));
+                                       &config, mime_type_));
 #endif  // defined(STARBOARD)
   return true;
 }

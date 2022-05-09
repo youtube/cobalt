@@ -251,3 +251,23 @@ component("media") {
     "//url",
   ]
 }
+
+target(gtest_target_type, "chromium_media_test") {
+  testonly = true
+
+  sources = [
+    "base/starboard_utils_test.cc",
+    "test/run_all_unittests.cc",
+  ]
+
+  configs -= [ "//starboard/build/config:size" ]
+  configs += [ "//starboard/build/config:speed" ]
+
+  deps = [
+    ":media",
+    "//base",
+    "//base/test:test_support",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+}

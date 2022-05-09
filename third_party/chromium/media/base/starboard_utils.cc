@@ -17,6 +17,9 @@
 #include <algorithm>
 
 #include "base/logging.h"
+#include "base/strings/string_split.h"
+#include "base/strings/string_util.h"
+#include "starboard/common/media.h"
 #include "starboard/configuration.h"
 #include "starboard/memory.h"
 #include "media/base/decrypt_config.h"
@@ -25,6 +28,34 @@ using base::Time;
 using base::TimeDelta;
 
 namespace media {
+namespace {
+
+int GetBitsPerPixel(const std::string& mime_type) {
+  auto codecs = ExtractCodecs(mime_type);
+  SbMediaVideoCodec codec;
+  int profile;
+  int level;
+  int bit_depth;
+  SbMediaPrimaryId primary_id;
+  SbMediaTransferId transfer_id;
+  SbMediaMatrixId matrix_id;
+
+  if (starboard::ParseVideoCodec(codecs.c_str(),
+                                 &codec,
+                                 &profile,
+                                 &level,
+                                 &bit_depth,
+                                 &primary_id,
+                                 &transfer_id,
+                                 &matrix_id)) {
+    return bit_depth;
+  }
+
+  // Assume SDR when there isn't enough information to determine the bit depth.
+  return 8;
+}
+
+}  // namespace
 
 SbMediaAudioCodec MediaAudioCodecToSbMediaAudioCodec(AudioCodec codec) {
   switch (codec) {
@@ -270,13 +301,15 @@ ENUM_EQ(kSbMediaRangeIdDerived, gfx::ColorSpace::RangeID::DERIVED);
 
 SbMediaColorMetadata MediaToSbMediaColorMetadata(
     const VideoColorSpace& color_space,
-    const absl::optional<gfx::HDRMetadata>& hdr_metadata) {
+    const absl::optional<gfx::HDRMetadata>& hdr_metadata,
+    const std::string& mime_type) {
   SbMediaColorMetadata sb_media_color_metadata = {};
+
+  sb_media_color_metadata.bits_per_channel = GetBitsPerPixel(mime_type);
 
   // Copy the other color metadata below.
   // TODO(b/230915942): Revisit to ensure that the metadata is valid and
   // consider deprecate them from `SbMediaColorMetadata`.
-  sb_media_color_metadata.bits_per_channel = 0;
   sb_media_color_metadata.chroma_subsampling_horizontal = 0;
   sb_media_color_metadata.chroma_subsampling_vertical = 0;
   sb_media_color_metadata.cb_subsampling_horizontal = 0;
@@ -346,6 +379,37 @@ SbMediaColorMetadata MediaToSbMediaColorMetadata(
   // }
 
   return sb_media_color_metadata;
+}
+
+int GetSbMediaVideoBufferBudget(const VideoDecoderConfig* video_config,
+                                const std::string& mime_type) {
+  if (!video_config) {
+    return SbMediaGetVideoBufferBudget(kSbMediaVideoCodecH264, 1920, 1080, 8);
+  }
+
+  auto width = video_config->visible_rect().size().width();
+  auto height = video_config->visible_rect().size().height();
+  auto bits_per_pixel = GetBitsPerPixel(mime_type);
+  auto codec = MediaVideoCodecToSbMediaVideoCodec(video_config->codec());
+  return SbMediaGetVideoBufferBudget(codec, width, height, bits_per_pixel);
+}
+
+std::string ExtractCodecs(const std::string& mime_type) {
+  static const char kCodecs[] = "codecs=";
+
+  // SplitString will also trim the results.
+  std::vector<std::string> tokens = ::base::SplitString(
+      mime_type, ";", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
+  for (size_t i = 1; i < tokens.size(); ++i) {
+    if (base::strncasecmp(tokens[i].c_str(), kCodecs, strlen(kCodecs))) {
+      continue;
+    }
+    auto codec = tokens[i].substr(strlen(kCodecs));
+    base::TrimString(codec, " \"", &codec);
+    return codec;
+  }
+  LOG(WARNING) << "Failed to find codecs in mime type \"" << mime_type << '\"';
+  return "";
 }
 
 }  // namespace media

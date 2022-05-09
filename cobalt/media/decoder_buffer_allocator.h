@@ -49,7 +49,6 @@ class DecoderBufferAllocator : public ::media::DecoderBuffer::Allocator,
   size_t GetMaximumMemoryCapacity() const override;
   size_t GetSourceBufferEvictExtraInBytes() const override;
 
-  void UpdateVideoConfig(const ::media::VideoDecoderConfig& video_config);
   void SetSourceBufferEvictExtraInBytes(size_t evict_extra_in_bytes) {
     source_buffer_evict_extra_in_bytes_ = evict_extra_in_bytes;
   }

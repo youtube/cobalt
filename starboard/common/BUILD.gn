@@ -87,6 +87,7 @@ static_library("common") {
 target(gtest_target_type, "common_test") {
   testonly = true
   sources = [
+    "media_test.cc",
     "memory_test.cc",
     "socket_test.cc",
     "test_main.cc",
