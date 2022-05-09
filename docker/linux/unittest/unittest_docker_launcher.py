@@ -35,7 +35,7 @@ def main(argv):
   env_config = os.getenv('CONFIG')
   test_command = [
       'python', '/app_launcher_out/starboard/tools/testing/test_runner.py',
-      '--run', '-o', out_dir, '-p', env_platform, '-c', env_config
+      '--run', '-o', out_dir, '-p', env_platform, '-c', env_config, '-l'
   ]
 
   if shard_index is not None:
