@@ -17,7 +17,4 @@ from starboard.android.shared import gyp_configuration as shared_configuration
 
 
 def CreatePlatformConfig():
-  return shared_configuration.AndroidConfiguration(
-      'android-arm',
-      'armeabi-v7a',
-      sabi_json_path='starboard/sabi/arm/softfp/sabi-v{sb_api_version}.json')
+  return shared_configuration.AndroidConfiguration('android-arm')

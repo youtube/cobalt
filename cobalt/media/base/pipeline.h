@@ -21,15 +21,15 @@
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
 #include "base/message_loop/message_loop.h"
-#include "cobalt/math/rect.h"
-#include "cobalt/math/size.h"
-#include "cobalt/media/base/demuxer.h"
 #include "cobalt/media/base/media_export.h"
-#include "cobalt/media/base/pipeline_status.h"
-#include "cobalt/media/base/ranges.h"
 #include "cobalt/media/base/video_frame_provider.h"
 #include "starboard/drm.h"
 #include "starboard/window.h"
+#include "third_party/chromium/media/base/demuxer.h"
+#include "third_party/chromium/media/base/media_log.h"
+#include "third_party/chromium/media/base/pipeline_status.h"
+#include "third_party/chromium/media/base/ranges.h"
+#include "third_party/chromium/media/cobalt/ui/gfx/geometry/size.h"
 
 namespace cobalt {
 namespace media {
@@ -44,20 +44,27 @@ typedef base::Callback<void(SbDrmSystem)> DrmSystemReadyCB;
 // Callback to set an DrmSystemReadyCB.
 typedef base::Callback<void(const DrmSystemReadyCB&)> SetDrmSystemReadyCB;
 
-typedef base::Callback<void(PipelineStatus, const std::string&)> ErrorCB;
+typedef base::Callback<void(::media::PipelineStatus, const std::string&)>
+    ErrorCB;
 
 // Pipeline contains the common interface for media pipelines.  It provides
 // functions to perform asynchronous initialization, pausing, seeking and
 // playing.
 class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
  public:
+  typedef ::media::Demuxer Demuxer;
+  typedef ::media::MediaLog MediaLog;
+  typedef ::media::PipelineStatistics PipelineStatistics;
+  typedef ::media::PipelineStatus PipelineStatus;
+  typedef ::media::PipelineStatusCallback PipelineStatusCallback;
+
   typedef base::Callback<void(PipelineStatus status, bool is_initial_preroll,
                               const std::string& error_message)>
       SeekCB;
 
   // Return true if the punch through box should be rendered.  Return false if
   // no punch through box should be rendered.
-  typedef base::Callback<bool(const math::Rect&)> SetBoundsCB;
+  typedef base::Callback<bool(int x, int y, int width, int height)> SetBoundsCB;
 
   // Call to get the SbDecodeTargetGraphicsContextProvider for SbPlayerCreate().
   typedef base::Callback<SbDecodeTargetGraphicsContextProvider*()>
@@ -78,7 +85,8 @@ class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
 
   typedef base::Callback<void(BufferingState)> BufferingStateCB;
 #if SB_HAS(PLAYER_WITH_URL)
-  typedef base::Callback<void(EmeInitDataType, const std::vector<uint8_t>&)>
+  typedef base::Callback<void(const char* init_data_type,
+                              const std::vector<uint8_t>&)>
       OnEncryptedMediaInitDataEncounteredCB;
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
@@ -118,7 +126,7 @@ class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
   // It is an error to call this method after the pipeline has already started.
   virtual void Start(Demuxer* demuxer,
                      const SetDrmSystemReadyCB& set_drm_system_ready_cb,
-                     const PipelineStatusCB& ended_cb, const ErrorCB& error_cb,
+                     PipelineStatusCallback ended_cb, const ErrorCB& error_cb,
                      const SeekCB& seek_cb,
                      const BufferingStateCB& buffering_state_cb,
                      const base::Closure& duration_change_cb,
@@ -132,7 +140,7 @@ class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
                      const OnEncryptedMediaInitDataEncounteredCB&
                          encrypted_media_init_data_encountered_cb,
                      const std::string& source_url,
-                     const PipelineStatusCB& ended_cb, const ErrorCB& error_cb,
+                     PipelineStatusCallback ended_cb, const ErrorCB& error_cb,
                      const SeekCB& seek_cb,
                      const BufferingStateCB& buffering_state_cb,
                      const base::Closure& duration_change_cb,
@@ -188,7 +196,7 @@ class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
   virtual base::TimeDelta GetMediaTime() = 0;
 
   // Get approximate time ranges of buffered media.
-  virtual Ranges<base::TimeDelta> GetBufferedTimeRanges() = 0;
+  virtual ::media::Ranges<base::TimeDelta> GetBufferedTimeRanges() = 0;
 
   // Get the duration of the media in microseconds.  If the duration has not
   // been determined yet, then return 0.
@@ -205,7 +213,7 @@ class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
   // Gets the natural size of the video output in pixel units.  If there is no
   // video or the video has not been rendered yet, the width and height will
   // be 0.
-  virtual void GetNaturalVideoSize(math::Size* out_size) const = 0;
+  virtual void GetNaturalVideoSize(gfx::Size* out_size) const = 0;
 
   // Return true if loading progress has been made since the last time this
   // method was called.

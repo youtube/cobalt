@@ -426,7 +426,6 @@ void ImageDecoder::UseStubImageDecoder() { s_use_stub_image_decoder = true; }
 
 // static
 bool ImageDecoder::AllowDecodingToMultiPlane() {
-#if SB_API_VERSION >= 12
   // Many image formats can produce native output in multi plane images in YUV
   // 420. Allowing these images to be decoded into multi plane image not only
   // reduces the space to store the decoded image to 37.5%, but also improves
@@ -441,11 +440,6 @@ bool ImageDecoder::AllowDecodingToMultiPlane() {
   bool allow_image_decoding_to_multi_plane =
       std::string(configuration::Configuration::GetInstance()
                       ->CobaltRasterizerType()) == "direct-gles";
-#elif SB_HAS(GLES2) && defined(COBALT_FORCE_DIRECT_GLES_RASTERIZER)
-  bool allow_image_decoding_to_multi_plane = true;
-#else   // SB_HAS(GLES2) && defined(COBALT_FORCE_DIRECT_GLES_RASTERIZER)
-  bool allow_image_decoding_to_multi_plane = false;
-#endif  // SB_HAS(GLES2) && defined(COBALT_FORCE_DIRECT_GLES_RASTERIZER)
 
 #if !defined(COBALT_BUILD_TYPE_GOLD)
   auto command_line = base::CommandLine::ForCurrentProcess();

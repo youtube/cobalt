@@ -17,16 +17,9 @@ import("//starboard/shared/starboard/media/media_tests.gni")
 import("//starboard/shared/starboard/player/buildfiles.gni")
 import("//starboard/shared/starboard/player/player_tests.gni")
 
-config("starboard_platform_config") {
-  include_dirs = [ "bionic" ]
-}
-
 static_library("starboard_platform") {
   sources = [
     "$target_gen_dir/ndk-sources/cpu-features.c",
-    "//starboard/shared/dlmalloc/memory_map.cc",
-    "//starboard/shared/dlmalloc/memory_protect.cc",
-    "//starboard/shared/dlmalloc/memory_unmap.cc",
     "//starboard/shared/egl/system_egl.cc",
     "//starboard/shared/gcc/atomic_gcc_public.h",
     "//starboard/shared/gles/gl_call.h",
@@ -80,8 +73,6 @@ static_library("starboard_platform") {
     "//starboard/shared/linux/byte_swap.cc",
     "//starboard/shared/linux/cpu_features_get.cc",
     "//starboard/shared/linux/memory_get_stack_bounds.cc",
-    "//starboard/shared/linux/page_internal.cc",
-    "//starboard/shared/linux/socket_get_interface_address.cc",
     "//starboard/shared/linux/system_get_random_data.cc",
     "//starboard/shared/linux/system_get_total_cpu_memory.cc",
     "//starboard/shared/linux/system_get_used_cpu_memory.cc",
@@ -97,6 +88,7 @@ static_library("starboard_platform") {
     "//starboard/shared/opus/opus_audio_decoder.cc",
     "//starboard/shared/opus/opus_audio_decoder.h",
     "//starboard/shared/posix/directory_create.cc",
+    "//starboard/shared/posix/environment.cc",
     "//starboard/shared/posix/file_atomic_replace.cc",
     "//starboard/shared/posix/impl/file_can_open.h",
     "//starboard/shared/posix/impl/file_close.h",
@@ -112,6 +104,10 @@ static_library("starboard_platform") {
     "//starboard/shared/posix/memory_allocate_aligned_unchecked.cc",
     "//starboard/shared/posix/memory_flush.cc",
     "//starboard/shared/posix/memory_free_aligned.cc",
+    "//starboard/shared/posix/memory_map.cc",
+    "//starboard/shared/posix/memory_protect.cc",
+    "//starboard/shared/posix/memory_unmap.cc",
+    "//starboard/shared/posix/page_internal.cc",
     "//starboard/shared/posix/set_non_blocking_internal.cc",
     "//starboard/shared/posix/socket_accept.cc",
     "//starboard/shared/posix/socket_bind.cc",
@@ -177,7 +173,6 @@ static_library("starboard_platform") {
     "//starboard/shared/pthread/thread_join.cc",
     "//starboard/shared/pthread/thread_set_local_value.cc",
     "//starboard/shared/pthread/thread_yield.cc",
-    "//starboard/shared/pthread/types_public.h",
     "//starboard/shared/signal/crash_signals.h",
     "//starboard/shared/signal/crash_signals_sigaction.cc",
     "//starboard/shared/signal/suspend_signals.cc",
@@ -224,7 +219,6 @@ static_library("starboard_platform") {
     "//starboard/shared/starboard/media/media_get_buffer_padding.cc",
     "//starboard/shared/starboard/media/media_get_buffer_storage_type.cc",
     "//starboard/shared/starboard/media/media_get_progressive_buffer_budget.cc",
-    "//starboard/shared/starboard/media/media_get_video_buffer_budget.cc",
     "//starboard/shared/starboard/media/media_is_buffer_using_memory_pool.cc",
     "//starboard/shared/starboard/media/mime_type.cc",
     "//starboard/shared/starboard/media/mime_type.h",
@@ -249,12 +243,6 @@ static_library("starboard_platform") {
     "//starboard/shared/starboard/system_supports_resume.cc",
     "//starboard/shared/starboard/thread_checker.h",
     "//starboard/shared/starboard/window_set_default_options.cc",
-    "//starboard/shared/stub/cryptography_create_transformer.cc",
-    "//starboard/shared/stub/cryptography_destroy_transformer.cc",
-    "//starboard/shared/stub/cryptography_get_tag.cc",
-    "//starboard/shared/stub/cryptography_set_authenticated_data.cc",
-    "//starboard/shared/stub/cryptography_set_initialization_vector.cc",
-    "//starboard/shared/stub/cryptography_transform.cc",
     "//starboard/shared/stub/image_decode.cc",
     "//starboard/shared/stub/image_is_decode_supported.cc",
     "//starboard/shared/stub/media_set_audio_write_duration.cc",
@@ -299,13 +287,6 @@ static_library("starboard_platform") {
     "audio_track_audio_sink_type.h",
     "audio_track_bridge.cc",
     "audio_track_bridge.h",
-    "bionic/bionic_netlink.cpp",
-    "bionic/bionic_netlink.h",
-    "bionic/ifaddrs.cpp",
-    "bionic/ifaddrs.h",
-    "bionic/net_if.cpp",
-    "bionic/private/ErrnoRestorer.h",
-    "bionic/private/bionic_macros.h",
     "configuration.cc",
     "configuration.h",
     "configuration_constants.cc",
@@ -338,6 +319,8 @@ static_library("starboard_platform") {
     "file_truncate.cc",
     "file_write.cc",
     "get_home_directory.cc",
+    "graphics.cc",
+    "graphics.h",
     "input_events_generator.cc",
     "input_events_generator.h",
     "jni_env_ext.cc",
@@ -360,6 +343,7 @@ static_library("starboard_platform") {
     "media_get_audio_output_count.cc",
     "media_get_initial_buffer_capacity.cc",
     "media_get_max_buffer_capacity.cc",
+    "media_get_video_buffer_budget.cc",
     "media_is_audio_supported.cc",
     "media_is_buffer_pool_allocate_on_demand.cc",
     "media_is_video_supported.cc",
@@ -373,6 +357,7 @@ static_library("starboard_platform") {
     "player_set_bounds.cc",
     "player_set_playback_rate.cc",
     "sanitizer_options.cc",
+    "socket_get_interface_address.cc",
     "speech_synthesis_cancel.cc",
     "speech_synthesis_internal.cc",
     "speech_synthesis_is_supported.cc",
@@ -394,7 +379,6 @@ static_library("starboard_platform") {
     "thread_create.cc",
     "thread_create_priority.cc",
     "thread_get_name.cc",
-    "thread_types_public.h",
     "time_zone_get_name.cc",
     "trace_util.h",
     "video_decoder.cc",
@@ -433,10 +417,7 @@ static_library("starboard_platform") {
     "//starboard/shared/starboard/player/player_set_playback_rate.cc",
   ]
 
-  configs += [
-    ":starboard_platform_config",
-    "//starboard/build/config:starboard_implementation",
-  ]
+  configs += [ "//starboard/build/config:starboard_implementation" ]
 
   public_deps = [
     ":ndk_sources",

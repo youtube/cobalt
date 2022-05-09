@@ -104,5 +104,5 @@ def DoMain(argv):
 
 
 if __name__ == '__main__':
-  print DoMain(sys.argv[1:])
+  print(DoMain(sys.argv[1:]))
   sys.exit(0)

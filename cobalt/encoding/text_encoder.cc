@@ -12,13 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "cobalt/encoding/text_encoder.h"
+
 #include <algorithm>
 #include <string>
 
-#include "cobalt/encoding/text_encoder.h"
-
 #include "cobalt/base/polymorphic_downcast.h"
-#include "cobalt/dom/dom_settings.h"
+#include "cobalt/web/context.h"
+#include "cobalt/web/environment_settings.h"
 #include "third_party/icu/source/common/unicode/utext.h"
 #include "third_party/icu/source/common/unicode/utf8.h"
 
@@ -38,13 +39,13 @@ script::Handle<script::Uint8Array> TextEncoder::Encode(
 
 script::Handle<script::Uint8Array> TextEncoder::Encode(
     script::EnvironmentSettings* settings, const std::string& input) {
-  dom::DOMSettings* dom_settings =
-      base::polymorphic_downcast<dom::DOMSettings*>(settings);
-
   // The conversion helper already translated the JSValue into a valid UTF-8
   // encoded string.
-  return script::Uint8Array::New(dom_settings->global_environment(),
-                                 input.data(), input.size());
+  return script::Uint8Array::New(
+      base::polymorphic_downcast<web::EnvironmentSettings*>(settings)
+          ->context()
+          ->global_environment(),
+      input.data(), input.size());
 }
 
 TextEncoderEncodeIntoResult TextEncoder::EncodeInto(

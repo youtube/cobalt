@@ -14,8 +14,6 @@
 
 #include "cobalt/css_parser/scanner.h"
 
-#include "starboard/client_porting/cwrappers/pow_wrapper.h"
-
 #include <limits>
 
 #include "base/strings/string_util.h"
@@ -29,6 +27,7 @@
 #include "cobalt/cssom/media_type_names.h"
 #include "cobalt/cssom/pseudo_class_names.h"
 #include "cobalt/cssom/pseudo_element_names.h"
+#include "starboard/client_porting/cwrappers/pow_wrapper.h"
 #include "third_party/icu/source/common/unicode/unistr.h"
 
 namespace cobalt {
@@ -2606,6 +2605,12 @@ bool Scanner::DetectKnownFunctionTokenAndMaybeChangeParsingMode(
         *known_function_token = kCueFunctionToken;
         return true;
       }
+      if (IsAsciiAlphaCaselessEqual(name.begin[0], 'h') &&
+          IsAsciiAlphaCaselessEqual(name.begin[1], 's') &&
+          IsAsciiAlphaCaselessEqual(name.begin[2], 'l')) {
+        *known_function_token = kHslFunctionToken;
+        return true;
+      }
       if (IsAsciiAlphaCaselessEqual(name.begin[0], 'n') &&
           IsAsciiAlphaCaselessEqual(name.begin[1], 'o') &&
           IsAsciiAlphaCaselessEqual(name.begin[2], 't')) {
@@ -2629,6 +2634,10 @@ bool Scanner::DetectKnownFunctionTokenAndMaybeChangeParsingMode(
     case 4:
       if (IsEqualToCssIdentifier(name.begin, "calc")) {
         *known_function_token = kCalcFunctionToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(name.begin, "hsla")) {
+        *known_function_token = kHslaFunctionToken;
         return true;
       }
       if (IsEqualToCssIdentifier(name.begin, "rgba")) {

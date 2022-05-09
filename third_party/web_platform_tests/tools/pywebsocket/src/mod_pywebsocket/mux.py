@@ -353,7 +353,7 @@ class _MuxFramePayloadParser(object):
 
         try:
             size = self._read_number()
-        except ValueError, e:
+        except ValueError as e:
             raise PhysicalConnectionError(_DROP_CODE_INVALID_MUX_CONTROL_BLOCK,
                                           str(e))
         pos = self._read_position
@@ -376,7 +376,7 @@ class _MuxFramePayloadParser(object):
         encoding = first_byte & 0x3
         try:
             control_block.channel_id = self.read_channel_id()
-        except ValueError, e:
+        except ValueError as e:
             raise PhysicalConnectionError(_DROP_CODE_INVALID_MUX_CONTROL_BLOCK)
         control_block.encoding = encoding
         encoded_handshake = self._read_size_and_contents()
@@ -394,7 +394,7 @@ class _MuxFramePayloadParser(object):
         control_block.encoding = first_byte & 0x3
         try:
             control_block.channel_id = self.read_channel_id()
-        except ValueError, e:
+        except ValueError as e:
             raise PhysicalConnectionError(_DROP_CODE_INVALID_MUX_CONTROL_BLOCK)
         control_block.encoded_handshake = self._read_size_and_contents()
         return control_block
@@ -409,7 +409,7 @@ class _MuxFramePayloadParser(object):
         try:
             control_block.channel_id = self.read_channel_id()
             control_block.send_quota = self._read_number()
-        except ValueError, e:
+        except ValueError as e:
             raise PhysicalConnectionError(_DROP_CODE_INVALID_MUX_CONTROL_BLOCK,
                                           str(e))
 
@@ -424,7 +424,7 @@ class _MuxFramePayloadParser(object):
 
         try:
             control_block.channel_id = self.read_channel_id()
-        except ValueError, e:
+        except ValueError as e:
             raise PhysicalConnectionError(_DROP_CODE_INVALID_MUX_CONTROL_BLOCK)
         reason = self._read_size_and_contents()
         if len(reason) == 0:
@@ -449,7 +449,7 @@ class _MuxFramePayloadParser(object):
         try:
             control_block.slots = self._read_number()
             control_block.send_quota = self._read_number()
-        except ValueError, e:
+        except ValueError as e:
             raise PhysicalConnectionError(_DROP_CODE_INVALID_MUX_CONTROL_BLOCK,
                                           str(e))
         return control_block
@@ -921,7 +921,7 @@ class _LogicalStream(Stream):
 
                 opcode = common.OPCODE_CONTINUATION
 
-        except ValueError, e:
+        except ValueError as e:
             raise BadOperationException(e)
         finally:
             self._write_inner_frame_semaphore.release()
@@ -1029,7 +1029,7 @@ class _LogicalStream(Stream):
         # connection has closed gracefully.
         try:
             return Stream.receive_message(self)
-        except LogicalConnectionClosedException, e:
+        except LogicalConnectionClosedException as e:
             self._logger.debug('%s', e)
             return None
 
@@ -1144,7 +1144,7 @@ class _PhysicalConnectionWriter(threading.Thread):
         try:
             self._mux_handler.physical_stream.send_message(
                 message=message, end=True, binary=True)
-        except Exception, e:
+        except Exception as e:
             util.prepend_message_to_exception(
                 'Failed to send message to %r: ' %
                 (self._mux_handler.physical_connection.remote_addr,), e)
@@ -1185,7 +1185,7 @@ class _PhysicalConnectionWriter(threading.Thread):
                 # by the reader thread.
                 self._mux_handler.physical_stream.close_connection(
                     self._close_code, wait_response=False)
-            except Exception, e:
+            except Exception as e:
                 util.prepend_message_to_exception(
                     'Failed to close the physical connection: %r' % e)
                 raise
@@ -1233,20 +1233,20 @@ class _PhysicalConnectionReader(threading.Thread):
                         'Received a text message on physical connection')
                     break
 
-            except ConnectionTerminatedException, e:
+            except ConnectionTerminatedException as e:
                 self._logger.debug('%s', e)
                 break
 
             try:
                 self._mux_handler.dispatch_message(message)
-            except PhysicalConnectionError, e:
+            except PhysicalConnectionError as e:
                 self._mux_handler.fail_physical_connection(
                     e.drop_code, e.message)
                 break
-            except LogicalChannelError, e:
+            except LogicalChannelError as e:
                 self._mux_handler.fail_logical_channel(
                     e.channel_id, e.drop_code, e.message)
-            except Exception, e:
+            except Exception as e:
                 self._logger.debug(traceback.format_exc())
                 break
 
@@ -1278,7 +1278,7 @@ class _Worker(threading.Thread):
         try:
             # Non-critical exceptions will be handled by dispatcher.
             self._mux_handler.dispatcher.transfer_data(self._request)
-        except LogicalChannelError, e:
+        except LogicalChannelError as e:
             self._mux_handler.fail_logical_channel(
                 e.channel_id, e.drop_code, e.message)
         finally:
@@ -1621,19 +1621,19 @@ class _MuxHandler(object):
                                     send_quota, receive_quota)
         try:
             handshaker.do_handshake()
-        except handshake.VersionException, e:
+        except handshake.VersionException as e:
             self._logger.info('%s', e)
             self._send_error_add_channel_response(
                 request.channel_id, status=common.HTTP_STATUS_BAD_REQUEST)
             return False
-        except handshake.HandshakeException, e:
+        except handshake.HandshakeException as e:
             # TODO(bashi): Should we _Fail the Logical Channel_ with 3001
             # instead?
             self._logger.info('%s', e)
             self._send_error_add_channel_response(request.channel_id,
                                                   status=e.status)
             return False
-        except handshake.AbortedByUserException, e:
+        except handshake.AbortedByUserException as e:
             self._logger.info('%s', e)
             self._send_error_add_channel_response(request.channel_id)
             return False
@@ -1660,7 +1660,7 @@ class _MuxHandler(object):
     def _process_add_channel_request(self, block):
         try:
             logical_request = self._create_logical_request(block)
-        except ValueError, e:
+        except ValueError as e:
             self._logger.debug('Failed to create logical request: %r' % e)
             self._send_error_add_channel_response(
                 block.channel_id, status=common.HTTP_STATUS_BAD_REQUEST)
@@ -1767,7 +1767,7 @@ class _MuxHandler(object):
         parser = _MuxFramePayloadParser(message)
         try:
             channel_id = parser.read_channel_id()
-        except ValueError, e:
+        except ValueError as e:
             raise PhysicalConnectionError(_DROP_CODE_CHANNEL_ID_TRUNCATED)
         if channel_id == _CONTROL_CHANNEL_ID:
             self._process_control_blocks(parser)

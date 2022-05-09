@@ -28,12 +28,17 @@
 namespace cobalt {
 namespace trace_event {
 
+// static
+base::FilePath ScopedTraceToFile::filepath_to_absolute(
+    const base::FilePath& output_path_relative_to_logs) {
+  base::FilePath result;
+  base::PathService::Get(cobalt::paths::DIR_COBALT_DEBUG_OUT, &result);
+  return result.Append(output_path_relative_to_logs);
+}
+
 ScopedTraceToFile::ScopedTraceToFile(
     const base::FilePath& output_path_relative_to_logs) {
-  base::PathService::Get(cobalt::paths::DIR_COBALT_DEBUG_OUT,
-                         &absolute_output_path_);
-  absolute_output_path_ =
-      absolute_output_path_.Append(output_path_relative_to_logs);
+  absolute_output_path_ = filepath_to_absolute(output_path_relative_to_logs);
 
   DCHECK(!base::trace_event::TraceLog::GetInstance()->IsEnabled());
   base::trace_event::TraceLog::GetInstance()->SetEnabled(

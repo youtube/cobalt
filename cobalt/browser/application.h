@@ -28,7 +28,9 @@
 #include "cobalt/base/event_dispatcher.h"
 #include "cobalt/browser/browser_module.h"
 #include "cobalt/browser/memory_tracker/tool.h"
+#include "cobalt/network/network_module.h"
 #include "cobalt/system_window/system_window.h"
+#include "starboard/time.h"
 #if SB_IS(EVERGREEN)
 #include "cobalt/updater/updater_module.h"
 #endif
@@ -73,19 +75,12 @@ class Application {
   // Called to handle a window size change event.
   void OnWindowSizeChangedEvent(const base::Event* event);
 
-#if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
   void OnOnScreenKeyboardShownEvent(const base::Event* event);
   void OnOnScreenKeyboardHiddenEvent(const base::Event* event);
   void OnOnScreenKeyboardFocusedEvent(const base::Event* event);
   void OnOnScreenKeyboardBlurredEvent(const base::Event* event);
   void OnOnScreenKeyboardSuggestionsUpdatedEvent(const base::Event* event);
-#endif  // SB_API_VERSION >= 12 ||
-        // SB_HAS(ON_SCREEN_KEYBOARD)
-
-#if SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
   void OnCaptionSettingsChangedEvent(const base::Event* event);
-#endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
-
   void OnWindowOnOnlineEvent(const base::Event* event);
   void OnWindowOnOfflineEvent(const base::Event* event);
 
@@ -94,7 +89,10 @@ class Application {
 #endif
 
   // Called when a navigation occurs in the BrowserModule.
-  void WebModuleCreated();
+  void WebModuleCreated(WebModule* web_module);
+
+  void CollectUnloadEventTimingInfo(base::TimeTicks start_time,
+                                    base::TimeTicks end_time);
 
   // A conduit for system events.
   base::EventDispatcher event_dispatcher_;
@@ -118,17 +116,12 @@ class Application {
 
   // Event callbacks.
   base::EventCallback window_size_change_event_callback_;
-#if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
   base::EventCallback on_screen_keyboard_shown_event_callback_;
   base::EventCallback on_screen_keyboard_hidden_event_callback_;
   base::EventCallback on_screen_keyboard_focused_event_callback_;
   base::EventCallback on_screen_keyboard_blurred_event_callback_;
   base::EventCallback on_screen_keyboard_suggestions_updated_event_callback_;
-#endif  // SB_API_VERSION >= 12 ||
-        // SB_HAS(ON_SCREEN_KEYBOARD)
-#if SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
   base::EventCallback on_caption_settings_changed_event_callback_;
-#endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
 #if SB_API_VERSION >= SB_NETWORK_EVENT_VERSION
   base::EventCallback on_window_on_online_event_callback_;
   base::EventCallback on_window_on_offline_event_callback_;
@@ -193,6 +186,14 @@ class Application {
   void UpdateUserAgent();
   void UpdatePeriodicStats();
   void DispatchEventInternal(base::Event* event);
+
+  base::Optional<SbTimeMonotonic> preload_timestamp_;
+  base::Optional<SbTimeMonotonic> start_timestamp_;
+
+  // These represent the 'document unload timing info' from the spec to be
+  // passed to the next document.
+  base::TimeTicks unload_event_start_time_;
+  base::TimeTicks unload_event_end_time_;
 
   // The message loop that will handle UI events.
   base::MessageLoop* message_loop_;

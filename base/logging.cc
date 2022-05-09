@@ -1029,7 +1029,7 @@ void LogMessage::Init(const char* file, int line) {
     stream_ << CurrentProcessId() << ':';
 #endif
   if (g_log_thread_id)
-    stream_ << base::PlatformThread::CurrentId() << ':';
+    stream_ << base::PlatformThread::GetName() << '/' << base::PlatformThread::CurrentId() << ":";
   if (g_log_timestamp) {
 #if defined(STARBOARD)
     EzTimeValue time_value;

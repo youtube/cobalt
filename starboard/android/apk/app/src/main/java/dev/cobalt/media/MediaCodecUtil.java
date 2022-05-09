@@ -43,7 +43,6 @@ public class MediaCodecUtil {
   private static final Map<String, Set<String>> vp9AllowList = new HashMap<>();
   // An allow list of software codec names that can be used.
   private static final Set<String> softwareCodecAllowList = new HashSet<>();
-
   // Whether we should report vp9 codecs as supported or not.  Will be set
   // based on whether vp9AllowList contains our brand/model.  If this is set
   // to true, then videoCodecDenyList will be ignored.
@@ -397,6 +396,8 @@ public class MediaCodecUtil {
       boolean mustSupportSecure,
       boolean mustSupportHdr,
       boolean mustSupportTunnelMode,
+      boolean forceImprovedSupportCheck,
+      int decoderCacheTtlMs,
       int frameWidth,
       int frameHeight,
       int bitrate,
@@ -408,12 +409,13 @@ public class MediaCodecUtil {
             mustSupportHdr,
             false /* mustSupportSoftwareCodec */,
             mustSupportTunnelMode,
+            forceImprovedSupportCheck,
+            decoderCacheTtlMs,
             frameWidth,
             frameHeight,
             bitrate,
             fps);
-    return !findVideoDecoderResult.name.equals("")
-        && (!mustSupportHdr || isHdrCapableVideoDecoder(mimeType, findVideoDecoderResult));
+    return !findVideoDecoderResult.name.isEmpty();
   }
 
   /**
@@ -427,13 +429,9 @@ public class MediaCodecUtil {
     return !findAudioDecoder(mimeType, bitrate, mustSupportTunnelMode).equals("");
   }
 
-  /**
-   * Determine whether the system has a decoder capable of playing HDR. Currently VP9 and AV1 are
-   * HDR supported codecs
-   */
-  @SuppressWarnings("unused")
-  @UsedByNative
-  public static boolean hasHdrCapableVideoDecoder(String mimeType) {
+  /** Determine whether findVideoDecoderResult is capable of playing HDR. */
+  public static boolean isHdrCapableVideoDecoder(
+      String mimeType, FindVideoDecoderResult findVideoDecoderResult) {
     // VP9Profile* values were not added until API level 24.  See
     // https://developer.android.com/reference/android/media/MediaCodecInfo.CodecProfileLevel.html.
     if (Build.VERSION.SDK_INT < 24) {
@@ -445,14 +443,6 @@ public class MediaCodecUtil {
       return false;
     }
 
-    FindVideoDecoderResult findVideoDecoderResult =
-        findVideoDecoder(mimeType, false, true, false, false, 0, 0, 0, 0);
-    return isHdrCapableVideoDecoder(mimeType, findVideoDecoderResult);
-  }
-
-  /** Determine whether findVideoDecoderResult is capable of playing HDR */
-  public static boolean isHdrCapableVideoDecoder(
-      String mimeType, FindVideoDecoderResult findVideoDecoderResult) {
     CodecCapabilities codecCapabilities = findVideoDecoderResult.codecCapabilities;
     if (codecCapabilities == null) {
       return false;
@@ -478,8 +468,11 @@ public class MediaCodecUtil {
   }
 
   /**
-   * The same as hasVideoDecoderFor, only return the name of the video decoder if it is found, and
-   * "" otherwise.
+   * The same as hasVideoDecoderFor, returns a FindVideoDecoderResult constructed from the video
+   * decoder if it is found, or an empty instance otherwise.
+   *
+   * <p>NOTE: This code path is called repeatedly by the player to determine the decoding
+   * capabilities of the device. To ensure speedy playback the code below should be kept performant.
    */
   public static FindVideoDecoderResult findVideoDecoder(
       String mimeType,
@@ -487,16 +480,18 @@ public class MediaCodecUtil {
       boolean mustSupportHdr,
       boolean mustSupportSoftwareCodec,
       boolean mustSupportTunnelMode,
+      boolean forceImprovedSupportCheck,
+      int decoderCacheTtlMs,
       int frameWidth,
       int frameHeight,
       int bitrate,
       int fps) {
-    Log.v(
-        TAG,
+    String decoderInfo =
         String.format(
-            "Searching for video decoder with parameters mimeType: %s, secure: %b, frameWidth: %d,"
-                + " frameHeight: %d, bitrate: %d, fps: %d, mustSupportHdr: %b,"
-                + " mustSupportSoftwareCodec: %b, mustSupportTunnelMode: %b",
+            "Searching for video decoder with parameters mimeType: %s, secure: %b, frameWidth:"
+                + " %d, frameHeight: %d, bitrate: %d, fps: %d, mustSupportHdr: %b,"
+                + " mustSupportSoftwareCodec: %b, mustSupportTunnelMode: %b,"
+                + " forceImprovedSupportCheck: %b",
             mimeType,
             mustSupportSecure,
             frameWidth,
@@ -505,195 +500,182 @@ public class MediaCodecUtil {
             fps,
             mustSupportHdr,
             mustSupportSoftwareCodec,
-            mustSupportTunnelMode));
-    Log.v(
-        TAG,
+            mustSupportTunnelMode,
+            forceImprovedSupportCheck);
+    Log.v(TAG, decoderInfo);
+    String deviceInfo =
         String.format(
             "brand: %s, model: %s, version: %s, API level: %d, isVp9AllowListed: %b",
             Build.BRAND,
             Build.MODEL,
             Build.VERSION.RELEASE,
             Build.VERSION.SDK_INT,
-            isVp9AllowListed));
+            isVp9AllowListed);
+    Log.v(TAG, deviceInfo);
 
-    // Note: MediaCodecList is sorted by the framework such that the best decoders come first.
-    for (MediaCodecInfo info : new MediaCodecList(MediaCodecList.ALL_CODECS).getCodecInfos()) {
-      if (info.isEncoder()) {
+    for (VideoDecoderCache.CachedDecoder decoder :
+        VideoDecoderCache.getCachedDecoders(mimeType, decoderCacheTtlMs)) {
+      String name = decoder.info.getName();
+      if (mustSupportSoftwareCodec && !softwareCodecAllowList.contains(name)) {
+        Log.v(TAG, "Rejecting " + name + ", reason: require software codec");
         continue;
       }
-      for (String supportedType : info.getSupportedTypes()) {
-        if (!supportedType.equalsIgnoreCase(mimeType)) {
+      if (!isVp9AllowListed && videoCodecDenyList.contains(name)) {
+        Log.v(TAG, "Rejecting " + name + ", reason: codec is on deny list");
+        continue;
+      }
+
+      // MediaCodecList is supposed to feed us names of decoders that do NOT end in ".secure".  We
+      // are then supposed to check if FEATURE_SecurePlayback is supported, and if it is and we
+      // want a secure codec, we append ".secure" ourselves, and then pass that to
+      // MediaCodec.createDecoderByName.  Some devices, do not follow this spec, and show us
+      // decoders that end in ".secure".  Empirically, FEATURE_SecurePlayback has still been
+      // correct when this happens.
+      if (name.endsWith(SECURE_DECODER_SUFFIX)) {
+        // If we don't want a secure decoder, then don't bother messing around with this thing.
+        if (!mustSupportSecure) {
+          Log.v(TAG, "Rejecting " + name + ", reason: want !secure decoder and ends with .secure");
           continue;
         }
-        String name = info.getName();
-        if (mustSupportSoftwareCodec && !softwareCodecAllowList.contains(name)) {
-          Log.v(TAG, String.format("Rejecting %s, reason: require software codec", name));
-          continue;
+        // If we want a secure decoder, then make sure the version without ".secure" isn't
+        // denylisted.
+        String nameWithoutSecureSuffix =
+            name.substring(0, name.length() - SECURE_DECODER_SUFFIX.length());
+        if (!isVp9AllowListed && videoCodecDenyList.contains(nameWithoutSecureSuffix)) {
+          Log.v(TAG, "Rejecting " + name + ", reason: denylisted secure decoder");
         }
-        if (!isVp9AllowListed && videoCodecDenyList.contains(name)) {
-          Log.v(TAG, String.format("Rejecting %s, reason: codec is on deny list", name));
-          continue;
-        }
-        // MediaCodecList is supposed to feed us names of decoders that do NOT end in ".secure".  We
-        // are then supposed to check if FEATURE_SecurePlayback is supported, and it if is and we
-        // want a secure codec, we append ".secure" ourselves, and then pass that to
-        // MediaCodec.createDecoderByName.  Some devices, do not follow this spec, and show us
-        // decoders that end in ".secure".  Empirically, FEATURE_SecurePlayback has still been
-        // correct when this happens.
-        if (name.endsWith(SECURE_DECODER_SUFFIX)) {
-          // If we don't want a secure decoder, then don't bother messing around with this thing.
-          if (!mustSupportSecure) {
-            String format = "Rejecting %s, reason: want !secure decoder and ends with .secure";
-            Log.v(TAG, String.format(format, name));
+      }
+
+      boolean requiresSecurePlayback =
+          decoder.codecCapabilities.isFeatureRequired(
+              MediaCodecInfo.CodecCapabilities.FEATURE_SecurePlayback);
+      boolean supportsSecurePlayback =
+          decoder.codecCapabilities.isFeatureSupported(
+              MediaCodecInfo.CodecCapabilities.FEATURE_SecurePlayback);
+      if (mustSupportSecure && supportsSecurePlayback
+          || !mustSupportSecure && requiresSecurePlayback) {
+        String message =
+            String.format(
+                "Rejecting %s, reason: secure decoder requested: %b, "
+                    + "codec FEATURE_SecurePlayback supported: %b, required: %b",
+                name, mustSupportSecure, supportsSecurePlayback, requiresSecurePlayback);
+        Log.v(TAG, message);
+        continue;
+      }
+
+      boolean requiresTunneledPlayback =
+          decoder.codecCapabilities.isFeatureRequired(
+              MediaCodecInfo.CodecCapabilities.FEATURE_TunneledPlayback);
+      boolean supportsTunneledPlayback =
+          decoder.codecCapabilities.isFeatureSupported(
+              MediaCodecInfo.CodecCapabilities.FEATURE_TunneledPlayback);
+      if (mustSupportTunnelMode && !supportsTunneledPlayback
+          || !mustSupportTunnelMode && requiresTunneledPlayback) {
+        String message =
+            String.format(
+                "Rejecting %s, reason: tunneled playback requested: %b, "
+                    + "codec FEATURE_TunneledPlayback supported: %b, required: %b",
+                name, mustSupportTunnelMode, supportsTunneledPlayback, requiresTunneledPlayback);
+        Log.v(TAG, message);
+        continue;
+      }
+
+      // VideoCapabilities is not implemented correctly on this device.
+      if (Build.VERSION.SDK_INT < 23
+          && Build.MODEL.equals("MIBOX3")
+          && name.equals("OMX.amlogic.vp9.decoder.awesome")
+          && (frameWidth > 1920 || frameHeight > 1080)) {
+        Log.v(TAG, "Skipping >1080p OMX.amlogic.vp9.decoder.awesome on mibox.");
+        continue;
+      }
+
+      VideoCapabilities videoCapabilities = decoder.videoCapabilities;
+      Range<Integer> supportedWidths = decoder.supportedWidths;
+      Range<Integer> supportedHeights = decoder.supportedHeights;
+
+      // Enable the improved support check based on more specific APIs, like isSizeSupported() or
+      // areSizeAndRateSupported(), for 8k content. These APIs are theoretically more accurate,
+      // but we are unsure about their level of support on various Android TV platforms.
+      final boolean enableImprovedSupportCheck =
+          forceImprovedSupportCheck || (frameWidth > 3840 || frameHeight > 2160);
+      if (enableImprovedSupportCheck) {
+        if (frameWidth != 0 && frameHeight != 0) {
+          if (!videoCapabilities.isSizeSupported(frameWidth, frameHeight)) {
+            String format = "Rejecting %s, reason: width %s is not compatible with height %d";
+            Log.v(TAG, String.format(format, name, frameWidth, frameHeight));
             continue;
           }
-          // If we want a secure decoder, then make sure the version without ".secure" isn't
-          // denylisted.
-          String nameWithoutSecureSuffix =
-              name.substring(0, name.length() - SECURE_DECODER_SUFFIX.length());
-          if (!isVp9AllowListed && videoCodecDenyList.contains(nameWithoutSecureSuffix)) {
-            String format = "Rejecting %s, reason: offpsec denylisted secure decoder";
-            Log.v(TAG, String.format(format, name));
-            continue;
-          }
-        }
-
-        CodecCapabilities codecCapabilities = info.getCapabilitiesForType(supportedType);
-        boolean requiresSecurePlayback =
-            codecCapabilities.isFeatureRequired(
-                MediaCodecInfo.CodecCapabilities.FEATURE_SecurePlayback);
-        boolean supportsSecurePlayback =
-            codecCapabilities.isFeatureSupported(
-                MediaCodecInfo.CodecCapabilities.FEATURE_SecurePlayback);
-        if (mustSupportSecure && !supportsSecurePlayback
-            || !mustSupportSecure && requiresSecurePlayback) {
-          String message =
-              String.format(
-                  "Rejecting %s, reason: secure decoder requested: %b, "
-                      + "codec FEATURE_SecurePlayback supported: %b, required: %b",
-                  name, mustSupportSecure, supportsSecurePlayback, requiresSecurePlayback);
-          Log.v(TAG, message);
-          continue;
-        }
-
-        boolean requiresTunneledPlayback =
-            codecCapabilities.isFeatureRequired(
-                MediaCodecInfo.CodecCapabilities.FEATURE_TunneledPlayback);
-        boolean supportsTunneledPlayback =
-            codecCapabilities.isFeatureSupported(
-                MediaCodecInfo.CodecCapabilities.FEATURE_TunneledPlayback);
-        if (mustSupportTunnelMode && !supportsTunneledPlayback
-            || !mustSupportTunnelMode && requiresTunneledPlayback) {
-          String message =
-              String.format(
-                  "Rejecting %s, reason: tunneled playback requested: %b, "
-                      + "codec FEATURE_TunneledPlayback supported: %b, required: %b",
-                  name, mustSupportTunnelMode, supportsTunneledPlayback, requiresTunneledPlayback);
-          Log.v(TAG, message);
-          continue;
-        }
-
-        // VideoCapabilities is not implemented correctly on this device.
-        if (Build.VERSION.SDK_INT < 23
-            && Build.MODEL.equals("MIBOX3")
-            && name.equals("OMX.amlogic.vp9.decoder.awesome")
-            && (frameWidth > 1920 || frameHeight > 1080)) {
-          Log.v(TAG, "Skipping >1080p OMX.amlogic.vp9.decoder.awesome on mibox.");
-          continue;
-        }
-
-        VideoCapabilities videoCapabilities = codecCapabilities.getVideoCapabilities();
-        Range<Integer> supportedWidths = videoCapabilities.getSupportedWidths();
-        Range<Integer> supportedHeights = videoCapabilities.getSupportedHeights();
-
-        // Enable the improved support check based on more specific APIs, like isSizeSupported() or
-        // areSizeAndRateSupported(), for 8k content. These APIs are theoretically more accurate,
-        // but we are unsure about their level of support on various Android TV platforms.
-        final boolean enableImprovedCheck = frameWidth > 3840 || frameHeight > 2160;
-        if (enableImprovedCheck) {
-          if (frameWidth != 0 && frameHeight != 0) {
-            if (!videoCapabilities.isSizeSupported(frameWidth, frameHeight)) {
-              String format = "Rejecting %s, reason: width %s is not compatible with height %d";
-              Log.v(TAG, String.format(format, name, frameWidth, frameHeight));
-              continue;
-            }
-          } else if (frameWidth != 0) {
-            if (!supportedWidths.contains(frameWidth)) {
-              String format = "Rejecting %s, reason: supported widths %s does not contain %d";
-              Log.v(TAG, String.format(format, name, supportedWidths.toString(), frameWidth));
-              continue;
-            }
-          } else if (frameHeight != 0) {
-            if (!supportedHeights.contains(frameHeight)) {
-              String format = "Rejecting %s, reason: supported heights %s does not contain %d";
-              Log.v(TAG, String.format(format, name, supportedHeights.toString(), frameHeight));
-              continue;
-            }
-          }
-        } else {
-          if (frameWidth != 0 && !supportedWidths.contains(frameWidth)) {
+        } else if (frameWidth != 0) {
+          if (!supportedWidths.contains(frameWidth)) {
             String format = "Rejecting %s, reason: supported widths %s does not contain %d";
             Log.v(TAG, String.format(format, name, supportedWidths.toString(), frameWidth));
             continue;
           }
-          if (frameHeight != 0 && !supportedHeights.contains(frameHeight)) {
+        } else if (frameHeight != 0) {
+          if (!supportedHeights.contains(frameHeight)) {
             String format = "Rejecting %s, reason: supported heights %s does not contain %d";
             Log.v(TAG, String.format(format, name, supportedHeights.toString(), frameHeight));
             continue;
           }
         }
-
-        Range<Integer> bitrates = videoCapabilities.getBitrateRange();
-        if (bitrate != 0 && !bitrates.contains(bitrate)) {
-          String format = "Rejecting %s, reason: bitrate range %s does not contain %d";
-          Log.v(TAG, String.format(format, name, bitrates.toString(), bitrate));
+      } else {
+        if (frameWidth != 0 && !supportedWidths.contains(frameWidth)) {
+          String format = "Rejecting %s, reason: supported widths %s does not contain %d";
+          Log.v(TAG, String.format(format, name, supportedWidths.toString(), frameWidth));
           continue;
         }
+        if (frameHeight != 0 && !supportedHeights.contains(frameHeight)) {
+          String format = "Rejecting %s, reason: supported heights %s does not contain %d";
+          Log.v(TAG, String.format(format, name, supportedHeights.toString(), frameHeight));
+          continue;
+        }
+      }
 
-        Range<Integer> supportedFrameRates = videoCapabilities.getSupportedFrameRates();
-        if (enableImprovedCheck) {
-          if (fps != 0) {
-            if (frameHeight != 0 && frameWidth != 0) {
-              if (!videoCapabilities.areSizeAndRateSupported(frameWidth, frameHeight, fps)) {
-                String format =
-                    "Rejecting %s, reason: supported frame rates %s does not contain %d";
-                Log.v(TAG, String.format(format, name, supportedFrameRates.toString(), fps));
-                continue;
-              }
-            } else {
-              // At least one of frameHeight or frameWidth is 0
-              if (!supportedFrameRates.contains(fps)) {
-                String format =
-                    "Rejecting %s, reason: supported frame rates %s does not contain %d";
-                Log.v(TAG, String.format(format, name, supportedFrameRates.toString(), fps));
-                continue;
-              }
+      Range<Integer> bitrates = videoCapabilities.getBitrateRange();
+      if (bitrate != 0 && !bitrates.contains(bitrate)) {
+        String format = "Rejecting %s, reason: bitrate range %s does not contain %d";
+        Log.v(TAG, String.format(format, name, bitrates.toString(), bitrate));
+        continue;
+      }
+
+      Range<Integer> supportedFrameRates = videoCapabilities.getSupportedFrameRates();
+      if (enableImprovedSupportCheck) {
+        if (fps != 0) {
+          if (frameHeight != 0 && frameWidth != 0) {
+            if (!videoCapabilities.areSizeAndRateSupported(frameWidth, frameHeight, fps)) {
+              String format = "Rejecting %s, reason: supported frame rates %s does not contain %d";
+              Log.v(TAG, String.format(format, name, supportedFrameRates.toString(), fps));
+              continue;
+            }
+          } else {
+            // At least one of frameHeight or frameWidth is 0
+            if (!supportedFrameRates.contains(fps)) {
+              String format = "Rejecting %s, reason: supported frame rates %s does not contain %d";
+              Log.v(TAG, String.format(format, name, supportedFrameRates.toString(), fps));
+              continue;
             }
           }
-        } else {
-          if (fps != 0 && !supportedFrameRates.contains(fps)) {
-            Log.v(
-                TAG,
-                String.format(
-                    "Rejecting %s, reason: supported frame rates %s does not contain %d",
-                    name, supportedFrameRates.toString(), fps));
-            continue;
-          }
         }
-
-        String resultName =
-            (mustSupportSecure && !name.endsWith(SECURE_DECODER_SUFFIX))
-                ? (name + SECURE_DECODER_SUFFIX)
-                : name;
-        FindVideoDecoderResult findVideoDecoderResult =
-            new FindVideoDecoderResult(resultName, videoCapabilities, codecCapabilities);
-        if (mustSupportHdr && !isHdrCapableVideoDecoder(mimeType, findVideoDecoderResult)) {
-          Log.v(TAG, String.format("Rejecting %s, reason: codec does not support HDR", name));
+      } else {
+        if (fps != 0 && !supportedFrameRates.contains(fps)) {
+          String format = "Rejecting %s, reason: supported frame rates %s does not contain %d";
+          Log.v(TAG, String.format(format, name, supportedFrameRates.toString(), fps));
           continue;
         }
-        Log.v(TAG, String.format("Found suitable decoder, %s", name));
-        return findVideoDecoderResult;
       }
+
+      String resultName =
+          (mustSupportSecure && !name.endsWith(SECURE_DECODER_SUFFIX))
+              ? (name + SECURE_DECODER_SUFFIX)
+              : name;
+      FindVideoDecoderResult findVideoDecoderResult =
+          new FindVideoDecoderResult(resultName, videoCapabilities, decoder.codecCapabilities);
+      if (mustSupportHdr && !isHdrCapableVideoDecoder(mimeType, findVideoDecoderResult)) {
+        Log.v(TAG, "Rejecting " + name + ", reason: codec does not support HDR");
+        continue;
+      }
+      Log.v(TAG, "Found suitable decoder, " + name);
+      return findVideoDecoderResult;
     }
     return new FindVideoDecoderResult("", null, null);
   }

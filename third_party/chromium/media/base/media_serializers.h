@@ -54,10 +54,15 @@ struct MediaSerializer<base::Value> {
 template <typename VecType>
 struct MediaSerializer<std::vector<VecType>> {
   static base::Value Serialize(const std::vector<VecType>& vec) {
+#if defined(STARBOARD)
+    NOTREACHED();
+    return base::Value();
+#else  // defined(STARBOARD)
     base::Value result(base::Value::Type::LIST);
     for (const VecType& value : vec)
       result.Append(MediaSerializer<VecType>::Serialize(value));
     return result;
+#endif  // defined(STARBOARD)
   }
 };
 
@@ -308,7 +313,12 @@ struct MediaSerializer<AudioDecoderConfig> {
     // defined for int64_t, (long vs long long) so format specifiers dont work.
     std::ostringstream preroll;
     preroll << value.seek_preroll().InMicroseconds() << "us";
+
+#if defined(STARBOARD)
+    result.SetKey("seek preroll", base::Value(preroll.str()));
+#else  // defined(STARBOARD)
     result.SetStringKey("seek preroll", preroll.str());
+#endif  // defined(STARBOARD)
 
     return result;
   }
@@ -424,8 +434,13 @@ struct MediaSerializer<SerializableBufferingState<T>> {
         break;
     }
 
+#if defined(STARBOARD)
+    if (T == SerializableBufferingStateType::kPipeline)
+      result.SetKey("for_suspended_start", base::Value(value.suspended_start));
+#else  // defined(STARBOARD)
     if (T == SerializableBufferingStateType::kPipeline)
       result.SetBoolKey("for_suspended_start", value.suspended_start);
+#endif  // defined(STARBOARD)
 
     return result;
   }

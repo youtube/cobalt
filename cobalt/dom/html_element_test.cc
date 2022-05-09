@@ -22,7 +22,7 @@
 #include "cobalt/cssom/css_computed_style_data.h"
 #include "cobalt/cssom/css_declared_style_data.h"
 #include "cobalt/cssom/keyword_value.h"
-#include "cobalt/cssom/testing/mock_css_parser.h"
+#include "cobalt/cssom/testing/mock_css_parser.h"  // nogncheck
 #include "cobalt/cssom/viewport_size.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/dom_rect_list.h"
@@ -53,9 +53,7 @@ namespace {
 ViewportSize kViewSize(320, 240);
 
 // Useful for using base::Bind() along with GMock actions.
-ACTION_P(InvokeCallback0, callback) {
-  callback.Run();
-}
+ACTION_P(InvokeCallback0, callback) { callback.Run(); }
 
 const char kFooBarDeclarationString[] = "foo: bar;";
 const char kDisplayInlineDeclarationString[] = "display: inline;";

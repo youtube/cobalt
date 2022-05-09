@@ -62,12 +62,12 @@
 #include "cobalt/dom/time_ranges.h"
 #include "cobalt/dom/track_default_list.h"
 #include "cobalt/dom/video_track_list.h"
-#include "cobalt/media/base/media_tracks.h"
-#include "cobalt/media/filters/chunk_demuxer.h"
 #include "cobalt/script/array_buffer.h"
 #include "cobalt/script/array_buffer_view.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/exception_state.h"
+#include "third_party/chromium/media/base/media_tracks.h"
+#include "third_party/chromium/media/filters/chunk_demuxer.h"
 
 namespace cobalt {
 namespace dom {
@@ -79,10 +79,12 @@ class MediaSource;
 //   https://www.w3.org/TR/2016/CR-media-source-20160705/#sourcebuffer
 class SourceBuffer : public dom::EventTarget {
  public:
+  typedef ::media::ChunkDemuxer ChunkDemuxer;
+
   // Custom, not in any spec.
   //
   SourceBuffer(script::EnvironmentSettings* settings, const std::string& id,
-               MediaSource* media_source, media::ChunkDemuxer* chunk_demuxer,
+               MediaSource* media_source, ChunkDemuxer* chunk_demuxer,
                EventQueue* event_queue);
 
   // Web API: SourceBuffer
@@ -135,7 +137,7 @@ class SourceBuffer : public dom::EventTarget {
   void TraceMembers(script::Tracer* tracer) override;
 
  private:
-  typedef media::MediaTracks MediaTracks;
+  typedef ::media::MediaTracks MediaTracks;
 
   void InitSegmentReceived(std::unique_ptr<MediaTracks> tracks);
   void ScheduleEvent(base::Token event_name);
@@ -164,7 +166,7 @@ class SourceBuffer : public dom::EventTarget {
       const std::string& byte_stream_track_id) const;
 
   const std::string id_;
-  media::ChunkDemuxer* chunk_demuxer_;
+  ChunkDemuxer* chunk_demuxer_;
   MediaSource* media_source_;
   scoped_refptr<TrackDefaultList> track_defaults_ = new TrackDefaultList(NULL);
   EventQueue* event_queue_;

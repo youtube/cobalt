@@ -1,0 +1,47 @@
+# Copyright 2021 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("//build/config/win/visual_studio_version.gni")
+import("//build/toolchain/win/msvc_toolchain.gni")
+
+_base_path = "$msvc_path/bin/HostX64/x64"
+_libpaths = "/LIBPATH:\"$wdk_lib_path/ucrt/x64\" /LIBPATH:\"$wdk_lib_path/um/x64\" /LIBPATH:\"$msvc_path/lib/x64\""
+
+msvc_toolchain("host") {
+  cl = "$_base_path/cl.exe"
+  lib = "$_base_path/lib.exe"
+  link = "$_base_path/link.exe"
+  asm = "$_base_path/ml64.exe"
+  sys_lib_flags = _libpaths
+
+  toolchain_args = {
+    is_clang = false
+    current_os = "win"
+    current_cpu = "x64"
+  }
+}
+
+msvc_toolchain("target") {
+  cl = "$_base_path/cl.exe"
+  lib = "$_base_path/lib.exe"
+  link = "$_base_path/link.exe"
+  asm = "$_base_path/ml64.exe"
+  sys_lib_flags = _libpaths
+
+  toolchain_args = {
+    is_clang = false
+    current_os = "win"
+    current_cpu = "x64"
+  }
+}

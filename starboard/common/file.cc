@@ -55,31 +55,16 @@ bool SbFileDeleteRecursive(const char* path, bool preserve_root) {
 
   SbFileInfo info;
 
-#if SB_API_VERSION >= 12
   std::vector<char> entry(kSbFileMaxName);
 
   while (SbDirectoryGetNext(dir, entry.data(), kSbFileMaxName)) {
-    if (!strcmp(entry.data(), ".") ||
-        !strcmp(entry.data(), "..")) {
+    if (!strcmp(entry.data(), ".") || !strcmp(entry.data(), "..")) {
       continue;
     }
 
     std::string abspath(path);
     abspath.append(kSbFileSepString);
     abspath.append(entry.data());
-#else
-  SbDirectoryEntry entry;
-
-  while (SbDirectoryGetNext(dir, &entry)) {
-    if (!strcmp(entry.name, ".") ||
-        !strcmp(entry.name, "..")) {
-      continue;
-    }
-
-    std::string abspath(path);
-    abspath.append(kSbFileSepString);
-    abspath.append(entry.name);
-#endif
 
     if (!SbFileDeleteRecursive(abspath.data(), false)) {
       DirectoryCloseLogFailure(path, dir);

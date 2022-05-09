@@ -149,14 +149,7 @@ base/compiler_specific.h)
 
 ### SB_RESTRICT ###
 
-Include the platform-specific configuration. This macro is set by GYP in
-starboard_base_target.gypi and passed in on the command line for all targets and
-all configurations.After version 12, we start to use runtime constants instead
-of macros for certain platform dependent configurations. This file substitutes
-configuration macros for the corresponding runtime constants so we don't
-reference these constants when they aren't defined.Makes a pointer-typed
-parameter restricted so that the compiler can make certain optimizations because
-it knows the pointers are unique.
+Include the platform-specific configuration.
 
 ### SB_SIZE_OF(DATATYPE) ###
 

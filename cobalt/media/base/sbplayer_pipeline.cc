@@ -14,6 +14,7 @@
 
 #include <algorithm>
 #include <memory>
+#include <string>
 #include <vector>
 
 #include "base/basictypes.h"  // For COMPILE_ASSERT
@@ -28,32 +29,43 @@
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/c_val.h"
+#include "cobalt/base/startup_timer.h"
 #include "cobalt/math/size.h"
-#include "cobalt/media/base/audio_decoder_config.h"
-#include "cobalt/media/base/bind_to_current_loop.h"
-#include "cobalt/media/base/channel_layout.h"
-#include "cobalt/media/base/decoder_buffer.h"
-#include "cobalt/media/base/demuxer.h"
-#include "cobalt/media/base/demuxer_stream.h"
 #include "cobalt/media/base/media_export.h"
-#include "cobalt/media/base/media_log.h"
 #include "cobalt/media/base/pipeline.h"
-#include "cobalt/media/base/pipeline_status.h"
 #include "cobalt/media/base/playback_statistics.h"
-#include "cobalt/media/base/ranges.h"
 #include "cobalt/media/base/sbplayer_set_bounds_helper.h"
 #include "cobalt/media/base/starboard_player.h"
-#include "cobalt/media/base/video_decoder_config.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration_constants.h"
+#include "starboard/time.h"
+#include "third_party/chromium/media/base/audio_decoder_config.h"
+#include "third_party/chromium/media/base/bind_to_current_loop.h"
+#include "third_party/chromium/media/base/channel_layout.h"
+#include "third_party/chromium/media/base/decoder_buffer.h"
+#include "third_party/chromium/media/base/demuxer.h"
+#include "third_party/chromium/media/base/demuxer_stream.h"
+#include "third_party/chromium/media/base/media_log.h"
+#include "third_party/chromium/media/base/pipeline_status.h"
+#include "third_party/chromium/media/base/ranges.h"
+#include "third_party/chromium/media/base/video_decoder_config.h"
+#include "third_party/chromium/media/cobalt/ui/gfx/geometry/rect.h"
+#include "third_party/chromium/media/cobalt/ui/gfx/geometry/size.h"
 
 namespace cobalt {
 namespace media {
+namespace {
 
 using base::Time;
 using base::TimeDelta;
-
-namespace {
+using ::media::AudioDecoderConfig;
+using ::media::DecoderBuffer;
+using ::media::Demuxer;
+using ::media::DemuxerHost;
+using ::media::DemuxerStream;
+using ::media::VideoDecoderConfig;
+using ::media::PipelineStatistics;
+using ::media::PipelineStatusCallback;
 
 static const int kRetryDelayAtSuspendInMilliseconds = 100;
 
@@ -64,7 +76,7 @@ unsigned int g_pipeline_identifier_counter = 0;
 struct StartTaskParameters {
   Demuxer* demuxer;
   SetDrmSystemReadyCB set_drm_system_ready_cb;
-  PipelineStatusCB ended_cb;
+  PipelineStatusCallback ended_cb;
   ErrorCB error_cb;
   Pipeline::SeekCB seek_cb;
   Pipeline::BufferingStateCB buffering_state_cb;
@@ -101,7 +113,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
 
   void Start(Demuxer* demuxer,
              const SetDrmSystemReadyCB& set_drm_system_ready_cb,
-             const PipelineStatusCB& ended_cb, const ErrorCB& error_cb,
+             PipelineStatusCallback ended_cb, const ErrorCB& error_cb,
              const SeekCB& seek_cb, const BufferingStateCB& buffering_state_cb,
              const base::Closure& duration_change_cb,
              const base::Closure& output_mode_change_cb,
@@ -111,7 +123,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   void Start(const SetDrmSystemReadyCB& set_drm_system_ready_cb,
              const OnEncryptedMediaInitDataEncounteredCB&
                  encrypted_media_init_data_encountered_cb,
-             const std::string& source_url, const PipelineStatusCB& ended_cb,
+             const std::string& source_url, PipelineStatusCallback ended_cb,
              const ErrorCB& error_cb, const SeekCB& seek_cb,
              const BufferingStateCB& buffering_state_cb,
              const base::Closure& duration_change_cb,
@@ -130,12 +142,12 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   void SetVolume(float volume) override;
 
   TimeDelta GetMediaTime() override;
-  Ranges<TimeDelta> GetBufferedTimeRanges() override;
+  ::media::Ranges<TimeDelta> GetBufferedTimeRanges() override;
   TimeDelta GetMediaDuration() const override;
 #if SB_HAS(PLAYER_WITH_URL)
   TimeDelta GetMediaStartDate() const override;
 #endif  // SB_HAS(PLAYER_WITH_URL)
-  void GetNaturalVideoSize(math::Size* out_size) const override;
+  void GetNaturalVideoSize(gfx::Size* out_size) const override;
 
   bool DidLoadingProgress() const override;
   PipelineStatistics GetStatistics() const override;
@@ -143,19 +155,16 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   void SetDecodeToTextureOutputMode(bool enabled) override;
 
  private:
-  void StartTask(const StartTaskParameters& parameters);
+  void StartTask(StartTaskParameters parameters);
   void SetVolumeTask(float volume);
   void SetPlaybackRateTask(float volume);
   void SetDurationTask(TimeDelta duration);
 
   // DemuxerHost implementation.
   void OnBufferedTimeRangesChanged(
-      const Ranges<base::TimeDelta>& ranges) override;
+      const ::media::Ranges<base::TimeDelta>& ranges) override;
   void SetDuration(TimeDelta duration) override;
   void OnDemuxerError(PipelineStatus error) override;
-  void AddTextStream(DemuxerStream* text_stream,
-                     const TextTrackConfig& config) override;
-  void RemoveTextStream(DemuxerStream* text_stream) override;
 
 #if SB_HAS(PLAYER_WITH_URL)
   void CreateUrlPlayer(const std::string& source_url);
@@ -168,7 +177,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   void OnDemuxerStopped();
   void OnDemuxerStreamRead(DemuxerStream::Type type,
                            DemuxerStream::Status status,
-                           const scoped_refptr<DecoderBuffer>& buffer);
+                           scoped_refptr<DecoderBuffer> buffer);
   // StarboardPlayer::Host implementation.
   void OnNeedData(DemuxerStream::Type type) override;
   void OnPlayerStatus(SbPlayerState state) override;
@@ -193,6 +202,12 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   // Retrieve the statistics as a string and append to message.
   std::string AppendStatisticsString(const std::string& message) const;
 
+  // Get information on the time since app start and the time since the last
+  // playback resume.
+  std::string GetTimeInformation() const;
+
+  void RunSetDrmSystemReadyCB();
+
   // An identifier string for the pipeline, used in CVal to identify multiple
   // pipelines.
   const std::string pipeline_identifier_;
@@ -215,14 +230,14 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   mutable base::Lock lock_;
 
   // Amount of available buffered data.  Set by filters.
-  Ranges<TimeDelta> buffered_time_ranges_;
+  ::media::Ranges<TimeDelta> buffered_time_ranges_;
 
   // True when AddBufferedByteRange() has been called more recently than
   // DidLoadingProgress().
   mutable bool did_loading_progress_;
 
   // Video's natural width and height.  Set by filters.
-  math::Size natural_size_;
+  gfx::Size natural_size_;
 
   // Current volume level (from 0.0f to 1.0f).  This value is set immediately
   // via SetVolume() and a task is dispatched on the message loop to notify the
@@ -250,7 +265,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
 
   // Permanent callbacks passed in via Start().
   SetDrmSystemReadyCB set_drm_system_ready_cb_;
-  PipelineStatusCB ended_cb_;
+  PipelineStatusCallback ended_cb_;
   ErrorCB error_cb_;
   BufferingStateCB buffering_state_cb_;
   base::Closure duration_change_cb_;
@@ -316,6 +331,10 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   base::CVal<std::string> max_video_capabilities_;
 
   PlaybackStatistics playback_statistics_;
+
+  SbTimeMonotonic last_resume_time_ = -1;
+
+  SbTimeMonotonic set_drm_system_ready_cb_time_ = -1;
 
   DISALLOW_COPY_AND_ASSIGN(SbPlayerPipeline);
 };
@@ -408,29 +427,21 @@ void OnEncryptedMediaInitDataEncountered(
         on_encrypted_media_init_data_encountered,
     const char* init_data_type, const unsigned char* init_data,
     unsigned int init_data_length) {
-  media::EmeInitDataType init_data_type_enum;
-  if (!strcmp(init_data_type, "cenc")) {
-    init_data_type_enum = media::kEmeInitDataTypeCenc;
-  } else if (!strcmp(init_data_type, "fairplay")) {
-    init_data_type_enum = media::kEmeInitDataTypeFairplay;
-  } else if (!strcmp(init_data_type, "keyids")) {
-    init_data_type_enum = media::kEmeInitDataTypeKeyIds;
-  } else if (!strcmp(init_data_type, "webm")) {
-    init_data_type_enum = media::kEmeInitDataTypeWebM;
-  } else {
-    LOG(WARNING) << "Unknown EME initialization data type.";
-    return;
-  }
+  LOG_IF(WARNING, strcmp(init_data_type, "cenc") != 0 &&
+                      strcmp(init_data_type, "fairplay") != 0 &&
+                      strcmp(init_data_type, "keyids") != 0 &&
+                      strcmp(init_data_type, "webm") != 0)
+      << "Unknown EME initialization data type: " << init_data_type;
+
   std::vector<uint8_t> init_data_vec(init_data, init_data + init_data_length);
   DCHECK(!on_encrypted_media_init_data_encountered.is_null());
-  on_encrypted_media_init_data_encountered.Run(init_data_type_enum,
-                                               init_data_vec);
+  on_encrypted_media_init_data_encountered.Run(init_data_type, init_data_vec);
 }
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
 void SbPlayerPipeline::Start(Demuxer* demuxer,
                              const SetDrmSystemReadyCB& set_drm_system_ready_cb,
-                             const PipelineStatusCB& ended_cb,
+                             PipelineStatusCallback ended_cb,
                              const ErrorCB& error_cb, const SeekCB& seek_cb,
                              const BufferingStateCB& buffering_state_cb,
                              const base::Closure& duration_change_cb,
@@ -451,7 +462,7 @@ void SbPlayerPipeline::Start(Demuxer* demuxer,
   StartTaskParameters parameters;
   parameters.demuxer = demuxer;
   parameters.set_drm_system_ready_cb = set_drm_system_ready_cb;
-  parameters.ended_cb = ended_cb;
+  parameters.ended_cb = std::move(ended_cb);
   parameters.error_cb = error_cb;
   parameters.seek_cb = seek_cb;
   parameters.buffering_state_cb = buffering_state_cb;
@@ -463,8 +474,9 @@ void SbPlayerPipeline::Start(Demuxer* demuxer,
   parameters.is_url_based = false;
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
-  task_runner_->PostTask(
-      FROM_HERE, base::Bind(&SbPlayerPipeline::StartTask, this, parameters));
+  task_runner_->PostTask(FROM_HERE,
+                         base::Bind(&SbPlayerPipeline::StartTask, this,
+                                    base::Passed(&parameters)));
 }
 
 #if SB_HAS(PLAYER_WITH_URL)
@@ -472,7 +484,7 @@ void SbPlayerPipeline::Start(const SetDrmSystemReadyCB& set_drm_system_ready_cb,
                              const OnEncryptedMediaInitDataEncounteredCB&
                                  on_encrypted_media_init_data_encountered_cb,
                              const std::string& source_url,
-                             const PipelineStatusCB& ended_cb,
+                             PipelineStatusCallback ended_cb,
                              const ErrorCB& error_cb, const SeekCB& seek_cb,
                              const BufferingStateCB& buffering_state_cb,
                              const base::Closure& duration_change_cb,
@@ -492,7 +504,7 @@ void SbPlayerPipeline::Start(const SetDrmSystemReadyCB& set_drm_system_ready_cb,
   StartTaskParameters parameters;
   parameters.demuxer = NULL;
   parameters.set_drm_system_ready_cb = set_drm_system_ready_cb;
-  parameters.ended_cb = ended_cb;
+  parameters.ended_cb = std::move(ended_cb);
   parameters.error_cb = error_cb;
   parameters.seek_cb = seek_cb;
   parameters.buffering_state_cb = buffering_state_cb;
@@ -506,11 +518,11 @@ void SbPlayerPipeline::Start(const SetDrmSystemReadyCB& set_drm_system_ready_cb,
                  on_encrypted_media_init_data_encountered_cb);
   set_drm_system_ready_cb_ = parameters.set_drm_system_ready_cb;
   DCHECK(!set_drm_system_ready_cb_.is_null());
-  set_drm_system_ready_cb_.Run(
-      base::Bind(&SbPlayerPipeline::SetDrmSystem, this));
+  RunSetDrmSystemReadyCB();
 
-  task_runner_->PostTask(
-      FROM_HERE, base::Bind(&SbPlayerPipeline::StartTask, this, parameters));
+  task_runner_->PostTask(FROM_HERE,
+                         base::Bind(&SbPlayerPipeline::StartTask, this,
+                                    base::Passed(&parameters)));
 }
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
@@ -561,7 +573,7 @@ void SbPlayerPipeline::Seek(TimeDelta time, const SeekCB& seek_cb) {
   playback_statistics_.OnSeek(time);
 
   if (!player_) {
-    seek_cb.Run(PIPELINE_ERROR_INVALID_STATE, false,
+    seek_cb.Run(::media::PIPELINE_ERROR_INVALID_STATE, false,
                 AppendStatisticsString("SbPlayerPipeline::Seek failed: "
                                        "player_ is nullptr."));
     return;
@@ -668,7 +680,7 @@ TimeDelta SbPlayerPipeline::GetMediaTime() {
     player_->GetVideoResolution(&frame_width, &frame_height);
     if (frame_width != natural_size_.width() ||
         frame_height != natural_size_.height()) {
-      natural_size_ = math::Size(frame_width, frame_height);
+      natural_size_ = gfx::Size(frame_width, frame_height);
       content_size_change_cb_.Run();
     }
   }
@@ -687,11 +699,11 @@ TimeDelta SbPlayerPipeline::GetMediaTime() {
   return media_time;
 }
 
-Ranges<TimeDelta> SbPlayerPipeline::GetBufferedTimeRanges() {
+::media::Ranges<TimeDelta> SbPlayerPipeline::GetBufferedTimeRanges() {
   base::AutoLock auto_lock(lock_);
 
 #if SB_HAS(PLAYER_WITH_URL)
-  Ranges<TimeDelta> time_ranges;
+  ::media::Ranges<TimeDelta> time_ranges;
 
   if (!player_) {
     return time_ranges;
@@ -748,7 +760,7 @@ TimeDelta SbPlayerPipeline::GetMediaStartDate() const {
 }
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
-void SbPlayerPipeline::GetNaturalVideoSize(math::Size* out_size) const {
+void SbPlayerPipeline::GetNaturalVideoSize(gfx::Size* out_size) const {
   CHECK(out_size);
   base::AutoLock auto_lock(lock_);
   *out_size = natural_size_;
@@ -789,7 +801,7 @@ void SbPlayerPipeline::SetDecodeToTextureOutputMode(bool enabled) {
   decode_to_texture_output_mode_ = enabled;
 }
 
-void SbPlayerPipeline::StartTask(const StartTaskParameters& parameters) {
+void SbPlayerPipeline::StartTask(StartTaskParameters parameters) {
   TRACE_EVENT0("cobalt::media", "SbPlayerPipeline::StartTask");
 
   DCHECK(task_runner_->BelongsToCurrentThread());
@@ -798,7 +810,7 @@ void SbPlayerPipeline::StartTask(const StartTaskParameters& parameters) {
 
   demuxer_ = parameters.demuxer;
   set_drm_system_ready_cb_ = parameters.set_drm_system_ready_cb;
-  ended_cb_ = parameters.ended_cb;
+  ended_cb_ = std::move(parameters.ended_cb);
   error_cb_ = parameters.error_cb;
   {
     base::AutoLock auto_lock(lock_);
@@ -816,11 +828,9 @@ void SbPlayerPipeline::StartTask(const StartTaskParameters& parameters) {
     return;
   }
 #endif  // SB_HAS(PLAYER_WITH_URL)
-  const bool kEnableTextTracks = false;
-  demuxer_->Initialize(this,
-                       BindToCurrentLoop(base::Bind(
-                           &SbPlayerPipeline::OnDemuxerInitialized, this)),
-                       kEnableTextTracks);
+  demuxer_->Initialize(
+      this, BindToCurrentLoop(
+                base::Bind(&SbPlayerPipeline::OnDemuxerInitialized, this)));
 
   started_ = true;
 }
@@ -849,7 +859,7 @@ void SbPlayerPipeline::SetDurationTask(TimeDelta duration) {
 }
 
 void SbPlayerPipeline::OnBufferedTimeRangesChanged(
-    const Ranges<base::TimeDelta>& ranges) {
+    const ::media::Ranges<base::TimeDelta>& ranges) {
   base::AutoLock auto_lock(lock_);
   did_loading_progress_ = true;
   buffered_time_ranges_ = ranges;
@@ -870,18 +880,9 @@ void SbPlayerPipeline::OnDemuxerError(PipelineStatus error) {
     return;
   }
 
-  if (error != PIPELINE_OK) {
+  if (error != ::media::PIPELINE_OK) {
     CallErrorCB(error, "Demuxer error.");
   }
-}
-
-void SbPlayerPipeline::AddTextStream(DemuxerStream* text_stream,
-                                     const TextTrackConfig& config) {
-  NOTREACHED();
-}
-
-void SbPlayerPipeline::RemoveTextStream(DemuxerStream* text_stream) {
-  NOTREACHED();
 }
 
 #if SB_HAS(PLAYER_WITH_URL)
@@ -933,10 +934,15 @@ void SbPlayerPipeline::CreateUrlPlayer(const std::string& source_url) {
     return;
   }
 
-  CallSeekCB(DECODER_ERROR_NOT_SUPPORTED,
+  std::string time_information = GetTimeInformation();
+  LOG(INFO) << "SbPlayerPipeline::CreateUrlPlayer failed to create a valid "
+               "StarboardPlayer - "
+            << time_information << " \'" << error_message << "\'";
+
+  CallSeekCB(::media::DECODER_ERROR_NOT_SUPPORTED,
              "SbPlayerPipeline::CreateUrlPlayer failed to create a valid "
-             "StarboardPlayer: \'" +
-                 error_message + "\'");
+             "StarboardPlayer - " +
+                 time_information + " \'" + error_message + "\'");
 }
 
 void SbPlayerPipeline::SetDrmSystem(SbDrmSystem drm_system) {
@@ -949,6 +955,7 @@ void SbPlayerPipeline::SetDrmSystem(SbDrmSystem drm_system) {
   }
 
   if (player_->IsValid()) {
+    player_->RecordSetDrmSystemReadyTime(set_drm_system_ready_cb_time_);
     player_->SetDrmSystem(drm_system);
   }
 }
@@ -987,9 +994,12 @@ void SbPlayerPipeline::CreatePlayer(SbDrmSystem drm_system) {
       video_stream_ ? video_stream_->video_decoder_config()
                     : invalid_video_config;
 
+  std::string audio_mime_type = audio_stream_ ? audio_stream_->mime_type() : "";
+  std::string video_mime_type;
   if (video_stream_) {
     playback_statistics_.UpdateVideoConfig(
         video_stream_->video_decoder_config());
+    video_mime_type = video_stream_->mime_type();
   }
 
   std::string error_message;
@@ -1003,8 +1013,8 @@ void SbPlayerPipeline::CreatePlayer(SbDrmSystem drm_system) {
     LOG(INFO) << "Creating StarboardPlayer.";
     player_.reset(new StarboardPlayer(
         task_runner_, get_decode_target_graphics_context_provider_func_,
-        audio_config, video_config, window_, drm_system, this,
-        set_bounds_helper_.get(), allow_resume_after_suspend_,
+        audio_config, audio_mime_type, video_config, video_mime_type, window_,
+        drm_system, this, set_bounds_helper_.get(), allow_resume_after_suspend_,
         *decode_to_texture_output_mode_, video_frame_provider_,
         max_video_capabilities_));
     if (player_->IsValid()) {
@@ -1018,6 +1028,7 @@ void SbPlayerPipeline::CreatePlayer(SbDrmSystem drm_system) {
   }
 
   if (player_ && player_->IsValid()) {
+    player_->RecordSetDrmSystemReadyTime(set_drm_system_ready_cb_time_);
     base::Closure output_mode_change_cb;
     {
       base::AutoLock auto_lock(lock_);
@@ -1035,10 +1046,15 @@ void SbPlayerPipeline::CreatePlayer(SbDrmSystem drm_system) {
     return;
   }
 
-  CallSeekCB(DECODER_ERROR_NOT_SUPPORTED,
+  std::string time_information = GetTimeInformation();
+  LOG(INFO) << "SbPlayerPipeline::CreatePlayer failed to create a valid "
+               "StarboardPlayer - "
+            << time_information << " \'" << error_message << "\'";
+
+  CallSeekCB(::media::DECODER_ERROR_NOT_SUPPORTED,
              "SbPlayerPipeline::CreatePlayer failed to create a valid "
-             "StarboardPlayer: \'" +
-                 error_message + "\'");
+             "StarboardPlayer - " +
+                 time_information + " \'" + error_message + "\'");
 }
 
 void SbPlayerPipeline::OnDemuxerInitialized(PipelineStatus status) {
@@ -1053,7 +1069,7 @@ void SbPlayerPipeline::OnDemuxerInitialized(PipelineStatus status) {
     return;
   }
 
-  if (status != PIPELINE_OK) {
+  if (status != ::media::PIPELINE_OK) {
     CallErrorCB(status, "Demuxer initialization error.");
     return;
   }
@@ -1066,12 +1082,28 @@ void SbPlayerPipeline::OnDemuxerInitialized(PipelineStatus status) {
     return;
   }
 
-  DemuxerStream* audio_stream = demuxer_->GetStream(DemuxerStream::AUDIO);
-  DemuxerStream* video_stream = demuxer_->GetStream(DemuxerStream::VIDEO);
+  auto streams = demuxer_->GetAllStreams();
+  DemuxerStream* audio_stream = nullptr;
+  DemuxerStream* video_stream = nullptr;
+  for (auto&& stream : streams) {
+    if (stream->type() == DemuxerStream::AUDIO) {
+      if (audio_stream == nullptr) {
+        audio_stream = stream;
+      } else {
+        LOG(WARNING) << "Encountered more than one audio streams.";
+      }
+    } else if (stream->type() == DemuxerStream::VIDEO) {
+      if (video_stream == nullptr) {
+        video_stream = stream;
+      } else {
+        LOG(WARNING) << "Encountered more than one video streams.";
+      }
+    }
+  }
 
   if (audio_stream == NULL && video_stream == NULL) {
     LOG(INFO) << "The video has to contain an audio track or a video track.";
-    CallErrorCB(DEMUXER_ERROR_NO_SUPPORTED_STREAMS,
+    CallErrorCB(::media::DEMUXER_ERROR_NO_SUPPORTED_STREAMS,
                 "The video has to contain an audio track or a video track.");
     return;
   }
@@ -1098,8 +1130,7 @@ void SbPlayerPipeline::OnDemuxerInitialized(PipelineStatus status) {
       content_size_change_cb_.Run();
     }
     if (is_encrypted) {
-      set_drm_system_ready_cb_.Run(
-          BindToCurrentLoop(base::Bind(&SbPlayerPipeline::CreatePlayer, this)));
+      RunSetDrmSystemReadyCB();
       return;
     }
   }
@@ -1110,7 +1141,7 @@ void SbPlayerPipeline::OnDemuxerInitialized(PipelineStatus status) {
 void SbPlayerPipeline::OnDemuxerSeeked(PipelineStatus status) {
   DCHECK(task_runner_->BelongsToCurrentThread());
 
-  if (status == PIPELINE_OK && player_) {
+  if (status == ::media::PIPELINE_OK && player_) {
     player_->Seek(seek_time_);
   }
 }
@@ -1129,7 +1160,7 @@ void SbPlayerPipeline::OnDemuxerStopped() {
 
 void SbPlayerPipeline::OnDemuxerStreamRead(
     DemuxerStream::Type type, DemuxerStream::Status status,
-    const scoped_refptr<DecoderBuffer>& buffer) {
+    scoped_refptr<DecoderBuffer> buffer) {
 #if SB_HAS(PLAYER_WITH_URL)
   DCHECK(!is_url_based_);
 #endif  // SB_HAS(PLAYER_WITH_URL)
@@ -1138,8 +1169,8 @@ void SbPlayerPipeline::OnDemuxerStreamRead(
 
   if (!task_runner_->BelongsToCurrentThread()) {
     task_runner_->PostTask(
-        FROM_HERE, base::Bind(&SbPlayerPipeline::OnDemuxerStreamRead, this,
-                              type, status, buffer));
+        FROM_HERE, base::BindOnce(&SbPlayerPipeline::OnDemuxerStreamRead, this,
+                                  type, status, buffer));
     return;
   }
 
@@ -1161,7 +1192,7 @@ void SbPlayerPipeline::OnDemuxerStreamRead(
       video_read_in_progress_ = false;
     }
     if (!seek_cb_.is_null()) {
-      CallSeekCB(PIPELINE_OK, "");
+      CallSeekCB(::media::PIPELINE_OK, "");
     }
     return;
   }
@@ -1169,7 +1200,7 @@ void SbPlayerPipeline::OnDemuxerStreamRead(
   if (status == DemuxerStream::kConfigChanged) {
     UpdateDecoderConfig(stream);
     stream->Read(
-        base::Bind(&SbPlayerPipeline::OnDemuxerStreamRead, this, type));
+        base::BindOnce(&SbPlayerPipeline::OnDemuxerStreamRead, this, type));
     return;
   }
 
@@ -1246,7 +1277,8 @@ void SbPlayerPipeline::OnNeedData(DemuxerStream::Type type) {
   DemuxerStream* stream =
       type == DemuxerStream::AUDIO ? audio_stream_ : video_stream_;
   DCHECK(stream);
-  stream->Read(base::Bind(&SbPlayerPipeline::OnDemuxerStreamRead, this, type));
+  stream->Read(
+      base::BindOnce(&SbPlayerPipeline::OnDemuxerStreamRead, this, type));
 }
 
 void SbPlayerPipeline::OnPlayerStatus(SbPlayerState state) {
@@ -1280,7 +1312,7 @@ void SbPlayerPipeline::OnPlayerStatus(SbPlayerState state) {
         player_->GetVideoResolution(&frame_width, &frame_height);
         bool natural_size_changed = (frame_width != natural_size_.width() ||
                                      frame_height != natural_size_.height());
-        natural_size_ = math::Size(frame_width, frame_height);
+        natural_size_ = gfx::Size(frame_width, frame_height);
         if (natural_size_changed) {
           content_size_change_cb_.Run();
         }
@@ -1288,7 +1320,7 @@ void SbPlayerPipeline::OnPlayerStatus(SbPlayerState state) {
 #endif  // SB_HAS(PLAYER_WITH_URL)
       buffering_state_cb_.Run(kPrerollCompleted);
       if (!seek_cb_.is_null()) {
-        CallSeekCB(PIPELINE_OK, "");
+        CallSeekCB(::media::PIPELINE_OK, "");
       }
       if (video_stream_) {
         playback_statistics_.OnPresenting(
@@ -1297,7 +1329,7 @@ void SbPlayerPipeline::OnPlayerStatus(SbPlayerState state) {
       break;
     }
     case kSbPlayerStateEndOfStream:
-      ended_cb_.Run(PIPELINE_OK);
+      std::move(ended_cb_).Run(::media::PIPELINE_OK);
       ended_ = true;
       break;
     case kSbPlayerStateDestroyed:
@@ -1319,10 +1351,10 @@ void SbPlayerPipeline::OnPlayerError(SbPlayerError error,
     DCHECK(is_url_based_);
     switch (static_cast<SbUrlPlayerError>(error)) {
       case kSbUrlPlayerErrorNetwork:
-        CallErrorCB(PIPELINE_ERROR_NETWORK, message);
+        CallErrorCB(::media::PIPELINE_ERROR_NETWORK, message);
         break;
       case kSbUrlPlayerErrorSrcNotSupported:
-        CallErrorCB(DEMUXER_ERROR_COULD_NOT_OPEN, message);
+        CallErrorCB(::media::DEMUXER_ERROR_COULD_NOT_OPEN, message);
 
         break;
     }
@@ -1331,10 +1363,10 @@ void SbPlayerPipeline::OnPlayerError(SbPlayerError error,
 #endif  // SB_HAS(PLAYER_WITH_URL)
   switch (error) {
     case kSbPlayerErrorDecode:
-      CallErrorCB(PIPELINE_ERROR_DECODE, message);
+      CallErrorCB(::media::PIPELINE_ERROR_DECODE, message);
       break;
     case kSbPlayerErrorCapabilityChanged:
-      CallErrorCB(PLAYBACK_CAPABILITY_CHANGED, message);
+      CallErrorCB(::media::PLAYBACK_CAPABILITY_CHANGED, message);
       break;
     case kSbPlayerErrorMax:
       NOTREACHED();
@@ -1354,7 +1386,7 @@ void SbPlayerPipeline::UpdateDecoderConfig(DemuxerStream* stream) {
 
   if (stream->type() == DemuxerStream::AUDIO) {
     const AudioDecoderConfig& decoder_config = stream->audio_decoder_config();
-    player_->UpdateAudioConfig(decoder_config);
+    player_->UpdateAudioConfig(decoder_config, stream->mime_type());
   } else {
     DCHECK_EQ(stream->type(), DemuxerStream::VIDEO);
     const VideoDecoderConfig& decoder_config = stream->video_decoder_config();
@@ -1363,7 +1395,7 @@ void SbPlayerPipeline::UpdateDecoderConfig(DemuxerStream* stream) {
         (decoder_config.natural_size().width() != natural_size_.width() ||
          decoder_config.natural_size().height() != natural_size_.height());
     natural_size_ = decoder_config.natural_size();
-    player_->UpdateVideoConfig(decoder_config);
+    player_->UpdateVideoConfig(decoder_config, stream->mime_type());
     if (natural_size_changed) {
       content_size_change_cb_.Run();
     }
@@ -1374,7 +1406,7 @@ void SbPlayerPipeline::UpdateDecoderConfig(DemuxerStream* stream) {
 
 void SbPlayerPipeline::CallSeekCB(PipelineStatus status,
                                   const std::string& error_message) {
-  if (status == PIPELINE_OK) {
+  if (status == ::media::PIPELINE_OK) {
     DCHECK(error_message.empty());
   }
 
@@ -1393,7 +1425,7 @@ void SbPlayerPipeline::CallSeekCB(PipelineStatus status,
 
 void SbPlayerPipeline::CallErrorCB(PipelineStatus status,
                                    const std::string& error_message) {
-  DCHECK_NE(status, PIPELINE_OK);
+  DCHECK_NE(status, ::media::PIPELINE_OK);
   // Only to record the first error.
   if (error_cb_.is_null()) {
     return;
@@ -1432,6 +1464,7 @@ void SbPlayerPipeline::ResumeTask(PipelineWindow window,
   DCHECK(suspended_);
 
   if (!suspended_) {
+    last_resume_time_ = SbTimeGetMonotonicNow();
     done_event->Signal();
     return;
   }
@@ -1447,17 +1480,22 @@ void SbPlayerPipeline::ResumeTask(PipelineWindow window,
         error_message = player_->GetPlayerCreationErrorMessage();
         player_.reset();
       }
+      std::string time_information = GetTimeInformation();
+      LOG(INFO) << "SbPlayerPipeline::ResumeTask failed to create a valid "
+                   "StarboardPlayer - "
+                << time_information << " \'" << error_message << "\'";
       // TODO: Determine if CallSeekCB() may be used here, as |seek_cb_| may be
       // available if the app is suspended before a seek is completed.
-      CallErrorCB(DECODER_ERROR_NOT_SUPPORTED,
-                  "SbPlayerPipeline::ResumeTask failed to create a valid "
-                  "StarboardPlayer: \'" +
-                      error_message + "\'");
+      CallSeekCB(::media::DECODER_ERROR_NOT_SUPPORTED,
+                 "SbPlayerPipeline::ResumeTask failed to create a valid "
+                 "StarboardPlayer - " +
+                     time_information + " \'" + error_message + "\'");
       return;
     }
   }
 
   suspended_ = false;
+  last_resume_time_ = SbTimeGetMonotonicNow();
 
   done_event->Signal();
 }
@@ -1472,6 +1510,46 @@ std::string SbPlayerPipeline::AppendStatisticsString(
                video_stream_->video_decoder_config()) +
            '.';
   }
+}
+
+std::string SbPlayerPipeline::GetTimeInformation() const {
+  auto round_time_in_seconds = [](const SbTime time) {
+    const int64_t seconds = time / kSbTimeSecond;
+    if (seconds < 15) {
+      return seconds / 5 * 5;
+    }
+    if (seconds < 60) {
+      return seconds / 15 * 15;
+    }
+    if (seconds < 3600) {
+      return std::max(static_cast<SbTime>(60), seconds / 600 * 600);
+    }
+    return std::max(static_cast<SbTime>(3600), seconds / 18000 * 18000);
+  };
+  std::string time_since_start =
+      std::to_string(
+          round_time_in_seconds(base::StartupTimer::TimeElapsed().ToSbTime())) +
+      "s";
+  std::string time_since_resume =
+      last_resume_time_ != -1
+          ? std::to_string(round_time_in_seconds(SbTimeGetMonotonicNow() -
+                                                 last_resume_time_)) +
+                "s"
+          : "null";
+  return "time since app start: " + time_since_start +
+         ", time since last resume: " + time_since_resume;
+}
+
+void SbPlayerPipeline::RunSetDrmSystemReadyCB() {
+  TRACE_EVENT0("cobalt::media", "SbPlayerPipeline::RunSetDrmSystemReadyCB");
+  set_drm_system_ready_cb_time_ = SbTimeGetMonotonicNow();
+#if SB_HAS(PLAYER_WITH_URL)
+  set_drm_system_ready_cb_.Run(
+      base::Bind(&SbPlayerPipeline::SetDrmSystem, this));
+#else   // SB_HAS(PLAYER_WITH_URL)
+  set_drm_system_ready_cb_.Run(::media::BindToCurrentLoop(
+      base::Bind(&SbPlayerPipeline::CreatePlayer, this)));
+#endif  // SB_HAS(PLAYER_WITH_URL)
 }
 
 }  // namespace

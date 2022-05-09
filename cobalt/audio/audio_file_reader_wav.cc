@@ -122,10 +122,7 @@ void AudioFileReaderWAV::ParseChunks(const uint8* data, size_t size) {
         break;
       }
     } else if (chunk_id == kWAVChunkID_data && i == 1) {
-      if (!ParseWAV_data(data, offset, chunk_size, is_src_sample_in_float)) {
-        DLOG(WARNING) << "Parse data chunk failed.";
-        break;
-      }
+      ParseWAV_data(data, offset, chunk_size, is_src_sample_in_float);
     } else {
       DLOG(WARNING) << "Malformed audio chunk.";
       break;
@@ -182,7 +179,7 @@ bool AudioFileReaderWAV::ParseWAV_fmt(const uint8* data, size_t offset,
   return true;
 }
 
-bool AudioFileReaderWAV::ParseWAV_data(const uint8* data, size_t offset,
+void AudioFileReaderWAV::ParseWAV_data(const uint8* data, size_t offset,
                                        size_t size,
                                        bool is_src_sample_in_float) {
   // Set number of frames based on size of data chunk.
@@ -281,8 +278,6 @@ bool AudioFileReaderWAV::ParseWAV_data(const uint8* data, size_t offset,
     }
   }
 #endif  // SB_IS(LITTLE_ENDIAN)
-
-  return true;
 }
 
 }  // namespace audio

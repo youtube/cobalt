@@ -87,21 +87,16 @@ std::string InputBuffer::ToString() const {
      << " sample @ timestamp: " << timestamp() << " in " << size()
      << " bytes ==========\n";
   if (sample_type() == kSbMediaTypeAudio) {
-#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
     ss << "codec: " << audio_sample_info().codec << ", mime: '"
        << audio_sample_info().mime << "'\n";
-#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
-
     ss << audio_sample_info().samples_per_second << '\n';
   } else {
     SB_DCHECK(sample_type() == kSbMediaTypeVideo);
 
-#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
     ss << "codec: " << video_sample_info().codec << ", mime: '"
        << video_sample_info().mime << "'"
        << ", max_video_capabilities: '"
        << video_sample_info().max_video_capabilities << "'\n";
-#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
     ss << video_sample_info().frame_width << " x "
        << video_sample_info().frame_height << '\n';
   }

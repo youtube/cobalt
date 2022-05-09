@@ -214,7 +214,12 @@ public:
             fDone = true;
             return fMiddleOut.close();
         }
+#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
         switch (auto [verb, pts, w] = *fPathIter++; verb) {
+#else
+        STRUCTURED_BINDING_3(verb, pts, w, *fPathIter++);
+        switch (verb) {
+#endif
             SkPoint pt;
             case SkPathVerb::kMove:
                 return fMiddleOut.closeAndMove(pts[0]);

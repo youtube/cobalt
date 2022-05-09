@@ -19,11 +19,11 @@ import logging
 import os
 import re
 import signal
+import six
 import sys
 import threading
 import time
 
-import _env  # pylint: disable=unused-import
 import pexpect
 from starboard.tools import abstract_launcher
 
@@ -44,7 +44,7 @@ def _SigIntOrSigTermHandler(signum, frame):
 # First call returns True, otherwise return false.
 def FirstRun():
   v = globals()
-  if not v.has_key('first_run'):
+  if 'first_run' not in v:
     v['first_run'] = False
     return True
   return False
@@ -107,7 +107,9 @@ class Launcher(abstract_launcher.AbstractLauncher):
   def _InitPexpectCommands(self):
     """Initializes all of the pexpect commands needed for running the test."""
 
-    test_dir = os.path.join(self.out_directory, 'install', 'bin')
+    # TODO(b/218889313): This should reference the bin/ subdir when that's
+    # used.
+    test_dir = os.path.join(self.out_directory, 'install', self.target_name)
     # TODO(b/216356058): Delete this conditional that's just for GYP.
     if not os.path.isdir(test_dir):
       test_dir = os.path.join(self.out_directory, 'deploy', self.target_name)
@@ -125,7 +127,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
     raspi_test_path = os.path.join(raspi_test_dir, test_file)
 
     # rsync command setup
-    options = '-avzLh'
+    options = '-avzLhc'
     source = test_dir + '/'
     destination = '{}:~/{}/'.format(raspi_user_hostname, raspi_test_dir)
     self.rsync_command = 'rsync ' + options + ' ' + source + ' ' + \
@@ -164,8 +166,9 @@ class Launcher(abstract_launcher.AbstractLauncher):
     """
 
     logging.info('executing: %s', command)
+    kwargs = {} if six.PY2 else {'encoding': 'utf-8'}
     self.pexpect_process = pexpect.spawn(
-        command, timeout=Launcher._PEXPECT_TIMEOUT)
+        command, timeout=Launcher._PEXPECT_TIMEOUT, **kwargs)
     # Let pexpect output directly to our output stream
     self.pexpect_process.logfile_read = self.output_file
     retry_count = 0

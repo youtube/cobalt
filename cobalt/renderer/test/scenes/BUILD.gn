@@ -48,6 +48,8 @@ static_library("scenes") {
 }
 
 copy("scenes_copy_test_data") {
+  install_content = true
+
   sources = [ "demo_image.png" ]
 
   outputs =

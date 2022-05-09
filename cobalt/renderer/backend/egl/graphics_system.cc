@@ -12,19 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/configuration.h"
-#if SB_API_VERSION >= 12 || SB_HAS(GLES2)
+#include "cobalt/renderer/backend/egl/graphics_system.h"
 
 #include <memory>
 #include <utility>
-
-#include "cobalt/renderer/backend/egl/graphics_system.h"
 
 #include "base/debug/leak_annotations.h"
 #if defined(ENABLE_GLIMP_TRACING)
 #include "base/trace_event/trace_event.h"
 #endif
-#include "starboard/common/optional.h"
 
 #include "cobalt/configuration/configuration.h"
 #include "cobalt/renderer/backend/egl/display.h"
@@ -38,13 +34,13 @@
 #include "cobalt/renderer/egl_and_gles.h"
 
 #if defined(GLES3_SUPPORTED)
-#if SB_API_VERSION >= 12
 #error "Support for gles3 features has been deprecated."
-#endif
 #include "cobalt/renderer/backend/egl/texture_data_pbo.h"
 #else
 #include "cobalt/renderer/backend/egl/texture_data_cpu.h"
 #endif
+#include "starboard/common/optional.h"
+#include "starboard/configuration.h"
 
 namespace cobalt {
 namespace renderer {
@@ -153,6 +149,7 @@ GraphicsSystemEGL::GraphicsSystemEGL(
     // mesa egl drivers still leak memory.
     ANNOTATE_SCOPED_MEMORY_LEAK;
     EGL_CALL(eglInitialize(display_, NULL, NULL));
+    LOG(INFO) << "eglInitialize returned " << EGL_CALL_SIMPLE(eglGetError());
   }
 
   // Setup our configuration to support RGBA and compatibility with PBuffer
@@ -161,26 +158,19 @@ GraphicsSystemEGL::GraphicsSystemEGL(
       configuration::Configuration::GetInstance()->CobaltRenderDirtyRegionOnly()
           ? EGL_WINDOW_BIT | EGL_PBUFFER_BIT | EGL_SWAP_BEHAVIOR_PRESERVED_BIT
           : EGL_WINDOW_BIT | EGL_PBUFFER_BIT;
-  EGLint attribute_list[] = {
-    EGL_SURFACE_TYPE,  // this must be first
-    egl_bit,
-    EGL_RED_SIZE,
-    8,
-    EGL_GREEN_SIZE,
-    8,
-    EGL_BLUE_SIZE,
-    8,
-    EGL_ALPHA_SIZE,
-    8,
-    EGL_RENDERABLE_TYPE,
-#if SB_API_VERSION < 12 && defined(GLES3_SUPPORTED)
-    EGL_OPENGL_ES3_BIT,
-#else
-    EGL_OPENGL_ES2_BIT,
-#endif  // #if SB_API_VERSION < 12 &&
-        // defined(GLES3_SUPPORTED)
-    EGL_NONE
-  };
+  EGLint attribute_list[] = {EGL_SURFACE_TYPE,  // this must be first
+                             egl_bit,
+                             EGL_RED_SIZE,
+                             8,
+                             EGL_GREEN_SIZE,
+                             8,
+                             EGL_BLUE_SIZE,
+                             8,
+                             EGL_ALPHA_SIZE,
+                             8,
+                             EGL_RENDERABLE_TYPE,
+                             EGL_OPENGL_ES2_BIT,
+                             EGL_NONE};
 
   base::Optional<ChooseConfigResult> choose_config_results =
       ChooseConfig(display_, attribute_list, system_window);
@@ -207,10 +197,6 @@ GraphicsSystemEGL::GraphicsSystemEGL(
   config_ = choose_config_results->config;
   system_window_ = system_window;
   window_surface_ = choose_config_results->window_surface;
-
-#if SB_API_VERSION < 12 && defined(GLES3_SUPPORTED)
-  resource_context_.emplace(display_, config_);
-#endif
 }
 
 GraphicsSystemEGL::~GraphicsSystemEGL() {
@@ -221,6 +207,7 @@ GraphicsSystemEGL::~GraphicsSystemEGL() {
   }
 
   EGL_CALL_SIMPLE(eglTerminate(display_));
+  LOG(INFO) << "eglTerminate returned " << EGL_CALL_SIMPLE(eglGetError());
 }
 
 std::unique_ptr<Display> GraphicsSystemEGL::CreateDisplay(
@@ -242,29 +229,20 @@ std::unique_ptr<Display> GraphicsSystemEGL::CreateDisplay(
 }
 
 std::unique_ptr<GraphicsContext> GraphicsSystemEGL::CreateGraphicsContext() {
-// If GLES3 is supported, we will make use of PBOs to allocate buffers for
-// texture data and populate them on separate threads.  In order to access
-// that data from graphics contexts created through this method, we must
-// enable sharing between them and the resource context, which is why we
-// must pass it in here.
-#if SB_API_VERSION < 12 && defined(GLES3_SUPPORTED)
-  ResourceContext* resource_context = &(resource_context_.value());
-#else
+  // If GLES3 is supported, we will make use of PBOs to allocate buffers for
+  // texture data and populate them on separate threads.  In order to access
+  // that data from graphics contexts created through this method, we must
+  // enable sharing between them and the resource context, which is why we
+  // must pass it in here.
   ResourceContext* resource_context = NULL;
-#endif
   return std::unique_ptr<GraphicsContext>(
       new GraphicsContextEGL(this, display_, config_, resource_context));
 }
 
 std::unique_ptr<TextureDataEGL> GraphicsSystemEGL::AllocateTextureData(
     const math::Size& size, GLenum format) {
-#if SB_API_VERSION < 12 && defined(GLES3_SUPPORTED)
-  std::unique_ptr<TextureDataEGL> texture_data(
-      new TextureDataPBO(&(resource_context_.value()), size, format));
-#else
   std::unique_ptr<TextureDataEGL> texture_data(
       new TextureDataCPU(size, format));
-#endif
   if (texture_data->CreationError()) {
     return std::unique_ptr<TextureDataEGL>();
   } else {
@@ -275,13 +253,8 @@ std::unique_ptr<TextureDataEGL> GraphicsSystemEGL::AllocateTextureData(
 std::unique_ptr<RawTextureMemoryEGL>
 GraphicsSystemEGL::AllocateRawTextureMemory(size_t size_in_bytes,
                                             size_t alignment) {
-#if SB_API_VERSION < 12 && defined(GLES3_SUPPORTED)
-  return std::unique_ptr<RawTextureMemoryEGL>(new RawTextureMemoryPBO(
-      &(resource_context_.value()), size_in_bytes, alignment));
-#else
   return std::unique_ptr<RawTextureMemoryEGL>(
       new RawTextureMemoryCPU(size_in_bytes, alignment));
-#endif
 }
 
 math::Size GraphicsSystemEGL::GetWindowSize() const {
@@ -291,5 +264,3 @@ math::Size GraphicsSystemEGL::GetWindowSize() const {
 }  // namespace backend
 }  // namespace renderer
 }  // namespace cobalt
-
-#endif  // SB_API_VERSION >= 12 || SB_HAS(GLES2)

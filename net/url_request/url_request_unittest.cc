@@ -7936,7 +7936,7 @@ TEST_F(URLRequestTestHTTP, RedirectToInvalidURL) {
   EXPECT_EQ(0, d.received_redirect_count());
 }
 
-#if !defined(HTTP_CACHE_DISABLED_FOR_STARBOARD)
+#if !defined(HTTP_CACHE_TESTING_DISABLED)
 // Make sure redirects are cached, despite not reading their bodies.
 TEST_F(URLRequestTestHTTP, CacheRedirect) {
   ASSERT_TRUE(http_test_server()->Start());
@@ -8398,7 +8398,7 @@ TEST_F(URLRequestTestHTTP, CancelDeferredRedirect) {
   }
 }
 
-#if !defined(HTTP_CACHE_DISABLED_FOR_STARBOARD)
+#if !defined(HTTP_CACHE_TESTING_DISABLED)
 TEST_F(URLRequestTestHTTP, VaryHeader) {
   ASSERT_TRUE(http_test_server()->Start());
 
@@ -8561,7 +8561,7 @@ TEST_F(URLRequestTestHTTP, BasicAuthWithCookies) {
   }
 }
 
-#if !defined(HTTP_CACHE_DISABLED_FOR_STARBOARD)
+#if !defined(HTTP_CACHE_TESTING_DISABLED)
 // Tests that load timing works as expected with auth and the cache.
 TEST_F(URLRequestTestHTTP, BasicAuthLoadTiming) {
   ASSERT_TRUE(http_test_server()->Start());
@@ -9151,18 +9151,12 @@ TEST_F(URLRequestTestHTTP, NetworkSuspendTest) {
       default_context().http_transaction_factory()->GetSession()));
   network_layer->OnSuspend();
 
-#ifndef HTTP_CACHE_DISABLED_FOR_STARBOARD
   HttpCache http_cache(std::move(network_layer),
                        HttpCache::DefaultBackend::InMemory(0),
                        false /* is_main_cache */);
-#endif
 
   TestURLRequestContext context(true);
-#ifdef HTTP_CACHE_DISABLED_FOR_STARBOARD
-  context.set_http_transaction_factory(network_layer.get());
-#else
   context.set_http_transaction_factory(&http_cache);
-#endif
   context.Init();
 
   TestDelegate d;
@@ -9255,7 +9249,7 @@ TEST_F(URLRequestTestHTTP, NetworkAccessedSetOnNetworkRequest) {
   EXPECT_TRUE(req->response_info().network_accessed);
 }
 
-#if !defined(HTTP_CACHE_DISABLED_FOR_STARBOARD)
+#if !defined(HTTP_CACHE_TESTING_DISABLED)
 TEST_F(URLRequestTestHTTP, NetworkAccessedClearOnCachedResponse) {
   ASSERT_TRUE(http_test_server()->Start());
 
@@ -12343,7 +12337,7 @@ TEST_F(URLRequestTestHTTP, HeadersCallbacks) {
     EXPECT_EQ("GET /cachetime HTTP/1.1\r\n", raw_req_headers.request_line());
     EXPECT_EQ(raw_resp_headers.get(), r->response_headers());
   }
-#if !defined(HTTP_CACHE_DISABLED_FOR_STARBOARD)
+#if !defined(HTTP_CACHE_TESTING_DISABLED)
   {
     std::unique_ptr<URLRequest> r(context.CreateRequest(
         url, DEFAULT_PRIORITY, &delegate, TRAFFIC_ANNOTATION_FOR_TESTS));
@@ -12490,7 +12484,7 @@ TEST_F(URLRequestTestHTTP, HeadersCallbacksAuthRetry) {
   EXPECT_FALSE(r2->is_pending());
   ASSERT_EQ(raw_req_headers.size(), 3u);
   ASSERT_EQ(raw_resp_headers.size(), 3u);
-#if !defined(HTTP_CACHE_DISABLED_FOR_STARBOARD)
+#if !defined(HTTP_CACHE_TESTING_DISABLED)
   // Google for the "If-None-Match" request header to see its relation to
   // HTTP cache.
   EXPECT_TRUE(raw_req_headers[2]->FindHeaderForTest("If-None-Match", &value));

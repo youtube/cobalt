@@ -115,7 +115,7 @@ class Configurator : public update_client::Configurator {
   std::string previous_updater_status_;
   base::Lock previous_updater_status_lock_;
   std::string user_agent_string_;
-  uint64_t min_free_space_bytes_ = 64 * 1024 * 1024;
+  uint64_t min_free_space_bytes_ = 48 * 1024 * 1024;
   base::Lock min_free_space_bytes_lock_;
 
   DISALLOW_COPY_AND_ASSIGN(Configurator);

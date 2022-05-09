@@ -370,7 +370,6 @@ typedef enum SbEventType {
   // SbEventWindowSizeChangedData.
   kSbEventTypeWindowSizeChanged,
 
-#if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
   // The platform has shown the on screen keyboard. This event is triggered by
   // the system or by the application's OnScreenKeyboard show method. The event
   // has int data representing a ticket. The ticket is used by the application
@@ -417,24 +416,18 @@ typedef enum SbEventType {
   // ticket value kSbEventOnScreenKeyboardInvalidTicket.
   kSbEventTypeOnScreenKeyboardSuggestionsUpdated,
 
-#endif  // SB_API_VERSION >= 12 ||
-        // SB_HAS(ON_SCREEN_KEYBOARD)
-#if SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
   // One or more of the fields returned by SbAccessibilityGetCaptionSettings
   // has changed.
   kSbEventTypeAccessibilityCaptionSettingsChanged,
-#endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
 
 // clang-format off
 
-#if SB_API_VERSION >= 12
   // The platform's text-to-speech settings have changed.
 #if SB_API_VERSION >= 13
   kSbEventTypeAccessibilityTextToSpeechSettingsChanged,
 #else
   kSbEventTypeAccessiblityTextToSpeechSettingsChanged,
 #endif  // SB_API_VERSION >= 13
-#endif  // SB_API_VERSION >= 12
 
 // clang-format on
 
@@ -452,7 +445,7 @@ typedef enum SbEventType {
   // the device is just connected to the internet. This event is used
   // to implement window.ononline DOM event.
   kSbEventTypeOsNetworkConnected,
-#endif  // SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
+#endif  // SB_API_VERSION >= 13
 
 #if SB_API_VERSION >= 13
   // The platform has detected a date and/or time configuration change (such

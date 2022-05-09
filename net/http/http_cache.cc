@@ -79,9 +79,6 @@ int HttpCache::DefaultBackend::CreateBackend(
     std::unique_ptr<disk_cache::Backend>* backend,
     CompletionOnceCallback callback) {
   DCHECK_GE(max_bytes_, 0);
-#if defined(STARBOARD)
-  return ERR_FAILED;
-#else
 #if defined(OS_ANDROID)
   if (app_status_listener_) {
     return disk_cache::CreateCacheBackend(
@@ -92,7 +89,6 @@ int HttpCache::DefaultBackend::CreateBackend(
   return disk_cache::CreateCacheBackend(type_, backend_type_, path_, max_bytes_,
                                         true, net_log, backend,
                                         std::move(callback));
-#endif
 }
 
 #if defined(OS_ANDROID)
@@ -781,10 +777,18 @@ int HttpCache::OpenEntry(const std::string& key, ActiveEntry** entry,
 
   pending_op->writer = std::move(item);
 
+#ifdef STARBOARD
+  int rv = disk_cache_->OpenEntry(
+      key, trans->priority(), &(pending_op->disk_entry),  trans->type(),
+      base::BindOnce(&HttpCache::OnPendingOpComplete, GetWeakPtr(),
+                     pending_op));
+#else
   int rv =
       disk_cache_->OpenEntry(key, trans->priority(), &(pending_op->disk_entry),
                              base::BindOnce(&HttpCache::OnPendingOpComplete,
                                             GetWeakPtr(), pending_op));
+#endif
+
   if (rv == ERR_IO_PENDING) {
     pending_op->callback_will_delete = true;
     return rv;

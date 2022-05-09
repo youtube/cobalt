@@ -12,9 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/configuration.h"
-#if SB_API_VERSION >= 12 || SB_HAS(GLES2)
-
 #include "cobalt/renderer/rasterizer/egl/draw_rect_linear_gradient.h"
 
 #include <algorithm>
@@ -24,6 +21,7 @@
 #include "cobalt/renderer/egl_and_gles.h"
 #include "egl/generated_shader_impl.h"
 #include "starboard/common/log.h"
+#include "starboard/configuration.h"
 #include "starboard/memory.h"
 
 namespace cobalt {
@@ -67,7 +65,7 @@ void DrawRectLinearGradient::ExecuteUpdateVertexBuffer(
   vertex_buffer_ = graphics_state->AllocateVertexData(attributes_.size() *
                                                       sizeof(VertexAttributes));
   memcpy(vertex_buffer_, &attributes_[0],
-               attributes_.size() * sizeof(VertexAttributes));
+         attributes_.size() * sizeof(VertexAttributes));
 }
 
 void DrawRectLinearGradient::ExecuteRasterize(
@@ -229,5 +227,3 @@ void DrawRectLinearGradient::AddVertex(float x, float y, uint32_t color) {
 }  // namespace rasterizer
 }  // namespace renderer
 }  // namespace cobalt
-
-#endif  // SB_API_VERSION >= 12 || SB_HAS(GLES2)

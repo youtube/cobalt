@@ -132,9 +132,7 @@ class PulseAudioSinkType : public SbAudioSinkPrivate::Type {
       int frames_per_channel,
       SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
       SbAudioSinkPrivate::ConsumeFramesFunc consume_frames_func,
-#if SB_API_VERSION >= 12
       SbAudioSinkPrivate::ErrorFunc error_func,
-#endif  // SB_API_VERSION >= 12
       void* context) override;
   bool IsValid(SbAudioSink audio_sink) override {
     return audio_sink != kSbAudioSinkInvalid && audio_sink->IsType(this);
@@ -399,9 +397,7 @@ SbAudioSink PulseAudioSinkType::Create(
     int frames_per_channel,
     SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
     SbAudioSinkPrivate::ConsumeFramesFunc consume_frames_func,
-#if SB_API_VERSION >= 12
     SbAudioSinkPrivate::ErrorFunc error_func,
-#endif  // SB_API_VERSION >= 12
     void* context) {
   PulseAudioSink* audio_sink = new PulseAudioSink(
       this, channels, sampling_frequency_hz, audio_sample_type, frame_buffers,
@@ -442,7 +438,7 @@ bool PulseAudioSinkType::Initialize() {
   if (!mainloop_) {
     return false;
   }
-  // Create pulse context.
+// Create pulse context.
 #if HAS_LEAK_SANITIZER
   __lsan_disable();
 #endif

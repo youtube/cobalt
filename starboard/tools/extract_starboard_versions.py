@@ -26,15 +26,14 @@ import os
 import re
 import sys
 
-import _env  # pylint: disable=unused-import
+from starboard.build.platforms import PLATFORMS
 from starboard.tools import paths
-from starboard.tools import platform
 
 
 # Sometimes files have weird encodings. This function will use a variety of
 # hand selected encoders that work on the starboard codebase.
 def AutoDecodeString(file_data):
-  for encoding in {'UTF-8', 'utf_16', 'windows-1253', 'iso-8859-7', 'macgreek'}:
+  for encoding in ['UTF-8', 'utf_16', 'windows-1253', 'iso-8859-7', 'macgreek']:
     try:
       return file_data.decode(encoding)
     except ValueError:
@@ -121,13 +120,17 @@ def FindConfigIncludefile(platform_path_config_file):
 def GeneratePlatformPathMap():
   """Return a map of platform-name -> full-path-to-platform-config-header."""
 
-  def GenPath(p):
-    full_path = os.path.abspath(os.path.join(p.path, 'configuration_public.h'))
+  def GenPath(platform_path):
+    full_path = os.path.abspath(
+        os.path.join(platform_path, 'configuration_public.h'))
     if not os.path.exists(full_path):
       raise IOError('Could not find path ' + full_path)
     return full_path
 
-  return {p.name: GenPath(p) for p in platform.GetAllInfos()}
+  return {
+      platform_name: GenPath(platform_path)
+      for platform_name, platform_path in PLATFORMS.items()
+  }
 
 
 # Given the root starboard directory, and the full path to the platform,
@@ -165,13 +168,13 @@ def Main():
 
   print('Experimental API Version: ' + str(experimental_api_version) + '\n')
 
-  for platform_name, platform_path in port_dict.iteritems():
+  for platform_name, platform_path in port_dict.items():
     version_str = FindVersionRecursive(paths.STARBOARD_ROOT, platform_path)
     if 'SB_EXPERIMENTAL_API_VERSION' in version_str:
       version_str = str(experimental_api_version)
     path_map[platform_name] = version_str
 
-  for platform_name, api_version in sorted(path_map.iteritems()):
+  for platform_name, api_version in sorted(path_map.items()):
     print(platform_name + ': ' + api_version)
 
   return 0

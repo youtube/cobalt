@@ -12,10 +12,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""Path generator unit tests."""
 
 import unittest
 
-import _env  # pylint: disable=unused-import
 from cobalt.bindings.path_generator import PathBuilder
 
 
@@ -42,7 +42,8 @@ class PathBuilderTest(unittest.TestCase):
 
   def testFullBindingsClass(self):
     self.assertEqual(
-        self.path_builder.FullBindingsClassName('TestInterface'),
+        self.path_builder.FullBindingsClassName('TestInterface',
+                                                'TestInterface'),
         'root::this::is::a::PreTestInterface')
 
   def testFullClass(self):

@@ -18,3 +18,5 @@ arm_float_abi = "hard"
 
 sb_evergreen_compatible_use_libunwind = true
 sb_is_evergreen_compatible = true
+
+separate_install_targets_for_bundling = true

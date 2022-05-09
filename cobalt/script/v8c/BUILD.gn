@@ -36,7 +36,8 @@ group("embed_v8c_resources_as_header_files") {
 }
 
 config("common_public_config") {
-  if ((current_cpu == "arm64" || current_cpu == "x64") && !is_mac) {
+  if ((current_cpu == "arm64" || current_cpu == "x64") &&
+      v8_enable_pointer_compression_override) {
     defines = [
       # enables pointer compression on 64 bit platforms for Cobalt.
       "V8_COMPRESS_POINTERS",

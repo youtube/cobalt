@@ -12,9 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/configuration.h"
-#if SB_API_VERSION >= 12 || SB_HAS(GLES2)
-
 #include "cobalt/renderer/rasterizer/egl/render_tree_node_visitor.h"
 
 #include <algorithm>
@@ -46,6 +43,7 @@
 #include "cobalt/renderer/rasterizer/skia/hardware_image.h"
 #include "cobalt/renderer/rasterizer/skia/image.h"              // nogncheck
 #include "cobalt/renderer/rasterizer/skia/skottie_animation.h"  // nogncheck
+#include "starboard/configuration.h"
 
 namespace cobalt {
 namespace renderer {
@@ -750,7 +748,8 @@ void RenderTreeNodeVisitor::Visit(
   const render_tree::PunchThroughVideoNode::Builder& data = video_node->data();
   math::RectF mapped_rect_float = draw_state_.transform.MapRect(data.rect);
   math::Rect mapped_rect = math::Rect::RoundFromRectF(mapped_rect_float);
-  data.set_bounds_cb.Run(mapped_rect);
+  data.set_bounds_cb.Run(mapped_rect.x(), mapped_rect.y(), mapped_rect.width(),
+                         mapped_rect.height());
 
   DCHECK_EQ(data.rect, video_node->GetBounds());
   AddClear(data.rect, kTransparentBlack);
@@ -1286,5 +1285,3 @@ void RenderTreeNodeVisitor::AddClear(const math::RectF& rect,
 }  // namespace rasterizer
 }  // namespace renderer
 }  // namespace cobalt
-
-#endif  // SB_API_VERSION >= 12 || SB_HAS(GLES2)

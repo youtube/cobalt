@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <memory>
 #include <string>
+#include <utility>
 
 #include "base/bind.h"
 #include "base/callback_helpers.h"
@@ -226,9 +227,14 @@ void FetcherBufferedDataSource::OnURLFetchDownloadProgress(
 
   size = static_cast<size_t>(std::min<uint64>(size, last_request_size_));
 
-  if (size == 0) {
+  if (size == 0 || size > buffer_.GetMaxCapacity()) {
     // The server side doesn't support range request.  Delete the fetcher to
     // stop the current request.
+    LOG(ERROR)
+        << "FetcherBufferedDataSource::OnURLFetchDownloadProgress: server "
+        << "doesn't support range requests (e.g. Python SimpleHTTPServer). "
+        << "Please use a server that supports range requests (e.g. Flask).";
+    error_occured_ = true;
     fetcher_.reset();
     ProcessPendingRead_Locked();
     UpdateDownloadingStatus(/* is_downloading = */ false);

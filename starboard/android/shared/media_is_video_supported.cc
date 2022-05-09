@@ -35,24 +35,7 @@ const jint HDR_TYPE_DOLBY_VISION = 1;
 const jint HDR_TYPE_HDR10 = 2;
 const jint HDR_TYPE_HLG = 3;
 
-bool IsHDRTransferCharacteristicsSupported(SbMediaVideoCodec video_codec,
-                                           SbMediaTransferId transfer_id) {
-  const char* mime = SupportedVideoCodecToMimeType(video_codec);
-  if (!mime) {
-    return false;
-  }
-  JniEnvExt* env = JniEnvExt::Get();
-  ScopedLocalJavaRef<jstring> j_mime(env->NewStringStandardUTFOrAbort(mime));
-
-  // An HDR capable VP9 or AV1 decoder is needed to handle HDR at all.
-  bool has_hdr_capable_decoder =
-      JniEnvExt::Get()->CallStaticBooleanMethodOrAbort(
-          "dev/cobalt/media/MediaCodecUtil", "hasHdrCapableVideoDecoder",
-          "(Ljava/lang/String;)Z", j_mime.Get()) == JNI_TRUE;
-  if (!has_hdr_capable_decoder) {
-    return false;
-  }
-
+bool IsHDRTransferCharacteristicsSupported(SbMediaTransferId transfer_id) {
   jint hdr_type;
   if (transfer_id == kSbMediaTransferIdSmpteSt2084) {
     hdr_type = HDR_TYPE_HDR10;
@@ -83,18 +66,14 @@ bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
                              int64_t bitrate,
                              int fps,
                              bool decode_to_texture_required) {
-  if (!IsSDRVideo(bit_depth, primary_id, transfer_id, matrix_id)) {
-    if (!IsHDRTransferCharacteristicsSupported(video_codec, transfer_id)) {
-      return false;
-    }
+  const bool must_support_hdr =
+      !IsSDRVideo(bit_depth, primary_id, transfer_id, matrix_id);
+  if (must_support_hdr && !IsHDRTransferCharacteristicsSupported(transfer_id)) {
+    return false;
   }
   // While not necessarily true, for now we assume that all Android devices
   // can play decode-to-texture video just as well as normal video.
 
-  const char* mime = SupportedVideoCodecToMimeType(video_codec);
-  if (!mime) {
-    return false;
-  }
   // Check extended parameters for correctness and return false if any invalid
   // invalid params are found.
   MimeType mime_type(content_type);
@@ -104,6 +83,13 @@ bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
     mime_type.RegisterBoolParameter("tunnelmode");
     // Override endianness on HDR Info header. Defaults to little.
     mime_type.RegisterStringParameter("hdrinfoendianness", "big|little");
+    // Forces the use of specific Android APIs (isSizeSupported() and
+    // areSizeAndRateSupported()) to determine format support.
+    mime_type.RegisterBoolParameter("forceimprovedsupportcheck");
+    // Override the default decoder cache TTL to the specified value.
+    // The cache will be disabled if the value is non-positive.
+    // TODO(b/227356434): RegisterIntParameter requires API review.
+    // mime_type.RegisterIntParameter("decoder_cache_ttl_ms");
 
     if (!mime_type.is_valid()) {
       return false;
@@ -118,20 +104,28 @@ bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
     return false;
   }
 
+  const char* mime = SupportedVideoCodecToMimeType(video_codec);
+  if (!mime) {
+    return false;
+  }
   JniEnvExt* env = JniEnvExt::Get();
   ScopedLocalJavaRef<jstring> j_mime(env->NewStringStandardUTFOrAbort(mime));
-  const bool must_support_hdr = (transfer_id != kSbMediaTransferIdBt709 &&
-                                 transfer_id != kSbMediaTransferIdUnspecified);
 
   // We assume that if a device supports a format for clear playback, it will
   // also support it for encrypted playback. However, some devices require
   // tunneled playback to be encrypted, so we must align the tunnel mode
   // requirement with the secure playback requirement.
   const bool require_secure_playback = must_support_tunnel_mode;
+  const bool force_improved_support_check =
+      mime_type.GetParamBoolValue("forceimprovedsupportcheck", true);
+  const int decoder_cache_ttl_ms =
+      mime_type.GetParamIntValue("decoder_cache_ttl_ms", -1);
+
   return env->CallStaticBooleanMethodOrAbort(
              "dev/cobalt/media/MediaCodecUtil", "hasVideoDecoderFor",
-             "(Ljava/lang/String;ZZZIIII)Z", j_mime.Get(),
+             "(Ljava/lang/String;ZZZZIIIII)Z", j_mime.Get(),
              require_secure_playback, must_support_hdr,
-             must_support_tunnel_mode, frame_width, frame_height,
+             must_support_tunnel_mode, force_improved_support_check,
+             decoder_cache_ttl_ms, frame_width, frame_height,
              static_cast<jint>(bitrate), fps) == JNI_TRUE;
 }

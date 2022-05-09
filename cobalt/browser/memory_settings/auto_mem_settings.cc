@@ -213,18 +213,6 @@ AutoMemSettings GetDefaultBuildSettings() {
   settings.offscreen_target_cache_size_in_bytes =
       MakeValidIfGreaterThanOrEqualToZero(
           config->CobaltOffscreenTargetCacheSizeInBytes());
-
-#if SB_API_VERSION < 12
-#if defined(COBALT_MAX_CPU_USAGE_IN_BYTES)
-  settings.max_cpu_in_bytes =
-      MakeValidIfGreaterThanOrEqualToZero(COBALT_MAX_CPU_USAGE_IN_BYTES);
-#endif  // defined(COBALT_MAX_CPU_USAGE_IN_BYTES)
-#if defined(COBALT_MAX_GPU_USAGE_IN_BYTES)
-  settings.max_gpu_in_bytes =
-      MakeValidIfGreaterThanOrEqualToZero(COBALT_MAX_GPU_USAGE_IN_BYTES);
-#endif  // defined(COBALT_MAX_GPU_USAGE_IN_BYTES)
-#endif  // SB_API_VERSION < 12
-
   settings.reduce_gpu_memory_by =
       MakeValidIfGreaterThanOrEqualToZero(config->CobaltReduceGpuMemoryBy());
 

@@ -42,6 +42,13 @@ namespace crashpad {
 
 namespace {
 
+#if defined(STARBOARD)
+constexpr char kEvergreenInfoKey[] = "evergreen-information";
+constexpr char kProductKey[] = "annotation=prod";
+constexpr char kVersionKey[] = "annotation=ver";
+constexpr char kUAKey[] = "annotation=user_agent_string";
+#endif
+
 std::string FormatArgumentInt(const std::string& name, int value) {
   return base::StringPrintf("--%s=%d", name.c_str(), value);
 }
@@ -49,6 +56,36 @@ std::string FormatArgumentInt(const std::string& name, int value) {
 std::string FormatArgumentAddress(const std::string& name, const void* addr) {
   return base::StringPrintf("--%s=%p", name.c_str(), addr);
 }
+
+#if defined(STARBOARD)
+std::string FormatArgumentString(const std::string& name,
+                                 const std::string& value) {
+  return base::StringPrintf("--%s=%s", name.c_str(), value.c_str());
+}
+
+bool UpdateAnnotation(std::string& annotation,
+                            const std::string key,
+                            const std::string& new_value) {
+  if (new_value.empty()) {
+    return false;
+  }
+  // The annotation is in the format --key=value
+  if (annotation.compare(2, key.size(), key) == 0) {
+    annotation = FormatArgumentString(key, new_value);
+    LOG(INFO) << "Updated annotation: " << annotation;
+    return true;
+  }
+  return false;
+}
+
+void AddAnnotation(std::vector<std::string>& argv_strings,
+                         const std::string& key,
+                         const std::string& new_value) {
+  std::string v = FormatArgumentString(key, new_value);
+  argv_strings.push_back(v);
+  LOG(INFO) << "Added annotation: " << v;
+}
+#endif
 
 #if defined(OS_ANDROID)
 
@@ -265,8 +302,55 @@ class LaunchAtCrashHandler : public SignalHandler {
   }
 
 #if defined(STARBOARD)
-  bool SendEvergreenInfoImpl() override { return false; }
-  bool SendAnnotationsImpl() override { return false; }
+  bool SendEvergreenInfoImpl() override {
+    bool updated = false;
+    for (auto& s : argv_strings_) {
+      if (s.compare(2, strlen(kEvergreenInfoKey), kEvergreenInfoKey) == 0) {
+        s = FormatArgumentAddress(kEvergreenInfoKey, &GetEvergreenInfo());
+        LOG(INFO) << "Updated evergreen info: " << s;
+        updated = true;
+        break;
+      }
+    }
+    if (!updated) {
+      std::string v =
+          FormatArgumentAddress(kEvergreenInfoKey, &GetEvergreenInfo());
+      argv_strings_.push_back(v);
+      LOG(INFO) << "Added evergreen info: " << v;
+    }
+
+    StringVectorToCStringVector(argv_strings_, &argv_);
+
+    return true;
+  }
+
+  bool SendAnnotationsImpl() override {
+    bool updated_product = false;
+    bool updated_version = false;
+    bool updated_user_agent_string = false;
+    for (auto& s : argv_strings_) {
+      if (UpdateAnnotation(s, kProductKey, GetAnnotations().product)) {
+        updated_product = true;
+      } else if (UpdateAnnotation(s, kVersionKey, GetAnnotations().version)) {
+        updated_version = true;
+      } else if (UpdateAnnotation(s, kUAKey, GetAnnotations().user_agent_string)) {
+        updated_user_agent_string = true;
+      }
+    }
+    if (!updated_product) {
+      AddAnnotation(argv_strings_, kProductKey, GetAnnotations().product);
+    }
+    if (!updated_version) {
+      AddAnnotation(argv_strings_, kVersionKey, GetAnnotations().version);
+    }
+    if (!updated_user_agent_string) {
+      AddAnnotation(argv_strings_, kUAKey, GetAnnotations().user_agent_string);
+    }
+
+    StringVectorToCStringVector(argv_strings_, &argv_);
+
+    return true;
+  }
 #endif
 
   void HandleCrashImpl() override {
@@ -387,6 +471,9 @@ class RequestCrashDumpHandler : public SignalHandler {
 #if defined(STARBOARD)
     info.sanitization_information_address =
         FromPointerCast<VMAddress>(&GetSanitizationInformation());
+    info.annotations_address = FromPointerCast<VMAddress>(&GetAnnotations());
+    info.evergreen_information_address =
+        FromPointerCast<VMAddress>(&GetEvergreenInfo());
 #endif
 
 #if defined(OS_CHROMEOS)

@@ -1,0 +1,80 @@
+# Copyright 2021 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("//build/config/win/visual_studio_version.gni")
+
+config("platform_configuration") {
+  configs = [
+    "//starboard/build/config/sabi",
+    "//starboard/win/shared/platform_configuration",
+  ]
+
+  ldflags = [ "/SUBSYSTEM:CONSOLE" ]
+  libs = [
+    "shell32.lib",
+    "winmm.lib",
+    "gdi32.lib",
+    "dbghelp.lib",
+    "user32.lib",
+    "shlwapi.lib",
+    "mfplat.lib",
+    "mfuuid.lib",
+    "windowsapp.lib",
+  ]
+
+  include_dirs = [
+    "$wdk_include_path",
+    "$msvc_path/atlmfc/include",
+  ]
+
+  ldflags += [
+    "/DYNAMICBASE",
+
+    # TODO: SubSystem is hardcoded in
+    # win/sources_template.vcxproj. This will have the exe behave in the
+    # expected way in MSVS: when it's run without debug (Ctrl+F5), it
+    # will pause after finish; when debugging (F5) it will not pause
+    # before the cmd window disappears.
+    # Currently the value is ignored by msvs_makefile.py which generates
+    # the MSVS project files (it's in "data" in GenerateOutput()). Fix
+    # it if we ever need to change SubSystem.
+    "/SUBSYSTEM:CONSOLE",
+    "/MACHINE:x64",
+
+    # Do not generate a WinMD file.
+    "/WINMD:NO",
+
+    # Don't send error reports to MS.
+    "/errorReport:none",
+  ]
+
+  cflags = [
+    # Following V8 upstream to disable narrowing conversion.
+    "/wd4838",
+  ]
+
+  if (current_toolchain == default_toolchain) {
+    defines = [
+      "_WIN32",
+      "WIN32",
+      "WINDOWS",
+
+      # Enable GNU extensions to get prototypes like ffsl.
+      "_GNU_SOURCE=1",
+    ]
+  } else {
+    # Increase compiler heap limit.
+    cflags += [ "/Zm10" ]
+  }
+}

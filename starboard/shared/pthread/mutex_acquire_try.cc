@@ -28,12 +28,10 @@ SbMutexResult SbMutexAcquireTry(SbMutex* mutex) {
     return kSbMutexDestroyed;
   }
 
-#if SB_API_VERSION >= 12
   if (!EnsureInitialized(&(SB_INTERNAL_MUTEX(mutex)->initialized_state))) {
     *SB_PTHREAD_INTERNAL_MUTEX(mutex) = PTHREAD_MUTEX_INITIALIZER;
     SetInitialized(&(SB_INTERNAL_MUTEX(mutex)->initialized_state));
   }
-#endif
 
   int result = pthread_mutex_trylock(SB_PTHREAD_INTERNAL_MUTEX(mutex));
   if (IsSuccess(result)) {

@@ -222,7 +222,7 @@ class InterfaceInfoCollector(object):
         this_union_types = collect_union_types_from_definitions(definitions)
         self.union_types.update(this_union_types)
         self.typedefs.update(definitions.typedefs)
-        for callback_function_name, callback_function in definitions.callback_functions.iteritems():
+        for callback_function_name, callback_function in definitions.callback_functions.items():
             # Set 'component_dir' to specify a directory that callback function files belong to
             self.callback_functions[callback_function_name] = {
                 'callback_function': callback_function,
@@ -231,9 +231,9 @@ class InterfaceInfoCollector(object):
             }
 
         # Include more information about the enum for Cobalt.
-        for enum_name, values in definitions.enumerations.iteritems():
+        for enum_name, values in definitions.enumerations.items():
             # Check enum duplication.
-            if self.enumerations.has_key(enum_name):
+            if enum_name in self.enumerations:
                 raise Exception('Enumeration %s has multiple definitions' % enum_name)
             self.enumerations[enum_name] = {
                 'values': values,
@@ -241,7 +241,7 @@ class InterfaceInfoCollector(object):
             }
 
         if definitions.interfaces:
-            definition = next(definitions.interfaces.itervalues())
+            definition = next(iter(definitions.interfaces.values()))
             interface_info = {
                 'is_callback_interface': definition.is_callback,
                 'is_dictionary': False,
@@ -258,7 +258,7 @@ class InterfaceInfoCollector(object):
                 'unsupported': 'NotSupported' in definition.extended_attributes,
             }
         elif definitions.dictionaries:
-            definition = next(definitions.dictionaries.itervalues())
+            definition = next(iter(definitions.dictionaries.values()))
             interface_info = {
                 'is_callback_interface': False,
                 'is_dictionary': True,

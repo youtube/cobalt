@@ -13,8 +13,6 @@
 # limitations under the License.
 """Starboard Android Cobalt shared configuration."""
 
-import os
-
 from cobalt.build import cobalt_configuration
 from starboard.tools.testing import test_filter
 
@@ -22,26 +20,12 @@ from starboard.tools.testing import test_filter
 class CobaltAndroidConfiguration(cobalt_configuration.CobaltConfiguration):
   """Starboard Android Cobalt shared configuration."""
 
-  def GetPostIncludes(self):
-    # If there isn't a configuration.gypi found in the usual place, we'll
-    # supplement with our shared implementation.
-    includes = super(CobaltAndroidConfiguration, self).GetPostIncludes()
-    for include in includes:
-      if os.path.basename(include) == 'configuration.gypi':
-        return includes
-
-    shared_gypi_path = os.path.join(
-        os.path.dirname(__file__), 'configuration.gypi')
-    if os.path.isfile(shared_gypi_path):
-      includes.append(shared_gypi_path)
-    return includes
-
   def WebdriverBenchmarksEnabled(self):
     return True
 
   def GetTestFilters(self):
     filters = super(CobaltAndroidConfiguration, self).GetTestFilters()
-    for target, tests in self.__FILTERED_TESTS.iteritems():
+    for target, tests in self.__FILTERED_TESTS.items():
       filters.extend(test_filter.TestFilter(target, test) for test in tests)
     return filters
 
@@ -72,7 +56,7 @@ class CobaltAndroidConfiguration(cobalt_configuration.CobaltConfiguration):
     return filters
 
   # A map of failing or crashing tests per target.
-  __FILTERED_TESTS = {
+  __FILTERED_TESTS = {  # pylint: disable=invalid-name
       'layout_tests': [
           # Android relies of system fonts and some older Android builds do not
           # have the update (Emoji 11.0) NotoColorEmoji.ttf installed.
@@ -80,6 +64,11 @@ class CobaltAndroidConfiguration(cobalt_configuration.CobaltConfiguration):
       ],
       'crypto_unittests': ['P224.*'],
       'renderer_test': [
+          # TODO(b/215739322): Using the android fonts breaks these tests. They
+          # make use of fonts that are not bundled on Android.
+          'PixelTest.SimpleTextInRed40PtChineseFont',
+          'PixelTest.SimpleTextInRed40PtThaiFont',
+
           # Instead of returning an error when allocating too much texture
           # memory, Android instead just terminates the process.  Since this
           # test explicitly tries to allocate too much texture memory, we cannot

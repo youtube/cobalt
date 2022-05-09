@@ -22,9 +22,11 @@
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/testing/stub_environment_settings.h"
 #include "cobalt/dom/window.h"
-#include "cobalt/script/global_environment.h"
+#include "cobalt/script/environment_settings.h"
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/script/typed_arrays.h"
+#include "cobalt/web/agent.h"
+#include "cobalt/web/context.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 // TODO: Consolidate AudioBus creation code
@@ -69,21 +71,18 @@ class AudioDestinationNodeMock : public AudioNode,
 };
 
 void FillAudioBusFromOneSource(
-    std::unique_ptr<AudioBus> src_data,
+    script::EnvironmentSettings* settings, std::unique_ptr<AudioBus> src_data,
     const AudioNodeChannelInterpretation& interpretation, AudioBus* audio_bus,
     bool* silence) {
-  dom::testing::StubEnvironmentSettings environment_settings;
-
-  scoped_refptr<AudioContext> audio_context(
-      new AudioContext(&environment_settings));
+  scoped_refptr<AudioContext> audio_context(new AudioContext(settings));
   scoped_refptr<AudioBufferSourceNode> source(
-      audio_context->CreateBufferSource(&environment_settings));
+      audio_context->CreateBufferSource(settings));
   scoped_refptr<AudioBuffer> buffer(
       new AudioBuffer(audio_context->sample_rate(), std::move(src_data)));
   source->set_buffer(buffer);
 
   scoped_refptr<AudioDestinationNodeMock> destination(
-      new AudioDestinationNodeMock(&environment_settings, audio_context.get()));
+      new AudioDestinationNodeMock(settings, audio_context.get()));
   destination->set_channel_interpretation(interpretation);
   source->Connect(destination, 0, 0, NULL);
   source->Start(0, 0, NULL);
@@ -93,36 +92,30 @@ void FillAudioBusFromOneSource(
 
 class AudioNodeInputOutputTest : public ::testing::Test {
  public:
-  AudioNodeInputOutputTest()
-      : engine_(script::JavaScriptEngine::CreateEngine()),
-        global_environment_(engine_->CreateGlobalEnvironment()) {
-    environment_settings_ = std::unique_ptr<script::EnvironmentSettings>(
+  AudioNodeInputOutputTest() {
+    web_context_.reset(web::Agent::CreateContext("AudioNodeInputOutputTest"));
+    web_context_->setup_environment_settings(
         new dom::testing::StubEnvironmentSettings);
-    global_environment_->CreateGlobalObject();
+    web_context_->global_environment()->CreateGlobalObject();
   }
 
-  ~AudioNodeInputOutputTest() {
-    global_environment_->SetReportEvalCallback(base::Closure());
-    global_environment_->SetReportErrorCallback(
-        script::GlobalEnvironment::ReportErrorCallback());
-    global_environment_ = nullptr;
-  }
+  ~AudioNodeInputOutputTest() {}
 
   script::GlobalEnvironment* global_environment() const {
-    return global_environment_.get();
+    return web_context_->global_environment();
   }
 
   script::EnvironmentSettings* environment_settings() const {
-    return environment_settings_.get();
+    DCHECK(web_context_->environment_settings()->context());
+    return web_context_->environment_settings();
   }
 
  protected:
   base::MessageLoop message_loop_;
 
  private:
-  std::unique_ptr<script::JavaScriptEngine> engine_;
-  scoped_refptr<script::GlobalEnvironment> global_environment_;
-  std::unique_ptr<script::EnvironmentSettings> environment_settings_;
+  // The Web Instance includes the Script Realm.
+  std::unique_ptr<web::Context> web_context_;
 };
 
 TEST_F(AudioNodeInputOutputTest, StereoToStereoSpeakersLayoutTest) {
@@ -147,8 +140,8 @@ TEST_F(AudioNodeInputOutputTest, StereoToStereoSpeakersLayoutTest) {
                    AudioBus::kFloat32, AudioBus::kInterleaved));
   audio_bus->ZeroAllFrames();
   bool silence = true;
-  FillAudioBusFromOneSource(std::move(src_data), kInterpretation,
-                            audio_bus.get(), &silence);
+  FillAudioBusFromOneSource(environment_settings(), std::move(src_data),
+                            kInterpretation, audio_bus.get(), &silence);
   EXPECT_FALSE(silence);
 
   for (size_t channel = 0; channel < kNumOfDestChannels; ++channel) {
@@ -189,8 +182,8 @@ TEST_F(AudioNodeInputOutputTest, StereoToStereoDiscreteLayoutTest) {
                    AudioBus::kFloat32, AudioBus::kInterleaved));
   audio_bus->ZeroAllFrames();
   bool silence = true;
-  FillAudioBusFromOneSource(std::move(src_data), kInterpretation,
-                            audio_bus.get(), &silence);
+  FillAudioBusFromOneSource(environment_settings(), std::move(src_data),
+                            kInterpretation, audio_bus.get(), &silence);
   EXPECT_FALSE(silence);
 
   for (size_t channel = 0; channel < kNumOfDestChannels; ++channel) {
@@ -228,8 +221,8 @@ TEST_F(AudioNodeInputOutputTest, MonoToStereoSpeakersLayoutTest) {
                    AudioBus::kFloat32, AudioBus::kInterleaved));
   audio_bus->ZeroAllFrames();
   bool silence = true;
-  FillAudioBusFromOneSource(std::move(src_data), kInterpretation,
-                            audio_bus.get(), &silence);
+  FillAudioBusFromOneSource(environment_settings(), std::move(src_data),
+                            kInterpretation, audio_bus.get(), &silence);
   EXPECT_FALSE(silence);
 
   for (size_t channel = 0; channel < kNumOfDestChannels; ++channel) {
@@ -263,8 +256,8 @@ TEST_F(AudioNodeInputOutputTest, MonoToStereoDiscreteLayoutTest) {
                    AudioBus::kFloat32, AudioBus::kInterleaved));
   audio_bus->ZeroAllFrames();
   bool silence = true;
-  FillAudioBusFromOneSource(std::move(src_data), kInterpretation,
-                            audio_bus.get(), &silence);
+  FillAudioBusFromOneSource(environment_settings(), std::move(src_data),
+                            kInterpretation, audio_bus.get(), &silence);
   EXPECT_FALSE(silence);
 
   for (size_t channel = 0; channel < kNumOfDestChannels; ++channel) {
@@ -301,8 +294,8 @@ TEST_F(AudioNodeInputOutputTest, QuadToStereoSpeakersLayoutTest) {
                    AudioBus::kFloat32, AudioBus::kInterleaved));
   audio_bus->ZeroAllFrames();
   bool silence = true;
-  FillAudioBusFromOneSource(std::move(src_data), kInterpretation,
-                            audio_bus.get(), &silence);
+  FillAudioBusFromOneSource(environment_settings(), std::move(src_data),
+                            kInterpretation, audio_bus.get(), &silence);
   EXPECT_FALSE(silence);
 
   for (size_t channel = 0; channel < kNumOfDestChannels; ++channel) {
@@ -343,8 +336,8 @@ TEST_F(AudioNodeInputOutputTest, QuadToStereoDiscreteLayoutTest) {
                    AudioBus::kFloat32, AudioBus::kInterleaved));
   audio_bus->ZeroAllFrames();
   bool silence = true;
-  FillAudioBusFromOneSource(std::move(src_data), kInterpretation,
-                            audio_bus.get(), &silence);
+  FillAudioBusFromOneSource(environment_settings(), std::move(src_data),
+                            kInterpretation, audio_bus.get(), &silence);
   EXPECT_FALSE(silence);
 
   for (size_t channel = 0; channel < kNumOfDestChannels; ++channel) {
@@ -385,8 +378,8 @@ TEST_F(AudioNodeInputOutputTest, FivePointOneToStereoSpeakersLayoutTest) {
                    AudioBus::kFloat32, AudioBus::kInterleaved));
   audio_bus->ZeroAllFrames();
   bool silence = true;
-  FillAudioBusFromOneSource(std::move(src_data), kInterpretation,
-                            audio_bus.get(), &silence);
+  FillAudioBusFromOneSource(environment_settings(), std::move(src_data),
+                            kInterpretation, audio_bus.get(), &silence);
   EXPECT_FALSE(silence);
 
   for (size_t channel = 0; channel < kNumOfDestChannels; ++channel) {
@@ -427,8 +420,8 @@ TEST_F(AudioNodeInputOutputTest, FivePointOneToStereoDiscreteLayoutTest) {
                    AudioBus::kFloat32, AudioBus::kInterleaved));
   audio_bus->ZeroAllFrames();
   bool silence = true;
-  FillAudioBusFromOneSource(std::move(src_data), kInterpretation,
-                            audio_bus.get(), &silence);
+  FillAudioBusFromOneSource(environment_settings(), std::move(src_data),
+                            kInterpretation, audio_bus.get(), &silence);
   EXPECT_FALSE(silence);
 
   for (size_t channel = 0; channel < kNumOfDestChannels; ++channel) {
@@ -469,8 +462,8 @@ TEST_F(AudioNodeInputOutputTest, StereoToMonoSpeakersLayoutTest) {
                    AudioBus::kFloat32, AudioBus::kInterleaved));
   audio_bus->ZeroAllFrames();
   bool silence = true;
-  FillAudioBusFromOneSource(std::move(src_data), kInterpretation,
-                            audio_bus.get(), &silence);
+  FillAudioBusFromOneSource(environment_settings(), std::move(src_data),
+                            kInterpretation, audio_bus.get(), &silence);
   EXPECT_FALSE(silence);
 
   for (size_t channel = 0; channel < kNumOfDestChannels; ++channel) {
@@ -507,8 +500,8 @@ TEST_F(AudioNodeInputOutputTest, StereoToMonoDiscreteLayoutTest) {
                    AudioBus::kFloat32, AudioBus::kInterleaved));
   audio_bus->ZeroAllFrames();
   bool silence = true;
-  FillAudioBusFromOneSource(std::move(src_data), kInterpretation,
-                            audio_bus.get(), &silence);
+  FillAudioBusFromOneSource(environment_settings(), std::move(src_data),
+                            kInterpretation, audio_bus.get(), &silence);
   EXPECT_FALSE(silence);
 
   for (size_t channel = 0; channel < kNumOfDestChannels; ++channel) {
@@ -545,8 +538,8 @@ TEST_F(AudioNodeInputOutputTest, QuadToMonoSpeakersLayoutTest) {
                    AudioBus::kFloat32, AudioBus::kInterleaved));
   audio_bus->ZeroAllFrames();
   bool silence = true;
-  FillAudioBusFromOneSource(std::move(src_data), kInterpretation,
-                            audio_bus.get(), &silence);
+  FillAudioBusFromOneSource(environment_settings(), std::move(src_data),
+                            kInterpretation, audio_bus.get(), &silence);
   EXPECT_FALSE(silence);
 
   for (size_t channel = 0; channel < kNumOfDestChannels; ++channel) {
@@ -583,8 +576,8 @@ TEST_F(AudioNodeInputOutputTest, QuadToMonoDiscreteLayoutTest) {
                    AudioBus::kFloat32, AudioBus::kInterleaved));
   audio_bus->ZeroAllFrames();
   bool silence = true;
-  FillAudioBusFromOneSource(std::move(src_data), kInterpretation,
-                            audio_bus.get(), &silence);
+  FillAudioBusFromOneSource(environment_settings(), std::move(src_data),
+                            kInterpretation, audio_bus.get(), &silence);
   EXPECT_FALSE(silence);
 
   for (size_t channel = 0; channel < kNumOfDestChannels; ++channel) {
@@ -621,8 +614,8 @@ TEST_F(AudioNodeInputOutputTest, FivePointOneToMonoSpeakersLayoutTest) {
                    AudioBus::kFloat32, AudioBus::kInterleaved));
   audio_bus->ZeroAllFrames();
   bool silence = true;
-  FillAudioBusFromOneSource(std::move(src_data), kInterpretation,
-                            audio_bus.get(), &silence);
+  FillAudioBusFromOneSource(environment_settings(), std::move(src_data),
+                            kInterpretation, audio_bus.get(), &silence);
   EXPECT_FALSE(silence);
 
   for (size_t channel = 0; channel < kNumOfDestChannels; ++channel) {
@@ -659,8 +652,8 @@ TEST_F(AudioNodeInputOutputTest, FivePointOneToMonoDiscreteLayoutTest) {
                    AudioBus::kFloat32, AudioBus::kInterleaved));
   audio_bus->ZeroAllFrames();
   bool silence = true;
-  FillAudioBusFromOneSource(std::move(src_data), kInterpretation,
-                            audio_bus.get(), &silence);
+  FillAudioBusFromOneSource(environment_settings(), std::move(src_data),
+                            kInterpretation, audio_bus.get(), &silence);
   EXPECT_FALSE(silence);
 
   for (size_t channel = 0; channel < kNumOfDestChannels; ++channel) {

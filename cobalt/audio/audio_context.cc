@@ -19,7 +19,8 @@
 
 #include "base/callback.h"
 #include "cobalt/base/polymorphic_downcast.h"
-#include "cobalt/dom/dom_settings.h"
+#include "cobalt/web/context.h"
+#include "cobalt/web/environment_settings.h"
 
 namespace cobalt {
 namespace audio {
@@ -27,7 +28,8 @@ namespace audio {
 AudioContext::AudioContext(script::EnvironmentSettings* settings)
     : dom::EventTarget(settings),
       global_environment_(
-          base::polymorphic_downcast<dom::DOMSettings*>(settings)
+          base::polymorphic_downcast<web::EnvironmentSettings*>(settings)
+              ->context()
               ->global_environment()),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)),
       ALLOW_THIS_IN_INITIALIZER_LIST(

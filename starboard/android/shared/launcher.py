@@ -22,11 +22,9 @@ import subprocess
 import sys
 import threading
 import time
-import Queue
+from six.moves import queue
 
-import _env  # pylint: disable=unused-import,g-bad-import-order
-
-from starboard.android.shared import sdk_utils
+from starboard.android.shared.sdk_utils import SDK_PATH
 from starboard.tools import abstract_launcher
 
 _APP_PACKAGE_NAME = 'dev.cobalt.coat'
@@ -138,7 +136,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
       # Use default adb binary from path.
       self.adb = 'adb'
     else:
-      self.adb = os.path.join(sdk_utils.GetSdkPath(), 'platform-tools', 'adb')
+      self.adb = os.path.join(SDK_PATH, 'platform-tools', 'adb')
 
     self.adb_builder = AdbCommandBuilder(self.adb)
 
@@ -303,7 +301,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
         self._CheckCallAdb('shell', 'pm', 'grant', _APP_PACKAGE_NAME,
                            permission)
 
-    done_queue = Queue.Queue()
+    done_queue = queue.Queue()
     am_monitor = AdbAmMonitorWatcher(self, done_queue)
 
     # Increases the size of the logcat buffer.  Without this, the log buffer
@@ -327,6 +325,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
     # Actually running executable
     run_timer = StepTimer('running executable')
+    app_crashed = False
     try:
       args = ['shell', 'am', 'start']
       command_line_params = [
@@ -347,7 +346,6 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
       run_loop = abstract_launcher.ARG_DRYRUN not in self.launcher_args
 
-      app_crashed = False
       while run_loop:
         if not done_queue.empty():
           done_queue_code = done_queue.get_nowait()

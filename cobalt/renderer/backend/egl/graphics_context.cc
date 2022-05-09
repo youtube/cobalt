@@ -12,9 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/configuration.h"
-#if SB_API_VERSION >= 12 || SB_HAS(GLES2)
-
 #include <algorithm>
 #include <memory>
 #include <utility>
@@ -33,8 +30,9 @@
 #include "cobalt/renderer/backend/egl/texture_data.h"
 #include "cobalt/renderer/backend/egl/utils.h"
 #include "cobalt/renderer/egl_and_gles.h"
+#include "starboard/configuration.h"
 
-#if defined(GLES3_SUPPORTED) && SB_API_VERSION >= 12
+#if defined(GLES3_SUPPORTED)
 #error "Support for gles3 features has been deprecated."
 #endif
 
@@ -61,9 +59,6 @@ GraphicsContextEGL::GraphicsContextEGL(GraphicsSystem* parent_system,
       display_(display),
       config_(config),
       is_current_(false) {
-#if SB_API_VERSION < 12 && defined(GLES3_SUPPORTED)
-  context_ = CreateGLES3Context(display, config, resource_context->context());
-#else
   // Create an OpenGL ES 2.0 context.
   EGLint context_attrib_list[] = {
       EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE,
@@ -71,7 +66,6 @@ GraphicsContextEGL::GraphicsContextEGL(GraphicsSystem* parent_system,
   context_ = EGL_CALL_SIMPLE(
       eglCreateContext(display, config, EGL_NO_CONTEXT, context_attrib_list));
   CHECK_EQ(EGL_SUCCESS, EGL_CALL_SIMPLE(eglGetError()));
-#endif
 
   // Create a dummy EGLSurface object to be assigned as the target surface
   // when we need to make OpenGL calls that do not depend on a surface (e.g.
@@ -577,5 +571,3 @@ void GraphicsContextEGL::SecurityClear() {
 }  // namespace backend
 }  // namespace renderer
 }  // namespace cobalt
-
-#endif  // SB_API_VERSION >= 12 || SB_HAS(GLES2)

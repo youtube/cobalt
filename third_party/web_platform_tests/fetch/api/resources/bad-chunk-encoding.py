@@ -7,7 +7,7 @@ def main(request, response):
     response.headers.set("Transfer-Encoding", "chunked")
     response.write_status_headers()
     time.sleep(delay)
-    for i in xrange(count):
+    for i in range(count):
         response.writer.write_content("a\r\nTEST_CHUNK\r\n")
         time.sleep(delay)
     response.writer.write_content("garbage")

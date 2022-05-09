@@ -19,9 +19,7 @@
 
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/configuration/configuration.h"
-#if SB_API_VERSION >= 12 || SB_HAS(GLES2)
 #include "cobalt/renderer/backend/egl/graphics_system.h"
-#endif  // SB_API_VERSION >= 12 || SB_HAS(GLES2)
 #include "cobalt/renderer/backend/graphics_system_stub.h"
 #include "cobalt/system_window/system_window.h"
 
@@ -31,7 +29,6 @@ namespace backend {
 
 std::unique_ptr<GraphicsSystem> CreateDefaultGraphicsSystem(
     system_window::SystemWindow* system_window) {
-#if SB_API_VERSION >= 12
   if (std::string(configuration::Configuration::GetInstance()
                       ->CobaltRasterizerType()) == "stub") {
     return std::unique_ptr<GraphicsSystem>(new GraphicsSystemStub());
@@ -39,13 +36,6 @@ std::unique_ptr<GraphicsSystem> CreateDefaultGraphicsSystem(
     return std::unique_ptr<GraphicsSystem>(
         new GraphicsSystemEGL(system_window));
   }
-#else  // SB_API_VERSION >= 12
-#if SB_HAS(GLES2)
-  return std::unique_ptr<GraphicsSystem>(new GraphicsSystemEGL(system_window));
-#else
-  return std::unique_ptr<GraphicsSystem>(new GraphicsSystemStub());
-#endif
-#endif  // SB_API_VERSION >= 12
 }
 
 }  // namespace backend

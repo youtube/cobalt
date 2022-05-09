@@ -53,15 +53,15 @@ function start_cobalt() {
   # loader app. This approach enables the local machine to obtain the loader
   # app's process ID without interfering with its stdout/stderr, which must be
   # piped to tee.
-  declare store_pid_cmd="echo \\$\\$ > ${pid_storage_path}"
+  declare store_pid_cmd="echo \\\\$\\\\$ > ${pid_storage_path}"
   declare replace_with_loader_cmd="exec /home/pi/coeg/loader_app --url=\"\"${URL}\"\" ${ARGS}"
   eval "${SSH}\"${store_pid_cmd};${replace_with_loader_cmd}\" 2>&1 | tee \"${LOG_PATH}/${LOG}\"" &
 
   # The device's filesystem is polled to avoid a race condition since the
   # previous eval command is necessarily run in the background.
-  eval "${SSH}\"while [[ ! -f ${pid_storage_path} ]] ; do sleep 1 ; done\""
+  eval "${SSH}\"while \[\[ \! -f ${pid_storage_path} \]\] \; do sleep 1 \; done\""
 
-  loader_pid_ref=$(eval "${SSH}\"cat ${pid_storage_path}\"")
+  loader_pid_ref=$(eval "${SSH}\"cat ${pid_storage_path}\"" | tr -d '[:space:]')
 
   delete_file "${pid_storage_path}"
 

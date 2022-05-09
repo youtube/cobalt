@@ -66,7 +66,10 @@ from ply import yacc
 
 # Base parser is in Chromium src/tools/idl_parser
 tools_dir = os.path.join(module_path, os.pardir, os.pardir, os.pardir, os.pardir, os.pardir, 'tools')
+idl_parser_dir = os.path.join(module_path, os.pardir, os.pardir, os.pardir, os.pardir, os.pardir, 'tools', 'idl_parser')
 sys.path.append(tools_dir)
+sys.path.append(idl_parser_dir)
+
 from idl_parser.idl_parser import IDLParser, ListFromConcat
 from idl_parser.idl_parser import ParseFile as parse_file
 
@@ -393,7 +396,7 @@ def main(argv):
     try:
         outputdir = argv[1]
     except IndexError as err:
-        print 'Usage: %s OUTPUT_DIR' % argv[0]
+        print('Usage: %s OUTPUT_DIR' % argv[0])
         return 1
     blink_idl_lexer.main(argv)
     # Important: rewrite_tables=True causes the cache file to be deleted if it

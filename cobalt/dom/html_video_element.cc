@@ -62,16 +62,18 @@ uint32 HTMLVideoElement::video_width() const {
   if (!player()) {
     return 0u;
   }
-  DCHECK_GE(player()->GetNaturalSize().width(), 0);
-  return static_cast<uint32>(player()->GetNaturalSize().width());
+  int width = player()->GetNaturalWidth();
+  DCHECK_GE(width, 0);
+  return static_cast<uint32>(width);
 }
 
 uint32 HTMLVideoElement::video_height() const {
   if (!player()) {
     return 0u;
   }
-  DCHECK_GE(player()->GetNaturalSize().height(), 0);
-  return static_cast<uint32>(player()->GetNaturalSize().height());
+  int height = player()->GetNaturalHeight();
+  DCHECK_GE(height, 0);
+  return static_cast<uint32>(height);
 }
 
 scoped_refptr<VideoPlaybackQuality> HTMLVideoElement::GetVideoPlaybackQuality(

@@ -1,8 +1,13 @@
 import base64
 import json
 import os
+import six
 import uuid
 from multiprocessing.managers import BaseManager, DictProxy
+
+if six.PY2:
+    base64.encodebytes = base64.encodestring
+    base64.decodebytes = base64.decodestring
 
 class ServerDictManager(BaseManager):
     shared_data = {}
@@ -39,15 +44,17 @@ def load_env_config():
         address = tuple(address)
     else:
         address = str(address)
-    authkey = base64.decodestring(authkey)
+    authkey = base64.decodebytes(authkey.encode())
     return address, authkey
 
 def store_env_config(address, authkey):
-    authkey = base64.encodestring(authkey)
-    os.environ["WPT_STASH_CONFIG"] = json.dumps((address, authkey))
+    authkey = base64.encodebytes(authkey)
+    if isinstance(address, bytes):
+        address = address.decode()
+    os.environ["WPT_STASH_CONFIG"] = json.dumps((address, authkey.decode("ascii")))
 
 def start_server(address=None, authkey=None):
-    manager = ServerDictManager(address, authkey)
+    manager = ServerDictManager(address, authkey.encode())
     manager.start()
 
     return (manager, manager._address, manager._authkey)

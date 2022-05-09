@@ -19,13 +19,12 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import _env  # pylint: disable=unused-import,g-bad-import-order
-
 import json
 import logging
 import os
+from six.moves.urllib.parse import urlsplit
+from six.moves.urllib.parse import urlunsplit
 import sys
-import urlparse
 
 from cobalt.black_box_tests import black_box_tests
 from cobalt.black_box_tests.threaded_web_server import ThreadedWebServer
@@ -246,10 +245,10 @@ class WebDebuggerTest(black_box_tests.BlackBoxTestCase):
 
   def create_debugger_connection(self):
     devtools_url = self.runner.GetCval('Cobalt.Server.DevTools')
-    parts = list(urlparse.urlsplit(devtools_url))
+    parts = list(urlsplit(devtools_url))
     parts[0] = 'ws'  # scheme
     parts[2] = '/devtools/page/cobalt'  # path
-    ws_url = urlparse.urlunsplit(parts)
+    ws_url = urlunsplit(parts)
     return DebuggerConnection(ws_url)
 
   def test_runtime(self):

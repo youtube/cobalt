@@ -2350,6 +2350,10 @@ void HttpCache::Transaction::SetRequest(const NetLogWithSource& net_log) {
 
   if (request_->extra_headers.HasHeader(HttpRequestHeaders::kRange))
     range_found = true;
+#if defined(STARBOARD)
+  if (request_->extra_headers.HasHeader(HttpRequestHeaders::kResourceType))
+    request_->extra_headers.GetHeader(HttpRequestHeaders::kResourceType, &type_);
+#endif
 
   for (size_t i = 0; i < arraysize(kSpecialHeaders); ++i) {
     if (HeaderMatches(request_->extra_headers, kSpecialHeaders[i].search)) {

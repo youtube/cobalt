@@ -253,7 +253,7 @@ def set_from_config(kwargs):
                     ("host_cert_path", "host_cert_path", True),
                     ("host_key_path", "host_key_path", True)]}
 
-    for section, values in keys.iteritems():
+    for section, values in keys.items():
         for config_value, kw_value, is_path in values:
             if kw_value in kwargs and kwargs[kw_value] is None:
                 if not is_path:
@@ -281,7 +281,7 @@ def get_test_paths(config):
     # Set up test_paths
     test_paths = OrderedDict()
 
-    for section in config.iterkeys():
+    for section in config.keys():
         if section.startswith("manifest:"):
             manifest_opts = config.get(section)
             url_base = manifest_opts.get("url_base", "/")
@@ -304,12 +304,12 @@ def exe_path(name):
 def check_args(kwargs):
     set_from_config(kwargs)
 
-    for test_paths in kwargs["test_paths"].itervalues():
+    for test_paths in kwargs["test_paths"].values():
         if not ("tests_path" in test_paths and
                 "metadata_path" in test_paths):
             print "Fatal: must specify both a test path and metadata path"
             sys.exit(1)
-        for key, path in test_paths.iteritems():
+        for key, path in test_paths.items():
             name = key.split("_", 1)[0]
 
             if not os.path.exists(path):

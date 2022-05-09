@@ -38,6 +38,10 @@ class ScopedTraceToFile {
     return absolute_output_path_;
   }
 
+  // Returns absolute output path from relative filename
+  static base::FilePath filepath_to_absolute(
+      const base::FilePath& output_path_relative_to_logs);
+
  private:
   base::FilePath absolute_output_path_;
 };

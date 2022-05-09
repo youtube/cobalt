@@ -18,6 +18,8 @@
 #include "base/sys_byteorder.h"
 #include "starboard/memory.h"
 
+// TODO: Consider Starboardize functions in this file.
+
 namespace cobalt {
 namespace media {
 namespace endian_util {

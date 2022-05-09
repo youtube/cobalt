@@ -20,8 +20,6 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-#if SB_API_VERSION >= 12 || SB_HAS(MICROPHONE)
-
 TEST(SbMicrophoneOpenTest, SunnyDay) {
   SbMicrophoneInfo info_array[kMaxNumberOfMicrophone];
   int available_microphones =
@@ -92,9 +90,6 @@ TEST(SbMicrophoneOpenTest, RainyDayOpenWithInvalidMicrophone) {
   bool success = SbMicrophoneOpen(kSbMicrophoneInvalid);
   EXPECT_FALSE(success);
 }
-
-#endif  // SB_API_VERSION >= 12 ||
-        // SB_HAS(MICROPHONE)
 
 }  // namespace
 }  // namespace nplb

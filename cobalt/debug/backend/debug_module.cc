@@ -82,8 +82,8 @@ DebugModule::DebugModule(DebuggerHooksImpl* debugger_hooks,
                          render_tree::ResourceProvider* resource_provider,
                          dom::Window* window, DebuggerState* debugger_state,
                          base::MessageLoop* message_loop) {
-  ConstructionData data(debugger_hooks, global_environment,
-                        message_loop, render_overlay, resource_provider, window,
+  ConstructionData data(debugger_hooks, global_environment, message_loop,
+                        render_overlay, resource_provider, window,
                         debugger_state);
   Build(data);
 }
@@ -104,23 +104,17 @@ void DebugModule::Build(const ConstructionData& data) {
   DCHECK(data.message_loop);
 
   if (base::MessageLoop::current() == data.message_loop) {
-    BuildInternal(data, NULL);
+    BuildInternal(data);
   } else {
-    base::WaitableEvent created(
-        base::WaitableEvent::ResetPolicy::MANUAL,
-        base::WaitableEvent::InitialState::NOT_SIGNALED);
-    data.message_loop->task_runner()->PostTask(
+    data.message_loop->task_runner()->PostBlockingTask(
         FROM_HERE,
-        base::Bind(&DebugModule::BuildInternal, base::Unretained(this), data,
-                   base::Unretained(&created)));
-    created.Wait();
+        base::Bind(&DebugModule::BuildInternal, base::Unretained(this), data));
   }
 
   DCHECK(debug_dispatcher_);
 }
 
-void DebugModule::BuildInternal(const ConstructionData& data,
-                                base::WaitableEvent* created) {
+void DebugModule::BuildInternal(const ConstructionData& data) {
   DCHECK(base::MessageLoop::current() == data.message_loop);
   DCHECK(data.global_environment);
   DCHECK(data.render_overlay);
@@ -194,10 +188,6 @@ void DebugModule::BuildInternal(const ConstructionData& data,
   tracing_agent_->Thaw(RemoveAgentState(kTracingAgent, agents_state));
 
   is_frozen_ = false;
-
-  if (created) {
-    created->Signal();
-  }
 }
 
 std::unique_ptr<DebuggerState> DebugModule::Freeze() {

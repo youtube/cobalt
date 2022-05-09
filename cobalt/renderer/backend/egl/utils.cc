@@ -13,7 +13,6 @@
 // limitations under the License.
 
 #include "starboard/configuration.h"
-#if SB_API_VERSION >= 12 || SB_HAS(GLES2)
 
 #include "cobalt/renderer/backend/egl/utils.h"
 
@@ -67,5 +66,3 @@ int BytesPerPixelForGLFormat(GLenum format) {
 }  // namespace backend
 }  // namespace renderer
 }  // namespace cobalt
-
-#endif  // SB_API_VERSION >= 12 || SB_HAS(GLES2)

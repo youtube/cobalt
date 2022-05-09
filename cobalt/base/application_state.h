@@ -26,42 +26,42 @@ namespace base {
 // Starboard lifecycle states in order to explicitly represent Cobalt-specific
 // substates that Starboard does not enforce.
 enum ApplicationState {
+  // The state where the application is running in the foreground, fully
+  // visible, with all necessary graphics resources available. A possible
+  // initial state, where loading happens while in the foreground.
+  kApplicationStateStarted = 1,
+
   // The application is still visible, and therefore still requires graphics
   // resources, but the web application may wish to take actions such as pause
   // video. The application is expected to be able to move back into the Started
   // state very quickly.
-  kApplicationStateBlurred,
+  kApplicationStateBlurred = 2,
 
   // The state where the application is running on the background, but the
   // background tasks are still running, such as audio playback, or updating
   // of recommendations. The application is expected to be able to move back
   // into the Blurred state very quickly.
-  kApplicationStateConcealed,
+  kApplicationStateConcealed = 3,
 
   // The application was stopped to the point where graphics and video resources
   // are invalid and execution should be halted until resumption.
-  kApplicationStateFrozen,
-
-  // The state where the application is running in the foreground, fully
-  // visible, with all necessary graphics resources available. A possible
-  // initial state, where loading happens while in the foreground.
-  kApplicationStateStarted,
+  kApplicationStateFrozen = 4,
 
   // Representation of a idle/terminal/shutdown state with no resources.
-  kApplicationStateStopped,
+  kApplicationStateStopped = 5,
 };
 
 // Returns a human-readable string for the given |state|.
 static inline const char *GetApplicationStateString(ApplicationState state) {
   switch (state) {
+    case kApplicationStateStarted:
+      return "kApplicationStateStarted";
     case kApplicationStateBlurred:
       return "kApplicationStateBlurred";
     case kApplicationStateConcealed:
       return "kApplicationStateConcealed";
     case kApplicationStateFrozen:
       return "kApplicationStateFrozen";
-    case kApplicationStateStarted:
-      return "kApplicationStateStarted";
     case kApplicationStateStopped:
       return "kApplicationStateStopped";
   }

@@ -19,6 +19,7 @@
 
 #include <limits>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "base/logging.h"
@@ -115,6 +116,11 @@ inline void ToJSValue(v8::Isolate* isolate, const std::vector<uint8_t>& in_data,
 
   *out_value = string;
 }
+
+// JSValue -> std::vector<uint8_t>
+void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value,
+                 int conversion_flags, ExceptionState* exception_state,
+                 std::vector<uint8_t>* out_vector);
 
 // base::Token -> JSValue
 inline void ToJSValue(v8::Isolate* isolate, const base::Token& token,

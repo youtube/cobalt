@@ -37,7 +37,6 @@
 #include "starboard/mutex.h"
 #include "starboard/once.h"
 #include "starboard/thread.h"
-#include "starboard/thread_types.h"
 
 typedef SbThread dav1d_pthread_t;
 typedef SbMutex dav1d_pthread_mutex_t;

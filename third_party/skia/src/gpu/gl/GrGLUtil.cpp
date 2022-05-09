@@ -22,7 +22,6 @@ bool gCheckErrorGL = !!(GR_GL_CHECK_ERROR_START);
 
 ///////////////////////////////////////////////////////////////////////////////
 
-#if !defined(STARBOARD) || (SB_API_VERSION >= 12 || SB_HAS_GLES2)
 #if defined(STARBOARD)
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
@@ -261,7 +260,7 @@ GrGLVersion GrGLGetVersionFromString(const char* versionString) {
         return GR_GL_INVALID_VER;
     }
 
-#if defined(STARBOARD) && (SB_API_VERSION >= 12 || !defined(GLES3_SUPPORTED))
+#if defined(STARBOARD) && !defined(GLES3_SUPPORTED)
     // If we are in a build that does not support GLES3 (or it is explicitly
     // disabled), ensure that Skia returns GLES2 as the version being used by
     // performing the check before attempting to parse the string below.
@@ -737,30 +736,3 @@ bool GrGLFormatToCompressionType(GrGLFormat format, SkImage::CompressionType* co
     SkUNREACHABLE;
 }
 
-#else  // !defined(STARBOARD) || (SB_API_VERSION >= 12|| SB_HAS_GLES2)
-
-void GrGLCheckErr(const GrGLInterface* gl, const char* location, const char* call) {}
-
-void GrGLClearErr(const GrGLInterface* gl) {}
-
-GrGLenum GrToGLStencilFunc(GrStencilTest test) { return -1; }
-
-GrGLVersion GrGLGetVersionFromString(const char* versionString) { return GR_GL_INVALID_VER; }
-
-GrGLVendor GrGLGetVendor(const GrGLInterface* gl) { return kOther_GrGLVendor; }
-
-GrGLRenderer GrGLGetRendererFromString(const char* rendererString) { return kOther_GrGLRenderer; }
-
-void GrGLGetDriverInfo(GrGLStandard standard,
-                       GrGLVendor vendor,
-                       const char* rendererString,
-                       const char* versionString,
-                       GrGLDriver* outDriver,
-                       GrGLDriverVersion* outVersion) {}
-
-GrGLSLVersion GrGLGetGLSLVersion(const GrGLInterface* gl) { return GR_GLSL_INVALID_VER; }
-
-GrGLVersion GrGLGetVersion(const GrGLInterface* gl) { return GR_GL_INVALID_VER; }
-
-#endif  // !defined(STARBOARD) || (SB_API_VERSION >= 12||
-        // SB_HAS_GLES2)

@@ -56,6 +56,41 @@ void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value,
                     v8::String::REPLACE_INVALID_UTF8);
 }
 
+// JSValue -> std::vector<uint8_t>
+void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value,
+                 int conversion_flags, ExceptionState* exception_state,
+                 std::vector<uint8_t>* out_vector) {
+  DCHECK_EQ(conversion_flags & ~kConversionFlagsString, 0)
+      << "Unexpected conversion flags found: ";
+
+  if (value->IsNull() &&
+      (conversion_flags & kConversionFlagTreatNullAsEmptyString)) {
+    *out_vector = {};
+    return;
+  }
+
+  if (value->IsUndefined() &&
+      (conversion_flags & kConversionFlagTreatUndefinedAsEmptyString)) {
+    *out_vector = {};
+    return;
+  }
+
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  v8::MaybeLocal<v8::String> maybe_string = value->ToString(context);
+  v8::Local<v8::String> string;
+  if (!maybe_string.ToLocal(&string)) {
+    exception_state->SetSimpleException(kConvertToStringFailed);
+    return;
+  }
+
+  // Resize the output string to the UTF-8 estimated size.
+  int length = string->Utf8Length(isolate);
+
+  out_vector->resize(length);
+  DCHECK(out_vector->size() == length);
+  string->WriteOneByte(isolate, out_vector->data(), 0, length);
+}
+
 // ValueHandle -> JSValue
 void ToJSValue(v8::Isolate* isolate,
                const ValueHandleHolder* value_handle_holder,

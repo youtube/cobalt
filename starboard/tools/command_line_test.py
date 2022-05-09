@@ -20,18 +20,17 @@ import argparse
 import os
 import unittest
 
-import _env  # pylint: disable=unused-import
+from starboard.build.platforms import PLATFORMS
 from starboard.tools import command_line
 import starboard.tools.config
-import starboard.tools.platform
 
 _A_CONFIG = starboard.tools.config.GetAll()[0]
-_A_PLATFORM = starboard.tools.platform.GetAll()[0]
+_A_PLATFORM = list(PLATFORMS.keys())[0]
 
 
 def _RestoreMapping(target, source):
   target.clear()
-  for key, value in source.iteritems():
+  for key, value in source.items():
     target[key] = value
 
 
@@ -71,11 +70,13 @@ def _SetEnviron(config, platform):
 class CommandLineTest(unittest.TestCase):
 
   def setUp(self):
+    super(CommandLineTest, self).setUp()
     self.environ = os.environ.copy()
     _ClearEnviron()
 
   def tearDown(self):
     _RestoreMapping(os.environ, self.environ)
+    super(CommandLineTest, self).tearDown()
 
   def testNoEnvironmentRainyDayNoArgs(self):
     arg_parser = _CreateParser()

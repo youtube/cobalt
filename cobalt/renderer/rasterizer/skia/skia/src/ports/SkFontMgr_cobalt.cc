@@ -67,16 +67,15 @@ SkFontMgr_Cobalt::SkFontMgr_Cobalt(
       *system_font_config_directory != '\0' &&
       system_font_files_directory != NULL &&
       *system_font_files_directory != '\0' &&
-      (0 != strcmp(cobalt_font_files_directory,
-                               system_font_files_directory))) {
+      (0 != strcmp(cobalt_font_files_directory, system_font_files_directory))) {
     TRACE_EVENT0("cobalt::renderer", "LoadSystemFontFamilies");
     ParseConfigAndBuildFamilies(system_font_config_directory,
                                 system_font_files_directory,
                                 &priority_fallback_families);
   }
 
-// Load local fallback fonts if available.
-// The fonts are added in addition to the Cobalt and System fonts.
+  // Load local fallback fonts if available.
+  // The fonts are added in addition to the Cobalt and System fonts.
   const CobaltExtensionFontApi* font_extension =
       static_cast<const CobaltExtensionFontApi*>(
           SbSystemGetExtension(kCobaltExtensionFontName));
@@ -266,6 +265,13 @@ sk_sp<SkTypeface> SkFontMgr_Cobalt::onMakeFromData(sk_sp<SkData> data,
   return makeFromStream(std::make_unique<SkMemoryStream>(std::move(data)),
                         face_index);
 }
+
+#ifdef USE_SKIA_NEXT
+sk_sp<SkTypeface> SkFontMgr_Cobalt::onMakeFromStreamArgs(
+    std::unique_ptr<SkStreamAsset> stream, const SkFontArguments& args) const {
+  return this->makeFromStream(std::move(stream), args.getCollectionIndex());
+}
+#endif
 
 sk_sp<SkTypeface> SkFontMgr_Cobalt::onMakeFromStreamIndex(
     std::unique_ptr<SkStreamAsset> stream, int face_index) const {

@@ -86,8 +86,6 @@ void DoBatchUpdate(void (*update_function)(void*), void* context) {
 
 NativeInterface InitializeInterface() {
   NativeInterface interface = {0};
-
-#if SB_API_VERSION >= 12
   SbUiNavInterface sb_ui_interface = {0};
   if (SbUiNavGetInterface(&sb_ui_interface)) {
     interface.create_item = sb_ui_interface.create_item;
@@ -114,7 +112,6 @@ NativeInterface InitializeInterface() {
 #endif
     return interface;
   }
-#endif
 
   interface.create_item = &CreateItem;
   interface.destroy_item = &DestroyItem;

@@ -59,6 +59,7 @@
 #include "cobalt/dom/mouse_event.h"
 #include "cobalt/dom/named_node_map.h"
 #include "cobalt/dom/node_descendants_iterator.h"
+#include "cobalt/dom/performance.h"
 #include "cobalt/dom/text.h"
 #include "cobalt/dom/ui_event.h"
 #include "cobalt/dom/wheel_event.h"
@@ -87,9 +88,6 @@ Document::Document(HTMLElementContext* html_element_context,
       is_computed_style_dirty_(true),
       are_font_faces_dirty_(true),
       are_keyframes_dirty_(true),
-#if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
-      partial_layout_is_enabled_(true),
-#endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
       selector_tree_(new cssom::SelectorTree()),
       should_recreate_selector_tree_(false),
       navigation_start_clock_(options.navigation_start_clock
@@ -105,7 +103,8 @@ Document::Document(HTMLElementContext* html_element_context,
       render_postponed_(false),
       frozenness_(false),
       ALLOW_THIS_IN_INITIALIZER_LIST(intersection_observer_task_manager_(
-          new IntersectionObserverTaskManager())) {
+          new IntersectionObserverTaskManager())),
+      navigation_type_(kNavigationTypeNavigate) {
   DCHECK(html_element_context_);
   DCHECK(options.url.is_empty() || options.url.is_valid());
   application_lifecycle_state_->AddObserver(this);
@@ -126,7 +125,8 @@ Document::Document(HTMLElementContext* html_element_context,
   location_ = new Location(
       options.url, options.hashchange_callback, options.navigation_callback,
       base::Bind(&CspDelegate::CanLoad, base::Unretained(csp_delegate_.get()),
-                 CspDelegate::kLocation));
+                 CspDelegate::kLocation),
+      base::Bind(&Document::SetNavigationType, base::Unretained(this)));
 
   font_cache_.reset(new FontCache(
       html_element_context_->resource_provider(),
@@ -900,12 +900,6 @@ bool Document::TrySetUiNavFocusElement(const void* focus_element,
 
 void Document::SampleTimelineTime() { default_timeline_->Sample(); }
 
-#if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
-void Document::SetPartialLayout(bool enabled) {
-  partial_layout_is_enabled_ = enabled;
-}
-#endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
-
 ViewportSize Document::viewport_size() {
   return viewport_size_.value_or(ViewportSize());
 }
@@ -1148,11 +1142,73 @@ void Document::TraceMembers(script::Tracer* tracer) {
   tracer->Trace(initial_computed_style_declaration_);
 }
 
+void Document::CreatePerformanceNavigationTiming(
+    Performance* performance, const net::LoadTimingInfo& timing_info) {
+  // To create the navigation timing entry for document, given a loadTiminginfo,
+  // a navigationType and a null service worker timing info, do the following:
+  //   https://www.w3.org/TR/2022/WD-navigation-timing-2-20220224/#marking-navigation-timing
+  // 1. Let global be document's relevant global object.
+  // 2. Let navigationTimingEntry be a new PerformanceNavigationTiming object
+  // in global's realm.
+  // 3. Setup the resource timing entry for navigationTimingEntry given
+  // "navigation", document's address, and fetchTiming.
+  // 4. Set navigationTimingEntry's document load timing to document's
+  // load timing info.
+  // 5. Set navigationTimingEntry's previous document unload timing to
+  // document's previous document unload timing.
+  // 6. Set navigationTimingEntry's redirect count to redirectCount.
+  // 7. Set navigationTimingEntry's navigation type to navigationType.
+  // 8. Set navigationTimingEntry's service worker timing to
+  // serviceWorkerTiming.
+  scoped_refptr<PerformanceNavigationTiming> navigation_timing(
+      new PerformanceNavigationTiming(timing_info, location_->url().spec(),
+                                      performance, this,
+                                      performance->GetTimeOrigin()));
+
+  // 9. Set document's navigation timing entry to
+  // navigationTimingEntry.
+  navigation_timing_entry_ = navigation_timing;
+  // 10. add navigationTimingEntry to global's performance entry buffer.
+  performance->AddEntryToPerformanceEntryBuffer(navigation_timing_entry_);
+  // 11. To queue the navigation timing entry for Document document, queue
+  // document's navigation timing entry.
+  performance->QueuePerformanceEntry(navigation_timing_entry_);
+}
+
+void Document::SetUnloadEventTimingInfo(base::TimeTicks start_time,
+                                        base::TimeTicks end_time) {
+  document_load_timing_info_.unload_event_start = start_time;
+  document_load_timing_info_.unload_event_end = end_time;
+}
+
+
 void Document::set_render_postponed(bool render_postponed) {
   bool unpostponed = render_postponed_ && !render_postponed;
   render_postponed_ = render_postponed;
   if (unpostponed) {
     RecordMutation();
+  }
+}
+
+void Document::CollectTimingInfoAndDispatchEvent() {
+  DCHECK(html_element_context_);
+  Performance* performance = html_element_context_->performance();
+  bool is_performance_valid = performance != nullptr;
+
+  // Set document load timing info's dom content loaded event start time
+  // before user agent dispatches the DOMConentLoaded event.
+  if (is_performance_valid) {
+    document_load_timing_info_.dom_content_loaded_event_start =
+        performance->Now();
+  }
+
+  PostToDispatchEventName(FROM_HERE, base::Tokens::domcontentloaded());
+
+  // Set document load timing info's dom content loaded event end time
+  // after user agent completes handling the DOMConentLoaded event.
+  if (is_performance_valid) {
+    document_load_timing_info_.dom_content_loaded_event_end =
+        performance->Now();
   }
 }
 
@@ -1173,6 +1229,16 @@ void Document::DispatchOnLoadEvent() {
     UpdateComputedStyles();
   }
 
+  DCHECK(html_element_context_);
+  Performance* performance = html_element_context_->performance();
+  bool is_performance_valid = performance != nullptr;
+
+  // Set document load timing info's dom complete time before user agent set the
+  // current document readiness to "complete".
+  if (is_performance_valid) {
+    document_load_timing_info_.dom_complete = performance->Now();
+  }
+
   // Adjust the document ready state to reflect the fact that the document has
   // finished loading.  Performing this update and firing the readystatechange
   // event before the load event matches Chromium's behavior.
@@ -1182,8 +1248,20 @@ void Document::DispatchOnLoadEvent() {
   // have changed the document ready state.
   DispatchEvent(new Event(base::Tokens::readystatechange()));
 
+  // Set document load timing info's load event start time before user agent
+  // dispatch the load event for the document.
+  if (is_performance_valid) {
+    document_load_timing_info_.load_event_start = performance->Now();
+  }
+
   // Dispatch the document's onload event.
   DispatchEvent(new Event(base::Tokens::load()));
+
+  // Set document load timing info's load event end time after user agent
+  // completes handling the load event for the document.
+  if (is_performance_valid) {
+    document_load_timing_info_.load_event_end = performance->Now();
+  }
 
   // After all JavaScript OnLoad event handlers have executed, signal to let
   // any Document observers know that a load event has occurred.

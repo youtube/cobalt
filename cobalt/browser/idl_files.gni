@@ -128,6 +128,7 @@ source_idl_files = [
   "//cobalt/dom/performance_lifecycle_timing.idl",
   "//cobalt/dom/performance_mark.idl",
   "//cobalt/dom/performance_measure.idl",
+  "//cobalt/dom/performance_navigation_timing.idl",
   "//cobalt/dom/performance_observer.idl",
   "//cobalt/dom/performance_observer_entry_list.idl",
   "//cobalt/dom/performance_resource_timing.idl",
@@ -228,7 +229,14 @@ source_idl_files = [
   "//cobalt/websocket/close_event.idl",
   "//cobalt/websocket/web_socket.idl",
 
+  "//cobalt/worker/dedicated_worker_global_scope.idl",
+  "//cobalt/worker/message_port.idl",
+  "//cobalt/worker/navigation_preload_manager.idl",
+  "//cobalt/worker/service_worker.idl",
   "//cobalt/worker/service_worker_container.idl",
+  "//cobalt/worker/service_worker_registration.idl",
+  "//cobalt/worker/worker.idl",
+  "//cobalt/worker/worker_global_scope.idl",
 
   "//cobalt/xhr/xml_http_request.idl",
   "//cobalt/xhr/xml_http_request_event_target.idl",
@@ -284,6 +292,7 @@ generated_header_idl_files = [
   "//cobalt/dom/media_source_ready_state.idl",
   "//cobalt/dom/mouse_event_init.idl",
   "//cobalt/dom/mutation_observer_init.idl",
+  "//cobalt/dom/navigation_type.idl",
   "//cobalt/dom/navigator_ua_brand_version.idl",
   "//cobalt/dom/performance_observer_callback_options.idl",
   "//cobalt/dom/performance_observer_init.idl",
@@ -299,6 +308,8 @@ generated_header_idl_files = [
   "//cobalt/encoding/text_decoder_options.idl",
   "//cobalt/encoding/text_encoder_encode_into_result.idl",
   "//cobalt/h5vcc/h5vcc_crash_type.idl",
+  "//cobalt/h5vcc/watchdog_state.idl",
+  "//cobalt/h5vcc/watchdog_replace.idl",
   "//cobalt/media_capture/blob_event_init.idl",
   "//cobalt/media_capture/media_device_kind.idl",
   "//cobalt/media_capture/media_recorder_options.idl",
@@ -322,6 +333,13 @@ generated_header_idl_files = [
   "//cobalt/web_animations/animation_fill_mode.idl",
   "//cobalt/web_animations/animation_playback_direction.idl",
   "//cobalt/websocket/close_event_init.idl",
+  "//cobalt/worker/navigation_preload_state.idl",
+  "//cobalt/worker/registration_options.idl",
+  "//cobalt/worker/service_worker_state.idl",
+  "//cobalt/worker/service_worker_update_via_cache.idl",
+  "//cobalt/worker/structured_serialize_options.idl",
+  "//cobalt/worker/worker_options.idl",
+  "//cobalt/worker/worker_type.idl",
 ]
 
 # Partial interfaces and the right-side of "implements". Also includes
@@ -375,5 +393,6 @@ dependency_idl_files = [
   "//cobalt/dom/window_timers.idl",
   "//cobalt/media_capture/navigator.idl",
   "//cobalt/media_session/navigator_media_session.idl",
+  "//cobalt/worker/abstract_worker.idl",
   "//cobalt/worker/navigator.idl",
 ]

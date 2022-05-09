@@ -91,7 +91,6 @@ bool AnyGoodAppKeyFile(const std::string& dir) {
   }
 
   bool found = false;
-#if SB_API_VERSION >= 12
   std::vector<char> filename(kSbFileMaxName);
   while (SbDirectoryGetNext(directory, filename.data(), filename.size())) {
     if (!strncmp(kFilePrefix, filename.data(), sizeof(kFilePrefix) - 1) &&
@@ -100,17 +99,6 @@ bool AnyGoodAppKeyFile(const std::string& dir) {
       break;
     }
   }
-#else
-  SbDirectoryEntry entry;
-  while (SbDirectoryGetNext(directory, &entry)) {
-    if (!strncmp(kFilePrefix, entry.name, sizeof(kFilePrefix) - 1) &&
-        EndsWith(entry.name, kGoodFileSuffix)) {
-      found = true;
-      break;
-    }
-  }
-#endif
-
   SbDirectoryClose(directory);
   return found;
 }

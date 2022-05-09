@@ -16,12 +16,14 @@
 
 #include <memory>
 #include <string>
+#include <utility>
 
 #include "base/strings/stringprintf.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/loader/cors_preflight.h"
 #include "cobalt/loader/url_fetcher_string_writer.h"
 #include "cobalt/network/network_module.h"
+#include "net/base/mime_util.h"
 #include "net/url_request/url_fetcher.h"
 #if defined(STARBOARD)
 #include "starboard/configuration.h"
@@ -71,6 +73,19 @@ bool IsResponseCodeSuccess(int response_code) {
   // meaningful, like "data:"
   return response_code == -1 || response_code / 100 == 2;
 }
+
+// Returns true if |mime_type| is allowed for script-like destinations.
+// See:
+// https://fetch.spec.whatwg.org/#request-destination-script-like
+// https://fetch.spec.whatwg.org/#should-response-to-request-be-blocked-due-to-mime-type?
+bool AllowMimeTypeAsScript(const std::string& mime_type) {
+  if (net::MatchesMimeType("audio/*", mime_type)) return false;
+  if (net::MatchesMimeType("image/*", mime_type)) return false;
+  if (net::MatchesMimeType("video/*", mime_type)) return false;
+  if (net::MatchesMimeType("text/csv", mime_type)) return false;
+  return true;
+}
+
 }  // namespace
 
 NetFetcher::NetFetcher(const GURL& url,
@@ -84,7 +99,8 @@ NetFetcher::NetFetcher(const GURL& url,
       ALLOW_THIS_IN_INITIALIZER_LIST(start_callback_(
           base::Bind(&NetFetcher::Start, base::Unretained(this)))),
       request_cross_origin_(false),
-      origin_(origin) {
+      origin_(origin),
+      request_script_(options.resource_type == disk_cache::kUncompiledScript) {
   url_fetcher_ = net::URLFetcher::Create(url, options.request_method, this);
   url_fetcher_->SetRequestContext(
       network_module->url_request_context_getter().get());
@@ -96,6 +112,10 @@ NetFetcher::NetFetcher(const GURL& url,
     request_cross_origin_ = true;
     url_fetcher_->AddExtraRequestHeader("Origin:" + origin.SerializedOrigin());
   }
+  std::string content_type =
+      std::string(net::HttpRequestHeaders::kResourceType) + ":" +
+      std::to_string(options.resource_type);
+  url_fetcher_->AddExtraRequestHeader(content_type);
   if ((request_cross_origin_ &&
        (request_mode == kCORSModeSameOriginCredentials)) ||
       request_mode == kCORSModeOmitCredentials) {
@@ -128,7 +148,7 @@ void NetFetcher::Start() {
 void NetFetcher::OnURLFetchResponseStarted(const net::URLFetcher* source) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   if (source->GetURL() != source->GetOriginalURL()) {
-    // A redirect occured. Re-check the security policy.
+    // A redirect occurred. Re-check the security policy.
     if (!security_callback_.is_null() &&
         !security_callback_.Run(source->GetURL(), true /* did redirect */)) {
       std::string msg(base::StringPrintf(
@@ -159,6 +179,18 @@ void NetFetcher::OnURLFetchResponseStarted(const net::URLFetcher* source) {
         "Cross origin request to %s was rejected by Same-Origin-Policy",
         source->GetURL().spec().c_str()));
     return HandleError(msg).InvalidateThis();
+  }
+
+  if (request_script_ && source->GetResponseHeaders()) {
+    std::string mime_type;
+    if (source->GetResponseHeaders()->GetMimeType(&mime_type) &&
+        !AllowMimeTypeAsScript(mime_type)) {
+      std::string msg(base::StringPrintf(
+          "Refused to execute script from '%s' because its MIME type ('%s')"
+          " is not executable.",
+          source->GetURL().spec().c_str(), mime_type.c_str()));
+      return HandleError(msg).InvalidateThis();
+    }
   }
 
   last_url_origin_ = Origin(source->GetURL());
@@ -224,8 +256,7 @@ void NetFetcher::OnURLFetchDownloadProgress(const net::URLFetcher* source,
   }
 }
 
-void NetFetcher::ReportLoadTimingInfo(
-    const net::LoadTimingInfo& timing_info) {
+void NetFetcher::ReportLoadTimingInfo(const net::LoadTimingInfo& timing_info) {
   handler()->SetLoadTimingInfo(timing_info);
 }
 

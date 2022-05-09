@@ -4,7 +4,6 @@
 #include "starboard/memory.h"
 #include "starboard/once.h"
 #include "starboard/thread.h"
-#include "starboard/thread_types.h"
 
 static SbThreadLocalKey g_errno_key = kSbThreadLocalKeyInvalid;
 static SbOnceControl g_errno_once = SB_ONCE_INITIALIZER;

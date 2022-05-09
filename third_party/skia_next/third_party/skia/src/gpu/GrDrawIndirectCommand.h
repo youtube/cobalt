@@ -11,6 +11,8 @@
 #include <stdint.h>
 #include <utility>
 
+#include "include/core/cpp17oncpp14.h"
+
 struct GrDrawIndirectCommand {
     uint32_t fVertexCount;
     uint32_t fInstanceCount;
@@ -99,5 +101,23 @@ public:
 private:
     GrDrawIndexedIndirectCommand* fData;
 };
+
+#ifdef SKIA_STRUCTURED_BINDINGS_BACKPORT
+template <>
+struct CoercerToTuple<GrDrawIndirectCommand> {
+  static auto Coerce(const GrDrawIndirectCommand& t) {
+    return std::make_tuple(t.fVertexCount, t.fInstanceCount,
+        t.fBaseVertex, t.fBaseInstance);
+  }
+};
+
+template <>
+struct CoercerToTuple<GrDrawIndexedIndirectCommand> {
+  static auto Coerce(const GrDrawIndexedIndirectCommand& t) {
+    return std::make_tuple(t.fIndexCount, t.fInstanceCount, t.fBaseIndex,
+        t.fBaseVertex, t.fBaseInstance);
+  }
+};
+#endif
 
 #endif

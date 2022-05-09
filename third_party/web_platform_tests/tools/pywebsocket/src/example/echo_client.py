@@ -60,6 +60,7 @@ from optparse import OptionParser
 import os
 import random
 import re
+import six
 import socket
 import struct
 import sys
@@ -143,7 +144,7 @@ def _receive_bytes(socket, length):
                 (length, length - remaining))
         bytes.append(received_bytes)
         remaining -= len(received_bytes)
-    return ''.join(bytes)
+    return b''.join(bytes)
 
 
 def _get_mandatory_header(fields, name):
@@ -267,8 +268,8 @@ class ClientHandshakeBase(object):
         fields = {}
         while True:  # "Field"
             # 4.1 33. let /name/ and /value/ be empty byte arrays
-            name = ''
-            value = ''
+            name = b''
+            value = b''
             # 4.1 34. read /name/
             name = self._read_name()
             if name is None:
@@ -280,7 +281,7 @@ class ClientHandshakeBase(object):
             value = self._read_value(ch)
             # 4.1 37. read a byte from the server
             ch = _receive_bytes(self._socket, 1)
-            if ch != '\n':  # 0x0A
+            if ch != b'\n':  # 0x0A
                 raise ClientHandshakeError(
                     'Expected LF but found %r while reading value %r for '
                     'header %r' % (ch, value, name))
@@ -290,26 +291,23 @@ class ClientHandshakeBase(object):
             # array as a UTF-8 stream and the value given by the string
             # obtained by interpreting the /value/ byte array as a UTF-8 byte
             # stream.
-            fields.setdefault(name, []).append(value)
+            fields.setdefault(name.decode(), []).append(value.decode())
             # 4.1 39. return to the "Field" step above
         return fields
 
     def _read_name(self):
         # 4.1 33. let /name/ be empty byte arrays
-        name = ''
+        name = b''
         while True:
             # 4.1 34. read a byte from the server
             ch = _receive_bytes(self._socket, 1)
-            if ch == '\r':  # 0x0D
+            if ch == b'\r':  # 0x0D
                 return None
-            elif ch == '\n':  # 0x0A
+            elif ch == b'\n':  # 0x0A
                 raise ClientHandshakeError(
                     'Unexpected LF when reading header name %r' % name)
-            elif ch == ':':  # 0x3A
-                return name
-            elif ch >= 'A' and ch <= 'Z':  # Range 0x31 to 0x5A
-                ch = chr(ord(ch) + 0x20)
-                name += ch
+            elif ch == b':':  # 0x3A
+                return name.lower()
             else:
                 name += ch
 
@@ -317,18 +315,18 @@ class ClientHandshakeBase(object):
         # 4.1 35. read a byte from the server
         while True:
             ch = _receive_bytes(self._socket, 1)
-            if ch == ' ':  # 0x20
+            if ch == b' ':  # 0x20
                 continue
             return ch
 
     def _read_value(self, ch):
         # 4.1 33. let /value/ be empty byte arrays
-        value = ''
+        value = b''
         # 4.1 36. read a byte from server.
         while True:
-            if ch == '\r':  # 0x0D
+            if ch == b'\r':  # 0x0D
                 return value
-            elif ch == '\n':  # 0x0A
+            elif ch == b'\n':  # 0x0A
                 raise ClientHandshakeError(
                     'Unexpected LF when reading header value %r' % value)
             else:
@@ -407,7 +405,7 @@ class ClientHandshakeProcessor(ClientHandshakeBase):
         request_line = _build_method_line(self._options.resource)
         self._logger.debug('Client\'s opening handshake Request-Line: %r',
                            request_line)
-        self._socket.sendall(request_line)
+        self._socket.sendall(request_line.encode())
 
         fields = []
         fields.append(_format_host_header(
@@ -433,7 +431,7 @@ class ClientHandshakeProcessor(ClientHandshakeBase):
             self._key,
             util.hexify(original_key))
         fields.append(
-            '%s: %s\r\n' % (common.SEC_WEBSOCKET_KEY_HEADER, self._key))
+            '%s: %s\r\n' % (common.SEC_WEBSOCKET_KEY_HEADER, self._key.decode()))
 
         if self._options.version_header > 0:
             fields.append('%s: %d\r\n' % (common.SEC_WEBSOCKET_VERSION_HEADER,
@@ -468,22 +466,22 @@ class ClientHandshakeProcessor(ClientHandshakeBase):
                  common.format_extensions(extensions_to_request)))
 
         for field in fields:
-            self._socket.sendall(field)
+            self._socket.sendall(field.encode())
 
-        self._socket.sendall('\r\n')
+        self._socket.sendall(b'\r\n')
 
         self._logger.debug('Sent client\'s opening handshake headers: %r',
                            fields)
         self._logger.debug('Start reading Status-Line')
 
-        status_line = ''
+        status_line = b''
         while True:
             ch = _receive_bytes(self._socket, 1)
             status_line += ch
-            if ch == '\n':
+            if ch == b'\n':
                 break
 
-        m = re.match('HTTP/\\d+\.\\d+ (\\d\\d\\d) .*\r\n', status_line)
+        m = re.match(b'HTTP/\\d+\.\\d+ (\\d\\d\\d) .*\r\n', status_line)
         if m is None:
             raise ClientHandshakeError(
                 'Wrong status line format: %r' % status_line)
@@ -500,7 +498,7 @@ class ClientHandshakeProcessor(ClientHandshakeBase):
         fields = self._read_fields()
 
         ch = _receive_bytes(self._socket, 1)
-        if ch != '\n':  # 0x0A
+        if ch != b'\n':  # 0x0A
             raise ClientHandshakeError(
                 'Expected LF but found %r while reading value %r for header '
                 'name %r' % (ch, value, name))
@@ -526,7 +524,7 @@ class ClientHandshakeProcessor(ClientHandshakeBase):
         # Validate
         try:
             binary_accept = base64.b64decode(accept)
-        except TypeError, e:
+        except TypeError:
             raise HandshakeError(
                 'Illegal value for header %s: %r' %
                 (common.SEC_WEBSOCKET_ACCEPT_HEADER, accept))
@@ -548,7 +546,7 @@ class ClientHandshakeProcessor(ClientHandshakeBase):
             'Expected response for challenge: %r (%s)',
             expected_accept, util.hexify(binary_expected_accept))
 
-        if accept != expected_accept:
+        if accept != expected_accept.decode():
             raise ClientHandshakeError(
                 'Invalid %s header: %r (expected: %s)' %
                 (common.SEC_WEBSOCKET_ACCEPT_HEADER, accept, expected_accept))
@@ -662,15 +660,15 @@ class ClientHandshakeProcessorHybi00(ClientHandshakeBase):
         # RETURN U+000A LINE FEED character pair (CRLF).
         random.shuffle(fields)
         for field in fields:
-            self._socket.sendall(field)
+            self._socket.sendall(field.encode())
         # 4.1 25. send a UTF-8-encoded U+000D CARRIAGE RETURN U+000A LINE FEED
         # character pair (CRLF).
-        self._socket.sendall('\r\n')
+        self._socket.sendall(b'\r\n')
         # 4.1 26. let /key3/ be a string consisting of eight random bytes (or
         # equivalently, a random 64 bit integer encoded in a big-endian order).
         self._key3 = self._generate_key3()
         # 4.1 27. send /key3/ to the server.
-        self._socket.sendall(self._key3)
+        self._socket.sendall(self._key3.encode())
         self._logger.debug(
             'Key3: %r (%s)', self._key3, util.hexify(self._key3))
 
@@ -679,19 +677,19 @@ class ClientHandshakeProcessorHybi00(ClientHandshakeBase):
         # 4.1 28. Read bytes from the server until either the connection
         # closes, or a 0x0A byte is read. let /field/ be these bytes, including
         # the 0x0A bytes.
-        field = ''
+        field = b''
         while True:
             ch = _receive_bytes(self._socket, 1)
             field += ch
-            if ch == '\n':
+            if ch == b'\n':
                 break
         # if /field/ is not at least seven bytes long, or if the last
         # two bytes aren't 0x0D and 0x0A respectively, or if it does not
         # contain at least two 0x20 bytes, then fail the WebSocket connection
         # and abort these steps.
-        if len(field) < 7 or not field.endswith('\r\n'):
+        if len(field) < 7 or not field.endswith(b'\r\n'):
             raise ClientHandshakeError('Wrong status line: %r' % field)
-        m = re.match('[^ ]* ([^ ]*) .*', field)
+        m = re.match(b'[^ ]* ([^ ]*) .*', field)
         if m is None:
             raise ClientHandshakeError(
                 'No HTTP status code found in status line: %r' % field)
@@ -702,13 +700,13 @@ class ClientHandshakeProcessorHybi00(ClientHandshakeBase):
         # 4.1 30. if /code/ is not three bytes long, or if any of the bytes in
         # /code/ are not in the range 0x30 to 0x90, then fail the WebSocket
         # connection and abort these steps.
-        if not re.match('[0-9][0-9][0-9]', code):
+        if not re.match(b'[0-9][0-9][0-9]', code):
             raise ClientHandshakeError(
                 'HTTP status code %r is not three digit in status line: %r' %
                 (code, field))
         # 4.1 31. if /code/, interpreted as UTF-8, is "101", then move to the
         # next step.
-        if code != '101':
+        if code != b'101':
             raise ClientHandshakeError(
                 'Expected HTTP status code 101 but found %r in status line: '
                 '%r' % (code, field))
@@ -717,7 +715,7 @@ class ClientHandshakeProcessorHybi00(ClientHandshakeBase):
         # 4.1 40. _Fields processing_
         # read a byte from server
         ch = _receive_bytes(self._socket, 1)
-        if ch != '\n':  # 0x0A
+        if ch != b'\n':  # 0x0A
             raise ClientHandshakeError('Expected LF but found %r' % ch)
         # 4.1 41. check /fields/
         # TODO(ukai): protocol
@@ -800,13 +798,13 @@ class ClientHandshakeProcessorHybi00(ClientHandshakeBase):
         # positions.
         available_chars = range(0x21, 0x2f + 1) + range(0x3a, 0x7e + 1)
         n = random.randint(1, 12)
-        for _ in xrange(n):
+        for _ in range(n):
             ch = random.choice(available_chars)
             pos = random.randint(0, len(key))
             key = key[0:pos] + chr(ch) + key[pos:]
         # 4.1 22. insert /spaces_n/ U+0020 SPACE characters into /key_n/ at
         # random positions other than start or end of the string.
-        for _ in xrange(spaces):
+        for _ in range(spaces):
             pos = random.randint(1, len(key) - 1)
             key = key[0:pos] + ' ' + key[pos:]
         return number, key
@@ -814,7 +812,7 @@ class ClientHandshakeProcessorHybi00(ClientHandshakeBase):
     def _generate_key3(self):
         # 4.1 26. let /key3/ be a string consisting of eight random bytes (or
         # equivalently, a random 64 bit integer encoded in a big-endian order).
-        return ''.join([chr(random.randint(0, 255)) for _ in xrange(8)])
+        return ''.join([chr(random.randint(0, 255)) for _ in range(8)])
 
 
 class ClientConnection(object):
@@ -940,15 +938,15 @@ class EchoClient(object):
             for line in self._options.message.split(','):
                 self._stream.send_message(line)
                 if self._options.verbose:
-                    print 'Send: %s' % line
+                    print('Send: %s' % line)
                 try:
                     received = self._stream.receive_message()
 
                     if self._options.verbose:
-                        print 'Recv: %s' % received
-                except Exception, e:
+                        print('Recv: %s' % received)
+                except Exception as e:
                     if self._options.verbose:
-                        print 'Error: %s' % e
+                        print('Error: %s' % e)
                     raise
 
             self._do_closing_handshake()
@@ -964,20 +962,23 @@ class EchoClient(object):
             self._logger.info('Wait for server-initiated closing handshake')
             message = self._stream.receive_message()
             if message is None:
-                print 'Recv close'
-                print 'Send ack'
+                print('Recv close')
+                print('Send ack')
                 self._logger.info(
                     'Received closing handshake and sent ack')
                 return
-        print 'Send close'
+        print('Send close')
         self._stream.close_connection()
         self._logger.info('Sent closing handshake')
-        print 'Recv ack'
+        print('Recv ack')
         self._logger.info('Received ack')
 
 
 def main():
-    sys.stdout = codecs.getwriter('utf-8')(sys.stdout)
+    if six.PY2:
+        import locale
+        encoding = locale.getpreferredencoding()
+        sys.stdout = codecs.getwriter(encoding)(sys.stdout)
 
     parser = OptionParser()
     # We accept --command_line_flag style flags which is the same as Google

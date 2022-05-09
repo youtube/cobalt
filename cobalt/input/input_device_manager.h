@@ -40,11 +40,8 @@ typedef base::Callback<void(base::Token type, const dom::PointerEventInit&)>
 typedef base::Callback<void(base::Token type, const dom::WheelEventInit&)>
     WheelEventCallback;
 
-#if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
 typedef base::Callback<void(base::Token type, const dom::InputEventInit&)>
     InputEventCallback;
-#endif  // SB_API_VERSION >= 12 ||
-        // SB_HAS(ON_SCREEN_KEYBOARD)
 
 // InputDeviceManager listens to events from platform-specific input devices
 // and maps them to platform-independent keyboard key events.
@@ -56,10 +53,7 @@ class InputDeviceManager {
       const KeyboardEventCallback& keyboard_event_callback,
       const PointerEventCallback& pointer_event_callback,
       const WheelEventCallback& wheel_event_callback,
-#if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
       const InputEventCallback& input_event_callback,
-#endif  // SB_API_VERSION >= 12 ||
-      // SB_HAS(ON_SCREEN_KEYBOARD)
       system_window::SystemWindow* system_window);
 
   virtual ~InputDeviceManager() {}

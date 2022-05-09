@@ -15,6 +15,7 @@
 #include "cobalt/dom/event_target.h"
 
 #include <memory>
+#include <utility>
 
 #include "base/bind.h"
 #include "base/bind_helpers.h"
@@ -23,8 +24,8 @@
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/dom/dom_exception.h"
-#include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/global_stats.h"
+#include "cobalt/script/environment_settings.h"
 #include "cobalt/xhr/xml_http_request_event_target.h"
 #include "nb/memory_scope.h"
 
@@ -34,8 +35,7 @@ namespace dom {
 EventTarget::EventTarget(
     script::EnvironmentSettings* settings,
     UnpackOnErrorEventsBool onerror_event_parameter_handling)
-    : debugger_hooks_(
-          base::polymorphic_downcast<DOMSettings*>(settings)->debugger_hooks()),
+    : environment_settings_(settings),
       unpack_onerror_events_(onerror_event_parameter_handling ==
                              kUnpackOnErrorEvents) {}
 
@@ -66,7 +66,7 @@ void EventTarget::RemoveEventListener(const std::string& type,
   for (EventListenerInfos::iterator iter = event_listener_infos_.begin();
        iter != event_listener_infos_.end(); ++iter) {
     if ((*iter)->EqualTo(listener_info)) {
-      debugger_hooks_.AsyncTaskCanceled((*iter)->task());
+      debugger_hooks().AsyncTaskCanceled((*iter)->task());
       event_listener_infos_.erase(iter);
       return;
     }
@@ -91,7 +91,7 @@ bool EventTarget::DispatchEvent(const scoped_refptr<Event>& event) {
   DCHECK(!event->IsBeingDispatched());
   DCHECK(event->initialized_flag());
   TRACE_EVENT1("cobalt::dom", "EventTarget::DispatchEvent", "event",
-               event->type().c_str());
+               TRACE_STR_COPY(event->type().c_str()));
   if (!event || event->IsBeingDispatched() || !event->initialized_flag()) {
     return false;
   }
@@ -252,7 +252,7 @@ void EventTarget::FireEventOnListeners(const scoped_refptr<Event>& event) {
       continue;
     }
 
-    base::ScopedAsyncTask async_task(debugger_hooks_, (*iter)->task());
+    base::ScopedAsyncTask async_task(debugger_hooks(), (*iter)->task());
     (*iter)->HandleEvent(event);
   }
 
@@ -273,7 +273,7 @@ void EventTarget::AddEventListenerInternal(
     for (EventListenerInfos::iterator iter = event_listener_infos_.begin();
          iter != event_listener_infos_.end(); ++iter) {
       if ((*iter)->is_attribute() && (*iter)->type() == listener_info->type()) {
-        debugger_hooks_.AsyncTaskCanceled((*iter)->task());
+        debugger_hooks().AsyncTaskCanceled((*iter)->task());
         event_listener_infos_.erase(iter);
         break;
       }
@@ -293,7 +293,7 @@ void EventTarget::AddEventListenerInternal(
     }
   }
 
-  debugger_hooks_.AsyncTaskScheduled(
+  debugger_hooks().AsyncTaskScheduled(
       listener_info->task(), listener_info->type().c_str(),
       base::DebuggerHooks::AsyncTaskFrequency::kRecurring);
   event_listener_infos_.push_back(std::move(listener_info));

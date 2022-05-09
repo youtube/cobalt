@@ -12,15 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "cobalt/subtlecrypto/subtle_crypto.h"
+
 #include <algorithm>
 #include <set>
 #include <string>
 
 #include "cobalt/base/polymorphic_downcast.h"
-#include "cobalt/dom/dom_settings.h"
-
 #include "cobalt/subtlecrypto/crypto_impl.h"
-#include "cobalt/subtlecrypto/subtle_crypto.h"
+#include "cobalt/web/context.h"
+#include "cobalt/web/environment_settings.h"
 
 namespace cobalt {
 namespace subtlecrypto {
@@ -79,9 +80,10 @@ using PromiseArray = SubtleCrypto::PromiseArray;
 using PromiseWrappable = SubtleCrypto::PromiseWrappable;
 
 SubtleCrypto::SubtleCrypto(script::EnvironmentSettings *environment) {
-  dom::DOMSettings *dom_settings =
-      base::polymorphic_downcast<dom::DOMSettings *>(environment);
-  global_env_ = dom_settings->global_environment();
+  global_env_ =
+      base::polymorphic_downcast<web::EnvironmentSettings *>(environment)
+          ->context()
+          ->global_environment();
   script_value_factory_ = global_env_->script_value_factory();
 }
 

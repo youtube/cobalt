@@ -64,9 +64,7 @@ class PlayerComponents {
                          const SbMediaAudioSampleInfo& audio_sample_info,
                          SbDrmSystem drm_system = kSbDrmSystemInvalid);
       CreationParameters(SbMediaVideoCodec video_codec,
-#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
                          const SbMediaVideoSampleInfo& video_sample_info,
-#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
                          SbPlayer player,
                          SbPlayerOutputMode output_mode,
                          SbDecodeTargetGraphicsContextProvider*
@@ -75,9 +73,7 @@ class PlayerComponents {
       CreationParameters(SbMediaAudioCodec audio_codec,
                          const SbMediaAudioSampleInfo& audio_sample_info,
                          SbMediaVideoCodec video_codec,
-#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
                          const SbMediaVideoSampleInfo& video_sample_info,
-#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
                          SbPlayer player,
                          SbPlayerOutputMode output_mode,
                          SbDecodeTargetGraphicsContextProvider*
@@ -98,7 +94,6 @@ class PlayerComponents {
 
       SbMediaVideoCodec video_codec() const { return video_codec_; }
 
-#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
       const char* audio_mime() const {
         SB_DCHECK(audio_codec_ != kSbMediaAudioCodecNone);
         return audio_sample_info_.mime;
@@ -118,7 +113,6 @@ class PlayerComponents {
         SB_DCHECK(video_codec_ != kSbMediaVideoCodecNone);
         return video_sample_info_.max_video_capabilities;
       }
-#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 
       SbPlayer player() const { return player_; }
       SbPlayerOutputMode output_mode() const { return output_mode_; }
@@ -144,9 +138,7 @@ class PlayerComponents {
       // |video_codec| can be set to kSbMediaVideoCodecNone for audio only
       // video.
       SbMediaVideoCodec video_codec_ = kSbMediaVideoCodecNone;
-#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
       media::VideoSampleInfo video_sample_info_;
-#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
       SbPlayer player_ = kSbPlayerInvalid;
       SbPlayerOutputMode output_mode_ = kSbPlayerOutputModeInvalid;
       SbDecodeTargetGraphicsContextProvider*

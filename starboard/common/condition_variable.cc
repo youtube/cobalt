@@ -14,8 +14,6 @@
 
 #include "starboard/common/condition_variable.h"
 
-#include "starboard/thread_types.h"
-
 namespace starboard {
 
 ConditionVariable::ConditionVariable(const Mutex& mutex)

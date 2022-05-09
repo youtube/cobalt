@@ -19,6 +19,15 @@
 #include "src/gpu/GrOpFlushState.h"
 #endif
 
+#ifdef SKIA_STRUCTURED_BINDINGS_BACKPORT
+template <>
+struct CoercerToTuple<skvx::Vec<4, float>> {
+  static auto Coerce(skvx::Vec<4, float>&& t) {
+    return std::make_tuple(t[0], t[1], t[2], t[3]);
+  }
+};
+#endif
+
 namespace skgpu {
 
 struct LineToCubic {
@@ -36,7 +45,11 @@ struct QuadToCubic {
 };
 
 static VertexWriter& operator<<(VertexWriter& vertexWriter, const QuadToCubic& quadratic) {
+#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     auto [p0, p1, p2] = quadratic;
+#else
+    float2 p0 = quadratic.fP0, p1 = quadratic.fP1, p2 = quadratic.fP2;
+#endif
     return vertexWriter << p0 << mix(float4(p0,p2), p1.xyxy(), 2/3.f) << p2;
 }
 
@@ -47,7 +60,12 @@ namespace {
 //   SkTPathContourParser parser;
 //   while (parser.parseNextContour()) {
 //       SkPoint midpoint = parser.currentMidpoint();
+#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
 //       for (auto [verb, pts] : parser.currentContour()) {
+#else
+//       for (auto item : parser.currentContour()) {
+//           STRUCTURED_BINDING_2(verb, pts, std::move(item));
+#endif
 //           ...
 //       }
 //   }
@@ -162,7 +180,12 @@ public:
     }
 
     void quadTo(const SkPoint p[3]) {
+#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
         auto [p0, p1] = fPathXform.map2Points(p);
+#else
+        auto item = fPathXform.map2Points(p);
+        float2 p0{item[0], item[1]}, p1{item[2], item[3]};
+#endif
         auto p2 = fPathXform.map1Point(p+2);
         float n4 = wangs_formula::quadratic_pow4(kTessellationPrecision, p, fTotalVectorXform);
         if (n4 <= fMaxSegments_pow4) {
@@ -239,8 +262,18 @@ public:
     }
 
     void cubicTo(const SkPoint p[4]) {
+#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
         auto [p0, p1] = fPathXform.map2Points(p);
+#else
+        auto item = fPathXform.map2Points(p);
+        float2 p0{item[0], item[1]}, p1{item[2], item[3]};
+#endif
+#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
         auto [p2, p3] = fPathXform.map2Points(p+2);
+#else
+        auto item1 = fPathXform.map2Points(p+2);
+        float2 p2{item1[0], item1[1]}, p3{item1[2], item1[3]};
+#endif
         float n4 = wangs_formula::cubic_pow4(kTessellationPrecision, p, fTotalVectorXform);
         if (n4 <= fMaxSegments_pow4) {
             // This cubic already fits into "maxSegments" tessellation segments.
@@ -403,14 +436,24 @@ void PathWedgeTessellator::prepare(GrMeshDrawTarget* target,
     }
     WedgeWriter wedgeWriter(target, &fVertexChunkArray, patchStride, wedgeAllocCount, maxSegments,
                             shaderCaps);
+#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     for (auto [pathMatrix, path] : pathDrawList) {
+#else
+    for (auto item : pathDrawList) {
+        STRUCTURED_BINDING_2(pathMatrix, path, std::move(item));
+#endif
         wedgeWriter.setMatrices(fShader->viewMatrix(), pathMatrix);
         MidpointContourParser parser(path);
         while (parser.parseNextContour()) {
             wedgeWriter.setMidpoint(parser.currentMidpoint());
             SkPoint lastPoint = {0, 0};
             SkPoint startPoint = {0, 0};
+#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
             for (auto [verb, pts, w] : parser.currentContour()) {
+#else
+            for (auto item : parser.currentContour()) {
+                STRUCTURED_BINDING_3(verb, pts, w, std::move(item));
+#endif
                 switch (verb) {
                     case SkPathVerb::kMove:
                         startPoint = lastPoint = pts[0];

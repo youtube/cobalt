@@ -20,7 +20,5 @@ RUN apt update -qqy \
     && apt install -qqy --no-install-recommends clang-3.9 \
     && /opt/clean-after-apt.sh
 
-CMD /code/cobalt/build/gyp_cobalt -v -C ${CONFIG} ${PLATFORM} && \
-    ccache -z && \
-    ninja -v -j ${NINJA_PARALLEL} -C ${OUTDIR}/${PLATFORM}_${CONFIG} ${TARGET:-cobalt_deploy} && \
-    ccache -s
+CMD gn gen ${OUTDIR}/${PLATFORM}_${CONFIG} --args="target_platform=\"${PLATFORM}\" build_type=\"${CONFIG}\" using_old_compiler=true" && \
+    ninja -v -j ${NINJA_PARALLEL} -C ${OUTDIR}/${PLATFORM}_${CONFIG} ${TARGET:-cobalt_install}

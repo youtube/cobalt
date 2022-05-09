@@ -167,7 +167,7 @@ class V8cGlobalEnvironment : public GlobalEnvironment,
   static const int kIsolateDataIndex = 1;
 
   THREAD_CHECKER(thread_checker_);
-  v8::Isolate* isolate_;
+  v8::Isolate* isolate_ = nullptr;
 
   // Hold an extra reference to the global wrappable in order to properly
   // destruct.  Were we to not do this, finalizers can run in the order (e.g.)

@@ -24,8 +24,7 @@
 #include "base/logging.h"
 #include "base/strings/string_split.h"
 #include "base/synchronization/waitable_event.h"
-#include "cobalt/media/base/media_log.h"
-#include "cobalt/media/base/mime_util.h"
+#include "cobalt/media/base/format_support_query_metrics.h"
 #include "nb/memory_scope.h"
 #include "starboard/common/string.h"
 #include "starboard/media.h"
@@ -60,7 +59,9 @@ static std::vector<std::string> ExtractCodecs(const std::string& mime_type) {
       continue;
     }
     if (name_and_value[0] == "codecs") {
-      ParseCodecString(name_and_value[1], &codecs, /* strip= */ false);
+      // TODO(b/230888580): Revive ParseCodecString() to enable returning of
+      // `codecs`.
+      //   ParseCodecString(name_and_value[1], &codecs, /* strip= */ false);
       return codecs;
     }
   }
@@ -120,18 +121,27 @@ class CanPlayTypeHandlerStarboard : public CanPlayTypeHandler {
     //   video/webm; codecs="vp9"
     // We do a rough pre-filter to ensure that only video/mp4 is supported as
     // progressive.
+    SbMediaSupportType support_type;
+    media::FormatSupportQueryMetrics metrics;
     if (strstr(mime_type.c_str(), "video/mp4") == 0 &&
         strstr(mime_type.c_str(), "application/x-mpegURL") == 0) {
-      return kSbMediaSupportTypeNotSupported;
+      support_type = kSbMediaSupportTypeNotSupported;
+    } else {
+      support_type = CanPlayType(mime_type, "");
     }
-
-    return CanPlayType(mime_type, "");
+    metrics.RecordQuery("HTMLMediaElement::canPlayType", mime_type, "",
+                        support_type);
+    return support_type;
   }
 
   SbMediaSupportType CanPlayAdaptive(
       const std::string& mime_type,
       const std::string& key_system) const override {
-    return CanPlayType(mime_type, key_system);
+    media::FormatSupportQueryMetrics metrics;
+    SbMediaSupportType support_type = CanPlayType(mime_type, key_system);
+    metrics.RecordQuery("MediaSource::IsTypeSupported", mime_type, key_system,
+                        support_type);
+    return support_type;
   }
 
  private:
@@ -186,8 +196,7 @@ std::unique_ptr<WebMediaPlayer> MediaModule::CreateWebMediaPlayer(
       window,
       base::Bind(&MediaModule::GetSbDecodeTargetGraphicsContextProvider,
                  base::Unretained(this)),
-      client, this, &decoder_buffer_allocator_,
-      options_.allow_resume_after_suspend, new media::MediaLog));
+      client, this, options_.allow_resume_after_suspend, &media_log_));
 }
 
 void MediaModule::Suspend() {

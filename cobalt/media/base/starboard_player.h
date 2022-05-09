@@ -23,15 +23,16 @@
 #include "base/message_loop/message_loop.h"
 #include "base/synchronization/lock.h"
 #include "base/time/time.h"
-#include "cobalt/media/base/audio_decoder_config.h"
-#include "cobalt/media/base/decoder_buffer.h"
 #include "cobalt/media/base/decoder_buffer_cache.h"
-#include "cobalt/media/base/demuxer_stream.h"
 #include "cobalt/media/base/sbplayer_set_bounds_helper.h"
-#include "cobalt/media/base/video_decoder_config.h"
 #include "cobalt/media/base/video_frame_provider.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
+#include "third_party/chromium/media/base/audio_decoder_config.h"
+#include "third_party/chromium/media/base/decoder_buffer.h"
+#include "third_party/chromium/media/base/demuxer_stream.h"
+#include "third_party/chromium/media/base/video_decoder_config.h"
+#include "third_party/chromium/media/cobalt/ui/gfx/geometry/rect.h"
 
 #if SB_HAS(PLAYER_WITH_URL)
 #include SB_URL_PLAYER_INCLUDE_PATH
@@ -42,6 +43,11 @@ namespace media {
 
 // TODO: Add switch to disable caching
 class StarboardPlayer {
+  typedef ::media::AudioDecoderConfig AudioDecoderConfig;
+  typedef ::media::DecoderBuffer DecoderBuffer;
+  typedef ::media::DemuxerStream DemuxerStream;
+  typedef ::media::VideoDecoderConfig VideoDecoderConfig;
+
  public:
   class Host {
    public:
@@ -77,7 +83,9 @@ class StarboardPlayer {
       const GetDecodeTargetGraphicsContextProviderFunc&
           get_decode_target_graphics_context_provider_func,
       const AudioDecoderConfig& audio_config,
-      const VideoDecoderConfig& video_config, SbWindow window,
+      const std::string& audio_mime_type,
+      const VideoDecoderConfig& video_config,
+      const std::string& video_mime_type, SbWindow window,
       SbDrmSystem drm_system, Host* host,
       SbPlayerSetBoundsHelper* set_bounds_helper,
       bool allow_resume_after_suspend, bool prefer_decode_to_texture,
@@ -88,13 +96,15 @@ class StarboardPlayer {
 
   bool IsValid() const { return SbPlayerIsValid(player_); }
 
-  void UpdateAudioConfig(const AudioDecoderConfig& audio_config);
-  void UpdateVideoConfig(const VideoDecoderConfig& video_config);
+  void UpdateAudioConfig(const AudioDecoderConfig& audio_config,
+                         const std::string& mime_type);
+  void UpdateVideoConfig(const VideoDecoderConfig& video_config,
+                         const std::string& mime_type);
 
   void WriteBuffer(DemuxerStream::Type type,
                    const scoped_refptr<DecoderBuffer>& buffer);
 
-  void SetBounds(int z_index, const math::Rect& rect);
+  void SetBounds(int z_index, const gfx::Rect& rect);
 
   void PrepareForSeek();
   void Seek(base::TimeDelta time);
@@ -129,6 +139,10 @@ class StarboardPlayer {
 
   SbDecodeTarget GetCurrentSbDecodeTarget();
   SbPlayerOutputMode GetSbPlayerOutputMode();
+
+  void RecordSetDrmSystemReadyTime(SbTimeMonotonic timestamp) {
+    set_drm_system_ready_cb_time_ = timestamp;
+  }
 
  private:
   enum State {
@@ -165,7 +179,7 @@ class StarboardPlayer {
   // DecoderBuffer and a reference count.  The reference count indicates how
   // many instances of the DecoderBuffer is currently being decoded in the
   // pipeline.
-  typedef std::map<const void*, std::pair<scoped_refptr<DecoderBuffer>, int> >
+  typedef std::map<const void*, std::pair<scoped_refptr<DecoderBuffer>, int>>
       DecodingBuffers;
 
 #if SB_HAS(PLAYER_WITH_URL)
@@ -216,6 +230,8 @@ class StarboardPlayer {
   SbPlayerOutputMode ComputeSbPlayerOutputMode(
       bool prefer_decode_to_texture) const;
 
+  void LogStartupLatency() const;
+
 // The following variables are initialized in the ctor and never changed.
 #if SB_HAS(PLAYER_WITH_URL)
   std::string url_;
@@ -250,7 +266,7 @@ class StarboardPlayer {
 
   // Stores the |z_index| and |rect| parameters of the latest SetBounds() call.
   base::Optional<int> set_bounds_z_index_;
-  base::Optional<math::Rect> set_bounds_rect_;
+  base::Optional<gfx::Rect> set_bounds_rect_;
   State state_ = kPlaying;
   SbPlayer player_;
   uint32 cached_video_frames_decoded_;
@@ -262,12 +278,25 @@ class StarboardPlayer {
 
   VideoFrameProvider* const video_frame_provider_;
 
+  // Keep copies of the mime type strings instead of using the ones in the
+  // DemuxerStreams to ensure that the strings are always valid.
+  std::string audio_mime_type_;
+  std::string video_mime_type_;
   // A string of video maximum capabilities.
   std::string max_video_capabilities_;
 
   // Keep track of errors during player creation.
   bool is_creating_player_ = false;
   std::string player_creation_error_message_;
+
+  // Variables related to tracking player startup latencies.
+  SbTimeMonotonic set_drm_system_ready_cb_time_ = -1;
+  SbTimeMonotonic player_creation_time_ = 0;
+  SbTimeMonotonic sb_player_state_initialized_time_ = 0;
+  SbTimeMonotonic sb_player_state_prerolling_time_ = 0;
+  SbTimeMonotonic first_audio_sample_time_ = 0;
+  SbTimeMonotonic first_video_sample_time_ = 0;
+  SbTimeMonotonic sb_player_state_presenting_time_ = 0;
 
 #if SB_HAS(PLAYER_WITH_URL)
   const bool is_url_based_;

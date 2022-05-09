@@ -17,7 +17,6 @@
 
 from os import path
 
-import _env  # pylint: disable=unused-import
 from starboard.tools import paths
 
 STARBOARD_ROOT = paths.STARBOARD_ROOT

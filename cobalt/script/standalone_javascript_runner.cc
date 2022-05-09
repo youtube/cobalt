@@ -15,9 +15,19 @@
 #include "cobalt/script/standalone_javascript_runner.h"
 
 #include <iostream>
+#include <memory>
 #include <string>
 
+#include "base/bind.h"
 #include "base/files/file_util.h"
+#include "base/logging.h"
+#include "base/memory/ref_counted.h"
+#include "base/task_runner.h"
+#include "cobalt/base/debugger_hooks.h"
+#include "cobalt/base/source_location.h"
+#include "cobalt/script/environment_settings.h"
+#include "cobalt/script/global_environment.h"
+#include "cobalt/script/javascript_engine.h"
 #include "cobalt/script/source_code.h"
 
 namespace cobalt {

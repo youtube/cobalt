@@ -25,8 +25,6 @@
 namespace starboard {
 namespace nplb {
 
-#if SB_API_VERSION >= 12 || SB_HAS(SPEECH_RECOGNIZER)
-
 class SpeechRecognizerTest : public ::testing::Test {
  public:
   SpeechRecognizerTest() : handler_() {
@@ -43,9 +41,7 @@ class SpeechRecognizerTest : public ::testing::Test {
                         int results_size,
                         bool is_final) {}
 
-  SbSpeechRecognizerHandler* handler() {
-    return &handler_;
-  }
+  SbSpeechRecognizerHandler* handler() { return &handler_; }
 
  protected:
   bool isTestFixtureSupported;
@@ -53,11 +49,7 @@ class SpeechRecognizerTest : public ::testing::Test {
     // We include all API tests at compile time after Starboard version 12, so
     // we must do a runtime check to determine whether or not that API (and
     // thus the test fixture) is supported.
-#if SB_API_VERSION >= 12
     isTestFixtureSupported = SbSpeechRecognizerIsSupported();
-#else
-    isTestFixtureSupported = true;
-#endif
   }
 
   // TODO: Use GTEST_SKIP in |SetUp| when we have a newer version of gtest.
@@ -81,8 +73,6 @@ class SpeechRecognizerTest : public ::testing::Test {
 
   SbSpeechRecognizerHandler handler_;
 };
-
-#endif  // SB_API_VERSION >= 12 || SB_HAS(SPEECH_RECOGNIZER)
 
 }  // namespace nplb
 }  // namespace starboard

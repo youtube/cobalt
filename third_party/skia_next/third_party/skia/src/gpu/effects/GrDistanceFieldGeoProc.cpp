@@ -284,7 +284,11 @@ GR_DEFINE_GEOMETRY_PROCESSOR_TEST(GrDistanceFieldA8TextGeoProc);
 
 #if GR_TEST_UTILS
 GrGeometryProcessor* GrDistanceFieldA8TextGeoProc::TestCreate(GrProcessorTestData* d) {
+#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     auto [view, ct, at] = d->randomAlphaOnlyView();
+#else
+    STRUCTURED_BINDING_3(view, ct, at, d->randomAlphaOnlyView());
+#endif
 
     GrSamplerState::WrapMode wrapModes[2];
     GrTest::TestWrapModes(d->fRandom, wrapModes);
@@ -551,7 +555,11 @@ GR_DEFINE_GEOMETRY_PROCESSOR_TEST(GrDistanceFieldPathGeoProc);
 
 #if GR_TEST_UTILS
 GrGeometryProcessor* GrDistanceFieldPathGeoProc::TestCreate(GrProcessorTestData* d) {
+#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     auto [view, ct, at] = d->randomAlphaOnlyView();
+#else
+    STRUCTURED_BINDING_3(view, ct, at, d->randomAlphaOnlyView());
+#endif
 
     GrSamplerState::WrapMode wrapModes[2];
     GrTest::TestWrapModes(d->fRandom, wrapModes);
@@ -864,7 +872,11 @@ GR_DEFINE_GEOMETRY_PROCESSOR_TEST(GrDistanceFieldLCDTextGeoProc);
 
 #if GR_TEST_UTILS
 GrGeometryProcessor* GrDistanceFieldLCDTextGeoProc::TestCreate(GrProcessorTestData* d) {
+#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     auto [view, ct, at] = d->randomView();
+#else
+    STRUCTURED_BINDING_3(view, ct, at, d->randomView());
+#endif
 
     GrSamplerState::WrapMode wrapModes[2];
     GrTest::TestWrapModes(d->fRandom, wrapModes);

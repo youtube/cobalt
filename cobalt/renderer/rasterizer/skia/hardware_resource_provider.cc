@@ -12,10 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/configuration.h"
-
-#if SB_API_VERSION >= 12 || SB_HAS(GLES2)
-
 #include "cobalt/renderer/rasterizer/skia/hardware_resource_provider.h"
 
 #include <memory>
@@ -37,6 +33,7 @@
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkTypeface_cobalt.h"
 #include "cobalt/renderer/rasterizer/skia/skottie_animation.h"
 #include "cobalt/renderer/rasterizer/skia/typeface.h"
+#include "starboard/configuration.h"
 #include "third_party/ots/include/opentype-sanitiser.h"
 #include "third_party/ots/include/ots-memory-stream.h"
 #include "third_party/skia/include/core/SkData.h"
@@ -206,7 +203,9 @@ uint32_t DecodeTargetFormatToGLFormat(
       }
     } break;
     case kSbDecodeTargetFormat3Plane10BitYUVI420:
+#if SB_API_VERSION >= SB_DECODE_TARGET_FORMAT_YUVI420_COMPACT_API_VERSION
     case kSbDecodeTargetFormat3Plane10BitYUVI420Compact:
+#endif  // SB_API_VERSION >= SB_DECODE_TARGET_FORMAT_YUVI420_COMPACT_API_VERSION
     case kSbDecodeTargetFormat3PlaneYUVI420: {
       DCHECK_LT(plane, 3);
 #if defined(GL_RED_EXT)
@@ -235,9 +234,11 @@ DecodeTargetFormatToRenderTreeMultiPlaneFormat(SbDecodeTargetFormat format) {
     case kSbDecodeTargetFormat3Plane10BitYUVI420: {
       return render_tree::kMultiPlaneImageFormatYUV3Plane10BitBT2020;
     } break;
+#if SB_API_VERSION >= SB_DECODE_TARGET_FORMAT_YUVI420_COMPACT_API_VERSION
     case kSbDecodeTargetFormat3Plane10BitYUVI420Compact: {
       return render_tree::kMultiPlaneImageFormatYUV3Plane10BitCompactedBT2020;
     }
+#endif  // SB_API_VERSION >= SB_DECODE_TARGET_FORMAT_YUVI420_COMPACT_API_VERSION
     default: { NOTREACHED(); }
   }
   return render_tree::kMultiPlaneImageFormatYUV2PlaneBT709;
@@ -569,5 +570,3 @@ scoped_refptr<render_tree::Image> HardwareResourceProvider::DrawOffscreenImage(
 }  // namespace rasterizer
 }  // namespace renderer
 }  // namespace cobalt
-
-#endif  // SB_API_VERSION >= 12 || SB_HAS(GLES2)

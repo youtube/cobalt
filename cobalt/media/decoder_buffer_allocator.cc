@@ -18,7 +18,6 @@
 
 #include "cobalt/math/size.h"
 #include "cobalt/media/base/starboard_utils.h"
-#include "cobalt/media/base/video_resolution.h"
 #include "nb/allocator.h"
 #include "nb/memory_scope.h"
 #include "starboard/configuration.h"
@@ -47,11 +46,13 @@ DecoderBufferAllocator::DecoderBufferAllocator()
       allocation_unit_(SbMediaGetBufferAllocationUnit()) {
   if (!using_memory_pool_) {
     DLOG(INFO) << "Allocated media buffer memory using SbMemory* functions.";
+    Allocator::Set(this);
     return;
   }
 
   if (is_memory_pool_allocated_on_demand_) {
     DLOG(INFO) << "Allocated media buffer pool on demand.";
+    Allocator::Set(this);
     return;
   }
 
@@ -62,9 +63,12 @@ DecoderBufferAllocator::DecoderBufferAllocator()
   // UpdateVideoConfig().
   starboard::ScopedLock scoped_lock(mutex_);
   CreateReuseAllocator(0);
+  Allocator::Set(this);
 }
 
 DecoderBufferAllocator::~DecoderBufferAllocator() {
+  Allocator::Set(nullptr);
+
   if (!using_memory_pool_) {
     return;
   }
@@ -109,13 +113,12 @@ void DecoderBufferAllocator::Resume() {
   }
 }
 
-DecoderBuffer::Allocator::Allocations DecoderBufferAllocator::Allocate(
-    size_t size, size_t alignment, intptr_t context) {
+void* DecoderBufferAllocator::Allocate(size_t size, size_t alignment) {
   TRACK_MEMORY_SCOPE("Media");
 
   if (!using_memory_pool_) {
     sbmemory_bytes_used_.fetch_add(size);
-    return Allocations(SbMemoryAllocateAligned(alignment, size), size);
+    return SbMemoryAllocateAligned(alignment, size);
   }
 
   starboard::ScopedLock scoped_lock(mutex_);
@@ -136,28 +139,25 @@ DecoderBuffer::Allocator::Allocations DecoderBufferAllocator::Allocate(
 
   void* p = reuse_allocator_->Allocate(size, alignment);
   if (!p) {
-    return Allocations();
+    return p;
   }
   LOG_IF(INFO, kEnableAllocationLog)
-      << "Media Allocation Log " << p << " " << size << " " << alignment << " "
-      << context;
-  if (!UpdateAllocationRecord()) {
-    // UpdateAllocationRecord may fail with non-NULL p when capacity is
-    // exceeded.
-    reuse_allocator_->Free(p);
-    return Allocations();
-  }
-  return Allocations(p, size);
+      << "Media Allocation Log " << p << " " << size << " " << alignment << " ";
+  UpdateAllocationRecord();
+  return p;
 }
 
-void DecoderBufferAllocator::Free(Allocations allocations) {
+void DecoderBufferAllocator::Free(void* p, size_t size) {
   TRACK_MEMORY_SCOPE("Media");
 
+  if (p == nullptr) {
+    DCHECK_EQ(size, 0);
+    return;
+  }
+
   if (!using_memory_pool_) {
-    for (int i = 0; i < allocations.number_of_buffers(); ++i) {
-      sbmemory_bytes_used_.fetch_sub(allocations.buffer_sizes()[i]);
-      SbMemoryDeallocateAligned(allocations.buffers()[i]);
-    }
+    sbmemory_bytes_used_.fetch_sub(size);
+    SbMemoryDeallocateAligned(p);
     return;
   }
 
@@ -165,15 +165,9 @@ void DecoderBufferAllocator::Free(Allocations allocations) {
 
   DCHECK(reuse_allocator_);
 
-  if (kEnableAllocationLog) {
-    DCHECK_EQ(allocations.number_of_buffers(), 1);
-    LOG(INFO) << "Media Allocation Log " << allocations.buffers()[0];
-  }
+  LOG_IF(INFO, kEnableAllocationLog) << "Media Allocation Log " << p;
 
-  for (int i = 0; i < allocations.number_of_buffers(); ++i) {
-    reuse_allocator_->Free(allocations.buffers()[i]);
-  }
-
+  reuse_allocator_->Free(p);
   if (is_memory_pool_allocated_on_demand_) {
     if (reuse_allocator_->GetAllocated() == 0) {
       DLOG(INFO) << "Freed " << reuse_allocator_->GetCapacity()
@@ -184,21 +178,23 @@ void DecoderBufferAllocator::Free(Allocations allocations) {
 }
 
 void DecoderBufferAllocator::UpdateVideoConfig(
-    const VideoDecoderConfig& config) {
+    const ::media::VideoDecoderConfig& config) {
   if (!using_memory_pool_) {
     return;
   }
 
   starboard::ScopedLock scoped_lock(mutex_);
 
-  video_codec_ = MediaVideoCodecToSbMediaVideoCodec(config.codec());
-  resolution_width_ = config.visible_rect().size().width();
-  resolution_height_ = config.visible_rect().size().height();
-  bits_per_pixel_ = config.webm_color_metadata().BitsPerChannel;
-
   if (!reuse_allocator_) {
     return;
   }
+
+  video_codec_ = MediaVideoCodecToSbMediaVideoCodec(config.codec());
+  resolution_width_ = config.visible_rect().size().width();
+  resolution_height_ = config.visible_rect().size().height();
+  // TODO(b/230799815): Consider infer |bits_per_pixel_| from the video codec,
+  // or deprecate it completely.
+  bits_per_pixel_ = 0;
 
   reuse_allocator_->IncreaseMaxCapacityIfNecessary(SbMediaGetMaxBufferCapacity(
       video_codec_, resolution_width_, resolution_height_, bits_per_pixel_));

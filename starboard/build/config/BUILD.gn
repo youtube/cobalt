@@ -22,6 +22,7 @@ config("base") {
       "STARBOARD_BUILD_TYPE_DEBUG",
       "COBALT_BUILD_TYPE_DEBUG",
       "_DEBUG",
+      "COBALT_LOGGING_ENABLED",
     ]
   }
 
@@ -30,6 +31,7 @@ config("base") {
       "STARBOARD_BUILD_TYPE_DEVEL",
       "COBALT_BUILD_TYPE_DEVEL",
       "_DEBUG",
+      "COBALT_LOGGING_ENABLED",
     ]
   }
 
@@ -46,7 +48,14 @@ config("base") {
       "STARBOARD_BUILD_TYPE_GOLD",
       "COBALT_BUILD_TYPE_GOLD",
       "NDEBUG",
+      "OFFICIAL_BUILD",
+      "TRACING_DISABLED",
+      "COBALT_FORCE_CSP",
     ]
+  }
+
+  if (enable_in_app_dial) {
+    defines += [ "DIAL_SERVER" ]
   }
 }
 
@@ -114,6 +123,7 @@ config("starboard") {
         "ENABLE_DEBUGGER",
         "ENABLE_DEBUG_COMMAND_LINE_SWITCHES",
         "ENABLE_TEST_RUNNER",
+        "ENABLE_IGNORE_CERTIFICATE_ERRORS",
       ]
     }
 
@@ -148,7 +158,6 @@ config("starboard") {
     defines += [
       "STARBOARD_ATOMIC_INCLUDE=\"$starboard_path/atomic_public.h\"",
       "STARBOARD_CONFIGURATION_INCLUDE=\"$starboard_path/configuration_public.h\"",
-      "STARBOARD_THREAD_TYPES_INCLUDE=\"$starboard_path/thread_types_public.h\"",
     ]
   }
 }

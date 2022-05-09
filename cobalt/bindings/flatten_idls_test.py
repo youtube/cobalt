@@ -13,7 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
 """Unit tests for FlattenedInterface class."""
 
 import os
@@ -21,7 +20,7 @@ import platform
 import unittest
 
 import _env  # pylint: disable=unused-import
-import flatten_idls
+from cobalt.bindings import flatten_idls
 
 
 def _TestDataPath():
@@ -36,6 +35,7 @@ def _TestDataPathGenerator(files):
 
 @unittest.skip('Test has bitrotted.')
 class FlattenedInterfacesTest(unittest.TestCase):
+  # pylint: disable=protected-access
 
   def testFlattenIdl(self):
     test_idls = ['TestInterface.idl']
@@ -58,8 +58,8 @@ class FlattenedInterfacesTest(unittest.TestCase):
     result = flatten_idls._FlattenInterfaces(_TestDataPathGenerator(test_idls))
     self.assertEqual(1, len(result))
     self.assertEqual('NamedConstructorInterface', result[0].name)
-    self.assertItemsEqual(
-        ['Apple', 'NamedConstructorInterface'], result[0].constructors)
+    self.assertItemsEqual(['Apple', 'NamedConstructorInterface'],
+                          result[0].constructors)
 
   def testNamedConstructorWithNoInterfaceObject(self):
     test_idls = ['NamedConstructorInterfaceWithNoInterfaceObject.idl']
@@ -88,16 +88,18 @@ class FlattenedInterfacesTest(unittest.TestCase):
 class FlattenedInterfaceDifferenceTest(unittest.TestCase):
 
   def testAssertsOnDifferentInterfaces(self):
-    lhs = flatten_idls.FlattenedInterface(name='Toyota',
-                                          operations=[],
-                                          attributes=[],
-                                          constants=[],
-                                          constructors=[])
-    rhs = flatten_idls.FlattenedInterface(name='Honda',
-                                          operations=[],
-                                          attributes=[],
-                                          constants=[],
-                                          constructors=[])
+    lhs = flatten_idls.FlattenedInterface(
+        name='Toyota',
+        operations=[],
+        attributes=[],
+        constants=[],
+        constructors=[])
+    rhs = flatten_idls.FlattenedInterface(
+        name='Honda',
+        operations=[],
+        attributes=[],
+        constants=[],
+        constructors=[])
     with self.assertRaises(AssertionError):
       flatten_idls.FlattenedInterface.Difference(lhs, rhs)
 

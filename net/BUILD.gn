@@ -20,7 +20,7 @@ config("net_all_dependent_configs") {
 
 config("net_public_defines") {
   defines = [
-    "HTTP_CACHE_DISABLED_FOR_STARBOARD",
+    "HTTP_CACHE_TESTING_DISABLED",
     "ENABLE_BUILT_IN_DNS",
     "QUIC_TRACE_DISABLED",
     "COBALT_QUIC46",
@@ -433,13 +433,19 @@ component("net") {
     # "disk_cache/cache_util.h",
     # "disk_cache/cache_util_starboard.cc",
     # "disk_cache/disk_cache.cc",
-    # "disk_cache/disk_cache.h",
+    "disk_cache/disk_cache.h",
     # "disk_cache/memory/mem_backend_impl.cc",
     # "disk_cache/memory/mem_backend_impl.h",
     # "disk_cache/memory/mem_entry_impl.cc",
     # "disk_cache/memory/mem_entry_impl.h",
-    # "disk_cache/net_log_parameters.cc",
-    # "disk_cache/net_log_parameters.h",
+    "disk_cache/cobalt/cobalt_disk_cache.cc",
+    "disk_cache/cobalt/cobalt_backend_impl.cc",
+    "disk_cache/cobalt/cobalt_backend_impl.h",
+    "disk_cache/cobalt/cobalt_entry_impl.cc",
+    "disk_cache/cobalt/cobalt_entry_impl.h",
+    "disk_cache/cobalt/resource_type.h",
+    "disk_cache/net_log_parameters.cc",
+    "disk_cache/net_log_parameters.h",
     # "disk_cache/simple/simple_backend_impl.cc",
     # "disk_cache/simple/simple_backend_impl.h",
     # "disk_cache/simple/simple_backend_version.h",
@@ -559,15 +565,14 @@ component("net") {
     "http/http_basic_stream.h",
     "http/http_byte_range.cc",
     "http/http_byte_range.h",
-
-    # "http/http_cache.cc",
-    # "http/http_cache.h",
-    # "http/http_cache_lookup_manager.cc",
-    # "http/http_cache_lookup_manager.h",
-    # "http/http_cache_transaction.cc",
-    # "http/http_cache_transaction.h",
-    # "http/http_cache_writers.cc",
-    # "http/http_cache_writers.h",
+    "http/http_cache.cc",
+    "http/http_cache.h",
+    "http/http_cache_lookup_manager.cc",
+    "http/http_cache_lookup_manager.h",
+    "http/http_cache_transaction.cc",
+    "http/http_cache_transaction.h",
+    "http/http_cache_writers.cc",
+    "http/http_cache_writers.h",
     "http/http_chunked_decoder.cc",
     "http/http_chunked_decoder.h",
     "http/http_content_disposition.cc",
@@ -1804,6 +1809,9 @@ action_foreach("net_generated_registry_controlled_domains") {
 }
 
 copy("net_unittest_files") {
+  if (is_starboard) {
+    install_content = true
+  }
   sources = [
     "data/test.html",
     "data/cert_issuer_source_static_unittest/c1.pem",
@@ -2899,6 +2907,9 @@ copy("net_unittest_files") {
 }
 
 copy("third_party_unittest_files") {
+  if (is_starboard) {
+    install_content = true
+  }
   sources = [
     "third_party/nist-pkits/certs/AllCertificatesanyPolicyTest11EE.crt",
     "third_party/nist-pkits/certs/AllCertificatesNoPoliciesTest2EE.crt",
@@ -3682,9 +3693,9 @@ target(gtest_target_type, "net_unittests") {
     "http/http_basic_state_unittest.cc",
     "http/http_byte_range_unittest.cc",
 
-    # "http/http_cache_lookup_manager_unittest.cc",
-    # "http/http_cache_unittest.cc",
-    # "http/http_cache_writers_unittest.cc",
+    "http/http_cache_lookup_manager_unittest.cc",
+    "http/http_cache_unittest.cc",
+    "http/http_cache_writers_unittest.cc",
     # "url_request/view_cache_helper_unittest.cc",
     "http/http_chunked_decoder_unittest.cc",
 
@@ -3714,8 +3725,8 @@ target(gtest_target_type, "net_unittests") {
     "http/mock_allow_http_auth_preferences.cc",
     "http/mock_allow_http_auth_preferences.h",
 
-    # "http/mock_http_cache.cc",
-    # "http/mock_http_cache.h",
+    "http/mock_http_cache.cc",
+    "http/mock_http_cache.h",
     # Main test target not enabled yet.
     # "http/transport_security_persister_unittest.cc",
     # "log/file_net_log_observer_unittest.cc",
@@ -4189,8 +4200,7 @@ target(gtest_target_type, "net_unittests") {
   }
 
   defines = [
-    # To be removed in the future when want to enable HTTP cache.
-    "HTTP_CACHE_DISABLED_FOR_STARBOARD",
+    "HTTP_CACHE_TESTING_DISABLED",
     "GMOCK_NO_MOVE_MOCK",
   ]
 
@@ -4220,6 +4230,14 @@ target(gtest_target_type, "net_unittests") {
     "//url",
     "//url:url_features",
   ]
+
+  if (is_starboard) {
+    content_deps = [
+      ":net_unittest_files",
+      ":third_party_unittest_files",
+      "//third_party/icu:icudata",
+    ]
+  }
 }
 
 static_library("test_support") {

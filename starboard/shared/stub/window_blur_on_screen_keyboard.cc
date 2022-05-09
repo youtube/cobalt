@@ -14,8 +14,4 @@
 
 #include "starboard/window.h"
 
-#if SB_API_VERSION >= 12
-
 void SbWindowBlurOnScreenKeyboard(SbWindow window, int ticket) {}
-
-#endif

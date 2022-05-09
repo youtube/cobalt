@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-#include "starboard/configuration.h"
-#if SB_API_VERSION >= 12 || SB_HAS(GLES2)
-
 #include "cobalt/renderer/rasterizer/skia/hardware_mesh.h"
 
 #include <memory>
+#include <utility>
 #include <vector>
+
+#include "starboard/configuration.h"
 
 namespace cobalt {
 namespace renderer {
@@ -86,5 +86,3 @@ HardwareMesh::~HardwareMesh() {
 }  // namespace rasterizer
 }  // namespace renderer
 }  // namespace cobalt
-
-#endif  // SB_API_VERSION >= 12 || SB_HAS(GLES2)

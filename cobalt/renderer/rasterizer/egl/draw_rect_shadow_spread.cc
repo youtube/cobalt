@@ -12,9 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/configuration.h"
-#if SB_API_VERSION >= 12 || SB_HAS(GLES2)
-
 #include "cobalt/renderer/rasterizer/egl/draw_rect_shadow_spread.h"
 
 #include <algorithm>
@@ -22,6 +19,7 @@
 #include "base/logging.h"
 #include "cobalt/renderer/backend/egl/utils.h"
 #include "cobalt/renderer/egl_and_gles.h"
+#include "starboard/configuration.h"
 #include "starboard/memory.h"
 
 namespace cobalt {
@@ -82,15 +80,14 @@ void DrawRectShadowSpread::ExecuteUpdateVertexBuffer(
     vertex_buffer_ = graphics_state->AllocateVertexData(
         attributes_square_.size() * sizeof(attributes_square_[0]));
     memcpy(vertex_buffer_, &attributes_square_[0],
-                 attributes_square_.size() * sizeof(attributes_square_[0]));
+           attributes_square_.size() * sizeof(attributes_square_[0]));
   } else if (attributes_round_.size() > 0) {
     vertex_buffer_ = graphics_state->AllocateVertexData(
         attributes_round_.size() * sizeof(attributes_round_[0]));
     memcpy(vertex_buffer_, &attributes_round_[0],
-                 attributes_round_.size() * sizeof(attributes_round_[0]));
+           attributes_round_.size() * sizeof(attributes_round_[0]));
     index_buffer_ = graphics_state->AllocateVertexIndices(indices_.size());
-    memcpy(index_buffer_, &indices_[0],
-                 indices_.size() * sizeof(indices_[0]));
+    memcpy(index_buffer_, &indices_[0], indices_.size() * sizeof(indices_[0]));
   }
 }
 
@@ -264,5 +261,3 @@ void DrawRectShadowSpread::SetGeometry(
 }  // namespace rasterizer
 }  // namespace renderer
 }  // namespace cobalt
-
-#endif  // SB_API_VERSION >= 12 || SB_HAS(GLES2)

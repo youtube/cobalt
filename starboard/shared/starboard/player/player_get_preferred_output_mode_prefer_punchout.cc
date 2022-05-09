@@ -19,8 +19,6 @@
 #include "starboard/configuration.h"
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
 
-#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
-
 SbPlayerOutputMode SbPlayerGetPreferredOutputMode(
     const SbPlayerCreationParam* creation_param) {
   using starboard::shared::starboard::player::filter::VideoDecoder;
@@ -76,5 +74,3 @@ SbPlayerOutputMode SbPlayerGetPreferredOutputMode(
                   << ") is not supported";
   return kSbPlayerOutputModeInvalid;
 }
-
-#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)

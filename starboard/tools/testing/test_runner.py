@@ -26,8 +26,7 @@ import sys
 import threading
 import traceback
 
-import _env  # pylint: disable=unused-import, relative-import
-import cStringIO
+from six.moves import cStringIO as StringIO
 from starboard.tools import abstract_launcher
 from starboard.tools import build
 from starboard.tools import command_line
@@ -79,10 +78,9 @@ def _FilterTests(target_list, filters, config_name):
   return targets
 
 
-def _VerifyConfig(config):
+def _VerifyConfig(config, filters):
   """Ensures a platform or app config is self-consistent."""
   targets = config.GetTestTargets()
-  filters = config.GetTestFilters()
   filter_targets = [
       f.target_name for f in filters if f != test_filter.DISABLE_TESTING
   ]
@@ -105,7 +103,7 @@ class TestLineReader(object):
 
   def __init__(self, read_pipe):
     self.read_pipe = read_pipe
-    self.output_lines = cStringIO.StringIO()
+    self.output_lines = StringIO()
     self.stop_event = threading.Event()
     self.reader_thread = threading.Thread(target=self._ReadLines)
 
@@ -259,13 +257,15 @@ class TestRunner(object):
     self.threads = []
 
     _EnsureBuildDirectoryExists(self.out_directory)
-    _VerifyConfig(self._platform_config)
+    _VerifyConfig(self._platform_config,
+                  self._platform_test_filters.GetTestFilters())
 
     if self.loader_platform:
       _EnsureBuildDirectoryExists(self.loader_out_directory)
-      _VerifyConfig(self._loader_platform_config)
+      _VerifyConfig(self._loader_platform_config,
+                    self._loader_platform_test_filters.GetTestFilters())
 
-    _VerifyConfig(self._app_config)
+    _VerifyConfig(self._app_config, self._app_config.GetTestFilters())
 
     # If a particular test binary has been provided, configure only that one.
     logging.info("Getting test targets")
@@ -373,7 +373,7 @@ class TestRunner(object):
   def _GetAllTestEnvVariables(self):
     """Gets all environment variables used for tests on the given platform."""
     env_variables = {}
-    for test, test_env in self._app_config.GetTestEnvVariables().iteritems():
+    for test, test_env in self._app_config.GetTestEnvVariables().items():
       if test in env_variables:
         env_variables[test].update(test_env)
       else:

@@ -116,14 +116,8 @@ void BoxGenerator::Visit(dom::Element* element) {
   }
   generating_html_element_ = html_element;
 
-  bool partial_layout_is_enabled = true;
-#if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
-  partial_layout_is_enabled =
-      html_element->node_document()->partial_layout_is_enabled();
-#endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
-
   // If the html element already has layout boxes, we can reuse them.
-  if (partial_layout_is_enabled && html_element->layout_boxes()) {
+  if (html_element->layout_boxes()) {
     LayoutBoxes* layout_boxes =
         base::polymorphic_downcast<LayoutBoxes*>(html_element->layout_boxes());
     DCHECK(boxes_.empty());

@@ -1,3 +1,16 @@
+# Copyright 2022 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 """Launches Cobalt and runs webdriver-based Cobalt tests."""
 
 from __future__ import absolute_import
@@ -8,13 +21,12 @@ import json
 import logging
 import os
 import re
+from six.moves import _thread
 import sys
 import threading
 import time
 import traceback
-import thread
 
-import _env  # pylint: disable=unused-import
 from cobalt.tools.automated_testing import c_val_names
 from cobalt.tools.automated_testing import webdriver_utils
 from starboard.tools import abstract_launcher
@@ -116,7 +128,7 @@ class CobaltRunner(object):
     self.log_handler = log_handler
 
     if log_file:
-      self.log_file = open(log_file)
+      self.log_file = open(log_file)  # pylint: disable=consider-using-with
       logging.basicConfig(stream=self.log_file, level=logging.INFO)
     else:
       self.log_file = sys.stdout
@@ -219,7 +231,7 @@ class CobaltRunner(object):
         continue
 
       port = match.group(1)
-      logging.info('WebDriver port opened:' + port + '\n')
+      logging.info('WebDriver port opened: %s', port)
       self._StartWebdriver(port)
 
   def __enter__(self):
@@ -261,7 +273,7 @@ class CobaltRunner(object):
     try:
       self.WaitForStart()
     except KeyboardInterrupt:
-      # potentially from thread.interrupt_main(). We will treat as
+      # potentially from _thread.interrupt_main(). We will treat as
       # a timeout regardless.
 
       self.Exit(should_fail=True)
@@ -291,7 +303,7 @@ class CobaltRunner(object):
     if self.CanExecuteJavaScript():
       try:
         self.ExecuteJavaScript('window.close();')
-      except Exception:
+      except Exception:  # pylint: disable=broad-except
         wait_for_runner_thread = False
         sys.stderr.write(
             '***An exception was raised while trying to close the app:')
@@ -299,7 +311,7 @@ class CobaltRunner(object):
 
     if wait_for_runner_thread:
       self.runner_thread.join(COBALT_EXIT_TIMEOUT_SECONDS)
-    if self.runner_thread.isAlive():
+    if self.runner_thread.is_alive():
       sys.stderr.write(
           '***Runner thread still alive after sending graceful shutdown '
           'command, try again by killing app***\n')
@@ -307,7 +319,7 @@ class CobaltRunner(object):
     # Once the write end of the pipe has been closed by the launcher, the reader
     # thread will get EOF and exit.
     self.reader_thread.join(COBALT_EXIT_TIMEOUT_SECONDS)
-    if self.reader_thread.isAlive():
+    if self.reader_thread.is_alive():
       sys.stderr.write('***Reader thread still alive, exiting anyway***\n')
     try:
       self.launcher_read_pipe.close()
@@ -352,7 +364,7 @@ class CobaltRunner(object):
       if not self.should_exit.is_set():
         # If the main thread is not expecting us to exit,
         # we must interrupt it.
-        thread.interrupt_main()
+        _thread.interrupt_main()
     return 0
 
   def CanExecuteJavaScript(self):
@@ -434,7 +446,7 @@ class CobaltRunner(object):
       Underlying WebDriver exceptions
     """
     start_time = time.time()
-    while ((not self.FindElements(css_selector)) and
+    while (not self.FindElements(css_selector) and
            (time.time() - start_time < PAGE_LOAD_WAIT_SECONDS)):
       time.sleep(1)
     if expected_num:
@@ -489,7 +501,7 @@ class CobaltRunner(object):
       if retry_count >= FIND_ELEMENT_RETRY_LIMIT:
         raise TimeoutException(
             'Selenium element or window not found in {} tries'.format(
-                FIND_ELEMENT_RETRY_LIMIT))
+                retry_count))
       retry_count += 1
       try:
         elements = self.webdriver.find_elements_by_css_selector(css_selector)
@@ -503,6 +515,27 @@ class CobaltRunner(object):
           'Expected number of element {} is: {}, got {}'.format(
               css_selector, expected_num, len(elements)))
     return elements
+
+  def WaitForActiveElement(self):
+    """Waits until there is an active element."""
+    retry_count = 0
+    while True:
+      if retry_count >= FIND_ELEMENT_RETRY_LIMIT:
+        raise TimeoutException(
+            'Selenium active element not found in {} tries'.format(retry_count))
+      retry_count += 1
+      try:
+        element = self.webdriver.switch_to.active_element
+      except (selenium_exceptions.NoSuchElementException,
+              selenium_exceptions.NoSuchWindowException,
+              selenium_exceptions.WebDriverException):
+        time.sleep(0.2)
+        continue
+      if not element:
+        time.sleep(0.2)
+        continue
+      break
+    return element
 
   def SendKeys(self, key_events):
     """Sends keys to whichever element currently has focus.

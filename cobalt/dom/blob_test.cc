@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "cobalt/dom/blob.h"
+
 #include <algorithm>
 
-#include "cobalt/dom/blob.h"
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/testing/stub_window.h"
 #include "cobalt/script/data_view.h"

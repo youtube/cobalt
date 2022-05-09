@@ -115,6 +115,7 @@ void HTMLScriptElement::OnParserStartTag(
 void HTMLScriptElement::OnParserEndTag() { Prepare(); }
 
 scoped_refptr<HTMLScriptElement> HTMLScriptElement::AsHTMLScriptElement() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   return this;
 }
 
@@ -329,7 +330,8 @@ void HTMLScriptElement::Prepare() {
               base::Unretained(html_element_context()->fetcher_factory()), url_,
               csp_callback, request_mode_,
               document_->location() ? document_->location()->GetOriginAsObject()
-                                    : loader::Origin()),
+                                    : loader::Origin(),
+              disk_cache::kUncompiledScript),
           base::Bind(&loader::TextDecoder::Create,
                      base::Bind(&HTMLScriptElement::OnSyncContentProduced,
                                 base::Unretained(this)),

@@ -52,12 +52,12 @@ def update_expected(test_paths, serve_root, log_file_names,
                                                 property_order=property_order,
                                                 boolean_properties=boolean_properties)
 
-    for test_manifest, expected_map in expected_map_by_manifest.iteritems():
+    for test_manifest, expected_map in expected_map_by_manifest.items():
         url_base = manifests[test_manifest]["url_base"]
         metadata_path = test_paths[url_base]["metadata_path"]
         write_changes(metadata_path, expected_map)
 
-    results_changed = [item.test_path for item in expected_map.itervalues() if item.modified]
+    results_changed = [item.test_path for item in expected_map.values() if item.modified]
 
     return unexpected_changes(manifests, change_data, results_changed)
 
@@ -100,7 +100,7 @@ def unexpected_changes(manifests, change_data, files_changed):
     files_changed = set(files_changed)
 
     root_manifest = None
-    for manifest, paths in manifests.iteritems():
+    for manifest, paths in manifests.items():
         if paths["url_base"] == "/":
             root_manifest = manifest
             break
@@ -133,7 +133,7 @@ def update_from_logs(manifests, *log_filenames, **kwargs):
     expected_map = {}
     id_test_map = {}
 
-    for test_manifest, paths in manifests.iteritems():
+    for test_manifest, paths in manifests.items():
         expected_map_manifest, id_path_map_manifest = create_test_tree(
             paths["metadata_path"],
             test_manifest,
@@ -148,8 +148,8 @@ def update_from_logs(manifests, *log_filenames, **kwargs):
         with open(log_filename) as f:
             updater.update_from_log(f)
 
-    for manifest_expected in expected_map.itervalues():
-        for tree in manifest_expected.itervalues():
+    for manifest_expected in expected_map.values():
+        for tree in manifest_expected.values():
             for test in tree.iterchildren():
                 for subtest in test.iterchildren():
                     subtest.coalesce_expected()
@@ -196,7 +196,7 @@ def write_changes(metadata_path, expected_map):
 
 def write_new_expected(metadata_path, expected_map):
     # Serialize the data back to a file
-    for tree in expected_map.itervalues():
+    for tree in expected_map.values():
         if not tree.is_empty:
             manifest_str = wptmanifest.serialize(tree.node, skip_empty_data=True)
             assert manifest_str != ""
@@ -293,7 +293,7 @@ def create_test_tree(metadata_path, test_manifest, property_order=None,
     expected_map = {}
     id_test_map = {}
     exclude_types = frozenset(["stub", "helper", "manual", "support", "conformancechecker"])
-    all_types = [item.item_type for item in manifestitem.__dict__.itervalues()
+    all_types = [item.item_type for item in manifestitem.__dict__.values()
                  if type(item) == type and
                  issubclass(item, manifestitem.ManifestItem) and
                  item.item_type is not None]

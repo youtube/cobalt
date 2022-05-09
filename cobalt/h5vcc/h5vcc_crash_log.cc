@@ -123,5 +123,68 @@ void H5vccCrashLog::TriggerCrash(H5vccCrashType intent) {
   }
 }
 
+bool H5vccCrashLog::Register(const std::string& name,
+                             const std::string& description,
+                             WatchdogState watchdog_state,
+                             int64_t time_interval, int64_t time_wait,
+                             WatchdogReplace watchdog_replace) {
+  watchdog::Watchdog* watchdog = watchdog::Watchdog::GetInstance();
+  if (watchdog) {
+    base::ApplicationState monitor_state;
+    switch (watchdog_state) {
+      case kWatchdogStateStarted:
+        monitor_state = base::kApplicationStateStarted;
+        break;
+      case kWatchdogStateBlurred:
+        monitor_state = base::kApplicationStateBlurred;
+        break;
+      case kWatchdogStateConcealed:
+        monitor_state = base::kApplicationStateConcealed;
+        break;
+      case kWatchdogStateFrozen:
+        monitor_state = base::kApplicationStateFrozen;
+        break;
+      default:
+        monitor_state = base::kApplicationStateStarted;
+    }
+    watchdog::Replace replace;
+    switch (watchdog_replace) {
+      case kWatchdogReplaceNone:
+        replace = watchdog::NONE;
+        break;
+      case kWatchdogReplacePing:
+        replace = watchdog::PING;
+        break;
+      case kWatchdogReplaceAll:
+        replace = watchdog::ALL;
+        break;
+      default:
+        replace = watchdog::NONE;
+    }
+    return watchdog->Register(name, description, monitor_state, time_interval,
+                              time_wait, replace);
+  }
+  return false;
+}
+
+bool H5vccCrashLog::Unregister(const std::string& name) {
+  watchdog::Watchdog* watchdog = watchdog::Watchdog::GetInstance();
+  if (watchdog) return watchdog->Unregister(name);
+  return false;
+}
+
+bool H5vccCrashLog::Ping(const std::string& name,
+                         const std::string& ping_info) {
+  watchdog::Watchdog* watchdog = watchdog::Watchdog::GetInstance();
+  if (watchdog) return watchdog->Ping(name, ping_info);
+  return false;
+}
+
+std::string H5vccCrashLog::GetWatchdogViolations(bool current) {
+  watchdog::Watchdog* watchdog = watchdog::Watchdog::GetInstance();
+  if (watchdog) return watchdog->GetWatchdogViolations(current);
+  return "";
+}
+
 }  // namespace h5vcc
 }  // namespace cobalt

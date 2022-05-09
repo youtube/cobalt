@@ -24,4 +24,14 @@ from cobalt.bindings.idl_compiler_cobalt import generate_bindings
 from cobalt.bindings.v8c.code_generator_v8c import CodeGeneratorV8c
 
 if __name__ == '__main__':
-  sys.exit(generate_bindings(CodeGeneratorV8c))
+  # TODO(b/225964218): The flakiness here should be resolved and retries
+  # removed.
+  # Retry up to 5 times as this can be flaky
+  latest_error = None
+  for i in range(5):
+    try:
+      sys.exit(generate_bindings(CodeGeneratorV8c))
+    except EOFError as e:
+      latest_error = e
+  if latest_error:
+    raise latest_error

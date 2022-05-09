@@ -1585,7 +1585,7 @@ config("default_warnings") {
         cflags += [ "-Wno-nonportable-include-path" ]
       }
 
-      if (current_toolchain == host_toolchain || !use_xcode_clang) {
+      if ((current_toolchain == host_toolchain || !use_xcode_clang) && !using_old_compiler) {
         # Flags NaCl (Clang 3.7) and Xcode 9.2 (Clang clang-900.0.39.2) do not
         # recognize.
         cflags += [
@@ -1642,7 +1642,12 @@ config("default_warnings") {
 
 config("chromium_code") {
   if (is_win) {
-    cflags = [ "/W4" ]  # Warning level 4.
+    if (is_starboard) {
+      # The platform should set warning flags.
+      cflags = []
+    } else {
+      cflags = [ "/W4" ]  # Warning level 4.
+    }
 
     if (is_clang) {
       # Opt in to additional [[nodiscard]] on standard library methods.
@@ -1748,6 +1753,10 @@ config("no_chromium_code") {
       "/wd4267",  # TODO(jschuh): size_t to int.
       "/wd4996",  # Deprecated function warning.
     ]
+    if (is_starboard) {
+      # The platform should set warning flags.
+      cflags -= [ "/W3" ]
+    }
     defines += [
       "_CRT_NONSTDC_NO_WARNINGS",
       "_CRT_NONSTDC_NO_DEPRECATE",
@@ -1888,8 +1897,11 @@ config("no_exceptions") {
       defines = [ "_HAS_EXCEPTIONS=0" ]
     }
   } else {
-    cflags_cc = [ "-fno-exceptions" ]
-    cflags_objcc = cflags_cc
+    # This hack ensures raspi does not compile anything with -fno-exceptions.
+    if (!defined(enable_exceptions_override) || !enable_exceptions_override) {
+      cflags_cc = [ "-fno-exceptions" ]
+      cflags_objcc = cflags_cc
+    }
   }
 }
 

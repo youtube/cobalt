@@ -22,17 +22,12 @@
 extern "C" {
 
 const char* GetEvergreenSabiString() {
-#if SB_API_VERSION >= 12
   return SB_SABI_JSON_ID;
-#else
-  return NULL;
-#endif  // SB_API_VERSION >= 12
 }
 
 }  // extern "C"
 
 bool CheckSabi(const char* (*sabi_function)()) {
-#if SB_API_VERSION >= 12
   if (!sabi_function) {
     SB_LOG(ERROR) << "Missing sabi_function";
     return false;
@@ -44,7 +39,4 @@ bool CheckSabi(const char* (*sabi_function)()) {
     return false;
   }
   return true;
-#else
-  return false;
-#endif  // SB_API_VERSION >= 12
 }

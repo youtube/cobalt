@@ -68,7 +68,7 @@ def idl_file_to_global_names(idl_filename):
     extended_attributes = get_interface_extended_attributes_from_idl(idl_file_contents)
 
     global_keys = GLOBAL_EXTENDED_ATTRIBUTES.intersection(
-        extended_attributes.iterkeys())
+        extended_attributes.keys())
     if not global_keys:
         return
     if len(global_keys) > 1:

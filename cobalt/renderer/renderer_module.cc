@@ -91,15 +91,11 @@ RendererModule::RendererModule(system_window::SystemWindow* system_window,
         base::Bind(options_.create_rasterizer_function, graphics_context_.get(),
                    options_),
         display_->GetRenderTarget(), graphics_context_.get(),
-#if SB_API_VERSION < 12
-        options_.submit_even_if_render_tree_is_unchanged,
-#else
         // SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER is deprecated in
         // favor of the usage of 'CobaltExtensionGraphicsApi', use 'false' to
         // deprecate the submit_even_if_render_tree_is_unchanged.
-        false,
-#endif
-        renderer::Pipeline::kClearAccordingToPlatform, pipeline_options));
+        false, renderer::Pipeline::kClearAccordingToPlatform,
+        pipeline_options));
   }
 }
 

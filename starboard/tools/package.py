@@ -20,48 +20,33 @@ import importlib
 import logging
 import os
 
-import _env  # pylint: disable=unused-import
-import starboard
-from starboard.tools import platform
+from starboard.build.platforms import PLATFORMS
 
 
-def _ImportModule(path, root_module, module_name=None):
-  """Load a platform specific python module using importlib.
-
-  Load the python module named |module_name| relative to |root_module|.
-  Args:
-    path: Path to the platform
-    root_module: An already-loaded module
-    module_name: Name of a python module to load. If None, load the platform
-      directory as a python module.
+def _ImportModule(path, module_name=None):
+  """Convert a filepath to a python-style import path and import it.
 
   Returns:
     A module loaded with importlib.import_module
   Throws:
     ImportError if the module fails to be loaded.
   """
-  # From the relative path to the |root_module|'s directory, construct a full
-  # python package name and attempt to load it.
-  relative_path = os.path.relpath(path, os.path.dirname(root_module.__file__))
-  full_path = os.path.join(root_module.__name__, relative_path)
-
-  # This normpath may collapse out the root module. This is generally OK as long
-  # as we stay within the workspace, as _env will add the workspace root to the
-  # system import path.
-  components = os.path.normpath(full_path).split(os.sep)
+  components = os.path.normpath(path).split(os.sep)
   if module_name:
     components.append(module_name)
   full_package_name = '.'.join(components)
   return importlib.import_module(full_package_name)
 
 
-def _GetPackageClass(platform_info):
-  """Loads the package class associated with the given platform.PlatformInfo."""
+def _GetPackageClass(platform_name, platform_path):
+  """
+  Loads the package class associated with the given platform.
+  """
   try:
-    module = _ImportModule(platform_info.path, starboard)
+    module = _ImportModule(platform_path)
   except ImportError as e:
     logging.debug('Failed to import module for platform %s with error: %s',
-                  platform_info.name, e)
+                  platform_name, e)
     return None
 
   if not hasattr(module, 'Package'):
@@ -77,11 +62,10 @@ def _GetPlatformInfosDict():
     A dict of [platform_name, Class] where Class inherits from PackageBase
   """
   packager_modules = {}
-  for platform_name in platform.GetAll():
-    platform_info = platform.Get(platform_name)
+  for platform_name, platform_path in PLATFORMS.items():
     # From the relative path to the starboard directory, construct a full
     # python package name and attempt to load it.
-    package_class = _GetPackageClass(platform_info)
+    package_class = _GetPackageClass(platform_name, platform_path)
     if not package_class:
       continue
     # Populate a mapping from platform name to the module containing the
@@ -92,13 +76,13 @@ def _GetPlatformInfosDict():
           logging.warning('Packager for %s is defined in multiple modules.',
                           supported_name)
         else:
-          packager_modules[supported_name] = platform_info
+          packager_modules[supported_name] = platform_path
     except Exception as e:  # pylint: disable=broad-except
       # Catch all exceptions to avoid an error in one platform's Packager
       # halting the script for other platforms' packagers.
       logging.warning(
           'Exception iterating supported platform for platform '
-          '%s: %s.', platform_info.name, e)
+          '%s: %s.', platform_name, e)
 
   return packager_modules
 
@@ -172,10 +156,9 @@ class Packager(object):
 
   def GetApplicationPackageInfo(self, platform_name, application_name):
     """Get application-specific packaging information."""
-    platform_info = self.GetPlatformInfo(platform_name)
+    platform_path = self.GetPlatformInfo(platform_name)
     try:
-      return _ImportModule(platform_info.path, starboard,
-                           '%s.package' % application_name)
+      return _ImportModule(platform_path, '{}.package'.format(application_name))
     except ImportError as e:
       # No package parameters specified for this platform.
       logging.debug('Failed to import cobalt.package: %s', e)
@@ -193,13 +176,16 @@ class Packager(object):
     Returns:
       A PackageBase instance.
     """
-    package_class = _GetPackageClass(self.platform_infos[platform_name])
+    package_class = _GetPackageClass(platform_name,
+                                     self.platform_infos[platform_name])
     return package_class(source_dir=source_dir, output_dir=output_dir, **kwargs)
 
   def AddPlatformArguments(self, platform_name, argparser):
-    package_class = _GetPackageClass(self.platform_infos[platform_name])
+    package_class = _GetPackageClass(platform_name,
+                                     self.platform_infos[platform_name])
     package_class.AddArguments(argparser)
 
   def ExtractPlatformArguments(self, platform_name, options):
-    package_class = _GetPackageClass(self.platform_infos[platform_name])
+    package_class = _GetPackageClass(platform_name,
+                                     self.platform_infos[platform_name])
     return package_class.ExtractArguments(options)

@@ -248,8 +248,8 @@ util::CommandResult<void> ElementDriver::SendKeysInternal(
       return CommandResult(protocol::Response::kStaleElementReference);
     }
 
-    keyboard_event_injector_.Run(element_.get(), (*events)[i].first,
-                                 (*events)[i].second);
+    keyboard_event_injector_.Run((*events)[i].first, (*events)[i].second,
+                                 element_.get());
   }
   return CommandResult(protocol::Response::kSuccess);
 }
@@ -308,16 +308,16 @@ util::CommandResult<void> ElementDriver::SendClickInternal(
 
   event.set_button(0);
   event.set_buttons(0);
-  pointer_event_injector_.Run(scoped_refptr<dom::Element>(),
-                              base::Tokens::pointermove(), event);
+  pointer_event_injector_.Run(base::Tokens::pointermove(), event,
+                              scoped_refptr<dom::Element>());
   event.set_buttons(1);
   event.set_pressure(0.5f);
-  pointer_event_injector_.Run(scoped_refptr<dom::Element>(),
-                              base::Tokens::pointerdown(), event);
+  pointer_event_injector_.Run(base::Tokens::pointerdown(), event,
+                              scoped_refptr<dom::Element>());
   event.set_buttons(0);
   event.set_pressure(0.0f);
-  pointer_event_injector_.Run(scoped_refptr<dom::Element>(),
-                              base::Tokens::pointerup(), event);
+  pointer_event_injector_.Run(base::Tokens::pointerup(), event,
+                              scoped_refptr<dom::Element>());
 
   return CommandResult(protocol::Response::kSuccess);
 }

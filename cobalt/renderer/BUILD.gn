@@ -64,6 +64,7 @@ static_library("renderer") {
     "//cobalt/renderer/rasterizer/skia:hardware_rasterizer",
     "//cobalt/renderer/rasterizer/skia:software_rasterizer",
     "//cobalt/system_window",
+    "//cobalt/watchdog",
     "//nb",
     "//starboard:starboard_headers_only",
   ]
@@ -125,9 +126,6 @@ target(gtest_target_type, "renderer_test") {
   deps = [
     ":render_tree_pixel_tester",
     ":renderer",
-    ":renderer_copy_lottie_test_data",
-    ":renderer_copy_test_data",
-    ":renderer_download_lottie_test_data",
     ":renderer_headers_only",
     "//base:i18n",
     "//cobalt/base",
@@ -141,9 +139,26 @@ target(gtest_target_type, "renderer_test") {
     "//testing/gtest",
     "//third_party/icu:icuuc",
   ]
+
+  data_deps = [
+    ":renderer_copy_lottie_test_data",
+    ":renderer_copy_test_data",
+    ":renderer_download_lottie_test_data",
+  ]
+
+  content_deps = data_deps
+  if (cobalt_font_package == "empty") {
+    content_deps += [ "//cobalt/content/fonts:copy_font_data" ]
+  } else {
+    content_deps += [
+      "//cobalt/content/fonts:copy_fonts",
+      "//cobalt/content/fonts:fonts_xml",
+    ]
+  }
 }
 
 copy("renderer_copy_test_data") {
+  install_content = true
   sources = [
     "rasterizer/testdata/2xSpeedLottieAnimationTest-expected.png",
     "rasterizer/testdata/AlmostCircleViaRoundedCorners-expected.png",
@@ -478,6 +493,8 @@ copy("renderer_copy_test_data") {
 _lottie_resource_path = "rasterizer/testdata/lottie_coverage"
 
 copy("renderer_copy_lottie_test_data") {
+  install_content = true
+
   # TODO(b/211909342): List the individual files that are to be copied.
   sources = [ _lottie_resource_path ]
   deps = [ ":renderer_download_lottie_test_data" ]
@@ -486,6 +503,8 @@ copy("renderer_copy_lottie_test_data") {
 }
 
 action("renderer_download_lottie_test_data") {
+  install_content = true
+
   script = "//tools/download_from_gcs.py"
 
   inputs = [

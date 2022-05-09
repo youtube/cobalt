@@ -24,7 +24,7 @@ sys.path.append(PYJSON5_DIR)
 import json5 as json # pylint: disable=import-error
 
 def read_file(filename):
-    with open(path.normpath(filename), 'rt') as input:
+    with open(path.normpath(filename), 'rt', encoding="utf-8") as input:
         return input.read()
 
 
@@ -34,7 +34,7 @@ def write_file(filename, content):
     directory = path.dirname(filename)
     if not path.exists(directory):
         os.makedirs(directory)
-    with open(filename, 'wt') as output:
+    with open(filename, 'wt', encoding="utf-8") as output:
         output.write(content)
 
 
@@ -46,7 +46,7 @@ def load_and_parse_json(filename):
     try:
         return json.loads(read_file(filename))
     except:
-        print 'ERROR: Failed to parse %s' % filename
+        print('ERROR: Failed to parse {}'.format(filename))
         raise
 
 
@@ -74,7 +74,7 @@ class Descriptors:
 
     def application_json(self):
         result = dict()
-        result['modules'] = self.application.values()
+        result['modules'] = list(self.application.values())
         result['has_html'] = self.has_html
         return json.dumps(result)
 

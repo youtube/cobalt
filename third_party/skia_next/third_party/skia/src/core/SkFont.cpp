@@ -169,7 +169,11 @@ SkScalar SkFont::measureText(const void* text, size_t length, SkTextEncoding enc
     }
     const SkGlyphID* glyphIDs = atg.glyphs();
 
+#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     auto [strikeSpec, strikeToSourceScale] = SkStrikeSpec::MakeCanonicalized(*this, paint);
+#else
+    STRUCTURED_BINDING_2(strikeSpec, strikeToSourceScale, SkStrikeSpec::MakeCanonicalized(*this, paint));
+#endif
     SkBulkGlyphMetrics metrics{strikeSpec};
     SkSpan<const SkGlyph*> glyphs = metrics.glyphs(SkMakeSpan(glyphIDs, glyphCount));
 
@@ -207,7 +211,11 @@ void SkFont::getWidthsBounds(const SkGlyphID glyphIDs[],
                              SkScalar widths[],
                              SkRect bounds[],
                              const SkPaint* paint) const {
+#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     auto [strikeSpec, strikeToSourceScale] = SkStrikeSpec::MakeCanonicalized(*this, paint);
+#else
+    STRUCTURED_BINDING_2(strikeSpec, strikeToSourceScale, SkStrikeSpec::MakeCanonicalized(*this, paint));
+#endif
     SkBulkGlyphMetrics metrics{strikeSpec};
     SkSpan<const SkGlyph*> glyphs = metrics.glyphs(SkMakeSpan(glyphIDs, count));
 
@@ -228,7 +236,11 @@ void SkFont::getWidthsBounds(const SkGlyphID glyphIDs[],
 }
 
 void SkFont::getPos(const SkGlyphID glyphIDs[], int count, SkPoint pos[], SkPoint origin) const {
+#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     auto [strikeSpec, strikeToSourceScale] = SkStrikeSpec::MakeCanonicalized(*this);
+#else
+    STRUCTURED_BINDING_2(strikeSpec, strikeToSourceScale, SkStrikeSpec::MakeCanonicalized(*this));
+#endif
     SkBulkGlyphMetrics metrics{strikeSpec};
     SkSpan<const SkGlyph*> glyphs = metrics.glyphs(SkMakeSpan(glyphIDs, count));
 
@@ -242,7 +254,11 @@ void SkFont::getPos(const SkGlyphID glyphIDs[], int count, SkPoint pos[], SkPoin
 void SkFont::getXPos(
         const SkGlyphID glyphIDs[], int count, SkScalar xpos[], SkScalar origin) const {
 
+#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     auto [strikeSpec, strikeToSourceScale] = SkStrikeSpec::MakeCanonicalized(*this);
+#else
+    STRUCTURED_BINDING_2(strikeSpec, strikeToSourceScale, SkStrikeSpec::MakeCanonicalized(*this));
+#endif
     SkBulkGlyphMetrics metrics{strikeSpec};
     SkSpan<const SkGlyph*> glyphs = metrics.glyphs(SkMakeSpan(glyphIDs, count));
 
@@ -287,7 +303,11 @@ bool SkFont::getPath(SkGlyphID glyphID, SkPath* path) const {
 
 SkScalar SkFont::getMetrics(SkFontMetrics* metrics) const {
 
+#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     auto [strikeSpec, strikeToSourceScale] = SkStrikeSpec::MakeCanonicalized(*this, nullptr);
+#else
+    STRUCTURED_BINDING_2(strikeSpec, strikeToSourceScale, SkStrikeSpec::MakeCanonicalized(*this, nullptr));
+#endif
 
     SkFontMetrics storage;
     if (nullptr == metrics) {

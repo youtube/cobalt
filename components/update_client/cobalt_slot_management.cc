@@ -89,11 +89,15 @@ bool CobaltSlotManagement::Init(
     return false;
   }
   app_key_ = app_key;
+  initialized_ = true;
   return true;
 }
 
 bool CobaltSlotManagement::SelectSlot(base::FilePath* dir) {
-  SB_DCHECK(installation_api_);
+  SB_DCHECK(initialized_);
+  if (!initialized_) {
+    return false;
+  }
   LOG(INFO) << "CobaltSlotManagement::SelectSlot";
   int max_slots = installation_api_->GetMaxNumberInstallations();
   if (max_slots == IM_EXT_ERROR) {
@@ -125,16 +129,18 @@ bool CobaltSlotManagement::SelectSlot(base::FilePath* dir) {
     base::FilePath installation_dir(
         std::string(installation_path.begin(), installation_path.end()));
 
-    // Cleanup expired drain files.
-    DrainFileClear(installation_dir.value().c_str(), app_key_.c_str(), true);
+    // Cleanup all expired files from all apps.
+    DrainFileClearExpired(installation_dir.value().c_str());
 
     // Cleanup all drain files from the current app.
-    DrainFileRemove(installation_dir.value().c_str(), app_key_.c_str());
+    DrainFileClearForApp(installation_dir.value().c_str(), app_key_.c_str());
+
     base::Version version =
         cobalt::updater::ReadEvergreenVersion(installation_dir);
     if (!version.IsValid()) {
       LOG(INFO) << "CobaltSlotManagement::SelectSlot installed version invalid";
-      if (!DrainFileDraining(installation_dir.value().c_str(), "")) {
+      if (!DrainFileIsAnotherAppDraining(installation_dir.value().c_str(),
+                                         app_key_.c_str())) {
         LOG(INFO) << "CobaltSlotManagement::SelectSlot not draining";
         // Found empty slot.
         slot_candidate = i;
@@ -147,7 +153,8 @@ bool CobaltSlotManagement::SelectSlot(base::FilePath* dir) {
       }
     } else if ((!slot_candidate_version.IsValid() ||
                 slot_candidate_version > version)) {
-      if (!DrainFileDraining(installation_dir.value().c_str(), "")) {
+      if (!DrainFileIsAnotherAppDraining(installation_dir.value().c_str(),
+                                         app_key_.c_str())) {
         // Found a slot with older version that's not draining.
         LOG(INFO) << "CobaltSlotManagement::SelectSlot slot candidate: " << i;
         slot_candidate_version = version;
@@ -175,7 +182,10 @@ bool CobaltSlotManagement::SelectSlot(base::FilePath* dir) {
 }
 
 bool CobaltSlotManagement::ConfirmSlot(const base::FilePath& dir) {
-  SB_DCHECK(installation_api_);
+  SB_DCHECK(initialized_);
+  if (!initialized_) {
+    return false;
+  }
   LOG(INFO) << "CobaltSlotManagement::ConfirmSlot ";
   if (!DrainFileRankAndCheck(dir.value().c_str(), app_key_.c_str())) {
     LOG(INFO) << "CobaltSlotManagement::ConfirmSlot: failed to lock slot ";
@@ -198,13 +208,49 @@ bool CobaltSlotManagement::ConfirmSlot(const base::FilePath& dir) {
   return true;
 }
 
-void CobaltSlotManagement::CleanupAllDrainFiles(const base::FilePath& dir) {
-  if (!dir.empty() && !app_key_.empty()) {
-    DrainFileRemove(dir.value().c_str(), app_key_.c_str());
+void CobaltSlotManagement::CleanupAllDrainFiles() {
+  SB_DCHECK(initialized_);
+  if (!initialized_) {
+    return;
+  }
+
+  int max_slots = installation_api_->GetMaxNumberInstallations();
+  if (max_slots == IM_EXT_ERROR) {
+    LOG(ERROR) << "CobaltSlotManagement::CleanupAllDrainFile: Failed to get "
+                  "max number of slots";
+    return;
+  }
+
+  // Iterate over all writeable installation slots.
+  for (int i = 1; i < max_slots; i++) {
+    LOG(INFO) << "CobaltSlotManagement::CleanupAllDrainFile iterating slot="
+              << i;
+    std::vector<char> installation_path(kSbFileMaxPath);
+    if (installation_api_->GetInstallationPath(i, installation_path.data(),
+                                               installation_path.size()) ==
+        IM_EXT_ERROR) {
+      LOG(ERROR) << "CobaltSlotManagement::CleanupAllDrainFile: Failed to get "
+                    "installation path for slot="
+                 << i;
+      continue;
+    }
+
+    LOG(INFO)
+        << "CobaltSlotManagement::CleanupAllDrainFile: installation_path = "
+        << installation_path.data();
+
+    base::FilePath installation_dir(
+        std::string(installation_path.begin(), installation_path.end()));
+
+    DrainFileClearForApp(installation_dir.value().c_str(), app_key_.c_str());
   }
 }
 
 int CobaltSlotManagement::GetInstallationIndex() {
+  SB_DCHECK(initialized_);
+  if (!initialized_) {
+    return false;
+  }
   return installation_index_;
 }
 
@@ -219,7 +265,7 @@ bool CobaltFinishInstallation(
   if (!starboard::loader_app::CreateAppKeyFile(good_app_key_file_path)) {
     LOG(WARNING) << "Failed to create good app key file";
   }
-  DrainFileRemove(dir.c_str(), app_key.c_str());
+  DrainFileClearForApp(dir.c_str(), app_key.c_str());
   int ret =
       installation_api->RequestRollForwardToInstallation(installation_index);
   if (ret == IM_EXT_ERROR) {
@@ -275,18 +321,24 @@ bool CobaltQuickUpdate(
     base::Version installed_version =
         cobalt::updater::ReadEvergreenVersion(installation_dir);
 
+    std::string good_app_key_file_path =
+        starboard::loader_app::GetGoodAppKeyFilePath(
+            installation_dir.value().c_str(), app_key);
     if (!installed_version.IsValid()) {
       LOG(WARNING) << "CobaltQuickInstallation: invalid version ";
       continue;
     } else if (slot_candidate_version < installed_version &&
                current_version < installed_version &&
-               !DrainFileDraining(installation_dir.value().c_str(), "") &&
+               !DrainFileIsAnotherAppDraining(installation_dir.value().c_str(),
+                                              app_key) &&
                !CheckBadFileExists(installation_dir.value().c_str(), app_key) &&
+               !SbFileExists(good_app_key_file_path.c_str()) &&
                starboard::loader_app::AnyGoodAppKeyFile(
                    installation_dir.value().c_str())) {
       // Found a slot with newer version than the current version that's not
       // draining, and no bad file of current app exists, and a good file
-      // exists. The final candidate is the newest version of the valid
+      // exists from a another app, but not from the current app.
+      // The final candidate is the newest version of the valid
       // candidates.
       LOG(INFO) << "CobaltQuickInstallation: slot candidate: " << i;
       slot_candidate_version = installed_version;

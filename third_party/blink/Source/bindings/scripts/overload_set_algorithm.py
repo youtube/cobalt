@@ -158,7 +158,7 @@ def method_overloads_by_name(methods):
     # Filter to only methods that are actually overloaded
     method_counts = Counter(method['name'] for method in methods)
     overloaded_method_names = set(name
-                                  for name, count in method_counts.iteritems())
+                                  for name, count in method_counts.items())
     overloaded_methods = [method for method in methods
                           if method['name'] in overloaded_method_names]
 

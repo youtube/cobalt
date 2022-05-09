@@ -17,14 +17,14 @@
 
 #include "base/memory/ref_counted.h"
 #include "cobalt/base/debugger_hooks.h"
-#include "cobalt/dom/blob.h"
 #include "cobalt/dom/mutation_observer_task_manager.h"
 #include "cobalt/dom/url_registry.h"
 #include "cobalt/dom/url_utils.h"
 #include "cobalt/media/can_play_type_handler.h"
 #include "cobalt/media/decoder_buffer_memory_info.h"
-#include "cobalt/script/environment_settings.h"
 #include "cobalt/speech/microphone.h"
+#include "cobalt/web/environment_settings.h"
+#include "cobalt/worker/service_worker_jobs.h"
 
 namespace cobalt {
 
@@ -44,7 +44,7 @@ class Window;
 
 // A package of global state to be passed around to script objects
 // that ask for it in their IDL custom attributes.
-class DOMSettings : public script::EnvironmentSettings {
+class DOMSettings : public web::EnvironmentSettings {
  public:
   typedef UrlRegistry<MediaSource> MediaSourceRegistry;
   // Hold optional settings for DOMSettings.
@@ -53,17 +53,13 @@ class DOMSettings : public script::EnvironmentSettings {
     speech::Microphone::Options microphone_options;
   };
 
-  DOMSettings(const int max_dom_element_depth,
-              loader::FetcherFactory* fetcher_factory,
-              network::NetworkModule* network_module,
+  DOMSettings(const base::DebuggerHooks& debugger_hooks,
+              const int max_dom_element_depth,
               MediaSourceRegistry* media_source_registry,
-              Blob::Registry* blob_registry,
               media::CanPlayTypeHandler* can_play_type_handler,
               const media::DecoderBufferMemoryInfo* decoder_buffer_memory_info,
-              script::JavaScriptEngine* engine,
-              script::GlobalEnvironment* global_environment_proxy,
-              const base::DebuggerHooks& debugger_hooks,
               MutationObserverTaskManager* mutation_observer_task_manager,
+              worker::ServiceWorkerJobs* service_worker_jobs,
               const Options& options = Options());
   ~DOMSettings() override;
 
@@ -75,20 +71,6 @@ class DOMSettings : public script::EnvironmentSettings {
   void set_window(const scoped_refptr<Window>& window);
   scoped_refptr<Window> window() const;
 
-  void set_fetcher_factory(loader::FetcherFactory* fetcher_factory) {
-    fetcher_factory_ = fetcher_factory;
-  }
-  loader::FetcherFactory* fetcher_factory() const { return fetcher_factory_; }
-  void set_network_module(network::NetworkModule* network_module) {
-    network_module_ = network_module;
-  }
-  network::NetworkModule* network_module() const { return network_module_; }
-  script::JavaScriptEngine* javascript_engine() const {
-    return javascript_engine_;
-  }
-  script::GlobalEnvironment* global_environment() const {
-    return global_environment_;
-  }
   MediaSourceRegistry* media_source_registry() const {
     return media_source_registry_;
   }
@@ -114,33 +96,25 @@ class DOMSettings : public script::EnvironmentSettings {
   media::CanPlayTypeHandler* can_play_type_handler() const {
     return can_play_type_handler_;
   }
-  const base::DebuggerHooks& debugger_hooks() const { return debugger_hooks_; }
   MutationObserverTaskManager* mutation_observer_task_manager() const {
     return mutation_observer_task_manager_;
   }
-  Blob::Registry* blob_registry() const { return blob_registry_; }
 
-  // An absolute URL used to resolve relative URLs.
-  virtual const GURL& base_url() const;
-
+  worker::ServiceWorkerJobs* service_worker_jobs() const {
+    return service_worker_jobs_;
+  }
   // Return's document's origin.
   loader::Origin document_origin() const;
 
  private:
   const int max_dom_element_depth_;
   const speech::Microphone::Options microphone_options_;
-  loader::FetcherFactory* fetcher_factory_;
-  network::NetworkModule* network_module_;
   scoped_refptr<Window> window_;
   MediaSourceRegistry* media_source_registry_;
-  Blob::Registry* blob_registry_;
   media::CanPlayTypeHandler* can_play_type_handler_;
   const media::DecoderBufferMemoryInfo* decoder_buffer_memory_info_;
-  script::JavaScriptEngine* javascript_engine_;
-  script::GlobalEnvironment* global_environment_;
-  const base::DebuggerHooks& debugger_hooks_;
   MutationObserverTaskManager* mutation_observer_task_manager_;
-
+  worker::ServiceWorkerJobs* service_worker_jobs_;
   DISALLOW_COPY_AND_ASSIGN(DOMSettings);
 };
 

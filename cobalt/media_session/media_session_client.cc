@@ -37,6 +37,14 @@ const base::TimeDelta kUpdateDelay = base::TimeDelta::FromMilliseconds(250);
 const base::TimeDelta kMaybeFreezeDelay =
     base::TimeDelta::FromMilliseconds(1500);
 
+int64_t GetPlaybackArea(const media::WebMediaPlayer* player) {
+  int width = player->GetNaturalWidth();
+  int height = player->GetNaturalHeight();
+  DCHECK_GE(width, 0);
+  DCHECK_GE(height, 0);
+  return static_cast<int64_t>(width) * height;
+}
+
 // Guess the media position state for the media session.
 void GuessMediaPositionState(MediaSessionState* session_state,
                              const media::WebMediaPlayer** guess_player,
@@ -45,8 +53,7 @@ void GuessMediaPositionState(MediaSessionState* session_state,
   // media session. This isn't perfect, so it's best that the web app set the
   // media position state explicitly.
   if (*guess_player == nullptr ||
-      (*guess_player)->GetNaturalSize().GetArea() <
-          current_player->GetNaturalSize().GetArea()) {
+      GetPlaybackArea(*guess_player) < GetPlaybackArea(current_player)) {
     *guess_player = current_player;
 
     MediaPositionState position_state;
@@ -321,6 +328,12 @@ void MediaSessionClient::OnMediaSessionStateChanged(
           const MediaImage& media_image(artwork.at(i));
           CobaltExtensionMediaImage ext_image;
           ext_image.src = media_image.src().c_str();
+          if (ext_image.src == nullptr) {
+            // src() is required, but Cobalt IDL parser doesn't enforce it.
+            // http://cs/cobalt/cobalt/media_session/media_image.idl?l=19
+            // https://wicg.github.io/mediasession/#dictdef-mediaimage
+            LOG(ERROR) << "Required src string for MediaImage is missing.";
+          }
           ext_image.size = media_image.sizes().c_str();
           ext_image.type = media_image.type().c_str();
           ext_artwork[i] = ext_image;

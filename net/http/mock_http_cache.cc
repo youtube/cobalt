@@ -420,6 +420,7 @@ int32_t MockDiskCache::GetEntryCount() const {
 net::Error MockDiskCache::OpenEntry(const std::string& key,
                                     net::RequestPriority request_priority,
                                     disk_cache::Entry** entry,
+                                    std::string type,
                                     CompletionOnceCallback callback) {
   DCHECK(!callback.is_null());
   if (fail_requests_)
@@ -704,7 +705,7 @@ bool MockHttpCache::WriteResponseInfo(disk_cache::Entry* disk_entry,
 bool MockHttpCache::OpenBackendEntry(const std::string& key,
                                      disk_cache::Entry** entry) {
   TestCompletionCallback cb;
-  int rv = backend()->OpenEntry(key, net::HIGHEST, entry, cb.callback());
+  int rv = backend()->OpenEntry(key, net::HIGHEST, entry, "0", cb.callback());
   return (cb.GetResult(rv) == OK);
 }
 

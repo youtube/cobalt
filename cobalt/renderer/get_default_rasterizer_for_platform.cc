@@ -37,7 +37,6 @@ std::unique_ptr<rasterizer::Rasterizer> CreateStubRasterizer(
       new rasterizer::stub::Rasterizer());
 }
 
-#if SB_API_VERSION >= 12 || SB_HAS(GLES2)
 std::unique_ptr<rasterizer::Rasterizer> CreateGLESSoftwareRasterizer(
     backend::GraphicsContext* graphics_context,
     const RendererModule::Options& options) {
@@ -72,8 +71,6 @@ std::unique_ptr<rasterizer::Rasterizer> CreateSkiaHardwareRasterizer(
           options.purge_skia_font_caches_on_destruction,
           options.force_deterministic_rendering));
 }
-#endif  // #if SB_API_VERSION >= 12 ||
-        // SB_HAS(GLES2)
 
 }  // namespace
 
@@ -83,7 +80,6 @@ RasterizerInfo GetDefaultRasterizerForPlatform() {
   if (rasterizer_type == "stub") {
     return {"stub", base::Bind(&CreateStubRasterizer)};
   }
-#if SB_API_VERSION >= 12
   if (SbGetGlesInterface()) {
     if (rasterizer_type == "direct-gles") {
       return {"gles", base::Bind(&CreateGLESHardwareRasterizer)};
@@ -95,18 +91,6 @@ RasterizerInfo GetDefaultRasterizerForPlatform() {
     SB_DCHECK(false);
     return {};
   }
-#else  // SB_API_VERSION >= 12
-#if SB_HAS(GLES2)
-  if (rasterizer_type == "direct-gles") {
-    return {"gles", base::Bind(&CreateGLESHardwareRasterizer)};
-  } else {
-    return {"skia", base::Bind(&CreateSkiaHardwareRasterizer)};
-  }
-#else
-#error "GLES2 API must be available."
-  return {"", NULL};
-#endif
-#endif  // SB_API_VERSION >= 12
 }
 
 }  // namespace renderer

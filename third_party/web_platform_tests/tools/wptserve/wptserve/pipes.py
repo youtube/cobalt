@@ -1,11 +1,16 @@
-from cgi import escape
 import gzip as gzip_module
 import re
 import time
 import types
 import uuid
-from cStringIO import StringIO
+from io import BytesIO
+import six
 
+if six.PY2:
+    from cgi import escape
+else:
+    from html import escape
+    unicode = lambda s, *args: str(s)
 
 def resolve_content(response):
     return b"".join(item for item in response.iter_content(read_file=True))
@@ -270,26 +275,31 @@ def slice(request, response, start, end=None):
 
 class ReplacementTokenizer(object):
     def ident(scanner, token):
-        return ("ident", token)
+        return ("ident", token.decode())
 
     def index(scanner, token):
         token = token[1:-1]
+        if six.PY3:
+            token = token.decode()
         try:
             token = int(token)
         except ValueError:
-            token = unicode(token, "utf8")
+            if six.PY2:
+                token = unicode(token, "utf8")
+            else:
+                token = token
         return ("index", token)
 
     def var(scanner, token):
-        token = token[:-1]
+        token = token[:-1].decode()
         return ("var", token)
 
     def tokenize(self, string):
         return self.scanner.scan(string)[0]
 
-    scanner = re.Scanner([(r"\$\w+:", var),
-                          (r"\$?\w+(?:\(\))?", ident),
-                          (r"\[[^\]]*\]", index)])
+    scanner = re.Scanner([(br"\$\w+:", var),
+                          (br"\$?\w+(?:\(\))?", ident),
+                          (br"\[[^\]]*\]", index)])
 
 
 class FirstWrapper(object):
@@ -408,7 +418,9 @@ def template(request, content, escape_type="html"):
         for item in tokens[1:]:
             value = value[item[1]]
 
-        assert isinstance(value, (int,) + types.StringTypes), tokens
+        if isinstance(value, bytes):
+            value = value.decode()
+        assert isinstance(value, (int,) + six.string_types), tokens
 
         if variable is not None:
             variables[variable] = value
@@ -418,9 +430,13 @@ def template(request, content, escape_type="html"):
 
         #Should possibly support escaping for other contexts e.g. script
         #TODO: read the encoding of the response
-        return escape_func(unicode(value)).encode("utf-8")
+        if isinstance(value, bytes):
+            value = value.decode()
+        elif isinstance(value, int):
+            value = str(value)
+        return escape_func(unicode(value)).encode()
 
-    template_regexp = re.compile(r"{{([^}]*)}}")
+    template_regexp = re.compile(br"{{([^}]*)}}")
     new_content = template_regexp.sub(config_replacement, content)
 
     return new_content
@@ -436,7 +452,7 @@ def gzip(request, response):
     content = resolve_content(response)
     response.headers.set("Content-Encoding", "gzip")
 
-    out = StringIO()
+    out = BytesIO()
     with gzip_module.GzipFile(fileobj=out, mode="w") as f:
         f.write(content)
     response.content = out.getvalue()

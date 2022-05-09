@@ -29,7 +29,6 @@ int InitAndRunAllTests(int argc, char** argv) {
   base::PathService::RegisterProvider(&cobalt::PathProvider,
                                       cobalt::paths::PATH_COBALT_START,
                                       cobalt::paths::PATH_COBALT_END);
-
   return test_suite.Run();
 }
 }  // namespace

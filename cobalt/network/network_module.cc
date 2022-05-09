@@ -75,6 +75,7 @@ NetworkModule::~NetworkModule() {
 }
 
 std::string NetworkModule::GetUserAgent() const {
+  DCHECK(http_user_agent_settings_);
   return http_user_agent_settings_->GetUserAgent();
 }
 

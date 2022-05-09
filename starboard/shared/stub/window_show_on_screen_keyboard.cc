@@ -14,10 +14,6 @@
 
 #include "starboard/window.h"
 
-#if SB_API_VERSION >= 12
-
 void SbWindowShowOnScreenKeyboard(SbWindow window,
                                   const char* input_text,
                                   int ticket) {}
-
-#endif

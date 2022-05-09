@@ -21,8 +21,9 @@
 
 #include "base/strings/string_util.h"
 #include "cobalt/base/polymorphic_downcast.h"
-#include "cobalt/dom/dom_settings.h"
 #include "cobalt/network/network_module.h"
+#include "cobalt/web/context.h"
+#include "cobalt/web/environment_settings.h"
 #include "net/dial/dial_service_handler.h"
 #include "net/server/http_server_request_info.h"
 
@@ -74,12 +75,13 @@ class DialServer::ServiceHandler : public net::DialServiceHandler {
 DialServer::DialServer(script::EnvironmentSettings* settings,
                        const std::string& service_name) {
   service_handler_ = new ServiceHandler(AsWeakPtr(), service_name);
-  dom::DOMSettings* dom_settings =
-      base::polymorphic_downcast<dom::DOMSettings*>(settings);
-  DCHECK(dom_settings);
+  auto* web_settings =
+      base::polymorphic_downcast<web::EnvironmentSettings*>(settings);
+  DCHECK(web_settings);
 
-  if (dom_settings->network_module() && dom_settings->network_module()) {
-    dial_service_proxy_ = dom_settings->network_module()->dial_service_proxy();
+  if (web_settings && web_settings->context()->network_module()) {
+    dial_service_proxy_ =
+        web_settings->context()->network_module()->dial_service_proxy();
   }
   if (dial_service_proxy_) {
     DLOG(INFO) << "DialServer running at: "

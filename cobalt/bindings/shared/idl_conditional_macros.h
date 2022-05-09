@@ -23,12 +23,9 @@
 // Conditionals that are dependent on Starboard feature macros that get defined
 // in header files.
 
-#if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
 // This is used to conditionally define the On Screen Keyboard interface and
 // attribute.
 #define COBALT_ENABLE_ON_SCREEN_KEYBOARD
-#endif  // SB_API_VERSION >= 12 ||
-        // SB_HAS(ON_SCREEN_KEYBOARD)
 
 // This is used to conditionally define setMaxVideoCapabilities() in
 // HTMLVideoElement.

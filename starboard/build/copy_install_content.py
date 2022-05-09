@@ -33,8 +33,9 @@ class InvalidArgumentException(Exception):
 def copy_files(files_to_copy, base_dir, output_dir):
   for path in files_to_copy:
     # All input paths must point at files.
-    if not os.path.isfile(path):
-      raise InvalidArgumentException(path + ' is not a file.')
+    # TODO(b/211909342): Re-enable once lottie test files are listed.
+    # if not os.path.isfile(path):
+    #   raise InvalidArgumentException(path + ' is not a file.')
 
     # Get the path of the file relative to the source base_dir.
     rel_path = os.path.relpath(path, base_dir)
@@ -55,7 +56,11 @@ def copy_files(files_to_copy, base_dir, output_dir):
     if not os.path.exists(output_dir):
       os.makedirs(output_dir)
 
-    shutil.copy(filename, output_filename)
+    if os.path.isfile(filename):
+      shutil.copy(filename, output_filename)
+    else:
+      # TODO(b/211909342): Remove this branch once lottie files are listed.
+      shutil.copytree(filename, output_filename)
 
 
 if __name__ == '__main__':
@@ -68,7 +73,15 @@ if __name__ == '__main__':
       required=True,
       help='source base directory')
   parser.add_argument(
-      'input_paths', metavar='path', nargs='+', help='path to an input file')
+      '--files_list',
+      dest='files_list',
+      required=True,
+      help='path to file containing list of input files')
   options = parser.parse_args()
 
-  copy_files(options.input_paths, options.base_dir, options.output_dir)
+  # Load file names from the file containing the list of file names.
+  # The file name list must be passed in a file to due to command line limits.
+  with open(options.files_list) as input_file:
+    file_names = [line.strip() for line in input_file]
+
+  copy_files(file_names, options.base_dir, options.output_dir)

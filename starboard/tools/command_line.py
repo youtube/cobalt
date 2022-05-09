@@ -16,11 +16,10 @@
 """Adds common command-line arguments to a provided argument parser."""
 
 import argparse
-import _env  # pylint: disable=unused-import
+from starboard.build.platforms import PLATFORMS
 from starboard.tools import build
 from starboard.tools import params
 import starboard.tools.config
-import starboard.tools.platform
 
 
 def AddLoggingArguments(arg_parser, default='info'):
@@ -46,11 +45,11 @@ def AddPlatformConfigArguments(arg_parser):
   arg_parser.add_argument(
       '-p',
       '--platform',
-      choices=starboard.tools.platform.GetAll(),
+      choices=list(PLATFORMS.keys()),
       default=default_platform,
       required=not default_platform,
       help="Device platform, eg 'linux-x64x11'. Requires that you have "
-      'already run gyp_cobalt for the desired platform.')
+      'already run gn.py for the desired platform.')
   arg_parser.add_argument(
       '-c',
       '--config',
@@ -65,7 +64,7 @@ def AddPlatformConfigArguments(arg_parser):
       help='Specifies the platform to build the loader with. This flag is only '
       'relevant for Evergreen builds, and should be the platform you intend to '
       "run your tests on (eg 'linux-x64x11', or 'raspi-2'). Requires that "
-      '--loader_config be given, and that you have already run gyp_cobalt for '
+      '--loader_config be given, and that you have already run gn.py for '
       'the desired loader platform.')
   arg_parser.add_argument(
       '-C',
@@ -77,7 +76,10 @@ def AddPlatformConfigArguments(arg_parser):
 
 
 def AddLauncherArguments(arg_parser):
-  """Adds the platform configuration and device information arguments require by launchers."""
+  """
+  Adds the platform configuration and device information arguments require by
+  launchers.
+  """
   AddPlatformConfigArguments(arg_parser)
   arg_parser.add_argument(
       '-d', '--device_id', help='Devkit or IP address for the target device.')

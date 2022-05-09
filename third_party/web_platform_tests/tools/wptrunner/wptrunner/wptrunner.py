@@ -94,7 +94,7 @@ def list_disabled(test_paths, product, **kwargs):
     run_info, test_loader = get_loader(test_paths, product, ssl_env,
                                        run_info_extras=run_info_extras, **kwargs)
 
-    for test_type, tests in test_loader.disabled_tests.iteritems():
+    for test_type, tests in test_loader.disabled_tests.items():
         for test in tests:
             rv.append({"test": test.id, "reason": test.disabled()})
     print json.dumps(rv, indent=2)
@@ -117,7 +117,7 @@ def list_tests(test_paths, product, **kwargs):
 
 
 def get_pause_after_test(test_loader, **kwargs):
-    total_tests = sum(len(item) for item in test_loader.tests.itervalues())
+    total_tests = sum(len(item) for item in test_loader.tests.values())
     if kwargs["pause_after_test"] is None:
         if kwargs["repeat_until_unexpected"]:
             return False

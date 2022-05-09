@@ -29,7 +29,6 @@
 #include "cobalt/dom/camera_3d.h"
 #include "cobalt/dom/device_orientation_event.h"
 #include "cobalt/dom/document.h"
-#include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/element.h"
 #include "cobalt/dom/error_event.h"
 #include "cobalt/dom/error_event_init.h"
@@ -56,6 +55,8 @@
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/speech/speech_synthesis.h"
+#include "cobalt/web/context.h"
+#include "cobalt/web/environment_settings.h"
 #include "starboard/file.h"
 
 using cobalt::cssom::ViewportSize;
@@ -112,8 +113,7 @@ Window::Window(
     csp::CSPHeaderPolicy require_csp, CspEnforcementType csp_enforcement_mode,
     const base::Closure& csp_policy_changed_callback,
     const base::Closure& ran_animation_frame_callbacks_callback,
-    const CloseCallback& window_close_callback,
-    const base::Closure& window_minimize_callback,
+    CloseCallback window_close_callback, base::Closure window_minimize_callback,
     OnScreenKeyboardBridge* on_screen_keyboard_bridge,
     const scoped_refptr<input::Camera3D>& camera_3d,
     const OnStartDispatchEventCallback& on_start_dispatch_event_callback,
@@ -216,7 +216,7 @@ void Window::StartDocumentLoad(
     const loader::Decoder::OnCompleteFunction& load_complete_callback) {
   document_loader_.reset(new loader::Loader(
       base::Bind(&loader::FetcherFactory::CreateFetcher,
-                 base::Unretained(fetcher_factory), url),
+                 base::Unretained(fetcher_factory), url, disk_cache::kHTML),
       base::Bind(&Parser::ParseDocumentAsync, base::Unretained(dom_parser),
                  document_, base::SourceLocation(url.spec(), 1, 1)),
       load_complete_callback));
@@ -466,9 +466,10 @@ const scoped_refptr<TestRunner>& Window::test_runner() const {
 
 void Window::Gc(script::EnvironmentSettings* settings) {
   if (settings) {
-    DOMSettings* dom_settings =
-        base::polymorphic_downcast<dom::DOMSettings*>(settings);
-    dom_settings->javascript_engine()->CollectGarbage();
+    base::polymorphic_downcast<web::EnvironmentSettings*>(settings)
+        ->context()
+        ->javascript_engine()
+        ->CollectGarbage();
   }
 }
 
@@ -507,7 +508,7 @@ bool Window::HasPendingAnimationFrameCallbacks() const {
 
 void Window::InjectEvent(const scoped_refptr<Event>& event) {
   TRACE_EVENT1("cobalt::dom", "Window::InjectEvent()", "event",
-               event->type().c_str());
+               TRACE_STR_COPY(event->type().c_str()));
 
   // Forward the event on to the correct object in DOM.
   if (event->GetWrappableType() == base::GetTypeId<KeyboardEvent>()) {

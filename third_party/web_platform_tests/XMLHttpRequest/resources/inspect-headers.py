@@ -11,7 +11,7 @@ def main(request, response):
     filter_name = request.GET.first("filter_name", "").lower()
 
     result = ""
-    for name, value in request.headers.iteritems():
+    for name, value in request.headers.items():
         if filter_value:
             if value == filter_value:
                 result += name.lower() + ","

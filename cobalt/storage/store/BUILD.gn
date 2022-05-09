@@ -46,6 +46,4 @@ target(gtest_target_type, "memory_store_test") {
     "//third_party/protobuf:protobuf_lite",
     "//url",
   ]
-
-  content_deps = [ "//third_party/icu:icudata" ]
 }

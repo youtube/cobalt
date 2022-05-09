@@ -14,10 +14,6 @@
 
 #include "starboard/socket.h"
 
-#if SB_API_VERSION >= 12
-
 bool SbSocketIsIpv6Supported() {
   return SB_HAS_IPV6;
 }
-
-#endif

@@ -150,7 +150,6 @@ source_set("starboard_headers_only") {
     "string.h",
     "system.h",
     "thread.h",
-    "thread_types.h",
     "time.h",
     "time_zone.h",
     "types.h",
@@ -175,7 +174,5 @@ if (platform_tests_path == "") {
       ":starboard",
       "//testing/gmock",
     ]
-
-    content_deps = [ "//third_party/icu:icudata" ]
   }
 }

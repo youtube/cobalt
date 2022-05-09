@@ -14,11 +14,6 @@
 
 #include "starboard/microphone.h"
 
-#if SB_API_VERSION < 12 && !SB_HAS(MICROPHONE)
-#error "SB_HAS_MICROPHONE must be set to build this file before Starboard API \
-version 12."
-#endif
-
 bool SbMicrophoneClose(SbMicrophone microphone) {
   return false;
 }

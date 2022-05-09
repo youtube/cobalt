@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<!--
+  Copyright 2022 The Cobalt Authors. All Rights Reserved.
+
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+-->
+<!--
+  Note: This is a very basic test of the existing minimal Service Worker
+  functionality. This can be expanded as more functionality is implemented.
+-->
+
+<head>
+    <title>Cobalt Service Worker Test</title>
+    <script src='black_box_js_test_utils.js'></script>
+</head>
+
+<body>
+    <script>
+        var message_event_count = 0;
+        console.log('running');
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('..:..')
+                .then(function (registration) {
+                    notReached();
+                }, function (error) {
+                    console.log(`(Expected) Test invalid script URL: ${error}`);
+                    assertEqual("TypeError", `${error}`);
+                    message_event_count += 1;
+                });
+            navigator.serviceWorker.register('arg:service_worker_test.js')
+                .then(function (registration) {
+                    notReached();
+                }, function (error) {
+                    console.log(`(Expected) Test script URL that is not http or https: ${error}`);
+                    assertEqual("TypeError", `${error}`);
+                    message_event_count += 1;
+                });
+            navigator.serviceWorker.register('http:%2fservice_worker_test.js')
+                .then(function (registration) {
+                    notReached();
+                }, function (error) {
+                    console.log(`(Expected) Test script URL with escaped slash: ${error}`);
+                    assertEqual("TypeError", `${error}`);
+                    message_event_count += 1;
+                });
+            navigator.serviceWorker.register('service_worker_test.js', {
+                scope: '..:..',
+            })
+                .then(function (registration) {
+                    notReached();
+                }, function (error) {
+                    console.log(`(Expected) Test invalid scope URL: ${error}`);
+                    assertEqual("TypeError", `${error}`);
+                    message_event_count += 1;
+                });
+            navigator.serviceWorker.register('service_worker_test.js', {
+                scope: 'arg:/',
+            })
+                .then(function (registration) {
+                    notReached();
+                }, function (error) {
+                    console.log(`(Expected) Test scope URL that is not http or https: ${error}`);
+                    assertEqual("TypeError", `${error}`);
+                    message_event_count += 1;
+                });
+            navigator.serviceWorker.register('service_worker_test.js', {
+                scope: '/%5c',
+            })
+                .then(function (registration) {
+                    notReached();
+                }, function (error) {
+                    console.log(`(Expected) Test scope URL with escaped slash: ${error}`);
+                    assertEqual("TypeError", `${error}`);
+                    message_event_count += 1;
+                });
+            // Repeat a few times to test the 'equivalent job' and finish job logic.
+            for (let repeated = 0; repeated < 15; repeated++) {
+                navigator.serviceWorker.register('http://www.example.com/', {
+                    scope: '/',
+                })
+                    .then(function (registration) {
+                        notReached();
+                    }, function (error) {
+                        console.log(`(Expected) Test Script URL is not trusted: ${error}`);
+                        assertEqual("SecurityError: Service Worker Register failed: Script URL is Not Trusted.", `${error}`);
+                        message_event_count += 1;
+                    });
+            }
+        }
+        navigator.serviceWorker.register('http://127.0.0.100:2345/')
+            .then(function (registration) {
+                notReached();
+            }, function (error) {
+                console.log(`(Expected) Test script URL with different origin: ${error}`);
+                assertEqual("SecurityError: Service Worker Register failed: Script URL and referrer origin are not the same.", `${error}`);
+                message_event_count += 1;
+            });
+
+        navigator.serviceWorker.register('service_worker_test.js', {
+            scope: 'http://127.0.0.100:2345/',
+        })
+            .then(function (registration) {
+                notReached();
+            }, function (error) {
+                console.log(`(Expected) Test scope URL with different origin: ${error}`);
+                assertEqual("SecurityError: Service Worker Register failed: Scope URL and referrer origin are not the same.", `${error}`);
+                message_event_count += 1;
+            });
+
+        // Finally, test a succeeding registration.
+        navigator.serviceWorker.register('service_worker_test.js', {
+            scope: '/registration/scope',
+        })
+            .then(function (registration) {
+                console.log(`(Expected) Registration Succeeded: ${registration}`);
+                assertNotEqual(null, registration);
+                assertEqual(null, registration.installing);
+                assertEqual(null, registration.waiting);
+                assertEqual(null, registration.active);
+
+                // The default value for RegistrationOptions.type is 'imports'.
+                assertEqual('imports', registration.updateViaCache);
+                assertTrue(registration.scope.endsWith('/registration/scope'));
+                message_event_count += 1;
+            }, function (error) {
+                notReached();
+            });
+
+        window.setTimeout(
+            () => {
+                assertEqual(24, message_event_count);
+                console.log("Events: ", message_event_count)
+                onEndTest();
+            }, 500);
+
+        console.log('end');
+    </script>
+</body>

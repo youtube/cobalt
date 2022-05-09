@@ -48,30 +48,36 @@ const char* GetCobaltUserAgentStringFake() {
 
 class MockLibraryLoader : public LibraryLoader {
  public:
-  MOCK_METHOD2(Load,
+  MOCK_METHOD4(Load,
                bool(const std::string& library_path,
-                    const std::string& content_path));
+                    const std::string& content_path,
+                    bool use_compression,
+                    bool use_memory_mapped_file));
   MOCK_METHOD1(Resolve, void*(const std::string& symbol));
 };
 
-class SlotManagementTest : public testing::Test {
+class SlotManagementTest : public testing::TestWithParam<bool> {
  protected:
   virtual void SetUp() {
     slot_0_libcobalt_path_ =
-        CreatePath({"content", "app", "cobalt", "lib", "libcobalt.so.lz4"});
+        CreatePath({"content", "app", "cobalt", "lib", "libcobalt"});
     slot_0_content_path_ = CreatePath({"content", "app", "cobalt", "content"});
-
-    slot_1_libcobalt_path_ =
-        CreatePath({"installation_1", "lib", "libcobalt.so.lz4"});
+    slot_1_libcobalt_path_ = CreatePath({"installation_1", "lib", "libcobalt"});
     slot_1_content_path_ = CreatePath({"installation_1", "content"});
-
-    slot_2_libcobalt_path_ =
-        CreatePath({"installation_2", "lib", "libcobalt.so.lz4"});
+    slot_2_libcobalt_path_ = CreatePath({"installation_2", "lib", "libcobalt"});
     slot_2_content_path_ = CreatePath({"installation_2", "content"});
 
     std::vector<char> buf(kSbFileMaxPath);
     storage_path_implemented_ = SbSystemGetPath(kSbSystemPathStorageDirectory,
                                                 buf.data(), kSbFileMaxPath);
+  }
+
+  void AddFileExtension(std::string& path) {
+    if (GetParam()) {
+      path += ".lz4";
+    } else {
+      path += ".so";
+    }
   }
 
   std::string CreatePath(std::initializer_list<std::string> path_elements) {
@@ -135,10 +141,14 @@ class SlotManagementTest : public testing::Test {
   }
 
   void VerifyLoad(const std::string& lib, const std::string& content) {
+    bool use_compression = GetParam();
     MockLibraryLoader library_loader;
 
+    std::string full_lib_path = lib;
+    AddFileExtension(full_lib_path);
     EXPECT_CALL(library_loader,
-                Load(testing::EndsWith(lib), testing::EndsWith(content)))
+                Load(testing::EndsWith(full_lib_path),
+                     testing::EndsWith(content), use_compression, false))
         .Times(1)
         .WillOnce(testing::Return(true));
     EXPECT_CALL(library_loader, Resolve("GetEvergreenSabiString"))
@@ -153,7 +163,8 @@ class SlotManagementTest : public testing::Test {
         .Times(1)
         .WillOnce(testing::Return(reinterpret_cast<void*>(&SbEventFake)));
     ASSERT_EQ(&SbEventFake,
-              LoadSlotManagedLibrary(kTestAppKey, "", &library_loader));
+              LoadSlotManagedLibrary(kTestAppKey, "", &library_loader,
+                                     use_compression, false));
   }
 
  protected:
@@ -166,7 +177,7 @@ class SlotManagementTest : public testing::Test {
   bool storage_path_implemented_;
 };
 
-TEST_F(SlotManagementTest, SystemSlot) {
+TEST_P(SlotManagementTest, SystemSlot) {
   if (!storage_path_implemented_) {
     return;
   }
@@ -178,7 +189,7 @@ TEST_F(SlotManagementTest, SystemSlot) {
   VerifyBadFile(0, kTestAppKey, false);
 }
 
-TEST_F(SlotManagementTest, AdoptSlot) {
+TEST_P(SlotManagementTest, AdoptSlot) {
   if (!storage_path_implemented_) {
     return;
   }
@@ -196,7 +207,7 @@ TEST_F(SlotManagementTest, AdoptSlot) {
   VerifyBadFile(1, kTestAppKey, false);
 }
 
-TEST_F(SlotManagementTest, GoodSlot) {
+TEST_P(SlotManagementTest, GoodSlot) {
   if (!storage_path_implemented_) {
     return;
   }
@@ -213,7 +224,7 @@ TEST_F(SlotManagementTest, GoodSlot) {
   VerifyBadFile(2, kTestAppKey, false);
 }
 
-TEST_F(SlotManagementTest, NotAdoptSlot) {
+TEST_P(SlotManagementTest, NotAdoptSlot) {
   if (!storage_path_implemented_) {
     return;
   }
@@ -230,7 +241,7 @@ TEST_F(SlotManagementTest, NotAdoptSlot) {
   VerifyBadFile(2, kTestAppKey, true);
 }
 
-TEST_F(SlotManagementTest, BadSlot) {
+TEST_P(SlotManagementTest, BadSlot) {
   if (!storage_path_implemented_) {
     return;
   }
@@ -245,7 +256,7 @@ TEST_F(SlotManagementTest, BadSlot) {
   VerifyGoodFile(1, kTestAppKey, false);
 }
 
-TEST_F(SlotManagementTest, DrainingSlot) {
+TEST_P(SlotManagementTest, DrainingSlot) {
   if (!storage_path_implemented_) {
     return;
   }
@@ -258,10 +269,10 @@ TEST_F(SlotManagementTest, DrainingSlot) {
   ImUninitialize();
   VerifyLoad(slot_0_libcobalt_path_, slot_0_content_path_);
   VerifyGoodFile(1, kTestAppKey, false);
-  VerifyBadFile(1, kTestAppKey, true);
+  VerifyBadFile(1, kTestAppKey, false);
 }
 
-TEST_F(SlotManagementTest, AlternativeContent) {
+TEST_P(SlotManagementTest, AlternativeContent) {
   if (!storage_path_implemented_) {
     return;
   }
@@ -274,8 +285,11 @@ TEST_F(SlotManagementTest, AlternativeContent) {
 
   MockLibraryLoader library_loader;
 
-  EXPECT_CALL(library_loader, Load(testing::EndsWith(slot_0_libcobalt_path_),
-                                   testing::EndsWith("/foo")))
+  std::string full_lib_path = slot_0_libcobalt_path_;
+  AddFileExtension(full_lib_path);
+  EXPECT_CALL(library_loader,
+              Load(testing::EndsWith(full_lib_path), testing::EndsWith("/foo"),
+                   GetParam(), false))
       .Times(1)
       .WillOnce(testing::Return(true));
   EXPECT_CALL(library_loader, Resolve("GetEvergreenSabiString"))
@@ -291,10 +305,11 @@ TEST_F(SlotManagementTest, AlternativeContent) {
       .Times(1)
       .WillOnce(testing::Return(reinterpret_cast<void*>(&SbEventFake)));
   ASSERT_EQ(&SbEventFake,
-            LoadSlotManagedLibrary(kTestAppKey, "/foo", &library_loader));
+            LoadSlotManagedLibrary(kTestAppKey, "/foo", &library_loader,
+                                   GetParam(), false));
 }
 
-TEST_F(SlotManagementTest, BadSabi) {
+TEST_P(SlotManagementTest, BadSabi) {
   if (!storage_path_implemented_) {
     return;
   }
@@ -314,8 +329,11 @@ TEST_F(SlotManagementTest, BadSabi) {
 
   MockLibraryLoader library_loader;
 
-  EXPECT_CALL(library_loader, Load(testing::EndsWith(slot_2_libcobalt_path_),
-                                   testing::EndsWith(slot_2_content_path_)))
+  std::string slot2_libcobalt_full = slot_2_libcobalt_path_;
+  AddFileExtension(slot2_libcobalt_full);
+  EXPECT_CALL(library_loader,
+              Load(testing::EndsWith(slot2_libcobalt_full),
+                   testing::EndsWith(slot_2_content_path_), GetParam(), false))
       .Times(1)
       .WillOnce(testing::Return(true));
 
@@ -326,8 +344,11 @@ TEST_F(SlotManagementTest, BadSabi) {
       .WillOnce(
           testing::Return(reinterpret_cast<void*>(&GetEvergreenSabiString)));
 
-  EXPECT_CALL(library_loader, Load(testing::EndsWith(slot_1_libcobalt_path_),
-                                   testing::EndsWith(slot_1_content_path_)))
+  std::string slot1_libcobalt_full = slot_1_libcobalt_path_;
+  AddFileExtension(slot1_libcobalt_full);
+  EXPECT_CALL(library_loader,
+              Load(testing::EndsWith(slot1_libcobalt_full),
+                   testing::EndsWith(slot_1_content_path_), GetParam(), false))
       .Times(1)
       .WillOnce(testing::Return(true));
 
@@ -341,8 +362,13 @@ TEST_F(SlotManagementTest, BadSabi) {
       .WillOnce(testing::Return(reinterpret_cast<void*>(&SbEventFake)));
 
   ASSERT_EQ(&SbEventFake,
-            LoadSlotManagedLibrary(kTestAppKey, "", &library_loader));
+            LoadSlotManagedLibrary(kTestAppKey, "", &library_loader, GetParam(),
+                                   false));
 }
+
+INSTANTIATE_TEST_CASE_P(SlotManagementTests,
+                        SlotManagementTest,
+                        ::testing::Bool());
 
 }  // namespace
 }  // namespace loader_app

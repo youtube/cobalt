@@ -39,7 +39,7 @@ device. The package being built here is referred to as CoAT (Cobalt on Android T
     ```
 
 1.  Download and install [Android Studio](https://developer.android.com/studio/).
-1.  Run `cobalt/build/gyp_cobalt android-x86` to configure the Cobalt build,
+1.  Run `cobalt/build/gn.py -p android-x86` to configure the Cobalt build,
     which also installs the SDK and NDK. (This step will have to be repeated
     with 'android-arm' or 'android-arm64' to target those architectures.) The
     SDK and NDK will be downloaded and installed into a `starboard-toolchains`
@@ -77,7 +77,7 @@ Go ahead and click 'yes' to open the SDK manager to install the following:
     *   Edit "Android SDK location" and set the path to:
     `$HOME/starboard-toolchains/AndroidSdk`
       *  NOTE: We use the same SDK for the IDE and the gyp/ninja build. This
-         directory will already exist since you've already run gyp_cobalt for an
+         directory will already exist since you've already run gn gen for an
          android target, so you'll see a warning in the setup wizard that an SDK
          was detected, which is okay.
         *  Select both `Android SDK` and `Android SDK Platform` (whatever
@@ -180,7 +180,7 @@ Go ahead and click 'yes' to open the SDK manager to install the following:
 
 ## Building/running/debugging (Android Studio IDE)
 
-1.  Manually run `cobalt/build/gyp_cobalt android-x86` in a shell. (You should
+1.  Manually run `cobalt/build/gn.py -p android-x86` in a shell. (You should
     do this after each time you sync your repo)
 1.  From the initial setup above, you should have opened the Android Studio
     project checked in at `starboard/android/apk`.

@@ -14,21 +14,18 @@
 
 #include "cobalt/browser/on_screen_keyboard_starboard_bridge.h"
 
+#include <memory>
+
 #include "base/bind.h"
 #include "base/callback.h"
 
 #include "starboard/event.h"
 
-#if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
 namespace cobalt {
 namespace browser {
 // static
 bool OnScreenKeyboardStarboardBridge::IsSupported() {
-#if SB_API_VERSION >= 12
   return SbWindowOnScreenKeyboardIsSupported();
-#else
-  return true;
-#endif
 }
 
 void OnScreenKeyboardStarboardBridge::Show(const char* input_text, int ticket) {
@@ -71,13 +68,13 @@ bool OnScreenKeyboardStarboardBridge::IsShown() const {
 }
 
 bool OnScreenKeyboardStarboardBridge::SuggestionsSupported() const {
-// Delay providing the SbWindow until as late as possible.
+  // Delay providing the SbWindow until as late as possible.
   return SbWindowOnScreenKeyboardSuggestionsSupported(
       sb_window_provider_.Run());
 }
 
-scoped_refptr<dom::DOMRect>
-OnScreenKeyboardStarboardBridge::BoundingRect() const {
+scoped_refptr<dom::DOMRect> OnScreenKeyboardStarboardBridge::BoundingRect()
+    const {
   // Delay providing the SbWindow until as late as possible.
   SbWindowRect sb_window_rect = SbWindowRect();
   if (!SbWindowGetOnScreenKeyboardBoundingRect(sb_window_provider_.Run(),
@@ -101,5 +98,3 @@ void OnScreenKeyboardStarboardBridge::SetKeepFocus(bool keep_focus) {
 }
 }  // namespace browser
 }  // namespace cobalt
-#endif  // SB_API_VERSION >= 12 ||
-        // SB_HAS(ON_SCREEN_KEYBOARD)

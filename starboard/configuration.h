@@ -35,7 +35,7 @@
 
 // The minimum API version allowed by this version of the Starboard headers,
 // inclusive.
-#define SB_MINIMUM_API_VERSION 11
+#define SB_MINIMUM_API_VERSION 12
 
 // The maximum API version allowed by this version of the Starboard headers,
 // inclusive.
@@ -64,6 +64,16 @@
 //   //   Add a function, `SbMyNewFeature()` to `starboard/feature.h` which
 //   //   exposes functionality for my new feature.
 //   #define SB_MY_EXPERIMENTAL_FEATURE_VERSION SB_EXPERIMENTAL_API_VERSION
+
+// Introduce a new format kSbDecodeTargetFormat3Plane10BitYUVI420Compact.
+//   A decoder target format consisting of 10bit Y, U, and V planes.
+#define SB_DECODE_TARGET_FORMAT_YUVI420_COMPACT_API_VERSION \
+  SB_EXPERIMENTAL_API_VERSION
+
+#define SB_SYSTEM_PATH_TEST_OUTPUT_DIRECTORY_DEPRECATED \
+  SB_EXPERIMENTAL_API_VERSION
+
+#define SB_SYSTEM_DEVICE_PROJECTOR_ADDED SB_EXPERIMENTAL_API_VERSION
 
 // --- Release Candidate Feature Defines -------------------------------------
 
@@ -163,18 +173,10 @@ struct CompileAssert {};
 
 // --- Platform Configuration ------------------------------------------------
 
-// Include the platform-specific configuration. This macro is set by GYP in
-// starboard_base_target.gypi and passed in on the command line for all targets
-// and all configurations.
+// Include the platform-specific configuration. This macro is set by GN in
+// starboard/build/config/BUILD.gn and passed in on the command line for all
+// targets and all configurations.
 #include STARBOARD_CONFIGURATION_INCLUDE
-
-#if SB_API_VERSION < 12
-// After version 12, we start to use runtime constants
-// instead of macros for certain platform dependent configurations. This file
-// substitutes configuration macros for the corresponding runtime constants so
-// we don't reference these constants when they aren't defined.
-#include "starboard/shared/starboard/configuration_constants_compatibility_defines.h"
-#endif  // SB_API_VERSION < 12
 
 // --- Overridable Helper Macros ---------------------------------------------
 
@@ -375,49 +377,10 @@ struct CompileAssert {};
 #error "Your platform must be exactly one of { 32-bit, 64-bit }."
 #endif
 
-#if SB_API_VERSION >= 12
-
 #if !SB_IS(BIG_ENDIAN) && !SB_IS(LITTLE_ENDIAN) || \
     (SB_IS(BIG_ENDIAN) == SB_IS(LITTLE_ENDIAN))
 #error "Your platform's endianness must be defined as big or little."
 #endif
-
-#else  // SB_API_VERSION < 12
-
-#if SB_IS(ARCH_X86) && SB_IS(64_BIT)
-#undef SB_IS_ARCH_X86
-#define SB_IS_ARCH_X64 1
-#endif  // SB_IS(ARCH_X86) && SB_IS(64_BIT)
-
-#if SB_IS(ARCH_ARM) && SB_IS(64_BIT)
-#undef SB_IS_ARCH_ARM
-#define SB_IS_ARCH_ARM64 1
-#endif  // SB_IS(ARCH_ARM) && SB_IS(64_BIT)
-
-#if SB_HAS(32_BIT_LONG)
-#define SB_SIZE_OF_LONG 4
-#elif SB_HAS(64_BIT_LONG)
-#define SB_SIZE_OF_LONG 8
-#endif  // SB_HAS(32_BIT_LONG)
-
-#if SB_HAS(32_BIT_POINTERS)
-#define SB_SIZE_OF_POINTER 4
-#elif SB_HAS(64_BIT_POINTERS)
-#define SB_SIZE_OF_POINTER 8
-#endif  // SB_HAS(32_BIT_POINTER)
-
-SB_COMPILE_ASSERT(sizeof(long) == SB_SIZE_OF_LONG,  // NOLINT(runtime/int)
-                  SB_SIZE_OF_LONG_is_inconsistent_with_sizeof_long);
-
-#if !defined(SB_IS_BIG_ENDIAN)
-#error "Your platform must define SB_IS_BIG_ENDIAN."
-#endif
-
-#if defined(SB_IS_LITTLE_ENDIAN)
-#error "SB_IS_LITTLE_ENDIAN is set based on SB_IS_BIG_ENDIAN."
-#endif
-
-#endif  // SB_API_VERSION >= 12
 
 #if (SB_SIZE_OF(POINTER) != 4) && (SB_SIZE_OF(POINTER) != 8)
 #error "Your platform's pointer sizes must be either 32 bit or 64 bit."
@@ -472,8 +435,6 @@ SB_COMPILE_ASSERT(sizeof(long) == SB_SIZE_OF_LONG,  // NOLINT(runtime/int)
 #endif
 
 #endif  // !SB_HAS(STD_UNORDERED_HASH)
-
-#if SB_API_VERSION >= 12
 
 #if defined(SB_DEFAULT_MMAP_THRESHOLD)
 #error \
@@ -664,94 +625,6 @@ SB_COMPILE_ASSERT(sizeof(long) == SB_SIZE_OF_LONG,  // NOLINT(runtime/int)
 "starboard/<PLATFORM_PATH>/configuration_constants.cc."
 #endif
 
-#else  // SB_API_VERSION >= 12
-
-#if !defined(SB_FILE_MAX_NAME) || SB_FILE_MAX_NAME < 2
-#error "Your platform must define SB_FILE_MAX_NAME > 1."
-#endif
-
-#if !defined(SB_FILE_MAX_PATH) || SB_FILE_MAX_PATH < 2
-#error "Your platform must define SB_FILE_MAX_PATH > 1."
-#endif
-
-#if !defined(SB_HAS_AC3_AUDIO)
-#define SB_HAS_AC3_AUDIO 1
-#elif !SB_HAS(AC3_AUDIO)
-#error "SB_HAS_AC3_AUDIO is required in this API version."
-#endif
-
-#if SB_API_VERSION >= 12
-#if defined(SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING)
-#error "SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING has been deprecated."
-#endif  // defined(SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING)
-#endif
-
-#if !defined(SB_HAS_THREAD_PRIORITY_SUPPORT)
-#error "Your platform must define SB_HAS_THREAD_PRIORITY_SUPPORT."
-#endif
-
-#if !defined(SB_MAX_THREADS)
-#error "Your platform must define SB_MAX_THREADS."
-#endif
-
-#if !defined(SB_MAX_THREAD_LOCAL_KEYS)
-#error "Your platform must define SB_MAX_THREAD_LOCAL_KEYS."
-#endif
-
-#if !defined(SB_FILE_ALT_SEP_CHAR)
-#error "Your platform must define SB_FILE_ALT_SEP_CHAR."
-#endif
-
-#if !defined(SB_FILE_ALT_SEP_STRING)
-#error "Your platform must define SB_FILE_ALT_SEP_STRING."
-#endif
-
-#if !defined(SB_FILE_SEP_CHAR)
-#error "Your platform must define SB_FILE_SEP_CHAR."
-#endif
-
-#if !defined(SB_FILE_SEP_STRING)
-#error "Your platform must define SB_FILE_SEP_STRING."
-#endif
-
-#if !defined(SB_MAX_THREAD_NAME_LENGTH)
-#error "Your platform must define SB_MAX_THREAD_NAME_LENGTH."
-#endif
-
-#if !defined(SB_PATH_SEP_CHAR)
-#error "Your platform must define SB_PATH_SEP_CHAR."
-#endif
-
-#if !defined(SB_PATH_SEP_STRING)
-#error "Your platform must define SB_PATH_SEP_STRING."
-#endif
-
-#if !defined(SB_PREFERRED_RGBA_BYTE_ORDER)
-// Legal values for SB_PREFERRED_RGBA_BYTE_ORDER are defined in this file above
-// as SB_PREFERRED_RGBA_BYTE_ORDER_*.
-// If your platform uses GLES, you should set this to
-// SB_PREFERRED_RGBA_BYTE_ORDER_RGBA.
-#error "Your platform must define SB_PREFERRED_RGBA_BYTE_ORDER."
-#endif
-
-#if SB_PREFERRED_RGBA_BYTE_ORDER != SB_PREFERRED_RGBA_BYTE_ORDER_RGBA && \
-    SB_PREFERRED_RGBA_BYTE_ORDER != SB_PREFERRED_RGBA_BYTE_ORDER_BGRA && \
-    SB_PREFERRED_RGBA_BYTE_ORDER != SB_PREFERRED_RGBA_BYTE_ORDER_ARGB
-#error "SB_PREFERRED_RGBA_BYTE_ORDER has been assigned an invalid value."
-#endif
-
-#endif  // SB_API_VERSION >= 12
-
-#if (SB_API_VERSION < 12 && !defined(SB_HAS_MICROPHONE))
-#error \
-    "Your platform must define SB_HAS_MICROPHONE in API versions 11 or earlier."
-#endif
-
-#if SB_API_VERSION < 12 && !defined(SB_HAS_TIME_THREAD_NOW)
-#error \
-    "Your platform must define SB_HAS_TIME_THREAD_NOW in API versions 3 to 11."
-#endif
-
 #if defined(SB_IS_PLAYER_COMPOSITED) || defined(SB_IS_PLAYER_PUNCHED_OUT) || \
     defined(SB_IS_PLAYER_PRODUCING_TEXTURE)
 #error "New versions of Starboard specify player output mode at runtime."
@@ -765,28 +638,11 @@ SB_COMPILE_ASSERT(sizeof(long) == SB_SIZE_OF_LONG,  // NOLINT(runtime/int)
 #error "Your platform must define SB_HAS_NV12_TEXTURE_SUPPORT."
 #endif
 
-#if SB_API_VERSION >= 12
 #if defined(SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER)
 #error "SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER is deprecated."
 #error "Use `CobaltExtensionGraphicsApi` instead."
 #error "See [`CobaltExtensionGraphicsApi`](../extension/graphics.h)."
 #endif
-#else
-#if !defined(SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER)
-#error "Your platform must define SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER."
-#endif
-#endif
-
-#if SB_API_VERSION >= 12
-#if defined(COBALT_MAX_CPU_USAGE_IN_BYTES)
-#error "|max_cobalt_cpu_usage| is deprecated "
-#error "SbSystemGetTotalCPUMemory() instead."
-#endif
-#if defined(COBALT_MAX_GPU_USAGE_IN_BYTES)
-#error "|max_cobalt_gpu_usage| is deprecated. "
-#error "Implement SbSystemGetTotalGPUMemory() instead."
-#endif
-#endif  // SB_API_VERSION >= 12
 
 #if defined(COBALT_MEDIA_BUFFER_NON_VIDEO_BUDGET)
 #error "COBALT_MEDIA_BUFFER_NON_VIDEO_BUDGET is deprecated."
@@ -883,23 +739,15 @@ SB_COMPILE_ASSERT(sizeof(long) == SB_SIZE_OF_LONG,  // NOLINT(runtime/int)
 #error "SB_HAS_AUDIOLESS_VIDEO is deprecated."
 #endif  // defined(SB_HAS_AUDIOLESS_VIDEO)
 
-#if !defined(SB_HAS_MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
-#define SB_HAS_MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT 1
-#elif !SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
+#if defined(SB_HAS_MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
 #error \
-    "SB_HAS_MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT is required in this API " \
-        "version."
-#endif
+    "SB_HAS_MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT should not be defined for " \
+           "API version >= 12."
+#endif  // defined(SB_HAS_MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
 
 #if defined(SB_HAS_DRM_SESSION_CLOSED)
 #error "SB_HAS_DRM_SESSION_CLOSED should not be defined for API version >= 10."
 #endif  // defined(SB_HAS_DRM_SESSION_CLOSED)
-
-#if SB_API_VERSION < 12
-#if !defined(SB_HAS_ON_SCREEN_KEYBOARD)
-#error "Your platform must define SB_HAS_ON_SCREEN_KEYBOARD."
-#endif  // !defined(SB_HAS_ON_SCREEN_KEYBOARD)
-#endif  // SB_API_VERSION < 12
 
 #if defined(SB_HAS_PLAYER_FILTER_TESTS)
 #error "SB_HAS_PLAYER_FILTER_TESTS should not be defined in API versions >= 10."
@@ -911,49 +759,19 @@ SB_COMPILE_ASSERT(sizeof(long) == SB_SIZE_OF_LONG,  // NOLINT(runtime/int)
        ">= 10."
 #endif  // defined(SB_HAS_PLAYER_ERROR_MESSAGE)
 
-#if SB_API_VERSION >= 12
-#if !defined(SB_HAS_PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
-#define SB_HAS_PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT 1
-#elif !SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+#if defined(SB_HAS_PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 #error \
-    "SB_HAS_PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT is required in" \
-    " this API version."
-#endif
-#endif  // SB_API_VERSION >= 12
+    "SB_HAS_PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT should not be " \
+        "defined in API versions >= 12."
+#endif  // defined(SB_HAS_PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 
-#if SB_API_VERSION >= 12 && SB_HAS_QUIRK(SEEK_TO_KEYFRAME)
+#if SB_HAS_QUIRK(SEEK_TO_KEYFRAME)
 #error \
     "SB_HAS_QUIRK_SEEK_TO_KEYFRAME is deprecated in Starboard 12 or later." \
          " Please see configuration-public.md for more details."
-#endif  // SB_API_VERSION >= 12 && SB_HAS_QUIRK(SEEK_TO_KEYFRAME)
-
-#if SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
-#if !defined(SB_HAS_COMPACT_10BITS_FRAME)
-#define SB_HAS_COMPACT_10BITS_FRAME 1
-#elif !SB_HAS(SB_HAS_COMPACT_10BITS_FRAME)
-#error "SB_HAS_COMPACT_10BITS_FRAME is required in this API version."
-#endif
-#endif  // SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
-#if SB_HAS(SB_HAS_COMPACT_10BITS_FRAME)
-#if SB_API_VERSION < SB_EXPERIMENTAL_API_VERSION
-#error \
-    "SB_HAS(SB_HAS_COMPACT_10BITS_FRAME) requires " \
-     "SB_API_VERSION SB_EXPERIMENTAL_API_VERSION or later."
-#endif  // SB_API_VERSION < SB_EXPERIMENTAL_API_VERSION
-#endif  // SB_HAS(SB_HAS_COMPACT_10BITS_FRAME)
+#endif  // SB_HAS_QUIRK(SEEK_TO_KEYFRAME)
 
 // --- Derived Configuration -------------------------------------------------
-
-#if SB_API_VERSION < 12
-
-// Whether the current platform is little endian.
-#if SB_IS(BIG_ENDIAN)
-#define SB_IS_LITTLE_ENDIAN 0
-#else
-#define SB_IS_LITTLE_ENDIAN 1
-#endif
-
-#endif  // SB_API_VERSION < 12
 
 // Whether the current platform has 64-bit atomic operations.
 #if SB_IS(64_BIT)

@@ -18,20 +18,19 @@
 #include <memory>
 
 #include "base/compiler_specific.h"
-#include "cobalt/media/base/decoder_buffer.h"
-#include "cobalt/media/base/video_decoder_config.h"
-#include "cobalt/media/base/video_resolution.h"
 #include "cobalt/media/decoder_buffer_memory_info.h"
 #include "nb/bidirectional_fit_reuse_allocator.h"
 #include "nb/starboard_memory_allocator.h"
 #include "starboard/atomic.h"
 #include "starboard/common/mutex.h"
 #include "starboard/media.h"
+#include "third_party/chromium/media/base/decoder_buffer.h"
+#include "third_party/chromium/media/base/video_decoder_config.h"
 
 namespace cobalt {
 namespace media {
 
-class DecoderBufferAllocator : public DecoderBuffer::Allocator,
+class DecoderBufferAllocator : public ::media::DecoderBuffer::Allocator,
                                public DecoderBufferMemoryInfo {
  public:
   DecoderBufferAllocator();
@@ -40,13 +39,16 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
   void Suspend();
   void Resume();
 
-  Allocations Allocate(size_t size, size_t alignment,
-                       intptr_t context) override;
-  void Free(Allocations allocations) override;
-  void UpdateVideoConfig(const VideoDecoderConfig& video_config) override;
+  // DecoderBuffer::Allocator methods.
+  void* Allocate(size_t size, size_t alignment) override;
+  void Free(void* p, size_t size) override;
+
+  // DecoderBufferMemoryInfo methods.
   size_t GetAllocatedMemory() const override;
   size_t GetCurrentMemoryCapacity() const override;
   size_t GetMaximumMemoryCapacity() const override;
+
+  void UpdateVideoConfig(const ::media::VideoDecoderConfig& video_config);
 
  private:
   void CreateReuseAllocator(int max_capacity);

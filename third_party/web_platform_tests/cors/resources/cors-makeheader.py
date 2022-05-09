@@ -50,7 +50,7 @@ def main(request, response):
             response.headers.set("Location", request.GET.first('location'))
 
     headers = {}
-    for name, values in request.headers.iteritems():
+    for name, values in request.headers.items():
         if len(values) == 1:
             headers[name] = values[0]
         else:

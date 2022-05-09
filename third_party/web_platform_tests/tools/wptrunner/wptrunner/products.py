@@ -44,7 +44,7 @@ def load_product(config, product):
                        if "run_info_extras" in data else lambda **kwargs:{})
 
     executor_classes = {}
-    for test_type, cls_name in data["executor"].iteritems():
+    for test_type, cls_name in data["executor"].items():
         cls = getattr(module, cls_name)
         executor_classes[test_type] = cls
 

@@ -179,7 +179,6 @@ class EventTarget : public script::Wrappable,
   }
 
   const EventListenerScriptValue* onload() {
-    DLOG(INFO) << "onload called";
     return GetAttributeEventListener(base::Tokens::load());
   }
   void set_onload(const EventListenerScriptValue& event_listener) {
@@ -358,7 +357,6 @@ class EventTarget : public script::Wrappable,
   }
 
   const EventListenerScriptValue* onprogress() {
-    DLOG(INFO) << "onprogress called";
     return GetAttributeEventListener(base::Tokens::progress());
   }
   void set_onprogress(const EventListenerScriptValue& event_listener) {
@@ -483,7 +481,12 @@ class EventTarget : public script::Wrappable,
   DEFINE_WRAPPABLE_TYPE(EventTarget);
   void TraceMembers(script::Tracer* tracer) override;
 
-  const base::DebuggerHooks& debugger_hooks() { return debugger_hooks_; }
+  const base::DebuggerHooks& debugger_hooks() const {
+    return environment_settings_->debugger_hooks();
+  }
+  script::EnvironmentSettings* environment_settings() const {
+    return environment_settings_;
+  }
 
  private:
   typedef std::vector<std::unique_ptr<EventTargetListenerInfo>>
@@ -499,7 +502,7 @@ class EventTarget : public script::Wrappable,
 
   EventListenerInfos event_listener_infos_;
 
-  const base::DebuggerHooks& debugger_hooks_;
+  script::EnvironmentSettings* environment_settings_;
 
   // Tracks whether this current event listener should unpack the onerror
   // event object when calling its callback.  This is needed to implement

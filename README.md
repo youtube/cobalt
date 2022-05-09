@@ -50,7 +50,7 @@ Chromium, FireFox, and IE:
     writable pages are not executable is a strong security protocol that can
     prevent a wide spectrum of attacks. But, as a side effect, this also means
     no ability to JIT.
-  * **Heterogenous Development Environments.** This is slowly evening out, but
+  * **Heterogeneous Development Environments.** This is slowly evening out, but
     all CE devices run on custom hardware, often with proprietary methods of
     building, packaging, deploying, and running programs. Almost all CE devices
     have ARM processors instead of the more familiar x86. Sometimes the
@@ -141,7 +141,7 @@ Cobalt.
 All source locations are specified relative to `src/` (this directory).
 
   * `base/` - Chromium's Base library. Contains common utilities, and a light
-    platform abstraction, which has been superceded in Cobalt by Starboard.
+    platform abstraction, which has been superseded in Cobalt by Starboard.
   * `net/` - Chromium's Network library. Contains enough infrastructure to
     support the network needs of an HTTP User-Agent (like Chromium or Cobalt),
     an HTTP server, a DIAL server, and several abstractions for networking
@@ -149,7 +149,7 @@ All source locations are specified relative to `src/` (this directory).
   * `cobalt/` - The home of all Cobalt application code. This includes the Web
     Implementation, Layout Engine, Renderer, and some other Cobalt-specific
     features.
-      * `cobalt/build/` - The core build generation system, `gyp_cobalt`, and
+      * `cobalt/build/` - The core build generation system, `gn.py`, and
         configurations for supported platforms. (NOTE: This should eventually be
         mostly moved into `starboard/`.)
       * `cobalt/doc/` - Contains a wide range of detailed information and guides
@@ -162,11 +162,8 @@ All source locations are specified relative to `src/` (this directory).
     [`README.md`](starboard/README.md) for more detailed information about
     porting Starboard (and Cobalt) to a new platform.
   * `third_party/` - Where all of Cobalt's third-party dependencies live. We
-    don't mean to be perjorative, we love our third-party libraries! This
+    don't mean to be pejorative, we love our third-party libraries! This
     location is dictated by Google OSS release management rules...
-      * `third_party/starboard/` - The location for third-party ports. This
-        directory will be scanned automatically by gyp_cobalt for available
-        Starboard ports.
 
 
 ## Building and Running the Code

@@ -632,10 +632,14 @@ bool MimeUtil::IsCodecSupportedOnAndroid(
       return is_encrypted ? platform_info.has_platform_vp8_decoder : true;
 
     case VP9: {
+#if !defined(STARBOARD)
+      // Cobalt doesn't support `kReportVp9AsAnUnsupportedMimeType` command line
+      // switch.
       if (base::CommandLine::ForCurrentProcess()->HasSwitch(
               switches::kReportVp9AsAnUnsupportedMimeType)) {
         return false;
       }
+#endif  // !defined(STARBOARD)
 
       // If clear, the unified pipeline can always decode VP9.0,1 in software.
       // If we don't know the profile, then support is ambiguous, but default to

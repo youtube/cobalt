@@ -13,7 +13,6 @@
 // limitations under the License.
 
 #include "starboard/configuration.h"
-#if SB_API_VERSION >= 12 || SB_HAS(GLES2)
 
 #include "cobalt/renderer/backend/egl/display.h"
 
@@ -93,5 +92,3 @@ scoped_refptr<RenderTarget> DisplayEGL::GetRenderTarget() {
 }  // namespace backend
 }  // namespace renderer
 }  // namespace cobalt
-
-#endif  // SB_API_VERSION >= 12 || SB_HAS(GLES2)

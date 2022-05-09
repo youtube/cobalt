@@ -56,11 +56,6 @@ target(gtest_target_type, "nplb") {
     "condition_variable_wait_timed_test.cc",
     "configuration_test.cc",
     "cpu_features_get_test.cc",
-    "cryptography_create_transformer_test.cc",
-    "cryptography_helpers.cc",
-    "cryptography_helpers.h",
-    "cryptography_transform_gcm_test.cc",
-    "cryptography_transform_test.cc",
     "directory_can_open_test.cc",
     "directory_close_test.cc",
     "directory_create_test.cc",
@@ -109,7 +104,9 @@ target(gtest_target_type, "nplb") {
 
     # TODO: Separate functions tested by media buffer test into multiple
     # files.
+    "drm_create_system_test.cc",
     "media_buffer_test.cc",
+    "media_can_play_mime_and_key_system_test.cc",
     "media_configuration_test.cc",
     "memory_align_to_page_size_test.cc",
     "memory_allocate_aligned_test.cc",
@@ -144,7 +141,6 @@ target(gtest_target_type, "nplb") {
     "player_creation_param_helpers.cc",
     "player_creation_param_helpers.h",
     "player_get_preferred_output_mode_test.cc",
-    "player_output_mode_supported_test.cc",
     "player_test_util.cc",
     "player_test_util.h",
     "player_write_sample_test.cc",
@@ -263,26 +259,34 @@ target(gtest_target_type, "nplb") {
     "window_get_size_test.cc",
   ]
 
-  if (has_drm_support) {
-    sources += [
-      "drm_create_system_test.cc",
-      "media_can_play_mime_and_key_system_test.cc",
-    ]
-  }
+  configs += [
+    "//build/config/compiler:exceptions",
+    "//starboard/build/config:starboard_implementation",
+  ]
+  configs -= [ "//build/config/compiler:no_exceptions" ]
 
-  deps = cobalt_platform_dependencies
+  deps = [
+    "//starboard",
+    "//starboard/common",
+    "//starboard/nplb/compiler_compliance:cpp14_supported",
+    "//starboard/shared/starboard/media:media_util",
+    "//starboard/shared/starboard/player:video_dmp",
+    "//testing/gmock",
+  ]
+
+  deps += cobalt_platform_dependencies
 
   if (is_internal_build) {
     deps += [ "//starboard/private/nplb:nplb_private" ]
   }
 
-  public_deps = [
-    "//starboard",
-    "//starboard/common",
-    "//starboard/shared/starboard/media:media_util",
-    "//starboard/shared/starboard/player:video_dmp",
-    "//testing/gmock",
-  ]
+  if (gl_type != "none") {
+    deps += [ "//starboard/egl_and_gles" ]
+  }
+
+  if (sb_enable_cpp17_audit) {
+    deps += [ "//starboard/nplb/compiler_compliance:cpp17_supported" ]
+  }
 
   data_deps = [
     "//starboard/nplb/testdata/file_tests:nplb_file_tests_data",
@@ -294,14 +298,4 @@ target(gtest_target_type, "nplb") {
     "//starboard/shared/starboard/player:player_download_test_data",
     "//third_party/icu:icudata",
   ]
-
-  if (gl_type != "none") {
-    public_deps += [ "//starboard/egl_and_gles" ]
-  }
-
-  configs += [
-    "//build/config/compiler:exceptions",
-    "//starboard/build/config:starboard_implementation",
-  ]
-  configs -= [ "//build/config/compiler:no_exceptions" ]
 }

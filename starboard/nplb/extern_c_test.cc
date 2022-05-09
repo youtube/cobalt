@@ -23,9 +23,6 @@ extern "C" {
 #include "starboard/condition_variable.h"
 #include "starboard/configuration.h"
 #include "starboard/cpu_features.h"
-#if SB_API_VERSION < 12
-#include "starboard/cryptography.h"
-#endif
 #include "starboard/decode_target.h"
 #include "starboard/directory.h"
 #include "starboard/double.h"
@@ -53,7 +50,6 @@ extern "C" {
 #include "starboard/string.h"
 #include "starboard/system.h"
 #include "starboard/thread.h"
-#include "starboard/thread_types.h"
 #include "starboard/time.h"
 #include "starboard/time_zone.h"
 #include "starboard/types.h"

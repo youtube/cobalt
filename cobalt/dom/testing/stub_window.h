@@ -29,12 +29,16 @@
 #include "cobalt/cssom/viewport_size.h"
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/local_storage_database.h"
+#include "cobalt/dom/testing/stub_environment_settings.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/dom_parser/parser.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/loader/loader_factory.h"
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/javascript_engine.h"
+#include "cobalt/web/context.h"
+#include "cobalt/web/environment_settings.h"
+#include "cobalt/web/stub_web_context.h"
 #include "starboard/window.h"
 #include "url/gurl.h"
 
@@ -46,60 +50,58 @@ namespace testing {
 class StubWindow {
  public:
   explicit StubWindow(
-      std::unique_ptr<script::EnvironmentSettings> environment_settings =
-          std::unique_ptr<script::EnvironmentSettings>())
+      const DOMSettings::Options& options = DOMSettings::Options())
       : message_loop_(base::MessageLoop::TYPE_DEFAULT),
         css_parser_(css_parser::Parser::Create()),
         dom_parser_(
             new dom_parser::Parser(base::Bind(&StubLoadCompleteCallback))),
-        fetcher_factory_(new loader::FetcherFactory(NULL)),
-        loader_factory_(new loader::LoaderFactory(
-            "Test", fetcher_factory_.get(), NULL, null_debugger_hooks_, 0,
-            base::ThreadPriority::DEFAULT)),
         local_storage_database_(NULL),
-        url_("about:blank"),
         dom_stat_tracker_(new dom::DomStatTracker("StubWindow")) {
-    engine_ = script::JavaScriptEngine::CreateEngine();
-    global_environment_ = engine_->CreateGlobalEnvironment();
-    environment_settings_ =
-        environment_settings.get()
-            ? std::move(environment_settings)
-            : std::unique_ptr<script::EnvironmentSettings>(new DOMSettings(
-                  0, NULL, NULL, NULL, NULL, NULL, NULL, engine_.get(),
-                  global_environment(), null_debugger_hooks_, NULL));
-    window_ = new dom::Window(
-        environment_settings_.get(), cssom::ViewportSize(1920, 1080),
-        base::kApplicationStateStarted, css_parser_.get(), dom_parser_.get(),
-        fetcher_factory_.get(), loader_factory_.get(), NULL, NULL, NULL, NULL,
-        NULL, NULL, &local_storage_database_, NULL, NULL, NULL, NULL,
-        global_environment_->script_value_factory(), NULL,
-        dom_stat_tracker_.get(), url_, "", NULL, "en-US", "en",
-        base::Callback<void(const GURL&)>(),
-        base::Bind(&StubLoadCompleteCallback), NULL,
-        network_bridge::PostSender(), csp::kCSPRequired,
-        dom::kCspEnforcementEnable, base::Closure() /* csp_policy_changed */,
-        base::Closure() /* ran_animation_frame_callbacks */,
-        dom::Window::CloseCallback() /* window_close */,
-        base::Closure() /* window_minimize */, NULL, NULL,
-        dom::Window::OnStartDispatchEventCallback(),
-        dom::Window::OnStopDispatchEventCallback(),
-        dom::ScreenshotManager::ProvideScreenshotFunctionCallback(), NULL);
-    base::polymorphic_downcast<dom::DOMSettings*>(environment_settings_.get())
+    web_context_.reset(new web::test::StubWebContext());
+    web_context_->setup_environment_settings(
+        new dom::testing::StubEnvironmentSettings(options));
+    web_context_->environment_settings()->set_base_url(GURL("about:blank"));
+    web_context_->set_fetcher_factory(new loader::FetcherFactory(NULL));
+    loader_factory_.reset(new loader::LoaderFactory(
+        "Test", web_context_->fetcher_factory(), NULL,
+        web_context_->environment_settings()->debugger_hooks(), 0,
+        base::ThreadPriority::DEFAULT)),
+        window_ = new dom::Window(
+            web_context_->environment_settings(),
+            cssom::ViewportSize(1920, 1080), base::kApplicationStateStarted,
+            css_parser_.get(), dom_parser_.get(),
+            web_context_->fetcher_factory(), loader_factory_.get(), NULL, NULL,
+            NULL, NULL, NULL, NULL, &local_storage_database_, NULL, NULL, NULL,
+            NULL, global_environment()->script_value_factory(), NULL,
+            dom_stat_tracker_.get(),
+            web_context_->environment_settings()->base_url(), "", NULL, "en-US",
+            "en", base::Callback<void(const GURL&)>(),
+            base::Bind(&StubLoadCompleteCallback), NULL,
+            network_bridge::PostSender(), csp::kCSPRequired,
+            dom::kCspEnforcementEnable,
+            base::Closure() /* csp_policy_changed */,
+            base::Closure() /* ran_animation_frame_callbacks */,
+            dom::Window::CloseCallback() /* window_close */,
+            base::Closure() /* window_minimize */, NULL, NULL,
+            dom::Window::OnStartDispatchEventCallback(),
+            dom::Window::OnStopDispatchEventCallback(),
+            dom::ScreenshotManager::ProvideScreenshotFunctionCallback(), NULL);
+    base::polymorphic_downcast<dom::DOMSettings*>(
+        web_context_->environment_settings())
         ->set_window(window_);
-    global_environment_->CreateGlobalObject(window_,
-                                            environment_settings_.get());
+    global_environment()->CreateGlobalObject(
+        window_, web_context_->environment_settings());
   }
+  virtual ~StubWindow() { window_->DestroyTimers(); }
 
   scoped_refptr<dom::Window> window() { return window_; }
   scoped_refptr<script::GlobalEnvironment> global_environment() {
-    return global_environment_;
+    return web_context_->global_environment();
   }
   css_parser::Parser* css_parser() { return css_parser_.get(); }
   script::EnvironmentSettings* environment_settings() {
-    return environment_settings_.get();
+    return web_context_->environment_settings();
   }
-
-  ~StubWindow() { window_->DestroyTimers(); }
 
  private:
   static void StubLoadCompleteCallback(
@@ -109,14 +111,10 @@ class StubWindow {
   base::NullDebuggerHooks null_debugger_hooks_;
   std::unique_ptr<css_parser::Parser> css_parser_;
   std::unique_ptr<dom_parser::Parser> dom_parser_;
-  std::unique_ptr<loader::FetcherFactory> fetcher_factory_;
   std::unique_ptr<loader::LoaderFactory> loader_factory_;
   dom::LocalStorageDatabase local_storage_database_;
-  GURL url_;
   std::unique_ptr<dom::DomStatTracker> dom_stat_tracker_;
-  std::unique_ptr<script::EnvironmentSettings> environment_settings_;
-  std::unique_ptr<script::JavaScriptEngine> engine_;
-  scoped_refptr<script::GlobalEnvironment> global_environment_;
+  std::unique_ptr<web::Context> web_context_;
   scoped_refptr<dom::Window> window_;
 };
 

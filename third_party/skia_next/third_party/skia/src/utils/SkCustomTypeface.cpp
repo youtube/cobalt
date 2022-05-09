@@ -225,7 +225,11 @@ protected:
     }
 
     void generateFontMetrics(SkFontMetrics* metrics) override {
+#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
         auto [sx, sy] = fMatrix.mapXY(1, 1);
+#else
+        STRUCTURED_BINDING_2(sx, sy, fMatrix.mapXY(1, 1));
+#endif
         *metrics = scale_fontmetrics(this->userTF()->fMetrics, sx, sy);
     }
 
@@ -260,7 +264,12 @@ enum PVerb {
 static void compress_write(SkWStream* stream, const SkPath& path, int upem) {
     int pCount = 0;
     std::vector<PVerb> verbs;
+#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     for (auto [v, p, w] : SkPathPriv::Iterate(path)) {
+#else
+    for (auto item : SkPathPriv::Iterate(path)) {
+        STRUCTURED_BINDING_3(v, p, w, std::move(item));
+#endif
         switch (v) {
             default: break;
             case SkPathVerb::kMove: verbs.push_back(kMove); pCount += 1; break;
@@ -299,7 +308,12 @@ static void compress_write(SkWStream* stream, const SkPath& path, int upem) {
         }
     };
 
+#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     for (auto [v, p, w] : SkPathPriv::Iterate(path)) {
+#else
+    for (auto item : SkPathPriv::Iterate(path)) {
+        STRUCTURED_BINDING_3(v, p, w, std::move(item));
+#endif
         switch (v) {
             default: break;
             case SkPathVerb::kMove: write_pts(&p[0], 1); break;

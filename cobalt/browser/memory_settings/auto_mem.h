@@ -37,10 +37,12 @@ namespace memory_settings {
 // calculated.
 class AutoMem {
  public:
-  explicit AutoMem(const math::Size& ui_resolution,
-                   const AutoMemSettings& command_line_settings,
-                   const AutoMemSettings& build_settings);
-  ~AutoMem();
+  AutoMem() {}
+  ~AutoMem() {}
+
+  void ConstructSettings(const math::Size& ui_resolution,
+                         const AutoMemSettings& command_line_settings,
+                         const AutoMemSettings& build_settings);
 
   const IntSetting* encoded_image_cache_size_in_bytes() const;
   const IntSetting* image_cache_size_in_bytes() const;
@@ -57,23 +59,19 @@ class AutoMem {
   const IntSetting* max_cpu_bytes() const;
   const IntSetting* max_gpu_bytes() const;
 
-  // Generates a string table of the memory settings and available memory for
-  // cpu and gpu. This is used during startup to display memory configuration
-  // information.
-  std::string ToPrettyPrintString(bool use_color_ascii) const;
-
   // Reports the total memory that all settings that match memory_type
   // consume.
   int64_t SumAllMemoryOfType(MemorySetting::MemoryType memory_type) const;
 
  private:
-  void ConstructSettings(const math::Size& ui_resolution,
-                         const AutoMemSettings& command_line_settings,
-                         const AutoMemSettings& build_settings);
+  // Logs a table of the memory settings and available memory for cpu and gpu.
+  // This is used during startup to display memory configuration information.
+  void LogToPrettyPrintString(const math::Size& ui_resolution,
+                              bool use_color_ascii);
 
   // AllMemorySettings - does not include cpu & gpu max memory.
   std::vector<const MemorySetting*> AllMemorySettings() const;
-  std::vector<MemorySetting*> AllMemorySettingsMutable();
+  std::vector<MemorySetting*> AllMemorySettingsMutable() const;
 
   // All of the following are included in AllMemorySettings().
   std::unique_ptr<IntSetting> encoded_image_cache_size_in_bytes_;
@@ -88,7 +86,10 @@ class AutoMem {
   std::unique_ptr<IntSetting> max_cpu_bytes_;
   std::unique_ptr<IntSetting> max_gpu_bytes_;
 
+#if !defined(COBALT_BUILD_TYPE_GOLD)
+  std::string previous_log_;
   std::vector<std::string> error_msgs_;
+#endif
 
   FRIEND_TEST(AutoMem, AllMemorySettingsAreOrderedByName);
   FRIEND_TEST(AutoMem, ConstrainedCPUEnvironment);

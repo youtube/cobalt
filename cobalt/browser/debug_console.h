@@ -70,14 +70,11 @@ class DebugConsole : public LifecycleObserver {
   // false if it was consumed within this function.
   bool FilterWheelEvent(base::Token type, const dom::WheelEventInit& event);
 
-#if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
   // Filters an on screen keyboard input event.
   // Returns true if the event should be passed on to other handlers,
   // false if it was consumed within this function.
   bool FilterOnScreenKeyboardInputEvent(base::Token type,
                                         const dom::InputEventInit& event);
-#endif  // SB_API_VERSION >= 12 ||
-        // SB_HAS(ON_SCREEN_KEYBOARD)
 
   const WebModule& web_module() const { return *web_module_; }
   WebModule& web_module() { return *web_module_; }
@@ -95,16 +92,12 @@ class DebugConsole : public LifecycleObserver {
   }
 
   // LifecycleObserver implementation.
-  void Blur(SbTimeMonotonic timestamp) override {
-    web_module_->Blur(0);
-  }
+  void Blur(SbTimeMonotonic timestamp) override { web_module_->Blur(0); }
   void Conceal(render_tree::ResourceProvider* resource_provider,
                SbTimeMonotonic timestamp) override {
     web_module_->Conceal(resource_provider, 0);
   }
-  void Freeze(SbTimeMonotonic timestamp) override {
-    web_module_->Freeze(0);
-  }
+  void Freeze(SbTimeMonotonic timestamp) override { web_module_->Freeze(0); }
   void Unfreeze(render_tree::ResourceProvider* resource_provider,
                 SbTimeMonotonic timestamp) override {
     web_module_->Unfreeze(resource_provider, 0);
@@ -113,15 +106,11 @@ class DebugConsole : public LifecycleObserver {
               SbTimeMonotonic timestamp) override {
     web_module_->Reveal(resource_provider, 0);
   }
-  void Focus(SbTimeMonotonic timestamp) override {
-     web_module_->Focus(0);
-  }
+  void Focus(SbTimeMonotonic timestamp) override { web_module_->Focus(0); }
 
   void ReduceMemory() { web_module_->ReduceMemory(); }
 
-  bool IsReadyToFreeze() {
-    return web_module_->IsReadyToFreeze();
-  }
+  bool IsReadyToFreeze() { return web_module_->IsReadyToFreeze(); }
 
  private:
   void OnError(const GURL& url, const std::string& error) {

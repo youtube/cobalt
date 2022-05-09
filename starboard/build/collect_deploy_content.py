@@ -20,7 +20,6 @@ import os
 import shutil
 import sys
 
-import _env  # pylint: disable=unused-import
 from starboard.tools import port_symlink
 from starboard.tools import log_level
 

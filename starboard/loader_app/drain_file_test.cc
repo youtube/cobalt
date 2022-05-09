@@ -36,28 +36,19 @@ const char kAppKeyThree[] = "dGhyZWUNCg==";
 
 class DrainFileTest : public ::testing::Test {
  protected:
-  // This function is used to set the temporary directory used for testing once,
-  // and to create a subdir in this test directory, once for all test cases.
-  static void SetUpTestCase() {
-    std::vector<char> path(kSbFileMaxPath, 0);
-
-    ASSERT_TRUE(
-        SbSystemGetPath(kSbSystemPathTempDirectory, path.data(), path.size()));
-
-    dir_.assign(path.data());
+  void SetUp() override {
+    temp_dir_.resize(kSbFileMaxPath);
+    ASSERT_TRUE(SbSystemGetPath(kSbSystemPathTempDirectory, temp_dir_.data(),
+                                temp_dir_.size()));
   }
 
-  void TearDown() override {
-    DrainFileClear(GetTempDir(), NULL, false);
-  }
+  void TearDown() override { DrainFileClearForApp(GetTempDir(), ""); }
 
-  const char* GetTempDir() const { return dir_.c_str(); }
+  const char* GetTempDir() const { return temp_dir_.data(); }
 
  private:
-  static std::string dir_;
+  std::vector<char> temp_dir_;
 };
-
-std::string DrainFileTest::dir_ = "";
 
 // Typical drain file usage.
 TEST_F(DrainFileTest, SunnyDay) {
@@ -71,9 +62,9 @@ TEST_F(DrainFileTest, SunnyDayIgnoreExpired) {
   ScopedDrainFile stale(GetTempDir(), kAppKeyOne,
                         SbTimeGetNow() - kDrainFileMaximumAge);
 
-  EXPECT_FALSE(DrainFileDraining(GetTempDir(), kAppKeyOne));
+  EXPECT_FALSE(DrainFileIsAppDraining(GetTempDir(), kAppKeyOne));
   EXPECT_TRUE(DrainFileTryDrain(GetTempDir(), kAppKeyOne));
-  EXPECT_TRUE(DrainFileDraining(GetTempDir(), kAppKeyOne));
+  EXPECT_TRUE(DrainFileIsAppDraining(GetTempDir(), kAppKeyOne));
 }
 
 // Previously created drain file should be reused if it has not expired.
@@ -85,56 +76,74 @@ TEST_F(DrainFileTest, SunnyDayTryDrainReusePreviousDrainFile) {
 // Draining status should return whether or not the file exists and has not yet
 // expired.
 TEST_F(DrainFileTest, SunnyDayDraining) {
-  EXPECT_FALSE(DrainFileDraining(GetTempDir(), kAppKeyOne));
+  EXPECT_FALSE(DrainFileIsAppDraining(GetTempDir(), kAppKeyOne));
   EXPECT_TRUE(DrainFileTryDrain(GetTempDir(), kAppKeyOne));
-  EXPECT_TRUE(DrainFileDraining(GetTempDir(), kAppKeyOne));
+  EXPECT_TRUE(DrainFileIsAppDraining(GetTempDir(), kAppKeyOne));
 
-  DrainFileClear(GetTempDir(), NULL, false);
+  DrainFileClearForApp(GetTempDir(), kAppKeyOne);
 
-  EXPECT_FALSE(DrainFileDraining(GetTempDir(), kAppKeyOne));
+  EXPECT_FALSE(DrainFileIsAppDraining(GetTempDir(), kAppKeyOne));
+}
+
+// Check if another app is draining.
+TEST_F(DrainFileTest, SunnyDayAnotherAppDraining) {
+  EXPECT_FALSE(DrainFileIsAppDraining(GetTempDir(), kAppKeyOne));
+  EXPECT_FALSE(DrainFileIsAppDraining(GetTempDir(), kAppKeyTwo));
+  EXPECT_FALSE(DrainFileIsAnotherAppDraining(GetTempDir(), kAppKeyOne));
+  EXPECT_FALSE(DrainFileIsAnotherAppDraining(GetTempDir(), kAppKeyTwo));
+
+  EXPECT_TRUE(DrainFileTryDrain(GetTempDir(), kAppKeyOne));
+  EXPECT_TRUE(DrainFileIsAppDraining(GetTempDir(), kAppKeyOne));
+  EXPECT_TRUE(DrainFileIsAnotherAppDraining(GetTempDir(), kAppKeyTwo));
+
+  DrainFileClearForApp(GetTempDir(), kAppKeyOne);
+  EXPECT_FALSE(DrainFileIsAppDraining(GetTempDir(), kAppKeyOne));
+  EXPECT_FALSE(DrainFileIsAnotherAppDraining(GetTempDir(), kAppKeyTwo));
 }
 
 // Remove an existing drain file.
 TEST_F(DrainFileTest, SunnyDayRemove) {
   EXPECT_TRUE(DrainFileTryDrain(GetTempDir(), kAppKeyOne));
-  EXPECT_TRUE(DrainFileDraining(GetTempDir(), kAppKeyOne));
-  EXPECT_TRUE(DrainFileRemove(GetTempDir(), kAppKeyOne));
-  EXPECT_FALSE(DrainFileDraining(GetTempDir(), kAppKeyOne));
+  EXPECT_TRUE(DrainFileIsAppDraining(GetTempDir(), kAppKeyOne));
+  DrainFileClearForApp(GetTempDir(), kAppKeyOne);
+  EXPECT_FALSE(DrainFileIsAppDraining(GetTempDir(), kAppKeyOne));
 }
 
-// Try to remove a drain file that does not exist.
-TEST_F(DrainFileTest, SunnyDayRemoveNonexistentDrainFile) {
-  EXPECT_FALSE(DrainFileDraining(GetTempDir(), kAppKeyOne));
-  EXPECT_TRUE(DrainFileRemove(GetTempDir(), kAppKeyOne));
-}
-
-// When clearing drain files it should be possible to provide a file to ignore,
-// and it should be possible to only clear expire files if desired.
-TEST_F(DrainFileTest, SunnyDayClear) {
+// Clear only expired drain files.
+TEST_F(DrainFileTest, SunnyDayClearExpired) {
   EXPECT_TRUE(DrainFileTryDrain(GetTempDir(), kAppKeyOne));
 
   ScopedDrainFile valid_file(GetTempDir(), kAppKeyTwo, SbTimeGetNow());
   ScopedDrainFile stale_file(GetTempDir(), kAppKeyThree,
                              SbTimeGetNow() - kDrainFileMaximumAge);
 
-  EXPECT_TRUE(DrainFileDraining(GetTempDir(), kAppKeyOne));
-  EXPECT_TRUE(DrainFileDraining(GetTempDir(), kAppKeyTwo));
+  EXPECT_TRUE(DrainFileIsAppDraining(GetTempDir(), kAppKeyOne));
+  EXPECT_TRUE(DrainFileIsAppDraining(GetTempDir(), kAppKeyTwo));
   EXPECT_TRUE(SbFileExists(stale_file.path().c_str()));
 
-  DrainFileClear(GetTempDir(), kAppKeyOne, true);
+  DrainFileClearExpired(GetTempDir());
 
-  EXPECT_TRUE(DrainFileDraining(GetTempDir(), kAppKeyOne));
-  EXPECT_TRUE(DrainFileDraining(GetTempDir(), kAppKeyTwo));
   EXPECT_FALSE(SbFileExists(stale_file.path().c_str()));
+}
 
-  DrainFileClear(GetTempDir(), kAppKeyOne, false);
+// Clearing drain files for an app.
+TEST_F(DrainFileTest, SunnyDayClearForApp) {
+  EXPECT_TRUE(DrainFileTryDrain(GetTempDir(), kAppKeyOne));
 
-  EXPECT_TRUE(DrainFileDraining(GetTempDir(), kAppKeyOne));
-  EXPECT_FALSE(DrainFileDraining(GetTempDir(), kAppKeyTwo));
+  ScopedDrainFile valid_file(GetTempDir(), kAppKeyTwo, SbTimeGetNow());
+  ScopedDrainFile stale_file(GetTempDir(), kAppKeyThree,
+                             SbTimeGetNow() - kDrainFileMaximumAge);
 
-  DrainFileClear(GetTempDir(), NULL, false);
+  EXPECT_TRUE(DrainFileIsAppDraining(GetTempDir(), kAppKeyOne));
+  EXPECT_TRUE(DrainFileIsAppDraining(GetTempDir(), kAppKeyTwo));
+  EXPECT_TRUE(SbFileExists(stale_file.path().c_str()));
 
-  EXPECT_FALSE(DrainFileDraining(GetTempDir(), kAppKeyOne));
+  // clean all drain files for an app
+  DrainFileClearForApp(GetTempDir(), kAppKeyOne);
+
+  EXPECT_FALSE(DrainFileIsAppDraining(GetTempDir(), kAppKeyOne));
+  EXPECT_TRUE(DrainFileIsAppDraining(GetTempDir(), kAppKeyTwo));
+  EXPECT_TRUE(SbFileExists(stale_file.path().c_str()));
 }
 
 // Ranking drain files should first be done by timestamp, with the app key being

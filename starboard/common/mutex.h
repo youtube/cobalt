@@ -19,7 +19,6 @@
 #define STARBOARD_COMMON_MUTEX_H_
 
 #include "starboard/mutex.h"
-#include "starboard/thread_types.h"
 
 namespace starboard {
 

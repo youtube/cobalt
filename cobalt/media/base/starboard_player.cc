@@ -14,6 +14,8 @@
 
 #include "cobalt/media/base/starboard_player.h"
 
+#include <algorithm>
+#include <iomanip>
 #include <string>
 #include <vector>
 
@@ -22,8 +24,10 @@
 #include "base/location.h"
 #include "base/logging.h"
 #include "base/trace_event/trace_event.h"
+#include "cobalt/media/base/format_support_query_metrics.h"
 #include "cobalt/media/base/starboard_utils.h"
 #include "starboard/common/media.h"
+#include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/memory.h"
 
@@ -117,9 +121,9 @@ StarboardPlayer::StarboardPlayer(
     const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
     const GetDecodeTargetGraphicsContextProviderFunc&
         get_decode_target_graphics_context_provider_func,
-    const AudioDecoderConfig& audio_config,
-    const VideoDecoderConfig& video_config, SbWindow window,
-    SbDrmSystem drm_system, Host* host,
+    const AudioDecoderConfig& audio_config, const std::string& audio_mime_type,
+    const VideoDecoderConfig& video_config, const std::string& video_mime_type,
+    SbWindow window, SbDrmSystem drm_system, Host* host,
     SbPlayerSetBoundsHelper* set_bounds_helper, bool allow_resume_after_suspend,
     bool prefer_decode_to_texture,
     VideoFrameProvider* const video_frame_provider,
@@ -153,10 +157,10 @@ StarboardPlayer::StarboardPlayer(
   video_sample_info_.codec = kSbMediaVideoCodecNone;
 
   if (audio_config.IsValidConfig()) {
-    UpdateAudioConfig(audio_config);
+    UpdateAudioConfig(audio_config, audio_mime_type);
   }
   if (video_config.IsValidConfig()) {
-    UpdateVideoConfig(video_config);
+    UpdateVideoConfig(video_config, video_mime_type);
   }
 
   output_mode_ = ComputeSbPlayerOutputMode(prefer_decode_to_texture);
@@ -185,8 +189,8 @@ StarboardPlayer::~StarboardPlayer() {
   }
 }
 
-void StarboardPlayer::UpdateAudioConfig(
-    const AudioDecoderConfig& audio_config) {
+void StarboardPlayer::UpdateAudioConfig(const AudioDecoderConfig& audio_config,
+                                        const std::string& mime_type) {
   DCHECK(task_runner_->BelongsToCurrentThread());
   DCHECK(audio_config.IsValidConfig());
 
@@ -194,12 +198,14 @@ void StarboardPlayer::UpdateAudioConfig(
             << audio_config.AsHumanReadableString();
 
   audio_config_ = audio_config;
-  audio_sample_info_ = MediaAudioConfigToSbMediaAudioSampleInfo(audio_config_);
+  audio_mime_type_ = mime_type;
+  audio_sample_info_ = MediaAudioConfigToSbMediaAudioSampleInfo(
+      audio_config_, audio_mime_type_.c_str());
   LOG(INFO) << "Converted to SbMediaAudioSampleInfo -- " << audio_sample_info_;
 }
 
-void StarboardPlayer::UpdateVideoConfig(
-    const VideoDecoderConfig& video_config) {
+void StarboardPlayer::UpdateVideoConfig(const VideoDecoderConfig& video_config,
+                                        const std::string& mime_type) {
   DCHECK(task_runner_->BelongsToCurrentThread());
   DCHECK(video_config.IsValidConfig());
 
@@ -213,12 +219,11 @@ void StarboardPlayer::UpdateVideoConfig(
       static_cast<int>(video_config_.natural_size().height());
   video_sample_info_.codec =
       MediaVideoCodecToSbMediaVideoCodec(video_config_.codec());
-  video_sample_info_.color_metadata =
-      MediaToSbMediaColorMetadata(video_config_.webm_color_metadata());
-#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
-  video_sample_info_.mime = video_config_.mime().c_str();
+  video_sample_info_.color_metadata = MediaToSbMediaColorMetadata(
+      video_config_.color_space_info(), video_config_.hdr_metadata());
+  video_mime_type_ = mime_type;
+  video_sample_info_.mime = video_mime_type_.c_str();
   video_sample_info_.max_video_capabilities = max_video_capabilities_.c_str();
-#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
   LOG(INFO) << "Converted to SbMediaVideoSampleInfo -- " << video_sample_info_;
 }
 
@@ -242,7 +247,7 @@ void StarboardPlayer::WriteBuffer(DemuxerStream::Type type,
   WriteBufferInternal(type, buffer);
 }
 
-void StarboardPlayer::SetBounds(int z_index, const math::Rect& rect) {
+void StarboardPlayer::SetBounds(int z_index, const gfx::Rect& rect) {
   base::AutoLock auto_lock(lock_);
 
   set_bounds_z_index_ = z_index;
@@ -518,6 +523,13 @@ void StarboardPlayer::CreateUrlPlayer(const std::string& url) {
 
   DCHECK(!on_encrypted_media_init_data_encountered_cb_.is_null());
   LOG(INFO) << "CreateUrlPlayer passed url " << url;
+
+  if (max_video_capabilities_.empty()) {
+    FormatSupportQueryMetrics::PrintAndResetFormatSupportQueryMetrics();
+  }
+
+  player_creation_time_ = SbTimeGetMonotonicNow();
+
   player_ =
       SbUrlPlayerCreate(url.c_str(), window_, &StarboardPlayer::PlayerStatusCB,
                         &StarboardPlayer::EncryptedMediaInitDataEncounteredCB,
@@ -556,7 +568,11 @@ void StarboardPlayer::CreatePlayer() {
 
   is_creating_player_ = true;
 
-#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+  if (max_video_capabilities_.empty()) {
+    FormatSupportQueryMetrics::PrintAndResetFormatSupportQueryMetrics();
+  }
+
+  player_creation_time_ = SbTimeGetMonotonicNow();
 
   SbPlayerCreationParam creation_param = {};
   creation_param.drm_system = drm_system_;
@@ -574,25 +590,6 @@ void StarboardPlayer::CreatePlayer() {
       &StarboardPlayer::DecoderStatusCB, &StarboardPlayer::PlayerStatusCB,
       &StarboardPlayer::PlayerErrorCB, this,
       get_decode_target_graphics_context_provider_func_.Run());
-
-#else  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
-
-  DCHECK(SbPlayerOutputModeSupported(output_mode_, video_codec, drm_system_));
-  // TODO: This is temporary for supporting background media playback.
-  //       Need to be removed with media refactor.
-  if (!is_visible) {
-    DCHECK(audio_codec != kSbMediaAudioCodecNone);
-  }
-  player_ = SbPlayerCreate(
-      window_, video_codec, audio_codec, drm_system_,
-      has_audio ? &audio_sample_info_ : NULL,
-      max_video_capabilities_.length() > 0 ? max_video_capabilities_.c_str()
-                                           : NULL,
-      &StarboardPlayer::DeallocateSampleCB, &StarboardPlayer::DecoderStatusCB,
-      &StarboardPlayer::PlayerStatusCB, &StarboardPlayer::PlayerErrorCB, this,
-      output_mode_, get_decode_target_graphics_context_provider_func_.Run());
-
-#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 
   is_creating_player_ = false;
 
@@ -641,18 +638,22 @@ void StarboardPlayer::WriteBufferInternal(
     return;
   }
 
-  const auto& allocations = buffer->allocations();
-  DCHECK_EQ(allocations.number_of_buffers(), 1);
-
-  DecodingBuffers::iterator iter =
-      decoding_buffers_.find(allocations.buffers()[0]);
+  DecodingBuffers::iterator iter = decoding_buffers_.find(buffer->data());
   if (iter == decoding_buffers_.end()) {
-    decoding_buffers_[allocations.buffers()[0]] = std::make_pair(buffer, 1);
+    decoding_buffers_[buffer->data()] = std::make_pair(buffer, 1);
   } else {
     ++iter->second.second;
   }
 
   auto sample_type = DemuxerStreamTypeToSbMediaType(type);
+
+  if (sample_type == kSbMediaTypeAudio && first_audio_sample_time_ == 0) {
+    first_audio_sample_time_ = SbTimeGetMonotonicNow();
+  } else if (sample_type == kSbMediaTypeVideo &&
+             first_video_sample_time_ == 0) {
+    first_video_sample_time_ = SbTimeGetMonotonicNow();
+  }
+
   SbDrmSampleInfo drm_info;
   SbDrmSubSampleMapping subsample_mapping;
   drm_info.subsample_count = 0;
@@ -665,8 +666,8 @@ void StarboardPlayer::WriteBufferInternal(
   SbPlayerSampleSideData side_data = {};
   SbPlayerSampleInfo sample_info = {};
   sample_info.type = sample_type;
-  sample_info.buffer = allocations.buffers()[0];
-  sample_info.buffer_size = allocations.buffer_sizes()[0];
+  sample_info.buffer = buffer->data();
+  sample_info.buffer_size = buffer->data_size();
   sample_info.timestamp = buffer->timestamp().InMicroseconds();
 
   if (buffer->side_data_size() > 0) {
@@ -780,14 +781,6 @@ void StarboardPlayer::OnDecoderStatus(SbPlayer player, SbMediaType type,
   switch (state) {
     case kSbPlayerDecoderStateNeedsData:
       break;
-#if SB_API_VERSION < 12
-    case kSbPlayerDecoderStateBufferFull:
-      LOG(WARNING) << "kSbPlayerDecoderStateBufferFull has been deprecated.";
-      return;
-    case kSbPlayerDecoderStateDestroyed:
-      LOG(WARNING) << "kSbPlayerDecoderStateDestroyed has been deprecated.";
-      return;
-#endif  // SB_API_VERSION < 12
   }
 
   if (state_ == kResuming) {
@@ -807,6 +800,8 @@ void StarboardPlayer::OnDecoderStatus(SbPlayer player, SbMediaType type,
 
 void StarboardPlayer::OnPlayerStatus(SbPlayer player, SbPlayerState state,
                                      int ticket) {
+  TRACE_EVENT1("cobalt::media", "StarboardPlayer::OnPlayerStatus", "state",
+               state);
   DCHECK(task_runner_->BelongsToCurrentThread());
 
   if (player_ != player) {
@@ -823,10 +818,23 @@ void StarboardPlayer::OnPlayerStatus(SbPlayer player, SbPlayerState state,
     if (ticket_ == SB_PLAYER_INITIAL_TICKET) {
       ++ticket_;
     }
+    if (sb_player_state_initialized_time_ == 0) {
+      sb_player_state_initialized_time_ = SbTimeGetMonotonicNow();
+    }
     SbPlayerSeek2(player_, preroll_timestamp_.InMicroseconds(), ticket_);
     SetVolume(volume_);
     SbPlayerSetPlaybackRate(player_, playback_rate_);
     return;
+  }
+  if (state == kSbPlayerStatePrerolling &&
+      sb_player_state_prerolling_time_ == 0) {
+    sb_player_state_prerolling_time_ = SbTimeGetMonotonicNow();
+  } else if (state == kSbPlayerStatePresenting &&
+             sb_player_state_presenting_time_ == 0) {
+    sb_player_state_presenting_time_ = SbTimeGetMonotonicNow();
+#if !defined(COBALT_BUILD_TYPE_GOLD)
+    LogStartupLatency();
+#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
   }
   host_->OnPlayerStatus(state);
 }
@@ -944,7 +952,6 @@ SbPlayerOutputMode StarboardPlayer::ComputeSbUrlPlayerOutputMode(
 // static
 SbPlayerOutputMode StarboardPlayer::ComputeSbPlayerOutputMode(
     bool prefer_decode_to_texture) const {
-#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
   SbPlayerCreationParam creation_param = {};
   creation_param.drm_system = drm_system_;
   creation_param.audio_sample_info = audio_sample_info_;
@@ -960,28 +967,49 @@ SbPlayerOutputMode StarboardPlayer::ComputeSbPlayerOutputMode(
   auto output_mode = SbPlayerGetPreferredOutputMode(&creation_param);
   CHECK_NE(kSbPlayerOutputModeInvalid, output_mode);
   return output_mode;
-#else   // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
-  SbMediaVideoCodec video_codec = kSbMediaVideoCodecNone;
+}
 
-  video_codec = video_sample_info_.codec;
+void StarboardPlayer::LogStartupLatency() const {
+  std::string first_events_str;
+  if (set_drm_system_ready_cb_time_ == -1) {
+    first_events_str =
+        starboard::FormatString("%-50s0 us", "SbPlayerCreate() called");
 
-  // Try to choose |kSbPlayerOutputModeDecodeToTexture| when
-  // |prefer_decode_to_texture| is true.
-  if (prefer_decode_to_texture) {
-    if (SbPlayerOutputModeSupported(kSbPlayerOutputModeDecodeToTexture,
-                                    video_codec, drm_system_)) {
-      return kSbPlayerOutputModeDecodeToTexture;
-    }
+  } else if (set_drm_system_ready_cb_time_ < player_creation_time_) {
+    first_events_str = starboard::FormatString(
+        "%-50s0 us\n%-50s%" PRId64 " us", "set_drm_system_ready_cb called",
+        "SbPlayerCreate() called",
+        player_creation_time_ - set_drm_system_ready_cb_time_);
+  } else {
+    first_events_str = starboard::FormatString(
+        "%-50s0 us\n%-50s%" PRId64 " us", "SbPlayerCreate() called",
+        "set_drm_system_ready_cb called",
+        set_drm_system_ready_cb_time_ - player_creation_time_);
   }
 
-  if (SbPlayerOutputModeSupported(kSbPlayerOutputModePunchOut, video_codec,
-                                  drm_system_)) {
-    return kSbPlayerOutputModePunchOut;
-  }
-  CHECK(SbPlayerOutputModeSupported(kSbPlayerOutputModeDecodeToTexture,
-                                    video_codec, drm_system_));
-  return kSbPlayerOutputModeDecodeToTexture;
-#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+  SbTime player_initialization_time_delta =
+      sb_player_state_initialized_time_ -
+      std::max(player_creation_time_, set_drm_system_ready_cb_time_);
+  SbTime player_preroll_time_delta =
+      sb_player_state_prerolling_time_ - sb_player_state_initialized_time_;
+  SbTime first_audio_sample_time_delta = std::max(
+      first_audio_sample_time_ - sb_player_state_prerolling_time_, SbTime(0));
+  SbTime first_video_sample_time_delta = std::max(
+      first_video_sample_time_ - sb_player_state_prerolling_time_, SbTime(0));
+  SbTime player_presenting_time_delta =
+      sb_player_state_presenting_time_ -
+      std::max(first_audio_sample_time_, first_video_sample_time_);
+
+  LOG(INFO) << starboard::FormatString(
+      "SbPlayer startup latencies\n%-50s%s\n%s\n%-50s%" PRId64
+      " us\n%-50s%" PRId64 " us\n%-50s%" PRId64 "/%" PRId64 " us\n%-50s%" PRId64
+      " us",
+      "Event name", "time since last event", first_events_str.c_str(),
+      "kSbPlayerStateInitialized received", player_initialization_time_delta,
+      "kSbPlayerStatePrerolling received", player_preroll_time_delta,
+      "First media sample(s) written [audio/video]",
+      first_audio_sample_time_delta, first_video_sample_time_delta,
+      "kSbPlayerStatePresenting received", player_presenting_time_delta);
 }
 
 }  // namespace media

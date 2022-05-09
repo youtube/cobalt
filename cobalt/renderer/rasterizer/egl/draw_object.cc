@@ -12,9 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/configuration.h"
-#if SB_API_VERSION >= 12 || SB_HAS(GLES2)
-
 #include "cobalt/renderer/rasterizer/egl/draw_object.h"
 
 #include <algorithm>
@@ -22,6 +19,7 @@
 
 #include "cobalt/math/transform_2d.h"
 #include "cobalt/renderer/backend/egl/utils.h"
+#include "starboard/configuration.h"
 
 namespace cobalt {
 namespace renderer {
@@ -269,5 +267,3 @@ void DrawObject::GetRCornerValues(math::RectF* rect,
 }  // namespace rasterizer
 }  // namespace renderer
 }  // namespace cobalt
-
-#endif  // SB_API_VERSION >= 12 || SB_HAS(GLES2)

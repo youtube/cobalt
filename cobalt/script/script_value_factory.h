@@ -15,11 +15,26 @@
 #ifndef COBALT_SCRIPT_SCRIPT_VALUE_FACTORY_H_
 #define COBALT_SCRIPT_SCRIPT_VALUE_FACTORY_H_
 
+#include <memory>
+
+#include "base/memory/ref_counted.h"
 #include "cobalt/script/array_buffer.h"
 #include "cobalt/script/promise.h"
 #include "cobalt/script/script_value.h"
+
 namespace cobalt {
 namespace script {
+
+using SequenceWrappable = Sequence<scoped_refptr<Wrappable>>;
+using PromiseSequenceWrappable = Promise<SequenceWrappable>;
+
+using PromiseWrappable = Promise<scoped_refptr<Wrappable>>;
+using HandlePromiseWrappable = Handle<PromiseWrappable>;
+using ValuePromiseWrappable = ScriptValue<PromiseWrappable>;
+
+using PromiseBool = Promise<bool>;
+using HandlePromiseBool = Handle<PromiseBool>;
+using ValuePromiseBool = ScriptValue<PromiseBool>;
 
 class ScriptValueFactory {
  public:

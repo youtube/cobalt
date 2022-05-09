@@ -15,6 +15,7 @@
 #include "cobalt/media/sandbox/format_guesstimator.h"
 
 #include <algorithm>
+#include <memory>
 #include <vector>
 
 #include "base/bind.h"
@@ -22,28 +23,31 @@
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "base/time/time.h"
-#include "cobalt/math/size.h"
-#include "cobalt/media/base/audio_codecs.h"
-#include "cobalt/media/base/audio_decoder_config.h"
-#include "cobalt/media/base/demuxer_stream.h"
-#include "cobalt/media/base/media_tracks.h"
-#include "cobalt/media/base/video_codecs.h"
-#include "cobalt/media/base/video_decoder_config.h"
-#include "cobalt/media/filters/chunk_demuxer.h"
 #include "cobalt/media/sandbox/web_media_player_helper.h"
 #include "cobalt/render_tree/image.h"
+#include "media/base/audio_codecs.h"
+#include "media/base/audio_decoder_config.h"
+#include "media/base/demuxer_stream.h"
+#include "media/base/media_tracks.h"
+#include "media/base/video_codecs.h"
+#include "media/base/video_decoder_config.h"
+#include "media/filters/chunk_demuxer.h"
 #include "net/base/filename_util.h"
 #include "net/base/url_util.h"
 #include "starboard/common/file.h"
 #include "starboard/common/string.h"
 #include "starboard/memory.h"
 #include "starboard/types.h"
+#include "third_party/chromium/media/base/timestamp_constants.h"
+#include "third_party/chromium/media/cobalt/ui/gfx/geometry/size.h"
 
 namespace cobalt {
 namespace media {
 namespace sandbox {
 
 namespace {
+
+using ::media::ChunkDemuxer;
 
 // The possible mime type configurations that are supported by cobalt.
 const std::vector<std::string> kSupportedMimeTypes = {
@@ -78,6 +82,8 @@ base::FilePath ResolvePath(const std::string& path) {
   if (SbFileCanOpen(result.value().c_str(), kSbFileOpenOnly | kSbFileRead)) {
     return result;
   }
+  LOG(WARNING) << "Failed to resolve path \"" << path << "\" as \""
+               << result.value() << '"';
   return base::FilePath();
 }
 
@@ -99,14 +105,13 @@ std::vector<uint8_t> ReadHeader(const base::FilePath& path) {
   return buffer;
 }
 
-void OnInitSegmentReceived(std::unique_ptr<MediaTracks> tracks) {
-}
+void OnInitSegmentReceived(std::unique_ptr<::media::MediaTracks> tracks) {}
 
 // Extract the value of "codecs" parameter from content type. It will return
 // "avc1.42E01E" for "video/mp4; codecs="avc1.42E01E".
 // Note that this function assumes that the input is always valid and does
 // minimum validation..
-std::string ExtractCodec(const std::string& content_type) {
+std::string ExtractCodecs(const std::string& content_type) {
   static const char kCodecs[] = "codecs=";
 
   // SplitString will also trim the results.
@@ -167,7 +172,7 @@ void FormatGuesstimator::InitializeAsAdaptive(const base::FilePath& path,
     // obtain a handle to a new |ChunkDemuxer| without any accumulated state as
     // a result of previous calls to |AddId| and |AppendData| methods.
     WebMediaPlayerHelper web_media_player_helper(media_module, open_cb,
-                                                 math::Size(1920, 1080));
+                                                 gfx::Size(1920, 1080));
 
     // |chunk_demuxer| will be set when |open_cb| is called asynchronously
     // during initialization of |web_media_player_helper|. Wait until it is set
@@ -183,11 +188,16 @@ void FormatGuesstimator::InitializeAsAdaptive(const base::FilePath& path,
     }
 
     chunk_demuxer->SetTracksWatcher(id, base::Bind(OnInitSegmentReceived));
+    chunk_demuxer->SetParseWarningCallback(
+        id, base::BindRepeating([](::media::SourceBufferParseWarning warning) {
+          LOG(WARNING) << "Encountered SourceBufferParseWarning "
+                       << static_cast<int>(warning);
+        }));
 
     base::TimeDelta unused_timestamp;
-    if (!chunk_demuxer->AppendData(id, header.data(), header.size(),
-                                   base::TimeDelta(), media::kInfiniteDuration,
-                                   &unused_timestamp)) {
+    if (!chunk_demuxer->AppendData(
+            id, header.data(), header.size(), base::TimeDelta(),
+            ::media::kInfiniteDuration, &unused_timestamp)) {
       // Failing to |AppendData()| means the chosen format is not the file's
       // true format.
       continue;
@@ -197,24 +207,23 @@ void FormatGuesstimator::InitializeAsAdaptive(const base::FilePath& path,
     // configuration does not match with the configuration determined by the
     // ChunkDemuxer). To confirm, we check the decoder configuration determined
     // by the ChunkDemuxer against the chosen format.
-    if (auto demuxer_stream =
-            chunk_demuxer->GetStream(DemuxerStream::Type::AUDIO)) {
-      const AudioDecoderConfig& decoder_config =
-          demuxer_stream->audio_decoder_config();
-      if (StringToAudioCodec(ExtractCodec(expected_supported_mime_type)) ==
-          decoder_config.codec()) {
+    auto streams = chunk_demuxer->GetAllStreams();
+    DCHECK_EQ(streams.size(), 1);
+
+    if (streams[0]->type() == ::media::DemuxerStream::AUDIO) {
+      const auto& decoder_config = streams[0]->audio_decoder_config();
+      if (::media::StringToAudioCodec(ExtractCodecs(
+              expected_supported_mime_type)) == decoder_config.codec()) {
         adaptive_path_ = path;
         mime_type_ = expected_supported_mime_type;
         break;
       }
       continue;
     }
-    auto demuxer_stream = chunk_demuxer->GetStream(DemuxerStream::Type::VIDEO);
-    DCHECK(demuxer_stream);
-    const VideoDecoderConfig& decoder_config =
-        demuxer_stream->video_decoder_config();
-    if (StringToVideoCodec(ExtractCodec(expected_supported_mime_type)) ==
-        decoder_config.codec()) {
+    DCHECK_EQ(streams[0]->type(), ::media::DemuxerStream::VIDEO);
+    const auto& decoder_config = streams[0]->video_decoder_config();
+    if (::media::StringToVideoCodec(ExtractCodecs(
+            expected_supported_mime_type)) == decoder_config.codec()) {
       adaptive_path_ = path;
       mime_type_ = expected_supported_mime_type;
       break;

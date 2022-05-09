@@ -21,8 +21,6 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-#if SB_API_VERSION >= 12 || SB_HAS(MICROPHONE)
-
 TEST(SbMicrophoneCreateTest, SunnyDayOnlyOneMicrophone) {
   SbMicrophoneInfo info_array[kMaxNumberOfMicrophone];
   int available_microphones =
@@ -175,16 +173,12 @@ TEST(SbMicrophoneCreateTest, RainyDayInvalidBufferSize_2G) {
     // This should wrap around to a negative value due to int
     // narrowing.
     int kBufferSize = static_cast<int>(kBufferSize64);
-    SbMicrophone microphone =
-        SbMicrophoneCreate(info_array[0].id, info_array[0].max_sample_rate_hz,
-                           kBufferSize);
+    SbMicrophone microphone = SbMicrophoneCreate(
+        info_array[0].id, info_array[0].max_sample_rate_hz, kBufferSize);
     EXPECT_FALSE(SbMicrophoneIsValid(microphone));
     SbMicrophoneDestroy(microphone);
   }
 }
-
-#endif  // SB_API_VERSION >= 12 ||
-        // SB_HAS(MICROPHONE)
 
 }  // namespace
 }  // namespace nplb

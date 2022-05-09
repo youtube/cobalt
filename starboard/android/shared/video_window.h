@@ -48,7 +48,7 @@ class VideoSurfaceHolder {
   bool GetVideoWindowSize(int* width, int* height);
 
   // Clear the video window by painting it Black.
-  void ClearVideoWindow();
+  void ClearVideoWindow(bool force_reset_surface);
 };
 
 }  // namespace shared

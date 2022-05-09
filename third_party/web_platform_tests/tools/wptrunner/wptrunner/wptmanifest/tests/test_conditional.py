@@ -140,4 +140,4 @@ key_1: other_value
         self.assertTrue(manifest.has_key("key_1"))
         self.assertFalse(manifest.has_key("key_2"))
 
-        self.assertEquals(set(manifest.iterkeys()), set(["key", "key_1"]))
+        self.assertEquals(set(manifest.keys()), set(["key", "key_1"]))

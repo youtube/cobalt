@@ -94,7 +94,9 @@ TEST(SbSystemGetPathTest, FailsGracefullyBogusId) {
 TEST(SbSystemGetPathTest, DoesNotBlowUpForDefinedIds) {
   BasicTest(kSbSystemPathDebugOutputDirectory, false, false, __LINE__);
   BasicTest(kSbSystemPathTempDirectory, false, false, __LINE__);
+#if SB_API_VERSION < SB_SYSTEM_PATH_TEST_OUTPUT_DIRECTORY_DEPRECATED
   BasicTest(kSbSystemPathTestOutputDirectory, false, false, __LINE__);
+#endif  // #if SB_API_VERSION < SB_SYSTEM_PATH_TEST_OUTPUT_DIRECTORY_DEPRECATED
   BasicTest(kSbSystemPathCacheDirectory, false, false, __LINE__);
   BasicTest(kSbSystemPathFontDirectory, false, false, __LINE__);
   BasicTest(kSbSystemPathFontConfigurationDirectory, false, false, __LINE__);
@@ -103,7 +105,9 @@ TEST(SbSystemGetPathTest, DoesNotBlowUpForDefinedIds) {
 TEST(SbSystemGetPathTest, DoesNotTouchOutputBufferOnFailureForDefinedIds) {
   UnmodifiedOnFailureTest(kSbSystemPathDebugOutputDirectory, __LINE__);
   UnmodifiedOnFailureTest(kSbSystemPathTempDirectory, __LINE__);
+#if SB_API_VERSION < SB_SYSTEM_PATH_TEST_OUTPUT_DIRECTORY_DEPRECATED
   UnmodifiedOnFailureTest(kSbSystemPathTestOutputDirectory, __LINE__);
+#endif  // #if SB_API_VERSION < SB_SYSTEM_PATH_TEST_OUTPUT_DIRECTORY_DEPRECATED
   UnmodifiedOnFailureTest(kSbSystemPathCacheDirectory, __LINE__);
   UnmodifiedOnFailureTest(kSbSystemPathFontDirectory, __LINE__);
   UnmodifiedOnFailureTest(kSbSystemPathFontConfigurationDirectory, __LINE__);

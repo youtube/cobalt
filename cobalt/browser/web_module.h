@@ -21,7 +21,6 @@
 
 #include "base/callback.h"
 #include "base/containers/hash_tables.h"
-#include "base/files/file_path.h"
 #include "base/message_loop/message_loop.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/thread.h"
@@ -52,14 +51,14 @@
 #include "cobalt/math/size.h"
 #include "cobalt/media/can_play_type_handler.h"
 #include "cobalt/media/media_module.h"
-#include "cobalt/network/network_module.h"
 #include "cobalt/render_tree/node.h"
 #include "cobalt/render_tree/resource_provider.h"
-#include "cobalt/script/global_environment.h"
-#include "cobalt/script/javascript_engine.h"
-#include "cobalt/script/script_runner.h"
 #include "cobalt/ui_navigation/nav_item.h"
+#include "cobalt/web/agent.h"
+#include "cobalt/web/context.h"
 #include "cobalt/webdriver/session_driver.h"
+#include "cobalt/worker/service_worker_jobs.h"
+#include "starboard/atomic.h"
 #include "url/gurl.h"
 
 #if defined(ENABLE_DEBUGGER)
@@ -88,33 +87,20 @@ namespace browser {
 // This necessarily implies that details contained within WebModule, such as the
 // DOM, are intentionally kept private, since these structures expect to be
 // accessed from only one thread.
-class WebModule : public LifecycleObserver {
+class WebModule : public base::MessageLoop::DestructionObserver,
+                  public LifecycleObserver {
  public:
   struct Options {
-    typedef base::Callback<scoped_refptr<script::Wrappable>(
-        const scoped_refptr<dom::Window>& window,
-        script::GlobalEnvironment* global_environment)>
-        CreateObjectFunction;
-    typedef base::hash_map<std::string, CreateObjectFunction>
-        InjectedWindowAttributes;
-
     // All optional parameters defined in this structure should have their
     // values initialized in the default constructor to useful defaults.
-    Options();
+    explicit Options(const std::string& name);
 
-    // The name of the WebModule.  This is useful for debugging purposes as in
-    // the case where multiple WebModule objects exist, it can be used to
-    // differentiate which objects belong to which WebModule.  It is used
-    // to name some CVals.
-    std::string name;
+    web::Agent::Options web_options;
 
     // The LayoutTrigger parameter dictates when a layout should be triggered.
     // Tests will often set this up so that layouts are only performed when
     // we specifically request them to be.
     layout::LayoutManager::LayoutTrigger layout_trigger;
-
-    // Optional directory to add to the search path for web files (file://).
-    base::FilePath extra_web_file_dir;
 
     // The navigation_callback functor will be called when JavaScript internal
     // to the WebModule requests a page navigation, e.g. by modifying
@@ -123,11 +109,6 @@ class WebModule : public LifecycleObserver {
 
     // A list of callbacks to be called once the web page finishes loading.
     std::vector<base::Closure> loaded_callbacks;
-
-    // injected_window_attributes contains a map of attributes to be injected
-    // into the WebModule's window object upon construction.  This provides
-    // a mechanism to inject custom APIs into the WebModule object.
-    InjectedWindowAttributes injected_window_attributes;
 
     // Options to customize DOMSettings.
     dom::DOMSettings::Options dom_settings_options;
@@ -155,7 +136,7 @@ class WebModule : public LifecycleObserver {
     int remote_typeface_cache_capacity = 4 * 1024 * 1024;
 
     // Mesh cache capacity in bytes.
-    int mesh_cache_capacity;
+    int mesh_cache_capacity = 0;
 
     // Whether map-to-mesh is enabled.
     bool enable_map_to_mesh = true;
@@ -175,11 +156,6 @@ class WebModule : public LifecycleObserver {
     // help for platforms that are low on image memory while playing a video.
     float image_cache_capacity_multiplier_when_playing_video = 1.0f;
 
-    // Specifies the priority of the web module's thread.  This is the thread
-    // that is responsible for executing JavaScript, managing the DOM, and
-    // performing layouts.  The default value is base::ThreadPriority::NORMAL.
-    base::ThreadPriority thread_priority = base::ThreadPriority::NORMAL;
-
     // Specifies the priority that the web module's corresponding loader thread
     // will be assigned.  This is the thread responsible for performing resource
     // decoding, such as image decoding.  The default value is
@@ -197,8 +173,6 @@ class WebModule : public LifecycleObserver {
     // To support 3D camera movements.
     scoped_refptr<input::Camera3D> camera_3d;
 
-    script::JavaScriptEngine::Options javascript_engine_options;
-
     // The video playback rate will be multiplied with the following value.  Its
     // default value is 1.0.
     float video_playback_rate_multiplier = 1.f;
@@ -212,7 +186,7 @@ class WebModule : public LifecycleObserver {
     bool should_retain_remote_typeface_cache_on_freeze = false;
 
     // The splash screen cache object, owned by the BrowserModule.
-    SplashScreenCache* splash_screen_cache;
+    SplashScreenCache* splash_screen_cache = nullptr;
 
     // The beforeunload event can give a web page a chance to shut
     // itself down softly and ultimately call window.close(), however
@@ -222,12 +196,8 @@ class WebModule : public LifecycleObserver {
     // no window.close() call pending.
     base::Closure on_before_unload_fired_but_not_handled;
 
-    // Whether or not the WebModule is allowed to fetch from cache via
-    // h5vcc-cache://.
-    bool can_fetch_cache = false;
-
     // The dom::OnScreenKeyboard forwards calls to this interface.
-    dom::OnScreenKeyboardBridge* on_screen_keyboard_bridge = NULL;
+    dom::OnScreenKeyboardBridge* on_screen_keyboard_bridge = nullptr;
 
     // This function takes in a render tree as input, and then calls the 2nd
     // argument (which is another callback) when the screenshot is available.
@@ -252,11 +222,6 @@ class WebModule : public LifecycleObserver {
     // can allow the limit to be disabled.
     bool limit_performance_timer_resolution = true;
 
-#if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
-    // Whether layout is optimized to re-use boxes for still-valid elements.
-    bool enable_partial_layout = true;
-#endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
-
 #if defined(ENABLE_DEBUGGER)
     // Whether the debugger should block until remote devtools connects.
     bool wait_for_web_debugger = false;
@@ -271,6 +236,11 @@ class WebModule : public LifecycleObserver {
     // there is no playback during Concealed state, we should provide a chance
     // for Cobalt to freeze.
     base::Closure maybe_freeze_callback;
+
+    // This callback is for collecting previous document unload event start/end
+    // time.
+    base::Callback<void(base::TimeTicks, base::TimeTicks)>
+        collect_unload_event_time_callback;
   };
 
   typedef layout::LayoutManager::LayoutResults LayoutResults;
@@ -278,24 +248,22 @@ class WebModule : public LifecycleObserver {
       OnRenderTreeProducedCallback;
   typedef base::Callback<void(const GURL&, const std::string&)> OnErrorCallback;
   typedef dom::Window::CloseCallback CloseCallback;
-  typedef base::Callback<void(const script::HeapStatistics&)>
-      JavaScriptHeapStatisticsCallback;
 
   WebModule(const GURL& initial_url,
             base::ApplicationState initial_application_state,
             const OnRenderTreeProducedCallback& render_tree_produced_callback,
-            const OnErrorCallback& error_callback,
+            OnErrorCallback error_callback,
             const CloseCallback& window_close_callback,
             const base::Closure& window_minimize_callback,
             media::CanPlayTypeHandler* can_play_type_handler,
             media::MediaModule* media_module,
-            network::NetworkModule* network_module,
             const cssom::ViewportSize& window_dimensions,
             render_tree::ResourceProvider* resource_provider,
-            float layout_refresh_rate, const Options& options);
+            float layout_refresh_rate,
+            worker::ServiceWorkerJobs* service_worker_jobs,
+            const Options& options);
   ~WebModule();
 
-#if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
   // Injects an on screen keyboard input event into the web module. The value
   // for type represents beforeinput or input.
   void InjectOnScreenKeyboardInputEvent(base::Token type,
@@ -311,8 +279,6 @@ class WebModule : public LifecycleObserver {
   // Injects an on screen keyboard suggestions updated event into the web
   // module.
   void InjectOnScreenKeyboardSuggestionsUpdatedEvent(int ticket);
-#endif  // SB_API_VERSION >= 12 ||
-        // SB_HAS(ON_SCREEN_KEYBOARD)
 
   void InjectWindowOnOnlineEvent(const base::Event* event);
   void InjectWindowOnOfflineEvent(const base::Event* event);
@@ -343,26 +309,29 @@ class WebModule : public LifecycleObserver {
   // Executes Javascript code in this web module.  The calling thread will
   // block until the JavaScript has executed and the output results are
   // available.
-  std::string ExecuteJavascript(const std::string& script_utf8,
-                                const base::SourceLocation& script_location,
-                                bool* out_succeeded);
+  void ExecuteJavascript(const std::string& script_utf8,
+                         const base::SourceLocation& script_location,
+                         std::string* out_result = nullptr,
+                         bool* out_succeeded = nullptr);
 
 #if defined(ENABLE_WEBDRIVER)
   // Creates a new webdriver::WindowDriver that interacts with the Window that
   // is owned by this WebModule instance.
-  std::unique_ptr<webdriver::WindowDriver> CreateWindowDriver(
-      const webdriver::protocol::WindowId& window_id);
+  void CreateWindowDriver(
+      const webdriver::protocol::WindowId& window_id,
+      std::unique_ptr<webdriver::WindowDriver>* window_driver_out);
 #endif
 
 #if defined(ENABLE_DEBUGGER)
   // Gets a reference to the debug dispatcher that interacts with this web
   // module. The debug dispatcher is part of the debug module owned by this web
   // module, which is lazily created by this function if necessary.
-  debug::backend::DebugDispatcher* GetDebugDispatcher();
+  void GetDebugDispatcher(debug::backend::DebugDispatcher** dispatcher);
 
   // Moves the debugger state out of this WebModule prior to navigating so that
   // it can be restored in the new WebModule after the navigation.
-  std::unique_ptr<debug::backend::DebuggerState> FreezeDebugger();
+  void FreezeDebugger(
+      std::unique_ptr<debug::backend::DebuggerState>* debugger_state);
 #endif  // ENABLE_DEBUGGER
 
   // Sets the size of this web module, possibly causing relayout and re-render
@@ -402,36 +371,48 @@ class WebModule : public LifecycleObserver {
   // thread.  It is the responsibility of |callback| to get back to its
   // intended thread should it want to.
   void RequestJavaScriptHeapStatistics(
-      const JavaScriptHeapStatisticsCallback& callback);
+      const web::Agent::JavaScriptHeapStatisticsCallback& callback);
 
   // Indicate the web module is ready to freeze.
   bool IsReadyToFreeze();
 
-  scoped_refptr<render_tree::Node> DoSynchronousLayoutAndGetRenderTree();
+  void DoSynchronousLayoutAndGetRenderTree(
+      scoped_refptr<render_tree::Node>* render_tree = nullptr);
 
+  // Pass the application preload or start timestamps from Starboard.
   void SetApplicationStartOrPreloadTimestamp(bool is_preload,
                                              SbTimeMonotonic timestamp);
   void SetDeepLinkTimestamp(SbTimeMonotonic timestamp);
+
+  // From base::MessageLoop::DestructionObserver.
+  void WillDestroyCurrentMessageLoop() override;
+
+  // Set document's load timing info's unload event start/end time.
+  void SetUnloadEventTimingInfo(base::TimeTicks start_time,
+                                base::TimeTicks end_time);
 
  private:
   // Data required to construct a WebModule, initialized in the constructor and
   // passed to |Initialize|.
   struct ConstructionData {
-    ConstructionData(
-        const GURL& initial_url,
-        base::ApplicationState initial_application_state,
-        const OnRenderTreeProducedCallback& render_tree_produced_callback,
-        const OnErrorCallback& error_callback,
-        const CloseCallback& window_close_callback,
-        const base::Closure& window_minimize_callback,
-        media::CanPlayTypeHandler* can_play_type_handler,
-        media::MediaModule* media_module,
-        network::NetworkModule* network_module,
-        const cssom::ViewportSize& window_dimensions,
-        render_tree::ResourceProvider* resource_provider,
-        int dom_max_element_depth, float layout_refresh_rate,
-        const scoped_refptr<ui_navigation::NavItem>& ui_nav_root,
-        const Options& options)
+    ConstructionData(const GURL& initial_url,
+                     base::ApplicationState initial_application_state,
+                     OnRenderTreeProducedCallback render_tree_produced_callback,
+                     const OnErrorCallback& error_callback,
+                     CloseCallback window_close_callback,
+                     base::Closure window_minimize_callback,
+                     media::CanPlayTypeHandler* can_play_type_handler,
+                     media::MediaModule* media_module,
+                     const cssom::ViewportSize& window_dimensions,
+                     render_tree::ResourceProvider* resource_provider,
+                     int dom_max_element_depth, float layout_refresh_rate,
+                     const scoped_refptr<ui_navigation::NavItem>& ui_nav_root,
+#if defined(ENABLE_DEBUGGER)
+                     starboard::atomic_bool* waiting_for_web_debugger,
+#endif  // defined(ENABLE_DEBUGGER)
+                     base::WaitableEvent* synchronous_loader_interrupt,
+                     worker::ServiceWorkerJobs* service_worker_jobs,
+                     const Options& options)
         : initial_url(initial_url),
           initial_application_state(initial_application_state),
           render_tree_produced_callback(render_tree_produced_callback),
@@ -440,67 +421,84 @@ class WebModule : public LifecycleObserver {
           window_minimize_callback(window_minimize_callback),
           can_play_type_handler(can_play_type_handler),
           media_module(media_module),
-          network_module(network_module),
           window_dimensions(window_dimensions),
           resource_provider(resource_provider),
           dom_max_element_depth(dom_max_element_depth),
           layout_refresh_rate(layout_refresh_rate),
           ui_nav_root(ui_nav_root),
-          options(options) {}
+#if defined(ENABLE_DEBUGGER)
+          waiting_for_web_debugger(waiting_for_web_debugger),
+#endif  // defined(ENABLE_DEBUGGER)
+          synchronous_loader_interrupt(synchronous_loader_interrupt),
+          service_worker_jobs(service_worker_jobs),
+          options(options) {
+    }
 
     GURL initial_url;
     base::ApplicationState initial_application_state;
     OnRenderTreeProducedCallback render_tree_produced_callback;
     OnErrorCallback error_callback;
-    const CloseCallback& window_close_callback;
-    const base::Closure& window_minimize_callback;
+    CloseCallback window_close_callback;
+    base::Closure window_minimize_callback;
     media::CanPlayTypeHandler* can_play_type_handler;
     media::MediaModule* media_module;
-    network::NetworkModule* network_module;
     cssom::ViewportSize window_dimensions;
     render_tree::ResourceProvider* resource_provider;
     int dom_max_element_depth;
     float layout_refresh_rate;
     scoped_refptr<ui_navigation::NavItem> ui_nav_root;
+#if defined(ENABLE_DEBUGGER)
+    starboard::atomic_bool* waiting_for_web_debugger;
+#endif  // defined(ENABLE_DEBUGGER)
+    base::WaitableEvent* synchronous_loader_interrupt;
+    worker::ServiceWorkerJobs* service_worker_jobs;
     Options options;
   };
 
   // Forward declaration of the private implementation class.
   class Impl;
 
-  // Destruction observer used to safely tear down this WebModule after the
-  // thread has been stopped.
-  class DestructionObserver : public base::MessageLoop::DestructionObserver {
-   public:
-    explicit DestructionObserver(WebModule* web_module);
-    void WillDestroyCurrentMessageLoop() override;
-
-   private:
-    WebModule* web_module_;
-  };
-
   // Called by the constructor to create the private implementation object and
   // perform any other initialization required on the dedicated thread.
-  void Initialize(const ConstructionData& data);
+  void Initialize(const ConstructionData& data, web::Context* context);
 
   void ClearAllIntervalsAndTimeouts();
 
   void CancelSynchronousLoads();
 
+  void GetIsReadyToFreeze(volatile bool* is_ready_to_freeze);
+
   // The message loop this object is running on.
-  base::MessageLoop* message_loop() const { return thread_.message_loop(); }
+  base::MessageLoop* message_loop() const {
+    DCHECK(web_agent_);
+    return web_agent_->message_loop();
+  }
 
   // Private implementation object.
   std::unique_ptr<Impl> impl_;
 
-  // The thread created and owned by this WebModule.
-  // All sub-objects of this object are created on this thread, and all public
-  // member functions are re-posted to this thread if necessary.
-  base::Thread thread_;
+  web::Agent* web_agent() const { return web_agent_.get(); }
+
+  // The Web Agent.
+  std::unique_ptr<web::Agent> web_agent_;
 
   // This is the root UI navigation container which contains all active UI
   // navigation items created by this web module.
   scoped_refptr<ui_navigation::NavItem> ui_nav_root_;
+
+#if defined(ENABLE_DEBUGGER)
+  // Used to avoid a deadlock when running |Blur| while waiting for the web
+  // debugger to connect. Initializes to false.
+  starboard::atomic_bool waiting_for_web_debugger_;
+#endif  // defined(ENABLE_DEBUGGER)
+
+  // This event is used to interrupt the loader when JavaScript is loaded
+  // synchronously.  It is manually reset so that events like Freeze can be
+  // correctly execute, even if there are multiple synchronous loads in queue
+  // before the freeze (or other) event handlers.
+  base::WaitableEvent synchronous_loader_interrupt_ = {
+      base::WaitableEvent::ResetPolicy::MANUAL,
+      base::WaitableEvent::InitialState::NOT_SIGNALED};
 };
 
 }  // namespace browser

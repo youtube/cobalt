@@ -23,8 +23,6 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import _env  # pylint: disable=unused-import,g-bad-import-order
-
 import logging
 import traceback
 
@@ -71,7 +69,7 @@ class PointerTest(black_box_tests.BlackBoxTestCase):
           bottom_six = find_element_by_id(runner, 'bottom_six')
 
           # Perform mouse actions with ActionChains.
-          #   https://www.selenium.dev/selenium/docs/api/py/webdriver/selenium.webdriver.common.action_chains.html#module-selenium.webdriver.common.action_chains
+          #   https://www.selenium.dev/selenium/docs/api/py/webdriver/selenium.webdriver.common.action_chains.html#module-selenium.webdriver.common.action_chains  # pylint: disable=line-too-long
           actions = ActionChains(runner.webdriver)
           actions.move_to_element(top_one).pause(_SLEEP_AFTER_MOVE_TIME)
           actions.move_to_element(top_two).pause(_SLEEP_AFTER_MOVE_TIME)
@@ -98,6 +96,6 @@ class PointerTest(black_box_tests.BlackBoxTestCase):
     except:  # pylint: disable=bare-except
       traceback.print_exc()
       # Consider an exception being thrown as a test failure.
-      self.assertTrue(False)
+      self.fail('Test failure')
     finally:
       logging.info('Cleaning up.')

@@ -151,4 +151,16 @@ static inline bool GrClipSrcRectAndDstPoint(const SkISize& dstSize,
     // dst bounds.
     return !clippedSrcRect->isEmpty();
 }
+
+#ifdef SKIA_STRUCTURED_BINDINGS_BACKPORT
+template <>
+struct CoercerToTuple<GrIRect16> {
+  static auto Coerce(GrIRect16&& t) {
+    return std::make_tuple(t.fLeft, t.fTop, t.fRight, t.fBottom);
+  }
+  static auto Coerce(const GrIRect16& t) {
+    return std::make_tuple(t.fLeft, t.fTop, t.fRight, t.fBottom);
+  }
+};
+#endif
 #endif

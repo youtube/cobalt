@@ -23,9 +23,10 @@
 #include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/testing/stub_environment_settings.h"
 #include "cobalt/dom/window.h"
-#include "cobalt/network/network_module.h"
 #include "cobalt/script/script_exception.h"
 #include "cobalt/script/testing/mock_exception_state.h"
+#include "cobalt/web/context.h"
+#include "cobalt/web/stub_web_context.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 using ::testing::_;
@@ -36,38 +37,31 @@ using cobalt::script::testing::MockExceptionState;
 namespace cobalt {
 namespace websocket {
 
-namespace {
-class FakeSettings : public dom::testing::StubEnvironmentSettings {
- public:
-  FakeSettings() : base_("https://example.com") {
-    network_module_.reset(new network::NetworkModule());
-    this->set_network_module(network_module_.get());
-  }
-  const GURL& base_url() const override { return base_; }
-
-  // public members, so that they're easier for testing.
-  GURL base_;
-  std::unique_ptr<network::NetworkModule> network_module_;
-};
-}  // namespace
-
 class WebSocketTest : public ::testing::Test {
  public:
-  dom::DOMSettings* settings() const { return settings_.get(); }
+  web::EnvironmentSettings* settings() const {
+    return web_context_->environment_settings();
+  }
 
  protected:
-  WebSocketTest() : settings_(new FakeSettings()) {}
+  WebSocketTest() : web_context_(new web::test::StubWebContext()) {
+    web_context_->set_network_module(new network::NetworkModule());
+    web_context_->setup_environment_settings(
+        new dom::testing::StubEnvironmentSettings());
+    web_context_->environment_settings()->set_base_url(
+        GURL("https://example.com"));
+  }
 
   base::test::ScopedTaskEnvironment env_;
 
-  std::unique_ptr<FakeSettings> settings_;
+  std::unique_ptr<web::test::StubWebContext> web_context_;
   StrictMock<MockExceptionState> exception_state_;
 };
 
 TEST_F(WebSocketTest, BadOrigin) {
   scoped_refptr<script::ScriptException> exception;
 
-  base::polymorphic_downcast<FakeSettings*>(settings())->base_ = GURL();
+  settings()->set_base_url(GURL());
 
   EXPECT_CALL(exception_state_, SetException(_))
       .WillOnce(SaveArg<0>(&exception));
@@ -97,8 +91,7 @@ TEST_F(WebSocketTest, GoodOrigin) {
   for (std::size_t i(0); i != ARRAYSIZE_UNSAFE(origin_test_cases); ++i) {
     const OriginTestCase& test_case(origin_test_cases[i]);
     std::string new_base = test_case.input_base_url;
-    base::polymorphic_downcast<FakeSettings*>(settings())->base_ =
-        GURL(new_base);
+    settings()->set_base_url(GURL(new_base));
 
     scoped_refptr<WebSocket> ws(new WebSocket(settings(), "ws://example.com",
                                               &exception_state_, false));

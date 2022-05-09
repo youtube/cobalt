@@ -232,17 +232,6 @@ void CheckConstrainingValues(const MemorySetting& memory_setting) {
 
 }  // namespace
 
-AutoMem::AutoMem(const math::Size& ui_resolution,
-                 const AutoMemSettings& command_line_settings,
-                 const AutoMemSettings& build_settings) {
-  TRACE_EVENT0("cobalt::browser", "AutoMem::AutoMem()");
-  ConstructSettings(ui_resolution, command_line_settings, build_settings);
-
-  std::vector<MemorySetting*> memory_settings = AllMemorySettingsMutable();
-}
-
-AutoMem::~AutoMem() {}
-
 const IntSetting* AutoMem::remote_typeface_cache_size_in_bytes() const {
   return remote_typeface_cache_size_in_bytes_.get();
 }
@@ -286,7 +275,7 @@ std::vector<const MemorySetting*> AutoMem::AllMemorySettings() const {
 }
 
 // Make sure that this is the same as AllMemorySettings().
-std::vector<MemorySetting*> AutoMem::AllMemorySettingsMutable() {
+std::vector<MemorySetting*> AutoMem::AllMemorySettingsMutable() const {
   std::vector<MemorySetting*> all_settings;
   // Keep these in alphabetical order.
   all_settings.push_back(encoded_image_cache_size_in_bytes_.get());
@@ -298,10 +287,12 @@ std::vector<MemorySetting*> AutoMem::AllMemorySettingsMutable() {
   return all_settings;
 }
 
-std::string AutoMem::ToPrettyPrintString(bool use_color_ascii) const {
+void AutoMem::LogToPrettyPrintString(const math::Size& ui_resolution,
+                                     bool use_color_ascii) {
+#if !defined(COBALT_BUILD_TYPE_GOLD)
   std::stringstream ss;
 
-  ss << "AutoMem:\n";
+  ss << "AutoMem (resolution: " << ui_resolution << "):\n";
   std::vector<const MemorySetting*> all_settings = AllMemorySettings();
   ss << GeneratePrettyPrintTable(use_color_ascii, all_settings);
 
@@ -344,8 +335,12 @@ std::string AutoMem::ToPrettyPrintString(bool use_color_ascii) const {
     ss << MakeBorder(ss_error.str(), '*');
   }
 
-  std::string output_str = ss.str();
-  return output_str;
+  std::string output_str(ss.str());
+  if (output_str != previous_log_) {
+    LOG(INFO) << output_str;
+    previous_log_.swap(output_str);
+  }
+#endif
 }
 
 int64_t AutoMem::SumAllMemoryOfType(
@@ -356,6 +351,7 @@ int64_t AutoMem::SumAllMemoryOfType(
 void AutoMem::ConstructSettings(const math::Size& ui_resolution,
                                 const AutoMemSettings& command_line_settings,
                                 const AutoMemSettings& build_settings) {
+  TRACE_EVENT0("cobalt::browser", "AutoMem::ConstructSettings()");
   max_cpu_bytes_ = CreateCpuSetting(command_line_settings, build_settings);
   max_gpu_bytes_ = CreateGpuSetting(command_line_settings, build_settings);
 
@@ -441,6 +437,8 @@ void AutoMem::ConstructSettings(const math::Size& ui_resolution,
   for (size_t i = 0; i < all_memory_settings.size(); ++i) {
     CheckConstrainingValues(*all_memory_settings[i]);
   }
+
+  LogToPrettyPrintString(ui_resolution, SbLogIsTty());
 }
 
 }  // namespace memory_settings

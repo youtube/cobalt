@@ -31,10 +31,8 @@ namespace speech {
 bool StarboardSpeechRecognizer::IsSupported() {
 #if SB_API_VERSION >= 13
   return false;
-#elif SB_API_VERSION >= 12
-  return SbSpeechRecognizerIsSupported();
 #else
-  return true;
+  return SbSpeechRecognizerIsSupported();
 #endif
 }
 

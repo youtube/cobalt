@@ -17,7 +17,6 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import _env  # pylint: disable=unused-import
 from cobalt.tools.automated_testing import cobalt_runner
 
 # The following constants and logics are shared between this module and

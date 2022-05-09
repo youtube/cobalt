@@ -44,8 +44,20 @@ skia_common("skia_library_no_asan") {
   sources = skia_effects_imagefilter_sources_no_asan
   if (use_skia_next) {
     include_dirs = [ skia_include_dir ]
-    defines = [ "USE_SKIA_NEXT" ]
-    cflags_cc = [ "-Wno-c++17-extensions" ]
+    defines = [
+      "USE_SKIA_NEXT",
+      "SKIA_STRUCTURED_BINDINGS_BACKPORT",
+    ]
+    if (is_clang) {
+      if (using_old_compiler) {
+        cflags_cc = [ "-Wno-c++1z-extensions" ]
+      } else {
+        cflags_cc = [
+          "-Wno-c++17-extensions",
+          "-Wno-invalid-offsetof",
+        ]
+      }
+    }
   }
 
   # TODO(b/207398024): If this is a target we need to build, then we'll
@@ -81,8 +93,20 @@ config("skia_library_config_public") {
   defines = [ "SK_BUILD_NO_OPTS" ]
 
   if (use_skia_next) {
-    defines += [ "USE_SKIA_NEXT" ]
-    cflags_cc = [ "-Wno-c++17-extensions" ]
+    defines += [
+      "USE_SKIA_NEXT",
+      "SKIA_STRUCTURED_BINDINGS_BACKPORT",
+    ]
+    if (is_clang) {
+      if (using_old_compiler) {
+        cflags_cc = [ "-Wno-c++1z-extensions" ]
+      } else {
+        cflags_cc = [
+          "-Wno-c++17-extensions",
+          "-Wno-invalid-offsetof",
+        ]
+      }
+    }
   }
 }
 
@@ -130,7 +154,6 @@ skia_common("skia") {
     "src/ports/SkOSFile_cobalt.h",
     "src/ports/SkStream_cobalt.cc",
     "src/ports/SkStream_cobalt.h",
-    "src/ports/SkTLS_cobalt.cc",
     "src/ports/SkTime_cobalt.cc",
     "src/ports/SkTypeface_cobalt.cc",
     "src/ports/SkTypeface_cobalt.h",
@@ -138,6 +161,10 @@ skia_common("skia") {
 
   if (is_starboard) {
     sources += [ "src/ports/SkMemory_starboard.cc" ]
+  }
+
+  if (!use_skia_next) {
+    sources += [ "src/ports/SkTLS_cobalt.cc" ]
   }
 
   include_dirs = [ target_gen_dir ]

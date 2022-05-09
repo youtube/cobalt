@@ -14,8 +14,6 @@
 
 #include "starboard/configuration.h"
 
-#if SB_API_VERSION >= 12
-
 namespace starboard {
 namespace sabi {
 namespace {
@@ -33,5 +31,3 @@ SB_COMPILE_ASSERT(sizeof(GenericEnumType) == SB_SIZE_OF_ENUM,
 }  // namespace
 }  // namespace sabi
 }  // namespace starboard
-
-#endif  // SB_API_VERSION >= 12

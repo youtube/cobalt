@@ -1722,6 +1722,20 @@ GrRecordingContext* SkCanvas::recordingContext() {
     return nullptr;
 }
 
+#ifdef STARBOARD
+intptr_t SkCanvas::getRenderTargetHandle() const {
+    if (fSurfaceBase) {
+        GrBackendRenderTarget target =
+                fSurfaceBase->getBackendRenderTarget(SkSurface::kFlushRead_BackendHandleAccess);
+        GrGLFramebufferInfo info;
+        if (target.getGLFramebufferInfo(&info)) {
+            return info.fFBOID;
+        }
+    }
+    return 0;
+}
+#endif
+
 void SkCanvas::drawDRRect(const SkRRect& outer, const SkRRect& inner,
                           const SkPaint& paint) {
     TRACE_EVENT0("skia", TRACE_FUNC);
@@ -2365,8 +2379,13 @@ void SkCanvas::drawGlyphs(int count, const SkGlyphID glyphs[], const SkRSXform x
                           SkPoint origin, const SkFont& font, const SkPaint& paint) {
     if (count <= 0) { return; }
 
+#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     auto [positions, rotateScales] =
             fScratchGlyphRunBuilder->convertRSXForm(SkMakeSpan(xforms, count));
+#else
+    STRUCTURED_BINDING_2(positions, rotateScales,
+            fScratchGlyphRunBuilder->convertRSXForm(SkMakeSpan(xforms, count)));
+#endif
 
     SkGlyphRun glyphRun {
             font,

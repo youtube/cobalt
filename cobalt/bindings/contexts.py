@@ -19,15 +19,15 @@ dicts that will be used by Jinja in JS bindings generation.
 """
 
 import _env  # pylint: disable=unused-import
+from cobalt.bindings.name_conversion import capitalize_function_name
+from cobalt.bindings.name_conversion import convert_to_cobalt_constant_name
+from cobalt.bindings.name_conversion import convert_to_cobalt_enumeration_value
+from cobalt.bindings.name_conversion import convert_to_cobalt_name
+from cobalt.bindings.name_conversion import get_interface_name
+from cobalt.bindings.overload_context import get_overload_contexts
 from idl_definitions import IdlTypedef
 from idl_types import IdlPromiseType
 from idl_types import IdlSequenceType
-from name_conversion import capitalize_function_name
-from name_conversion import convert_to_cobalt_constant_name
-from name_conversion import convert_to_cobalt_enumeration_value
-from name_conversion import convert_to_cobalt_name
-from name_conversion import get_interface_name
-from overload_context import get_overload_contexts
 from v8_attributes import is_constructor_attribute
 from v8_interface import method_overloads_by_name
 import v8_utilities
@@ -200,7 +200,7 @@ def get_conversion_flags(idl_type, extended_attributes):
     elif extended_attributes.get('TreatUndefinedAs', '') == 'EmptyString':
       flags.append('kConversionFlagTreatUndefinedAsEmptyString')
 
-  if extended_attributes.has_key('Clamp'):
+  if 'Clamp' in extended_attributes:
     flags.append('kConversionFlagClamped')
 
   if is_object_type(idl_type):
@@ -262,6 +262,13 @@ class ContextBuilder(object):
     return '::cobalt::script::UnionType%d<%s >' % (len(cobalt_types),
                                                    ', '.join(cobalt_types))
 
+  def get_implemented_interface_name(self, idl_type):
+    interface_name = get_interface_name(idl_type)
+    interface_info = self.info_provider.interfaces_info.get(interface_name)
+    name = (interface_info['implemented_as']
+            if interface_info else None) or interface_name
+    return name
+
   def idl_type_to_cobalt_type(self, idl_type):
     """Map IDL type to C++ type."""
     assert not isinstance(idl_type, IdlTypedef)
@@ -272,9 +279,10 @@ class ContextBuilder(object):
       cobalt_type = idl_string_type_to_cobalt(idl_type)
     elif idl_type.is_callback_interface:
       cobalt_type = '::cobalt::script::CallbackInterfaceTraits<%s >' % (
-          get_interface_name(idl_type))
+          self.get_implemented_interface_name(idl_type))
     elif idl_type.is_interface_type:
-      cobalt_type = 'scoped_refptr<%s>' % get_interface_name(idl_type)
+      cobalt_type = 'scoped_refptr<%s>' % self.get_implemented_interface_name(
+          idl_type)
     elif idl_type.is_union_type:
       cobalt_type = self.idl_union_type_to_cobalt(idl_type)
     elif idl_type.is_enum:
@@ -306,7 +314,8 @@ class ContextBuilder(object):
     """Map type of IDL TypedObject to C++ type."""
     idl_type = self.resolve_typedef(typed_object.idl_type)
     if idl_type.is_callback_function:
-      cobalt_type = interface.name + '::' + get_interface_name(idl_type)
+      cobalt_type = interface.name + '::' + self.get_implemented_interface_name(
+          idl_type)
     else:
       cobalt_type = self.idl_type_to_cobalt_type(idl_type)
     if getattr(typed_object, 'is_variadic', False):
@@ -379,8 +388,9 @@ class ContextBuilder(object):
     context = {
         'call_with':
             interface.extended_attributes.get('ConstructorCallWith', None),
-        'raises_exception': (interface.extended_attributes.get(
-            'RaisesException', None) == 'Constructor'),
+        'raises_exception':
+            (interface.extended_attributes.get('RaisesException',
+                                               None) == 'Constructor'),
     }
 
     context.update(self.partial_context(interface, constructor))
@@ -389,28 +399,17 @@ class ContextBuilder(object):
   def method_context(self, interface, operation):
     """Create template values for generating method bindings."""
     context = {
-        'idl_name':
-            operation.name,
-        'name':
-            capitalize_function_name(operation.name),
-        'type':
-            self.typed_object_to_cobalt_type(interface, operation),
-        'is_static':
-            operation.is_static,
-        'on_instance':
-            v8_utilities.on_instance(interface, operation),
-        'on_interface':
-            v8_utilities.on_interface(interface, operation),
-        'on_prototype':
-            v8_utilities.on_prototype(interface, operation),
-        'call_with':
-            operation.extended_attributes.get('CallWith', None),
-        'raises_exception':
-            operation.extended_attributes.has_key('RaisesException'),
-        'conditional':
-            operation.extended_attributes.get('Conditional', None),
-        'unsupported':
-            'NotSupported' in operation.extended_attributes,
+        'idl_name': operation.name,
+        'name': capitalize_function_name(operation.name),
+        'type': self.typed_object_to_cobalt_type(interface, operation),
+        'is_static': operation.is_static,
+        'on_instance': v8_utilities.on_instance(interface, operation),
+        'on_interface': v8_utilities.on_interface(interface, operation),
+        'on_prototype': v8_utilities.on_prototype(interface, operation),
+        'call_with': operation.extended_attributes.get('CallWith', None),
+        'raises_exception': 'RaisesException' in operation.extended_attributes,
+        'conditional': operation.extended_attributes.get('Conditional', None),
+        'unsupported': 'NotSupported' in operation.extended_attributes,
     }
     context.update(self.partial_context(interface, operation))
     return context
@@ -458,10 +457,8 @@ class ContextBuilder(object):
       cobalt_name = 'AnonymousNamed%s' % function_suffix[special_type]
 
     context = {
-        'name':
-            cobalt_name,
-        'raises_exception':
-            operation.extended_attributes.has_key('RaisesException'),
+        'name': cobalt_name,
+        'raises_exception': 'RaisesException' in operation.extended_attributes,
     }
 
     if special_type in ('getter', 'deleter'):
@@ -502,7 +499,7 @@ class ContextBuilder(object):
         'call_with':
             attribute.extended_attributes.get('CallWith', None),
         'raises_exception':
-            attribute.extended_attributes.has_key('RaisesException'),
+            'RaisesException' in attribute.extended_attributes,
         'conversion_flags':
             get_conversion_flags(
                 self.resolve_typedef(attribute.idl_type),
@@ -525,13 +522,17 @@ class ContextBuilder(object):
           if a.name == forwarded_attribute_name
       ]
       assert len(matching_attributes) == 1
-      context['put_forwards'] = self.attribute_context(
-          forwarded_interface, matching_attributes[0], definitions)
+      context['put_forwards'] = self.attribute_context(forwarded_interface,
+                                                       matching_attributes[0],
+                                                       definitions)
     context[
         'has_setter'] = not attribute.is_read_only or forwarded_attribute_name
     if is_constructor_attribute(attribute):
+      interface_name = get_interface_name(attribute.idl_type)
+      impl_class = self.get_implemented_interface_name(attribute.idl_type)
       context['is_constructor_attribute'] = True
-      context['interface_name'] = get_interface_name(attribute.idl_type)
+      context['interface_name'] = interface_name
+      context['impl_class'] = impl_class
       # Blink's IDL parser uses the convention that attributes ending with
       # 'ConstructorConstructor' are for Named Constructors.
       context['is_named_constructor_attribute'] = (

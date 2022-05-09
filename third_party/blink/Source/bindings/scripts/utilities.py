@@ -8,10 +8,9 @@ Design doc: http://www.chromium.org/developers/design-documents/idl-build
 """
 
 import os
-import cPickle as pickle
+import pickle
 import re
 import shlex
-import string
 import subprocess
 
 # All of Cobalt's interfaces are under either the cobalt/, starboard/ or
@@ -264,7 +263,7 @@ def merge_dict_recursively(target, diff):
     |target| will be updated with |diff|.  Part of |diff| may be re-used in
     |target|.
     """
-    for key, value in diff.iteritems():
+    for key, value in diff.items():
         if key not in target:
             target[key] = value
         elif type(value) == dict:
@@ -362,7 +361,7 @@ def read_pickle_files(pickle_filenames):
 
 
 def read_pickle_file(pickle_filename):
-    with open(pickle_filename) as pickle_file:
+    with open(pickle_filename, 'rb') as pickle_file:
         return pickle.load(pickle_file)
 
 
@@ -376,7 +375,7 @@ def write_file(new_text, destination_filename):
     destination_dirname = os.path.dirname(destination_filename)
     if not os.path.exists(destination_dirname):
         os.makedirs(destination_dirname)
-    with open(destination_filename, 'wb') as destination_file:
+    with open(destination_filename, 'w') as destination_file:
         destination_file.write(new_text)
 
 
@@ -390,7 +389,7 @@ def write_pickle_file(pickle_filename, data):
             except Exception:
                 # If trouble unpickling, overwrite
                 pass
-    with open(pickle_filename, 'w') as pickle_file:
+    with open(pickle_filename, 'wb') as pickle_file:
         pickle.dump(data, pickle_file)
 
 
@@ -447,7 +446,7 @@ def get_interface_extended_attributes_from_idl(file_contents):
              # Discard empty parts, which may exist due to trailing comma
              if extended_attribute.strip()]
     for part in parts:
-        name, _, value = map(string.strip, part.partition('='))
+        name, _, value = map(lambda x: x.strip(), part.partition('='))
         extended_attributes[name] = value
     return extended_attributes
 
@@ -462,7 +461,7 @@ def get_interface_exposed_arguments(file_contents):
     if not match:
         return None
     arguments = []
-    for argument in map(string.strip, match.group(1).split(',')):
+    for argument in map(lambda x: x.strip(), match.group(1).split(',')):
         exposed, runtime_enabled = argument.split()
         arguments.append({'exposed': exposed, 'runtime_enabled': runtime_enabled})
 

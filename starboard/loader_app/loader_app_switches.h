@@ -38,6 +38,14 @@ extern const char kLoaderAppVersion[];
 // Print the loader_app Starboard ABI string on the command line.
 extern const char kShowSABI[];
 
+// The elf loader should use compression.
+extern const char kLoaderUseCompression[];
+
+// The elf loader should use a Memory Mapped file.
+extern const char kLoaderUseMemoryMappedFile[];
+
+// The loader app should query for and log its memory usage.
+extern const char kLoaderTrackMemory[];
 }  // namespace loader_app
 }  // namespace starboard
 

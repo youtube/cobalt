@@ -55,7 +55,7 @@ class Manifest(object):
         if not dir_name.endswith(os.path.sep):
             dir_name = dir_name + os.path.sep
         for type_tests in self._data.values():
-            for path, tests in type_tests.iteritems():
+            for path, tests in type_tests.items():
                 if path.startswith(dir_name):
                     for test in tests:
                         yield test

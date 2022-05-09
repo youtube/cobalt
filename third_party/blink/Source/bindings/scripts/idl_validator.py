@@ -52,7 +52,7 @@ class IDLExtendedAttributeValidator(object):
 
     def validate_extended_attributes(self, definitions):
         # FIXME: this should be done when parsing the file, rather than after.
-        for interface in definitions.interfaces.itervalues():
+        for interface in definitions.interfaces.values():
             self.validate_extended_attributes_node(interface)
             for attribute in interface.attributes:
                 self.validate_extended_attributes_node(attribute)
@@ -62,7 +62,7 @@ class IDLExtendedAttributeValidator(object):
                     self.validate_extended_attributes_node(argument)
 
     def validate_extended_attributes_node(self, node):
-        for name, values_string in node.extended_attributes.iteritems():
+        for name, values_string in node.extended_attributes.items():
             self.validate_name_values_string(name, values_string)
 
     def validate_name_values_string(self, name, values_string):

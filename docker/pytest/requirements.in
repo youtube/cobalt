@@ -1,0 +1,4 @@
+pytest<8
+coverage<7
+requests==2.25.1
+jsonschema<5

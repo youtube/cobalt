@@ -167,9 +167,10 @@ void LogMessage::Init(const char* file, int line) {
   if (last_slash_pos != std::string::npos) {
     filename.erase(0, last_slash_pos + 1);
   }
-
+  char name[128] = {0};
+  SbThreadGetName(name, SB_ARRAY_SIZE_INT(name));
   stream_ << '[';
-  stream_ << SbThreadGetId() << ':';
+  stream_ << name << '/' << SbThreadGetId() << ':';
   EzTimeValue time_value;
   EzTimeValueGetNow(&time_value, NULL);
   EzTimeT t = time_value.tv_sec;

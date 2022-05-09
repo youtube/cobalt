@@ -12,14 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/configuration.h"
-#if SB_API_VERSION >= 12 || SB_HAS(GLES2)
-
 #include "cobalt/renderer/rasterizer/egl/graphics_state.h"
 
 #include <algorithm>
 
 #include "cobalt/renderer/backend/egl/utils.h"
+#include "starboard/configuration.h"
 #include "starboard/memory.h"
 
 namespace cobalt {
@@ -457,5 +455,3 @@ void GraphicsState::Reset() {
 }  // namespace rasterizer
 }  // namespace renderer
 }  // namespace cobalt
-
-#endif  // SB_API_VERSION >= 12 || SB_HAS(GLES2)

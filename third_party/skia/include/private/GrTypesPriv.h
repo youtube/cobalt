@@ -74,7 +74,7 @@ static const int kGrPixelConfigCnt = kLast_GrPixelConfig + 1;
 #ifndef SK_CPU_LENDIAN
 #error "Skia gpu currently assumes little endian"
 #endif
-#if defined(STARBOARD) && SB_API_VERSION >= 12
+#if defined(STARBOARD)
 static const GrPixelConfig kSkia8888_GrPixelConfig =
         (GetSkPmcolor() == SkPmcolorIsBgra) ? kBGRA_8888_GrPixelConfig : kRGBA_8888_GrPixelConfig;
 #else

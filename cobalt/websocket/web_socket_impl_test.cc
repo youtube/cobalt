@@ -14,9 +14,8 @@
 
 #include "cobalt/websocket/web_socket_impl.h"
 
-#include "cobalt/websocket/web_socket.h"
-
 #include <memory>
+#include <string>
 #include <vector>
 
 #include "base/memory/ref_counted.h"
@@ -24,11 +23,15 @@
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/dom_settings.h"
+#include "cobalt/dom/testing/stub_environment_settings.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/script/script_exception.h"
 #include "cobalt/script/testing/mock_exception_state.h"
+#include "cobalt/web/context.h"
+#include "cobalt/web/stub_web_context.h"
 #include "cobalt/websocket/mock_websocket_channel.h"
+#include "cobalt/websocket/web_socket.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 using ::testing::_;
@@ -47,28 +50,13 @@ const int k800KB = 800;
 const int kTooMuch = kDefaultSendQuotaHighWaterMark + 1;
 const int kWayTooMuch = kDefaultSendQuotaHighWaterMark * 2 + 1;
 const int k512KB = 512;
-
-class FakeSettings : public dom::DOMSettings {
- public:
-  FakeSettings()
-      : dom::DOMSettings(0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-                         null_debugger_hooks_, NULL),
-        base_("https://127.0.0.1:1234") {
-    network_module_.reset(new network::NetworkModule());
-    this->set_network_module(network_module_.get());
-  }
-  const GURL& base_url() const override { return base_; }
-
-  // public members, so that they're easier for testing.
-  base::NullDebuggerHooks null_debugger_hooks_;
-  GURL base_;
-  std::unique_ptr<network::NetworkModule> network_module_;
-};
 }  // namespace
 
 class WebSocketImplTest : public ::testing::Test {
  public:
-  dom::DOMSettings* settings() const { return settings_.get(); }
+  web::EnvironmentSettings* settings() const {
+    return web_context_->environment_settings();
+  }
   void AddQuota(int quota) {
     network_task_runner_->PostBlockingTask(
         FROM_HERE,
@@ -76,16 +64,22 @@ class WebSocketImplTest : public ::testing::Test {
   }
 
  protected:
-  WebSocketImplTest() : settings_(new FakeSettings()) {
+  WebSocketImplTest() : web_context_(new web::test::StubWebContext()) {
+    web_context_->set_network_module(new network::NetworkModule());
+    web_context_->setup_environment_settings(
+        new dom::testing::StubEnvironmentSettings());
+    web_context_->environment_settings()->set_base_url(
+        GURL("https://127.0.0.1:1234"));
     std::vector<std::string> sub_protocols;
     sub_protocols.push_back("chat");
-    network_task_runner_ = settings_->network_module()
+    network_task_runner_ = web_context_->network_module()
                                ->url_request_context_getter()
                                ->GetNetworkTaskRunner();
   }
 
   void SetUp() override {
-    websocket_impl_ = new WebSocketImpl(settings_->network_module(), nullptr);
+    websocket_impl_ =
+        new WebSocketImpl(web_context_->network_module(), nullptr);
     // Setting this was usually done by WebSocketImpl::Connect, but since we do
     // not do Connect for every test, we have to make sure its task runner is
     // set.
@@ -96,14 +90,14 @@ class WebSocketImplTest : public ::testing::Test {
         FROM_HERE,
         base::Bind(
             [](scoped_refptr<WebSocketImpl> websocket_impl,
-               MockWebSocketChannel** mock_channel_slot,
-               dom::DOMSettings* settings) {
+               web::Context* web_context,
+               MockWebSocketChannel** mock_channel_slot) {
               *mock_channel_slot = new MockWebSocketChannel(
-                  websocket_impl.get(), settings->network_module());
+                  websocket_impl, web_context->network_module());
               websocket_impl->websocket_channel_ =
                   std::unique_ptr<net::WebSocketChannel>(*mock_channel_slot);
             },
-            websocket_impl_, &mock_channel_, settings()));
+            websocket_impl_, web_context_.get(), &mock_channel_));
   }
 
   void TearDown() override {
@@ -116,7 +110,7 @@ class WebSocketImplTest : public ::testing::Test {
 
   base::test::ScopedTaskEnvironment env_;
 
-  std::unique_ptr<FakeSettings> settings_;
+  std::unique_ptr<web::test::StubWebContext> web_context_;
   scoped_refptr<base::SingleThreadTaskRunner> network_task_runner_;
   scoped_refptr<WebSocketImpl> websocket_impl_;
   MockWebSocketChannel* mock_channel_;
@@ -209,9 +203,9 @@ TEST_F(WebSocketImplTest, ReuseSocketForLargeRequest) {
                               _, kDefaultSendQuotaHighWaterMark))
         .Times(1)
         .WillOnce(Return(net::WebSocketChannel::CHANNEL_ALIVE));
-    EXPECT_CALL(
-        *mock_channel_,
-        MockSendFrame(true, net::WebSocketFrameHeader::kOpCodeContinuation, _, 1))
+    EXPECT_CALL(*mock_channel_,
+                MockSendFrame(
+                    true, net::WebSocketFrameHeader::kOpCodeContinuation, _, 1))
         .Times(1)
         .WillOnce(Return(net::WebSocketChannel::CHANNEL_ALIVE));
     EXPECT_CALL(*mock_channel_,
@@ -219,9 +213,10 @@ TEST_F(WebSocketImplTest, ReuseSocketForLargeRequest) {
                               k512KB - 1))
         .Times(1)
         .WillOnce(Return(net::WebSocketChannel::CHANNEL_ALIVE));
-    EXPECT_CALL(*mock_channel_,
-                MockSendFrame(true, net::WebSocketFrameHeader::kOpCodeContinuation, _,
-                              kTooMuch - (k512KB - 1)))
+    EXPECT_CALL(
+        *mock_channel_,
+        MockSendFrame(true, net::WebSocketFrameHeader::kOpCodeContinuation, _,
+                      kTooMuch - (k512KB - 1)))
         .Times(1)
         .WillOnce(Return(net::WebSocketChannel::CHANNEL_ALIVE));
   }

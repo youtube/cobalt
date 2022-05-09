@@ -351,7 +351,11 @@ std::unique_ptr<skgpu::SurfaceFillContext> GrRecordingContextPriv::makeSFCWithFa
         }
         const GrCaps* caps = this->caps();
 
+#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
         auto [ct, _] = caps->getFallbackColorTypeAndFormat(info.colorType(), sampleCount);
+#else
+        STRUCTURED_BINDING_2(ct, _, caps->getFallbackColorTypeAndFormat(info.colorType(), sampleCount));
+#endif
         if (ct == GrColorType::kUnknown) {
             return nullptr;
         }

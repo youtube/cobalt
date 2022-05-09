@@ -52,12 +52,13 @@ class CobaltSlotManagement {
   int GetInstallationIndex();
 
   // Cleanup all drain files of the current app.
-  void CleanupAllDrainFiles(const base::FilePath& dir);
+  void CleanupAllDrainFiles();
 
  private:
   int installation_index_ = IM_EXT_INVALID_INDEX;
   const CobaltExtensionInstallationManagerApi* installation_api_;
   std::string app_key_;
+  bool initialized_ = false;
 };
 
 // Creates a good file and rolls forward to the installation in

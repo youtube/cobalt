@@ -19,14 +19,19 @@
 
 #include "base/logging.h"
 #include "base/strings/stringprintf.h"
-#include "cobalt/media/base/decoder_buffer.h"
 #include "cobalt/media/base/endian_util.h"
-#include "cobalt/media/base/media_util.h"
-#include "cobalt/media/base/video_types.h"
-#include "cobalt/media/formats/mp4/aac.h"
 #include "cobalt/media/progressive/avc_access_unit.h"
 #include "cobalt/media/progressive/rbsp_stream.h"
 #include "starboard/memory.h"
+#include "third_party/chromium/media/base/audio_codecs.h"
+#include "third_party/chromium/media/base/decoder_buffer.h"
+#include "third_party/chromium/media/base/encryption_scheme.h"
+#include "third_party/chromium/media/base/media_util.h"
+#include "third_party/chromium/media/base/video_codecs.h"
+#include "third_party/chromium/media/base/video_color_space.h"
+#include "third_party/chromium/media/base/video_transformation.h"
+#include "third_party/chromium/media/base/video_types.h"
+#include "third_party/chromium/media/formats/mp4/aac.h"
 
 namespace cobalt {
 namespace media {
@@ -37,7 +42,7 @@ static const int kAVCConfigMinSize = 8;
 static const uint8 kSPSNALType = 7;
 
 AVCParser::AVCParser(scoped_refptr<DataSourceReader> reader,
-                     const scoped_refptr<MediaLog>& media_log)
+                     MediaLog* media_log)
     : ProgressiveParser(reader),
       media_log_(media_log),
       nal_header_size_(0),
@@ -60,7 +65,7 @@ bool AVCParser::Prepend(scoped_refptr<AvcAccessUnit> au,
         NOTREACHED() << "empty/undersized buffer to Prepend()";
         return false;
       }
-      buffer->allocations().Write(0, video_prepend_, video_prepend_size_);
+      memcpy(buffer->writable_data(), video_prepend_, video_prepend_size_);
     }
   } else if (au->GetType() == DemuxerStream::AUDIO) {
     if (audio_prepend_.size() < 6) {
@@ -84,7 +89,7 @@ bool AVCParser::Prepend(scoped_refptr<AvcAccessUnit> au,
     audio_prepend[4] = (uint8)((buffer_size & 0x000007f8) >> 3);
     // byte 5 gets bits 2-0 of size
     audio_prepend[5] |= (uint8)((buffer_size & 0x00000007) << 5);
-    buffer->allocations().Write(0, audio_prepend.data(), audio_prepend.size());
+    memcpy(buffer->writable_data(), audio_prepend.data(), audio_prepend.size());
   } else {
     NOTREACHED() << "unsupported demuxer stream type.";
     return false;
@@ -285,10 +290,10 @@ bool AVCParser::ParseSPS(const uint8* sps, size_t sps_size,
   // checks out, write output structure
   int visible_width = width - (crop_left + crop_right);
   int visible_height = height - (crop_top + crop_bottom);
-  record_out->coded_size = math::Size(width, height),
+  record_out->coded_size = gfx::Size(width, height),
   record_out->visible_rect =
-      math::Rect(crop_left, crop_top, visible_width, visible_height),
-  record_out->natural_size = math::Size(visible_width, visible_height);
+      gfx::Rect(crop_left, crop_top, visible_width, visible_height),
+  record_out->natural_size = gfx::Size(visible_width, visible_height);
   record_out->num_ref_frames = num_ref_frames;
   return true;
 }
@@ -397,12 +402,14 @@ bool AVCParser::ParseAVCConfigRecord(uint8* buffer, uint32 size) {
     return false;
   }
   // we can now initialize our video decoder config
-  video_config_.Initialize(kCodecH264,
-                           H264PROFILE_MAIN,  // profile is ignored currently
-                           PIXEL_FORMAT_YV12, COLOR_SPACE_HD_REC709,
-                           sps_record.coded_size, sps_record.visible_rect,
-                           sps_record.natural_size, EmptyExtraData(),
-                           Unencrypted());
+  video_config_.Initialize(
+      ::media::VideoCodec::kH264,
+      // profile is ignored currently
+      ::media::VideoCodecProfile::H264PROFILE_MAIN,
+      ::media::VideoDecoderConfig::AlphaMode::kIsOpaque,
+      ::media::VideoColorSpace::REC709(), ::media::VideoTransformation(),
+      sps_record.coded_size, sps_record.visible_rect, sps_record.natural_size,
+      ::media::EmptyExtraData(), ::media::EncryptionScheme::kUnencrypted);
 
   return BuildAnnexBPrepend(buffer + usable_sps_offset, usable_sps_size,
                             buffer + usable_pps_offset, usable_pps_size);
@@ -432,7 +439,7 @@ bool AVCParser::BuildAnnexBPrepend(uint8* sps, uint32 sps_size, uint8* pps,
   if (pps_size > 0) {
     // pps start code comes next
     memcpy(video_prepend_ + prepend_offset, kAnnexBStartCode,
-                 kAnnexBStartCodeSize);
+           kAnnexBStartCodeSize);
     prepend_offset += kAnnexBStartCodeSize;
     // followed by pps
     memcpy(video_prepend_ + prepend_offset, pps, pps_size);
@@ -445,7 +452,7 @@ bool AVCParser::BuildAnnexBPrepend(uint8* sps, uint32 sps_size, uint8* pps,
 }
 
 void AVCParser::ParseAudioSpecificConfig(uint8 b0, uint8 b1) {
-  media::mp4::AAC aac;
+  ::media::mp4::AAC aac;
   std::vector<uint8> aac_config(2);
 
   aac_config[0] = b0;
@@ -466,9 +473,10 @@ void AVCParser::ParseAudioSpecificConfig(uint8 b0, uint8 b1) {
 
   const bool kSbrInMimetype = false;
   audio_config_.Initialize(
-      kCodecAAC, kSampleFormatS16, aac.GetChannelLayout(kSbrInMimetype),
+      ::media::AudioCodec::kAAC, ::media::kSampleFormatS16,
+      aac.GetChannelLayout(kSbrInMimetype),
       aac.GetOutputSamplesPerSecond(kSbrInMimetype), aac.codec_specific_data(),
-      Unencrypted(), base::TimeDelta(), 0);
+      ::media::EncryptionScheme::kUnencrypted, base::TimeDelta(), 0);
 }
 
 size_t AVCParser::CalculatePrependSize(DemuxerStream::Type type,

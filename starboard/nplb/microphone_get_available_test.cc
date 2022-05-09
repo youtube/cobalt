@@ -20,8 +20,6 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-#if SB_API_VERSION >= 12 || SB_HAS(MICROPHONE)
-
 TEST(SbMicrophoneGetAvailableTest, SunnyDay) {
   SbMicrophoneInfo info_array[kMaxNumberOfMicrophone];
   int available_microphones =
@@ -54,8 +52,8 @@ TEST(SbMicrophoneGetAvailableTest, RainyDayNULLInfoArray) {
   }
 }
 
-template<std::size_t N>
-bool IsNullTerminated(const char(&str)[N]) {
+template <std::size_t N>
+bool IsNullTerminated(const char (&str)[N]) {
   for (size_t i = 0; i < N; ++i) {
     if (str[i] == '\0') {
       return true;
@@ -84,9 +82,6 @@ TEST(SbMicrophoneGetAvailableTest, LabelIsValid) {
     EXPECT_NE(0, strncmp(info.label, kPoisonLabel, count));
   }
 }
-
-#endif  // SB_API_VERSION >= 12 ||
-        // SB_HAS(MICROPHONE)
 
 }  // namespace
 }  // namespace nplb

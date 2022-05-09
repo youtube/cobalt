@@ -14,10 +14,6 @@
 
 #include "starboard/time.h"
 
-#if SB_API_VERSION >= 12
-
 bool SbTimeIsTimeThreadNowSupported() {
   return false;
 }
-
-#endif

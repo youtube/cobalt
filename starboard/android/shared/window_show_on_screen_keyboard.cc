@@ -16,7 +16,6 @@
 
 #include "starboard/android/shared/application_android.h"
 
-#if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
 void SbWindowShowOnScreenKeyboard(SbWindow window,
                                   const char* input_text,
                                   int ticket) {
@@ -24,5 +23,3 @@ void SbWindowShowOnScreenKeyboard(SbWindow window,
       ->SbWindowShowOnScreenKeyboard(window, input_text, ticket);
   return;
 }
-#endif  // SB_API_VERSION >= 12 ||
-        // SB_HAS(ON_SCREEN_KEYBOARD)

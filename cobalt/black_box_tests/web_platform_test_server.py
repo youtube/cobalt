@@ -23,7 +23,7 @@ SRC_DIR = os.path.join(os.path.dirname(__file__), os.pardir, os.pardir)
 WPT_DIR = os.path.join(SRC_DIR, 'third_party', 'web_platform_tests')
 sys.path.insert(0, WPT_DIR)
 
-# pylint: disable=g-import-not-at-top
+# pylint: disable=wrong-import-position
 from tools.serve import serve
 from tools.wptserve.wptserve import stash
 
@@ -46,9 +46,9 @@ class WebPlatformTestServer(object):
     kwargs = vars(serve.get_parser().parse_args())
 
     # Configuration script to setup server used for serving web platform tests.
-    config = serve.load_config(os.path.join(WPT_DIR, 'config.default.json'),
-                               os.path.join(WPT_DIR, 'config.json'),
-                               **kwargs)
+    config = serve.load_config(
+        os.path.join(WPT_DIR, 'config.default.json'),
+        os.path.join(WPT_DIR, 'config.json'), **kwargs)
     config['ports']['http'][0] = int(self._wpt_http_port)
 
     serve.setup_logger(config['log_level'])
@@ -56,13 +56,13 @@ class WebPlatformTestServer(object):
     with stash.StashServer((self._binding_address, serve.get_port()),
                            authkey=str(uuid.uuid4())):
       with serve.get_ssl_environment(config) as ssl_env:
-        _, self._servers = serve.start(config, ssl_env,
-                                       serve.default_routes(), **kwargs)
+        _, self._servers = serve.start(config, ssl_env, serve.default_routes(),
+                                       **kwargs)
         self._server_started = True
 
         try:
-          while any(item.is_alive()
-                    for item in serve.iter_procs(self._servers)):
+          while any(
+              item.is_alive() for item in serve.iter_procs(self._servers)):
             for item in serve.iter_procs(self._servers):
               item.join(1)
         except KeyboardInterrupt:
@@ -77,7 +77,7 @@ class WebPlatformTestServer(object):
     return self
 
   def __exit__(self, exc_type, exc_value, traceback):
-    for _, servers in self._servers.iteritems():
+    for servers in self._servers.values():
       for _, server in servers:
         server.kill()
     self._server_thread.join()

@@ -19,6 +19,8 @@
 #include "base/message_loop/message_loop.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/script/javascript_engine.h"
+#include "cobalt/web/context.h"
+#include "cobalt/web/environment_settings.h"
 
 namespace cobalt {
 namespace dom {
@@ -55,9 +57,10 @@ void TestRunner::CollectGarbageAndThenDo(
     const TestRunnerCallbackArg& callback_arg) {
   DCHECK(settings);
   TestRunnerCallbackArg::Reference reference(this, callback_arg);
-  DOMSettings* dom_settings =
-      base::polymorphic_downcast<dom::DOMSettings*>(settings);
-  dom_settings->javascript_engine()->CollectGarbage();
+  base::polymorphic_downcast<web::EnvironmentSettings*>(settings)
+      ->context()
+      ->javascript_engine()
+      ->CollectGarbage();
   reference.value().Run();
 }
 

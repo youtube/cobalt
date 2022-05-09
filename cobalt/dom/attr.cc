@@ -35,7 +35,7 @@ void Attr::set_value(const std::string& value) {
 }
 
 const std::string& Attr::node_value() const {
-#ifdef __LB_SHELL__FORCE_LOGGING__
+#ifdef COBALT_LOGGING_ENABLED
   // TODO: All warnings logged from Web APIs should contain JavaScript call
   //       stack and should be deduplicated by JavaScript location.
   static bool duplicate_warning = false;
@@ -43,7 +43,7 @@ const std::string& Attr::node_value() const {
     duplicate_warning = true;
     LOG(WARNING) << "Use of deprecated Web API: Attr.nodeValue.";
   }
-#endif  // __LB_SHELL__FORCE_LOGGING__
+#endif  // COBALT_LOGGING_ENABLED
 
   return value_;
 }

@@ -101,8 +101,8 @@ configurations.
 Cobalt Evergreen is built by a separate gyp platform using the Google toolchain:
 
 ```
-$ cobalt/build/gyp_cobalt evergreen-arm-softfp-sbversion-12
-$ ninja -C out/evergreen-arm-softfp-sbversion-12_qa cobalt
+$ cobalt/build/gn.py -p evergreen-arm-softfp -c qa
+$ ninja -C out/evergreen-arm-softfp_qa cobalt
 ```
 
 Which produces a shared library `libcobalt.so` targeted for specific
@@ -115,7 +115,7 @@ linked into the `loader_app` which knows how to dynamically load
 `libcobalt.so`, and the `crashpad_handler` which handles crashes.
 
 ```
-$ cobalt/build/gyp_cobalt <partner_port_name>
+$ cobalt/build/gn.py -p <partner_port_name> -c qa
 $ ninja -C out/<partner_port_name>_qa loader_app crashpad_handler
 ```
 
@@ -257,9 +257,9 @@ In order to verify the platform requirements you should run the
 `nplb_evergreen_compat_tests`. These tests ensure that the platform is
 configured appropriately for Evergreen.
 
-To enable the test, set the `sb_evergreen_compatible gyp` variable to 1 in the
-`gyp_configuration.gypi`. For more details please take a look at the Raspberry
-Pi 2 gyp files.
+To enable the test, set the `sb_is_evergreen_compatible` GN variable to `true`
+in the platform's `configuration.gni`. For more details please take a look at
+the Raspberry Pi 2 GN files.
 
 There is a reference implementation available for Raspberry Pi 2 with
 instructions available [here](cobalt_evergreen_reference_port_raspi2.md).
@@ -268,7 +268,7 @@ instructions available [here](cobalt_evergreen_reference_port_raspi2.md).
 
 1. Build the `crashpad_database_util` target and deploy it onto the device.
 ```
-$ cobalt/build/gyp_cobalt <partner_port_name>
+$ cobalt/build/gn.py -p <partner_port_name> -c qa
 $ ninja -C out/<partner_port_name>_qa crashpad_database_util
 ```
 2. Remove the existing state for crashpad as it throttles uploads to 1 per hour:

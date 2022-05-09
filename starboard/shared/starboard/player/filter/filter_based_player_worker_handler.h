@@ -43,27 +43,16 @@ namespace filter {
 class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
                                        private JobQueue::JobOwner {
  public:
-#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
   FilterBasedPlayerWorkerHandler(
       const SbPlayerCreationParam* creation_param,
       SbDecodeTargetGraphicsContextProvider* provider);
-#else   // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
-  FilterBasedPlayerWorkerHandler(
-      SbMediaVideoCodec video_codec,
-      SbMediaAudioCodec audio_codec,
-      SbDrmSystem drm_system,
-      const SbMediaAudioSampleInfo* audio_sample_info,
-      SbPlayerOutputMode output_mode,
-      SbDecodeTargetGraphicsContextProvider* provider);
-#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 
  private:
   bool Init(SbPlayer player,
             UpdateMediaInfoCB update_media_info_cb,
             GetPlayerStateCB get_player_state_cb,
             UpdatePlayerStateCB update_player_state_cb,
-            UpdatePlayerErrorCB update_player_error_cb,
-            std::string* error_message) override;
+            UpdatePlayerErrorCB update_player_error_cb) override;
   bool Seek(SbTime seek_to_time, int ticket) override;
   bool WriteSample(const scoped_refptr<InputBuffer>& input_buffer,
                    bool* written) override;
@@ -126,10 +115,7 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
   SbPlayerOutputMode output_mode_;
   SbDecodeTargetGraphicsContextProvider*
       decode_target_graphics_context_provider_;
-
-#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
   media::VideoSampleInfo video_sample_info_;
-#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 };
 
 }  // namespace filter

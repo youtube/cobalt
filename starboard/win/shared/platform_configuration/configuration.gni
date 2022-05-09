@@ -1,0 +1,33 @@
+# Copyright 2021 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("//starboard/build/config/base_configuration.gni")
+
+# No GL drivers available.
+gl_type = "angle"
+
+sabi_path = "//starboard/sabi/x64/windows/sabi-v$sb_api_version.json"
+
+install_target_path = "//starboard/build/install/no_install.gni"
+
+no_pedantic_warnings_config_path =
+    "//starboard/win/shared/platform_configuration:no_pedantic_warnings"
+pedantic_warnings_config_path =
+    "//starboard/win/shared/platform_configuration:pedantic_warnings"
+
+cobalt_platform_dependencies = [ "//starboard/egl_and_gles" ]
+
+platform_i18n_config_path = "//cobalt/content/i18n/platform/xb1:xb1"
+
+sb_enable_cpp17_audit = false

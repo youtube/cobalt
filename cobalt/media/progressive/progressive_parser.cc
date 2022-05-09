@@ -15,8 +15,8 @@
 #include "cobalt/media/progressive/progressive_parser.h"
 
 #include "base/logging.h"
-#include "cobalt/media/base/timestamp_constants.h"
 #include "cobalt/media/progressive/mp4_parser.h"
+#include "third_party/chromium/media/base/timestamp_constants.h"
 
 namespace cobalt {
 namespace media {
@@ -28,10 +28,9 @@ namespace media {
 const int ProgressiveParser::kInitialHeaderSize = 9;
 
 // static
-PipelineStatus ProgressiveParser::Construct(
+::media::PipelineStatus ProgressiveParser::Construct(
     scoped_refptr<DataSourceReader> reader,
-    scoped_refptr<ProgressiveParser>* parser,
-    const scoped_refptr<MediaLog>& media_log) {
+    scoped_refptr<ProgressiveParser>* parser, MediaLog* media_log) {
   DCHECK(parser);
   DCHECK(media_log);
   *parser = NULL;
@@ -41,7 +40,7 @@ PipelineStatus ProgressiveParser::Construct(
   uint8 header[kInitialHeaderSize];
   int bytes_read = reader->BlockingRead(0, kInitialHeaderSize, header);
   if (bytes_read != kInitialHeaderSize) {
-    return DEMUXER_ERROR_COULD_NOT_PARSE;
+    return ::media::DEMUXER_ERROR_COULD_NOT_PARSE;
   }
 
   // attempt to construct mp4 parser from this header
@@ -49,13 +48,15 @@ PipelineStatus ProgressiveParser::Construct(
 }
 
 ProgressiveParser::ProgressiveParser(scoped_refptr<DataSourceReader> reader)
-    : reader_(reader), duration_(kInfiniteDuration), bits_per_second_(0) {}
+    : reader_(reader),
+      duration_(::media::kInfiniteDuration),
+      bits_per_second_(0) {}
 
 ProgressiveParser::~ProgressiveParser() {}
 
 bool ProgressiveParser::IsConfigComplete() {
   return video_config_.IsValidConfig() && audio_config_.IsValidConfig() &&
-         duration_ != kInfiniteDuration;
+         duration_ != ::media::kInfiniteDuration;
 }
 
 }  // namespace media

@@ -40,53 +40,59 @@ struct NoMemTracking {
     prev_val = GetMemoryTrackingEnabled_ThreadLocal();
     SetMemoryTrackingEnabled_ThreadLocal(false);
   }
-  ~NoMemTracking() {
-    SetMemoryTrackingEnabled_ThreadLocal(prev_val);
-  }
+  ~NoMemTracking() { SetMemoryTrackingEnabled_ThreadLocal(prev_val); }
 };
 
 // EXPECT_XXX and ASSERT_XXX allocate memory, a big no-no when
 // for unit testing allocations. These overrides disable memory
 // tracking for the duration of the EXPECT and ASSERT operations.
-#define EXPECT_EQ_NO_TRACKING(A, B)                \
-{ NoMemTracking no_memory_tracking_in_this_scope;  \
-  EXPECT_EQ(A, B);                                 \
-}
+#define EXPECT_EQ_NO_TRACKING(A, B)                 \
+  {                                                 \
+    NoMemTracking no_memory_tracking_in_this_scope; \
+    EXPECT_EQ(A, B);                                \
+  }
 
-#define EXPECT_NE_NO_TRACKING(A, B)                \
-{ NoMemTracking no_memory_tracking_in_this_scope;  \
-  EXPECT_NE(A, B);                                 \
-}
+#define EXPECT_NE_NO_TRACKING(A, B)                 \
+  {                                                 \
+    NoMemTracking no_memory_tracking_in_this_scope; \
+    EXPECT_NE(A, B);                                \
+  }
 
-#define EXPECT_TRUE_NO_TRACKING(A)                 \
-{ NoMemTracking no_memory_tracking_in_this_scope;  \
-  EXPECT_TRUE(A);                                  \
-}
+#define EXPECT_TRUE_NO_TRACKING(A)                  \
+  {                                                 \
+    NoMemTracking no_memory_tracking_in_this_scope; \
+    EXPECT_TRUE(A);                                 \
+  }
 
-#define EXPECT_FALSE_NO_TRACKING(A)                \
-{ NoMemTracking no_memory_tracking_in_this_scope;  \
-  EXPECT_FALSE(A);                                 \
-}
+#define EXPECT_FALSE_NO_TRACKING(A)                 \
+  {                                                 \
+    NoMemTracking no_memory_tracking_in_this_scope; \
+    EXPECT_FALSE(A);                                \
+  }
 
-#define ASSERT_EQ_NO_TRACKING(A, B)                \
-{ NoMemTracking no_memory_tracking_in_this_scope;  \
-  ASSERT_EQ(A, B);                                 \
-}
+#define ASSERT_EQ_NO_TRACKING(A, B)                 \
+  {                                                 \
+    NoMemTracking no_memory_tracking_in_this_scope; \
+    ASSERT_EQ(A, B);                                \
+  }
 
-#define ASSERT_NE_NO_TRACKING(A, B)                \
-{ NoMemTracking no_memory_tracking_in_this_scope;  \
-  ASSERT_NE(A, B);                                 \
-}
+#define ASSERT_NE_NO_TRACKING(A, B)                 \
+  {                                                 \
+    NoMemTracking no_memory_tracking_in_this_scope; \
+    ASSERT_NE(A, B);                                \
+  }
 
-#define ASSERT_TRUE_NO_TRACKING(A)                 \
-{ NoMemTracking no_memory_tracking_in_this_scope;  \
-  ASSERT_TRUE(A);                                  \
-}
+#define ASSERT_TRUE_NO_TRACKING(A)                  \
+  {                                                 \
+    NoMemTracking no_memory_tracking_in_this_scope; \
+    ASSERT_TRUE(A);                                 \
+  }
 
-#define ASSERT_FALSE_NO_TRACKING(A)                \
-{ NoMemTracking no_memory_tracking_in_this_scope;  \
-  ASSERT_FALSE(A);                                 \
-}
+#define ASSERT_FALSE_NO_TRACKING(A)                 \
+  {                                                 \
+    NoMemTracking no_memory_tracking_in_this_scope; \
+    ASSERT_FALSE(A);                                \
+  }
 
 // A structure that cannot be allocated because it throws an exception in its
 // constructor. This is needed to test the std::nothrow version of delete since
@@ -104,9 +110,7 @@ class TestMemReporter {
  public:
   TestMemReporter() { Construct(); }
 
-  SbMemoryReporter* memory_reporter() {
-    return &memory_reporter_;
-  }
+  SbMemoryReporter* memory_reporter() { return &memory_reporter_; }
 
   // Removes this object from listening to allocations.
   void RemoveGlobalHooks() {
@@ -131,18 +135,10 @@ class TestMemReporter {
     last_mem_unmap_ = NULL;
   }
 
-  const void* last_allocation() const {
-    return last_allocation_;
-  }
-  const void* last_deallocation() const {
-    return last_deallocation_;
-  }
-  const void* last_mem_map() const {
-    return last_mem_map_;
-  }
-  const void* last_mem_unmap() const {
-    return last_mem_unmap_;
-  }
+  const void* last_allocation() const { return last_allocation_; }
+  const void* last_deallocation() const { return last_deallocation_; }
+  const void* last_mem_map() const { return last_mem_map_; }
+  const void* last_mem_unmap() const { return last_mem_unmap_; }
 
  private:
   // Boilerplate to delegate static function callbacks to the class instance.
@@ -167,9 +163,7 @@ class TestMemReporter {
   }
 
   static SbMemoryReporter CreateSbMemoryReporter(TestMemReporter* context) {
-    SbMemoryReporter cb = { OnMalloc, OnDealloc,
-                            OnMapMem, SbUnMapMem,
-                            context };
+    SbMemoryReporter cb = {OnMalloc, OnDealloc, OnMapMem, SbUnMapMem, context};
     return cb;
   }
 
@@ -248,9 +242,7 @@ class MemoryReportingTest : public ::testing::Test {
   }
 
   // Global Teardown after last test has run it's course.
-  static void TearDownTestCase() {
-    s_test_alloc_tracker_->RemoveGlobalHooks();
-  }
+  static void TearDownTestCase() { s_test_alloc_tracker_->RemoveGlobalHooks(); }
 
   // Per test setup.
   virtual void SetUp() {
@@ -336,7 +328,6 @@ TEST_F(MemoryReportingTest, CapturesRealloc) {
   EXPECT_EQ_NO_TRACKING(mem_reporter()->number_allocs(), 0);
 }
 
-#if SB_API_VERSION >= 12 || SB_HAS(MMAP)
 // Tests the assumption that the SbMemoryMap and SbMemoryUnmap
 // will report memory allocations.
 TEST_F(MemoryReportingTest, CapturesMemMapUnmap) {
@@ -359,7 +350,6 @@ TEST_F(MemoryReportingTest, CapturesMemMapUnmap) {
   // Call Clear() explicitly before TearDown() checks number_allocs_;
   mem_reporter()->Clear();
 }
-#endif  // SB_API_VERSION >= 12 || SB_HAS(MMAP)
 
 // Tests the assumption that the operator new/delete will report
 // memory allocations.
@@ -372,8 +362,7 @@ TEST_F(MemoryReportingTest, CapturesOperatorNewDelete) {
   int* my_int = new int();
   EXPECT_TRUE_NO_TRACKING(mem_reporter()->number_allocs() == 1);
 
-  bool is_last_allocation =
-      my_int == mem_reporter()->last_allocation();
+  bool is_last_allocation = my_int == mem_reporter()->last_allocation();
 
   EXPECT_TRUE_NO_TRACKING(is_last_allocation);
 
@@ -395,8 +384,7 @@ TEST_F(MemoryReportingTest, CapturesOperatorNewNothrow) {
   int* my_int = new (std::nothrow) int();
   EXPECT_EQ_NO_TRACKING(1, mem_reporter()->number_allocs());
 
-  bool is_last_allocation =
-      my_int == mem_reporter()->last_allocation();
+  bool is_last_allocation = my_int == mem_reporter()->last_allocation();
 
   EXPECT_TRUE_NO_TRACKING(is_last_allocation);
 
@@ -508,17 +496,11 @@ class ThreadLocalBool {
     slot_ = SbThreadCreateLocalKey(NULL);
   }
 
-  ~ThreadLocalBool() {
-    SbThreadDestroyLocalKey(slot_);
-  }
+  ~ThreadLocalBool() { SbThreadDestroyLocalKey(slot_); }
 
-  void SetEnabled(bool value) {
-    SetEnabledThreadLocal(value);
-  }
+  void SetEnabled(bool value) { SetEnabledThreadLocal(value); }
 
-  bool Enabled() const {
-    return GetEnabledThreadLocal();
-  }
+  bool Enabled() const { return GetEnabledThreadLocal(); }
 
  private:
   void SetEnabledThreadLocal(bool value) {

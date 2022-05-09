@@ -15,9 +15,6 @@
 #include "base/single_thread_task_runner.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/task/post_task.h"
-#if defined(STARBOARD)
-#include "base/threading/thread_id_name_manager.h"
-#endif
 #include "base/threading/thread_task_runner_handle.h"
 #include "base/values.h"
 #include "components/update_client/action_runner.h"
@@ -85,8 +82,7 @@ void InstallComplete(
     const base::FilePath& unpack_path,
     const CrxInstaller::Result& result) {
 #if defined(STARBOARD)
-    LOG(INFO) << "InstallComplete thread_name="
-              << base::ThreadIdNameManager::GetInstance()->GetNameForCurrentThread();
+    LOG(INFO) << "InstallComplete";
 #endif
   base::PostTaskWithTraits(
       FROM_HERE, {base::TaskPriority::BEST_EFFORT, base::MayBlock()},
@@ -96,8 +92,7 @@ void InstallComplete(
              const base::FilePath& unpack_path,
              const CrxInstaller::Result& result) {
 #if defined(STARBOARD)
-            LOG(INFO) << "Closure kicked off from InstallComplete thread_name="
-              << base::ThreadIdNameManager::GetInstance()->GetNameForCurrentThread();
+            LOG(INFO) << "Closure kicked off from InstallComplete";
 #endif
 // For Cobalt, don't delete the unpack_path, which is not a temp directory.
 // Cobalt uses a dedicated installation slot obtained from the Installation
@@ -121,6 +116,9 @@ void InstallOnBlockingTaskRunner(
     const std::string& public_key,
 #if defined(STARBOARD)
     const int installation_index,
+    PersistedData* metadata,
+    const std::string& id,
+    const std::string& version,
 #endif
     const std::string& fingerprint,
     scoped_refptr<CrxInstaller> installer,
@@ -128,8 +126,7 @@ void InstallOnBlockingTaskRunner(
   DCHECK(base::DirectoryExists(unpack_path));
 
 #if defined(STARBOARD)
-  LOG(INFO) << "InstallOnBlockingTaskRunner thread_name="
-              << base::ThreadIdNameManager::GetInstance()->GetNameForCurrentThread();
+  LOG(INFO) << "InstallOnBlockingTaskRunner";
 #endif
 
 #if !defined(STARBOARD)
@@ -170,8 +167,16 @@ void InstallOnBlockingTaskRunner(
       // TODO: add correct error code.
       install_error = InstallError::GENERIC_ERROR;
     } else {
-      if (!CobaltFinishInstallation(installation_api, installation_index,
+      if (CobaltFinishInstallation(installation_api, installation_index,
                                     unpack_path.value(), app_key)) {
+        // Write the version of the unpacked update package to the persisted data.
+        if (metadata != nullptr) {
+          main_task_runner->PostTask(
+              FROM_HERE, base::BindOnce(&PersistedData::SetLastInstalledVersion,
+                                        base::Unretained(metadata), id, version));
+        }
+      } else {
+
         // TODO: add correct error code.
         install_error = InstallError::GENERIC_ERROR;
       }
@@ -203,8 +208,7 @@ void UnpackCompleteOnBlockingTaskRunner(
     InstallOnBlockingTaskRunnerCompleteCallback callback,
     const ComponentUnpacker::Result& result) {
 #if defined(STARBOARD)
-  LOG(INFO) << "UnpackCompleteOnBlockingTaskRunner thread_name="
-              << base::ThreadIdNameManager::GetInstance()->GetNameForCurrentThread();
+  LOG(INFO) << "UnpackCompleteOnBlockingTaskRunner";
   base::DeleteFile(crx_path, false);
 #else
   update_client::DeleteFileAndEmptyParentDirectory(crx_path);
@@ -220,8 +224,9 @@ void UnpackCompleteOnBlockingTaskRunner(
           SbSystemGetExtension(kCobaltExtensionInstallationManagerName));
       if (installation_api) {
         CobaltSlotManagement cobalt_slot_management;
-        cobalt_slot_management.Init(installation_api);
-        cobalt_slot_management.CleanupAllDrainFiles(crx_path.DirName());
+        if (cobalt_slot_management.Init(installation_api)) {
+          cobalt_slot_management.CleanupAllDrainFiles();
+        }
       }
     }
 #endif
@@ -232,21 +237,15 @@ void UnpackCompleteOnBlockingTaskRunner(
     return;
   }
 
-#if defined(STARBOARD)
-  // Write the version of the unpacked update package to the persisted data.
-  if (metadata != nullptr) {
-    main_task_runner->PostTask(
-        FROM_HERE, base::BindOnce(&PersistedData::SetLastUnpackedVersion,
-                                  base::Unretained(metadata), id, version));
-  }
-#endif
-
   base::PostTaskWithTraits(
       FROM_HERE, kTaskTraits,
       base::BindOnce(&InstallOnBlockingTaskRunner, main_task_runner,
                      result.unpack_path, result.public_key,
 #if defined(STARBOARD)
                      installation_index,
+                     metadata,
+                     id,
+                     version,
 #endif
                      fingerprint, installer, std::move(callback)));
 }
@@ -268,8 +267,7 @@ void StartInstallOnBlockingTaskRunner(
     crx_file::VerifierFormat crx_format,
     InstallOnBlockingTaskRunnerCompleteCallback callback) {
 #if defined(STARBOARD)
-  LOG(INFO) << "StartInstallOnBlockingTaskRunner thread_name="
-              << base::ThreadIdNameManager::GetInstance()->GetNameForCurrentThread();
+  LOG(INFO) << "StartInstallOnBlockingTaskRunner";
 #endif
   auto unpacker = base::MakeRefCounted<ComponentUnpacker>(
       pk_hash, crx_path, installer, std::move(unzipper_), std::move(patcher_),
@@ -723,8 +721,15 @@ void Component::StateUpdateError::DoHandle() {
   DCHECK_NE(ErrorCategory::kNone, component.error_category_);
   DCHECK_NE(0, component.error_code_);
 
+#if defined(STARBOARD)
+  // Create an event when the server response included an update, or when it's
+  // an update check error, like quick roll-forward or out of space
+  if (component.IsUpdateAvailable() ||
+      component.error_category_ == ErrorCategory::kUpdateCheck)
+#else
   // Create an event only when the server response included an update.
   if (component.IsUpdateAvailable())
+#endif
     component.AppendEvent(component.MakeEventUpdateComplete());
 
   EndState();
@@ -1030,8 +1035,7 @@ Component::StateUpdating::~StateUpdating() {
 
 void Component::StateUpdating::DoHandle() {
 #if defined(STARBOARD)
-  LOG(INFO) << "Component::StateUpdating::DoHandle() thread_name="
-              << base::ThreadIdNameManager::GetInstance()->GetNameForCurrentThread();
+  LOG(INFO) << "Component::StateUpdating::DoHandle()";
 #endif
   DCHECK(thread_checker_.CalledOnValidThread());
 

@@ -218,7 +218,9 @@ VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec,
                            const char* max_video_capabilities,
                            int tunnel_mode_audio_session_id,
                            bool force_secure_pipeline_under_tunnel_mode,
+                           bool force_reset_surface_under_tunnel_mode,
                            bool force_big_endian_hdr_metadata,
+                           bool force_improved_support_check,
                            std::string* error_message)
     : video_codec_(video_codec),
       drm_system_(static_cast<DrmSystem*>(drm_system)),
@@ -226,11 +228,14 @@ VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec,
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
       tunnel_mode_audio_session_id_(tunnel_mode_audio_session_id),
+      force_reset_surface_under_tunnel_mode_(
+          force_reset_surface_under_tunnel_mode),
       has_new_texture_available_(false),
       surface_condition_variable_(surface_destroy_mutex_),
       require_software_codec_(max_video_capabilities &&
                               strlen(max_video_capabilities) > 0),
-      force_big_endian_hdr_metadata_(force_big_endian_hdr_metadata) {
+      force_big_endian_hdr_metadata_(force_big_endian_hdr_metadata),
+      force_improved_support_check_(force_improved_support_check) {
   SB_DCHECK(error_message);
 
   if (tunnel_mode_audio_session_id != -1) {
@@ -264,7 +269,11 @@ VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec,
 
 VideoDecoder::~VideoDecoder() {
   TeardownCodec();
-  ClearVideoWindow();
+  if (tunnel_mode_audio_session_id_ != -1) {
+    ClearVideoWindow(force_reset_surface_under_tunnel_mode_);
+  } else {
+    ClearVideoWindow(false);
+  }
 
   if (!require_software_codec_) {
     number_of_hardware_decoders_--;
@@ -559,7 +568,7 @@ bool VideoDecoder::InitializeCodec(std::string* error_message) {
       require_software_codec_,
       std::bind(&VideoDecoder::OnTunnelModeFrameRendered, this, _1),
       tunnel_mode_audio_session_id_, force_big_endian_hdr_metadata_,
-      error_message));
+      force_improved_support_check_, error_message));
   if (media_decoder_->is_valid()) {
     if (error_cb_) {
       media_decoder_->Initialize(

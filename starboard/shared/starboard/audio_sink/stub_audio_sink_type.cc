@@ -38,12 +38,9 @@ class StubAudioSink : public SbAudioSinkPrivate {
   ~StubAudioSink() override;
 
   bool IsType(Type* type) override { return type_ == type; }
-  void SetPlaybackRate(double playback_rate) override {
-    SB_NOTIMPLEMENTED();
-  }
+  void SetPlaybackRate(double playback_rate) override { SB_NOTIMPLEMENTED(); }
 
-  void SetVolume(double volume) override {
-  }
+  void SetVolume(double volume) override {}
 
  private:
   static void* ThreadEntryPoint(void* context);
@@ -137,11 +134,8 @@ SbAudioSink StubAudioSinkType::Create(
     int frame_buffers_size_in_frames,
     SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
     SbAudioSinkPrivate::ConsumeFramesFunc consume_frames_func,
-#if SB_API_VERSION >= 12
     SbAudioSinkPrivate::ErrorFunc error_func,
-#endif  // SB_API_VERSION >= 12
     void* context) {
-
   return new StubAudioSink(this, sampling_frequency_hz,
                            update_source_status_func, consume_frames_func,
                            context);

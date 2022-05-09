@@ -1343,7 +1343,11 @@ namespace skvm {
     }
 
     Color Builder::uniformColor(SkColor4f color, Uniforms* uniforms) {
+#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
         auto [r,g,b,a] = color;
+#else
+        STRUCTURED_BINDING_4(r,g,b,a, color);
+#endif
         return {
             uniformF(uniforms->pushF(r)),
             uniformF(uniforms->pushF(g)),
@@ -1391,7 +1395,11 @@ namespace skvm {
     Color Builder::to_rgba(HSLA c) {
         // See GrRGBToHSLFilterEffect.fp
 
+#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
         auto [h,s,l,a] = c;
+#else
+        STRUCTURED_BINDING_4(h,s,l,a, c);
+#endif
         F32 x = s * (1.0f - abs(l + l - 1.0f));
 
         auto hue_to_rgb = [&,l=l](auto hue) {
@@ -2558,7 +2566,11 @@ namespace skvm {
         std::vector<llvm::Value*> vals(instructions.size());
 
         auto emit = [&](size_t i, bool scalar, IRBuilder* b) {
+#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
             auto [op, x,y,z,w, immA,immB,immC, death,can_hoist] = instructions[i];
+#else
+            STRUCTURED_BINDING_10(op, x,y,z,w, immA,immB,immC, death,can_hoist, instructions[i]);
+#endif
 
             llvm::Type *i1    = llvm::Type::getInt1Ty (*ctx),
                        *i8    = llvm::Type::getInt8Ty (*ctx),
@@ -3407,7 +3419,12 @@ namespace skvm {
                 if (v ==  w && rw != NA) { return rw; }
 
                 // Search inter-instruction register map.
+#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
                 for (auto [r,val] : SkMakeEnumerate(regs)) {
+#else
+                for (auto item : SkMakeEnumerate(regs)) {
+                    STRUCTURED_BINDING_2(r,val, std::move(item));
+#endif
                     if (val == v) {
                         return update_regs((Reg)r, v);
                     }

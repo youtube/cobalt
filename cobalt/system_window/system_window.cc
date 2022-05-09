@@ -108,6 +108,14 @@ void SystemWindow::DispatchInputEvent(const SbEvent* event,
                                       InputEvent::Type type, bool is_repeat) {
   DCHECK(event);
   DCHECK(event->data);
+  if (event == nullptr) {
+    LOG(ERROR) << "SystemWindow::DispatchInputEvent: missing event";
+    return;
+  }
+  if (event->data == nullptr) {
+    LOG(ERROR) << "SystemWindow::DispatchInputEvent: missing event data";
+    return;
+  }
   SbInputData* input_data = static_cast<SbInputData*>(event->data);
   const SbInputData& data = *input_data;
 
@@ -115,7 +123,7 @@ void SystemWindow::DispatchInputEvent(const SbEvent* event,
   SbTimeMonotonic timestamp = 0;
 #if SB_API_VERSION >= 13
   timestamp = event->timestamp;
-#else  // SB_API_VERSION >= 13
+#else   // SB_API_VERSION >= 13
   bool use_input_timestamp =
       SbSystemHasCapability(kSbSystemCapabilitySetsInputTimestamp);
   if (use_input_timestamp) {
@@ -160,7 +168,6 @@ void SystemWindow::DispatchInputEvent(const SbEvent* event,
     }
   }
 
-#if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
   std::unique_ptr<InputEvent> input_event(
       new InputEvent(timestamp, type, data.device_id, key_code, modifiers,
                      is_repeat, math::PointF(data.position.x, data.position.y),
@@ -169,16 +176,6 @@ void SystemWindow::DispatchInputEvent(const SbEvent* event,
                      math::PointF(data.tilt.x, data.tilt.y),
                      data.input_text ? data.input_text : "",
                      data.is_composing ? data.is_composing : false));
-#else   // SB_API_VERSION >= 12 ||
-  // SB_HAS(ON_SCREEN_KEYBOARD)
-  std::unique_ptr<InputEvent> input_event(
-      new InputEvent(timestamp, type, data.device_id, key_code, modifiers,
-                     is_repeat, math::PointF(data.position.x, data.position.y),
-                     math::PointF(data.delta.x, data.delta.y), pressure,
-                     math::PointF(data.size.x, data.size.y),
-                     math::PointF(data.tilt.x, data.tilt.y)));
-#endif  // SB_API_VERSION >= 12 ||
-        // SB_HAS(ON_SCREEN_KEYBOARD)
   event_dispatcher()->DispatchEvent(
       std::unique_ptr<base::Event>(input_event.release()));
 }
@@ -263,13 +260,10 @@ void SystemWindow::HandleInputEvent(const SbEvent* event) {
       DispatchInputEvent(event, InputEvent::kKeyMove, false /* is_repeat */);
       break;
     }
-#if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
     case kSbInputEventTypeInput: {
       DispatchInputEvent(event, InputEvent::kInput, false /* is_repeat */);
       break;
     }
-#endif  // SB_API_VERSION >= 12 ||
-        // SB_HAS(ON_SCREEN_KEYBOARD)
     default:
       break;
   }

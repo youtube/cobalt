@@ -18,12 +18,12 @@
 
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/dom/dom_exception.h"
-#include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/global_stats.h"
 #include "cobalt/dom/testing/mock_event_listener.h"
 #include "cobalt/script/testing/fake_script_value.h"
 #include "cobalt/script/testing/mock_exception_state.h"
 #include "cobalt/test/mock_debugger_hooks.h"
+#include "cobalt/web/environment_settings.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
@@ -49,10 +49,7 @@ constexpr auto kRecurring = base::DebuggerHooks::AsyncTaskFrequency::kRecurring;
 
 class EventTargetTest : public ::testing::Test {
  protected:
-  EventTargetTest()
-      : environment_settings_(0, nullptr, nullptr, nullptr, nullptr, nullptr,
-                              nullptr, nullptr, nullptr, debugger_hooks_,
-                              nullptr, DOMSettings::Options()) {
+  EventTargetTest() : environment_settings_(debugger_hooks_) {
     EXPECT_TRUE(GlobalStats::GetInstance()->CheckNoLeaks());
   }
   ~EventTargetTest() override {
@@ -60,7 +57,7 @@ class EventTargetTest : public ::testing::Test {
   }
 
   StrictMock<test::MockDebuggerHooks> debugger_hooks_;
-  DOMSettings environment_settings_;
+  web::EnvironmentSettings environment_settings_;
 };
 
 base::Optional<bool> DispatchEventOnCurrentTarget(

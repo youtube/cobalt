@@ -20,8 +20,8 @@
 #include "base/memory/ref_counted.h"
 #include "base/threading/thread_checker.h"
 #include "base/time/time.h"
-#include "cobalt/media/base/decoder_buffer.h"
-#include "cobalt/media/base/demuxer_stream.h"
+#include "third_party/chromium//media/base/decoder_buffer.h"
+#include "third_party/chromium//media/base/demuxer_stream.h"
 
 namespace cobalt {
 namespace media {
@@ -33,6 +33,9 @@ namespace media {
 // be useful to implement suspend/resume.
 class DecoderBufferCache {
  public:
+  typedef ::media::DecoderBuffer DecoderBuffer;
+  typedef ::media::DemuxerStream DemuxerStream;
+
   DecoderBufferCache();
 
   void AddBuffer(DemuxerStream::Type type,
@@ -46,7 +49,7 @@ class DecoderBufferCache {
   void AdvanceToNextBuffer(DemuxerStream::Type type);
 
  private:
-  typedef std::deque<scoped_refptr<DecoderBuffer> > Buffers;
+  typedef std::deque<scoped_refptr<DecoderBuffer>> Buffers;
   typedef std::deque<base::TimeDelta> KeyFrameTimestamps;
 
   static size_t ClearSegmentsBeforeMediaTime(

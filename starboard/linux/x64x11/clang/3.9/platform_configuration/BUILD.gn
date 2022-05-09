@@ -1,0 +1,193 @@
+# Copyright 2022 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+config("compiler_flags") {
+  cflags = []
+  cflags_c = []
+  cflags_cc = []
+  ldflags = []
+  defines = []
+
+  cflags += [
+    "-Werror",
+    "-fcolor-diagnostics",
+
+    # Default visibility to hidden, to enable dead stripping.
+    "-fvisibility=hidden",
+
+    # Warn for implicit type conversions that may change a value.
+    "-Wconversion",
+
+    # Warns on switches on enums that cover all enum values but
+    # also contain a default: branch. Chrome is full of that.
+    "-Wno-covered-switch-default",
+
+    # protobuf uses hash_map.
+    "-Wno-deprecated",
+    "-fno-exceptions",
+
+    # Don't warn about the "struct foo f = {0};" initialization pattern.
+    "-Wno-missing-field-initializers",
+    "-fno-strict-aliasing",  # See http://crbug.com/32204
+
+    # Don't warn for invalid access to non-static data member of NULL object.
+    "-Wno-invalid-offsetof",
+
+    # Suppress 'implicit conversion changes signedness"
+    "-Wno-sign-conversion",
+
+    # shifting a negative signed value is undefined
+    "-Wno-shift-sign-overflow",
+
+    # Suppress "comparison may be assumed to always evaluate to false"
+    "-Wno-tautological-undefined-compare",
+
+    # Suppress "comparison of unsigned enum expression < 0 is always false"
+    "-Wno-tautological-compare",
+
+    # Suppress "[type1] has C-linkage specified, but returns user-defined type [type2] which is incompatible with C"
+    "-Wno-return-type-c-linkage",
+    "-Wno-array-bounds",
+
+    # Suppress "template argument uses unnamed type"
+    "-Wno-unnamed-type-template-args",
+
+    # 'this' pointer cannot be NULL...pointer may be assumed
+    # to always convert to true.
+    "-Wno-undefined-bool-conversion",
+
+    # Skia doesn't use overrides.
+    "-Wno-inconsistent-missing-override",
+
+    # Triggered by the COMPILE_ASSERT macro.
+    "-Wno-unused-local-typedef",
+
+    # Suppress "'&&' within '||'"
+    "-Wno-logical-op-parentheses",
+    "-Wno-unused-parameter",
+
+    # Suppress warnings about unknown pragmas.
+    "-Wno-unknown-pragmas",
+
+    # Suppress warnings about equality checks within double parentheses.
+    "-Wno-parentheses-equality",
+
+    # Suppress warnings about unreachable code due to constexpr conditions
+    "-Wno-unreachable-code",
+
+    # Suppress warnings about values being written but not read before the next write.
+    "-Wno-unused-value",
+
+    # Suppress warnings related to unused compilation flags in clang.
+    "-Wno-unused-command-line-argument",
+
+    # Suppress warnings in libjpeg
+    "-Wno-shift-negative-value",
+  ]
+
+  cflags_c += [
+    # Limit to C99. This allows Linux to be a canary build for any
+    # C11 features that are not supported on some platforms' compilers.
+    "-std=c99",
+  ]
+
+  cflags_cc += [ "-std=c++14" ]
+
+  if (is_debug) {
+    cflags += [
+      "-frtti",
+      "-O0",
+    ]
+  } else if (is_devel) {
+    cflags += [
+      "-frtti",
+      "-O2",
+    ]
+  } else if (is_qa) {
+    cflags += [
+      "-fno-rtti",
+      "-O2",
+      "-gline-tables-only",
+    ]
+  } else {
+    cflags += [
+      "-fno-rtti",
+      "-gline-tables-only",
+    ]
+  }
+
+  if (!cobalt_fastbuild) {
+    if (is_debug || is_devel) {
+      cflags += [ "-g" ]
+    } else {
+      cflags += [ "-gline-tables-only" ]
+    }
+  }
+
+  if (use_asan) {
+    cflags += [
+      "-fsanitize=address",
+      "-fno-omit-frame-pointer",
+    ]
+    ldflags += [
+      "-fsanitize=address",
+
+      # Force linking of the helpers in sanitizer_options.cc
+      "-Wl,-u_sanitizer_options_link_helper",
+    ]
+    defines += [ "ADDRESS_SANITIZER" ]
+  }
+
+  if (use_tsan) {
+    cflags += [
+      "-fsanitize=thread",
+      "-fno-omit-frame-pointer",
+    ]
+    ldflags += [ "-fsanitize=thread" ]
+    defines += [ "THREAD_SANITIZER" ]
+  }
+}
+
+config("no_pedantic_warnings") {
+  cflags = [
+    # 'this' pointer cannot be NULL...pointer may be assumed
+    # to always convert to true.
+    "-Wno-undefined-bool-conversion",
+
+    # Skia doesn't use overrides.
+    "-Wno-inconsistent-missing-override",
+
+    # Do not warn about unused function params.
+    "-Wno-unused-parameter",
+
+    # Do not warn for implicit type conversions that may change a value.
+    "-Wno-conversion",
+
+    # Do not warn about an implicit exception spec mismatch.
+    "-Wno-implicit-exception-spec-mismatch",
+  ]
+}
+
+config("platform_configuration") {
+  if (current_toolchain == default_toolchain) {
+    configs = [
+      "//starboard/linux/shared/platform_configuration",
+      "//starboard/linux/x64x11/shared/platform_configuration:libraries",
+      "//starboard/build/config/sabi",
+      ":compiler_flags",
+    ]
+  } else {
+    cflags = [ "-O2" ]
+  }
+}

@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Google Inc. All Rights Reserved.
+ * Copyright 2015 The Cobalt Authors. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,6 +35,9 @@ namespace egl {
 // upon construction.
 class Display {
  public:
+  static void RepeatSubmitDoneDuringSuspend();
+  static bool repeat_submit_done_during_suspend;
+
   // In order to create a display, it must have a platform-specific
   // implementation injected into it, where many methods will forward to.
   explicit Display(nb::scoped_ptr<DisplayImpl> display_impl);

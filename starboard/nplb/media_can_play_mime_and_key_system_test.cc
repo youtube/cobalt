@@ -73,9 +73,7 @@ TEST(SbMediaCanPlayMimeAndKeySystem, SunnyDay) {
   // Opus
   result = SbMediaCanPlayMimeAndKeySystem(
       "audio/webm; codecs=\"opus\"; channels=2", "");
-#if SB_API_VERSION >= 12
   ASSERT_EQ(result, kSbMediaSupportTypeProbably);
-#endif  // SB_API_VERSION >= 12
 }
 
 TEST(SbMediaCanPlayMimeAndKeySystem, Invalid) {

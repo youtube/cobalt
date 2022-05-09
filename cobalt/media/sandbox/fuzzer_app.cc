@@ -14,6 +14,8 @@
 
 #include "cobalt/media/sandbox/fuzzer_app.h"
 
+#include <utility>
+
 #include "base/files/file_util.h"
 #include "base/logging.h"
 #include "starboard/common/string.h"
@@ -114,21 +116,12 @@ void FuzzerApp::CollectFiles(const std::string& path_name, double min_ratio,
     return;
   }
 
-#if SB_API_VERSION >= 12
   std::vector<char> entry(kSbFileMaxName);
 
   while (SbDirectoryGetNext(directory, entry.data(), entry.size())) {
     std::string file_name = path_name + kSbFileSepString + entry.data();
     AddFile(file_name, min_ratio, max_ratio, initial_seed);
   }
-#else   // SB_API_VERSION >= 12
-  SbDirectoryEntry entry;
-
-  while (SbDirectoryGetNext(directory, &entry)) {
-    std::string file_name = path_name + kSbFileSepString + entry.name;
-    AddFile(file_name, min_ratio, max_ratio, initial_seed);
-  }
-#endif  // SB_API_VERSION >= 12
 
   SbDirectoryClose(directory);
 }

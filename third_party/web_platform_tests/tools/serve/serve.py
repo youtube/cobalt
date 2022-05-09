@@ -12,7 +12,7 @@ import sys
 import threading
 import time
 import traceback
-import urllib2
+from six.moves import urllib
 import uuid
 from collections import defaultdict, OrderedDict
 from multiprocessing import Process, Event
@@ -251,7 +251,7 @@ class RoutesBuilder(object):
         for (method, suffix, handler_cls) in routes:
             self.mountpoint_routes[url_base].append(
                 (method,
-                 b"%s%s" % (str(url_base) if url_base != "/" else "", str(suffix)),
+                 "{}{}".format(str(url_base) if url_base != "/" else "", str(suffix)).encode(),
                  handler_cls(base_path=path, url_base=url_base)))
 
     def add_file_mount_point(self, file_url, base_path):
@@ -443,20 +443,20 @@ def check_subdomains(host, paths, bind_hostname, ssl_config, aliases):
     connected = False
     for i in range(10):
         try:
-            urllib2.urlopen("http://%s:%d/" % (host, port))
+            urllib.request.urlopen("http://%s:%d/" % (host, port))
             connected = True
             break
-        except urllib2.URLError:
+        except urllib.error.URLError:
             time.sleep(1)
 
     if not connected:
         logger.critical("Failed to connect to test server on http://%s:%s You may need to edit /etc/hosts or similar" % (host, port))
         sys.exit(1)
 
-    for subdomain, (punycode, host) in subdomains.iteritems():
+    for subdomain, (punycode, host) in subdomains.items():
         domain = "%s.%s" % (punycode, host)
         try:
-            urllib2.urlopen("http://%s:%d/" % (domain, port))
+            urllib.request.urlopen("http://%s:%d/" % (domain, port))
         except Exception as e:
             logger.critical("Failed probing domain %s. You may need to edit /etc/hosts or similar." % domain)
             sys.exit(1)
@@ -466,14 +466,14 @@ def check_subdomains(host, paths, bind_hostname, ssl_config, aliases):
 
 def get_subdomains(host):
     #This assumes that the tld is ascii-only or already in punycode
-    return {subdomain: (subdomain.encode("idna"), host)
+    return {subdomain: (subdomain.encode("idna"), host.encode())
             for subdomain in subdomains}
 
 
 def start_servers(host, ports, paths, routes, bind_hostname, external_config, ssl_config,
                   **kwargs):
     servers = defaultdict(list)
-    for scheme, ports in ports.iteritems():
+    for scheme, ports in ports.items():
         assert len(ports) == {"http":2}.get(scheme, 1)
 
         for port in ports:
@@ -612,7 +612,7 @@ def start_wss_server(host, port, paths, routes, bind_hostname, external_config, 
 
 def get_ports(config, ssl_environment):
     rv = defaultdict(list)
-    for scheme, ports in config["ports"].iteritems():
+    for scheme, ports in config["ports"].items():
         for i, port in enumerate(ports):
             if scheme in ["wss", "https"] and not ssl_environment.ssl_enabled:
                 port = None
@@ -629,16 +629,16 @@ def normalise_config(config, ports):
     host = config["external_host"] if config["external_host"] else config["host"]
     domains = get_subdomains(host)
     ports_ = {}
-    for scheme, ports_used in ports.iteritems():
+    for scheme, ports_used in ports.items():
         ports_[scheme] = ports_used
 
-    for key, value in domains.iteritems():
-        domains[key] = ".".join(value)
+    for key, value in domains.items():
+        domains[key] = b".".join(value)
 
     domains[""] = host
 
     ports_ = {}
-    for scheme, ports_used in ports.iteritems():
+    for scheme, ports_used in ports.items():
         ports_[scheme] = ports_used
 
     return {"host": host,
@@ -702,7 +702,7 @@ def set_computed_defaults(config):
 
 def merge_json(base_obj, override_obj):
     rv = {}
-    for key, value in base_obj.iteritems():
+    for key, value in base_obj.items():
         if key not in override_obj:
             rv[key] = value
         else:

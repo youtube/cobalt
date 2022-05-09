@@ -19,11 +19,11 @@
 #include "base/path_service.h"
 #include "base/task/task_scheduler/task_scheduler.h"
 #include "cobalt/base/wrap_main.h"
-#include "cobalt/media/base/media_log.h"
 #include "cobalt/media/decoder_buffer_allocator.h"
-#include "cobalt/media/filters/chunk_demuxer.h"
 #include "starboard/common/string.h"
 #include "starboard/event.h"
+#include "third_party/chromium/media/base/media_log.h"
+#include "third_party/chromium/media/filters/chunk_demuxer.h"
 
 namespace cobalt {
 namespace media {
@@ -31,28 +31,26 @@ namespace sandbox {
 
 namespace {
 
-class DemuxerHostStub : public DemuxerHost {
+using ::media::ChunkDemuxer;
+using ::media::DemuxerStream;
+
+class DemuxerHostStub : public ::media::DemuxerHost {
   void OnBufferedTimeRangesChanged(
-      const Ranges<base::TimeDelta>& ranges) override {}
+      const ::media::Ranges<base::TimeDelta>& ranges) override {}
 
   void SetDuration(base::TimeDelta duration) override {}
 
-  void OnDemuxerError(PipelineStatus error) override {}
-
-  void AddTextStream(DemuxerStream* text_stream,
-                     const TextTrackConfig& config) override {}
-
-  void RemoveTextStream(DemuxerStream* text_stream) override {}
+  void OnDemuxerError(::media::PipelineStatus error) override {}
 };
 
 void OnDemuxerOpen() {}
 
-void OnEncryptedMediaInitData(EmeInitDataType type,
+void OnEncryptedMediaInitData(::media::EmeInitDataType type,
                               const std::vector<uint8_t>& init_data) {}
 
-void OnInitSegmentReceived(std::unique_ptr<MediaTracks> tracks) {}
+void OnInitSegmentReceived(std::unique_ptr<::media::MediaTracks> tracks) {}
 
-void OnDemuxerStatus(PipelineStatus status) { status = PIPELINE_OK; }
+void OnDemuxerStatus(::media::PipelineStatus status) {}
 
 std::string LoadFile(const std::string& file_name) {
   base::FilePath file_path(file_name);
@@ -79,7 +77,7 @@ void ReadDemuxerStream(DemuxerStream* demuxer_stream);
 
 void OnDemuxerStreamRead(DemuxerStream* demuxer_stream,
                          DemuxerStream::Status status,
-                         const scoped_refptr<DecoderBuffer>& decoder_buffer) {
+                         scoped_refptr<::media::DecoderBuffer> decoder_buffer) {
   if (!decoder_buffer->end_of_stream()) {
     LOG(INFO) << "Reading " << GetDemuxerStreamType(demuxer_stream)
               << " buffer at " << decoder_buffer->timestamp();
@@ -92,7 +90,7 @@ void OnDemuxerStreamRead(DemuxerStream* demuxer_stream,
 void ReadDemuxerStream(DemuxerStream* demuxer_stream) {
   DCHECK(demuxer_stream);
   demuxer_stream->Read(
-      base::Bind(OnDemuxerStreamRead, base::Unretained(demuxer_stream)));
+      base::BindOnce(OnDemuxerStreamRead, base::Unretained(demuxer_stream)));
 }
 
 }  // namespace
@@ -106,27 +104,28 @@ int SandboxMain(int argc, char** argv) {
   }
 
   DecoderBufferAllocator decoder_buffer_allocator;
+  ::media::MediaLog media_log;
   base::MessageLoop message_loop;
   // A one-per-process task scheduler is needed for usage of APIs in
   // base/post_task.h which will be used by some net APIs like
   // URLRequestContext;
   base::TaskScheduler::CreateAndStartWithDefaultParams("Cobalt TaskScheduler");
   DemuxerHostStub demuxer_host;
-  std::unique_ptr<ChunkDemuxer> demuxer(new ChunkDemuxer(
-      &decoder_buffer_allocator, base::Bind(OnDemuxerOpen),
-      base::Bind(OnEncryptedMediaInitData), new MediaLog, false));
-  demuxer->Initialize(&demuxer_host, base::Bind(OnDemuxerStatus), false);
+  std::unique_ptr<ChunkDemuxer> demuxer(
+      new ChunkDemuxer(base::BindOnce(OnDemuxerOpen), base::Closure(),
+                       base::Bind(OnEncryptedMediaInitData), &media_log));
+  demuxer->Initialize(&demuxer_host, base::Bind(OnDemuxerStatus));
 
   ChunkDemuxer::Status status =
-      demuxer->AddId("audio", "audio/mp4; codecs=\"mp4a.40.2\"");
+      demuxer->AddId("audio", "audio/mp4", "mp4a.40.2");
   DCHECK_EQ(status, ChunkDemuxer::kOk);
 
   int video_url_length = strlen(argv[2]);
   if (video_url_length > 5 &&
       strncmp(argv[2] + video_url_length - 5, ".webm", 5) == 0) {
-    status = demuxer->AddId("video", "video/webm; codecs=\"vp9\"");
+    status = demuxer->AddId("video", "video/webm", "vp9");
   } else {
-    status = demuxer->AddId("video", "video/mp4; codecs=\"avc1.640028\"");
+    status = demuxer->AddId("video", "video/mp4", "avc1.640028");
   }
   DCHECK_EQ(status, ChunkDemuxer::kOk);
 
@@ -138,17 +137,43 @@ int SandboxMain(int argc, char** argv) {
   DCHECK(!video_content.empty());
 
   demuxer->SetTracksWatcher("audio", base::Bind(OnInitSegmentReceived));
+  demuxer->SetParseWarningCallback(
+      "audio",
+      base::BindRepeating([](::media::SourceBufferParseWarning warning) {
+        LOG(WARNING) << "Encountered SourceBufferParseWarning "
+                     << static_cast<int>(warning);
+      }));
   demuxer->SetTracksWatcher("video", base::Bind(OnInitSegmentReceived));
-  demuxer->AppendData("audio", reinterpret_cast<uint8*>(&audio_content[0]),
-                      audio_content.size(), base::TimeDelta(),
-                      base::TimeDelta::Max(), &timestamp_offset);
-  demuxer->AppendData("video", reinterpret_cast<uint8*>(&video_content[0]),
-                      video_content.size(), base::TimeDelta(),
-                      base::TimeDelta::Max(), &timestamp_offset);
-  demuxer->MarkEndOfStream(PIPELINE_OK);
+  demuxer->SetParseWarningCallback(
+      "video",
+      base::BindRepeating([](::media::SourceBufferParseWarning warning) {
+        LOG(WARNING) << "Encountered SourceBufferParseWarning "
+                     << static_cast<int>(warning);
+      }));
+  bool result =
+      demuxer->AppendData("audio", reinterpret_cast<uint8*>(&audio_content[0]),
+                          audio_content.size(), base::TimeDelta(),
+                          base::TimeDelta::Max(), &timestamp_offset);
+  DCHECK(result);
+  result =
+      demuxer->AppendData("video", reinterpret_cast<uint8*>(&video_content[0]),
+                          video_content.size(), base::TimeDelta(),
+                          base::TimeDelta::Max(), &timestamp_offset);
+  DCHECK(result);
+  demuxer->MarkEndOfStream(::media::PIPELINE_OK);
 
-  DemuxerStream* audio_stream = demuxer->GetStream(DemuxerStream::AUDIO);
-  DemuxerStream* video_stream = demuxer->GetStream(DemuxerStream::VIDEO);
+  auto streams = demuxer->GetAllStreams();
+  DemuxerStream* audio_stream = nullptr;
+  DemuxerStream* video_stream = nullptr;
+  for (auto&& stream : streams) {
+    if (stream->type() == DemuxerStream::AUDIO) {
+      DCHECK(!audio_stream);
+      audio_stream = stream;
+    } else if (stream->type() == DemuxerStream::VIDEO) {
+      DCHECK(!video_stream);
+      video_stream = stream;
+    }
+  }
 
   ReadDemuxerStream(audio_stream);
   ReadDemuxerStream(video_stream);

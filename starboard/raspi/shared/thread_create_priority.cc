@@ -23,7 +23,6 @@ namespace starboard {
 namespace shared {
 namespace pthread {
 
-#if SB_API_VERSION >= 12 || SB_HAS(THREAD_PRIORITY_SUPPORT)
 // This is the maximum priority that will be passed to SetRoundRobinScheduler().
 const int kMaxRoundRobinPriority = 2;
 
@@ -37,7 +36,8 @@ const int kMaxRoundRobinPriority = 2;
 //   @pi soft rtprio 99
 //   @pi hard nice -20
 //   @pi soft nice -20
-const char kSchedulerErrorMessage[] = "Unable to set scheduler. Please update "
+const char kSchedulerErrorMessage[] =
+    "Unable to set scheduler. Please update "
     "limits.conf to set 'rtprio' limit to 99 and 'nice' limit to -20.";
 
 // Note that use of sched_setscheduler() has been found to be more reliably
@@ -77,7 +77,7 @@ void SetRoundRobinScheduler(int priority) {
     SB_LOG(ERROR) << "Unable to use real-time round-robin scheduler because "
                   << "the maximum real-time scheduling priority is too low ("
                   << rlimit_rtprio.rlim_cur << " < " << max_used_priority
-                  <<"). Update setting using `ulimit -r` or limits.conf file.";
+                  << "). Update setting using `ulimit -r` or limits.conf file.";
     SetOtherScheduler();
     return;
   }
@@ -92,9 +92,8 @@ void SetRoundRobinScheduler(int priority) {
   }
 
   struct sched_param thread_sched_param;
-  thread_sched_param.sched_priority =
-      std::min(min_priority + priority,
-               static_cast<int>(rlimit_rtprio.rlim_cur));
+  thread_sched_param.sched_priority = std::min(
+      min_priority + priority, static_cast<int>(rlimit_rtprio.rlim_cur));
   int result = sched_setscheduler(0, SCHED_RR, &thread_sched_param);
   SB_CHECK(result == 0) << kSchedulerErrorMessage;
 }
@@ -129,9 +128,6 @@ void ThreadSetPriority(SbThreadPriority priority) {
       break;
   }
 }
-
-#endif  // SB_API_VERSION >= 12 ||
-        // SB_HAS(THREAD_PRIORITY_SUPPORT)
 
 }  // namespace pthread
 }  // namespace shared

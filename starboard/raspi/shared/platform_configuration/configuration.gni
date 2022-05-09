@@ -15,7 +15,6 @@
 import("//starboard/build/config/base_configuration.gni")
 
 arm_float_abi = "hard"
-has_drm_support = false
 
 sb_static_contents_output_data_dir = "$root_out_dir/content"
 
@@ -28,3 +27,9 @@ sabi_path = "//starboard/sabi/arm/hardfp/sabi-v$sb_api_version.json"
 platform_tests_path = "//starboard/raspi/shared:starboard_platform_tests"
 
 install_target_path = "//starboard/raspi/shared/install_target.gni"
+
+speed_config_path = "//starboard/raspi/shared/platform_configuration:speed"
+size_config_path = "//starboard/raspi/shared/platform_configuration:size"
+
+# TODO(b/219073252): Enable -fno-exceptions and don't mix it with -fexceptions.
+enable_exceptions_override = true

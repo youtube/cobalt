@@ -22,7 +22,7 @@ namespace third_party {
 namespace crashpad {
 namespace wrapper {
 
-void InstallCrashpadHandler();
+void InstallCrashpadHandler(bool start_at_crash);
 
 bool AddEvergreenInfoToCrashpad(EvergreenInfo evergreen_info);
 

@@ -28,10 +28,6 @@
 // "starboard/atomic.h".
 typedef int32_t InitializedState;
 
-#if SB_API_VERSION >= 12
 #define INITIALIZED_STATE_UNINITIALIZED 0
-#else
-#define INITIALIZED_STATE_UNINITIALIZED 1
-#endif
 
 #endif  // STARBOARD_SHARED_STARBOARD_LAZY_INITIALIZATION_PUBLIC_H_

@@ -13,11 +13,12 @@
 // limitations under the License.
 
 #include <memory>
+#include <utility>
 
 #include "cobalt/media/sandbox/web_media_player_helper.h"
 
-#include "cobalt/math/rect.h"
 #include "cobalt/media/fetcher_buffered_data_source.h"
+#include "third_party/chromium/media/cobalt/ui/gfx/geometry/rect.h"
 
 namespace cobalt {
 namespace media {
@@ -46,14 +47,14 @@ class WebMediaPlayerHelper::WebMediaPlayerClientStub
   void PlaybackStateChanged() override {}
   void SawUnsupportedTracks() override {}
   float Volume() const override { return 1.f; }
-  void SourceOpened(ChunkDemuxer* chunk_demuxer) override {
+  void SourceOpened(::media::ChunkDemuxer* chunk_demuxer) override {
     DCHECK(!chunk_demuxer_open_cb_.is_null());
     chunk_demuxer_open_cb_.Run(chunk_demuxer);
   }
   std::string SourceURL() const override { return ""; }
   std::string MaxVideoCapabilities() const override { return std::string(); };
 
-  void EncryptedMediaInitDataEncountered(EmeInitDataType, const unsigned char*,
+  void EncryptedMediaInitDataEncountered(const char*, const unsigned char*,
                                          unsigned) override {}
 
   ChunkDemuxerOpenCB chunk_demuxer_open_cb_;
@@ -61,7 +62,7 @@ class WebMediaPlayerHelper::WebMediaPlayerClientStub
 
 WebMediaPlayerHelper::WebMediaPlayerHelper(MediaModule* media_module,
                                            const ChunkDemuxerOpenCB& open_cb,
-                                           const math::Size& viewport_size)
+                                           const gfx::Size& viewport_size)
     : client_(new WebMediaPlayerClientStub(open_cb)),
       player_(media_module->CreateWebMediaPlayer(client_)) {
   player_->SetRate(1.0);
@@ -70,13 +71,13 @@ WebMediaPlayerHelper::WebMediaPlayerHelper(MediaModule* media_module,
 
   auto set_bounds_cb = player_->GetSetBoundsCB();
   if (!set_bounds_cb.is_null()) {
-    set_bounds_cb.Run(math::Rect(viewport_size));
+    set_bounds_cb.Run(0, 0, viewport_size.width(), viewport_size.height());
   }
 }
 
 WebMediaPlayerHelper::WebMediaPlayerHelper(
     MediaModule* media_module, loader::FetcherFactory* fetcher_factory,
-    const GURL& video_url, const math::Size& viewport_size)
+    const GURL& video_url, const gfx::Size& viewport_size)
     : client_(new WebMediaPlayerClientStub),
       player_(media_module->CreateWebMediaPlayer(client_)) {
   player_->SetRate(1.0);
@@ -89,7 +90,7 @@ WebMediaPlayerHelper::WebMediaPlayerHelper(
 
   auto set_bounds_cb = player_->GetSetBoundsCB();
   if (!set_bounds_cb.is_null()) {
-    set_bounds_cb.Run(math::Rect(viewport_size));
+    set_bounds_cb.Run(0, 0, viewport_size.width(), viewport_size.height());
   }
 }
 

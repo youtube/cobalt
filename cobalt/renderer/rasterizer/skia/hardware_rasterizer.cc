@@ -12,9 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/configuration.h"
-#if SB_API_VERSION >= 12 || SB_HAS(GLES2)
-
 #include "cobalt/renderer/rasterizer/skia/hardware_rasterizer.h"
 
 #include <algorithm>
@@ -35,15 +32,22 @@
 #include "cobalt/renderer/rasterizer/skia/render_tree_node_visitor.h"
 #include "cobalt/renderer/rasterizer/skia/scratch_surface_cache.h"
 #include "cobalt/renderer/rasterizer/skia/vertex_buffer_object.h"
+#include "starboard/configuration.h"
 #include "third_party/glm/glm/gtc/matrix_inverse.hpp"
 #include "third_party/glm/glm/gtx/transform.hpp"
 #include "third_party/glm/glm/mat3x3.hpp"
 #include "third_party/skia/include/core/SkCanvas.h"
 #include "third_party/skia/include/core/SkSurface.h"
 #include "third_party/skia/include/gpu/GrBackendSurface.h"
+#ifdef USE_SKIA_NEXT
+#include "third_party/skia/include/gpu/GrDirectContext.h"
+#else
 #include "third_party/skia/include/gpu/GrContext.h"
+#endif
 #include "third_party/skia/include/gpu/GrContextOptions.h"
+#ifndef USE_SKIA_NEXT
 #include "third_party/skia/include/gpu/GrTexture.h"
+#endif
 #include "third_party/skia/include/gpu/gl/GrGLInterface.h"
 #include "third_party/skia/src/gpu/GrRenderTarget.h"
 #include "third_party/skia/src/gpu/GrResourceProvider.h"
@@ -153,7 +157,11 @@ namespace {
 
 SkSurfaceProps GetRenderTargetSurfaceProps(bool force_deterministic_rendering) {
   uint32_t flags = 0;
+#ifdef USE_SKIA_NEXT
+  return SkSurfaceProps(flags, kUnknown_SkPixelGeometry);
+#else
   return SkSurfaceProps(flags, SkSurfaceProps::kLegacyFontHost_InitType);
+#endif
 }
 
 // Takes meta-data from a Cobalt RenderTarget object and uses it to fill out
@@ -513,11 +521,17 @@ void HardwareRasterizer::Impl::RenderTextureEGL(
                                         model_view_projection_matrix);
   }
 
-  // Let Skia know that we've modified GL state.
+// Let Skia know that we've modified GL state.
+#ifdef USE_SKIA_NEXT
+  uint32_t untouched_states =
+      kMSAAEnable_GrGLBackendState | kStencil_GrGLBackendState |
+      kPixelStore_GrGLBackendState | kFixedFunction_GrGLBackendState;
+#else
   uint32_t untouched_states =
       kMSAAEnable_GrGLBackendState | kStencil_GrGLBackendState |
       kPixelStore_GrGLBackendState | kFixedFunction_GrGLBackendState |
       kPathRendering_GrGLBackendState;
+#endif
   gr_context_->resetContext(~untouched_states & kAll_GrBackendState);
 }
 
@@ -914,5 +928,3 @@ void HardwareRasterizer::ReleaseContext() { return impl_->ReleaseContext(); }
 }  // namespace rasterizer
 }  // namespace renderer
 }  // namespace cobalt
-
-#endif  // SB_API_VERSION >= 12 || SB_HAS(GLES2)

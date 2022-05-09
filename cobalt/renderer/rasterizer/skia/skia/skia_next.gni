@@ -12,10 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-declare_args() {
-  use_skia_next = false
-}
-
 skia_subdir = "skia"
 skia_include_dir = ""
 

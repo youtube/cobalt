@@ -12,9 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/configuration.h"
-#if SB_API_VERSION >= 12 || SB_HAS(GLES2)
-
 #include "cobalt/renderer/rasterizer/egl/draw_poly_color.h"
 
 #include <algorithm>
@@ -25,6 +22,7 @@
 #include "cobalt/renderer/backend/egl/utils.h"
 #include "cobalt/renderer/egl_and_gles.h"
 #include "egl/generated_shader_impl.h"
+#include "starboard/configuration.h"
 #include "starboard/memory.h"
 
 namespace cobalt {
@@ -94,10 +92,9 @@ void DrawPolyColor::ExecuteUpdateVertexBuffer(
     vertex_buffer_ = graphics_state->AllocateVertexData(attributes_.size() *
                                                         sizeof(attributes_[0]));
     memcpy(vertex_buffer_, &attributes_[0],
-                 attributes_.size() * sizeof(attributes_[0]));
+           attributes_.size() * sizeof(attributes_[0]));
     index_buffer_ = graphics_state->AllocateVertexIndices(indices_.size());
-    memcpy(index_buffer_, &indices_[0],
-                 indices_.size() * sizeof(indices_[0]));
+    memcpy(index_buffer_, &indices_[0], indices_.size() * sizeof(indices_[0]));
   }
 }
 
@@ -213,5 +210,3 @@ bool DrawPolyColor::PrepareForMerge() {
 }  // namespace rasterizer
 }  // namespace renderer
 }  // namespace cobalt
-
-#endif  // SB_API_VERSION >= 12 || SB_HAS(GLES2)

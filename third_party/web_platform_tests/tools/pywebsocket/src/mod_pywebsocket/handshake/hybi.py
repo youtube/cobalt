@@ -43,6 +43,7 @@ http://tools.ietf.org/html/rfc6455
 
 
 import base64
+from hashlib import sha1
 import logging
 import os
 import re
@@ -81,11 +82,20 @@ def compute_accept(key):
     Sec-WebSocket-Key header.
     """
 
-    accept_binary = util.sha1_hash(
-        key + common.WEBSOCKET_ACCEPT_UUID).digest()
+    accept_binary = sha1(key + common.WEBSOCKET_ACCEPT_UUID).digest()
     accept = base64.b64encode(accept_binary)
 
     return (accept, accept_binary)
+
+
+def compute_accept_from_unicode(unicode_key):
+    """A wrapper function for compute_accept which takes a unicode string as an
+    argument, and encodes it to byte string. It then passes it on to
+    compute_accept.
+    """
+
+    key = unicode_key.encode('UTF-8')
+    return compute_accept(key)[0]
 
 
 class Handshaker(object):
@@ -112,7 +122,7 @@ class Handshaker(object):
 
         try:
             connection_tokens = parse_token_list(connection)
-        except HandshakeException, e:
+        except HandshakeException as e:
             raise HandshakeException(
                 'Failed to parse %s: %s' % (common.CONNECTION_HEADER, e))
 
@@ -182,8 +192,8 @@ class Handshaker(object):
 
             # Extra handshake handler may modify/remove processors.
             self._dispatcher.do_extra_handshake(self._request)
-            processors = filter(lambda processor: processor is not None,
-                                self._request.ws_extension_processors)
+            processors = list(filter(lambda processor: processor is not None,
+                                self._request.ws_extension_processors))
 
             # Ask each processor if there are extensions on the request which
             # cannot co-exist. When processor decided other processors cannot
@@ -194,8 +204,8 @@ class Handshaker(object):
                 if processor.is_active():
                     processor.check_consistency_with_other_processors(
                         processors)
-            processors = filter(lambda processor: processor.is_active(),
-                                processors)
+            processors = list(filter(lambda processor: processor.is_active(),
+                                     processors))
 
             accepted_extensions = []
 
@@ -220,8 +230,8 @@ class Handshaker(object):
                 self._request.mux_processor = processors[mux_index]
                 self._request.mux_processor.set_extensions(
                     logical_channel_extensions)
-                processors = filter(lambda processor: processor.is_active(),
-                                    processors)
+                processors = list(filter(lambda processor: processor.is_active(),
+                                         processors))
 
             stream_options = StreamOptions()
 
@@ -242,7 +252,7 @@ class Handshaker(object):
                     continue
 
                 # Inactivate all of the following compression extensions.
-                for j in xrange(index + 1, len(processors)):
+                for j in range(index + 1, len(processors)):
                     if is_compression_extension(processors[j].name()):
                         processors[j].set_active(False)
 
@@ -273,7 +283,7 @@ class Handshaker(object):
                         'request any subprotocol')
 
             self._send_handshake(accept)
-        except HandshakeException, e:
+        except HandshakeException as e:
             if not e.status:
                 # Fallback to 400 bad request by default.
                 e.status = common.HTTP_STATUS_BAD_REQUEST
@@ -327,14 +337,14 @@ class Handshaker(object):
         try:
             self._request.ws_requested_extensions = common.parse_extensions(
                 extensions_header)
-        except common.ExtensionParsingException, e:
+        except common.ExtensionParsingException as e:
             raise HandshakeException(
                 'Failed to parse Sec-WebSocket-Extensions header: %r' % e)
 
         self._logger.debug(
             'Extensions requested: %r',
-            map(common.ExtensionParameter.name,
-                self._request.ws_requested_extensions))
+            list(map(common.ExtensionParameter.name,
+                     self._request.ws_requested_extensions)))
 
     def _validate_key(self, key):
         if key.find(',') >= 0:
@@ -353,7 +363,7 @@ class Handshaker(object):
                 decoded_key = base64.b64decode(key)
                 if len(decoded_key) == 16:
                     key_is_valid = True
-        except TypeError, e:
+        except TypeError as e:
             pass
 
         if not key_is_valid:
@@ -375,7 +385,7 @@ class Handshaker(object):
             key,
             util.hexify(decoded_key))
 
-        return key
+        return key.encode()
 
     def _create_stream(self, stream_options):
         return Stream(self._request, stream_options)
@@ -391,7 +401,7 @@ class Handshaker(object):
         response.append(format_header(
             common.CONNECTION_HEADER, common.UPGRADE_CONNECTION_TYPE))
         response.append(format_header(
-            common.SEC_WEBSOCKET_ACCEPT_HEADER, accept))
+            common.SEC_WEBSOCKET_ACCEPT_HEADER, accept.decode()))
         if self._request.ws_protocol is not None:
             response.append(format_header(
                 common.SEC_WEBSOCKET_PROTOCOL_HEADER,
@@ -412,7 +422,7 @@ class Handshaker(object):
 
     def _send_handshake(self, accept):
         raw_response = self._create_handshake_response(accept)
-        self._request.connection.write(raw_response)
+        self._request.connection.write(raw_response.encode())
         self._logger.debug('Sent server\'s opening handshake: %r',
                            raw_response)
 

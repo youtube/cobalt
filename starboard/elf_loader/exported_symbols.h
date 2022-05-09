@@ -32,10 +32,7 @@ namespace elf_loader {
 // outside of the set represented in this class.
 class ExportedSymbols {
  public:
-  // An optional |custom_get_extension| function pointer can be passed in order
-  // to override the |SbSystemGetExtension| function.
-  explicit ExportedSymbols(
-      const void* (*custom_get_extension)(const char* name) = NULL);
+  ExportedSymbols();
   const void* Lookup(const char* name);
 
  private:

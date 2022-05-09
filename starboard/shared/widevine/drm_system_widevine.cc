@@ -435,12 +435,9 @@ SbDrmSystemPrivate::DecryptStatus DrmSystemWidevine::Decrypt(
   input.iv = initialization_vector.data();
   input.iv_length = static_cast<uint32_t>(initialization_vector.size());
   input.is_video = (buffer->sample_type() == kSbMediaTypeVideo);
-
-#if SB_API_VERSION >= 12
   input.pattern.encrypted_blocks =
       drm_info->encryption_pattern.crypt_byte_block;
   input.pattern.clear_blocks = drm_info->encryption_pattern.skip_byte_block;
-#endif  // SB_API_VERSION >= 12
 
   std::vector<uint8_t> output_data(buffer->size());
   wv3cdm::OutputBuffer output;
@@ -482,13 +479,11 @@ SbDrmSystemPrivate::DecryptStatus DrmSystemWidevine::Decrypt(
     if (subsample.encrypted_byte_count) {
       input.last_subsample = i + 1 == buffer->drm_info()->subsample_count;
       input.encryption_scheme = wv3cdm::EncryptionScheme::kAesCtr;
-#if SB_API_VERSION >= 12
       if (drm_info->encryption_scheme == kSbDrmEncryptionSchemeAesCbc) {
         input.encryption_scheme = wv3cdm::EncryptionScheme::kAesCbc;
       } else {
         SB_DCHECK(drm_info->encryption_scheme == kSbDrmEncryptionSchemeAesCtr);
       }
-#endif  // SB_API_VERSION >= 12
       input.data_length = subsample.encrypted_byte_count;
 
       wv3cdm::Status status = cdm_->decrypt(input, output);
@@ -591,8 +586,7 @@ void DrmSystemWidevine::GenerateSessionUpdateRequestInternal(
     SB_DLOG(ERROR) << "GenerateKeyRequest status " << status;
     const char* session_id =
         SbDrmTicketIsValid(ticket) ? NULL : kFirstSbDrmSessionId;
-    int session_id_size =
-        session_id ? static_cast<int>(strlen(session_id)) : 0;
+    int session_id_size = session_id ? static_cast<int>(strlen(session_id)) : 0;
     session_update_request_callback_(
         this, context_, ticket, CdmStatusToSbDrmStatus(status),
         kSbDrmSessionRequestTypeLicenseRequest, "", session_id, session_id_size,
@@ -652,7 +646,7 @@ void DrmSystemWidevine::onKeyStatusesChange(
     SbDrmKeyId sb_key_id;
     SB_DCHECK(key_status.first.size() <= sizeof(sb_key_id.identifier));
     memcpy(sb_key_id.identifier, key_status.first.c_str(),
-                 key_status.first.size());
+           key_status.first.size());
     sb_key_id.identifier_size = static_cast<int>(key_status.first.size());
     sb_key_ids.push_back(sb_key_id);
     sb_key_statuses.push_back(CdmKeyStatusToSbDrmKeyStatus(key_status.second));

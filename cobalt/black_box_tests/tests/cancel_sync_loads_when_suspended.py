@@ -36,14 +36,12 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import _env  # pylint: disable=unused-import,g-bad-import-order
-
 import logging
 import os
-import SimpleHTTPServer
+from six.moves import SimpleHTTPServer
+from six.moves.urllib.parse import urlparse
 import threading
 import traceback
-import urlparse
 
 from cobalt.black_box_tests import black_box_tests
 from cobalt.black_box_tests.threaded_web_server import MakeRequestHandlerClass
@@ -66,7 +64,7 @@ class JavascriptRequestDetector(MakeRequestHandlerClass(_SERVER_ROOT_PATH)):
   def do_GET(self):  # pylint: disable=invalid-name
     """Handles HTTP GET requests for resources."""
 
-    parsed_path = urlparse.urlparse(self.path)
+    parsed_path = urlparse(self.path)
     if parsed_path.path == '/testdata/' + _CANCEL_SYNC_LOADS_WHEN_SUSPENDED_JS:
       _received_script_resource_request.set()
       # It is important not to send any response back, so we block.
@@ -81,7 +79,7 @@ class JavascriptRequestDetector(MakeRequestHandlerClass(_SERVER_ROOT_PATH)):
 class CancelSyncLoadsWhenSuspended(black_box_tests.BlackBoxTestCase):
   """Tests cancellation of synchronous loading of scripts on Suspend."""
 
-  def _LoadPage(self, webdriver, url):
+  def _load_page(self, webdriver, url):
     """Instructs webdriver to navigate to url."""
     try:
       # Note: The following is a blocking request, and returns only when the
@@ -101,7 +99,7 @@ class CancelSyncLoadsWhenSuspended(black_box_tests.BlackBoxTestCase):
           target_url = server.GetURL(file_name='../testdata/' +
                                      _CANCEL_SYNC_LOADS_WHEN_SUSPENDED_HTML)
           cobalt_launcher_thread = threading.Thread(
-              target=CancelSyncLoadsWhenSuspended._LoadPage,
+              target=CancelSyncLoadsWhenSuspended._load_page,
               args=(self, runner.webdriver, target_url))
           cobalt_launcher_thread.start()
 
@@ -109,7 +107,7 @@ class CancelSyncLoadsWhenSuspended(black_box_tests.BlackBoxTestCase):
           logging.info('Waiting for script resource request')
           request_received = _received_script_resource_request.wait(
               _MAX_ALLOTTED_TIME_SECONDS)
-          logging.info('Request received: {}'.format(request_received))
+          logging.info('Request received: %s', request_received)
           # Step 5. Wait for a request for javascript resource.
           self.assertTrue(request_received)
 
@@ -128,7 +126,7 @@ class CancelSyncLoadsWhenSuspended(black_box_tests.BlackBoxTestCase):
     except:  # pylint: disable=bare-except
       traceback.print_exc()
       # Consider an exception being thrown as a test failure.
-      self.assertTrue(False)
+      self.fail('Test failure')
     finally:
       logging.info('Cleaning up.')
       _test_finished.set()

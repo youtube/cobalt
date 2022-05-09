@@ -12,9 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/configuration.h"
-#if SB_API_VERSION >= 12 || SB_HAS(GLES2)
-
 #include "cobalt/renderer/rasterizer/egl/hardware_rasterizer.h"
 
 #include <memory>
@@ -36,10 +33,15 @@
 #include "cobalt/renderer/rasterizer/skia/cobalt_skia_type_conversions.h"  // nogncheck
 #include "cobalt/renderer/rasterizer/skia/gl_format_conversions.h"
 #include "cobalt/renderer/rasterizer/skia/hardware_rasterizer.h"
+#include "starboard/configuration.h"
 #include "third_party/skia/include/core/SkCanvas.h"
 #include "third_party/skia/include/core/SkRefCnt.h"
 #include "third_party/skia/include/core/SkSurface.h"
+#ifdef USE_SKIA_NEXT
+#include "third_party/skia/include/gpu/GrDirectContext.h"
+#else
 #include "third_party/skia/include/gpu/GrContext.h"
+#endif
 
 namespace cobalt {
 namespace renderer {
@@ -80,9 +82,15 @@ class HardwareRasterizer::Impl {
   void ReleaseContext() { graphics_context_->ReleaseCurrentContext(); }
 
  private:
+#ifdef USE_SKIA_NEXT
+  GrDirectContext* GetFallbackContext() {
+    return fallback_rasterizer_->GetGrContext();
+  }
+#else
   GrContext* GetFallbackContext() {
     return fallback_rasterizer_->GetGrContext();
   }
+#endif
 
   void ResetFallbackContextDuringFrame();
   void FlushFallbackOffscreenDraws();
@@ -229,12 +237,18 @@ void HardwareRasterizer::Impl::FlushFallbackOffscreenDraws() {
 }
 
 void HardwareRasterizer::Impl::ResetFallbackContextDuringFrame() {
-  // Perform a minimal reset of the fallback context. Only need to invalidate
-  // states that this rasterizer pollutes.
+// Perform a minimal reset of the fallback context. Only need to invalidate
+// states that this rasterizer pollutes.
+#ifdef USE_SKIA_NEXT
+  uint32_t untouched_states =
+      kMSAAEnable_GrGLBackendState | kStencil_GrGLBackendState |
+      kPixelStore_GrGLBackendState | kFixedFunction_GrGLBackendState;
+#else
   uint32_t untouched_states =
       kMSAAEnable_GrGLBackendState | kStencil_GrGLBackendState |
       kPixelStore_GrGLBackendState | kFixedFunction_GrGLBackendState |
       kPathRendering_GrGLBackendState;
+#endif
 
   GetFallbackContext()->resetContext(~untouched_states & kAll_GrBackendState);
 }
@@ -308,8 +322,12 @@ sk_sp<SkSurface> HardwareRasterizer::Impl::CreateFallbackSurface(
                                            0, info);
 
   uint32_t flags = 0;
+#ifdef USE_SKIA_NEXT
+  SkSurfaceProps skia_surface_props(flags, kUnknown_SkPixelGeometry);
+#else
   SkSurfaceProps skia_surface_props(flags,
                                     SkSurfaceProps::kLegacyFontHost_InitType);
+#endif
   return SkSurface::MakeFromBackendRenderTarget(
       GetFallbackContext(), skia_render_target, kBottomLeft_GrSurfaceOrigin,
       kRGBA_8888_SkColorType, nullptr, &skia_surface_props);
@@ -359,5 +377,3 @@ void HardwareRasterizer::ReleaseContext() { return impl_->ReleaseContext(); }
 }  // namespace rasterizer
 }  // namespace renderer
 }  // namespace cobalt
-
-#endif  // SB_API_VERSION >= 12 || SB_HAS(GLES2)

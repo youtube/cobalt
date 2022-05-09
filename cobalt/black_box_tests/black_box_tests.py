@@ -25,9 +25,8 @@ import socket
 import sys
 import unittest
 
-import _env  # pylint: disable=unused-import
 from cobalt.black_box_tests import black_box_cobalt_runner
-from proxy_server import ProxyServer
+from cobalt.black_box_tests.proxy_server import ProxyServer
 from starboard.tools import abstract_launcher
 from starboard.tools import build
 from starboard.tools import command_line
@@ -68,6 +67,8 @@ _TESTS_NO_SIGNAL = [
     'soft_mic_platform_service_test',
     'web_debugger',
     'web_platform_tests',
+    'web_worker_test',
+    'service_worker_test',
 ]
 # These tests can only be run on platforms whose app launcher can send deep
 # links.

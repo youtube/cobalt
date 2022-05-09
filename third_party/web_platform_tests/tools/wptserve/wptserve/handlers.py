@@ -169,14 +169,14 @@ class FileHandler(object):
             use_sub = False
 
         try:
-            with open(headers_path) as headers_file:
+            with open(headers_path, "rb") as headers_file:
                 data = headers_file.read()
         except IOError:
             return []
         else:
             if use_sub:
                 data = template(request, data, escape_type="none")
-            return [tuple(item.strip() for item in line.split(":", 1))
+            return [tuple(item.strip() for item in line.split(b":", 1))
                     for line in data.splitlines() if line]
 
     def get_data(self, response, path, byte_ranges):
@@ -228,6 +228,11 @@ class PythonScriptHandler(object):
 
     def __call__(self, request, response):
         path = filesystem_path(self.base_path, request, self.url_base)
+
+        def execfile(path, global_environ, local_environ):
+            with open(path, "rb") as f:
+                contents = f.read().decode()
+                exec(contents, global_environ, local_environ)
 
         try:
             environ = {"__file__": path}
@@ -362,7 +367,7 @@ class StaticHandler(object):
             self.data = f.read() % format_args
 
         self.resp_headers = [("Content-Type", content_type)]
-        for k, v in headers.iteritems():
+        for k, v in headers.items():
             resp_headers.append((k.replace("_", "-"), v))
 
         self.handler = handler(self.handle_request)

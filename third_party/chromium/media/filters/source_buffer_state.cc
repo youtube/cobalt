@@ -916,6 +916,9 @@ bool SourceBufferState::OnNewConfigs(
 }
 
 void SourceBufferState::SetStreamMemoryLimits() {
+#if defined(STARBOARD)
+  // Cobalt doesn't get stream memory limits from the command line.
+#else  // defined(STARBOARD)
   size_t audio_buf_size_limit =
       GetMSEBufferSizeLimitIfExists(switches::kMSEAudioBufferSizeLimitMb);
   if (audio_buf_size_limit) {
@@ -935,6 +938,7 @@ void SourceBufferState::SetStreamMemoryLimits() {
     for (const auto& it : video_streams_)
       it.second->SetStreamMemoryLimit(video_buf_size_limit);
   }
+#endif  // defined(STARBOARD)
 }
 
 void SourceBufferState::OnNewMediaSegment() {

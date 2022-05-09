@@ -133,11 +133,6 @@ const char kNullSavegameHelp[] =
     "sessions and no data being persisted to future sessions. It effectively "
     "makes the app run as if it has no local storage.";
 
-const char kDisablePartialLayout[] = "disable_partial_layout";
-const char kDisablePartialLayoutHelp[] =
-    "Causes layout to re-compute the boxes for the entire DOM rather than "
-    "re-using boxes for elements that have not been invalidated.";
-
 const char kProd[] = "prod";
 const char kProdHelp[] =
     "Several checks are not enabled by default in non-production(gold) build. "
@@ -217,14 +212,15 @@ const char kWebDriverPort[] = "webdriver_port";
 const char kWebDriverPortHelp[] =
     "Port that the WebDriver server should be listening on.";
 
-#if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
 const char kDisableOnScreenKeyboard[] = "disable_on_screen_keyboard";
 const char kDisableOnScreenKeyboardHelp[] =
     "Disable the on screen keyboard for testing.";
-#endif  // SB_API_VERSION >= 12 ||
-        // SB_HAS(ON_SCREEN_KEYBOARD)
 
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
+
+const char kCompressUpdate[] = "compress_update";
+const char kCompressUpdateHelp[] =
+    "The updater should compress the update package";
 
 const char kMinLogLevel[] = "min_log_level";
 const char kMinLogLevelHelp[] =
@@ -391,7 +387,7 @@ const char kFallbackSplashScreenURLHelp[] =
     "(for example h5vcc-embedded://foobar.html) and all files referenced must "
     "be content or embedded files as well. If none is passed "
     "(case-insensitive), no splash screen will be constructed. If "
-    "no value is set, the URL in gyp_configuration.gypi or base.gypi will be "
+    "no value is set, the URL in the Cobalt configuration extension will be "
     "used.";
 
 const char kFallbackSplashScreenTopics[] = "fallback_splash_screen_topics";
@@ -452,8 +448,7 @@ std::string HelpMessage() {
         {kIgnoreCertificateErrors, kIgnoreCertificateErrorsHelp},
         {kInputFuzzer, kInputFuzzerHelp}, {kMemoryTracker, kMemoryTrackerHelp},
         {kMinCompatibilityVersion, kMinCompatibilityVersionHelp},
-        {kNullSavegame, kNullSavegameHelp},
-        {kDisablePartialLayout, kDisablePartialLayoutHelp}, {kProd, kProdHelp},
+        {kNullSavegame, kNullSavegameHelp}, {kProd, kProdHelp},
         {kRequireCSP, kRequireCSPHelp},
         {kRequireHTTPSLocation, kRequireHTTPSLocationHelp},
         {kShutdownAfter, kShutdownAfterHelp},
@@ -463,11 +458,9 @@ std::string HelpMessage() {
         {kUserAgentClientHints, kUserAgentClientHintsHelp},
         {kUserAgentOsNameVersion, kUserAgentOsNameVersionHelp},
         {kUseTTS, kUseTTSHelp}, {kWebDriverPort, kWebDriverPortHelp},
-#if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
         {kDisableOnScreenKeyboard, kDisableOnScreenKeyboardHelp},
-#endif  // SB_API_VERSION >= 12 ||
-        // SB_HAS(ON_SCREEN_KEYBOARD)
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
+        {kCompressUpdate, kCompressUpdateHelp},
         {kDisableJavaScriptJit, kDisableJavaScriptJitHelp},
         {kDisableMapToMesh, kDisableMapToMeshHelp},
         {kDisableTimerResolutionLimit, kDisableTimerResolutionLimitHelp},

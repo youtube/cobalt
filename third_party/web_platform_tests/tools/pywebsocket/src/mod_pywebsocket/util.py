@@ -48,10 +48,11 @@ except ImportError:
     md5_hash = md5.md5
     sha1_hash = sha.sha
 
-import StringIO
+from io import StringIO
 import logging
 import os
 import re
+import six
 import socket
 import traceback
 import zlib
@@ -63,16 +64,8 @@ except ImportError:
 
 
 def get_stack_trace():
-    """Get the current stack trace as string.
-
-    This is needed to support Python 2.3.
-    TODO: Remove this when we only support Python 2.4 and above.
-          Use traceback.format_exc instead.
-    """
-
-    out = StringIO.StringIO()
-    traceback.print_exc(file=out)
-    return out.getvalue()
+    """Get the current stack trace as string."""
+    return traceback.format_exc()
 
 
 def prepend_message_to_exception(message, exc):
@@ -147,7 +140,10 @@ def wrap_popen3_for_win(cygwin_path):
 
 
 def hexify(s):
-    return ' '.join(map(lambda x: '%02x' % ord(x), s))
+    if six.PY3:
+        return ' '.join(map(lambda x: '{0:02x}'.format(x), s))
+    else:
+        return ' '.join(map(lambda x: '%02x' % ord(x), s))
 
 
 def get_class_logger(o):
@@ -186,22 +182,26 @@ class RepeatedXorMasker(object):
         return masked_data
 
     def _mask_using_array(self, s):
-        result = array.array('B')
-        result.fromstring(s)
+        """Perform the mask via python."""
+        if isinstance(s, six.text_type):
+            raise Exception(
+                'Masking Operation should not process unicode strings')
+
+        result = bytearray(s)
 
         # Use temporary local variables to eliminate the cost to access
         # attributes
-        masking_key = map(ord, self._masking_key)
+        masking_key = [c for c in six.iterbytes(self._masking_key)]
         masking_key_size = len(masking_key)
         masking_key_index = self._masking_key_index
 
-        for i in xrange(len(result)):
+        for i in range(len(result)):
             result[i] ^= masking_key[masking_key_index]
             masking_key_index = (masking_key_index + 1) % masking_key_size
 
         self._masking_key_index = masking_key_index
 
-        return result.tostring()
+        return bytes(result)
 
     if 'fast_masking' in globals():
         mask = _mask_using_swig
@@ -258,7 +258,7 @@ class _Inflater(object):
         self._logger = get_class_logger(self)
         self._window_bits = window_bits
 
-        self._unconsumed = ''
+        self._unconsumed = b''
 
         self.reset()
 
@@ -266,7 +266,7 @@ class _Inflater(object):
         if not (size == -1 or size > 0):
             raise Exception('size must be -1 or positive')
 
-        data = ''
+        data = b''
 
         while True:
             if size == -1:
@@ -274,7 +274,7 @@ class _Inflater(object):
                 # See Python bug http://bugs.python.org/issue12050 to
                 # understand why the same code cannot be used for updating
                 # self._unconsumed for here and else block.
-                self._unconsumed = ''
+                self._unconsumed = b''
             else:
                 data += self._decompress.decompress(
                     self._unconsumed, size - len(data))
@@ -365,7 +365,7 @@ class _RFC1979Inflater(object):
     def filter(self, bytes):
         # Restore stripped LEN and NLEN field of a non-compressed block added
         # for Z_SYNC_FLUSH.
-        self._inflater.append(bytes + '\x00\x00\xff\xff')
+        self._inflater.append(bytes + b'\x00\x00\xff\xff')
         return self._inflater.decompress(-1)
 
 

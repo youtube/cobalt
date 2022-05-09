@@ -84,6 +84,9 @@ class NET_EXPORT HttpRequestHeaders {
   static const char kProxyConnection[];
   static const char kRange[];
   static const char kReferer[];
+  #if defined(STARBOARD)
+  static const char kResourceType[];
+  #endif
   static const char kSecOriginPolicy[];
   static const char kTransferEncoding[];
   static const char kUserAgent[];

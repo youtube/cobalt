@@ -588,6 +588,7 @@ class MediaCodecBridge {
       String mime,
       boolean mustSupportSecure,
       boolean mustSupportSoftwareCodec,
+      boolean forceImprovedSupportCheck,
       int width,
       int height,
       int fps,
@@ -609,10 +610,12 @@ class MediaCodecBridge {
             mustSupportHdr,
             mustSupportSoftwareCodec,
             mustSupportTunneled,
-            0,
-            0,
-            0,
-            0);
+            forceImprovedSupportCheck,
+            -1 /* decoderCacheTtlMs */,
+            0 /* frameWidth */,
+            0 /* frameHeight */,
+            0 /* bitrate */,
+            0 /* fps */);
     if (findVideoDecoderResult.name.equals("") && mustSupportHdr) {
       // On second pass, forget HDR.
       findVideoDecoderResult =
@@ -622,10 +625,12 @@ class MediaCodecBridge {
               false /* mustSupportHdr */,
               mustSupportSoftwareCodec,
               mustSupportTunneled,
-              0,
-              0,
-              0,
-              0);
+              forceImprovedSupportCheck,
+              -1 /* decoderCacheTtlMs */,
+              0 /* frameWidth */,
+              0 /* frameHeight */,
+              0 /* bitrate */,
+              0 /* fps */);
     }
     try {
       String decoderName = findVideoDecoderResult.name;

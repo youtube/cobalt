@@ -33,7 +33,7 @@ in HTTP RFC http://www.ietf.org/rfc/rfc2616.txt.
 """
 
 
-import urlparse
+from six.moves.urllib import parse as urlparse
 
 
 _SEPARATORS = '()<>@,;:\\"/[]?={} \t'
@@ -230,7 +230,7 @@ def parse_uri(uri):
     port = None
     try:
         port = parsed.port
-    except ValueError, e:
+    except ValueError as e:
         # port property cause ValueError on invalid null port description like
         # 'ws://host:/path'.
         return None, None, None
@@ -254,7 +254,7 @@ def parse_uri(uri):
 
 try:
     urlparse.uses_netloc.index('ws')
-except ValueError, e:
+except ValueError as e:
     # urlparse in Python2.5.1 doesn't have 'ws' and 'wss' entries.
     urlparse.uses_netloc.append('ws')
     urlparse.uses_netloc.append('wss')

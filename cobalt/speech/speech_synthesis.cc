@@ -23,11 +23,7 @@ namespace cobalt {
 namespace speech {
 
 bool SpeechSynthesis::SpeechSynthesisIsSupported() {
-#if SB_API_VERSION >= 12
   return SbSpeechSynthesisIsSupported();
-#else
-  return true;
-#endif
 }
 
 SpeechSynthesis::SpeechSynthesis(script::EnvironmentSettings* settings,
@@ -37,7 +33,6 @@ SpeechSynthesis::SpeechSynthesis(script::EnvironmentSettings* settings,
       log_output_(log_output),
       paused_(false),
       navigator_(navigator) {
-#if SB_API_VERSION >= 12 || SB_HAS(SPEECH_SYNTHESIS)
   if (SpeechSynthesis::SpeechSynthesisIsSupported()) {
     const char* kVoiceName = "Cobalt";
     std::string voice_urn(kVoiceName);
@@ -47,7 +42,6 @@ SpeechSynthesis::SpeechSynthesis(script::EnvironmentSettings* settings,
     voices_.push_back(new SpeechSynthesisVoice(voice_urn, kVoiceName,
                                                voice_lang, false, true));
   }
-#endif
 }
 
 SpeechSynthesis::~SpeechSynthesis() {}
@@ -65,11 +59,9 @@ void SpeechSynthesis::Cancel() {
     (*utterance_iterator)->DispatchErrorCancelledEvent();
   }
   utterances_.clear();
-#if SB_API_VERSION >= 12 || SB_HAS(SPEECH_SYNTHESIS)
   if (SpeechSynthesis::SpeechSynthesisIsSupported()) {
     SbSpeechSynthesisCancel();
   }
-#endif
 }
 
 void SpeechSynthesis::Resume() {
@@ -115,7 +107,6 @@ void SpeechSynthesis::Speak(
     return;
   }
   utterance->SignalPendingSpeak();
-#if SB_API_VERSION >= 12 || SB_HAS(SPEECH_SYNTHESIS)
   if (SpeechSynthesis::SpeechSynthesisIsSupported()) {
     if (!utterance->lang().empty() &&
         utterance->lang() != navigator_->language()) {
@@ -136,7 +127,6 @@ void SpeechSynthesis::Speak(
     utterance->DispatchEndEvent();
     return;
   }
-#endif
   DispatchErrorEvent(utterance, kSpeechSynthesisErrorCodeSynthesisUnavailable);
 }
 

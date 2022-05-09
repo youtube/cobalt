@@ -17,7 +17,8 @@
 #include "base/lazy_instance.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/dom/blob_property_bag.h"
-#include "cobalt/dom/dom_settings.h"
+#include "cobalt/web/context.h"
+#include "cobalt/web/environment_settings.h"
 
 namespace cobalt {
 namespace dom {
@@ -82,11 +83,15 @@ Blob::Blob(script::EnvironmentSettings* settings,
     : buffer_reference_(
           this, buffer.IsEmpty()
                     ? script::ArrayBuffer::New(
-                          base::polymorphic_downcast<DOMSettings*>(settings)
+                          base::polymorphic_downcast<web::EnvironmentSettings*>(
+                              settings)
+                              ->context()
                               ->global_environment(),
                           0)
                     : script::ArrayBuffer::New(
-                          base::polymorphic_downcast<DOMSettings*>(settings)
+                          base::polymorphic_downcast<web::EnvironmentSettings*>(
+                              settings)
+                              ->context()
                               ->global_environment(),
                           buffer->Data(), buffer->ByteLength())) {
   DCHECK(settings);
@@ -101,11 +106,13 @@ Blob::Blob(script::EnvironmentSettings* settings,
 Blob::Blob(script::EnvironmentSettings* settings,
            const script::Sequence<BlobPart>& blob_parts,
            const BlobPropertyBag& options)
-    : buffer_reference_(this,
-                        script::ArrayBuffer::New(
-                            base::polymorphic_downcast<DOMSettings*>(settings)
-                                ->global_environment(),
-                            TotalDataLength(blob_parts))),
+    : buffer_reference_(
+          this,
+          script::ArrayBuffer::New(
+              base::polymorphic_downcast<web::EnvironmentSettings*>(settings)
+                  ->context()
+                  ->global_environment(),
+              TotalDataLength(blob_parts))),
       type_(options.type()) {
   DCHECK(settings);
   uint8* destination = static_cast<uint8*>(buffer_reference_.value().Data());

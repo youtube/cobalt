@@ -24,6 +24,7 @@
 #include "cobalt/csp/content_security_policy.h"
 #include "cobalt/loader/blob_fetcher.h"
 #include "cobalt/loader/fetcher.h"
+#include "net/disk_cache/cobalt/resource_type.h"
 #include "url/gurl.h"
 
 namespace cobalt {
@@ -48,12 +49,13 @@ class FetcherFactory {
 
   // Creates a fetcher. Returns NULL if the creation fails.
   std::unique_ptr<Fetcher> CreateFetcher(const GURL& url,
+                                         const disk_cache::ResourceType type,
                                          Fetcher::Handler* handler);
 
   std::unique_ptr<Fetcher> CreateSecureFetcher(
       const GURL& url, const csp::SecurityCallback& url_security_callback,
       RequestMode request_mode, const Origin& origin,
-      Fetcher::Handler* handler);
+      const disk_cache::ResourceType type, Fetcher::Handler* handler);
 
   network::NetworkModule* network_module() const { return network_module_; }
 

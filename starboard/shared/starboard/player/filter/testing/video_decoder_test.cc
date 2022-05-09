@@ -93,16 +93,9 @@ TEST_P(VideoDecoderTest, OutputModeSupported) {
   SbPlayerOutputMode kOutputModes[] = {kSbPlayerOutputModeDecodeToTexture,
                                        kSbPlayerOutputModePunchOut};
   SbMediaVideoCodec kVideoCodecs[] = {
-    kSbMediaVideoCodecNone,
-    kSbMediaVideoCodecH264,
-    kSbMediaVideoCodecH265,
-    kSbMediaVideoCodecMpeg2,
-    kSbMediaVideoCodecTheora,
-    kSbMediaVideoCodecVc1,
-    kSbMediaVideoCodecAv1,
-    kSbMediaVideoCodecVp8,
-    kSbMediaVideoCodecVp9
-  };
+      kSbMediaVideoCodecNone,  kSbMediaVideoCodecH264,   kSbMediaVideoCodecH265,
+      kSbMediaVideoCodecMpeg2, kSbMediaVideoCodecTheora, kSbMediaVideoCodecVc1,
+      kSbMediaVideoCodecAv1,   kSbMediaVideoCodecVp8,    kSbMediaVideoCodecVp9};
   for (auto output_mode : kOutputModes) {
     for (auto video_codec : kVideoCodecs) {
       VideoDecoder::OutputModeSupported(output_mode, video_codec,
@@ -129,16 +122,9 @@ TEST_P(VideoDecoderTest, ThreeMoreDecoders) {
   SbPlayerOutputMode kOutputModes[] = {kSbPlayerOutputModeDecodeToTexture,
                                        kSbPlayerOutputModePunchOut};
   SbMediaVideoCodec kVideoCodecs[] = {
-    kSbMediaVideoCodecNone,
-    kSbMediaVideoCodecH264,
-    kSbMediaVideoCodecH265,
-    kSbMediaVideoCodecMpeg2,
-    kSbMediaVideoCodecTheora,
-    kSbMediaVideoCodecVc1,
-    kSbMediaVideoCodecAv1,
-    kSbMediaVideoCodecVp8,
-    kSbMediaVideoCodecVp9
-  };
+      kSbMediaVideoCodecNone,  kSbMediaVideoCodecH264,   kSbMediaVideoCodecH265,
+      kSbMediaVideoCodecMpeg2, kSbMediaVideoCodecTheora, kSbMediaVideoCodecVc1,
+      kSbMediaVideoCodecAv1,   kSbMediaVideoCodecVp8,    kSbMediaVideoCodecVp9};
 
   for (auto output_mode : kOutputModes) {
     for (auto video_codec : kVideoCodecs) {
@@ -153,13 +139,10 @@ TEST_P(VideoDecoderTest, ThreeMoreDecoders) {
 
         for (int i = 0; i < kDecodersToCreate; ++i) {
           SbMediaAudioSampleInfo dummy_audio_sample_info = {
-            kSbMediaAudioCodecNone
-          };
+              kSbMediaAudioCodecNone};
           PlayerComponents::Factory::CreationParameters creation_parameters(
               fixture_.dmp_reader().video_codec(),
-#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
               CreateVideoSampleInfo(fixture_.dmp_reader().video_codec()),
-#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
               &players[i], output_mode,
               fake_graphics_context_provider_.decoder_target_provider(),
               nullptr);

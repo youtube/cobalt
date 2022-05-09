@@ -600,6 +600,7 @@ Application::Event* Application::CreateInitialEvent(SbEventType type) {
     start_data->argument_values[i] = const_cast<char*>(args[i].c_str());
   }
   start_data->link = start_link_;
+
 #if SB_API_VERSION >= 13
   return new Event(type, timestamp, start_data, &DeleteStartData);
 #else  // SB_API_VERSION >= 13

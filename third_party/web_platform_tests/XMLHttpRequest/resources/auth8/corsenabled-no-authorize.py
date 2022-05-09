@@ -7,11 +7,8 @@ def main(request, response):
     response.headers.set('Access-Control-Allow-Methods', 'GET');
     response.headers.set('Access-Control-Allow-Headers', 'x-user, x-pass');
     response.headers.set('Access-Control-Expose-Headers', 'x-challenge, xhr-user, ses-user');
-    auth = imp.load_source("", os.path.join(os.path.abspath(os.curdir),
-                                            "third_party",
-                                            "web_platform_tests",
-                                            "XMLHttpRequest",
-                                            "resources",
+    auth = imp.load_source("", os.path.join(os.path.abspath(os.path.dirname(__file__)),
+                                            os.pardir,
                                             "authentication.py"))
     if request.method == "OPTIONS":
         return ""

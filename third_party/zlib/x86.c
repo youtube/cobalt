@@ -35,11 +35,7 @@ static void _x86_check_features(void)
     x86_cpu_enable_ssse3 = features.x86.has_ssse3;
     x86_cpu_enable_simd = features.x86.has_sse2 &&
                           features.x86.has_sse42 &&
-#if SB_API_VERSION >= 12
                           features.x86.has_pclmulqdq;
-#else
-                          false;
-#endif
   }
 
   if (!x86_cpu_enable_ssse3 || !x86_cpu_enable_simd) {

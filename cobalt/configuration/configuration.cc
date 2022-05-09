@@ -56,18 +56,12 @@ const char* Configuration::CobaltUserOnExitStrategy() {
 #endif
     return configuration_api_->CobaltUserOnExitStrategy();
   }
-#if SB_API_VERSION >= 12
 #if defined(COBALT_USER_ON_EXIT_STRATEGY)
 #error "COBALT_USER_ON_EXIT_STRATEGY is deprecated after Starboard version 12."
 #error "Implement CobaltExtensionConfigurationApi::CobaltUserOnExitStrategy()"
 #error "instead."
 #endif
   return "stop";
-#elif defined(COBALT_USER_ON_EXIT_STRATEGY)
-  return COBALT_USER_ON_EXIT_STRATEGY;
-#else
-  return "stop";
-#endif
 }
 
 bool Configuration::CobaltRenderDirtyRegionOnly() {
@@ -82,7 +76,6 @@ bool Configuration::CobaltRenderDirtyRegionOnly() {
 #endif
     return configuration_api_->CobaltRenderDirtyRegionOnly();
   }
-#if SB_API_VERSION >= 12
 #if defined(COBALT_RENDER_DIRTY_REGION_ONLY)
 #error \
     "COBALT_RENDER_DIRTY_REGION_ONLY is deprecated after Starboard version 12."
@@ -91,11 +84,6 @@ bool Configuration::CobaltRenderDirtyRegionOnly() {
 #error "instead."
 #endif
   return false;
-#elif defined(COBALT_RENDER_DIRTY_REGION_ONLY)
-  return true;
-#else
-  return false;
-#endif
 }
 
 int Configuration::CobaltEglSwapInterval() {
@@ -109,18 +97,12 @@ int Configuration::CobaltEglSwapInterval() {
 #endif
     return configuration_api_->CobaltEglSwapInterval();
   }
-#if SB_API_VERSION >= 12
 #if defined(COBALT_EGL_SWAP_INTERVAL)
 #error "COBALT_EGL_SWAP_INTERVAL is deprecated after Starboard version 12."
 #error "Implement CobaltExtensionConfigurationApi::CobaltEglSwapInterval()"
 #error "instead."
 #endif
   return 1;
-#elif defined(COBALT_EGL_SWAP_INTERVAL)
-  return COBALT_EGL_SWAP_INTERVAL;
-#else
-  return 1;
-#endif
 }
 
 const char* Configuration::CobaltFallbackSplashScreenUrl() {
@@ -135,7 +117,6 @@ const char* Configuration::CobaltFallbackSplashScreenUrl() {
 #endif
     return configuration_api_->CobaltFallbackSplashScreenUrl();
   }
-#if SB_API_VERSION >= 12
 #if defined(COBALT_FALLBACK_SPLASH_SCREEN_URL)
 // NOLINTNEXTLINE(whitespace/line_length)
 #error \
@@ -146,11 +127,6 @@ const char* Configuration::CobaltFallbackSplashScreenUrl() {
 #error "instead."
 #endif
   return "none";
-#elif defined(COBALT_FALLBACK_SPLASH_SCREEN_URL)
-  return COBALT_FALLBACK_SPLASH_SCREEN_URL;
-#else
-  return "none";
-#endif
 }
 
 const char* Configuration::CobaltFallbackSplashScreenTopics() {
@@ -171,18 +147,12 @@ bool Configuration::CobaltEnableQuic() {
 #endif
     return configuration_api_->CobaltEnableQuic();
   }
-#if SB_API_VERSION >= 12
 #if defined(COBALT_ENABLE_QUIC)
 #error "COBALT_ENABLE_QUIC is deprecated after Starboard version 12."
 #error "Implement CobaltExtensionConfigurationApi::CobaltEnableQuic()"
 #error "instead."
 #endif
   return true;
-#elif defined(COBALT_ENABLE_QUIC)
-  return true;
-#else
-  return false;
-#endif
 }
 
 int Configuration::CobaltSkiaCacheSizeInBytes() {
@@ -197,7 +167,6 @@ int Configuration::CobaltSkiaCacheSizeInBytes() {
 #endif
     return configuration_api_->CobaltSkiaCacheSizeInBytes();
   }
-#if SB_API_VERSION >= 12
 #if defined(COBALT_SKIA_CACHE_SIZE_IN_BYTES)
 #error \
     "COBALT_SKIA_CACHE_SIZE_IN_BYTES is deprecated after Starboard version 12."
@@ -205,11 +174,6 @@ int Configuration::CobaltSkiaCacheSizeInBytes() {
 #error "instead."
 #endif
   return 4 * 1024 * 1024;
-#elif defined(COBALT_SKIA_CACHE_SIZE_IN_BYTES)
-  return COBALT_SKIA_CACHE_SIZE_IN_BYTES;
-#else
-  return 4 * 1024 * 1024;
-#endif
 }
 
 int Configuration::CobaltOffscreenTargetCacheSizeInBytes() {
@@ -225,7 +189,6 @@ int Configuration::CobaltOffscreenTargetCacheSizeInBytes() {
 #endif
     return configuration_api_->CobaltOffscreenTargetCacheSizeInBytes();
   }
-#if SB_API_VERSION >= 12
 #if defined(COBALT_OFFSCREEN_TARGET_CACHE_SIZE_IN_BYTES)
 // NOLINTNEXTLINE(whitespace/line_length)
 #error \
@@ -236,11 +199,6 @@ int Configuration::CobaltOffscreenTargetCacheSizeInBytes() {
 #error "instead."
 #endif
   return -1;
-#elif defined(COBALT_OFFSCREEN_TARGET_CACHE_SIZE_IN_BYTES)
-  return COBALT_OFFSCREEN_TARGET_CACHE_SIZE_IN_BYTES;
-#else
-  return -1;
-#endif
 }
 
 int Configuration::CobaltEncodedImageCacheSizeInBytes() {
@@ -256,7 +214,6 @@ int Configuration::CobaltEncodedImageCacheSizeInBytes() {
 #endif
     return configuration_api_->CobaltEncodedImageCacheSizeInBytes();
   }
-#if SB_API_VERSION >= 12
 #if defined(COBALT_ENCODED_IMAGE_CACHE_SIZE_IN_BYTES)
 // NOLINTNEXTLINE(whitespace/line_length)
 #error \
@@ -267,11 +224,6 @@ int Configuration::CobaltEncodedImageCacheSizeInBytes() {
 #error "instead."
 #endif
   return 1024 * 1024;
-#elif defined(COBALT_ENCODED_IMAGE_CACHE_SIZE_IN_BYTES)
-  return COBALT_ENCODED_IMAGE_CACHE_SIZE_IN_BYTES;
-#else
-  return 1024 * 1024;
-#endif
 }
 
 int Configuration::CobaltImageCacheSizeInBytes() {
@@ -286,7 +238,6 @@ int Configuration::CobaltImageCacheSizeInBytes() {
 #endif
     return configuration_api_->CobaltImageCacheSizeInBytes();
   }
-#if SB_API_VERSION >= 12
 #if defined(COBALT_IMAGE_CACHE_SIZE_IN_BYTES)
 #error \
     "COBALT_IMAGE_CACHE_SIZE_IN_BYTES is deprecated after Starboard version 12."
@@ -295,11 +246,6 @@ int Configuration::CobaltImageCacheSizeInBytes() {
 #error "instead."
 #endif
   return -1;
-#elif defined(COBALT_IMAGE_CACHE_SIZE_IN_BYTES)
-  return COBALT_IMAGE_CACHE_SIZE_IN_BYTES;
-#else
-  return -1;
-#endif
 }
 
 int Configuration::CobaltLocalTypefaceCacheSizeInBytes() {
@@ -314,7 +260,6 @@ int Configuration::CobaltLocalTypefaceCacheSizeInBytes() {
 #endif
     return configuration_api_->CobaltLocalTypefaceCacheSizeInBytes();
   }
-#if SB_API_VERSION >= 12
 #if defined(COBALT_LOCAL_TYPEFACE_CACHE_SIZE_IN_BYTES)
 // NOLINTNEXTLINE(whitespace/line_length)
 #error \
@@ -325,11 +270,6 @@ int Configuration::CobaltLocalTypefaceCacheSizeInBytes() {
 #error "instead."
 #endif
   return 16 * 1024 * 1024;
-#elif defined(COBALT_LOCAL_TYPEFACE_CACHE_SIZE_IN_BYTES)
-  return COBALT_LOCAL_TYPEFACE_CACHE_SIZE_IN_BYTES;
-#else
-  return 16 * 1024 * 1024;
-#endif
 }
 
 int Configuration::CobaltRemoteTypefaceCacheSizeInBytes() {
@@ -344,7 +284,6 @@ int Configuration::CobaltRemoteTypefaceCacheSizeInBytes() {
 #endif
     return configuration_api_->CobaltRemoteTypefaceCacheSizeInBytes();
   }
-#if SB_API_VERSION >= 12
 #if defined(COBALT_REMOTE_TYPEFACE_CACHE_SIZE_IN_BYTES)
 // NOLINTNEXTLINE(whitespace/line_length)
 #error \
@@ -355,11 +294,6 @@ int Configuration::CobaltRemoteTypefaceCacheSizeInBytes() {
 #error "instead."
 #endif
   return 4 * 1024 * 1024;
-#elif defined(COBALT_REMOTE_TYPEFACE_CACHE_SIZE_IN_BYTES)
-  return COBALT_REMOTE_TYPEFACE_CACHE_SIZE_IN_BYTES;
-#else
-  return 4 * 1024 * 1024;
-#endif
 }
 
 int Configuration::CobaltMeshCacheSizeInBytes() {
@@ -374,7 +308,6 @@ int Configuration::CobaltMeshCacheSizeInBytes() {
 #endif
     return configuration_api_->CobaltMeshCacheSizeInBytes();
   }
-#if SB_API_VERSION >= 12
 #if defined(COBALT_MESH_CACHE_SIZE_IN_BYTES)
 #error \
     "COBALT_MESH_CACHE_SIZE_IN_BYTES is deprecated after Starboard version 12."
@@ -382,11 +315,6 @@ int Configuration::CobaltMeshCacheSizeInBytes() {
 #error "instead."
 #endif
   return 1024 * 1024;
-#elif defined(COBALT_MESH_CACHE_SIZE_IN_BYTES)
-  return COBALT_MESH_CACHE_SIZE_IN_BYTES;
-#else
-  return 1024 * 1024;
-#endif
 }
 
 // Deprecated, only retained as config API placeholder.
@@ -407,7 +335,6 @@ float Configuration::CobaltImageCacheCapacityMultiplierWhenPlayingVideo() {
     return configuration_api_
         ->CobaltImageCacheCapacityMultiplierWhenPlayingVideo();
   }
-#if SB_API_VERSION >= 12
 #if defined(COBALT_IMAGE_CACHE_CAPACITY_MULTIPLIER_WHEN_PLAYING_VIDEO)
 // NOLINTNEXTLINE(whitespace/line_length)
 #error \
@@ -418,11 +345,6 @@ float Configuration::CobaltImageCacheCapacityMultiplierWhenPlayingVideo() {
 #error "instead."
 #endif
   return 1.0f;
-#elif defined(COBALT_IMAGE_CACHE_CAPACITY_MULTIPLIER_WHEN_PLAYING_VIDEO)
-  return COBALT_IMAGE_CACHE_CAPACITY_MULTIPLIER_WHEN_PLAYING_VIDEO;
-#else
-  return 1.0f;
-#endif
 }
 
 int Configuration::CobaltSkiaGlyphAtlasWidth() {
@@ -437,18 +359,12 @@ int Configuration::CobaltSkiaGlyphAtlasWidth() {
 #endif
     return configuration_api_->CobaltSkiaGlyphAtlasWidth();
   }
-#if SB_API_VERSION >= 12
 #if defined(COBALT_SKIA_GLYPH_ATLAS_WIDTH)
 #error "COBALT_SKIA_GLYPH_ATLAS_WIDTH is deprecated after Starboard version 12."
 #error "Implement CobaltExtensionConfigurationApi::CobaltSkiaGlyphAtlasWidth()"
 #error "instead."
 #endif
   return 2048;
-#elif defined(COBALT_SKIA_GLYPH_ATLAS_WIDTH)
-  return COBALT_SKIA_GLYPH_ATLAS_WIDTH;
-#else
-  return 2048;
-#endif
 }
 
 int Configuration::CobaltSkiaGlyphAtlasHeight() {
@@ -463,7 +379,6 @@ int Configuration::CobaltSkiaGlyphAtlasHeight() {
 #endif
     return configuration_api_->CobaltSkiaGlyphAtlasHeight();
   }
-#if SB_API_VERSION >= 12
 #if defined(COBALT_SKIA_GLYPH_ATLAS_HEIGHT)
 #error \
     "COBALT_SKIA_GLYPH_ATLAS_HEIGHT is deprecated after Starboard version 12."
@@ -471,11 +386,6 @@ int Configuration::CobaltSkiaGlyphAtlasHeight() {
 #error "instead."
 #endif
   return 2048;
-#elif defined(COBALT_SKIA_GLYPH_ATLAS_HEIGHT)
-  return COBALT_SKIA_GLYPH_ATLAS_HEIGHT;
-#else
-  return 2048;
-#endif
 }
 
 int Configuration::CobaltReduceCpuMemoryBy() {
@@ -489,18 +399,12 @@ int Configuration::CobaltReduceCpuMemoryBy() {
 #endif
     return configuration_api_->CobaltReduceCpuMemoryBy();
   }
-#if SB_API_VERSION >= 12
 #if defined(COBALT_REDUCE_CPU_MEMORY_BY)
 #error "COBALT_REDUCE_CPU_MEMORY_BY is deprecated after Starboard version 12."
 #error "Implement CobaltExtensionConfigurationApi::CobaltReduceCpuMemoryBy()"
 #error "instead."
 #endif
   return -1;
-#elif defined(COBALT_REDUCE_CPU_MEMORY_BY)
-  return COBALT_REDUCE_CPU_MEMORY_BY;
-#else
-  return -1;
-#endif
 }
 
 int Configuration::CobaltReduceGpuMemoryBy() {
@@ -514,18 +418,12 @@ int Configuration::CobaltReduceGpuMemoryBy() {
 #endif
     return configuration_api_->CobaltReduceGpuMemoryBy();
   }
-#if SB_API_VERSION >= 12
 #if defined(COBALT_REDUCE_GPU_MEMORY_BY)
 #error "COBALT_REDUCE_GPU_MEMORY_BY is deprecated after Starboard version 12."
 #error "Implement CobaltExtensionConfigurationApi::CobaltReduceGpuMemoryBy()"
 #error "instead."
 #endif
   return -1;
-#elif defined(COBALT_REDUCE_GPU_MEMORY_BY)
-  return COBALT_REDUCE_GPU_MEMORY_BY;
-#else
-  return -1;
-#endif
 }
 
 bool Configuration::CobaltGcZeal() {
@@ -539,18 +437,12 @@ bool Configuration::CobaltGcZeal() {
 #endif
     return configuration_api_->CobaltGcZeal();
   }
-#if SB_API_VERSION >= 12
 #if defined(COBALT_GC_ZEAL)
 #error "COBALT_GC_ZEAL is deprecated after Starboard version 12."
 #error "Implement CobaltExtensionConfigurationApi::CobaltGcZeal()"
 #error "instead."
 #endif
   return false;
-#elif defined(COBALT_GC_ZEAL)
-  return true;
-#else
-  return false;
-#endif
 }
 
 const char* Configuration::CobaltRasterizerType() {
@@ -566,7 +458,6 @@ const char* Configuration::CobaltRasterizerType() {
 #endif
     return configuration_api_->CobaltRasterizerType();
   }
-#if SB_API_VERSION >= 12
 #if defined(COBALT_FORCE_STUB_RASTERIZER) || \
     defined(COBALT_FORCE_DIRECT_GLES_RASTERIZER)
 #error "COBALT_FORCE_STUB_RASTERIZER and COBALT_FORCE_DIRECT_GLES_RASTERIZER"
@@ -574,13 +465,6 @@ const char* Configuration::CobaltRasterizerType() {
 #error "CobaltExtensionConfigurationApi::CobaltRasterizerType() instead."
 #endif
   return "direct-gles";
-#elif defined(COBALT_FORCE_STUB_RASTERIZER)
-  return "stub";
-#elif defined(COBALT_FORCE_DIRECT_GLES_RASTERIZER)
-  return "direct-gles";
-#else
-  return "hardware";
-#endif
 }
 
 bool Configuration::CobaltEnableJit() {
@@ -594,7 +478,6 @@ bool Configuration::CobaltEnableJit() {
 #endif
     return configuration_api_->CobaltEnableJit();
   }
-#if SB_API_VERSION >= 12
 #if defined(ENGINE_SUPPORTS_JIT) || defined(COBALT_DISABLE_JIT)
 #error "ENGINE_SUPPORTS_JIT and COBALT_DISABLE_JIT are deprecated after"
 #error "Starboard version 12."
@@ -602,13 +485,6 @@ bool Configuration::CobaltEnableJit() {
 #error "instead."
 #endif
   return false;
-#elif defined(ENGINE_SUPPORTS_JIT)
-  return true;
-#elif defined(COBALT_DISABLE_JIT)
-  return false;
-#else
-  return false;
-#endif
 }
 
 }  // namespace configuration

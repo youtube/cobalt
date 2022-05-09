@@ -67,7 +67,6 @@ void DumpInputHash(const InputBuffer* input_buffer) {
 
 }  // namespace
 
-#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 FilterBasedPlayerWorkerHandler::FilterBasedPlayerWorkerHandler(
     const SbPlayerCreationParam* creation_param,
     SbDecodeTargetGraphicsContextProvider* provider)
@@ -81,34 +80,13 @@ FilterBasedPlayerWorkerHandler::FilterBasedPlayerWorkerHandler(
       video_sample_info_(creation_param->video_sample_info) {
   update_job_ = std::bind(&FilterBasedPlayerWorkerHandler::Update, this);
 }
-#else   // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
-FilterBasedPlayerWorkerHandler::FilterBasedPlayerWorkerHandler(
-    SbMediaVideoCodec video_codec,
-    SbMediaAudioCodec audio_codec,
-    SbDrmSystem drm_system,
-    const SbMediaAudioSampleInfo* audio_sample_info,
-    SbPlayerOutputMode output_mode,
-    SbDecodeTargetGraphicsContextProvider* provider)
-    : JobOwner(kDetached),
-      video_codec_(video_codec),
-      audio_codec_(audio_codec),
-      drm_system_(drm_system),
-      output_mode_(output_mode),
-      decode_target_graphics_context_provider_(provider) {
-  if (audio_sample_info) {
-    audio_sample_info_ = *audio_sample_info;
-  }
-  update_job_ = std::bind(&FilterBasedPlayerWorkerHandler::Update, this);
-}
-#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 
 bool FilterBasedPlayerWorkerHandler::Init(
     SbPlayer player,
     UpdateMediaInfoCB update_media_info_cb,
     GetPlayerStateCB get_player_state_cb,
     UpdatePlayerStateCB update_player_state_cb,
-    UpdatePlayerErrorCB update_player_error_cb,
-    std::string* error_message) {
+    UpdatePlayerErrorCB update_player_error_cb) {
   // This function should only be called once.
   SB_DCHECK(update_media_info_cb_ == NULL);
 
@@ -117,7 +95,6 @@ bool FilterBasedPlayerWorkerHandler::Init(
   SB_DCHECK(update_media_info_cb);
   SB_DCHECK(get_player_state_cb);
   SB_DCHECK(update_player_state_cb);
-  SB_DCHECK(error_message);
 
   AttachToCurrentThread();
 
@@ -141,28 +118,28 @@ bool FilterBasedPlayerWorkerHandler::Init(
       SB_LOG(ERROR) << "Audio channels requested " << required_audio_channels
                     << ", but currently supported less than or equal to "
                     << supported_audio_channels;
-      *error_message =
+      OnError(
+          kSbPlayerErrorCapabilityChanged,
           FormatString("Required channel %d is greater than maximum channel %d",
-                       required_audio_channels, supported_audio_channels);
+                       required_audio_channels, supported_audio_channels));
       return false;
     }
   }
 
   PlayerComponents::Factory::CreationParameters creation_parameters(
-      audio_codec_, audio_sample_info_, video_codec_,
-#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
-      video_sample_info_,
-#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+      audio_codec_, audio_sample_info_, video_codec_, video_sample_info_,
       player_, output_mode_, decode_target_graphics_context_provider_,
       drm_system_);
 
   {
     ::starboard::ScopedLock lock(player_components_existence_mutex_);
+    std::string error_message;
     player_components_ =
-        factory->CreateComponents(creation_parameters, error_message);
+        factory->CreateComponents(creation_parameters, &error_message);
     if (!player_components_) {
-      SB_LOG(ERROR) << "Failed to create player components with error: "
-                    << *error_message;
+      OnError(kSbPlayerErrorDecode,
+              FormatString("Failed to create player components with error: %s",
+                           error_message.c_str()));
       return false;
     }
     media_time_provider_ = player_components_->GetMediaTimeProvider();

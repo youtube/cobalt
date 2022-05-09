@@ -13,7 +13,6 @@
 // limitations under the License.
 
 #include "SkMalloc.h"
-#include "SkTypes.h"
 #include "starboard/memory.h"
 #include "starboard/system.h"
 
@@ -21,8 +20,7 @@
   SkASSERT((SkDebugf(fmt "\n", __VA_ARGS__), false))
 
 static inline void sk_out_of_memory(size_t size) {
-  SK_DEBUGFAILF("sk_out_of_memory (asked for " SK_SIZE_T_SPECIFIER " bytes)",
-                size);
+  SK_DEBUGFAILF("sk_out_of_memory (asked for %zu bytes)", size);
   SbSystemBreakIntoDebugger();
 }
 
@@ -37,9 +35,7 @@ static inline void* throw_on_failure(size_t size, void* p) {
 
 void sk_abort_no_print() { SbSystemBreakIntoDebugger(); }
 
-void sk_out_of_memory(void) {
-  SbSystemBreakIntoDebugger();
-}
+void sk_out_of_memory(void) { SbSystemBreakIntoDebugger(); }
 
 void* sk_realloc_throw(void* addr, size_t size) {
   return throw_on_failure(size, SbMemoryReallocate(addr, size));

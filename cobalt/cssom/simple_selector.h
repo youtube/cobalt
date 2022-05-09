@@ -15,6 +15,8 @@
 #ifndef COBALT_CSSOM_SIMPLE_SELECTOR_H_
 #define COBALT_CSSOM_SIMPLE_SELECTOR_H_
 
+#include <string>
+
 #include "base/compiler_specific.h"
 #include "cobalt/base/token.h"
 #include "cobalt/cssom/combinator.h"
@@ -40,7 +42,10 @@ class UniversalSelector;
 class SimpleSelector : public Selector {
  public:
   SimpleSelector(SimpleSelectorType type, base::Token prefix, base::Token text)
-      : type_(type), prefix_(prefix), text_(text) {}
+      : type_(type), prefix_(prefix), text_(text), value_("") {}
+  SimpleSelector(SimpleSelectorType type, base::Token prefix, base::Token text,
+                 const std::string& value)
+      : type_(type), prefix_(prefix), text_(text), value_(value) {}
   ~SimpleSelector() override {}
 
   // From Selector.
@@ -54,6 +59,7 @@ class SimpleSelector : public Selector {
   // Returns token representation of the selector.
   base::Token prefix() const { return prefix_; }
   base::Token text() const { return text_; }
+  base::Token value() const { return base::Token(value_); }
 
   virtual PseudoElement* AsPseudoElement() { return NULL; }
   virtual UniversalSelector* AsUniversalSelector() { return NULL; }
@@ -75,6 +81,7 @@ class SimpleSelector : public Selector {
   SimpleSelectorType type_;
   base::Token prefix_;
   base::Token text_;
+  std::string value_;
 };
 
 }  // namespace cssom

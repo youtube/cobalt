@@ -14,7 +14,19 @@
 
 // https://w3c.github.io/ServiceWorker/#serviceworkercontainer-interface
 
-[Exposed=Window]
-interface ServiceWorkerContainer {
-    Promise<void> register();
+[Exposed = Window] interface ServiceWorkerContainer : EventTarget {
+  readonly attribute ServiceWorker ? controller;
+  readonly attribute Promise<ServiceWorkerRegistration> ready;
+
+  Promise<ServiceWorkerRegistration> register(
+      USVString url, optional RegistrationOptions options);
+  Promise<ServiceWorkerRegistration> getRegistration(
+      optional USVString documentURL = "");
+  Promise<sequence<ServiceWorkerRegistration>> getRegistrations();
+
+  void startMessages();
+
+  attribute EventHandler oncontrollerchange;
+  attribute EventHandler onmessage;
+  attribute EventHandler onmessageerror;
 };

@@ -417,7 +417,11 @@ std::unique_ptr<GrFragmentProcessor> SkPictureShader::asFragmentProcessor(
         if (!image) {
             return nullptr;
         }
+#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
         auto [v, ct] = as_IB(image)->asView(ctx, GrMipmapped::kNo);
+#else
+        STRUCTURED_BINDING_2(v, ct, as_IB(image)->asView(ctx, GrMipmapped::kNo));
+#endif
         view = std::move(v);
         provider->assignUniqueKeyToProxy(key, view.asTextureProxy());
     }

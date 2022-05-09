@@ -273,10 +273,12 @@ enum class kCrosGlobalMediaControlsPinOptions {
   kHeuristic,
 };
 
+#if !defined(STARBOARD)
 // Feature param used to force default pin/unpin for global media controls in
 // CrOS.
 MEDIA_EXPORT extern const base::FeatureParam<kCrosGlobalMediaControlsPinOptions>
     kCrosGlobalMediaControlsPinParam;
+#endif  // !defined(STARBOARD)
 
 }  // namespace media
 

@@ -19,8 +19,6 @@
 #include "starboard/common/log.h"
 #include "starboard/file.h"
 
-#if SB_API_VERSION >= 12
-
 namespace starboard {
 namespace shared {
 namespace starboard {
@@ -67,5 +65,3 @@ bool SbFileAtomicReplaceWriteFile(const char* path,
 }  // namespace starboard
 }  // namespace shared
 }  // namespace starboard
-
-#endif  // SB_API_VERSION >= 12

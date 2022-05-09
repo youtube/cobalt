@@ -123,12 +123,7 @@ bool SourceList::Matches(
     // This will be our host string if we are not using IPV6.
     host.append(valid_spec.c_str() + parsed.host.begin,
                 valid_spec.c_str() + parsed.host.begin + parsed.host.len);
-#if SB_API_VERSION >= 12 || SB_HAS(IPV6)
-#if SB_API_VERSION >= 12
-    if (SbSocketIsIpv6Supported())
-#endif
-      host = url.HostNoBrackets();
-#endif
+    if (SbSocketIsIpv6Supported()) host = url.HostNoBrackets();
     if (net::HostStringIsLocalhost(host)) {
       return true;
     }

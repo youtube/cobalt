@@ -107,7 +107,11 @@ bool SkImage_GpuBase::getROPixels(GrDirectContext* dContext,
         }
     }
 
+#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     auto [view, ct] = this->asView(dContext, GrMipmapped::kNo);
+#else
+    STRUCTURED_BINDING_2(view, ct, this->asView(dContext, GrMipmapped::kNo));
+#endif
     if (!view) {
         return false;
     }
@@ -135,7 +139,11 @@ sk_sp<SkImage> SkImage_GpuBase::onMakeSubset(const SkIRect& subset,
         return nullptr;
     }
 
+#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     auto [view, ct] = this->asView(direct, GrMipmapped::kNo);
+#else
+    STRUCTURED_BINDING_2(view, ct, this->asView(direct, GrMipmapped::kNo));
+#endif
     SkASSERT(view);
     SkASSERT(ct == SkColorTypeToGrColorType(this->colorType()));
 
@@ -169,7 +177,11 @@ bool SkImage_GpuBase::onReadPixels(GrDirectContext* dContext,
         return false;
     }
 
+#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     auto [view, ct] = this->asView(dContext, GrMipmapped::kNo);
+#else
+    STRUCTURED_BINDING_2(view, ct, this->asView(dContext, GrMipmapped::kNo));
+#endif
     SkASSERT(view);
 
     GrColorInfo colorInfo(ct, this->alphaType(), this->refColorSpace());

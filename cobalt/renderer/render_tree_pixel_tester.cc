@@ -30,7 +30,11 @@
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "third_party/skia/include/core/SkCanvas.h"
 #include "third_party/skia/include/core/SkPixelRef.h"
+#ifdef USE_SKIA_NEXT
+#include "third_party/skia/include/effects/SkImageFilters.h"
+#else
 #include "third_party/skia/include/effects/SkBlurImageFilter.h"
+#endif
 
 // Avoid overriding of Windows' CreateDirectory macro.
 #undef CreateDirectory
@@ -133,13 +137,23 @@ SkBitmap BlurBitmap(const SkBitmap& bitmap, float sigma) {
   DCHECK(blurred_bitmap_allocated);
 
   SkPaint paint;
+#ifdef USE_SKIA_NEXT
+  sk_sp<SkImageFilter> blur_filter(SkImageFilters::Blur(sigma, sigma, nullptr));
+#else
   sk_sp<SkImageFilter> blur_filter(
       SkBlurImageFilter::Make(sigma, sigma, nullptr));
+#endif
   paint.setImageFilter(blur_filter);
 
   SkCanvas canvas(blurred_bitmap);
   canvas.clear(SkColorSetARGB(0, 0, 0, 0));
+#ifdef USE_SKIA_NEXT
+  premul_alpha_bitmap.setImmutable();
+  sk_sp<SkImage> image = SkImage::MakeFromBitmap(premul_alpha_bitmap);
+  canvas.drawImage(image, 0, 0, SkSamplingOptions(), &paint);
+#else
   canvas.drawBitmap(premul_alpha_bitmap, 0, 0, &paint);
+#endif
 
   return blurred_bitmap;
 }

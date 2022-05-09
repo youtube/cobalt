@@ -199,7 +199,7 @@ def post_results(results, pr_number, iterations, product, url, status):
     """Post stability results to a given URL."""
     payload_results = []
 
-    for test_name, test in results.iteritems():
+    for test_name, test in results.items():
         subtests = []
         for subtest_name, subtest in test['subtests'].items():
             subtests.append({

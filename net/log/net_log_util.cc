@@ -106,9 +106,6 @@ const char* NetInfoSourceToString(NetInfoSource source) {
 // Returns the disk cache backend for |context| if there is one, or NULL.
 // Despite the name, can return an in memory "disk cache".
 disk_cache::Backend* GetDiskCacheBackend(URLRequestContext* context) {
-#ifdef HTTP_CACHE_DISABLED_FOR_STARBOARD
-  return NULL;
-#else
   if (!context->http_transaction_factory())
     return NULL;
 
@@ -117,7 +114,6 @@ disk_cache::Backend* GetDiskCacheBackend(URLRequestContext* context) {
     return NULL;
 
   return http_cache->GetCurrentBackend();
-#endif
 }
 
 // Returns true if |request1| was created before |request2|.

@@ -269,15 +269,9 @@ void InitializeUserAgentPlatformInfoFields(UserAgentPlatformInfo& info) {
   }
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
-#if SB_API_VERSION >= 12
   // System Integrator
   result = SbSystemGetProperty(kSbSystemPropertySystemIntegratorName, value,
                                kSystemPropertyMaxLength);
-#else
-  // Original Design Manufacturer (ODM)
-  result = SbSystemGetProperty(kSbSystemPropertyOriginalDesignManufacturerName,
-                               value, kSystemPropertyMaxLength);
-#endif
   if (result) {
     info.set_original_design_manufacturer(value);
   }

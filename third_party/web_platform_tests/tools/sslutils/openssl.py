@@ -66,7 +66,7 @@ class OpenSSL(object):
         # StartProcess is picky about all the keys/values being plain strings,
         # but at least in MSYS shells, the os.environ dictionary can be mixed.
         env = {}
-        for k, v in os.environ.iteritems():
+        for k, v in os.environ.items():
             try:
                 env[k.encode("utf8")] = v.encode("utf8")
             except UnicodeDecodeError:
@@ -106,6 +106,8 @@ def make_subject(common_name,
     for var, key in args:
         value = locals()[var]
         if value is not None:
+            if isinstance(value, bytes):
+                value = value.decode()
             rv.append("/%s=%s" % (key, value.replace("/", "\\/")))
 
     return "".join(rv)
@@ -310,7 +312,7 @@ class OpenSSLEnvironment(object):
             end_date_str = openssl("x509",
                                    "-noout",
                                    "-enddate",
-                                   "-in", cert_path).split("=", 1)[1].strip()
+                                   "-in", cert_path).decode().split("=", 1)[1].strip()
             # Not sure if this works in other locales
             end_date = datetime.strptime(end_date_str, "%b %d %H:%M:%S %Y %Z")
             time_buffer = timedelta(**CERT_EXPIRY_BUFFER)

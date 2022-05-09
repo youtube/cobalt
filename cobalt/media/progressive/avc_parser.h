@@ -17,8 +17,10 @@
 
 #include <vector>
 
-#include "cobalt/media/base/media_log.h"
 #include "cobalt/media/progressive/progressive_parser.h"
+#include "third_party/chromium/media/base/media_log.h"
+#include "third_party/chromium/media/cobalt/ui/gfx/geometry/rect.h"
+#include "third_party/chromium/media/cobalt/ui/gfx/geometry/size.h"
 
 namespace cobalt {
 namespace media {
@@ -33,14 +35,18 @@ static const int kAnnexBPrependMaxSize = 1024;
 // ProgressiveParser while leaving the rest for its children.
 class AVCParser : public ProgressiveParser {
  public:
+  typedef ::media::DecoderBuffer DecoderBuffer;
+  typedef ::media::DemuxerStream DemuxerStream;
+  typedef ::media::MediaLog MediaLog;
+
   explicit AVCParser(scoped_refptr<DataSourceReader> reader,
-                     const scoped_refptr<MediaLog>& media_log);
+                     MediaLog* media_log);
   virtual ~AVCParser();
 
   struct SPSRecord {
-    math::Size coded_size;
-    math::Rect visible_rect;
-    math::Size natural_size;
+    gfx::Size coded_size;
+    gfx::Rect visible_rect;
+    gfx::Size natural_size;
     uint32 num_ref_frames;
   };
   static bool ParseSPS(const uint8* sps, size_t sps_size,
@@ -62,7 +68,7 @@ class AVCParser : public ProgressiveParser {
   virtual size_t CalculatePrependSize(DemuxerStream::Type type,
                                       bool is_keyframe);
 
-  scoped_refptr<MediaLog> media_log_;
+  MediaLog* media_log_;
   uint8 nal_header_size_;
   // audio frames have a fixed-size small prepend that we attach to every
   // audio buffer created by DownloadBuffer()

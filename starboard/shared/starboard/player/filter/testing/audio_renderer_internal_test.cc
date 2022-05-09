@@ -247,9 +247,7 @@ class AudioRendererTest : public ::testing::Test {
     static starboard::media::AudioSampleInfo audio_sample_info = {};
 
     audio_sample_info.codec = kSbMediaAudioCodecAac;
-#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
     audio_sample_info.mime = "";
-#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
     audio_sample_info.number_of_channels = kDefaultNumberOfChannels;
     audio_sample_info.samples_per_second = kDefaultSamplesPerSecond;
     audio_sample_info.bits_per_sample = 32;
@@ -273,19 +271,11 @@ class AudioRendererTest : public ::testing::Test {
 };
 
 bool HasAsyncAudioFramesReporting() {
-#if SB_API_VERSION >= 12
   // TODO: When deprecating Starboard API versions less than
   // 12 it is safe to assume that all tests can be run regardless of
   // whether the platform has asynchronous audio frames reporting.
   // This function can be removed then.
   return false;
-#else  // SB_API_VERSION >=  12
-#if SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
-  return true;
-#else   // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
-  return false;
-#endif  // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
-#endif  // SB_API_VERSION >=  12
 }
 
 // static

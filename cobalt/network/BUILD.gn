@@ -57,7 +57,7 @@ static_library("network") {
     "//url",
   ]
 
-  if (in_app_dial) {
+  if (enable_in_app_dial) {
     deps += [
       # DialService depends on http server.
       "//net:http_server",

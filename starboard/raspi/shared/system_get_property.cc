@@ -32,7 +32,7 @@ const char* kModelRevision = "Rev";
 const char* kFriendlyName = "Raspberry Pi";
 
 // Read device model from /proc/device-tree/model
-const char* GetModelName() {
+std::string GetModelName() {
   const char* file_path = "/proc/device-tree/model";
   // Size of the raw data
   size_t file_data_size;
@@ -105,7 +105,7 @@ const char* GetModelName() {
   // Trim trailing spaces
   size_t end = model_name.find_last_not_of(" \t");
   if (end != std::string::npos) {
-    return model_name.substr(0, end + 1).c_str();
+    return model_name.substr(0, end + 1);
   } else {
     return "";
   }
@@ -135,16 +135,12 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
 
     case kSbSystemPropertyModelName:
       return CopyStringAndTestIfSuccess(out_value, value_length,
-                                        GetModelName());
+                                        GetModelName().c_str());
 
     case kSbSystemPropertyChipsetModelNumber:
     case kSbSystemPropertyFirmwareVersion:
     case kSbSystemPropertyModelYear:
-#if SB_API_VERSION >= 12
     case kSbSystemPropertySystemIntegratorName:
-#else
-    case kSbSystemPropertyOriginalDesignManufacturerName:
-#endif
     case kSbSystemPropertySpeechApiKey:
       return false;
 

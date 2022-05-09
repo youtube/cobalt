@@ -59,8 +59,7 @@
 namespace starboard {
 namespace elf_loader {
 
-ExportedSymbols::ExportedSymbols(
-    const void* (*custom_get_extension)(const char* name)) {
+ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbAccessibilityGetDisplaySettings);
   REGISTER_SYMBOL(SbAccessibilityGetTextToSpeechSettings);
   REGISTER_SYMBOL(SbAudioSinkCreate);
@@ -109,9 +108,7 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(SbDrmCreateSystem);
   REGISTER_SYMBOL(SbDrmDestroySystem);
   REGISTER_SYMBOL(SbDrmGenerateSessionUpdateRequest);
-#if SB_API_VERSION >= 12
   REGISTER_SYMBOL(SbDrmGetMetrics);
-#endif  // SB_API_VERSION >= 12
   REGISTER_SYMBOL(SbDrmUpdateSession);
   REGISTER_SYMBOL(SbEventCancel);
   REGISTER_SYMBOL(SbEventSchedule);
@@ -320,32 +317,17 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(SbSystemGetPath);
   REGISTER_SYMBOL(SbGetEglInterface);
   REGISTER_SYMBOL(SbGetGlesInterface);
-
-#if SB_API_VERSION >= 12
   REGISTER_SYMBOL(SbFileAtomicReplace);
-#endif  // SB_API_VERSION >= 12
 
 #if SB_CAN(MAP_EXECUTABLE_MEMORY)
   REGISTER_SYMBOL(SbMemoryFlush);
 #endif  // SB_CAN(MAP_EXECUTABLE_MEMORY)
 
-#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
   REGISTER_SYMBOL(SbPlayerGetPreferredOutputMode);
-#else
-  REGISTER_SYMBOL(SbPlayerOutputModeSupported);
-#endif
-
-#if SB_API_VERSION >= 12 || SB_HAS(MMAP)
   REGISTER_SYMBOL(SbMemoryMap);
   REGISTER_SYMBOL(SbMemoryUnmap);
   REGISTER_SYMBOL(SbMemoryProtect);
-#endif  // SB_HAS(MMAP)
-
-#if SB_API_VERSION >= 12
   REGISTER_SYMBOL(SbUiNavGetInterface);
-#endif  // SB_API_VERSION >= 12
-
-#if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
   REGISTER_SYMBOL(SbWindowBlurOnScreenKeyboard);
   REGISTER_SYMBOL(SbWindowFocusOnScreenKeyboard);
   REGISTER_SYMBOL(SbWindowGetOnScreenKeyboardBoundingRect);
@@ -355,19 +337,9 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(SbWindowShowOnScreenKeyboard);
   REGISTER_SYMBOL(SbWindowOnScreenKeyboardSuggestionsSupported);
   REGISTER_SYMBOL(SbWindowUpdateOnScreenKeyboardSuggestions);
-#endif  // SB_API_VERSION >= 12 ||
-        // SB_HAS(ON_SCREEN_KEYBOARD)
-
-#if SB_API_VERSION >= 12
   REGISTER_SYMBOL(SbWindowOnScreenKeyboardIsSupported);
-#endif  // SB_API_VERSION >= 12
-
-#if SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
   REGISTER_SYMBOL(SbAccessibilityGetCaptionSettings);
   REGISTER_SYMBOL(SbAccessibilitySetCaptionsEnabled);
-#endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
-
-#if SB_API_VERSION >= 12 || SB_HAS(MICROPHONE)
   REGISTER_SYMBOL(SbMicrophoneClose);
   REGISTER_SYMBOL(SbMicrophoneCreate);
   REGISTER_SYMBOL(SbMicrophoneDestroy);
@@ -375,44 +347,22 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(SbMicrophoneIsSampleRateSupported);
   REGISTER_SYMBOL(SbMicrophoneOpen);
   REGISTER_SYMBOL(SbMicrophoneRead);
-#endif  // SB_API_VERSION >= 12 ||
-        // SB_HAS(MICROPHONE)
-
-#if SB_API_VERSION >= 12
   REGISTER_SYMBOL(SbSocketIsIpv6Supported);
-#endif
-
-#if SB_API_VERSION >= 12 || SB_HAS(SPEECH_SYNTHESIS)
   REGISTER_SYMBOL(SbSpeechSynthesisCancel);
   REGISTER_SYMBOL(SbSpeechSynthesisSpeak);
-#endif  // SB_API_VERSION >= 12 ||
-        // SB_HAS(SPEECH_SYNTHESIS)
-
-#if SB_API_VERSION >= 12 || SB_HAS(TIME_THREAD_NOW)
   REGISTER_SYMBOL(SbTimeGetMonotonicThreadNow);
-#endif  // SB_API_VERSION >= 12 ||
-        // SB_HAS(TIME_THREAD_NOW)
-
 #if SB_API_VERSION == 12
   REGISTER_SYMBOL(SbSpeechRecognizerIsSupported);
 #endif
-#if SB_API_VERSION == 12 || (SB_API_VERSION < 12 && SB_HAS(SPEECH_RECOGNIZER))
+#if SB_API_VERSION == 12
   REGISTER_SYMBOL(SbSpeechRecognizerCreate);
   REGISTER_SYMBOL(SbSpeechRecognizerDestroy);
   REGISTER_SYMBOL(SbSpeechRecognizerStart);
   REGISTER_SYMBOL(SbSpeechRecognizerStop);
   REGISTER_SYMBOL(SbSpeechRecognizerCancel);
-#endif  // SB_API_VERSION >= 12 ||
-        // (SB_API_VERSION < 12 && SB_HAS(SPEECH_RECOGNIZER))
-
-#if SB_API_VERSION >= 12
+#endif  // SB_API_VERSION == 12
   REGISTER_SYMBOL(SbSpeechSynthesisIsSupported);
-#endif
-
-#if SB_API_VERSION >= 12
   REGISTER_SYMBOL(SbTimeIsTimeThreadNowSupported);
-#endif
-
   REGISTER_SYMBOL(SbDrmIsServerCertificateUpdatable);
   REGISTER_SYMBOL(SbDrmUpdateServerCertificate);
   REGISTER_SYMBOL(SbMediaGetAudioBufferBudget);
@@ -444,8 +394,6 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(SbThreadSamplerIsSupported);
   REGISTER_SYMBOL(SbThreadSamplerThaw);
   REGISTER_SYMBOL(SbWindowGetDiagonalSizeInInches);
-
-#if SB_API_VERSION >= 12
   REGISTER_SYMBOL(kSbDefaultMmapThreshold);
   REGISTER_SYMBOL(kSbFileMaxName);
   REGISTER_SYMBOL(kSbFileMaxOpen);
@@ -471,8 +419,6 @@ ExportedSymbols::ExportedSymbols(
   REGISTER_SYMBOL(kSbPathSepString);
   REGISTER_SYMBOL(kSbPreferredRgbaByteOrder);
   REGISTER_SYMBOL(kSbUserMaxSignedIn);
-#endif  // SB_API_VERSION >= 12
-
 #if SB_API_VERSION >= 13
   REGISTER_SYMBOL(SbSystemNetworkIsDisconnected);
 #endif  // SB_API_VERSION >= 13

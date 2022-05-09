@@ -41,7 +41,11 @@ class MEDIA_EXPORT ChunkDemuxerStream : public DemuxerStream {
  public:
   using BufferQueue = base::circular_deque<scoped_refptr<StreamParserBuffer>>;
 
+#if defined(STARBOARD)
+  ChunkDemuxerStream(const std::string& mime_type, Type type, MediaTrack::Id media_track_id);
+#else  // defined (STARBOARD)
   ChunkDemuxerStream(Type type, MediaTrack::Id media_track_id);
+#endif  // defined (STARBOARD)
   ~ChunkDemuxerStream() override;
 
   // ChunkDemuxerStream control methods.
@@ -122,6 +126,10 @@ class MEDIA_EXPORT ChunkDemuxerStream : public DemuxerStream {
   void UnmarkEndOfStream();
 
   // DemuxerStream methods.
+#if defined(STARBOARD)
+  std::string mime_type() const override { return mime_type_; }
+#endif  // defined (STARBOARD)
+
   void Read(ReadCB read_cb) override;
   Type type() const override;
   Liveness liveness() const override;
@@ -169,6 +177,10 @@ class MEDIA_EXPORT ChunkDemuxerStream : public DemuxerStream {
   void ChangeState_Locked(State state) EXCLUSIVE_LOCKS_REQUIRED(lock_);
 
   void CompletePendingReadIfPossible_Locked() EXCLUSIVE_LOCKS_REQUIRED(lock_);
+
+#if defined(STARBOARD)
+  const std::string mime_type_;
+#endif  // defined (STARBOARD)
 
   // Specifies the type of the stream.
   const Type type_;
@@ -262,6 +274,12 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   Status AddId(const std::string& id,
                std::unique_ptr<VideoDecoderConfig> video_config)
       WARN_UNUSED_RESULT;
+
+#if defined(STARBOARD)
+  // Special version of AddId() that retains the |mime_type| from the web app.
+  Status AddId(const std::string& id, const std::string& mime_type)
+      WARN_UNUSED_RESULT;
+#endif  // defined (STARBOARD)
 
   // Notifies a caller via |tracks_updated_cb| that the set of media tracks
   // for a given |id| has changed. This callback must be set before any calls to
@@ -556,6 +574,10 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   std::vector<std::unique_ptr<ChunkDemuxerStream>> removed_streams_;
 
   std::map<MediaTrack::Id, ChunkDemuxerStream*> track_id_to_demux_stream_map_;
+
+#if defined(STARBOARD)
+  std::map<std::string, std::string> id_to_mime_map_;
+#endif  // defined (STARBOARD)
 };
 
 }  // namespace media

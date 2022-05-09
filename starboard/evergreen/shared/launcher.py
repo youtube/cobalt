@@ -17,7 +17,6 @@ import logging
 import os
 import shutil
 
-import _env  # pylint: disable=unused-import
 from starboard.tools import abstract_launcher
 from starboard.tools import paths
 from starboard.tools import port_symlink
@@ -163,11 +162,15 @@ class Launcher(abstract_launcher.AbstractLauncher):
     os.makedirs(self.staging_directory)
 
     if os.path.exists(os.path.join(self.loader_out_directory, 'install')):
-      self._StageTargetsAndContentsGn()
+      # TODO: Make the Linux launcher run from the install_directory
+      if 'linux' in self.loader_platform:
+        self._StageTargetsAndContentsGnLinux()
+      else:
+        self._StageTargetsAndContentsGnRaspi()
     else:
       self._StageTargetsAndContentsGyp()
 
-  def _StageTargetsAndContentsGn(self):
+  def _StageTargetsAndContentsGnLinux(self):
     content_subdir = os.path.join('usr', 'share', 'cobalt')
 
     # Copy loader content and binaries
@@ -192,6 +195,58 @@ class Launcher(abstract_launcher.AbstractLauncher):
     target_staging_dir = os.path.join(self.staging_directory, 'content', 'app',
                                       self.target_name)
 
+    target_content_src = os.path.join(target_install_path, content_subdir)
+    target_content_dst = os.path.join(target_staging_dir, 'content')
+    shutil.copytree(target_content_src, target_content_dst)
+
+    shlib_name = 'lib{}.so'.format(self.target_name)
+    target_binary_src = os.path.join(target_install_path, 'lib', shlib_name)
+    target_binary_dst = os.path.join(target_staging_dir, 'lib', shlib_name)
+    os.makedirs(os.path.join(target_staging_dir, 'lib'))
+    shutil.copy(target_binary_src, target_binary_dst)
+
+  def _StageTargetsAndContentsGnRaspi(self):
+    # TODO(b/218889313): `content` is hardcoded on raspi and must be in the same
+    # directory as the binaries.
+    if 'raspi' in self.loader_platform:
+      content_subdir = 'content'
+      bin_subdir = ''
+    else:
+      content_subdir = os.path.join('usr', 'share', 'cobalt')
+      bin_subdir = 'bin'
+
+    # Copy loader content and binaries to
+    loader_install_path = os.path.join(self.loader_out_directory, 'install')
+    # raspi is a packaged platform and the loader target is the staging target.
+    staging_directory_loader = os.path.join(self.staging_directory, 'install',
+                                            self.loader_target)
+
+    loader_content_src = os.path.join(loader_install_path, content_subdir)
+    loader_content_dst = os.path.join(staging_directory_loader, 'content')
+    shutil.copytree(loader_content_src, loader_content_dst)
+
+    loader_binary_src = os.path.join(loader_install_path, bin_subdir)
+    loader_target_src = os.path.join(loader_binary_src, self.loader_target,
+                                     self.loader_target)
+    loader_target_dst = os.path.join(staging_directory_loader,
+                                     self.loader_target)
+    shutil.copy(loader_target_src, loader_target_dst)
+
+    crashpad_target_src = os.path.join(loader_binary_src, _CRASHPAD_TARGET,
+                                       _CRASHPAD_TARGET)
+    crashpad_target_dst = os.path.join(staging_directory_loader,
+                                       _CRASHPAD_TARGET)
+    os.makedirs(crashpad_target_dst)
+    shutil.copy(crashpad_target_src, crashpad_target_dst)
+
+    # Copy target content and binary
+    target_install_path = os.path.join(self.out_directory, 'install')
+    target_staging_dir = os.path.join(staging_directory_loader, 'content',
+                                      'app', self.target_name)
+    os.makedirs(target_staging_dir)
+
+    # TODO(b/218889313): Reset the content path for the evergreen artifacts.
+    content_subdir = os.path.join('usr', 'share', 'cobalt')
     target_content_src = os.path.join(target_install_path, content_subdir)
     target_content_dst = os.path.join(target_staging_dir, 'content')
     shutil.copytree(target_content_src, target_content_dst)

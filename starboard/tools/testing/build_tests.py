@@ -16,14 +16,14 @@
 import logging
 import subprocess
 
-APP_LAUNCHER_TARGET = 'app_launcher_zip'
+APP_LAUNCHER_TARGET = 'build_app_launcher_zip'
 
 
 def BuildTargets(targets, out_directory, dry_run=False, extra_build_flags=None):
   """Builds all specified targets.
 
   Args:
-    targets: Gyp targets to be built
+    targets: GN targets to be built
     out_directory: Directory to build to
     dry_run: Whether to run ninja with -n (dry run)
     extra_build_flags: Array of additional command line flags to pass to ninja
@@ -40,7 +40,7 @@ def BuildTargets(targets, out_directory, dry_run=False, extra_build_flags=None):
     args_list.append('-n')
 
   args_list.append(APP_LAUNCHER_TARGET)
-  args_list.extend(['{}_deploy'.format(test_name) for test_name in targets])
+  args_list.extend(['{}_install'.format(test_name) for test_name in targets])
   if extra_build_flags:
     args_list.extend(extra_build_flags)
 

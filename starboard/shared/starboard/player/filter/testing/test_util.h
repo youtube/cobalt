@@ -62,9 +62,7 @@ bool CreateAudioComponents(bool using_stub_decoder,
 
 ::testing::AssertionResult AlmostEqualTime(SbTime time1, SbTime time2);
 
-#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 media::VideoSampleInfo CreateVideoSampleInfo(SbMediaVideoCodec codec);
-#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 
 }  // namespace testing
 }  // namespace filter

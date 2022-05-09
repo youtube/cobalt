@@ -112,7 +112,6 @@ class SbMediaSetAudioWriteDurationTest
         dmp_reader_.GetPlayerSampleInfo(kSbMediaTypeAudio, 0).timestamp;
     first_input_timestamp_ = last_input_timestamp_;
 
-#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
     SbPlayerCreationParam creation_param = CreatePlayerCreationParam(
         audio_sample_info.codec, kSbMediaVideoCodecNone);
     creation_param.audio_sample_info = audio_sample_info;
@@ -125,22 +124,6 @@ class SbMediaSetAudioWriteDurationTest
         DummyDeallocateSampleFunc, DecoderStatusFunc, PlayerStatusFunc,
         DummyErrorFunc, this /* context */,
         fake_graphics_context_provider_.decoder_target_provider());
-#else   // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
-    SbPlayerOutputMode output_mode = kSbPlayerOutputModeDecodeToTexture;
-
-    if (!SbPlayerOutputModeSupported(output_mode, kSbMediaVideoCodecNone,
-                                     kSbDrmSystemInvalid)) {
-      output_mode = kSbPlayerOutputModePunchOut;
-    }
-
-    SbPlayer player = SbPlayerCreate(
-        fake_graphics_context_provider_.window(), kSbMediaVideoCodecNone,
-        kAudioCodec, kSbDrmSystemInvalid, &audio_sample_info,
-        NULL /* max_video_capabilities */,
-        DummyDeallocateSampleFunc, DecoderStatusFunc, PlayerStatusFunc,
-        DummyErrorFunc, this /* context */, output_mode,
-        fake_graphics_context_provider_.decoder_target_provider());
-#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 
     EXPECT_TRUE(SbPlayerIsValid(player));
     return player;
@@ -279,9 +262,7 @@ std::vector<const char*> GetSupportedTests() {
     const SbMediaAudioSampleInfo* audio_sample_info =
         &dmp_reader.audio_sample_info();
     if (SbMediaIsAudioSupported(dmp_reader.audio_codec(),
-#if SB_API_VERSION >= 12
                                 "",  // content_type
-#endif // SB_API_VERSION >= 12
                                 dmp_reader.audio_bitrate())) {
       test_params.push_back(filename);
     }

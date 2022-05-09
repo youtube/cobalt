@@ -75,7 +75,6 @@ class WindowTimers {
           const TimerCallbackArg& callback, int timeout, int handle,
           WindowTimers* window_timers);
 
-    base::internal::TimerBase* timer() { return timer_.get(); }
     void Run();
 
     // Pause this timer. The timer will not fire when paused.
@@ -83,6 +82,9 @@ class WindowTimers {
     // Start or Resume this timer. If the timer was paused and the desired run
     // time is in the past, it will fire immediately.
     void StartOrResume();
+
+    // Disable the timer callback.
+    void Disable();
 
    private:
     ~Timer();
@@ -98,6 +100,7 @@ class WindowTimers {
     const base::DebuggerHooks& debugger_hooks_;
     int timeout_;
     int handle_;
+    bool active_;
     WindowTimers* window_timers_;
 
     // Store the desired run tim of a paused timer.
@@ -115,10 +118,6 @@ class WindowTimers {
   // Returns a positive integer timer handle that hasn't been assigned, or 0
   // if none can be found.
   int GetFreeTimerHandle();
-
-  // This callback, when called by Timer, runs the callback in TimerInfo
-  // and removes the handle if necessary.
-  void RunTimerCallback(int handle);
 
   Timers timers_;
   int current_timer_index_ = 0;

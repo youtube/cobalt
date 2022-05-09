@@ -21,7 +21,13 @@ namespace SkSL {
 class ModifiersPool {
 public:
     const Modifiers* add(const Modifiers& modifiers) {
+#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
         auto [iter, wasInserted] = fModifiersSet.insert(modifiers);
+#else
+        auto pair = fModifiersSet.insert(modifiers);
+        auto iter = pair.first;
+        bool wasInserted = pair.second;
+#endif
         return &*iter;
     }
 

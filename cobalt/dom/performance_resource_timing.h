@@ -43,7 +43,7 @@ class PerformanceResourceTiming : public PerformanceEntry {
                             base::TimeTicks time_origin);
 
   // Web API.
-  std::string initiator_type() const;
+  virtual std::string initiator_type() const;
   DOMHighResTimeStamp fetch_start() const;
   DOMHighResTimeStamp domain_lookup_start() const;
   DOMHighResTimeStamp domain_lookup_end() const;
@@ -52,11 +52,10 @@ class PerformanceResourceTiming : public PerformanceEntry {
   DOMHighResTimeStamp secure_connection_start() const;
   DOMHighResTimeStamp request_start() const;
   DOMHighResTimeStamp response_start() const;
-  // As we don't have response start in LoadTimingInfo, we use
-  // response start instead.
-  // TODO: Add response_end into LoadTimingInfo.
+  // As we don't have response end in LoadTimingInfo, we collect the timestamp
+  // of loading completes instead.
   DOMHighResTimeStamp response_end() const;
-  unsigned long long transfer_size() const;
+  uint64_t transfer_size() const;
 
   std::string entry_type() const override { return "resource"; }
   PerformanceEntryType EntryTypeEnum() const override {
@@ -77,6 +76,7 @@ class PerformanceResourceTiming : public PerformanceEntry {
   std::string requested_url_;
   net::LoadTimingInfo timing_info_;
   base::TimeTicks time_origin_;
+  DOMHighResTimeStamp timing_info_response_end_;
 
   DISALLOW_COPY_AND_ASSIGN(PerformanceResourceTiming);
 };

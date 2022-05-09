@@ -132,7 +132,7 @@ struct ColorAndProfile {
     bool fSRGB;
 };
 
-ColorAndProfile ColorModes[] = {
+constexpr ColorAndProfile ColorModes[] = {
     { kN32_SkColorType,      false },
     { kN32_SkColorType,       true },
     { kRGBA_F16_SkColorType,  true },

@@ -14,8 +14,6 @@
 
 #include "starboard/configuration.h"
 
-#if SB_API_VERSION >= 12
-
 namespace starboard {
 namespace sabi {
 namespace {
@@ -23,8 +21,9 @@ namespace {
 SB_COMPILE_ASSERT(SB_ALIGNOF(char) == SB_ALIGNMENT_OF_CHAR,
                   SB_ALIGNMENT_OF_CHAR_is_inconsistent_with_SB_ALIGNOF_char);
 
-SB_COMPILE_ASSERT(SB_ALIGNOF(double) == SB_ALIGNMENT_OF_DOUBLE,
-                  SB_ALIGNMENT_OF_DOUBLE_is_inconsistent_with_SB_ALIGNOF_double);
+SB_COMPILE_ASSERT(
+    SB_ALIGNOF(double) == SB_ALIGNMENT_OF_DOUBLE,
+    SB_ALIGNMENT_OF_DOUBLE_is_inconsistent_with_SB_ALIGNOF_double);
 
 SB_COMPILE_ASSERT(SB_ALIGNOF(float) == SB_ALIGNMENT_OF_FLOAT,
                   SB_ALIGNMENT_OF_FLOAT_is_inconsistent_with_SB_ALIGNOF_float);
@@ -32,20 +31,22 @@ SB_COMPILE_ASSERT(SB_ALIGNOF(float) == SB_ALIGNMENT_OF_FLOAT,
 SB_COMPILE_ASSERT(SB_ALIGNOF(int) == SB_ALIGNMENT_OF_INT,
                   SB_ALIGNMENT_OF_INT_is_inconsistent_with_SB_ALIGNOF_int);
 
-SB_COMPILE_ASSERT(SB_ALIGNOF(int*) == SB_ALIGNMENT_OF_POINTER,
-                  SB_ALIGNMENT_OF_POINTER_is_inconsistent_with_SB_ALIGNOF_pointer);
+SB_COMPILE_ASSERT(
+    SB_ALIGNOF(int*) == SB_ALIGNMENT_OF_POINTER,
+    SB_ALIGNMENT_OF_POINTER_is_inconsistent_with_SB_ALIGNOF_pointer);
 
-SB_COMPILE_ASSERT(SB_ALIGNOF(long) == SB_ALIGNMENT_OF_LONG,  // NOLINT(runtime/int)
+SB_COMPILE_ASSERT(SB_ALIGNOF(long) ==        // NOLINT(runtime/int)
+                      SB_ALIGNMENT_OF_LONG,  // NOLINT(runtime/int)
                   SB_ALIGNMENT_OF_LONG_is_inconsistent_with_SB_ALIGNOF_long);
 
-SB_COMPILE_ASSERT(SB_ALIGNOF(long long) == SB_ALIGNMENT_OF_LLONG,  // NOLINT(runtime/int)
-                  SB_ALIGNMENT_OF_LLONG_is_inconsistent_with_SB_ALIGNOF_long_long);
+SB_COMPILE_ASSERT(
+    SB_ALIGNOF(long long) == SB_ALIGNMENT_OF_LLONG,  // NOLINT(runtime/int)
+    SB_ALIGNMENT_OF_LLONG_is_inconsistent_with_SB_ALIGNOF_long_long);
 
-SB_COMPILE_ASSERT(SB_ALIGNOF(short) == SB_ALIGNMENT_OF_SHORT,  // NOLINT(runtime/int)
+SB_COMPILE_ASSERT(SB_ALIGNOF(short) ==        // NOLINT(runtime/int)
+                      SB_ALIGNMENT_OF_SHORT,  // NOLINT(runtime/int)
                   SB_ALIGNMENT_OF_SHORT_is_inconsistent_with_SB_ALIGNOF_short);
 
 }  // namespace
 }  // namespace sabi
 }  // namespace starboard
-
-#endif  // SB_API_VERSION >= 12

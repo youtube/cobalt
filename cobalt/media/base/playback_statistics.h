@@ -20,15 +20,19 @@
 #include "base/optional.h"
 #include "base/time/time.h"
 #include "cobalt/base/c_val.h"
-#include "cobalt/media/base/decoder_buffer.h"
-#include "cobalt/media/base/pipeline_status.h"
-#include "cobalt/media/base/video_decoder_config.h"
+#include "third_party/chromium/media/base/decoder_buffer.h"
+#include "third_party/chromium/media/base/pipeline_status.h"
+#include "third_party/chromium/media/base/video_decoder_config.h"
 
 namespace cobalt {
 namespace media {
 
 class PlaybackStatistics {
  public:
+  typedef ::media::DecoderBuffer DecoderBuffer;
+  typedef ::media::PipelineStatus PipelineStatus;
+  typedef ::media::VideoDecoderConfig VideoDecoderConfig;
+
   explicit PlaybackStatistics(const std::string& pipeline_identifier);
   ~PlaybackStatistics();
 

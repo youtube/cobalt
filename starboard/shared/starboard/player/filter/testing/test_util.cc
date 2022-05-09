@@ -157,11 +157,9 @@ std::vector<const char*> GetSupportedAudioTestFiles(
     // Filter files of unsupported codec.
     if (!SbMediaIsAudioSupported(
             audio_file_info.audio_codec,
-#if SB_API_VERSION >= 12
             GetContentTypeFromAudioCodec(audio_file_info.audio_codec,
                                          extra_mime_attributes)
                 .c_str(),
-#endif  // SB_API_VERSION >= 12
             audio_file_info.bitrate)) {
       continue;
     }
@@ -207,14 +205,9 @@ std::vector<VideoTestParam> GetSupportedVideoTests() {
               .video_sample_info;
 
       if (SbMediaIsVideoSupported(
-              dmp_reader.video_codec(),
-#if SB_API_VERSION >= 12
-              dmp_reader.video_mime_type().c_str(),
-#endif  // SB_API_VERSION >= 12
-#if SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
+              dmp_reader.video_codec(), dmp_reader.video_mime_type().c_str(),
               -1, -1, 8, kSbMediaPrimaryIdUnspecified,
               kSbMediaTransferIdUnspecified, kSbMediaMatrixIdUnspecified,
-#endif  // SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
               video_sample_info.frame_width, video_sample_info.frame_height,
               dmp_reader.video_bitrate(), dmp_reader.video_fps(), false)) {
         test_params.push_back(std::make_tuple(filename, output_mode));
@@ -268,7 +261,6 @@ AssertionResult AlmostEqualTime(SbTime time1, SbTime time2) {
          << "time " << time1 << " doesn't match with time " << time2;
 }
 
-#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 media::VideoSampleInfo CreateVideoSampleInfo(SbMediaVideoCodec codec) {
   shared::starboard::media::VideoSampleInfo video_sample_info = {};
 
@@ -286,7 +278,6 @@ media::VideoSampleInfo CreateVideoSampleInfo(SbMediaVideoCodec codec) {
 
   return video_sample_info;
 }
-#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 
 }  // namespace testing
 }  // namespace filter

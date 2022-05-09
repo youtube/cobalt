@@ -61,10 +61,7 @@ bool IsSupportedAudioCodec(const MimeType& mime_type,
   int bitrate = mime_type.GetParamIntValue("bitrate", kDefaultBitRate);
 
   if (!SbMediaIsAudioSupported(audio_codec,
-#if SB_API_VERSION >= 12
-                               mime_type.raw_content_type().c_str(),
-#endif  // SB_API_VERSION >= 12
-                               bitrate)) {
+                               mime_type.raw_content_type().c_str(), bitrate)) {
     return false;
   }
 
@@ -74,7 +71,6 @@ bool IsSupportedAudioCodec(const MimeType& mime_type,
       return false;
     case kSbMediaAudioCodecAac:
       return mime_type.subtype() == "mp4";
-#if SB_API_VERSION >= 12 || SB_HAS(AC3_AUDIO)
     case kSbMediaAudioCodecAc3:
       if (!kSbHasAc3Audio) {
         SB_NOTREACHED() << "AC3 audio is not enabled on this platform. To "
@@ -89,8 +85,6 @@ bool IsSupportedAudioCodec(const MimeType& mime_type,
         return false;
       }
       return mime_type.subtype() == "mp4";
-#endif  // SB_API_VERSION >= 12 ||
-        // SB_HAS(AC3_AUDIO)
     case kSbMediaAudioCodecOpus:
     case kSbMediaAudioCodecVorbis:
       return mime_type.subtype() == "webm";
@@ -139,11 +133,6 @@ bool IsSupportedVideoCodec(const MimeType& mime_type,
           << codec << "\" will be overwritten by the eotf attribute " << eotf;
     }
     transfer_id = transfer_id_from_eotf;
-#if !SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
-    if (!SbMediaIsTransferCharacteristicsSupported(transfer_id)) {
-      return false;
-    }
-#endif  // !SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
   }
 
   std::string cryptoblockformat =
@@ -164,22 +153,12 @@ bool IsSupportedVideoCodec(const MimeType& mime_type,
     return false;
   }
 
-#if SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
-  if (!SbMediaIsVideoSupported(video_codec,
-#if SB_API_VERSION >= 12
-                               mime_type.raw_content_type().c_str(),
-#endif  // SB_API_VERSION >= 12
-                               profile, level, bit_depth, primary_id,
-                               transfer_id, matrix_id, width, height, bitrate,
-                               fps, decode_to_texture_required)) {
+  if (!SbMediaIsVideoSupported(
+          video_codec, mime_type.raw_content_type().c_str(), profile, level,
+          bit_depth, primary_id, transfer_id, matrix_id, width, height, bitrate,
+          fps, decode_to_texture_required)) {
     return false;
   }
-#else   //  SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
-  if (!SbMediaIsVideoSupported(video_codec, width, height, bitrate, fps,
-                               decode_to_texture_required)) {
-    return false;
-  }
-#endif  // SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
 
   switch (video_codec) {
     case kSbMediaVideoCodecNone:
@@ -224,7 +203,7 @@ AudioSampleInfo& AudioSampleInfo::operator=(
            audio_specific_config_size);
     audio_specific_config = audio_specific_config_storage.data();
   }
-#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+
   if (codec == kSbMediaAudioCodecNone) {
     mime_storage.clear();
   } else {
@@ -232,7 +211,7 @@ AudioSampleInfo& AudioSampleInfo::operator=(
     mime_storage = that.mime;
   }
   mime = mime_storage.c_str();
-#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+
   return *this;
 }
 
@@ -248,7 +227,7 @@ VideoSampleInfo::VideoSampleInfo(const SbMediaVideoSampleInfo& that) {
 VideoSampleInfo& VideoSampleInfo::operator=(
     const SbMediaVideoSampleInfo& that) {
   *static_cast<SbMediaVideoSampleInfo*>(this) = that;
-#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+
   if (codec == kSbMediaVideoCodecNone) {
     mime_storage.clear();
     max_video_capabilities_storage.clear();
@@ -259,7 +238,7 @@ VideoSampleInfo& VideoSampleInfo::operator=(
   }
   mime = mime_storage.c_str();
   max_video_capabilities = max_video_capabilities_storage.c_str();
-#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+
   return *this;
 }
 
@@ -527,7 +506,6 @@ bool operator==(const SbMediaVideoSampleInfo& sample_info_1,
     return true;
   }
 
-#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
   if (strcmp(sample_info_1.mime, sample_info_2.mime) != 0) {
     return false;
   }
@@ -535,7 +513,6 @@ bool operator==(const SbMediaVideoSampleInfo& sample_info_1,
              sample_info_2.max_video_capabilities) != 0) {
     return false;
   }
-#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 
   if (sample_info_1.is_key_frame != sample_info_2.is_key_frame) {
     return false;

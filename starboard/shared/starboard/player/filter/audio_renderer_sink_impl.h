@@ -42,9 +42,7 @@ class AudioRendererSinkImpl : public AudioRendererSink {
       int frame_buffers_size_in_frames,
       SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
       SbAudioSinkPrivate::ConsumeFramesFunc consume_frames_func,
-#if SB_API_VERSION >= 12
       SbAudioSinkPrivate::ErrorFunc error_func,
-#endif  // SB_API_VERSION >= 12
       void* context)>
       CreateAudioSinkFunc;
 

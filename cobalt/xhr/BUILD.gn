@@ -57,6 +57,7 @@ target(gtest_target_type, "xhr_test") {
     "//cobalt/test:run_all_unittests",
     "//testing/gmock",
     "//testing/gtest",
+    "//url",
 
     # TODO: Remove the dependency below, it works around the fact that
     #       ScriptValueFactory has non-virtual method CreatePromise().

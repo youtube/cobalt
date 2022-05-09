@@ -28,6 +28,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "starboard/common/log.h"
@@ -769,7 +770,6 @@ std::vector<InputDeviceInfo> GetInputDevices() {
   }
 
   while (true) {
-#if SB_API_VERSION >= 12
     std::vector<char> entry(kSbFileMaxName);
 
     if (!SbDirectoryGetNext(directory, entry.data(), kSbFileMaxName)) {
@@ -779,17 +779,6 @@ std::vector<InputDeviceInfo> GetInputDevices() {
     std::string path = kDevicePath;
     path += "/";
     path += entry.data();
-#else   // SB_API_VERSION >= 12
-    SbDirectoryEntry entry;
-
-    if (!SbDirectoryGetNext(directory, &entry)) {
-      break;
-    }
-
-    std::string path = kDevicePath;
-    path += "/";
-    path += entry.name;
-#endif  // SB_API_VERSION >= 12
 
     if (SbDirectoryCanOpen(path.c_str())) {
       // This is a subdirectory. Skip.

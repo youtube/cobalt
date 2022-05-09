@@ -12,15 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/configuration.h"
-#if SB_API_VERSION >= 12 || SB_HAS(GLES2)
-
 #include "cobalt/renderer/backend/egl/texture_data_cpu.h"
 
+#include <memory>
 #include "base/memory/aligned_memory.h"
 #include "cobalt/renderer/backend/egl/graphics_context.h"
 #include "cobalt/renderer/backend/egl/utils.h"
 #include "cobalt/renderer/egl_and_gles.h"
+#include "starboard/configuration.h"
 #include "starboard/memory.h"
 
 namespace cobalt {
@@ -54,7 +53,7 @@ GLuint UploadPixelDataToNewTexture(GraphicsContextEGL* graphics_context,
         base::AlignedAlloc(width_in_bytes * size.height(), 8)));
     for (int i = 0; i < size.height(); ++i) {
       memcpy(buffer_for_pitch_adjustment.get() + i * width_in_bytes,
-                   data + i * pitch_in_bytes, width_in_bytes);
+             data + i * pitch_in_bytes, width_in_bytes);
     }
     data = reinterpret_cast<uint8_t*>(buffer_for_pitch_adjustment.get());
   }
@@ -121,5 +120,3 @@ GLuint RawTextureMemoryCPU::CreateTexture(GraphicsContextEGL* graphics_context,
 }  // namespace backend
 }  // namespace renderer
 }  // namespace cobalt
-
-#endif  // SB_API_VERSION >= 12 || SB_HAS(GLES2)

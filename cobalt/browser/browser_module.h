@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "base/observer_list.h"
+#include "base/optional.h"
 #include "base/synchronization/lock.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/thread.h"
@@ -40,6 +41,7 @@
 #include "cobalt/browser/memory_settings/checker.h"
 #include "cobalt/browser/render_tree_combiner.h"
 #include "cobalt/browser/screen_shot_writer.h"
+#include "cobalt/browser/service_worker_registry.h"
 #include "cobalt/browser/splash_screen.h"
 #include "cobalt/browser/suspend_fuzzer.h"
 #include "cobalt/browser/system_platform_error_handler.h"
@@ -91,6 +93,7 @@ namespace browser {
 // different subsystems together.
 class BrowserModule {
  public:
+  typedef base::Callback<void(WebModule*)> WebModuleCreatedCallback;
   // All browser subcomponent options should have default constructors that
   // setup reasonable default options.
   struct Options {
@@ -103,7 +106,7 @@ class BrowserModule {
     renderer::RendererModule::Options renderer_module_options;
     WebModule::Options web_module_options;
     media::MediaModule::Options media_module_options;
-    base::Closure web_module_created_callback;
+    WebModuleCreatedCallback web_module_created_callback;
     memory_settings::AutoMemSettings command_line_auto_mem_settings;
     memory_settings::AutoMemSettings build_auto_mem_settings;
     base::Optional<GURL> fallback_splash_screen_url;
@@ -183,6 +186,9 @@ class BrowserModule {
   void Reveal(SbTimeMonotonic timestamp);
   void Focus(SbTimeMonotonic timestamp);
 
+  // Gets current application state.
+  base::ApplicationState GetApplicationState();
+
   // Attempt to reduce overall memory consumption. Called in response to a
   // system indication that memory usage is nearing a critical level.
   void ReduceMemory();
@@ -197,7 +203,6 @@ class BrowserModule {
   // Called when a kSbEventTypeWindowSizeChange event is fired.
   void OnWindowSizeChanged(const cssom::ViewportSize& viewport_size);
 
-#if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
   void OnOnScreenKeyboardShown(const base::OnScreenKeyboardShownEvent* event);
   void OnOnScreenKeyboardHidden(const base::OnScreenKeyboardHiddenEvent* event);
   void OnOnScreenKeyboardFocused(
@@ -206,13 +211,8 @@ class BrowserModule {
       const base::OnScreenKeyboardBlurredEvent* event);
   void OnOnScreenKeyboardSuggestionsUpdated(
       const base::OnScreenKeyboardSuggestionsUpdatedEvent* event);
-#endif  // SB_API_VERSION >= 12 ||
-        // SB_HAS(ON_SCREEN_KEYBOARD)
-
-#if SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
   void OnCaptionSettingsChanged(
       const base::AccessibilityCaptionSettingsChangedEvent* event);
-#endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
 
   void OnWindowOnOnlineEvent(const base::Event* event);
   void OnWindowOnOfflineEvent(const base::Event* event);
@@ -229,9 +229,6 @@ class BrowserModule {
   static void GetParamMap(const std::string& url,
                           std::map<std::string, std::string>& map);
 
-  // Pass the application preload or start timestamps from Starboard.
-  void SetApplicationStartOrPreloadTimestamp(bool is_preload,
-                                             SbTimeMonotonic timestamp);
   // Pass the deeplink timestamp from Starboard.
   void SetDeepLinkTimestamp(SbTimeMonotonic timestamp);
 
@@ -280,14 +277,11 @@ class BrowserModule {
   // persist the user's preference.
   void SaveDebugConsoleMode();
 
-#if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
   // Glue function to deal with the production of an input event from an on
   // screen keyboard input device, and manage handing it off to the web module
   // for interpretation.
   void OnOnScreenKeyboardInputEventProduced(base::Token type,
                                             const dom::InputEventInit& event);
-#endif  // SB_API_VERSION >= 12 ||
-        // SB_HAS(ON_SCREEN_KEYBOARD)
 
   // Glue function to deal with the production of a keyboard input event from a
   // keyboard input device, and manage handing it off to the web module for
@@ -306,13 +300,10 @@ class BrowserModule {
   // interpretation.
   void OnWheelEventProduced(base::Token type, const dom::WheelEventInit& event);
 
-#if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
   // Injects an on screen keyboard input event directly into the main web
   // module.
   void InjectOnScreenKeyboardInputEventToMainWebModule(
       base::Token type, const dom::InputEventInit& event);
-#endif  // SB_API_VERSION >= 12 ||
-        // SB_HAS(ON_SCREEN_KEYBOARD)
 
   // Injects a key event directly into the main web module, useful for setting
   // up an input fuzzer whose input should be sent directly to the main
@@ -452,8 +443,8 @@ class BrowserModule {
   // Gets a viewport size to use for now. This may change depending on the
   // current application state. While concealed, this returns the requested
   // viewport size. If there was no requested viewport size, it returns a
-  // default viewport size of 1280x720 (720p). Once a system window is created,
-  // it returns the confirmed size of the window.
+  // default viewport size of 1920x1080 (1080p). Once a system window is
+  // created, it returns the confirmed size of the window.
   cssom::ViewportSize GetViewportSize();
 
   // Applies the current AutoMem settings to all applicable submodules.
@@ -477,8 +468,7 @@ class BrowserModule {
 
   // Function that creates the H5vcc object that will be injected into WebModule
   scoped_refptr<script::Wrappable> CreateH5vcc(
-      const scoped_refptr<dom::Window>& window,
-      script::GlobalEnvironment* global_environment);
+      script::EnvironmentSettings* settings);
 
   // TODO:
   //     WeakPtr usage here can be avoided if BrowserModule has a thread to
@@ -499,7 +489,7 @@ class BrowserModule {
   base::WeakPtr<BrowserModule> weak_this_;
 
   // Memory configuration tool.
-  std::unique_ptr<memory_settings::AutoMem> auto_mem_;
+  memory_settings::AutoMem auto_mem_;
 
   // A copy of the BrowserModule Options passed into the constructor.
   Options options_;
@@ -544,7 +534,7 @@ class BrowserModule {
   // Allows checking if particular media type can be played.
   std::unique_ptr<media::CanPlayTypeHandler> can_play_type_handler_;
 
-  // Sets up the network component for requesting internet resources.
+  // Manages the network component for requesting internet resources.
   network::NetworkModule* network_module_;
 
 #if SB_IS(EVERGREEN)
@@ -588,7 +578,7 @@ class BrowserModule {
 
   // This will be called after a WebModule has been recreated, which could occur
   // on navigation.
-  base::Closure web_module_created_callback_;
+  WebModuleCreatedCallback web_module_created_callback_;
 
   // The time when a URL navigation starts. This is recorded after the previous
   // WebModule is destroyed.
@@ -637,6 +627,9 @@ class BrowserModule {
   // An object that registers and owns console commands for controlling
   // Cobalt's lifecycle.
   LifecycleConsoleCommands lifecycle_console_commands_;
+
+  // Saves the previous debugger state to be restored in the new WebModule.
+  std::unique_ptr<debug::backend::DebuggerState> debugger_state_;
 #endif  // defined(ENABLE_DEBUGGER)
 
   // The splash screen. The pointer wrapped here should be non-NULL iff
@@ -722,6 +715,9 @@ class BrowserModule {
   // Save the current window size before transitioning to Concealed state,
   // and reuse this value to recreate the window.
   math::Size window_size_;
+
+  // Manages the Service Workers.
+  ServiceWorkerRegistry service_worker_registry_;
 };
 
 }  // namespace browser

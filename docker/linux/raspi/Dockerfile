@@ -40,5 +40,5 @@ RUN cd /tmp \
     && tar xjvf /tmp/${raspi_tools} \
     && rm /tmp/${raspi_tools}
 
-CMD /code/cobalt/build/gyp_cobalt -v -C ${CONFIG} ${PLATFORM} \
-    && ninja -v -j ${NINJA_PARALLEL} -C ${OUTDIR}/${PLATFORM}_${CONFIG} ${TARGET:-cobalt_deploy}
+CMD gn gen ${OUTDIR}/${PLATFORM}_${CONFIG} --args="target_platform=\"${PLATFORM}\" build_type=\"${CONFIG}\" target_cpu=\"arm\" is_clang=false" && \
+    ninja -v -j ${NINJA_PARALLEL} -C ${OUTDIR}/${PLATFORM}_${CONFIG} ${TARGET:-cobalt_install}

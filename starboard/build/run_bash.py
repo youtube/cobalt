@@ -25,10 +25,11 @@ import subprocess
 import sys
 
 if __name__ == '__main__':
-  logging_format = '[%(levelname)s:%(filename)s:%(lineno)s] %(message)s'
-  logging.basicConfig(
-      level=logging.INFO, format=logging_format, datefmt='%H:%M:%S')
-  logging.warning('Calling a bash process during GN build. '
-                  'Avoid doing this whenever possible.')
-
+  if sys.argv[1] == 'python2':
+    logging_format = '[%(levelname)s:%(filename)s:%(lineno)s] %(message)s'
+    logging.basicConfig(
+        level=logging.INFO, format=logging_format, datefmt='%H:%M:%S')
+    logging.warning('Calling a bash process that just invokes python2 during '
+                    'GN build. Please avoid doing this whenever possible and '
+                    'see b/219602840 for more context.')
   sys.exit(subprocess.call(sys.argv[1:]))

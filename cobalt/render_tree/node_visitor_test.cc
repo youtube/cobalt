@@ -109,15 +109,14 @@ class DummyImage : public Image {
 };
 
 class DummyBrush : public Brush {
-  void Accept(BrushVisitor* visitor) const override {
-  }
+  void Accept(BrushVisitor* visitor) const override {}
 
   base::TypeId GetTypeId() const override {
     return base::GetTypeId<DummyBrush>();
   }
 };
 
-bool SetBounds(const cobalt::math::Rect&) { return false; }
+bool SetBounds(int x, int y, int width, int height) { return false; }
 
 }  // namespace
 

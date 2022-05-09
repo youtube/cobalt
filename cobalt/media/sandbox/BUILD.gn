@@ -23,9 +23,8 @@ target(final_executable_type, "media_sandbox") {
     "//cobalt/math",
     "//cobalt/media",
     "//starboard",
+    "//third_party/chromium/media",
   ]
-
-  content_deps = [ "//third_party/icu:icudata" ]
 }
 
 target(final_executable_type, "web_media_player_sandbox") {
@@ -55,6 +54,7 @@ target(final_executable_type, "web_media_player_sandbox") {
     "//cobalt/system_window",
     "//cobalt/trace_event",
     "//starboard",
+    "//third_party/chromium/media",
     "//url",
   ]
 

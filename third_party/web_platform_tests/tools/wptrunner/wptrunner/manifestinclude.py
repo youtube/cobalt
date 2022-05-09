@@ -91,7 +91,7 @@ class IncludeManifest(ManifestItem):
         if paths:
             urls = []
             for path in paths:
-                for manifest, data in test_manifests.iteritems():
+                for manifest, data in test_manifests.items():
                     found = False
                     rel_path = os.path.relpath(path, data["tests_path"])
                     iterator = manifest.iterpath if os.path.isfile(path) else manifest.iterdir

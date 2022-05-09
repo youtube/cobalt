@@ -28,7 +28,6 @@ const char* GetMediaAudioCodecName(SbMediaAudioCodec codec) {
       return "none";
     case kSbMediaAudioCodecAac:
       return "aac";
-#if SB_API_VERSION >= 12 || SB_HAS(AC3_AUDIO)
     case kSbMediaAudioCodecAc3:
       if (!kSbHasAc3Audio) {
         SB_NOTREACHED() << "AC3 audio is not enabled on this platform. To "
@@ -43,8 +42,6 @@ const char* GetMediaAudioCodecName(SbMediaAudioCodec codec) {
         return "invalid";
       }
       return "ec3";
-#endif  // SB_API_VERSION >= 12 ||
-        // SB_HAS(AC3_AUDIO)
     case kSbMediaAudioCodecOpus:
       return "opus";
     case kSbMediaAudioCodecVorbis:
@@ -267,19 +264,21 @@ std::ostream& operator<<(std::ostream& os,
   if (sample_info.codec == kSbMediaVideoCodecNone) {
     return os;
   }
+
   os << "codec: " << GetMediaVideoCodecName(sample_info.codec) << ", ";
-#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
   os << "mime: " << (sample_info.mime ? sample_info.mime : "<null>")
      << ", max video capabilities: "
      << (sample_info.max_video_capabilities ? sample_info.max_video_capabilities
                                             : "<null>")
      << ", ";
-#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
+
   if (sample_info.is_key_frame) {
     os << "key frame, ";
   }
+
   os << sample_info.frame_width << 'x' << sample_info.frame_height << ' ';
   os << '(' << sample_info.color_metadata << ')';
+
   return os;
 }
 
@@ -291,10 +290,9 @@ std::ostream& operator<<(std::ostream& os,
   if (sample_info.codec == kSbMediaAudioCodecNone) {
     return os;
   }
+
   os << "codec: " << GetMediaAudioCodecName(sample_info.codec) << ", ";
-#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
   os << "mime: " << (sample_info.mime ? sample_info.mime : "<null>");
-#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
   os << "channels: " << sample_info.number_of_channels
      << ", sample rate: " << sample_info.samples_per_second
      << ", config: " << sample_info.audio_specific_config_size << " bytes, "
@@ -305,5 +303,6 @@ std::ostream& operator<<(std::ostream& os,
                      16),
             " ")
      << (sample_info.audio_specific_config_size > 16 ? " ...]" : " ]");
+
   return os;
 }

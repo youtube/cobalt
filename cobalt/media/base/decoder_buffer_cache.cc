@@ -66,7 +66,7 @@ void DecoderBufferCache::StartResuming() {
   video_buffer_index_ = 0;
 }
 
-scoped_refptr<DecoderBuffer> DecoderBufferCache::GetBuffer(
+scoped_refptr<::media::DecoderBuffer> DecoderBufferCache::GetBuffer(
     DemuxerStream::Type type) const {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 

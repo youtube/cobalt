@@ -66,7 +66,19 @@ target(final_executable_type, "cobalt") {
     ]
   }
   if (!is_gold) {
-    content_deps += [ "//cobalt/debug:copy_backend_web_files" ]
+    content_deps += [
+      "//cobalt/debug/backend/content:copy_backend_web_files",
+      "//cobalt/debug/console/content:copy_console_web_files",
+      "//cobalt/debug/remote/content:copy_remote_web_files",
+      "//third_party/devtools:build_release_devtools",
+      "//third_party/devtools:copy_devtools_modules",
+      "//third_party/devtools:copy_inspector_images",
+      "//third_party/devtools:frontend_protocol_sources",
+      "//third_party/devtools:supported_css_properties",
+    ]
+  }
+  if (defined(platform_i18n_config_path)) {
+    content_deps += [ platform_i18n_config_path ]
   }
 }
 
@@ -104,6 +116,8 @@ static_library("browser") {
     "render_tree_combiner.h",
     "screen_shot_writer.cc",
     "screen_shot_writer.h",
+    "service_worker_registry.cc",
+    "service_worker_registry.h",
     "splash_screen.cc",
     "splash_screen.h",
     "splash_screen_cache.cc",
@@ -163,6 +177,8 @@ static_library("browser") {
     "//cobalt/system_window",
     "//cobalt/trace_event",
     "//cobalt/ui_navigation",
+    "//cobalt/watchdog",
+    "//cobalt/web",
     "//cobalt/webdriver",
     "//cobalt/websocket",
     "//cobalt/worker",
@@ -176,14 +192,19 @@ static_library("browser") {
     "//url",
   ]
 
-  if (!is_gold) {
+  if (is_gold) {
+    defines = [ "COBALT_FORCE_HTTPS" ]
+  } else {
     sources += [
       "debug_console.cc",
       "debug_console.h",
       "lifecycle_console_commands.cc",
       "lifecycle_console_commands.h",
     ]
-    defines = [ "ENABLE_ABOUT_SCHEME" ]
+    defines = [
+      "ENABLE_ABOUT_SCHEME",
+      "COBALT_ENABLE_JAVASCRIPT_ERROR_LOGGING",
+    ]
     deps += [
       "//cobalt/debug",
       "//cobalt/debug:console_command_manager",
@@ -276,6 +297,7 @@ source_set("generated_bindings_sources") {
   deps = [
     # Ensure that all the files have been generated before trying to compile.
     ":generated_types",
+    "//cobalt/h5vcc",
     "//cobalt/webdriver",
   ]
 }
@@ -388,4 +410,15 @@ cache_lex_tables("cached_lex_yacc_tables") {
 
 cache_templates("cached_jinja_templates") {
   output_dir = _bindings_scripts_output_dir
+}
+
+target(final_executable_type, "snapshot_app_stats") {
+  sources = [ "snapshot_app_stats.cc" ]
+  deps = [
+    ":browser",
+    ":browser_switches",
+    ":cobalt",
+    "//cobalt/base",
+    "//third_party/protobuf:protobuf_lite",
+  ]
 }

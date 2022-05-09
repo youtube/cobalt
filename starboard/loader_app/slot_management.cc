@@ -43,33 +43,41 @@ const char kCobaltLibraryPath[] = "lib";
 // Filename for the Cobalt binary.
 const char kCobaltLibraryName[] = "libcobalt.so";
 
+// Filename for the compressed Cobalt binary.
+const char kCompressedCobaltLibraryName[] = "libcobalt.lz4";
+
 // Relative path for the content directory of
 // the Cobalt installation.
 const char kCobaltContentPath[] = "content";
 
 }  // namespace
 
-int RevertBack(int current_installation, const std::string& app_key) {
+int RevertBack(int current_installation,
+               const std::string& app_key,
+               bool mark_bad) {
   SB_LOG(INFO) << "RevertBack current_installation=" << current_installation;
   SB_DCHECK(current_installation != 0);
-  std::vector<char> installation_path(kSbFileMaxPath);
-  if (ImGetInstallationPath(current_installation, installation_path.data(),
-                            kSbFileMaxPath) != IM_ERROR) {
-    std::string bad_app_key_file_path =
-        starboard::loader_app::GetBadAppKeyFilePath(installation_path.data(),
-                                                    app_key);
-    if (bad_app_key_file_path.empty()) {
-      SB_LOG(WARNING) << "Failed to get bad app key file path for path="
-                      << installation_path.data() << " and app_key=" << app_key;
-    } else {
-      if (!starboard::loader_app::CreateAppKeyFile(bad_app_key_file_path)) {
-        SB_LOG(WARNING) << "Failed to create bad app key file: "
-                        << bad_app_key_file_path;
+  if (mark_bad) {
+    std::vector<char> installation_path(kSbFileMaxPath);
+    if (ImGetInstallationPath(current_installation, installation_path.data(),
+                              kSbFileMaxPath) != IM_ERROR) {
+      std::string bad_app_key_file_path =
+          starboard::loader_app::GetBadAppKeyFilePath(installation_path.data(),
+                                                      app_key);
+      if (bad_app_key_file_path.empty()) {
+        SB_LOG(WARNING) << "Failed to get bad app key file path for path="
+                        << installation_path.data()
+                        << " and app_key=" << app_key;
+      } else {
+        if (!starboard::loader_app::CreateAppKeyFile(bad_app_key_file_path)) {
+          SB_LOG(WARNING) << "Failed to create bad app key file: "
+                          << bad_app_key_file_path;
+        }
       }
+    } else {
+      SB_LOG(WARNING) << "Failed to get installation path for index: "
+                      << current_installation;
     }
-  } else {
-    SB_LOG(WARNING) << "Failed to get installation path for index: "
-                    << current_installation;
   }
   current_installation = ImRevertToSuccessfulInstallation();
   return current_installation;
@@ -124,7 +132,13 @@ bool AdoptInstallation(int current_installation,
 
 void* LoadSlotManagedLibrary(const std::string& app_key,
                              const std::string& alternative_content_path,
-                             LibraryLoader* library_loader) {
+                             LibraryLoader* library_loader,
+                             bool use_compression,
+                             bool use_memory_mapped_file) {
+  if (use_compression && use_memory_mapped_file) {
+    SB_LOG(ERROR) << "Using both compression and mmap files is not supported";
+    return NULL;
+  }
   // Initialize the Installation Manager.
   SB_CHECK(ImInitialize(kMaxNumInstallations, app_key.c_str()) == IM_SUCCESS)
       << "Abort. Failed to initialize Installation Manager";
@@ -150,7 +164,8 @@ void* LoadSlotManagedLibrary(const std::string& app_key,
         // discard the image and auto rollback, but only if
         // the current image is not the system image.
         if (current_installation != 0) {
-          current_installation = RevertBack(current_installation, app_key);
+          current_installation =
+              RevertBack(current_installation, app_key, true /* mark_bad */);
         }
       }
     }
@@ -167,7 +182,8 @@ void* LoadSlotManagedLibrary(const std::string& app_key,
       // Hard failure. Discard the image and auto rollback, but only if
       // the current image is not the system image.
       if (current_installation != 0) {
-        current_installation = RevertBack(current_installation, app_key);
+        current_installation =
+            RevertBack(current_installation, app_key, true /* mark_bad */);
         continue;
       } else {
         // The system image at index 0 failed.
@@ -178,41 +194,49 @@ void* LoadSlotManagedLibrary(const std::string& app_key,
     SB_DLOG(INFO) << "installation_path=" << installation_path.data();
 
     if (current_installation != 0) {
-      // Cleanup expired drain files
-      DrainFileClear(installation_path.data(), app_key.c_str(), true);
+      // Cleanup all expired files from all apps.
+      DrainFileClearExpired(installation_path.data());
+
+      // Cleanup all drain files from the current app.
+      DrainFileClearForApp(installation_path.data(), app_key.c_str());
 
       // Check for bad file.
       if (CheckBadFileExists(installation_path.data(), app_key.c_str())) {
         SB_LOG(INFO) << "Bad app key file";
-        current_installation = RevertBack(current_installation, app_key);
+        current_installation =
+            RevertBack(current_installation, app_key, true /* mark_bad */);
         continue;
       }
       // If the current installation is in use by an updater roll back.
-      if (DrainFileDraining(installation_path.data(), "")) {
+      if (DrainFileIsAnotherAppDraining(installation_path.data(),
+                                        app_key.c_str())) {
         SB_LOG(INFO) << "Active slot draining";
-        current_installation = RevertBack(current_installation, app_key);
+        current_installation =
+            RevertBack(current_installation, app_key, false /* mark_bad */);
         continue;
       }
       // Adopt installation performed from different app.
       if (!AdoptInstallation(current_installation, installation_path.data(),
                              app_key.c_str())) {
         SB_LOG(INFO) << "Unable to adopt installation";
-        current_installation = RevertBack(current_installation, app_key);
+        current_installation =
+            RevertBack(current_installation, app_key, true /* mark_bad */);
         continue;
       }
     }
 
     // installation_n/lib/libcobalt.so
     std::vector<char> lib_path(kSbFileMaxPath);
+    std::string library_name;
+    if (use_compression) {
+      library_name = kCompressedCobaltLibraryName;
+    } else {
+      library_name = kCobaltLibraryName;
+    }
     SbStringFormatF(lib_path.data(), kSbFileMaxPath, "%s%s%s%s%s",
                     installation_path.data(), kSbFileSepString,
-                    kCobaltLibraryPath, kSbFileSepString, kCobaltLibraryName);
-    if (!SbFileExists(lib_path.data())) {
-      // Try the compressed path if the binary doesn't exits.
-      starboard::strlcat(lib_path.data(),
-                         starboard::elf_loader::kCompressionSuffix,
-                         kSbFileMaxPath);
-    }
+                    kCobaltLibraryPath, kSbFileSepString, library_name.c_str());
+
     SB_LOG(INFO) << "lib_path=" << lib_path.data();
 
     std::string content;
@@ -229,13 +253,15 @@ void* LoadSlotManagedLibrary(const std::string& app_key,
 
     SB_LOG(INFO) << "content=" << content;
 
-    if (!library_loader->Load(lib_path.data(), content.c_str())) {
+    if (!library_loader->Load(lib_path.data(), content.c_str(), use_compression,
+                              use_memory_mapped_file)) {
       SB_LOG(WARNING) << "Failed to load Cobalt!";
 
       // Hard failure. Discard the image and auto rollback, but only if
       // the current image is not the system image.
       if (current_installation != 0) {
-        current_installation = RevertBack(current_installation, app_key);
+        current_installation =
+            RevertBack(current_installation, app_key, true /* mark_bad */);
         continue;
       } else {
         // The system image at index 0 failed.
@@ -261,7 +287,8 @@ void* LoadSlotManagedLibrary(const std::string& app_key,
       // Hard failure. Discard the image and auto rollback, but only if
       // the current image is not the system image.
       if (current_installation != 0) {
-        current_installation = RevertBack(current_installation, app_key);
+        current_installation =
+            RevertBack(current_installation, app_key, true /* mark_bad */);
         continue;
       } else {
         // The system image at index 0 failed.
@@ -294,7 +321,8 @@ void* LoadSlotManagedLibrary(const std::string& app_key,
       // Hard failure. Discard the image and auto rollback, but only if
       // the current image is not the system image.
       if (current_installation != 0) {
-        current_installation = RevertBack(current_installation, app_key);
+        current_installation =
+            RevertBack(current_installation, app_key, true /* mark_bad */);
         continue;
       } else {
         // The system image at index 0 failed.

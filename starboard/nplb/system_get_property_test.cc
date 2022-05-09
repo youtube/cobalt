@@ -81,12 +81,7 @@ TEST(SbSystemGetPropertyTest, ReturnsRequired) {
 
   BasicTest(kSbSystemPropertyChipsetModelNumber, false, true, __LINE__);
   BasicTest(kSbSystemPropertyFirmwareVersion, false, true, __LINE__);
-#if SB_API_VERSION >= 12
   BasicTest(kSbSystemPropertySystemIntegratorName, false, true, __LINE__);
-#else
-  BasicTest(kSbSystemPropertyOriginalDesignManufacturerName,
-            false, true, __LINE__);
-#endif
   BasicTest(kSbSystemPropertySpeechApiKey, false, true, __LINE__);
 
   if (IsCEDevice(SbSystemGetDeviceType())) {
@@ -126,12 +121,7 @@ TEST(SbSystemGetPropertyTest, DoesNotTouchOutputBufferOnFailureForDefinedIds) {
   UnmodifiedOnFailureTest(kSbSystemPropertyBrandName, __LINE__);
   UnmodifiedOnFailureTest(kSbSystemPropertyModelName, __LINE__);
   UnmodifiedOnFailureTest(kSbSystemPropertyModelYear, __LINE__);
-#if SB_API_VERSION >= 12
   UnmodifiedOnFailureTest(kSbSystemPropertySystemIntegratorName, __LINE__);
-#else
-  UnmodifiedOnFailureTest(kSbSystemPropertyOriginalDesignManufacturerName,
-                          __LINE__);
-#endif
   UnmodifiedOnFailureTest(kSbSystemPropertyPlatformName, __LINE__);
   UnmodifiedOnFailureTest(kSbSystemPropertySpeechApiKey, __LINE__);
   UnmodifiedOnFailureTest(kSbSystemPropertyUserAgentAuxField, __LINE__);
@@ -149,18 +139,14 @@ TEST(SbSystemGetPropertyTest, SpeechApiKeyNotLeaked) {
   }
 
   SbSystemPropertyId enum_values[] = {
-    kSbSystemPropertyChipsetModelNumber,
-    kSbSystemPropertyFirmwareVersion,
-    kSbSystemPropertyFriendlyName,
-    kSbSystemPropertyManufacturerName,
-    kSbSystemPropertyModelName,
-    kSbSystemPropertyModelYear,
-#if SB_API_VERSION >= 12
-    kSbSystemPropertySystemIntegratorName,
-#else
-    kSbSystemPropertyOriginalDesignManufacturerName,
-#endif
-    kSbSystemPropertyPlatformName,
+      kSbSystemPropertyChipsetModelNumber,
+      kSbSystemPropertyFirmwareVersion,
+      kSbSystemPropertyFriendlyName,
+      kSbSystemPropertyManufacturerName,
+      kSbSystemPropertyModelName,
+      kSbSystemPropertyModelYear,
+      kSbSystemPropertySystemIntegratorName,
+      kSbSystemPropertyPlatformName,
   };
 
   for (SbSystemPropertyId val : enum_values) {

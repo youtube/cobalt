@@ -21,14 +21,11 @@
 #define STARBOARD_ONCE_H_
 
 #include "starboard/export.h"
-#include "starboard/thread_types.h"
 #include "starboard/types.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#if SB_API_VERSION >= 12
 
 // Max size of the SbOnceControl type.
 #define SB_ONCE_MAX_SIZE 64
@@ -52,8 +49,6 @@ typedef union SbOnceControl {
 #define SB_ONCE_INITIALIZER \
   { 0 }
 #endif
-
-#endif  // SB_API_VERSION >= 12
 
 // Function pointer type for methods that can be called via the SbOnce() system.
 typedef void (*SbOnceInitRoutine)(void);
@@ -81,18 +76,16 @@ SB_EXPORT bool SbOnce(SbOnceControl* once_control,
 //   MyClass* instance = GetOrCreateMyClass();
 //   MyClass* instance2 = GetOrCreateMyClass();
 //   DCHECK_EQ(instance, instance2);
-#define SB_ONCE_INITIALIZE_FUNCTION(Type, FunctionName)    \
-Type* FunctionName() {                                     \
-  static SbOnceControl s_once_flag = SB_ONCE_INITIALIZER;  \
-  static Type* s_singleton = NULL;                         \
-  struct Local {                                           \
-    static void Init() {                                   \
-      s_singleton = new Type();                            \
-    }                                                      \
-  };                                                       \
-  SbOnce(&s_once_flag, Local::Init);                       \
-  return s_singleton;                                      \
-}
+#define SB_ONCE_INITIALIZE_FUNCTION(Type, FunctionName)     \
+  Type* FunctionName() {                                    \
+    static SbOnceControl s_once_flag = SB_ONCE_INITIALIZER; \
+    static Type* s_singleton = NULL;                        \
+    struct Local {                                          \
+      static void Init() { s_singleton = new Type(); }      \
+    };                                                      \
+    SbOnce(&s_once_flag, Local::Init);                      \
+    return s_singleton;                                     \
+  }
 #endif  // __cplusplus
 
 #ifdef __cplusplus

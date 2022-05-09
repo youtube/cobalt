@@ -45,12 +45,16 @@ void H5vccTraceEvent::Stop() {
   }
 }
 
-std::string H5vccTraceEvent::Read() {
+std::string H5vccTraceEvent::Read(const std::string& read_filename) {
   if (trace_to_file_) {
     Stop();
   }
   std::string trace;
-  if (!last_absolute_path_.empty()) {
+  if (!read_filename.empty()) {
+    auto path = trace_event::ScopedTraceToFile::filepath_to_absolute(
+        base::FilePath(read_filename));
+    ReadFileToString(path, &trace);
+  } else if (!last_absolute_path_.empty()) {
     ReadFileToString(last_absolute_path_, &trace);
   }
   return trace;

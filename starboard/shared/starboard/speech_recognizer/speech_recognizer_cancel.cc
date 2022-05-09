@@ -14,8 +14,6 @@
 
 #include "starboard/speech_recognizer.h"
 
-#if SB_API_VERSION >= 12 || SB_HAS(SPEECH_RECOGNIZER)
-
 #include "starboard/common/log.h"
 #include "starboard/shared/starboard/speech_recognizer/speech_recognizer_internal.h"
 
@@ -24,5 +22,3 @@ void SbSpeechRecognizerCancel(SbSpeechRecognizer recognizer) {
     recognizer->Cancel();
   }
 }
-
-#endif  // SB_API_VERSION >= 12 || SB_HAS(SPEECH_RECOGNIZER)

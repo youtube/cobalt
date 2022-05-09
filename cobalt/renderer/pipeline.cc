@@ -29,15 +29,12 @@
 #include "cobalt/render_tree/clear_rect_node.h"
 #include "cobalt/render_tree/composition_node.h"
 #include "cobalt/render_tree/dump_render_tree_to_string.h"
+#include "cobalt/watchdog/watchdog.h"
 #include "nb/memory_scope.h"
 #include "starboard/system.h"
 
-using cobalt::render_tree::Node;
-using cobalt::render_tree::animations::AnimateNode;
-
 namespace cobalt {
 namespace renderer {
-
 namespace {
 
 #if !defined(COBALT_MINIMUM_FRAME_TIME_IN_MILLISECONDS)
@@ -69,6 +66,15 @@ const size_t kRasterizePeriodicTimerEntriesPerUpdate = 60;
 // before automatically updating. In the typical use case, the update will
 // occur manually when the animations expire.
 const size_t kRasterizeAnimationsTimerMaxEntries = 60;
+
+// The watchdog client name used to represent Pipeline.
+const char kWatchdogName[] = "renderer";
+// The watchdog time interval in microseconds allowed between pings before
+// triggering violations.
+const int64_t kWatchdogTimeInterval = 1000000;
+// The watchdog time wait in microseconds to initially wait before triggering
+// violations.
+const int64_t kWatchdogTimeWait = 2000000;
 
 void DestructSubmissionOnMessageLoop(base::MessageLoop* message_loop,
                                      std::unique_ptr<Submission> submission) {
@@ -183,6 +189,7 @@ Pipeline::Pipeline(const CreateRasterizerFunction& create_rasterizer_function,
       enable_fps_stdout_(options.enable_fps_stdout),
       enable_fps_overlay_(options.enable_fps_overlay),
       fps_overlay_update_pending_(false) {
+
   TRACE_EVENT0("cobalt::renderer", "Pipeline::Pipeline()");
   // The actual Pipeline can be constructed from any thread, but we want
   // rasterizer_thread_checker_ to be associated with the rasterizer thread,
@@ -202,6 +209,10 @@ Pipeline::Pipeline(const CreateRasterizerFunction& create_rasterizer_function,
 }
 
 Pipeline::~Pipeline() {
+  // Unregisters Pipeline as a watchdog client.
+  watchdog::Watchdog* watchdog = watchdog::Watchdog::GetInstance();
+  if (watchdog) watchdog->Unregister(std::string(kWatchdogName));
+
   TRACE_EVENT0("cobalt::renderer", "Pipeline::~Pipeline()");
 
   // First we shutdown the submission queue.  We do this as a separate step from
@@ -323,6 +334,13 @@ void Pipeline::SetNewRenderTree(const Submission& render_tree_submission) {
 
   TRACE_EVENT0("cobalt::renderer", "Pipeline::SetNewRenderTree()");
 
+  // Registers Pipeline as a watchdog client.
+  watchdog::Watchdog* watchdog = watchdog::Watchdog::GetInstance();
+  if (watchdog)
+    watchdog->Register(std::string(kWatchdogName),
+                       base::kApplicationStateStarted, kWatchdogTimeInterval,
+                       kWatchdogTimeWait, watchdog::PING);
+
   // If a time fence is active, save the submission to be queued only after
   // we pass the time fence.  Overwrite any existing waiting submission in this
   // case.
@@ -346,25 +364,10 @@ void Pipeline::SetNewRenderTree(const Submission& render_tree_submission) {
         graphics_context_
             ? graphics_context_->GetMinimumFrameIntervalInMilliseconds()
             : -1.0f;
-#if SB_API_VERSION >= 12 && defined(COBALT_MINIMUM_FRAME_TIME_IN_MILLISECONDS)
+#if defined(COBALT_MINIMUM_FRAME_TIME_IN_MILLISECONDS)
 #error \
     "'cobalt_minimum_frame_time_in_milliseconds' was replaced by" \
     "CobaltExtensionGraphicsApi::GetMinimumFrameIntervalInMilliseconds."
-#elif SB_API_VERSION < 12 && defined(COBALT_MINIMUM_FRAME_TIME_IN_MILLISECONDS)
-    COMPILE_ASSERT(COBALT_MINIMUM_FRAME_TIME_IN_MILLISECONDS > 0,
-                   frame_time_must_be_positive);
-    if (minimum_frame_interval_milliseconds < 0.0f) {
-      minimum_frame_interval_milliseconds =
-          COBALT_MINIMUM_FRAME_TIME_IN_MILLISECONDS;
-    } else {
-      DLOG(ERROR)
-          << "COBALT_MINIMUM_FRAME_TIME_IN_MILLISECONDS and "
-             "CobaltExtensionGraphicsApi::GetMinimumFrameIntervalInMilliseconds"
-             "are both defined."
-             "Remove the 'cobalt_minimum_frame_time_in_milliseconds' ";
-      "from ../gyp_configuration.gypi in favor of the usage of "
-      "CobaltExtensionGraphicsApi::GetMinimumFrameIntervalInMilliseconds."
-    }
 #else
     if (minimum_frame_interval_milliseconds < 0.0f) {
       minimum_frame_interval_milliseconds =
@@ -385,6 +388,10 @@ void Pipeline::ClearCurrentRenderTree() {
   DCHECK_CALLED_ON_VALID_THREAD(rasterizer_thread_checker_);
   TRACE_EVENT0("cobalt::renderer", "Pipeline::ClearCurrentRenderTree()");
 
+  // Unregisters Pipeline as a watchdog client.
+  watchdog::Watchdog* watchdog = watchdog::Watchdog::GetInstance();
+  if (watchdog) watchdog->Unregister(std::string(kWatchdogName));
+
   ResetSubmissionQueue();
   rasterize_timer_ = base::nullopt;
 }
@@ -393,6 +400,10 @@ void Pipeline::RasterizeCurrentTree() {
   TRACK_MEMORY_SCOPE("Renderer");
   DCHECK_CALLED_ON_VALID_THREAD(rasterizer_thread_checker_);
   TRACE_EVENT0("cobalt::renderer", "Pipeline::RasterizeCurrentTree()");
+
+  // Pings watchdog.
+  watchdog::Watchdog* watchdog = watchdog::Watchdog::GetInstance();
+  if (watchdog) watchdog->Ping(std::string(kWatchdogName));
 
   base::TimeTicks start_rasterize_time = base::TimeTicks::Now();
   Submission submission =

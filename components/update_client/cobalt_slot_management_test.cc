@@ -26,7 +26,6 @@
 #include "starboard/loader_app/system_get_extension_shim.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if SB_API_VERSION >= 12
 namespace update_client {
 namespace {
 
@@ -113,7 +112,7 @@ TEST_F(CobaltSlotManagementTest, SelectEmptySlot) {
   ASSERT_TRUE(cobalt_slot_management.Init(api_));
   base::FilePath dir;
   ASSERT_TRUE(cobalt_slot_management.SelectSlot(&dir));
-  ASSERT_TRUE(DrainFileDraining(dir.value().c_str(), kTestAppKey1));
+  ASSERT_TRUE(DrainFileIsAppDraining(dir.value().c_str(), kTestAppKey1));
   ASSERT_TRUE(base::EndsWith(dir.value(), "installation_1",
                              base::CompareCase::SENSITIVE));
 }
@@ -152,7 +151,7 @@ TEST_F(CobaltSlotManagementTest, SelectMinVersionSlot) {
   ASSERT_TRUE(cobalt_slot_management.Init(api_));
   base::FilePath dir;
   cobalt_slot_management.SelectSlot(&dir);
-  ASSERT_TRUE(DrainFileDraining(dir.value().c_str(), kTestAppKey1));
+  ASSERT_TRUE(DrainFileIsAppDraining(dir.value().c_str(), kTestAppKey1));
   LOG(INFO) << "dir=" << dir;
 
   ASSERT_TRUE(base::EndsWith(dir.value(), "installation_2",
@@ -178,12 +177,25 @@ TEST_F(CobaltSlotManagementTest, ConfirmSlot) {
   ASSERT_TRUE(base::EndsWith(dir.value(), "installation_1",
                              base::CompareCase::SENSITIVE));
 
-  ASSERT_TRUE(DrainFileDraining(dir.value().c_str(), kTestAppKey1));
+  ASSERT_TRUE(DrainFileIsAppDraining(dir.value().c_str(), kTestAppKey1));
 
   ASSERT_TRUE(cobalt_slot_management.ConfirmSlot(dir));
 
   ASSERT_EQ(IM_INSTALLATION_STATUS_NOT_SUCCESS, ImGetInstallationStatus(1));
   ASSERT_EQ(IM_MAX_NUM_TRIES, ImGetInstallationNumTriesLeft(1));
+}
+
+TEST_F(CobaltSlotManagementTest, CleanupAllDrainFiles) {
+  if (!storage_path_implemented_) {
+    return;
+  }
+  CobaltSlotManagement cobalt_slot_management;
+  ASSERT_TRUE(cobalt_slot_management.Init(api_));
+  base::FilePath dir;
+  ASSERT_TRUE(cobalt_slot_management.SelectSlot(&dir));
+  ASSERT_TRUE(DrainFileIsAppDraining(dir.value().c_str(), kTestAppKey1));
+  cobalt_slot_management.CleanupAllDrainFiles();
+  ASSERT_FALSE(DrainFileIsAppDraining(dir.value().c_str(), kTestAppKey1));
 }
 
 TEST_F(CobaltSlotManagementTest, CobaltFinishInstallation) {
@@ -285,4 +297,3 @@ TEST_F(CobaltSlotManagementTest,
 }  // namespace
 
 }  // namespace update_client
-#endif  // SB_API_VERSION >= 12

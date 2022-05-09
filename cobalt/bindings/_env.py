@@ -13,29 +13,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-"""Ask the parent directory to load the project environment."""
+"""Sets PYTHONPATH for third_party/blink modules to work correctly."""
 
-from imp import load_source
-import os
 from os import path
 import sys
 
-_ENV = path.abspath(path.join(path.dirname(__file__), path.pardir, '_env.py'))
-if not path.exists(_ENV):
-  print '%s: Can\'t find repo root.\nMissing parent: %s' % (__file__, _ENV)
-  sys.exit(1)
-load_source('', _ENV)
+_REPO_ROOT = path.abspath(
+    path.join(path.dirname(__file__), path.pardir, path.pardir))
+_BLINK_PATHS = [
+    path.join(_REPO_ROOT, 'third_party', 'blink', 'Tools', 'Scripts'),
+    path.join(_REPO_ROOT, 'third_party', 'blink', 'Source', 'bindings',
+              'scripts'),
+]
 
-# Add blink's Python tools to the path.
+if _REPO_ROOT not in sys.path:
+  sys.path.insert(0, _REPO_ROOT)
 
-from cobalt.tools import paths  # pylint: disable=g-import-not-at-top
-
-sys.path.append(
-    os.path.normpath(
-        os.path.join(paths.REPOSITORY_ROOT, 'third_party', 'blink', 'Tools',
-                     'Scripts')))
-
-sys.path.append(
-    os.path.normpath(
-        os.path.join(paths.REPOSITORY_ROOT, 'third_party', 'blink', 'Source',
-                     'bindings', 'scripts')))
+for path in _BLINK_PATHS:
+  if path not in sys.path:
+    sys.path.append(path)

@@ -12,9 +12,6 @@
 #include "base/logging.h"
 #include "base/task/post_task.h"
 #include "base/task/task_traits.h"
-#if defined(STARBOARD)
-#include "base/threading/thread_id_name_manager.h"
-#endif
 #include "base/threading/thread_task_runner_handle.h"
 #include "build/build_config.h"
 #if defined(OS_WIN)
@@ -179,8 +176,7 @@ void CrxDownloader::VerifyResponse(bool is_handled,
   DCHECK_EQ(0, download_metrics.error);
   DCHECK(is_handled);
 #if defined(STARBOARD)
-  LOG(INFO) << "CrxDownloader::VerifyResponse thread_name="
-    << base::ThreadIdNameManager::GetInstance()->GetNameForCurrentThread();
+  LOG(INFO) << "CrxDownloader::VerifyResponse";
 #endif
   if (VerifyFileHash256(result.response, expected_hash_)) {
     download_metrics_.push_back(download_metrics);

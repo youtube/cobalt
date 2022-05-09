@@ -15,6 +15,7 @@
 #include "cobalt/network/network_delegate.h"
 
 #include <set>
+#include <utility>
 
 #include "cobalt/network/local_network.h"
 #include "cobalt/network/socket_address_parser.h"
@@ -64,12 +65,7 @@ int NetworkDelegate::OnBeforeURLRequest(net::URLRequest* request,
   // This will be our host string if we are not using IPV6.
   host.append(valid_spec_cstr + parsed.host.begin,
               valid_spec_cstr + parsed.host.begin + parsed.host.len);
-#if SB_API_VERSION >= 12 || SB_HAS(IPV6)
-#if SB_API_VERSION >= 12
-  if (SbSocketIsIpv6Supported())
-#endif
-    host = url.HostNoBrackets();
-#endif
+  if (SbSocketIsIpv6Supported()) host = url.HostNoBrackets();
   if (net::HostStringIsLocalhost(host)) {
     return net::OK;
   }

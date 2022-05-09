@@ -269,7 +269,7 @@ TEST_F(URLRequestQuicTest, TestGetRequest) {
   EXPECT_EQ(kHelloBodyValue, delegate.data_received());
 }
 
-#if !defined(HTTP_CACHE_DISABLED_FOR_STARBOARD)
+#if !defined(HTTP_CACHE_TESTING_DISABLED)
 TEST_F(URLRequestQuicTest, CancelPushIfCached_SomeCached) {
   Init();
 

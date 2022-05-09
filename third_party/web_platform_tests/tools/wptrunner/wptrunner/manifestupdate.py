@@ -283,7 +283,7 @@ class TestNode(ManifestItem):
                     del self._data["expected"]
                     break
 
-        for subtest in self.subtests.itervalues():
+        for subtest in self.subtests.values():
             subtest.clear_expected()
 
     def append(self, node):
@@ -336,7 +336,7 @@ def group_conditionals(values, property_order=None, boolean_properties=None):
 
     by_property = defaultdict(set)
     for run_info, status in values:
-        for prop_name, prop_value in run_info.iteritems():
+        for prop_name, prop_value in run_info.items():
             by_property[(prop_name, prop_value)].add(status)
 
     if property_order is None:
@@ -350,13 +350,13 @@ def group_conditionals(values, property_order=None, boolean_properties=None):
     # If we have more than one value, remove any properties that are common
     # for all the values
     if len(values) > 1:
-        for key, statuses in by_property.copy().iteritems():
+        for key, statuses in by_property.copy().items():
             if len(statuses) == len(values):
                 del by_property[key]
         if not by_property:
             raise ConditionError
 
-    properties = set(item[0] for item in by_property.iterkeys())
+    properties = set(item[0] for item in by_property.keys())
     include_props = []
 
     for prop in property_order:

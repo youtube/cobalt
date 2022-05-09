@@ -87,7 +87,7 @@ def run_tests(product, kwargs):
 
 def settings_to_argv(settings):
     rv = []
-    for name, value in settings.iteritems():
+    for name, value in settings.items():
         key = "--%s" % name
         if not value:
             rv.append(key)
@@ -113,7 +113,7 @@ def run(config, args):
 
     logger.suite_start(tests=[])
 
-    for product, product_settings in config["products"].iteritems():
+    for product, product_settings in config["products"].items():
         if args.product and product not in args.product:
             continue
 

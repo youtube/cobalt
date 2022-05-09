@@ -12,12 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Migrated from third_party/blink/Source/bindings/scripts/scripts.gypi
-######################################################################
 bindings_scripts_dir = "//third_party/blink/Source/bindings/scripts"
 
-# Migrated from third_party/blink/Source/bindings/scripts/scripts.gni
-#####################################################################
 idl_compiler_files = [
   "//third_party/blink/Source/bindings/scripts/idl_compiler.py",
 

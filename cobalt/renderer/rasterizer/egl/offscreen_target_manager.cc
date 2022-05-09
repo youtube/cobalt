@@ -12,17 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/configuration.h"
-#if SB_API_VERSION >= 12 || SB_HAS(GLES2)
-
 #include "cobalt/renderer/rasterizer/egl/offscreen_target_manager.h"
 
 #include <algorithm>
 #include <memory>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "cobalt/renderer/rasterizer/egl/rect_allocator.h"
+#include "starboard/configuration.h"
 #include "third_party/skia/include/core/SkRefCnt.h"
 
 namespace cobalt {
@@ -544,5 +543,3 @@ OffscreenTargetManager::CreateOffscreenAtlas(const math::Size& size,
 }  // namespace rasterizer
 }  // namespace renderer
 }  // namespace cobalt
-
-#endif  // SB_API_VERSION >= 12 || SB_HAS(GLES2)

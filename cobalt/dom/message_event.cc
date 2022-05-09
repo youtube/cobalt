@@ -16,10 +16,12 @@
 #include "cobalt/dom/message_event.h"
 
 #include <string>
+#include <utility>
 
 #include "base/basictypes.h"
 #include "cobalt/base/polymorphic_downcast.h"
-#include "cobalt/dom/dom_settings.h"
+#include "cobalt/web/context.h"
+#include "cobalt/web/environment_settings.h"
 #include "starboard/common/string.h"
 
 namespace {
@@ -46,15 +48,15 @@ std::string MessageEvent::GetResponseTypeAsString(
 MessageEvent::ResponseTypeCode MessageEvent::GetResponseTypeCode(
     base::StringPiece to_match) {
   for (std::size_t i = 0; i != arraysize(kResponseTypes); ++i) {
-    if (strncmp(kResponseTypes[i], to_match.data(), to_match.size()) ==
-        0) {
+    if (strncmp(kResponseTypes[i], to_match.data(), to_match.size()) == 0) {
       return MessageEvent::ResponseTypeCode(i);
     }
   }
   return kResponseTypeCodeMax;
 }
 
-MessageEvent::ResponseType MessageEvent::data() const {
+MessageEvent::ResponseType MessageEvent::data(
+    script::EnvironmentSettings* settings) const {
   const char* data_pointer = NULL;
   int data_length = 0;
   if (data_) {
@@ -63,7 +65,9 @@ MessageEvent::ResponseType MessageEvent::data() const {
   }
 
   auto* global_environment =
-      base::polymorphic_downcast<DOMSettings*>(settings_)->global_environment();
+      base::polymorphic_downcast<web::EnvironmentSettings*>(settings)
+          ->context()
+          ->global_environment();
   script::Handle<script::ArrayBuffer> response_buffer;
   if (response_type_ != kText) {
     auto buffer_copy =
@@ -78,7 +82,7 @@ MessageEvent::ResponseType MessageEvent::data() const {
       return ResponseType(string_response);
     }
     case kBlob: {
-      scoped_refptr<dom::Blob> blob = new dom::Blob(settings_, response_buffer);
+      scoped_refptr<dom::Blob> blob = new dom::Blob(settings, response_buffer);
       return ResponseType(blob);
     }
     case kArrayBuffer: {

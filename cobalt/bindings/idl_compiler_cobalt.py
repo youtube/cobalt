@@ -17,7 +17,7 @@ Based on and uses blink's IDL compiler found in the blink repository at
 third_party/blink/Source/bindings/scripts/idl_compiler.py.
 """
 
-from optparse import OptionParser
+from optparse import OptionParser  # pylint: disable=deprecated-module
 import os
 import pickle
 
@@ -29,9 +29,9 @@ from utilities import write_file
 
 
 def create_component_info_provider(interfaces_info_path, component_info_path):
-  with open(os.path.join(interfaces_info_path)) as interface_info_file:
+  with open(os.path.join(interfaces_info_path), 'rb') as interface_info_file:
     interfaces_info = pickle.load(interface_info_file)
-  with open(os.path.join(component_info_path)) as component_info_file:
+  with open(os.path.join(component_info_path), 'rb') as component_info_file:
     component_info = pickle.load(component_info_file)
   return ComponentInfoProviderCobalt(interfaces_info, component_info)
 
@@ -52,13 +52,15 @@ def parse_options():
   if options.output_directory is None:
     parser.error('Must specify output directory using --output-directory.')
   if len(args) != 1:
-    parser.error('Must specify exactly 1 input file as argument, but %d given.'
-                 % len(args))
+    parser.error(
+        'Must specify exactly 1 input file as argument, but %d given.' %
+        len(args))
   idl_filename = os.path.realpath(args[0])
   return options, idl_filename
 
 
 class IdlCompilerCobalt(IdlCompiler):
+  """IDL Compiler for Cobalt."""
 
   def __init__(self, *args, **kwargs):
     IdlCompiler.__init__(self, *args, **kwargs)
@@ -70,7 +72,7 @@ class IdlCompilerCobalt(IdlCompiler):
     # care about components in Cobalt.
     assert len(definitions) == 1
     output_code_list = self.code_generator.generate_code(
-        definitions.values()[0], interface_name)
+        list(definitions.values())[0], interface_name)
 
     # Generator may choose to omit the file.
     if output_code_list is None:

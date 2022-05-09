@@ -14,10 +14,6 @@
 
 #include "starboard/window.h"
 
-#if SB_API_VERSION >= 12
-
 bool SbWindowIsOnScreenKeyboardShown(SbWindow window) {
   return false;
 }
-
-#endif

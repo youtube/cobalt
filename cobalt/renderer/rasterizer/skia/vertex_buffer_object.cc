@@ -12,16 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/configuration.h"
-#if SB_API_VERSION >= 12 || SB_HAS(GLES2)
+#include "cobalt/renderer/rasterizer/skia/vertex_buffer_object.h"
 
 #include <memory>
 #include <vector>
 
-#include "cobalt/renderer/rasterizer/skia/vertex_buffer_object.h"
-
 #include "cobalt/renderer/backend/egl/utils.h"
-
+#include "starboard/configuration.h"
 namespace cobalt {
 namespace renderer {
 namespace rasterizer {
@@ -66,5 +63,3 @@ void VertexBufferObject::Bind() const {
 }  // namespace rasterizer
 }  // namespace renderer
 }  // namespace cobalt
-
-#endif  // SB_API_VERSION >= 12 || SB_HAS(GLES2)

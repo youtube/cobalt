@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <memory>
-
 #include "cobalt/media/base/drm_system.h"
+
+#include <memory>
+#include <utility>
 
 #include "base/bind.h"
 #include "base/compiler_specific.h"
@@ -143,13 +144,6 @@ void DrmSystem::UpdateServerCertificate(
 bool DrmSystem::GetMetrics(std::vector<uint8_t>* metrics) {
   DCHECK(message_loop_->BelongsToCurrentThread());
   DCHECK(metrics);
-
-#if SB_API_VERSION < 12
-
-  return false;
-
-#else  // SB_API_VERSION < 12
-
   int size = 0;
   const uint8_t* raw_metrics =
       static_cast<const uint8_t*>(SbDrmGetMetrics(wrapped_drm_system_, &size));
@@ -162,8 +156,6 @@ bool DrmSystem::GetMetrics(std::vector<uint8_t>* metrics) {
   }
   metrics->assign(raw_metrics, raw_metrics + size);
   return true;
-
-#endif  // SB_API_VERSION < 12
 }
 
 void DrmSystem::GenerateSessionUpdateRequest(

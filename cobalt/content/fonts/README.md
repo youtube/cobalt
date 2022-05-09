@@ -26,7 +26,7 @@ through package profile selection and package overrides.
 To use this:
   1.  Select one of the package profiles below.
   2.  Add a variable named `cobalt_font_package` in your platform's
-      `gyp_configuration.gypi` file.
+      `platform_configuration/configuration.gni` file.
   3.  Optional: Add package overrides, which can be used to add or remove fonts
       from the package.
 

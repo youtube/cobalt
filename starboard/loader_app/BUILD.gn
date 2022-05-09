@@ -24,6 +24,7 @@ group("common_loader_app_dependencies") {
   public_deps = [
     ":app_key",
     ":installation_manager",
+    ":memory_tracker_thread",
     ":slot_management",
     "//starboard",
     "//starboard/elf_loader:evergreen_info",
@@ -91,7 +92,6 @@ target(gtest_target_type, "app_key_files_test") {
     "//testing/gmock",
     "//testing/gtest",
   ]
-  content_deps = [ "//third_party/icu:icudata" ]
 }
 
 static_library("app_key") {
@@ -118,7 +118,6 @@ target(gtest_target_type, "app_key_test") {
     "//testing/gmock",
     "//testing/gtest",
   ]
-  content_deps = [ "//third_party/icu:icudata" ]
 }
 
 static_library("drain_file") {
@@ -142,7 +141,6 @@ target(gtest_target_type, "drain_file_test") {
     "//testing/gmock",
     "//testing/gtest",
   ]
-  content_deps = [ "//third_party/icu:icudata" ]
 }
 
 static_library("installation_store_proto") {
@@ -189,7 +187,6 @@ target(gtest_target_type, "installation_manager_test") {
     "//testing/gmock",
     "//testing/gtest",
   ]
-  content_deps = [ "//third_party/icu:icudata" ]
 }
 
 static_library("slot_management") {
@@ -238,4 +235,16 @@ static_library("pending_restart") {
   ]
 
   public_deps = [ "//starboard:starboard_headers_only" ]
+}
+
+static_library("memory_tracker_thread") {
+  sources = [
+    "memory_tracker_thread.cc",
+    "memory_tracker_thread.h",
+  ]
+
+  deps = [
+    "//starboard:starboard_headers_only",
+    "//starboard/common",
+  ]
 }

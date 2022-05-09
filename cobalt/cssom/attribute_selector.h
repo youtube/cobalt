@@ -44,17 +44,10 @@ class AttributeSelector : public SimpleSelector {
     kContains,
   };
 
-  explicit AttributeSelector(const std::string& attribute_name)
-      : SimpleSelector(kAttributeSelector, base::Token(),
-                       base::Token(attribute_name)),
-        value_match_type_(kNoMatch) {}
+  explicit AttributeSelector(const std::string& attribute_name);
   AttributeSelector(const std::string& attribute_name,
                     ValueMatchType value_match_type,
-                    const std::string& attribute_value)
-      : SimpleSelector(kAttributeSelector, base::Token(),
-                       base::Token(attribute_name)),
-        value_match_type_(value_match_type),
-        value_(attribute_value) {}
+                    const std::string& attribute_value);
   ~AttributeSelector() override {}
 
   // From Selector.

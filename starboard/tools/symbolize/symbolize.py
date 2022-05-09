@@ -34,8 +34,6 @@ is when the line was matched with the |_RAW| regular expression in which case it
 will always output the results of the symbolizer.
 """
 
-import _env  # pylint: disable=unused-import
-
 import argparse
 import os
 import re
@@ -113,8 +111,9 @@ def _RunSymbolizer(library, offset):
     offset:  The offset into the library of the symbol we are looking for.
   """
   if int(offset) >= 0:
-    command = subprocess.Popen([_SYMBOLIZER, '-e', library, offset, '-f'],
-                               stdout=subprocess.PIPE)
+    command = subprocess.Popen(  # pylint:disable=consider-using-with
+        [_SYMBOLIZER, '-e', library, offset, '-f'],
+        stdout=subprocess.PIPE)
     results = command.communicate()
     if command.returncode == 0:
       return results[0].split(os.linesep)
@@ -127,8 +126,8 @@ def main():
       '-f',
       '--filename',
       required=True,
-      help='The path to the file that contains the stack traces, crashes, or raw addresses.'
-  )
+      help='The path to the file that contains the stack traces, crashes, or '
+      'raw addresses.')
   arg_parser.add_argument(
       '-l',
       '--library',

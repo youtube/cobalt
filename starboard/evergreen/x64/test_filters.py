@@ -39,8 +39,10 @@ class EvergreenX64TestFilters(shared_test_filters.TestFilters):
     if not has_cdm:
       return filters
 
+    test_filters = []
     for test_filter in filters:
       if (test_filter.target_name == 'nplb' and
           test_filter.test_name == 'SbDrmTest.AnySupportedKeySystems'):
-        filters.remove(test_filter)
-    return filters
+        continue
+      test_filters.append(test_filter)
+    return test_filters

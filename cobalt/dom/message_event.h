@@ -36,23 +36,19 @@ class MessageEvent : public dom::Event {
   typedef script::UnionType3<std::string, scoped_refptr<dom::Blob>,
                              script::Handle<script::ArrayBuffer> >
       ResponseType;
-  // These response codes are ordered in the likelyhood of being used.
+  // These response codes are ordered in the likelihood of being used.
   // Keeping them in expected order will help make code faster.
   enum ResponseTypeCode { kText, kBlob, kArrayBuffer, kResponseTypeCodeMax };
 
-  MessageEvent(base::Token type, script::EnvironmentSettings* settings,
-               ResponseTypeCode response_type,
+  MessageEvent(base::Token type, ResponseTypeCode response_type,
                const scoped_refptr<net::IOBufferWithSize>& data)
-      : Event(type),
-        settings_(settings),
-        response_type_(response_type),
-        data_(data) {}
+      : Event(type), response_type_(response_type), data_(data) {}
 
   // Creates an event with its "initialized flag" unset.
   explicit MessageEvent(UninitializedFlag uninitialized_flag)
       : Event(uninitialized_flag) {}
 
-  ResponseType data() const;
+  ResponseType data(script::EnvironmentSettings* settings) const;
 
   // These helper functions are custom, and not in any spec.
   static std::string GetResponseTypeAsString(const ResponseTypeCode code);
@@ -62,7 +58,6 @@ class MessageEvent : public dom::Event {
   DEFINE_WRAPPABLE_TYPE(MessageEvent)
 
  private:
-  script::EnvironmentSettings* settings_;
   ResponseTypeCode response_type_;
   scoped_refptr<net::IOBufferWithSize> data_;
 };

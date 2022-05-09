@@ -26,6 +26,7 @@
 #include "cobalt/csp/content_security_policy.h"
 #include "cobalt/loader/fetcher.h"
 #include "cobalt/network/network_module.h"
+#include "net/disk_cache/cobalt/resource_type.h"
 #include "net/url_request/url_fetcher.h"
 #include "net/url_request/url_fetcher_delegate.h"
 #include "url/gurl.h"
@@ -38,8 +39,11 @@ class NetFetcher : public Fetcher, public net::URLFetcherDelegate {
  public:
   struct Options {
    public:
-    Options() : request_method(net::URLFetcher::GET) {}
+    Options()
+        : request_method(net::URLFetcher::GET),
+          resource_type(disk_cache::kOther) {}
     net::URLFetcher::RequestType request_method;
+    disk_cache::ResourceType resource_type;
   };
 
   NetFetcher(const GURL& url, const csp::SecurityCallback& security_callback,
@@ -106,6 +110,9 @@ class NetFetcher : public Fetcher, public net::URLFetcherDelegate {
   // Whether or not the fetcher failed from an error that is considered
   // transient, indicating that the same fetch may later succeed.
   bool did_fail_from_transient_error_ = false;
+
+  // True when the requested resource type is script.
+  bool request_script_;
 
   DISALLOW_COPY_AND_ASSIGN(NetFetcher);
 };

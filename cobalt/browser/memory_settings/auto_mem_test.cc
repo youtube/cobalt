@@ -63,7 +63,9 @@ TEST(AutoMem, CommandLineOverrides) {
   for (int i = 0; i <= 1; ++i) {
     AutoMemSettings build_settings = GetDefaultBuildSettings();
 
-    AutoMem auto_mem(kResolution1080p, command_line_settings, build_settings);
+    AutoMem auto_mem;
+    auto_mem.ConstructSettings(kResolution1080p, command_line_settings,
+                               build_settings);
 
     EXPECT_MEMORY_SETTING(auto_mem.image_cache_size_in_bytes(),
                           MemorySetting::kCmdLine, MemorySetting::kGPU, 1234);
@@ -92,7 +94,9 @@ TEST(AutoMem, CommandLineSpecifiesAutoset) {
   AutoMemSettings build_settings(AutoMemSettings::kTypeBuild);
   build_settings.cobalt_image_cache_size_in_bytes = 1234;
 
-  AutoMem auto_mem(kResolution1080p, command_line_settings, build_settings);
+  AutoMem auto_mem;
+  auto_mem.ConstructSettings(kResolution1080p, command_line_settings,
+                             build_settings);
 
   EXPECT_MEMORY_SETTING(
       auto_mem.image_cache_size_in_bytes(), MemorySetting::kAutoSet,
@@ -111,9 +115,12 @@ TEST(AutoMem, SkiaGlyphAtlasTextureSize) {
   build_settings_with_default.skia_texture_atlas_dimensions =
       TextureDimensions(1234, 5678, 2);
 
-  AutoMem auto_mem(kResolution1080p, EmptyCommandLine(), build_settings);
-  AutoMem auto_mem_with_default(kResolution1080p, EmptyCommandLine(),
-                                build_settings_with_default);
+  AutoMem auto_mem;
+  auto_mem.ConstructSettings(kResolution1080p, EmptyCommandLine(),
+                             build_settings);
+  AutoMem auto_mem_with_default;
+  auto_mem_with_default.ConstructSettings(kResolution1080p, EmptyCommandLine(),
+                                          build_settings_with_default);
 
   // Expect that when the skia_atlas_texture_dimensions is specified in the
   // build settings that it will bind to the auto-set value (computed from
@@ -136,9 +143,12 @@ TEST(AutoMem, SkiaCacheSizeInBytes) {
   AutoMemSettings build_settings_with_default(AutoMemSettings::kTypeBuild);
   build_settings_with_default.skia_cache_size_in_bytes = 1234;
 
-  AutoMem auto_mem(kResolution1080p, EmptyCommandLine(), build_settings);
-  AutoMem auto_mem_with_skia_cache(kResolution1080p, EmptyCommandLine(),
-                                   build_settings_with_default);
+  AutoMem auto_mem;
+  auto_mem.ConstructSettings(kResolution1080p, EmptyCommandLine(),
+                             build_settings);
+  AutoMem auto_mem_with_skia_cache;
+  auto_mem_with_skia_cache.ConstructSettings(
+      kResolution1080p, EmptyCommandLine(), build_settings_with_default);
 
   EXPECT_MEMORY_SETTING(auto_mem.skia_cache_size_in_bytes(),
                         MemorySetting::kAutoSet, MemorySetting::kGPU,
@@ -152,7 +162,9 @@ TEST(AutoMem, SkiaCacheSizeInBytes) {
 TEST(AutoMem, AllMemorySettingsAreOrderedByName) {
   AutoMemSettings build_settings(AutoMemSettings::kTypeBuild);
 
-  AutoMem auto_mem(kResolution1080p, EmptyCommandLine(), build_settings);
+  AutoMem auto_mem;
+  auto_mem.ConstructSettings(kResolution1080p, EmptyCommandLine(),
+                             build_settings);
 
   std::vector<const MemorySetting*> settings = auto_mem.AllMemorySettings();
 
@@ -167,7 +179,9 @@ TEST(AutoMem, NoDefaultGpuMemory) {
   AutoMemSettings command_line_settings(AutoMemSettings::kTypeCommandLine);
   AutoMemSettings build_settings(AutoMemSettings::kTypeBuild);
 
-  AutoMem auto_mem(kResolution1080p, command_line_settings, build_settings);
+  AutoMem auto_mem;
+  auto_mem.ConstructSettings(kResolution1080p, command_line_settings,
+                             build_settings);
 
   EXPECT_EQ(SbSystemHasCapability(kSbSystemCapabilityCanQueryGPUMemoryStats),
             auto_mem.max_gpu_bytes()->valid());

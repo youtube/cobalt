@@ -75,8 +75,6 @@ SB_EXPORT bool SbMediaIsSupported(SbMediaVideoCodec video_codec,
 //        it indicates that the fps shouldn't be considered.
 // |decode_to_texture_required|: Whether or not the resulting video frames can
 //                               be decoded and used as textures by the GPU.
-#if SB_API_VERSION >= 12
-
 bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
                              const char* content_type,
                              int profile,
@@ -90,25 +88,6 @@ bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
                              int64_t bitrate,
                              int fps,
                              bool decode_to_texture_required);
-
-#else  // SB_API_VERSION >= 12
-
-bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
-#if SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
-                             int profile,
-                             int level,
-                             int bit_depth,
-                             SbMediaPrimaryId primary_id,
-                             SbMediaTransferId transfer_id,
-                             SbMediaMatrixId matrix_id,
-#endif  // SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
-                             int frame_width,
-                             int frame_height,
-                             int64_t bitrate,
-                             int fps,
-                             bool decode_to_texture_required);
-
-#endif  // SB_API_VERSION >= 12
 
 // Indicates whether this platform supports |audio_codec| at |bitrate|.
 // If |audio_codec| is not supported under any condition, this function
@@ -119,27 +98,9 @@ bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
 //                 interface if there is any.  Otherwise it will be set to "".
 //                 It should never to set to NULL.
 // |bitrate|: The media's bitrate.
-#if SB_API_VERSION >= 12
-
 bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec,
                              const char* content_type,
                              int64_t bitrate);
-
-#else  // SB_API_VERSION >= 12
-
-bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec, int64_t bitrate);
-
-#endif  // SB_API_VERSION >= 12
-
-#if !SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
-// Indicates whether this platform supports |transfer_id| as a transfer
-// characteristics.  If |transfer_id| is not supported under any condition, this
-// function returns |false|.
-//
-// |transfer_id|: The id of transfer characteristics listed in
-//                SbMediaTransferId.
-bool SbMediaIsTransferCharacteristicsSupported(SbMediaTransferId transfer_id);
-#endif  // !SB_HAS(MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT)
 
 #ifdef __cplusplus
 }  // extern "C"

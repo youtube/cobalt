@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "cobalt/cssom/percentage_value.h"
-#include "cobalt/cssom/testing/mock_css_parser.h"
+#include "cobalt/cssom/testing/mock_css_parser.h"  // nogncheck
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/dom_stat_tracker.h"
 #include "cobalt/dom/element.h"

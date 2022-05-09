@@ -27,24 +27,8 @@ TEST(SbMutexDestroyTest, SunnyDayAutoInit) {
   EXPECT_TRUE(SbMutexDestroy(&mutex));
 }
 
-#if SB_API_VERSION >= 12
 // Destroying a mutex that has already been destroyed is undefined behavior
 // and cannot be tested.
-#else   // SB_API_VERSION >= 12
-TEST(SbMutexDestroyTest, RainyDayDestroyHeld) {
-  SbMutex mutex;
-  EXPECT_TRUE(SbMutexCreate(&mutex));
-
-  SbMutexResult result = SbMutexAcquire(&mutex);
-  EXPECT_EQ(result, kSbMutexAcquired);
-  EXPECT_TRUE(SbMutexIsSuccess(result));
-
-  EXPECT_FALSE(SbMutexDestroy(&mutex));
-  EXPECT_TRUE(SbMutexRelease(&mutex));
-  EXPECT_TRUE(SbMutexDestroy(&mutex));
-}
-#endif  // SB_API_VERSION >= 12
-
 TEST(SbMutexDestroyTest, RainyDayNull) {
   EXPECT_FALSE(SbMutexDestroy(NULL));
 }

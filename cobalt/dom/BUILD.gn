@@ -75,6 +75,7 @@ static_library("dom") {
     "directionality.h",
     "document.cc",
     "document.h",
+    "document_load_timing_info.h",
     "document_timeline.cc",
     "document_timeline.h",
     "document_type.cc",
@@ -256,6 +257,8 @@ static_library("dom") {
     "performance_mark.h",
     "performance_measure.cc",
     "performance_measure.h",
+    "performance_navigation_timing.cc",
+    "performance_navigation_timing.h",
     "performance_observer.cc",
     "performance_observer.h",
     "performance_observer_entry_list.cc",
@@ -332,7 +335,14 @@ static_library("dom") {
     "xml_serializer.h",
   ]
 
-  public_deps = [ "//cobalt/browser:generated_types" ]
+  if (use_skia_next) {
+    defines = [ "USE_SKIA_NEXT" ]
+  }
+
+  public_deps = [
+    "//cobalt/browser:generated_types",
+    "//cobalt/web",
+  ]
 
   deps = [
     ":dom_exception",
@@ -357,6 +367,7 @@ static_library("dom") {
     "//cobalt/storage/store:memory_store",
     "//cobalt/system_window",
     "//cobalt/ui_navigation",
+    "//cobalt/web",
     "//cobalt/web_animations",
     "//cobalt/worker",
     "//crypto",
@@ -455,7 +466,6 @@ target(gtest_target_type, "dom_test") {
     "//cobalt/csp",
     "//cobalt/css_parser",
     "//cobalt/cssom",
-    "//cobalt/cssom:cssom_test",
     "//cobalt/dom/testing:dom_testing",
     "//cobalt/dom_parser",
     "//cobalt/h5vcc",
@@ -475,4 +485,6 @@ target(gtest_target_type, "dom_test") {
     "//testing/gtest",
     "//url",
   ]
+
+  content_deps = [ ":licenses" ]
 }

@@ -12,6 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+declare_args() {
+  copy_font_files = true
+  source_font_files_dir = "font_files"
+}
+
 if (cobalt_font_package == "standard") {
   declare_args() {
     source_font_config_dir = "config/common"

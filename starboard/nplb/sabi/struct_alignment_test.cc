@@ -17,12 +17,10 @@
 #include "starboard/configuration.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if SB_API_VERSION >= 12
-
 // 8-byte integers make structs 4-byte aligned on x86.
 #if SB_IS(ARCH_X86)
 #define ALIGNMENT_8_BYTE_INT 4
-#else   // !SB_IS(ARCH_X86)
+#else  // !SB_IS(ARCH_X86)
 #define ALIGNMENT_8_BYTE_INT 8
 #endif  // SB_IS(ARCH_X86)
 
@@ -30,7 +28,7 @@ namespace starboard {
 namespace sabi {
 namespace {
 
-static const int8_t kInt8   = 0x74;
+static const int8_t kInt8 = 0x74;
 static const int16_t kInt16 = 0x2DEF;
 static const int32_t kInt32 = 0x35C7ADD2;
 static const int64_t kInt64 = 0x16FE0870D4784352;
@@ -153,7 +151,7 @@ TEST(SbSabiStructAlignmentTest, NestedStruct) {
 }
 
 TEST(SbSabiStructAlignmentTest, NestedUnion) {
-  const Struct4 struct4 = { kInt8, kInt32, kInt8 };
+  const Struct4 struct4 = {kInt8, kInt32, kInt8};
   const int8_t* base = reinterpret_cast<const int8_t*>(&struct4);
 
   EXPECT_EQ(kInt8, *base);
@@ -165,5 +163,3 @@ TEST(SbSabiStructAlignmentTest, NestedUnion) {
 }  // namespace starboard
 
 #undef ALIGNMENT_8_BYTE_INT
-
-#endif  // SB_API_VERSION >= 12

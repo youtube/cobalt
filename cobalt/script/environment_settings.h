@@ -18,22 +18,41 @@
 #include <memory>
 
 #include "base/memory/ref_counted.h"
+#include "cobalt/base/debugger_hooks.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace script {
 
 // Environment Settings object as described in
-// https://www.w3.org/html/wg/drafts/html/master/webappapis.html#environment-settings-object
+// https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#environment-settings-objects
 class EnvironmentSettings {
  public:
-  EnvironmentSettings() {}
+  explicit EnvironmentSettings(
+      const base::DebuggerHooks& debugger_hooks = null_debugger_hooks_)
+      : debugger_hooks_(debugger_hooks) {}
   virtual ~EnvironmentSettings() {}
+
+  // The API base URL.
+  //   https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#api-base-url
+  void set_base_url(const GURL& url) { base_url_ = url; }
+  const GURL& base_url() const { return base_url_; }
+
+  // The API creation URL
+  //   https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#concept-environment-creation-url
+  const GURL& creation_url() const { return base_url(); }
+
+  const base::DebuggerHooks& debugger_hooks() const { return debugger_hooks_; }
 
  protected:
   friend std::unique_ptr<EnvironmentSettings>::deleter_type;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(EnvironmentSettings);
+
+  static const base::NullDebuggerHooks null_debugger_hooks_;
+  const base::DebuggerHooks& debugger_hooks_;
+  GURL base_url_;
 };
 
 }  // namespace script

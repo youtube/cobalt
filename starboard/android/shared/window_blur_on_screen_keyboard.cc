@@ -14,10 +14,7 @@
 
 #include "starboard/window.h"
 
-#if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
 void SbWindowBlurOnScreenKeyboard(SbWindow window, int ticket) {
   // Stub.
   return;
 }
-#endif  // SB_API_VERSION >= 12 ||
-        // SB_HAS(ON_SCREEN_KEYBOARD)

@@ -20,8 +20,6 @@ declare_args() {
 
   build_type = "devel"
 
-  target_platform = "stub"
-
   is_starboard = true
 
   cobalt_fastbuild = getenv("IS_CI") == "1"
@@ -29,6 +27,8 @@ declare_args() {
   is_internal_build = getenv("COBALT_USE_INTERNAL_BUILD") == "1"
 
   is_docker_build = getenv("IS_DOCKER") == "1"
+
+  using_old_compiler = false
 }
 
 is_debug = build_type == "debug"
@@ -67,14 +67,10 @@ if (is_mac) {
 
 # Get the path to the starboard implementation and include its GN
 # configuration.
-starboard_path = exec_script("//starboard/build/platforms.py",
-                             [ target_platform ],
-                             "trim string")
-assert(defined(starboard_path),
-       "Please add your platform to starboard/build/platforms.py")
+import("//starboard/build/platform_path.gni")
 host_toolchain = "//$starboard_path/toolchain:host"
-_default_toolchain = "//$starboard_path/toolchain:target"
-set_default_toolchain(_default_toolchain)
+target_toolchain = "//$starboard_path/toolchain:target"
+set_default_toolchain(target_toolchain)
 
 import("//$starboard_path/platform_configuration/configuration.gni")
 import("//starboard/build/config/build_assertions.gni")
@@ -84,7 +80,7 @@ declare_args() {
 }
 
 _use_asan_default = (is_debug || is_devel) && (is_linux || is_mac) &&
-                    is_clang && !sb_is_evergreen
+                    is_clang && !sb_is_evergreen && !using_old_compiler
 declare_args() {
   use_asan = (_use_asan_default || getenv("USE_ASAN") == 1) && !use_tsan
 }
@@ -224,9 +220,14 @@ template("install_content") {
       outputs = []
       foreach(source, sources) {
         output_path = install_content_dir + "/" +
-                      rebase_path(source, "$sb_static_contents_output_data_dir")
+                      rebase_path(source, sb_static_contents_output_data_dir)
         outputs += [ output_path ]
       }
+
+      # Write the file list to a unique temp file to avoid blowing out the
+      # command line length limit.
+      files_list = "$root_gen_dir/${target_name}_files.tmp"
+      write_file(files_list, rebase_path(sources, root_build_dir))
 
       script = "//starboard/build/copy_install_content.py"
       args = [
@@ -234,8 +235,9 @@ template("install_content") {
         rebase_path(install_content_dir, root_build_dir),
         "--base_dir",
         rebase_path(sb_static_contents_output_data_dir, root_build_dir),
+        "--files_list",
+        rebase_path(files_list, root_build_dir),
       ]
-      args += rebase_path(sources, root_build_dir)
     }
   }
 }
@@ -272,21 +274,76 @@ template("executable") {
                            ])
   }
 
-  if (!defined(invoker.install_target) || invoker.install_target) {
+  if (current_toolchain == default_toolchain &&
+      (!defined(invoker.install_target) || invoker.install_target)) {
     executable_target_name = target_name
+
+    content_deps = []
+    if (defined(invoker.content_deps)) {
+      content_deps += invoker.content_deps
+    }
+    if (defined(platform_i18n_config_path)) {
+      content_deps += [ platform_i18n_config_path ]
+    }
+
+    if (separate_install_targets_for_bundling) {
+      bundle_deps = []
+      foreach(content_dep, content_deps) {
+        bundle_deps += [ "${content_dep}_install_content" ]
+      }
+
+      # TODO(b/220024845): Make this much better.
+      action("${executable_target_name}_bundle_content") {
+        forward_variables_from(invoker, [ "testonly" ])
+
+        deps = [ ":$executable_target_name" ]
+        deps += bundle_deps
+
+        sources = []
+        foreach(bundle_dep, bundle_deps) {
+          # Split the target path and name. E.g. //path/to:target -> [ "//path/to", "target" ].
+          target_path_and_name = string_split(bundle_dep, ":")
+
+          # The content_dep target will place its file under the root gen dir.
+          content_dep_list_file = string_join("/",
+                                              [
+                                                root_gen_dir,
+                                                target_path_and_name[1],
+                                              ])
+          target_path_and_name = []
+
+          sources += [ "${content_dep_list_file}_files.tmp" ]
+        }
+
+        bundle_content_dir = "$sb_install_output_dir/$executable_target_name/$sb_install_content_subdir"
+
+        # TODO(b/220024845): We don't have the list of output files.
+        outputs = [ bundle_content_dir ]
+
+        script = "//starboard/build/copy_bundle_content.py"
+        args = [
+          "--output_dir",
+          rebase_path(bundle_content_dir, root_build_dir),
+          "--base_dir",
+          rebase_path(sb_static_contents_output_data_dir, root_build_dir),
+        ]
+        args += rebase_path(sources, root_build_dir)
+      }
+    }
+
     install_target(target_name + "_install") {
       forward_variables_from(invoker, [ "testonly" ])
       installable_target_name = executable_target_name
       type = "executable"
+      deps = []
       if (defined(invoker.deps)) {
-        deps = invoker.deps
-      } else {
-        deps = []
+        deps += invoker.deps
       }
-      if (defined(invoker.content_deps)) {
-        foreach(content_dep, invoker.content_deps) {
-          deps += [ "${content_dep}_install_content" ]
-        }
+      if (separate_install_targets_for_bundling) {
+        deps += [ ":${executable_target_name}_bundle_content" ]
+      }
+      foreach(content_dep, content_deps) {
+        deps += [ "${content_dep}_install_content" ]
       }
     }
   }
@@ -303,21 +360,76 @@ template("shared_library") {
                            ])
   }
 
-  if (!defined(invoker.install_target) || invoker.install_target) {
+  if (current_toolchain == default_toolchain &&
+      (!defined(invoker.install_target) || invoker.install_target)) {
     shared_library_target_name = target_name
+
+    content_deps = []
+    if (defined(invoker.content_deps)) {
+      content_deps += invoker.content_deps
+    }
+    if (defined(platform_i18n_config_path)) {
+      content_deps += [ platform_i18n_config_path ]
+    }
+
+    if (separate_install_targets_for_bundling) {
+      bundle_deps = []
+      foreach(content_dep, content_deps) {
+        bundle_deps += [ "${content_dep}_install_content" ]
+      }
+
+      # TODO(b/220024845): Make this much better.
+      action("${shared_library_target_name}_bundle_content") {
+        forward_variables_from(invoker, [ "testonly" ])
+
+        deps = [ ":$shared_library_target_name" ]
+        deps += bundle_deps
+
+        sources = []
+        foreach(bundle_dep, bundle_deps) {
+          # Split the target path and name. E.g. //path/to:target -> [ "//path/to", "target" ].
+          target_path_and_name = string_split(bundle_dep, ":")
+
+          # The content_dep target will place its file under the root gen dir.
+          content_dep_list_file = string_join("/",
+                                              [
+                                                root_gen_dir,
+                                                target_path_and_name[1],
+                                              ])
+          target_path_and_name = []
+
+          sources += [ "${content_dep_list_file}_files.tmp" ]
+        }
+
+        bundle_content_dir = "$sb_install_output_dir/$shared_library_target_name/$sb_install_content_subdir"
+
+        # TODO(b/220024845): We don't have the list of output files.
+        outputs = [ bundle_content_dir ]
+
+        script = "//starboard/build/copy_bundle_content.py"
+        args = [
+          "--output_dir",
+          rebase_path(bundle_content_dir, root_build_dir),
+          "--base_dir",
+          rebase_path(sb_static_contents_output_data_dir, root_build_dir),
+        ]
+        args += rebase_path(sources, root_build_dir)
+      }
+    }
+
     install_target(target_name + "_install") {
       forward_variables_from(invoker, [ "testonly" ])
       installable_target_name = shared_library_target_name
       type = "shared_library"
+      deps = []
       if (defined(invoker.deps)) {
-        deps = invoker.deps
-      } else {
-        deps = []
+        deps += invoker.deps
       }
-      if (defined(invoker.content_deps)) {
-        foreach(content_dep, invoker.content_deps) {
-          deps += [ "${content_dep}_install_content" ]
-        }
+      if (separate_install_targets_for_bundling) {
+        deps += [ ":${shared_library_target_name}_bundle_content" ]
+      }
+      foreach(content_dep, content_deps) {
+        deps += [ "${content_dep}_install_content" ]
       }
     }
   }

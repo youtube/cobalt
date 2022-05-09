@@ -23,12 +23,15 @@ namespace dom {
 
 Location::Location(const GURL& url, const base::Closure& hashchange_callback,
                    const base::Callback<void(const GURL&)>& navigation_callback,
-                   const csp::SecurityCallback& security_callback)
+                   const csp::SecurityCallback& security_callback,
+                   const base::Callback<void(NavigationType type)>&
+                       set_navigation_type_callback)
     : ALLOW_THIS_IN_INITIALIZER_LIST(url_utils_(
           url, base::Bind(&Location::Replace, base::Unretained(this)))),
       hashchange_callback_(hashchange_callback),
       navigation_callback_(navigation_callback),
-      security_callback_(security_callback) {}
+      security_callback_(security_callback),
+      set_navigation_type_callback_(set_navigation_type_callback) {}
 
 // Algorithm for Replace:
 //   https://www.w3.org/TR/html50/browsers.html#dom-location-replace
@@ -78,6 +81,9 @@ void Location::Replace(const std::string& url) {
     if (!navigation_callback_.is_null()) {
       navigation_callback_.Run(new_url);
     }
+    if (!set_navigation_type_callback_.is_null()) {
+      set_navigation_type_callback_.Run(kNavigationTypeNavigate);
+    }
   }
 }
 
@@ -85,6 +91,9 @@ void Location::Reload() {
   if (!navigation_callback_.is_null()) {
     LOG(INFO) << "Reloading URL: " << url();
     navigation_callback_.Run(url());
+  }
+  if (!set_navigation_type_callback_.is_null()) {
+    set_navigation_type_callback_.Run(kNavigationTypeReload);
   }
 }
 

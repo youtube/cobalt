@@ -17,13 +17,12 @@
 If Clang is not present, it will be downloaded.
 """
 
-import _env  # pylint: disable=unused-import
 from starboard.build import clang
 from starboard.tools import build
 
 
 def main():
-  print build.EnsureClangAvailable(clang.GetClangSpecification())
+  print(build.EnsureClangAvailable(clang.GetClangSpecification()))
 
 
 if __name__ == '__main__':

@@ -58,18 +58,18 @@ typedef enum SbSystemPathId {
   // Path to a directory where temporary files can be written.
   kSbSystemPathTempDirectory,
 
+#if SB_API_VERSION < SB_SYSTEM_PATH_TEST_OUTPUT_DIRECTORY_DEPRECATED
   // Path to a directory where test results can be written.
   kSbSystemPathTestOutputDirectory,
+#endif  // #if SB_API_VERSION < SB_SYSTEM_PATH_TEST_OUTPUT_DIRECTORY_DEPRECATED
 
   // Full path to the executable file.
   kSbSystemPathExecutableFile,
 
-#if SB_API_VERSION >= 12
   // Path to a directory for permanent file storage. Both read and write
   // access is required. This is where an app may store its persistent settings.
   // The location should be user agnostic if possible.
   kSbSystemPathStorageDirectory,
-#endif
 } SbSystemPathId;
 
 // System properties that can be queried for. Many of these are used in
@@ -109,16 +109,9 @@ typedef enum SbSystemPropertyId {
   // The year the device was launched, e.g. "2016".
   kSbSystemPropertyModelYear,
 
-#if SB_API_VERSION >= 12
   // The corporate entity responsible for submitting the device to YouTube
   // certification and for the device maintenance/updates.
   kSbSystemPropertySystemIntegratorName,
-#else
-  // The corporate entity responsible for the manufacturing/assembly of the
-  // device on behalf of the business entity owning the brand.  This is often
-  // abbreviated as ODM.
-  kSbSystemPropertyOriginalDesignManufacturerName,
-#endif
 
   // The name of the operating system and platform, suitable for inclusion in a
   // User-Agent, say.
@@ -159,6 +152,11 @@ typedef enum SbSystemDeviceType {
 
   // An Android TV Device.
   kSbSystemDeviceTypeAndroidTV,
+
+#if SB_API_VERSION >= SB_SYSTEM_DEVICE_PROJECTOR_ADDED
+  // A wall video projector.
+  kSbSystemDeviceTypeVideoProjector,
+#endif  // SB_API_VERSION >= SB_SYSTEM_DEVICE_PROJECTOR_ADDED
 
   // Unknown device.
   kSbSystemDeviceTypeUnknown,
@@ -628,10 +626,6 @@ SB_EXPORT const void* SbSystemGetExtension(const char* name);
 
 // Computes a HMAC-SHA256 digest of |message| into |digest| using the
 // application's certification secret.
-//
-// This function may be implemented as an alternative to implementing
-// SbSystemGetProperty(kSbSystemPropertyBase64EncodedCertificationSecret),
-// however both should not be implemented.
 //
 // The output will be written into |digest|.  |digest_size_in_bytes| must be 32
 // (or greater), since 32-bytes will be written into it.

@@ -19,7 +19,6 @@ import abc
 import os
 import sys
 
-import _env  # pylint: disable=unused-import
 from starboard.tools import build
 from starboard.tools import paths
 

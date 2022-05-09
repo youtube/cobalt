@@ -1,13 +1,18 @@
 import base64
 import cgi
-import Cookie
-import StringIO
 import tempfile
 
+import six
+from six.moves import http_cookies
 from six.moves.urllib.parse import parse_qsl, urlsplit
 
 from . import stash
 from .utils import HTTPException
+
+if six.PY2:
+    base64.decodebytes = base64.decodestring
+else:
+    unicode = lambda s, *args: str(s)
 
 missing = object()
 
@@ -52,7 +57,7 @@ class InputFile(object):
         if length > self.max_buffer_size:
             self._buf = tempfile.TemporaryFile(mode="rw+b")
         else:
-            self._buf = StringIO.StringIO()
+            self._buf = six.BytesIO()
 
     @property
     def _buf_position(self):
@@ -75,7 +80,7 @@ class InputFile(object):
             old_data = self._buf.read(buf_bytes)
             bytes_remaining -= buf_bytes
         else:
-            old_data = ""
+            old_data = b""
 
         assert self._buf_position == self._file_position, (
             "Before reading buffer position (%i) didn't match file position (%i)" %
@@ -275,7 +280,7 @@ class Request(object):
         self._headers = None
 
         self.raw_input = InputFile(request_handler.rfile,
-                                   int(self.headers.get("Content-Length", 0)))
+                                   int(self.raw_headers.get("Content-Length", 0)))
         self._body = None
 
         self._GET = None
@@ -303,10 +308,15 @@ class Request(object):
             #Work out the post parameters
             pos = self.raw_input.tell()
             self.raw_input.seek(0)
-            fs = cgi.FieldStorage(fp=self.raw_input,
-                                  environ={"REQUEST_METHOD": self.method},
-                                  headers=self.headers,
-                                  keep_blank_values=True)
+            kwargs = {
+                "fp": self.raw_input,
+                "environ": {"REQUEST_METHOD": self.method},
+                "headers": self.raw_headers,
+                "keep_blank_values": True,
+            }
+            if six.PY3:
+                kwargs.update({"encoding": "iso-8859-1"})
+            fs = cgi.FieldStorage(**kwargs)
             self._POST = MultiDict.from_field_storage(fs)
             self.raw_input.seek(pos)
         return self._POST
@@ -314,11 +324,11 @@ class Request(object):
     @property
     def cookies(self):
         if self._cookies is None:
-            parser = Cookie.BaseCookie()
+            parser = http_cookies.BaseCookie()
             cookie_headers = self.headers.get("cookie", "")
             parser.load(cookie_headers)
             cookies = Cookies()
-            for key, value in parser.iteritems():
+            for key, value in parser.items():
                 cookies[key] = CookieValue(value)
             self._cookies = cookies
         return self._cookies
@@ -394,11 +404,11 @@ class RequestHeaders(dict):
     def __contains__(self, key):
         return dict.__contains__(self, key.lower())
 
-    def iteritems(self):
+    def items(self):
         for item in self:
             yield item, self[item]
 
-    def itervalues(self):
+    def values(self):
         for item in self:
             yield self[item]
 
@@ -586,5 +596,5 @@ class Authentication(object):
                 raise HTTPException(400, "Unsupported authentication scheme %s" % auth_type)
 
     def decode_basic(self, data):
-        decoded_data = base64.decodestring(data)
+        decoded_data = base64.decodebytes(data.encode()).decode()
         return decoded_data.split(":", 1)

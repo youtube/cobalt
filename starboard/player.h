@@ -38,15 +38,6 @@ extern "C" {
 typedef enum SbPlayerDecoderState {
   // The decoder is asking for one more sample.
   kSbPlayerDecoderStateNeedsData,
-
-#if SB_API_VERSION < 12
-  // The decoder is not ready for any more samples, so do not send them.  Note
-  // that this enum value has been deprecated and the SbPlayer implementation
-  // should no longer use this value.
-  kSbPlayerDecoderStateBufferFull,
-  // The player has been destroyed, and will send no more callbacks.
-  kSbPlayerDecoderStateDestroyed,
-#endif  // SB_API_VERSION < 12
 } SbPlayerDecoderState;
 
 // An indicator of the general playback state.
@@ -106,8 +97,6 @@ typedef enum SbPlayerOutputMode {
   kSbPlayerOutputModeInvalid,
 } SbPlayerOutputMode;
 
-#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
-
 // The playback related parameters to pass into SbPlayerCreate() and
 // SbPlayerGetPreferredOutputMode().
 typedef struct SbPlayerCreationParam {
@@ -131,8 +120,6 @@ typedef struct SbPlayerCreationParam {
   // SbPlayerGetCurrentFrame().
   SbPlayerOutputMode output_mode;
 } SbPlayerCreationParam;
-
-#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 
 // Identify the type of side data accompanied with |SbPlayerSampleInfo|, as side
 // data may come from multiple sources.
@@ -400,8 +387,6 @@ static SB_C_INLINE bool SbPlayerIsValid(SbPlayer player) {
 // |decoder_status_func|, |player_status_func|, or |player_error_func| if it
 // applies), then |kSbPlayerInvalid| must be returned.
 
-#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
-
 SB_EXPORT SbPlayer
 SbPlayerCreate(SbWindow window,
                const SbPlayerCreationParam* creation_param,
@@ -412,26 +397,6 @@ SbPlayerCreate(SbWindow window,
                void* context,
                SbDecodeTargetGraphicsContextProvider* context_provider);
 
-#else  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
-
-SB_EXPORT SbPlayer
-SbPlayerCreate(SbWindow window,
-               SbMediaVideoCodec video_codec,
-               SbMediaAudioCodec audio_codec,
-               SbDrmSystem drm_system,
-               const SbMediaAudioSampleInfo* audio_sample_info,
-               const char* max_video_capabilities,
-               SbPlayerDeallocateSampleFunc sample_deallocate_func,
-               SbPlayerDecoderStatusFunc decoder_status_func,
-               SbPlayerStatusFunc player_status_func,
-               SbPlayerErrorFunc player_error_func,
-               void* context,
-               SbPlayerOutputMode output_mode,
-               SbDecodeTargetGraphicsContextProvider* context_provider);
-
-#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
-
-#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 // Returns the preferred output mode of the implementation when a video
 // described by |creation_param| is played.  It is assumed that it is okay to
 // call SbPlayerCreate() with the same video described by |creation_param|,
@@ -451,15 +416,6 @@ SbPlayerCreate(SbWindow window,
 // |creation_param| will never be NULL.
 SB_EXPORT SbPlayerOutputMode
 SbPlayerGetPreferredOutputMode(const SbPlayerCreationParam* creation_param);
-
-#else   // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
-// Returns true if the given player output mode is supported by the platform.
-// If this function returns true, it is okay to call SbPlayerCreate() with
-// the given |output_mode|.
-SB_EXPORT bool SbPlayerOutputModeSupported(SbPlayerOutputMode output_mode,
-                                           SbMediaVideoCodec codec,
-                                           SbDrmSystem drm_system);
-#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 
 // Destroys |player|, freeing all associated resources.
 //  * Upon calling this method, there should be one call to the player status

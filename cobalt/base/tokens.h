@@ -46,6 +46,7 @@ namespace base {
     MacroOpWithNameOnly(click)                                       \
     MacroOpWithNameOnly(close)                                       \
     MacroOpWithNameOnly(complete)                                    \
+    MacroOpWithNameOnly(controllerchange)                            \
     MacroOpWithNameOnly(dataavailable)                               \
     MacroOpWithNameOnly(deviceorientation)                           \
     MacroOpWithNameOnly(durationchange)                              \
@@ -65,6 +66,7 @@ namespace base {
     MacroOpWithNameOnly(keypress)                                    \
     MacroOpWithNameOnly(keystatuseschange)                           \
     MacroOpWithNameOnly(keyup)                                       \
+    MacroOpWithNameOnly(languagechange)                              \
     MacroOpWithNameOnly(load)                                        \
     MacroOpWithNameOnly(loadeddata)                                  \
     MacroOpWithNameOnly(loadedmetadata)                              \
@@ -74,6 +76,7 @@ namespace base {
     MacroOpWithNameOnly(lostpointercapture)                          \
     MacroOpWithNameOnly(mark)                                        \
     MacroOpWithNameOnly(message)                                     \
+    MacroOpWithNameOnly(messageerror)                                \
     MacroOpWithNameOnly(mousedown)                                   \
     MacroOpWithNameOnly(mouseenter)                                  \
     MacroOpWithNameOnly(mouseleave)                                  \
@@ -101,6 +104,7 @@ namespace base {
     MacroOpWithNameOnly(ratechange)                                  \
     MacroOpWithNameOnly(ready)                                       \
     MacroOpWithNameOnly(readystatechange)                            \
+    MacroOpWithNameOnly(rejectionhandled)                            \
     MacroOpWithNameOnly(removals)                                    \
     MacroOpWithNameOnly(removesourcebuffer)                          \
     MacroOpWithNameOnly(removetrack)                                 \
@@ -119,6 +123,7 @@ namespace base {
     MacroOpWithNameOnly(sourceended)                                 \
     MacroOpWithNameOnly(sourceopen)                                  \
     MacroOpWithNameOnly(start)                                       \
+    MacroOpWithNameOnly(statechange)                                 \
     MacroOpWithNameOnly(stop)                                        \
     MacroOpWithNameOnly(storage)                                     \
     MacroOpWithNameOnly(stalled)                                     \
@@ -128,10 +133,12 @@ namespace base {
     MacroOpWithNameOnly(timeout)                                     \
     MacroOpWithNameOnly(timeupdate)                                  \
     MacroOpWithNameOnly(transitionend)                               \
+    MacroOpWithNameOnly(unhandledrejection)                          \
     MacroOpWithNameOnly(unload)                                      \
     MacroOpWithNameOnly(update)                                      \
     MacroOpWithNameOnly(updateend)                                   \
     MacroOpWithNameOnly(updatestart)                                 \
+    MacroOpWithNameOnly(updatefound)                                 \
     MacroOpWithNameOnly(visibilitychange)                            \
     MacroOpWithNameOnly(voiceschanged)                               \
     MacroOpWithNameOnly(volumechange)                                \

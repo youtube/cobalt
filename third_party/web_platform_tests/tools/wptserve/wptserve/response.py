@@ -1,11 +1,13 @@
 from collections import OrderedDict
 from datetime import datetime, timedelta
-import Cookie
+from six.moves import http_cookies
 import json
 import os
 import types
 import uuid
 import socket
+import io
+import six
 
 from .constants import response_codes
 from .logger import get_logger
@@ -133,7 +135,7 @@ class Response(object):
                 max_age = int(max_age.total_seconds())
             max_age = "%.0d" % max_age
 
-        m = Cookie.Morsel()
+        m = http_cookies.Morsel()
 
         def maybe_set(key, value):
             if value is not None and value is not False:
@@ -153,7 +155,7 @@ class Response(object):
     def unset_cookie(self, name):
         """Remove a cookie from those that are being sent with the response"""
         cookies = self.headers.get("Set-Cookie")
-        parser = Cookie.BaseCookie()
+        parser = http_cookies.BaseCookie()
         for cookie in cookies:
             parser.load(cookie)
 
@@ -175,14 +177,18 @@ class Response(object):
         If any part of the content is a function, this will be called
         and the resulting value (if any) returned.
 
-        :param read_file: - boolean controlling the behaviour when content
-        is a file handle. When set to False the handle will be returned directly
-        allowing the file to be passed to the output in small chunks. When set to
-        True, the entire content of the file will be returned as a string facilitating
-        non-streaming operations like template substitution.
+        :param read_file: boolean controlling the behaviour when content is a
+                          file handle. When set to False the handle will be
+                          returned directly allowing the file to be passed to
+                          the output in small chunks. When set to True, the
+                          entire content of the file will be returned as a
+                          string facilitating non-streaming operations like
+                          template substitution.
         """
-        if isinstance(self.content, types.StringTypes):
+        if isinstance(self.content, bytes):
             yield self.content
+        elif isinstance(self.content, str):
+            yield self.content.encode(self.encoding)
         elif hasattr(self.content, "read"):
             if read_file:
                 yield self.content.read()
@@ -336,7 +342,7 @@ class ResponseHeaders(object):
         self.set(key, value)
 
     def __iter__(self):
-        for key, values in self.data.itervalues():
+        for key, values in self.data.values():
             for value in values:
                 yield key, value
 
@@ -381,8 +387,12 @@ class ResponseWriter(object):
                 message = response_codes[code][0]
             else:
                 message = ''
-        self.write("%s %d %s\r\n" %
-                   (self._response.request.protocol_version, code, message))
+        
+        protocol_version = self._response.request.protocol_version
+        if isinstance(protocol_version, bytes):
+            protocol_version = protocol_version.decode()
+
+        self.write("%s %d %s\r\n" % (protocol_version, code, message))
 
     def write_header(self, name, value):
         """Write out a single header for the response.
@@ -390,6 +400,10 @@ class ResponseWriter(object):
         :param name: Name of the header field
         :param value: Value of the header field
         """
+        if isinstance(value, bytes):
+            value = value.decode("utf-8")
+        if isinstance(name, bytes):
+            name = name.decode()
         self._headers_seen.add(name.lower())
         self.write("%s: %s\r\n" % (name, value))
         if not self._response.explicit_flush:
@@ -401,12 +415,14 @@ class ResponseWriter(object):
             if name.lower() not in self._headers_seen:
                 self.write_header(name, f())
 
-        if (type(self._response.content) in (str, unicode) and
+
+        if (isinstance(self._response.content, (bytes,) + six.string_types) and
             "content-length" not in self._headers_seen):
             #Would be nice to avoid double-encoding here
             self.write_header("Content-Length", len(self.encode(self._response.content)))
 
-        if (type(self._response.content) in (file,) and
+        file_type = file if six.PY2 else io.IOBase
+        if (isinstance(self._response.content, file_type) and
             "content-length" not in self._headers_seen):
             file_size = os.stat( self._response.content.name ).st_size
             self.write_header("Content-Length", file_size )
@@ -430,7 +446,7 @@ class ResponseWriter(object):
 
     def write_content(self, data):
         """Write the body of the response."""
-        if isinstance(data, types.StringTypes):
+        if isinstance(data, (bytes,) + six.string_types):
             self.write(data)
         else:
             self.write_content_file(data)
@@ -463,10 +479,12 @@ class ResponseWriter(object):
 
     def encode(self, data):
         """Convert unicode to bytes according to response.encoding."""
-        if isinstance(data, str):
+        if isinstance(data, bytes):
             return data
-        elif isinstance(data, unicode):
+        elif six.PY3 or isinstance(data, unicode):
             return data.encode(self._response.encoding)
+        elif isinstance(data, str):
+            return data
         else:
             raise ValueError
 

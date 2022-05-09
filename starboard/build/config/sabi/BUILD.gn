@@ -17,26 +17,12 @@ config("sabi") {
   sabi_variables = sabi_json.variables
   forward_variables_from(sabi_variables, "*")
 
-  arch_uppercase = exec_script("//starboard/build/gyp_functions.py",
-                               [
-                                 "str_upper",
-                                 target_arch,
-                               ],
-                               "trim string")
+  arch_uppercase =
+      exec_script("uppercase_string.py", [ target_arch ], "trim string")
   calling_convention_uppercase =
-      exec_script("//starboard/build/gyp_functions.py",
-                  [
-                    "str_upper",
-                    calling_convention,
-                  ],
-                  "trim string")
+      exec_script("uppercase_string.py", [ calling_convention ], "trim string")
   floating_point_abi_uppercase =
-      exec_script("//starboard/build/gyp_functions.py",
-                  [
-                    "str_upper",
-                    floating_point_abi,
-                  ],
-                  "trim string")
+      exec_script("uppercase_string.py", [ floating_point_abi ], "trim string")
 
   sabi_id = exec_script("//starboard/sabi/generate_sabi_id.py",
                         [

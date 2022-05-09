@@ -14,6 +14,16 @@ A description of all changes currently in the experimental Starboard version
 can be found in the comments of the "Experimental Feature Defines" section of
 [configuration.h](configuration.h).
 
+### Deprecate the usage of SB_HAS_PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT.
+The improvements on player creation and output mode query (like
+`SbPlayerCreationParam` and `SbPlayerGetPreferredOutputMode()`) are always
+enabled.  This change also deprecates `SbPlayerOutputModeSupported()`.
+
+### Deprecate the usage of SB_HAS_MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT
+The extra parameters (like `profile` and `level`) on `SbMediaIsVideoSupported()`
+are always enabled.  This change also deprecated
+`SbMediaIsTransferCharacteristicsSupported()`.
+
 ## Version 13
 ### Changed lifecycle events to add support for a concealed state.
 
@@ -276,12 +286,6 @@ to achieve the same result as before when passing in a `SbDirectoryEntry`.
 A platform will define the extern constants declared in
 "starboard/configuration_constants.h". The definitions are done in
 "starboard/<PLATFORM_PATH>/configuration_constants.cc".
-
-The exact mapping between macros and extern variables can be found in
-"starboard/shared/starboard/configuration_constants_compatibility_defines.h"
-though the naming scheme is very nearly the same: the old SB_FOO macro will
-always become the constant kSbFoo.
-
 ### Improve player creation and output mode query.
 
 1. Introduce the new type SbPlayerCreationParam that holds the common

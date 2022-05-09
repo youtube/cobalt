@@ -24,16 +24,12 @@
 using starboard::shared::starboard::SetInitialized;
 
 bool SbMutexCreate(SbMutex* mutex) {
-#if SB_API_VERSION >= 12
   SB_COMPILE_ASSERT(sizeof(SbMutex) >= sizeof(SbMutexPrivate),
                     sb_mutex_private_larger_than_sb_mutex);
-#endif
   if (!mutex) {
     return false;
   }
 
-#if SB_API_VERSION >= 12
   SetInitialized(&(SB_INTERNAL_MUTEX(mutex)->initialized_state));
-#endif
   return IsSuccess(pthread_mutex_init(SB_PTHREAD_INTERNAL_MUTEX(mutex), NULL));
 }

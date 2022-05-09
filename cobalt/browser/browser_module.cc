@@ -38,7 +38,6 @@
 #include "cobalt/browser/on_screen_keyboard_starboard_bridge.h"
 #include "cobalt/browser/screen_shot_writer.h"
 #include "cobalt/browser/switches.h"
-#include "cobalt/browser/webapi_extension.h"
 #include "cobalt/configuration/configuration.h"
 #include "cobalt/cssom/viewport_size.h"
 #include "cobalt/dom/csp_delegate_factory.h"
@@ -197,14 +196,6 @@ void OnScreenshotMessage(BrowserModule* browser_module,
 
 #endif  // defined(ENABLE_DEBUGGER)
 
-#if SB_API_VERSION < 12
-scoped_refptr<script::Wrappable> CreateExtensionInterface(
-    const scoped_refptr<dom::Window>& window,
-    script::GlobalEnvironment* global_environment) {
-  return CreateWebAPIExtensionObject(window, global_environment);
-}
-#endif
-
 renderer::RendererModule::Options RendererModuleWithCameraOptions(
     renderer::RendererModule::Options options,
     scoped_refptr<input::Camera3D> camera_3d) {
@@ -249,15 +240,12 @@ BrowserModule::BrowserModule(const GURL& url,
       updater_module_(updater_module),
 #endif
       splash_screen_cache_(new SplashScreenCache()),
-#if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
       on_screen_keyboard_bridge_(
           OnScreenKeyboardStarboardBridge::IsSupported() &&
                   options.enable_on_screen_keyboard
               ? new OnScreenKeyboardStarboardBridge(base::Bind(
                     &BrowserModule::GetSbWindow, base::Unretained(this)))
               : NULL),
-#endif  // SB_API_VERSION >= 12 ||
-      // SB_HAS(ON_SCREEN_KEYBOARD)
       web_module_loaded_(base::WaitableEvent::ResetPolicy::MANUAL,
                          base::WaitableEvent::InitialState::NOT_SIGNALED),
       web_module_created_callback_(options_.web_module_created_callback),
@@ -306,7 +294,8 @@ BrowserModule::BrowserModule(const GURL& url,
       main_web_module_generation_(0),
       next_timeline_id_(1),
       current_splash_screen_timeline_id_(-1),
-      current_main_web_module_timeline_id_(-1) {
+      current_main_web_module_timeline_id_(-1),
+      service_worker_registry_(network_module) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::BrowserModule()");
 
   // Apply platform memory setting adjustments and defaults.
@@ -360,9 +349,11 @@ BrowserModule::BrowserModule(const GURL& url,
   }
 
   // Setup our main web module to have the H5VCC API injected into it.
-  DCHECK(!ContainsKey(options_.web_module_options.injected_window_attributes,
-                      "h5vcc"));
-  options_.web_module_options.injected_window_attributes["h5vcc"] =
+  DCHECK(!ContainsKey(
+      options_.web_module_options.web_options.injected_global_object_attributes,
+      "h5vcc"));
+  options_.web_module_options.web_options
+      .injected_global_object_attributes["h5vcc"] =
       base::Bind(&BrowserModule::CreateH5vcc, base::Unretained(this));
 
   if (command_line->HasSwitch(switches::kDisableTimerResolutionLimit)) {
@@ -371,21 +362,6 @@ BrowserModule::BrowserModule(const GURL& url,
 
   options_.web_module_options.enable_inline_script_warnings =
       !command_line->HasSwitch(switches::kSilenceInlineScriptWarnings);
-
-#if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
-  options_.web_module_options.enable_partial_layout =
-      !command_line->HasSwitch(switches::kDisablePartialLayout);
-#endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
-
-#if SB_API_VERSION < 12
-  base::Optional<std::string> extension_object_name =
-      GetWebAPIExtensionObjectPropertyName();
-  if (extension_object_name) {
-    options_.web_module_options
-        .injected_window_attributes[*extension_object_name] =
-        base::Bind(&CreateExtensionInterface);
-  }
-#endif
 
 #if defined(ENABLE_DEBUGGER) && defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   if (command_line->HasSwitch(switches::kInputFuzzer)) {
@@ -533,10 +509,8 @@ void BrowserModule::Navigate(const GURL& url_reference) {
   pending_navigate_url_ = GURL::EmptyGURL();
 
 #if defined(ENABLE_DEBUGGER)
-  // Save the debugger state to be restored in the new WebModule.
-  std::unique_ptr<debug::backend::DebuggerState> debugger_state;
   if (web_module_) {
-    debugger_state = web_module_->FreezeDebugger();
+    web_module_->FreezeDebugger(&debugger_state_);
   }
 #endif  // defined(ENABLE_DEBUGGER)
 
@@ -612,10 +586,6 @@ void BrowserModule::Navigate(const GURL& url_reference) {
     options.camera_3d = input_device_manager_->camera_3d();
   }
 
-  // Make sure that automem has been run before creating the WebModule, so that
-  // we use properly configured options for all parameters.
-  DCHECK(auto_mem_);
-
   options.provide_screenshot_function =
       base::Bind(&ScreenShotWriter::RequestScreenshotToMemoryUnencoded,
                  base::Unretained(screen_shot_writer_.get()));
@@ -632,12 +602,14 @@ void BrowserModule::Navigate(const GURL& url_reference) {
         (wait_for_generation == main_web_module_generation_);
   }
 
-  options.debugger_state = debugger_state.get();
+  options.debugger_state = debugger_state_.get();
 #endif  // ENABLE_DEBUGGER
 
   // Pass down this callback from to Web module.
   options.maybe_freeze_callback =
       base::Bind(&BrowserModule::OnMaybeFreeze, base::Unretained(this));
+
+  options.web_options.network_module = network_module_;
 
   web_module_.reset(new WebModule(
       url, application_state_,
@@ -646,13 +618,10 @@ void BrowserModule::Navigate(const GURL& url_reference) {
       base::Bind(&BrowserModule::OnError, base::Unretained(this)),
       base::Bind(&BrowserModule::OnWindowClose, base::Unretained(this)),
       base::Bind(&BrowserModule::OnWindowMinimize, base::Unretained(this)),
-      can_play_type_handler_.get(), media_module_.get(), network_module_,
-      viewport_size, GetResourceProvider(), kLayoutMaxRefreshFrequencyInHz,
-      options));
+      can_play_type_handler_.get(), media_module_.get(), viewport_size,
+      GetResourceProvider(), kLayoutMaxRefreshFrequencyInHz,
+      service_worker_registry_.service_worker_jobs(), options));
   lifecycle_observers_.AddObserver(web_module_.get());
-  if (!web_module_created_callback_.is_null()) {
-    web_module_created_callback_.Run();
-  }
 
   if (system_window_) {
     web_module_->GetUiNavRoot()->SetContainerWindow(
@@ -666,8 +635,7 @@ void BrowserModule::Reload() {
   DCHECK(web_module_);
   web_module_->ExecuteJavascript(
       "location.reload();",
-      base::SourceLocation("[object BrowserModule]", 1, 1),
-      NULL /* output: succeeded */);
+      base::SourceLocation("[object BrowserModule]", 1, 1));
 }
 
 #if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
@@ -721,8 +689,8 @@ void BrowserModule::RequestScreenshotToFile(
   TRACE_EVENT0("cobalt::browser", "BrowserModule::RequestScreenshotToFile()");
   DCHECK(screen_shot_writer_);
 
-  scoped_refptr<render_tree::Node> render_tree =
-      web_module_->DoSynchronousLayoutAndGetRenderTree();
+  scoped_refptr<render_tree::Node> render_tree;
+  web_module_->DoSynchronousLayoutAndGetRenderTree(&render_tree);
   if (!render_tree) {
     LOG(WARNING) << "Unable to get animated render tree";
     return;
@@ -739,8 +707,8 @@ void BrowserModule::RequestScreenshotToMemory(
   TRACE_EVENT0("cobalt::browser", "BrowserModule::RequestScreenshotToMemory()");
   DCHECK(screen_shot_writer_);
 
-  scoped_refptr<render_tree::Node> render_tree =
-      web_module_->DoSynchronousLayoutAndGetRenderTree();
+  scoped_refptr<render_tree::Node> render_tree;
+  web_module_->DoSynchronousLayoutAndGetRenderTree(&render_tree);
   if (!render_tree) {
     LOG(WARNING) << "Unable to get animated render tree";
     return;
@@ -946,7 +914,6 @@ void BrowserModule::OnWindowSizeChanged(const ViewportSize& viewport_size) {
   return;
 }
 
-#if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
 void BrowserModule::OnOnScreenKeyboardShown(
     const base::OnScreenKeyboardShownEvent* event) {
   DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
@@ -995,17 +962,13 @@ void BrowserModule::OnOnScreenKeyboardSuggestionsUpdated(
     web_module_->InjectOnScreenKeyboardSuggestionsUpdatedEvent(event->ticket());
   }
 }
-#endif  // SB_API_VERSION >= 12 ||
-        // SB_HAS(ON_SCREEN_KEYBOARD)
 
-#if SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
 void BrowserModule::OnCaptionSettingsChanged(
     const base::AccessibilityCaptionSettingsChangedEvent* event) {
   if (web_module_) {
     web_module_->InjectCaptionSettingsChangedEvent();
   }
 }
-#endif  // SB_API_VERSION >= 12 || SB_HAS(CAPTIONS)
 
 #if SB_API_VERSION >= 13
 void BrowserModule::OnDateTimeConfigurationChanged(
@@ -1104,7 +1067,6 @@ void BrowserModule::OnDebugConsoleRenderTreeProduced(
 
 #endif  // defined(ENABLE_DEBUGGER)
 
-#if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
 void BrowserModule::OnOnScreenKeyboardInputEventProduced(
     base::Token type, const dom::InputEventInit& event) {
   TRACE_EVENT0("cobalt::browser",
@@ -1125,8 +1087,6 @@ void BrowserModule::OnOnScreenKeyboardInputEventProduced(
 
   InjectOnScreenKeyboardInputEventToMainWebModule(type, event);
 }
-#endif  // SB_API_VERSION >= 12 ||
-        // SB_HAS(ON_SCREEN_KEYBOARD)
 
 void BrowserModule::OnKeyEventProduced(base::Token type,
                                        const dom::KeyboardEventInit& event) {
@@ -1213,7 +1173,6 @@ void BrowserModule::InjectKeyEventToMainWebModule(
   web_module_->InjectKeyboardEvent(type, event);
 }
 
-#if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
 void BrowserModule::InjectOnScreenKeyboardInputEventToMainWebModule(
     base::Token type, const dom::InputEventInit& event) {
   TRACE_EVENT0(
@@ -1231,8 +1190,6 @@ void BrowserModule::InjectOnScreenKeyboardInputEventToMainWebModule(
   DCHECK(web_module_);
   web_module_->InjectOnScreenKeyboardInputEvent(type, event);
 }
-#endif  // SB_API_VERSION >= 12 ||
-        // SB_HAS(ON_SCREEN_KEYBOARD)
 
 void BrowserModule::OnError(const GURL& url, const std::string& error) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::OnError()");
@@ -1434,7 +1391,7 @@ void BrowserModule::CreateWindowDriverInternal(
     std::unique_ptr<webdriver::WindowDriver>* out_window_driver) {
   DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
   DCHECK(web_module_);
-  *out_window_driver = web_module_->CreateWindowDriver(window_id);
+  web_module_->CreateWindowDriver(window_id, out_window_driver);
 }
 #endif  // defined(ENABLE_WEBDRIVER)
 
@@ -1442,7 +1399,7 @@ void BrowserModule::CreateWindowDriverInternal(
 std::unique_ptr<debug::DebugClient> BrowserModule::CreateDebugClient(
     debug::DebugClient::Delegate* delegate) {
   // Repost to our message loop to ensure synchronous access to |web_module_|.
-  debug::backend::DebugDispatcher* debug_dispatcher = NULL;
+  debug::backend::DebugDispatcher* debug_dispatcher = nullptr;
   self_message_loop_->task_runner()->PostBlockingTask(
       FROM_HERE,
       base::Bind(&BrowserModule::GetDebugDispatcherInternal,
@@ -1456,7 +1413,7 @@ void BrowserModule::GetDebugDispatcherInternal(
     debug::backend::DebugDispatcher** out_debug_dispatcher) {
   DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
   DCHECK(web_module_);
-  *out_debug_dispatcher = web_module_->GetDebugDispatcher();
+  web_module_->GetDebugDispatcher(out_debug_dispatcher);
 }
 #endif  // ENABLE_DEBUGGER
 
@@ -1481,20 +1438,21 @@ void BrowserModule::Conceal(SbTimeMonotonic timestamp) {
   ConcealInternal(timestamp);
 }
 
-void BrowserModule::Focus(SbTimeMonotonic timestamp) {
-  TRACE_EVENT0("cobalt::browser", "BrowserModule::Focus()");
-  DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
-  DCHECK(application_state_ == base::kApplicationStateBlurred);
-  FOR_EACH_OBSERVER(LifecycleObserver, lifecycle_observers_, Focus(timestamp));
-  application_state_ = base::kApplicationStateStarted;
-}
-
 void BrowserModule::Freeze(SbTimeMonotonic timestamp) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::Freeze()");
   DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
   DCHECK(application_state_ == base::kApplicationStateConcealed);
   application_state_ = base::kApplicationStateFrozen;
   FreezeInternal(timestamp);
+}
+
+void BrowserModule::Unfreeze(SbTimeMonotonic timestamp) {
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::Unfreeze()");
+  DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
+  DCHECK(application_state_ == base::kApplicationStateFrozen);
+  application_state_ = base::kApplicationStateConcealed;
+  UnfreezeInternal(timestamp);
+  NavigatePendingURL();
 }
 
 void BrowserModule::Reveal(SbTimeMonotonic timestamp) {
@@ -1505,13 +1463,16 @@ void BrowserModule::Reveal(SbTimeMonotonic timestamp) {
   RevealInternal(timestamp);
 }
 
-void BrowserModule::Unfreeze(SbTimeMonotonic timestamp) {
-  TRACE_EVENT0("cobalt::browser", "BrowserModule::Unfreeze()");
+void BrowserModule::Focus(SbTimeMonotonic timestamp) {
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::Focus()");
   DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
-  DCHECK(application_state_ == base::kApplicationStateFrozen);
-  application_state_ = base::kApplicationStateConcealed;
-  UnfreezeInternal(timestamp);
-  NavigatePendingURL();
+  DCHECK(application_state_ == base::kApplicationStateBlurred);
+  FOR_EACH_OBSERVER(LifecycleObserver, lifecycle_observers_, Focus(timestamp));
+  application_state_ = base::kApplicationStateStarted;
+}
+
+base::ApplicationState BrowserModule::GetApplicationState() {
+  return application_state_;
 }
 
 void BrowserModule::ReduceMemory() {
@@ -1535,11 +1496,7 @@ void BrowserModule::CheckMemory(
     const int64_t& used_cpu_memory,
     const base::Optional<int64_t>& used_gpu_memory) {
   DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
-  if (!auto_mem_) {
-    return;
-  }
-
-  memory_settings_checker_.RunChecks(*auto_mem_, used_cpu_memory,
+  memory_settings_checker_.RunChecks(auto_mem_, used_cpu_memory,
                                      used_gpu_memory);
 }
 
@@ -1670,17 +1627,15 @@ void BrowserModule::InitializeSystemWindow() {
       base::Bind(&BrowserModule::OnPointerEventProduced,
                  base::Unretained(this)),
       base::Bind(&BrowserModule::OnWheelEventProduced, base::Unretained(this)),
-#if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
       base::Bind(&BrowserModule::OnOnScreenKeyboardInputEventProduced,
                  base::Unretained(this)),
-#endif  // SB_API_VERSION >= 12 ||
-      // SB_HAS(ON_SCREEN_KEYBOARD)
       system_window_.get());
 
   InitializeComponents();
 }
 
 void BrowserModule::InstantiateRendererModule() {
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::InstantiateRendererModule()");
   DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
   DCHECK(system_window_);
   DCHECK(!renderer_module_);
@@ -1830,7 +1785,7 @@ void BrowserModule::UnfreezeInternal(SbTimeMonotonic timestamp) {
 // Set the Stub resource provider to media module and to web module
 // at Concealed state.
 #if SB_API_VERSION >= 13
-  media_module_->Resume(GetResourceProvider());
+  if (media_module_) media_module_->Resume(GetResourceProvider());
 #endif  // SB_API_VERSION >= 13
 
   FOR_EACH_OBSERVER(LifecycleObserver, lifecycle_observers_,
@@ -1942,7 +1897,7 @@ ViewportSize BrowserModule::GetViewportSize() {
 
   // No window and no viewport size was requested, so we return a conservative
   // default.
-  math::Size default_size(1280, 720);
+  math::Size default_size(1920, 1080);
   default_size =
       math::RoundOut(viewport_transform.MapRect(math::RectF(default_size)))
           .size();
@@ -1952,35 +1907,33 @@ ViewportSize BrowserModule::GetViewportSize() {
 
 void BrowserModule::ApplyAutoMemSettings() {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::ApplyAutoMemSettings()");
-  auto_mem_.reset(new memory_settings::AutoMem(
-      GetViewportSize().width_height(), options_.command_line_auto_mem_settings,
-      options_.build_auto_mem_settings));
-
-  LOG(INFO) << auto_mem_->ToPrettyPrintString(SbLogIsTty());
+  auto_mem_.ConstructSettings(GetViewportSize().width_height(),
+                              options_.command_line_auto_mem_settings,
+                              options_.build_auto_mem_settings);
 
   // Web Module options.
   options_.web_module_options.encoded_image_cache_capacity =
-      static_cast<int>(auto_mem_->encoded_image_cache_size_in_bytes()->value());
+      static_cast<int>(auto_mem_.encoded_image_cache_size_in_bytes()->value());
   options_.web_module_options.image_cache_capacity =
-      static_cast<int>(auto_mem_->image_cache_size_in_bytes()->value());
+      static_cast<int>(auto_mem_.image_cache_size_in_bytes()->value());
   options_.web_module_options.remote_typeface_cache_capacity = static_cast<int>(
-      auto_mem_->remote_typeface_cache_size_in_bytes()->value());
+      auto_mem_.remote_typeface_cache_size_in_bytes()->value());
   if (web_module_) {
     web_module_->SetImageCacheCapacity(
-        auto_mem_->image_cache_size_in_bytes()->value());
+        auto_mem_.image_cache_size_in_bytes()->value());
     web_module_->SetRemoteTypefaceCacheCapacity(
-        auto_mem_->remote_typeface_cache_size_in_bytes()->value());
+        auto_mem_.remote_typeface_cache_size_in_bytes()->value());
   }
 
   // Renderer Module options.
   options_.renderer_module_options.skia_cache_size_in_bytes =
-      static_cast<int>(auto_mem_->skia_cache_size_in_bytes()->value());
+      static_cast<int>(auto_mem_.skia_cache_size_in_bytes()->value());
   options_.renderer_module_options.offscreen_target_cache_size_in_bytes =
       static_cast<int>(
-          auto_mem_->offscreen_target_cache_size_in_bytes()->value());
+          auto_mem_.offscreen_target_cache_size_in_bytes()->value());
 
   const memory_settings::TextureDimensions skia_glyph_atlas_texture_dimensions =
-      auto_mem_->skia_atlas_texture_dimensions()->value();
+      auto_mem_.skia_atlas_texture_dimensions()->value();
   if (skia_glyph_atlas_texture_dimensions.bytes_per_pixel() > 0) {
     // Right now the bytes_per_pixel is assumed in the engine. Any other value
     // is currently forbidden.
@@ -2090,8 +2043,7 @@ void BrowserModule::GetParamMap(const std::string& url,
 }
 
 scoped_refptr<script::Wrappable> BrowserModule::CreateH5vcc(
-    const scoped_refptr<dom::Window>& window,
-    script::GlobalEnvironment* global_environment) {
+    script::EnvironmentSettings* settings) {
   h5vcc::H5vcc::Settings h5vcc_settings;
   h5vcc_settings.media_module = media_module_.get();
   h5vcc_settings.network_module = network_module_;
@@ -2100,16 +2052,19 @@ scoped_refptr<script::Wrappable> BrowserModule::CreateH5vcc(
 #endif
   h5vcc_settings.account_manager = account_manager_;
   h5vcc_settings.event_dispatcher = event_dispatcher_;
-  h5vcc_settings.user_agent_data = window->navigator()->user_agent_data();
-  h5vcc_settings.global_environment = global_environment;
 
-  return scoped_refptr<script::Wrappable>(new h5vcc::H5vcc(h5vcc_settings));
-}
+  auto* dom_settings = base::polymorphic_downcast<dom::DOMSettings*>(settings);
 
-void BrowserModule::SetApplicationStartOrPreloadTimestamp(
-    bool is_preload, SbTimeMonotonic timestamp) {
-  DCHECK(web_module_);
-  web_module_->SetApplicationStartOrPreloadTimestamp(is_preload, timestamp);
+  h5vcc_settings.user_agent_data =
+      dom_settings->window()->navigator()->user_agent_data();
+  h5vcc_settings.global_environment =
+      dom_settings->context()->global_environment();
+
+  auto* h5vcc_object = new h5vcc::H5vcc(h5vcc_settings);
+  if (!web_module_created_callback_.is_null()) {
+    web_module_created_callback_.Run(web_module_.get());
+  }
+  return scoped_refptr<script::Wrappable>(h5vcc_object);
 }
 
 void BrowserModule::SetDeepLinkTimestamp(SbTimeMonotonic timestamp) {

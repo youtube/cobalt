@@ -21,10 +21,9 @@ import logging
 import os
 import sys
 
-import _env  # pylint: disable=unused-import
+from starboard.build.platforms import PLATFORMS
 from starboard.tools import config
 from starboard.tools import paths
-from starboard.tools import platform
 from starboard.tools import download_clang
 
 _STARBOARD_TOOLCHAINS_DIR_KEY = 'STARBOARD_TOOLCHAINS_DIR'
@@ -57,12 +56,12 @@ def _CheckConfig(key, raw_value, value):
 
 
 def _CheckPlatform(key, raw_value, value):
-  if platform.IsValid(value):
+  if value in PLATFORMS:
     return True
 
   logging.warning("Environment variable '%s' is '%s', which is invalid.", key,
                   raw_value)
-  logging.warning('Valid platforms: %s', platform.GetAll())
+  logging.warning('Valid platforms: %s', list(PLATFORMS.keys()))
   return False
 
 
@@ -216,9 +215,9 @@ def _LoadPlatformModule(platform_name, file_name, function_name):
   """
   try:
     logging.debug('Loading platform %s for "%s".', file_name, platform_name)
-    if platform.IsValid(platform_name):
+    if platform_name in PLATFORMS:
       platform_path = os.path.join(paths.REPOSITORY_ROOT,
-                                   platform.Get(platform_name).path)
+                                   PLATFORMS[platform_name])
       module_path = os.path.join(platform_path, file_name)
       if not _ModuleLoaded('platform_module', module_path):
         platform_module = imp.load_source('platform_module', module_path)
@@ -254,7 +253,7 @@ def _LoadPlatformConfig(platform_name):
     platform_name: Platform name.
 
   Returns:
-    Instance of a class derived from PlatformConfigBase.
+    Instance of a class derived from PlatformConfiguration.
   """
   platform_configuration, platform_path = _LoadPlatformModule(
       platform_name, 'gyp_configuration.py', 'CreatePlatformConfig')
@@ -297,7 +296,7 @@ def GetPlatformConfig(platform_name):
     platform_name: Platform name.
 
   Returns:
-    Instance of a class derived from PlatformConfigBase.
+    Instance of a class derived from PlatformConfiguration.
   """
 
   if platform_name not in _PLATFORM_CONFIG_DICT:
@@ -320,4 +319,4 @@ def GetPlatformTestFilters(platform_name):
     _PLATFORM_TEST_FILTERS_DICT[platform_name] = _LoadPlatformTestFilters(
         platform_name)
 
-  return _PLATFORM_CONFIG_DICT[platform_name]
+  return _PLATFORM_TEST_FILTERS_DICT[platform_name]

@@ -22,14 +22,8 @@
 #include "starboard/thread.h"
 
 // INITIALIZED_STATE_UNINITIALIZED is defined in the header.
-
-#if SB_API_VERSION >= 12
 #define INITIALIZED_STATE_INITIALIZING 1
 #define INITIALIZED_STATE_INITIALIZED 2
-#else
-#define INITIALIZED_STATE_INITIALIZING 2
-#define INITIALIZED_STATE_INITIALIZED 3
-#endif
 
 namespace starboard {
 namespace shared {

@@ -21,7 +21,6 @@
 #include "base/task/post_task.h"
 #include "base/threading/thread_checker.h"
 #if defined(STARBOARD)
-#include "base/threading/thread_id_name_manager.h"
 #include "cobalt/extension/free_space.h"
 #endif
 #include "base/threading/thread_task_runner_handle.h"
@@ -168,8 +167,7 @@ void UpdateCheckerImpl::CheckForUpdates(
 // This function runs on the blocking pool task runner.
 void UpdateCheckerImpl::ReadUpdaterStateAttributes() {
 #if defined(STARBOARD)
-  LOG(INFO) << "UpdateCheckerImpl::ReadUpdaterStateAttributes current_thread="
-    << base::ThreadIdNameManager::GetInstance()->GetNameForCurrentThread();
+  LOG(INFO) << "UpdateCheckerImpl::ReadUpdaterStateAttributes";
 #endif
 
 #if defined(OS_WIN)
@@ -246,16 +244,6 @@ void UpdateCheckerImpl::CheckForUpdatesHelper(
       return;
     }
 
-    std::string unpacked_version =
-        GetPersistedData()->GetLastUnpackedVersion(app_id);
-    // If the version of the last unpacked update package is higher than the
-    // version of the running binary, use the former to indicate the current
-    // update version in the update check request.
-    if (!unpacked_version.empty() &&
-        base::Version(unpacked_version).CompareTo(current_version) > 0) {
-      current_version = base::Version(unpacked_version);
-    }
-
     if (CobaltQuickUpdate(installation_api, current_version)) {
       // The last parameter in UpdateCheckFailed below, which is to be passed to
       // update_check_callback_, indicates a throttling by the update server.
@@ -268,6 +256,15 @@ void UpdateCheckerImpl::CheckForUpdatesHelper(
       return;
     }
 
+    std::string last_installed_version =
+        GetPersistedData()->GetLastInstalledVersion(app_id);
+    // If the version of the last installed update package is higher than the
+    // version of the running binary, use the former to indicate the current
+    // update version in the update check request.
+    if (!last_installed_version.empty() &&
+        base::Version(last_installed_version).CompareTo(current_version) > 0) {
+      current_version = base::Version(last_installed_version);
+    }
 // If the quick roll forward update slot candidate doesn't exist, continue
 // with update check.
 #endif

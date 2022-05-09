@@ -43,6 +43,11 @@ interaction with different web server behavior.
      Note: When declaring a gtest_filter, it will override the filters defined
      in GetWebPlatformTestFilters in configuration.py.
 
+  If you see a HTTPConnection error which eventually
+  causes a TimeoutException for the test, you might want
+  to add "--server_binding_address localhost" in your
+  python command.
+
 ## Tests
 
 Each script in tests/ includes one python unittest test case.

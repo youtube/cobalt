@@ -16,10 +16,8 @@
 #include "starboard/mutex.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if SB_API_VERSION >= 12
 #include "starboard/condition_variable.h"
 #include "starboard/once.h"
-#endif  // SB_API_VERSION >= 12
 
 namespace starboard {
 namespace nplb {
@@ -49,13 +47,13 @@ TEST(SbMutexCreateTest, SunnyDayALot) {
 }
 
 TEST(SbMutexCreateTest, SunnyDayABunchAtOnce) {
-  SbMutex mutices[kABunch];
+  SbMutex mutexes[kABunch];
   for (int i = 0; i < kABunch; ++i) {
-    EXPECT_TRUE(SbMutexCreate(&mutices[i]));
+    EXPECT_TRUE(SbMutexCreate(&mutexes[i]));
   }
 
   for (int i = 0; i < kABunch; ++i) {
-    EXPECT_TRUE(SbMutexDestroy(&mutices[i]));
+    EXPECT_TRUE(SbMutexDestroy(&mutexes[i]));
   }
 }
 

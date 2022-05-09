@@ -17,6 +17,8 @@
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/script/javascript_engine.h"
+#include "cobalt/web/context.h"
+#include "cobalt/web/environment_settings.h"
 
 namespace cobalt {
 namespace dom {
@@ -27,7 +29,9 @@ uint32 MemoryInfo::total_js_heap_size(
     return 0u;
   }
   return static_cast<uint32>(
-      base::polymorphic_downcast<DOMSettings*>(environment_settings)
+      base::polymorphic_downcast<web::EnvironmentSettings*>(
+          environment_settings)
+          ->context()
           ->javascript_engine()
           ->GetHeapStatistics()
           .total_heap_size);
@@ -39,7 +43,9 @@ uint32 MemoryInfo::used_js_heap_size(
     return 0u;
   }
   return static_cast<uint32>(
-      base::polymorphic_downcast<DOMSettings*>(environment_settings)
+      base::polymorphic_downcast<web::EnvironmentSettings*>(
+          environment_settings)
+          ->context()
           ->javascript_engine()
           ->GetHeapStatistics()
           .used_heap_size);

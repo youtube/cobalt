@@ -13,8 +13,6 @@
 # limitations under the License.
 """Starboard Linux Cobalt shared configuration."""
 
-import os
-
 from cobalt.build import cobalt_configuration
 from starboard.tools.testing import test_filter
 
@@ -22,24 +20,11 @@ from starboard.tools.testing import test_filter
 class CobaltLinuxConfiguration(cobalt_configuration.CobaltConfiguration):
   """Starboard Linux Cobalt shared configuration."""
 
-  def __init__(self, platform_configuration, application_name,
-               application_directory):
-    super(CobaltLinuxConfiguration, self).__init__(
-        platform_configuration, application_name, application_directory)
-
-  def GetPostIncludes(self):
-    # If there isn't a configuration.gypi found in the usual place, we'll
-    # supplement with our shared implementation.
-    includes = super(CobaltLinuxConfiguration, self).GetPostIncludes()
-    for include in includes:
-      if os.path.basename(include) == 'configuration.gypi':
-        return includes
-
-    shared_gypi_path = os.path.join(os.path.dirname(__file__),
-                                    'configuration.gypi')
-    if os.path.isfile(shared_gypi_path):
-      includes.append(shared_gypi_path)
-    return includes
+  def __init__(  # pylint:disable=useless-super-delegation
+      self, platform_configuration, application_name, application_directory):
+    super(CobaltLinuxConfiguration,
+          self).__init__(platform_configuration, application_name,
+                         application_directory)
 
   def WebdriverBenchmarksEnabled(self):
     return True
@@ -58,7 +43,7 @@ class CobaltLinuxConfiguration(cobalt_configuration.CobaltConfiguration):
             'debug'),
         test_filter.TestFilter(
             'web_platform_tests',
-            'streams/WebPlatformTest.Run/streams_readable_streams_templated_html',
+            'streams/WebPlatformTest.Run/streams_readable_streams_templated_html',  # pylint:disable=line-too-long
             'debug'),
         test_filter.TestFilter(
             'web_platform_tests',
@@ -68,7 +53,13 @@ class CobaltLinuxConfiguration(cobalt_configuration.CobaltConfiguration):
 
   def GetTestEnvVariables(self):
     return {
-        'base_unittests': {'ASAN_OPTIONS': 'detect_leaks=0'},
-        'crypto_unittests': {'ASAN_OPTIONS': 'detect_leaks=0'},
-        'net_unittests': {'ASAN_OPTIONS': 'detect_leaks=0'}
+        'base_unittests': {
+            'ASAN_OPTIONS': 'detect_leaks=0'
+        },
+        'crypto_unittests': {
+            'ASAN_OPTIONS': 'detect_leaks=0'
+        },
+        'net_unittests': {
+            'ASAN_OPTIONS': 'detect_leaks=0'
+        }
     }

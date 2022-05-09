@@ -24,23 +24,19 @@ using starboard::shared::starboard::EnsureInitialized;
 using starboard::shared::starboard::SetInitialized;
 
 bool SbOnce(SbOnceControl* once_control, SbOnceInitRoutine init_routine) {
-#if SB_API_VERSION >= 12
   SB_COMPILE_ASSERT(sizeof(SbOnceControl) >= sizeof(SbOnceControlPrivate),
                     sb_once_control_private_larger_than_sb_once_control);
-#endif
   if (once_control == NULL) {
     return false;
   }
   if (init_routine == NULL) {
     return false;
   }
-#if SB_API_VERSION >= 12
   if (!EnsureInitialized(
           &(SB_INTERNAL_ONCE(once_control)->initialized_state))) {
     *SB_PTHREAD_INTERNAL_ONCE(once_control) = PTHREAD_ONCE_INIT;
     SetInitialized(&(SB_INTERNAL_ONCE(once_control)->initialized_state));
   }
-#endif
 
   return pthread_once(SB_PTHREAD_INTERNAL_ONCE(once_control), init_routine) ==
          0;

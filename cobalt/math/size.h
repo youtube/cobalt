@@ -8,6 +8,7 @@
 #include <iosfwd>
 #include <string>
 
+#include "base/numerics/checked_math.h"
 #include "cobalt/math/size_base.h"
 #include "cobalt/math/size_f.h"
 
@@ -26,6 +27,12 @@ class Size : public SizeBase<Size, int> {
   }
 
   int GetArea() const { return width() * height(); }
+
+  base::CheckedNumeric<int> GetCheckedArea() const {
+    base::CheckedNumeric<int> checked_area = width();
+    checked_area *= height();
+    return checked_area;
+  }
 
   std::string ToString() const;
 };

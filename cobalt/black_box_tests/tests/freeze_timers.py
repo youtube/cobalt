@@ -17,8 +17,6 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import _env  # pylint: disable=unused-import
-
 import time
 
 from cobalt.black_box_tests import black_box_tests

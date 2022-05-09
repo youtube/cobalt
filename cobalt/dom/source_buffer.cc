@@ -49,11 +49,12 @@
 #include "base/compiler_specific.h"
 #include "base/logging.h"
 #include "base/time/time.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/media_source.h"
-#include "cobalt/media/base/ranges.h"
-#include "cobalt/media/base/timestamp_constants.h"
+#include "third_party/chromium/media/base/ranges.h"
+#include "third_party/chromium/media/base/timestamp_constants.h"
 
 namespace cobalt {
 namespace dom {
@@ -65,7 +66,7 @@ static base::TimeDelta DoubleToTimeDelta(double time) {
   DCHECK_NE(time, -std::numeric_limits<double>::infinity());
 
   if (time == std::numeric_limits<double>::infinity()) {
-    return media::kInfiniteDuration;
+    return ::media::kInfiniteDuration;
   }
 
   // Don't use base::TimeDelta::Max() here, as we want the largest finite time
@@ -85,8 +86,7 @@ static base::TimeDelta DoubleToTimeDelta(double time) {
 
 SourceBuffer::SourceBuffer(script::EnvironmentSettings* settings,
                            const std::string& id, MediaSource* media_source,
-                           media::ChunkDemuxer* chunk_demuxer,
-                           EventQueue* event_queue)
+                           ChunkDemuxer* chunk_demuxer, EventQueue* event_queue)
     : EventTarget(settings),
       id_(id),
       chunk_demuxer_(chunk_demuxer),
@@ -104,6 +104,11 @@ SourceBuffer::SourceBuffer(script::EnvironmentSettings* settings,
   chunk_demuxer_->SetTracksWatcher(
       id_,
       base::Bind(&SourceBuffer::InitSegmentReceived, base::Unretained(this)));
+  chunk_demuxer_->SetParseWarningCallback(
+      id, base::BindRepeating([](::media::SourceBufferParseWarning warning) {
+        LOG(WARNING) << "Encountered SourceBufferParseWarning "
+                     << static_cast<int>(warning);
+      }));
 }
 
 void SourceBuffer::set_mode(SourceBufferAppendMode mode,
@@ -137,7 +142,7 @@ scoped_refptr<TimeRanges> SourceBuffer::buffered(
   }
 
   scoped_refptr<TimeRanges> time_ranges = new TimeRanges;
-  media::Ranges<base::TimeDelta> ranges =
+  ::media::Ranges<base::TimeDelta> ranges =
       chunk_demuxer_->GetBufferedRanges(id_);
   for (size_t i = 0; i < ranges.size(); i++) {
     time_ranges->Add(ranges.start(i).InSecondsF(), ranges.end(i).InSecondsF());
@@ -215,6 +220,8 @@ void SourceBuffer::set_append_window_end(
 
 void SourceBuffer::AppendBuffer(const script::Handle<script::ArrayBuffer>& data,
                                 script::ExceptionState* exception_state) {
+  TRACE_EVENT1("cobalt::dom", "SourceBuffer::AppendBuffer()", "size",
+               data->ByteLength());
   AppendBufferInternal(static_cast<const unsigned char*>(data->Data()),
                        data->ByteLength(), exception_state);
 }
@@ -222,11 +229,15 @@ void SourceBuffer::AppendBuffer(const script::Handle<script::ArrayBuffer>& data,
 void SourceBuffer::AppendBuffer(
     const script::Handle<script::ArrayBufferView>& data,
     script::ExceptionState* exception_state) {
+  TRACE_EVENT1("cobalt::dom", "SourceBuffer::AppendBuffer()", "size",
+               data->ByteLength());
   AppendBufferInternal(static_cast<const unsigned char*>(data->RawData()),
                        data->ByteLength(), exception_state);
 }
 
 void SourceBuffer::Abort(script::ExceptionState* exception_state) {
+  TRACE_EVENT0("cobalt::dom", "SourceBuffer::Abort()");
+
   if (media_source_ == NULL) {
     DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
     return;
@@ -427,6 +438,7 @@ void SourceBuffer::AppendBufferInternal(
 }
 
 void SourceBuffer::OnAppendTimer() {
+  TRACE_EVENT0("cobalt::dom", "SourceBuffer::OnAppendTimer()");
   const size_t kMaxAppendSize = 128 * 1024;
 
   DCHECK(updating_);

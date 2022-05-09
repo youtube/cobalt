@@ -16,9 +16,9 @@
 
 #include <memory>
 #include <string>
+#include <utility>
 
 #include "base/message_loop/message_loop.h"
-#include "base/synchronization/waitable_event.h"
 #include "cobalt/base/debugger_hooks.h"
 #include "cobalt/debug/backend/css_agent.h"
 #include "cobalt/debug/backend/debug_backend.h"
@@ -108,8 +108,7 @@ class DebugModule : public script::ScriptDebugger::Delegate {
   void Build(const ConstructionData& data);
 
   // Signals |created| when done, if not NULL.
-  void BuildInternal(const ConstructionData& data,
-                     base::WaitableEvent* created);
+  void BuildInternal(const ConstructionData& data);
 
   // Sends a protocol event to the frontend through |DebugDispatcher|.
   void SendEvent(const std::string& method, const std::string& params);

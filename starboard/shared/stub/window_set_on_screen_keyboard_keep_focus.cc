@@ -14,8 +14,4 @@
 
 #include "starboard/window.h"
 
-#if SB_API_VERSION >= 12
-
 void SbWindowSetOnScreenKeyboardKeepFocus(SbWindow window, bool keep_focus) {}
-
-#endif

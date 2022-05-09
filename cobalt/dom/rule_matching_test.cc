@@ -158,6 +158,47 @@ TEST_F(RuleMatchingTest, AttributeSelectorMatchEquals) {
             (*matching_rules)[0].first);
 }
 
+// [attr=value] should match <div attr="value"/>.
+TEST_F(RuleMatchingTest, AttributeSelectorMatchesFirstOne) {
+  head_->set_inner_html("<style>[attr=value] {} [attr=value2] {} {}</style>");
+  body_->set_inner_html("<div attr=\"value\"/>");
+  UpdateAllMatchingRules();
+
+  cssom::RulesWithCascadePrecedence* matching_rules =
+      body_->first_element_child()->AsHTMLElement()->matching_rules();
+  ASSERT_EQ(1, matching_rules->size());
+  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
+            (*matching_rules)[0].first);
+}
+
+// [attr=value] should match <div attr="value"/>.
+TEST_F(RuleMatchingTest, AttributeSelectorMatchesSecondOne) {
+  head_->set_inner_html(
+      "<style>[attr=value1] {} [attr=value] {} [attr=value2] {}</style>");
+  body_->set_inner_html("<div attr=\"value\"/>");
+  UpdateAllMatchingRules();
+
+  cssom::RulesWithCascadePrecedence* matching_rules =
+      body_->first_element_child()->AsHTMLElement()->matching_rules();
+  ASSERT_EQ(1, matching_rules->size());
+  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(1),
+            (*matching_rules)[0].first);
+}
+
+// [attr=value] should match <div attr="value"/>.
+TEST_F(RuleMatchingTest, AttributeSelectorMatchesLastOne) {
+  head_->set_inner_html(
+      "<style>[attr=value1] {} [attr=value2] {} [attr=value] {}</style>");
+  body_->set_inner_html("<div attr=\"value\"/>");
+  UpdateAllMatchingRules();
+
+  cssom::RulesWithCascadePrecedence* matching_rules =
+      body_->first_element_child()->AsHTMLElement()->matching_rules();
+  ASSERT_EQ(1, matching_rules->size());
+  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(2),
+            (*matching_rules)[0].first);
+}
+
 // [attr="value"] should match <div attr="value"/>.
 TEST_F(RuleMatchingTest, AttributeSelectorMatchEqualsWithQuote) {
   head_->set_inner_html("<style>[attr=\"value\"] {}</style>");
@@ -257,7 +298,7 @@ TEST_F(RuleMatchingTest, FocusPseudoClassMatch) {
   head_->set_inner_html("<style>:focus {}</style>");
   body_->set_inner_html("<div tabIndex=\"-1\"/>");
   body_->first_element_child()->AsHTMLElement()->Focus();
-  // This is required because RunFocusingSteps() earlies out as a result of the
+  // This is required because RunFocusingSteps() earliest out as a result of the
   // document not having a browsing context.
   root_->InvalidateMatchingRulesRecursively();
   UpdateAllMatchingRules();

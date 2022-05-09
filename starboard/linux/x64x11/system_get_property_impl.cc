@@ -26,12 +26,7 @@ const char kFirmwareVersion[] = "FirmwareVersion";
 const char kFriendlyName[] = "Linux Desktop";
 const char kModelName[] = "ModelName";
 const char kPlatformName[] = "X11; Linux x86_64";
-
-#if SB_API_VERSION >= 12
 const char kSystemIntegratorName[] = "SystemIntegratorName";
-#else
-const char kOriginalDesignManufacturerName[] = "OriginalDesignManufacturerName";
-#endif
 
 #if SB_API_VERSION >= 13
 const char kModelYear[] = "2022";
@@ -93,15 +88,9 @@ bool GetSystemProperty(SbSystemPropertyId property_id,
       return CopyStringAndTestIfSuccess(out_value, value_length, kModelYear);
     case kSbSystemPropertyPlatformName:
       return CopyStringAndTestIfSuccess(out_value, value_length, kPlatformName);
-#if SB_API_VERSION >= 12
     case kSbSystemPropertySystemIntegratorName:
       return CopyStringAndTestIfSuccess(out_value, value_length,
                                         kSystemIntegratorName);
-#else
-    case kSbSystemPropertyOriginalDesignManufacturerName:
-      return CopyStringAndTestIfSuccess(out_value, value_length,
-                                        kOriginalDesignManufacturerName);
-#endif
     case kSbSystemPropertySpeechApiKey:
     case kSbSystemPropertyUserAgentAuxField:
       return false;

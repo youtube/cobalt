@@ -49,17 +49,13 @@ bool ParseSocketAddress(const char* spec, const url::Component& host_component,
       out_socket_address->type = kSbSocketAddressTypeIpv4;
       DCHECK_GE(sizeof(address_v4),
                 static_cast<std::size_t>(num_ipv4_components));
-      memcpy(out_socket_address->address, address_v4,
-                   num_ipv4_components);
+      memcpy(out_socket_address->address, address_v4, num_ipv4_components);
 
       return true;
     case url::CanonHostInfo::NEUTRAL:
-#if SB_API_VERSION >= 12
       if (!SbSocketIsIpv6Supported()) {
         return false;
       }
-#endif
-#if SB_API_VERSION >= 12 || SB_HAS(IPV6)
       unsigned char address_v6[net::IPAddress::kIPv6AddressSize];
       if (!url::IPv6AddressToNumber(spec, host_component, address_v6)) {
         break;
@@ -70,9 +66,6 @@ bool ParseSocketAddress(const char* spec, const url::Component& host_component,
       static_assert(sizeof(address_v6) == net::IPAddress::kIPv6AddressSize, "");
       memcpy(out_socket_address->address, address_v6, sizeof(address_v6));
       return true;
-#else
-      return false;
-#endif
     case url::CanonHostInfo::BROKEN:
       break;
     case url::CanonHostInfo::IPV6:

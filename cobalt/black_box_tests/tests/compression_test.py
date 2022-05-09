@@ -20,7 +20,7 @@ try:
   import brotli
 except ImportError:
   brotli = None
-from SimpleHTTPServer import SimpleHTTPRequestHandler
+from six.moves.SimpleHTTPServer import SimpleHTTPRequestHandler
 from cobalt.black_box_tests import black_box_tests
 from cobalt.black_box_tests.threaded_web_server import ThreadedWebServer
 

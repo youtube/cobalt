@@ -45,13 +45,11 @@
 
 #include "cobalt/dom/eme/media_encrypted_event.h"
 #include "cobalt/dom/eme/media_encrypted_event_init.h"
-#include "cobalt/media/base/media_log.h"
 
 namespace cobalt {
 namespace dom {
 
 using media::BufferedDataSource;
-using media::Ranges;
 using media::WebMediaPlayer;
 
 const char HTMLMediaElement::kMediaSourceUrlProtocol[] = "blob";
@@ -218,17 +216,8 @@ scoped_refptr<TimeRanges> HTMLMediaElement::buffered() const {
     return buffered;
   }
 
-  const Ranges<base::TimeDelta>& player_buffered =
-      player_->GetBufferedTimeRanges();
-
-  MLOG() << "================================";
-  for (int i = 0; i < static_cast<int>(player_buffered.size()); ++i) {
-    MLOG() << player_buffered.start(i).InSecondsF() << " - "
-           << player_buffered.end(i).InSecondsF();
-    buffered->Add(player_buffered.start(i).InSecondsF(),
-                  player_buffered.end(i).InSecondsF());
-  }
-
+  player_->UpdateBufferedTimeRanges(
+      [&](float start, float end) { buffered->Add(start, end); });
   return buffered;
 }
 
@@ -271,8 +260,6 @@ std::string HTMLMediaElement::CanPlayType(const std::string& mime_type,
       NOTREACHED();
   }
   MLOG() << "(" << mime_type << ", " << key_system << ") => " << result;
-  LOG(INFO) << "HTMLMediaElement::canPlayType(" << mime_type << ", "
-            << key_system << ") -> " << result;
   return result;
 }
 
@@ -1681,36 +1668,12 @@ bool HTMLMediaElement::PreferDecodeToTexture() {
   return map_to_mesh_filter;
 }
 
-namespace {
-
-// Initialization data types are defined in
-// https://www.w3.org/TR/eme-initdata-registry/#registry.
-std::string ToInitDataTypeString(media::EmeInitDataType init_data_type) {
-  switch (init_data_type) {
-    case media::kEmeInitDataTypeCenc:
-      return "cenc";
-    case media::kEmeInitDataTypeFairplay:
-      return "fairplay";
-    case media::kEmeInitDataTypeKeyIds:
-      return "keyids";
-    case media::kEmeInitDataTypeWebM:
-      return "webm";
-    case media::kEmeInitDataTypeUnknown:
-      LOG(WARNING) << "Unknown EME initialization data type.";
-      return "";
-  }
-  // Some compilers error with "control reaches end of non-void function"
-  // without this.
-  NOTREACHED();
-  return "";
-}
-
-}  // namespace
-
 // See https://www.w3.org/TR/encrypted-media/#initdata-encountered.
 void HTMLMediaElement::EncryptedMediaInitDataEncountered(
-    media::EmeInitDataType init_data_type, const unsigned char* init_data,
+    const char* init_data_type, const unsigned char* init_data,
     unsigned int init_data_length) {
+  DCHECK(init_data_type);
+
   // 4. If the media data is CORS-same-origin and not mixed content.
 
   // 5. Queue a task to create an event named encrypted that does not bubble
@@ -1729,8 +1692,7 @@ void HTMLMediaElement::EncryptedMediaInitDataEncountered(
   if (!current_url.SchemeIs("http") &&
       OriginIsSafe(request_mode_, current_url,
                    node_document()->location()->GetOriginAsObject())) {
-    media_encrypted_event_init.set_init_data_type(
-        ToInitDataTypeString(init_data_type));
+    media_encrypted_event_init.set_init_data_type(init_data_type);
     auto* global_environment =
         html_element_context()->script_runner()->GetGlobalEnvironment();
     media_encrypted_event_init.set_init_data(

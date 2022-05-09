@@ -587,7 +587,6 @@ std::unique_ptr<URLRequestContext> URLRequestContextBuilder::Build() {
         std::make_unique<HttpNetworkLayer>(storage->http_network_session());
   }
 
-#ifndef HTTP_CACHE_DISABLED_FOR_STARBOARD
   if (http_cache_enabled_) {
     std::unique_ptr<HttpCache::BackendFactory> http_cache_backend;
     if (http_cache_params_.type != HttpCacheParams::IN_MEMORY) {
@@ -624,7 +623,6 @@ std::unique_ptr<URLRequestContext> URLRequestContextBuilder::Build() {
         new HttpCache(std::move(http_transaction_factory),
                       std::move(http_cache_backend), true));
   }
-#endif  // HTTP_CACHE_DISABLED_FOR_STARBOARD
   storage->set_http_transaction_factory(std::move(http_transaction_factory));
 
   URLRequestJobFactoryImpl* job_factory = new URLRequestJobFactoryImpl;

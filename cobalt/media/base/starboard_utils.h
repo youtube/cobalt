@@ -15,32 +15,37 @@
 #ifndef COBALT_MEDIA_BASE_STARBOARD_UTILS_H_
 #define COBALT_MEDIA_BASE_STARBOARD_UTILS_H_
 
-#include "cobalt/media/base/audio_decoder_config.h"
-#include "cobalt/media/base/decoder_buffer.h"
-#include "cobalt/media/base/demuxer_stream.h"
-#include "cobalt/media/base/video_decoder_config.h"
-#include "cobalt/media/formats/webm/webm_colour_parser.h"
 #include "starboard/drm.h"
 #include "starboard/media.h"
+#include "third_party/chromium/media/base/audio_codecs.h"
+#include "third_party/chromium/media/base/audio_decoder_config.h"
+#include "third_party/chromium/media/base/decoder_buffer.h"
+#include "third_party/chromium/media/base/demuxer_stream.h"
+#include "third_party/chromium/media/base/video_codecs.h"
+#include "third_party/chromium/media/base/video_decoder_config.h"
+#include "third_party/chromium/media/cobalt/third_party/abseil-cpp/absl/types/optional.h"
+#include "third_party/chromium/media/cobalt/ui/gfx/hdr_metadata.h"
 
 namespace cobalt {
 namespace media {
 
-SbMediaAudioCodec MediaAudioCodecToSbMediaAudioCodec(AudioCodec codec);
-SbMediaVideoCodec MediaVideoCodecToSbMediaVideoCodec(VideoCodec codec);
+SbMediaAudioCodec MediaAudioCodecToSbMediaAudioCodec(::media::AudioCodec codec);
+SbMediaVideoCodec MediaVideoCodecToSbMediaVideoCodec(::media::VideoCodec codec);
 
 SbMediaAudioSampleInfo MediaAudioConfigToSbMediaAudioSampleInfo(
-    const AudioDecoderConfig& audio_decoder_config);
+    const ::media::AudioDecoderConfig& audio_decoder_config,
+    const char* mime_type);
 
-DemuxerStream::Type SbMediaTypeToDemuxerStreamType(SbMediaType type);
-SbMediaType DemuxerStreamTypeToSbMediaType(DemuxerStream::Type type);
+::media::DemuxerStream::Type SbMediaTypeToDemuxerStreamType(SbMediaType type);
+SbMediaType DemuxerStreamTypeToSbMediaType(::media::DemuxerStream::Type type);
 
-void FillDrmSampleInfo(const scoped_refptr<DecoderBuffer>& buffer,
+void FillDrmSampleInfo(const scoped_refptr<::media::DecoderBuffer>& buffer,
                        SbDrmSampleInfo* drm_info,
                        SbDrmSubSampleMapping* subsample_mapping);
 
 SbMediaColorMetadata MediaToSbMediaColorMetadata(
-    const WebMColorMetadata& webm_color_metadata);
+    const ::media::VideoColorSpace& color_space,
+    const absl::optional<gfx::HDRMetadata>& hdr_metadata);
 
 }  // namespace media
 }  // namespace cobalt

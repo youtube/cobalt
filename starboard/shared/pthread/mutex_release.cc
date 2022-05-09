@@ -27,12 +27,9 @@ bool SbMutexRelease(SbMutex* mutex) {
     return false;
   }
 
-#if SB_API_VERSION >= 12
   if (!IsInitialized(&(SB_INTERNAL_MUTEX(mutex)->initialized_state))) {
     // If the mutex is not initialized there is nothing to release.
     return true;
   }
-#endif
-
   return IsSuccess(pthread_mutex_unlock(SB_PTHREAD_INTERNAL_MUTEX(mutex)));
 }

@@ -64,8 +64,6 @@ extern const char kMinCompatibilityVersion[];
 extern const char kMinCompatibilityVersionHelp[];
 extern const char kNullSavegame[];
 extern const char kNullSavegameHelp[];
-extern const char kDisablePartialLayout[];
-extern const char kDisablePartialLayoutHelp[];
 extern const char kProd[];
 extern const char kProdHelp[];
 extern const char kRequireCSP[];
@@ -88,14 +86,12 @@ extern const char kUseTTS[];
 extern const char kUseTTSHelp[];
 extern const char kWebDriverPort[];
 extern const char kWebDriverPortHelp[];
-
-#if SB_API_VERSION >= 12 || SB_HAS(ON_SCREEN_KEYBOARD)
 extern const char kDisableOnScreenKeyboard[];
 extern const char kDisableOnScreenKeyboardHelp[];
-#endif  // SB_API_VERSION >= 12 ||
-        // SB_HAS(ON_SCREEN_KEYBOARD)
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
+extern const char kCompressUpdate[];
+extern const char kCompressUpdateHelp[];
 extern const char kDisableJavaScriptJit[];
 extern const char kDisableJavaScriptJitHelp[];
 extern const char kDisableMapToMesh[];

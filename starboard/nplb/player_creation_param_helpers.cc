@@ -23,10 +23,7 @@ SbMediaAudioSampleInfo CreateAudioSampleInfo(SbMediaAudioCodec codec) {
   SbMediaAudioSampleInfo audio_sample_info = {};
 
   audio_sample_info.codec = codec;
-
-#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
   audio_sample_info.mime = "";
-#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 
   switch (codec) {
     case kSbMediaAudioCodecNone:
@@ -106,11 +103,8 @@ SbMediaVideoSampleInfo CreateVideoSampleInfo(SbMediaVideoCodec codec) {
 
   video_sample_info.codec = codec;
 
-#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
   video_sample_info.mime = "";
   video_sample_info.max_video_capabilities = "";
-#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
-
   video_sample_info.color_metadata.primaries = kSbMediaPrimaryIdBt709;
   video_sample_info.color_metadata.transfer = kSbMediaTransferIdBt709;
   video_sample_info.color_metadata.matrix = kSbMediaMatrixIdBt709;
@@ -121,8 +115,6 @@ SbMediaVideoSampleInfo CreateVideoSampleInfo(SbMediaVideoCodec codec) {
 
   return video_sample_info;
 }
-
-#if SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 
 SbPlayerCreationParam CreatePlayerCreationParam(SbMediaAudioCodec audio_codec,
                                                 SbMediaVideoCodec video_codec) {
@@ -135,8 +127,6 @@ SbPlayerCreationParam CreatePlayerCreationParam(SbMediaAudioCodec audio_codec,
 
   return creation_param;
 }
-
-#endif  // SB_HAS(PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT)
 
 }  // namespace nplb
 }  // namespace starboard

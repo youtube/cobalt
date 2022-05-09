@@ -11,7 +11,7 @@ and the application loader into a single script.
 - Builds app.html referencing the application script.
 """
 
-from cStringIO import StringIO
+from io import StringIO
 from os import path
 from os.path import join
 import copy
@@ -193,7 +193,7 @@ class ReleaseBuilder(object):
             resource_name = path.normpath(resource_name).replace('\\', '/')
             output.write('Root.Runtime.cachedResources["%s"] = "' % resource_name)
             resource_content = read_file(path.join(self.application_dir, resource_name))
-            resource_content += resource_source_url(resource_name).encode('utf-8')
+            resource_content += resource_source_url(resource_name)
             resource_content = resource_content.replace('\\', '\\\\')
             resource_content = resource_content.replace('\n', '\\n')
             resource_content = resource_content.replace('"', '\\"')
@@ -236,7 +236,7 @@ class ReleaseBuilder(object):
             output.write('/* Additional descriptors */\n')
             output.write('Root.allDescriptors.push(...%s);' % self._release_module_descriptors())
             output.write('/* Additional descriptors %s */\n' % self.app_file('json'))
-            output.write('Root.applicationDescriptor.modules.push(...%s);' % json.dumps(self.descriptors.application.values()))
+            output.write('Root.applicationDescriptor.modules.push(...%s);' % json.dumps(list(self.descriptors.application.values())))
 
         output.write('\n/* Autostart modules */\n')
         if (self.descriptors.worker):

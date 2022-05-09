@@ -18,7 +18,10 @@
 #include <string>
 
 #include "cobalt/h5vcc/h5vcc_crash_type.h"
+#include "cobalt/h5vcc/watchdog_replace.h"
+#include "cobalt/h5vcc/watchdog_state.h"
 #include "cobalt/script/wrappable.h"
+#include "cobalt/watchdog/watchdog.h"
 
 namespace cobalt {
 namespace h5vcc {
@@ -30,6 +33,16 @@ class H5vccCrashLog : public script::Wrappable {
   bool SetString(const std::string& key, const std::string& value);
 
   void TriggerCrash(H5vccCrashType intent);
+
+  bool Register(const std::string& name, const std::string& description,
+                WatchdogState watchdog_state, int64_t time_interval,
+                int64_t time_wait, WatchdogReplace watchdog_replace);
+
+  bool Unregister(const std::string& name);
+
+  bool Ping(const std::string& name, const std::string& ping_info);
+
+  std::string GetWatchdogViolations(bool current);
 
   DEFINE_WRAPPABLE_TYPE(H5vccCrashLog);
 

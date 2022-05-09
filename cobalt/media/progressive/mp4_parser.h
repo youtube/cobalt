@@ -15,9 +15,9 @@
 #ifndef COBALT_MEDIA_PROGRESSIVE_MP4_PARSER_H_
 #define COBALT_MEDIA_PROGRESSIVE_MP4_PARSER_H_
 
-#include "cobalt/media/base/media_log.h"
 #include "cobalt/media/progressive/avc_parser.h"
 #include "cobalt/media/progressive/mp4_map.h"
+#include "media/base/media_log.h"
 
 namespace cobalt {
 namespace media {
@@ -65,12 +65,11 @@ class MP4Parser : public AVCParser {
   // flv, and if it does make sense returns PIPELINE_OK and |*parser| contains a
   // MP4Parser initialized with some basic state.  If it doesn't make sense
   // this returns an error status and |*parser| contains NULL.
-  static PipelineStatus Construct(scoped_refptr<DataSourceReader> reader,
-                                  const uint8* construction_header,
-                                  scoped_refptr<ProgressiveParser>* parser,
-                                  const scoped_refptr<MediaLog>& media_log);
+  static ::media::PipelineStatus Construct(
+      scoped_refptr<DataSourceReader> reader, const uint8* construction_header,
+      scoped_refptr<ProgressiveParser>* parser, MediaLog* media_log);
   MP4Parser(scoped_refptr<DataSourceReader> reader, uint32 ftyp_atom_size,
-            const scoped_refptr<MediaLog>& media_log);
+            MediaLog* media_log);
   ~MP4Parser() override;
 
   // === ProgressiveParser implementation

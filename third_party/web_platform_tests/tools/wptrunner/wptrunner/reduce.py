@@ -168,7 +168,7 @@ class Reducer(object):
                 logger.debug(item)
             return None
 
-        return any(len(item) > 1 for item in statuses.itervalues())
+        return any(len(item) > 1 for item in statuses.values())
 
     def get_initial_tests(self):
         # Need to pass in arguments

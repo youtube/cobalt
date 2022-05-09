@@ -48,9 +48,17 @@ void FillInDefaultScalingListData(H265ScalingListData* scaling_list_data,
                                   int size_id,
                                   int matrix_id) {
   if (size_id == 0) {
+#if defined(STARBOARD)
+    // Looping on an enum (i.e. kScalingListSizeId0Count) isn't supported on
+    // all platforms.
+    std::fill_n(scaling_list_data->scaling_list_4x4[matrix_id],
+                static_cast<int>(H265ScalingListData::kScalingListSizeId0Count),
+                H265ScalingListData::kDefaultScalingListSize0Values);
+#else  // defined(STARBOARD)
     std::fill_n(scaling_list_data->scaling_list_4x4[matrix_id],
                 H265ScalingListData::kScalingListSizeId0Count,
                 H265ScalingListData::kDefaultScalingListSize0Values);
+#endif  // defined(STARBOARD)
     return;
   }
 
@@ -1345,7 +1353,14 @@ H265Parser::Result H265Parser::ParseStRefPicSet(
     bool used_by_curr_pic_flag[kMaxShortTermRefPicSets];
     bool use_delta_flag[kMaxShortTermRefPicSets];
     // 7.4.8 - use_delta_flag defaults to 1 if not present.
+#if defined(STARBOARD)
+    // Looping on an enum (i.e. kMaxShortTermRefPicSets) isn't supported on all
+    // platforms.
+    std::fill_n(use_delta_flag, static_cast<int>(kMaxShortTermRefPicSets),
+                true);
+#else  // defined(STARBOARD)
     std::fill_n(use_delta_flag, kMaxShortTermRefPicSets, true);
+#endif  // defined(STARBOARD)
 
     for (int j = 0; j <= ref_set.num_delta_pocs; j++) {
       READ_BOOL_OR_RETURN(&used_by_curr_pic_flag[j]);

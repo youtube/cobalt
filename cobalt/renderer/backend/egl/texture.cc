@@ -12,10 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/configuration.h"
-#if SB_API_VERSION >= 12 || SB_HAS(GLES2)
-
 #include "cobalt/renderer/backend/egl/texture.h"
+
+#include <utility>
 
 #include "base/bind.h"
 #include "cobalt/base/polymorphic_downcast.h"
@@ -27,14 +26,15 @@
 #include "cobalt/renderer/backend/egl/texture_data_cpu.h"
 #include "cobalt/renderer/backend/egl/utils.h"
 #include "cobalt/renderer/egl_and_gles.h"
+#include "starboard/configuration.h"
+
 
 namespace cobalt {
 namespace renderer {
 namespace backend {
 
 namespace {
-void DoNothing() {
-}
+void DoNothing() {}
 }  // namespace
 
 TextureEGL::TextureEGL(GraphicsContextEGL* graphics_context,
@@ -70,9 +70,8 @@ TextureEGL::TextureEGL(GraphicsContextEGL* graphics_context, GLuint gl_handle,
       target_(target),
       delete_function_(std::move(delete_function)) {}
 
-TextureEGL::TextureEGL(
-    GraphicsContextEGL* graphics_context,
-    const scoped_refptr<RenderTargetEGL>& render_target)
+TextureEGL::TextureEGL(GraphicsContextEGL* graphics_context,
+                       const scoped_refptr<RenderTargetEGL>& render_target)
     : graphics_context_(graphics_context),
       size_(render_target->GetSize()),
       format_(GL_RGBA),
@@ -84,8 +83,8 @@ TextureEGL::TextureEGL(
   if (render_target->GetSurface() != EGL_NO_SURFACE) {
     // This is a PBufferRenderTargetEGL. Need to bind a texture to the surface.
     const PBufferRenderTargetEGL* pbuffer_target =
-        base::polymorphic_downcast<const PBufferRenderTargetEGL*>
-            (render_target.get());
+        base::polymorphic_downcast<const PBufferRenderTargetEGL*>(
+            render_target.get());
 
     // First we create the OpenGL texture object and maintain a handle to it.
     GL_CALL(glGenTextures(1, &gl_handle_));
@@ -96,15 +95,14 @@ TextureEGL::TextureEGL(
     // texture object, effectively allowing the PBO render target to be used
     // as a texture by referencing gl_handle_ from now on.
     EGL_CALL(eglBindTexImage(pbuffer_target->display(),
-                             pbuffer_target->GetSurface(),
-                             EGL_BACK_BUFFER));
+                             pbuffer_target->GetSurface(), EGL_BACK_BUFFER));
 
     GL_CALL(glBindTexture(GL_TEXTURE_2D, 0));
   } else {
     // This is a FramebufferRenderTargetEGL. Wrap its color texture attachment.
     const FramebufferRenderTargetEGL* framebuffer_target =
-        base::polymorphic_downcast<const FramebufferRenderTargetEGL*>
-            (render_target.get());
+        base::polymorphic_downcast<const FramebufferRenderTargetEGL*>(
+            render_target.get());
 
     const TextureEGL* color_attachment = framebuffer_target->GetColorTexture();
     format_ = color_attachment->GetFormat();
@@ -122,11 +120,10 @@ TextureEGL::~TextureEGL() {
   if (source_render_target_ &&
       source_render_target_->GetSurface() != EGL_NO_SURFACE) {
     const PBufferRenderTargetEGL* pbuffer_target =
-        base::polymorphic_downcast<const PBufferRenderTargetEGL*>
-            (source_render_target_.get());
+        base::polymorphic_downcast<const PBufferRenderTargetEGL*>(
+            source_render_target_.get());
     EGL_CALL(eglReleaseTexImage(pbuffer_target->display(),
-                                pbuffer_target->GetSurface(),
-                                EGL_BACK_BUFFER));
+                                pbuffer_target->GetSurface(), EGL_BACK_BUFFER));
   }
 
   if (!delete_function_.is_null()) {
@@ -139,5 +136,3 @@ TextureEGL::~TextureEGL() {
 }  // namespace backend
 }  // namespace renderer
 }  // namespace cobalt
-
-#endif  // SB_API_VERSION >= 12 || SB_HAS(GLES2)

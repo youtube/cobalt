@@ -16,26 +16,70 @@
 #define COBALT_WORKER_SERVICE_WORKER_CONTAINER_H_
 
 #include <memory>
+#include <string>
 
+#include "cobalt/dom/event_target.h"
+#include "cobalt/dom/event_target_listener_info.h"
 #include "cobalt/script/promise.h"
 #include "cobalt/script/script_value.h"
 #include "cobalt/script/script_value_factory.h"
+#include "cobalt/script/sequence.h"
 #include "cobalt/script/wrappable.h"
+#include "cobalt/worker/registration_options.h"
+#include "cobalt/worker/service_worker_jobs.h"
+#include "cobalt/worker/service_worker_registration.h"
 
 namespace cobalt {
 namespace worker {
 
-class ServiceWorkerContainer : public script::Wrappable {
+// The ServiceWorkerContainer interface represents the interface to register and
+// access service workers from a service worker client realm.
+//   https://w3c.github.io/ServiceWorker/#serviceworkercontainer-interface
+class ServiceWorkerContainer : public dom::EventTarget {
  public:
-  explicit ServiceWorkerContainer(
-      script::ScriptValueFactory* script_value_factory);
+  ServiceWorkerContainer(script::EnvironmentSettings* settings,
+                         worker::ServiceWorkerJobs* service_worker_jobs);
 
-  script::Handle<script::Promise<void>> Register();
+  scoped_refptr<ServiceWorker> controller() { return controller_; }
+  script::Handle<script::PromiseWrappable> ready();
+
+  script::Handle<script::PromiseWrappable> Register(const std::string& url);
+  script::Handle<script::PromiseWrappable> Register(
+      const std::string& url, const RegistrationOptions& options);
+  script::Handle<script::PromiseWrappable> GetRegistration(
+      const std::string& url);
+  script::Handle<script::PromiseSequenceWrappable> GetRegistrations();
+
+  void StartMessages();
+
+  const EventListenerScriptValue* oncontrollerchange() const {
+    return GetAttributeEventListener(base::Tokens::controllerchange());
+  }
+  void set_oncontrollerchange(const EventListenerScriptValue& event_listener) {
+    SetAttributeEventListener(base::Tokens::controllerchange(), event_listener);
+  }
+
+  const EventListenerScriptValue* onmessage() const {
+    return GetAttributeEventListener(base::Tokens::message());
+  }
+  void set_onmessage(const EventListenerScriptValue& event_listener) {
+    SetAttributeEventListener(base::Tokens::message(), event_listener);
+  }
+
+  const EventListenerScriptValue* onmessageerror() const {
+    return GetAttributeEventListener(base::Tokens::messageerror());
+  }
+  void set_onmessageerror(const EventListenerScriptValue& event_listener) {
+    SetAttributeEventListener(base::Tokens::messageerror(), event_listener);
+  }
 
   DEFINE_WRAPPABLE_TYPE(ServiceWorkerContainer);
 
  private:
-  script::ScriptValueFactory* script_value_factory_;
+  scoped_refptr<ServiceWorker> controller_;
+  scoped_refptr<ServiceWorker> ready_;
+
+  ~ServiceWorkerContainer() override = default;
 };
 
 }  // namespace worker

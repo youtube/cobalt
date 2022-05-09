@@ -16,11 +16,6 @@
 
 #include "starboard/shared/starboard/microphone/microphone_internal.h"
 
-#if SB_API_VERSION < 12 && !SB_HAS(MICROPHONE)
-#error "SB_HAS_MICROPHONE must be set to build this file before Starboard API \
-version 12."
-#endif
-
 int SbMicrophoneRead(SbMicrophone microphone,
                      void* out_audio_data,
                      int audio_data_size) {

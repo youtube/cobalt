@@ -23,7 +23,6 @@ import sys
 import time
 import traceback
 
-import _env  # pylint: disable=unused-import
 from starboard.tools import abstract_launcher
 from starboard.tools import send_link
 
@@ -37,7 +36,7 @@ def GetProcessStatus(pid):
     pid: process id of specified cobalt instance.
   """
   output = subprocess.check_output(["ps -o state= -p {}".format(pid)],
-                                   shell=True)
+                                   shell=True).decode()
   return output
 
 

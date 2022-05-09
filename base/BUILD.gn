@@ -2283,10 +2283,13 @@ component("base") {
 
   configs += [ "//build/config/compiler:wexit_time_destructors" ]
   if (!is_debug) {
-    if (!is_starboard) {
+    if (is_starboard) {
+      configs -= [ "//starboard/build/config:size" ]
+      configs += [ "//starboard/build/config:speed" ]
+    } else {
       configs -= [ "//build/config/compiler:default_optimization" ]
+      configs += [ "//build/config/compiler:optimize_max" ]
     }
-    configs += [ "//build/config/compiler:optimize_max" ]
   }
 }
 
@@ -2388,10 +2391,13 @@ static_library("base_static") {
   }
 
   if (!is_debug) {
-    if (!is_starboard) {
+    if (is_starboard) {
+      configs -= [ "//starboard/build/config:size" ]
+      configs += [ "//starboard/build/config:speed" ]
+    } else {
       configs -= [ "//build/config/compiler:default_optimization" ]
+      configs += [ "//build/config/compiler:optimize_max" ]
     }
-    configs += [ "//build/config/compiler:optimize_max" ]
   }
 }
 
@@ -2459,10 +2465,13 @@ component("i18n") {
   }
 
   if (!is_debug) {
-    if (!is_starboard) {
+    if (is_starboard) {
+      configs -= [ "//starboard/build/config:size" ]
+      configs += [ "//starboard/build/config:speed" ]
+    } else {
       configs -= [ "//build/config/compiler:default_optimization" ]
+      configs += [ "//build/config/compiler:optimize_max" ]
     }
-    configs += [ "//build/config/compiler:optimize_max" ]
   }
 
   # TODO(jschuh): crbug.com/167187 fix size_t to int truncations.
@@ -2579,6 +2588,9 @@ if (!is_starboard && (is_win || is_mac)) {
 
 copy("base_unittests_bundle_data") {
   testonly = true
+  if (is_starboard) {
+    install_content = true
+  }
   sources = [
     "//tools/metrics/histograms/enums.xml",
     "test/data/file_util/binary_file.bin",
@@ -2604,6 +2616,13 @@ copy("base_unittests_bundle_data") {
     "test/data/serializer_test_nowhitespace.json",
   ]
   if (is_starboard) {
+    sources += [
+      "test/data/file_util/red.png",
+      "test/data/file_version_info_unittest/FileVersionInfoTest1.dll",
+      "test/data/file_version_info_unittest/FileVersionInfoTest2.dll",
+      "test/data/pe_image/pe_image_test_32.dll",
+      "test/data/pe_image/pe_image_test_64.dll",
+    ]
     sources -= [ "//tools/metrics/histograms/enums.xml" ]
     outputs = [ "$sb_static_contents_output_data_dir/test/base/{{source_target_relative}}" ]
   } else {
@@ -3175,6 +3194,12 @@ target(gtest_target_type, "base_unittests") {
   public_deps = [
     ":base_unittests_bundle_data",
   ]
+  if (is_starboard){
+    content_deps = [
+      ":base_unittests_bundle_data",
+      "//third_party/icu:icudata",
+    ]
+  }
 
   data = [
     "test/data/",
