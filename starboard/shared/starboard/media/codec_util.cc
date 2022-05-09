@@ -545,25 +545,35 @@ bool ParseVp09Info(const char* codec,
   return true;
 }
 
-// This function parses an vp9 codec in the form of "vp9", "vp9.0", "vp9.1", or
-// "vp9.2".
-bool ParseVp9Info(const char* codec, int* profile) {
+// This function parses a vp9 codec in the form of "vp9", "vp9.0", "vp9.1",
+// "vp9.2", or "vp9.3".
+bool ParseVp9Info(const char* codec, int* profile, int* bit_depth) {
   SB_DCHECK(profile);
+  SB_DCHECK(bit_depth);
 
   if (strcmp(codec, "vp9") == 0) {
     *profile = -1;
+    *bit_depth = 0;
     return true;
   }
   if (strcmp(codec, "vp9.0") == 0) {
     *profile = 0;
+    *bit_depth = 8;
     return true;
   }
   if (strcmp(codec, "vp9.1") == 0) {
     *profile = 1;
+    *bit_depth = 8;
     return true;
   }
   if (strcmp(codec, "vp9.2") == 0) {
     *profile = 2;
+    *bit_depth = 10;
+    return true;
+  }
+  if (strcmp(codec, "vp9.3") == 0) {
+    *profile = 3;
+    *bit_depth = 10;
     return true;
   }
   return false;
@@ -689,7 +699,7 @@ bool ParseVideoCodec(const char* codec_string,
   }
   if (strncmp(codec_string, "vp9", 3) == 0) {
     *codec = kSbMediaVideoCodecVp9;
-    return ParseVp9Info(codec_string, profile);
+    return ParseVp9Info(codec_string, profile, bit_depth);
   }
 
   return false;
