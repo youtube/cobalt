@@ -629,10 +629,10 @@ SbMediaAudioCodec GetAudioCodecFromString(const char* codec) {
       return kSbMediaAudioCodecEac3;
     }
   }
-  if (strcmp(codec, "opus") == 0) {
+  if (strncmp(codec, "opus", 4) == 0) {
     return kSbMediaAudioCodecOpus;
   }
-  if (strcmp(codec, "vorbis") == 0) {
+  if (strncmp(codec, "vorbis", 6) == 0) {
     return kSbMediaAudioCodecVorbis;
   }
   return kSbMediaAudioCodecNone;
