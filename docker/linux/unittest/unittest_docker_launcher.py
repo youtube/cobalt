@@ -49,11 +49,10 @@ def main(argv):
   end_t = time.time()
 
   # Output shard timing information to file.
-  duration_t = (end_t-start_t)/60.0
+  duration_t = (end_t - start_t) / 60.0
   out_str = 'SHARD TIME {}: {:5.2f}\n'.format(shard_index, duration_t)
-  f = open('{}/times'.format(out_dir,shard_index), 'a')
-  f.write(out_str)
-  f.close()
+  with open('{}/times'.format(out_dir), 'a') as f:
+    f.write(out_str)
 
 
 if __name__ == '__main__':
