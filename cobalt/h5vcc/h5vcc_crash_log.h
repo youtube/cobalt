@@ -44,6 +44,10 @@ class H5vccCrashLog : public script::Wrappable {
 
   std::string GetWatchdogViolations(bool current);
 
+  bool GetCanTriggerCrash();
+
+  void SetCanTriggerCrash(bool can_trigger_crash);
+
   DEFINE_WRAPPABLE_TYPE(H5vccCrashLog);
 
  private:

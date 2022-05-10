@@ -96,6 +96,8 @@ class Watchdog : public Singleton<Watchdog> {
   bool Ping(const std::string& name);
   bool Ping(const std::string& name, const std::string& info);
   std::string GetWatchdogViolations(bool current = false);
+  bool GetCanTriggerCrash();
+  void SetCanTriggerCrash(bool can_trigger_crash);
 
 #if defined(_DEBUG)
   // Sleeps threads based off of environment variables for Watchdog debugging.
@@ -108,6 +110,7 @@ class Watchdog : public Singleton<Watchdog> {
   static void* Monitor(void* context);
   std::string GetSerializedWatchdogIndex();
   static void SerializeWatchdogViolations(void* context);
+  static void MaybeTriggerCrash(void* context);
 
   // Current Watchdog violations file path.
   std::string watchdog_file_;
@@ -136,6 +139,8 @@ class Watchdog : public Singleton<Watchdog> {
   bool is_stub_ = false;
   // Flag to stop monitor thread.
   bool is_monitoring_;
+  // Flag to control whether or not crashes can be triggered.
+  bool can_trigger_crash_ = false;
 
 #if defined(_DEBUG)
   starboard::Mutex delay_lock_;

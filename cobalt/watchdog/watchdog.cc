@@ -284,6 +284,15 @@ void Watchdog::SerializeWatchdogViolations(void* context) {
       kSbFileCreateAlways | kSbFileWrite);
   watchdog_file.WriteAll(watchdog_json.c_str(),
                          static_cast<int>(watchdog_json.size()));
+
+  MaybeTriggerCrash(context);
+}
+
+void Watchdog::MaybeTriggerCrash(void* context) {
+  if (static_cast<Watchdog*>(context)->can_trigger_crash_) {
+    SB_LOG(ERROR) << "Triggering Watchdog Violation Crash!";
+    CHECK(false);
+  }
 }
 
 bool Watchdog::Register(std::string name, base::ApplicationState monitor_state,
@@ -417,6 +426,14 @@ std::string Watchdog::GetWatchdogViolations(bool current) {
     SB_LOG(INFO) << "No Watchdog Violations.";
     return "";
   }
+}
+
+bool Watchdog::GetCanTriggerCrash() { return can_trigger_crash_; }
+
+void Watchdog::SetCanTriggerCrash(bool can_trigger_crash) {
+  // Sets a persistent Watchdog setting that determines whether or not a
+  // Watchdog violation will trigger a crash. TODO
+  can_trigger_crash_ = can_trigger_crash;
 }
 
 #if defined(_DEBUG)

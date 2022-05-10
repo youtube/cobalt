@@ -60,4 +60,12 @@ interface H5vccCrashLog {
   // previous file containing violations from previous app starts and since the
   // last call (up to a limit) is returned.
   DOMString getWatchdogViolations(boolean current);
+
+  // Gets a persistent Watchdog setting that determines whether or not a
+  // Watchdog violation will trigger a crash.
+  boolean getCanTriggerCrash();
+
+  // Sets a persistent Watchdog setting that determines whether or not a
+  // Watchdog violation will trigger a crash.
+  void setCanTriggerCrash(boolean can_trigger_crash);
 };

@@ -186,5 +186,16 @@ std::string H5vccCrashLog::GetWatchdogViolations(bool current) {
   return "";
 }
 
+bool H5vccCrashLog::GetCanTriggerCrash() {
+  watchdog::Watchdog* watchdog = watchdog::Watchdog::GetInstance();
+  if (watchdog) return watchdog->GetCanTriggerCrash();
+  return false;
+}
+
+void H5vccCrashLog::SetCanTriggerCrash(bool can_trigger_crash) {
+  watchdog::Watchdog* watchdog = watchdog::Watchdog::GetInstance();
+  if (watchdog) watchdog->SetCanTriggerCrash(can_trigger_crash);
+}
+
 }  // namespace h5vcc
 }  // namespace cobalt
