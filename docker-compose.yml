@@ -372,18 +372,28 @@ services:
   unittest:
     <<: *shared-unittest-definitions
 
-  unittest-0:
-    <<: *shared-unittest-definitions
-    entrypoint: ["python", "/unittest_docker_launcher.py", "0"]
+  # Stub container that launches all shard containers in parallel.
+  unittest-parallel:
+    image: cobalt-base
+    entrypoint: ["/bin/sh", "-c", "echo", "done"]
+    depends_on:
+      - unittest-parallel-0
+      - unittest-parallel-1
+      - unittest-parallel-2
+      - unittest-parallel-3
 
-  unittest-1:
+  unittest-parallel-0:
     <<: *shared-unittest-definitions
-    entrypoint: ["python", "/unittest_docker_launcher.py", "1"]
+    entrypoint: ["python3", "/unittest_docker_launcher.py", "0"]
 
-  unittest-2:
+  unittest-parallel-1:
     <<: *shared-unittest-definitions
-    entrypoint: ["python", "/unittest_docker_launcher.py", "2"]
+    entrypoint: ["python3", "/unittest_docker_launcher.py", "1"]
 
-  unittest-3:
+  unittest-parallel-2:
     <<: *shared-unittest-definitions
-    entrypoint: ["python", "/unittest_docker_launcher.py", "3"]
+    entrypoint: ["python3", "/unittest_docker_launcher.py", "2"]
+
+  unittest-parallel-3:
+    <<: *shared-unittest-definitions
+    entrypoint: ["python3", "/unittest_docker_launcher.py", "3"]
