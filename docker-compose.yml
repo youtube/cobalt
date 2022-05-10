@@ -52,7 +52,6 @@ x-shared-unittest-definitions: &shared-unittest-definitions
     - CONFIG=${CONFIG:-devel}
   volumes:
     - ${COBALT_SRC:-.}/out/${PLATFORM:-linux-x64x11}_${CONFIG:-devel}:/out
-    - ${COBALT_SRC:-.}/starboard/tools/testing/sharding_configuration.json:/out/sharding_configuration.json
   # TODO: Get NPLB unittests to run with IPv6 without using the host network.
   network_mode: "host"
   depends_on: [ base ]
