@@ -12,6 +12,12 @@ Python 2.
 There are a few ways to get a binary. Follow the instructions for whichever way
 you prefer [here][gn_getting_a_binary].
 
+### Setup your workstation and developer tools
+
+Some environment settings and tools have changed with the GN migration. Please
+go through the [setup guide][dev_setup_linux] to make sure your development
+environment is properly configured.
+
 ### Read the Docs
 
 Most of the documentation for GN is located [here][gn_doc_home].
@@ -258,6 +264,7 @@ process for converting the stub platform's GN files to GN files that will be
 able to be built for your platform.
 
 [cobalt_porting_guide]: https://cobalt.dev/starboard/porting.html
+[dev_setup_linux]: https://cobalt.dev/development/setup-linux.html
 [gn_check_tool]: https://cobalt.googlesource.com/third_party/gn/+/refs/heads/main/docs/reference.md#cmd_check
 [gn_doc_home]: https://cobalt.googlesource.com/third_party/gn/+/refs/heads/main/docs
 [gn_format_tool]: https://cobalt.googlesource.com/third_party/gn/+/refs/heads/main/docs/reference.md#cmd_format
