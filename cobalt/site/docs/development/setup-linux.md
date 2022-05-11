@@ -67,6 +67,18 @@ Required libraries can differ depending on your Linux distribution and version.
     $ git clone https://cobalt.googlesource.com/cobalt
     ```
 
+1.  Set `PYTHONPATH` environment variable to include the full path to the
+    top-level `cobalt` directory from the previous step. Add the following to
+    the end of your ~/.bash_profile (replacing `fullpathto` with the actual
+    path where you cloned the repo):
+
+    ```
+    export PYTHONPATH="/fullpathto/cobalt:${PYTHONPATH}"
+    ```
+
+    You should also run the above command in your termainal so it's available
+    immediately, rather than when you next login.
+
 ### Set up Developer Tools
 
 1.  Enter your new `cobalt` directory:
