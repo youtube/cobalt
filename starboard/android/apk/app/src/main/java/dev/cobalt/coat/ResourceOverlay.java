@@ -28,6 +28,8 @@ public class ResourceOverlay {
   @UsedByNative
   public final boolean supports_spherical_videos;
 
+  @SuppressWarnings("MemberName")
+  @UsedByNative
   public final int max_video_buffer_budget;
 
   public ResourceOverlay(Context context) {
