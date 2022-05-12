@@ -14,6 +14,7 @@
 
 #include "cobalt/dom/window_timers.h"
 
+#include <algorithm>
 #include <limits>
 #include <memory>
 
@@ -55,6 +56,10 @@ int WindowTimers::TryAddNewTimer(Timer::TimerType type,
 }
 
 int WindowTimers::SetTimeout(const TimerCallbackArg& handler, int timeout) {
+  LOG_IF(WARNING, timeout < 0)
+      << "WindowTimers::SetTimeout received negative timeout: " << timeout;
+  timeout = std::max(timeout, 0);
+
   TRACK_MEMORY_SCOPE("DOM");
   return TryAddNewTimer(Timer::kOneShot, handler, timeout);
 }
@@ -71,6 +76,10 @@ void WindowTimers::ClearTimeout(int handle) {
 }
 
 int WindowTimers::SetInterval(const TimerCallbackArg& handler, int timeout) {
+  LOG_IF(WARNING, timeout < 0)
+      << "WindowTimers::SetInterval received negative interval: " << timeout;
+  timeout = std::max(timeout, 0);
+
   TRACK_MEMORY_SCOPE("DOM");
   return TryAddNewTimer(Timer::kRepeating, handler, timeout);
 }

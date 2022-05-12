@@ -456,7 +456,7 @@ class Window : public EventTarget, public ApplicationLifecycleState::Observer {
   scoped_refptr<Navigator> navigator_;
   std::unique_ptr<RelayLoadEvent> relay_on_load_event_;
   scoped_refptr<Camera3D> camera_3d_;
-  std::unique_ptr<WindowTimers> window_timers_;
+  WindowTimers window_timers_;
   std::unique_ptr<AnimationFrameRequestCallbackList>
       animation_frame_request_callback_list_;
 
