@@ -57,7 +57,10 @@ bool ReturnsValidPath(int dir_type) {
   if (path.ReferencesParent())
     return false;
 #endif
-  return result && !path.empty() && (!check_path_exists || PathExists(path));
+  // Some existing root folders (LocalFolder, LocalCacheFolder, etc.)
+  // can't be verifyed by PathExists but can do with DirectoryExists
+  return result && !path.empty() &&
+         (!check_path_exists || PathExists(path) || DirectoryExists(path));
 }
 
 #if defined(OS_WIN)
@@ -85,7 +88,7 @@ TEST_F(PathServiceTest, Get) {
   for (int key = PATH_START + 1; key < PATH_END; ++key) {
 #if defined(STARBOARD)
     if (key == DIR_CURRENT || key == DIR_USER_DESKTOP ||
-        key == DIR_SOURCE_ROOT) {
+        key == DIR_SOURCE_ROOT || key == DIR_HOME) {
       continue;
     }
 #else
