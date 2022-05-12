@@ -13,6 +13,8 @@
 // limitations under the License.
 
 #include <memory>
+#include <sstream>
+#include <string>
 
 #include "cobalt/audio/audio_file_reader_wav.h"
 
@@ -43,6 +45,15 @@ const uint16 kWAVFormatCodeFloat = 0x0003;
 uint32 kWAVChunkSize = 44;
 uint32 kWAVRIFFChunkHeaderSize = 12;
 uint32 kWAVfmtChunkHeaderSize = 16;
+
+std::string Generate4CC(int num) {
+  std::stringstream ss;
+  ss << char((num >> 24) & 0xff);
+  ss << char((num >> 16) & 0xff);
+  ss << char((num >> 8) & 0xff);
+  ss << char(num & 0xff);
+  return ss.str();
+}
 
 }  // namespace
 
@@ -99,11 +110,15 @@ bool AudioFileReaderWAV::ParseRIFFHeader(const uint8* data, size_t size) {
 void AudioFileReaderWAV::ParseChunks(const uint8* data, size_t size) {
   uint32 offset = kWAVRIFFChunkHeaderSize;
   bool is_src_sample_in_float = false;
-  // If the WAV file is PCM format, it has two sub-chunks: first one is "fmt"
-  // and the second one is "data".
+  // If the WAV file is PCM format, it has at least two sub-chunks:
+  // first one is "fmt" and the second one is "data".
   // TODO: support the cases that the WAV file is non-PCM format and the
   // WAV file is extensible format.
-  for (int i = 0; i < 2; ++i) {
+
+  bool have_fmt_chunk = false;
+  const int chunk_info_size = 8;  // 4 bytes for chunk_id and 4 for chunk_size
+
+  while (offset < (size - chunk_info_size)) {
     // Sub chunk id.
     uint32 chunk_id = load_uint32_big_endian(data + offset);
     offset += 4;
@@ -116,16 +131,18 @@ void AudioFileReaderWAV::ParseChunks(const uint8* data, size_t size) {
       break;
     }
 
-    if (chunk_id == kWAVChunkID_fmt && i == 0) {
+    if (chunk_id == kWAVChunkID_fmt && !have_fmt_chunk) {
       if (!ParseWAV_fmt(data, offset, chunk_size, &is_src_sample_in_float)) {
         DLOG(WARNING) << "Parse fmt chunk failed.";
         break;
       }
-    } else if (chunk_id == kWAVChunkID_data && i == 1) {
+      have_fmt_chunk = true;
+    } else if (chunk_id == kWAVChunkID_data && have_fmt_chunk) {
       ParseWAV_data(data, offset, chunk_size, is_src_sample_in_float);
-    } else {
-      DLOG(WARNING) << "Malformed audio chunk.";
       break;
+    } else {
+      DLOG(INFO) << "Ignoring unknown audio chunk (" << Generate4CC(chunk_id)
+                 << "). (Only looking for 'fmt' and 'data')";
     }
 
     offset += chunk_size;
