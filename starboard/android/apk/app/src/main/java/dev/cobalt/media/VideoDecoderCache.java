@@ -100,7 +100,9 @@ public class VideoDecoderCache {
       if (isExpired(cacheTtlOverride)) {
         refreshDecoders();
       }
-      return cache.getOrDefault(mimeType, Collections.<CachedDecoder>emptyList());
+      return cache.containsKey(mimeType)
+          ? cache.get(mimeType)
+          : Collections.<CachedDecoder>emptyList();
     }
   }
 }
