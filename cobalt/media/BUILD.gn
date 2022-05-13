@@ -45,8 +45,6 @@ component("media") {
     "base/sbplayer_set_bounds_helper.h",
     "base/starboard_player.cc",
     "base/starboard_player.h",
-    "base/starboard_utils.cc",
-    "base/starboard_utils.h",
     "base/video_frame_provider.h",
     "decoder_buffer_allocator.cc",
     "decoder_buffer_allocator.h",

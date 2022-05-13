@@ -12,27 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/media/base/starboard_utils.h"
+#include "media/base/starboard_utils.h"
 
 #include <algorithm>
 
 #include "base/logging.h"
 #include "starboard/configuration.h"
 #include "starboard/memory.h"
-#include "third_party/chromium/media/base/decrypt_config.h"
+#include "media/base/decrypt_config.h"
 
 using base::Time;
 using base::TimeDelta;
 
-namespace cobalt {
 namespace media {
-namespace {
-
-using ::media::AudioCodec;
-using ::media::VideoCodec;
-using ::media::VideoColorSpace;
-
-}  // namespace
 
 SbMediaAudioCodec MediaAudioCodecToSbMediaAudioCodec(AudioCodec codec) {
   switch (codec) {
@@ -58,7 +50,7 @@ SbMediaAudioCodec MediaAudioCodecToSbMediaAudioCodec(AudioCodec codec) {
       return kSbMediaAudioCodecOpus;
     default:
       // Cobalt only supports a subset of audio codecs defined by Chromium.
-      DLOG(ERROR) << "Unsupported audio codec " << ::media::GetCodecName(codec);
+      DLOG(ERROR) << "Unsupported audio codec " << GetCodecName(codec);
       return kSbMediaAudioCodecNone;
   }
   NOTREACHED();
@@ -85,7 +77,7 @@ SbMediaVideoCodec MediaVideoCodecToSbMediaVideoCodec(VideoCodec codec) {
       return kSbMediaVideoCodecAv1;
     default:
       // Cobalt only supports a subset of video codecs defined by Chromium.
-      DLOG(ERROR) << "Unsupported video codec " << ::media::GetCodecName(codec);
+      DLOG(ERROR) << "Unsupported video codec " << GetCodecName(codec);
       return kSbMediaVideoCodecNone;
   }
   NOTREACHED();
@@ -93,7 +85,7 @@ SbMediaVideoCodec MediaVideoCodecToSbMediaVideoCodec(VideoCodec codec) {
 }
 
 SbMediaAudioSampleInfo MediaAudioConfigToSbMediaAudioSampleInfo(
-    const ::media::AudioDecoderConfig& audio_decoder_config,
+    const AudioDecoderConfig& audio_decoder_config,
     const char* mime_type) {
   DCHECK(audio_decoder_config.IsValidConfig());
 
@@ -126,34 +118,34 @@ SbMediaAudioSampleInfo MediaAudioConfigToSbMediaAudioSampleInfo(
   return audio_sample_info;
 }
 
-::media::DemuxerStream::Type SbMediaTypeToDemuxerStreamType(SbMediaType type) {
+DemuxerStream::Type SbMediaTypeToDemuxerStreamType(SbMediaType type) {
   if (type == kSbMediaTypeAudio) {
-    return ::media::DemuxerStream::AUDIO;
+    return DemuxerStream::AUDIO;
   }
   DCHECK_EQ(type, kSbMediaTypeVideo);
-  return ::media::DemuxerStream::VIDEO;
+  return DemuxerStream::VIDEO;
 }
 
-SbMediaType DemuxerStreamTypeToSbMediaType(::media::DemuxerStream::Type type) {
-  if (type == ::media::DemuxerStream::AUDIO) {
+SbMediaType DemuxerStreamTypeToSbMediaType(DemuxerStream::Type type) {
+  if (type == DemuxerStream::AUDIO) {
     return kSbMediaTypeAudio;
   }
-  DCHECK_EQ(type, ::media::DemuxerStream::VIDEO);
+  DCHECK_EQ(type, DemuxerStream::VIDEO);
   return kSbMediaTypeVideo;
 }
 
-void FillDrmSampleInfo(const scoped_refptr<::media::DecoderBuffer>& buffer,
+void FillDrmSampleInfo(const scoped_refptr<DecoderBuffer>& buffer,
                        SbDrmSampleInfo* drm_info,
                        SbDrmSubSampleMapping* subsample_mapping) {
   DCHECK(drm_info);
   DCHECK(subsample_mapping);
 
-  const ::media::DecryptConfig* config = buffer->decrypt_config();
+  const DecryptConfig* config = buffer->decrypt_config();
 
-  if (config->encryption_scheme() == ::media::EncryptionScheme::kCenc) {
+  if (config->encryption_scheme() == EncryptionScheme::kCenc) {
     drm_info->encryption_scheme = kSbDrmEncryptionSchemeAesCtr;
   } else {
-    DCHECK_EQ(config->encryption_scheme(), ::media::EncryptionScheme::kCbcs);
+    DCHECK_EQ(config->encryption_scheme(), EncryptionScheme::kCbcs);
     drm_info->encryption_scheme = kSbDrmEncryptionSchemeAesCbc;
   }
 
@@ -186,7 +178,7 @@ void FillDrmSampleInfo(const scoped_refptr<::media::DecoderBuffer>& buffer,
 
   if (drm_info->subsample_count > 0) {
     COMPILE_ASSERT(
-        sizeof(SbDrmSubSampleMapping) == sizeof(::media::SubsampleEntry),
+        sizeof(SbDrmSubSampleMapping) == sizeof(SubsampleEntry),
         SubSampleEntrySizesMatch);
     drm_info->subsample_mapping =
         reinterpret_cast<const SbDrmSubSampleMapping*>(
@@ -207,7 +199,7 @@ void FillDrmSampleInfo(const scoped_refptr<::media::DecoderBuffer>& buffer,
 }
 
 // Ensure that the enums in starboard/media.h match enums in
-// ::media::VideoColorSpace and gfx::ColorSpace.
+// VideoColorSpace and gfx::ColorSpace.
 #define ENUM_EQ(a, b) \
   COMPILE_ASSERT(static_cast<int>(a) == static_cast<int>(b), mismatching_enums)
 
@@ -357,4 +349,3 @@ SbMediaColorMetadata MediaToSbMediaColorMetadata(
 }
 
 }  // namespace media
-}  // namespace cobalt

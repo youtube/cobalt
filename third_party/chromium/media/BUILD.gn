@@ -91,6 +91,8 @@ component("media") {
     "base/ranges.h",
     "base/sample_format.cc",
     "base/sample_format.h",
+    "base/starboard_utils.cc",
+    "base/starboard_utils.h",
     "base/stream_parser.cc",
     "base/stream_parser.h",
     "base/stream_parser_buffer.cc",

@@ -18,12 +18,12 @@
 #include <vector>
 
 #include "cobalt/math/size.h"
-#include "cobalt/media/base/starboard_utils.h"
 #include "nb/allocator.h"
 #include "nb/memory_scope.h"
 #include "starboard/configuration.h"
 #include "starboard/media.h"
 #include "starboard/memory.h"
+#include "third_party/chromium/media/base/starboard_utils.h"
 
 namespace cobalt {
 namespace media {

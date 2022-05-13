@@ -13,43 +13,13 @@
 // limitations under the License.
 
 #include "media/base/demuxer_memory_limit.h"
+
+#include "media/base/starboard_utils.h"
 #include "media/base/video_codecs.h"
 #include "base/logging.h"
 #include "starboard/media.h"
 
 namespace media {
-namespace {
-
-// TODO(b/231375871): Move this to video_codecs.h.  Also consider remove
-// starboard_utils.* and move the functions to individual files.
-SbMediaVideoCodec MediaVideoCodecToSbMediaVideoCodec(VideoCodec codec) {
-  switch (codec) {
-    case VideoCodec::kH264:
-      return kSbMediaVideoCodecH264;
-    case VideoCodec::kVC1:
-      return kSbMediaVideoCodecVc1;
-    case VideoCodec::kMPEG2:
-      return kSbMediaVideoCodecMpeg2;
-    case VideoCodec::kTheora:
-      return kSbMediaVideoCodecTheora;
-    case VideoCodec::kVP8:
-      return kSbMediaVideoCodecVp8;
-    case VideoCodec::kVP9:
-      return kSbMediaVideoCodecVp9;
-    case VideoCodec::kHEVC:
-      return kSbMediaVideoCodecH265;
-    case VideoCodec::kAV1:
-      return kSbMediaVideoCodecAv1;
-    default:
-      // Cobalt only supports a subset of video codecs defined by Chromium.
-      DLOG(ERROR) << "Unsupported video codec " << GetCodecName(codec);
-      return kSbMediaVideoCodecNone;
-  }
-  NOTREACHED();
-  return kSbMediaVideoCodecNone;
-}
-
-}  // namespace
 
 size_t GetDemuxerStreamAudioMemoryLimit(
     const AudioDecoderConfig* /*audio_config*/) {

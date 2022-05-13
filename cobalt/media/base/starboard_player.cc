@@ -25,11 +25,11 @@
 #include "base/logging.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/media/base/format_support_query_metrics.h"
-#include "cobalt/media/base/starboard_utils.h"
 #include "starboard/common/media.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/memory.h"
+#include "third_party/chromium/media/base/starboard_utils.h"
 
 namespace cobalt {
 namespace media {
@@ -784,7 +784,8 @@ void StarboardPlayer::OnDecoderStatus(SbPlayer player, SbMediaType type,
   }
 
   if (state_ == kResuming) {
-    DemuxerStream::Type stream_type = SbMediaTypeToDemuxerStreamType(type);
+    DemuxerStream::Type stream_type =
+        ::media::SbMediaTypeToDemuxerStreamType(type);
     if (decoder_buffer_cache_.GetBuffer(stream_type)) {
       WriteNextBufferFromCache(stream_type);
       return;
@@ -795,7 +796,7 @@ void StarboardPlayer::OnDecoderStatus(SbPlayer player, SbMediaType type,
     }
   }
 
-  host_->OnNeedData(SbMediaTypeToDemuxerStreamType(type));
+  host_->OnNeedData(::media::SbMediaTypeToDemuxerStreamType(type));
 }
 
 void StarboardPlayer::OnPlayerStatus(SbPlayer player, SbPlayerState state,
