@@ -74,7 +74,6 @@ static_library("starboard_platform") {
     "//starboard/shared/linux/cpu_features_get.cc",
     "//starboard/shared/linux/memory_get_stack_bounds.cc",
     "//starboard/shared/linux/page_internal.cc",
-    "//starboard/shared/linux/socket_get_interface_address.cc",
     "//starboard/shared/linux/system_get_random_data.cc",
     "//starboard/shared/linux/system_get_total_cpu_memory.cc",
     "//starboard/shared/linux/system_get_used_cpu_memory.cc",
