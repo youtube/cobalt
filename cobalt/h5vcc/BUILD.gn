@@ -80,6 +80,7 @@ static_library("h5vcc") {
     "//cobalt/dom",
     "//cobalt/media",
     "//cobalt/network",
+    "//cobalt/persistent_storage:persistent_settings",
     "//cobalt/script",
     "//cobalt/speech",
     "//cobalt/sso",

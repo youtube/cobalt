@@ -42,6 +42,8 @@ class PersistentSettings {
   // Getters and Setters for persistent settings.
   bool GetPersistentSettingAsBool(const std::string& key, bool default_setting);
   int GetPersistentSettingAsInt(const std::string& key, int default_setting);
+  double GetPersistentSettingAsDouble(const std::string& key,
+                                      double default_setting);
   std::string GetPersistentSettingAsString(const std::string& key,
                                            const std::string& default_setting);
   void SetPersistentSetting(const std::string& key,
