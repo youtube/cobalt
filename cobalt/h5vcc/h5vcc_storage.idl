@@ -19,6 +19,9 @@ interface H5vccStorage {
   boolean getCookiesEnabled();
   void setCookiesEnabled(boolean value);
 
-  H5vccStorageWriteTestDictionary writeTest(unsigned long test_size, DOMString test_string);
-  H5vccStorageVerifyTestDictionary verifyTest(unsigned long test_size, DOMString test_string);
+  H5vccStorageWriteTestResponse writeTest(unsigned long test_size, DOMString test_string);
+  H5vccStorageVerifyTestResponse verifyTest(unsigned long test_size, DOMString test_string);
+
+  H5vccStorageResourceTypeQuotaBytesDictionary getQuota();
+  H5vccStorageSetQuotaResponse setQuota(H5vccStorageResourceTypeQuotaBytesDictionary quota);
 };

@@ -89,6 +89,15 @@ int PersistentSettings::GetPersistentSettingAsInt(const std::string& key,
   return default_setting;
 }
 
+double PersistentSettings::GetPersistentSettingAsDouble(
+    const std::string& key, double default_setting) {
+  auto persistent_settings = pref_store_->GetValues();
+  const base::Value* result = persistent_settings->FindKey(key);
+  if (result && result->is_double()) return result->GetDouble();
+  SB_LOG(INFO) << "Persistent setting does not exist: " << key;
+  return default_setting;
+}
+
 std::string PersistentSettings::GetPersistentSettingAsString(
     const std::string& key, const std::string& default_setting) {
   auto persistent_settings = pref_store_->GetValues();

@@ -860,7 +860,7 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
 #if SB_IS(EVERGREEN)
       updater_module_.get(),
 #endif
-      options));
+      options, persistent_settings_.get()));
 
   UpdateUserAgent();
 

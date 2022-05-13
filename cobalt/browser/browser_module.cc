@@ -52,6 +52,7 @@
 #include "cobalt/input/input_device_manager_fuzzer.h"
 #include "cobalt/math/matrix3_f.h"
 #include "cobalt/overlay_info/overlay_info_registry.h"
+#include "cobalt/persistent_storage/persistent_settings.h"
 #include "cobalt/web/csp_delegate_factory.h"
 #include "cobalt/web/navigator_ua_data.h"
 #include "nb/memory_scope.h"
@@ -218,15 +219,16 @@ renderer::Submission CreateSubmissionFromLayoutResults(
 
 }  // namespace
 
-BrowserModule::BrowserModule(const GURL& url,
-                             base::ApplicationState initial_application_state,
-                             base::EventDispatcher* event_dispatcher,
-                             account::AccountManager* account_manager,
-                             network::NetworkModule* network_module,
+BrowserModule::BrowserModule(
+    const GURL& url, base::ApplicationState initial_application_state,
+    base::EventDispatcher* event_dispatcher,
+    account::AccountManager* account_manager,
+    network::NetworkModule* network_module,
 #if SB_IS(EVERGREEN)
-                             updater::UpdaterModule* updater_module,
+    updater::UpdaterModule* updater_module,
 #endif
-                             const Options& options)
+    const Options& options,
+    persistent_storage::PersistentSettings* persistent_settings)
     : ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           weak_this_(weak_ptr_factory_.GetWeakPtr())),
@@ -296,7 +298,8 @@ BrowserModule::BrowserModule(const GURL& url,
       next_timeline_id_(1),
       current_splash_screen_timeline_id_(-1),
       current_main_web_module_timeline_id_(-1),
-      service_worker_registry_(network_module) {
+      service_worker_registry_(network_module),
+      persistent_settings_(persistent_settings) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::BrowserModule()");
 
   // Apply platform memory setting adjustments and defaults.
@@ -2072,6 +2075,7 @@ scoped_refptr<script::Wrappable> BrowserModule::CreateH5vcc(
       dom_settings->window()->navigator()->user_agent_data();
   h5vcc_settings.global_environment =
       dom_settings->context()->global_environment();
+  h5vcc_settings.persistent_settings = persistent_settings_;
 
   auto* h5vcc_object = new h5vcc::H5vcc(h5vcc_settings);
   if (!web_module_created_callback_.is_null()) {

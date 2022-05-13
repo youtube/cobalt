@@ -30,6 +30,7 @@
 #include "cobalt/h5vcc/h5vcc_storage.h"
 #include "cobalt/h5vcc/h5vcc_system.h"
 #include "cobalt/h5vcc/h5vcc_trace_event.h"
+#include "cobalt/persistent_storage/persistent_settings.h"
 #include "cobalt/script/wrappable.h"
 
 #if SB_IS(EVERGREEN)
@@ -63,6 +64,7 @@ class H5vcc : public script::Wrappable {
     base::EventDispatcher* event_dispatcher;
     web::NavigatorUAData* user_agent_data;
     script::GlobalEnvironment* global_environment;
+    persistent_storage::PersistentSettings* persistent_settings;
   };
 
   explicit H5vcc(const Settings& config);
