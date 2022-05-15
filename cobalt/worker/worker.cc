@@ -17,6 +17,8 @@
 #include <string>
 #include <utility>
 
+#include "base/location.h"
+#include "base/logging.h"
 #include "base/message_loop/message_loop.h"
 #include "base/threading/thread.h"
 #include "cobalt/script/environment_settings.h"
@@ -69,8 +71,6 @@ void Worker::WillDestroyCurrentMessageLoop() {
 }
 
 void Worker::Initialize(const Options& options, web::Context* context) {
-  LOG(INFO) << "Look at me, I'm running a worker thread";
-
   // 7. Let realm execution context be the result of creating a new
   //    JavaScript realm given agent and the following customizations:
   web_context_ = context;
@@ -80,7 +80,7 @@ void Worker::Initialize(const Options& options, web::Context* context) {
   // TODO: Actual type here should depend on derived class (e.g. dedicated,
   // shared, service)
   web_context_->setup_environment_settings(
-      new WorkerSettings(options.outside_port, options.url));
+      new WorkerSettings(options.url, options.outside_port));
   // 8. Let worker global scope be the global object of realm execution
   //    context's Realm component.
   scoped_refptr<DedicatedWorkerGlobalScope> dedicated_worker_global_scope =
@@ -201,8 +201,8 @@ void Worker::Execute(const std::string& content,
   LOG(INFO) << "Script Executing \"" << content << "\".";
   std::string retval = web_context_->script_runner()->Execute(
       content, script_location, mute_errors, &succeeded);
-  LOG(INFO) << "Script Executed " << (succeeded ? "and" : ", but not")
-            << " succeeded: \"" << retval << "\"";
+  LOG(INFO) << "Script Executed and " << (succeeded ? "succeeded" : "failed")
+            << ": \"" << retval << "\"";
 
   // 24. Enable outside port's port message queue.
   // 25. If is shared is false, enable the port message queue of the worker's

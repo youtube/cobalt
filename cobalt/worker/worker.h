@@ -19,7 +19,9 @@
 #include <string>
 
 #include "base/bind.h"
+#include "base/macros.h"
 #include "base/memory/scoped_refptr.h"
+#include "base/message_loop/message_loop_current.h"
 #include "base/threading/thread.h"
 #include "cobalt/csp/content_security_policy.h"
 #include "cobalt/loader/script_loader_factory.h"
@@ -63,6 +65,8 @@ class Worker : public base::MessageLoop::DestructionObserver {
 
   Worker();
   ~Worker();
+  Worker(const Worker&) = delete;
+  Worker& operator=(const Worker&) = delete;
 
   // Start the worker thread. Returns true if successful.
   bool Run(const Options& options);
@@ -74,7 +78,9 @@ class Worker : public base::MessageLoop::DestructionObserver {
   MessagePort* message_port() const { return message_port_.get(); }
 
   // The message loop this object is running on.
-  base::MessageLoop* message_loop() const { return web_agent_->message_loop(); }
+  base::MessageLoop* message_loop() const {
+    return web_agent_ ? web_agent_->message_loop() : nullptr;
+  }
 
   void PostMessage(const std::string& message);
 
@@ -82,7 +88,6 @@ class Worker : public base::MessageLoop::DestructionObserver {
   void WillDestroyCurrentMessageLoop() override;
 
  private:
-  DISALLOW_COPY_AND_ASSIGN(Worker);
   // Called by |Run| to perform initialization required on the dedicated
   // thread.
   void Initialize(const Options& options, web::Context* context);

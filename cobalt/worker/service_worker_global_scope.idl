@@ -12,21 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/worker/worker_settings.h"
+// https://html.spec.whatwg.org/multipage/workers.html#dedicated-workers-and-the-dedicatedworkerglobalscope-interface
 
-#include "cobalt/base/debugger_hooks.h"
-#include "cobalt/script/environment_settings.h"
-#include "cobalt/script/global_environment.h"
-#include "cobalt/script/javascript_engine.h"
-#include "url/gurl.h"
+[Global] interface ServiceWorkerGlobalScope : WorkerGlobalScope {
+  // readonly attribute Clients clients;
+  readonly attribute ServiceWorkerRegistration registration;
+  readonly attribute ServiceWorker serviceWorker;
 
-namespace cobalt {
-namespace worker {
-// TODO: Only use NullDebuggerHooks if !ENABLE_DEBUGGER.
-WorkerSettings::WorkerSettings(const GURL& base,
-                               worker::MessagePort* message_port)
-    : web::EnvironmentSettings(), message_port_(message_port) {
-  set_base_url(base);
-}
-}  // namespace worker
-}  // namespace cobalt
+  Promise<void> skipWaiting();
+
+  attribute EventHandler onactivate;
+  attribute EventHandler onfetch;
+  attribute EventHandler oninstall;
+
+  attribute EventHandler onmessage;
+  attribute EventHandler onmessageerror;
+};

@@ -693,13 +693,16 @@ void ServiceWorkerJobs::UpdateOnLoadingComplete(
     FinishJob(state->job);
     return;
   }
+
   // 11. Let worker be a new service worker.
-  std::unique_ptr<ServiceWorkerObject> worker(
-      new ServiceWorkerObject(state->job->script_url));
+  ServiceWorkerObject::Options options(
+      "ServiceWorker", state->job->client->context()->network_module());
+  std::unique_ptr<ServiceWorkerObject> worker(new ServiceWorkerObject(options));
   // 12. Set worker’s script url to job’s script url, worker’s script
   //     resource to script, worker’s type to job’s worker type, and worker’s
   //     script resource map to updatedResourceMap.
   // -> The worker's script resource is set in the resource map at step 8.18.
+  worker->set_script_url(state->job->script_url);
   worker->set_script_resource_map(std::move(state->updated_resource_map));
   // 13. Append url to worker’s set of used scripts.
   // -> The script resource map contains the used scripts.
@@ -709,7 +712,7 @@ void ServiceWorkerJobs::UpdateOnLoadingComplete(
   bool force_bypass_cache = state->job->force_bypass_cache_flag;
   // 16. Let runResult be the result of running the Run Service Worker
   //     algorithm with worker and forceBypassCache.
-  bool run_result = RunServiceWorker(worker.get(), force_bypass_cache);
+  auto* run_result = RunServiceWorker(worker.get(), force_bypass_cache);
   // 17. If runResult is failure or an abrupt completion, then:
   if (!run_result) {
     // 17.1. Invoke Reject Job Promise with job and TypeError.
@@ -729,14 +732,43 @@ void ServiceWorkerJobs::UpdateOnLoadingComplete(
   }
 }
 
-bool ServiceWorkerJobs::RunServiceWorker(ServiceWorkerObject* worker,
-                                         bool force_bypass_cache) {
+std::string* ServiceWorkerJobs::RunServiceWorker(ServiceWorkerObject* worker,
+                                                 bool force_bypass_cache) {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerJobs::RunServiceWorker()");
   DCHECK_EQ(message_loop(), base::MessageLoop::current());
+  DCHECK(worker);
+  // return worker->Run(force_bypass_cache);
   // Algorithm for "Run Service Worker"
-  // https://w3c.github.io/ServiceWorker/#run-service-worker-algorithm
-  NOTIMPLEMENTED();
-  return true;
+  //   https://w3c.github.io/ServiceWorker/#run-service-worker-algorithm
+
+  // 1. Let unsafeCreationTime be the unsafe shared current time.
+  auto unsafe_creation_time = base::TimeTicks::Now();
+  // 2. If serviceWorker is running, then return serviceWorker’s start status.
+  if (worker->is_running()) {
+    return worker->start_status();
+  }
+  // 3. If serviceWorker’s state is "redundant", then return failure.
+  if (worker->state() == kServiceWorkerStateRedundant) {
+    return nullptr;
+  }
+  // 4. Assert: serviceWorker’s start status is null.
+  DCHECK(worker->start_status() == nullptr);
+  // 5. Let script be serviceWorker’s script resource.
+  std::string* script = worker->LookupScriptResource();
+  // 6. Assert: script is not null.
+  DCHECK(script != nullptr);
+  // 7. Let startFailed be false.
+  worker->store_start_failed(false);
+  // 8. Let agent be the result of obtaining a service worker agent, and run the
+  //    following steps in that context:
+  // 9. Wait for serviceWorker to be running, or for startFailed to be true.
+  worker->ObtainWebAgentAndWaitUntilDone();
+  // 10. If startFailed is true, then return failure.
+  if (worker->load_start_failed()) {
+    return nullptr;
+  }
+  // 11. Return serviceWorker’s start status.
+  return worker->start_status();
 }
 
 void ServiceWorkerJobs::Install(Job* job, ServiceWorkerObject* worker,

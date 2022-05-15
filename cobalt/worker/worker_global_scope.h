@@ -38,14 +38,16 @@ namespace worker {
 class WorkerGlobalScope : public dom::EventTarget {
  public:
   explicit WorkerGlobalScope(script::EnvironmentSettings* settings);
+  WorkerGlobalScope(const WorkerGlobalScope&) = delete;
+  WorkerGlobalScope& operator=(const WorkerGlobalScope&) = delete;
+
+  virtual void Initialize() = 0;
 
   // Web API: WorkerGlobalScope
   //
   scoped_refptr<WorkerGlobalScope> self() { return this; }
 
   void ImportScripts(const std::vector<std::string>& urls) {}
-
-  virtual void Initialize() = 0;
 
   void set_url(const GURL& url) { url_ = url; }
 
@@ -87,8 +89,6 @@ class WorkerGlobalScope : public dom::EventTarget {
   virtual ~WorkerGlobalScope() {}
 
  private:
-  DISALLOW_COPY_AND_ASSIGN(WorkerGlobalScope);
-
   // WorkerGlobalScope Attribute
   // https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#concept-workerglobalscope-url
   GURL url_;

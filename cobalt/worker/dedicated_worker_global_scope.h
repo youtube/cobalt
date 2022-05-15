@@ -37,13 +37,16 @@ class DedicatedWorkerGlobalScope : public WorkerGlobalScope {
   explicit DedicatedWorkerGlobalScope(
       script::EnvironmentSettings* settings,
       bool parent_cross_origin_isolated_capability);
+  DedicatedWorkerGlobalScope(const DedicatedWorkerGlobalScope&) = delete;
+  DedicatedWorkerGlobalScope& operator=(const DedicatedWorkerGlobalScope&) =
+      delete;
+
+  void Initialize() override;
 
   // Web API: DedicatedWorkerGlobalScope
   //
   void set_name(const std::string& name) { name_ = name; }
   std::string name() { return name_; }
-
-  void Initialize() override;
 
   void PostMessage(const std::string& message);
   void Close() {}
@@ -72,7 +75,6 @@ class DedicatedWorkerGlobalScope : public WorkerGlobalScope {
   ~DedicatedWorkerGlobalScope() override {}
 
  private:
-  DISALLOW_COPY_AND_ASSIGN(DedicatedWorkerGlobalScope);
   bool cross_origin_isolated_capability_;
 
   std::string name_;

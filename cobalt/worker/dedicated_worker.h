@@ -38,6 +38,8 @@ class DedicatedWorker : public AbstractWorker, public dom::EventTarget {
                   const std::string& scriptURL);
   DedicatedWorker(script::EnvironmentSettings* settings,
                   const std::string& scriptURL, const WorkerOptions& options);
+  DedicatedWorker(const DedicatedWorker&) = delete;
+  DedicatedWorker& operator=(const DedicatedWorker&) = delete;
 
   // Web API: Worker
   //
@@ -77,7 +79,6 @@ class DedicatedWorker : public AbstractWorker, public dom::EventTarget {
  private:
   ~DedicatedWorker() override;
   void Initialize();
-  DISALLOW_COPY_AND_ASSIGN(DedicatedWorker);
 
   script::EnvironmentSettings* settings_;
   const std::string script_url_;

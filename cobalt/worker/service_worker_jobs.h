@@ -278,8 +278,12 @@ class ServiceWorkerJobs {
   ServiceWorker* GetNewestWorker(ServiceWorkerRegistrationObject* registration);
 
   // https://w3c.github.io/ServiceWorker/#run-service-worker-algorithm
-  // Returns true if successful
-  bool RunServiceWorker(ServiceWorkerObject* worker, bool force_bypass_cache);
+  // The return value is a 'Completion or failure'.
+  // A failure is signaled by returning nullptr. Otherwise, the returned string
+  // points to the value of the Completion returned by the script runner
+  // abstraction.
+  std::string* RunServiceWorker(ServiceWorkerObject* worker,
+                                bool force_bypass_cache);
 
   // https://w3c.github.io/ServiceWorker/#installation-algorithm
   void Install(Job* job, ServiceWorkerObject* worker,

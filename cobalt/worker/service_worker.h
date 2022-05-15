@@ -37,6 +37,8 @@ class ServiceWorker : public AbstractWorker, public dom::EventTarget {
  public:
   ServiceWorker(script::EnvironmentSettings* settings,
                 worker::ServiceWorkerObject* worker);
+  ServiceWorker(const ServiceWorker&) = delete;
+  ServiceWorker& operator=(const ServiceWorker&) = delete;
 
   // The scriptURL getter steps are to return the
   // service worker's serialized script url.
@@ -63,7 +65,6 @@ class ServiceWorker : public AbstractWorker, public dom::EventTarget {
 
  private:
   ~ServiceWorker() override = default;
-  DISALLOW_COPY_AND_ASSIGN(ServiceWorker);
 
   worker::ServiceWorkerObject* worker_;
 };
