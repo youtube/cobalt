@@ -33,6 +33,9 @@ namespace cobalt {
 namespace worker {
 class ServiceWorkerRegistration;
 class ServiceWorkerRegistrationObject;
+class ServiceWorker;
+class ServiceWorkerJobs;
+class ServiceWorkerObject;
 }  // namespace worker
 namespace web {
 
@@ -50,14 +53,25 @@ class Context {
   virtual script::ScriptRunner* script_runner() const = 0;
   virtual dom::Blob::Registry* blob_registry() const = 0;
   virtual network::NetworkModule* network_module() const = 0;
+  virtual worker::ServiceWorkerJobs* service_worker_jobs() const = 0;
 
   virtual const std::string& name() const = 0;
   virtual void setup_environment_settings(EnvironmentSettings* settings) = 0;
   virtual EnvironmentSettings* environment_settings() const = 0;
 
-  // https://w3c.github.io/ServiceWorker/#get-the-service-worker-registration-object
-  virtual scoped_refptr<cobalt::script::Wrappable> GetServiceWorkerRegistration(
+  virtual scoped_refptr<worker::ServiceWorkerRegistration>
+  LookupServiceWorkerRegistration(
       worker::ServiceWorkerRegistrationObject* registration) = 0;
+  // https://w3c.github.io/ServiceWorker/#get-the-service-worker-registration-object
+  virtual scoped_refptr<worker::ServiceWorkerRegistration>
+  GetServiceWorkerRegistration(
+      worker::ServiceWorkerRegistrationObject* registration) = 0;
+
+  virtual scoped_refptr<worker::ServiceWorker> LookupServiceWorker(
+      worker::ServiceWorkerObject* worker) = 0;
+  // https://w3c.github.io/ServiceWorker/#get-the-service-worker-object
+  virtual scoped_refptr<worker::ServiceWorker> GetServiceWorker(
+      worker::ServiceWorkerObject* worker) = 0;
 };
 
 }  // namespace web

@@ -42,6 +42,9 @@ class EnvironmentSettings {
   //   https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#concept-environment-creation-url
   const GURL& creation_url() const { return base_url(); }
 
+  // https://html.spec.whatwg.org/multipage/webappapis.html#concept-settings-object-origin
+  const GURL GetOrigin() const { return creation_url().GetOrigin(); }
+
   const base::DebuggerHooks& debugger_hooks() const { return debugger_hooks_; }
 
  protected:

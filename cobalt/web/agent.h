@@ -30,6 +30,9 @@
 #include "cobalt/web/environment_settings.h"
 
 namespace cobalt {
+namespace worker {
+class ServiceWorkerJobs;
+}
 namespace web {
 
 class Agent : public base::MessageLoop::DestructionObserver {
@@ -68,6 +71,8 @@ class Agent : public base::MessageLoop::DestructionObserver {
     // Optional callback for fetching from cache via h5vcc-cache://.
     base::Callback<int(const std::string&, std::unique_ptr<char[]>*)>
         read_cache_callback;
+
+    worker::ServiceWorkerJobs* service_worker_jobs = nullptr;
   };
 
   typedef base::Callback<void(const script::HeapStatistics&)>

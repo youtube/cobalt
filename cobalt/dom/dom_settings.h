@@ -24,7 +24,6 @@
 #include "cobalt/media/decoder_buffer_memory_info.h"
 #include "cobalt/speech/microphone.h"
 #include "cobalt/web/environment_settings.h"
-#include "cobalt/worker/service_worker_jobs.h"
 
 namespace cobalt {
 
@@ -59,7 +58,6 @@ class DOMSettings : public web::EnvironmentSettings {
               media::CanPlayTypeHandler* can_play_type_handler,
               const media::DecoderBufferMemoryInfo* decoder_buffer_memory_info,
               MutationObserverTaskManager* mutation_observer_task_manager,
-              worker::ServiceWorkerJobs* service_worker_jobs,
               const Options& options = Options());
   ~DOMSettings() override;
 
@@ -88,9 +86,6 @@ class DOMSettings : public web::EnvironmentSettings {
     return mutation_observer_task_manager_;
   }
 
-  worker::ServiceWorkerJobs* service_worker_jobs() const {
-    return service_worker_jobs_;
-  }
   // Return's document's origin.
   loader::Origin document_origin() const;
 
@@ -102,7 +97,6 @@ class DOMSettings : public web::EnvironmentSettings {
   media::CanPlayTypeHandler* can_play_type_handler_;
   const media::DecoderBufferMemoryInfo* decoder_buffer_memory_info_;
   MutationObserverTaskManager* mutation_observer_task_manager_;
-  worker::ServiceWorkerJobs* service_worker_jobs_;
   DISALLOW_COPY_AND_ASSIGN(DOMSettings);
 };
 

@@ -34,8 +34,7 @@ namespace cobalt {
 namespace worker {
 
 ServiceWorkerContainer::ServiceWorkerContainer(
-    script::EnvironmentSettings* settings,
-    worker::ServiceWorkerJobs* service_worker_jobs)
+    script::EnvironmentSettings* settings)
     : dom::EventTarget(settings) {}
 
 // TODO: Implement the service worker ready algorithm. b/219972966
@@ -109,13 +108,10 @@ script::Handle<script::PromiseWrappable> ServiceWorkerContainer::Register(
   //    creation URL, options["type"], and options["updateViaCache"].
   base::MessageLoop::current()->task_runner()->PostTask(
       FROM_HERE,
-      base::BindOnce(
-          &ServiceWorkerJobs::StartRegister,
-          base::Unretained(base::polymorphic_downcast<dom::DOMSettings*>(
-                               environment_settings())
-                               ->service_worker_jobs()),
-          scope_url, script_url, std::move(promise_reference), client,
-          options.type(), options.update_via_cache()));
+      base::BindOnce(&ServiceWorkerJobs::StartRegister,
+                     base::Unretained(client->context()->service_worker_jobs()),
+                     scope_url, script_url, std::move(promise_reference),
+                     client, options.type(), options.update_via_cache()));
   // 7. Return p.
   return promise;
 }
@@ -199,9 +195,7 @@ void ServiceWorkerContainer::GetRegistrationTask(
 
   // 7. Let promise be a new promise.
   // 8. Run the following substeps in parallel:
-  worker::ServiceWorkerJobs* jobs =
-      base::polymorphic_downcast<dom::DOMSettings*>(environment_settings())
-          ->service_worker_jobs();
+  worker::ServiceWorkerJobs* jobs = client->context()->service_worker_jobs();
   jobs->message_loop()->task_runner()->PostTask(
       FROM_HERE, base::BindOnce(&ServiceWorkerJobs::GetRegistrationSubSteps,
                                 base::Unretained(jobs), storage_key, client_url,

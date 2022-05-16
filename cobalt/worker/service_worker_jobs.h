@@ -19,6 +19,7 @@
 #include <map>
 #include <memory>
 #include <queue>
+#include <set>
 #include <string>
 #include <utility>
 
@@ -26,6 +27,7 @@
 #include "base/message_loop/message_loop.h"
 #include "base/optional.h"
 #include "base/synchronization/lock.h"
+#include "base/synchronization/waitable_event.h"
 #include "base/task/sequence_manager/moveable_auto_lock.h"
 #include "cobalt/dom/dom_exception.h"
 #include "cobalt/loader/fetcher_factory.h"
@@ -73,6 +75,10 @@ class ServiceWorkerJobs {
       web::EnvironmentSettings* client,
       std::unique_ptr<script::ValuePromiseWrappable::Reference>
           promise_reference);
+
+  // Registration of web contexts that may have service workers.
+  void RegisterWebContext(web::Context* context);
+  void UnregisterWebContext(web::Context* context);
 
  private:
   // https://w3c.github.io/ServiceWorker/#dfn-job-type
@@ -231,6 +237,7 @@ class ServiceWorkerJobs {
     const std::string message_;
   };
 
+  enum RegistrationState { kInstalling, kWaiting, kActive };
 
   // https://w3c.github.io/ServiceWorker/#create-job
   std::unique_ptr<Job> CreateJob(JobType type, const url::Origin& storage_key,
@@ -289,6 +296,24 @@ class ServiceWorkerJobs {
   void Install(Job* job, ServiceWorkerObject* worker,
                ServiceWorkerRegistrationObject* registration);
 
+  // https://w3c.github.io/ServiceWorker/#try-activate-algorithm
+  void TryActivate(ServiceWorkerRegistrationObject* registration);
+
+
+  // https://w3c.github.io/ServiceWorker/#update-registration-state-algorithm
+  void UpdateRegistrationState(ServiceWorkerRegistrationObject* registration,
+                               RegistrationState target,
+                               ServiceWorkerObject* source);
+
+  // https://w3c.github.io/ServiceWorker/#update-state-algorithm
+  void UpdateWorkerState(ServiceWorkerObject* worker, ServiceWorkerState state);
+
+  // https://w3c.github.io/ServiceWorker/#should-skip-event-algorithm
+  bool ShouldSkipEvent(base::Token event_name, ServiceWorkerObject* worker);
+
+  // https://w3c.github.io/ServiceWorker/#terminate-service-worker
+  void TerminateServiceWorker(ServiceWorkerObject* worker);
+
   // FetcherFactory that is used to create a fetcher according to URL.
   std::unique_ptr<loader::FetcherFactory> fetcher_factory_;
   // LoaderFactory that is used to acquire references to resources from a URL.
@@ -298,6 +323,12 @@ class ServiceWorkerJobs {
 
   JobQueueMap job_queue_map_;
   ServiceWorkerRegistrationMap scope_to_registration_map_;
+
+  std::set<web::Context*> web_context_registrations_;
+
+  base::WaitableEvent web_context_registrations_cleared_ = {
+      base::WaitableEvent::ResetPolicy::MANUAL,
+      base::WaitableEvent::InitialState::NOT_SIGNALED};
 };
 
 }  // namespace worker

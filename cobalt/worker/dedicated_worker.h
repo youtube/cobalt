@@ -21,7 +21,7 @@
 #include "base/memory/scoped_refptr.h"
 #include "cobalt/dom/event_target.h"
 #include "cobalt/dom/event_target_listener_info.h"
-#include "cobalt/script/environment_settings.h"
+#include "cobalt/web/environment_settings.h"
 #include "cobalt/worker/abstract_worker.h"
 #include "cobalt/worker/message_port.h"
 #include "cobalt/worker/worker.h"

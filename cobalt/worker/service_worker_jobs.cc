@@ -26,7 +26,9 @@
 #include "base/message_loop/message_loop.h"
 #include "base/synchronization/lock.h"
 #include "base/trace_event/trace_event.h"
+#include "cobalt/base/tokens.h"
 #include "cobalt/dom/dom_exception.h"
+#include "cobalt/dom/event.h"
 #include "cobalt/loader/script_loader_factory.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/script/promise.h"
@@ -40,6 +42,7 @@
 #include "cobalt/worker/service_worker_update_via_cache.h"
 #include "cobalt/worker/worker_type.h"
 #include "net/base/url_util.h"
+#include "starboard/atomic.h"
 #include "url/gurl.h"
 #include "url/origin.h"
 
@@ -110,7 +113,15 @@ ServiceWorkerJobs::ServiceWorkerJobs(network::NetworkModule* network_module,
   DCHECK(script_loader_factory_);
 }
 
-ServiceWorkerJobs::~ServiceWorkerJobs() {}
+ServiceWorkerJobs::~ServiceWorkerJobs() {
+  DCHECK_EQ(message_loop(), base::MessageLoop::current());
+  if (!web_context_registrations_.empty()) {
+    DLOG(INFO) << "Waiting for web context registrations to be cleared. "
+               << web_context_registrations_.size();
+    // Wait for web context registrations to be cleared.
+    web_context_registrations_cleared_.Wait();
+  }
+}
 
 void ServiceWorkerJobs::StartRegister(
     const base::Optional<GURL>& maybe_scope_url,
@@ -119,8 +130,8 @@ void ServiceWorkerJobs::StartRegister(
     web::EnvironmentSettings* client, const WorkerType& type,
     const ServiceWorkerUpdateViaCache& update_via_cache) {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerJobs::StartRegister()");
-  DCHECK_NE(base::MessageLoop::current(), message_loop());
-  DCHECK_EQ(base::MessageLoop::current(), client->context()->message_loop());
+  DCHECK_NE(message_loop(), base::MessageLoop::current());
+  DCHECK_EQ(client->context()->message_loop(), base::MessageLoop::current());
   // Algorithm for Start Register:
   //   https://w3c.github.io/ServiceWorker/#start-register-algorithm
   // 1. If scriptURL is failure, reject promise with a TypeError and abort these
@@ -245,7 +256,7 @@ std::unique_ptr<ServiceWorkerJobs::Job> ServiceWorkerJobs::CreateJob(
 
 void ServiceWorkerJobs::ScheduleJob(std::unique_ptr<Job> job) {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerJobs::ScheduleJob()");
-  DCHECK_EQ(base::MessageLoop::current(), message_loop());
+  DCHECK_EQ(message_loop(), base::MessageLoop::current());
   DCHECK(job);
   // Algorithm for Schedule Job:
   //   https://w3c.github.io/ServiceWorker/#schedule-job
@@ -331,7 +342,7 @@ bool ServiceWorkerJobs::EquivalentJobs(Job* one, Job* two) {
 
 void ServiceWorkerJobs::RunJob(JobQueue* job_queue) {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerJobs::RunJob()");
-  DCHECK_EQ(base::MessageLoop::current(), message_loop());
+  DCHECK_EQ(message_loop(), base::MessageLoop::current());
   // Algorithm for Run Job:
   //   https://w3c.github.io/ServiceWorker/#run-job-algorithm
 
@@ -735,6 +746,7 @@ void ServiceWorkerJobs::UpdateOnLoadingComplete(
 std::string* ServiceWorkerJobs::RunServiceWorker(ServiceWorkerObject* worker,
                                                  bool force_bypass_cache) {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerJobs::RunServiceWorker()");
+
   DCHECK_EQ(message_loop(), base::MessageLoop::current());
   DCHECK(worker);
   // return worker->Run(force_bypass_cache);
@@ -775,16 +787,365 @@ void ServiceWorkerJobs::Install(Job* job, ServiceWorkerObject* worker,
                                 ServiceWorkerRegistrationObject* registration) {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerJobs::Install()");
   DCHECK_EQ(message_loop(), base::MessageLoop::current());
-  // Algorithm for "Install"
+  // Algorithm for Install:
   //   https://w3c.github.io/ServiceWorker/#installation-algorithm
+
+  // 1. Let installFailed be false.
+  starboard::atomic_bool install_failed(false);
+
+  // 2. Let newestWorker be the result of running Get Newest Worker algorithm
+  //    passing registration as its argument.
+  ServiceWorkerObject* newest_worker = registration->GetNewestWorker();
+
+  // 3. Set registration’s update via cache mode to job’s update via cache mode.
+  registration->set_update_via_cache_mode(job->update_via_cache);
+
+  // 4. Run the Update Registration State algorithm passing registration,
+  //    "installing" and worker as the arguments.
+  UpdateRegistrationState(registration, kInstalling, worker);
+
+  // 5. Run the Update Worker State algorithm passing registration’s installing
+  //    worker and "installing" as the arguments.
+  UpdateWorkerState(registration->installing_worker(),
+                    kServiceWorkerStateInstalling);
+  // 6. Assert: job’s job promise is not null.
+  DCHECK(job->promise.get() != nullptr);
+  // 7. Invoke Resolve Job Promise with job and registration.
   ResolveJobPromise(job, registration);
+  // 8. Let settingsObjects be all environment settings objects whose origin is
+  //    registration’s scope url's origin.
+  auto registration_origin = registration->scope_url().GetOrigin();
+  // 9. For each settingsObject of settingsObjects...
+  for (auto& context : web_context_registrations_) {
+    if (context->environment_settings()->GetOrigin() == registration_origin) {
+      // 9. ... queue a task on settingsObject’s responsible event loop in the
+      //    DOM manipulation task source to run the following steps:
+      context->message_loop()->task_runner()->PostTask(
+          FROM_HERE,
+          base::BindOnce(
+              [](web::Context* context,
+                 ServiceWorkerRegistrationObject* registration) {
+                // 9.1. Let registrationObjects be every
+                // ServiceWorkerRegistration
+                //      object in settingsObject’s realm, whose service worker
+                //      registration is registration.
+
+                // There is at most one per web context, stored in the service
+                // worker registration object map of the web context.
+
+                // 9.2. For each registrationObject of registrationObjects, fire
+                // an
+                //      event on registrationObject named updatefound.
+                auto registration_object =
+                    context->LookupServiceWorkerRegistration(registration);
+                if (registration_object) {
+                  context->message_loop()->task_runner()->PostTask(
+                      FROM_HERE,
+                      base::BindOnce(
+                          [](scoped_refptr<worker::ServiceWorkerRegistration>
+                                 registration_object) {
+                            registration_object->DispatchEvent(
+                                new dom::Event(base::Tokens::updatefound()));
+                          },
+                          registration_object));
+                }
+              },
+              context, registration));
+    }
+  }
+  // 10. Let installingWorker be registration’s installing worker.
+  ServiceWorkerObject* installing_worker = registration->installing_worker();
+  // 11. If the result of running the Should Skip Event algorithm with
+  //     installingWorker and "install" is false, then:
+  if (!ShouldSkipEvent(base::Tokens::install(), installing_worker)) {
+    // 11.1. Let forceBypassCache be true if job’s force bypass cache flag is
+    //       set, and false otherwise.
+    bool force_bypass_cache = job->force_bypass_cache_flag;
+    // 11.2. If the result of running the Run Service Worker algorithm with
+    //       installingWorker and forceBypassCache is failure, then:
+    auto* run_result = RunServiceWorker(installing_worker, force_bypass_cache);
+    if (!run_result) {
+      // 11.2.1. Set installFailed to true.
+      install_failed.store(true);
+      // 11.3. Else:
+    } else {
+      // 11.3.1. Queue a task task on installingWorker’s event loop using the
+      //         DOM manipulation task source to run the following steps:
+      installing_worker->web_agent()
+          ->context()
+          ->message_loop()
+          ->task_runner()
+          ->PostBlockingTask(
+              FROM_HERE,
+              base::Bind(
+                  [](ServiceWorkerObject* installing_worker) {
+                    // 11.3.1.1. Let e be the result of creating an event with
+                    //           ExtendableEvent.
+                    // TODO: implement this as ExtendableEvent.
+                    // 11.3.1.2. Initialize e’s type attribute to install.
+                    // 11.3.1.3. Dispatch e at installingWorker’s global object.
+                    installing_worker->worker_global_scope()->DispatchEvent(
+                        new dom::Event(base::Tokens::install()));
+                    // 11.3.1.4. WaitForAsynchronousExtensions: Run the
+                    //           following substeps in parallel:
+                    // 11.3.1.4.1. Wait until e is not active.
+                    // 11.3.1.4.2. If e’s timed out flag is set, set
+                    //             installFailed to true.
+                    // 11.3.1.4.3. Let p be the result of getting a promise to
+                    //             wait for all of e’s extend lifetime promises.
+                    // 11.3.1.4.4. Upon rejection of p, set installFailed to
+                    //             true.
+                    //         If task is discarded, set installFailed to true.
+                  },
+                  installing_worker));
+      // 11.3.2. Wait for task to have executed or been discarded.
+      // Waiting is done inside PostBlockingTask above.
+      // 11.3.3. Wait for the step labeled WaitForAsynchronousExtensions to
+      //         complete.
+      NOTIMPLEMENTED();
+    }
+  }
+  // 12. If installFailed is true, then:
+  if (install_failed.load()) {
+    // 12.1. Run the Update Worker State algorithm passing registration’s
+    //       installing worker and "redundant" as the arguments.
+    UpdateWorkerState(registration->installing_worker(),
+                      kServiceWorkerStateRedundant);
+    // 12.2. Run the Update Registration State algorithm passing registration,
+    //       "installing" and null as the arguments.
+    UpdateRegistrationState(registration, kInstalling, nullptr);
+    // 12.3. If newestWorker is null, then remove registration
+    //       map[(registration’s storage key, serialized registration’s
+    //       scope url)].
+    if (newest_worker == nullptr) {
+      scope_to_registration_map_.RemoveRegistration(registration->storage_key(),
+                                                    registration->scope_url());
+    }
+    // 12.4. Invoke Finish Job with job and abort these steps.
+    FinishJob(job);
+    return;
+  }
+  // Note: The logic below is for scripts added with importScript().
+  // 13. Let map be registration’s installing worker's script resource map.
+  // 14. Let usedSet be registration’s installing worker's set of used scripts.
+  // 15. For each url of map:
+  // 15.1. If usedSet does not contain url, then remove map[url].
+  // 16. If registration’s waiting worker is not null, then:
+  if (registration->waiting_worker()) {
+    // 16.1. Terminate registration’s waiting worker.
+    TerminateServiceWorker(registration->waiting_worker());
+    // 16.2. Run the Update Worker State algorithm passing registration’s
+    //       waiting worker and "redundant" as the arguments.
+    UpdateWorkerState(registration->waiting_worker(),
+                      kServiceWorkerStateRedundant);
+  }
+  // 17. Run the Update Registration State algorithm passing registration,
+  //     "waiting" and registration’s installing worker as the arguments.
+  UpdateRegistrationState(registration, kWaiting,
+                          registration->installing_worker());
+  // 18. Run the Update Registration State algorithm passing registration,
+  //     "installing" and null as the arguments.
+  UpdateRegistrationState(registration, kInstalling, nullptr);
+  // 19. Run the Update Worker State algorithm passing registration’s waiting
+  //     worker and "installed" as the arguments.
+  UpdateWorkerState(registration->waiting_worker(),
+                    kServiceWorkerStateInstalled);
+  // 20. Invoke Finish Job with job.
+  FinishJob(job);
+  // 21. Wait for all the tasks queued by Update Worker State invoked in this
+  //     algorithm to have executed.
+  // TODO: Wait for tasks.
+  // 22. Invoke Try Activate with registration.
+  TryActivate(registration);
+}
+
+void ServiceWorkerJobs::TryActivate(
+    ServiceWorkerRegistrationObject* registration) {
+  // Algorithm for Try Activate:
+  //   https://w3c.github.io/ServiceWorker/#try-activate-algorithm
+  NOTIMPLEMENTED();
+}
+
+void ServiceWorkerJobs::UpdateRegistrationState(
+    ServiceWorkerRegistrationObject* registration, RegistrationState target,
+    ServiceWorkerObject* source) {
+  TRACE_EVENT0("cobalt::worker",
+               "ServiceWorkerJobs::UpdateRegistrationState()");
+  DCHECK(registration);
+  // Algorithm for Update Registration State:
+  //   https://w3c.github.io/ServiceWorker/#update-registration-state-algorithm
+
+  // 1. Let registrationObjects be an array containing all the
+  //    ServiceWorkerRegistration objects associated with registration.
+  // This is implemented with a call to LookupServiceWorkerRegistration for each
+  // registered web context.
+
+  switch (target) {
+    // 2. If target is "installing", then:
+    case kInstalling: {
+      // 2.1. Set registration’s installing worker to source.
+      registration->set_installing_worker(source);
+      // 2.2. For each registrationObject in registrationObjects:
+      for (auto& context : web_context_registrations_) {
+        // 2.2.1. Queue a task to...
+        context->message_loop()->task_runner()->PostTask(
+            FROM_HERE,
+            base::BindOnce(
+                [](web::Context* context,
+                   ServiceWorkerRegistrationObject* registration) {
+                  // 2.2.1. ... set the installing attribute of
+                  //        registrationObject to null if registration’s
+                  //        installing worker is null, or the result of getting
+                  //        the service worker object that represents
+                  //        registration’s installing worker in
+                  //        registrationObject’s relevant settings object.
+                  auto registration_object =
+                      context->GetServiceWorkerRegistration(registration);
+                  if (registration_object) {
+                    registration_object->set_installing(
+                        context->GetServiceWorker(
+                            registration->installing_worker()));
+                  }
+                },
+                context, registration));
+      }
+      break;
+    }
+    // 3. Else if target is "waiting", then:
+    case kWaiting: {
+      // 3.1. Set registration’s waiting worker to source.
+      registration->set_waiting_worker(source);
+      // 3.2. For each registrationObject in registrationObjects:
+      for (auto& context : web_context_registrations_) {
+        // 3.2.1. Queue a task to...
+        context->message_loop()->task_runner()->PostTask(
+            FROM_HERE,
+            base::BindOnce(
+                [](web::Context* context,
+                   ServiceWorkerRegistrationObject* registration) {
+                  // 3.2.1. ... set the waiting attribute of registrationObject
+                  //        to null if registration’s waiting worker is null, or
+                  //        the result of getting the service worker object that
+                  //        represents registration’s waiting worker in
+                  //        registrationObject’s relevant settings object.
+                  auto registration_object =
+                      context->LookupServiceWorkerRegistration(registration);
+                  if (registration_object) {
+                    registration_object->set_waiting(context->GetServiceWorker(
+                        registration->waiting_worker()));
+                  }
+                },
+                context, registration));
+      }
+      break;
+    }
+    // 4. Else if target is "active", then:
+    case kActive: {
+      // 4.1. Set registration’s active worker to source.
+      registration->set_active_worker(source);
+      // 4.2. For each registrationObject in registrationObjects:
+      for (auto& context : web_context_registrations_) {
+        // 4.2.1. Queue a task to...
+        context->message_loop()->task_runner()->PostTask(
+            FROM_HERE,
+            base::BindOnce(
+                [](web::Context* context,
+                   ServiceWorkerRegistrationObject* registration) {
+                  // 4.2.1. ... set the active attribute of registrationObject
+                  //        to null if registration’s active worker is null, or
+                  //        the result of getting the service worker object that
+                  //        represents registration’s active worker in
+                  //        registrationObject’s relevant settings object.
+                  auto registration_object =
+                      context->LookupServiceWorkerRegistration(registration);
+                  if (registration_object) {
+                    registration_object->set_active(context->GetServiceWorker(
+                        registration->active_worker()));
+                  }
+                },
+                context, registration));
+      }
+      break;
+    }
+    default:
+      NOTREACHED();
+  }
+}
+
+void ServiceWorkerJobs::UpdateWorkerState(ServiceWorkerObject* worker,
+                                          ServiceWorkerState state) {
+  TRACE_EVENT0("cobalt::worker", "ServiceWorkerJobs::UpdateWorkerState()");
+  DCHECK(worker);
+  if (!worker) {
+    return;
+  }
+  // Algorithm for Update Worker State:
+  //   https://w3c.github.io/ServiceWorker/#update-state-algorithm
+  // 1. Assert: state is not "parsed".
+  DCHECK_NE(kServiceWorkerStateParsed, state);
+  // 2. Set worker's state to state.
+  worker->set_state(state);
+
+  auto worker_origin = worker->script_url().GetOrigin();
+  // 3. Let settingsObjects be all environment settings objects whose origin is
+  //    worker's script url's origin.
+  // 4. For each settingsObject of settingsObjects...
+  for (auto& context : web_context_registrations_) {
+    if (context->environment_settings()->GetOrigin() == worker_origin) {
+      // 4. ... queue a task on
+      //    settingsObject's responsible event loop in the DOM manipulation task
+      //    source to run the following steps:
+      context->message_loop()->task_runner()->PostTask(
+          FROM_HERE,
+          base::BindOnce(
+              [](web::Context* context, ServiceWorkerObject* worker,
+                 ServiceWorkerState state) {
+                DCHECK_EQ(context->message_loop(),
+                          base::MessageLoop::current());
+                // 4.1. Let objectMap be settingsObject's service worker object
+                //      map.
+                // 4.2. If objectMap[worker] does not exist, then abort these
+                //      steps.
+                // 4.3. Let  workerObj be objectMap[worker].
+                auto worker_obj = context->LookupServiceWorker(worker);
+                if (worker_obj) {
+                  // 4.4. Set workerObj's state to state.
+                  worker_obj->set_state(state);
+                  // 4.5. Fire an event named statechange at workerObj.
+                  context->message_loop()->task_runner()->PostTask(
+                      FROM_HERE,
+                      base::BindOnce(
+                          [](scoped_refptr<worker::ServiceWorker> worker_obj) {
+                            worker_obj->DispatchEvent(
+                                new dom::Event(base::Tokens::statechange()));
+                          },
+                          worker_obj));
+                }
+              },
+              context, worker, state));
+    }
+  }
+}
+
+bool ServiceWorkerJobs::ShouldSkipEvent(base::Token event_name,
+                                        ServiceWorkerObject* worker) {
+  // Algorithm for Should Skip Event:
+  //   https://w3c.github.io/ServiceWorker/#should-skip-event-algorithm
+  NOTIMPLEMENTED();
+  return false;
+}
+
+void ServiceWorkerJobs::TerminateServiceWorker(ServiceWorkerObject* worker) {
+  TRACE_EVENT0("cobalt::worker", "ServiceWorkerJobs::TerminateServiceWorker()");
+  // Algorithm for Terminate Service Worker:
+  //   https://w3c.github.io/ServiceWorker/#terminate-service-worker
   NOTIMPLEMENTED();
 }
 
 void ServiceWorkerJobs::Unregister(Job* job) {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerJobs::Unregister()");
   DCHECK_EQ(message_loop(), base::MessageLoop::current());
-  // Algorithm for "Unregister"
+  // Algorithm for Unregister:
   //   https://w3c.github.io/ServiceWorker/#unregister-algorithm
   NOTIMPLEMENTED();
 }
@@ -859,12 +1220,12 @@ void ServiceWorkerJobs::ResolveJobPromise(
     //             convertedValue to the result of getting the service worker
     //             registration object that represents value in job’s client.
     if (type == kRegister || type == kUpdate) {
-      auto converted_value =
+      scoped_refptr<cobalt::script::Wrappable> converted_value =
           client->context()->GetServiceWorkerRegistration(value);
       // 1.4./2.2.4.  Resolve job’s job promise with convertedValue.
       promise->Resolve(converted_value);
     } else {
-      DCHECK_EQ(type, kUnregister);
+      DCHECK_EQ(kUnregister, type);
       // 1.3./2.2.3. Else, set convertedValue to value, in job’s client's Realm.
       bool converted_value = value != nullptr;
       // 1.4./2.2.4.  Resolve job’s job promise with convertedValue.
@@ -914,7 +1275,7 @@ void ServiceWorkerJobs::FinishJob(Job* job) {
   JobQueue* job_queue = job->containing_job_queue;
 
   // 2. Assert: the first item in jobQueue is job.
-  DCHECK_EQ(job_queue->FirstItem(), job);
+  DCHECK_EQ(job, job_queue->FirstItem());
 
   // 3. Dequeue from jobQueue.
   job_queue->Dequeue();
@@ -955,6 +1316,39 @@ void ServiceWorkerJobs::GetRegistrationSubSteps(
                     registration));
           },
           client, std::move(promise_reference), registration));
+}
+
+void ServiceWorkerJobs::RegisterWebContext(web::Context* context) {
+  DCHECK_NE(nullptr, context);
+  web_context_registrations_cleared_.Reset();
+  if (base::MessageLoop::current() != message_loop()) {
+    DCHECK(message_loop());
+    message_loop()->task_runner()->PostTask(
+        FROM_HERE, base::BindOnce(&ServiceWorkerJobs::RegisterWebContext,
+                                  base::Unretained(this), context));
+    return;
+  }
+  DCHECK_EQ(message_loop(), base::MessageLoop::current());
+  DCHECK_EQ(0, web_context_registrations_.count(context));
+  web_context_registrations_.insert(context);
+}
+
+void ServiceWorkerJobs::UnregisterWebContext(web::Context* context) {
+  DCHECK_NE(nullptr, context);
+  if (base::MessageLoop::current() != message_loop()) {
+    // Block to ensure that the context is unregistered before it is destroyed.
+    DCHECK(message_loop());
+    message_loop()->task_runner()->PostBlockingTask(
+        FROM_HERE, base::Bind(&ServiceWorkerJobs::UnregisterWebContext,
+                              base::Unretained(this), context));
+    return;
+  }
+  DCHECK_EQ(message_loop(), base::MessageLoop::current());
+  DCHECK_EQ(1, web_context_registrations_.count(context));
+  web_context_registrations_.erase(context);
+  if (web_context_registrations_.empty()) {
+    web_context_registrations_cleared_.Signal();
+  }
 }
 
 ServiceWorkerJobs::JobPromiseType::JobPromiseType(

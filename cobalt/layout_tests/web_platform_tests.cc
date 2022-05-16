@@ -230,8 +230,7 @@ std::string RunWebPlatformTest(const GURL& url, bool* got_results) {
       base::Bind(&WindowCloseCallback, &run_loop, base::MessageLoop::current()),
       base::Closure() /* window_minimize_callback */,
       can_play_type_handler.get(), media_module.get(), kDefaultViewportSize,
-      &resource_provider, 60.0f, NULL /* service_worker_jobs */,
-      web_module_options);
+      &resource_provider, 60.0f, web_module_options);
   run_loop.Run();
   const std::string extract_results =
       "document.getElementById(\"__testharness__results__\").textContent;";

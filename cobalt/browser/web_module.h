@@ -57,7 +57,6 @@
 #include "cobalt/web/agent.h"
 #include "cobalt/web/context.h"
 #include "cobalt/webdriver/session_driver.h"
-#include "cobalt/worker/service_worker_jobs.h"
 #include "starboard/atomic.h"
 #include "url/gurl.h"
 
@@ -259,9 +258,7 @@ class WebModule : public base::MessageLoop::DestructionObserver,
             media::MediaModule* media_module,
             const cssom::ViewportSize& window_dimensions,
             render_tree::ResourceProvider* resource_provider,
-            float layout_refresh_rate,
-            worker::ServiceWorkerJobs* service_worker_jobs,
-            const Options& options);
+            float layout_refresh_rate, const Options& options);
   ~WebModule();
 
   // Injects an on screen keyboard input event into the web module. The value
@@ -411,7 +408,6 @@ class WebModule : public base::MessageLoop::DestructionObserver,
                      starboard::atomic_bool* waiting_for_web_debugger,
 #endif  // defined(ENABLE_DEBUGGER)
                      base::WaitableEvent* synchronous_loader_interrupt,
-                     worker::ServiceWorkerJobs* service_worker_jobs,
                      const Options& options)
         : initial_url(initial_url),
           initial_application_state(initial_application_state),
@@ -430,7 +426,6 @@ class WebModule : public base::MessageLoop::DestructionObserver,
           waiting_for_web_debugger(waiting_for_web_debugger),
 #endif  // defined(ENABLE_DEBUGGER)
           synchronous_loader_interrupt(synchronous_loader_interrupt),
-          service_worker_jobs(service_worker_jobs),
           options(options) {
     }
 
@@ -451,7 +446,6 @@ class WebModule : public base::MessageLoop::DestructionObserver,
     starboard::atomic_bool* waiting_for_web_debugger;
 #endif  // defined(ENABLE_DEBUGGER)
     base::WaitableEvent* synchronous_loader_interrupt;
-    worker::ServiceWorkerJobs* service_worker_jobs;
     Options options;
   };
 

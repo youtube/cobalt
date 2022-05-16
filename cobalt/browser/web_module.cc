@@ -586,7 +586,7 @@ WebModule::Impl::Impl(web::Context* web_context, const ConstructionData& data)
   web_context_->setup_environment_settings(new dom::DOMSettings(
       debugger_hooks_, kDOMMaxElementDepth, media_source_registry_.get(),
       data.can_play_type_handler, memory_info, &mutation_observer_task_manager_,
-      data.service_worker_jobs, data.options.dom_settings_options));
+      data.options.dom_settings_options));
   DCHECK(web_context_->environment_settings());
 
   system_caption_settings_ = new cobalt::dom::captions::SystemCaptionSettings(
@@ -1330,7 +1330,7 @@ WebModule::WebModule(
     media::CanPlayTypeHandler* can_play_type_handler,
     media::MediaModule* media_module, const ViewportSize& window_dimensions,
     render_tree::ResourceProvider* resource_provider, float layout_refresh_rate,
-    worker::ServiceWorkerJobs* service_worker_jobs, const Options& options)
+    const Options& options)
     : ui_nav_root_(new ui_navigation::NavItem(
           ui_navigation::kNativeItemTypeContainer,
           // Currently, events do not need to be processed for the root item.
@@ -1343,7 +1343,7 @@ WebModule::WebModule(
 #if defined(ENABLE_DEBUGGER)
       &waiting_for_web_debugger_,
 #endif  // defined(ENABLE_DEBUGGER)
-      &synchronous_loader_interrupt_, service_worker_jobs, options);
+      &synchronous_loader_interrupt_, options);
 
   web_agent_.reset(
       new web::Agent(options.web_options,

@@ -37,8 +37,7 @@ namespace worker {
 //   https://w3c.github.io/ServiceWorker/#serviceworkercontainer-interface
 class ServiceWorkerContainer : public dom::EventTarget {
  public:
-  ServiceWorkerContainer(script::EnvironmentSettings* settings,
-                         worker::ServiceWorkerJobs* service_worker_jobs);
+  explicit ServiceWorkerContainer(script::EnvironmentSettings* settings);
 
   scoped_refptr<ServiceWorker> controller() { return controller_; }
   script::Handle<script::PromiseWrappable> ready();

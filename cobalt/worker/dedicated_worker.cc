@@ -80,7 +80,8 @@ void DedicatedWorker::Initialize() {
   // 9. Run this step in parallel:
   //    1. Run a worker given worker, worker URL, outside settings, outside
   //    port, and options.
-  options.outside_settings = settings_;
+  options.outside_settings =
+      base::polymorphic_downcast<web::EnvironmentSettings*>(settings_);
   options.outside_port = outside_port_.get();
   options.options = worker_options_;
 

@@ -51,8 +51,17 @@ class ServiceWorkerRegistrationObject {
     return update_via_cache_mode_;
   }
 
+  void set_installing_worker(ServiceWorkerObject* worker) {
+    installing_worker_ = worker;
+  }
   ServiceWorkerObject* installing_worker() const { return installing_worker_; }
+  void set_waiting_worker(ServiceWorkerObject* worker) {
+    waiting_worker_ = worker;
+  }
   ServiceWorkerObject* waiting_worker() const { return waiting_worker_; }
+  void set_active_worker(ServiceWorkerObject* worker) {
+    active_worker_ = worker;
+  }
   ServiceWorkerObject* active_worker() const { return active_worker_; }
 
   // https://w3c.github.io/ServiceWorker/#get-newest-worker
@@ -62,8 +71,8 @@ class ServiceWorkerRegistrationObject {
   // This lock is to allow atomic operations on the registration object.
   base::Lock mutex_;
 
-  const url::Origin& storage_key_;
-  const GURL& scope_url_;
+  url::Origin storage_key_;
+  GURL scope_url_;
   ServiceWorkerUpdateViaCache update_via_cache_mode_;
   ServiceWorkerObject* installing_worker_ = nullptr;
   ServiceWorkerObject* waiting_worker_ = nullptr;

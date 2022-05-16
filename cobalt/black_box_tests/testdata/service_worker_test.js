@@ -1,4 +1,4 @@
-// Copyright 2022 The Cobalt Authors.All Rights Reserved.
+// Copyright 2022 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Place Holder. This will return the type of the 'this' property as the string
-// result when this script is executed.
-this
+// Place Holder. This functionality can not yet be verified since console.log()
+// does not yet work. It will be added in a followup CL.
+console.log('foo');
+this.oninstall = function(e) { console.log('bar'); }

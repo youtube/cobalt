@@ -148,7 +148,7 @@ DebugConsole::DebugConsole(
                     base::Closure(),            /* window_minimize_callback */
                     NULL /* can_play_type_handler */, NULL /* media_module */,
                     window_dimensions, resource_provider, layout_refresh_rate,
-                    NULL /* service_worker_jobs */, web_module_options));
+                    web_module_options));
 }
 
 DebugConsole::~DebugConsole() {}

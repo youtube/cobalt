@@ -79,6 +79,10 @@ class ServiceWorkerObject : public base::MessageLoop::DestructionObserver {
 
   std::string* start_status() const { return start_status_.get(); }
 
+  scoped_refptr<WorkerGlobalScope> worker_global_scope() {
+    return worker_global_scope_;
+  }
+
   // From base::MessageLoop::DestructionObserver.
   void WillDestroyCurrentMessageLoop() override;
 

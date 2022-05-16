@@ -14,6 +14,7 @@
 
 #include "cobalt/worker/service_worker_global_scope.h"
 
+#include "base/logging.h"
 #include "cobalt/web/environment_settings.h"
 #include "cobalt/worker/worker_settings.h"
 
@@ -32,6 +33,7 @@ script::Handle<script::Promise<void>> ServiceWorkerGlobalScope::SkipWaiting() {
                      ->global_environment()
                      ->script_value_factory()
                      ->CreateBasicPromise<void>();
+  NOTIMPLEMENTED();
   return promise;
 }
 

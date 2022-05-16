@@ -43,7 +43,10 @@ class ServiceWorker : public AbstractWorker, public dom::EventTarget {
   // The scriptURL getter steps are to return the
   // service worker's serialized script url.
   std::string script_url() const { return worker_->script_url().spec(); }
-  ServiceWorkerState state() const { return worker_->state(); }
+
+  // https://w3c.github.io/ServiceWorker/#dom-serviceworker-state
+  void set_state(ServiceWorkerState state) { state_ = state; }
+  ServiceWorkerState state() const { return state_; }
 
   const EventListenerScriptValue* onstatechange() const {
     return GetAttributeEventListener(base::Tokens::statechange());
@@ -67,6 +70,7 @@ class ServiceWorker : public AbstractWorker, public dom::EventTarget {
   ~ServiceWorker() override = default;
 
   worker::ServiceWorkerObject* worker_;
+  ServiceWorkerState state_;
 };
 
 }  // namespace worker

@@ -22,6 +22,7 @@
 #include "base/macros.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/message_loop/message_loop_current.h"
+#include "base/synchronization/waitable_event.h"
 #include "base/threading/thread.h"
 #include "cobalt/csp/content_security_policy.h"
 #include "cobalt/loader/script_loader_factory.h"
@@ -34,6 +35,7 @@
 #include "cobalt/script/wrappable.h"
 #include "cobalt/web/agent.h"
 #include "cobalt/web/context.h"
+#include "cobalt/web/environment_settings.h"
 #include "cobalt/worker/dedicated_worker_global_scope.h"
 #include "cobalt/worker/message_port.h"
 #include "cobalt/worker/worker_global_scope.h"
@@ -58,7 +60,7 @@ class Worker : public base::MessageLoop::DestructionObserver {
     // Parameters from 'Run a worker' step 9.1 in the spec.
     //   https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#dom-worker
     GURL url;
-    script::EnvironmentSettings* outside_settings;
+    web::EnvironmentSettings* outside_settings;
     MessagePort* outside_port;
     WorkerOptions options;
   };
