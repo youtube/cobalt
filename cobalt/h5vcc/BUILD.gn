@@ -18,7 +18,7 @@ config("h5vcc_internal_config") {
 }
 
 config("h5vcc_external_config") {
-  defines = [ "COBALT_ENABLE_CRASH_LOG" ]
+  defines = []
   if (enable_account_manager) {
     defines += [ "COBALT_ENABLE_ACCOUNT_MANAGER" ]
   }
