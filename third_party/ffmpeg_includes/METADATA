@@ -10,6 +10,7 @@ description:
   "which causes issues when building a binary on one system but running on "
   "another. ffmpeg_includes contains the header files of the different "
   "versions required, so that there are no unresolved dependencies."
+
 third_party {
   # url for ffmpeg
   url {
@@ -25,5 +26,4 @@ third_party {
   # sub-directory is unknown. The version specified in the sub-directory name
   # corresponds to the version of libavcodec, not the version of ffmpeg/libav.
   license_type: RESTRICTED
-
 }

@@ -4,12 +4,8 @@ description:
 
 third_party {
   url {
-    type: LOCAL_SOURCE
-    value: "/external/gmock_mirror"
-  }
-  url {
     type: GIT
-    value: "https://github.com/google/googlemock.git"
+    value: "https://chromium.googlesource.com/external/googlemock"
   }
   version: "38513a8bb154f0b6d0a4088814fe92552696d465"
   last_upgrade_date {

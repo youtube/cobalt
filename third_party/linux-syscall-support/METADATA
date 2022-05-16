@@ -5,10 +5,6 @@ description:
 
 third_party {
   url {
-    type: LOCAL_SOURCE
-    value: "/third_party/linux-syscall-support_mirror"
-  }
-  url {
     type: GIT
     value: "https://chromium.googlesource.com/linux-syscall-support"
   }

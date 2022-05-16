@@ -3,6 +3,7 @@ description:
   "PulseAudio is a sound system for POSIX OSes, i.e. a proxy for sound "
   "applications. pulseaudio_includes contains the header files necessary "
   "for the library to be dynamically linked into crosstool builds."
+
 third_party {
   url {
     type: GIT
