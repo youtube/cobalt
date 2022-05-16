@@ -24,7 +24,7 @@
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/application_state.h"
 #include "cobalt/base/polymorphic_downcast.h"
-#include "cobalt/dom/global_stats.h"
+#include "cobalt/web/global_stats.h"
 #include "nb/memory_scope.h"
 
 namespace cobalt {
@@ -158,24 +158,28 @@ WindowTimers::Timer::Timer(TimerType type, script::Wrappable* const owner,
       type == Timer::kOneShot
           ? base::DebuggerHooks::AsyncTaskFrequency::kOneshot
           : base::DebuggerHooks::AsyncTaskFrequency::kRecurring);
-  switch (type) {
-    case Timer::kOneShot:
-      dom_stat_tracker_->OnWindowTimersTimeoutCreated();
-      break;
-    case Timer::kRepeating:
-      dom_stat_tracker_->OnWindowTimersIntervalCreated();
-      break;
+  if (dom_stat_tracker_) {
+    switch (type) {
+      case Timer::kOneShot:
+        dom_stat_tracker_->OnWindowTimersTimeoutCreated();
+        break;
+      case Timer::kRepeating:
+        dom_stat_tracker_->OnWindowTimersIntervalCreated();
+        break;
+    }
   }
 }
 
 WindowTimers::Timer::~Timer() {
-  switch (type_) {
-    case Timer::kOneShot:
-      dom_stat_tracker_->OnWindowTimersTimeoutDestroyed();
-      break;
-    case Timer::kRepeating:
-      dom_stat_tracker_->OnWindowTimersIntervalDestroyed();
-      break;
+  if (dom_stat_tracker_) {
+    switch (type_) {
+      case Timer::kOneShot:
+        dom_stat_tracker_->OnWindowTimersTimeoutDestroyed();
+        break;
+      case Timer::kRepeating:
+        dom_stat_tracker_->OnWindowTimersIntervalDestroyed();
+        break;
+    }
   }
   debugger_hooks_.AsyncTaskCanceled(this);
 }
@@ -186,7 +190,7 @@ void WindowTimers::Timer::Run() {
   }
 
   // The callback is now being run. Track it in the global stats.
-  GlobalStats::GetInstance()->StartJavaScriptEvent();
+  web::GlobalStats::GetInstance()->StartJavaScriptEvent();
 
   {
     base::ScopedAsyncTask async_task(debugger_hooks_, this);
@@ -199,7 +203,7 @@ void WindowTimers::Timer::Run() {
   }
 
   // The callback has finished running. Stop tracking it in the global stats.
-  GlobalStats::GetInstance()->StopJavaScriptEvent();
+  web::GlobalStats::GetInstance()->StopJavaScriptEvent();
 }
 
 void WindowTimers::Timer::Pause() {

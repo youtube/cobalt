@@ -241,6 +241,7 @@ void Worker::Execute(const std::string& content,
 
 Worker::~Worker() {
   // 29. Clear the worker global scope's map of active timers.
+  worker_global_scope_->DestroyTimers();
   // 30. Disentangle all the ports in the list of the worker's ports.
   // 31. Empty worker global scope's owner set.
   if (web_agent_) {

@@ -81,8 +81,6 @@ static_library("dom") {
     "dom_rect_read_only.h",
     "dom_settings.cc",
     "dom_settings.h",
-    "dom_stat_tracker.cc",
-    "dom_stat_tracker.h",
     "dom_string_map.cc",
     "dom_string_map.h",
     "dom_token_list.cc",
@@ -302,8 +300,6 @@ static_library("dom") {
     "wheel_event.h",
     "window.cc",
     "window.h",
-    "window_timers.cc",
-    "window_timers.h",
     "xml_document.h",
     "xml_serializer.cc",
     "xml_serializer.h",
@@ -314,6 +310,7 @@ static_library("dom") {
   }
 
   public_deps = [
+    ":window_timers",
     "//cobalt/browser:generated_types",
     "//cobalt/web",
   ]
@@ -353,6 +350,27 @@ static_library("dom") {
     "//third_party/modp_b64:modp_b64",
     "//third_party/protobuf:protobuf_lite",
     "//url",
+  ]
+}
+
+static_library("window_timers") {
+  has_pedantic_warnings = true
+
+  sources = [
+    # TODO (b/219103808): Move window_timers to /cobalt/web and create a
+    # web::StatTracker that is owned by BrowserModule to replace usages of
+    # DomStatTracker.
+    "dom_stat_tracker.cc",
+    "dom_stat_tracker.h",
+    "window_timers.cc",
+    "window_timers.h",
+  ]
+
+  deps = [
+    "//cobalt/base",
+    "//cobalt/script",
+    "//cobalt/web:web_events",
+    "//nb",
   ]
 }
 
@@ -415,6 +433,7 @@ target(gtest_target_type, "dom_test") {
 
   deps = [
     ":dom",
+    ":window_timers",
     "//cobalt/base",
     "//cobalt/browser:browser",
     "//cobalt/browser:generated_bindings",

@@ -70,6 +70,7 @@ postMessage_event_properties.htm, DISABLE
 postMessage_ports_readonly_array.htm, DISABLE
 postMessage_target_source.htm, DISABLE
 
+# b/229767497, b/229128880
 constructors/Worker/AbstractWorker.onerror.html, DISABLE
 constructors/Worker/Blob-url.html, DISABLE
 constructors/Worker/ctor-1.html, PASS
@@ -79,7 +80,7 @@ constructors/Worker/DedicatedWorkerGlobalScope-members.html, DISABLE
 constructors/Worker/no-arguments-ctor.html, PASS
 constructors/Worker/resolve-empty-string.html, PASS
 constructors/Worker/same-origin.html, DISABLE
-constructors/Worker/terminate.html, PASS
+constructors/Worker/terminate.html, DISABLE
 constructors/Worker/unexpected-self-properties.html, DISABLE
 constructors/Worker/unresolvable-url.html, DISABLE
 

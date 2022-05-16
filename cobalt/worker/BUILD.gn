@@ -57,5 +57,6 @@ static_library("worker") {
     # headers are put on the include directories for targets that depend
     # on this one.
     "//cobalt/browser:generated_types",
+    "//cobalt/dom:window_timers",
   ]
 }
