@@ -58,10 +58,10 @@ typedef enum SbSystemPathId {
   // Path to a directory where temporary files can be written.
   kSbSystemPathTempDirectory,
 
-#if SB_API_VERSION < SB_SYSTEM_PATH_TEST_OUTPUT_DIRECTORY_DEPRECATED
+#if SB_API_VERSION < 14
   // Path to a directory where test results can be written.
   kSbSystemPathTestOutputDirectory,
-#endif  // #if SB_API_VERSION < SB_SYSTEM_PATH_TEST_OUTPUT_DIRECTORY_DEPRECATED
+#endif  // #if SB_API_VERSION < 14
 
   // Full path to the executable file.
   kSbSystemPathExecutableFile,
@@ -153,10 +153,10 @@ typedef enum SbSystemDeviceType {
   // An Android TV Device.
   kSbSystemDeviceTypeAndroidTV,
 
-#if SB_API_VERSION >= SB_SYSTEM_DEVICE_PROJECTOR_ADDED
+#if SB_API_VERSION >= 14
   // A wall video projector.
   kSbSystemDeviceTypeVideoProjector,
-#endif  // SB_API_VERSION >= SB_SYSTEM_DEVICE_PROJECTOR_ADDED
+#endif  // SB_API_VERSION >= 14
 
   // Unknown device.
   kSbSystemDeviceTypeUnknown,

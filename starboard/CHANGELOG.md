@@ -14,6 +14,16 @@ A description of all changes currently in the experimental Starboard version
 can be found in the comments of the "Experimental Feature Defines" section of
 [configuration.h](configuration.h).
 
+## Version 14
+### Add kSbSystemDeviceTypeVideoProjector type to Starboard devices.
+This adds a video projector type to Starboard devices.
+
+### Deprecate SystemPathTestOutputDirectory.
+This duplicated SystemPathDebugOutputDirectory without a useful distinction.
+
+### Introduce a new format kSbDecodeTargetFormat3Plane10BitYUVI420Compact.
+A decoder target format consisting of 10bit Y, U, and V planes.
+
 ### Deprecate the usage of SB_HAS_PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT.
 The improvements on player creation and output mode query (like
 `SbPlayerCreationParam` and `SbPlayerGetPreferredOutputMode()`) are always

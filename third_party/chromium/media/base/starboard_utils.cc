@@ -289,9 +289,9 @@ ENUM_EQ(kSbMediaMatrixIdBt2020ConstantLuminance,
         VideoColorSpace::MatrixID::BT2020_CL);
 ENUM_EQ(kSbMediaMatrixIdYDzDx, VideoColorSpace::MatrixID::YDZDX);
 
-#if SB_API_VERSION >= SB_MEDIA_MATRIX_ID_INVALID_API_VERSION
+#if SB_API_VERSION >= 14
 ENUM_EQ(kSbMediaMatrixIdInvalid, VideoColorSpace::MatrixID::INVALID);
-#endif  // SB_API_VERSION >= SB_MEDIA_MATRIX_ID_INVALID_API_VERSION
+#endif  // SB_API_VERSION >= 14
 
 // Ensure RangeId enums convert correctly.
 ENUM_EQ(kSbMediaRangeIdUnspecified, gfx::ColorSpace::RangeID::INVALID);
@@ -362,11 +362,11 @@ SbMediaColorMetadata MediaToSbMediaColorMetadata(
   sb_media_color_metadata.matrix =
       static_cast<SbMediaMatrixId>(color_space.matrix);
 
-#if SB_API_VERSION < SB_MEDIA_MATRIX_ID_INVALID_API_VERSION
+#if SB_API_VERSION < 14
   if (color_space.matrix == VideoColorSpace::MatrixID::INVALID) {
     sb_media_color_metadata.matrix = kSbMediaMatrixIdUnknown;
   }
-#endif  // SB_API_VERSION < SB_MEDIA_MATRIX_ID_INVALID_API_VERSION
+#endif  // SB_API_VERSION < 14
 
   sb_media_color_metadata.range =
       static_cast<SbMediaRangeId>(color_space.range);

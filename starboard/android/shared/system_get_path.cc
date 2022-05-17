@@ -79,7 +79,7 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
       break;
     }
 
-#if SB_API_VERSION < SB_SYSTEM_PATH_TEST_OUTPUT_DIRECTORY_DEPRECATED
+#if SB_API_VERSION < 14
     case kSbSystemPathTestOutputDirectory: {
       return SbSystemGetPath(kSbSystemPathDebugOutputDirectory, out_path,
                              path_size);

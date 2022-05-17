@@ -256,13 +256,13 @@ typedef enum SbMediaMatrixId {
   kSbMediaMatrixIdYDzDx = 11,
 
   kSbMediaMatrixIdLastStandardValue = kSbMediaMatrixIdYDzDx,
-#if SB_API_VERSION >= SB_MEDIA_MATRIX_ID_INVALID_API_VERSION
+#if SB_API_VERSION >= 14
   kSbMediaMatrixIdInvalid = 255,
   kSbMediaMatrixIdLast = kSbMediaMatrixIdInvalid,
-#else   // SB_API_VERSION >= SB_MEDIA_MATRIX_ID_INVALID_API_VERSION
+#else   // SB_API_VERSION >= 14
   kSbMediaMatrixIdUnknown = 1000,
   kSbMediaMatrixIdLast = kSbMediaMatrixIdUnknown,
-#endif  // SB_API_VERSION >= SB_MEDIA_MATRIX_ID_INVALID_API_VERSION
+#endif  // SB_API_VERSION >= 14
 
 } SbMediaMatrixId;
 
