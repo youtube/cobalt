@@ -22,6 +22,7 @@
 
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
+#include "starboard/shared/environment.h"
 
 namespace {
 
@@ -143,6 +144,18 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
     case kSbSystemPropertySystemIntegratorName:
     case kSbSystemPropertySpeechApiKey:
       return false;
+
+#if SB_API_VERSION >= 14
+    // Implementation provided for testing purposes only
+    case kSbSystemPropretyAdvertisingId:
+      return CopyStringAndTestIfSuccess(
+          out_value, value_length,
+          starboard::GetEnvironment("COBALT_ADVERTISING_ID").c_str());
+    case kSbSystemPropretyLimitAdTracking:
+      return CopyStringAndTestIfSuccess(
+          out_value, value_length,
+          starboard::GetEnvironment("COBALT_LIMIT_AD_TRACKING").c_str());
+#endif
 
     case kSbSystemPropertyFriendlyName:
       return CopyStringAndTestIfSuccess(out_value, value_length, kFriendlyName);

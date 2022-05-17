@@ -17,6 +17,7 @@
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/linux/x64x11/system_properties.h"
+#include "starboard/shared/environment.h"
 
 namespace {
 
@@ -85,6 +86,17 @@ bool GetSystemProperty(SbSystemPropertyId property_id,
     case kSbSystemPropertySpeechApiKey:
     case kSbSystemPropertyUserAgentAuxField:
       return false;
+#if SB_API_VERSION >= 14
+    // Implementation provided for testing purposes only
+    case kSbSystemPropretyAdvertisingId:
+      return CopyStringAndTestIfSuccess(
+          out_value, value_length,
+          GetEnvironment("COBALT_ADVERTISING_ID").c_str());
+    case kSbSystemPropretyLimitAdTracking:
+      return CopyStringAndTestIfSuccess(
+          out_value, value_length,
+          GetEnvironment("COBALT_LIMIT_AD_TRACKING").c_str());
+#endif
     default:
       SB_DLOG(WARNING) << __FUNCTION__
                        << ": Unrecognized property: " << property_id;

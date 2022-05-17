@@ -17,7 +17,7 @@
 #include "base/strings/stringprintf.h"
 #include "cobalt/configuration/configuration.h"
 #include "cobalt/version.h"
-#include "cobalt_build_id.h"  // NOLINT(build/include)
+#include "cobalt_build_id.h"  // NOLINT(build/include_subdir)
 #include "starboard/system.h"
 
 namespace cobalt {
@@ -51,6 +51,35 @@ std::string H5vccSystem::platform() const {
     result = property;
   }
 
+  return result;
+}
+
+std::string H5vccSystem::advertising_id() const {
+  std::string result;
+#if SB_API_VERSION >= 14
+  const size_t kSystemPropertyMaxLength = 1024;
+  char property[kSystemPropertyMaxLength] = {0};
+  if (!SbSystemGetProperty(kSbSystemPropretyAdvertisingId, property,
+                           SB_ARRAY_SIZE_INT(property))) {
+    DLOG(FATAL) << "Failed to get kSbSystemPropretyAdvertisingId.";
+  } else {
+    result = property;
+  }
+#endif
+  return result;
+}
+bool H5vccSystem::limit_ad_tracking() const {
+  bool result = false;
+#if SB_API_VERSION >= 14
+  const size_t kSystemPropertyMaxLength = 1024;
+  char property[kSystemPropertyMaxLength] = {0};
+  if (!SbSystemGetProperty(kSbSystemPropretyLimitAdTracking, property,
+                           SB_ARRAY_SIZE_INT(property))) {
+    DLOG(FATAL) << "Failed to get kSbSystemPropretyAdvertisingId.";
+  } else {
+    result = std::atoi(property);
+  }
+#endif
   return result;
 }
 
