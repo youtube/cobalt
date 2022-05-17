@@ -18,18 +18,18 @@ can be found in the comments of the "Experimental Feature Defines" section of
 ### Add kSbSystemDeviceTypeVideoProjector type to Starboard devices.
 This adds a video projector type to Starboard devices.
 
-### Deprecate SystemPathTestOutputDirectory.
+### Deprecated SystemPathTestOutputDirectory.
 This duplicated SystemPathDebugOutputDirectory without a useful distinction.
 
 ### Introduce a new format kSbDecodeTargetFormat3Plane10BitYUVI420Compact.
 A decoder target format consisting of 10bit Y, U, and V planes.
 
-### Deprecate the usage of SB_HAS_PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT.
+### Deprecated the usage of SB_HAS_PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT.
 The improvements on player creation and output mode query (like
 `SbPlayerCreationParam` and `SbPlayerGetPreferredOutputMode()`) are always
 enabled.  This change also deprecates `SbPlayerOutputModeSupported()`.
 
-### Deprecate the usage of SB_HAS_MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT
+### Deprecated the usage of SB_HAS_MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT
 The extra parameters (like `profile` and `level`) on `SbMediaIsVideoSupported()`
 are always enabled.  This change also deprecated
 `SbMediaIsTransferCharacteristicsSupported()`.
@@ -37,6 +37,11 @@ are always enabled.  This change also deprecated
 ### Deprecated kSbMediaMatrixIdUnknown and added kSbMediaMatrixIdInvalid.
 `kSbMediaMatrixIdUnknown` has been deprecated. `kSbMediaMatrixIdInvalid`
 was added.
+
+### Deprecated `SbMediaType type` parameter to some SbMedia buffer functions.
+`SbMediaGetBufferAlignment()` and `SbMediaGetBufferPadding()` no longer accept
+`SbMediaType type` as parameters.  The implementation has to return the same
+values for both audio and video streams.
 
 ## Version 13
 ### Changed lifecycle events to add support for a concealed state.

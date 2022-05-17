@@ -95,12 +95,20 @@ void DecoderBuffer::Initialize() {
 #if defined(STARBOARD)
   DCHECK(s_allocator);
   DCHECK(!data_);
-  // TODO(b/230887703): Consider deprecate type parameter to
-  // `SbMediaGetBufferAlignment()`.
-  data_ = static_cast<uint8_t*>(
-              s_allocator->Allocate(
-                  size_, SbMediaGetBufferAlignment(kSbMediaTypeVideo)));
-  allocated_size_ = size_;
+
+#if SB_API_VERSION >= 14
+  int alignment = SbMediaGetBufferAlignment();
+  int padding = SbMediaGetBufferPadding();
+#else  // SB_API_VERSION >= 14
+  int alignment = std::max(SbMediaGetBufferAlignment(kSbMediaTypeAudio),
+                           SbMediaGetBufferAlignment(kSbMediaTypeVideo));
+  int padding = std::max(SbMediaGetBufferPadding(kSbMediaTypeAudio),
+                         SbMediaGetBufferPadding(kSbMediaTypeVideo));
+#endif  // SB_API_VERSION >= 14
+  allocated_size_ = size_ + padding;
+  data_ = static_cast<uint8_t*>(s_allocator->Allocate(allocated_size_,
+                                                      alignment));
+  memset(data_ + size_, 0, padding);
 #else  // defined(STARBOARD)
   data_.reset(new uint8_t[size_]);
 #endif  // defined(STARBOARD)

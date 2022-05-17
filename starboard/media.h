@@ -589,8 +589,12 @@ typedef enum SbMediaBufferStorageType {
 // The media buffer will be allocated using the returned alignment.  Set this to
 // a larger value may increase the memory consumption of media buffers.
 //
+#if SB_API_VERSION >= 14
+SB_EXPORT int SbMediaGetBufferAlignment();
+#else   // SB_API_VERSION >= 14
 // |type|: the media type of the stream (audio or video).
 SB_EXPORT int SbMediaGetBufferAlignment(SbMediaType type);
+#endif  // SB_API_VERSION >= 14
 
 // When the media stack needs more memory to store media buffers, it will
 // allocate extra memory in units returned by SbMediaGetBufferAllocationUnit.
@@ -645,8 +649,12 @@ SB_EXPORT int SbMediaGetMaxBufferCapacity(SbMediaVideoCodec codec,
 // can be use optimally by specific instructions like SIMD.  Set to 0 to remove
 // any padding.
 //
+#if SB_API_VERSION >= 14
+SB_EXPORT int SbMediaGetBufferPadding();
+#else   // SB_API_VERSION >= 14
 // |type|: the media type of the stream (audio or video).
 SB_EXPORT int SbMediaGetBufferPadding(SbMediaType type);
+#endif  // SB_API_VERSION >= 14
 
 // When either SbMediaGetInitialBufferCapacity or SbMediaGetBufferAllocationUnit
 // isn't zero, media buffers will be allocated using a memory pool.  Set the

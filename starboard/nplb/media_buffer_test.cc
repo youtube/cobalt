@@ -117,7 +117,13 @@ TEST(SbMediaBufferTest, MediaTypes) {
 
 TEST(SbMediaBufferTest, Alignment) {
   for (auto type : kMediaTypes) {
+#if SB_API_VERSION >= 14
+    // The test will be run more than once, it's redundant but allows us to keep
+    // the test logic in one place.
+    int alignment = SbMediaGetBufferAlignment();
+#else  // SB_API_VERSION >= 14
     int alignment = SbMediaGetBufferAlignment(type);
+#endif  // SB_API_VERSION >= 14
     EXPECT_GE(alignment, 1);
     EXPECT_EQ(alignment & (alignment - 1), 0)
         << "Alignment must always be a power of 2";
@@ -141,7 +147,13 @@ TEST(SbMediaBufferTest, AllocationUnit) {
 
   if (!HasNonfatalFailure()) {
     for (SbMediaType type : kMediaTypes) {
+#if SB_API_VERSION >= 14
+      // The test will be run more than once, it's redundant but allows us to
+      // keep the test logic in one place.
+      int alignment = SbMediaGetBufferAlignment();
+#else  // SB_API_VERSION >= 14
       int alignment = SbMediaGetBufferAlignment(type);
+#endif  // SB_API_VERSION >= 14
       EXPECT_EQ(alignment & (alignment - 1), 0)
           << "Alignment must always be a power of 2";
       if (HasNonfatalFailure()) {
@@ -201,9 +213,13 @@ TEST(SbMediaBufferTest, MaxCapacity) {
 }
 
 TEST(SbMediaBufferTest, Padding) {
+#if SB_API_VERSION >= 14
+  EXPECT_GE(SbMediaGetBufferPadding(), 0);
+#else   // SB_API_VERSION >= 14
   for (auto type : kMediaTypes) {
     EXPECT_GE(SbMediaGetBufferPadding(type), 0);
   }
+#endif  // SB_API_VERSION >= 14
 }
 
 TEST(SbMediaBufferTest, PoolAllocateOnDemand) {
@@ -268,10 +284,17 @@ TEST(SbMediaBufferTest, ValidatePerformance) {
   TEST_PERF_FUNCNOARGS_DEFAULT(SbMediaGetBufferStorageType);
   TEST_PERF_FUNCNOARGS_DEFAULT(SbMediaIsBufferUsingMemoryPool);
 
+#if SB_API_VERSION >= 14
+  for (auto type : kMediaTypes) {
+    TEST_PERF_FUNCNOARGS_DEFAULT(SbMediaGetBufferAlignment);
+    TEST_PERF_FUNCNOARGS_DEFAULT(SbMediaGetBufferPadding);
+  }
+#else   // SB_API_VERSION >= 14
   for (auto type : kMediaTypes) {
     TEST_PERF_FUNCWITHARGS_DEFAULT(SbMediaGetBufferAlignment, type);
     TEST_PERF_FUNCWITHARGS_DEFAULT(SbMediaGetBufferPadding, type);
   }
+#endif  // SB_API_VERSION >= 14
 
   for (auto resolution : kVideoResolutions) {
     for (auto bits_per_pixel : kBitsPerPixelValues) {
