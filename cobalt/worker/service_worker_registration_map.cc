@@ -50,7 +50,7 @@ std::string SerializeExcludingFragment(const GURL& url) {
 }
 }  // namespace
 
-worker::ServiceWorkerRegistrationObject*
+ServiceWorkerRegistrationObject*
 ServiceWorkerRegistrationMap::MatchServiceWorkerRegistration(
     const url::Origin& storage_key, const GURL& client_url) {
   TRACE_EVENT0(
@@ -87,6 +87,8 @@ ServiceWorkerRegistrationMap::MatchServiceWorkerRegistration(
     // 6. Set matchingScopeString to the longest value in scopeStringSet which
     // the value of clientURLString starts with, if it exists.
     for (const auto& scope_string : scope_string_set) {
+      // TODO(b/234659851): Verify whether this is the expected behavior, where
+      // a substring of the scope string is compared with the client url string.
       bool starts_with =
           client_url_string.substr(0, scope_string.length()) == scope_string;
       if (starts_with &&

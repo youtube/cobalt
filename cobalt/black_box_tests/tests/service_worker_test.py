@@ -26,4 +26,5 @@ class ServiceWorkerTest(black_box_tests.BlackBoxTestCase):
       url = server.GetURL(file_name='testdata/service_worker_test.html')
 
       with self.CreateCobaltRunner(url=url) as runner:
+        runner.WaitForJSTestsSetup()
         self.assertTrue(runner.JSTestsSucceeded())

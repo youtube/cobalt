@@ -22,6 +22,7 @@
 #include "base/trace_event/trace_event.h"
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/script/promise.h"
+#include "cobalt/script/script_value_factory.h"
 #include "cobalt/web/context.h"
 #include "cobalt/web/dom_exception.h"
 #include "cobalt/web/environment_settings.h"
@@ -37,30 +38,73 @@ ServiceWorkerContainer::ServiceWorkerContainer(
     script::EnvironmentSettings* settings)
     : web::EventTarget(settings) {}
 
-// TODO: Implement the service worker ready algorithm. b/219972966
+scoped_refptr<ServiceWorker> ServiceWorkerContainer::controller() {
+  // Algorithm for controller:
+  //   https://w3c.github.io/ServiceWorker/#navigator-service-worker-controller
+  // 1. Let client be this's service worker client.
+  web::EnvironmentSettings* client = environment_settings();
+
+  // 2. If client’s active service worker is null, then return null.
+  if (!client->active_service_worker()) {
+    return scoped_refptr<ServiceWorker>();
+  }
+
+  // 3. Return the result of getting the service worker object that represents
+  //    client’s active service worker in this's relevant settings object.
+  return client->context()->GetServiceWorker(client->active_service_worker());
+}
+
 script::Handle<script::PromiseWrappable> ServiceWorkerContainer::ready() {
-  // https://w3c.github.io/ServiceWorker/#navigator-service-worker-ready
+  // Algorithm for ready attribute:
+  //   https://w3c.github.io/ServiceWorker/#navigator-service-worker-ready
   // 1. If this's ready promise is null, then set this's ready promise to a new
-  // promise.
+  //    promise.
+  if (!promise_reference_) {
+    ready_promise_ = environment_settings()
+                         ->context()
+                         ->global_environment()
+                         ->script_value_factory()
+                         ->CreateInterfacePromise<
+                             scoped_refptr<ServiceWorkerRegistration>>();
+    promise_reference_.reset(
+        new script::ValuePromiseWrappable::Reference(this, ready_promise_));
+  }
   // 2. Let readyPromise be this's ready promise.
+  script::HandlePromiseWrappable ready_promise(ready_promise_);
   // 3. If readyPromise is pending, run the following substeps in parallel:
-  //    1. Let registration be the result of running Match Service Worker
-  //    Registration with this's service worker client's creation URL.
-  //    2. If registration is not null, and registration’s active worker is not
-  //    null, queue a task on readyPromise’s relevant settings object's
-  //    responsible event loop, using the DOM manipulation task source, to
-  //    resolve readyPromise with the result of getting the service worker
-  //    registration object that represents registration in readyPromise’s
-  //    relevant settings object.
+  if (ready_promise->State() == script::PromiseState::kPending) {
+    //    3.1. Let client by this's service worker client.
+    web::EnvironmentSettings* client = environment_settings();
+    worker::ServiceWorkerJobs* jobs = client->context()->service_worker_jobs();
+    jobs->message_loop()->task_runner()->PostTask(
+        FROM_HERE,
+        base::BindOnce(&ServiceWorkerJobs::MaybeResolveReadyPromiseSubSteps,
+                       base::Unretained(jobs), client));
+  }
   // 4. Return readyPromise.
-  auto promise =
-      base::polymorphic_downcast<web::EnvironmentSettings*>(
-          environment_settings())
-          ->context()
-          ->global_environment()
-          ->script_value_factory()
-          ->CreateInterfacePromise<scoped_refptr<ServiceWorkerRegistration>>();
-  return promise;
+  return ready_promise;
+}
+
+void ServiceWorkerContainer::MaybeResolveReadyPromise(
+    ServiceWorkerRegistrationObject* registration) {
+  // This implements resolving of the ready promise for the Activate algorithm
+  // (steps 7.1-7.3) as well as for the ready attribute (step 3.3).
+  //   https://w3c.github.io/ServiceWorker/#activation-algorithm
+  //   https://w3c.github.io/ServiceWorker/#navigator-service-worker-ready
+  DCHECK_EQ(base::MessageLoop::current(),
+            environment_settings()->context()->message_loop());
+  if (!registration || !registration->active_worker()) return;
+  if (!promise_reference_) return;
+  if (ready_promise_->State() != script::PromiseState::kPending) return;
+
+  auto registration_object =
+      environment_settings()->context()->LookupServiceWorkerRegistration(
+          registration);
+  if (registration_object) {
+    DCHECK(registration_object->active());
+    ready_promise_->Resolve(registration_object);
+    promise_reference_.reset();
+  }
 }
 
 script::Handle<script::PromiseWrappable> ServiceWorkerContainer::Register(
@@ -73,15 +117,11 @@ script::Handle<script::PromiseWrappable> ServiceWorkerContainer::Register(
     const std::string& url, const RegistrationOptions& options) {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerContainer::Register()");
   DCHECK_EQ(base::MessageLoop::current(),
-            base::polymorphic_downcast<web::EnvironmentSettings*>(
-                environment_settings())
-                ->context()
-                ->message_loop());
+            environment_settings()->context()->message_loop());
   // https://w3c.github.io/ServiceWorker/#navigator-service-worker-register
   // 1. Let p be a promise.
   script::HandlePromiseWrappable promise =
-      base::polymorphic_downcast<web::EnvironmentSettings*>(
-          environment_settings())
+      environment_settings()
           ->context()
           ->global_environment()
           ->script_value_factory()
@@ -90,9 +130,7 @@ script::Handle<script::PromiseWrappable> ServiceWorkerContainer::Register(
       new script::ValuePromiseWrappable::Reference(this, promise));
 
   // 2. Let client be this's service worker client.
-  web::EnvironmentSettings* client =
-      base::polymorphic_downcast<web::EnvironmentSettings*>(
-          environment_settings());
+  web::EnvironmentSettings* client = environment_settings();
   // 3. Let scriptURL be the result of parsing scriptURL with this's
   // relevant settings object’s API base URL.
   const GURL& base_url = environment_settings()->base_url();
@@ -120,10 +158,7 @@ script::Handle<script::PromiseWrappable>
 ServiceWorkerContainer::GetRegistration(const std::string& url) {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerContainer::GetRegistration()");
   DCHECK_EQ(base::MessageLoop::current(),
-            base::polymorphic_downcast<web::EnvironmentSettings*>(
-                environment_settings())
-                ->context()
-                ->message_loop());
+            environment_settings()->context()->message_loop());
   // Algorithm for 'ServiceWorkerContainer.getRegistration()':
   //   https://w3c.github.io/ServiceWorker/#navigator-service-worker-getRegistration
   // Let promise be a new promise.
@@ -153,16 +188,11 @@ void ServiceWorkerContainer::GetRegistrationTask(
   TRACE_EVENT0("cobalt::worker",
                "ServiceWorkerContainer::GetRegistrationTask()");
   DCHECK_EQ(base::MessageLoop::current(),
-            base::polymorphic_downcast<web::EnvironmentSettings*>(
-                environment_settings())
-                ->context()
-                ->message_loop());
+            environment_settings()->context()->message_loop());
   // Algorithm for 'ServiceWorkerContainer.getRegistration()':
   //   https://w3c.github.io/ServiceWorker/#navigator-service-worker-getRegistration
   // 1. Let client be this's service worker client.
-  web::EnvironmentSettings* client =
-      base::polymorphic_downcast<web::EnvironmentSettings*>(
-          environment_settings());
+  web::EnvironmentSettings* client = environment_settings();
 
   // 2. Let storage key be the result of running obtain a storage key given
   //    client.
@@ -170,6 +200,8 @@ void ServiceWorkerContainer::GetRegistrationTask(
 
   // 3. Let clientURL be the result of parsing clientURL with this's relevant
   //    settings object’s API base URL.
+  // TODO(b/234659851): Investigate whether this behaves as expected for empty
+  // url values.
   const GURL& base_url = environment_settings()->base_url();
   GURL client_url = base_url.Resolve(url);
 

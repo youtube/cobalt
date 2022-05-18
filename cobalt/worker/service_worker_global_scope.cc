@@ -15,20 +15,19 @@
 #include "cobalt/worker/service_worker_global_scope.h"
 
 #include "base/logging.h"
-#include "cobalt/web/environment_settings.h"
+#include "cobalt/script/environment_settings.h"
 #include "cobalt/worker/worker_settings.h"
 
 namespace cobalt {
 namespace worker {
 ServiceWorkerGlobalScope::ServiceWorkerGlobalScope(
-    web::EnvironmentSettings* settings)
+    script::EnvironmentSettings* settings)
     : WorkerGlobalScope(settings) {}
 
 void ServiceWorkerGlobalScope::Initialize() {}
 
 script::Handle<script::Promise<void>> ServiceWorkerGlobalScope::SkipWaiting() {
-  auto promise = base::polymorphic_downcast<web::EnvironmentSettings*>(
-                     environment_settings())
+  auto promise = environment_settings()
                      ->context()
                      ->global_environment()
                      ->script_value_factory()

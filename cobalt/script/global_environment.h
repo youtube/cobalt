@@ -142,21 +142,21 @@ class GlobalEnvironment : public base::RefCounted<GlobalEnvironment>,
    public:
     ScopedPreventGarbageCollection(GlobalEnvironment* global_environment,
                                    Wrappable* wrappable)
-        : global_environment(global_environment->AsWeakPtr()),
-          wrappable(wrappable) {
+        : global_environment_(global_environment->AsWeakPtr()),
+          wrappable_(wrappable) {
       global_environment->PreventGarbageCollection(
-          base::WrapRefCounted(wrappable));
+          base::WrapRefCounted(wrappable_));
     }
 
     ~ScopedPreventGarbageCollection() {
-      if (global_environment) {
-        global_environment->AllowGarbageCollection(wrappable);
+      if (global_environment_) {
+        global_environment_->AllowGarbageCollection(wrappable_);
       }
     }
 
    private:
-    base::WeakPtr<GlobalEnvironment> global_environment;
-    Wrappable* wrappable;
+    base::WeakPtr<GlobalEnvironment> global_environment_;
+    Wrappable* wrappable_;
   };
 
  protected:

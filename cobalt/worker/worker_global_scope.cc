@@ -31,7 +31,9 @@ WorkerGlobalScope::WorkerGlobalScope(script::EnvironmentSettings* settings)
                          // available, update this to use the actual state.
                          base::ApplicationState::kApplicationStateStarted)),
       location_(new WorkerLocation(settings->creation_url())),
-      navigator_(new WorkerNavigator(settings)) {}
+      navigator_(new WorkerNavigator(settings)) {
+  set_navigator_base(navigator_);
+}
 
 int WorkerGlobalScope::SetTimeout(
     const dom::WindowTimers::TimerCallbackArg& handler, int timeout) {

@@ -28,7 +28,6 @@
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/script/script_runner.h"
 #include "cobalt/script/value_handle.h"
-#include "cobalt/script/wrappable.h"
 #include "cobalt/web/agent.h"
 #include "cobalt/web/context.h"
 #include "cobalt/worker/service_worker_global_scope.h"
@@ -44,6 +43,7 @@ ServiceWorkerObject::ServiceWorkerObject(const Options& options)
     : state_(kServiceWorkerStateParsed), options_(options) {}
 
 ServiceWorkerObject::~ServiceWorkerObject() {
+  TRACE_EVENT0("cobalt::worker", "ServiceWorkerObject::~ServiceWorkerObject()");
   if (web_agent_) {
     DCHECK(message_loop());
     web_agent_->WaitUntilDone();
@@ -61,6 +61,8 @@ std::string* ServiceWorkerObject::LookupScriptResource(const GURL& url) const {
 }
 
 void ServiceWorkerObject::WillDestroyCurrentMessageLoop() {
+  TRACE_EVENT0("cobalt::worker",
+               "ServiceWorkerObject::WillDestroyCurrentMessageLoop()");
 // Destroy members that were constructed in the worker thread.
 #if defined(ENABLE_DEBUGGER)
   debug_module_.reset();
@@ -70,6 +72,8 @@ void ServiceWorkerObject::WillDestroyCurrentMessageLoop() {
 }
 
 void ServiceWorkerObject::ObtainWebAgentAndWaitUntilDone() {
+  TRACE_EVENT0("cobalt::worker",
+               "ServiceWorkerObject::ObtainWebAgentAndWaitUntilDone()");
   web_agent_.reset(new web::Agent(
       options_.web_options,
       base::Bind(&ServiceWorkerObject::Initialize, base::Unretained(this)),
@@ -78,6 +82,7 @@ void ServiceWorkerObject::ObtainWebAgentAndWaitUntilDone() {
 }
 
 void ServiceWorkerObject::Initialize(web::Context* context) {
+  TRACE_EVENT0("cobalt::worker", "ServiceWorkerObject::Initialize()");
   // Algorithm for "Run Service Worker"
   // https://w3c.github.io/ServiceWorker/#run-service-worker-algorithm
 

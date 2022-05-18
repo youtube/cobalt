@@ -17,7 +17,7 @@
 #include <string>
 
 #include "cobalt/base/polymorphic_downcast.h"
-#include "cobalt/web/environment_settings.h"
+#include "cobalt/script/environment_settings.h"
 #include "cobalt/worker/worker_global_scope.h"
 #include "cobalt/worker/worker_settings.h"
 #include "url/gurl.h"

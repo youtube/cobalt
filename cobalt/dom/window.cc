@@ -193,8 +193,7 @@ Window::Window(
       screenshot_manager_(settings, screenshot_function_callback),
       ui_nav_root_(ui_nav_root),
       enable_map_to_mesh_(enable_map_to_mesh) {
-#if !defined(ENABLE_TEST_RUNNER)
-#endif
+  set_navigator_base(navigator_);
   document_->AddObserver(relay_on_load_event_.get());
   html_element_context()->application_lifecycle_state()->AddObserver(this);
   UpdateCamera3D(camera_3d);

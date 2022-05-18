@@ -23,6 +23,7 @@
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/web/event_target.h"
 #include "cobalt/web/event_target_listener_info.h"
+#include "cobalt/web/navigator_base.h"
 
 namespace cobalt {
 namespace web {
@@ -36,16 +37,22 @@ class WindowOrWorkerGlobalScope : public EventTarget {
   WindowOrWorkerGlobalScope& operator=(const WindowOrWorkerGlobalScope&) =
       delete;
 
-  DEFINE_WRAPPABLE_TYPE(WindowOrWorkerGlobalScope);
+  void set_navigator_base(NavigatorBase* navigator_base) {
+    navigator_base_ = navigator_base;
+  }
+  NavigatorBase* navigator_base() { return navigator_base_; }
 
   bool IsWindow();
   bool IsDedicatedWorker();
   bool IsServiceWorker();
 
+  DEFINE_WRAPPABLE_TYPE(WindowOrWorkerGlobalScope);
+
  protected:
   virtual ~WindowOrWorkerGlobalScope() {}
 
  private:
+  NavigatorBase* navigator_base_ = nullptr;
 };
 
 }  // namespace web
