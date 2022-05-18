@@ -24,6 +24,7 @@
 #include <utility>
 
 #include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/message_loop/message_loop.h"
 #include "base/optional.h"
 #include "base/synchronization/lock.h"
@@ -45,6 +46,7 @@
 #include "cobalt/worker/service_worker_update_via_cache.h"
 #include "cobalt/worker/worker_type.h"
 #include "url/gurl.h"
+#include "url/origin.h"
 
 namespace cobalt {
 namespace worker {
@@ -67,6 +69,8 @@ class ServiceWorkerJobs {
                          promise_reference,
                      web::EnvironmentSettings* client, const WorkerType& type,
                      const ServiceWorkerUpdateViaCache& update_via_cache);
+
+  void MaybeResolveReadyPromiseSubSteps(web::EnvironmentSettings* client);
 
   // Sub steps (8) of 'ServiceWorkerContainer.getRegistration()'.
   //   https://w3c.github.io/ServiceWorker/#navigator-service-worker-getRegistration
@@ -290,20 +294,25 @@ class ServiceWorkerJobs {
   // points to the value of the Completion returned by the script runner
   // abstraction.
   std::string* RunServiceWorker(ServiceWorkerObject* worker,
-                                bool force_bypass_cache);
+                                bool force_bypass_cache = false);
 
   // https://w3c.github.io/ServiceWorker/#installation-algorithm
-  void Install(Job* job, ServiceWorkerObject* worker,
+  void Install(Job* job, scoped_refptr<ServiceWorkerObject> worker,
                ServiceWorkerRegistrationObject* registration);
 
   // https://w3c.github.io/ServiceWorker/#try-activate-algorithm
   void TryActivate(ServiceWorkerRegistrationObject* registration);
 
+  // https://w3c.github.io/ServiceWorker/#activation-algorithm
+  void Activate(ServiceWorkerRegistrationObject* registration);
+
+  // https://w3c.github.io/ServiceWorker/#service-worker-has-no-pending-events
+  bool ServiceWorkerHasNoPendingEvents(ServiceWorkerObject* worker);
 
   // https://w3c.github.io/ServiceWorker/#update-registration-state-algorithm
   void UpdateRegistrationState(ServiceWorkerRegistrationObject* registration,
                                RegistrationState target,
-                               ServiceWorkerObject* source);
+                               scoped_refptr<ServiceWorkerObject> source);
 
   // https://w3c.github.io/ServiceWorker/#update-state-algorithm
   void UpdateWorkerState(ServiceWorkerObject* worker, ServiceWorkerState state);
@@ -313,6 +322,9 @@ class ServiceWorkerJobs {
 
   // https://w3c.github.io/ServiceWorker/#terminate-service-worker
   void TerminateServiceWorker(ServiceWorkerObject* worker);
+
+  // https://w3c.github.io/ServiceWorker/#notify-controller-change-algorithm
+  void NotifyControllerChange(web::EnvironmentSettings* client);
 
   // FetcherFactory that is used to create a fetcher according to URL.
   std::unique_ptr<loader::FetcherFactory> fetcher_factory_;

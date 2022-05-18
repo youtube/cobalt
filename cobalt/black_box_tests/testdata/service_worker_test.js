@@ -12,5 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-console.log('foo');
-this.oninstall = function(e) { console.log('bar', e); }
+console.log('Service Worker Script Started');
+self.oninstall = function (e) { console.log('oninstall event received', e); }
+self.onactivate = function (e) { console.log('onactivate event received', e); }

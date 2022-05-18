@@ -22,6 +22,9 @@
 #include "cobalt/script/environment_settings.h"
 
 namespace cobalt {
+namespace worker {
+class ServiceWorkerObject;
+}  // namespace worker
 namespace web {
 
 class Context;
@@ -35,11 +38,27 @@ class EnvironmentSettings : public script::EnvironmentSettings {
       : script::EnvironmentSettings(debugger_hooks) {}
   ~EnvironmentSettings() override {}
 
+  // https://html.spec.whatwg.org/multipage/webappapis.html#realm-execution-context
   Context* context() const {
     DCHECK(context_);
     return context_;
   }
   void set_context(Context* context) { context_ = context; }
+
+  // https://html.spec.whatwg.org/multipage/webappapis.html#concept-environment-active-service-worker
+  void set_active_service_worker(worker::ServiceWorkerObject* worker) {
+    active_service_worker_ = worker;
+  }
+  worker::ServiceWorkerObject* active_service_worker() {
+    return active_service_worker_;
+  }
+
+  // https://w3c.github.io/ServiceWorker/#dfn-control
+  bool is_controlled_by(worker::ServiceWorkerObject* worker) {
+    // When a service worker client has a non-null active service worker, it is
+    // said to be controlled by that active service worker.
+    return active_service_worker() && (active_service_worker() == worker);
+  }
 
  protected:
   friend std::unique_ptr<EnvironmentSettings>::deleter_type;
@@ -48,6 +67,9 @@ class EnvironmentSettings : public script::EnvironmentSettings {
   DISALLOW_COPY_AND_ASSIGN(EnvironmentSettings);
 
   Context* context_ = nullptr;
+
+  // https://html.spec.whatwg.org/multipage/webappapis.html#concept-environment-active-service-worker
+  worker::ServiceWorkerObject* active_service_worker_ = nullptr;
 };
 
 }  // namespace web

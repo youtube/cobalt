@@ -63,9 +63,5 @@ bool NavigatorBase::on_line() const {
 #endif
 }
 
-scoped_refptr<worker::ServiceWorkerContainer> NavigatorBase::service_worker() {
-  return service_worker_;
-}
-
 }  // namespace web
 }  // namespace cobalt

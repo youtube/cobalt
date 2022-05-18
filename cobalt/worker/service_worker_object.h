@@ -21,6 +21,7 @@
 #include <utility>
 
 #include "base/macros.h"
+#include "base/memory/ref_counted.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/message_loop/message_loop_current.h"
 #include "cobalt/web/agent.h"
@@ -46,7 +47,8 @@ namespace worker {
 // object. A user agent may terminate service workers at any time it has no
 // event to handle, or detects abnormal operation.
 //   https://w3c.github.io/ServiceWorker/#service-worker-lifetime
-class ServiceWorkerObject : public base::MessageLoop::DestructionObserver {
+class ServiceWorkerObject : public base::RefCounted<ServiceWorkerObject>,
+                            public base::MessageLoop::DestructionObserver {
  public:
   // Worker Options needed at thread run time.
   struct Options {
@@ -71,6 +73,9 @@ class ServiceWorkerObject : public base::MessageLoop::DestructionObserver {
   void set_state(ServiceWorkerState state) { state_ = state; }
   ServiceWorkerState state() const { return state_; }
 
+  void set_skip_waiting(bool skip_waiting) { skip_waiting_ = skip_waiting; }
+  bool skip_waiting() const { return skip_waiting_; }
+
   void set_script_resource_map(ScriptResourceMap&& resource_map) {
     script_resource_map_ = std::move(resource_map);
   }
@@ -78,10 +83,10 @@ class ServiceWorkerObject : public base::MessageLoop::DestructionObserver {
   std::string* LookupScriptResource() const;
   std::string* LookupScriptResource(const GURL& url) const;
 
+  std::string* start_status() const { return start_status_.get(); }
+
   bool is_running() { return web_agent_.get() != nullptr; }
   web::Agent* web_agent() const { return web_agent_.get(); }
-
-  std::string* start_status() const { return start_status_.get(); }
 
   scoped_refptr<WorkerGlobalScope> worker_global_scope() {
     return worker_global_scope_;
@@ -126,6 +131,9 @@ class ServiceWorkerObject : public base::MessageLoop::DestructionObserver {
 
   // map of content or resources for the worker.
   ScriptResourceMap script_resource_map_;
+
+  // https://w3c.github.io/ServiceWorker/#dfn-skip-waiting-flag
+  bool skip_waiting_ = false;
 
   // https://w3c.github.io/ServiceWorker/#service-worker-start-status
   std::unique_ptr<std::string> start_status_;

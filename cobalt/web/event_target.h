@@ -183,6 +183,13 @@ class EventTarget : public script::Wrappable,
     SetAttributeEventListener(base::Tokens::keyup(), event_listener);
   }
 
+  const EventListenerScriptValue* onlanguagechange() {
+    return GetAttributeEventListener(base::Tokens::languagechange());
+  }
+  void set_onlanguagechange(const EventListenerScriptValue& event_listener) {
+    SetAttributeEventListener(base::Tokens::languagechange(), event_listener);
+  }
+
   const EventListenerScriptValue* onload() {
     return GetAttributeEventListener(base::Tokens::load());
   }
@@ -403,6 +410,19 @@ class EventTarget : public script::Wrappable,
     SetAttributeEventListener(base::Tokens::beforeunload(), event_listener);
   }
 
+  const EventListenerScriptValue* onmessage() {
+    return GetAttributeEventListener(base::Tokens::message());
+  }
+  void set_onmessage(const EventListenerScriptValue& event_listener) {
+    SetAttributeEventListener(base::Tokens::message(), event_listener);
+  }
+  const EventListenerScriptValue* onmessageerror() {
+    return GetAttributeEventListener(base::Tokens::messageerror());
+  }
+  void set_onmessageerror(const EventListenerScriptValue& event_listener) {
+    SetAttributeEventListener(base::Tokens::messageerror(), event_listener);
+  }
+
   const EventListenerScriptValue* onoffline() {
     return GetAttributeEventListener(base::Tokens::offline());
   }
@@ -415,6 +435,21 @@ class EventTarget : public script::Wrappable,
   }
   void set_ononline(const EventListenerScriptValue& event_listener) {
     SetAttributeEventListener(base::Tokens::online(), event_listener);
+  }
+
+  const EventListenerScriptValue* onrejectionhandled() {
+    return GetAttributeEventListener(base::Tokens::rejectionhandled());
+  }
+  void set_onrejectionhandled(const EventListenerScriptValue& event_listener) {
+    SetAttributeEventListener(base::Tokens::rejectionhandled(), event_listener);
+  }
+  const EventListenerScriptValue* onunhandledrejection() {
+    return GetAttributeEventListener(base::Tokens::unhandledrejection());
+  }
+  void set_onunhandledrejection(
+      const EventListenerScriptValue& event_listener) {
+    SetAttributeEventListener(base::Tokens::unhandledrejection(),
+                              event_listener);
   }
 
   const EventListenerScriptValue* ontransitionend() {

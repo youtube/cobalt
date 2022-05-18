@@ -54,7 +54,9 @@ class NavigatorBase : public script::Wrappable {
   bool on_line() const;
 
   // Web API: ServiceWorker
-  scoped_refptr<worker::ServiceWorkerContainer> service_worker();
+  const scoped_refptr<worker::ServiceWorkerContainer>& service_worker() const {
+    return service_worker_;
+  }
 
   // Set maybe freeze callback.
   void set_maybefreeze_callback(const base::Closure& maybe_freeze_callback) {
