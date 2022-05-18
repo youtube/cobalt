@@ -61,7 +61,11 @@ std::string* ServiceWorkerObject::LookupScriptResource(const GURL& url) const {
 }
 
 void ServiceWorkerObject::WillDestroyCurrentMessageLoop() {
-  // Destroy members that were constructed in the worker thread.
+// Destroy members that were constructed in the worker thread.
+#if defined(ENABLE_DEBUGGER)
+  debug_module_.reset();
+#endif  // ENABLE_DEBUGGER
+
   worker_global_scope_ = nullptr;
 }
 
@@ -110,6 +114,14 @@ void ServiceWorkerObject::Initialize(web::Context* context) {
   worker_global_scope_ = service_worker_global_scope;
   web_context_->global_environment()->CreateGlobalObject(
       service_worker_global_scope, web_context_->environment_settings());
+
+#if defined(ENABLE_DEBUGGER)
+  debug_module_.reset(new debug::backend::DebugModule(
+      nullptr /* debugger_hooks */, web_context_->global_environment(),
+      nullptr /* render_overlay */, nullptr /* resource_provider */,
+      nullptr /* window */, nullptr /* debugger_state */));
+#endif  // ENABLE_DEBUGGER
+
   // 8.5. Set workerGlobalScope’s url to serviceWorker’s script url.
   worker_global_scope_->set_url(
       web_context_->environment_settings()->base_url());
@@ -131,18 +143,14 @@ void ServiceWorkerObject::Initialize(web::Context* context) {
   // 8.13. If script is a classic script, then:
   // 8.13.1. Set evaluationStatus to the result of running the classic script
   //         script.
+
   bool mute_errors = false;
   bool succeeded = false;
   auto* content = LookupScriptResource();
   DCHECK(content);
-  LOG(INFO) << "Script Executing \"" << *content << "\".";
-  base::SourceLocation script_location("[object ServiceWorkerWorker::RunLoop]",
-                                       1, 1);
+  base::SourceLocation script_location(script_url().spec(), 1, 1);
   std::string retval = web_context_->script_runner()->Execute(
       *content, script_location, mute_errors, &succeeded);
-  LOG(INFO) << "Script Executed and " << (succeeded ? "succeeded" : "failed")
-            << ": \"" << retval << "\"";
-
   // 8.13.2. If evaluationStatus.[[Value]] is empty, this means the script was
   //         not evaluated. Set startFailed to true and abort these steps.
   // We don't actually have access to an 'evaluationStatus' from ScriptRunner,

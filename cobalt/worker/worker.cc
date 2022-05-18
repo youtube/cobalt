@@ -62,6 +62,9 @@ bool Worker::Run(const Options& options) {
 }
 
 void Worker::WillDestroyCurrentMessageLoop() {
+#if defined(ENABLE_DEBUGGER)
+  debug_module_.reset();
+#endif  // ENABLE_DEBUGGER
   // Destroy members that were constructed in the worker thread.
   loader_.reset();
   worker_global_scope_ = nullptr;
@@ -93,6 +96,13 @@ void Worker::Initialize(const Options& options, web::Context* context) {
   web_context_->global_environment()->CreateGlobalObject(
       dedicated_worker_global_scope, web_context_->environment_settings());
 
+#if defined(ENABLE_DEBUGGER)
+  debug_module_.reset(new debug::backend::DebugModule(
+      nullptr /* debugger_hooks */, web_context_->global_environment(),
+      nullptr /* render_overlay */, nullptr /* resource_provider */,
+      nullptr /* window */, nullptr /* debugger_state */));
+#endif  // ENABLE_DEBUGGER
+
   // 10. Set worker global scope's name to the value of options's name member.
   dedicated_worker_global_scope->set_name(options.web_options.name);
   // 11. Append owner to worker global scope's owner set.
@@ -107,6 +117,7 @@ void Worker::Initialize(const Options& options, web::Context* context) {
   // 13. Let destination be "sharedworker" if is shared is true, and
   // "worker" otherwise.
   // 14. Obtain script
+
   Obtain();
 }
 
@@ -168,7 +179,9 @@ void Worker::OnLoadingComplete(const base::Optional<std::string>& error) {
 
 void Worker::OnReadyToExecute() {
   DCHECK(content_);
-  Execute(*content_, base::SourceLocation("[object Worker::RunLoop]", 1, 1));
+  Execute(*content_,
+          base::SourceLocation(
+              web_context_->environment_settings()->base_url().spec(), 1, 1));
   content_.reset();
 }
 
@@ -198,11 +211,8 @@ void Worker::Execute(const std::string& content,
 
   bool mute_errors = false;
   bool succeeded = false;
-  LOG(INFO) << "Script Executing \"" << content << "\".";
   std::string retval = web_context_->script_runner()->Execute(
       content, script_location, mute_errors, &succeeded);
-  LOG(INFO) << "Script Executed and " << (succeeded ? "succeeded" : "failed")
-            << ": \"" << retval << "\"";
 
   // 24. Enable outside port's port message queue.
   // 25. If is shared is false, enable the port message queue of the worker's

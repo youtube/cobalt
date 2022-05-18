@@ -12,7 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Place Holder. This functionality can not yet be verified since console.log()
-// does not yet work. It will be added in a followup CL.
 console.log('foo');
-this.oninstall = function(e) { console.log('bar'); }
+this.oninstall = function(e) { console.log('bar', e); }

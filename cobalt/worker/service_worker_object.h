@@ -30,6 +30,10 @@
 #include "starboard/atomic.h"
 #include "url/gurl.h"
 
+#if defined(ENABLE_DEBUGGER)
+#include "cobalt/debug/backend/debug_module.h"  // nogncheck
+#endif                                          // defined(ENABLE_DEBUGGER)
+
 namespace cobalt {
 namespace worker {
 
@@ -101,6 +105,11 @@ class ServiceWorkerObject : public base::MessageLoop::DestructionObserver {
   base::MessageLoop* message_loop() const {
     return web_agent_ ? web_agent_->message_loop() : nullptr;
   }
+
+#if defined(ENABLE_DEBUGGER)
+  // The core of the debugging system.
+  std::unique_ptr<debug::backend::DebugModule> debug_module_;
+#endif  // defined(ENABLE_DEBUGGER)
 
   // The Web Context includes the Script Agent and Realm.
   std::unique_ptr<web::Agent> web_agent_;

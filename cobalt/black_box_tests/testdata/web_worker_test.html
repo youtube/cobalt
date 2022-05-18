@@ -56,10 +56,10 @@
         console.log('window got onerror');
         notReached();
     };
-    console.log('posting');
+    console.log('posting', data);
     worker.postMessage(data);
     window.setTimeout(
-        () => { console.log('posting'); worker.postMessage(data); }, 250);
+        () => { console.log('posting', data); worker.postMessage(data); }, 250);
     console.log('end');
 </script>
 </body>
