@@ -56,15 +56,16 @@ It is OK if navigating to link_splash_screen.html first, then shows
 the Cobalt logo splash screen on the next navigation to
 link_splash_screen.html?redirect=yes.
 """
-import SimpleHTTPServer
-import SocketServer
+from six.moves import SimpleHTTPServer
+from six.moves import socketserver
 
 
 class Handler(SimpleHTTPServer.SimpleHTTPRequestHandler):
+  """Class to redirect requests to the splash screen."""
 
-  def do_GET(self):
+  def do_GET(self):  # pylint: disable=invalid-name
     path = self.path
-    print 'path = ' + path
+    print('path = ' + path)
     redirect_from = 'link_splash_screen.html?redirect=yes'
     redirect_to = 'redirected.html'
     if redirect_from in path:
@@ -75,12 +76,7 @@ class Handler(SimpleHTTPServer.SimpleHTTPRequestHandler):
       return SimpleHTTPServer.SimpleHTTPRequestHandler.do_GET(self)
 
 
-port = 8000
-while True:
-  try:
-    handler = SocketServer.TCPServer(('', port), Handler)
-    print 'seving port ' + str(port)
-    handler.serve_forever()
-  except SocketServer.socket.error as exc:
-    port += 1
-    print 'trying port ' + str(port)
+if __name__ == '__main__':
+  handler = socketserver.TCPServer(('', 0), Handler)
+  print('serving port ' + str(handler.server_address[1]))
+  handler.serve_forever()
