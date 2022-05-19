@@ -105,7 +105,7 @@ jobs:
       - name: ${{matrix.platform}}-${{matrix.config}}
         run: |
           $GITHUB_WORKSPACE/cobalt/build/gyp_cobalt -v -C ${{ matrix.config }} ${{ matrix.platform }}
-          ninja -v -j 8 -C $GITHUB_WORKSPACE/out/${{ matrix.platform }}_${{ matrix.config }} eztime_test_deploy nplb_deploy app_launcher_zip
+          ninja -v -j 30 -C $GITHUB_WORKSPACE/out/${{ matrix.platform }}_${{ matrix.config }} eztime_test_deploy nplb_deploy app_launcher_zip
   
   # Evergreen jobs.
   evergreen:
@@ -137,7 +137,7 @@ jobs:
       - name: ${{matrix.platform}}-${{matrix.config}}
         run: |
           $GITHUB_WORKSPACE/cobalt/build/gyp_cobalt -v -C ${{ matrix.config }} ${{ matrix.platform }}
-          ninja -v -j 8 -C $GITHUB_WORKSPACE/out/${{ matrix.platform }}_${{ matrix.config }} eztime_test_deploy nplb_deploy app_launcher_zip
+          ninja -v -j 30 -C $GITHUB_WORKSPACE/out/${{ matrix.platform }}_${{ matrix.config }} eztime_test_deploy nplb_deploy app_launcher_zip
   
   # Linux jobs.
   linux:
@@ -166,7 +166,7 @@ jobs:
       - name: ${{matrix.platform}}-${{matrix.config}}
         run: |
           $GITHUB_WORKSPACE/cobalt/build/gyp_cobalt -v -C ${{ matrix.config }} ${{ matrix.platform }}
-          ninja -v -j 8 -C $GITHUB_WORKSPACE/out/${{ matrix.platform }}_${{ matrix.config }} eztime_test_deploy nplb_deploy app_launcher_zip
+          ninja -v -j 30 -C $GITHUB_WORKSPACE/out/${{ matrix.platform }}_${{ matrix.config }} eztime_test_deploy nplb_deploy app_launcher_zip
   
   # Android jobs.
   android:
@@ -190,7 +190,7 @@ jobs:
       - name: ${{matrix.platform}}-${{matrix.config}}
         run: |
           $GITHUB_WORKSPACE/cobalt/build/gyp_cobalt -v -C ${{ matrix.config }} ${{ matrix.platform }}
-          ninja -v -j 8 -C $GITHUB_WORKSPACE/out/${{ matrix.platform }}_${{ matrix.config }} eztime_test_deploy nplb_deploy app_launcher_zip
+          ninja -v -j 30 -C $GITHUB_WORKSPACE/out/${{ matrix.platform }}_${{ matrix.config }} eztime_test_deploy nplb_deploy app_launcher_zip
 
   # Win-Win32 Jobs.
   #win-win32:
