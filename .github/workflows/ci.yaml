@@ -80,24 +80,6 @@ jobs:
         run: docker push ${{ steps.meta.outputs.tags }}
 
   # Raspi Jobs.
-  hello_1:
-    runs-on: [self-hosted, linux, X64]
-    container: alpine:3.14
-    steps:
-      - name: Get the output time
-        run: echo "The time was FOO"
-  hello_2:
-    runs-on: [self-hosted, linux, X64]
-    container: alpine:3.14
-    steps:
-      - name: Get the output time
-        run: echo "The time was FOO"
-  hello_3:
-    runs-on: [self-hosted, linux, X64]
-    container: alpine:3.14
-    steps:
-      - name: Get the output time
-        run: echo "The time was FOO"
   raspi:
     needs: docker-image-build
     # The type of runner that the job will run on
