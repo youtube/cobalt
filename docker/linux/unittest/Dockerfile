@@ -18,6 +18,9 @@ RUN apt update -qqy \
     && apt install -qqy --no-install-recommends \
         libasound2 \
         libatomic1 \
+        libavcodec58 \
+        libavformat58 \
+        libavutil56 \
         libegl1-mesa \
         libgl1-mesa-dri \
         libgles2-mesa \
