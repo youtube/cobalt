@@ -124,6 +124,10 @@ uint64_t PerformanceResourceTiming::transfer_size() const {
   return timing_info_.encoded_body_size + kPerformanceResourceTimingHeaderSize;
 }
 
+uint64_t PerformanceResourceTiming::encoded_body_size() const {
+  return timing_info_.encoded_body_size;
+}
+
 void PerformanceResourceTiming::SetResourceTimingEntry(
     const net::LoadTimingInfo& timing_info, const std::string& initiator_type,
     const std::string& requested_url, const std::string& cache_mode) {
