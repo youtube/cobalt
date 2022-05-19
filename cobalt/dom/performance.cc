@@ -19,11 +19,11 @@
 #include "base/time/default_clock.h"
 #include "base/time/time.h"
 #include "cobalt/browser/stack_size_constants.h"
-#include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/memory_info.h"
 #include "cobalt/dom/performance_entry.h"
 #include "cobalt/dom/performance_mark.h"
 #include "cobalt/dom/performance_measure.h"
+#include "cobalt/web/dom_exception.h"
 
 namespace cobalt {
 namespace dom {
@@ -60,7 +60,7 @@ DOMHighResTimeStamp ConvertNameToTimestamp(
   // Note that we only support navigationStart in the PerformanceTiming
   // interface. We return 0.0 instead of the result of subtracting
   // startTime from endTime.
-  dom::DOMException::Raise(dom::DOMException::kSyntaxErr,
+  web::DOMException::Raise(web::DOMException::kSyntaxErr,
                            "Cannot convert a name that is not a public "
                            "attribute of PerformanceTiming to a timestamp",
                            exception_state);
@@ -71,7 +71,7 @@ DOMHighResTimeStamp ConvertNameToTimestamp(
 
 Performance::Performance(script::EnvironmentSettings* settings,
                          const scoped_refptr<base::BasicClock>& clock)
-    : EventTarget(settings),
+    : web::EventTarget(settings),
       time_origin_(base::TimeTicks::Now()),
       tick_clock_(base::DefaultTickClock::GetInstance()),
       timing_(new PerformanceTiming(
@@ -153,8 +153,8 @@ void Performance::Mark(const std::string& mark_name,
   // as a read only attribute in the PerformanceTiming interface, throw a
   // SyntaxError.
   if (IsNamePerformanceTimingAttribute(mark_name)) {
-    dom::DOMException::Raise(
-        dom::DOMException::kSyntaxErr,
+    web::DOMException::Raise(
+        web::DOMException::kSyntaxErr,
         "Cannot create a mark with the same name as a read-only attribute in "
         "the PerformanceTiming interface",
         exception_state);
@@ -226,8 +226,8 @@ void Performance::Measure(const std::string& measure_name,
     // entry is found, throw a SyntaxError.
     PerformanceEntryList list = GetEntriesByName(end_mark, "mark");
     if (list.empty()) {
-      dom::DOMException::Raise(
-          dom::DOMException::kSyntaxErr,
+      web::DOMException::Raise(
+          web::DOMException::kSyntaxErr,
           "Cannot create measure; no mark found with name: " + end_mark + ".",
           exception_state);
       return;
@@ -252,8 +252,8 @@ void Performance::Measure(const std::string& measure_name,
     // matching entry is found, throw a SyntaxError.
     PerformanceEntryList list = GetEntriesByName(start_mark, "mark");
     if (list.empty()) {
-      dom::DOMException::Raise(
-          dom::DOMException::kSyntaxErr,
+      web::DOMException::Raise(
+          web::DOMException::kSyntaxErr,
           "Cannot create measure; no mark found with name: " + start_mark + ".",
           exception_state);
       return;
@@ -441,12 +441,12 @@ void Performance::CopySecondaryBuffer() {
 }
 
 void Performance::set_onresourcetimingbufferfull(
-    const EventTarget::EventListenerScriptValue& event_listener) {
+    const web::EventTarget::EventListenerScriptValue& event_listener) {
   SetAttributeEventListener(base::Tokens::resourcetimingbufferfull(),
                             event_listener);
 }
 
-const EventTarget::EventListenerScriptValue*
+const web::EventTarget::EventListenerScriptValue*
 Performance::onresourcetimingbufferfull() const {
   return GetAttributeEventListener(base::Tokens::resourcetimingbufferfull());
 }
@@ -463,7 +463,7 @@ void Performance::FireResourceTimingBufferFullEvent() {
     // 1.2 If can add resource timing entry returns false, then fire an event
     // named resourcetimingbufferfull at the Performance object.
     if (!CanAddResourceTimingEntry()) {
-      DispatchEvent(new Event(base::Tokens::resourcetimingbufferfull()));
+      DispatchEvent(new web::Event(base::Tokens::resourcetimingbufferfull()));
     }
     // 1.3 Run copy secondary buffer.
     CopySecondaryBuffer();

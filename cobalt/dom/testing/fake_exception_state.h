@@ -18,7 +18,7 @@
 #include "cobalt/script/exception_state.h"
 
 #include "base/memory/ref_counted.h"
-#include "cobalt/dom/dom_exception.h"
+#include "cobalt/web/dom_exception.h"
 
 namespace cobalt {
 namespace dom {
@@ -29,20 +29,20 @@ class FakeExceptionState : public script::ExceptionState {
   void SetException(
       const scoped_refptr<script::ScriptException>& exception) override {
     dom_exception_ = base::WrapRefCounted(
-        base::polymorphic_downcast<dom::DOMException*>(exception.get()));
+        base::polymorphic_downcast<web::DOMException*>(exception.get()));
   }
   void SetSimpleExceptionVA(script::SimpleExceptionType type,
-                            const char* format, va_list & args) override {
+                            const char* format, va_list& args) override {
     // no-op
   }
-  dom::DOMException::ExceptionCode GetExceptionCode() {
-    return dom_exception_ ? static_cast<dom::DOMException::ExceptionCode>(
+  web::DOMException::ExceptionCode GetExceptionCode() {
+    return dom_exception_ ? static_cast<web::DOMException::ExceptionCode>(
                                 dom_exception_->code())
-                          : dom::DOMException::kNone;
+                          : web::DOMException::kNone;
   }
 
  private:
-  scoped_refptr<dom::DOMException> dom_exception_;
+  scoped_refptr<web::DOMException> dom_exception_;
 };
 
 }  // namespace testing

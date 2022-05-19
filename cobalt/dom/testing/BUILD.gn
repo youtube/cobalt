@@ -17,15 +17,11 @@ static_library("dom_testing") {
   has_pedantic_warnings = true
 
   sources = [
-    "gtest_workarounds.h",
     "html_collection_testing.h",
-    "mock_event_listener.h",
     "mock_layout_boxes.h",
     "stub_css_parser.cc",
     "stub_css_parser.h",
     "stub_environment_settings.h",
-    "stub_script_runner.cc",
-    "stub_script_runner.h",
     "stub_window.h",
   ]
 
@@ -38,13 +34,16 @@ static_library("dom_testing") {
     "//cobalt/css_parser",
     "//cobalt/cssom",
     "//cobalt/dom",
-    "//cobalt/dom:dom_exception",
     "//cobalt/dom_parser",
     "//cobalt/loader",
     "//cobalt/script",
     "//cobalt/web",
+    "//cobalt/web:dom_exception",
+    "//cobalt/web/testing:web_testing",
     "//testing/gmock",
     "//testing/gtest",
     "//url",
   ]
+
+  public_deps = [ "//cobalt/web/testing:web_testing" ]
 }

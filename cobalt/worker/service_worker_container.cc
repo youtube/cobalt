@@ -20,10 +20,10 @@
 #include "base/logging.h"
 #include "base/optional.h"
 #include "base/trace_event/trace_event.h"
-#include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/script/promise.h"
 #include "cobalt/web/context.h"
+#include "cobalt/web/dom_exception.h"
 #include "cobalt/web/environment_settings.h"
 #include "cobalt/worker/registration_options.h"
 #include "cobalt/worker/service_worker_update_via_cache.h"
@@ -35,7 +35,7 @@ namespace worker {
 
 ServiceWorkerContainer::ServiceWorkerContainer(
     script::EnvironmentSettings* settings)
-    : dom::EventTarget(settings) {}
+    : web::EventTarget(settings) {}
 
 // TODO: Implement the service worker ready algorithm. b/219972966
 script::Handle<script::PromiseWrappable> ServiceWorkerContainer::ready() {
@@ -186,10 +186,10 @@ void ServiceWorkerContainer::GetRegistrationTask(
   DCHECK(!client_url.has_ref() || client_url.ref().empty());
 
   // 6. If the origin of clientURL is not client’s origin, return a promise
-  //    rejected with a "SecurityError" DOMException.
+  //    rejected with a "SecurityError" web::DOMException.
   if (client_url.GetOrigin() != base_url.GetOrigin()) {
     promise_reference->value().Reject(
-        new dom::DOMException(dom::DOMException::kSecurityErr));
+        new web::DOMException(web::DOMException::kSecurityErr));
     return;
   }
 

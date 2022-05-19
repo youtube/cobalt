@@ -20,8 +20,8 @@
 #include "base/callback.h"
 #include "cobalt/csp/content_security_policy.h"
 #include "cobalt/dom/navigation_type.h"
-#include "cobalt/dom/url_utils.h"
 #include "cobalt/script/wrappable.h"
+#include "cobalt/web/url_utils.h"
 #include "url/gurl.h"
 
 namespace cobalt {
@@ -101,7 +101,7 @@ class Location : public script::Wrappable {
  private:
   ~Location() override {}
 
-  URLUtils url_utils_;
+  web::URLUtils url_utils_;
   base::Closure hashchange_callback_;
   base::Callback<void(const GURL&)> navigation_callback_;
   csp::SecurityCallback security_callback_;

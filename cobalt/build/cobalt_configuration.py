@@ -166,6 +166,7 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
         'renderer_test',
         'storage_test',
         'text_encoding_test',
+        'web_test',
         'web_animations_test',
         'webdriver_test',
         'websocket_test',

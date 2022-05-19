@@ -17,11 +17,11 @@
 #include <memory>
 
 #include "base/message_loop/message_loop.h"
-#include "cobalt/dom/event.h"
-#include "cobalt/dom/event_target.h"
-#include "cobalt/dom/testing/mock_event_listener.h"
 #include "cobalt/dom/testing/stub_environment_settings.h"
 #include "cobalt/script/testing/fake_script_value.h"
+#include "cobalt/web/event.h"
+#include "cobalt/web/event_target.h"
+#include "cobalt/web/testing/mock_event_listener.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 using ::testing::_;
@@ -33,19 +33,19 @@ namespace cobalt {
 namespace dom {
 
 using ::cobalt::script::testing::FakeScriptValue;
-using testing::MockEventListener;
+using web::testing::MockEventListener;
 
 class EventQueueTest : public ::testing::Test {
  protected:
   void ExpectHandleEventCallWithEventAndTarget(
-      const MockEventListener* listener, const scoped_refptr<Event>& event,
-      const scoped_refptr<EventTarget>& target) {
+      const MockEventListener* listener, const scoped_refptr<web::Event>& event,
+      const scoped_refptr<web::EventTarget>& target) {
     // Note that we must pass the raw pointer to avoid reference counting issue.
     EXPECT_CALL(
         *listener,
         HandleEvent(_,
-                    AllOf(Eq(event.get()),
-                          Pointee(Property(&Event::target, Eq(target.get())))),
+                    AllOf(Eq(event.get()), Pointee(Property(&web::Event::target,
+                                                            Eq(target.get())))),
                     _))
         .RetiresOnSaturation();
   }
@@ -54,15 +54,16 @@ class EventQueueTest : public ::testing::Test {
 };
 
 TEST_F(EventQueueTest, EventWithoutTargetTest) {
-  scoped_refptr<EventTarget> event_target =
-      new EventTarget(&environment_settings_);
-  scoped_refptr<Event> event = new Event(base::Token("event"));
+  scoped_refptr<web::EventTarget> event_target =
+      new web::EventTarget(&environment_settings_);
+  scoped_refptr<web::Event> event = new web::Event(base::Token("event"));
   std::unique_ptr<MockEventListener> event_listener =
       MockEventListener::Create();
   EventQueue event_queue(event_target.get());
 
   event_target->AddEventListener(
-      "event", FakeScriptValue<EventListener>(event_listener.get()), false);
+      "event", FakeScriptValue<web::EventListener>(event_listener.get()),
+      false);
   ExpectHandleEventCallWithEventAndTarget(event_listener.get(), event,
                                           event_target);
 
@@ -71,16 +72,17 @@ TEST_F(EventQueueTest, EventWithoutTargetTest) {
 }
 
 TEST_F(EventQueueTest, EventWithTargetTest) {
-  scoped_refptr<EventTarget> event_target =
-      new EventTarget(&environment_settings_);
-  scoped_refptr<Event> event = new Event(base::Token("event"));
+  scoped_refptr<web::EventTarget> event_target =
+      new web::EventTarget(&environment_settings_);
+  scoped_refptr<web::Event> event = new web::Event(base::Token("event"));
   std::unique_ptr<MockEventListener> event_listener =
       MockEventListener::Create();
   EventQueue event_queue(event_target.get());
 
   event->set_target(event_target);
   event_target->AddEventListener(
-      "event", FakeScriptValue<EventListener>(event_listener.get()), false);
+      "event", FakeScriptValue<web::EventListener>(event_listener.get()),
+      false);
   ExpectHandleEventCallWithEventAndTarget(event_listener.get(), event,
                                           event_target);
 
@@ -89,16 +91,17 @@ TEST_F(EventQueueTest, EventWithTargetTest) {
 }
 
 TEST_F(EventQueueTest, CancelAllEventsTest) {
-  scoped_refptr<EventTarget> event_target =
-      new EventTarget(&environment_settings_);
-  scoped_refptr<Event> event = new Event(base::Token("event"));
+  scoped_refptr<web::EventTarget> event_target =
+      new web::EventTarget(&environment_settings_);
+  scoped_refptr<web::Event> event = new web::Event(base::Token("event"));
   std::unique_ptr<MockEventListener> event_listener =
       MockEventListener::Create();
   EventQueue event_queue(event_target.get());
 
   event->set_target(event_target);
   event_target->AddEventListener(
-      "event", FakeScriptValue<EventListener>(event_listener.get()), false);
+      "event", FakeScriptValue<web::EventListener>(event_listener.get()),
+      false);
   event_listener->ExpectNoHandleEventCall();
 
   event_queue.Enqueue(event);
@@ -110,11 +113,11 @@ TEST_F(EventQueueTest, CancelAllEventsTest) {
 // correctness of event propagation like capturing or bubbling are tested in
 // the unit tests of EventTarget.
 TEST_F(EventQueueTest, EventWithDifferentTargetTest) {
-  scoped_refptr<EventTarget> event_target_1 =
-      new EventTarget(&environment_settings_);
-  scoped_refptr<EventTarget> event_target_2 =
-      new EventTarget(&environment_settings_);
-  scoped_refptr<Event> event = new Event(base::Token("event"));
+  scoped_refptr<web::EventTarget> event_target_1 =
+      new web::EventTarget(&environment_settings_);
+  scoped_refptr<web::EventTarget> event_target_2 =
+      new web::EventTarget(&environment_settings_);
+  scoped_refptr<web::Event> event = new web::Event(base::Token("event"));
   std::unique_ptr<MockEventListener> event_listener =
       MockEventListener::Create();
 
@@ -122,7 +125,8 @@ TEST_F(EventQueueTest, EventWithDifferentTargetTest) {
 
   event->set_target(event_target_2);
   event_target_2->AddEventListener(
-      "event", FakeScriptValue<EventListener>(event_listener.get()), false);
+      "event", FakeScriptValue<web::EventListener>(event_listener.get()),
+      false);
   ExpectHandleEventCallWithEventAndTarget(event_listener.get(), event,
                                           event_target_2);
 

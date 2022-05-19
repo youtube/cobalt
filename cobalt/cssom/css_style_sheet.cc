@@ -25,7 +25,7 @@
 #include "cobalt/cssom/css_style_rule.h"
 #include "cobalt/cssom/style_sheet_list.h"
 #include "cobalt/cssom/viewport_size.h"
-#include "cobalt/dom/dom_exception.h"
+#include "cobalt/web/dom_exception.h"
 
 namespace cobalt {
 namespace cssom {
@@ -87,9 +87,9 @@ CSSStyleSheet::CSSStyleSheet(CSSParser* css_parser)
 const scoped_refptr<CSSRuleList>& CSSStyleSheet::css_rules(
     script::ExceptionState* exception_state) {
   if (!origin_clean_) {
-    dom::DOMException::Raise(
-        dom::DOMException::kSecurityErr,
-        "Website trys to access css rules from a CSSStyleSheet "
+    web::DOMException::Raise(
+        web::DOMException::kSecurityErr,
+        "Website tries to access css rules from a CSSStyleSheet "
         "fetched from another origin.",
         exception_state);
     DCHECK(!null_css_rule_list_);
@@ -111,9 +111,9 @@ unsigned int CSSStyleSheet::InsertRule(
     const std::string& rule, unsigned int index,
     script::ExceptionState* exception_state) {
   if (!origin_clean_) {
-    dom::DOMException::Raise(
-        dom::DOMException::kSecurityErr,
-        "Website trys to insert css rule to a CSSStyleSheet fetched"
+    web::DOMException::Raise(
+        web::DOMException::kSecurityErr,
+        "Website tries to insert css rule to a CSSStyleSheet fetched"
         "from another origin.",
         exception_state);
     return 0;

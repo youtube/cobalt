@@ -20,7 +20,6 @@
 #include "cobalt/base/tokens.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/dom/document.h"
-#include "cobalt/dom/event.h"
 #include "cobalt/dom/html_element.h"
 #include "cobalt/dom/html_html_element.h"
 #include "cobalt/dom/lottie_player.h"
@@ -33,6 +32,7 @@
 #include "cobalt/dom/wheel_event.h"
 #include "cobalt/math/vector2d.h"
 #include "cobalt/math/vector2d_f.h"
+#include "cobalt/web/event.h"
 
 namespace cobalt {
 namespace layout {
@@ -188,8 +188,8 @@ void SendStateChangeLeaveEvents(
                element = element->parent_element()) {
             DCHECK(element->AsHTMLElement()->IsDesignated());
             element->DispatchEvent(new dom::PointerEvent(
-                base::Tokens::pointerleave(), dom::Event::kNotBubbles,
-                dom::Event::kNotCancelable, view, *event_init));
+                base::Tokens::pointerleave(), web::Event::kNotBubbles,
+                web::Event::kNotCancelable, view, *event_init));
           }
         }
       }
@@ -205,8 +205,8 @@ void SendStateChangeLeaveEvents(
              element = element->parent_element()) {
           DCHECK(element->AsHTMLElement()->IsDesignated());
           element->DispatchEvent(new dom::MouseEvent(
-              base::Tokens::mouseleave(), dom::Event::kNotBubbles,
-              dom::Event::kNotCancelable, view, *event_init));
+              base::Tokens::mouseleave(), web::Event::kNotBubbles,
+              web::Event::kNotCancelable, view, *event_init));
         }
 
         if (!target_element ||
@@ -242,8 +242,8 @@ void SendStateChangeEnterEvents(
              element && element != nearest_common_ancestor;
              element = element->parent_element()) {
           element->DispatchEvent(new dom::PointerEvent(
-              base::Tokens::pointerenter(), dom::Event::kNotBubbles,
-              dom::Event::kNotCancelable, view, *event_init));
+              base::Tokens::pointerenter(), web::Event::kNotBubbles,
+              web::Event::kNotCancelable, view, *event_init));
         }
       }
 
@@ -255,8 +255,8 @@ void SendStateChangeEnterEvents(
            element && element != nearest_common_ancestor;
            element = element->parent_element()) {
         element->DispatchEvent(new dom::MouseEvent(
-            base::Tokens::mouseenter(), dom::Event::kNotBubbles,
-            dom::Event::kNotCancelable, view, *event_init));
+            base::Tokens::mouseenter(), web::Event::kNotBubbles,
+            web::Event::kNotCancelable, view, *event_init));
       }
     }
   }
@@ -264,7 +264,7 @@ void SendStateChangeEnterEvents(
 
 void SendCompatibilityMappingMouseEvent(
     const scoped_refptr<dom::HTMLElement>& target_element,
-    const scoped_refptr<dom::Event>& event,
+    const scoped_refptr<web::Event>& event,
     const dom::PointerEvent* pointer_event,
     const dom::PointerEventInit& event_init,
     std::set<std::string>* mouse_event_prevent_flags) {
@@ -343,7 +343,7 @@ void InitializePointerEventInitFromEvent(
 }  // namespace
 
 void TopmostEventTarget::MaybeSendPointerEvents(
-    const scoped_refptr<dom::Event>& event) {
+    const scoped_refptr<web::Event>& event) {
   TRACE_EVENT0("cobalt::layout",
                "TopmostEventTarget::MaybeSendPointerEvents()");
 

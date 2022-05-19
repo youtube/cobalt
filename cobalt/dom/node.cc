@@ -27,7 +27,6 @@
 #include "cobalt/dom/comment.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/document_type.h"
-#include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/element.h"
 #include "cobalt/dom/global_stats.h"
@@ -40,6 +39,7 @@
 #include "cobalt/dom/rule_matching.h"
 #include "cobalt/dom/text.h"
 #include "cobalt/dom/window.h"
+#include "cobalt/web/dom_exception.h"
 #if defined(STARBOARD)
 #include "starboard/configuration.h"
 #if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
@@ -53,7 +53,7 @@ namespace dom {
 
 // Diagram for DispatchEvent:
 //  https://www.w3.org/TR/DOM-Level-3-Events/#event-flow
-bool Node::DispatchEvent(const scoped_refptr<Event>& event) {
+bool Node::DispatchEvent(const scoped_refptr<web::Event>& event) {
   DCHECK(event);
   DCHECK(!event->IsBeingDispatched());
   DCHECK(event->initialized_flag());
@@ -90,7 +90,7 @@ bool Node::DispatchEvent(const scoped_refptr<Event>& event) {
   // The capture phase: The event object propagates through the target's
   // ancestors from the Window to the target's parent. This phase is also known
   // as the capturing phase.
-  event->set_event_phase(Event::kCapturingPhase);
+  event->set_event_phase(web::Event::kCapturingPhase);
   if (window) {
     window->FireEventOnListeners(event);
   }
@@ -104,7 +104,7 @@ bool Node::DispatchEvent(const scoped_refptr<Event>& event) {
   if (!event->propagation_stopped()) {
     // The target phase: The event object arrives at the event object's event
     // target. This phase is also known as the at-target phase.
-    event->set_event_phase(Event::kAtTarget);
+    event->set_event_phase(web::Event::kAtTarget);
     FireEventOnListeners(event);
   }
 
@@ -115,7 +115,7 @@ bool Node::DispatchEvent(const scoped_refptr<Event>& event) {
       // The bubble phase: The event object propagates through the target's
       // ancestors in reverse order, starting with the target's parent and
       // ending with the Window. This phase is also known as the bubbling phase.
-      event->set_event_phase(Event::kBubblingPhase);
+      event->set_event_phase(web::Event::kBubblingPhase);
       for (Ancestors::iterator iter = ancestors.begin();
            iter != ancestors.end() && !event->propagation_stopped(); ++iter) {
         (*iter)->FireEventOnListeners(event);
@@ -126,7 +126,7 @@ bool Node::DispatchEvent(const scoped_refptr<Event>& event) {
     }
   }
 
-  event->set_event_phase(Event::kNone);
+  event->set_event_phase(web::Event::kNone);
 
   if (window) {
     window->OnStopDispatchEvent(event);
@@ -446,7 +446,7 @@ const base::DebuggerHooks& Node::debugger_hooks() const {
 }
 
 void Node::TraceMembers(script::Tracer* tracer) {
-  EventTarget::TraceMembers(tracer);
+  web::EventTarget::TraceMembers(tracer);
 
   tracer->Trace(node_document_);
   tracer->Trace(parent_);
@@ -462,7 +462,7 @@ Node::Node(Document* document)
     : Node(document->html_element_context(), document) {}
 
 Node::Node(HTMLElementContext* html_element_context, Document* document)
-    : EventTarget(html_element_context->environment_settings()),
+    : web::EventTarget(html_element_context->environment_settings()),
       node_document_(base::AsWeakPtr(document)),
       parent_(NULL),
       previous_sibling_(NULL),

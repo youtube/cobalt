@@ -18,14 +18,14 @@
 #include <string>
 
 #include "base/optional.h"
-#include "cobalt/dom/event.h"
 #include "cobalt/script/wrappable.h"
+#include "cobalt/web/event.h"
 
 namespace cobalt {
 namespace dom {
 class Storage;
 
-class StorageEvent : public Event {
+class StorageEvent : public web::Event {
  public:
   StorageEvent();
   explicit StorageEvent(const std::string& type);

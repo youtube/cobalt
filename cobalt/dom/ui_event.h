@@ -18,10 +18,10 @@
 #include <string>
 
 #include "cobalt/dom/document.h"
-#include "cobalt/dom/event.h"
 #include "cobalt/dom/ui_event_init.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/script/wrappable.h"
+#include "cobalt/web/event.h"
 
 namespace cobalt {
 namespace dom {
@@ -29,7 +29,7 @@ namespace dom {
 // The UIEvent provides specific contextual information associated with User
 // Interface events.
 //   https://www.w3.org/TR/2016/WD-uievents-20160804/#events-uievents
-class UIEvent : public Event {
+class UIEvent : public web::Event {
  public:
   explicit UIEvent(const std::string& type);
   UIEvent(const std::string& type, const UIEventInit& init_dict);

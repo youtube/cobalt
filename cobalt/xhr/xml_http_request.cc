@@ -27,9 +27,7 @@
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/base/source_location.h"
 #include "cobalt/base/tokens.h"
-#include "cobalt/dom/csp_delegate.h"
 #include "cobalt/dom/dom_settings.h"
-#include "cobalt/dom/global_stats.h"
 #include "cobalt/dom/performance.h"
 #include "cobalt/dom/progress_event.h"
 #include "cobalt/dom/window.h"
@@ -41,7 +39,9 @@
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/web/context.h"
+#include "cobalt/web/csp_delegate.h"
 #include "cobalt/web/environment_settings.h"
+#include "cobalt/xhr/global_stats.h"
 #include "cobalt/xhr/xhr_modify_headers.h"
 #include "nb/memory_scope.h"
 #include "net/http/http_util.h"
@@ -49,7 +49,7 @@
 namespace cobalt {
 namespace xhr {
 
-using dom::DOMException;
+using web::DOMException;
 
 namespace {
 
@@ -192,7 +192,7 @@ XMLHttpRequest::XMLHttpRequest(script::EnvironmentSettings* settings)
       redirect_times_(0),
       is_data_url_(false) {
   DCHECK(settings_);
-  dom::GlobalStats::GetInstance()->Add(this);
+  xhr::GlobalStats::GetInstance()->Add(this);
   xhr_id_ = ++s_xhr_sequence_num_;
 }
 
@@ -231,31 +231,32 @@ void XMLHttpRequest::Open(const std::string& method, const std::string& url,
 
   if (!async) {
     DLOG(ERROR) << "synchronous XHR is not supported";
-    DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
+    web::DOMException::Raise(web::DOMException::kInvalidStateErr,
+                             exception_state);
     return;
   }
 
   base_url_ = settings_->base_url();
 
   if (IsForbiddenMethod(method)) {
-    DOMException::Raise(DOMException::kSecurityErr, exception_state);
+    web::DOMException::Raise(web::DOMException::kSecurityErr, exception_state);
     return;
   }
 
   if (!MethodNameToRequestType(method, &method_)) {
-    DOMException::Raise(DOMException::kSyntaxErr, exception_state);
+    web::DOMException::Raise(web::DOMException::kSyntaxErr, exception_state);
     return;
   }
 
   request_url_ = base_url_.Resolve(url);
   if (!request_url_.is_valid()) {
-    DOMException::Raise(DOMException::kSyntaxErr, exception_state);
+    web::DOMException::Raise(web::DOMException::kSyntaxErr, exception_state);
     return;
   }
 
-  dom::CspDelegate* csp = csp_delegate();
-  if (csp && !csp->CanLoad(dom::CspDelegate::kXhr, request_url_, false)) {
-    DOMException::Raise(DOMException::kSecurityErr, exception_state);
+  web::CspDelegate* csp = csp_delegate();
+  if (csp && !csp->CanLoad(web::CspDelegate::kXhr, request_url_, false)) {
+    web::DOMException::Raise(web::DOMException::kSecurityErr, exception_state);
     return;
   }
 
@@ -279,7 +280,8 @@ void XMLHttpRequest::SetRequestHeader(const std::string& header,
   TRACK_MEMORY_SCOPE("XHR");
   // https://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#dom-xmlhttprequest-setrequestheader
   if (state_ != kOpened || sent_) {
-    DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
+    web::DOMException::Raise(web::DOMException::kInvalidStateErr,
+                             exception_state);
     return;
   }
 
@@ -310,7 +312,8 @@ void XMLHttpRequest::OverrideMimeType(const std::string& override_mime,
   // https://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#dom-xmlhttprequest-overridemimetype
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   if (state_ == kLoading || state_ == kDone) {
-    DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
+    web::DOMException::Raise(web::DOMException::kInvalidStateErr,
+                             exception_state);
     return;
   }
 
@@ -323,7 +326,7 @@ void XMLHttpRequest::OverrideMimeType(const std::string& override_mime,
   net::HttpUtil::ParseContentType(override_mime, &mime_type, &charset,
                                   &had_charset, NULL);
   if (!mime_type.length()) {
-    DOMException::Raise(DOMException::kSyntaxErr, exception_state);
+    web::DOMException::Raise(web::DOMException::kSyntaxErr, exception_state);
     return;
   }
   mime_type_override_ = mime_type;
@@ -340,12 +343,14 @@ void XMLHttpRequest::Send(const base::Optional<RequestBodyType>& request_body,
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   // Step 1
   if (state_ != kOpened) {
-    DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
+    web::DOMException::Raise(web::DOMException::kInvalidStateErr,
+                             exception_state);
     return;
   }
   // Step 2
   if (sent_) {
-    DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
+    web::DOMException::Raise(web::DOMException::kInvalidStateErr,
+                             exception_state);
     return;
   }
 
@@ -484,7 +489,7 @@ const std::string& XMLHttpRequest::response_text(
     script::ExceptionState* exception_state) {
   // https://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#the-responsetext-attribute
   if (response_type_ != kDefault && response_type_ != kText) {
-    dom::DOMException::Raise(dom::DOMException::kInvalidStateErr,
+    web::DOMException::Raise(web::DOMException::kInvalidStateErr,
                              exception_state);
   }
   if (error_ || (state_ != kLoading && state_ != kDone)) {
@@ -508,7 +513,7 @@ scoped_refptr<dom::Document> XMLHttpRequest::response_xml(
   // 1. If responseType is not the empty string or "document", throw an
   // "InvalidStateError" exception.
   if (response_type_ != kDefault && response_type_ != kDocument) {
-    dom::DOMException::Raise(dom::DOMException::kInvalidStateErr,
+    web::DOMException::Raise(web::DOMException::kInvalidStateErr,
                              exception_state);
     return NULL;
   }
@@ -573,7 +578,7 @@ std::string XMLHttpRequest::status_text() {
 void XMLHttpRequest::set_response_type(
     const std::string& response_type, script::ExceptionState* exception_state) {
   if (state_ == kLoading || state_ == kDone) {
-    dom::DOMException::Raise(dom::DOMException::kInvalidStateErr,
+    web::DOMException::Raise(web::DOMException::kInvalidStateErr,
                              exception_state);
     return;
   }
@@ -618,7 +623,8 @@ void XMLHttpRequest::set_with_credentials(
     bool with_credentials, script::ExceptionState* exception_state) {
   // https://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#the-withcredentials-attribute
   if ((state_ != kUnsent && state_ != kOpened) || sent_) {
-    DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
+    web::DOMException::Raise(web::DOMException::kInvalidStateErr,
+                             exception_state);
     return;
   }
   with_credentials_ = with_credentials;
@@ -894,7 +900,7 @@ void XMLHttpRequest::OnRedirect(const net::HttpResponseHeaders& headers) {
     return;
   }
   // This is a redirect. Re-check the CSP.
-  if (!csp_delegate()->CanLoad(dom::CspDelegate::kXhr, new_url,
+  if (!csp_delegate()->CanLoad(web::CspDelegate::kXhr, new_url,
                                true /* is_redirect */)) {
     HandleRequestError(kNetworkError);
     return;
@@ -940,10 +946,10 @@ void XMLHttpRequest::TraceMembers(script::Tracer* tracer) {
 
 XMLHttpRequest::~XMLHttpRequest() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  dom::GlobalStats::GetInstance()->Remove(this);
+  xhr::GlobalStats::GetInstance()->Remove(this);
 }
 
-dom::CspDelegate* XMLHttpRequest::csp_delegate() const {
+web::CspDelegate* XMLHttpRequest::csp_delegate() const {
   DCHECK(settings_);
   if (settings_->window() && settings_->window()->document()) {
     return settings_->window()->document()->csp_delegate();
@@ -1024,7 +1030,7 @@ void XMLHttpRequest::ChangeState(XMLHttpRequest::State new_state) {
 
   state_ = new_state;
   if (state_ != kUnsent) {
-    DispatchEvent(new dom::Event(base::Tokens::readystatechange()));
+    DispatchEvent(new web::Event(base::Tokens::readystatechange()));
   }
 }
 

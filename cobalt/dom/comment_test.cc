@@ -18,8 +18,8 @@
 #include "cobalt/dom/element.h"
 #include "cobalt/dom/global_stats.h"
 #include "cobalt/dom/html_element_context.h"
-#include "cobalt/dom/testing/gtest_workarounds.h"
 #include "cobalt/dom/text.h"
+#include "cobalt/web/testing/gtest_workarounds.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {

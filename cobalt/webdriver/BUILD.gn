@@ -145,6 +145,7 @@ target(gtest_target_type, "webdriver_test") {
     "//cobalt/dom/testing:dom_testing",
     "//cobalt/script",
     "//cobalt/test:run_all_unittests",
+    "//cobalt/web/testing:web_testing",
     "//testing/gmock",
     "//testing/gtest",
     "//third_party/devtools:devtools_all_files",

@@ -18,9 +18,9 @@
 #include <string>
 
 #include "cobalt/base/token.h"
-#include "cobalt/dom/event_target.h"
 #include "cobalt/dom/mouse_event_init.h"
 #include "cobalt/dom/ui_event_with_key_state.h"
+#include "cobalt/web/event_target.h"
 
 namespace cobalt {
 namespace dom {
@@ -46,14 +46,14 @@ class MouseEvent : public UIEventWithKeyState {
                       int32 screen_x, int32 screen_y, int32 client_x,
                       int32 client_y, bool ctrl_key, bool alt_key,
                       bool shift_key, bool meta_key, uint16 button,
-                      const scoped_refptr<EventTarget>& related_target);
+                      const scoped_refptr<web::EventTarget>& related_target);
 
   void InitMouseEvent(const std::string& type, bool bubbles, bool cancelable,
                       const scoped_refptr<Window>& view, int32 detail,
                       int32 screen_x, int32 screen_y, int32 client_x,
                       int32 client_y, const std::string& modifierslist,
                       uint16 button,
-                      const scoped_refptr<EventTarget>& related_target);
+                      const scoped_refptr<web::EventTarget>& related_target);
 
   float screen_x() const { return screen_x_; }
   float screen_y() const { return screen_y_; }
@@ -74,11 +74,11 @@ class MouseEvent : public UIEventWithKeyState {
   int16_t button() const { return button_; }
   uint16_t buttons() const { return buttons_; }
 
-  void set_related_target(const scoped_refptr<EventTarget>& target) {
+  void set_related_target(const scoped_refptr<web::EventTarget>& target) {
     related_target_ = target;
   }
 
-  const scoped_refptr<EventTarget>& related_target() const {
+  const scoped_refptr<web::EventTarget>& related_target() const {
     return related_target_;
   }
 
@@ -101,7 +101,7 @@ class MouseEvent : public UIEventWithKeyState {
   int16_t button_;
   uint16_t buttons_;
 
-  scoped_refptr<EventTarget> related_target_;
+  scoped_refptr<web::EventTarget> related_target_;
 };
 
 }  // namespace dom

@@ -21,12 +21,12 @@
 #include "base/message_loop/message_loop.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
-#include "cobalt/dom/csp_delegate.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/script/global_environment.h"
+#include "cobalt/web/csp_delegate.h"
 #include "url/gurl.h"
 
 namespace cobalt {
@@ -239,8 +239,8 @@ void HTMLImageElement::GetLoadTimingInfoAndCreateResourceTiming() {
   const GURL selected_source = base_url.Resolve(src);
 
   html_element_context()->performance()->CreatePerformanceResourceTiming(
-      cached_image_loaded_callback_handler_->GetLoadTimingInfo(),
-      kTagName, selected_source.spec());
+      cached_image_loaded_callback_handler_->GetLoadTimingInfo(), kTagName,
+      selected_source.spec());
 }
 
 }  // namespace dom

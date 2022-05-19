@@ -25,10 +25,10 @@
 #include "cobalt/audio/audio_node_channel_interpretation.h"
 #include "cobalt/audio/audio_node_input.h"
 #include "cobalt/audio/audio_node_output.h"
-#include "cobalt/dom/dom_exception.h"
-#include "cobalt/dom/event_target.h"
 #include "cobalt/media/base/audio_bus.h"
 #include "cobalt/script/environment_settings.h"
+#include "cobalt/web/dom_exception.h"
+#include "cobalt/web/event_target.h"
 
 namespace cobalt {
 namespace audio {
@@ -48,7 +48,7 @@ class AudioContext;
 // process its inputs (if it has any), and generate audio for its outputs
 // (if it has any).
 //   https://www.w3.org/TR/webaudio/#AudioNode-section
-class AudioNode : public dom::EventTarget {
+class AudioNode : public web::EventTarget {
   typedef media::AudioBus AudioBus;
 
  public:

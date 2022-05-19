@@ -23,9 +23,7 @@
 #include "base/gtest_prod_util.h"
 #include "base/optional.h"
 #include "base/timer/timer.h"
-#include "cobalt/dom/csp_delegate.h"
 #include "cobalt/dom/document.h"
-#include "cobalt/dom/dom_exception.h"
 #include "cobalt/loader/cors_preflight.h"
 #include "cobalt/loader/net_fetcher.h"
 #include "cobalt/script/array_buffer.h"
@@ -34,6 +32,8 @@
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/typed_arrays.h"
 #include "cobalt/script/union_type.h"
+#include "cobalt/web/csp_delegate.h"
+#include "cobalt/web/dom_exception.h"
 #include "cobalt/xhr/url_fetcher_buffer_writer.h"
 #include "cobalt/xhr/xml_http_request_event_target.h"
 #include "cobalt/xhr/xml_http_request_upload.h"
@@ -200,7 +200,7 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
 
   // Return the CSP delegate from the Settings object.
   // virtual for use by tests.
-  virtual dom::CspDelegate* csp_delegate() const;
+  virtual web::CspDelegate* csp_delegate() const;
 
  private:
   FRIEND_TEST_ALL_PREFIXES(XhrTest, GetResponseHeader);

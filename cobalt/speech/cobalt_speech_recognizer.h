@@ -57,7 +57,7 @@ class CobaltSpeechRecognizer : public SpeechRecognizer {
                          std::string error_message);
 
   // Callbacks from recognizer.
-  void OnRecognizerEvent(const scoped_refptr<dom::Event>& event);
+  void OnRecognizerEvent(const scoped_refptr<web::Event>& event);
 
   EventCallback event_callback_;
   std::unique_ptr<GoogleSpeechService> service_;

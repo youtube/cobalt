@@ -25,7 +25,6 @@
 #include "base/threading/thread_checker.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/dom/dom_settings.h"
-#include "cobalt/dom/event_target.h"
 #include "cobalt/media_capture/media_device_info.h"
 #include "cobalt/media_stream/media_stream_audio_source.h"
 #include "cobalt/media_stream/media_stream_constraints.h"
@@ -37,6 +36,7 @@
 #include "cobalt/script/wrappable.h"
 #include "cobalt/speech/microphone.h"
 #include "cobalt/speech/microphone_manager.h"
+#include "cobalt/web/event_target.h"
 
 namespace cobalt {
 namespace media_capture {
@@ -44,7 +44,7 @@ namespace media_capture {
 // The MediaDevices object is the entry point to the API used to examine and
 // get access to media devices available to the User Agent.
 //   https://www.w3.org/TR/mediacapture-streams/#mediadevices
-class MediaDevices : public dom::EventTarget {
+class MediaDevices : public web::EventTarget {
  public:
   using MediaInfoSequence = script::Sequence<scoped_refptr<script::Wrappable>>;
   using MediaInfoSequencePromise = script::Promise<MediaInfoSequence>;

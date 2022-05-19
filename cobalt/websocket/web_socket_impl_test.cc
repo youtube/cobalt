@@ -21,7 +21,6 @@
 #include "base/memory/ref_counted.h"
 #include "base/test/scoped_task_environment.h"
 #include "cobalt/base/polymorphic_downcast.h"
-#include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/testing/stub_environment_settings.h"
 #include "cobalt/dom/window.h"
@@ -29,7 +28,8 @@
 #include "cobalt/script/script_exception.h"
 #include "cobalt/script/testing/mock_exception_state.h"
 #include "cobalt/web/context.h"
-#include "cobalt/web/stub_web_context.h"
+#include "cobalt/web/dom_exception.h"
+#include "cobalt/web/testing/stub_web_context.h"
 #include "cobalt/websocket/mock_websocket_channel.h"
 #include "cobalt/websocket/web_socket.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -64,7 +64,7 @@ class WebSocketImplTest : public ::testing::Test {
   }
 
  protected:
-  WebSocketImplTest() : web_context_(new web::test::StubWebContext()) {
+  WebSocketImplTest() : web_context_(new web::testing::StubWebContext()) {
     web_context_->set_network_module(new network::NetworkModule());
     web_context_->setup_environment_settings(
         new dom::testing::StubEnvironmentSettings());
@@ -110,7 +110,7 @@ class WebSocketImplTest : public ::testing::Test {
 
   base::test::ScopedTaskEnvironment env_;
 
-  std::unique_ptr<web::test::StubWebContext> web_context_;
+  std::unique_ptr<web::testing::StubWebContext> web_context_;
   scoped_refptr<base::SingleThreadTaskRunner> network_task_runner_;
   scoped_refptr<WebSocketImpl> websocket_impl_;
   MockWebSocketChannel* mock_channel_;

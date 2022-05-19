@@ -16,8 +16,6 @@
 
 #include <memory>
 
-#include "cobalt/dom/dom_exception.h"
-#include "cobalt/dom/testing/mock_event_listener.h"
 #include "cobalt/dom/testing/stub_window.h"
 #include "cobalt/media_capture/media_recorder_options.h"
 #include "cobalt/media_stream/media_stream.h"
@@ -26,10 +24,13 @@
 #include "cobalt/media_stream/testing/mock_media_stream_audio_track.h"
 #include "cobalt/script/testing/fake_script_value.h"
 #include "cobalt/script/testing/mock_exception_state.h"
+#include "cobalt/web/dom_exception.h"
+#include "cobalt/web/event_listener.h"
+#include "cobalt/web/testing/mock_event_listener.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-using cobalt::dom::EventListener;
-using cobalt::dom::testing::MockEventListener;
+using cobalt::web::EventListener;
+using cobalt::web::testing::MockEventListener;
 using cobalt::script::testing::FakeScriptValue;
 using cobalt::script::testing::MockExceptionState;
 using ::testing::_;
@@ -142,9 +143,9 @@ TEST_F(MediaRecorderTest, ExceptionOnStartingTwiceWithoutStop) {
   media_recorder_->Start(&exception_state_);
 
   ASSERT_TRUE(exception.get());
-  dom::DOMException& dom_exception(
-      *base::polymorphic_downcast<dom::DOMException*>(exception.get()));
-  EXPECT_EQ(dom::DOMException::kInvalidStateErr, dom_exception.code());
+  web::DOMException& dom_exception(
+      *base::polymorphic_downcast<web::DOMException*>(exception.get()));
+  EXPECT_EQ(web::DOMException::kInvalidStateErr, dom_exception.code());
   EXPECT_EQ(dom_exception.message(), "Recording state must be inactive.");
   EXPECT_CALL(*audio_track_, Stop());
 }
@@ -161,19 +162,19 @@ TEST_F(MediaRecorderTest, ExceptionOnStoppingTwiceWithoutStartingInBetween) {
   media_recorder_->Stop(&exception_state_);
 
   ASSERT_TRUE(exception.get());
-  dom::DOMException& dom_exception(
-      *base::polymorphic_downcast<dom::DOMException*>(exception.get()));
-  EXPECT_EQ(dom::DOMException::kInvalidStateErr, dom_exception.code());
+  web::DOMException& dom_exception(
+      *base::polymorphic_downcast<web::DOMException*>(exception.get()));
+  EXPECT_EQ(web::DOMException::kInvalidStateErr, dom_exception.code());
   EXPECT_EQ(dom_exception.message(), "Recording state must NOT be inactive.");
 }
 
 TEST_F(MediaRecorderTest, RecordL16Frames) {
   std::unique_ptr<MockEventListener> listener = MockEventListener::Create();
-  FakeScriptValue<EventListener> script_object(listener.get());
+  FakeScriptValue<web::EventListener> script_object(listener.get());
   media_recorder_->set_ondataavailable(script_object);
   EXPECT_CALL(*listener,
               HandleEvent(Eq(media_recorder_),
-                          Pointee(Property(&dom::Event::type,
+                          Pointee(Property(&web::Event::type,
                                            base::Tokens::dataavailable())),
                           _));
 
@@ -206,11 +207,11 @@ TEST_F(MediaRecorderTest, RecordL16Frames) {
 
 TEST_F(MediaRecorderTest, DifferentThreadForAudioSource) {
   std::unique_ptr<MockEventListener> listener = MockEventListener::Create();
-  FakeScriptValue<EventListener> script_object(listener.get());
+  FakeScriptValue<web::EventListener> script_object(listener.get());
   media_recorder_->set_ondataavailable(script_object);
   EXPECT_CALL(*listener,
               HandleEvent(Eq(media_recorder_),
-                          Pointee(Property(&dom::Event::type,
+                          Pointee(Property(&web::Event::type,
                                            base::Tokens::dataavailable())),
                           _));
 
@@ -239,12 +240,12 @@ TEST_F(MediaRecorderTest, DifferentThreadForAudioSource) {
 
 TEST_F(MediaRecorderTest, StartEvent) {
   std::unique_ptr<MockEventListener> listener = MockEventListener::Create();
-  FakeScriptValue<EventListener> script_object(listener.get());
+  FakeScriptValue<web::EventListener> script_object(listener.get());
   media_recorder_->set_onstart(script_object);
   EXPECT_CALL(
       *listener,
       HandleEvent(Eq(media_recorder_),
-                  Pointee(Property(&dom::Event::type, base::Tokens::start())),
+                  Pointee(Property(&web::Event::type, base::Tokens::start())),
                   _));
 
   media_recorder_->Start(&exception_state_);
@@ -253,14 +254,14 @@ TEST_F(MediaRecorderTest, StartEvent) {
 
 TEST_F(MediaRecorderTest, StopEvent) {
   std::unique_ptr<MockEventListener> listener = MockEventListener::Create();
-  FakeScriptValue<EventListener> script_object(listener.get());
+  FakeScriptValue<web::EventListener> script_object(listener.get());
   media_recorder_->Start(&exception_state_);
   media_recorder_->set_onstop(script_object);
 
   EXPECT_CALL(
       *listener,
       HandleEvent(Eq(media_recorder_),
-                  Pointee(Property(&dom::Event::type, base::Tokens::stop())),
+                  Pointee(Property(&web::Event::type, base::Tokens::stop())),
                   _));
 
   EXPECT_CALL(*audio_track_, Stop());

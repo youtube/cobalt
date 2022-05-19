@@ -17,11 +17,11 @@
 
 #include <string>
 
-#include "cobalt/dom/event_target.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/wrappable.h"
 #include "cobalt/speech/speech_synthesis_error_event.h"
 #include "cobalt/speech/speech_synthesis_voice.h"
+#include "cobalt/web/event_target.h"
 
 namespace cobalt {
 namespace speech {
@@ -29,7 +29,7 @@ namespace speech {
 // The speech synthesis voice interface is the scripted web API for defining a
 // speech synthesis voice.
 //   https://dvcs.w3.org/hg/speech-api/raw-file/4f41ea1126bb/webspeechapi.html#speechsynthesisvoice
-class SpeechSynthesisUtterance : public dom::EventTarget {
+class SpeechSynthesisUtterance : public web::EventTarget {
  public:
   explicit SpeechSynthesisUtterance(script::EnvironmentSettings* settings);
   SpeechSynthesisUtterance(

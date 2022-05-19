@@ -15,8 +15,8 @@
 #include "cobalt/dom/dom_settings.h"
 
 #include "cobalt/dom/document.h"
-#include "cobalt/dom/url_utils.h"
 #include "cobalt/dom/window.h"
+#include "cobalt/web/url_utils.h"
 
 namespace cobalt {
 namespace dom {

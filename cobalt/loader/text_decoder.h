@@ -24,8 +24,8 @@
 #include "base/compiler_specific.h"
 #include "base/logging.h"
 #include "base/threading/thread_checker.h"
-#include "cobalt/dom/url_utils.h"
 #include "cobalt/loader/decoder.h"
+#include "cobalt/web/url_utils.h"
 
 namespace cobalt {
 namespace loader {

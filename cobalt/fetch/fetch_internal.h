@@ -18,11 +18,11 @@
 #include <string>
 
 #include "base/memory/ref_counted.h"
-#include "cobalt/dom/blob.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/exception_state.h"
 #include "cobalt/script/typed_arrays.h"
 #include "cobalt/script/wrappable.h"
+#include "cobalt/web/blob.h"
 
 namespace cobalt {
 namespace fetch {
@@ -50,7 +50,7 @@ class FetchInternal : public script::Wrappable {
   // Translate a dom Blob to ArrayBuffer.
   static script::Handle<script::ArrayBuffer> BlobToArrayBuffer(
       script::EnvironmentSettings* settings,
-      const scoped_refptr<dom::Blob>& blob);
+      const scoped_refptr<web::Blob>& blob);
 
   DEFINE_WRAPPABLE_TYPE(FetchInternal);
 };

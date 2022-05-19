@@ -24,7 +24,6 @@
 #include "cobalt/cssom/viewport_size.h"
 #include "cobalt/dom/global_stats.h"
 #include "cobalt/dom/local_storage_database.h"
-#include "cobalt/dom/testing/gtest_workarounds.h"
 #include "cobalt/dom/testing/stub_environment_settings.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/dom_parser/parser.h"
@@ -33,6 +32,7 @@
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/script/source_code.h"
+#include "cobalt/web/testing/gtest_workarounds.h"
 #include "starboard/window.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -217,7 +217,8 @@ class OnScreenKeyboardTest : public ::testing::Test {
             base::Bind(&MockErrorCallback::Run,
                        base::Unretained(&mock_error_callback_)),
             NULL, network_bridge::PostSender(), csp::kCSPRequired,
-            kCspEnforcementEnable, base::Closure() /* csp_policy_changed */,
+            web::kCspEnforcementEnable,
+            base::Closure() /* csp_policy_changed */,
             base::Closure() /* ran_animation_frame_callbacks */,
             dom::Window::CloseCallback() /* window_close */,
             base::Closure() /* window_minimize */,
@@ -235,7 +236,7 @@ class OnScreenKeyboardTest : public ::testing::Test {
     global_environment_->SetReportEvalCallback(base::Closure());
     global_environment_->SetReportErrorCallback(
         script::GlobalEnvironment::ReportErrorCallback());
-    window_->DispatchEvent(new dom::Event(base::Tokens::unload()));
+    window_->DispatchEvent(new web::Event(base::Tokens::unload()));
 
     // TODO: figure out how to destruct OSK before global environment.
     window_->ReleaseOnScreenKeyboard();

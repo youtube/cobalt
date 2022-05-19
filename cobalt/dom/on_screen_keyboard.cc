@@ -18,8 +18,8 @@
 
 #include "base/callback.h"
 #include "base/compiler_specific.h"
-#include "cobalt/dom/event_target.h"
 #include "cobalt/dom/window.h"
+#include "cobalt/web/event_target.h"
 
 namespace cobalt {
 namespace dom {
@@ -27,7 +27,7 @@ namespace dom {
 OnScreenKeyboard::OnScreenKeyboard(
     script::EnvironmentSettings* settings, OnScreenKeyboardBridge* bridge,
     script::ScriptValueFactory* script_value_factory)
-    : EventTarget(settings),
+    : web::EventTarget(settings),
       bridge_(bridge),
       script_value_factory_(script_value_factory),
       next_ticket_(0) {
@@ -114,7 +114,8 @@ script::Handle<script::Promise<void>> OnScreenKeyboard::UpdateSuggestions(
   return promise;
 }
 
-const EventTarget::EventListenerScriptValue* OnScreenKeyboard::onshow() const {
+const web::EventTarget::EventListenerScriptValue* OnScreenKeyboard::onshow()
+    const {
   return GetAttributeEventListener(base::Tokens::show());
 }
 void OnScreenKeyboard::set_onshow(
@@ -122,7 +123,8 @@ void OnScreenKeyboard::set_onshow(
   SetAttributeEventListener(base::Tokens::show(), event_listener);
 }
 
-const EventTarget::EventListenerScriptValue* OnScreenKeyboard::onfocus() const {
+const web::EventTarget::EventListenerScriptValue* OnScreenKeyboard::onfocus()
+    const {
   return GetAttributeEventListener(base::Tokens::focus());
 }
 void OnScreenKeyboard::set_onfocus(
@@ -130,7 +132,8 @@ void OnScreenKeyboard::set_onfocus(
   SetAttributeEventListener(base::Tokens::focus(), event_listener);
 }
 
-const EventTarget::EventListenerScriptValue* OnScreenKeyboard::onblur() const {
+const web::EventTarget::EventListenerScriptValue* OnScreenKeyboard::onblur()
+    const {
   return GetAttributeEventListener(base::Tokens::blur());
 }
 void OnScreenKeyboard::set_onblur(
@@ -138,7 +141,8 @@ void OnScreenKeyboard::set_onblur(
   SetAttributeEventListener(base::Tokens::blur(), event_listener);
 }
 
-const EventTarget::EventListenerScriptValue* OnScreenKeyboard::onhide() const {
+const web::EventTarget::EventListenerScriptValue* OnScreenKeyboard::onhide()
+    const {
   return GetAttributeEventListener(base::Tokens::hide());
 }
 void OnScreenKeyboard::set_onhide(
@@ -146,7 +150,8 @@ void OnScreenKeyboard::set_onhide(
   SetAttributeEventListener(base::Tokens::hide(), event_listener);
 }
 
-const EventTarget::EventListenerScriptValue* OnScreenKeyboard::oninput() const {
+const web::EventTarget::EventListenerScriptValue* OnScreenKeyboard::oninput()
+    const {
   return GetAttributeEventListener(base::Tokens::input());
 }
 
@@ -168,7 +173,7 @@ void OnScreenKeyboard::set_keep_focus(bool keep_focus) {
 
 void OnScreenKeyboard::DispatchHideEvent(int ticket) {
   if (ResolvePromise(ticket, &ticket_to_hide_promise_map_)) {
-    DispatchEvent(new dom::Event(base::Tokens::hide()));
+    DispatchEvent(new web::Event(base::Tokens::hide()));
   } else {
     LOG(ERROR)
         << "No promise matching ticket for OnScreenKeyboardHidden event.";
@@ -177,7 +182,7 @@ void OnScreenKeyboard::DispatchHideEvent(int ticket) {
 
 void OnScreenKeyboard::DispatchShowEvent(int ticket) {
   if (ResolvePromise(ticket, &ticket_to_show_promise_map_)) {
-    DispatchEvent(new dom::Event(base::Tokens::show()));
+    DispatchEvent(new web::Event(base::Tokens::show()));
   } else {
     LOG(ERROR) << "No promise matching ticket for OnScreenKeyboardShown event.";
   }
@@ -185,7 +190,7 @@ void OnScreenKeyboard::DispatchShowEvent(int ticket) {
 
 void OnScreenKeyboard::DispatchFocusEvent(int ticket) {
   if (ResolvePromise(ticket, &ticket_to_focus_promise_map_)) {
-    DispatchEvent(new dom::Event(base::Tokens::focus()));
+    DispatchEvent(new web::Event(base::Tokens::focus()));
   } else {
     LOG(ERROR)
         << "No promise matching ticket for OnScreenKeyboardFocused event.";
@@ -194,7 +199,7 @@ void OnScreenKeyboard::DispatchFocusEvent(int ticket) {
 
 void OnScreenKeyboard::DispatchBlurEvent(int ticket) {
   if (ResolvePromise(ticket, &ticket_to_blur_promise_map_)) {
-    DispatchEvent(new dom::Event(base::Tokens::blur()));
+    DispatchEvent(new web::Event(base::Tokens::blur()));
   } else {
     LOG(ERROR)
         << "No promise matching ticket for OnScreenKeyboardBlurred event.";
@@ -203,7 +208,7 @@ void OnScreenKeyboard::DispatchBlurEvent(int ticket) {
 
 void OnScreenKeyboard::DispatchSuggestionsUpdatedEvent(int ticket) {
   if (ResolvePromise(ticket, &ticket_to_update_suggestions_promise_map_)) {
-    DispatchEvent(new dom::Event(base::Tokens::suggestionsUpdated()));
+    DispatchEvent(new web::Event(base::Tokens::suggestionsUpdated()));
   } else {
     LOG(ERROR) << "No promise matching ticket for "
                   "OnScreenKeyboardSuggestionsUpdated event.";

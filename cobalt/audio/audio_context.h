@@ -29,13 +29,13 @@
 #include "cobalt/audio/audio_buffer_source_node.h"
 #include "cobalt/audio/audio_destination_node.h"
 #include "cobalt/audio/audio_helpers.h"
-#include "cobalt/dom/dom_exception.h"
-#include "cobalt/dom/event_target.h"
 #include "cobalt/script/array_buffer.h"
 #include "cobalt/script/callback_function.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/script_value.h"
+#include "cobalt/web/dom_exception.h"
+#include "cobalt/web/event_target.h"
 
 namespace cobalt {
 namespace audio {
@@ -77,7 +77,7 @@ class AudioLock : public base::RefCountedThreadSafe<AudioLock> {
 // together. In most user cases, only a single AudioContext is used per
 // document.
 //   https://www.w3.org/TR/webaudio/#AudioContext-section
-class AudioContext : public dom::EventTarget {
+class AudioContext : public web::EventTarget {
  public:
   // Type for decode success and error callbacks on JS side.
   //

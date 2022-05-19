@@ -20,11 +20,11 @@
 #include <utility>
 
 #include "base/compiler_specific.h"
-#include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/track_default.h"
 #include "cobalt/script/exception_state.h"
 #include "cobalt/script/sequence.h"
 #include "cobalt/script/wrappable.h"
+#include "cobalt/web/dom_exception.h"
 
 namespace cobalt {
 namespace dom {
@@ -35,8 +35,7 @@ class TrackDefaultList : public script::Wrappable {
  public:
   // Web API: TrackDefaultList
   //
-  explicit TrackDefaultList(script::ExceptionState* exception_state) {
-  }
+  explicit TrackDefaultList(script::ExceptionState* exception_state) {}
   TrackDefaultList(
       const script::Sequence<scoped_refptr<TrackDefault> >& track_defaults,
       script::ExceptionState* exception_state) {
@@ -50,7 +49,8 @@ class TrackDefaultList : public script::Wrappable {
       TypeAndId type_and_id(track_default->type(),
                             track_default->byte_stream_track_id());
       if (!type_and_ids.insert(type_and_id).second) {
-        DOMException::Raise(DOMException::kInvalidAccessErr, exception_state);
+        web::DOMException::Raise(web::DOMException::kInvalidAccessErr,
+                                 exception_state);
         return;
       }
     }

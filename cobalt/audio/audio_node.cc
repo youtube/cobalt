@@ -15,14 +15,14 @@
 #include "cobalt/audio/audio_node.h"
 
 #include "cobalt/audio/audio_context.h"
-#include "cobalt/dom/dom_exception.h"
+#include "cobalt/web/dom_exception.h"
 
 namespace cobalt {
 namespace audio {
 
 AudioNode::AudioNode(script::EnvironmentSettings* settings,
                      AudioContext* context)
-    : EventTarget(settings),
+    : web::EventTarget(settings),
       audio_context_(context),
       audio_lock_(context->audio_lock()),
       channel_count_(2),
@@ -49,7 +49,7 @@ void AudioNode::set_channel_count(uint32 channel_count,
   // If this value is set to zero, the implementation MUST throw a
   // NOT_SUPPORTED_ERR exception.
   if (channel_count == 0) {
-    dom::DOMException::Raise(dom::DOMException::kNotSupportedErr,
+    web::DOMException::Raise(web::DOMException::kNotSupportedErr,
                              "Audio node channel count must be non-zero.",
                              exception_state);
     return;
@@ -84,21 +84,21 @@ void AudioNode::Connect(const scoped_refptr<AudioNode>& destination,
 
   // The destination parameter is the AudioNode to connect to.
   if (!destination) {
-    dom::DOMException::Raise(dom::DOMException::kSyntaxErr, exception_state);
+    web::DOMException::Raise(web::DOMException::kSyntaxErr, exception_state);
     return;
   }
   // The output parameter is an index describing which output of the AudioNode
   // from which to connect. If this parameter is out-of-bound, an INDEX_SIZE_ERR
   // exception MUST be thrown.
   if (output >= number_of_outputs()) {
-    dom::DOMException::Raise(dom::DOMException::kIndexSizeErr, exception_state);
+    web::DOMException::Raise(web::DOMException::kIndexSizeErr, exception_state);
     return;
   }
   // The input parameter is an index describing which input of the destination
   // AudioNode to connect to. If this parameter is out-of-bound, an
   // INDEX_SIZE_ERR exception MUST be thrown.
   if (input >= destination->number_of_inputs()) {
-    dom::DOMException::Raise(dom::DOMException::kIndexSizeErr, exception_state);
+    web::DOMException::Raise(web::DOMException::kIndexSizeErr, exception_state);
     return;
   }
 
@@ -122,7 +122,7 @@ void AudioNode::Disconnect(uint32 output,
   // to disconnect. If the output parameter is out-of-bounds, an INDEX_SIZE_ERR
   // exception MUST be thrown.
   if (output >= number_of_outputs()) {
-    dom::DOMException::Raise(dom::DOMException::kIndexSizeErr, exception_state);
+    web::DOMException::Raise(web::DOMException::kIndexSizeErr, exception_state);
     return;
   }
 
@@ -189,7 +189,7 @@ AudioNodeOutput* AudioNode::Output(int32 index) const {
 }
 
 void AudioNode::TraceMembers(script::Tracer* tracer) {
-  EventTarget::TraceMembers(tracer);
+  web::EventTarget::TraceMembers(tracer);
 
   tracer->Trace(audio_context_);
 }

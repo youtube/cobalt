@@ -26,7 +26,7 @@
 #include "cobalt/dom/captions/caption_opacity_percentage.h"
 #include "cobalt/dom/captions/caption_state.h"
 #include "cobalt/dom/captions/system_caption_settings.h"
-#include "cobalt/dom/event_target.h"
+#include "cobalt/web/event_target.h"
 
 #include "starboard/accessibility.h"
 #include "starboard/memory.h"
@@ -501,15 +501,15 @@ bool SystemCaptionSettings::supports_override() {
   return (success) ? caption_settings.supports_override : false;
 }
 
-const EventTarget::EventListenerScriptValue* SystemCaptionSettings::onchanged()
-    const {
-  return EventTarget::GetAttributeEventListener(base::Tokens::change());
+const web::EventTarget::EventListenerScriptValue*
+SystemCaptionSettings::onchanged() const {
+  return web::EventTarget::GetAttributeEventListener(base::Tokens::change());
 }
 
 void SystemCaptionSettings::set_onchanged(
-    const EventTarget::EventListenerScriptValue& event_listener) {
-  EventTarget::SetAttributeEventListener(base::Tokens::change(),
-                                         event_listener);
+    const web::EventTarget::EventListenerScriptValue& event_listener) {
+  web::EventTarget::SetAttributeEventListener(base::Tokens::change(),
+                                              event_listener);
 }
 
 const char* SystemCaptionSettings::CaptionCharacterEdgeStyleToString(

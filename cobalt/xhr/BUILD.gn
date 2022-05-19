@@ -13,6 +13,9 @@
 # limitations under the License.
 
 static_library("xhr") {
+  # Creates cycle with //cobalt/dom through xml_document.h
+  check_includes = false
+
   has_pedantic_warnings = true
   sources = [
     "url_fetcher_buffer_writer.cc",
@@ -24,12 +27,12 @@ static_library("xhr") {
   ]
 
   deps = [
+    ":global_stats",
     "//cobalt/base",
-    "//cobalt/dom",
-    "//cobalt/dom:dom_exception",
     "//cobalt/dom_parser",
     "//cobalt/loader",
     "//cobalt/script",
+    "//cobalt/web",
     "//nb",
     "//net",
     "//starboard",
@@ -44,6 +47,16 @@ static_library("xhr") {
   }
 }
 
+static_library("global_stats") {
+  has_pedantic_warnings = true
+  sources = [
+    "global_stats.cc",
+    "global_stats.h",
+  ]
+
+  deps = [ "//cobalt/base" ]
+}
+
 target(gtest_target_type, "xhr_test") {
   testonly = true
   has_pedantic_warnings = true
@@ -51,10 +64,12 @@ target(gtest_target_type, "xhr_test") {
   deps = [
     ":xhr",
     "//cobalt/base",
-    "//cobalt/dom",
-    "//cobalt/dom:dom_exception",
+    "//cobalt/browser",
+    "//cobalt/debug",
     "//cobalt/dom/testing:dom_testing",
     "//cobalt/test:run_all_unittests",
+    "//cobalt/web:dom_exception",
+    "//cobalt/web/testing:web_testing",
     "//testing/gmock",
     "//testing/gtest",
     "//url",

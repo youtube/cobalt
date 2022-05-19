@@ -26,7 +26,7 @@ namespace worker {
 ServiceWorkerRegistration::ServiceWorkerRegistration(
     script::EnvironmentSettings* settings,
     worker::ServiceWorkerRegistrationObject* registration)
-    : dom::EventTarget(settings), registration_(registration) {}
+    : web::EventTarget(settings), registration_(registration) {}
 
 script::Handle<script::Promise<void>> ServiceWorkerRegistration::Update() {
   // Todo: Add logic for update()

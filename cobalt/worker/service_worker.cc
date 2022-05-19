@@ -26,7 +26,7 @@ namespace worker {
 
 ServiceWorker::ServiceWorker(script::EnvironmentSettings* settings,
                              worker::ServiceWorkerObject* worker)
-    : dom::EventTarget(settings),
+    : web::EventTarget(settings),
       worker_(worker),
       state_(kServiceWorkerStateParsed) {}
 

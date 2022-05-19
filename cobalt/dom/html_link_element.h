@@ -23,10 +23,10 @@
 #include "base/threading/thread_checker.h"
 #include "cobalt/cssom/style_sheet.h"
 #include "cobalt/dom/html_element.h"
-#include "cobalt/dom/url_utils.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/loader/loader.h"
 #include "cobalt/loader/text_decoder.h"
+#include "cobalt/web/url_utils.h"
 
 namespace cobalt {
 namespace dom {

@@ -17,9 +17,9 @@
 #include <string>
 
 #include "cobalt/cssom/css_parser.h"
-#include "cobalt/dom/csp_delegate.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/html_element_context.h"
+#include "cobalt/web/csp_delegate.h"
 
 namespace cobalt {
 namespace dom {
@@ -72,14 +72,14 @@ void HTMLStyleElement::Process() {
     return;
   }
 
-  CspDelegate* csp_delegate = document->csp_delegate();
+  web::CspDelegate* csp_delegate = document->csp_delegate();
   // If the style element has a valid nonce, we always permit it.
   const bool bypass_csp = csp_delegate->IsValidNonce(
-      CspDelegate::kStyle, GetAttribute("nonce").value_or(""));
+      web::CspDelegate::kStyle, GetAttribute("nonce").value_or(""));
 
   base::Optional<std::string> content = text_content();
   const std::string& text = content.value_or(base::EmptyString());
-  if (bypass_csp || csp_delegate->AllowInline(CspDelegate::kStyle,
+  if (bypass_csp || csp_delegate->AllowInline(web::CspDelegate::kStyle,
                                               inline_style_location_, text)) {
     scoped_refptr<cssom::CSSStyleSheet> css_style_sheet =
         document->html_element_context()->css_parser()->ParseStyleSheet(

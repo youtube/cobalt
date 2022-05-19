@@ -18,13 +18,13 @@
 #include <memory>
 #include <string>
 
-#include "cobalt/dom/event_target.h"
-#include "cobalt/dom/event_target_listener_info.h"
 #include "cobalt/script/promise.h"
 #include "cobalt/script/script_value.h"
 #include "cobalt/script/script_value_factory.h"
 #include "cobalt/script/sequence.h"
 #include "cobalt/script/wrappable.h"
+#include "cobalt/web/event_target.h"
+#include "cobalt/web/event_target_listener_info.h"
 #include "cobalt/worker/registration_options.h"
 #include "cobalt/worker/service_worker_jobs.h"
 #include "cobalt/worker/service_worker_registration.h"
@@ -35,7 +35,7 @@ namespace worker {
 // The ServiceWorkerContainer interface represents the interface to register and
 // access service workers from a service worker client realm.
 //   https://w3c.github.io/ServiceWorker/#serviceworkercontainer-interface
-class ServiceWorkerContainer : public dom::EventTarget {
+class ServiceWorkerContainer : public web::EventTarget {
  public:
   explicit ServiceWorkerContainer(script::EnvironmentSettings* settings);
 

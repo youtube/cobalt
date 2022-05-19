@@ -37,7 +37,7 @@ TEST(CSSComputedStyleDeclarationTest, CSSTextSetterRaisesException) {
 
   const std::string css_text = "font-size: 100px; color: #0047ab;";
   style->set_css_text(css_text, &exception_state);
-  EXPECT_EQ(dom::DOMException::kInvalidAccessErr,
+  EXPECT_EQ(web::DOMException::kInvalidAccessErr,
             exception_state.GetExceptionCode());
 }
 
@@ -65,7 +65,7 @@ TEST(CSSComputedStyleDeclarationTest, PropertyValueSetterRaisesException) {
 
   style->SetPropertyValue(GetPropertyName(kBackgroundProperty), background,
                           &exception_state);
-  EXPECT_EQ(dom::DOMException::kInvalidAccessErr,
+  EXPECT_EQ(web::DOMException::kInvalidAccessErr,
             exception_state.GetExceptionCode());
 }
 
@@ -78,7 +78,7 @@ TEST(CSSComputedStyleDeclarationTest,
 
   style->SetProperty(GetPropertyName(kBackgroundProperty), background,
                      &exception_state);
-  EXPECT_EQ(dom::DOMException::kInvalidAccessErr,
+  EXPECT_EQ(web::DOMException::kInvalidAccessErr,
             exception_state.GetExceptionCode());
 }
 
@@ -91,7 +91,7 @@ TEST(CSSComputedStyleDeclarationTest,
 
   style->SetProperty(GetPropertyName(kBackgroundProperty), background,
                      std::string(), &exception_state);
-  EXPECT_EQ(dom::DOMException::kInvalidAccessErr,
+  EXPECT_EQ(web::DOMException::kInvalidAccessErr,
             exception_state.GetExceptionCode());
 }
 
@@ -107,7 +107,7 @@ TEST(CSSComputedStyleDeclarationTest, RemovePropertyRaisesException) {
   FakeExceptionState exception_state;
 
   style->RemoveProperty(GetPropertyName(kDisplayProperty), &exception_state);
-  EXPECT_EQ(dom::DOMException::kInvalidAccessErr,
+  EXPECT_EQ(web::DOMException::kInvalidAccessErr,
             exception_state.GetExceptionCode());
 }
 

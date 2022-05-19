@@ -20,8 +20,8 @@
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
 #include "base/optional.h"
-#include "cobalt/dom/event.h"
 #include "cobalt/script/wrappable.h"
+#include "cobalt/web/event.h"
 
 namespace cobalt {
 namespace speech {
@@ -31,7 +31,7 @@ class SpeechSynthesisUtterance;
 // The speech synthesis event interface is the scripted web API for defining a
 // speech synthesis event.
 //   https://dvcs.w3.org/hg/speech-api/raw-file/9a0075d25326/speechapi.html#speechsynthesisevent
-class SpeechSynthesisEvent : public dom::Event {
+class SpeechSynthesisEvent : public web::Event {
  public:
   SpeechSynthesisEvent(
       base::Token event_name,

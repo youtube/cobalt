@@ -21,40 +21,40 @@ namespace xhr {
 
 XMLHttpRequestEventTarget::XMLHttpRequestEventTarget(
     script::EnvironmentSettings* settings)
-    : EventTarget(settings) {}
+    : web::EventTarget(settings) {}
 XMLHttpRequestEventTarget::~XMLHttpRequestEventTarget() {}
 
-const dom::EventTarget::EventListenerScriptValue*
+const web::EventTarget::EventListenerScriptValue*
 XMLHttpRequestEventTarget::onabort() const {
   return onabort_listener_ ? &onabort_listener_.value().referenced_value()
                            : NULL;
 }
-const dom::EventTarget::EventListenerScriptValue*
+const web::EventTarget::EventListenerScriptValue*
 XMLHttpRequestEventTarget::onerror() const {
   return onerror_listener_ ? &onerror_listener_.value().referenced_value()
                            : NULL;
 }
-const dom::EventTarget::EventListenerScriptValue*
+const web::EventTarget::EventListenerScriptValue*
 XMLHttpRequestEventTarget::onload() const {
   return onload_listener_ ? &onload_listener_.value().referenced_value() : NULL;
 }
-const dom::EventTarget::EventListenerScriptValue*
+const web::EventTarget::EventListenerScriptValue*
 XMLHttpRequestEventTarget::onloadend() const {
   return onloadend_listener_ ? &onloadend_listener_.value().referenced_value()
                              : NULL;
 }
-const dom::EventTarget::EventListenerScriptValue*
+const web::EventTarget::EventListenerScriptValue*
 XMLHttpRequestEventTarget::onloadstart() const {
   return onloadstart_listener_
              ? &onloadstart_listener_.value().referenced_value()
              : NULL;
 }
-const dom::EventTarget::EventListenerScriptValue*
+const web::EventTarget::EventListenerScriptValue*
 XMLHttpRequestEventTarget::onprogress() const {
   return onprogress_listener_ ? &onprogress_listener_.value().referenced_value()
                               : NULL;
 }
-const dom::EventTarget::EventListenerScriptValue*
+const web::EventTarget::EventListenerScriptValue*
 XMLHttpRequestEventTarget::ontimeout() const {
   return ontimeout_listener_ ? &ontimeout_listener_.value().referenced_value()
                              : NULL;
@@ -125,7 +125,7 @@ void XMLHttpRequestEventTarget::set_ontimeout(
 }
 
 void XMLHttpRequestEventTarget::TraceMembers(script::Tracer* tracer) {
-  dom::EventTarget::TraceMembers(tracer);
+  web::EventTarget::TraceMembers(tracer);
 }
 
 }  // namespace xhr

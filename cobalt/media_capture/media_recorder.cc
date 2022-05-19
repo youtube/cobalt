@@ -27,8 +27,6 @@
 #include "base/strings/string_util_starboard.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/base/tokens.h"
-#include "cobalt/dom/blob.h"
-#include "cobalt/dom/dom_exception.h"
 #include "cobalt/media_capture/blob_event.h"
 #include "cobalt/media_capture/encoders/flac_audio_encoder.h"
 #include "cobalt/media_capture/encoders/linear16_audio_encoder.h"
@@ -37,7 +35,9 @@
 #include "cobalt/media_stream/media_stream_track.h"
 #include "cobalt/media_stream/media_track_settings.h"
 #include "cobalt/script/array_buffer.h"
+#include "cobalt/web/blob.h"
 #include "cobalt/web/context.h"
+#include "cobalt/web/dom_exception.h"
 #include "cobalt/web/environment_settings.h"
 
 namespace {
@@ -95,7 +95,7 @@ void MediaRecorder::Start(int32 timeslice,
 
   // Step #3
   if (recording_state_ != kRecordingStateInactive) {
-    dom::DOMException::Raise(dom::DOMException::kInvalidStateErr,
+    web::DOMException::Raise(web::DOMException::kInvalidStateErr,
                              "Recording state must be inactive.",
                              exception_state);
     return;
@@ -107,7 +107,7 @@ void MediaRecorder::Start(int32 timeslice,
   recording_state_ = kRecordingStateRecording;
 
   // Step 5.1.
-  DispatchEvent(new dom::Event(base::Tokens::start()));
+  DispatchEvent(new web::Event(base::Tokens::start()));
 
   // Steps 5.2-5.3, not needed for Cobalt.
 
@@ -155,7 +155,7 @@ void MediaRecorder::Stop(script::ExceptionState* exception_state) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   if (recording_state_ == kRecordingStateInactive) {
-    dom::DOMException::Raise(dom::DOMException::kInvalidStateErr,
+    web::DOMException::Raise(web::DOMException::kInvalidStateErr,
                              "Recording state must NOT be inactive.",
                              exception_state);
     return;
@@ -229,7 +229,7 @@ MediaRecorder::MediaRecorder(
     const scoped_refptr<media_stream::MediaStream>& stream,
     const MediaRecorderOptions& options,
     script::ExceptionState* exception_state)
-    : dom::EventTarget(settings),
+    : web::EventTarget(settings),
       settings_(settings),
       stream_(stream),
       javascript_message_loop_(base::MessageLoop::current()->task_runner()),
@@ -242,7 +242,7 @@ MediaRecorder::MediaRecorder(
 
   if (options.has_mime_type()) {
     if (!IsTypeSupported(options.mime_type())) {
-      dom::DOMException::Raise(dom::DOMException::kNotSupportedErr,
+      web::DOMException::Raise(web::DOMException::kNotSupportedErr,
                                exception_state);
       return;
     }
@@ -284,7 +284,7 @@ void MediaRecorder::StopRecording() {
 
   timeslice_ = base::TimeDelta::FromSeconds(0);
   timeslice_unspecified_ = false;
-  DispatchEvent(new dom::Event(base::Tokens::stop()));
+  DispatchEvent(new web::Event(base::Tokens::stop()));
 }
 
 void MediaRecorder::UnsubscribeFromTrack() {
@@ -322,7 +322,7 @@ void MediaRecorder::DoOnDataCallback(base::TimeTicks timecode) {
       buffer_.data(), buffer_.size());
 
   auto blob = base::WrapRefCounted(
-      new dom::Blob(settings_, array_buffer, blob_options_));
+      new web::Blob(settings_, array_buffer, blob_options_));
 
   DispatchEvent(new media_capture::BlobEvent(base::Tokens::dataavailable(),
                                              blob, timecode.ToInternalValue()));

@@ -19,8 +19,8 @@
 #include <string>
 
 #include "base/callback.h"
-#include "cobalt/dom/url_utils.h"
 #include "cobalt/loader/loader_types.h"
+#include "cobalt/web/url_utils.h"
 #include "net/base/load_timing_info.h"
 #include "net/http/http_response_headers.h"
 #include "url/gurl.h"

@@ -20,9 +20,9 @@
 
 #include "base/memory/ref_counted.h"
 #include "cobalt/dom/eme/media_encrypted_event_init.h"
-#include "cobalt/dom/event.h"
 #include "cobalt/script/array_buffer.h"
 #include "cobalt/script/wrappable.h"
+#include "cobalt/web/event.h"
 
 namespace cobalt {
 namespace dom {
@@ -30,7 +30,7 @@ namespace eme {
 
 // The MediaEncryptedEvent object is used for the encrypted event.
 //   https://www.w3.org/TR/encrypted-media/#mediaencryptedevent
-class MediaEncryptedEvent : public Event {
+class MediaEncryptedEvent : public web::Event {
  public:
   // Web API: MediaEncryptedEvent
   //

@@ -26,7 +26,6 @@
 #include "cobalt/cssom/viewport_size.h"
 #include "cobalt/dom/local_storage_database.h"
 #include "cobalt/dom/screen.h"
-#include "cobalt/dom/testing/mock_event_listener.h"
 #include "cobalt/dom/testing/stub_environment_settings.h"
 #include "cobalt/dom_parser/parser.h"
 #include "cobalt/loader/fetcher_factory.h"
@@ -34,6 +33,7 @@
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/script/testing/fake_script_value.h"
+#include "cobalt/web/testing/mock_event_listener.h"
 #include "starboard/window.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -45,7 +45,7 @@ namespace cobalt {
 namespace dom {
 
 using ::cobalt::script::testing::FakeScriptValue;
-using testing::MockEventListener;
+using web::testing::MockEventListener;
 
 class MockErrorCallback
     : public base::Callback<void(const base::Optional<std::string> &)> {
@@ -77,7 +77,7 @@ class WindowTest : public ::testing::Test {
         base::Bind(&MockErrorCallback::Run,
                    base::Unretained(&mock_error_callback_)),
         NULL, network_bridge::PostSender(), csp::kCSPRequired,
-        kCspEnforcementEnable, base::Closure() /* csp_policy_changed */,
+        web::kCspEnforcementEnable, base::Closure() /* csp_policy_changed */,
         base::Closure() /* ran_animation_frame_callbacks */,
         dom::Window::CloseCallback() /* window_close */,
         base::Closure() /* window_minimize */, NULL, NULL,
@@ -132,7 +132,7 @@ TEST_F(WindowTest, ViewportSize) {
 // corresponding online and offline events are fired to listeners.
 TEST_F(WindowTest, OnlineEvent) {
   window_->AddEventListener(
-      "online", FakeScriptValue<EventListener>(fake_event_listener_.get()),
+      "online", FakeScriptValue<web::EventListener>(fake_event_listener_.get()),
       true);
   fake_event_listener_->ExpectHandleEventCall("online", window_);
   window_->OnWindowOnOnlineEvent();
@@ -140,8 +140,8 @@ TEST_F(WindowTest, OnlineEvent) {
 
 TEST_F(WindowTest, OfflineEvent) {
   window_->AddEventListener(
-      "offline", FakeScriptValue<EventListener>(fake_event_listener_.get()),
-      true);
+      "offline",
+      FakeScriptValue<web::EventListener>(fake_event_listener_.get()), true);
   fake_event_listener_->ExpectHandleEventCall("offline", window_);
   window_->OnWindowOnOfflineEvent();
 }

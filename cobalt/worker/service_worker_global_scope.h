@@ -20,12 +20,12 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_refptr.h"
 #include "cobalt/base/tokens.h"
-#include "cobalt/dom/event_target.h"
-#include "cobalt/dom/event_target_listener_info.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/promise.h"
 #include "cobalt/script/value_handle.h"
 #include "cobalt/script/wrappable.h"
+#include "cobalt/web/event_target.h"
+#include "cobalt/web/event_target_listener_info.h"
 #include "cobalt/worker/service_worker.h"
 #include "cobalt/worker/service_worker_registration.h"
 #include "cobalt/worker/worker_global_scope.h"
@@ -55,46 +55,46 @@ class ServiceWorkerGlobalScope : public WorkerGlobalScope {
 
   script::Handle<script::Promise<void>> SkipWaiting();
 
-  const dom::EventTargetListenerInfo::EventListenerScriptValue* oninstall() {
+  const web::EventTargetListenerInfo::EventListenerScriptValue* oninstall() {
     return GetAttributeEventListener(base::Tokens::install());
   }
   void set_oninstall(
-      const dom::EventTargetListenerInfo::EventListenerScriptValue&
+      const web::EventTargetListenerInfo::EventListenerScriptValue&
           event_listener) {
     SetAttributeEventListener(base::Tokens::install(), event_listener);
   }
 
-  const dom::EventTargetListenerInfo::EventListenerScriptValue* onactivate() {
+  const web::EventTargetListenerInfo::EventListenerScriptValue* onactivate() {
     return GetAttributeEventListener(base::Tokens::activate());
   }
   void set_onactivate(
-      const dom::EventTargetListenerInfo::EventListenerScriptValue&
+      const web::EventTargetListenerInfo::EventListenerScriptValue&
           event_listener) {
     SetAttributeEventListener(base::Tokens::activate(), event_listener);
   }
 
-  const dom::EventTargetListenerInfo::EventListenerScriptValue* onfetch() {
+  const web::EventTargetListenerInfo::EventListenerScriptValue* onfetch() {
     return GetAttributeEventListener(base::Tokens::fetch());
   }
-  void set_onfetch(const dom::EventTargetListenerInfo::EventListenerScriptValue&
+  void set_onfetch(const web::EventTargetListenerInfo::EventListenerScriptValue&
                        event_listener) {
     SetAttributeEventListener(base::Tokens::fetch(), event_listener);
   }
 
-  const dom::EventTargetListenerInfo::EventListenerScriptValue* onmessage() {
+  const web::EventTargetListenerInfo::EventListenerScriptValue* onmessage() {
     return GetAttributeEventListener(base::Tokens::message());
   }
   void set_onmessage(
-      const dom::EventTargetListenerInfo::EventListenerScriptValue&
+      const web::EventTargetListenerInfo::EventListenerScriptValue&
           event_listener) {
     SetAttributeEventListener(base::Tokens::message(), event_listener);
   }
-  const dom::EventTargetListenerInfo::EventListenerScriptValue*
+  const web::EventTargetListenerInfo::EventListenerScriptValue*
   onmessageerror() {
     return GetAttributeEventListener(base::Tokens::messageerror());
   }
   void set_onmessageerror(
-      const dom::EventTargetListenerInfo::EventListenerScriptValue&
+      const web::EventTargetListenerInfo::EventListenerScriptValue&
           event_listener) {
     SetAttributeEventListener(base::Tokens::messageerror(), event_listener);
   }

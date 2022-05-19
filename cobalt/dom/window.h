@@ -34,9 +34,7 @@
 #include "cobalt/dom/application_lifecycle_state.h"
 #include "cobalt/dom/captions/system_caption_settings.h"
 #include "cobalt/dom/crypto.h"
-#include "cobalt/dom/csp_delegate_type.h"
 #include "cobalt/dom/dom_stat_tracker.h"
-#include "cobalt/dom/event_target.h"
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/location.h"
 #include "cobalt/dom/media_query_list.h"
@@ -44,10 +42,11 @@
 #include "cobalt/dom/on_screen_keyboard_bridge.h"
 #include "cobalt/dom/parser.h"
 #include "cobalt/dom/screenshot_manager.h"
+#include "cobalt/web/csp_delegate_type.h"
+#include "cobalt/web/event_target.h"
 #if defined(ENABLE_TEST_RUNNER)
 #include "cobalt/dom/test_runner.h"
 #endif  // ENABLE_TEST_RUNNER
-#include "cobalt/dom/url_registry.h"
 #include "cobalt/dom/user_agent_platform_info.h"
 #include "cobalt/dom/window_timers.h"
 #include "cobalt/input/camera_3d.h"
@@ -72,6 +71,7 @@
 #include "cobalt/script/script_runner.h"
 #include "cobalt/script/script_value_factory.h"
 #include "cobalt/ui_navigation/nav_item.h"
+#include "cobalt/web/url_registry.h"
 #include "starboard/window.h"
 #include "url/gurl.h"
 
@@ -82,15 +82,14 @@ class MediaSession;
 namespace speech {
 class SpeechSynthesis;
 }  // namespace speech
-}  // namespace cobalt
-
-namespace cobalt {
+namespace web {
+class Event;
+}  // namespace web
 namespace dom {
 
 class Camera3D;
 class Document;
 class Element;
-class Event;
 class History;
 class LocalStorageDatabase;
 class Location;
@@ -106,21 +105,22 @@ class WindowTimers;
 //   https://www.w3.org/TR/html50/browsers.html#the-window-object
 //
 // TODO: Properly handle viewport resolution change event.
-class Window : public EventTarget, public ApplicationLifecycleState::Observer {
+class Window : public web::EventTarget,
+               public ApplicationLifecycleState::Observer {
  public:
   typedef AnimationFrameRequestCallbackList::FrameRequestCallback
       FrameRequestCallback;
   typedef WindowTimers::TimerCallback TimerCallback;
-  typedef base::Callback<void(const scoped_refptr<dom::Event>& event)>
+  typedef base::Callback<void(const scoped_refptr<web::Event>& event)>
       OnStartDispatchEventCallback;
-  typedef base::Callback<void(const scoped_refptr<dom::Event>& event)>
+  typedef base::Callback<void(const scoped_refptr<web::Event>& event)>
       OnStopDispatchEventCallback;
 
   // Callback that will be called when window.close() is called.  The
   // base::TimeDelta parameter will contain the document's timeline time when
   // close() was called.
   typedef base::Callback<void(base::TimeDelta)> CloseCallback;
-  typedef UrlRegistry<MediaSource> MediaSourceRegistry;
+  typedef web::UrlRegistry<MediaSource> MediaSourceRegistry;
   typedef base::Callback<void(const std::string&,
                               const base::Optional<std::string>&)>
       CacheCallback;
@@ -160,7 +160,7 @@ class Window : public EventTarget, public ApplicationLifecycleState::Observer {
       network_bridge::CookieJar* cookie_jar,
       const network_bridge::PostSender& post_sender,
       csp::CSPHeaderPolicy require_csp,
-      dom::CspEnforcementType csp_enforcement_mode,
+      web::CspEnforcementType csp_enforcement_mode,
       const base::Closure& csp_policy_changed_callback,
       const base::Closure& ran_animation_frame_callbacks_callback,
       CloseCallback window_close_callback,
@@ -334,7 +334,7 @@ class Window : public EventTarget, public ApplicationLifecycleState::Observer {
 
   // Call this to inject an event into the window which will ultimately make
   // its way to the appropriate object in DOM.
-  void InjectEvent(const scoped_refptr<Event>& event);
+  void InjectEvent(const scoped_refptr<web::Event>& event);
 
   scoped_refptr<Window> opener() const { return NULL; }
 
@@ -392,8 +392,8 @@ class Window : public EventTarget, public ApplicationLifecycleState::Observer {
   const scoped_refptr<OnScreenKeyboard>& on_screen_keyboard() const;
   void ReleaseOnScreenKeyboard();
 
-  void OnStartDispatchEvent(const scoped_refptr<dom::Event>& event);
-  void OnStopDispatchEvent(const scoped_refptr<dom::Event>& event);
+  void OnStartDispatchEvent(const scoped_refptr<web::Event>& event);
+  void OnStopDispatchEvent(const scoped_refptr<web::Event>& event);
 
   // |PointerState| will in general create reference cycles back to us, which is
   // ok, as they are cleared over time.  During shutdown however, since no

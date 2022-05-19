@@ -19,9 +19,9 @@
 
 #include "base/basictypes.h"
 #include "base/timer/timer.h"
-#include "cobalt/dom/event_target.h"
 #include "cobalt/input/camera_3d.h"
 #include "cobalt/script/wrappable.h"
+#include "cobalt/web/event_target.h"
 
 namespace cobalt {
 namespace dom {
@@ -69,13 +69,13 @@ class Camera3D : public script::Wrappable {
   // Custom, not in any spec.
   scoped_refptr<input::Camera3D> impl() { return impl_; }
 
-  void StartOrientationEvents(const base::WeakPtr<EventTarget>& target);
+  void StartOrientationEvents(const base::WeakPtr<web::EventTarget>& target);
   void StopOrientationEvents();
 
   DEFINE_WRAPPABLE_TYPE(Camera3D);
 
  private:
-  void FireOrientationEvent(const base::WeakPtr<EventTarget> target);
+  void FireOrientationEvent(const base::WeakPtr<web::EventTarget> target);
 
   // We delegate all calls to the implementation of Camera3D so that all camera
   // state is stored within an object that is *not* a script::Wrappable. This

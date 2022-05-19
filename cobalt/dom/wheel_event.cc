@@ -53,7 +53,7 @@ void WheelEvent::InitWheelEvent(
     const std::string& type, bool bubbles, bool cancelable,
     const scoped_refptr<Window>& view, int32 detail, int32 screen_x,
     int32 screen_y, int32 client_x, int32 client_y, uint16 button,
-    const scoped_refptr<EventTarget>& related_target,
+    const scoped_refptr<web::EventTarget>& related_target,
     const std::string& modifierslist, double delta_x, double delta_y,
     double delta_z, uint32 delta_mode) {
   InitMouseEvent(type, bubbles, cancelable, view, detail, screen_x, screen_y,

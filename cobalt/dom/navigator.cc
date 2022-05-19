@@ -20,12 +20,12 @@
 #include "base/optional.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/dom/captions/system_caption_settings.h"
-#include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/eme/media_key_system_access.h"
 #include "cobalt/media_capture/media_devices.h"
 #include "cobalt/media_session/media_session_client.h"
 #include "cobalt/script/script_value_factory.h"
+#include "cobalt/web/dom_exception.h"
 #include "cobalt/worker/service_worker_container.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/file.h"
@@ -270,20 +270,21 @@ const scoped_refptr<media_session::MediaSession>& Navigator::media_session() {
 //       with the order of declaration.
 // See
 // https://www.w3.org/TR/encrypted-media/#get-supported-capabilities-for-audio-video-type.
-base::Optional<script::Sequence<MediaKeySystemMediaCapability>>
+base::Optional<script::Sequence<eme::MediaKeySystemMediaCapability>>
 Navigator::TryGetSupportedCapabilities(
     const media::CanPlayTypeHandler& can_play_type_handler,
     const std::string& key_system,
-    const script::Sequence<MediaKeySystemMediaCapability>&
+    const script::Sequence<eme::MediaKeySystemMediaCapability>&
         requested_media_capabilities) {
   // 2. Let supported media capabilities be an empty sequence of
   //    MediaKeySystemMediaCapability dictionaries.
-  script::Sequence<MediaKeySystemMediaCapability> supported_media_capabilities;
+  script::Sequence<eme::MediaKeySystemMediaCapability>
+      supported_media_capabilities;
   // 3. For each requested media capability in requested media capabilities:
   for (std::size_t media_capability_index = 0;
        media_capability_index < requested_media_capabilities.size();
        ++media_capability_index) {
-    const MediaKeySystemMediaCapability& requested_media_capability =
+    const eme::MediaKeySystemMediaCapability& requested_media_capability =
         requested_media_capabilities.at(media_capability_index);
     // 3.1. Let content type be requested media capability's contentType member.
     const std::string& content_type = requested_media_capability.content_type();
@@ -359,7 +360,7 @@ Navigator::TryGetSupportedConfiguration(
       !candidate_configuration.video_capabilities().empty()) {
     // 16.1. Let video capabilities be the result of executing the "Get
     //       Supported Capabilities for Audio/Video Type" algorithm.
-    base::Optional<script::Sequence<MediaKeySystemMediaCapability>>
+    base::Optional<script::Sequence<eme::MediaKeySystemMediaCapability>>
         maybe_video_capabilities = TryGetSupportedCapabilities(
             can_play_type_handler, key_system,
             candidate_configuration.video_capabilities());
@@ -374,7 +375,7 @@ Navigator::TryGetSupportedConfiguration(
     // Otherwise: set the videoCapabilities member of accumulated configuration
     // to an empty sequence.
     accumulated_configuration.set_video_capabilities(
-        script::Sequence<MediaKeySystemMediaCapability>());
+        script::Sequence<eme::MediaKeySystemMediaCapability>());
   }
 
   // 17. If the audioCapabilities member in candidate configuration is
@@ -383,7 +384,7 @@ Navigator::TryGetSupportedConfiguration(
       !candidate_configuration.audio_capabilities().empty()) {
     // 17.1. Let audio capabilities be the result of executing the "Get
     //       Supported Capabilities for Audio/Video Type" algorithm.
-    base::Optional<script::Sequence<MediaKeySystemMediaCapability>>
+    base::Optional<script::Sequence<eme::MediaKeySystemMediaCapability>>
         maybe_audio_capabilities = TryGetSupportedCapabilities(
             can_play_type_handler, key_system,
             candidate_configuration.audio_capabilities());
@@ -398,7 +399,7 @@ Navigator::TryGetSupportedConfiguration(
     // Otherwise: set the audioCapabilities member of accumulated configuration
     // to an empty sequence.
     accumulated_configuration.set_audio_capabilities(
-        script::Sequence<MediaKeySystemMediaCapability>());
+        script::Sequence<eme::MediaKeySystemMediaCapability>());
   }
 
   // 23. Return accumulated configuration.
@@ -464,7 +465,7 @@ Navigator::RequestMediaKeySystemAccess(
   }
 
   // 6.4. Reject promise with a NotSupportedError.
-  promise->Reject(new DOMException(DOMException::kNotSupportedErr));
+  promise->Reject(new web::DOMException(web::DOMException::kNotSupportedErr));
   return promise;
 }
 
@@ -484,7 +485,7 @@ void Navigator::TraceMembers(script::Tracer* tracer) {
 bool Navigator::CanPlayWithCapability(
     const media::CanPlayTypeHandler& can_play_type_handler,
     const std::string& key_system,
-    const MediaKeySystemMediaCapability& media_capability) {
+    const eme::MediaKeySystemMediaCapability& media_capability) {
   const std::string& content_type = media_capability.content_type();
 
   // There is no encryption scheme specified, check directly.

@@ -105,11 +105,11 @@ class Navigator : public script::Wrappable {
  private:
   ~Navigator() override {}
 
-  base::Optional<script::Sequence<MediaKeySystemMediaCapability>>
+  base::Optional<script::Sequence<eme::MediaKeySystemMediaCapability>>
   TryGetSupportedCapabilities(
       const media::CanPlayTypeHandler& can_play_type_handler,
       const std::string& key_system,
-      const script::Sequence<MediaKeySystemMediaCapability>&
+      const script::Sequence<eme::MediaKeySystemMediaCapability>&
           requested_media_capabilities);
 
   base::Optional<eme::MediaKeySystemConfiguration> TryGetSupportedConfiguration(
@@ -120,7 +120,7 @@ class Navigator : public script::Wrappable {
   bool CanPlayWithCapability(
       const media::CanPlayTypeHandler& can_play_type_handler,
       const std::string& key_system,
-      const MediaKeySystemMediaCapability& media_capability);
+      const eme::MediaKeySystemMediaCapability& media_capability);
 
   bool CanPlayWithoutAttributes(
       const media::CanPlayTypeHandler& can_play_type_handler,

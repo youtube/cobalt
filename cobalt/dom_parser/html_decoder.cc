@@ -15,9 +15,9 @@
 #include "cobalt/dom_parser/html_decoder.h"
 
 #include "cobalt/csp/content_security_policy.h"
-#include "cobalt/dom/csp_delegate.h"
 #include "cobalt/dom_parser/libxml_html_parser_wrapper.h"
 #include "cobalt/loader/net_fetcher.h"
+#include "cobalt/web/csp_delegate.h"
 
 namespace cobalt {
 namespace dom_parser {
@@ -65,7 +65,8 @@ loader::LoadResponseType HTMLDecoder::OnResponseStarted(
     return loader::kLoadResponseContinue;
   } else {
     LOG(ERROR) << "Failure receiving Content Security Policy headers "
-                  "for URL: " << url_fetcher->GetURL() << ".";
+                  "for URL: "
+               << url_fetcher->GetURL() << ".";
     LOG(ERROR) << "The server *must* send CSP headers or Cobalt will not "
                   "load the page.";
     return loader::kLoadResponseAbort;

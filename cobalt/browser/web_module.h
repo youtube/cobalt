@@ -33,8 +33,6 @@
 #include "cobalt/browser/user_agent_platform_info.h"
 #include "cobalt/css_parser/parser.h"
 #include "cobalt/cssom/viewport_size.h"
-#include "cobalt/dom/blob.h"
-#include "cobalt/dom/csp_delegate.h"
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/input_event_init.h"
 #include "cobalt/dom/keyboard_event_init.h"
@@ -55,7 +53,9 @@
 #include "cobalt/render_tree/resource_provider.h"
 #include "cobalt/ui_navigation/nav_item.h"
 #include "cobalt/web/agent.h"
+#include "cobalt/web/blob.h"
 #include "cobalt/web/context.h"
+#include "cobalt/web/csp_delegate.h"
 #include "cobalt/webdriver/session_driver.h"
 #include "starboard/atomic.h"
 #include "url/gurl.h"
@@ -141,7 +141,7 @@ class WebModule : public base::MessageLoop::DestructionObserver,
     bool enable_map_to_mesh = true;
 
     // Content Security Policy enforcement mode for this web module.
-    dom::CspEnforcementType csp_enforcement_mode = dom::kCspEnforcementEnable;
+    web::CspEnforcementType csp_enforcement_mode = web::kCspEnforcementEnable;
 
     // Token obtained from CSP to allow creation of insecure delegates.
     int csp_insecure_allowed_token = 0;

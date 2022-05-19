@@ -26,8 +26,6 @@
 #include "base/strings/string_piece.h"
 #include "base/threading/thread_checker.h"
 #include "base/time/time.h"
-#include "cobalt/dom/blob_property_bag.h"
-#include "cobalt/dom/event_target.h"
 #include "cobalt/media_capture/encoders/audio_encoder.h"
 #include "cobalt/media_capture/media_recorder_options.h"
 #include "cobalt/media_capture/recording_state.h"
@@ -37,6 +35,8 @@
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/exception_state.h"
 #include "cobalt/script/wrappable.h"
+#include "cobalt/web/blob_property_bag.h"
+#include "cobalt/web/event_target.h"
 
 namespace cobalt {
 namespace media_capture {
@@ -45,7 +45,7 @@ namespace media_capture {
 // https://www.w3.org/TR/mediastream-recording/#mediarecorder-api
 class MediaRecorder : public media_stream::MediaStreamAudioSink,
                       public encoders::AudioEncoder::Listener,
-                      public dom::EventTarget {
+                      public web::EventTarget {
  public:
   // Constructors.
   explicit MediaRecorder(script::EnvironmentSettings* settings,
@@ -152,7 +152,7 @@ class MediaRecorder : public media_stream::MediaStreamAudioSink,
 
   script::EnvironmentSettings* settings_;
   std::string mime_type_;
-  dom::BlobPropertyBag blob_options_;
+  web::BlobPropertyBag blob_options_;
   scoped_refptr<media_stream::MediaStream> stream_;
 
   scoped_refptr<base::SingleThreadTaskRunner> javascript_message_loop_;

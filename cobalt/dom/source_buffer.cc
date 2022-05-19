@@ -52,9 +52,9 @@
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/base/tokens.h"
-#include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/media_source.h"
+#include "cobalt/web/dom_exception.h"
 #include "third_party/chromium/media/base/ranges.h"
 #include "third_party/chromium/media/base/timestamp_constants.h"
 
@@ -99,7 +99,7 @@ size_t GetEvictExtraInBytes(script::EnvironmentSettings* settings) {
 SourceBuffer::SourceBuffer(script::EnvironmentSettings* settings,
                            const std::string& id, MediaSource* media_source,
                            ChunkDemuxer* chunk_demuxer, EventQueue* event_queue)
-    : EventTarget(settings),
+    : web::EventTarget(settings),
       id_(id),
       evict_extra_in_bytes_(GetEvictExtraInBytes(settings)),
       chunk_demuxer_(chunk_demuxer),
@@ -127,18 +127,21 @@ SourceBuffer::SourceBuffer(script::EnvironmentSettings* settings,
 void SourceBuffer::set_mode(SourceBufferAppendMode mode,
                             script::ExceptionState* exception_state) {
   if (media_source_ == NULL) {
-    DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
+    web::DOMException::Raise(web::DOMException::kInvalidStateErr,
+                             exception_state);
     return;
   }
   if (updating_) {
-    DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
+    web::DOMException::Raise(web::DOMException::kInvalidStateErr,
+                             exception_state);
     return;
   }
 
   media_source_->OpenIfInEndedState();
 
   if (chunk_demuxer_->IsParsingMediaSegment(id_)) {
-    DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
+    web::DOMException::Raise(web::DOMException::kInvalidStateErr,
+                             exception_state);
     return;
   }
 
@@ -150,7 +153,8 @@ void SourceBuffer::set_mode(SourceBufferAppendMode mode,
 scoped_refptr<TimeRanges> SourceBuffer::buffered(
     script::ExceptionState* exception_state) const {
   if (media_source_ == NULL) {
-    DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
+    web::DOMException::Raise(web::DOMException::kInvalidStateErr,
+                             exception_state);
     return NULL;
   }
 
@@ -166,18 +170,21 @@ scoped_refptr<TimeRanges> SourceBuffer::buffered(
 void SourceBuffer::set_timestamp_offset(
     double offset, script::ExceptionState* exception_state) {
   if (media_source_ == NULL) {
-    DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
+    web::DOMException::Raise(web::DOMException::kInvalidStateErr,
+                             exception_state);
     return;
   }
   if (updating_) {
-    DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
+    web::DOMException::Raise(web::DOMException::kInvalidStateErr,
+                             exception_state);
     return;
   }
 
   media_source_->OpenIfInEndedState();
 
   if (chunk_demuxer_->IsParsingMediaSegment(id_)) {
-    DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
+    web::DOMException::Raise(web::DOMException::kInvalidStateErr,
+                             exception_state);
     return;
   }
 
@@ -190,11 +197,13 @@ void SourceBuffer::set_timestamp_offset(
 void SourceBuffer::set_append_window_start(
     double start, script::ExceptionState* exception_state) {
   if (media_source_ == NULL) {
-    DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
+    web::DOMException::Raise(web::DOMException::kInvalidStateErr,
+                             exception_state);
     return;
   }
   if (updating_) {
-    DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
+    web::DOMException::Raise(web::DOMException::kInvalidStateErr,
+                             exception_state);
     return;
   }
 
@@ -209,11 +218,13 @@ void SourceBuffer::set_append_window_start(
 void SourceBuffer::set_append_window_end(
     double end, script::ExceptionState* exception_state) {
   if (media_source_ == NULL) {
-    DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
+    web::DOMException::Raise(web::DOMException::kInvalidStateErr,
+                             exception_state);
     return;
   }
   if (updating_) {
-    DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
+    web::DOMException::Raise(web::DOMException::kInvalidStateErr,
+                             exception_state);
     return;
   }
 
@@ -252,17 +263,20 @@ void SourceBuffer::Abort(script::ExceptionState* exception_state) {
   TRACE_EVENT0("cobalt::dom", "SourceBuffer::Abort()");
 
   if (media_source_ == NULL) {
-    DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
+    web::DOMException::Raise(web::DOMException::kInvalidStateErr,
+                             exception_state);
     return;
   }
   if (!media_source_->IsOpen()) {
-    DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
+    web::DOMException::Raise(web::DOMException::kInvalidStateErr,
+                             exception_state);
     return;
   }
 
   if (pending_remove_start_ != -1) {
     DCHECK(updating_);
-    DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
+    web::DOMException::Raise(web::DOMException::kInvalidStateErr,
+                             exception_state);
     return;
   }
 
@@ -284,11 +298,13 @@ void SourceBuffer::Remove(double start, double end,
   TRACE_EVENT2("cobalt::dom", "SourceBuffer::Remove()", "start", start, "end",
                end);
   if (media_source_ == NULL) {
-    DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
+    web::DOMException::Raise(web::DOMException::kInvalidStateErr,
+                             exception_state);
     return;
   }
   if (updating_) {
-    DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
+    web::DOMException::Raise(web::DOMException::kInvalidStateErr,
+                             exception_state);
     return;
   }
 
@@ -319,11 +335,13 @@ void SourceBuffer::set_track_defaults(
     const scoped_refptr<TrackDefaultList>& track_defaults,
     script::ExceptionState* exception_state) {
   if (media_source_ == NULL) {
-    DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
+    web::DOMException::Raise(web::DOMException::kInvalidStateErr,
+                             exception_state);
     return;
   }
   if (updating_) {
-    DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
+    web::DOMException::Raise(web::DOMException::kInvalidStateErr,
+                             exception_state);
     return;
   }
 
@@ -365,7 +383,7 @@ double SourceBuffer::GetHighestPresentationTimestamp() const {
 }
 
 void SourceBuffer::TraceMembers(script::Tracer* tracer) {
-  EventTarget::TraceMembers(tracer);
+  web::EventTarget::TraceMembers(tracer);
 
   tracer->Trace(event_queue_);
   tracer->Trace(media_source_);
@@ -384,7 +402,7 @@ void SourceBuffer::InitSegmentReceived(std::unique_ptr<MediaTracks> tracks) {
 }
 
 void SourceBuffer::ScheduleEvent(base::Token event_name) {
-  scoped_refptr<Event> event = new Event(event_name);
+  scoped_refptr<web::Event> event = new web::Event(event_name);
   event->set_target(this);
   event_queue_->Enqueue(event);
 }
@@ -394,24 +412,28 @@ bool SourceBuffer::PrepareAppend(size_t new_data_size,
   TRACE_EVENT1("cobalt::dom", "SourceBuffer::PrepareAppend()", "new_data_size",
                new_data_size);
   if (media_source_ == NULL) {
-    DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
+    web::DOMException::Raise(web::DOMException::kInvalidStateErr,
+                             exception_state);
     return false;
   }
   if (updating_) {
-    DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
+    web::DOMException::Raise(web::DOMException::kInvalidStateErr,
+                             exception_state);
     return false;
   }
 
   DCHECK(media_source_->GetMediaElement());
   if (media_source_->GetMediaElement()->error()) {
-    DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
+    web::DOMException::Raise(web::DOMException::kInvalidStateErr,
+                             exception_state);
     return false;
   }
 
   media_source_->OpenIfInEndedState();
 
   if (!EvictCodedFrames(new_data_size)) {
-    DOMException::Raise(DOMException::kQuotaExceededErr, exception_state);
+    web::DOMException::Raise(web::DOMException::kQuotaExceededErr,
+                             exception_state);
     return false;
   }
 

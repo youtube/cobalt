@@ -57,7 +57,6 @@
 #include "cobalt/base/token.h"
 #include "cobalt/dom/audio_track_list.h"
 #include "cobalt/dom/event_queue.h"
-#include "cobalt/dom/event_target.h"
 #include "cobalt/dom/source_buffer_append_mode.h"
 #include "cobalt/dom/time_ranges.h"
 #include "cobalt/dom/track_default_list.h"
@@ -66,6 +65,7 @@
 #include "cobalt/script/array_buffer_view.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/exception_state.h"
+#include "cobalt/web/event_target.h"
 #include "third_party/chromium/media/base/media_tracks.h"
 #include "third_party/chromium/media/filters/chunk_demuxer.h"
 
@@ -77,7 +77,7 @@ class MediaSource;
 // The SourceBuffer interface exposes the media source buffer so its user can
 // append media data to.
 //   https://www.w3.org/TR/2016/CR-media-source-20160705/#sourcebuffer
-class SourceBuffer : public dom::EventTarget {
+class SourceBuffer : public web::EventTarget {
  public:
   typedef ::media::ChunkDemuxer ChunkDemuxer;
 

@@ -19,8 +19,6 @@
 #include <utility>
 
 #include "base/trace_event/trace_event.h"
-#include "cobalt/dom/blob.h"
-#include "cobalt/dom/url.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/loader/script_loader_factory.h"
 #include "cobalt/script/environment_settings.h"
@@ -30,8 +28,10 @@
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/script/script_runner.h"
 #include "cobalt/script/wrappable.h"
+#include "cobalt/web/blob.h"
 #include "cobalt/web/context.h"
 #include "cobalt/web/environment_settings.h"
+#include "cobalt/web/url.h"
 #include "cobalt/worker/service_worker.h"
 #include "cobalt/worker/service_worker_jobs.h"
 #include "cobalt/worker/service_worker_object.h"
@@ -78,9 +78,7 @@ class Impl : public Context {
   script::ScriptRunner* script_runner() const final {
     return script_runner_.get();
   }
-  dom::Blob::Registry* blob_registry() const final {
-    return blob_registry_.get();
-  }
+  Blob::Registry* blob_registry() const final { return blob_registry_.get(); }
   network::NetworkModule* network_module() const final {
     DCHECK(fetcher_factory_);
     return fetcher_factory_->network_module();
@@ -96,7 +94,7 @@ class Impl : public Context {
     if (environment_settings_) environment_settings_->set_context(this);
   }
 
-  web::EnvironmentSettings* environment_settings() const final {
+  EnvironmentSettings* environment_settings() const final {
     DCHECK_EQ(environment_settings_->context(), this);
     return environment_settings_.get();
   }
@@ -150,10 +148,10 @@ class Impl : public Context {
   std::unique_ptr<script::ScriptRunner> script_runner_;
 
   // Object to register and retrieve Blob objects with a string key.
-  std::unique_ptr<dom::Blob::Registry> blob_registry_;
+  std::unique_ptr<Blob::Registry> blob_registry_;
 
   // Environment Settings object
-  std::unique_ptr<web::EnvironmentSettings> environment_settings_;
+  std::unique_ptr<EnvironmentSettings> environment_settings_;
 
   // The service worker registration object map.
   //   https://w3c.github.io/ServiceWorker/#environment-settings-object-service-worker-registration-object-map
@@ -172,11 +170,11 @@ class Impl : public Context {
 Impl::Impl(const Agent::Options& options) : name_(options.name) {
   TRACE_EVENT0("cobalt::web", "Agent::Impl::Impl()");
   service_worker_jobs_ = options.service_worker_jobs;
-  blob_registry_.reset(new dom::Blob::Registry);
+  blob_registry_.reset(new Blob::Registry);
 
   fetcher_factory_.reset(new loader::FetcherFactory(
       options.network_module, options.extra_web_file_dir,
-      dom::URL::MakeBlobResolverCallback(blob_registry_.get()),
+      URL::MakeBlobResolverCallback(blob_registry_.get()),
       options.read_cache_callback));
   DCHECK(fetcher_factory_);
 

@@ -50,10 +50,10 @@
 
 #include "base/memory/ref_counted.h"
 #include "cobalt/dom/event_queue.h"
-#include "cobalt/dom/event_target.h"
 #include "cobalt/dom/source_buffer.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/wrappable.h"
+#include "cobalt/web/event_target.h"
 
 namespace cobalt {
 namespace dom {
@@ -62,7 +62,7 @@ namespace dom {
 // to access all the SourceBuffers and the active SourceBuffers of a MediaSource
 // object.
 //   https://www.w3.org/TR/2016/CR-media-source-20160705/#sourcebufferlist
-class SourceBufferList : public EventTarget {
+class SourceBufferList : public web::EventTarget {
  public:
   // Custom, not in any spec.
   //

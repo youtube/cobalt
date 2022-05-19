@@ -19,12 +19,12 @@
 
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
-#include "cobalt/dom/event_target.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/sequence.h"
 #include "cobalt/script/wrappable.h"
 #include "cobalt/speech/speech_synthesis_utterance.h"
 #include "cobalt/speech/speech_synthesis_voice.h"
+#include "cobalt/web/event_target.h"
 #include "starboard/system.h"
 
 namespace cobalt {
@@ -40,7 +40,7 @@ namespace speech {
 // The speech synthesis interface is the scripted web API for controlling a
 // given speech synthesis.
 //   https://dvcs.w3.org/hg/speech-api/raw-file/4f41ea1126bb/webspeechapi.html#tts-section
-class SpeechSynthesis : public dom::EventTarget {
+class SpeechSynthesis : public web::EventTarget {
  public:
   typedef script::Sequence<scoped_refptr<SpeechSynthesisVoice> >
       SpeechSynthesisVoiceSequence;

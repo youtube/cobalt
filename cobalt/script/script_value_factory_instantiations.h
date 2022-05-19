@@ -24,7 +24,7 @@
 namespace cobalt {
 namespace script {
 
-// TODO: Move dom::BufferSource to script::BufferSource and include here
+// TODO: Move web::BufferSource to script::BufferSource and include here
 using BufferSource = script::UnionType2<script::Handle<script::ArrayBufferView>,
                                         script::Handle<script::ArrayBuffer>>;
 

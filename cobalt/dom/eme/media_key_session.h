@@ -21,15 +21,15 @@
 
 #include "base/callback.h"
 #include "base/memory/weak_ptr.h"
-#include "cobalt/dom/buffer_source.h"
 #include "cobalt/dom/eme/media_key_status.h"
 #include "cobalt/dom/eme/media_key_status_map.h"
 #include "cobalt/dom/event_queue.h"
-#include "cobalt/dom/event_target.h"
 #include "cobalt/media/base/drm_system.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/promise.h"
 #include "cobalt/script/script_value_factory.h"
+#include "cobalt/web/buffer_source.h"
+#include "cobalt/web/event_target.h"
 #include "starboard/drm.h"
 
 namespace cobalt {
@@ -41,7 +41,7 @@ namespace eme {
 //   https://www.w3.org/TR/encrypted-media/#key-session
 //
 // Also see https://www.w3.org/TR/encrypted-media/#mediakeysession-interface.
-class MediaKeySession : public EventTarget {
+class MediaKeySession : public web::EventTarget {
  public:
   typedef script::ScriptValue<script::Promise<void>> VoidPromiseValue;
   typedef base::Callback<void(MediaKeySession* session)> ClosedCallback;
@@ -62,8 +62,9 @@ class MediaKeySession : public EventTarget {
   void set_onmessage(const EventListenerScriptValue& event_listener);
   script::Handle<script::Promise<void>> GenerateRequest(
       script::EnvironmentSettings* settings, const std::string& init_data_type,
-      const BufferSource& init_data);
-  script::Handle<script::Promise<void>> Update(const BufferSource& response);
+      const web::BufferSource& init_data);
+  script::Handle<script::Promise<void>> Update(
+      const web::BufferSource& response);
   script::Handle<script::Promise<void>> Close();
 
   DEFINE_WRAPPABLE_TYPE(MediaKeySession);

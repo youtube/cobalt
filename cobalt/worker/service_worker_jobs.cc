@@ -27,15 +27,15 @@
 #include "base/synchronization/lock.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/tokens.h"
-#include "cobalt/dom/dom_exception.h"
-#include "cobalt/dom/event.h"
 #include "cobalt/loader/script_loader_factory.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/script/promise.h"
 #include "cobalt/script/script_exception.h"
 #include "cobalt/script/script_value.h"
 #include "cobalt/web/context.h"
+#include "cobalt/web/dom_exception.h"
 #include "cobalt/web/environment_settings.h"
+#include "cobalt/web/event.h"
 #include "cobalt/worker/service_worker.h"
 #include "cobalt/worker/service_worker_registration.h"
 #include "cobalt/worker/service_worker_registration_object.h"
@@ -226,7 +226,7 @@ void ServiceWorkerJobs::PromiseErrorData::Reject(
   if (message_type_ != script::kNoError) {
     promise->Reject(GetSimpleExceptionType(message_type_));
   } else {
-    promise->Reject(new dom::DOMException(exception_code_, message_));
+    promise->Reject(new web::DOMException(exception_code_, message_));
   }
 }
 
@@ -405,7 +405,7 @@ void ServiceWorkerJobs::Register(Job* job) {
     // 1.1. Invoke Reject Job Promise with job and "SecurityError" DOMException.
     RejectJobPromise(
         job, PromiseErrorData(
-                 dom::DOMException::kSecurityErr,
+                 web::DOMException::kSecurityErr,
                  "Service Worker Register failed: Script URL is Not Trusted."));
     // 1.2. Invoke Finish Job with job and abort these steps.
     FinishJob(job);
@@ -420,7 +420,7 @@ void ServiceWorkerJobs::Register(Job* job) {
     // 2.1. Invoke Reject Job Promise with job and "SecurityError" DOMException.
     RejectJobPromise(
         job, PromiseErrorData(
-                 dom::DOMException::kSecurityErr,
+                 web::DOMException::kSecurityErr,
                  "Service Worker Register failed: Script URL and referrer "
                  "origin are not the same."));
     // 2.2. Invoke Finish Job with job and abort these steps.
@@ -435,7 +435,7 @@ void ServiceWorkerJobs::Register(Job* job) {
     // 3.1. Invoke Reject Job Promise with job and "SecurityError" DOMException.
     RejectJobPromise(
         job, PromiseErrorData(
-                 dom::DOMException::kSecurityErr,
+                 web::DOMException::kSecurityErr,
                  "Service Worker Register failed: Scope URL and referrer "
                  "origin are not the same."));
 
@@ -845,7 +845,7 @@ void ServiceWorkerJobs::Install(Job* job, ServiceWorkerObject* worker,
                           [](scoped_refptr<worker::ServiceWorkerRegistration>
                                  registration_object) {
                             registration_object->DispatchEvent(
-                                new dom::Event(base::Tokens::updatefound()));
+                                new web::Event(base::Tokens::updatefound()));
                           },
                           registration_object));
                 }
@@ -885,7 +885,7 @@ void ServiceWorkerJobs::Install(Job* job, ServiceWorkerObject* worker,
                     // 11.3.1.2. Initialize e’s type attribute to install.
                     // 11.3.1.3. Dispatch e at installingWorker’s global object.
                     installing_worker->worker_global_scope()->DispatchEvent(
-                        new dom::Event(base::Tokens::install()));
+                        new web::Event(base::Tokens::install()));
                     // 11.3.1.4. WaitForAsynchronousExtensions: Run the
                     //           following substeps in parallel:
                     // 11.3.1.4.1. Wait until e is not active.
@@ -1117,7 +1117,7 @@ void ServiceWorkerJobs::UpdateWorkerState(ServiceWorkerObject* worker,
                       base::BindOnce(
                           [](scoped_refptr<worker::ServiceWorker> worker_obj) {
                             worker_obj->DispatchEvent(
-                                new dom::Event(base::Tokens::statechange()));
+                                new web::Event(base::Tokens::statechange()));
                           },
                           worker_obj));
                 }

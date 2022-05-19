@@ -19,9 +19,9 @@
 #include <string>
 
 #include "base/memory/scoped_refptr.h"
-#include "cobalt/dom/event_target.h"
-#include "cobalt/dom/event_target_listener_info.h"
 #include "cobalt/web/environment_settings.h"
+#include "cobalt/web/event_target.h"
+#include "cobalt/web/event_target_listener_info.h"
 #include "cobalt/worker/abstract_worker.h"
 #include "cobalt/worker/message_port.h"
 #include "cobalt/worker/worker.h"
@@ -32,7 +32,7 @@ namespace worker {
 
 // Implementation of Dedicated workers and the Worker interface.
 //   https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#dedicated-workers-and-the-worker-interface
-class DedicatedWorker : public AbstractWorker, public dom::EventTarget {
+class DedicatedWorker : public AbstractWorker, public web::EventTarget {
  public:
   DedicatedWorker(script::EnvironmentSettings* settings,
                   const std::string& scriptURL);

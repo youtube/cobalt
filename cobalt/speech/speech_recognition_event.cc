@@ -36,12 +36,12 @@ SpeechRecognitionEvent::SpeechRecognitionEvent(
     Type type, uint32 result_index,
     const scoped_refptr<SpeechRecognitionResultList>&
         speech_recognition_result_list)
-    : dom::Event(TypeEnumToToken(type)),
+    : web::Event(TypeEnumToToken(type)),
       result_index_(result_index),
       speech_recognition_result_list_(speech_recognition_result_list) {}
 
 void SpeechRecognitionEvent::TraceMembers(script::Tracer* tracer) {
-  dom::Event::TraceMembers(tracer);
+  web::Event::TraceMembers(tracer);
 
   tracer->Trace(speech_recognition_result_list_);
 }

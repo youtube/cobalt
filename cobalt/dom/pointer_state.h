@@ -22,11 +22,11 @@
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
-#include "cobalt/dom/dom_exception.h"
-#include "cobalt/dom/event.h"
 #include "cobalt/dom/html_element.h"
 #include "cobalt/dom/pointer_event_init.h"
 #include "cobalt/math/vector2d_f.h"
+#include "cobalt/web/dom_exception.h"
+#include "cobalt/web/event.h"
 
 namespace cobalt {
 namespace dom {
@@ -47,10 +47,10 @@ class PointerState {
   //
 
   // Queue up pointer related events.
-  void QueuePointerEvent(const scoped_refptr<Event>& event);
+  void QueuePointerEvent(const scoped_refptr<web::Event>& event);
 
   // Get the next queued pointer event.
-  scoped_refptr<Event> GetNextQueuedPointerEvent();
+  scoped_refptr<web::Event> GetNextQueuedPointerEvent();
 
   // Set the pending pointer capture target override for a pointer.
   void SetPendingPointerCaptureTargetOverride(int32_t pointer_id,
@@ -77,11 +77,11 @@ class PointerState {
   // shutdown.
   void ClearForShutdown();
 
-  static bool CanQueueEvent(const scoped_refptr<Event>& event);
+  static bool CanQueueEvent(const scoped_refptr<web::Event>& event);
 
  private:
   // Stores pointer events until they are handled after a layout.
-  std::queue<scoped_refptr<Event> > pointer_events_;
+  std::queue<scoped_refptr<web::Event> > pointer_events_;
 
   // This stores the elements with target overrides
   //   https://www.w3.org/TR/2015/REC-pointerevents-20150224/#pointer-capture

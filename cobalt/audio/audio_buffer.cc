@@ -12,14 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "cobalt/audio/audio_buffer.h"
+
 #include <algorithm>
 #include <limits>
 #include <memory>
-
-#include "cobalt/audio/audio_buffer.h"
+#include <utility>
 
 #include "cobalt/audio/audio_helpers.h"
-#include "cobalt/dom/dom_exception.h"
+#include "cobalt/web/dom_exception.h"
 #include "starboard/memory.h"
 
 namespace cobalt {
@@ -37,7 +38,7 @@ void AudioBuffer::CopyToChannel(
     uint32 start_in_channel, script::ExceptionState* exception_state) {
   if (channel_number >= audio_bus_->channels() ||
       start_in_channel > audio_bus_->frames()) {
-    dom::DOMException::Raise(dom::DOMException::kIndexSizeErr, exception_state);
+    web::DOMException::Raise(web::DOMException::kIndexSizeErr, exception_state);
     return;
   }
 

@@ -40,7 +40,6 @@
 #include "cobalt/browser/switches.h"
 #include "cobalt/configuration/configuration.h"
 #include "cobalt/cssom/viewport_size.h"
-#include "cobalt/dom/csp_delegate_factory.h"
 #include "cobalt/dom/input_event_init.h"
 #include "cobalt/dom/keyboard_event_init.h"
 #include "cobalt/dom/keycode.h"
@@ -53,6 +52,7 @@
 #include "cobalt/input/input_device_manager_fuzzer.h"
 #include "cobalt/math/matrix3_f.h"
 #include "cobalt/overlay_info/overlay_info_registry.h"
+#include "cobalt/web/csp_delegate_factory.h"
 #include "nb/memory_scope.h"
 #include "starboard/atomic.h"
 #include "starboard/common/string.h"
@@ -564,7 +564,7 @@ void BrowserModule::Navigate(const GURL& url_reference) {
 // Create new WebModule.
 #if !defined(COBALT_FORCE_CSP)
   options_.web_module_options.csp_insecure_allowed_token =
-      dom::CspDelegateFactory::GetInsecureAllowedToken();
+      web::CspDelegateFactory::GetInsecureAllowedToken();
 #endif
   WebModule::Options options(options_.web_module_options);
   options.splash_screen_cache = splash_screen_cache_.get();

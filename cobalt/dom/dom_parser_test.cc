@@ -22,10 +22,10 @@
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/testing/stub_css_parser.h"
 #include "cobalt/dom/testing/stub_environment_settings.h"
-#include "cobalt/dom/testing/stub_script_runner.h"
 #include "cobalt/dom_parser/parser.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/loader/loader_factory.h"
+#include "cobalt/script/testing/stub_script_runner.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
@@ -42,7 +42,7 @@ class DOMParserTest : public ::testing::Test {
   loader::LoaderFactory loader_factory_;
   testing::StubCSSParser stub_css_parser_;
   std::unique_ptr<dom_parser::Parser> dom_parser_parser_;
-  testing::StubScriptRunner stub_script_runner_;
+  script::testing::StubScriptRunner stub_script_runner_;
   HTMLElementContext html_element_context_;
   scoped_refptr<DOMParser> dom_parser_;
 };
@@ -65,8 +65,7 @@ DOMParserTest::DOMParserTest()
           NULL /* remote_typeface_cache */, NULL /* mesh_cache */,
           NULL /* dom_stat_tracker */, "" /* language */,
           base::kApplicationStateStarted,
-          NULL /* synchronous_loader_interrupt */,
-          NULL /* performance */),
+          NULL /* synchronous_loader_interrupt */, NULL /* performance */),
       dom_parser_(new DOMParser(&html_element_context_)) {}
 
 TEST_F(DOMParserTest, ParsesXML) {

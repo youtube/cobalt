@@ -25,7 +25,6 @@
 #include "base/time/default_tick_clock.h"
 #include "cobalt/base/application_state.h"
 #include "cobalt/base/clock.h"
-#include "cobalt/dom/event_target.h"
 #include "cobalt/dom/performance_entry_list_impl.h"
 #include "cobalt/dom/performance_high_resolution_time.h"
 #include "cobalt/dom/performance_lifecycle_timing.h"
@@ -36,6 +35,7 @@
 #include "cobalt/dom/performance_timing.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/exception_state.h"
+#include "cobalt/web/event_target.h"
 #include "net/base/load_timing_info.h"
 
 namespace cobalt {
@@ -46,7 +46,7 @@ class MemoryInfo;
 // Implements the Performance IDL interface, an instance of which is created
 // and owned by the Window object.
 //   https://dvcs.w3.org/hg/webperf/raw-file/tip/specs/NavigationTiming/Overview.html#sec-window.performance-attribute
-class Performance : public EventTarget {
+class Performance : public web::EventTarget {
  public:
   // Ensure that the timer resolution is at the lowest 20 microseconds in
   // order to mitigate potential Spectre-related attacks.  This is following
@@ -99,8 +99,8 @@ class Performance : public EventTarget {
   bool CanAddResourceTimingEntry();
   void CopySecondaryBuffer();
   void set_onresourcetimingbufferfull(
-      const EventTarget::EventListenerScriptValue& event_listener);
-  const EventTarget::EventListenerScriptValue* onresourcetimingbufferfull()
+      const web::EventTarget::EventListenerScriptValue& event_listener);
+  const web::EventTarget::EventListenerScriptValue* onresourcetimingbufferfull()
       const;
   void FireResourceTimingBufferFullEvent();
   void AddPerformanceResourceTimingEntry(

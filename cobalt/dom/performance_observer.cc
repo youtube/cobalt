@@ -17,11 +17,11 @@
 #include <unordered_set>
 
 #include "cobalt/base/polymorphic_downcast.h"
-#include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/performance.h"
 #include "cobalt/dom/performance_entry.h"
 #include "cobalt/dom/window.h"
+#include "cobalt/web/dom_exception.h"
 
 namespace cobalt {
 namespace dom {
@@ -106,14 +106,14 @@ void PerformanceObserver::Observe(const PerformanceObserverInit& options,
   bool has_entry_types = options.has_entry_types();
   bool has_type = options.has_type();
   if (!has_entry_types && !has_type) {
-    DOMException::Raise(DOMException::kSyntaxErr, exception_state);
+    web::DOMException::Raise(web::DOMException::kSyntaxErr, exception_state);
   }
   // 4.  If options's entryTypes is present and any other member is also
   // present, then throw a SyntaxError.
   bool entry_types_present = has_entry_types && !options.entry_types().empty();
   bool type_present = has_type && !options.type().empty();
   if (entry_types_present && type_present) {
-    DOMException::Raise(DOMException::kSyntaxErr, exception_state);
+    web::DOMException::Raise(web::DOMException::kSyntaxErr, exception_state);
   }
   // 5.  Update or check observer's observer type by running these steps:
   // 5.1   If observer's observer type is "undefined":
@@ -133,12 +133,14 @@ void PerformanceObserver::Observe(const PerformanceObserverInit& options,
   // member is present, then throw an InvalidModificationError.
   if (observer_type_ == PerformanceObserverType::kSingle &&
       entry_types_present) {
-    DOMException::Raise(DOMException::kInvalidModificationErr, exception_state);
+    web::DOMException::Raise(web::DOMException::kInvalidModificationErr,
+                             exception_state);
   }
   // 5.3  If observer's observer type is "multiple" and options's type member
   // is present, then throw an InvalidModificationError.
   if (observer_type_ == PerformanceObserverType::kMultiple && type_present) {
-    DOMException::Raise(DOMException::kInvalidModificationErr, exception_state);
+    web::DOMException::Raise(web::DOMException::kInvalidModificationErr,
+                             exception_state);
   }
   // 6  If observer's observer type is "multiple", run the following steps:
   if (observer_type_ == PerformanceObserverType::kMultiple) {

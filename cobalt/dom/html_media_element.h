@@ -144,7 +144,7 @@ class HTMLMediaElement : public HTMLElement,
 
   // Let other objects add event to the EventQueue of HTMLMediaElement.  This
   // function won't modify the target of the |event| passed in.
-  void ScheduleEvent(const scoped_refptr<Event>& event);
+  void ScheduleEvent(const scoped_refptr<web::Event>& event);
 
   // Set max video capabilities.
   void SetMaxVideoCapabilities(const std::string& max_video_capabilities,

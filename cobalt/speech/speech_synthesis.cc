@@ -29,7 +29,7 @@ bool SpeechSynthesis::SpeechSynthesisIsSupported() {
 SpeechSynthesis::SpeechSynthesis(script::EnvironmentSettings* settings,
                                  const scoped_refptr<dom::Navigator>& navigator,
                                  bool log_output)
-    : dom::EventTarget(settings),
+    : web::EventTarget(settings),
       log_output_(log_output),
       paused_(false),
       navigator_(navigator) {
@@ -50,7 +50,7 @@ void SpeechSynthesis::set_onvoiceschanged(
     const EventListenerScriptValue& event_listener) {
   base::Token event_name = base::Tokens::voiceschanged();
   SetAttributeEventListener(event_name, event_listener);
-  DispatchEvent(new dom::Event(event_name));
+  DispatchEvent(new web::Event(event_name));
 }
 
 void SpeechSynthesis::Cancel() {
@@ -76,7 +76,7 @@ void SpeechSynthesis::Resume() {
 }
 
 void SpeechSynthesis::TraceMembers(script::Tracer* tracer) {
-  dom::EventTarget::TraceMembers(tracer);
+  web::EventTarget::TraceMembers(tracer);
 
   tracer->TraceItems(utterances_);
   tracer->TraceItems(voices_);

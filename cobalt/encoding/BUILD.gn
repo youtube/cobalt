@@ -43,7 +43,8 @@ target(gtest_target_type, "text_encoding_test") {
   deps = [
     ":text_encoding",
     "//cobalt/base",
-    "//cobalt/dom",
+    "//cobalt/browser:generated_bindings",
+    "//cobalt/debug",
     "//cobalt/dom/testing:dom_testing",
     "//cobalt/script",
     "//cobalt/test:run_all_unittests",

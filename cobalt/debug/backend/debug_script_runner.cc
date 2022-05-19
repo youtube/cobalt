@@ -33,7 +33,7 @@ const char kContentDir[] = "debug_backend";
 DebugScriptRunner::DebugScriptRunner(
     script::GlobalEnvironment* global_environment,
     script::ScriptDebugger* script_debugger,
-    const dom::CspDelegate* csp_delegate)
+    const web::CspDelegate* csp_delegate)
     : global_environment_(global_environment),
       script_debugger_(script_debugger),
       csp_delegate_(csp_delegate) {}
@@ -97,7 +97,7 @@ void DebugScriptRunner::SetEvalAllowedFromCsp() {
   }
 
   global_environment_->SetReportEvalCallback(base::Bind(
-      &dom::CspDelegate::ReportEval, base::Unretained(csp_delegate_)));
+      &web::CspDelegate::ReportEval, base::Unretained(csp_delegate_)));
 }
 
 }  // namespace backend

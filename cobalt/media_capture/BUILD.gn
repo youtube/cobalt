@@ -43,12 +43,12 @@ static_library("media_capture") {
   deps = [
     "//base",
     "//cobalt/base",
-    "//cobalt/dom:dom_exception",
     "//cobalt/media",
     "//cobalt/media_stream",
     "//cobalt/script",
     "//cobalt/script:engine",
     "//cobalt/speech",
+    "//cobalt/web:dom_exception",
     "//starboard",
   ]
 }
@@ -65,12 +65,12 @@ target(gtest_target_type, "media_capture_test") {
   deps = [
     ":media_capture",
     "//cobalt/dom",
-    "//cobalt/dom:dom_exception",
     "//cobalt/dom/testing:dom_testing",
     "//cobalt/media_stream",
     "//cobalt/media_stream:media_stream_test_headers",
     "//cobalt/script",
     "//cobalt/test:run_all_unittests",
+    "//cobalt/web:dom_exception",
     "//testing/gmock",
     "//testing/gtest",
   ]

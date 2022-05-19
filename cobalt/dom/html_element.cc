@@ -33,7 +33,6 @@
 #include "cobalt/cssom/property_list_value.h"
 #include "cobalt/cssom/selector_tree.h"
 #include "cobalt/cssom/viewport_size.h"
-#include "cobalt/dom/csp_delegate.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/dom_animatable.h"
 #include "cobalt/dom/dom_string_map.h"
@@ -63,6 +62,7 @@
 #include "cobalt/dom/text.h"
 #include "cobalt/loader/image/animated_image_tracker.h"
 #include "cobalt/loader/resource_cache.h"
+#include "cobalt/web/csp_delegate.h"
 #include "third_party/icu/source/common/unicode/uchar.h"
 #include "third_party/icu/source/common/unicode/utf8.h"
 
@@ -834,10 +834,10 @@ base::Optional<std::string> HTMLElement::GetStyleAttribute() const {
 
 void HTMLElement::SetStyleAttribute(const std::string& value) {
   Document* document = node_document();
-  CspDelegate* csp_delegate = document->csp_delegate();
+  web::CspDelegate* csp_delegate = document->csp_delegate();
   if (value.empty() ||
       csp_delegate->AllowInline(
-          CspDelegate::kStyle,
+          web::CspDelegate::kStyle,
           base::SourceLocation(GetSourceLocationName(), 1, 1), value)) {
     style_->set_css_text(value, NULL);
     Element::SetStyleAttribute(value);
@@ -1221,8 +1221,8 @@ void HTMLElement::OnUiNavFocus(SbTimeMonotonic time) {
 void HTMLElement::OnUiNavScroll(SbTimeMonotonic /* time */) {
   Document* document = node_document();
   scoped_refptr<Window> window(document ? document->window() : nullptr);
-  DispatchEvent(new UIEvent(base::Tokens::scroll(), Event::kBubbles,
-                            Event::kNotCancelable, window));
+  DispatchEvent(new UIEvent(base::Tokens::scroll(), web::Event::kBubbles,
+                            web::Event::kNotCancelable, window));
 }
 
 HTMLElement::HTMLElement(Document* document, base::Token local_name)
@@ -1380,8 +1380,8 @@ void HTMLElement::RunFocusingSteps() {
   // to receive focus. This event type is similar to focus, but is dispatched
   // before focus is shifted, and does bubble.
   //   https://www.w3.org/TR/2016/WD-uievents-20160804/#event-type-focusin
-  DispatchEvent(new FocusEvent(base::Tokens::focusin(), Event::kBubbles,
-                               Event::kNotCancelable, document->window(),
+  DispatchEvent(new FocusEvent(base::Tokens::focusin(), web::Event::kBubbles,
+                               web::Event::kNotCancelable, document->window(),
                                this));
 
   // 3. Make the element the currently focused element in its top-level browsing
@@ -1396,8 +1396,8 @@ void HTMLElement::RunFocusingSteps() {
   // event type. This event type is similar to focusin, but is dispatched after
   // focus is shifted, and does not bubble.
   //   https://www.w3.org/TR/2016/WD-uievents-20160804/#event-type-focus
-  DispatchEvent(new FocusEvent(base::Tokens::focus(), Event::kNotBubbles,
-                               Event::kNotCancelable, document->window(),
+  DispatchEvent(new FocusEvent(base::Tokens::focus(), web::Event::kNotBubbles,
+                               web::Event::kNotCancelable, document->window(),
                                this));
 
   // Custom, not in any spec.
@@ -1417,8 +1417,8 @@ void HTMLElement::RunUnFocusingSteps() {
   //   https://www.w3.org/TR/2016/WD-uievents-20160804/#event-type-focusout
   Document* document = node_document();
   scoped_refptr<Window> window(document ? document->window() : NULL);
-  DispatchEvent(new FocusEvent(base::Tokens::focusout(), Event::kBubbles,
-                               Event::kNotCancelable, window, this));
+  DispatchEvent(new FocusEvent(base::Tokens::focusout(), web::Event::kBubbles,
+                               web::Event::kNotCancelable, window, this));
 
   // 2. Unfocus the element.
   if (document && document->active_element() == this->AsElement()) {
@@ -1431,8 +1431,8 @@ void HTMLElement::RunUnFocusingSteps() {
   // event type. This event type is similar to focusout, but is dispatched after
   // focus is shifted, and does not bubble.
   //   https://www.w3.org/TR/2016/WD-uievents-20160804/#event-type-blur
-  DispatchEvent(new FocusEvent(base::Tokens::blur(), Event::kNotBubbles,
-                               Event::kNotCancelable, document->window(),
+  DispatchEvent(new FocusEvent(base::Tokens::blur(), web::Event::kNotBubbles,
+                               web::Event::kNotCancelable, document->window(),
                                this));
 
   // Custom, not in any spec.

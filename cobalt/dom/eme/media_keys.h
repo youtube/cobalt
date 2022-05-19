@@ -20,7 +20,6 @@
 
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
-#include "cobalt/dom/buffer_source.h"
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/eme/media_key_session.h"
 #include "cobalt/dom/eme/media_key_session_type.h"
@@ -29,6 +28,8 @@
 #include "cobalt/script/script_value_factory.h"
 #include "cobalt/script/typed_arrays.h"
 #include "cobalt/script/wrappable.h"
+#include "cobalt/web/buffer_source.h"
+#include "cobalt/web/dom_exception.h"
 #include "starboard/drm.h"
 
 namespace cobalt {
@@ -57,7 +58,7 @@ class MediaKeys : public script::Wrappable,
       MediaKeySessionType session_type,
       script::ExceptionState* exception_state);
   BoolPromiseHandle SetServerCertificate(
-      const BufferSource& server_certificate);
+      const web::BufferSource& server_certificate);
   script::Handle<script::Uint8Array> GetMetrics(
       script::ExceptionState* exception_state);
 

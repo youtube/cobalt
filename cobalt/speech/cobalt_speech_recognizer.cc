@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <memory>
-
 #include "cobalt/speech/cobalt_speech_recognizer.h"
+
+#include <memory>
+#include <utility>
 
 #include "base/bind.h"
 #include "cobalt/base/tokens.h"
@@ -74,7 +75,6 @@ CobaltSpeechRecognizer::CobaltSpeechRecognizer(
     const Microphone::Options& microphone_options,
     const EventCallback& event_callback)
     : SpeechRecognizer(event_callback), endpointer_delegate_(kSampleRate) {
-
   GoogleSpeechService::URLFetcherCreator url_fetcher_creator =
       base::Bind(&CreateURLFetcher);
   MicrophoneManager::MicrophoneCreator microphone_creator =
@@ -119,13 +119,13 @@ void CobaltSpeechRecognizer::Stop() {
   endpointer_delegate_.Stop();
   microphone_manager_->Close();
   service_->Stop();
-  RunEventCallback(new dom::Event(base::Tokens::soundend()));
+  RunEventCallback(new web::Event(base::Tokens::soundend()));
 }
 
 void CobaltSpeechRecognizer::OnDataReceived(
     std::unique_ptr<AudioBus> audio_bus) {
   if (endpointer_delegate_.IsFirstTimeSoundStarted(*audio_bus)) {
-    RunEventCallback(new dom::Event(base::Tokens::soundstart()));
+    RunEventCallback(new web::Event(base::Tokens::soundstart()));
   }
   service_->RecognizeAudio(std::move(audio_bus), false);
 }
@@ -142,13 +142,13 @@ void CobaltSpeechRecognizer::OnDataCompletion() {
 }
 
 void CobaltSpeechRecognizer::OnRecognizerEvent(
-    const scoped_refptr<dom::Event>& event) {
+    const scoped_refptr<web::Event>& event) {
   RunEventCallback(event);
 }
 
 void CobaltSpeechRecognizer::OnMicrophoneError(
     MicrophoneManager::MicrophoneError error, std::string error_message) {
-  // An error is occured in Mic, so stop the energy endpointer and recognizer.
+  // An error is occurred in Mic, so stop the energy endpointer and recognizer.
 
   SpeechRecognitionErrorCode speech_error_code =
       kSpeechRecognitionErrorCodeAborted;
@@ -160,7 +160,7 @@ void CobaltSpeechRecognizer::OnMicrophoneError(
       speech_error_code = kSpeechRecognitionErrorCodeAudioCapture;
       break;
   }
-  scoped_refptr<dom::Event> event(
+  scoped_refptr<web::Event> event(
       new SpeechRecognitionError(speech_error_code, error_message));
   endpointer_delegate_.Stop();
   service_->Stop();

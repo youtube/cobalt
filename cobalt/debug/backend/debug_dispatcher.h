@@ -32,11 +32,11 @@
 #include "cobalt/debug/command.h"
 #include "cobalt/debug/debug_client.h"
 #include "cobalt/debug/json_object.h"
-#include "cobalt/dom/csp_delegate.h"
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/script_debugger.h"
 #include "cobalt/script/script_value.h"
 #include "cobalt/script/value_handle.h"
+#include "cobalt/web/csp_delegate.h"
 
 namespace cobalt {
 namespace debug {

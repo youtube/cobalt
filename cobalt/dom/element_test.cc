@@ -31,12 +31,12 @@
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/named_node_map.h"
 #include "cobalt/dom/node_list.h"
-#include "cobalt/dom/testing/gtest_workarounds.h"
 #include "cobalt/dom/testing/html_collection_testing.h"
 #include "cobalt/dom/testing/stub_environment_settings.h"
 #include "cobalt/dom/text.h"
 #include "cobalt/dom/xml_document.h"
 #include "cobalt/dom_parser/parser.h"
+#include "cobalt/web/testing/gtest_workarounds.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {

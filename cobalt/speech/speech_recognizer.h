@@ -16,8 +16,8 @@
 #define COBALT_SPEECH_SPEECH_RECOGNIZER_H_
 
 #include "base/callback.h"
-#include "cobalt/dom/event.h"
 #include "cobalt/speech/speech_recognition_config.h"
+#include "cobalt/web/event.h"
 
 namespace cobalt {
 namespace speech {
@@ -26,7 +26,7 @@ namespace speech {
 // classes to run event callback.
 class SpeechRecognizer {
  public:
-  typedef base::Callback<void(const scoped_refptr<dom::Event>&)> EventCallback;
+  typedef base::Callback<void(const scoped_refptr<web::Event>&)> EventCallback;
 
   explicit SpeechRecognizer(const EventCallback& event_callback);
 
@@ -36,7 +36,7 @@ class SpeechRecognizer {
   virtual void Stop() = 0;
 
  protected:
-  void RunEventCallback(const scoped_refptr<dom::Event>& event);
+  void RunEventCallback(const scoped_refptr<web::Event>& event);
 
  private:
   // Callback for sending dom events if available.

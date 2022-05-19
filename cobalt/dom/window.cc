@@ -30,9 +30,6 @@
 #include "cobalt/dom/device_orientation_event.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/element.h"
-#include "cobalt/dom/error_event.h"
-#include "cobalt/dom/error_event_init.h"
-#include "cobalt/dom/event.h"
 #include "cobalt/dom/history.h"
 #include "cobalt/dom/html_element.h"
 #include "cobalt/dom/html_element_context.h"
@@ -57,6 +54,9 @@
 #include "cobalt/speech/speech_synthesis.h"
 #include "cobalt/web/context.h"
 #include "cobalt/web/environment_settings.h"
+#include "cobalt/web/error_event.h"
+#include "cobalt/web/error_event_init.h"
+#include "cobalt/web/event.h"
 #include "starboard/file.h"
 
 using cobalt::cssom::ViewportSize;
@@ -110,7 +110,8 @@ Window::Window(
     const loader::Decoder::OnCompleteFunction& load_complete_callback,
     network_bridge::CookieJar* cookie_jar,
     const network_bridge::PostSender& post_sender,
-    csp::CSPHeaderPolicy require_csp, CspEnforcementType csp_enforcement_mode,
+    csp::CSPHeaderPolicy require_csp,
+    web::CspEnforcementType csp_enforcement_mode,
     const base::Closure& csp_policy_changed_callback,
     const base::Closure& ran_animation_frame_callbacks_callback,
     CloseCallback window_close_callback, base::Closure window_minimize_callback,
@@ -130,7 +131,7 @@ Window::Window(
     bool log_tts)
     // 'window' object EventTargets require special handling for onerror events,
     // see EventTarget constructor for more details.
-    : EventTarget(settings, kUnpackOnErrorEvents),
+    : web::EventTarget(settings, kUnpackOnErrorEvents),
       viewport_size_(view_size),
       is_resize_event_pending_(false),
       is_reporting_script_error_(false),
@@ -374,7 +375,8 @@ std::string Window::Btoa(const std::string& string_to_encode,
          "compatible with old versions of Cobalt if you use btoa.";
   auto output = ForgivingBase64Encode(string_to_encode);
   if (!output) {
-    DOMException::Raise(DOMException::kInvalidCharacterErr, exception_state);
+    web::DOMException::Raise(web::DOMException::kInvalidCharacterErr,
+                             exception_state);
     return std::string();
   }
   return *output;
@@ -385,7 +387,8 @@ std::vector<uint8_t> Window::Atob(const std::string& encoded_string,
   TRACE_EVENT0("cobalt::dom", "Window::Atob()");
   auto output = ForgivingBase64Decode(encoded_string);
   if (!output) {
-    DOMException::Raise(DOMException::kInvalidCharacterErr, exception_state);
+    web::DOMException::Raise(web::DOMException::kInvalidCharacterErr,
+                             exception_state);
     return {};
   }
   return *output;
@@ -471,7 +474,7 @@ bool Window::HasPendingAnimationFrameCallbacks() const {
   return animation_frame_request_callback_list_->HasPendingCallbacks();
 }
 
-void Window::InjectEvent(const scoped_refptr<Event>& event) {
+void Window::InjectEvent(const scoped_refptr<web::Event>& event) {
   TRACE_EVENT1("cobalt::dom", "Window::InjectEvent()", "event",
                TRACE_STR_COPY(event->type().c_str()));
 
@@ -524,7 +527,7 @@ bool Window::ReportScriptError(const script::ErrorReport& error_report) {
   // 7. Let event be a new trusted ErrorEvent object that does not bubble but is
   //    cancelable, and which has the event name error.
   // NOTE: Cobalt does not currently support trusted events.
-  ErrorEventInit error_event_init;
+  web::ErrorEventInit error_event_init;
   error_event_init.set_bubbles(false);
   error_event_init.set_cancelable(true);
 
@@ -551,8 +554,8 @@ bool Window::ReportScriptError(const script::ErrorReport& error_report) {
                                                   : NULL);
   }
 
-  scoped_refptr<ErrorEvent> error_event(
-      new ErrorEvent(base::Tokens::error(), error_event_init));
+  scoped_refptr<web::ErrorEvent> error_event(
+      new web::ErrorEvent(base::Tokens::error(), error_event_init));
 
   // 13. Dispatch event at target.
   DispatchEvent(error_event);
@@ -587,7 +590,7 @@ void Window::SetSize(ViewportSize size) {
   if (html_element_context()
           ->application_lifecycle_state()
           ->GetVisibilityState() == kVisibilityStateVisible) {
-    DispatchEvent(new Event(base::Tokens::resize()));
+    DispatchEvent(new web::Event(base::Tokens::resize()));
   } else {
     is_resize_event_pending_ = true;
   }
@@ -606,13 +609,13 @@ void Window::UpdateCamera3D(const scoped_refptr<input::Camera3D>& camera_3d) {
 
 void Window::OnWindowFocusChanged(bool has_focus) {
   DispatchEvent(
-      new Event(has_focus ? base::Tokens::focus() : base::Tokens::blur()));
+      new web::Event(has_focus ? base::Tokens::focus() : base::Tokens::blur()));
 }
 
 void Window::OnVisibilityStateChanged(VisibilityState visibility_state) {
   if (is_resize_event_pending_ && visibility_state == kVisibilityStateVisible) {
     is_resize_event_pending_ = false;
-    DispatchEvent(new Event(base::Tokens::resize()));
+    DispatchEvent(new web::Event(base::Tokens::resize()));
   }
 }
 
@@ -634,20 +637,20 @@ void Window::OnDocumentRootElementUnableToProvideOffsetDimensions() {
 }
 
 void Window::OnWindowOnOnlineEvent() {
-  DispatchEvent(new Event(base::Tokens::online()));
+  DispatchEvent(new web::Event(base::Tokens::online()));
 }
 
 void Window::OnWindowOnOfflineEvent() {
-  DispatchEvent(new Event(base::Tokens::offline()));
+  DispatchEvent(new web::Event(base::Tokens::offline()));
 }
 
-void Window::OnStartDispatchEvent(const scoped_refptr<dom::Event>& event) {
+void Window::OnStartDispatchEvent(const scoped_refptr<web::Event>& event) {
   if (!on_start_dispatch_event_callback_.is_null()) {
     on_start_dispatch_event_callback_.Run(event);
   }
 }
 
-void Window::OnStopDispatchEvent(const scoped_refptr<dom::Event>& event) {
+void Window::OnStopDispatchEvent(const scoped_refptr<web::Event>& event) {
   if (!on_stop_dispatch_event_callback_.is_null()) {
     on_stop_dispatch_event_callback_.Run(event);
   }
@@ -658,7 +661,7 @@ void Window::ClearPointerStateForShutdown() {
 }
 
 void Window::TraceMembers(script::Tracer* tracer) {
-  EventTarget::TraceMembers(tracer);
+  web::EventTarget::TraceMembers(tracer);
 
 #if defined(ENABLE_TEST_RUNNER)
   tracer->Trace(test_runner_);

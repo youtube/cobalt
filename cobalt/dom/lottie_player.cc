@@ -21,13 +21,13 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
-#include "cobalt/dom/csp_delegate.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/lottie_frame_custom_event.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/script/global_environment.h"
+#include "cobalt/web/csp_delegate.h"
 #include "url/gurl.h"
 
 namespace cobalt {
@@ -434,7 +434,7 @@ void LottiePlayer::UpdateLottieObjects() {
 
 void LottiePlayer::ScheduleEvent(base::Token event_name) {
   // https://github.com/LottieFiles/lottie-player#events
-  scoped_refptr<Event> event = new Event(event_name);
+  scoped_refptr<web::Event> event = new web::Event(event_name);
   event->set_target(this);
   event_queue_.Enqueue(event);
 }

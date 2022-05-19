@@ -44,7 +44,8 @@ repos:
         exclude: |
             (?x)^(
                 starboard/[^/]+/i18n/|
-                cobalt/content/licenses/
+                cobalt/content/licenses/|
+                cobalt/fetch/embedded_scripts
             )
 
 -   repo: local

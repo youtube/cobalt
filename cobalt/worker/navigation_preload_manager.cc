@@ -16,7 +16,7 @@
 
 #include <vector>
 
-#include "cobalt/dom/dom_exception.h"
+#include "cobalt/web/dom_exception.h"
 #include "cobalt/worker/service_worker_registration.h"
 
 namespace cobalt {
@@ -42,7 +42,7 @@ script::Handle<script::Promise<void>> NavigationPreloadManager::SetHeaderValue(
       script_value_factory_->CreateBasicPromise<void>();
 
   if (registration_->active() == nullptr) {
-    promise->Reject(new dom::DOMException(dom::DOMException::kInvalidStateErr));
+    promise->Reject(new web::DOMException(web::DOMException::kInvalidStateErr));
     return promise;
   }
 
@@ -56,7 +56,7 @@ script::Handle<script::Promise<void>> NavigationPreloadManager::SetEnabled(
   script::Handle<script::Promise<void>> promise =
       script_value_factory_->CreateBasicPromise<void>();
   if (registration_->active() == nullptr) {
-    promise->Reject(new dom::DOMException(dom::DOMException::kInvalidStateErr));
+    promise->Reject(new web::DOMException(web::DOMException::kInvalidStateErr));
     return promise;
   }
   registration_->EnableNavigationPreload(enable);

@@ -19,16 +19,16 @@
 
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
-#include "cobalt/dom/event.h"
 #include "cobalt/script/wrappable.h"
 #include "cobalt/speech/speech_recognition_error_code.h"
+#include "cobalt/web/event.h"
 
 namespace cobalt {
 namespace speech {
 
 // The SpeechRecognitionError event is the interface used for the error event.
 //   https://dvcs.w3.org/hg/speech-api/raw-file/9a0075d25326/speechapi.html#speechreco-error
-class SpeechRecognitionError : public dom::Event {
+class SpeechRecognitionError : public web::Event {
  public:
   SpeechRecognitionError(SpeechRecognitionErrorCode error_code,
                          const std::string& message);

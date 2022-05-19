@@ -40,9 +40,9 @@ static_library("subtlecrypto") {
     "//cobalt/base",
     "//cobalt/browser:generated_types",
     "//cobalt/dom",
-    "//cobalt/dom:dom_exception",
     "//cobalt/script",
     "//cobalt/script:engine",
+    "//cobalt/web:dom_exception",
   ]
 }
 

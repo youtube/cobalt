@@ -17,14 +17,14 @@
 #include <string>
 
 #include "cobalt/base/tokens.h"
-#include "cobalt/dom/event.h"
+#include "cobalt/web/event.h"
 #include "cobalt/websocket/close_event_init.h"
 #include "net/websockets/websocket_errors.h"
 
 namespace cobalt {
 namespace websocket {
 
-class CloseEvent : public dom::Event {
+class CloseEvent : public web::Event {
  public:
   explicit CloseEvent(const base::Token type)
       : Event(type), was_clean_(true), code_(net::kWebSocketNormalClosure) {}

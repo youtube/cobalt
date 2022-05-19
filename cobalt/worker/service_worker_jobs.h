@@ -29,13 +29,13 @@
 #include "base/synchronization/lock.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/task/sequence_manager/moveable_auto_lock.h"
-#include "cobalt/dom/dom_exception.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/loader/script_loader_factory.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/script/exception_message.h"
 #include "cobalt/script/promise.h"
 #include "cobalt/script/script_value.h"
+#include "cobalt/web/dom_exception.h"
 #include "cobalt/web/environment_settings.h"
 #include "cobalt/worker/service_worker.h"
 #include "cobalt/worker/service_worker_object.h"
@@ -220,8 +220,8 @@ class ServiceWorkerJobs {
    public:
     explicit PromiseErrorData(const script::MessageType& message_type)
         : message_type_(message_type),
-          exception_code_(dom::DOMException::kNone) {}
-    PromiseErrorData(const dom::DOMException::ExceptionCode& code,
+          exception_code_(web::DOMException::kNone) {}
+    PromiseErrorData(const web::DOMException::ExceptionCode& code,
                      const std::string& message)
         : message_type_(script::kNoError),
           exception_code_(code),
@@ -233,7 +233,7 @@ class ServiceWorkerJobs {
     // Use script::MessageType because it can hold kNoError value to distinguish
     // between simple exceptions and DOM exceptions.
     script::MessageType message_type_;
-    const dom::DOMException::ExceptionCode exception_code_;
+    const web::DOMException::ExceptionCode exception_code_;
     const std::string message_;
   };
 

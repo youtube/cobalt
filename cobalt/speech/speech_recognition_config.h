@@ -17,13 +17,15 @@
 
 #include <string>
 
+#include "starboard/types.h"
+
 namespace cobalt {
 namespace speech {
 
 // Speech recognition parameters.
 struct SpeechRecognitionConfig {
   SpeechRecognitionConfig(const std::string& lang, bool continuous,
-                          bool interim_results, uint32 max_alternatives)
+                          bool interim_results, uint32_t max_alternatives)
       : lang(lang),
         continuous(continuous),
         interim_results(interim_results),
@@ -41,7 +43,7 @@ struct SpeechRecognitionConfig {
   bool interim_results;
   // This attribute will set the maximum number of SpeechRecognitionAlternatives
   // per result.
-  uint32 max_alternatives;
+  uint32_t max_alternatives;
 };
 
 }  // namespace speech

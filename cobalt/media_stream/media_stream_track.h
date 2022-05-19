@@ -17,9 +17,9 @@
 
 #include "base/callback.h"
 #include "base/strings/string_piece.h"
-#include "cobalt/dom/event_target.h"
 #include "cobalt/media_stream/media_track_settings.h"
 #include "cobalt/script/environment_settings.h"
+#include "cobalt/web/event_target.h"
 #include "starboard/common/mutex.h"
 
 namespace cobalt {
@@ -27,7 +27,7 @@ namespace media_stream {
 
 // This class represents a MediaStreamTrack, and implements the specification
 // at: https://www.w3.org/TR/mediacapture-streams/#dom-mediastreamtrack
-class MediaStreamTrack : public dom::EventTarget {
+class MediaStreamTrack : public web::EventTarget {
  public:
   enum ReadyState {
     kReadyStateLive,
@@ -35,7 +35,7 @@ class MediaStreamTrack : public dom::EventTarget {
   };
 
   explicit MediaStreamTrack(script::EnvironmentSettings* settings)
-      : EventTarget(settings) {}
+      : web::EventTarget(settings) {}
 
   // Function exposed to JavaScript via IDL.
   const MediaTrackSettings& GetSettings() const {

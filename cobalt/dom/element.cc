@@ -15,6 +15,7 @@
 #include "cobalt/dom/element.h"
 
 #include <algorithm>
+#include <memory>
 
 #include "base/lazy_instance.h"
 #include "base/strings/string_util.h"
@@ -23,7 +24,6 @@
 #include "cobalt/cssom/css_style_rule.h"
 #include "cobalt/cssom/selector.h"
 #include "cobalt/dom/document.h"
-#include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/dom_rect.h"
 #include "cobalt/dom/dom_rect_list.h"
 #include "cobalt/dom/dom_token_list.h"
@@ -39,6 +39,7 @@
 #include "cobalt/dom/serializer.h"
 #include "cobalt/dom/text.h"
 #include "cobalt/math/rect_f.h"
+#include "cobalt/web/dom_exception.h"
 #include "nb/memory_scope.h"
 
 namespace cobalt {
@@ -107,7 +108,7 @@ bool Element::HasAttributeNS(const std::string& namespace_uri,
 }
 
 bool Element::Matches(const std::string& selectors,
-                             script::ExceptionState* exception_state) {
+                      script::ExceptionState* exception_state) {
   TRACK_MEMORY_SCOPE("DOM");
   // Referenced from:
   // https://dom.spec.whatwg.org/#dom-element-matches
@@ -118,15 +119,15 @@ bool Element::Matches(const std::string& selectors,
   scoped_refptr<cssom::CSSRule> css_rule =
       css_parser->ParseRule(selectors + " {}", this->GetInlineSourceLocation());
 
-  // 2. If s is failure, throw a "SyntaxError" DOMException.
+  // 2. If s is failure, throw a "SyntaxError" web::DOMException.
   if (!css_rule) {
-    DOMException::Raise(dom::DOMException::kSyntaxErr, exception_state);
+    web::DOMException::Raise(web::DOMException::kSyntaxErr, exception_state);
     return false;
   }
   scoped_refptr<cssom::CSSStyleRule> css_style_rule =
       css_rule->AsCSSStyleRule();
   if (!css_style_rule) {
-    DOMException::Raise(dom::DOMException::kSyntaxErr, exception_state);
+    web::DOMException::Raise(web::DOMException::kSyntaxErr, exception_state);
     return false;
   }
 
@@ -196,8 +197,8 @@ base::Optional<std::string> Element::GetAttribute(
 //   https://www.w3.org/TR/2014/WD-dom-20140710/#dom-element-setattribute
 void Element::SetAttribute(const std::string& name, const std::string& value) {
   TRACK_MEMORY_SCOPE("DOM");
-  TRACE_EVENT2("cobalt::dom", "Element::SetAttribute",
-               "name", name, "value", value);
+  TRACE_EVENT2("cobalt::dom", "Element::SetAttribute", "name", name, "value",
+               value);
   Document* document = node_document();
 
   // 1. Not needed by Cobalt.
@@ -544,10 +545,11 @@ void Element::set_outer_html(const std::string& outer_html,
     return;
   }
 
-  // 3. If parent is a Document, throw a DOMException with name
+  // 3. If parent is a Document, throw a web::DOMException with name
   // "NoModificationAllowedError" exception.
   if (parent->IsDocument()) {
-    DOMException::Raise(dom::DOMException::kInvalidAccessErr, exception_state);
+    web::DOMException::Raise(web::DOMException::kInvalidAccessErr,
+                             exception_state);
     return;
   }
 

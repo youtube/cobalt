@@ -20,7 +20,7 @@
 
 #include "base/strings/stringprintf.h"
 #include "cobalt/base/tokens.h"
-#include "cobalt/dom/event.h"
+#include "cobalt/web/event.h"
 #if defined(ENABLE_WEBDRIVER)
 #include "cobalt/dom/global_stats.h"
 #endif  // ENABLE_WEBDRIVER
@@ -57,7 +57,7 @@ WebModuleStatTracker::WebModuleStatTracker(const std::string& name,
 }
 
 void WebModuleStatTracker::OnStartDispatchEvent(
-    const scoped_refptr<dom::Event>& event) {
+    const scoped_refptr<web::Event>& event) {
   if (!should_track_event_stats_) {
     return;
   }
@@ -99,7 +99,7 @@ void WebModuleStatTracker::OnStartDispatchEvent(
 }
 
 void WebModuleStatTracker::OnStopDispatchEvent(
-    const scoped_refptr<dom::Event>& event,
+    const scoped_refptr<web::Event>& event,
     bool are_animation_frame_callbacks_pending,
     bool is_new_render_tree_pending) {
   // Verify that this dispatched event is the one currently being tracked.

@@ -16,10 +16,10 @@
 
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_refptr.h"
-#include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/eme/media_keys.h"
 #include "cobalt/media/base/drm_system.h"
 #include "cobalt/script/script_value_factory.h"
+#include "cobalt/web/dom_exception.h"
 
 namespace cobalt {
 namespace dom {
@@ -52,8 +52,8 @@ MediaKeySystemAccess::CreateMediaKeys(
   // DOMException whose name is the appropriate error name.
   if (!drm_system->is_valid()) {
     drm_system.reset();
-    promise->Reject(new DOMException(
-        DOMException::kNotSupportedErr,
+    promise->Reject(new web::DOMException(
+        web::DOMException::kNotSupportedErr,
         "Failed to load and initialize the Key System implementation."));
     return promise;
   }

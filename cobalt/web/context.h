@@ -17,7 +17,6 @@
 
 #include <string>
 
-#include "cobalt/dom/blob.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/loader/script_loader_factory.h"
 #include "cobalt/network/network_module.h"
@@ -27,6 +26,7 @@
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/script/script_runner.h"
 #include "cobalt/script/wrappable.h"
+#include "cobalt/web/blob.h"
 #include "cobalt/web/environment_settings.h"
 
 namespace cobalt {
@@ -51,7 +51,7 @@ class Context {
   virtual script::GlobalEnvironment* global_environment() const = 0;
   virtual script::ExecutionState* execution_state() const = 0;
   virtual script::ScriptRunner* script_runner() const = 0;
-  virtual dom::Blob::Registry* blob_registry() const = 0;
+  virtual Blob::Registry* blob_registry() const = 0;
   virtual network::NetworkModule* network_module() const = 0;
   virtual worker::ServiceWorkerJobs* service_worker_jobs() const = 0;
 

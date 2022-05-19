@@ -20,14 +20,14 @@
 namespace cobalt {
 namespace dom {
 
-EventQueue::EventQueue(EventTarget* event_target)
+EventQueue::EventQueue(web::EventTarget* event_target)
     : event_target_(event_target),
       message_loop_(base::MessageLoop::current()->task_runner()) {
   DCHECK(event_target_);
   DCHECK(message_loop_);
 }
 
-void EventQueue::Enqueue(const scoped_refptr<Event>& event) {
+void EventQueue::Enqueue(const scoped_refptr<web::Event>& event) {
   DCHECK(message_loop_->BelongsToCurrentThread());
 
   if (events_.empty()) {
@@ -61,14 +61,14 @@ void EventQueue::DispatchEvents() {
 
   // Make sure that the event_target_ stays alive for the duration of
   // all event dispatches.
-  scoped_refptr<EventTarget> keep_alive_reference(event_target_);
+  scoped_refptr<web::EventTarget> keep_alive_reference(event_target_);
 
   firing_events_.swap(events_);
 
   for (Events::iterator iter = firing_events_.begin();
        iter != firing_events_.end(); ++iter) {
-    scoped_refptr<Event>& event = *iter;
-    EventTarget* target =
+    scoped_refptr<web::Event>& event = *iter;
+    web::EventTarget* target =
         event->target() ? event->target().get() : event_target_;
     target->DispatchEvent(event);
   }

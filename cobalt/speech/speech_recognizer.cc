@@ -21,7 +21,7 @@ SpeechRecognizer::SpeechRecognizer(const EventCallback& event_callback)
     : event_callback_(event_callback) {}
 
 void SpeechRecognizer::RunEventCallback(
-    const scoped_refptr<dom::Event>& event) {
+    const scoped_refptr<web::Event>& event) {
   event_callback_.Run(event);
 }
 

@@ -52,6 +52,10 @@
 #include "{{include}}"
 {% endfor %}
 
+{% for component in components %}
+namespace {{component}} {
+{% endfor %}
+
 {% for used_class in forward_declarations %}
 {% if used_class.conditional %}
 #if defined({{used_class.conditional}})
@@ -60,10 +64,6 @@ using {{used_class.fully_qualified_name}};
 {% if used_class.conditional %}
 #endif  // defined({{used_class.conditional}})
 {% endif %}
-{% endfor %}
-
-{% for component in components %}
-namespace {{component}} {
 {% endfor %}
 
 {% if parent %}

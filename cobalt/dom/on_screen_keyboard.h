@@ -22,13 +22,13 @@
 #include "base/callback.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/dom/dom_rect.h"
-#include "cobalt/dom/event_target.h"
 #include "cobalt/dom/on_screen_keyboard_bridge.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/promise.h"
 #include "cobalt/script/sequence.h"
 #include "cobalt/script/wrappable.h"
+#include "cobalt/web/event_target.h"
 #include "starboard/window.h"
 
 namespace cobalt {
@@ -37,7 +37,7 @@ namespace dom {
 class Window;
 class OnScreenKeyboardMockBridge;
 
-class OnScreenKeyboard : public EventTarget {
+class OnScreenKeyboard : public web::EventTarget {
  public:
   typedef script::ScriptValue<script::Promise<void>> VoidPromiseValue;
 

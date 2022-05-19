@@ -15,9 +15,9 @@
 #include "cobalt/speech/speech_recognition_manager.h"
 
 #include "base/bind.h"
-#include "cobalt/dom/dom_exception.h"
 #include "cobalt/speech/speech_configuration.h"
 #include "cobalt/speech/speech_recognition_error.h"
+#include "cobalt/web/dom_exception.h"
 #if defined(SB_USE_SB_SPEECH_RECOGNIZER)
 #include "cobalt/speech/starboard_speech_recognizer.h"
 #endif
@@ -59,7 +59,7 @@ void SpeechRecognitionManager::Start(const SpeechRecognitionConfig& config,
   // If the start method is called on an already started object, the user agent
   // MUST throw an InvalidStateError exception and ignore the call.
   if (state_ == kStarted) {
-    dom::DOMException::Raise(dom::DOMException::kInvalidStateErr,
+    web::DOMException::Raise(web::DOMException::kInvalidStateErr,
                              exception_state);
     return;
   }
@@ -104,7 +104,7 @@ void SpeechRecognitionManager::Abort() {
 }
 
 void SpeechRecognitionManager::OnEventAvailable(
-    const scoped_refptr<dom::Event>& event) {
+    const scoped_refptr<web::Event>& event) {
   if (!main_message_loop_task_runner_->BelongsToCurrentThread()) {
     // Called from recognizer. |event_callback_| is required to be run on
     // the |main_message_loop_task_runner_|.

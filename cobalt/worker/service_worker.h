@@ -19,10 +19,10 @@
 #include <string>
 #include <utility>
 
-#include "cobalt/dom/event_target.h"
-#include "cobalt/dom/event_target_listener_info.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/wrappable.h"
+#include "cobalt/web/event_target.h"
+#include "cobalt/web/event_target_listener_info.h"
 #include "cobalt/worker/abstract_worker.h"
 #include "cobalt/worker/service_worker_object.h"
 #include "cobalt/worker/service_worker_state.h"
@@ -33,7 +33,7 @@ namespace worker {
 // The ServiceWorker interface represents a service worker within a service
 // worker client realm.
 //   https://w3c.github.io/ServiceWorker/#serviceworker-interface
-class ServiceWorker : public AbstractWorker, public dom::EventTarget {
+class ServiceWorker : public AbstractWorker, public web::EventTarget {
  public:
   ServiceWorker(script::EnvironmentSettings* settings,
                 worker::ServiceWorkerObject* worker);

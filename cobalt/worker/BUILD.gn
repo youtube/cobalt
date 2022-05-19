@@ -50,6 +50,8 @@ static_library("worker") {
     "worker_settings.h",
   ]
 
+  deps = [ "//url" ]
+
   public_deps = [
     # Additionally, ensure that the include directories for generated
     # headers are put on the include directories for targets that depend

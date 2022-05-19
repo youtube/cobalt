@@ -17,7 +17,7 @@
 namespace cobalt {
 namespace worker {
 WorkerGlobalScope::WorkerGlobalScope(script::EnvironmentSettings* settings)
-    : EventTarget(settings) {}
+    : web::EventTarget(settings) {}
 
 }  // namespace worker
 }  // namespace cobalt

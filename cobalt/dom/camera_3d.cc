@@ -43,7 +43,7 @@ void Camera3D::ClearAllKeyMappings() { impl_->ClearAllKeyMappings(); }
 void Camera3D::Reset() { impl_->Reset(); }
 
 void Camera3D::StartOrientationEvents(
-    const base::WeakPtr<EventTarget>& target) {
+    const base::WeakPtr<web::EventTarget>& target) {
   if (!impl()) {
     return;
   }
@@ -71,7 +71,7 @@ static void QuaternionToIntrinsicZXY(const glm::dquat& q, double* intrinsic_z,
 
 }  // namespace
 
-void Camera3D::FireOrientationEvent(base::WeakPtr<EventTarget> target) {
+void Camera3D::FireOrientationEvent(base::WeakPtr<web::EventTarget> target) {
   glm::dquat quaternion = glm::normalize(
       glm::dquat(impl()->GetOrientation()) *
       // The API assumes a different initial orientation (straight down instead

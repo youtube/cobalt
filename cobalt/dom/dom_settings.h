@@ -18,12 +18,12 @@
 #include "base/memory/ref_counted.h"
 #include "cobalt/base/debugger_hooks.h"
 #include "cobalt/dom/mutation_observer_task_manager.h"
-#include "cobalt/dom/url_registry.h"
-#include "cobalt/dom/url_utils.h"
 #include "cobalt/media/can_play_type_handler.h"
 #include "cobalt/media/decoder_buffer_memory_info.h"
 #include "cobalt/speech/microphone.h"
 #include "cobalt/web/environment_settings.h"
+#include "cobalt/web/url_registry.h"
+#include "cobalt/web/url_utils.h"
 
 namespace cobalt {
 
@@ -45,7 +45,7 @@ class Window;
 // that ask for it in their IDL custom attributes.
 class DOMSettings : public web::EnvironmentSettings {
  public:
-  typedef UrlRegistry<MediaSource> MediaSourceRegistry;
+  typedef web::UrlRegistry<MediaSource> MediaSourceRegistry;
   // Hold optional settings for DOMSettings.
   struct Options {
     // Microphone options.

@@ -22,9 +22,9 @@
 #include "base/optional.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
-#include "cobalt/dom/url_utils.h"
 #include "cobalt/loader/file_fetcher.h"
 #include "cobalt/loader/text_decoder.h"
+#include "cobalt/web/url_utils.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

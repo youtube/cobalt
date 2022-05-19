@@ -16,9 +16,9 @@
 
 #include <memory>
 #include <string>
+#include <utility>
 
 #include "cobalt/base/polymorphic_downcast.h"
-#include "cobalt/dom/dom_exception.h"
 #include "cobalt/media_capture/media_device_info.h"
 #include "cobalt/media_stream/media_stream.h"
 #include "cobalt/media_stream/media_track_settings.h"
@@ -26,6 +26,7 @@
 #include "cobalt/speech/microphone.h"
 #include "cobalt/speech/microphone_fake.h"
 #include "cobalt/speech/microphone_starboard.h"
+#include "cobalt/web/dom_exception.h"
 #include "starboard/common/string.h"
 
 namespace cobalt {
@@ -66,7 +67,7 @@ std::unique_ptr<Microphone> CreateMicrophone(
 
 MediaDevices::MediaDevices(script::EnvironmentSettings* settings,
                            script::ScriptValueFactory* script_value_factory)
-    : dom::EventTarget(settings),
+    : web::EventTarget(settings),
       settings_(base::polymorphic_downcast<dom::DOMSettings*>(settings)),
       script_value_factory_(script_value_factory),
       javascript_message_loop_(base::MessageLoop::current()),
@@ -184,7 +185,7 @@ void MediaDevices::OnMicrophoneStopped() {
 
   for (auto& promise : pending_microphone_promises_) {
     promise->value().Reject(
-        new dom::DOMException(dom::DOMException::kNotAllowedErr));
+        new web::DOMException(web::DOMException::kNotAllowedErr));
   }
   pending_microphone_promises_.clear();
 }

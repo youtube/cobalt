@@ -28,7 +28,7 @@ namespace speech {
 // interim results: false.
 // max alternatives: 1.
 SpeechRecognition::SpeechRecognition(script::EnvironmentSettings* settings)
-    : dom::EventTarget(settings),
+    : web::EventTarget(settings),
       ALLOW_THIS_IN_INITIALIZER_LIST(manager_(
           base::polymorphic_downcast<web::EnvironmentSettings*>(settings)
               ->context()
@@ -49,7 +49,7 @@ void SpeechRecognition::Stop() { manager_.Stop(); }
 void SpeechRecognition::Abort() { manager_.Abort(); }
 
 bool SpeechRecognition::OnEventAvailable(
-    const scoped_refptr<dom::Event>& event) {
+    const scoped_refptr<web::Event>& event) {
   return DispatchEvent(event);
 }
 
