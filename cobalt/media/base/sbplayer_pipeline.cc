@@ -1490,6 +1490,7 @@ void SbPlayerPipeline::ResumeTask(PipelineWindow window,
                  "SbPlayerPipeline::ResumeTask failed to create a valid "
                  "StarboardPlayer - " +
                      time_information + " \'" + error_message + "\'");
+      done_event->Signal();
       return;
     }
   }
