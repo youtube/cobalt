@@ -88,7 +88,8 @@ ApplicationAndroid::ApplicationAndroid(ALooper* looper)
       android_command_writefd_(-1),
       keyboard_inject_readfd_(-1),
       keyboard_inject_writefd_(-1),
-      android_command_condition_(android_command_mutex_),
+      android_native_window_condition_(android_native_window_mutex_),
+      android_input_queue_condition_(android_input_queue_mutex_),
       activity_state_(AndroidCommand::kUndefined),
       window_(kSbWindowInvalid),
       last_is_accessibility_high_contrast_text_enabled_(false) {
@@ -234,7 +235,7 @@ void ApplicationAndroid::ProcessAndroidCommand() {
       break;
 
     case AndroidCommand::kInputQueueChanged: {
-      ScopedLock lock(android_command_mutex_);
+      ScopedLock lock(android_input_queue_mutex_);
       if (input_queue_) {
         AInputQueue_detachLooper(input_queue_);
       }
@@ -245,7 +246,7 @@ void ApplicationAndroid::ProcessAndroidCommand() {
       }
       // Now that we've swapped our use of the input queue, signal that the
       // Android UI thread can continue.
-      android_command_condition_.Signal();
+      android_input_queue_condition_.Signal();
       break;
     }
 
@@ -254,14 +255,14 @@ void ApplicationAndroid::ProcessAndroidCommand() {
     // all if it doesn't have a window surface to draw on.
     case AndroidCommand::kNativeWindowCreated: {
       {
-        ScopedLock lock(android_command_mutex_);
+        ScopedLock lock(android_native_window_mutex_);
         native_window_ = static_cast<ANativeWindow*>(cmd.data);
         if (window_) {
           window_->native_window = native_window_;
         }
         // Now that we have the window, signal that the Android UI thread can
         // continue, before we start or resume the Starboard app.
-        android_command_condition_.Signal();
+        android_native_window_condition_.Signal();
       }
 
       if (state() == kStateUnstarted) {
@@ -284,7 +285,7 @@ void ApplicationAndroid::ProcessAndroidCommand() {
       // No need to JNI call StarboardBridge.beforeSuspend() since we did it
       // early in SendAndroidCommand().
       {
-        ScopedLock lock(android_command_mutex_);
+        ScopedLock lock(android_native_window_mutex_);
 // Cobalt can't keep running without a window, even if the Activity
 // hasn't stopped yet. DispatchAndDelete() will inject events as needed
 // if we're not already paused.
@@ -300,7 +301,7 @@ void ApplicationAndroid::ProcessAndroidCommand() {
         native_window_ = NULL;
         // Now that we've suspended the Starboard app, and let go of the window,
         // signal that the Android UI thread can continue.
-        android_command_condition_.Signal();
+        android_native_window_condition_.Signal();
       }
       break;
     }
@@ -420,21 +421,28 @@ void ApplicationAndroid::SendAndroidCommand(AndroidCommand::CommandType type,
                                             void* data) {
   SB_LOG(INFO) << "Send Android command: " << AndroidCommandName(type);
   AndroidCommand cmd{type, data};
-  ScopedLock lock(android_command_mutex_);
   write(android_command_writefd_, &cmd, sizeof(cmd));
   // Synchronization only necessary when managing resources.
   switch (type) {
-    case AndroidCommand::kInputQueueChanged:
-      while (input_queue_ != data) {
-        android_command_condition_.Wait();
+    case AndroidCommand::kInputQueueChanged: {
+      {
+        ScopedLock lock(android_input_queue_mutex_);
+        while (input_queue_ != data) {
+          android_input_queue_condition_.Wait();
+        }
       }
       break;
+    }
     case AndroidCommand::kNativeWindowCreated:
-    case AndroidCommand::kNativeWindowDestroyed:
-      while (native_window_ != data) {
-        android_command_condition_.Wait();
+    case AndroidCommand::kNativeWindowDestroyed: {
+      {
+        ScopedLock lock(android_native_window_mutex_);
+        while (native_window_ != data) {
+          android_native_window_condition_.Wait();
+        }
       }
       break;
+    }
     default:
       break;
   }
