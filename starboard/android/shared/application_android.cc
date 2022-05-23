@@ -253,15 +253,17 @@ void ApplicationAndroid::ProcessAndroidCommand() {
     // (rather than to the Activity lifecycle) since Cobalt can't do anything at
     // all if it doesn't have a window surface to draw on.
     case AndroidCommand::kNativeWindowCreated: {
-      ScopedLock lock(android_command_mutex_);
-      native_window_ = static_cast<ANativeWindow*>(cmd.data);
-      if (window_) {
-        window_->native_window = native_window_;
+      {
+        ScopedLock lock(android_command_mutex_);
+        native_window_ = static_cast<ANativeWindow*>(cmd.data);
+        if (window_) {
+          window_->native_window = native_window_;
+        }
+        // Now that we have the window, signal that the Android UI thread can
+        // continue, before we start or resume the Starboard app.
+        android_command_condition_.Signal();
       }
-      // Now that we have the window, signal that the Android UI thread can
-      // continue, before we start or resume the Starboard app.
-      android_command_condition_.Signal();
-    }
+
       if (state() == kStateUnstarted) {
         // This is the initial launch, so we have to start Cobalt now that we
         // have a window.
@@ -277,7 +279,8 @@ void ApplicationAndroid::ProcessAndroidCommand() {
         sync_state = activity_state_;
       }
       break;
-    case AndroidCommand::kNativeWindowDestroyed:
+    }
+    case AndroidCommand::kNativeWindowDestroyed: {
       // No need to JNI call StarboardBridge.beforeSuspend() since we did it
       // early in SendAndroidCommand().
       {
@@ -300,7 +303,7 @@ void ApplicationAndroid::ProcessAndroidCommand() {
         android_command_condition_.Signal();
       }
       break;
-
+    }
     case AndroidCommand::kWindowFocusLost:
       break;
     case AndroidCommand::kWindowFocusGained: {
@@ -333,7 +336,7 @@ void ApplicationAndroid::ProcessAndroidCommand() {
     case AndroidCommand::kStop:
       sync_state = activity_state_ = cmd.type;
       break;
-    case AndroidCommand::kDeepLink:
+    case AndroidCommand::kDeepLink: {
       char* deep_link = static_cast<char*>(cmd.data);
       SB_LOG(INFO) << "AndroidCommand::kDeepLink: deep_link=" << deep_link
                    << " state=" << state();
@@ -353,6 +356,7 @@ void ApplicationAndroid::ProcessAndroidCommand() {
         }
       }
       break;
+    }
   }
 
 // If there's a window, sync the app state to the Activity lifecycle, letting
