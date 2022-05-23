@@ -133,10 +133,15 @@ class ApplicationAndroid
   int keyboard_inject_readfd_;
   int keyboard_inject_writefd_;
 
-  // Synchronization for commands that change availability of Android resources
-  // such as the input_queue_ and/or native_window_.
-  Mutex android_command_mutex_;
-  ConditionVariable android_command_condition_;
+  // Synchronization for commands that change availability of Android
+  // native_window_ resources
+  Mutex android_native_window_mutex_;
+  ConditionVariable android_native_window_condition_;
+
+  // Synchronization for commands that change availability of Android
+  // input_queue_ resources
+  Mutex android_input_queue_mutex_;
+  ConditionVariable android_input_queue_condition_;
 
   // The last Activity lifecycle state command received.
   AndroidCommand::CommandType activity_state_;
