@@ -67,6 +67,12 @@ bool SbSocketGetInterfaceAddress(const SbSocketAddress* const destination,
       "getLocalInterfaceAddressAndNetmask", "(Z)Landroid/util/Pair;",
       want_ipv6);
 
+  if (!pair) {
+    SB_LOG(ERROR) << "Null value returned from JNI call to "
+                     "getLocalInterfaceAddressAndNetmask.";
+    return false;
+  }
+
   jobject field;
   field = env->GetObjectFieldOrAbort(pair, "first", "Ljava/lang/Object;");
   if (!CopySocketAddress(static_cast<jbyteArray>(field), out_source_address)) {
