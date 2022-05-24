@@ -99,7 +99,7 @@ class StubWindow {
     return web_context_->global_environment();
   }
   css_parser::Parser* css_parser() { return css_parser_.get(); }
-  script::EnvironmentSettings* environment_settings() {
+  web::EnvironmentSettings* environment_settings() {
     return web_context_->environment_settings();
   }
 

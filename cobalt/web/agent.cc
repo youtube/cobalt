@@ -32,6 +32,7 @@
 #include "cobalt/web/context.h"
 #include "cobalt/web/environment_settings.h"
 #include "cobalt/web/url.h"
+#include "cobalt/web/window_or_worker_global_scope.h"
 #include "cobalt/worker/service_worker.h"
 #include "cobalt/worker/service_worker_jobs.h"
 #include "cobalt/worker/service_worker_object.h"
@@ -111,6 +112,8 @@ class Impl : public Context {
   // https://w3c.github.io/ServiceWorker/#get-the-service-worker-object
   scoped_refptr<worker::ServiceWorker> GetServiceWorker(
       worker::ServiceWorkerObject* worker) final;
+
+  WindowOrWorkerGlobalScope* GetWindowOrWorkerGlobalScope() final;
 
  private:
   // Injects a list of attributes into the Web Context's global object.
@@ -384,6 +387,20 @@ scoped_refptr<worker::ServiceWorker> Impl::GetServiceWorker(
 
   // 3. Return objectMap[serviceWorker].
   return service_worker;
+}
+
+WindowOrWorkerGlobalScope* Impl::GetWindowOrWorkerGlobalScope() {
+  script::Wrappable* global_wrappable =
+      global_environment()->global_wrappable();
+  if (!global_wrappable) {
+    return nullptr;
+  }
+  DCHECK(global_wrappable->IsWrappable());
+  DCHECK_EQ(script::Wrappable::JSObjectType::kObject,
+            global_wrappable->GetJSObjectType());
+
+  return base::polymorphic_downcast<WindowOrWorkerGlobalScope*>(
+      global_wrappable);
 }
 
 // Signals the given WaitableEvent.

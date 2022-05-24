@@ -31,6 +31,7 @@
 #include "cobalt/script/exception_state.h"
 #include "cobalt/script/script_value.h"
 #include "cobalt/script/wrappable.h"
+#include "cobalt/web/environment_settings.h"
 #include "cobalt/web/event.h"
 #include "cobalt/web/event_listener.h"
 #include "cobalt/web/event_target_listener_info.h"
@@ -63,6 +64,10 @@ class EventTarget : public script::Wrappable,
   // accommodate for a special case in the window.onerror handling.
   explicit EventTarget(
       script::EnvironmentSettings* settings,
+      UnpackOnErrorEventsBool onerror_event_parameter_handling =
+          kDoNotUnpackOnErrorEvents);
+  explicit EventTarget(
+      web::EnvironmentSettings* settings,
       UnpackOnErrorEventsBool onerror_event_parameter_handling =
           kDoNotUnpackOnErrorEvents);
 
@@ -484,7 +489,7 @@ class EventTarget : public script::Wrappable,
   const base::DebuggerHooks& debugger_hooks() const {
     return environment_settings_->debugger_hooks();
   }
-  script::EnvironmentSettings* environment_settings() const {
+  web::EnvironmentSettings* environment_settings() const {
     return environment_settings_;
   }
 
@@ -502,7 +507,7 @@ class EventTarget : public script::Wrappable,
 
   EventListenerInfos event_listener_infos_;
 
-  script::EnvironmentSettings* environment_settings_;
+  web::EnvironmentSettings* environment_settings_;
 
   // Tracks whether this current event listener should unpack the onerror
   // event object when calling its callback.  This is needed to implement

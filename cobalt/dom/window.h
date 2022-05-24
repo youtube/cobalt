@@ -44,6 +44,7 @@
 #include "cobalt/dom/screenshot_manager.h"
 #include "cobalt/web/csp_delegate_type.h"
 #include "cobalt/web/event_target.h"
+#include "cobalt/web/window_or_worker_global_scope.h"
 #if defined(ENABLE_TEST_RUNNER)
 #include "cobalt/dom/test_runner.h"
 #endif  // ENABLE_TEST_RUNNER
@@ -105,7 +106,7 @@ class WindowTimers;
 //   https://www.w3.org/TR/html50/browsers.html#the-window-object
 //
 // TODO: Properly handle viewport resolution change event.
-class Window : public web::EventTarget,
+class Window : public web::WindowOrWorkerGlobalScope,
                public ApplicationLifecycleState::Observer {
  public:
   typedef AnimationFrameRequestCallbackList::FrameRequestCallback

@@ -15,6 +15,7 @@
 static_library("web_events") {
   sources = [
     "custom_event.h",
+    "environment_settings.h",
     "error_event.h",
     "event.cc",
     "event.h",
@@ -65,7 +66,6 @@ static_library("web") {
     "csp_delegate_factory.h",
     "csp_violation_reporter.cc",
     "csp_violation_reporter.h",
-    "environment_settings.h",
     "security_policy_violation_event.cc",
     "security_policy_violation_event.h",
     "url.cc",
@@ -73,6 +73,8 @@ static_library("web") {
     "url_registry.h",
     "url_utils.cc",
     "url_utils.h",
+    "window_or_worker_global_scope.cc",
+    "window_or_worker_global_scope.h",
   ]
 
   deps = [

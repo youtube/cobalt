@@ -56,6 +56,9 @@ class GlobalEnvironment : public base::RefCounted<GlobalEnvironment>,
   // Create a new global object with no bindings.
   virtual void CreateGlobalObject() = 0;
 
+  // Returns the global object if it is a wrappable.
+  virtual Wrappable* global_wrappable() const = 0;
+
   // Evaluate the JavaScript source code. Returns true on success,
   // false if there is an exception.
   // If out_result is non-NULL, it will be set to hold the result of the script

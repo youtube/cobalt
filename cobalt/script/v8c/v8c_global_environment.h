@@ -122,7 +122,9 @@ class V8cGlobalEnvironment : public GlobalEnvironment,
 
   WrapperFactory* wrapper_factory() const { return wrapper_factory_.get(); }
 
-  Wrappable* global_wrappable() const { return global_wrappable_.get(); }
+  Wrappable* global_wrappable() const override {
+    return global_wrappable_.get();
+  }
 
   EnvironmentSettings* GetEnvironmentSettings() const {
     return environment_settings_;

@@ -673,6 +673,13 @@ WebModule::Impl::Impl(web::Context* web_context, const ConstructionData& data)
 
   web_context_->global_environment()->CreateGlobalObject(
       window_, web_context_->environment_settings());
+  DCHECK(web_context_->GetWindowOrWorkerGlobalScope()->IsWindow());
+  DCHECK(!web_context_->GetWindowOrWorkerGlobalScope()->IsDedicatedWorker());
+  DCHECK(!web_context_->GetWindowOrWorkerGlobalScope()->IsServiceWorker());
+  DCHECK(web_context_->GetWindowOrWorkerGlobalScope()->GetWrappableType() ==
+         base::GetTypeId<dom::Window>());
+  DCHECK_EQ(window_, base::polymorphic_downcast<dom::Window*>(
+                         web_context_->GetWindowOrWorkerGlobalScope()));
 
   render_tree_produced_callback_ = data.render_tree_produced_callback;
   DCHECK(!render_tree_produced_callback_.is_null());

@@ -95,6 +95,14 @@ void Worker::Initialize(const Options& options, web::Context* context) {
   //    inside settings be the result.
   web_context_->global_environment()->CreateGlobalObject(
       dedicated_worker_global_scope, web_context_->environment_settings());
+  DCHECK(!web_context_->GetWindowOrWorkerGlobalScope()->IsWindow());
+  DCHECK(web_context_->GetWindowOrWorkerGlobalScope()->IsDedicatedWorker());
+  DCHECK(!web_context_->GetWindowOrWorkerGlobalScope()->IsServiceWorker());
+  DCHECK(web_context_->GetWindowOrWorkerGlobalScope()->GetWrappableType() ==
+         base::GetTypeId<DedicatedWorkerGlobalScope>());
+  DCHECK_EQ(dedicated_worker_global_scope,
+            base::polymorphic_downcast<DedicatedWorkerGlobalScope*>(
+                web_context_->GetWindowOrWorkerGlobalScope()));
 
 #if defined(ENABLE_DEBUGGER)
   debug_module_.reset(new debug::backend::DebugModule(

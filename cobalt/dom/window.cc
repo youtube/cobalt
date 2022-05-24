@@ -57,6 +57,7 @@
 #include "cobalt/web/error_event.h"
 #include "cobalt/web/error_event_init.h"
 #include "cobalt/web/event.h"
+#include "cobalt/web/window_or_worker_global_scope.h"
 #include "starboard/file.h"
 
 using cobalt::cssom::ViewportSize;
@@ -131,7 +132,7 @@ Window::Window(
     bool log_tts)
     // 'window' object EventTargets require special handling for onerror events,
     // see EventTarget constructor for more details.
-    : web::EventTarget(settings, kUnpackOnErrorEvents),
+    : web::WindowOrWorkerGlobalScope(settings),
       viewport_size_(view_size),
       is_resize_event_pending_(false),
       is_reporting_script_error_(false),

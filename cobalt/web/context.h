@@ -38,6 +38,7 @@ class ServiceWorkerJobs;
 class ServiceWorkerObject;
 }  // namespace worker
 namespace web {
+class WindowOrWorkerGlobalScope;
 
 class Context {
  public:
@@ -72,6 +73,8 @@ class Context {
   // https://w3c.github.io/ServiceWorker/#get-the-service-worker-object
   virtual scoped_refptr<worker::ServiceWorker> GetServiceWorker(
       worker::ServiceWorkerObject* worker) = 0;
+
+  virtual WindowOrWorkerGlobalScope* GetWindowOrWorkerGlobalScope() = 0;
 };
 
 }  // namespace web

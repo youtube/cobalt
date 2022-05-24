@@ -31,8 +31,19 @@
 namespace cobalt {
 namespace web {
 
+// Since EventTarget is always in a web environment, we store the environment
+// settings as web environment settings, and make it easily available to all
+// derived classes with the environment_settings() accessor.
 EventTarget::EventTarget(
     script::EnvironmentSettings* settings,
+    UnpackOnErrorEventsBool onerror_event_parameter_handling)
+    : environment_settings_(
+          base::polymorphic_downcast<web::EnvironmentSettings*>(settings)),
+      unpack_onerror_events_(onerror_event_parameter_handling ==
+                             kUnpackOnErrorEvents) {}
+
+EventTarget::EventTarget(
+    web::EnvironmentSettings* settings,
     UnpackOnErrorEventsBool onerror_event_parameter_handling)
     : environment_settings_(settings),
       unpack_onerror_events_(onerror_event_parameter_handling ==

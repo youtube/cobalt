@@ -26,6 +26,7 @@
 #include "cobalt/script/wrappable.h"
 #include "cobalt/web/event_target.h"
 #include "cobalt/web/event_target_listener_info.h"
+#include "cobalt/web/window_or_worker_global_scope.h"
 #include "net/url_request/url_request.h"
 #include "url/gurl.h"
 
@@ -35,7 +36,7 @@ namespace worker {
 // Implementation of the WorkerGlobalScope common interface.
 //   https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#dedicated-workers-and-the-workerglobalscope-interface
 
-class WorkerGlobalScope : public web::EventTarget {
+class WorkerGlobalScope : public web::WindowOrWorkerGlobalScope {
  public:
   explicit WorkerGlobalScope(script::EnvironmentSettings* settings);
   WorkerGlobalScope(const WorkerGlobalScope&) = delete;

@@ -138,6 +138,10 @@ class StubWebContext : public Context {
     return scoped_refptr<worker::ServiceWorker>();
   }
 
+  WindowOrWorkerGlobalScope* GetWindowOrWorkerGlobalScope() final {
+    NOTIMPLEMENTED();
+    return nullptr;
+  }
 
   // Other
  private:

@@ -14,10 +14,13 @@
 
 #include "cobalt/worker/worker_global_scope.h"
 
+#include "cobalt/script/environment_settings.h"
+#include "cobalt/web/window_or_worker_global_scope.h"
+
 namespace cobalt {
 namespace worker {
 WorkerGlobalScope::WorkerGlobalScope(script::EnvironmentSettings* settings)
-    : web::EventTarget(settings) {}
+    : web::WindowOrWorkerGlobalScope(settings) {}
 
 }  // namespace worker
 }  // namespace cobalt
