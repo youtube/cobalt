@@ -24,4 +24,11 @@
   -->
   <integer name="max_video_buffer_budget"
            tools:ignore="DuplicateDefinition">0</integer>
+  <!--
+     When set, the return value of SbAudioSinkGetMinBufferSizeInFrames()
+     would be greater or equal to this value. Set to 0 to use default values.
+  -->
+  <integer name="min_audio_sink_buffer_size_in_frames"
+           tools:ignore="DuplicateDefinition">0</integer>
+
 </resources>
