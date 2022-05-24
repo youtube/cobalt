@@ -657,10 +657,14 @@ void Pipeline::ShutdownRasterizerThread() {
   render_tree::ColorRGBA clear_color;
   if (render_target_ && clear_on_shutdown_mode_ == kClearAccordingToPlatform &&
       ShouldClearFrameOnShutdown(&clear_color)) {
-    rasterizer_->Submit(
-        new render_tree::ClearRectNode(math::RectF(render_target_->GetSize()),
-                                       clear_color),
-        render_target_);
+    // Only clear the frame if anything was previoously rendered. Otherwise,
+    // this call may unnecessarily initialize hardware rasterizer components.
+    if (!last_rasterize_time_.is_null()) {
+      rasterizer_->Submit(
+          new render_tree::ClearRectNode(math::RectF(render_target_->GetSize()),
+                                         clear_color),
+          render_target_);
+    }
   }
 
   // This potential reference to a render tree whose animations may have ended
