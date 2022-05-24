@@ -37,6 +37,7 @@
 #include "net/base/load_flags.h"
 #include "net/base/net_errors.h"
 #include "net/base/upload_data_stream.h"
+#include "net/disk_cache/cobalt/resource_type.h"
 #include "net/disk_cache/disk_cache.h"
 #include "net/http/http_cache_lookup_manager.h"
 #include "net/http/http_cache_transaction.h"
@@ -593,6 +594,13 @@ std::string HttpCache::GenerateCacheKey(const HttpRequestInfo* request) {
                base::StringPrintf("%" PRId64 "/",
                                   request->upload_data_stream->identifier()));
   }
+#if defined(STARBOARD)
+  if (request->extra_headers.HasHeader(HttpRequestHeaders::kResourceType)) {
+    std::string type = std::to_string(disk_cache::kOther);
+    request->extra_headers.GetHeader(HttpRequestHeaders::kResourceType, &type);
+    url.insert(0, type + "/");
+  }
+#endif
   return url;
 }
 
@@ -776,18 +784,10 @@ int HttpCache::OpenEntry(const std::string& key, ActiveEntry** entry,
   DCHECK(pending_op->pending_queue.empty());
 
   pending_op->writer = std::move(item);
-
-#ifdef STARBOARD
-  int rv = disk_cache_->OpenEntry(
-      key, trans->priority(), &(pending_op->disk_entry),  trans->type(),
-      base::BindOnce(&HttpCache::OnPendingOpComplete, GetWeakPtr(),
-                     pending_op));
-#else
   int rv =
       disk_cache_->OpenEntry(key, trans->priority(), &(pending_op->disk_entry),
                              base::BindOnce(&HttpCache::OnPendingOpComplete,
                                             GetWeakPtr(), pending_op));
-#endif
 
   if (rv == ERR_IO_PENDING) {
     pending_op->callback_will_delete = true;

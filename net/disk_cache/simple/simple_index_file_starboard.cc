@@ -39,8 +39,7 @@ bool SimpleIndexFile::TraverseCacheDirectory(
 
   while (true) {
     if (!SbDirectoryGetNext(dir, entry.data(), entry.size())) {
-      PLOG(ERROR) << "readdir " << cache_path.value();
-      return false;
+      continue;
     }
 
     const std::string file_name(entry.data());

@@ -116,7 +116,7 @@ base::LazyInstance<SimpleFileTracker>::Leaky g_simple_file_tracker =
 SimpleCacheConsistencyResult FileStructureConsistent(
     const base::FilePath& path) {
   if (!base::PathExists(path) && !base::CreateDirectory(path)) {
-    LOG(ERROR) << "Failed to create directory: " << path.LossyDisplayName();
+    LOG(ERROR) << "Failed to create directory: " << path.LossyDisplayName().c_str();
     return SimpleCacheConsistencyResult::kCreateDirectoryFailed;
   }
   return disk_cache::UpgradeSimpleCacheOnDisk(path);
@@ -724,7 +724,7 @@ SimpleBackendImpl::DiskStatResult SimpleBackendImpl::InitCacheStructureOnDisk(
   if (consistency != SimpleCacheConsistencyResult::kOK) {
     LOG(ERROR) << "Simple Cache Backend: wrong file structure on disk: "
                << static_cast<int>(consistency)
-               << " path: " << path.LossyDisplayName();
+               << " path: " << path.LossyDisplayName().c_str();
     result.net_error = net::ERR_FAILED;
   } else {
     bool mtime_result =
