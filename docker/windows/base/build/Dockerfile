@@ -87,17 +87,5 @@ RUN (New-Object Net.WebClient).DownloadFile(`
     Remove-Item -Path C:\gn.zip ; `
     setx /M PATH $($Env:PATH + ';C:\gn')
 
-# Install gsutil helpers to download from GCS. This helps download required SDKs.
-ARG encoded_keyfile
-COPY .boto /Users/ContainerAdministrator/.boto
-COPY download_from_gcs.ps1 /download_from_gcs.ps1
-RUN (New-Object Net.WebClient).DownloadFile(`
-    'https://dl.google.com/dl/cloudsdk/channels/rapid/GoogleCloudSDKInstaller.exe',`
-    'C:\GoogleCloudSDKInstaller.exe') ; `
-    Start-Process -Wait -FilePath "C:\GoogleCloudSDKInstaller.exe" `
-    -ArgumentList "/S","/D","C:\gcloud-sdk","/noreporting";`
-    Remove-Item -Path C:\GoogleCloudSDKInstaller.exe;`
-    cmd /S /C setx BOTO_PATH 'C:\Users\ContainerAdministrator\.boto'
-
 # Configure common env vars.
 ENV NINJA_STATUS="[%e sec | %f/%t %u remaining | %c/sec | j%r] "
