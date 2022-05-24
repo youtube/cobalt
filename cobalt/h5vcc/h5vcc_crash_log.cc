@@ -186,15 +186,15 @@ std::string H5vccCrashLog::GetWatchdogViolations(bool current) {
   return "";
 }
 
-bool H5vccCrashLog::GetCanTriggerCrash() {
+bool H5vccCrashLog::GetPersistentSettingWatchdogCrash() {
   watchdog::Watchdog* watchdog = watchdog::Watchdog::GetInstance();
-  if (watchdog) return watchdog->GetCanTriggerCrash();
+  if (watchdog) return watchdog->GetPersistentSettingWatchdogCrash();
   return false;
 }
 
-void H5vccCrashLog::SetCanTriggerCrash(bool can_trigger_crash) {
+void H5vccCrashLog::SetPersistentSettingWatchdogCrash(bool can_trigger_crash) {
   watchdog::Watchdog* watchdog = watchdog::Watchdog::GetInstance();
-  if (watchdog) watchdog->SetCanTriggerCrash(can_trigger_crash);
+  if (watchdog) watchdog->SetPersistentSettingWatchdogCrash(can_trigger_crash);
 }
 
 }  // namespace h5vcc
