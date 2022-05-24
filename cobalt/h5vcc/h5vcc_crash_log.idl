@@ -60,9 +60,9 @@ interface H5vccCrashLog {
 
   // Gets a persistent Watchdog setting that determines whether or not a
   // Watchdog violation will trigger a crash.
-  boolean getCanTriggerCrash();
+  boolean getPersistentSettingWatchdogCrash();
 
   // Sets a persistent Watchdog setting that determines whether or not a
   // Watchdog violation will trigger a crash.
-  void setCanTriggerCrash(boolean can_trigger_crash);
+  void setPersistentSettingWatchdogCrash(boolean can_trigger_crash);
 };

@@ -23,9 +23,9 @@
       unregister: 'Unregister',
       ping: 'Ping',
       getWatchdogViolations: 'Get Watchdog Violations',
-      getCanTriggerCrash: 'Get Can Trigger Crash',
-      setCanTriggerCrashTrue: 'Set Can Trigger Crash True',
-      setCanTriggerCrashFalse: 'Set Can Trigger Crash False',
+      getPersistentSettingWatchdogCrash: 'Get Can Trigger Crash',
+      setPersistentSettingWatchdogCrashTrue: 'Set Can Trigger Crash True',
+      setPersistentSettingWatchdogCrashFalse: 'Set Can Trigger Crash False',
     }
 
     window.onload = loadMenu();
@@ -63,12 +63,12 @@
             ret = h5vcc.crashLog.ping('test-name', `test-ping`);
           } else if (watchdogFunction == 'getWatchdogViolations') {
             ret = h5vcc.crashLog.getWatchdogViolations(true);
-          } else if (watchdogFunction == 'getCanTriggerCrash') {
-            ret = h5vcc.crashLog.getCanTriggerCrash();
-          } else if (watchdogFunction == 'setCanTriggerCrashTrue') {
-            h5vcc.crashLog.setCanTriggerCrash(true);
-          } else if (watchdogFunction == 'setCanTriggerCrashFalse') {
-            h5vcc.crashLog.setCanTriggerCrash(false);
+          } else if (watchdogFunction == 'getPersistentSettingWatchdogCrash') {
+            ret = h5vcc.crashLog.getPersistentSettingWatchdogCrash();
+          } else if (watchdogFunction == 'setPersistentSettingWatchdogCrashTrue') {
+            h5vcc.crashLog.setPersistentSettingWatchdogCrash(true);
+          } else if (watchdogFunction == 'setPersistentSettingWatchdogCrashFalse') {
+            h5vcc.crashLog.setPersistentSettingWatchdogCrash(false);
           }
 
           let el = document.getElementById(watchdogFunction);

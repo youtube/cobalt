@@ -21,6 +21,7 @@
 #include <unordered_map>
 
 #include "cobalt/base/application_state.h"
+#include "cobalt/persistent_storage/persistent_settings.h"
 #include "cobalt/watchdog/singleton.h"
 #include "starboard/common/mutex.h"
 #include "starboard/mutex.h"
@@ -82,7 +83,7 @@ enum Replace {
 
 class Watchdog : public Singleton<Watchdog> {
  public:
-  bool Initialize();
+  bool Initialize(persistent_storage::PersistentSettings* persistent_settings);
   bool InitializeStub();
   void Uninitialize();
   void UpdateState(base::ApplicationState state);
@@ -96,8 +97,8 @@ class Watchdog : public Singleton<Watchdog> {
   bool Ping(const std::string& name);
   bool Ping(const std::string& name, const std::string& info);
   std::string GetWatchdogViolations(bool current = false);
-  bool GetCanTriggerCrash();
-  void SetCanTriggerCrash(bool can_trigger_crash);
+  bool GetPersistentSettingWatchdogCrash();
+  void SetPersistentSettingWatchdogCrash(bool can_trigger_crash);
 
 #if defined(_DEBUG)
   // Sleeps threads based off of environment variables for Watchdog debugging.
@@ -126,6 +127,8 @@ class Watchdog : public Singleton<Watchdog> {
   SbMutex mutex_;
   // Time interval between monitor loops.
   int64_t smallest_time_interval_;
+  // Access to persistent settings.
+  persistent_storage::PersistentSettings* persistent_settings_;
   // Monitor thread.
   SbThread watchdog_thread_;
   // Tracks application state.
@@ -139,8 +142,6 @@ class Watchdog : public Singleton<Watchdog> {
   bool is_stub_ = false;
   // Flag to stop monitor thread.
   bool is_monitoring_;
-  // Flag to control whether or not crashes can be triggered.
-  bool can_trigger_crash_ = false;
 
 #if defined(_DEBUG)
   starboard::Mutex delay_lock_;
