@@ -120,6 +120,7 @@ target(gtest_target_type, "web_test") {
     "error_event_test.cc",
     "event_target_test.cc",
     "event_test.cc",
+    "url_test.cc",
     "url_utils_test.cc",
   ]
 

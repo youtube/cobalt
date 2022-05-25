@@ -38,6 +38,7 @@ class URLUtils {
  public:
   typedef base::Callback<void(const std::string&)> UpdateStepsCallback;
 
+  URLUtils() {}
   explicit URLUtils(const GURL& url);
   explicit URLUtils(const UpdateStepsCallback& update_steps)
       : update_steps_(update_steps) {}

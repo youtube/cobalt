@@ -17,6 +17,8 @@
 #include "base/guid.h"
 #include "base/logging.h"
 #include "cobalt/base/polymorphic_downcast.h"
+#include "cobalt/script/exception_message.h"
+#include "cobalt/script/exception_state.h"
 #include "cobalt/web/context.h"
 #include "cobalt/web/environment_settings.h"
 #include "url/gurl.h"
@@ -27,6 +29,37 @@ namespace web {
 namespace {
 const char kBlobUrlProtocol[] = "blob";
 }  // namespace
+
+URL::URL(const std::string& url, const std::string& base,
+         script::ExceptionState* exception_state)
+    : URLUtils() {
+  // Algorithm for URL constructor:
+  //   https://www.w3.org/TR/2014/WD-url-1-20141209/#dom-url-url
+  // 1. Let parsedBase be the result of running the basic URL parser on base.
+  GURL parsed_base(base);
+
+  // 2. If parsedBase is failure, throw a TypeError exception.
+  if (parsed_base.is_empty()) {
+    exception_state->SetSimpleException(script::kSimpleTypeError);
+    return;
+  }
+  // 3. Set parsedURL to the result of running the basic URL parser on url
+  //    with parsedBase.
+  GURL parsed_url = parsed_base.Resolve(url);
+
+  // 4. If parsedURL is failure, throw a TypeError exception.
+  if (parsed_url.is_empty()) {
+    exception_state->SetSimpleException(script::kSimpleTypeError);
+    return;
+  }
+
+  // 5. Let result be a new URL object.
+  // 6. Let result’s get the base return parsedBase.
+  // 7. Run result’s set the input given the empty string and parsedURL.
+  set_url(parsed_url);
+
+  // 8. Return result.
+}
 
 // static
 std::string URL::CreateObjectURL(
