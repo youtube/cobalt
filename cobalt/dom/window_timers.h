@@ -26,10 +26,10 @@
 #include "base/timer/timer.h"
 #include "cobalt/base/application_state.h"
 #include "cobalt/base/debugger_hooks.h"
-#include "cobalt/dom/dom_stat_tracker.h"
 #include "cobalt/script/callback_function.h"
 #include "cobalt/script/script_value.h"
 #include "cobalt/script/wrappable.h"
+#include "cobalt/web/stat_tracker.h"
 
 namespace cobalt {
 namespace dom {
@@ -39,11 +39,11 @@ class WindowTimers {
   typedef script::CallbackFunction<void()> TimerCallback;
   typedef script::ScriptValue<TimerCallback> TimerCallbackArg;
   explicit WindowTimers(script::Wrappable* const owner,
-                        DomStatTracker* dom_stat_tracker,
+                        web::StatTracker* stat_tracker,
                         const base::DebuggerHooks& debugger_hooks,
                         base::ApplicationState application_state)
       : owner_(owner),
-        dom_stat_tracker_(dom_stat_tracker),
+        stat_tracker_(stat_tracker),
         debugger_hooks_(debugger_hooks),
         application_state_(application_state) {}
   ~WindowTimers() { DisableCallbacks(); }
@@ -70,7 +70,7 @@ class WindowTimers {
     enum TimerType { kOneShot, kRepeating };
 
     Timer(TimerType type, script::Wrappable* const owner,
-          DomStatTracker* dom_stat_tracker,
+          web::StatTracker* stat_tracker,
           const base::DebuggerHooks& debugger_hooks,
           const TimerCallbackArg& callback, int timeout, int handle,
           WindowTimers* window_timers);
@@ -96,7 +96,7 @@ class WindowTimers {
     TimerType type_;
     std::unique_ptr<base::internal::TimerBase> timer_;
     TimerCallbackArg::Reference callback_;
-    DomStatTracker* const dom_stat_tracker_;
+    web::StatTracker* const stat_tracker_;
     const base::DebuggerHooks& debugger_hooks_;
     int timeout_;
     int handle_;
@@ -122,7 +122,7 @@ class WindowTimers {
   Timers timers_;
   int current_timer_index_ = 0;
   script::Wrappable* const owner_;
-  DomStatTracker* const dom_stat_tracker_;
+  web::StatTracker* const stat_tracker_;
   const base::DebuggerHooks& debugger_hooks_;
 
   // Set to false when we're about to shutdown, to ensure that no new JavaScript

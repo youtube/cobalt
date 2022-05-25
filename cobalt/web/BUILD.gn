@@ -101,6 +101,17 @@ static_library("web") {
   ]
 }
 
+static_library("stat_tracker") {
+  has_pedantic_warnings = true
+
+  sources = [
+    "stat_tracker.cc",
+    "stat_tracker.h",
+  ]
+
+  deps = [ "//cobalt/base" ]
+}
+
 static_library("dom_exception") {
   has_pedantic_warnings = true
 

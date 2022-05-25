@@ -42,7 +42,7 @@ int WindowTimers::TryAddNewTimer(Timer::TimerType type,
 
   if (callbacks_active_) {
     scoped_refptr<Timer> timer =
-        new Timer(type, owner_, dom_stat_tracker_, debugger_hooks_, handler,
+        new Timer(type, owner_, stat_tracker_, debugger_hooks_, handler,
                   timeout, handle, this);
     if (application_state_ != base::kApplicationStateFrozen) {
       timer->StartOrResume();
@@ -141,13 +141,13 @@ void WindowTimers::SetApplicationState(base::ApplicationState state) {
 }
 
 WindowTimers::Timer::Timer(TimerType type, script::Wrappable* const owner,
-                           DomStatTracker* dom_stat_tracker,
+                           web::StatTracker* stat_tracker,
                            const base::DebuggerHooks& debugger_hooks,
                            const TimerCallbackArg& callback, int timeout,
                            int handle, WindowTimers* window_timers)
     : type_(type),
       callback_(owner, callback),
-      dom_stat_tracker_(dom_stat_tracker),
+      stat_tracker_(stat_tracker),
       debugger_hooks_(debugger_hooks),
       timeout_(timeout),
       handle_(handle),
@@ -158,26 +158,26 @@ WindowTimers::Timer::Timer(TimerType type, script::Wrappable* const owner,
       type == Timer::kOneShot
           ? base::DebuggerHooks::AsyncTaskFrequency::kOneshot
           : base::DebuggerHooks::AsyncTaskFrequency::kRecurring);
-  if (dom_stat_tracker_) {
+  if (stat_tracker_) {
     switch (type) {
       case Timer::kOneShot:
-        dom_stat_tracker_->OnWindowTimersTimeoutCreated();
+        stat_tracker_->OnWindowTimersTimeoutCreated();
         break;
       case Timer::kRepeating:
-        dom_stat_tracker_->OnWindowTimersIntervalCreated();
+        stat_tracker_->OnWindowTimersIntervalCreated();
         break;
     }
   }
 }
 
 WindowTimers::Timer::~Timer() {
-  if (dom_stat_tracker_) {
+  if (stat_tracker_) {
     switch (type_) {
       case Timer::kOneShot:
-        dom_stat_tracker_->OnWindowTimersTimeoutDestroyed();
+        stat_tracker_->OnWindowTimersTimeoutDestroyed();
         break;
       case Timer::kRepeating:
-        dom_stat_tracker_->OnWindowTimersIntervalDestroyed();
+        stat_tracker_->OnWindowTimersIntervalDestroyed();
         break;
     }
   }
