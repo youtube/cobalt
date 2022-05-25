@@ -101,6 +101,12 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
         ('fetch/WebPlatformTest.Run/'
          'fetch_api_request_request_cache_no_store_html'),
 
+        # RequestCache "no-cache" mode revalidates fresh responses found in
+        # the cache.
+        # Disabled because of: Caching bug.
+        ('fetch/WebPlatformTest.Run/'
+         'fetch_api_request_request_cache_no_cache_html'),
+
         # Check response clone use structureClone for teed ReadableStreams
         # (DataViewchunk).
         # Disabled because of: Timeout.

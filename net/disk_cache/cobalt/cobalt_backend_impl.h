@@ -17,7 +17,17 @@
 #ifndef NET_DISK_CACHE_COBALT_COBALT_BACKEND_IMPL_H_
 #define NET_DISK_CACHE_COBALT_COBALT_BACKEND_IMPL_H_
 
+#include <map>
+#include <memory>
+#include <string>
+#include <utility>
+
+#include "base/callback_helpers.h"
+#include "net/base/completion_once_callback.h"
+#include "net/disk_cache/cobalt/resource_type.h"
 #include "net/disk_cache/disk_cache.h"
+#include "net/disk_cache/memory/mem_backend_impl.h"
+#include "net/disk_cache/simple/simple_backend_impl.h"
 
 namespace disk_cache {
 
@@ -25,15 +35,17 @@ namespace disk_cache {
 // the operations of the cache without writing to disk.
 class NET_EXPORT_PRIVATE CobaltBackendImpl final : public Backend {
  public:
-  explicit CobaltBackendImpl(net::NetLog* net_log);
+  explicit CobaltBackendImpl(
+      const base::FilePath& path,
+      scoped_refptr<BackendCleanupTracker> cleanup_tracker,
+      int64_t max_bytes,
+      net::CacheType cache_type,
+      net::NetLog* net_log);
+  CobaltBackendImpl(const CobaltBackendImpl&) = delete;
+  CobaltBackendImpl& operator=(const CobaltBackendImpl&) = delete;
   ~CobaltBackendImpl() override;
 
-  static std::unique_ptr<CobaltBackendImpl> CreateBackend(int64_t max_bytes,
-                                                          net::NetLog* net_log);
-
-  // Sets a callback to be posted after we are destroyed. Should be called at
-  // most once.
-  void SetPostCleanupCallback(base::OnceClosure cb);
+  net::Error Init(CompletionOnceCallback completion_callback);
 
   // Backend interface.
   net::CacheType GetCacheType() const override;
@@ -41,7 +53,6 @@ class NET_EXPORT_PRIVATE CobaltBackendImpl final : public Backend {
   net::Error OpenEntry(const std::string& key,
                        net::RequestPriority request_priority,
                        Entry** entry,
-                       std::string type,
                        CompletionOnceCallback callback) override;
   net::Error CreateEntry(const std::string& key,
                          net::RequestPriority request_priority,
@@ -69,15 +80,35 @@ class NET_EXPORT_PRIVATE CobaltBackendImpl final : public Backend {
       base::trace_event::ProcessMemoryDump* pmd,
       const std::string& parent_absolute_name) const override;
 
+  // A refcounted class that runs a CompletionOnceCallback once it's destroyed.
+  class RefCountedRunner : public base::RefCounted<RefCountedRunner> {
+   public:
+    explicit RefCountedRunner(CompletionOnceCallback completion_callback)
+        : destruction_callback_(
+              base::BindOnce(&RefCountedRunner::CompletionCallback,
+                             base::Unretained(this),
+                             std::move(completion_callback))) {}
+    void set_callback_result(int result) { callback_result_ = result; }
+
+   private:
+    friend class base::RefCounted<RefCountedRunner>;
+    ~RefCountedRunner() = default;
+
+    void CompletionCallback(CompletionOnceCallback callback) {
+      std::move(callback).Run(callback_result_);
+    }
+
+    base::ScopedClosureRunner destruction_callback_;
+    int callback_result_ = net::OK;
+  };
+
  private:
   class CobaltIterator;
   friend class CobaltIterator;
 
-  base::OnceClosure post_cleanup_callback_;
-
   base::WeakPtrFactory<CobaltBackendImpl> weak_factory_;
 
-  DISALLOW_COPY_AND_ASSIGN(CobaltBackendImpl);
+  std::map<ResourceType, SimpleBackendImpl*> simple_backend_map_;
 };
 
 }  // namespace disk_cache
