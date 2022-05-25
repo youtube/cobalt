@@ -13,6 +13,7 @@
 #include "base/bind.h"
 #include "base/macros.h"
 #include "base/memory/ptr_util.h"
+#include "base/metrics/persistent_histogram_allocator.h"
 #include "base/metrics/statistics_recorder.h"
 #include "base/pending_task.h"
 #include "base/task/sequence_manager/task_queue_impl.h"
@@ -95,8 +96,11 @@ class TaskQueueSelectorTest : public testing::Test {
  public:
   TaskQueueSelectorTest()
       : test_closure_(BindRepeating(&TaskQueueSelectorTest::TestFunction)),
+        recorder_for_testing_(StatisticsRecorder::CreateTemporaryForTesting()),
         associated_thread_(AssociatedThreadId::CreateBound()),
-        selector_(associated_thread_) {}
+        selector_(associated_thread_) {
+            GlobalHistogramAllocator::ReleaseForTesting();
+        }
   ~TaskQueueSelectorTest() override = default;
 
   TaskQueueSelectorForTest::PrioritizingSelector* prioritizing_selector() {
@@ -183,6 +187,7 @@ class TaskQueueSelectorTest : public testing::Test {
   }
 
   const size_t kTaskQueueCount = 5;
+  std::unique_ptr<StatisticsRecorder> recorder_for_testing_;
   RepeatingClosure test_closure_;
   scoped_refptr<AssociatedThreadId> associated_thread_;
   TaskQueueSelectorForTest selector_;
