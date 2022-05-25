@@ -1432,6 +1432,12 @@ void BrowserModule::Blur(SbTimeMonotonic timestamp) {
   DCHECK(application_state_ == base::kApplicationStateStarted);
   application_state_ = base::kApplicationStateBlurred;
   FOR_EACH_OBSERVER(LifecycleObserver, lifecycle_observers_, Blur(timestamp));
+
+  // The window is about to lose focus, and may be destroyed.
+  if (media_module_) {
+    DCHECK(system_window_);
+    window_size_ = system_window_->GetWindowSize();
+  }
 }
 
 void BrowserModule::Conceal(SbTimeMonotonic timestamp) {
@@ -1725,10 +1731,8 @@ void BrowserModule::ConcealInternal(SbTimeMonotonic timestamp) {
 
   ResetResources();
 
-  // Suspend media module and update system window and resource provider.
+  // Suspend media module and update resource provider.
   if (media_module_) {
-    DCHECK(system_window_);
-    window_size_ = system_window_->GetWindowSize();
 #if SB_API_VERSION >= 13
     // This needs to be done before destroying the renderer module as it
     // may use the renderer module to release assets during the update.
