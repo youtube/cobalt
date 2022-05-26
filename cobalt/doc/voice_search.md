@@ -69,7 +69,7 @@ on the SbMicrophone API as detailed above.
 
 In `starboard/linux/shared/soft_mic_platform_service.cc` there is an example
 stub implementation of the SoftMicPlatformService. Platforms can optionally
-implement this [CobaltPlatformService](https://cobalt.dev/gen/cobalt/doc/
+implement this [CobaltPlatformService](https://cobalt.dev/gen/cobalt/doc/\
 platform_services.html) to specify if they support the `soft mic` and/or `hard mic`
 for voice search. The `soft mic` refers to the software activation of the microphone
 for voice search through the UI microphone button on the Youtube Web Application
