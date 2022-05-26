@@ -20,7 +20,6 @@
 
 #include "base/memory/ref_counted.h"
 #include "cobalt/base/tokens.h"
-#include "cobalt/dom/window_timers.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/sequence.h"
 #include "cobalt/script/value_handle.h"
@@ -29,6 +28,7 @@
 #include "cobalt/web/event_target_listener_info.h"
 #include "cobalt/web/user_agent_platform_info.h"
 #include "cobalt/web/window_or_worker_global_scope.h"
+#include "cobalt/web/window_timers.h"
 #include "cobalt/worker/worker_location.h"
 #include "cobalt/worker/worker_navigator.h"
 #include "net/url_request/url_request.h"
@@ -41,7 +41,7 @@ namespace worker {
 
 class WorkerGlobalScope : public web::WindowOrWorkerGlobalScope {
  public:
-  typedef dom::WindowTimers::TimerCallback TimerCallback;
+  typedef web::WindowTimers::TimerCallback TimerCallback;
 
   explicit WorkerGlobalScope(script::EnvironmentSettings* settings);
   WorkerGlobalScope(const WorkerGlobalScope&) = delete;
@@ -99,20 +99,20 @@ class WorkerGlobalScope : public web::WindowOrWorkerGlobalScope {
   // Web API: WindowTimers (implements)
   //   https://www.w3.org/TR/html50/webappapis.html#timers
   //
-  int SetTimeout(const dom::WindowTimers::TimerCallbackArg& handler) {
+  int SetTimeout(const web::WindowTimers::TimerCallbackArg& handler) {
     return SetTimeout(handler, 0);
   }
 
-  int SetTimeout(const dom::WindowTimers::TimerCallbackArg& handler,
+  int SetTimeout(const web::WindowTimers::TimerCallbackArg& handler,
                  int timeout);
 
   void ClearTimeout(int handle);
 
-  int SetInterval(const dom::WindowTimers::TimerCallbackArg& handler) {
+  int SetInterval(const web::WindowTimers::TimerCallbackArg& handler) {
     return SetInterval(handler, 0);
   }
 
-  int SetInterval(const dom::WindowTimers::TimerCallbackArg& handler,
+  int SetInterval(const web::WindowTimers::TimerCallbackArg& handler,
                   int timeout);
 
   void ClearInterval(int handle);
@@ -130,7 +130,7 @@ class WorkerGlobalScope : public web::WindowOrWorkerGlobalScope {
   // https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#concept-workerglobalscope-url
   GURL url_;
 
-  dom::WindowTimers window_timers_;
+  web::WindowTimers window_timers_;
 
   scoped_refptr<WorkerLocation> location_;
   scoped_refptr<WorkerNavigator> navigator_;

@@ -14,10 +14,10 @@
 
 #include "cobalt/worker/worker_global_scope.h"
 
-#include "cobalt/dom/window_timers.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/web/user_agent_platform_info.h"
 #include "cobalt/web/window_or_worker_global_scope.h"
+#include "cobalt/web/window_timers.h"
 #include "cobalt/worker/worker_location.h"
 #include "cobalt/worker/worker_navigator.h"
 
@@ -36,7 +36,7 @@ WorkerGlobalScope::WorkerGlobalScope(script::EnvironmentSettings* settings)
 }
 
 int WorkerGlobalScope::SetTimeout(
-    const dom::WindowTimers::TimerCallbackArg& handler, int timeout) {
+    const web::WindowTimers::TimerCallbackArg& handler, int timeout) {
   return window_timers_.SetTimeout(handler, timeout);
 }
 
@@ -45,7 +45,7 @@ void WorkerGlobalScope::ClearTimeout(int handle) {
 }
 
 int WorkerGlobalScope::SetInterval(
-    const dom::WindowTimers::TimerCallbackArg& handler, int timeout) {
+    const web::WindowTimers::TimerCallbackArg& handler, int timeout) {
   return window_timers_.SetInterval(handler, timeout);
 }
 

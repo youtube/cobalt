@@ -47,7 +47,6 @@
 #include "cobalt/dom/screenshot_manager.h"
 #include "cobalt/dom/storage.h"
 #include "cobalt/dom/wheel_event.h"
-#include "cobalt/dom/window_timers.h"
 #include "cobalt/media_session/media_session_client.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/javascript_engine.h"
@@ -58,6 +57,7 @@
 #include "cobalt/web/error_event_init.h"
 #include "cobalt/web/event.h"
 #include "cobalt/web/window_or_worker_global_scope.h"
+#include "cobalt/web/window_timers.h"
 #include "starboard/file.h"
 
 using cobalt::cssom::ViewportSize;
@@ -391,14 +391,14 @@ std::vector<uint8_t> Window::Atob(const std::string& encoded_string,
   return *output;
 }
 
-int Window::SetTimeout(const WindowTimers::TimerCallbackArg& handler,
+int Window::SetTimeout(const web::WindowTimers::TimerCallbackArg& handler,
                        int timeout) {
   return window_timers_.SetTimeout(handler, timeout);
 }
 
 void Window::ClearTimeout(int handle) { window_timers_.ClearTimeout(handle); }
 
-int Window::SetInterval(const WindowTimers::TimerCallbackArg& handler,
+int Window::SetInterval(const web::WindowTimers::TimerCallbackArg& handler,
                         int timeout) {
   return window_timers_.SetInterval(handler, timeout);
 }

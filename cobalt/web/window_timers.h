@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_DOM_WINDOW_TIMERS_H_
-#define COBALT_DOM_WINDOW_TIMERS_H_
+#ifndef COBALT_WEB_WINDOW_TIMERS_H_
+#define COBALT_WEB_WINDOW_TIMERS_H_
 
 #include <memory>
 #include <utility>
@@ -32,14 +32,14 @@
 #include "cobalt/web/stat_tracker.h"
 
 namespace cobalt {
-namespace dom {
+namespace web {
 
 class WindowTimers {
  public:
   typedef script::CallbackFunction<void()> TimerCallback;
   typedef script::ScriptValue<TimerCallback> TimerCallbackArg;
   explicit WindowTimers(script::Wrappable* const owner,
-                        web::StatTracker* stat_tracker,
+                        StatTracker* stat_tracker,
                         const base::DebuggerHooks& debugger_hooks,
                         base::ApplicationState application_state)
       : owner_(owner),
@@ -70,8 +70,7 @@ class WindowTimers {
     enum TimerType { kOneShot, kRepeating };
 
     Timer(TimerType type, script::Wrappable* const owner,
-          web::StatTracker* stat_tracker,
-          const base::DebuggerHooks& debugger_hooks,
+          StatTracker* stat_tracker, const base::DebuggerHooks& debugger_hooks,
           const TimerCallbackArg& callback, int timeout, int handle,
           WindowTimers* window_timers);
 
@@ -96,7 +95,7 @@ class WindowTimers {
     TimerType type_;
     std::unique_ptr<base::internal::TimerBase> timer_;
     TimerCallbackArg::Reference callback_;
-    web::StatTracker* const stat_tracker_;
+    StatTracker* const stat_tracker_;
     const base::DebuggerHooks& debugger_hooks_;
     int timeout_;
     int handle_;
@@ -122,7 +121,7 @@ class WindowTimers {
   Timers timers_;
   int current_timer_index_ = 0;
   script::Wrappable* const owner_;
-  web::StatTracker* const stat_tracker_;
+  StatTracker* const stat_tracker_;
   const base::DebuggerHooks& debugger_hooks_;
 
   // Set to false when we're about to shutdown, to ensure that no new JavaScript
@@ -134,7 +133,7 @@ class WindowTimers {
   DISALLOW_COPY_AND_ASSIGN(WindowTimers);
 };
 
-}  // namespace dom
+}  // namespace web
 }  // namespace cobalt
 
-#endif  // COBALT_DOM_WINDOW_TIMERS_H_
+#endif  // COBALT_WEB_WINDOW_TIMERS_H_
