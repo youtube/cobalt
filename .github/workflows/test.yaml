@@ -1,0 +1,14 @@
+name: Test
+on: issue_comment 
+
+jobs:
+ test1:
+   if: ${{ github.event.issue.pull_request }}  
+   runs-on: [ubuntu-latest]
+   steps:
+     - name: say hello
+       run: |
+         echo say hello
+     - name: test
+       run: |
+         echo test
