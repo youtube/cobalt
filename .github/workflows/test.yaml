@@ -1,14 +1,18 @@
 name: Test
-on: issue_comment 
+on:
+  issue_comment:                                     
+    types: [created, edited, deleted]
 
 jobs:
  test1:
-   if: (${{ github.event.issue.pull_request }}) && (contains(github.event.comment.body, '/test'))
+   if: ${{ github.event.issue.pull_request }}
    runs-on: [ubuntu-latest]
    steps:
      - name: say hello
+       if: contains(github.event.comment.body, '/test')
        run: |
          echo say hello
      - name: test
+       if: contains(github.event.comment.body, '/test')
        run: |
          echo test
