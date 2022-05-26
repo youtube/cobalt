@@ -72,7 +72,6 @@
 #include "cobalt/web/url_registry.h"
 #include "cobalt/web/user_agent_platform_info.h"
 #include "cobalt/web/window_or_worker_global_scope.h"
-#include "cobalt/web/window_timers.h"
 #include "starboard/window.h"
 #include "url/gurl.h"
 
@@ -281,29 +280,6 @@ class Window : public web::WindowOrWorkerGlobalScope,
   std::vector<uint8_t> Atob(const std::string& encoded_string,
                             script::ExceptionState* exception_state);
 
-  // Web API: WindowTimers (implements)
-  //   https://www.w3.org/TR/html50/webappapis.html#timers
-  //
-  int SetTimeout(const web::WindowTimers::TimerCallbackArg& handler) {
-    return SetTimeout(handler, 0);
-  }
-
-  int SetTimeout(const web::WindowTimers::TimerCallbackArg& handler,
-                 int timeout);
-
-  void ClearTimeout(int handle);
-
-  int SetInterval(const web::WindowTimers::TimerCallbackArg& handler) {
-    return SetInterval(handler, 0);
-  }
-
-  int SetInterval(const web::WindowTimers::TimerCallbackArg& handler,
-                  int timeout);
-
-  void ClearInterval(int handle);
-
-  void DestroyTimers();
-
   // Web API: Storage (implements)
   scoped_refptr<Storage> local_storage() const;
   scoped_refptr<Storage> session_storage() const;
@@ -458,7 +434,6 @@ class Window : public web::WindowOrWorkerGlobalScope,
   scoped_refptr<Navigator> navigator_;
   std::unique_ptr<RelayLoadEvent> relay_on_load_event_;
   scoped_refptr<Camera3D> camera_3d_;
-  web::WindowTimers window_timers_;
   std::unique_ptr<AnimationFrameRequestCallbackList>
       animation_frame_request_callback_list_;
 

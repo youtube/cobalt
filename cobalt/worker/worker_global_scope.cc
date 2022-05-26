@@ -180,12 +180,11 @@ class ScriptLoader : public base::MessageLoop::DestructionObserver {
 }  // namespace
 
 WorkerGlobalScope::WorkerGlobalScope(script::EnvironmentSettings* settings)
-    : web::WindowOrWorkerGlobalScope(settings),
-      ALLOW_THIS_IN_INITIALIZER_LIST(
-          window_timers_(this, /*dom_stat_tracker=*/NULL, debugger_hooks(),
-                         // TODO (b/233788170): once application state is
-                         // available, update this to use the actual state.
-                         base::ApplicationState::kApplicationStateStarted)),
+    : web::WindowOrWorkerGlobalScope(
+          settings, /*stat_tracker=*/NULL,
+          // TODO (b/233788170): once application state is
+          // available, update this to use the actual state.
+          base::ApplicationState::kApplicationStateStarted),
       location_(new WorkerLocation(settings->creation_url())),
       navigator_(new WorkerNavigator(settings)) {
   set_navigator_base(navigator_);
@@ -366,26 +365,6 @@ void WorkerGlobalScope::ImportScriptsInternal(
   // abort all these steps, letting the exception or aborting continue to be
   // processed by the calling script.
 }
-
-int WorkerGlobalScope::SetTimeout(
-    const web::WindowTimers::TimerCallbackArg& handler, int timeout) {
-  return window_timers_.SetTimeout(handler, timeout);
-}
-
-void WorkerGlobalScope::ClearTimeout(int handle) {
-  window_timers_.ClearTimeout(handle);
-}
-
-int WorkerGlobalScope::SetInterval(
-    const web::WindowTimers::TimerCallbackArg& handler, int timeout) {
-  return window_timers_.SetInterval(handler, timeout);
-}
-
-void WorkerGlobalScope::ClearInterval(int handle) {
-  window_timers_.ClearInterval(handle);
-}
-
-void WorkerGlobalScope::DestroyTimers() { window_timers_.DisableCallbacks(); }
 
 }  // namespace worker
 }  // namespace cobalt

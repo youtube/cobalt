@@ -27,10 +27,12 @@ class ServiceWorkerGlobalScope;
 }  // namespace worker
 namespace web {
 WindowOrWorkerGlobalScope::WindowOrWorkerGlobalScope(
-    script::EnvironmentSettings* settings)
+    script::EnvironmentSettings* settings, StatTracker* stat_tracker,
+    base::ApplicationState initial_state)
     // Global scope object EventTargets require special handling for onerror
     // events, see EventTarget constructor for more details.
-    : EventTarget(settings, kUnpackOnErrorEvents) {}
+    : EventTarget(settings, kUnpackOnErrorEvents),
+      window_timers_(this, stat_tracker, debugger_hooks(), initial_state) {}
 
 bool WindowOrWorkerGlobalScope::IsWindow() {
   return GetWrappableType() == base::GetTypeId<dom::Window>();
@@ -46,6 +48,27 @@ bool WindowOrWorkerGlobalScope::IsServiceWorker() {
          base::GetTypeId<worker::ServiceWorkerGlobalScope>();
 }
 
+int WindowOrWorkerGlobalScope::SetTimeout(
+    const web::WindowTimers::TimerCallbackArg& handler, int timeout) {
+  return window_timers_.SetTimeout(handler, timeout);
+}
+
+void WindowOrWorkerGlobalScope::ClearTimeout(int handle) {
+  window_timers_.ClearTimeout(handle);
+}
+
+int WindowOrWorkerGlobalScope::SetInterval(
+    const web::WindowTimers::TimerCallbackArg& handler, int timeout) {
+  return window_timers_.SetInterval(handler, timeout);
+}
+
+void WindowOrWorkerGlobalScope::ClearInterval(int handle) {
+  window_timers_.ClearInterval(handle);
+}
+
+void WindowOrWorkerGlobalScope::DestroyTimers() {
+  window_timers_.DisableCallbacks();
+}
 
 }  // namespace web
 }  // namespace cobalt

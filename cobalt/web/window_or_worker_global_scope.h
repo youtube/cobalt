@@ -24,6 +24,7 @@
 #include "cobalt/web/event_target.h"
 #include "cobalt/web/event_target_listener_info.h"
 #include "cobalt/web/navigator_base.h"
+#include "cobalt/web/window_timers.h"
 
 namespace cobalt {
 namespace web {
@@ -32,7 +33,9 @@ namespace web {
 // interfaces.
 class WindowOrWorkerGlobalScope : public EventTarget {
  public:
-  explicit WindowOrWorkerGlobalScope(script::EnvironmentSettings* settings);
+  explicit WindowOrWorkerGlobalScope(script::EnvironmentSettings* settings,
+                                     StatTracker* stat_tracker,
+                                     base::ApplicationState initial_state);
   WindowOrWorkerGlobalScope(const WindowOrWorkerGlobalScope&) = delete;
   WindowOrWorkerGlobalScope& operator=(const WindowOrWorkerGlobalScope&) =
       delete;
@@ -48,8 +51,33 @@ class WindowOrWorkerGlobalScope : public EventTarget {
 
   DEFINE_WRAPPABLE_TYPE(WindowOrWorkerGlobalScope);
 
+  // Web API: WindowTimers (implements)
+  //   https://www.w3.org/TR/html50/webappapis.html#timers
+  //
+  int SetTimeout(const web::WindowTimers::TimerCallbackArg& handler) {
+    return SetTimeout(handler, 0);
+  }
+
+  int SetTimeout(const web::WindowTimers::TimerCallbackArg& handler,
+                 int timeout);
+
+  void ClearTimeout(int handle);
+
+  int SetInterval(const web::WindowTimers::TimerCallbackArg& handler) {
+    return SetInterval(handler, 0);
+  }
+
+  int SetInterval(const web::WindowTimers::TimerCallbackArg& handler,
+                  int timeout);
+
+  void ClearInterval(int handle);
+
+  void DestroyTimers();
+
  protected:
   virtual ~WindowOrWorkerGlobalScope() {}
+
+  web::WindowTimers window_timers_;
 
  private:
   NavigatorBase* navigator_base_ = nullptr;
