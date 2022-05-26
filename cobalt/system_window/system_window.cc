@@ -28,7 +28,7 @@ namespace cobalt {
 namespace system_window {
 namespace {
 
-SystemWindow* g_the_window = NULL;
+SystemWindow* g_the_window = nullptr;
 
 int Round(const float f) {
   double d(f + 0.5f);
@@ -43,7 +43,7 @@ SystemWindow::SystemWindow(base::EventDispatcher* event_dispatcher,
       window_(kSbWindowInvalid),
       key_down_(false) {
   if (!window_size) {
-    window_ = SbWindowCreate(NULL);
+    window_ = SbWindowCreate(nullptr);
   } else {
     SbWindowOptions options;
     SbWindowSetDefaultOptions(&options);
@@ -60,7 +60,7 @@ SystemWindow::~SystemWindow() {
   DCHECK_EQ(this, g_the_window);
 
   if (g_the_window == this) {
-    g_the_window = NULL;
+    g_the_window = nullptr;
   }
   SbWindowDestroy(window_);
 }
@@ -291,7 +291,11 @@ void HandleInputEvent(const SbEvent* event) {
   }
 
   DCHECK(g_the_window);
-  g_the_window->HandleInputEvent(event);
+  if (g_the_window != nullptr) {
+    g_the_window->HandleInputEvent(event);
+  } else {
+    SB_LOG(ERROR) << "Missing SystemWindow";
+  }
   return;
 }
 
