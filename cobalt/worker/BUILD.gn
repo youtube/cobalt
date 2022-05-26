@@ -75,6 +75,7 @@ target(gtest_target_type, "worker_test") {
   sources = [
     "worker_global_scope_test.cc",
     "worker_location_test.cc",
+    "worker_navigator_test.cc",
   ]
 
   deps = [

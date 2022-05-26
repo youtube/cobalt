@@ -58,6 +58,27 @@ TEST_P(WorkerGlobalScopeTest, SelfIsExpectedWorkerGlobalScope) {
   }
 }
 
+TEST_P(WorkerGlobalScopeTest, LocationIsObject) {
+  std::string result;
+  EXPECT_TRUE(EvaluateScript("typeof self.location", &result));
+  EXPECT_EQ("object", result);
+
+  // Note: Due the stringifier of URLUtils.href implemented by this attribute,
+  // the prototype is not recognized as type Location, and the href is returned.
+  EXPECT_TRUE(EvaluateScript("self.location", &result));
+  EXPECT_EQ("about:blank", result);
+}
+
+TEST_P(WorkerGlobalScopeTest, NavigatorIsWorkerNavigator) {
+  std::string result;
+  EXPECT_TRUE(EvaluateScript("typeof self.navigator", &result));
+  EXPECT_EQ("object", result);
+
+  EXPECT_TRUE(EvaluateScript("self.navigator", &result));
+  EXPECT_TRUE(bindings::testing::IsAcceptablePrototypeString("WorkerNavigator",
+                                                             result));
+}
+
 TEST_P(WorkerGlobalScopeTest, ImportScriptsIsFunction) {
   std::string result;
   EXPECT_TRUE(EvaluateScript("typeof self.importScripts", &result));

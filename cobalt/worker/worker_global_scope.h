@@ -27,7 +27,10 @@
 #include "cobalt/script/wrappable.h"
 #include "cobalt/web/event_target.h"
 #include "cobalt/web/event_target_listener_info.h"
+#include "cobalt/web/user_agent_platform_info.h"
 #include "cobalt/web/window_or_worker_global_scope.h"
+#include "cobalt/worker/worker_location.h"
+#include "cobalt/worker/worker_navigator.h"
 #include "net/url_request/url_request.h"
 #include "url/gurl.h"
 
@@ -44,11 +47,13 @@ class WorkerGlobalScope : public web::WindowOrWorkerGlobalScope {
   WorkerGlobalScope(const WorkerGlobalScope&) = delete;
   WorkerGlobalScope& operator=(const WorkerGlobalScope&) = delete;
 
-  virtual void Initialize() = 0;
+  virtual void Initialize() {}
 
   // Web API: WorkerGlobalScope
   //
   scoped_refptr<WorkerGlobalScope> self() { return this; }
+  const scoped_refptr<WorkerLocation>& location() const { return location_; }
+  const scoped_refptr<WorkerNavigator>& navigator() const { return navigator_; }
 
   void ImportScripts(const std::vector<std::string>& urls) {}
 
@@ -121,6 +126,9 @@ class WorkerGlobalScope : public web::WindowOrWorkerGlobalScope {
   GURL url_;
 
   dom::WindowTimers window_timers_;
+
+  scoped_refptr<WorkerLocation> location_;
+  scoped_refptr<WorkerNavigator> navigator_;
 };
 
 }  // namespace worker
