@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/dom/window_timers.h"
+#include "cobalt/web/window_timers.h"
 
 #include <algorithm>
 #include <limits>
@@ -28,7 +28,7 @@
 #include "nb/memory_scope.h"
 
 namespace cobalt {
-namespace dom {
+namespace web {
 
 int WindowTimers::TryAddNewTimer(Timer::TimerType type,
                                  const TimerCallbackArg& handler, int timeout) {
@@ -269,5 +269,5 @@ WindowTimers::Timer::CreateAndStart() {
   return std::unique_ptr<base::internal::TimerBase>(timer);
 }
 
-}  // namespace dom
+}  // namespace web
 }  // namespace cobalt

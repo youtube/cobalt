@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/dom/window_timers.h"
+#include "cobalt/web/window_timers.h"
 
 #include <memory>
 #include <string>
@@ -32,7 +32,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
-namespace dom {
+namespace web {
 
 namespace testing {
 
@@ -464,5 +464,5 @@ TEST_F(WindowTimersTest, ActiveIntervalsAndTimeoutsAreCounted) {
 }
 
 
-}  // namespace dom
+}  // namespace web
 }  // namespace cobalt

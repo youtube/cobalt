@@ -391,7 +391,6 @@ dependency_idl_files = [
   "//cobalt/dom/window_on_screen_keyboard.idl",
   "//cobalt/dom/window_performance.idl",
   "//cobalt/dom/window_session_storage.idl",
-  "//cobalt/dom/window_timers.idl",
   "//cobalt/media_capture/navigator.idl",
   "//cobalt/media_session/navigator_media_session.idl",
   "//cobalt/web/buffer_source.idl",
@@ -400,6 +399,7 @@ dependency_idl_files = [
   "//cobalt/web/navigator_online.idl",
   "//cobalt/web/navigator_ua.idl",
   "//cobalt/web/url_utils.idl",
+  "//cobalt/web/window_timers.idl",
   "//cobalt/worker/abstract_worker.idl",
   "//cobalt/worker/navigator.idl",
 ]

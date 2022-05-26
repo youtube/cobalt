@@ -45,7 +45,6 @@
 #if defined(ENABLE_TEST_RUNNER)
 #include "cobalt/dom/test_runner.h"
 #endif  // ENABLE_TEST_RUNNER
-#include "cobalt/dom/window_timers.h"
 #include "cobalt/input/camera_3d.h"
 #include "cobalt/loader/cors_preflight_cache.h"
 #include "cobalt/loader/decoder.h"
@@ -73,6 +72,7 @@
 #include "cobalt/web/url_registry.h"
 #include "cobalt/web/user_agent_platform_info.h"
 #include "cobalt/web/window_or_worker_global_scope.h"
+#include "cobalt/web/window_timers.h"
 #include "starboard/window.h"
 #include "url/gurl.h"
 
@@ -86,6 +86,7 @@ class SpeechSynthesis;
 }  // namespace speech
 namespace web {
 class Event;
+class WindowTimers;
 }  // namespace web
 namespace dom {
 
@@ -101,7 +102,6 @@ class OnScreenKeyboard;
 class Performance;
 class Screen;
 class Storage;
-class WindowTimers;
 
 // The window object represents a window containing a DOM document.
 //   https://www.w3.org/TR/html50/browsers.html#the-window-object
@@ -112,7 +112,7 @@ class Window : public web::WindowOrWorkerGlobalScope,
  public:
   typedef AnimationFrameRequestCallbackList::FrameRequestCallback
       FrameRequestCallback;
-  typedef WindowTimers::TimerCallback TimerCallback;
+  typedef web::WindowTimers::TimerCallback TimerCallback;
   typedef base::Callback<void(const scoped_refptr<web::Event>& event)>
       OnStartDispatchEventCallback;
   typedef base::Callback<void(const scoped_refptr<web::Event>& event)>
@@ -284,19 +284,21 @@ class Window : public web::WindowOrWorkerGlobalScope,
   // Web API: WindowTimers (implements)
   //   https://www.w3.org/TR/html50/webappapis.html#timers
   //
-  int SetTimeout(const WindowTimers::TimerCallbackArg& handler) {
+  int SetTimeout(const web::WindowTimers::TimerCallbackArg& handler) {
     return SetTimeout(handler, 0);
   }
 
-  int SetTimeout(const WindowTimers::TimerCallbackArg& handler, int timeout);
+  int SetTimeout(const web::WindowTimers::TimerCallbackArg& handler,
+                 int timeout);
 
   void ClearTimeout(int handle);
 
-  int SetInterval(const WindowTimers::TimerCallbackArg& handler) {
+  int SetInterval(const web::WindowTimers::TimerCallbackArg& handler) {
     return SetInterval(handler, 0);
   }
 
-  int SetInterval(const WindowTimers::TimerCallbackArg& handler, int timeout);
+  int SetInterval(const web::WindowTimers::TimerCallbackArg& handler,
+                  int timeout);
 
   void ClearInterval(int handle);
 
@@ -456,7 +458,7 @@ class Window : public web::WindowOrWorkerGlobalScope,
   scoped_refptr<Navigator> navigator_;
   std::unique_ptr<RelayLoadEvent> relay_on_load_event_;
   scoped_refptr<Camera3D> camera_3d_;
-  WindowTimers window_timers_;
+  web::WindowTimers window_timers_;
   std::unique_ptr<AnimationFrameRequestCallbackList>
       animation_frame_request_callback_list_;
 

@@ -307,9 +307,9 @@ static_library("dom") {
   }
 
   public_deps = [
-    ":window_timers",
     "//cobalt/browser:generated_types",
     "//cobalt/web",
+    "//cobalt/web:window_timers",
   ]
 
   deps = [
@@ -347,25 +347,6 @@ static_library("dom") {
     "//third_party/modp_b64:modp_b64",
     "//third_party/protobuf:protobuf_lite",
     "//url",
-  ]
-}
-
-static_library("window_timers") {
-  has_pedantic_warnings = true
-
-  sources = [
-    # TODO (b/219103808): Move window_timers to /cobalt/web.
-    "window_timers.cc",
-    "window_timers.h",
-  ]
-
-  public_deps = [ "//cobalt/web:stat_tracker" ]
-
-  deps = [
-    "//cobalt/base",
-    "//cobalt/script",
-    "//cobalt/web:web_events",
-    "//nb",
   ]
 }
 
@@ -423,13 +404,11 @@ target(gtest_target_type, "dom_test") {
     "time_ranges_test.cc",
     "user_agent_data_test.cc",
     "window_test.cc",
-    "window_timers_test.cc",
     "xml_document_test.cc",
   ]
 
   deps = [
     ":dom",
-    ":window_timers",
     "//cobalt/base",
     "//cobalt/browser:browser",
     "//cobalt/browser:generated_bindings",
