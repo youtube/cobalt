@@ -1,4 +1,4 @@
-name: Test
+name: test_comment
 on:
   issue_comment:                                     
     types: [created]
