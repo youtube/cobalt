@@ -146,8 +146,111 @@ TEST_P(LocationTestWithParams, SetProtocol) {
   location_->set_protocol("http");
 }
 
-INSTANTIATE_TEST_CASE_P(SecurityTests, LocationTestWithParams,
+INSTANTIATE_TEST_CASE_P(LocationTests, LocationTestWithParams,
                         ::testing::Bool());
+
+// Note: The following tests duplicate the tests in URLUtilsTest, because
+// Location implements URLUtils.
+
+TEST(LocationTest, GettersShouldReturnExpectedFormat) {
+  scoped_refptr<Location> location(
+      new Location(GURL("https://user:pass@google.com:99/foo;bar?q=a#ref")));
+
+  EXPECT_EQ("https://user:pass@google.com:99/foo;bar?q=a#ref",
+            location->href());
+  EXPECT_EQ("https:", location->protocol());
+  EXPECT_EQ("google.com:99", location->host());
+  EXPECT_EQ("google.com", location->hostname());
+  EXPECT_EQ("99", location->port());
+  EXPECT_EQ("/foo;bar", location->pathname());
+  EXPECT_EQ("#ref", location->hash());
+  EXPECT_EQ("?q=a", location->search());
+}
+
+TEST(LocationTest, SetHref) {
+  scoped_refptr<Location> location(
+      new Location(GURL("https://user:pass@google.com:99/foo;bar?q=a#ref")));
+  location->set_href("http://www.youtube.com");
+  EXPECT_TRUE(location->url().is_valid());
+  EXPECT_EQ("http://www.youtube.com/", location->href());
+}
+
+TEST(LocationTest, SetProtocolShouldWorkAsExpected) {
+  scoped_refptr<Location> location(
+      new Location(GURL("https://user:pass@google.com:99/foo;bar?q=a#ref")));
+  location->set_protocol("http");
+  EXPECT_TRUE(location->url().is_valid());
+  EXPECT_EQ("http://user:pass@google.com:99/foo;bar?q=a#ref", location->href());
+}
+
+TEST(LocationTest, SetHostShouldWorkAsExpected) {
+  scoped_refptr<Location> location(
+      new Location(GURL("https://user:pass@google.com:99/foo;bar?q=a#ref")));
+  location->set_host("youtube.com");
+  EXPECT_TRUE(location->url().is_valid());
+  EXPECT_EQ("https://user:pass@youtube.com:99/foo;bar?q=a#ref",
+            location->href());
+
+  location->set_host("google.com:100");
+  EXPECT_TRUE(location->url().is_valid());
+  EXPECT_EQ("https://user:pass@google.com:100/foo;bar?q=a#ref",
+            location->href());
+}
+
+TEST(LocationTest, SetHostnameShouldWorkAsExpected) {
+  scoped_refptr<Location> location(
+      new Location(GURL("https://user:pass@google.com:99/foo;bar?q=a#ref")));
+  location->set_hostname("youtube.com");
+  EXPECT_TRUE(location->url().is_valid());
+  EXPECT_EQ("https://user:pass@youtube.com:99/foo;bar?q=a#ref",
+            location->href());
+}
+
+TEST(LocationTest, SetPortShouldWorkAsExpected) {
+  scoped_refptr<Location> location(
+      new Location(GURL("https://user:pass@google.com:99/foo;bar?q=a#ref")));
+  location->set_port("100");
+  EXPECT_TRUE(location->url().is_valid());
+  EXPECT_EQ("https://user:pass@google.com:100/foo;bar?q=a#ref",
+            location->href());
+}
+
+TEST(LocationTest, SetPathnameShouldWorkAsExpected) {
+  scoped_refptr<Location> location(
+      new Location(GURL("https://user:pass@google.com:99/foo;bar?q=a#ref")));
+  location->set_pathname("baz");
+  EXPECT_TRUE(location->url().is_valid());
+  EXPECT_EQ("https://user:pass@google.com:99/baz?q=a#ref", location->href());
+}
+
+TEST(LocationTest, SetHashShouldWorkAsExpected) {
+  scoped_refptr<Location> location(
+      new Location(GURL("https://user:pass@google.com:99/foo;bar?q=a#ref")));
+  location->set_hash("hash");
+  EXPECT_TRUE(location->url().is_valid());
+  EXPECT_EQ("https://user:pass@google.com:99/foo;bar?q=a#hash",
+            location->href());
+
+  location->set_hash("#hash2");
+  EXPECT_TRUE(location->url().is_valid());
+  EXPECT_EQ("https://user:pass@google.com:99/foo;bar?q=a#hash2",
+            location->href());
+}
+
+TEST(LocationTest, SetSearchShouldWorkAsExpected) {
+  scoped_refptr<Location> location(
+      new Location(GURL("https://user:pass@google.com:99/foo;bar?q=a#ref")));
+  location->set_search("b=c");
+  EXPECT_TRUE(location->url().is_valid());
+  EXPECT_EQ("https://user:pass@google.com:99/foo;bar?b=c#ref",
+            location->href());
+
+  location->set_search("?d=e");
+  EXPECT_TRUE(location->url().is_valid());
+  EXPECT_EQ("https://user:pass@google.com:99/foo;bar?d=e#ref",
+            location->href());
+}
+
 
 }  // namespace dom
 }  // namespace cobalt

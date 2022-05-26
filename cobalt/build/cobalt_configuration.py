@@ -170,6 +170,7 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
         'web_animations_test',
         'webdriver_test',
         'websocket_test',
+        'worker_test',
         'xhr_test',
         'zip_unittests',
     ]

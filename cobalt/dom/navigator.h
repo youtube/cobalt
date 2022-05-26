@@ -31,7 +31,7 @@
 #include "cobalt/script/script_value_factory.h"
 #include "cobalt/script/sequence.h"
 #include "cobalt/script/wrappable.h"
-#include "cobalt/worker/service_worker_container.h"
+#include "cobalt/web/navigator_base.h"
 
 namespace cobalt {
 namespace dom {
@@ -40,23 +40,15 @@ namespace dom {
 // client), and allows Web pages to register themselves as potential protocol
 // and content handlers.
 // https://www.w3.org/TR/html50/webappapis.html#navigator
-class Navigator : public script::Wrappable {
+class Navigator : public web::NavigatorBase {
  public:
-  Navigator(
-      script::EnvironmentSettings* settings, const std::string& user_agent,
-      UserAgentPlatformInfo* platform_info, const std::string& language,
-      scoped_refptr<cobalt::dom::captions::SystemCaptionSettings> captions,
-      script::ScriptValueFactory* script_value_factory);
-
-  // Web API: NavigatorID
-  const std::string& user_agent() const;
-
-  // Web API: NavigatorUA
-  const scoped_refptr<NavigatorUAData>& user_agent_data() const;
-
-  // Web API: NavigatorLanguage
-  const std::string& language() const;
-  script::Sequence<std::string> languages() const;
+  Navigator(script::EnvironmentSettings* settings,
+            const std::string& user_agent, UserAgentPlatformInfo* platform_info,
+            const std::string& language,
+            scoped_refptr<captions::SystemCaptionSettings> captions,
+            script::ScriptValueFactory* script_value_factory);
+  Navigator(const Navigator&) = delete;
+  Navigator& operator=(const Navigator&) = delete;
 
   // Web API: NavigatorLicenses
   const std::string licenses() const;
@@ -67,13 +59,8 @@ class Navigator : public script::Wrappable {
   // Web API: NavigatorPlugins
   bool cookie_enabled() const;
 
-  bool on_line() const;
-
   // Web API: MediaDevices
   scoped_refptr<media_capture::MediaDevices> media_devices();
-
-  // Web API: ServiceWorker
-  scoped_refptr<worker::ServiceWorkerContainer> service_worker();
 
   const scoped_refptr<MimeTypeArray>& mime_types() const;
   const scoped_refptr<PluginArray>& plugins() const;
@@ -96,7 +83,7 @@ class Navigator : public script::Wrappable {
       const script::Sequence<eme::MediaKeySystemConfiguration>&
           supported_configurations);
 
-  const scoped_refptr<cobalt::dom::captions::SystemCaptionSettings>&
+  const scoped_refptr<captions::SystemCaptionSettings>&
   system_caption_settings() const;
 
   DEFINE_WRAPPABLE_TYPE(Navigator);
@@ -132,23 +119,15 @@ class Navigator : public script::Wrappable {
       const std::string& content_type, const std::string& key_system,
       const std::string& encryption_scheme);
 
-  std::string user_agent_;
-  scoped_refptr<NavigatorUAData> user_agent_data_;
-  std::string language_;
   scoped_refptr<MimeTypeArray> mime_types_;
   scoped_refptr<PluginArray> plugins_;
-  scoped_refptr<cobalt::media_session::MediaSession> media_session_;
-  scoped_refptr<cobalt::media_capture::MediaDevices> media_devices_;
-  scoped_refptr<cobalt::worker::ServiceWorkerContainer> service_worker_;
-  scoped_refptr<cobalt::dom::captions::SystemCaptionSettings>
-      system_caption_settings_;
-  script::ScriptValueFactory* script_value_factory_;
+  scoped_refptr<media_session::MediaSession> media_session_;
+  scoped_refptr<media_capture::MediaDevices> media_devices_;
+  scoped_refptr<captions::SystemCaptionSettings> system_caption_settings_;
   base::Optional<bool> key_system_with_attributes_supported_;
 
   base::Closure maybe_freeze_callback_;
   const media::WebMediaPlayerFactory* media_player_factory_ = nullptr;
-
-  DISALLOW_COPY_AND_ASSIGN(Navigator);
 };
 
 }  // namespace dom

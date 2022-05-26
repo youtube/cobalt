@@ -46,6 +46,9 @@ static_library("worker") {
     "worker.h",
     "worker_global_scope.cc",
     "worker_global_scope.h",
+    "worker_location.h",
+    "worker_navigator.cc",
+    "worker_navigator.h",
     "worker_settings.cc",
     "worker_settings.h",
   ]
@@ -58,5 +61,34 @@ static_library("worker") {
     # on this one.
     "//cobalt/browser:generated_types",
     "//cobalt/dom:window_timers",
+  ]
+}
+
+target(gtest_target_type, "worker_test") {
+  testonly = true
+  has_pedantic_warnings = true
+
+  sources = [ "worker_location_test.cc" ]
+
+  deps = [
+    ":worker",
+    "//cobalt/base",
+    "//cobalt/browser:browser",
+    "//cobalt/browser:generated_bindings",
+    "//cobalt/browser:generated_types",
+    "//cobalt/css_parser",
+    "//cobalt/cssom",
+    "//cobalt/dom/testing:dom_testing",
+    "//cobalt/dom_parser",
+    "//cobalt/loader",
+    "//cobalt/script",
+    "//cobalt/script/v8c:engine",
+    "//cobalt/test:run_all_unittests",
+    "//cobalt/web/testing:web_testing",
+    "//nb",
+    "//net:test_support",
+    "//testing/gmock",
+    "//testing/gtest",
+    "//url",
   ]
 }

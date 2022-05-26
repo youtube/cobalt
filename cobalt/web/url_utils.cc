@@ -22,10 +22,6 @@
 namespace cobalt {
 namespace web {
 
-URLUtils::URLUtils(const GURL& url) : url_(url) {}
-URLUtils::URLUtils(const GURL& url, const UpdateStepsCallback& update_steps)
-    : url_(url), update_steps_(update_steps) {}
-
 std::string URLUtils::href() const { return url_.possibly_invalid_spec(); }
 
 void URLUtils::set_href(const std::string& href) {

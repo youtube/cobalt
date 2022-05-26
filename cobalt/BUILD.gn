@@ -41,6 +41,7 @@ group("gn_all") {
     "//cobalt/web_animations:web_animations_test",
     "//cobalt/webdriver:webdriver_test",
     "//cobalt/websocket:websocket_test",
+    "//cobalt/worker:worker_test",
     "//cobalt/xhr:xhr_test",
   ]
 

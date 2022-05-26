@@ -39,10 +39,9 @@ class URLUtils {
   typedef base::Callback<void(const std::string&)> UpdateStepsCallback;
 
   URLUtils() {}
-  explicit URLUtils(const GURL& url);
+  explicit URLUtils(const GURL& url) : url_(url) {}
   explicit URLUtils(const UpdateStepsCallback& update_steps)
       : update_steps_(update_steps) {}
-  URLUtils(const GURL& url, const UpdateStepsCallback& update_steps);
 
   // From the spec: URLUtils.
   //
@@ -76,6 +75,10 @@ class URLUtils {
   //
   const GURL& url() const { return url_; }
   void set_url(const GURL& url) { url_ = url; }
+
+  void set_update_steps_callback(const UpdateStepsCallback& update_steps) {
+    update_steps_ = update_steps;
+  }
 
   loader::Origin GetOriginAsObject() const;
 

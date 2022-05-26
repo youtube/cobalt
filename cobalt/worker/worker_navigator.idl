@@ -1,4 +1,4 @@
-// Copyright 2015 The Cobalt Authors. All Rights Reserved.
+// Copyright 2022 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,11 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// https://www.w3.org/TR/html50/browsers.html#the-location-interface
+// https://html.spec.whatwg.org/multipage/workers.html#the-workernavigator-object
 
-[Exposed = Window, Unforgeable] interface Location {
-  void assign(DOMString url);
-  void replace(DOMString url);
-  void reload();
+interface WorkerNavigator {
+  // From partial interface definition:
+  // https://w3c.github.io/ServiceWorker/#navigator-serviceworker
+  readonly attribute ServiceWorkerContainer serviceWorker;
 };
-Location implements URLUtils;
+
+WorkerNavigator implements NavigatorID;
+WorkerNavigator implements NavigatorUA;
+WorkerNavigator implements NavigatorLanguage;
+WorkerNavigator implements NavigatorOnline;
