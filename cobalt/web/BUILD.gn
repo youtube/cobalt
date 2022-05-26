@@ -32,6 +32,7 @@ static_library("web_events") {
   deps = [
     ":dom_exception",
     "//cobalt/base",
+    "//cobalt/browser:generated_bindings",
     "//cobalt/script",
     "//cobalt/script:engine",
     "//cobalt/script/v8c:engine",
@@ -59,6 +60,8 @@ static_library("web") {
     "blob.h",
     "buffer_source.cc",
     "buffer_source.h",
+    "cobalt_ua_data_values_interface.cc",
+    "cobalt_ua_data_values_interface.h",
     "context.h",
     "csp_delegate.cc",
     "csp_delegate.h",
@@ -69,6 +72,8 @@ static_library("web") {
     "location_base.h",
     "navigator_base.cc",
     "navigator_base.h",
+    "navigator_ua_data.cc",
+    "navigator_ua_data.h",
     "security_policy_violation_event.cc",
     "security_policy_violation_event.h",
     "url.cc",
@@ -76,6 +81,7 @@ static_library("web") {
     "url_registry.h",
     "url_utils.cc",
     "url_utils.h",
+    "user_agent_platform_info.h",
     "window_or_worker_global_scope.cc",
     "window_or_worker_global_scope.h",
   ]
@@ -83,6 +89,7 @@ static_library("web") {
   deps = [
     ":web_events",
     "//cobalt/base",
+    "//cobalt/browser:generated_bindings",
     "//cobalt/csp",
     "//cobalt/network",
     "//cobalt/network_bridge",

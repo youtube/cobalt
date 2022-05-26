@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/dom/navigator_ua_data.h"
+#include "cobalt/web/navigator_ua_data.h"
 
 #include "base/strings/stringprintf.h"
 
 namespace cobalt {
-namespace dom {
+namespace web {
 
 NavigatorUAData::NavigatorUAData(
     UserAgentPlatformInfo* platform_info,
@@ -158,5 +158,5 @@ NavigatorUAData::GetHighEntropyValues(script::Sequence<std::string> hints) {
   return promise;
 }
 
-}  // namespace dom
+}  // namespace web
 }  // namespace cobalt

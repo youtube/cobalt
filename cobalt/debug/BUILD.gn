@@ -61,6 +61,7 @@ static_library("debug") {
   deps = [
     ":console_command_manager",
     "//cobalt/base",
+    "//cobalt/browser:generated_types",
     "//cobalt/cssom",
     "//cobalt/debug/backend/content:copy_backend_web_files",
     "//cobalt/debug/console/content:copy_console_web_files",
@@ -71,6 +72,7 @@ static_library("debug") {
     "//cobalt/render_tree",
     "//cobalt/script",
     "//cobalt/speech",
+    "//cobalt/web",
     "//net",
     "//net:http_server",
     "//starboard",

@@ -24,7 +24,7 @@ H5vccSettings::H5vccSettings(media::MediaModule* media_module,
 #if SB_IS(EVERGREEN)
                              cobalt::updater::UpdaterModule* updater_module,
 #endif
-                             dom::NavigatorUAData* user_agent_data,
+                             web::NavigatorUAData* user_agent_data,
                              script::GlobalEnvironment* global_environment)
     : media_module_(media_module),
       network_module_(network_module),

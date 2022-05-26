@@ -105,7 +105,7 @@ Window::Window(
     script::ScriptValueFactory* script_value_factory,
     MediaSource::Registry* media_source_registry,
     DomStatTracker* dom_stat_tracker, const GURL& url,
-    const std::string& user_agent, UserAgentPlatformInfo* platform_info,
+    const std::string& user_agent, web::UserAgentPlatformInfo* platform_info,
     const std::string& language, const std::string& font_language_script,
     const base::Callback<void(const GURL&)> navigation_callback,
     const loader::Decoder::OnCompleteFunction& load_complete_callback,

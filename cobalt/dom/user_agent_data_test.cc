@@ -24,7 +24,6 @@
 #include "cobalt/dom/global_stats.h"
 #include "cobalt/dom/local_storage_database.h"
 #include "cobalt/dom/navigator.h"
-#include "cobalt/dom/navigator_ua_data.h"
 #include "cobalt/dom/testing/stub_environment_settings.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/dom_parser/parser.h"
@@ -34,6 +33,7 @@
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/script/source_code.h"
+#include "cobalt/web/navigator_ua_data.h"
 #include "cobalt/web/testing/gtest_workarounds.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/dom/cobalt_ua_data_values_interface.h"
+#include "cobalt/web/cobalt_ua_data_values_interface.h"
 
 namespace cobalt {
-namespace dom {
+namespace web {
 
 CobaltUADataValuesInterface::CobaltUADataValuesInterface(
     const CobaltUADataValues& init_dict) {
@@ -90,5 +90,5 @@ CobaltUADataValuesInterface::CobaltUADataValuesInterface(
   }
 }
 
-}  // namespace dom
+}  // namespace web
 }  // namespace cobalt

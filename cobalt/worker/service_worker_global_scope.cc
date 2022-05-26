@@ -21,7 +21,7 @@
 namespace cobalt {
 namespace worker {
 ServiceWorkerGlobalScope::ServiceWorkerGlobalScope(
-    script::EnvironmentSettings* settings)
+    web::EnvironmentSettings* settings)
     : WorkerGlobalScope(settings) {}
 
 void ServiceWorkerGlobalScope::Initialize() {}

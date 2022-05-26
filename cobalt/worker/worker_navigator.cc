@@ -18,9 +18,9 @@
 #include <vector>
 
 #include "base/optional.h"
-#include "cobalt/dom/navigator_ua_data.h"
 #include "cobalt/script/script_value_factory.h"
 #include "cobalt/web/navigator_base.h"
+#include "cobalt/web/navigator_ua_data.h"
 #include "starboard/configuration_constants.h"
 
 namespace cobalt {
@@ -28,7 +28,7 @@ namespace worker {
 
 WorkerNavigator::WorkerNavigator(
     script::EnvironmentSettings* settings, const std::string& user_agent,
-    dom::UserAgentPlatformInfo* platform_info, const std::string& language,
+    web::UserAgentPlatformInfo* platform_info, const std::string& language,
     script::ScriptValueFactory* script_value_factory)
     : web::NavigatorBase(settings, user_agent, platform_info, language,
                          script_value_factory) {}

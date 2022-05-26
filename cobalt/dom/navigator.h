@@ -22,7 +22,6 @@
 #include "cobalt/dom/captions/system_caption_settings.h"
 #include "cobalt/dom/eme/media_key_system_configuration.h"
 #include "cobalt/dom/mime_type_array.h"
-#include "cobalt/dom/navigator_ua_data.h"
 #include "cobalt/dom/plugin_array.h"
 #include "cobalt/media/web_media_player_factory.h"
 #include "cobalt/media_capture/media_devices.h"
@@ -32,6 +31,7 @@
 #include "cobalt/script/sequence.h"
 #include "cobalt/script/wrappable.h"
 #include "cobalt/web/navigator_base.h"
+#include "cobalt/web/navigator_ua_data.h"
 
 namespace cobalt {
 namespace dom {
@@ -43,7 +43,8 @@ namespace dom {
 class Navigator : public web::NavigatorBase {
  public:
   Navigator(script::EnvironmentSettings* settings,
-            const std::string& user_agent, UserAgentPlatformInfo* platform_info,
+            const std::string& user_agent,
+            web::UserAgentPlatformInfo* platform_info,
             const std::string& language,
             scoped_refptr<captions::SystemCaptionSettings> captions,
             script::ScriptValueFactory* script_value_factory);

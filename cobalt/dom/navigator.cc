@@ -146,7 +146,7 @@ bool CanPlay(const media::CanPlayTypeHandler& can_play_type_handler,
 
 Navigator::Navigator(script::EnvironmentSettings* settings,
                      const std::string& user_agent,
-                     UserAgentPlatformInfo* platform_info,
+                     web::UserAgentPlatformInfo* platform_info,
                      const std::string& language,
                      scoped_refptr<captions::SystemCaptionSettings> captions,
                      script::ScriptValueFactory* script_value_factory)

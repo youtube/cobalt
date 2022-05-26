@@ -18,10 +18,10 @@
 #include <string>
 
 #include "base/memory/ref_counted.h"
-#include "cobalt/dom/navigator_ua_data.h"
 #include "cobalt/script/promise.h"
 #include "cobalt/script/wrappable.h"
 #include "cobalt/web/navigator_base.h"
+#include "cobalt/web/navigator_ua_data.h"
 
 namespace cobalt {
 namespace worker {
@@ -34,7 +34,7 @@ class WorkerNavigator : public web::NavigatorBase {
  public:
   WorkerNavigator(script::EnvironmentSettings* settings,
                   const std::string& user_agent,
-                  dom::UserAgentPlatformInfo* platform_info,
+                  web::UserAgentPlatformInfo* platform_info,
                   const std::string& language,
                   script::ScriptValueFactory* script_value_factory);
   WorkerNavigator(const WorkerNavigator&) = delete;

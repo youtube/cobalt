@@ -18,8 +18,8 @@
 #include <vector>
 
 #include "base/optional.h"
-#include "cobalt/dom/navigator_ua_data.h"
 #include "cobalt/script/script_value_factory.h"
+#include "cobalt/web/navigator_ua_data.h"
 #include "cobalt/worker/service_worker_container.h"
 #include "starboard/configuration_constants.h"
 
@@ -28,12 +28,12 @@ namespace web {
 
 NavigatorBase::NavigatorBase(script::EnvironmentSettings* settings,
                              const std::string& user_agent,
-                             dom::UserAgentPlatformInfo* platform_info,
+                             web::UserAgentPlatformInfo* platform_info,
                              const std::string& language,
                              script::ScriptValueFactory* script_value_factory)
     : user_agent_(user_agent),
       user_agent_data_(
-          new dom::NavigatorUAData(platform_info, script_value_factory)),
+          new NavigatorUAData(platform_info, script_value_factory)),
       language_(language),
       service_worker_(new worker::ServiceWorkerContainer(settings)),
       script_value_factory_(script_value_factory) {}
@@ -48,8 +48,7 @@ script::Sequence<std::string> NavigatorBase::languages() const {
 
 const std::string& NavigatorBase::user_agent() const { return user_agent_; }
 
-const scoped_refptr<dom::NavigatorUAData>& NavigatorBase::user_agent_data()
-    const {
+const scoped_refptr<NavigatorUAData>& NavigatorBase::user_agent_data() const {
   return user_agent_data_;
 }
 

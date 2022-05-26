@@ -12,23 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_DOM_NAVIGATOR_UA_DATA_H_
-#define COBALT_DOM_NAVIGATOR_UA_DATA_H_
+#ifndef COBALT_WEB_NAVIGATOR_UA_DATA_H_
+#define COBALT_WEB_NAVIGATOR_UA_DATA_H_
 
 #include <string>
 
-#include "cobalt/dom/cobalt_ua_data_values_interface.h"
-#include "cobalt/dom/navigator_ua_brand_version.h"
-#include "cobalt/dom/ua_low_entropy_json.h"
-#include "cobalt/dom/user_agent_platform_info.h"
 #include "cobalt/script/promise.h"
 #include "cobalt/script/script_value.h"
 #include "cobalt/script/script_value_factory.h"
 #include "cobalt/script/sequence.h"
 #include "cobalt/script/wrappable.h"
+#include "cobalt/web/cobalt_ua_data_values_interface.h"
+#include "cobalt/web/navigator_ua_brand_version.h"
+#include "cobalt/web/ua_low_entropy_json.h"
+#include "cobalt/web/user_agent_platform_info.h"
 
 namespace cobalt {
-namespace dom {
+namespace web {
 
 // The NavigatorUAData object holds the User-Agent Client Hints information.
 // https://wicg.github.io/ua-client-hints/#navigatoruadata
@@ -65,7 +65,7 @@ class NavigatorUAData : public script::Wrappable {
   DISALLOW_COPY_AND_ASSIGN(NavigatorUAData);
 };
 
-}  // namespace dom
+}  // namespace web
 }  // namespace cobalt
 
-#endif  // COBALT_DOM_NAVIGATOR_UA_DATA_H_
+#endif  // COBALT_WEB_NAVIGATOR_UA_DATA_H_

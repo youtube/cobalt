@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_DOM_USER_AGENT_PLATFORM_INFO_H_
-#define COBALT_DOM_USER_AGENT_PLATFORM_INFO_H_
+#ifndef COBALT_WEB_USER_AGENT_PLATFORM_INFO_H_
+#define COBALT_WEB_USER_AGENT_PLATFORM_INFO_H_
 
 #include <string>
 
@@ -21,7 +21,7 @@
 #include "starboard/system.h"
 
 namespace cobalt {
-namespace dom {
+namespace web {
 
 // This class gives the DOM an interface to the user agent platform info. This
 // allows NavigatorUAData to access user agent string info.
@@ -55,7 +55,7 @@ class UserAgentPlatformInfo {
   UserAgentPlatformInfo() {}
 };
 
-}  // namespace dom
+}  // namespace web
 }  // namespace cobalt
 
-#endif  // COBALT_DOM_USER_AGENT_PLATFORM_INFO_H_
+#endif  // COBALT_WEB_USER_AGENT_PLATFORM_INFO_H_

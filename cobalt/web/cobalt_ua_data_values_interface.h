@@ -12,16 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_DOM_COBALT_UA_DATA_VALUES_INTERFACE_H_
-#define COBALT_DOM_COBALT_UA_DATA_VALUES_INTERFACE_H_
+#ifndef COBALT_WEB_COBALT_UA_DATA_VALUES_INTERFACE_H_
+#define COBALT_WEB_COBALT_UA_DATA_VALUES_INTERFACE_H_
 
 #include <string>
 
-#include "cobalt/dom/cobalt_ua_data_values.h"
 #include "cobalt/script/wrappable.h"
+#include "cobalt/web/cobalt_ua_data_values.h"
 
 namespace cobalt {
-namespace dom {
+namespace web {
 
 class CobaltUADataValuesInterface : public script::Wrappable {
  public:
@@ -87,7 +87,7 @@ class CobaltUADataValuesInterface : public script::Wrappable {
   DISALLOW_COPY_AND_ASSIGN(CobaltUADataValuesInterface);
 };
 
-}  // namespace dom
+}  // namespace web
 }  // namespace cobalt
 
-#endif  // COBALT_DOM_COBALT_UA_DATA_VALUES_INTERFACE_H_
+#endif  // COBALT_WEB_COBALT_UA_DATA_VALUES_INTERFACE_H_

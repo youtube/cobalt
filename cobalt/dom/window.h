@@ -42,13 +42,9 @@
 #include "cobalt/dom/on_screen_keyboard_bridge.h"
 #include "cobalt/dom/parser.h"
 #include "cobalt/dom/screenshot_manager.h"
-#include "cobalt/web/csp_delegate_type.h"
-#include "cobalt/web/event_target.h"
-#include "cobalt/web/window_or_worker_global_scope.h"
 #if defined(ENABLE_TEST_RUNNER)
 #include "cobalt/dom/test_runner.h"
 #endif  // ENABLE_TEST_RUNNER
-#include "cobalt/dom/user_agent_platform_info.h"
 #include "cobalt/dom/window_timers.h"
 #include "cobalt/input/camera_3d.h"
 #include "cobalt/loader/cors_preflight_cache.h"
@@ -72,9 +68,14 @@
 #include "cobalt/script/script_runner.h"
 #include "cobalt/script/script_value_factory.h"
 #include "cobalt/ui_navigation/nav_item.h"
+#include "cobalt/web/csp_delegate_type.h"
+#include "cobalt/web/event_target.h"
 #include "cobalt/web/url_registry.h"
+#include "cobalt/web/user_agent_platform_info.h"
+#include "cobalt/web/window_or_worker_global_scope.h"
 #include "starboard/window.h"
 #include "url/gurl.h"
+
 
 namespace cobalt {
 namespace media_session {
@@ -154,7 +155,7 @@ class Window : public web::WindowOrWorkerGlobalScope,
       script::ScriptValueFactory* script_value_factory,
       MediaSourceRegistry* media_source_registry,
       DomStatTracker* dom_stat_tracker, const GURL& url,
-      const std::string& user_agent, UserAgentPlatformInfo* platform_info,
+      const std::string& user_agent, web::UserAgentPlatformInfo* platform_info,
       const std::string& language, const std::string& font_language_script,
       const base::Callback<void(const GURL&)> navigation_callback,
       const loader::Decoder::OnCompleteFunction& load_complete_callback,

@@ -20,10 +20,10 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_refptr.h"
 #include "cobalt/base/tokens.h"
-#include "cobalt/script/environment_settings.h"
 #include "cobalt/script/promise.h"
 #include "cobalt/script/value_handle.h"
 #include "cobalt/script/wrappable.h"
+#include "cobalt/web/environment_settings.h"
 #include "cobalt/web/event_target.h"
 #include "cobalt/web/event_target_listener_info.h"
 #include "cobalt/worker/service_worker.h"
@@ -38,7 +38,7 @@ namespace worker {
 
 class ServiceWorkerGlobalScope : public WorkerGlobalScope {
  public:
-  explicit ServiceWorkerGlobalScope(script::EnvironmentSettings* settings);
+  explicit ServiceWorkerGlobalScope(web::EnvironmentSettings* settings);
   ServiceWorkerGlobalScope(const ServiceWorkerGlobalScope&) = delete;
   ServiceWorkerGlobalScope& operator=(const ServiceWorkerGlobalScope&) = delete;
 

@@ -18,9 +18,9 @@
 #include <string>
 
 #include "base/memory/ref_counted.h"
-#include "cobalt/dom/navigator_ua_data.h"
 #include "cobalt/script/script_value_factory.h"
 #include "cobalt/script/wrappable.h"
+#include "cobalt/web/navigator_ua_data.h"
 #include "cobalt/worker/service_worker_container.h"
 
 namespace cobalt {
@@ -35,7 +35,7 @@ class NavigatorBase : public script::Wrappable {
  public:
   NavigatorBase(script::EnvironmentSettings* settings,
                 const std::string& user_agent,
-                dom::UserAgentPlatformInfo* platform_info,
+                UserAgentPlatformInfo* platform_info,
                 const std::string& language,
                 script::ScriptValueFactory* script_value_factory);
 
@@ -43,7 +43,7 @@ class NavigatorBase : public script::Wrappable {
   const std::string& user_agent() const;
 
   // Web API: NavigatorUA
-  const scoped_refptr<dom::NavigatorUAData>& user_agent_data() const;
+  const scoped_refptr<NavigatorUAData>& user_agent_data() const;
 
   // Web API: NavigatorLanguage
   const std::string& language() const;
@@ -66,7 +66,7 @@ class NavigatorBase : public script::Wrappable {
 
  private:
   std::string user_agent_;
-  scoped_refptr<dom::NavigatorUAData> user_agent_data_;
+  scoped_refptr<NavigatorUAData> user_agent_data_;
   std::string language_;
   scoped_refptr<worker::ServiceWorkerContainer> service_worker_;
   script::ScriptValueFactory* script_value_factory_;

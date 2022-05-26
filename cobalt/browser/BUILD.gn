@@ -143,6 +143,8 @@ static_library("browser") {
   deps = [
     ":bindings",
     ":browser_switches",
+    ":generated_bindings",
+    ":generated_types",
     "//cobalt/account",
     "//cobalt/audio",
     "//cobalt/base",
