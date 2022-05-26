@@ -57,7 +57,6 @@
 #include "cobalt/web/error_event_init.h"
 #include "cobalt/web/event.h"
 #include "cobalt/web/window_or_worker_global_scope.h"
-#include "cobalt/web/window_timers.h"
 #include "starboard/file.h"
 
 using cobalt::cssom::ViewportSize;
@@ -130,7 +129,8 @@ Window::Window(
     bool log_tts)
     // 'window' object EventTargets require special handling for onerror events,
     // see EventTarget constructor for more details.
-    : web::WindowOrWorkerGlobalScope(settings),
+    : web::WindowOrWorkerGlobalScope(settings, dom_stat_tracker,
+                                     initial_application_state),
       viewport_size_(view_size),
       is_resize_event_pending_(false),
       is_reporting_script_error_(false),
@@ -163,8 +163,6 @@ Window::Window(
       navigator_(new Navigator(environment_settings(), captions)),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           relay_on_load_event_(new RelayLoadEvent(this))),
-      ALLOW_THIS_IN_INITIALIZER_LIST(window_timers_(
-          this, dom_stat_tracker, debugger_hooks(), initial_application_state)),
       ALLOW_THIS_IN_INITIALIZER_LIST(animation_frame_request_callback_list_(
           new AnimationFrameRequestCallbackList(this, debugger_hooks()))),
       crypto_(new Crypto()),
@@ -390,22 +388,6 @@ std::vector<uint8_t> Window::Atob(const std::string& encoded_string,
   }
   return *output;
 }
-
-int Window::SetTimeout(const web::WindowTimers::TimerCallbackArg& handler,
-                       int timeout) {
-  return window_timers_.SetTimeout(handler, timeout);
-}
-
-void Window::ClearTimeout(int handle) { window_timers_.ClearTimeout(handle); }
-
-int Window::SetInterval(const web::WindowTimers::TimerCallbackArg& handler,
-                        int timeout) {
-  return window_timers_.SetInterval(handler, timeout);
-}
-
-void Window::ClearInterval(int handle) { window_timers_.ClearInterval(handle); }
-
-void Window::DestroyTimers() { window_timers_.DisableCallbacks(); }
 
 scoped_refptr<Storage> Window::local_storage() const { return local_storage_; }
 

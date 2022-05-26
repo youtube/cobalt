@@ -106,29 +106,6 @@ class WorkerGlobalScope : public web::WindowOrWorkerGlobalScope {
                               event_listener);
   }
 
-  // Web API: WindowTimers (implements)
-  //   https://www.w3.org/TR/html50/webappapis.html#timers
-  //
-  int SetTimeout(const web::WindowTimers::TimerCallbackArg& handler) {
-    return SetTimeout(handler, 0);
-  }
-
-  int SetTimeout(const web::WindowTimers::TimerCallbackArg& handler,
-                 int timeout);
-
-  void ClearTimeout(int handle);
-
-  int SetInterval(const web::WindowTimers::TimerCallbackArg& handler) {
-    return SetInterval(handler, 0);
-  }
-
-  int SetInterval(const web::WindowTimers::TimerCallbackArg& handler,
-                  int timeout);
-
-  void ClearInterval(int handle);
-
-  void DestroyTimers();
-
   // Custom, not in any spec.
   //
   bool LoadImportsAndReturnIfUpdated(
@@ -149,8 +126,6 @@ class WorkerGlobalScope : public web::WindowOrWorkerGlobalScope {
   // WorkerGlobalScope url
   //   https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#concept-workerglobalscope-url
   GURL url_;
-
-  web::WindowTimers window_timers_;
 
   scoped_refptr<WorkerLocation> location_;
   scoped_refptr<WorkerNavigator> navigator_;
