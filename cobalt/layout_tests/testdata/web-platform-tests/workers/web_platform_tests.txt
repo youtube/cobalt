@@ -110,11 +110,12 @@ interfaces/WorkerGlobalScope/onerror/propagate-to-window-onerror.html, DISABLE
 
 interfaces/WorkerGlobalScope/self.html, DISABLE
 
+# b/229767497, b/229128880
 interfaces/WorkerUtils/WindowTimers/001.html, PASS
 interfaces/WorkerUtils/WindowTimers/002.html, PASS
-interfaces/WorkerUtils/WindowTimers/003.html, PASS
+interfaces/WorkerUtils/WindowTimers/003.html, DISABLE
 interfaces/WorkerUtils/WindowTimers/004.html, PASS
-interfaces/WorkerUtils/WindowTimers/005.html, PASS
+interfaces/WorkerUtils/WindowTimers/005.html, DISABLE
 
 non-automated/application-cache-dedicated.html, DISABLE
 
