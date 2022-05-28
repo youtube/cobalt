@@ -15,26 +15,11 @@
 #include <memory>
 #include <string>
 
-#include "base/bind.h"
-#include "base/callback.h"
-#include "base/optional.h"
-#include "base/threading/platform_thread.h"
+#include "cobalt/base/tokens.h"
 #include "cobalt/bindings/testing/utils.h"
-#include "cobalt/css_parser/parser.h"
-#include "cobalt/cssom/viewport_size.h"
-#include "cobalt/dom/global_stats.h"
-#include "cobalt/dom/local_storage_database.h"
-#include "cobalt/dom/testing/stub_environment_settings.h"
+#include "cobalt/dom/testing/test_with_javascript.h"
 #include "cobalt/dom/window.h"
-#include "cobalt/dom_parser/parser.h"
-#include "cobalt/loader/fetcher_factory.h"
-#include "cobalt/loader/loader_factory.h"
-#include "cobalt/script/global_environment.h"
-#include "cobalt/script/javascript_engine.h"
-#include "cobalt/script/source_code.h"
 #include "cobalt/web/testing/gtest_workarounds.h"
-#include "cobalt/web/testing/stub_web_context.h"
-#include "starboard/window.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -44,12 +29,6 @@ using testing::Mock;
 
 namespace cobalt {
 namespace dom {
-
-class MockErrorCallback
-    : public base::Callback<void(const base::Optional<std::string>&)> {
- public:
-  MOCK_METHOD1(Run, void(const base::Optional<std::string>&));
-};
 
 class OnScreenKeyboardMockBridge : public OnScreenKeyboardBridge {
  public:
@@ -189,105 +168,31 @@ class OnScreenKeyboardMockBridge : public OnScreenKeyboardBridge {
 
 namespace {
 
-class OnScreenKeyboardTest : public ::testing::Test {
+class OnScreenKeyboardTest : public testing::TestWithJavaScript {
  public:
   OnScreenKeyboardTest()
-      : css_parser_(css_parser::Parser::Create()),
-        dom_parser_(new dom_parser::Parser(mock_error_callback_)),
-        fetcher_factory_(new loader::FetcherFactory(NULL)),
-        loader_factory_(new loader::LoaderFactory(
-            "Test", fetcher_factory_.get(), NULL, null_debugger_hooks_, 0,
-            base::ThreadPriority::DEFAULT)),
-        local_storage_database_(NULL),
-        url_("about:blank"),
-        on_screen_keyboard_bridge_(new OnScreenKeyboardMockBridge()) {
-    web_context_.reset(new web::testing::StubWebContext());
-    web_context_->setup_environment_settings(
-        new dom::testing::StubEnvironmentSettings());
-    engine_ = script::JavaScriptEngine::CreateEngine();
-    global_environment_ = engine_->CreateGlobalEnvironment();
-    window_ = new Window(
-        web_context_->environment_settings(), ViewportSize(1920, 1080),
-        base::kApplicationStateStarted, css_parser_.get(), dom_parser_.get(),
-        fetcher_factory_.get(), loader_factory_.get(), NULL, NULL, NULL, NULL,
-        NULL, NULL, &local_storage_database_, NULL, NULL, NULL, NULL,
-        global_environment_->script_value_factory() /* script_value_factory */,
-        NULL, NULL, "en", base::Callback<void(const GURL&)>(),
-        base::Bind(&MockErrorCallback::Run,
-                   base::Unretained(&mock_error_callback_)),
-        NULL, network_bridge::PostSender(), csp::kCSPRequired,
-        web::kCspEnforcementEnable, base::Closure() /* csp_policy_changed */,
-        base::Closure() /* ran_animation_frame_callbacks */,
-        dom::Window::CloseCallback() /* window_close */,
-        base::Closure() /* window_minimize */, on_screen_keyboard_bridge_.get(),
-        NULL, dom::Window::OnStartDispatchEventCallback(),
-        dom::Window::OnStopDispatchEventCallback(),
-        dom::ScreenshotManager::ProvideScreenshotFunctionCallback(), NULL);
-    global_environment_->CreateGlobalObject(
-        window_, web_context_->environment_settings());
-    on_screen_keyboard_bridge_->window_ = window_;
+      : on_screen_keyboard_bridge_(new OnScreenKeyboardMockBridge()) {
+    set_stub_window(new testing::StubWindow(DOMSettings::Options(),
+                                            on_screen_keyboard_bridge_.get()));
+    on_screen_keyboard_bridge_->window_ = window();
   }
 
   ~OnScreenKeyboardTest() {
-    global_environment_->SetReportEvalCallback(base::Closure());
-    global_environment_->SetReportErrorCallback(
-        script::GlobalEnvironment::ReportErrorCallback());
-    window_->DispatchEvent(new web::Event(base::Tokens::unload()));
-
     // TODO: figure out how to destruct OSK before global environment.
-    window_->ReleaseOnScreenKeyboard();
+    window()->ReleaseOnScreenKeyboard();
 
     EXPECT_TRUE(Mock::VerifyAndClearExpectations(on_screen_keyboard_bridge()));
 
     on_screen_keyboard_bridge_.reset();
-    window_ = nullptr;
-    global_environment_ = nullptr;
-    EXPECT_TRUE(GlobalStats::GetInstance()->CheckNoLeaks());
-  }
-
-  bool EvaluateScript(const std::string& js_code, std::string* result);
-
-  script::GlobalEnvironment* global_environment() const {
-    return global_environment_.get();
   }
 
   OnScreenKeyboardMockBridge* on_screen_keyboard_bridge() const {
     return on_screen_keyboard_bridge_.get();
   }
 
-  Window* window() const { return window_.get(); }
-
  private:
-  std::unique_ptr<web::testing::StubWebContext> web_context_;
-  base::NullDebuggerHooks null_debugger_hooks_;
-  MockErrorCallback mock_error_callback_;
-  std::unique_ptr<css_parser::Parser> css_parser_;
-  std::unique_ptr<dom_parser::Parser> dom_parser_;
-  std::unique_ptr<loader::FetcherFactory> fetcher_factory_;
-  std::unique_ptr<loader::LoaderFactory> loader_factory_;
-  dom::LocalStorageDatabase local_storage_database_;
-  GURL url_;
-
-  std::unique_ptr<script::JavaScriptEngine> engine_;
-  scoped_refptr<script::GlobalEnvironment> global_environment_;
   std::unique_ptr<OnScreenKeyboardMockBridge> on_screen_keyboard_bridge_;
-  scoped_refptr<Window> window_;
 };
-
-// TODO: refactor this into reusable test utility.
-bool OnScreenKeyboardTest::EvaluateScript(const std::string& js_code,
-                                          std::string* result) {
-  DCHECK(global_environment_);
-  scoped_refptr<script::SourceCode> source_code =
-      script::SourceCode::CreateSourceCode(
-          js_code, base::SourceLocation(__FILE__, __LINE__, 1));
-
-  global_environment_->EnableEval();
-  global_environment_->SetReportEvalCallback(base::Closure());
-  bool succeeded = global_environment_->EvaluateScript(source_code, result);
-  return succeeded;
-}
-
 }  // namespace
 
 bool SkipLocale() {

@@ -25,7 +25,7 @@
 namespace cobalt {
 namespace worker {
 DedicatedWorkerGlobalScope::DedicatedWorkerGlobalScope(
-    web::EnvironmentSettings* settings,
+    script::EnvironmentSettings* settings,
     bool parent_cross_origin_isolated_capability)
     : WorkerGlobalScope(settings), cross_origin_isolated_capability_(false) {
   // Algorithm for 'run a worker'

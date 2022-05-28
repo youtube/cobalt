@@ -53,7 +53,11 @@ static_library("worker") {
     "worker_settings.h",
   ]
 
-  deps = [ "//url" ]
+  deps = [
+    "//cobalt/browser:generated_bindings",
+    "//cobalt/web",
+    "//url",
+  ]
 
   public_deps = [
     # Additionally, ensure that the include directories for generated
@@ -68,7 +72,10 @@ target(gtest_target_type, "worker_test") {
   testonly = true
   has_pedantic_warnings = true
 
-  sources = [ "worker_location_test.cc" ]
+  sources = [
+    "worker_global_scope_test.cc",
+    "worker_location_test.cc",
+  ]
 
   deps = [
     ":worker",
@@ -85,6 +92,7 @@ target(gtest_target_type, "worker_test") {
     "//cobalt/script/v8c:engine",
     "//cobalt/test:run_all_unittests",
     "//cobalt/web/testing:web_testing",
+    "//cobalt/worker/testing:worker_testing",
     "//nb",
     "//net:test_support",
     "//testing/gmock",
