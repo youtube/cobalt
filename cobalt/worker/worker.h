@@ -64,8 +64,8 @@ class Worker : public base::MessageLoop::DestructionObserver {
     // Parameters from 'Run a worker' step 9.1 in the spec.
     //   https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#dom-worker
     GURL url;
-    web::EnvironmentSettings* outside_settings;
-    MessagePort* outside_port;
+    web::EnvironmentSettings* outside_settings = nullptr;
+    MessagePort* outside_port = nullptr;
     WorkerOptions options;
   };
 

@@ -21,6 +21,7 @@
 #include "base/logging.h"
 #include "base/message_loop/message_loop.h"
 #include "base/threading/thread.h"
+#include "cobalt/browser/user_agent_platform_info.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/worker/dedicated_worker_global_scope.h"
 #include "cobalt/worker/message_port.h"
@@ -83,7 +84,8 @@ void Worker::Initialize(const Options& options, web::Context* context) {
   // TODO: Actual type here should depend on derived class (e.g. dedicated,
   // shared, service)
   web_context_->setup_environment_settings(
-      new WorkerSettings(options.url, options.outside_port));
+      new WorkerSettings(options.outside_port));
+  web_context_->environment_settings()->set_base_url(options.url);
   // 8. Let worker global scope be the global object of realm execution
   //    context's Realm component.
   scoped_refptr<DedicatedWorkerGlobalScope> dedicated_worker_global_scope =

@@ -104,9 +104,7 @@ Window::Window(
     script::ScriptRunner* script_runner,
     script::ScriptValueFactory* script_value_factory,
     MediaSource::Registry* media_source_registry,
-    DomStatTracker* dom_stat_tracker, const GURL& url,
-    const std::string& user_agent, web::UserAgentPlatformInfo* platform_info,
-    const std::string& language, const std::string& font_language_script,
+    DomStatTracker* dom_stat_tracker, const std::string& font_language_script,
     const base::Callback<void(const GURL&)> navigation_callback,
     const loader::Decoder::OnCompleteFunction& load_complete_callback,
     network_bridge::CookieJar* cookie_jar,
@@ -153,7 +151,7 @@ Window::Window(
       ALLOW_THIS_IN_INITIALIZER_LIST(document_(new Document(
           html_element_context(),
           Document::Options(
-              url, this,
+              settings->creation_url(), this,
               base::Bind(&Window::FireHashChangeEvent, base::Unretained(this)),
               performance_->timing()->GetNavigationStartClock(),
               navigation_callback, ParseUserAgentStyleSheet(css_parser),
@@ -162,8 +160,7 @@ Window::Window(
               csp_insecure_allowed_token, dom_max_element_depth)))),
       document_loader_(nullptr),
       history_(new History()),
-      navigator_(new Navigator(settings, user_agent, platform_info, language,
-                               captions, script_value_factory)),
+      navigator_(new Navigator(environment_settings(), captions)),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           relay_on_load_event_(new RelayLoadEvent(this))),
       ALLOW_THIS_IN_INITIALIZER_LIST(window_timers_(
@@ -206,9 +203,9 @@ Window::Window(
   // guaranteed that this Window object is fully constructed before document
   // loading begins.
   base::MessageLoop::current()->task_runner()->PostTask(
-      FROM_HERE,
-      base::Bind(&Window::StartDocumentLoad, base::Unretained(this),
-                 fetcher_factory, url, dom_parser, load_complete_callback));
+      FROM_HERE, base::Bind(&Window::StartDocumentLoad, base::Unretained(this),
+                            fetcher_factory, settings->creation_url(),
+                            dom_parser, load_complete_callback));
 }
 
 void Window::StartDocumentLoad(

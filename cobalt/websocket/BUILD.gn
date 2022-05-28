@@ -46,6 +46,7 @@ target(gtest_target_type, "websocket_test") {
   has_pedantic_warnings = true
   sources = [
     "mock_websocket_channel.cc",
+    "mock_websocket_channel.h",
     "web_socket_impl_test.cc",
     "web_socket_test.cc",
   ]

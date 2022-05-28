@@ -146,10 +146,7 @@
                     assertEqual('installing', registration.installing.state);
                     registration.installing.onstatechange = function (event) {
                         console.log("Got onstatechange event: ", event.target.state);
-                        message_event_count += 1;
                     }
-                    assertEqual(null, registration.waiting);
-                    assertEqual(null, registration.active);
 
                     // Test getRegistration for a non-registered scope.
                     navigator.serviceWorker.getRegistration('/bo/gus')
@@ -185,7 +182,7 @@
         window.setTimeout(
             () => {
                 console.log("Events: ", message_event_count)
-                assertEqual(29, message_event_count);
+                assertEqual(27, message_event_count);
                 onEndTest();
             }, 500);
 

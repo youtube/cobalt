@@ -26,8 +26,8 @@
 #include "cobalt/media/web_media_player_factory.h"
 #include "cobalt/media_capture/media_devices.h"
 #include "cobalt/media_session/media_session.h"
+#include "cobalt/script/environment_settings.h"
 #include "cobalt/script/promise.h"
-#include "cobalt/script/script_value_factory.h"
 #include "cobalt/script/sequence.h"
 #include "cobalt/script/wrappable.h"
 #include "cobalt/web/navigator_base.h"
@@ -43,11 +43,7 @@ namespace dom {
 class Navigator : public web::NavigatorBase {
  public:
   Navigator(script::EnvironmentSettings* settings,
-            const std::string& user_agent,
-            web::UserAgentPlatformInfo* platform_info,
-            const std::string& language,
-            scoped_refptr<captions::SystemCaptionSettings> captions,
-            script::ScriptValueFactory* script_value_factory);
+            scoped_refptr<captions::SystemCaptionSettings> captions);
   Navigator(const Navigator&) = delete;
   Navigator& operator=(const Navigator&) = delete;
 

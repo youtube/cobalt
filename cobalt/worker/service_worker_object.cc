@@ -108,7 +108,8 @@ void ServiceWorkerObject::Initialize(web::Context* context) {
   //      serviceWorker’s script url, top-level creation URL to null, top-level
   //      origin to an implementation-defined value, target browsing context to
   //      null, and active service worker to null.
-  web_context_->setup_environment_settings(new WorkerSettings(script_url_));
+  web_context_->setup_environment_settings(new WorkerSettings());
+  web_context_->environment_settings()->set_base_url(script_url_);
   scoped_refptr<ServiceWorkerGlobalScope> service_worker_global_scope =
       new ServiceWorkerGlobalScope(web_context_->environment_settings());
   worker_global_scope_ = service_worker_global_scope;

@@ -38,6 +38,7 @@
 #include "cobalt/browser/on_screen_keyboard_starboard_bridge.h"
 #include "cobalt/browser/screen_shot_writer.h"
 #include "cobalt/browser/switches.h"
+#include "cobalt/browser/user_agent_platform_info.h"
 #include "cobalt/configuration/configuration.h"
 #include "cobalt/cssom/viewport_size.h"
 #include "cobalt/dom/input_event_init.h"
@@ -301,6 +302,8 @@ BrowserModule::BrowserModule(const GURL& url,
   // Apply platform memory setting adjustments and defaults.
   ApplyAutoMemSettings();
 
+  platform_info_.reset(new browser::UserAgentPlatformInfo());
+
 #if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
   SbCoreDumpRegisterHandler(BrowserModule::CoreDumpHandler, this);
   on_error_triggered_count_ = 0;
@@ -405,7 +408,7 @@ BrowserModule::BrowserModule(const GURL& url,
 
 #if defined(ENABLE_DEBUGGER)
   debug_console_.reset(new DebugConsole(
-      application_state_,
+      platform_info_.get(), application_state_,
       base::Bind(&BrowserModule::QueueOnDebugConsoleRenderTreeProduced,
                  base::Unretained(this)),
       network_module_, GetViewportSize(), GetResourceProvider(),
@@ -549,7 +552,7 @@ void BrowserModule::Navigate(const GURL& url_reference) {
     if (fallback_splash_screen_url_ ||
         splash_screen_cache_->IsSplashScreenCached()) {
       splash_screen_.reset(new SplashScreen(
-          application_state_,
+          platform_info_.get(), application_state_,
           base::Bind(&BrowserModule::QueueOnSplashScreenRenderTreeProduced,
                      base::Unretained(this)),
           network_module_, viewport_size, GetResourceProvider(),
@@ -615,6 +618,7 @@ void BrowserModule::Navigate(const GURL& url_reference) {
   options.web_options.network_module = network_module_;
   options.web_options.service_worker_jobs =
       service_worker_registry_.service_worker_jobs();
+  options.platform_info = platform_info_.get();
 
   web_module_.reset(new WebModule(
       url, application_state_,

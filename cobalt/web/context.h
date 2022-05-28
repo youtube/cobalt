@@ -28,6 +28,7 @@
 #include "cobalt/script/wrappable.h"
 #include "cobalt/web/blob.h"
 #include "cobalt/web/environment_settings.h"
+#include "cobalt/web/user_agent_platform_info.h"
 
 namespace cobalt {
 namespace worker {
@@ -75,6 +76,11 @@ class Context {
       worker::ServiceWorkerObject* worker) = 0;
 
   virtual WindowOrWorkerGlobalScope* GetWindowOrWorkerGlobalScope() = 0;
+
+  virtual UserAgentPlatformInfo* platform_info() const = 0;
+
+  virtual std::string GetUserAgent() const = 0;
+  virtual std::string GetPreferredLanguage() const = 0;
 };
 
 }  // namespace web

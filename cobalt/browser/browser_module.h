@@ -46,6 +46,7 @@
 #include "cobalt/browser/suspend_fuzzer.h"
 #include "cobalt/browser/system_platform_error_handler.h"
 #include "cobalt/browser/url_handler.h"
+#include "cobalt/browser/user_agent_platform_info.h"
 #include "cobalt/browser/web_module.h"
 #include "cobalt/cssom/viewport_size.h"
 #include "cobalt/dom/input_event_init.h"
@@ -715,6 +716,8 @@ class BrowserModule {
   // Save the current window size before transitioning to Concealed state,
   // and reuse this value to recreate the window.
   math::Size window_size_;
+
+  std::unique_ptr<browser::UserAgentPlatformInfo> platform_info_;
 
   // Manages the Service Workers.
   ServiceWorkerRegistry service_worker_registry_;

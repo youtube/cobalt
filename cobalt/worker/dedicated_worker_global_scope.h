@@ -18,10 +18,10 @@
 #include <string>
 
 #include "cobalt/base/tokens.h"
-#include "cobalt/script/environment_settings.h"
 #include "cobalt/script/sequence.h"
 #include "cobalt/script/value_handle.h"
 #include "cobalt/script/wrappable.h"
+#include "cobalt/web/environment_settings.h"
 #include "cobalt/web/event_target.h"
 #include "cobalt/web/event_target_listener_info.h"
 #include "cobalt/worker/worker_global_scope.h"
@@ -34,9 +34,8 @@ namespace worker {
 
 class DedicatedWorkerGlobalScope : public WorkerGlobalScope {
  public:
-  explicit DedicatedWorkerGlobalScope(
-      script::EnvironmentSettings* settings,
-      bool parent_cross_origin_isolated_capability);
+  DedicatedWorkerGlobalScope(web::EnvironmentSettings* settings,
+                             bool parent_cross_origin_isolated_capability);
   DedicatedWorkerGlobalScope(const DedicatedWorkerGlobalScope&) = delete;
   DedicatedWorkerGlobalScope& operator=(const DedicatedWorkerGlobalScope&) =
       delete;

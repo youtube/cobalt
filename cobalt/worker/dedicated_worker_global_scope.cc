@@ -14,12 +14,18 @@
 
 #include "cobalt/worker/dedicated_worker_global_scope.h"
 
+#include <string>
+
+#include "cobalt/base/polymorphic_downcast.h"
+#include "cobalt/web/environment_settings.h"
+#include "cobalt/worker/worker_global_scope.h"
 #include "cobalt/worker/worker_settings.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace worker {
 DedicatedWorkerGlobalScope::DedicatedWorkerGlobalScope(
-    script::EnvironmentSettings* settings,
+    web::EnvironmentSettings* settings,
     bool parent_cross_origin_isolated_capability)
     : WorkerGlobalScope(settings), cross_origin_isolated_capability_(false) {
   // Algorithm for 'run a worker'

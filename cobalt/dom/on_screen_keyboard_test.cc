@@ -33,6 +33,7 @@
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/script/source_code.h"
 #include "cobalt/web/testing/gtest_workarounds.h"
+#include "cobalt/web/testing/stub_web_context.h"
 #include "starboard/window.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -191,9 +192,7 @@ namespace {
 class OnScreenKeyboardTest : public ::testing::Test {
  public:
   OnScreenKeyboardTest()
-      : environment_settings_(new testing::StubEnvironmentSettings),
-        message_loop_(base::MessageLoop::TYPE_DEFAULT),
-        css_parser_(css_parser::Parser::Create()),
+      : css_parser_(css_parser::Parser::Create()),
         dom_parser_(new dom_parser::Parser(mock_error_callback_)),
         fetcher_factory_(new loader::FetcherFactory(NULL)),
         loader_factory_(new loader::LoaderFactory(
@@ -201,34 +200,31 @@ class OnScreenKeyboardTest : public ::testing::Test {
             base::ThreadPriority::DEFAULT)),
         local_storage_database_(NULL),
         url_("about:blank"),
-        engine_(script::JavaScriptEngine::CreateEngine()),
-        global_environment_(engine_->CreateGlobalEnvironment()),
-        on_screen_keyboard_bridge_(new OnScreenKeyboardMockBridge()),
-        window_(new Window(
-            environment_settings_.get(), ViewportSize(1920, 1080),
-            base::kApplicationStateStarted, css_parser_.get(),
-            dom_parser_.get(), fetcher_factory_.get(), loader_factory_.get(),
-            NULL, NULL, NULL, NULL, NULL, NULL, &local_storage_database_, NULL,
-            NULL, NULL, NULL,
-            global_environment_
-                ->script_value_factory() /* script_value_factory */,
-            NULL, NULL, url_, "", NULL, "en-US", "en",
-            base::Callback<void(const GURL&)>(),
-            base::Bind(&MockErrorCallback::Run,
-                       base::Unretained(&mock_error_callback_)),
-            NULL, network_bridge::PostSender(), csp::kCSPRequired,
-            web::kCspEnforcementEnable,
-            base::Closure() /* csp_policy_changed */,
-            base::Closure() /* ran_animation_frame_callbacks */,
-            dom::Window::CloseCallback() /* window_close */,
-            base::Closure() /* window_minimize */,
-            on_screen_keyboard_bridge_.get(), NULL,
-            dom::Window::OnStartDispatchEventCallback(),
-            dom::Window::OnStopDispatchEventCallback(),
-            dom::ScreenshotManager::ProvideScreenshotFunctionCallback(),
-            NULL)) {
-    global_environment_->CreateGlobalObject(window_,
-                                            environment_settings_.get());
+        on_screen_keyboard_bridge_(new OnScreenKeyboardMockBridge()) {
+    web_context_.reset(new web::testing::StubWebContext());
+    web_context_->setup_environment_settings(
+        new dom::testing::StubEnvironmentSettings());
+    engine_ = script::JavaScriptEngine::CreateEngine();
+    global_environment_ = engine_->CreateGlobalEnvironment();
+    window_ = new Window(
+        web_context_->environment_settings(), ViewportSize(1920, 1080),
+        base::kApplicationStateStarted, css_parser_.get(), dom_parser_.get(),
+        fetcher_factory_.get(), loader_factory_.get(), NULL, NULL, NULL, NULL,
+        NULL, NULL, &local_storage_database_, NULL, NULL, NULL, NULL,
+        global_environment_->script_value_factory() /* script_value_factory */,
+        NULL, NULL, "en", base::Callback<void(const GURL&)>(),
+        base::Bind(&MockErrorCallback::Run,
+                   base::Unretained(&mock_error_callback_)),
+        NULL, network_bridge::PostSender(), csp::kCSPRequired,
+        web::kCspEnforcementEnable, base::Closure() /* csp_policy_changed */,
+        base::Closure() /* ran_animation_frame_callbacks */,
+        dom::Window::CloseCallback() /* window_close */,
+        base::Closure() /* window_minimize */, on_screen_keyboard_bridge_.get(),
+        NULL, dom::Window::OnStartDispatchEventCallback(),
+        dom::Window::OnStopDispatchEventCallback(),
+        dom::ScreenshotManager::ProvideScreenshotFunctionCallback(), NULL);
+    global_environment_->CreateGlobalObject(
+        window_, web_context_->environment_settings());
     on_screen_keyboard_bridge_->window_ = window_;
   }
 
@@ -262,9 +258,8 @@ class OnScreenKeyboardTest : public ::testing::Test {
   Window* window() const { return window_.get(); }
 
  private:
-  const std::unique_ptr<testing::StubEnvironmentSettings> environment_settings_;
+  std::unique_ptr<web::testing::StubWebContext> web_context_;
   base::NullDebuggerHooks null_debugger_hooks_;
-  base::MessageLoop message_loop_;
   MockErrorCallback mock_error_callback_;
   std::unique_ptr<css_parser::Parser> css_parser_;
   std::unique_ptr<dom_parser::Parser> dom_parser_;

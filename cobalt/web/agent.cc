@@ -115,6 +115,14 @@ class Impl : public Context {
 
   WindowOrWorkerGlobalScope* GetWindowOrWorkerGlobalScope() final;
 
+  UserAgentPlatformInfo* platform_info() const final { return platform_info_; }
+  std::string GetUserAgent() const final {
+    return network_module()->GetUserAgent();
+  }
+  std::string GetPreferredLanguage() const final {
+    return network_module()->preferred_language();
+  }
+
  private:
   // Injects a list of attributes into the Web Context's global object.
   void InjectGlobalObjectAttributes(
@@ -168,11 +176,13 @@ class Impl : public Context {
       service_worker_object_map_;
 
   worker::ServiceWorkerJobs* service_worker_jobs_;
+  web::UserAgentPlatformInfo* platform_info_;
 };
 
 Impl::Impl(const Agent::Options& options) : name_(options.name) {
   TRACE_EVENT0("cobalt::web", "Agent::Impl::Impl()");
   service_worker_jobs_ = options.service_worker_jobs;
+  platform_info_ = options.platform_info;
   blob_registry_.reset(new Blob::Registry);
 
   fetcher_factory_.reset(new loader::FetcherFactory(

@@ -34,6 +34,7 @@
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/script/testing/fake_script_value.h"
 #include "cobalt/web/testing/mock_event_listener.h"
+#include "cobalt/web/testing/stub_web_context.h"
 #include "starboard/window.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -56,24 +57,22 @@ class MockErrorCallback
 class WindowTest : public ::testing::Test {
  protected:
   WindowTest()
-      : environment_settings_(new testing::StubEnvironmentSettings),
-        message_loop_(base::MessageLoop::TYPE_DEFAULT),
-        css_parser_(css_parser::Parser::Create()),
+      : css_parser_(css_parser::Parser::Create()),
         dom_parser_(new dom_parser::Parser(mock_error_callback_)),
         fetcher_factory_(new loader::FetcherFactory(NULL)),
         local_storage_database_(NULL),
         url_("about:blank") {
-    engine_ = script::JavaScriptEngine::CreateEngine();
-    global_environment_ = engine_->CreateGlobalEnvironment();
-
     ViewportSize view_size(1920, 1080);
+    web_context_.reset(new web::testing::StubWebContext());
+    web_context_->setup_environment_settings(
+        new dom::testing::StubEnvironmentSettings());
     window_ = new Window(
-        environment_settings_.get(), view_size, base::kApplicationStateStarted,
-        css_parser_.get(), dom_parser_.get(), fetcher_factory_.get(), NULL,
-        NULL, NULL, NULL, NULL, NULL, NULL, &local_storage_database_, NULL,
-        NULL, NULL, NULL, global_environment_->script_value_factory(), NULL,
-        NULL, url_, "", NULL, "en-US", "en",
-        base::Callback<void(const GURL &)>(),
+        web_context_->environment_settings(), view_size,
+        base::kApplicationStateStarted, css_parser_.get(), dom_parser_.get(),
+        fetcher_factory_.get(), NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+        &local_storage_database_, NULL, NULL, NULL, NULL,
+        web_context_->global_environment()->script_value_factory(), NULL, NULL,
+        "en", base::Callback<void(const GURL &)>(),
         base::Bind(&MockErrorCallback::Run,
                    base::Unretained(&mock_error_callback_)),
         NULL, network_bridge::PostSender(), csp::kCSPRequired,
@@ -89,15 +88,13 @@ class WindowTest : public ::testing::Test {
 
   ~WindowTest() override {}
 
-  const std::unique_ptr<testing::StubEnvironmentSettings> environment_settings_;
-  base::MessageLoop message_loop_;
+  std::unique_ptr<web::testing::StubWebContext> web_context_;
   MockErrorCallback mock_error_callback_;
   std::unique_ptr<css_parser::Parser> css_parser_;
   std::unique_ptr<dom_parser::Parser> dom_parser_;
   std::unique_ptr<loader::FetcherFactory> fetcher_factory_;
   dom::LocalStorageDatabase local_storage_database_;
   std::unique_ptr<script::JavaScriptEngine> engine_;
-  scoped_refptr<script::GlobalEnvironment> global_environment_;
   GURL url_;
   scoped_refptr<Window> window_;
   std::unique_ptr<MockEventListener> fake_event_listener_;
