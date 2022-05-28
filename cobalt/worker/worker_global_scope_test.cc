@@ -89,15 +89,28 @@ TEST_P(WorkerGlobalScopeTest, ImportScriptsIsFunction) {
 }
 
 TEST_P(WorkerGlobalScopeTest, ErrorEvent) {
-  std::string result;
-  EXPECT_TRUE(EvaluateScript("typeof self.onerror", &result));
-  EXPECT_EQ("object", result);
-
   worker_global_scope()->AddEventListener(
       "error", FakeScriptValue<web::EventListener>(fake_event_listener_.get()),
       true);
   fake_event_listener_->ExpectHandleEventCall("error", worker_global_scope());
   worker_global_scope()->DispatchEvent(new web::ErrorEvent("error"));
+}
+
+TEST_P(WorkerGlobalScopeTest, OnErrorEvent) {
+  std::string result;
+  EXPECT_TRUE(EvaluateScript("typeof self.onerror", &result));
+  EXPECT_EQ("object", result);
+
+  EXPECT_TRUE(EvaluateScript(R"(
+    logString = '(empty)';
+    self.onerror = function() {
+      logString = 'handled';
+    };
+    self.dispatchEvent(new ErrorEvent('error'));
+    logString;
+  )",
+                             &result));
+  EXPECT_EQ("handled", result);
 }
 
 // Test that when Window's network status change callbacks are triggered,

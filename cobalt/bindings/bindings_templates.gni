@@ -96,11 +96,17 @@ template("generate_type_conversion") {
 
     inputs = [
       _extended_attributes_file,
-      invoker.global_names_idl_file,
       "//cobalt/bindings/shared/idl_conditional_macros.h",
     ]
     inputs += _bindings_extra_inputs
     inputs += invoker.inputs
+
+    foreach(interface, invoker.interfaces) {
+      # IDL files that define all the constructors that are on the global scope
+      # objects.
+      inputs +=
+          [ invoker.global_names_idl_path + "/${interface}Constructors.idl" ]
+    }
 
     # Generated header file that contains forward declarations for converting
     # to/from JS value and generated types.
@@ -151,11 +157,7 @@ template("compute_global_constructors_idls") {
       invoker.global_objects_file,
     ]
     inputs += invoker.idl_files
-
-    outputs = [
-      invoker.global_names_idl_file,
-      invoker.global_constructors_generated_header_file,
-    ]
+    outputs = []
 
     # Write the file list to a unique temp file to avoid blowing out the
     # command line length limit.
@@ -168,9 +170,31 @@ template("compute_global_constructors_idls") {
       "--global-objects-file",
       rebase_path(invoker.global_objects_file, root_build_dir),
       "--",
-      "Window",
-      rebase_path(invoker.global_names_idl_file, root_build_dir),
     ]
+
+    # Interfaces and Generated files must be added to the outputs and passed at
+    # command line
+    foreach(interface, invoker.interfaces) {
+      file_base = invoker.global_names_idl_path + "/${interface}Constructors"
+
+      # Generated IDL files that will define all the constructors that should be
+      # on the global scope objects.
+      idl_file = file_base + ".idl"
+
+      # Dummy header file which is generated because the idl compiler assumes
+      # there is a header for each IDL.
+      header_file = file_base + ".h"
+
+      outputs += [
+        idl_file,
+        header_file,
+      ]
+
+      args += [
+        "${interface}",
+        rebase_path(idl_file, root_build_dir),
+      ]
+    }
   }
 }
 
@@ -183,7 +207,6 @@ template("compute_interfaces_info_individual") {
     inputs = [
       "$bindings_scripts_dir/utilities.py",
       _extended_attributes_file,
-      invoker.generated_idl_files,
     ]
     inputs += invoker.idl_files
 
@@ -216,10 +239,17 @@ template("compute_interfaces_info_individual") {
       "--dependency-idl-files",
       dependency_idl_files_list,
       "--",
-
-      # Generated files must be passed at command line
-      rebase_path(invoker.generated_idl_files, root_build_dir),
     ]
+
+    # IDL files and Generated files must be added to the inputs and passed at
+    # command line
+    foreach(interface, invoker.interfaces) {
+      # IDL files that define all the constructors that are on the global scope
+      # objects.
+      idl_file = invoker.global_names_idl_path + "/${interface}Constructors.idl"
+      inputs += [ idl_file ]
+      args += [ rebase_path(idl_file, root_build_dir) ]
+    }
   }
 }
 

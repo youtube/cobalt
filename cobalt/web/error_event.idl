@@ -14,8 +14,10 @@
 
 // https://www.w3.org/TR/html50/webappapis.html#errorevent
 
-[Constructor(DOMString type, optional ErrorEventInit eventInitDict)]
-interface ErrorEvent : Event {
+[
+  Exposed = (Window,Worker),
+  Constructor(DOMString type, optional ErrorEventInit eventInitDict)
+] interface ErrorEvent : Event {
   readonly attribute DOMString message;
   readonly attribute DOMString filename;
   readonly attribute unsigned long lineno;

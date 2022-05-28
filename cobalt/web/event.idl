@@ -14,8 +14,10 @@
 
 // https://www.w3.org/TR/dom/#event
 
-[Constructor(DOMString type, optional EventInit eventInitDict)]
-interface Event {
+[
+  Exposed = (Window,Worker),
+  Constructor(DOMString type, optional EventInit eventInitDict)
+] interface Event {
   readonly attribute DOMString type;
   readonly attribute EventTarget? target;
   readonly attribute EventTarget? currentTarget;
