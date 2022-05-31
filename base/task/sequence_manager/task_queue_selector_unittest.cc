@@ -96,7 +96,6 @@ class TaskQueueSelectorTest : public testing::Test {
  public:
   TaskQueueSelectorTest()
       : test_closure_(BindRepeating(&TaskQueueSelectorTest::TestFunction)),
-        recorder_for_testing_(StatisticsRecorder::CreateTemporaryForTesting()),
         associated_thread_(AssociatedThreadId::CreateBound()),
         selector_(associated_thread_) {
             GlobalHistogramAllocator::ReleaseForTesting();
@@ -168,6 +167,7 @@ class TaskQueueSelectorTest : public testing::Test {
           << i;
       queue_to_index_map_.insert(std::make_pair(task_queues_[i].get(), i));
     }
+    recorder_for_testing_.reset(StatisticsRecorder::CreateTemporaryForTesting().get());
     histogram_tester_.reset(new HistogramTester());
   }
 
@@ -179,6 +179,7 @@ class TaskQueueSelectorTest : public testing::Test {
       selector_.RemoveQueue(task_queue.get());
       task_queue->UnregisterTaskQueue();
     }
+    recorder_for_testing_.release();
   }
 
   std::unique_ptr<TaskQueueImpl> NewTaskQueueWithBlockReporting() {

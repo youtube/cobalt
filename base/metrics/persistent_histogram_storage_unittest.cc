@@ -10,6 +10,7 @@
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/metrics/statistics_recorder.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -25,7 +26,8 @@ constexpr char kTestHistogramAllocatorName[] = "TestMetrics";
 
 class PersistentHistogramStorageTest : public testing::Test {
  protected:
-  PersistentHistogramStorageTest() = default;
+  PersistentHistogramStorageTest() :
+    recorder_for_testing_(StatisticsRecorder::CreateTemporaryForTesting()) {}
   ~PersistentHistogramStorageTest() override = default;
 
   // Creates a unique temporary directory, and sets the test storage directory.
@@ -46,6 +48,8 @@ class PersistentHistogramStorageTest : public testing::Test {
 
   // The directory into which metrics files are written.
   FilePath test_storage_dir_;
+
+  std::unique_ptr<StatisticsRecorder> recorder_for_testing_;
 
   DISALLOW_COPY_AND_ASSIGN(PersistentHistogramStorageTest);
 };
