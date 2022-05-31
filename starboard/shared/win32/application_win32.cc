@@ -241,7 +241,7 @@ LRESULT ApplicationWin32::WindowProcess(HWND hWnd,
       if (window_.get()) {
         // Freeze the application first so we can do some cleanup before the
         // window is destroyed (e.g. stopping rasterization).
-        DispatchAndDelete(new Event(kSbEventTypeFreeze, NULL, NULL));
+        InjectAndProcess(kSbEventTypeFreeze, /* checkSystemEvents */ false);
         PostQuitMessage(0);
       }
       break;

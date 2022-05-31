@@ -285,15 +285,13 @@ void ApplicationAndroid::ProcessAndroidCommand() {
       // early in SendAndroidCommand().
       {
         ScopedLock lock(android_command_mutex_);
-// Cobalt can't keep running without a window, even if the Activity
-// hasn't stopped yet. DispatchAndDelete() will inject events as needed
-// if we're not already paused.
-#if SB_API_VERSION >= 13
-        DispatchAndDelete(new Event(kSbEventTypeConceal,
-                                    SbTimeGetMonotonicNow(), NULL, NULL));
-#else   // SB_API_VERSION >= 13
-        DispatchAndDelete(new Event(kSbEventTypeConceal, NULL, NULL));
-#endif  // SB_API_VERSION >= 13
+        // Cobalt can't keep running without a window, even if the Activity
+        // hasn't stopped yet. Block until conceal event has been processed.
+
+        // Only process injected events -- don't check system events since
+        // that may try to acquire the already-locked android_command_mutex_.
+        InjectAndProcess(kSbEventTypeConceal, /* checkSystemEvents */ false);
+
         if (window_) {
           window_->native_window = NULL;
         }
@@ -322,8 +320,7 @@ void ApplicationAndroid::ProcessAndroidCommand() {
                      settings.is_high_contrast_text_enabled;
 
       if (enabled != last_is_accessibility_high_contrast_text_enabled_) {
-        DispatchAndDelete(
-            new Event(kSbEventTypeAccessibilitySettingsChanged, NULL, NULL));
+        Inject(new Event(kSbEventTypeAccessibilitySettingsChanged, NULL, NULL));
       }
       last_is_accessibility_high_contrast_text_enabled_ = enabled;
       break;
@@ -359,61 +356,25 @@ void ApplicationAndroid::ProcessAndroidCommand() {
     }
   }
 
-// If there's a window, sync the app state to the Activity lifecycle, letting
-// DispatchAndDelete() inject events as needed if we missed a state.
-#if SB_API_VERSION >= 13
+  // If there's a window, sync the app state to the Activity lifecycle.
   if (native_window_) {
     switch (sync_state) {
       case AndroidCommand::kStart:
-        DispatchAndDelete(
-            new Event(kSbEventTypeReveal, SbTimeGetMonotonicNow(), NULL, NULL));
+        Inject(new Event(kSbEventTypeReveal, NULL, NULL));
         break;
       case AndroidCommand::kResume:
-        DispatchAndDelete(
-            new Event(kSbEventTypeFocus, SbTimeGetMonotonicNow(), NULL, NULL));
+        Inject(new Event(kSbEventTypeFocus, NULL, NULL));
         break;
       case AndroidCommand::kPause:
-        DispatchAndDelete(
-            new Event(kSbEventTypeBlur, SbTimeGetMonotonicNow(), NULL, NULL));
+        Inject(new Event(kSbEventTypeBlur, NULL, NULL));
         break;
       case AndroidCommand::kStop:
-        if (state() != kStateConcealed && state() != kStateFrozen) {
-          // We usually conceal when losing the window above, but if the window
-          // wasn't destroyed (e.g. when Daydream starts) then we still have to
-          // conceal when the Activity is stopped.
-          DispatchAndDelete(new Event(kSbEventTypeConceal,
-                                      SbTimeGetMonotonicNow(), NULL, NULL));
-        }
+        Inject(new Event(kSbEventTypeConceal, NULL, NULL));
         break;
       default:
         break;
     }
   }
-#else   // SB_API_VERSION >= 13
-  if (native_window_) {
-    switch (sync_state) {
-      case AndroidCommand::kStart:
-        DispatchAndDelete(new Event(kSbEventTypeReveal, NULL, NULL));
-        break;
-      case AndroidCommand::kResume:
-        DispatchAndDelete(new Event(kSbEventTypeFocus, NULL, NULL));
-        break;
-      case AndroidCommand::kPause:
-        DispatchAndDelete(new Event(kSbEventTypeBlur, NULL, NULL));
-        break;
-      case AndroidCommand::kStop:
-        if (state() != kStateConcealed && state() != kStateFrozen) {
-          // We usually conceal when losing the window above, but if the window
-          // wasn't destroyed (e.g. when Daydream starts) then we still have to
-          // conceal when the Activity is stopped.
-          DispatchAndDelete(new Event(kSbEventTypeConceal, NULL, NULL));
-        }
-        break;
-      default:
-        break;
-    }
-  }
-#endif  // SB_API_VERSION >= 13
 }
 
 void ApplicationAndroid::SendAndroidCommand(AndroidCommand::CommandType type,
@@ -457,7 +418,7 @@ void ApplicationAndroid::ProcessAndroidInput() {
     bool handled = input_events_generator_->CreateInputEventsFromAndroidEvent(
         android_event, &app_events);
     for (int i = 0; i < app_events.size(); ++i) {
-      DispatchAndDelete(app_events[i].release());
+      Inject(app_events[i].release());
     }
     AInputQueue_finishEvent(input_queue_, android_event, handled);
   }
@@ -475,7 +436,7 @@ void ApplicationAndroid::ProcessKeyboardInject() {
   InputEventsGenerator::Events app_events;
   input_events_generator_->CreateInputEventsFromSbKey(key, &app_events);
   for (int i = 0; i < app_events.size(); ++i) {
-    DispatchAndDelete(app_events[i].release());
+    Inject(app_events[i].release());
   }
 }
 

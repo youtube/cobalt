@@ -43,6 +43,14 @@ was added.
 `SbMediaType type` as parameters.  The implementation has to return the same
 values for both audio and video streams.
 
+### Made `starboard::QueueApplication::DispatchAndDelete` private
+Since `starboard::shared::starboard::QueueApplication` has an event queue,
+`QueueApplication::Inject` should be used if an event just needs to be added to
+the queue or `QueueApplication::InjectAndProcess` if the event needs to be
+handled before returning. `QueueApplication::DispatchAndDelete` jumps the event
+queue and could lead to bugs due to the event (especially lifecycle events)
+being handled out of order.
+
 ## Version 13
 ### Changed lifecycle events to add support for a concealed state.
 
