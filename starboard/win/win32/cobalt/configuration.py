@@ -43,11 +43,6 @@ class CobaltWinWin32Configuration(cobalt_configuration.CobaltConfiguration):
       'base_unittests': [
           '*TaskScheduler*',
           'TaskTraits*',
-          'TaskQueueSelectorTest.TestHighestPriority',
-          'TaskQueueSelectorTest.TestHighPriority',
-          'TaskQueueSelectorTest.TestLowPriority',
-          'TaskQueueSelectorTest.TestBestEffortPriority',
-          'TaskQueueSelectorTest.TestControlPriority',
       ],
       'renderer_test': [
           # Flaky test is still being counted as a fail.
