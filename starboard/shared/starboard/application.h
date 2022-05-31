@@ -521,6 +521,10 @@ class Application {
   // Internal workhorse of the main run loop.
   int RunLoop();
 
+  // Do the actual processing of an event. This should only be called by
+  // DispatchAndDelete().
+  bool HandleEventAndUpdateState(Application::Event* event);
+
   // The single application instance.
   static Application* g_instance;
 
