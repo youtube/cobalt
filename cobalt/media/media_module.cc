@@ -25,6 +25,7 @@
 #include "base/strings/string_split.h"
 #include "base/synchronization/waitable_event.h"
 #include "cobalt/media/base/format_support_query_metrics.h"
+#include "media/base/mime_util.h"
 #include "nb/memory_scope.h"
 #include "starboard/common/string.h"
 #include "starboard/media.h"
@@ -59,9 +60,7 @@ static std::vector<std::string> ExtractCodecs(const std::string& mime_type) {
       continue;
     }
     if (name_and_value[0] == "codecs") {
-      // TODO(b/230888580): Revive ParseCodecString() to enable returning of
-      // `codecs`.
-      //   ParseCodecString(name_and_value[1], &codecs, /* strip= */ false);
+      ::media::SplitCodecs(name_and_value[1], &codecs);
       return codecs;
     }
   }
