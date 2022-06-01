@@ -143,4 +143,9 @@ extern const char* kSbPathSepString;
 // The maximum number of users that can be signed in at the same time.
 extern const uint32_t kSbUserMaxSignedIn;
 
+#if SB_API_VERSION >= 14
+// The maximum size the cache directory is allowed to use in bytes.
+extern const uint32_t kSbMaxSystemPathCacheDirectorySize;
+#endif
+
 #endif  // STARBOARD_CONFIGURATION_CONSTANTS_H_
