@@ -54,6 +54,12 @@ handled before returning. `QueueApplication::DispatchAndDelete` jumps the event
 queue and could lead to bugs due to the event (especially lifecycle events)
 being handled out of order.
 
+### Add kSbMaxSystemPathCacheDirectorySize configuration constant.
+This constant defines maximum space in bytes the cache directory
+`kSbSystemPathCacheDirectory` can use. The default value is 24MiB. Platforms can
+set `kSbMaxSystemPathCacheDirectorySize` to a larger value in
+"starboard/<PLATFORM_PATH>/configuration_constants.cc".
+
 ## Version 13
 ### Changed lifecycle events to add support for a concealed state.
 

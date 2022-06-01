@@ -3395,7 +3395,7 @@ TEST_F(DiskCacheBackendTest, MemoryOnlyUseAfterFree) {
   disk_cache::ScopedEntryPtr first_parent(entry);
 
   // Create a ton of entries, and keep them open, to put the cache well above
-  // its eviction threshhold.
+  // its eviction threshold.
   const int kTooManyEntriesCount = kMaxEntryCount * 2;
   std::list<disk_cache::ScopedEntryPtr> open_entries;
   std::string key_prefix("prefix");
