@@ -184,6 +184,7 @@ copy("copy_elf_loader_testdata") {
   install_content = true
   sources = [
     "testdata/compressed.lz4",
+    "testdata/compressed_no_content_size.lz4",
     "testdata/uncompressed",
   ]
   subdir = "starboard/elf_loader"
