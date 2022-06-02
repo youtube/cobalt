@@ -18,7 +18,9 @@
 #include <utility>
 
 #include "base/logging.h"
+#include "base/message_loop/message_loop.h"
 #include "base/optional.h"
+#include "base/task_runner.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/script/promise.h"
@@ -54,7 +56,7 @@ scoped_refptr<ServiceWorker> ServiceWorkerContainer::controller() {
   return client->context()->GetServiceWorker(client->active_service_worker());
 }
 
-script::Handle<script::PromiseWrappable> ServiceWorkerContainer::ready() {
+script::HandlePromiseWrappable ServiceWorkerContainer::ready() {
   // Algorithm for ready attribute:
   //   https://w3c.github.io/ServiceWorker/#navigator-service-worker-ready
   // 1. If this's ready promise is null, then set this's ready promise to a new
@@ -107,13 +109,13 @@ void ServiceWorkerContainer::MaybeResolveReadyPromise(
   }
 }
 
-script::Handle<script::PromiseWrappable> ServiceWorkerContainer::Register(
+script::HandlePromiseWrappable ServiceWorkerContainer::Register(
     const std::string& url) {
   RegistrationOptions options;
   return ServiceWorkerContainer::Register(url, options);
 }
 
-script::Handle<script::PromiseWrappable> ServiceWorkerContainer::Register(
+script::HandlePromiseWrappable ServiceWorkerContainer::Register(
     const std::string& url, const RegistrationOptions& options) {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerContainer::Register()");
   DCHECK_EQ(base::MessageLoop::current(),
@@ -154,8 +156,8 @@ script::Handle<script::PromiseWrappable> ServiceWorkerContainer::Register(
   return promise;
 }
 
-script::Handle<script::PromiseWrappable>
-ServiceWorkerContainer::GetRegistration(const std::string& url) {
+script::HandlePromiseWrappable ServiceWorkerContainer::GetRegistration(
+    const std::string& url) {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerContainer::GetRegistration()");
   DCHECK_EQ(base::MessageLoop::current(),
             environment_settings()->context()->message_loop());

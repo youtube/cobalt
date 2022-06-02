@@ -49,7 +49,7 @@ class ServiceWorkerGlobalScope : public WorkerGlobalScope {
   scoped_refptr<ServiceWorkerRegistration> registration() const {
     return registration_;
   }
-  scoped_refptr<ServiceWorker> service_worker() const {
+  const scoped_refptr<ServiceWorker>& service_worker() const {
     return service_worker_;
   }
 

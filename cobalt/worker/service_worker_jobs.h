@@ -36,6 +36,7 @@
 #include "cobalt/script/exception_message.h"
 #include "cobalt/script/promise.h"
 #include "cobalt/script/script_value.h"
+#include "cobalt/script/script_value_factory.h"
 #include "cobalt/web/dom_exception.h"
 #include "cobalt/web/environment_settings.h"
 #include "cobalt/worker/service_worker.h"
@@ -55,36 +56,6 @@ namespace worker {
 //   https://w3c.github.io/ServiceWorker/#algorithms
 class ServiceWorkerJobs {
  public:
-  ServiceWorkerJobs(network::NetworkModule* network_module,
-                    base::MessageLoop* message_loop);
-  ~ServiceWorkerJobs();
-
-  base::MessageLoop* message_loop() { return message_loop_; }
-  network::NetworkModule* network_module() { return network_module_; }
-
-  // https://w3c.github.io/ServiceWorker/#start-register-algorithm
-  void StartRegister(const base::Optional<GURL>& scope_url,
-                     const GURL& script_url,
-                     std::unique_ptr<script::ValuePromiseWrappable::Reference>
-                         promise_reference,
-                     web::EnvironmentSettings* client, const WorkerType& type,
-                     const ServiceWorkerUpdateViaCache& update_via_cache);
-
-  void MaybeResolveReadyPromiseSubSteps(web::EnvironmentSettings* client);
-
-  // Sub steps (8) of 'ServiceWorkerContainer.getRegistration()'.
-  //   https://w3c.github.io/ServiceWorker/#navigator-service-worker-getRegistration
-  void GetRegistrationSubSteps(
-      const url::Origin& storage_key, const GURL& client_url,
-      web::EnvironmentSettings* client,
-      std::unique_ptr<script::ValuePromiseWrappable::Reference>
-          promise_reference);
-
-  // Registration of web contexts that may have service workers.
-  void RegisterWebContext(web::Context* context);
-  void UnregisterWebContext(web::Context* context);
-
- private:
   // https://w3c.github.io/ServiceWorker/#dfn-job-type
   enum JobType { kRegister, kUpdate, kUnregister };
 
@@ -162,23 +133,6 @@ class ServiceWorkerJobs {
     std::unique_ptr<loader::Loader> loader;
   };
 
-  // State used for the 'Update' algorithm.
-  struct UpdateJobState : public base::RefCounted<UpdateJobState> {
-    UpdateJobState(Job* job, ServiceWorkerRegistrationObject* registration,
-                   ServiceWorkerObject* newest_worker)
-        : job(job), registration(registration), newest_worker(newest_worker) {}
-    Job* job;
-    ServiceWorkerRegistrationObject* registration;
-    ServiceWorkerObject* newest_worker;
-
-    // map of content or resources for the worker.
-    ServiceWorkerObject::ScriptResourceMap updated_resource_map;
-
-    // This represents hasUpdatedResources of the Update algorithm.
-    // True if any of the resources has changed since last cached.
-    bool has_updated_resources = false;
-  };
-
   // https://w3c.github.io/ServiceWorker/#dfn-job-queue
   class JobQueue {
    public:
@@ -216,6 +170,78 @@ class ServiceWorkerJobs {
     std::queue<std::unique_ptr<Job>> jobs_;
   };
 
+  ServiceWorkerJobs(network::NetworkModule* network_module,
+                    base::MessageLoop* message_loop);
+  ~ServiceWorkerJobs();
+
+  base::MessageLoop* message_loop() { return message_loop_; }
+  network::NetworkModule* network_module() { return network_module_; }
+
+  // https://w3c.github.io/ServiceWorker/#start-register-algorithm
+  void StartRegister(const base::Optional<GURL>& scope_url,
+                     const GURL& script_url,
+                     std::unique_ptr<script::ValuePromiseWrappable::Reference>
+                         promise_reference,
+                     web::EnvironmentSettings* client, const WorkerType& type,
+                     const ServiceWorkerUpdateViaCache& update_via_cache);
+
+  void MaybeResolveReadyPromiseSubSteps(web::EnvironmentSettings* client);
+
+  // Sub steps (8) of 'ServiceWorkerContainer.getRegistration()'.
+  //   https://w3c.github.io/ServiceWorker/#navigator-service-worker-getRegistration
+  void GetRegistrationSubSteps(
+      const url::Origin& storage_key, const GURL& client_url,
+      web::EnvironmentSettings* client,
+      std::unique_ptr<script::ValuePromiseWrappable::Reference>
+          promise_reference);
+
+  // Registration of web contexts that may have service workers.
+  void RegisterWebContext(web::Context* context);
+  void UnregisterWebContext(web::Context* context);
+
+  // https://w3c.github.io/ServiceWorker/#create-job
+  std::unique_ptr<Job> CreateJob(
+      JobType type, const url::Origin& storage_key, const GURL& scope_url,
+      const GURL& script_url,
+      std::unique_ptr<script::ValuePromiseWrappable::Reference> promise,
+      web::EnvironmentSettings* client) {
+    return CreateJob(type, storage_key, scope_url, script_url,
+                     JobPromiseType::Create(std::move(promise)), client);
+  }
+  std::unique_ptr<Job> CreateJob(
+      JobType type, const url::Origin& storage_key, const GURL& scope_url,
+      const GURL& script_url,
+      std::unique_ptr<script::ValuePromiseBool::Reference> promise,
+      web::EnvironmentSettings* client) {
+    return CreateJob(type, storage_key, scope_url, script_url,
+                     JobPromiseType::Create(std::move(promise)), client);
+  }
+  std::unique_ptr<Job> CreateJob(JobType type, const url::Origin& storage_key,
+                                 const GURL& scope_url, const GURL& script_url,
+                                 std::unique_ptr<JobPromiseType> promise,
+                                 web::EnvironmentSettings* client);
+
+  // https://w3c.github.io/ServiceWorker/#schedule-job
+  void ScheduleJob(std::unique_ptr<Job> job);
+
+ private:
+  // State used for the 'Update' algorithm.
+  struct UpdateJobState : public base::RefCounted<UpdateJobState> {
+    UpdateJobState(Job* job, ServiceWorkerRegistrationObject* registration,
+                   ServiceWorkerObject* newest_worker)
+        : job(job), registration(registration), newest_worker(newest_worker) {}
+    Job* job;
+    ServiceWorkerRegistrationObject* registration;
+    ServiceWorkerObject* newest_worker;
+
+    // map of content or resources for the worker.
+    ServiceWorkerObject::ScriptResourceMap updated_resource_map;
+
+    // This represents hasUpdatedResources of the Update algorithm.
+    // True if any of the resources has changed since last cached.
+    bool has_updated_resources = false;
+  };
+
   // https://w3c.github.io/ServiceWorker/#dfn-scope-to-job-queue-map
   using JobQueueMap = std::map<std::string, std::unique_ptr<JobQueue>>;
 
@@ -242,15 +268,6 @@ class ServiceWorkerJobs {
   };
 
   enum RegistrationState { kInstalling, kWaiting, kActive };
-
-  // https://w3c.github.io/ServiceWorker/#create-job
-  std::unique_ptr<Job> CreateJob(JobType type, const url::Origin& storage_key,
-                                 const GURL& scope_url, const GURL& script_url,
-                                 std::unique_ptr<JobPromiseType> promise,
-                                 web::EnvironmentSettings* client);
-
-  // https://w3c.github.io/ServiceWorker/#schedule-job
-  void ScheduleJob(std::unique_ptr<Job> job);
 
   // https://w3c.github.io/ServiceWorker/#dfn-job-equivalent
   bool EquivalentJobs(Job* one, Job* two);
@@ -280,7 +297,12 @@ class ServiceWorkerJobs {
   void RejectJobPromise(Job* job, const PromiseErrorData& error_data);
 
   // https://w3c.github.io/ServiceWorker/#resolve-job-promise-algorithm
-  void ResolveJobPromise(Job* job, ServiceWorkerRegistrationObject* value);
+  void ResolveJobPromise(Job* job, ServiceWorkerRegistrationObject* value) {
+    ResolveJobPromise(job, false, value);
+  }
+  void ResolveJobPromise(
+      Job* job, bool value,
+      ServiceWorkerRegistrationObject* registration = nullptr);
 
   // https://w3c.github.io/ServiceWorker/#finish-job-algorithm
   void FinishJob(Job* job);
@@ -325,6 +347,15 @@ class ServiceWorkerJobs {
 
   // https://w3c.github.io/ServiceWorker/#notify-controller-change-algorithm
   void NotifyControllerChange(web::EnvironmentSettings* client);
+
+  // https://w3c.github.io/ServiceWorker/#try-clear-registration-algorithm
+  void TryClearRegistration(ServiceWorkerRegistrationObject* registration);
+
+  // https://w3c.github.io/ServiceWorker/#clear-registration-algorithm
+  void ClearRegistration(ServiceWorkerRegistrationObject* registration);
+
+  bool IsAnyClientUsingRegistration(
+      ServiceWorkerRegistrationObject* registration);
 
   // FetcherFactory that is used to create a fetcher according to URL.
   std::unique_ptr<loader::FetcherFactory> fetcher_factory_;
