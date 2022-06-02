@@ -41,13 +41,12 @@ class ServiceWorkerContainer : public web::EventTarget {
 
   // https://w3c.github.io/ServiceWorker/#navigator-service-worker-controller
   scoped_refptr<ServiceWorker> controller();
-  script::Handle<script::PromiseWrappable> ready();
+  script::HandlePromiseWrappable ready();
 
-  script::Handle<script::PromiseWrappable> Register(const std::string& url);
-  script::Handle<script::PromiseWrappable> Register(
-      const std::string& url, const RegistrationOptions& options);
-  script::Handle<script::PromiseWrappable> GetRegistration(
-      const std::string& url);
+  script::HandlePromiseWrappable Register(const std::string& url);
+  script::HandlePromiseWrappable Register(const std::string& url,
+                                          const RegistrationOptions& options);
+  script::HandlePromiseWrappable GetRegistration(const std::string& url);
   script::Handle<script::PromiseSequenceWrappable> GetRegistrations();
 
   void StartMessages();

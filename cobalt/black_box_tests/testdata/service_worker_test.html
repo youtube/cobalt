@@ -210,6 +210,45 @@
                             console.log('Got onstatechange event',
                                 event.target.state);
                         }
+
+                        // Repeat a few times to test the 'equivalent job' and
+                        // finish job logic.
+                        for (let repeated = 0; repeated < 5; repeated++) {
+                            registration.update().then(function (registration) {
+                                console.log('(Expected) Registration update ' +
+                                    'Succeeded:', registration);
+                                assertNotEqual(null, registration);
+                                count_event();
+                            }, function (error) {
+                                console.log('(Unexpected) :', error);
+                                notReached();
+                            });
+                        }
+
+                        registration.unregister()
+                            .then(function (success) {
+                                console.log('(Expected) unregister success :',
+                                    success);
+                                count_event(38);
+                                // Finally, test getRegistration for the unregistered scope.
+                                navigator.serviceWorker.getRegistration(
+                                    'registration/scope')
+                                    .then(function (registration) {
+                                        console.log('(Expected) getRegistration Succeeded:',
+                                            registration);
+                                        assertTrue(null == registration ||
+                                            undefined == registration);
+                                        count_event(39);
+                                    }, function (error) {
+                                        console.log('(Unexpected) :', error);
+                                        notReached();
+                                    });
+                            }, function (error) {
+                                console.log('(Unexpected) unregister ' +
+                                    `${error}`, error);
+                                assertIncludes('SecurityError: ', `${error}`);
+                                notReached();
+                            });
                     }, 500);
 
                     // Test getRegistration for a non-registered scope.
@@ -297,7 +336,7 @@
         window.setTimeout(
             () => {
                 console.log('Events:', expected_event_count)
-                assertEqual(32, expected_event_count);
+                assertEqual(39, expected_event_count);
                 onEndTest();
             }, 1000);
 
