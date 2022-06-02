@@ -25,6 +25,8 @@ namespace elf_loader {
 
 // This class provides opening and reading a file compressed using LZ4 by
 // transparently decompressing the entire file into memory on file open.
+// The file must be encoded using the LZ4 Frame Format and consist of a single
+// frame.
 class LZ4FileImpl : public FileImpl {
  public:
   LZ4FileImpl();
@@ -36,6 +38,26 @@ class LZ4FileImpl : public FileImpl {
   bool ReadFromOffset(int64_t offset, char* buffer, int size) override;
 
  private:
+  // Returns the size of the LZ4 frame header in bytes.
+  size_t PeekHeaderSize();
+
+  // Reads the LZ4 frame header information from the file into |frame_info|.
+  // Once the header has been read, decompression of the data blocks must begin
+  // |header_size| bytes into the file (i.e., just after the frame header
+  // section). This function returns a hint for the number of source bytes that
+  // LZ4F_decompress() expects for its first invocation.
+  size_t ConsumeHeader(LZ4F_frameInfo_t* frame_info, size_t header_size);
+
+  // Decompresses the remainder of the LZ4 file into memory.
+  // This function should only be called after the frame header has been read.
+  // It repeatedly 1) buffers up to |max_compressed_buffer_size| bytes and 2)
+  // asks LZ4F_decompress() to decompress the data; |source_bytes_hint| is only
+  // used for the first of these buffer-decompress iterations.
+  bool Decompress(size_t file_size,
+                  size_t header_size,
+                  size_t max_compressed_buffer_size,
+                  size_t source_bytes_hint);
+
   // The entire decompressed file.
   std::vector<char> decompressed_data_;
 
