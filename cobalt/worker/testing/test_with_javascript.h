@@ -43,6 +43,7 @@ class TestWithJavaScriptBase : public TypeIdProvider {
  public:
   TestWithJavaScriptBase() {
     web_context_.reset(new web::testing::StubWebContext());
+    web_context_->set_network_module(new network::NetworkModule());
     web_context_->setup_environment_settings(new WorkerSettings());
     web_context_->environment_settings()->set_base_url(GURL("about:blank"));
     web_context_->set_fetcher_factory(new loader::FetcherFactory(NULL));
@@ -57,8 +58,14 @@ class TestWithJavaScriptBase : public TypeIdProvider {
       worker_global_scope_ = dedicated_worker_global_scope_.get();
     } else if (TypeIdProvider::GetGlobalScopeTypeId() ==
                base::GetTypeId<ServiceWorkerGlobalScope>()) {
-      service_worker_global_scope_ =
-          new ServiceWorkerGlobalScope(web_context_->environment_settings());
+      containing_service_worker_registration =
+          new ServiceWorkerRegistrationObject(url::Origin(), GURL(),
+                                              kServiceWorkerUpdateViaCacheNone);
+      service_worker_global_scope_ = new ServiceWorkerGlobalScope(
+          web_context_->environment_settings(),
+          new ServiceWorkerObject(ServiceWorkerObject::Options(
+              "TestServiceWorkerObject", web_context_->network_module(),
+              containing_service_worker_registration)));
       web_context_->global_environment()->CreateGlobalObject(
           service_worker_global_scope_, web_context_->environment_settings());
       worker_global_scope_ = service_worker_global_scope_.get();
@@ -87,9 +94,11 @@ class TestWithJavaScriptBase : public TypeIdProvider {
   }
 
  private:
-  std::unique_ptr<web::Context> web_context_;
+  std::unique_ptr<web::testing::StubWebContext> web_context_;
   WorkerGlobalScope* worker_global_scope_ = nullptr;
   scoped_refptr<DedicatedWorkerGlobalScope> dedicated_worker_global_scope_;
+  scoped_refptr<ServiceWorkerRegistrationObject>
+      containing_service_worker_registration;
   scoped_refptr<ServiceWorkerGlobalScope> service_worker_global_scope_;
   ::testing::StrictMock<script::testing::MockExceptionState> exception_state_;
 };

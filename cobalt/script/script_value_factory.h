@@ -32,6 +32,10 @@ using PromiseWrappable = Promise<scoped_refptr<Wrappable>>;
 using HandlePromiseWrappable = Handle<PromiseWrappable>;
 using ValuePromiseWrappable = ScriptValue<PromiseWrappable>;
 
+using PromiseVoid = Promise<void>;
+using HandlePromiseVoid = Handle<PromiseVoid>;
+using ValuePromiseVoid = ScriptValue<PromiseVoid>;
+
 using PromiseBool = Promise<bool>;
 using HandlePromiseBool = Handle<PromiseBool>;
 using ValuePromiseBool = ScriptValue<PromiseBool>;

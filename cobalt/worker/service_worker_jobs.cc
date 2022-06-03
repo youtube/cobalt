@@ -710,7 +710,8 @@ void ServiceWorkerJobs::UpdateOnLoadingComplete(
 
   // 11. Let worker be a new service worker.
   ServiceWorkerObject::Options options(
-      "ServiceWorker", state->job->client->context()->network_module());
+      "ServiceWorker", state->job->client->context()->network_module(),
+      state->registration);
   scoped_refptr<ServiceWorkerObject> worker(new ServiceWorkerObject(options));
   // 12. Set worker’s script url to job’s script url, worker’s script
   //     resource to script, worker’s type to job’s worker type, and worker’s
@@ -1719,6 +1720,8 @@ void ServiceWorkerJobs::GetRegistrationSubSteps(
     web::EnvironmentSettings* client,
     std::unique_ptr<script::ValuePromiseWrappable::Reference>
         promise_reference) {
+  TRACE_EVENT0("cobalt::worker",
+               "ServiceWorkerJobs::GetRegistrationSubSteps()");
   DCHECK_EQ(message_loop(), base::MessageLoop::current());
   // Algorithm for Sub steps of ServiceWorkerContainer.getRegistration():
   //   https://w3c.github.io/ServiceWorker/#navigator-service-worker-getRegistration
@@ -1745,6 +1748,34 @@ void ServiceWorkerJobs::GetRegistrationSubSteps(
           },
           client, std::move(promise_reference), registration));
 }
+
+void ServiceWorkerJobs::SkipWaitingSubSteps(
+    web::EnvironmentSettings* client,
+    scoped_refptr<ServiceWorkerObject> service_worker,
+    std::unique_ptr<script::ValuePromiseVoid::Reference> promise_reference) {
+  TRACE_EVENT0("cobalt::worker", "ServiceWorkerJobs::SkipWaitingSubSteps()");
+  DCHECK_EQ(message_loop(), base::MessageLoop::current());
+  // Algorithm for Sub steps of ServiceWorkerGlobalScope.skipWaiting():
+  //   https://w3c.github.io/ServiceWorker/#dom-serviceworkerglobalscope-skipwaiting
+
+  // 2.1. Set service worker's skip waiting flag.
+  service_worker->set_skip_waiting(true);
+
+  // 2.2. Invoke Try Activate with service worker's containing service worker
+  // registration.
+  TryActivate(service_worker->containing_service_worker_registration());
+
+  // 2.3. Resolve promise with undefined.
+  client->context()->message_loop()->task_runner()->PostTask(
+      FROM_HERE,
+      base::BindOnce(
+          [](web::EnvironmentSettings* settings,
+             std::unique_ptr<script::ValuePromiseVoid::Reference> promise) {
+            promise->value().Resolve();
+          },
+          client, std::move(promise_reference)));
+}
+
 
 void ServiceWorkerJobs::RegisterWebContext(web::Context* context) {
   DCHECK_NE(nullptr, context);
