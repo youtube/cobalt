@@ -58,9 +58,7 @@ import java.net.SocketException;
 import java.util.Calendar;
 import java.util.Enumeration;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Locale;
-import java.util.Set;
 import java.util.TimeZone;
 
 /** Implementation of the required JNI methods called by the Starboard C++ code. */
@@ -110,10 +108,6 @@ public class StarboardBridge {
 
   private static final TimeZone DEFAULT_TIME_ZONE = TimeZone.getTimeZone("America/Los_Angeles");
   private final long timeNanosecondsPerMicrosecond = 1000;
-
-  private Set<Integer> supportedHdrTypesSet = new HashSet<Integer>();
-  private long supportedHdrTypesSetUpdatedAt = 0;
-  private final long supportedHdrTypesCacheTtlMs = 1000;
 
   public StarboardBridge(
       Context appContext,
@@ -747,53 +741,22 @@ public class StarboardBridge {
     }
   }
 
-  long supportedHdrTypesSetUpdatedAtNs;
-
-  private void refreshHdrTypesCacheIfNecessary() {
-    if (System.currentTimeMillis() - supportedHdrTypesSetUpdatedAt < supportedHdrTypesCacheTtlMs) {
-      // Cache is up to date.
-      return;
-    }
-    supportedHdrTypesSet.clear();
-    supportedHdrTypesSetUpdatedAt = System.currentTimeMillis();
-
+  /** Return supported hdr types. */
+  @RequiresApi(24)
+  @SuppressWarnings("unused")
+  @UsedByNative
+  public int[] getSupportedHdrTypes() {
     Display defaultDisplay = DisplayUtil.getDefaultDisplay();
     if (defaultDisplay == null) {
-      return;
+      return null;
     }
 
     Display.HdrCapabilities hdrCapabilities = defaultDisplay.getHdrCapabilities();
     if (hdrCapabilities == null) {
-      return;
+      return null;
     }
 
-    int[] supportedHdrTypes = hdrCapabilities.getSupportedHdrTypes();
-    if (supportedHdrTypes == null) {
-      return;
-    }
-
-    for (int supportedType : supportedHdrTypes) {
-      supportedHdrTypesSet.add(supportedType);
-    }
-  }
-
-  /**
-   * Check if hdrType is supported by the current default display. See
-   * https://developer.android.com/reference/android/view/Display.HdrCapabilities.html for valid
-   * values.
-   */
-  @RequiresApi(24)
-  @SuppressWarnings("unused")
-  @UsedByNative
-  public boolean isHdrTypeSupported(int hdrType) {
-    if (android.os.Build.VERSION.SDK_INT < 24) {
-      return false;
-    }
-
-    synchronized (this) {
-      refreshHdrTypesCacheIfNecessary();
-      return supportedHdrTypesSet.contains(hdrType);
-    }
+    return hdrCapabilities.getSupportedHdrTypes();
   }
 
   /** Return the CobaltMediaSession. */

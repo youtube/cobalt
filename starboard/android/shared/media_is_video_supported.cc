@@ -14,44 +14,17 @@
 
 #include "starboard/shared/starboard/media/media_support_internal.h"
 
-#include "starboard/android/shared/jni_env_ext.h"
-#include "starboard/android/shared/jni_utils.h"
+#include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/configuration.h"
 #include "starboard/media.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/media/mime_type.h"
 
-using starboard::android::shared::JniEnvExt;
-using starboard::android::shared::ScopedLocalJavaRef;
+using starboard::android::shared::MediaCapabilitiesCache;
 using starboard::android::shared::SupportedVideoCodecToMimeType;
 using starboard::shared::starboard::media::IsSDRVideo;
 using starboard::shared::starboard::media::MimeType;
-
-namespace {
-
-// https://developer.android.com/reference/android/view/Display.HdrCapabilities.html#HDR_TYPE_HDR10
-const jint HDR_TYPE_DOLBY_VISION = 1;
-const jint HDR_TYPE_HDR10 = 2;
-const jint HDR_TYPE_HLG = 3;
-
-bool IsHDRTransferCharacteristicsSupported(SbMediaTransferId transfer_id) {
-  jint hdr_type;
-  if (transfer_id == kSbMediaTransferIdSmpteSt2084) {
-    hdr_type = HDR_TYPE_HDR10;
-  } else if (transfer_id == kSbMediaTransferIdAribStdB67) {
-    hdr_type = HDR_TYPE_HLG;
-  } else {
-    // No other transfer functions are supported, see
-    // https://source.android.com/devices/tech/display/hdr.
-    return false;
-  }
-
-  return JniEnvExt::Get()->CallStarboardBooleanMethodOrAbort(
-             "isHdrTypeSupported", "(I)Z", hdr_type) == JNI_TRUE;
-}
-
-}  // namespace
 
 bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
                              const char* content_type,
@@ -68,7 +41,9 @@ bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
                              bool decode_to_texture_required) {
   const bool must_support_hdr =
       !IsSDRVideo(bit_depth, primary_id, transfer_id, matrix_id);
-  if (must_support_hdr && !IsHDRTransferCharacteristicsSupported(transfer_id)) {
+  if (must_support_hdr &&
+      !MediaCapabilitiesCache::GetInstance()
+           ->IsHDRTransferCharacteristicsSupported(transfer_id)) {
     return false;
   }
   // While not necessarily true, for now we assume that all Android devices
@@ -86,10 +61,6 @@ bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
     // Forces the use of specific Android APIs (isSizeSupported() and
     // areSizeAndRateSupported()) to determine format support.
     mime_type.RegisterBoolParameter("forceimprovedsupportcheck");
-    // Override the default decoder cache TTL to the specified value.
-    // The cache will be disabled if the value is non-positive.
-    // TODO(b/227356434): RegisterIntParameter requires API review.
-    // mime_type.RegisterIntParameter("decoder_cache_ttl_ms");
 
     if (!mime_type.is_valid()) {
       return false;
@@ -108,8 +79,6 @@ bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
   if (!mime) {
     return false;
   }
-  JniEnvExt* env = JniEnvExt::Get();
-  ScopedLocalJavaRef<jstring> j_mime(env->NewStringStandardUTFOrAbort(mime));
 
   // We assume that if a device supports a format for clear playback, it will
   // also support it for encrypted playback. However, some devices require
@@ -118,14 +87,8 @@ bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
   const bool require_secure_playback = must_support_tunnel_mode;
   const bool force_improved_support_check =
       mime_type.GetParamBoolValue("forceimprovedsupportcheck", true);
-  const int decoder_cache_ttl_ms =
-      mime_type.GetParamIntValue("decoder_cache_ttl_ms", -1);
 
-  return env->CallStaticBooleanMethodOrAbort(
-             "dev/cobalt/media/MediaCodecUtil", "hasVideoDecoderFor",
-             "(Ljava/lang/String;ZZZZIIIII)Z", j_mime.Get(),
-             require_secure_playback, must_support_hdr,
-             must_support_tunnel_mode, force_improved_support_check,
-             decoder_cache_ttl_ms, frame_width, frame_height,
-             static_cast<jint>(bitrate), fps) == JNI_TRUE;
+  return MediaCapabilitiesCache::GetInstance()->HasVideoDecoderFor(
+      mime, require_secure_playback, must_support_hdr, must_support_tunnel_mode,
+      force_improved_support_check, frame_width, frame_height, bitrate, fps);
 }
