@@ -88,6 +88,57 @@ TEST_P(WorkerGlobalScopeTest, ImportScriptsIsFunction) {
   EXPECT_EQ("function importScripts() { [native code] }", result);
 }
 
+TEST_P(WorkerGlobalScopeTest, MessageEvent) {
+  worker_global_scope()->AddEventListener(
+      "message",
+      FakeScriptValue<web::EventListener>(fake_event_listener_.get()), true);
+  fake_event_listener_->ExpectHandleEventCall("message", worker_global_scope());
+  worker_global_scope()->DispatchEvent(new web::MessageEvent("message"));
+}
+
+TEST_P(WorkerGlobalScopeTest, OnMessageEvent) {
+  std::string result;
+  EXPECT_TRUE(EvaluateScript("typeof self.onmessage", &result));
+  EXPECT_EQ("object", result);
+
+  EXPECT_TRUE(EvaluateScript(R"(
+    logString = '(empty)';
+    self.onmessage = function() {
+      logString = 'handled';
+    };
+    self.dispatchEvent(new Event('message'));
+    logString;
+  )",
+                             &result));
+  EXPECT_EQ("handled", result);
+}
+
+TEST_P(WorkerGlobalScopeTest, MessageErrorEvent) {
+  worker_global_scope()->AddEventListener(
+      "messageerror",
+      FakeScriptValue<web::EventListener>(fake_event_listener_.get()), true);
+  fake_event_listener_->ExpectHandleEventCall("messageerror",
+                                              worker_global_scope());
+  worker_global_scope()->DispatchEvent(new web::MessageEvent("messageerror"));
+}
+
+TEST_P(WorkerGlobalScopeTest, OnMessageErrorEvent) {
+  std::string result;
+  EXPECT_TRUE(EvaluateScript("typeof self.onmessageerror", &result));
+  EXPECT_EQ("object", result);
+
+  EXPECT_TRUE(EvaluateScript(R"(
+    logString = '(empty)';
+    self.onmessageerror = function() {
+      logString = 'handled';
+    };
+    self.dispatchEvent(new Event('messageerror'));
+    logString;
+  )",
+                             &result));
+  EXPECT_EQ("handled", result);
+}
+
 TEST_P(WorkerGlobalScopeTest, ErrorEvent) {
   worker_global_scope()->AddEventListener(
       "error", FakeScriptValue<web::EventListener>(fake_event_listener_.get()),
@@ -113,7 +164,33 @@ TEST_P(WorkerGlobalScopeTest, OnErrorEvent) {
   EXPECT_EQ("handled", result);
 }
 
-// Test that when Window's network status change callbacks are triggered,
+TEST_P(WorkerGlobalScopeTest, LanguagechangeEvent) {
+  worker_global_scope()->AddEventListener(
+      "languagechange",
+      FakeScriptValue<web::EventListener>(fake_event_listener_.get()), true);
+  fake_event_listener_->ExpectHandleEventCall("languagechange",
+                                              worker_global_scope());
+  worker_global_scope()->DispatchEvent(new web::Event("languagechange"));
+}
+
+TEST_P(WorkerGlobalScopeTest, OnLanguagechangeEvent) {
+  std::string result;
+  EXPECT_TRUE(EvaluateScript("typeof self.onlanguagechange", &result));
+  EXPECT_EQ("object", result);
+
+  EXPECT_TRUE(EvaluateScript(R"(
+    logString = '(empty)';
+    self.onlanguagechange = function() {
+      logString = 'handled';
+    };
+    self.dispatchEvent(new Event('languagechange'));
+    logString;
+  )",
+                             &result));
+  EXPECT_EQ("handled", result);
+}
+
+// Test that when Worker's network status change callbacks are triggered,
 // corresponding online and offline events are fired to listeners.
 TEST_P(WorkerGlobalScopeTest, OfflineEvent) {
   worker_global_scope()->AddEventListener(
@@ -123,12 +200,114 @@ TEST_P(WorkerGlobalScopeTest, OfflineEvent) {
   worker_global_scope()->DispatchEvent(new web::Event(base::Tokens::offline()));
 }
 
+TEST_P(WorkerGlobalScopeTest, OfflineEventDispatch) {
+  worker_global_scope()->AddEventListener(
+      "offline",
+      FakeScriptValue<web::EventListener>(fake_event_listener_.get()), true);
+  fake_event_listener_->ExpectHandleEventCall("offline", worker_global_scope());
+  worker_global_scope()->DispatchEvent(new web::Event("offline"));
+}
+
+TEST_P(WorkerGlobalScopeTest, OnOfflineEvent) {
+  std::string result;
+  EXPECT_TRUE(EvaluateScript("typeof self.onoffline", &result));
+  EXPECT_EQ("object", result);
+
+  EXPECT_TRUE(EvaluateScript(R"(
+    logString = '(empty)';
+    self.onoffline = function() {
+      logString = 'handled';
+    };
+    self.dispatchEvent(new Event('offline'));
+    logString;
+  )",
+                             &result));
+  EXPECT_EQ("handled", result);
+}
+
 TEST_P(WorkerGlobalScopeTest, OnlineEvent) {
   worker_global_scope()->AddEventListener(
       "online", FakeScriptValue<web::EventListener>(fake_event_listener_.get()),
       true);
   fake_event_listener_->ExpectHandleEventCall("online", worker_global_scope());
   worker_global_scope()->DispatchEvent(new web::Event(base::Tokens::online()));
+}
+
+TEST_P(WorkerGlobalScopeTest, OnlineEventDispatch) {
+  worker_global_scope()->AddEventListener(
+      "online", FakeScriptValue<web::EventListener>(fake_event_listener_.get()),
+      true);
+  fake_event_listener_->ExpectHandleEventCall("online", worker_global_scope());
+  worker_global_scope()->DispatchEvent(new web::Event("online"));
+}
+
+TEST_P(WorkerGlobalScopeTest, OnOnlineEvent) {
+  std::string result;
+  EXPECT_TRUE(EvaluateScript("typeof self.ononline", &result));
+  EXPECT_EQ("object", result);
+
+  EXPECT_TRUE(EvaluateScript(R"(
+    logString = '(empty)';
+    self.ononline = function() {
+      logString = 'handled';
+    };
+    self.dispatchEvent(new Event('online'));
+    logString;
+  )",
+                             &result));
+  EXPECT_EQ("handled", result);
+}
+
+TEST_P(WorkerGlobalScopeTest, RejectionhandledEvent) {
+  worker_global_scope()->AddEventListener(
+      "rejectionhandled",
+      FakeScriptValue<web::EventListener>(fake_event_listener_.get()), true);
+  fake_event_listener_->ExpectHandleEventCall("rejectionhandled",
+                                              worker_global_scope());
+  worker_global_scope()->DispatchEvent(new web::Event("rejectionhandled"));
+}
+
+TEST_P(WorkerGlobalScopeTest, OnRejectionhandledEvent) {
+  std::string result;
+  EXPECT_TRUE(EvaluateScript("typeof self.onrejectionhandled", &result));
+  EXPECT_EQ("object", result);
+
+  EXPECT_TRUE(EvaluateScript(R"(
+    logString = '(empty)';
+    self.onrejectionhandled = function() {
+      logString = 'handled';
+    };
+    self.dispatchEvent(new Event('rejectionhandled'));
+    logString;
+  )",
+                             &result));
+  EXPECT_EQ("handled", result);
+}
+
+TEST_P(WorkerGlobalScopeTest, UnhandledrejectionEvent) {
+  worker_global_scope()->AddEventListener(
+      "unhandledrejection",
+      FakeScriptValue<web::EventListener>(fake_event_listener_.get()), true);
+  fake_event_listener_->ExpectHandleEventCall("unhandledrejection",
+                                              worker_global_scope());
+  worker_global_scope()->DispatchEvent(new web::Event("unhandledrejection"));
+}
+
+TEST_P(WorkerGlobalScopeTest, OnUnhandledrejectionEvent) {
+  std::string result;
+  EXPECT_TRUE(EvaluateScript("typeof self.onunhandledrejection", &result));
+  EXPECT_EQ("object", result);
+
+  EXPECT_TRUE(EvaluateScript(R"(
+    logString = '(empty)';
+    self.onunhandledrejection = function() {
+      logString = 'handled';
+    };
+    self.dispatchEvent(new Event('unhandledrejection'));
+    logString;
+  )",
+                             &result));
+  EXPECT_EQ("handled", result);
 }
 
 INSTANTIATE_TEST_CASE_P(

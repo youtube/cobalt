@@ -51,6 +51,7 @@ class TestWithJavaScriptBase : public TypeIdProvider {
         base::GetTypeId<DedicatedWorkerGlobalScope>()) {
       dedicated_worker_global_scope_ =
           new DedicatedWorkerGlobalScope(web_context_->environment_settings());
+      dedicated_worker_global_scope_->set_name("TestWithJavaScriptBase");
       web_context_->global_environment()->CreateGlobalObject(
           dedicated_worker_global_scope_, web_context_->environment_settings());
       worker_global_scope_ = dedicated_worker_global_scope_.get();
