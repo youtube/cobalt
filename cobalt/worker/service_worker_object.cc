@@ -40,7 +40,9 @@ namespace cobalt {
 namespace worker {
 
 ServiceWorkerObject::ServiceWorkerObject(const Options& options)
-    : state_(kServiceWorkerStateParsed), options_(options) {}
+    : state_(kServiceWorkerStateParsed), options_(options) {
+  DCHECK(options.containing_service_worker_registration);
+}
 
 ServiceWorkerObject::~ServiceWorkerObject() {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerObject::~ServiceWorkerObject()");
@@ -122,7 +124,7 @@ void ServiceWorkerObject::Initialize(web::Context* context) {
   web_context_->setup_environment_settings(new WorkerSettings());
   web_context_->environment_settings()->set_base_url(script_url_);
   scoped_refptr<ServiceWorkerGlobalScope> service_worker_global_scope =
-      new ServiceWorkerGlobalScope(web_context_->environment_settings());
+      new ServiceWorkerGlobalScope(web_context_->environment_settings(), this);
   worker_global_scope_ = service_worker_global_scope;
   web_context_->global_environment()->CreateGlobalObject(
       service_worker_global_scope, web_context_->environment_settings());

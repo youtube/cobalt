@@ -13,5 +13,11 @@
 // limitations under the License.
 
 console.log('Service Worker Script Started');
-self.oninstall = function (e) { console.log('oninstall event received', e); }
-self.onactivate = function (e) { console.log('onactivate event received', e); }
+self.oninstall = function (e) {
+  console.log('oninstall event received', e);
+}
+self.onactivate = function (e) {
+  console.log('onactivate event received', e);
+}
+console.log('self.registration', self.registration);
+console.log('self.serviceWorker', self.serviceWorker);

@@ -187,13 +187,20 @@ class ServiceWorkerJobs {
 
   void MaybeResolveReadyPromiseSubSteps(web::EnvironmentSettings* client);
 
-  // Sub steps (8) of 'ServiceWorkerContainer.getRegistration()'.
+  // Sub steps (8) of ServiceWorkerContainer.getRegistration().
   //   https://w3c.github.io/ServiceWorker/#navigator-service-worker-getRegistration
   void GetRegistrationSubSteps(
       const url::Origin& storage_key, const GURL& client_url,
       web::EnvironmentSettings* client,
       std::unique_ptr<script::ValuePromiseWrappable::Reference>
           promise_reference);
+
+  // Sub steps (2) of ServiceWorkerGlobalScope.skipWaiting().
+  //   https://w3c.github.io/ServiceWorker/#dom-serviceworkerglobalscope-skipwaiting
+  void SkipWaitingSubSteps(
+      web::EnvironmentSettings* client,
+      scoped_refptr<ServiceWorkerObject> service_worker,
+      std::unique_ptr<script::ValuePromiseVoid::Reference> promise_reference);
 
   // Registration of web contexts that may have service workers.
   void RegisterWebContext(web::Context* context);

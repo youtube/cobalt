@@ -36,7 +36,7 @@ namespace worker {
 class ServiceWorker : public AbstractWorker, public web::EventTarget {
  public:
   ServiceWorker(script::EnvironmentSettings* settings,
-                worker::ServiceWorkerObject* worker);
+                ServiceWorkerObject* worker);
   ServiceWorker(const ServiceWorker&) = delete;
   ServiceWorker& operator=(const ServiceWorker&) = delete;
 
@@ -69,7 +69,7 @@ class ServiceWorker : public AbstractWorker, public web::EventTarget {
  private:
   ~ServiceWorker() override = default;
 
-  worker::ServiceWorkerObject* worker_;
+  ServiceWorkerObject* worker_;
   ServiceWorkerState state_;
 };
 
