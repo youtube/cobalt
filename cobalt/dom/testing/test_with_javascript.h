@@ -43,6 +43,7 @@ class TestWithJavaScript : public ::testing::Test {
           base::Closure());
       stub_window_->global_environment()->SetReportErrorCallback(
           script::GlobalEnvironment::ReportErrorCallback());
+      DCHECK(window());
       window()->DispatchEvent(new web::Event(base::Tokens::unload()));
       stub_window_.reset();
     }

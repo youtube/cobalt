@@ -269,6 +269,56 @@ TEST_F(WindowTest, OnErrorEvent) {
   EXPECT_EQ("handled", result);
 }
 
+TEST_F(WindowTest, BeforeunloadEvent) {
+  window()->AddEventListener(
+      "beforeunload",
+      FakeScriptValue<web::EventListener>(fake_event_listener_.get()), true);
+  fake_event_listener_->ExpectHandleEventCall("beforeunload", window());
+  window()->DispatchEvent(new web::Event("beforeunload"));
+}
+
+TEST_F(WindowTest, OnBeforeunloadEvent) {
+  std::string result;
+  EXPECT_TRUE(EvaluateScript("typeof self.onbeforeunload", &result));
+  EXPECT_EQ("object", result);
+
+  EXPECT_TRUE(EvaluateScript(R"(
+    logString = '(empty)';
+    self.onbeforeunload = function() {
+      logString = 'handled';
+    };
+    self.dispatchEvent(new Event('beforeunload'));
+    logString;
+  )",
+                             &result));
+  EXPECT_EQ("handled", result);
+}
+
+TEST_F(WindowTest, LanguagechangeEvent) {
+  window()->AddEventListener(
+      "languagechange",
+      FakeScriptValue<web::EventListener>(fake_event_listener_.get()), true);
+  fake_event_listener_->ExpectHandleEventCall("languagechange", window());
+  window()->DispatchEvent(new web::Event("languagechange"));
+}
+
+TEST_F(WindowTest, OnLanguagechangeEvent) {
+  std::string result;
+  EXPECT_TRUE(EvaluateScript("typeof self.onlanguagechange", &result));
+  EXPECT_EQ("object", result);
+
+  EXPECT_TRUE(EvaluateScript(R"(
+    logString = '(empty)';
+    self.onlanguagechange = function() {
+      logString = 'handled';
+    };
+    self.dispatchEvent(new Event('languagechange'));
+    logString;
+  )",
+                             &result));
+  EXPECT_EQ("handled", result);
+}
+
 // Test that when Window's network status change callbacks are triggered,
 // corresponding online and offline events are fired to listeners.
 TEST_F(WindowTest, OfflineEvent) {
@@ -279,6 +329,31 @@ TEST_F(WindowTest, OfflineEvent) {
   window()->OnWindowOnOfflineEvent();
 }
 
+TEST_F(WindowTest, OfflineEventDispatch) {
+  window()->AddEventListener(
+      "offline",
+      FakeScriptValue<web::EventListener>(fake_event_listener_.get()), true);
+  fake_event_listener_->ExpectHandleEventCall("offline", window());
+  window()->DispatchEvent(new web::Event("offline"));
+}
+
+TEST_F(WindowTest, OnOfflineEvent) {
+  std::string result;
+  EXPECT_TRUE(EvaluateScript("typeof self.onoffline", &result));
+  EXPECT_EQ("object", result);
+
+  EXPECT_TRUE(EvaluateScript(R"(
+    logString = '(empty)';
+    self.onoffline = function() {
+      logString = 'handled';
+    };
+    self.dispatchEvent(new Event('offline'));
+    logString;
+  )",
+                             &result));
+  EXPECT_EQ("handled", result);
+}
+
 TEST_F(WindowTest, OnlineEvent) {
   window()->AddEventListener(
       "online", FakeScriptValue<web::EventListener>(fake_event_listener_.get()),
@@ -286,6 +361,113 @@ TEST_F(WindowTest, OnlineEvent) {
   fake_event_listener_->ExpectHandleEventCall("online", window());
   window()->OnWindowOnOnlineEvent();
 }
+
+TEST_F(WindowTest, OnlineEventDispatch) {
+  window()->AddEventListener(
+      "online", FakeScriptValue<web::EventListener>(fake_event_listener_.get()),
+      true);
+  fake_event_listener_->ExpectHandleEventCall("online", window());
+  window()->DispatchEvent(new web::Event("online"));
+}
+
+TEST_F(WindowTest, OnOnlineEvent) {
+  std::string result;
+  EXPECT_TRUE(EvaluateScript("typeof self.ononline", &result));
+  EXPECT_EQ("object", result);
+
+  EXPECT_TRUE(EvaluateScript(R"(
+    logString = '(empty)';
+    self.ononline = function() {
+      logString = 'handled';
+    };
+    self.dispatchEvent(new Event('online'));
+    logString;
+  )",
+                             &result));
+  EXPECT_EQ("handled", result);
+}
+
+TEST_F(WindowTest, RejectionhandledEvent) {
+  window()->AddEventListener(
+      "rejectionhandled",
+      FakeScriptValue<web::EventListener>(fake_event_listener_.get()), true);
+  fake_event_listener_->ExpectHandleEventCall("rejectionhandled", window());
+  window()->DispatchEvent(new web::Event("rejectionhandled"));
+}
+
+TEST_F(WindowTest, OnRejectionhandledEvent) {
+  std::string result;
+  EXPECT_TRUE(EvaluateScript("typeof self.onrejectionhandled", &result));
+  EXPECT_EQ("object", result);
+
+  EXPECT_TRUE(EvaluateScript(R"(
+    logString = '(empty)';
+    self.onrejectionhandled = function() {
+      logString = 'handled';
+    };
+    self.dispatchEvent(new Event('rejectionhandled'));
+    logString;
+  )",
+                             &result));
+  EXPECT_EQ("handled", result);
+}
+
+TEST_F(WindowTest, UnhandledrejectionEvent) {
+  window()->AddEventListener(
+      "unhandledrejection",
+      FakeScriptValue<web::EventListener>(fake_event_listener_.get()), true);
+  fake_event_listener_->ExpectHandleEventCall("unhandledrejection", window());
+  window()->DispatchEvent(new web::Event("unhandledrejection"));
+}
+
+TEST_F(WindowTest, OnUnhandledrejectionEvent) {
+  std::string result;
+  EXPECT_TRUE(EvaluateScript("typeof self.onunhandledrejection", &result));
+  EXPECT_EQ("object", result);
+
+  EXPECT_TRUE(EvaluateScript(R"(
+    logString = '(empty)';
+    self.onunhandledrejection = function() {
+      logString = 'handled';
+    };
+    self.dispatchEvent(new Event('unhandledrejection'));
+    logString;
+  )",
+                             &result));
+  EXPECT_EQ("handled", result);
+}
+
+TEST_F(WindowTest, UnloadEvent) {
+  window()->AddEventListener(
+      "unload", FakeScriptValue<web::EventListener>(fake_event_listener_.get()),
+      true);
+  fake_event_listener_->ExpectHandleEventCall("unload", window());
+  window()->DispatchEvent(new web::Event("unload"));
+
+  // Remove the unload event listener here so that the fixture destructor
+  // doesn't call into this event handler after it has been destroyed.
+  window()->RemoveEventListener(
+      "unload", FakeScriptValue<web::EventListener>(fake_event_listener_.get()),
+      true);
+}
+
+TEST_F(WindowTest, OnUnloadEvent) {
+  std::string result;
+  EXPECT_TRUE(EvaluateScript("typeof self.onunload", &result));
+  EXPECT_EQ("object", result);
+
+  EXPECT_TRUE(EvaluateScript(R"(
+    logString = '(empty)';
+    self.onunload = function() {
+      logString = 'handled';
+    };
+    self.dispatchEvent(new Event('unload'));
+    logString;
+  )",
+                             &result));
+  EXPECT_EQ("handled", result);
+}
+
 
 }  // namespace dom
 }  // namespace cobalt
