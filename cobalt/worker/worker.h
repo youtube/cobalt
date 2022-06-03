@@ -79,8 +79,6 @@ class Worker : public base::MessageLoop::DestructionObserver {
 
   void Terminate();
 
-  void ClearAllIntervalsAndTimeouts();
-
   MessagePort* message_port() const { return message_port_.get(); }
 
   // The message loop this object is running on.
@@ -106,6 +104,8 @@ class Worker : public base::MessageLoop::DestructionObserver {
   void Obtain();
   void Execute(const std::string& content,
                const base::SourceLocation& script_location);
+
+  void Abort();
 
   web::Agent* web_agent() const { return web_agent_.get(); }
 

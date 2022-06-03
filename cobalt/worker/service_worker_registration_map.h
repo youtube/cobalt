@@ -43,20 +43,19 @@ class ServiceWorkerRegistrationMap {
   using Key = std::pair<url::Origin, std::string>;
 
   // https://w3c.github.io/ServiceWorker/#get-registration-algorithm
-  ServiceWorkerRegistrationObject* GetRegistration(
+  scoped_refptr<ServiceWorkerRegistrationObject> GetRegistration(
       const url::Origin& storage_key, const GURL& scope);
 
   // https://w3c.github.io/ServiceWorker/#set-registration-algorithm
-  ServiceWorkerRegistrationObject* SetRegistration(
+  scoped_refptr<ServiceWorkerRegistrationObject> SetRegistration(
       const url::Origin& storage_key, const GURL& scope,
       const ServiceWorkerUpdateViaCache& update_via_cache);
 
   // https://w3c.github.io/ServiceWorker/#scope-match-algorithm
-  ServiceWorkerRegistrationObject* MatchServiceWorkerRegistration(
+  scoped_refptr<ServiceWorkerRegistrationObject> MatchServiceWorkerRegistration(
       const url::Origin& storage_key, const GURL& client_url);
 
-  std::unique_ptr<ServiceWorkerRegistrationObject> RemoveRegistration(
-      const url::Origin& storage_key, const GURL& scope);
+  void RemoveRegistration(const url::Origin& storage_key, const GURL& scope);
 
  private:
   // ThreadChecker for use by the methods operating on the registration map.
@@ -65,7 +64,7 @@ class ServiceWorkerRegistrationMap {
   // A registration map is an ordered map where the keys are (storage key,
   // serialized scope urls) and the values are service worker registrations.
   //   https://w3c.github.io/ServiceWorker/#dfn-scope-to-registration-map
-  std::map<Key, std::unique_ptr<ServiceWorkerRegistrationObject>>
+  std::map<Key, scoped_refptr<ServiceWorkerRegistrationObject>>
       registration_map_;
 
   // This lock is to allow atomic operations on the registration map.
