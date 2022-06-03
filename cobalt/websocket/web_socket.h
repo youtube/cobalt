@@ -24,7 +24,6 @@
 #include "base/optional.h"
 #include "cobalt/base/compiler.h"
 #include "cobalt/base/tokens.h"
-#include "cobalt/dom/message_event.h"
 #include "cobalt/script/array_buffer.h"
 #include "cobalt/script/array_buffer_view.h"
 #include "cobalt/script/environment_settings.h"
@@ -35,6 +34,7 @@
 #include "cobalt/web/dom_exception.h"
 #include "cobalt/web/environment_settings.h"
 #include "cobalt/web/event_target.h"
+#include "cobalt/web/message_event.h"
 #include "cobalt/websocket/web_socket_impl.h"
 
 namespace cobalt {
@@ -201,7 +201,7 @@ class WebSocket : public web::EventTarget {
   // https://www.w3.org/TR/websockets/#dom-websocket-readystate
   uint16 ready_state_;
   // https://www.w3.org/TR/websockets/#dom-websocket-binarytype
-  dom::MessageEvent::ResponseTypeCode binary_type_;
+  web::MessageEvent::ResponseTypeCode binary_type_;
   // https://www.w3.org/TR/websockets/#dom-websocket-extensions
   std::string extensions_;
   // https://www.w3.org/TR/websockets/#dom-websocket-protocol

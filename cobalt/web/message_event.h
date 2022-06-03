@@ -13,8 +13,8 @@
  * limitations under the License.
  */
 
-#ifndef COBALT_DOM_MESSAGE_EVENT_H_
-#define COBALT_DOM_MESSAGE_EVENT_H_
+#ifndef COBALT_WEB_MESSAGE_EVENT_H_
+#define COBALT_WEB_MESSAGE_EVENT_H_
 
 #include <string>
 
@@ -26,10 +26,11 @@
 #include "cobalt/script/wrappable.h"
 #include "cobalt/web/blob.h"
 #include "cobalt/web/event.h"
+#include "cobalt/web/message_event_init.h"
 #include "net/base/io_buffer.h"
 
 namespace cobalt {
-namespace dom {
+namespace web {
 
 class MessageEvent : public web::Event {
  public:
@@ -40,6 +41,13 @@ class MessageEvent : public web::Event {
   // Keeping them in expected order will help make code faster.
   enum ResponseTypeCode { kText, kBlob, kArrayBuffer, kResponseTypeCodeMax };
 
+  explicit MessageEvent(const std::string& type) : Event(type) {}
+  MessageEvent(const std::string& type, const web::MessageEventInit& init_dict)
+      : Event(type, init_dict),
+        data_(new net::IOBufferWithSize(init_dict.data().size())) {
+    init_dict.data().copy(data_->data(), data_->size());
+  }
+
   MessageEvent(base::Token type, ResponseTypeCode response_type,
                const scoped_refptr<net::IOBufferWithSize>& data)
       : Event(type), response_type_(response_type), data_(data) {}
@@ -48,7 +56,7 @@ class MessageEvent : public web::Event {
   explicit MessageEvent(UninitializedFlag uninitialized_flag)
       : Event(uninitialized_flag) {}
 
-  ResponseType data(script::EnvironmentSettings* settings) const;
+  ResponseType data(script::EnvironmentSettings* settings = nullptr) const;
 
   // These helper functions are custom, and not in any spec.
   static std::string GetResponseTypeAsString(const ResponseTypeCode code);
@@ -58,11 +66,11 @@ class MessageEvent : public web::Event {
   DEFINE_WRAPPABLE_TYPE(MessageEvent)
 
  private:
-  ResponseTypeCode response_type_;
+  ResponseTypeCode response_type_ = kText;
   scoped_refptr<net::IOBufferWithSize> data_;
 };
 
-}  // namespace dom
+}  // namespace web
 }  // namespace cobalt
 
-#endif  // COBALT_DOM_MESSAGE_EVENT_H_
+#endif  // COBALT_WEB_MESSAGE_EVENT_H_

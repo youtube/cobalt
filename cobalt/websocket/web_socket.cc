@@ -153,9 +153,9 @@ bool AreSubProtocolsUnique(const std::vector<std::string>& sub_protocols) {
   return (all_protocols.size() == sub_protocols.size());
 }
 
-bool IsValidBinaryType(cobalt::dom::MessageEvent::ResponseTypeCode code) {
-  return (code == cobalt::dom::MessageEvent::kBlob) ||
-         (code == cobalt::dom::MessageEvent::kArrayBuffer);
+bool IsValidBinaryType(cobalt::web::MessageEvent::ResponseTypeCode code) {
+  return (code == cobalt::web::MessageEvent::kBlob) ||
+         (code == cobalt::web::MessageEvent::kArrayBuffer);
 }
 
 }  // namespace
@@ -197,7 +197,7 @@ std::string WebSocket::binary_type(script::ExceptionState* exception_state) {
     web::DOMException::Raise(web::DOMException::kNone, exception_state);
     return std::string();
   }
-  return dom::MessageEvent::GetResponseTypeAsString(binary_type_);
+  return web::MessageEvent::GetResponseTypeAsString(binary_type_);
 }
 
 // Implements spec at https://www.w3.org/TR/websockets/#dom-websocket.
@@ -220,8 +220,8 @@ void WebSocket::set_binary_type(const std::string& binary_type,
   // "arraybuffer", then set the IDL attribute to this new value.
   // Otherwise, throw a SyntaxError exception."
   base::StringPiece binary_type_string_piece(binary_type);
-  dom::MessageEvent::ResponseTypeCode response_code =
-      dom::MessageEvent::GetResponseTypeCode(binary_type_string_piece);
+  web::MessageEvent::ResponseTypeCode response_code =
+      web::MessageEvent::GetResponseTypeCode(binary_type_string_piece);
   if (!IsValidBinaryType(response_code)) {
     web::DOMException::Raise(web::DOMException::kSyntaxErr, exception_state);
   } else {
@@ -416,12 +416,12 @@ void WebSocket::OnDisconnected(bool was_clean, uint16 code,
 
 void WebSocket::OnReceivedData(bool is_text_frame,
                                scoped_refptr<net::IOBufferWithSize> data) {
-  dom::MessageEvent::ResponseTypeCode response_type_code = binary_type_;
+  web::MessageEvent::ResponseTypeCode response_type_code = binary_type_;
   if (is_text_frame) {
-    response_type_code = dom::MessageEvent::kText;
+    response_type_code = web::MessageEvent::kText;
   }
   this->DispatchEvent(
-      new dom::MessageEvent(base::Tokens::message(), response_type_code, data));
+      new web::MessageEvent(base::Tokens::message(), response_type_code, data));
 }
 
 void WebSocket::OnWriteDone(uint64_t bytes_written) {
@@ -434,7 +434,7 @@ void WebSocket::Initialize(script::EnvironmentSettings* settings,
                            script::ExceptionState* exception_state) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   buffered_amount_ = 0;
-  binary_type_ = dom::MessageEvent::kBlob;
+  binary_type_ = web::MessageEvent::kBlob;
   is_secure_ = false;
   port_ = -1;
   SetReadyState(kConnecting);

@@ -51,7 +51,6 @@
 #include "cobalt/dom/keyboard_event.h"
 #include "cobalt/dom/keyframes_map_updater.h"
 #include "cobalt/dom/location.h"
-#include "cobalt/dom/message_event.h"
 #include "cobalt/dom/mouse_event.h"
 #include "cobalt/dom/named_node_map.h"
 #include "cobalt/dom/node_descendants_iterator.h"
@@ -65,6 +64,7 @@
 #include "cobalt/web/csp_delegate_factory.h"
 #include "cobalt/web/custom_event.h"
 #include "cobalt/web/dom_exception.h"
+#include "cobalt/web/message_event.h"
 #include "nb/memory_scope.h"
 
 using cobalt::cssom::ViewportSize;
@@ -247,7 +247,7 @@ scoped_refptr<web::Event> Document::CreateEvent(
              base::strcasecmp(interface_name.c_str(), "keyevents") == 0) {
     return new KeyboardEvent(web::Event::Uninitialized);
   } else if (base::strcasecmp(interface_name.c_str(), "messageevent") == 0) {
-    return new MessageEvent(web::Event::Uninitialized);
+    return new web::MessageEvent(web::Event::Uninitialized);
   } else if (base::strcasecmp(interface_name.c_str(), "mouseevent") == 0 ||
              base::strcasecmp(interface_name.c_str(), "mouseevents") == 0) {
     return new MouseEvent(web::Event::Uninitialized);

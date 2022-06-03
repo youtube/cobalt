@@ -15,6 +15,9 @@
 
 // IDL source: https://html.spec.whatwg.org/multipage/comms.html#messageevent
 // Only the subset of the IDL that is necessary for Websockets is implemented.
-interface MessageEvent : Event {
+[
+  Exposed = (Window,Worker),
+  Constructor(DOMString type, optional MessageEventInit eventInitDict)
+] interface MessageEvent : Event {
   [CallWith = EnvironmentSettings] readonly attribute DOMString data;
 };

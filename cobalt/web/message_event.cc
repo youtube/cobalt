@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-#include "cobalt/dom/message_event.h"
+#include "cobalt/web/message_event.h"
 
 #include <string>
 #include <utility>
@@ -28,13 +28,13 @@ namespace {
 const char* const kResponseTypes[] = {"text", "blob", "arraybuffer"};
 
 COMPILE_ASSERT(arraysize(kResponseTypes) ==
-                   cobalt::dom::MessageEvent::kResponseTypeCodeMax,
+                   cobalt::web::MessageEvent::kResponseTypeCodeMax,
                enum_and_array_size_mismatch);
 
 }  // namespace
 
 namespace cobalt {
-namespace dom {
+namespace web {
 
 std::string MessageEvent::GetResponseTypeAsString(
     const MessageEvent::ResponseTypeCode code) {
@@ -65,11 +65,13 @@ MessageEvent::ResponseType MessageEvent::data(
   }
 
   auto* global_environment =
-      base::polymorphic_downcast<web::EnvironmentSettings*>(settings)
-          ->context()
-          ->global_environment();
+      settings ? base::polymorphic_downcast<web::EnvironmentSettings*>(settings)
+                     ->context()
+                     ->global_environment()
+               : nullptr;
   script::Handle<script::ArrayBuffer> response_buffer;
   if (response_type_ != kText) {
+    DCHECK(global_environment);
     auto buffer_copy =
         script::ArrayBuffer::New(global_environment, data_pointer, data_length);
     response_buffer = std::move(buffer_copy);
@@ -82,6 +84,7 @@ MessageEvent::ResponseType MessageEvent::data(
       return ResponseType(string_response);
     }
     case kBlob: {
+      DCHECK(settings);
       scoped_refptr<web::Blob> blob = new web::Blob(settings, response_buffer);
       return ResponseType(blob);
     }
@@ -96,5 +99,5 @@ MessageEvent::ResponseType MessageEvent::data(
   return ResponseType();
 }
 
-}  // namespace dom
+}  // namespace web
 }  // namespace cobalt

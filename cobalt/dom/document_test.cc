@@ -32,7 +32,6 @@
 #include "cobalt/dom/html_style_element.h"
 #include "cobalt/dom/keyboard_event.h"
 #include "cobalt/dom/location.h"
-#include "cobalt/dom/message_event.h"
 #include "cobalt/dom/mouse_event.h"
 #include "cobalt/dom/node_list.h"
 #include "cobalt/dom/testing/html_collection_testing.h"
@@ -42,6 +41,7 @@
 #include "cobalt/script/testing/mock_exception_state.h"
 #include "cobalt/web/custom_event.h"
 #include "cobalt/web/dom_exception.h"
+#include "cobalt/web/message_event.h"
 #include "cobalt/web/testing/gtest_workarounds.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -172,7 +172,7 @@ TEST_F(DocumentTest, CreateEventEvent) {
   EXPECT_FALSE(event->initialized_flag());
   EXPECT_FALSE(dynamic_cast<UIEvent*>(event.get()));
   EXPECT_FALSE(dynamic_cast<KeyboardEvent*>(event.get()));
-  EXPECT_FALSE(dynamic_cast<MessageEvent*>(event.get()));
+  EXPECT_FALSE(dynamic_cast<web::MessageEvent*>(event.get()));
   EXPECT_FALSE(dynamic_cast<MouseEvent*>(event.get()));
 
   event = document->CreateEvent("HtMlEvEnTs", &exception_state);
@@ -239,7 +239,7 @@ TEST_F(DocumentTest, CreateEventMessageEvent) {
       document->CreateEvent("MeSsAgEeVeNt", &exception_state);
   EXPECT_TRUE(event);
   EXPECT_FALSE(event->initialized_flag());
-  EXPECT_TRUE(base::polymorphic_downcast<MessageEvent*>(event.get()));
+  EXPECT_TRUE(base::polymorphic_downcast<web::MessageEvent*>(event.get()));
 }
 
 TEST_F(DocumentTest, CreateEventMouseEvent) {
