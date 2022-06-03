@@ -105,8 +105,8 @@ jobs:
       # Run build
       - name: ${{matrix.platform}}-${{matrix.config}}
         run: |
-          $GITHUB_WORKSPACE/cobalt/build/gyp_cobalt -v -C ${{ matrix.config }} ${{ matrix.platform }}
-          ninja -v -j 30 -C $GITHUB_WORKSPACE/out/${{ matrix.platform }}_${{ matrix.config }} eztime_test_deploy nplb_deploy app_launcher_zip
+          gn gen $GITHUB_WORKSPACE/out/${{ matrix.platform }}_${{ matrix.config }} --args="target_platform=\"${{ matrix.platform }}\" build_type=\"${{ matrix.config }}\" target_cpu=\"arm\" is_clang=false"
+          ninja -v -C $GITHUB_WORKSPACE/out/${{ matrix.platform }}_${{ matrix.config }} all
   
   # Evergreen jobs.
   evergreen:
