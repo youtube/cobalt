@@ -191,8 +191,6 @@ static_library("dom") {
     "media_source.h",
     "memory_info.cc",
     "memory_info.h",
-    "message_event.cc",
-    "message_event.h",
     "mime_type_array.cc",
     "mime_type_array.h",
     "mouse_event.cc",
