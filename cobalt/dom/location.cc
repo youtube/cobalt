@@ -17,6 +17,7 @@
 #include "base/bind.h"
 #include "base/compiler_specific.h"
 #include "base/logging.h"
+#include "cobalt/web/location_base.h"
 
 namespace cobalt {
 namespace dom {
@@ -26,27 +27,29 @@ Location::Location(const GURL& url, const base::Closure& hashchange_callback,
                    const csp::SecurityCallback& security_callback,
                    const base::Callback<void(NavigationType type)>&
                        set_navigation_type_callback)
-    : ALLOW_THIS_IN_INITIALIZER_LIST(url_utils_(
-          url, base::Bind(&Location::Replace, base::Unretained(this)))),
+    : web::LocationBase(url),
       hashchange_callback_(hashchange_callback),
       navigation_callback_(navigation_callback),
       security_callback_(security_callback),
-      set_navigation_type_callback_(set_navigation_type_callback) {}
+      set_navigation_type_callback_(set_navigation_type_callback) {
+  set_update_steps_callback(
+      base::Bind(&Location::Replace, base::Unretained(this)));
+}
 
 // Algorithm for Replace:
 //   https://www.w3.org/TR/html50/browsers.html#dom-location-replace
-void Location::Replace(const std::string& url) {
+void Location::Replace(const std::string& new_url_string) {
   // When the replace(url) method is invoked, the UA must resolve the argument,
   // relative to the API base URL specified by the entry settings object, and if
   // that is successful, navigate the browsing context to the specified url with
   // replacement enabled and exceptions enabled.
 
-  GURL new_url = url_utils_.url().Resolve(url);
+  GURL new_url = url().Resolve(new_url_string);
   if (!new_url.is_valid()) {
     DLOG(WARNING) << "New url is invalid, aborting the navigation.";
     return;
   }
-  const GURL& old_url = url_utils_.url();
+  const GURL& old_url = url();
 
   // The following codes correspond to navigating the browsing context in HTML5.
   //   https://www.w3.org/TR/html50/browsers.html#navigate
@@ -73,7 +76,7 @@ void Location::Replace(const std::string& url) {
   if (new_url.ReplaceComponents(replacements) ==
           old_url.ReplaceComponents(replacements) &&
       new_url.has_ref() && new_url.ref() != old_url.ref()) {
-    url_utils_.set_url(new_url);
+    set_url(new_url);
     if (!hashchange_callback_.is_null()) {
       hashchange_callback_.Run();
     }

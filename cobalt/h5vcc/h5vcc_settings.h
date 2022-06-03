@@ -17,11 +17,11 @@
 
 #include <string>
 
-#include "cobalt/dom/navigator_ua_data.h"
 #include "cobalt/media/media_module.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/wrappable.h"
+#include "cobalt/web/navigator_ua_data.h"
 
 #if SB_IS(EVERGREEN)
 #include "cobalt/updater/updater_module.h"
@@ -40,7 +40,7 @@ class H5vccSettings : public script::Wrappable {
 #if SB_IS(EVERGREEN)
                          cobalt::updater::UpdaterModule* updater_module,
 #endif
-                         dom::NavigatorUAData* user_agent_data,
+                         web::NavigatorUAData* user_agent_data,
                          script::GlobalEnvironment* global_environment);
 
   // Returns true when the setting is set successfully or if the setting has
@@ -56,7 +56,7 @@ class H5vccSettings : public script::Wrappable {
 #if SB_IS(EVERGREEN)
   cobalt::updater::UpdaterModule* updater_module_ = nullptr;
 #endif
-  dom::NavigatorUAData* user_agent_data_;
+  web::NavigatorUAData* user_agent_data_;
   script::GlobalEnvironment* global_environment_;
 
   DISALLOW_COPY_AND_ASSIGN(H5vccSettings);

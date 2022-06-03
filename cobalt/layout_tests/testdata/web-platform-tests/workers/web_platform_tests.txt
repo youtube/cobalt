@@ -70,6 +70,7 @@ postMessage_event_properties.htm, DISABLE
 postMessage_ports_readonly_array.htm, DISABLE
 postMessage_target_source.htm, DISABLE
 
+# b/229767497, b/229128880
 constructors/Worker/AbstractWorker.onerror.html, DISABLE
 constructors/Worker/Blob-url.html, DISABLE
 constructors/Worker/ctor-1.html, PASS
@@ -79,7 +80,7 @@ constructors/Worker/DedicatedWorkerGlobalScope-members.html, DISABLE
 constructors/Worker/no-arguments-ctor.html, PASS
 constructors/Worker/resolve-empty-string.html, PASS
 constructors/Worker/same-origin.html, DISABLE
-constructors/Worker/terminate.html, PASS
+constructors/Worker/terminate.html, DISABLE
 constructors/Worker/unexpected-self-properties.html, DISABLE
 constructors/Worker/unresolvable-url.html, DISABLE
 
@@ -108,6 +109,13 @@ interfaces/WorkerGlobalScope/onerror/not-handled.html, DISABLE
 interfaces/WorkerGlobalScope/onerror/propagate-to-window-onerror.html, DISABLE
 
 interfaces/WorkerGlobalScope/self.html, DISABLE
+
+# b/229767497, b/229128880
+interfaces/WorkerUtils/WindowTimers/001.html, PASS
+interfaces/WorkerUtils/WindowTimers/002.html, PASS
+interfaces/WorkerUtils/WindowTimers/003.html, DISABLE
+interfaces/WorkerUtils/WindowTimers/004.html, PASS
+interfaces/WorkerUtils/WindowTimers/005.html, DISABLE
 
 non-automated/application-cache-dedicated.html, DISABLE
 

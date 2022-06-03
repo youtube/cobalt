@@ -20,13 +20,13 @@
 #include "base/memory/ref_counted.h"
 #include "base/test/scoped_task_environment.h"
 #include "cobalt/base/polymorphic_downcast.h"
-#include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/testing/stub_environment_settings.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/script/script_exception.h"
 #include "cobalt/script/testing/mock_exception_state.h"
 #include "cobalt/web/context.h"
-#include "cobalt/web/stub_web_context.h"
+#include "cobalt/web/dom_exception.h"
+#include "cobalt/web/testing/stub_web_context.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 using ::testing::_;
@@ -44,7 +44,7 @@ class WebSocketTest : public ::testing::Test {
   }
 
  protected:
-  WebSocketTest() : web_context_(new web::test::StubWebContext()) {
+  WebSocketTest() : web_context_(new web::testing::StubWebContext()) {
     web_context_->set_network_module(new network::NetworkModule());
     web_context_->setup_environment_settings(
         new dom::testing::StubEnvironmentSettings());
@@ -54,7 +54,7 @@ class WebSocketTest : public ::testing::Test {
 
   base::test::ScopedTaskEnvironment env_;
 
-  std::unique_ptr<web::test::StubWebContext> web_context_;
+  std::unique_ptr<web::testing::StubWebContext> web_context_;
   StrictMock<MockExceptionState> exception_state_;
 };
 
@@ -70,9 +70,9 @@ TEST_F(WebSocketTest, BadOrigin) {
       new WebSocket(settings(), "ws://example.com", &exception_state_, false));
 
   ASSERT_TRUE(exception.get());
-  dom::DOMException& dom_exception(
-      *base::polymorphic_downcast<dom::DOMException*>(exception.get()));
-  EXPECT_EQ(dom::DOMException::kNone, dom_exception.code());
+  web::DOMException& dom_exception(
+      *base::polymorphic_downcast<web::DOMException*>(exception.get()));
+  EXPECT_EQ(web::DOMException::kNone, dom_exception.code());
   EXPECT_EQ(
       dom_exception.message(),
       "Internal error: base_url (the url of the entry script) must be valid.");
@@ -116,11 +116,11 @@ TEST_F(WebSocketTest, SyntaxErrorWhenBadScheme) {
   scoped_refptr<WebSocket> ws(new WebSocket(
       settings(), "badscheme://example.com", &exception_state_, false));
 
-  dom::DOMException& dom_exception(
-      *base::polymorphic_downcast<dom::DOMException*>(exception.get()));
+  web::DOMException& dom_exception(
+      *base::polymorphic_downcast<web::DOMException*>(exception.get()));
 
   ASSERT_TRUE(exception.get());
-  EXPECT_EQ(dom::DOMException::kSyntaxErr, dom_exception.code());
+  EXPECT_EQ(web::DOMException::kSyntaxErr, dom_exception.code());
   EXPECT_EQ(
       dom_exception.message(),
       "Invalid scheme [badscheme].  Only ws, and wss schemes are supported.");
@@ -159,10 +159,10 @@ TEST_F(WebSocketTest, SyntaxErrorWhenRelativeUrl) {
   scoped_refptr<WebSocket> ws(
       new WebSocket(settings(), "relative_url", &exception_state_, false));
 
-  dom::DOMException& dom_exception(
-      *base::polymorphic_downcast<dom::DOMException*>(exception.get()));
+  web::DOMException& dom_exception(
+      *base::polymorphic_downcast<web::DOMException*>(exception.get()));
   ASSERT_TRUE(exception.get());
-  EXPECT_EQ(dom::DOMException::kSyntaxErr, dom_exception.code());
+  EXPECT_EQ(web::DOMException::kSyntaxErr, dom_exception.code());
   EXPECT_EQ(dom_exception.message(),
             "Only relative URLs are supported.  [relative_url] is not an "
             "absolute URL.");
@@ -177,10 +177,10 @@ TEST_F(WebSocketTest, URLHasFragments) {
   scoped_refptr<WebSocket> ws(new WebSocket(
       settings(), "wss://example.com/#fragment", &exception_state_, false));
 
-  dom::DOMException& dom_exception(
-      *base::polymorphic_downcast<dom::DOMException*>(exception.get()));
+  web::DOMException& dom_exception(
+      *base::polymorphic_downcast<web::DOMException*>(exception.get()));
   ASSERT_TRUE(exception.get());
-  EXPECT_EQ(dom::DOMException::kSyntaxErr, dom_exception.code());
+  EXPECT_EQ(web::DOMException::kSyntaxErr, dom_exception.code());
   EXPECT_EQ(dom_exception.message(),
             "URL has a fragment 'fragment'.  Fragments are not are supported "
             "in websocket URLs.");
@@ -268,10 +268,10 @@ TEST_F(WebSocketTest, FailInsecurePort) {
   scoped_refptr<WebSocket> ws(new WebSocket(settings(), "ws://example.com:22",
                                             &exception_state_, false));
 
-  dom::DOMException& dom_exception(
-      *base::polymorphic_downcast<dom::DOMException*>(exception.get()));
+  web::DOMException& dom_exception(
+      *base::polymorphic_downcast<web::DOMException*>(exception.get()));
   ASSERT_TRUE(exception.get());
-  EXPECT_EQ(dom::DOMException::kSecurityErr, dom_exception.code());
+  EXPECT_EQ(web::DOMException::kSecurityErr, dom_exception.code());
   EXPECT_EQ(dom_exception.message(),
             "Connecting to port 22 using websockets is not allowed.");
 }
@@ -280,19 +280,19 @@ TEST_F(WebSocketTest, FailInvalidSubProtocols) {
   struct InvalidSubProtocolCase {
     const char* sub_protocol;
     bool exception_thrown;
-    dom::DOMException::ExceptionCode exception_code;
+    web::DOMException::ExceptionCode exception_code;
     const char* error_message;
   } invalid_subprotocol_cases[] = {
-      {"a,b", true, dom::DOMException::kSyntaxErr,
+      {"a,b", true, web::DOMException::kSyntaxErr,
        "Invalid subprotocol [a,b].  Subprotocols' characters must be in valid "
        "range and not have separating characters.  See RFC 2616 for details."},
-      {"a b", true, dom::DOMException::kSyntaxErr,
+      {"a b", true, web::DOMException::kSyntaxErr,
        "Invalid subprotocol [a b].  Subprotocols' characters must be in valid "
        "range and not have separating characters.  See RFC 2616 for details."},
-      {"? b", true, dom::DOMException::kSyntaxErr,
+      {"? b", true, web::DOMException::kSyntaxErr,
        "Invalid subprotocol [? b].  Subprotocols' characters must be in valid "
        "range and not have separating characters.  See RFC 2616 for details."},
-      {" b", true, dom::DOMException::kSyntaxErr,
+      {" b", true, web::DOMException::kSyntaxErr,
        "Invalid subprotocol [ b].  Subprotocols' characters must be in valid "
        "range and not have separating characters.  See RFC 2616 for details."},
   };
@@ -312,8 +312,8 @@ TEST_F(WebSocketTest, FailInvalidSubProtocols) {
                                               &exception_state_, false));
 
     if (test_case.exception_thrown) {
-      dom::DOMException& dom_exception(
-          *base::polymorphic_downcast<dom::DOMException*>(exception.get()));
+      web::DOMException& dom_exception(
+          *base::polymorphic_downcast<web::DOMException*>(exception.get()));
       ASSERT_TRUE(exception.get());
       EXPECT_EQ(dom_exception.code(), test_case.exception_code);
       EXPECT_EQ(dom_exception.message(), test_case.error_message);
@@ -357,10 +357,10 @@ TEST_F(WebSocketTest, DuplicatedSubProtocols) {
 
   ASSERT_TRUE(exception.get());
 
-  dom::DOMException& dom_exception(
-      *base::polymorphic_downcast<dom::DOMException*>(exception.get()));
+  web::DOMException& dom_exception(
+      *base::polymorphic_downcast<web::DOMException*>(exception.get()));
   ASSERT_TRUE(exception.get());
-  EXPECT_EQ(dom_exception.code(), dom::DOMException::kSyntaxErr);
+  EXPECT_EQ(dom_exception.code(), web::DOMException::kSyntaxErr);
   EXPECT_EQ(dom_exception.message(), "Subprotocol values must be unique.");
 }
 

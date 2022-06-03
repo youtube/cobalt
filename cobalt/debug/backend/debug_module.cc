@@ -89,7 +89,7 @@ DebugModule::DebugModule(DebuggerHooksImpl* debugger_hooks,
 }
 
 DebugModule::~DebugModule() {
-  debugger_hooks_->DetachDebugger();
+  if (debugger_hooks_) debugger_hooks_->DetachDebugger();
   if (!is_frozen_) {
     // Shutting down without navigating. Give everything a chance to cleanup by
     // freezing, but throw away the state.
@@ -117,16 +117,13 @@ void DebugModule::Build(const ConstructionData& data) {
 void DebugModule::BuildInternal(const ConstructionData& data) {
   DCHECK(base::MessageLoop::current() == data.message_loop);
   DCHECK(data.global_environment);
-  DCHECK(data.render_overlay);
-  DCHECK(data.resource_provider);
-  DCHECK(data.window);
 
   // Create the backend objects supporting the debugger agents.
   script_debugger_ =
       script::ScriptDebugger::CreateDebugger(data.global_environment, this);
-  script_runner_.reset(
-      new DebugScriptRunner(data.global_environment, script_debugger_.get(),
-                            data.window->document()->csp_delegate()));
+  script_runner_.reset(new DebugScriptRunner(
+      data.global_environment, script_debugger_.get(),
+      data.window ? data.window->document()->csp_delegate() : nullptr));
   debug_dispatcher_.reset(
       new DebugDispatcher(script_debugger_.get(), script_runner_.get()));
   debug_backend_ = WrapRefCounted(new DebugBackend(
@@ -134,16 +131,8 @@ void DebugModule::BuildInternal(const ConstructionData& data) {
       base::Bind(&DebugModule::SendEvent, base::Unretained(this))));
 
   debugger_hooks_ = data.debugger_hooks;
-  debugger_hooks_->AttachDebugger(script_debugger_.get());
+  if (debugger_hooks_) debugger_hooks_->AttachDebugger(script_debugger_.get());
 
-  // Create render layers for the agents that need them and chain them
-  // together. Ownership will be passed to the agent that uses each layer.
-  // The layers will be painted in the reverse order they are listed here.
-  std::unique_ptr<RenderLayer> page_render_layer(new RenderLayer(base::Bind(
-      &RenderOverlay::SetOverlay, base::Unretained(data.render_overlay))));
-
-  std::unique_ptr<RenderLayer> overlay_render_layer(new RenderLayer(
-      base::Bind(&RenderLayer::SetBackLayer, page_render_layer->AsWeakPtr())));
 
   // Create the agents that implement the various devtools protocol domains by
   // handling commands and sending event notifications. The script debugger
@@ -154,11 +143,22 @@ void DebugModule::BuildInternal(const ConstructionData& data) {
   log_agent_.reset(new LogAgent(debug_dispatcher_.get()));
   dom_agent_.reset(new DOMAgent(debug_dispatcher_.get()));
   css_agent_ = WrapRefCounted(new CSSAgent(debug_dispatcher_.get()));
-  overlay_agent_.reset(new OverlayAgent(debug_dispatcher_.get(),
-                                        std::move(overlay_render_layer)));
-  page_agent_.reset(new PageAgent(debug_dispatcher_.get(), data.window,
-                                  std::move(page_render_layer),
-                                  data.resource_provider));
+  if (data.render_overlay && data.resource_provider && data.window) {
+    // Create render layers for the agents that need them and chain them
+    // together. Ownership will be passed to the agent that uses each layer.
+    // The layers will be painted in the reverse order they are listed here.
+    std::unique_ptr<RenderLayer> page_render_layer(new RenderLayer(base::Bind(
+        &RenderOverlay::SetOverlay, base::Unretained(data.render_overlay))));
+
+    std::unique_ptr<RenderLayer> overlay_render_layer(
+        new RenderLayer(base::Bind(&RenderLayer::SetBackLayer,
+                                   page_render_layer->AsWeakPtr())));
+    overlay_agent_.reset(new OverlayAgent(debug_dispatcher_.get(),
+                                          std::move(overlay_render_layer)));
+    page_agent_.reset(new PageAgent(debug_dispatcher_.get(), data.window,
+                                    std::move(page_render_layer),
+                                    data.resource_provider));
+  }
   tracing_agent_.reset(
       new TracingAgent(debug_dispatcher_.get(), script_debugger_.get()));
 
@@ -183,8 +183,10 @@ void DebugModule::BuildInternal(const ConstructionData& data) {
   log_agent_->Thaw(RemoveAgentState(kLogAgent, agents_state));
   dom_agent_->Thaw(RemoveAgentState(kDomAgent, agents_state));
   css_agent_->Thaw(RemoveAgentState(kCssAgent, agents_state));
-  overlay_agent_->Thaw(RemoveAgentState(kOverlayAgent, agents_state));
-  page_agent_->Thaw(RemoveAgentState(kPageAgent, agents_state));
+  if (overlay_agent_)
+    overlay_agent_->Thaw(RemoveAgentState(kOverlayAgent, agents_state));
+  if (page_agent_)
+    page_agent_->Thaw(RemoveAgentState(kPageAgent, agents_state));
   tracing_agent_->Thaw(RemoveAgentState(kTracingAgent, agents_state));
 
   is_frozen_ = false;
@@ -203,8 +205,10 @@ std::unique_ptr<DebuggerState> DebugModule::Freeze() {
   StoreAgentState(agents_state, kLogAgent, log_agent_->Freeze());
   StoreAgentState(agents_state, kDomAgent, dom_agent_->Freeze());
   StoreAgentState(agents_state, kCssAgent, css_agent_->Freeze());
-  StoreAgentState(agents_state, kOverlayAgent, overlay_agent_->Freeze());
-  StoreAgentState(agents_state, kPageAgent, page_agent_->Freeze());
+  if (overlay_agent_)
+    StoreAgentState(agents_state, kOverlayAgent, overlay_agent_->Freeze());
+  if (page_agent_)
+    StoreAgentState(agents_state, kPageAgent, page_agent_->Freeze());
   StoreAgentState(agents_state, kTracingAgent, tracing_agent_->Freeze());
 
   // Take the clients from the dispatcher last so they still get events that the

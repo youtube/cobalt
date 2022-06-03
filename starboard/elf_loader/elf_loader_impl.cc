@@ -17,8 +17,10 @@
 #include <string>
 
 #include "starboard/common/log.h"
+#include "starboard/common/scoped_ptr.h"
 #include "starboard/elf_loader/elf.h"
 #include "starboard/elf_loader/elf_loader_constants.h"
+#include "starboard/elf_loader/file.h"
 #include "starboard/elf_loader/file_impl.h"
 #include "starboard/elf_loader/log.h"
 #include "starboard/elf_loader/lz4_file_impl.h"
@@ -54,17 +56,19 @@ bool ElfLoaderImpl::Load(const char* name,
                   << " Compression is not supported with memory mapped files.";
     return false;
   }
+
+  scoped_ptr<File> elf_file;
   if (use_compression && EndsWith(name, kCompressionSuffix)) {
-    elf_file_.reset(new LZ4FileImpl());
+    elf_file.reset(new LZ4FileImpl());
     SB_LOG(INFO) << "Loading " << name << " using compression";
   } else {
     SB_LOG(INFO) << "Loading " << name;
-    elf_file_.reset(new FileImpl());
+    elf_file.reset(new FileImpl());
   }
-  elf_file_->Open(name);
+  elf_file->Open(name);
 
   elf_header_loader_.reset(new ElfHeader());
-  if (!elf_header_loader_->LoadElfHeader(elf_file_.get())) {
+  if (!elf_header_loader_->LoadElfHeader(elf_file.get())) {
     SB_LOG(ERROR) << "Failed to load ELF header";
     return false;
   }
@@ -89,7 +93,7 @@ bool ElfLoaderImpl::Load(const char* name,
   }
 
   program_table_->LoadProgramHeader(elf_header_loader_->GetHeader(),
-                                    elf_file_.get());
+                                    elf_file.get());
 
   SB_DLOG(INFO) << "Loaded Program header";
 
@@ -100,7 +104,7 @@ bool ElfLoaderImpl::Load(const char* name,
 
   SB_DLOG(INFO) << "Reserved address space";
 
-  if (!program_table_->LoadSegments(elf_file_.get())) {
+  if (!program_table_->LoadSegments(elf_file.get())) {
     SB_LOG(ERROR) << "Failed to load segments";
     return false;
   }

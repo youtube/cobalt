@@ -86,7 +86,7 @@ StarboardSpeechRecognizer::StarboardSpeechRecognizer(
   speech_recognizer_ = SbSpeechRecognizerCreate(&handler);
 
   if (!SbSpeechRecognizerIsValid(speech_recognizer_)) {
-    scoped_refptr<dom::Event> error_event(new SpeechRecognitionError(
+    scoped_refptr<web::Event> error_event(new SpeechRecognitionError(
         kSpeechRecognitionErrorCodeServiceNotAllowed, ""));
     RunEventCallback(error_event);
   }
@@ -117,14 +117,14 @@ void StarboardSpeechRecognizer::Stop() {
 }
 
 void StarboardSpeechRecognizer::OnRecognizerSpeechDetected(bool detected) {
-  scoped_refptr<dom::Event> event(new dom::Event(
+  scoped_refptr<web::Event> event(new web::Event(
       detected ? base::Tokens::soundstart() : base::Tokens::soundend()));
   RunEventCallback(event);
 }
 
 void StarboardSpeechRecognizer::OnRecognizerError(
     SbSpeechRecognizerError error) {
-  scoped_refptr<dom::Event> error_event;
+  scoped_refptr<web::Event> error_event;
   switch (error) {
     case kSbNoSpeechError:
       error_event =

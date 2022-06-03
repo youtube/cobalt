@@ -256,10 +256,14 @@ typedef enum SbMediaMatrixId {
   kSbMediaMatrixIdYDzDx = 11,
 
   kSbMediaMatrixIdLastStandardValue = kSbMediaMatrixIdYDzDx,
-
-  // Chrome-specific values start at 1000
+#if SB_API_VERSION >= 14
+  kSbMediaMatrixIdInvalid = 255,
+  kSbMediaMatrixIdLast = kSbMediaMatrixIdInvalid,
+#else   // SB_API_VERSION >= 14
   kSbMediaMatrixIdUnknown = 1000,
   kSbMediaMatrixIdLast = kSbMediaMatrixIdUnknown,
+#endif  // SB_API_VERSION >= 14
+
 } SbMediaMatrixId;
 
 // This corresponds to the WebM Range enum which is part of WebM color data (see
@@ -585,8 +589,12 @@ typedef enum SbMediaBufferStorageType {
 // The media buffer will be allocated using the returned alignment.  Set this to
 // a larger value may increase the memory consumption of media buffers.
 //
+#if SB_API_VERSION >= 14
+SB_EXPORT int SbMediaGetBufferAlignment();
+#else   // SB_API_VERSION >= 14
 // |type|: the media type of the stream (audio or video).
 SB_EXPORT int SbMediaGetBufferAlignment(SbMediaType type);
+#endif  // SB_API_VERSION >= 14
 
 // When the media stack needs more memory to store media buffers, it will
 // allocate extra memory in units returned by SbMediaGetBufferAllocationUnit.
@@ -621,6 +629,11 @@ SB_EXPORT int SbMediaGetInitialBufferCapacity();
 
 // The maximum amount of memory that will be used to store media buffers. This
 // must be larger than sum of the video budget and audio budget.
+// This is a soft limit and the app will continue to allocate media buffers even
+// if the accumulated memory used by the media buffers exceeds the maximum
+// buffer capacity.  The allocation of media buffers may only fail when there is
+// not enough memory in the system to fulfill the request, under which case the
+// app will be terminated as under other OOM situations.
 //
 // |codec|: the video codec associated with the buffer.
 // |resolution_width|: the width of the video resolution.
@@ -636,8 +649,12 @@ SB_EXPORT int SbMediaGetMaxBufferCapacity(SbMediaVideoCodec codec,
 // can be use optimally by specific instructions like SIMD.  Set to 0 to remove
 // any padding.
 //
+#if SB_API_VERSION >= 14
+SB_EXPORT int SbMediaGetBufferPadding();
+#else   // SB_API_VERSION >= 14
 // |type|: the media type of the stream (audio or video).
 SB_EXPORT int SbMediaGetBufferPadding(SbMediaType type);
+#endif  // SB_API_VERSION >= 14
 
 // When either SbMediaGetInitialBufferCapacity or SbMediaGetBufferAllocationUnit
 // isn't zero, media buffers will be allocated using a memory pool.  Set the

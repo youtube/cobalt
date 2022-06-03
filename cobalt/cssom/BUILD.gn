@@ -248,11 +248,11 @@ static_library("cssom") {
   deps = [
     ":cssom_embed_resources_as_header_files",
     "//cobalt/base",
-    "//cobalt/dom:dom_exception",
     "//cobalt/math",
     "//cobalt/network",
     "//cobalt/script",
     "//cobalt/ui_navigation",
+    "//cobalt/web:dom_exception",
     "//url",
   ]
 }

@@ -19,9 +19,9 @@
 
 #include "cobalt/base/token.h"
 #include "cobalt/dom/audio_track.h"
-#include "cobalt/dom/event.h"
 #include "cobalt/dom/video_track.h"
 #include "cobalt/script/wrappable.h"
+#include "cobalt/web/event.h"
 
 namespace cobalt {
 namespace dom {
@@ -29,7 +29,7 @@ namespace dom {
 // The TrackEvent provides specific contextual information associated with
 // events fired on AudioTrack, VideoTrack, and TextTrack objects.
 //   https://www.w3.org/TR/html51/semantics-embedded-content.html#trackevent-trackevent
-class TrackEvent : public Event {
+class TrackEvent : public web::Event {
  public:
   // Custom, not in any spec.
   //

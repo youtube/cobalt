@@ -112,7 +112,7 @@ class AdbAmMonitorWatcher(object):
 
   def _Run(self):
     while True:
-      line = CleanLine(self.process.stdout.readline())
+      line = CleanLine(self.process.stdout.readline().decode())
       if not line:
         return
       # Show the crash lines reported by "am monitor".
@@ -187,7 +187,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
     names = []
     for device in result:
-      name_info = device.split('\t')
+      name_info = device.decode().split('\t')
       # Some devices may not have authorization for USB debugging.
       try:
         if 'unauthorized' not in name_info[1]:
@@ -280,8 +280,8 @@ class Launcher(abstract_launcher.AbstractLauncher):
     # TODO: Need to wait until cobalt fully shutdown. Otherwise, it may get
     # dirty logs from previous test, and logs like "***Application Stopped***"
     # will cause unexpected errors.
-    # Simply wait 2s as a temporary solution.
-    time.sleep(2)
+    # Simply wait 5s as a temporary solution.
+    time.sleep(5)
     # Clear logcat
     self._CheckCallAdb('logcat', '-c')
 
@@ -355,7 +355,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
         # Note we cannot use "for line in logcat_process.stdout" because
         # that uses a large buffer which will cause us to deadlock.
-        line = CleanLine(logcat_process.stdout.readline())
+        line = CleanLine(logcat_process.stdout.readline().decode())
 
         # Some crashes are not caught by the am_monitor thread, but they do
         # produce the following string in logcat before they exit.
@@ -439,7 +439,8 @@ class Launcher(abstract_launcher.AbstractLauncher):
         'forward', 'tcp:0', 'tcp:{}'.format(port), stdout=subprocess.PIPE)
     forward_p.wait()
 
-    self.local_port = CleanLine(forward_p.stdout.readline()).rstrip('\n')
+    self.local_port = CleanLine(
+        forward_p.stdout.readline().decode()).rstrip('\n')
     sys.stderr.write('ADB forward local port {} '
                      '=> device port {}\n'.format(self.local_port, port))
     # pylint: disable=g-socket-gethostbyname

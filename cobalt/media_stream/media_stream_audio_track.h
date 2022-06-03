@@ -18,7 +18,6 @@
 #include "base/callback.h"
 #include "base/strings/string_piece.h"
 #include "base/threading/thread_checker.h"
-#include "cobalt/dom/event_target.h"
 #include "cobalt/media/base/audio_bus.h"
 #include "cobalt/media_stream/audio_parameters.h"
 #include "cobalt/media_stream/media_stream_audio_deliverer.h"
@@ -26,6 +25,7 @@
 #include "cobalt/media_stream/media_stream_track.h"
 #include "cobalt/media_stream/media_track_settings.h"
 #include "cobalt/script/environment_settings.h"
+#include "cobalt/web/event_target.h"
 
 namespace cobalt {
 

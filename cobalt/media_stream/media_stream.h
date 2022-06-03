@@ -15,27 +15,29 @@
 #ifndef COBALT_MEDIA_STREAM_MEDIA_STREAM_H_
 #define COBALT_MEDIA_STREAM_MEDIA_STREAM_H_
 
+#include <utility>
+
 #include "base/memory/ref_counted.h"
-#include "cobalt/dom/event_target.h"
 #include "cobalt/media_stream/media_stream_track.h"
 #include "cobalt/script/sequence.h"
 #include "cobalt/script/wrappable.h"
+#include "cobalt/web/event_target.h"
 
 namespace cobalt {
 namespace media_stream {
 
 // This class represents a MediaStream, and implements the specification at:
 // https://www.w3.org/TR/mediacapture-streams/#dom-mediastream
-class MediaStream : public dom::EventTarget {
+class MediaStream : public web::EventTarget {
  public:
   using TrackSequences = script::Sequence<scoped_refptr<MediaStreamTrack>>;
 
   // Constructors.
   explicit MediaStream(script::EnvironmentSettings* settings)
-      : dom::EventTarget(settings) {}
+      : web::EventTarget(settings) {}
 
   MediaStream(script::EnvironmentSettings* settings, TrackSequences tracks)
-      : dom::EventTarget(settings), tracks_(std::move(tracks)) {}
+      : web::EventTarget(settings), tracks_(std::move(tracks)) {}
 
   // Functions.
   script::Sequence<scoped_refptr<MediaStreamTrack>>& GetAudioTracks() {
@@ -47,7 +49,7 @@ class MediaStream : public dom::EventTarget {
   }
 
   void TraceMembers(script::Tracer* tracer) override {
-    EventTarget::TraceMembers(tracer);
+    web::EventTarget::TraceMembers(tracer);
     tracer->TraceItems(tracks_);
   }
 

@@ -19,14 +19,14 @@
 
 #include "cobalt/base/token.h"
 #include "cobalt/cssom/property_definitions.h"
-#include "cobalt/dom/event.h"
+#include "cobalt/web/event.h"
 
 namespace cobalt {
 namespace dom {
 
 // The completion of a CSS Animation generates a corresponding DOM Event.
 //   https://www.w3.org/TR/2013/WD-css3-animations-20130219/#animation-events
-class AnimationEvent : public Event {
+class AnimationEvent : public web::Event {
  public:
   explicit AnimationEvent(const std::string& type)
       : Event(base::Token(type), kBubbles, kNotCancelable),

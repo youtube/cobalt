@@ -16,8 +16,8 @@
 
 #include "base/strings/string_util.h"
 #include "cobalt/base/polymorphic_downcast.h"
-#include "cobalt/dom/blob.h"
 #include "cobalt/script/environment_settings.h"
+#include "cobalt/web/blob.h"
 #include "cobalt/web/context.h"
 #include "cobalt/web/environment_settings.h"
 #include "url/gurl.h"
@@ -74,7 +74,7 @@ std::string FetchInternal::DecodeFromUTF8(
 // static
 script::Handle<script::ArrayBuffer> FetchInternal::BlobToArrayBuffer(
     script::EnvironmentSettings* settings,
-    const scoped_refptr<dom::Blob>& blob) {
+    const scoped_refptr<web::Blob>& blob) {
   // Create a copy of the data so that the caller cannot modify the Blob.
   return script::ArrayBuffer::New(
       base::polymorphic_downcast<web::EnvironmentSettings*>(settings)

@@ -3,6 +3,7 @@ description:
   "libde265 is an h.265 video codec library; it adds HEVC support to Cobalt. "
   "This directory contains the necessary header files; the include files come "
   "from the installed package."
+
 third_party {
   url {
     type: GIT

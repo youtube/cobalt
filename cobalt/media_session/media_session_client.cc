@@ -20,13 +20,14 @@
 #include <string>
 
 #include "base/logging.h"
+#include "cobalt/media_session/media_image.h"
 #include "cobalt/script/sequence.h"
 #include "starboard/time.h"
 
-using MediaImageSequence = ::cobalt::script::Sequence<MediaImage>;
-
 namespace cobalt {
 namespace media_session {
+
+using MediaImageSequence = ::cobalt::script::Sequence<MediaImage>;
 
 namespace {
 

@@ -16,7 +16,7 @@
 import logging
 
 from cobalt.media_integration_tests.test_case import TestCase
-from cobalt.media_integration_tests.test_util import MimeStrings, PlaybackUrls
+from cobalt.media_integration_tests.test_util import PlaybackUrls
 
 
 class GeneralPlaybackTest(TestCase):
@@ -40,18 +40,19 @@ class GeneralPlaybackTest(TestCase):
 
 TEST_PARAMETERS = [
     ('H264', PlaybackUrls.H264_ONLY, None),
-    ('PROGRESSIVE', PlaybackUrls.PROGRESSIVE, None),
-    ('ENCRYPTED', PlaybackUrls.ENCRYPTED, None),
-    ('VR', PlaybackUrls.VR, None),
-    ('VP9', PlaybackUrls.VP9, MimeStrings.VP9),
-    ('VP9_HFR', PlaybackUrls.VP9_HFR, MimeStrings.VP9_HFR),
-    ('AV1', PlaybackUrls.AV1, MimeStrings.AV1),
-    ('AV1_HFR', PlaybackUrls.AV1_HFR, MimeStrings.AV1_HFR),
-    ('VERTICAL', PlaybackUrls.VERTICAL, None),
-    ('SHORT', PlaybackUrls.SHORT, None),
-    ('VP9_HDR_HLG', PlaybackUrls.VP9_HDR_HLG, MimeStrings.VP9_HDR_HLG),
-    ('VP9_HDR_PQ', PlaybackUrls.VP9_HDR_PQ, MimeStrings.VP9_HDR_PQ),
-    ('HDR_PQ_HFR', PlaybackUrls.HDR_PQ_HFR, MimeStrings.VP9_HDR_PQ_HFR),
+    # TODO(b/223856877) -- renable these when tests are stable.
+    #('PROGRESSIVE', PlaybackUrls.PROGRESSIVE, None),
+    #('ENCRYPTED', PlaybackUrls.ENCRYPTED, None),
+    #('VR', PlaybackUrls.VR, None),
+    #('VP9', PlaybackUrls.VP9, MimeStrings.VP9),
+    #('VP9_HFR', PlaybackUrls.VP9_HFR, MimeStrings.VP9_HFR),
+    #('AV1', PlaybackUrls.AV1, MimeStrings.AV1),
+    #('AV1_HFR', PlaybackUrls.AV1_HFR, MimeStrings.AV1_HFR),
+    #('VERTICAL', PlaybackUrls.VERTICAL, None),
+    #('SHORT', PlaybackUrls.SHORT, None),
+    #('VP9_HDR_HLG', PlaybackUrls.VP9_HDR_HLG, MimeStrings.VP9_HDR_HLG),
+    #('VP9_HDR_PQ', PlaybackUrls.VP9_HDR_PQ, MimeStrings.VP9_HDR_PQ),
+    #('HDR_PQ_HFR', PlaybackUrls.HDR_PQ_HFR, MimeStrings.VP9_HDR_PQ_HFR),
 ]
 
 for name, playback_url, mime_str in TEST_PARAMETERS:

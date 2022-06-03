@@ -22,12 +22,12 @@
 #include "base/message_loop/message_loop.h"
 #include "base/optional.h"
 #include "base/single_thread_task_runner.h"
-#include "cobalt/dom/dom_exception.h"
 #include "cobalt/extension/platform_service.h"
 #include "cobalt/script/array_buffer.h"
 #include "cobalt/script/callback_function.h"
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/wrappable.h"
+#include "cobalt/web/dom_exception.h"
 
 namespace cobalt {
 namespace h5vcc {

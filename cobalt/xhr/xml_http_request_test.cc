@@ -17,17 +17,18 @@
 #include <memory>
 
 #include "base/logging.h"
-#include "cobalt/dom/dom_exception.h"
-#include "cobalt/dom/testing/mock_event_listener.h"
 #include "cobalt/dom/testing/stub_environment_settings.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/script/testing/fake_script_value.h"
 #include "cobalt/script/testing/mock_exception_state.h"
+#include "cobalt/web/dom_exception.h"
+#include "cobalt/web/event_listener.h"
+#include "cobalt/web/testing/mock_event_listener.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
 
-using cobalt::dom::EventListener;
-using cobalt::dom::testing::MockEventListener;
+using cobalt::web::EventListener;
+using cobalt::web::testing::MockEventListener;
 using cobalt::script::testing::FakeScriptValue;
 using cobalt::script::testing::MockExceptionState;
 using ::testing::_;
@@ -94,11 +95,11 @@ class FakeSettings : public dom::testing::StubEnvironmentSettings {
   FakeSettings() { set_base_url(GURL("http://example.com")); }
 };
 
-class MockCspDelegate : public dom::CspDelegateInsecure {
+class MockCspDelegate : public web::CspDelegateInsecure {
  public:
   MockCspDelegate() {}
   MOCK_CONST_METHOD3(CanLoad,
-                     bool(dom::CspDelegate::ResourceType, const GURL&, bool));
+                     bool(web::CspDelegate::ResourceType, const GURL&, bool));
 };
 
 // Derive from XMLHttpRequest in order to override its csp_delegate.
@@ -106,12 +107,12 @@ class MockCspDelegate : public dom::CspDelegateInsecure {
 class FakeXmlHttpRequest : public XMLHttpRequest {
  public:
   FakeXmlHttpRequest(script::EnvironmentSettings* settings,
-                     dom::CspDelegate* csp_delegate)
+                     web::CspDelegate* csp_delegate)
       : XMLHttpRequest(settings), csp_delegate_(csp_delegate) {}
-  dom::CspDelegate* csp_delegate() const override { return csp_delegate_; }
+  web::CspDelegate* csp_delegate() const override { return csp_delegate_; }
 
  private:
-  dom::CspDelegate* csp_delegate_;
+  web::CspDelegate* csp_delegate_;
 };
 
 }  // namespace
@@ -139,17 +140,17 @@ TEST_F(XhrTest, InvalidMethod) {
   EXPECT_CALL(exception_state_, SetException(_))
       .WillOnce(SaveArg<0>(&exception));
   xhr_->Open("INVALID_METHOD", "fake_url", &exception_state_);
-  EXPECT_EQ(dom::DOMException::kSyntaxErr,
-            dynamic_cast<dom::DOMException*>(exception.get())->code());
+  EXPECT_EQ(web::DOMException::kSyntaxErr,
+            dynamic_cast<web::DOMException*>(exception.get())->code());
 }
 
 TEST_F(XhrTest, Open) {
   std::unique_ptr<MockEventListener> listener = MockEventListener::Create();
-  FakeScriptValue<EventListener> script_object(listener.get());
+  FakeScriptValue<web::EventListener> script_object(listener.get());
   xhr_->set_onreadystatechange(script_object);
   EXPECT_CALL(*listener,
               HandleEvent(Eq(xhr_),
-                          Pointee(Property(&dom::Event::type,
+                          Pointee(Property(&web::Event::type,
                                            base::Token("readystatechange"))),
                           _))
       .Times(1);
@@ -171,8 +172,8 @@ TEST_F(XhrTest, OpenFailConnectSrc) {
   EXPECT_CALL(csp_delegate, CanLoad(_, _, _)).WillOnce(Return(false));
   xhr_->Open("GET", "https://www.google.com", &exception_state_);
 
-  EXPECT_EQ(dom::DOMException::kSecurityErr,
-            dynamic_cast<dom::DOMException*>(exception.get())->code());
+  EXPECT_EQ(web::DOMException::kSecurityErr,
+            dynamic_cast<web::DOMException*>(exception.get())->code());
   EXPECT_EQ(XMLHttpRequest::kUnsent, xhr_->ready_state());
 }
 
@@ -184,8 +185,8 @@ TEST_F(XhrTest, OverrideMimeType) {
 
   xhr_->OverrideMimeType("invalidmimetype", &exception_state_);
   EXPECT_EQ("", xhr_->mime_type_override());
-  EXPECT_EQ(dom::DOMException::kSyntaxErr,
-            dynamic_cast<dom::DOMException*>(exception.get())->code());
+  EXPECT_EQ(web::DOMException::kSyntaxErr,
+            dynamic_cast<web::DOMException*>(exception.get())->code());
 
   xhr_->OverrideMimeType("text/xml", &exception_state_);
   EXPECT_EQ("text/xml", xhr_->mime_type_override());
@@ -208,8 +209,8 @@ TEST_F(XhrTest, SetRequestHeaderBeforeOpen) {
   EXPECT_CALL(exception_state_, SetException(_))
       .WillOnce(SaveArg<0>(&exception));
   xhr_->SetRequestHeader("Foo", "bar", &exception_state_);
-  EXPECT_EQ(dom::DOMException::kInvalidStateErr,
-            dynamic_cast<dom::DOMException*>(exception.get())->code());
+  EXPECT_EQ(web::DOMException::kInvalidStateErr,
+            dynamic_cast<web::DOMException*>(exception.get())->code());
 }
 
 TEST_F(XhrTest, SetRequestHeader) {

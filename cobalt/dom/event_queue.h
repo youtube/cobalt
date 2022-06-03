@@ -20,8 +20,8 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
 #include "base/message_loop/message_loop.h"
-#include "cobalt/dom/event.h"
-#include "cobalt/dom/event_target.h"
+#include "cobalt/web/event.h"
+#include "cobalt/web/event_target.h"
 
 namespace cobalt {
 namespace dom {
@@ -41,17 +41,17 @@ class EventQueue : public base::SupportsWeakPtr<EventQueue>,
  public:
   // The EventTarget is guaranteed to be valid during the life time and should
   // usually be the owner.
-  explicit EventQueue(EventTarget* event_target);
-  void Enqueue(const scoped_refptr<Event>& event);
+  explicit EventQueue(web::EventTarget* event_target);
+  void Enqueue(const scoped_refptr<web::Event>& event);
   void CancelAllEvents();
 
   void TraceMembers(script::Tracer* tracer) override;
 
  private:
-  typedef std::vector<scoped_refptr<Event> > Events;
+  typedef std::vector<scoped_refptr<web::Event> > Events;
   void DispatchEvents();
 
-  EventTarget* event_target_;
+  web::EventTarget* event_target_;
   scoped_refptr<base::SingleThreadTaskRunner> message_loop_;
   Events events_;
   // Events that are currently being fired. We need this as local variable for

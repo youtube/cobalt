@@ -23,8 +23,8 @@
 #include "cobalt/base/c_val.h"
 #include "cobalt/base/stop_watch.h"
 #include "cobalt/dom/dom_stat_tracker.h"
-#include "cobalt/dom/event.h"
 #include "cobalt/layout/layout_stat_tracker.h"
+#include "cobalt/web/event.h"
 
 namespace cobalt {
 namespace browser {
@@ -46,12 +46,12 @@ class WebModuleStatTracker : public base::StopWatchOwner {
 
   // |OnStartDispatchEvent| starts event stat tracking if
   // |should_track_dispatched_events_| is true. Otherwise, it does nothing.
-  void OnStartDispatchEvent(const scoped_refptr<dom::Event>& event);
+  void OnStartDispatchEvent(const scoped_refptr<web::Event>& event);
 
   // |OnStopDispatchEvent| notifies the event stat tracking that |event| has
   // finished being dispatched. If this is the event currently being tracked
   // and nothing is pending, then it also ends tracking of the event.
-  void OnStopDispatchEvent(const scoped_refptr<dom::Event>& event,
+  void OnStopDispatchEvent(const scoped_refptr<web::Event>& event,
                            bool are_animation_frame_callbacks_pending,
                            bool is_new_render_tree_pending);
 
@@ -157,7 +157,7 @@ class WebModuleStatTracker : public base::StopWatchOwner {
   EventType current_event_type_;
   // Raw pointer to the current event. This is used to verify that the event in
   // |OnStopDispatchEvent| is the dispatched event being tracked.
-  dom::Event* current_event_dispatched_event_;
+  web::Event* current_event_dispatched_event_;
   base::TimeTicks current_event_start_time_;
   base::TimeTicks current_event_render_tree_produced_time_;
 

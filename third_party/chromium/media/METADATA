@@ -4,12 +4,8 @@ description:
 
 third_party {
   url {
-    type: LOCAL_SOURCE
-    value: "/third_party/chromium/media_mirror"
-  }
-  url {
     type: GIT
-    value: "https://chromium.googlesource.com/chromium/src.git"
+    value: "https://chromium.googlesource.com/chromium/src/media"
   }
   version: "4dc2af87b3a5ff1c1489ec642491b59e9872ac8b"
   last_upgrade_date {

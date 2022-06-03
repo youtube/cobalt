@@ -29,11 +29,11 @@
 #include "cobalt/dom/named_node_map.h"
 #include "cobalt/dom/testing/stub_css_parser.h"
 #include "cobalt/dom/testing/stub_environment_settings.h"
-#include "cobalt/dom/testing/stub_script_runner.h"
 #include "cobalt/dom/text.h"
 #include "cobalt/dom_parser/parser.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/loader/loader_factory.h"
+#include "cobalt/script/testing/stub_script_runner.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -59,7 +59,7 @@ class HTMLDecoderTest : public ::testing::Test {
   loader::LoaderFactory loader_factory_;
   std::unique_ptr<Parser> dom_parser_;
   dom::testing::StubCSSParser stub_css_parser_;
-  dom::testing::StubScriptRunner stub_script_runner_;
+  script::testing::StubScriptRunner stub_script_runner_;
   std::unique_ptr<dom::DomStatTracker> dom_stat_tracker_;
   dom::HTMLElementContext html_element_context_;
   scoped_refptr<dom::Document> document_;

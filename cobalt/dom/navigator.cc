@@ -18,19 +18,19 @@
 #include <vector>
 
 #include "base/optional.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/dom/captions/system_caption_settings.h"
-#include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/eme/media_key_system_access.h"
 #include "cobalt/media_capture/media_devices.h"
 #include "cobalt/media_session/media_session_client.h"
 #include "cobalt/script/script_value_factory.h"
+#include "cobalt/web/dom_exception.h"
+#include "cobalt/web/navigator_base.h"
 #include "cobalt/worker/service_worker_container.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/file.h"
 #include "starboard/media.h"
-
-using cobalt::media_session::MediaSession;
 
 namespace cobalt {
 namespace dom {
@@ -144,32 +144,19 @@ bool CanPlay(const media::CanPlayTypeHandler& can_play_type_handler,
 
 }  // namespace
 
-Navigator::Navigator(
-    script::EnvironmentSettings* settings, const std::string& user_agent,
-    UserAgentPlatformInfo* platform_info, const std::string& language,
-    scoped_refptr<cobalt::dom::captions::SystemCaptionSettings> captions,
-    script::ScriptValueFactory* script_value_factory)
-    : user_agent_(user_agent),
-      user_agent_data_(
-          new NavigatorUAData(platform_info, script_value_factory)),
-      language_(language),
+Navigator::Navigator(script::EnvironmentSettings* settings,
+                     const std::string& user_agent,
+                     web::UserAgentPlatformInfo* platform_info,
+                     const std::string& language,
+                     scoped_refptr<captions::SystemCaptionSettings> captions,
+                     script::ScriptValueFactory* script_value_factory)
+    : web::NavigatorBase(settings, user_agent, platform_info, language,
+                         script_value_factory),
       mime_types_(new MimeTypeArray()),
       plugins_(new PluginArray()),
       media_devices_(
           new media_capture::MediaDevices(settings, script_value_factory)),
-      service_worker_(new worker::ServiceWorkerContainer(
-          settings, base::polymorphic_downcast<DOMSettings*>(settings)
-                        ->service_worker_jobs())),
-      system_caption_settings_(captions),
-      script_value_factory_(script_value_factory) {}
-
-const std::string& Navigator::language() const { return language_; }
-
-script::Sequence<std::string> Navigator::languages() const {
-  script::Sequence<std::string> languages;
-  languages.push_back(language_);
-  return languages;
-}
+      system_caption_settings_(captions) {}
 
 base::Optional<std::string> GetFilenameForLicenses() {
   const size_t kBufferSize = kSbFileMaxPath + 1;
@@ -216,30 +203,12 @@ const std::string Navigator::licenses() const {
   return file_contents;
 }
 
-const std::string& Navigator::user_agent() const { return user_agent_; }
-
-const scoped_refptr<NavigatorUAData>& Navigator::user_agent_data() const {
-  return user_agent_data_;
-}
-
 bool Navigator::java_enabled() const { return false; }
 
 bool Navigator::cookie_enabled() const { return false; }
 
-bool Navigator::on_line() const {
-#if SB_API_VERSION >= 13
-  return !SbSystemNetworkIsDisconnected();
-#else
-  return true;
-#endif
-}
-
 scoped_refptr<media_capture::MediaDevices> Navigator::media_devices() {
   return media_devices_;
-}
-
-scoped_refptr<worker::ServiceWorkerContainer> Navigator::service_worker() {
-  return service_worker_;
 }
 
 const scoped_refptr<MimeTypeArray>& Navigator::mime_types() const {
@@ -252,8 +221,8 @@ const scoped_refptr<PluginArray>& Navigator::plugins() const {
 
 const scoped_refptr<media_session::MediaSession>& Navigator::media_session() {
   if (media_session_ == nullptr) {
-    media_session_ =
-        scoped_refptr<media_session::MediaSession>(new MediaSession());
+    media_session_ = scoped_refptr<media_session::MediaSession>(
+        new media_session::MediaSession());
 
     if (media_player_factory_ != nullptr) {
       media_session_->EnsureMediaSessionClient();
@@ -271,20 +240,21 @@ const scoped_refptr<media_session::MediaSession>& Navigator::media_session() {
 //       with the order of declaration.
 // See
 // https://www.w3.org/TR/encrypted-media/#get-supported-capabilities-for-audio-video-type.
-base::Optional<script::Sequence<MediaKeySystemMediaCapability>>
+base::Optional<script::Sequence<eme::MediaKeySystemMediaCapability>>
 Navigator::TryGetSupportedCapabilities(
     const media::CanPlayTypeHandler& can_play_type_handler,
     const std::string& key_system,
-    const script::Sequence<MediaKeySystemMediaCapability>&
+    const script::Sequence<eme::MediaKeySystemMediaCapability>&
         requested_media_capabilities) {
   // 2. Let supported media capabilities be an empty sequence of
   //    MediaKeySystemMediaCapability dictionaries.
-  script::Sequence<MediaKeySystemMediaCapability> supported_media_capabilities;
+  script::Sequence<eme::MediaKeySystemMediaCapability>
+      supported_media_capabilities;
   // 3. For each requested media capability in requested media capabilities:
   for (std::size_t media_capability_index = 0;
        media_capability_index < requested_media_capabilities.size();
        ++media_capability_index) {
-    const MediaKeySystemMediaCapability& requested_media_capability =
+    const eme::MediaKeySystemMediaCapability& requested_media_capability =
         requested_media_capabilities.at(media_capability_index);
     // 3.1. Let content type be requested media capability's contentType member.
     const std::string& content_type = requested_media_capability.content_type();
@@ -360,7 +330,7 @@ Navigator::TryGetSupportedConfiguration(
       !candidate_configuration.video_capabilities().empty()) {
     // 16.1. Let video capabilities be the result of executing the "Get
     //       Supported Capabilities for Audio/Video Type" algorithm.
-    base::Optional<script::Sequence<MediaKeySystemMediaCapability>>
+    base::Optional<script::Sequence<eme::MediaKeySystemMediaCapability>>
         maybe_video_capabilities = TryGetSupportedCapabilities(
             can_play_type_handler, key_system,
             candidate_configuration.video_capabilities());
@@ -375,7 +345,7 @@ Navigator::TryGetSupportedConfiguration(
     // Otherwise: set the videoCapabilities member of accumulated configuration
     // to an empty sequence.
     accumulated_configuration.set_video_capabilities(
-        script::Sequence<MediaKeySystemMediaCapability>());
+        script::Sequence<eme::MediaKeySystemMediaCapability>());
   }
 
   // 17. If the audioCapabilities member in candidate configuration is
@@ -384,7 +354,7 @@ Navigator::TryGetSupportedConfiguration(
       !candidate_configuration.audio_capabilities().empty()) {
     // 17.1. Let audio capabilities be the result of executing the "Get
     //       Supported Capabilities for Audio/Video Type" algorithm.
-    base::Optional<script::Sequence<MediaKeySystemMediaCapability>>
+    base::Optional<script::Sequence<eme::MediaKeySystemMediaCapability>>
         maybe_audio_capabilities = TryGetSupportedCapabilities(
             can_play_type_handler, key_system,
             candidate_configuration.audio_capabilities());
@@ -399,7 +369,7 @@ Navigator::TryGetSupportedConfiguration(
     // Otherwise: set the audioCapabilities member of accumulated configuration
     // to an empty sequence.
     accumulated_configuration.set_audio_capabilities(
-        script::Sequence<MediaKeySystemMediaCapability>());
+        script::Sequence<eme::MediaKeySystemMediaCapability>());
   }
 
   // 23. Return accumulated configuration.
@@ -413,12 +383,14 @@ Navigator::RequestMediaKeySystemAccess(
     script::EnvironmentSettings* settings, const std::string& key_system,
     const script::Sequence<eme::MediaKeySystemConfiguration>&
         supported_configurations) {
+  TRACE_EVENT1("cobalt::dom", "Navigator::RequestMediaKeySystemAccess()",
+               "key_system", key_system);
   DCHECK(settings);
   DOMSettings* dom_settings =
       base::polymorphic_downcast<DOMSettings*>(settings);
   DCHECK(dom_settings->can_play_type_handler());
   script::Handle<InterfacePromise> promise =
-      script_value_factory_
+      script_value_factory()
           ->CreateInterfacePromise<scoped_refptr<eme::MediaKeySystemAccess>>();
 
 #if !defined(COBALT_BUILD_TYPE_GOLD)
@@ -450,7 +422,7 @@ Navigator::RequestMediaKeySystemAccess(
       scoped_refptr<eme::MediaKeySystemAccess> media_key_system_access(
           new eme::MediaKeySystemAccess(key_system,
                                         *maybe_supported_configuration,
-                                        script_value_factory_));
+                                        script_value_factory()));
 #if !defined(COBALT_BUILD_TYPE_GOLD)
       LOG(INFO) << "Navigator.RequestMediaKeySystemAccess() resolved with '"
                 << media_key_system_access->key_system() << "', and\n"
@@ -463,11 +435,11 @@ Navigator::RequestMediaKeySystemAccess(
   }
 
   // 6.4. Reject promise with a NotSupportedError.
-  promise->Reject(new DOMException(DOMException::kNotSupportedErr));
+  promise->Reject(new web::DOMException(web::DOMException::kNotSupportedErr));
   return promise;
 }
 
-const scoped_refptr<cobalt::dom::captions::SystemCaptionSettings>&
+const scoped_refptr<captions::SystemCaptionSettings>&
 Navigator::system_caption_settings() const {
   return system_caption_settings_;
 }
@@ -483,7 +455,7 @@ void Navigator::TraceMembers(script::Tracer* tracer) {
 bool Navigator::CanPlayWithCapability(
     const media::CanPlayTypeHandler& can_play_type_handler,
     const std::string& key_system,
-    const MediaKeySystemMediaCapability& media_capability) {
+    const eme::MediaKeySystemMediaCapability& media_capability) {
   const std::string& content_type = media_capability.content_type();
 
   // There is no encryption scheme specified, check directly.

@@ -54,9 +54,9 @@
 #include "base/logging.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/tokens.h"
-#include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/dom_settings.h"
-#include "cobalt/dom/event.h"
+#include "cobalt/web/dom_exception.h"
+#include "cobalt/web/event.h"
 #include "starboard/media.h"
 #include "third_party/chromium/media/base/pipeline_status.h"
 
@@ -69,7 +69,7 @@ using ::media::PIPELINE_OK;
 using ::media::PipelineStatus;
 
 MediaSource::MediaSource(script::EnvironmentSettings* settings)
-    : EventTarget(settings),
+    : web::EventTarget(settings),
       chunk_demuxer_(NULL),
       ready_state_(kMediaSourceReadyStateClosed),
       ALLOW_THIS_IN_INITIALIZER_LIST(event_queue_(this)),
@@ -101,11 +101,12 @@ double MediaSource::duration(script::ExceptionState* exception_state) const {
 void MediaSource::set_duration(double duration,
                                script::ExceptionState* exception_state) {
   if (duration < 0.0 || std::isnan(duration)) {
-    DOMException::Raise(DOMException::kIndexSizeErr, exception_state);
+    web::DOMException::Raise(web::DOMException::kIndexSizeErr, exception_state);
     return;
   }
   if (!IsOpen() || IsUpdating()) {
-    DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
+    web::DOMException::Raise(web::DOMException::kInvalidStateErr,
+                             exception_state);
     return;
   }
 
@@ -122,7 +123,8 @@ void MediaSource::set_duration(double duration,
   }
 
   if (duration < highest_buffered_presentation_timestamp) {
-    DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
+    web::DOMException::Raise(web::DOMException::kInvalidStateErr,
+                             exception_state);
     return;
   }
 
@@ -154,18 +156,21 @@ scoped_refptr<SourceBuffer> MediaSource::AddSourceBuffer(
   DLOG(INFO) << "add SourceBuffer with type " << type;
 
   if (type.empty()) {
-    DOMException::Raise(DOMException::kInvalidAccessErr, exception_state);
+    web::DOMException::Raise(web::DOMException::kInvalidAccessErr,
+                             exception_state);
     // Return value should be ignored.
     return NULL;
   }
 
   if (!IsTypeSupported(settings, type)) {
-    DOMException::Raise(DOMException::kNotSupportedErr, exception_state);
+    web::DOMException::Raise(web::DOMException::kNotSupportedErr,
+                             exception_state);
     return NULL;
   }
 
   if (!IsOpen()) {
-    DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
+    web::DOMException::Raise(web::DOMException::kInvalidStateErr,
+                             exception_state);
     return NULL;
   }
 
@@ -178,10 +183,12 @@ scoped_refptr<SourceBuffer> MediaSource::AddSourceBuffer(
           new SourceBuffer(settings, guid, this, chunk_demuxer_, &event_queue_);
       break;
     case ChunkDemuxer::kNotSupported:
-      DOMException::Raise(DOMException::kNotSupportedErr, exception_state);
+      web::DOMException::Raise(web::DOMException::kNotSupportedErr,
+                               exception_state);
       return NULL;
     case ChunkDemuxer::kReachedIdLimit:
-      DOMException::Raise(DOMException::kQuotaExceededErr, exception_state);
+      web::DOMException::Raise(web::DOMException::kQuotaExceededErr,
+                               exception_state);
       return NULL;
   }
 
@@ -195,13 +202,14 @@ void MediaSource::RemoveSourceBuffer(
     script::ExceptionState* exception_state) {
   TRACE_EVENT0("cobalt::dom", "MediaSource::RemoveSourceBuffer()");
   if (source_buffer.get() == NULL) {
-    DOMException::Raise(DOMException::kInvalidAccessErr, exception_state);
+    web::DOMException::Raise(web::DOMException::kInvalidAccessErr,
+                             exception_state);
     return;
   }
 
   if (source_buffers_->length() == 0 ||
       !source_buffers_->Contains(source_buffer)) {
-    DOMException::Raise(DOMException::kNotFoundErr, exception_state);
+    web::DOMException::Raise(web::DOMException::kNotFoundErr, exception_state);
     return;
   }
 
@@ -234,7 +242,8 @@ void MediaSource::EndOfStream(MediaSourceEndOfStreamError error,
                               script::ExceptionState* exception_state) {
   TRACE_EVENT1("cobalt::dom", "MediaSource::EndOfStream()", "error", error);
   if (!IsOpen() || IsUpdating()) {
-    DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
+    web::DOMException::Raise(web::DOMException::kInvalidStateErr,
+                             exception_state);
     return;
   }
   EndOfStreamAlgorithm(error);
@@ -242,13 +251,16 @@ void MediaSource::EndOfStream(MediaSourceEndOfStreamError error,
 
 void MediaSource::SetLiveSeekableRange(
     double start, double end, script::ExceptionState* exception_state) {
+  TRACE_EVENT2("cobalt::dom", "MediaSource::SetLiveSeekableRange()", "start",
+               start, "end", end);
   if (!IsOpen()) {
-    DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
+    web::DOMException::Raise(web::DOMException::kInvalidStateErr,
+                             exception_state);
     return;
   }
 
   if (start < 0 || start > end) {
-    DOMException::Raise(DOMException::kIndexSizeErr, exception_state);
+    web::DOMException::Raise(web::DOMException::kIndexSizeErr, exception_state);
     return;
   }
 
@@ -257,8 +269,10 @@ void MediaSource::SetLiveSeekableRange(
 
 void MediaSource::ClearLiveSeekableRange(
     script::ExceptionState* exception_state) {
+  TRACE_EVENT0("cobalt::dom", "MediaSource::ClearLiveSeekableRange()");
   if (!IsOpen()) {
-    DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
+    web::DOMException::Raise(web::DOMException::kInvalidStateErr,
+                             exception_state);
     return;
   }
 
@@ -471,7 +485,7 @@ HTMLMediaElement* MediaSource::GetMediaElement() const {
 }
 
 void MediaSource::TraceMembers(script::Tracer* tracer) {
-  EventTarget::TraceMembers(tracer);
+  web::EventTarget::TraceMembers(tracer);
 
   tracer->Trace(event_queue_);
   tracer->Trace(attached_element_);
@@ -530,7 +544,7 @@ bool MediaSource::IsUpdating() const {
 }
 
 void MediaSource::ScheduleEvent(base::Token event_name) {
-  scoped_refptr<Event> event = new Event(event_name);
+  scoped_refptr<web::Event> event = new web::Event(event_name);
   event->set_target(this);
   event_queue_.Enqueue(event);
 }

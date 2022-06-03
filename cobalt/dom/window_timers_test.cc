@@ -21,11 +21,11 @@
 #include "base/test/scoped_task_environment.h"
 #include "base/threading/platform_thread.h"
 #include "base/time/time.h"
-#include "cobalt/dom/dom_stat_tracker.h"
 #include "cobalt/script/callback_function.h"
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/script/testing/fake_script_value.h"
+#include "cobalt/web/stat_tracker.h"
 #include "net/test/test_with_scoped_task_environment.h"
 
 #include "testing/gmock/include/gmock/gmock.h"
@@ -86,18 +86,18 @@ class WindowTimersTest : public ::testing::Test,
   WindowTimersTest()
       : WithScopedTaskEnvironment(
             base::test::ScopedTaskEnvironment::MainThreadType::MOCK_TIME),
-        dom_stat_tracker_("WindowTimersTest"),
+        stat_tracker_("WindowTimersTest"),
         callback_(&mock_timer_callback_) {
     script::Wrappable* foo = nullptr;
     timers_.reset(
-        new WindowTimers(foo, &dom_stat_tracker_, hooks_,
+        new WindowTimers(foo, &stat_tracker_, hooks_,
                          base::ApplicationState::kApplicationStateStarted));
   }
 
   ~WindowTimersTest() override {}
 
   testing::MockDebuggerHooks hooks_;
-  DomStatTracker dom_stat_tracker_;
+  web::StatTracker stat_tracker_;
   std::unique_ptr<WindowTimers> timers_;
   testing::MockTimerCallback mock_timer_callback_;
   FakeScriptValue<WindowTimers::TimerCallback> callback_;
@@ -237,7 +237,7 @@ TEST_F(WindowTimersTest, ActiveTimeoutsAreCounted) {
   timers_->SetTimeout(callback_, kTimerDelayInMilliseconds);
   timers_->SetTimeout(callback_, kTimerDelayInMilliseconds * 3);
 
-  dom_stat_tracker_.FlushPeriodicTracking();
+  stat_tracker_.FlushPeriodicTracking();
   EXPECT_EQ("0", base::CValManager::GetInstance()
                      ->GetValueAsString(
                          "Count.WindowTimersTest.DOM.WindowTimers.Interval")
@@ -255,7 +255,7 @@ TEST_F(WindowTimersTest, ActiveTimeoutsAreCounted) {
       base::TimeDelta::FromMilliseconds(3 * kTimerDelayInMilliseconds));
   EXPECT_EQ(GetPendingMainThreadTaskCount(), 0);
 
-  dom_stat_tracker_.FlushPeriodicTracking();
+  stat_tracker_.FlushPeriodicTracking();
   EXPECT_EQ("0", base::CValManager::GetInstance()
                      ->GetValueAsString(
                          "Count.WindowTimersTest.DOM.WindowTimers.Interval")
@@ -391,7 +391,7 @@ TEST_F(WindowTimersTest, ActiveIntervalsAreCounted) {
   timers_->SetInterval(callback_, kTimerDelayInMilliseconds);
   timers_->SetInterval(callback_, kTimerDelayInMilliseconds * 3);
 
-  dom_stat_tracker_.FlushPeriodicTracking();
+  stat_tracker_.FlushPeriodicTracking();
   EXPECT_EQ("2", base::CValManager::GetInstance()
                      ->GetValueAsString(
                          "Count.WindowTimersTest.DOM.WindowTimers.Interval")
@@ -410,7 +410,7 @@ TEST_F(WindowTimersTest, ActiveIntervalsAreCounted) {
   RunUntilIdle();
   EXPECT_EQ(GetPendingMainThreadTaskCount(), 2);
 
-  dom_stat_tracker_.FlushPeriodicTracking();
+  stat_tracker_.FlushPeriodicTracking();
   EXPECT_EQ("2", base::CValManager::GetInstance()
                      ->GetValueAsString(
                          "Count.WindowTimersTest.DOM.WindowTimers.Interval")
@@ -433,7 +433,7 @@ TEST_F(WindowTimersTest, ActiveIntervalsAndTimeoutsAreCounted) {
   timers_->SetTimeout(callback_, kTimerDelayInMilliseconds);
   timers_->SetTimeout(callback_, kTimerDelayInMilliseconds * 3);
 
-  dom_stat_tracker_.FlushPeriodicTracking();
+  stat_tracker_.FlushPeriodicTracking();
   EXPECT_EQ("2", base::CValManager::GetInstance()
                      ->GetValueAsString(
                          "Count.WindowTimersTest.DOM.WindowTimers.Interval")
@@ -452,7 +452,7 @@ TEST_F(WindowTimersTest, ActiveIntervalsAndTimeoutsAreCounted) {
   RunUntilIdle();
   EXPECT_EQ(GetPendingMainThreadTaskCount(), 2);
 
-  dom_stat_tracker_.FlushPeriodicTracking();
+  stat_tracker_.FlushPeriodicTracking();
   EXPECT_EQ("2", base::CValManager::GetInstance()
                      ->GetValueAsString(
                          "Count.WindowTimersTest.DOM.WindowTimers.Interval")

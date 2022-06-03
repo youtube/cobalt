@@ -35,10 +35,6 @@
 #include "cobalt/cssom/viewport_size.h"
 #include "cobalt/dom/benchmark_stat_names.h"
 #include "cobalt/dom/comment.h"
-#include "cobalt/dom/csp_delegate.h"
-#include "cobalt/dom/csp_delegate_factory.h"
-#include "cobalt/dom/custom_event.h"
-#include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/dom_implementation.h"
 #include "cobalt/dom/element.h"
 #include "cobalt/dom/font_cache.h"
@@ -65,6 +61,10 @@
 #include "cobalt/dom/wheel_event.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/script/global_environment.h"
+#include "cobalt/web/csp_delegate.h"
+#include "cobalt/web/csp_delegate_factory.h"
+#include "cobalt/web/custom_event.h"
+#include "cobalt/web/dom_exception.h"
 #include "nb/memory_scope.h"
 
 using cobalt::cssom::ViewportSize;
@@ -113,9 +113,9 @@ Document::Document(HTMLElementContext* html_element_context,
     SetViewport(*options.viewport_size);
   }
 
-  std::unique_ptr<CspViolationReporter> violation_reporter(
-      new CspViolationReporter(this, options.post_sender));
-  csp_delegate_ = CspDelegateFactory::GetInstance()->Create(
+  std::unique_ptr<web::CspViolationReporter> violation_reporter(
+      new web::CspViolationReporter(this, options.post_sender));
+  csp_delegate_ = web::CspDelegateFactory::GetInstance()->Create(
       options.csp_enforcement_mode, std::move(violation_reporter), options.url,
       options.require_csp, options.csp_policy_changed_callback,
       options.csp_insecure_allowed_token);
@@ -124,8 +124,9 @@ Document::Document(HTMLElementContext* html_element_context,
 
   location_ = new Location(
       options.url, options.hashchange_callback, options.navigation_callback,
-      base::Bind(&CspDelegate::CanLoad, base::Unretained(csp_delegate_.get()),
-                 CspDelegate::kLocation),
+      base::Bind(&web::CspDelegate::CanLoad,
+                 base::Unretained(csp_delegate_.get()),
+                 web::CspDelegate::kLocation),
       base::Bind(&Document::SetNavigationType, base::Unretained(this)));
 
   font_cache_.reset(new FontCache(
@@ -137,15 +138,15 @@ Document::Document(HTMLElementContext* html_element_context,
   if (HasBrowsingContext()) {
     if (html_element_context_->remote_typeface_cache()) {
       html_element_context_->remote_typeface_cache()->set_security_callback(
-          base::Bind(&CspDelegate::CanLoad,
+          base::Bind(&web::CspDelegate::CanLoad,
                      base::Unretained(csp_delegate_.get()),
-                     CspDelegate::kFont));
+                     web::CspDelegate::kFont));
     }
 
     if (html_element_context_->image_cache()) {
       html_element_context_->image_cache()->set_security_callback(base::Bind(
-          &CspDelegate::CanLoad, base::Unretained(csp_delegate_.get()),
-          CspDelegate::kImage));
+          &web::CspDelegate::CanLoad, base::Unretained(csp_delegate_.get()),
+          web::CspDelegate::kImage));
     }
 
     ready_state_ = kDocumentReadyStateLoading;
@@ -232,7 +233,7 @@ scoped_refptr<Comment> Document::CreateComment(const std::string& data) {
   return new Comment(this, data);
 }
 
-scoped_refptr<Event> Document::CreateEvent(
+scoped_refptr<web::Event> Document::CreateEvent(
     const std::string& interface_name,
     script::ExceptionState* exception_state) {
   TRACK_MEMORY_SCOPE("DOM");
@@ -241,28 +242,28 @@ scoped_refptr<Event> Document::CreateEvent(
   if (base::strcasecmp(interface_name.c_str(), "event") == 0 ||
       base::strcasecmp(interface_name.c_str(), "events") == 0 ||
       base::strcasecmp(interface_name.c_str(), "htmlevents") == 0) {
-    return new Event(Event::Uninitialized);
+    return new web::Event(web::Event::Uninitialized);
   } else if (base::strcasecmp(interface_name.c_str(), "keyboardevent") == 0 ||
              base::strcasecmp(interface_name.c_str(), "keyevents") == 0) {
-    return new KeyboardEvent(Event::Uninitialized);
+    return new KeyboardEvent(web::Event::Uninitialized);
   } else if (base::strcasecmp(interface_name.c_str(), "messageevent") == 0) {
-    return new MessageEvent(Event::Uninitialized);
+    return new MessageEvent(web::Event::Uninitialized);
   } else if (base::strcasecmp(interface_name.c_str(), "mouseevent") == 0 ||
              base::strcasecmp(interface_name.c_str(), "mouseevents") == 0) {
-    return new MouseEvent(Event::Uninitialized);
+    return new MouseEvent(web::Event::Uninitialized);
   } else if (base::strcasecmp(interface_name.c_str(), "uievent") == 0 ||
              base::strcasecmp(interface_name.c_str(), "uievents") == 0) {
-    return new UIEvent(Event::Uninitialized);
+    return new UIEvent(web::Event::Uninitialized);
   } else if (base::strcasecmp(interface_name.c_str(), "wheelevent") == 0) {
     // This not in the spec, but commonly implemented to create a WheelEvent.
     //   https://www.w3.org/TR/2016/WD-uievents-20160804/#interface-wheelevent
-    return new WheelEvent(Event::Uninitialized);
+    return new WheelEvent(web::Event::Uninitialized);
   } else if (base::strcasecmp(interface_name.c_str(), "customevent") == 0) {
-    return new CustomEvent(Event::Uninitialized);
+    return new web::CustomEvent(web::Event::Uninitialized);
   }
 
-  DOMException::Raise(
-      DOMException::kNotSupportedErr,
+  web::DOMException::Raise(
+      web::DOMException::kNotSupportedErr,
       "document.createEvent does not support \"" + interface_name + "\".",
       exception_state);
 
@@ -445,9 +446,9 @@ void Document::set_cookie(const std::string& cookie,
     return;
   }
   if (location_->GetOriginAsObject().is_opaque()) {
-    DOMException::Raise(DOMException::kSecurityErr,
-                        "Document origin is opaque, cookie setting failed",
-                        exception_state);
+    web::DOMException::Raise(web::DOMException::kSecurityErr,
+                             "Document origin is opaque, cookie setting failed",
+                             exception_state);
     return;
   }
   if (cookie_jar_) {
@@ -463,9 +464,9 @@ std::string Document::cookie(script::ExceptionState* exception_state) const {
     return "";
   }
   if (location_->GetOriginAsObject().is_opaque()) {
-    DOMException::Raise(DOMException::kSecurityErr,
-                        "Document origin is opaque, cookie getting failed",
-                        exception_state);
+    web::DOMException::Raise(web::DOMException::kSecurityErr,
+                             "Document origin is opaque, cookie getting failed",
+                             exception_state);
     return "";
   }
   if (cookie_jar_) {
@@ -1024,8 +1025,9 @@ void Document::OnWindowFocusChanged(bool has_focus) {
 }
 
 void Document::OnVisibilityStateChanged(VisibilityState visibility_state) {
-  DispatchEvent(new Event(base::Tokens::visibilitychange(), Event::kBubbles,
-                          Event::kNotCancelable));
+  DispatchEvent(new web::Event(base::Tokens::visibilitychange(),
+                               web::Event::kBubbles,
+                               web::Event::kNotCancelable));
 
   // Refocus the previously-focused UI navigation item (if any).
   if (visibility_state == kVisibilityStateVisible) {
@@ -1071,8 +1073,8 @@ void Document::FreezeSteps() {
   frozenness_ = true;
 
   // 2. Fire an event named freeze at doc.
-  DispatchEvent(new Event(base::Tokens::freeze(), Event::kBubbles,
-                          Event::kNotCancelable));
+  DispatchEvent(new web::Event(base::Tokens::freeze(), web::Event::kBubbles,
+                               web::Event::kNotCancelable));
 
   // 3. Let elements be all media elements that are shadow-including
   //    documents of doc, in shadow-including tree order.
@@ -1120,8 +1122,8 @@ void Document::ResumeSteps() {
   }
 
   // 3. Fire an event named resume at doc.
-  DispatchEvent(new Event(base::Tokens::resume(), Event::kBubbles,
-                          Event::kNotCancelable));
+  DispatchEvent(new web::Event(base::Tokens::resume(), web::Event::kBubbles,
+                               web::Event::kNotCancelable));
 
   // 4. Set doc's frozeness state to false.
   frozenness_ = false;
@@ -1246,7 +1248,7 @@ void Document::DispatchOnLoadEvent() {
 
   // Dispatch the readystatechange event (before the load event), since we
   // have changed the document ready state.
-  DispatchEvent(new Event(base::Tokens::readystatechange()));
+  DispatchEvent(new web::Event(base::Tokens::readystatechange()));
 
   // Set document load timing info's load event start time before user agent
   // dispatch the load event for the document.
@@ -1255,7 +1257,7 @@ void Document::DispatchOnLoadEvent() {
   }
 
   // Dispatch the document's onload event.
-  DispatchEvent(new Event(base::Tokens::load()));
+  DispatchEvent(new web::Event(base::Tokens::load()));
 
   // Set document load timing info's load event end time after user agent
   // completes handling the load event for the document.

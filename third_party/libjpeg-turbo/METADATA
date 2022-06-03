@@ -2,6 +2,7 @@ name: "libjpeg-turbo"
 description:
   "libjpeg-turbo is a SIMD-accelerated libjpeg-compatible JPEG codec library. "
   "It was added to Cobalt to eventually enable screencasting for DevTools."
+
 third_party {
   url {
     type: GIT

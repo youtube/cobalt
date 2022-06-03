@@ -21,7 +21,6 @@
 #include "starboard/elf_loader/elf_hash_table.h"
 #include "starboard/elf_loader/elf_header.h"
 #include "starboard/elf_loader/exported_symbols.h"
-#include "starboard/elf_loader/file.h"
 #include "starboard/elf_loader/gnu_hash_table.h"
 #include "starboard/elf_loader/program_table.h"
 #include "starboard/elf_loader/relocations.h"
@@ -40,7 +39,6 @@ class ElfLoaderImpl {
   ~ElfLoaderImpl();
 
  private:
-  scoped_ptr<File> elf_file_;
   scoped_ptr<ElfHeader> elf_header_loader_;
   scoped_ptr<ProgramTable> program_table_;
   scoped_ptr<DynamicSection> dynamic_section_;

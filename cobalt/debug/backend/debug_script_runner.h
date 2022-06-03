@@ -17,9 +17,9 @@
 
 #include <string>
 
-#include "cobalt/dom/csp_delegate.h"
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/script_debugger.h"
+#include "cobalt/web/csp_delegate.h"
 
 namespace cobalt {
 namespace debug {
@@ -30,7 +30,7 @@ class DebugScriptRunner {
  public:
   DebugScriptRunner(script::GlobalEnvironment* global_environment,
                     script::ScriptDebugger* script_debugger,
-                    const dom::CspDelegate* csp_delegate);
+                    const web::CspDelegate* csp_delegate);
 
   // Runs |method| on the JavaScript |debugBackend| object, passing in
   // |json_params|. If |json_result| is non-NULL it receives the result.
@@ -61,7 +61,7 @@ class DebugScriptRunner {
   script::ScriptDebugger* script_debugger_;
 
   // Non-owned reference to let this object query whether CSP allows eval.
-  const dom::CspDelegate* csp_delegate_;
+  const web::CspDelegate* csp_delegate_;
 };
 
 }  // namespace backend

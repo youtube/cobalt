@@ -14,27 +14,30 @@
 
 #include "cobalt/media/decoder_buffer_allocator.h"
 
+#include <algorithm>
 #include <vector>
 
 #include "cobalt/math/size.h"
-#include "cobalt/media/base/starboard_utils.h"
 #include "nb/allocator.h"
 #include "nb/memory_scope.h"
 #include "starboard/configuration.h"
 #include "starboard/media.h"
 #include "starboard/memory.h"
+#include "third_party/chromium/media/base/starboard_utils.h"
 
 namespace cobalt {
 namespace media {
 
 namespace {
 
+using starboard::ScopedLock;
+
 const bool kEnableAllocationLog = false;
 
-const std::size_t kAllocationRecordGranularity = 512 * 1024;
+const size_t kAllocationRecordGranularity = 512 * 1024;
 // Used to determine if the memory allocated is large. The underlying logic can
 // be different.
-const std::size_t kSmallAllocationThreshold = 512;
+const size_t kSmallAllocationThreshold = 512;
 
 }  // namespace
 
@@ -58,11 +61,8 @@ DecoderBufferAllocator::DecoderBufferAllocator()
 
   TRACK_MEMORY_SCOPE("Media");
 
-  // We cannot call SbMediaGetMaxBufferCapacity because |video_codec_| is not
-  // set yet. Use 0 (unbounded) until |video_codec_| is updated in
-  // UpdateVideoConfig().
-  starboard::ScopedLock scoped_lock(mutex_);
-  CreateReuseAllocator(0);
+  ScopedLock scoped_lock(mutex_);
+  EnsureReuseAllocatorIsCreated();
   Allocator::Set(this);
 }
 
@@ -75,7 +75,7 @@ DecoderBufferAllocator::~DecoderBufferAllocator() {
 
   TRACK_MEMORY_SCOPE("Media");
 
-  starboard::ScopedLock scoped_lock(mutex_);
+  ScopedLock scoped_lock(mutex_);
 
   if (reuse_allocator_) {
     DCHECK_EQ(reuse_allocator_->GetAllocated(), 0);
@@ -90,7 +90,7 @@ void DecoderBufferAllocator::Suspend() {
 
   TRACK_MEMORY_SCOPE("Media");
 
-  starboard::ScopedLock scoped_lock(mutex_);
+  ScopedLock scoped_lock(mutex_);
 
   if (reuse_allocator_ && reuse_allocator_->GetAllocated() == 0) {
     DLOG(INFO) << "Freed " << reuse_allocator_->GetCapacity()
@@ -106,11 +106,8 @@ void DecoderBufferAllocator::Resume() {
 
   TRACK_MEMORY_SCOPE("Media");
 
-  starboard::ScopedLock scoped_lock(mutex_);
-
-  if (!reuse_allocator_) {
-    CreateReuseAllocator(0);
-  }
+  ScopedLock scoped_lock(mutex_);
+  EnsureReuseAllocatorIsCreated();
 }
 
 void* DecoderBufferAllocator::Allocate(size_t size, size_t alignment) {
@@ -118,32 +115,20 @@ void* DecoderBufferAllocator::Allocate(size_t size, size_t alignment) {
 
   if (!using_memory_pool_) {
     sbmemory_bytes_used_.fetch_add(size);
-    return SbMemoryAllocateAligned(alignment, size);
-  }
-
-  starboard::ScopedLock scoped_lock(mutex_);
-
-  if (!reuse_allocator_) {
-    DCHECK(is_memory_pool_allocated_on_demand_);
-
-    int max_capacity = 0;
-    if (video_codec_ != kSbMediaVideoCodecNone) {
-      DCHECK_GT(resolution_width_, 0);
-      DCHECK_GT(resolution_height_, 0);
-
-      max_capacity = SbMediaGetMaxBufferCapacity(
-          video_codec_, resolution_width_, resolution_height_, bits_per_pixel_);
-    }
-    CreateReuseAllocator(max_capacity);
-  }
-
-  void* p = reuse_allocator_->Allocate(size, alignment);
-  if (!p) {
+    auto p = SbMemoryAllocateAligned(alignment, size);
+    CHECK(p);
     return p;
   }
+
+  ScopedLock scoped_lock(mutex_);
+
+  EnsureReuseAllocatorIsCreated();
+
+  void* p = reuse_allocator_->Allocate(size, alignment);
+  CHECK(p);
+
   LOG_IF(INFO, kEnableAllocationLog)
       << "Media Allocation Log " << p << " " << size << " " << alignment << " ";
-  UpdateAllocationRecord();
   return p;
 }
 
@@ -161,7 +146,7 @@ void DecoderBufferAllocator::Free(void* p, size_t size) {
     return;
   }
 
-  starboard::ScopedLock scoped_lock(mutex_);
+  ScopedLock scoped_lock(mutex_);
 
   DCHECK(reuse_allocator_);
 
@@ -177,109 +162,48 @@ void DecoderBufferAllocator::Free(void* p, size_t size) {
   }
 }
 
-void DecoderBufferAllocator::UpdateVideoConfig(
-    const ::media::VideoDecoderConfig& config) {
-  if (!using_memory_pool_) {
-    return;
-  }
-
-  starboard::ScopedLock scoped_lock(mutex_);
-
-  if (!reuse_allocator_) {
-    return;
-  }
-
-  video_codec_ = MediaVideoCodecToSbMediaVideoCodec(config.codec());
-  resolution_width_ = config.visible_rect().size().width();
-  resolution_height_ = config.visible_rect().size().height();
-  // TODO(b/230799815): Consider infer |bits_per_pixel_| from the video codec,
-  // or deprecate it completely.
-  bits_per_pixel_ = 0;
-
-  reuse_allocator_->IncreaseMaxCapacityIfNecessary(SbMediaGetMaxBufferCapacity(
-      video_codec_, resolution_width_, resolution_height_, bits_per_pixel_));
-  DLOG(INFO) << "Max capacity of decoder buffer allocator after increasing is "
-             << reuse_allocator_->GetCapacity();
-}
-
-std::size_t DecoderBufferAllocator::GetAllocatedMemory() const {
+size_t DecoderBufferAllocator::GetAllocatedMemory() const {
   if (!using_memory_pool_) {
     return sbmemory_bytes_used_.load();
   }
-  starboard::ScopedLock scoped_lock(mutex_);
+  ScopedLock scoped_lock(mutex_);
   return reuse_allocator_ ? reuse_allocator_->GetAllocated() : 0;
 }
 
-std::size_t DecoderBufferAllocator::GetCurrentMemoryCapacity() const {
+size_t DecoderBufferAllocator::GetCurrentMemoryCapacity() const {
   if (!using_memory_pool_) {
     return sbmemory_bytes_used_.load();
   }
-  starboard::ScopedLock scoped_lock(mutex_);
+  ScopedLock scoped_lock(mutex_);
   return reuse_allocator_ ? reuse_allocator_->GetCapacity() : 0;
 }
 
-std::size_t DecoderBufferAllocator::GetMaximumMemoryCapacity() const {
-  starboard::ScopedLock scoped_lock(mutex_);
-  if (video_codec_ == kSbMediaVideoCodecNone) {
-    return 0;
+size_t DecoderBufferAllocator::GetMaximumMemoryCapacity() const {
+  ScopedLock scoped_lock(mutex_);
+
+  if (reuse_allocator_) {
+    return std::max<size_t>(reuse_allocator_->max_capacity(),
+                            max_buffer_capacity_);
   }
-  if (!using_memory_pool_) {
-    return SbMediaGetMaxBufferCapacity(video_codec_, resolution_width_,
-                                       resolution_height_, bits_per_pixel_);
-  }
-  return reuse_allocator_
-             ? reuse_allocator_->max_capacity()
-             : SbMediaGetMaxBufferCapacity(video_codec_, resolution_width_,
-                                           resolution_height_, bits_per_pixel_);
+  return max_buffer_capacity_;
 }
 
-void DecoderBufferAllocator::CreateReuseAllocator(int max_capacity) {
+size_t DecoderBufferAllocator::GetSourceBufferEvictExtraInBytes() const {
+  return source_buffer_evict_extra_in_bytes_;
+}
+
+void DecoderBufferAllocator::EnsureReuseAllocatorIsCreated() {
   mutex_.DCheckAcquired();
+
+  if (reuse_allocator_) {
+    return;
+  }
 
   reuse_allocator_.reset(new nb::BidirectionalFitReuseAllocator(
       &fallback_allocator_, initial_capacity_, kSmallAllocationThreshold,
-      allocation_unit_, max_capacity));
+      allocation_unit_, 0));
   DLOG(INFO) << "Allocated " << initial_capacity_
-             << " bytes for media buffer pool, with max capacity set to "
-             << max_capacity;
-}
-
-bool DecoderBufferAllocator::UpdateAllocationRecord() const {
-#if !defined(COBALT_BUILD_TYPE_GOLD)
-  // This code is not quite multi-thread safe but is safe enough for tracking
-  // purposes.
-  static std::size_t max_allocated = initial_capacity_ / 2;
-  static std::size_t max_capacity = initial_capacity_;
-
-  bool new_max_reached = false;
-  if (reuse_allocator_->GetAllocated() >
-      max_allocated + kAllocationRecordGranularity) {
-    max_allocated = reuse_allocator_->GetAllocated();
-    new_max_reached = true;
-  }
-  if (reuse_allocator_->GetCapacity() >
-      max_capacity + kAllocationRecordGranularity) {
-    max_capacity = reuse_allocator_->GetCapacity();
-    new_max_reached = true;
-  }
-  if (new_max_reached) {
-    SB_LOG(INFO) << "New Media Buffer Allocation Record: "
-                 << "Max Allocated: " << max_allocated
-                 << "  Max Capacity: " << max_capacity;
-    // TODO: Enable the following line once PrintAllocations() accepts max line
-    // as a parameter.
-    // reuse_allocator_->PrintAllocations();
-  }
-#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
-
-  if (reuse_allocator_->CapacityExceeded()) {
-    SB_LOG(WARNING) << "Cobalt media buffer capacity "
-                    << reuse_allocator_->GetCapacity()
-                    << " exceeded max capacity "
-                    << reuse_allocator_->max_capacity();
-    return false;
-  }
-  return true;
+             << " bytes for media buffer pool.";
 }
 
 }  // namespace media

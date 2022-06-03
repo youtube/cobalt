@@ -17,6 +17,7 @@
 """Cross-platform unit test runner."""
 
 import argparse
+import json
 import logging
 import os
 import re
@@ -219,6 +220,7 @@ class TestRunner(object):
                dry_run=False,
                xml_output_dir=None,
                log_xml_results=False,
+               shard_index=None,
                launcher_args=None):
     self.platform = platform
     self.config = config
@@ -228,6 +230,7 @@ class TestRunner(object):
     self.target_params = target_params
     self.out_directory = out_directory
     self.loader_out_directory = loader_out_directory
+    self.shard_index = shard_index
     self.launcher_args = launcher_args
     if not self.out_directory:
       self.out_directory = paths.BuildOutputDirectory(self.platform,
@@ -275,6 +278,17 @@ class TestRunner(object):
       self.test_targets = self._GetTestTargets(platform_tests_only)
     logging.info("Got test targets")
     self.test_env_vars = self._GetAllTestEnvVariables()
+
+    # Read the sharding configuration from deployed sharding configuration json.
+    # Create subset of test targets, and launch params per target.
+    self.shard_config = None
+    if self.shard_index is not None:
+      with open(
+          os.path.join(self.out_directory, "sharding_configuration.json"),
+          "r") as f:
+        shard_json = json.loads(f.read())
+      full_config = shard_json[self.platform]
+      self.shard_config = full_config[self.shard_index]
 
   def _Exec(self, cmd_list, output_file=None):
     """Execute a command in a subprocess."""
@@ -380,7 +394,11 @@ class TestRunner(object):
         env_variables[test] = test_env
     return env_variables
 
-  def _RunTest(self, target_name, test_name=None):
+  def _RunTest(self,
+               target_name,
+               test_name=None,
+               shard_index=None,
+               shard_count=None):
     """Runs a specific target or test and collects the output.
 
     Args:
@@ -413,6 +431,10 @@ class TestRunner(object):
       gtest_filter_value = "-" + ":".join(self.test_targets[target_name])
     if gtest_filter_value:
       test_params.append("--gtest_filter=" + gtest_filter_value)
+
+    if shard_index and shard_count:
+      test_params.append("--gtest_total_shards={}".format(shard_count))
+      test_params.append("--gtest_shard_index={}".format(shard_index))
 
     def MakeLauncher():
       return abstract_launcher.LauncherFactory(
@@ -763,8 +785,28 @@ class TestRunner(object):
     results = []
     # Sort the targets so they are run in alphabetical order
     for test_target in sorted(self.test_targets.keys()):
-      results.append(self._RunTest(test_target))
-
+      if self.shard_config:
+        if test_target in self.shard_config.keys():
+          test_shard_config = self.shard_config[test_target]
+          if test_shard_config == "*":
+            logging.info("SHARD %d RUNS TEST %s (full)", self.shard_index,
+                         test_target)
+            results.append(self._RunTest(test_target))
+          else:
+            sub_shard_index = test_shard_config[0] - 1
+            sub_shard_count = test_shard_config[1]
+            logging.info("SHARD %d RUNS TEST %s (%d of %d)", self.shard_index,
+                         test_target, sub_shard_index + 1, sub_shard_count)
+            results.append(
+                self._RunTest(
+                    test_target,
+                    shard_index=sub_shard_index,
+                    shard_count=sub_shard_count))
+        else:
+          logging.info("SHARD %d SKIP TEST %s", self.shard_index, test_target)
+      else:
+        # Run all tests and cases serially. No sharding enabled.
+        results.append(self._RunTest(test_target))
     return self._ProcessAllTestResults(results)
 
   def GenerateCoverageReport(self):
@@ -868,6 +910,12 @@ def main():
       "Arguments are platform specific and may not be implemented for all "
       "platforms. Common arguments are:\n\t'noinstall' - skip install steps "
       "before running the test\n\t'systools' - use system-installed tools.")
+  arg_parser.add_argument(
+      "-s",
+      "--shard_index",
+      type=int,
+      help="The index of the test shard to run. This selects a subset of tests "
+      "to run based on the configuration per platform, if it exists.")
   args = arg_parser.parse_args()
 
   if (args.loader_platform and not args.loader_config or
@@ -894,7 +942,7 @@ def main():
                       target_params, args.out_directory,
                       args.loader_out_directory, args.platform_tests_only,
                       args.application_name, args.dry_run, args.xml_output_dir,
-                      args.log_xml_results, launcher_args)
+                      args.log_xml_results, args.shard_index, launcher_args)
   logging.info("Test runner initialized")
 
   def Abort(signum, frame):

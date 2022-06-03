@@ -22,6 +22,7 @@
 
 #include "cobalt/base/application_state.h"
 #include "cobalt/watchdog/singleton.h"
+#include "starboard/common/mutex.h"
 #include "starboard/mutex.h"
 #include "starboard/thread.h"
 #include "starboard/time.h"
@@ -95,6 +96,13 @@ class Watchdog : public Singleton<Watchdog> {
   bool Ping(const std::string& name);
   bool Ping(const std::string& name, const std::string& info);
   std::string GetWatchdogViolations(bool current = false);
+  bool GetCanTriggerCrash();
+  void SetCanTriggerCrash(bool can_trigger_crash);
+
+#if defined(_DEBUG)
+  // Sleeps threads based off of environment variables for Watchdog debugging.
+  void MaybeInjectDebugDelay(const std::string& name);
+#endif  // defined(_DEBUG)
 
  private:
   std::string GetWatchdogFilePaths(bool current);
@@ -102,6 +110,7 @@ class Watchdog : public Singleton<Watchdog> {
   static void* Monitor(void* context);
   std::string GetSerializedWatchdogIndex();
   static void SerializeWatchdogViolations(void* context);
+  static void MaybeTriggerCrash(void* context);
 
   // Current Watchdog violations file path.
   std::string watchdog_file_;
@@ -130,6 +139,20 @@ class Watchdog : public Singleton<Watchdog> {
   bool is_stub_ = false;
   // Flag to stop monitor thread.
   bool is_monitoring_;
+  // Flag to control whether or not crashes can be triggered.
+  bool can_trigger_crash_ = false;
+
+#if defined(_DEBUG)
+  starboard::Mutex delay_lock_;
+  // name of the client to inject delay
+  std::string delay_name_ = "";
+  // since (relative)
+  SbTimeMonotonic time_last_delayed_microseconds_ = 0;
+  // time in between delays (periodic)
+  int64_t delay_wait_time_microseconds_ = 0;
+  // delay duration
+  int64_t delay_sleep_time_microseconds_ = 0;
+#endif
 };
 
 }  // namespace watchdog

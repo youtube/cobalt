@@ -21,10 +21,10 @@
 #include "cobalt/base/cobalt_paths.h"
 #include "cobalt/base/source_location.h"
 #include "cobalt/browser/switches.h"
-#include "cobalt/dom/csp_delegate_factory.h"
 #include "cobalt/dom/mutation_observer_task_manager.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/web/context.h"
+#include "cobalt/web/csp_delegate_factory.h"
 
 namespace cobalt {
 namespace browser {
@@ -119,9 +119,9 @@ DebugConsole::DebugConsole(
   web_module_options.image_cache_capacity = 0;
   // Disable CSP for the Debugger's WebModule. This will also allow eval() in
   // javascript.
-  web_module_options.csp_enforcement_mode = dom::kCspEnforcementDisable;
+  web_module_options.csp_enforcement_mode = web::kCspEnforcementDisable;
   web_module_options.csp_insecure_allowed_token =
-      dom::CspDelegateFactory::GetInsecureAllowedToken();
+      web::CspDelegateFactory::GetInsecureAllowedToken();
 
   // Since the debug console is intended to be overlaid on top of the main
   // web module contents, make sure blending is enabled for its background.
@@ -148,7 +148,7 @@ DebugConsole::DebugConsole(
                     base::Closure(),            /* window_minimize_callback */
                     NULL /* can_play_type_handler */, NULL /* media_module */,
                     window_dimensions, resource_provider, layout_refresh_rate,
-                    NULL /* service_worker_jobs */, web_module_options));
+                    web_module_options));
 }
 
 DebugConsole::~DebugConsole() {}

@@ -39,12 +39,12 @@
 
 // The maximum API version allowed by this version of the Starboard headers,
 // inclusive.
-#define SB_MAXIMUM_API_VERSION 14
+#define SB_MAXIMUM_API_VERSION 15
 
 // The API version that is currently open for changes, and therefore is not
 // stable or frozen. Production-oriented ports should avoid declaring that they
 // implement the experimental Starboard API version.
-#define SB_EXPERIMENTAL_API_VERSION 14
+#define SB_EXPERIMENTAL_API_VERSION 15
 
 // The next API version to be frozen, but is still subject to emergency
 // changes. It is reasonable to base a port on the Release Candidate API
@@ -64,16 +64,6 @@
 //   //   Add a function, `SbMyNewFeature()` to `starboard/feature.h` which
 //   //   exposes functionality for my new feature.
 //   #define SB_MY_EXPERIMENTAL_FEATURE_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Introduce a new format kSbDecodeTargetFormat3Plane10BitYUVI420Compact.
-//   A decoder target format consisting of 10bit Y, U, and V planes.
-#define SB_DECODE_TARGET_FORMAT_YUVI420_COMPACT_API_VERSION \
-  SB_EXPERIMENTAL_API_VERSION
-
-#define SB_SYSTEM_PATH_TEST_OUTPUT_DIRECTORY_DEPRECATED \
-  SB_EXPERIMENTAL_API_VERSION
-
-#define SB_SYSTEM_DEVICE_PROJECTOR_ADDED SB_EXPERIMENTAL_API_VERSION
 
 // --- Release Candidate Feature Defines -------------------------------------
 

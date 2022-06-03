@@ -21,6 +21,7 @@
 #include "base/strings/stringprintf.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
+#include "cobalt/cache/cache.h"
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/script/v8c/embedded_resources.h"
 #include "cobalt/script/v8c/entry_scope.h"
@@ -421,9 +422,32 @@ v8::MaybeLocal<v8::Value> V8cGlobalEnvironment::EvaluateScriptInternal(
 
   // Note that we expect an |EntryScope| and |v8::TryCatch| to have been set
   // up by our caller.
+
+  v8::Local<v8::Script> script;
+  if (!CompileWithCaching(source_code).ToLocal(&script)) {
+    return {};
+  }
+
+  TRACE_EVENT0("cobalt::script", "v8::Script::Run()");
+  return script->Run(isolate_->GetCurrentContext());
+}
+
+v8::MaybeLocal<v8::Script> V8cGlobalEnvironment::CompileWithCaching(
+    const scoped_refptr<SourceCode>& source_code) {
+  TRACE_EVENT0("cobalt::script", "V8cGlobalEnvironment::CompileWithCaching()");
+  v8::Local<v8::Context> context = isolate_->GetCurrentContext();
   V8cSourceCode* v8c_source_code =
       base::polymorphic_downcast<V8cSourceCode*>(source_code.get());
   const base::SourceLocation& source_location = v8c_source_code->location();
+
+  v8::Local<v8::String> source;
+  if (!v8::String::NewFromUtf8(isolate_, v8c_source_code->source_utf8().c_str(),
+                               v8::NewStringType::kNormal,
+                               v8c_source_code->source_utf8().length())
+           .ToLocal(&source)) {
+    LOG(WARNING) << "Failed to convert source code to V8 UTF-8 string.";
+    return {};
+  }
 
   v8::Local<v8::String> resource_name;
   if (!v8::String::NewFromUtf8(isolate_, source_location.file_path.c_str(),
@@ -447,66 +471,7 @@ v8::MaybeLocal<v8::Value> V8cGlobalEnvironment::EvaluateScriptInternal(
       /*resource_is_shared_cross_origin=*/
       v8::Boolean::New(isolate_, v8c_source_code->is_muted()));
 
-  v8::Local<v8::String> source;
-  if (!v8::String::NewFromUtf8(isolate_, v8c_source_code->source_utf8().c_str(),
-                               v8::NewStringType::kNormal,
-                               v8c_source_code->source_utf8().length())
-           .ToLocal(&source)) {
-    LOG(WARNING) << "Failed to convert source code to V8 UTF-8 string.";
-    return {};
-  }
-
-  v8::Local<v8::Context> context = isolate_->GetCurrentContext();
-  v8::Local<v8::Script> script;
-
-  bool used_cache = false;
-  const CobaltExtensionJavaScriptCacheApi* javascript_cache_extension =
-      static_cast<const CobaltExtensionJavaScriptCacheApi*>(
-          SbSystemGetExtension(kCobaltExtensionJavaScriptCacheName));
-  if (javascript_cache_extension &&
-      strcmp(javascript_cache_extension->name,
-             kCobaltExtensionJavaScriptCacheName) == 0 &&
-      javascript_cache_extension->version >= 1) {
-    TRACE_EVENT0("cobalt::script",
-                 "V8cGlobalEnvironment::CompileWithCaching()");
-    if (CompileWithCaching(javascript_cache_extension, context, v8c_source_code,
-                           source, &script_origin)
-            .ToLocal(&script)) {
-      used_cache = true;
-    } else {
-      LOG(WARNING) << "Failed to compile script.";
-      return {};
-    }
-  }
-  if (!used_cache) {
-    TRACE_EVENT0("cobalt::script", "v8::Script::Compile()");
-    if (!v8::Script::Compile(context, source, &script_origin)
-             .ToLocal(&script)) {
-      LOG(WARNING) << "Failed to compile script.";
-      return {};
-    }
-  }
-
-  v8::Local<v8::Value> result;
-  {
-    TRACE_EVENT0("cobalt::script", "v8::Script::Run()");
-    if (!script->Run(context).ToLocal(&result)) {
-      LOG(WARNING) << "Failed to run script.";
-      return {};
-    }
-  }
-
-  return result;
-}
-
-v8::MaybeLocal<v8::Script> V8cGlobalEnvironment::CompileWithCaching(
-    const CobaltExtensionJavaScriptCacheApi* javascript_cache_extension,
-    v8::Local<v8::Context> context, V8cSourceCode* v8c_source_code,
-    v8::Local<v8::String> source, v8::ScriptOrigin* script_origin) {
-  const base::SourceLocation& source_location = v8c_source_code->location();
-
-  DLOG(INFO) << "CompileWithCaching: " << source_location.file_path.c_str()
-             << " " << v8c_source_code->location().file_path;
+  DLOG(INFO) << "CompileWithCaching: " << v8c_source_code->location().file_path;
 
   bool successful_cache = false;
 
@@ -515,19 +480,18 @@ v8::MaybeLocal<v8::Script> V8cGlobalEnvironment::CompileWithCaching(
   uint32_t javascript_cache_key = CreateJavaScriptCacheKey(
       javascript_engine_version, v8::ScriptCompiler::CachedDataVersionTag(),
       v8c_source_code->source_utf8(), source_location.file_path);
-  const uint8_t* cache_data_buf = nullptr;
-  int cache_data_size = -1;
+  base::Optional<std::vector<uint8_t>> cached_data =
+      cobalt::cache::Cache::GetInstance()->Retrieve(
+          javascript_cache_key, disk_cache::ResourceType::kCompiledScript);
   v8::Local<v8::Script> script;
-  if (javascript_cache_extension->GetCachedScript(
-          javascript_cache_key, v8c_source_code->source_utf8().size(),
-          &cache_data_buf, &cache_data_size)) {
-    DLOG(INFO) << "CompileWithCaching:  Using cached resource";
+  if (cached_data) {
+    DLOG(INFO) << "CompileWithCaching: Using cached resource";
     v8::ScriptCompiler::CachedData* cached_code =
         new v8::ScriptCompiler::CachedData(
-            cache_data_buf, cache_data_size,
+            cached_data->data(), cached_data->size(),
             v8::ScriptCompiler::CachedData::BufferNotOwned);
     // The script_source owns the cached_code object.
-    v8::ScriptCompiler::Source script_source(source, *script_origin,
+    v8::ScriptCompiler::Source script_source(source, script_origin,
                                              cached_code);
 
     {
@@ -545,16 +509,11 @@ v8::MaybeLocal<v8::Script> V8cGlobalEnvironment::CompileWithCaching(
     }
   }
 
-  if (cache_data_buf != nullptr) {
-    javascript_cache_extension->ReleaseCachedScriptData(cache_data_buf);
-    cache_data_buf = nullptr;
-  }
-
   if (!successful_cache) {
     DLOG(INFO) << "CompileWithCaching: compile";
     {
       TRACE_EVENT0("cobalt::script", "v8::Script::Compile()");
-      if (!v8::Script::Compile(context, source, script_origin)
+      if (!v8::Script::Compile(context, source, &script_origin)
                .ToLocal(&script)) {
         LOG(WARNING) << "CompileWithCaching: Failed to compile script.";
         return {};
@@ -562,9 +521,10 @@ v8::MaybeLocal<v8::Script> V8cGlobalEnvironment::CompileWithCaching(
     }
     std::unique_ptr<v8::ScriptCompiler::CachedData> cached_data(
         v8::ScriptCompiler::CreateCodeCache(script->GetUnboundScript()));
-    if (!javascript_cache_extension->StoreCachedScript(
-            javascript_cache_key, v8c_source_code->source_utf8().size(),
-            cached_data->data, cached_data->length)) {
+    if (!cobalt::cache::Cache::GetInstance()->Store(
+            javascript_cache_key, disk_cache::ResourceType::kCompiledScript,
+            std::vector<uint8_t>(cached_data->data,
+                                 cached_data->data + cached_data->length))) {
       LOG(WARNING) << "CompileWithCaching: Failed to store cached script";
     }
   }

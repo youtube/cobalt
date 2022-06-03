@@ -27,10 +27,11 @@
 <body>
     <script>
         var message_event_count = 0;
-        console.log('running');
+        console.log('Starting tests');
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('..:..')
                 .then(function (registration) {
+                    console.log(`(Unexpected) : ${registration}`);
                     notReached();
                 }, function (error) {
                     console.log(`(Expected) Test invalid script URL: ${error}`);
@@ -39,6 +40,7 @@
                 });
             navigator.serviceWorker.register('arg:service_worker_test.js')
                 .then(function (registration) {
+                    console.log(`(Unexpected) : ${registration}`);
                     notReached();
                 }, function (error) {
                     console.log(`(Expected) Test script URL that is not http or https: ${error}`);
@@ -47,6 +49,7 @@
                 });
             navigator.serviceWorker.register('http:%2fservice_worker_test.js')
                 .then(function (registration) {
+                    console.log(`(Unexpected) : ${registration}`);
                     notReached();
                 }, function (error) {
                     console.log(`(Expected) Test script URL with escaped slash: ${error}`);
@@ -57,6 +60,7 @@
                 scope: '..:..',
             })
                 .then(function (registration) {
+                    console.log(`(Unexpected) : ${registration}`);
                     notReached();
                 }, function (error) {
                     console.log(`(Expected) Test invalid scope URL: ${error}`);
@@ -67,6 +71,7 @@
                 scope: 'arg:/',
             })
                 .then(function (registration) {
+                    console.log(`(Unexpected) : ${registration}`);
                     notReached();
                 }, function (error) {
                     console.log(`(Expected) Test scope URL that is not http or https: ${error}`);
@@ -77,6 +82,7 @@
                 scope: '/%5c',
             })
                 .then(function (registration) {
+                    console.log(`(Unexpected) : ${registration}`);
                     notReached();
                 }, function (error) {
                     console.log(`(Expected) Test scope URL with escaped slash: ${error}`);
@@ -89,6 +95,7 @@
                     scope: '/',
                 })
                     .then(function (registration) {
+                        console.log(`(Unexpected) : ${registration}`);
                         notReached();
                     }, function (error) {
                         console.log(`(Expected) Test Script URL is not trusted: ${error}`);
@@ -96,53 +103,91 @@
                         message_event_count += 1;
                     });
             }
+            navigator.serviceWorker.register('http://127.0.0.100:2345/')
+                .then(function (registration) {
+                    console.log(`(Unexpected) : ${registration}`);
+                    notReached();
+                }, function (error) {
+                    console.log(`(Expected) Test script URL with different origin: ${error}`);
+                    assertEqual("SecurityError: Service Worker Register failed: Script URL and referrer origin are not the same.", `${error}`);
+                    message_event_count += 1;
+                });
+
+            navigator.serviceWorker.register('service_worker_test.js', {
+                scope: 'http://127.0.0.100:2345/',
+            })
+                .then(function (registration) {
+                    console.log(`(Unexpected) : ${registration}`);
+                    notReached();
+                }, function (error) {
+                    console.log(`(Expected) Test scope URL with different origin: ${error}`);
+                    assertEqual("SecurityError: Service Worker Register failed: Scope URL and referrer origin are not the same.", `${error}`);
+                    message_event_count += 1;
+                });
+
+            // Finally, test a succeeding registration.
+            navigator.serviceWorker.register('service_worker_test.js', {
+                scope: '/registration/scope',
+            })
+                .then(function (registration) {
+                    console.log(`(Expected) Registration Succeeded: ${registration}`);
+                    assertNotEqual(null, registration);
+                    // The default value for RegistrationOptions.type is 'imports'.
+                    assertEqual('imports', registration.updateViaCache);
+                    assertTrue(registration.scope.endsWith('/registration/scope'));
+                    message_event_count += 1;
+
+                    registration.onupdatefound = function (event) {
+                        console.log("Got onupdatefound event", event.target.scope);
+                        assertTrue(event.target.scope.endsWith('/registration/scope'));
+                        message_event_count += 1;
+                    }
+                    assertNotEqual(null, registration.installing);
+                    assertEqual('installing', registration.installing.state);
+                    registration.installing.onstatechange = function (event) {
+                        console.log("Got onstatechange event: ", event.target.state);
+                        message_event_count += 1;
+                    }
+                    assertEqual(null, registration.waiting);
+                    assertEqual(null, registration.active);
+
+                    // Test getRegistration for a non-registered scope.
+                    navigator.serviceWorker.getRegistration('/bo/gus')
+                        .then(function (registration) {
+                            console.log(`(Expected) getRegistration Succeeded: ${registration}`);
+                            assertEqual(null, registration);
+                            message_event_count += 1;
+                        }, function (error) {
+                            console.log(`(Unexpected) : ${error}`);
+                            notReached();
+                        });
+
+                    // Finally, test getRegistration for a registered scope.
+                    navigator.serviceWorker.getRegistration('/registration/scope')
+                        .then(function (registration) {
+                            console.log(`(Expected) getRegistration Succeeded: ${registration}`);
+                            assertNotEqual(null, registration);
+                            assertEqual('imports', registration.updateViaCache);
+                            assertTrue(registration.scope.endsWith('/registration/scope'));
+                            message_event_count += 1;
+                        }, function (error) {
+                            console.log(`(Unexpected) : ${error}`);
+                            notReached();
+                        });
+
+                }, function (error) {
+                    console.log(`(Unexpected) : ${error}`);
+                    notReached();
+                });
         }
-        navigator.serviceWorker.register('http://127.0.0.100:2345/')
-            .then(function (registration) {
-                notReached();
-            }, function (error) {
-                console.log(`(Expected) Test script URL with different origin: ${error}`);
-                assertEqual("SecurityError: Service Worker Register failed: Script URL and referrer origin are not the same.", `${error}`);
-                message_event_count += 1;
-            });
 
-        navigator.serviceWorker.register('service_worker_test.js', {
-            scope: 'http://127.0.0.100:2345/',
-        })
-            .then(function (registration) {
-                notReached();
-            }, function (error) {
-                console.log(`(Expected) Test scope URL with different origin: ${error}`);
-                assertEqual("SecurityError: Service Worker Register failed: Scope URL and referrer origin are not the same.", `${error}`);
-                message_event_count += 1;
-            });
-
-        // Finally, test a succeeding registration.
-        navigator.serviceWorker.register('service_worker_test.js', {
-            scope: '/registration/scope',
-        })
-            .then(function (registration) {
-                console.log(`(Expected) Registration Succeeded: ${registration}`);
-                assertNotEqual(null, registration);
-                assertEqual(null, registration.installing);
-                assertEqual(null, registration.waiting);
-                assertEqual(null, registration.active);
-
-                // The default value for RegistrationOptions.type is 'imports'.
-                assertEqual('imports', registration.updateViaCache);
-                assertTrue(registration.scope.endsWith('/registration/scope'));
-                message_event_count += 1;
-            }, function (error) {
-                notReached();
-            });
-
+        console.log('Done starting tests');
         window.setTimeout(
             () => {
-                assertEqual(24, message_event_count);
                 console.log("Events: ", message_event_count)
+                assertEqual(29, message_event_count);
                 onEndTest();
             }, 500);
 
-        console.log('end');
     </script>
 </body>

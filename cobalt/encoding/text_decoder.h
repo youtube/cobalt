@@ -17,10 +17,10 @@
 
 #include <string>
 
-#include "cobalt/dom/buffer_source.h"
 #include "cobalt/encoding/text_decode_options.h"
 #include "cobalt/encoding/text_decoder_options.h"
 #include "cobalt/script/wrappable.h"
+#include "cobalt/web/buffer_source.h"
 
 typedef struct UConverter UConverter;
 
@@ -42,9 +42,9 @@ class TextDecoder : public script::Wrappable {
   bool ignore_bom() const { return ignore_bom_; }
 
   std::string Decode(script::ExceptionState*);
-  std::string Decode(const dom::BufferSource&, script::ExceptionState*);
+  std::string Decode(const web::BufferSource&, script::ExceptionState*);
   std::string Decode(const TextDecodeOptions&, script::ExceptionState*);
-  std::string Decode(const dom::BufferSource&, const TextDecodeOptions&,
+  std::string Decode(const web::BufferSource&, const TextDecodeOptions&,
                      script::ExceptionState*);
 
   DEFINE_WRAPPABLE_TYPE(TextDecoder);

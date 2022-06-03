@@ -19,7 +19,7 @@ namespace speech {
 
 SpeechSynthesisUtterance::SpeechSynthesisUtterance(
     script::EnvironmentSettings* settings)
-    : dom::EventTarget(settings),
+    : web::EventTarget(settings),
       settings_(settings),
       volume_(1.0f),
       rate_(1.0f),
@@ -27,7 +27,7 @@ SpeechSynthesisUtterance::SpeechSynthesisUtterance(
       pending_speak_(false) {}
 SpeechSynthesisUtterance::SpeechSynthesisUtterance(
     script::EnvironmentSettings* settings, const std::string& text)
-    : dom::EventTarget(settings),
+    : web::EventTarget(settings),
       settings_(settings),
       text_(text),
       volume_(1.0f),
@@ -37,7 +37,7 @@ SpeechSynthesisUtterance::SpeechSynthesisUtterance(
 
 SpeechSynthesisUtterance::SpeechSynthesisUtterance(
     const scoped_refptr<SpeechSynthesisUtterance>& utterance)
-    : dom::EventTarget(utterance->settings_),
+    : web::EventTarget(utterance->settings_),
       text_(utterance->text_),
       lang_(utterance->lang_),
       voice_(utterance->voice_),
@@ -47,7 +47,7 @@ SpeechSynthesisUtterance::SpeechSynthesisUtterance(
       pending_speak_(false) {
   using ListenerSetterFunctionType = base::Callback<void(
       SpeechSynthesisUtterance*,
-      const cobalt::dom::EventTarget::EventListenerScriptValue&)>;
+      const cobalt::web::EventTarget::EventListenerScriptValue&)>;
   auto ListenerCopyHelper = [this](
                                 const EventListenerScriptValue* script_value,
                                 const ListenerSetterFunctionType& setter_func) {
@@ -96,7 +96,7 @@ void SpeechSynthesisUtterance::DispatchErrorEvent(
 }
 
 void SpeechSynthesisUtterance::TraceMembers(script::Tracer* tracer) {
-  dom::EventTarget::TraceMembers(tracer);
+  web::EventTarget::TraceMembers(tracer);
 
   tracer->Trace(voice_);
 }

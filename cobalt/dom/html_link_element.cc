@@ -24,10 +24,10 @@
 #include "base/trace_event/trace_event.h"
 #include "cobalt/cssom/css_parser.h"
 #include "cobalt/cssom/css_style_sheet.h"
-#include "cobalt/dom/csp_delegate.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/window.h"
+#include "cobalt/web/csp_delegate.h"
 #include "nb/memory_scope.h"
 #include "url/gurl.h"
 
@@ -59,14 +59,15 @@ bool IsValidSplashScreenFormat(const std::string& rel) {
   return is_valid_format;
 }
 
-CspDelegate::ResourceType GetCspResourceTypeForRel(const std::string& rel) {
+web::CspDelegate::ResourceType GetCspResourceTypeForRel(
+    const std::string& rel) {
   if (rel == "stylesheet") {
-    return CspDelegate::kStyle;
+    return web::CspDelegate::kStyle;
   } else if (IsValidSplashScreenFormat(rel)) {
-    return CspDelegate::kLocation;
+    return web::CspDelegate::kLocation;
   } else {
     NOTIMPLEMENTED();
-    return CspDelegate::kImage;
+    return web::CspDelegate::kImage;
   }
 }
 
@@ -191,7 +192,7 @@ void HTMLLinkElement::Obtain() {
   // attribute, the origin being the origin of the link element's Document, and
   // the default origin behaviour set to taint.
   csp::SecurityCallback csp_callback = base::Bind(
-      &CspDelegate::CanLoad, base::Unretained(document->csp_delegate()),
+      &web::CspDelegate::CanLoad, base::Unretained(document->csp_delegate()),
       GetCspResourceTypeForRel(rel()));
 
   fetched_last_url_origin_ = loader::Origin();

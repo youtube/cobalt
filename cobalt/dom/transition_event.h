@@ -19,14 +19,14 @@
 
 #include "cobalt/base/token.h"
 #include "cobalt/cssom/property_definitions.h"
-#include "cobalt/dom/event.h"
+#include "cobalt/web/event.h"
 
 namespace cobalt {
 namespace dom {
 
 // The completion of a CSS Transition generates a corresponding DOM Event.
 //   https://www.w3.org/TR/2013/WD-css3-transitions-20131119/#transition-events
-class TransitionEvent : public Event {
+class TransitionEvent : public web::Event {
  public:
   explicit TransitionEvent(const std::string& type)
       : Event(base::Token(type), kBubbles, kCancelable),

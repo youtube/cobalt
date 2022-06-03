@@ -34,7 +34,7 @@ namespace speech {
 // class would encode the audio data, then send it to recognition service.
 class SpeechRecognitionManager {
  public:
-  typedef base::Callback<bool(const scoped_refptr<dom::Event>&)> EventCallback;
+  typedef base::Callback<bool(const scoped_refptr<web::Event>&)> EventCallback;
 
   SpeechRecognitionManager(network::NetworkModule* network_module,
                            const EventCallback& event_callback,
@@ -54,7 +54,7 @@ class SpeechRecognitionManager {
     kAborted,
   };
 
-  void OnEventAvailable(const scoped_refptr<dom::Event>& event);
+  void OnEventAvailable(const scoped_refptr<web::Event>& event);
 
   base::WeakPtrFactory<SpeechRecognitionManager> weak_ptr_factory_;
   // We construct a WeakPtr upon SpeechRecognitionManager's construction in

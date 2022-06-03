@@ -85,13 +85,13 @@ void AudioBufferSourceNode::Start(double when, double offset, double duration,
   AudioLock::AutoLock lock(audio_lock());
 
   if (when != 0 || offset != 0 || duration != 0) {
-    dom::DOMException::Raise(dom::DOMException::kInvalidStateErr,
+    web::DOMException::Raise(web::DOMException::kInvalidStateErr,
                              exception_state);
     return;
   }
 
   if (state_ != kNone) {
-    dom::DOMException::Raise(dom::DOMException::kInvalidStateErr,
+    web::DOMException::Raise(web::DOMException::kInvalidStateErr,
                              exception_state);
     return;
   }
@@ -103,13 +103,13 @@ void AudioBufferSourceNode::Stop(double when,
   AudioLock::AutoLock lock(audio_lock());
 
   if (when != 0) {
-    dom::DOMException::Raise(dom::DOMException::kInvalidStateErr,
+    web::DOMException::Raise(web::DOMException::kInvalidStateErr,
                              exception_state);
     return;
   }
 
   if (state_ != kStarted) {
-    dom::DOMException::Raise(dom::DOMException::kInvalidStateErr,
+    web::DOMException::Raise(web::DOMException::kInvalidStateErr,
                              exception_state);
     return;
   }
@@ -247,7 +247,7 @@ void AudioBufferSourceNode::TraceMembers(script::Tracer* tracer) {
 
 void AudioBufferSourceNode::RemoveBufferSource() {
   context()->RemoveBufferSource(base::WrapRefCounted(this));
-  DispatchEvent(new dom::Event(base::Tokens::ended()));
+  DispatchEvent(new web::Event(base::Tokens::ended()));
 }
 
 }  // namespace audio

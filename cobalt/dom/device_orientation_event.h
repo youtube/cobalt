@@ -21,8 +21,8 @@
 
 #include "base/optional.h"
 #include "cobalt/dom/device_orientation_event_init.h"
-#include "cobalt/dom/event.h"
 #include "cobalt/script/wrappable.h"
+#include "cobalt/web/event.h"
 
 namespace cobalt {
 namespace dom {
@@ -33,7 +33,7 @@ namespace dom {
 // meaning each of the rotations is done on the axis of the rotated system
 // resulting of the previous rotation.
 //   https://www.w3.org/TR/2016/CR-orientation-event-20160818/
-class DeviceOrientationEvent : public Event {
+class DeviceOrientationEvent : public web::Event {
  public:
   DeviceOrientationEvent();
   explicit DeviceOrientationEvent(const std::string& type);

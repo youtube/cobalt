@@ -28,7 +28,8 @@ namespace worker {
 
 class WorkerSettings : public web::EnvironmentSettings {
  public:
-  WorkerSettings(worker::MessagePort* message_port, const GURL& base);
+  explicit WorkerSettings(const GURL& base,
+                          worker::MessagePort* message_port = nullptr);
 
   worker::MessagePort* message_port() const { return message_port_; }
 

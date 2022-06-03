@@ -29,6 +29,7 @@ namespace base {
     MacroOpWithNameOnly(addsourcebuffer)                             \
     MacroOpWithNameOnly(addtrack)                                    \
     MacroOpWithNameOnly(abort)                                       \
+    MacroOpWithNameOnly(activate)                                    \
     MacroOpWithNameOnly(additions)                                   \
     MacroOpWithNameOnly(all)                                         \
     MacroOpWithNameOnly(alt)                                         \
@@ -54,6 +55,7 @@ namespace base {
     MacroOpWithNameOnly(end)                                         \
     MacroOpWithNameOnly(ended)                                       \
     MacroOpWithNameOnly(error)                                       \
+    MacroOpWithNameOnly(fetch)                                       \
     MacroOpWithNameOnly(focus)                                       \
     MacroOpWithNameOnly(focusin)                                     \
     MacroOpWithNameOnly(focusout)                                    \
@@ -62,6 +64,7 @@ namespace base {
     MacroOpWithNameOnly(hashchange)                                  \
     MacroOpWithNameOnly(hide)                                        \
     MacroOpWithNameOnly(input)                                       \
+    MacroOpWithNameOnly(install)                                     \
     MacroOpWithNameOnly(keydown)                                     \
     MacroOpWithNameOnly(keypress)                                    \
     MacroOpWithNameOnly(keystatuseschange)                           \

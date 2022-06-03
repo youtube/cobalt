@@ -17,6 +17,7 @@
 
 #include <string>
 
+#include "base/trace_event/trace_event.h"
 #include "cobalt/dom/eme/media_key_system_configuration.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/promise.h"
@@ -41,6 +42,8 @@ class MediaKeySystemAccess : public script::Wrappable {
   // Web API: MediaKeySystemAccess.
   const std::string& key_system() const { return key_system_; }
   const MediaKeySystemConfiguration& GetConfiguration() const {
+    TRACE_EVENT0("cobalt::dom::eme",
+                 "MediaKeySystemAccess::GetConfiguration()");
     return configuration_;
   }
   script::Handle<InterfacePromise> CreateMediaKeys(

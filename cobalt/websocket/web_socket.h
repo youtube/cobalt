@@ -24,17 +24,17 @@
 #include "base/optional.h"
 #include "cobalt/base/compiler.h"
 #include "cobalt/base/tokens.h"
-#include "cobalt/dom/blob.h"
-#include "cobalt/dom/csp_delegate.h"
-#include "cobalt/dom/dom_exception.h"
-#include "cobalt/dom/event_target.h"
 #include "cobalt/dom/message_event.h"
 #include "cobalt/script/array_buffer.h"
 #include "cobalt/script/array_buffer_view.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/wrappable.h"
+#include "cobalt/web/blob.h"
+#include "cobalt/web/csp_delegate.h"
+#include "cobalt/web/dom_exception.h"
 #include "cobalt/web/environment_settings.h"
+#include "cobalt/web/event_target.h"
 #include "cobalt/websocket/web_socket_impl.h"
 
 namespace cobalt {
@@ -43,7 +43,7 @@ namespace websocket {
 // This class represents a WebSocket.  It abides by RFC 6455 "The WebSocket
 // Protocol", and implements the The WebSocket API spec at
 // https://www.w3.org/TR/websockets/ (as of Jan 2017).
-class WebSocket : public dom::EventTarget {
+class WebSocket : public web::EventTarget {
  public:
   // Constants.
   static const uint16 kConnecting = 0;
@@ -84,7 +84,7 @@ class WebSocket : public dom::EventTarget {
              script::ExceptionState* exception_state);
 
   void Send(const std::string& data, script::ExceptionState* exception_state);
-  void Send(const scoped_refptr<dom::Blob>& data,
+  void Send(const scoped_refptr<web::Blob>& data,
             script::ExceptionState* exception_state);
   void Send(const script::Handle<script::ArrayBuffer>& data,
             script::ExceptionState* exception_state);
@@ -101,7 +101,7 @@ class WebSocket : public dom::EventTarget {
                       scoped_refptr<net::IOBufferWithSize> data);
   void OnWriteDone(uint64_t bytes_written);
 
-  void OnError() { this->DispatchEvent(new dom::Event(base::Tokens::error())); }
+  void OnError() { this->DispatchEvent(new web::Event(base::Tokens::error())); }
 
   // EventHandlers.
   const EventListenerScriptValue* onclose() const {
@@ -146,7 +146,7 @@ class WebSocket : public dom::EventTarget {
   int GetPort() const { return resolved_url_.EffectiveIntPort(); }
   std::string GetPortAsString() const;
 
-  dom::CspDelegate* csp_delegate() const;
+  web::CspDelegate* csp_delegate() const;
 
   DEFINE_WRAPPABLE_TYPE(WebSocket)
 

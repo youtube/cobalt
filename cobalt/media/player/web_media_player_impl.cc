@@ -122,9 +122,7 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
       allow_resume_after_suspend_(allow_resume_after_suspend),
       proxy_(new WebMediaPlayerProxy(main_loop_->task_runner(), this)),
       media_log_(media_log),
-      incremented_externally_allocated_memory_(false),
       is_local_source_(false),
-      supports_save_(true),
       suppress_destruction_errors_(false),
       drm_system_(NULL),
       window_(window) {
@@ -252,7 +250,6 @@ void WebMediaPlayerImpl::LoadMediaSource() {
           &WebMediaPlayerImpl::OnEncryptedMediaInitDataEncounteredWrapper),
       media_log_));
 
-  supports_save_ = false;
   state_.is_media_source = true;
   StartPipeline(chunk_demuxer_.get());
 }
@@ -310,16 +307,6 @@ void WebMediaPlayerImpl::Pause() {
   media_log_->AddEvent<::media::MediaLogEvent::kPause>();
 }
 
-bool WebMediaPlayerImpl::SupportsFullscreen() const {
-  DCHECK_EQ(main_loop_, base::MessageLoop::current());
-  return true;
-}
-
-bool WebMediaPlayerImpl::SupportsSave() const {
-  DCHECK_EQ(main_loop_, base::MessageLoop::current());
-  return supports_save_;
-}
-
 void WebMediaPlayerImpl::Seek(float seconds) {
   DCHECK_EQ(main_loop_, base::MessageLoop::current());
 
@@ -358,13 +345,6 @@ void WebMediaPlayerImpl::Seek(float seconds) {
   // Kick off the asynchronous seek!
   pipeline_->Seek(seek_time,
                   BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnPipelineSeek));
-}
-
-void WebMediaPlayerImpl::SetEndTime(float seconds) {
-  DCHECK_EQ(main_loop_, base::MessageLoop::current());
-
-  // TODO(hclam): add method call when it has been implemented.
-  return;
 }
 
 void WebMediaPlayerImpl::SetRate(float rate) {
@@ -781,12 +761,6 @@ void WebMediaPlayerImpl::OnDemuxerOpened() {
   GetClient()->SourceOpened(chunk_demuxer_.get());
 }
 
-void WebMediaPlayerImpl::SetOpaque(bool opaque) {
-  DCHECK_EQ(main_loop_, base::MessageLoop::current());
-
-  GetClient()->SetOpaque(opaque);
-}
-
 void WebMediaPlayerImpl::OnDownloadingStatusChanged(bool is_downloading) {
   if (!is_downloading && network_state_ == WebMediaPlayer::kNetworkStateLoading)
     SetNetworkState(WebMediaPlayer::kNetworkStateIdle);
@@ -857,7 +831,6 @@ void WebMediaPlayerImpl::SetReadyState(WebMediaPlayer::ReadyState state) {
 
   if (ready_state_ == WebMediaPlayer::kReadyStateHaveNothing &&
       state >= WebMediaPlayer::kReadyStateHaveMetadata) {
-    if (!HasVideo()) GetClient()->DisableAcceleratedCompositing();
   } else if (state == WebMediaPlayer::kReadyStateHaveEnoughData) {
     if (is_local_source_ &&
         network_state_ == WebMediaPlayer::kNetworkStateLoading) {

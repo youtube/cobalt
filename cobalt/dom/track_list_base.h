@@ -21,23 +21,24 @@
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/base/tokens.h"
-#include "cobalt/dom/event.h"
-#include "cobalt/dom/event_target.h"
 #include "cobalt/dom/html_media_element.h"
 #include "cobalt/dom/track_event.h"
 #include "cobalt/script/environment_settings.h"
+#include "cobalt/web/event.h"
+#include "cobalt/web/event_target.h"
 
 namespace cobalt {
 namespace dom {
 
 // This class contains common operations for AudioTrackList and VideoTrackList.
 template <typename TrackType>
-class TrackListBase : public EventTarget {
+class TrackListBase : public web::EventTarget {
  public:
   TrackListBase(script::EnvironmentSettings* settings,
                 HTMLMediaElement* media_element)
-      : EventTarget(settings) {
+      : web::EventTarget(settings) {
     DCHECK(media_element);
     media_element_ = base::AsWeakPtr(media_element);
   }
@@ -49,6 +50,7 @@ class TrackListBase : public EventTarget {
   }
 
   scoped_refptr<TrackType> GetTrackById(const std::string& id) const {
+    TRACE_EVENT1("cobalt::dom", "TrackListBase::GetTrackById()", "id", id);
     for (size_t i = 0; i < tracks_.size(); ++i) {
       if (tracks_[i]->id() == id) {
         return tracks_[i];
@@ -87,11 +89,11 @@ class TrackListBase : public EventTarget {
   }
 
   void ScheduleChangeEvent() {
-    ScheduleEvent(new Event(base::Tokens::change()));
+    ScheduleEvent(new web::Event(base::Tokens::change()));
   }
 
  private:
-  void ScheduleEvent(const scoped_refptr<Event>& event) {
+  void ScheduleEvent(const scoped_refptr<web::Event>& event) {
     event->set_target(this);
     media_element_->ScheduleEvent(event);
   }

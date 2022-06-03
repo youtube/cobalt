@@ -50,7 +50,7 @@
 #include "base/logging.h"
 #include "base/strings/stringprintf.h"
 #include "cobalt/base/tokens.h"
-#include "cobalt/dom/event.h"
+#include "cobalt/web/event.h"
 
 namespace cobalt {
 namespace dom {
@@ -62,7 +62,7 @@ const int kSizeOfSourceBufferToReserveInitially = 2;
 
 SourceBufferList::SourceBufferList(script::EnvironmentSettings* settings,
                                    EventQueue* event_queue)
-    : EventTarget(settings), event_queue_(event_queue) {
+    : web::EventTarget(settings), event_queue_(event_queue) {
   DCHECK(event_queue_);
   source_buffers_.reserve(kSizeOfSourceBufferToReserveInitially);
 }
@@ -124,7 +124,7 @@ void SourceBufferList::Clear() {
 }
 
 void SourceBufferList::TraceMembers(script::Tracer* tracer) {
-  EventTarget::TraceMembers(tracer);
+  web::EventTarget::TraceMembers(tracer);
 
   if (event_queue_) {
     event_queue_->TraceMembers(tracer);
@@ -135,7 +135,7 @@ void SourceBufferList::TraceMembers(script::Tracer* tracer) {
 }
 
 void SourceBufferList::ScheduleEvent(base::Token event_name) {
-  scoped_refptr<Event> event = new Event(event_name);
+  scoped_refptr<web::Event> event = new web::Event(event_name);
   event->set_target(this);
   event_queue_->Enqueue(event);
 }

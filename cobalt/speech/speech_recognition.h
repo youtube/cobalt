@@ -17,10 +17,10 @@
 
 #include <string>
 
-#include "cobalt/dom/event_target.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/speech/speech_recognition_config.h"
 #include "cobalt/speech/speech_recognition_manager.h"
+#include "cobalt/web/event_target.h"
 
 namespace cobalt {
 namespace speech {
@@ -28,7 +28,7 @@ namespace speech {
 // The speech recognition interface is the scripted web API for controlling a
 // given recognition.
 //   https://dvcs.w3.org/hg/speech-api/raw-file/9a0075d25326/speechapi.html#speechreco-section
-class SpeechRecognition : public dom::EventTarget {
+class SpeechRecognition : public web::EventTarget {
  public:
   explicit SpeechRecognition(script::EnvironmentSettings* settings);
 
@@ -106,7 +106,7 @@ class SpeechRecognition : public dom::EventTarget {
   ~SpeechRecognition() override {}
 
   // Callback from recognition manager.
-  bool OnEventAvailable(const scoped_refptr<dom::Event>& event);
+  bool OnEventAvailable(const scoped_refptr<web::Event>& event);
 
   // Handles main operations of speech recognition including audio encoding,
   // mic audio retrieving and audio data recognizing.

@@ -20,12 +20,12 @@
 
 #include "base/memory/weak_ptr.h"
 #include "cobalt/dom/document.h"
-#include "cobalt/dom/event.h"
 #include "cobalt/dom/html_element.h"
 #include "cobalt/layout/box.h"
 #include "cobalt/layout/layout_boxes.h"
 #include "cobalt/math/vector2d.h"
 #include "cobalt/math/vector2d_f.h"
+#include "cobalt/web/event.h"
 
 namespace cobalt {
 namespace layout {
@@ -34,7 +34,7 @@ class TopmostEventTarget {
  public:
   TopmostEventTarget() {}
 
-  void MaybeSendPointerEvents(const scoped_refptr<dom::Event>& event);
+  void MaybeSendPointerEvents(const scoped_refptr<web::Event>& event);
 
  private:
   scoped_refptr<dom::HTMLElement> FindTopmostEventTarget(

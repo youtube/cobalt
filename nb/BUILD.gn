@@ -70,7 +70,7 @@ static_library("nb") {
     ]
 
     if (defined(has_nb_platform) && has_nb_platform) {
-      deps += [ "//nb/${target_platform}:nb_platform" ]
+      deps += [ "//starboard/${target_platform}/nb:nb_platform" ]
     }
   }
 }

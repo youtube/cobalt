@@ -17,10 +17,15 @@
 #include <utility>
 #include <vector>
 
+#include "base/command_line.h"
 #include "cobalt/watchdog/watchdog.h"
 #include "starboard/common/file.h"
 #include "starboard/common/log.h"
 #include "starboard/configuration_constants.h"
+
+#if defined(_DEBUG)
+#include "cobalt/browser/switches.h"
+#endif  // defined(_DEBUG)
 
 namespace cobalt {
 namespace watchdog {
@@ -43,6 +48,31 @@ const int64_t kWatchdogMaxPingInfos = 100;
 bool Watchdog::Initialize() {
   SB_CHECK(SbMutexCreate(&mutex_));
   smallest_time_interval_ = kWatchdogSmallestTimeInterval;
+
+#if defined(_DEBUG)
+  // Sets Watchdog delay settings from command line switch.
+  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
+  if (command_line->HasSwitch(browser::switches::kWatchdog)) {
+    std::string watchdog_settings =
+        command_line->GetSwitchValueASCII(browser::switches::kWatchdog);
+    std::istringstream ss(watchdog_settings);
+
+    std::string delay_name;
+    std::getline(ss, delay_name, ',');
+    delay_name_ = delay_name;
+
+    std::string delay_wait_time_microseconds;
+    std::getline(ss, delay_wait_time_microseconds, ',');
+    if (delay_wait_time_microseconds != "")
+      delay_wait_time_microseconds_ = std::stoll(delay_wait_time_microseconds);
+
+    std::string delay_sleep_time_microseconds;
+    std::getline(ss, delay_sleep_time_microseconds, ',');
+    if (delay_sleep_time_microseconds != "")
+      delay_sleep_time_microseconds_ =
+          std::stoll(delay_sleep_time_microseconds);
+  }
+#endif  // defined(_DEBUG)
 
   // Starts monitor thread.
   is_monitoring_ = true;
@@ -254,6 +284,15 @@ void Watchdog::SerializeWatchdogViolations(void* context) {
       kSbFileCreateAlways | kSbFileWrite);
   watchdog_file.WriteAll(watchdog_json.c_str(),
                          static_cast<int>(watchdog_json.size()));
+
+  MaybeTriggerCrash(context);
+}
+
+void Watchdog::MaybeTriggerCrash(void* context) {
+  if (static_cast<Watchdog*>(context)->can_trigger_crash_) {
+    SB_LOG(ERROR) << "Triggering Watchdog Violation Crash!";
+    CHECK(false);
+  }
 }
 
 bool Watchdog::Register(std::string name, base::ApplicationState monitor_state,
@@ -352,8 +391,8 @@ bool Watchdog::Ping(const std::string& name, const std::string& info) {
     it->second->time_last_pinged_microseconds = SbTimeGetMonotonicNow();
     if (info != "") {
       int64_t current_time = SbTimeToPosix(SbTimeGetNow());
-      it->second->ping_infos.push(std::to_string(current_time) + "\n" + info +
-                                  "\n");
+      it->second->ping_infos.push(std::to_string(current_time) + "\\n" + info +
+                                  "\\n");
       if (it->second->ping_infos.size() > kWatchdogMaxPingInfos)
         it->second->ping_infos.pop();
     }
@@ -388,6 +427,36 @@ std::string Watchdog::GetWatchdogViolations(bool current) {
     return "";
   }
 }
+
+bool Watchdog::GetCanTriggerCrash() { return can_trigger_crash_; }
+
+void Watchdog::SetCanTriggerCrash(bool can_trigger_crash) {
+  // Sets a persistent Watchdog setting that determines whether or not a
+  // Watchdog violation will trigger a crash. TODO
+  can_trigger_crash_ = can_trigger_crash;
+}
+
+#if defined(_DEBUG)
+// Sleeps threads based off of environment variables for Watchdog debugging.
+void Watchdog::MaybeInjectDebugDelay(const std::string& name) {
+  // Watchdog stub
+  if (is_stub_) return;
+
+  starboard::ScopedLock scoped_lock(delay_lock_);
+
+  if (name != delay_name_) return;
+
+  SbTimeMonotonic current_time = SbTimeGetMonotonicNow();
+  if (time_last_delayed_microseconds_ == 0)
+    time_last_delayed_microseconds_ = current_time;
+
+  if (current_time >
+      time_last_delayed_microseconds_ + delay_wait_time_microseconds_) {
+    SbThreadSleep(delay_sleep_time_microseconds_);
+    time_last_delayed_microseconds_ = SbTimeGetMonotonicNow();
+  }
+}
+#endif  // defined(_DEBUG)
 
 }  // namespace watchdog
 }  // namespace cobalt

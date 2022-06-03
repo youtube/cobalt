@@ -43,8 +43,9 @@ repos:
                --ignore-words-list, atleast]
         exclude: |
             (?x)^(
-                cobalt/content/i18n/platform/|
-                cobalt/content/licenses/
+                starboard/[^/]+/i18n/|
+                cobalt/content/licenses/|
+                cobalt/fetch/embedded_scripts
             )
 
 -   repo: local
@@ -79,14 +80,12 @@ repos:
         language: system
         types: [python]
         args: [-i, -vv]
-        exclude: '\.gypi?$'
     -   id: pylint
         name: pylint
         entry: pylint
         language: system
         types: [python]
         args: [-d W0201]
-        exclude: '\.gypi?$'
     -   id: google-java-format
         name: google-java-format
         entry: python ./precommit_hooks/google_java_format_wrapper.py
@@ -175,9 +174,3 @@ repos:
         entry: gn format
         language: system
         files: '.*\.gni?$'
-    -   id: gyp-changes
-        name: Disallow GYP Changes
-        entry: echo -e "GYP is deprecated and will not be included past Cobalt 22. Use GN.\n"
-        language: system
-        files: '\.gypi?$'
-        verbose: true

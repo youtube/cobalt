@@ -91,6 +91,8 @@ component("media") {
     "base/ranges.h",
     "base/sample_format.cc",
     "base/sample_format.h",
+    "base/starboard_utils.cc",
+    "base/starboard_utils.h",
     "base/stream_parser.cc",
     "base/stream_parser.h",
     "base/stream_parser_buffer.cc",
@@ -247,5 +249,25 @@ component("media") {
     "//net",
     "//starboard",
     "//url",
+  ]
+}
+
+target(gtest_target_type, "chromium_media_test") {
+  testonly = true
+
+  sources = [
+    "base/starboard_utils_test.cc",
+    "test/run_all_unittests.cc",
+  ]
+
+  configs -= [ "//starboard/build/config:size" ]
+  configs += [ "//starboard/build/config:speed" ]
+
+  deps = [
+    ":media",
+    "//base",
+    "//base/test:test_support",
+    "//testing/gmock",
+    "//testing/gtest",
   ]
 }

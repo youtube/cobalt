@@ -20,11 +20,11 @@
 #include <utility>
 
 #include "base/macros.h"
-#include "cobalt/dom/event_target.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/script_value.h"
 #include "cobalt/script/script_value_factory.h"
 #include "cobalt/script/wrappable.h"
+#include "cobalt/web/event_target.h"
 #include "cobalt/worker/navigation_preload_manager.h"
 #include "cobalt/worker/service_worker.h"
 #include "cobalt/worker/service_worker_registration_object.h"
@@ -38,7 +38,7 @@ namespace worker {
 // The ServiceWorkerRegistration interface represents a service worker
 // registration within a service worker client realm.
 //   https://w3c.github.io/ServiceWorker/#serviceworker-interface
-class ServiceWorkerRegistration : public dom::EventTarget {
+class ServiceWorkerRegistration : public web::EventTarget {
  public:
   ServiceWorkerRegistration(
       script::EnvironmentSettings* settings,

@@ -22,8 +22,8 @@
 #include "cobalt/dom/html_collection.h"
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/node_list.h"
-#include "cobalt/dom/testing/gtest_workarounds.h"
 #include "cobalt/dom/text.h"
+#include "cobalt/web/testing/gtest_workarounds.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
@@ -36,7 +36,7 @@ const scoped_refptr<HTMLCollection> kNullCollection{};
 // Helper function that validates that the children of the given node are
 // identical to the provided expected array.
 template <int N>
-void ExpectNodeChildrenEq(scoped_refptr<Node>(&children)[N],
+void ExpectNodeChildrenEq(scoped_refptr<Node> (&children)[N],
                           const scoped_refptr<Node>& node) {
   // Make sure that we have at least one child.
   COMPILE_ASSERT(N >= 1, expect_node_children_has_no_child);

@@ -15,7 +15,9 @@
 #ifndef COBALT_DOM_ELEMENT_H_
 #define COBALT_DOM_ELEMENT_H_
 
+#include <memory>
 #include <string>
+#include <unordered_map>
 
 #include "base/containers/hash_tables.h"
 #include "base/containers/small_map.h"
@@ -24,11 +26,11 @@
 #include "base/strings/string_piece.h"
 #include "cobalt/base/token.h"
 #include "cobalt/cssom/style_sheet_list.h"
-#include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/element_intersection_observer_module.h"
 #include "cobalt/dom/intersection_observer.h"
 #include "cobalt/dom/node.h"
 #include "cobalt/script/exception_state.h"
+#include "cobalt/web/dom_exception.h"
 #include "cobalt/web_animations/animation_set.h"
 
 namespace cobalt {
@@ -177,8 +179,7 @@ class Element : public Node {
   // by javascript.
   // opening_tag_location points to ">" of opening tag.
   virtual void OnParserStartTag(
-      const base::SourceLocation& opening_tag_location) {
-  }
+      const base::SourceLocation& opening_tag_location) {}
   virtual void OnParserEndTag() {}
 
   // Used to ensure that the style attribute value reflects the style

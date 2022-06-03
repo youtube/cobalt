@@ -21,7 +21,7 @@ namespace speech {
 
 SpeechRecognitionError::SpeechRecognitionError(
     SpeechRecognitionErrorCode error_code, const std::string& message)
-    : dom::Event(base::Tokens::error()),
+    : web::Event(base::Tokens::error()),
       error_code_(error_code),
       message_(message) {
   LOG(ERROR) << "Created SpeechRecognitionError code " << error_code

@@ -23,8 +23,8 @@
 namespace cobalt {
 namespace worker {
 // TODO: Only use NullDebuggerHooks if !ENABLE_DEBUGGER.
-WorkerSettings::WorkerSettings(worker::MessagePort* message_port,
-                               const GURL& base)
+WorkerSettings::WorkerSettings(const GURL& base,
+                               worker::MessagePort* message_port)
     : web::EnvironmentSettings(), message_port_(message_port) {
   set_base_url(base);
 }

@@ -18,12 +18,12 @@
 #include <string>
 #include <vector>
 
-#include "cobalt/dom/buffer_source.h"
-#include "cobalt/dom/dom_exception.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/exception_state.h"
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/promise.h"
+#include "cobalt/web/buffer_source.h"
+#include "cobalt/web/dom_exception.h"
 
 #include "cobalt/subtlecrypto/aes_ctr_params.h"
 #include "cobalt/subtlecrypto/algorithm.h"
@@ -43,10 +43,8 @@ class SubtleCrypto : public base::SupportsWeakPtr<SubtleCrypto>,
   using AlgorithmIdentifier = script::UnionType2<Algorithm, std::string>;
   using EncryptionAlgorithm = script::UnionType2<AesCtrParams, Algorithm>;
   using CryptoKeyPtr = scoped_refptr<CryptoKey>;
-  using BufferSource = dom::BufferSource;
-  using DOMException = dom::DOMException;
 
-  using PromiseArray = script::Handle<script::Promise<dom::BufferSource>>;
+  using PromiseArray = script::Handle<script::Promise<web::BufferSource>>;
   using PromiseBool = script::Handle<script::Promise<bool>>;
   using PromiseWrappable =
       script::Handle<script::Promise<scoped_refptr<script::Wrappable>>>;
@@ -55,16 +53,16 @@ class SubtleCrypto : public base::SupportsWeakPtr<SubtleCrypto>,
   ~SubtleCrypto() override;
 
   PromiseArray Decrypt(EncryptionAlgorithm algorithm, const CryptoKeyPtr& key,
-                       const dom::BufferSource& data);
+                       const web::BufferSource& data);
   PromiseArray Encrypt(EncryptionAlgorithm algorithm, const CryptoKeyPtr& key,
-                       const dom::BufferSource& data);
+                       const web::BufferSource& data);
   PromiseArray Sign(AlgorithmIdentifier algorithm, const CryptoKeyPtr& key,
-                    const dom::BufferSource& data);
+                    const web::BufferSource& data);
   PromiseBool Verify(AlgorithmIdentifier algorithm, const CryptoKeyPtr& key,
-                     const dom::BufferSource& signature,
-                     const dom::BufferSource& data);
+                     const web::BufferSource& signature,
+                     const web::BufferSource& data);
   PromiseArray Digest(AlgorithmIdentifier algorithm,
-                      const dom::BufferSource& data);
+                      const web::BufferSource& data);
   PromiseArray GenerateKey(AlgorithmIdentifier algorithm, bool extractable,
                            const KeyUsages& keyUsages);
   PromiseArray DeriveKey(AlgorithmIdentifier algorithm, const CryptoKeyPtr& key,
@@ -73,7 +71,7 @@ class SubtleCrypto : public base::SupportsWeakPtr<SubtleCrypto>,
   PromiseArray DeriveBits(AlgorithmIdentifier algorithm,
                           const CryptoKeyPtr& key, const uint32_t length);
   PromiseWrappable ImportKey(
-      KeyFormat format, const dom::BufferSource& keyData,
+      KeyFormat format, const web::BufferSource& keyData,
       script::UnionType2<ImportKeyAlgorithmParams, std::string> algorithm,
       bool extractable, const KeyUsages& keyUsages);
   PromiseArray ExportKey(KeyFormat format, const CryptoKeyPtr& key);
@@ -81,7 +79,7 @@ class SubtleCrypto : public base::SupportsWeakPtr<SubtleCrypto>,
                        const CryptoKeyPtr& wrappingKey,
                        AlgorithmIdentifier algorithm);
   PromiseWrappable UnwrapKey(KeyFormat format,
-                             const dom::BufferSource& wrappedKey,
+                             const web::BufferSource& wrappedKey,
                              const CryptoKeyPtr& unwrappingKey,
                              AlgorithmIdentifier unwrapAlgorithm,
                              AlgorithmIdentifier unwrappedKeyAlgorithm,
@@ -96,14 +94,14 @@ class SubtleCrypto : public base::SupportsWeakPtr<SubtleCrypto>,
   cobalt::script::GlobalEnvironment* global_env_ = nullptr;
   cobalt::script::ScriptValueFactory* script_value_factory_ = nullptr;
 
-  template <typename Promise = PromiseArray, typename T = dom::BufferSource>
+  template <typename Promise = PromiseArray, typename T = web::BufferSource>
   Promise CreatePromise() {
     DCHECK(script_value_factory_);
     return script_value_factory_->CreateBasicPromise<T>();
   }
 
   PromiseWrappable CreateKeyPromise();
-  dom::BufferSource CreateBufferSource(const std::vector<uint8_t>& input);
+  web::BufferSource CreateBufferSource(const std::vector<uint8_t>& input);
 };
 
 }  // namespace subtlecrypto

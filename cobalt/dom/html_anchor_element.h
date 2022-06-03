@@ -20,7 +20,7 @@
 #include "base/bind.h"
 #include "base/compiler_specific.h"
 #include "cobalt/dom/html_element.h"
-#include "cobalt/dom/url_utils.h"
+#include "cobalt/web/url_utils.h"
 
 namespace cobalt {
 namespace dom {
@@ -91,7 +91,7 @@ class HTMLAnchorElement : public HTMLElement {
 
   void UpdateSteps(const std::string& value);
 
-  URLUtils url_utils_;
+  web::URLUtils url_utils_;
 };
 
 }  // namespace dom

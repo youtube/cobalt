@@ -42,3 +42,18 @@ black box tests do not start Cobalt with normal usage patterns.
 To implement liveness check behavior monitoring, a Javascript adapter layer
 will need to be implemented that handles the periodic pinging and callbacks
 required.
+
+### III. Debugging
+
+Watchdog also provides a function MaybeInjectDelay() that can be used to
+artificially inject thread sleeps to create Watchdog violations. This is
+especially useful for testing and should be placed near where Ping() calls are
+made.
+
+The delay works by reading the watchdog command line switch which takes in a
+comma separated string with settings that correspond to
+delay_name_,delay_wait_time_microseconds_,delay_sleep_time_microseconds_
+(ex. "renderer,100000,1000"). The delay name is the name of the Watchdog client
+to inject delay, the delay wait is the time in between delays (periodic), and
+the delay sleep is the delay duration. They have default values of empty, 0,
+and 0 respectively.

@@ -17,9 +17,9 @@
 
 #include "base/compiler_specific.h"
 #include "cobalt/dom/document.h"
-#include "cobalt/dom/event.h"
 #include "cobalt/dom/html_element.h"
 #include "cobalt/dom/pseudo_element.h"
+#include "cobalt/web/event.h"
 #include "cobalt/web_animations/animatable.h"
 
 namespace cobalt {

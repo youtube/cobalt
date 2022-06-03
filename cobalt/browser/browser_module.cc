@@ -40,19 +40,19 @@
 #include "cobalt/browser/switches.h"
 #include "cobalt/configuration/configuration.h"
 #include "cobalt/cssom/viewport_size.h"
-#include "cobalt/dom/csp_delegate_factory.h"
 #include "cobalt/dom/input_event_init.h"
 #include "cobalt/dom/keyboard_event_init.h"
 #include "cobalt/dom/keycode.h"
 #include "cobalt/dom/mutation_observer_task_manager.h"
 #include "cobalt/dom/navigator.h"
-#include "cobalt/dom/navigator_ua_data.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/extension/graphics.h"
 #include "cobalt/h5vcc/h5vcc.h"
 #include "cobalt/input/input_device_manager_fuzzer.h"
 #include "cobalt/math/matrix3_f.h"
 #include "cobalt/overlay_info/overlay_info_registry.h"
+#include "cobalt/web/csp_delegate_factory.h"
+#include "cobalt/web/navigator_ua_data.h"
 #include "nb/memory_scope.h"
 #include "starboard/atomic.h"
 #include "starboard/common/string.h"
@@ -463,6 +463,9 @@ BrowserModule::~BrowserModule() {
 #if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
   SbCoreDumpUnregisterHandler(BrowserModule::CoreDumpHandler, this);
 #endif
+
+  // Make sure the WebModule is destroyed before the ServiceWorkerRegistry
+  web_module_.reset();
 }
 
 void BrowserModule::Navigate(const GURL& url_reference) {
@@ -561,7 +564,7 @@ void BrowserModule::Navigate(const GURL& url_reference) {
 // Create new WebModule.
 #if !defined(COBALT_FORCE_CSP)
   options_.web_module_options.csp_insecure_allowed_token =
-      dom::CspDelegateFactory::GetInsecureAllowedToken();
+      web::CspDelegateFactory::GetInsecureAllowedToken();
 #endif
   WebModule::Options options(options_.web_module_options);
   options.splash_screen_cache = splash_screen_cache_.get();
@@ -610,6 +613,8 @@ void BrowserModule::Navigate(const GURL& url_reference) {
       base::Bind(&BrowserModule::OnMaybeFreeze, base::Unretained(this));
 
   options.web_options.network_module = network_module_;
+  options.web_options.service_worker_jobs =
+      service_worker_registry_.service_worker_jobs();
 
   web_module_.reset(new WebModule(
       url, application_state_,
@@ -619,8 +624,7 @@ void BrowserModule::Navigate(const GURL& url_reference) {
       base::Bind(&BrowserModule::OnWindowClose, base::Unretained(this)),
       base::Bind(&BrowserModule::OnWindowMinimize, base::Unretained(this)),
       can_play_type_handler_.get(), media_module_.get(), viewport_size,
-      GetResourceProvider(), kLayoutMaxRefreshFrequencyInHz,
-      service_worker_registry_.service_worker_jobs(), options));
+      GetResourceProvider(), kLayoutMaxRefreshFrequencyInHz, options));
   lifecycle_observers_.AddObserver(web_module_.get());
 
   if (system_window_) {
@@ -1428,6 +1432,12 @@ void BrowserModule::Blur(SbTimeMonotonic timestamp) {
   DCHECK(application_state_ == base::kApplicationStateStarted);
   application_state_ = base::kApplicationStateBlurred;
   FOR_EACH_OBSERVER(LifecycleObserver, lifecycle_observers_, Blur(timestamp));
+
+  // The window is about to lose focus, and may be destroyed.
+  if (media_module_) {
+    DCHECK(system_window_);
+    window_size_ = system_window_->GetWindowSize();
+  }
 }
 
 void BrowserModule::Conceal(SbTimeMonotonic timestamp) {
@@ -1721,10 +1731,8 @@ void BrowserModule::ConcealInternal(SbTimeMonotonic timestamp) {
 
   ResetResources();
 
-  // Suspend media module and update system window and resource provider.
+  // Suspend media module and update resource provider.
   if (media_module_) {
-    DCHECK(system_window_);
-    window_size_ = system_window_->GetWindowSize();
 #if SB_API_VERSION >= 13
     // This needs to be done before destroying the renderer module as it
     // may use the renderer module to release assets during the update.

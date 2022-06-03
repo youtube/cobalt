@@ -18,8 +18,8 @@
 #include <memory>
 #include <string>
 
-#include "cobalt/dom/event.h"
 #include "cobalt/dom/lottie_frame_custom_event_detail.h"
+#include "cobalt/web/event.h"
 
 namespace cobalt {
 namespace dom {
@@ -27,10 +27,11 @@ namespace dom {
 // Lottie frame events carry custom data about the frame rendered and how far
 // the animation has played.
 //   https://lottiefiles.github.io/lottie-player/events.html
-class LottieFrameCustomEvent : public Event {
+class LottieFrameCustomEvent : public web::Event {
  public:
   explicit LottieFrameCustomEvent(const std::string& type) : Event(type) {}
-  LottieFrameCustomEvent(const std::string& type, const EventInit& init_dict)
+  LottieFrameCustomEvent(const std::string& type,
+                         const web::EventInit& init_dict)
       : Event(type, init_dict) {}
 
   void set_detail(const LottieFrameCustomEventDetail& detail) {

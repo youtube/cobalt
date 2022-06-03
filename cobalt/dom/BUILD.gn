@@ -39,10 +39,6 @@ static_library("dom") {
     "base64.h",
     "benchmark_stat_names.cc",
     "benchmark_stat_names.h",
-    "blob.cc",
-    "blob.h",
-    "buffer_source.cc",
-    "buffer_source.h",
     "c_val_view.cc",
     "c_val_view.h",
     "camera_3d.cc",
@@ -53,23 +49,14 @@ static_library("dom") {
     "cdata_section.h",
     "character_data.cc",
     "character_data.h",
-    "cobalt_ua_data_values_interface.cc",
-    "cobalt_ua_data_values_interface.h",
     "comment.cc",
     "comment.h",
     "crypto.cc",
     "crypto.h",
-    "csp_delegate.cc",
-    "csp_delegate.h",
-    "csp_delegate_factory.cc",
-    "csp_delegate_factory.h",
-    "csp_violation_reporter.cc",
-    "csp_violation_reporter.h",
     "css_animations_adapter.cc",
     "css_animations_adapter.h",
     "css_transitions_adapter.cc",
     "css_transitions_adapter.h",
-    "custom_event.h",
     "device_orientation_event.cc",
     "device_orientation_event.h",
     "directionality.h",
@@ -114,16 +101,9 @@ static_library("dom") {
     "eme/media_key_system_access.h",
     "eme/media_keys.cc",
     "eme/media_keys.h",
-    "error_event.h",
-    "event.cc",
-    "event.h",
     "event_listener.h",
     "event_queue.cc",
     "event_queue.h",
-    "event_target.cc",
-    "event_target.h",
-    "event_target_listener_info.cc",
-    "event_target_listener_info.h",
     "focus_event.cc",
     "focus_event.h",
     "font_cache.cc",
@@ -229,8 +209,6 @@ static_library("dom") {
     "named_node_map.h",
     "navigator.cc",
     "navigator.h",
-    "navigator_ua_data.cc",
-    "navigator_ua_data.h",
     "node.cc",
     "node.h",
     "node_children_iterator.h",
@@ -239,8 +217,6 @@ static_library("dom") {
     "node_list.h",
     "node_list_live.cc",
     "node_list_live.h",
-    "on_error_event_listener.cc",
-    "on_error_event_listener.h",
     "on_screen_keyboard.cc",
     "on_screen_keyboard.h",
     "on_screen_keyboard_bridge.h",
@@ -287,8 +263,6 @@ static_library("dom") {
     "screenshot.h",
     "screenshot_manager.cc",
     "screenshot_manager.h",
-    "security_policy_violation_event.cc",
-    "security_policy_violation_event.h",
     "serializer.cc",
     "serializer.h",
     "source_buffer.cc",
@@ -316,20 +290,13 @@ static_library("dom") {
     "ui_event.h",
     "ui_event_with_key_state.cc",
     "ui_event_with_key_state.h",
-    "url.cc",
-    "url.h",
-    "url_registry.h",
-    "url_utils.cc",
-    "url_utils.h",
-    "user_agent_platform_info.h",
+    "url_media_source.cc",
     "video_track.h",
     "video_track_list.h",
     "wheel_event.cc",
     "wheel_event.h",
     "window.cc",
     "window.h",
-    "window_timers.cc",
-    "window_timers.h",
     "xml_document.h",
     "xml_serializer.cc",
     "xml_serializer.h",
@@ -340,12 +307,12 @@ static_library("dom") {
   }
 
   public_deps = [
+    ":window_timers",
     "//cobalt/browser:generated_types",
     "//cobalt/web",
   ]
 
   deps = [
-    ":dom_exception",
     ":licenses",
     "//base:i18n",
     "//cobalt/base",
@@ -368,8 +335,10 @@ static_library("dom") {
     "//cobalt/system_window",
     "//cobalt/ui_navigation",
     "//cobalt/web",
+    "//cobalt/web:dom_exception",
     "//cobalt/web_animations",
     "//cobalt/worker",
+    "//cobalt/xhr:global_stats",
     "//crypto",
     "//nb",
     "//net",
@@ -381,15 +350,23 @@ static_library("dom") {
   ]
 }
 
-static_library("dom_exception") {
+static_library("window_timers") {
   has_pedantic_warnings = true
 
   sources = [
-    "dom_exception.cc",
-    "dom_exception.h",
+    # TODO (b/219103808): Move window_timers to /cobalt/web.
+    "window_timers.cc",
+    "window_timers.h",
   ]
 
-  deps = [ "//cobalt/script" ]
+  public_deps = [ "//cobalt/web:stat_tracker" ]
+
+  deps = [
+    "//cobalt/base",
+    "//cobalt/script",
+    "//cobalt/web:web_events",
+    "//nb",
+  ]
 }
 
 copy("licenses") {
@@ -407,11 +384,8 @@ target(gtest_target_type, "dom_test") {
 
   sources = [
     "application_lifecycle_state_test.cc",
-    "blob_test.cc",
     "comment_test.cc",
     "crypto_test.cc",
-    "csp_delegate_test.cc",
-    "custom_event_test.cc",
     "document_test.cc",
     "document_type_test.cc",
     "dom_implementation_test.cc",
@@ -420,10 +394,7 @@ target(gtest_target_type, "dom_test") {
     "dom_string_map_test.cc",
     "dom_token_list_test.cc",
     "element_test.cc",
-    "error_event_test.cc",
     "event_queue_test.cc",
-    "event_target_test.cc",
-    "event_test.cc",
     "font_cache_test.cc",
     "html_element_factory_test.cc",
     "html_element_test.cc",
@@ -449,7 +420,6 @@ target(gtest_target_type, "dom_test") {
     "storage_area_test.cc",
     "text_test.cc",
     "time_ranges_test.cc",
-    "url_utils_test.cc",
     "user_agent_data_test.cc",
     "window_test.cc",
     "window_timers_test.cc",
@@ -458,7 +428,7 @@ target(gtest_target_type, "dom_test") {
 
   deps = [
     ":dom",
-    ":dom_exception",
+    ":window_timers",
     "//cobalt/base",
     "//cobalt/browser:browser",
     "//cobalt/browser:generated_bindings",
@@ -472,13 +442,13 @@ target(gtest_target_type, "dom_test") {
     "//cobalt/loader",
     "//cobalt/media_session",
     "//cobalt/network_bridge",
-    "//cobalt/network_bridge",
     "//cobalt/render_tree",
     "//cobalt/script",
     "//cobalt/script/v8c:engine",
     "//cobalt/storage",
     "//cobalt/storage/store:memory_store",
     "//cobalt/test:run_all_unittests",
+    "//cobalt/web:dom_exception",
     "//nb",
     "//net:test_support",
     "//testing/gmock",

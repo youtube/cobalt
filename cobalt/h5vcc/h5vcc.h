@@ -61,7 +61,7 @@ class H5vcc : public script::Wrappable {
 #endif
     account::AccountManager* account_manager;
     base::EventDispatcher* event_dispatcher;
-    dom::NavigatorUAData* user_agent_data;
+    web::NavigatorUAData* user_agent_data;
     script::GlobalEnvironment* global_environment;
   };
 

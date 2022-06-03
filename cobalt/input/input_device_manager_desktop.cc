@@ -20,7 +20,6 @@
 #include "base/time/time.h"
 #include "cobalt/base/token.h"
 #include "cobalt/base/tokens.h"
-#include "cobalt/dom/event.h"
 #include "cobalt/dom/input_event.h"
 #include "cobalt/dom/input_event_init.h"
 #include "cobalt/dom/keyboard_event.h"
@@ -33,17 +32,19 @@
 #include "cobalt/input/input_poller_impl.h"
 #include "cobalt/overlay_info/overlay_info_registry.h"
 #include "cobalt/system_window/input_event.h"
+#include "cobalt/web/event.h"
+#include "cobalt/web/event_init.h"
 
 namespace cobalt {
 namespace input {
 
 namespace {
 void UpdateEventInit(const system_window::InputEvent* input_event,
-                     EventInit* event) {
+                     web::EventInit* event) {
   if (input_event->timestamp() != 0) {
     // Convert SbTimeMonotonic to DOMTimeStamp.
     event->set_time_stamp(
-        cobalt::dom::Event::GetEventTime(input_event->timestamp()));
+        cobalt::web::Event::GetEventTime(input_event->timestamp()));
   }
 }
 }  // namespace
@@ -110,8 +111,8 @@ COMPILE_ASSERT(static_cast<uint32_t>(kSbKeyModifiersPointerButtonLeft) ==
                Mismatched_modifier_enums);
 
 void UpdateEventModifierInit(const system_window::InputEvent* input_event,
-                             EventModifierInit* event) {
-  const uint32 modifiers = input_event->modifiers();
+                             dom::EventModifierInit* event) {
+  const uint32_t modifiers = input_event->modifiers();
   event->set_ctrl_key(modifiers & system_window::InputEvent::kCtrlKey);
   event->set_shift_key(modifiers & system_window::InputEvent::kShiftKey);
   event->set_alt_key(modifiers & system_window::InputEvent::kAltKey);
@@ -119,7 +120,7 @@ void UpdateEventModifierInit(const system_window::InputEvent* input_event,
 }
 
 void UpdateMouseEventInitButtons(const system_window::InputEvent* input_event,
-                                 MouseEventInit* event) {
+                                 dom::MouseEventInit* event) {
   // The value of the button attribute MUST be as follows:
   //  https://www.w3.org/TR/uievents/#ref-for-dom-mouseevent-button-1
   switch (input_event->key_code()) {

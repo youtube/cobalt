@@ -18,42 +18,42 @@
 #include <limits>
 #include <string>
 
-#include "cobalt/dom/blob.h"
-#include "cobalt/dom/event.h"
 #include "cobalt/media_capture/blob_event_init.h"
 #include "cobalt/script/wrappable.h"
+#include "cobalt/web/blob.h"
+#include "cobalt/web/event.h"
 
 namespace cobalt {
 namespace media_capture {
 
 // Implements the WebAPI defined at
 // https://w3c.github.io/mediacapture-record/#blob-event
-class BlobEvent : public dom::Event {
+class BlobEvent : public web::Event {
  public:
   explicit BlobEvent(base::Token type,
                      const media_capture::BlobEventInit& blob_event_init)
-      : dom::Event(type) {
+      : web::Event(type) {
     Init(blob_event_init);
   }
   explicit BlobEvent(const std::string& type,
                      const media_capture::BlobEventInit& blob_event_init)
-      : dom::Event(type) {
+      : web::Event(type) {
     Init(blob_event_init);
   }
-  explicit BlobEvent(base::Token type, const scoped_refptr<dom::Blob>& blob,
+  explicit BlobEvent(base::Token type, const scoped_refptr<web::Blob>& blob,
                      double timecode)
-      : dom::Event(type), blob_(blob), timecode_(timecode) {}
+      : web::Event(type), blob_(blob), timecode_(timecode) {}
   explicit BlobEvent(const std::string& type,
-                     const scoped_refptr<dom::Blob>& blob, double timecode)
-      : dom::Event(type), blob_(blob), timecode_(timecode) {}
+                     const scoped_refptr<web::Blob>& blob, double timecode)
+      : web::Event(type), blob_(blob), timecode_(timecode) {}
 
-  scoped_refptr<dom::Blob> data() const { return blob_; }
+  scoped_refptr<web::Blob> data() const { return blob_; }
   double timecode() const { return timecode_; }
 
   DEFINE_WRAPPABLE_TYPE(BlobEvent);
 
   void TraceMembers(script::Tracer* tracer) override {
-    dom::Event::TraceMembers(tracer);
+    web::Event::TraceMembers(tracer);
     tracer->Trace(blob_);
   }
 
@@ -67,7 +67,7 @@ class BlobEvent : public dom::Event {
     }
   }
 
-  scoped_refptr<dom::Blob> blob_;
+  scoped_refptr<web::Blob> blob_;
   double timecode_ = std::numeric_limits<double>::quiet_NaN();
 };
 

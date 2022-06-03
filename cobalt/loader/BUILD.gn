@@ -15,9 +15,6 @@
 static_library("loader") {
   has_pedantic_warnings = true
 
-  # Includes cobalt/dom/url_utils.h from dom that depends on this target.
-  check_includes = false
-
   sources = [
     "blob_fetcher.cc",
     "blob_fetcher.h",
@@ -115,6 +112,7 @@ static_library("loader") {
     "//cobalt/network",
     "//cobalt/render_tree",
     "//cobalt/renderer/test/png_utils",
+    "//cobalt/web",
     "//nb",
     "//third_party/libjpeg-turbo:libjpeg",
     "//third_party/libpng",

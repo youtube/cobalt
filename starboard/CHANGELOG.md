@@ -14,15 +14,42 @@ A description of all changes currently in the experimental Starboard version
 can be found in the comments of the "Experimental Feature Defines" section of
 [configuration.h](configuration.h).
 
-### Deprecate the usage of SB_HAS_PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT.
+## Version 14
+### Add kSbSystemDeviceTypeVideoProjector type to Starboard devices.
+This adds a video projector type to Starboard devices.
+
+### Deprecated SystemPathTestOutputDirectory.
+This duplicated SystemPathDebugOutputDirectory without a useful distinction.
+
+### Introduce a new format kSbDecodeTargetFormat3Plane10BitYUVI420Compact.
+A decoder target format consisting of 10bit Y, U, and V planes.
+
+### Deprecated the usage of SB_HAS_PLAYER_CREATION_AND_OUTPUT_MODE_QUERY_IMPROVEMENT.
 The improvements on player creation and output mode query (like
 `SbPlayerCreationParam` and `SbPlayerGetPreferredOutputMode()`) are always
 enabled.  This change also deprecates `SbPlayerOutputModeSupported()`.
 
-### Deprecate the usage of SB_HAS_MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT
+### Deprecated the usage of SB_HAS_MEDIA_IS_VIDEO_SUPPORTED_REFINEMENT
 The extra parameters (like `profile` and `level`) on `SbMediaIsVideoSupported()`
 are always enabled.  This change also deprecated
 `SbMediaIsTransferCharacteristicsSupported()`.
+
+### Deprecated kSbMediaMatrixIdUnknown and added kSbMediaMatrixIdInvalid.
+`kSbMediaMatrixIdUnknown` has been deprecated. `kSbMediaMatrixIdInvalid`
+was added.
+
+### Deprecated `SbMediaType type` parameter to some SbMedia buffer functions.
+`SbMediaGetBufferAlignment()` and `SbMediaGetBufferPadding()` no longer accept
+`SbMediaType type` as parameters.  The implementation has to return the same
+values for both audio and video streams.
+
+### Made `starboard::QueueApplication::DispatchAndDelete` private
+Since `starboard::shared::starboard::QueueApplication` has an event queue,
+`QueueApplication::Inject` should be used if an event just needs to be added to
+the queue or `QueueApplication::InjectAndProcess` if the event needs to be
+handled before returning. `QueueApplication::DispatchAndDelete` jumps the event
+queue and could lead to bugs due to the event (especially lifecycle events)
+being handled out of order.
 
 ## Version 13
 ### Changed lifecycle events to add support for a concealed state.

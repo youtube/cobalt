@@ -26,6 +26,7 @@
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/testing/mock_exception_state.h"
 #include "cobalt/script/typed_arrays.h"
+#include "cobalt/web/testing/stub_web_context.h"
 
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -107,7 +108,7 @@ TEST_F(TextDecoderTest, DecodeUTF8) {
     EXPECT_CALL(exception_state_,
                 SetSimpleExceptionVA(script::kRangeError, _, _))
         .Times(0);
-    std::string got = text_decoder_->Decode(dom::BufferSource(array_buffer),
+    std::string got = text_decoder_->Decode(web::BufferSource(array_buffer),
                                             &exception_state_);
     EXPECT_EQ(got, want);
   }
@@ -137,7 +138,7 @@ TEST_F(TextDecoderTest, DecodeUTF8Surrogates) {
     EXPECT_CALL(exception_state_,
                 SetSimpleExceptionVA(script::kRangeError, _, _))
         .Times(0);
-    std::string got = text_decoder_->Decode(dom::BufferSource(array_buffer),
+    std::string got = text_decoder_->Decode(web::BufferSource(array_buffer),
                                             &exception_state_);
     EXPECT_EQ(got, want);
   }
@@ -204,7 +205,7 @@ TEST_F(TextDecoderTest, DecodeUTF8Fatal) {
     EXPECT_CALL(exception_state_,
                 SetSimpleExceptionVA(script::kTypeError, _, _))
         .Times(1);
-    std::string got = text_decoder_->Decode(dom::BufferSource(array_buffer),
+    std::string got = text_decoder_->Decode(web::BufferSource(array_buffer),
                                             &exception_state_);
     EXPECT_EQ(got, want);
   }
@@ -240,7 +241,7 @@ TEST_F(TextDecoderTest, DecodeIgnoreBOM) {
       EXPECT_CALL(exception_state_,
                   SetSimpleExceptionVA(script::kRangeError, _, _))
           .Times(0);
-      std::string got = text_decoder_->Decode(dom::BufferSource(array_buffer),
+      std::string got = text_decoder_->Decode(web::BufferSource(array_buffer),
                                               &exception_state_);
       std::string want = kBOM + kABC;
       EXPECT_EQ(got, want);
@@ -259,7 +260,7 @@ TEST_F(TextDecoderTest, DecodeIgnoreBOM) {
       EXPECT_CALL(exception_state_,
                   SetSimpleExceptionVA(script::kRangeError, _, _))
           .Times(0);
-      std::string got = text_decoder_->Decode(dom::BufferSource(array_buffer),
+      std::string got = text_decoder_->Decode(web::BufferSource(array_buffer),
                                               &exception_state_);
       std::string want = kABC;
       EXPECT_EQ(got, want);
@@ -277,7 +278,7 @@ TEST_F(TextDecoderTest, DecodeIgnoreBOM) {
       EXPECT_CALL(exception_state_,
                   SetSimpleExceptionVA(script::kRangeError, _, _))
           .Times(0);
-      std::string got = text_decoder_->Decode(dom::BufferSource(array_buffer),
+      std::string got = text_decoder_->Decode(web::BufferSource(array_buffer),
                                               &exception_state_);
       std::string want = kABC;
       EXPECT_EQ(got, want);
@@ -330,7 +331,7 @@ TEST_F(TextDecoderTest, DecodeUTFStreamSimple) {
                     SetSimpleExceptionVA(script::kRangeError, _, _))
             .Times(0);
         // decoding with {stream: true}
-        got += text_decoder_->Decode(dom::BufferSource(chunk), stream_option,
+        got += text_decoder_->Decode(web::BufferSource(chunk), stream_option,
                                      &exception_state_);
       }
       EXPECT_CALL(exception_state_,
@@ -360,7 +361,7 @@ TEST_F(TextDecoderTest, DecodeUTF16) {
     EXPECT_CALL(exception_state_,
                 SetSimpleExceptionVA(script::kRangeError, _, _))
         .Times(0);
-    std::string got = text_decoder_->Decode(dom::BufferSource(array_buffer),
+    std::string got = text_decoder_->Decode(web::BufferSource(array_buffer),
                                             &exception_state_);
     EXPECT_EQ(got, want);
   }
@@ -384,7 +385,7 @@ TEST_F(TextDecoderTest, DecodeUTF16BE) {
     EXPECT_CALL(exception_state_,
                 SetSimpleExceptionVA(script::kRangeError, _, _))
         .Times(0);
-    std::string got = text_decoder_->Decode(dom::BufferSource(array_buffer),
+    std::string got = text_decoder_->Decode(web::BufferSource(array_buffer),
                                             &exception_state_);
     EXPECT_EQ(got, want);
   }

@@ -1157,6 +1157,7 @@ void URLRequest::OnHeadersComplete() {
 
     ConvertRealLoadTimesToBlockingTimes(&load_timing_info_);
 #if defined (STARBOARD)
+    load_timing_info_.encoded_body_size = static_cast<uint64_t>(GetTotalReceivedBytes());
     if (!load_timing_info_callback_.is_null()) {
       load_timing_info_callback_.Run(load_timing_info_);
     }

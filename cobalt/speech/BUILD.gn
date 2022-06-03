@@ -101,11 +101,11 @@ static_library("speech") {
 
   deps = [
     "//cobalt/base",
-    "//cobalt/dom:dom_exception",
     "//cobalt/loader",
     "//cobalt/media",
     "//cobalt/network",
     "//cobalt/script",
+    "//cobalt/web:dom_exception",
     "//content/browser/speech",
     "//starboard",
     "//third_party/flac",

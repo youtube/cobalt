@@ -325,13 +325,6 @@ bool VideoDecoder::TryToOutputFrames() {
       return nullptr;
     }
 
-    SB_DCHECK(dav1d_picture.stride[kDav1dPlaneY] ==
-              dav1d_picture.stride[kDav1dPlaneU] * 2);
-    SB_DCHECK(dav1d_picture.data[kDav1dPlaneY] <
-              dav1d_picture.data[kDav1dPlaneU]);
-    SB_DCHECK(dav1d_picture.data[kDav1dPlaneU] <
-              dav1d_picture.data[kDav1dPlaneV]);
-
     if (dav1d_picture.stride[kDav1dPlaneY] !=
             dav1d_picture.stride[kDav1dPlaneU] * 2 ||
         dav1d_picture.data[kDav1dPlaneY] >= dav1d_picture.data[kDav1dPlaneU] ||

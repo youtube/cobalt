@@ -18,4 +18,7 @@ interface H5vccStorage {
   void flush(optional boolean sync = false);
   boolean getCookiesEnabled();
   void setCookiesEnabled(boolean value);
+
+  H5vccStorageWriteTestDictionary writeTest(unsigned long test_size, DOMString test_string);
+  H5vccStorageVerifyTestDictionary verifyTest(unsigned long test_size, DOMString test_string);
 };

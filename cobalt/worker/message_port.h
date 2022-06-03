@@ -20,13 +20,13 @@
 #include "base/memory/weak_ptr.h"
 #include "base/message_loop/message_loop.h"
 #include "cobalt/base/tokens.h"
-#include "cobalt/dom/event_target.h"
-#include "cobalt/dom/event_target_listener_info.h"
 #include "cobalt/dom/message_event.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/sequence.h"
 #include "cobalt/script/value_handle.h"
 #include "cobalt/script/wrappable.h"
+#include "cobalt/web/event_target.h"
+#include "cobalt/web/event_target_listener_info.h"
 
 namespace cobalt {
 namespace worker {
@@ -34,9 +34,11 @@ namespace worker {
 class MessagePort : public script::Wrappable,
                     public base::SupportsWeakPtr<MessagePort> {
  public:
-  MessagePort(dom::EventTarget* event_target,
+  MessagePort(web::EventTarget* event_target,
               script::EnvironmentSettings* settings);
   ~MessagePort();
+  MessagePort(const MessagePort&) = delete;
+  MessagePort& operator=(const MessagePort&) = delete;
 
   // This may help for adding support of 'object'
   // void postMessage(any message, object transfer);
@@ -47,28 +49,28 @@ class MessagePort : public script::Wrappable,
   void Start() {}
   void Close() {}
 
-  const dom::EventTargetListenerInfo::EventListenerScriptValue* onmessage()
+  const web::EventTargetListenerInfo::EventListenerScriptValue* onmessage()
       const {
     return event_target_ ? event_target_->GetAttributeEventListener(
                                base::Tokens::message())
                          : nullptr;
   }
   void set_onmessage(
-      const dom::EventTargetListenerInfo::EventListenerScriptValue&
+      const web::EventTargetListenerInfo::EventListenerScriptValue&
           event_listener) {
     if (event_target_)
       event_target_->SetAttributeEventListener(base::Tokens::message(),
                                                event_listener);
   }
 
-  const dom::EventTargetListenerInfo::EventListenerScriptValue* onmessageerror()
+  const web::EventTargetListenerInfo::EventListenerScriptValue* onmessageerror()
       const {
     return event_target_ ? event_target_->GetAttributeEventListener(
                                base::Tokens::messageerror())
                          : nullptr;
   }
   void set_onmessageerror(
-      const dom::EventTargetListenerInfo::EventListenerScriptValue&
+      const web::EventTargetListenerInfo::EventListenerScriptValue&
           event_listener) {
     if (event_target_)
       event_target_->SetAttributeEventListener(base::Tokens::messageerror(),
@@ -80,10 +82,8 @@ class MessagePort : public script::Wrappable,
   DEFINE_WRAPPABLE_TYPE(MessagePort);
 
  private:
-  DISALLOW_COPY_AND_ASSIGN(MessagePort);
-
   // The event target to dispatch events to.
-  dom::EventTarget* event_target_ = nullptr;
+  web::EventTarget* event_target_ = nullptr;
   // The message loop for posting event dispatches to.
   base::MessageLoop* message_loop_ = nullptr;
   // EnvironmentSettings of the event target.

@@ -22,6 +22,16 @@
 
 namespace cobalt {
 namespace dom {
+namespace {
+
+const media::DecoderBufferMemoryInfo* GetDecoderBufferMemoryInfo(
+    script::EnvironmentSettings* environment_settings) {
+  DOMSettings* dom_settings =
+      base::polymorphic_downcast<DOMSettings*>(environment_settings);
+  return dom_settings ? dom_settings->decoder_buffer_memory_info() : nullptr;
+}
+
+}  // namespace
 
 uint32 MemoryInfo::total_js_heap_size(
     script::EnvironmentSettings* environment_settings) const {
@@ -53,27 +63,20 @@ uint32 MemoryInfo::used_js_heap_size(
 
 uint32 MemoryInfo::media_source_size_limit(
     script::EnvironmentSettings* environment_settings) const {
-  DOMSettings* settings =
-      base::polymorphic_downcast<DOMSettings*>(environment_settings);
-  return settings ? static_cast<uint32>(settings->media_source_size_limit())
-                  : 0u;
+  auto memory_info = GetDecoderBufferMemoryInfo(environment_settings);
+  return memory_info ? memory_info->GetMaximumMemoryCapacity() : 0u;
 }
 
 uint32 MemoryInfo::total_media_source_size(
     script::EnvironmentSettings* environment_settings) const {
-  DOMSettings* settings =
-      base::polymorphic_downcast<DOMSettings*>(environment_settings);
-  return settings ? static_cast<uint32>(settings->total_media_source_size())
-                  : 0u;
+  auto memory_info = GetDecoderBufferMemoryInfo(environment_settings);
+  return memory_info ? memory_info->GetCurrentMemoryCapacity() : 0u;
 }
 
 uint32 MemoryInfo::used_media_source_memory_size(
     script::EnvironmentSettings* environment_settings) const {
-  DOMSettings* settings =
-      base::polymorphic_downcast<DOMSettings*>(environment_settings);
-  return settings
-             ? static_cast<uint32>(settings->used_media_source_memory_size())
-             : 0u;
+  auto memory_info = GetDecoderBufferMemoryInfo(environment_settings);
+  return memory_info ? memory_info->GetAllocatedMemory() : 0u;
 }
 
 }  // namespace dom

@@ -2,6 +2,7 @@ name: "blink"
 description:
   "Blink is a browser engine used by Chromium. Cobalt uses Blink for its IDL "
   "parser and bindings generation."
+
 third_party {
   url {
     type: GIT

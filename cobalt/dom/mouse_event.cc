@@ -79,7 +79,7 @@ void MouseEvent::InitMouseEvent(
     const scoped_refptr<Window>& view, int32 detail, int32 screen_x,
     int32 screen_y, int32 client_x, int32 client_y, bool ctrl_key, bool alt_key,
     bool shift_key, bool meta_key, uint16 button,
-    const scoped_refptr<EventTarget>& related_target) {
+    const scoped_refptr<web::EventTarget>& related_target) {
   InitUIEventWithKeyState(type, bubbles, cancelable, view, detail, ctrl_key,
                           alt_key, shift_key, meta_key);
   screen_x_ = screen_x;
@@ -96,7 +96,7 @@ void MouseEvent::InitMouseEvent(
     const scoped_refptr<Window>& view, int32 detail, int32 screen_x,
     int32 screen_y, int32 client_x, int32 client_y,
     const std::string& modifierslist, uint16 button,
-    const scoped_refptr<EventTarget>& related_target) {
+    const scoped_refptr<web::EventTarget>& related_target) {
   InitUIEventWithKeyState(type, bubbles, cancelable, view, detail,
                           modifierslist);
   screen_x_ = screen_x;

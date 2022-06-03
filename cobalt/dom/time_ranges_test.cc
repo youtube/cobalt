@@ -180,12 +180,14 @@ TEST(TimeRangesTest, IndexOutOfRangeException) {
   {
     FakeExceptionState exception_state;
     time_ranges->Start(2, &exception_state);
-    EXPECT_EQ(DOMException::kIndexSizeErr, exception_state.GetExceptionCode());
+    EXPECT_EQ(web::DOMException::kIndexSizeErr,
+              exception_state.GetExceptionCode());
   }
   {
     FakeExceptionState exception_state;
     time_ranges->End(2, &exception_state);
-    EXPECT_EQ(DOMException::kIndexSizeErr, exception_state.GetExceptionCode());
+    EXPECT_EQ(web::DOMException::kIndexSizeErr,
+              exception_state.GetExceptionCode());
   }
 }
 

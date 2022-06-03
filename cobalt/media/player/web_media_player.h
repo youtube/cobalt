@@ -108,10 +108,7 @@ class WebMediaPlayer {
   // Playback controls.
   virtual void Play() = 0;
   virtual void Pause() = 0;
-  virtual bool SupportsFullscreen() const = 0;
-  virtual bool SupportsSave() const = 0;
   virtual void Seek(float seconds) = 0;
-  virtual void SetEndTime(float seconds) = 0;
   virtual void SetRate(float rate) = 0;
   virtual void SetVolume(float volume) = 0;
   virtual void SetVisible(bool visible) = 0;
@@ -215,9 +212,6 @@ class WebMediaPlayerClient {
   virtual void OutputModeChanged() = 0;
   virtual void ContentSizeChanged() = 0;
   virtual void PlaybackStateChanged() = 0;
-  // TODO: Revisit the necessity of the following function.
-  virtual void SetOpaque(bool opaque) {}
-  virtual void SawUnsupportedTracks() = 0;
   virtual float Volume() const = 0;
   virtual void SourceOpened(::media::ChunkDemuxer* chunk_demuxer) = 0;
   virtual std::string SourceURL() const = 0;
@@ -235,9 +229,6 @@ class WebMediaPlayerClient {
   virtual void EncryptedMediaInitDataEncountered(const char* init_data_type,
                                                  const unsigned char* init_data,
                                                  unsigned init_data_length) = 0;
-  // TODO: Revisit the necessity of the following functions.
-  virtual void CloseHelperPlugin() { NOTREACHED(); }
-  virtual void DisableAcceleratedCompositing() {}
 
  protected:
   ~WebMediaPlayerClient() {}

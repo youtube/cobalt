@@ -12,15 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-var data = "worker data";
+const data = "worker data";
 this.postMessage(data);
 this.onmessage = function (event) {
+    let message = 'worker received wrong message';
     if (event.data === 'window data') {
-        this.postMessage('worker received correct message');
-    } else {
-        this.postMessage('worker received wrong message')
+        message = 'worker received correct message';
     }
-    var data = event.data.toUpperCase();
-    this.postMessage(data);
+    console.log(message);
+    this.postMessage(message);
+    const uppercase_data = event.data.toUpperCase();
+    this.postMessage(uppercase_data);
 };
 this

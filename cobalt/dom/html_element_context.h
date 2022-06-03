@@ -26,7 +26,6 @@
 #include "cobalt/dom/dom_stat_tracker.h"
 #include "cobalt/dom/parser.h"
 #include "cobalt/dom/performance.h"
-#include "cobalt/dom/url_registry.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/loader/font/remote_typeface_cache.h"
 #include "cobalt/loader/image/animated_image_tracker.h"
@@ -37,6 +36,7 @@
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/script_runner.h"
 #include "cobalt/script/script_value_factory.h"
+#include "cobalt/web/url_registry.h"
 
 namespace cobalt {
 namespace dom {
@@ -49,7 +49,7 @@ class MediaSource;
 // HTML elements.
 class HTMLElementContext {
  public:
-  typedef UrlRegistry<MediaSource> MediaSourceRegistry;
+  typedef web::UrlRegistry<MediaSource> MediaSourceRegistry;
 
 #if !defined(COBALT_BUILD_TYPE_GOLD)
   // No-args constructor for tests.

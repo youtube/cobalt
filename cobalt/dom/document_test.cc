@@ -21,8 +21,6 @@
 #include "cobalt/cssom/css_style_sheet.h"
 #include "cobalt/dom/attr.h"
 #include "cobalt/dom/comment.h"
-#include "cobalt/dom/custom_event.h"
-#include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/dom_implementation.h"
 #include "cobalt/dom/dom_stat_tracker.h"
 #include "cobalt/dom/element.h"
@@ -37,12 +35,14 @@
 #include "cobalt/dom/message_event.h"
 #include "cobalt/dom/mouse_event.h"
 #include "cobalt/dom/node_list.h"
-#include "cobalt/dom/testing/gtest_workarounds.h"
 #include "cobalt/dom/testing/html_collection_testing.h"
 #include "cobalt/dom/testing/stub_environment_settings.h"
 #include "cobalt/dom/text.h"
 #include "cobalt/dom/ui_event.h"
 #include "cobalt/script/testing/mock_exception_state.h"
+#include "cobalt/web/custom_event.h"
+#include "cobalt/web/dom_exception.h"
+#include "cobalt/web/testing/gtest_workarounds.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
@@ -73,11 +73,11 @@ class DocumentTest : public ::testing::Test {
 DocumentTest::DocumentTest()
     : css_parser_(css_parser::Parser::Create()),
       dom_stat_tracker_(new DomStatTracker("DocumentTest")),
-      html_element_context_(
-          &environment_settings_, NULL, NULL, css_parser_.get(), NULL, NULL,
-          NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-          dom_stat_tracker_.get(), "", base::kApplicationStateStarted, NULL,
-          NULL) {
+      html_element_context_(&environment_settings_, NULL, NULL,
+                            css_parser_.get(), NULL, NULL, NULL, NULL, NULL,
+                            NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+                            dom_stat_tracker_.get(), "",
+                            base::kApplicationStateStarted, NULL, NULL) {
   EXPECT_TRUE(GlobalStats::GetInstance()->CheckNoLeaks());
 }
 
@@ -162,7 +162,8 @@ TEST_F(DocumentTest, CreateEventEvent) {
   scoped_refptr<Document> document = new Document(&html_element_context_);
 
   // Create an Event, the name is case insensitive.
-  scoped_refptr<Event> event = document->CreateEvent("EvEnT", &exception_state);
+  scoped_refptr<web::Event> event =
+      document->CreateEvent("EvEnT", &exception_state);
   EXPECT_TRUE(event);
   EXPECT_FALSE(event->initialized_flag());
 
@@ -185,11 +186,11 @@ TEST_F(DocumentTest, CreateEventCustomEvent) {
   scoped_refptr<Document> document = new Document(&html_element_context_);
 
   // Create an Event, the name is case insensitive.
-  scoped_refptr<Event> event =
+  scoped_refptr<web::Event> event =
       document->CreateEvent("CuStOmEvEnT", &exception_state);
   EXPECT_TRUE(event);
   EXPECT_FALSE(event->initialized_flag());
-  EXPECT_TRUE(base::polymorphic_downcast<CustomEvent*>(event.get()));
+  EXPECT_TRUE(base::polymorphic_downcast<web::CustomEvent*>(event.get()));
 }
 
 TEST_F(DocumentTest, CreateEventUIEvent) {
@@ -198,7 +199,7 @@ TEST_F(DocumentTest, CreateEventUIEvent) {
   scoped_refptr<Document> document = new Document(&html_element_context_);
 
   // Create an Event, the name is case insensitive.
-  scoped_refptr<Event> event =
+  scoped_refptr<web::Event> event =
       document->CreateEvent("UiEvEnT", &exception_state);
   EXPECT_TRUE(event);
   EXPECT_FALSE(event->initialized_flag());
@@ -216,7 +217,7 @@ TEST_F(DocumentTest, CreateEventKeyboardEvent) {
   scoped_refptr<Document> document = new Document(&html_element_context_);
 
   // Create an Event, the name is case insensitive.
-  scoped_refptr<Event> event =
+  scoped_refptr<web::Event> event =
       document->CreateEvent("KeYbOaRdEvEnT", &exception_state);
   EXPECT_TRUE(event);
   EXPECT_FALSE(event->initialized_flag());
@@ -234,7 +235,7 @@ TEST_F(DocumentTest, CreateEventMessageEvent) {
   scoped_refptr<Document> document = new Document(&html_element_context_);
 
   // Create an Event, the name is case insensitive.
-  scoped_refptr<Event> event =
+  scoped_refptr<web::Event> event =
       document->CreateEvent("MeSsAgEeVeNt", &exception_state);
   EXPECT_TRUE(event);
   EXPECT_FALSE(event->initialized_flag());
@@ -247,7 +248,7 @@ TEST_F(DocumentTest, CreateEventMouseEvent) {
   scoped_refptr<Document> document = new Document(&html_element_context_);
 
   // Create an Event, the name is case insensitive.
-  scoped_refptr<Event> event =
+  scoped_refptr<web::Event> event =
       document->CreateEvent("MoUsEeVeNt", &exception_state);
   EXPECT_TRUE(event);
   EXPECT_FALSE(event->initialized_flag());
@@ -266,13 +267,14 @@ TEST_F(DocumentTest, CreateEventEventNotSupported) {
 
   EXPECT_CALL(exception_state, SetException(_))
       .WillOnce(SaveArg<0>(&exception));
-  scoped_refptr<Event> event =
+  scoped_refptr<web::Event> event =
       document->CreateEvent("Event Not Supported", &exception_state);
 
   EXPECT_FALSE(event);
   ASSERT_TRUE(exception);
-  EXPECT_EQ(DOMException::kNotSupportedErr,
-            base::polymorphic_downcast<DOMException*>(exception.get())->code());
+  EXPECT_EQ(
+      web::DOMException::kNotSupportedErr,
+      base::polymorphic_downcast<web::DOMException*>(exception.get())->code());
 }
 
 TEST_F(DocumentTest, GetElementsByClassName) {

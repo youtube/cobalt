@@ -24,10 +24,10 @@
 #include "base/optional.h"
 #include "cobalt/base/debugger_hooks.h"
 #include "cobalt/base/token.h"
-#include "cobalt/dom/event_target.h"
 #include "cobalt/dom/mutation_observer.h"
 #include "cobalt/dom/mutation_observer_init.h"
 #include "cobalt/dom/registered_observer_list.h"
+#include "cobalt/web/event_target.h"
 
 namespace cobalt {
 namespace dom {
@@ -90,7 +90,7 @@ class ConstNodeVisitor {
 // As a result, any JavaScript reference to a node will keep the whole DOM tree
 // that the node belongs to alive, which is a conforming behavior.
 //
-class Node : public EventTarget {
+class Node : public web::EventTarget {
  public:
   // Web API: Node
   // NodeType values as defined by Web API Node.nodeType.
@@ -115,7 +115,7 @@ class Node : public EventTarget {
 
   // Web API: EventTarget
   //
-  bool DispatchEvent(const scoped_refptr<Event>& event) override;
+  bool DispatchEvent(const scoped_refptr<web::Event>& event) override;
 
   // Web API: Node
   //

@@ -1,14 +1,11 @@
 name: "freetype2"
 description:
   "Font engine, used for decoding and loading fonts. Required by Skia font parsing."
+
 third_party {
   url {
-    type: LOCAL_SOURCE
-    value: "/third_party/freetype2_mirror"
-  }
-  url {
     type: GIT
-    value: "git://git.savannah.gnu.org/freetype/freetype2.git"
+    value: "https://chromium.googlesource.com/chromium/src/third_party/freetype2"
   }
   # Note: version is 2.10.2 release.
   version: "132f19b779828b194b3fede187cee719785db4d8"

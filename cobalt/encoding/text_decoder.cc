@@ -107,7 +107,7 @@ std::string TextDecoder::Decode(script::ExceptionState* exception_state) {
   return Decode(default_options, exception_state);
 }
 
-std::string TextDecoder::Decode(const dom::BufferSource& input,
+std::string TextDecoder::Decode(const web::BufferSource& input,
                                 script::ExceptionState* exception_state) {
   const TextDecodeOptions default_options;
   return Decode(input, default_options, exception_state);
@@ -120,13 +120,13 @@ std::string TextDecoder::Decode(const TextDecodeOptions& options,
   return result;
 }
 
-std::string TextDecoder::Decode(const dom::BufferSource& input,
+std::string TextDecoder::Decode(const web::BufferSource& input,
                                 const TextDecodeOptions& options,
                                 script::ExceptionState* exception_state) {
   int32_t size;
   const uint8* buffer;
   std::string result;
-  dom::GetBufferAndSize(input, &buffer, &size);
+  web::GetBufferAndSize(input, &buffer, &size);
   Decode(reinterpret_cast<const char*>(buffer), size, options, exception_state,
          &result);
   return result;

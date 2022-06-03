@@ -18,8 +18,8 @@
 #include <string>
 
 #include "cobalt/base/token.h"
-#include "cobalt/dom/event_target.h"
 #include "cobalt/dom/ui_event.h"
+#include "cobalt/web/event_target.h"
 
 namespace cobalt {
 namespace dom {
@@ -33,11 +33,11 @@ class FocusEvent : public UIEvent {
 
   FocusEvent(base::Token type, Bubbles bubbles, Cancelable cancelable,
              const scoped_refptr<Window>& view,
-             const scoped_refptr<EventTarget>& related_target);
+             const scoped_refptr<web::EventTarget>& related_target);
 
   // Web API: FocusEvent
   //
-  const scoped_refptr<EventTarget>& related_target() const {
+  const scoped_refptr<web::EventTarget>& related_target() const {
     return related_target_;
   }
 
@@ -45,7 +45,7 @@ class FocusEvent : public UIEvent {
   void TraceMembers(script::Tracer* tracer) override;
 
  protected:
-  scoped_refptr<EventTarget> related_target_;
+  scoped_refptr<web::EventTarget> related_target_;
 };
 
 }  // namespace dom

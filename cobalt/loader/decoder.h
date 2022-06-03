@@ -19,9 +19,9 @@
 #include <string>
 
 #include "base/optional.h"
-#include "cobalt/dom/url_utils.h"
 #include "cobalt/loader/loader_types.h"
 #include "cobalt/render_tree/resource_provider.h"
+#include "cobalt/web/url_utils.h"
 #include "net/http/http_response_headers.h"
 #include "url/gurl.h"
 

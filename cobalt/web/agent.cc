@@ -19,8 +19,6 @@
 #include <utility>
 
 #include "base/trace_event/trace_event.h"
-#include "cobalt/dom/blob.h"
-#include "cobalt/dom/url.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/loader/script_loader_factory.h"
 #include "cobalt/script/environment_settings.h"
@@ -30,9 +28,13 @@
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/script/script_runner.h"
 #include "cobalt/script/wrappable.h"
+#include "cobalt/web/blob.h"
 #include "cobalt/web/context.h"
 #include "cobalt/web/environment_settings.h"
+#include "cobalt/web/url.h"
+#include "cobalt/web/window_or_worker_global_scope.h"
 #include "cobalt/worker/service_worker.h"
+#include "cobalt/worker/service_worker_jobs.h"
 #include "cobalt/worker/service_worker_object.h"
 #include "cobalt/worker/service_worker_registration.h"
 #include "cobalt/worker/service_worker_registration_object.h"
@@ -77,12 +79,13 @@ class Impl : public Context {
   script::ScriptRunner* script_runner() const final {
     return script_runner_.get();
   }
-  dom::Blob::Registry* blob_registry() const final {
-    return blob_registry_.get();
-  }
+  Blob::Registry* blob_registry() const final { return blob_registry_.get(); }
   network::NetworkModule* network_module() const final {
     DCHECK(fetcher_factory_);
     return fetcher_factory_->network_module();
+  }
+  worker::ServiceWorkerJobs* service_worker_jobs() const final {
+    return service_worker_jobs_;
   }
 
   const std::string& name() const final { return name_; };
@@ -92,23 +95,30 @@ class Impl : public Context {
     if (environment_settings_) environment_settings_->set_context(this);
   }
 
-  web::EnvironmentSettings* environment_settings() const final {
+  EnvironmentSettings* environment_settings() const final {
     DCHECK_EQ(environment_settings_->context(), this);
     return environment_settings_.get();
   }
 
+  scoped_refptr<worker::ServiceWorkerRegistration>
+  LookupServiceWorkerRegistration(
+      worker::ServiceWorkerRegistrationObject* registration) final;
   // https://w3c.github.io/ServiceWorker/#service-worker-registration-creation
   scoped_refptr<worker::ServiceWorkerRegistration> GetServiceWorkerRegistration(
       worker::ServiceWorkerRegistrationObject* registration) final;
+
+  scoped_refptr<worker::ServiceWorker> LookupServiceWorker(
+      worker::ServiceWorkerObject* worker) final;
+  // https://w3c.github.io/ServiceWorker/#get-the-service-worker-object
+  scoped_refptr<worker::ServiceWorker> GetServiceWorker(
+      worker::ServiceWorkerObject* worker) final;
+
+  WindowOrWorkerGlobalScope* GetWindowOrWorkerGlobalScope() final;
 
  private:
   // Injects a list of attributes into the Web Context's global object.
   void InjectGlobalObjectAttributes(
       const Agent::Options::InjectedGlobalObjectAttributes& attributes);
-
-  // https://w3c.github.io/ServiceWorker/#get-the-service-worker-object
-  scoped_refptr<worker::ServiceWorker> GetServiceWorker(
-      worker::ServiceWorkerObject* worker);
 
   // Thread checker ensures all calls to the Context are made from the same
   // thread that it is created in.
@@ -141,10 +151,10 @@ class Impl : public Context {
   std::unique_ptr<script::ScriptRunner> script_runner_;
 
   // Object to register and retrieve Blob objects with a string key.
-  std::unique_ptr<dom::Blob::Registry> blob_registry_;
+  std::unique_ptr<Blob::Registry> blob_registry_;
 
   // Environment Settings object
-  std::unique_ptr<web::EnvironmentSettings> environment_settings_;
+  std::unique_ptr<EnvironmentSettings> environment_settings_;
 
   // The service worker registration object map.
   //   https://w3c.github.io/ServiceWorker/#environment-settings-object-service-worker-registration-object-map
@@ -156,15 +166,18 @@ class Impl : public Context {
   //   https://w3c.github.io/ServiceWorker/#environment-settings-object-service-worker-object-map
   std::map<worker::ServiceWorkerObject*, scoped_refptr<worker::ServiceWorker>>
       service_worker_object_map_;
+
+  worker::ServiceWorkerJobs* service_worker_jobs_;
 };
 
 Impl::Impl(const Agent::Options& options) : name_(options.name) {
   TRACE_EVENT0("cobalt::web", "Agent::Impl::Impl()");
-  blob_registry_.reset(new dom::Blob::Registry);
+  service_worker_jobs_ = options.service_worker_jobs;
+  blob_registry_.reset(new Blob::Registry);
 
   fetcher_factory_.reset(new loader::FetcherFactory(
       options.network_module, options.extra_web_file_dir,
-      dom::URL::MakeBlobResolverCallback(blob_registry_.get()),
+      URL::MakeBlobResolverCallback(blob_registry_.get()),
       options.read_cache_callback));
   DCHECK(fetcher_factory_);
 
@@ -198,11 +211,24 @@ Impl::Impl(const Agent::Options& options) : name_(options.name) {
         base::Bind(&Impl::InjectGlobalObjectAttributes, base::Unretained(this),
                    options.injected_global_object_attributes));
   }
+
+  if (service_worker_jobs_) {
+    service_worker_jobs_->RegisterWebContext(this);
+  }
 }
 
 void Impl::ShutDownJavaScriptEngine() {
   // TODO: Disentangle shutdown of the JS engine with the various tracking and
   // caching in the WebModule.
+
+  service_worker_object_map_.clear();
+  service_worker_registration_object_map_.clear();
+
+  if (service_worker_jobs_) {
+    service_worker_jobs_->UnregisterWebContext(this);
+    service_worker_jobs_ = nullptr;
+  }
+
   if (global_environment_) {
     global_environment_->SetReportEvalCallback(base::Closure());
     global_environment_->SetReportErrorCallback(
@@ -234,6 +260,20 @@ void Impl::InjectGlobalObjectAttributes(
   }
 }
 
+scoped_refptr<worker::ServiceWorkerRegistration>
+Impl::LookupServiceWorkerRegistration(
+    worker::ServiceWorkerRegistrationObject* registration) {
+  scoped_refptr<worker::ServiceWorkerRegistration> worker_registration;
+  if (!registration) {
+    return worker_registration;
+  }
+  auto registration_lookup =
+      service_worker_registration_object_map_.find(registration);
+  if (registration_lookup != service_worker_registration_object_map_.end()) {
+    worker_registration = registration_lookup->second;
+  }
+  return worker_registration;
+}
 
 scoped_refptr<worker::ServiceWorkerRegistration>
 Impl::GetServiceWorkerRegistration(
@@ -242,7 +282,7 @@ Impl::GetServiceWorkerRegistration(
   //   https://w3c.github.io/ServiceWorker/#get-the-service-worker-registration-object
   scoped_refptr<worker::ServiceWorkerRegistration> worker_registration;
   if (!registration) {
-    NOTREACHED();
+    // Return undefined when registration is null.
     return worker_registration;
   }
 
@@ -298,11 +338,37 @@ Impl::GetServiceWorkerRegistration(
   return worker_registration;
 }
 
+
+scoped_refptr<worker::ServiceWorker> Impl::LookupServiceWorker(
+    worker::ServiceWorkerObject* worker) {
+  // Algorithm for 'get the service worker object':
+  //   https://w3c.github.io/ServiceWorker/#get-the-service-worker-object
+  scoped_refptr<worker::ServiceWorker> service_worker;
+
+  if (!worker) {
+    // Return undefined when worker is null.
+    return service_worker;
+  }
+
+  // 1. Let objectMap be environment’s service worker object map.
+  // 2. If objectMap[serviceWorker] does not exist, then:
+  auto worker_lookup = service_worker_object_map_.find(worker);
+  if (worker_lookup != service_worker_object_map_.end()) {
+    service_worker = worker_lookup->second;
+  }
+  return service_worker;
+}
+
 scoped_refptr<worker::ServiceWorker> Impl::GetServiceWorker(
     worker::ServiceWorkerObject* worker) {
   // Algorithm for 'get the service worker object':
   //   https://w3c.github.io/ServiceWorker/#get-the-service-worker-object
   scoped_refptr<worker::ServiceWorker> service_worker;
+
+  if (!worker) {
+    // Return undefined when worker is null.
+    return service_worker;
+  }
 
   // 1. Let objectMap be environment’s service worker object map.
   // 2. If objectMap[serviceWorker] does not exist, then:
@@ -321,6 +387,20 @@ scoped_refptr<worker::ServiceWorker> Impl::GetServiceWorker(
 
   // 3. Return objectMap[serviceWorker].
   return service_worker;
+}
+
+WindowOrWorkerGlobalScope* Impl::GetWindowOrWorkerGlobalScope() {
+  script::Wrappable* global_wrappable =
+      global_environment()->global_wrappable();
+  if (!global_wrappable) {
+    return nullptr;
+  }
+  DCHECK(global_wrappable->IsWrappable());
+  DCHECK_EQ(script::Wrappable::JSObjectType::kObject,
+            global_wrappable->GetJSObjectType());
+
+  return base::polymorphic_downcast<WindowOrWorkerGlobalScope*>(
+      global_wrappable);
 }
 
 // Signals the given WaitableEvent.

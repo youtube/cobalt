@@ -17,12 +17,13 @@
 #include <string>
 #include <utility>
 
+#include "base/logging.h"
 #include "base/optional.h"
 #include "base/trace_event/trace_event.h"
-#include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/script/promise.h"
 #include "cobalt/web/context.h"
+#include "cobalt/web/dom_exception.h"
 #include "cobalt/web/environment_settings.h"
 #include "cobalt/worker/registration_options.h"
 #include "cobalt/worker/service_worker_update_via_cache.h"
@@ -33,9 +34,8 @@ namespace cobalt {
 namespace worker {
 
 ServiceWorkerContainer::ServiceWorkerContainer(
-    script::EnvironmentSettings* settings,
-    worker::ServiceWorkerJobs* service_worker_jobs)
-    : dom::EventTarget(settings) {}
+    script::EnvironmentSettings* settings)
+    : web::EventTarget(settings) {}
 
 // TODO: Implement the service worker ready algorithm. b/219972966
 script::Handle<script::PromiseWrappable> ServiceWorkerContainer::ready() {
@@ -72,6 +72,11 @@ script::Handle<script::PromiseWrappable> ServiceWorkerContainer::Register(
 script::Handle<script::PromiseWrappable> ServiceWorkerContainer::Register(
     const std::string& url, const RegistrationOptions& options) {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerContainer::Register()");
+  DCHECK_EQ(base::MessageLoop::current(),
+            base::polymorphic_downcast<web::EnvironmentSettings*>(
+                environment_settings())
+                ->context()
+                ->message_loop());
   // https://w3c.github.io/ServiceWorker/#navigator-service-worker-register
   // 1. Let p be a promise.
   script::HandlePromiseWrappable promise =
@@ -101,19 +106,12 @@ script::Handle<script::PromiseWrappable> ServiceWorkerContainer::Register(
   }
   // 6. Invoke Start Register with scopeURL, scriptURL, p, client, client’s
   //    creation URL, options["type"], and options["updateViaCache"].
-  base::polymorphic_downcast<web::EnvironmentSettings*>(environment_settings())
-      ->context()
-      ->message_loop()
-      ->task_runner()
-      ->PostTask(
-          FROM_HERE,
-          base::BindOnce(
-              &ServiceWorkerJobs::StartRegister,
-              base::Unretained(base::polymorphic_downcast<dom::DOMSettings*>(
-                                   environment_settings())
-                                   ->service_worker_jobs()),
-              scope_url, script_url, std::move(promise_reference), client,
-              options.type(), options.update_via_cache()));
+  base::MessageLoop::current()->task_runner()->PostTask(
+      FROM_HERE,
+      base::BindOnce(&ServiceWorkerJobs::StartRegister,
+                     base::Unretained(client->context()->service_worker_jobs()),
+                     scope_url, script_url, std::move(promise_reference),
+                     client, options.type(), options.update_via_cache()));
   // 7. Return p.
   return promise;
 }
@@ -121,17 +119,16 @@ script::Handle<script::PromiseWrappable> ServiceWorkerContainer::Register(
 script::Handle<script::PromiseWrappable>
 ServiceWorkerContainer::GetRegistration(const std::string& url) {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerContainer::GetRegistration()");
-  // https://w3c.github.io/ServiceWorker/#navigator-service-worker-getRegistration
-  // 1. Let client be this's service worker client.
-  web::EnvironmentSettings* client =
-      base::polymorphic_downcast<web::EnvironmentSettings*>(
-          environment_settings());
-  // 2. Let clientURL be the result of parsing clientURL with this's relevant
-  //    settings object’s API base URL.
-  const GURL& base_url = environment_settings()->base_url();
-  GURL client_url = base_url.Resolve(url);
-
-  // 3. If clientURL is failure, return a promise rejected with a TypeError.
+  DCHECK_EQ(base::MessageLoop::current(),
+            base::polymorphic_downcast<web::EnvironmentSettings*>(
+                environment_settings())
+                ->context()
+                ->message_loop());
+  // Algorithm for 'ServiceWorkerContainer.getRegistration()':
+  //   https://w3c.github.io/ServiceWorker/#navigator-service-worker-getRegistration
+  // Let promise be a new promise.
+  // Perform the rest of the steps in a task, because the promise has to be
+  // returned before we can safely reject or resolve it.
   auto promise =
       base::polymorphic_downcast<web::EnvironmentSettings*>(
           environment_settings())
@@ -139,39 +136,70 @@ ServiceWorkerContainer::GetRegistration(const std::string& url) {
           ->global_environment()
           ->script_value_factory()
           ->CreateInterfacePromise<scoped_refptr<ServiceWorkerRegistration>>();
+  std::unique_ptr<script::ValuePromiseWrappable::Reference> promise_reference(
+      new script::ValuePromiseWrappable::Reference(this, promise));
+  base::MessageLoop::current()->task_runner()->PostTask(
+      FROM_HERE, base::BindOnce(&ServiceWorkerContainer::GetRegistrationTask,
+                                base::Unretained(this), url,
+                                std::move(promise_reference)));
+  // 9. Return promise.
+  return promise;
+}
+
+void ServiceWorkerContainer::GetRegistrationTask(
+    const std::string& url,
+    std::unique_ptr<script::ValuePromiseWrappable::Reference>
+        promise_reference) {
+  TRACE_EVENT0("cobalt::worker",
+               "ServiceWorkerContainer::GetRegistrationTask()");
+  DCHECK_EQ(base::MessageLoop::current(),
+            base::polymorphic_downcast<web::EnvironmentSettings*>(
+                environment_settings())
+                ->context()
+                ->message_loop());
+  // Algorithm for 'ServiceWorkerContainer.getRegistration()':
+  //   https://w3c.github.io/ServiceWorker/#navigator-service-worker-getRegistration
+  // 1. Let client be this's service worker client.
+  web::EnvironmentSettings* client =
+      base::polymorphic_downcast<web::EnvironmentSettings*>(
+          environment_settings());
+
+  // 2. Let storage key be the result of running obtain a storage key given
+  //    client.
+  url::Origin storage_key = url::Origin::Create(client->creation_url());
+
+  // 3. Let clientURL be the result of parsing clientURL with this's relevant
+  //    settings object’s API base URL.
+  const GURL& base_url = environment_settings()->base_url();
+  GURL client_url = base_url.Resolve(url);
+
+  // 4. If clientURL is failure, return a promise rejected with a TypeError.
   if (client_url.is_empty()) {
-    promise->Reject(script::kTypeError);
-    return promise;
+    promise_reference->value().Reject(script::kTypeError);
+    return;
   }
 
-  // 4. Set clientURL’s fragment to null.
+  // 5. Set clientURL’s fragment to null.
   url::Replacements<char> replacements;
   replacements.ClearRef();
   client_url = client_url.ReplaceComponents(replacements);
   DCHECK(!client_url.has_ref() || client_url.ref().empty());
 
-  // 5. If the origin of clientURL is not client’s origin, return a promise
-  //    rejected with a "SecurityError" DOMException.
+  // 6. If the origin of clientURL is not client’s origin, return a promise
+  //    rejected with a "SecurityError" web::DOMException.
   if (client_url.GetOrigin() != base_url.GetOrigin()) {
-    promise->Reject(new dom::DOMException(dom::DOMException::kSecurityErr));
-    return promise;
+    promise_reference->value().Reject(
+        new web::DOMException(web::DOMException::kSecurityErr));
+    return;
   }
 
-  // 6. Let promise be a new promise.
-  // 7. Run the following substeps in parallel:
-  //    1. Let registration be the result of running Match Service Worker
-  //       Registration algorithm with clientURL as its argument.
-  // TODO handle parallelism, and add callback to resolve the promise.
-  base::polymorphic_downcast<dom::DOMSettings*>(environment_settings())
-      ->service_worker_jobs()
-      ->MatchServiceWorkerRegistration(client_url);
-  //    2. If registration is null, resolve promise with undefined and abort
-  //       these steps.
-  //    3. Resolve promise with the result of getting the service worker
-  //       registration object that represents registration in promise’s
-  //       relevant settings object.
-  // 8. Return promise.
-  return promise;
+  // 7. Let promise be a new promise.
+  // 8. Run the following substeps in parallel:
+  worker::ServiceWorkerJobs* jobs = client->context()->service_worker_jobs();
+  jobs->message_loop()->task_runner()->PostTask(
+      FROM_HERE, base::BindOnce(&ServiceWorkerJobs::GetRegistrationSubSteps,
+                                base::Unretained(jobs), storage_key, client_url,
+                                client, std::move(promise_reference)));
 }
 
 script::Handle<script::PromiseSequenceWrappable>

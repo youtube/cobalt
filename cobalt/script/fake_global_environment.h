@@ -26,6 +26,8 @@ namespace script {
 class FakeGlobalEnvironment : public GlobalEnvironment {
  public:
   void CreateGlobalObject() override {}
+  Wrappable* global_wrappable() const override { return nullptr; };
+
   bool EvaluateScript(const scoped_refptr<SourceCode>& script_utf8,
                       std::string* out_result) override {
     return false;

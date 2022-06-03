@@ -17,6 +17,7 @@
 
 namespace disk_cache {
 
+/* Note: If adding a new resource type, add corresponding metadata below. */
 enum ResourceType {
   kOther = 0,
   kHTML = 1,
@@ -27,6 +28,17 @@ enum ResourceType {
   kUncompiledScript = 6,
   kCompiledScript = 7,
   kTypeCount = 8
+};
+
+struct ResourceTypeMetadata {
+  std::string directory;
+  int64_t max_size_mb;
+};
+
+// TODO: Store sizes on disk.
+static ResourceTypeMetadata kTypeMetadata[] = {
+    {"other", 3}, {"html", 3},   {"css", 3},           {"image", 3},
+    {"font", 3},  {"splash", 3}, {"uncompiled_js", 3}, {"compiled_js", 3},
 };
 
 }  // namespace disk_cache

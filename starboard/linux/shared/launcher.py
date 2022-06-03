@@ -200,4 +200,4 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
   def GetDeviceOutputPath(self):
     """Writable path where test targets can output files"""
-    return "/tmp"
+    return "/tmp/testoutput"

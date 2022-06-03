@@ -59,8 +59,8 @@ std::string ConvertKeyStatusToString(MediaKeyStatus key_status) {
   return "internal-error";
 }
 
-BufferSource ConvertStringToBufferSource(script::EnvironmentSettings* settings,
-                                         const std::string& str) {
+web::BufferSource ConvertStringToBufferSource(
+    script::EnvironmentSettings* settings, const std::string& str) {
   DCHECK(settings);
   auto* global_environment =
       base::polymorphic_downcast<web::EnvironmentSettings*>(settings)
@@ -69,7 +69,7 @@ BufferSource ConvertStringToBufferSource(script::EnvironmentSettings* settings,
   DCHECK(global_environment);
   script::Handle<script::ArrayBuffer> array_buffer =
       script::ArrayBuffer::New(global_environment, str.data(), str.size());
-  return BufferSource(array_buffer);
+  return web::BufferSource(array_buffer);
 }
 
 }  // namespace
@@ -83,6 +83,7 @@ void MediaKeyStatusMap::Add(const std::string& key_id,
 
 void MediaKeyStatusMap::ForEach(script::EnvironmentSettings* settings,
                                 const ForEachCallbackArg& callback) {
+  TRACE_EVENT0("cobalt::dom::eme", "MediaKeyStatusMap::ForEach()");
   ForEachCallbackArg::Reference reference(this, callback);
 
   for (auto& key_status : key_statuses_) {

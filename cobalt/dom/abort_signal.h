@@ -18,18 +18,18 @@
 #include <vector>
 
 #include "cobalt/base/tokens.h"
-#include "cobalt/dom/event_target.h"
 #include "cobalt/script/environment_settings.h"
+#include "cobalt/web/event_target.h"
 
 namespace cobalt {
 namespace dom {
 
 // This represents the DOM AbortSignal object.
 //    https://dom.spec.whatwg.org/#interface-AbortSignal
-class AbortSignal : public EventTarget {
+class AbortSignal : public web::EventTarget {
  public:
   explicit AbortSignal(script::EnvironmentSettings* settings)
-      : EventTarget(settings) {}
+      : web::EventTarget(settings) {}
 
   // Web API: AbortSignal
   bool aborted() const { return aborted_; }

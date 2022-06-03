@@ -15,9 +15,9 @@
 #ifndef COBALT_WORKER_ABSTRACT_WORKER_H_
 #define COBALT_WORKER_ABSTRACT_WORKER_H_
 
-#include "cobalt/dom/event_target.h"
-#include "cobalt/dom/event_target_listener_info.h"
 #include "cobalt/script/environment_settings.h"
+#include "cobalt/web/event_target.h"
+#include "cobalt/web/event_target_listener_info.h"
 
 namespace cobalt {
 namespace worker {
@@ -27,10 +27,10 @@ namespace worker {
 
 class AbstractWorker {
  public:
-  virtual const dom::EventTargetListenerInfo::EventListenerScriptValue*
+  virtual const web::EventTargetListenerInfo::EventListenerScriptValue*
   onerror() const = 0;
   virtual void set_onerror(
-      const dom::EventTargetListenerInfo::EventListenerScriptValue&
+      const web::EventTargetListenerInfo::EventListenerScriptValue&
           event_listener) = 0;
 
  protected:

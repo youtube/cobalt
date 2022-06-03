@@ -28,10 +28,10 @@ namespace subtlecrypto {
 
 namespace {
 
-const ByteVector to_vector(const dom::BufferSource &data) {
+const ByteVector to_vector(const web::BufferSource &data) {
   const uint8_t *buff;
   int buf_len;
-  cobalt::dom::GetBufferAndSize(data, &buff, &buf_len);
+  web::GetBufferAndSize(data, &buff, &buf_len);
   return ByteVector(buff, buff + buf_len);
 }
 
@@ -64,13 +64,13 @@ Promise reject(Promise &&promise,
 }
 
 template <typename Promise>
-Promise reject(Promise &&promise, dom::DOMException::ExceptionCode error) {
-  return reject(promise, new dom::DOMException(error));
+Promise reject(Promise &&promise, web::DOMException::ExceptionCode error) {
+  return reject(promise, new web::DOMException(error));
 }
 
 template <typename Promise>
 Promise reject(Promise &&promise, const std::string &dom_error) {
-  return reject(promise, new dom::DOMException(dom_error, dom_error));
+  return reject(promise, new web::DOMException(dom_error, dom_error));
 }
 
 }  // namespace
@@ -95,16 +95,16 @@ PromiseWrappable SubtleCrypto::CreateKeyPromise() {
       ->CreateInterfacePromise<scoped_refptr<CryptoKeyPtr>>();
 }
 
-dom::BufferSource SubtleCrypto::CreateBufferSource(const ByteVector &input) {
+web::BufferSource SubtleCrypto::CreateBufferSource(const ByteVector &input) {
   DCHECK(global_env_);
   auto arrayBuffer =
       script::ArrayBuffer::New(global_env_, input.data(), input.size());
-  return dom::BufferSource(arrayBuffer);
+  return web::BufferSource(arrayBuffer);
 }
 
 PromiseArray SubtleCrypto::Decrypt(EncryptionAlgorithm algorithm,
                                    const CryptoKeyPtr &key,
-                                   const BufferSource &data) {
+                                   const web::BufferSource &data) {
   // 1. Let algorithm and key be the algorithm and key parameters passed to the
   // decrypt method, respectively.
   // 2. Let data be the result of getting a copy of the bytes held by the data
@@ -117,20 +117,20 @@ PromiseArray SubtleCrypto::Decrypt(EncryptionAlgorithm algorithm,
   // 4. If an error occurred, return a Promise rejected with
   // normalizedAlgorithm.
   if (normalizedAlgorithm != key->get_algorithm()) {
-    return reject(promise, DOMException::kInvalidAccessErr);
+    return reject(promise, web::DOMException::kInvalidAccessErr);
   }
   // 9. If the [[usages]] internal slot of key does not contain an entry that is
   // "decrypt", then throw an InvalidAccessError.
   if (!key->usage(KeyUsage::kKeyUsageDecrypt)) {
-    return reject(promise, DOMException::kInvalidAccessErr);
+    return reject(promise, web::DOMException::kInvalidAccessErr);
   }
   if (key->get_key().size() == 0) {
-    return reject(promise, DOMException::kInvalidAccessErr);
+    return reject(promise, web::DOMException::kInvalidAccessErr);
   }
   if (normalizedAlgorithm == "AES-CTR") {
     auto ctr_params = algorithm.AsType<AesCtrParams>();
     if (!(ctr_params.has_length() && ctr_params.has_counter())) {
-      return reject(promise, DOMException::kValidationErr);
+      return reject(promise, web::DOMException::kValidationErr);
     }
     auto iv = to_vector(ctr_params.counter());
     auto counter_len = ctr_params.length();
@@ -153,7 +153,7 @@ PromiseArray SubtleCrypto::Decrypt(EncryptionAlgorithm algorithm,
   } else {
     // 7. If the following steps or referenced procedures say to throw an error,
     // reject promise with the returned error and then terminate the algorithm.
-    return reject(promise, DOMException::kNotSupportedErr);
+    return reject(promise, web::DOMException::kNotSupportedErr);
   }
   // 6. Return promise and asynchronously perform the remaining steps.
   return promise;
@@ -163,7 +163,7 @@ PromiseArray SubtleCrypto::Decrypt(EncryptionAlgorithm algorithm,
 // very similar for symmetric algos.
 PromiseArray SubtleCrypto::Encrypt(EncryptionAlgorithm algorithm,
                                    const CryptoKeyPtr &key,
-                                   const BufferSource &data) {
+                                   const web::BufferSource &data) {
   // 1. Let algorithm and key be the algorithm and key parameters passed to the
   // encrypt method, respectively.
   // 2. Let data be the result of getting a copy of the bytes held by the data
@@ -176,20 +176,20 @@ PromiseArray SubtleCrypto::Encrypt(EncryptionAlgorithm algorithm,
   // 4. If an error occurred, return a Promise rejected with
   // normalizedAlgorithm.
   if (normalizedAlgorithm != key->get_algorithm()) {
-    return reject(promise, DOMException::kInvalidAccessErr);
+    return reject(promise, web::DOMException::kInvalidAccessErr);
   }
   // 9. If the [[usages]] internal slot of key does not contain an entry that is
   // "encrypt", then throw an InvalidAccessError.
   if (!key->usage(KeyUsage::kKeyUsageEncrypt)) {
-    return reject(promise, DOMException::kInvalidAccessErr);
+    return reject(promise, web::DOMException::kInvalidAccessErr);
   }
   if (key->get_key().size() == 0) {
-    return reject(promise, DOMException::kInvalidAccessErr);
+    return reject(promise, web::DOMException::kInvalidAccessErr);
   }
   if (normalizedAlgorithm == "AES-CTR") {
     auto ctr_params = algorithm.AsType<AesCtrParams>();
     if (!(ctr_params.has_length() && ctr_params.has_counter())) {
-      return reject(promise, DOMException::kValidationErr);
+      return reject(promise, web::DOMException::kValidationErr);
     }
     auto iv = to_vector(ctr_params.counter());
     auto counter_len = ctr_params.length();
@@ -212,7 +212,7 @@ PromiseArray SubtleCrypto::Encrypt(EncryptionAlgorithm algorithm,
   } else {
     // 7. If the following steps or referenced procedures say to throw an error,
     // reject promise with the returned error and then terminate the algorithm.
-    return reject(promise, DOMException::kNotSupportedErr);
+    return reject(promise, web::DOMException::kNotSupportedErr);
   }
   // 6. Return promise and asynchronously perform the remaining steps.
   return promise;
@@ -220,7 +220,7 @@ PromiseArray SubtleCrypto::Encrypt(EncryptionAlgorithm algorithm,
 
 PromiseArray SubtleCrypto::Sign(AlgorithmIdentifier algorithm,
                                 const CryptoKeyPtr &key,
-                                const BufferSource &data) {
+                                const web::BufferSource &data) {
   // 1. Let algorithm and key be the algorithm and key parameters passed to the
   // sign method, respectively.
   // 2. Let data be the result of getting a copy of the bytes held by the data
@@ -235,7 +235,7 @@ PromiseArray SubtleCrypto::Sign(AlgorithmIdentifier algorithm,
     // 9. If the [[usages]] internal slot of key does not contain an entry that
     // is "sign", then throw an InvalidAccessError.
     if (!key->usage(KeyUsage::kKeyUsageSign) || !hash) {
-      return reject(promise, DOMException::kInvalidAccessErr);
+      return reject(promise, web::DOMException::kInvalidAccessErr);
     }
     // 10. Let result be the result of performing the sign operation specified
     // by normalizedAlgorithm using key and algorithm and with data as message.
@@ -245,7 +245,7 @@ PromiseArray SubtleCrypto::Sign(AlgorithmIdentifier algorithm,
   } else {
     // 7. If the following steps or referenced procedures say to throw an error,
     // reject promise with the returned error and then terminate the algorithm.
-    return reject(promise, DOMException::kNotSupportedErr);
+    return reject(promise, web::DOMException::kNotSupportedErr);
   }
   // 6. Return promise and asynchronously perform the remaining steps.
   return promise;
@@ -253,8 +253,8 @@ PromiseArray SubtleCrypto::Sign(AlgorithmIdentifier algorithm,
 
 PromiseBool SubtleCrypto::Verify(AlgorithmIdentifier algorithm,
                                  const CryptoKeyPtr &key,
-                                 const BufferSource &signature,
-                                 const BufferSource &data) {
+                                 const web::BufferSource &signature,
+                                 const web::BufferSource &data) {
   // 1. Let algorithm and key be the algorithm and key parameters passed to the
   // verify method, respectively.
   // 2. Let signature be the result of getting a copy of the bytes held by the
@@ -271,7 +271,7 @@ PromiseBool SubtleCrypto::Verify(AlgorithmIdentifier algorithm,
     // 10. If the [[usages]] internal slot of key does not contain an entry that
     // is "verify", then throw an InvalidAccessError.
     if (!key->usage(KeyUsage::kKeyUsageVerify) || !hash) {
-      return reject(promise, DOMException::kInvalidAccessErr);
+      return reject(promise, web::DOMException::kInvalidAccessErr);
     }
     // 11. Let result be the result of performing the verify operation
     // specified by normalizedAlgorithm using key, algorithm and signature
@@ -283,14 +283,14 @@ PromiseBool SubtleCrypto::Verify(AlgorithmIdentifier algorithm,
   } else {
     // 8. If the following steps or referenced procedures say to throw an error,
     // reject promise with the returned error and then terminate the algorithm.
-    return reject(promise, DOMException::kNotSupportedErr);
+    return reject(promise, web::DOMException::kNotSupportedErr);
   }
   // 7. Return promise and asynchronously perform the remaining steps.
   return promise;
 }
 
 PromiseArray SubtleCrypto::Digest(AlgorithmIdentifier algorithm,
-                                  const BufferSource &data) {
+                                  const web::BufferSource &data) {
   // 1. Let algorithm be the algorithm parameter passed to the digest method.
   // 2. Let data be the result of getting a copy of the bytes held by the data
   // parameter passed to the digest method.
@@ -303,7 +303,7 @@ PromiseArray SubtleCrypto::Digest(AlgorithmIdentifier algorithm,
   if (!hash) {
     // 4. If an error occurred, return a Promise rejected with
     // normalizedAlgorithm.
-    return reject(promise, DOMException::kNotSupportedErr);
+    return reject(promise, web::DOMException::kNotSupportedErr);
   }
   // 8. Let result be the result of performing the digest operation specified by
   // normalizedAlgorithm using algorithm, with data as message.
@@ -319,7 +319,7 @@ PromiseArray SubtleCrypto::GenerateKey(AlgorithmIdentifier algorithm,
                                        bool extractable,
                                        const KeyUsages &keyUsages) {
   NOTIMPLEMENTED();
-  return reject(CreatePromise(), DOMException::kNotSupportedErr);
+  return reject(CreatePromise(), web::DOMException::kNotSupportedErr);
 }
 
 PromiseArray SubtleCrypto::DeriveKey(AlgorithmIdentifier algorithm,
@@ -328,18 +328,18 @@ PromiseArray SubtleCrypto::DeriveKey(AlgorithmIdentifier algorithm,
                                      bool extractable,
                                      const KeyUsages &keyUsages) {
   NOTIMPLEMENTED();
-  return reject(CreatePromise(), DOMException::kNotSupportedErr);
+  return reject(CreatePromise(), web::DOMException::kNotSupportedErr);
 }
 
 PromiseArray SubtleCrypto::DeriveBits(AlgorithmIdentifier algorithm,
                                       const CryptoKeyPtr &key,
                                       const uint32_t length) {
   NOTIMPLEMENTED();
-  return reject(CreatePromise(), DOMException::kNotSupportedErr);
+  return reject(CreatePromise(), web::DOMException::kNotSupportedErr);
 }
 
 PromiseWrappable SubtleCrypto::ImportKey(
-    KeyFormat format, const BufferSource &keyData,
+    KeyFormat format, const web::BufferSource &keyData,
     script::UnionType2<ImportKeyAlgorithmParams, std::string> algorithm,
     bool extractable, const KeyUsages &keyUsages) {
   // 1. Let format, algorithm, extractable and usages, be the format, algorithm,
@@ -356,11 +356,13 @@ PromiseWrappable SubtleCrypto::ImportKey(
 
   if (format != kKeyFormatRaw) {
     NOTIMPLEMENTED();
-    return reject(promise, new DOMException(DOMException::kNotSupportedErr));
+    return reject(promise,
+                  new web::DOMException(web::DOMException::kNotSupportedErr));
   }
 
   if (!(normalizedAlgorithm == "AES-CTR" || normalizedAlgorithm == "HMAC")) {
-    return reject(promise, new DOMException(DOMException::kNotSupportedErr));
+    return reject(promise,
+                  new web::DOMException(web::DOMException::kNotSupportedErr));
   }
 
   // 8. Let result be the CryptoKey object that results from performing the
@@ -371,7 +373,7 @@ PromiseWrappable SubtleCrypto::ImportKey(
   // 11. Set the [[usages]] internal slot of result to the normalized value of
   // usages.
   if (!cryptoKey->set_usages(keyUsages)) {
-    return reject(promise, new DOMException("Invalid key", "not allowed"));
+    return reject(promise, new web::DOMException("Invalid key", "not allowed"));
   }
   // 25.7.1 Let data be the octet string contained in keyData.
   cryptoKey->set_key(to_vector(keyData));
@@ -392,23 +394,23 @@ PromiseWrappable SubtleCrypto::ImportKey(
 PromiseArray SubtleCrypto::ExportKey(KeyFormat format,
                                      const CryptoKeyPtr &key) {
   NOTIMPLEMENTED();
-  return reject(CreatePromise(), DOMException::kNotSupportedErr);
+  return reject(CreatePromise(), web::DOMException::kNotSupportedErr);
 }
 
 PromiseArray SubtleCrypto::WrapKey(KeyFormat format, const CryptoKeyPtr &key,
                                    const CryptoKeyPtr &wrappingKey,
                                    AlgorithmIdentifier algorithm) {
   NOTIMPLEMENTED();
-  return reject(CreatePromise(), DOMException::kNotSupportedErr);
+  return reject(CreatePromise(), web::DOMException::kNotSupportedErr);
 }
 
 PromiseWrappable SubtleCrypto::UnwrapKey(
-    KeyFormat format, const BufferSource &wrappedKey,
+    KeyFormat format, const web::BufferSource &wrappedKey,
     const CryptoKeyPtr &unwrappingKey, AlgorithmIdentifier unwrapAlgorithm,
     AlgorithmIdentifier unwrappedKeyAlgorithm, bool extractacble,
     const KeyUsages &keyUsages) {
   NOTIMPLEMENTED();
-  return reject(CreateKeyPromise(), DOMException::kNotSupportedErr);
+  return reject(CreateKeyPromise(), web::DOMException::kNotSupportedErr);
 }
 
 }  // namespace subtlecrypto

@@ -27,13 +27,13 @@
 #include "base/values.h"
 #include "cobalt/browser/web_module.h"
 #include "cobalt/cssom/viewport_size.h"
-#include "cobalt/dom/csp_delegate_factory.h"
 #include "cobalt/layout_tests/test_utils.h"
 #include "cobalt/layout_tests/web_platform_test_parser.h"
 #include "cobalt/math/size.h"
 #include "cobalt/media/media_module.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/render_tree/resource_provider_stub.h"
+#include "cobalt/web/csp_delegate_factory.h"
 #include "starboard/window.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
@@ -48,20 +48,20 @@ namespace {
 // A CspDelegate that behaves more like a "standard" one. i.e. it
 // is permissive by default. This is for testing our compliance
 // with the web-platform-test suite.
-class CspDelegatePermissive : public dom::CspDelegateSecure {
+class CspDelegatePermissive : public web::CspDelegateSecure {
  public:
   CspDelegatePermissive(
-      std::unique_ptr<dom::CspViolationReporter> violation_reporter,
+      std::unique_ptr<web::CspViolationReporter> violation_reporter,
       const GURL& url, csp::CSPHeaderPolicy require_csp,
       const base::Closure& policy_changed_callback)
-      : dom::CspDelegateSecure(std::move(violation_reporter), url, require_csp,
+      : web::CspDelegateSecure(std::move(violation_reporter), url, require_csp,
                                policy_changed_callback) {
     // Lies, but some checks in our parent require this.
     was_header_received_ = true;
   }
 
   static CspDelegate* Create(
-      std::unique_ptr<dom::CspViolationReporter> violation_reporter,
+      std::unique_ptr<web::CspViolationReporter> violation_reporter,
       const GURL& url, csp::CSPHeaderPolicy require_csp,
       const base::Closure& policy_changed_callback,
       int insecure_allowed_token) {
@@ -205,8 +205,8 @@ std::string RunWebPlatformTest(const GURL& url, bool* got_results) {
   std::unique_ptr<media::CanPlayTypeHandler> can_play_type_handler(
       media::MediaModule::CreateCanPlayTypeHandler());
 
-  dom::CspDelegateFactory::GetInstance()->OverrideCreator(
-      dom::kCspEnforcementEnable, CspDelegatePermissive::Create);
+  web::CspDelegateFactory::GetInstance()->OverrideCreator(
+      web::kCspEnforcementEnable, CspDelegatePermissive::Create);
   // Use test runner mode to allow the content itself to dictate when it is
   // ready for layout should be performed.  See cobalt/dom/test_runner.h.
   browser::WebModule::Options web_module_options("RunWebPlatformTest");
@@ -230,8 +230,7 @@ std::string RunWebPlatformTest(const GURL& url, bool* got_results) {
       base::Bind(&WindowCloseCallback, &run_loop, base::MessageLoop::current()),
       base::Closure() /* window_minimize_callback */,
       can_play_type_handler.get(), media_module.get(), kDefaultViewportSize,
-      &resource_provider, 60.0f, NULL /* service_worker_jobs */,
-      web_module_options);
+      &resource_provider, 60.0f, web_module_options);
   run_loop.Run();
   const std::string extract_results =
       "document.getElementById(\"__testharness__results__\").textContent;";

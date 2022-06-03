@@ -19,12 +19,13 @@
 #include <string>
 
 #include "base/memory/ref_counted.h"
-#include "cobalt/dom/buffer_source.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/dom/eme/media_key_status.h"
 #include "cobalt/script/callback_function.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/script_value.h"
 #include "cobalt/script/wrappable.h"
+#include "cobalt/web/buffer_source.h"
 
 namespace cobalt {
 namespace dom {
@@ -36,7 +37,7 @@ namespace eme {
 class MediaKeyStatusMap : public script::Wrappable {
  public:
   typedef script::CallbackFunction<void(
-      const std::string&, const BufferSource&,
+      const std::string&, const web::BufferSource&,
       const scoped_refptr<MediaKeyStatusMap>&)>
       ForEachCallback;
   typedef script::ScriptValue<ForEachCallback> ForEachCallbackArg;
@@ -52,7 +53,9 @@ class MediaKeyStatusMap : public script::Wrappable {
   // Web IDL: MediaKeyStatusMap.
   //
   uint32_t size() const { return static_cast<uint32_t>(key_statuses_.size()); }
-  MediaKeyStatus Get(const BufferSource& key_id) const {
+  MediaKeyStatus Get(const web::BufferSource& key_id) const {
+    TRACE_EVENT1("cobalt::dom::eme", "MediaKeyStatusMap::Get()", "key_id",
+                 GetStringFromBufferSource(key_id));
     std::string key_id_copy = GetStringFromBufferSource(key_id);
     const auto& iter = key_statuses_.find(key_id_copy);
     // TODO: Return "undefined" if `key_id` cannot be found.
@@ -60,7 +63,9 @@ class MediaKeyStatusMap : public script::Wrappable {
                                        : iter->second;
   }
 
-  bool Has(const BufferSource& key_id) const {
+  bool Has(const web::BufferSource& key_id) const {
+    TRACE_EVENT1("cobalt::dom::eme", "MediaKeyStatusMap::Has()", "key_id",
+                 GetStringFromBufferSource(key_id));
     std::string key_id_copy = GetStringFromBufferSource(key_id);
     return key_statuses_.find(key_id_copy) != key_statuses_.end();
   }
@@ -72,11 +77,11 @@ class MediaKeyStatusMap : public script::Wrappable {
 
  private:
   static std::string GetStringFromBufferSource(
-      const BufferSource& buffer_source) {
+      const web::BufferSource& buffer_source) {
     const uint8* buffer;
     int buffer_size;
 
-    GetBufferAndSize(buffer_source, &buffer, &buffer_size);
+    web::GetBufferAndSize(buffer_source, &buffer, &buffer_size);
 
     DCHECK(buffer);
     DCHECK_GE(buffer_size, 0);

@@ -12,13 +12,46 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/h5vcc/h5vcc_storage.h"
+#include <algorithm>
+#include <string>
+#include <vector>
 
+#include "base/files/file_util.h"
+#include "cobalt/h5vcc/h5vcc_storage.h"
 #include "cobalt/storage/storage_manager.h"
-#include "net/url_request/url_request_context.h"
+
+#include "starboard/common/file.h"
+#include "starboard/common/string.h"
 
 namespace cobalt {
 namespace h5vcc {
+
+namespace {
+const char kTestFileName[] = "cache_test_file.json";
+
+const uint32 kWriteBufferSize = 1024 * 1024;
+
+const uint32 kReadBufferSize = 1024 * 1024;
+
+H5vccStorageWriteTestDictionary WriteTestMessage(std::string error = "",
+                                                 uint32 bytes_written = 0) {
+  H5vccStorageWriteTestDictionary message;
+  message.set_error(error);
+  message.set_bytes_written(bytes_written);
+  return message;
+}
+
+H5vccStorageVerifyTestDictionary VerifyTestMessage(std::string error = "",
+                                                   bool verified = false,
+                                                   uint32 bytes_read = 0) {
+  H5vccStorageVerifyTestDictionary message;
+  message.set_error(error);
+  message.set_verified(verified);
+  message.set_bytes_read(bytes_read);
+  return message;
+}
+
+}  // namespace
 
 H5vccStorage::H5vccStorage(network::NetworkModule* network_module)
     : network_module_(network_module) {}
@@ -48,6 +81,112 @@ bool H5vccStorage::GetCookiesEnabled() {
 
 void H5vccStorage::SetCookiesEnabled(bool enabled) {
   network_module_->network_delegate()->set_cookies_enabled(enabled);
+}
+
+H5vccStorageWriteTestDictionary H5vccStorage::WriteTest(
+    uint32 test_size, std::string test_string) {
+  // Get cache_dir path.
+  std::vector<char> cache_dir(kSbFileMaxPath + 1, 0);
+  SbSystemGetPath(kSbSystemPathCacheDirectory, cache_dir.data(),
+                  kSbFileMaxPath);
+
+  // Delete the contents of cache_dir.
+  starboard::SbFileDeleteRecursive(cache_dir.data(), true);
+
+  // Try to Create the test_file.
+  std::string test_file_path =
+      std::string(cache_dir.data()) + kSbFileSepString + kTestFileName;
+  SbFileError test_file_error;
+  starboard::ScopedFile test_file(test_file_path.c_str(),
+                                  kSbFileOpenAlways | kSbFileWrite, NULL,
+                                  &test_file_error);
+
+  if (test_file_error != kSbFileOk) {
+    return WriteTestMessage(
+        starboard::FormatString("SbFileError: %d while opening ScopedFile: %s",
+                                test_file_error, test_file_path.c_str()));
+  }
+
+  // Repeatedly write test_string to test_size bytes of write_buffer.
+  std::string write_buf;
+  int iterations = test_size / test_string.length();
+  for (int i = 0; i < iterations; ++i) {
+    write_buf.append(test_string);
+  }
+  write_buf.append(test_string.substr(0, test_size % test_string.length()));
+
+  // Incremental Writes of test_data, copies SbWriteAll, using a maximum
+  // kWriteBufferSize per write.
+  uint32 total_bytes_written = 0;
+
+  do {
+    auto bytes_written = test_file.Write(
+        write_buf.data() + total_bytes_written,
+        std::min(kWriteBufferSize, test_size - total_bytes_written));
+    if (bytes_written <= 0) {
+      SbFileDelete(test_file_path.c_str());
+      return WriteTestMessage("SbWrite -1 return value error");
+    }
+    total_bytes_written += bytes_written;
+  } while (total_bytes_written < test_size);
+
+  test_file.Flush();
+
+  return WriteTestMessage("", total_bytes_written);
+}
+
+H5vccStorageVerifyTestDictionary H5vccStorage::VerifyTest(
+    uint32 test_size, std::string test_string) {
+  std::vector<char> cache_dir(kSbFileMaxPath + 1, 0);
+  SbSystemGetPath(kSbSystemPathCacheDirectory, cache_dir.data(),
+                  kSbFileMaxPath);
+
+  std::string test_file_path =
+      std::string(cache_dir.data()) + kSbFileSepString + kTestFileName;
+  SbFileError test_file_error;
+  starboard::ScopedFile test_file(test_file_path.c_str(),
+                                  kSbFileOpenOnly | kSbFileRead, NULL,
+                                  &test_file_error);
+
+  if (test_file_error != kSbFileOk) {
+    return VerifyTestMessage(
+        starboard::FormatString("SbFileError: %d while opening ScopedFile: %s",
+                                test_file_error, test_file_path.c_str()));
+  }
+
+  // Incremental Reads of test_data, copies SbReadAll, using a maximum
+  // kReadBufferSize per write.
+  uint32 total_bytes_read = 0;
+
+  do {
+    char read_buf[kReadBufferSize];
+    auto bytes_read = test_file.Read(
+        read_buf, std::min(kReadBufferSize, test_size - total_bytes_read));
+    if (bytes_read <= 0) {
+      SbFileDelete(test_file_path.c_str());
+      return VerifyTestMessage("SbRead -1 return value error");
+    }
+
+    // Verify read_buf equivalent to a repeated test_string.
+    for (auto i = 0; i < bytes_read; ++i) {
+      if (read_buf[i] !=
+          test_string[(total_bytes_read + i) % test_string.size()]) {
+        return VerifyTestMessage(
+            "File test data does not match with test data string");
+      }
+    }
+
+    total_bytes_read += bytes_read;
+  } while (total_bytes_read < test_size);
+
+  if (total_bytes_read != test_size) {
+    SbFileDelete(test_file_path.c_str());
+    return VerifyTestMessage(
+        "File test data size does not match kTestDataSize");
+  }
+
+  SbFileDelete(test_file_path.c_str());
+  return VerifyTestMessage("", true, total_bytes_read);
 }
 
 }  // namespace h5vcc

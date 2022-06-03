@@ -30,10 +30,7 @@
 #include "cobalt/base/instance_counter.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/cssom/map_to_mesh_function.h"
-#include "cobalt/dom/csp_delegate.h"
 #include "cobalt/dom/document.h"
-#include "cobalt/dom/dom_exception.h"
-#include "cobalt/dom/event.h"
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/html_video_element.h"
 #include "cobalt/dom/media_source.h"
@@ -42,6 +39,9 @@
 #include "cobalt/media/fetcher_buffered_data_source.h"
 #include "cobalt/media/web_media_player_factory.h"
 #include "cobalt/script/script_value_factory.h"
+#include "cobalt/web/csp_delegate.h"
+#include "cobalt/web/dom_exception.h"
+#include "cobalt/web/event.h"
 
 #include "cobalt/dom/eme/media_encrypted_event.h"
 #include "cobalt/dom/eme/media_encrypted_event_init.h"
@@ -237,6 +237,8 @@ std::string HTMLMediaElement::CanPlayType(const std::string& mime_type) {
 
 std::string HTMLMediaElement::CanPlayType(const std::string& mime_type,
                                           const std::string& key_system) {
+  TRACE_EVENT2("cobalt::dom", "HTMLMediaElement::CanPlayType()", "mime_type",
+               mime_type, "key_system", key_system);
   DCHECK(html_element_context()->can_play_type_handler());
 
   DLOG_IF(ERROR, !key_system.empty())
@@ -263,8 +265,8 @@ std::string HTMLMediaElement::CanPlayType(const std::string& mime_type,
   return result;
 }
 
-const EventTarget::EventListenerScriptValue* HTMLMediaElement::onencrypted()
-    const {
+const web::EventTarget::EventListenerScriptValue*
+HTMLMediaElement::onencrypted() const {
   return GetAttributeEventListener(base::Tokens::encrypted());
 }
 
@@ -363,7 +365,8 @@ void HTMLMediaElement::set_current_time(
   // exception.
   if (ready_state_ == WebMediaPlayer::kReadyStateHaveNothing || !player_) {
     LOG(ERROR) << "invalid state error";
-    DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
+    web::DOMException::Raise(web::DOMException::kInvalidStateErr,
+                             exception_state);
     return;
   }
   Seek(time);
@@ -559,7 +562,7 @@ void HTMLMediaElement::set_volume(float volume,
                                   script::ExceptionState* exception_state) {
   LOG(INFO) << "Change volume from " << volume_ << " to " << volume << ".";
   if (volume < 0.0f || volume > 1.0f) {
-    DOMException::Raise(DOMException::kIndexSizeErr, exception_state);
+    web::DOMException::Raise(web::DOMException::kIndexSizeErr, exception_state);
     return;
   }
 
@@ -628,7 +631,7 @@ void HTMLMediaElement::DurationChanged(double duration, bool request_seek) {
   }
 }
 
-void HTMLMediaElement::ScheduleEvent(const scoped_refptr<Event>& event) {
+void HTMLMediaElement::ScheduleEvent(const scoped_refptr<web::Event>& event) {
   TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::ScheduleEvent()");
   MLOG() << "Schedule event " << event->type() << ".";
   event_queue_.Enqueue(event);
@@ -831,7 +834,7 @@ void HTMLMediaElement::LoadResource(const GURL& initial_url,
   DCHECK(!media_source_);
   if (url.SchemeIs(kMediaSourceUrlProtocol)) {
     // Check whether url is allowed by security policy.
-    if (!node_document()->csp_delegate()->CanLoad(CspDelegate::kMedia, url,
+    if (!node_document()->csp_delegate()->CanLoad(web::CspDelegate::kMedia, url,
                                                   false)) {
       DLOG(INFO) << "URL " << url << " is rejected by security policy.";
       NoneSupported("URL is rejected by security policy.");
@@ -877,9 +880,10 @@ void HTMLMediaElement::LoadResource(const GURL& initial_url,
   if (url.spec() == SourceURL()) {
     player_->LoadMediaSource();
   } else {
-    csp::SecurityCallback csp_callback = base::Bind(
-        &CspDelegate::CanLoad,
-        base::Unretained(node_document()->csp_delegate()), CspDelegate::kMedia);
+    csp::SecurityCallback csp_callback =
+        base::Bind(&web::CspDelegate::CanLoad,
+                   base::Unretained(node_document()->csp_delegate()),
+                   web::CspDelegate::kMedia);
     request_mode_ = GetRequestMode(GetAttribute("crossOrigin"));
     DCHECK(node_document()->location());
     std::unique_ptr<BufferedDataSource> data_source(
@@ -1060,8 +1064,8 @@ void HTMLMediaElement::ScheduleOwnEvent(base::Token event_name) {
   LOG_IF(INFO, event_name == base::Tokens::error())
       << "onerror event fired with error " << (error_ ? error_->code() : 0);
   MLOG() << event_name;
-  scoped_refptr<Event> event =
-      new Event(event_name, Event::kNotBubbles, Event::kCancelable);
+  scoped_refptr<web::Event> event = new web::Event(
+      event_name, web::Event::kNotBubbles, web::Event::kCancelable);
   event->set_target(this);
 
   ScheduleEvent(event);
@@ -1612,8 +1616,6 @@ void HTMLMediaElement::PlaybackStateChanged() {
   EndProcessingMediaPlayerCallback();
 }
 
-void HTMLMediaElement::SawUnsupportedTracks() { NOTIMPLEMENTED(); }
-
 float HTMLMediaElement::Volume() const { return muted_ ? 0 : volume(NULL); }
 
 void HTMLMediaElement::SourceOpened(ChunkDemuxer* chunk_demuxer) {
@@ -1716,7 +1718,8 @@ void HTMLMediaElement::SetMaxVideoCapabilities(
     script::ExceptionState* exception_state) {
   if (GetAttribute("src").value_or("").length() > 0) {
     LOG(WARNING) << "Cannot set maximum capabilities after src is defined.";
-    DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
+    web::DOMException::Raise(web::DOMException::kInvalidStateErr,
+                             exception_state);
     return;
   }
   max_video_capabilities_ = max_video_capabilities;

@@ -121,7 +121,7 @@ void ProcessAndFireErrorEvent(
     proto::SpeechRecognitionEvent event,
     GoogleSpeechService::EventCallback event_callback) {
   // This method handles wrappables and should run on the MainWebModule thread.
-  scoped_refptr<dom::Event> error_event;
+  scoped_refptr<web::Event> error_event;
   switch (event.status()) {
     case proto::SpeechRecognitionEvent::STATUS_SUCCESS:
       NOTREACHED();

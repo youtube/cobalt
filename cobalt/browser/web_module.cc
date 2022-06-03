@@ -40,10 +40,7 @@
 #include "cobalt/browser/web_module_stat_tracker.h"
 #include "cobalt/configuration/configuration.h"
 #include "cobalt/css_parser/parser.h"
-#include "cobalt/dom/blob.h"
-#include "cobalt/dom/csp_delegate_factory.h"
 #include "cobalt/dom/element.h"
-#include "cobalt/dom/event.h"
 #include "cobalt/dom/global_stats.h"
 #include "cobalt/dom/html_script_element.h"
 #include "cobalt/dom/input_event.h"
@@ -57,7 +54,6 @@
 #include "cobalt/dom/pointer_event.h"
 #include "cobalt/dom/storage.h"
 #include "cobalt/dom/ui_event.h"
-#include "cobalt/dom/url.h"
 #include "cobalt/dom/visibility_state.h"
 #include "cobalt/dom/wheel_event.h"
 #include "cobalt/dom/window.h"
@@ -70,8 +66,12 @@
 #include "cobalt/media/media_module.h"
 #include "cobalt/media_session/media_session_client.h"
 #include "cobalt/storage/storage_manager.h"
+#include "cobalt/web/blob.h"
 #include "cobalt/web/context.h"
+#include "cobalt/web/csp_delegate_factory.h"
 #include "cobalt/web/environment_settings.h"
+#include "cobalt/web/event.h"
+#include "cobalt/web/url.h"
 #include "starboard/accessibility.h"
 #include "starboard/common/log.h"
 #include "starboard/gles.h"
@@ -323,7 +323,7 @@ class WebModule::Impl {
 
   // Inject the DOM event object into the window or the element.
   void InjectInputEvent(scoped_refptr<dom::Element> element,
-                        const scoped_refptr<dom::Event>& event);
+                        const scoped_refptr<web::Event>& event);
 
   // Handle queued pointer events. Called by LayoutManager on_layout callback.
   void HandlePointerEvents();
@@ -331,8 +331,8 @@ class WebModule::Impl {
   // Initializes the ResourceProvider and dependent resources.
   void SetResourceProvider(render_tree::ResourceProvider* resource_provider);
 
-  void OnStartDispatchEvent(const scoped_refptr<dom::Event>& event);
-  void OnStopDispatchEvent(const scoped_refptr<dom::Event>& event);
+  void OnStartDispatchEvent(const scoped_refptr<web::Event>& event);
+  void OnStopDispatchEvent(const scoped_refptr<web::Event>& event);
 
   // Thread checker ensures all calls to the WebModule are made from the same
   // thread that it is created in.
@@ -586,7 +586,7 @@ WebModule::Impl::Impl(web::Context* web_context, const ConstructionData& data)
   web_context_->setup_environment_settings(new dom::DOMSettings(
       debugger_hooks_, kDOMMaxElementDepth, media_source_registry_.get(),
       data.can_play_type_handler, memory_info, &mutation_observer_task_manager_,
-      data.service_worker_jobs, data.options.dom_settings_options));
+      data.options.dom_settings_options));
   DCHECK(web_context_->environment_settings());
 
   system_caption_settings_ = new cobalt::dom::captions::SystemCaptionSettings(
@@ -673,6 +673,13 @@ WebModule::Impl::Impl(web::Context* web_context, const ConstructionData& data)
 
   web_context_->global_environment()->CreateGlobalObject(
       window_, web_context_->environment_settings());
+  DCHECK(web_context_->GetWindowOrWorkerGlobalScope()->IsWindow());
+  DCHECK(!web_context_->GetWindowOrWorkerGlobalScope()->IsDedicatedWorker());
+  DCHECK(!web_context_->GetWindowOrWorkerGlobalScope()->IsServiceWorker());
+  DCHECK(web_context_->GetWindowOrWorkerGlobalScope()->GetWrappableType() ==
+         base::GetTypeId<dom::Window>());
+  DCHECK_EQ(window_, base::polymorphic_downcast<dom::Window*>(
+                         web_context_->GetWindowOrWorkerGlobalScope()));
 
   render_tree_produced_callback_ = data.render_tree_produced_callback;
   DCHECK(!render_tree_produced_callback_.is_null());
@@ -700,7 +707,7 @@ WebModule::Impl::Impl(web::Context* web_context, const ConstructionData& data)
   DCHECK(layout_manager_);
 
 #if !defined(COBALT_FORCE_CSP)
-  if (data.options.csp_enforcement_mode == dom::kCspEnforcementDisable) {
+  if (data.options.csp_enforcement_mode == web::kCspEnforcementDisable) {
     // If CSP is disabled, enable eval(). Otherwise, it will be enabled by
     // a CSP directive.
     web_context_->global_environment()->EnableEval();
@@ -708,7 +715,7 @@ WebModule::Impl::Impl(web::Context* web_context, const ConstructionData& data)
 #endif
 
   web_context_->global_environment()->SetReportEvalCallback(
-      base::Bind(&dom::CspDelegate::ReportEval,
+      base::Bind(&web::CspDelegate::ReportEval,
                  base::Unretained(window_->document()->csp_delegate())));
 
   web_context_->global_environment()->SetReportErrorCallback(
@@ -744,7 +751,7 @@ WebModule::Impl::~Impl() {
   // Collect document's unload event start time.
   base::TimeTicks unload_event_start_time = base::TimeTicks::Now();
 
-  window_->DispatchEvent(new dom::Event(base::Tokens::unload()));
+  window_->DispatchEvent(new web::Event(base::Tokens::unload()));
 
   // Collect document's unload event end time.
   base::TimeTicks unload_event_end_time = base::TimeTicks::Now();
@@ -788,7 +795,7 @@ WebModule::Impl::~Impl() {
 }
 
 void WebModule::Impl::InjectInputEvent(scoped_refptr<dom::Element> element,
-                                       const scoped_refptr<dom::Event>& event) {
+                                       const scoped_refptr<web::Event>& event) {
   TRACE_EVENT1("cobalt::browser", "WebModule::Impl::InjectInputEvent()",
                "event", TRACE_STR_COPY(event->type().c_str()));
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
@@ -1120,12 +1127,12 @@ void WebModule::Impl::SetResourceProvider(
 }
 
 void WebModule::Impl::OnStartDispatchEvent(
-    const scoped_refptr<dom::Event>& event) {
+    const scoped_refptr<web::Event>& event) {
   web_module_stat_tracker_->OnStartDispatchEvent(event);
 }
 
 void WebModule::Impl::OnStopDispatchEvent(
-    const scoped_refptr<dom::Event>& event) {
+    const scoped_refptr<web::Event>& event) {
   web_module_stat_tracker_->OnStopDispatchEvent(
       event, window_->HasPendingAnimationFrameCallbacks(),
       layout_manager_->IsRenderTreePending());
@@ -1257,7 +1264,7 @@ void WebModule::Impl::LogScriptError(
 void WebModule::Impl::InjectBeforeUnloadEvent() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   if (window_ && window_->HasEventListener(base::Tokens::beforeunload())) {
-    window_->DispatchEvent(new dom::Event(base::Tokens::beforeunload()));
+    window_->DispatchEvent(new web::Event(base::Tokens::beforeunload()));
   } else if (!on_before_unload_fired_but_not_handled_.is_null()) {
     on_before_unload_fired_but_not_handled_.Run();
   }
@@ -1298,7 +1305,7 @@ void WebModule::Impl::DisableCallbacksInResourceCaches() {
 void WebModule::Impl::HandlePointerEvents() {
   TRACE_EVENT0("cobalt::browser", "WebModule::Impl::HandlePointerEvents");
   const scoped_refptr<dom::Document>& document = window_->document();
-  scoped_refptr<dom::Event> event;
+  scoped_refptr<web::Event> event;
   do {
     event = document->pointer_state()->GetNextQueuedPointerEvent();
     if (event) {
@@ -1330,7 +1337,7 @@ WebModule::WebModule(
     media::CanPlayTypeHandler* can_play_type_handler,
     media::MediaModule* media_module, const ViewportSize& window_dimensions,
     render_tree::ResourceProvider* resource_provider, float layout_refresh_rate,
-    worker::ServiceWorkerJobs* service_worker_jobs, const Options& options)
+    const Options& options)
     : ui_nav_root_(new ui_navigation::NavItem(
           ui_navigation::kNativeItemTypeContainer,
           // Currently, events do not need to be processed for the root item.
@@ -1343,7 +1350,7 @@ WebModule::WebModule(
 #if defined(ENABLE_DEBUGGER)
       &waiting_for_web_debugger_,
 #endif  // defined(ENABLE_DEBUGGER)
-      &synchronous_loader_interrupt_, service_worker_jobs, options);
+      &synchronous_loader_interrupt_, options);
 
   web_agent_.reset(
       new web::Agent(options.web_options,

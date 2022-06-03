@@ -31,8 +31,6 @@ GlobalStats::GlobalStats()
                            "Total number of currently active string maps."),
       num_dom_token_lists_("Count.DOM.TokenLists", 0,
                            "Total number of currently active token lists."),
-      num_event_listeners_("Count.DOM.EventListeners", 0,
-                           "Total number of currently active event listeners."),
       num_html_collections_(
           "Count.DOM.HtmlCollections", 0,
           "Total number of currently active HTML collections."),
@@ -42,11 +40,6 @@ GlobalStats::GlobalStats()
                  "Total number of currently active nodes."),
       num_node_lists_("Count.DOM.NodeLists", 0,
                       "Total number of currently active node lists."),
-      num_active_java_script_events_(
-          "Count.DOM.ActiveJavaScriptEvents", 0,
-          "Total number of currently active JavaScript events."),
-      num_xhrs_("Count.XHR", 0, "Total number of currently active XHRs."),
-      xhr_memory_("Memory.XHR", 0, "Memory allocated by XHRs in bytes."),
       total_font_request_time_(
           "Time.MainWebModule.DOM.FontCache.TotalFontRequestTime", 0,
           "The time it takes for all fonts requests to complete") {}
@@ -54,12 +47,11 @@ GlobalStats::GlobalStats()
 GlobalStats::~GlobalStats() {}
 
 bool GlobalStats::CheckNoLeaks() {
-  return num_attrs_ == 0 && num_dom_string_maps_ == 0 &&
-         num_dom_token_lists_ == 0 && num_event_listeners_ == 0 &&
+  return web::GlobalStats::GetInstance()->CheckNoLeaks() &&
+         xhr::GlobalStats::GetInstance()->CheckNoLeaks() && num_attrs_ == 0 &&
+         num_dom_string_maps_ == 0 && num_dom_token_lists_ == 0 &&
          num_html_collections_ == 0 && num_named_node_maps_ == 0 &&
-         num_nodes_ == 0 && num_node_lists_ == 0 &&
-         num_active_java_script_events_ == 0 && num_xhrs_ == 0 &&
-         xhr_memory_ == 0;
+         num_nodes_ == 0 && num_node_lists_ == 0;
 }
 
 void GlobalStats::Add(Attr* object) { ++num_attrs_; }
@@ -76,8 +68,6 @@ void GlobalStats::Add(Node* object) { ++num_nodes_; }
 
 void GlobalStats::Add(NodeList* object) { ++num_node_lists_; }
 
-void GlobalStats::AddEventListener() { ++num_event_listeners_; }
-
 void GlobalStats::Remove(Attr* object) { --num_attrs_; }
 
 void GlobalStats::Remove(DOMStringMap* object) { --num_dom_string_maps_; }
@@ -91,23 +81,6 @@ void GlobalStats::Remove(NamedNodeMap* object) { --num_named_node_maps_; }
 void GlobalStats::Remove(Node* object) { --num_nodes_; }
 
 void GlobalStats::Remove(NodeList* object) { --num_node_lists_; }
-
-void GlobalStats::RemoveEventListener() { --num_event_listeners_; }
-
-void GlobalStats::StartJavaScriptEvent() { ++num_active_java_script_events_; }
-
-void GlobalStats::StopJavaScriptEvent() { --num_active_java_script_events_; }
-
-void GlobalStats::Add(xhr::XMLHttpRequest* object) { ++num_xhrs_; }
-
-void GlobalStats::Remove(xhr::XMLHttpRequest* object) { --num_xhrs_; }
-
-void GlobalStats::IncreaseXHRMemoryUsage(size_t delta) { xhr_memory_ += delta; }
-
-void GlobalStats::DecreaseXHRMemoryUsage(size_t delta) {
-  DCHECK_GE(xhr_memory_.value(), delta);
-  xhr_memory_ -= delta;
-}
 
 void GlobalStats::OnFontRequestComplete(int64 start_time) {
   total_font_request_time_ +=

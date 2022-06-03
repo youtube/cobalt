@@ -23,4 +23,9 @@
     this value in MB. Set to 0 to use default values.
   -->
   <item target="integer/max_video_buffer_budget" value="0" />
+  <!--
+    When set, the return value of SbAudioSinkGetMinBufferSizeInFrames() would
+    be greater or equal to this value. Set to 0 to use default values.
+  -->
+  <item target="integer/min_audio_sink_buffer_size_in_frames" value="0" />
 </overlay>

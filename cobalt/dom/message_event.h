@@ -21,19 +21,19 @@
 #include "base/memory/ref_counted.h"
 #include "base/strings/string_piece.h"
 #include "cobalt/base/token.h"
-#include "cobalt/dom/blob.h"
-#include "cobalt/dom/event.h"
 #include "cobalt/script/array_buffer.h"
 #include "cobalt/script/union_type.h"
 #include "cobalt/script/wrappable.h"
+#include "cobalt/web/blob.h"
+#include "cobalt/web/event.h"
 #include "net/base/io_buffer.h"
 
 namespace cobalt {
 namespace dom {
 
-class MessageEvent : public dom::Event {
+class MessageEvent : public web::Event {
  public:
-  typedef script::UnionType3<std::string, scoped_refptr<dom::Blob>,
+  typedef script::UnionType3<std::string, scoped_refptr<web::Blob>,
                              script::Handle<script::ArrayBuffer> >
       ResponseType;
   // These response codes are ordered in the likelihood of being used.

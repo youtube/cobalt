@@ -18,9 +18,6 @@
 // repository that can be examined later.
 // Platforms typically have maximum crash log data sizes on the order of 16KB,
 // but it varies per platform.
-[
-  Conditional=COBALT_ENABLE_CRASH_LOG
-]
 interface H5vccCrashLog {
   // Returns true if the string was successfully set in the crash log, and false
   // if for some reason the string could not be set in the crash log.
@@ -60,4 +57,12 @@ interface H5vccCrashLog {
   // previous file containing violations from previous app starts and since the
   // last call (up to a limit) is returned.
   DOMString getWatchdogViolations(boolean current);
+
+  // Gets a persistent Watchdog setting that determines whether or not a
+  // Watchdog violation will trigger a crash.
+  boolean getCanTriggerCrash();
+
+  // Sets a persistent Watchdog setting that determines whether or not a
+  // Watchdog violation will trigger a crash.
+  void setCanTriggerCrash(boolean can_trigger_crash);
 };

@@ -19,10 +19,10 @@
 #include <string>
 #include <utility>
 
-#include "cobalt/dom/event_target.h"
-#include "cobalt/dom/event_target_listener_info.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/wrappable.h"
+#include "cobalt/web/event_target.h"
+#include "cobalt/web/event_target_listener_info.h"
 #include "cobalt/worker/abstract_worker.h"
 #include "cobalt/worker/service_worker_object.h"
 #include "cobalt/worker/service_worker_state.h"
@@ -33,14 +33,19 @@ namespace worker {
 // The ServiceWorker interface represents a service worker within a service
 // worker client realm.
 //   https://w3c.github.io/ServiceWorker/#serviceworker-interface
-class ServiceWorker : public AbstractWorker, public dom::EventTarget {
+class ServiceWorker : public AbstractWorker, public web::EventTarget {
  public:
   ServiceWorker(script::EnvironmentSettings* settings,
                 worker::ServiceWorkerObject* worker);
+  ServiceWorker(const ServiceWorker&) = delete;
+  ServiceWorker& operator=(const ServiceWorker&) = delete;
 
   // The scriptURL getter steps are to return the
   // service worker's serialized script url.
-  std::string script_url() const { return script_url_; }
+  std::string script_url() const { return worker_->script_url().spec(); }
+
+  // https://w3c.github.io/ServiceWorker/#dom-serviceworker-state
+  void set_state(ServiceWorkerState state) { state_ = state; }
   ServiceWorkerState state() const { return state_; }
 
   const EventListenerScriptValue* onstatechange() const {
@@ -63,11 +68,8 @@ class ServiceWorker : public AbstractWorker, public dom::EventTarget {
 
  private:
   ~ServiceWorker() override = default;
-  DISALLOW_COPY_AND_ASSIGN(ServiceWorker);
 
   worker::ServiceWorkerObject* worker_;
-
-  const std::string script_url_;
   ServiceWorkerState state_;
 };
 

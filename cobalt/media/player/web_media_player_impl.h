@@ -124,10 +124,7 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   // Playback controls.
   void Play() override;
   void Pause() override;
-  bool SupportsFullscreen() const override;
-  bool SupportsSave() const override;
   void Seek(float seconds) override;
-  void SetEndTime(float seconds) override;
   void SetRate(float rate) override;
   void SetVolume(float volume) override;
   void SetVisible(bool visible) override;
@@ -198,7 +195,6 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
                        const std::string& message);
   void OnPipelineBufferingState(Pipeline::BufferingState buffering_state);
   void OnDemuxerOpened();
-  void SetOpaque(bool);
 
  private:
   // Called when the data source is downloading or paused.
@@ -293,19 +289,16 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
     bool is_media_source;
   } state_;
 
-  WebMediaPlayerClient* client_;
-  WebMediaPlayerDelegate* delegate_;
-  bool allow_resume_after_suspend_;
+  WebMediaPlayerClient* const client_;
+  WebMediaPlayerDelegate* const delegate_;
+  const bool allow_resume_after_suspend_;
   scoped_refptr<VideoFrameProvider> video_frame_provider_;
 
   scoped_refptr<WebMediaPlayerProxy> proxy_;
 
   ::media::MediaLog* const media_log_;
 
-  bool incremented_externally_allocated_memory_;
-
   bool is_local_source_;
-  bool supports_save_;
 
   std::unique_ptr<::media::Demuxer> progressive_demuxer_;
   std::unique_ptr<::media::ChunkDemuxer> chunk_demuxer_;
@@ -314,9 +307,6 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   // started; prevents us from spuriously logging errors that are transient or
   // unimportant.
   bool suppress_destruction_errors_;
-
-  base::Callback<void(base::TimeDelta*, bool*)>
-      media_time_and_seeking_state_cb_;
 
   DrmSystemReadyCB drm_system_ready_cb_;
   scoped_refptr<DrmSystem> drm_system_;

@@ -14,33 +14,83 @@
 
 #include "net/disk_cache/cobalt/cobalt_backend_impl.h"
 
+#include <memory>
+#include <string>
+#include <utility>
+
+#include "base/bind.h"
 #include "base/threading/sequenced_task_runner_handle.h"
+#include "net/disk_cache/backend_cleanup_tracker.h"
 
 using base::Time;
 
 namespace disk_cache {
 
-CobaltBackendImpl::CobaltBackendImpl(net::NetLog* net_log)
-    : weak_factory_(this) {}
+namespace {
+
+void CompletionOnceCallbackHandler(
+    scoped_refptr<CobaltBackendImpl::RefCountedRunner> runner,
+    int result) {
+  // Save most recent non-success result.
+  if (result != net::OK) {
+    runner->set_callback_result(result);
+  }
+}
+
+ResourceType GetType(const std::string& key) {
+  // The type is stored at the front of the key, as an int that maps to the
+  // ResourceType enum. This is done in HttpCache::GenerateCacheKey.
+  DCHECK(!key.empty());
+  char type_hint = key[0];
+  if (isdigit(type_hint)) {
+    // ASCII '0' = 48
+    return (disk_cache::ResourceType)(static_cast<int>(type_hint) - 48);
+  }
+  return kOther;
+}
+
+}  // namespace
+
+CobaltBackendImpl::CobaltBackendImpl(
+    const base::FilePath& path,
+    scoped_refptr<BackendCleanupTracker> cleanup_tracker,
+    int64_t max_bytes,
+    net::CacheType cache_type,
+    net::NetLog* net_log)
+    : weak_factory_(this) {
+  // Initialize disk backend for each resource type.
+  int64_t total_size = 0;
+  for (int i = 0; i < kTypeCount; i++) {
+    base::FilePath dir =
+        path.Append(FILE_PATH_LITERAL(kTypeMetadata[i].directory));
+    int64_t bucket_size = kTypeMetadata[i].max_size_mb * 1024 * 1024;
+    total_size += bucket_size;
+    SimpleBackendImpl* simple_backend = new SimpleBackendImpl(
+        dir, cleanup_tracker, /* file_tracker = */ nullptr, bucket_size,
+        cache_type, net_log);
+    simple_backend_map_[(ResourceType)i] = simple_backend;
+  }
+
+  // Must be at least enough space for each backend.
+  DCHECK(total_size <= max_bytes);
+}
 
 CobaltBackendImpl::~CobaltBackendImpl() {
-  if (!post_cleanup_callback_.is_null())
-    base::SequencedTaskRunnerHandle::Get()->PostTask(
-        FROM_HERE, std::move(post_cleanup_callback_));
+  for (int i = 0; i < kTypeCount; i++) {
+    delete simple_backend_map_[(ResourceType)i];
+  }
+  simple_backend_map_.clear();
 }
 
-// static
-std::unique_ptr<CobaltBackendImpl> CobaltBackendImpl::CreateBackend(
-    int64_t max_bytes,
-    net::NetLog* net_log) {
-  std::unique_ptr<CobaltBackendImpl> cache(
-      std::make_unique<CobaltBackendImpl>(net_log));
-  return cache;
-}
-
-void CobaltBackendImpl::SetPostCleanupCallback(base::OnceClosure cb) {
-  DCHECK(post_cleanup_callback_.is_null());
-  post_cleanup_callback_ = std::move(cb);
+net::Error CobaltBackendImpl::Init(CompletionOnceCallback completion_callback) {
+  auto closure_runner =
+      base::MakeRefCounted<RefCountedRunner>(std::move(completion_callback));
+  for (auto const& backend : simple_backend_map_) {
+    CompletionOnceCallback delegate =
+        base::BindOnce(&CompletionOnceCallbackHandler, closure_runner);
+    backend.second->Init(base::BindOnce(std::move(delegate)));
+  }
+  return net::ERR_IO_PENDING;
 }
 
 net::CacheType CobaltBackendImpl::GetCacheType() const {
@@ -48,52 +98,76 @@ net::CacheType CobaltBackendImpl::GetCacheType() const {
 }
 
 int32_t CobaltBackendImpl::GetEntryCount() const {
-  // TODO: Implement
-  return 0;
+  // Return total number of entries both on disk and in memory.
+  int32_t count = 0;
+  for (auto const& backend : simple_backend_map_) {
+    count += backend.second->GetEntryCount();
+  }
+  return count;
 }
 
 net::Error CobaltBackendImpl::OpenEntry(const std::string& key,
                                         net::RequestPriority request_priority,
                                         Entry** entry,
-                                        std::string type,
                                         CompletionOnceCallback callback) {
-  // TODO: Implement
-  return net::ERR_FAILED;
+  SimpleBackendImpl* simple_backend = simple_backend_map_[GetType(key)];
+  return simple_backend->OpenEntry(key, request_priority, entry,
+                                   std::move(callback));
 }
 
 net::Error CobaltBackendImpl::CreateEntry(const std::string& key,
                                           net::RequestPriority request_priority,
                                           Entry** entry,
                                           CompletionOnceCallback callback) {
-  // TODO: Implement
-  return net::ERR_FAILED;
+  SimpleBackendImpl* simple_backend = simple_backend_map_[GetType(key)];
+  return simple_backend->CreateEntry(key, request_priority, entry,
+                                     std::move(callback));
 }
 
 net::Error CobaltBackendImpl::DoomEntry(const std::string& key,
                                         net::RequestPriority priority,
                                         CompletionOnceCallback callback) {
-  // TODO: Implement
-  return net::OK;
+  SimpleBackendImpl* simple_backend = simple_backend_map_[GetType(key)];
+  return simple_backend->DoomEntry(key, priority, std::move(callback));
 }
 
 net::Error CobaltBackendImpl::DoomAllEntries(CompletionOnceCallback callback) {
-  // TODO: Implement
-  return net::OK;
+  auto closure_runner =
+      base::MakeRefCounted<RefCountedRunner>(std::move(callback));
+  for (auto const& backend : simple_backend_map_) {
+    CompletionOnceCallback delegate =
+        base::BindOnce(&CompletionOnceCallbackHandler, closure_runner);
+    backend.second->DoomAllEntries(std::move(delegate));
+  }
+  return net::ERR_IO_PENDING;
 }
 
 net::Error CobaltBackendImpl::DoomEntriesBetween(
     Time initial_time,
     Time end_time,
     CompletionOnceCallback callback) {
-  // TODO: Implement
-  return net::OK;
+  auto closure_runner =
+      base::MakeRefCounted<RefCountedRunner>(std::move(callback));
+  for (auto const& backend : simple_backend_map_) {
+    CompletionOnceCallback delegate =
+        base::BindOnce(&CompletionOnceCallbackHandler, closure_runner);
+    backend.second->DoomEntriesBetween(initial_time, end_time,
+                                       std::move(delegate));
+  }
+  return net::ERR_IO_PENDING;
 }
 
 net::Error CobaltBackendImpl::DoomEntriesSince(
     Time initial_time,
     CompletionOnceCallback callback) {
-  // TODO: Implement
-  return net::OK;
+  auto closure_runner =
+      base::MakeRefCounted<RefCountedRunner>(std::move(callback));
+  for (auto const& backend : simple_backend_map_) {
+    CompletionOnceCallback delegate =
+        base::BindOnce(&CompletionOnceCallbackHandler, closure_runner);
+    backend.second->DoomEntriesSince(initial_time, std::move(delegate));
+  }
+  return net::ERR_IO_PENDING;
 }
 
 int64_t CobaltBackendImpl::CalculateSizeOfAllEntries(
@@ -131,14 +205,20 @@ std::unique_ptr<Backend::Iterator> CobaltBackendImpl::CreateIterator() {
 }
 
 void CobaltBackendImpl::OnExternalCacheHit(const std::string& key) {
-  // TODO: Implement
+  SimpleBackendImpl* simple_backend = simple_backend_map_[GetType(key)];
+  simple_backend->OnExternalCacheHit(key);
 }
 
 size_t CobaltBackendImpl::DumpMemoryStats(
     base::trace_event::ProcessMemoryDump* pmd,
     const std::string& parent_absolute_name) const {
-  // TODO: Implement
-  return 0;
+  // Dump memory stats for all backends.
+  std::string name = parent_absolute_name + "/cobalt_backend";
+  size_t size = 0;
+  for (auto const& backend : simple_backend_map_) {
+    size += backend.second->DumpMemoryStats(pmd, name);
+  }
+  return size;
 }
 
 }  // namespace disk_cache

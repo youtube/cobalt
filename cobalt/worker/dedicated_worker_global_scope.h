@@ -18,12 +18,12 @@
 #include <string>
 
 #include "cobalt/base/tokens.h"
-#include "cobalt/dom/event_target.h"
-#include "cobalt/dom/event_target_listener_info.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/sequence.h"
 #include "cobalt/script/value_handle.h"
 #include "cobalt/script/wrappable.h"
+#include "cobalt/web/event_target.h"
+#include "cobalt/web/event_target_listener_info.h"
 #include "cobalt/worker/worker_global_scope.h"
 
 namespace cobalt {
@@ -37,31 +37,34 @@ class DedicatedWorkerGlobalScope : public WorkerGlobalScope {
   explicit DedicatedWorkerGlobalScope(
       script::EnvironmentSettings* settings,
       bool parent_cross_origin_isolated_capability);
+  DedicatedWorkerGlobalScope(const DedicatedWorkerGlobalScope&) = delete;
+  DedicatedWorkerGlobalScope& operator=(const DedicatedWorkerGlobalScope&) =
+      delete;
+
+  void Initialize() override;
 
   // Web API: DedicatedWorkerGlobalScope
   //
   void set_name(const std::string& name) { name_ = name; }
   std::string name() { return name_; }
 
-  void Initialize() override;
-
   void PostMessage(const std::string& message);
   void Close() {}
 
-  const dom::EventTargetListenerInfo::EventListenerScriptValue* onmessage() {
+  const web::EventTargetListenerInfo::EventListenerScriptValue* onmessage() {
     return GetAttributeEventListener(base::Tokens::message());
   }
   void set_onmessage(
-      const dom::EventTargetListenerInfo::EventListenerScriptValue&
+      const web::EventTargetListenerInfo::EventListenerScriptValue&
           event_listener) {
     SetAttributeEventListener(base::Tokens::message(), event_listener);
   }
-  const dom::EventTargetListenerInfo::EventListenerScriptValue*
+  const web::EventTargetListenerInfo::EventListenerScriptValue*
   onmessageerror() {
     return GetAttributeEventListener(base::Tokens::messageerror());
   }
   void set_onmessageerror(
-      const dom::EventTargetListenerInfo::EventListenerScriptValue&
+      const web::EventTargetListenerInfo::EventListenerScriptValue&
           event_listener) {
     SetAttributeEventListener(base::Tokens::messageerror(), event_listener);
   }
@@ -72,7 +75,6 @@ class DedicatedWorkerGlobalScope : public WorkerGlobalScope {
   ~DedicatedWorkerGlobalScope() override {}
 
  private:
-  DISALLOW_COPY_AND_ASSIGN(DedicatedWorkerGlobalScope);
   bool cross_origin_isolated_capability_;
 
   std::string name_;

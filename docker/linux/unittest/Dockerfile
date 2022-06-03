@@ -17,11 +17,16 @@ FROM cobalt-base
 RUN apt update -qqy \
     && apt install -qqy --no-install-recommends \
         libasound2 \
+        libatomic1 \
+        libavcodec58 \
+        libavformat58 \
+        libavutil56 \
         libegl1-mesa \
         libgl1-mesa-dri \
         libgles2-mesa \
         libx11-6 \
         libxcomposite1 \
+        libxi6 \
         libxrender1 \
         unzip \
         xauth \
@@ -34,7 +39,9 @@ ENV LANG en_US.UTF-8
 
 RUN mkdir -p /app_launcher_out
 
-CMD unzip -q /out/app_launcher -d /app_launcher_out && \
-    xvfb-run --server-args="-screen 0 1920x1080x24 +render +extension GLX -noreset" \
-    python /app_launcher_out/starboard/tools/testing/test_runner.py --run \
-           -o /out --platform $PLATFORM --config $CONFIG
+ENV PYTHONPATH "/app_launcher_out"
+
+COPY unittest/unittest_docker_launcher.py /unittest_docker_launcher.py
+
+# Without arguments, it assumes no sharding and runs all tests in the container.
+CMD python3 /unittest_docker_launcher.py

@@ -19,6 +19,7 @@
 #include <vector>
 
 #include "cobalt/script/script_value_factory.h"
+#include "cobalt/web/dom_exception.h"
 #include "starboard/drm.h"
 
 namespace cobalt {
@@ -37,20 +38,20 @@ void RejectPromise(PromiseValueReferenceType* promise_reference,
       promise_reference->value().Reject(script::kTypeError);
       break;
     case kSbDrmStatusNotSupportedError:
-      promise_reference->value().Reject(
-          new DOMException(DOMException::kNotSupportedErr, error_message));
+      promise_reference->value().Reject(new web::DOMException(
+          web::DOMException::kNotSupportedErr, error_message));
       break;
     case kSbDrmStatusInvalidStateError:
-      promise_reference->value().Reject(
-          new DOMException(DOMException::kInvalidStateErr, error_message));
+      promise_reference->value().Reject(new web::DOMException(
+          web::DOMException::kInvalidStateErr, error_message));
       break;
     case kSbDrmStatusQuotaExceededError:
-      promise_reference->value().Reject(
-          new DOMException(DOMException::kQuotaExceededErr, error_message));
+      promise_reference->value().Reject(new web::DOMException(
+          web::DOMException::kQuotaExceededErr, error_message));
       break;
     case kSbDrmStatusUnknownError:
       promise_reference->value().Reject(
-          new DOMException(DOMException::kNone, error_message));
+          new web::DOMException(web::DOMException::kNone, error_message));
       break;
   }
 }

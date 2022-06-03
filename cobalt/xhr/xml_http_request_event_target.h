@@ -18,13 +18,13 @@
 #include <string>
 
 #include "base/optional.h"
-#include "cobalt/dom/event_target.h"
 #include "cobalt/script/environment_settings.h"
+#include "cobalt/web/event_target.h"
 
 namespace cobalt {
 namespace xhr {
 
-class XMLHttpRequestEventTarget : public dom::EventTarget {
+class XMLHttpRequestEventTarget : public web::EventTarget {
  public:
   explicit XMLHttpRequestEventTarget(script::EnvironmentSettings* settings);
 

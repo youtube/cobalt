@@ -31,6 +31,7 @@ bool SimpleIndexFile::TraverseCacheDirectory(
   SbFileError error;
   SbDirectory dir = SbDirectoryOpen(cache_path.value().c_str(), &error);
   if (dir == kSbDirectoryInvalid) {
+    SbDirectoryClose(dir);
     PLOG(ERROR) << "opendir " << cache_path.value() << ", erron: " << error;
     return false;
   }
@@ -39,8 +40,7 @@ bool SimpleIndexFile::TraverseCacheDirectory(
 
   while (true) {
     if (!SbDirectoryGetNext(dir, entry.data(), entry.size())) {
-      PLOG(ERROR) << "readdir " << cache_path.value();
-      return false;
+      break;
     }
 
     const std::string file_name(entry.data());
@@ -58,6 +58,7 @@ bool SimpleIndexFile::TraverseCacheDirectory(
                             file_info.last_modified, file_info.size);
   }
 
+  SbDirectoryClose(dir);
   return true;
 }
 

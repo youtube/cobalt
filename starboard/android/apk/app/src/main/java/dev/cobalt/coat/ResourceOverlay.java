@@ -28,7 +28,13 @@ public class ResourceOverlay {
   @UsedByNative
   public final boolean supports_spherical_videos;
 
+  @SuppressWarnings("MemberName")
+  @UsedByNative
   public final int max_video_buffer_budget;
+
+  @SuppressWarnings("MemberName")
+  @UsedByNative
+  public final int min_audio_sink_buffer_size_in_frames;
 
   public ResourceOverlay(Context context) {
     // Load the values for all Overlay variables.
@@ -36,5 +42,7 @@ public class ResourceOverlay {
         context.getResources().getBoolean(R.bool.supports_spherical_videos);
     this.max_video_buffer_budget =
         context.getResources().getInteger(R.integer.max_video_buffer_budget);
+    this.min_audio_sink_buffer_size_in_frames =
+        context.getResources().getInteger(R.integer.min_audio_sink_buffer_size_in_frames);
   }
 }

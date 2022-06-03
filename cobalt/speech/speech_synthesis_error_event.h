@@ -16,10 +16,10 @@
 #define COBALT_SPEECH_SPEECH_SYNTHESIS_ERROR_EVENT_H_
 
 #include "base/basictypes.h"
-#include "cobalt/dom/event_target.h"
 #include "cobalt/script/wrappable.h"
 #include "cobalt/speech/speech_synthesis_error_code.h"
 #include "cobalt/speech/speech_synthesis_event.h"
+#include "cobalt/web/event_target.h"
 
 namespace cobalt {
 namespace speech {

@@ -124,6 +124,7 @@ static_library("engine") {
 
   deps = [
     ":embed_v8c_resources_as_header_files",
+    "//cobalt/cache",
     "//cobalt/configuration",
     "//cobalt/script",
     "//nb",

@@ -14,6 +14,10 @@
 
 #include "starboard/media.h"
 
+#if SB_API_VERSION >= 14
+int SbMediaGetBufferPadding() {
+#else   // SB_API_VERSION >= 14
 int SbMediaGetBufferPadding(SbMediaType type) {
+#endif  // SB_API_VERSION >= 14
   return 0;
 }

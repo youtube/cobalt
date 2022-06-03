@@ -1403,6 +1403,7 @@ int SimpleSynchronousEntry::ReadAndValidateStream0AndMaybe1(
   std::unique_ptr<char[]> prefetch_buf;
   base::StringPiece file_0_prefetch;
 
+#if !defined(STARBOARD)
   if (file_size > GetSimpleCachePrefetchSize()) {
     RecordWhetherOpenDidPrefetch(cache_type_, false);
   } else {
@@ -1412,6 +1413,7 @@ int SimpleSynchronousEntry::ReadAndValidateStream0AndMaybe1(
       return net::ERR_FAILED;
     file_0_prefetch.set(prefetch_buf.get(), file_size);
   }
+#endif
 
   // Read stream 0 footer first --- it has size/feature info required to figure
   // out file 0's layout.

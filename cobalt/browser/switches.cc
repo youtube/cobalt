@@ -80,6 +80,10 @@ const char kDisableMediaEncryptionSchemesHelp[] =
     "will disable any cenc and cbcs DRM playbacks. Accepted values: \"cenc\", "
     "\"cbcs\", \"cbcs-1-9\".";
 
+const char kDisableOnScreenKeyboard[] = "disable_on_screen_keyboard";
+const char kDisableOnScreenKeyboardHelp[] =
+    "Disable the on screen keyboard for testing.";
+
 const char kDisableRasterizerCaching[] = "disable_rasterizer_caching";
 const char kDisableRasterizerCachingHelp[] =
     "Disables caching of rasterized render tree nodes; caching improves "
@@ -208,13 +212,15 @@ const char kUseTTSHelp[] =
     "speech synthesis API. If the platform doesn't have speech synthesis, "
     "TTSLogger will be used instead.";
 
+const char kWatchdog[] = "watchdog";
+const char kWatchdogHelp[] =
+    "Watchdog debug delay settings that correspond to "
+    "delay_name_,delay_wait_time_microseconds_,delay_sleep_time_microseconds_ "
+    "separated by commas (ex. \"renderer,100000,1000\").";
+
 const char kWebDriverPort[] = "webdriver_port";
 const char kWebDriverPortHelp[] =
     "Port that the WebDriver server should be listening on.";
-
-const char kDisableOnScreenKeyboard[] = "disable_on_screen_keyboard";
-const char kDisableOnScreenKeyboardHelp[] =
-    "Disable the on screen keyboard for testing.";
 
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
@@ -439,6 +445,7 @@ std::string HelpMessage() {
         {kForceDeterministicRendering, kForceDeterministicRenderingHelp},
         {kDisableMediaCodecs, kDisableMediaCodecsHelp},
         {kDisableMediaEncryptionSchemes, kDisableMediaEncryptionSchemesHelp},
+        {kDisableOnScreenKeyboard, kDisableOnScreenKeyboardHelp},
         {kDisableRasterizerCaching, kDisableRasterizerCachingHelp},
         {kDisableSignIn, kDisableSignInHelp},
         {kDisableSplashScreenOnReloads, kDisableSplashScreenOnReloadsHelp},
@@ -457,8 +464,8 @@ std::string HelpMessage() {
         {kUserAgent, kUserAgentHelp},
         {kUserAgentClientHints, kUserAgentClientHintsHelp},
         {kUserAgentOsNameVersion, kUserAgentOsNameVersionHelp},
-        {kUseTTS, kUseTTSHelp}, {kWebDriverPort, kWebDriverPortHelp},
-        {kDisableOnScreenKeyboard, kDisableOnScreenKeyboardHelp},
+        {kUseTTS, kUseTTSHelp}, {kWatchdog, kWatchdogHelp},
+        {kWebDriverPort, kWebDriverPortHelp},
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
         {kCompressUpdate, kCompressUpdateHelp},
         {kDisableJavaScriptJit, kDisableJavaScriptJitHelp},

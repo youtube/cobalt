@@ -44,7 +44,7 @@ namespace speech {
 class GoogleSpeechService : public net::URLFetcherDelegate {
  public:
   typedef media::AudioBus AudioBus;
-  typedef base::Callback<void(const scoped_refptr<dom::Event>&)> EventCallback;
+  typedef base::Callback<void(const scoped_refptr<web::Event>&)> EventCallback;
   typedef SpeechRecognitionResultList::SpeechRecognitionResults
       SpeechRecognitionResults;
   typedef base::Callback<std::unique_ptr<net::URLFetcher>(

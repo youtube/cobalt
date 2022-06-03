@@ -24,6 +24,14 @@ namespace starboard {
 namespace shared {
 namespace starboard {
 
+namespace {
+void SetTrueWhenCalled(void* flag) {
+  volatile bool* bool_flag =
+      const_cast<volatile bool*>(static_cast<bool*>(flag));
+  *bool_flag = true;
+}
+}  // namespace
+
 void QueueApplication::Wake() {
   if (IsCurrentThread()) {
     return;
@@ -88,6 +96,21 @@ void QueueApplication::CancelTimedEvent(SbEventId event_id) {
   // The wait duration will only get longer after cancelling an event, so the
   // waiter will wake up as previously scheduled, see there is nothing to do,
   // and go back to sleep.
+}
+
+void QueueApplication::InjectAndProcess(SbEventType type,
+                                        bool checkSystemEvents) {
+  volatile bool event_processed = false;
+  Event* flagged_event =
+      new Event(type, const_cast<bool*>(&event_processed), &SetTrueWhenCalled);
+  Inject(flagged_event);
+  while (!event_processed) {
+    if (checkSystemEvents) {
+      DispatchAndDelete(GetNextEvent());
+    } else {
+      DispatchAndDelete(GetNextInjectedEvent());
+    }
+  }
 }
 
 Application::TimedEvent* QueueApplication::GetNextDueTimedEvent() {

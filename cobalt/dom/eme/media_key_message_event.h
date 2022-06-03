@@ -20,9 +20,9 @@
 #include "base/memory/ref_counted.h"
 #include "cobalt/dom/eme/media_key_message_event_init.h"
 #include "cobalt/dom/eme/media_key_message_type.h"
-#include "cobalt/dom/event.h"
 #include "cobalt/script/array_buffer.h"
 #include "cobalt/script/wrappable.h"
+#include "cobalt/web/event.h"
 
 namespace cobalt {
 namespace dom {
@@ -30,7 +30,7 @@ namespace eme {
 
 // The MediaKeyMessageEvent object is used for the message event.
 //   https://www.w3.org/TR/encrypted-media/#mediakeymessageevent
-class MediaKeyMessageEvent : public Event {
+class MediaKeyMessageEvent : public web::Event {
  public:
   // Web IDL: MediaKeyMessageEvent
   //

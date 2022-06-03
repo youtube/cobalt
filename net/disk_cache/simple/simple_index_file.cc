@@ -24,6 +24,7 @@
 #include "net/disk_cache/simple/simple_index.h"
 #include "net/disk_cache/simple/simple_synchronous_entry.h"
 #include "net/disk_cache/simple/simple_util.h"
+#include "starboard/file.h"
 
 namespace disk_cache {
 namespace {
@@ -323,18 +324,20 @@ void SimpleIndexFile::SyncWriteToDisk(net::CacheType cache_type,
     return;
   }
   SerializeFinalData(cache_dir_mtime, pickle.get());
+#if defined(STARBOARD)
+  const char* data = static_cast<const char*>(pickle.get()->data());
+  if (!SbFileAtomicReplace(index_filename.value().c_str(), data, pickle.get()->size()))
+    return;
+#else
   if (!WritePickleFile(pickle.get(), temp_index_filename)) {
     LOG(ERROR) << "Failed to write the temporary index file";
     return;
   }
 
-#if defined(STARBOARD)
-  NOTIMPLEMENTED() << "Starboard does not support file replacement.";
-  return;
-#else
   // Atomically rename the temporary index file to become the real one.
   if (!base::ReplaceFile(temp_index_filename, index_filename, NULL))
     return;
+#endif
 
   if (app_on_background) {
     SIMPLE_CACHE_UMA(TIMES,
@@ -345,7 +348,6 @@ void SimpleIndexFile::SyncWriteToDisk(net::CacheType cache_type,
                      "IndexWriteToDiskTime.Foreground", cache_type,
                      (base::TimeTicks::Now() - start_time));
   }
-#endif
 }
 
 bool SimpleIndexFile::IndexMetadata::CheckIndexMetadata() {

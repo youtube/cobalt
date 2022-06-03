@@ -43,10 +43,10 @@
 #include "cobalt/dom/lottie_player.h"
 #include "cobalt/dom/testing/stub_css_parser.h"
 #include "cobalt/dom/testing/stub_environment_settings.h"
-#include "cobalt/dom/testing/stub_script_runner.h"
 #include "cobalt/dom_parser/parser.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/loader/loader_factory.h"
+#include "cobalt/script/testing/stub_script_runner.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
@@ -74,8 +74,7 @@ class HTMLElementFactoryTest : public ::testing::Test {
             NULL /* remote_typeface_cache */, NULL /* mesh_cache */,
             dom_stat_tracker_.get(), "" /* language */,
             base::kApplicationStateStarted,
-            NULL /* synchronous_loader_interrupt */,
-            NULL /* performance */),
+            NULL /* synchronous_loader_interrupt */, NULL /* performance */),
         document_(new Document(&html_element_context_)) {}
   ~HTMLElementFactoryTest() override {}
 
@@ -85,7 +84,7 @@ class HTMLElementFactoryTest : public ::testing::Test {
   loader::LoaderFactory loader_factory_;
   std::unique_ptr<Parser> dom_parser_;
   testing::StubCSSParser stub_css_parser_;
-  testing::StubScriptRunner stub_script_runner_;
+  script::testing::StubScriptRunner stub_script_runner_;
   std::unique_ptr<DomStatTracker> dom_stat_tracker_;
   HTMLElementContext html_element_context_;
   scoped_refptr<Document> document_;

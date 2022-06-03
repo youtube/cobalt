@@ -17,15 +17,15 @@
 
 namespace cobalt {
 namespace dom {
-
 namespace {
 const char kPerformanceResourceTimingCacheMode[] = "local";
-}
+const uint64_t kPerformanceResourceTimingHeaderSize = 300;
+}  // namespace
 
 PerformanceResourceTiming::PerformanceResourceTiming(
     const std::string& name, DOMHighResTimeStamp start_time,
     DOMHighResTimeStamp end_time)
-    : PerformanceEntry(name, start_time, end_time), transfer_size_(0) {}
+    : PerformanceEntry(name, start_time, end_time) {}
 
 PerformanceResourceTiming::PerformanceResourceTiming(
     const net::LoadTimingInfo& timing_info, const std::string& initiator_type,
@@ -38,7 +38,6 @@ PerformanceResourceTiming::PerformanceResourceTiming(
                            time_origin, timing_info.receive_headers_end)),
       initiator_type_(initiator_type),
       cache_mode_(kPerformanceResourceTimingCacheMode),
-      transfer_size_(0),
       timing_info_(timing_info),
       time_origin_(time_origin),
       timing_info_response_end_(performance->Now()) {}
@@ -116,7 +115,17 @@ DOMHighResTimeStamp PerformanceResourceTiming::response_end() const {
 }
 
 uint64_t PerformanceResourceTiming::transfer_size() const {
-  return transfer_size_;
+  // Cobalt does not support cache mode.
+  // The transferSize getter steps are to perform the following steps:
+  //    https://www.w3.org/TR/resource-timing-2/#dom-performanceresourcetiming-transfersize
+  // 1. If this's cache mode is "local", then return 0.
+  // 2. If this's cache mode is "validated", then return 300.
+  // 3. Return this's timing info's encoded body size plus 300.
+  return timing_info_.encoded_body_size + kPerformanceResourceTimingHeaderSize;
+}
+
+uint64_t PerformanceResourceTiming::encoded_body_size() const {
+  return timing_info_.encoded_body_size;
 }
 
 void PerformanceResourceTiming::SetResourceTimingEntry(

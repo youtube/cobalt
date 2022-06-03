@@ -18,8 +18,8 @@
 #include <string>
 
 #include "cobalt/browser/stack_size_constants.h"
-#include "cobalt/dom/event_target.h"
 #include "cobalt/script/environment_settings.h"
+#include "cobalt/web/event_target.h"
 #include "cobalt/worker/message_port.h"
 #include "cobalt/worker/worker.h"
 #include "cobalt/worker/worker_options.h"
@@ -34,14 +34,14 @@ const char kDedicatedWorkerName[] = "DedicatedWorker";
 
 DedicatedWorker::DedicatedWorker(script::EnvironmentSettings* settings,
                                  const std::string& scriptURL)
-    : EventTarget(settings), settings_(settings), script_url_(scriptURL) {
+    : web::EventTarget(settings), settings_(settings), script_url_(scriptURL) {
   Initialize();
 }
 
 DedicatedWorker::DedicatedWorker(script::EnvironmentSettings* settings,
                                  const std::string& scriptURL,
                                  const WorkerOptions& worker_options)
-    : EventTarget(settings),
+    : web::EventTarget(settings),
       settings_(settings),
       script_url_(scriptURL),
       worker_options_(worker_options) {
@@ -52,7 +52,8 @@ void DedicatedWorker::Initialize() {
   // Algorithm for the Worker constructor.
   //   https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#dom-worker
 
-  // 1. The user agent may throw a "SecurityError" DOMException if the request
+  // 1. The user agent may throw a "SecurityError" web::DOMException if the
+  // request
   //    violates a policy decision (e.g. if the user agent is configured to
   //    not
   //    allow the page to start dedicated workers).
@@ -65,7 +66,7 @@ void DedicatedWorker::Initialize() {
   LOG_IF(WARNING, !options.url.is_valid())
       << script_url_ << " cannot be resolved based on " << base_url << ".";
 
-  // 4. If this fails, throw a "SyntaxError" DOMException.
+  // 4. If this fails, throw a "SyntaxError" web::DOMException.
   // 5. Let worker URL be the resulting URL record.
   options.web_options.stack_size = cobalt::browser::kWorkerStackSize;
   options.web_options.network_module =
@@ -80,7 +81,8 @@ void DedicatedWorker::Initialize() {
   // 9. Run this step in parallel:
   //    1. Run a worker given worker, worker URL, outside settings, outside
   //    port, and options.
-  options.outside_settings = settings_;
+  options.outside_settings =
+      base::polymorphic_downcast<web::EnvironmentSettings*>(settings_);
   options.outside_port = outside_port_.get();
   options.options = worker_options_;
 

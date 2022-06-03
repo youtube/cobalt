@@ -15,8 +15,8 @@
 #include "cobalt/dom/dom_settings.h"
 
 #include "cobalt/dom/document.h"
-#include "cobalt/dom/url_utils.h"
 #include "cobalt/dom/window.h"
+#include "cobalt/web/url_utils.h"
 
 namespace cobalt {
 namespace dom {
@@ -27,15 +27,14 @@ DOMSettings::DOMSettings(
     media::CanPlayTypeHandler* can_play_type_handler,
     const media::DecoderBufferMemoryInfo* decoder_buffer_memory_info,
     MutationObserverTaskManager* mutation_observer_task_manager,
-    worker::ServiceWorkerJobs* service_worker_jobs, const Options& options)
+    const Options& options)
     : EnvironmentSettings(debugger_hooks),
       max_dom_element_depth_(max_dom_element_depth),
       microphone_options_(options.microphone_options),
       media_source_registry_(media_source_registry),
       can_play_type_handler_(can_play_type_handler),
       decoder_buffer_memory_info_(decoder_buffer_memory_info),
-      mutation_observer_task_manager_(mutation_observer_task_manager),
-      service_worker_jobs_(service_worker_jobs) {}
+      mutation_observer_task_manager_(mutation_observer_task_manager) {}
 
 DOMSettings::~DOMSettings() {}
 

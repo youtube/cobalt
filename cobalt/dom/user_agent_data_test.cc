@@ -24,8 +24,6 @@
 #include "cobalt/dom/global_stats.h"
 #include "cobalt/dom/local_storage_database.h"
 #include "cobalt/dom/navigator.h"
-#include "cobalt/dom/navigator_ua_data.h"
-#include "cobalt/dom/testing/gtest_workarounds.h"
 #include "cobalt/dom/testing/stub_environment_settings.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/dom_parser/parser.h"
@@ -35,6 +33,8 @@
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/script/source_code.h"
+#include "cobalt/web/navigator_ua_data.h"
+#include "cobalt/web/testing/gtest_workarounds.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 using cobalt::cssom::ViewportSize;
@@ -69,8 +69,8 @@ class UserAgentDataTest : public ::testing::Test {
         NULL, NULL, url_, "", platform_info_.get(), "en-US", "en",
         base::Callback<void(const GURL&)>(),
         base::Bind(&StubLoadCompleteCallback), NULL,
-        network_bridge::PostSender(), csp::kCSPRequired, kCspEnforcementEnable,
-        base::Closure() /* csp_policy_changed */,
+        network_bridge::PostSender(), csp::kCSPRequired,
+        web::kCspEnforcementEnable, base::Closure() /* csp_policy_changed */,
         base::Closure() /* ran_animation_frame_callbacks */,
         dom::Window::CloseCallback() /* window_close */,
         base::Closure() /* window_minimize */, NULL, NULL,
@@ -101,7 +101,7 @@ class UserAgentDataTest : public ::testing::Test {
     global_environment_->SetReportEvalCallback(base::Closure());
     global_environment_->SetReportErrorCallback(
         script::GlobalEnvironment::ReportErrorCallback());
-    window_->DispatchEvent(new dom::Event(base::Tokens::unload()));
+    window_->DispatchEvent(new web::Event(base::Tokens::unload()));
 
     window_ = nullptr;
     global_environment_ = nullptr;

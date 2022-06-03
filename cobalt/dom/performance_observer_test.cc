@@ -12,15 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "cobalt/dom/performance_observer.h"
+
 #include "cobalt/base/clock.h"
-#include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/performance.h"
 #include "cobalt/dom/performance_entry.h"
 #include "cobalt/dom/performance_high_resolution_time.h"
-#include "cobalt/dom/performance_observer.h"
 #include "cobalt/dom/performance_observer_init.h"
 #include "cobalt/dom/performance_resource_timing.h"
 #include "cobalt/dom/testing/stub_environment_settings.h"
+#include "cobalt/web/dom_exception.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -40,9 +41,9 @@ class MockPerformanceObserver : public PerformanceObserver {
       const NativePerformanceObserverCallback& native_callback,
       const scoped_refptr<Performance>& performance);
 
-   bool IsRegistered() { return is_registered_; }
-   size_t NumOfPerformanceEntries() { return observer_buffer_.size(); }
-   DOMHighResTimeStamp Now() { return performance_->Now(); }
+  bool IsRegistered() { return is_registered_; }
+  size_t NumOfPerformanceEntries() { return observer_buffer_.size(); }
+  DOMHighResTimeStamp Now() { return performance_->Now(); }
 };
 
 MockPerformanceObserver::MockPerformanceObserver(
@@ -64,11 +65,12 @@ class PerformanceObserverTest : public ::testing::Test {
 
 PerformanceObserverTest::PerformanceObserverTest()
     : clock_(new base::SystemMonotonicClock()),
-    performance_(new Performance(&environment_settings_, clock_)),
-    observer_(new MockPerformanceObserver(
-        base::Bind(&PerformanceObserverCallbackMock::NativePerformanceObserverCallback,
-                   base::Unretained(&callback_mock_)),
-                   performance_)) {}
+      performance_(new Performance(&environment_settings_, clock_)),
+      observer_(new MockPerformanceObserver(
+          base::Bind(&PerformanceObserverCallbackMock::
+                         NativePerformanceObserverCallback,
+                     base::Unretained(&callback_mock_)),
+          performance_)) {}
 
 TEST_F(PerformanceObserverTest, Observe) {
   DCHECK(observer_);
@@ -86,10 +88,8 @@ TEST_F(PerformanceObserverTest, Disconnect) {
   DCHECK(observer_);
   EXPECT_EQ(0, observer_->NumOfPerformanceEntries());
 
-  scoped_refptr<PerformanceResourceTiming> entry(
-      new PerformanceResourceTiming("resource",
-                                    observer_->Now(),
-                                    observer_->Now()));
+  scoped_refptr<PerformanceResourceTiming> entry(new PerformanceResourceTiming(
+      "resource", observer_->Now(), observer_->Now()));
 
   observer_->EnqueuePerformanceEntry(entry);
   EXPECT_EQ(1, observer_->NumOfPerformanceEntries());

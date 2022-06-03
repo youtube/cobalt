@@ -82,7 +82,7 @@ MessageEvent::ResponseType MessageEvent::data(
       return ResponseType(string_response);
     }
     case kBlob: {
-      scoped_refptr<dom::Blob> blob = new dom::Blob(settings, response_buffer);
+      scoped_refptr<web::Blob> blob = new web::Blob(settings, response_buffer);
       return ResponseType(blob);
     }
     case kArrayBuffer: {

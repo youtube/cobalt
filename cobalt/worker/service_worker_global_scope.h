@@ -1,0 +1,115 @@
+// Copyright 2022 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#ifndef COBALT_WORKER_SERVICE_WORKER_GLOBAL_SCOPE_H_
+#define COBALT_WORKER_SERVICE_WORKER_GLOBAL_SCOPE_H_
+
+#include <string>
+
+#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
+#include "cobalt/base/tokens.h"
+#include "cobalt/script/promise.h"
+#include "cobalt/script/value_handle.h"
+#include "cobalt/script/wrappable.h"
+#include "cobalt/web/environment_settings.h"
+#include "cobalt/web/event_target.h"
+#include "cobalt/web/event_target_listener_info.h"
+#include "cobalt/worker/service_worker.h"
+#include "cobalt/worker/service_worker_registration.h"
+#include "cobalt/worker/worker_global_scope.h"
+
+namespace cobalt {
+namespace worker {
+
+// Implementation of Service Worker Global Scope.
+//   https://w3c.github.io/ServiceWorker/#serviceworkerglobalscope-interface
+
+class ServiceWorkerGlobalScope : public WorkerGlobalScope {
+ public:
+  explicit ServiceWorkerGlobalScope(web::EnvironmentSettings* settings);
+  ServiceWorkerGlobalScope(const ServiceWorkerGlobalScope&) = delete;
+  ServiceWorkerGlobalScope& operator=(const ServiceWorkerGlobalScope&) = delete;
+
+  void Initialize() override;
+
+  // Web API: ServiceWorkerGlobalScope
+  //
+  scoped_refptr<ServiceWorkerRegistration> registration() const {
+    return registration_;
+  }
+  scoped_refptr<ServiceWorker> service_worker() const {
+    return service_worker_;
+  }
+
+  script::Handle<script::Promise<void>> SkipWaiting();
+
+  const web::EventTargetListenerInfo::EventListenerScriptValue* oninstall() {
+    return GetAttributeEventListener(base::Tokens::install());
+  }
+  void set_oninstall(
+      const web::EventTargetListenerInfo::EventListenerScriptValue&
+          event_listener) {
+    SetAttributeEventListener(base::Tokens::install(), event_listener);
+  }
+
+  const web::EventTargetListenerInfo::EventListenerScriptValue* onactivate() {
+    return GetAttributeEventListener(base::Tokens::activate());
+  }
+  void set_onactivate(
+      const web::EventTargetListenerInfo::EventListenerScriptValue&
+          event_listener) {
+    SetAttributeEventListener(base::Tokens::activate(), event_listener);
+  }
+
+  const web::EventTargetListenerInfo::EventListenerScriptValue* onfetch() {
+    return GetAttributeEventListener(base::Tokens::fetch());
+  }
+  void set_onfetch(const web::EventTargetListenerInfo::EventListenerScriptValue&
+                       event_listener) {
+    SetAttributeEventListener(base::Tokens::fetch(), event_listener);
+  }
+
+  const web::EventTargetListenerInfo::EventListenerScriptValue* onmessage() {
+    return GetAttributeEventListener(base::Tokens::message());
+  }
+  void set_onmessage(
+      const web::EventTargetListenerInfo::EventListenerScriptValue&
+          event_listener) {
+    SetAttributeEventListener(base::Tokens::message(), event_listener);
+  }
+  const web::EventTargetListenerInfo::EventListenerScriptValue*
+  onmessageerror() {
+    return GetAttributeEventListener(base::Tokens::messageerror());
+  }
+  void set_onmessageerror(
+      const web::EventTargetListenerInfo::EventListenerScriptValue&
+          event_listener) {
+    SetAttributeEventListener(base::Tokens::messageerror(), event_listener);
+  }
+
+  DEFINE_WRAPPABLE_TYPE(ServiceWorkerGlobalScope);
+
+ protected:
+  ~ServiceWorkerGlobalScope() override {}
+
+ private:
+  scoped_refptr<ServiceWorkerRegistration> registration_;
+  scoped_refptr<ServiceWorker> service_worker_;
+};
+
+}  // namespace worker
+}  // namespace cobalt
+
+#endif  // COBALT_WORKER_SERVICE_WORKER_GLOBAL_SCOPE_H_

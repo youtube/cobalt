@@ -13,43 +13,13 @@
 // limitations under the License.
 
 #include "media/base/demuxer_memory_limit.h"
+
+#include "media/base/starboard_utils.h"
 #include "media/base/video_codecs.h"
 #include "base/logging.h"
 #include "starboard/media.h"
 
 namespace media {
-namespace {
-
-// TODO(b/231375871): Move this to video_codecs.h.  Also consider remove
-// starboard_utils.* and move the functions to individual files.
-SbMediaVideoCodec MediaVideoCodecToSbMediaVideoCodec(VideoCodec codec) {
-  switch (codec) {
-    case VideoCodec::kH264:
-      return kSbMediaVideoCodecH264;
-    case VideoCodec::kVC1:
-      return kSbMediaVideoCodecVc1;
-    case VideoCodec::kMPEG2:
-      return kSbMediaVideoCodecMpeg2;
-    case VideoCodec::kTheora:
-      return kSbMediaVideoCodecTheora;
-    case VideoCodec::kVP8:
-      return kSbMediaVideoCodecVp8;
-    case VideoCodec::kVP9:
-      return kSbMediaVideoCodecVp9;
-    case VideoCodec::kHEVC:
-      return kSbMediaVideoCodecH265;
-    case VideoCodec::kAV1:
-      return kSbMediaVideoCodecAv1;
-    default:
-      // Cobalt only supports a subset of video codecs defined by Chromium.
-      DLOG(ERROR) << "Unsupported video codec " << GetCodecName(codec);
-      return kSbMediaVideoCodecNone;
-  }
-  NOTREACHED();
-  return kSbMediaVideoCodecNone;
-}
-
-}  // namespace
 
 size_t GetDemuxerStreamAudioMemoryLimit(
     const AudioDecoderConfig* /*audio_config*/) {
@@ -58,25 +28,15 @@ size_t GetDemuxerStreamAudioMemoryLimit(
 
 size_t GetDemuxerStreamVideoMemoryLimit(
     Demuxer::DemuxerTypes /*demuxer_type*/,
-    const VideoDecoderConfig* video_config) {
-  if (!video_config) {
-    return static_cast<size_t>(
-        SbMediaGetVideoBufferBudget(kSbMediaVideoCodecH264, 1920, 1080, 8));
-  }
-
-  auto width = video_config->visible_rect().size().width();
-  auto height = video_config->visible_rect().size().height();
-  // TODO(b/230799815_): Ensure |bits_per_pixel| always contains a valid value,
-  // or consider deprecating it from `SbMediaGetVideoBufferBudget()`.
-  auto bits_per_pixel = 0;
-  auto codec = MediaVideoCodecToSbMediaVideoCodec(video_config->codec());
+    const VideoDecoderConfig* video_config,
+    const std::string& mime_type) {
   return static_cast<size_t>(
-      SbMediaGetVideoBufferBudget(codec, width, height, bits_per_pixel));
+      GetSbMediaVideoBufferBudget(video_config, mime_type));
 }
 
 size_t GetDemuxerMemoryLimit(Demuxer::DemuxerTypes demuxer_type) {
   return GetDemuxerStreamAudioMemoryLimit(nullptr) +
-         GetDemuxerStreamVideoMemoryLimit(demuxer_type, nullptr);
+         GetDemuxerStreamVideoMemoryLimit(demuxer_type, nullptr, "");
 }
 
 }  // namespace media

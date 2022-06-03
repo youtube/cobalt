@@ -17,8 +17,8 @@
 #include <memory>
 #include <type_traits>
 
+#include "base/trace_event/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
-#include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/eme/eme_helpers.h"
 #include "cobalt/dom/eme/media_key_message_event.h"
 #include "cobalt/dom/eme/media_key_message_event_init.h"
@@ -27,6 +27,7 @@
 #include "cobalt/script/array_buffer_view.h"
 #include "cobalt/script/script_value_factory.h"
 #include "cobalt/web/context.h"
+#include "cobalt/web/dom_exception.h"
 #include "cobalt/web/environment_settings.h"
 
 namespace cobalt {
@@ -40,7 +41,7 @@ MediaKeySession::MediaKeySession(
     const scoped_refptr<media::DrmSystem>& drm_system,
     script::ScriptValueFactory* script_value_factory,
     const ClosedCallback& closed_callback)
-    : EventTarget(settings),
+    : web::EventTarget(settings),
       ALLOW_THIS_IN_INITIALIZER_LIST(event_queue_(this)),
       drm_system_(drm_system),
       drm_system_session_(drm_system->CreateSession(
@@ -74,7 +75,7 @@ const scoped_refptr<MediaKeyStatusMap>& MediaKeySession::key_statuses() const {
   return key_status_map_;
 }
 
-const EventTarget::EventListenerScriptValue*
+const web::EventTarget::EventListenerScriptValue*
 MediaKeySession::onkeystatuseschange() const {
   return GetAttributeEventListener(base::Tokens::keystatuseschange());
 }
@@ -84,7 +85,7 @@ void MediaKeySession::set_onkeystatuseschange(
   SetAttributeEventListener(base::Tokens::keystatuseschange(), event_listener);
 }
 
-const EventTarget::EventListenerScriptValue* MediaKeySession::onmessage()
+const web::EventTarget::EventListenerScriptValue* MediaKeySession::onmessage()
     const {
   return GetAttributeEventListener(base::Tokens::message());
 }
@@ -98,7 +99,9 @@ void MediaKeySession::set_onmessage(
 // https://www.w3.org/TR/encrypted-media/#dom-mediakeysession-generaterequest.
 script::Handle<script::Promise<void>> MediaKeySession::GenerateRequest(
     script::EnvironmentSettings* settings, const std::string& init_data_type,
-    const BufferSource& init_data) {
+    const web::BufferSource& init_data) {
+  TRACE_EVENT1("cobalt::dom::eme", "MediaKeySession::GenerateRequest()",
+               "init_data_type", init_data_type);
   script::Handle<script::Promise<void>> promise =
       script_value_factory_->CreateBasicPromise<void>();
 
@@ -107,7 +110,7 @@ script::Handle<script::Promise<void>> MediaKeySession::GenerateRequest(
   // 2. If this object's uninitialized value is false, return a promise rejected
   //    with an InvalidStateError.
   if (drm_system_session_->is_closed() || !uninitialized_) {
-    promise->Reject(new DOMException(DOMException::kInvalidStateErr));
+    promise->Reject(new web::DOMException(web::DOMException::kInvalidStateErr));
     return promise;
   }
 
@@ -116,7 +119,7 @@ script::Handle<script::Promise<void>> MediaKeySession::GenerateRequest(
 
   const uint8* init_data_buffer;
   int init_data_buffer_size;
-  GetBufferAndSize(init_data, &init_data_buffer, &init_data_buffer_size);
+  web::GetBufferAndSize(init_data, &init_data_buffer, &init_data_buffer_size);
 
   // 4. If initDataType is the empty string, return a promise rejected with
   //    a newly created TypeError.
@@ -149,7 +152,8 @@ script::Handle<script::Promise<void>> MediaKeySession::GenerateRequest(
 
 // See https://www.w3.org/TR/encrypted-media/#dom-mediakeysession-update.
 script::Handle<script::Promise<void>> MediaKeySession::Update(
-    const BufferSource& response) {
+    const web::BufferSource& response) {
+  TRACE_EVENT0("cobalt::dom::eme", "MediaKeySession::Update()");
   script::Handle<script::Promise<void>> promise =
       script_value_factory_->CreateBasicPromise<void>();
 
@@ -158,13 +162,13 @@ script::Handle<script::Promise<void>> MediaKeySession::Update(
   // 2. If this object's callable value is false, return a promise rejected
   //    with an InvalidStateError.
   if (drm_system_session_->is_closed() || !callable_) {
-    promise->Reject(new DOMException(DOMException::kInvalidStateErr));
+    promise->Reject(new web::DOMException(web::DOMException::kInvalidStateErr));
     return promise;
   }
 
   const uint8* response_buffer;
   int response_buffer_size;
-  GetBufferAndSize(response, &response_buffer, &response_buffer_size);
+  web::GetBufferAndSize(response, &response_buffer, &response_buffer_size);
 
   // 3. If response is an empty array, return a promise rejected with a newly
   //    created TypeError.
@@ -192,6 +196,7 @@ script::Handle<script::Promise<void>> MediaKeySession::Update(
 
 // See https://www.w3.org/TR/encrypted-media/#dom-mediakeysession-close.
 script::Handle<script::Promise<void>> MediaKeySession::Close() {
+  TRACE_EVENT0("cobalt::dom::eme", "MediaKeySession::Close()");
   script::Handle<script::Promise<void>> promise =
       script_value_factory_->CreateBasicPromise<void>();
 
@@ -204,7 +209,7 @@ script::Handle<script::Promise<void>> MediaKeySession::Close() {
   // 3. If session's callable value is false, return a promise rejected with
   //    an InvalidStateError.
   if (!callable_) {
-    promise->Reject(new DOMException(DOMException::kInvalidStateErr));
+    promise->Reject(new web::DOMException(web::DOMException::kInvalidStateErr));
     return promise;
   }
 
@@ -217,7 +222,7 @@ script::Handle<script::Promise<void>> MediaKeySession::Close() {
 }
 
 void MediaKeySession::TraceMembers(script::Tracer* tracer) {
-  EventTarget::TraceMembers(tracer);
+  web::EventTarget::TraceMembers(tracer);
 
   tracer->Trace(event_queue_);
   tracer->Trace(key_status_map_);
@@ -383,7 +388,7 @@ void MediaKeySession::OnSessionUpdateKeyStatuses(
   //    session.
   LOG(INFO) << "Fired 'keystatuseschange' event on MediaKeySession with "
             << key_status_map_->size() << " keys.";
-  event_queue_.Enqueue(new Event(base::Tokens::keystatuseschange()));
+  event_queue_.Enqueue(new web::Event(base::Tokens::keystatuseschange()));
 
   // 6. Queue a task to run the Attempt to Resume Playback If Necessary
   //    algorithm on each of the media element(s) whose mediaKeys attribute is

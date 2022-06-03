@@ -14,7 +14,7 @@
 
 #include "cobalt/dom/abort_signal.h"
 
-#include "cobalt/dom/event.h"
+#include "cobalt/web/event.h"
 
 namespace cobalt {
 namespace dom {
@@ -61,7 +61,7 @@ void AbortSignal::SignalAbort() {
   following_signals_.clear();
 
   // 5. Fire an event named abort at signal.
-  DispatchEvent(new Event(base::Tokens::abort()));
+  DispatchEvent(new web::Event(base::Tokens::abort()));
 }
 
 void AbortSignal::TraceMembers(script::Tracer* tracer) {

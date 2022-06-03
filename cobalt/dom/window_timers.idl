@@ -29,5 +29,6 @@ interface WindowTimers {
   // spec regarding "unsafe-eval".
 };
 Window implements WindowTimers;
+WorkerGlobalScope implements WindowTimers;
 
 callback TimerCallback = void();

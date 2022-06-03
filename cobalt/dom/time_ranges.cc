@@ -18,7 +18,7 @@
 #include <limits>
 
 #include "base/logging.h"
-#include "cobalt/dom/dom_exception.h"
+#include "cobalt/web/dom_exception.h"
 
 namespace cobalt {
 namespace dom {
@@ -36,8 +36,8 @@ void TimeRanges::TimeRange::MergeWith(const TimeRange& that) {
 double TimeRanges::Start(uint32 index,
                          script::ExceptionState* exception_state) const {
   if (index >= ranges_.size()) {
-    exception_state->SetException(
-        base::WrapRefCounted(new DOMException(DOMException::kIndexSizeErr)));
+    exception_state->SetException(base::WrapRefCounted(
+        new web::DOMException(web::DOMException::kIndexSizeErr)));
     // Return value should be ignored.
     return 0.0;
   }
@@ -47,8 +47,8 @@ double TimeRanges::Start(uint32 index,
 double TimeRanges::End(uint32 index,
                        script::ExceptionState* exception_state) const {
   if (index >= ranges_.size()) {
-    exception_state->SetException(
-        base::WrapRefCounted(new DOMException(DOMException::kIndexSizeErr)));
+    exception_state->SetException(base::WrapRefCounted(
+        new web::DOMException(web::DOMException::kIndexSizeErr)));
     // Return value should be ignored.
     return 0.0;
   }

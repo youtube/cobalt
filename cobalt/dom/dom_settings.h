@@ -18,13 +18,12 @@
 #include "base/memory/ref_counted.h"
 #include "cobalt/base/debugger_hooks.h"
 #include "cobalt/dom/mutation_observer_task_manager.h"
-#include "cobalt/dom/url_registry.h"
-#include "cobalt/dom/url_utils.h"
 #include "cobalt/media/can_play_type_handler.h"
 #include "cobalt/media/decoder_buffer_memory_info.h"
 #include "cobalt/speech/microphone.h"
 #include "cobalt/web/environment_settings.h"
-#include "cobalt/worker/service_worker_jobs.h"
+#include "cobalt/web/url_registry.h"
+#include "cobalt/web/url_utils.h"
 
 namespace cobalt {
 
@@ -46,7 +45,7 @@ class Window;
 // that ask for it in their IDL custom attributes.
 class DOMSettings : public web::EnvironmentSettings {
  public:
-  typedef UrlRegistry<MediaSource> MediaSourceRegistry;
+  typedef web::UrlRegistry<MediaSource> MediaSourceRegistry;
   // Hold optional settings for DOMSettings.
   struct Options {
     // Microphone options.
@@ -59,7 +58,6 @@ class DOMSettings : public web::EnvironmentSettings {
               media::CanPlayTypeHandler* can_play_type_handler,
               const media::DecoderBufferMemoryInfo* decoder_buffer_memory_info,
               MutationObserverTaskManager* mutation_observer_task_manager,
-              worker::ServiceWorkerJobs* service_worker_jobs,
               const Options& options = Options());
   ~DOMSettings() override;
 
@@ -74,21 +72,6 @@ class DOMSettings : public web::EnvironmentSettings {
   MediaSourceRegistry* media_source_registry() const {
     return media_source_registry_;
   }
-  std::size_t media_source_size_limit() const {
-    return decoder_buffer_memory_info_
-               ? decoder_buffer_memory_info_->GetMaximumMemoryCapacity()
-               : 0;
-  }
-  std::size_t total_media_source_size() const {
-    return decoder_buffer_memory_info_
-               ? decoder_buffer_memory_info_->GetCurrentMemoryCapacity()
-               : 0;
-  }
-  std::size_t used_media_source_memory_size() const {
-    return decoder_buffer_memory_info_
-               ? decoder_buffer_memory_info_->GetAllocatedMemory()
-               : 0;
-  }
   void set_decoder_buffer_memory_info(
       const media::DecoderBufferMemoryInfo* decoder_buffer_memory_info) {
     decoder_buffer_memory_info_ = decoder_buffer_memory_info;
@@ -96,13 +79,13 @@ class DOMSettings : public web::EnvironmentSettings {
   media::CanPlayTypeHandler* can_play_type_handler() const {
     return can_play_type_handler_;
   }
+  const media::DecoderBufferMemoryInfo* decoder_buffer_memory_info() {
+    return decoder_buffer_memory_info_;
+  }
   MutationObserverTaskManager* mutation_observer_task_manager() const {
     return mutation_observer_task_manager_;
   }
 
-  worker::ServiceWorkerJobs* service_worker_jobs() const {
-    return service_worker_jobs_;
-  }
   // Return's document's origin.
   loader::Origin document_origin() const;
 
@@ -114,7 +97,6 @@ class DOMSettings : public web::EnvironmentSettings {
   media::CanPlayTypeHandler* can_play_type_handler_;
   const media::DecoderBufferMemoryInfo* decoder_buffer_memory_info_;
   MutationObserverTaskManager* mutation_observer_task_manager_;
-  worker::ServiceWorkerJobs* service_worker_jobs_;
   DISALLOW_COPY_AND_ASSIGN(DOMSettings);
 };
 

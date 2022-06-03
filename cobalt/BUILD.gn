@@ -20,7 +20,6 @@ group("gn_all") {
     "//cobalt/browser:browser_test",
     "//cobalt/cssom:cssom_test",
     "//cobalt/dom:dom_test",
-    "//cobalt/dom/testing:dom_testing",
     "//cobalt/dom_parser:dom_parser_test",
     "//cobalt/encoding:text_encoding_test",
     "//cobalt/extension:extension_test",
@@ -38,9 +37,11 @@ group("gn_all") {
     "//cobalt/renderer/sandbox:renderer_sandbox",
     "//cobalt/renderer/sandbox:scaling_text_sandbox",
     "//cobalt/speech/sandbox:speech_sandbox",
+    "//cobalt/web:web_test",
     "//cobalt/web_animations:web_animations_test",
     "//cobalt/webdriver:webdriver_test",
     "//cobalt/websocket:websocket_test",
+    "//cobalt/worker:worker_test",
     "//cobalt/xhr:xhr_test",
   ]
 

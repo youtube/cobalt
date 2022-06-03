@@ -57,7 +57,7 @@ void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value,
   // https://www.w3.org/TR/WebIDL-1/#es-union
   // ( Draft: http://heycam.github.io/webidl/#es-union )
 
-  // TODO: Support Date, RegExp, DOMException, Error, callback functions.
+  // TODO: Support Date, RegExp, web::DOMException, Error, callback functions.
 
   // 1. If the union type includes a nullable type and |V| is null or undefined,
   // then return the IDL value null.
@@ -122,8 +122,8 @@ void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value,
   //      the object V.
   // Not implemented
 
-  // 5. If V is a DOMException platform object, then:
-  // 1. If types includes DOMException or Error, then return the result of
+  // 5. If V is a web::DOMException platform object, then:
+  // 1. If types includes web::DOMException or Error, then return the result of
   // converting
   //      V to that type.
   // Not implemented
@@ -350,7 +350,7 @@ void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value,
   // https://www.w3.org/TR/WebIDL-1/#es-union
   // ( Draft: http://heycam.github.io/webidl/#es-union )
 
-  // TODO: Support Date, RegExp, DOMException, Error, callback functions.
+  // TODO: Support Date, RegExp, web::DOMException, Error, callback functions.
 
   // 1. If the union type includes a nullable type and |V| is null or undefined,
   // then return the IDL value null.
@@ -425,8 +425,8 @@ void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value,
   //      the object V.
   // Not implemented
 
-  // 5. If V is a DOMException platform object, then:
-  // 1. If types includes DOMException or Error, then return the result of
+  // 5. If V is a web::DOMException platform object, then:
+  // 1. If types includes web::DOMException or Error, then return the result of
   // converting
   //      V to that type.
   // Not implemented
@@ -711,7 +711,7 @@ void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value,
   // https://www.w3.org/TR/WebIDL-1/#es-union
   // ( Draft: http://heycam.github.io/webidl/#es-union )
 
-  // TODO: Support Date, RegExp, DOMException, Error, callback functions.
+  // TODO: Support Date, RegExp, web::DOMException, Error, callback functions.
 
   // 1. If the union type includes a nullable type and |V| is null or undefined,
   // then return the IDL value null.
@@ -796,8 +796,8 @@ void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value,
   //      the object V.
   // Not implemented
 
-  // 5. If V is a DOMException platform object, then:
-  // 1. If types includes DOMException or Error, then return the result of
+  // 5. If V is a web::DOMException platform object, then:
+  // 1. If types includes web::DOMException or Error, then return the result of
   // converting
   //      V to that type.
   // Not implemented
@@ -1140,7 +1140,7 @@ void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value,
   // https://www.w3.org/TR/WebIDL-1/#es-union
   // ( Draft: http://heycam.github.io/webidl/#es-union )
 
-  // TODO: Support Date, RegExp, DOMException, Error, callback functions.
+  // TODO: Support Date, RegExp, web::DOMException, Error, callback functions.
 
   // 1. If the union type includes a nullable type and |V| is null or undefined,
   // then return the IDL value null.
@@ -1235,8 +1235,8 @@ void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value,
   //      the object V.
   // Not implemented
 
-  // 5. If V is a DOMException platform object, then:
-  // 1. If types includes DOMException or Error, then return the result of
+  // 5. If V is a web::DOMException platform object, then:
+  // 1. If types includes web::DOMException or Error, then return the result of
   // converting
   //      V to that type.
   // Not implemented

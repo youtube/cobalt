@@ -20,12 +20,13 @@
 
 #include "cobalt/base/c_val.h"
 #include "cobalt/base/stop_watch.h"
+#include "cobalt/web/stat_tracker.h"
 
 namespace cobalt {
 namespace dom {
 
 // This class handles tracking DOM stats and is intended for single thread use.
-class DomStatTracker : public base::StopWatchOwner {
+class DomStatTracker : public base::StopWatchOwner, public web::StatTracker {
  public:
   enum StopWatchType {
     kStopWatchTypeRunAnimationFrameCallbacks,
@@ -36,19 +37,6 @@ class DomStatTracker : public base::StopWatchOwner {
 
   explicit DomStatTracker(const std::string& name);
   ~DomStatTracker();
-
-  void OnWindowTimersIntervalCreated() {
-    ++count_window_timers_interval_created_;
-  }
-  void OnWindowTimersIntervalDestroyed() {
-    ++count_window_timers_interval_destroyed_;
-  }
-  void OnWindowTimersTimeoutCreated() {
-    ++count_window_timers_timeout_created_;
-  }
-  void OnWindowTimersTimeoutDestroyed() {
-    ++count_window_timers_timeout_destroyed_;
-  }
 
   void OnHtmlElementCreated();
   void OnHtmlElementDestroyed();
@@ -107,19 +95,12 @@ class DomStatTracker : public base::StopWatchOwner {
   base::CVal<int, base::CValPublic> count_html_element_;
   base::CVal<int, base::CValPublic> count_html_element_document_;
 
-  base::CVal<int, base::CValPublic> count_window_timers_interval_;
-  base::CVal<int, base::CValPublic> count_window_timers_timeout_;
-
   // Periodic counts. The counts are cleared after the CVals are updated in
   // |FlushPeriodicTracking|.
   int count_html_element_created_;
   int count_html_element_destroyed_;
   int count_html_element_document_added_;
   int count_html_element_document_removed_;
-  int count_window_timers_interval_created_;
-  int count_window_timers_interval_destroyed_;
-  int count_window_timers_timeout_created_;
-  int count_window_timers_timeout_destroyed_;
 
   // Count of HtmlScriptElement::Execute() calls, their total size in bytes, and
   // the time of last call.

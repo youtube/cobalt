@@ -14,7 +14,7 @@
 
 // https://www.w3.org/TR/html50/browsers.html#the-location-interface
 
-[Unforgeable] interface Location {
+[Exposed = Window, Unforgeable] interface Location {
   void assign(DOMString url);
   void replace(DOMString url);
   void reload();

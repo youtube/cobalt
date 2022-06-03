@@ -26,7 +26,7 @@ namespace cobalt {
 namespace audio {
 
 AudioContext::AudioContext(script::EnvironmentSettings* settings)
-    : dom::EventTarget(settings),
+    : web::EventTarget(settings),
       global_environment_(
           base::polymorphic_downcast<web::EnvironmentSettings*>(settings)
               ->context()
@@ -103,7 +103,7 @@ void AudioContext::RemoveBufferSource(
 }
 
 void AudioContext::TraceMembers(script::Tracer* tracer) {
-  dom::EventTarget::TraceMembers(tracer);
+  web::EventTarget::TraceMembers(tracer);
 
   tracer->Trace(destination_.get());
   for (const auto& source : buffer_sources_) {

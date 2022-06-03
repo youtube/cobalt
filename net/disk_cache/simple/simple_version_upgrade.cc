@@ -45,7 +45,7 @@ bool WriteFakeIndexFile(const base::FilePath& file_name) {
                                  sizeof(file_contents));
   if (bytes_written != sizeof(file_contents)) {
     LOG(ERROR) << "Failed to write fake index file: "
-               << file_name.LossyDisplayName();
+               << file_name.LossyDisplayName().c_str();
     return false;
   }
   return true;

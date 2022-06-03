@@ -28,6 +28,26 @@ const char* GetMediaTransferIdName(SbMediaTransferId transfer_id);
 const char* GetMediaMatrixIdName(SbMediaMatrixId matrix_id);
 const char* GetMediaRangeIdName(SbMediaRangeId range_id);
 
+// This function parses the video codec string and returns a codec.  All fields
+// will be filled with information parsed from the codec string when possible,
+// otherwise they will have the following default values:
+//            profile: -1
+//              level: -1
+//          bit_depth: 8
+//         primary_id: kSbMediaPrimaryIdUnspecified
+//        transfer_id: kSbMediaTransferIdUnspecified
+//          matrix_id: kSbMediaMatrixIdUnspecified
+// It returns true when |codec| contains a well-formed codec string, otherwise
+// it returns false.
+bool ParseVideoCodec(const char* codec_string,
+                     SbMediaVideoCodec* codec,
+                     int* profile,
+                     int* level,
+                     int* bit_depth,
+                     SbMediaPrimaryId* primary_id,
+                     SbMediaTransferId* transfer_id,
+                     SbMediaMatrixId* matrix_id);
+
 }  // namespace starboard
 
 // For logging use only.

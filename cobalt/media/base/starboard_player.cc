@@ -25,11 +25,11 @@
 #include "base/logging.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/media/base/format_support_query_metrics.h"
-#include "cobalt/media/base/starboard_utils.h"
 #include "starboard/common/media.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/memory.h"
+#include "third_party/chromium/media/base/starboard_utils.h"
 
 namespace cobalt {
 namespace media {
@@ -219,8 +219,9 @@ void StarboardPlayer::UpdateVideoConfig(const VideoDecoderConfig& video_config,
       static_cast<int>(video_config_.natural_size().height());
   video_sample_info_.codec =
       MediaVideoCodecToSbMediaVideoCodec(video_config_.codec());
-  video_sample_info_.color_metadata = MediaToSbMediaColorMetadata(
-      video_config_.color_space_info(), video_config_.hdr_metadata());
+  video_sample_info_.color_metadata =
+      MediaToSbMediaColorMetadata(video_config_.color_space_info(),
+                                  video_config_.hdr_metadata(), mime_type);
   video_mime_type_ = mime_type;
   video_sample_info_.mime = video_mime_type_.c_str();
   video_sample_info_.max_video_capabilities = max_video_capabilities_.c_str();
@@ -784,7 +785,8 @@ void StarboardPlayer::OnDecoderStatus(SbPlayer player, SbMediaType type,
   }
 
   if (state_ == kResuming) {
-    DemuxerStream::Type stream_type = SbMediaTypeToDemuxerStreamType(type);
+    DemuxerStream::Type stream_type =
+        ::media::SbMediaTypeToDemuxerStreamType(type);
     if (decoder_buffer_cache_.GetBuffer(stream_type)) {
       WriteNextBufferFromCache(stream_type);
       return;
@@ -795,7 +797,7 @@ void StarboardPlayer::OnDecoderStatus(SbPlayer player, SbMediaType type,
     }
   }
 
-  host_->OnNeedData(SbMediaTypeToDemuxerStreamType(type));
+  host_->OnNeedData(::media::SbMediaTypeToDemuxerStreamType(type));
 }
 
 void StarboardPlayer::OnPlayerStatus(SbPlayer player, SbPlayerState state,

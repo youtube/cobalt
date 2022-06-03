@@ -18,14 +18,14 @@
 #include <string>
 
 #include "cobalt/base/token.h"
-#include "cobalt/dom/event.h"
+#include "cobalt/web/event.h"
 
 namespace cobalt {
 namespace dom {
 
 // Events using the ProgressEvent interface indicate some kind of progression.
 //   https://www.w3.org/TR/progress-events/#interface-progressevent
-class ProgressEvent : public Event {
+class ProgressEvent : public web::Event {
  public:
   explicit ProgressEvent(const std::string& type);
   explicit ProgressEvent(base::Token type);

@@ -26,7 +26,7 @@
 namespace cobalt {
 namespace dom {
 
-void PointerState::QueuePointerEvent(const scoped_refptr<Event>& event) {
+void PointerState::QueuePointerEvent(const scoped_refptr<web::Event>& event) {
   TRACE_EVENT1("cobalt::dom", "PointerState::QueuePointerEvent()", "event",
                TRACE_STR_COPY(event->type().c_str()));
 
@@ -38,7 +38,7 @@ void PointerState::QueuePointerEvent(const scoped_refptr<Event>& event) {
 }
 
 namespace {
-int32_t GetPointerIdFromEvent(const scoped_refptr<Event>& event) {
+int32_t GetPointerIdFromEvent(const scoped_refptr<web::Event>& event) {
   if (event->GetWrappableType() == base::GetTypeId<PointerEvent>()) {
     const PointerEvent* const pointer_event =
         base::polymorphic_downcast<const PointerEvent* const>(event.get());
@@ -48,15 +48,15 @@ int32_t GetPointerIdFromEvent(const scoped_refptr<Event>& event) {
 }
 }  // namespace
 
-scoped_refptr<Event> PointerState::GetNextQueuedPointerEvent() {
-  scoped_refptr<Event> event;
+scoped_refptr<web::Event> PointerState::GetNextQueuedPointerEvent() {
+  scoped_refptr<web::Event> event;
   if (pointer_events_.empty()) {
     return event;
   }
 
   // Ignore pointer move events when they are succeeded by additional pointer
   // move events with the same pointerId.
-  scoped_refptr<Event> front_event(pointer_events_.front());
+  scoped_refptr<web::Event> front_event(pointer_events_.front());
   bool next_event_is_move_event =
       front_event->type() == base::Tokens::pointermove() ||
       front_event->type() == base::Tokens::mousemove();
@@ -120,9 +120,9 @@ scoped_refptr<HTMLElement> PointerState::GetPointerCaptureOverrideElement(
   if (override != target_override_.end() && override->second &&
       (pending_override == pending_target_override_.end() ||
        pending_override->second != override->second)) {
-    override->second->DispatchEvent(
-        new PointerEvent(base::Tokens::lostpointercapture(), Event::kBubbles,
-                         Event::kNotCancelable, view, *event_init));
+    override->second->DispatchEvent(new PointerEvent(
+        base::Tokens::lostpointercapture(), web::Event::kBubbles,
+        web::Event::kNotCancelable, view, *event_init));
   }
 
   // 2. If the pending pointer capture target override for this pointer is set
@@ -133,9 +133,9 @@ scoped_refptr<HTMLElement> PointerState::GetPointerCaptureOverrideElement(
       pending_override->second &&
       (override == target_override_.end() ||
        pending_override->second != override->second)) {
-    pending_override->second->DispatchEvent(
-        new PointerEvent(base::Tokens::gotpointercapture(), Event::kBubbles,
-                         Event::kNotCancelable, view, *event_init));
+    pending_override->second->DispatchEvent(new PointerEvent(
+        base::Tokens::gotpointercapture(), web::Event::kBubbles,
+        web::Event::kNotCancelable, view, *event_init));
   }
 
   // 3. Set the pointer capture target override to the pending pointer capture
@@ -161,11 +161,11 @@ void PointerState::SetPointerCapture(int32_t pointer_id, Element* element,
   //   https://www.w3.org/TR/2015/REC-pointerevents-20150224/#setting-pointer-capture
 
   // 1. If the pointerId provided as the method's argument does not match any of
-  // the active pointers, then throw a DOMException with the name
+  // the active pointers, then throw a web::DOMException with the name
   // InvalidPointerId.
   if (active_pointers_.find(pointer_id) == active_pointers_.end()) {
-    DOMException::Raise(dom::DOMException::kInvalidPointerIdErr,
-                        exception_state);
+    web::DOMException::Raise(web::DOMException::kInvalidPointerIdErr,
+                             exception_state);
     return;
   }
 
@@ -173,7 +173,8 @@ void PointerState::SetPointerCapture(int32_t pointer_id, Element* element,
   // its ownerDocument's tree, throw an exception with the name
   // InvalidStateError.
   if (!element || !element->owner_document()) {
-    DOMException::Raise(dom::DOMException::kInvalidStateErr, exception_state);
+    web::DOMException::Raise(web::DOMException::kInvalidStateErr,
+                             exception_state);
     return;
   }
 
@@ -197,11 +198,11 @@ void PointerState::ReleasePointerCapture(
 
   // 1. If the pointerId provided as the method's argument does not match any of
   // the active pointers and these steps are not being invoked as a result of
-  // the implicit release of pointer capture, then throw a DOMException with the
-  // name InvalidPointerId.
+  // the implicit release of pointer capture, then throw a web::DOMException
+  // with the name InvalidPointerId.
   if (active_pointers_.find(pointer_id) == active_pointers_.end()) {
-    DOMException::Raise(dom::DOMException::kInvalidPointerIdErr,
-                        exception_state);
+    web::DOMException::Raise(web::DOMException::kInvalidPointerIdErr,
+                             exception_state);
     return;
   }
 
@@ -261,7 +262,7 @@ void PointerState::ClearForShutdown() {
 }
 
 // static
-bool PointerState::CanQueueEvent(const scoped_refptr<Event>& event) {
+bool PointerState::CanQueueEvent(const scoped_refptr<web::Event>& event) {
   return event->GetWrappableType() == base::GetTypeId<PointerEvent>() ||
          event->GetWrappableType() == base::GetTypeId<MouseEvent>() ||
          event->GetWrappableType() == base::GetTypeId<WheelEvent>();

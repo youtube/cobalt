@@ -108,7 +108,7 @@ namespace {
 
 struct DeviceTypeName {
   SbSystemDeviceType device_type;
-  char device_type_string[8];
+  char device_type_string[10];
 };
 
 const DeviceTypeName kDeviceTypeStrings[] = {
@@ -119,6 +119,9 @@ const DeviceTypeName kDeviceTypeStrings[] = {
     {kSbSystemDeviceTypeTV, "TV"},
     {kSbSystemDeviceTypeAndroidTV, "ATV"},
     {kSbSystemDeviceTypeDesktopPC, "DESKTOP"},
+#if SB_API_VERSION >= 14
+    {kSbSystemDeviceTypeVideoProjector, "PROJECTOR"},
+#endif  // SB_API_VERSION >= 14
     {kSbSystemDeviceTypeUnknown, "UNKNOWN"}};
 
 std::string CreateDeviceTypeString(SbSystemDeviceType device_type) {

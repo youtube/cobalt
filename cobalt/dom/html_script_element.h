@@ -24,9 +24,9 @@
 #include "base/threading/thread_checker.h"
 #include "cobalt/base/source_location.h"
 #include "cobalt/dom/html_element.h"
-#include "cobalt/dom/url_utils.h"
 #include "cobalt/loader/loader.h"
 #include "cobalt/script/global_environment.h"
+#include "cobalt/web/url_utils.h"
 
 namespace cobalt {
 namespace dom {

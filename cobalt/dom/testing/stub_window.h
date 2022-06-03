@@ -38,7 +38,7 @@
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/web/context.h"
 #include "cobalt/web/environment_settings.h"
-#include "cobalt/web/stub_web_context.h"
+#include "cobalt/web/testing/stub_web_context.h"
 #include "starboard/window.h"
 #include "url/gurl.h"
 
@@ -57,7 +57,7 @@ class StubWindow {
             new dom_parser::Parser(base::Bind(&StubLoadCompleteCallback))),
         local_storage_database_(NULL),
         dom_stat_tracker_(new dom::DomStatTracker("StubWindow")) {
-    web_context_.reset(new web::test::StubWebContext());
+    web_context_.reset(new web::testing::StubWebContext());
     web_context_->setup_environment_settings(
         new dom::testing::StubEnvironmentSettings(options));
     web_context_->environment_settings()->set_base_url(GURL("about:blank"));
@@ -78,7 +78,7 @@ class StubWindow {
             "en", base::Callback<void(const GURL&)>(),
             base::Bind(&StubLoadCompleteCallback), NULL,
             network_bridge::PostSender(), csp::kCSPRequired,
-            dom::kCspEnforcementEnable,
+            web::kCspEnforcementEnable,
             base::Closure() /* csp_policy_changed */,
             base::Closure() /* ran_animation_frame_callbacks */,
             dom::Window::CloseCallback() /* window_close */,
@@ -99,7 +99,7 @@ class StubWindow {
     return web_context_->global_environment();
   }
   css_parser::Parser* css_parser() { return css_parser_.get(); }
-  script::EnvironmentSettings* environment_settings() {
+  web::EnvironmentSettings* environment_settings() {
     return web_context_->environment_settings();
   }
 

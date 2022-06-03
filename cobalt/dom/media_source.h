@@ -52,17 +52,17 @@
 #include "cobalt/base/token.h"
 #include "cobalt/dom/audio_track.h"
 #include "cobalt/dom/event_queue.h"
-#include "cobalt/dom/event_target.h"
 #include "cobalt/dom/html_media_element.h"
 #include "cobalt/dom/media_source_end_of_stream_error.h"
 #include "cobalt/dom/media_source_ready_state.h"
 #include "cobalt/dom/source_buffer.h"
 #include "cobalt/dom/source_buffer_list.h"
 #include "cobalt/dom/time_ranges.h"
-#include "cobalt/dom/url_registry.h"
 #include "cobalt/dom/video_track.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/exception_state.h"
+#include "cobalt/web/event_target.h"
+#include "cobalt/web/url_registry.h"
 #include "third_party/chromium/media/filters/chunk_demuxer.h"
 
 namespace cobalt {
@@ -71,10 +71,10 @@ namespace dom {
 // The MediaSource interface exposes functionalities for playing adaptive
 // streams.
 //   https://www.w3.org/TR/2016/CR-media-source-20160705/#idl-def-MediaSource
-class MediaSource : public EventTarget {
+class MediaSource : public web::EventTarget {
  public:
   typedef ::media::ChunkDemuxer ChunkDemuxer;
-  typedef UrlRegistry<MediaSource> Registry;
+  typedef web::UrlRegistry<MediaSource> Registry;
 
   // Custom, not in any spec.
   //

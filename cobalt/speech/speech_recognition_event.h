@@ -17,9 +17,9 @@
 
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
-#include "cobalt/dom/event.h"
 #include "cobalt/script/wrappable.h"
 #include "cobalt/speech/speech_recognition_result_list.h"
+#include "cobalt/web/event.h"
 
 namespace cobalt {
 namespace speech {
@@ -27,7 +27,7 @@ namespace speech {
 // The SpeechRecognitionEvent is the event that is raised each time there are
 // any changes to interim or final results.
 //   https://dvcs.w3.org/hg/speech-api/raw-file/9a0075d25326/speechapi.html#speechreco-event
-class SpeechRecognitionEvent : public dom::Event {
+class SpeechRecognitionEvent : public web::Event {
  public:
   // Result event and nomatch event MUST use the SpeechRecognitionEvent
   // interface.

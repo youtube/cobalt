@@ -18,7 +18,6 @@
 
 #include "base/test/scoped_task_environment.h"
 #include "cobalt/base/polymorphic_downcast.h"
-#include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/script/array_buffer_view.h"
 #include "cobalt/script/global_environment.h"
@@ -26,6 +25,7 @@
 #include "cobalt/script/script_exception.h"
 #include "cobalt/script/testing/mock_exception_state.h"
 #include "cobalt/script/typed_arrays.h"
+#include "cobalt/web/dom_exception.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
@@ -109,8 +109,9 @@ TEST(CryptoTest, NullArray) {
       crypto->GetRandomValues(empty_handle, &exception_state);
   EXPECT_TRUE(result.IsEmpty());
   ASSERT_TRUE(exception);
-  EXPECT_EQ(DOMException::kTypeMismatchErr,
-            base::polymorphic_downcast<DOMException*>(exception.get())->code());
+  EXPECT_EQ(
+      web::DOMException::kTypeMismatchErr,
+      base::polymorphic_downcast<web::DOMException*>(exception.get())->code());
 }
 
 TEST(CryptoTest, LargeArray) {
@@ -137,8 +138,9 @@ TEST(CryptoTest, LargeArray) {
       crypto->GetRandomValues(casted_array65537, &exception_state);
   EXPECT_TRUE(result.IsEmpty());
   ASSERT_TRUE(exception);
-  EXPECT_EQ(DOMException::kQuotaExceededErr,
-            base::polymorphic_downcast<DOMException*>(exception.get())->code());
+  EXPECT_EQ(
+      web::DOMException::kQuotaExceededErr,
+      base::polymorphic_downcast<web::DOMException*>(exception.get())->code());
 
   // Also ensure that we can work with array whose length is exactly 65536.
   script::Handle<script::Uint8Array> array65536 =

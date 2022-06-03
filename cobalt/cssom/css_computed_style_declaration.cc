@@ -15,7 +15,7 @@
 #include "cobalt/cssom/css_computed_style_declaration.h"
 
 #include "cobalt/cssom/css_declared_style_data.h"
-#include "cobalt/dom/dom_exception.h"
+#include "cobalt/web/dom_exception.h"
 
 namespace cobalt {
 namespace cssom {
@@ -30,7 +30,7 @@ std::string CSSComputedStyleDeclaration::css_text(
 
 void CSSComputedStyleDeclaration::set_css_text(
     const std::string& css_text, script::ExceptionState* exception_state) {
-  dom::DOMException::Raise(dom::DOMException::kInvalidAccessErr,
+  web::DOMException::Raise(web::DOMException::kInvalidAccessErr,
                            exception_state);
 }
 
@@ -78,14 +78,14 @@ std::string CSSComputedStyleDeclaration::GetDeclaredPropertyValueStringByKey(
 void CSSComputedStyleDeclaration::SetPropertyValue(
     const std::string& property_name, const std::string& property_value,
     script::ExceptionState* exception_state) {
-  dom::DOMException::Raise(dom::DOMException::kInvalidAccessErr,
+  web::DOMException::Raise(web::DOMException::kInvalidAccessErr,
                            exception_state);
 }
 
 void CSSComputedStyleDeclaration::SetProperty(
     const std::string& property_name, const std::string& property_value,
     const std::string& priority, script::ExceptionState* exception_state) {
-  dom::DOMException::Raise(dom::DOMException::kInvalidAccessErr,
+  web::DOMException::Raise(web::DOMException::kInvalidAccessErr,
                            exception_state);
 }
 

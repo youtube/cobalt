@@ -50,6 +50,14 @@ class QueueApplication : public Application {
   TimedEvent* GetNextDueTimedEvent() override;
   SbTimeMonotonic GetNextTimedEventTargetTime() override;
 
+  // Add the given event onto the event queue, then process the queue until the
+  // event is handled. This is similar to DispatchAndDelete but will process
+  // the queue in order until the new event is handled rather than processing
+  // the event out of order. If the caller is part of system event handling,
+  // then consider passing |checkSystemEvents| = false to avoid recursion if
+  // needed.
+  void InjectAndProcess(SbEventType type, bool checkSystemEvents);
+
   // Returns true if it is valid to poll/query for system events.
   virtual bool MayHaveSystemEvents() = 0;
 
@@ -68,6 +76,12 @@ class QueueApplication : public Application {
   virtual void WakeSystemEventWait() = 0;
 
  private:
+#if SB_API_VERSION >= 14
+  // Use Inject() or InjectAndProcess(). DispatchAndDelete() ignores the event
+  // queue and processes the event out of order which can lead to bugs.
+  using Application::DispatchAndDelete;
+#endif
+
   // Specialization of Queue for starboard events.  It differs in that it has
   // the responsibility of deleting heap allocated starboard events in its
   // destructor.  Note the non-virtual destructor, which is intentional and

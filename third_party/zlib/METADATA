@@ -1,16 +1,11 @@
 name: "zlib"
 description:
-  "Subtree at third_party/zlib. Zlib compression, required by QUIC, libpng, "
-  "WebSockets and Freetype2."
+  "Zlib compression, required by QUIC, libpng, WebSockets and Freetype2."
 
 third_party {
   url {
-    type: LOCAL_SOURCE
-    value: "/third_party/zlib_mirror"
-  }
-  url {
     type: GIT
-    value: "https://github.com/madler/zlib"
+    value: "https://chromium.googlesource.com/chromium/src/third_party/zlib"
   }
   version: "d6d7cb80b8f35d0ff7478468fc75d87e0e2eda28"
   last_upgrade_date {

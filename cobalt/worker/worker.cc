@@ -17,6 +17,8 @@
 #include <string>
 #include <utility>
 
+#include "base/location.h"
+#include "base/logging.h"
 #include "base/message_loop/message_loop.h"
 #include "base/threading/thread.h"
 #include "cobalt/script/environment_settings.h"
@@ -60,6 +62,9 @@ bool Worker::Run(const Options& options) {
 }
 
 void Worker::WillDestroyCurrentMessageLoop() {
+#if defined(ENABLE_DEBUGGER)
+  debug_module_.reset();
+#endif  // ENABLE_DEBUGGER
   // Destroy members that were constructed in the worker thread.
   loader_.reset();
   worker_global_scope_ = nullptr;
@@ -69,10 +74,8 @@ void Worker::WillDestroyCurrentMessageLoop() {
 }
 
 void Worker::Initialize(const Options& options, web::Context* context) {
-  LOG(INFO) << "Look at me, I'm running a worker thread";
-
   // 7. Let realm execution context be the result of creating a new
-  // JavaScript realm given agent and the following customizations:
+  //    JavaScript realm given agent and the following customizations:
   web_context_ = context;
   //    . For the global object, if is shared is true, create a new
   //      SharedWorkerGlobalScope object. Otherwise, create a new
@@ -80,7 +83,7 @@ void Worker::Initialize(const Options& options, web::Context* context) {
   // TODO: Actual type here should depend on derived class (e.g. dedicated,
   // shared, service)
   web_context_->setup_environment_settings(
-      new WorkerSettings(options.outside_port, options.url));
+      new WorkerSettings(options.url, options.outside_port));
   // 8. Let worker global scope be the global object of realm execution
   //    context's Realm component.
   scoped_refptr<DedicatedWorkerGlobalScope> dedicated_worker_global_scope =
@@ -92,6 +95,21 @@ void Worker::Initialize(const Options& options, web::Context* context) {
   //    inside settings be the result.
   web_context_->global_environment()->CreateGlobalObject(
       dedicated_worker_global_scope, web_context_->environment_settings());
+  DCHECK(!web_context_->GetWindowOrWorkerGlobalScope()->IsWindow());
+  DCHECK(web_context_->GetWindowOrWorkerGlobalScope()->IsDedicatedWorker());
+  DCHECK(!web_context_->GetWindowOrWorkerGlobalScope()->IsServiceWorker());
+  DCHECK(web_context_->GetWindowOrWorkerGlobalScope()->GetWrappableType() ==
+         base::GetTypeId<DedicatedWorkerGlobalScope>());
+  DCHECK_EQ(dedicated_worker_global_scope,
+            base::polymorphic_downcast<DedicatedWorkerGlobalScope*>(
+                web_context_->GetWindowOrWorkerGlobalScope()));
+
+#if defined(ENABLE_DEBUGGER)
+  debug_module_.reset(new debug::backend::DebugModule(
+      nullptr /* debugger_hooks */, web_context_->global_environment(),
+      nullptr /* render_overlay */, nullptr /* resource_provider */,
+      nullptr /* window */, nullptr /* debugger_state */));
+#endif  // ENABLE_DEBUGGER
 
   // 10. Set worker global scope's name to the value of options's name member.
   dedicated_worker_global_scope->set_name(options.web_options.name);
@@ -107,6 +125,7 @@ void Worker::Initialize(const Options& options, web::Context* context) {
   // 13. Let destination be "sharedworker" if is shared is true, and
   // "worker" otherwise.
   // 14. Obtain script
+
   Obtain();
 }
 
@@ -168,7 +187,9 @@ void Worker::OnLoadingComplete(const base::Optional<std::string>& error) {
 
 void Worker::OnReadyToExecute() {
   DCHECK(content_);
-  Execute(*content_, base::SourceLocation("[object Worker::RunLoop]", 1, 1));
+  Execute(*content_,
+          base::SourceLocation(
+              web_context_->environment_settings()->base_url().spec(), 1, 1));
   content_.reset();
 }
 
@@ -198,11 +219,8 @@ void Worker::Execute(const std::string& content,
 
   bool mute_errors = false;
   bool succeeded = false;
-  LOG(INFO) << "Script Executing \"" << content << "\".";
   std::string retval = web_context_->script_runner()->Execute(
       content, script_location, mute_errors, &succeeded);
-  LOG(INFO) << "Script Executed " << (succeeded ? "and" : ", but not")
-            << " succeeded: \"" << retval << "\"";
 
   // 24. Enable outside port's port message queue.
   // 25. If is shared is false, enable the port message queue of the worker's
@@ -223,6 +241,7 @@ void Worker::Execute(const std::string& content,
 
 Worker::~Worker() {
   // 29. Clear the worker global scope's map of active timers.
+  worker_global_scope_->DestroyTimers();
   // 30. Disentangle all the ports in the list of the worker's ports.
   // 31. Empty worker global scope's owner set.
   if (web_agent_) {

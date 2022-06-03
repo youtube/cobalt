@@ -16,6 +16,49 @@
 from cobalt.build import cobalt_configuration
 from starboard.tools.testing import test_filter
 
+_FILTERED_TESTS = {
+    'base_unittests': [
+        # Fails when run in a sharded configuration: b/233108722, b/216774170
+        'TaskQueueSelectorTest.TestHighestPriority',
+        'TaskQueueSelectorTest.TestHighPriority',
+        'TaskQueueSelectorTest.TestLowPriority',
+        'TaskQueueSelectorTest.TestBestEffortPriority',
+        'TaskQueueSelectorTest.TestControlPriority',
+        'TaskQueueSelectorTest.TestObserverWithEnabledQueue',
+        'TaskQueueSelectorTest.TestObserverWithSetQueuePriorityAndQueueAlreadyEnabled',  #pylint: disable=line-too-long
+        'TaskQueueSelectorTest.TestDisableEnable',
+        'TaskQueueSelectorTest.TestDisableChangePriorityThenEnable',
+        'TaskQueueSelectorTest.TestEmptyQueues',
+        'TaskQueueSelectorTest.TestAge',
+        'TaskQueueSelectorTest.TestControlStarvesOthers',
+        'TaskQueueSelectorTest.TestHighestPriorityDoesNotStarveHigh',
+        'TaskQueueSelectorTest.TestHighestPriorityDoesNotStarveHighOrNormal',
+        'TaskQueueSelectorTest.TestHighestPriorityDoesNotStarveHighOrNormalOrLow',  #pylint: disable=line-too-long
+        'TaskQueueSelectorTest.TestHighPriorityDoesNotStarveNormal',
+        'TaskQueueSelectorTest.TestHighPriorityDoesNotStarveNormalOrLow',
+        'TaskQueueSelectorTest.TestNormalPriorityDoesNotStarveLow',
+        'TaskQueueSelectorTest.TestBestEffortGetsStarved',
+        'TaskQueueSelectorTest.TestHighPriorityStarvationScoreIncreasedOnlyWhenTasksArePresent',  #pylint: disable=line-too-long
+        'TaskQueueSelectorTest.TestNormalPriorityStarvationScoreIncreasedOnllWhenTasksArePresent',  #pylint: disable=line-too-long
+        'TaskQueueSelectorTest.TestLowPriorityTaskStarvationOnlyIncreasedWhenTasksArePresent',  #pylint: disable=line-too-long
+        'TaskQueueSelectorTest.AllEnabledWorkQueuesAreEmpty',
+        'TaskQueueSelectorTest.AllEnabledWorkQueuesAreEmpty_ControlPriority',
+        'TaskQueueSelectorTest.ChooseOldestWithPriority_Empty',
+        'TaskQueueSelectorTest.ChooseOldestWithPriority_OnlyDelayed',
+        'TaskQueueSelectorTest.ChooseOldestWithPriority_OnlyImmediate',
+        'TaskQueueSelectorTest.TestObserverWithOneBlockedQueue',
+        'TaskQueueSelectorTest.TestObserverWithTwoBlockedQueues',
+        'HistogramTesterTest.GetHistogramSamplesSinceCreationNotNull',
+        'HistogramTesterTest.TestUniqueSample',
+        'HistogramTesterTest.TestBucketsSample',
+        'HistogramTesterTest.TestBucketsSampleWithScope',
+        'HistogramTesterTest.TestGetAllSamples',
+        'HistogramTesterTest.TestGetAllSamples_NoSamples',
+        'HistogramTesterTest.TestGetTotalCountsForPrefix',
+        'HistogramTesterTest.TestGetAllChangedHistograms',
+    ],
+}
+
 
 class CobaltLinuxConfiguration(cobalt_configuration.CobaltConfiguration):
   """Starboard Linux Cobalt shared configuration."""
@@ -31,6 +74,8 @@ class CobaltLinuxConfiguration(cobalt_configuration.CobaltConfiguration):
 
   def GetTestFilters(self):
     filters = super(CobaltLinuxConfiguration, self).GetTestFilters()
+    for target, tests in _FILTERED_TESTS.items():
+      filters.extend(test_filter.TestFilter(target, test) for test in tests)
     return filters
 
   def GetWebPlatformTestFilters(self):

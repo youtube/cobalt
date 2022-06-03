@@ -29,6 +29,7 @@
 #include "starboard/common/string.h"
 #include "starboard/media.h"
 #include "starboard/window.h"
+#include "third_party/chromium/media/base/mime_util.h"
 
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
 #include "cobalt/browser/switches.h"
@@ -59,9 +60,7 @@ static std::vector<std::string> ExtractCodecs(const std::string& mime_type) {
       continue;
     }
     if (name_and_value[0] == "codecs") {
-      // TODO(b/230888580): Revive ParseCodecString() to enable returning of
-      // `codecs`.
-      //   ParseCodecString(name_and_value[1], &codecs, /* strip= */ false);
+      ::media::SplitCodecs(name_and_value[1], &codecs);
       return codecs;
     }
   }
@@ -183,6 +182,14 @@ class CanPlayTypeHandlerStarboard : public CanPlayTypeHandler {
 };
 
 }  // namespace
+
+bool MediaModule::SetConfiguration(const std::string& name, int32 value) {
+  if (name == "source_buffer_evict_extra_in_bytes" && value >= 0) {
+    decoder_buffer_allocator_.SetSourceBufferEvictExtraInBytes(value);
+    return true;
+  }
+  return false;
+}
 
 std::unique_ptr<WebMediaPlayer> MediaModule::CreateWebMediaPlayer(
     WebMediaPlayerClient* client) {

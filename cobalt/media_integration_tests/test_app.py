@@ -56,9 +56,8 @@ def GetValueFromQueryResult(query_result, key, default):
   if value_type in (int, float) and default_value_type in (int, float):
     return value
 
-  # CVal returns unicode, so we need to decode them before using.
   if default_value_type in (bool, int, float):
-    if value_type in (str, unicode):  # pylint: disable=undefined-variable
+    if isinstance(value, str):
       try:
         # Try to parse numbers and booleans.
         parsed_value = json.loads(value)
@@ -66,10 +65,6 @@ def GetValueFromQueryResult(query_result, key, default):
         raise RuntimeError('Failed to parse query result.')
 
       return parsed_value
-
-  elif default_value_type is str:
-    if value_type == unicode:  # pylint: disable=undefined-variable
-      return value.encode('utf-8')
 
   raise NotImplementedError('Convertion from (%s) to (%s) is not supported.' %
                             (value_type, default_value_type))
@@ -121,7 +116,7 @@ class ApplicationState():
 
 
 class ApplicationStateHandler():
-  """The handler of applicatoin state."""
+  """The handler of application state."""
 
   def __init__(self, app):
     self.app = app
@@ -209,7 +204,8 @@ class PipelineState():
     # If |pipeline_status| is not 0, it indicates there's an error
     # in the pipeline.
     self.pipeline_status = GetValueFromQueryResult(query_result,
-                                                   'pipeline_status', 0)
+                                                   'pipeline_status',
+                                                   'PIPELINE_OK')
     self.error_message = GetValueFromQueryResult(query_result, 'error_message',
                                                  '')
 

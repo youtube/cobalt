@@ -33,7 +33,7 @@ void SignalWaitableEvent(base::WaitableEvent* event) { event->Signal(); }
 }  // namespace
 
 void ServiceWorkerRegistry::WillDestroyCurrentMessageLoop() {
-  // TODO clear all member variables allocated form the thread.
+  // Clear all member variables allocated form the thread.
   service_worker_jobs_.reset();
 }
 

@@ -211,7 +211,7 @@ Pipeline::Pipeline(const CreateRasterizerFunction& create_rasterizer_function,
 Pipeline::~Pipeline() {
   // Unregisters Pipeline as a watchdog client.
   watchdog::Watchdog* watchdog = watchdog::Watchdog::GetInstance();
-  if (watchdog) watchdog->Unregister(std::string(kWatchdogName));
+  if (watchdog) watchdog->Unregister(kWatchdogName);
 
   TRACE_EVENT0("cobalt::renderer", "Pipeline::~Pipeline()");
 
@@ -337,9 +337,9 @@ void Pipeline::SetNewRenderTree(const Submission& render_tree_submission) {
   // Registers Pipeline as a watchdog client.
   watchdog::Watchdog* watchdog = watchdog::Watchdog::GetInstance();
   if (watchdog)
-    watchdog->Register(std::string(kWatchdogName),
-                       base::kApplicationStateStarted, kWatchdogTimeInterval,
-                       kWatchdogTimeWait, watchdog::PING);
+    watchdog->Register(kWatchdogName, base::kApplicationStateStarted,
+                       kWatchdogTimeInterval, kWatchdogTimeWait,
+                       watchdog::PING);
 
   // If a time fence is active, save the submission to be queued only after
   // we pass the time fence.  Overwrite any existing waiting submission in this
@@ -390,7 +390,7 @@ void Pipeline::ClearCurrentRenderTree() {
 
   // Unregisters Pipeline as a watchdog client.
   watchdog::Watchdog* watchdog = watchdog::Watchdog::GetInstance();
-  if (watchdog) watchdog->Unregister(std::string(kWatchdogName));
+  if (watchdog) watchdog->Unregister(kWatchdogName);
 
   ResetSubmissionQueue();
   rasterize_timer_ = base::nullopt;
@@ -403,7 +403,13 @@ void Pipeline::RasterizeCurrentTree() {
 
   // Pings watchdog.
   watchdog::Watchdog* watchdog = watchdog::Watchdog::GetInstance();
-  if (watchdog) watchdog->Ping(std::string(kWatchdogName));
+  if (watchdog) {
+#if defined(_DEBUG)
+    // Injects delay based off of environment variables for watchdog debugging.
+    watchdog->MaybeInjectDebugDelay(kWatchdogName);
+#endif  // defined(_DEBUG)
+    watchdog->Ping(kWatchdogName);
+  }
 
   base::TimeTicks start_rasterize_time = base::TimeTicks::Now();
   Submission submission =
@@ -668,10 +674,14 @@ void Pipeline::ShutdownRasterizerThread() {
   render_tree::ColorRGBA clear_color;
   if (render_target_ && clear_on_shutdown_mode_ == kClearAccordingToPlatform &&
       ShouldClearFrameOnShutdown(&clear_color)) {
-    rasterizer_->Submit(
-        new render_tree::ClearRectNode(math::RectF(render_target_->GetSize()),
-                                       clear_color),
-        render_target_);
+    // Only clear the frame if anything was previoously rendered. Otherwise,
+    // this call may unnecessarily initialize hardware rasterizer components.
+    if (!last_rasterize_time_.is_null()) {
+      rasterizer_->Submit(
+          new render_tree::ClearRectNode(math::RectF(render_target_->GetSize()),
+                                         clear_color),
+          render_target_);
+    }
   }
 
   // This potential reference to a render tree whose animations may have ended

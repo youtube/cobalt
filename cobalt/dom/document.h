@@ -40,11 +40,9 @@
 #include "cobalt/cssom/style_sheet_list.h"
 #include "cobalt/cssom/viewport_size.h"
 #include "cobalt/dom/application_lifecycle_state.h"
-#include "cobalt/dom/csp_delegate_type.h"
 #include "cobalt/dom/document_load_timing_info.h"
 #include "cobalt/dom/document_ready_state.h"
 #include "cobalt/dom/document_timeline.h"
-#include "cobalt/dom/event.h"
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/intersection_observer_task_manager.h"
 #include "cobalt/dom/location.h"
@@ -57,6 +55,9 @@
 #include "cobalt/network_bridge/net_poster.h"
 #include "cobalt/script/exception_state.h"
 #include "cobalt/script/wrappable.h"
+#include "cobalt/web/csp_delegate.h"
+#include "cobalt/web/csp_delegate_type.h"
+#include "cobalt/web/event.h"
 #include "starboard/time.h"
 #include "url/gurl.h"
 
@@ -64,7 +65,6 @@ namespace cobalt {
 namespace dom {
 
 class Comment;
-class CspDelegate;
 class DOMImplementation;
 class Element;
 class FontCache;
@@ -108,12 +108,12 @@ class Document : public Node,
     Options()
         : window(NULL),
           cookie_jar(NULL),
-          csp_enforcement_mode(kCspEnforcementEnable) {}
+          csp_enforcement_mode(web::kCspEnforcementEnable) {}
     explicit Options(const GURL& url_value)
         : url(url_value),
           window(NULL),
           cookie_jar(NULL),
-          csp_enforcement_mode(kCspEnforcementEnable) {}
+          csp_enforcement_mode(web::kCspEnforcementEnable) {}
     Options(const GURL& url_value, Window* window,
             const base::Closure& hashchange_callback,
             const scoped_refptr<base::BasicClock>& navigation_start_clock_value,
@@ -123,7 +123,7 @@ class Document : public Node,
             network_bridge::CookieJar* cookie_jar,
             const network_bridge::PostSender& post_sender,
             csp::CSPHeaderPolicy require_csp,
-            CspEnforcementType csp_enforcement_mode,
+            web::CspEnforcementType csp_enforcement_mode,
             const base::Closure& csp_policy_changed_callback,
             int csp_insecure_allowed_token = 0, int dom_max_element_depth = 0)
         : url(url_value),
@@ -151,7 +151,7 @@ class Document : public Node,
     network_bridge::CookieJar* cookie_jar;
     network_bridge::PostSender post_sender;
     csp::CSPHeaderPolicy require_csp;
-    CspEnforcementType csp_enforcement_mode;
+    web::CspEnforcementType csp_enforcement_mode;
     base::Closure csp_policy_changed_callback;
     int csp_insecure_allowed_token;
     int dom_max_element_depth;
@@ -188,8 +188,9 @@ class Document : public Node,
   scoped_refptr<Text> CreateTextNode(const std::string& data);
   scoped_refptr<Comment> CreateComment(const std::string& data);
 
-  scoped_refptr<Event> CreateEvent(const std::string& interface_name,
-                                   script::ExceptionState* exception_state);
+  scoped_refptr<web::Event> CreateEvent(
+      const std::string& interface_name,
+      script::ExceptionState* exception_state);
 
   // Web API: NonElementParentNode (implements)
   //   https://www.w3.org/TR/2014/WD-dom-20140710/#interface-nonelementparentnode
@@ -385,7 +386,7 @@ class Document : public Node,
     return navigation_start_clock_;
   }
 
-  CspDelegate* csp_delegate() const { return csp_delegate_.get(); }
+  web::CspDelegate* csp_delegate() const { return csp_delegate_.get(); }
 
   // Triggers a synchronous layout.
   scoped_refptr<render_tree::Node> DoSynchronousLayoutAndGetRenderTree();
@@ -594,7 +595,7 @@ class Document : public Node,
   // Viewport size.
   base::Optional<cssom::ViewportSize> viewport_size_;
   // Content Security Policy enforcement for this document.
-  std::unique_ptr<CspDelegate> csp_delegate_;
+  std::unique_ptr<web::CspDelegate> csp_delegate_;
   network_bridge::CookieJar* cookie_jar_;
   // Associated location object.
   scoped_refptr<Location> location_;

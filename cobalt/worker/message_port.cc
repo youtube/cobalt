@@ -22,15 +22,15 @@
 #include "base/memory/ptr_util.h"
 #include "base/memory/ref_counted.h"
 #include "base/message_loop/message_loop.h"
-#include "cobalt/dom/event.h"
-#include "cobalt/dom/event_target.h"
 #include "cobalt/dom/message_event.h"
 #include "cobalt/script/environment_settings.h"
+#include "cobalt/web/event.h"
+#include "cobalt/web/event_target.h"
 
 namespace cobalt {
 namespace worker {
 
-MessagePort::MessagePort(dom::EventTarget* event_target,
+MessagePort::MessagePort(web::EventTarget* event_target,
                          script::EnvironmentSettings* settings)
     : event_target_(event_target),
       message_loop_(base::MessageLoop::current()),

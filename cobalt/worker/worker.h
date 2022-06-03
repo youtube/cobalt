@@ -19,9 +19,13 @@
 #include <string>
 
 #include "base/bind.h"
+#include "base/macros.h"
 #include "base/memory/scoped_refptr.h"
+#include "base/message_loop/message_loop_current.h"
+#include "base/synchronization/waitable_event.h"
 #include "base/threading/thread.h"
 #include "cobalt/csp/content_security_policy.h"
+#include "cobalt/loader/script_loader_factory.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/execution_state.h"
 #include "cobalt/script/global_environment.h"
@@ -31,12 +35,17 @@
 #include "cobalt/script/wrappable.h"
 #include "cobalt/web/agent.h"
 #include "cobalt/web/context.h"
+#include "cobalt/web/environment_settings.h"
 #include "cobalt/worker/dedicated_worker_global_scope.h"
 #include "cobalt/worker/message_port.h"
 #include "cobalt/worker/worker_global_scope.h"
 #include "cobalt/worker/worker_options.h"
 #include "cobalt/worker/worker_settings.h"
 #include "url/gurl.h"
+
+#if defined(ENABLE_DEBUGGER)
+#include "cobalt/debug/backend/debug_module.h"  // nogncheck
+#endif                                          // defined(ENABLE_DEBUGGER)
 
 namespace cobalt {
 namespace worker {
@@ -55,13 +64,15 @@ class Worker : public base::MessageLoop::DestructionObserver {
     // Parameters from 'Run a worker' step 9.1 in the spec.
     //   https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#dom-worker
     GURL url;
-    script::EnvironmentSettings* outside_settings;
+    web::EnvironmentSettings* outside_settings;
     MessagePort* outside_port;
     WorkerOptions options;
   };
 
   Worker();
   ~Worker();
+  Worker(const Worker&) = delete;
+  Worker& operator=(const Worker&) = delete;
 
   // Start the worker thread. Returns true if successful.
   bool Run(const Options& options);
@@ -73,7 +84,9 @@ class Worker : public base::MessageLoop::DestructionObserver {
   MessagePort* message_port() const { return message_port_.get(); }
 
   // The message loop this object is running on.
-  base::MessageLoop* message_loop() const { return web_agent_->message_loop(); }
+  base::MessageLoop* message_loop() const {
+    return web_agent_ ? web_agent_->message_loop() : nullptr;
+  }
 
   void PostMessage(const std::string& message);
 
@@ -81,7 +94,6 @@ class Worker : public base::MessageLoop::DestructionObserver {
   void WillDestroyCurrentMessageLoop() override;
 
  private:
-  DISALLOW_COPY_AND_ASSIGN(Worker);
   // Called by |Run| to perform initialization required on the dedicated
   // thread.
   void Initialize(const Options& options, web::Context* context);
@@ -96,6 +108,11 @@ class Worker : public base::MessageLoop::DestructionObserver {
                const base::SourceLocation& script_location);
 
   web::Agent* web_agent() const { return web_agent_.get(); }
+
+#if defined(ENABLE_DEBUGGER)
+  // The core of the debugging system.
+  std::unique_ptr<debug::backend::DebugModule> debug_module_;
+#endif  // defined(ENABLE_DEBUGGER)
 
   // The Web Context includes the Script Agent and Realm.
   std::unique_ptr<web::Agent> web_agent_;

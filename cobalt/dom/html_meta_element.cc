@@ -17,10 +17,10 @@
 #include "base/memory/ref_counted.h"
 #include "base/strings/string_util.h"
 #include "cobalt/csp/content_security_policy.h"
-#include "cobalt/dom/csp_delegate.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/html_head_element.h"
 #include "cobalt/dom/node.h"
+#include "cobalt/web/csp_delegate.h"
 
 namespace cobalt {
 namespace dom {

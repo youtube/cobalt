@@ -21,13 +21,17 @@
 DIR="$(dirname "${0}")"
 
 AUTH_METHOD="public-key"
-while getopts "d:a:" o; do
+TEST_TYPE="functional"
+while getopts "d:a:t:" o; do
     case "${o}" in
         d)
             DEVICE_ID=${OPTARG}
             ;;
         a)
             AUTH_METHOD=${OPTARG}
+            ;;
+        t)
+            TEST_TYPE=${OPTARG}
             ;;
     esac
 done
@@ -41,8 +45,14 @@ fi
 source $DIR/setup.sh
 
 # Find all of the test files within the 'test' subdirectory.
-TESTS=($(eval "find ${DIR}/tests -maxdepth 1 -name '*_test.sh'"))
-
+if [[ "${TEST_TYPE}" == "functional" ]]; then
+  TESTS=($(eval "find ${DIR}/tests -maxdepth 1 -name '*_test.sh'"))
+elif [[ "${TEST_TYPE}" == "performance" ]]; then
+  TESTS=($(eval "find ${DIR}/performance_tests -maxdepth 1 -name '*_test.sh'"))
+else
+  echo "Only functional and performance tests are supported"
+  exit 1
+fi
 COUNT=0
 FAILED=()
 PASSED=()

@@ -24,7 +24,6 @@
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/console_log.h"
 #include "cobalt/base/tokens.h"
-#include "cobalt/dom/csp_delegate.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/global_stats.h"
 #include "cobalt/dom/html_element_context.h"
@@ -34,6 +33,7 @@
 #include "cobalt/loader/text_decoder.h"
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/script_runner.h"
+#include "cobalt/web/csp_delegate.h"
 #include "nb/memory_scope.h"
 #include "url/gurl.h"
 
@@ -288,19 +288,19 @@ void HTMLScriptElement::Prepare() {
 
   // https://www.w3.org/TR/CSP2/#directive-script-src
 
-  CspDelegate* csp_delegate = document_->csp_delegate();
+  web::CspDelegate* csp_delegate = document_->csp_delegate();
   // If the script element has a valid nonce, we always permit it, regardless
   // of its URL or inline nature.
   const bool bypass_csp =
-      csp_delegate->IsValidNonce(CspDelegate::kScript, nonce());
+      csp_delegate->IsValidNonce(web::CspDelegate::kScript, nonce());
 
   csp::SecurityCallback csp_callback;
   if (bypass_csp) {
     csp_callback = base::Bind(&PermitAnyURL);
   } else {
     csp_callback =
-        base::Bind(&CspDelegate::CanLoad, base::Unretained(csp_delegate),
-                   CspDelegate::kScript);
+        base::Bind(&web::CspDelegate::CanLoad, base::Unretained(csp_delegate),
+                   web::CspDelegate::kScript);
   }
 
   // Clear fetched resource's origin before start.
@@ -417,7 +417,7 @@ void HTMLScriptElement::Prepare() {
       base::Optional<std::string> content = text_content();
       const std::string& text = content.value_or(base::EmptyString());
       if (bypass_csp || text.empty() ||
-          csp_delegate->AllowInline(CspDelegate::kScript,
+          csp_delegate->AllowInline(web::CspDelegate::kScript,
                                     inline_script_location_, text)) {
         fetched_last_url_origin_ = document_->location()->GetOriginAsObject();
         ExecuteInternal();
@@ -601,7 +601,7 @@ void HTMLScriptElement::ExecuteExternal() {
     // 404 error)
     // Executing the script block must just consist of firing a simple event
     // named error at the element.
-    DispatchEvent(new Event(base::Tokens::error()));
+    DispatchEvent(new web::Event(base::Tokens::error()));
   } else {
     DCHECK(content_);
     Execute(*content_, base::SourceLocation(url_.spec(), 1, 1), true);
@@ -668,8 +668,8 @@ void HTMLScriptElement::Execute(const std::string& content,
   // named load at the script element.
   // TODO: Remove the firing of readystatechange once we support Promise.
   if (is_external) {
-    DispatchEvent(new Event(base::Tokens::load()));
-    DispatchEvent(new Event(base::Tokens::readystatechange()));
+    DispatchEvent(new web::Event(base::Tokens::load()));
+    DispatchEvent(new web::Event(base::Tokens::readystatechange()));
   } else {
     PreventGarbageCollectionAndPostToDispatchEvent(
         FROM_HERE, base::Tokens::load(),

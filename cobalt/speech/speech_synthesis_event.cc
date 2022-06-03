@@ -22,7 +22,7 @@ namespace speech {
 SpeechSynthesisEvent::SpeechSynthesisEvent(
     base::Token event_name,
     const scoped_refptr<SpeechSynthesisUtterance>& utterance)
-    : Event(event_name, Event::kBubbles, Event::kNotCancelable),
+    : Event(event_name, web::Event::kBubbles, web::Event::kNotCancelable),
       utterance_(utterance) {}
 
 SpeechSynthesisEvent::~SpeechSynthesisEvent() {}

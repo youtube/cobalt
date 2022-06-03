@@ -3,7 +3,7 @@
 #
 
 # Cobalt does not support HTTP cache.
-304.htm,FAIL
+304.htm,PASS
 allow-headers.htm,PASS
 basic.htm,PASS
 credentials-flag.htm,PASS
@@ -23,4 +23,3 @@ simple-requests.htm,PASS
 status-async.htm,PASS
 status-preflight.htm,PASS
 status.htm,PASS
-

@@ -1,7 +1,7 @@
 name: "libdav1d"
 description:
-  "Subtree at third_party/libdav1d."
   "dav1d is an AV1 cross-platform decoder focused on speed and correctness."
+
 third_party {
   url {
     type: LOCAL_SOURCE

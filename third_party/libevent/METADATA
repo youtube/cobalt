@@ -2,9 +2,8 @@ name: "libevent"
 description:
   "libevent is a library that is used for asynchronous event notification "
   "in Cobalt."
+
 third_party {
-  # Note: This library was added to Cobalt from Chromium, but the information
-  # below reflects that of the original source code.
   url {
     type: GIT
     value: "https://github.com/libevent/libevent.git"

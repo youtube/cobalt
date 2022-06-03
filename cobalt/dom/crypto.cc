@@ -14,7 +14,7 @@
 
 #include "cobalt/dom/crypto.h"
 
-#include "cobalt/dom/dom_exception.h"
+#include "cobalt/web/dom_exception.h"
 #include "crypto/random.h"
 
 namespace cobalt {
@@ -38,12 +38,14 @@ script::Handle<script::ArrayBufferView> Crypto::GetRandomValues(
   if (array.IsEmpty()) {
     // TODO: Also throw exception if element type of the array is
     // not one of the integer types.
-    DOMException::Raise(DOMException::kTypeMismatchErr, exception_state);
+    web::DOMException::Raise(web::DOMException::kTypeMismatchErr,
+                             exception_state);
     // Return value should be ignored.
     return script::Handle<script::ArrayBufferView>();
   }
   if (array->ByteLength() > kMaxArrayLengthInBytes) {
-    DOMException::Raise(DOMException::kQuotaExceededErr, exception_state);
+    web::DOMException::Raise(web::DOMException::kQuotaExceededErr,
+                             exception_state);
     // Return value should be ignored.
     return script::Handle<script::ArrayBufferView>();
   }
