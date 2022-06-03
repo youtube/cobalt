@@ -16,7 +16,7 @@
 
 #include "starboard/shared/starboard/media/media_support_internal.h"
 
-#include "starboard/android/shared/jni_env_ext.h"
+#include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/media.h"
 #include "starboard/shared/starboard/media/mime_type.h"
@@ -26,7 +26,7 @@ bool SbMediaIsSupported(SbMediaVideoCodec video_codec,
                         SbMediaAudioCodec audio_codec,
                         const char* key_system) {
   using starboard::android::shared::IsWidevineL1;
-  using starboard::android::shared::JniEnvExt;
+  using starboard::android::shared::MediaCapabilitiesCache;
   using starboard::shared::starboard::media::MimeType;
 
   // It is possible that the |key_system| comes with extra attributes, like
@@ -51,11 +51,16 @@ bool SbMediaIsSupported(SbMediaVideoCodec video_codec,
   if (!IsWidevineL1(key_system_type)) {
     return false;
   }
+
+  if (!MediaCapabilitiesCache::GetInstance()->IsWidevineSupported()) {
+    return false;
+  }
+
   std::string encryption_scheme =
       mime_type.GetParamStringValue("encryptionscheme", "");
-  bool uses_cbcs =
-      encryption_scheme == "cbcs" || encryption_scheme == "cbcs-1-9";
-  return JniEnvExt::Get()->CallStaticBooleanMethodOrAbort(
-             "dev/cobalt/media/MediaDrmBridge",
-             "isWidevineCryptoSchemeSupported", "(Z)Z", uses_cbcs) == JNI_TRUE;
+  if (encryption_scheme == "cbcs" || encryption_scheme == "cbcs-1-9") {
+    return MediaCapabilitiesCache::GetInstance()->IsCbcsSchemeSupported();
+  }
+
+  return true;
 }

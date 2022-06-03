@@ -15,6 +15,7 @@
 #include "starboard/shared/starboard/media/media_support_internal.h"
 
 #include "starboard/android/shared/jni_utils.h"
+#include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/audio_sink.h"
 #include "starboard/configuration.h"
@@ -23,6 +24,7 @@
 #include "starboard/shared/starboard/media/mime_type.h"
 
 using starboard::android::shared::JniEnvExt;
+using starboard::android::shared::MediaCapabilitiesCache;
 using starboard::android::shared::ScopedLocalJavaRef;
 using starboard::android::shared::SupportedAudioCodecToMimeType;
 using starboard::shared::starboard::media::MimeType;
@@ -77,13 +79,10 @@ bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec,
     return true;
   }
 
-  JniEnvExt* env = JniEnvExt::Get();
-  ScopedLocalJavaRef<jstring> j_mime(env->NewStringStandardUTFOrAbort(mime));
-  auto media_codec_supported =
-      env->CallStaticBooleanMethodOrAbort(
-          "dev/cobalt/media/MediaCodecUtil", "hasAudioDecoderFor",
-          "(Ljava/lang/String;IZ)Z", j_mime.Get(), static_cast<jint>(bitrate),
-          enable_tunnel_mode) == JNI_TRUE;
+  bool media_codec_supported =
+      MediaCapabilitiesCache::GetInstance()->HasAudioDecoderFor(
+          mime, bitrate, enable_tunnel_mode);
+
   if (!media_codec_supported) {
     return false;
   }
@@ -98,23 +97,6 @@ bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec,
     return false;
   }
 
-  SbMediaAudioCodingType coding_type;
-  switch (audio_codec) {
-    case kSbMediaAudioCodecAc3:
-      coding_type = kSbMediaAudioCodingTypeAc3;
-      break;
-    case kSbMediaAudioCodecEac3:
-      coding_type = kSbMediaAudioCodingTypeDolbyDigitalPlus;
-      break;
-    default:
-      return false;
-  }
-  int encoding =
-      ::starboard::android::shared::GetAudioFormatSampleType(coding_type);
-  ScopedLocalJavaRef<jobject> j_audio_output_manager(
-      env->CallStarboardObjectMethodOrAbort(
-          "getAudioOutputManager", "()Ldev/cobalt/media/AudioOutputManager;"));
-  return env->CallBooleanMethodOrAbort(j_audio_output_manager.Get(),
-                                       "hasPassthroughSupportFor", "(I)Z",
-                                       encoding) == JNI_TRUE;
+  return MediaCapabilitiesCache::GetInstance()->IsPassthroughSupported(
+      audio_codec);
 }

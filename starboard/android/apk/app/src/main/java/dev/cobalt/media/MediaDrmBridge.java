@@ -170,12 +170,20 @@ public class MediaDrmBridge {
    * @return true if the container and the crypto scheme is supported, or false otherwise.
    */
   @UsedByNative
-  static boolean isWidevineCryptoSchemeSupported(boolean usesCbcs) {
-    if (Build.VERSION.SDK_INT < 24 && usesCbcs) {
-      Log.e(TAG, "Encryption scheme 'cbcs' is not supported on this platform.");
-      return false;
-    }
+  static boolean isWidevineCryptoSchemeSupported() {
     return MediaDrm.isCryptoSchemeSupported(WIDEVINE_UUID);
+  }
+
+  /**
+   * Check whether `cbcs` scheme is supported.
+   *
+   * @return true if the `cbcs` encryption is supported, or false otherwise.
+   */
+  @UsedByNative
+  static boolean isCbcsSchemeSupported() {
+    // While 'cbcs' scheme was originally implemented in N, there was a bug (in the
+    // DRM code) which means that it didn't really work properly until N-MR1).
+    return Build.VERSION.SDK_INT >= Build.VERSION_CODES.N_MR1;
   }
 
   /** Destroy the MediaDrmBridge object. */

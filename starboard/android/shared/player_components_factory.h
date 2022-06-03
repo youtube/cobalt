@@ -24,6 +24,7 @@
 #include "starboard/android/shared/drm_system.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
+#include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/android/shared/video_decoder.h"
 #include "starboard/atomic.h"
@@ -563,29 +564,24 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
                    << creation_parameters.video_codec() << " is not supported.";
       return false;
     }
-    JniEnvExt* env = JniEnvExt::Get();
-    ScopedLocalJavaRef<jstring> j_mime(env->NewStringStandardUTFOrAbort(mime));
     DrmSystem* drm_system_ptr =
         static_cast<DrmSystem*>(creation_parameters.drm_system());
     jobject j_media_crypto =
         drm_system_ptr ? drm_system_ptr->GetMediaCrypto() : NULL;
 
     bool is_encrypted = !!j_media_crypto;
-    if (env->CallStaticBooleanMethodOrAbort(
-            "dev/cobalt/media/MediaCodecUtil", "hasVideoDecoderFor",
-            "(Ljava/lang/String;ZZZZIIII)Z", j_mime.Get(), is_encrypted, false,
-            true, force_improved_support_check, 0, 0, 0, 0) == JNI_TRUE) {
+    if (MediaCapabilitiesCache::GetInstance()->HasVideoDecoderFor(
+            mime, is_encrypted, false, true, force_improved_support_check, 0, 0,
+            0, 0)) {
       return true;
     }
 
     if (kForceSecurePipelineInTunnelModeWhenRequired && !is_encrypted) {
       const bool kIsEncrypted = true;
       auto support_tunnel_mode_under_secure_pipeline =
-          env->CallStaticBooleanMethodOrAbort(
-              "dev/cobalt/media/MediaCodecUtil", "hasVideoDecoderFor",
-              "(Ljava/lang/String;ZZZZIIII)Z", j_mime.Get(), kIsEncrypted,
-              false, true, force_improved_support_check, 0, 0, 0,
-              0) == JNI_TRUE;
+          MediaCapabilitiesCache::GetInstance()->HasVideoDecoderFor(
+              mime, kIsEncrypted, false, true, force_improved_support_check, 0,
+              0, 0, 0);
       if (support_tunnel_mode_under_secure_pipeline) {
         *force_secure_pipeline_under_tunnel_mode = true;
         return true;
