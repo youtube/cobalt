@@ -227,11 +227,12 @@ class ServiceWorkerJobs {
  private:
   // State used for the 'Update' algorithm.
   struct UpdateJobState : public base::RefCounted<UpdateJobState> {
-    UpdateJobState(Job* job, ServiceWorkerRegistrationObject* registration,
+    UpdateJobState(Job* job,
+                   scoped_refptr<ServiceWorkerRegistrationObject> registration,
                    ServiceWorkerObject* newest_worker)
         : job(job), registration(registration), newest_worker(newest_worker) {}
     Job* job;
-    ServiceWorkerRegistrationObject* registration;
+    scoped_refptr<ServiceWorkerRegistrationObject> registration;
     ServiceWorkerObject* newest_worker;
 
     // map of content or resources for the worker.
@@ -297,18 +298,20 @@ class ServiceWorkerJobs {
   void RejectJobPromise(Job* job, const PromiseErrorData& error_data);
 
   // https://w3c.github.io/ServiceWorker/#resolve-job-promise-algorithm
-  void ResolveJobPromise(Job* job, ServiceWorkerRegistrationObject* value) {
+  void ResolveJobPromise(Job* job,
+                         scoped_refptr<ServiceWorkerRegistrationObject> value) {
     ResolveJobPromise(job, false, value);
   }
   void ResolveJobPromise(
       Job* job, bool value,
-      ServiceWorkerRegistrationObject* registration = nullptr);
+      scoped_refptr<ServiceWorkerRegistrationObject> registration = nullptr);
 
   // https://w3c.github.io/ServiceWorker/#finish-job-algorithm
   void FinishJob(Job* job);
 
   // https://w3c.github.io/ServiceWorker/#get-newest-worker
-  ServiceWorker* GetNewestWorker(ServiceWorkerRegistrationObject* registration);
+  ServiceWorker* GetNewestWorker(
+      scoped_refptr<ServiceWorkerRegistrationObject> registration);
 
   // https://w3c.github.io/ServiceWorker/#run-service-worker-algorithm
   // The return value is a 'Completion or failure'.
@@ -320,21 +323,21 @@ class ServiceWorkerJobs {
 
   // https://w3c.github.io/ServiceWorker/#installation-algorithm
   void Install(Job* job, scoped_refptr<ServiceWorkerObject> worker,
-               ServiceWorkerRegistrationObject* registration);
+               scoped_refptr<ServiceWorkerRegistrationObject> registration);
 
   // https://w3c.github.io/ServiceWorker/#try-activate-algorithm
-  void TryActivate(ServiceWorkerRegistrationObject* registration);
+  void TryActivate(scoped_refptr<ServiceWorkerRegistrationObject> registration);
 
   // https://w3c.github.io/ServiceWorker/#activation-algorithm
-  void Activate(ServiceWorkerRegistrationObject* registration);
+  void Activate(scoped_refptr<ServiceWorkerRegistrationObject> registration);
 
   // https://w3c.github.io/ServiceWorker/#service-worker-has-no-pending-events
   bool ServiceWorkerHasNoPendingEvents(ServiceWorkerObject* worker);
 
   // https://w3c.github.io/ServiceWorker/#update-registration-state-algorithm
-  void UpdateRegistrationState(ServiceWorkerRegistrationObject* registration,
-                               RegistrationState target,
-                               scoped_refptr<ServiceWorkerObject> source);
+  void UpdateRegistrationState(
+      scoped_refptr<ServiceWorkerRegistrationObject> registration,
+      RegistrationState target, scoped_refptr<ServiceWorkerObject> source);
 
   // https://w3c.github.io/ServiceWorker/#update-state-algorithm
   void UpdateWorkerState(ServiceWorkerObject* worker, ServiceWorkerState state);
@@ -349,13 +352,15 @@ class ServiceWorkerJobs {
   void NotifyControllerChange(web::EnvironmentSettings* client);
 
   // https://w3c.github.io/ServiceWorker/#try-clear-registration-algorithm
-  void TryClearRegistration(ServiceWorkerRegistrationObject* registration);
+  void TryClearRegistration(
+      scoped_refptr<ServiceWorkerRegistrationObject> registration);
 
   // https://w3c.github.io/ServiceWorker/#clear-registration-algorithm
-  void ClearRegistration(ServiceWorkerRegistrationObject* registration);
+  void ClearRegistration(
+      scoped_refptr<ServiceWorkerRegistrationObject> registration);
 
   bool IsAnyClientUsingRegistration(
-      ServiceWorkerRegistrationObject* registration);
+      scoped_refptr<ServiceWorkerRegistrationObject> registration);
 
   // FetcherFactory that is used to create a fetcher according to URL.
   std::unique_ptr<loader::FetcherFactory> fetcher_factory_;

@@ -50,7 +50,7 @@ std::string SerializeExcludingFragment(const GURL& url) {
 }
 }  // namespace
 
-ServiceWorkerRegistrationObject*
+scoped_refptr<ServiceWorkerRegistrationObject>
 ServiceWorkerRegistrationMap::MatchServiceWorkerRegistration(
     const url::Origin& storage_key, const GURL& client_url) {
   TRACE_EVENT0(
@@ -115,8 +115,9 @@ ServiceWorkerRegistrationMap::MatchServiceWorkerRegistration(
   return GetRegistration(storage_key, matching_scope);
 }
 
-ServiceWorkerRegistrationObject* ServiceWorkerRegistrationMap::GetRegistration(
-    const url::Origin& storage_key, const GURL& scope) {
+scoped_refptr<ServiceWorkerRegistrationObject>
+ServiceWorkerRegistrationMap::GetRegistration(const url::Origin& storage_key,
+                                              const GURL& scope) {
   TRACE_EVENT0("cobalt::worker",
                "ServiceWorkerRegistrationMap::GetRegistration()");
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
@@ -150,7 +151,8 @@ ServiceWorkerRegistrationObject* ServiceWorkerRegistrationMap::GetRegistration(
   return nullptr;
 }
 
-ServiceWorkerRegistrationObject* ServiceWorkerRegistrationMap::SetRegistration(
+scoped_refptr<ServiceWorkerRegistrationObject>
+ServiceWorkerRegistrationMap::SetRegistration(
     const url::Origin& storage_key, const GURL& scope,
     const ServiceWorkerUpdateViaCache& update_via_cache) {
   TRACE_EVENT0("cobalt::worker",
@@ -168,7 +170,7 @@ ServiceWorkerRegistrationObject* ServiceWorkerRegistrationMap::SetRegistration(
   // 3. Let registration be a new service worker registration whose storage key
   // is set to storage key, scope url is set to scope, and update via cache mode
   // is set to updateViaCache.
-  ServiceWorkerRegistrationObject* registration(
+  scoped_refptr<ServiceWorkerRegistrationObject> registration(
       new ServiceWorkerRegistrationObject(storage_key, scope,
                                           update_via_cache));
 
@@ -176,25 +178,21 @@ ServiceWorkerRegistrationObject* ServiceWorkerRegistrationMap::SetRegistration(
   Key registration_key(storage_key, scope_string);
   registration_map_.insert(std::make_pair(
       registration_key,
-      std::unique_ptr<ServiceWorkerRegistrationObject>(registration)));
+      scoped_refptr<ServiceWorkerRegistrationObject>(registration)));
 
   // 5. Return registration.
   return registration;
 }
 
-std::unique_ptr<ServiceWorkerRegistrationObject>
-ServiceWorkerRegistrationMap::RemoveRegistration(const url::Origin& storage_key,
-                                                 const GURL& scope) {
-  std::unique_ptr<ServiceWorkerRegistrationObject> registration;
+void ServiceWorkerRegistrationMap::RemoveRegistration(
+    const url::Origin& storage_key, const GURL& scope) {
   std::string scope_string = SerializeExcludingFragment(scope);
   Key registration_key(storage_key, scope_string);
   auto entry = registration_map_.find(registration_key);
   DCHECK(entry != registration_map_.end());
   if (entry != registration_map_.end()) {
-    registration = std::move(entry->second);
     registration_map_.erase(entry);
   }
-  return std::move(registration);
 }
 
 }  // namespace worker

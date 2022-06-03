@@ -92,7 +92,11 @@ void DedicatedWorker::Initialize() {
 
 DedicatedWorker::~DedicatedWorker() { Terminate(); }
 
-void DedicatedWorker::Terminate() {}
+void DedicatedWorker::Terminate() {
+  if (worker_) {
+    worker_->Terminate();
+  }
+}
 
 // void postMessage(any message, object transfer);
 // -> void PostMessage(const script::ValueHandleHolder& message,

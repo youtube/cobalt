@@ -17,6 +17,7 @@
 
 #include <memory>
 
+#include "base/memory/ref_counted.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/synchronization/lock.h"
 #include "cobalt/worker/service_worker_object.h"
@@ -35,7 +36,8 @@ namespace worker {
 // that of the ServiceWorkerRegistration JavaScript object(s) that represent
 // this object in their service worker clients.
 //   https://w3c.github.io/ServiceWorker/#service-worker-registration-lifetime
-class ServiceWorkerRegistrationObject {
+class ServiceWorkerRegistrationObject
+    : public base::RefCountedThreadSafe<ServiceWorkerRegistrationObject> {
  public:
   ServiceWorkerRegistrationObject(
       const url::Origin& storage_key, const GURL& scope_url,

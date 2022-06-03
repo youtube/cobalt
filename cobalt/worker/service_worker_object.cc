@@ -44,10 +44,16 @@ ServiceWorkerObject::ServiceWorkerObject(const Options& options)
 
 ServiceWorkerObject::~ServiceWorkerObject() {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerObject::~ServiceWorkerObject()");
+  Abort();
+}
+
+void ServiceWorkerObject::Abort() {
+  TRACE_EVENT0("cobalt::worker", "ServiceWorkerObject::Abort()");
   if (web_agent_) {
     DCHECK(message_loop());
     web_agent_->WaitUntilDone();
     web_agent_.reset();
+    web_context_ = nullptr;
   }
 }
 
@@ -153,6 +159,7 @@ void ServiceWorkerObject::Initialize(web::Context* context) {
   //       in serviceWorker’s containing service worker registration’s task
   //       queues, queue them to serviceWorker’s event loop’s task queues in the
   //       same order using their original task sources.
+  // TODO(b/234787641): Queue tasks from the registration.
   // 8.12. Let evaluationStatus be null.
   // 8.13. If script is a classic script, then:
   // 8.13.1. Set evaluationStatus to the result of running the classic script

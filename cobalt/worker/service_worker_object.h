@@ -83,12 +83,16 @@ class ServiceWorkerObject : public base::RefCounted<ServiceWorkerObject>,
   std::string* LookupScriptResource() const;
   std::string* LookupScriptResource(const GURL& url) const;
 
+  void set_start_status(std::string* start_status) {
+    start_status_.reset(start_status);
+  }
   std::string* start_status() const { return start_status_.get(); }
 
+  void Abort();
   bool is_running() { return web_agent_.get() != nullptr; }
   web::Agent* web_agent() const { return web_agent_.get(); }
 
-  scoped_refptr<WorkerGlobalScope> worker_global_scope() {
+  const scoped_refptr<WorkerGlobalScope>& worker_global_scope() const {
     return worker_global_scope_;
   }
 

@@ -47,6 +47,11 @@ class WorkerGlobalScope : public web::WindowOrWorkerGlobalScope {
   WorkerGlobalScope(const WorkerGlobalScope&) = delete;
   WorkerGlobalScope& operator=(const WorkerGlobalScope&) = delete;
 
+  // https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#dom-workerglobalscope-closing
+  // THe closing flag.
+  bool closing_flag() { return closing_flag_; }
+  void set_closing_flag(bool value) { closing_flag_ = value; }
+
   virtual void Initialize() {}
 
   // Web API: WorkerGlobalScope
@@ -129,6 +134,8 @@ class WorkerGlobalScope : public web::WindowOrWorkerGlobalScope {
 
   scoped_refptr<WorkerLocation> location_;
   scoped_refptr<WorkerNavigator> navigator_;
+
+  bool closing_flag_ = false;
 };
 
 }  // namespace worker
