@@ -39,7 +39,8 @@ _INCLUDE_FILE_PATTERNS = [
     ('starboard', '*.pfx'),
     # Just match everything since the Evergreen tests are written using shell
     # scripts and html files.
-    ('starboard/evergreen/testing', '*')
+    ('starboard/evergreen/testing', '*'),
+    ('starboard/tools/testing', 'sharding_configuration.json')
 ]
 
 _INCLUDE_BLACK_BOX_TESTS_PATTERNS = [
