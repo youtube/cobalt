@@ -80,7 +80,6 @@ class DedicatedWorker : public AbstractWorker, public web::EventTarget {
   ~DedicatedWorker() override;
   void Initialize();
 
-  script::EnvironmentSettings* settings_;
   const std::string script_url_;
   const WorkerOptions worker_options_;
   scoped_refptr<MessagePort> outside_port_;

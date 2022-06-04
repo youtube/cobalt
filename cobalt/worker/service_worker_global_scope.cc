@@ -23,6 +23,7 @@
 #include "base/single_thread_task_runner.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/script/environment_settings.h"
+#include "cobalt/script/exception_state.h"
 #include "cobalt/worker/service_worker_jobs.h"
 #include "cobalt/worker/worker_settings.h"
 
@@ -30,9 +31,92 @@ namespace cobalt {
 namespace worker {
 ServiceWorkerGlobalScope::ServiceWorkerGlobalScope(
     script::EnvironmentSettings* settings, ServiceWorkerObject* service_worker)
-    : WorkerGlobalScope(settings), service_worker_(service_worker) {}
+    : WorkerGlobalScope(settings),
+      service_worker_(base::AsWeakPtr(service_worker)) {}
 
 void ServiceWorkerGlobalScope::Initialize() {}
+
+void ServiceWorkerGlobalScope::ImportScripts(
+    const std::vector<std::string>& urls,
+    script::ExceptionState* exception_state) {
+  // Algorithm for importScripts():
+  //   https://w3c.github.io/ServiceWorker/#importscripts
+
+  // When the importScripts(urls) method is called, the user agent must import
+  // scripts into worker global scope, with the following steps to perform the
+  // fetch given the request request:
+  // 1. Let serviceWorker be request’s client's global object's service
+  //    worker.
+  DCHECK(service_worker_);
+
+  WorkerGlobalScope::ImportScriptsInternal(
+      urls, exception_state,
+      base::Bind(
+          [](ServiceWorkerObject* service_worker, const GURL& url,
+             script::ExceptionState* exception_state) -> std::string* {
+            // 2. Let map be serviceWorker’s script resource map.
+            DCHECK(service_worker);
+            // 3. Let url be request’s url.
+            DCHECK(url.is_valid());
+            std::string* resource = service_worker->LookupScriptResource(url);
+            // 4. If serviceWorker’s state is not "parsed" or "installing":
+            if (service_worker->state() != kServiceWorkerStateParsed &&
+                service_worker->state() != kServiceWorkerStateInstalling) {
+              // 4.1. Return map[url] if it exists and a network error
+              // otherwise.
+              if (!resource) {
+                web::DOMException::Raise(web::DOMException::kNetworkErr,
+                                         exception_state);
+              }
+              return resource;
+            }
+
+            // 5. If map[url] exists:
+            if (resource) {
+              // 5.1. Append url to serviceWorker’s set of used scripts.
+              service_worker->AppendToSetOfUsedScripts(url);
+
+              // 5.2. Return map[url].
+              return resource;
+            }
+
+            // 6. Let registration be serviceWorker’s containing service worker
+            //    registration.
+            // 7. Set request’s service-workers mode to "none".
+            // 8. Set request’s cache mode to "no-cache" if any of the following
+            //    are true:
+            //    . registration’s update via cache mode is "none".
+            //    . The current global object's force bypass cache for import
+            //      scripts flag is set.
+            //    . registration is stale.
+            // 9. Let response be the result of fetching request.
+            // TODO(b/228908203): Set request headers. This should probably be
+            // a separate callback that gets passed to the ScriptLoader for the
+            // FetcherFactory.
+
+            return resource;
+          },
+          service_worker_),
+      base::Bind(
+          [](ServiceWorkerObject* service_worker, const GURL& url,
+             std::string* content) {
+            // 10. If response’s cache state is not "local", set registration’s
+            //     last update check time to the current time.
+            // 11. If response’s unsafe response is a bad import script
+            //     response, then return a network error.
+
+            // 12. Set map[url] to response.
+            service_worker->SetScriptResource(url, content);
+            // 13. Append url to serviceWorker’s set of used scripts.
+            service_worker->AppendToSetOfUsedScripts(url);
+            // 14. Set serviceWorker’s classic scripts imported flag.
+            service_worker->set_classic_scripts_imported();
+            // 15. Return response.
+            return content;
+          },
+          service_worker_));
+}
+
 
 scoped_refptr<ServiceWorkerRegistration>
 ServiceWorkerGlobalScope::registration() const {

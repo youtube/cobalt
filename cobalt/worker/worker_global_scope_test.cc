@@ -144,7 +144,7 @@ TEST_P(WorkerGlobalScopeTest, ErrorEvent) {
       "error", FakeScriptValue<web::EventListener>(fake_event_listener_.get()),
       true);
   fake_event_listener_->ExpectHandleEventCall("error", worker_global_scope());
-  worker_global_scope()->DispatchEvent(new web::ErrorEvent("error"));
+  worker_global_scope()->DispatchEvent(new web::ErrorEvent());
 }
 
 TEST_P(WorkerGlobalScopeTest, OnErrorEvent) {

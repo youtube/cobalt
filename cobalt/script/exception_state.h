@@ -46,9 +46,11 @@ class ExceptionState {
     va_end(arguments);
   }
 
+  virtual bool is_exception_set() const = 0;
+
  protected:
   virtual void SetSimpleExceptionVA(SimpleExceptionType, const char* format,
-                                    va_list & args) = 0;
+                                    va_list& args) = 0;
 };
 
 }  // namespace script

@@ -21,7 +21,7 @@
   readonly attribute WorkerGlobalScope self;
   readonly attribute WorkerLocation location;
   readonly attribute WorkerNavigator navigator;
-  void importScripts(USVString... urls);
+  [RaisesException] void importScripts(USVString... urls);
 
   attribute OnErrorEventHandler onerror;
   attribute EventHandler onlanguagechange;

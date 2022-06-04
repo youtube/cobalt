@@ -33,8 +33,13 @@ class NativeExceptionState : public script::ExceptionState {
   }
 
   void SetSimpleExceptionVA(script::SimpleExceptionType, const char*,
-                            va_list &) override {
+                            va_list&) override {
     NOTREACHED();
+  }
+
+  bool is_exception_set() const override {
+    NOTREACHED();
+    return false;
   }
 };
 }  // namespace

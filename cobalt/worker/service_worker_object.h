@@ -17,6 +17,7 @@
 
 #include <map>
 #include <memory>
+#include <set>
 #include <string>
 #include <utility>
 
@@ -49,6 +50,7 @@ namespace worker {
 //   https://w3c.github.io/ServiceWorker/#service-worker-lifetime
 class ServiceWorkerObject
     : public base::RefCountedThreadSafe<ServiceWorkerObject>,
+      public base::SupportsWeakPtr<ServiceWorkerObject>,
       public base::MessageLoop::DestructionObserver {
  public:
   // Worker Options needed at thread run time.
@@ -65,8 +67,6 @@ class ServiceWorkerObject
     web::Agent::Options web_options;
     ServiceWorkerRegistrationObject* containing_service_worker_registration;
   };
-
-  using ScriptResourceMap = std::map<GURL, std::unique_ptr<std::string>>;
 
   explicit ServiceWorkerObject(const Options& options);
   ~ServiceWorkerObject();
@@ -89,17 +89,33 @@ class ServiceWorkerObject
   ServiceWorkerRegistrationObject* containing_service_worker_registration() {
     return options_.containing_service_worker_registration;
   }
+  // https://w3c.github.io/ServiceWorker/#dfn-skip-waiting-flag
+  void set_skip_waiting() { skip_waiting_ = true; }
+  bool skip_waiting() const { return skip_waiting_; }
+
+  // https://w3c.github.io/ServiceWoScriptResourceMaprker/#dfn-classic-scripts-imported-flag
+  void set_classic_scripts_imported() { classic_scripts_imported_ = true; }
+  bool classic_scripts_imported() { return classic_scripts_imported_; }
+
+  // https://w3c.github.io/ServiceWorker/#dfn-set-of-used-scripts
+  void AppendToSetOfUsedScripts(const GURL& url) {
+    set_of_used_scripts_.insert(url);
+  }
 
   // https://w3c.github.io/ServiceWorker/#dfn-script-resource-map
   void set_script_resource_map(ScriptResourceMap&& resource_map) {
     script_resource_map_ = std::move(resource_map);
   }
-  std::string* LookupScriptResource() const;
+  void SetScriptResource(const GURL& url, std::string* resource);
+  bool HasScriptResource() const;
   std::string* LookupScriptResource(const GURL& url) const;
 
-  // https://w3c.github.io/ServiceWorker/#dfn-skip-waiting-flag
-  void set_skip_waiting(bool skip_waiting) { skip_waiting_ = skip_waiting; }
-  bool skip_waiting() const { return skip_waiting_; }
+  // Steps 13-15 of Algorithm for Install.
+  //   https://w3c.github.io/ServiceWorker/#installation-algorithm
+  void PurgeScriptResourceMap();
+  const ScriptResourceMap& script_resource_map() {
+    return script_resource_map_;
+  }
 
   // https://w3c.github.io/ServiceWorker/#service-worker-start-status
   void set_start_status(std::string* start_status) {
@@ -152,11 +168,17 @@ class ServiceWorkerObject
   // https://w3c.github.io/ServiceWorker/#dfn-script-url
   GURL script_url_;
 
-  // map of content or resources for the worker.
+  // https://w3c.github.io/ServiceWorker/#dfn-script-resource-map
   ScriptResourceMap script_resource_map_;
+
+  // https://w3c.github.io/ServiceWorker/#dfn-set-of-used-scripts
+  std::set<GURL> set_of_used_scripts_;
 
   // https://w3c.github.io/ServiceWorker/#dfn-skip-waiting-flag
   bool skip_waiting_ = false;
+
+  // https://w3c.github.io/ServiceWorker/#dfn-classic-scripts-imported-flag
+  bool classic_scripts_imported_ = false;
 
   // https://w3c.github.io/ServiceWorker/#service-worker-start-status
   std::unique_ptr<std::string> start_status_;

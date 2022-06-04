@@ -249,7 +249,7 @@ TEST_F(WindowTest, ErrorEvent) {
       "error", FakeScriptValue<web::EventListener>(fake_event_listener_.get()),
       true);
   fake_event_listener_->ExpectHandleEventCall("error", window());
-  window()->DispatchEvent(new web::ErrorEvent("error"));
+  window()->DispatchEvent(new web::ErrorEvent());
 }
 
 TEST_F(WindowTest, OnErrorEvent) {

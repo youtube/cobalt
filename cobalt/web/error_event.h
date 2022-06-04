@@ -18,6 +18,8 @@
 #include <memory>
 #include <string>
 
+#include "cobalt/base/token.h"
+#include "cobalt/base/tokens.h"
 #include "cobalt/script/value_handle.h"
 #include "cobalt/web/error_event_init.h"
 #include "cobalt/web/event.h"
@@ -31,6 +33,7 @@ namespace web {
 //   https://www.w3.org/TR/html50/webappapis.html#errorevent
 class ErrorEvent : public Event {
  public:
+  ErrorEvent() : Event(base::Tokens::error()), lineno_(0), colno_(0) {}
   explicit ErrorEvent(const std::string& type)
       : Event(type), lineno_(0), colno_(0) {}
   ErrorEvent(const std::string& type, const web::ErrorEventInit& init_dict)

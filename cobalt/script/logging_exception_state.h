@@ -31,12 +31,12 @@ class LoggingExceptionState : public ExceptionState {
     LogException(exception->name(), exception->message());
   }
   void SetSimpleExceptionVA(SimpleExceptionType type, const char* format,
-                            va_list & arguments) override {
+                            va_list& arguments) override {
     LogException(SimpleExceptionToString(type),
                  base::StringPrintV(format, arguments));
   }
 
-  bool is_exception_set() const { return is_exception_set_; }
+  bool is_exception_set() const override { return is_exception_set_; }
 
  private:
   void LogException(const std::string& name, const std::string& message) {
