@@ -26,9 +26,10 @@ namespace testing {
 
 class MockExceptionState : public ExceptionState {
  public:
-  MOCK_METHOD1(SetException, void(const scoped_refptr<ScriptException>&));
+  MOCK_METHOD1(SetException, void(const scoped_refptr<ScriptException> &));
   MOCK_METHOD3(SetSimpleExceptionVA,
-               void(SimpleExceptionType, const char*, va_list &));
+               void(SimpleExceptionType, const char *, va_list &));
+  MOCK_CONST_METHOD0(is_exception_set, bool(void));
 };
 
 }  // namespace testing

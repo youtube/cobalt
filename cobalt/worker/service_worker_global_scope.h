@@ -20,6 +20,7 @@
 
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_refptr.h"
+#include "base/memory/weak_ptr.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/promise.h"
@@ -47,6 +48,11 @@ class ServiceWorkerGlobalScope : public WorkerGlobalScope {
   ServiceWorkerGlobalScope& operator=(const ServiceWorkerGlobalScope&) = delete;
 
   void Initialize() override;
+
+  // Web API: WorkerGlobalScope
+  //
+  void ImportScripts(const std::vector<std::string>& urls,
+                     script::ExceptionState* exception_state) final;
 
   // Web API: ServiceWorkerGlobalScope
   //
@@ -104,7 +110,7 @@ class ServiceWorkerGlobalScope : public WorkerGlobalScope {
   ~ServiceWorkerGlobalScope() override {}
 
  private:
-  scoped_refptr<ServiceWorkerObject> service_worker_;
+  base::WeakPtr<ServiceWorkerObject> service_worker_;
 };
 
 }  // namespace worker

@@ -69,13 +69,10 @@ class Worker : public base::MessageLoop::DestructionObserver {
     WorkerOptions options;
   };
 
-  Worker();
+  explicit Worker(const Options& options);
   ~Worker();
   Worker(const Worker&) = delete;
   Worker& operator=(const Worker&) = delete;
-
-  // Start the worker thread. Returns true if successful.
-  bool Run(const Options& options);
 
   void Terminate();
 
@@ -94,7 +91,7 @@ class Worker : public base::MessageLoop::DestructionObserver {
  private:
   // Called by |Run| to perform initialization required on the dedicated
   // thread.
-  void Initialize(const Options& options, web::Context* context);
+  void Initialize(web::Context* context);
 
   void OnContentProduced(const loader::Origin& last_url_origin,
                          std::unique_ptr<std::string> content);
@@ -117,9 +114,11 @@ class Worker : public base::MessageLoop::DestructionObserver {
   // The Web Context includes the Script Agent and Realm.
   std::unique_ptr<web::Agent> web_agent_;
 
-  web::Context* web_context_;
+  web::Context* web_context_ = nullptr;
 
-  bool is_shared_;
+  Options options_;
+
+  bool is_shared_ = false;
 
   scoped_refptr<WorkerGlobalScope> worker_global_scope_;
 

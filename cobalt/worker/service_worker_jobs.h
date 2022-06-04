@@ -199,7 +199,7 @@ class ServiceWorkerJobs {
   //   https://w3c.github.io/ServiceWorker/#dom-serviceworkerglobalscope-skipwaiting
   void SkipWaitingSubSteps(
       web::EnvironmentSettings* client,
-      scoped_refptr<ServiceWorkerObject> service_worker,
+      const base::WeakPtr<ServiceWorkerObject>& service_worker,
       std::unique_ptr<script::ValuePromiseVoid::Reference> promise_reference);
 
   // Registration of web contexts that may have service workers.
@@ -243,7 +243,7 @@ class ServiceWorkerJobs {
     ServiceWorkerObject* newest_worker;
 
     // map of content or resources for the worker.
-    ServiceWorkerObject::ScriptResourceMap updated_resource_map;
+    ScriptResourceMap updated_resource_map;
 
     // This represents hasUpdatedResources of the Update algorithm.
     // True if any of the resources has changed since last cached.

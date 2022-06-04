@@ -58,14 +58,15 @@ class TestWithJavaScriptBase : public TypeIdProvider {
       worker_global_scope_ = dedicated_worker_global_scope_.get();
     } else if (TypeIdProvider::GetGlobalScopeTypeId() ==
                base::GetTypeId<ServiceWorkerGlobalScope>()) {
-      containing_service_worker_registration =
+      containing_service_worker_registration_ =
           new ServiceWorkerRegistrationObject(url::Origin(), GURL(),
                                               kServiceWorkerUpdateViaCacheNone);
-      service_worker_global_scope_ = new ServiceWorkerGlobalScope(
-          web_context_->environment_settings(),
+      service_worker_object_ =
           new ServiceWorkerObject(ServiceWorkerObject::Options(
               "TestServiceWorkerObject", web_context_->network_module(),
-              containing_service_worker_registration)));
+              containing_service_worker_registration_));
+      service_worker_global_scope_ = new ServiceWorkerGlobalScope(
+          web_context_->environment_settings(), service_worker_object_);
       web_context_->global_environment()->CreateGlobalObject(
           service_worker_global_scope_, web_context_->environment_settings());
       worker_global_scope_ = service_worker_global_scope_.get();
@@ -97,8 +98,9 @@ class TestWithJavaScriptBase : public TypeIdProvider {
   std::unique_ptr<web::testing::StubWebContext> web_context_;
   WorkerGlobalScope* worker_global_scope_ = nullptr;
   scoped_refptr<DedicatedWorkerGlobalScope> dedicated_worker_global_scope_;
+  scoped_refptr<ServiceWorkerObject> service_worker_object_;
   scoped_refptr<ServiceWorkerRegistrationObject>
-      containing_service_worker_registration;
+      containing_service_worker_registration_;
   scoped_refptr<ServiceWorkerGlobalScope> service_worker_global_scope_;
   ::testing::StrictMock<script::testing::MockExceptionState> exception_state_;
 };

@@ -34,7 +34,7 @@ const char kDedicatedWorkerName[] = "DedicatedWorker";
 
 DedicatedWorker::DedicatedWorker(script::EnvironmentSettings* settings,
                                  const std::string& scriptURL)
-    : web::EventTarget(settings), settings_(settings), script_url_(scriptURL) {
+    : web::EventTarget(settings), script_url_(scriptURL) {
   Initialize();
 }
 
@@ -42,7 +42,6 @@ DedicatedWorker::DedicatedWorker(script::EnvironmentSettings* settings,
                                  const std::string& scriptURL,
                                  const WorkerOptions& worker_options)
     : web::EventTarget(settings),
-      settings_(settings),
       script_url_(scriptURL),
       worker_options_(worker_options) {
   Initialize();
@@ -70,23 +69,19 @@ void DedicatedWorker::Initialize() {
   // 5. Let worker URL be the resulting URL record.
   options.web_options.stack_size = cobalt::browser::kWorkerStackSize;
   options.web_options.network_module =
-      base::polymorphic_downcast<web::EnvironmentSettings*>(settings_)
-          ->context()
-          ->network_module();
+      environment_settings()->context()->network_module();
   // 6. Let worker be a new Worker object.
-  worker_.reset(new Worker());
   // 7. Let outside port be a new MessagePort in outside settings's Realm.
   // 8. Associate the outside port with worker.
-  outside_port_ = new MessagePort(this, settings_);
+  outside_port_ = new MessagePort(this, environment_settings());
   // 9. Run this step in parallel:
   //    1. Run a worker given worker, worker URL, outside settings, outside
   //    port, and options.
-  options.outside_settings =
-      base::polymorphic_downcast<web::EnvironmentSettings*>(settings_);
+  options.outside_settings = environment_settings();
   options.outside_port = outside_port_.get();
   options.options = worker_options_;
 
-  worker_->Run(options);
+  worker_.reset(new Worker(options));
   // 10. Return worker.
 }
 

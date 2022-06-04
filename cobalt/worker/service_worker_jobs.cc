@@ -560,6 +560,7 @@ void ServiceWorkerJobs::Update(Job* job) {
   //   8.7.1. Invoke Reject Job Promise with job and "SecurityError"
   //          DOMException.
   //   8.7.2. Asynchronously complete these steps with a network error.
+  // TODO(b/235393876): Implement Service-Worker-Allowed.
   //   8.8.  Let serviceWorkerAllowed be the result of extracting header list
   //         values given `Service-Worker-Allowed` and response’s header list.
   //   8.9.  Set policyContainer to the result of creating a policy container
@@ -605,11 +606,14 @@ void ServiceWorkerJobs::UpdateOnContentProduced(
     std::unique_ptr<std::string> content) {
   TRACE_EVENT0("cobalt::worker",
                "ServiceWorkerJobs::UpdateOnContentProduced()");
+  DCHECK_EQ(message_loop(), base::MessageLoop::current());
   // Note: There seems to be missing handling of network errors here.
   //   8.17. Let url be request’s url.
   //   8.18. Set updatedResourceMap[url] to response.
-  state->updated_resource_map.insert(
+  auto result = state->updated_resource_map.insert(
       std::make_pair(state->job->script_url, std::move(content)));
+  // Assert that the insert was successful.
+  DCHECK(result.second);
   //   8.19. If response’s cache state is not "local", set registration’s last
   //         update check time to the current time.
   //   8.20. Set hasUpdatedResources to true if any of the following are true:
@@ -632,34 +636,6 @@ void ServiceWorkerJobs::UpdateOnContentProduced(
       }
     }
   }
-
-  // TODO(b/228900516): The logic below is needed for importScripts().
-  //   8.21. If hasUpdatedResources is false and newestWorker’s classic
-  //         scripts imported flag is set, then:
-  //   8.21.1. For each importUrl → storedResponse of newestWorker’s script
-  //           resource map:
-  //   8.21.1.1. If importUrl is url, then continue.
-  //   8.21.1.2. Let importRequest be a new request whose url is importUrl,
-  //             client is job’s client, destination is "script", parser
-  //             metadata is "not parser-inserted", synchronous flag is set,
-  //             and whose use-URL-credentials flag is set.
-  //   8.21.1.3. Set importRequest’s cache mode to "no-cache" if any of the
-  //             following are true:
-  //               - registration’s update via cache mode is "none".
-  //               - job’s force bypass cache flag is set.
-  //               - registration is stale.
-  //   8.21.1.4. Let fetchedResponse be the result of fetching importRequest.
-  //   8.21.1.5. Set updatedResourceMap[importRequest’s url] to
-  //             fetchedResponse.
-  //   8.21.1.6. Set fetchedResponse to fetchedResponse’s unsafe response.
-  //   8.21.1.7. If fetchedResponse’s cache state is not
-  //             "local", set registration’s last update check time to the
-  //             current time.
-  //   8.21.1.8. If fetchedResponse is a bad import script response, continue.
-  //   8.21.1.9. If fetchedResponse’s body is not byte-for-byte identical with
-  //             storedResponse’s unsafe response's body, set
-  //             hasUpdatedResources to true.
-  //   8.22. Asynchronously complete these steps with response.
 }
 
 void ServiceWorkerJobs::UpdateOnLoadingComplete(
@@ -667,8 +643,21 @@ void ServiceWorkerJobs::UpdateOnLoadingComplete(
     const base::Optional<std::string>& error) {
   TRACE_EVENT0("cobalt::worker",
                "ServiceWorkerJobs::UpdateOnLoadingComplete()");
-  // TODO(b/228900516): This shouldn't run until the load for each script from
-  // the script resource map completes (step 8.22).
+  DCHECK_EQ(message_loop(), base::MessageLoop::current());
+  //   8.21. If hasUpdatedResources is false and newestWorker’s classic
+  //         scripts imported flag is set, then:
+  if (!state->has_updated_resources &&
+      state->newest_worker->classic_scripts_imported()) {
+    // This checks if there are any updates to already stored importScripts
+    // resources.
+    if (state->newest_worker->worker_global_scope()
+            ->LoadImportsAndReturnIfUpdated(
+                state->newest_worker->script_resource_map(),
+                &state->updated_resource_map)) {
+      state->has_updated_resources = true;
+    }
+  }
+  //   8.22. Asynchronously complete these steps with response.
 
   // When the algorithm asynchronously completes, continue the rest of these
   // steps, with script being the asynchronous completion value.
@@ -722,7 +711,7 @@ void ServiceWorkerJobs::UpdateOnLoadingComplete(
   worker->set_script_url(state->job->script_url);
   worker->set_script_resource_map(std::move(state->updated_resource_map));
   // 13. Append url to worker’s set of used scripts.
-  // -> The script resource map contains the used scripts.
+  worker->AppendToSetOfUsedScripts(state->job->script_url);
   // 14. Set worker’s script resource’s policy container to policyContainer.
   // 15. Let forceBypassCache be true if job’s force bypass cache flag is
   //     set, and false otherwise.
@@ -771,9 +760,8 @@ std::string* ServiceWorkerJobs::RunServiceWorker(ServiceWorkerObject* worker,
   // 4. Assert: serviceWorker’s start status is null.
   DCHECK(worker->start_status() == nullptr);
   // 5. Let script be serviceWorker’s script resource.
-  std::string* script = worker->LookupScriptResource();
   // 6. Assert: script is not null.
-  DCHECK(script != nullptr);
+  DCHECK(worker->HasScriptResource());
   // 7. Let startFailed be false.
   worker->store_start_failed(false);
   // 8. Let agent be the result of obtaining a service worker agent, and run the
@@ -930,11 +918,12 @@ void ServiceWorkerJobs::Install(
     FinishJob(job);
     return;
   }
-  // Note: The logic below is for scripts added with importScript().
   // 13. Let map be registration’s installing worker's script resource map.
   // 14. Let usedSet be registration’s installing worker's set of used scripts.
   // 15. For each url of map:
   // 15.1. If usedSet does not contain url, then remove map[url].
+  registration->installing_worker()->PurgeScriptResourceMap();
+
   // 16. If registration’s waiting worker is not null, then:
   if (registration->waiting_worker()) {
     // 16.1. Terminate registration’s waiting worker.
@@ -1753,7 +1742,7 @@ void ServiceWorkerJobs::GetRegistrationSubSteps(
 
 void ServiceWorkerJobs::SkipWaitingSubSteps(
     web::EnvironmentSettings* client,
-    scoped_refptr<ServiceWorkerObject> service_worker,
+    const base::WeakPtr<ServiceWorkerObject>& service_worker,
     std::unique_ptr<script::ValuePromiseVoid::Reference> promise_reference) {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerJobs::SkipWaitingSubSteps()");
   DCHECK_EQ(message_loop(), base::MessageLoop::current());
@@ -1761,7 +1750,7 @@ void ServiceWorkerJobs::SkipWaitingSubSteps(
   //   https://w3c.github.io/ServiceWorker/#dom-serviceworkerglobalscope-skipwaiting
 
   // 2.1. Set service worker's skip waiting flag.
-  service_worker->set_skip_waiting(true);
+  service_worker->set_skip_waiting();
 
   // 2.2. Invoke Try Activate with service worker's containing service worker
   // registration.

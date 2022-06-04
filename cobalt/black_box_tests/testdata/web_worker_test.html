@@ -30,36 +30,71 @@
     console.log('running');
     var worker = new Worker('web_worker_test.js');
     console.log(worker);
-    var data = "window data";
     worker.onmessage = function (event) {
-        console.log('window got onmessage from worker: ' + event.data);
         message_event_count += 1;
-        if (message_event_count == 1) {
-            assertEqual(event.data, 'worker data');
-        } else if (message_event_count % 2 == 0) {
-            assertEqual(event.data, 'worker received correct message');
-        } else {
-            assertEqual(event.data, data.toUpperCase());
-        }
-        if (message_event_count == 5) {
-            window.setTimeout(
-                () => {
-                    assertEqual(message_event_count, 5);
-                    onEndTest();
-                }, 250);
-        }
-        if (message_event_count > 5) {
-            notReached();
+        console.log('window got message', message_event_count, 'from worker:', event.data);
+        switch (message_event_count) {
+            case 1:
+                assertEqual('web worker test loaded', event.data);
+                break;
+            case 2:
+                // The first script is expected to execute even though the next
+                // one has a syntax error.
+                assertEqual('Imported Script 1', event.data);
+                break;
+            case 3:
+                assertEqual('Imported Script Before Syntax Error', event.data);
+                break;
+            case 4:
+                assertEqual('Expected exception message 4: SyntaxError', event.data);
+                break;
+            case 5:
+                assertEqual('Expected exception message 5: SyntaxError', event.data);
+                worker.postMessage('import scripts now');
+                worker.postMessage('just some data');
+                worker.postMessage('a special message');
+                break;
+            case 6:
+                // Scripts loaded with importScripts are guaranteed to execute
+                // in order.
+                assertEqual('Imported Script 1', event.data);
+                break;
+            case 7:
+                assertEqual('Imported Script 2', event.data);
+                break;
+            case 8:
+                assertEqual('Imported Script 3', event.data);
+                break;
+            case 9:
+                assertEqual('worker received import scripts now', event.data);
+                break;
+            case 10:
+                assertEqual('IMPORT SCRIPTS NOW', event.data);
+                break;
+            case 11:
+                assertEqual('worker received just some data', event.data);
+                break;
+            case 12:
+                assertEqual('JUST SOME DATA', event.data);
+                break;
+            case 13:
+                assertEqual('worker received a special message', event.data);
+                break;
+            case 14:
+                assertEqual('A SPECIAL MESSAGE', event.data);
+                worker.terminate();
+                window.setTimeout(
+                    () => {
+                        assertEqual(14, message_event_count);
+                        onEndTest();
+                    }, 250);
+                break;
         }
     };
     worker.onerror = function (event) {
         console.log('window got onerror');
         notReached();
     };
-    console.log('posting', data);
-    worker.postMessage(data);
-    window.setTimeout(
-        () => { console.log('posting', data); worker.postMessage(data); }, 250);
     console.log('end');
 </script>
 </body>

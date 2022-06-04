@@ -21,3 +21,30 @@ self.onactivate = function (e) {
 }
 console.log('self.registration', self.registration);
 console.log('self.serviceWorker', self.serviceWorker);
+
+console.log('Worker importing scripts with syntax error.');
+
+try {
+  self.importScripts(
+    'service_worker_test_importscripts_1.js',
+    'service_worker_test_importscripts_with_syntax_error.js',
+    'service_worker_test_importscripts_3.js');
+} catch (e) {
+  message = 'Expected exception message: ' + e;
+  console.log(message);
+}
+
+console.log('Worker importing scripts invalid URL.');
+
+try {
+  self.importScripts('...:...');
+} catch (e) {
+  message = 'Expected exception message: ' + e;
+  console.log(message);
+}
+
+console.log('Worker importing scripts sunnyday.');
+
+self.importScripts('service_worker_test_importscripts_1.js',
+  'service_worker_test_importscripts_2.js',
+  'service_worker_test_importscripts_3.js');
