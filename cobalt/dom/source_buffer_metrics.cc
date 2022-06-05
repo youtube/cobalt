@@ -27,7 +27,6 @@ namespace dom {
 namespace {
 
 int GetBandwidth(std::size_t size, SbTimeMonotonic duration) {
-  DCHECK_NE(duration, 0);
   return duration == 0 ? 0 : size * kSbTimeSecond / duration;
 }
 
