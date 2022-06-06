@@ -27,11 +27,11 @@ jobs:
       matrix:
         service:
           - build-android
-          - build-base
+            #- build-base
           - build-evergreen
-          - build-linux
-          - build-linux-stub
-          - build-raspi
+          - linux-x64x11
+          - stub
+          - raspi
 
     runs-on: ubuntu-latest
     steps:
