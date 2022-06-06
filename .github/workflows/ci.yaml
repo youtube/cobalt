@@ -79,40 +79,6 @@ jobs:
         if: ${{ (steps.changed-files.outputs.any_changed == 'true') && (github.event_name != 'pull_request') }}
         run: docker push ${{ steps.meta.outputs.tags }}
 
-  # Raspi Jobs.
-  raspi:
-    needs: docker-image-build
-    # The type of runner that the job will run on
-    runs-on: [self-hosted, linux, X64]
-    name: ${{matrix.platform}}-${{matrix.config}}
-    # Create config matrix
-    strategy:
-      fail-fast: false
-      matrix:
-        platform: [raspi-2,
-                   raspi-2-skia,
-                   raspi-2-sbversion-12,
-                   raspi-2-sbversion-13]
-        config: [devel, debug, gold, qa]
-      # The container to run the job in.
-    container: ghcr.io/isarkis/cobalt-build-raspi:main
-    # Steps represent a sequence of tasks that will be executed as part of the job
-    env:
-      IS_CI: 1
-      IS_DOCKER: 1
-      PLATFORM: raspi-2
-      CONFIG: ${{ matrix.config }}
-    steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - name: checkout
-        uses: actions/checkout@v2
-      # Run build
-      - name: ${{matrix.platform}}-${{matrix.config}}
-        run: |
-          export PYTHONPATH=$GITHUB_WORKSPACE
-          gn gen $GITHUB_WORKSPACE/out/$PLATFORM_${{ matrix.config }} --args="target_platform=\"$PLATFORM\" build_type=\"${{ matrix.config }}\" target_cpu=\"arm\" is_clang=false"
-          ninja -v -C $GITHUB_WORKSPACE/out/$PLATFORM_${{ matrix.config }} all
-  
   # Linux jobs.
   linux:
     needs: docker-image-build
