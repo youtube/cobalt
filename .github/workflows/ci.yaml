@@ -113,40 +113,6 @@ jobs:
           gn gen $GITHUB_WORKSPACE/out/$PLATFORM_${{ matrix.config }} --args="target_platform=\"$PLATFORM\" build_type=\"${{ matrix.config }}\" target_cpu=\"arm\" is_clang=false"
           ninja -v -C $GITHUB_WORKSPACE/out/$PLATFORM_${{ matrix.config }} all
   
-  # Evergreen x86 jobs.
-  evergreen-x86:
-    needs: docker-image-build
-    # The type of runner that the job will run on
-    runs-on: [self-hosted, linux, X64]
-    name: ${{matrix.platform}}-${{matrix.config}}
-    env:
-      IS_CI: 1
-      IS_DOCKER: 1
-      PLATFORM: evergreen-x86
-      CONFIG: ${{ matrix.config }}
-      TARGET_CPU: x86
-    # Create config matrix
-    strategy:
-      fail-fast: false
-      matrix:
-        platform: [evergreen-x86,
-                   evergreen-x86-sbversion-14,
-                   evergreen-x86-sbversion-13,
-                   evergreen-x86-sbversion-12]
-        config: [devel, debug, gold, qa]
-    container: ghcr.io/isarkis/cobalt-build-evergreen:main
-    # Steps represent a sequence of tasks that will be executed as part of the job
-    steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - name: checkout
-        uses: actions/checkout@v2
-      # Run build
-      - name: ${{matrix.platform}}-${{matrix.config}}
-        run: |
-          export PYTHONPATH=$GITHUB_WORKSPACE
-          gn gen $GITHUB_WORKSPACE/out/$PLATFORM_${{ matrix.config }} --args="target_platform=\"$PLATFORM\" build_type=\"${{ matrix.config }}\" target_cpu=\"$TARGET_CPU\" is_clang=false"
-          ninja -v -C $GITHUB_WORKSPACE/out/$PLATFORM_${{ matrix.config }} all
-  
   # Linux jobs.
   linux:
     needs: docker-image-build
