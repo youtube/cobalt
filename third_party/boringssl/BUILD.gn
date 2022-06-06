@@ -103,8 +103,8 @@ static_library("crypto") {
       calling_convention = sabi_variables.calling_convention
       if ((calling_convention != "aarch64" && calling_convention != "eabi" &&
            calling_convention != "sysv" && calling_convention != "windows") ||
-          (asm_target_arch != "x86" || asm_target_arch != "x64" ||
-           asm_target_arch != "arm" || asm_target_arch != "arm64")) {
+          (asm_target_arch != "x86" && asm_target_arch != "x64" &&
+           asm_target_arch != "arm" && asm_target_arch != "arm64")) {
         defines = [ "OPENSSL_NO_ASM" ]
       } else {
         if (calling_convention == "aarch64" || calling_convention == "eabi" ||
