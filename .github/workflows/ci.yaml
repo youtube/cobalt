@@ -98,6 +98,9 @@ jobs:
       # The container to run the job in.
     container: ghcr.io/isarkis/cobalt-build-raspi:main
     # Steps represent a sequence of tasks that will be executed as part of the job
+    env:
+      PLATFORM: ${{ matrix.platform }}
+      CONFIG: ${{ matrix.config }}
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - name: checkout
