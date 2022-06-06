@@ -100,7 +100,6 @@ jobs:
     env:
       IS_CI: 1
       IS_DOCKER: 1
-      PYTHONPATH: ${{ env.workspace }}
       PLATFORM: ${{ matrix.platform }}
       CONFIG: ${{ matrix.config }}
     steps:
@@ -110,6 +109,7 @@ jobs:
       # Run build
       - name: ${{matrix.platform}}-${{matrix.config}}
         run: |
+          export PYTHONPATH=$GITHUB_WORKSPACE
           gn gen $GITHUB_WORKSPACE/out/${{ matrix.platform }}_${{ matrix.config }} --args="target_platform=\"${{ matrix.platform }}\" build_type=\"${{ matrix.config }}\" target_cpu=\"arm\" is_clang=false"
           ninja -v -C $GITHUB_WORKSPACE/out/${{ matrix.platform }}_${{ matrix.config }} all
   
