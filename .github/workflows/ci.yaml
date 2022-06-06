@@ -79,8 +79,8 @@ jobs:
         if: ${{ (steps.changed-files.outputs.any_changed == 'true') && (github.event_name != 'pull_request') }}
         run: docker push ${{ steps.meta.outputs.tags }}
 
-  # Linux jobs.
-  linux:
+  # Raspi Jobs.
+  raspi:
     needs: docker-image-build
     # The type of runner that the job will run on
     runs-on: [self-hosted, linux, X64]
@@ -89,14 +89,51 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [linux-x64x11,
-                   linux-x64x11-egl,
-                   linux-x64x11-sbversion-11,
-                   linux-x64x11-sbversion-12,
-                   linux-x64x11-sbversion-13,
-                   linux-x64x11-skia]
+        platform: [raspi-2,
+                   raspi-2-skia,
+                   raspi-2-sbversion-12,
+                   raspi-2-sbversion-13]
         config: [devel, debug]
-    container: ghcr.io/isarkis/cobalt-build-linux:main
+      # The container to run the job in.
+    container: ghcr.io/isarkis/cobalt-build-raspi:main
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    env:
+      IS_CI: 1
+      IS_DOCKER: 1
+      PLATFORM: ${{ matrix.platform }}
+      CONFIG: ${{ matrix.config }}
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - name: checkout
+        uses: actions/checkout@v2
+      # Run build
+      - name: ${{matrix.platform}}-${{matrix.config}}
+        run: |
+          export PYTHONPATH=$GITHUB_WORKSPACE
+          gn gen $GITHUB_WORKSPACE/out/${{ matrix.platform }}_${{ matrix.config }} --args="target_platform=\"${{ matrix.platform }}\" build_type=\"${{ matrix.config }}\" target_cpu=\"arm\" is_clang=false"
+          ninja -v -C $GITHUB_WORKSPACE/out/${{ matrix.platform }}_${{ matrix.config }} all
+  
+  # Evergreen jobs.
+  evergreen:
+    needs: docker-image-build
+    # The type of runner that the job will run on
+    runs-on: [self-hosted, linux, X64]
+    name: ${{matrix.platform}}-${{matrix.config}}
+    # Create config matrix
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [evergreen-x86,
+                   evergreen-x86-sbversion-13,
+                   evergreen-x86-sbversion-12,
+                   evergreen-arm-softfp,
+                   evergreen-arm-softfp-sbversion-13,
+                   evergreen-arm-softfp-sbversion-12,
+                   evergreen-arm64,
+                   evergreen-arm64-sbversion-13,
+                   evergreen-arm64-sbversion-12]
+        config: [devel, debug]
+    container: ghcr.io/isarkis/cobalt-build-evergreen:main
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
@@ -108,50 +145,6 @@ jobs:
           $GITHUB_WORKSPACE/cobalt/build/gyp_cobalt -v -C ${{ matrix.config }} ${{ matrix.platform }}
           ninja -v -j 30 -C $GITHUB_WORKSPACE/out/${{ matrix.platform }}_${{ matrix.config }} eztime_test_deploy nplb_deploy app_launcher_zip
   
-  # Android jobs.
-  android:
-    needs: docker-image-build
-    # The type of runner that the job will run on
-    runs-on: [self-hosted, linux, X64]
-    name: ${{matrix.platform}}-${{matrix.config}}
-    # Create config matrix
-    strategy:
-      fail-fast: false
-      matrix:
-        platform: [android-arm64, android-arm, android-x86]
-        config: [devel, debug]
-    container: ghcr.io/isarkis/cobalt-build-android:main
-    # Steps represent a sequence of tasks that will be executed as part of the job
-    steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - name: checkout
-        uses: actions/checkout@v2
-      # Run build
-      - name: ${{matrix.platform}}-${{matrix.config}}
-        run: |
-          $GITHUB_WORKSPACE/cobalt/build/gyp_cobalt -v -C ${{ matrix.config }} ${{ matrix.platform }}
-          ninja -v -j 30 -C $GITHUB_WORKSPACE/out/${{ matrix.platform }}_${{ matrix.config }} eztime_test_deploy nplb_deploy app_launcher_zip
-
-  # Win-Win32 Jobs.
-  #win-win32:
-  #  needs: docker-image-build
-    # The type of runner that the job will run on
-    #  runs-on: [self-hosted, X64, windows]
-    #name: ${{matrix.platform}}-${{matrix.config}}
-    # Create config matrix
-    #strategy:
-    #  fail-fast: false
-    #  matrix:
-    #    platform: [win-win32]
-    #    config: [devel, debug]
-    # Steps represent a sequence of tasks that will be executed as part of the job
-    #steps:
-      # Checkout cobalt repo.
-      # - uses: actions/checkout@v2
-      # Run build
-      # - name: echo
-      #  run: |
-      #    powershell echo ${{matrix.platform}}-${{matrix.config}}
   # Linux jobs.
   linux:
     needs: docker-image-build
