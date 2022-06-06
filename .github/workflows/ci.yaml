@@ -98,6 +98,9 @@ jobs:
     container: ghcr.io/isarkis/cobalt-build-raspi:main
     # Steps represent a sequence of tasks that will be executed as part of the job
     env:
+      IS_CI: 1
+      IS_DOCKER: 1
+      PYTHONPATH: $GITHUB_WORKSPACE
       PLATFORM: ${{ matrix.platform }}
       CONFIG: ${{ matrix.config }}
     steps:
