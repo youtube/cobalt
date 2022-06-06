@@ -19,6 +19,7 @@
 
 #include "starboard/atomic.h"
 #include "starboard/shared/starboard/thread_checker.h"
+#include "starboard/shared/uwp/wasapi_include.h"
 #include "starboard/shared/win32/atomic_queue.h"
 #include "starboard/shared/win32/audio_decoder.h"
 #include "starboard/shared/win32/audio_transform.h"
@@ -35,10 +36,23 @@ using ::starboard::shared::starboard::ThreadChecker;
 using ::starboard::shared::win32::CreateAudioTransform;
 
 const size_t kAacSamplesPerFrame = 1024;
-// We are using float samples on Xb1.
-const size_t kBytesPerSample = sizeof(float);
+// We are using float samples for AAC on Xb1.
+const size_t kAacBytesPerSample = sizeof(float);
 
 namespace {
+size_t GetExpectedBufferSize(SbMediaAudioCodec codec, int num_channels) {
+  switch (codec) {
+    case kSbMediaAudioCodecAac:
+      return num_channels * kAacSamplesPerFrame * kAacBytesPerSample;
+    case kSbMediaAudioCodecAc3:
+      return kAc3BufferSize;
+    case kSbMediaAudioCodecEac3:
+      return kEac3BufferSize;
+    default:
+      SB_NOTREACHED();
+      return size_t(0);
+  }
+}
 
 class AbstractWin32AudioDecoderImpl : public AbstractWin32AudioDecoder {
  public:
@@ -53,12 +67,27 @@ class AbstractWin32AudioDecoderImpl : public AbstractWin32AudioDecoder {
         sample_type_(sample_type),
         number_of_channels_(audio_sample_info.number_of_channels),
         heaac_detected_(false),
-        samples_per_second_(
-            static_cast<int>(audio_sample_info.samples_per_second)) {
+        expected_buffer_size_(
+            GetExpectedBufferSize(codec,
+                                  audio_sample_info.number_of_channels)) {
     scoped_ptr<MediaTransform> audio_decoder =
         CreateAudioTransform(audio_sample_info, codec_);
     impl_.reset(
         new DecryptingDecoder("audio", audio_decoder.Pass(), drm_system));
+    switch (codec) {
+      case kSbMediaAudioCodecAc3:
+        samples_per_second_ = kAc3SamplesPerSecond;
+        number_of_channels_ = kIec60958Channels;
+        break;
+      case kSbMediaAudioCodecEac3:
+        samples_per_second_ = kEac3SamplesPerSecond;
+        number_of_channels_ = kIec60958Channels;
+        break;
+      default:
+        samples_per_second_ =
+            static_cast<int>(audio_sample_info.samples_per_second);
+        number_of_channels_ = audio_sample_info.number_of_channels;
+    }
   }
 
   void Consume(ComPtr<IMFSample> sample) {
@@ -86,13 +115,18 @@ class AbstractWin32AudioDecoderImpl : public AbstractWin32AudioDecoder {
     const uint8_t* data = reinterpret_cast<uint8_t*>(buffer);
     const size_t data_size = static_cast<size_t>(length);
 
-    const size_t expect_size_in_bytes =
-        number_of_channels_ * kAacSamplesPerFrame * kBytesPerSample;
-    if (data_size / expect_size_in_bytes == 2) {
+    if (codec_ == kSbMediaAudioCodecAac &&
+        (data_size / expected_buffer_size_ == 2)) {
       heaac_detected_.store(true);
     }
 
-    const size_t decoded_data_size = std::max(expect_size_in_bytes, data_size);
+    const size_t decoded_data_size = std::max(expected_buffer_size_, data_size);
+
+    if (codec_ == kSbMediaAudioCodecAc3) {
+      SB_DCHECK(decoded_data_size == kAc3BufferSize);
+    } else if (codec_ == kSbMediaAudioCodecEac3) {
+      SB_DCHECK(decoded_data_size == kEac3BufferSize);
+    }
 
     DecodedAudioPtr data_ptr(
         new DecodedAudio(number_of_channels_, sample_type_, audio_frame_fmt_,
@@ -109,12 +143,14 @@ class AbstractWin32AudioDecoderImpl : public AbstractWin32AudioDecoder {
   bool TryWrite(const scoped_refptr<InputBuffer>& buff) override {
     SB_DCHECK(thread_checker_.CalledOnValidThread());
 
-    // The incoming audio is in ADTS format which has a 7 bytes header.  But
-    // the audio decoder is configured to accept raw AAC.  So we have to adjust
-    // the data, size, and subsample mapping to skip the ADTS header.
-    const int kADTSHeaderSize = 7;
-    const bool write_ok = impl_->TryWriteInputBuffer(buff, kADTSHeaderSize);
-    return write_ok;
+    if (codec_ == kSbMediaAudioCodecAac) {
+      // The incoming audio is in ADTS format which has a 7 bytes header.  But
+      // the audio decoder is configured to accept raw AAC.  So we have to
+      // adjust the data, size, and subsample mapping to skip the ADTS header.
+      const int kADTSHeaderSize = 7;
+      return impl_->TryWriteInputBuffer(buff, kADTSHeaderSize);
+    }
+    return impl_->TryWriteInputBuffer(buff, 0);
   }
 
   void WriteEndOfStream() override {
@@ -182,6 +218,7 @@ class AbstractWin32AudioDecoderImpl : public AbstractWin32AudioDecoder {
   uint16_t number_of_channels_;
   atomic_bool heaac_detected_;
   int samples_per_second_;
+  const size_t expected_buffer_size_;
 };
 
 }  // anonymous namespace.

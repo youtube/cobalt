@@ -17,6 +17,7 @@
 #include <vector>
 
 #include "starboard/memory.h"
+#include "starboard/shared/uwp/wasapi_include.h"
 #include "starboard/shared/win32/error_utils.h"
 #include "starboard/shared/win32/media_common.h"
 #include "starboard/shared/win32/media_foundation_utils.h"
@@ -40,6 +41,12 @@ GUID ConvertToWin32AudioCodec(SbMediaAudioCodec codec) {
     case kSbMediaAudioCodecOpus: {
       return MFAudioFormat_Opus;
     }
+    case kSbMediaAudioCodecAc3: {
+      return MFAudioFormat_Dolby_AC3;
+    }
+    case kSbMediaAudioCodecEac3: {
+      return MFAudioFormat_Dolby_DDPlus;
+    }
     default: {
       SB_NOTIMPLEMENTED();
       return MFAudioFormat_PCM;
@@ -47,9 +54,55 @@ GUID ConvertToWin32AudioCodec(SbMediaAudioCodec codec) {
   }
 }
 
+GUID ConvertToWin32TransformType(SbMediaAudioCodec codec) {
+  switch (codec) {
+    case kSbMediaAudioCodecAac: {
+      return CLSID_MSAACDecMFT;
+    }
+    case kSbMediaAudioCodecAc3:
+    case kSbMediaAudioCodecEac3: {
+      return CLSID_MSDDPlusDecMFT;
+    }
+    default: {
+      SB_NOTIMPLEMENTED();
+      return MFAudioFormat_Float;
+    }
+  }
+}
+
+GUID ConvertToWin32OutputFormat(SbMediaAudioCodec codec) {
+  switch (codec) {
+    case kSbMediaAudioCodecAac:
+    case kSbMediaAudioCodecOpus:
+    case kSbMediaAudioCodecNone: {
+      return MFAudioFormat_Float;
+    }
+    case kSbMediaAudioCodecAc3: {
+      return MFAudioFormat_Dolby_AC3_SPDIF;
+    }
+    case kSbMediaAudioCodecEac3: {
+      return KSDATAFORMAT_SUBTYPE_IEC61937_DOLBY_DIGITAL_PLUS;
+    }
+    default: {
+      SB_NOTIMPLEMENTED();
+      return MFAudioFormat_Float;
+    }
+  }
+}
+
 class WinAudioFormat {
  public:
   explicit WinAudioFormat(const SbMediaAudioSampleInfo& audio_sample_info) {
+    if (audio_sample_info.codec == kSbMediaAudioCodecAac) {
+      CreateAacAudioFormat(audio_sample_info);
+    } else {
+      SB_DCHECK(audio_sample_info.codec == kSbMediaAudioCodecAc3 ||
+                audio_sample_info.codec == kSbMediaAudioCodecEac3);
+      CreateAc3AudioFormat(audio_sample_info);
+    }
+  }
+
+  void CreateAacAudioFormat(const SbMediaAudioSampleInfo& audio_sample_info) {
     // The HEAACWAVEFORMAT structure has many specializations with varying data
     // appended at the end.
     // The "-1" is used to account for pbAudioSpecificConfig[1] at the end of
@@ -78,9 +131,30 @@ class WinAudioFormat {
 
     if (audio_sample_info.audio_specific_config_size > 0) {
       memcpy(wave_format->pbAudioSpecificConfig,
-                   audio_sample_info.audio_specific_config,
-                   audio_sample_info.audio_specific_config_size);
+             audio_sample_info.audio_specific_config,
+             audio_sample_info.audio_specific_config_size);
     }
+  }
+
+  void CreateAc3AudioFormat(const SbMediaAudioSampleInfo& audio_sample_info) {
+    format_buffer_.resize(sizeof(WAVEFORMATEXTENSIBLE));
+    WAVEFORMATEXTENSIBLE* wave_format =
+        reinterpret_cast<WAVEFORMATEXTENSIBLE*>(format_buffer_.data());
+
+    wave_format->Format.wFormatTag = WAVE_FORMAT_EXTENSIBLE;
+    wave_format->Format.nChannels = audio_sample_info.number_of_channels;
+    wave_format->Format.wBitsPerSample = audio_sample_info.bits_per_sample;
+    wave_format->Format.nSamplesPerSec = audio_sample_info.samples_per_second;
+    wave_format->Format.nBlockAlign = audio_sample_info.block_alignment;
+    wave_format->Format.nAvgBytesPerSec = 0;
+    wave_format->Format.cbSize =
+        sizeof(WAVEFORMATEXTENSIBLE) - sizeof(WAVEFORMATEX);
+    wave_format->Samples.wValidBitsPerSample =
+        wave_format->Format.wBitsPerSample;
+    wave_format->dwChannelMask = audio_sample_info.number_of_channels > 2
+                                     ? KSAUDIO_SPEAKER_5POINT1
+                                     : KSAUDIO_SPEAKER_STEREO;
+    wave_format->SubFormat = ConvertToWin32AudioCodec(audio_sample_info.codec);
   }
 
   WAVEFORMATEX* WaveFormatData() {
@@ -97,8 +171,12 @@ class WinAudioFormat {
 scoped_ptr<MediaTransform> CreateAudioTransform(
     const SbMediaAudioSampleInfo& audio,
     SbMediaAudioCodec codec) {
+  SB_DCHECK(codec == kSbMediaAudioCodecAac || codec == kSbMediaAudioCodecAc3 ||
+            codec == kSbMediaAudioCodecEac3);
   ComPtr<IMFTransform> transform;
-  HRESULT hr = CreateDecoderTransform(CLSID_MSAACDecMFT, &transform);
+  HRESULT hr =
+      CreateDecoderTransform(ConvertToWin32TransformType(codec), &transform);
+
   CheckResult(hr);
 
   ComPtr<IMFMediaType> input_type;
@@ -123,7 +201,7 @@ scoped_ptr<MediaTransform> CreateAudioTransform(
 
   scoped_ptr<MediaTransform> output(new MediaTransform(transform));
   output->SetInputType(selected);
-  output->SetOutputTypeBySubType(MFAudioFormat_Float);
+  output->SetOutputTypeBySubType(ConvertToWin32OutputFormat(codec));
 
   return output.Pass();
 }
