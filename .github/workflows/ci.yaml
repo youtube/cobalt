@@ -100,7 +100,7 @@ jobs:
     env:
       IS_CI: 1
       IS_DOCKER: 1
-      PYTHONPATH: ${{ env.GITHUB_WORKSPACE }}
+      PYTHONPATH: ${{ env.workspace }}
       PLATFORM: ${{ matrix.platform }}
       CONFIG: ${{ matrix.config }}
     steps:
