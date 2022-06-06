@@ -291,3 +291,16 @@ class AbstractLauncher(object):
       The path to an executable target.
     """
     return os.path.abspath(os.path.join(self.out_directory, self.target_name))
+
+  def GetInstallTargetPath(self):
+    """Constructs the path to an executable target in install dir.
+
+    The default path returned by this method takes the form of:
+
+      "/path/to/out/<platform>_<config>/install/target_name"
+
+    Returns:
+      The path to an executable target.
+    """
+    return os.path.abspath(
+        os.path.join(self.out_directory, "install", self.target_name))
