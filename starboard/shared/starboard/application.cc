@@ -367,7 +367,6 @@ bool Application::DispatchAndDelete(Application::Event* event) {
           HandleEventAndUpdateState(scoped_event.release());
           return true;
         case kStateConcealed:
-          OnSuspend();
           break;
         case kStateFrozen:
         case kStateStopped:
@@ -379,7 +378,6 @@ bool Application::DispatchAndDelete(Application::Event* event) {
         case kStateStopped:
           return true;
         case kStateFrozen:
-          OnResume();
           break;
         case kStateConcealed:
         case kStateBlurred:
@@ -482,9 +480,6 @@ bool Application::DispatchAndDelete(Application::Event* event) {
       if (state() == kStateStarted || state() == kStatePaused) {
         return true;
       }
-      if (state() == kStateSuspended) {
-        OnResume();
-      }
       break;
     case kSbEventTypeStop:
       // There is a race condition with kSbEventTypeStop processing and
@@ -527,7 +522,25 @@ bool Application::HandleEventAndUpdateState(Application::Event* event) {
   // Ensure the event is deleted unless it is released.
   scoped_ptr<Event> scoped_event(event);
 
+// Call OnSuspend() and OnResume() before the event as needed.
+#if SB_API_VERSION >= 13
+  if (scoped_event->event->type == kSbEventTypeUnfreeze &&
+      state() == kStateFrozen) {
+    OnResume();
+  } else if (scoped_event->event->type == kSbEventTypeFreeze &&
+             state() == kStateConcealed) {
+    OnSuspend();
+  }
+#else
+  if (scoped_event->event->type == kSbEventTypeResume &&
+      state() == kStateSuspended) {
+    OnResume();
+  }
+// OnSuspend() is called after SbEventHandle(kSbEventTypeSuspend).
+#endif  // SB_API_VERSION >= 13
+
   SbEventHandle(scoped_event->event);
+
 #if SB_API_VERSION >= 13
   switch (scoped_event->event->type) {
     case kSbEventTypePreload:
