@@ -31,11 +31,16 @@ RUN apt-get update && apt-get install -y \
     jq \
     && rm -rf /var/lib/apt/lists/*
 
-ADD files/sccache /usr/local/bin
+# === Install portable sccache binary
+ARG SCCACHE=sccache-v0.3.0-x86_64-unknown-linux-musl.tar.gz
+ARG SCCACHE_SHA256=e6cd8485f93d683a49c83796b9986f090901765aa4feb40d191b03ea770311d8
+RUN cd /tmp \
+    && curl -L -O https://github.com/mozilla/sccache/releases/download/v0.3.0/${SCCACHE} \
+    && echo "${SCCACHE_SHA256} *${SCCACHE}" | sha256sum -c - \
+    && tar xvzf ${SCCACHE} -C /usr/local/bin --strip-components=1 \
+    && chmod +x /usr/local/bin/sccache \
+    && rm -rf ${SCCACHE} \
+    && sccache --version
 
 # TODO: b/379174067 - Move variables out of container.
-ENV SCCACHE_GCS_BUCKET=githubactions-chrome-sccache
-ENV SCCACHE_GCS_RW_MODE=READ_WRITE
-ENV SCCACHE_GCS_KEY_PATH=/root/key.json
-ENV SCCACHE_GCS_SERVICE_ACCOUNT=github-actions-bucket-access@cobalt-demo-330821.iam.gserviceaccount.com
 ENV IS_CI=1
