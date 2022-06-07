@@ -305,7 +305,7 @@ jobs:
       - name: ${{matrix.platform}}-${{matrix.config}}
         run: |
           export PYTHONPATH=$GITHUB_WORKSPACE
-          gn gen $GITHUB_WORKSPACE/out/${{ matrix.target_platform }}_${{ matrix.config }} --args="target_platform=\"${{ matrix.target_platform }}\" ${{ sb_api_version }} is_internal_build=true build_type=\"${{ matrix.config }}\""
+          gn gen $GITHUB_WORKSPACE/out/${{ matrix.target_platform }}_${{ matrix.config }} --args="target_platform=\"${{ matrix.target_platform }}\" ${{ matrix.sb_api_version }} is_internal_build=true build_type=\"${{ matrix.config }}\""
           ninja -v -C $GITHUB_WORKSPACE/out/${{ matrix.target_platform }}_${{ matrix.config }} all
   
   # Android jobs.
