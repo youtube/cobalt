@@ -92,7 +92,8 @@ jobs:
         platform: [raspi-2,
                    raspi-2-skia,
                    raspi-2-sbversion-12,
-                   raspi-2-sbversion-13]
+                   raspi-2-sbversion-13,
+                   raspi-2-sbversion-14]
         config: [devel, debug, gold, qa]
       # The container to run the job in.
     container: ghcr.io/isarkis/cobalt-build-raspi:main
@@ -102,6 +103,7 @@ jobs:
       IS_DOCKER: 1
       PLATFORM: raspi-2
       CONFIG: ${{ matrix.config }}
+      TARGET_CPU: arm
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - name: checkout
@@ -110,7 +112,7 @@ jobs:
       - name: ${{matrix.platform}}-${{matrix.config}}
         run: |
           export PYTHONPATH=$GITHUB_WORKSPACE
-          gn gen $GITHUB_WORKSPACE/out/$PLATFORM_${{ matrix.config }} --args="target_platform=\"$PLATFORM\" build_type=\"${{ matrix.config }}\" target_cpu=\"arm\" is_clang=false"
+          gn gen $GITHUB_WORKSPACE/out/$PLATFORM_${{ matrix.config }} --args="target_platform=\"$PLATFORM\" build_type=\"${{ matrix.config }}\" target_cpu=\"$TARGET_CPU\" is_clang=false"
           ninja -v -C $GITHUB_WORKSPACE/out/$PLATFORM_${{ matrix.config }} all
 
   # Evergreen x86 jobs.
@@ -265,11 +267,27 @@ jobs:
       matrix:
         platform: [linux-x64x11,
                    linux-x64x11-egl,
+                   linux-x64x11-internal,
                    linux-x64x11-sbversion-11,
                    linux-x64x11-sbversion-12,
                    linux-x64x11-sbversion-13,
-                   linux-x64x11-skia]
-        config: [devel, debug]
+                   linux-x64x11-skia,
+                   source]
+        config: [devel, debug, gold, qa]
+        include:
+          - target_platform: ${{matrix.platform}}
+          - target_platform: linux-x64x11
+            platform: linux-x64x11-sbversion-11
+          - sb_api_version: sb_api_version=11
+            platform: linux-x64x11-sbversion-11
+          - target_platform: linux-x64x11
+            platform: linux-x64x11-sbversion-12
+          - sb_api_version: sb_api_version=12
+            platform: linux-x64x11-sbversion-12
+          - target_platform: linux-x64x11
+            platform: linux-x64x11-sbversion-13
+          - sb_api_version: sb_api_version=13
+            platform: linux-x64x11-sbversion-13
     container: ghcr.io/isarkis/cobalt-build-linux:main
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
@@ -279,8 +297,9 @@ jobs:
       # Run build
       - name: ${{matrix.platform}}-${{matrix.config}}
         run: |
-          $GITHUB_WORKSPACE/cobalt/build/gyp_cobalt -v -C ${{ matrix.config }} ${{ matrix.platform }}
-          ninja -v -j 30 -C $GITHUB_WORKSPACE/out/${{ matrix.platform }}_${{ matrix.config }} eztime_test_deploy nplb_deploy app_launcher_zip
+          export PYTHONPATH=$GITHUB_WORKSPACE
+          gn gen $GITHUB_WORKSPACE/out/${{ matrix.target_platform }}_${{ matrix.config }} --args="target_platform=\"${{ matrix.target_platform }}\" ${{ sb_api_version }} is_internal_build=true build_type=\"${{ matrix.config }}\""
+          ninja -v -C $GITHUB_WORKSPACE/out/${{ matrix.target_platform }}_${{ matrix.config }} all
   
   # Android jobs.
   android:
