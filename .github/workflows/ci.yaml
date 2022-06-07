@@ -261,6 +261,11 @@ jobs:
     # The type of runner that the job will run on
     runs-on: [self-hosted, linux, X64]
     name: ${{matrix.platform}}-${{matrix.config}}
+    env:
+      IS_CI: 1
+      IS_DOCKER: 1
+      PLATFORM: ${{ matrix.target_platform }}
+      CONFIG: ${{ matrix.config }}
     # Create config matrix
     strategy:
       fail-fast: false
@@ -271,8 +276,7 @@ jobs:
                    linux-x64x11-sbversion-11,
                    linux-x64x11-sbversion-12,
                    linux-x64x11-sbversion-13,
-                   linux-x64x11-skia,
-                   source]
+                   linux-x64x11-skia]
         config: [devel, debug, gold, qa]
         include:
           - target_platform: linux-x64x11
