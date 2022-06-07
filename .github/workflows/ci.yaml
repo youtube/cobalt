@@ -275,7 +275,14 @@ jobs:
                    source]
         config: [devel, debug, gold, qa]
         include:
-          - target_platform: ${{matrix.platform}}
+          - target_platform: linux-x64x11
+            platform: linux-x64x11
+          - target_platform: linux-x64x11-egl
+            platform: linux-x64x11-egl
+          - target_platform: linux-x64x11-internal
+            platform: linux-x64x11-internal
+          - target_platform: linux-x64x11-skia
+            platform: linux-x64x11-skia
           - target_platform: linux-x64x11
             platform: linux-x64x11-sbversion-11
           - sb_api_version: sb_api_version=11
