@@ -24,6 +24,14 @@
 namespace cobalt {
 namespace persistent_storage {
 
+namespace {
+
+// Protected persistent settings key indicating whether or not the persistent
+// settings file has been validated.
+const char kValidated[] = "validated";
+
+}  // namespace
+
 PersistentSettings::PersistentSettings(
     const std::string& file_name,
     scoped_refptr<base::SingleThreadTaskRunner> task_runner) {
@@ -41,6 +49,26 @@ PersistentSettings::PersistentSettings(
   pref_store_ = base::MakeRefCounted<JsonPrefStore>(
       base::FilePath(persistent_settings_file_));
   pref_store_->ReadPrefs();
+
+  validated_initial_settings_ = GetPersistentSettingAsBool(kValidated, false);
+  if (!validated_initial_settings_)
+    starboard::SbFileDeleteRecursive(persistent_settings_file_.c_str(), true);
+}
+
+void PersistentSettings::ValidatePersistentSettings() {
+  task_runner_->PostTask(
+      FROM_HERE,
+      base::BindOnce(&PersistentSettings::ValidatePersistentSettingsHelper,
+                     base::Unretained(this)));
+}
+
+void PersistentSettings::ValidatePersistentSettingsHelper() {
+  if (!validated_initial_settings_) {
+    pref_store_->SetValue(kValidated, std::make_unique<base::Value>(true),
+                          WriteablePrefStore::DEFAULT_PREF_WRITE_FLAGS);
+    pref_store_->CommitPendingWrite();
+    validated_initial_settings_ = true;
+  }
 }
 
 bool PersistentSettings::GetPersistentSettingAsBool(const std::string& key,
@@ -72,6 +100,10 @@ std::string PersistentSettings::GetPersistentSettingAsString(
 
 void PersistentSettings::SetPersistentSetting(
     const std::string& key, std::unique_ptr<base::Value> value) {
+  if (key == kValidated) {
+    SB_LOG(ERROR) << "Cannot set protected persistent setting: " << key;
+    return;
+  }
   task_runner_->PostTask(
       FROM_HERE, base::BindOnce(&PersistentSettings::SetPersistentSettingHelper,
                                 base::Unretained(this), key, std::move(value)));
@@ -79,9 +111,15 @@ void PersistentSettings::SetPersistentSetting(
 
 void PersistentSettings::SetPersistentSettingHelper(
     const std::string& key, std::unique_ptr<base::Value> value) {
-  pref_store_->SetValue(key, std::move(value),
-                        WriteablePrefStore::DEFAULT_PREF_WRITE_FLAGS);
-  pref_store_->CommitPendingWrite();
+  if (validated_initial_settings_) {
+    pref_store_->SetValue(kValidated, std::make_unique<base::Value>(false),
+                          WriteablePrefStore::DEFAULT_PREF_WRITE_FLAGS);
+    pref_store_->SetValue(key, std::move(value),
+                          WriteablePrefStore::DEFAULT_PREF_WRITE_FLAGS);
+    pref_store_->CommitPendingWrite();
+  } else {
+    SB_LOG(ERROR) << "Cannot set persistent setting while unvalidated: " << key;
+  }
 }
 
 void PersistentSettings::RemovePersistentSetting(const std::string& key) {
@@ -92,8 +130,15 @@ void PersistentSettings::RemovePersistentSetting(const std::string& key) {
 }
 
 void PersistentSettings::RemovePersistentSettingHelper(const std::string& key) {
-  pref_store_->RemoveValue(key, WriteablePrefStore::DEFAULT_PREF_WRITE_FLAGS);
-  pref_store_->CommitPendingWrite();
+  if (validated_initial_settings_) {
+    pref_store_->SetValue(kValidated, std::make_unique<base::Value>(false),
+                          WriteablePrefStore::DEFAULT_PREF_WRITE_FLAGS);
+    pref_store_->RemoveValue(key, WriteablePrefStore::DEFAULT_PREF_WRITE_FLAGS);
+    pref_store_->CommitPendingWrite();
+  } else {
+    SB_LOG(ERROR) << "Cannot remove persistent setting while unvalidated: "
+                  << key;
+  }
 }
 
 void PersistentSettings::DeletePersistentSettings() {
@@ -104,8 +149,12 @@ void PersistentSettings::DeletePersistentSettings() {
 }
 
 void PersistentSettings::DeletePersistentSettingsHelper() {
-  starboard::SbFileDeleteRecursive(persistent_settings_file_.c_str(), true);
-  pref_store_->ReadPrefs();
+  if (validated_initial_settings_) {
+    starboard::SbFileDeleteRecursive(persistent_settings_file_.c_str(), true);
+    pref_store_->ReadPrefs();
+  } else {
+    SB_LOG(ERROR) << "Cannot delete persistent setting while unvalidated.";
+  }
 }
 
 }  // namespace persistent_storage

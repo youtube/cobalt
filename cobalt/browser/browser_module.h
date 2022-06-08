@@ -60,6 +60,7 @@
 #include "cobalt/media/media_module.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/overlay_info/qr_code_overlay.h"
+#include "cobalt/persistent_storage/persistent_settings.h"
 #include "cobalt/render_tree/node.h"
 #include "cobalt/render_tree/resource_provider.h"
 #include "cobalt/render_tree/resource_provider_stub.h"
@@ -107,6 +108,7 @@ class BrowserModule {
     renderer::RendererModule::Options renderer_module_options;
     WebModule::Options web_module_options;
     media::MediaModule::Options media_module_options;
+    persistent_storage::PersistentSettings* persistent_settings;
     WebModuleCreatedCallback web_module_created_callback;
     memory_settings::AutoMemSettings command_line_auto_mem_settings;
     memory_settings::AutoMemSettings build_auto_mem_settings;

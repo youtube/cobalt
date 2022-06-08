@@ -36,6 +36,9 @@ class PersistentSettings {
       const std::string& file_name,
       scoped_refptr<base::SingleThreadTaskRunner> task_runner);
 
+  // Validates persistent settings by restoring the file on successful start up.
+  void ValidatePersistentSettings();
+
   // Getters and Setters for persistent settings.
   bool GetPersistentSettingAsBool(const std::string& key, bool default_setting);
   int GetPersistentSettingAsInt(const std::string& key, int default_setting);
@@ -55,9 +58,15 @@ class PersistentSettings {
   scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
   // PrefStore used for persistent settings.
   scoped_refptr<JsonPrefStore> pref_store_;
+  // Flag indicating whether or not initial persistent settings have been
+  // validated.
+  bool validated_initial_settings_;
+
+  void ValidatePersistentSettingsHelper();
 
   void SetPersistentSettingHelper(const std::string& key,
                                   std::unique_ptr<base::Value> value);
+
   void RemovePersistentSettingHelper(const std::string& key);
 
   void DeletePersistentSettingsHelper();

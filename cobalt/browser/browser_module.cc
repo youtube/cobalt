@@ -682,6 +682,8 @@ void BrowserModule::OnLoad() {
   on_load_event_time_ = base::TimeTicks::Now().ToInternalValue();
 
   web_module_loaded_.Signal();
+
+  options_.persistent_settings->ValidatePersistentSettings();
 }
 
 bool BrowserModule::WaitForLoad(const base::TimeDelta& timeout) {
