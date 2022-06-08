@@ -24,16 +24,3 @@ static_library("persistent_settings") {
     "//starboard/common",
   ]
 }
-
-target(gtest_target_type, "persistent_settings_test") {
-  testonly = true
-
-  sources = [ "persistent_settings_test.cc" ]
-
-  deps = [
-    ":persistent_settings",
-    "//cobalt/test:run_all_unittests",
-    "//testing/gmock",
-    "//testing/gtest",
-  ]
-}
