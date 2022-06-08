@@ -28,7 +28,7 @@ template("strip_install_target") {
     assert(false, "You can only install an executable or shared library.")
   }
 
-  action(target_name) {
+  action("${target_name}_run_strip") {
     forward_variables_from(invoker, [ "testonly" ])
 
     script = "//starboard/build/run_bash.py"

@@ -13,11 +13,28 @@
 # limitations under the License.
 
 import("//starboard/evergreen/arm64/toolchain/strip.gni")
+import("//starboard/evergreen/shared/lz4_compress_install_target.gni")
 import("//starboard/evergreen/shared/strip_install_target.gni")
 
 template("install_target") {
   strip_install_target(target_name) {
     forward_variables_from(invoker, "*")
     strip_executable = strip_executable
+  }
+
+  if (invoker.type == "shared_library" &&
+      invoker.installable_target_name == "cobalt") {
+    lz4_compress_install_target(target_name) {
+      forward_variables_from(invoker, "*")
+    }
+  }
+
+  group(target_name) {
+    forward_variables_from(invoker, [ "testonly" ])
+    deps = [ ":${target_name}_run_strip" ]
+    if (invoker.type == "shared_library" &&
+        invoker.installable_target_name == "cobalt") {
+      deps += [ ":${target_name}_run_lz4_compress" ]
+    }
   }
 }
