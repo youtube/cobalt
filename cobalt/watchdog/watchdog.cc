@@ -132,7 +132,7 @@ void Watchdog::PreservePreviousWatchdogViolations() {
                                   kSbFileOpenOnly | kSbFileRead);
   if (read_file.IsValid()) {
     int64_t kFileSize = read_file.GetSize();
-    std::string watchdog_content(kFileSize, '\0');
+    std::string watchdog_content(kFileSize + 1, '\0');
     read_file.ReadAll(&watchdog_content[0], kFileSize);
     starboard::ScopedFile write_file(watchdog_old_file_.c_str(),
                                      kSbFileCreateAlways | kSbFileWrite);
