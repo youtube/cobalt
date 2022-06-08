@@ -35,6 +35,7 @@
 
 namespace cobalt {
 namespace worker {
+class ServiceWorkerJobs;
 
 // Algorithms for the service worker scope to registration map.
 //   https://w3c.github.io/ServiceWorker/#dfn-scope-to-registration-map
@@ -56,6 +57,12 @@ class ServiceWorkerRegistrationMap {
       const url::Origin& storage_key, const GURL& client_url);
 
   void RemoveRegistration(const url::Origin& storage_key, const GURL& scope);
+
+  // https://w3c.github.io/ServiceWorker/#dfn-service-worker-registration-unregistered
+  bool IsUnregistered(ServiceWorkerRegistrationObject* registration);
+
+  // https://w3c.github.io/ServiceWorker/#on-user-agent-shutdown-algorithm
+  void HandleUserAgentShutdown(ServiceWorkerJobs* jobs);
 
  private:
   // ThreadChecker for use by the methods operating on the registration map.

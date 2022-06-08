@@ -29,6 +29,7 @@
 #include "cobalt/script/script_value.h"
 #include "cobalt/web/context.h"
 #include "cobalt/web/environment_settings.h"
+#include "cobalt/worker/service_worker_jobs.h"
 #include "cobalt/worker/service_worker_registration_object.h"
 #include "cobalt/worker/service_worker_update_via_cache.h"
 #include "url/gurl.h"
@@ -186,12 +187,64 @@ ServiceWorkerRegistrationMap::SetRegistration(
 
 void ServiceWorkerRegistrationMap::RemoveRegistration(
     const url::Origin& storage_key, const GURL& scope) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   std::string scope_string = SerializeExcludingFragment(scope);
   Key registration_key(storage_key, scope_string);
   auto entry = registration_map_.find(registration_key);
   DCHECK(entry != registration_map_.end());
   if (entry != registration_map_.end()) {
     registration_map_.erase(entry);
+  }
+}
+
+bool ServiceWorkerRegistrationMap::IsUnregistered(
+    ServiceWorkerRegistrationObject* registration) {
+  // A service worker registration is said to be unregistered if registration
+  // map[this service worker registration's (storage key, serialized scope url)]
+  // is not this service worker registration.
+  //   https://w3c.github.io/ServiceWorker/#dfn-service-worker-registration-unregistered
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  Key registration_key(registration->storage_key(),
+                       registration->scope_url().spec());
+  auto entry = registration_map_.find(registration_key);
+  if (entry == registration_map_.end()) return true;
+
+  return entry->second.get() != registration;
+}
+
+void ServiceWorkerRegistrationMap::HandleUserAgentShutdown(
+    ServiceWorkerJobs* jobs) {
+  TRACE_EVENT0("cobalt::worker",
+               "ServiceWorkerRegistrationMap::HandleUserAgentShutdown()");
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  // Algorithm for Handle User Agent Shutdown:
+  //   https://w3c.github.io/ServiceWorker/#on-user-agent-shutdown-algorithm
+
+  // 1. For each (storage key, scope) -> registration of registration map:
+  for (auto& entry : registration_map_) {
+    const scoped_refptr<ServiceWorkerRegistrationObject>& registration =
+        entry.second;
+    // 1.1. If registration’s installing worker installingWorker is not null,
+    // then:
+    if (registration->installing_worker()) {
+      // 1.1.1. If registration’s waiting worker is null and registration’s
+      // active worker is null, invoke Clear Registration with registration and
+      // continue to the next iteration of the loop.
+      if (!registration->waiting_worker() && !registration->active_worker()) {
+        jobs->ClearRegistration(registration);
+      } else {
+        // 1.1.2. Else, set installingWorker to null.
+        registration->set_installing_worker(nullptr);
+      }
+    }
+
+    if (registration->waiting_worker()) {
+      // 1.2. If registration’s waiting worker is not null, run the following
+      // substep in parallel:
+
+      // 1.2.1. Invoke Activate with registration.
+      jobs->Activate(registration);
+    }
   }
 }
 

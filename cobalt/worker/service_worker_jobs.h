@@ -231,6 +231,13 @@ class ServiceWorkerJobs {
   // https://w3c.github.io/ServiceWorker/#schedule-job
   void ScheduleJob(std::unique_ptr<Job> job);
 
+  // https://w3c.github.io/ServiceWorker/#activation-algorithm
+  void Activate(scoped_refptr<ServiceWorkerRegistrationObject> registration);
+
+  // https://w3c.github.io/ServiceWorker/#clear-registration-algorithm
+  void ClearRegistration(
+      scoped_refptr<ServiceWorkerRegistrationObject> registration);
+
  private:
   // State used for the 'Update' algorithm.
   struct UpdateJobState : public base::RefCounted<UpdateJobState> {
@@ -335,9 +342,6 @@ class ServiceWorkerJobs {
   // https://w3c.github.io/ServiceWorker/#try-activate-algorithm
   void TryActivate(scoped_refptr<ServiceWorkerRegistrationObject> registration);
 
-  // https://w3c.github.io/ServiceWorker/#activation-algorithm
-  void Activate(scoped_refptr<ServiceWorkerRegistrationObject> registration);
-
   // https://w3c.github.io/ServiceWorker/#service-worker-has-no-pending-events
   bool ServiceWorkerHasNoPendingEvents(ServiceWorkerObject* worker);
 
@@ -352,6 +356,9 @@ class ServiceWorkerJobs {
   // https://w3c.github.io/ServiceWorker/#should-skip-event-algorithm
   bool ShouldSkipEvent(base::Token event_name, ServiceWorkerObject* worker);
 
+  // https://w3c.github.io/ServiceWorker/#on-client-unload-algorithm
+  void HandleServiceWorkerClientUnload(web::EnvironmentSettings* client);
+
   // https://w3c.github.io/ServiceWorker/#terminate-service-worker
   void TerminateServiceWorker(ServiceWorkerObject* worker);
 
@@ -360,10 +367,6 @@ class ServiceWorkerJobs {
 
   // https://w3c.github.io/ServiceWorker/#try-clear-registration-algorithm
   void TryClearRegistration(
-      scoped_refptr<ServiceWorkerRegistrationObject> registration);
-
-  // https://w3c.github.io/ServiceWorker/#clear-registration-algorithm
-  void ClearRegistration(
       scoped_refptr<ServiceWorkerRegistrationObject> registration);
 
   bool IsAnyClientUsingRegistration(
