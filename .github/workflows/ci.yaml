@@ -14,8 +14,15 @@ on:
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
+# Global env vars.
 env:
   REGISTRY: ghcr.io
+  IS_CI: 1
+  IS_DOCKER: 1
+  SCCACHE: 1
+  SCCACHE_GCS_BUCKET: cobalt-actions-devel-sccache-linux
+  SCCACHE_GCS_OAUTH_URL: http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token
+  SCCACHE_GCS_RW_MODE: READ_WRITE
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
@@ -99,8 +106,6 @@ jobs:
     container: ghcr.io/isarkis/cobalt-build-raspi:main
     # Steps represent a sequence of tasks that will be executed as part of the job
     env:
-      IS_CI: 1
-      IS_DOCKER: 1
       PLATFORM: raspi-2
       CONFIG: ${{ matrix.config }}
       TARGET_CPU: arm
@@ -122,8 +127,6 @@ jobs:
     runs-on: [self-hosted, linux, X64]
     name: ${{matrix.platform}}-${{matrix.config}}
     env:
-      IS_CI: 1
-      IS_DOCKER: 1
       PLATFORM: evergreen-x86
       CONFIG: ${{ matrix.config }}
       TARGET_CPU: x86
@@ -156,8 +159,6 @@ jobs:
     runs-on: [self-hosted, linux, X64]
     name: ${{matrix.platform}}-${{matrix.config}}
     env:
-      IS_CI: 1
-      IS_DOCKER: 1
       PLATFORM: evergreen-arm
       CONFIG: ${{ matrix.config }}
       TARGET_CPU: arm
@@ -194,8 +195,6 @@ jobs:
     runs-on: [self-hosted, linux, X64]
     name: ${{matrix.platform}}-${{matrix.config}}
     env:
-      IS_CI: 1
-      IS_DOCKER: 1
       PLATFORM: evergreen-arm64
       CONFIG: ${{ matrix.config }}
       TARGET_CPU: arm64
@@ -228,8 +227,6 @@ jobs:
     runs-on: [self-hosted, linux, X64]
     name: ${{matrix.platform}}-${{matrix.config}}
     env:
-      IS_CI: 1
-      IS_DOCKER: 1
       PLATFORM: evergreen-x64
       CONFIG: ${{ matrix.config }}
       TARGET_CPU: x64
@@ -262,8 +259,6 @@ jobs:
     runs-on: [self-hosted, linux, X64]
     name: ${{matrix.platform}}-${{matrix.config}}
     env:
-      IS_CI: 1
-      IS_DOCKER: 1
       PLATFORM: ${{ matrix.target_platform }}
       CONFIG: ${{ matrix.config }}
     # Create config matrix
