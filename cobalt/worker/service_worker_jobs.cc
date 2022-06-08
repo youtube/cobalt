@@ -108,6 +108,7 @@ bool PermitAnyURL(const GURL&, bool) { return true; }
 ServiceWorkerJobs::ServiceWorkerJobs(network::NetworkModule* network_module,
                                      base::MessageLoop* message_loop)
     : network_module_(network_module), message_loop_(message_loop) {
+  DCHECK_EQ(message_loop_, base::MessageLoop::current());
   fetcher_factory_.reset(new loader::FetcherFactory(network_module));
   DCHECK(fetcher_factory_);
 
@@ -122,6 +123,7 @@ ServiceWorkerJobs::~ServiceWorkerJobs() {
     // Wait for web context registrations to be cleared.
     web_context_registrations_cleared_.Wait();
   }
+  scope_to_registration_map_.HandleUserAgentShutdown(this);
 }
 
 void ServiceWorkerJobs::StartRegister(
@@ -1435,6 +1437,41 @@ bool ServiceWorkerJobs::ShouldSkipEvent(base::Token event_name,
   return false;
 }
 
+void ServiceWorkerJobs::HandleServiceWorkerClientUnload(
+    web::EnvironmentSettings* client) {
+  TRACE_EVENT0("cobalt::worker",
+               "ServiceWorkerJobs::HandleServiceWorkerClientUnload()");
+  // Algorithm for Handle Servicer Worker Client Unload:
+  //   https://w3c.github.io/ServiceWorker/#on-user-agent-shutdown-algorithm
+  DCHECK(client);
+  // 1. Run the following steps atomically.
+  DCHECK_EQ(message_loop(), base::MessageLoop::current());
+
+  // 2. Let registration be the service worker registration used by client.
+  // 3. If registration is null, abort these steps.
+  ServiceWorkerObject* active_service_worker = client->active_service_worker();
+  if (!active_service_worker) return;
+  ServiceWorkerRegistrationObject* registration =
+      active_service_worker->containing_service_worker_registration();
+  if (!registration) return;
+
+  // 4. If any other service worker client is using registration, abort these
+  //    steps.
+  // Ensure the client is already removed from the registrations when this runs.
+  DCHECK(web_context_registrations_.end() ==
+         web_context_registrations_.find(client->context()));
+  if (IsAnyClientUsingRegistration(registration)) return;
+
+  // 5. If registration is unregistered, invoke Try Clear Registration with
+  //    registration.
+  if (scope_to_registration_map_.IsUnregistered(registration)) {
+    TryClearRegistration(registration);
+  }
+
+  // 6. Invoke Try Activate with registration.
+  TryActivate(registration);
+}
+
 void ServiceWorkerJobs::TerminateServiceWorker(ServiceWorkerObject* worker) {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerJobs::TerminateServiceWorker()");
   DCHECK_EQ(message_loop(), base::MessageLoop::current());
@@ -1796,6 +1833,7 @@ void ServiceWorkerJobs::UnregisterWebContext(web::Context* context) {
   DCHECK_EQ(message_loop(), base::MessageLoop::current());
   DCHECK_EQ(1, web_context_registrations_.count(context));
   web_context_registrations_.erase(context);
+  HandleServiceWorkerClientUnload(context->environment_settings());
   if (web_context_registrations_.empty()) {
     web_context_registrations_cleared_.Signal();
   }
