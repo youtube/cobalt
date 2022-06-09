@@ -712,6 +712,8 @@ void ServiceWorkerJobs::UpdateOnLoadingComplete(
   ServiceWorkerObject::Options options(
       "ServiceWorker", state->job->client->context()->network_module(),
       state->registration);
+  options.web_options.platform_info =
+      state->job->client->context()->platform_info();
   scoped_refptr<ServiceWorkerObject> worker(new ServiceWorkerObject(options));
   // 12. Set worker’s script url to job’s script url, worker’s script
   //     resource to script, worker’s type to job’s worker type, and worker’s
