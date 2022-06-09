@@ -171,8 +171,14 @@ bool Cache::Store(uint32_t key, disk_cache::ResourceType resource_type,
     return false;
   }
   uint32_t new_entry_size = static_cast<uint32_t>(data.size());
+  if (new_entry_size > max_storage_in_bytes.value()) {
+    return false;
+  }
   while (stored_size_by_resource_type_[resource_type] + new_entry_size >
          max_storage_in_bytes.value()) {
+    if (stored->size() == 0) {
+      return false;
+    }
     std::pop_heap(stored->begin(), stored->end(), FileInfoComparer());
     auto removed = stored->back();
     stored_size_by_resource_type_[resource_type] -= removed.size_;
@@ -212,7 +218,9 @@ base::Optional<std::vector<Cache::FileInfo>> Cache::GetStored(
     stored.push_back(file_info);
     stored_size_by_resource_type_[resource_type] += file_info.size_;
   }
-  std::make_heap(stored.begin(), stored.end(), FileInfoComparer());
+  if (stored.size() > 1) {
+    std::make_heap(stored.begin(), stored.end(), FileInfoComparer());
+  }
   stored_by_resource_type_[resource_type] = stored;
   return stored;
 }
