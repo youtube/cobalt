@@ -165,6 +165,10 @@ base::flat_map<std::string, std::string> Configurator::ExtraRequestParams()
   // User Agent String
   params.insert(std::make_pair("uastring", user_agent_string_));
 
+  // Certification scope
+  params.insert(std::make_pair(
+      "certscope", GetDeviceProperty(kSbSystemPropertyCertificationScope)));
+
   return params;
 }
 
