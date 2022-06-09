@@ -87,177 +87,8 @@ jobs:
         if: ${{ (steps.changed-files.outputs.any_changed == 'true') && (github.event_name != 'pull_request') }}
         run: docker push ${{ steps.meta.outputs.tags }}
 
-  # Raspi Jobs.
-  raspi:
-    needs: docker-image-build
-    # The type of runner that the job will run on
-    runs-on: [self-hosted, linux, X64]
-    name: ${{matrix.platform}}-${{matrix.config}}
-    env:
-      PLATFORM: ${{ matrix.target_platform }}
-      CONFIG: ${{ matrix.config }}
-      TARGET_CPU: arm
-    # Create config matrix
-    strategy:
-      fail-fast: false
-      matrix:
-        platform: [raspi-2,
-                   raspi-2-skia,
-                   raspi-2-sbversion-12,
-                   raspi-2-sbversion-13,
-                   raspi-2-sbversion-14,
-                   raspi-2-evergreen-arm-hardfp,
-                   raspi-2-evergreen-arm-hardfp-sbversion-14,
-                   raspi-2-evergreen-arm-hardfp-sbversion-13,
-                   raspi-2-evergreen-arm-hardfp-sbversion-12]
-        config: [devel, debug, gold, qa]
-        include:
-          - platform: raspi-2
-            target_platform: raspi-2
-            is_clang: is_clang=false 
-          - target_platform: raspi-2-skia
-            platform: raspi-2-skia
-            is_clang: is_clang=false 
-          - target_platform: raspi-2
-            platform: raspi-2-sbversion-12
-            is_clang: is_clang=false 
-          - sb_api_version: sb_api_version=12
-            platform: raspi-2-sbversion-12
-            is_clang: is_clang=false 
-          - platform: raspi-2-sbversion-13
-            target_platform: raspi-2
-            sb_api_version: sb_api_version=13
-            is_clang: is_clang=false 
-          - platform: raspi-2-sbversion-14
-            target_platform: raspi-2
-            sb_api_version: sb_api_version=14
-            is_clang: is_clang=false 
-          - platform: raspi-2-evergreen-arm-hardfp
-            target_platform: evergreen-arm-hardfp
-            use_asan: use_asan=false
-          - platform: raspi-2-evergreen-arm-hardfp-sbversion-14
-            target_platform: evergreen-arm-hardfp
-            use_asan: use_asan=false
-            sb_api_version: sb_api_version=14
-          - platform: raspi-2-evergreen-arm-hardfp-sbversion-13
-            target_platform: evergreen-arm-hardfp
-            use_asan: use_asan=false
-            sb_api_version: sb_api_version=13
-          - platform: raspi-2-evergreen-arm-hardfp-sbversion-12
-            target_platform: evergreen-arm-hardfp
-            use_asan: use_asan=false
-            sb_api_version: sb_api_version=12
-      # The container to run the job in.
-    container: ghcr.io/isarkis/cobalt-build-raspi:main
-    steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - name: checkout
-        uses: actions/checkout@v2
-      # Run build
-      - name: ${{matrix.platform}}-${{matrix.config}}
-        run: |
-          export PYTHONPATH=$GITHUB_WORKSPACE
-          gn gen $GITHUB_WORKSPACE/out/${{ matrix.target_platform }}_${{ matrix.config }} --args="target_platform=\"${{ matrix.target_platform }}\" ${{ matrix.use_asan }} ${{ matrix.use_clang }} ${{ matrix.sb_api_version }} is_internal_build=false build_type=\"${{ matrix.config }}\""
-          ninja -v -C $GITHUB_WORKSPACE/out/${{ matrix.target_platform }}_${{ matrix.config }} all
-
-  # Evergreen x86 jobs.
-  evergreen-x86:
-    needs: docker-image-build
-    # The type of runner that the job will run on
-    runs-on: [self-hosted, linux, X64]
-    name: ${{matrix.platform}}-${{matrix.config}}
-    env:
-      PLATFORM: evergreen-x86
-      CONFIG: ${{ matrix.config }}
-      TARGET_CPU: x86
-    # Create config matrix
-    strategy:
-      fail-fast: false
-      matrix:
-        platform: [evergreen-x86,
-                   evergreen-x86-sbversion-14,
-                   evergreen-x86-sbversion-13,
-                   evergreen-x86-sbversion-12]
-        config: [devel, debug, gold, qa]
-    container: ghcr.io/isarkis/cobalt-build-evergreen:main
-    # Steps represent a sequence of tasks that will be executed as part of the job
-    steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - name: checkout
-        uses: actions/checkout@v2
-      # Run build
-      - name: ${{matrix.platform}}-${{matrix.config}}
-        run: |
-          export PYTHONPATH=$GITHUB_WORKSPACE
-          gn gen $GITHUB_WORKSPACE/out/$PLATFORM_${{ matrix.config }} --args="target_platform=\"$PLATFORM\" build_type=\"${{ matrix.config }}\" target_cpu=\"$TARGET_CPU\" is_clang=false"
-          ninja -v -C $GITHUB_WORKSPACE/out/$PLATFORM_${{ matrix.config }} all
-
-  # Evergreen ARM jobs.
-  evergreen-arm:
-    needs: docker-image-build
-    # The type of runner that the job will run on
-    runs-on: [self-hosted, linux, X64]
-    name: ${{matrix.platform}}-${{matrix.config}}
-    env:
-      PLATFORM: evergreen-arm
-      CONFIG: ${{ matrix.config }}
-      TARGET_CPU: arm
-    # Create config matrix
-    strategy:
-      fail-fast: false
-      matrix:
-        platform: [evergreen-arm-softfp,
-                   evergreen-arm-softfp-sbversion-14,
-                   evergreen-arm-softfp-sbversion-13,
-                   evergreen-arm-softfp-sbversion-12]
-        config: [devel, debug, gold, qa]
-    container: ghcr.io/isarkis/cobalt-build-evergreen:main
-    # Steps represent a sequence of tasks that will be executed as part of the job
-    steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - name: checkout
-        uses: actions/checkout@v2
-      # Run build
-      - name: ${{matrix.platform}}-${{matrix.config}}
-        run: |
-          export PYTHONPATH=$GITHUB_WORKSPACE
-          gn gen $GITHUB_WORKSPACE/out/$PLATFORM_${{ matrix.config }} --args="target_platform=\"$PLATFORM\" build_type=\"${{ matrix.config }}\" target_cpu=\"$TARGET_CPU\" is_clang=false"
-          ninja -v -C $GITHUB_WORKSPACE/out/$PLATFORM_${{ matrix.config }} all
-
-  # Evergreen ARM64 jobs.
-  evergreen-arm64:
-    needs: docker-image-build
-    # The type of runner that the job will run on
-    runs-on: [self-hosted, linux, X64]
-    name: ${{matrix.platform}}-${{matrix.config}}
-    env:
-      PLATFORM: evergreen-arm64
-      CONFIG: ${{ matrix.config }}
-      TARGET_CPU: arm64
-    # Create config matrix
-    strategy:
-      fail-fast: false
-      matrix:
-        platform: [evergreen-arm64-softfp,
-                   evergreen-arm64-sbversion-14,
-                   evergreen-arm64-sbversion-13,
-                   evergreen-arm64-sbversion-12]
-        config: [devel, debug, gold, qa]
-    container: ghcr.io/isarkis/cobalt-build-evergreen:main
-    # Steps represent a sequence of tasks that will be executed as part of the job
-    steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - name: checkout
-        uses: actions/checkout@v2
-      # Run build
-      - name: ${{matrix.platform}}-${{matrix.config}}
-        run: |
-          export PYTHONPATH=$GITHUB_WORKSPACE
-          gn gen $GITHUB_WORKSPACE/out/$PLATFORM_${{ matrix.config }} --args="target_platform=\"$PLATFORM\" build_type=\"${{ matrix.config }}\" target_cpu=\"$TARGET_CPU\" is_clang=false"
-          ninja -v -C $GITHUB_WORKSPACE/out/$PLATFORM_${{ matrix.config }} all
-
-  # Evergreen x64 jobs.
-  evergreen-x64:
+  # Cobalt jobs.
+  cobalt-build:
     needs: docker-image-build
     # The type of runner that the job will run on
     runs-on: [self-hosted, linux, X64]
@@ -265,96 +96,235 @@ jobs:
     env:
       PLATFORM: evergreen-x64
       CONFIG: ${{ matrix.config }}
-      TARGET_CPU: x64
     # Create config matrix
     strategy:
       fail-fast: false
       matrix:
-        platform: [evergreen-x64,
+        platform: [android-arm,
+                   android-arm64,
+                   android-x86,
+                   evergreen-arm-hardfp,
+                   evergreen-arm-hardfp-sbversion-14,
+                   evergreen-arm-hardfp-sbversion-13,
+                   evergreen-arm-hardfp-sbversion-12,
+                   evergreen-arm-softfp,
+                   evergreen-arm-softfp-sbversion-14,
+                   evergreen-arm-softfp-sbversion-13,
+                   evergreen-arm-softfp-sbversion-12,
+                   evergreen-arm64,
+                   evergreen-arm64-sbversion-14,
+                   evergreen-arm64-sbversion-13,
+                   evergreen-arm64-sbversion-12,
+                   evergreen-x64,
                    evergreen-x64-sbversion-14,
                    evergreen-x64-sbversion-13,
-                   evergreen-x64-sbversion-12]
-        config: [devel, debug, gold, qa]
-        include:
-          - platform: evergreen-x64
-            target_platform: evergreen-x64
-            use_asan: use_asan=false
-            container: ghcr.io/isarkis/cobalt-build-linux-evergreen:main
-          - platform: evergreen-x64-sbversion-14
-            target_platform: evergreen-x64
-            use_asan: use_asan=false
-            sb_api_version: sb_api_version=14
-            container: ghcr.io/isarkis/cobalt-build-linux-evergreen:main
-          - platform: evergreen-x64-sbversion-13
-            target_platform: evergreen-x64
-            use_asan: use_asan=false
-            sb_api_version: sb_api_version=13
-            container: ghcr.io/isarkis/cobalt-build-linux-evergreen:main
-          - platform: evergreen-x64-sbversion-12
-            target_platform: evergreen-x64
-            use_asan: use_asan=false
-            sb_api_version: sb_api_version=12
-            container: ghcr.io/isarkis/cobalt-build-linux-evergreen:main
-    container: ${{matrix.container}}
-    # Steps represent a sequence of tasks that will be executed as part of the job
-    steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - name: checkout
-        uses: actions/checkout@v2
-      # Run build
-      - name: "Set env vars"
-        run: |
-          echo "PYTHONPATH=$GITHUB_WORKSPACE" >> $GITHUB_ENV
-      - name: "gn gen"
-        run: |
-          gn gen $GITHUB_WORKSPACE/out/${{ matrix.target_platform }}_${{ matrix.config }} --args="target_platform=\"${{ matrix.target_platform }}\" ${{ matrix.use_asan }} ${{ matrix.use_clang }} ${{ matrix.sb_api_version }} target_cpu=\"$TARGET_CPU\" is_internal_build=false build_type=\"${{ matrix.config }}\""
-      - name: "gn check"
-        run: |  
-          gn check $GITHUB_WORKSPACE/out/${{ matrix.target_platform }}_${{ matrix.config }}
-      - name: Build ${{matrix.platform}}-${{matrix.config}}
-        run: |
-          ninja -v -C $GITHUB_WORKSPACE/out/${{ matrix.target_platform }}_${{ matrix.config }} all
-
-  # Linux jobs.
-  linux:
-    needs: docker-image-build
-    # The type of runner that the job will run on
-    runs-on: [self-hosted, linux, X64]
-    name: ${{matrix.platform}}-${{matrix.config}}
-    env:
-      PLATFORM: ${{ matrix.target_platform }}
-      CONFIG: ${{ matrix.config }}
-    # Create config matrix
-    strategy:
-      fail-fast: false
-      matrix:
-        platform: [linux-x64x11,
+                   evergreen-x64-sbversion-12,
+                   evergreen-x86,
+                   evergreen-x86-sbversion-14,
+                   evergreen-x86-sbversion-13,
+                   evergreen-x86-sbversion-12,
+                   linux-x64x11,
                    linux-x64x11-egl,
                    linux-x64x11-internal,
                    linux-x64x11-sbversion-11,
                    linux-x64x11-sbversion-12,
                    linux-x64x11-sbversion-13,
-                   linux-x64x11-skia]
+                   linux-x64x11-skia, 
+                   raspi-2,
+                   raspi-2-skia,
+                   raspi-2-sbversion-12,
+                   raspi-2-sbversion-13,
+                   raspi-2-sbversion-14]
         config: [devel, debug, gold, qa]
         include:
+          # android
+          - platform: android-arm
+            target_platform: android-arm
+            target_cpu: target_cpu=\"arm\"
+            target_os: target_os=\"android\"
+            container: cobalt-build-android
+          - platform: android-arm64
+            target_platform: android-arm64
+            target_cpu: target_cpu=\"arm64\"
+            target_os: target_os=\"android\"
+            container: cobalt-build-android
+          - platform: android-x86
+            target_platform: android-x86
+            target_cpu: target_cpu=\"x86\"
+            target_os: target_os=\"android\"
+            container: cobalt-build-android
+          # evergreen-arm-hardfp
+          - platform: evergreen-arm-hardfp
+            target_platform: evergreen-arm-hardfp
+            target_cpu: target_cpu=\"arm\"
+            use_asan: use_asan=false
+            container: cobalt-build-raspi
+          - platform: evergreen-arm-hardfp-sbversion-14
+            target_platform: evergreen-arm-hardfp
+            target_cpu: target_cpu=\"arm\"
+            use_asan: use_asan=false
+            sb_api_version: sb_api_version=14
+          - platform: evergreen-arm-hardfp-sbversion-13
+            target_platform: evergreen-arm-hardfp
+            target_cpu: target_cpu=\"arm\"
+            use_asan: use_asan=false
+            sb_api_version: sb_api_version=13
+          - platform: evergreen-arm-hardfp-sbversion-12
+            target_platform: evergreen-arm-hardfp
+            target_cpu: target_cpu=\"arm\"
+            use_asan: use_asan=false
+            sb_api_version: sb_api_version=12
+          # evergreen-arm-softfp
+          - platform: evergreen-arm-softfp
+            target_platform: evergreen-arm-softfp
+            target_cpu: target_cpu=\"arm\"
+            use_asan: use_asan=false
+            container: cobalt-build-evergreen
+          - platform: evergreen-arm-softfp-sbversion-14
+            target_platform: evergreen-arm-softfp
+            target_cpu: target_cpu=\"arm\"
+            use_asan: use_asan=false
+            sb_api_version: sb_api_version=14
+            container: cobalt-build-evergreen
+          - platform: evergreen-arm-softfp-sbversion-13
+            target_platform: evergreen-arm-softfp
+            target_cpu: target_cpu=\"arm\"
+            use_asan: use_asan=false
+            sb_api_version: sb_api_version=13
+            container: cobalt-build-evergreen
+          - platform: evergreen-arm-softfp-sbversion-12
+            target_platform: evergreen-arm-softfp
+            target_cpu: target_cpu=\"arm\"
+            use_asan: use_asan=false
+            sb_api_version: sb_api_version=12
+            container: cobalt-build-evergreen
+          # evergreen-arm64
+          - platform: evergreen-arm64
+            target_platform: evergreen-arm64
+            target_cpu: target_cpu=\"arm64\"
+            use_asan: use_asan=false
+            container: cobalt-build-evergreen
+          - platform: evergreen-arm64-sbversion-14
+            target_platform: evergreen-arm64
+            target_cpu: target_cpu=\"arm64\"
+            use_asan: use_asan=false
+            sb_api_version: sb_api_version=14
+            container: cobalt-build-evergreen
+          - platform: evergreen-arm64-sbversion-13
+            target_platform: evergreen-arm64
+            target_cpu: target_cpu=\"arm64\"
+            use_asan: use_asan=false
+            sb_api_version: sb_api_version=13
+            container: cobalt-build-evergreen
+          - platform: evergreen-arm64-sbversion-12
+            target_platform: evergreen-arm64
+            target_cpu: target_cpu=\"arm64\"
+            use_asan: use_asan=false
+            sb_api_version: sb_api_version=12
+            container: cobalt-build-evergreen
+          # evergeen-x64 
+          - platform: evergreen-x64
+            target_platform: evergreen-x64
+            target_cpu: target_cpu=\"x64\"
+            use_asan: use_asan=false
+            container: cobalt-build-linux-evergreen
+          - platform: evergreen-x64-sbversion-14
+            target_platform: evergreen-x64
+            target_cpu: target_cpu=\"x64\"
+            use_asan: use_asan=false
+            sb_api_version: sb_api_version=14
+            container: cobalt-build-linux-evergreen
+          - platform: evergreen-x64-sbversion-13
+            target_platform: evergreen-x64
+            target_cpu: target_cpu=\"x64\"
+            use_asan: use_asan=false
+            sb_api_version: sb_api_version=13
+            container: cobalt-build-linux-evergreen
+          - platform: evergreen-x64-sbversion-12
+            target_platform: evergreen-x64
+            target_cpu: target_cpu=\"x64\"
+            use_asan: use_asan=false
+            sb_api_version: sb_api_version=12
+            container: cobalt-build-linux-evergreen
+          # evergeen-x86
+          - platform: evergreen-x86
+            target_platform: evergreen-x86
+            target_cpu: target_cpu=\"x86\"
+            use_asan: use_asan=false
+            container: cobalt-build-evergreen
+          - platform: evergreen-x86-sbversion-14
+            target_platform: evergreen-x86
+            target_cpu: target_cpu=\"x86\"
+            use_asan: use_asan=false
+            sb_api_version: sb_api_version=14
+            container: cobalt-build-evergreen
+          - platform: evergreen-x86-sbversion-13
+            target_platform: evergreen-x86
+            target_cpu: target_cpu=\"x86\"
+            use_asan: use_asan=false
+            sb_api_version: sb_api_version=13
+            container: cobalt-build-evergreen
+          - platform: evergreen-x86-sbversion-12
+            target_platform: evergreen-x86
+            target_cpu: target_cpu=\"x86\"
+            use_asan: use_asan=false
+            sb_api_version: sb_api_version=12
+            container: cobalt-build-evergreen
+          # linux
           - platform: linux-x64x11
             target_platform: linux-x64x11
+            container: cobalt-build-linux
           - platform: linux-x64x11-egl
             target_platform: linux-x64x11-egl
+            container: cobalt-build-linux
           - platform: linux-x64x11-internal
             target_platform: linux-x64x11-internal
+            container: cobalt-build-linux
           - platform: linux-x64x11-skia
             target_platform: linux-x64x11-skia
+            container: cobalt-build-linux
           - platform: linux-x64x11-sbversion-11
             target_platform: linux-x64x11
             sb_api_version: sb_api_version=11
+            container: cobalt-build-linux
           - platform: linux-x64x11-sbversion-12
             target_platform: linux-x64x11
             sb_api_version: sb_api_version=12
+            container: cobalt-build-linux
           - platform: linux-x64x11-sbversion-13
             target_platform: linux-x64x11
             sb_api_version: sb_api_version=13
-    container: ghcr.io/isarkis/cobalt-build-linux:main
+            container: cobalt-build-linux
+          # raspi
+          - platform: raspi-2
+            target_platform: raspi-2
+            target_cpu: target_cpu=\"arm\"
+            is_clang: is_clang=false
+            container: cobalt-build-raspi
+          - platform: raspi-2-skia
+            target_platform: raspi-2-skia
+            target_cpu: target_cpu=\"arm\"
+            is_clang: is_clang=false
+            container: cobalt-build-raspi
+          - platform: raspi-2-sbversion-12
+            target_platform: raspi-2
+            target_cpu: target_cpu=\"arm\"
+            is_clang: is_clang=false
+            sb_api_version: sb_api_version=12
+            container: cobalt-build-raspi
+          - platform: raspi-2-sbversion-13
+            target_platform: raspi-2
+            target_cpu: target_cpu=\"arm\"
+            is_clang: is_clang=false
+            sb_api_version: sb_api_version=13
+            container: cobalt-build-raspi
+          - platform: raspi-2-sbversion-14
+            target_platform: raspi-2
+            target_cpu: target_cpu=\"arm\"
+            is_clang: is_clang=false
+            sb_api_version: sb_api_version=14
+            container: cobalt-build-raspi
+    container: ghcr.io/isarkis/${{matrix.container}}:main
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
@@ -365,38 +335,14 @@ jobs:
         run: |
           echo "PYTHONPATH=$GITHUB_WORKSPACE" >> $GITHUB_ENV
       - name: "gn gen"
-        run: |  
-          gn gen $GITHUB_WORKSPACE/out/${{ matrix.target_platform }}_${{ matrix.config }} --args="target_platform=\"${{ matrix.target_platform }}\" ${{ matrix.use_asan }} ${{ matrix.use_clang }} ${{ matrix.sb_api_version }} is_internal_build=false build_type=\"${{ matrix.config }}\""
+        run: |
+          gn gen $GITHUB_WORKSPACE/out/${{matrix.target_platform}}_${{matrix.config}} --args="target_platform=\"${{matrix.target_platform}}\" ${{matrix.use_asan}} ${{matrix.is_clang}} ${{matrix.sb_api_version}} ${{matrix.target_os}} ${{matrix.target_cpu}} is_internal_build=false build_type=\"${{matrix.config}}\""
       - name: "gn check"
         run: |  
           gn check $GITHUB_WORKSPACE/out/${{ matrix.target_platform }}_${{ matrix.config }}
       - name: Build ${{matrix.platform}}-${{matrix.config}}
         run: |
           ninja -v -C $GITHUB_WORKSPACE/out/${{ matrix.target_platform }}_${{ matrix.config }} all
-  
-  # Android jobs.
-  android:
-    needs: docker-image-build
-    # The type of runner that the job will run on
-    runs-on: [self-hosted, linux, X64]
-    name: ${{matrix.platform}}-${{matrix.config}}
-    # Create config matrix
-    strategy:
-      fail-fast: false
-      matrix:
-        platform: [android-arm64, android-arm, android-x86]
-        config: [devel, debug]
-    container: ghcr.io/isarkis/cobalt-build-android:main
-    # Steps represent a sequence of tasks that will be executed as part of the job
-    steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - name: checkout
-        uses: actions/checkout@v2
-      # Run build
-      - name: ${{matrix.platform}}-${{matrix.config}}
-        run: |
-          $GITHUB_WORKSPACE/cobalt/build/gyp_cobalt -v -C ${{ matrix.config }} ${{ matrix.platform }}
-          ninja -v -j 30 -C $GITHUB_WORKSPACE/out/${{ matrix.platform }}_${{ matrix.config }} eztime_test_deploy nplb_deploy app_launcher_zip
 
   # Win-Win32 Jobs.
   #win-win32:
