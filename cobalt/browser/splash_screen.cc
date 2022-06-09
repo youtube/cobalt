@@ -103,7 +103,7 @@ SplashScreen::SplashScreen(
   web_module_options.maybe_freeze_callback = maybe_freeze_callback;
 
   web_module_options.web_options.network_module = network_module;
-  web_module_options.platform_info = platform_info;
+  web_module_options.web_options.platform_info = platform_info;
 
   DCHECK(url_to_pass);
   web_module_.reset(new WebModule(

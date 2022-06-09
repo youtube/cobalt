@@ -618,8 +618,7 @@ void BrowserModule::Navigate(const GURL& url_reference) {
   options.web_options.network_module = network_module_;
   options.web_options.service_worker_jobs =
       service_worker_registry_.service_worker_jobs();
-  options.platform_info = platform_info_.get();
-
+  options.web_options.platform_info = platform_info_.get();
   web_module_.reset(new WebModule(
       url, application_state_,
       base::Bind(&BrowserModule::QueueOnRenderTreeProduced,

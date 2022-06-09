@@ -240,8 +240,6 @@ class WebModule : public base::MessageLoop::DestructionObserver,
     // time.
     base::Callback<void(base::TimeTicks, base::TimeTicks)>
         collect_unload_event_time_callback;
-
-    web::UserAgentPlatformInfo* platform_info = nullptr;
   };
 
   typedef layout::LayoutManager::LayoutResults LayoutResults;
