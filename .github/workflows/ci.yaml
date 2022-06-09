@@ -35,6 +35,7 @@ jobs:
         service:
           - build-android
           - build-evergreen
+          - build-linux-evergreen
           - build-linux
           - build-linux-stub
           - build-raspi
@@ -92,6 +93,10 @@ jobs:
     # The type of runner that the job will run on
     runs-on: [self-hosted, linux, X64]
     name: ${{matrix.platform}}-${{matrix.config}}
+    env:
+      PLATFORM: ${{ matrix.target_platform }}
+      CONFIG: ${{ matrix.config }}
+      TARGET_CPU: arm
     # Create config matrix
     strategy:
       fail-fast: false
@@ -100,15 +105,50 @@ jobs:
                    raspi-2-skia,
                    raspi-2-sbversion-12,
                    raspi-2-sbversion-13,
-                   raspi-2-sbversion-14]
+                   raspi-2-sbversion-14,
+                   raspi-2-evergreen-arm-hardfp,
+                   raspi-2-evergreen-arm-hardfp-sbversion-14,
+                   raspi-2-evergreen-arm-hardfp-sbversion-13,
+                   raspi-2-evergreen-arm-hardfp-sbversion-12]
         config: [devel, debug, gold, qa]
+        include:
+          - platform: raspi-2
+            target_platform: raspi-2
+            is_clang: is_clang=false 
+          - target_platform: raspi-2-skia
+            platform: raspi-2-skia
+            is_clang: is_clang=false 
+          - target_platform: raspi-2
+            platform: raspi-2-sbversion-12
+            is_clang: is_clang=false 
+          - sb_api_version: sb_api_version=12
+            platform: raspi-2-sbversion-12
+            is_clang: is_clang=false 
+          - platform: raspi-2-sbversion-13
+            target_platform: raspi-2
+            sb_api_version: sb_api_version=13
+            is_clang: is_clang=false 
+          - platform: raspi-2-sbversion-14
+            target_platform: raspi-2
+            sb_api_version: sb_api_version=14
+            is_clang: is_clang=false 
+          - platform: raspi-2-evergreen-arm-hardfp
+            target_platform: evergreen-arm-hardfp
+            use_asan: use_asan=false
+          - platform: raspi-2-evergreen-arm-hardfp-sbversion-14
+            target_platform: evergreen-arm-hardfp
+            use_asan: use_asan=false
+            sb_api_version: sb_api_version=14
+          - platform: raspi-2-evergreen-arm-hardfp-sbversion-13
+            target_platform: evergreen-arm-hardfp
+            use_asan: use_asan=false
+            sb_api_version: sb_api_version=13
+          - platform: raspi-2-evergreen-arm-hardfp-sbversion-12
+            target_platform: evergreen-arm-hardfp
+            use_asan: use_asan=false
+            sb_api_version: sb_api_version=12
       # The container to run the job in.
     container: ghcr.io/isarkis/cobalt-build-raspi:main
-    # Steps represent a sequence of tasks that will be executed as part of the job
-    env:
-      PLATFORM: raspi-2
-      CONFIG: ${{ matrix.config }}
-      TARGET_CPU: arm
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - name: checkout
@@ -117,8 +157,8 @@ jobs:
       - name: ${{matrix.platform}}-${{matrix.config}}
         run: |
           export PYTHONPATH=$GITHUB_WORKSPACE
-          gn gen $GITHUB_WORKSPACE/out/$PLATFORM_${{ matrix.config }} --args="target_platform=\"$PLATFORM\" build_type=\"${{ matrix.config }}\" target_cpu=\"$TARGET_CPU\" is_clang=false"
-          ninja -v -C $GITHUB_WORKSPACE/out/$PLATFORM_${{ matrix.config }} all
+          gn gen $GITHUB_WORKSPACE/out/${{ matrix.target_platform }}_${{ matrix.config }} --args="target_platform=\"${{ matrix.target_platform }}\" ${{ matrix.use_asan }} ${{ matrix.use_clang }} ${{ matrix.sb_api_version }} is_internal_build=false build_type=\"${{ matrix.config }}\""
+          ninja -v -C $GITHUB_WORKSPACE/out/${{ matrix.target_platform }}_${{ matrix.config }} all
 
   # Evergreen x86 jobs.
   evergreen-x86:
@@ -169,11 +209,7 @@ jobs:
         platform: [evergreen-arm-softfp,
                    evergreen-arm-softfp-sbversion-14,
                    evergreen-arm-softfp-sbversion-13,
-                   evergreen-arm-softfp-sbversion-12,
-                   evergreen-arm-hardfp,
-                   evergreen-arm-hardfp-sbversion-14,
-                   evergreen-arm-hardfp-sbversion-13,
-                   evergreen-arm-hardfp-sbversion-12]
+                   evergreen-arm-softfp-sbversion-12]
         config: [devel, debug, gold, qa]
     container: ghcr.io/isarkis/cobalt-build-evergreen:main
     # Steps represent a sequence of tasks that will be executed as part of the job
@@ -239,18 +275,45 @@ jobs:
                    evergreen-x64-sbversion-13,
                    evergreen-x64-sbversion-12]
         config: [devel, debug, gold, qa]
-    container: ghcr.io/isarkis/cobalt-build-evergreen:main
+        include:
+          - platform: evergreen-x64
+            target_platform: evergreen-x64
+            use_asan: use_asan=false
+            container: ghcr.io/isarkis/cobalt-build-linux-evergreen:main
+          - platform: evergreen-x64-sbversion-14
+            target_platform: evergreen-x64
+            use_asan: use_asan=false
+            sb_api_version: sb_api_version=14
+            container: ghcr.io/isarkis/cobalt-build-linux-evergreen:main
+          - platform: evergreen-x64-sbversion-13
+            target_platform: evergreen-x64
+            use_asan: use_asan=false
+            sb_api_version: sb_api_version=13
+            container: ghcr.io/isarkis/cobalt-build-linux-evergreen:main
+          - platform: evergreen-x64-sbversion-12
+            target_platform: evergreen-x64
+            use_asan: use_asan=false
+            sb_api_version: sb_api_version=12
+            container: ghcr.io/isarkis/cobalt-build-linux-evergreen:main
+    container: ${{matrix.container}}
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - name: checkout
         uses: actions/checkout@v2
       # Run build
-      - name: ${{matrix.platform}}-${{matrix.config}}
+      - name: "Set env vars"
         run: |
-          export PYTHONPATH=$GITHUB_WORKSPACE
-          gn gen $GITHUB_WORKSPACE/out/$PLATFORM_${{ matrix.config }} --args="target_platform=\"$PLATFORM\" build_type=\"${{ matrix.config }}\" target_cpu=\"$TARGET_CPU\" is_clang=false"
-          ninja -v -C $GITHUB_WORKSPACE/out/$PLATFORM_${{ matrix.config }} all
+          echo "PYTHONPATH=$GITHUB_WORKSPACE" >> $GITHUB_ENV
+      - name: "gn gen"
+        run: |
+          gn gen $GITHUB_WORKSPACE/out/${{ matrix.target_platform }}_${{ matrix.config }} --args="target_platform=\"${{ matrix.target_platform }}\" ${{ matrix.use_asan }} ${{ matrix.use_clang }} ${{ matrix.sb_api_version }} target_cpu=\"$TARGET_CPU\" is_internal_build=false build_type=\"${{ matrix.config }}\""
+      - name: "gn check"
+        run: |  
+          gn check $GITHUB_WORKSPACE/out/${{ matrix.target_platform }}_${{ matrix.config }}
+      - name: Build ${{matrix.platform}}-${{matrix.config}}
+        run: |
+          ninja -v -C $GITHUB_WORKSPACE/out/${{ matrix.target_platform }}_${{ matrix.config }} all
 
   # Linux jobs.
   linux:
@@ -274,26 +337,23 @@ jobs:
                    linux-x64x11-skia]
         config: [devel, debug, gold, qa]
         include:
-          - target_platform: linux-x64x11
-            platform: linux-x64x11
-          - target_platform: linux-x64x11-egl
-            platform: linux-x64x11-egl
-          - target_platform: linux-x64x11-internal
-            platform: linux-x64x11-internal
-          - target_platform: linux-x64x11-skia
-            platform: linux-x64x11-skia
-          - target_platform: linux-x64x11
-            platform: linux-x64x11-sbversion-11
-          - sb_api_version: sb_api_version=11
-            platform: linux-x64x11-sbversion-11
-          - target_platform: linux-x64x11
-            platform: linux-x64x11-sbversion-12
-          - sb_api_version: sb_api_version=12
-            platform: linux-x64x11-sbversion-12
-          - target_platform: linux-x64x11
-            platform: linux-x64x11-sbversion-13
-          - sb_api_version: sb_api_version=13
-            platform: linux-x64x11-sbversion-13
+          - platform: linux-x64x11
+            target_platform: linux-x64x11
+          - platform: linux-x64x11-egl
+            target_platform: linux-x64x11-egl
+          - platform: linux-x64x11-internal
+            target_platform: linux-x64x11-internal
+          - platform: linux-x64x11-skia
+            target_platform: linux-x64x11-skia
+          - platform: linux-x64x11-sbversion-11
+            target_platform: linux-x64x11
+            sb_api_version: sb_api_version=11
+          - platform: linux-x64x11-sbversion-12
+            target_platform: linux-x64x11
+            sb_api_version: sb_api_version=12
+          - platform: linux-x64x11-sbversion-13
+            target_platform: linux-x64x11
+            sb_api_version: sb_api_version=13
     container: ghcr.io/isarkis/cobalt-build-linux:main
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
@@ -301,10 +361,17 @@ jobs:
       - name: checkout
         uses: actions/checkout@v2
       # Run build
-      - name: ${{matrix.platform}}-${{matrix.config}}
+      - name: "Set env vars"
         run: |
-          export PYTHONPATH=$GITHUB_WORKSPACE
-          gn gen $GITHUB_WORKSPACE/out/${{ matrix.target_platform }}_${{ matrix.config }} --args="target_platform=\"${{ matrix.target_platform }}\" ${{ matrix.sb_api_version }} is_internal_build=true build_type=\"${{ matrix.config }}\""
+          echo "PYTHONPATH=$GITHUB_WORKSPACE" >> $GITHUB_ENV
+      - name: "gn gen"
+        run: |  
+          gn gen $GITHUB_WORKSPACE/out/${{ matrix.target_platform }}_${{ matrix.config }} --args="target_platform=\"${{ matrix.target_platform }}\" ${{ matrix.use_asan }} ${{ matrix.use_clang }} ${{ matrix.sb_api_version }} is_internal_build=false build_type=\"${{ matrix.config }}\""
+      - name: "gn check"
+        run: |  
+          gn check $GITHUB_WORKSPACE/out/${{ matrix.target_platform }}_${{ matrix.config }}
+      - name: Build ${{matrix.platform}}-${{matrix.config}}
+        run: |
           ninja -v -C $GITHUB_WORKSPACE/out/${{ matrix.target_platform }}_${{ matrix.config }} all
   
   # Android jobs.
