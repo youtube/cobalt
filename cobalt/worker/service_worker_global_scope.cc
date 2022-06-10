@@ -24,6 +24,7 @@
 #include "base/trace_event/trace_event.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/exception_state.h"
+#include "cobalt/worker/clients.h"
 #include "cobalt/worker/service_worker_jobs.h"
 #include "cobalt/worker/worker_settings.h"
 
@@ -32,6 +33,7 @@ namespace worker {
 ServiceWorkerGlobalScope::ServiceWorkerGlobalScope(
     script::EnvironmentSettings* settings, ServiceWorkerObject* service_worker)
     : WorkerGlobalScope(settings),
+      clients_(new Clients(settings)),
       service_worker_(base::AsWeakPtr(service_worker)) {}
 
 void ServiceWorkerGlobalScope::Initialize() {}
@@ -116,7 +118,6 @@ void ServiceWorkerGlobalScope::ImportScripts(
           },
           service_worker_));
 }
-
 
 scoped_refptr<ServiceWorkerRegistration>
 ServiceWorkerGlobalScope::registration() const {

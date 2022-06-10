@@ -12,22 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// https://w3c.github.io/ServiceWorker/#serviceworkerglobalscope-interface
+// https://w3c.github.io/ServiceWorker/#clients-interface
 
-[
-  Global = (Worker,ServiceWorker),
-  Exposed = ServiceWorker,
-] interface ServiceWorkerGlobalScope : WorkerGlobalScope {
-  readonly attribute Clients clients;
-  readonly attribute ServiceWorkerRegistration registration;
-  readonly attribute ServiceWorker serviceWorker;
-
-  Promise<void> skipWaiting();
-
-  attribute EventHandler onactivate;
-  attribute EventHandler onfetch;
-  attribute EventHandler oninstall;
-
-  attribute EventHandler onmessage;
-  attribute EventHandler onmessageerror;
+[Exposed = ServiceWorker] interface Clients {
+  // The objects returned will be new instances every time
+  Promise<any> get(DOMString id);
+  // b/218506730: Support for optional dictionaries.
+  Promise<sequence<Client>> matchAll();
+  Promise<sequence<Client>> matchAll(ClientQueryOptions options);
+  Promise<void> claim();
 };

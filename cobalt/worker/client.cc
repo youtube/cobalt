@@ -12,22 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// https://w3c.github.io/ServiceWorker/#serviceworkerglobalscope-interface
+#include "cobalt/worker/client.h"
 
-[
-  Global = (Worker,ServiceWorker),
-  Exposed = ServiceWorker,
-] interface ServiceWorkerGlobalScope : WorkerGlobalScope {
-  readonly attribute Clients clients;
-  readonly attribute ServiceWorkerRegistration registration;
-  readonly attribute ServiceWorker serviceWorker;
+namespace cobalt {
+namespace worker {
 
-  Promise<void> skipWaiting();
+void Client::PostMessage(const std::string& message) {
+  DLOG(INFO) << "Message : " << message;
+}
 
-  attribute EventHandler onactivate;
-  attribute EventHandler onfetch;
-  attribute EventHandler oninstall;
-
-  attribute EventHandler onmessage;
-  attribute EventHandler onmessageerror;
-};
+}  // namespace worker
+}  // namespace cobalt

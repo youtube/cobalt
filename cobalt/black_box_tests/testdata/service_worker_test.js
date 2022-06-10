@@ -43,6 +43,37 @@ try {
   console.log(message);
 }
 
+console.log('self.clients: ', self.clients);
+
+self.clients.get('foo').then(function (clients) {
+  console.log('(Unexpected) self.clients.get(): ', clients);
+}, function (error) {
+  console.log(`(Expected) self.clients.get() not yet supported: ${error}`, error);
+});
+
+self.clients.matchAll().then(function (clients) {
+  console.log('(Unexpected) self.clients.matchAll(): ', clients);
+}, function (error) {
+  console.log(`(Expected) self.clients.matchAll() not yet supported: ${error}`, error);
+});
+
+
+var options = {
+  includeUncontrolled: true, type: 'worker'
+};
+
+self.clients.matchAll(options).then(function (clients) {
+  console.log('(Unexpected) self.clients.matchAll(): ', clients);
+}, function (error) {
+  console.log(`(Expected) self.clients.matchAll() not yet supported: ${error}`, error);
+});
+
+self.clients.claim().then(function (clients) {
+  console.log('(Unexpected) self.clients.claim(): ', clients);
+}, function (error) {
+  console.log(`(Expected) self.clients.claim() not yet supported: ${error}`, error);
+});
+
 console.log('Worker importing scripts sunnyday.');
 
 self.importScripts('service_worker_test_importscripts_1.js',

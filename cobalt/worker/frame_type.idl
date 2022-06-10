@@ -12,22 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// https://w3c.github.io/ServiceWorker/#serviceworkerglobalscope-interface
+// https://w3c.github.io/ServiceWorker/#enumdef-frametype
 
-[
-  Global = (Worker,ServiceWorker),
-  Exposed = ServiceWorker,
-] interface ServiceWorkerGlobalScope : WorkerGlobalScope {
-  readonly attribute Clients clients;
-  readonly attribute ServiceWorkerRegistration registration;
-  readonly attribute ServiceWorker serviceWorker;
-
-  Promise<void> skipWaiting();
-
-  attribute EventHandler onactivate;
-  attribute EventHandler onfetch;
-  attribute EventHandler oninstall;
-
-  attribute EventHandler onmessage;
-  attribute EventHandler onmessageerror;
-};
+enum FrameType { "auxiliary", "top-level", "nested", "none" };
