@@ -18,6 +18,10 @@ static_library("worker") {
 
   sources = [
     "abstract_worker.h",
+    "client.cc",
+    "client.h",
+    "clients.cc",
+    "clients.h",
     "dedicated_worker.cc",
     "dedicated_worker.h",
     "dedicated_worker_global_scope.cc",

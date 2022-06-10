@@ -27,6 +27,8 @@ namespace script {
 
 using SequenceWrappable = Sequence<scoped_refptr<Wrappable>>;
 using PromiseSequenceWrappable = Promise<SequenceWrappable>;
+using HandlePromiseSequenceWrappable = Handle<PromiseSequenceWrappable>;
+using ValuePromiseSequenceWrappable = ScriptValue<PromiseSequenceWrappable>;
 
 using PromiseWrappable = Promise<scoped_refptr<Wrappable>>;
 using HandlePromiseWrappable = Handle<PromiseWrappable>;

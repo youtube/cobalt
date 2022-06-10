@@ -29,6 +29,7 @@
 #include "cobalt/script/wrappable.h"
 #include "cobalt/web/event_target.h"
 #include "cobalt/web/event_target_listener_info.h"
+#include "cobalt/worker/clients.h"
 #include "cobalt/worker/service_worker.h"
 #include "cobalt/worker/service_worker_object.h"
 #include "cobalt/worker/service_worker_registration.h"
@@ -56,6 +57,7 @@ class ServiceWorkerGlobalScope : public WorkerGlobalScope {
 
   // Web API: ServiceWorkerGlobalScope
   //
+  scoped_refptr<Clients> clients() const { return clients_; }
   scoped_refptr<ServiceWorkerRegistration> registration() const;
   scoped_refptr<ServiceWorker> service_worker() const;
   script::HandlePromiseVoid SkipWaiting();
@@ -110,6 +112,7 @@ class ServiceWorkerGlobalScope : public WorkerGlobalScope {
   ~ServiceWorkerGlobalScope() override {}
 
  private:
+  scoped_refptr<Clients> clients_;
   base::WeakPtr<ServiceWorkerObject> service_worker_;
 };
 

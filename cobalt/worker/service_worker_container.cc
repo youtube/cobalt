@@ -236,7 +236,7 @@ void ServiceWorkerContainer::GetRegistrationTask(
                                 client, std::move(promise_reference)));
 }
 
-script::Handle<script::PromiseSequenceWrappable>
+script::HandlePromiseSequenceWrappable
 ServiceWorkerContainer::GetRegistrations() {
   // https://w3c.github.io/ServiceWorker/#navigator-service-worker-getRegistrations
   // 1. Let client be this's service worker client.
@@ -258,8 +258,8 @@ ServiceWorkerContainer::GetRegistrations() {
   //       3. Resolve promise with a new frozen array of registrationObjects in
   //          promise’s relevant Realm.
   // 4. Return promise.
-  auto promise = base::polymorphic_downcast<web::EnvironmentSettings*>(
-                     environment_settings())
+  // TODO(b/235531652): Implement getRegistrations().
+  auto promise = environment_settings()
                      ->context()
                      ->global_environment()
                      ->script_value_factory()

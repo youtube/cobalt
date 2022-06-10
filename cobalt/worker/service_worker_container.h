@@ -47,7 +47,7 @@ class ServiceWorkerContainer : public web::EventTarget {
   script::HandlePromiseWrappable Register(const std::string& url,
                                           const RegistrationOptions& options);
   script::HandlePromiseWrappable GetRegistration(const std::string& url);
-  script::Handle<script::PromiseSequenceWrappable> GetRegistrations();
+  script::HandlePromiseSequenceWrappable GetRegistrations();
 
   void StartMessages();
 
