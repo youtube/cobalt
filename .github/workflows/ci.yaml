@@ -17,8 +17,12 @@ on:
 # Global env vars.
 env:
   REGISTRY: ghcr.io
+  IPV6_AVAILABLE: 0
+  IS_BUILDBOT_DOCKER: 1
+  #BUILD_ID_SERVER_URL:
   IS_CI: 1
   IS_DOCKER: 1
+  NINJA_STATUS: '[%e sec | %f/%t %u remaining | %c/sec | j%r]'
   SCCACHE: 1
   SCCACHE_GCS_BUCKET: cobalt-actions-devel-sccache-linux
   SCCACHE_GCS_OAUTH_URL: http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token
@@ -164,16 +168,19 @@ jobs:
             target_cpu: target_cpu=\"arm\"
             use_asan: use_asan=false
             sb_api_version: sb_api_version=14
+            container: cobalt-build-raspi
           - platform: evergreen-arm-hardfp-sbversion-13
             target_platform: evergreen-arm-hardfp
             target_cpu: target_cpu=\"arm\"
             use_asan: use_asan=false
             sb_api_version: sb_api_version=13
+            container: cobalt-build-raspi
           - platform: evergreen-arm-hardfp-sbversion-12
             target_platform: evergreen-arm-hardfp
             target_cpu: target_cpu=\"arm\"
             use_asan: use_asan=false
             sb_api_version: sb_api_version=12
+            container: cobalt-build-raspi
           # evergreen-arm-softfp
           - platform: evergreen-arm-softfp
             target_platform: evergreen-arm-softfp
@@ -330,16 +337,26 @@ jobs:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - name: checkout
         uses: actions/checkout@v2
-      # Run build
-      - name: "Set env vars"
+      # Configure environment.
+      - name: Set env vars
         run: |
           echo "PYTHONPATH=$GITHUB_WORKSPACE" >> $GITHUB_ENV
+          echo "STARBOARD_TOOLCHAINS_DIR=/root/starboard-toolchains" >> $GITHUB_ENV
+      - name: Set Android env vars
+        if: startsWith(${{matrix.target_platform}}, 'android')
+        run: |
+          echo "ANDROID_HOME=/root/starboard-toolchains/AndroidSdk/" >> $GITHUB_ENV
+          echo "GCS_NIGHTLY_PATH=gs://cobalt-actions-devel-build-artifacts" >> $GITHUB_ENV
+      - name: Print env vars
+        run: env | sort
+      # Configure GN.
       - name: "gn gen"
         run: |
           gn gen $GITHUB_WORKSPACE/out/${{matrix.target_platform}}_${{matrix.config}} --args="target_platform=\"${{matrix.target_platform}}\" ${{matrix.use_asan}} ${{matrix.is_clang}} ${{matrix.sb_api_version}} ${{matrix.target_os}} ${{matrix.target_cpu}} is_internal_build=false build_type=\"${{matrix.config}}\""
       - name: "gn check"
         run: |  
           gn check $GITHUB_WORKSPACE/out/${{ matrix.target_platform }}_${{ matrix.config }}
+      # Build Cobalt.
       - name: Build ${{matrix.platform}}-${{matrix.config}}
         run: |
           ninja -v -C $GITHUB_WORKSPACE/out/${{ matrix.target_platform }}_${{ matrix.config }} all
