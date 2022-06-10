@@ -15,5 +15,6 @@
 if (current_toolchain == host_toolchain) {
   executable("lz4_compress") {
     sources = [ "lz4_compress.cc" ]
+    deps = [ "//third_party/lz4_lib:lz4" ]
   }
 }
