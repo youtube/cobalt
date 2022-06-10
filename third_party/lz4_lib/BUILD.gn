@@ -14,16 +14,17 @@
 
 static_library("lz4") {
   include_dirs = [ "." ]
-  defines = [
-    "LZ4_USER_MEMORY_FUNCTIONS",
-    "XXH_NAMESPACE=LZ4_",
-  ]
+  defines = [ "XXH_NAMESPACE=LZ4_" ]
 
   sources = [
     "lz4_all.c",
-    "lz4starboard.c",
     "xxhash.c",
   ]
 
-  public_deps = [ "//starboard:starboard_headers_only" ]
+  # We want to build non-Starboardized code for the host toolchain.
+  if (current_toolchain != host_toolchain) {
+    defines += [ "LZ4_USER_MEMORY_FUNCTIONS" ]
+    sources += [ "lz4starboard.c" ]
+    public_deps = [ "//starboard:starboard_headers_only" ]
+  }
 }
