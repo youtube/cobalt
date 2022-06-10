@@ -45,5 +45,3 @@ sb_angle_enable_gl = true
 cobalt_v8_emit_builtins_as_inline_asm = true
 
 sb_enable_cpp17_audit = false
-
-use_skia_next = true
