@@ -359,6 +359,7 @@ jobs:
       # Build Cobalt.
       - name: Build ${{matrix.platform}}-${{matrix.config}}
         run: |
+          python -c "import starboard.tools.build; print(starboard.tools.build.GetToolchainsDir())"
           ninja -v -C $GITHUB_WORKSPACE/out/${{ matrix.target_platform }}_${{ matrix.config }} all
 
   # Win-Win32 Jobs.
