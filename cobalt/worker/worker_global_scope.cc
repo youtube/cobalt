@@ -22,6 +22,7 @@
 #include "base/logging.h"
 #include "base/message_loop/message_loop_current.h"
 #include "base/threading/thread.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/loader/origin.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/web/context.h"
@@ -63,6 +64,8 @@ class ScriptLoader : public base::MessageLoop::DestructionObserver {
             [](loader::FetcherFactory* fetcher_factory,
                std::unique_ptr<loader::ScriptLoaderFactory>*
                    script_loader_factory_) {
+              TRACE_EVENT0("cobalt::worker",
+                           "ScriptLoader::ScriptLoaderFactory Task");
               script_loader_factory_->reset(new loader::ScriptLoaderFactory(
                   "ImportScriptsLoader", fetcher_factory));
             },
@@ -91,6 +94,7 @@ class ScriptLoader : public base::MessageLoop::DestructionObserver {
 
   void Load(const loader::Origin& origin,
             const std::vector<GURL>& resolved_urls) {
+    TRACE_EVENT0("cobalt::worker", "ScriptLoader::Load()");
     number_of_loads_ = resolved_urls.size();
     contents_.resize(resolved_urls.size());
     loaders_.resize(resolved_urls.size());
@@ -111,14 +115,12 @@ class ScriptLoader : public base::MessageLoop::DestructionObserver {
                   const loader::Origin& origin, const GURL& url,
                   std::unique_ptr<std::string>* content,
                   std::unique_ptr<std::string>* error) {
+    TRACE_EVENT0("cobalt::worker", "ScriptLoader::LoaderTask()");
     // Todo: implement csp check (b/225037465)
     csp::SecurityCallback csp_callback = base::Bind(&PermitAnyURL);
 
     // If there is a request callback, call it to possibly retrieve previously
     // requested content.
-    std::unique_ptr<std::string> maybe_content;
-    loader::TextDecoder::TextAvailableCallback text_available_callback;
-
     *loader = script_loader_factory_->CreateScriptLoader(
         url, origin, csp_callback,
         base::Bind(
@@ -135,6 +137,7 @@ class ScriptLoader : public base::MessageLoop::DestructionObserver {
   void LoadingCompleteCallback(std::unique_ptr<loader::Loader>* loader,
                                std::unique_ptr<std::string>* output_error,
                                const base::Optional<std::string>& error) {
+    TRACE_EVENT0("cobalt::worker", "ScriptLoader::LoadingCompleteCallback()");
     if (error) {
       output_error->reset(new std::string(std::move(error.value())));
     }

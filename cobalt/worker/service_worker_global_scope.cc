@@ -34,7 +34,7 @@ ServiceWorkerGlobalScope::ServiceWorkerGlobalScope(
     script::EnvironmentSettings* settings, ServiceWorkerObject* service_worker)
     : WorkerGlobalScope(settings),
       clients_(new Clients(settings)),
-      service_worker_(base::AsWeakPtr(service_worker)) {}
+      service_worker_object_(base::AsWeakPtr(service_worker)) {}
 
 void ServiceWorkerGlobalScope::Initialize() {}
 
@@ -49,7 +49,7 @@ void ServiceWorkerGlobalScope::ImportScripts(
   // fetch given the request request:
   // 1. Let serviceWorker be request’s client's global object's service
   //    worker.
-  DCHECK(service_worker_);
+  DCHECK(service_worker_object_);
 
   WorkerGlobalScope::ImportScriptsInternal(
       urls, exception_state,
@@ -98,7 +98,7 @@ void ServiceWorkerGlobalScope::ImportScripts(
 
             return resource;
           },
-          service_worker_),
+          service_worker_object_),
       base::Bind(
           [](ServiceWorkerObject* service_worker, const GURL& url,
              std::string* content) {
@@ -116,7 +116,7 @@ void ServiceWorkerGlobalScope::ImportScripts(
             // 15. Return response.
             return content;
           },
-          service_worker_));
+          service_worker_object_));
 }
 
 scoped_refptr<ServiceWorkerRegistration>
@@ -127,10 +127,10 @@ ServiceWorkerGlobalScope::registration() const {
   // The registration getter steps are to return the result of getting the
   // service worker registration object representing this's service worker's
   // containing service worker registration in this's relevant settings object.
-  DCHECK(service_worker_);
+  DCHECK(service_worker_object_);
   return environment_settings()->context()->GetServiceWorkerRegistration(
-      service_worker_
-          ? service_worker_->containing_service_worker_registration()
+      service_worker_object_
+          ? service_worker_object_->containing_service_worker_registration()
           : nullptr);
 }
 
@@ -141,8 +141,9 @@ scoped_refptr<ServiceWorker> ServiceWorkerGlobalScope::service_worker() const {
   // The serviceWorker getter steps are to return the result of getting the
   // service worker object that represents this's service worker in this's
   // relevant settings object.
-  DCHECK(service_worker_);
-  return environment_settings()->context()->GetServiceWorker(service_worker_);
+  DCHECK(service_worker_object_);
+  return environment_settings()->context()->GetServiceWorker(
+      service_worker_object_);
 }
 
 
@@ -165,10 +166,11 @@ script::HandlePromiseVoid ServiceWorkerGlobalScope::SkipWaiting() {
   worker::ServiceWorkerJobs* jobs =
       environment_settings()->context()->service_worker_jobs();
   jobs->message_loop()->task_runner()->PostTask(
-      FROM_HERE, base::BindOnce(&ServiceWorkerJobs::SkipWaitingSubSteps,
-                                base::Unretained(jobs),
-                                base::Unretained(environment_settings()),
-                                service_worker_, std::move(promise_reference)));
+      FROM_HERE,
+      base::BindOnce(&ServiceWorkerJobs::SkipWaitingSubSteps,
+                     base::Unretained(jobs),
+                     base::Unretained(environment_settings()),
+                     service_worker_object_, std::move(promise_reference)));
   // 3. Return promise.
   return promise;
 }

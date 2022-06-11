@@ -20,6 +20,7 @@
 #include <queue>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "base/bind.h"
 #include "base/logging.h"
@@ -29,6 +30,7 @@
 #include "base/task_runner.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/tokens.h"
+#include "cobalt/dom/visibility_state.h"
 #include "cobalt/loader/script_loader_factory.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/script/promise.h"
@@ -38,11 +40,18 @@
 #include "cobalt/web/dom_exception.h"
 #include "cobalt/web/environment_settings.h"
 #include "cobalt/web/event.h"
+#include "cobalt/web/window_or_worker_global_scope.h"
+#include "cobalt/worker/client.h"
+#include "cobalt/worker/client_query_options.h"
+#include "cobalt/worker/client_type.h"
+#include "cobalt/worker/frame_type.h"
 #include "cobalt/worker/service_worker.h"
 #include "cobalt/worker/service_worker_container.h"
+#include "cobalt/worker/service_worker_global_scope.h"
 #include "cobalt/worker/service_worker_registration.h"
 #include "cobalt/worker/service_worker_registration_object.h"
 #include "cobalt/worker/service_worker_update_via_cache.h"
+#include "cobalt/worker/window_client.h"
 #include "cobalt/worker/worker_type.h"
 #include "net/base/url_util.h"
 #include "starboard/atomic.h"
@@ -119,7 +128,7 @@ ServiceWorkerJobs::ServiceWorkerJobs(network::NetworkModule* network_module,
 
 ServiceWorkerJobs::~ServiceWorkerJobs() {
   DCHECK_EQ(message_loop(), base::MessageLoop::current());
-  if (!web_context_registrations_.empty()) {
+  while (!web_context_registrations_.empty()) {
     // Wait for web context registrations to be cleared.
     web_context_registrations_cleared_.Wait();
   }
@@ -201,7 +210,7 @@ void ServiceWorkerJobs::StartRegister(
 
   // 10. Let storage key be the result of running obtain a storage key given
   // client.
-  url::Origin storage_key = url::Origin::Create(client->creation_url());
+  url::Origin storage_key = client->ObtainStorageKey();
 
   // 11. Let job be the result of running Create Job with register, storage key,
   // scopeURL, scriptURL, promise, and client.
@@ -705,6 +714,8 @@ void ServiceWorkerJobs::UpdateOnLoadingComplete(
       state->registration);
   options.web_options.platform_info =
       state->job->client->context()->platform_info();
+  options.web_options.service_worker_jobs =
+      state->job->client->context()->service_worker_jobs();
   scoped_refptr<ServiceWorkerObject> worker(new ServiceWorkerObject(options));
   // 12. Set worker’s script url to job’s script url, worker’s script
   //     resource to script, worker’s type to job’s worker type, and worker’s
@@ -822,9 +833,9 @@ void ServiceWorkerJobs::Install(
               [](web::Context* context,
                  scoped_refptr<ServiceWorkerRegistrationObject> registration) {
                 // 9.1. Let registrationObjects be every
-                // ServiceWorkerRegistration
-                //      object in settingsObject’s realm, whose service worker
-                //      registration is registration.
+                //      ServiceWorkerRegistration object in settingsObject’s
+                //      realm, whose service worker registration is
+                //      registration.
 
                 // There is at most one per web context, stored in the service
                 // worker registration object map of the web context.
@@ -963,8 +974,7 @@ bool ServiceWorkerJobs::IsAnyClientUsingRegistration(
     // said that the service worker client is using the service worker’s
     // containing service worker registration.
     //   https://w3c.github.io/ServiceWorker/#dfn-control
-    if (context->environment_settings()->is_controlled_by(
-            registration->active_worker())) {
+    if (context->is_controlled_by(registration->active_worker())) {
       any_client_is_using = true;
       break;
     }
@@ -1066,14 +1076,14 @@ void ServiceWorkerJobs::Activate(
     //      the service worker registration object that
     //      represents registration in readyPromise’s
     //      relevant settings object.
-    context->message_loop()->task_runner()->PostBlockingTask(
+    context->message_loop()->task_runner()->PostTask(
         FROM_HERE,
-        base::Bind(&ServiceWorkerContainer::MaybeResolveReadyPromise,
-                   base::Unretained(context->GetWindowOrWorkerGlobalScope()
-                                        ->navigator_base()
-                                        ->service_worker()
-                                        .get()),
-                   registration));
+        base::BindOnce(&ServiceWorkerContainer::MaybeResolveReadyPromise,
+                       base::Unretained(context->GetWindowOrWorkerGlobalScope()
+                                            ->navigator_base()
+                                            ->service_worker()
+                                            .get()),
+                       registration));
   }
   // 8. For each client of matchedClients:
   // 8.1. If client is a window client, unassociate client’s responsible
@@ -1089,9 +1099,10 @@ void ServiceWorkerJobs::Activate(
     // said that the service worker client is using the service worker’s
     // containing service worker registration.
     //   https://w3c.github.io/ServiceWorker/#dfn-control
-    if (client->is_controlled_by(registration->active_worker())) {
+    if (context->is_controlled_by(registration->active_worker())) {
       // 9.1. Set client’s active worker to registration’s active worker.
-      client->set_active_service_worker(registration->active_worker());
+      client->context()->set_active_service_worker(
+          registration->active_worker());
       // 9.2. Invoke Notify Controller Change algorithm with client as the
       //      argument.
       NotifyControllerChange(client);
@@ -1449,7 +1460,8 @@ void ServiceWorkerJobs::HandleServiceWorkerClientUnload(
 
   // 2. Let registration be the service worker registration used by client.
   // 3. If registration is null, abort these steps.
-  ServiceWorkerObject* active_service_worker = client->active_service_worker();
+  ServiceWorkerObject* active_service_worker =
+      client->context()->active_service_worker();
   if (!active_service_worker) return;
   ServiceWorkerRegistrationObject* registration =
       active_service_worker->containing_service_worker_registration();
@@ -1627,6 +1639,8 @@ void ServiceWorkerJobs::ResolveJobPromise(
       [](JobType type, web::EnvironmentSettings* client,
          std::unique_ptr<JobPromiseType> promise, bool value,
          scoped_refptr<ServiceWorkerRegistrationObject> registration) {
+        TRACE_EVENT0("cobalt::worker",
+                     "ServiceWorkerJobs::ResolveJobPromise() ResolveTask");
         // 1.1./2.2.1. Let convertedValue be null.
         // 1.2./2.2.2. If job’s job type is either register or update, set
         //             convertedValue to the result of getting the service
@@ -1712,7 +1726,7 @@ void ServiceWorkerJobs::MaybeResolveReadyPromiseSubSteps(
   //    3.1. Let client by this's service worker client.
   //    3.2. Let storage key be the result of running obtain a storage
   //         key given client.
-  url::Origin storage_key = url::Origin::Create(client->creation_url());
+  url::Origin storage_key = client->ObtainStorageKey();
   //    3.3. Let registration be the result of running Match Service
   //         Worker Registration given storage key and client’s
   //         creation URL.
@@ -1770,6 +1784,9 @@ void ServiceWorkerJobs::GetRegistrationSubSteps(
           [](web::EnvironmentSettings* settings,
              std::unique_ptr<script::ValuePromiseWrappable::Reference> promise,
              scoped_refptr<ServiceWorkerRegistrationObject> registration) {
+            TRACE_EVENT0(
+                "cobalt::worker",
+                "ServiceWorkerJobs::GetRegistrationSubSteps() Resolve");
             promise->value().Resolve(
                 settings->context()->GetServiceWorkerRegistration(
                     registration));
@@ -1797,13 +1814,469 @@ void ServiceWorkerJobs::SkipWaitingSubSteps(
   client->context()->message_loop()->task_runner()->PostTask(
       FROM_HERE,
       base::BindOnce(
-          [](web::EnvironmentSettings* settings,
-             std::unique_ptr<script::ValuePromiseVoid::Reference> promise) {
+          [](std::unique_ptr<script::ValuePromiseVoid::Reference> promise) {
             promise->value().Resolve();
           },
-          client, std::move(promise_reference)));
+          std::move(promise_reference)));
 }
 
+void ServiceWorkerJobs::ClientsGetSubSteps(
+    web::EnvironmentSettings* settings,
+    ServiceWorkerObject* associated_service_worker,
+    std::unique_ptr<script::ValuePromiseWrappable::Reference> promise_reference,
+    const std::string& id) {
+  TRACE_EVENT0("cobalt::worker", "ServiceWorkerJobs::ClientsGetSubSteps()");
+  DCHECK_EQ(message_loop_, base::MessageLoop::current());
+  // Parallel sub steps (2) for algorithm for Clients.get(id):
+  //   https://w3c.github.io/ServiceWorker/#clients-get
+  // 2.1. For each service worker client client where the result of running
+  //      obtain a storage key given client equals the associated service
+  //      worker's containing service worker registration's storage key:
+  const url::Origin& storage_key =
+      associated_service_worker->containing_service_worker_registration()
+          ->storage_key();
+  for (auto& context : web_context_registrations_) {
+    web::EnvironmentSettings* client = context->environment_settings();
+    url::Origin client_storage_key = client->ObtainStorageKey();
+    if (client_storage_key.IsSameOriginWith(storage_key)) {
+      // 2.1.1. If client’s id is not id, continue.
+      if (client->id() != id) continue;
+
+      // 2.1.2. Wait for either client’s execution ready flag to be set or for
+      //        client’s discarded flag to be set.
+      // Web Contexts exist only in the web_context_registrations_ set when they
+      // are both execution ready and not discarded.
+
+      // 2.1.3. If client’s execution ready flag is set, then invoke Resolve Get
+      //        Client Promise with client and promise, and abort these steps.
+      ResolveGetClientPromise(client, settings, std::move(promise_reference));
+      return;
+    }
+  }
+  // 2.2. Resolve promise with undefined.
+  promise_reference->value().Resolve(scoped_refptr<Client>());
+}
+
+void ServiceWorkerJobs::ResolveGetClientPromise(
+    web::EnvironmentSettings* client,
+    web::EnvironmentSettings* promise_relevant_settings,
+    std::unique_ptr<script::ValuePromiseWrappable::Reference>
+        promise_reference) {
+  TRACE_EVENT0("cobalt::worker",
+               "ServiceWorkerJobs::ResolveGetClientPromise()");
+  // Algorithm for Resolve Get Client Promise:
+  //   https://w3c.github.io/ServiceWorker/#resolve-get-client-promise
+
+  // 1. If client is an environment settings object, then:
+  // 1.1. If client is not a secure context, queue a task to reject promise with
+  //      a "SecurityError" DOMException, on promise’s relevant settings
+  //      object's responsible event loop using the DOM manipulation task
+  //      source, and abort these steps.
+  // 2. Else:
+  // 2.1. If client’s creation URL is not a potentially trustworthy URL, queue
+  //      a task to reject promise with a "SecurityError" DOMException, on
+  //      promise’s relevant settings object's responsible event loop using the
+  //      DOM manipulation task source, and abort these steps.
+  // In production, Cobalt requires https, therefore all clients are secure
+  // contexts.
+
+  // 3. If client is an environment settings object and is not a window client,
+  //    then:
+  if (!client->context()->GetWindowOrWorkerGlobalScope()->IsWindow()) {
+    // 3.1. Let clientObject be the result of running Create Client algorithm
+    //      with client as the argument.
+    scoped_refptr<Client> client_object = Client::Create(client);
+
+    // 3.2. Queue a task to resolve promise with clientObject, on promise’s
+    //      relevant settings object's responsible event loop using the DOM
+    //      manipulation task source, and abort these steps.
+    promise_relevant_settings->context()
+        ->message_loop()
+        ->task_runner()
+        ->PostTask(
+            FROM_HERE,
+            base::BindOnce(
+                [](std::unique_ptr<script::ValuePromiseWrappable::Reference>
+                       promise_reference,
+                   scoped_refptr<Client> client_object) {
+                  TRACE_EVENT0(
+                      "cobalt::worker",
+                      "ServiceWorkerJobs::ResolveGetClientPromise() Resolve");
+                  promise_reference->value().Resolve(client_object);
+                },
+                std::move(promise_reference), client_object));
+    return;
+  }
+  // 4. Else:
+  // 4.1. Let browsingContext be null.
+  // 4.2. If client is an environment settings object, set browsingContext to
+  //      client’s global object's browsing context.
+  // 4.3. Else, set browsingContext to client’s target browsing context.
+  // Note: Cobalt does not implement a distinction between environments and
+  // environment settings objects.
+  // 4.4. Queue a task to run the following steps on browsingContext’s event
+  //      loop using the user interaction task source:
+  // Note: The task below does not currently perform any actual
+  // functionality in the client context. It is included however to help future
+  // implementation for fetching values for WindowClient properties, with
+  // similar logic existing in ClientsMatchAllSubSteps.
+  client->context()->message_loop()->task_runner()->PostTask(
+      FROM_HERE,
+      base::BindOnce(
+          [](web::EnvironmentSettings* client,
+             web::EnvironmentSettings* promise_relevant_settings,
+             std::unique_ptr<script::ValuePromiseWrappable::Reference>
+                 promise_reference) {
+            std::unique_ptr<WindowData> window_data(new WindowData);
+            window_data->client = client;
+            // 4.4.1. Let frameType be the result of running Get Frame Type with
+            //        browsingContext.
+            // Cobalt does not support nested or auxiliary
+            // browsing contexts.
+            window_data->frame_type = kFrameTypeTopLevel;
+
+            // 4.4.2. Let visibilityState be browsingContext’s active document's
+            //        visibilityState attribute value.
+            // TODO(b/235838698): Implement WindowClient.visibilityState.
+
+            // 4.4.3. Let focusState be the result of running the has focus
+            //        steps with browsingContext’s active document as the
+            //        argument.
+            // TODO(b/235838698): Implement WindowClient.focused.
+
+            // 4.4.4. Let ancestorOriginsList be the empty list.
+            // 4.4.5. If client is a window client, set ancestorOriginsList to
+            //        browsingContext’s active document's relevant global
+            //        object's Location object’s ancestor origins list's
+            //        associated list.
+            // Cobalt does not implement Location.ancestorOrigins.
+
+            // 4.4.6. Queue a task to run the following steps on promise’s
+            //        relevant settings object's responsible event loop using
+            //        the DOM manipulation task source:
+            promise_relevant_settings->context()
+                ->message_loop()
+                ->task_runner()
+                ->PostTask(
+                    FROM_HERE,
+                    base::BindOnce(
+                        [](std::unique_ptr<
+                               script::ValuePromiseWrappable::Reference>
+                               promise_reference,
+                           std::unique_ptr<WindowData> window_data) {
+                          // 4.4.6.1. If client’s discarded flag is set, resolve
+                          //          promise with undefined and abort these
+                          //          steps.
+                          // 4.4.6.2. Let windowClient be the result of running
+                          //          Create Window Client with client,
+                          //          frameType, visibilityState, focusState,
+                          //          and ancestorOriginsList.
+                          scoped_refptr<WindowClient> window_client =
+                              WindowClient::Create(*window_data);
+                          // 4.4.6.3. Resolve promise with windowClient.
+                          promise_reference->value().Resolve(window_client);
+                        },
+                        std::move(promise_reference), std::move(window_data)));
+          },
+          client, promise_relevant_settings, std::move(promise_reference)));
+  DCHECK_EQ(nullptr, promise_reference.get());
+}
+
+void ServiceWorkerJobs::ClientsMatchAllSubSteps(
+    web::EnvironmentSettings* settings,
+    ServiceWorkerObject* associated_service_worker,
+    std::unique_ptr<script::ValuePromiseSequenceWrappable::Reference>
+        promise_reference,
+    bool include_uncontrolled, ClientType type) {
+  TRACE_EVENT0("cobalt::worker",
+               "ServiceWorkerJobs::ClientsMatchAllSubSteps()");
+  DCHECK_EQ(message_loop_, base::MessageLoop::current());
+  // Parallel sub steps (2) for algorithm for Clients.matchAll():
+  //   https://w3c.github.io/ServiceWorker/#clients-matchall
+  // 2.1. Let targetClients be a new list.
+  std::list<web::EnvironmentSettings*> target_clients;
+
+  // 2.2. For each service worker client client where the result of running
+  //      obtain a storage key given client equals the associated service
+  //      worker's containing service worker registration's storage key:
+  const url::Origin& storage_key =
+      associated_service_worker->containing_service_worker_registration()
+          ->storage_key();
+  for (auto& context : web_context_registrations_) {
+    web::EnvironmentSettings* client = context->environment_settings();
+    url::Origin client_storage_key = client->ObtainStorageKey();
+    if (client_storage_key.IsSameOriginWith(storage_key)) {
+      // 2.2.1. If client’s execution ready flag is unset or client’s discarded
+      //        flag is set, continue.
+      // Web Contexts exist only in the web_context_registrations_ set when they
+      // are both execution ready and not discarded.
+
+      // 2.2.2. If client is not a secure context, continue.
+      // In production, Cobalt requires https, therefore all workers and their
+      // owners are secure contexts.
+
+      // 2.2.3. If options["includeUncontrolled"] is false, and if client’s
+      //        active service worker is not the associated service worker,
+      //        continue.
+      if (!include_uncontrolled &&
+          (client->context()->active_service_worker() !=
+           associated_service_worker)) {
+        continue;
+      }
+
+      // 2.2.4. Add client to targetClients.
+      target_clients.push_back(client);
+    }
+  }
+
+  // 2.3. Let matchedWindowData be a new list.
+  std::unique_ptr<std::vector<WindowData>> matched_window_data(
+      new std::vector<WindowData>);
+
+  // 2.4. Let matchedClients be a new list.
+  std::unique_ptr<std::vector<web::EnvironmentSettings*>> matched_clients(
+      new std::vector<web::EnvironmentSettings*>);
+
+  // 2.5. For each service worker client client in targetClients:
+  for (auto* client : target_clients) {
+    auto* global_scope = client->context()->GetWindowOrWorkerGlobalScope();
+
+    if ((type == kClientTypeWindow || type == kClientTypeAll) &&
+        (global_scope->IsWindow())) {
+      // 2.5.1. If options["type"] is "window" or "all", and client is not an
+      //        environment settings object or is a window client, then:
+
+      // 2.5.1.1. Let windowData be [ "client" -> client, "ancestorOriginsList"
+      //          -> a new list ].
+      WindowData window_data;
+      window_data.client = client;
+
+      // 2.5.1.2. Let browsingContext be null.
+
+      // 2.5.1.3. Let isClientEnumerable be true.
+      // For Cobalt, isClientEnumerable is always true because the clauses that
+      // would set it to false in 2.5.1.6. do not apply to Cobalt.
+
+      // 2.5.1.4. If client is an environment settings object, set
+      //          browsingContext to client’s global object's browsing context.
+
+      // 2.5.1.5. Else, set browsingContext to client’s target browsing context.
+      web::Context* browsing_context = settings->context();
+
+      // 2.5.1.6. Queue a task task to run the following substeps on
+      //          browsingContext’s event loop using the user interaction task
+      //          source:
+      // Note: The task below does not currently perform any actual
+      // functionality. It is included however to help future implementation for
+      // fetching values for WindowClient properties, with similar logic
+      // existing in ResolveGetClientPromise.
+      browsing_context->message_loop()->task_runner()->PostBlockingTask(
+          FROM_HERE, base::Bind(
+                         [](WindowData* window_data) {
+                           // 2.5.1.6.1. If browsingContext has been discarded,
+                           //            then set isClientEnumerable to false
+                           //            and abort these steps.
+                           // 2.5.1.6.2. If client is a window client and
+                           //            client’s responsible document is not
+                           //            browsingContext’s active document, then
+                           //            set isClientEnumerable to false and
+                           //            abort these steps.
+                           // In Cobalt, the document of a window browsing
+                           // context doesn't change: When a new document is
+                           // created, a new browsing context is created with
+                           // it.
+
+                           // 2.5.1.6.3. Set windowData["frameType"] to the
+                           //            result of running Get Frame Type with
+                           //            browsingContext.
+                           // Cobalt does not support nested or auxiliary
+                           // browsing contexts.
+                           window_data->frame_type = kFrameTypeTopLevel;
+
+                           // 2.5.1.6.4. Set windowData["visibilityState"] to
+                           //            browsingContext’s active document's
+                           //            visibilityState attribute value.
+                           // TODO(b/235838698): Implement
+                           // WindowClient.visibilityState.
+
+                           // 2.5.1.6.5. Set windowData["focusState"] to the
+                           //            result of running the has focus steps
+                           //            with browsingContext’s active document
+                           //            as the argument.
+                           // TODO(b/235838698): Implement WindowClient.focused.
+
+                           // 2.5.1.6.6. If client is a window client, then set
+                           //            windowData["ancestorOriginsList"] to
+                           //            browsingContext’s active document's
+                           //            relevant global object's Location
+                           //            object’s ancestor origins list's
+                           //            associated list.
+                           // Cobalt does not implement
+                           // Location.ancestorOrigins.
+                         },
+                         &window_data));
+
+      // 2.5.1.7. Wait for task to have executed.
+      // The task above is posted as a blocking task.
+
+      // 2.5.1.8. If isClientEnumerable is true, then:
+
+      // 2.5.1.8.1. Add windowData to matchedWindowData.
+      matched_window_data->emplace_back(window_data);
+
+      // 2.5.2. Else if options["type"] is "worker" or "all" and client is a
+      //        dedicated worker client, or options["type"] is "sharedworker" or
+      //        "all" and client is a shared worker client, then:
+    } else if (((type == kClientTypeWorker || type == kClientTypeAll) &&
+                global_scope->IsDedicatedWorker())) {
+      // Note: Cobalt does not support shared workers.
+      // 2.5.2.1. Add client to matchedClients.
+      matched_clients->emplace_back(client);
+    }
+  }
+
+  // 2.6. Queue a task to run the following steps on promise’s relevant
+  // settings object's responsible event loop using the DOM manipulation
+  // task source:
+  settings->context()->message_loop()->task_runner()->PostTask(
+      FROM_HERE,
+      base::BindOnce(
+          [](std::unique_ptr<script::ValuePromiseSequenceWrappable::Reference>
+                 promise_reference,
+             std::unique_ptr<std::vector<WindowData>> matched_window_data,
+             std::unique_ptr<std::vector<web::EnvironmentSettings*>>
+                 matched_clients) {
+            TRACE_EVENT0(
+                "cobalt::worker",
+                "ServiceWorkerJobs::ClientsMatchAllSubSteps() Resolve Promise");
+            // 2.6.1. Let clientObjects be a new list.
+            script::Sequence<scoped_refptr<script::Wrappable>> client_objects;
+
+            // 2.6.2. For each windowData in matchedWindowData:
+            for (auto& window_data : *matched_window_data) {
+              // 2.6.2.1. Let WindowClient be the result of running
+              //          Create Window Client algorithm with
+              //          windowData["client"],
+              //          windowData["frameType"],
+              //          windowData["visibilityState"],
+              //          windowData["focusState"], and
+              //          windowData["ancestorOriginsList"] as the
+              //          arguments.
+              // TODO(b/235838698): Implement WindowCLient properties
+              // and methods.
+              scoped_refptr<WindowClient> window_client =
+                  WindowClient::Create(window_data);
+
+              // 2.6.2.2. Append WindowClient to clientObjects.
+              client_objects.push_back(window_client);
+            }
+
+            // 2.6.3. For each client in matchedClients:
+            for (auto& client : *matched_clients) {
+              // 2.6.3.1. Let clientObject be the result of running
+              //          Create Client algorithm with client as the
+              //          argument.
+              scoped_refptr<Client> client_object = Client::Create(client);
+
+              // 2.6.3.2. Append clientObject to clientObjects.
+              client_objects.push_back(client_object);
+            }
+            // 2.6.4. Sort clientObjects such that:
+            //        . WindowClient objects whose browsing context has been
+            //          focused are placed first, sorted in the most recently
+            //          focused order.
+            //        . WindowClient objects whose browsing context has never
+            //          been focused are placed next, sorted in their service
+            //          worker client's creation order.
+            //        . Client objects whose associated service worker client is
+            //          a worker client are placed next, sorted in their service
+            //          worker client's creation order.
+            // TODO(b/235876598): Implement sorting of clientObjects.
+
+            // 2.6.5. Resolve promise with a new frozen array of clientObjects
+            //        in promise’s relevant Realm.
+            promise_reference->value().Resolve(client_objects);
+          },
+          std::move(promise_reference), std::move(matched_window_data),
+          std::move(matched_clients)));
+}
+
+void ServiceWorkerJobs::ClaimSubSteps(
+    web::EnvironmentSettings* settings,
+    ServiceWorkerObject* associated_service_worker,
+    std::unique_ptr<script::ValuePromiseVoid::Reference> promise_reference) {
+  TRACE_EVENT0("cobalt::worker", "ServiceWorkerJobs::ClaimSubSteps()");
+  DCHECK_EQ(message_loop_, base::MessageLoop::current());
+  // Parallel sub steps (3) for algorithm for Clients.claim():
+  //   https://w3c.github.io/ServiceWorker/#dom-clients-claim
+  std::list<web::EnvironmentSettings*> target_clients;
+
+  // 3.1. For each service worker client client where the result of running
+  //      obtain a storage key given client equals the service worker's
+  //      containing service worker registration's storage key:
+  const url::Origin& storage_key =
+      associated_service_worker->containing_service_worker_registration()
+          ->storage_key();
+  for (auto& context : web_context_registrations_) {
+    web::EnvironmentSettings* client = context->environment_settings();
+    // Don't claim to be our own service worker.
+    if (client == settings) continue;
+    url::Origin client_storage_key = client->ObtainStorageKey();
+    if (client_storage_key.IsSameOriginWith(storage_key)) {
+      // 3.1.1. If client’s execution ready flag is unset or client’s discarded
+      //        flag is set, continue.
+      // Web Contexts exist only in the web_context_registrations_ set when they
+      // are both execution ready and not discarded.
+
+      // 3.1.2. If client is not a secure context, continue.
+      // In production, Cobalt requires https, therefore all clients are secure
+      // contexts.
+
+      // 3.1.3. Let storage key be the result of running obtain a storage key
+      //        given client.
+      // 3.1.4. Let registration be the result of running Match Service Worker
+      //        Registration given storage key and client’s creation URL.
+      // TODO(b/234659851): Investigate whether this should use the creation
+      // URL directly instead.
+      const GURL& base_url = client->creation_url();
+      GURL client_url = base_url.Resolve("");
+      scoped_refptr<ServiceWorkerRegistrationObject> registration =
+          scope_to_registration_map_.MatchServiceWorkerRegistration(
+              client_storage_key, client_url);
+
+      // 3.1.5. If registration is not the service worker's containing service
+      //        worker registration, continue.
+      if (registration !=
+          associated_service_worker->containing_service_worker_registration()) {
+        continue;
+      }
+
+      // 3.1.6. If client’s active service worker is not the service worker,
+      //        then:
+      if (client->context()->active_service_worker() !=
+          associated_service_worker) {
+        // 3.1.6.1. Invoke Handle Service Worker Client Unload with client as
+        //          the argument.
+        HandleServiceWorkerClientUnload(client);
+
+        // 3.1.6.2. Set client’s active service worker to service worker.
+        client->context()->set_active_service_worker(associated_service_worker);
+
+        // 3.1.6.3. Invoke Notify Controller Change algorithm with client as the
+        //          argument.
+        NotifyControllerChange(client);
+      }
+    }
+  }
+  // 3.2. Resolve promise with undefined.
+  settings->context()->message_loop()->task_runner()->PostTask(
+      FROM_HERE,
+      base::BindOnce(
+          [](std::unique_ptr<script::ValuePromiseVoid::Reference> promise) {
+            promise->value().Resolve();
+          },
+          std::move(promise_reference)));
+}
 
 void ServiceWorkerJobs::RegisterWebContext(web::Context* context) {
   DCHECK_NE(nullptr, context);

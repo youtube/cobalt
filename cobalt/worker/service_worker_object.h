@@ -38,6 +38,7 @@
 
 namespace cobalt {
 namespace worker {
+class ServiceWorkerRegistrationObject;
 
 // This class represents the 'service worker'.
 //   https://w3c.github.io/ServiceWorker/#dfn-service-worker
@@ -81,11 +82,6 @@ class ServiceWorkerObject
   const GURL& script_url() const { return script_url_; }
 
   // https://w3c.github.io/ServiceWorker/#dfn-containing-service-worker-registration
-  void set_containing_service_worker_registration(
-      ServiceWorkerRegistrationObject* containing_service_worker_registration) {
-    options_.containing_service_worker_registration =
-        containing_service_worker_registration;
-  }
   ServiceWorkerRegistrationObject* containing_service_worker_registration() {
     return options_.containing_service_worker_registration;
   }

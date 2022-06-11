@@ -39,6 +39,8 @@
 #include "cobalt/script/script_value_factory.h"
 #include "cobalt/web/dom_exception.h"
 #include "cobalt/web/environment_settings.h"
+#include "cobalt/worker/client_query_options.h"
+#include "cobalt/worker/frame_type.h"
 #include "cobalt/worker/service_worker.h"
 #include "cobalt/worker/service_worker_object.h"
 #include "cobalt/worker/service_worker_registration.h"
@@ -200,6 +202,39 @@ class ServiceWorkerJobs {
   void SkipWaitingSubSteps(
       web::EnvironmentSettings* client,
       const base::WeakPtr<ServiceWorkerObject>& service_worker,
+      std::unique_ptr<script::ValuePromiseVoid::Reference> promise_reference);
+
+  // Parallel sub steps (2) for algorithm for Clients.get(id):
+  //   https://w3c.github.io/ServiceWorker/#clients-get
+  void ClientsGetSubSteps(
+      web::EnvironmentSettings* settings,
+      ServiceWorkerObject* associated_service_worker,
+      std::unique_ptr<script::ValuePromiseWrappable::Reference>
+          promise_reference,
+      const std::string& id);
+
+  // Algorithm for Resolve Get Client Promise:
+  //   https://w3c.github.io/ServiceWorker/#resolve-get-client-promise
+  void ResolveGetClientPromise(
+      web::EnvironmentSettings* client,
+      web::EnvironmentSettings* promise_relevant_settings,
+      std::unique_ptr<script::ValuePromiseWrappable::Reference>
+          promise_reference);
+
+  // Parallel sub steps (2) for algorithm for Clients.matchAll():
+  //   https://w3c.github.io/ServiceWorker/#clients-matchall
+  void ClientsMatchAllSubSteps(
+      web::EnvironmentSettings* settings,
+      ServiceWorkerObject* associated_service_worker,
+      std::unique_ptr<script::ValuePromiseSequenceWrappable::Reference>
+          promise_reference,
+      bool include_uncontrolled, ClientType type);
+
+  // Parallel sub steps (3) for algorithm for Clients.claim():
+  //   https://w3c.github.io/ServiceWorker/#dom-clients-claim
+  void ClaimSubSteps(
+      web::EnvironmentSettings* settings,
+      ServiceWorkerObject* associated_service_worker,
       std::unique_ptr<script::ValuePromiseVoid::Reference> promise_reference);
 
   // Registration of web contexts that may have service workers.

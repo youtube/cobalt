@@ -38,6 +38,33 @@
             }
         }
 
+        function test_claimable_worker() {
+            navigator.serviceWorker.register('service_worker_test_claimable.js', {
+                scope: './',
+            }).then(function (registration) {
+                registration.unregister()
+                    .then(function (success) {
+                        // Even a claimed registration will successfully
+                        // unregister because unregistration takes effect after
+                        // the page is unloaded, so it's not blocked by being
+                        // the active service worker.
+                        console.log('(Expected) unregister success :',
+                            success);
+                        count_event(41);
+                    }, function (error) {
+                        console.log('(Unexpected) unregister ' +
+                            `${error}`, error);
+                        assertIncludes('SecurityError: ', `${error}`);
+                        notReached();
+                    });
+
+
+             }, function (error) {
+                console.log('(Unexpected) :', error);
+                notReached();
+            });
+        }
+
         console.log('Starting tests');
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.ready.then(function (registration) {
@@ -50,7 +77,7 @@
 
             navigator.serviceWorker.oncontrollerchange = function (event) {
                 console.log('Got oncontrollerchange event', event.target);
-                count_event();
+                count_event(40);
             }
 
             navigator.serviceWorker.register('http://..:..')
@@ -177,7 +204,6 @@
                             event.target.scope);
                         assertTrue(event.target.scope.endsWith(
                             'registration/scope'));
-                        count_event();
                     }
 
                     // Check that the registration has an activated worker after
@@ -205,7 +231,7 @@
                             registration.active, 'state:',
                             registration.active.state);
                         assertEqual('activated', registration.active.state);
-                        count_event(32);
+                        count_event(31);
                         registration.active.onstatechange = function (event) {
                             console.log('Got onstatechange event',
                                 event.target.state);
@@ -229,7 +255,7 @@
                             .then(function (success) {
                                 console.log('(Expected) unregister success :',
                                     success);
-                                count_event(38);
+                                count_event(37);
                                 // Finally, test getRegistration for the unregistered scope.
                                 navigator.serviceWorker.getRegistration(
                                     'registration/scope')
@@ -238,11 +264,12 @@
                                             registration);
                                         assertTrue(null == registration ||
                                             undefined == registration);
-                                        count_event(39);
+                                        count_event(38);
                                     }, function (error) {
                                         console.log('(Unexpected) :', error);
                                         notReached();
                                     });
+                                test_claimable_worker();
                             }, function (error) {
                                 console.log('(Unexpected) unregister ' +
                                     `${error}`, error);
@@ -338,7 +365,7 @@
         window.setTimeout(
             () => {
                 console.log('Events:', expected_event_count)
-                assertEqual(39, expected_event_count);
+                assertEqual(41, expected_event_count);
                 onEndTest();
             }, 3000);
 

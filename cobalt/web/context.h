@@ -81,6 +81,17 @@ class Context {
 
   virtual std::string GetUserAgent() const = 0;
   virtual std::string GetPreferredLanguage() const = 0;
+
+  // https://w3c.github.io/ServiceWorker/#dfn-control
+  virtual bool is_controlled_by(worker::ServiceWorkerObject* worker) const = 0;
+
+  // https://html.spec.whatwg.org/multipage/webappapis.html#concept-environment-active-service-worker
+  virtual void set_active_service_worker(
+      const scoped_refptr<worker::ServiceWorkerObject>& worker) = 0;
+  virtual scoped_refptr<worker::ServiceWorkerObject>&
+  active_service_worker() = 0;
+  virtual const scoped_refptr<worker::ServiceWorkerObject>&
+  active_service_worker() const = 0;
 };
 
 }  // namespace web

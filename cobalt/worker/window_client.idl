@@ -12,22 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/script/environment_settings.h"
+// https://w3c.github.io/ServiceWorker/#client-interface
 
-#include "base/guid.h"
-
-namespace cobalt {
-namespace script {
-
-EnvironmentSettings::EnvironmentSettings(
-    const base::DebuggerHooks& debugger_hooks)
-    : debugger_hooks_(debugger_hooks) {
-  uuid_ = base::GenerateGUID();
-}
-
-
-// static
-const base::NullDebuggerHooks EnvironmentSettings::null_debugger_hooks_;
-
-}  // namespace script
-}  // namespace cobalt
+[Exposed = ServiceWorker] interface WindowClient : Client {
+  // TODO(b/235838698): Implement WindowCLient properties and methods.
+  // readonly attribute VisibilityState visibilityState;
+  // readonly attribute boolean focused;
+  // [NewObject] Promise<WindowClient> focus();
+  // [NewObject] Promise<WindowClient?> navigate(USVString url);
+};

@@ -16,6 +16,7 @@
 #define COBALT_SCRIPT_ENVIRONMENT_SETTINGS_H_
 
 #include <memory>
+#include <string>
 
 #include "base/memory/ref_counted.h"
 #include "cobalt/base/debugger_hooks.h"
@@ -29,9 +30,12 @@ namespace script {
 class EnvironmentSettings {
  public:
   explicit EnvironmentSettings(
-      const base::DebuggerHooks& debugger_hooks = null_debugger_hooks_)
-      : debugger_hooks_(debugger_hooks) {}
+      const base::DebuggerHooks& debugger_hooks = null_debugger_hooks_);
   virtual ~EnvironmentSettings() {}
+
+  // The API id.
+  //   https://html.spec.whatwg.org/multipage/webappapis.html#concept-environment-id
+  const std::string& id() const { return uuid_; }
 
   // The API base URL.
   //   https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#api-base-url
@@ -53,6 +57,7 @@ class EnvironmentSettings {
  private:
   DISALLOW_COPY_AND_ASSIGN(EnvironmentSettings);
 
+  std::string uuid_;
   static const base::NullDebuggerHooks null_debugger_hooks_;
   const base::DebuggerHooks& debugger_hooks_;
   GURL base_url_;

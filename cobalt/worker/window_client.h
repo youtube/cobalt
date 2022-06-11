@@ -12,37 +12,37 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_WORKER_CLIENTS_H_
-#define COBALT_WORKER_CLIENTS_H_
+#ifndef COBALT_WORKER_WINDOW_CLIENT_H_
+#define COBALT_WORKER_WINDOW_CLIENT_H_
 
-#include <memory>
-#include <string>
-
-#include "cobalt/script/environment_settings.h"
-#include "cobalt/script/script_value_factory.h"
-#include "cobalt/script/wrappable.h"
 #include "cobalt/web/environment_settings.h"
-#include "cobalt/worker/client_query_options.h"
+#include "cobalt/worker/client.h"
+#include "cobalt/worker/frame_type.h"
 
 namespace cobalt {
 namespace worker {
 
-class Clients : public script::Wrappable {
+struct WindowData {
+  web::EnvironmentSettings* client = nullptr;
+  FrameType frame_type = kFrameTypeTopLevel;
+};
+
+class WindowClient : public Client {
  public:
-  explicit Clients(script::EnvironmentSettings* settings);
+  // https://w3c.github.io/ServiceWorker/#create-window-client
+  static WindowClient* Create(const WindowData& window_data) {
+    return new WindowClient(window_data);
+  }
+  // TODO(b/235838698): Implement WindowCLient properties and methods.
 
-  script::HandlePromiseWrappable Get(const std::string& id);
-  script::HandlePromiseSequenceWrappable MatchAll(
-      const ClientQueryOptions& options = ClientQueryOptions());
-  script::HandlePromiseVoid Claim();
-
-  DEFINE_WRAPPABLE_TYPE(Clients);
+  DEFINE_WRAPPABLE_TYPE(WindowClient);
 
  private:
-  web::EnvironmentSettings* settings_ = nullptr;
+  explicit WindowClient(const WindowData& window_data);
 };
+
 
 }  // namespace worker
 }  // namespace cobalt
 
-#endif  // COBALT_WORKER_CLIENTS_H_
+#endif  // COBALT_WORKER_WINDOW_CLIENT_H_

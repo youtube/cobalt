@@ -46,6 +46,8 @@ static_library("worker") {
     "service_worker_registration_map.h",
     "service_worker_registration_object.cc",
     "service_worker_registration_object.h",
+    "window_client.cc",
+    "window_client.h",
     "worker.cc",
     "worker.h",
     "worker_global_scope.cc",

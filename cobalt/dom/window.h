@@ -181,6 +181,10 @@ class Window : public web::WindowOrWorkerGlobalScope,
       const scoped_refptr<captions::SystemCaptionSettings>& captions = nullptr,
       bool log_tts = false);
 
+  // From web::WindowOrWorkerGlobalScope
+  //
+  Window* AsWindow() override { return this; }
+
   // Web API: Window
   //
   scoped_refptr<Window> window() { return this; }
