@@ -50,6 +50,10 @@ class ServiceWorkerGlobalScope : public WorkerGlobalScope {
 
   void Initialize() override;
 
+  // From web::WindowOrWorkerGlobalScope
+  //
+  ServiceWorkerGlobalScope* AsServiceWorker() override { return this; }
+
   // Web API: WorkerGlobalScope
   //
   void ImportScripts(const std::vector<std::string>& urls,
@@ -57,7 +61,7 @@ class ServiceWorkerGlobalScope : public WorkerGlobalScope {
 
   // Web API: ServiceWorkerGlobalScope
   //
-  scoped_refptr<Clients> clients() const { return clients_; }
+  const scoped_refptr<Clients>& clients() const { return clients_; }
   scoped_refptr<ServiceWorkerRegistration> registration() const;
   scoped_refptr<ServiceWorker> service_worker() const;
   script::HandlePromiseVoid SkipWaiting();
@@ -106,6 +110,12 @@ class ServiceWorkerGlobalScope : public WorkerGlobalScope {
     SetAttributeEventListener(base::Tokens::messageerror(), event_listener);
   }
 
+  // Custom, not in any spec.
+  //
+  ServiceWorkerObject* service_worker_object() const {
+    return service_worker_object_;
+  }
+
   DEFINE_WRAPPABLE_TYPE(ServiceWorkerGlobalScope);
 
  protected:
@@ -113,7 +123,7 @@ class ServiceWorkerGlobalScope : public WorkerGlobalScope {
 
  private:
   scoped_refptr<Clients> clients_;
-  base::WeakPtr<ServiceWorkerObject> service_worker_;
+  base::WeakPtr<ServiceWorkerObject> service_worker_object_;
 };
 
 }  // namespace worker

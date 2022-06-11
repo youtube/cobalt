@@ -232,6 +232,7 @@ void ServiceWorkerRegistrationMap::HandleUserAgentShutdown(
       // continue to the next iteration of the loop.
       if (!registration->waiting_worker() && !registration->active_worker()) {
         jobs->ClearRegistration(registration);
+        continue;
       } else {
         // 1.1.2. Else, set installingWorker to null.
         registration->set_installing_worker(nullptr);

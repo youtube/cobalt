@@ -43,6 +43,10 @@ class DedicatedWorkerGlobalScope : public WorkerGlobalScope {
 
   void Initialize() override;
 
+  // From web::WindowOrWorkerGlobalScope
+  //
+  DedicatedWorkerGlobalScope* AsDedicatedWorker() override { return this; }
+
   // Web API: DedicatedWorkerGlobalScope
   //
   void set_name(const std::string& name) { name_ = name; }

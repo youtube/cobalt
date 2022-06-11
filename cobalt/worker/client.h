@@ -18,6 +18,7 @@
 #include <string>
 
 #include "cobalt/script/wrappable.h"
+#include "cobalt/web/environment_settings.h"
 #include "cobalt/worker/client_type.h"
 #include "cobalt/worker/frame_type.h"
 
@@ -26,17 +27,36 @@ namespace worker {
 
 class Client : public script::Wrappable {
  public:
-  std::string url() { return std::string("foo"); }
-  FrameType frame_type() { return kFrameTypeNone; }
+  // https://w3c.github.io/ServiceWorker/#create-client-algorithm
+  static Client* Create(web::EnvironmentSettings* client) {
+    return new Client(client);
+  }
 
-  std::string id() { return std::string("foo"); }
-  ClientType type() { return kClientTypeAll; }
+  std::string url() {
+    // https://w3c.github.io/ServiceWorker/#client-url
+    return service_worker_client_->creation_url().spec();
+  }
+
+  // https://w3c.github.io/ServiceWorker/#client-frametype
+  void set_frame_type(FrameType frame_type) { frame_type_ = frame_type; }
+  FrameType frame_type() { return frame_type_; }
+
+  // https://w3c.github.io/ServiceWorker/#dom-client-id
+  std::string id() { return service_worker_client_->id(); }
+  ClientType type();
 
   void PostMessage(const std::string& message);
 
-
   DEFINE_WRAPPABLE_TYPE(Client);
+
+ protected:
+  explicit Client(web::EnvironmentSettings* client);
+
+ private:
+  FrameType frame_type_ = kFrameTypeNone;
+  web::EnvironmentSettings* service_worker_client_ = nullptr;
 };
+
 
 }  // namespace worker
 }  // namespace cobalt

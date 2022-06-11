@@ -27,6 +27,7 @@
 #include "cobalt/web/context.h"
 #include "cobalt/web/environment_settings.h"
 #include "cobalt/worker/service_worker.h"
+#include "cobalt/worker/service_worker_object.h"
 #include "cobalt/worker/service_worker_registration.h"
 #include "url/gurl.h"
 
@@ -156,6 +157,22 @@ class StubWebContext final : public Context {
     return std::string("StubPreferredLanguageString");
   }
 
+  bool is_controlled_by(worker::ServiceWorkerObject* worker) const final {
+    NOTIMPLEMENTED();
+    return false;
+  }
+
+  void set_active_service_worker(
+      const scoped_refptr<worker::ServiceWorkerObject>& worker) {
+    service_worker_object_ = worker;
+  }
+  scoped_refptr<worker::ServiceWorkerObject>& active_service_worker() final {
+    return service_worker_object_;
+  }
+  const scoped_refptr<worker::ServiceWorkerObject>& active_service_worker()
+      const final {
+    return service_worker_object_;
+  }
 
   // Other
  private:
@@ -173,6 +190,7 @@ class StubWebContext final : public Context {
   // Environment Settings object
   std::unique_ptr<EnvironmentSettings> environment_settings_;
   UserAgentPlatformInfo* platform_info_ = nullptr;
+  scoped_refptr<worker::ServiceWorkerObject> service_worker_object_;
 };
 
 }  // namespace testing

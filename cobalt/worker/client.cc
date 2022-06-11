@@ -14,8 +14,47 @@
 
 #include "cobalt/worker/client.h"
 
+#include "cobalt/web/environment_settings.h"
+#include "cobalt/web/window_or_worker_global_scope.h"
+#include "cobalt/worker/client_type.h"
+
 namespace cobalt {
 namespace worker {
+Client::Client(web::EnvironmentSettings* client) {
+  // Algorithm for Create Client:
+  //   https://w3c.github.io/ServiceWorker/#create-client
+  // 1. Let clientObject be a new Client object.
+  // 2. Set clientObject’s service worker client to client.
+  service_worker_client_ = client;
+
+  // 3. Return clientObject.
+}
+
+ClientType Client::type() {
+  // Algorithm for the type getter:
+  //   https://w3c.github.io/ServiceWorker/#client-type
+
+  // 1. Let client be this's service worker client.
+  web::WindowOrWorkerGlobalScope* client_global_scope =
+      service_worker_client_->context()->GetWindowOrWorkerGlobalScope();
+
+  // 2. If client is an environment settings object, then:
+  // In Cobalt, this includes all clients.
+
+  // 2.1. If client is a window client, return "window".
+  if (client_global_scope->IsWindow()) return kClientTypeWindow;
+
+  // 2.2. Else if client is a dedicated worker client, return "worker".
+  if (client_global_scope->IsDedicatedWorker()) return kClientTypeWorker;
+
+  // 2.3. Else if client is a shared worker client, return "sharedworker".
+  // Shared workers are not supported in Cobalt.
+
+  // 3. Else:
+  // 3.1. Return "window".
+  return kClientTypeWindow;
+}
+
 
 void Client::PostMessage(const std::string& message) {
   DLOG(INFO) << "Message : " << message;

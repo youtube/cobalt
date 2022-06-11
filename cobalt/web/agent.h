@@ -27,6 +27,7 @@
 #include "cobalt/network/network_module.h"
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/script/wrappable.h"
+#include "cobalt/web/context.h"
 #include "cobalt/web/environment_settings.h"
 #include "cobalt/web/user_agent_platform_info.h"
 

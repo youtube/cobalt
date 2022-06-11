@@ -239,6 +239,7 @@ source_idl_files = [
   "//cobalt/worker/service_worker_container.idl",
   "//cobalt/worker/service_worker_global_scope.idl",
   "//cobalt/worker/service_worker_registration.idl",
+  "//cobalt/worker/window_client.idl",
   "//cobalt/worker/worker.idl",
   "//cobalt/worker/worker_global_scope.idl",
   "//cobalt/worker/worker_location.idl",

@@ -47,13 +47,14 @@ scoped_refptr<ServiceWorker> ServiceWorkerContainer::controller() {
   web::EnvironmentSettings* client = environment_settings();
 
   // 2. If client’s active service worker is null, then return null.
-  if (!client->active_service_worker()) {
+  if (!client->context()->active_service_worker()) {
     return scoped_refptr<ServiceWorker>();
   }
 
   // 3. Return the result of getting the service worker object that represents
   //    client’s active service worker in this's relevant settings object.
-  return client->context()->GetServiceWorker(client->active_service_worker());
+  return client->context()->GetServiceWorker(
+      client->context()->active_service_worker());
 }
 
 script::HandlePromiseWrappable ServiceWorkerContainer::ready() {
@@ -93,6 +94,8 @@ void ServiceWorkerContainer::MaybeResolveReadyPromise(
   // (steps 7.1-7.3) as well as for the ready attribute (step 3.3).
   //   https://w3c.github.io/ServiceWorker/#activation-algorithm
   //   https://w3c.github.io/ServiceWorker/#navigator-service-worker-ready
+  TRACE_EVENT0("cobalt::worker",
+               "ServiceWorkerContainer::MaybeResolveReadyPromise()");
   DCHECK_EQ(base::MessageLoop::current(),
             environment_settings()->context()->message_loop());
   if (!registration || !registration->active_worker()) return;
@@ -198,7 +201,7 @@ void ServiceWorkerContainer::GetRegistrationTask(
 
   // 2. Let storage key be the result of running obtain a storage key given
   //    client.
-  url::Origin storage_key = url::Origin::Create(client->creation_url());
+  url::Origin storage_key = client->ObtainStorageKey();
 
   // 3. Let clientURL be the result of parsing clientURL with this's relevant
   //    settings object’s API base URL.
@@ -230,6 +233,7 @@ void ServiceWorkerContainer::GetRegistrationTask(
   // 7. Let promise be a new promise.
   // 8. Run the following substeps in parallel:
   worker::ServiceWorkerJobs* jobs = client->context()->service_worker_jobs();
+  DCHECK(jobs);
   jobs->message_loop()->task_runner()->PostTask(
       FROM_HERE, base::BindOnce(&ServiceWorkerJobs::GetRegistrationSubSteps,
                                 base::Unretained(jobs), storage_key, client_url,

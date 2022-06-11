@@ -27,6 +27,13 @@
 #include "cobalt/web/window_timers.h"
 
 namespace cobalt {
+namespace dom {
+class Window;
+}  // namespace dom
+namespace worker {
+class DedicatedWorkerGlobalScope;
+class ServiceWorkerGlobalScope;
+}  // namespace worker
 namespace web {
 
 // Implementation of the logic common to both Window WorkerGlobalScope
@@ -48,6 +55,14 @@ class WindowOrWorkerGlobalScope : public EventTarget {
   bool IsWindow();
   bool IsDedicatedWorker();
   bool IsServiceWorker();
+
+  virtual dom::Window* AsWindow() { return nullptr; }
+  virtual worker::DedicatedWorkerGlobalScope* AsDedicatedWorker() {
+    return nullptr;
+  }
+  virtual worker::ServiceWorkerGlobalScope* AsServiceWorker() {
+    return nullptr;
+  }
 
   DEFINE_WRAPPABLE_TYPE(WindowOrWorkerGlobalScope);
 

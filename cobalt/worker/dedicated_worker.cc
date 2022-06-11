@@ -80,6 +80,8 @@ void DedicatedWorker::Initialize() {
   options.outside_settings = environment_settings();
   options.outside_port = outside_port_.get();
   options.options = worker_options_;
+  options.web_options.service_worker_jobs =
+      options.outside_settings->context()->service_worker_jobs();
 
   worker_.reset(new Worker(options));
   // 10. Return worker.
