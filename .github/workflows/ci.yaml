@@ -130,7 +130,9 @@ jobs:
                    evergreen-x86-sbversion-13,
                    evergreen-x86-sbversion-12,
                    linux-x64x11,
+                   linux-x64x11-clang-3-9,
                    linux-x64x11-egl,
+                   linux-x64x11-gcc-6-3,
                    linux-x64x11-internal,
                    linux-x64x11-sbversion-11,
                    linux-x64x11-sbversion-12,
@@ -283,9 +285,17 @@ jobs:
           - platform: linux-x64x11
             target_platform: linux-x64x11
             container: cobalt-build-linux
+          - platform: linux-x64x11-clang-3-9
+            target_platform: linux-x64x11-clang-3-9
+            using_old_compiler: using_old_compiler=true
+            container: cobalt-build-linux-clang-3-9
           - platform: linux-x64x11-egl
             target_platform: linux-x64x11-egl
             container: cobalt-build-linux
+          - platform: linux-x64x11-gcc-6-3
+            target_platform: linux-x64x11-gcc-6-3
+            using_old_compiler: using_old_compiler=true
+            container: cobalt-build-linux-gcc
           - platform: linux-x64x11-internal
             target_platform: linux-x64x11-internal
             container: cobalt-build-linux
@@ -354,7 +364,7 @@ jobs:
       # Configure GN.
       - name: "gn gen"
         run: |
-          gn gen $GITHUB_WORKSPACE/out/${{matrix.target_platform}}_${{matrix.config}} --args="target_platform=\"${{matrix.target_platform}}\" ${{matrix.use_asan}} ${{matrix.is_clang}} ${{matrix.sb_api_version}} ${{matrix.target_os}} ${{matrix.target_cpu}} is_internal_build=false build_type=\"${{matrix.config}}\""
+          gn gen $GITHUB_WORKSPACE/out/${{matrix.target_platform}}_${{matrix.config}} --args="target_platform=\"${{matrix.target_platform}}\" ${{matrix.use_asan}} ${{matrix.is_clang}} ${{matrix.using_old_compiler}} ${{matrix.sb_api_version}} ${{matrix.target_os}} ${{matrix.target_cpu}} is_internal_build=false build_type=\"${{matrix.config}}\""
       - name: "gn check"
         run: |  
           gn check $GITHUB_WORKSPACE/out/${{ matrix.target_platform }}_${{ matrix.config }}
