@@ -224,10 +224,6 @@ const char kWebDriverPortHelp[] =
 
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
-const char kCompressUpdate[] = "compress_update";
-const char kCompressUpdateHelp[] =
-    "The updater should compress the update package";
-
 const char kMinLogLevel[] = "min_log_level";
 const char kMinLogLevelHelp[] =
     "Set the minimum logging level: info|warning|error|fatal.";
@@ -467,7 +463,6 @@ std::string HelpMessage() {
         {kUseTTS, kUseTTSHelp}, {kWatchdog, kWatchdogHelp},
         {kWebDriverPort, kWebDriverPortHelp},
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
-        {kCompressUpdate, kCompressUpdateHelp},
         {kDisableJavaScriptJit, kDisableJavaScriptJitHelp},
         {kDisableMapToMesh, kDisableMapToMeshHelp},
         {kDisableTimerResolutionLimit, kDisableTimerResolutionLimitHelp},
