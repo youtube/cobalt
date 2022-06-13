@@ -41,6 +41,8 @@ jobs:
           - build-evergreen
           - build-linux-evergreen
           - build-linux
+          - build-linux-clang-3-9
+          - build-linux-gcc
           - build-linux-stub
           - build-raspi
 
