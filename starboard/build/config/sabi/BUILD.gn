@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//starboard/sabi/sabi.gni")
+
 config("sabi") {
-  sabi_json = read_file(sabi_path, "json")
-  sabi_variables = sabi_json.variables
   forward_variables_from(sabi_variables, "*")
 
   arch_uppercase =
