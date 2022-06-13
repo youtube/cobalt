@@ -1,3 +1,4 @@
+import("//starboard/sabi/sabi.gni")
 import("//third_party/boringssl/buildfiles.gni")
 
 declare_args() {
@@ -98,8 +99,6 @@ static_library("crypto") {
     configs += [ "//starboard/build/config:speed" ]
 
     if (sb_is_evergreen) {
-      sabi_json = read_file(sabi_path, "json")
-      sabi_variables = sabi_json.variables
       calling_convention = sabi_variables.calling_convention
       if ((calling_convention != "aarch64" && calling_convention != "eabi" &&
            calling_convention != "sysv" && calling_convention != "windows") ||
