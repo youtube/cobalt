@@ -374,7 +374,6 @@ jobs:
           ln -s /root/starboard-toolchains /github/home/starboard-toolchains
           ninja -v -C $GITHUB_WORKSPACE/out/${{ matrix.target_platform }}_${{ matrix.config }} all
 
-  # Win-Win32 Jobs.
   #win-win32:
   #  needs: docker-image-build
     # The type of runner that the job will run on
