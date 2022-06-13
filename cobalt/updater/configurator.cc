@@ -45,11 +45,6 @@ std::string GetDeviceProperty(SbSystemPropertyId id) {
   return prop;
 }
 
-bool CompressUpdate() {
-  return base::CommandLine::ForCurrentProcess()->HasSwitch(
-      cobalt::browser::switches::kCompressUpdate);
-}
-
 }  // namespace
 
 namespace cobalt {
@@ -60,7 +55,7 @@ Configurator::Configurator(network::NetworkModule* network_module)
       persisted_data_(std::make_unique<update_client::PersistedData>(
           pref_service_.get(), nullptr)),
       is_channel_changed_(0),
-      unzip_factory_(base::MakeRefCounted<UnzipperFactory>(CompressUpdate())),
+      unzip_factory_(base::MakeRefCounted<UnzipperFactory>()),
       network_fetcher_factory_(
           base::MakeRefCounted<NetworkFetcherFactoryCobalt>(network_module)),
       patch_factory_(base::MakeRefCounted<PatcherFactory>()) {

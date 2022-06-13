@@ -49,7 +49,6 @@ static_library("updater") {
     "//starboard/common",
     "//starboard/loader_app:app_key_files",
     "//starboard/loader_app:drain_file",
-    "//third_party/lz4_lib:lz4",
     "//third_party/zlib:zip",
     "//url",
   ]

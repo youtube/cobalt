@@ -92,8 +92,6 @@ extern const char kWebDriverPort[];
 extern const char kWebDriverPortHelp[];
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
-extern const char kCompressUpdate[];
-extern const char kCompressUpdateHelp[];
 extern const char kDisableJavaScriptJit[];
 extern const char kDisableJavaScriptJitHelp[];
 extern const char kDisableMapToMesh[];
