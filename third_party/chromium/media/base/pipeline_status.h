@@ -66,10 +66,12 @@ enum PipelineStatus {
 #if defined(STARBOARD)
   // Transient errors.
   PLAYBACK_CAPABILITY_CHANGED = 24,
-#endif  // defined(STARBOARD)
 
+  PIPELINE_STATUS_MAX = PLAYBACK_CAPABILITY_CHANGED,
+#else  // defined(STARBOARD)
   // Must be equal to the largest value ever logged.
   PIPELINE_STATUS_MAX = PIPELINE_ERROR_HARDWARE_CONTEXT_RESET,
+#endif  // defined(STARBOARD)
 };
 
 MEDIA_EXPORT absl::optional<PipelineStatus> StatusCodeToPipelineStatus(

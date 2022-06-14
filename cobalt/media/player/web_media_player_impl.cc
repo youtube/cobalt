@@ -694,6 +694,10 @@ void WebMediaPlayerImpl::OnPipelineError(::media::PipelineStatus error,
       SetNetworkError(WebMediaPlayer::kNetworkStateFormatError,
                       message.empty() ? "Decoder not supported." : message);
       break;
+    case ::media::DEMUXER_ERROR_DETECTED_HLS:
+      SetNetworkError(WebMediaPlayer::kNetworkStateFormatError,
+                      message.empty() ? "Detected HLS format." : message);
+      break;
 
     case ::media::PIPELINE_ERROR_DECODE:
       SetNetworkError(WebMediaPlayer::kNetworkStateDecodeError,
@@ -721,12 +725,16 @@ void WebMediaPlayerImpl::OnPipelineError(::media::PipelineStatus error,
       SetNetworkError(WebMediaPlayer::kNetworkStateDecodeError,
                       message.empty() ? "Audio renderer error." : message);
       break;
+    case ::media::PIPELINE_ERROR_HARDWARE_CONTEXT_RESET:
+      SetNetworkError(WebMediaPlayer::kNetworkStateDecodeError,
+                      message.empty() ? "Hardware context reset." : message);
+      break;
+
     case ::media::PLAYBACK_CAPABILITY_CHANGED:
       SetNetworkError(WebMediaPlayer::kNetworkStateCapabilityChangedError,
                       message.empty() ? "Capability changed." : message);
       break;
     default:
-      // TODO(b/230881576): Handle any new enum values that not handled.
       NOTREACHED();
       break;
   }
