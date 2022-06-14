@@ -408,6 +408,11 @@ const char kUpdateCheckDelaySecondsHelp[] =
     "Number of seconds to delay the first Cobalt Evergreen check for updates."
     "The default value is 60 seconds.";
 
+const char kUseCompressedUpdates[] = "use_compressed_updates";
+const char kUseCompressedUpdatesHelp[] =
+    "Whether to request, download, and install compressed (rather than "
+    "uncompressed) Evergreen binaries.";
+
 const char kUseQAUpdateServer[] = "use_qa_update_server";
 const char kUseQAUpdateServerHelp[] =
     "Uses the QA update server to test the changes to the configuration of the "
@@ -492,6 +497,7 @@ std::string HelpMessage() {
         {kSkiaTextureAtlasDimensions, kSkiaTextureAtlasDimensionsHelp},
         {kFallbackSplashScreenURL, kFallbackSplashScreenURLHelp},
         {kUpdateCheckDelaySeconds, kUpdateCheckDelaySecondsHelp},
+        {kUseCompressedUpdates, kUseCompressedUpdatesHelp},
         {kUseQAUpdateServer, kUseQAUpdateServerHelp}, {kVersion, kVersionHelp},
         {kViewport, kViewportHelp},
         {kVideoPlaybackRateMultiplier, kVideoPlaybackRateMultiplierHelp},

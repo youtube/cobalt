@@ -170,6 +170,13 @@ base::flat_map<std::string, std::string> Configurator::ExtraRequestParams()
   params.insert(std::make_pair(
       "certscope", GetDeviceProperty(kSbSystemPropertyCertificationScope)));
 
+  // Compression status
+  params.insert(std::make_pair(
+      "usecompressedupdates", base::CommandLine::ForCurrentProcess()->HasSwitch(
+                                  browser::switches::kUseCompressedUpdates)
+                                  ? "True"
+                                  : "False"));
+
   return params;
 }
 
