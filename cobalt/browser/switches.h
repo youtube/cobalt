@@ -147,6 +147,8 @@ extern const char kFallbackSplashScreenTopics[];
 extern const char kFallbackSplashScreenTopicsHelp[];
 extern const char kUpdateCheckDelaySeconds[];
 extern const char kUpdateCheckDelaySecondsHelp[];
+extern const char kUseCompressedUpdates[];
+extern const char kUseCompressedUpdatesHelp[];
 extern const char kUseQAUpdateServer[];
 extern const char kUseQAUpdateServerHelp[];
 extern const char kVersion[];
