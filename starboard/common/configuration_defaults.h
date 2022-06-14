@@ -65,6 +65,8 @@ const char* CobaltRasterizerTypeDefault();
 
 bool CobaltEnableJitDefault();
 
+bool CobaltCanStoreCompiledJavascriptDefault();
+
 }  // namespace common
 }  // namespace starboard
 

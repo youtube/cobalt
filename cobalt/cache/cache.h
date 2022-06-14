@@ -49,8 +49,6 @@ class Cache {
   friend struct base::DefaultSingletonTraits<Cache>;
   Cache() {}
 
-  static bool CanCache(disk_cache::ResourceType resource_type,
-                       uint32_t data_size);
   MemoryCappedDirectory* GetMemoryCappedDirectory(
       disk_cache::ResourceType resource_type);
   base::WaitableEvent* GetWaitableEvent(disk_cache::ResourceType resource_type,

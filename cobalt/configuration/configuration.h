@@ -59,6 +59,7 @@ class Configuration {
   const char* CobaltRasterizerType();
   bool CobaltEnableJit();
   const char* CobaltFallbackSplashScreenTopics();
+  bool CobaltCanStoreCompiledJavascript();
 
  private:
   Configuration();
