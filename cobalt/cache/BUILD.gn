@@ -21,6 +21,7 @@ static_library("cache") {
   deps = [
     "//base",
     "//cobalt/base",
+    "//cobalt/configuration",
     "//net",
     "//starboard:starboard_headers_only",
   ]

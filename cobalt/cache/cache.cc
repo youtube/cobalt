@@ -22,6 +22,7 @@
 #include "base/files/file_util.h"
 #include "base/memory/singleton.h"
 #include "base/optional.h"
+#include "cobalt/configuration/configuration.h"
 #include "cobalt/extension/javascript_cache.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/system.h"
@@ -85,6 +86,14 @@ const CobaltExtensionJavaScriptCacheApi* GetJavaScriptCacheExtension() {
   return nullptr;
 }
 
+bool CanCache(disk_cache::ResourceType resource_type, uint32_t data_size) {
+  return cobalt::configuration::Configuration::GetInstance()
+             ->CobaltCanStoreCompiledJavascript() &&
+         data_size > 0u &&
+         data_size >= GetMinSizeToCacheInBytes(resource_type) &&
+         data_size <= GetMaxCacheStorageInBytes(resource_type);
+}
+
 }  // namespace
 
 namespace cobalt {
@@ -105,7 +114,6 @@ void Cache::Delete(disk_cache::ResourceType resource_type, uint32_t key) {
 std::unique_ptr<std::vector<uint8_t>> Cache::Retrieve(
     disk_cache::ResourceType resource_type, uint32_t key,
     std::function<std::unique_ptr<std::vector<uint8_t>>()> generate) {
-  // TODO: check if caching should be disabled.
   base::ScopedClosureRunner notifier(base::BindOnce(
       &Cache::Notify, base::Unretained(this), resource_type, key));
   auto* e = GetWaitableEvent(resource_type, key);
@@ -148,14 +156,6 @@ std::unique_ptr<std::vector<uint8_t>> Cache::Retrieve(
     TryStore(resource_type, key, *data);
   }
   return data;
-}
-
-// static
-bool Cache::CanCache(disk_cache::ResourceType resource_type,
-                     uint32_t data_size) {
-  return data_size > 0u &&
-         data_size >= GetMinSizeToCacheInBytes(resource_type) &&
-         data_size <= GetMaxCacheStorageInBytes(resource_type);
 }
 
 MemoryCappedDirectory* Cache::GetMemoryCappedDirectory(
@@ -212,7 +212,7 @@ void Cache::Notify(disk_cache::ResourceType resource_type, uint32_t key) {
 
 void Cache::TryStore(disk_cache::ResourceType resource_type, uint32_t key,
                      const std::vector<uint8_t>& data) {
-  if (!Cache::CanCache(resource_type, data.size())) {
+  if (!CanCache(resource_type, data.size())) {
     return;
   }
   auto* memory_capped_directory = GetMemoryCappedDirectory(resource_type);

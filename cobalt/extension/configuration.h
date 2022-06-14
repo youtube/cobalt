@@ -213,6 +213,11 @@ typedef struct CobaltExtensionConfigurationApi {
 
   // A mapping of splash screen topics to fallback URLs.
   const char* (*CobaltFallbackSplashScreenTopics)();
+
+  // The fields below this point were added in version 3 or later.
+
+  // Determines whether compiled Javascript caching code is enabled.
+  bool (*CobaltCanStoreCompiledJavascript)();
 } CobaltExtensionConfigurationApi;
 
 #ifdef __cplusplus

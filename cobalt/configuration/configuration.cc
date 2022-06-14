@@ -16,6 +16,7 @@
 
 #include "base/logging.h"
 #include "base/memory/singleton.h"
+#include "starboard/common/configuration_defaults.h"
 #include "starboard/string.h"
 #include "starboard/system.h"
 
@@ -485,6 +486,13 @@ bool Configuration::CobaltEnableJit() {
 #error "instead."
 #endif
   return false;
+}
+
+bool Configuration::CobaltCanStoreCompiledJavascript() {
+  if (configuration_api_ && configuration_api_->version >= 3) {
+    return configuration_api_->CobaltCanStoreCompiledJavascript();
+  }
+  return starboard::common::CobaltCanStoreCompiledJavascriptDefault();
 }
 
 }  // namespace configuration
