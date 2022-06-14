@@ -201,6 +201,20 @@ bool HttpResponseInfo::InitFromPickle(const base::Pickle& pickle,
     ssl_info.connection_status = connection_status;
   }
 
+#if defined(COBALT_QUIC46)
+  // Read peer_signature_algorithm.
+  if (flags & RESPONSE_INFO_HAS_PEER_SIGNATURE_ALGORITHM) {
+    int peer_signature_algorithm;
+    if (!iter.ReadInt(&peer_signature_algorithm) ||
+        !base::IsValueInRangeForNumericType<uint16_t>(
+            peer_signature_algorithm)) {
+      return false;
+    }
+    ssl_info.peer_signature_algorithm =
+        base::checked_cast<uint16_t>(peer_signature_algorithm);
+  }
+#endif
+
   // Signed Certificate Timestamps are no longer persisted to the cache, so
   // ignore them when reading them out.
   if (flags & RESPONSE_INFO_HAS_SIGNED_CERTIFICATE_TIMESTAMPS) {
@@ -285,20 +299,6 @@ bool HttpResponseInfo::InitFromPickle(const base::Pickle& pickle,
 
   ssl_info.pkp_bypassed = (flags & RESPONSE_INFO_PKP_BYPASSED) != 0;
 
-#if defined(COBALT_QUIC46)
-  // Read peer_signature_algorithm.
-  if (flags & RESPONSE_INFO_HAS_PEER_SIGNATURE_ALGORITHM) {
-    int peer_signature_algorithm;
-    if (!iter.ReadInt(&peer_signature_algorithm) ||
-        !base::IsValueInRangeForNumericType<uint16_t>(
-            peer_signature_algorithm)) {
-      return false;
-    }
-    ssl_info.peer_signature_algorithm =
-        base::checked_cast<uint16_t>(peer_signature_algorithm);
-  }
-#endif
-
   return true;
 }
 
@@ -368,6 +368,10 @@ void HttpResponseInfo::Persist(base::Pickle* pickle,
       pickle->WriteInt(ssl_info.security_bits);
     if (ssl_info.connection_status != 0)
       pickle->WriteInt(ssl_info.connection_status);
+#if defined(COBALT_QUIC46)
+    if (ssl_info.peer_signature_algorithm != 0)
+      pickle->WriteInt(ssl_info.peer_signature_algorithm);
+#endif
   }
 
   if (vary_data.is_valid())

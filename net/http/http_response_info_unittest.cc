@@ -13,6 +13,7 @@
 #include "net/test/ct_test_util.h"
 #include "net/test/test_data_directory.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/boringssl/src/include/openssl/ssl.h"
 
 namespace net {
 
@@ -212,6 +213,23 @@ TEST_F(HttpResponseInfoTest, FailsInitFromPickleWithSSLV3) {
   net::HttpResponseInfo restored_ssl3_response_info;
   EXPECT_FALSE(
       restored_ssl3_response_info.InitFromPickle(ssl3_pickle, &truncated));
+}
+
+TEST_F(HttpResponseInfoTest, InitFromPickleWithQUIC) {
+  // A valid certificate is needed for ssl_info.is_valid() to be true.
+  response_info_.ssl_info.cert =
+      ImportCertFromFile(GetTestCertsDirectory(), "ok_cert.pem");
+
+  // Set the signature algorithm.
+  response_info_.ssl_info.peer_signature_algorithm = SSL_SIGN_RSA_PKCS1_SHA1;
+
+  base::Pickle pickle;
+  response_info_.Persist(&pickle, false, false);
+  bool truncated = false;
+  net::HttpResponseInfo restored_response_info;
+  EXPECT_TRUE(restored_response_info.InitFromPickle(pickle, &truncated));
+  EXPECT_EQ(SSL_SIGN_RSA_PKCS1_SHA1,
+            restored_response_info.ssl_info.peer_signature_algorithm);
 }
 
 }  // namespace
