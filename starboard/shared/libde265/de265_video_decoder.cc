@@ -260,7 +260,6 @@ void VideoDecoder::ProcessDecodedImage(bool flushing) {
 
   SB_DCHECK(widths[kYPlane] == widths[kUPlane] * 2);
   SB_DCHECK(widths[kUPlane] == widths[kVPlane]);
-  SB_DCHECK(strides[kYPlane] == strides[kUPlane] * 2);
   SB_DCHECK(strides[kUPlane] == strides[kVPlane]);
 
   // Create a VideoFrame from decoded frame data. The data is in YV12 format.
@@ -268,8 +267,8 @@ void VideoDecoder::ProcessDecodedImage(bool flushing) {
   // UV planes have half resolution both vertically and horizontally.
   scoped_refptr<CpuVideoFrame> frame = CpuVideoFrame::CreateYV12Frame(
       bit_depth, widths[kYPlane], heights[kYPlane], strides[kYPlane],
-      de265_get_image_PTS(image), planes[kYPlane], planes[kUPlane],
-      planes[kVPlane]);
+      strides[kUPlane], de265_get_image_PTS(image), planes[kYPlane],
+      planes[kUPlane], planes[kVPlane]);
   if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
     ScopedLock lock(decode_target_mutex_);
     frames_.push(frame);

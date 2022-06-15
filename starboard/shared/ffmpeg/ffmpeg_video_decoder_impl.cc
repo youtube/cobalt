@@ -279,11 +279,12 @@ bool VideoDecoderImpl<FFMPEG>::DecodePacket(AVPacket* packet) {
                                      &codec_aligned_height,
                                      codec_linesize_align);
 
-  int pitch = AlignUp(av_frame_->width, codec_linesize_align[0] * 2);
+  int y_pitch = AlignUp(av_frame_->width, codec_linesize_align[0] * 2);
+  int uv_pitch = av_frame_->linesize[1];
 
   const int kBitDepth = 8;
   scoped_refptr<CpuVideoFrame> frame = CpuVideoFrame::CreateYV12Frame(
-      kBitDepth, av_frame_->width, av_frame_->height, pitch,
+      kBitDepth, av_frame_->width, av_frame_->height, y_pitch, uv_pitch,
       av_frame_->reordered_opaque, av_frame_->data[0], av_frame_->data[1],
       av_frame_->data[2]);
 
