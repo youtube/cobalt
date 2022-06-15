@@ -13,6 +13,20 @@
 // limitations under the License.
 
 console.log('Service Worker Script Started');
+self.onmessage = function (event) {
+  console.log('Got onmessage event', event.source, event.target, event.data);
+  var options = {
+    includeUncontrolled: true, type: 'window'
+  };
+  self.clients.matchAll(options).then(function (clients) {
+    for (var i = 0; i < clients.length; i++) {
+      message = `Service Worker received a message : ${event.data}`;
+      console.log('Posting to client:', message);
+      clients[i].postMessage(message);
+    }
+  });
+}
+
 self.oninstall = function (e) {
   console.log('oninstall event received', e);
 }
@@ -21,8 +35,8 @@ self.onactivate = function (e) {
 
   // Claim should pass here, since the state is activating.
   console.log('self.clients.claim()');
-  self.clients.claim().then(function (clients) {
-    console.log('(Expected) self.clients.claim():', clients);
+  self.clients.claim().then(function (result) {
+    console.log('(Expected) self.clients.claim():', result);
 
     var options = {
       includeUncontrolled: false, type: 'window'
@@ -35,6 +49,7 @@ self.onactivate = function (e) {
         console.log('Client with frameType', clients[i].frameType);
         console.log('Client with id', clients[i].id);
         console.log('Client with type', clients[i].type);
+        clients[i].postMessage(`You have been claimed, client with id ${clients[i].id}`);
       }
     }, function (error) {
       console.log(`(Unexpected) self.clients.matchAll(): ${error}`, error);

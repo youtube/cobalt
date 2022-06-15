@@ -21,16 +21,18 @@
 #include "cobalt/web/environment_settings.h"
 #include "cobalt/worker/client_type.h"
 #include "cobalt/worker/frame_type.h"
+#include "cobalt/worker/message_port.h"
 
 namespace cobalt {
 namespace worker {
 
-class Client : public script::Wrappable {
+class Client : public MessagePort {
  public:
   // https://w3c.github.io/ServiceWorker/#create-client-algorithm
   static Client* Create(web::EnvironmentSettings* client) {
     return new Client(client);
   }
+  ~Client() { service_worker_client_ = nullptr; }
 
   std::string url() {
     // https://w3c.github.io/ServiceWorker/#client-url
@@ -44,8 +46,6 @@ class Client : public script::Wrappable {
   // https://w3c.github.io/ServiceWorker/#dom-client-id
   std::string id() { return service_worker_client_->id(); }
   ClientType type();
-
-  void PostMessage(const std::string& message);
 
   DEFINE_WRAPPABLE_TYPE(Client);
 

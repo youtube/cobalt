@@ -222,8 +222,7 @@ void Worker::Execute(const std::string& content,
   // Done at step 8.
   // 16. Let inside port be a new MessagePort object in inside settings's Realm.
   // 17. Associate inside port with worker global scope.
-  message_port_ = new MessagePort(worker_global_scope_,
-                                  web_context_->environment_settings());
+  message_port_ = new MessagePort(worker_global_scope_);
   // 18. Entangle outside port and inside port.
   // TODO(b/226640425): Implement this when Message Ports can be entangled.
   // 19. Create a new WorkerLocation object and associate it with worker global

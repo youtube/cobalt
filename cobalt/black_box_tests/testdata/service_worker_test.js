@@ -13,6 +13,20 @@
 // limitations under the License.
 
 console.log('Service Worker Script Started');
+self.onmessage = function (event) {
+  console.log('Got onmessage event', event.source, event.target, event.data);
+  var options = {
+    includeUncontrolled: false, type: 'window'
+  };
+  self.clients.matchAll(options).then(function (clients) {
+    for (var i = 0; i < clients.length; i++) {
+      message = `Service Worker received a message : ${event.data}`;
+      console.log('Posting to client:', message);
+      clients[i].postMessage(message);
+    }
+  });
+}
+
 self.oninstall = function (e) {
   console.log('oninstall event received', e);
 

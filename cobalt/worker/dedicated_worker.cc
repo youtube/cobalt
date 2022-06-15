@@ -73,7 +73,7 @@ void DedicatedWorker::Initialize() {
   // 6. Let worker be a new Worker object.
   // 7. Let outside port be a new MessagePort in outside settings's Realm.
   // 8. Associate the outside port with worker.
-  outside_port_ = new MessagePort(this, environment_settings());
+  outside_port_ = new MessagePort(this);
   // 9. Run this step in parallel:
   //    1. Run a worker given worker, worker URL, outside settings, outside
   //    port, and options.

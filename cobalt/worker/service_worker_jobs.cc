@@ -1119,6 +1119,10 @@ void ServiceWorkerJobs::Activate(
     if (run_result) {
       // 11.1.1. Queue a task task on activeWorker’s event loop using the DOM
       //         manipulation task source to run the following steps:
+      DCHECK_EQ(active_worker->web_agent()->context(),
+                active_worker->worker_global_scope()
+                    ->environment_settings()
+                    ->context());
       active_worker->web_agent()
           ->context()
           ->message_loop()

@@ -24,6 +24,7 @@
 #include "cobalt/web/event_target.h"
 #include "cobalt/web/event_target_listener_info.h"
 #include "cobalt/worker/abstract_worker.h"
+#include "cobalt/worker/message_port.h"
 #include "cobalt/worker/service_worker_object.h"
 #include "cobalt/worker/service_worker_state.h"
 
@@ -39,6 +40,12 @@ class ServiceWorker : public AbstractWorker, public web::EventTarget {
                 ServiceWorkerObject* worker);
   ServiceWorker(const ServiceWorker&) = delete;
   ServiceWorker& operator=(const ServiceWorker&) = delete;
+
+  // Web API: ServiceWorker
+  //
+  void PostMessage(const std::string& message) {
+    message_port_->PostMessage(message);
+  }
 
   // The scriptURL getter steps are to return the
   // service worker's serialized script url.
@@ -69,9 +76,13 @@ class ServiceWorker : public AbstractWorker, public web::EventTarget {
   DEFINE_WRAPPABLE_TYPE(ServiceWorker);
 
  private:
-  ~ServiceWorker() override = default;
+  ~ServiceWorker() override {
+    message_port_.reset();
+    worker_ = nullptr;
+  }
 
-  ServiceWorkerObject* worker_;
+  ServiceWorkerObject* worker_ = nullptr;
+  scoped_refptr<MessagePort> message_port_;
   ServiceWorkerState state_;
 };
 
