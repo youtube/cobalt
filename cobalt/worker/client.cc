@@ -15,12 +15,19 @@
 #include "cobalt/worker/client.h"
 
 #include "cobalt/web/environment_settings.h"
+#include "cobalt/web/navigator_base.h"
 #include "cobalt/web/window_or_worker_global_scope.h"
 #include "cobalt/worker/client_type.h"
+#include "cobalt/worker/service_worker_container.h"
 
 namespace cobalt {
 namespace worker {
-Client::Client(web::EnvironmentSettings* client) {
+Client::Client(web::EnvironmentSettings* client)
+    : MessagePort(client->context()
+                      ->GetWindowOrWorkerGlobalScope()
+                      ->navigator_base()
+                      ->service_worker()) {
+  DCHECK(client);
   // Algorithm for Create Client:
   //   https://w3c.github.io/ServiceWorker/#create-client
   // 1. Let clientObject be a new Client object.
@@ -53,11 +60,6 @@ ClientType Client::type() {
   // 3. Else:
   // 3.1. Return "window".
   return kClientTypeWindow;
-}
-
-
-void Client::PostMessage(const std::string& message) {
-  DLOG(INFO) << "Message : " << message;
 }
 
 }  // namespace worker

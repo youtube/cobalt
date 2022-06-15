@@ -42,6 +42,28 @@
             navigator.serviceWorker.register('service_worker_test_claimable.js', {
                 scope: './',
             }).then(function (registration) {
+                worker = registration.installing;
+                if (worker) {
+                    console.log('claimable worker registered (installing).');
+                    worker.postMessage(
+                        'Registration successful, current worker state is ' +
+                        'installing.');
+                }
+                worker = registration.waiting;
+                if (worker) {
+                    console.log('claimable worker registered (waiting).');
+                    worker.postMessage(
+                        'Registration successful, current worker state is ' +
+                        'waiting.');
+                }
+                worker = registration.active;
+                if (worker) {
+                    console.log('claimable worker registered (active).');
+                    worker.postMessage(
+                        'Registration successful, current worker state is ' +
+                        'active.');
+                }
+
                 registration.unregister()
                     .then(function (success) {
                         // Even a claimed registration will successfully
@@ -57,6 +79,7 @@
                         assertIncludes('SecurityError: ', `${error}`);
                         notReached();
                     });
+                console.log('unregister started.');
 
 
              }, function (error) {
@@ -78,6 +101,10 @@
             navigator.serviceWorker.oncontrollerchange = function (event) {
                 console.log('Got oncontrollerchange event', event.target);
                 count_event(40);
+            }
+
+            navigator.serviceWorker.onmessage = function (event) {
+                console.log('Got onmessage event', event.target, event.data);
             }
 
             navigator.serviceWorker.register('http://..:..')
@@ -199,6 +226,25 @@
                         'registration/scope'));
                     count_event(24);
 
+                    worker = registration.installing;
+                    if (worker) {
+                        worker.postMessage(
+                            'Registration with scope successful, current ' +
+                            'worker state is installing.');
+                    }
+                    worker = registration.waiting;
+                    if (worker) {
+                        worker.postMessage(
+                            'Registration with scope successful, current ' +
+                            'worker state is waiting.');
+                    }
+                    worker = registration.active;
+                    if (worker) {
+                        worker.postMessage(
+                            'Registration with scope successful, current ' +
+                            'worker state is active.');
+                    }
+
                     registration.onupdatefound = function (event) {
                         console.log('Got onupdatefound event',
                             event.target.scope);
@@ -219,6 +265,8 @@
                                 registration, ' with active worker ',
                                 registration.active);
                             assertNotEqual(null, registration.active);
+                            registration.active.postMessage(
+                                'Registration ready received after waiting.');
                             count_event();
                         });
                         // Since these events are asynchronous, the service
@@ -227,6 +275,8 @@
                             'Registration active check after timeout',
                             registration);
                         assertNotEqual(null, registration.active);
+                        registration.active.postMessage(
+                            'Registration is active after waiting.');
                         console.log('Registration active',
                             registration.active, 'state:',
                             registration.active.state);
@@ -351,7 +401,6 @@
                             console.log('(Unexpected) :', error);
                             notReached();
                         });
-
                 }, function (error) {
                     console.log('(Unexpected) :', error);
                     notReached();
