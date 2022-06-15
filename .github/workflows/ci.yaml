@@ -99,9 +99,6 @@ jobs:
     # The type of runner that the job will run on
     runs-on: [self-hosted, linux, X64]
     name: ${{matrix.platform}}-${{matrix.config}}
-    env:
-      PLATFORM: evergreen-x64
-      CONFIG: ${{ matrix.config }}
     # Create config matrix
     strategy:
       fail-fast: false
@@ -370,9 +367,15 @@ jobs:
           gn check $GITHUB_WORKSPACE/out/${{ matrix.target_platform }}_${{ matrix.config }}
       # Build Cobalt.
       - name: Build ${{matrix.platform}}-${{matrix.config}}
+        shell: bash
         run: |
+          set -x
           ln -s /root/starboard-toolchains /github/home/starboard-toolchains
-          ninja -v -C $GITHUB_WORKSPACE/out/${{ matrix.target_platform }}_${{ matrix.config }} all
+          target=all
+          if [[ "${{ matrix.config }}" =~ ^(qa|gold)$ ]]; then
+            target=default
+          fi
+          ninja -v -C ${GITHUB_WORKSPACE}/out/${{ matrix.target_platform }}_${{ matrix.config }} ${target}
 
   #win-win32:
   #  needs: docker-image-build
