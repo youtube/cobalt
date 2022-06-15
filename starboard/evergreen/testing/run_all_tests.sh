@@ -115,45 +115,38 @@ done
 
 log "info" " [==========] ${COUNT} tests ran."
 
-# Output the number of retried tests.
 if [[ "${#RETRIED[@]}" -eq 1 ]]; then
   log "warning" " [  RETRIED ] 1 test, listed below:"
 elif [[ "${#RETRIED[@]}" -gt 1 ]]; then
   log "warning" " [  RETRIED ] ${#RETRIED[@]} tests, listed below:"
 fi
 
-# Output each of the skipped tests.
 for test in "${RETRIED[@]}"; do
   log "warning" " [  RETRIED ] ${test}"
 done
 
-# Output the number of passed tests.
 if [[ "${#PASSED[@]}" -eq 1 ]]; then
   log "info" " [  PASSED  ] 1 test."
 elif [[ "${#PASSED[@]}" -gt 1 ]]; then
   log "info" " [  PASSED  ] ${#PASSED[@]} tests."
 fi
 
-# Output the number of skipped tests.
 if [[ "${#SKIPPED[@]}" -eq 1 ]]; then
   log "warning" " [  SKIPPED ] 1 test, listed below:"
 elif [[ "${#SKIPPED[@]}" -gt 1 ]]; then
   log "warning" " [  SKIPPED ] ${#SKIPPED[@]} tests, listed below:"
 fi
 
-# Output each of the skipped tests.
 for test in "${SKIPPED[@]}"; do
   log "warning" " [  SKIPPED ] ${test}"
 done
 
-# Output the number of failed tests.
 if [[ "${#FAILED[@]}" -eq 1 ]]; then
   log "error" " [  FAILED  ] 1 test, listed below:"
 elif [[ "${#FAILED[@]}" -gt 1 ]]; then
   log "error" " [  FAILED  ] ${#FAILED[@]} tests, listed below:"
 fi
 
-# Output each of the failed tests.
 for test in "${FAILED[@]}"; do
   log "error" " [  FAILED  ] ${test}"
 done
