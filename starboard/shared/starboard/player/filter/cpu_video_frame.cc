@@ -180,7 +180,8 @@ scoped_refptr<CpuVideoFrame> CpuVideoFrame::CreateYV12Frame(
     int bit_depth,
     int width,
     int height,
-    int source_pitch_in_bytes,
+    int source_y_pitch_in_bytes,
+    int source_uv_pitch_in_bytes,
     SbTime timestamp,
     const uint8_t* y,
     const uint8_t* u,
@@ -188,9 +189,9 @@ scoped_refptr<CpuVideoFrame> CpuVideoFrame::CreateYV12Frame(
   SB_DCHECK(bit_depth == 8 || bit_depth == 10 || bit_depth == 12);
 
   if (bit_depth > 8) {
-    SB_DCHECK(source_pitch_in_bytes >= width * 2);
+    SB_DCHECK(source_y_pitch_in_bytes >= width * 2);
   } else {
-    SB_DCHECK(source_pitch_in_bytes >= width);
+    SB_DCHECK(source_y_pitch_in_bytes >= width);
   }
 
   scoped_refptr<CpuVideoFrame> frame(new CpuVideoFrame(timestamp));
@@ -198,10 +199,12 @@ scoped_refptr<CpuVideoFrame> CpuVideoFrame::CreateYV12Frame(
   frame->width_ = width;
   frame->height_ = height;
 
-  auto destination_pitch_in_bytes = source_pitch_in_bytes;
+  auto destination_y_pitch_in_bytes = source_y_pitch_in_bytes;
+  auto destination_uv_pitch_in_bytes = source_uv_pitch_in_bytes;
   if (bit_depth == 10 || bit_depth == 12) {
     // Reduce destination pitch to half as it will be converted into 8 bits.
-    destination_pitch_in_bytes /= 2;
+    destination_y_pitch_in_bytes /= 2;
+    destination_uv_pitch_in_bytes /= 2;
   }
 
   // U/V planes generally have half resolution of the Y plane.  However, in the
@@ -209,11 +212,9 @@ scoped_refptr<CpuVideoFrame> CpuVideoFrame::CreateYV12Frame(
   // extra pixel on U/V planes.
   int uv_height = height / 2 + height % 2;
   int uv_width = width / 2 + width % 2;
-  int uv_pitch_in_bytes =
-      destination_pitch_in_bytes / 2 + destination_pitch_in_bytes % 2;
 
-  int y_plane_size_in_bytes = height * destination_pitch_in_bytes;
-  int uv_plane_size_in_bytes = uv_height * uv_pitch_in_bytes;
+  int y_plane_size_in_bytes = height * destination_y_pitch_in_bytes;
+  int uv_plane_size_in_bytes = uv_height * destination_uv_pitch_in_bytes;
   frame->pixel_buffer_.reset(
       new uint8_t[y_plane_size_in_bytes + uv_plane_size_in_bytes * 2]);
 
@@ -225,15 +226,15 @@ scoped_refptr<CpuVideoFrame> CpuVideoFrame::CreateYV12Frame(
                 uv_plane_size_in_bytes,
             v, uv_plane_size_in_bytes);
 
-  frame->planes_.push_back(Plane(width, height, destination_pitch_in_bytes,
+  frame->planes_.push_back(Plane(width, height, destination_y_pitch_in_bytes,
                                  frame->pixel_buffer_.get()));
   frame->planes_.push_back(
-      Plane(uv_width, uv_height, uv_pitch_in_bytes,
+      Plane(uv_width, uv_height, destination_uv_pitch_in_bytes,
             frame->pixel_buffer_.get() + y_plane_size_in_bytes));
-  frame->planes_.push_back(Plane(uv_width, uv_height, uv_pitch_in_bytes,
-                                 frame->pixel_buffer_.get() +
-                                     y_plane_size_in_bytes +
-                                     uv_plane_size_in_bytes));
+  frame->planes_.push_back(
+      Plane(uv_width, uv_height, destination_uv_pitch_in_bytes,
+            frame->pixel_buffer_.get() + y_plane_size_in_bytes +
+                uv_plane_size_in_bytes));
   return frame;
 }
 

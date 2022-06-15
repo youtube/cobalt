@@ -66,14 +66,16 @@ class CpuVideoFrame : public VideoFrame {
 
   scoped_refptr<CpuVideoFrame> ConvertTo(Format target_format) const;
 
-  static scoped_refptr<CpuVideoFrame> CreateYV12Frame(int bit_depth,
-                                                      int width,
-                                                      int height,
-                                                      int source_pitch_in_bytes,
-                                                      SbTime timestamp,
-                                                      const uint8_t* y,
-                                                      const uint8_t* u,
-                                                      const uint8_t* v);
+  static scoped_refptr<CpuVideoFrame> CreateYV12Frame(
+      int bit_depth,
+      int width,
+      int height,
+      int source_y_pitch_in_bytes,
+      int source_uv_pitch_in_bytes,
+      SbTime timestamp,
+      const uint8_t* y,
+      const uint8_t* u,
+      const uint8_t* v);
 
  private:
   Format format_;

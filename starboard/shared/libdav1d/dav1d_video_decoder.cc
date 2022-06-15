@@ -325,9 +325,7 @@ bool VideoDecoder::TryToOutputFrames() {
       return nullptr;
     }
 
-    if (dav1d_picture.stride[kDav1dPlaneY] !=
-            dav1d_picture.stride[kDav1dPlaneU] * 2 ||
-        dav1d_picture.data[kDav1dPlaneY] >= dav1d_picture.data[kDav1dPlaneU] ||
+    if (dav1d_picture.data[kDav1dPlaneY] >= dav1d_picture.data[kDav1dPlaneU] ||
         dav1d_picture.data[kDav1dPlaneU] >= dav1d_picture.data[kDav1dPlaneV]) {
       ReportError("Unsupported yuv plane format.");
       error_occurred = true;
@@ -336,8 +334,8 @@ bool VideoDecoder::TryToOutputFrames() {
 
     scoped_refptr<CpuVideoFrame> frame = CpuVideoFrame::CreateYV12Frame(
         dav1d_picture.p.bpc, dav1d_picture.p.w, dav1d_picture.p.h,
-        dav1d_picture.stride[0], dav1d_picture.m.timestamp,
-        static_cast<uint8_t*>(dav1d_picture.data[0]),
+        dav1d_picture.stride[kDav1dPlaneY], dav1d_picture.stride[kDav1dPlaneU],
+        dav1d_picture.m.timestamp, static_cast<uint8_t*>(dav1d_picture.data[0]),
         static_cast<uint8_t*>(dav1d_picture.data[1]),
         static_cast<uint8_t*>(dav1d_picture.data[2]));
     dav1d_picture_unref(&dav1d_picture);
