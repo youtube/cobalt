@@ -406,6 +406,9 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(kSbHasMediaWebmVp9Support);
   REGISTER_SYMBOL(kSbHasThreadPrioritySupport);
   REGISTER_SYMBOL(kSbMallocAlignment);
+#if SB_API_VERSION >= 14
+  REGISTER_SYMBOL(kSbMaxSystemPathCacheDirectorySize);
+#endif  // SB_API_VERSION >= 14
   REGISTER_SYMBOL(kSbMaxThreadLocalKeys);
   REGISTER_SYMBOL(kSbMaxThreadNameLength);
   REGISTER_SYMBOL(kSbMediaMaxAudioBitrateInBitsPerSecond);
