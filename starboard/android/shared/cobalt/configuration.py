@@ -64,8 +64,7 @@ class CobaltAndroidConfiguration(cobalt_configuration.CobaltConfiguration):
       ],
       'crypto_unittests': ['P224.*'],
       'renderer_test': [
-          # TODO(b/215739322): Using the android fonts breaks these tests. They
-          # make use of fonts that are not bundled on Android.
+          # TODO(b/236034292): These tests load the wrong fonts sometimes.
           'PixelTest.SimpleTextInRed40PtChineseFont',
           'PixelTest.SimpleTextInRed40PtThaiFont',
 
