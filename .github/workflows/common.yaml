@@ -1,18 +1,14 @@
-# This is a basic workflow to help you get started with Actions
+# Reusable Cobalt CI workflow.
 
 name: CI
 
-# Controls when the workflow will run
 on:
-  # Triggers the workflow on push or pull request events but only for the main branch
-  push:
-    branches: [ main ]
-  pull_request:
-    types: [opened, reopened, edited, synchronize]
-    branches: [ main ]
-
-  # Allows you to run this workflow manually from the Actions tab
-  workflow_dispatch:
+  workflow_call:
+    inputs:
+      workflow_type:
+        description: 'Type of workflow to run.'
+        required: true
+        type: string
 
 # Global env vars.
 env:

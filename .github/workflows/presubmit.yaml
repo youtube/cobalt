@@ -1,0 +1,14 @@
+# Presubmit Cobalt workflow.
+
+name: Presubmit
+
+on:
+  pull_request:
+    types: [opened, reopened, edited, synchronize]
+    branches: [ main ]
+
+jobs:
+  presubmit:
+    uses: ./.github/workflows/common.yaml
+    with:
+      workflow_type: presubmit
