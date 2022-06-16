@@ -341,7 +341,7 @@ jobs:
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - name: checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       # Configure environment.
       - name: Set env vars
         run: |
@@ -363,15 +363,20 @@ jobs:
           gn check $GITHUB_WORKSPACE/out/${{ matrix.target_platform }}_${{ matrix.config }}
       # Build Cobalt.
       - name: Build ${{matrix.platform}}-${{matrix.config}}
-        shell: bash
-        run: |
-          set -x
-          ln -s /root/starboard-toolchains /github/home/starboard-toolchains
-          target=all
-          if [[ "${{ matrix.config }}" =~ ^(qa|gold)$ ]]; then
-            target=default
-          fi
-          ninja -v -C ${GITHUB_WORKSPACE}/out/${{ matrix.target_platform }}_${{ matrix.config }} ${target}
+        uses: ./.github/actions/build
+        with:
+          platform: ${{matrix.platform}}
+          target_platform: ${{ matrix.target_platform }}
+          config: ${{matrix.config}}
+      #  shell: bash
+      #  run: |
+      #    set -x
+      #    ln -s /root/starboard-toolchains /github/home/starboard-toolchains
+      #    target=all
+      #    if [[ "${{ matrix.config }}" =~ ^(qa|gold)$ ]]; then
+      #      target=default
+      #    fi
+      #    ninja -v -C ${GITHUB_WORKSPACE}/out/${{ matrix.target_platform }}_${{ matrix.config }} ${target}
 
   #win-win32:
   #  needs: docker-image-build

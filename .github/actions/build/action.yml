@@ -1,0 +1,24 @@
+name: Build Cobalt
+description: Builds Cobalt targets
+inputs:
+  platform:
+    description: Build platform
+    required: true
+  target_platform:
+    description: Build target platform
+    required: true
+  config:
+    description: Build config
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - run: |
+           set -x
+           ln -s /root/starboard-toolchains /github/home/starboard-toolchains
+           target=all
+           if [[ "${{ matrix.config }}" =~ ^(qa|gold)$ ]]; then
+             target=default
+           fi
+           ninja -v -C ${GITHUB_WORKSPACE}/out/${{ matrix.target_platform }}_${{ matrix.config }} ${target}
+      shell: bash
