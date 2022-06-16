@@ -1,18 +1,20 @@
 name: Build Cobalt
 description: Builds Cobalt targets
-inputs:
-  platform:
-    description: Build platform
-    required: true
-  target_platform:
-    description: Build target platform
-    required: true
-  config:
-    description: Build config
-    required: true
 runs:
   using: "composite"
   steps:
+    - run: |
+           echo "PYTHONPATH=$GITHUB_WORKSPACE" >> $GITHUB_ENV
+           echo "STARBOARD_TOOLCHAINS_DIR=/root/starboard-toolchains" >> $GITHUB_ENV
+      shell: bash
+    - run: env | sort
+      shell: bash
+    - run: |
+          gn gen $GITHUB_WORKSPACE/out/${{matrix.target_platform}}_${{matrix.config}} --args="target_platform=\"${{matrix.target_platform}}\" ${{matrix.use_asan}} ${{matrix.is_clang}} ${{matrix.using_old_compiler}} ${{matrix.sb_api_version}} ${{matrix.target_os}} ${{matrix.target_cpu}} is_internal_build=false build_type=\"${{matrix.config}}\""
+      shell: bash
+    - run: |
+        gn check $GITHUB_WORKSPACE/out/${{ matrix.target_platform }}_${{ matrix.config }}
+      shell: bash
     - run: |
            set -x
            ln -s /root/starboard-toolchains /github/home/starboard-toolchains

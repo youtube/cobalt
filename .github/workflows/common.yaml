@@ -342,32 +342,14 @@ jobs:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - name: checkout
         uses: actions/checkout@v3
-      # Configure environment.
-      - name: Set env vars
-        run: |
-          echo "PYTHONPATH=$GITHUB_WORKSPACE" >> $GITHUB_ENV
-          echo "STARBOARD_TOOLCHAINS_DIR=/root/starboard-toolchains" >> $GITHUB_ENV
       - name: Set Android env vars
         if: startsWith(${{matrix.target_platform}}, 'android')
         run: |
           echo "ANDROID_HOME=/root/starboard-toolchains/AndroidSdk/" >> $GITHUB_ENV
           echo "GCS_NIGHTLY_PATH=gs://cobalt-actions-devel-build-artifacts" >> $GITHUB_ENV
-      - name: Print env vars
-        run: env | sort
-      # Configure GN.
-      - name: "gn gen"
-        run: |
-          gn gen $GITHUB_WORKSPACE/out/${{matrix.target_platform}}_${{matrix.config}} --args="target_platform=\"${{matrix.target_platform}}\" ${{matrix.use_asan}} ${{matrix.is_clang}} ${{matrix.using_old_compiler}} ${{matrix.sb_api_version}} ${{matrix.target_os}} ${{matrix.target_cpu}} is_internal_build=false build_type=\"${{matrix.config}}\""
-      - name: "gn check"
-        run: |  
-          gn check $GITHUB_WORKSPACE/out/${{ matrix.target_platform }}_${{ matrix.config }}
       # Build Cobalt.
       - name: Build ${{matrix.platform}}-${{matrix.config}}
         uses: ./.github/actions/build
-        with:
-          platform: ${{matrix.platform}}
-          target_platform: ${{ matrix.target_platform }}
-          config: ${{matrix.config}}
       #  shell: bash
       #  run: |
       #    set -x
