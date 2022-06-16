@@ -305,7 +305,10 @@ static_library("libjpeg") {
 
   # MemorySanitizer doesn't support assembly code, so keep it disabled in x86
   # and x64 MSan builds for now.
-  if (is_msan && (current_cpu == "x86" || current_cpu == "x64")) {
+  # TODO(b/236258535): Enable neon instructions once the code is updated
+  # to use SbCPUFeatures() at runtime.
+  if ((is_msan && (current_cpu == "x86" || current_cpu == "x64")) ||
+      (is_starboard && sb_is_evergreen)) {
     sources += [ "jsimd_none.c" ]
   } else {
     public_deps += [ ":simd" ]
