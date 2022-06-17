@@ -8,14 +8,15 @@
 			"platform": "evergreen-x86",
 			"target_platform": "evergreen-x86",
 			"target_cpu": "target_cpu=\\\"x86\\\"",
-			"use_asan": "use_asan=false"
+			"use_asan": "use_asan=false",
+      "config": "qa"
     },
     {
       "platform": "evergreen-x86-svbersion-14",
       "target_platform": "evergreen-x86",
       "target_cpu": "target_cpu=\\\"x86\\\"",
       "use_asan": "use_asan=false",
-      "sb_api_version": "sb_api_version=14"
+      "config": "gold"
     }
   ]
 }

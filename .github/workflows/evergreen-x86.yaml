@@ -16,10 +16,9 @@ jobs:
       - id: checkout
         uses: actions/checkout@v3
       - id: set-platforms
-        #run: echo "::set-output name=platforms::$(cat ${GITHUB_WORKSPACE}/.github/config/evergreen-x86.json | jq -c '.platforms')"
-        run: echo "::set-output name=platforms::$(cat ${GITHUB_WORKSPACE}/.github/config/evergreen-x86.platforms.json | jq -c)"
+        run: echo "::set-output name=platforms::$(cat ${GITHUB_WORKSPACE}/.github/config/evergreen-x86.json | jq -c '.platforms')"
       - id: set-includes
-        run: echo "::set-output name=includes::$(cat ${GITHUB_WORKSPACE}/.github/config/evergreen-x86.includes.json | jq -c)"
+        run: echo "::set-output name=includes::$(cat ${GITHUB_WORKSPACE}/.github/config/evergreen-x86.json | jq -c '.includes')"
     outputs:
       platforms: ${{ steps.set-platforms.outputs.platforms }}
       includes: ${{ steps.set-includes.outputs.includes }}
