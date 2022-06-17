@@ -128,6 +128,7 @@ jobs:
             target=default
           fi
           ninja -v -C ${GITHUB_WORKSPACE}/out/${{ matrix.target_platform }}_${{ matrix.config }} ${target}
+  
   #win-win32:
   #  needs: docker-image-build
     # The type of runner that the job will run on
