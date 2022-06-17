@@ -13,6 +13,16 @@ on:
 # Global env vars.
 env:
   REGISTRY: ghcr.io
+  IPV6_AVAILABLE: 0
+  IS_BUILDBOT_DOCKER: 1
+  #BUILD_ID_SERVER_URL:
+  IS_CI: 1
+  IS_DOCKER: 1
+  NINJA_STATUS: '[%e sec | %f/%t %u remaining | %c/sec | j%r]'
+  SCCACHE: 1
+  SCCACHE_GCS_BUCKET: cobalt-actions-devel-sccache-linux
+  SCCACHE_GCS_OAUTH_URL: http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token
+  SCCACHE_GCS_RW_MODE: READ_WRITE
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
