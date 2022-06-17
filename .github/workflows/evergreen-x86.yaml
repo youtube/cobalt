@@ -1,0 +1,34 @@
+name: evergreen-x86
+
+on:
+  pull_request:
+    types: [opened, reopened, edited, synchronize]
+    branches: [ main ]
+  push:
+    branches: [ main ]
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  build-matrix:
+    runs-on: ubuntu-latest
+    steps:
+      - id: checkout
+        uses: actions/checkout@v3
+      - id: set-platforms
+        run: echo "::set-output name=platforms::$(cat ${GITHUB_WORKSPACE}/.github/config/evergreen-x86.json | jq -c '.platforms')"
+      - id: set-includes
+        run: echo "::set-output name=includes::$(cat ${GITHUB_WORKSPACE}/.github/config/evergreen-x86.json | jq -c '.includes')"
+    outputs:
+      platforms: ${{ steps.set-platforms.outputs.platforms }}
+      includes: ${{ steps.set-includes.outputs.includes }}
+  build:
+    needs: build-matrix
+    uses: ./.github/workflows/main.yaml
+    permissions:
+      packages: write
+    with:
+      docker_service: build-evergreen
+      platforms: ${{ needs.build-matrix.outputs.platforms }}
+      includes: ${{ needs.build-matrix.outputs.includes }}
+

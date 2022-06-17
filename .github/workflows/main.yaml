@@ -1,0 +1,106 @@
+# Reusable Cobalt CI workflow.
+
+name: CI
+
+on:
+  workflow_call:
+    inputs:
+      docker_service:
+        description: 'Docker service to build image from.'
+        required: true
+        type: string
+      platforms:
+        description: 'Cobalt platforms (json).'
+        required: true
+        type: string
+      includes:
+        description: 'Matrix includes (json).'
+        required: true
+        type: string
+
+# Global env vars.
+env:
+  REGISTRY: ghcr.io
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  docker-image-build:
+    permissions:
+      packages: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout files
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 2 
+      
+      - name: Get docker file changes
+        id: changed-files
+        uses: tj-actions/changed-files@v13.1
+        with:
+          files: |
+            docker-compose.yml
+            docker/**
+
+      - name: Log into registry ${{ env.REGISTRY }}
+        if: ${{ (steps.changed-files.outputs.any_changed == 'true') && (github.event_name != 'pull_request') }}
+        uses: docker/login-action@v1
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Retrieve Docker metadata
+        if: steps.changed-files.outputs.any_changed == 'true'
+        id: meta
+        uses: docker/metadata-action@v3
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/cobalt-${{ inputs.docker_service }} 
+
+      - name: Build containers with docker-compose
+        if: steps.changed-files.outputs.any_changed == 'true'
+        uses: smartlyio/docker-compose-action@v1
+        with:
+          serviceName: ${{ inputs.docker_service }}
+          build: false
+          push: "on:push"
+          composeArguments: "--no-start"
+
+      - name: Tag images
+        if: steps.changed-files.outputs.any_changed == 'true'
+        run: docker tag cobalt-${{ inputs.docker_service }} ${{ steps.meta.outputs.tags }}
+
+      - name: Push images
+        if: ${{ (steps.changed-files.outputs.any_changed == 'true') && (github.event_name != 'pull_request') }}
+        run: docker push ${{ steps.meta.outputs.tags }}
+
+  # Cobalt jobs.
+  cobalt-build:
+    needs: docker-image-build
+    # The type of runner that the job will run on
+    runs-on: [self-hosted, linux, X64]
+    name: ${{matrix.platform}}-${{matrix.config}}
+    # Create config matrix
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: ${{ fromJson(inputs.platforms) }} 
+        config: [devel, debug, gold, qa]
+        include: ${{ fromJson(inputs.includes) }}
+    container: ghcr.io/${{ github.repository_owner }}/cobalt-${{ inputs.docker_service }}:main
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - name: checkout
+        uses: actions/checkout@v3
+      - name: show-platforms
+        run: echo ${{ inputs.platforms }}
+      - name: show-includes
+        run: echo ${{ inputs.includes }}
+      - name: Set Android env vars
+        if: startsWith(${{matrix.target_platform}}, 'android')
+        run: |
+          echo "ANDROID_HOME=/root/starboard-toolchains/AndroidSdk/" >> $GITHUB_ENV
+          echo "GCS_NIGHTLY_PATH=gs://cobalt-actions-devel-build-artifacts" >> $GITHUB_ENV
+      - name: Build ${{matrix.platform}}-${{matrix.config}}
+        uses: ./.github/actions/build
