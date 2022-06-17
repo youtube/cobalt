@@ -94,7 +94,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: ${{ fromJson(inputs.platforms) }} 
+        #platform: ${{ fromJson(inputs.platforms) }} 
         config: [devel, debug, gold, qa]
         include: ${{ fromJson(inputs.includes) }}
     container: ghcr.io/${{ github.repository_owner }}/cobalt-${{ inputs.docker_service }}:main
