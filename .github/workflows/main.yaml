@@ -99,11 +99,11 @@ jobs:
       fail-fast: false
       matrix:
         #platform: ${{ fromJson(inputs.platforms) }} 
-        platform: [evergreen_x86, evergreen_x86_sbversion_14]
+        platform: [evergreen-x86, evergreen-x86-sbversion_14]
         config: [devel, debug, qa, gold]
             #config: ${{ fromJson(inputs.configs) }}
         #include: ${{ fromJson(inputs.includes) }}
-        include: ${{ fromJson('[{"platform":"evergreen_x86","target_platform":"evergreen-x86"},{"platform":"evergreen_x86_sbversion_14","target_platform":"evergreenx-86"}]') }}
+        include: ${{ fromJson('[{"platform":"evergreen-x86","target_platform":"evergreen-x86"},{"platform":"evergreen-x86-sbversion-14","target_platform":"evergreenx-86"}]') }}
         #include:
         #  - platform: evergreen-x86
         #    target_platform: evergreen-x86
