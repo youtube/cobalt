@@ -93,7 +93,7 @@ jobs:
     needs: docker-image-build
     # The type of runner that the job will run on
     runs-on: [self-hosted, linux, X64]
-    name: ${{matrix.platform}}-${{matrix.config}}
+    name: ${{matrix.platform}}_${{matrix.config}}
     # Create config matrix
     strategy:
       fail-fast: false
@@ -103,7 +103,7 @@ jobs:
         config: [devel, debug, qa, gold]
             #config: ${{ fromJson(inputs.configs) }}
         #include: ${{ fromJson(inputs.includes) }}
-        include: ${{ fromJson('[{"platform":"evergreen_x86","target_platform":"evergreen"},{"platform":"evergreen_x86_sbversion_14","target_platform":"evergreenx86"}]') }}
+        include: ${{ fromJson('[{"platform":"evergreen_x86","target_platform":"evergreen-x86"},{"platform":"evergreen_x86_sbversion_14","target_platform":"evergreenx-86"}]') }}
         #include:
         #  - platform: evergreen-x86
         #    target_platform: evergreen-x86
