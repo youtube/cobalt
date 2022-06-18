@@ -3,20 +3,24 @@
     "evergreen-x86",
 		"evergreen-x86-sbversion-14"
   ],
+  "configs": [
+    "devel",
+    "debug",
+    "gold",
+    "qa"
+  ],
   "includes": [
     {
 			"platform": "evergreen-x86",
 			"target_platform": "evergreen-x86",
 			"target_cpu": "target_cpu=\\\"x86\\\"",
-			"use_asan": "use_asan=false",
-      "config": "qa"
+			"use_asan": "use_asan=false"
     },
     {
       "platform": "evergreen-x86-svbersion-14",
       "target_platform": "evergreen-x86",
       "target_cpu": "target_cpu=\\\"x86\\\"",
-      "use_asan": "use_asan=false",
-      "config": "gold"
+      "use_asan": "use_asan=false"
     }
   ]
 }
