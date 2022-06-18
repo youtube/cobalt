@@ -12,15 +12,11 @@
   "includes": [
     {
 			"platform": "evergreen-x86",
-			"target_platform": "evergreen-x86",
-			"target_cpu": "target_cpu=\\\"x86\\\"",
-			"use_asan": "use_asan=false"
+			"target_platform": "evergreen-x86"
     },
     {
       "platform": "evergreen-x86-svbersion-14",
-      "target_platform": "evergreen-x86",
-      "target_cpu": "target_cpu=\\\"x86\\\"",
-      "use_asan": "use_asan=false"
+      "target_platform": "evergreen-x86"
     }
   ]
 }
