@@ -103,7 +103,7 @@ jobs:
         config: [devel, debug, qa, gold]
             #config: ${{ fromJson(inputs.configs) }}
         #include: ${{ fromJson(inputs.includes) }}
-        include: ${{ fromJson('[{"platform":"evergreen-x86","target_platform":"evergreen-x86"},{"platform":"evergreen-x86-sbversion-14","target_platform":"evergreenx-86"}]') }}
+        include: ${{ fromJson('[{"platform":"'evergreen-x86'","target_platform":"evergreen-x86"},{"platform":"'evergreen-x86-sbversion-14'","target_platform":"evergreenx-86"}]') }}
         #include:
         #  - platform: evergreen-x86
         #    target_platform: evergreen-x86
