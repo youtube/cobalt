@@ -14,9 +14,9 @@
 
 // https://wicg.github.io/ua-client-hints/#navigatoruadata
 
-[Exposed=Window]
-interface NavigatorUAData {
-  // TODO make this be FrozenArray<NavigatorUABrandVersion> when available
+[Exposed = Window] interface NavigatorUAData {
+  // TODO(b/236750294): Make this be FrozenArray<NavigatorUABrandVersion> when
+  // available.
   readonly attribute sequence<NavigatorUABrandVersion> brands;
   readonly attribute boolean mobile;
   readonly attribute DOMString platform;

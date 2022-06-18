@@ -21,7 +21,7 @@
 interface IntersectionObserver {
   readonly attribute Element? root;
   readonly attribute DOMString rootMargin;
-  // TODO make this be FrozenArray<double> when available
+  // TODO(b/236750294): Make this be FrozenArray<double> when available.
   readonly attribute sequence<double> thresholds;
   void observe(Element target);
   void unobserve(Element target);

@@ -25,8 +25,8 @@
 #include "cobalt/browser/user_agent_platform_info.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/web/error_event.h"
+#include "cobalt/web/message_port.h"
 #include "cobalt/worker/dedicated_worker_global_scope.h"
-#include "cobalt/worker/message_port.h"
 #include "cobalt/worker/worker_global_scope.h"
 #include "cobalt/worker/worker_options.h"
 #include "cobalt/worker/worker_settings.h"
@@ -222,7 +222,7 @@ void Worker::Execute(const std::string& content,
   // Done at step 8.
   // 16. Let inside port be a new MessagePort object in inside settings's Realm.
   // 17. Associate inside port with worker global scope.
-  message_port_ = new MessagePort(worker_global_scope_);
+  message_port_ = new web::MessagePort(worker_global_scope_);
   // 18. Entangle outside port and inside port.
   // TODO(b/226640425): Implement this when Message Ports can be entangled.
   // 19. Create a new WorkerLocation object and associate it with worker global

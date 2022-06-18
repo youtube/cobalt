@@ -42,16 +42,21 @@ class Promise {
  public:
   // Call the |resolve| function that was passed as an argument to the Promise's
   // executor function supplying |result| as its argument.
-  virtual void Resolve(const T& result) const = 0;
+  virtual void Resolve(const T& result) const { NOTREACHED(); }
 
   // Call the |reject| function passed as an argument to the Promise's executor
   // function.
-  virtual void Reject() const = 0;
-  virtual void Reject(SimpleExceptionType exception) const = 0;
-  virtual void Reject(const scoped_refptr<ScriptException>& result) const = 0;
+  virtual void Reject() const { NOTREACHED(); }
+  virtual void Reject(SimpleExceptionType exception) const { NOTREACHED(); }
+  virtual void Reject(const scoped_refptr<ScriptException>& result) const {
+    NOTREACHED();
+  }
 
   // Returns the value of the [[PromiseState]] field.
-  virtual PromiseState State() const = 0;
+  virtual PromiseState State() const {
+    NOTREACHED();
+    return PromiseState::kRejected;
+  }
 
   virtual ~Promise() {}
 };

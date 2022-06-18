@@ -72,6 +72,8 @@ static_library("web") {
     "location_base.h",
     "message_event.cc",
     "message_event.h",
+    "message_port.cc",
+    "message_port.h",
     "navigator_base.cc",
     "navigator_base.h",
     "navigator_ua_data.cc",
