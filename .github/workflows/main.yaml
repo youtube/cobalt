@@ -98,19 +98,23 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: ${{ fromJson(inputs.platforms) }} 
-        config: ${{ fromJson(inputs.configs) }}
+        #platform: ${{ fromJson(inputs.platforms) }} 
+        platform:
+          - evergreen-x86
+          - evergreen-x86-sbversion-14
+            #config: ${{ fromJson(inputs.configs) }}
         #include: ${{ fromJson(inputs.includes) }}
-        include:
-          - platform: evergreen-x86
-            target_platform: evergreen-x86
-            target_cpu: target_cpu=\"x86\"
-            use_asan: use_asan=false
-          - platform: evergreen-x86-sbversion-14
-            target_platform: evergreen-x86
-            target_cpu: target_cpu=\"x86\"
-            use_asan: use_asan=false
-            sb_api_version: sb_api_version=14
+        include: ${{ fromJson('[{"platform":"evergreen-x86","target_platform":"evergreen-x86","use_asan":"use_asan=false"},{"platform":"evergreen-x86-svbersion-14","target_platform":"evergreen-x86","use_asan":"use_asan=false","sb_api_version":"sb_api_version=14"}]') }}
+        #include:
+        #  - platform: evergreen-x86
+        #    target_platform: evergreen-x86
+        #    target_cpu: target_cpu=\"x86\"
+        #    use_asan: use_asan=false
+        #  - platform: evergreen-x86-sbversion-14
+        #    target_platform: evergreen-x86
+        #    target_cpu: target_cpu=\"x86\"
+        #    use_asan: use_asan=false
+        #    sb_api_version: sb_api_version=14
     container: ghcr.io/${{ github.repository_owner }}/cobalt-${{ inputs.docker_service }}:main
     steps:
       - name: checkout

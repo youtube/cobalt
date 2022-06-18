@@ -24,7 +24,7 @@ jobs:
     outputs:
       platforms: ${{ steps.set-platforms.outputs.platforms }}
       configs: ${{ steps.set-configs.outputs.configs }}
-        #includes: ${{ steps.set-includes.outputs.includes }}
+      #includes: ${{ steps.set-includes.outputs.includes }}
   build:
     needs: build-matrix
     uses: ./.github/workflows/main.yaml
