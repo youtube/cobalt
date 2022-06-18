@@ -1,27 +1,37 @@
 {
   "platforms": [
     "evergreen-x86",
-		"evergreen-x86-sbversion-14"
-  ],
-  "configs": [
-    "devel",
-    "debug",
-    "gold",
-    "qa"
+		"evergreen-x86-sbversion-14",
+    "evergreen-x86-sbversion-13",
+    "evergreen-x86-sbversion-12"
   ],
   "includes": [
     {
-      "platform": "evergreen-x86",
-      "target_platform": "evergreen-x86",
-      "target_cpu": "target_cpu=\"x86\"",
-      "use_asan": "use_asan=false"
+      "platform":"evergreen-x86",
+      "target_platform":"evergreen-x86",
+      "target_cpu":"target_cpu=\\\"x86\\\"",
+      "use_asan":"use_asan=false"
     },
     {
-      "platform": "evergreen-x86-svbersion-14",
-      "target_platform": "evergreen-x86",
-      "target_cpu": "target_cpu=\"x86\"",
-      "use_asan": "use_asan=false",
-      "sb_api_version": "sb_api_version=14"
+      "platform":"evergreen-x86-sbversion-14",
+      "target_platform":"evergreen-x86",
+      "target_cpu":"target_cpu=\\\"x86\\\"",
+      "use_asan":"use_asan=false",
+      "sb_api_version":"sb_api_version=14"
+    },
+    {
+      "platform":"evergreen-x86-sbversion-13",
+      "target_platform":"evergreen-x86",
+      "target_cpu":"target_cpu=\\\"x86\\\"",
+      "use_asan":"use_asan=false",
+      "sb_api_version":"sb_api_version=13"
+    },
+    {
+      "platform":"evergreen-x86-sbversion-12",
+      "target_platform":"evergreen-x86",
+      "target_cpu":"target_cpu=\\\"x86\\\"",
+      "use_asan":"use_asan=false",
+      "sb_api_version":"sb_api_version=12"
     }
   ]
 }

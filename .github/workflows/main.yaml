@@ -13,14 +13,10 @@ on:
         description: 'Cobalt platforms (json).'
         required: true
         type: string
-      configs:
-        description: 'Cobalt configs (json).'
+      includes:
+        description: 'Matrix includes (json).'
         required: true
         type: string
-          #  includes:
-          #description: 'Matrix includes (json).'
-          #required: true
-          #type: string
 
 # Global env vars.
 env:
@@ -38,7 +34,7 @@ env:
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  docker-image-build:
+  docker-image:
     permissions:
       packages: write
     runs-on: ubuntu-latest
@@ -88,9 +84,8 @@ jobs:
         if: ${{ (steps.changed-files.outputs.any_changed == 'true') && (github.event_name != 'pull_request') }}
         run: docker push ${{ steps.meta.outputs.tags }}
 
-  # Cobalt jobs.
-  cobalt-build:
-    needs: docker-image-build
+  build:
+    needs: docker-image
     # The type of runner that the job will run on
     runs-on: [self-hosted, linux, X64]
     name: ${{matrix.platform}}_${{matrix.config}}
@@ -98,22 +93,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        #platform: ${{ fromJson(inputs.platforms) }} 
-        platform: [evergreen-x86, evergreen-x86-sbversion_14]
+        platform: ${{ fromJson(inputs.platforms) }}
+        include: ${{ fromJson(inputs.includes) }}
         config: [devel, debug, qa, gold]
-            #config: ${{ fromJson(inputs.configs) }}
-        #include: ${{ fromJson(inputs.includes) }}
-        include: ${{ fromJson('[{"platform":"'evergreen-x86'","target_platform":"evergreen-x86"},{"platform":"'evergreen-x86-sbversion-14'","target_platform":"evergreenx-86"}]') }}
-        #include:
-        #  - platform: evergreen-x86
-        #    target_platform: evergreen-x86
-        #    target_cpu: target_cpu=\"x86\"
-        #    use_asan: use_asan=false
-        #  - platform: evergreen-x86-sbversion-14
-        #    target_platform: evergreen-x86
-        #    target_cpu: target_cpu=\"x86\"
-        #    use_asan: use_asan=false
-        #    sb_api_version: sb_api_version=14
     container: ghcr.io/${{ github.repository_owner }}/cobalt-${{ inputs.docker_service }}:main
     steps:
       - name: checkout
