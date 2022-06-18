@@ -9,12 +9,8 @@ on:
         description: 'Docker service to build image from.'
         required: true
         type: string
-      platforms:
-        description: 'Cobalt platforms (json).'
-        required: true
-        type: string
-      includes:
-        description: 'Matrix includes (json).'
+      platform:
+        description: 'Cobalt platform.'
         required: true
         type: string
 
@@ -34,6 +30,7 @@ env:
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
+  # Builds, tags, and pushes Cobalt docker images to ghr.
   docker-image:
     permissions:
       packages: write
@@ -83,18 +80,29 @@ jobs:
       - name: Push images
         if: ${{ (steps.changed-files.outputs.any_changed == 'true') && (github.event_name != 'pull_request') }}
         run: docker push ${{ steps.meta.outputs.tags }}
-
+  # Generates build matrix based on json configuration file.
+  build-matrix:
+    runs-on: ubuntu-latest
+    steps:
+      - id: checkout
+        uses: actions/checkout@v3
+      - id: set-platforms
+        run: echo "::set-output name=platforms::$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.platforms')"
+      - id: set-includes
+        run: echo "::set-output name=includes::$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.includes')"
+    outputs:
+      platforms: ${{ steps.set-platforms.outputs.platforms }}
+      includes: ${{ steps.set-includes.outputs.includes }}
+  # Runs Cobalt CI workflow.
   build:
-    needs: docker-image
-    # The type of runner that the job will run on
+    needs: [docker-image, build-matrix]
     runs-on: [self-hosted, linux, X64]
     name: ${{matrix.platform}}_${{matrix.config}}
-    # Create config matrix
     strategy:
       fail-fast: false
       matrix:
-        platform: ${{ fromJson(inputs.platforms) }}
-        include: ${{ fromJson(inputs.includes) }}
+        platform: ${{ fromJson(needs.build-matrix.outputs.platforms) }}
+        include: ${{ fromJson(needs.build-matrix.outputs.includes) }}
         config: [devel, debug, qa, gold]
     container: ghcr.io/${{ github.repository_owner }}/cobalt-${{ inputs.docker_service }}:main
     steps:
