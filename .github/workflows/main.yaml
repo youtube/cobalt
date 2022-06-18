@@ -17,10 +17,10 @@ on:
         description: 'Cobalt configs (json).'
         required: true
         type: string
-      includes:
-        description: 'Matrix includes (json).'
-        required: true
-        type: string
+          #  includes:
+          #description: 'Matrix includes (json).'
+          #required: true
+          #type: string
 
 # Global env vars.
 env:
@@ -100,7 +100,17 @@ jobs:
       matrix:
         platform: ${{ fromJson(inputs.platforms) }} 
         config: ${{ fromJson(inputs.configs) }}
-        include: ${{ fromJson(inputs.includes) }}
+        #include: ${{ fromJson(inputs.includes) }}
+        include:
+          - platform: evergreen-x86
+            target_platform: evergreen-x86
+            target_cpu: target_cpu=\"x86\"
+            use_asan: use_asan=false
+          - platform: evergreen-x86-sbversion-14
+            target_platform: evergreen-x86
+            target_cpu: target_cpu=\"x86\"
+            use_asan: use_asan=false
+            sb_api_version: sb_api_version=14
     container: ghcr.io/${{ github.repository_owner }}/cobalt-${{ inputs.docker_service }}:main
     steps:
       - name: checkout

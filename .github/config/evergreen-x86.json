@@ -8,15 +8,5 @@
     "debug",
     "gold",
     "qa"
-  ],
-  "includes": [
-    {
-			"platform": "evergreen-x86",
-			"target_platform": "evergreen-x86"
-    },
-    {
-      "platform": "evergreen-x86-svbersion-14",
-      "target_platform": "evergreen-x86"
-    }
   ]
 }

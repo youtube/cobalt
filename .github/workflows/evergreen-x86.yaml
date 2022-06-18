@@ -19,12 +19,12 @@ jobs:
         run: echo "::set-output name=platforms::$(cat ${GITHUB_WORKSPACE}/.github/config/evergreen-x86.json | jq -c '.platforms')"
       - id: set-configs
         run: echo "::set-output name=configs::$(cat ${GITHUB_WORKSPACE}/.github/config/evergreen-x86.json | jq -c '.configs')"
-      - id: set-includes
-        run: echo "::set-output name=includes::$(cat ${GITHUB_WORKSPACE}/.github/config/evergreen-x86.json | jq -c '.includes')"
+      #- id: set-includes
+      #  run: echo "::set-output name=includes::$(cat ${GITHUB_WORKSPACE}/.github/config/evergreen-x86.json | jq -c '.includes')"
     outputs:
       platforms: ${{ steps.set-platforms.outputs.platforms }}
       configs: ${{ steps.set-configs.outputs.configs }}
-      includes: ${{ steps.set-includes.outputs.includes }}
+        #includes: ${{ steps.set-includes.outputs.includes }}
   build:
     needs: build-matrix
     uses: ./.github/workflows/main.yaml
@@ -34,5 +34,5 @@ jobs:
       docker_service: build-evergreen
       platforms: ${{ needs.build-matrix.outputs.platforms }}
       configs: ${{ needs.build-matrix.outputs.configs }}
-      includes: ${{ needs.build-matrix.outputs.includes }}
+        #includes: ${{ needs.build-matrix.outputs.includes }}
 
