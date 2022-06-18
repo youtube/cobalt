@@ -19,6 +19,6 @@ interface MediaMetadata {
   attribute DOMString title;
   attribute DOMString artist;
   attribute DOMString album;
-  // TODO make this be FrozenArray<MediaImage> when available
+  // TODO(b/236750294): Make this be FrozenArray<MediaImage> when available.
   attribute sequence<MediaImage> artwork;
 };

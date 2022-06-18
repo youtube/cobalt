@@ -235,6 +235,18 @@ class ContextBuilder(object):
         self.resolve_typedef(element_idl_type))
     return '::cobalt::script::Sequence< %s >' % element_cobalt_type
 
+  def idl_promise_type_to_cobalt(self, idl_type):
+    """Map IDL promise type to C++ promise type implementation."""
+    assert is_promise_type(idl_type), 'Expected promise type.'
+    result_idl_type = idl_type.result_type
+    assert not is_object_type(result_idl_type), 'Object type not supported.'
+    assert (not result_idl_type.is_callback_function and
+            not idl_type.is_callback_interface), 'Callback types not supported.'
+    element_cobalt_type = self.idl_type_to_cobalt_type(
+        self.resolve_typedef(result_idl_type))
+    result = '::cobalt::script::Promise< %s >' % element_cobalt_type
+    return result
+
   def idl_union_type_to_cobalt(self, idl_type):
     """Map IDL union type to C++ union type implementation."""
     # Flatten the union type. Order matters for our implementation.
@@ -300,7 +312,7 @@ class ContextBuilder(object):
     elif idl_type.is_dictionary:
       cobalt_type = get_interface_name(idl_type)
     elif is_promise_type(idl_type):
-      cobalt_type = '::cobalt::script::NativePromise'
+      cobalt_type = self.idl_promise_type_to_cobalt(idl_type)
     elif is_array_buffer_or_view_type(idl_type):
       cobalt_type = '::cobalt::script::{}'.format(idl_type.base_type)
     assert cobalt_type, 'Unsupported idl_type %s' % idl_type

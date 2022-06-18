@@ -20,7 +20,7 @@
 #include "cobalt/browser/stack_size_constants.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/web/event_target.h"
-#include "cobalt/worker/message_port.h"
+#include "cobalt/web/message_port.h"
 #include "cobalt/worker/worker.h"
 #include "cobalt/worker/worker_options.h"
 #include "url/gurl.h"
@@ -73,7 +73,7 @@ void DedicatedWorker::Initialize() {
   // 6. Let worker be a new Worker object.
   // 7. Let outside port be a new MessagePort in outside settings's Realm.
   // 8. Associate the outside port with worker.
-  outside_port_ = new MessagePort(this);
+  outside_port_ = new web::MessagePort(this);
   // 9. Run this step in parallel:
   //    1. Run a worker given worker, worker URL, outside settings, outside
   //    port, and options.

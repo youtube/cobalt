@@ -12,19 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/worker/worker_settings.h"
+// https://w3c.github.io/ServiceWorker/#extendableevent
 
-#include "cobalt/base/debugger_hooks.h"
-#include "cobalt/script/environment_settings.h"
-#include "cobalt/script/global_environment.h"
-#include "cobalt/script/javascript_engine.h"
-#include "url/gurl.h"
-
-namespace cobalt {
-namespace worker {
-WorkerSettings::WorkerSettings() : web::EnvironmentSettings() {}
-
-WorkerSettings::WorkerSettings(web::MessagePort* message_port)
-    : web::EnvironmentSettings(), message_port_(message_port) {}
-}  // namespace worker
-}  // namespace cobalt
+[
+  Exposed = ServiceWorker,
+  Constructor(DOMString type, optional ExtendableEventInit eventInitDict)
+] interface ExtendableEvent : Event {
+  [CallWith = EnvironmentSettings] void waitUntil(Promise<any> f);
+};
