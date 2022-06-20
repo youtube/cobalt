@@ -1,0 +1,19 @@
+name: android-arm
+
+on:
+  pull_request:
+    types: [opened, reopened, edited, synchronize]
+    branches: [ main ]
+  push:
+    branches: [ main ]
+  schedule:
+    - cron: '* 21 * * *'
+  workflow_dispatch:
+
+jobs:
+  build:
+    uses: ./.github/workflows/main.yaml
+    permissions:
+      packages: write
+    with:
+      platform: $GITHUB_WORKFLOW
