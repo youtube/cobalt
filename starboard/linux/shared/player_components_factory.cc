@@ -23,6 +23,8 @@
 #include "starboard/shared/libdav1d/dav1d_video_decoder.h"
 #include "starboard/shared/libde265/de265_video_decoder.h"
 #include "starboard/shared/libvpx/vpx_video_decoder.h"
+#include "starboard/shared/openh264/openh264_library_loader.h"
+#include "starboard/shared/openh264/openh264_video_decoder.h"
 #include "starboard/shared/opus/opus_audio_decoder.h"
 #include "starboard/shared/starboard/player/filter/adaptive_audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
@@ -42,6 +44,8 @@ namespace player {
 namespace filter {
 
 namespace {
+
+using ::starboard::shared::openh264::is_openh264_supported;
 
 class PlayerComponentsFactory : public PlayerComponents::Factory {
  public:
@@ -92,6 +96,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       typedef ::starboard::shared::de265::VideoDecoder H265VideoDecoderImpl;
       typedef ::starboard::shared::ffmpeg::VideoDecoder FfmpegVideoDecoderImpl;
       typedef ::starboard::shared::vpx::VideoDecoder VpxVideoDecoderImpl;
+      typedef ::starboard::shared::openh264::VideoDecoder
+          Openh264VideoDecoderImpl;
 
       const SbTime kVideoSinkRenderInterval = 10 * kSbTimeMillisecond;
 
@@ -118,6 +124,14 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
             creation_parameters.video_codec(),
             creation_parameters.output_mode(),
             creation_parameters.decode_target_graphics_context_provider()));
+      } else if ((creation_parameters.video_codec() ==
+                  kSbMediaVideoCodecH264) &&
+                 is_openh264_supported()) {
+        SB_LOG(INFO) << "Playing video using openh264::VideoDecoder.";
+        video_decoder->reset(new Openh264VideoDecoderImpl(
+            creation_parameters.video_codec(),
+            creation_parameters.output_mode(),
+            creation_parameters.decode_target_graphics_context_provider()));
       } else {
         scoped_ptr<FfmpegVideoDecoderImpl> ffmpeg_video_decoder(
             FfmpegVideoDecoderImpl::Create(
@@ -125,6 +139,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
                 creation_parameters.output_mode(),
                 creation_parameters.decode_target_graphics_context_provider()));
         if (ffmpeg_video_decoder && ffmpeg_video_decoder->is_valid()) {
+          SB_LOG(INFO) << "Playing video using ffmpeg::VideoDecoder.";
           video_decoder->reset(ffmpeg_video_decoder.release());
         } else {
           SB_LOG(ERROR) << "Failed to create video decoder for codec "
