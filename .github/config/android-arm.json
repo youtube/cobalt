@@ -1,4 +1,5 @@
 {
+  "docker_service": "build-android",
   "platforms": [
     "android-arm"
   ],

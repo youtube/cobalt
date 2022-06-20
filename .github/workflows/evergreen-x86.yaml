@@ -16,6 +16,5 @@ jobs:
     permissions:
       packages: write
     with:
-      docker_service: build-evergreen
       platform: $GITHUB_WORKFLOW
 

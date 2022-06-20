@@ -1,4 +1,5 @@
 {
+  "docker_service": "build-evergreen",
   "platforms": [
     "evergreen-x86",
 		"evergreen-x86-sbversion-14",

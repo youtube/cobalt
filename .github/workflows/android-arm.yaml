@@ -16,6 +16,4 @@ jobs:
     permissions:
       packages: write
     with:
-      docker_service: build-android
       platform: $GITHUB_WORKFLOW
-
