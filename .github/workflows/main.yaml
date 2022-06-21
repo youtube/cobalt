@@ -63,9 +63,13 @@ jobs:
       - name: Retrieve Docker metadata
         if: steps.changed-files.outputs.any_changed == 'true'
         id: meta
-        uses: docker/metadata-action@v3
+        uses: docker/metadata-action@v4
         with:
           images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/cobalt-${{ env.docker_service }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=tag
+            type=ref,event=pr
 
       - name: Build containers with docker-compose
         if: steps.changed-files.outputs.any_changed == 'true'
