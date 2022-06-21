@@ -2,7 +2,7 @@ name: android-arm.nightly
 
 on:
   schedule:
-    - cron: '* 14 * * *'
+    - cron: '0 14 * * *'
   workflow_dispatch:
 
 jobs:
