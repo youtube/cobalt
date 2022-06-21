@@ -88,7 +88,7 @@ jobs:
         if: ${{ (steps.changed-files.outputs.any_changed == 'true') && (github.event_name != 'pull_request') }}
         run: docker push ${{ steps.meta.outputs.tags }}
     outputs:
-      docker_service: ${{ steps.get-docker-service.outputs.docker_service }}
+      docker_tag: ${{ steps.get-docker-service.outputs.tags[0] }}
 
   # Generates build matrix based on json configuration file.
   build-matrix:
@@ -114,7 +114,7 @@ jobs:
         platform: ${{ fromJson(needs.build-matrix.outputs.platforms) }}
         include: ${{ fromJson(needs.build-matrix.outputs.includes) }}
         config: [devel, debug, qa, gold]
-    container: ghcr.io/${{ github.repository_owner }}/cobalt-${{ needs.docker-image.outputs.docker_service }}:main
+    container: ${{ needs.docker-image.outputs.docker_tag }}
     steps:
       - name: checkout
         uses: actions/checkout@v2
