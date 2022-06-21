@@ -88,6 +88,8 @@ jobs:
       - name: Set Docker Tag
         if: ${{ (steps.changed-files.outputs.any_changed == 'false') && (github.event_name != 'pull_request') }}
         run: echo "DOCKER_TAG=ghcr.io/${{github.repository_owner}}/cobalt-${docker_service}:${GITHUB_REF_NAME}" >> $GITHUB_ENV
+      - name: Show Docker Tag
+        run: echo $DOCKER_TAG
     outputs:
       docker_tag: ${{ env.DOCKER_TAG }}
 
