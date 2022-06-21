@@ -84,21 +84,21 @@ jobs:
         if: steps.changed-files.outputs.any_changed == 'true'
         run: |
           docker tag cobalt-${{ env.docker_service }} ${{ steps.meta.outputs.tags[0] }}
-          echo "::set-output name=docker_tag::${{ steps.meta.outputs.tags[0] }}"
+          echo "DOCKER_TAG=${{steps.meta.outputs.tags[0]}}" >> $GITHUB_ENV
 
       - name: Push images
         if: ${{ (steps.changed-files.outputs.any_changed == 'true') }}
         run: docker push ${{ steps.meta.outputs.tags }}
 
-      - id: set-docker-tag
+      - name: Set Docker Tag
         if: ${{ (steps.changed-files.outputs.any_changed == 'false') && (github.event_name == 'pull_request') }}
-        run: echo "::set-output name=docker_tag::ghcr.io/${{github.repository_owner}}/cobalt-${{env.docker_service}}:${{env.GITHUB_HEAD_REF}}"
+        run: echo "DOCKER_TAG=ghcr.io/${{github.repository_owner}}/cobalt-${docker_service}:${GITHUB_HEAD_REF}" >> $GITHUB_ENV
 
-      - id: set-docker-tag
+      - name: Set Docker Tag
         if: ${{ (steps.changed-files.outputs.any_changed == 'false') && (github.event_name != 'pull_request') }}
-        run: echo "::set-output name=docker_tag::ghcr.io/${{github.repository_owner}}/cobalt-${{env.docker_service}}:${{env.GITHUB_REF_NAME}}"
+        run: echo "DOCKER_TAG=ghcr.io/${{github.repository_owner}}/cobalt-${docker_service}:${GITHUB_REF_NAME}" >> $GITHUB_ENV
     outputs:
-      docker_tag: ${{ steps.set-docker-tag.outputs.docker_tag }}
+      docker_tag: ${{ env.DOCKER_TAG }}
 
   # Generates build matrix based on json configuration file.
   build-matrix:
