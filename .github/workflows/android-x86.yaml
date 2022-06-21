@@ -1,4 +1,4 @@
-name: android-arm
+name: android-x86
 
 on:
   pull_request:
