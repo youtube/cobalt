@@ -1,6 +1,6 @@
 # Reusable Cobalt CI workflow.
 
-name: CI
+name: main
 
 on:
   workflow_call:

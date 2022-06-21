@@ -1,0 +1,15 @@
+name: evergreen-arm-softfp.nightly
+
+on:
+  schedule:
+    - cron: '* 21 * * *'
+  workflow_dispatch:
+
+jobs:
+  build:
+    uses: ./.github/workflows/main.yaml
+    permissions:
+      packages: write
+    with:
+      platform: evergreen-arm-softfp
+
