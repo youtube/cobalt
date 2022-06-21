@@ -45,8 +45,17 @@ TEST(SbPlayerGetPreferredOutputModeTest, SunnyDay) {
 
 TEST(SbPlayerGetPreferredOutputModeTest, AllCodecs) {
   const SbMediaAudioCodec kAudioCodecs[] = {
-      kSbMediaAudioCodecNone, kSbMediaAudioCodecAac,  kSbMediaAudioCodecAc3,
-      kSbMediaAudioCodecEac3, kSbMediaAudioCodecOpus, kSbMediaAudioCodecVorbis,
+    kSbMediaAudioCodecNone,
+    kSbMediaAudioCodecAac,
+    kSbMediaAudioCodecAc3,
+    kSbMediaAudioCodecEac3,
+    kSbMediaAudioCodecOpus,
+    kSbMediaAudioCodecVorbis,
+#if SB_API_VERSION >= 14
+    kSbMediaAudioCodecMp3,
+    kSbMediaAudioCodecFlac,
+    kSbMediaAudioCodecPcm,
+#endif  // SB_API_VERSION >= 14
   };
   const SbMediaVideoCodec kVideoCodecs[] = {
       kSbMediaVideoCodecNone,  kSbMediaVideoCodecH264,   kSbMediaVideoCodecH265,

@@ -30,6 +30,9 @@ Types of audio elementary streams that can be supported.
 *   `kSbMediaAudioCodecEac3`
 *   `kSbMediaAudioCodecOpus`
 *   `kSbMediaAudioCodecVorbis`
+*   `kSbMediaAudioCodecMp3`
+*   `kSbMediaAudioCodecFlac`
+*   `kSbMediaAudioCodecPcm`
 
 ### SbMediaAudioCodingType ###
 
