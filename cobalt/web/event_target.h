@@ -23,6 +23,7 @@
 #include "base/location.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
+#include "base/threading/thread_checker.h"
 #include "cobalt/base/debugger_hooks.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/base/token.h"
@@ -528,6 +529,9 @@ class EventTarget : public script::Wrappable,
     return environment_settings_;
   }
 
+ protected:
+  virtual ~EventTarget() { environment_settings_ = nullptr; }
+
  private:
   typedef std::vector<std::unique_ptr<EventTargetListenerInfo>>
       EventListenerInfos;
@@ -542,12 +546,16 @@ class EventTarget : public script::Wrappable,
 
   EventListenerInfos event_listener_infos_;
 
-  web::EnvironmentSettings* environment_settings_;
+  web::EnvironmentSettings* environment_settings_ = nullptr;
 
   // Tracks whether this current event listener should unpack the onerror
   // event object when calling its callback.  This is needed to implement
   // the special case of window.onerror handling.
   bool unpack_onerror_events_;
+
+  // Thread checker ensures all calls to the EventTarget are made from the same
+  // thread that it is created in.
+  THREAD_CHECKER(thread_checker_);
 };
 
 }  // namespace web

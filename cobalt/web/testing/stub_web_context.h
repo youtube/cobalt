@@ -129,6 +129,9 @@ class StubWebContext final : public Context {
     return scoped_refptr<worker::ServiceWorkerRegistration>();
   }
 
+  void RemoveServiceWorker(worker::ServiceWorkerObject* worker) final {
+    NOTIMPLEMENTED();
+  }
   scoped_refptr<worker::ServiceWorker> LookupServiceWorker(
       worker::ServiceWorkerObject* worker) final {
     NOTIMPLEMENTED();

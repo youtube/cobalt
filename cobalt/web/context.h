@@ -69,6 +69,7 @@ class Context {
   GetServiceWorkerRegistration(
       worker::ServiceWorkerRegistrationObject* registration) = 0;
 
+  virtual void RemoveServiceWorker(worker::ServiceWorkerObject* worker) = 0;
   virtual scoped_refptr<worker::ServiceWorker> LookupServiceWorker(
       worker::ServiceWorkerObject* worker) = 0;
   // https://w3c.github.io/ServiceWorker/#get-the-service-worker-object

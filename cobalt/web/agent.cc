@@ -107,6 +107,7 @@ class Impl : public Context {
   scoped_refptr<worker::ServiceWorkerRegistration> GetServiceWorkerRegistration(
       worker::ServiceWorkerRegistrationObject* registration) final;
 
+  void RemoveServiceWorker(worker::ServiceWorkerObject* worker) final;
   scoped_refptr<worker::ServiceWorker> LookupServiceWorker(
       worker::ServiceWorkerObject* worker) final;
   // https://w3c.github.io/ServiceWorker/#get-the-service-worker-object
@@ -371,6 +372,10 @@ Impl::GetServiceWorkerRegistration(
   return worker_registration;
 }
 
+
+void Impl::RemoveServiceWorker(worker::ServiceWorkerObject* worker) {
+  service_worker_object_map_.erase(worker);
+}
 
 scoped_refptr<worker::ServiceWorker> Impl::LookupServiceWorker(
     worker::ServiceWorkerObject* worker) {

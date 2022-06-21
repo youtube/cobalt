@@ -16,6 +16,7 @@
 #define COBALT_SCRIPT_V8C_NATIVE_PROMISE_H_
 
 #include "base/logging.h"
+#include "base/threading/thread_checker.h"
 #include "cobalt/script/promise.h"
 #include "cobalt/script/v8c/conversion_helpers.h"
 #include "cobalt/script/v8c/entry_scope.h"
@@ -67,6 +68,7 @@ class NativePromise : public ScopedPersistent<v8::Value>, public Promise<T> {
   }
 
   void Resolve(const ResolveType& value) const override {
+    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
     DCHECK(!this->IsEmpty());
     DCHECK(State() == PromiseState::kPending);
     EntryScope entry_scope(isolate_);
@@ -81,6 +83,7 @@ class NativePromise : public ScopedPersistent<v8::Value>, public Promise<T> {
   }
 
   void Reject() const override {
+    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
     DCHECK(!this->IsEmpty());
     DCHECK(State() == PromiseState::kPending);
     EntryScope entry_scope(isolate_);
@@ -93,6 +96,7 @@ class NativePromise : public ScopedPersistent<v8::Value>, public Promise<T> {
   }
 
   void Reject(SimpleExceptionType exception) const override {
+    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
     DCHECK(!this->IsEmpty());
     DCHECK(State() == PromiseState::kPending);
     EntryScope entry_scope(isolate_);
@@ -106,6 +110,7 @@ class NativePromise : public ScopedPersistent<v8::Value>, public Promise<T> {
   }
 
   void Reject(const scoped_refptr<ScriptException>& result) const override {
+    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
     DCHECK(!this->IsEmpty());
     DCHECK(State() == PromiseState::kPending);
     EntryScope entry_scope(isolate_);
@@ -143,6 +148,10 @@ class NativePromise : public ScopedPersistent<v8::Value>, public Promise<T> {
 
  private:
   v8::Isolate* isolate_;
+
+  // Thread checker ensures all calls to the Promise are made from the same
+  // thread that it is created in.
+  THREAD_CHECKER(thread_checker_);
 
   v8::Local<v8::Promise::Resolver> resolver() const {
     DCHECK(!this->IsEmpty());

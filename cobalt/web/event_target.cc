@@ -40,14 +40,18 @@ EventTarget::EventTarget(
     : environment_settings_(
           base::polymorphic_downcast<web::EnvironmentSettings*>(settings)),
       unpack_onerror_events_(onerror_event_parameter_handling ==
-                             kUnpackOnErrorEvents) {}
+                             kUnpackOnErrorEvents) {
+  DCHECK(environment_settings_);
+}
 
 EventTarget::EventTarget(
     web::EnvironmentSettings* settings,
     UnpackOnErrorEventsBool onerror_event_parameter_handling)
     : environment_settings_(settings),
       unpack_onerror_events_(onerror_event_parameter_handling ==
-                             kUnpackOnErrorEvents) {}
+                             kUnpackOnErrorEvents) {
+  DCHECK(environment_settings_);
+}
 
 void EventTarget::AddEventListener(const std::string& type,
                                    const EventListenerScriptValue& listener,
@@ -65,6 +69,7 @@ void EventTarget::AddEventListener(const std::string& type,
 void EventTarget::RemoveEventListener(const std::string& type,
                                       const EventListenerScriptValue& listener,
                                       bool use_capture) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   // Do nothing if listener is null.
   if (listener.IsNull()) {
     return;
@@ -210,6 +215,7 @@ EventTarget::GetAttributeOnErrorEventListener(base::Token type) const {
 }
 
 bool EventTarget::HasOneOrMoreAttributeEventListener() const {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   for (EventListenerInfos::const_iterator iter = event_listener_infos_.begin();
        iter != event_listener_infos_.end(); ++iter) {
     if ((*iter)->is_attribute()) {
@@ -221,6 +227,7 @@ bool EventTarget::HasOneOrMoreAttributeEventListener() const {
 
 EventTargetListenerInfo* EventTarget::GetAttributeEventListenerInternal(
     base::Token type) const {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   for (EventListenerInfos::const_iterator iter = event_listener_infos_.begin();
        iter != event_listener_infos_.end(); ++iter) {
     if ((*iter)->is_attribute() && (*iter)->type() == type) {
@@ -231,6 +238,7 @@ EventTargetListenerInfo* EventTarget::GetAttributeEventListenerInternal(
 }
 
 void EventTarget::FireEventOnListeners(const scoped_refptr<Event>& event) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(event->IsBeingDispatched());
   DCHECK(event->target());
   DCHECK(!event->current_target());
@@ -277,6 +285,7 @@ void EventTarget::TraceMembers(script::Tracer* tracer) {
 void EventTarget::AddEventListenerInternal(
     std::unique_ptr<EventTargetListenerInfo> listener_info) {
   TRACK_MEMORY_SCOPE("DOM");
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   // Remove existing attribute listener of the same type.
   if (listener_info->is_attribute()) {
@@ -311,6 +320,7 @@ void EventTarget::AddEventListenerInternal(
 
 bool EventTarget::HasEventListener(base::Token type) {
   TRACK_MEMORY_SCOPE("DOM");
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   for (EventListenerInfos::iterator iter = event_listener_infos_.begin();
        iter != event_listener_infos_.end(); ++iter) {
