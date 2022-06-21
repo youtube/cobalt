@@ -89,6 +89,17 @@ bool IsSupportedAudioCodec(const MimeType& mime_type,
     case kSbMediaAudioCodecOpus:
     case kSbMediaAudioCodecVorbis:
       return mime_type.subtype() == "webm";
+#if SB_API_VERSION >= 14
+    case kSbMediaAudioCodecMp3:
+      return mime_type.subtype() == "mpeg" || mime_type.subtype() == "mp3" ||
+             mime_type.subtype() == "mp4";
+    case kSbMediaAudioCodecPcm:
+      return mime_type.subtype() == "wav" || mime_type.subtype() == "wave" ||
+             mime_type.subtype() == "x-wav" ||
+             mime_type.subtype() == "x-pn-wav";
+    case kSbMediaAudioCodecFlac:
+      return mime_type.subtype() == "ogg";
+#endif  // SB_API_VERSION >= 14
   }
 
   SB_NOTREACHED();

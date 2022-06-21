@@ -601,6 +601,14 @@ const char* GetMediaAudioCodecName(SbMediaAudioCodec codec) {
       return "opus";
     case kSbMediaAudioCodecVorbis:
       return "vorbis";
+#if SB_API_VERSION >= 14
+    case kSbMediaAudioCodecMp3:
+      return "mp3";
+    case kSbMediaAudioCodecFlac:
+      return "flac";
+    case kSbMediaAudioCodecPcm:
+      return "pcm";
+#endif  // SB_API_VERSION >= 14
   }
   SB_NOTREACHED();
   return "invalid";

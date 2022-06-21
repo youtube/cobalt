@@ -63,6 +63,11 @@ typedef enum SbMediaAudioCodec {
   kSbMediaAudioCodecEac3,
   kSbMediaAudioCodecOpus,
   kSbMediaAudioCodecVorbis,
+#if SB_API_VERSION >= 14
+  kSbMediaAudioCodecMp3,
+  kSbMediaAudioCodecFlac,
+  kSbMediaAudioCodecPcm,
+#endif  // SB_API_VERSION >= 14
 } SbMediaAudioCodec;
 
 // Indicates how confident the device is that it can play media resources of the
