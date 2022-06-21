@@ -2,7 +2,7 @@ name: evergreen-arm-softfp.nightly
 
 on:
   schedule:
-    - cron: '* 21 * * *'
+    - cron: '* 14 * * *'
   workflow_dispatch:
 
 jobs:
