@@ -77,8 +77,8 @@ jobs:
       - name: Tag images
         if: steps.changed-files.outputs.any_changed == 'true'
         run: |
-          docker tag cobalt-${{ env.docker_service }} ${{ steps.meta.outputs.tags[0] }}
-          echo "DOCKER_TAG=${{steps.meta.outputs.tags[0]}}" >> $GITHUB_ENV
+          docker tag cobalt-${{ env.docker_service }} ${{ steps.meta.outputs.tags }}
+          echo "DOCKER_TAG=${{steps.meta.outputs.tags}}" >> $GITHUB_ENV
       - name: Push images
         if: ${{ (steps.changed-files.outputs.any_changed == 'true') }}
         run: docker push ${{ steps.meta.outputs.tags }}
