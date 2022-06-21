@@ -1,0 +1,13 @@
+{
+  "docker_service": "build-linux-clang-3-9",
+  "platforms": [
+    "linux-x64x11-clang-3-9"
+  ],
+  "includes": [
+    {
+      "platform":"linux-x64x11-clang-3-9",
+      "target_platform":"linux-x64x11-clang-3-9",
+      "using_old_compiler":"using_old_compiler=true"
+    }
+  ]
+}

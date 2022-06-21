@@ -1,0 +1,14 @@
+name: linux-clang-3-9.nightly
+
+on:
+  schedule:
+    - cron: '* 21 * * *'
+  workflow_dispatch:
+
+jobs:
+  build:
+    uses: ./.github/workflows/main.yaml
+    permissions:
+      packages: write
+    with:
+      platform: linux-clang-3-9

@@ -1,0 +1,14 @@
+name: linux.nightly
+
+on:
+  schedule:
+    - cron: '* 21 * * *'
+  workflow_dispatch:
+
+jobs:
+  build:
+    uses: ./.github/workflows/main.yaml
+    permissions:
+      packages: write
+    with:
+      platform: linux

@@ -1,0 +1,14 @@
+name: linux-gcc-6-3.nightly
+
+on:
+  schedule:
+    - cron: '* 21 * * *'
+  workflow_dispatch:
+
+jobs:
+  build:
+    uses: ./.github/workflows/main.yaml
+    permissions:
+      packages: write
+    with:
+      platform: linux-gcc-6-3
