@@ -1196,8 +1196,7 @@ void ServiceWorkerJobs::ClearRegistration(
   DCHECK_EQ(message_loop(), base::MessageLoop::current());
 
   // 2. If registration’s installing worker is not null, then:
-  scoped_refptr<ServiceWorkerObject> installing_worker =
-      registration->installing_worker();
+  ServiceWorkerObject* installing_worker = registration->installing_worker();
   if (installing_worker) {
     // 2.1. Terminate registration’s installing worker.
     TerminateServiceWorker(installing_worker);
@@ -1210,8 +1209,7 @@ void ServiceWorkerJobs::ClearRegistration(
   }
 
   // 3. If registration’s waiting worker is not null, then:
-  scoped_refptr<ServiceWorkerObject> waiting_worker =
-      registration->waiting_worker();
+  ServiceWorkerObject* waiting_worker = registration->waiting_worker();
   if (waiting_worker) {
     // 3.1. Terminate registration’s waiting worker.
     TerminateServiceWorker(waiting_worker);
@@ -1224,8 +1222,7 @@ void ServiceWorkerJobs::ClearRegistration(
   }
 
   // 3. If registration’s active worker is not null, then:
-  scoped_refptr<ServiceWorkerObject> active_worker =
-      registration->active_worker();
+  ServiceWorkerObject* active_worker = registration->active_worker();
   if (active_worker) {
     // 3.1. Terminate registration’s active worker.
     TerminateServiceWorker(active_worker);
@@ -1513,6 +1510,22 @@ void ServiceWorkerJobs::TerminateServiceWorker(ServiceWorkerObject* worker) {
   //      source) from serviceWorkerGlobalScope’s event loop’s task queues
   //      without processing them.
   // TODO(b/234787641): Queue tasks to the registration.
+
+  // Note: This step is not in the spec, but without this step the service
+  // worker object map will always keep an entry with a service worker instance
+  // for the terminated service worker, which besides leaking memory can lead to
+  // unexpected behavior when new service worker objects are created with the
+  // same key for the service worker object map (which in Cobalt's case
+  // happens when a new service worker object is constructed at the same
+  // memory address).
+  for (auto& context : web_context_registrations_) {
+    context->message_loop()->task_runner()->PostBlockingTask(
+        FROM_HERE, base::Bind(
+                       [](web::Context* context, ServiceWorkerObject* worker) {
+                         context->RemoveServiceWorker(worker);
+                       },
+                       context, base::Unretained(worker)));
+  }
 
   // 1.5. Abort the script currently running in serviceWorker.
   DCHECK(worker->is_running());
@@ -1854,7 +1867,17 @@ void ServiceWorkerJobs::ClientsGetSubSteps(
     }
   }
   // 2.2. Resolve promise with undefined.
-  promise_reference->value().Resolve(scoped_refptr<Client>());
+  settings->context()->message_loop()->task_runner()->PostTask(
+      FROM_HERE,
+      base::BindOnce(
+          [](std::unique_ptr<script::ValuePromiseWrappable::Reference>
+                 promise_reference) {
+            TRACE_EVENT0(
+                "cobalt::worker",
+                "ServiceWorkerJobs::ResolveGetClientPromise() Resolve");
+            promise_reference->value().Resolve(scoped_refptr<Client>());
+          },
+          std::move(promise_reference)));
 }
 
 void ServiceWorkerJobs::ResolveGetClientPromise(

@@ -46,6 +46,9 @@ ServiceWorkerObject::ServiceWorkerObject(const Options& options)
 
 ServiceWorkerObject::~ServiceWorkerObject() {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerObject::~ServiceWorkerObject()");
+  // Check that the object isn't destroyed without first calling Abort().
+  DCHECK(!web_agent_);
+  DCHECK(!web_context_);
   Abort();
 }
 
@@ -53,6 +56,7 @@ void ServiceWorkerObject::Abort() {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerObject::Abort()");
   if (web_agent_) {
     DCHECK(message_loop());
+    DCHECK(web_context_);
     web_agent_->WaitUntilDone();
     web_agent_.reset();
     web_context_ = nullptr;
