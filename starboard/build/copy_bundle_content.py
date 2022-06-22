@@ -31,19 +31,18 @@ class InvalidArgumentException(Exception):
 
 
 def copy_files(files_to_copy, base_dir, output_dir):
+  if not os.path.exists(output_dir):
+    os.makedirs(output_dir)
+
   for path in files_to_copy:
-    # All input paths must point at files.
-    # TODO(b/211909342): Re-enable once lottie test files are listed.
-    # if not os.path.isfile(path):
-    #   raise InvalidArgumentException(path + ' is not a file.')
+    # In certain cases, files would fail to open on windows if relative paths
+    # were provided.  Using absolute paths fixes this.
+    filename = os.path.abspath(path)
 
     # Get the path of the file relative to the source base_dir.
     rel_path = os.path.relpath(path, base_dir)
-
-    # In certain cases, files would fail to open on windows if relative paths
-    # were provided.  Using absolute paths fixes this.
-    filename = os.path.abspath(os.path.join(base_dir, rel_path))
     output_dir = os.path.abspath(output_dir)
+    # Use rel_path to preserve the input folder structure in the output.
     output_filename = os.path.abspath(os.path.join(output_dir, rel_path))
 
     # In cases where a directory has turned into a file or vice versa, delete it
@@ -53,8 +52,8 @@ def copy_files(files_to_copy, base_dir, output_dir):
     if os.path.exists(output_filename) and os.path.isdir(output_filename):
       shutil.rmtree(output_filename)
 
-    if not os.path.exists(output_dir):
-      os.makedirs(output_dir)
+    if not os.path.exists(os.path.dirname(output_filename)):
+      os.makedirs(os.path.dirname(output_filename))
 
     if os.path.isfile(filename):
       shutil.copy(filename, output_filename)
@@ -73,15 +72,16 @@ if __name__ == '__main__':
       required=True,
       help='source base directory')
   parser.add_argument(
-      '--files_list',
-      dest='files_list',
-      required=True,
-      help='path to file containing list of input files')
+      'input_paths',
+      metavar='path',
+      nargs='*',
+      help='path to a file containing the list of files to copy')
   options = parser.parse_args()
 
-  # Load file names from the file containing the list of file names.
-  # The file name list must be passed in a file to due to command line limits.
-  with open(options.files_list) as input_file:
-    file_names = [line.strip() for line in input_file]
+  # Load file names from the files containing the list of file names.
+  file_names = []
+  for input_path in options.input_paths:
+    with open(input_path.strip()) as files_list:
+      file_names.extend([line.strip() for line in files_list])
 
   copy_files(file_names, options.base_dir, options.output_dir)

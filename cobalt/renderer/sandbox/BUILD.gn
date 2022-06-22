@@ -31,7 +31,7 @@ target(final_executable_type, "renderer_sandbox") {
     "//cobalt/trace_event",
   ]
 
-  data_deps = [ "//cobalt/renderer/test/scenes:scenes_copy_test_data" ]
+  content_deps = [ "//cobalt/renderer/test/scenes:scenes_copy_test_data" ]
 }
 
 # This target will build a sandbox application that allows for easy
@@ -50,5 +50,5 @@ target(final_executable_type, "scaling_text_sandbox") {
     "//cobalt/trace_event",
   ]
 
-  data_deps = [ "//cobalt/renderer/test/scenes:scenes_copy_test_data" ]
+  content_deps = [ "//cobalt/renderer/test/scenes:scenes_copy_test_data" ]
 }
