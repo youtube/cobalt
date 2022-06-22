@@ -26,6 +26,7 @@
 #include <vector>
 
 #include "third_party/lz4_lib/lz4frame.h"
+#include "third_party/lz4_lib/lz4hc.h"
 
 bool ReadFile(const char* file_path, std::vector<char>& buffer) {
   FILE* file;
@@ -62,11 +63,12 @@ bool ReadFile(const char* file_path, std::vector<char>& buffer) {
 }
 
 bool Compress(std::vector<char>& src_buffer, std::vector<char>& dst_buffer) {
-  // TODO(b/233939346): tune these preferences.
+  // Based on experimentation these preferences yield a high compression ratio
+  // and fast decompression speed for a diverse set of devices.
   LZ4F_preferences_t prefs = {
-      {LZ4F_max256KB, LZ4F_blockLinked, LZ4F_noContentChecksum, LZ4F_frame,
+      {LZ4F_max256KB, LZ4F_blockIndependent, LZ4F_noContentChecksum, LZ4F_frame,
        src_buffer.size(), 0 /* no dictID */, LZ4F_noBlockChecksum},
-      0,         /* compression level; 0 == default */
+      LZ4HC_CLEVEL_MAX,
       0,         /* autoflush */
       0,         /* favor decompression speed */
       {0, 0, 0}, /* reserved, must be set to 0 */
