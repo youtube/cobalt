@@ -1,4 +1,4 @@
-name: linux-gcc-6-3.nightly
+name: evergreen-x86_nightly
 
 on:
   schedule:
@@ -11,4 +11,5 @@ jobs:
     permissions:
       packages: write
     with:
-      platform: linux-gcc-6-3
+      platform: evergreen-x86
+

@@ -1,4 +1,4 @@
-name: raspi-2.nightly
+name: linux-clang-3-9_nightly
 
 on:
   schedule:
@@ -11,4 +11,4 @@ jobs:
     permissions:
       packages: write
     with:
-      platform: raspi-2
+      platform: linux-clang-3-9

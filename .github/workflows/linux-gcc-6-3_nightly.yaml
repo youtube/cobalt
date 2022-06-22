@@ -1,4 +1,4 @@
-name: android-arm64.nightly
+name: linux-gcc-6-3_nightly
 
 on:
   schedule:
@@ -11,4 +11,4 @@ jobs:
     permissions:
       packages: write
     with:
-      platform: android-arm64
+      platform: linux-gcc-6-3

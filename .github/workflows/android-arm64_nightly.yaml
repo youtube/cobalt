@@ -1,4 +1,4 @@
-name: evergreen-x86.nightly
+name: android-arm64_nightly
 
 on:
   schedule:
@@ -11,5 +11,4 @@ jobs:
     permissions:
       packages: write
     with:
-      platform: evergreen-x86
-
+      platform: android-arm64

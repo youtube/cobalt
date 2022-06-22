@@ -1,4 +1,4 @@
-name: evergreen-arm-hardfp.nightly
+name: evergreen-arm-softfp_nightly
 
 on:
   schedule:
@@ -11,4 +11,5 @@ jobs:
     permissions:
       packages: write
     with:
-      platform: evergreen-arm-hardfp
+      platform: evergreen-arm-softfp
+

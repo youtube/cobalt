@@ -1,4 +1,4 @@
-name: evergreen-arm-softfp.nightly
+name: raspi-2_nightly
 
 on:
   schedule:
@@ -11,5 +11,4 @@ jobs:
     permissions:
       packages: write
     with:
-      platform: evergreen-arm-softfp
-
+      platform: raspi-2

@@ -1,4 +1,4 @@
-name: linux-clang-3-9.nightly
+name: evergreen-arm-hardfp_nightly
 
 on:
   schedule:
@@ -11,4 +11,4 @@ jobs:
     permissions:
       packages: write
     with:
-      platform: linux-clang-3-9
+      platform: evergreen-arm-hardfp

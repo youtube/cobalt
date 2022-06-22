@@ -1,4 +1,4 @@
-name: android-x86.nightly
+name: android-arm_nightly
 
 on:
   schedule:
@@ -11,4 +11,4 @@ jobs:
     permissions:
       packages: write
     with:
-      platform: android-x86
+      platform: android-arm

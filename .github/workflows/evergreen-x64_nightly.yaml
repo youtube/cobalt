@@ -1,4 +1,4 @@
-name: linux.nightly
+name: evergreen-x64_nightly
 
 on:
   schedule:
@@ -11,4 +11,4 @@ jobs:
     permissions:
       packages: write
     with:
-      platform: linux
+      platform: evergreen-x64
