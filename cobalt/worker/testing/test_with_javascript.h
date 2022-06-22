@@ -77,7 +77,6 @@ class TestWithJavaScriptBase : public TypeIdProvider {
 
   bool EvaluateScript(const std::string& js_code, std::string* result) {
     DCHECK(web_context_->global_environment());
-    DCHECK(result);
     scoped_refptr<script::SourceCode> source_code =
         script::SourceCode::CreateSourceCode(
             js_code, base::SourceLocation(__FILE__, __LINE__, 1));
