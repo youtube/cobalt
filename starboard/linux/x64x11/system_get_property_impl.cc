@@ -88,11 +88,11 @@ bool GetSystemProperty(SbSystemPropertyId property_id,
       return false;
 #if SB_API_VERSION >= 14
     // Implementation provided for testing purposes only
-    case kSbSystemPropretyAdvertisingId:
+    case kSbSystemPropertyAdvertisingId:
       return CopyStringAndTestIfSuccess(
           out_value, value_length,
           GetEnvironment("COBALT_ADVERTISING_ID").c_str());
-    case kSbSystemPropretyLimitAdTracking:
+    case kSbSystemPropertyLimitAdTracking:
       return CopyStringAndTestIfSuccess(
           out_value, value_length,
           GetEnvironment("COBALT_LIMIT_AD_TRACKING").c_str());
