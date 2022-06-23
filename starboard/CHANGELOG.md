@@ -15,7 +15,7 @@ can be found in the comments of the "Experimental Feature Defines" section of
 [configuration.h](configuration.h).
 
 ## Version 14
-### Add kSbSystemPropretyAdvertisingId and kSbSystemPropretyLimitAdTracking
+### Add kSbSystemPropertyAdvertisingId and kSbSystemPropertyLimitAdTracking
 Adds properties for retrieving IFA identifier and related ad tracking limiting.
 
 ### Add kSbSystemDeviceTypeVideoProjector type to Starboard devices.
