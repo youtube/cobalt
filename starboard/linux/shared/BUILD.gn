@@ -84,8 +84,6 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/alsa/alsa_util.h",
     "//starboard/shared/deviceauth/deviceauth_internal.cc",
     "//starboard/shared/egl/system_egl.cc",
-    "//starboard/shared/ffmpeg/ffmpeg_demuxer.cc",
-    "//starboard/shared/ffmpeg/ffmpeg_demuxer.h",
     "//starboard/shared/gcc/atomic_gcc_public.h",
     "//starboard/shared/gles/system_gles2.cc",
     "//starboard/shared/iso/character_is_alphanumeric.cc",
