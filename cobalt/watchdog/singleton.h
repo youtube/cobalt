@@ -18,7 +18,7 @@
 #ifndef COBALT_WATCHDOG_SINGLETON_H_
 #define COBALT_WATCHDOG_SINGLETON_H_
 
-#include "starboard/once.h"
+#include "cobalt/persistent_storage/persistent_settings.h"
 
 namespace cobalt {
 namespace watchdog {
@@ -35,28 +35,22 @@ class Singleton {
   // "bool Initialize();" that returns false when
   // initialization fails and a function "void Uninitialize();".
 
-  static Type* CreateInstance() {
-    static SbOnceControl s_once_flag = SB_ONCE_INITIALIZER;
-    struct Local {
-      static void Init() {
-        Type* singleton = new Type();
-        if (singleton && singleton->Type::Initialize()) s_singleton = singleton;
-      }
-    };
-    SbOnce(&s_once_flag, Local::Init);
+  static Type* CreateInstance(
+      persistent_storage::PersistentSettings* persistent_settings) {
+    if (!s_singleton) {
+      Type* singleton = new Type();
+      if (singleton && singleton->Type::Initialize(persistent_settings))
+        s_singleton = singleton;
+    }
     return s_singleton;
   }
 
   static Type* CreateStubInstance() {
-    static SbOnceControl s_once_flag = SB_ONCE_INITIALIZER;
-    struct Local {
-      static void Init() {
-        Type* singleton = new Type();
-        if (singleton && singleton->Type::InitializeStub())
-          s_singleton = singleton;
-      }
-    };
-    SbOnce(&s_once_flag, Local::Init);
+    if (!s_singleton) {
+      Type* singleton = new Type();
+      if (singleton && singleton->Type::InitializeStub())
+        s_singleton = singleton;
+    }
     return s_singleton;
   }
 

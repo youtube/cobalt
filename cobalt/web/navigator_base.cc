@@ -19,24 +19,27 @@
 
 #include "base/optional.h"
 #include "cobalt/script/script_value_factory.h"
+#include "cobalt/web/context.h"
+#include "cobalt/web/environment_settings.h"
 #include "cobalt/web/navigator_ua_data.h"
+#include "cobalt/web/user_agent_platform_info.h"
 #include "cobalt/worker/service_worker_container.h"
 #include "starboard/configuration_constants.h"
 
 namespace cobalt {
 namespace web {
 
-NavigatorBase::NavigatorBase(script::EnvironmentSettings* settings,
-                             const std::string& user_agent,
-                             web::UserAgentPlatformInfo* platform_info,
-                             const std::string& language,
-                             script::ScriptValueFactory* script_value_factory)
-    : user_agent_(user_agent),
+NavigatorBase::NavigatorBase(script::EnvironmentSettings* settings)
+    : environment_settings_(
+          base::polymorphic_downcast<web::EnvironmentSettings*>(settings)),
+      user_agent_(environment_settings_->context()->GetUserAgent()),
       user_agent_data_(
-          new NavigatorUAData(platform_info, script_value_factory)),
-      language_(language),
-      service_worker_(new worker::ServiceWorkerContainer(settings)),
-      script_value_factory_(script_value_factory) {}
+          new NavigatorUAData(environment_settings_->context()->platform_info(),
+                              script_value_factory())),
+      language_(environment_settings_->context()->GetPreferredLanguage()),
+      service_worker_(new worker::ServiceWorkerContainer(settings)) {}
+
+NavigatorBase::~NavigatorBase() {}
 
 const std::string& NavigatorBase::language() const { return language_; }
 
@@ -58,10 +61,6 @@ bool NavigatorBase::on_line() const {
 #else
   return true;
 #endif
-}
-
-scoped_refptr<worker::ServiceWorkerContainer> NavigatorBase::service_worker() {
-  return service_worker_;
 }
 
 }  // namespace web

@@ -42,6 +42,13 @@ _generated_source_output_dir = "$_bindings_output_dir/source"
 # Directory containing generated IDL files.
 _generated_idls_output_dir = "$_bindings_output_dir/idl"
 
+# Array of all interfaces that need global constructors.
+_global_constructor_interfaces = [
+  "Window",
+  "DedicatedWorkerGlobalScope",
+  "ServiceWorkerGlobalScope",
+]
+
 target(final_executable_type, "cobalt") {
   sources = [ "main.cc" ]
   deps = [
@@ -167,6 +174,7 @@ static_library("browser") {
     "//cobalt/media_session",
     "//cobalt/network",
     "//cobalt/overlay_info",
+    "//cobalt/persistent_storage:persistent_settings",
     "//cobalt/render_tree",
     "//cobalt/renderer",
     "//cobalt/renderer/test/png_utils",
@@ -343,10 +351,10 @@ generate_type_conversion("generated_type_conversion") {
     ":interfaces_info_overall",
   ]
 
-  # Generated IDL file that will define all the constructors that should be
-  # on the Window object.
-  global_names_idl_file =
-      "$_generated_idls_output_dir/dom/window_constructors.idl"
+  # Generated IDL files that define all the constructors that are on the global
+  # scope objects.
+  global_names_idl_path = _generated_idls_output_dir
+  interfaces = _global_constructor_interfaces
 
   inputs = [ _interfaces_info_combined_pickle ]
   inputs += source_idl_files
@@ -366,19 +374,12 @@ compute_global_objects("global_objects") {
 
 compute_global_constructors_idls("global_constructors_idls") {
   idl_files = source_idl_files
-
   global_objects_file = _global_objects_pickle
 
-  # Generated IDL file that will define all the constructors that should be
-  # on the Window object.
-  global_names_idl_file =
-      "$_generated_idls_output_dir/dom/window_constructors.idl"
-
-  # Dummy header file which is generated because the idl compiler assumes
-  # there is a header for each IDL.
-  global_constructors_generated_header_file =
-      "$_generated_idls_output_dir/dom/window_constructors.h"
-
+  # Generated IDL files that will define all the constructors that should be
+  # on the global scope objects.
+  global_names_idl_path = _generated_idls_output_dir
+  interfaces = _global_constructor_interfaces
   deps = [ ":global_objects" ]
 }
 
@@ -386,10 +387,10 @@ compute_interfaces_info_individual("interfaces_info_individual") {
   idl_files =
       source_idl_files + generated_header_idl_files + dependency_idl_files
 
-  # Generated IDL file that will define all the constructors that should be
-  # on the Window object.
-  generated_idl_files =
-      "$_generated_idls_output_dir/dom/window_constructors.idl"
+  # Generated IDL files that define all the constructors that are on the global
+  # scope objects.
+  global_names_idl_path = _generated_idls_output_dir
+  interfaces = _global_constructor_interfaces
   component_info_file = _component_info_pickle
   interfaces_info_file = _interfaces_info_individual_pickle
   cache_directory = _bindings_scripts_output_dir

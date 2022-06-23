@@ -14,8 +14,17 @@
 
 #include "cobalt/script/environment_settings.h"
 
+#include "base/guid.h"
+
 namespace cobalt {
 namespace script {
+
+EnvironmentSettings::EnvironmentSettings(
+    const base::DebuggerHooks& debugger_hooks)
+    : debugger_hooks_(debugger_hooks) {
+  uuid_ = base::GenerateGUID();
+}
+
 
 // static
 const base::NullDebuggerHooks EnvironmentSettings::null_debugger_hooks_;

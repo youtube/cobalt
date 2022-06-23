@@ -17,6 +17,8 @@
 
 #include <memory>
 
+#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/synchronization/lock.h"
 #include "cobalt/worker/service_worker_object.h"
 #include "cobalt/worker/service_worker_update_via_cache.h"
@@ -34,7 +36,8 @@ namespace worker {
 // that of the ServiceWorkerRegistration JavaScript object(s) that represent
 // this object in their service worker clients.
 //   https://w3c.github.io/ServiceWorker/#service-worker-registration-lifetime
-class ServiceWorkerRegistrationObject {
+class ServiceWorkerRegistrationObject
+    : public base::RefCountedThreadSafe<ServiceWorkerRegistrationObject> {
  public:
   ServiceWorkerRegistrationObject(
       const url::Origin& storage_key, const GURL& scope_url,
@@ -51,18 +54,24 @@ class ServiceWorkerRegistrationObject {
     return update_via_cache_mode_;
   }
 
-  void set_installing_worker(ServiceWorkerObject* worker) {
+  void set_installing_worker(scoped_refptr<ServiceWorkerObject> worker) {
     installing_worker_ = worker;
   }
-  ServiceWorkerObject* installing_worker() const { return installing_worker_; }
-  void set_waiting_worker(ServiceWorkerObject* worker) {
+  const scoped_refptr<ServiceWorkerObject>& installing_worker() const {
+    return installing_worker_;
+  }
+  void set_waiting_worker(scoped_refptr<ServiceWorkerObject> worker) {
     waiting_worker_ = worker;
   }
-  ServiceWorkerObject* waiting_worker() const { return waiting_worker_; }
-  void set_active_worker(ServiceWorkerObject* worker) {
+  const scoped_refptr<ServiceWorkerObject>& waiting_worker() const {
+    return waiting_worker_;
+  }
+  void set_active_worker(scoped_refptr<ServiceWorkerObject> worker) {
     active_worker_ = worker;
   }
-  ServiceWorkerObject* active_worker() const { return active_worker_; }
+  const scoped_refptr<ServiceWorkerObject>& active_worker() const {
+    return active_worker_;
+  }
 
   // https://w3c.github.io/ServiceWorker/#get-newest-worker
   ServiceWorkerObject* GetNewestWorker();
@@ -74,9 +83,9 @@ class ServiceWorkerRegistrationObject {
   url::Origin storage_key_;
   GURL scope_url_;
   ServiceWorkerUpdateViaCache update_via_cache_mode_;
-  ServiceWorkerObject* installing_worker_ = nullptr;
-  ServiceWorkerObject* waiting_worker_ = nullptr;
-  ServiceWorkerObject* active_worker_ = nullptr;
+  scoped_refptr<ServiceWorkerObject> installing_worker_;
+  scoped_refptr<ServiceWorkerObject> waiting_worker_;
+  scoped_refptr<ServiceWorkerObject> active_worker_;
 };
 
 }  // namespace worker

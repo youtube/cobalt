@@ -23,29 +23,79 @@
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/web/event_target.h"
 #include "cobalt/web/event_target_listener_info.h"
+#include "cobalt/web/navigator_base.h"
+#include "cobalt/web/window_timers.h"
 
 namespace cobalt {
+namespace dom {
+class Window;
+}  // namespace dom
+namespace worker {
+class DedicatedWorkerGlobalScope;
+class ServiceWorkerGlobalScope;
+}  // namespace worker
 namespace web {
 
 // Implementation of the logic common to both Window WorkerGlobalScope
 // interfaces.
 class WindowOrWorkerGlobalScope : public EventTarget {
  public:
-  explicit WindowOrWorkerGlobalScope(script::EnvironmentSettings* settings);
+  explicit WindowOrWorkerGlobalScope(script::EnvironmentSettings* settings,
+                                     StatTracker* stat_tracker,
+                                     base::ApplicationState initial_state);
   WindowOrWorkerGlobalScope(const WindowOrWorkerGlobalScope&) = delete;
   WindowOrWorkerGlobalScope& operator=(const WindowOrWorkerGlobalScope&) =
       delete;
 
-  DEFINE_WRAPPABLE_TYPE(WindowOrWorkerGlobalScope);
+  void set_navigator_base(NavigatorBase* navigator_base) {
+    navigator_base_ = navigator_base;
+  }
+  NavigatorBase* navigator_base() { return navigator_base_; }
 
   bool IsWindow();
   bool IsDedicatedWorker();
   bool IsServiceWorker();
 
+  virtual dom::Window* AsWindow() { return nullptr; }
+  virtual worker::DedicatedWorkerGlobalScope* AsDedicatedWorker() {
+    return nullptr;
+  }
+  virtual worker::ServiceWorkerGlobalScope* AsServiceWorker() {
+    return nullptr;
+  }
+
+  DEFINE_WRAPPABLE_TYPE(WindowOrWorkerGlobalScope);
+
+  // Web API: WindowTimers (implements)
+  //   https://www.w3.org/TR/html50/webappapis.html#timers
+  //
+  int SetTimeout(const web::WindowTimers::TimerCallbackArg& handler) {
+    return SetTimeout(handler, 0);
+  }
+
+  int SetTimeout(const web::WindowTimers::TimerCallbackArg& handler,
+                 int timeout);
+
+  void ClearTimeout(int handle);
+
+  int SetInterval(const web::WindowTimers::TimerCallbackArg& handler) {
+    return SetInterval(handler, 0);
+  }
+
+  int SetInterval(const web::WindowTimers::TimerCallbackArg& handler,
+                  int timeout);
+
+  void ClearInterval(int handle);
+
+  void DestroyTimers();
+
  protected:
   virtual ~WindowOrWorkerGlobalScope() {}
 
+  web::WindowTimers window_timers_;
+
  private:
+  NavigatorBase* navigator_base_ = nullptr;
 };
 
 }  // namespace web

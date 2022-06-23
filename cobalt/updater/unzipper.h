@@ -26,7 +26,7 @@ namespace updater {
 
 class UnzipperFactory : public update_client::UnzipperFactory {
  public:
-  explicit UnzipperFactory(bool compress_update);
+  UnzipperFactory();
 
   std::unique_ptr<update_client::Unzipper> Create() const override;
 
@@ -34,7 +34,6 @@ class UnzipperFactory : public update_client::UnzipperFactory {
   ~UnzipperFactory() override;
 
  private:
-  bool compress_update_;
   DISALLOW_COPY_AND_ASSIGN(UnzipperFactory);
 };
 

@@ -20,6 +20,7 @@
 
 #include "cobalt/base/debugger_hooks.h"
 #include "cobalt/script/environment_settings.h"
+#include "url/origin.h"
 
 namespace cobalt {
 namespace web {
@@ -35,11 +36,15 @@ class EnvironmentSettings : public script::EnvironmentSettings {
       : script::EnvironmentSettings(debugger_hooks) {}
   ~EnvironmentSettings() override {}
 
+  // https://html.spec.whatwg.org/multipage/webappapis.html#realm-execution-context
   Context* context() const {
     DCHECK(context_);
     return context_;
   }
   void set_context(Context* context) { context_ = context; }
+
+  // https://storage.spec.whatwg.org/#obtain-a-storage-key
+  url::Origin ObtainStorageKey() { return url::Origin::Create(creation_url()); }
 
  protected:
   friend std::unique_ptr<EnvironmentSettings>::deleter_type;

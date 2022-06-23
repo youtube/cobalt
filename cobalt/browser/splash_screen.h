@@ -25,6 +25,7 @@
 #include "cobalt/browser/web_module.h"
 #include "cobalt/cssom/viewport_size.h"
 #include "cobalt/dom/window.h"
+#include "cobalt/web/user_agent_platform_info.h"
 #include "url/gurl.h"
 
 namespace cobalt {
@@ -34,7 +35,8 @@ namespace browser {
 //
 class SplashScreen : public LifecycleObserver {
  public:
-  SplashScreen(base::ApplicationState initial_application_state,
+  SplashScreen(web::UserAgentPlatformInfo* platform_info,
+               base::ApplicationState initial_application_state,
                const WebModule::OnRenderTreeProducedCallback&
                    render_tree_produced_callback,
                network::NetworkModule* network_module,
@@ -54,16 +56,12 @@ class SplashScreen : public LifecycleObserver {
 
   // LifecycleObserver implementation.
   // LifecycleObserver implementation.
-  void Blur(SbTimeMonotonic timestamp) override {
-    web_module_->Blur(0);
-  }
+  void Blur(SbTimeMonotonic timestamp) override { web_module_->Blur(0); }
   void Conceal(render_tree::ResourceProvider* resource_provider,
                SbTimeMonotonic timestamp) override {
     web_module_->Conceal(resource_provider, 0);
   }
-  void Freeze(SbTimeMonotonic timestamp) override {
-    web_module_->Freeze(0);
-  }
+  void Freeze(SbTimeMonotonic timestamp) override { web_module_->Freeze(0); }
   void Unfreeze(render_tree::ResourceProvider* resource_provider,
                 SbTimeMonotonic timestamp) override {
     web_module_->Unfreeze(resource_provider, 0);
@@ -72,9 +70,7 @@ class SplashScreen : public LifecycleObserver {
               SbTimeMonotonic timestamp) override {
     web_module_->Reveal(resource_provider, 0);
   }
-  void Focus(SbTimeMonotonic timestamp) override {
-    web_module_->Focus(0);
-  }
+  void Focus(SbTimeMonotonic timestamp) override { web_module_->Focus(0); }
 
   void ReduceMemory() { web_module_->ReduceMemory(); }
 

@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "base/command_line.h"
+#include "base/values.h"
 #include "cobalt/watchdog/watchdog.h"
 #include "starboard/common/file.h"
 #include "starboard/common/log.h"
@@ -43,11 +44,19 @@ const int64_t kWatchdogMaxViolations = 100;
 // The maximum number of most recent ping infos to store.
 const int64_t kWatchdogMaxPingInfos = 100;
 
+// Persistent setting name and default setting for the boolean that controls
+// whether or not crashes can be triggered.
+const char kPersistentSettingWatchdogCrash[] =
+    "kPersistentSettingWatchdogCrash";
+const bool kDefaultSettingWatchdogCrash = false;
+
 }  // namespace
 
-bool Watchdog::Initialize() {
+bool Watchdog::Initialize(
+    persistent_storage::PersistentSettings* persistent_settings) {
   SB_CHECK(SbMutexCreate(&mutex_));
   smallest_time_interval_ = kWatchdogSmallestTimeInterval;
+  persistent_settings_ = persistent_settings;
 
 #if defined(_DEBUG)
   // Sets Watchdog delay settings from command line switch.
@@ -123,7 +132,7 @@ void Watchdog::PreservePreviousWatchdogViolations() {
                                   kSbFileOpenOnly | kSbFileRead);
   if (read_file.IsValid()) {
     int64_t kFileSize = read_file.GetSize();
-    std::string watchdog_content(kFileSize, '\0');
+    std::string watchdog_content(kFileSize + 1, '\0');
     read_file.ReadAll(&watchdog_content[0], kFileSize);
     starboard::ScopedFile write_file(watchdog_old_file_.c_str(),
                                      kSbFileCreateAlways | kSbFileWrite);
@@ -220,10 +229,6 @@ void* Watchdog::Monitor(void* context) {
 std::string Watchdog::GetSerializedWatchdogIndex() {
   // Gets the current list of registered clients from the Watchdog index and
   // returns it as a serialized json string.
-
-  // Watchdog stub
-  if (is_stub_) return "";
-
   std::string serialized_watchdog_index = "[";
   std::string comma = "";
   for (auto& it : watchdog_index_) {
@@ -289,7 +294,7 @@ void Watchdog::SerializeWatchdogViolations(void* context) {
 }
 
 void Watchdog::MaybeTriggerCrash(void* context) {
-  if (static_cast<Watchdog*>(context)->can_trigger_crash_) {
+  if (static_cast<Watchdog*>(context)->GetPersistentSettingWatchdogCrash()) {
     SB_LOG(ERROR) << "Triggering Watchdog Violation Crash!";
     CHECK(false);
   }
@@ -428,12 +433,23 @@ std::string Watchdog::GetWatchdogViolations(bool current) {
   }
 }
 
-bool Watchdog::GetCanTriggerCrash() { return can_trigger_crash_; }
+bool Watchdog::GetPersistentSettingWatchdogCrash() {
+  // Watchdog stub
+  if (is_stub_) return kDefaultSettingWatchdogCrash;
 
-void Watchdog::SetCanTriggerCrash(bool can_trigger_crash) {
-  // Sets a persistent Watchdog setting that determines whether or not a
-  // Watchdog violation will trigger a crash. TODO
-  can_trigger_crash_ = can_trigger_crash;
+  // Gets the boolean that controls whether or not crashes can be triggered.
+  return persistent_settings_->GetPersistentSettingAsBool(
+      kPersistentSettingWatchdogCrash, kDefaultSettingWatchdogCrash);
+}
+
+void Watchdog::SetPersistentSettingWatchdogCrash(bool can_trigger_crash) {
+  // Watchdog stub
+  if (is_stub_) return;
+
+  // Sets the boolean that controls whether or not crashes can be triggered.
+  persistent_settings_->SetPersistentSetting(
+      kPersistentSettingWatchdogCrash,
+      std::make_unique<base::Value>(can_trigger_crash));
 }
 
 #if defined(_DEBUG)

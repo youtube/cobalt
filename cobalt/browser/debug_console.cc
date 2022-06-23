@@ -25,6 +25,7 @@
 #include "cobalt/dom/window.h"
 #include "cobalt/web/context.h"
 #include "cobalt/web/csp_delegate_factory.h"
+#include "cobalt/web/user_agent_platform_info.h"
 
 namespace cobalt {
 namespace browser {
@@ -104,6 +105,7 @@ scoped_refptr<script::Wrappable> CreateDebugHub(
 }  // namespace
 
 DebugConsole::DebugConsole(
+    web::UserAgentPlatformInfo* platform_info,
     base::ApplicationState initial_application_state,
     const WebModule::OnRenderTreeProducedCallback&
         render_tree_produced_callback,
@@ -139,6 +141,7 @@ DebugConsole::DebugConsole(
   web_module_options.maybe_freeze_callback = maybe_freeze_callback;
 
   web_module_options.web_options.network_module = network_module;
+  web_module_options.web_options.platform_info = platform_info;
 
   web_module_.reset(
       new WebModule(GURL(kInitialDebugConsoleUrl), initial_application_state,

@@ -12,10 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// https://html.spec.whatwg.org/multipage/workers.html#dedicated-workers-and-the-dedicatedworkerglobalscope-interface
+// https://w3c.github.io/ServiceWorker/#serviceworkerglobalscope-interface
 
-[Global] interface ServiceWorkerGlobalScope : WorkerGlobalScope {
-  // readonly attribute Clients clients;
+[
+  Global = (Worker,ServiceWorker),
+  Exposed = ServiceWorker,
+] interface ServiceWorkerGlobalScope : WorkerGlobalScope {
+  readonly attribute Clients clients;
   readonly attribute ServiceWorkerRegistration registration;
   readonly attribute ServiceWorker serviceWorker;
 

@@ -22,11 +22,9 @@
 
 namespace cobalt {
 namespace worker {
-// TODO: Only use NullDebuggerHooks if !ENABLE_DEBUGGER.
-WorkerSettings::WorkerSettings(const GURL& base,
-                               worker::MessagePort* message_port)
-    : web::EnvironmentSettings(), message_port_(message_port) {
-  set_base_url(base);
-}
+WorkerSettings::WorkerSettings() : web::EnvironmentSettings() {}
+
+WorkerSettings::WorkerSettings(worker::MessagePort* message_port)
+    : web::EnvironmentSettings(), message_port_(message_port) {}
 }  // namespace worker
 }  // namespace cobalt

@@ -17,10 +17,12 @@
 
 #include <map>
 #include <memory>
+#include <set>
 #include <string>
 #include <utility>
 
 #include "base/macros.h"
+#include "base/memory/ref_counted.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/message_loop/message_loop_current.h"
 #include "cobalt/web/agent.h"
@@ -36,6 +38,7 @@
 
 namespace cobalt {
 namespace worker {
+class ServiceWorkerRegistrationObject;
 
 // This class represents the 'service worker'.
 //   https://w3c.github.io/ServiceWorker/#dfn-service-worker
@@ -46,44 +49,81 @@ namespace worker {
 // object. A user agent may terminate service workers at any time it has no
 // event to handle, or detects abnormal operation.
 //   https://w3c.github.io/ServiceWorker/#service-worker-lifetime
-class ServiceWorkerObject : public base::MessageLoop::DestructionObserver {
+class ServiceWorkerObject
+    : public base::RefCountedThreadSafe<ServiceWorkerObject>,
+      public base::SupportsWeakPtr<ServiceWorkerObject>,
+      public base::MessageLoop::DestructionObserver {
  public:
   // Worker Options needed at thread run time.
   struct Options {
-    explicit Options(const std::string& name,
-                     network::NetworkModule* network_module)
-        : web_options(name) {
+    explicit Options(
+        const std::string& name, network::NetworkModule* network_module,
+        ServiceWorkerRegistrationObject* containing_service_worker_registration)
+        : web_options(name),
+          containing_service_worker_registration(
+              containing_service_worker_registration) {
       web_options.network_module = network_module;
     }
 
     web::Agent::Options web_options;
+    ServiceWorkerRegistrationObject* containing_service_worker_registration;
   };
-
-  using ScriptResourceMap = std::map<GURL, std::unique_ptr<std::string>>;
 
   explicit ServiceWorkerObject(const Options& options);
   ~ServiceWorkerObject();
   ServiceWorkerObject(const ServiceWorkerObject&) = delete;
   ServiceWorkerObject& operator=(const ServiceWorkerObject&) = delete;
 
-  void set_script_url(const GURL& script_url) { script_url_ = script_url; }
-  const GURL& script_url() const { return script_url_; }
+  // https://w3c.github.io/ServiceWorker/#dfn-state
   void set_state(ServiceWorkerState state) { state_ = state; }
   ServiceWorkerState state() const { return state_; }
+  // https://w3c.github.io/ServiceWorker/#dfn-script-url
+  void set_script_url(const GURL& script_url) { script_url_ = script_url; }
+  const GURL& script_url() const { return script_url_; }
 
+  // https://w3c.github.io/ServiceWorker/#dfn-containing-service-worker-registration
+  ServiceWorkerRegistrationObject* containing_service_worker_registration() {
+    return options_.containing_service_worker_registration;
+  }
+  // https://w3c.github.io/ServiceWorker/#dfn-skip-waiting-flag
+  void set_skip_waiting() { skip_waiting_ = true; }
+  bool skip_waiting() const { return skip_waiting_; }
+
+  // https://w3c.github.io/ServiceWoScriptResourceMaprker/#dfn-classic-scripts-imported-flag
+  void set_classic_scripts_imported() { classic_scripts_imported_ = true; }
+  bool classic_scripts_imported() { return classic_scripts_imported_; }
+
+  // https://w3c.github.io/ServiceWorker/#dfn-set-of-used-scripts
+  void AppendToSetOfUsedScripts(const GURL& url) {
+    set_of_used_scripts_.insert(url);
+  }
+
+  // https://w3c.github.io/ServiceWorker/#dfn-script-resource-map
   void set_script_resource_map(ScriptResourceMap&& resource_map) {
     script_resource_map_ = std::move(resource_map);
   }
-
-  std::string* LookupScriptResource() const;
+  void SetScriptResource(const GURL& url, std::string* resource);
+  bool HasScriptResource() const;
   std::string* LookupScriptResource(const GURL& url) const;
 
+  // Steps 13-15 of Algorithm for Install.
+  //   https://w3c.github.io/ServiceWorker/#installation-algorithm
+  void PurgeScriptResourceMap();
+  const ScriptResourceMap& script_resource_map() {
+    return script_resource_map_;
+  }
+
+  // https://w3c.github.io/ServiceWorker/#service-worker-start-status
+  void set_start_status(std::string* start_status) {
+    start_status_.reset(start_status);
+  }
+  std::string* start_status() const { return start_status_.get(); }
+
+  void Abort();
   bool is_running() { return web_agent_.get() != nullptr; }
   web::Agent* web_agent() const { return web_agent_.get(); }
 
-  std::string* start_status() const { return start_status_.get(); }
-
-  scoped_refptr<WorkerGlobalScope> worker_global_scope() {
+  const scoped_refptr<WorkerGlobalScope>& worker_global_scope() const {
     return worker_global_scope_;
   }
 
@@ -114,7 +154,7 @@ class ServiceWorkerObject : public base::MessageLoop::DestructionObserver {
   // The Web Context includes the Script Agent and Realm.
   std::unique_ptr<web::Agent> web_agent_;
 
-  web::Context* web_context_;
+  web::Context* web_context_ = nullptr;
 
   Options options_;
 
@@ -124,8 +164,17 @@ class ServiceWorkerObject : public base::MessageLoop::DestructionObserver {
   // https://w3c.github.io/ServiceWorker/#dfn-script-url
   GURL script_url_;
 
-  // map of content or resources for the worker.
+  // https://w3c.github.io/ServiceWorker/#dfn-script-resource-map
   ScriptResourceMap script_resource_map_;
+
+  // https://w3c.github.io/ServiceWorker/#dfn-set-of-used-scripts
+  std::set<GURL> set_of_used_scripts_;
+
+  // https://w3c.github.io/ServiceWorker/#dfn-skip-waiting-flag
+  bool skip_waiting_ = false;
+
+  // https://w3c.github.io/ServiceWorker/#dfn-classic-scripts-imported-flag
+  bool classic_scripts_imported_ = false;
 
   // https://w3c.github.io/ServiceWorker/#service-worker-start-status
   std::unique_ptr<std::string> start_status_;

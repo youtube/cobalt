@@ -145,17 +145,12 @@ bool CanPlay(const media::CanPlayTypeHandler& can_play_type_handler,
 }  // namespace
 
 Navigator::Navigator(script::EnvironmentSettings* settings,
-                     const std::string& user_agent,
-                     web::UserAgentPlatformInfo* platform_info,
-                     const std::string& language,
-                     scoped_refptr<captions::SystemCaptionSettings> captions,
-                     script::ScriptValueFactory* script_value_factory)
-    : web::NavigatorBase(settings, user_agent, platform_info, language,
-                         script_value_factory),
+                     scoped_refptr<captions::SystemCaptionSettings> captions)
+    : web::NavigatorBase(settings),
       mime_types_(new MimeTypeArray()),
       plugins_(new PluginArray()),
       media_devices_(
-          new media_capture::MediaDevices(settings, script_value_factory)),
+          new media_capture::MediaDevices(settings, script_value_factory())),
       system_caption_settings_(captions) {}
 
 base::Optional<std::string> GetFilenameForLicenses() {

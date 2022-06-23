@@ -66,9 +66,16 @@ ENV OUTDIR=out \
 # == Set up  ccache
 RUN cd /tmp && mkdir ${HOME}/ccache
 
-# == Install and set up statically linked sccache.
-ADD https://storage.googleapis.com/cobalt-docker-resources/linux/sccache /usr/local/bin/sccache
-RUN chmod +x /usr/local/bin/sccache && cd /tmp && mkdir ${HOME}/sccache
+#  === Install portable sccache binary
+ARG SCCACHE=sccache-v0.3.0-x86_64-unknown-linux-musl.tar.gz
+ARG SCCACHE_SHA256=e6cd8485f93d683a49c83796b9986f090901765aa4feb40d191b03ea770311d8
+RUN cd /tmp \
+    && curl -L -O https://github.com/mozilla/sccache/releases/download/v0.3.0/${SCCACHE} \
+    && echo "${SCCACHE_SHA256} *${SCCACHE}" | sha256sum -c - \
+    && tar xvzf ${SCCACHE} -C /usr/local/bin --strip-components=1 \
+    && chmod +x /usr/local/bin/sccache \
+    && rm -rf ${SCCACHE} \
+    && sccache --version
 
 # === Install pinned host Clang toolchain for all Linux-hosted builds
 ARG CLANG_VER

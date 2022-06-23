@@ -1,2 +1,0 @@
-struct S { int x; };
-float S;

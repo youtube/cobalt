@@ -20,13 +20,13 @@
 #include "base/memory/weak_ptr.h"
 #include "base/message_loop/message_loop.h"
 #include "cobalt/base/tokens.h"
-#include "cobalt/dom/message_event.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/sequence.h"
 #include "cobalt/script/value_handle.h"
 #include "cobalt/script/wrappable.h"
 #include "cobalt/web/event_target.h"
 #include "cobalt/web/event_target_listener_info.h"
+#include "cobalt/web/message_event.h"
 
 namespace cobalt {
 namespace worker {
@@ -34,8 +34,7 @@ namespace worker {
 class MessagePort : public script::Wrappable,
                     public base::SupportsWeakPtr<MessagePort> {
  public:
-  MessagePort(web::EventTarget* event_target,
-              script::EnvironmentSettings* settings);
+  explicit MessagePort(web::EventTarget* event_target);
   ~MessagePort();
   MessagePort(const MessagePort&) = delete;
   MessagePort& operator=(const MessagePort&) = delete;
@@ -77,17 +76,11 @@ class MessagePort : public script::Wrappable,
                                                event_listener);
   }
 
-  void DispatchEvent(scoped_refptr<dom::MessageEvent> event);
-
   DEFINE_WRAPPABLE_TYPE(MessagePort);
 
  private:
   // The event target to dispatch events to.
   web::EventTarget* event_target_ = nullptr;
-  // The message loop for posting event dispatches to.
-  base::MessageLoop* message_loop_ = nullptr;
-  // EnvironmentSettings of the event target.
-  script::EnvironmentSettings* settings_ = nullptr;
 };
 
 }  // namespace worker

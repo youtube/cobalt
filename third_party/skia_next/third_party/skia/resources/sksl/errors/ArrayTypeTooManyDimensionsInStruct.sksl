@@ -1,1 +1,0 @@
-struct S { float[2][2] x; };

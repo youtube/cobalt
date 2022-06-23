@@ -45,7 +45,6 @@
 #if defined(ENABLE_TEST_RUNNER)
 #include "cobalt/dom/test_runner.h"
 #endif  // ENABLE_TEST_RUNNER
-#include "cobalt/dom/window_timers.h"
 #include "cobalt/input/camera_3d.h"
 #include "cobalt/loader/cors_preflight_cache.h"
 #include "cobalt/loader/decoder.h"
@@ -86,6 +85,7 @@ class SpeechSynthesis;
 }  // namespace speech
 namespace web {
 class Event;
+class WindowTimers;
 }  // namespace web
 namespace dom {
 
@@ -101,7 +101,6 @@ class OnScreenKeyboard;
 class Performance;
 class Screen;
 class Storage;
-class WindowTimers;
 
 // The window object represents a window containing a DOM document.
 //   https://www.w3.org/TR/html50/browsers.html#the-window-object
@@ -112,7 +111,7 @@ class Window : public web::WindowOrWorkerGlobalScope,
  public:
   typedef AnimationFrameRequestCallbackList::FrameRequestCallback
       FrameRequestCallback;
-  typedef WindowTimers::TimerCallback TimerCallback;
+  typedef web::WindowTimers::TimerCallback TimerCallback;
   typedef base::Callback<void(const scoped_refptr<web::Event>& event)>
       OnStartDispatchEventCallback;
   typedef base::Callback<void(const scoped_refptr<web::Event>& event)>
@@ -154,9 +153,7 @@ class Window : public web::WindowOrWorkerGlobalScope,
       script::ScriptRunner* script_runner,
       script::ScriptValueFactory* script_value_factory,
       MediaSourceRegistry* media_source_registry,
-      DomStatTracker* dom_stat_tracker, const GURL& url,
-      const std::string& user_agent, web::UserAgentPlatformInfo* platform_info,
-      const std::string& language, const std::string& font_language_script,
+      DomStatTracker* dom_stat_tracker, const std::string& font_language_script,
       const base::Callback<void(const GURL&)> navigation_callback,
       const loader::Decoder::OnCompleteFunction& load_complete_callback,
       network_bridge::CookieJar* cookie_jar,
@@ -183,6 +180,10 @@ class Window : public web::WindowOrWorkerGlobalScope,
       const CacheCallback& splash_screen_cache_callback = CacheCallback(),
       const scoped_refptr<captions::SystemCaptionSettings>& captions = nullptr,
       bool log_tts = false);
+
+  // From web::WindowOrWorkerGlobalScope
+  //
+  Window* AsWindow() override { return this; }
 
   // Web API: Window
   //
@@ -282,27 +283,6 @@ class Window : public web::WindowOrWorkerGlobalScope,
 
   std::vector<uint8_t> Atob(const std::string& encoded_string,
                             script::ExceptionState* exception_state);
-
-  // Web API: WindowTimers (implements)
-  //   https://www.w3.org/TR/html50/webappapis.html#timers
-  //
-  int SetTimeout(const WindowTimers::TimerCallbackArg& handler) {
-    return SetTimeout(handler, 0);
-  }
-
-  int SetTimeout(const WindowTimers::TimerCallbackArg& handler, int timeout);
-
-  void ClearTimeout(int handle);
-
-  int SetInterval(const WindowTimers::TimerCallbackArg& handler) {
-    return SetInterval(handler, 0);
-  }
-
-  int SetInterval(const WindowTimers::TimerCallbackArg& handler, int timeout);
-
-  void ClearInterval(int handle);
-
-  void DestroyTimers();
 
   // Web API: Storage (implements)
   scoped_refptr<Storage> local_storage() const;
@@ -458,7 +438,6 @@ class Window : public web::WindowOrWorkerGlobalScope,
   scoped_refptr<Navigator> navigator_;
   std::unique_ptr<RelayLoadEvent> relay_on_load_event_;
   scoped_refptr<Camera3D> camera_3d_;
-  WindowTimers window_timers_;
   std::unique_ptr<AnimationFrameRequestCallbackList>
       animation_frame_request_callback_list_;
 

@@ -98,8 +98,8 @@ def MaybeDownloadFileFromGcs(bucket, sha1_file, output_file, force=False):
   if not force and os.path.exists(output_file):
     with open(output_file, 'rb') as f:
       if hashlib.sha1(f.read()).hexdigest() == sha1:
-        logging.info('%s exists and sha1s match, skipping download',
-                     output_file)
+        logging.debug('%s exists and sha1s match, skipping download',
+                      output_file)
         return False
 
   tmp_file = _DownloadFromGcsAndCheckSha1(bucket, sha1)

@@ -58,6 +58,7 @@
 #include "cobalt/dom/audio_track_list.h"
 #include "cobalt/dom/event_queue.h"
 #include "cobalt/dom/source_buffer_append_mode.h"
+#include "cobalt/dom/source_buffer_metrics.h"
 #include "cobalt/dom/time_ranges.h"
 #include "cobalt/dom/track_default_list.h"
 #include "cobalt/dom/video_track_list.h"
@@ -190,6 +191,8 @@ class SourceBuffer : public web::EventTarget {
   base::OneShotTimer remove_timer_;
   double pending_remove_start_ = -1;
   double pending_remove_end_ = -1;
+
+  SourceBufferMetrics metrics_;
 };
 
 }  // namespace dom

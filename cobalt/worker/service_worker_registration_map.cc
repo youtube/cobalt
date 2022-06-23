@@ -29,6 +29,7 @@
 #include "cobalt/script/script_value.h"
 #include "cobalt/web/context.h"
 #include "cobalt/web/environment_settings.h"
+#include "cobalt/worker/service_worker_jobs.h"
 #include "cobalt/worker/service_worker_registration_object.h"
 #include "cobalt/worker/service_worker_update_via_cache.h"
 #include "url/gurl.h"
@@ -50,7 +51,7 @@ std::string SerializeExcludingFragment(const GURL& url) {
 }
 }  // namespace
 
-worker::ServiceWorkerRegistrationObject*
+scoped_refptr<ServiceWorkerRegistrationObject>
 ServiceWorkerRegistrationMap::MatchServiceWorkerRegistration(
     const url::Origin& storage_key, const GURL& client_url) {
   TRACE_EVENT0(
@@ -87,6 +88,8 @@ ServiceWorkerRegistrationMap::MatchServiceWorkerRegistration(
     // 6. Set matchingScopeString to the longest value in scopeStringSet which
     // the value of clientURLString starts with, if it exists.
     for (const auto& scope_string : scope_string_set) {
+      // TODO(b/234659851): Verify whether this is the expected behavior, where
+      // a substring of the scope string is compared with the client url string.
       bool starts_with =
           client_url_string.substr(0, scope_string.length()) == scope_string;
       if (starts_with &&
@@ -113,8 +116,9 @@ ServiceWorkerRegistrationMap::MatchServiceWorkerRegistration(
   return GetRegistration(storage_key, matching_scope);
 }
 
-ServiceWorkerRegistrationObject* ServiceWorkerRegistrationMap::GetRegistration(
-    const url::Origin& storage_key, const GURL& scope) {
+scoped_refptr<ServiceWorkerRegistrationObject>
+ServiceWorkerRegistrationMap::GetRegistration(const url::Origin& storage_key,
+                                              const GURL& scope) {
   TRACE_EVENT0("cobalt::worker",
                "ServiceWorkerRegistrationMap::GetRegistration()");
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
@@ -148,7 +152,8 @@ ServiceWorkerRegistrationObject* ServiceWorkerRegistrationMap::GetRegistration(
   return nullptr;
 }
 
-ServiceWorkerRegistrationObject* ServiceWorkerRegistrationMap::SetRegistration(
+scoped_refptr<ServiceWorkerRegistrationObject>
+ServiceWorkerRegistrationMap::SetRegistration(
     const url::Origin& storage_key, const GURL& scope,
     const ServiceWorkerUpdateViaCache& update_via_cache) {
   TRACE_EVENT0("cobalt::worker",
@@ -166,7 +171,7 @@ ServiceWorkerRegistrationObject* ServiceWorkerRegistrationMap::SetRegistration(
   // 3. Let registration be a new service worker registration whose storage key
   // is set to storage key, scope url is set to scope, and update via cache mode
   // is set to updateViaCache.
-  ServiceWorkerRegistrationObject* registration(
+  scoped_refptr<ServiceWorkerRegistrationObject> registration(
       new ServiceWorkerRegistrationObject(storage_key, scope,
                                           update_via_cache));
 
@@ -174,7 +179,7 @@ ServiceWorkerRegistrationObject* ServiceWorkerRegistrationMap::SetRegistration(
   Key registration_key(storage_key, scope_string);
   registration_map_.insert(std::make_pair(
       registration_key,
-      std::unique_ptr<ServiceWorkerRegistrationObject>(registration)));
+      scoped_refptr<ServiceWorkerRegistrationObject>(registration)));
 
   // 5. Return registration.
   return registration;
@@ -182,12 +187,65 @@ ServiceWorkerRegistrationObject* ServiceWorkerRegistrationMap::SetRegistration(
 
 void ServiceWorkerRegistrationMap::RemoveRegistration(
     const url::Origin& storage_key, const GURL& scope) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   std::string scope_string = SerializeExcludingFragment(scope);
   Key registration_key(storage_key, scope_string);
   auto entry = registration_map_.find(registration_key);
   DCHECK(entry != registration_map_.end());
   if (entry != registration_map_.end()) {
     registration_map_.erase(entry);
+  }
+}
+
+bool ServiceWorkerRegistrationMap::IsUnregistered(
+    ServiceWorkerRegistrationObject* registration) {
+  // A service worker registration is said to be unregistered if registration
+  // map[this service worker registration's (storage key, serialized scope url)]
+  // is not this service worker registration.
+  //   https://w3c.github.io/ServiceWorker/#dfn-service-worker-registration-unregistered
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  Key registration_key(registration->storage_key(),
+                       registration->scope_url().spec());
+  auto entry = registration_map_.find(registration_key);
+  if (entry == registration_map_.end()) return true;
+
+  return entry->second.get() != registration;
+}
+
+void ServiceWorkerRegistrationMap::HandleUserAgentShutdown(
+    ServiceWorkerJobs* jobs) {
+  TRACE_EVENT0("cobalt::worker",
+               "ServiceWorkerRegistrationMap::HandleUserAgentShutdown()");
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  // Algorithm for Handle User Agent Shutdown:
+  //   https://w3c.github.io/ServiceWorker/#on-user-agent-shutdown-algorithm
+
+  // 1. For each (storage key, scope) -> registration of registration map:
+  for (auto& entry : registration_map_) {
+    const scoped_refptr<ServiceWorkerRegistrationObject>& registration =
+        entry.second;
+    // 1.1. If registration’s installing worker installingWorker is not null,
+    // then:
+    if (registration->installing_worker()) {
+      // 1.1.1. If registration’s waiting worker is null and registration’s
+      // active worker is null, invoke Clear Registration with registration and
+      // continue to the next iteration of the loop.
+      if (!registration->waiting_worker() && !registration->active_worker()) {
+        jobs->ClearRegistration(registration);
+        continue;
+      } else {
+        // 1.1.2. Else, set installingWorker to null.
+        registration->set_installing_worker(nullptr);
+      }
+    }
+
+    if (registration->waiting_worker()) {
+      // 1.2. If registration’s waiting worker is not null, run the following
+      // substep in parallel:
+
+      // 1.2.1. Invoke Activate with registration.
+      jobs->Activate(registration);
+    }
   }
 }
 

@@ -19,5 +19,6 @@ static_library("configuration") {
   deps = [
     "//base",
     "//starboard:starboard_headers_only",
+    "//starboard/common",
   ]
 }

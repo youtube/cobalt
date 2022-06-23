@@ -36,12 +36,16 @@ class DedicatedWorkerGlobalScope : public WorkerGlobalScope {
  public:
   explicit DedicatedWorkerGlobalScope(
       script::EnvironmentSettings* settings,
-      bool parent_cross_origin_isolated_capability);
+      bool parent_cross_origin_isolated_capability = false);
   DedicatedWorkerGlobalScope(const DedicatedWorkerGlobalScope&) = delete;
   DedicatedWorkerGlobalScope& operator=(const DedicatedWorkerGlobalScope&) =
       delete;
 
   void Initialize() override;
+
+  // From web::WindowOrWorkerGlobalScope
+  //
+  DedicatedWorkerGlobalScope* AsDedicatedWorker() override { return this; }
 
   // Web API: DedicatedWorkerGlobalScope
   //

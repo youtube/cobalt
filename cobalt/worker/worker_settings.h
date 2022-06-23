@@ -28,14 +28,14 @@ namespace worker {
 
 class WorkerSettings : public web::EnvironmentSettings {
  public:
-  explicit WorkerSettings(const GURL& base,
-                          worker::MessagePort* message_port = nullptr);
+  WorkerSettings();
+  explicit WorkerSettings(worker::MessagePort* message_port);
 
   worker::MessagePort* message_port() const { return message_port_; }
 
  private:
   // Outer message port.
-  worker::MessagePort* message_port_;
+  worker::MessagePort* message_port_ = nullptr;
 };
 
 }  // namespace worker

@@ -19,9 +19,7 @@
 
 #include "base/bind.h"
 #include "base/logging.h"
-#include "cobalt/dom/testing/stub_window.h"
-#include "cobalt/script/global_environment.h"
-#include "cobalt/script/source_code.h"
+#include "cobalt/dom/testing/test_with_javascript.h"
 #include "cobalt/web/error_event_init.h"
 #include "cobalt/web/testing/gtest_workarounds.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -31,33 +29,10 @@ namespace cobalt {
 namespace web {
 
 namespace {
-class ErrorEventTest : public ::testing::Test {
- public:
-  ErrorEventTest() {}
-
-  bool EvaluateScript(const std::string& js_code, std::string* result);
-
- private:
-  cobalt::dom::testing::StubWindow stub_window_;
-};
-
-bool ErrorEventTest::EvaluateScript(const std::string& js_code,
-                                    std::string* result) {
-  DCHECK(stub_window_.global_environment());
-  DCHECK(result);
-  scoped_refptr<script::SourceCode> source_code =
-      script::SourceCode::CreateSourceCode(
-          js_code, base::SourceLocation(__FILE__, __LINE__, 1));
-
-  stub_window_.global_environment()->EnableEval();
-  stub_window_.global_environment()->SetReportEvalCallback(base::Closure());
-  bool succeeded =
-      stub_window_.global_environment()->EvaluateScript(source_code, result);
-  return succeeded;
-}
+class ErrorEventTestWithJavaScript : public dom::testing::TestWithJavaScript {};
 }  // namespace
 
-TEST_F(ErrorEventTest, ConstructorWithEventTypeString) {
+TEST(ErrorEventTest, ConstructorWithEventTypeString) {
   scoped_refptr<ErrorEvent> event = new ErrorEvent("mytestevent");
 
   EXPECT_EQ("mytestevent", event->type());
@@ -77,7 +52,7 @@ TEST_F(ErrorEventTest, ConstructorWithEventTypeString) {
   EXPECT_EQ(NULL, event->error());
 }
 
-TEST_F(ErrorEventTest, ConstructorWithEventTypeAndDefaultInitDict) {
+TEST(ErrorEventTest, ConstructorWithEventTypeAndDefaultInitDict) {
   ErrorEventInit init;
   scoped_refptr<ErrorEvent> event = new ErrorEvent("mytestevent", init);
 
@@ -98,7 +73,7 @@ TEST_F(ErrorEventTest, ConstructorWithEventTypeAndDefaultInitDict) {
   EXPECT_EQ(NULL, event->error());
 }
 
-TEST_F(ErrorEventTest, ConstructorWithEventTypeAndErrorInitDict) {
+TEST_F(ErrorEventTestWithJavaScript, ConstructorWithEventTypeAndErrorInitDict) {
   std::string result;
   bool success = EvaluateScript(
       "var event = new ErrorEvent('dog', "

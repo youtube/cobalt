@@ -28,7 +28,6 @@
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/script/script_runner.h"
 #include "cobalt/script/value_handle.h"
-#include "cobalt/script/wrappable.h"
 #include "cobalt/web/agent.h"
 #include "cobalt/web/context.h"
 #include "cobalt/worker/service_worker_global_scope.h"
@@ -41,18 +40,50 @@ namespace cobalt {
 namespace worker {
 
 ServiceWorkerObject::ServiceWorkerObject(const Options& options)
-    : state_(kServiceWorkerStateParsed), options_(options) {}
+    : state_(kServiceWorkerStateParsed), options_(options) {
+  DCHECK(options.containing_service_worker_registration);
+}
 
 ServiceWorkerObject::~ServiceWorkerObject() {
+  TRACE_EVENT0("cobalt::worker", "ServiceWorkerObject::~ServiceWorkerObject()");
+  // Check that the object isn't destroyed without first calling Abort().
+  DCHECK(!web_agent_);
+  DCHECK(!web_context_);
+  Abort();
+}
+
+void ServiceWorkerObject::Abort() {
+  TRACE_EVENT0("cobalt::worker", "ServiceWorkerObject::Abort()");
   if (web_agent_) {
     DCHECK(message_loop());
+    DCHECK(web_context_);
     web_agent_->WaitUntilDone();
     web_agent_.reset();
+    web_context_ = nullptr;
   }
 }
 
-std::string* ServiceWorkerObject::LookupScriptResource() const {
-  return LookupScriptResource(script_url_);
+void ServiceWorkerObject::SetScriptResource(const GURL& url,
+                                            std::string* resource) {
+  // The exact given resource may already be in the map, if that is the case,
+  // don't update the map at all, otherwise make a copy of the resource for
+  // storing in the map.
+  auto entry = script_resource_map_.find(url);
+  if (entry != script_resource_map_.end()) {
+    if (entry->second.get() != resource) {
+      // The map has an entry, but it's different than the given one, make a
+      // copy and replace.
+      entry->second.reset(new std::string(*resource));
+    }
+    return;
+  }
+
+  script_resource_map_[url].reset(new std::string(*resource));
+}
+
+bool ServiceWorkerObject::HasScriptResource() const {
+  return script_url_.is_valid() &&
+         script_resource_map_.end() != script_resource_map_.find(script_url_);
 }
 
 std::string* ServiceWorkerObject::LookupScriptResource(const GURL& url) const {
@@ -60,7 +91,27 @@ std::string* ServiceWorkerObject::LookupScriptResource(const GURL& url) const {
   return entry != script_resource_map_.end() ? entry->second.get() : nullptr;
 }
 
+void ServiceWorkerObject::PurgeScriptResourceMap() {
+  // Steps 13-15 of Algorithm for Install:
+  //   https://w3c.github.io/ServiceWorker/#installation-algorithm
+  // 13. Let map be registration’s installing worker's script resource map.
+  // 14. Let usedSet be registration’s installing worker's set of used scripts.
+  // 15. For each url of map:
+  for (auto item = script_resource_map_.begin(), next_item = item;
+       item != script_resource_map_.end(); item = next_item) {
+    // Get next item here because erasing 'item' from the map will invalidate
+    // the iterator.
+    ++next_item;
+    // 15.1. If usedSet does not contain url, then remove map[url].
+    if (set_of_used_scripts_.find(item->first) == set_of_used_scripts_.end()) {
+      script_resource_map_.erase(item);
+    }
+  }
+}
+
 void ServiceWorkerObject::WillDestroyCurrentMessageLoop() {
+  TRACE_EVENT0("cobalt::worker",
+               "ServiceWorkerObject::WillDestroyCurrentMessageLoop()");
 // Destroy members that were constructed in the worker thread.
 #if defined(ENABLE_DEBUGGER)
   debug_module_.reset();
@@ -70,6 +121,8 @@ void ServiceWorkerObject::WillDestroyCurrentMessageLoop() {
 }
 
 void ServiceWorkerObject::ObtainWebAgentAndWaitUntilDone() {
+  TRACE_EVENT0("cobalt::worker",
+               "ServiceWorkerObject::ObtainWebAgentAndWaitUntilDone()");
   web_agent_.reset(new web::Agent(
       options_.web_options,
       base::Bind(&ServiceWorkerObject::Initialize, base::Unretained(this)),
@@ -78,6 +131,7 @@ void ServiceWorkerObject::ObtainWebAgentAndWaitUntilDone() {
 }
 
 void ServiceWorkerObject::Initialize(web::Context* context) {
+  TRACE_EVENT0("cobalt::worker", "ServiceWorkerObject::Initialize()");
   // Algorithm for "Run Service Worker"
   // https://w3c.github.io/ServiceWorker/#run-service-worker-algorithm
 
@@ -108,9 +162,10 @@ void ServiceWorkerObject::Initialize(web::Context* context) {
   //      serviceWorker’s script url, top-level creation URL to null, top-level
   //      origin to an implementation-defined value, target browsing context to
   //      null, and active service worker to null.
-  web_context_->setup_environment_settings(new WorkerSettings(script_url_));
+  web_context_->setup_environment_settings(new WorkerSettings());
+  web_context_->environment_settings()->set_base_url(script_url_);
   scoped_refptr<ServiceWorkerGlobalScope> service_worker_global_scope =
-      new ServiceWorkerGlobalScope(web_context_->environment_settings());
+      new ServiceWorkerGlobalScope(web_context_->environment_settings(), this);
   worker_global_scope_ = service_worker_global_scope;
   web_context_->global_environment()->CreateGlobalObject(
       service_worker_global_scope, web_context_->environment_settings());
@@ -143,10 +198,12 @@ void ServiceWorkerObject::Initialize(web::Context* context) {
   // 8.10. If the run CSP initialization for a global object algorithm returns
   //       "Blocked" when executed upon workerGlobalScope, set startFailed to
   //       true and abort these steps.
+  // TODO(b/225037465): Implement CSP check.
   // 8.11. If serviceWorker is an active worker, and there are any tasks queued
   //       in serviceWorker’s containing service worker registration’s task
   //       queues, queue them to serviceWorker’s event loop’s task queues in the
   //       same order using their original task sources.
+  // TODO(b/234787641): Queue tasks from the registration.
   // 8.12. Let evaluationStatus be null.
   // 8.13. If script is a classic script, then:
   // 8.13.1. Set evaluationStatus to the result of running the classic script
@@ -154,7 +211,7 @@ void ServiceWorkerObject::Initialize(web::Context* context) {
 
   bool mute_errors = false;
   bool succeeded = false;
-  auto* content = LookupScriptResource();
+  std::string* content = LookupScriptResource(script_url_);
   DCHECK(content);
   base::SourceLocation script_location(script_url().spec(), 1, 1);
   std::string retval = web_context_->script_runner()->Execute(

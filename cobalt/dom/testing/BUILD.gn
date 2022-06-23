@@ -23,6 +23,7 @@ static_library("dom_testing") {
     "stub_css_parser.h",
     "stub_environment_settings.h",
     "stub_window.h",
+    "test_with_javascript.h",
   ]
 
   deps = [

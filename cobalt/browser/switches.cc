@@ -224,10 +224,6 @@ const char kWebDriverPortHelp[] =
 
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
-const char kCompressUpdate[] = "compress_update";
-const char kCompressUpdateHelp[] =
-    "The updater should compress the update package";
-
 const char kMinLogLevel[] = "min_log_level";
 const char kMinLogLevelHelp[] =
     "Set the minimum logging level: info|warning|error|fatal.";
@@ -412,6 +408,11 @@ const char kUpdateCheckDelaySecondsHelp[] =
     "Number of seconds to delay the first Cobalt Evergreen check for updates."
     "The default value is 60 seconds.";
 
+const char kUseCompressedUpdates[] = "use_compressed_updates";
+const char kUseCompressedUpdatesHelp[] =
+    "Whether to request, download, and install compressed (rather than "
+    "uncompressed) Evergreen binaries.";
+
 const char kUseQAUpdateServer[] = "use_qa_update_server";
 const char kUseQAUpdateServerHelp[] =
     "Uses the QA update server to test the changes to the configuration of the "
@@ -467,7 +468,6 @@ std::string HelpMessage() {
         {kUseTTS, kUseTTSHelp}, {kWatchdog, kWatchdogHelp},
         {kWebDriverPort, kWebDriverPortHelp},
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
-        {kCompressUpdate, kCompressUpdateHelp},
         {kDisableJavaScriptJit, kDisableJavaScriptJitHelp},
         {kDisableMapToMesh, kDisableMapToMeshHelp},
         {kDisableTimerResolutionLimit, kDisableTimerResolutionLimitHelp},
@@ -497,6 +497,7 @@ std::string HelpMessage() {
         {kSkiaTextureAtlasDimensions, kSkiaTextureAtlasDimensionsHelp},
         {kFallbackSplashScreenURL, kFallbackSplashScreenURLHelp},
         {kUpdateCheckDelaySeconds, kUpdateCheckDelaySecondsHelp},
+        {kUseCompressedUpdates, kUseCompressedUpdatesHelp},
         {kUseQAUpdateServer, kUseQAUpdateServerHelp}, {kVersion, kVersionHelp},
         {kViewport, kViewportHelp},
         {kVideoPlaybackRateMultiplier, kVideoPlaybackRateMultiplierHelp},

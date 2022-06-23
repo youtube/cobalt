@@ -38,6 +38,7 @@
 #include "cobalt/browser/on_screen_keyboard_starboard_bridge.h"
 #include "cobalt/browser/screen_shot_writer.h"
 #include "cobalt/browser/switches.h"
+#include "cobalt/browser/user_agent_platform_info.h"
 #include "cobalt/configuration/configuration.h"
 #include "cobalt/cssom/viewport_size.h"
 #include "cobalt/dom/input_event_init.h"
@@ -51,6 +52,7 @@
 #include "cobalt/input/input_device_manager_fuzzer.h"
 #include "cobalt/math/matrix3_f.h"
 #include "cobalt/overlay_info/overlay_info_registry.h"
+#include "cobalt/persistent_storage/persistent_settings.h"
 #include "cobalt/web/csp_delegate_factory.h"
 #include "cobalt/web/navigator_ua_data.h"
 #include "nb/memory_scope.h"
@@ -217,15 +219,16 @@ renderer::Submission CreateSubmissionFromLayoutResults(
 
 }  // namespace
 
-BrowserModule::BrowserModule(const GURL& url,
-                             base::ApplicationState initial_application_state,
-                             base::EventDispatcher* event_dispatcher,
-                             account::AccountManager* account_manager,
-                             network::NetworkModule* network_module,
+BrowserModule::BrowserModule(
+    const GURL& url, base::ApplicationState initial_application_state,
+    base::EventDispatcher* event_dispatcher,
+    account::AccountManager* account_manager,
+    network::NetworkModule* network_module,
 #if SB_IS(EVERGREEN)
-                             updater::UpdaterModule* updater_module,
+    updater::UpdaterModule* updater_module,
 #endif
-                             const Options& options)
+    const Options& options,
+    persistent_storage::PersistentSettings* persistent_settings)
     : ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           weak_this_(weak_ptr_factory_.GetWeakPtr())),
@@ -295,11 +298,14 @@ BrowserModule::BrowserModule(const GURL& url,
       next_timeline_id_(1),
       current_splash_screen_timeline_id_(-1),
       current_main_web_module_timeline_id_(-1),
-      service_worker_registry_(network_module) {
+      service_worker_registry_(network_module),
+      persistent_settings_(persistent_settings) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::BrowserModule()");
 
   // Apply platform memory setting adjustments and defaults.
   ApplyAutoMemSettings();
+
+  platform_info_.reset(new browser::UserAgentPlatformInfo());
 
 #if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
   SbCoreDumpRegisterHandler(BrowserModule::CoreDumpHandler, this);
@@ -405,7 +411,7 @@ BrowserModule::BrowserModule(const GURL& url,
 
 #if defined(ENABLE_DEBUGGER)
   debug_console_.reset(new DebugConsole(
-      application_state_,
+      platform_info_.get(), application_state_,
       base::Bind(&BrowserModule::QueueOnDebugConsoleRenderTreeProduced,
                  base::Unretained(this)),
       network_module_, GetViewportSize(), GetResourceProvider(),
@@ -549,7 +555,7 @@ void BrowserModule::Navigate(const GURL& url_reference) {
     if (fallback_splash_screen_url_ ||
         splash_screen_cache_->IsSplashScreenCached()) {
       splash_screen_.reset(new SplashScreen(
-          application_state_,
+          platform_info_.get(), application_state_,
           base::Bind(&BrowserModule::QueueOnSplashScreenRenderTreeProduced,
                      base::Unretained(this)),
           network_module_, viewport_size, GetResourceProvider(),
@@ -615,7 +621,7 @@ void BrowserModule::Navigate(const GURL& url_reference) {
   options.web_options.network_module = network_module_;
   options.web_options.service_worker_jobs =
       service_worker_registry_.service_worker_jobs();
-
+  options.web_options.platform_info = platform_info_.get();
   web_module_.reset(new WebModule(
       url, application_state_,
       base::Bind(&BrowserModule::QueueOnRenderTreeProduced,
@@ -678,6 +684,8 @@ void BrowserModule::OnLoad() {
   on_load_event_time_ = base::TimeTicks::Now().ToInternalValue();
 
   web_module_loaded_.Signal();
+
+  options_.persistent_settings->ValidatePersistentSettings();
 }
 
 bool BrowserModule::WaitForLoad(const base::TimeDelta& timeout) {
@@ -2067,6 +2075,7 @@ scoped_refptr<script::Wrappable> BrowserModule::CreateH5vcc(
       dom_settings->window()->navigator()->user_agent_data();
   h5vcc_settings.global_environment =
       dom_settings->context()->global_environment();
+  h5vcc_settings.persistent_settings = persistent_settings_;
 
   auto* h5vcc_object = new h5vcc::H5vcc(h5vcc_settings);
   if (!web_module_created_callback_.is_null()) {

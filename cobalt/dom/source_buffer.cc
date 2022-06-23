@@ -367,6 +367,12 @@ void SourceBuffer::OnRemovedFromMediaSource() {
   //   RemoveMediaTracks();
   // }
 
+  if (!media_source_->MediaElementHasMaxVideoCapabilities()) {
+    // TODO: Determine if the source buffer contains an audio or video stream,
+    // and print the steam type along with the metrics.
+    metrics_.PrintMetrics();
+  }
+
   chunk_demuxer_->RemoveId(id_);
   chunk_demuxer_ = NULL;
   media_source_ = NULL;
@@ -454,9 +460,11 @@ void SourceBuffer::AppendBufferInternal(
     script::ExceptionState* exception_state) {
   TRACE_EVENT1("cobalt::dom", "SourceBuffer::AppendBufferInternal()", "size",
                size);
+  metrics_.StartTracking();
   if (!PrepareAppend(size, exception_state)) {
     return;
   }
+  metrics_.EndTracking(0);
 
   DCHECK(data || size == 0);
   if (data) {
@@ -495,6 +503,7 @@ void SourceBuffer::OnAppendTimer() {
                       : &dummy;
 
   base::TimeDelta timestamp_offset = DoubleToTimeDelta(timestamp_offset_);
+  metrics_.StartTracking();
   bool success = chunk_demuxer_->AppendData(
       id_, data_to_append, append_size, DoubleToTimeDelta(append_window_start_),
       DoubleToTimeDelta(append_window_end_), &timestamp_offset);
@@ -504,10 +513,12 @@ void SourceBuffer::OnAppendTimer() {
   }
 
   if (!success) {
+    metrics_.EndTracking(0);
     pending_append_data_size_ = 0;
     pending_append_data_offset_ = 0;
     AppendError();
   } else {
+    metrics_.EndTracking(append_size);
     pending_append_data_offset_ += append_size;
 
     if (pending_append_data_offset_ < pending_append_data_size_) {

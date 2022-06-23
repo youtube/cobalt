@@ -107,6 +107,7 @@ class Impl : public Context {
   scoped_refptr<worker::ServiceWorkerRegistration> GetServiceWorkerRegistration(
       worker::ServiceWorkerRegistrationObject* registration) final;
 
+  void RemoveServiceWorker(worker::ServiceWorkerObject* worker) final;
   scoped_refptr<worker::ServiceWorker> LookupServiceWorker(
       worker::ServiceWorkerObject* worker) final;
   // https://w3c.github.io/ServiceWorker/#get-the-service-worker-object
@@ -114,6 +115,38 @@ class Impl : public Context {
       worker::ServiceWorkerObject* worker) final;
 
   WindowOrWorkerGlobalScope* GetWindowOrWorkerGlobalScope() final;
+
+  UserAgentPlatformInfo* platform_info() const final { return platform_info_; }
+  std::string GetUserAgent() const final {
+    return network_module()->GetUserAgent();
+  }
+  std::string GetPreferredLanguage() const final {
+    return network_module()->preferred_language();
+  }
+
+  // https://w3c.github.io/ServiceWorker/#dfn-control
+  bool is_controlled_by(worker::ServiceWorkerObject* worker) const final {
+    // When a service worker client has a non-null active service worker, it is
+    // said to be controlled by that active service worker.
+    return active_service_worker() && (active_service_worker() == worker);
+  }
+
+  // https://html.spec.whatwg.org/multipage/webappapis.html#concept-environment-active-service-worker
+  void set_active_service_worker(
+      const scoped_refptr<worker::ServiceWorkerObject>& worker) final {
+    active_service_worker_ = worker;
+    // Also hold a reference to the registration that contains this worker.
+    containing_service_worker_registration_ =
+        worker ? worker->containing_service_worker_registration() : nullptr;
+  }
+  const scoped_refptr<worker::ServiceWorkerObject>& active_service_worker()
+      const final {
+    return active_service_worker_;
+  }
+  scoped_refptr<worker::ServiceWorkerObject>& active_service_worker() final {
+    return active_service_worker_;
+  }
+
 
  private:
   // Injects a list of attributes into the Web Context's global object.
@@ -168,11 +201,20 @@ class Impl : public Context {
       service_worker_object_map_;
 
   worker::ServiceWorkerJobs* service_worker_jobs_;
+  web::UserAgentPlatformInfo* platform_info_;
+
+  // https://html.spec.whatwg.org/multipage/webappapis.html#concept-environment-active-service-worker
+  // Note: When a service worker is unregistered from the last client, this will
+  // hold the last reference until the current page is unloaded.
+  scoped_refptr<worker::ServiceWorkerObject> active_service_worker_;
+  scoped_refptr<worker::ServiceWorkerRegistrationObject>
+      containing_service_worker_registration_;
 };
 
 Impl::Impl(const Agent::Options& options) : name_(options.name) {
   TRACE_EVENT0("cobalt::web", "Agent::Impl::Impl()");
   service_worker_jobs_ = options.service_worker_jobs;
+  platform_info_ = options.platform_info;
   blob_registry_.reset(new Blob::Registry);
 
   fetcher_factory_.reset(new loader::FetcherFactory(
@@ -211,23 +253,15 @@ Impl::Impl(const Agent::Options& options) : name_(options.name) {
         base::Bind(&Impl::InjectGlobalObjectAttributes, base::Unretained(this),
                    options.injected_global_object_attributes));
   }
-
-  if (service_worker_jobs_) {
-    service_worker_jobs_->RegisterWebContext(this);
-  }
 }
 
 void Impl::ShutDownJavaScriptEngine() {
   // TODO: Disentangle shutdown of the JS engine with the various tracking and
   // caching in the WebModule.
 
+  set_active_service_worker(nullptr);
   service_worker_object_map_.clear();
   service_worker_registration_object_map_.clear();
-
-  if (service_worker_jobs_) {
-    service_worker_jobs_->UnregisterWebContext(this);
-    service_worker_jobs_ = nullptr;
-  }
 
   if (global_environment_) {
     global_environment_->SetReportEvalCallback(base::Closure());
@@ -338,6 +372,10 @@ Impl::GetServiceWorkerRegistration(
   return worker_registration;
 }
 
+
+void Impl::RemoveServiceWorker(worker::ServiceWorkerObject* worker) {
+  service_worker_object_map_.erase(worker);
+}
 
 scoped_refptr<worker::ServiceWorker> Impl::LookupServiceWorker(
     worker::ServiceWorkerObject* worker) {
@@ -451,6 +489,10 @@ Agent::~Agent() {
   DCHECK(message_loop());
   DCHECK(thread_.IsRunning());
 
+  if (context() && context()->service_worker_jobs()) {
+    context()->service_worker_jobs()->UnregisterWebContext(context());
+  }
+
   // Ensure that the destruction observer got added before stopping the thread.
   destruction_observer_added_.Wait();
   // Stop the thread. This will cause the destruction observer to be notified.
@@ -468,6 +510,9 @@ Context* Agent::CreateContext(const Options& options,
                               base::MessageLoop* message_loop) {
   auto* context = new Impl(options);
   context->set_message_loop(message_loop);
+  if (options.service_worker_jobs) {
+    options.service_worker_jobs->RegisterWebContext(context);
+  }
   return context;
 }
 

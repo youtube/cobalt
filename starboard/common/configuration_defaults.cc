@@ -109,5 +109,9 @@ bool CobaltEnableJitDefault() {
   return true;
 }
 
+bool CobaltCanStoreCompiledJavascriptDefault() {
+  return true;
+}
+
 }  // namespace common
 }  // namespace starboard

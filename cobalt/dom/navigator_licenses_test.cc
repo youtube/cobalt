@@ -14,6 +14,7 @@
 
 #include "cobalt/dom/navigator.h"
 #include "cobalt/dom/testing/stub_environment_settings.h"
+#include "cobalt/web/testing/stub_web_context.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
@@ -21,10 +22,11 @@ namespace dom {
 
 // Tests the Navigator::licenses function for non-empty return.
 TEST(NavigatorLicensesTest, NonEmpty) {
-  testing::StubEnvironmentSettings environment_settings;
+  std::unique_ptr<web::Context> web_context(new web::testing::StubWebContext());
+  web_context->setup_environment_settings(
+      new dom::testing::StubEnvironmentSettings());
   scoped_refptr<cobalt::dom::Navigator> navigator =
-      new cobalt::dom::Navigator(&environment_settings, std::string(), NULL,
-                                 std::string(), nullptr, nullptr);
+      new cobalt::dom::Navigator(web_context->environment_settings(), nullptr);
 
   ASSERT_TRUE(navigator != nullptr);
   EXPECT_FALSE(navigator->licenses().empty());

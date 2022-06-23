@@ -18,7 +18,6 @@
 #include <vector>
 
 #include "base/memory/ref_counted.h"
-#include "base/test/scoped_task_environment.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/dom/testing/stub_environment_settings.h"
 #include "cobalt/dom/window.h"
@@ -29,10 +28,10 @@
 #include "cobalt/web/testing/stub_web_context.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+using cobalt::script::testing::MockExceptionState;
 using ::testing::_;
 using ::testing::SaveArg;
 using ::testing::StrictMock;
-using cobalt::script::testing::MockExceptionState;
 
 namespace cobalt {
 namespace websocket {
@@ -51,8 +50,6 @@ class WebSocketTest : public ::testing::Test {
     web_context_->environment_settings()->set_base_url(
         GURL("https://example.com"));
   }
-
-  base::test::ScopedTaskEnvironment env_;
 
   std::unique_ptr<web::testing::StubWebContext> web_context_;
   StrictMock<MockExceptionState> exception_state_;

@@ -17,10 +17,14 @@
 
 #include <string>
 
+#include "base/message_loop/message_loop.h"
 #include "base/optional.h"
-#include "cobalt/h5vcc/h5vcc_storage_verify_test_dictionary.h"
-#include "cobalt/h5vcc/h5vcc_storage_write_test_dictionary.h"
+#include "cobalt/h5vcc/h5vcc_storage_resource_type_quota_bytes_dictionary.h"
+#include "cobalt/h5vcc/h5vcc_storage_set_quota_response.h"
+#include "cobalt/h5vcc/h5vcc_storage_verify_test_response.h"
+#include "cobalt/h5vcc/h5vcc_storage_write_test_response.h"
 #include "cobalt/network/network_module.h"
+#include "cobalt/persistent_storage/persistent_settings.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -28,7 +32,9 @@ namespace h5vcc {
 
 class H5vccStorage : public script::Wrappable {
  public:
-  explicit H5vccStorage(network::NetworkModule* network_module);
+  explicit H5vccStorage(
+      network::NetworkModule* network_module,
+      persistent_storage::PersistentSettings* persistent_settings);
   void ClearCookies();
   void Flush(const base::Optional<bool>& sync);
   bool GetCookiesEnabled();
@@ -36,17 +42,26 @@ class H5vccStorage : public script::Wrappable {
 
   // Write test_size bytes of a repeating test_string to a test_file in the
   // kSbSystemPathCacheDirectory.
-  H5vccStorageWriteTestDictionary WriteTest(uint32 test_size,
-                                            std::string test_string);
+  H5vccStorageWriteTestResponse WriteTest(uint32 test_size,
+                                          std::string test_string);
   // Read the test_file and verify the file data matches the repeating
   // test_string and is at least test_size bytes.
-  H5vccStorageVerifyTestDictionary VerifyTest(uint32 test_size,
-                                              std::string test_string);
+  H5vccStorageVerifyTestResponse VerifyTest(uint32 test_size,
+                                            std::string test_string);
+
+  // Get Quota bytes per disk_cache::ResourceType.
+  H5vccStorageResourceTypeQuotaBytesDictionary GetQuota();
+
+  // Set Quota bytes per disk_cache::ResourceType.
+  H5vccStorageSetQuotaResponse SetQuota(
+      H5vccStorageResourceTypeQuotaBytesDictionary quota);
 
   DEFINE_WRAPPABLE_TYPE(H5vccStorage);
 
  private:
   network::NetworkModule* network_module_;
+
+  persistent_storage::PersistentSettings* persistent_settings_;
 
   DISALLOW_COPY_AND_ASSIGN(H5vccStorage);
 };

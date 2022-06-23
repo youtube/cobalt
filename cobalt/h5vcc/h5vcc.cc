@@ -14,6 +14,7 @@
 
 #include "cobalt/h5vcc/h5vcc.h"
 
+#include "cobalt/persistent_storage/persistent_settings.h"
 #include "cobalt/sso/sso_interface.h"
 
 namespace cobalt {
@@ -35,7 +36,8 @@ H5vcc::H5vcc(const Settings& settings) {
 #if defined(COBALT_ENABLE_SSO)
   sso_ = new H5vccSso();
 #endif
-  storage_ = new H5vccStorage(settings.network_module);
+  storage_ =
+      new H5vccStorage(settings.network_module, settings.persistent_settings);
   trace_event_ = new H5vccTraceEvent();
 #if SB_IS(EVERGREEN)
   updater_ = new H5vccUpdater(settings.updater_module);

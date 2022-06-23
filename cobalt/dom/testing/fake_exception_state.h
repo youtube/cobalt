@@ -41,6 +41,8 @@ class FakeExceptionState : public script::ExceptionState {
                           : web::DOMException::kNone;
   }
 
+  bool is_exception_set() const override { return false; }
+
  private:
   scoped_refptr<web::DOMException> dom_exception_;
 };

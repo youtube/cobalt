@@ -12,16 +12,42 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-const data = "worker data";
-this.postMessage(data);
-this.onmessage = function (event) {
-    let message = 'worker received wrong message';
-    if (event.data === 'window data') {
-        message = 'worker received correct message';
-    }
+const data = 'web worker test loaded'
+self.postMessage(data);
+self.onmessage = function (event) {
+    let message = `worker received ${event.data}`;
     console.log(message);
-    this.postMessage(message);
+    if (event.data == 'import scripts now') {
+        // These should load and execute synchronously.
+        console.log('Worker importing scripts.');
+        self.importScripts('web_worker_test_importscripts_1.js',
+            'web_worker_test_importscripts_2.js',
+            'web_worker_test_importscripts_3.js');
+    }
+    // These messages should not race messages synchronously posted from the
+    // importScripts above.
+    self.postMessage(message);
     const uppercase_data = event.data.toUpperCase();
-    this.postMessage(uppercase_data);
+    self.postMessage(uppercase_data);
 };
+
+try {
+    self.importScripts(
+        'web_worker_test_importscripts_1.js',
+        'web_worker_test_importscripts_with_syntax_error.js',
+        'web_worker_test_importscripts_3.js');
+} catch (e) {
+    message = 'Expected exception message 4: ' + e;
+    console.log(message);
+    self.postMessage(message);
+}
+
+try {
+    self.importScripts('...:...');
+} catch (e) {
+    message = 'Expected exception message 5: ' + e;
+    console.log(message);
+    self.postMessage(message);
+}
+
 this

@@ -1,3 +1,0 @@
-struct void {
-    int x;
-};

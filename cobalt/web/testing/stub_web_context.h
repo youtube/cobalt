@@ -18,6 +18,8 @@
 #include <memory>
 #include <string>
 
+#include "base/message_loop/message_loop.h"
+#include "base/test/scoped_task_environment.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/javascript_engine.h"
@@ -25,6 +27,7 @@
 #include "cobalt/web/context.h"
 #include "cobalt/web/environment_settings.h"
 #include "cobalt/worker/service_worker.h"
+#include "cobalt/worker/service_worker_object.h"
 #include "cobalt/worker/service_worker_registration.h"
 #include "url/gurl.h"
 
@@ -43,13 +46,13 @@ class StubSettings : public EnvironmentSettings {
  private:
 };
 
-class StubWebContext : public Context {
+class StubWebContext final : public Context {
  public:
   StubWebContext() : Context(), name_("StubWebInstance") {
     javascript_engine_ = script::JavaScriptEngine::CreateEngine();
     global_environment_ = javascript_engine_->CreateGlobalEnvironment();
   }
-  virtual ~StubWebContext() {}
+  ~StubWebContext() final {}
 
   // WebInstance
   //
@@ -104,7 +107,6 @@ class StubWebContext : public Context {
     return nullptr;
   }
 
-
   const std::string& name() const final { return name_; };
   void setup_environment_settings(
       EnvironmentSettings* environment_settings) final {
@@ -127,6 +129,9 @@ class StubWebContext : public Context {
     return scoped_refptr<worker::ServiceWorkerRegistration>();
   }
 
+  void RemoveServiceWorker(worker::ServiceWorkerObject* worker) final {
+    NOTIMPLEMENTED();
+  }
   scoped_refptr<worker::ServiceWorker> LookupServiceWorker(
       worker::ServiceWorkerObject* worker) final {
     NOTIMPLEMENTED();
@@ -143,10 +148,41 @@ class StubWebContext : public Context {
     return nullptr;
   }
 
+  void set_platform_info(UserAgentPlatformInfo* platform_info) {
+    platform_info_ = platform_info;
+  }
+  UserAgentPlatformInfo* platform_info() const final { return platform_info_; }
+
+  std::string GetUserAgent() const final {
+    return std::string("StubUserAgentString");
+  }
+  std::string GetPreferredLanguage() const final {
+    return std::string("StubPreferredLanguageString");
+  }
+
+  bool is_controlled_by(worker::ServiceWorkerObject* worker) const final {
+    NOTIMPLEMENTED();
+    return false;
+  }
+
+  void set_active_service_worker(
+      const scoped_refptr<worker::ServiceWorkerObject>& worker) {
+    service_worker_object_ = worker;
+  }
+  scoped_refptr<worker::ServiceWorkerObject>& active_service_worker() final {
+    return service_worker_object_;
+  }
+  const scoped_refptr<worker::ServiceWorkerObject>& active_service_worker()
+      const final {
+    return service_worker_object_;
+  }
+
   // Other
  private:
   // Name of the web instance.
   const std::string name_;
+
+  base::test::ScopedTaskEnvironment env_;
 
   std::unique_ptr<loader::FetcherFactory> fetcher_factory_;
   std::unique_ptr<loader::ScriptLoaderFactory> script_loader_factory_;
@@ -156,6 +192,8 @@ class StubWebContext : public Context {
   std::unique_ptr<network::NetworkModule> network_module_;
   // Environment Settings object
   std::unique_ptr<EnvironmentSettings> environment_settings_;
+  UserAgentPlatformInfo* platform_info_ = nullptr;
+  scoped_refptr<worker::ServiceWorkerObject> service_worker_object_;
 };
 
 }  // namespace testing

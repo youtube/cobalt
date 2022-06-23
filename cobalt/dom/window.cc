@@ -47,7 +47,6 @@
 #include "cobalt/dom/screenshot_manager.h"
 #include "cobalt/dom/storage.h"
 #include "cobalt/dom/wheel_event.h"
-#include "cobalt/dom/window_timers.h"
 #include "cobalt/media_session/media_session_client.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/javascript_engine.h"
@@ -104,9 +103,7 @@ Window::Window(
     script::ScriptRunner* script_runner,
     script::ScriptValueFactory* script_value_factory,
     MediaSource::Registry* media_source_registry,
-    DomStatTracker* dom_stat_tracker, const GURL& url,
-    const std::string& user_agent, web::UserAgentPlatformInfo* platform_info,
-    const std::string& language, const std::string& font_language_script,
+    DomStatTracker* dom_stat_tracker, const std::string& font_language_script,
     const base::Callback<void(const GURL&)> navigation_callback,
     const loader::Decoder::OnCompleteFunction& load_complete_callback,
     network_bridge::CookieJar* cookie_jar,
@@ -132,7 +129,8 @@ Window::Window(
     bool log_tts)
     // 'window' object EventTargets require special handling for onerror events,
     // see EventTarget constructor for more details.
-    : web::WindowOrWorkerGlobalScope(settings),
+    : web::WindowOrWorkerGlobalScope(settings, dom_stat_tracker,
+                                     initial_application_state),
       viewport_size_(view_size),
       is_resize_event_pending_(false),
       is_reporting_script_error_(false),
@@ -153,7 +151,7 @@ Window::Window(
       ALLOW_THIS_IN_INITIALIZER_LIST(document_(new Document(
           html_element_context(),
           Document::Options(
-              url, this,
+              settings->creation_url(), this,
               base::Bind(&Window::FireHashChangeEvent, base::Unretained(this)),
               performance_->timing()->GetNavigationStartClock(),
               navigation_callback, ParseUserAgentStyleSheet(css_parser),
@@ -162,12 +160,9 @@ Window::Window(
               csp_insecure_allowed_token, dom_max_element_depth)))),
       document_loader_(nullptr),
       history_(new History()),
-      navigator_(new Navigator(settings, user_agent, platform_info, language,
-                               captions, script_value_factory)),
+      navigator_(new Navigator(environment_settings(), captions)),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           relay_on_load_event_(new RelayLoadEvent(this))),
-      ALLOW_THIS_IN_INITIALIZER_LIST(window_timers_(
-          this, dom_stat_tracker, debugger_hooks(), initial_application_state)),
       ALLOW_THIS_IN_INITIALIZER_LIST(animation_frame_request_callback_list_(
           new AnimationFrameRequestCallbackList(this, debugger_hooks()))),
       crypto_(new Crypto()),
@@ -196,8 +191,7 @@ Window::Window(
       screenshot_manager_(settings, screenshot_function_callback),
       ui_nav_root_(ui_nav_root),
       enable_map_to_mesh_(enable_map_to_mesh) {
-#if !defined(ENABLE_TEST_RUNNER)
-#endif
+  set_navigator_base(navigator_);
   document_->AddObserver(relay_on_load_event_.get());
   html_element_context()->application_lifecycle_state()->AddObserver(this);
   UpdateCamera3D(camera_3d);
@@ -206,9 +200,9 @@ Window::Window(
   // guaranteed that this Window object is fully constructed before document
   // loading begins.
   base::MessageLoop::current()->task_runner()->PostTask(
-      FROM_HERE,
-      base::Bind(&Window::StartDocumentLoad, base::Unretained(this),
-                 fetcher_factory, url, dom_parser, load_complete_callback));
+      FROM_HERE, base::Bind(&Window::StartDocumentLoad, base::Unretained(this),
+                            fetcher_factory, settings->creation_url(),
+                            dom_parser, load_complete_callback));
 }
 
 void Window::StartDocumentLoad(
@@ -394,22 +388,6 @@ std::vector<uint8_t> Window::Atob(const std::string& encoded_string,
   }
   return *output;
 }
-
-int Window::SetTimeout(const WindowTimers::TimerCallbackArg& handler,
-                       int timeout) {
-  return window_timers_.SetTimeout(handler, timeout);
-}
-
-void Window::ClearTimeout(int handle) { window_timers_.ClearTimeout(handle); }
-
-int Window::SetInterval(const WindowTimers::TimerCallbackArg& handler,
-                        int timeout) {
-  return window_timers_.SetInterval(handler, timeout);
-}
-
-void Window::ClearInterval(int handle) { window_timers_.ClearInterval(handle); }
-
-void Window::DestroyTimers() { window_timers_.DisableCallbacks(); }
 
 scoped_refptr<Storage> Window::local_storage() const { return local_storage_; }
 

@@ -15,42 +15,62 @@
 #ifndef COBALT_WORKER_WORKER_GLOBAL_SCOPE_H_
 #define COBALT_WORKER_WORKER_GLOBAL_SCOPE_H_
 
+#include <map>
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "base/memory/ref_counted.h"
 #include "cobalt/base/tokens.h"
-#include "cobalt/dom/window_timers.h"
 #include "cobalt/script/environment_settings.h"
+#include "cobalt/script/exception_state.h"
 #include "cobalt/script/sequence.h"
 #include "cobalt/script/value_handle.h"
 #include "cobalt/script/wrappable.h"
 #include "cobalt/web/event_target.h"
 #include "cobalt/web/event_target_listener_info.h"
+#include "cobalt/web/user_agent_platform_info.h"
 #include "cobalt/web/window_or_worker_global_scope.h"
+#include "cobalt/web/window_timers.h"
+#include "cobalt/worker/worker_location.h"
+#include "cobalt/worker/worker_navigator.h"
 #include "net/url_request/url_request.h"
 #include "url/gurl.h"
 
 namespace cobalt {
 namespace worker {
 // Implementation of the WorkerGlobalScope common interface.
-//   https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#dedicated-workers-and-the-workerglobalscope-interface
+//   https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#the-workerglobalscope-common-interface
+
+using ScriptResourceMap = std::map<GURL, std::unique_ptr<std::string>>;
 
 class WorkerGlobalScope : public web::WindowOrWorkerGlobalScope {
  public:
-  typedef dom::WindowTimers::TimerCallback TimerCallback;
+  using TimerCallback = web::WindowTimers::TimerCallback;
+  using URLLookupCallback =
+      base::Callback<std::string*(const GURL&, script::ExceptionState*)>;
+  using ResponseCallback =
+      base::Callback<std::string*(const GURL& url, std::string*)>;
 
   explicit WorkerGlobalScope(script::EnvironmentSettings* settings);
   WorkerGlobalScope(const WorkerGlobalScope&) = delete;
   WorkerGlobalScope& operator=(const WorkerGlobalScope&) = delete;
 
-  virtual void Initialize() = 0;
+  // https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#dom-workerglobalscope-closing
+  // THe closing flag.
+  bool closing_flag() { return closing_flag_; }
+  void set_closing_flag(bool value) { closing_flag_ = value; }
+
+  virtual void Initialize() {}
 
   // Web API: WorkerGlobalScope
   //
   scoped_refptr<WorkerGlobalScope> self() { return this; }
+  const scoped_refptr<WorkerLocation>& location() const { return location_; }
+  const scoped_refptr<WorkerNavigator>& navigator() const { return navigator_; }
 
-  void ImportScripts(const std::vector<std::string>& urls) {}
+  virtual void ImportScripts(const std::vector<std::string>& urls,
+                             script::ExceptionState* exception_state);
 
   void set_url(const GURL& url) { url_ = url; }
 
@@ -86,41 +106,31 @@ class WorkerGlobalScope : public web::WindowOrWorkerGlobalScope {
                               event_listener);
   }
 
-  // Web API: WindowTimers (implements)
-  //   https://www.w3.org/TR/html50/webappapis.html#timers
+  // Custom, not in any spec.
   //
-  int SetTimeout(const dom::WindowTimers::TimerCallbackArg& handler) {
-    return SetTimeout(handler, 0);
-  }
-
-  int SetTimeout(const dom::WindowTimers::TimerCallbackArg& handler,
-                 int timeout);
-
-  void ClearTimeout(int handle);
-
-  int SetInterval(const dom::WindowTimers::TimerCallbackArg& handler) {
-    return SetInterval(handler, 0);
-  }
-
-  int SetInterval(const dom::WindowTimers::TimerCallbackArg& handler,
-                  int timeout);
-
-  void ClearInterval(int handle);
-
-  void DestroyTimers();
-
+  bool LoadImportsAndReturnIfUpdated(
+      const ScriptResourceMap& previous_resource_map,
+      ScriptResourceMap* new_resource_map);
 
   DEFINE_WRAPPABLE_TYPE(WorkerGlobalScope);
 
  protected:
   virtual ~WorkerGlobalScope() {}
 
+  virtual void ImportScriptsInternal(const std::vector<std::string>& urls,
+                                     script::ExceptionState* exception_state,
+                                     URLLookupCallback url_lookup_callback,
+                                     ResponseCallback response_callback);
+
  private:
-  // WorkerGlobalScope Attribute
-  // https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#concept-workerglobalscope-url
+  // WorkerGlobalScope url
+  //   https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#concept-workerglobalscope-url
   GURL url_;
 
-  dom::WindowTimers window_timers_;
+  scoped_refptr<WorkerLocation> location_;
+  scoped_refptr<WorkerNavigator> navigator_;
+
+  bool closing_flag_ = false;
 };
 
 }  // namespace worker

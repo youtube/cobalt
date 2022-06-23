@@ -18,6 +18,8 @@ interface H5vccSystem {
   readonly attribute DOMString platform;
   readonly attribute DOMString region;
   readonly attribute DOMString version;
+  readonly attribute DOMString advertisingId;
+  readonly attribute boolean limitAdTracking;
   boolean triggerHelp();
 
   // enum UserOnExitStrategy

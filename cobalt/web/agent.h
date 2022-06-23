@@ -27,7 +27,9 @@
 #include "cobalt/network/network_module.h"
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/script/wrappable.h"
+#include "cobalt/web/context.h"
 #include "cobalt/web/environment_settings.h"
+#include "cobalt/web/user_agent_platform_info.h"
 
 namespace cobalt {
 namespace worker {
@@ -73,6 +75,8 @@ class Agent : public base::MessageLoop::DestructionObserver {
         read_cache_callback;
 
     worker::ServiceWorkerJobs* service_worker_jobs = nullptr;
+
+    web::UserAgentPlatformInfo* platform_info = nullptr;
   };
 
   typedef base::Callback<void(const script::HeapStatistics&)>

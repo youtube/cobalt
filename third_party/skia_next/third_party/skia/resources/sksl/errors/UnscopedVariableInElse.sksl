@@ -1,3 +1,0 @@
-void main() {
-    if (true) ; else half4 color = sk_FragColor;
-}

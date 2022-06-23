@@ -15,10 +15,13 @@ static_library("cache") {
   sources = [
     "cache.cc",
     "cache.h",
+    "memory_capped_directory.cc",
+    "memory_capped_directory.h",
   ]
   deps = [
     "//base",
     "//cobalt/base",
+    "//cobalt/configuration",
     "//net",
     "//starboard:starboard_headers_only",
   ]

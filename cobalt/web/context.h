@@ -28,6 +28,7 @@
 #include "cobalt/script/wrappable.h"
 #include "cobalt/web/blob.h"
 #include "cobalt/web/environment_settings.h"
+#include "cobalt/web/user_agent_platform_info.h"
 
 namespace cobalt {
 namespace worker {
@@ -68,6 +69,7 @@ class Context {
   GetServiceWorkerRegistration(
       worker::ServiceWorkerRegistrationObject* registration) = 0;
 
+  virtual void RemoveServiceWorker(worker::ServiceWorkerObject* worker) = 0;
   virtual scoped_refptr<worker::ServiceWorker> LookupServiceWorker(
       worker::ServiceWorkerObject* worker) = 0;
   // https://w3c.github.io/ServiceWorker/#get-the-service-worker-object
@@ -75,6 +77,22 @@ class Context {
       worker::ServiceWorkerObject* worker) = 0;
 
   virtual WindowOrWorkerGlobalScope* GetWindowOrWorkerGlobalScope() = 0;
+
+  virtual UserAgentPlatformInfo* platform_info() const = 0;
+
+  virtual std::string GetUserAgent() const = 0;
+  virtual std::string GetPreferredLanguage() const = 0;
+
+  // https://w3c.github.io/ServiceWorker/#dfn-control
+  virtual bool is_controlled_by(worker::ServiceWorkerObject* worker) const = 0;
+
+  // https://html.spec.whatwg.org/multipage/webappapis.html#concept-environment-active-service-worker
+  virtual void set_active_service_worker(
+      const scoped_refptr<worker::ServiceWorkerObject>& worker) = 0;
+  virtual scoped_refptr<worker::ServiceWorkerObject>&
+  active_service_worker() = 0;
+  virtual const scoped_refptr<worker::ServiceWorkerObject>&
+  active_service_worker() const = 0;
 };
 
 }  // namespace web

@@ -18,12 +18,7 @@
 #include <string>
 
 #include "base/logging.h"
-#include "cobalt/dom/testing/stub_window.h"
-#include "cobalt/script/exception_message.h"
-#include "cobalt/script/exception_state.h"
-#include "cobalt/script/global_environment.h"
-#include "cobalt/script/source_code.h"
-#include "cobalt/script/testing/mock_exception_state.h"
+#include "cobalt/dom/testing/test_with_javascript.h"
 #include "cobalt/web/testing/gtest_workarounds.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -49,32 +44,7 @@ class URLTest : public ::testing::Test {
   StrictMock<MockExceptionState> exception_state_;
 };
 
-class URLTestWithJavaScript : public ::testing::Test {
- public:
-  URLTestWithJavaScript() {}
-
-  bool EvaluateScript(const std::string& js_code, std::string* result) {
-    DCHECK(stub_window_.global_environment());
-    DCHECK(result);
-    scoped_refptr<script::SourceCode> source_code =
-        script::SourceCode::CreateSourceCode(
-            js_code, base::SourceLocation(__FILE__, __LINE__, 1));
-
-    stub_window_.global_environment()->EnableEval();
-    stub_window_.global_environment()->SetReportEvalCallback(base::Closure());
-    bool succeeded =
-        stub_window_.global_environment()->EvaluateScript(source_code, result);
-    return succeeded;
-  }
-
-  StrictMock<MockExceptionState>* exception_state() {
-    return &exception_state_;
-  }
-
- private:
-  cobalt::dom::testing::StubWindow stub_window_;
-  StrictMock<MockExceptionState> exception_state_;
-};
+class URLTestWithJavaScript : public dom::testing::TestWithJavaScript {};
 }  // namespace
 
 TEST_F(URLTest, ConstructorWithValidURL) {

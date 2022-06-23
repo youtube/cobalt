@@ -26,7 +26,6 @@ group("gn_all") {
     "//starboard/loader_app:app_key_files_test",
     "//starboard/nplb",
     "//starboard/nplb/nplb_evergreen_compat_tests",
-    "//starboard/tools/testing:copy_sharding_configuration",
   ]
 
   if (gl_type != "none") {

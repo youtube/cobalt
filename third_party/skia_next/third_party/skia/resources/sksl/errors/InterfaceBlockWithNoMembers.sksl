@@ -1,2 +1,0 @@
-const S {};
-testBlock {} x[2];

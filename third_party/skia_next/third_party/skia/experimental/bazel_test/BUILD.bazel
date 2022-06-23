@@ -1,8 +1,0 @@
-package(default_visibility = ["//:__subpackages__"])
-
-filegroup(
-    name = "srcs",
-    srcs = [
-        "bazel_test.cpp",
-    ],
-)

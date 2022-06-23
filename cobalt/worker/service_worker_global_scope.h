@@ -16,17 +16,22 @@
 #define COBALT_WORKER_SERVICE_WORKER_GLOBAL_SCOPE_H_
 
 #include <string>
+#include <vector>
 
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_refptr.h"
+#include "base/memory/weak_ptr.h"
 #include "cobalt/base/tokens.h"
+#include "cobalt/script/environment_settings.h"
 #include "cobalt/script/promise.h"
+#include "cobalt/script/script_value_factory.h"
 #include "cobalt/script/value_handle.h"
 #include "cobalt/script/wrappable.h"
-#include "cobalt/web/environment_settings.h"
 #include "cobalt/web/event_target.h"
 #include "cobalt/web/event_target_listener_info.h"
+#include "cobalt/worker/clients.h"
 #include "cobalt/worker/service_worker.h"
+#include "cobalt/worker/service_worker_object.h"
 #include "cobalt/worker/service_worker_registration.h"
 #include "cobalt/worker/worker_global_scope.h"
 
@@ -38,22 +43,28 @@ namespace worker {
 
 class ServiceWorkerGlobalScope : public WorkerGlobalScope {
  public:
-  explicit ServiceWorkerGlobalScope(web::EnvironmentSettings* settings);
+  explicit ServiceWorkerGlobalScope(script::EnvironmentSettings* settings,
+                                    ServiceWorkerObject* service_worker);
   ServiceWorkerGlobalScope(const ServiceWorkerGlobalScope&) = delete;
   ServiceWorkerGlobalScope& operator=(const ServiceWorkerGlobalScope&) = delete;
 
   void Initialize() override;
 
+  // From web::WindowOrWorkerGlobalScope
+  //
+  ServiceWorkerGlobalScope* AsServiceWorker() override { return this; }
+
+  // Web API: WorkerGlobalScope
+  //
+  void ImportScripts(const std::vector<std::string>& urls,
+                     script::ExceptionState* exception_state) final;
+
   // Web API: ServiceWorkerGlobalScope
   //
-  scoped_refptr<ServiceWorkerRegistration> registration() const {
-    return registration_;
-  }
-  scoped_refptr<ServiceWorker> service_worker() const {
-    return service_worker_;
-  }
-
-  script::Handle<script::Promise<void>> SkipWaiting();
+  const scoped_refptr<Clients>& clients() const { return clients_; }
+  scoped_refptr<ServiceWorkerRegistration> registration() const;
+  scoped_refptr<ServiceWorker> service_worker() const;
+  script::HandlePromiseVoid SkipWaiting();
 
   const web::EventTargetListenerInfo::EventListenerScriptValue* oninstall() {
     return GetAttributeEventListener(base::Tokens::install());
@@ -99,14 +110,20 @@ class ServiceWorkerGlobalScope : public WorkerGlobalScope {
     SetAttributeEventListener(base::Tokens::messageerror(), event_listener);
   }
 
+  // Custom, not in any spec.
+  //
+  ServiceWorkerObject* service_worker_object() const {
+    return service_worker_object_;
+  }
+
   DEFINE_WRAPPABLE_TYPE(ServiceWorkerGlobalScope);
 
  protected:
   ~ServiceWorkerGlobalScope() override {}
 
  private:
-  scoped_refptr<ServiceWorkerRegistration> registration_;
-  scoped_refptr<ServiceWorker> service_worker_;
+  scoped_refptr<Clients> clients_;
+  base::WeakPtr<ServiceWorkerObject> service_worker_object_;
 };
 
 }  // namespace worker

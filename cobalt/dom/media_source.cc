@@ -311,6 +311,7 @@ bool MediaSource::AttachToElement(HTMLMediaElement* media_element) {
 
   DCHECK(IsClosed());
   attached_element_ = base::AsWeakPtr(media_element);
+  has_max_video_capabilities_ = media_element->HasMaxVideoCapabilities();
   return true;
 }
 
@@ -482,6 +483,10 @@ void MediaSource::SetSourceBufferActive(SourceBuffer* source_buffer,
 
 HTMLMediaElement* MediaSource::GetMediaElement() const {
   return attached_element_;
+}
+
+bool MediaSource::MediaElementHasMaxVideoCapabilities() const {
+  return has_max_video_capabilities_;
 }
 
 void MediaSource::TraceMembers(script::Tracer* tracer) {

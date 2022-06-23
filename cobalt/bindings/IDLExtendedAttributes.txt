@@ -46,7 +46,7 @@ NoInterfaceObject
 # This interface will be used as a global object. PrimaryGlobal s intended to be
 # used by the Window interface, but is also used for TestWindow in unit tests.
 # http://heycam.github.io/webidl/#Global
-Global
+Global=*
 
 # This interface is exposed on the specified global interface, rather than
 # the default of Window.

@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <string>
+
 #include "starboard/elf_loader/lz4_file_impl.h"
 
 #include "starboard/configuration_constants.h"
@@ -23,33 +25,46 @@ namespace starboard {
 namespace elf_loader {
 namespace {
 
-// The expected result of decompressing the test file is 64 bytes of 'a'. The
-// data is compressed more than 50% which allows us to validate that the buffer
-// used for decompression grows beyond the initial allocation size of 2x the
-// compressed file size.
+// The expected result of decompressing the test file is 64 bytes of 'a'.
 constexpr char kUncompressedData[] =
     "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 
-TEST(LZ4FileImplTest, RainyDayOpenNonExistentFile) {
+TEST(LZ4FileImplTest, OpenNonExistentFileFails) {
   LZ4FileImpl file;
   EXPECT_FALSE(file.Open("thisfiledoesnotexist"));
 }
 
-TEST(LZ4FileImplTest, RainyDayReadBeforeOpening) {
+TEST(LZ4FileImplTest, ReadBeforeOpeningFails) {
   LZ4FileImpl file;
   EXPECT_FALSE(file.ReadFromOffset(/* offset = */ 0,
                                    /* buffer = */ nullptr,
                                    /* size   = */ 0));
 }
 
-TEST(LZ4FileImplTest, RainyDayReadNegativeOffset) {
+TEST(LZ4FileImplTest, ReadNegativeOffsetFails) {
   LZ4FileImpl file;
   EXPECT_FALSE(file.ReadFromOffset(/* offset = */ -1,
                                    /* buffer = */ nullptr,
                                    /* size   = */ 0));
 }
 
-TEST(LZ4FileImplTest, SunnyDayDecompressesFile) {
+// TODO(b/198787888): add more tests for decompression failure scenarios.
+TEST(LZ4FileImplTest, FrameHeaderMissingContentSizeDecompressionFails) {
+  std::vector<char> content_path(kSbFileMaxPath + 1);
+  EXPECT_TRUE(SbSystemGetPath(kSbSystemPathContentDirectory,
+                              content_path.data(), kSbFileMaxPath + 1));
+  std::string file_path = std::string(content_path.data()) + kSbFileSepChar +
+                          "test" + kSbFileSepChar + "starboard" +
+                          kSbFileSepChar + "elf_loader" + kSbFileSepChar +
+                          "testdata" + kSbFileSepChar +
+                          "compressed_no_content_size.lz4";
+
+  LZ4FileImpl file;
+
+  EXPECT_FALSE(file.Open(file_path.c_str()));
+}
+
+TEST(LZ4FileImplTest, ValidFileDecompressionSucceeds) {
   std::vector<char> content_path(kSbFileMaxPath + 1);
   EXPECT_TRUE(SbSystemGetPath(kSbSystemPathContentDirectory,
                               content_path.data(), kSbFileMaxPath + 1));

@@ -17,13 +17,18 @@
 
 #include <string>
 
+#include "base/callback.h"
 #include "base/memory/ref_counted.h"
+#include "cobalt/script/environment_settings.h"
 #include "cobalt/script/script_value_factory.h"
 #include "cobalt/script/wrappable.h"
+#include "cobalt/web/context.h"
 #include "cobalt/web/navigator_ua_data.h"
-#include "cobalt/worker/service_worker_container.h"
 
 namespace cobalt {
+namespace worker {
+class ServiceWorkerContainer;
+}  // namespace worker
 namespace web {
 
 // The NavigatorBase object contains the shared logic between Navigator and
@@ -33,11 +38,7 @@ namespace web {
 
 class NavigatorBase : public script::Wrappable {
  public:
-  NavigatorBase(script::EnvironmentSettings* settings,
-                const std::string& user_agent,
-                UserAgentPlatformInfo* platform_info,
-                const std::string& language,
-                script::ScriptValueFactory* script_value_factory);
+  explicit NavigatorBase(script::EnvironmentSettings* settings);
 
   // Web API: NavigatorID
   const std::string& user_agent() const;
@@ -53,23 +54,37 @@ class NavigatorBase : public script::Wrappable {
   bool on_line() const;
 
   // Web API: ServiceWorker
-  scoped_refptr<worker::ServiceWorkerContainer> service_worker();
+  const scoped_refptr<worker::ServiceWorkerContainer>& service_worker() const {
+    return service_worker_;
+  }
 
   // Set maybe freeze callback.
   void set_maybefreeze_callback(const base::Closure& maybe_freeze_callback) {
     maybe_freeze_callback_ = maybe_freeze_callback;
   }
 
-  script::ScriptValueFactory* script_value_factory() {
-    return script_value_factory_;
+  web::EnvironmentSettings* environment_settings() const {
+    return environment_settings_;
   }
 
+  script::ScriptValueFactory* script_value_factory() {
+    return environment_settings()
+        ->context()
+        ->global_environment()
+        ->script_value_factory();
+  }
+
+  DEFINE_WRAPPABLE_TYPE(NavigatorBase);
+
+ protected:
+  ~NavigatorBase() override;
+
  private:
+  web::EnvironmentSettings* environment_settings_;
   std::string user_agent_;
   scoped_refptr<NavigatorUAData> user_agent_data_;
   std::string language_;
   scoped_refptr<worker::ServiceWorkerContainer> service_worker_;
-  script::ScriptValueFactory* script_value_factory_;
 
   base::Closure maybe_freeze_callback_;
 };

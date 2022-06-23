@@ -39,15 +39,15 @@ class ServiceWorkerContainer : public web::EventTarget {
  public:
   explicit ServiceWorkerContainer(script::EnvironmentSettings* settings);
 
-  scoped_refptr<ServiceWorker> controller() { return controller_; }
-  script::Handle<script::PromiseWrappable> ready();
+  // https://w3c.github.io/ServiceWorker/#navigator-service-worker-controller
+  scoped_refptr<ServiceWorker> controller();
+  script::HandlePromiseWrappable ready();
 
-  script::Handle<script::PromiseWrappable> Register(const std::string& url);
-  script::Handle<script::PromiseWrappable> Register(
-      const std::string& url, const RegistrationOptions& options);
-  script::Handle<script::PromiseWrappable> GetRegistration(
-      const std::string& url);
-  script::Handle<script::PromiseSequenceWrappable> GetRegistrations();
+  script::HandlePromiseWrappable Register(const std::string& url);
+  script::HandlePromiseWrappable Register(const std::string& url,
+                                          const RegistrationOptions& options);
+  script::HandlePromiseWrappable GetRegistration(const std::string& url);
+  script::HandlePromiseSequenceWrappable GetRegistrations();
 
   void StartMessages();
 
@@ -58,32 +58,24 @@ class ServiceWorkerContainer : public web::EventTarget {
     SetAttributeEventListener(base::Tokens::controllerchange(), event_listener);
   }
 
-  const EventListenerScriptValue* onmessage() const {
-    return GetAttributeEventListener(base::Tokens::message());
-  }
-  void set_onmessage(const EventListenerScriptValue& event_listener) {
-    SetAttributeEventListener(base::Tokens::message(), event_listener);
-  }
-
-  const EventListenerScriptValue* onmessageerror() const {
-    return GetAttributeEventListener(base::Tokens::messageerror());
-  }
-  void set_onmessageerror(const EventListenerScriptValue& event_listener) {
-    SetAttributeEventListener(base::Tokens::messageerror(), event_listener);
-  }
+  void MaybeResolveReadyPromise(ServiceWorkerRegistrationObject* registration);
 
   DEFINE_WRAPPABLE_TYPE(ServiceWorkerContainer);
 
  private:
+  ~ServiceWorkerContainer() override = default;
+
+  void ReadyPromiseTask();
+
   void GetRegistrationTask(
       const std::string& url,
       std::unique_ptr<script::ValuePromiseWrappable::Reference>
           promise_reference);
 
-  scoped_refptr<ServiceWorker> controller_;
   scoped_refptr<ServiceWorker> ready_;
 
-  ~ServiceWorkerContainer() override = default;
+  script::HandlePromiseWrappable ready_promise_;
+  std::unique_ptr<script::ValuePromiseWrappable::Reference> promise_reference_;
 };
 
 }  // namespace worker

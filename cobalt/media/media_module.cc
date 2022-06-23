@@ -128,8 +128,8 @@ class CanPlayTypeHandlerStarboard : public CanPlayTypeHandler {
     } else {
       support_type = CanPlayType(mime_type, "");
     }
-    metrics.RecordQuery("HTMLMediaElement::canPlayType", mime_type, "",
-                        support_type);
+    metrics.RecordAndLogQuery("HTMLMediaElement::canPlayType", mime_type, "",
+                              support_type);
     return support_type;
   }
 
@@ -138,8 +138,8 @@ class CanPlayTypeHandlerStarboard : public CanPlayTypeHandler {
       const std::string& key_system) const override {
     media::FormatSupportQueryMetrics metrics;
     SbMediaSupportType support_type = CanPlayType(mime_type, key_system);
-    metrics.RecordQuery("MediaSource::IsTypeSupported", mime_type, key_system,
-                        support_type);
+    metrics.RecordAndLogQuery("MediaSource::IsTypeSupported", mime_type,
+                              key_system, support_type);
     return support_type;
   }
 

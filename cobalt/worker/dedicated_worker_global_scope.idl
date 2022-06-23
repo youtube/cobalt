@@ -14,7 +14,10 @@
 
 // https://html.spec.whatwg.org/multipage/workers.html#dedicated-workers-and-the-dedicatedworkerglobalscope-interface
 
-[Global] interface DedicatedWorkerGlobalScope : WorkerGlobalScope {
+[
+  Global = (Worker,DedicatedWorker),
+  Exposed = DedicatedWorker,
+] interface DedicatedWorkerGlobalScope : WorkerGlobalScope {
   [Replaceable] readonly attribute DOMString name;
 
   void postMessage(USVString message);

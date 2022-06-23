@@ -1,8 +1,0 @@
-uniform half4 colorWhite, colorGreen, colorRed;
-
-half4 main(float2 coords) {
-    half2 x = colorWhite.rg;
-    x = +x;
-    x = -x;
-    return x == half2(-1) ? colorGreen : colorRed;
-}

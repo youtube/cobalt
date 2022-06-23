@@ -50,10 +50,6 @@ class StringWriterDelegate : public WriterDelegate {
 
   void SetTimeModified(const base::Time& time) override;
 
-#if defined(STARBOARD)
-  bool IsSuccessful();
-#endif
-
  private:
   size_t max_read_bytes_;
   std::string* output_;
@@ -73,12 +69,6 @@ StringWriterDelegate::~StringWriterDelegate() {
 bool StringWriterDelegate::PrepareOutput() {
   return true;
 }
-
-#if defined(STARBOARD)
-bool StringWriterDelegate::IsSuccessful() {
-  return true;
-}
-#endif
 
 bool StringWriterDelegate::WriteBytes(const char* data, int num_bytes) {
   if (output_->size() + num_bytes > max_read_bytes_)
@@ -299,7 +289,7 @@ bool ZipReader::ExtractCurrentEntry(WriterDelegate* delegate,
     delegate->SetTimeModified(current_entry_info()->last_modified());
   }
 
-  return entire_file_extracted && delegate->IsSuccessful();
+  return entire_file_extracted;
 }
 
 void ZipReader::ExtractCurrentEntryToFilePathAsync(
@@ -477,12 +467,6 @@ bool FileWriterDelegate::PrepareOutput() {
   return file_->Seek(base::File::FROM_BEGIN, 0) >= 0;
 }
 
-#if defined(STARBOARD)
-bool FileWriterDelegate::IsSuccessful() {
-  return true;
-}
-#endif
-
 bool FileWriterDelegate::WriteBytes(const char* data, int num_bytes) {
   int bytes_written = file_->WriteAtCurrentPos(data, num_bytes);
   if (bytes_written > 0)
@@ -512,12 +496,6 @@ bool FilePathWriterDelegate::PrepareOutput() {
                    base::File::FLAG_CREATE_ALWAYS | base::File::FLAG_WRITE);
   return file_.IsValid();
 }
-
-#ifdef STARBOARD
-bool FilePathWriterDelegate::IsSuccessful() {
-  return true;
-}
-#endif
 
 bool FilePathWriterDelegate::WriteBytes(const char* data, int num_bytes) {
   return num_bytes == file_.WriteAtCurrentPos(data, num_bytes);

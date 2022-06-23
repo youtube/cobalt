@@ -390,8 +390,6 @@ class WebModule::Impl {
   // tracker are contained within it.
   std::unique_ptr<browser::WebModuleStatTracker> web_module_stat_tracker_;
 
-  std::unique_ptr<browser::UserAgentPlatformInfo> platform_info_;
-
   // Post and run tasks to notify MutationObservers.
   dom::MutationObserverTaskManager mutation_observer_task_manager_;
 
@@ -568,9 +566,6 @@ WebModule::Impl::Impl(web::Context* web_context, const ConstructionData& data)
       web_context_->name(), data.options.track_event_stats));
   DCHECK(web_module_stat_tracker_);
 
-  platform_info_.reset(new browser::UserAgentPlatformInfo());
-  DCHECK(platform_info_);
-
   media_source_registry_.reset(new dom::MediaSource::Registry);
 
   const media::DecoderBufferMemoryInfo* memory_info = nullptr;
@@ -588,6 +583,7 @@ WebModule::Impl::Impl(web::Context* web_context, const ConstructionData& data)
       data.can_play_type_handler, memory_info, &mutation_observer_task_manager_,
       data.options.dom_settings_options));
   DCHECK(web_context_->environment_settings());
+  web_context_->environment_settings()->set_base_url(data.initial_url);
 
   system_caption_settings_ = new cobalt::dom::captions::SystemCaptionSettings(
       web_context_->environment_settings());
@@ -617,8 +613,6 @@ WebModule::Impl::Impl(web::Context* web_context, const ConstructionData& data)
       base::CommandLine::ForCurrentProcess()->HasSwitch(switches::kUseTTS);
 #endif
 
-  std::unique_ptr<UserAgentPlatformInfo> platform_info(
-      new UserAgentPlatformInfo());
   DCHECK(web_context_->network_module());
   window_ = new dom::Window(
       web_context_->environment_settings(), data.window_dimensions,
@@ -631,9 +625,7 @@ WebModule::Impl::Impl(web::Context* web_context, const ConstructionData& data)
       web_context_->execution_state(), web_context_->script_runner(),
       web_context_->global_environment()->script_value_factory(),
       media_source_registry_.get(),
-      web_module_stat_tracker_->dom_stat_tracker(), data.initial_url,
-      web_context_->network_module()->GetUserAgent(), platform_info_.get(),
-      web_context_->network_module()->preferred_language(),
+      web_module_stat_tracker_->dom_stat_tracker(),
       base::GetSystemLanguageScript(), data.options.navigation_callback,
       base::Bind(&WebModule::Impl::OnLoadComplete, base::Unretained(this)),
       web_context_->network_module()->cookie_jar(),
@@ -783,7 +775,6 @@ WebModule::Impl::~Impl() {
   window_ = NULL;
   media_source_registry_.reset();
   web_context_->ShutDownJavaScriptEngine();
-  platform_info_.reset();
   local_storage_database_.reset();
   mesh_cache_.reset();
   remote_typeface_cache_.reset();

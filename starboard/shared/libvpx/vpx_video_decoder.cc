@@ -237,14 +237,11 @@ void VideoDecoder::DecodeOneBuffer(
     return;
   }
 
-  SB_DCHECK(vpx_image->stride[VPX_PLANE_Y] ==
-            vpx_image->stride[VPX_PLANE_U] * 2);
   SB_DCHECK(vpx_image->stride[VPX_PLANE_U] == vpx_image->stride[VPX_PLANE_V]);
   SB_DCHECK(vpx_image->planes[VPX_PLANE_Y] < vpx_image->planes[VPX_PLANE_U]);
   SB_DCHECK(vpx_image->planes[VPX_PLANE_U] < vpx_image->planes[VPX_PLANE_V]);
 
-  if (vpx_image->stride[VPX_PLANE_Y] != vpx_image->stride[VPX_PLANE_U] * 2 ||
-      vpx_image->stride[VPX_PLANE_U] != vpx_image->stride[VPX_PLANE_V] ||
+  if (vpx_image->stride[VPX_PLANE_U] != vpx_image->stride[VPX_PLANE_V] ||
       vpx_image->planes[VPX_PLANE_Y] >= vpx_image->planes[VPX_PLANE_U] ||
       vpx_image->planes[VPX_PLANE_U] >= vpx_image->planes[VPX_PLANE_V]) {
     ReportError("Unsupported yuv plane format.");
@@ -256,8 +253,9 @@ void VideoDecoder::DecodeOneBuffer(
   // UV planes have half resolution both vertically and horizontally.
   scoped_refptr<CpuVideoFrame> frame = CpuVideoFrame::CreateYV12Frame(
       vpx_image->bit_depth, current_frame_width_, current_frame_height_,
-      vpx_image->stride[VPX_PLANE_Y], timestamp, vpx_image->planes[VPX_PLANE_Y],
-      vpx_image->planes[VPX_PLANE_U], vpx_image->planes[VPX_PLANE_V]);
+      vpx_image->stride[VPX_PLANE_Y], vpx_image->stride[VPX_PLANE_U], timestamp,
+      vpx_image->planes[VPX_PLANE_Y], vpx_image->planes[VPX_PLANE_U],
+      vpx_image->planes[VPX_PLANE_V]);
   if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
     ScopedLock lock(decode_target_mutex_);
     frames_.push(frame);

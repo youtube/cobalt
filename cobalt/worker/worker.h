@@ -64,22 +64,17 @@ class Worker : public base::MessageLoop::DestructionObserver {
     // Parameters from 'Run a worker' step 9.1 in the spec.
     //   https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#dom-worker
     GURL url;
-    web::EnvironmentSettings* outside_settings;
-    MessagePort* outside_port;
+    web::EnvironmentSettings* outside_settings = nullptr;
+    MessagePort* outside_port = nullptr;
     WorkerOptions options;
   };
 
-  Worker();
+  explicit Worker(const Options& options);
   ~Worker();
   Worker(const Worker&) = delete;
   Worker& operator=(const Worker&) = delete;
 
-  // Start the worker thread. Returns true if successful.
-  bool Run(const Options& options);
-
   void Terminate();
-
-  void ClearAllIntervalsAndTimeouts();
 
   MessagePort* message_port() const { return message_port_.get(); }
 
@@ -96,7 +91,7 @@ class Worker : public base::MessageLoop::DestructionObserver {
  private:
   // Called by |Run| to perform initialization required on the dedicated
   // thread.
-  void Initialize(const Options& options, web::Context* context);
+  void Initialize(web::Context* context);
 
   void OnContentProduced(const loader::Origin& last_url_origin,
                          std::unique_ptr<std::string> content);
@@ -106,6 +101,8 @@ class Worker : public base::MessageLoop::DestructionObserver {
   void Obtain();
   void Execute(const std::string& content,
                const base::SourceLocation& script_location);
+
+  void Abort();
 
   web::Agent* web_agent() const { return web_agent_.get(); }
 
@@ -117,9 +114,11 @@ class Worker : public base::MessageLoop::DestructionObserver {
   // The Web Context includes the Script Agent and Realm.
   std::unique_ptr<web::Agent> web_agent_;
 
-  web::Context* web_context_;
+  web::Context* web_context_ = nullptr;
 
-  bool is_shared_;
+  Options options_;
+
+  bool is_shared_ = false;
 
   scoped_refptr<WorkerGlobalScope> worker_global_scope_;
 

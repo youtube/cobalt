@@ -24,6 +24,7 @@
 #include "cobalt/browser/splash_screen_cache.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/loader/cache_fetcher.h"
+#include "cobalt/web/user_agent_platform_info.h"
 
 namespace cobalt {
 namespace browser {
@@ -50,6 +51,7 @@ void OnError(const GURL& url, const std::string& error) { LOG(ERROR) << error; }
 }  // namespace
 
 SplashScreen::SplashScreen(
+    web::UserAgentPlatformInfo* platform_info,
     base::ApplicationState initial_application_state,
     const WebModule::OnRenderTreeProducedCallback&
         render_tree_produced_callback,
@@ -101,6 +103,7 @@ SplashScreen::SplashScreen(
   web_module_options.maybe_freeze_callback = maybe_freeze_callback;
 
   web_module_options.web_options.network_module = network_module;
+  web_module_options.web_options.platform_info = platform_info;
 
   DCHECK(url_to_pass);
   web_module_.reset(new WebModule(

@@ -92,8 +92,6 @@ extern const char kWebDriverPort[];
 extern const char kWebDriverPortHelp[];
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
-extern const char kCompressUpdate[];
-extern const char kCompressUpdateHelp[];
 extern const char kDisableJavaScriptJit[];
 extern const char kDisableJavaScriptJitHelp[];
 extern const char kDisableMapToMesh[];
@@ -149,6 +147,8 @@ extern const char kFallbackSplashScreenTopics[];
 extern const char kFallbackSplashScreenTopicsHelp[];
 extern const char kUpdateCheckDelaySeconds[];
 extern const char kUpdateCheckDelaySecondsHelp[];
+extern const char kUseCompressedUpdates[];
+extern const char kUseCompressedUpdatesHelp[];
 extern const char kUseQAUpdateServer[];
 extern const char kUseQAUpdateServerHelp[];
 extern const char kVersion[];

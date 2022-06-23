@@ -1,1 +1,0 @@
-void outside_while()   { while(true) {} if (true) break; }

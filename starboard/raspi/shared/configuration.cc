@@ -32,7 +32,7 @@ int CobaltSkiaGlyphAtlasHeight() {
 }
 const CobaltExtensionConfigurationApi kConfigurationApi = {
     kCobaltExtensionConfigurationName,
-    2,
+    3,
     &common::CobaltUserOnExitStrategyDefault,
     &common::CobaltRenderDirtyRegionOnlyDefault,
     &common::CobaltEglSwapIntervalDefault,
@@ -56,6 +56,7 @@ const CobaltExtensionConfigurationApi kConfigurationApi = {
     &common::CobaltRasterizerTypeDefault,
     &common::CobaltEnableJitDefault,
     &common::CobaltFallbackSplashScreenTopicsDefault,
+    &common::CobaltCanStoreCompiledJavascriptDefault,
 };
 
 }  // namespace

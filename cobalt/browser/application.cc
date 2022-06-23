@@ -97,6 +97,8 @@ const char kDefaultURL[] = "https://www.youtube.com/tv";
 const char kAboutBlankURL[] = "about:blank";
 #endif  // defined(ENABLE_ABOUT_SCHEME)
 
+const char kPersistentSettingsJson[] = "settings.json";
+
 bool IsStringNone(const std::string& str) {
   return !base::strcasecmp(str.c_str(), "none");
 }
@@ -581,9 +583,6 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
           kMemoryTrackerCommandShortHelp, kMemoryTrackerCommandLongHelp))
 #endif  // defined(ENABLE_DEBUGGER) && defined(STARBOARD_ALLOWS_MEMORY_TRACKING)
 {
-  watchdog::Watchdog* watchdog = watchdog::Watchdog::CreateInstance();
-  DCHECK(watchdog);
-
   DCHECK(!quit_closure_.is_null());
   if (should_preload) {
     preload_timestamp_ = timestamp;
@@ -640,6 +639,15 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
   // URLRequestContext;
   base::TaskScheduler::CreateAndStartWithDefaultParams("Cobalt TaskScheduler");
 
+  // Initializes persistent settings.
+  persistent_settings_ =
+      std::make_unique<persistent_storage::PersistentSettings>(
+          kPersistentSettingsJson, message_loop_->task_runner());
+
+  watchdog::Watchdog* watchdog =
+      watchdog::Watchdog::CreateInstance(persistent_settings_.get());
+  DCHECK(watchdog);
+
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
   base::Optional<cssom::ViewportSize> requested_viewport_size =
       GetRequestedViewportSize(command_line);
@@ -653,6 +661,7 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
   // Create the main components of our browser.
   BrowserModule::Options options(web_options);
   network_module_options.preferred_language = language;
+  options.persistent_settings = persistent_settings_.get();
   options.command_line_auto_mem_settings =
       memory_settings::GetSettings(*command_line);
   options.build_auto_mem_settings = memory_settings::GetDefaultBuildSettings();
@@ -851,7 +860,7 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
 #if SB_IS(EVERGREEN)
       updater_module_.get(),
 #endif
-      options));
+      options, persistent_settings_.get()));
 
   UpdateUserAgent();
 

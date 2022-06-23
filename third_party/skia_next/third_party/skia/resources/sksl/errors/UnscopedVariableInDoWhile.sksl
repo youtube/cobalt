@@ -1,3 +1,0 @@
-void main() {
-    do int foo = 1, bar = foo; while (false);
-}

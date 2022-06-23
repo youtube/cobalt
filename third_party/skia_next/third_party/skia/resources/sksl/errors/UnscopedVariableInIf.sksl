@@ -1,3 +1,0 @@
-void main() {
-    if (true) half4 x;
-}

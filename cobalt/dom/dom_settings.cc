@@ -28,7 +28,7 @@ DOMSettings::DOMSettings(
     const media::DecoderBufferMemoryInfo* decoder_buffer_memory_info,
     MutationObserverTaskManager* mutation_observer_task_manager,
     const Options& options)
-    : EnvironmentSettings(debugger_hooks),
+    : web::EnvironmentSettings(debugger_hooks),
       max_dom_element_depth_(max_dom_element_depth),
       microphone_options_(options.microphone_options),
       media_source_registry_(media_source_registry),

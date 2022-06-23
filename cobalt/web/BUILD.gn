@@ -70,6 +70,8 @@ static_library("web") {
     "csp_violation_reporter.cc",
     "csp_violation_reporter.h",
     "location_base.h",
+    "message_event.cc",
+    "message_event.h",
     "navigator_base.cc",
     "navigator_base.h",
     "navigator_ua_data.cc",
@@ -108,6 +110,23 @@ static_library("web") {
   ]
 }
 
+static_library("window_timers") {
+  has_pedantic_warnings = true
+
+  sources = [
+    "window_timers.cc",
+    "window_timers.h",
+  ]
+
+  deps = [
+    ":stat_tracker",
+    ":web_events",
+    "//cobalt/base",
+    "//cobalt/script",
+    "//nb",
+  ]
+}
+
 static_library("stat_tracker") {
   has_pedantic_warnings = true
 
@@ -141,12 +160,16 @@ target(gtest_target_type, "web_test") {
     "error_event_test.cc",
     "event_target_test.cc",
     "event_test.cc",
+    "message_event_test.cc",
     "url_test.cc",
     "url_utils_test.cc",
+    "window_timers_test.cc",
   ]
 
   deps = [
+    ":stat_tracker",
     ":web",
+    ":window_timers",
     "//cobalt/base",
     "//cobalt/browser:browser",
     "//cobalt/browser:generated_bindings",

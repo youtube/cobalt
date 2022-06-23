@@ -17,7 +17,6 @@
 """Cross-platform unit test runner."""
 
 import argparse
-import json
 import logging
 import os
 import re
@@ -34,6 +33,7 @@ from starboard.tools import command_line
 from starboard.tools import paths
 from starboard.tools.testing import build_tests
 from starboard.tools.testing import test_filter
+from starboard.tools.testing.test_sharding import ShardingTestConfig
 from starboard.tools.util import SetupDefaultLoggingConfig
 
 _FLAKY_RETRY_LIMIT = 4
@@ -281,14 +281,10 @@ class TestRunner(object):
 
     # Read the sharding configuration from deployed sharding configuration json.
     # Create subset of test targets, and launch params per target.
-    self.shard_config = None
-    if self.shard_index is not None:
-      with open(
-          os.path.join(self.out_directory, "sharding_configuration.json"),
-          "r") as f:
-        shard_json = json.loads(f.read())
-      full_config = shard_json[self.platform]
-      self.shard_config = full_config[self.shard_index]
+    try:
+      self.sharding_test_config = ShardingTestConfig(self.platform)
+    except RuntimeError:
+      self.sharding_test_config = None
 
   def _Exec(self, cmd_list, output_file=None):
     """Execute a command in a subprocess."""
@@ -785,24 +781,24 @@ class TestRunner(object):
     results = []
     # Sort the targets so they are run in alphabetical order
     for test_target in sorted(self.test_targets.keys()):
-      if self.shard_config:
-        if test_target in self.shard_config.keys():
-          test_shard_config = self.shard_config[test_target]
-          if test_shard_config == "*":
-            logging.info("SHARD %d RUNS TEST %s (full)", self.shard_index,
-                         test_target)
-            results.append(self._RunTest(test_target))
-          else:
-            sub_shard_index = test_shard_config[0] - 1
-            sub_shard_count = test_shard_config[1]
-            logging.info("SHARD %d RUNS TEST %s (%d of %d)", self.shard_index,
-                         test_target, sub_shard_index + 1, sub_shard_count)
-            results.append(
-                self._RunTest(
-                    test_target,
-                    shard_index=sub_shard_index,
-                    shard_count=sub_shard_count))
+      if (self.shard_index is not None) and self.sharding_test_config:
+        (run_action, sub_shard_index,
+         sub_shard_count) = self.sharding_test_config.GetTestRunConfig(
+             test_target, self.shard_index)
+        if run_action == ShardingTestConfig.RUN_FULL_TEST:
+          logging.info("SHARD %d RUNS TEST %s (full)", self.shard_index,
+                       test_target)
+          results.append(self._RunTest(test_target))
+        elif run_action == ShardingTestConfig.RUN_PARTIAL_TEST:
+          logging.info("SHARD %d RUNS TEST %s (%d of %d)", self.shard_index,
+                       test_target, sub_shard_index + 1, sub_shard_count)
+          results.append(
+              self._RunTest(
+                  test_target,
+                  shard_index=sub_shard_index,
+                  shard_count=sub_shard_count))
         else:
+          assert run_action == ShardingTestConfig.SKIP_TEST
           logging.info("SHARD %d SKIP TEST %s", self.shard_index, test_target)
       else:
         # Run all tests and cases serially. No sharding enabled.

@@ -22,43 +22,46 @@
 #include "base/memory/ptr_util.h"
 #include "base/memory/ref_counted.h"
 #include "base/message_loop/message_loop.h"
-#include "cobalt/dom/message_event.h"
+#include "base/task_runner.h"
 #include "cobalt/script/environment_settings.h"
+#include "cobalt/web/context.h"
 #include "cobalt/web/event.h"
 #include "cobalt/web/event_target.h"
+#include "cobalt/web/message_event.h"
 
 namespace cobalt {
 namespace worker {
 
-MessagePort::MessagePort(web::EventTarget* event_target,
-                         script::EnvironmentSettings* settings)
-    : event_target_(event_target),
-      message_loop_(base::MessageLoop::current()),
-      settings_(settings) {}
+MessagePort::MessagePort(web::EventTarget* event_target)
+    : event_target_(event_target) {}
 
-MessagePort::~MessagePort() {}
+MessagePort::~MessagePort() { event_target_ = nullptr; }
 
 void MessagePort::PostMessage(const std::string& messages) {
   // TODO: Forward the location of the origating API call to the PostTask call.
-  if (message_loop_) {
+  base::MessageLoop* message_loop =
+      event_target_->environment_settings()->context()->message_loop();
+  if (message_loop) {
     //   https://html.spec.whatwg.org/multipage/workers.html#handler-worker-onmessage
     // TODO: Update MessageEvent to support more types. (b/227665847)
     // TODO: Remove dependency of MessageEvent on net iobuffer (b/227665847)
-    scoped_refptr<net::IOBufferWithSize> buf =
-        base::WrapRefCounted(new net::IOBufferWithSize(messages.length()));
-    memcpy(buf->data(), messages.data(), messages.length());
-    scoped_refptr<dom::MessageEvent> event(new dom::MessageEvent(
-        base::Tokens::message(), dom::MessageEvent::kText, buf));
-    message_loop_->task_runner()->PostTask(
+    message_loop->task_runner()->PostTask(
         FROM_HERE,
-        base::Bind(&MessagePort::DispatchEvent, base::Unretained(this), event));
+        base::Bind(
+            [](web::EventTarget* event_target, const std::string& messages) {
+              scoped_refptr<net::IOBufferWithSize> buf = base::WrapRefCounted(
+                  new net::IOBufferWithSize(messages.length()));
+              memcpy(buf->data(), messages.data(), messages.length());
+              if (event_target) {
+                event_target->DispatchEvent(new web::MessageEvent(
+                    base::Tokens::message(), web::MessageEvent::kText, buf));
+              }
+              LOG_IF(WARNING, !event_target)
+                  << "MessagePort event not dispatched "
+                     "because there is no EventTarget.";
+            },
+            base::Unretained(event_target_), messages));
   }
-}
-
-void MessagePort::DispatchEvent(scoped_refptr<dom::MessageEvent> event) {
-  if (event_target_) event_target_->DispatchEvent(event);
-  LOG_IF(WARNING, !event_target_)
-      << "MessagePort event not dispatched because there is no EventTarget.";
 }
 
 }  // namespace worker

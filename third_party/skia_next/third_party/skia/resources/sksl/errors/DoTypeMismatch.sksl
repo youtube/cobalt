@@ -1,3 +1,0 @@
-void main() {
-    do {} while (float2(1));
-}

@@ -19,9 +19,9 @@
   ConstructorCallWith=EnvironmentSettings
 ] interface WorkerGlobalScope : EventTarget {
   readonly attribute WorkerGlobalScope self;
-  //readonly attribute WorkerLocation location;
-  //readonly attribute WorkerNavigator navigator;
-  void importScripts(USVString... urls);
+  readonly attribute WorkerLocation location;
+  readonly attribute WorkerNavigator navigator;
+  [RaisesException] void importScripts(USVString... urls);
 
   attribute OnErrorEventHandler onerror;
   attribute EventHandler onlanguagechange;

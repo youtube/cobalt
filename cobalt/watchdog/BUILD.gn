@@ -21,6 +21,7 @@ static_library("watchdog") {
   deps = [
     "//base",
     "//cobalt/browser:browser_switches",
+    "//cobalt/persistent_storage:persistent_settings",
     "//starboard/common",
   ]
 }

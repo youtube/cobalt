@@ -35,6 +35,16 @@ function assertEqual(expected, result) {
   }
 }
 
+function assertIncludes(expected, result) {
+  if (!result || !result.includes(expected)) {
+    console.log('\n' +
+      'Black Box Test Equal Test Assertion failed: \n' +
+      'expected includes: ' + expected + '\n' +
+      'but got:  ' + result);
+    notReached();
+  }
+}
+
 function assertNotEqual(expected, result) {
   if (expected === result) {
     console.log('\n' +

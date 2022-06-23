@@ -63,8 +63,8 @@ class ServiceWorkerRegistration : public web::EventTarget {
   void EnableNavigationPreload(bool enable);
   void SetNavigationPreloadHeader();
 
-  script::Handle<script::Promise<void>> Update();
-  script::Handle<script::Promise<void>> Unregister();
+  script::HandlePromiseWrappable Update();
+  script::HandlePromiseBool Unregister();
 
   const EventListenerScriptValue* onupdatefound() const {
     return GetAttributeEventListener(base::Tokens::updatefound());
@@ -77,6 +77,12 @@ class ServiceWorkerRegistration : public web::EventTarget {
   DEFINE_WRAPPABLE_TYPE(ServiceWorkerRegistration);
 
  private:
+  void UpdateTask(std::unique_ptr<script::ValuePromiseWrappable::Reference>
+                      promise_reference);
+
+  void UnregisterTask(
+      std::unique_ptr<script::ValuePromiseBool::Reference> promise_reference);
+
   worker::ServiceWorkerRegistrationObject* registration_;
   scoped_refptr<ServiceWorker> installing_;
   scoped_refptr<ServiceWorker> waiting_;

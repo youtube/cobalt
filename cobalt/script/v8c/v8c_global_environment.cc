@@ -471,64 +471,52 @@ v8::MaybeLocal<v8::Script> V8cGlobalEnvironment::CompileWithCaching(
       /*resource_is_shared_cross_origin=*/
       v8::Boolean::New(isolate_, v8c_source_code->is_muted()));
 
-  DLOG(INFO) << "CompileWithCaching: " << v8c_source_code->location().file_path;
-
-  bool successful_cache = false;
-
   std::string javascript_engine_version =
       script::GetJavaScriptEngineNameAndVersion();
   uint32_t javascript_cache_key = CreateJavaScriptCacheKey(
       javascript_engine_version, v8::ScriptCompiler::CachedDataVersionTag(),
       v8c_source_code->source_utf8(), source_location.file_path);
-  base::Optional<std::vector<uint8_t>> cached_data =
-      cobalt::cache::Cache::GetInstance()->Retrieve(
-          javascript_cache_key, disk_cache::ResourceType::kCompiledScript);
-  v8::Local<v8::Script> script;
-  if (cached_data) {
-    DLOG(INFO) << "CompileWithCaching: Using cached resource";
-    v8::ScriptCompiler::CachedData* cached_code =
-        new v8::ScriptCompiler::CachedData(
-            cached_data->data(), cached_data->size(),
-            v8::ScriptCompiler::CachedData::BufferNotOwned);
-    // The script_source owns the cached_code object.
-    v8::ScriptCompiler::Source script_source(source, script_origin,
-                                             cached_code);
-
-    {
-      TRACE_EVENT0("cobalt::script", "v8::Script::Compile()");
-      successful_cache =
-          v8::ScriptCompiler::Compile(context, &script_source,
-                                      v8::ScriptCompiler::kConsumeCodeCache)
-              .ToLocal(&script) &&
-          !cached_code->rejected;
-      if (!successful_cache) {
-        LOG(WARNING)
-            << "CompileWithCaching: Failed to reuse the cached script rejected="
-            << cached_code->rejected;
-      }
+  auto retrieved_cached_data = cobalt::cache::Cache::GetInstance()->Retrieve(
+      disk_cache::ResourceType::kCompiledScript, javascript_cache_key,
+      [&]() -> std::unique_ptr<std::vector<uint8_t>> {
+        v8::Local<v8::Script> script;
+        {
+          TRACE_EVENT0("cobalt::script", "v8::Script::Compile()");
+          if (!v8::Script::Compile(context, source, &script_origin)
+                   .ToLocal(&script)) {
+            return nullptr;
+          }
+        }
+        std::unique_ptr<v8::ScriptCompiler::CachedData> cached_data(
+            v8::ScriptCompiler::CreateCodeCache(script->GetUnboundScript()));
+        return std::make_unique<std::vector<uint8_t>>(
+            cached_data->data, cached_data->data + cached_data->length);
+      });
+  if (!retrieved_cached_data) {
+    return {};
+  }
+  v8::ScriptCompiler::CachedData* cached_code =
+      new v8::ScriptCompiler::CachedData(
+          retrieved_cached_data->data(), retrieved_cached_data->size(),
+          v8::ScriptCompiler::CachedData::BufferNotOwned);
+  // The script_source owns the cached_code object.
+  v8::ScriptCompiler::Source script_source(source, script_origin, cached_code);
+  {
+    TRACE_EVENT0("cobalt::script", "v8::Script::Compile()");
+    v8::Local<v8::Script> script;
+    if (v8::ScriptCompiler::Compile(context, &script_source,
+                                    v8::ScriptCompiler::kConsumeCodeCache)
+            .ToLocal(&script) &&
+        !cached_code->rejected) {
+      return script;
     }
   }
-
-  if (!successful_cache) {
-    DLOG(INFO) << "CompileWithCaching: compile";
-    {
-      TRACE_EVENT0("cobalt::script", "v8::Script::Compile()");
-      if (!v8::Script::Compile(context, source, &script_origin)
-               .ToLocal(&script)) {
-        LOG(WARNING) << "CompileWithCaching: Failed to compile script.";
-        return {};
-      }
-    }
-    std::unique_ptr<v8::ScriptCompiler::CachedData> cached_data(
-        v8::ScriptCompiler::CreateCodeCache(script->GetUnboundScript()));
-    if (!cobalt::cache::Cache::GetInstance()->Store(
-            javascript_cache_key, disk_cache::ResourceType::kCompiledScript,
-            std::vector<uint8_t>(cached_data->data,
-                                 cached_data->data + cached_data->length))) {
-      LOG(WARNING) << "CompileWithCaching: Failed to store cached script";
-    }
-  }
-  return script;
+  cobalt::cache::Cache::GetInstance()->Delete(
+      disk_cache::ResourceType::kCompiledScript, javascript_cache_key);
+  LOG(WARNING)
+      << "CompileWithCaching: Failed to reuse the cached script rejected="
+      << cached_code->rejected << ", key=" << javascript_cache_key;
+  return {};
 }
 
 void V8cGlobalEnvironment::EvaluateEmbeddedScript(const unsigned char* data,

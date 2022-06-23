@@ -122,6 +122,7 @@ class MediaSource : public web::EventTarget {
   bool IsOpen() const;
   void SetSourceBufferActive(SourceBuffer* source_buffer, bool is_active);
   HTMLMediaElement* GetMediaElement() const;
+  bool MediaElementHasMaxVideoCapabilities() const;
 
   DEFINE_WRAPPABLE_TYPE(MediaSource);
   void TraceMembers(script::Tracer* tracer) override;
@@ -140,6 +141,8 @@ class MediaSource : public web::EventTarget {
   scoped_refptr<SourceBufferList> active_source_buffers_;
 
   scoped_refptr<TimeRanges> live_seekable_range_;
+
+  bool has_max_video_capabilities_ = false;
 };
 
 }  // namespace dom

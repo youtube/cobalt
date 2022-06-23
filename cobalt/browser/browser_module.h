@@ -46,6 +46,7 @@
 #include "cobalt/browser/suspend_fuzzer.h"
 #include "cobalt/browser/system_platform_error_handler.h"
 #include "cobalt/browser/url_handler.h"
+#include "cobalt/browser/user_agent_platform_info.h"
 #include "cobalt/browser/web_module.h"
 #include "cobalt/cssom/viewport_size.h"
 #include "cobalt/dom/input_event_init.h"
@@ -59,6 +60,7 @@
 #include "cobalt/media/media_module.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/overlay_info/qr_code_overlay.h"
+#include "cobalt/persistent_storage/persistent_settings.h"
 #include "cobalt/render_tree/node.h"
 #include "cobalt/render_tree/resource_provider.h"
 #include "cobalt/render_tree/resource_provider_stub.h"
@@ -106,6 +108,7 @@ class BrowserModule {
     renderer::RendererModule::Options renderer_module_options;
     WebModule::Options web_module_options;
     media::MediaModule::Options media_module_options;
+    persistent_storage::PersistentSettings* persistent_settings;
     WebModuleCreatedCallback web_module_created_callback;
     memory_settings::AutoMemSettings command_line_auto_mem_settings;
     memory_settings::AutoMemSettings build_auto_mem_settings;
@@ -128,7 +131,8 @@ class BrowserModule {
 #if SB_IS(EVERGREEN)
                 updater::UpdaterModule* updater_module,
 #endif
-                const Options& options);
+                const Options& options,
+                persistent_storage::PersistentSettings* persistent_settings);
   ~BrowserModule();
 
   std::string GetUserAgent() { return network_module_->GetUserAgent(); }
@@ -716,8 +720,12 @@ class BrowserModule {
   // and reuse this value to recreate the window.
   math::Size window_size_;
 
+  std::unique_ptr<browser::UserAgentPlatformInfo> platform_info_;
+
   // Manages the Service Workers.
   ServiceWorkerRegistry service_worker_registry_;
+
+  persistent_storage::PersistentSettings* persistent_settings_;
 };
 
 }  // namespace browser

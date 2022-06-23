@@ -15,72 +15,34 @@
 #include <string>
 
 #include "base/bind.h"
-#include "base/callback.h"
-#include "base/optional.h"
 #include "cobalt/bindings/testing/utils.h"
 #include "cobalt/browser/user_agent_platform_info.h"
-#include "cobalt/css_parser/parser.h"
-#include "cobalt/cssom/viewport_size.h"
-#include "cobalt/dom/global_stats.h"
-#include "cobalt/dom/local_storage_database.h"
 #include "cobalt/dom/navigator.h"
-#include "cobalt/dom/testing/stub_environment_settings.h"
-#include "cobalt/dom/window.h"
-#include "cobalt/dom_parser/parser.h"
+#include "cobalt/dom/testing/stub_window.h"
+#include "cobalt/dom/testing/test_with_javascript.h"
 #include "cobalt/h5vcc/h5vcc.h"
-#include "cobalt/loader/fetcher_factory.h"
-#include "cobalt/loader/loader_factory.h"
-#include "cobalt/script/global_environment.h"
-#include "cobalt/script/javascript_engine.h"
-#include "cobalt/script/source_code.h"
 #include "cobalt/web/navigator_ua_data.h"
 #include "cobalt/web/testing/gtest_workarounds.h"
+#include "cobalt/web/testing/stub_web_context.h"
 #include "testing/gtest/include/gtest/gtest.h"
-
-using cobalt::cssom::ViewportSize;
 
 namespace cobalt {
 namespace dom {
 
 namespace {
 
-class UserAgentDataTest : public ::testing::Test {
+class UserAgentDataTest : public testing::TestWithJavaScript {
  public:
-  UserAgentDataTest()
-      : environment_settings_(new testing::StubEnvironmentSettings),
-        css_parser_(css_parser::Parser::Create()),
-        dom_parser_(
-            new dom_parser::Parser(base::Bind(&StubLoadCompleteCallback))),
-        fetcher_factory_(new loader::FetcherFactory(NULL)),
-        loader_factory_(new loader::LoaderFactory(
-            "Test", fetcher_factory_.get(), NULL, null_debugger_hooks_, 0,
-            base::ThreadPriority::DEFAULT)),
-        local_storage_database_(NULL),
-        url_("about:blank"),
-        engine_(script::JavaScriptEngine::CreateEngine()),
-        global_environment_(engine_->CreateGlobalEnvironment()) {
+  UserAgentDataTest() {
     InitializeEmptyPlatformInfo();
-    window_ = new Window(
-        environment_settings_.get(), ViewportSize(1920, 1080),
-        base::kApplicationStateStarted, css_parser_.get(), dom_parser_.get(),
-        fetcher_factory_.get(), loader_factory_.get(), NULL, NULL, NULL, NULL,
-        NULL, NULL, &local_storage_database_, NULL, NULL, NULL, NULL,
-        global_environment_->script_value_factory() /* script_value_factory */,
-        NULL, NULL, url_, "", platform_info_.get(), "en-US", "en",
-        base::Callback<void(const GURL&)>(),
-        base::Bind(&StubLoadCompleteCallback), NULL,
-        network_bridge::PostSender(), csp::kCSPRequired,
-        web::kCspEnforcementEnable, base::Closure() /* csp_policy_changed */,
-        base::Closure() /* ran_animation_frame_callbacks */,
-        dom::Window::CloseCallback() /* window_close */,
-        base::Closure() /* window_minimize */, NULL, NULL,
-        dom::Window::OnStartDispatchEventCallback(),
-        dom::Window::OnStopDispatchEventCallback(),
-        dom::ScreenshotManager::ProvideScreenshotFunctionCallback(), NULL);
 
-    // Make Navigator accessible via Window
-    global_environment_->CreateGlobalObject(window_,
-                                            environment_settings_.get());
+    web::testing::StubWebContext* stub_web_context =
+        new web::testing::StubWebContext();
+    stub_web_context->set_platform_info(platform_info_.get());
+    testing::StubWindow* stub_window = new testing::StubWindow(
+        DOMSettings::Options(), nullptr /* on_screen_keyboard_bridge */,
+        stub_web_context);
+    set_stub_window(stub_window);
 
     // Inject H5vcc interface to make it also accessible via Window
     h5vcc::H5vcc::Settings h5vcc_settings;
@@ -90,61 +52,24 @@ class UserAgentDataTest : public ::testing::Test {
     h5vcc_settings.updater_module = NULL;
 #endif
     h5vcc_settings.account_manager = NULL;
-    h5vcc_settings.event_dispatcher = &event_dispatcher_;
-    h5vcc_settings.user_agent_data = window_->navigator()->user_agent_data();
-    h5vcc_settings.global_environment = global_environment_;
-    global_environment_->Bind("h5vcc", scoped_refptr<script::Wrappable>(
-                                           new h5vcc::H5vcc(h5vcc_settings)));
+    h5vcc_settings.event_dispatcher = event_dispatcher();
+    h5vcc_settings.user_agent_data = window()->navigator()->user_agent_data();
+    h5vcc_settings.global_environment = global_environment();
+    global_environment()->Bind("h5vcc", scoped_refptr<script::Wrappable>(
+                                            new h5vcc::H5vcc(h5vcc_settings)));
   }
 
-  ~UserAgentDataTest() {
-    global_environment_->SetReportEvalCallback(base::Closure());
-    global_environment_->SetReportErrorCallback(
-        script::GlobalEnvironment::ReportErrorCallback());
-    window_->DispatchEvent(new web::Event(base::Tokens::unload()));
-
-    window_ = nullptr;
-    global_environment_ = nullptr;
-    EXPECT_TRUE(GlobalStats::GetInstance()->CheckNoLeaks());
-  }
-
-  bool EvaluateScript(const std::string& js_code, std::string* result);
+  ~UserAgentDataTest() {}
 
   void SetUp() override;
 
  private:
   static void StubLoadCompleteCallback(
       const base::Optional<std::string>& error) {}
-  const std::unique_ptr<testing::StubEnvironmentSettings> environment_settings_;
-  base::NullDebuggerHooks null_debugger_hooks_;
-  base::MessageLoop message_loop_;
-  std::unique_ptr<css_parser::Parser> css_parser_;
-  std::unique_ptr<dom_parser::Parser> dom_parser_;
-  std::unique_ptr<loader::FetcherFactory> fetcher_factory_;
-  std::unique_ptr<loader::LoaderFactory> loader_factory_;
-  dom::LocalStorageDatabase local_storage_database_;
-  GURL url_;
-  std::unique_ptr<script::JavaScriptEngine> engine_;
-  base::EventDispatcher event_dispatcher_;
-  scoped_refptr<script::GlobalEnvironment> global_environment_;
   std::unique_ptr<browser::UserAgentPlatformInfo> platform_info_;
-  scoped_refptr<Window> window_;
 
   void InitializeEmptyPlatformInfo();
 };
-
-bool UserAgentDataTest::EvaluateScript(const std::string& js_code,
-                                       std::string* result) {
-  DCHECK(global_environment_);
-  scoped_refptr<script::SourceCode> source_code =
-      script::SourceCode::CreateSourceCode(
-          js_code, base::SourceLocation(__FILE__, __LINE__, 1));
-
-  global_environment_->EnableEval();
-  global_environment_->SetReportEvalCallback(base::Closure());
-  bool succeeded = global_environment_->EvaluateScript(source_code, result);
-  return succeeded;
-}
 
 void UserAgentDataTest::SetUp() {
   // Let's first check that the Web API is by default disabled, and that the
