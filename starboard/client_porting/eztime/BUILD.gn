@@ -42,5 +42,5 @@ target(gtest_target_type, "eztime_test") {
     "//testing/gtest",
   ]
 
-  content_deps = [ "//third_party/icu:icudata" ]
+  data_deps = [ "//third_party/icu:icudata" ]
 }

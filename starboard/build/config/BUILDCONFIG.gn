@@ -197,9 +197,7 @@ template("loadable_module") {
 # content targets.
 import("//starboard/build/config/install.gni")
 
-# Set up the method of generating the install targets as defined by the
-# platform.
-import("$install_target_path")
+# Template for copying content files to the install directory.
 template("install_content") {
   target(invoker.target_type, target_name) {
     forward_variables_from(invoker, "*", [ "install_content" ])
@@ -209,12 +207,22 @@ template("install_content") {
   }
 
   if (defined(invoker.install_content) && invoker.install_content) {
+    # We're using a custom script to copy the files here because rebase_path
+    # can't be used with {{}} expansions in the outputs of a copy target.
     action("${target_name}_install_content") {
       forward_variables_from(invoker, [ "testonly" ])
 
       deps = [ ":${invoker.target_name}" ]
 
       sources = get_target_outputs(":${invoker.target_name}")
+
+      # List of files in metadata so they can be forwarded for bundling.
+      metadata = {
+        install_content = sources
+
+        # Don't inherit any metadata from upstream deps.
+        ignore_install_content = deps
+      }
 
       install_content_dir = "$sb_install_output_dir/$sb_install_content_subdir"
       outputs = []
@@ -242,6 +250,9 @@ template("install_content") {
   }
 }
 
+# Set up the method of generating the install targets as defined by the
+# platform.
+import("$install_target_path")
 template("action") {
   install_content(target_name) {
     forward_variables_from(invoker, "*")
@@ -266,68 +277,28 @@ template("copy") {
 template("executable") {
   target_with_platform_configs(target_name) {
     target_type = "executable"
-    forward_variables_from(invoker,
-                           "*",
-                           [
-                             "install_target",
-                             "content_deps",
-                           ])
+    forward_variables_from(invoker, "*", [ "install_target" ])
   }
 
   if (current_toolchain == default_toolchain &&
       (!defined(invoker.install_target) || invoker.install_target)) {
     executable_target_name = target_name
 
-    content_deps = []
-    if (defined(invoker.content_deps)) {
-      content_deps += invoker.content_deps
+    data_deps = []
+    if (defined(invoker.data_deps)) {
+      data_deps += invoker.data_deps
     }
     if (defined(platform_i18n_config_path)) {
-      content_deps += [ platform_i18n_config_path ]
+      data_deps += [ platform_i18n_config_path ]
     }
 
     if (separate_install_targets_for_bundling) {
-      bundle_deps = []
-      foreach(content_dep, content_deps) {
-        bundle_deps += [ "${content_dep}_install_content" ]
-      }
-
-      # TODO(b/220024845): Make this much better.
-      action("${executable_target_name}_bundle_content") {
+      import("//starboard/build/config/bundle_content.gni")
+      bundle_content("${executable_target_name}_bundle_content") {
         forward_variables_from(invoker, [ "testonly" ])
 
-        deps = [ ":$executable_target_name" ]
-        deps += bundle_deps
-
-        sources = []
-        foreach(bundle_dep, bundle_deps) {
-          # Split the target path and name. E.g. //path/to:target -> [ "//path/to", "target" ].
-          target_path_and_name = string_split(bundle_dep, ":")
-
-          # The content_dep target will place its file under the root gen dir.
-          content_dep_list_file = string_join("/",
-                                              [
-                                                root_gen_dir,
-                                                target_path_and_name[1],
-                                              ])
-          target_path_and_name = []
-
-          sources += [ "${content_dep_list_file}_files.tmp" ]
-        }
-
-        bundle_content_dir = "$sb_install_output_dir/$executable_target_name/$sb_install_content_subdir"
-
-        # TODO(b/220024845): We don't have the list of output files.
-        outputs = [ bundle_content_dir ]
-
-        script = "//starboard/build/copy_bundle_content.py"
-        args = [
-          "--output_dir",
-          rebase_path(bundle_content_dir, root_build_dir),
-          "--base_dir",
-          rebase_path(sb_static_contents_output_data_dir, root_build_dir),
-        ]
-        args += rebase_path(sources, root_build_dir)
+        bundle_name = executable_target_name
+        bundle_deps = data_deps
       }
     }
 
@@ -339,11 +310,11 @@ template("executable") {
       if (defined(invoker.deps)) {
         deps += invoker.deps
       }
+      foreach(dep, data_deps) {
+        deps += [ "${dep}_install_content" ]
+      }
       if (separate_install_targets_for_bundling) {
         deps += [ ":${executable_target_name}_bundle_content" ]
-      }
-      foreach(content_dep, content_deps) {
-        deps += [ "${content_dep}_install_content" ]
       }
     }
   }
@@ -352,68 +323,29 @@ template("executable") {
 template("shared_library") {
   target_with_platform_configs(target_name) {
     target_type = "shared_library"
-    forward_variables_from(invoker,
-                           "*",
-                           [
-                             "install_target",
-                             "content_deps",
-                           ])
+    forward_variables_from(invoker, "*", [ "install_target" ])
   }
 
   if (current_toolchain == default_toolchain &&
       (!defined(invoker.install_target) || invoker.install_target)) {
     shared_library_target_name = target_name
 
-    content_deps = []
-    if (defined(invoker.content_deps)) {
-      content_deps += invoker.content_deps
+    data_deps = []
+    if (defined(invoker.data_deps)) {
+      data_deps += invoker.data_deps
     }
     if (defined(platform_i18n_config_path)) {
-      content_deps += [ platform_i18n_config_path ]
+      data_deps += [ platform_i18n_config_path ]
     }
 
     if (separate_install_targets_for_bundling) {
-      bundle_deps = []
-      foreach(content_dep, content_deps) {
-        bundle_deps += [ "${content_dep}_install_content" ]
-      }
-
-      # TODO(b/220024845): Make this much better.
-      action("${shared_library_target_name}_bundle_content") {
+      import("//starboard/build/config/bundle_content.gni")
+      bundle_content("${shared_library_target_name}_bundle_content") {
         forward_variables_from(invoker, [ "testonly" ])
 
-        deps = [ ":$shared_library_target_name" ]
-        deps += bundle_deps
-
-        sources = []
-        foreach(bundle_dep, bundle_deps) {
-          # Split the target path and name. E.g. //path/to:target -> [ "//path/to", "target" ].
-          target_path_and_name = string_split(bundle_dep, ":")
-
-          # The content_dep target will place its file under the root gen dir.
-          content_dep_list_file = string_join("/",
-                                              [
-                                                root_gen_dir,
-                                                target_path_and_name[1],
-                                              ])
-          target_path_and_name = []
-
-          sources += [ "${content_dep_list_file}_files.tmp" ]
-        }
-
-        bundle_content_dir = "$sb_install_output_dir/$shared_library_target_name/$sb_install_content_subdir"
-
-        # TODO(b/220024845): We don't have the list of output files.
-        outputs = [ bundle_content_dir ]
-
-        script = "//starboard/build/copy_bundle_content.py"
-        args = [
-          "--output_dir",
-          rebase_path(bundle_content_dir, root_build_dir),
-          "--base_dir",
-          rebase_path(sb_static_contents_output_data_dir, root_build_dir),
-        ]
-        args += rebase_path(sources, root_build_dir)
+        bundle_name = shared_library_target_name
+        bundle_deps = []
+        bundle_deps = data_deps
       }
     }
 
@@ -425,11 +357,11 @@ template("shared_library") {
       if (defined(invoker.deps)) {
         deps += invoker.deps
       }
+      foreach(dep, data_deps) {
+        deps += [ "${dep}_install_content" ]
+      }
       if (separate_install_targets_for_bundling) {
         deps += [ ":${shared_library_target_name}_bundle_content" ]
-      }
-      foreach(content_dep, content_deps) {
-        deps += [ "${content_dep}_install_content" ]
       }
     }
   }

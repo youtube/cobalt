@@ -146,11 +146,10 @@ target(gtest_target_type, "renderer_test") {
     ":renderer_download_lottie_test_data",
   ]
 
-  content_deps = data_deps
   if (cobalt_font_package == "empty") {
-    content_deps += [ "//cobalt/content/fonts:copy_font_data" ]
+    data_deps += [ "//cobalt/content/fonts:copy_font_data" ]
   } else {
-    content_deps += [
+    data_deps += [
       "//cobalt/content/fonts:copy_fonts",
       "//cobalt/content/fonts:fonts_xml",
     ]

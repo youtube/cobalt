@@ -542,6 +542,6 @@ target(gtest_target_type, "zip_unittests") {
     configs -= [ "//starboard/build/config:size" ]
     configs += [ "//starboard/build/config:speed" ]
 
-    content_deps = [ "//third_party/zlib/google/test:zip_unittest_files" ]
+    data_deps = [ "//third_party/zlib/google/test:zip_unittest_files" ]
   }
 }
