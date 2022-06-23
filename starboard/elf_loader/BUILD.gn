@@ -87,11 +87,11 @@ if (sb_is_evergreen_compatible) {
 }
 
 target(final_executable_type, "elf_loader_sandbox") {
-  content_deps = [ "//third_party/icu:icudata" ]
+  data_deps = [ "//third_party/icu:icudata" ]
   if (cobalt_font_package == "empty") {
-    content_deps += [ "//cobalt/content/fonts:copy_font_data" ]
+    data_deps += [ "//cobalt/content/fonts:copy_font_data" ]
   } else {
-    content_deps += [
+    data_deps += [
       "//cobalt/content/fonts:copy_fonts",
       "//cobalt/content/fonts:fonts_xml",
     ]
@@ -170,7 +170,7 @@ target(gtest_target_type, "elf_loader_test") {
       ":elf_loader",
     ]
 
-    content_deps = [ ":copy_elf_loader_testdata" ]
+    data_deps = [ ":copy_elf_loader_testdata" ]
   }
 }
 

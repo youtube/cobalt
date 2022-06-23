@@ -439,5 +439,5 @@ target(gtest_target_type, "dom_test") {
     "//url",
   ]
 
-  content_deps = [ ":licenses" ]
+  data_deps = [ ":licenses" ]
 }

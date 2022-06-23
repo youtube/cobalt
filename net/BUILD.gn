@@ -4229,7 +4229,7 @@ target(gtest_target_type, "net_unittests") {
   ]
 
   if (is_starboard) {
-    content_deps = [
+    data_deps = [
       ":net_unittest_files",
       ":third_party_unittest_files",
       "//third_party/icu:icudata",

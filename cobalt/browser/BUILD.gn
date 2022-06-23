@@ -57,21 +57,21 @@ target(final_executable_type, "cobalt") {
     "//cobalt/base",
     "//net",
   ]
-  content_deps = [
+  data_deps = [
     "//cobalt/dom:licenses",
     "//cobalt/network:copy_ssl_certificates",
     "//third_party/icu:icudata",
   ]
   if (cobalt_font_package == "empty") {
-    content_deps += [ "//cobalt/content/fonts:copy_font_data" ]
+    data_deps += [ "//cobalt/content/fonts:copy_font_data" ]
   } else {
-    content_deps += [
+    data_deps += [
       "//cobalt/content/fonts:copy_fonts",
       "//cobalt/content/fonts:fonts_xml",
     ]
   }
   if (!is_gold) {
-    content_deps += [
+    data_deps += [
       "//cobalt/debug/backend/content:copy_backend_web_files",
       "//cobalt/debug/console/content:copy_console_web_files",
       "//cobalt/debug/remote/content:copy_remote_web_files",
@@ -83,9 +83,6 @@ target(final_executable_type, "cobalt") {
       "//third_party/devtools:frontend_protocol_sources",
       "//third_party/devtools:supported_css_properties",
     ]
-  }
-  if (defined(platform_i18n_config_path)) {
-    content_deps += [ platform_i18n_config_path ]
   }
 }
 

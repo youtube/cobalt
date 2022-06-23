@@ -3195,7 +3195,7 @@ target(gtest_target_type, "base_unittests") {
     ":base_unittests_bundle_data",
   ]
   if (is_starboard){
-    content_deps = [
+    data_deps += [
       ":base_unittests_bundle_data",
       "//third_party/icu:icudata",
     ]

@@ -31,6 +31,9 @@ class InvalidArgumentException(Exception):
 
 
 def copy_files(files_to_copy, base_dir, output_dir):
+  if not os.path.exists(output_dir):
+    os.makedirs(output_dir)
+
   for path in files_to_copy:
     # All input paths must point at files.
     # TODO(b/211909342): Re-enable once lottie test files are listed.
@@ -53,8 +56,8 @@ def copy_files(files_to_copy, base_dir, output_dir):
     if os.path.exists(output_filename) and os.path.isdir(output_filename):
       shutil.rmtree(output_filename)
 
-    if not os.path.exists(output_dir):
-      os.makedirs(output_dir)
+    if not os.path.exists(os.path.dirname(output_filename)):
+      os.makedirs(os.path.dirname(output_filename))
 
     if os.path.isfile(filename):
       shutil.copy(filename, output_filename)

@@ -155,6 +155,4 @@ target(gtest_target_type, "webdriver_test") {
     ":copy_webdriver_data",
     ":webdriver_copy_test_data",
   ]
-
-  content_deps = data_deps
 }
