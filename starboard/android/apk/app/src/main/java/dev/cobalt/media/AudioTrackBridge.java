@@ -110,6 +110,8 @@ public class AudioTrackBridge {
               .setUsage(AudioAttributes.USAGE_MEDIA)
               .build();
     } else {
+      final int usage =
+          isWebAudio ? AudioAttributes.USAGE_NOTIFICATION : AudioAttributes.USAGE_MEDIA;
       // TODO: Support ENCODING_E_AC3_JOC for api level 28 or later.
       final boolean isSurround =
           sampleType == AudioFormat.ENCODING_AC3 || sampleType == AudioFormat.ENCODING_E_AC3;
@@ -120,7 +122,7 @@ public class AudioTrackBridge {
                   useContentTypeMovie
                       ? AudioAttributes.CONTENT_TYPE_MOVIE
                       : AudioAttributes.CONTENT_TYPE_MUSIC)
-              .setUsage(AudioAttributes.USAGE_MEDIA)
+              .setUsage(usage)
               .build();
     }
     AudioFormat format =
