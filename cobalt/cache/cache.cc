@@ -24,6 +24,8 @@
 #include "base/optional.h"
 #include "cobalt/configuration/configuration.h"
 #include "cobalt/extension/javascript_cache.h"
+#include "cobalt/persistent_storage/persistent_settings.h"
+#include "net/disk_cache/cobalt/cobalt_backend_impl.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/system.h"
 
@@ -84,14 +86,6 @@ const CobaltExtensionJavaScriptCacheApi* GetJavaScriptCacheExtension() {
     return javascript_cache_extension;
   }
   return nullptr;
-}
-
-bool CanCache(disk_cache::ResourceType resource_type, uint32_t data_size) {
-  return cobalt::configuration::Configuration::GetInstance()
-             ->CobaltCanStoreCompiledJavascript() &&
-         data_size > 0u &&
-         data_size >= GetMinSizeToCacheInBytes(resource_type) &&
-         data_size <= GetMaxCacheStorageInBytes(resource_type);
 }
 
 }  // namespace
@@ -158,6 +152,19 @@ std::unique_ptr<std::vector<uint8_t>> Cache::Retrieve(
   return data;
 }
 
+void Cache::set_enabled(bool enabled) { enabled_ = enabled; }
+
+void Cache::set_persistent_settings(
+    persistent_storage::PersistentSettings* persistent_settings) {
+  persistent_settings_ = persistent_settings;
+
+  // Guaranteed to be called before any calls to Retrieve()
+  // since set_persistent_settings() is called from the Application()
+  // constructor before the NetworkModule is initialized.
+  set_enabled(persistent_settings_->GetPersistentSettingAsBool(
+      disk_cache::kCacheEnabledPersistentSettingsKey, true));
+}
+
 MemoryCappedDirectory* Cache::GetMemoryCappedDirectory(
     disk_cache::ResourceType resource_type) {
   base::AutoLock auto_lock(lock_);
@@ -219,6 +226,16 @@ void Cache::TryStore(disk_cache::ResourceType resource_type, uint32_t key,
   if (memory_capped_directory) {
     memory_capped_directory->Store(key, data);
   }
+}
+
+bool Cache::CanCache(disk_cache::ResourceType resource_type,
+                     uint32_t data_size) {
+  return enabled_ &&
+         cobalt::configuration::Configuration::GetInstance()
+             ->CobaltCanStoreCompiledJavascript() &&
+         data_size > 0u &&
+         data_size >= GetMinSizeToCacheInBytes(resource_type) &&
+         data_size <= GetMaxCacheStorageInBytes(resource_type);
 }
 
 }  // namespace cache

@@ -19,10 +19,14 @@
 
 #include "base/files/file_util.h"
 #include "base/values.h"
+#include "cobalt/cache/cache.h"
 #include "cobalt/h5vcc/h5vcc_storage.h"
 #include "cobalt/persistent_storage/persistent_settings.h"
 #include "cobalt/storage/storage_manager.h"
+#include "net/disk_cache/cobalt/cobalt_backend_impl.h"
 #include "net/disk_cache/cobalt/resource_type.h"
+#include "net/http/http_cache.h"
+#include "net/http/http_transaction_factory.h"
 
 #include "starboard/common/file.h"
 #include "starboard/common/string.h"
@@ -31,6 +35,7 @@ namespace cobalt {
 namespace h5vcc {
 
 namespace {
+
 const char kTestFileName[] = "cache_test_file.json";
 
 const uint32 kWriteBufferSize = 1024 * 1024;
@@ -69,7 +74,16 @@ H5vccStorage::H5vccStorage(
     network::NetworkModule* network_module,
     persistent_storage::PersistentSettings* persistent_settings)
     : network_module_(network_module),
-      persistent_settings_(persistent_settings) {}
+      persistent_settings_(persistent_settings) {
+  http_cache_ = nullptr;
+  if (network_module == nullptr) {
+    return;
+  }
+  auto url_request_context = network_module_->url_request_context();
+  if (url_request_context->using_http_cache()) {
+    http_cache_ = url_request_context->http_transaction_factory()->GetCache();
+  }
+}
 
 void H5vccStorage::ClearCookies() {
   net::CookieStore* cookie_store =
@@ -332,6 +346,30 @@ H5vccStorageResourceTypeQuotaBytesDictionary H5vccStorage::GetQuota() {
   quota.set_total(max_quota_size);
 
   return quota;
+}
+
+void H5vccStorage::EnableCache() {
+  persistent_settings_->SetPersistentSetting(
+      disk_cache::kCacheEnabledPersistentSettingsKey,
+      std::make_unique<base::Value>(true));
+
+  cobalt::cache::Cache::GetInstance()->set_enabled(true);
+
+  if (http_cache_) {
+    http_cache_->set_mode(net::HttpCache::Mode::NORMAL);
+  }
+}
+
+void H5vccStorage::DisableCache() {
+  persistent_settings_->SetPersistentSetting(
+      disk_cache::kCacheEnabledPersistentSettingsKey,
+      std::make_unique<base::Value>(false));
+
+  cobalt::cache::Cache::GetInstance()->set_enabled(false);
+
+  if (http_cache_) {
+    http_cache_->set_mode(net::HttpCache::Mode::DISABLE);
+  }
 }
 
 }  // namespace h5vcc

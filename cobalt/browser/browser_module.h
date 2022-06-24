@@ -131,8 +131,7 @@ class BrowserModule {
 #if SB_IS(EVERGREEN)
                 updater::UpdaterModule* updater_module,
 #endif
-                const Options& options,
-                persistent_storage::PersistentSettings* persistent_settings);
+                const Options& options);
   ~BrowserModule();
 
   std::string GetUserAgent() { return network_module_->GetUserAgent(); }
@@ -724,8 +723,6 @@ class BrowserModule {
 
   // Manages the Service Workers.
   ServiceWorkerRegistry service_worker_registry_;
-
-  persistent_storage::PersistentSettings* persistent_settings_;
 };
 
 }  // namespace browser

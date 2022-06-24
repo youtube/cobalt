@@ -20,6 +20,7 @@
 #include "base/basictypes.h"
 #include "base/macros.h"
 #include "base/threading/thread_checker.h"
+#include "cobalt/persistent_storage/persistent_settings.h"
 #include "net/cookies/cookie_monster.h"
 #include "net/log/net_log.h"
 #include "net/url_request/url_request_context.h"
@@ -42,18 +43,23 @@ class URLRequestContext : public net::URLRequestContext {
   URLRequestContext(
       storage::StorageManager* storage_manager, const std::string& custom_proxy,
       net::NetLog* net_log, bool ignore_certificate_errors,
-      scoped_refptr<base::SingleThreadTaskRunner> network_task_runner);
+      scoped_refptr<base::SingleThreadTaskRunner> network_task_runner,
+      persistent_storage::PersistentSettings* persistent_settings);
   ~URLRequestContext() override;
 
   void SetProxy(const std::string& custom_proxy_rules);
 
   void SetEnableQuic(bool enable_quic);
 
+  bool using_http_cache();
+
  private:
   THREAD_CHECKER(thread_checker_);
   net::URLRequestContextStorage storage_;
   scoped_refptr<net::CookieMonster::PersistentCookieStore>
       persistent_cookie_store_;
+
+  bool using_http_cache_;
 
 #if defined(ENABLE_DEBUGGER)
   // Command handler object for toggling the input fuzzer on/off.

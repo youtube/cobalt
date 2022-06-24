@@ -27,6 +27,7 @@
 #include "base/synchronization/lock.h"
 #include "base/synchronization/waitable_event.h"
 #include "cobalt/cache/memory_capped_directory.h"
+#include "cobalt/persistent_storage/persistent_settings.h"
 #include "net/disk_cache/cobalt/resource_type.h"
 
 namespace base {
@@ -45,6 +46,11 @@ class Cache {
       disk_cache::ResourceType resource_type, uint32_t key,
       std::function<std::unique_ptr<std::vector<uint8_t>>()> generate);
 
+  void set_enabled(bool enabled);
+
+  void set_persistent_settings(
+      persistent_storage::PersistentSettings* persistent_settings);
+
  private:
   friend struct base::DefaultSingletonTraits<Cache>;
   Cache() {}
@@ -56,6 +62,7 @@ class Cache {
   void Notify(disk_cache::ResourceType resource_type, uint32_t key);
   void TryStore(disk_cache::ResourceType resource_type, uint32_t key,
                 const std::vector<uint8_t>& data);
+  bool CanCache(disk_cache::ResourceType resource_type, uint32_t data_size);
 
   mutable base::Lock lock_;
   // The following map is only used when the JavaScript cache extension is
@@ -65,6 +72,9 @@ class Cache {
   std::map<disk_cache::ResourceType,
            std::map<uint32_t, std::vector<base::WaitableEvent*>>>
       pending_;
+  bool enabled_;
+
+  persistent_storage::PersistentSettings* persistent_settings_;
 
   DISALLOW_COPY_AND_ASSIGN(Cache);
 };  // class Cache

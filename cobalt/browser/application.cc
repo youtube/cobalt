@@ -61,6 +61,7 @@
 #include "cobalt/browser/switches.h"
 #include "cobalt/browser/user_agent_platform_info.h"
 #include "cobalt/browser/user_agent_string.h"
+#include "cobalt/cache/cache.h"
 #include "cobalt/configuration/configuration.h"
 #include "cobalt/extension/crash_handler.h"
 #include "cobalt/extension/installation_manager.h"
@@ -648,6 +649,9 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
       watchdog::Watchdog::CreateInstance(persistent_settings_.get());
   DCHECK(watchdog);
 
+  cobalt::cache::Cache::GetInstance()->set_persistent_settings(
+      persistent_settings_.get());
+
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
   base::Optional<cssom::ViewportSize> requested_viewport_size =
       GetRequestedViewportSize(command_line);
@@ -661,6 +665,7 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
   // Create the main components of our browser.
   BrowserModule::Options options(web_options);
   network_module_options.preferred_language = language;
+  network_module_options.persistent_settings = persistent_settings_.get();
   options.persistent_settings = persistent_settings_.get();
   options.command_line_auto_mem_settings =
       memory_settings::GetSettings(*command_line);
@@ -860,7 +865,7 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
 #if SB_IS(EVERGREEN)
       updater_module_.get(),
 #endif
-      options, persistent_settings_.get()));
+      options));
 
   UpdateUserAgent();
 

@@ -31,6 +31,8 @@
 
 namespace disk_cache {
 
+const char kCacheEnabledPersistentSettingsKey[] = "cacheEnabled";
+
 // This class implements the Backend interface. An object of this class handles
 // the operations of the cache without writing to disk.
 class NET_EXPORT_PRIVATE CobaltBackendImpl final : public Backend {
