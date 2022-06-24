@@ -125,8 +125,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
     options = '-avzLh'
     source = test_dir + '/'
     destination = '{}:~/{}/'.format(raspi_user_hostname, raspi_test_dir)
-    self.rsync_command = 'rsync ' + options + ' ' + source + ' ' + \
-        destination + ';sync'
+    self.rsync_command = 'rsync ' + options + ' ' + source + ' ' + destination
 
     # ssh command setup
     self.ssh_command = 'ssh -t ' + raspi_user_hostname + ' TERM=dumb bash -l'
