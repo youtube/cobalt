@@ -158,6 +158,7 @@ static_library("browser") {
     "//cobalt/browser/memory_settings:browser_memory_settings",
     "//cobalt/browser/memory_tracker:memory_tracker_tool",
     "//cobalt/build:cobalt_build_id",
+    "//cobalt/cache",
     "//cobalt/configuration",
     "//cobalt/css_parser",
     "//cobalt/cssom",

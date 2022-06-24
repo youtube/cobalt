@@ -22,6 +22,7 @@ static_library("cache") {
     "//base",
     "//cobalt/base",
     "//cobalt/configuration",
+    "//cobalt/persistent_storage:persistent_settings",
     "//net",
     "//starboard:starboard_headers_only",
   ]

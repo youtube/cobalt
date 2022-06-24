@@ -51,6 +51,7 @@ static_library("network") {
     "//cobalt/build:cobalt_build_id",
     "//cobalt/configuration",
     "//cobalt/network_bridge",
+    "//cobalt/persistent_storage:persistent_settings",
     "//cobalt/storage",
     "//starboard/common",
     "//third_party/protobuf:protobuf_lite",

@@ -26,6 +26,7 @@
 #include "cobalt/network/network_module.h"
 #include "cobalt/persistent_storage/persistent_settings.h"
 #include "cobalt/script/wrappable.h"
+#include "net/http/http_cache.h"
 
 namespace cobalt {
 namespace h5vcc {
@@ -56,12 +57,18 @@ class H5vccStorage : public script::Wrappable {
   H5vccStorageSetQuotaResponse SetQuota(
       H5vccStorageResourceTypeQuotaBytesDictionary quota);
 
+  void EnableCache();
+
+  void DisableCache();
+
   DEFINE_WRAPPABLE_TYPE(H5vccStorage);
 
  private:
   network::NetworkModule* network_module_;
 
   persistent_storage::PersistentSettings* persistent_settings_;
+
+  net::HttpCache* http_cache_;
 
   DISALLOW_COPY_AND_ASSIGN(H5vccStorage);
 };

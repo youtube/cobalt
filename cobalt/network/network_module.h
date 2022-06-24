@@ -28,6 +28,7 @@
 #include "cobalt/network/network_delegate.h"
 #include "cobalt/network/url_request_context.h"
 #include "cobalt/network/url_request_context_getter.h"
+#include "cobalt/persistent_storage/persistent_settings.h"
 #include "net/base/static_cookie_policy.h"
 #include "url/gurl.h"
 #if defined(DIAL_SERVER)
@@ -60,13 +61,15 @@ class NetworkModule {
           ignore_certificate_errors(false),
           https_requirement(network::kHTTPSRequired),
           preferred_language("en-US"),
-          max_network_delay(0) {}
+          max_network_delay(0),
+          persistent_settings(nullptr) {}
     net::StaticCookiePolicy::Type cookie_policy;
     bool ignore_certificate_errors;
     HTTPSRequirement https_requirement;
     std::string preferred_language;
     std::string custom_proxy;
     SbTime max_network_delay;
+    persistent_storage::PersistentSettings* persistent_settings;
   };
 
   // Simple constructor intended to be used only by tests.
