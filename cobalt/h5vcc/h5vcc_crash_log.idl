@@ -33,10 +33,12 @@ interface H5vccCrashLog {
   //   name, Watchdog client to register.
   //   description, information on the Watchdog client.
   //   monitor_state, application state up to which the client is monitored.
+  //     Inclusive.
   //   time_interval, maximum number of microseconds allowed between pings
   //     before triggering a Watchdog violation.
   //   time_wait, number of microseconds to initially wait before Watchdog
-  //     violations can be triggered.
+  //     violations can be triggered. Reapplies after client resumes from idle
+  //     state due to application state changes.
   //   replace, behavior with previously registered Watchdog clients of the
   //     same name.
   boolean register(DOMString name, DOMString description,
@@ -52,11 +54,9 @@ interface H5vccCrashLog {
   // metadata.
   boolean ping(DOMString name, DOMString ping_info);
 
-  // Returns a json string containing the Watchdog violations. Current boolean
-  // determines whether the current file representing ongoing violations or the
-  // previous file containing violations from previous app starts and since the
-  // last call (up to a limit) is returned.
-  DOMString getWatchdogViolations(boolean current);
+  // Returns a json string containing the Watchdog violations since the last
+  // call. Clears internal cache of Watchdog violations to prevent duplicates.
+  DOMString getWatchdogViolations();
 
   // Gets a persistent Watchdog setting that determines whether or not a
   // Watchdog violation will trigger a crash.
