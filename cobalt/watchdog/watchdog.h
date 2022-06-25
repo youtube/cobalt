@@ -39,7 +39,12 @@ typedef struct Client {
   std::queue<std::string> ping_infos;
   // Application state to continue monitoring client up to.
   base::ApplicationState monitor_state;
+  // Maximum number of microseconds allowed between pings before triggering a
+  // Watchdog violation.
   int64_t time_interval_microseconds;
+  // Number of microseconds to initially wait before Watchdog violations can be
+  // triggered. Reapplies after client resumes from idle state due to
+  // application state changes.
   int64_t time_wait_microseconds;
   int64_t time_registered_microseconds;                    // since epoch
   SbTimeMonotonic time_registered_monotonic_microseconds;  // since (relative)
@@ -52,16 +57,21 @@ typedef struct Violation {
   std::string description;
   // List of strings optionally provided with each Ping.
   std::queue<std::string> ping_infos;
-  // Application state to continue monitoring client up to.
+  // Application state to continue monitoring client up to. Inclusive.
   base::ApplicationState monitor_state;
+  // Maximum number of microseconds allowed between pings before triggering a
+  // Watchdog violation.
   int64_t time_interval_microseconds;
+  // Number of microseconds to initially wait before Watchdog violations can be
+  // triggered. Reapplies after client resumes from idle state due to
+  // application state changes.
   int64_t time_wait_microseconds;
   int64_t time_registered_microseconds;  // since epoch
   int64_t violation_time_microseconds;   // since epoch
   int64_t violation_delta_microseconds;  // over time_interval
   int64_t violation_count;
-  // Watchdog index as a serialized json string
-  std::string serialized_watchdog_index;
+  // Client map as a serialized json string
+  std::string serialized_client_map;
 
   void operator=(const Client& c) {
     name = c.name;
@@ -96,7 +106,7 @@ class Watchdog : public Singleton<Watchdog> {
   bool Unregister(const std::string& name, bool lock = true);
   bool Ping(const std::string& name);
   bool Ping(const std::string& name, const std::string& info);
-  std::string GetWatchdogViolations(bool current = false);
+  std::string GetWatchdogViolations();
   bool GetPersistentSettingWatchdogCrash();
   void SetPersistentSettingWatchdogCrash(bool can_trigger_crash);
 
@@ -106,22 +116,21 @@ class Watchdog : public Singleton<Watchdog> {
 #endif  // defined(_DEBUG)
 
  private:
-  std::string GetWatchdogFilePaths(bool current);
+  std::string GetWatchdogFilePath(bool current = true);
   void PreservePreviousWatchdogViolations();
   static void* Monitor(void* context);
-  std::string GetSerializedWatchdogIndex();
+  std::string GetSerializedClientMap();
   static void SerializeWatchdogViolations(void* context);
   static void MaybeTriggerCrash(void* context);
 
-  // Current Watchdog violations file path.
+  // Watchdog violations file paths.
   std::string watchdog_file_;
-  // Previous Watchdog violations file path.
   std::string watchdog_old_file_;
   // Creates a lock which ensures that each loop of monitor is atomic in that
   // modifications to is_monitoring_, state_, smallest_time_interval_, and most
-  // importantly to the dictionaries containing Watchdog clients,
-  // watchdog_index_ and watchdog_violations_, only occur in between loops of
-  // monitor. API functions like Register(), Unregister(), Ping(), and
+  // importantly to the dictionaries containing Watchdog clients, client_map_
+  // and watchdog_violations_, only occur in between loops of monitor. API
+  // functions like Register(), Unregister(), Ping(), and
   // GetWatchdogViolations() will be called by various threads and interact
   // with these class variables.
   SbMutex mutex_;
@@ -134,7 +143,7 @@ class Watchdog : public Singleton<Watchdog> {
   // Tracks application state.
   base::ApplicationState state_ = base::kApplicationStateStarted;
   // Dictionary of registered Watchdog clients.
-  std::unordered_map<std::string, std::unique_ptr<Client>> watchdog_index_;
+  std::unordered_map<std::string, std::unique_ptr<Client>> client_map_;
   // Dictionary of Watchdog violations.
   std::unordered_map<std::string, std::unique_ptr<Violation>>
       watchdog_violations_;
