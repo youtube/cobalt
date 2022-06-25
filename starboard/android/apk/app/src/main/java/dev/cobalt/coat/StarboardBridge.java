@@ -82,6 +82,7 @@ public class StarboardBridge {
   private KeyboardEditor keyboardEditor;
   private NetworkStatus networkStatus;
   private ResourceOverlay resourceOverlay;
+  private AdvertisingId advertisingId;
 
   static {
     // Even though NativeActivity already loads our library from C++,
@@ -140,6 +141,7 @@ public class StarboardBridge {
     this.audioPermissionRequester = new AudioPermissionRequester(appContext, activityHolder);
     this.networkStatus = new NetworkStatus(appContext);
     this.resourceOverlay = new ResourceOverlay(appContext);
+    this.advertisingId = new AdvertisingId(appContext);
   }
 
   private native boolean nativeInitialize();
@@ -682,6 +684,20 @@ public class StarboardBridge {
     }
 
     return sb.toString();
+  }
+
+  /** Returns string for kSbSystemPropertyAdvertisingId */
+  @SuppressWarnings("unused")
+  @UsedByNative
+  protected String getAdvertisingId() {
+    return this.advertisingId.getId();
+  }
+
+  /** Returns boolean for kSbSystemPropertyLimitAdTracking */
+  @SuppressWarnings("unused")
+  @UsedByNative
+  protected boolean getLimitAdTracking() {
+    return this.advertisingId.isLimitAdTrackingEnabled();
   }
 
   @SuppressWarnings("unused")
