@@ -144,6 +144,24 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
           CopyStringAndTestIfSuccess(out_value, value_length, utf_str.c_str());
       return success;
     }
+#if SB_API_VERSION >= 14
+    case kSbSystemPropertyAdvertisingId: {
+      JniEnvExt* env = JniEnvExt::Get();
+      ScopedLocalJavaRef<jstring> id_string(
+          env->CallStarboardObjectMethodOrAbort("getAdvertisingId",
+                                                "()Ljava/lang/String;"));
+      std::string utf_str = env->GetStringStandardUTFOrAbort(id_string.Get());
+      return CopyStringAndTestIfSuccess(out_value, value_length,
+                                        utf_str.c_str());
+    }
+    case kSbSystemPropertyLimitAdTracking: {
+      bool limit_ad_tracking_enabled =
+          JniEnvExt::Get()->CallStarboardBooleanMethodOrAbort(
+              "getLimitAdTracking", "()Z") == JNI_TRUE;
+      return CopyStringAndTestIfSuccess(out_value, value_length,
+                                        limit_ad_tracking_enabled ? "1" : "0");
+    }
+#endif
     default:
       SB_DLOG(WARNING) << __FUNCTION__
                        << ": Unrecognized property: " << property_id;
