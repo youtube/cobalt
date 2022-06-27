@@ -204,6 +204,10 @@ class ServiceWorkerJobs {
       const base::WeakPtr<ServiceWorkerObject>& service_worker,
       std::unique_ptr<script::ValuePromiseVoid::Reference> promise_reference);
 
+  // Sub steps for WaitUntil.
+  //   https://w3c.github.io/ServiceWorker/#dom-extendableevent-waituntil
+  void WaitUntilSubSteps(ServiceWorkerRegistrationObject* registration);
+
   // Parallel sub steps (2) for algorithm for Clients.get(id):
   //   https://w3c.github.io/ServiceWorker/#clients-get
   void ClientsGetSubSteps(

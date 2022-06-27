@@ -27,37 +27,47 @@ self.onmessage = function (event) {
   });
 }
 
+function delay_promise(delay) {
+  return new Promise(function (resolve) {
+    setTimeout(resolve.bind(null), delay)
+  });
+}
+
 self.oninstall = function (e) {
   console.log('oninstall event received', e);
+  e.waitUntil(delay_promise(500).then(() => console.log('Promised delay.'), () => console.log('\nPromised rejected.\n')));
 }
+
 self.onactivate = function (e) {
   console.log('onactivate event received', e);
 
   // Claim should pass here, since the state is activating.
   console.log('self.clients.claim()');
-  self.clients.claim().then(function (result) {
+  e.waitUntil(self.clients.claim().then(function (result) {
     console.log('(Expected) self.clients.claim():', result);
 
     var options = {
       includeUncontrolled: false, type: 'window'
     };
-    console.log('self.clients.matchAll(options)');
-    self.clients.matchAll(options).then(function (clients) {
-      console.log('(Expected) self.clients.matchAll():', clients.length, clients);
-      for (var i = 0; i < clients.length; i++) {
-        console.log('Client with url', clients[i].url);
-        console.log('Client with frameType', clients[i].frameType);
-        console.log('Client with id', clients[i].id);
-        console.log('Client with type', clients[i].type);
-        clients[i].postMessage(`You have been claimed, client with id ${clients[i].id}`);
-      }
-    }, function (error) {
-      console.log(`(Unexpected) self.clients.matchAll(): ${error}`, error);
-    });
+    e.waitUntil(delay_promise(1000).then(function () {
+      console.log('self.clients.matchAll(options)');
+      e.waitUntil(self.clients.matchAll(options).then(function (clients) {
+        console.log('(Expected) self.clients.matchAll():', clients.length, clients);
+        for (var i = 0; i < clients.length; i++) {
+          console.log('Client with url', clients[i].url,
+            'frameType', clients[i].frameType,
+            'id', clients[i].id,
+            'type', clients[i].type);
+          clients[i].postMessage(`You have been claimed, client with id ${clients[i].id}`);
+        }
+      }, function (error) {
+        console.log(`(Unexpected) self.clients.matchAll(): ${error}`, error);
+      }));
+    }));
 
   }, function (error) {
     console.log(`(Unexpected) self.clients.claim(): ${error}`, error);
-  });
+  }));
 
 }
 console.log('self.registration', self.registration);
@@ -73,10 +83,10 @@ console.log('self.clients.matchAll(options)');
 self.clients.matchAll(options).then(function (clients) {
   console.log('(Expected) self.clients.matchAll():', clients.length, clients);
   for (var i = 0; i < clients.length; i++) {
-    console.log('Client with url', clients[i].url);
-    console.log('Client with frameType', clients[i].frameType);
-    console.log('Client with id', clients[i].id);
-    console.log('Client with type', clients[i].type);
+    console.log('Client with url', clients[i].url,
+      'frameType', clients[i].frameType,
+      'id', clients[i].id,
+      'type', clients[i].type);
   }
 }, function (error) {
   console.log(`(Unexpected) self.clients.matchAll(): ${error}`, error);

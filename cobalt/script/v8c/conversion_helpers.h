@@ -16,7 +16,6 @@
 #define COBALT_SCRIPT_V8C_CONVERSION_HELPERS_H_
 
 #include <cmath>
-
 #include <limits>
 #include <string>
 #include <utility>
@@ -29,6 +28,7 @@
 #include "cobalt/base/compiler.h"
 #include "cobalt/base/enable_if.h"
 #include "cobalt/base/token.h"
+#include "cobalt/script/promise.h"
 #include "cobalt/script/sequence.h"
 #include "cobalt/script/v8c/algorithm_helpers.h"
 #include "cobalt/script/v8c/helpers.h"
@@ -713,11 +713,7 @@ void ToJSValue(v8::Isolate* isolate, ScriptValue<Promise<T>>* promise_holder,
 template <typename T>
 void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value,
                  int conversion_flags, ExceptionState* exception_state,
-                 script::Promise<T>* out_promise) {
-  // TODO(b/228976500): Implement conversion from JS to native for Promise<T>.
-  // https://webidl.spec.whatwg.org/#es-promise
-  NOTIMPLEMENTED();
-}
+                 script::Promise<T>* out_promise);
 
 // script::Handle<T> -> JSValue
 template <typename T>

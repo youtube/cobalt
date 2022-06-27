@@ -15,6 +15,9 @@
 #ifndef COBALT_SCRIPT_PROMISE_H_
 #define COBALT_SCRIPT_PROMISE_H_
 
+#include <memory>
+
+#include "base/callback.h"
 #include "base/memory/ref_counted.h"
 #include "cobalt/script/exception_message.h"
 #include "cobalt/script/script_exception.h"
@@ -42,21 +45,19 @@ class Promise {
  public:
   // Call the |resolve| function that was passed as an argument to the Promise's
   // executor function supplying |result| as its argument.
-  virtual void Resolve(const T& result) const { NOTREACHED(); }
+  virtual void Resolve(const T& result) const = 0;
 
   // Call the |reject| function passed as an argument to the Promise's executor
   // function.
-  virtual void Reject() const { NOTREACHED(); }
-  virtual void Reject(SimpleExceptionType exception) const { NOTREACHED(); }
-  virtual void Reject(const scoped_refptr<ScriptException>& result) const {
-    NOTREACHED();
-  }
+  virtual void Reject() const = 0;
+  virtual void Reject(SimpleExceptionType exception) const = 0;
+  virtual void Reject(const scoped_refptr<ScriptException>& result) const = 0;
 
   // Returns the value of the [[PromiseState]] field.
-  virtual PromiseState State() const {
-    NOTREACHED();
-    return PromiseState::kRejected;
-  }
+  virtual PromiseState State() const = 0;
+
+  virtual void AddStateChangeCallback(
+      std::unique_ptr<base::OnceCallback<void()>> callback) = 0;
 
   virtual ~Promise() {}
 };
