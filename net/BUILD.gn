@@ -20,7 +20,6 @@ config("net_all_dependent_configs") {
 
 config("net_public_defines") {
   defines = [
-    "HTTP_CACHE_TESTING_DISABLED",
     "ENABLE_BUILT_IN_DNS",
     "QUIC_TRACE_DISABLED",
     "COBALT_QUIC46",
@@ -4198,7 +4197,6 @@ target(gtest_target_type, "net_unittests") {
   }
 
   defines = [
-    "HTTP_CACHE_TESTING_DISABLED",
     "GMOCK_NO_MOVE_MOCK",
   ]
 
