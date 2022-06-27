@@ -25,7 +25,7 @@
 namespace cobalt {
 namespace dom {
 
-using media::VideoFrameProvider;
+using media::DecodeTargetProvider;
 using media::WebMediaPlayer;
 
 const char HTMLVideoElement::kTagName[] = "video";
@@ -98,9 +98,10 @@ scoped_refptr<VideoPlaybackQuality> HTMLVideoElement::GetVideoPlaybackQuality(
   }
 }
 
-scoped_refptr<VideoFrameProvider> HTMLVideoElement::GetVideoFrameProvider() {
+scoped_refptr<DecodeTargetProvider>
+HTMLVideoElement::GetDecodeTargetProvider() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  return player() ? player()->GetVideoFrameProvider() : NULL;
+  return player() ? player()->GetDecodeTargetProvider() : NULL;
 }
 
 WebMediaPlayer::SetBoundsCB HTMLVideoElement::GetSetBoundsCB() {

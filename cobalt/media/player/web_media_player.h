@@ -19,7 +19,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
-#include "cobalt/media/base/video_frame_provider.h"
+#include "cobalt/media/base/decode_target_provider.h"
 #include "cobalt/media/player/buffered_data_source.h"
 #include "url/gurl.h"
 
@@ -155,7 +155,7 @@ class WebMediaPlayer {
 
   virtual PlayerStatistics GetStatistics() const = 0;
 
-  virtual scoped_refptr<VideoFrameProvider> GetVideoFrameProvider() {
+  virtual scoped_refptr<DecodeTargetProvider> GetDecodeTargetProvider() {
     return NULL;
   }
 

@@ -59,8 +59,8 @@
 #include "base/threading/thread.h"
 #include "base/time/time.h"
 #include "cobalt/math/size.h"
+#include "cobalt/media/base/decode_target_provider.h"
 #include "cobalt/media/base/pipeline.h"
-#include "cobalt/media/base/video_frame_provider.h"
 #include "cobalt/media/player/web_media_player.h"
 #include "cobalt/media/player/web_media_player_delegate.h"
 #include "third_party/chromium/media/base/demuxer.h"
@@ -173,7 +173,7 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
 
   PlayerStatistics GetStatistics() const override;
 
-  scoped_refptr<VideoFrameProvider> GetVideoFrameProvider() override;
+  scoped_refptr<DecodeTargetProvider> GetDecodeTargetProvider() override;
 
   SetBoundsCB GetSetBoundsCB() override;
 
@@ -292,7 +292,7 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   WebMediaPlayerClient* const client_;
   WebMediaPlayerDelegate* const delegate_;
   const bool allow_resume_after_suspend_;
-  scoped_refptr<VideoFrameProvider> video_frame_provider_;
+  scoped_refptr<DecodeTargetProvider> decode_target_provider_;
 
   scoped_refptr<WebMediaPlayerProxy> proxy_;
 
