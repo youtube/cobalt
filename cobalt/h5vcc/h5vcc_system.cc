@@ -34,10 +34,8 @@ bool H5vccSystem::are_keys_reversed() const {
 }
 
 std::string H5vccSystem::build_id() const {
-  return base::StringPrintf(
-      "Built on %s (%s) at version #%s by %s", COBALT_BUILD_VERSION_DATE,
-      COBALT_BUILD_VERSION_TIMESTAMP, COBALT_BUILD_VERSION_NUMBER,
-      COBALT_BUILD_VERSION_USERNAME);
+  return base::StringPrintf("Built at version #%s",
+                            COBALT_BUILD_VERSION_NUMBER);
 }
 
 std::string H5vccSystem::platform() const {

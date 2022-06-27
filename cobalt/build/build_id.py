@@ -22,10 +22,10 @@ template = """
 #ifndef _COBALT_BUILD_ID_H_
 #define _COBALT_BUILD_ID_H_
 
-#define COBALT_BUILD_VERSION_DATE "{date_rep}"
+#ifndef COBALT_BUILD_VERSION_NUMBER
 #define COBALT_BUILD_VERSION_NUMBER "{version_number}"
-#define COBALT_BUILD_VERSION_TIMESTAMP "{timestamp}"
-#define COBALT_BUILD_VERSION_USERNAME "{username}"
+#endif  // COBALT_BUILD_VERSION_NUMBER
+
 
 #endif  // _COBALT_BUILD_ID_H_
 """
