@@ -21,8 +21,8 @@
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
 #include "base/message_loop/message_loop.h"
+#include "cobalt/media/base/decode_target_provider.h"
 #include "cobalt/media/base/media_export.h"
-#include "cobalt/media/base/video_frame_provider.h"
 #include "starboard/drm.h"
 #include "starboard/window.h"
 #include "third_party/chromium/media/base/demuxer.h"
@@ -97,7 +97,7 @@ class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
       const GetDecodeTargetGraphicsContextProviderFunc&
           get_decode_target_graphics_context_provider_func,
       bool allow_resume_after_suspend, MediaLog* media_log,
-      VideoFrameProvider* video_frame_provider);
+      DecodeTargetProvider* decode_target_provider);
 
   virtual ~Pipeline() {}
 

@@ -44,7 +44,7 @@
 #include "cobalt/layout/used_style.h"
 #include "cobalt/layout/white_space_processing.h"
 #include "cobalt/loader/image/lottie_animation.h"
-#include "cobalt/media/base/video_frame_provider.h"
+#include "cobalt/media/base/decode_target_provider.h"
 #include "cobalt/render_tree/image.h"
 #include "cobalt/web_animations/keyframe_effect_read_only.h"
 #include "starboard/decode_target.h"
@@ -52,19 +52,20 @@
 namespace cobalt {
 namespace layout {
 
-using media::VideoFrameProvider;
+using media::DecodeTargetProvider;
 
 namespace {
 
 scoped_refptr<render_tree::Image> GetVideoFrame(
-    const scoped_refptr<VideoFrameProvider>& frame_provider,
+    const scoped_refptr<DecodeTargetProvider>& decode_target_provider,
     render_tree::ResourceProvider* resource_provider) {
   TRACE_EVENT0("cobalt::layout", "GetVideoFrame()");
-  SbDecodeTarget decode_target = frame_provider->GetCurrentSbDecodeTarget();
+  SbDecodeTarget decode_target =
+      decode_target_provider->GetCurrentSbDecodeTarget();
   if (SbDecodeTargetIsValid(decode_target)) {
     return resource_provider->CreateImageFromSbDecodeTarget(decode_target);
   } else {
-    DCHECK(frame_provider);
+    DCHECK(decode_target_provider);
     return NULL;
   }
 }
@@ -338,12 +339,12 @@ void BoxGenerator::VisitVideoElement(dom::HTMLVideoElement* video_element) {
   // If the optional is disengaged, then we don't know if punch out is enabled
   // or not.
   base::Optional<ReplacedBox::ReplacedBoxMode> replaced_box_mode;
-  if (video_element->GetVideoFrameProvider()) {
-    VideoFrameProvider::OutputMode output_mode =
-        video_element->GetVideoFrameProvider()->GetOutputMode();
-    if (output_mode != VideoFrameProvider::kOutputModeInvalid) {
+  if (video_element->GetDecodeTargetProvider()) {
+    DecodeTargetProvider::OutputMode output_mode =
+        video_element->GetDecodeTargetProvider()->GetOutputMode();
+    if (output_mode != DecodeTargetProvider::kOutputModeInvalid) {
       replaced_box_mode =
-          (output_mode == VideoFrameProvider::kOutputModePunchOut)
+          (output_mode == DecodeTargetProvider::kOutputModePunchOut)
               ? ReplacedBox::ReplacedBoxMode::kPunchOutVideo
               : ReplacedBox::ReplacedBoxMode::kVideo;
     }
@@ -351,8 +352,8 @@ void BoxGenerator::VisitVideoElement(dom::HTMLVideoElement* video_element) {
 
   ReplacedBoxGenerator replaced_box_generator(
       video_element->css_computed_style_declaration(),
-      video_element->GetVideoFrameProvider()
-          ? base::Bind(GetVideoFrame, video_element->GetVideoFrameProvider(),
+      video_element->GetDecodeTargetProvider()
+          ? base::Bind(GetVideoFrame, video_element->GetDecodeTargetProvider(),
                        resource_provider)
           : ReplacedBox::ReplaceImageCB(),
       video_element->GetSetBoundsCB(), *paragraph_, text_position,

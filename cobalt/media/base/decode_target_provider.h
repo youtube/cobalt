@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_MEDIA_BASE_VIDEO_FRAME_PROVIDER_H_
-#define COBALT_MEDIA_BASE_VIDEO_FRAME_PROVIDER_H_
+#ifndef COBALT_MEDIA_BASE_DECODE_TARGET_PROVIDER_H_
+#define COBALT_MEDIA_BASE_DECODE_TARGET_PROVIDER_H_
 
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
@@ -24,13 +24,13 @@
 namespace cobalt {
 namespace media {
 
-// The VideoFrameProvider manages the backlog for video frames. It has the
+// The DecodeTargetProvider manages the backlog for video frames. It has the
 // following functionalities:
 // 1. It caches the video frames ready to be displayed.
 // 2. It decides which frame to be displayed at the current time.
 // 3. It removes frames that will no longer be displayed.
-class VideoFrameProvider
-    : public base::RefCountedThreadSafe<VideoFrameProvider> {
+class DecodeTargetProvider
+    : public base::RefCountedThreadSafe<DecodeTargetProvider> {
  public:
   enum OutputMode {
     kOutputModePunchOut,
@@ -38,7 +38,7 @@ class VideoFrameProvider
     kOutputModeInvalid,
   };
 
-  VideoFrameProvider() : output_mode_(kOutputModeInvalid) {}
+  DecodeTargetProvider() : output_mode_(kOutputModeInvalid) {}
 
   typedef base::Callback<SbDecodeTarget()> GetCurrentSbDecodeTargetFunction;
 
@@ -47,15 +47,15 @@ class VideoFrameProvider
     output_mode_ = output_mode;
   }
 
-  VideoFrameProvider::OutputMode GetOutputMode() const {
+  DecodeTargetProvider::OutputMode GetOutputMode() const {
     base::AutoLock auto_lock(lock_);
     return output_mode_;
   }
 
   // For Starboard platforms that have a decode-to-texture player, we enable
-  // this VideoFrameProvider to act as a bridge for Cobalt code to query
+  // this DecodeTargetProvider to act as a bridge for Cobalt code to query
   // for the current SbDecodeTarget.  In effect, we bypass all of
-  // VideoFrameProvider's logic in this case, instead relying on the
+  // DecodeTargetProvider's logic in this case, instead relying on the
   // Starboard implementation to provide us with the current video frame when
   // needed.
   void SetGetCurrentSbDecodeTargetFunction(
@@ -84,10 +84,10 @@ class VideoFrameProvider
   OutputMode output_mode_;
   GetCurrentSbDecodeTargetFunction get_current_sb_decode_target_function_;
 
-  DISALLOW_COPY_AND_ASSIGN(VideoFrameProvider);
+  DISALLOW_COPY_AND_ASSIGN(DecodeTargetProvider);
 };
 
 }  // namespace media
 }  // namespace cobalt
 
-#endif  // COBALT_MEDIA_BASE_VIDEO_FRAME_PROVIDER_H_
+#endif  // COBALT_MEDIA_BASE_DECODE_TARGET_PROVIDER_H_

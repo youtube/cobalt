@@ -100,7 +100,7 @@ SbPlayerBridge::SbPlayerBridge(
     bool prefer_decode_to_texture,
     const OnEncryptedMediaInitDataEncounteredCB&
         on_encrypted_media_init_data_encountered_cb,
-    VideoFrameProvider* const video_frame_provider)
+    DecodeTargetProvider* const decode_target_provider)
     : url_(url),
       task_runner_(task_runner),
       callback_helper_(
@@ -111,7 +111,7 @@ SbPlayerBridge::SbPlayerBridge(
       allow_resume_after_suspend_(allow_resume_after_suspend),
       on_encrypted_media_init_data_encountered_cb_(
           on_encrypted_media_init_data_encountered_cb),
-      video_frame_provider_(video_frame_provider),
+      decode_target_provider_(decode_target_provider),
       is_url_based_(true) {
   DCHECK(host_);
   DCHECK(set_bounds_helper_);
@@ -136,7 +136,7 @@ SbPlayerBridge::SbPlayerBridge(
     SbWindow window, SbDrmSystem drm_system, Host* host,
     SbPlayerSetBoundsHelper* set_bounds_helper, bool allow_resume_after_suspend,
     bool prefer_decode_to_texture,
-    VideoFrameProvider* const video_frame_provider,
+    DecodeTargetProvider* const decode_target_provider,
     const std::string& max_video_capabilities)
     : task_runner_(task_runner),
       get_decode_target_graphics_context_provider_func_(
@@ -150,7 +150,7 @@ SbPlayerBridge::SbPlayerBridge(
       allow_resume_after_suspend_(allow_resume_after_suspend),
       audio_config_(audio_config),
       video_config_(video_config),
-      video_frame_provider_(video_frame_provider),
+      decode_target_provider_(decode_target_provider),
       max_video_capabilities_(max_video_capabilities)
 #if SB_HAS(PLAYER_WITH_URL)
       ,
@@ -161,7 +161,7 @@ SbPlayerBridge::SbPlayerBridge(
   DCHECK(audio_config.IsValidConfig() || video_config.IsValidConfig());
   DCHECK(host_);
   DCHECK(set_bounds_helper_);
-  DCHECK(video_frame_provider_);
+  DCHECK(decode_target_provider_);
 
   audio_sample_info_.codec = kSbMediaAudioCodecNone;
   video_sample_info_.codec = kSbMediaVideoCodecNone;
@@ -191,8 +191,9 @@ SbPlayerBridge::~SbPlayerBridge() {
   callback_helper_->ResetPlayer();
   set_bounds_helper_->SetPlayerBridge(NULL);
 
-  video_frame_provider_->SetOutputMode(VideoFrameProvider::kOutputModeInvalid);
-  video_frame_provider_->ResetGetCurrentSbDecodeTargetFunction();
+  decode_target_provider_->SetOutputMode(
+      DecodeTargetProvider::kOutputModeInvalid);
+  decode_target_provider_->ResetGetCurrentSbDecodeTargetFunction();
 
   if (SbPlayerIsValid(player_)) {
     SbPlayerDestroy(player_);
@@ -457,8 +458,9 @@ void SbPlayerBridge::Suspend() {
 
   state_ = kSuspended;
 
-  video_frame_provider_->SetOutputMode(VideoFrameProvider::kOutputModeInvalid);
-  video_frame_provider_->ResetGetCurrentSbDecodeTargetFunction();
+  decode_target_provider_->SetOutputMode(
+      DecodeTargetProvider::kOutputModeInvalid);
+  decode_target_provider_->ResetGetCurrentSbDecodeTargetFunction();
 
   SbPlayerDestroy(player_);
 
@@ -499,19 +501,19 @@ void SbPlayerBridge::Resume(SbWindow window) {
 }
 
 namespace {
-VideoFrameProvider::OutputMode ToVideoFrameProviderOutputMode(
+DecodeTargetProvider::OutputMode ToVideoFrameProviderOutputMode(
     SbPlayerOutputMode output_mode) {
   switch (output_mode) {
     case kSbPlayerOutputModeDecodeToTexture:
-      return VideoFrameProvider::kOutputModeDecodeToTexture;
+      return DecodeTargetProvider::kOutputModeDecodeToTexture;
     case kSbPlayerOutputModePunchOut:
-      return VideoFrameProvider::kOutputModePunchOut;
+      return DecodeTargetProvider::kOutputModePunchOut;
     case kSbPlayerOutputModeInvalid:
-      return VideoFrameProvider::kOutputModeInvalid;
+      return DecodeTargetProvider::kOutputModeInvalid;
   }
 
   NOTREACHED();
-  return VideoFrameProvider::kOutputModeInvalid;
+  return DecodeTargetProvider::kOutputModeInvalid;
 }
 
 }  // namespace
@@ -550,10 +552,10 @@ void SbPlayerBridge::CreateUrlPlayer(const std::string& url) {
   if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
     // If the player is setup to decode to texture, then provide Cobalt with
     // a method of querying that texture.
-    video_frame_provider_->SetGetCurrentSbDecodeTargetFunction(base::Bind(
+    decode_target_provider_->SetGetCurrentSbDecodeTargetFunction(base::Bind(
         &SbPlayerBridge::GetCurrentSbDecodeTarget, base::Unretained(this)));
   }
-  video_frame_provider_->SetOutputMode(
+  decode_target_provider_->SetOutputMode(
       ToVideoFrameProviderOutputMode(output_mode_));
 
   set_bounds_helper_->SetPlayerBridge(this);
@@ -605,10 +607,10 @@ void SbPlayerBridge::CreatePlayer() {
   if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
     // If the player is setup to decode to texture, then provide Cobalt with
     // a method of querying that texture.
-    video_frame_provider_->SetGetCurrentSbDecodeTargetFunction(base::Bind(
+    decode_target_provider_->SetGetCurrentSbDecodeTargetFunction(base::Bind(
         &SbPlayerBridge::GetCurrentSbDecodeTarget, base::Unretained(this)));
   }
-  video_frame_provider_->SetOutputMode(
+  decode_target_provider_->SetOutputMode(
       ToVideoFrameProviderOutputMode(output_mode_));
   set_bounds_helper_->SetPlayerBridge(this);
 

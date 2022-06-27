@@ -134,7 +134,7 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
 
   ON_INSTANCE_CREATED(WebMediaPlayerImpl);
 
-  video_frame_provider_ = new VideoFrameProvider();
+  decode_target_provider_ = new DecodeTargetProvider();
 
   media_log_->AddEvent<::media::MediaLogEvent::kWebMediaPlayerCreated>();
 
@@ -142,7 +142,7 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
   pipeline_ = Pipeline::Create(window, pipeline_thread_.task_runner(),
                                get_decode_target_graphics_context_provider_func,
                                allow_resume_after_suspend_, media_log_,
-                               video_frame_provider_.get());
+                               decode_target_provider_.get());
 
   // Also we want to be notified of |main_loop_| destruction.
   main_loop_->AddDestructionObserver(this);
@@ -559,8 +559,9 @@ WebMediaPlayer::PlayerStatistics WebMediaPlayerImpl::GetStatistics() const {
   return statistics;
 }
 
-scoped_refptr<VideoFrameProvider> WebMediaPlayerImpl::GetVideoFrameProvider() {
-  return video_frame_provider_;
+scoped_refptr<DecodeTargetProvider>
+WebMediaPlayerImpl::GetDecodeTargetProvider() {
+  return decode_target_provider_;
 }
 
 WebMediaPlayerImpl::SetBoundsCB WebMediaPlayerImpl::GetSetBoundsCB() {
