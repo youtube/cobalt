@@ -105,6 +105,14 @@ target(gtest_target_type, "ffmpeg_demuxer_test") {
               "ffmpeg_demuxer.cc",
               "ffmpeg_demuxer_test.cc",
             ]
+
+  # Build only against one specified version of the ffmpeg includes. That means
+  # that this binary will only work well when run on a machine with the given
+  # version of ffmpeg installed. This test binary actually should have
+  # specializations for all supported ffmpeg versions, or it should only test
+  # the behavior of the abstraction layer without testing implementation
+  # details.
+  include_dirs = [ "//third_party/ffmpeg_includes/ffmpeg.58.35.100" ]
   deps = [
     "//cobalt/test:run_all_unittests",
     "//starboard",
