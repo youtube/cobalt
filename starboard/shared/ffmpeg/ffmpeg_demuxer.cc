@@ -16,7 +16,6 @@
 
 #include <memory>
 
-#include "starboard/shared/ffmpeg/ffmpeg_common.h"
 #include "starboard/shared/ffmpeg/ffmpeg_dispatch.h"
 #include "starboard/time.h"
 
