@@ -15,12 +15,15 @@
 #ifndef COBALT_SCRIPT_V8C_NATIVE_PROMISE_H_
 #define COBALT_SCRIPT_V8C_NATIVE_PROMISE_H_
 
+#include <memory>
+
 #include "base/logging.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/script/promise.h"
 #include "cobalt/script/v8c/conversion_helpers.h"
 #include "cobalt/script/v8c/entry_scope.h"
 #include "cobalt/script/v8c/scoped_persistent.h"
+#include "cobalt/script/v8c/script_promise.h"
 #include "cobalt/script/v8c/type_traits.h"
 #include "cobalt/script/v8c/v8c_exception_state.h"
 #include "cobalt/script/v8c/v8c_user_object_holder.h"
@@ -40,10 +43,9 @@ inline void ToJSValue(v8::Isolate* isolate,
   *out_value = v8::Undefined(isolate);
 }
 
-// Shared functionality for NativePromise<T>. Does not implement the Resolve
-// function, since that needs to be specialized for Promise<T>.
+// Shared functionality for NativePromise<T>.
 template <typename T>
-class NativePromise : public ScopedPersistent<v8::Value>, public Promise<T> {
+class NativePromise : public ScriptPromise<T> {
  public:
   // ScriptValue boilerplate.
   typedef Promise<T> BaseType;
@@ -63,20 +65,20 @@ class NativePromise : public ScopedPersistent<v8::Value>, public Promise<T> {
                                 PromiseResultUndefined, T>::type;
 
   NativePromise(v8::Isolate* isolate, v8::Local<v8::Value> resolver)
-      : isolate_(isolate), ScopedPersistent(isolate, resolver) {
+      : ScriptPromise<T>(isolate, resolver) {
     DCHECK(resolver->IsPromise());
   }
 
   void Resolve(const ResolveType& value) const override {
     DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
     DCHECK(!this->IsEmpty());
-    DCHECK(State() == PromiseState::kPending);
-    EntryScope entry_scope(isolate_);
-    v8::Local<v8::Context> context = isolate_->GetCurrentContext();
+    DCHECK(this->State() == PromiseState::kPending);
+    EntryScope entry_scope(this->isolate());
+    v8::Local<v8::Context> context = this->isolate()->GetCurrentContext();
 
     v8::Local<v8::Promise::Resolver> promise_resolver = this->resolver();
     v8::Local<v8::Value> converted_value;
-    ToJSValue(isolate_, value, &converted_value);
+    ToJSValue(this->isolate(), value, &converted_value);
     v8::Maybe<bool> reject_result =
         promise_resolver->Resolve(context, converted_value);
     DCHECK(reject_result.FromJust());
@@ -85,25 +87,26 @@ class NativePromise : public ScopedPersistent<v8::Value>, public Promise<T> {
   void Reject() const override {
     DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
     DCHECK(!this->IsEmpty());
-    DCHECK(State() == PromiseState::kPending);
-    EntryScope entry_scope(isolate_);
-    v8::Local<v8::Context> context = isolate_->GetCurrentContext();
+    DCHECK(this->State() == PromiseState::kPending);
+    EntryScope entry_scope(this->isolate());
+    v8::Local<v8::Context> context = this->isolate()->GetCurrentContext();
 
     v8::Local<v8::Promise::Resolver> promise_resolver = this->resolver();
     v8::Maybe<bool> reject_result =
-        promise_resolver->Reject(context, v8::Undefined(isolate_));
+        promise_resolver->Reject(context, v8::Undefined(this->isolate()));
     DCHECK(reject_result.FromJust());
   }
 
   void Reject(SimpleExceptionType exception) const override {
     DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
     DCHECK(!this->IsEmpty());
-    DCHECK(State() == PromiseState::kPending);
-    EntryScope entry_scope(isolate_);
-    v8::Local<v8::Context> context = isolate_->GetCurrentContext();
+    DCHECK(this->State() == PromiseState::kPending);
+    EntryScope entry_scope(this->isolate());
+    v8::Local<v8::Context> context = this->isolate()->GetCurrentContext();
 
     v8::Local<v8::Promise::Resolver> promise_resolver = this->resolver();
-    v8::Local<v8::Value> error_result = CreateErrorObject(isolate_, exception);
+    v8::Local<v8::Value> error_result =
+        CreateErrorObject(this->isolate(), exception);
     v8::Maybe<bool> reject_result =
         promise_resolver->Reject(context, error_result);
     DCHECK(reject_result.FromJust());
@@ -112,51 +115,22 @@ class NativePromise : public ScopedPersistent<v8::Value>, public Promise<T> {
   void Reject(const scoped_refptr<ScriptException>& result) const override {
     DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
     DCHECK(!this->IsEmpty());
-    DCHECK(State() == PromiseState::kPending);
-    EntryScope entry_scope(isolate_);
-    v8::Local<v8::Context> context = isolate_->GetCurrentContext();
+    DCHECK(this->State() == PromiseState::kPending);
+    EntryScope entry_scope(this->isolate());
+    v8::Local<v8::Context> context = this->isolate()->GetCurrentContext();
 
     v8::Local<v8::Promise::Resolver> promise_resolver = this->resolver();
     v8::Local<v8::Value> converted_result;
-    ToJSValue(isolate_, result, &converted_result);
+    ToJSValue(this->isolate(), result, &converted_result);
     v8::Maybe<bool> reject_result =
         promise_resolver->Reject(context, converted_result);
     DCHECK(reject_result.FromJust());
   }
 
-  PromiseState State() const override {
-    DCHECK(!this->IsEmpty());
-    EntryScope entry_scope(isolate_);
-
-    v8::Promise::PromiseState v8_promise_state = this->promise()->State();
-    switch (v8_promise_state) {
-      case v8::Promise::kPending:
-        return PromiseState::kPending;
-      case v8::Promise::kFulfilled:
-        return PromiseState::kFulfilled;
-      case v8::Promise::kRejected:
-        return PromiseState::kRejected;
-    }
-    NOTREACHED();
-    return PromiseState::kRejected;
-  }
-
-  v8::Local<v8::Promise> promise() const {
-    DCHECK(!this->IsEmpty());
-    return resolver()->GetPromise();
-  }
-
  private:
-  v8::Isolate* isolate_;
-
   // Thread checker ensures all calls to the Promise are made from the same
   // thread that it is created in.
   THREAD_CHECKER(thread_checker_);
-
-  v8::Local<v8::Promise::Resolver> resolver() const {
-    DCHECK(!this->IsEmpty());
-    return this->Get().Get(isolate_).template As<v8::Promise::Resolver>();
-  }
 };
 
 template <typename T>

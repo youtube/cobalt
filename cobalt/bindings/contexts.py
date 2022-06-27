@@ -244,7 +244,8 @@ class ContextBuilder(object):
             not idl_type.is_callback_interface), 'Callback types not supported.'
     element_cobalt_type = self.idl_type_to_cobalt_type(
         self.resolve_typedef(result_idl_type))
-    result = '::cobalt::script::Promise< %s >' % element_cobalt_type
+    result = 'std::unique_ptr<::cobalt::script::Promise< %s* > >' % (
+        element_cobalt_type)
     return result
 
   def idl_union_type_to_cobalt(self, idl_type):
