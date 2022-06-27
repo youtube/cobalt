@@ -7,7 +7,7 @@
     {
       "platform":"linux-x64x11-clang-3-9",
       "target_platform":"linux-x64x11-clang-3-9",
-      "using_old_compiler":"using_old_compiler=true"
+      "extra_gn_arguments":"using_old_compiler=true"
     }
   ]
 }

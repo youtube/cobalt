@@ -8,7 +8,7 @@
       "platform":"android-arm",
       "target_platform":"android-arm",
       "target_cpu":"target_cpu=\\\"arm\\\"",
-      "target_os":"target_cpu=\\\"android\\\""
+      "target_os":"target_os=\\\"android\\\""
     }
   ]
 }
