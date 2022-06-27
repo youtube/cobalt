@@ -29,15 +29,10 @@ COPY ./spin.ps1 /spin.ps1
 # of the execution, i.e. the full invocation string.
 COPY ./list_python_processes.py /list_python_processes.py
 
-# Helper file to ensure python2 is invoked correctly from command line.
-COPY ./python2.bat /python2/python2.bat
-
 # Install deps via chocolatey.
 RUN iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'));`
     mkdir C:\choco-cache;`
-    # Install Python 3 before Python 2, so the default on the path is python2.
     choco install -y -c C:\choco-cache python3 -ia '/quiet InstallAllUsers=1 PrependPath=1 TargetDir="C:\Python3"';`
-    choco install -y -c C:\choco-cache python2 --params '/InstallDir:C:\python2';`
     choco install -y -c C:\choco-cache winflexbison3 --params '/InstallDir:C:\bison';`
     choco install -y -c C:\choco-cache ninja;`
     choco install -y -c C:\choco-cache nodejs-lts;`
@@ -47,16 +42,10 @@ RUN iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.or
     Remove-Item -Force -Recurse $env:TEMP\*;`
     C:\fast-win-rmdir.cmd C:\choco-cache;`
     # Create version specific copy of each python executable.
-    Copy-Item C:\Python3\python.exe C:\Python3\python3.exe;`
-    Copy-Item C:\python2\python.exe C:\python2\python2.exe
+    Copy-Item C:\Python3\python.exe C:\Python3\python3.exe
 
-# Install python2 packages via PIP.
-# Additionally do the same for python3, and set various configurations.
+# Install python3 packages via PIP and set various configurations.
 RUN mkdir C:\pip-cache;`
-    python2 -m pip install pypiwin32 six --cache-dir C:\pip-cache;`
-    C:\fast-win-rmdir.cmd C:\pip-cache;`
-    # Install python3 packages via PIP.
-    mkdir C:\pip-cache;`
     python3 -m pip install six --cache-dir C:\pip-cache;`
     C:\fast-win-rmdir.cmd C:\pip-cache;`
     # Configure git global settings.
