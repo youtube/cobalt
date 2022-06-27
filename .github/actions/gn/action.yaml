@@ -1,0 +1,20 @@
+name: GN
+description: Generates and checks GN.
+runs:
+  using: "composite"
+  steps:
+    - name: Set common env vars
+      run: |
+           echo "PYTHONPATH=$GITHUB_WORKSPACE" >> $GITHUB_ENV
+      shell: bash
+    - name: Print env vars
+      run: env | sort
+      shell: bash
+    - name: gn gen
+      run: |
+          gn gen $GITHUB_WORKSPACE/out/${{matrix.target_platform}}_${{matrix.config}} --args="target_platform=\"${{matrix.target_platform}}\" ${{matrix.use_asan}} ${{matrix.is_clang}} ${{matrix.using_old_compiler}} ${{matrix.sb_api_version}} ${{matrix.target_os}} ${{matrix.target_cpu}} is_internal_build=false build_type=\"${{matrix.config}}\""
+      shell: bash
+    - name: gn check
+      run: |
+        gn check $GITHUB_WORKSPACE/out/${{ matrix.target_platform }}_${{ matrix.config }}
+      shell: bash
