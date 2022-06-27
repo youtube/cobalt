@@ -7936,7 +7936,6 @@ TEST_F(URLRequestTestHTTP, RedirectToInvalidURL) {
   EXPECT_EQ(0, d.received_redirect_count());
 }
 
-#if !defined(HTTP_CACHE_TESTING_DISABLED)
 // Make sure redirects are cached, despite not reading their bodies.
 TEST_F(URLRequestTestHTTP, CacheRedirect) {
   ASSERT_TRUE(http_test_server()->Start());
@@ -7973,7 +7972,6 @@ TEST_F(URLRequestTestHTTP, CacheRedirect) {
     EXPECT_EQ(http_test_server()->GetURL("/echo"), req->url());
   }
 }
-#endif
 
 // Make sure a request isn't cached when a NetworkDelegate forces a redirect
 // when the headers are read, since the body won't have been read.
@@ -8398,7 +8396,6 @@ TEST_F(URLRequestTestHTTP, CancelDeferredRedirect) {
   }
 }
 
-#if !defined(HTTP_CACHE_TESTING_DISABLED)
 TEST_F(URLRequestTestHTTP, VaryHeader) {
   ASSERT_TRUE(http_test_server()->Start());
 
@@ -8497,7 +8494,6 @@ TEST_F(URLRequestTestHTTP, BasicAuth) {
     EXPECT_TRUE(r->was_cached());
   }
 }
-#endif
 
 // Check that Set-Cookie headers in 401 responses are respected.
 // http://crbug.com/6450
@@ -8561,7 +8557,6 @@ TEST_F(URLRequestTestHTTP, BasicAuthWithCookies) {
   }
 }
 
-#if !defined(HTTP_CACHE_TESTING_DISABLED)
 // Tests that load timing works as expected with auth and the cache.
 TEST_F(URLRequestTestHTTP, BasicAuthLoadTiming) {
   ASSERT_TRUE(http_test_server()->Start());
@@ -8624,7 +8619,6 @@ TEST_F(URLRequestTestHTTP, BasicAuthLoadTiming) {
     TestLoadTimingNotReused(load_timing_info, CONNECT_TIMING_HAS_DNS_TIMES);
   }
 }
-#endif
 
 // In this test, we do a POST which the server will 302 redirect.
 // The subsequent transaction should use GET, and should not send the
@@ -9249,7 +9243,6 @@ TEST_F(URLRequestTestHTTP, NetworkAccessedSetOnNetworkRequest) {
   EXPECT_TRUE(req->response_info().network_accessed);
 }
 
-#if !defined(HTTP_CACHE_TESTING_DISABLED)
 TEST_F(URLRequestTestHTTP, NetworkAccessedClearOnCachedResponse) {
   ASSERT_TRUE(http_test_server()->Start());
 
@@ -9290,7 +9283,6 @@ TEST_F(URLRequestTestHTTP, NetworkAccessedClearOnLoadOnlyFromCache) {
 
   EXPECT_FALSE(req->response_info().network_accessed);
 }
-#endif
 
 // Test that a single job with a THROTTLED priority completes
 // correctly in the absence of contention.
@@ -12337,7 +12329,6 @@ TEST_F(URLRequestTestHTTP, HeadersCallbacks) {
     EXPECT_EQ("GET /cachetime HTTP/1.1\r\n", raw_req_headers.request_line());
     EXPECT_EQ(raw_resp_headers.get(), r->response_headers());
   }
-#if !defined(HTTP_CACHE_TESTING_DISABLED)
   {
     std::unique_ptr<URLRequest> r(context.CreateRequest(
         url, DEFAULT_PRIORITY, &delegate, TRAFFIC_ANNOTATION_FOR_TESTS));
@@ -12353,7 +12344,6 @@ TEST_F(URLRequestTestHTTP, HeadersCallbacks) {
     delegate.RunUntilComplete();
     EXPECT_TRUE(r->was_cached());
   }
-#endif
 }
 
 TEST_F(URLRequestTestHTTP, HeadersCallbacksWithRedirect) {
@@ -12484,14 +12474,12 @@ TEST_F(URLRequestTestHTTP, HeadersCallbacksAuthRetry) {
   EXPECT_FALSE(r2->is_pending());
   ASSERT_EQ(raw_req_headers.size(), 3u);
   ASSERT_EQ(raw_resp_headers.size(), 3u);
-#if !defined(HTTP_CACHE_TESTING_DISABLED)
   // Google for the "If-None-Match" request header to see its relation to
   // HTTP cache.
   EXPECT_TRUE(raw_req_headers[2]->FindHeaderForTest("If-None-Match", &value));
   EXPECT_NE(raw_resp_headers[2].get(), r2->response_headers());
   EXPECT_EQ(304, raw_resp_headers[2]->response_code());
   EXPECT_EQ("Not Modified", raw_resp_headers[2]->GetStatusText());
-#endif
 }
 
 TEST_F(URLRequestTest, HeadersCallbacksNonHTTP) {
