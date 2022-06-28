@@ -127,9 +127,9 @@ the `PRELOADING` state.
 
 `PRELOADING` can only happen as the first application state. In this state, the
 application should start and run as normal, but will not receive any input, and
-should not try to initialize graphics resources (via GL or `SbBlitter`). In
-`PRELOADING`, the application can receive `Start` or `Suspend` events. `Start`
-will receive the same data that was passed into `Preload`.
+should not try to initialize graphics resources via GL. In `PRELOADING`, the
+application can receive `Start` or `Suspend` events. `Start` will receive the
+same data that was passed into `Preload`.
 
 In the `STARTED` state, the application is in the foreground and can expect to
 do all of the normal things it might want to do. Once in the `STARTED` state, it
@@ -322,8 +322,8 @@ the type of the value pointed to by that data argument, if any.
     ticket value kSbEventOnScreenKeyboardInvalidTicket.
 *   `kSbEventTypeAccessibilityCaptionSettingsChanged`
 
-    SB_HAS(ON_SCREEN_KEYBOARD)One or more of the fields returned by
-    SbAccessibilityGetCaptionSettings has changed.
+    One or more of the fields returned by SbAccessibilityGetCaptionSettings has
+    changed.
 *   `kSbEventTypeAccessibilityTextToSpeechSettingsChanged`
 
     The platform's text-to-speech settings have changed.
@@ -475,4 +475,3 @@ callback as soon as possible.
 ```
 SbEventId SbEventSchedule(SbEventCallback callback, void *context, SbTime delay)
 ```
-

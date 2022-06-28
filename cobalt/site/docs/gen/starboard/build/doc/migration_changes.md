@@ -25,7 +25,6 @@ variables.
 `sb_evergreen_compatible` (0/1)           | `sb_is_evergreen_compatible` (true/false)            | `//starboard/build/config/base_configuration.gni`
 `sb_evergreen_compatible_libunwind` (0/1) | `sb_evergreen_compatible_use_libunwind` (true/false) | `//starboard/build/config/base_configuration.gni`
 `sb_evergreen_compatible_lite` (0/1)      | `sb_evergreen_compatible_enable_lite` (true/false)   | `//starboard/build/config/base_configuration.gni`
-`in_app_dial` (0/1)                       | `enable_in_app_dial` (true/false)                    | `//starboard/build/config/base_configuration.gni`
 `sb_disable_cpp14_audit`                  | (none)                                               |
 `sb_disable_microphone_idl`               | (none)                                               |
 `starboard_path`                          | (none)                                               |

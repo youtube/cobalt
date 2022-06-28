@@ -6,3 +6,4 @@
       gr_texture_.reset(new GrBackendTexture(texture_size.width(),
                                              texture_size.height(),
                                              GrMipMapped::kNo, texture_info));
+Onces represent initializations that should only ever happen once per process,

@@ -26,7 +26,7 @@ for decode-to-texture support:
 From [`starboard/player.h`](../player.h),
 
 * `SbPlayerCreate()`
-* `SbPlayerOutputModeSupported()`
+* `SbPlayerGetPreferredOutputMode()`
 * `SbPlayerGetCurrentFrame()`
 
 From [`starboard/decode_target.h`](../decode_target.h),
@@ -47,17 +47,20 @@ support.
 ![Decode-to-texture sequence diagram](resources/decode_to_texture_sequence.png)
 
 1. An application with the desire to make use of decode-to-texture will first
-   call `SbPlayerOutputModeSupported()`, passing in
-   `kSbPlayerOutputModeDecodeToTexture` for its `output_mode` parameter.  If
-   the function returns false, the application learns that decode-to-texture
-   is not supported by the platform and it will not continue with a
-   decode-to-texture flow.
+   call `SbPlayerGetPreferredOutputMode()`, passing in
+   `kSbPlayerOutputModeDecodeToTexture` for its `creation_param->output_mode`
+   parameter.  If the function doesn't return
+   `kSbPlayerOutputModeDecodeToTexture`, the application learns that
+   decode-to-texture is not supported by the platform and it will not continue
+   with a decode-to-texture flow.
 
-2. If `SbPlayerOutputModeSupported()` returns true, the application will call
+2. If `SbPlayerGetPreferredOutputMode()` returns
+   `kSbPlayerOutputModeDecodeToTexture`, the application will call
    `SbPlayerCreate()`, passing in `kSbPlayerOutputModeDecodeToTexture` for
-   the `output_mode` parameter, and also providing a valid `provider`
-   parameter (more on this later).  At this point, the Starboard platform is
-   expected to have created a player with the decode-to-texture output mode.
+   the `creation_param->output_mode` parameter, and also providing a valid
+   `provider` parameter (more on this later).  At this point, the Starboard
+   platform is expected to have created a player with the decode-to-texture
+    output mode.
 
 3. Once the player is started and playback has begun, the application's
    renderer thread (this may be a different thread than the one that called

@@ -65,9 +65,9 @@ they are filtered out as described below.
 ## Filtering Tests
 
 To filter out tests that you do not want to run for a specific platform,
-implement a method within the platform's `PlatformConfiguration` subclass called
-`GetTestFilters()`. The `PlatformConfiguration` subclass lives in the
-`gyp_configuration.py` file for each platform. If the tests are
+implement a method within the platform's `TestFilters` subclass called
+`GetTestFilters()`. The `TestFilters` subclass lives in the
+`test_filters.py` file for each platform. If the tests are
 application-specific, you may define `GetTestFilters()` on an optional
 `ApplicationConfiguration` subclass, which will be found in the
 `<platform-directory>/<application-name>/configuration.py` subdirectory. See

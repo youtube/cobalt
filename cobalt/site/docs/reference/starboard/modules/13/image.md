@@ -13,8 +13,6 @@ time.
 
 ## SbImageIsDecodeSupported and SbImageDecode Example ##
 
-Let's assume that we're on a Blitter platform.
-
 ```
 SbDecodeTargetProvider* provider = GetProviderFromSomewhere();
 void* data = GetCompressedJPEGFromSomewhere();
@@ -28,9 +26,6 @@ if (!SbImageIsDecodeSupported(mime_type, format)) {
 
 SbDecodeTarget result_target = SbDecodeImage(provider, data, data_size,
                                              mime_type, format);
-SbBlitterSurface surface =
-    SbDecodeTargetGetPlane(target, kSbDecodeTargetPlaneRGBA);
-// Do stuff with surface...
 ```
 
 ## Functions ##
@@ -79,4 +74,3 @@ results of this function may be cached indefinitely.
 ```
 bool SbImageIsDecodeSupported(const char *mime_type, SbDecodeTargetFormat format)
 ```
-
