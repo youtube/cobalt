@@ -20,6 +20,8 @@
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+#if SB_API_VERSION < 14
+
 namespace starboard {
 namespace nplb {
 namespace {
@@ -42,3 +44,5 @@ TEST(SbSystemGetConnectionTypeTest, ConnectionIsWiredOrWireless) {
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
+
+#endif  // SB_API_VERSION < 14

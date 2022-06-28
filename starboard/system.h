@@ -173,6 +173,7 @@ typedef enum SbSystemDeviceType {
   kSbSystemDeviceTypeUnknown,
 } SbSystemDeviceType;
 
+#if SB_API_VERSION < 14
 // Enumeration of network connection types.
 typedef enum SbSystemConnectionType {
   // The system is on a wired connection.
@@ -184,6 +185,7 @@ typedef enum SbSystemConnectionType {
   // The system connection type is unknown.
   kSbSystemConnectionTypeUnknown,
 } SbSystemConnectionType;
+#endif  // SB_API_VERSION < 14
 
 // Runtime capabilities are boolean properties of a platform that can't be
 // determined at compile-time. They may vary from device to device, but they
@@ -314,8 +316,10 @@ SB_EXPORT int64_t SbSystemGetUsedGPUMemory();
 // Returns the type of the device.
 SB_EXPORT SbSystemDeviceType SbSystemGetDeviceType();
 
+#if SB_API_VERSION < 14
 // Returns the device's current network connection type.
 SB_EXPORT SbSystemConnectionType SbSystemGetConnectionType();
+#endif  // SB_API_VERSION < 14
 
 #if SB_API_VERSION >= 13
 // Returns if the device is disconnected from network. "Disconnected" is chosen

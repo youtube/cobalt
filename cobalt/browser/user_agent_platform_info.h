@@ -59,12 +59,6 @@ class UserAgentPlatformInfo : public web::UserAgentPlatformInfo {
   base::Optional<std::string> brand() const override { return brand_; }
   base::Optional<std::string> model() const override { return model_; }
   const std::string& aux_field() const override { return aux_field_; }
-  base::Optional<SbSystemConnectionType> connection_type() const override {
-    return connection_type_;
-  }
-  const std::string& connection_type_string() const override {
-    return connection_type_string_;
-  }
   const std::string& javascript_engine_version() const override {
     return javascript_engine_version_;
   }
@@ -97,8 +91,6 @@ class UserAgentPlatformInfo : public web::UserAgentPlatformInfo {
   void set_brand(base::Optional<std::string> brand);
   void set_model(base::Optional<std::string> model);
   void set_aux_field(const std::string& aux_field);
-  void set_connection_type(
-      base::Optional<SbSystemConnectionType> connection_type);
   void set_javascript_engine_version(
       const std::string& javascript_engine_version);
   void set_rasterizer_type(const std::string& rasterizer_type);
@@ -121,8 +113,6 @@ class UserAgentPlatformInfo : public web::UserAgentPlatformInfo {
   base::Optional<std::string> brand_;
   base::Optional<std::string> model_;
   std::string aux_field_;
-  base::Optional<SbSystemConnectionType> connection_type_;
-  std::string connection_type_string_;
   std::string javascript_engine_version_;
   std::string rasterizer_type_;
   std::string evergreen_type_;
