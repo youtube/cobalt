@@ -14,11 +14,8 @@ A number of tweaks are listed below in no particular order.  Each item
 has a set of tags keywords to make it easy to search for items related
 to a specific type of performance metric (e.g. "framerate").
 
-Many of the tweaks involve adding a new gyp variable to your platform's
-`gyp_configuration.gypi` file.  The default values for these variables are
-defined in either
-[`base_configuration.gypi`](../../starboard/build/base_configuration.gypi) or
-[`cobalt_configuration.gypi`](../build/cobalt_configuration.gypi).
+Many of the tweaks involve implementing a Cobalt extension and returning
+different values from specific functions.
 
 ### Use a Release Build
 
@@ -43,12 +40,12 @@ settings in place, the renderer will attempt to render each frame as fast
 as it can, limited only by the display's refresh rate, which is usually 60Hz.
 By artificially throttling this rate to a lower value, like 30Hz, CPU
 resources can be freed to work on other tasks.  You can enable framerate
-throttling by setting a value for `cobalt_minimum_frame_time_in_milliseconds`
-in your platform's `gyp_configuration.gypi` file.  Setting it to 33, for
-example, will throttle Cobalt's renderer to 30 frames per second.
+throttling by setting a return value for
+`GetMinimumFrameIntervalInMilliseconds` in your platform's Cobalt graphics
+extension.  Setting it to 33, for example, will throttle Cobalt's renderer to
+30 frames per second (as there'll be one frame every 33 milliseconds).
 
-**Tags:** *gyp_configuration.gypi, framerate, startup, browse-to-watch,
-           input latency.*
+**Tags:** *Cobalt extension, framerate, startup, browse-to-watch, input latency.*
 
 
 ### Image cache capacity
@@ -61,12 +58,12 @@ this value, you can lower GPU memory usage, at the cost of having Cobalt
 make more network requests and image decodes for previously seen images.
 Cobalt will automatically set the image cache capacity to a reasonable value,
 but if you wish to override this, you can do so by setting the
-`image_cache_size_in_bytes` variable in your `gyp_configuration.gypi` file.  For
-the YouTube web app, we have found that at 1080p, 32MB will allow around
+`CobaltImageCacheSizeInBytes` function in your Cobalt configuration extension.
+For the YouTube web app, we have found that at 1080p, 32MB will allow around
 5 thumbnail shelves to stay resident at a time, with 720p and 4K resolutions
 using proportionally less and more memory, respectively.
 
-**Tags:** *gyp_configuration.gypi, cpu memory, gpu memory.*
+**Tags:** *Cobalt extension, cpu memory, gpu memory.*
 
 
 ### Image cache capacity multiplier during video playback
@@ -79,32 +76,11 @@ may need to evict some images when the capacity changes, and so it is
 more likely that Cobalt will have to re-download and decode images after
 returning from video playback.  Note that this feature is not well tested.
 The feature can be activated by setting
-`image_cache_capacity_multiplier_when_playing_video` to a value between
-`0.0` and `1.0` in your `gyp_configuration.gypi` file.  The image cache
+`CobaltImageCacheCapacityMultiplierWhenPlayingVideo` to a value between
+`0.0` and `1.0` in your Cobalt configuration extension.  The image cache
 capacity will be multiplied by this value during video playback.
 
-**Tags:** *gyp_configuration.gypi, gpu memory.*
-
-
-### Scratch Surface cache capacity
-
-This only affects GLES renderers.  While rasterizing a frame, it is
-occasionally necessary to render to a temporary offscreen surface and then
-apply that surface to the original render target.  Offscreen surface
-rendering may also need to be performed multiple times per frame.  The
-scratch surface cache will keep allocated a set of scratch textures that
-will be reused (within and across frames) for offscreen rendering.  Reusing
-offscreen surfaces allows render target allocations, which can be expensive
-on some platforms, to be minimized.  However, it has been found that some
-platforms (especially those with tiled renderers, like the Raspberry Pi's
-Broadcom VideoCore), reading and writing again and again to the same texture
-can result in performance degradation.  Memory may also be potentially saved
-by disabling this cache, since when it is enabled, if the cache is filled, it
-may be occupying memory that it is not currently using.  This setting can
-be adjusted by setting `surface_cache_size_in_bytes` in your
-`gyp_configuration.gypi` file.  A value of `0` will disable the surface cache.
-
-**Tags:** *gyp_configuration.gypi, gpu memory, framerate.*
+**Tags:** *Cobalt extension, gpu memory.*
 
 
 ### Glyph atlas size
@@ -118,12 +94,12 @@ less likely to be cached already.  Note that if experimenting with
 modifications to this setting, be sure to test many languages, as some
 are more demanding (e.g. Chinese and Japanese) on the glyph cache than
 others.  This value can be adjusted by changing the values of
-the `skia_glyph_atlas_width` and `skia_glyph_atlas_height` variables in your
-`gyp_configuration.gypi` file.  Note that by default, these will be
+the `CobaltSkiaGlyphAtlasWidth` and `CobaltSkiaGlyphAtlasHeight` variables in
+your Cobalt configuration extension.  Note that by default, these will be
 automatically configured by Cobalt to values found to be optimal for
 the application's resolution.
 
-**Tags:** *gyp_configuration.gypi, gpu memory, input latency, framerate.*
+**Tags:** *Cobalt extension, gpu memory, input latency, framerate.*
 
 
 ### Software surface cache capacity
@@ -135,9 +111,10 @@ elements (most notably, text).  In order to avoid expensive software
 renders, the results are cached and re-used across frames.  The software
 surface cache is crucial to achieving an acceptable framerate on Blitter API
 platforms.  The size of this cache is specified by the
-`software_surface_cache_size_in_bytes` variable in `gyp_configuration.gypi`.
+`CobaltSoftwareSurfaceCacheSizeInBytes` variable in your Cobalt configuration
+extension.
 
-**Tags:** *gyp_configuration.gypi, gpu memory, framerate.*
+**Tags:** *Cobalt extension, gpu memory, framerate.*
 
 
 ### Toggle Just-In-Time JavaScript Compilation
@@ -152,7 +129,7 @@ recommended that JIT support be left disabled, but you can experiment with
 it by implementing the CobaltExtensionConfigurationApi method
 `CobaltEnableJit()` to return `true` to enable JIT, or `false` to disable it.
 
-**Tags:** *gyp_configuration.gypi, startup, browse-to-watch, input latency,
+**Tags:** *Cobalt extension, startup, browse-to-watch, input latency,
            cpu memory.*
 
 
@@ -198,7 +175,7 @@ offscreen buffer, which can significantly affect GPU memory usage.  If you are
 on a Blitter API platform, enabling this functionality will result in the
 allocation and blit of a fullscreen "intermediate" back buffer target.
 
-**Tags:** *startup, framerate, gpu memory.*
+**Tags:** *Cobalt extension, startup, framerate, gpu memory.*
 
 
 ### Ensure that thread priorities are respected
@@ -221,27 +198,34 @@ platform.
 
 Huge performance improvements can be obtained by ensuring that the right
 optimizations are enabled by your compiler and linker flag settings.  You
-can set these up within `gyp_configuration.gypi` by adjusting the list
-variables `compiler_flags` and `linker_flags`.  See also
-`compiler_flags_gold` and `linker_flags_gold` which describe flags that
-apply only to gold builds where performance is critical.  Note that
-unless you explicitly set this up, it is unlikely that compiler/linker
-flags will carry over from external shell environment settings; they
-must be set explicitly in `gyp_configuration.gypi`.
+can set these up within `platform_configuration/BUILD.gn` by adjusting the
+`cflags`, `ldflags`, and more. Keep in mind you can use `is_gold` and other
+such boolean values to only apply optimizations where performance is critical.
+Note that unless you explicitly set this up, it is unlikely that
+compiler/linker flags will carry over from external shell environment settings;
+they must be set explicitly in `platform_configuration/BUILD.gn`.
 
 **Tags:** *framerate, startup, browse-to-watch, input latency*
 
 #### Optimize for size vs speed
 
-For qa and gold configs, different compiler flags can be used for gyp targets
+For qa and gold configs, different compiler flags can be used for GN targets
 which should be optimized for size vs speed. This can be used to reduce the
-executable size with minimal impact on performance. On top of the base
-`compiler_flags_qa` and `compiler_flags_gold`, the gyp variables
-`compiler_flags_qa_size`, `compiler_flags_qa_speed`, `compiler_flags_gold_size`,
-and `compiler_flags_gold_speed` will be used. Performance-critical gyp targets
-specify `optimize_target_for_speed`: 1, and these will use compiler flags
-`compiler_flags_<config>` + `compiler_flags_<config>_speed`; other gyp targets
-will use `compiler_flags_<config>` + `compiler_flags_<config>_size`.
+executable size with minimal impact on performance.
+
+To set these flags, implement size and/or speed configs (preferably in
+`platform_configuration/BUILD.gn`), and point to them using the
+`size_config_path` and `speed_config_path` variables, set in
+`platform_configuration/configuration.gni`.
+
+Performance-critical targets remove the `size` config and add the `speed` config like so:
+
+```
+configs -= [ "//starboard/build/config:size" ]
+configs += [ "//starboard/build/config:speed" ]
+```
+
+The size config is applied by default.
 
 **Tags:** *cpu memory, package size*
 
@@ -282,11 +266,11 @@ Cobalt includes dlmalloc and can be configured to use it to handle all
 memory allocations.  It should be carefully evaluated however whether
 dlmalloc performs better or worse than your system allocator, in terms
 of both memory fragmentation efficiency as well as runtime performance.
-To use dlmalloc, you should adjust your starboard_platform.gyp file to
+To use dlmalloc, you should adjust your `starboard_platform` target to
 use the Starboard [`starboard/memory.h`](../../starboard/memory.h) function
 implementations defined in
 [`starboard/shared/dlmalloc/`](../../starboard/shared/dlmalloc).  To use
-your system allocator, you should adjust your starboard_platform.gyp file
+your system allocator, you should adjust your `starboard_platform` target
 to use the Starboard [`starboard/memory.h`](../../starboard/memory.h) function
 implementations defined in
 [`starboard/shared/iso/`](../../starboard/shared/iso).
@@ -303,11 +287,11 @@ wraps it with a custom allocator, in order to avoid fragmentation of main
 memory.  However, depending on your platform and your system allocator,
 overall memory usage may improve if media buffer allocations were made
 normally via the system allocator instead.  This can be achieved by setting
-`cobalt_media_buffer_initial_capacity` and `cobalt_media_buffer_allocation_unit`
-to 0 in gyp_configuration.gypi.  Note also that if you choose to pre-allocate
-memory, for 1080p video it has been found that 24MB is a good media buffer size.
-The pre-allocated media buffer capacity size can be adjusted by modifying the
-value of `cobalt_media_buffer_initial_capacity` mentioned above.
+`SbMediaGetInitialBufferCapacity` and `SbMediaGetBufferAllocationUnit`
+to 0 in your implementation of media.h.  Note also that if you choose to
+pre-allocate memory, for 1080p video it has been found that 24MB is a good
+media buffer size. The pre-allocated media buffer capacity size can be adjusted
+by modifying the value of `SbMediaGetInitialBufferCapacity` mentioned above.
 
 **Tags:** *configuration_public.h, cpu memory.*
 
@@ -315,12 +299,9 @@ value of `cobalt_media_buffer_initial_capacity` mentioned above.
 ### Adjust media buffer size settings
 
 Many of the parameters around media buffer allocation can be adjusted in your
-gyp_configuration.gypi file.  The variables in question are the family of
-`cobalt_media_*` variables, whose default values are specified in
-[`cobalt_configuration.gypi`](../build/cobalt_configuration.gypi).  In
-particular, if your maximum video output resolution is less than 1080, then you
-may lower the budgets for many of the categories according to your maximum
-resolution.
+media.h Starboard implementation. In particular, if your maximum video output
+resolution is less than 1080, then you may lower the budgets for many of the
+categories according to your maximum resolution.
 
 **Tags:** *cpu memory*
 

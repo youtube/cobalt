@@ -42,7 +42,7 @@ This table shows the breakdown of how much memory is being allocated to each
 sub-system, the type, and where it came from.
 
 **SETTING NAME:** This is the name of the memory setting. If a setting can be
-manually set through the command line or the build system, then it will be
+manually set through the command line or Cobalt extension, then it will be
 accessible by using this name. For example adding the command line argument
 `--image_cache_size_in_bytes=25165824` will manually set the Image Cache Size to
 24 megabytes. Also note that this is also equivalent:
@@ -68,9 +68,10 @@ be set from a specific place or automatically generated from Cobalt.
     * `Starboard API`
       * The value used was reported by the result of a Starboard API function call.
       * Example: `SbSystemGetUsedCPUMemory()`
-    * `Build`
-      * Specified by the platform specific `*.gyp(i)` build file.
-      * For example: see `image_cache_size_in_bytes` in [`build/config/base.gypi`](../build/config/base.gypi)
+    * `Configuration Extension`
+      * Specified by the `CobaltExtensionConfigurationApi`.
+      * For example: see `CobaltImageCacheSizeInBytes` in
+        [`cobalt/configuration/configuration.cc`](../configuration/configuration.cc).
     * `CmdLine`
       * Read the memory setting value from the command line.
       * For example: `cobalt --image_cache_size_in_bytes=24MB`.
@@ -114,9 +115,6 @@ same type will reduce their memory usage.
  * `CmdLine`
    * `max_cobalt_cpu_usage`: --max_cobalt_cpu_usage was used as a command argument.
    * `max_cobalt_gpu_usage`: --max_cobalt_gpu_usage was used as a command argument.
- * `Build`
-   * `max_cobalt_cpu_usage`: max_cobalt_cpu_usage was specified in a platform gyp file.
-   * `max_cobalt_gpu_usage`: max_cobalt_gpu_usage was specified in a platform gyp file.
 
 **TOTAL**: Represents the maximum available memory for settings. This value
 came from **SOURCE**.
@@ -136,19 +134,9 @@ will reduce their memory consumption. When this happens, look for the string
 
 ## Setting Maximum Memory Values ##
 
-The max cpu and gpu memory of the system can be set either by command line or
-by modifying the gyp build file.
-
-Command Line:
+The max cpu and gpu memory of the system can be set by command line:
   * `--max_cobalt_cpu_usage=160MB`
   * `--max_cobalt_gpu_usage=160MB`
-
-Build settings:
-  * `starboard/<PLATFORM>/gyp_configuration.gypi`
-    * `max_cobalt_cpu_usage`
-    * `max_cobalt_gpu_usage`
-
-Command Line settings will override build settings.
 
 ### Memory Scaling ###
 
@@ -181,20 +169,22 @@ once to stdout for cpu and/or gpu memory systems.
 Let's say that we are configuring platform called "XXX":
 
 We will configure XXX such that:
-  * `image_cache_size_in_bytes` will be set to 32MB in the build settings.
-  * `skia_atlas_texture_dimensions` will be set to `2048x2048x2` in the build settings.
+  * `image_cache_size_in_bytes` will be set to 32MB in the configuration
+     extension.
+  * `skia_atlas_texture_dimensions` will be set to `2048x2048x2` in the
+    configuration extension.
   * `max_cobalt_cpu_usage` will be set to 160MB on the command line.
 
 **Configuring `image_cache_size_in_bytes` to be 32MB:**
-  * in `starboard\<PLATFORM>\gyp_configuration.gypi`
-    * add `'image_cache_size_in_bytes': 32 * 1024 * 1024,`
+
+  * Implement the `CobaltExtensionConfigurationApi` function
+    `CobaltImageCacheSizeInBytes` to return `32 * 1024 * 1024`.
 
 **Configuring `skia_atlas_texture_dimensions` to be 2048x2048x2:**
 
-  * in `src\starboard\XXX\gyp_configuration.gypi`
-    * add `'skia_glyph_atlas_width': '2048'`
-    * add `'skia_glyph_atlas_height': '2048'`
-    * (note that the third dimension is assumed)
+  * Implement the `CobaltExtensionConfigurationApi` functions
+    `CobaltSkiaGlyphAtlasWidth` and `CobaltSkiaGlyphAtlasHeight` to both return
+    `2048`.
 
 **Configuring `max_cobalt_cpu_usage` to be 160MB:**
 
@@ -219,17 +209,17 @@ cobalt --max_cobalt_cpu_usage=500MB --max_cobalt_gpu_usage=500MB
       CPU Memory settings will scale down their consumption in order to stay under
       the `max_cobalt_cpu_usage`. If memory consumption exceeds this value during
       runtime then a memory warning will be printed to stdout.
-    * Set via command line or else build system or else starboard.
+    * Set via command line or else starboard.
       * starboard value will bind to `SbSystemGetTotalCPUMemory()`.
   * `max_cobalt_gpu_usage`
     * This setting will set the maximum gpu memory that the app will consume.
       GPU Memory settings will scale down their consumption in order to stay under
       the `max_cobalt_gpu_usage`. If memory consumption exceeds this value during
       runtime then a memory warning will be printed to stdout.
-    * Set via command line or else build system or else starboard.
+    * Set via command line or else starboard.
       * starboard value will bind to `SbSystemGetTotalGPUMemory()`.
     * Note that `SbSystemGetTotalGPUMemory()` is optional. If no value exists
-      for `max_cobalt_gpu_usage` in build/commandline/starboard settings then no
+      for `max_cobalt_gpu_usage` in commandline/starboard settings then no
       GPU memory checking is performed.
 
 #### Memory Setting API ####
@@ -237,11 +227,11 @@ cobalt --max_cobalt_cpu_usage=500MB --max_cobalt_gpu_usage=500MB
   * `image_cache_size_in_bytes`
     * See documentation *Image cache capacity* in `performance_tuning.md` for what
       this setting does.
-    * Set via command line, or else build system, or else automatically by Cobalt.
+    * Set via command line, or else Cobalt extension, or else automatically by Cobalt.
   * `remote_typeface_cache_size_in_bytes`
     * Determines the capacity of the remote typefaces cache which manages all typefaces
       downloaded from a web page.
-    * Set via command line, or else build system, or else automatically by Cobalt.
+    * Set via command line, or else Cobalt extension, or else automatically by Cobalt.
   * `skia_atlas_texture_dimensions`
     * Determines the size in pixels of the glyph atlas where rendered glyphs are
       cached. The resulting memory usage is 2 bytes of GPU memory per pixel.
@@ -251,18 +241,20 @@ cobalt --max_cobalt_cpu_usage=500MB --max_cobalt_gpu_usage=500MB
       larger, such as for higher resolution displays.
       The negative default values indicates to the Cobalt that these settings
       should be automatically set.
-    * Set via command line, or else build system, or else automatically by Cobalt.
-    * Note that in the gyp build system, this setting is represented as two values:
-      * `skia_glyph_atlas_width` and
-      * `skia_glyph_atlas_height`
+    * Set via command line, or else through the Cobalt configuration extension,
+      or else automatically by Cobalt.
+    * Note that in the Cobalt configuration extension, this setting is
+      represented as two functions:
+      * `CobaltSkiaGlyphAtlasWidth` and
+      * `CobaltSkiaGlyphAtlasHeight`
   * `skia_cache_size_in_bytes`
     * See documentation *Glyph atlas size* in `performance_tuning.md` for what this
       setting does.
-    * Set via command line, or else build system or else automatically by Cobalt.
+    * Set via command line, or else Cobalt extension system or else automatically by Cobalt.
   * `software_surface_cache_size_in_bytes`
     * See documentation *Scratch Surface cache capacity* in `performance_tuning.md`
       for what this setting does.
-    * Set via command line, or else build system, or else automatically by Cobalt.
+    * Set via command line, or else Cobalt extension, or else automatically by Cobalt.
 
 #### Units for Command Line Settings ####
 
