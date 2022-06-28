@@ -83,6 +83,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+      - name: Echo github obj
+        run: echo ${{ toJson(github) }}
       - name: GN
         uses: ./.github/actions/gn
       - name: Build Cobalt
