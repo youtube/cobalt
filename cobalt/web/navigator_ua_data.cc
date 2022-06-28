@@ -69,8 +69,6 @@ NavigatorUAData::NavigatorUAData(
       platform_info->model_year().value_or(""));
   all_high_entropy_values_.set_device_brand(
       platform_info->brand().value_or(""));
-  all_high_entropy_values_.set_connection_type(
-      platform_info->connection_type_string());
   all_high_entropy_values_.set_aux(platform_info->aux_field());
 
   low_entropy_json_.set_brands(brands_);
@@ -141,9 +139,6 @@ NavigatorUAData::GetHighEntropyValues(script::Sequence<std::string> hints) {
     } else if ((*it).compare("deviceBrand") == 0) {
       select_high_entropy_values_.set_device_brand(
           all_high_entropy_values_.device_brand());
-    } else if ((*it).compare("connectionType") == 0) {
-      select_high_entropy_values_.set_connection_type(
-          all_high_entropy_values_.connection_type());
     } else if ((*it).compare("aux") == 0) {
       select_high_entropy_values_.set_aux(all_high_entropy_values_.aux());
     }

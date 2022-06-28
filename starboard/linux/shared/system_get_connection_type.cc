@@ -14,6 +14,8 @@
 
 #include "starboard/system.h"
 
+#if SB_API_VERSION < 14
+
 #include "starboard/linux/shared/routes.h"
 
 using starboard::shared::Routes;
@@ -42,3 +44,5 @@ SbSystemConnectionType SbSystemGetConnectionType() {
                        : kSbSystemConnectionTypeWired;
   return kSbSystemConnectionTypeUnknown;
 }
+
+#endif  // SB_API_VERSION < 14

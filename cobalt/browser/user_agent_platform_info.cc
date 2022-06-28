@@ -146,40 +146,6 @@ SbSystemDeviceType GetDeviceType(std::string device_type_string) {
 }
 #endif
 
-struct ConnectionTypeName {
-  SbSystemConnectionType connection_type;
-  char connection_type_string[26];
-};
-
-const ConnectionTypeName kConnectionTypeStrings[] = {
-    {kSbSystemConnectionTypeWired, "Wired"},
-    {kSbSystemConnectionTypeWireless, "Wireless"},
-    {kSbSystemConnectionTypeUnknown, "UnspecifiedConnectionType"}};
-
-std::string CreateConnectionTypeString(
-    const base::Optional<SbSystemConnectionType>& connection_type) {
-  if (connection_type) {
-    for (auto& map : kConnectionTypeStrings) {
-      if (map.connection_type == connection_type) {
-        return std::string(map.connection_type_string);
-      }
-    }
-  }
-  return "UnspecifiedConnectionType";
-}
-
-#if !defined(COBALT_BUILD_TYPE_GOLD)
-SbSystemConnectionType GetConnectionType(std::string connection_type_string) {
-  for (auto& map : kConnectionTypeStrings) {
-    if (!SbStringCompareNoCase(map.connection_type_string,
-                               connection_type_string.c_str())) {
-      return map.connection_type;
-    }
-  }
-  return kSbSystemConnectionTypeUnknown;
-}
-#endif
-
 static bool isAsciiAlphaDigit(int c) {
   return base::IsAsciiAlpha(c) || base::IsAsciiDigit(c);
 }
@@ -360,9 +326,6 @@ void InitializeUserAgentPlatformInfoFields(UserAgentPlatformInfo& info) {
     info.set_model(value);
   }
 
-  // Connection type
-  info.set_connection_type(SbSystemGetConnectionType());
-
 // Apply overrides from command line
 #if !defined(COBALT_BUILD_TYPE_GOLD)
   if (base::CommandLine::InitializedForCurrentProcess()) {
@@ -408,9 +371,6 @@ void InitializeUserAgentPlatformInfoFields(UserAgentPlatformInfo& info) {
         } else if (!input.first.compare("aux_field")) {
           info.set_aux_field(input.second);
           LOG(INFO) << "Set aux field to " << input.second;
-        } else if (!input.first.compare("connection_type")) {
-          info.set_connection_type(GetConnectionType(input.second));
-          LOG(INFO) << "Set connection type to " << input.second;
         } else if (!input.first.compare("javascript_engine_version")) {
           info.set_javascript_engine_version(input.second);
           LOG(INFO) << "Set javascript engine version to " << input.second;
@@ -503,16 +463,6 @@ void UserAgentPlatformInfo::set_model(base::Optional<std::string> model) {
 
 void UserAgentPlatformInfo::set_aux_field(const std::string& aux_field) {
   aux_field_ = Sanitize(aux_field, isTCHARorForwardSlash);
-}
-
-void UserAgentPlatformInfo::set_connection_type(
-    base::Optional<SbSystemConnectionType> connection_type) {
-  if (connection_type) {
-    connection_type_ = connection_type;
-    connection_type_string_ = CreateConnectionTypeString(connection_type_);
-  } else {
-    connection_type_string_ = "";
-  }
 }
 
 void UserAgentPlatformInfo::set_javascript_engine_version(

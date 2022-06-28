@@ -40,8 +40,6 @@ class UserAgentPlatformInfo {
   virtual base::Optional<std::string> brand() const = 0;
   virtual base::Optional<std::string> model() const = 0;
   virtual const std::string& aux_field() const = 0;
-  virtual base::Optional<SbSystemConnectionType> connection_type() const = 0;
-  virtual const std::string& connection_type_string() const = 0;
   virtual const std::string& javascript_engine_version() const = 0;
   virtual const std::string& rasterizer_type() const = 0;
   virtual const std::string& evergreen_type() const = 0;
