@@ -16,6 +16,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cmath>
 #include <cstdint>
 #include <deque>
 #include <functional>
