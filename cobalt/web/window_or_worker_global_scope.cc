@@ -32,6 +32,7 @@ WindowOrWorkerGlobalScope::WindowOrWorkerGlobalScope(
     // Global scope object EventTargets require special handling for onerror
     // events, see EventTarget constructor for more details.
     : EventTarget(settings, kUnpackOnErrorEvents),
+      crypto_(new Crypto()),
       window_timers_(this, stat_tracker, debugger_hooks(), initial_state) {}
 
 bool WindowOrWorkerGlobalScope::IsWindow() {
@@ -68,6 +69,10 @@ void WindowOrWorkerGlobalScope::ClearInterval(int handle) {
 
 void WindowOrWorkerGlobalScope::DestroyTimers() {
   window_timers_.DisableCallbacks();
+}
+
+scoped_refptr<Crypto> WindowOrWorkerGlobalScope::crypto() const {
+  return crypto_;
 }
 
 }  // namespace web

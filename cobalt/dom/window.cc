@@ -165,7 +165,6 @@ Window::Window(
           relay_on_load_event_(new RelayLoadEvent(this))),
       ALLOW_THIS_IN_INITIALIZER_LIST(animation_frame_request_callback_list_(
           new AnimationFrameRequestCallbackList(this, debugger_hooks()))),
-      crypto_(new Crypto()),
       speech_synthesis_(
           new speech::SpeechSynthesis(settings, navigator_, log_tts)),
       ALLOW_THIS_IN_INITIALIZER_LIST(local_storage_(
@@ -358,8 +357,6 @@ scoped_refptr<MediaQueryList> Window::MatchMedia(const std::string& query) {
 }
 
 const scoped_refptr<Screen>& Window::screen() { return screen_; }
-
-scoped_refptr<Crypto> Window::crypto() const { return crypto_; }
 
 std::string Window::Btoa(const std::string& string_to_encode,
                          script::ExceptionState* exception_state) {

@@ -14,7 +14,7 @@
 
 #include <memory>
 
-#include "cobalt/dom/crypto.h"
+#include "cobalt/web/crypto.h"
 
 #include "base/test/scoped_task_environment.h"
 #include "cobalt/base/polymorphic_downcast.h"
@@ -29,7 +29,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
-namespace dom {
+namespace web {
 
 using script::testing::MockExceptionState;
 using testing::_;
@@ -152,5 +152,5 @@ TEST(CryptoTest, LargeArray) {
       casted_array65536.GetScriptValue()->EqualTo(*(result.GetScriptValue())));
 }
 
-}  // namespace dom
+}  // namespace web
 }  // namespace cobalt

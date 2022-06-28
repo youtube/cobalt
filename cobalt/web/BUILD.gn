@@ -63,6 +63,8 @@ static_library("web") {
     "cobalt_ua_data_values_interface.cc",
     "cobalt_ua_data_values_interface.h",
     "context.h",
+    "crypto.cc",
+    "crypto.h",
     "csp_delegate.cc",
     "csp_delegate.h",
     "csp_delegate_factory.cc",
@@ -157,6 +159,7 @@ target(gtest_target_type, "web_test") {
 
   sources = [
     "blob_test.cc",
+    "crypto_test.cc",
     "csp_delegate_test.cc",
     "custom_event_test.cc",
     "error_event_test.cc",
