@@ -33,7 +33,6 @@
 #include "cobalt/dom/animation_frame_request_callback_list.h"
 #include "cobalt/dom/application_lifecycle_state.h"
 #include "cobalt/dom/captions/system_caption_settings.h"
-#include "cobalt/dom/crypto.h"
 #include "cobalt/dom/dom_stat_tracker.h"
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/location.h"
@@ -273,10 +272,6 @@ class Window : public web::WindowOrWorkerGlobalScope,
     return viewport_size_.device_pixel_ratio();
   }
 
-  // Web API: GlobalCrypto (implements)
-  //   https://www.w3.org/TR/WebCryptoAPI/#crypto-interface
-  scoped_refptr<Crypto> crypto() const;
-
   // base64 encoding and decoding
   std::string Btoa(const std::string& string_to_encode,
                    script::ExceptionState* exception_state);
@@ -441,7 +436,6 @@ class Window : public web::WindowOrWorkerGlobalScope,
   std::unique_ptr<AnimationFrameRequestCallbackList>
       animation_frame_request_callback_list_;
 
-  scoped_refptr<Crypto> crypto_;
   scoped_refptr<speech::SpeechSynthesis> speech_synthesis_;
 
   scoped_refptr<Storage> local_storage_;

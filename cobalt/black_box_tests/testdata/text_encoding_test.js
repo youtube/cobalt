@@ -1,4 +1,4 @@
-// Copyright 2015 The Cobalt Authors. All Rights Reserved.
+// Copyright 2022 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,10 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// https://www.w3.org/TR/WebCryptoAPI/#crypto-interface
-
-[NoInterfaceObject]
-interface GlobalCrypto {
-  readonly attribute Crypto crypto;
+onmessage = event => {
+  if (event.data === 'text_encode_decode') {
+    const encoder = new TextEncoder();
+    const message = 'this is a test';
+    const encoded = encoder.encode(message);
+    const decoder = new TextDecoder();
+    postMessage(decoder.decode(encoded) === message ? 'pass' : 'fail');
+  } else {
+    postMessage(`Unexpected message received: ${event.data}.`);
+  }
 };
-Window implements GlobalCrypto;

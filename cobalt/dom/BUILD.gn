@@ -51,8 +51,6 @@ static_library("dom") {
     "character_data.h",
     "comment.cc",
     "comment.h",
-    "crypto.cc",
-    "crypto.h",
     "css_animations_adapter.cc",
     "css_animations_adapter.h",
     "css_transitions_adapter.cc",
@@ -366,7 +364,6 @@ target(gtest_target_type, "dom_test") {
   sources = [
     "application_lifecycle_state_test.cc",
     "comment_test.cc",
-    "crypto_test.cc",
     "document_test.cc",
     "document_type_test.cc",
     "dom_implementation_test.cc",

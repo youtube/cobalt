@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/dom/crypto.h"
+#include "cobalt/web/crypto.h"
 
 #include "cobalt/web/dom_exception.h"
 #include "crypto/random.h"
 
 namespace cobalt {
-namespace dom {
+namespace web {
 
 // https://www.w3.org/TR/WebCryptoAPI/#Crypto-attribute-subtle
 scoped_refptr<subtlecrypto::SubtleCrypto> Crypto::subtle(
@@ -53,5 +53,5 @@ script::Handle<script::ArrayBufferView> Crypto::GetRandomValues(
   return array;
 }
 
-}  // namespace dom
+}  // namespace web
 }  // namespace cobalt
