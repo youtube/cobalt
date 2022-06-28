@@ -46,18 +46,15 @@ public class AdvertisingId {
       return;
     }
     singleThreadExecutor.execute(
-        new Runnable() {
-          @Override
-          public void run() {
-            try {
-              advertisingIdInfo = AdvertisingIdClient.getAdvertisingIdInfo(context);
-              lastRefreshed = System.currentTimeMillis();
-              Log.i(TAG, "Successfully retrieved Advertising ID (IfA).");
-            } catch (IOException
-                | GooglePlayServicesNotAvailableException
-                | GooglePlayServicesRepairableException e) {
-              Log.e(TAG, "Failed to retrieve Advertising ID (IfA).");
-            }
+        () -> {
+          try {
+            advertisingIdInfo = AdvertisingIdClient.getAdvertisingIdInfo(context);
+            lastRefreshed = System.currentTimeMillis();
+            Log.i(TAG, "Successfully retrieved Advertising ID (IfA).");
+          } catch (IOException
+              | GooglePlayServicesNotAvailableException
+              | GooglePlayServicesRepairableException e) {
+            Log.e(TAG, "Failed to retrieve Advertising ID (IfA).");
           }
         });
   }
