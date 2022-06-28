@@ -44,21 +44,23 @@ class FFmpegDemuxerImpl<FFMPEG> : public FFmpegDemuxer {
   static std::unique_ptr<FFmpegDemuxer> Create(
       CobaltExtensionDemuxerDataSource* data_source);
 
-  ~FFmpegDemuxerImpl() final;
+  ~FFmpegDemuxerImpl() override;
 
   // FFmpegDemuxer implementation:
-  CobaltExtensionDemuxerStatus Initialize() final;
-  bool HasAudioStream() const final;
-  bool HasVideoStream() const final;
-  const CobaltExtensionDemuxerAudioDecoderConfig& GetAudioConfig() const final;
-  const CobaltExtensionDemuxerVideoDecoderConfig& GetVideoConfig() const final;
-  SbTime GetDuration() const final;
-  SbTime GetStartTime() const final;
-  SbTime GetTimelineOffset() const final;
+  CobaltExtensionDemuxerStatus Initialize() override;
+  bool HasAudioStream() const override;
+  bool HasVideoStream() const override;
+  const CobaltExtensionDemuxerAudioDecoderConfig& GetAudioConfig()
+      const override;
+  const CobaltExtensionDemuxerVideoDecoderConfig& GetVideoConfig()
+      const override;
+  SbTime GetDuration() const override;
+  SbTime GetStartTime() const override;
+  SbTime GetTimelineOffset() const override;
   void Read(CobaltExtensionDemuxerStreamType type,
             CobaltExtensionDemuxerReadCB read_cb,
-            void* read_cb_user_data) final;
-  CobaltExtensionDemuxerStatus Seek(int64_t seek_time_us) final;
+            void* read_cb_user_data) override;
+  CobaltExtensionDemuxerStatus Seek(int64_t seek_time_us) override;
 
  private:
 #if LIBAVUTIL_VERSION_INT >= LIBAVUTIL_VERSION_52_8
