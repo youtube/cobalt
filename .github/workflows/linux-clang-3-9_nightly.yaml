@@ -2,7 +2,7 @@ name: linux-clang-3-9_nightly
 
 on:
   schedule:
-    - cron: '0 14 * * *'
+    - cron: '0 4 * * *'
   workflow_dispatch:
 
 jobs:
