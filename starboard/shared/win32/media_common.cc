@@ -98,12 +98,59 @@ std::vector<ComPtr<IMFMediaType>> FilterMediaBySubType(
   return output;
 }
 
+HRESULT CreateAV1Decoder(const IID& iid, void** object) {
+  MFT_REGISTER_TYPE_INFO type_info = {MFMediaType_Video, MFVideoFormat_AV1};
+  MFT_REGISTER_TYPE_INFO output_info = {MFMediaType_Video, MFVideoFormat_NV12};
+
+  IMFActivate** acts;
+  UINT32 acts_num = 0;
+  HRESULT hr = ::MFTEnumEx(MFT_CATEGORY_VIDEO_DECODER,
+                           MFT_ENUM_FLAG_SYNCMFT | MFT_ENUM_FLAG_LOCALMFT |
+                               MFT_ENUM_FLAG_UNTRUSTED_STOREMFT,
+                           &type_info, &output_info, &acts, &acts_num);
+  if (FAILED(hr))
+    return hr;
+
+  if (acts_num < 1)
+    return E_FAIL;
+
+  hr = acts[0]->ActivateObject(iid, object);
+  for (UINT32 i = 0; i < acts_num; ++i)
+    acts[i]->Release();
+  CoTaskMemFree(acts);
+  return hr;
+}
+
 HRESULT CreateDecoderTransform(const GUID& decoder_guid,
                                ComPtr<IMFTransform>* transform) {
+  if (decoder_guid == MFVideoFormat_AV1) {
+    return CreateAV1Decoder(IID_PPV_ARGS(transform->GetAddressOf()));
+  }
   return CoCreateInstance(decoder_guid, NULL, CLSCTX_INPROC_SERVER,
                           IID_PPV_ARGS(transform->GetAddressOf()));
 }
 
+bool IsHardwareAv1DecoderSupported() {
+  static bool av1_decoder_supported = false;
+  static bool av1_support_checked = false;
+  if (!av1_support_checked) {
+    MFT_REGISTER_TYPE_INFO type_info = {MFMediaType_Video, MFVideoFormat_AV1};
+    MFT_REGISTER_TYPE_INFO output_info = {MFMediaType_Video,
+                                          MFVideoFormat_NV12};
+
+    IMFActivate** acts;
+    UINT32 acts_num = 0;
+    HRESULT hr = ::MFTEnumEx(MFT_CATEGORY_VIDEO_DECODER,
+                             MFT_ENUM_FLAG_SYNCMFT | MFT_ENUM_FLAG_LOCALMFT |
+                                 MFT_ENUM_FLAG_UNTRUSTED_STOREMFT,
+                             &type_info, &output_info, &acts, &acts_num);
+    for (UINT32 i = 0; i < acts_num; ++i)
+      acts[i]->Release();
+    av1_decoder_supported = SUCCEEDED(hr) && acts_num >= 1;
+    av1_support_checked = true;
+  }
+  return av1_decoder_supported;
+}
 }  // namespace win32
 }  // namespace shared
 }  // namespace starboard

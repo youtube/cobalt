@@ -150,7 +150,7 @@ scoped_ptr<MediaTransform> CreateVideoTransform(
   CheckResult(input_type->SetGUID(MF_MT_SUBTYPE, input_guid));
   CheckResult(input_type->SetUINT32(MF_MT_INTERLACE_MODE,
                                     MFVideoInterlace_Progressive));
-  if (input_guid == MFVideoFormat_VP90) {
+  if (input_guid == MFVideoFormat_VP90 || input_guid == MFVideoFormat_AV1) {
     // Set the expected video resolution. Setting the proper resolution can
     // mitigate a format change, but the decoder will adjust to the real
     // resolution regardless.
@@ -436,6 +436,17 @@ void VideoDecoder::InitializeCodec() {
       }
       if (!media_transform) {
         SB_LOG(WARNING) << "VP9 hardware decoder creation failed.";
+        return;
+      }
+      break;
+    }
+    case kSbMediaVideoCodecAv1: {
+      media_transform =
+          CreateVideoTransform(MFVideoFormat_AV1, MFVideoFormat_AV1,
+                               MFVideoFormat_NV12, device_manager_.Get());
+      priming_output_count_ = 0;
+      if (!media_transform) {
+        SB_LOG(WARNING) << "AV1 hardware decoder creation failed.";
         return;
       }
       break;
