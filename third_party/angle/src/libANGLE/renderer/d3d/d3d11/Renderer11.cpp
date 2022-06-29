@@ -428,12 +428,9 @@ Renderer11::Renderer11(egl::Display *display)
 
 
 #if defined(STARBOARD)
-        // Only allow feature level 10 on starboard by default.
-#if defined(ENABLE_D3D11_FEATURE_LEVEL_11)
+        // D3D11CreateDevice will choose proper feature level from this list.
         mAvailableFeatureLevels.push_back(D3D_FEATURE_LEVEL_11_0);
-#else
         mAvailableFeatureLevels.push_back(D3D_FEATURE_LEVEL_10_0);
-#endif // defined(ENABLE_D3D11_FEATURE_LEVEL_11)
 #else
         if (requestedMajorVersion == EGL_DONT_CARE || requestedMajorVersion >= 11)
         {

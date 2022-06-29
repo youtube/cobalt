@@ -69,6 +69,8 @@ std::vector<ComPtr<IMFMediaType>> FilterMediaBySubType(
 HRESULT CreateDecoderTransform(const GUID& decoder_guid,
                                ComPtr<IMFTransform>* transform);
 
+bool IsHardwareAv1DecoderSupported();
+
 }  // namespace win32
 }  // namespace shared
 }  // namespace starboard
