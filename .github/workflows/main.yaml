@@ -1,0 +1,57 @@
+# Reusable Cobalt CI workflow.
+
+name: main
+
+on:
+  workflow_call:
+    inputs:
+      platform:
+        description: 'Cobalt platform.'
+        required: true
+        type: string
+
+# Global env vars.
+env:
+  REGISTRY: ghcr.io
+  IPV6_AVAILABLE: 0
+  IS_BUILDBOT_DOCKER: 1
+  #BUILD_ID_SERVER_URL:
+  IS_CI: 1
+  IS_DOCKER: 1
+  NINJA_STATUS: '[%e sec | %f/%t %u remaining | %c/sec | j%r]'
+  SCCACHE: 1
+  SCCACHE_GCS_BUCKET: cobalt-actions-devel-sccache-linux
+  SCCACHE_GCS_OAUTH_URL: http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token
+  SCCACHE_GCS_RW_MODE: READ_WRITE
+  STARBOARD_TOOLCHAINS_DIR: /root/starboard-toolchains
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # Builds, tags, and pushes Cobalt docker images to ghr.
+  docker-image:
+    permissions:
+      packages: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout files
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 2
+      - name: Login to Docker Registry ${{env.REGISTRY}}
+        uses: docker/login-action@v1
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build docker image
+        id: build-docker-image
+        uses: ./.github/actions/docker
+        with:
+          platform: ${{inputs.platform}}
+      - name: Set Docker Tag Output
+        id: set-docker-tag-output
+        run: |
+          echo ${{ steps.build-docker-image.outputs.docker_tag }}
+          echo "::set-output name=docker_tag::$(echo ${{ steps.build-docker-image.outputs.docker_tag }})"
+    outputs:
+      docker_tag: ${{steps.set-docker-tag-output.outputs.docker_tag}}

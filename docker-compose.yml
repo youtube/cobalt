@@ -125,6 +125,16 @@ services:
       - base-bionic
     scale: 0
 
+  build-linux-stub:
+    <<: *build-common-definitions
+    build:
+      context: ./docker/linux
+      dockerfile: stub/Dockerfile
+    image: cobalt-build-linux-stub
+    depends_on: [ build-base ]
+    environment:
+      <<: *shared-build-env
+
   stub:
     <<: *build-common-definitions
     build:
@@ -136,6 +146,16 @@ services:
       <<: *shared-build-env
       PLATFORM: stub
       CONFIG: ${CONFIG:-debug}
+
+  build-linux:
+    <<: *build-common-definitions
+    build:
+      context: ./docker/linux
+      dockerfile: linux-x64x11/Dockerfile
+    image: cobalt-build-linux
+    depends_on: [ build-base ]
+    environment:
+      <<: *shared-build-env
 
   linux-x64x11:
     <<: *build-common-definitions
@@ -177,6 +197,16 @@ services:
     depends_on:
       - linux-x64x11-bionic
 
+  build-linux-gcc:
+    <<: *common-definitions
+    <<: *build-volumes
+    build:
+      context: ./docker/linux
+      dockerfile: gcc-6-3/Dockerfile
+    image: cobalt-build-linux-gcc
+    depends_on:
+      - linux-x64x11-bionic
+
   linux-x64x11-clang-3-9:
     <<: *common-definitions
     <<: *build-volumes
@@ -188,6 +218,16 @@ services:
       <<: *shared-build-env
       PLATFORM: linux-x64x11-clang-3-9
       CONFIG: ${CONFIG:-debug}
+    depends_on:
+      - linux-x64x11-bionic
+
+  build-linux-clang-3-9:
+    <<: *common-definitions
+    <<: *build-volumes
+    build:
+      context: ./docker/linux/
+      dockerfile: clang-3-9/Dockerfile
+    image: cobalt-build-linux-clang-3-9
     depends_on:
       - linux-x64x11-bionic
 
@@ -229,6 +269,15 @@ services:
       PLATFORM: android-arm64
       CONFIG: ${CONFIG:-debug}
       TARGET_CPU: ${TARGET_CPU:-arm64}
+
+  build-raspi:
+    <<: *build-common-definitions
+    build:
+      context: ./docker/linux/raspi
+      dockerfile: ./Dockerfile
+    image: cobalt-build-raspi
+    environment:
+      <<: *shared-build-env
 
   raspi:
     <<: *build-common-definitions
@@ -346,6 +395,19 @@ services:
       PLATFORM: evergreen-arm-softfp-sbversion-12
       TARGET_CPU: ${TARGET_CPU:-arm}
       SB_API_VERSION: 12
+
+  # Defined common build image for linux-evergreen
+  build-linux-evergreen:
+    <<: *build-common-definitions
+    build:
+      context: ./docker/linux
+      dockerfile: linux-x64x11/Dockerfile
+      args:
+        - FROM_IMAGE=cobalt-build-evergreen
+    image: cobalt-build-linux-evergreen
+    depends_on: [ build-evergreen ]
+    environment:
+      <<: *shared-build-env
 
   linux-x64x11-sbversion12-evergreen:
     <<: *build-common-definitions
