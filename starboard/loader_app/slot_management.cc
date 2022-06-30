@@ -37,7 +37,7 @@ namespace {
 // The max number of installations slots.
 const int kMaxNumInstallations = 3;
 
-// Relative path for the Cobalt so file.
+// Relative path for the directory of the Cobalt shared library.
 const char kCobaltLibraryPath[] = "lib";
 
 // Filename for the Cobalt binary.
@@ -133,12 +133,7 @@ bool AdoptInstallation(int current_installation,
 void* LoadSlotManagedLibrary(const std::string& app_key,
                              const std::string& alternative_content_path,
                              LibraryLoader* library_loader,
-                             bool use_compression,
                              bool use_memory_mapped_file) {
-  if (use_compression && use_memory_mapped_file) {
-    SB_LOG(ERROR) << "Using both compression and mmap files is not supported";
-    return NULL;
-  }
   // Initialize the Installation Manager.
   SB_CHECK(ImInitialize(kMaxNumInstallations, app_key.c_str()) == IM_SUCCESS)
       << "Abort. Failed to initialize Installation Manager";
@@ -226,18 +221,37 @@ void* LoadSlotManagedLibrary(const std::string& app_key,
     }
 
     // installation_n/lib/libcobalt.so
-    std::vector<char> lib_path(kSbFileMaxPath);
-    std::string library_name;
-    if (use_compression) {
-      library_name = kCompressedCobaltLibraryName;
-    } else {
-      library_name = kCobaltLibraryName;
-    }
-    SbStringFormatF(lib_path.data(), kSbFileMaxPath, "%s%s%s%s%s",
+    std::vector<char> compressed_lib_path(kSbFileMaxPath);
+    SbStringFormatF(compressed_lib_path.data(), kSbFileMaxPath, "%s%s%s%s%s",
                     installation_path.data(), kSbFileSepString,
-                    kCobaltLibraryPath, kSbFileSepString, library_name.c_str());
+                    kCobaltLibraryPath, kSbFileSepString,
+                    kCompressedCobaltLibraryName);
+    std::vector<char> uncompressed_lib_path(kSbFileMaxPath);
+    SbStringFormatF(uncompressed_lib_path.data(), kSbFileMaxPath, "%s%s%s%s%s",
+                    installation_path.data(), kSbFileSepString,
+                    kCobaltLibraryPath, kSbFileSepString, kCobaltLibraryName);
 
-    SB_LOG(INFO) << "lib_path=" << lib_path.data();
+    std::string lib_path;
+    bool use_compression;
+    if (SbFileExists(compressed_lib_path.data())) {
+      lib_path = compressed_lib_path.data();
+      use_compression = true;
+    } else if (SbFileExists(uncompressed_lib_path.data())) {
+      lib_path = uncompressed_lib_path.data();
+      use_compression = false;
+    } else {
+      SB_LOG(ERROR) << "No library found at compressed "
+                    << compressed_lib_path.data() << " or uncompressed "
+                    << uncompressed_lib_path.data() << " path";
+      return NULL;
+    }
+
+    if (use_compression && use_memory_mapped_file) {
+      SB_LOG(ERROR) << "Using both compression and mmap files is not supported";
+      return NULL;
+    }
+
+    SB_LOG(INFO) << "lib_path=" << lib_path;
 
     std::string content;
     if (alternative_content_path.empty()) {
@@ -253,7 +267,7 @@ void* LoadSlotManagedLibrary(const std::string& app_key,
 
     SB_LOG(INFO) << "content=" << content;
 
-    if (!library_loader->Load(lib_path.data(), content.c_str(), use_compression,
+    if (!library_loader->Load(lib_path, content.c_str(), use_compression,
                               use_memory_mapped_file)) {
       SB_LOG(WARNING) << "Failed to load Cobalt!";
 
