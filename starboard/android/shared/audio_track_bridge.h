@@ -77,10 +77,10 @@ class AudioTrackBridge {
 
   void SetVolume(double volume, JniEnvExt* env = JniEnvExt::Get());
 
-  // |updated_at| contains the timestamp when the playback head position is
-  // updated on return.  It can be nullptr.
-  int64_t GetPlaybackHeadPosition(SbTime* updated_at,
-                                  JniEnvExt* env = JniEnvExt::Get());
+  // |updated_at| contains the timestamp when the audio timstamp is updated on
+  // return.  It can be nullptr.
+  int64_t GetAudioTimestamp(SbTime* updated_at,
+                            JniEnvExt* env = JniEnvExt::Get());
   bool GetAndResetHasAudioDeviceChanged(JniEnvExt* env = JniEnvExt::Get());
   int GetUnderrunCount(JniEnvExt* env = JniEnvExt::Get());
 

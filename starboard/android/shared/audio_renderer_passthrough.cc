@@ -337,7 +337,7 @@ SbTime AudioRendererPassthrough::GetCurrentMediaTime(bool* is_playing,
 
   SbTime updated_at;
   auto playback_head_position =
-      audio_track_bridge_->GetPlaybackHeadPosition(&updated_at);
+      audio_track_bridge_->GetAudioTimestamp(&updated_at);
   if (playback_head_position <= 0) {
     // The playback is warming up, don't adjust the media time by the monotonic
     // system time.
@@ -491,7 +491,7 @@ void AudioRendererPassthrough::UpdateStatusAndWriteData(
         audio_track_bridge_->Stop();
         stop_called_ = true;
         playback_head_position_when_stopped_ =
-            audio_track_bridge_->GetPlaybackHeadPosition(&stopped_at_);
+            audio_track_bridge_->GetAudioTimestamp(&stopped_at_);
         total_frames_written_ = total_frames_written_on_audio_track_thread_;
         decoded_audio_writing_in_progress_ = nullptr;
         SB_LOG(INFO) << "Audio track stopped at " << stopped_at_
