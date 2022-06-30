@@ -22,7 +22,7 @@ Required libraries can differ depending on your Linux distribution and version.
         pkgconf ninja-build bison yasm binutils clang libgles2-mesa-dev \
         mesa-common-dev libpulse-dev libavresample-dev libasound2-dev \
         libxrender-dev libxcomposite-dev libxml2-dev curl git \
-        python3.8-venv python2
+        python3.8-venv
     ```
 
 1.  Install Node.js via `nvm`:

@@ -39,7 +39,10 @@ default pi login, and run `sudo raspi-config`. You'll find wifi settings under
 ## Set up your workstation
 
 <aside class="note">
-<b>Note:</b> Before proceeding further, refer to the documentation for <a href="setup-linux.html">"Set up your environment - Linux"</a>. Complete the section <b>Set up your workstation</b>, then return and complete the following steps.
+<b>Note:</b> Before proceeding further, refer to the documentation for
+<a href="setup-linux.html">"Set up your environment - Linux"</a>. Complete the
+sections <b>Set up your workstation</b> and <b>Set up developer tools</b>, then
+return and complete the following steps.
 </aside>
 
 The following steps install the cross-compiling toolchain on your workstation.
