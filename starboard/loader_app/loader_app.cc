@@ -86,12 +86,7 @@ bool GetContentDir(std::string* content) {
 }
 
 void LoadLibraryAndInitialize(const std::string& alternative_content_path,
-                              bool use_compression,
                               bool use_memory_mapped_file) {
-  if (use_compression && use_memory_mapped_file) {
-    SB_LOG(ERROR) << "Using both compression and mmap files is not supported";
-    return;
-  }
   std::string content_dir;
   if (!GetContentDir(&content_dir)) {
     SB_LOG(ERROR) << "Failed to get the content dir";
@@ -108,10 +103,29 @@ void LoadLibraryAndInitialize(const std::string& alternative_content_path,
   std::string library_path = content_dir;
   library_path += kSbFileSepString;
 
-  if (use_compression) {
-    library_path += kSystemImageCompressedLibraryPath;
+  std::string compressed_library_path(library_path);
+  compressed_library_path += kSystemImageCompressedLibraryPath;
+
+  std::string uncompressed_library_path(library_path);
+  uncompressed_library_path += kSystemImageLibraryPath;
+
+  bool use_compression;
+  if (SbFileExists(compressed_library_path.c_str())) {
+    library_path = compressed_library_path;
+    use_compression = true;
+  } else if (SbFileExists(uncompressed_library_path.c_str())) {
+    library_path = uncompressed_library_path;
+    use_compression = false;
   } else {
-    library_path += kSystemImageLibraryPath;
+    SB_LOG(ERROR) << "No library found at compressed "
+                  << compressed_library_path << " or uncompressed "
+                  << uncompressed_library_path << " path";
+    return;
+  }
+
+  if (use_compression && use_memory_mapped_file) {
+    SB_LOG(ERROR) << "Using both compression and mmap files is not supported";
+    return;
   }
 
   if (!g_elf_loader.Load(library_path, content_path, false, nullptr,
@@ -201,13 +215,20 @@ void SbEventHandle(const SbEvent* event) {
         command_line.GetSwitchValue(starboard::loader_app::kContent);
     SB_LOG(INFO) << "alternative_content=" << alternative_content;
 
-    bool use_compression =
-        command_line.HasSwitch(starboard::loader_app::kLoaderUseCompression);
+    bool use_compressed_updates =
+        command_line.HasSwitch(starboard::loader_app::kUseCompressedUpdates);
 
     bool use_memory_mapped_file = command_line.HasSwitch(
         starboard::loader_app::kLoaderUseMemoryMappedFile);
-    SB_LOG(INFO) << "loader_app: use_compression=" << use_compression
-                 << " use_memory_mapped_file=" << use_memory_mapped_file;
+    SB_LOG(INFO) << "use_memory_mapped_file=" << use_memory_mapped_file;
+
+    if (use_compressed_updates && use_memory_mapped_file) {
+      SB_LOG(ERROR) << "Compression and memory mapping are incompatible."
+                    << " Compressed updates should not be installed because"
+                    << " the loader app is configured to use memory mapping"
+                    << " and would not be able to load them.";
+      return;
+    }
 
     if (command_line.HasSwitch(starboard::loader_app::kLoaderTrackMemory)) {
       std::string period = command_line.GetSwitchValue(
@@ -223,8 +244,7 @@ void SbEventHandle(const SbEvent* event) {
     }
 
     if (is_evergreen_lite) {
-      LoadLibraryAndInitialize(alternative_content, use_compression,
-                               use_memory_mapped_file);
+      LoadLibraryAndInitialize(alternative_content, use_memory_mapped_file);
     } else {
       std::string url =
           command_line.GetSwitchValue(starboard::loader_app::kURL);
@@ -237,7 +257,7 @@ void SbEventHandle(const SbEvent* event) {
       g_sb_event_func = reinterpret_cast<void (*)(const SbEvent*)>(
           starboard::loader_app::LoadSlotManagedLibrary(
               app_key, alternative_content, &g_cobalt_library_loader,
-              use_compression, use_memory_mapped_file));
+              use_memory_mapped_file));
     }
     SB_CHECK(g_sb_event_func);
   }

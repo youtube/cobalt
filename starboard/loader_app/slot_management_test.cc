@@ -18,9 +18,12 @@
 #include <vector>
 
 #include "gmock/gmock.h"
+#include "starboard/common/file.h"
 #include "starboard/configuration_constants.h"
+#include "starboard/directory.h"
 #include "starboard/elf_loader/sabi_string.h"
 #include "starboard/event.h"
+#include "starboard/file.h"
 #include "starboard/loader_app/app_key_files.h"
 #include "starboard/loader_app/drain_file.h"
 #include "starboard/loader_app/installation_manager.h"
@@ -163,8 +166,60 @@ class SlotManagementTest : public testing::TestWithParam<bool> {
         .Times(1)
         .WillOnce(testing::Return(reinterpret_cast<void*>(&SbEventFake)));
     ASSERT_EQ(&SbEventFake,
-              LoadSlotManagedLibrary(kTestAppKey, "", &library_loader,
-                                     use_compression, false));
+              LoadSlotManagedLibrary(kTestAppKey, "", &library_loader, false));
+  }
+
+  std::string CreateDirs(const std::string& base,
+                         std::initializer_list<std::string> dirs,
+                         std::string& out_top_created_dir) {
+    std::string path = base;
+    for (const std::string& dir : dirs) {
+      path += kSbFileSepString;
+      path += dir;
+      if (!SbFileExists(path.c_str())) {
+        EXPECT_TRUE(SbDirectoryCreate(path.c_str()));
+
+        if (out_top_created_dir.empty()) {
+          // This new dir should be recursively deleted during cleanup.
+          out_top_created_dir = path;
+        }
+      }
+    }
+    return path;
+  }
+
+  std::string CreateEmptyLibraryFile(const std::string& library_path) {
+    std::string path;
+    std::string top_created_dir;
+    if (library_path == slot_0_libcobalt_path_) {
+      // It's the system slot.
+      std::vector<char> buf(kSbFileMaxPath);
+      SbSystemGetPath(kSbSystemPathContentDirectory, buf.data(),
+                      kSbFileMaxPath);
+      path = CreateDirs(buf.data(), {"app", "cobalt", "lib"}, top_created_dir);
+
+    } else {
+      // It's an installation slot.
+      std::vector<char> buf(kSbFileMaxPath);
+      SbSystemGetPath(kSbSystemPathStorageDirectory, buf.data(),
+                      kSbFileMaxPath);
+      path =
+          CreateDirs(buf.data(),
+                     {library_path == slot_1_libcobalt_path_ ? "installation_1"
+                                                             : "installation_2",
+                      "lib"},
+                     top_created_dir);
+    }
+
+    path += kSbFileSepString;
+    path += "libcobalt";
+    AddFileExtension(path);
+    SbFile sb_file = SbFileOpen(path.c_str(), kSbFileOpenAlways | kSbFileRead,
+                                nullptr, nullptr);
+    EXPECT_TRUE(SbFileIsValid(sb_file));
+    SbFileClose(sb_file);
+
+    return !top_created_dir.empty() ? top_created_dir : path;
   }
 
  protected:
@@ -184,9 +239,14 @@ TEST_P(SlotManagementTest, SystemSlot) {
   ImInitialize(3, kTestAppKey);
   ImReset();
   ImUninitialize();
+
+  std::string path = CreateEmptyLibraryFile(slot_0_libcobalt_path_);
+
   VerifyLoad(slot_0_libcobalt_path_, slot_0_content_path_);
   VerifyGoodFile(0, kTestAppKey, false);
   VerifyBadFile(0, kTestAppKey, false);
+
+  SbFileDeleteRecursive(path.c_str(), false);
 }
 
 TEST_P(SlotManagementTest, AdoptSlot) {
@@ -202,9 +262,14 @@ TEST_P(SlotManagementTest, AdoptSlot) {
   VerifyGoodFile(1, kTestAppKey, false);
   CreateGoodFile(1, kTestApp2Key);
   ImUninitialize();
+
+  std::string path = CreateEmptyLibraryFile(slot_1_libcobalt_path_);
+
   VerifyLoad(slot_1_libcobalt_path_, slot_1_content_path_);
   VerifyGoodFile(1, kTestAppKey, true);
   VerifyBadFile(1, kTestAppKey, false);
+
+  SbFileDeleteRecursive(path.c_str(), false);
 }
 
 TEST_P(SlotManagementTest, GoodSlot) {
@@ -219,9 +284,14 @@ TEST_P(SlotManagementTest, GoodSlot) {
 
   CreateGoodFile(2, kTestAppKey);
   ImUninitialize();
+
+  std::string path = CreateEmptyLibraryFile(slot_2_libcobalt_path_);
+
   VerifyLoad(slot_2_libcobalt_path_, slot_2_content_path_);
   VerifyGoodFile(2, kTestAppKey, true);
   VerifyBadFile(2, kTestAppKey, false);
+
+  SbFileDeleteRecursive(path.c_str(), false);
 }
 
 TEST_P(SlotManagementTest, NotAdoptSlot) {
@@ -236,9 +306,14 @@ TEST_P(SlotManagementTest, NotAdoptSlot) {
 
   VerifyGoodFile(2, kTestAppKey, false);
   ImUninitialize();
+
+  std::string path = CreateEmptyLibraryFile(slot_0_libcobalt_path_);
+
   VerifyLoad(slot_0_libcobalt_path_, slot_0_content_path_);
   VerifyGoodFile(2, kTestAppKey, false);
   VerifyBadFile(2, kTestAppKey, true);
+
+  SbFileDeleteRecursive(path.c_str(), false);
 }
 
 TEST_P(SlotManagementTest, BadSlot) {
@@ -252,8 +327,13 @@ TEST_P(SlotManagementTest, BadSlot) {
   ASSERT_EQ(1, ImGetCurrentInstallationIndex());
   CreateBadFile(1, kTestAppKey);
   ImUninitialize();
+
+  std::string path = CreateEmptyLibraryFile(slot_0_libcobalt_path_);
+
   VerifyLoad(slot_0_libcobalt_path_, slot_0_content_path_);
   VerifyGoodFile(1, kTestAppKey, false);
+
+  SbFileDeleteRecursive(path.c_str(), false);
 }
 
 TEST_P(SlotManagementTest, DrainingSlot) {
@@ -267,9 +347,14 @@ TEST_P(SlotManagementTest, DrainingSlot) {
   ASSERT_EQ(1, ImGetCurrentInstallationIndex());
   CreateDrainFile(1, kTestApp2Key);
   ImUninitialize();
+
+  std::string path = CreateEmptyLibraryFile(slot_0_libcobalt_path_);
+
   VerifyLoad(slot_0_libcobalt_path_, slot_0_content_path_);
   VerifyGoodFile(1, kTestAppKey, false);
   VerifyBadFile(1, kTestAppKey, false);
+
+  SbFileDeleteRecursive(path.c_str(), false);
 }
 
 TEST_P(SlotManagementTest, AlternativeContent) {
@@ -282,6 +367,8 @@ TEST_P(SlotManagementTest, AlternativeContent) {
   ASSERT_EQ(IM_SUCCESS, ImMarkInstallationSuccessful(1));
   ASSERT_EQ(1, ImGetCurrentInstallationIndex());
   ImUninitialize();
+
+  std::string path = CreateEmptyLibraryFile(slot_0_libcobalt_path_);
 
   MockLibraryLoader library_loader;
 
@@ -304,9 +391,10 @@ TEST_P(SlotManagementTest, AlternativeContent) {
   EXPECT_CALL(library_loader, Resolve("SbEventHandle"))
       .Times(1)
       .WillOnce(testing::Return(reinterpret_cast<void*>(&SbEventFake)));
-  ASSERT_EQ(&SbEventFake,
-            LoadSlotManagedLibrary(kTestAppKey, "/foo", &library_loader,
-                                   GetParam(), false));
+  ASSERT_EQ(&SbEventFake, LoadSlotManagedLibrary(kTestAppKey, "/foo",
+                                                 &library_loader, false));
+
+  SbFileDeleteRecursive(path.c_str(), false);
 }
 
 TEST_P(SlotManagementTest, BadSabi) {
@@ -326,6 +414,9 @@ TEST_P(SlotManagementTest, BadSabi) {
   CreateGoodFile(2, kTestAppKey);
 
   ImUninitialize();
+
+  std::string bad_path = CreateEmptyLibraryFile(slot_2_libcobalt_path_);
+  std::string good_path = CreateEmptyLibraryFile(slot_1_libcobalt_path_);
 
   MockLibraryLoader library_loader;
 
@@ -362,8 +453,10 @@ TEST_P(SlotManagementTest, BadSabi) {
       .WillOnce(testing::Return(reinterpret_cast<void*>(&SbEventFake)));
 
   ASSERT_EQ(&SbEventFake,
-            LoadSlotManagedLibrary(kTestAppKey, "", &library_loader, GetParam(),
-                                   false));
+            LoadSlotManagedLibrary(kTestAppKey, "", &library_loader, false));
+
+  SbFileDeleteRecursive(bad_path.c_str(), false);
+  SbFileDeleteRecursive(good_path.c_str(), false);
 }
 
 INSTANTIATE_TEST_CASE_P(SlotManagementTests,

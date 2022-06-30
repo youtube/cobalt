@@ -22,7 +22,7 @@ const char kURL[] = "url";
 const char kEvergreenLite[] = "evergreen_lite";
 const char kLoaderAppVersion[] = "loader_app_version";
 const char kShowSABI[] = "show_sabi";
-const char kLoaderUseCompression[] = "loader_use_compression";
+const char kUseCompressedUpdates[] = "use_compressed_updates";
 const char kLoaderUseMemoryMappedFile[] = "loader_use_mmap_file";
 const char kLoaderTrackMemory[] = "loader_track_memory";
 

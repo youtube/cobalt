@@ -38,8 +38,10 @@ extern const char kLoaderAppVersion[];
 // Print the loader_app Starboard ABI string on the command line.
 extern const char kShowSABI[];
 
-// The elf loader should use compression.
-extern const char kLoaderUseCompression[];
+// Does not control whether Cobalt downloads and installs compressed updates but
+// does allow the corresponding Cobalt switch with the same name, which does
+// control this behavior, to be observed by the loader app.
+extern const char kUseCompressedUpdates[];
 
 // The elf loader should use a Memory Mapped file.
 extern const char kLoaderUseMemoryMappedFile[];
