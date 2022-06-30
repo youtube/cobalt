@@ -257,7 +257,7 @@ void AudioTrackBridge::SetVolume(double volume,
   }
 }
 
-int64_t AudioTrackBridge::GetPlaybackHeadPosition(
+int64_t AudioTrackBridge::GetAudioTimestamp(
     SbTime* updated_at,
     JniEnvExt* env /*= JniEnvExt::Get()*/) {
   SB_DCHECK(env);
