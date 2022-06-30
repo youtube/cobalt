@@ -86,9 +86,9 @@ std::string CreateUserAgentString(const UserAgentPlatformInfo& platform_info) {
                         platform_info.starboard_version().c_str());
   }
 
-  // Device/FirmwareVersion (Brand, Model, ConnectionType)
+  // Device/FirmwareVersion (Brand, Model)
   base::StringAppendF(
-      &user_agent, ", %s_%s_%s_%s/%s (%s, %s, %s)",
+      &user_agent, ", %s_%s_%s_%s/%s (%s, %s)",
       platform_info.original_design_manufacturer()
           .value_or(kUnknownFieldName)
           .c_str(),
@@ -97,8 +97,7 @@ std::string CreateUserAgentString(const UserAgentPlatformInfo& platform_info) {
       platform_info.model_year().value_or("0").c_str(),
       platform_info.firmware_version().value_or(kUnknownFieldName).c_str(),
       platform_info.brand().value_or(kUnknownFieldName).c_str(),
-      platform_info.model().value_or(kUnknownFieldName).c_str(),
-      platform_info.connection_type_string().c_str());
+      platform_info.model().value_or(kUnknownFieldName).c_str());
 
   if (!platform_info.aux_field().empty()) {
     base::StringAppendF(&user_agent, " %s", platform_info.aux_field().c_str());

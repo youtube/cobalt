@@ -99,7 +99,7 @@ WebMediaPlayerHelper::~WebMediaPlayerHelper() {
 }
 
 SbDecodeTarget WebMediaPlayerHelper::GetCurrentDecodeTarget() const {
-  return player_->GetVideoFrameProvider()->GetCurrentSbDecodeTarget();
+  return player_->GetDecodeTargetProvider()->GetCurrentSbDecodeTarget();
 }
 
 bool WebMediaPlayerHelper::IsPlaybackFinished() const {

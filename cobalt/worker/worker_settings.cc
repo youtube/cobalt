@@ -24,7 +24,7 @@ namespace cobalt {
 namespace worker {
 WorkerSettings::WorkerSettings() : web::EnvironmentSettings() {}
 
-WorkerSettings::WorkerSettings(worker::MessagePort* message_port)
+WorkerSettings::WorkerSettings(web::MessagePort* message_port)
     : web::EnvironmentSettings(), message_port_(message_port) {}
 }  // namespace worker
 }  // namespace cobalt

@@ -43,21 +43,20 @@ related, each platform must now include a Starboard ABI file in its build (see
 [//starboard/sabi](../sabi)
 for examples). Starboard ABI files are JSON, and should all contain identical
 keys with the values being appropriate for the architecture. Each platform must
-override the new
-[GetPathToSabiJsonFile](../build/platform_configuration.py##339)
-method in its platform configuration to return the path to the desired Starboard
-ABI file (e.g.
-[//starboard/linux/shared/gyp\_configuration.py](../linux/shared/gyp_configuration.py)).
+set the `sabi_path` GN variables in its
+`platform_configuration/configuration.gni` file to return the path to the
+desired Starboard ABI file (e.g.
+[//starboard/linux/x64x11/shared/platform_configuration/configuration.gni](../linux/x64x11/shared/platform_configuration/configuration.gni)).
 By default, an empty and invalid Starboard ABI file is provided.
 
-Additionally, all platforms must include the
-[sabi.gypi](../sabi/sabi.gypi)
-in their build configuration. This file will consume the specified Starboard ABI
-file, resulting in the creation of a set of GYP variables and preprocessor
+Additionally, all platforms must include the `//starboard/build/config/sabi`
+config from [sabi/BUILD.gn](../build/config/sabi/BUILD.gn)
+in their platform configs. This file will consume the specified Starboard ABI
+file, resulting in the creation of a set of GN variables and preprocessor
 macros. The preprocessor macros are passed directly to the compiler and replace
 the macros you might be familiar with, such as `SB_HAS_32_BIT_LONG`.
 
-The newly defined GYP variables need to be transformed into toolchain specific
+The newly defined GN variables need to be transformed into toolchain specific
 flags; these flags are what actually makes the build result in a binary for the
 desired architecture. These flags will, in most cases, be identical to the flags
 already being used for building.
@@ -68,7 +67,7 @@ The process outlined above is shown in the diagram below.
 
 ### Post-Starboard ABI File Cleanup
 
-A number of GYP variables and preprocessor macros should no longer be defined
+A number of GN variables and preprocessor macros should no longer be defined
 directly, and instead the Starboard ABI file will be used to define them. These
 definitions need to be removed.
 
@@ -82,10 +81,6 @@ From `configuration_public.h`:
 *   `SB_HAS_64_BIT_LONG`
 *   `SB_HAS_32_BIT_POINTERS`
 *   `SB_HAS_64_BIT_POINTERS`
-
-From `gyp_configuration.gypi`:
-
-*   `target_arch`
 
 ## FAQ
 

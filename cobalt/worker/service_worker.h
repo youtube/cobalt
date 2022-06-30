@@ -23,8 +23,8 @@
 #include "cobalt/script/wrappable.h"
 #include "cobalt/web/event_target.h"
 #include "cobalt/web/event_target_listener_info.h"
+#include "cobalt/web/message_port.h"
 #include "cobalt/worker/abstract_worker.h"
-#include "cobalt/worker/message_port.h"
 #include "cobalt/worker/service_worker_object.h"
 #include "cobalt/worker/service_worker_state.h"
 
@@ -44,6 +44,7 @@ class ServiceWorker : public AbstractWorker, public web::EventTarget {
   // Web API: ServiceWorker
   //
   void PostMessage(const std::string& message) {
+    DCHECK(message_port_);
     message_port_->PostMessage(message);
   }
 
@@ -82,7 +83,7 @@ class ServiceWorker : public AbstractWorker, public web::EventTarget {
   }
 
   ServiceWorkerObject* worker_ = nullptr;
-  scoped_refptr<MessagePort> message_port_;
+  scoped_refptr<web::MessagePort> message_port_;
   ServiceWorkerState state_;
 };
 

@@ -103,7 +103,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
       const GetDecodeTargetGraphicsContextProviderFunc&
           get_decode_target_graphics_context_provider_func,
       bool allow_resume_after_suspend, MediaLog* media_log,
-      VideoFrameProvider* video_frame_provider);
+      DecodeTargetProvider* decode_target_provider);
   ~SbPlayerPipeline() override;
 
   void Suspend() override;
@@ -308,7 +308,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   base::CVal<bool> ended_;
   base::CVal<SbPlayerState> player_state_;
 
-  VideoFrameProvider* video_frame_provider_;
+  DecodeTargetProvider* decode_target_provider_;
 
   // Read audio from the stream if |timestamp_of_last_written_audio_| is less
   // than |seek_time_| + |kAudioPrerollLimit|, this effectively allows 10
@@ -345,7 +345,7 @@ SbPlayerPipeline::SbPlayerPipeline(
     const GetDecodeTargetGraphicsContextProviderFunc&
         get_decode_target_graphics_context_provider_func,
     bool allow_resume_after_suspend, MediaLog* media_log,
-    VideoFrameProvider* video_frame_provider)
+    DecodeTargetProvider* decode_target_provider)
     : pipeline_identifier_(
           base::StringPrintf("%X", g_pipeline_identifier_counter++)),
       task_runner_(task_runner),
@@ -383,7 +383,7 @@ SbPlayerPipeline::SbPlayerPipeline(
                                        pipeline_identifier_.c_str()),
                     kSbPlayerStateInitialized,
                     "The underlying SbPlayer state of the media pipeline."),
-      video_frame_provider_(video_frame_provider),
+      decode_target_provider_(decode_target_provider),
       last_media_time_(base::StringPrintf("Media.Pipeline.%s.LastMediaTime",
                                           pipeline_identifier_.c_str()),
                        0, "Last media time reported by the underlying player."),
@@ -912,7 +912,7 @@ void SbPlayerPipeline::CreateUrlPlayer(const std::string& source_url) {
     player_.reset(new StarboardPlayer(
         task_runner_, source_url, window_, this, set_bounds_helper_.get(),
         allow_resume_after_suspend_, *decode_to_texture_output_mode_,
-        on_encrypted_media_init_data_encountered_cb_, video_frame_provider_));
+        on_encrypted_media_init_data_encountered_cb_, decode_target_provider_));
     if (player_->IsValid()) {
       SetPlaybackRateTask(playback_rate_);
       SetVolumeTask(volume_);
@@ -1015,7 +1015,7 @@ void SbPlayerPipeline::CreatePlayer(SbDrmSystem drm_system) {
         task_runner_, get_decode_target_graphics_context_provider_func_,
         audio_config, audio_mime_type, video_config, video_mime_type, window_,
         drm_system, this, set_bounds_helper_.get(), allow_resume_after_suspend_,
-        *decode_to_texture_output_mode_, video_frame_provider_,
+        *decode_to_texture_output_mode_, decode_target_provider_,
         max_video_capabilities_));
     if (player_->IsValid()) {
       SetPlaybackRateTask(playback_rate_);
@@ -1562,10 +1562,10 @@ scoped_refptr<Pipeline> Pipeline::Create(
     const GetDecodeTargetGraphicsContextProviderFunc&
         get_decode_target_graphics_context_provider_func,
     bool allow_resume_after_suspend, MediaLog* media_log,
-    VideoFrameProvider* video_frame_provider) {
+    DecodeTargetProvider* decode_target_provider) {
   return new SbPlayerPipeline(
       window, task_runner, get_decode_target_graphics_context_provider_func,
-      allow_resume_after_suspend, media_log, video_frame_provider);
+      allow_resume_after_suspend, media_log, decode_target_provider);
 }
 
 }  // namespace media

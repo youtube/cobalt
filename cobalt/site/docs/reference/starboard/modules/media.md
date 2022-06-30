@@ -30,6 +30,9 @@ Types of audio elementary streams that can be supported.
 *   `kSbMediaAudioCodecEac3`
 *   `kSbMediaAudioCodecOpus`
 *   `kSbMediaAudioCodecVorbis`
+*   `kSbMediaAudioCodecMp3`
+*   `kSbMediaAudioCodecFlac`
+*   `kSbMediaAudioCodecPcm`
 
 ### SbMediaAudioCodingType ###
 
@@ -519,12 +522,10 @@ int SbMediaGetAudioOutputCount()
 The media buffer will be allocated using the returned alignment. Set this to a
 larger value may increase the memory consumption of media buffers.
 
-`type`: the media type of the stream (audio or video).
-
 #### Declaration ####
 
 ```
-int SbMediaGetBufferAlignment(SbMediaType type)
+int SbMediaGetBufferAlignment()
 ```
 
 ### SbMediaGetBufferAllocationUnit ###
@@ -564,12 +565,10 @@ Extra bytes allocated at the end of a media buffer to ensure that the buffer can
 be use optimally by specific instructions like SIMD. Set to 0 to remove any
 padding.
 
-`type`: the media type of the stream (audio or video).
-
 #### Declaration ####
 
 ```
-int SbMediaGetBufferPadding(SbMediaType type)
+int SbMediaGetBufferPadding()
 ```
 
 ### SbMediaGetBufferStorageType ###
@@ -604,7 +603,12 @@ int SbMediaGetInitialBufferCapacity()
 ### SbMediaGetMaxBufferCapacity ###
 
 The maximum amount of memory that will be used to store media buffers. This must
-be larger than sum of the video budget and audio budget.
+be larger than sum of the video budget and audio budget. This is a soft limit
+and the app will continue to allocate media buffers even if the accumulated
+memory used by the media buffers exceeds the maximum buffer capacity. The
+allocation of media buffers may only fail when there is not enough memory in the
+system to fulfill the request, under which case the app will be terminated as
+under other OOM situations.
 
 `codec`: the video codec associated with the buffer. `resolution_width`: the
 width of the video resolution. `resolution_height`: the height of the video
@@ -699,4 +703,3 @@ seconds.
 ```
 void SbMediaSetAudioWriteDuration(SbTime duration)
 ```
-

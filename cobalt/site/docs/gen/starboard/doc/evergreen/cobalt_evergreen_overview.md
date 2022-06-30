@@ -261,9 +261,9 @@ In order to verify the platform requirements you should run the
 `nplb_evergreen_compat_tests`. These tests ensure that the platform is
 configured appropriately for Evergreen.
 
-To enable the test, set the `sb_evergreen_compatible gyp` variable to 1 in the
-`gyp_configuration.gypi`. For more details please take a look at the Raspberry
-Pi 2 gyp files.
+To enable the test, set the `sb_is_evergreen_compatible` GN variable to `true`
+in the platform's `configuration.gni`. For more details please take a look at
+the Raspberry Pi 2 GN files.
 
 There is a reference implementation available for Raspberry Pi 2 with
 instructions available [here](cobalt_evergreen_reference_port_raspi2.md).

@@ -23,9 +23,9 @@
 #include "base/message_loop/message_loop.h"
 #include "base/synchronization/lock.h"
 #include "base/time/time.h"
+#include "cobalt/media/base/decode_target_provider.h"
 #include "cobalt/media/base/decoder_buffer_cache.h"
 #include "cobalt/media/base/sbplayer_set_bounds_helper.h"
-#include "cobalt/media/base/video_frame_provider.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "third_party/chromium/media/base/audio_decoder_config.h"
@@ -75,7 +75,7 @@ class StarboardPlayer {
       bool allow_resume_after_suspend, bool prefer_decode_to_texture,
       const OnEncryptedMediaInitDataEncounteredCB&
           encrypted_media_init_data_encountered_cb,
-      VideoFrameProvider* const video_frame_provider);
+      DecodeTargetProvider* const decode_target_provider);
 #endif  // SB_HAS(PLAYER_WITH_URL)
   // Create a StarboardPlayer with normal player
   StarboardPlayer(
@@ -89,7 +89,7 @@ class StarboardPlayer {
       SbDrmSystem drm_system, Host* host,
       SbPlayerSetBoundsHelper* set_bounds_helper,
       bool allow_resume_after_suspend, bool prefer_decode_to_texture,
-      VideoFrameProvider* const video_frame_provider,
+      DecodeTargetProvider* const decode_target_provider,
       const std::string& max_video_capabilities);
 
   ~StarboardPlayer();
@@ -276,7 +276,7 @@ class StarboardPlayer {
   // Keep track of the output mode we are supposed to output to.
   SbPlayerOutputMode output_mode_;
 
-  VideoFrameProvider* const video_frame_provider_;
+  DecodeTargetProvider* const decode_target_provider_;
 
   // Keep copies of the mime type strings instead of using the ones in the
   // DemuxerStreams to ensure that the strings are always valid.

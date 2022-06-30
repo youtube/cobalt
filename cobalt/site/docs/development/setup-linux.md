@@ -22,7 +22,7 @@ Required libraries can differ depending on your Linux distribution and version.
         pkgconf ninja-build bison yasm binutils clang libgles2-mesa-dev \
         mesa-common-dev libpulse-dev libavresample-dev libasound2-dev \
         libxrender-dev libxcomposite-dev libxml2-dev curl git \
-        python3.8-venv python2
+        python3.8-venv
     ```
 
 1.  Install Node.js via `nvm`:
@@ -50,14 +50,6 @@ Required libraries can differ depending on your Linux distribution and version.
 
     ```
     $ ccache --max-size=20G
-    ```
-
-1.  Install necessary python2 packages for GYP. Until Cobalt 23, when we have
-    migrated our build system to GN, we still require some python2 packages:
-
-    ```
-    $ curl https://bootstrap.pypa.io/pip/2.7/get-pip.py | python2
-    $ python2 -m pip install --user requests selenium six
     ```
 
 1.  Clone the Cobalt code repository. The following `git` command creates a

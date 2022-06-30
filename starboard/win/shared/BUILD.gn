@@ -312,7 +312,6 @@ static_library("starboard_platform") {
     "//starboard/shared/win32/string_format_wide.cc",
     "//starboard/shared/win32/system_break_into_debugger.cc",
     "//starboard/shared/win32/system_clear_last_error.cc",
-    "//starboard/shared/win32/system_get_connection_type.cc",
     "//starboard/shared/win32/system_get_error_string.cc",
     "//starboard/shared/win32/system_get_last_error.cc",
     "//starboard/shared/win32/system_get_locale_id.cc",

@@ -584,6 +584,7 @@ inline void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value,
 template <typename T>
 void ToJSValue(v8::Isolate* isolate, const script::Sequence<T>& sequence,
                v8::Local<v8::Value>* out_value) {
+  // https://webidl.spec.whatwg.org/#es-sequence
   // 1. Let n be the length of S.
   using size_type = typename script::Sequence<T>::size_type;
   size_type count = sequence.size();
@@ -697,14 +698,26 @@ void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value,
   }
 }
 
+// Promise -> JSValue
 template <typename T>
 void ToJSValue(v8::Isolate* isolate,
                const ScriptValue<Promise<T>>* promise_holder,
                v8::Local<v8::Value>* out_value);
 
+// Promise -> JSValue
 template <typename T>
 void ToJSValue(v8::Isolate* isolate, ScriptValue<Promise<T>>* promise_holder,
                v8::Local<v8::Value>* out_value);
+
+// JSValue -> Promise
+template <typename T>
+void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value,
+                 int conversion_flags, ExceptionState* exception_state,
+                 script::Promise<T>* out_promise) {
+  // TODO(b/228976500): Implement conversion from JS to native for Promise<T>.
+  // https://webidl.spec.whatwg.org/#es-promise
+  NOTIMPLEMENTED();
+}
 
 // script::Handle<T> -> JSValue
 template <typename T>

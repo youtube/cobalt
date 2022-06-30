@@ -92,6 +92,15 @@ SbMediaAudioCodec GetAudioCodecFromString(const char* codec) {
   if (strcmp(codec, "vorbis") == 0) {
     return kSbMediaAudioCodecVorbis;
   }
+#if SB_API_VERSION >= 14
+  if (strcmp(codec, "mp3") == 0 || strcmp(codec, "mp4a.69") == 0 ||
+      strcmp(codec, "mp4a.6B") == 0) {
+    return kSbMediaAudioCodecMp3;
+  }
+  if (strcmp(codec, "flac") == 0) {
+    return kSbMediaAudioCodecFlac;
+  }
+#endif  // SB_API_VERSION >= 14
   return kSbMediaAudioCodecNone;
 }
 

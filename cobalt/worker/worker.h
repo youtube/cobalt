@@ -36,8 +36,8 @@
 #include "cobalt/web/agent.h"
 #include "cobalt/web/context.h"
 #include "cobalt/web/environment_settings.h"
+#include "cobalt/web/message_port.h"
 #include "cobalt/worker/dedicated_worker_global_scope.h"
-#include "cobalt/worker/message_port.h"
 #include "cobalt/worker/worker_global_scope.h"
 #include "cobalt/worker/worker_options.h"
 #include "cobalt/worker/worker_settings.h"
@@ -65,7 +65,7 @@ class Worker : public base::MessageLoop::DestructionObserver {
     //   https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#dom-worker
     GURL url;
     web::EnvironmentSettings* outside_settings = nullptr;
-    MessagePort* outside_port = nullptr;
+    web::MessagePort* outside_port = nullptr;
     WorkerOptions options;
   };
 
@@ -76,7 +76,7 @@ class Worker : public base::MessageLoop::DestructionObserver {
 
   void Terminate();
 
-  MessagePort* message_port() const { return message_port_.get(); }
+  web::MessagePort* message_port() const { return message_port_.get(); }
 
   // The message loop this object is running on.
   base::MessageLoop* message_loop() const {
@@ -123,7 +123,7 @@ class Worker : public base::MessageLoop::DestructionObserver {
   scoped_refptr<WorkerGlobalScope> worker_global_scope_;
 
   // Inner message port.
-  scoped_refptr<MessagePort> message_port_;
+  scoped_refptr<web::MessagePort> message_port_;
 
   // The loader that is used for asynchronous loads.
   std::unique_ptr<loader::Loader> loader_;

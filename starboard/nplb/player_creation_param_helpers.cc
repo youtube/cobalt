@@ -94,6 +94,50 @@ SbMediaAudioSampleInfo CreateAudioSampleInfo(SbMediaAudioCodec codec) {
           audio_sample_info.bits_per_sample / 8;
       break;
     }
+#if SB_API_VERSION >= 14
+    case kSbMediaAudioCodecMp3: {
+      audio_sample_info.format_tag = 0xff;
+      audio_sample_info.number_of_channels = 2;
+      audio_sample_info.samples_per_second = 44100;
+      audio_sample_info.block_alignment = 4;
+      audio_sample_info.bits_per_sample = 16;
+      audio_sample_info.audio_specific_config = nullptr;
+      audio_sample_info.audio_specific_config_size = 0;
+      audio_sample_info.average_bytes_per_second =
+          audio_sample_info.samples_per_second *
+          audio_sample_info.number_of_channels *
+          audio_sample_info.bits_per_sample / 8;
+      break;
+    }
+    case kSbMediaAudioCodecFlac: {
+      audio_sample_info.format_tag = 0xff;
+      audio_sample_info.number_of_channels = 2;
+      audio_sample_info.samples_per_second = 44100;
+      audio_sample_info.block_alignment = 4;
+      audio_sample_info.bits_per_sample = 16;
+      audio_sample_info.audio_specific_config = nullptr;
+      audio_sample_info.audio_specific_config_size = 0;
+      audio_sample_info.average_bytes_per_second =
+          audio_sample_info.samples_per_second *
+          audio_sample_info.number_of_channels *
+          audio_sample_info.bits_per_sample / 8;
+      break;
+    }
+    case kSbMediaAudioCodecPcm: {
+      audio_sample_info.format_tag = 0x01;
+      audio_sample_info.number_of_channels = 2;
+      audio_sample_info.samples_per_second = 44100;
+      audio_sample_info.block_alignment = 4;
+      audio_sample_info.bits_per_sample = 32;
+      audio_sample_info.audio_specific_config = nullptr;
+      audio_sample_info.audio_specific_config_size = 0;
+      audio_sample_info.average_bytes_per_second =
+          audio_sample_info.samples_per_second *
+          audio_sample_info.number_of_channels *
+          audio_sample_info.bits_per_sample / 8;
+      break;
+    }
+#endif  // SB_API_VERSION >= 14
   }
   return audio_sample_info;
 }

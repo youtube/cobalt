@@ -30,7 +30,7 @@ namespace dom {
 //   https://www.w3.org/TR/html50/embedded-content-0.html#the-video-element
 class HTMLVideoElement : public HTMLMediaElement {
  public:
-  typedef media::VideoFrameProvider VideoFrameProvider;
+  typedef media::DecodeTargetProvider DecodeTargetProvider;
 
   static const char kTagName[];
 
@@ -52,7 +52,7 @@ class HTMLVideoElement : public HTMLMediaElement {
   // From HTMLElement
   scoped_refptr<HTMLVideoElement> AsHTMLVideoElement() override { return this; }
 
-  scoped_refptr<VideoFrameProvider> GetVideoFrameProvider();
+  scoped_refptr<DecodeTargetProvider> GetDecodeTargetProvider();
 
   WebMediaPlayer::SetBoundsCB GetSetBoundsCB();
 

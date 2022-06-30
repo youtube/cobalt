@@ -14,6 +14,10 @@
 
 #include "starboard/system.h"
 
+#if SB_API_VERSION < 14
+
 SbSystemConnectionType SbSystemGetConnectionType() {
   return kSbSystemConnectionTypeUnknown;
 }
+
+#endif  // SB_API_VERSION < 14

@@ -19,14 +19,14 @@
 
 #include "cobalt/script/wrappable.h"
 #include "cobalt/web/environment_settings.h"
+#include "cobalt/web/message_port.h"
 #include "cobalt/worker/client_type.h"
 #include "cobalt/worker/frame_type.h"
-#include "cobalt/worker/message_port.h"
 
 namespace cobalt {
 namespace worker {
 
-class Client : public MessagePort {
+class Client : public web::MessagePort {
  public:
   // https://w3c.github.io/ServiceWorker/#create-client-algorithm
   static Client* Create(web::EnvironmentSettings* client) {

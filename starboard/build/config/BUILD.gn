@@ -67,11 +67,16 @@ config("host") {
 
       if (target_cpu == "arm" || target_cpu == "x86") {
         cflags = [ "-m32" ]
-        ldflags += [
-          "-target",
-          "i386-unknown-linux-gnu",
-          "-latomic",
-        ]
+        ldflags += [ "-latomic" ]
+
+        if (is_clang) {
+          ldflags += [
+            "-target",
+            "i386-unknown-linux-gnu",
+          ]
+        } else {
+          ldflags += [ "-m32" ]
+        }
       }
     } else if (is_win) {
       # A few flags to mute MSVC compiler errors that does not appear on Linux.

@@ -3725,8 +3725,6 @@ TEST_F(HttpCacheTest, SimpleGET_RacingReaders) {
   EXPECT_EQ(1, cache.disk_cache()->create_count());
 }
 
-// TODO: Enable test when HTTP Caching is fully functional.
-#if !defined(STARBOARD)
 // Tests that we can doom an entry with pending transactions and delete one of
 // the pending transactions before the first one completes.
 // See http://code.google.com/p/chromium/issues/detail?id=25588
@@ -3777,7 +3775,6 @@ TEST_F(HttpCacheTest, SimpleGET_DoomWithPending) {
     ReadAndVerifyTransaction(c->trans.get(), kSimpleGET_Transaction);
   }
 }
-#endif
 
 TEST_F(HttpCacheTest, DoomDoesNotSetHints) {
   // Test that a doomed writer doesn't set in-memory index hints.
@@ -7859,8 +7856,6 @@ TEST_F(HttpCacheTest, RangeGET_InvalidResponse3) {
   RemoveMockTransaction(&kRangeGET_TransactionOK);
 }
 
-// TODO: Enable test when HTTP Caching is fully functional.
-#if !defined(HTTP_CACHE_TESTING_DISABLED) 
 // Tests that we handle large range values properly.
 TEST_F(HttpCacheTest, RangeGET_LargeValues) {
   // We need a real sparse cache for this test.
@@ -7892,7 +7887,6 @@ TEST_F(HttpCacheTest, RangeGET_LargeValues) {
 
   RemoveMockTransaction(&kRangeGET_TransactionOK);
 }
-#endif
 
 // Tests that we don't crash with a range request if the disk cache was not
 // initialized properly.

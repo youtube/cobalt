@@ -24,7 +24,6 @@ interface PerformanceObserver {
   [RaisesException] void observe (optional PerformanceObserverInit options);
   void disconnect ();
   PerformanceEntryList takeRecords();
-  // TODO: make this be FrozenArray<DOMString> when available
+  // TODO(b/236750294): Make this be FrozenArray<DOMString> when available.
   [SameObject] static readonly attribute sequence<DOMString> supportedEntryTypes;
 };
-

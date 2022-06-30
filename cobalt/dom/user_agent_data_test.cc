@@ -101,7 +101,6 @@ void UserAgentDataTest::InitializeEmptyPlatformInfo() {
   platform_info_->set_brand("");
   platform_info_->set_model("");
   platform_info_->set_aux_field("");
-  platform_info_->set_connection_type(base::nullopt);
   platform_info_->set_javascript_engine_version("");
   platform_info_->set_rasterizer_type("");
   platform_info_->set_evergreen_version("");

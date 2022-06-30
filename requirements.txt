@@ -4,3 +4,6 @@ pylint<3
 yapf<1
 requests==2.25.1
 jsonschema<5
+selenium==3.141.0
+Brotli==1.0.9
+six<2

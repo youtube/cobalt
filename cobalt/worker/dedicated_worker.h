@@ -22,8 +22,8 @@
 #include "cobalt/web/environment_settings.h"
 #include "cobalt/web/event_target.h"
 #include "cobalt/web/event_target_listener_info.h"
+#include "cobalt/web/message_port.h"
 #include "cobalt/worker/abstract_worker.h"
-#include "cobalt/worker/message_port.h"
 #include "cobalt/worker/worker.h"
 #include "cobalt/worker/worker_options.h"
 
@@ -82,7 +82,7 @@ class DedicatedWorker : public AbstractWorker, public web::EventTarget {
 
   const std::string script_url_;
   const WorkerOptions worker_options_;
-  scoped_refptr<MessagePort> outside_port_;
+  scoped_refptr<web::MessagePort> outside_port_;
   std::unique_ptr<Worker> worker_;
 };
 

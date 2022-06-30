@@ -5,8 +5,7 @@ title: "Starboard Module Reference: decode_target.h"
 
 A target for decoding image and video data into. This corresponds roughly to an
 EGLImage, but that extension may not be fully supported on all GL platforms.
-SbDecodeTarget supports multi-plane targets. The SbBlitter API is supported as
-well, and this is able to more-or-less unify the two.
+SbDecodeTarget supports multi-plane targets.
 
 An SbDecodeTarget can be passed into any function which decodes video or image
 data. This allows the application to allocate fast graphics memory, and have
@@ -117,7 +116,7 @@ premultiplied unless otherwise explicitly specified.
 *   `kSbDecodeTargetFormat3Plane10BitYUVI420`
 
     A decoder target format consisting of 10bit Y, U, and V planes, in that
-    order.
+    order. Each pixel is stored in 16 bits.
 *   `kSbDecodeTargetFormat1PlaneUYVY`
 
     A decoder target format consisting of a single plane with pixels laid out in
@@ -394,4 +393,3 @@ Starboard implementations, if it is necessary.
 ```
 static void SbDecodeTargetRunInGlesContext(SbDecodeTargetGraphicsContextProvider *provider, SbDecodeTargetGlesContextRunnerTarget target, void *target_context)
 ```
-

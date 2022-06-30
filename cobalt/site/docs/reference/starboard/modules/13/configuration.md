@@ -134,7 +134,12 @@ base/compiler_specific.h)
 
 ### SB_RESTRICT ###
 
-Include the platform-specific configuration.
+Include the platform-specific configuration. This macro is set by GN in
+starboard/build/config/BUILD.gn and passed in on the command line for all
+targets and all configurations.Makes a pointer-typed parameter restricted so
+that the compiler can make certain optimizations because it knows the pointers
+are unique.
+
 ### SB_SIZE_OF(DATATYPE) ###
 
 Determines at compile-time the size of a data type, or 0 if the data type that

@@ -14,6 +14,8 @@
 
 #include "starboard/system.h"
 
+#if SB_API_VERSION < 14
+
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/common/log.h"
 
@@ -30,3 +32,5 @@ SbSystemConnectionType SbSystemGetConnectionType() {
     return kSbSystemConnectionTypeWired;
   }
 }
+
+#endif  // SB_API_VERSION < 14

@@ -30,6 +30,7 @@ component("media") {
     "base/audio_bus.h",
     "base/data_source.cc",
     "base/data_source.h",
+    "base/decode_target_provider.h",
     "base/decoder_buffer_cache.cc",
     "base/decoder_buffer_cache.h",
     "base/drm_system.cc",
@@ -45,7 +46,6 @@ component("media") {
     "base/sbplayer_set_bounds_helper.h",
     "base/starboard_player.cc",
     "base/starboard_player.h",
-    "base/video_frame_provider.h",
     "decoder_buffer_allocator.cc",
     "decoder_buffer_allocator.h",
     "decoder_buffer_memory_info.h",
@@ -64,6 +64,8 @@ component("media") {
     "progressive/avc_parser.h",
     "progressive/data_source_reader.cc",
     "progressive/data_source_reader.h",
+    "progressive/demuxer_extension_wrapper.cc",
+    "progressive/demuxer_extension_wrapper.h",
     "progressive/mp4_map.cc",
     "progressive/mp4_map.h",
     "progressive/mp4_parser.cc",
@@ -106,6 +108,7 @@ target(gtest_target_type, "media_test") {
   testonly = true
 
   sources = [
+    "progressive/demuxer_extension_wrapper_test.cc",
     "progressive/mock_data_source_reader.h",
     "progressive/mp4_map_unittest.cc",
     "progressive/rbsp_stream_unittest.cc",
@@ -120,5 +123,6 @@ target(gtest_target_type, "media_test") {
     "//cobalt/test:run_all_unittests",
     "//testing/gmock",
     "//testing/gtest",
+    "//third_party/chromium/media:media",
   ]
 }

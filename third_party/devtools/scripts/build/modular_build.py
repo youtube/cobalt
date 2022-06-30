@@ -114,7 +114,7 @@ class Descriptors:
             return self._cached_sorted_modules
 
         result = []
-        unvisited_modules = set(self.modules)
+        unvisited_modules = sorted(set(self.modules))
         temp_modules = set()
 
         def visit(parent, name):
@@ -127,7 +127,7 @@ class Descriptors:
             temp_modules.add(name)
             deps = self.modules[name].get('dependencies')
             if deps:
-                for dep_name in deps:
+                for dep_name in sorted(deps):
                     bad_dep = visit(name, dep_name)
                     if bad_dep:
                         return bad_dep

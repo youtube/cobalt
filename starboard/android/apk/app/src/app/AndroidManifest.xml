@@ -32,6 +32,9 @@
   <!-- This is needed when targeting API 28+ to use foreground services -->
   <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
 
+  <!-- Used for go/cobalt-ifa and AdvertisingIdClient.Info.getId() -->
+  <uses-permission android:name="com.google.android.gms.permission.AD_ID"/>
+
   <application
     android:name="dev.cobalt.app.CobaltApplication"
     android:icon="@mipmap/ic_app"
