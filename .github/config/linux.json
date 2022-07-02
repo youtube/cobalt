@@ -4,7 +4,6 @@
     "linux-x64x11",
     "linux-x64x11-egl",
     "linux-x64x11-skia",
-    "linux-x64x11-sbversion-11",
     "linux-x64x11-sbversion-12",
     "linux-x64x11-sbversion-13",
     "linux-x64x11-sbversion-14"
@@ -21,11 +20,6 @@
     {
       "platform":"linux-x64x11-skia",
       "target_platform":"linux-x64x11-skia"
-    },
-    {
-      "platform":"linux-x64x11-sbversion-11",
-      "target_platform":"linux-x64x11",
-      "sb_api_version":"sb_api_version=11"
     },
     {
       "platform":"linux-x64x11-sbversion-12",
