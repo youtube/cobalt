@@ -26,6 +26,7 @@
 #include "cobalt/script/wrappable.h"
 #include "cobalt/web/context.h"
 #include "cobalt/web/environment_settings.h"
+#include "cobalt/web/testing/stub_environment_settings.h"
 #include "cobalt/worker/service_worker.h"
 #include "cobalt/worker/service_worker_object.h"
 #include "cobalt/worker/service_worker_registration.h"
@@ -115,6 +116,10 @@ class StubWebContext final : public Context {
   }
   EnvironmentSettings* environment_settings() const final {
     return environment_settings_.get();
+  }
+  EnvironmentSettings* setup_stub_environment_settings() {
+    setup_environment_settings(new testing::StubEnvironmentSettings);
+    return environment_settings();
   }
 
   scoped_refptr<worker::ServiceWorkerRegistration>
