@@ -284,54 +284,6 @@ void* TLSKeyManager::GetLocalValue(SbThreadLocalKey key) {
   return data_->key_table_[key->index].values[current_thread_id];
 }
 
-void TLSKeyManager::InitializeTLSForThread() {
-  int current_thread_id = GetCurrentThreadId();
-
-  ScopedLock lock(mutex_);
-
-  const size_t table_size = data_->key_table_.size();
-  for (int i = 0; i < table_size; ++i) {
-    KeyRecord* key_record = &data_->key_table_[i];
-    if (key_record->valid) {
-      key_record->values[current_thread_id] = NULL;
-    }
-  }
-}
-
-void TLSKeyManager::ShutdownTLSForThread() {
-  int current_thread_id = GetCurrentThreadId();
-
-  ScopedLock lock(mutex_);
-
-  // Apply the destructors multiple times (4 is the minimum value
-  // according to the specifications).  This is necessary if one of
-  // the destructors adds new values to the key map.
-  for (int d = 0; d < 4; ++d) {
-    // Move the map into a new temporary map so that we can iterate
-    // through that while the original s_tls_thread_keys may have more
-    // values added to it via destructor calls.
-    const size_t table_size = data_->key_table_.size();
-
-    for (int i = 0; i < table_size; ++i) {
-      KeyRecord* key_record = &data_->key_table_[i];
-      if (key_record->valid) {
-        void* value = key_record->values[current_thread_id];
-        key_record->values[current_thread_id] = NULL;
-        SbThreadLocalDestructor destructor = key_record->destructor;
-
-        if (value && destructor) {
-          mutex_.Release();
-          destructor(value);
-          mutex_.Acquire();
-        }
-      }
-    }
-  }
-
-  data_->thread_id_map_.Erase(SbThreadGetId());
-  data_->available_thread_ids_.push_back(current_thread_id);
-}
-
 bool TLSKeyManager::IsKeyActive(SbThreadLocalKey key) {
   return data_->key_table_[key->index].valid;
 }
