@@ -35,12 +35,15 @@ class Crypto : public script::Wrappable {
   // Web API:Crypto
   //
   scoped_refptr<subtlecrypto::SubtleCrypto> subtle(
-      script::EnvironmentSettings* settings) const;
+      script::EnvironmentSettings* settings);
 
   static script::Handle<script::ArrayBufferView> GetRandomValues(
       const script::Handle<script::ArrayBufferView>& array,
       script::ExceptionState* exception_state);
   DEFINE_WRAPPABLE_TYPE(Crypto);
+
+ private:
+  scoped_refptr<subtlecrypto::SubtleCrypto> subtle_crypto_;
 };
 
 }  // namespace web

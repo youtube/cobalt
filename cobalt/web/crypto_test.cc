@@ -26,15 +26,16 @@
 #include "cobalt/script/testing/mock_exception_state.h"
 #include "cobalt/script/typed_arrays.h"
 #include "cobalt/web/dom_exception.h"
+#include "cobalt/web/testing/stub_web_context.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
 namespace web {
 
 using script::testing::MockExceptionState;
-using testing::_;
-using testing::SaveArg;
-using testing::StrictMock;
+using ::testing::_;
+using ::testing::SaveArg;
+using ::testing::StrictMock;
 
 // TODO: Test arrays in other integer types.
 // TODO: Test arrays in float types.
@@ -150,6 +151,15 @@ TEST(CryptoTest, LargeArray) {
   result = crypto->GetRandomValues(casted_array65536, &exception_state);
   EXPECT_TRUE(
       casted_array65536.GetScriptValue()->EqualTo(*(result.GetScriptValue())));
+}
+
+TEST(CryptoTest, Subtle) {
+  auto web_context = std::make_unique<web::testing::StubWebContext>();
+  auto* environment_settings = web_context->setup_stub_environment_settings();
+  scoped_refptr<Crypto> crypto = new Crypto;
+  EXPECT_NE(nullptr, crypto->subtle(environment_settings));
+  EXPECT_EQ(crypto->subtle(environment_settings),
+            crypto->subtle(environment_settings));
 }
 
 }  // namespace web

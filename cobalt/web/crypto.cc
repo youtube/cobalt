@@ -22,8 +22,11 @@ namespace web {
 
 // https://www.w3.org/TR/WebCryptoAPI/#Crypto-attribute-subtle
 scoped_refptr<subtlecrypto::SubtleCrypto> Crypto::subtle(
-    script::EnvironmentSettings* settings) const {
-  return new subtlecrypto::SubtleCrypto(settings);
+    script::EnvironmentSettings* settings) {
+  if (!subtle_crypto_) {
+    subtle_crypto_ = new subtlecrypto::SubtleCrypto(settings);
+  }
+  return subtle_crypto_;
 }
 
 // https://www.w3.org/TR/WebCryptoAPI/#dfn-Crypto-method-getRandomValues
