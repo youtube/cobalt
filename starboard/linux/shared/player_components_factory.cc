@@ -22,6 +22,8 @@
 #include "starboard/shared/ffmpeg/ffmpeg_video_decoder.h"
 #include "starboard/shared/libdav1d/dav1d_video_decoder.h"
 #include "starboard/shared/libde265/de265_video_decoder.h"
+#include "starboard/shared/libfdkaac/fdk_aac_audio_decoder.h"
+#include "starboard/shared/libfdkaac/libfdkaac_library_loader.h"
 #include "starboard/shared/libvpx/vpx_video_decoder.h"
 #include "starboard/shared/openh264/openh264_library_loader.h"
 #include "starboard/shared/openh264/openh264_video_decoder.h"
@@ -65,6 +67,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
 
       typedef ::starboard::shared::ffmpeg::AudioDecoder FfmpegAudioDecoder;
       typedef ::starboard::shared::opus::OpusAudioDecoder OpusAudioDecoder;
+      typedef ::starboard::shared::libfdkaac::FdkAacAudioDecoder
+          FdkAacAudioDecoder;
 
       auto decoder_creator = [](const SbMediaAudioSampleInfo& audio_sample_info,
                                 SbDrmSystem drm_system) {
@@ -74,11 +78,18 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
           if (audio_decoder_impl->is_valid()) {
             return audio_decoder_impl.PassAs<AudioDecoder>();
           }
+        } else if (audio_sample_info.codec == kSbMediaAudioCodecAac &&
+                   audio_sample_info.number_of_channels <=
+                       FdkAacAudioDecoder::kMaxChannels &&
+                   libfdkaac::LibfdkaacHandle::GetHandle()->IsLoaded()) {
+          SB_LOG(INFO) << "Playing audio using FdkAacAudioDecoder.";
+          return scoped_ptr<AudioDecoder>(new FdkAacAudioDecoder());
         } else {
           scoped_ptr<FfmpegAudioDecoder> audio_decoder_impl(
               FfmpegAudioDecoder::Create(audio_sample_info.codec,
                                          audio_sample_info));
           if (audio_decoder_impl && audio_decoder_impl->is_valid()) {
+            SB_LOG(INFO) << "Playing audio using FfmpegAudioDecoder";
             return audio_decoder_impl.PassAs<AudioDecoder>();
           }
         }
