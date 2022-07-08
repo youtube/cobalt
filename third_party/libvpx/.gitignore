@@ -1,5 +1,6 @@
 *.S
 *.a
+!/platforms/*/libvpx.a
 *.asm.s
 *.d
 *.gcda
