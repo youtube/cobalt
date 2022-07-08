@@ -17,7 +17,7 @@
 [
     Constructor,
     ConstructorCallWith=EnvironmentSettings,
-    Exposed=(Window)
+    Exposed=(Window,ServiceWorker)
 ] interface SubtleCrypto {
     Promise<any> encrypt((AesCtrParams or Algorithm) algorithm, CryptoKey key, BufferSource data);
     Promise<any> decrypt((AesCtrParams or Algorithm) algorithm, CryptoKey key, BufferSource data);

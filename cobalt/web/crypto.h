@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_DOM_CRYPTO_H_
-#define COBALT_DOM_CRYPTO_H_
+#ifndef COBALT_WEB_CRYPTO_H_
+#define COBALT_WEB_CRYPTO_H_
 
 #include "cobalt/script/array_buffer_view.h"
 #include "cobalt/script/environment_settings.h"
@@ -22,7 +22,7 @@
 #include "cobalt/subtlecrypto/subtle_crypto.h"
 
 namespace cobalt {
-namespace dom {
+namespace web {
 
 // The Crypto interface represents an interface to general purpose
 // cryptographic functionality including a cryptographically strong
@@ -35,15 +35,18 @@ class Crypto : public script::Wrappable {
   // Web API:Crypto
   //
   scoped_refptr<subtlecrypto::SubtleCrypto> subtle(
-      script::EnvironmentSettings* settings) const;
+      script::EnvironmentSettings* settings);
 
   static script::Handle<script::ArrayBufferView> GetRandomValues(
       const script::Handle<script::ArrayBufferView>& array,
       script::ExceptionState* exception_state);
   DEFINE_WRAPPABLE_TYPE(Crypto);
+
+ private:
+  scoped_refptr<subtlecrypto::SubtleCrypto> subtle_crypto_;
 };
 
-}  // namespace dom
+}  // namespace web
 }  // namespace cobalt
 
-#endif  // COBALT_DOM_CRYPTO_H_
+#endif  // COBALT_WEB_CRYPTO_H_

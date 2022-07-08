@@ -21,6 +21,7 @@
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
 #include "cobalt/script/environment_settings.h"
+#include "cobalt/web/crypto.h"
 #include "cobalt/web/event_target.h"
 #include "cobalt/web/event_target_listener_info.h"
 #include "cobalt/web/navigator_base.h"
@@ -89,9 +90,14 @@ class WindowOrWorkerGlobalScope : public EventTarget {
 
   void DestroyTimers();
 
+  // Web API: GlobalCrypto (implements)
+  //   https://www.w3.org/TR/WebCryptoAPI/#crypto-interface
+  scoped_refptr<Crypto> crypto() const;
+
  protected:
   virtual ~WindowOrWorkerGlobalScope() {}
 
+  scoped_refptr<Crypto> crypto_;
   web::WindowTimers window_timers_;
 
  private:

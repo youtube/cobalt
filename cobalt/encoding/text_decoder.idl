@@ -15,6 +15,7 @@
 // https://encoding.spec.whatwg.org/#interface-textdecoder
 
 [
+  Exposed=(Window,Worker),
   Constructor(optional DOMString label = "utf-8",
               optional TextDecoderOptions options),
   RaisesException = Constructor
