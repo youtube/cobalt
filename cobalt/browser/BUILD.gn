@@ -60,8 +60,6 @@ target(final_executable_type, "cobalt") {
   content_deps = [
     "//cobalt/dom:licenses",
     "//cobalt/network:copy_ssl_certificates",
-    "//cobalt/speech:speech_testdata",
-    "//cobalt/webdriver:copy_webdriver_data",
     "//third_party/icu:icudata",
   ]
   if (cobalt_font_package == "empty") {
@@ -77,6 +75,8 @@ target(final_executable_type, "cobalt") {
       "//cobalt/debug/backend/content:copy_backend_web_files",
       "//cobalt/debug/console/content:copy_console_web_files",
       "//cobalt/debug/remote/content:copy_remote_web_files",
+      "//cobalt/speech:speech_testdata",
+      "//cobalt/webdriver:copy_webdriver_data",
       "//third_party/devtools:build_release_devtools",
       "//third_party/devtools:copy_devtools_modules",
       "//third_party/devtools:copy_inspector_images",
