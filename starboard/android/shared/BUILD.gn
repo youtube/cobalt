@@ -446,6 +446,18 @@ static_library("starboard_platform") {
       "player_components_factory.cc",
     ]
   }
+
+  if (sb_is_evergreen_compatible) {
+    public_deps += [ "//starboard/elf_loader:evergreen_config" ]
+
+    if (!sb_evergreen_compatible_enable_lite) {
+      public_deps += [ "//starboard/loader_app:pending_restart" ]
+    }
+  }
+
+  if (sb_evergreen_compatible_use_libunwind) {
+    deps += [ "//third_party/llvm-project/libunwind:unwind_starboard" ]
+  }
 }
 
 static_library("starboard_base_symbolize") {
