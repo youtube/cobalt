@@ -219,8 +219,7 @@ bool Configurator::IsPerUserInstall() const { return true; }
 std::vector<uint8_t> Configurator::GetRunActionKeyHash() const { return {}; }
 
 std::string Configurator::GetAppGuid() const {
-  // Omaha console app id for trunk
-  return "{A9557415-DDCD-4948-8113-C643EFCF710C}";
+  return "{6D4E53F3-CC64-4CB8-B6BD-AB0B8F300E1C}";
 }
 
 std::unique_ptr<update_client::ProtocolHandlerFactory>
