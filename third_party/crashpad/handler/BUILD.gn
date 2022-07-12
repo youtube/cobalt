@@ -170,6 +170,7 @@ if (!crashpad_is_ios) {
 
   crashpad_executable("crashpad_handler") {
     if (crashpad_is_in_starboard) {
+      install_target = !crashpad_is_android
       check_includes = false
       content_deps = [ "//third_party/icu:icudata" ]
     }
