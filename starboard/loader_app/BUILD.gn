@@ -47,7 +47,6 @@ target(final_executable_type, "loader_app") {
       "//cobalt/content/fonts:copy_font_data",
       "//starboard/elf_loader",
     ]
-    deps += cobalt_platform_dependencies
   }
 }
 
@@ -68,7 +67,6 @@ if (sb_is_evergreen_compatible) {
         "//cobalt/content/fonts:copy_font_data",
         "//starboard/elf_loader:elf_loader_sys",
       ]
-      deps += cobalt_platform_dependencies
     }
   }
 }
