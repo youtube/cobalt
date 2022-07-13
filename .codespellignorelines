@@ -1,3 +1,4 @@
     vp9AllowList.get("Technicolor").add("STING");
   return SkSurface::MakeRenderTarget(gr_context_.get(), SkBudgeted::kNo,
             texture_infos.push_back(TextureInfo("uv", "ba"));
+    <Resource Language="TE" />
