@@ -108,9 +108,6 @@ target(final_executable_type, "elf_loader_sandbox") {
     "//starboard",
   ]
 
-  # TODO: Remove this dependency once MediaSession is migrated to use CobaltExtensions.
-  deps += cobalt_platform_dependencies
-
   if (!sb_is_evergreen_compatible) {
     deps += [ "//third_party/crashpad/wrapper:wrapper_stub" ]
   }
@@ -172,9 +169,6 @@ target(gtest_target_type, "elf_loader_test") {
       ":copy_elf_loader_testdata",
       ":elf_loader",
     ]
-
-    # TODO: Remove this dependency once MediaSession is migrated to use CobaltExtensions.
-    deps += cobalt_platform_dependencies
 
     content_deps = [ ":copy_elf_loader_testdata" ]
   }
