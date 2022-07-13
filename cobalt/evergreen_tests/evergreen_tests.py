@@ -28,7 +28,6 @@ from starboard.tools import log_level
 from starboard.tools.paths import REPOSITORY_ROOT
 
 _DEFAULT_PLATFORM_UNDER_TEST = 'linux'
-_DEFAULT_TEST_TYPE = 'functional'
 
 
 def _Exec(cmd, env=None):
@@ -58,10 +57,6 @@ def main():
       '--platform_under_test',
       default=_DEFAULT_PLATFORM_UNDER_TEST,
       help='The platform to run the tests on (e.g., linux or raspi).')
-  arg_parser.add_argument(
-      '--test_type',
-      default=_DEFAULT_TEST_TYPE,
-      help='The type of tests to run: functional or performance.')
   authentication_method = arg_parser.add_mutually_exclusive_group()
   authentication_method.add_argument(
       '--public-key-auth',
@@ -122,9 +117,6 @@ def main():
   elif args.password_auth:
     command.append('-a')
     command.append('password')
-
-  command.append('-t')
-  command.append(args.test_type)
 
   command.append(args.platform_under_test)
 
