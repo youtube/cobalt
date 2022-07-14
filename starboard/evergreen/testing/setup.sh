@@ -24,7 +24,7 @@ fi
 
 source $DIR/pprint.sh
 
-log "info" " [==========] Preparing Cobalt."
+log "info" " [==========] Preparing to test with USE_COMPRESSED_SYSTEM_IMAGE=${USE_COMPRESSED_SYSTEM_IMAGE}."
 
 if [[ -z ${1} ]]; then
   log "error" "A platform must be provided"
