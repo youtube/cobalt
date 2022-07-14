@@ -27,12 +27,6 @@
 namespace glimp {
 namespace egl {
 
-// sce::Gnm::submitDone() is expected to be called once every 5 secs:
-// https://ps4.siedev.net/resources/documents/SDK/9.500/Programming-Startup_Guide/0006.html#__document_toc_00000034
-// sce::Gnm::submitDone() gets called regularly in the rasterizer thread and
-// should be called from the main thread when the app is in suspended state.
-// kSubmitDoneDelay is set to 1/60sec (same scheduling frequency as
-// the app in foreground)
 const SbTime kSubmitDoneDelay = kSbTimeSecond / 60;
 
 // Don't repeat the submitDone callback during suspension
