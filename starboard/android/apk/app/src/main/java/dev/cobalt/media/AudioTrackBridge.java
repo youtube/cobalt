@@ -384,4 +384,22 @@ public class AudioTrackBridge {
     }
     return audioTrack.getUnderrunCount();
   }
+
+  @SuppressWarnings("unused")
+  @UsedByNative
+  private int getStartThresholdInFrames() {
+    if (Build.VERSION.SDK_INT >= 31) {
+      return getStartThresholdInFramesV31();
+    }
+    return 0;
+  }
+
+  @RequiresApi(31)
+  private int getStartThresholdInFramesV31() {
+    if (audioTrack == null) {
+      Log.e(TAG, "Unable to call getStartThresholdInFrames() with NULL audio track.");
+      return 0;
+    }
+    return audioTrack.getStartThresholdInFrames();
+  }
 }

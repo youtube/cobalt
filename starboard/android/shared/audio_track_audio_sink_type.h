@@ -125,6 +125,7 @@ class AudioTrackAudioSink : public SbAudioSinkPrivate {
 
   void SetVolume(double volume) override;
   int GetUnderrunCount();
+  int GetStartThresholdInFrames();
 
  private:
   static void* ThreadEntryPoint(void* context);
