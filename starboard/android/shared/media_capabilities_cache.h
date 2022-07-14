@@ -125,6 +125,8 @@ class MediaCapabilitiesCache {
 
   bool IsPassthroughSupported(SbMediaAudioCodec codec);
 
+  int GetMaxAudioOutputChannels();
+
   bool HasAudioDecoderFor(const std::string& mime_type,
                           int bitrate,
                           bool must_support_tunnel_mode);
@@ -185,6 +187,7 @@ class MediaCapabilitiesCache {
   bool is_initialized_ = false;
   bool is_widevine_supported_ = false;
   bool is_cbcs_supported_ = false;
+  int max_audio_output_channels_ = -1;
 };
 
 }  // namespace shared
