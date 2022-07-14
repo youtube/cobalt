@@ -389,6 +389,10 @@ int AudioTrackAudioSink::GetUnderrunCount() {
   return bridge_.GetUnderrunCount();
 }
 
+int AudioTrackAudioSink::GetStartThresholdInFrames() {
+  return bridge_.GetStartThresholdInFrames();
+}
+
 // static
 int AudioTrackAudioSinkType::GetMinBufferSizeInFrames(
     int channels,
