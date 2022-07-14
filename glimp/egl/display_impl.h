@@ -53,8 +53,7 @@ class DisplayImpl {
   // Creates and returns a new DisplayImpl object.
   // To be implemented by each implementing platform.
   static nb::scoped_ptr<DisplayImpl> Create(EGLNativeDisplayType display_id);
-  // This method is declared here and defined in ps4/egl/display_impl_ps4.cc
-  // and ps5/egl/display_impl_ps5.cc respectively.
+  // Submit done call.
   static void CallSubmitDone();
 
   // Returns the EGL major and minor versions, if they are not NULL.
