@@ -122,6 +122,15 @@ bool GetIsPassthroughSupported(SbMediaAudioCodec codec) {
                                        encoding) == JNI_TRUE;
 }
 
+int GetMaxAudioOutputChannels() {
+  JniEnvExt* env = JniEnvExt::Get();
+  ScopedLocalJavaRef<jobject> j_audio_output_manager(
+      env->CallStarboardObjectMethodOrAbort(
+          "getAudioOutputManager", "()Ldev/cobalt/media/AudioOutputManager;"));
+  return static_cast<int>(env->CallIntMethodOrAbort(
+      j_audio_output_manager.Get(), "getMaxChannels", "()I"));
+}
+
 }  // namespace
 
 CodecCapability::CodecCapability(JniEnvExt* env, jobject j_codec_info) {
@@ -276,6 +285,8 @@ bool MediaCapabilitiesCache::IsPassthroughSupported(SbMediaAudioCodec codec) {
   if (!is_enabled_) {
     return GetIsPassthroughSupported(codec);
   }
+  // IsPassthroughSupported() caches the results of previous quiries, and does
+  // not rely on LazyInitialize(), which is different from other functions.
   ScopedLock scoped_lock(mutex_);
   auto iter = passthrough_supportabilities_.find(codec);
   if (iter != passthrough_supportabilities_.end()) {
@@ -284,6 +295,16 @@ bool MediaCapabilitiesCache::IsPassthroughSupported(SbMediaAudioCodec codec) {
   bool supported = GetIsPassthroughSupported(codec);
   passthrough_supportabilities_[codec] = supported;
   return supported;
+}
+
+int MediaCapabilitiesCache::GetMaxAudioOutputChannels() {
+  if (!is_enabled_) {
+    return ::starboard::android::shared::GetMaxAudioOutputChannels();
+  }
+
+  ScopedLock scoped_lock(mutex_);
+  LazyInitialize_Locked();
+  return max_audio_output_channels_;
 }
 
 bool MediaCapabilitiesCache::HasAudioDecoderFor(const std::string& mime_type,
@@ -437,6 +458,7 @@ void MediaCapabilitiesCache::ClearCache() {
   passthrough_supportabilities_.clear();
   audio_codec_capabilities_map_.clear();
   video_codec_capabilities_map_.clear();
+  max_audio_output_channels_ = -1;
 }
 
 void MediaCapabilitiesCache::LazyInitialize_Locked() {
@@ -449,6 +471,8 @@ void MediaCapabilitiesCache::LazyInitialize_Locked() {
   is_widevine_supported_ = GetIsWidevineSupported();
   is_cbcs_supported_ = GetIsCbcsSupported();
   supported_transfer_ids_ = GetSupportedHdrTypes();
+  max_audio_output_channels_ =
+      ::starboard::android::shared::GetMaxAudioOutputChannels();
 
   LoadCodecInfos_Locked();
 
