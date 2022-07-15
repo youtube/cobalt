@@ -90,6 +90,8 @@ jobs:
         uses: ./.github/actions/gn
       - name: Build Cobalt
         uses: ./.github/actions/build
+      - name: Show Sccache Stats
+        run: sccache -s
       - name: Upload Nightly Artifacts
         if: ${{ endsWith(github.workflow, '_nightly') && matrix.config != 'debug' }}
         uses: ./.github/actions/upload_nightly
