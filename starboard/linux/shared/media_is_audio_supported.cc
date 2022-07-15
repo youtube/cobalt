@@ -19,14 +19,11 @@
 #include "starboard/configuration_constants.h"
 #include "starboard/media.h"
 
-bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec,
-                             const char* content_type,
-                             int64_t bitrate) {
-  if (!content_type) {
-    SB_LOG(WARNING) << "|content_type| cannot be nullptr.";
-    return false;
-  }
+using ::starboard::shared::starboard::media::MimeType;
 
+bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec,
+                             const MimeType* mime_type,
+                             int64_t bitrate) {
   if (audio_codec == kSbMediaAudioCodecAac) {
     return bitrate <= kSbMediaMaxAudioBitrateInBitsPerSecond;
   }
@@ -41,6 +38,15 @@ bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec,
       return bitrate <= kSbMediaMaxAudioBitrateInBitsPerSecond;
     }
   }
+
+  if (audio_codec == kSbMediaAudioCodecVorbis) {
+    return bitrate <= kSbMediaMaxAudioBitrateInBitsPerSecond;
+  }
+#if SB_API_VERSION >= 14
+  if (audio_codec == kSbMediaAudioCodecMp3) {
+    return bitrate <= kSbMediaMaxAudioBitrateInBitsPerSecond;
+  }
+#endif  // SB_API_VERSION >= 14
 
   return false;
 }

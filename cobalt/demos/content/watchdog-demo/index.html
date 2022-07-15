@@ -62,7 +62,7 @@
           } else if (watchdogFunction == 'ping') {
             ret = h5vcc.crashLog.ping('test-name', `test-ping`);
           } else if (watchdogFunction == 'getWatchdogViolations') {
-            ret = h5vcc.crashLog.getWatchdogViolations(true);
+            ret = h5vcc.crashLog.getWatchdogViolations();
           } else if (watchdogFunction == 'getPersistentSettingWatchdogCrash') {
             ret = h5vcc.crashLog.getPersistentSettingWatchdogCrash();
           } else if (watchdogFunction == 'setPersistentSettingWatchdogCrashTrue') {

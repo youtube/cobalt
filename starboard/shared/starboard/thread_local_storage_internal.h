@@ -46,12 +46,6 @@ class TLSKeyManager {
   // Returns the thread local value for the given key.
   void* GetLocalValue(SbThreadLocalKey key);
 
-  // Called whenever a thread is created.
-  void InitializeTLSForThread();
-
-  // Called whenever a thread is destroyed.
-  void ShutdownTLSForThread();
-
  private:
   // We add 1 to kSbMaxThreads here to account for the main thread.
   static const int kMaxThreads = kSbMaxThreads + 1;

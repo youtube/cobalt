@@ -131,16 +131,30 @@ void MinRequiredFramesTester::TesterThreadFunc() {
       wait_timeout = !condition_variable_.WaitTimed(kSbTimeSecond * 5);
     }
 
-    if (wait_timeout) {
-      SB_LOG(ERROR) << "Audio sink min required frames tester timeout.";
-    }
+    // Get start threshold before release the audio sink.
+    int start_threshold = audio_sink_->GetStartThresholdInFrames();
 
+    // |min_required_frames_| is shared between two threads. Release audio sink
+    // to end audio sink thread before access |min_required_frames_| on this
+    // thread.
     delete audio_sink_;
     audio_sink_ = nullptr;
 
-    // Call |received_cb_| after audio sink thread is ended.
-    // |min_required_frames_| is shared between two threads.
-    if (!destroying_.load() && !wait_timeout) {
+    if (wait_timeout) {
+      SB_LOG(ERROR) << "Audio sink min required frames tester timeout.";
+      // Overwrite |min_required_frames_| if failed to get a stable result.
+      min_required_frames_ = max_required_frames_;
+    }
+
+    if (start_threshold > min_required_frames_) {
+      SB_LOG(INFO) << "Audio sink min required frames is overwritten from "
+                   << min_required_frames_ << " to audio track start threshold "
+                   << start_threshold << ".";
+      // Overwrite |min_required_frames_| to match |start_threshold|.
+      min_required_frames_ = start_threshold;
+    }
+
+    if (!destroying_.load()) {
       task.received_cb(task.number_of_channels, task.sample_type,
                        task.sample_rate, min_required_frames_);
     }

@@ -16,8 +16,10 @@
 
 #include "starboard/media.h"
 
+using ::starboard::shared::starboard::media::MimeType;
+
 bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
-                             const char* content_type,
+                             const MimeType* mime_type,
                              int profile,
                              int level,
                              int bit_depth,

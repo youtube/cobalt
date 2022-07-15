@@ -180,9 +180,9 @@ bool H5vccCrashLog::Ping(const std::string& name,
   return false;
 }
 
-std::string H5vccCrashLog::GetWatchdogViolations(bool current) {
+std::string H5vccCrashLog::GetWatchdogViolations() {
   watchdog::Watchdog* watchdog = watchdog::Watchdog::GetInstance();
-  if (watchdog) return watchdog->GetWatchdogViolations(current);
+  if (watchdog) return watchdog->GetWatchdogViolations();
   return "";
 }
 

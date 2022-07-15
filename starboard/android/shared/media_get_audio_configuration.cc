@@ -14,11 +14,9 @@
 
 #include "starboard/media.h"
 
-#include "starboard/android/shared/jni_env_ext.h"
-#include "starboard/android/shared/jni_utils.h"
+#include "starboard/android/shared/media_capabilities_cache.h"
 
-using starboard::android::shared::JniEnvExt;
-using starboard::android::shared::ScopedLocalJavaRef;
+using starboard::android::shared::MediaCapabilitiesCache;
 
 bool SbMediaGetAudioConfiguration(
     int output_index,
@@ -32,12 +30,8 @@ bool SbMediaGetAudioConfiguration(
   out_configuration->latency = 0;
   out_configuration->coding_type = kSbMediaAudioCodingTypePcm;
 
-  JniEnvExt* env = JniEnvExt::Get();
-  ScopedLocalJavaRef<jobject> j_audio_output_manager(
-      env->CallStarboardObjectMethodOrAbort(
-          "getAudioOutputManager", "()Ldev/cobalt/media/AudioOutputManager;"));
-  int channels = static_cast<int>(env->CallIntMethodOrAbort(
-      j_audio_output_manager.Get(), "getMaxChannels", "()I"));
+  int channels =
+      MediaCapabilitiesCache::GetInstance()->GetMaxAudioOutputChannels();
   if (channels < 2) {
     SB_DLOG(WARNING)
         << "The supported channels from output device is smaller than 2. "

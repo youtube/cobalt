@@ -42,7 +42,7 @@ class H5vccCrashLog : public script::Wrappable {
 
   bool Ping(const std::string& name, const std::string& ping_info);
 
-  std::string GetWatchdogViolations(bool current);
+  std::string GetWatchdogViolations();
 
   bool GetPersistentSettingWatchdogCrash();
 

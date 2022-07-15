@@ -334,6 +334,8 @@ static_library("starboard_platform") {
     "log_is_tty.cc",
     "log_raw.cc",
     "main.cc",
+    "media_capabilities_cache.cc",
+    "media_capabilities_cache.h",
     "media_codec_bridge.cc",
     "media_codec_bridge.h",
     "media_common.h",
@@ -445,6 +447,18 @@ static_library("starboard_platform") {
       "media_is_supported.cc",
       "player_components_factory.cc",
     ]
+  }
+
+  if (sb_is_evergreen_compatible) {
+    public_deps += [ "//starboard/elf_loader:evergreen_config" ]
+
+    if (!sb_evergreen_compatible_enable_lite) {
+      public_deps += [ "//starboard/loader_app:pending_restart" ]
+    }
+  }
+
+  if (sb_evergreen_compatible_use_libunwind) {
+    deps += [ "//third_party/llvm-project/libunwind:unwind_starboard" ]
   }
 }
 

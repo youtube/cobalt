@@ -74,6 +74,10 @@ TEST(SbMediaCanPlayMimeAndKeySystem, SunnyDay) {
   result = SbMediaCanPlayMimeAndKeySystem(
       "audio/webm; codecs=\"opus\"; channels=2", "");
   ASSERT_EQ(result, kSbMediaSupportTypeProbably);
+  // Two codecs
+  result = SbMediaCanPlayMimeAndKeySystem(
+      "video/mp4; codecs=\"avc1.42001E, mp4a.40.2\"", "");
+  ASSERT_EQ(result, kSbMediaSupportTypeProbably);
 }
 
 TEST(SbMediaCanPlayMimeAndKeySystem, Invalid) {

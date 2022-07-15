@@ -52,6 +52,10 @@ Required libraries can differ depending on your Linux distribution and version.
     $ ccache --max-size=20G
     ```
 
+1.  Install GN, which we use for our build system code. There are a few ways to
+    get the binary, follow the instructions for whichever way you prefer
+    [here](https://cobalt.googlesource.com/third_party/gn/+/refs/heads/main/#getting-a-binary).
+
 1.  Clone the Cobalt code repository. The following `git` command creates a
     `cobalt` directory that contains the repository:
 

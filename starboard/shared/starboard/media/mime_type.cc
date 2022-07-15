@@ -18,6 +18,7 @@
 #include <iosfwd>
 #include <locale>
 #include <numeric>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -33,26 +34,44 @@ namespace {
 
 typedef std::vector<std::string> Strings;
 
-MimeType::ParamType GetParamTypeByValue(const std::string& value) {
+void ParseParamTypeAndValue(const std::string& name,
+                            const std::string& value,
+                            MimeType::Param* param) {
+  SB_DCHECK(param);
+
+  param->name = name;
+  if (value.size() >= 2 && value[0] == '\"' && value.back() == '\"') {
+    param->type = MimeType::kParamTypeString;
+    param->string_value = value.substr(1, value.size() - 2);
+    return;
+  }
+
+  param->string_value = value;
+
   int count;
   int i;
   if (SbStringScanF(value.c_str(), "%d%n", &i, &count) == 1 &&
       count == value.size()) {
-    return MimeType::kParamTypeInteger;
+    param->type = MimeType::kParamTypeInteger;
+    param->int_value = i;
+    return;
   }
   float f;
   std::stringstream buffer(value);
   buffer.imbue(std::locale::classic());
   buffer >> f;
   if (!buffer.fail() && buffer.rdbuf()->in_avail() == 0) {
-    return MimeType::kParamTypeFloat;
+    param->type = MimeType::kParamTypeFloat;
+    param->float_value = f;
+    return;
   }
-
   if (value == "true" || value == "false") {
-    return MimeType::kParamTypeBoolean;
+    param->type = MimeType::kParamTypeBoolean;
+    param->bool_value = value == "true";
+    return;
   }
 
-  return MimeType::kParamTypeString;
+  param->type = MimeType::kParamTypeString;
 }
 
 bool ContainsSpace(const std::string& str) {
@@ -61,7 +80,6 @@ bool ContainsSpace(const std::string& str) {
       return true;
     }
   }
-
   return false;
 }
 
@@ -94,28 +112,29 @@ Strings SplitAndTrim(const std::string& str, char ch) {
   return result;
 }
 
-const char* ParamTypeToString(MimeType::ParamType param_type) {
-  switch (param_type) {
-    case MimeType::kParamTypeInteger:
-      return "Integer";
-    case MimeType::kParamTypeFloat:
-      return "Float";
-    case MimeType::kParamTypeString:
-      return "String";
-    case MimeType::kParamTypeBoolean:
-      return "Boolean";
-    default:
-      SB_NOTREACHED();
-      return "Unknown";
-  }
-}
-
 }  // namespace
 
 const int MimeType::kInvalidParamIndex = -1;
 
-MimeType::MimeType(const std::string& content_type)
-    : raw_content_type_(content_type), is_valid_(false) {
+// static
+bool MimeType::ParseParamString(const std::string& param_string, Param* param) {
+  std::vector<std::string> name_and_value = SplitAndTrim(param_string, '=');
+  // The parameter must be on the format 'name=value' and neither |name| nor
+  // |value| can be empty. |value| must also not contain '|' and ';'.
+  if (name_and_value.size() != 2 || name_and_value[0].empty() ||
+      name_and_value[1].empty() ||
+      name_and_value[1].find('|') != std::string::npos ||
+      name_and_value[1].find(';') != std::string::npos) {
+    return false;
+  }
+
+  if (param) {
+    ParseParamTypeAndValue(name_and_value[0], name_and_value[1], param);
+  }
+  return true;
+}
+
+MimeType::MimeType(const std::string& content_type) {
   Strings components = SplitAndTrim(content_type, ';');
 
   if (components.empty()) {
@@ -135,38 +154,23 @@ MimeType::MimeType(const std::string& content_type)
   }
   type_ = type_and_container[0];
   subtype_ = type_and_container[1];
+
   components.erase(components.begin());
 
   // 2. Verify the parameters have valid formats, we want to be strict here.
-  bool has_codecs = false;
   for (Strings::iterator iter = components.begin(); iter != components.end();
        ++iter) {
-    std::vector<std::string> name_and_value = SplitAndTrim(*iter, '=');
-    // The parameter must be on the format 'name=value' and neither |name| nor
-    // |value| can be empty. |value| must also not contain '|'.
-    if (name_and_value.size() != 2 || name_and_value[0].empty() ||
-        name_and_value[1].empty() ||
-        name_and_value[1].find('|') != std::string::npos) {
+    Param param;
+    if (!ParseParamString(*iter, &param)) {
       return;
     }
-    Param param;
-    if (name_and_value[1].size() > 2 && name_and_value[1][0] == '\"' &&
-        *name_and_value[1].rbegin() == '\"') {
-      param.type = kParamTypeString;
-      param.value = name_and_value[1].substr(1, name_and_value[1].size() - 2);
-    } else {
-      param.type = GetParamTypeByValue(name_and_value[1]);
-      param.value = name_and_value[1];
-    }
-    param.name = name_and_value[0];
+    // There can only be no more than one codecs parameter and it has to be
+    // the first parameter if it is present.
     if (param.name == "codecs") {
-      // There can only be no more than one codecs parameter and it has to be
-      // the first parameter if it is present.
-      if (!params_.empty() || has_codecs) {
+      if (!params_.empty()) {
         return;
-      } else {
-        has_codecs = true;
       }
+      codecs_ = SplitAndTrim(param.string_value, ',');
     }
     params_.push_back(param);
   }
@@ -174,84 +178,65 @@ MimeType::MimeType(const std::string& content_type)
   is_valid_ = true;
 }
 
-const std::vector<std::string>& MimeType::GetCodecs() const {
-  if (!codecs_.empty()) {
-    return codecs_;
-  }
-  int codecs_index = GetParamIndexByName("codecs");
-  if (codecs_index != 0) {
-    return codecs_;
-  }
-  codecs_ = SplitAndTrim(params_[0].value, ',');
-  return codecs_;
-}
-
 int MimeType::GetParamCount() const {
-  SB_DCHECK(is_valid());
-
   return static_cast<int>(params_.size());
 }
 
 MimeType::ParamType MimeType::GetParamType(int index) const {
-  SB_DCHECK(is_valid());
   SB_DCHECK(index < GetParamCount());
 
   return params_[index].type;
 }
 
 const std::string& MimeType::GetParamName(int index) const {
-  SB_DCHECK(is_valid());
   SB_DCHECK(index < GetParamCount());
 
   return params_[index].name;
 }
 
+int MimeType::GetParamIndexByName(const char* name) const {
+  for (size_t i = 0; i < params_.size(); ++i) {
+    if (SbStringCompareNoCase(params_[i].name.c_str(), name) == 0) {
+      return static_cast<int>(i);
+    }
+  }
+  return kInvalidParamIndex;
+}
+
 int MimeType::GetParamIntValue(int index) const {
-  SB_DCHECK(is_valid());
   SB_DCHECK(index < GetParamCount());
 
-  if (GetParamType(index) != kParamTypeInteger) {
-    return 0;
+  if (params_[index].type == kParamTypeInteger) {
+    return params_[index].int_value;
   }
-
-  int i;
-  SbStringScanF(params_[index].value.c_str(), "%d", &i);
-  return i;
+  return 0;
 }
 
 float MimeType::GetParamFloatValue(int index) const {
-  SB_DCHECK(is_valid());
   SB_DCHECK(index < GetParamCount());
 
-  if (GetParamType(index) != kParamTypeInteger &&
-      GetParamType(index) != kParamTypeFloat) {
-    return 0.0f;
+  if (params_[index].type == kParamTypeInteger) {
+    return params_[index].int_value;
   }
-
-  float f;
-  std::stringstream buffer(params_[index].value.c_str());
-  buffer.imbue(std::locale::classic());
-  buffer >> f;
-
-  return f;
+  if (params_[index].type == kParamTypeFloat) {
+    return params_[index].float_value;
+  }
+  return 0.0f;
 }
 
 const std::string& MimeType::GetParamStringValue(int index) const {
-  SB_DCHECK(is_valid());
   SB_DCHECK(index < GetParamCount());
 
-  return params_[index].value;
+  return params_[index].string_value;
 }
 
 bool MimeType::GetParamBoolValue(int index) const {
-  SB_DCHECK(is_valid());
   SB_DCHECK(index < GetParamCount());
 
-  if (GetParamType(index) != kParamTypeBoolean) {
-    return false;
+  if (params_[index].type == kParamTypeBoolean) {
+    return params_[index].bool_value;
   }
-
-  return params_[index].value == "true";
+  return false;
 }
 
 int MimeType::GetParamIntValue(const char* name, int default_value) const {
@@ -289,23 +274,44 @@ bool MimeType::GetParamBoolValue(const char* name, bool default_value) const {
   return default_value;
 }
 
-bool MimeType::RegisterBoolParameter(const char* name) {
-  return RegisterParameter(name, kParamTypeBoolean);
-}
-
-bool MimeType::RegisterStringParameter(const char* name,
-                                       const std::string& pattern /* = "" */) {
-  if (!RegisterParameter(name, kParamTypeString)) {
+bool MimeType::ValidateIntParameter(const char* name) const {
+  if (!is_valid()) {
     return false;
   }
 
-  int param_index = GetParamIndexByName(name);
-  if (param_index == kInvalidParamIndex || pattern.empty()) {
+  int index = GetParamIndexByName(name);
+  if (index == kInvalidParamIndex) {
+    return true;
+  }
+  return GetParamType(index) == kParamTypeInteger;
+}
+
+bool MimeType::ValidateFloatParameter(const char* name) const {
+  if (!is_valid()) {
+    return false;
+  }
+
+  int index = GetParamIndexByName(name);
+  if (index == kInvalidParamIndex) {
+    return true;
+  }
+  ParamType type = GetParamType(index);
+  return type == kParamTypeInteger || type == kParamTypeFloat;
+}
+
+bool MimeType::ValidateStringParameter(const char* name,
+                                       const std::string& pattern) const {
+  if (!is_valid()) {
+    return false;
+  }
+
+  int index = GetParamIndexByName(name);
+  if (pattern.empty() || index == kInvalidParamIndex) {
     return true;
   }
 
-  // Compare the parameter value with the provided pattern.
-  const std::string& param_value = GetParamStringValue(param_index);
+  const std::string& param_value = params_[index].string_value;
+
   bool matches = false;
   size_t match_start = 0;
   while (!matches) {
@@ -324,27 +330,10 @@ bool MimeType::RegisterStringParameter(const char* name,
         (match_end >= pattern.length() || pattern[match_end] == '|');
     match_start = match_end + 1;
   }
-
-  if (matches) {
-    return true;
-  }
-
-  SB_LOG(INFO) << "Extended Parameter '" << name << "=" << param_value
-               << "' does not match the supplied pattern: '" << pattern << "'";
-  is_valid_ = false;
-  return false;
+  return matches;
 }
 
-int MimeType::GetParamIndexByName(const char* name) const {
-  for (size_t i = 0; i < params_.size(); ++i) {
-    if (SbStringCompareNoCase(params_[i].name.c_str(), name) == 0) {
-      return static_cast<int>(i);
-    }
-  }
-  return kInvalidParamIndex;
-}
-
-bool MimeType::RegisterParameter(const char* name, ParamType param_type) {
+bool MimeType::ValidateBoolParameter(const char* name) const {
   if (!is_valid()) {
     return false;
   }
@@ -353,25 +342,56 @@ bool MimeType::RegisterParameter(const char* name, ParamType param_type) {
   if (index == kInvalidParamIndex) {
     return true;
   }
+  ParamType type = GetParamType(index);
+  return type == kParamTypeBoolean;
+}
 
-  const std::string& param_value = GetParamStringValue(index);
-  ParamType parsed_type = GetParamType(index);
-
-  // Check that the parameter can be returned as the requested type.
-  // Allowed conversions:
-  // Any Type -> String, Int -> Float
-  bool convertible =
-      param_type == parsed_type || param_type == kParamTypeString ||
-      (param_type == kParamTypeFloat && parsed_type == kParamTypeInteger);
-  if (!convertible) {
-    SB_LOG(INFO) << "Extended Parameter '" << name << "=" << param_value
-                 << "' can't be converted to " << ParamTypeToString(param_type);
-    is_valid_ = false;
-    return false;
+std::string MimeType::ToString() const {
+  if (!is_valid()) {
+    return "{ InvalidMimeType }; ";
   }
-
-  // All validations succeeded.
-  return true;
+  std::stringstream ss;
+  ss << "{ type: " << type();
+  ss << ", subtype: " << subtype();
+  ss << ", codecs: ";
+  if (codecs_.empty()) {
+    ss << "null";
+  } else {
+    ss << codecs_[0];
+    for (size_t i = 1; i < codecs_.size(); i++) {
+      ss << "|" << codecs_[i];
+    }
+  }
+  ss << ", params: ";
+  if (params_.empty()) {
+    ss << "null";
+  } else {
+    ss << "{ ";
+    for (size_t i = 0; i < params_.size(); i++) {
+      const Param& param = params_[i];
+      if (i != 0) {
+        ss << ",";
+      }
+      ss << param.name << "=";
+      switch (param.type) {
+        case kParamTypeInteger:
+          ss << "(int)" << param.int_value;
+          break;
+        case kParamTypeFloat:
+          ss << "(float)" << param.float_value;
+          break;
+        case kParamTypeString:
+          ss << "(string)" << param.string_value;
+          break;
+        case kParamTypeBoolean:
+          ss << "(bool)" << (param.bool_value ? "true" : "false");
+          break;
+      }
+    }
+    ss << " }";
+  }
+  ss << " }";
+  return ss.str();
 }
 
 }  // namespace media
