@@ -26,22 +26,6 @@ behavior of other APIs within the bounds of their operating range.
     only if) a system has this capability will SbSystemGetTotalGPUMemory() and
     SbSystemGetUsedGPUMemory() be valid to call.
 
-### SbSystemConnectionType ###
-
-Enumeration of network connection types.
-
-#### Values ####
-
-*   `kSbSystemConnectionTypeWired`
-
-    The system is on a wired connection.
-*   `kSbSystemConnectionTypeWireless`
-
-    The system is on a wireless connection.
-*   `kSbSystemConnectionTypeUnknown`
-
-    The system connection type is unknown.
-
 ### SbSystemDeviceType ###
 
 Enumeration of device types.
@@ -270,16 +254,6 @@ Clears the last error set by a Starboard call in the current thread.
 
 ```
 void SbSystemClearLastError()
-```
-
-### SbSystemGetConnectionType ###
-
-Returns the device's current network connection type.
-
-#### Declaration ####
-
-```
-SbSystemConnectionType SbSystemGetConnectionType()
 ```
 
 ### SbSystemGetDeviceType ###
