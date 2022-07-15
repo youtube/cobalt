@@ -96,7 +96,7 @@ jobs:
         if: ${{ endsWith(github.workflow, '_nightly') && matrix.config != 'debug' }}
         uses: ./.github/actions/upload_nightly
       - name: On-device Test
-        if: ${{ matrix.config == 'devel' && needs.build-matrix.output.on_device_test == 'true' }}
+        if: ${{ matrix.config == 'devel' && needs.build-matrix.outputs.on_device_test == 'true' }}
         uses: ./.github/actions/on_device_test
   
   #win-win32:
