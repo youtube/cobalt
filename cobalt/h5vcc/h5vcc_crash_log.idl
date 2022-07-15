@@ -32,7 +32,7 @@ interface H5vccCrashLog {
   // Returns true if Watchdog client was registered.
   //   name, Watchdog client to register.
   //   description, information on the Watchdog client.
-  //   monitor_state, application state up to which the client is monitored.
+  //   monitor_state, application state to continue monitoring client up to.
   //     Inclusive.
   //   time_interval, maximum number of microseconds allowed between pings
   //     before triggering a Watchdog violation.
@@ -56,6 +56,32 @@ interface H5vccCrashLog {
 
   // Returns a json string containing the Watchdog violations since the last
   // call. Clears internal cache of Watchdog violations to prevent duplicates.
+  // Timestamps are stored as strings due to int size constraints.
+  // Example json:
+  // {
+  //   "test-name":{
+  //     "description":"test-description",
+  //     "violations":[
+  //       {
+  //         "monitor_state":"kApplicationStateStarted",
+  //         "ping_infos":[
+  //           {
+  //             "info":"test-ping",
+  //             "ping_timestamp_microseconds":"1658447236709585"
+  //           }
+  //         ],
+  //         "registered_clients":[
+  //           "test-name"
+  //         ],
+  //         "registered_timestamp_microseconds":"1658447235815253",
+  //         "time_interval_microseconds":5000000,
+  //         "time_wait_microseconds":0,
+  //         "violation_delta_microseconds":5343265,
+  //         "violation_timestamp_microseconds":"1658447242052850"
+  //       }
+  //     ]
+  //   }
+  // }
   DOMString getWatchdogViolations();
 
   // Gets a persistent Watchdog setting that determines whether or not a
