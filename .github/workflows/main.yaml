@@ -70,7 +70,7 @@ jobs:
     outputs:
       platforms: ${{ steps.set-platforms.outputs.platforms }}
       includes: ${{ steps.set-includes.outputs.includes }}
-      on_device_test: ${{ steps.set-includes.outputs.on_device_test }}
+      on_device_test: ${{ steps.set-on-device-test.outputs.on_device_test }}
   # Runs Cobalt CI workflow.
   build:
     needs: [docker-image, build-matrix]
@@ -94,7 +94,7 @@ jobs:
         if: ${{ endsWith(github.workflow, '_nightly') && matrix.config != 'debug' }}
         uses: ./.github/actions/upload_nightly
       - name: On-device Test
-        if: ${{ endsWith(github.workflow, '_nightly') && matrix.config != 'devel' && needs.build-matrix.output.on_device_test == 'true' }}
+        if: ${{ matrix.config == 'devel' && needs.build-matrix.output.on_device_test == 'true' }}
         uses: ./.github/actions/on_device_test
   
   #win-win32:
