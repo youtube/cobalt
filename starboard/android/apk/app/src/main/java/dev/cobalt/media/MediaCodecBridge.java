@@ -37,6 +37,7 @@ import dev.cobalt.util.Log;
 import dev.cobalt.util.UsedByNative;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.Locale;
 
 /** A wrapper of the MediaCodec class. */
 @SuppressWarnings("unused")
@@ -141,7 +142,7 @@ class MediaCodecBridge {
         return;
       }
       if (presentationTimeUs <= mLastFrameTimestampUs) {
-        Log.v(TAG, String.format("Invalid output presentation timestamp."));
+        Log.v(TAG, "Invalid output presentation timestamp.");
         return;
       }
 
@@ -537,13 +538,10 @@ class MediaCodecBridge {
     }
     MediaCodec mediaCodec = null;
     try {
-      Log.i(TAG, String.format("Creating \"%s\" decoder.", decoderName));
+      Log.i(TAG, "Creating \"%s\" decoder.", decoderName);
       mediaCodec = MediaCodec.createByCodecName(decoderName);
     } catch (Exception e) {
-      Log.e(
-          TAG,
-          String.format("Failed to create MediaCodec: %s, DecoderName: %s", mime, decoderName),
-          e);
+      Log.e(TAG, "Failed to create MediaCodec: %s, DecoderName: %s", mime, decoderName, e);
       return null;
     }
     if (mediaCodec == null) {
@@ -609,13 +607,16 @@ class MediaCodecBridge {
     }
 
     try {
-      Log.i(TAG, String.format("Creating \"%s\" decoder.", decoderName));
+      Log.i(TAG, "Creating \"%s\" decoder.", decoderName);
       mediaCodec = MediaCodec.createByCodecName(decoderName);
     } catch (Exception e) {
       String message =
           String.format(
+              Locale.US,
               "Failed to create MediaCodec: %s, mustSupportSecure: %s," + " DecoderName: %s",
-              mime, crypto != null, decoderName);
+              mime,
+              crypto != null,
+              decoderName);
       Log.e(TAG, message, e);
       outCreateMediaCodecBridgeResult.mErrorMessage = message;
       return;
@@ -1189,8 +1190,10 @@ class MediaCodecBridge {
               + (configurationData == null
                   ? "|configurationData| is null."
                   : String.format(
+                      Locale.US,
                       "Configuration data size (%d) is less than the required size (%d).",
-                      configurationData.length, MIN_OPUS_INITIALIZATION_DATA_BUFFER_SIZE)));
+                      configurationData.length,
+                      MIN_OPUS_INITIALIZATION_DATA_BUFFER_SIZE)));
       return false;
     }
     // Both the number of samples to skip from the beginning of the stream and the amount of time

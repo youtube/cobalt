@@ -27,6 +27,7 @@ import dev.cobalt.util.Log;
 import dev.cobalt.util.UsedByNative;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.Locale;
 
 /**
  * A wrapper of the android AudioTrack class. Android AudioTrack would not start playing until the
@@ -96,9 +97,12 @@ public class AudioTrackBridge {
           audioTrack = null;
           String errorMessage =
               String.format(
+                  Locale.US,
                   "Enable tunnel mode when frame size is unaligned, "
                       + "sampleType: %d, channel: %d, sync header size: %d.",
-                  sampleType, channelCount, AV_SYNC_HEADER_V1_SIZE);
+                  sampleType,
+                  channelCount,
+                  AV_SYNC_HEADER_V1_SIZE);
           Log.e(TAG, errorMessage);
           throw new RuntimeException(errorMessage);
         }
@@ -160,12 +164,11 @@ public class AudioTrackBridge {
     }
     Log.i(
         TAG,
-        String.format(
-            "AudioTrack created with buffer size %d (preferred: %d).  The minimum buffer size is"
-                + " %d.",
-            audioTrackBufferSize,
-            preferredBufferSizeInBytes,
-            AudioTrack.getMinBufferSize(sampleRate, channelConfig, sampleType)));
+        "AudioTrack created with buffer size %d (preferred: %d).  The minimum buffer size is"
+            + " %d.",
+        audioTrackBufferSize,
+        preferredBufferSizeInBytes,
+        AudioTrack.getMinBufferSize(sampleRate, channelConfig, sampleType));
   }
 
   public Boolean isAudioTrackValid() {
