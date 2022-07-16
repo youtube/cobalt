@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.Locale;
 
 /** Loads MediaImage artwork, and caches one image. */
 public class ArtworkLoader {
@@ -97,7 +98,7 @@ public class ArtworkLoader {
   private Size parseImageSize(MediaImage image) {
     try {
       String sizeStr = image.sizes.split("\\s+", -1)[0];
-      return Size.parseSize(sizeStr.toLowerCase());
+      return Size.parseSize(sizeStr.toLowerCase(Locale.US));
     } catch (NumberFormatException | NullPointerException e) {
       return new Size(0, 0);
     }
