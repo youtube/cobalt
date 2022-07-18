@@ -250,9 +250,12 @@ void InitializeUserAgentPlatformInfoFields(UserAgentPlatformInfo& info) {
   info.set_rasterizer_type(
       renderer::GetDefaultRasterizerForPlatform().rasterizer_name);
 
-// Evergreen version
+// Evergreen info
 #if SB_IS(EVERGREEN)
-  info.set_evergreen_version(updater::GetCurrentEvergreenVersion());
+  updater::EvergreenLibraryMetadata evergreen_library_metadata =
+      updater::GetCurrentEvergreenLibraryMetadata();
+  info.set_evergreen_version(evergreen_library_metadata.version);
+  info.set_evergreen_file_type(evergreen_library_metadata.file_type);
   if (!SbSystemGetExtension(kCobaltExtensionInstallationManagerName)) {
     // If the installation manager is not initialized, the "evergreen_lite"
     // command line parameter is specified and the system image is loaded.
@@ -380,6 +383,9 @@ void InitializeUserAgentPlatformInfoFields(UserAgentPlatformInfo& info) {
         } else if (!input.first.compare("evergreen_type")) {
           info.set_evergreen_type(input.second);
           LOG(INFO) << "Set evergreen type to " << input.second;
+        } else if (!input.first.compare("evergreen_file_type")) {
+          info.set_evergreen_file_type(input.second);
+          LOG(INFO) << "Set evergreen file type to " << input.second;
         } else if (!input.first.compare("evergreen_version")) {
           info.set_evergreen_version(input.second);
           LOG(INFO) << "Set evergreen version to " << input.second;
@@ -479,6 +485,11 @@ void UserAgentPlatformInfo::set_rasterizer_type(
 void UserAgentPlatformInfo::set_evergreen_type(
     const std::string& evergreen_type) {
   evergreen_type_ = Sanitize(evergreen_type, isTCHARorForwardSlash);
+}
+
+void UserAgentPlatformInfo::set_evergreen_file_type(
+    const std::string& evergreen_file_type) {
+  evergreen_file_type_ = Sanitize(evergreen_file_type, isTCHARorForwardSlash);
 }
 
 void UserAgentPlatformInfo::set_evergreen_version(

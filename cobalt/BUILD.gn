@@ -47,6 +47,7 @@ group("gn_all") {
 
   if (sb_is_evergreen) {
     deps += [
+      "//cobalt/updater:updater_test",
       "//components/update_client:cobalt_slot_management_test",
       "//components/update_client:update_client_test",
     ]

@@ -12,6 +12,7 @@
 #include "base/files/file_util.h"
 #include "base/logging.h"
 #include "base/path_service.h"
+#include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/values.h"
 #include "build/build_config.h"
@@ -20,6 +21,7 @@
 #include "crypto/secure_hash.h"
 #include "crypto/sha2.h"
 #include "starboard/configuration_constants.h"
+#include "starboard/file.h"
 #include "starboard/string.h"
 #include "starboard/system.h"
 
@@ -28,11 +30,15 @@
 namespace cobalt {
 namespace updater {
 namespace {
-// The default manifest version to assume when the actual manifest cannot be
-// parsed for any reason. This should not be used for installation manager
-// errors, or any other error unrelated to parsing the manifest.
-const char kDefaultManifestVersion[] = "1.0.0";
+// Path to compressed Cobalt library, relative to the installation directory.
+const char kCompressedLibraryPath[] = "lib/libcobalt.lz4";
+
+// Path to uncompressed Cobalt library, relative to the installation directory.
+const char kUncompressedLibraryPath[] = "lib/libcobalt.so";
+
 }  // namespace
+
+const char kDefaultManifestVersion[] = "1.0.0";
 
 bool CreateProductDirectory(base::FilePath* path) {
   if (!GetProductDirectoryPath(path)) {
@@ -89,19 +95,73 @@ base::Version ReadEvergreenVersion(base::FilePath installation_dir) {
   return base::Version();
 }
 
-const std::string GetLoadedInstallationEvergreenVersion() {
+const std::string GetEvergreenFileType(const std::string& installation_path) {
+  std::string compressed_library_path = base::StrCat(
+      {installation_path, kSbFileSepString, kCompressedLibraryPath});
+  std::string uncompressed_library_path = base::StrCat(
+      {installation_path, kSbFileSepString, kUncompressedLibraryPath});
+
+  if (SbFileExists(compressed_library_path.c_str())) {
+    return "Compressed";
+  } else if (SbFileExists(uncompressed_library_path.c_str())) {
+    return "Uncompressed";
+  } else {
+    LOG(ERROR) << "Failed to get Evergreen file type. Defaulting to "
+                  "FileTypeUnknown.";
+    return "FileTypeUnknown";
+  }
+}
+
+const base::FilePath GetLoadedInstallationPath() {
   std::vector<char> system_path_content_dir(kSbFileMaxPath);
   if (!SbSystemGetPath(kSbSystemPathContentDirectory,
                        system_path_content_dir.data(), kSbFileMaxPath)) {
     LOG(ERROR) << "Failed to get system path content directory";
-    return "";
+    return base::FilePath();
   }
-  // Get the parent directory of the system_path_content_dir, and read the
-  // manifest.json there
-  base::Version version = ReadEvergreenVersion(
-      base::FilePath(std::string(system_path_content_dir.begin(),
-                                 system_path_content_dir.end()))
-          .DirName());
+  // Since the Cobalt library has already been loaded,
+  // kSbSystemPathContentDirectory points to the content dir of the running
+  // library and the installation dir is therefore its parent.
+  return base::FilePath(std::string(system_path_content_dir.begin(),
+                                    system_path_content_dir.end()))
+      .DirName();
+}
+
+const base::FilePath FindInstallationPath() {
+  // TODO(b/233914266): consider using base::NoDestructor to give the
+  // installation path static duration once found.
+
+  auto installation_manager =
+      static_cast<const CobaltExtensionInstallationManagerApi*>(
+          SbSystemGetExtension(kCobaltExtensionInstallationManagerName));
+  if (!installation_manager) {
+    LOG(ERROR) << "Failed to get installation manager extension, getting the "
+                  "installation path of the loaded library.";
+    return GetLoadedInstallationPath();
+  }
+  // Get the update version from the manifest file under the current
+  // installation path.
+  int index = installation_manager->GetCurrentInstallationIndex();
+  if (index == IM_EXT_ERROR) {
+    LOG(ERROR) << "Failed to get current installation index, getting the "
+                  "installation path of the loaded library.";
+    return GetLoadedInstallationPath();
+  }
+  std::vector<char> installation_path(kSbFileMaxPath);
+  if (installation_manager->GetInstallationPath(
+          index, installation_path.data(), kSbFileMaxPath) == IM_EXT_ERROR) {
+    LOG(ERROR) << "Failed to get installation path from the installation "
+                  "manager, getting the installation path of the loaded "
+                  "library.";
+    return GetLoadedInstallationPath();
+  }
+  return base::FilePath(
+      std::string(installation_path.begin(), installation_path.end()));
+}
+
+const std::string GetValidOrDefaultEvergreenVersion(
+    const base::FilePath installation_path) {
+  base::Version version = ReadEvergreenVersion(installation_path);
 
   if (!version.IsValid()) {
     LOG(ERROR) << "Failed to get the Evergreen version. Defaulting to "
@@ -112,39 +172,20 @@ const std::string GetLoadedInstallationEvergreenVersion() {
 }
 
 const std::string GetCurrentEvergreenVersion() {
-  auto installation_manager =
-      static_cast<const CobaltExtensionInstallationManagerApi*>(
-          SbSystemGetExtension(kCobaltExtensionInstallationManagerName));
-  if (!installation_manager) {
-    LOG(ERROR) << "Failed to get installation manager extension, getting "
-                  "the Evergreen version of the loaded installation.";
-    return GetLoadedInstallationEvergreenVersion();
-  }
-  // Get the update version from the manifest file under the current
-  // installation path.
-  int index = installation_manager->GetCurrentInstallationIndex();
-  if (index == IM_EXT_ERROR) {
-    LOG(ERROR) << "Failed to get current installation index, getting the "
-                  "Evergreen version of the currently loaded installation.";
-    return GetLoadedInstallationEvergreenVersion();
-  }
-  std::vector<char> installation_path(kSbFileMaxPath);
-  if (installation_manager->GetInstallationPath(
-          index, installation_path.data(), kSbFileMaxPath) == IM_EXT_ERROR) {
-    LOG(ERROR) << "Failed to get installation path, getting the Evergreen "
-                  "version of the currently loaded installation.";
-    return GetLoadedInstallationEvergreenVersion();
-  }
+  base::FilePath installation_path = FindInstallationPath();
+  return GetValidOrDefaultEvergreenVersion(installation_path);
+}
 
-  base::Version version = ReadEvergreenVersion(base::FilePath(
-      std::string(installation_path.begin(), installation_path.end())));
+EvergreenLibraryMetadata GetCurrentEvergreenLibraryMetadata() {
+  EvergreenLibraryMetadata evergreen_library_metadata;
+  base::FilePath installation_path = FindInstallationPath();
 
-  if (!version.IsValid()) {
-    LOG(ERROR) << "Failed to get the Evergreen version. Defaulting to "
-               << kDefaultManifestVersion << ".";
-    return std::string(kDefaultManifestVersion);
-  }
-  return version.GetString();
+  evergreen_library_metadata.version =
+      GetValidOrDefaultEvergreenVersion(installation_path);
+  evergreen_library_metadata.file_type =
+      GetEvergreenFileType(installation_path.value());
+
+  return evergreen_library_metadata;
 }
 
 std::string GetLibrarySha256(int index) {
