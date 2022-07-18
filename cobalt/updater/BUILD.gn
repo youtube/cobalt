@@ -97,3 +97,19 @@ target(final_executable_type, "one_app_only_sandbox") {
     "//starboard/loader_app:app_key",
   ]
 }
+
+target(gtest_target_type, "updater_test") {
+  testonly = true
+
+  sources = [
+    "//starboard/common/test_main.cc",
+    "utils_test.cc",
+  ]
+
+  deps = [
+    ":updater",
+    "//base",
+    "//components/update_client",
+    "//testing/gtest",
+  ]
+}

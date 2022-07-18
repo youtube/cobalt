@@ -38,6 +38,8 @@ UserAgentPlatformInfo CreateEmptyPlatformInfo() {
   platform_info.set_javascript_engine_version("");
   platform_info.set_rasterizer_type("");
   platform_info.set_evergreen_version("");
+  platform_info.set_evergreen_type("");
+  platform_info.set_evergreen_file_type("");
   platform_info.set_cobalt_version("");
   platform_info.set_cobalt_build_version_number("");
   platform_info.set_build_configuration("");
@@ -242,13 +244,33 @@ TEST(UserAgentStringFactoryTest, SanitizedRasterizerType) {
             user_agent_string.find("FooBar" TCHARORSLASH "BazQux"));
 }
 
-TEST(UserAgentStringFactoryTest, SanitizedEvergreenType) {
+TEST(UserAgentStringFactoryTest, SanitizedEvergreenVersion) {
   UserAgentPlatformInfo platform_info =
       CreateOnlyOSNameAndVersionPlatformInfo();
   platform_info.set_evergreen_version("Foo" NOT_TCHAR "Bar" TCHAR
                                       "Baz" NOT_TCHAR "Qux");
   std::string user_agent_string = CreateUserAgentString(platform_info);
   EXPECT_NE(std::string::npos, user_agent_string.find("FooBar" TCHAR "BazQux"));
+}
+
+TEST(UserAgentStringFactoryTest, SanitizedEvergreenType) {
+  UserAgentPlatformInfo platform_info =
+      CreateOnlyOSNameAndVersionPlatformInfo();
+  platform_info.set_evergreen_type("Foo" NOT_TCHARORSLASH "Bar" TCHARORSLASH
+                                   "Baz" NOT_TCHARORSLASH "Qux");
+  std::string user_agent_string = CreateUserAgentString(platform_info);
+  EXPECT_NE(std::string::npos,
+            user_agent_string.find("FooBar" TCHARORSLASH "BazQux"));
+}
+
+TEST(UserAgentStringFactoryTest, SanitizedEvergreenFileType) {
+  UserAgentPlatformInfo platform_info =
+      CreateOnlyOSNameAndVersionPlatformInfo();
+  platform_info.set_evergreen_file_type(
+      "Foo" NOT_TCHARORSLASH "Bar" TCHARORSLASH "Baz" NOT_TCHARORSLASH "Qux");
+  std::string user_agent_string = CreateUserAgentString(platform_info);
+  EXPECT_NE(std::string::npos,
+            user_agent_string.find("FooBar" TCHARORSLASH "BazQux"));
 }
 
 TEST(UserAgentStringFactoryTest, SanitizedCobaltVersion) {

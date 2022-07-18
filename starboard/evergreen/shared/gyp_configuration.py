@@ -27,7 +27,7 @@ class EvergreenConfiguration(platform_configuration.PlatformConfiguration):
 
   def GetTestTargets(self):
     tests = super(EvergreenConfiguration, self).GetTestTargets()
-    tests.append('cobalt_slot_management_test')
+    tests.extend({'cobalt_slot_management_test', 'updater_test'})
     return [test for test in tests if test not in self.__FORBIDDEN_TESTS]
 
   __FORBIDDEN_TESTS = [  # pylint: disable=invalid-name
