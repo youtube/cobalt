@@ -7,20 +7,12 @@ runs:
       run: |
         echo "ARCHIVE_FILE_NAME=cobalt-${{matrix.platform}}_${{matrix.config}}.tar.gz" >> $GITHUB_ENV
         echo "ARCHIVE_FILE_PATH=$GITHUB_WORKSPACE/cobalt-${{matrix.platform}}_${{matrix.config}}.tar.gz" >> $GITHUB_ENV
-        echo "GITHUB_RUN_NUMBER=${GITHUB_RUN_NUMBER}" >> $GITHUB_ENV
-        echo "WORKFLOW=${{github.workflow}}" >> $GITHUB_ENV
       shell: bash
     - name: Create Archive
       run: tar -czvf ${ARCHIVE_FILE_PATH} -C $GITHUB_WORKSPACE/out/${{matrix.target_platform}}_${{matrix.config}}/install .
       shell: bash
     - name: Set up Cloud SDK
       uses: google-github-actions/setup-gcloud@v0
-    - name: Get Project Name
-      run: echo "PROJECT_NAME=$(gcloud config get-value project)" >> $GITHUB_ENV
-      shell: bash
-    - name: Get Current Date
-      run: echo "TODAY=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
-      shell: bash
     - name: Upload Archive
       id: upload-archive
       uses: google-github-actions/upload-cloud-storage@v0

@@ -87,6 +87,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+      - name: Set Common Env Variables
+        run: |
+          echo "PROJECT_NAME=$(gcloud config get-value project)" >> $GITHUB_ENV
+          echo "TODAY=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
+          echo "GITHUB_RUN_NUMBER=${GITHUB_RUN_NUMBER}" >> $GITHUB_ENV
+          echo "WORKFLOW=${{github.workflow}}" >> $GITHUB_ENV
       - name: GN
         uses: ./.github/actions/gn
       - name: Build Cobalt
