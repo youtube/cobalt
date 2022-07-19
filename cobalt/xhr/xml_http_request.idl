@@ -17,6 +17,7 @@
 [
     Constructor,
     ConstructorCallWith=EnvironmentSettings,
+    Exposed=(Window,Worker),
 ] interface XMLHttpRequest : XMLHttpRequestEventTarget {
     // event handler
     attribute EventHandler onreadystatechange;
@@ -60,6 +61,7 @@
     // TODO: Use a union type for all the possible response types.
     [RaisesException] readonly attribute (DOMString or ArrayBuffer) response;
     [RaisesException] readonly attribute DOMString responseText;
+    // TODO: responseXML should only be exposed to Window, not Worker
     [RaisesException] readonly attribute Document? responseXML;
 
     // Not part of the spec. Enable verbose XHR logging.

@@ -149,8 +149,17 @@ class StubWebContext final : public Context {
   }
 
   WindowOrWorkerGlobalScope* GetWindowOrWorkerGlobalScope() final {
-    NOTIMPLEMENTED();
-    return nullptr;
+    script::Wrappable* global_wrappable =
+        global_environment()->global_wrappable();
+    if (!global_wrappable) {
+      return nullptr;
+    }
+    DCHECK(global_wrappable->IsWrappable());
+    DCHECK_EQ(script::Wrappable::JSObjectType::kObject,
+              global_wrappable->GetJSObjectType());
+
+    return base::polymorphic_downcast<WindowOrWorkerGlobalScope*>(
+        global_wrappable);
   }
 
   void set_platform_info(UserAgentPlatformInfo* platform_info) {
