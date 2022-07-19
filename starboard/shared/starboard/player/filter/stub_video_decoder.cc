@@ -14,7 +14,10 @@
 
 #include "starboard/shared/starboard/player/filter/stub_video_decoder.h"
 
+#include <string>
+
 #include "starboard/common/media.h"
+#include "starboard/shared/starboard/player/filter/cpu_video_frame.h"
 
 namespace starboard {
 namespace shared {
@@ -102,7 +105,7 @@ void StubVideoDecoder::DecodeOneBuffer(
 
   output_frame_timestamps_.insert(input_buffer->timestamp());
   if (output_frame_timestamps_.size() > kMaxFramesToDelay) {
-    output_frame = new VideoFrame(*output_frame_timestamps_.begin());
+    output_frame = CreateOutputFrame(*output_frame_timestamps_.begin());
     output_frame_timestamps_.erase(output_frame_timestamps_.begin());
   }
 
@@ -122,10 +125,30 @@ void StubVideoDecoder::DecodeEndOfStream() {
   // If there are any remaining frames we need to output, send them all out
   // before writing EOS.
   for (const auto time : output_frame_timestamps_) {
-    scoped_refptr<VideoFrame> output_frame = new VideoFrame(time);
+    scoped_refptr<VideoFrame> output_frame = CreateOutputFrame(time);
     decoder_status_cb_(kBufferFull, output_frame);
   }
   decoder_status_cb_(kBufferFull, VideoFrame::CreateEOSFrame());
+}
+
+scoped_refptr<VideoFrame> StubVideoDecoder::CreateOutputFrame(
+    SbTime timestamp) const {
+  int bits_per_channel = video_sample_info_.color_metadata.bits_per_channel;
+  if (bits_per_channel == 0) {
+    // Assume 8 bits when |bits_per_channel| is unknown (0).
+    bits_per_channel = 8;
+  }
+  int uv_stride = bits_per_channel > 8 ? video_sample_info_.frame_width
+                                       : video_sample_info_.frame_width / 2;
+  int y_stride = uv_stride * 2;
+  std::string data(y_stride * video_sample_info_.frame_height, 0);
+
+  return CpuVideoFrame::CreateYV12Frame(
+      bits_per_channel, video_sample_info_.frame_width,
+      video_sample_info_.frame_height, y_stride, uv_stride, timestamp,
+      reinterpret_cast<const uint8_t*>(data.data()),
+      reinterpret_cast<const uint8_t*>(data.data()),
+      reinterpret_cast<const uint8_t*>(data.data()));
 }
 
 }  // namespace filter

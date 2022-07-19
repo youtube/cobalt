@@ -18,12 +18,12 @@
 #include <stdlib.h>
 #include <unistd.h>
 #define XK_3270  // for XK_3270_BackTab
-#include <X11/keysym.h>
-#include <X11/Xatom.h>
 #include <X11/XF86keysym.h>
 #include <X11/XKBlib.h>
+#include <X11/Xatom.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
+#include <X11/keysym.h>
 
 #include <algorithm>
 #include <iomanip>
@@ -789,8 +789,8 @@ void ApplicationX11::Composite() {
             continue;
           }
           if (cpu_video_frame->format() != CpuVideoFrame::kBGRA32) {
-            cpu_video_frame = cpu_video_frame->ConvertTo(
-                CpuVideoFrame::kBGRA32);
+            cpu_video_frame =
+                cpu_video_frame->ConvertTo(CpuVideoFrame::kBGRA32);
           }
           current_video_frames_[player] = cpu_video_frame;
         }
@@ -852,7 +852,11 @@ void ApplicationX11::SwapBuffersEnd() {
 }
 
 void ApplicationX11::PlayerSetBounds(SbPlayer player,
-    int z_index, int x, int y, int width, int height) {
+                                     int z_index,
+                                     int x,
+                                     int y,
+                                     int width,
+                                     int height) {
   ScopedLock lock(frame_mutex_);
 
   bool player_exists =
