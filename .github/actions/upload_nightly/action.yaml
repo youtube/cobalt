@@ -11,8 +11,6 @@ runs:
     - name: Create Archive
       run: tar -czvf ${ARCHIVE_FILE_PATH} -C $GITHUB_WORKSPACE/out/${{matrix.target_platform}}_${{matrix.config}}/install .
       shell: bash
-    - name: Set up Cloud SDK
-      uses: google-github-actions/setup-gcloud@v0
     - name: Upload Archive
       id: upload-archive
       uses: google-github-actions/upload-cloud-storage@v0

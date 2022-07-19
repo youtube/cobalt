@@ -87,6 +87,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v0
       - name: Set Common Env Variables
         run: |
           echo "PROJECT_NAME=$(gcloud config get-value project)" >> $GITHUB_ENV
