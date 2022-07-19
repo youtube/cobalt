@@ -160,8 +160,11 @@ class MediaCapabilitiesCache {
   void SetCacheEnabled(bool enabled) { is_enabled_ = enabled; }
   void ClearCache();
 
+  void ReloadSupportedHdrTypes();
+  void ReloadAudioOutputChannels();
+
  private:
-  MediaCapabilitiesCache() {}
+  MediaCapabilitiesCache();
   ~MediaCapabilitiesCache() {}
 
   MediaCapabilitiesCache(const MediaCapabilitiesCache&) = delete;
@@ -183,7 +186,7 @@ class MediaCapabilitiesCache {
   std::map<std::string, AudioCodecCapabilities> audio_codec_capabilities_map_;
   std::map<std::string, VideoCodecCapabilities> video_codec_capabilities_map_;
 
-  std::atomic_bool is_enabled_{false};
+  std::atomic_bool is_enabled_{true};
   bool is_initialized_ = false;
   bool is_widevine_supported_ = false;
   bool is_cbcs_supported_ = false;

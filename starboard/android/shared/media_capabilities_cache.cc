@@ -20,11 +20,16 @@
 #include "starboard/android/shared/media_common.h"
 #include "starboard/common/log.h"
 #include "starboard/once.h"
+#include "starboard/shared/starboard/media/key_system_supportability_cache.h"
+#include "starboard/shared/starboard/media/mime_supportability_cache.h"
 
 namespace starboard {
 namespace android {
 namespace shared {
 namespace {
+
+using ::starboard::shared::starboard::media::KeySystemSupportabilityCache;
+using ::starboard::shared::starboard::media::MimeSupportabilityCache;
 
 // https://developer.android.com/reference/android/view/Display.HdrCapabilities.html#HDR_TYPE_HDR10
 const jint HDR_TYPE_DOLBY_VISION = 1;
@@ -79,6 +84,13 @@ std::set<SbMediaTransferId> GetSupportedHdrTypes() {
   JniEnvExt* env = JniEnvExt::Get();
   jintArray j_supported_hdr_types = static_cast<jintArray>(
       env->CallStarboardObjectMethodOrAbort("getSupportedHdrTypes", "()[I"));
+
+  if (!j_supported_hdr_types) {
+    // Failed to get supported hdr types.
+    SB_LOG(ERROR) << "Failed to load supported hdr types.";
+    return std::set<SbMediaTransferId>();
+  }
+
   jsize length = env->GetArrayLength(j_supported_hdr_types);
   jint* numbers = env->GetIntArrayElements(j_supported_hdr_types, 0);
   for (int i = 0; i < length; i++) {
@@ -461,6 +473,31 @@ void MediaCapabilitiesCache::ClearCache() {
   max_audio_output_channels_ = -1;
 }
 
+void MediaCapabilitiesCache::ReloadSupportedHdrTypes() {
+  ScopedLock scoped_lock(mutex_);
+  if (!is_initialized_) {
+    LazyInitialize_Locked();
+    return;
+  }
+  supported_transfer_ids_ = GetSupportedHdrTypes();
+}
+
+void MediaCapabilitiesCache::ReloadAudioOutputChannels() {
+  ScopedLock scoped_lock(mutex_);
+  if (!is_initialized_) {
+    LazyInitialize_Locked();
+    return;
+  }
+  max_audio_output_channels_ =
+      ::starboard::android::shared::GetMaxAudioOutputChannels();
+}
+
+MediaCapabilitiesCache::MediaCapabilitiesCache() {
+  // Enable mime and key system caches.
+  MimeSupportabilityCache::GetInstance()->SetCacheEnabled(true);
+  KeySystemSupportabilityCache::GetInstance()->SetCacheEnabled(true);
+}
+
 void MediaCapabilitiesCache::LazyInitialize_Locked() {
   mutex_.DCheckAcquired();
 
@@ -524,6 +561,20 @@ void MediaCapabilitiesCache::LoadCodecInfos_Locked() {
           std::move(video_codec_capabilities));
     }
   }
+}
+
+extern "C" SB_EXPORT_PLATFORM void
+Java_dev_cobalt_util_DisplayUtil_nativeOnDisplayChanged() {
+  SB_DLOG(INFO) << "Display device has changed.";
+  MediaCapabilitiesCache::GetInstance()->ReloadSupportedHdrTypes();
+  MimeSupportabilityCache::GetInstance()->ClearCachedMimeSupportabilities();
+}
+
+extern "C" SB_EXPORT_PLATFORM void
+Java_dev_cobalt_media_AudioOutputManager_nativeOnAudioDeviceChanged() {
+  SB_DLOG(INFO) << "Audio device has changed.";
+  MediaCapabilitiesCache::GetInstance()->ReloadAudioOutputChannels();
+  MimeSupportabilityCache::GetInstance()->ClearCachedMimeSupportabilities();
 }
 
 }  // namespace shared

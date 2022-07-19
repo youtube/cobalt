@@ -29,6 +29,7 @@ import android.view.View;
 import android.view.ViewGroup.LayoutParams;
 import android.view.ViewParent;
 import android.widget.FrameLayout;
+import dev.cobalt.media.AudioOutputManager;
 import dev.cobalt.media.MediaCodecUtil;
 import dev.cobalt.media.VideoSurfaceView;
 import dev.cobalt.util.DisplayUtil;
@@ -131,6 +132,8 @@ public abstract class CobaltActivity extends NativeActivity {
     }
 
     DisplayUtil.cacheDefaultDisplay(this);
+    DisplayUtil.addDisplayListener(this);
+    AudioOutputManager.addAudioDeviceListener(this);
 
     getStarboardBridge().onActivityStart(this, keyboardEditor);
     super.onStart();
