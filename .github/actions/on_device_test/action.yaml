@@ -9,7 +9,7 @@ runs:
         echo "ARCHIVE_FILE_PATH=$GITHUB_WORKSPACE/builder_tmp/${{matrix.target_platform}}_${{matrix.config}}/artifacts.tar" >> $GITHUB_ENV
       shell: bash
     - name: Create Test Files Archive
-      run: $GITHUB_WORKSPACE/tools/create_archive.py --mobile_harness -d ${{env.ARCHIVE_FILE_PATH}} -s $GITHUB_WORKSPACE/out/${{matrix.target_platform}}_${{matrix.config}}
+      run: $GITHUB_WORKSPACE/tools/create_archive.py --test_infra -d ${{env.ARCHIVE_FILE_PATH}} -s $GITHUB_WORKSPACE/out/${{matrix.target_platform}}_${{matrix.config}}
       shell: bash
     - name: Copy Test Files to GCS
       id: upload-test-archive
