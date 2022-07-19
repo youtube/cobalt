@@ -5,6 +5,7 @@ runs:
   steps:
     - name: Set env vars
       run: |
+        echo "PYTHONPATH=$GITHUB_WORKSPACE" >> $GITHUB_ENV
         echo "ARCHIVE_FILE_PATH=$GITHUB_WORKSPACE/builder_tmp/${{matrix.target_platform}}_${{matrix.config}}/artifacts.tar" >> $GITHUB_ENV
       shell: bash
     - name: Create Test Files Archive
