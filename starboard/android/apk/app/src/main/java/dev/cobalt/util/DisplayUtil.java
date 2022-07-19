@@ -16,6 +16,8 @@ package dev.cobalt.util;
 
 import android.app.Activity;
 import android.content.Context;
+import android.hardware.display.DisplayManager;
+import android.hardware.display.DisplayManager.DisplayListener;
 import android.util.DisplayMetrics;
 import android.util.Size;
 import android.util.SizeF;
@@ -139,4 +141,40 @@ public class DisplayUtil {
   private static DisplayMetrics getDisplayMetrics() {
     return cachedDisplayMetrics;
   }
+
+  private static DisplayListener displayerListener =
+      new DisplayListener() {
+        @Override
+        public void onDisplayAdded(int displayId) {
+          nativeOnDisplayChanged();
+        }
+
+        @Override
+        public void onDisplayChanged(int displayId) {
+          nativeOnDisplayChanged();
+        }
+
+        @Override
+        public void onDisplayRemoved(int displayId) {
+          nativeOnDisplayChanged();
+        }
+      };
+
+  private static boolean displayerListenerAdded = false;
+
+  public static void addDisplayListener(Context context) {
+    if (displayerListenerAdded) {
+      return;
+    }
+
+    DisplayManager displayManager = context.getSystemService(DisplayManager.class);
+    displayManager.registerDisplayListener(displayerListener, null);
+    displayerListenerAdded = true;
+
+    // Call nativeOnDisplayChanged() to reload supported hdr types here after a default
+    // Display created.
+    nativeOnDisplayChanged();
+  }
+
+  private static native void nativeOnDisplayChanged();
 }

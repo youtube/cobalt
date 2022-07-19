@@ -80,6 +80,14 @@ bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
 
     decoder_cache_ttl_ms =
         mime_type->GetParamIntValue("decoder_cache_ttl_ms", -1);
+
+    // Disable MediaCapabilitiesCache if "disablecache" option presented.
+    if (!mime_type->ValidateBoolParameter("disablecache")) {
+      return false;
+    }
+    if (mime_type->GetParamBoolValue("disablecache", false)) {
+      MediaCapabilitiesCache::GetInstance()->SetCacheEnabled(false);
+    }
   }
 
   if (must_support_tunnel_mode && decode_to_texture_required) {

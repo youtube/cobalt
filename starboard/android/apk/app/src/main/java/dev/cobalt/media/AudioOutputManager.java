@@ -539,4 +539,31 @@ public class AudioOutputManager implements CobaltMediaSession.UpdateVolumeListen
   private boolean getAndResetHasAudioDeviceChanged() {
     return hasAudioDeviceChanged.getAndSet(false);
   }
+
+  private static AudioDeviceCallback audioDeviceCallback =
+      new AudioDeviceCallback() {
+        @Override
+        public void onAudioDevicesAdded(AudioDeviceInfo[] addedDevices) {
+          nativeOnAudioDeviceChanged();
+        }
+
+        @Override
+        public void onAudioDevicesRemoved(AudioDeviceInfo[] removedDevices) {
+          nativeOnAudioDeviceChanged();
+        }
+      };
+
+  private static boolean audioDeviceListenerAdded = false;
+
+  public static void addAudioDeviceListener(Context context) {
+    if (audioDeviceListenerAdded) {
+      return;
+    }
+
+    AudioManager audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
+    audioManager.registerAudioDeviceCallback(audioDeviceCallback, null);
+    audioDeviceListenerAdded = true;
+  }
+
+  private static native void nativeOnAudioDeviceChanged();
 }
