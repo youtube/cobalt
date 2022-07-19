@@ -92,6 +92,8 @@ jobs:
         uses: ./.github/actions/gn
       - name: Build Cobalt
         uses: ./.github/actions/build
+      - name: Show Sccache Log
+        run: cat /tmp/sccache_log.txt
       - name: Show Sccache Stats
         run: sccache -s
       - name: Upload Nightly Artifacts
