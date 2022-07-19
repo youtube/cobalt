@@ -24,6 +24,7 @@ env:
   SCCACHE_GCS_OAUTH_URL: http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token
   SCCACHE_GCS_RW_MODE: READ_WRITE
   SCCACHE_ERROR_LOG: /tmp/sccache_log.txt
+  SCCACHE_IDLE_TIMEOUT: 0
   SCCACHE_LOG: debug
   STARBOARD_TOOLCHAINS_DIR: /root/starboard-toolchains
 
