@@ -52,6 +52,8 @@ class StubVideoDecoder : public VideoDecoder, private JobQueue::JobOwner {
   void DecodeOneBuffer(const scoped_refptr<InputBuffer>& input_buffer);
   void DecodeEndOfStream();
 
+  scoped_refptr<VideoFrame> CreateOutputFrame(SbTime timestamp) const;
+
   DecoderStatusCB decoder_status_cb_;
   media::VideoSampleInfo video_sample_info_;
 
