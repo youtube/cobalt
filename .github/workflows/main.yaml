@@ -23,9 +23,7 @@ env:
   SCCACHE_GCS_BUCKET: cobalt-actions-devel-sccache-linux
   SCCACHE_GCS_OAUTH_URL: http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token
   SCCACHE_GCS_RW_MODE: READ_WRITE
-  SCCACHE_ERROR_LOG: /tmp/sccache_log.txt
-  SCCACHE_IDLE_TIMEOUT: 0
-  SCCACHE_LOG: debug
+  SCCACHE_IDLE_TIMEOUT: 0 # prevent sccache server from shutting down after long idle.
   STARBOARD_TOOLCHAINS_DIR: /root/starboard-toolchains
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
@@ -69,7 +67,7 @@ jobs:
       - id: set-includes
         run: echo "::set-output name=includes::$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.includes')"
       - id: set-on-device-test
-        run: echo "::set-output name=on_device_test::$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.on_device_test')"
+        run: echo "::set-output name=on_device_test::$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.on_device_test')"
     outputs:
       platforms: ${{ steps.set-platforms.outputs.platforms }}
       includes: ${{ steps.set-includes.outputs.includes }}
@@ -93,8 +91,6 @@ jobs:
         uses: ./.github/actions/gn
       - name: Build Cobalt
         uses: ./.github/actions/build
-      - name: Show Sccache Log
-        run: cat /tmp/sccache_log.txt
       - name: Show Sccache Stats
         run: sccache -s
       - name: Upload Nightly Artifacts
