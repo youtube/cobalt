@@ -42,6 +42,7 @@ class Cache {
  public:
   static Cache* GetInstance();
   void Delete(disk_cache::ResourceType resource_type, uint32_t key);
+  void DeleteAll();
   std::unique_ptr<std::vector<uint8_t>> Retrieve(
       disk_cache::ResourceType resource_type, uint32_t key,
       std::function<std::unique_ptr<std::vector<uint8_t>>()> generate);

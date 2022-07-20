@@ -15,6 +15,7 @@
 #include <algorithm>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "base/files/file_util.h"
@@ -23,6 +24,7 @@
 #include "cobalt/h5vcc/h5vcc_storage.h"
 #include "cobalt/persistent_storage/persistent_settings.h"
 #include "cobalt/storage/storage_manager.h"
+#include "net/base/completion_once_callback.h"
 #include "net/disk_cache/cobalt/cobalt_backend_impl.h"
 #include "net/disk_cache/cobalt/resource_type.h"
 #include "net/http/http_cache.h"
@@ -66,6 +68,10 @@ H5vccStorageSetQuotaResponse SetQuotaResponse(std::string error = "",
   response.set_success(success);
   response.set_error(error);
   return response;
+}
+
+void ClearCacheHelper(disk_cache::Backend* backend) {
+  backend->DoomAllEntries(base::DoNothing());
 }
 
 }  // namespace
@@ -254,10 +260,8 @@ H5vccStorageSetQuotaResponse H5vccStorage::SetQuota(
         "sum (%d) is not equal to the max cache size (%d).",
         quota_total, max_quota_size));
   }
-  if (http_cache_ && !cache_backend_) {
-    cache_backend_ = static_cast<disk_cache::CobaltBackendImpl*>(
-        http_cache_->GetCurrentBackend());
-  }
+
+  ValidatedCacheBackend();
 
   // Write to persistent storage with the new quota values.
   SetAndSaveQuotaForBackend(disk_cache::kOther,
@@ -290,11 +294,7 @@ void H5vccStorage::SetAndSaveQuotaForBackend(disk_cache::ResourceType type,
 H5vccStorageResourceTypeQuotaBytesDictionary H5vccStorage::GetQuota() {
   // Return persistent storage quota values.
   H5vccStorageResourceTypeQuotaBytesDictionary quota;
-  if (http_cache_ && !cache_backend_) {
-    cache_backend_ = static_cast<disk_cache::CobaltBackendImpl*>(
-        http_cache_->GetCurrentBackend());
-  }
-  if (!cache_backend_) {
+  if (!ValidatedCacheBackend()) {
     return quota;
   }
 
@@ -345,6 +345,27 @@ void H5vccStorage::DisableCache() {
   if (http_cache_) {
     http_cache_->set_mode(net::HttpCache::Mode::DISABLE);
   }
+}
+
+void H5vccStorage::ClearCache() {
+  if (ValidatedCacheBackend()) {
+    network_module_->task_runner()->PostTask(
+        FROM_HERE,
+        base::Bind(&ClearCacheHelper, base::Unretained(cache_backend_)));
+  }
+  cobalt::cache::Cache::GetInstance()->DeleteAll();
+}
+
+bool H5vccStorage::ValidatedCacheBackend() {
+  if (!http_cache_) {
+    return false;
+  }
+  if (cache_backend_) {
+    return true;
+  }
+  cache_backend_ = static_cast<disk_cache::CobaltBackendImpl*>(
+      http_cache_->GetCurrentBackend());
+  return cache_backend_ != nullptr;
 }
 
 }  // namespace h5vcc

@@ -91,6 +91,17 @@ void MemoryCappedDirectory::Delete(uint32_t key) {
   }
 }
 
+void MemoryCappedDirectory::DeleteAll() {
+  base::AutoLock auto_lock(lock_);
+  // Recursively delete the contents of the directory_path_.
+  base::DeleteFile(directory_path_, true);
+  // Re-create the directory_path_ which will now be empty.
+  SbDirectoryCreate(directory_path_.value().c_str());
+  file_info_heap_.clear();
+  file_sizes_.clear();
+  size_ = 0;
+}
+
 std::unique_ptr<std::vector<uint8_t>> MemoryCappedDirectory::Retrieve(
     uint32_t key) {
   auto file_path = GetFilePath(key);

@@ -27,4 +27,6 @@ interface H5vccStorage {
 
   void enableCache();
   void disableCache();
+
+  void clearCache();
 };

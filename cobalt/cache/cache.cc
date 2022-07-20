@@ -96,6 +96,14 @@ void Cache::Delete(disk_cache::ResourceType resource_type, uint32_t key) {
   }
 }
 
+void Cache::DeleteAll() {
+  auto* memory_capped_directory =
+      GetMemoryCappedDirectory(disk_cache::ResourceType::kCompiledScript);
+  if (memory_capped_directory) {
+    memory_capped_directory->DeleteAll();
+  }
+}
+
 std::unique_ptr<std::vector<uint8_t>> Cache::Retrieve(
     disk_cache::ResourceType resource_type, uint32_t key,
     std::function<std::unique_ptr<std::vector<uint8_t>>()> generate) {
