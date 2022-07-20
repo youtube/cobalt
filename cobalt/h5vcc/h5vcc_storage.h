@@ -64,6 +64,8 @@ class H5vccStorage : public script::Wrappable {
 
   void DisableCache();
 
+  void ClearCache();
+
   DEFINE_WRAPPABLE_TYPE(H5vccStorage);
 
  private:
@@ -73,6 +75,8 @@ class H5vccStorage : public script::Wrappable {
 
   net::HttpCache* http_cache_;
   disk_cache::CobaltBackendImpl* cache_backend_;
+
+  bool ValidatedCacheBackend();
 
   DISALLOW_COPY_AND_ASSIGN(H5vccStorage);
 };
