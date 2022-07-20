@@ -262,10 +262,10 @@ void FFMPEGDispatchImpl::LoadSymbols() {
   INITSYMBOL(avutil_, av_freep);
   INITSYMBOL(avutil_, av_frame_alloc);
   INITSYMBOL(avutil_, av_free);
-  INITSYMBOL(avutil_, av_dict_get);
   INITSYMBOL(avutil_, av_rescale_rnd);
 #if LIBAVUTIL_VERSION_INT >= LIBAVUTIL_VERSION_52_8
   INITSYMBOL(avutil_, av_frame_free);
+  INITSYMBOL(avutil_, av_dict_get);
 #endif  // LIBAVUTIL_VERSION_INT >= LIBAVUTIL_VERSION_52_8
   INITSYMBOL(avutil_, av_frame_unref);
   INITSYMBOL(avutil_, av_samples_get_buffer_size);
@@ -294,6 +294,7 @@ void FFMPEGDispatchImpl::LoadSymbols() {
   INITSYMBOL(avcodec_, av_packet_free);
   INITSYMBOL(avcodec_, av_packet_unref);
   INITSYMBOL(avcodec_, avcodec_parameters_to_context);
+  INITSYMBOL(avcodec_, av_free_packet);
 
   // Load symbols from the avformat shared library.
   INITSYMBOL(avformat_, avformat_version);
