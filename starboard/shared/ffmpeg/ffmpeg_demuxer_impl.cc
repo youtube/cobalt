@@ -18,6 +18,7 @@
 #include <cassert>
 #include <cmath>
 #include <cstdint>
+#include <cstring>
 #include <deque>
 #include <functional>
 #include <iostream>
@@ -305,10 +306,14 @@ int64_t ConvertMicrosToTimeBase(AVRational time_base, int64_t timestamp_us) {
 
 CobaltExtensionDemuxerEncryptionScheme GetEncryptionScheme(
     const AVStream& stream) {
+#if LIBAVUTIL_VERSION_INT >= LIBAVUTIL_VERSION_52_8
   return FFmpegDemuxer::GetDispatch()->av_dict_get(
              stream.metadata, "enc_key_id", nullptr, 0) == nullptr
              ? kCobaltExtensionDemuxerEncryptionSchemeUnencrypted
              : kCobaltExtensionDemuxerEncryptionSchemeCenc;
+#else
+  return kCobaltExtensionDemuxerEncryptionSchemeUnencrypted;
+#endif  // LIBAVUTIL_VERSION_INT >= LIBAVUTIL_VERSION_52_8
 }
 
 int64_t ExtractStartTime(AVStream* stream) {
@@ -318,11 +323,11 @@ int64_t ExtractStartTime(AVStream* stream) {
         ConvertFromTimeBaseToMicros(stream->time_base, stream->start_time);
   }
 
-#if LIBAVCODEC_LIBRARY_IS_FFMPEG
+#if LIBAVFORMAT_VERSION_INT >= LIBAVFORMAT_VERSION_57_83
   const int32_t codec_id = stream->codecpar->codec_id;
 #else
   const int32_t codec_id = stream->codec->codec_id;
-#endif
+#endif  // LIBAVFORMAT_VERSION_INT >= LIBAVFORMAT_VERSION_57_83
 
   if (stream->first_dts != kNoFFmpegTimestamp
 #if FFMPEG >= 560
@@ -363,6 +368,7 @@ int64_t ExtractTimelineOffset(AVFormatContext* format_context) {
       input_formats.cbegin(), input_formats.cend(),
       +[](const std::string& format) -> bool { return format == "webm"; });
 
+#if LIBAVUTIL_VERSION_INT >= LIBAVUTIL_VERSION_52_8
   if (is_webm) {
     const AVDictionaryEntry* entry = FFmpegDemuxer::GetDispatch()->av_dict_get(
         format_context->metadata, "creation_time", nullptr, 0);
@@ -372,6 +378,7 @@ int64_t ExtractTimelineOffset(AVFormatContext* format_context) {
     // is harder than it sounds in pure C++.
     return 0;
   }
+#endif  // LIBAVUTIL_VERSION_INT >= LIBAVUTIL_VERSION_52_8
   return 0;
 }
 
@@ -406,7 +413,12 @@ void FFmpegDemuxerImpl<FFMPEG>::ScopedPtrAVFreePacket::operator()(
     return;
   }
   auto* packet = static_cast<AVPacket*>(ptr);
+#if LIBAVCODEC_VERSION_INT >= LIBAVCODEC_VERSION_57_100
   GetDispatch()->av_packet_free(&packet);
+#else
+  GetDispatch()->av_free_packet(packet);
+  GetDispatch()->av_free(packet);
+#endif  // LIBAVCODEC_VERSION_INT >= LIBAVCODEC_VERSION_57_100
 }
 
 FFmpegDemuxerImpl<FFMPEG>::FFmpegDemuxerImpl(
@@ -467,7 +479,7 @@ CobaltExtensionDemuxerStatus FFmpegDemuxerImpl<FFMPEG>::Initialize() {
   // stream present.
   for (int i = 0; i < format_context_->nb_streams; ++i) {
     AVStream* stream = format_context_->streams[i];
-#if LIBAVCODEC_LIBRARY_IS_FFMPEG
+#if LIBAVFORMAT_VERSION_INT >= LIBAVFORMAT_VERSION_57_83
     const AVCodecParameters* codec_parameters = stream->codecpar;
     const AVMediaType codec_type = codec_parameters->codec_type;
     const AVCodecID codec_id = codec_parameters->codec_id;
@@ -475,7 +487,7 @@ CobaltExtensionDemuxerStatus FFmpegDemuxerImpl<FFMPEG>::Initialize() {
     const AVCodecContext* codec = stream->codec;
     const AVMediaType codec_type = codec->codec_type;
     const AVCodecID codec_id = codec->codec_id;
-#endif
+#endif  // LIBAVFORMAT_VERSION_INT >= LIBAVFORMAT_VERSION_57_83
     // Skip streams which are not properly detected.
     if (codec_id == AV_CODEC_ID_NONE) {
       stream->discard = AVDISCARD_ALL;
@@ -590,9 +602,8 @@ void FFmpegDemuxerImpl<FFMPEG>::Read(CobaltExtensionDemuxerStreamType type,
   buffer.data = packet->data;
   buffer.data_size = packet->size;
 
-// The supported libav libraries don't define
-// AV_PKT_DATA_MATROSKA_BLOCKADDITIONAL.
-#if LIBAVCODEC_LIBRARY_IS_FFMPEG
+// Only newer versions support AV_PKT_DATA_MATROSKA_BLOCKADDITIONAL.
+#if LIBAVCODEC_VERSION_INT >= LIBAVCODEC_VERSION_57_100
   std::vector<CobaltExtensionDemuxerSideData> side_data;
   for (int i = 0; i < packet->side_data_elems; ++i) {
     const AVPacketSideData& packet_side_data = packet->side_data[i];
@@ -613,7 +624,7 @@ void FFmpegDemuxerImpl<FFMPEG>::Read(CobaltExtensionDemuxerStreamType type,
     buffer.side_data = side_data.data();
     buffer.side_data_elements = side_data.size();
   }
-#endif  // LIBAVCODEC_LIBRARY_IS_FFMPEG
+#endif  // LIBAVCODEC_VERSION_INT >= LIBAVCODEC_VERSION_57_100
 
   read_cb(&buffer, read_cb_user_data);
 }
@@ -633,6 +644,23 @@ CobaltExtensionDemuxerStatus FFmpegDemuxerImpl<FFMPEG>::Seek(
   return kCobaltExtensionDemuxerOk;
 }
 
+FFmpegDemuxerImpl<FFMPEG>::ScopedAVPacket
+FFmpegDemuxerImpl<FFMPEG>::CreateScopedAVPacket() {
+  ScopedAVPacket packet;
+
+#if LIBAVCODEC_VERSION_INT >= LIBAVCODEC_VERSION_57_100
+  packet.reset(GetDispatch()->av_packet_alloc());
+#else
+  // av_packet_alloc is not available.
+  packet.reset(
+      static_cast<AVPacket*>(GetDispatch()->av_malloc(sizeof(AVPacket))));
+  memset(packet.get(), 0, sizeof(AVPacket));
+  GetDispatch()->av_init_packet(packet.get());
+#endif  // LIBAVCODEC_VERSION_INT >= LIBAVCODEC_VERSION_57_100
+
+  return packet;
+}
+
 // Returns the next packet of type |type|, or nullptr if EoS has been reached
 // or an error was encountered.
 FFmpegDemuxerImpl<FFMPEG>::ScopedAVPacket FFmpegDemuxerImpl<
@@ -640,13 +668,14 @@ FFmpegDemuxerImpl<FFMPEG>::ScopedAVPacket FFmpegDemuxerImpl<
   // Handle the simple case: if we already have a packet buffered, just return
   // it.
   ScopedAVPacket packet = GetBufferedPacket(type);
-  if (packet)
+  if (packet) {
     return packet;
+  }
 
   // Read another packet from FFmpeg. We may have to discard a packet if it's
   // not from the right stream. Additionally, if we hit end-of-file or an
   // error, we need to return null.
-  packet.reset(GetDispatch()->av_packet_alloc());
+  packet = CreateScopedAVPacket();
   while (true) {
     int result = GetDispatch()->av_read_frame(format_context_, packet.get());
     if (result < 0) {
@@ -665,7 +694,7 @@ FFmpegDemuxerImpl<FFMPEG>::ScopedAVPacket FFmpegDemuxerImpl<
       // The caller doesn't need a video packet; just buffer it and allocate a
       // new packet.
       BufferPacket(std::move(packet), kCobaltExtensionDemuxerStreamTypeVideo);
-      packet.reset(GetDispatch()->av_packet_alloc());
+      packet = CreateScopedAVPacket();
       continue;
     } else if (audio_stream_ && packet->stream_index == audio_stream_->index) {
       if (type == kCobaltExtensionDemuxerStreamTypeAudio) {
@@ -676,13 +705,17 @@ FFmpegDemuxerImpl<FFMPEG>::ScopedAVPacket FFmpegDemuxerImpl<
       // The caller doesn't need an audio packet; just buffer it and allocate
       // a new packet.
       BufferPacket(std::move(packet), kCobaltExtensionDemuxerStreamTypeAudio);
-      packet.reset(GetDispatch()->av_packet_alloc());
+      packet = CreateScopedAVPacket();
       continue;
     }
 
-    // This is a packet for a stream we don't care about. Unref it and keep
-    // searching.
+// This is a packet for a stream we don't care about. Unref it (clear the
+// fields) and keep searching.
+#if LIBAVCODEC_VERSION_INT >= LIBAVCODEC_VERSION_57_100
     GetDispatch()->av_packet_unref(packet.get());
+#else
+    GetDispatch()->av_free_packet(packet.get());
+#endif  // LIBAVCODEC_VERSION_INT >= LIBAVCODEC_VERSION_57_100
   }
 
   SB_NOTREACHED();
@@ -730,7 +763,7 @@ bool FFmpegDemuxerImpl<FFMPEG>::ParseAudioConfig(
 
   config->encryption_scheme = GetEncryptionScheme(*audio_stream);
 
-#if LIBAVCODEC_LIBRARY_IS_FFMPEG
+#if LIBAVFORMAT_VERSION_INT >= LIBAVFORMAT_VERSION_57_83
   std::unique_ptr<AVCodecContext, ScopedPtrAVFreeContext> codec_context(
       GetDispatch()->avcodec_alloc_context3(nullptr));
   if (!codec_context) {
@@ -741,9 +774,9 @@ bool FFmpegDemuxerImpl<FFMPEG>::ParseAudioConfig(
           codec_context.get(), audio_stream->codecpar) < 0) {
     return false;
   }
-#else   // LIBAVCODEC_LIBRARY_IS_FFMPEG
+#else
   AVCodecContext* codec_context = audio_stream->codec;
-#endif  // LIBAVCODEC_LIBRARY_IS_FFMPEG
+#endif  // LIBAVFORMAT_VERSION_INT >= LIBAVFORMAT_VERSION_57_83
 
   config->codec = AvCodecIdToAudioCodec(codec_context->codec_id);
   config->sample_format =
@@ -788,7 +821,7 @@ bool FFmpegDemuxerImpl<FFMPEG>::ParseAudioConfig(
 bool FFmpegDemuxerImpl<FFMPEG>::ParseVideoConfig(
     AVStream* video_stream,
     CobaltExtensionDemuxerVideoDecoderConfig* config) {
-#if LIBAVCODEC_LIBRARY_IS_FFMPEG
+#if LIBAVFORMAT_VERSION_INT >= LIBAVFORMAT_VERSION_57_83
   std::unique_ptr<AVCodecContext, ScopedPtrAVFreeContext> codec_context(
       GetDispatch()->avcodec_alloc_context3(nullptr));
 
@@ -802,7 +835,7 @@ bool FFmpegDemuxerImpl<FFMPEG>::ParseVideoConfig(
   }
 #else
   AVCodecContext* codec_context = video_stream->codec;
-#endif
+#endif  // LIBAVFORMAT_VERSION_INT >= LIBAVFORMAT_VERSION_57_83
 
   config->visible_rect_x = 0;
   config->visible_rect_y = 0;

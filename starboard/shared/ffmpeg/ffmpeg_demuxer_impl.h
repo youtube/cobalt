@@ -81,6 +81,12 @@ class FFmpegDemuxerImpl<FFMPEG> : public FFmpegDemuxer {
 
   explicit FFmpegDemuxerImpl(CobaltExtensionDemuxerDataSource* data_source);
 
+  // Creates an empty ScopedAVPacket. The returned ScopedAVPacket will not be
+  // null.
+  // Since different versions of FFmpeg require different functions to create an
+  // AVPacket, this function abstracts away those differences.
+  ScopedAVPacket CreateScopedAVPacket();
+
   // Returns the next packet of type |type|, or nullptr if EoS has been reached
   // or an error was encountered.
   ScopedAVPacket GetNextPacket(CobaltExtensionDemuxerStreamType type);
