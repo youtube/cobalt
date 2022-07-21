@@ -31,11 +31,11 @@ self.oninstall = function (e) {
   console.log('oninstall event received', e);
 
   console.log('self.clients.claim()');
-  self.clients.claim().then(function (clients) {
+  e.waitUntil(self.clients.claim().then(function (clients) {
     console.log('(Unexpected) self.clients.claim():', clients);
   }, function (error) {
     console.log(`(Expected) self.clients.claim() not yet activated: ${error}`, error);
-  });
+  }));
 
 }
 self.onactivate = function (e) {
@@ -43,14 +43,14 @@ self.onactivate = function (e) {
 
   // Claim should pass here, since the state is activating.
   console.log('self.clients.claim()');
-  self.clients.claim().then(function (clients) {
+  e.waitUntil(self.clients.claim().then(function (clients) {
     console.log('(Expected) self.clients.claim():', clients);
 
     var options = {
       includeUncontrolled: false, type: 'window'
     };
     console.log('self.clients.matchAll(options)');
-    self.clients.matchAll(options).then(function (clients) {
+    e.waitUntil(self.clients.matchAll(options).then(function (clients) {
       console.log('(Expected) self.clients.matchAll():', clients.length, clients);
       for (var i = 0; i < clients.length; i++) {
         console.log('Client with url', clients[i].url,
@@ -60,11 +60,11 @@ self.onactivate = function (e) {
       }
     }, function (error) {
       console.log(`(Unexpected) self.clients.matchAll(): ${error}`, error);
-    });
+    }));
 
   }, function (error) {
     console.log(`(Unexpected) self.clients.claim(): ${error}`, error);
-  });
+  }));
 
 }
 console.log('self.registration', self.registration);

@@ -20,6 +20,8 @@
 #include <utility>
 
 #include "base/bind.h"
+#include "base/callback.h"
+#include "base/synchronization/waitable_event.h"
 #include "cobalt/base/token.h"
 #include "cobalt/script/promise.h"
 #include "cobalt/script/v8c/native_promise.h"
@@ -42,7 +44,10 @@ namespace worker {
 class ExtendableEvent : public web::Event {
  public:
   explicit ExtendableEvent(const std::string& type) : Event(type) {}
-  explicit ExtendableEvent(base::Token type) : Event(type) {}
+  explicit ExtendableEvent(base::Token type,
+                           base::OnceCallback<void(bool)> done_callback =
+                               base::OnceCallback<void(bool)>())
+      : Event(type), done_callback_(std::move(done_callback)) {}
   ExtendableEvent(const std::string& type, const ExtendableEventInit& init_dict)
       : Event(type, init_dict) {}
 
@@ -86,6 +91,9 @@ class ExtendableEvent : public web::Event {
     --pending_promise_count_;
     // 5.2. If event’s pending promises count is 0, then:
     if (0 == pending_promise_count_) {
+      if (done_callback_) {
+        std::move(done_callback_).Run(has_rejected_promise_);
+      }
       web::Context* context =
           base::polymorphic_downcast<web::EnvironmentSettings*>(settings)
               ->context();
@@ -115,6 +123,8 @@ class ExtendableEvent : public web::Event {
            ((pending_promise_count_ > 0) || IsBeingDispatched());
   }
 
+  bool has_rejected_promise() const { return has_rejected_promise_; }
+
   DEFINE_WRAPPABLE_TYPE(ExtendableEvent);
 
  protected:
@@ -127,6 +137,8 @@ class ExtendableEvent : public web::Event {
   bool has_rejected_promise_ = false;
   // https://w3c.github.io/ServiceWorker/#extendableevent-timed-out-flag
   bool timed_out_flag_ = false;
+
+  base::OnceCallback<void(bool)> done_callback_;
 };
 
 }  // namespace worker

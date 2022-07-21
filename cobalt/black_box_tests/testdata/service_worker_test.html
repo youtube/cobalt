@@ -39,6 +39,36 @@
         }
 
         function test_claimable_worker() {
+            console.log('Adding ready promise.');
+            navigator.serviceWorker.ready.then(function (
+                registration) {
+                assertNotEqual(null, registration);
+                console.log('(Expected) Registration ready promise',
+                    registration, ' with active worker ',
+                    registration.active);
+                assertNotEqual(null, registration.active);
+                registration.active.postMessage(
+                    'Registration ready received for claimable worker.');
+                count_event();
+                registration.unregister()
+                    .then(function (success) {
+                        // Even a claimed registration will successfully
+                        // unregister because unregistration takes effect after
+                        // the page is unloaded, so it's not blocked by being
+                        // the active service worker.
+                        console.log('(Expected) unregister success :',
+                            success);
+                        count_event(41);
+                    }, function (error) {
+                        console.log('(Unexpected) unregister ' +
+                            `${error}`, error);
+                        assertIncludes('SecurityError: ', `${error}`);
+                        notReached();
+                    });
+                console.log('unregister started.');
+
+            });
+
             navigator.serviceWorker.register('service_worker_test_claimable.js', {
                 scope: './',
             }).then(function (registration) {
@@ -63,25 +93,6 @@
                         'Registration successful, current worker state is ' +
                         'active.');
                 }
-
-                registration.unregister()
-                    .then(function (success) {
-                        // Even a claimed registration will successfully
-                        // unregister because unregistration takes effect after
-                        // the page is unloaded, so it's not blocked by being
-                        // the active service worker.
-                        console.log('(Expected) unregister success :',
-                            success);
-                        count_event(41);
-                    }, function (error) {
-                        console.log('(Unexpected) unregister ' +
-                            `${error}`, error);
-                        assertIncludes('SecurityError: ', `${error}`);
-                        notReached();
-                    });
-                console.log('unregister started.');
-
-
              }, function (error) {
                 console.log('(Unexpected) :', error);
                 notReached();
@@ -253,22 +264,11 @@
                     }
 
                     // Check that the registration has an activated worker after
-                    // some time.
+                    // some time. The delay used here should be long enough for
+                    // the service worker to complete activating and have the
+                    // state 'activated'. It has to be longer than the combined
+                    // delays in the install or activate event handlers.
                     window.setTimeout(function () {
-                        // TODO(b/234659851): Investigate whether this should
-                        // resolve or not, in this case where there already is
-                        // an active worker.
-                        navigator.serviceWorker.ready.then(function (
-                            registration) {
-                            assertNotEqual(null, registration);
-                            console.log('(Expected) Registration ready promise',
-                                registration, ' with active worker ',
-                                registration.active);
-                            assertNotEqual(null, registration.active);
-                            registration.active.postMessage(
-                                'Registration ready received after waiting.');
-                            count_event();
-                        });
                         // Since these events are asynchronous, the service
                         // worker can be either of these states.
                         console.log(
@@ -319,6 +319,7 @@
                                         console.log('(Unexpected) :', error);
                                         notReached();
                                     });
+
                                 test_claimable_worker();
                             }, function (error) {
                                 console.log('(Unexpected) unregister ' +
@@ -326,7 +327,7 @@
                                 assertIncludes('SecurityError: ', `${error}`);
                                 notReached();
                             });
-                    }, 500);
+                    }, 1000);
 
                     // Test getRegistration for a non-registered scope.
                     navigator.serviceWorker.getRegistration('/bo/gus')
@@ -411,12 +412,14 @@
 
         console.log('Done starting tests');
         setupFinished();
+        // This delay has to be long enough to guarantee that the test has
+        // finished.
         window.setTimeout(
             () => {
                 console.log('Events:', expected_event_count)
                 assertEqual(41, expected_event_count);
                 onEndTest();
-            }, 3000);
+            }, 7000);
 
     </script>
 </body>
