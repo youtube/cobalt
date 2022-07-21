@@ -16,6 +16,10 @@ import("//build/config/clang/clang.gni")
 import("//cobalt/content/fonts/font_configuration.gni")
 import("//starboard/build/config/enable_vr.gni")
 
+# NOTE:
+# All build arguments in this file must have documentation.
+# Please follow the formatting in this file when adding new ones.
+
 declare_args() {
   # Enables the yasm compiler to be used to compile .asm files.
   yasm_exists = false
@@ -47,9 +51,14 @@ declare_args() {
   # Whether to adopt Evergreen Lite on the Evergreen compatible platform.
   sb_evergreen_compatible_enable_lite = false
 
-  # The variables allow changing the target type on platforms where the
-  # native code may require an additional packaging step (ex. Android).
+  # The target type for test targets. Allows changing the target type
+  # on platforms where the native code may require an additional packaging step
+  # (ex. Android).
   gtest_target_type = "executable"
+
+  # The target type for executable targets. Allows changing the target type
+  # on platforms where the native code may require an additional packaging step
+  # (ex. Android).
   final_executable_type = "executable"
 
   # Halt execution on failure to allocate memory.
@@ -57,13 +66,13 @@ declare_args() {
 
   # The source of EGL and GLES headers and libraries.
   # Valid values (case and everything sensitive!):
-  #   'none'   - No EGL + GLES implementation is available on this platform.
-  #   'system_gles2' - Use the system implementation of EGL + GLES2. The
+  #   "none"   - No EGL + GLES implementation is available on this platform.
+  #   "system_gles2" - Use the system implementation of EGL + GLES2. The
   #                    headers and libraries must be on the system include and
   #                    link paths.
-  #   'glimp'  - Cobalt's own EGL + GLES2 implementation. This requires a
+  #   "glimp"  - Cobalt's own EGL + GLES2 implementation. This requires a
   #              valid Glimp implementation for the platform.
-  #   'angle'  - A DirectX-to-OpenGL adaptation layer. This requires a valid
+  #   "angle"  - A DirectX-to-OpenGL adaptation layer. This requires a valid
   #              ANGLE implementation for the platform.
   gl_type = "system_gles2"
 
@@ -91,11 +100,19 @@ declare_args() {
   # defines how the build should produce the install/ directory.
   install_target_path = "//starboard/build/install/no_install.gni"
 
-  # Target-specific configurations for each platform.
+  # Target-specific configurations for executable targets.
   executable_configs = []
+
+  # Target-specific configurations for shared_library targets.
   shared_library_configs = []
+
+  # Target-specific configurations for static_library targets.
   static_library_configs = []
+
+  # Target-specific configurations for source_set targets.
   source_set_configs = []
+
+  # Target-specific configurations for loadable_module targets.
   loadable_module_configs = []
 
   # Enables optimizations on SSE compatible platforms.
@@ -138,6 +155,7 @@ declare_args() {
   # Whether or not to link with thin archives.
   use_thin_archive = true
 
+  # Whether or not to disable run-time type information (adding no_rtti flag).
   sb_use_no_rtti = false
 
   # Set to true to separate install target directories.
@@ -146,6 +164,6 @@ declare_args() {
   # Enables an NPLB audit of C++17 support.
   sb_enable_cpp17_audit = true
 
-  # Flag to use a future version of Skia, currently not available
+  # Flag to use a future version of Skia, currently not available.
   use_skia_next = false
 }

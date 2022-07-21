@@ -20,12 +20,16 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: docsite
+    environment:
+      - IS_DOCKER=1
+      - PYTHONPATH=/cobalt
     ports:
       - "4000:4000"
     volumes:
       # We use ../../ when the environment variable COBALT_SRC is not set since
       # this file is located two directories under the root of the repository.
       - ${COBALT_SRC:-../../}:/cobalt/
+
   docsite-build-only:
     container_name: docsite-build-only
     environment:
