@@ -35,7 +35,9 @@ function delay_promise(delay) {
 
 self.oninstall = function (e) {
   console.log('oninstall event received', e);
-  e.waitUntil(delay_promise(500).then(() => console.log('Promised delay.'), () => console.log('\nPromised rejected.\n')));
+  // Using a delay long enough to make it clearly visible in the log that the
+  // event is extended, and is delaying the activate event and ready promise.
+  e.waitUntil(delay_promise(1000).then(() => console.log('Promised delay.'), () => console.log('\nPromised rejected.\n')));
 }
 
 self.onactivate = function (e) {
@@ -49,6 +51,8 @@ self.onactivate = function (e) {
     var options = {
       includeUncontrolled: false, type: 'window'
     };
+  // Using a delay long enough to make it clearly visible in the log that the
+  // event is extended.
     e.waitUntil(delay_promise(1000).then(function () {
       console.log('self.clients.matchAll(options)');
       e.waitUntil(self.clients.matchAll(options).then(function (clients) {

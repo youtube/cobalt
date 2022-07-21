@@ -169,7 +169,7 @@ script::HandlePromiseVoid ServiceWorkerGlobalScope::SkipWaiting() {
       FROM_HERE,
       base::BindOnce(&ServiceWorkerJobs::SkipWaitingSubSteps,
                      base::Unretained(jobs),
-                     base::Unretained(environment_settings()),
+                     base::Unretained(environment_settings()->context()),
                      service_worker_object_, std::move(promise_reference)));
   // 3. Return promise.
   return promise;
