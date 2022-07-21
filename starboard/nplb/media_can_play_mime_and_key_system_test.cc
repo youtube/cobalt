@@ -704,13 +704,30 @@ TEST(SbMediaCanPlayMimeAndKeySystem, ValidateQueriesUnderPeakCapability) {
   }
 }
 
+// Note: If the platform failed on this test, please improve the performance of
+// SbMediaCanPlayMimeAndKeySystem(). A few ideas:
+//    1. Cache codec and drm capabilities. Please make sure a codec or drm
+//       capability query can be done quickly without too many calculations.
+//    2. Cache audio output and display configurations. On some platforms, it
+//       takes time to get the audio/video configurations. Caching these
+//       configurations can significantly reduce the latency on acquiring
+//       configurations. Unlike codec and drm capabilities, audio/video
+//       configurations may change during app runtime, the platform need to
+//       update the cache if there's any change.
+//    3. Enable MimeSupportabilityCache and KeySystemSupportabilityCache. These
+//       supportability caches will cache the results of previous queries, to
+//       boost the queries of repeated mime and key system. Note that if there's
+//       any capability change, the platform need to explicitly clear the
+//       caches, otherwise they may return outdated results.
 TEST(SbMediaCanPlayMimeAndKeySystem, ValidatePerformance) {
   auto test_sequential_function_calls =
-      [](const char** mime_params, int num_function_calls,
-         SbTimeMonotonic max_time_delta, const char* query_type) {
+      [](const SbMediaCanPlayMimeAndKeySystemParam* mime_params,
+         int num_function_calls, SbTimeMonotonic max_time_delta,
+         const char* query_type) {
         const SbTimeMonotonic time_start = SbTimeGetMonotonicNow();
         for (int i = 0; i < num_function_calls; ++i) {
-          SbMediaCanPlayMimeAndKeySystem(mime_params[i], "");
+          SbMediaCanPlayMimeAndKeySystem(mime_params[i].mime,
+                                         mime_params[i].key_system);
         }
         const SbTimeMonotonic time_last = SbTimeGetMonotonicNow();
         const SbTimeMonotonic time_delta = time_last - time_start;
@@ -725,15 +742,30 @@ TEST(SbMediaCanPlayMimeAndKeySystem, ValidatePerformance) {
         EXPECT_LE(time_delta, max_time_delta);
       };
 
-  test_sequential_function_calls(kSdrQueryParams,
-                                 SB_ARRAY_SIZE_INT(kSdrQueryParams),
-                                 10 * kSbTimeMillisecond, "SDR queries");
-  test_sequential_function_calls(kHdrQueryParams,
-                                 SB_ARRAY_SIZE_INT(kHdrQueryParams),
-                                 20 * kSbTimeMillisecond, "HDR queries");
-  test_sequential_function_calls(kDrmQueryParams,
-                                 SB_ARRAY_SIZE_INT(kDrmQueryParams),
-                                 50 * kSbTimeMillisecond, "DRM queries");
+  // Warmup the cache.
+  test_sequential_function_calls(
+      kWarmupQueryParams, SB_ARRAY_SIZE_INT(kWarmupQueryParams),
+      5 * kSbTimeMillisecond /* 9 calls */, "Warmup queries");
+  // First round of the queires.
+  test_sequential_function_calls(
+      kSdrQueryParams, SB_ARRAY_SIZE_INT(kSdrQueryParams),
+      10 * kSbTimeMillisecond /* 38 calls */, "SDR queries");
+  test_sequential_function_calls(
+      kHdrQueryParams, SB_ARRAY_SIZE_INT(kHdrQueryParams),
+      10 * kSbTimeMillisecond /* 82 calls */, "HDR queries");
+  test_sequential_function_calls(
+      kDrmQueryParams, SB_ARRAY_SIZE_INT(kDrmQueryParams),
+      10 * kSbTimeMillisecond /* 81 calls */, "DRM queries");
+  // Second round of the queries.
+  test_sequential_function_calls(
+      kSdrQueryParams, SB_ARRAY_SIZE_INT(kSdrQueryParams),
+      5 * kSbTimeMillisecond /* 38 calls */, "Cached SDR queries");
+  test_sequential_function_calls(
+      kHdrQueryParams, SB_ARRAY_SIZE_INT(kHdrQueryParams),
+      5 * kSbTimeMillisecond /* 82 calls */, "Cached HDR queries");
+  test_sequential_function_calls(
+      kDrmQueryParams, SB_ARRAY_SIZE_INT(kDrmQueryParams),
+      5 * kSbTimeMillisecond /* 81 calls */, "Cached DRM queries");
 }
 
 }  // namespace
