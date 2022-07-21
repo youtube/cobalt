@@ -25,5 +25,5 @@ runs:
            if [[ "${{ matrix.config }}" =~ ^(qa|gold)$ ]]; then
              target=default
            fi
-           ninja -v -C ${GITHUB_WORKSPACE}/out/${{ matrix.target_platform }}_${{ matrix.config }} ${target}
+           ninja -j ${{env.NINJA_PARALLEL}} -v -C ${GITHUB_WORKSPACE}/out/${{ matrix.target_platform }}_${{ matrix.config }} ${target}
       shell: bash
