@@ -178,7 +178,8 @@ void NetworkModule::OnCreate(base::WaitableEvent* creation_event) {
 #endif
   url_request_context_.reset(
       new URLRequestContext(storage_manager_, options_.custom_proxy, net_log,
-                            options_.ignore_certificate_errors, task_runner()));
+                            options_.ignore_certificate_errors, task_runner(),
+                            options_.persistent_settings));
   network_delegate_.reset(
       new NetworkDelegate(options_.cookie_policy, options_.https_requirement));
   url_request_context_->set_http_user_agent_settings(

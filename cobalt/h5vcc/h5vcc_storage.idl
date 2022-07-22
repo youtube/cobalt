@@ -24,4 +24,7 @@ interface H5vccStorage {
 
   H5vccStorageResourceTypeQuotaBytesDictionary getQuota();
   H5vccStorageSetQuotaResponse setQuota(H5vccStorageResourceTypeQuotaBytesDictionary quota);
+
+  void enableCache();
+  void disableCache();
 };

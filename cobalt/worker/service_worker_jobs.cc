@@ -44,6 +44,7 @@
 #include "cobalt/worker/client.h"
 #include "cobalt/worker/client_query_options.h"
 #include "cobalt/worker/client_type.h"
+#include "cobalt/worker/extendable_event.h"
 #include "cobalt/worker/frame_type.h"
 #include "cobalt/worker/service_worker.h"
 #include "cobalt/worker/service_worker_container.h"
@@ -891,7 +892,7 @@ void ServiceWorkerJobs::Install(
                     // 11.3.1.2. Initialize e’s type attribute to install.
                     // 11.3.1.3. Dispatch e at installingWorker’s global object.
                     installing_worker->worker_global_scope()->DispatchEvent(
-                        new web::Event(base::Tokens::install()));
+                        new ExtendableEvent(base::Tokens::install()));
                     // 11.3.1.4. WaitForAsynchronousExtensions: Run the
                     //           following substeps in parallel:
                     // 11.3.1.4.1. Wait until e is not active.
@@ -1137,7 +1138,7 @@ void ServiceWorkerJobs::Activate(
                     // 11.1.1.2. Initialize e’s type attribute to activate.
                     // 11.1.1.3. Dispatch e at activeWorker’s global object.
                     active_worker->worker_global_scope()->DispatchEvent(
-                        new web::Event(base::Tokens::activate()));
+                        new ExtendableEvent(base::Tokens::activate()));
                     // 11.1.1.4. WaitForAsynchronousExtensions: Wait, in
                     //           parallel, until e is not active.
                   },
@@ -1837,6 +1838,23 @@ void ServiceWorkerJobs::SkipWaitingSubSteps(
           std::move(promise_reference)));
 }
 
+void ServiceWorkerJobs::WaitUntilSubSteps(
+    ServiceWorkerRegistrationObject* registration) {
+  TRACE_EVENT0("cobalt::worker", "ServiceWorkerJobs::WaitUntilSubSteps()");
+  DCHECK_EQ(message_loop_, base::MessageLoop::current());
+  // Sub steps for WaitUntil.
+  //   https://w3c.github.io/ServiceWorker/#dom-extendableevent-waituntil
+  // 5.2.2. If registration is unregistered, invoke Try Clear Registration
+  //        with registration.
+  if (scope_to_registration_map_.IsUnregistered(registration)) {
+    TryClearRegistration(registration);
+  }
+  // 5.2.3. If registration is not null, invoke Try Activate with
+  //        registration.
+  if (registration) {
+    TryActivate(registration);
+  }
+}
 void ServiceWorkerJobs::ClientsGetSubSteps(
     web::EnvironmentSettings* settings,
     ServiceWorkerObject* associated_service_worker,

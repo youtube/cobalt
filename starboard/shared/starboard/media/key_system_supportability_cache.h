@@ -25,7 +25,14 @@ namespace shared {
 namespace starboard {
 namespace media {
 
-// TODO: add unit tests for KeySystemSupportabilityCache
+// KeySystemSupportabilityCache caches the supportabilities of the combinations
+// of codec and key system.
+//
+// Note: anytime the platform key system capabilities have changed, please
+// call KeySystemSupportabilityCache::ClearCache() to clear the outdated
+// results.
+//
+// TODO: add unit tests for KeySystemSupportabilityCache.
 class KeySystemSupportabilityCache {
  public:
   static KeySystemSupportabilityCache* GetInstance();

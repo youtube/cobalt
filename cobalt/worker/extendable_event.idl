@@ -18,5 +18,5 @@
   Exposed = ServiceWorker,
   Constructor(DOMString type, optional ExtendableEventInit eventInitDict)
 ] interface ExtendableEvent : Event {
-  [CallWith = EnvironmentSettings] void waitUntil(Promise<any> f);
+  [RaisesException, CallWith = EnvironmentSettings] void waitUntil(Promise<any> f);
 };

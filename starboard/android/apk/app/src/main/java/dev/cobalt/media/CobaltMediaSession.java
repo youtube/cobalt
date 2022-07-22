@@ -515,9 +515,11 @@ public class CobaltMediaSession
 
     Log.i(
         TAG,
-        String.format(
-            "MediaSession state: %s, position: %d ms, speed: %f x, duration: %d ms",
-            stateName, positionMs, speed, duration));
+        "MediaSession state: %s, position: %d ms, speed: %f x, duration: %d ms",
+        stateName,
+        positionMs,
+        speed,
+        duration);
 
     playbackStateBuilder =
         new PlaybackStateCompat.Builder()

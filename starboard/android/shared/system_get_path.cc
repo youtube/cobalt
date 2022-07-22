@@ -25,9 +25,34 @@
 #include "starboard/common/string.h"
 #include "starboard/directory.h"
 
+#if SB_IS(EVERGREEN_COMPATIBLE)
+#include "starboard/elf_loader/evergreen_config.h"  // nogncheck
+#endif
+
 using ::starboard::android::shared::g_app_assets_dir;
 using ::starboard::android::shared::g_app_cache_dir;
+using ::starboard::android::shared::g_app_files_dir;
 using ::starboard::android::shared::g_app_lib_dir;
+
+#if SB_IS(EVERGREEN_COMPATIBLE)
+bool GetEvergreenContentPathOverride(char* out_path, int path_size) {
+  const starboard::elf_loader::EvergreenConfig* evergreen_config =
+      starboard::elf_loader::EvergreenConfig::GetInstance();
+  if (!evergreen_config) {
+    return true;
+  }
+  if (evergreen_config->content_path_.empty()) {
+    return true;
+  }
+
+  if (starboard::strlcpy(out_path, evergreen_config->content_path_.c_str(),
+                         path_size) >= path_size) {
+    return false;
+  }
+
+  return true;
+}
+#endif
 
 bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
   if (!out_path || !path_size) {
@@ -43,9 +68,25 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
       if (starboard::strlcat(path, g_app_assets_dir, kPathSize) >= kPathSize) {
         return false;
       }
+
+#if SB_IS(EVERGREEN_COMPATIBLE)
+      if (!GetEvergreenContentPathOverride(path, kPathSize)) {
+        return false;
+      }
+#endif
       break;
     }
 
+    case kSbSystemPathStorageDirectory: {
+      if (starboard::strlcpy(path, g_app_files_dir, kPathSize) >= kPathSize) {
+        return false;
+      }
+      if (starboard::strlcat(path, "/storage", kPathSize) >= kPathSize) {
+        return false;
+      }
+      SbDirectoryCreate(path);
+      break;
+    }
     case kSbSystemPathCacheDirectory: {
       if (!SbSystemGetPath(kSbSystemPathTempDirectory, path, kPathSize)) {
         return false;

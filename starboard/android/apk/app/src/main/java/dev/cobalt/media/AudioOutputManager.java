@@ -30,6 +30,7 @@ import dev.cobalt.util.UsedByNative;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /** Creates and destroys AudioTrackBridge and handles the volume change. */
@@ -103,9 +104,9 @@ public class AudioOutputManager implements CobaltMediaSession.UpdateVolumeListen
                 // AudioFormat.
                 Log.v(
                     TAG,
-                    String.format(
-                        "Setting |hasAudioDeviceChanged| to true for audio device %s, %s.",
-                        info.getProductName(), getDeviceTypeNameV23(info.getType())));
+                    "Setting |hasAudioDeviceChanged| to true for audio device %s, %s.",
+                    info.getProductName(),
+                    getDeviceTypeNameV23(info.getType()));
                 hasAudioDeviceChanged.set(true);
                 break;
               }
@@ -116,9 +117,8 @@ public class AudioOutputManager implements CobaltMediaSession.UpdateVolumeListen
           public void onAudioDevicesAdded(AudioDeviceInfo[] addedDevices) {
             Log.v(
                 TAG,
-                String.format(
-                    "onAudioDevicesAdded() called, |initialDevicesAdded| is: %b.",
-                    initialDevicesAdded));
+                "onAudioDevicesAdded() called, |initialDevicesAdded| is: %b.",
+                initialDevicesAdded);
             if (initialDevicesAdded) {
               handleConnectedDeviceChange(addedDevices);
               return;
@@ -236,7 +236,7 @@ public class AudioOutputManager implements CobaltMediaSession.UpdateVolumeListen
         return "TYPE_WIRED_HEADSET";
       default:
         // This may include constants introduced after API 23.
-        return String.format("TYPE_UNKNOWN (%d)", device_type);
+        return String.format(Locale.US, "TYPE_UNKNOWN (%d)", device_type);
     }
   }
 
@@ -278,7 +278,7 @@ public class AudioOutputManager implements CobaltMediaSession.UpdateVolumeListen
           break;
         default:
           // This may include constants introduced after API 23.
-          encodings_in_string.append(String.format("UNKNOWN (%d)", encodings[i]));
+          encodings_in_string.append(String.format(Locale.US, "UNKNOWN (%d)", encodings[i]));
           break;
       }
       if (i != encodings.length - 1) {
@@ -304,12 +304,11 @@ public class AudioOutputManager implements CobaltMediaSession.UpdateVolumeListen
     for (AudioDeviceInfo info : deviceInfos) {
       Log.i(
           TAG,
-          String.format(
-              "  Audio Device: %s, channels: %s, sample rates: %s, encodings: %s",
-              getDeviceTypeNameV23(info.getType()),
-              Arrays.toString(info.getChannelCounts()),
-              Arrays.toString(info.getSampleRates()),
-              getEncodingNames(info.getEncodings())));
+          "  Audio Device: %s, channels: %s, sample rates: %s, encodings: %s",
+          getDeviceTypeNameV23(info.getType()),
+          Arrays.toString(info.getChannelCounts()),
+          Arrays.toString(info.getSampleRates()),
+          getEncodingNames(info.getEncodings()));
     }
   }
 
@@ -348,10 +347,11 @@ public class AudioOutputManager implements CobaltMediaSession.UpdateVolumeListen
       if (AudioTrackBridge.AV_SYNC_HEADER_V1_SIZE % frameSizeInBytes != 0) {
         Log.w(
             TAG,
-            String.format(
-                "Disable tunnel mode due to sampleSizeInBytes (%d) * numberOfChannels (%d) isn't"
-                    + " aligned to AV_SYNC_HEADER_V1_SIZE (%d).",
-                sampleSizeInBytes, numberOfChannels, AudioTrackBridge.AV_SYNC_HEADER_V1_SIZE));
+            "Disable tunnel mode due to sampleSizeInBytes (%d) * numberOfChannels (%d) isn't"
+                + " aligned to AV_SYNC_HEADER_V1_SIZE (%d).",
+            sampleSizeInBytes,
+            numberOfChannels,
+            AudioTrackBridge.AV_SYNC_HEADER_V1_SIZE);
         return -1;
       }
     }
@@ -366,10 +366,10 @@ public class AudioOutputManager implements CobaltMediaSession.UpdateVolumeListen
     if (Build.VERSION.SDK_INT < 23) {
       Log.i(
           TAG,
-          String.format(
-              "Passthrough on encoding %d is rejected on api %d, as passthrough is only"
-                  + " supported on api 23 or later.",
-              encoding, Build.VERSION.SDK_INT));
+          "Passthrough on encoding %d is rejected on api %d, as passthrough is only"
+              + " supported on api 23 or later.",
+          encoding,
+          Build.VERSION.SDK_INT);
       return false;
     }
 
@@ -382,10 +382,9 @@ public class AudioOutputManager implements CobaltMediaSession.UpdateVolumeListen
       if (info.getType() == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP) {
         Log.i(
             TAG,
-            String.format(
-                "Passthrough on encoding %d is disabled because Bluetooth output device is"
-                    + " connected.",
-                encoding));
+            "Passthrough on encoding %d is disabled because Bluetooth output device is"
+                + " connected.",
+            encoding);
         return false;
       }
     }
@@ -396,34 +395,31 @@ public class AudioOutputManager implements CobaltMediaSession.UpdateVolumeListen
     if (hasPassthroughSupportForV23(deviceInfos, encoding)) {
       Log.i(
           TAG,
-          String.format(
-              "Passthrough on encoding %d is supported, as hasPassthroughSupportForV23() returns"
-                  + " true.",
-              encoding));
+          "Passthrough on encoding %d is supported, as hasPassthroughSupportForV23() returns"
+              + " true.",
+          encoding);
     } else {
       if (Build.VERSION.SDK_INT < 29) {
         Log.i(
             TAG,
-            String.format(
-                "Passthrough on encoding %d is rejected, as"
-                    + " hasDirectSurroundPlaybackSupportForV29() is not called for api %d.",
-                encoding, Build.VERSION.SDK_INT));
+            "Passthrough on encoding %d is rejected, as"
+                + " hasDirectSurroundPlaybackSupportForV29() is not called for api %d.",
+            encoding,
+            Build.VERSION.SDK_INT);
         return false;
       }
       if (hasDirectSurroundPlaybackSupportForV29(encoding, DEFAULT_SURROUND_SAMPLE_RATE)) {
         Log.i(
             TAG,
-            String.format(
-                "Passthrough on encoding %d is supported, as"
-                    + " hasDirectSurroundPlaybackSupportForV29() returns true.",
-                encoding));
+            "Passthrough on encoding %d is supported, as"
+                + " hasDirectSurroundPlaybackSupportForV29() returns true.",
+            encoding);
       } else {
         Log.i(
             TAG,
-            String.format(
-                "Passthrough on encoding %d is not supported, as"
-                    + " hasDirectSurroundPlaybackSupportForV29() returns false.",
-                encoding));
+            "Passthrough on encoding %d is not supported, as"
+                + " hasDirectSurroundPlaybackSupportForV29() returns false.",
+            encoding);
         return false;
       }
     }
@@ -445,10 +441,9 @@ public class AudioOutputManager implements CobaltMediaSession.UpdateVolumeListen
       // HDMI and SPDIF are connected, where the output should fallback to AC3.
       Log.w(
           TAG,
-          String.format(
-              "Passthrough on encoding %d is disabled because creating AudioTrack raises"
-                  + " exception: ",
-              encoding),
+          "Passthrough on encoding %d is disabled because creating AudioTrack raises"
+              + " exception: ",
+          encoding,
           e);
       return false;
     }
@@ -475,31 +470,29 @@ public class AudioOutputManager implements CobaltMediaSession.UpdateVolumeListen
         // an empty array indicates that the device supports arbitrary encodings.
         Log.i(
             TAG,
-            String.format(
-                "Passthrough on encoding %d is supported on %s, because getEncodings() returns"
-                    + " an empty array.",
-                encoding, getDeviceTypeNameV23(type)));
+            "Passthrough on encoding %d is supported on %s, because getEncodings() returns"
+                + " an empty array.",
+            encoding,
+            getDeviceTypeNameV23(type));
         return true;
       }
       for (int i = 0; i < encodings.length; ++i) {
         if (encodings[i] == encoding) {
           Log.i(
               TAG,
-              String.format(
-                  "Passthrough on encoding %d is supported on %s.",
-                  encoding, getDeviceTypeNameV23(type)));
+              "Passthrough on encoding %d is supported on %s.",
+              encoding,
+              getDeviceTypeNameV23(type));
           return true;
         }
       }
       Log.i(
           TAG,
-          String.format(
-              "Passthrough on encoding %d is not supported on %s.",
-              encoding, getDeviceTypeNameV23(type)));
+          "Passthrough on encoding %d is not supported on %s.",
+          encoding,
+          getDeviceTypeNameV23(type));
     }
-    Log.i(
-        TAG,
-        String.format("Passthrough on encoding %d is not supported on any devices.", encoding));
+    Log.i(TAG, "Passthrough on encoding %d is not supported on any devices.", encoding);
     return false;
   }
 
@@ -511,19 +504,15 @@ public class AudioOutputManager implements CobaltMediaSession.UpdateVolumeListen
         && encoding != AudioFormat.ENCODING_E_AC3_JOC) {
       Log.w(
           TAG,
-          String.format(
-              "hasDirectSurroundPlaybackSupportForV29() encountered unsupported encoding %d.",
-              encoding));
+          "hasDirectSurroundPlaybackSupportForV29() encountered unsupported encoding %d.",
+          encoding);
       return false;
     }
 
     boolean supported =
         AudioTrack.isDirectPlaybackSupported(
             getPassthroughAudioFormatFor(encoding, sampleRate), getDefaultAudioAttributes());
-    Log.i(
-        TAG,
-        String.format(
-            "isDirectPlaybackSupported() for encoding %d returned %b.", encoding, supported));
+    Log.i(TAG, "isDirectPlaybackSupported() for encoding %d returned %b.", encoding, supported);
     return supported;
   }
 
@@ -550,4 +539,31 @@ public class AudioOutputManager implements CobaltMediaSession.UpdateVolumeListen
   private boolean getAndResetHasAudioDeviceChanged() {
     return hasAudioDeviceChanged.getAndSet(false);
   }
+
+  private static AudioDeviceCallback audioDeviceCallback =
+      new AudioDeviceCallback() {
+        @Override
+        public void onAudioDevicesAdded(AudioDeviceInfo[] addedDevices) {
+          nativeOnAudioDeviceChanged();
+        }
+
+        @Override
+        public void onAudioDevicesRemoved(AudioDeviceInfo[] removedDevices) {
+          nativeOnAudioDeviceChanged();
+        }
+      };
+
+  private static boolean audioDeviceListenerAdded = false;
+
+  public static void addAudioDeviceListener(Context context) {
+    if (audioDeviceListenerAdded) {
+      return;
+    }
+
+    AudioManager audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
+    audioManager.registerAudioDeviceCallback(audioDeviceCallback, null);
+    audioDeviceListenerAdded = true;
+  }
+
+  private static native void nativeOnAudioDeviceChanged();
 }

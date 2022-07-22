@@ -30,7 +30,12 @@ namespace {
 // font file of the same name.
 const std::string kFontsXml("fonts.xml");
 const std::string kSystemFontsDir("/system/fonts/");
+
+#if SB_IS(EVERGREEN_COMPATIBLE)
+const std::string kCobaltFontsDir("/cobalt/assets/app/cobalt/content/fonts/");
+#else
 const std::string kCobaltFontsDir("/cobalt/assets/fonts/");
+#endif
 
 // Returns the fallback for the given asset path, or an empty string if none.
 // NOTE: While Cobalt now provides a mechanism for loading system fonts through
@@ -67,8 +72,8 @@ SbFile SbFileOpen(const char* path,
                   bool* out_created,
                   SbFileError* out_error) {
   if (!IsAndroidAssetPath(path)) {
-    return ::starboard::shared::posix::impl::FileOpen(
-        path, flags, out_created, out_error);
+    return ::starboard::shared::posix::impl::FileOpen(path, flags, out_created,
+                                                      out_error);
   }
 
   // Assets are never created and are always read-only, whether it's actually an

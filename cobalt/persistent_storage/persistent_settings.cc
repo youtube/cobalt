@@ -12,11 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "cobalt/persistent_storage/persistent_settings.h"
+
 #include <utility>
 #include <vector>
 
 #include "base/values.h"
-#include "cobalt/persistent_storage/persistent_settings.h"
 #include "starboard/common/file.h"
 #include "starboard/common/log.h"
 #include "starboard/configuration_constants.h"

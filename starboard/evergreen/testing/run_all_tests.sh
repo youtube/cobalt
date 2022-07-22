@@ -21,13 +21,19 @@
 DIR="$(dirname "${0}")"
 
 AUTH_METHOD="public-key"
-while getopts "d:a:" o; do
+USE_COMPRESSED_SYSTEM_IMAGE="false"
+SYSTEM_IMAGE_EXTENSION=".so"
+while getopts "d:a:c" o; do
     case "${o}" in
         d)
             DEVICE_ID=${OPTARG}
             ;;
         a)
             AUTH_METHOD=${OPTARG}
+            ;;
+        c)
+            USE_COMPRESSED_SYSTEM_IMAGE="true"
+            SYSTEM_IMAGE_EXTENSION=".lz4"
             ;;
     esac
 done
@@ -40,8 +46,14 @@ fi
 
 source $DIR/setup.sh
 
-# Find all of the test files within the 'test' subdirectory.
-TESTS=($(eval "find ${DIR}/tests -maxdepth 1 -name '*_test.sh'"))
+if [[ "${USE_COMPRESSED_SYSTEM_IMAGE}" == "true" ]]; then
+  # It would be valid to run all test cases using a compressed system image but
+  # is probably excessive. Instead, just the Evergreen Lite case is run to test
+  # that the compressed system image can be successfully loaded.
+  TESTS=($(eval "find ${DIR}/tests -maxdepth 1 -name 'evergreen_lite_test.sh'"))
+else
+  TESTS=($(eval "find ${DIR}/tests -maxdepth 1 -name '*_test.sh'"))
+fi
 
 COUNT=0
 RETRIED=()
@@ -145,7 +157,7 @@ log "info" " [==========] Cleaning up."
 
 clean_up
 
-log "info" " [==========] Finished."
+log "info" " [==========] Finished testing with USE_COMPRESSED_SYSTEM_IMAGE=${USE_COMPRESSED_SYSTEM_IMAGE}."
 
 if [[ "${#FAILED[@]}" -eq 0 ]]; then
   exit 0

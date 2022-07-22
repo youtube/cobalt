@@ -436,7 +436,7 @@ public class MediaCodecUtil {
       // Filter blacklisted video decoders.
       String name = codecInfo.getName();
       if (!isVp9AllowListed && videoCodecDenyList.contains(name)) {
-        Log.v(TAG, String.format("Rejecting %s, reason: codec is on deny list", name));
+        Log.v(TAG, "Rejecting %s, reason: codec is on deny list", name);
         continue;
       }
       if (name.endsWith(SECURE_DECODER_SUFFIX)) {
@@ -446,7 +446,7 @@ public class MediaCodecUtil {
             name.substring(0, name.length() - SECURE_DECODER_SUFFIX.length());
         if (!isVp9AllowListed && videoCodecDenyList.contains(nameWithoutSecureSuffix)) {
           String format = "Rejecting %s, reason: offpsec denylisted secure decoder";
-          Log.v(TAG, String.format(format, name));
+          Log.v(TAG, format, name);
           continue;
         }
       }
@@ -537,6 +537,7 @@ public class MediaCodecUtil {
       int fps) {
     String decoderInfo =
         String.format(
+            Locale.US,
             "Searching for video decoder with parameters mimeType: %s, secure: %b, frameWidth:"
                 + " %d, frameHeight: %d, bitrate: %d, fps: %d, mustSupportHdr: %b,"
                 + " mustSupportSoftwareCodec: %b, mustSupportTunnelMode: %b,"
@@ -554,6 +555,7 @@ public class MediaCodecUtil {
     Log.v(TAG, decoderInfo);
     String deviceInfo =
         String.format(
+            Locale.US,
             "brand: %s, model: %s, version: %s, API level: %d, isVp9AllowListed: %b",
             Build.BRAND,
             Build.MODEL,
@@ -606,9 +608,13 @@ public class MediaCodecUtil {
           || !mustSupportSecure && requiresSecurePlayback) {
         String message =
             String.format(
+                Locale.US,
                 "Rejecting %s, reason: secure decoder requested: %b, "
                     + "codec FEATURE_SecurePlayback supported: %b, required: %b",
-                name, mustSupportSecure, supportsSecurePlayback, requiresSecurePlayback);
+                name,
+                mustSupportSecure,
+                supportsSecurePlayback,
+                requiresSecurePlayback);
         Log.v(TAG, message);
         continue;
       }
@@ -623,9 +629,13 @@ public class MediaCodecUtil {
           || !mustSupportTunnelMode && requiresTunneledPlayback) {
         String message =
             String.format(
+                Locale.US,
                 "Rejecting %s, reason: tunneled playback requested: %b, "
                     + "codec FEATURE_TunneledPlayback supported: %b, required: %b",
-                name, mustSupportTunnelMode, supportsTunneledPlayback, requiresTunneledPlayback);
+                name,
+                mustSupportTunnelMode,
+                supportsTunneledPlayback,
+                requiresTunneledPlayback);
         Log.v(TAG, message);
         continue;
       }
@@ -652,31 +662,31 @@ public class MediaCodecUtil {
         if (frameWidth != 0 && frameHeight != 0) {
           if (!videoCapabilities.isSizeSupported(frameWidth, frameHeight)) {
             String format = "Rejecting %s, reason: width %s is not compatible with height %d";
-            Log.v(TAG, String.format(format, name, frameWidth, frameHeight));
+            Log.v(TAG, format, name, frameWidth, frameHeight);
             continue;
           }
         } else if (frameWidth != 0) {
           if (!supportedWidths.contains(frameWidth)) {
             String format = "Rejecting %s, reason: supported widths %s does not contain %d";
-            Log.v(TAG, String.format(format, name, supportedWidths.toString(), frameWidth));
+            Log.v(TAG, format, name, supportedWidths.toString(), frameWidth);
             continue;
           }
         } else if (frameHeight != 0) {
           if (!supportedHeights.contains(frameHeight)) {
             String format = "Rejecting %s, reason: supported heights %s does not contain %d";
-            Log.v(TAG, String.format(format, name, supportedHeights.toString(), frameHeight));
+            Log.v(TAG, format, name, supportedHeights.toString(), frameHeight);
             continue;
           }
         }
       } else {
         if (frameWidth != 0 && !supportedWidths.contains(frameWidth)) {
           String format = "Rejecting %s, reason: supported widths %s does not contain %d";
-          Log.v(TAG, String.format(format, name, supportedWidths.toString(), frameWidth));
+          Log.v(TAG, format, name, supportedWidths.toString(), frameWidth);
           continue;
         }
         if (frameHeight != 0 && !supportedHeights.contains(frameHeight)) {
           String format = "Rejecting %s, reason: supported heights %s does not contain %d";
-          Log.v(TAG, String.format(format, name, supportedHeights.toString(), frameHeight));
+          Log.v(TAG, format, name, supportedHeights.toString(), frameHeight);
           continue;
         }
       }
@@ -684,7 +694,7 @@ public class MediaCodecUtil {
       Range<Integer> bitrates = videoCapabilities.getBitrateRange();
       if (bitrate != 0 && !bitrates.contains(bitrate)) {
         String format = "Rejecting %s, reason: bitrate range %s does not contain %d";
-        Log.v(TAG, String.format(format, name, bitrates.toString(), bitrate));
+        Log.v(TAG, format, name, bitrates.toString(), bitrate);
         continue;
       }
 
@@ -694,14 +704,14 @@ public class MediaCodecUtil {
           if (frameHeight != 0 && frameWidth != 0) {
             if (!videoCapabilities.areSizeAndRateSupported(frameWidth, frameHeight, fps)) {
               String format = "Rejecting %s, reason: supported frame rates %s does not contain %d";
-              Log.v(TAG, String.format(format, name, supportedFrameRates.toString(), fps));
+              Log.v(TAG, format, name, supportedFrameRates.toString(), fps);
               continue;
             }
           } else {
             // At least one of frameHeight or frameWidth is 0
             if (!supportedFrameRates.contains(fps)) {
               String format = "Rejecting %s, reason: supported frame rates %s does not contain %d";
-              Log.v(TAG, String.format(format, name, supportedFrameRates.toString(), fps));
+              Log.v(TAG, format, name, supportedFrameRates.toString(), fps);
               continue;
             }
           }
@@ -709,7 +719,7 @@ public class MediaCodecUtil {
       } else {
         if (fps != 0 && !supportedFrameRates.contains(fps)) {
           String format = "Rejecting %s, reason: supported frame rates %s does not contain %d";
-          Log.v(TAG, String.format(format, name, supportedFrameRates.toString(), fps));
+          Log.v(TAG, format, name, supportedFrameRates.toString(), fps);
           continue;
         }
       }
@@ -855,6 +865,7 @@ public class MediaCodecUtil {
     for (ResolutionAndFrameRate resolutionAndFrameRate : supported) {
       frameRateAndResolutionString +=
           String.format(
+              Locale.US,
               "[%d x %d, %.3f fps], ",
               resolutionAndFrameRate.width,
               resolutionAndFrameRate.height,
@@ -878,6 +889,7 @@ public class MediaCodecUtil {
         String name = info.getName();
         decoderDumpString +=
             String.format(
+                Locale.US,
                 "name: %s (%s, %s): ",
                 name,
                 supportedType,
@@ -897,6 +909,7 @@ public class MediaCodecUtil {
               getSupportedResolutionsAndFrameRates(videoCapabilities, isHdrCapable);
           decoderDumpString +=
               String.format(
+                  Locale.US,
                   "\n\t\t"
                       + "widths: %s, "
                       + "heights: %s, "
@@ -923,6 +936,7 @@ public class MediaCodecUtil {
             || isTunneledPlaybackSupported) {
           decoderDumpString +=
               String.format(
+                  Locale.US,
                   "(%s%s%s",
                   isAdaptivePlaybackSupported ? "AdaptivePlayback, " : "",
                   isSecurePlaybackSupported ? "SecurePlayback, " : "",
@@ -938,13 +952,12 @@ public class MediaCodecUtil {
     }
     Log.v(
         TAG,
-        String.format(
-            " \n"
-                + "==================================================\n"
-                + "Full list of decoder features: [AdaptivePlayback, SecurePlayback,"
-                + " TunneledPlayback]\n"
-                + "Unsupported features for each codec are not listed\n"
-                + decoderDumpString
-                + "=================================================="));
+        " \n"
+            + "==================================================\n"
+            + "Full list of decoder features: [AdaptivePlayback, SecurePlayback,"
+            + " TunneledPlayback]\n"
+            + "Unsupported features for each codec are not listed\n"
+            + decoderDumpString
+            + "==================================================");
   }
 }

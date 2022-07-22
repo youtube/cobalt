@@ -21,7 +21,6 @@
 #include "starboard/common/log.h"
 #include "starboard/common/media.h"
 #include "starboard/log.h"
-#include "starboard/shared/starboard/media/bitrate_supportability_cache.h"
 #include "starboard/shared/starboard/media/key_system_supportability_cache.h"
 #include "starboard/shared/starboard/media/media_support_internal.h"
 #include "starboard/shared/starboard/media/mime_supportability_cache.h"
@@ -34,91 +33,6 @@ namespace starboard {
 namespace media {
 
 namespace {
-
-// RemoveAttributeFromMime() will return a new mime string with the specified
-// attribute removed. If |attribute_string| is not null, the removed attribute
-// string will be returned via |attribute_string|. Following are some examples:
-//   mime: "video/webm; codecs=\"vp9\"; bitrate=300000"
-//   attribute_name: "bitrate"
-//   return: "video/webm; codecs=\"vp9\""
-//   attribute_string: "bitrate=300000"
-//
-//   mime: "video/webm; codecs=\"vp9\"; bitrate=300000; eotf=bt709"
-//   attribute_name: "bitrate"
-//   return: "video/webm; codecs=\"vp9\"; eotf=bt709"
-//   attribute_string: "bitrate=300000"
-//
-//   mime: "bitrate=300000"
-//   attribute_name: "bitrate"
-//   return: ""
-//   attribute_string: "bitrate=300000"
-std::string RemoveAttributeFromMime(const char* mime,
-                                    const char* attribute_name,
-                                    std::string* attribute_string) {
-  size_t name_length = strlen(attribute_name);
-  if (name_length == 0) {
-    return mime;
-  }
-
-  std::string mime_without_attribute;
-  const char* start_pos = strstr(mime, attribute_name);
-  while (start_pos) {
-    if ((start_pos == mime || start_pos[-1] == ';' || isspace(start_pos[-1])) &&
-        (start_pos[name_length] &&
-         (start_pos[name_length] == '=' || isspace(start_pos[name_length])))) {
-      break;
-    }
-    start_pos += name_length;
-    start_pos = strstr(start_pos, attribute_name);
-  }
-
-  if (!start_pos) {
-    // Target attribute is not found.
-    return std::string(mime);
-  }
-  const char* end_pos = strstr(start_pos, ";");
-  if (end_pos) {
-    // There may be other attribute after target attribute.
-    if (attribute_string) {
-      // Returned |attribute_string| will not have a trailing ';'.
-      attribute_string->assign(start_pos, end_pos - start_pos);
-    }
-
-    end_pos++;
-    // Remove leading spaces.
-    while (*end_pos && isspace(*end_pos)) {
-      end_pos++;
-    }
-    if (*end_pos) {
-      // Append the string after target attribute.
-      mime_without_attribute = std::string(mime, start_pos - mime);
-      mime_without_attribute.append(end_pos);
-    } else {
-      // Target attribute is the last one. Remove trailing spaces.
-      size_t mime_length = start_pos - mime;
-      while (mime_length > 0 && (isspace(mime[mime_length - 1]))) {
-        mime_length--;
-      }
-      mime_without_attribute = std::string(mime, mime_length);
-    }
-  } else {
-    // It can't find a trailing ';'. The target attribute must be the last one.
-    size_t mime_length = start_pos - mime;
-    // Remove trailing spaces.
-    while (mime_length > 0 && (isspace(mime[mime_length - 1]))) {
-      mime_length--;
-    }
-    // Remove the trailing ';'.
-    if (mime_length > 0 && mime[mime_length - 1] == ';') {
-      mime_length--;
-    }
-    mime_without_attribute = std::string(mime, mime_length);
-    if (attribute_string) {
-      *attribute_string = std::string(start_pos);
-    }
-  }
-  return mime_without_attribute;
-}
 
 // Use SbMediaGetAudioConfiguration() to check if the platform can support
 // |channels|.
@@ -255,22 +169,6 @@ bool IsSupportedVideoCodec(const ParsedMimeInfo& mime_info) {
       video_info.decode_to_texture_required);
 }
 
-bool ValidateAndParseBitrate(const std::string& bitrate_string, int* bitrate) {
-  SB_DCHECK(!bitrate_string.empty());
-
-  MimeType::Param param;
-  if (!MimeType::ParseParamString(bitrate_string, &param)) {
-    return false;
-  }
-  if (param.type != MimeType::kParamTypeInteger) {
-    return false;
-  }
-  if (bitrate) {
-    *bitrate = param.int_value;
-  }
-  return true;
-}
-
 }  // namespace
 
 SbMediaSupportType CanPlayMimeAndKeySystem(const char* mime,
@@ -278,38 +176,19 @@ SbMediaSupportType CanPlayMimeAndKeySystem(const char* mime,
   SB_DCHECK(mime);
   SB_DCHECK(key_system);
 
-  // Remove bitrate from mime string and read bitrate if presents.
-  std::string bitrate_string;
-  std::string mime_without_bitrate =
-      RemoveAttributeFromMime(mime, "bitrate", &bitrate_string);
-  int bitrate = 0;
-  if (!bitrate_string.empty()) {
-    if (!ValidateAndParseBitrate(bitrate_string, &bitrate)) {
-      return kSbMediaSupportTypeNotSupported;
-    }
-  }
-
-  if (bitrate < 0) {
-    // Reject invalid bitrate.
-    return kSbMediaSupportTypeNotSupported;
-  }
-
-  // Get cached parsed mime infos and supportability. If it is not found in the
-  // cache, MimeSupportabilityCache would parse the mime string and return a
-  // ParsedMimeInfo.
+  // Get cached ParsedMimeInfo with its supportability. If it is not found in
+  // the cache, MimeSupportabilityCache would parse the mime string and return
+  // the ParsedMimeInfo with kSupportabilityUnknown.
   ParsedMimeInfo mime_info;
   Supportability mime_supportability =
-      MimeSupportabilityCache::GetInstance()->GetMimeSupportability(
-          mime_without_bitrate, &mime_info);
-  // Overwrite the bitrate.
-  mime_info.SetBitrate(bitrate);
+      MimeSupportabilityCache::GetInstance()->GetMimeSupportability(mime,
+                                                                    &mime_info);
 
   if (mime_info.disable_cache()) {
     // Disable all caches if required.
     mime_supportability = kSupportabilityUnknown;
     MimeSupportabilityCache::GetInstance()->SetCacheEnabled(false);
     KeySystemSupportabilityCache::GetInstance()->SetCacheEnabled(false);
-    BitrateSupportabilityCache::GetInstance()->SetCacheEnabled(false);
   }
 
   // Reject mime if cached result is not supported.
@@ -317,10 +196,10 @@ SbMediaSupportType CanPlayMimeAndKeySystem(const char* mime,
     return kSbMediaSupportTypeNotSupported;
   }
 
-  // Reject mime if parsed mime info is invalid.
-  if (!mime_info.is_valid()) {
-    return kSbMediaSupportTypeNotSupported;
-  }
+  // MimeSupportabilityCache::GetMimeSupportability() returns
+  // kSupportabilityNotSupported if ParsedMimeInfo is not valid, so |mime_info|
+  // must be valid here.
+  SB_DCHECK(mime_info.is_valid());
 
   const MimeType& mime_type = mime_info.mime_type();
   const std::vector<std::string>& codecs = mime_type.GetCodecs();
@@ -379,26 +258,14 @@ SbMediaSupportType CanPlayMimeAndKeySystem(const char* mime,
     }
   }
 
-  // Get cached bitrate supportability.
-  Supportability bitrate_supportability =
-      BitrateSupportabilityCache::GetInstance()->GetBitrateSupportability(
-          mime_info);
-
-  // Reject mime if bitrate is not supported.
-  if (bitrate_supportability == kSupportabilityNotSupported) {
-    return kSbMediaSupportTypeNotSupported;
-  }
-
-  // Return supported if mime and bitrate are all supported.
-  if (mime_supportability == kSupportabilitySupported &&
-      bitrate_supportability == kSupportabilitySupported) {
+  // At this point, |key_system| is supported. Return supported here if
+  // mime is also supported. Otherwise, |mime_supportability| must be unknown.
+  if (mime_supportability == kSupportabilitySupported) {
     return kSbMediaSupportTypeProbably;
   }
+  SB_DCHECK(mime_supportability == kSupportabilityUnknown);
 
-  // At this point, either mime or bitrate supportability must be unknown.
-  // Call platform functions to check if they are supported.
-  SB_DCHECK(mime_supportability == kSupportabilityUnknown ||
-            bitrate_supportability == kSupportabilityUnknown);
+  // Call platform functions to check if it's supported.
   if (mime_info.has_audio_info() && !IsSupportedAudioCodec(mime_info)) {
     mime_supportability = kSupportabilityNotSupported;
   } else if (mime_info.has_video_info() && !IsSupportedVideoCodec(mime_info)) {
@@ -407,13 +274,10 @@ SbMediaSupportType CanPlayMimeAndKeySystem(const char* mime,
     mime_supportability = kSupportabilitySupported;
   }
 
-  // Cache mime supportability when bitrate supportability is known.
-  if (bitrate_supportability == kSupportabilitySupported) {
-    MimeSupportabilityCache::GetInstance()->CacheMimeSupportability(
-        mime_without_bitrate, mime_supportability);
-  }
+  // Cache mime supportability.
+  MimeSupportabilityCache::GetInstance()->CacheMimeSupportability(
+      mime, mime_supportability);
 
-  SB_DCHECK(mime_supportability != kSupportabilityUnknown);
   return mime_supportability == kSupportabilitySupported
              ? kSbMediaSupportTypeProbably
              : kSbMediaSupportTypeNotSupported;

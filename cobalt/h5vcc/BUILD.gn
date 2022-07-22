@@ -76,6 +76,7 @@ static_library("h5vcc") {
     "//cobalt/base",
     "//cobalt/browser:browser_switches",
     "//cobalt/build:cobalt_build_id",
+    "//cobalt/cache",
     "//cobalt/configuration",
     "//cobalt/dom",
     "//cobalt/media",

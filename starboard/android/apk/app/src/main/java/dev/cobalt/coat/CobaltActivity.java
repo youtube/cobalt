@@ -29,6 +29,7 @@ import android.view.View;
 import android.view.ViewGroup.LayoutParams;
 import android.view.ViewParent;
 import android.widget.FrameLayout;
+import dev.cobalt.media.AudioOutputManager;
 import dev.cobalt.media.MediaCodecUtil;
 import dev.cobalt.media.VideoSurfaceView;
 import dev.cobalt.util.DisplayUtil;
@@ -37,6 +38,7 @@ import dev.cobalt.util.UsedByNative;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 
 /** Native activity that has the required JNI methods called by the Starboard implementation. */
 public abstract class CobaltActivity extends NativeActivity {
@@ -130,6 +132,8 @@ public abstract class CobaltActivity extends NativeActivity {
     }
 
     DisplayUtil.cacheDefaultDisplay(this);
+    DisplayUtil.addDisplayListener(this);
+    AudioOutputManager.addAudioDeviceListener(this);
 
     getStarboardBridge().onActivityStart(this, keyboardEditor);
     super.onStart();
@@ -248,11 +252,12 @@ public abstract class CobaltActivity extends NativeActivity {
         return;
       }
 
-      String customProxy = String.format("--proxy=\"http=http://%s:%d\"", config.first, port);
+      String customProxy =
+          String.format(Locale.US, "--proxy=\"http=http://%s:%d\"", config.first, port);
       Log.i(TAG, "addCustomProxyArgs: " + customProxy);
       args.add(customProxy);
     } catch (NumberFormatException e) {
-      Log.w(TAG, String.format("http.proxyPort: %s is not valid number", config.second), e);
+      Log.w(TAG, "http.proxyPort: %s is not valid number", config.second, e);
     }
   }
 

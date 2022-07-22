@@ -31,8 +31,8 @@ function deploy_cobalt() {
 
   echo " Checking '${staging_dir}'"
 
-  PATHS=("${staging_dir}/loader_app"                          \
-         "${staging_dir}/content/app/cobalt/lib/libcobalt.so" \
+  PATHS=("${staging_dir}/loader_app"                                                \
+         "${staging_dir}/content/app/cobalt/lib/libcobalt${SYSTEM_IMAGE_EXTENSION}" \
          "${staging_dir}/content/app/cobalt/content/")
 
   for file in "${PATHS[@]}"; do
@@ -60,7 +60,7 @@ function deploy_cobalt() {
   eval "${SSH} \"mkdir -p /home/pi/coeg/content/app/cobalt/lib\""
 
   echo " Copying cobalt to system image directory"
-  eval "${SCP} \"${staging_dir}/content/app/cobalt/lib/libcobalt.so pi@${RASPI_ADDR}:/home/pi/coeg/content/app/cobalt/lib/\""
+  eval "${SCP} \"${staging_dir}/content/app/cobalt/lib/libcobalt${SYSTEM_IMAGE_EXTENSION} pi@${RASPI_ADDR}:/home/pi/coeg/content/app/cobalt/lib/\""
 
   echo " Copying content to system image directory"
   eval "${SCP} \"-r ${staging_dir}/content/app/cobalt/content/ pi@${RASPI_ADDR}:/home/pi/coeg/content/app/cobalt/\""

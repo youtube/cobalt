@@ -15,6 +15,7 @@
 package dev.cobalt.util;
 
 import java.lang.reflect.Method;
+import java.util.Locale;
 
 /**
  * Logging wrapper to allow for better control of Proguard log stripping. Many dependent
@@ -59,9 +60,27 @@ public final class Log {
     }
   }
 
-  private static int logWithMethod(Method logMethod, String tag, String msg, Throwable tr) {
+  private static Throwable getThrowableToLog(Object[] args) {
+    if (args == null || args.length == 0) return null;
+    Object lastArg = args[args.length - 1];
+    if (!(lastArg instanceof Throwable)) return null;
+    return (Throwable) lastArg;
+  }
+
+  /** Returns a formatted log message, using the supplied format and arguments. */
+  private static String formatLog(String messageTemplate, Throwable tr, Object... params) {
+    if ((params != null) && ((tr == null && params.length > 0) || params.length > 1)) {
+      messageTemplate = String.format(Locale.US, messageTemplate, params);
+    }
+    return messageTemplate;
+  }
+
+  private static int logWithMethod(
+      Method logMethod, String tag, String messageTemplate, Object... args) {
     try {
       if (logMethod != null) {
+        Throwable tr = getThrowableToLog(args);
+        String msg = formatLog(messageTemplate, tr, args);
         return (int) logMethod.invoke(null, tag, msg, tr);
       }
     } catch (Throwable e) {
@@ -70,47 +89,27 @@ public final class Log {
     return 0;
   }
 
-  public static int v(String tag, String msg) {
-    return logWithMethod(logV, tag, msg, null);
+  public static int v(String tag, String messageTemplate, Object... args) {
+    return logWithMethod(logV, tag, messageTemplate, args);
   }
 
-  public static int v(String tag, String msg, Throwable tr) {
-    return logWithMethod(logV, tag, msg, tr);
+  public static int d(String tag, String messageTemplate, Object... args) {
+    return logWithMethod(logD, tag, messageTemplate, args);
   }
 
-  public static int d(String tag, String msg) {
-    return logWithMethod(logD, tag, msg, null);
+  public static int i(String tag, String messageTemplate, Object... args) {
+    return logWithMethod(logI, tag, messageTemplate, args);
   }
 
-  public static int d(String tag, String msg, Throwable tr) {
-    return logWithMethod(logD, tag, msg, tr);
-  }
-
-  public static int i(String tag, String msg) {
-    return logWithMethod(logI, tag, msg, null);
-  }
-
-  public static int i(String tag, String msg, Throwable tr) {
-    return logWithMethod(logI, tag, msg, tr);
-  }
-
-  public static int w(String tag, String msg) {
-    return logWithMethod(logW, tag, msg, null);
-  }
-
-  public static int w(String tag, String msg, Throwable tr) {
-    return logWithMethod(logW, tag, msg, tr);
+  public static int w(String tag, String messageTemplate, Object... args) {
+    return logWithMethod(logW, tag, messageTemplate, args);
   }
 
   public static int w(String tag, Throwable tr) {
     return logWithMethod(logW, tag, "", tr);
   }
 
-  public static int e(String tag, String msg) {
-    return logWithMethod(logE, tag, msg, null);
-  }
-
-  public static int e(String tag, String msg, Throwable tr) {
-    return logWithMethod(logE, tag, msg, tr);
+  public static int e(String tag, String messageTemplate, Object... args) {
+    return logWithMethod(logE, tag, messageTemplate, args);
   }
 }

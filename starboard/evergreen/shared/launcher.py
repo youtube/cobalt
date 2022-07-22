@@ -75,6 +75,8 @@ class Launcher(abstract_launcher.AbstractLauncher):
       self.loader_out_directory = paths.BuildOutputDirectory(
           self.loader_platform, self.loader_config)
 
+    self.use_compressed_library = kwargs.get('use_compressed_library')
+
     # The relationship of loader platforms and configurations to evergreen
     # platforms and configurations is many-to-many. We need a separate directory
     # for each of them, i.e. linux-x64x11_debug__evergreen-x64_gold.
@@ -92,9 +94,18 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
     # Ensure the path, relative to the content of the ELF Loader, to the
     # Evergreen target and its content are passed as command line switches.
+    library_path_param = '--evergreen_library=app/{}/lib/lib{}'.format(
+        self.target_name, self.target_name)
+    if self.use_compressed_library:
+      if self.target_name != 'cobalt':
+        raise ValueError(
+            '|use_compressed_library| only expected with |target_name| cobalt')
+      library_path_param += '.lz4'
+    else:
+      library_path_param += '.so'
+
     target_command_line_params = [
-        '--evergreen_library=app/{}/lib/lib{}.so'.format(
-            self.target_name, self.target_name),
+        library_path_param,
         '--evergreen_content=app/{}/content'.format(self.target_name)
     ]
 
@@ -171,6 +182,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
       self._StageTargetsAndContentsGyp()
 
   def _StageTargetsAndContentsGnLinux(self):
+    """Stage targets and their contents for GN builds for Linux platforms."""
     content_subdir = os.path.join('usr', 'share', 'cobalt')
 
     # Copy loader content and binaries
@@ -199,13 +211,15 @@ class Launcher(abstract_launcher.AbstractLauncher):
     target_content_dst = os.path.join(target_staging_dir, 'content')
     shutil.copytree(target_content_src, target_content_dst)
 
-    shlib_name = 'lib{}.so'.format(self.target_name)
+    shlib_name = 'lib{}'.format(self.target_name)
+    shlib_name += '.lz4' if self.use_compressed_library else '.so'
     target_binary_src = os.path.join(target_install_path, 'lib', shlib_name)
     target_binary_dst = os.path.join(target_staging_dir, 'lib', shlib_name)
     os.makedirs(os.path.join(target_staging_dir, 'lib'))
     shutil.copy(target_binary_src, target_binary_dst)
 
   def _StageTargetsAndContentsGnRaspi(self):
+    """Stage targets and their contents for GN builds for Raspi platforms."""
     # TODO(b/218889313): `content` is hardcoded on raspi and must be in the same
     # directory as the binaries.
     if 'raspi' in self.loader_platform:
@@ -251,13 +265,15 @@ class Launcher(abstract_launcher.AbstractLauncher):
     target_content_dst = os.path.join(target_staging_dir, 'content')
     shutil.copytree(target_content_src, target_content_dst)
 
-    shlib_name = 'lib{}.so'.format(self.target_name)
+    shlib_name = 'lib{}'.format(self.target_name)
+    shlib_name += '.lz4' if self.use_compressed_library else '.so'
     target_binary_src = os.path.join(target_install_path, 'lib', shlib_name)
     target_binary_dst = os.path.join(target_staging_dir, 'lib', shlib_name)
     os.makedirs(os.path.join(target_staging_dir, 'lib'))
     shutil.copy(target_binary_src, target_binary_dst)
 
   def _StageTargetsAndContentsGyp(self):
+    """Stage targets and their contents for GYP builds."""
     # <outpath>/deploy/elf_loader_sandbox
     staging_directory_loader = os.path.join(self.staging_directory, 'deploy',
                                             self.loader_target)

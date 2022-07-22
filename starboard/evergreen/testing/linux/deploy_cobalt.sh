@@ -31,8 +31,8 @@ function deploy_cobalt() {
 
   echo " Checking '${staging_dir}'"
 
-  PATHS=("${staging_dir}/loader_app"                          \
-         "${staging_dir}/content/app/cobalt/lib/libcobalt.so" \
+  PATHS=("${staging_dir}/loader_app"                                                \
+         "${staging_dir}/content/app/cobalt/lib/libcobalt${SYSTEM_IMAGE_EXTENSION}" \
          "${staging_dir}/content/app/cobalt/content/")
 
   for file in "${PATHS[@]}"; do

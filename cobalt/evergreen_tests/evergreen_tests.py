@@ -31,6 +31,7 @@ _DEFAULT_PLATFORM_UNDER_TEST = 'linux'
 
 
 def _Exec(cmd, env=None):
+  """Executes a command in a subprocess and returns the result."""
   try:
     msg = 'Executing:\n    ' + ' '.join(cmd)
     logging.info(msg)
@@ -46,31 +47,8 @@ def _Exec(cmd, env=None):
     return 1
 
 
-def main():
-  arg_parser = argparse.ArgumentParser()
-  arg_parser.add_argument(
-      '--no-can_mount_tmpfs',
-      dest='can_mount_tmpfs',
-      action='store_false',
-      help='A temporary filesystem cannot be mounted on the target device.')
-  arg_parser.add_argument(
-      '--platform_under_test',
-      default=_DEFAULT_PLATFORM_UNDER_TEST,
-      help='The platform to run the tests on (e.g., linux or raspi).')
-  authentication_method = arg_parser.add_mutually_exclusive_group()
-  authentication_method.add_argument(
-      '--public-key-auth',
-      help='Public key authentication should be used with the remote device.',
-      action='store_true')
-  authentication_method.add_argument(
-      '--password-auth',
-      help='Password authentication should be used with the remote device.',
-      action='store_true')
-  command_line.AddLauncherArguments(arg_parser)
-  args = arg_parser.parse_args()
-
-  log_level.InitializeLogging(args)
-
+def _RunTests(arg_parser, args, use_compressed_system_image):
+  """Runs an instance of the Evergreen tests for the provided configuration."""
   launcher_params = command_line.CreateLauncherParams(arg_parser)
 
   # Creating an instance of the Evergreen abstract launcher implementation
@@ -86,7 +64,8 @@ def main():
       loader_platform=launcher_params.loader_platform,
       loader_config=launcher_params.loader_config,
       loader_target='loader_app',
-      loader_out_directory=launcher_params.loader_out_directory)
+      loader_out_directory=launcher_params.loader_out_directory,
+      use_compressed_library=use_compressed_system_image)
 
   # The automated tests use the |OUT| environment variable as the path to a
   # known directory structure containing the desired binaries. This path is
@@ -118,9 +97,51 @@ def main():
     command.append('-a')
     command.append('password')
 
+  if use_compressed_system_image:
+    command.append('-c')
+
   command.append(args.platform_under_test)
 
   return _Exec(command, env)
+
+
+def main():
+  arg_parser = argparse.ArgumentParser()
+  arg_parser.add_argument(
+      '--no-can_mount_tmpfs',
+      dest='can_mount_tmpfs',
+      action='store_false',
+      help='A temporary filesystem cannot be mounted on the target device.')
+  arg_parser.add_argument(
+      '--platform_under_test',
+      default=_DEFAULT_PLATFORM_UNDER_TEST,
+      help='The platform to run the tests on (e.g., linux or raspi).')
+  authentication_method = arg_parser.add_mutually_exclusive_group()
+  authentication_method.add_argument(
+      '--public-key-auth',
+      help='Public key authentication should be used with the remote device.',
+      action='store_true')
+  authentication_method.add_argument(
+      '--password-auth',
+      help='Password authentication should be used with the remote device.',
+      action='store_true')
+  arg_parser.add_argument(
+      '--no-rerun_using_compressed_system_image',
+      dest='rerun_using_compressed_system_image',
+      action='store_false',
+      help='Do not run a second instance of the tests with a compressed system '
+      'image.')
+  command_line.AddLauncherArguments(arg_parser)
+  args = arg_parser.parse_args()
+
+  log_level.InitializeLogging(args)
+
+  uncompressed_system_image_result = _RunTests(arg_parser, args, False)
+  if args.rerun_using_compressed_system_image:
+    compressed_system_image_result = _RunTests(arg_parser, args, True)
+    return uncompressed_system_image_result or compressed_system_image_result
+
+  return uncompressed_system_image_result
 
 
 if __name__ == '__main__':
