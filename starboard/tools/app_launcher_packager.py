@@ -192,7 +192,9 @@ def MakeZipArchive(src, output_zip):
   logging.info('Creating a zip file of the app launcher package')
   logging.info(src + ' -> ' + output_zip)
   tmp_file = shutil.make_archive(src, 'zip', src)
+  logging.info('Done creating archive.')
   shutil.move(tmp_file, output_zip)
+  logging.info('Done copying archive.')
 
 
 def main(command_args):
