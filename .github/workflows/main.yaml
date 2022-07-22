@@ -18,7 +18,6 @@ env:
   IS_CI: 1
   IS_DOCKER: 1
   NINJA_STATUS: '[%e sec | %f/%t %u remaining | %c/sec | j%r]'
-  NINJA_PARALLEL: 40
   SCCACHE: 1
   SCCACHE_GCS_BUCKET: cobalt-actions-devel-sccache-linux
   SCCACHE_GCS_OAUTH_URL: http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token
