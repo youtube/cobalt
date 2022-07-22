@@ -44,7 +44,14 @@ const int64_t kWatchdogMaxViolations = 100;
 const int64_t kWatchdogMaxPingInfos = 100;
 
 // Persistent setting name and default setting for the boolean that controls
-// whether or not crashes can be triggered.
+// whether or not Watchdog is enabled. When disabled, Watchdog behaves like a
+// stub except that persistent settings can still be get/set. Requires a
+// restart to take effect.
+const char kPersistentSettingWatchdogEnable[] =
+    "kPersistentSettingWatchdogEnable";
+const bool kDefaultSettingWatchdogEnable = true;
+// Persistent setting name and default setting for the boolean that controls
+// whether or not a Watchdog violation will trigger a crash.
 const char kPersistentSettingWatchdogCrash[] =
     "kPersistentSettingWatchdogCrash";
 const bool kDefaultSettingWatchdogCrash = false;
@@ -53,8 +60,12 @@ const bool kDefaultSettingWatchdogCrash = false;
 
 bool Watchdog::Initialize(
     persistent_storage::PersistentSettings* persistent_settings) {
-  SB_CHECK(SbMutexCreate(&mutex_));
   persistent_settings_ = persistent_settings;
+  is_disabled_ = !GetPersistentSettingWatchdogEnable();
+
+  if (is_disabled_) return true;
+
+  SB_CHECK(SbMutexCreate(&mutex_));
   smallest_time_interval_ = kWatchdogSmallestTimeInterval;
 
 #if defined(_DEBUG)
@@ -92,11 +103,13 @@ bool Watchdog::Initialize(
 }
 
 bool Watchdog::InitializeStub() {
-  is_stub_ = true;
+  is_disabled_ = true;
   return true;
 }
 
 void Watchdog::Uninitialize() {
+  if (is_disabled_) return;
+
   SB_CHECK(SbMutexAcquire(&mutex_) == kSbMutexAcquired);
   is_monitoring_ = false;
   SB_CHECK(SbMutexRelease(&mutex_));
@@ -118,6 +131,8 @@ std::string Watchdog::GetWatchdogFilePath() {
 }
 
 void Watchdog::UpdateState(base::ApplicationState state) {
+  if (is_disabled_) return;
+
   SB_CHECK(SbMutexAcquire(&mutex_) == kSbMutexAcquired);
   state_ = state;
   SB_CHECK(SbMutexRelease(&mutex_));
@@ -278,8 +293,7 @@ bool Watchdog::Register(std::string name, std::string description,
                         base::ApplicationState monitor_state,
                         int64_t time_interval, int64_t time_wait,
                         Replace replace) {
-  // Watchdog stub
-  if (is_stub_) return true;
+  if (is_disabled_) return true;
 
   SB_CHECK(SbMutexAcquire(&mutex_) == kSbMutexAcquired);
 
@@ -328,8 +342,7 @@ bool Watchdog::Register(std::string name, std::string description,
 }
 
 bool Watchdog::Unregister(const std::string& name, bool lock) {
-  // Watchdog stub
-  if (is_stub_) return true;
+  if (is_disabled_) return true;
 
   if (lock) SB_CHECK(SbMutexAcquire(&mutex_) == kSbMutexAcquired);
   // Unregisters.
@@ -355,8 +368,7 @@ bool Watchdog::Unregister(const std::string& name, bool lock) {
 bool Watchdog::Ping(const std::string& name) { return Ping(name, ""); }
 
 bool Watchdog::Ping(const std::string& name, const std::string& info) {
-  // Watchdog stub
-  if (is_stub_) return true;
+  if (is_disabled_) return true;
 
   SB_CHECK(SbMutexAcquire(&mutex_) == kSbMutexAcquired);
   auto it = client_map_.find(name);
@@ -392,8 +404,7 @@ std::string Watchdog::GetWatchdogViolations() {
   // Gets a json string containing the Watchdog violations since the last
   // call (up to the kWatchdogMaxViolations limit).
 
-  // Watchdog stub
-  if (is_stub_) return "";
+  if (is_disabled_) return "";
 
   std::string watchdog_json = "";
   SB_CHECK(SbMutexAcquire(&mutex_) == kSbMutexAcquired);
@@ -420,9 +431,28 @@ std::string Watchdog::GetWatchdogViolations() {
   return watchdog_json;
 }
 
+bool Watchdog::GetPersistentSettingWatchdogEnable() {
+  // Watchdog stub
+  if (!persistent_settings_) return kDefaultSettingWatchdogEnable;
+
+  // Gets the boolean that controls whether or not Watchdog is enabled.
+  return persistent_settings_->GetPersistentSettingAsBool(
+      kPersistentSettingWatchdogEnable, kDefaultSettingWatchdogEnable);
+}
+
+void Watchdog::SetPersistentSettingWatchdogEnable(bool enable_watchdog) {
+  // Watchdog stub
+  if (!persistent_settings_) return;
+
+  // Sets the boolean that controls whether or not Watchdog is enabled.
+  persistent_settings_->SetPersistentSetting(
+      kPersistentSettingWatchdogEnable,
+      std::make_unique<base::Value>(enable_watchdog));
+}
+
 bool Watchdog::GetPersistentSettingWatchdogCrash() {
   // Watchdog stub
-  if (is_stub_) return kDefaultSettingWatchdogCrash;
+  if (!persistent_settings_) return kDefaultSettingWatchdogCrash;
 
   // Gets the boolean that controls whether or not crashes can be triggered.
   return persistent_settings_->GetPersistentSettingAsBool(
@@ -431,7 +461,7 @@ bool Watchdog::GetPersistentSettingWatchdogCrash() {
 
 void Watchdog::SetPersistentSettingWatchdogCrash(bool can_trigger_crash) {
   // Watchdog stub
-  if (is_stub_) return;
+  if (!persistent_settings_) return;
 
   // Sets the boolean that controls whether or not crashes can be triggered.
   persistent_settings_->SetPersistentSetting(
@@ -442,8 +472,7 @@ void Watchdog::SetPersistentSettingWatchdogCrash(bool can_trigger_crash) {
 #if defined(_DEBUG)
 // Sleeps threads based off of environment variables for Watchdog debugging.
 void Watchdog::MaybeInjectDebugDelay(const std::string& name) {
-  // Watchdog stub
-  if (is_stub_) return;
+  if (is_disabled_) return;
 
   starboard::ScopedLock scoped_lock(delay_lock_);
 
