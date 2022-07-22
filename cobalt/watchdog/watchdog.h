@@ -79,6 +79,8 @@ class Watchdog : public Singleton<Watchdog> {
   bool Ping(const std::string& name);
   bool Ping(const std::string& name, const std::string& info);
   std::string GetWatchdogViolations();
+  bool GetPersistentSettingWatchdogEnable();
+  void SetPersistentSettingWatchdogEnable(bool enable_watchdog);
   bool GetPersistentSettingWatchdogCrash();
   void SetPersistentSettingWatchdogCrash(bool can_trigger_crash);
 
@@ -96,6 +98,11 @@ class Watchdog : public Singleton<Watchdog> {
 
   // Watchdog violations file path.
   std::string watchdog_file_;
+  // Access to persistent settings.
+  persistent_storage::PersistentSettings* persistent_settings_;
+  // Flag to disable Watchdog. When disabled, Watchdog behaves like a stub
+  // except that persistent settings can still be get/set.
+  bool is_disabled_;
   // Creates a lock which ensures that each loop of monitor is atomic in that
   // modifications to is_monitoring_, state_, smallest_time_interval_, and most
   // importantly to the dictionaries containing Watchdog clients, client_map_
@@ -103,8 +110,6 @@ class Watchdog : public Singleton<Watchdog> {
   // like Register(), Unregister(), Ping(), and GetWatchdogViolations() will be
   // called by various threads and interact with these class variables.
   SbMutex mutex_;
-  // Access to persistent settings.
-  persistent_storage::PersistentSettings* persistent_settings_;
   // Tracks application state.
   base::ApplicationState state_ = base::kApplicationStateStarted;
   // Time interval between monitor loops.
@@ -117,8 +122,6 @@ class Watchdog : public Singleton<Watchdog> {
   SbThread watchdog_thread_;
   // Flag to stop monitor thread.
   bool is_monitoring_;
-  // Flag to stub out Watchdog.
-  bool is_stub_ = false;
 
 #if defined(_DEBUG)
   starboard::Mutex delay_lock_;

@@ -23,6 +23,9 @@
       unregister: 'Unregister',
       ping: 'Ping',
       getWatchdogViolations: 'Get Watchdog Violations',
+      getPersistentSettingWatchdogEnable: 'Get Enable Watchdog',
+      setPersistentSettingWatchdogEnableTrue: 'Set Enable Watchdog True',
+      setPersistentSettingWatchdogEnableFalse: 'Set Enable Watchdog False',
       getPersistentSettingWatchdogCrash: 'Get Can Trigger Crash',
       setPersistentSettingWatchdogCrashTrue: 'Set Can Trigger Crash True',
       setPersistentSettingWatchdogCrashFalse: 'Set Can Trigger Crash False',
@@ -63,6 +66,12 @@
             ret = h5vcc.crashLog.ping('test-name', `test-ping`);
           } else if (watchdogFunction == 'getWatchdogViolations') {
             ret = h5vcc.crashLog.getWatchdogViolations();
+          } else if (watchdogFunction == 'getPersistentSettingWatchdogEnable') {
+            ret = h5vcc.crashLog.getPersistentSettingWatchdogEnable();
+          } else if (watchdogFunction == 'setPersistentSettingWatchdogEnableTrue') {
+            h5vcc.crashLog.setPersistentSettingWatchdogEnable(true);
+          } else if (watchdogFunction == 'setPersistentSettingWatchdogEnableFalse') {
+            h5vcc.crashLog.setPersistentSettingWatchdogEnable(false);
           } else if (watchdogFunction == 'getPersistentSettingWatchdogCrash') {
             ret = h5vcc.crashLog.getPersistentSettingWatchdogCrash();
           } else if (watchdogFunction == 'setPersistentSettingWatchdogCrashTrue') {

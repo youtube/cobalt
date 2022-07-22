@@ -645,6 +645,7 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
       std::make_unique<persistent_storage::PersistentSettings>(
           kPersistentSettingsJson, message_loop_->task_runner());
 
+  // Initializes Watchdog.
   watchdog::Watchdog* watchdog =
       watchdog::Watchdog::CreateInstance(persistent_settings_.get());
   DCHECK(watchdog);

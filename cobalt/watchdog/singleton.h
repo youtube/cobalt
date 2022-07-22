@@ -57,9 +57,11 @@ class Singleton {
   static Type* GetInstance() { return s_singleton; }
 
   static void DeleteInstance() {
-    s_singleton->Type::Uninitialize();
-    delete s_singleton;
-    s_singleton = nullptr;
+    if (s_singleton) {
+      s_singleton->Type::Uninitialize();
+      delete s_singleton;
+      s_singleton = nullptr;
+    }
   }
 
   // Prevent copying and moving.
