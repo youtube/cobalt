@@ -1,4 +1,5 @@
 # Reusable Cobalt CI workflow.
+
 name: main
 
 on:
