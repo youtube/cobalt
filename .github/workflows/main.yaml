@@ -25,7 +25,7 @@ env:
   SCCACHE_GCS_RW_MODE: READ_WRITE
   SCCACHE_IDLE_TIMEOUT: 0 # prevent sccache server from shutting down after long idle.
   STARBOARD_TOOLCHAINS_DIR: /root/starboard-toolchains
-    #TMPDIR: /__w/_temp
+  TMPDIR: /__w/_temp
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
