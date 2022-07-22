@@ -22,5 +22,7 @@ action("build_app_launcher_zip") {
   args = [
     "-z",
     rebase_path(outputs[0], root_build_dir),
+    "--log_level",
+    "info",
   ]
 }
