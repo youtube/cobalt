@@ -235,7 +235,7 @@ def main(command_args):
     CopyAppLauncherTools(REPOSITORY_ROOT, args.destination_root)
   elif args.zip_file:
     try:
-      temp_dir = tempfile.mkdtemp(prefix='cobalt_app_launcher_')
+      temp_dir = tempfile.mkdtemp(dir='/__w', prefix='cobalt_app_launcher_')
       CopyAppLauncherTools(REPOSITORY_ROOT, temp_dir)
       MakeZipArchive(temp_dir, args.zip_file)
     finally:
