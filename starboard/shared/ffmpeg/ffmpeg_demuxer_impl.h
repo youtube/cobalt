@@ -69,7 +69,7 @@ class FFmpegDemuxerImpl<FFMPEG> : public FFmpegDemuxer {
   };
 #endif  // LIBAVUTIL_VERSION_INT >= LIBAVUTIL_VERSION_52_8
 
-  struct ScopedPtrAVFree {
+  struct ScopedPtrAVFreeAVIOContext {
     void operator()(void* ptr) const;
   };
 
@@ -125,7 +125,7 @@ class FFmpegDemuxerImpl<FFMPEG> : public FFmpegDemuxer {
   int64_t timeline_offset_us_ = 0L;
 
   // FFmpeg-related structs.
-  std::unique_ptr<AVIOContext, ScopedPtrAVFree> avio_context_;
+  std::unique_ptr<AVIOContext, ScopedPtrAVFreeAVIOContext> avio_context_;
   AVFormatContext* format_context_ = nullptr;
 };
 

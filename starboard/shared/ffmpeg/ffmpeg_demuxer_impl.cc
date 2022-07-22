@@ -400,9 +400,16 @@ void FFmpegDemuxerImpl<FFMPEG>::ScopedPtrAVFreeContext::operator()(
 }
 #endif  // LIBAVUTIL_VERSION_INT >= LIBAVUTIL_VERSION_52_8
 
-void FFmpegDemuxerImpl<FFMPEG>::ScopedPtrAVFree::operator()(void* ptr) const {
+void FFmpegDemuxerImpl<FFMPEG>::ScopedPtrAVFreeAVIOContext::operator()(
+    void* ptr) const {
   if (!ptr) {
     return;
+  }
+  // From the documentation of avio_alloc_context, AVIOContext's buffer must be
+  // freed separately from the AVIOContext.
+  unsigned char* buffer = static_cast<AVIOContext*>(ptr)->buffer;
+  if (buffer) {
+    GetDispatch()->av_free(buffer);
   }
   GetDispatch()->av_free(ptr);
 }
