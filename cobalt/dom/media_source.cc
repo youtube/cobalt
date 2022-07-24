@@ -486,6 +486,7 @@ HTMLMediaElement* MediaSource::GetMediaElement() const {
 }
 
 bool MediaSource::MediaElementHasMaxVideoCapabilities() const {
+  SB_DCHECK(attached_element_);
   return has_max_video_capabilities_;
 }
 

@@ -108,7 +108,8 @@ SourceBuffer::SourceBuffer(script::EnvironmentSettings* settings,
       audio_tracks_(
           new AudioTrackList(settings, media_source->GetMediaElement())),
       video_tracks_(
-          new VideoTrackList(settings, media_source->GetMediaElement())) {
+          new VideoTrackList(settings, media_source->GetMediaElement())),
+      metrics_(!media_source_->MediaElementHasMaxVideoCapabilities()) {
   DCHECK(!id_.empty());
   DCHECK(media_source_);
   DCHECK(chunk_demuxer);
@@ -367,13 +368,16 @@ void SourceBuffer::OnRemovedFromMediaSource() {
   //   RemoveMediaTracks();
   // }
 
-  if (!media_source_->MediaElementHasMaxVideoCapabilities()) {
-    // TODO: Determine if the source buffer contains an audio or video stream,
-    // and print the steam type along with the metrics.
-    metrics_.PrintMetrics();
-  }
+  // TODO: Determine if the source buffer contains an audio or video stream,
+  //       maybe by implementing track support and get from the type of the
+  //       track, and print the steam type along with the metrics.
+  metrics_.PrintCurrentMetricsAndUpdateAccumulatedMetrics();
 
   chunk_demuxer_->RemoveId(id_);
+  if (chunk_demuxer_->GetAllStreams().empty()) {
+    metrics_.PrintAccumulatedMetrics();
+  }
+
   chunk_demuxer_ = NULL;
   media_source_ = NULL;
   event_queue_ = NULL;

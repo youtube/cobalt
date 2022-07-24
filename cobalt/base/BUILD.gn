@@ -72,6 +72,7 @@ static_library("base") {
     "source_location.h",
     "startup_timer.cc",
     "startup_timer.h",
+    "statistics.h",
     "stop_watch.cc",
     "stop_watch.h",
     "token.cc",
@@ -113,6 +114,7 @@ target(gtest_target_type, "base_test") {
     "c_val_time_interval_timer_stats_test.cc",
     "circular_buffer_shell_unittest.cc",
     "fixed_size_lru_cache_test.cc",
+    "statistics_test.cc",
     "token_test.cc",
   ]
   deps = [

@@ -24,6 +24,7 @@
 #include "base/location.h"
 #include "base/logging.h"
 #include "base/trace_event/trace_event.h"
+#include "cobalt/base/statistics.h"
 #include "cobalt/media/base/format_support_query_metrics.h"
 #include "starboard/common/media.h"
 #include "starboard/common/string.h"
@@ -33,6 +34,12 @@
 
 namespace cobalt {
 namespace media {
+
+namespace {
+
+base::Statistics<SbTime, int, 1024> s_player_presenting_delays_;
+
+}  // namespace
 
 StarboardPlayer::CallbackHelper::CallbackHelper(StarboardPlayer* player)
     : player_(player) {}
@@ -975,16 +982,16 @@ void StarboardPlayer::LogStartupLatency() const {
   std::string first_events_str;
   if (set_drm_system_ready_cb_time_ == -1) {
     first_events_str =
-        starboard::FormatString("%-50s0 us", "SbPlayerCreate() called");
+        starboard::FormatString("%-40s0 us", "SbPlayerCreate() called");
 
   } else if (set_drm_system_ready_cb_time_ < player_creation_time_) {
     first_events_str = starboard::FormatString(
-        "%-50s0 us\n%-50s%" PRId64 " us", "set_drm_system_ready_cb called",
+        "%-40s0 us\n%-40s%" PRId64 " us", "set_drm_system_ready_cb called",
         "SbPlayerCreate() called",
         player_creation_time_ - set_drm_system_ready_cb_time_);
   } else {
     first_events_str = starboard::FormatString(
-        "%-50s0 us\n%-50s%" PRId64 " us", "SbPlayerCreate() called",
+        "%-40s0 us\n%-40s%" PRId64 " us", "SbPlayerCreate() called",
         "set_drm_system_ready_cb called",
         set_drm_system_ready_cb_time_ - player_creation_time_);
   }
@@ -1002,16 +1009,27 @@ void StarboardPlayer::LogStartupLatency() const {
       sb_player_state_presenting_time_ -
       std::max(first_audio_sample_time_, first_video_sample_time_);
 
+  s_player_presenting_delays_.AddSample(player_presenting_time_delta, 1);
+
+  // clang-format off
   LOG(INFO) << starboard::FormatString(
-      "SbPlayer startup latencies\n%-50s%s\n%s\n%-50s%" PRId64
-      " us\n%-50s%" PRId64 " us\n%-50s%" PRId64 "/%" PRId64 " us\n%-50s%" PRId64
-      " us",
-      "Event name", "time since last event", first_events_str.c_str(),
-      "kSbPlayerStateInitialized received", player_initialization_time_delta,
-      "kSbPlayerStatePrerolling received", player_preroll_time_delta,
-      "First media sample(s) written [audio/video]",
-      first_audio_sample_time_delta, first_video_sample_time_delta,
-      "kSbPlayerStatePresenting received", player_presenting_time_delta);
+      "\nSbPlayer startup latencies\n"
+      "  Event name                              time since last event\n"
+      "  %s\n"  // |first_events_str| populated above
+      "  kSbPlayerStateInitialized received      %" PRId64 " us\n"
+      "  kSbPlayerStatePrerolling received       %" PRId64 " us\n"
+      "  First media sample(s) written [a/v]     %" PRId64 "/%" PRId64 " us\n"
+      "  kSbPlayerStatePresenting received       %" PRId64 " us\n"
+      "  kSbPlayerStatePresenting delay statistics (us):\n"
+      "    min: %" PRId64 ", median: %" PRId64 ", average: %" PRId64
+      ", max: %" PRId64,
+      first_events_str.c_str(), player_initialization_time_delta,
+      player_preroll_time_delta, first_audio_sample_time_delta,
+      first_video_sample_time_delta, player_presenting_time_delta,
+      s_player_presenting_delays_.min(),
+      s_player_presenting_delays_.GetMedian(),
+      s_player_presenting_delays_.average(), s_player_presenting_delays_.max());
+  // clang-format on
 }
 
 }  // namespace media

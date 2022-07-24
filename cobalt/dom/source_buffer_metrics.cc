@@ -17,7 +17,9 @@
 #include <algorithm>
 
 #include "base/logging.h"
+#include "cobalt/base/statistics.h"
 #include "starboard/common/string.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace dom {
@@ -30,9 +32,30 @@ int GetBandwidth(std::size_t size, SbTimeMonotonic duration) {
   return duration == 0 ? 0 : size * kSbTimeSecond / duration;
 }
 
+int64_t GetBandwidthForStatistics(int64_t size, int64_t duration) {
+  return GetBandwidth(static_cast<std::size_t>(size), duration);
+}
+
+using BandwidthStatistics =
+    base::Statistics<int64_t, SbTimeMonotonic, 1024, GetBandwidthForStatistics>;
+
+BandwidthStatistics s_accumulated_wall_time_bandwidth_;
+BandwidthStatistics s_accumulated_thread_time_bandwidth_;
+
+double GetWallToThreadTimeRatio(int64_t wall_time, int64_t thread_time) {
+  if (thread_time == 0) {
+    thread_time = 1;
+  }
+  return static_cast<double>(wall_time) / thread_time;
+}
+
 }  // namespace
 
 void SourceBufferMetrics::StartTracking() {
+  if (!is_primary_video_) {
+    return;
+  }
+
   DCHECK(!is_tracking_);
   is_tracking_ = true;
   wall_start_time_ = SbTimeGetMonotonicNow();
@@ -41,6 +64,10 @@ void SourceBufferMetrics::StartTracking() {
 }
 
 void SourceBufferMetrics::EndTracking(std::size_t size_appended) {
+  if (!is_primary_video_) {
+    return;
+  }
+
   DCHECK(is_tracking_);
   is_tracking_ = false;
 
@@ -67,24 +94,62 @@ void SourceBufferMetrics::EndTracking(std::size_t size_appended) {
   }
 }
 
-void SourceBufferMetrics::PrintMetrics() {
+void SourceBufferMetrics::PrintCurrentMetricsAndUpdateAccumulatedMetrics() {
+  if (!is_primary_video_) {
+    return;
+  }
+
+  s_accumulated_wall_time_bandwidth_.AddSample(total_size_, total_wall_time_);
+  s_accumulated_thread_time_bandwidth_.AddSample(total_size_,
+                                                 total_thread_time_);
+
   LOG_IF(INFO, total_thread_time_ > total_wall_time_)
       << "Total thread time " << total_thread_time_
       << " should not be greater than total wall time " << total_wall_time_
       << ".";
+
+  // clang-format off
   LOG(INFO) << starboard::FormatString(
-      "AppendBuffer() metrics:\n\t%-30s%zu B\n\t%-30s%d "
-      "us (%d B/s)\n\t\t%-28s%d "
-      "B/s\n\t\t%-28s%d B/s\n\t%-30s%d us (%d B/s)\n\t\t%-28s%d "
-      "B/s\n\t\t%-28s%d B/s",
-      "Total size of appended data:", total_size_, "Total append wall time",
+      "AppendBuffer() metrics:\n"
+      "    Total size of appended data: %zu B, wall time / thread time = %02g\n"
+      "    Total append wall time:      %" PRId64 " us (%d B/s)\n"
+      "        Max wall bandwidth:      %d B/s\n"
+      "        Min wall bandwidth:      %d B/s\n"
+      "    Total append thread time:    %" PRId64 " us (%d B/s)\n"
+      "        Max thread bandwidth:    %d B/s\n"
+      "        Min thread bandwidth:    %d B/s\n",
+      total_size_,
+      GetWallToThreadTimeRatio(total_wall_time_, total_thread_time_),
       total_wall_time_, GetBandwidth(total_size_, total_wall_time_),
-      "Max wall bandwidth:", max_wall_bandwidth_,
-      "Min wall bandwidth:", min_wall_bandwidth_,
-      "Total append thread time:", total_thread_time_,
-      GetBandwidth(total_size_, total_thread_time_),
-      "Max thread bandwidth:", max_thread_bandwidth_,
-      "Min thread bandwidth:", min_thread_bandwidth_);
+      max_wall_bandwidth_, min_wall_bandwidth_, total_thread_time_,
+      GetBandwidth(total_size_, total_thread_time_), max_thread_bandwidth_,
+      min_thread_bandwidth_);
+  // clang-format on
+}
+
+void SourceBufferMetrics::PrintAccumulatedMetrics() {
+  if (!is_primary_video_) {
+    return;
+  }
+
+  LOG(INFO) << starboard::FormatString(
+      "Accumulated AppendBuffer() metrics:\n"
+      "    wall time / thread time = %02g\n"
+      "    wall bandwidth statistics (B/s):\n"
+      "        min %d, median %d, average %d, max %d\n"
+      "    thread bandwidth statistics (B/s):\n"
+      "        min %d, median %d, average %d, max %d",
+      GetWallToThreadTimeRatio(
+          s_accumulated_wall_time_bandwidth_.accumulated_divisor(),
+          s_accumulated_thread_time_bandwidth_.accumulated_divisor()),
+      static_cast<int>(s_accumulated_wall_time_bandwidth_.min()),
+      static_cast<int>(s_accumulated_wall_time_bandwidth_.GetMedian()),
+      static_cast<int>(s_accumulated_wall_time_bandwidth_.average()),
+      static_cast<int>(s_accumulated_wall_time_bandwidth_.max()),
+      static_cast<int>(s_accumulated_thread_time_bandwidth_.min()),
+      static_cast<int>(s_accumulated_thread_time_bandwidth_.GetMedian()),
+      static_cast<int>(s_accumulated_thread_time_bandwidth_.average()),
+      static_cast<int>(s_accumulated_thread_time_bandwidth_.max()));
 }
 
 #endif  // !defined(COBALT_BUILD_TYPE_GOLD)
