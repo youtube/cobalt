@@ -4218,6 +4218,7 @@ target(gtest_target_type, "net_unittests") {
     "//base:i18n",
     "//base/test:test_support",
     "//base/third_party/dynamic_annotations",
+    "//cobalt/persistent_storage:persistent_settings",
     "//crypto",
     "//testing/gmock",
     "//testing/gtest",

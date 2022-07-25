@@ -53,6 +53,7 @@ class MemoryCappedDirectory {
   void Delete(uint32_t key);
   std::unique_ptr<std::vector<uint8_t>> Retrieve(uint32_t key);
   void Store(uint32_t key, const std::vector<uint8_t>& data);
+  void Resize(uint32_t size);
 
  private:
   MemoryCappedDirectory(const base::FilePath& directory_path,
