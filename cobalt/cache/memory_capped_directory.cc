@@ -131,6 +131,14 @@ void MemoryCappedDirectory::Store(uint32_t key,
   file_sizes_[file_path] = new_entry_size;
 }
 
+void MemoryCappedDirectory::Resize(uint32_t size) {
+  if (max_size_ > size) {
+    uint32_t space_to_be_freed = max_size_ - size;
+    EnsureEnoughSpace(space_to_be_freed);
+  }
+  max_size_ = size;
+}
+
 MemoryCappedDirectory::MemoryCappedDirectory(
     const base::FilePath& directory_path, uint32_t max_size)
     : directory_path_(directory_path), max_size_(max_size), size_(0u) {}

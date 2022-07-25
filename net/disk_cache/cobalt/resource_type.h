@@ -12,8 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef RESOURCE_TYPE_H_
-#define RESOURCE_TYPE_H_
+#ifndef NET_DISK_CACHE_COBALT_RESOURCE_TYPE_H_
+#define NET_DISK_CACHE_COBALT_RESOURCE_TYPE_H_
+
+#include <string>
 
 namespace disk_cache {
 
@@ -32,15 +34,19 @@ enum ResourceType {
 
 struct ResourceTypeMetadata {
   std::string directory;
-  int64_t max_size_mb;
+  uint32_t max_size_bytes;
 };
 
-// TODO: Store sizes on disk.
+static uint32_t kInitialBytes = 3 * 1024 * 1024;
+// These values are updated on start up in application.cc, using the
+// persisted values saved in settings.json.
 static ResourceTypeMetadata kTypeMetadata[] = {
-    {"other", 3}, {"html", 3},   {"css", 3},           {"image", 3},
-    {"font", 3},  {"splash", 3}, {"uncompiled_js", 3}, {"compiled_js", 3},
+    {"other", kInitialBytes},         {"html", kInitialBytes},
+    {"css", kInitialBytes},           {"image", kInitialBytes},
+    {"font", kInitialBytes},          {"splash", kInitialBytes},
+    {"uncompiled_js", kInitialBytes}, {"compiled_js", kInitialBytes},
 };
 
 }  // namespace disk_cache
 
-#endif  // RESOURCE_TYPE_H_
+#endif  // NET_DISK_CACHE_COBALT_RESOURCE_TYPE_H_

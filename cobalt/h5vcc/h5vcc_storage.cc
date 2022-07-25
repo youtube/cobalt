@@ -76,6 +76,7 @@ H5vccStorage::H5vccStorage(
     : network_module_(network_module),
       persistent_settings_(persistent_settings) {
   http_cache_ = nullptr;
+  cache_backend_ = nullptr;
   if (network_module == nullptr) {
     return;
   }
@@ -253,88 +254,62 @@ H5vccStorageSetQuotaResponse H5vccStorage::SetQuota(
         "sum (%d) is not equal to the max cache size (%d).",
         quota_total, max_quota_size));
   }
+  if (http_cache_ && !cache_backend_) {
+    cache_backend_ = static_cast<disk_cache::CobaltBackendImpl*>(
+        http_cache_->GetCurrentBackend());
+  }
 
   // Write to persistent storage with the new quota values.
-  // Static cast value to double since base::Value cannot be a long.
-  persistent_settings_->SetPersistentSetting(
-      disk_cache::kTypeMetadata[disk_cache::kOther].directory,
-      std::make_unique<base::Value>(static_cast<double>(quota.other())));
-  persistent_settings_->SetPersistentSetting(
-      disk_cache::kTypeMetadata[disk_cache::kHTML].directory,
-      std::make_unique<base::Value>(static_cast<double>(quota.html())));
-  persistent_settings_->SetPersistentSetting(
-      disk_cache::kTypeMetadata[disk_cache::kCSS].directory,
-      std::make_unique<base::Value>(static_cast<double>(quota.css())));
-  persistent_settings_->SetPersistentSetting(
-      disk_cache::kTypeMetadata[disk_cache::kImage].directory,
-      std::make_unique<base::Value>(static_cast<double>(quota.image())));
-  persistent_settings_->SetPersistentSetting(
-      disk_cache::kTypeMetadata[disk_cache::kFont].directory,
-      std::make_unique<base::Value>(static_cast<double>(quota.font())));
-  persistent_settings_->SetPersistentSetting(
-      disk_cache::kTypeMetadata[disk_cache::kSplashScreen].directory,
-      std::make_unique<base::Value>(static_cast<double>(quota.splash())));
-  persistent_settings_->SetPersistentSetting(
-      disk_cache::kTypeMetadata[disk_cache::kUncompiledScript].directory,
-      std::make_unique<base::Value>(
-          static_cast<double>(quota.uncompiled_js())));
-  persistent_settings_->SetPersistentSetting(
-      disk_cache::kTypeMetadata[disk_cache::kCompiledScript].directory,
-      std::make_unique<base::Value>(static_cast<double>(quota.compiled_js())));
-
+  SetAndSaveQuotaForBackend(disk_cache::kOther,
+                            static_cast<uint32_t>(quota.other()));
+  SetAndSaveQuotaForBackend(disk_cache::kHTML,
+                            static_cast<uint32_t>(quota.html()));
+  SetAndSaveQuotaForBackend(disk_cache::kCSS,
+                            static_cast<uint32_t>(quota.css()));
+  SetAndSaveQuotaForBackend(disk_cache::kImage,
+                            static_cast<uint32_t>(quota.image()));
+  SetAndSaveQuotaForBackend(disk_cache::kFont,
+                            static_cast<uint32_t>(quota.font()));
+  SetAndSaveQuotaForBackend(disk_cache::kSplashScreen,
+                            static_cast<uint32_t>(quota.splash()));
+  SetAndSaveQuotaForBackend(disk_cache::kUncompiledScript,
+                            static_cast<uint32_t>(quota.uncompiled_js()));
+  SetAndSaveQuotaForBackend(disk_cache::kCompiledScript,
+                            static_cast<uint32_t>(quota.compiled_js()));
   return SetQuotaResponse("", true);
+}
+
+void H5vccStorage::SetAndSaveQuotaForBackend(disk_cache::ResourceType type,
+                                             uint32_t bytes) {
+  if (cache_backend_) {
+    cache_backend_->UpdateSizes(type, bytes);
+  }
+  cobalt::cache::Cache::GetInstance()->Resize(type, bytes);
 }
 
 H5vccStorageResourceTypeQuotaBytesDictionary H5vccStorage::GetQuota() {
   // Return persistent storage quota values.
   H5vccStorageResourceTypeQuotaBytesDictionary quota;
+  if (http_cache_ && !cache_backend_) {
+    cache_backend_ = static_cast<disk_cache::CobaltBackendImpl*>(
+        http_cache_->GetCurrentBackend());
+  }
+  if (!cache_backend_) {
+    return quota;
+  }
 
-  auto other_meta_data = disk_cache::kTypeMetadata[disk_cache::kOther];
-  quota.set_other(
-      static_cast<uint32>(persistent_settings_->GetPersistentSettingAsDouble(
-          other_meta_data.directory,
-          other_meta_data.max_size_mb * 1024 * 1024)));
-
-  auto html_meta_data = disk_cache::kTypeMetadata[disk_cache::kHTML];
-  quota.set_html(
-      static_cast<uint32>(persistent_settings_->GetPersistentSettingAsDouble(
-          html_meta_data.directory, html_meta_data.max_size_mb * 1024 * 1024)));
-
-  auto css_meta_data = disk_cache::kTypeMetadata[disk_cache::kCSS];
-  quota.set_css(
-      static_cast<uint32>(persistent_settings_->GetPersistentSettingAsDouble(
-          css_meta_data.directory, css_meta_data.max_size_mb * 1024 * 1024)));
-
-  auto image_meta_data = disk_cache::kTypeMetadata[disk_cache::kImage];
-  quota.set_image(
-      static_cast<uint32>(persistent_settings_->GetPersistentSettingAsDouble(
-          image_meta_data.directory,
-          image_meta_data.max_size_mb * 1024 * 1024)));
-
-  auto font_meta_data = disk_cache::kTypeMetadata[disk_cache::kFont];
-  quota.set_font(
-      static_cast<uint32>(persistent_settings_->GetPersistentSettingAsDouble(
-          font_meta_data.directory, font_meta_data.max_size_mb * 1024 * 1024)));
-
-  auto splash_meta_data = disk_cache::kTypeMetadata[disk_cache::kSplashScreen];
-  quota.set_splash(
-      static_cast<uint32>(persistent_settings_->GetPersistentSettingAsDouble(
-          splash_meta_data.directory,
-          splash_meta_data.max_size_mb * 1024 * 1024)));
-
-  auto uncompiled_meta_data =
-      disk_cache::kTypeMetadata[disk_cache::kUncompiledScript];
+  quota.set_other(cache_backend_->GetQuota(disk_cache::kOther));
+  quota.set_html(cache_backend_->GetQuota(disk_cache::kHTML));
+  quota.set_css(cache_backend_->GetQuota(disk_cache::kCSS));
+  quota.set_image(cache_backend_->GetQuota(disk_cache::kImage));
+  quota.set_font(cache_backend_->GetQuota(disk_cache::kFont));
+  quota.set_splash(cache_backend_->GetQuota(disk_cache::kSplashScreen));
   quota.set_uncompiled_js(
-      static_cast<uint32>(persistent_settings_->GetPersistentSettingAsDouble(
-          uncompiled_meta_data.directory,
-          uncompiled_meta_data.max_size_mb * 1024 * 1024)));
-
-  auto compiled_meta_data =
-      disk_cache::kTypeMetadata[disk_cache::kCompiledScript];
+      cache_backend_->GetQuota(disk_cache::kUncompiledScript));
   quota.set_compiled_js(
-      static_cast<uint32>(persistent_settings_->GetPersistentSettingAsDouble(
-          compiled_meta_data.directory,
-          compiled_meta_data.max_size_mb * 1024 * 1024)));
+      cobalt::cache::Cache::GetInstance()
+          ->GetMaxCacheStorageInBytes(disk_cache::kCompiledScript)
+          .value());
 
   // TODO(b/235529738): Calculate correct max_quota_size that subtracts
   // non-cache memory used in the kSbSystemPathCacheDirectory.
