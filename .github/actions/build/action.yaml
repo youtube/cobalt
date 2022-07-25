@@ -3,10 +3,6 @@ description: Builds Cobalt targets
 runs:
   using: "composite"
   steps:
-    - name: Set common env vars
-      run: |
-           echo "PYTHONPATH=$GITHUB_WORKSPACE" >> $GITHUB_ENV
-      shell: bash
     - name: Set Android env vars
       if: startsWith(${{matrix.target_platform}}, 'android')
       run: |

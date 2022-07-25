@@ -1,5 +1,6 @@
 {
   "docker_service": "build-linux-clang-3-9",
+  "on_host_test": "true",
   "platforms": [
     "linux-x64x11-clang-3-9"
   ],

@@ -69,10 +69,13 @@ jobs:
         run: echo "::set-output name=includes::$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.includes')"
       - id: set-on-device-test
         run: echo "::set-output name=on_device_test::$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.on_device_test')"
+      - id: set-on-host-test
+        run: echo "::set-output name=on_host_test::$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.on_host_test')"
     outputs:
       platforms: ${{ steps.set-platforms.outputs.platforms }}
       includes: ${{ steps.set-includes.outputs.includes }}
       on_device_test: ${{ steps.set-on-device-test.outputs.on_device_test }}
+      on_host_test: ${{ steps.set-on-host-test.outputs.on_host_test }}
   # Runs Cobalt CI workflow.
   build:
     needs: [docker-image, build-matrix]
@@ -90,12 +93,18 @@ jobs:
         uses: actions/checkout@v2
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v0
-      - name: Set Common Env Variables
+      - name: Set Env Variables
         run: |
           echo "PROJECT_NAME=$(gcloud config get-value project)" >> $GITHUB_ENV
           echo "TODAY=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
           echo "GITHUB_RUN_NUMBER=${GITHUB_RUN_NUMBER}" >> $GITHUB_ENV
           echo "WORKFLOW=${{github.workflow}}" >> $GITHUB_ENV
+          echo "PYTHONPATH=$GITHUB_WORKSPACE" >> $GITHUB_ENV
+          # Host network is namespaced inside RootlessKit,
+          # we have to use pod name to reach xvfb container on
+          # port 6099.
+          echo "DISPLAY=${RUNNER_NAME}:99" >> $GITHUB_ENV
+          echo "IPV6_AVAILABLE=0" >> $GITHUB_ENV
       - name: GN
         uses: ./.github/actions/gn
       - name: Build Cobalt
@@ -108,7 +117,15 @@ jobs:
       - name: On-device Test
         if: ${{ matrix.config == 'devel' && needs.build-matrix.outputs.on_device_test == 'true' }}
         uses: ./.github/actions/on_device_test
-  
+      - name: On-host Unit Test
+        if: ${{ matrix.config == 'devel' && needs.build-matrix.outputs.on_host_test == 'true' }}
+        run: python3 $GITHUB_WORKSPACE/starboard/tools/testing/test_runner.py --platform ${{matrix.target_platform}} --config ${{matrix.config}} -r
+        continue-on-error: true
+      - name: On-host Integration Test
+        if: ${{ matrix.config == 'devel' && needs.build-matrix.outputs.on_host_test == 'true' }}
+        run: python3 $GITHUB_WORKSPACE/cobalt/black_box_tests/black_box_tests.py --platform ${{matrix.target_platform}} --config ${{matrix.config}}
+        continue-on-error: true
+
   #win-win32:
   #  needs: docker-image-build
     # The type of runner that the job will run on

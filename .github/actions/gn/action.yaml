@@ -3,10 +3,6 @@ description: Generates and checks GN.
 runs:
   using: "composite"
   steps:
-    - name: Set common env vars
-      run: |
-           echo "PYTHONPATH=$GITHUB_WORKSPACE" >> $GITHUB_ENV
-      shell: bash
     - name: Print env vars
       run: env | sort
       shell: bash
