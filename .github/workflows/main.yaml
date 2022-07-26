@@ -14,18 +14,6 @@ on:
 env:
   REGISTRY: ghcr.io
   IPV6_AVAILABLE: 0
-  IS_BUILDBOT_DOCKER: 1
-  #BUILD_ID_SERVER_URL:
-  IS_CI: 1
-  IS_DOCKER: 1
-  NINJA_STATUS: '[%e sec | %f/%t %u remaining | %c/sec | j%r]'
-  SCCACHE: 1
-  SCCACHE_GCS_BUCKET: cobalt-actions-devel-sccache-linux
-  SCCACHE_GCS_OAUTH_URL: http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token
-  SCCACHE_GCS_RW_MODE: READ_WRITE
-  SCCACHE_IDLE_TIMEOUT: 0 # prevent sccache server from shutting down after long idle.
-  STARBOARD_TOOLCHAINS_DIR: /root/starboard-toolchains
-  TMPDIR: /__w/_temp
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
@@ -88,6 +76,22 @@ jobs:
         include: ${{ fromJson(needs.build-matrix.outputs.includes) }}
         config: [devel, debug, qa, gold]
     container: ${{ needs.docker-image.outputs.docker_tag }}
+    env:
+      # We want temp folder to be on tmpfs which makes workloads faster.
+      # However, dind container ends up having / folder mounted on overlay
+      # filesystem, whereas /__w which contains Cobalt source code is on tmpfs.
+      TMPDIR: /__w/_temp
+      IS_BUILDBOT_DOCKER: 1
+      #BUILD_ID_SERVER_URL:
+      IS_CI: 1
+      IS_DOCKER: 1
+      NINJA_STATUS: '[%e sec | %f/%t %u remaining | %c/sec | j%r]'
+      SCCACHE: 1
+      SCCACHE_GCS_BUCKET: cobalt-actions-devel-sccache-linux
+      SCCACHE_GCS_OAUTH_URL: http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token
+      SCCACHE_GCS_RW_MODE: READ_WRITE
+      SCCACHE_IDLE_TIMEOUT: 0 # prevent sccache server from shutting down after long idle.
+      STARBOARD_TOOLCHAINS_DIR: /root/starboard-toolchains
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -104,6 +108,7 @@ jobs:
           # we have to use pod name to reach xvfb container on
           # port 6099.
           echo "DISPLAY=${RUNNER_NAME}:99" >> $GITHUB_ENV
+          echo "IPV6_AVAILABLE=0" >> $GITHUB_ENV
           echo "IPV6_AVAILABLE=0" >> $GITHUB_ENV
       - name: Ping
         run: ping -c 3 127.0.0.1
