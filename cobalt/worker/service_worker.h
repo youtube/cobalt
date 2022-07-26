@@ -45,7 +45,7 @@ class ServiceWorker : public AbstractWorker, public web::EventTarget {
   //
   void PostMessage(const std::string& message) {
     DCHECK(message_port_);
-    message_port_->PostMessage(message);
+    if (worker_->worker_global_scope()) message_port_->PostMessage(message);
   }
 
   // The scriptURL getter steps are to return the
@@ -82,7 +82,7 @@ class ServiceWorker : public AbstractWorker, public web::EventTarget {
     worker_ = nullptr;
   }
 
-  ServiceWorkerObject* worker_ = nullptr;
+  scoped_refptr<ServiceWorkerObject> worker_;
   scoped_refptr<web::MessagePort> message_port_;
   ServiceWorkerState state_;
 };
