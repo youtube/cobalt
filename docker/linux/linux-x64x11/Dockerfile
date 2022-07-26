@@ -25,6 +25,10 @@ RUN apt update -qqy \
         libxrender-dev \
         libxcomposite-dev \
         libxi-dev \
+        libatomic1 \
+        libavcodec58 \
+        libavformat58 \
+        libavutil56 \
     && /opt/clean-after-apt.sh
 
 RUN python3 -m pip install "selenium==3.141.0" "Brotli==1.0.9"
