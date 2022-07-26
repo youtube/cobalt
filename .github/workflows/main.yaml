@@ -85,6 +85,8 @@ jobs:
       #BUILD_ID_SERVER_URL:
       IS_CI: 1
       IS_DOCKER: 1
+      # GitHub runners default HOME to /github/home.
+      HOME: /root 
       NINJA_STATUS: '[%e sec | %f/%t %u remaining | %c/sec | j%r]'
       SCCACHE: 1
       SCCACHE_GCS_BUCKET: cobalt-actions-devel-sccache-linux
@@ -110,9 +112,6 @@ jobs:
           echo "DISPLAY=${RUNNER_NAME}:99" >> $GITHUB_ENV
           echo "IPV6_AVAILABLE=0" >> $GITHUB_ENV
           echo "IPV6_AVAILABLE=0" >> $GITHUB_ENV
-      - name: Ping
-        run: ping -c 3 127.0.0.1
-        continue-on-error: true
       - name: GN
         uses: ./.github/actions/gn
       - name: Build Cobalt
@@ -132,9 +131,6 @@ jobs:
       - name: On-host Integration Test
         if: ${{ matrix.config == 'devel' && needs.build-matrix.outputs.on_host_test == 'true' }}
         run: python3 $GITHUB_WORKSPACE/cobalt/black_box_tests/black_box_tests.py --platform ${{matrix.target_platform}} --config ${{matrix.config}}
-        continue-on-error: true
-      - name: Telnet
-        run: echo 'exit' | telnet 127.0.0.1 4444
         continue-on-error: true
 
   #win-win32:

@@ -6,10 +6,9 @@ runs:
     - name: Set Android env vars
       if: startsWith(${{matrix.target_platform}}, 'android')
       run: |
-        echo "ANDROID_HOME=/__w/starboard-toolchains/AndroidSdk/" >> $GITHUB_ENV
+        echo "ANDROID_HOME=/root/starboard-toolchains/AndroidSdk/" >> $GITHUB_ENV
         echo "COBALT_GRADLE_BUILD_COUNT=4" >> $GITHUB_ENV
         echo "GCS_NIGHTLY_PATH=gs://cobalt-actions-devel-build-artifacts" >> $GITHUB_ENV
-        cp -R /root/starboard-toolchains /__w/
       shell: bash
     - name: Print env vars
       run: env | sort
@@ -17,7 +16,6 @@ runs:
     - name: Build ${{matrix.platform}}-${{matrix.config}}
       run: |
            set -x
-           ln -s /__w/starboard-toolchains /github/home/starboard-toolchains
            target=all
            if [[ "${{ matrix.config }}" =~ ^(qa|gold)$ ]]; then
              target=default
