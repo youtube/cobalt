@@ -63,21 +63,22 @@ interface H5vccCrashLog {
   //     "description":"test-description",
   //     "violations":[
   //       {
-  //         "monitor_state":"kApplicationStateStarted",
-  //         "ping_infos":[
+  //         "monitorState":"kApplicationStateStarted",
+  //         "pingInfos":[
   //           {
   //             "info":"test-ping",
-  //             "ping_timestamp_microseconds":"1658447236709585"
+  //             "timestampMicroseconds":"1658972623547006"
   //           }
   //         ],
-  //         "registered_clients":[
+  //         "registeredClients":[
   //           "test-name"
   //         ],
-  //         "registered_timestamp_microseconds":"1658447235815253",
-  //         "time_interval_microseconds":5000000,
-  //         "time_wait_microseconds":0,
-  //         "violation_delta_microseconds":5343265,
-  //         "violation_timestamp_microseconds":"1658447242052850"
+  //         "timeIntervalMicroseconds":"5000000",
+  //         "timeWaitMicroseconds":"0",
+  //         "timestampLastPingedMicroseconds":"1658972623547006",
+  //         "timestampRegisteredMicroseconds":"1658972621890834",
+  //         "timestampViolationMicroseconds":"1658972629489771",
+  //         "violationDurationMicroseconds":"942764"
   //       }
   //     ]
   //   }

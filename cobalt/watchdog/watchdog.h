@@ -51,9 +51,16 @@ typedef struct Client {
   // Monotonically increasing timestamp when client was registered. Used as the
   // start value for time wait calculations.
   SbTimeMonotonic time_registered_monotonic_microseconds;
-  // Monotonically increasing timestamp when client was last pinged. Used as
-  // the start value for time interval calculations.
-  SbTimeMonotonic time_last_pinged_monotonic_microseconds;
+  // Epoch time when client was last pinged. Set by Ping() and Register() when
+  // in PING replace mode or set initially by Register().
+  int64_t time_last_pinged_microseconds;
+  // Monotonically increasing timestamp when client was last updated. Set by
+  // Ping() and Register() when in PING replace mode or set initially by
+  // Register(). Also reset by Monitor() when in idle states or when a
+  // violation occurs. Prevents excessive violations as they must occur
+  // time_interval_microseconds apart rather than smallest_time_interval_
+  // apart. Used as the start value for time interval calculations.
+  SbTimeMonotonic time_last_updated_monotonic_microseconds;
 } Client;
 
 // Register behavior with previously registered clients of the same name.
