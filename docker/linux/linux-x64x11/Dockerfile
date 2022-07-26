@@ -25,6 +25,8 @@ RUN apt update -qqy \
         libxrender-dev \
         libxcomposite-dev \
         libxi-dev \
+        telnet \
+        iputils-ping \
     && /opt/clean-after-apt.sh
 
 RUN python3 -m pip install "selenium==3.141.0" "Brotli==1.0.9"
