@@ -24,9 +24,8 @@ RUN apt update -qqy \
         doxygen \
         git \
         nodejs \
-        python \
-        # Required for GN build.
         python3 \
+        # Required for GN build.
         python3-requests \
     && apt-get clean autoclean \
     && apt-get autoremove -y --purge \
