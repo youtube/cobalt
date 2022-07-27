@@ -16,6 +16,8 @@ runs:
     - name: Build ${{matrix.platform}}-${{matrix.config}}
       run: |
            set -x
+           # GitHub Runners have home set to /github/home.
+           ln -s /root/starboard-toolchains /github/home/starboard-toolchains
            target=all
            if [[ "${{ matrix.config }}" =~ ^(qa|gold)$ ]]; then
              target=default
