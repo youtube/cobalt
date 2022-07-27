@@ -133,7 +133,7 @@ jobs:
       fail-fast: false
       matrix:
         platform: ${{ fromJson(needs.build-matrix.outputs.platforms) }}
-        shard: [0, 1, 2, 3, integration_test]
+        shard: [0, 1, 2, 3, integration]
         config: [devel]
         include: ${{ fromJson(needs.build-matrix.outputs.includes) }}
     container: ${{ needs.docker-image.outputs.docker_tag }}
@@ -168,7 +168,8 @@ jobs:
           # Host network is namespaced inside RootlessKit,
           # we have to use pod name to reach xvfb container on
           # port 6099.
-          echo "DISPLAY=${RUNNER_NAME}:99" >> $GITHUB_ENV
+          echo "DISPLAY=:99" >> $GITHUB_ENV
+          #echo "DISPLAY=${RUNNER_NAME}:99" >> $GITHUB_ENV
           echo "IPV6_AVAILABLE=0" >> $GITHUB_ENV
       - name: GN
         uses: ./.github/actions/gn
@@ -179,7 +180,7 @@ jobs:
       - name: Run Tests
         shell: bash
         run: |
-          if [[ "${{matrix.shard}}" == 'integration_test' ]]; then
+          if [[ "${{matrix.shard}}" == 'integration' ]]; then
             python3 $GITHUB_WORKSPACE/cobalt/black_box_tests/black_box_tests.py --platform ${{matrix.target_platform}} --config ${{matrix.config}}
           else
             python3 $GITHUB_WORKSPACE/starboard/tools/testing/test_runner.py --platform ${{matrix.target_platform}} --config ${{matrix.config}} -s ${{matrix.shard}} -r
