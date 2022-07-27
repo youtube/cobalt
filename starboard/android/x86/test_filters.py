@@ -22,7 +22,6 @@ _FILTERED_TESTS = {
         'SbAccessibilityTest.CallSetCaptionsEnabled',
         'SbAccessibilityTest.GetCaptionSettingsReturnIsValid',
         'SbAudioSinkTest.*',
-        'SbMediaCanPlayMimeAndKeySystem.*',
         'SbMicrophoneCloseTest.*',
         'SbMicrophoneOpenTest.*',
         'SbMicrophoneReadTest.*',
