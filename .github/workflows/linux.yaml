@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  CI:
     uses: ./.github/workflows/main.yaml
     permissions:
       packages: write
