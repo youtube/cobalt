@@ -122,23 +122,13 @@ jobs:
       - name: On-device Test
         if: ${{ matrix.config == 'devel' && needs.build-matrix.outputs.on_device_test == 'true' }}
         uses: ./.github/actions/on_device_test
-      - name: Make Test Archive
-        if: ${{ matrix.config == 'devel' && needs.build-matrix.outputs.on_host_test == 'true' }}
-        run: python3 $GITHUB_WORKSPACE/tools/create_archive.py -s $GITHUB_WORKSPACE/out/${{matrix.target_platform}}_${{matrix.config}} -d $GITHUB_WORKSPACE/out/${{matrix.target_platform}}_${{matrix.config}}.tar.gz --intermediate
-      - name: Cache Test Archive
-        if: ${{ matrix.config == 'devel' && needs.build-matrix.outputs.on_host_test == 'true' }}
-        uses: actions/cache@v3.0.5
-        id: cache-test-archive
-        with:
-          path: ${{env.GITHUB_WORKSPACE}}/out/${{matrix.target_platform}}_${{matrix.config}}.tar.gz
-          key: ${{env.GITHUB_RUN_NUMBER}}-${{matrix.target_platform}}_${{matrix.config}}
 
   # Runs on-host integration and unit tests.
   on-host-test:
-    needs: [docker-image, build-matrix, build]
-    if: ${{needs.build-matrix.outputs.on_host_test}} == 'true'
+    needs: [docker-image, build-matrix]
+    if: needs.build-matrix.outputs.on_host_test == 'true'
     runs-on: [self-hosted, linux, X64]
-    name: ${{matrix.platform}}_${{matrix.shard}}
+    name: ${{matrix.platform}}_${{matrix.shard}}_test
     strategy:
       fail-fast: false
       matrix:
@@ -156,26 +146,38 @@ jobs:
       #BUILD_ID_SERVER_URL:
       IS_CI: 1
       IS_DOCKER: 1
+      NINJA_STATUS: '[%e sec | %f/%t %u remaining | %c/sec | j%r]'
+      SCCACHE: 1
+      SCCACHE_GCS_BUCKET: cobalt-actions-devel-sccache-linux
+      SCCACHE_GCS_OAUTH_URL: http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token
+      SCCACHE_GCS_RW_MODE: READ_WRITE
+      SCCACHE_IDLE_TIMEOUT: 0 # prevent sccache server from shutting down after long idle.
+      STARBOARD_TOOLCHAINS_DIR: /root/starboard-toolchains
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v0
       - name: Set Env Variables
         run: |
+          echo "PROJECT_NAME=$(gcloud config get-value project)" >> $GITHUB_ENV
+          echo "TODAY=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
+          echo "GITHUB_RUN_NUMBER=${GITHUB_RUN_NUMBER}" >> $GITHUB_ENV
+          echo "WORKFLOW=${{github.workflow}}" >> $GITHUB_ENV
           echo "PYTHONPATH=$GITHUB_WORKSPACE" >> $GITHUB_ENV
           # Host network is namespaced inside RootlessKit,
           # we have to use pod name to reach xvfb container on
           # port 6099.
           echo "DISPLAY=${RUNNER_NAME}:99" >> $GITHUB_ENV
           echo "IPV6_AVAILABLE=0" >> $GITHUB_ENV
-          echo "TEST_ARCHIVE_PATH=$GITHUB_WORKSPACE/out/${{matrix.target_platform}}_${{matrix.config}}.tar.gz" >> $GITHUB_ENV
-      - name: Restore Test Archive
-        uses: actions/cache@v3.0.5
-        with:
-          path: ${{env.GITHUB_WORKSPACE}}/out/${{matrix.target_platform}}_${{matrix.config}}.tar.gz
-          key: ${{env.GITHUB_RUN_NUMBER}}-${{matrix.target_platform}}_${{matrix.config}}
-      - name: Extract Test Archive
-        run: python3 $GITHUB_WORKSPACE/tools/create_archive.py -x -s $TEST_ARCHIVE_PATH -d $GITHUB_WORKSPACE/out
+      - name: GN
+        uses: ./.github/actions/gn
+      - name: Build Cobalt
+        uses: ./.github/actions/build
+      - name: Show Sccache Stats
+        run: sccache -s
       - name: Run Tests
+        shell: bash
         run: |
           if [[ "${{matrix.shard}}" == 'integration_test' ]]; then
             python3 $GITHUB_WORKSPACE/cobalt/black_box_tests/black_box_tests.py --platform ${{matrix.target_platform}} --config ${{matrix.config}}
