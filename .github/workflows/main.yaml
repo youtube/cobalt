@@ -184,7 +184,7 @@ jobs:
         shell: bash
         run: |
           if [[ "${{matrix.shard}}" == 'integration' ]]; then
-            xvfb-run -a --server-args="-screen 0 1920x1080x24i +render +extension GLX -noreset" python3 $GITHUB_WORKSPACE/cobalt/black_box_tests/black_box_tests.py --platform ${{matrix.target_platform}} --config ${{matrix.config}}
+            xvfb-run -a --server-args="-screen 0 1920x1080x24i +render +extension GLX -noreset" python3 $GITHUB_WORKSPACE/cobalt/black_box_tests/black_box_tests.py --platform ${{matrix.target_platform}} --config ${{matrix.config}} --server_binding_address localhost
           else
             xvfb-run -a --server-args="-screen 0 1920x1080x24i +render +extension GLX -noreset" python3 $GITHUB_WORKSPACE/starboard/tools/testing/test_runner.py --platform ${{matrix.target_platform}} --config ${{matrix.config}} -s ${{matrix.shard}} -r
           fi
