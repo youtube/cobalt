@@ -141,7 +141,7 @@ jobs:
       # We want temp folder to be on tmpfs which makes workloads faster.
       # However, dind container ends up having / folder mounted on overlay
       # filesystem, whereas /__w which contains Cobalt source code is on tmpfs.
-      TMPDIR: /__w/_temp
+      #TMPDIR: /__w/_temp
       IS_BUILDBOT_DOCKER: 1
       #BUILD_ID_SERVER_URL:
       IS_CI: 1
@@ -184,7 +184,7 @@ jobs:
         shell: bash
         run: |
           if [[ "${{matrix.shard}}" == 'integration' ]]; then
-            xvfb-run -a --server-args="-screen 0 1920x1080x24i +render +extension GLX -noreset" python3 $GITHUB_WORKSPACE/cobalt/black_box_tests/black_box_tests.py --platform ${{matrix.target_platform}} --config ${{matrix.config}} --server_binding_address localhost
+            xvfb-run -a --server-args="-screen 0 1920x1080x24i +render +extension GLX -noreset" python3 $GITHUB_WORKSPACE/cobalt/black_box_tests/black_box_tests.py --platform ${{matrix.target_platform}} --config ${{matrix.config}}
           else
             xvfb-run -a --server-args="-screen 0 1920x1080x24i +render +extension GLX -noreset" python3 $GITHUB_WORKSPACE/starboard/tools/testing/test_runner.py --platform ${{matrix.target_platform}} --config ${{matrix.config}} -s ${{matrix.shard}} -r
           fi
