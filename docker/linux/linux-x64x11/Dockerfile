@@ -45,6 +45,7 @@ RUN apt update -qqy \
         libx11-6 \
         libxcomposite1 \
         libxrender1 \
+        procps \
         unzip \
         xauth \
         xvfb \
