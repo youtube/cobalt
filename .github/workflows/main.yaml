@@ -80,7 +80,7 @@ jobs:
   build:
     needs: [docker-image, build-matrix]
     runs-on: [self-hosted, linux, X64]
-    name: ${{matrix.config}}
+    name: ${{matrix.platform}}_${{matrix.config}}
     strategy:
       fail-fast: false
       matrix:
@@ -123,7 +123,7 @@ jobs:
     needs: [docker-image, build-matrix]
     if: needs.build-matrix.outputs.on_host_test == 'true'
     runs-on: [self-hosted, linux, X64]
-    name: ${{matrix.shard}}_test
+    name: ${{matrix.platform}}_${{matrix.shard}}_test
     strategy:
       fail-fast: false
       matrix:
