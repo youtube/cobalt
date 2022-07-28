@@ -177,6 +177,9 @@ jobs:
         uses: ./.github/actions/build
       - name: Show Sccache Stats
         run: sccache -s
+      - name: Set Env Variables
+        run: |
+          echo "HOME=/root" >> $GITHUB_ENV
       - name: Run Tests
         shell: bash
         run: |
