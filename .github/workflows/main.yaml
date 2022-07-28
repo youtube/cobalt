@@ -168,7 +168,7 @@ jobs:
           # Host network is namespaced inside RootlessKit,
           # we have to use pod name to reach xvfb container on
           # port 6099.
-          echo "DISPLAY=99" >> $GITHUB_ENV
+          echo "DISPLAY=:99" >> $GITHUB_ENV
           #echo "DISPLAY=${RUNNER_NAME}:99" >> $GITHUB_ENV
           echo "IPV6_AVAILABLE=0" >> $GITHUB_ENV
       - name: GN
@@ -181,9 +181,9 @@ jobs:
         shell: bash
         run: |
           if [[ "${{matrix.shard}}" == 'integration' ]]; then
-            python3 $GITHUB_WORKSPACE/cobalt/black_box_tests/black_box_tests.py --platform ${{matrix.target_platform}} --config ${{matrix.config}}
+            xvfb-run -a --server-args="-screen 0 1920x1080x24i +render +extension GLX -noreset" python3 $GITHUB_WORKSPACE/cobalt/black_box_tests/black_box_tests.py --platform ${{matrix.target_platform}} --config ${{matrix.config}}
           else
-            python3 $GITHUB_WORKSPACE/starboard/tools/testing/test_runner.py --platform ${{matrix.target_platform}} --config ${{matrix.config}} -s ${{matrix.shard}} -r
+            xvfb-run -a --server-args="-screen 0 1920x1080x24i +render +extension GLX -noreset" python3 $GITHUB_WORKSPACE/starboard/tools/testing/test_runner.py --platform ${{matrix.target_platform}} --config ${{matrix.config}} -s ${{matrix.shard}} -r
           fi
 
   #win-win32:
