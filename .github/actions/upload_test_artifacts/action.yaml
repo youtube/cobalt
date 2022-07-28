@@ -3,9 +3,15 @@ description: Uploads test archives to GCS and runs on-device tests.
 runs:
   using: "composite"
   steps:
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v0
     - name: Set env vars
       run: |
         echo "ARCHIVE_FILE_PATH=$GITHUB_WORKSPACE/builder_tmp/${{matrix.target_platform}}_${{matrix.config}}/artifacts.tar" >> $GITHUB_ENV
+        echo "PROJECT_NAME=$(gcloud config get-value project)" >> $GITHUB_ENV
+        echo "GITHUB_RUN_NUMBER=${GITHUB_RUN_NUMBER}" >> $GITHUB_ENV
+        echo "WORKFLOW=${{github.workflow}}" >> $GITHUB_ENV
+        echo "PYTHONPATH=$GITHUB_WORKSPACE" >> $GITHUB_ENV
       shell: bash
     - name: Create Test Files Archive
       run: python3 $GITHUB_WORKSPACE/tools/create_archive.py --test_infra -d ${{env.ARCHIVE_FILE_PATH}} -s $GITHUB_WORKSPACE/out/${{matrix.target_platform}}_${{matrix.config}}

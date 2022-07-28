@@ -9,6 +9,7 @@ runs:
         echo "ANDROID_HOME=/root/starboard-toolchains/AndroidSdk/" >> $GITHUB_ENV
         echo "COBALT_GRADLE_BUILD_COUNT=4" >> $GITHUB_ENV
         echo "GCS_NIGHTLY_PATH=gs://cobalt-actions-devel-build-artifacts" >> $GITHUB_ENV
+        echo "PYTHONPATH=$GITHUB_WORKSPACE" >> $GITHUB_ENV
       shell: bash
     - name: Print env vars
       run: env | sort

@@ -76,7 +76,7 @@ jobs:
       includes: ${{ steps.set-includes.outputs.includes }}
       on_device_test: ${{ steps.set-on-device-test.outputs.on_device_test }}
       on_host_test: ${{ steps.set-on-host-test.outputs.on_host_test }}
-  # Runs Cobalt CI workflow.
+  # Runs builds.
   build:
     needs: [docker-image, build-matrix]
     runs-on: [self-hosted, linux, X64]
@@ -96,15 +96,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v0
-      - name: Set Env Variables
-        run: |
-          echo "PROJECT_NAME=$(gcloud config get-value project)" >> $GITHUB_ENV
-          echo "TODAY=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
-          echo "GITHUB_RUN_NUMBER=${GITHUB_RUN_NUMBER}" >> $GITHUB_ENV
-          echo "WORKFLOW=${{github.workflow}}" >> $GITHUB_ENV
-          echo "PYTHONPATH=$GITHUB_WORKSPACE" >> $GITHUB_ENV
       - name: GN
         uses: ./.github/actions/gn
       - name: Build Cobalt
@@ -113,10 +104,27 @@ jobs:
         run: sccache -s
       - name: Upload Nightly Artifacts
         if: ${{ endsWith(github.workflow, '_nightly') && matrix.config != 'debug' }}
-        uses: ./.github/actions/upload_nightly
-      - name: On-device Test
-        if: ${{ matrix.config == 'devel' && needs.build-matrix.outputs.on_device_test == 'true' }}
-        uses: ./.github/actions/on_device_test
+        uses: ./.github/actions/upload_nightly_artifacts
+      - name: Upload Test Artifacts
+        if: ${{ matrix.config == 'devel' && needs.build-matrix.outputs.on_device_test == 'true' && (endsWith(github.workflow, '_nightly') || github.event.label.name == 'runtest' || github.event_name == 'push') }}
+        uses: ./.github/actions/upload_test_artifacts
+
+  # Runs on-device tests.
+  on-device-test:
+    needs: [docker-image, build-matrix, build]
+    if: needs.build-matrix.outputs.on_device_test == 'true' && (endsWith(github.workflow, '_nightly') || github.event.label.name == 'runtest' || github.event_name == 'push') 
+    runs-on: [self-hosted, linux, X64]
+    name: ${{matrix.platform}}_${{matrix.type}}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: ${{ fromJson(needs.build-matrix.outputs.platforms) }}
+        type: [unit_test, integration_test]
+        include: ${{ fromJson(needs.build-matrix.outputs.includes) }}
+    container: ${{ needs.docker-image.outputs.docker_tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
 
   # Runs on-host integration and unit tests.
   on-host-test:
@@ -152,6 +160,7 @@ jobs:
         uses: ./.github/actions/build
       - name: Show Sccache Stats
         run: sccache -s
+      # TODO - Move 'Run Tests' to a separate action.
       - name: Run Tests
         shell: bash
         run: |

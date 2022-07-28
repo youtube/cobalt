@@ -3,8 +3,8 @@ description: Generates and checks GN.
 runs:
   using: "composite"
   steps:
-    - name: Print env vars
-      run: env | sort
+    - name: Set Env Variables
+      run: echo "PYTHONPATH=$GITHUB_WORKSPACE" >> $GITHUB_ENV
       shell: bash
     - name: gn gen
       run: |

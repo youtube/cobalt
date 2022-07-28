@@ -2,7 +2,7 @@ name: android-arm64
 
 on:
   pull_request:
-    types: [opened, reopened, edited, synchronize]
+    types: [opened, reopened, edited, synchronize, labeled]
     branches: [ main ]
   push:
     branches: [ main ]
@@ -10,6 +10,7 @@ on:
 
 jobs:
   CI:
+    if: github.event_name != 'label' || github.event.label.name == 'runtest'
     uses: ./.github/workflows/main.yaml
     permissions:
       packages: write
