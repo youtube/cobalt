@@ -25,11 +25,8 @@ RUN apt update -qqy \
         libxrender-dev \
         libxcomposite-dev \
         libxi-dev \
+        # Packages needed for on-host testing.
         libatomic1 \
-        libavcodec58 \
-        libavformat58 \
-        libavutil56 \
-        #
         libasound2 \
         libavcodec-dev \
         libavformat-dev \
