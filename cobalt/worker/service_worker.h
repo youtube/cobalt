@@ -20,6 +20,7 @@
 #include <utility>
 
 #include "cobalt/script/environment_settings.h"
+#include "cobalt/script/value_handle.h"
 #include "cobalt/script/wrappable.h"
 #include "cobalt/web/event_target.h"
 #include "cobalt/web/event_target_listener_info.h"
@@ -43,10 +44,7 @@ class ServiceWorker : public AbstractWorker, public web::EventTarget {
 
   // Web API: ServiceWorker
   //
-  void PostMessage(const script::ValueHandleHolder& message) {
-    DCHECK(message_port_);
-    if (worker_->worker_global_scope()) message_port_->PostMessage(message);
-  }
+  void PostMessage(const script::ValueHandleHolder& message);
 
   // The scriptURL getter steps are to return the
   // service worker's serialized script url.
@@ -77,13 +75,9 @@ class ServiceWorker : public AbstractWorker, public web::EventTarget {
   DEFINE_WRAPPABLE_TYPE(ServiceWorker);
 
  private:
-  ~ServiceWorker() override {
-    message_port_.reset();
-    worker_ = nullptr;
-  }
+  ~ServiceWorker() override { worker_ = nullptr; }
 
   scoped_refptr<ServiceWorkerObject> worker_;
-  scoped_refptr<web::MessagePort> message_port_;
   ServiceWorkerState state_;
 };
 
