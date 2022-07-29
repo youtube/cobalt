@@ -44,9 +44,9 @@ namespace worker {
 class ExtendableEvent : public web::Event {
  public:
   explicit ExtendableEvent(const std::string& type) : Event(type) {}
-  explicit ExtendableEvent(base::Token type,
-                           base::OnceCallback<void(bool)> done_callback =
-                               base::OnceCallback<void(bool)>())
+  ExtendableEvent(base::Token type,
+                  base::OnceCallback<void(bool)> done_callback =
+                      base::OnceCallback<void(bool)>())
       : Event(type), done_callback_(std::move(done_callback)) {}
   ExtendableEvent(const std::string& type, const ExtendableEventInit& init_dict)
       : Event(type, init_dict) {}
@@ -54,65 +54,10 @@ class ExtendableEvent : public web::Event {
   void WaitUntil(
       script::EnvironmentSettings* settings,
       std::unique_ptr<script::Promise<script::ValueHandle*>>& promise,
-      script::ExceptionState* exception_state) {
-    // Algorithm for waitUntil(), to add lifetime promise to event.
-    //   https://w3c.github.io/ServiceWorker/#dom-extendableevent-waituntil
-
-    // 1. If event’s isTrusted attribute is false, throw an "InvalidStateError"
-    //    DOMException.
-    // 2. If event is not active, throw an "InvalidStateError" DOMException.
-    if (!IsActive()) {
-      web::DOMException::Raise(web::DOMException::kInvalidStateErr,
-                               exception_state);
-      return;
-    }
-    // 3. Add promise to event’s extend lifetime promises.
-    // 4. Increment event’s pending promises count by one.
-    ++pending_promise_count_;
-    // 5. Upon fulfillment or rejection of promise, queue a microtask to run
-    //    these substeps:
-    std::unique_ptr<base::OnceCallback<void()>> callback(
-        new base::OnceCallback<void()>(std::move(
-            base::BindOnce(&ExtendableEvent::StateChange,
-                           base::Unretained(this), settings, promise.get()))));
-    promise->AddStateChangeCallback(std::move(callback));
-    promise.release();
-  }
+      script::ExceptionState* exception_state);
 
   void StateChange(script::EnvironmentSettings* settings,
-                   const script::Promise<script::ValueHandle*>* promise) {
-    // Implement the microtask called upon fulfillment or rejection of a
-    // promise, as part of the algorithm for waitUntil().
-    //   https://w3c.github.io/ServiceWorker/#dom-extendableevent-waituntil
-    DCHECK(promise);
-    has_rejected_promise_ |=
-        promise->State() == script::PromiseState::kRejected;
-    // 5.1. Decrement event’s pending promises count by one.
-    --pending_promise_count_;
-    // 5.2. If event’s pending promises count is 0, then:
-    if (0 == pending_promise_count_) {
-      if (done_callback_) {
-        std::move(done_callback_).Run(has_rejected_promise_);
-      }
-      web::Context* context =
-          base::polymorphic_downcast<web::EnvironmentSettings*>(settings)
-              ->context();
-      ServiceWorkerJobs* jobs = context->service_worker_jobs();
-      DCHECK(jobs);
-      // 5.2.1. Let registration be the current global object's associated
-      //        service worker's containing service worker registration.
-      jobs->message_loop()->task_runner()->PostTask(
-          FROM_HERE,
-          base::BindOnce(&ServiceWorkerJobs::WaitUntilSubSteps,
-                         base::Unretained(jobs),
-                         base::Unretained(
-                             context->GetWindowOrWorkerGlobalScope()
-                                 ->AsServiceWorker()
-                                 ->service_worker_object()
-                                 ->containing_service_worker_registration())));
-    }
-    delete promise;
-  }
+                   const script::Promise<script::ValueHandle*>* promise);
 
   bool IsActive() {
     // An ExtendableEvent object is said to be active when its timed out flag

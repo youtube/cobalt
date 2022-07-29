@@ -25,7 +25,7 @@
 #include "cobalt/base/token.h"
 #include "cobalt/script/array_buffer.h"
 #include "cobalt/script/union_type.h"
-#include "cobalt/script/v8c/v8c_value_handle.h"
+#include "cobalt/script/value_handle.h"
 #include "cobalt/script/wrappable.h"
 #include "cobalt/web/blob.h"
 #include "cobalt/web/event.h"

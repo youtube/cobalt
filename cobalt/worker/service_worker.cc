@@ -17,8 +17,12 @@
 #include <memory>
 #include <utility>
 
+#include "base/bind.h"
 #include "cobalt/script/environment_settings.h"
+#include "cobalt/script/value_handle.h"
+#include "cobalt/web/event_target.h"
 #include "cobalt/web/message_port.h"
+#include "cobalt/worker/extendable_message_event.h"
 #include "cobalt/worker/service_worker_global_scope.h"
 #include "cobalt/worker/service_worker_object.h"
 #include "cobalt/worker/service_worker_state.h"
@@ -30,8 +34,34 @@ ServiceWorker::ServiceWorker(script::EnvironmentSettings* settings,
                              worker::ServiceWorkerObject* worker)
     : web::EventTarget(settings),
       worker_(worker),
-      message_port_(new web::MessagePort(worker->worker_global_scope())),
       state_(kServiceWorkerStateParsed) {}
+
+
+void ServiceWorker::PostMessage(const script::ValueHandleHolder& message) {
+  // https://w3c.github.io/ServiceWorker/#service-worker-postmessage-options
+  web::EventTarget* event_target = worker_->worker_global_scope();
+  if (!event_target) return;
+
+  base::MessageLoop* message_loop =
+      event_target->environment_settings()->context()->message_loop();
+  if (!message_loop) {
+    return;
+  }
+  std::unique_ptr<script::DataBuffer> data_buffer(
+      script::SerializeScriptValue(message));
+  if (!data_buffer) {
+    return;
+  }
+  LOG(INFO) << "Posting";
+  message_loop->task_runner()->PostTask(
+      FROM_HERE, base::BindOnce(
+                     [](web::EventTarget* event_target,
+                        std::unique_ptr<script::DataBuffer> data_buffer) {
+                       event_target->DispatchEvent(new ExtendableMessageEvent(
+                           base::Tokens::message(), std::move(data_buffer)));
+                     },
+                     base::Unretained(event_target), std::move(data_buffer)));
+}
 
 }  // namespace worker
 }  // namespace cobalt

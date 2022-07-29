@@ -18,7 +18,7 @@
   Exposed = ServiceWorker,
   Constructor(DOMString type, optional ExtendableMessageEventInit eventInitDict)
 ] interface ExtendableMessageEvent : ExtendableEvent {
-  readonly attribute any data;
+  [CallWith = EnvironmentSettings] readonly attribute any data;
   readonly attribute USVString origin;
   readonly attribute DOMString lastEventId;
   [SameObject] readonly attribute (Client or ServiceWorker or MessagePort)? source;
