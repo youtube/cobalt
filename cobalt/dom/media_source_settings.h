@@ -23,13 +23,19 @@
 namespace cobalt {
 namespace dom {
 
-// Holds WebModule wide settings for MediaSource related objects.
+// Holds WebModule wide settings for MediaSource related objects.  Their default
+// values are set in MediaSource related implementations, and the default values
+// will be overridden if the return values of the member functions are
+// non-empty.
+// Please refer to where these functions are called for the particular
+// MediaSource behaviors being controlled by them.
 class MediaSourceSettings {
  public:
-  // The return value will be used in `SourceBuffer::EvictCodedFrames()` to
-  // allow it to evict extra data from the SourceBuffer, so it can reduce the
-  // overall memory used by the underlying Demuxer implementation.
   virtual base::Optional<int> GetSourceBufferEvictExtraInBytes() const = 0;
+  virtual base::Optional<int> GetMinimumProcessorCountToOffloadAlgorithm()
+      const = 0;
+  virtual base::Optional<bool> IsAsynchronousReductionEnabled() const = 0;
+  virtual base::Optional<int> GetMinSizeForImmediateJob() const = 0;
 
  protected:
   MediaSourceSettings() = default;
@@ -48,6 +54,19 @@ class MediaSourceSettingsImpl : public MediaSourceSettings {
     base::AutoLock auto_lock(lock_);
     return source_buffer_evict_extra_in_bytes_;
   }
+  base::Optional<int> GetMinimumProcessorCountToOffloadAlgorithm()
+      const override {
+    base::AutoLock auto_lock(lock_);
+    return minimum_processor_count_to_offload_algorithm_;
+  }
+  base::Optional<bool> IsAsynchronousReductionEnabled() const override {
+    base::AutoLock auto_lock(lock_);
+    return is_asynchronous_reduction_enabled_;
+  }
+  base::Optional<int> GetMinSizeForImmediateJob() const override {
+    base::AutoLock auto_lock(lock_);
+    return min_size_for_immediate_job_;
+  }
 
   // Returns true when the setting associated with `name` is set to `value`.
   // Returns false when `name` is not associated with any settings, or if
@@ -57,6 +76,9 @@ class MediaSourceSettingsImpl : public MediaSourceSettings {
  private:
   mutable base::Lock lock_;
   base::Optional<int> source_buffer_evict_extra_in_bytes_;
+  base::Optional<int> minimum_processor_count_to_offload_algorithm_;
+  base::Optional<bool> is_asynchronous_reduction_enabled_;
+  base::Optional<int> min_size_for_immediate_job_;
 };
 
 }  // namespace dom
