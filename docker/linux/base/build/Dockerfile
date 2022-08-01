@@ -63,10 +63,10 @@ ENV OUTDIR=out \
     CCACHE_DIR=${HOME}/ccache \
     CCACHE_MAXSIZE=30G
 
-# == Set up  ccache
+# === Set up ccache
 RUN cd /tmp && mkdir ${HOME}/ccache
 
-#  === Install portable sccache binary
+# === Install portable sccache binary
 ARG SCCACHE=sccache-v0.3.0-x86_64-unknown-linux-musl.tar.gz
 ARG SCCACHE_SHA256=e6cd8485f93d683a49c83796b9986f090901765aa4feb40d191b03ea770311d8
 RUN cd /tmp \

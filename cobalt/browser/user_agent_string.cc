@@ -46,6 +46,11 @@ std::string CreateUserAgentString(const UserAgentPlatformInfo& platform_info) {
   //   JavaScript Engine Name/Version
   //   Starboard/APIVersion,
   //   Device/FirmwareVersion (Brand, Model, ConnectionType)
+  //
+  // In the case of Evergreen, it contains three additional sections:
+  //   Evergreen/Version
+  //   Evergreen-Type
+  //   Evergreen-FileType
 
   //   Mozilla/5.0 (ChromiumStylePlatform)
   std::string user_agent = base::StringPrintf(
@@ -74,10 +79,17 @@ std::string CreateUserAgentString(const UserAgentPlatformInfo& platform_info) {
     base::StringAppendF(&user_agent, " Evergreen/%s",
                         platform_info.evergreen_version().c_str());
   }
+
   // Evergreen type
   if (!platform_info.evergreen_type().empty()) {
     base::StringAppendF(&user_agent, " Evergreen-%s",
                         platform_info.evergreen_type().c_str());
+  }
+
+  // Evergreen file type
+  if (!platform_info.evergreen_file_type().empty()) {
+    base::StringAppendF(&user_agent, " Evergreen-%s",
+                        platform_info.evergreen_file_type().c_str());
   }
 
   // Starboard/APIVersion,

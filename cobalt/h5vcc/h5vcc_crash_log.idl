@@ -32,7 +32,7 @@ interface H5vccCrashLog {
   // Returns true if Watchdog client was registered.
   //   name, Watchdog client to register.
   //   description, information on the Watchdog client.
-  //   monitor_state, application state up to which the client is monitored.
+  //   monitor_state, application state to continue monitoring client up to.
   //     Inclusive.
   //   time_interval, maximum number of microseconds allowed between pings
   //     before triggering a Watchdog violation.
@@ -56,7 +56,46 @@ interface H5vccCrashLog {
 
   // Returns a json string containing the Watchdog violations since the last
   // call. Clears internal cache of Watchdog violations to prevent duplicates.
+  // Timestamps are stored as strings due to int size constraints.
+  // Example json:
+  // {
+  //   "test-name":{
+  //     "description":"test-description",
+  //     "violations":[
+  //       {
+  //         "monitorState":"kApplicationStateStarted",
+  //         "pingInfos":[
+  //           {
+  //             "info":"test-ping",
+  //             "timestampMicroseconds":"1658972623547006"
+  //           }
+  //         ],
+  //         "registeredClients":[
+  //           "test-name"
+  //         ],
+  //         "timeIntervalMicroseconds":"5000000",
+  //         "timeWaitMicroseconds":"0",
+  //         "timestampLastPingedMicroseconds":"1658972623547006",
+  //         "timestampRegisteredMicroseconds":"1658972621890834",
+  //         "timestampViolationMicroseconds":"1658972629489771",
+  //         "violationDurationMicroseconds":"942764"
+  //       }
+  //     ]
+  //   }
+  // }
   DOMString getWatchdogViolations();
+
+  // Gets a persistent Watchdog setting that determines whether or not Watchdog
+  // is enabled. When disabled, Watchdog behaves like a stub except that
+  // persistent settings can still be get/set. Requires a restart to take
+  // effect.
+  boolean getPersistentSettingWatchdogEnable();
+
+  // Sets a persistent Watchdog setting that determines whether or not Watchdog
+  // is enabled. When disabled, Watchdog behaves like a stub except that
+  // persistent settings can still be get/set. Requires a restart to take
+  // effect.
+  void setPersistentSettingWatchdogEnable(boolean enable_watchdog);
 
   // Gets a persistent Watchdog setting that determines whether or not a
   // Watchdog violation will trigger a crash.

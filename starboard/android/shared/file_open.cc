@@ -26,17 +26,6 @@ using starboard::android::shared::OpenAndroidAsset;
 
 namespace {
 
-// We don't package most font files in Cobalt content and fallback to the system
-// font file of the same name.
-const std::string kFontsXml("fonts.xml");
-const std::string kSystemFontsDir("/system/fonts/");
-
-#if SB_IS(EVERGREEN_COMPATIBLE)
-const std::string kCobaltFontsDir("/cobalt/assets/app/cobalt/content/fonts/");
-#else
-const std::string kCobaltFontsDir("/cobalt/assets/fonts/");
-#endif
-
 // Returns the fallback for the given asset path, or an empty string if none.
 // NOTE: While Cobalt now provides a mechanism for loading system fonts through
 //       SbSystemGetPath(), using the fallback logic within SbFileOpen() is
@@ -54,12 +43,24 @@ const std::string kCobaltFontsDir("/cobalt/assets/fonts/");
 //       straightforward mechanism for including vendor fonts via
 //       SbSystemGetPath().
 std::string FallbackPath(const std::string& path) {
+  // We don't package most font files in Cobalt content and fallback to the
+  // system font file of the same name.
+  const std::string fonts_xml("fonts.xml");
+  const std::string system_fonts_dir("/system/fonts/");
+
+#if SB_IS(EVERGREEN_COMPATIBLE)
+  const std::string cobalt_fonts_dir(
+      "/cobalt/assets/app/cobalt/content/fonts/");
+#else
+  const std::string cobalt_fonts_dir("/cobalt/assets/fonts/");
+#endif
+
   // Fonts fallback to the system fonts.
-  if (path.compare(0, kCobaltFontsDir.length(), kCobaltFontsDir) == 0) {
-    std::string file_name = path.substr(kCobaltFontsDir.length());
+  if (path.compare(0, cobalt_fonts_dir.length(), cobalt_fonts_dir) == 0) {
+    std::string file_name = path.substr(cobalt_fonts_dir.length());
     // fonts.xml doesn't fallback.
-    if (file_name != kFontsXml) {
-      return kSystemFontsDir + file_name;
+    if (file_name != fonts_xml) {
+      return system_fonts_dir + file_name;
     }
   }
   return std::string();

@@ -24,6 +24,11 @@ except ImportError:
 
 if __name__ == '__main__':
   gcheckstyle_args = sys.argv[1:]
+
+  if not checkstyle_path:
+    print('Checkstyle not available, skipping.')
+    sys.exit(0)
+
   try:
     sys.exit(subprocess.call([checkstyle_path] + gcheckstyle_args))
   except FileNotFoundError:

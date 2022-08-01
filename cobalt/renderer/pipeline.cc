@@ -71,7 +71,7 @@ const size_t kRasterizeAnimationsTimerMaxEntries = 60;
 const char kWatchdogName[] = "renderer";
 // The watchdog time interval in microseconds allowed between pings before
 // triggering violations.
-const int64_t kWatchdogTimeInterval = 1000000;
+const int64_t kWatchdogTimeInterval = 2000000;
 // The watchdog time wait in microseconds to initially wait before triggering
 // violations.
 const int64_t kWatchdogTimeWait = 2000000;

@@ -75,7 +75,8 @@ script::HandlePromiseWrappable Clients::Get(const std::string& id) {
   jobs->message_loop()->task_runner()->PostTask(
       FROM_HERE,
       base::BindOnce(&ServiceWorkerJobs::ClientsGetSubSteps,
-                     base::Unretained(jobs), base::Unretained(settings_),
+                     base::Unretained(jobs),
+                     base::Unretained(settings_->context()),
                      base::Unretained(GetAssociatedServiceWorker(settings_)),
                      std::move(promise_reference), id));
 
@@ -103,7 +104,8 @@ script::HandlePromiseSequenceWrappable Clients::MatchAll(
   jobs->message_loop()->task_runner()->PostTask(
       FROM_HERE,
       base::BindOnce(&ServiceWorkerJobs::ClientsMatchAllSubSteps,
-                     base::Unretained(jobs), base::Unretained(settings_),
+                     base::Unretained(jobs),
+                     base::Unretained(settings_->context()),
                      base::Unretained(GetAssociatedServiceWorker(settings_)),
                      std::move(promise_reference),
                      options.include_uncontrolled(), options.type()));
@@ -156,7 +158,7 @@ script::HandlePromiseVoid Clients::Claim() {
   jobs->message_loop()->task_runner()->PostTask(
       FROM_HERE,
       base::BindOnce(&ServiceWorkerJobs::ClaimSubSteps, base::Unretained(jobs),
-                     base::Unretained(settings_),
+                     base::Unretained(settings_->context()),
                      base::Unretained(GetAssociatedServiceWorker(settings_)),
                      std::move(promise_reference)));
   // 4. Return promise.

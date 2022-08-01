@@ -44,6 +44,9 @@ class CobaltUADataValuesInterface : public script::Wrappable {
   const std::string& js_engine_version() const { return js_engine_version_; }
   const std::string& rasterizer() const { return rasterizer_; }
   const std::string& evergreen_type() const { return evergreen_type_; }
+  const std::string& evergreen_file_type() const {
+    return evergreen_file_type_;
+  }
   const std::string& evergreen_version() const { return evergreen_version_; }
   const std::string& starboard_version() const { return starboard_version_; }
   const std::string& original_design_manufacturer() const {
@@ -74,6 +77,7 @@ class CobaltUADataValuesInterface : public script::Wrappable {
   std::string js_engine_version_;
   std::string rasterizer_;
   std::string evergreen_type_;
+  std::string evergreen_file_type_;
   std::string evergreen_version_;
   std::string starboard_version_;
   std::string original_design_manufacturer_;

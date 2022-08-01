@@ -12,6 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+declare_args() {
+  # Whether or not to enable the ffmpeg_demuxer_test target. The target will
+  # only work if ffmpeg 58.35.100 is installed on the build machine.
+  #
+  # TODO(b/239961799): Rework the test to run regardless of the installed
+  # ffmpeg version.
+  enable_ffmpeg_demuxer_test = false
+}
+
 ffmpeg_specialization_sources = [
   "ffmpeg_audio_decoder_impl.cc",
   "ffmpeg_audio_decoder_impl.h",
@@ -97,27 +106,29 @@ static_library("ffmpeg_dispatch_sources") {
   public_configs = [ "//starboard/build/config:starboard_implementation" ]
 }
 
-target(gtest_target_type, "ffmpeg_demuxer_test") {
-  testonly = true
-  configs += [ "//starboard/build/config:starboard_implementation" ]
-  sources = ffmpeg_specialization_sources + [
-              "ffmpeg_demuxer.h",
-              "ffmpeg_demuxer.cc",
-              "ffmpeg_demuxer_test.cc",
-            ]
+if (enable_ffmpeg_demuxer_test) {
+  target(gtest_target_type, "ffmpeg_demuxer_test") {
+    testonly = true
+    configs += [ "//starboard/build/config:starboard_implementation" ]
+    sources = ffmpeg_specialization_sources + [
+                "ffmpeg_demuxer.h",
+                "ffmpeg_demuxer.cc",
+                "ffmpeg_demuxer_test.cc",
+              ]
 
-  # Build only against one specified version of the ffmpeg includes. That means
-  # that this binary will only work well when run on a machine with the given
-  # version of ffmpeg installed. This test binary actually should have
-  # specializations for all supported ffmpeg versions, or it should only test
-  # the behavior of the abstraction layer without testing implementation
-  # details.
-  include_dirs = [ "//third_party/ffmpeg_includes/ffmpeg.58.35.100" ]
-  deps = [
-    "//cobalt/test:run_all_unittests",
-    "//starboard",
-    "//starboard/common",
-    "//testing/gmock",
-    "//testing/gtest",
-  ]
+    # Build only against one specified version of the ffmpeg includes. That means
+    # that this binary will only work well when run on a machine with the given
+    # version of ffmpeg installed. This test binary actually should have
+    # specializations for all supported ffmpeg versions, or it should only test
+    # the behavior of the abstraction layer without testing implementation
+    # details.
+    include_dirs = [ "//third_party/ffmpeg_includes/ffmpeg.58.35.100" ]
+    deps = [
+      "//cobalt/test:run_all_unittests",
+      "//starboard",
+      "//starboard/common",
+      "//testing/gmock",
+      "//testing/gtest",
+    ]
+  }
 }

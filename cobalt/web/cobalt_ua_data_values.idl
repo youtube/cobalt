@@ -20,6 +20,7 @@ dictionary CobaltUADataValues : UADataValues {
   DOMString jsEngineVersion;
   DOMString rasterizer;
   DOMString evergreenType;
+  DOMString evergreenFileType;
   DOMString evergreenVersion;
   DOMString starboardVersion;
   DOMString originalDesignManufacturer;

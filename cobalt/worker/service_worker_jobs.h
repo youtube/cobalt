@@ -200,7 +200,7 @@ class ServiceWorkerJobs {
   // Sub steps (2) of ServiceWorkerGlobalScope.skipWaiting().
   //   https://w3c.github.io/ServiceWorker/#dom-serviceworkerglobalscope-skipwaiting
   void SkipWaitingSubSteps(
-      web::EnvironmentSettings* client,
+      web::Context* client_context,
       const base::WeakPtr<ServiceWorkerObject>& service_worker,
       std::unique_ptr<script::ValuePromiseVoid::Reference> promise_reference);
 
@@ -211,7 +211,7 @@ class ServiceWorkerJobs {
   // Parallel sub steps (2) for algorithm for Clients.get(id):
   //   https://w3c.github.io/ServiceWorker/#clients-get
   void ClientsGetSubSteps(
-      web::EnvironmentSettings* settings,
+      web::Context* client_context,
       ServiceWorkerObject* associated_service_worker,
       std::unique_ptr<script::ValuePromiseWrappable::Reference>
           promise_reference,
@@ -220,15 +220,14 @@ class ServiceWorkerJobs {
   // Algorithm for Resolve Get Client Promise:
   //   https://w3c.github.io/ServiceWorker/#resolve-get-client-promise
   void ResolveGetClientPromise(
-      web::EnvironmentSettings* client,
-      web::EnvironmentSettings* promise_relevant_settings,
+      web::EnvironmentSettings* client, web::Context* promise_context,
       std::unique_ptr<script::ValuePromiseWrappable::Reference>
           promise_reference);
 
   // Parallel sub steps (2) for algorithm for Clients.matchAll():
   //   https://w3c.github.io/ServiceWorker/#clients-matchall
   void ClientsMatchAllSubSteps(
-      web::EnvironmentSettings* settings,
+      web::Context* client_context,
       ServiceWorkerObject* associated_service_worker,
       std::unique_ptr<script::ValuePromiseSequenceWrappable::Reference>
           promise_reference,
@@ -237,13 +236,17 @@ class ServiceWorkerJobs {
   // Parallel sub steps (3) for algorithm for Clients.claim():
   //   https://w3c.github.io/ServiceWorker/#dom-clients-claim
   void ClaimSubSteps(
-      web::EnvironmentSettings* settings,
+      web::Context* client_context,
       ServiceWorkerObject* associated_service_worker,
       std::unique_ptr<script::ValuePromiseVoid::Reference> promise_reference);
 
   // Registration of web contexts that may have service workers.
   void RegisterWebContext(web::Context* context);
   void UnregisterWebContext(web::Context* context);
+  bool IsWebContextRegistered(web::Context* context) {
+    return web_context_registrations_.end() !=
+           web_context_registrations_.find(context);
+  }
 
   // https://w3c.github.io/ServiceWorker/#create-job
   std::unique_ptr<Job> CreateJob(
@@ -343,6 +346,11 @@ class ServiceWorkerJobs {
                                std::unique_ptr<std::string> content);
   void UpdateOnLoadingComplete(scoped_refptr<UpdateJobState> state,
                                const base::Optional<std::string>& error);
+
+  void UpdateOnRunServiceWorker(scoped_refptr<UpdateJobState> state,
+                                scoped_refptr<ServiceWorkerObject> worker,
+                                bool run_result);
+
 
   // https://w3c.github.io/ServiceWorker/#unregister-algorithm
   void Unregister(Job* job);

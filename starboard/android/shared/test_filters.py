@@ -45,11 +45,6 @@ _FILTERED_TESTS = {
         # /etc/hosts.
         'SbSocketAddressTypes/SbSocketResolveTest.Localhost/1',
 
-        # These tests are taking longer due to interop on android. Work is
-        # underway to investigate whether this is acceptable.
-        'SbMediaCanPlayMimeAndKeySystem.ValidatePerformance',
-        'SbMediaConfigurationTest.ValidatePerformance',
-
         # SbDirectory has problems with empty Asset dirs.
         'SbDirectoryCanOpenTest.SunnyDayStaticContent',
         'SbDirectoryGetNextTest.SunnyDayStaticContent',

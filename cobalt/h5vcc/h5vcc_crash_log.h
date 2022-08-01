@@ -44,6 +44,10 @@ class H5vccCrashLog : public script::Wrappable {
 
   std::string GetWatchdogViolations();
 
+  bool GetPersistentSettingWatchdogEnable();
+
+  void SetPersistentSettingWatchdogEnable(bool enable_watchdog);
+
   bool GetPersistentSettingWatchdogCrash();
 
   void SetPersistentSettingWatchdogCrash(bool can_trigger_crash);

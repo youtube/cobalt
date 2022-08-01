@@ -24,34 +24,41 @@ namespace dom {
 
 class SourceBufferMetrics {
  public:
-  SourceBufferMetrics() = default;
+  explicit SourceBufferMetrics(bool is_primary_video) {}
   ~SourceBufferMetrics() = default;
 
   void StartTracking() {}
   void EndTracking(size_t size_appended) {}
-  void PrintMetrics() {}
+  void PrintCurrentMetricsAndUpdateAccumulatedMetrics() {}
+  void PrintAccumulatedMetrics() {}
 };
 
 #else  // defined(COBALT_BUILD_TYPE_GOLD)
 
 class SourceBufferMetrics {
  public:
-  SourceBufferMetrics() = default;
+  explicit SourceBufferMetrics(bool is_primary_video)
+      : is_primary_video_(is_primary_video) {}
   ~SourceBufferMetrics() = default;
 
   void StartTracking();
   void EndTracking(size_t size_appended);
-  void PrintMetrics();
+  void PrintCurrentMetricsAndUpdateAccumulatedMetrics();
+  void PrintAccumulatedMetrics();
 
  private:
+  SourceBufferMetrics(const SourceBufferMetrics&) = delete;
+  SourceBufferMetrics& operator=(const SourceBufferMetrics&) = delete;
+
   SbTimeMonotonic wall_start_time_ = 0;
   SbTimeMonotonic thread_start_time_ = 0;
 
+  const bool is_primary_video_;
   bool is_tracking_ = false;
 
   size_t total_size_ = 0;
-  int total_thread_time_ = 0;
-  int total_wall_time_ = 0;
+  SbTime total_thread_time_ = 0;
+  SbTime total_wall_time_ = 0;
   int max_thread_bandwidth_ = 0;
   int min_thread_bandwidth_ = INT_MAX;
   int max_wall_bandwidth_ = 0;

@@ -114,6 +114,7 @@ class FFMPEGDispatch {
   void (*av_free)(void* ptr);
   AVPacket* (*av_packet_alloc)(void);
   void (*av_packet_free)(AVPacket** pkt);
+  void (*av_free_packet)(AVPacket* pkt);
   AVDictionaryEntry* (*av_dict_get)(const AVDictionary* m,
                                     const char* key,
                                     const AVDictionaryEntry* prev,

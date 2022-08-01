@@ -16,6 +16,16 @@ class FilePath;
 namespace cobalt {
 namespace updater {
 
+// The default manifest version to assume when the actual manifest cannot be
+// parsed for any reason. This should not be used for installation manager
+// errors, or any other error unrelated to parsing the manifest.
+extern const char kDefaultManifestVersion[];
+
+struct EvergreenLibraryMetadata {
+  std::string version;
+  std::string file_type;
+};
+
 // Create a directory where updater files or its data is stored.
 bool CreateProductDirectory(base::FilePath* path);
 
@@ -23,10 +33,13 @@ bool CreateProductDirectory(base::FilePath* path);
 // stored.
 bool GetProductDirectoryPath(base::FilePath* path);
 
+// Returns the Evergreen library metadata of the current installation.
+EvergreenLibraryMetadata GetCurrentEvergreenLibraryMetadata();
+
 // Returns the Evergreen version of the current installation.
 const std::string GetCurrentEvergreenVersion();
 
-// Read the Evergreen version of the installation dir.
+// Reads the Evergreen version of the installation dir.
 base::Version ReadEvergreenVersion(base::FilePath installation_dir);
 
 // Returns the hash of the libcobalt.so binary for the installation
