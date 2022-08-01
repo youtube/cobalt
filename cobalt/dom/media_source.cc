@@ -52,7 +52,9 @@
 #include "base/compiler_specific.h"
 #include "base/guid.h"
 #include "base/logging.h"
+#include "base/single_thread_task_runner.h"
 #include "base/trace_event/trace_event.h"
+#include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/web/dom_exception.h"
@@ -63,19 +65,80 @@
 namespace cobalt {
 namespace dom {
 
+namespace {
+
 using ::media::CHUNK_DEMUXER_ERROR_EOS_STATUS_DECODE_ERROR;
 using ::media::CHUNK_DEMUXER_ERROR_EOS_STATUS_NETWORK_ERROR;
 using ::media::PIPELINE_OK;
 using ::media::PipelineStatus;
 
+auto GetMediaSettings(script::EnvironmentSettings* settings) {
+  DOMSettings* dom_settings =
+      base::polymorphic_downcast<DOMSettings*>(settings);
+  DCHECK(dom_settings);
+  DCHECK(dom_settings->media_source_settings());
+  return dom_settings->media_source_settings();
+}
+
+// If the system has more processors than the specified value, SourceBuffer
+// append and remove algorithm will be offloaded to a non-web thread to reduce
+// the load on the web thread.
+// The default value is 2.  Set to a reasonably high value (say 1024) will
+// disable algorithm offloading completely.
+bool IsAlgorithmOffloadEnabled(script::EnvironmentSettings* settings) {
+  int min_process_count_to_offload =
+      GetMediaSettings(settings)
+          ->GetMinimumProcessorCountToOffloadAlgorithm()
+          .value_or(2);
+  DCHECK_GE(min_process_count_to_offload, 0);
+  return SbSystemGetNumberOfProcessors() >= min_process_count_to_offload;
+}
+
+// If this function returns true, SourceBuffer will reduce asynchronous
+// behaviors.  For example, queued events will be dispatached immediately when
+// possible.
+// The default value is true.
+bool IsAsynchronousReductionEnabled(script::EnvironmentSettings* settings) {
+  return GetMediaSettings(settings)->IsAsynchronousReductionEnabled().value_or(
+      true);
+}
+
+// If the size of a job that is part of an algorithm is less than or equal to
+// the return value of this function, the implementation will run the job
+// immediately instead of scheduling it to run later to reduce latency.
+// NOTE: This only works when IsAsynchronousReductionEnabled() returns true,
+//       and it is currently only enabled for buffer append.
+// The default value is 16 KB.  Set to 0 will disable immediate job completely.
+int GetMinSizeForImmediateJob(script::EnvironmentSettings* settings) {
+  const int kDefaultMinSize = 16 * 1024;
+  auto min_size =
+      GetMediaSettings(settings)->GetMinSizeForImmediateJob().value_or(
+          kDefaultMinSize);
+  DCHECK_GE(min_size, 0);
+  return min_size;
+}
+
+}  // namespace
+
 MediaSource::MediaSource(script::EnvironmentSettings* settings)
     : web::EventTarget(settings),
+      algorithm_offload_enabled_(IsAlgorithmOffloadEnabled(settings)),
+      asynchronous_reduction_enabled_(IsAsynchronousReductionEnabled(settings)),
+      min_size_for_immediate_job_(GetMinSizeForImmediateJob(settings)),
+      default_algorithm_runner_(asynchronous_reduction_enabled_),
       chunk_demuxer_(NULL),
       ready_state_(kMediaSourceReadyStateClosed),
       ALLOW_THIS_IN_INITIALIZER_LIST(event_queue_(this)),
       source_buffers_(new SourceBufferList(settings, &event_queue_)),
       active_source_buffers_(new SourceBufferList(settings, &event_queue_)),
-      live_seekable_range_(new TimeRanges) {}
+      live_seekable_range_(new TimeRanges) {
+  LOG(INFO) << "Algorithm offloading is "
+            << (algorithm_offload_enabled_ ? "enabled" : "disabled");
+  LOG(INFO) << "Asynchronous reduction is "
+            << (asynchronous_reduction_enabled_ ? "enabled" : "disabled");
+  LOG(INFO) << "Min size of immediate job is set to "
+            << min_size_for_immediate_job_;
+}
 
 MediaSource::~MediaSource() { SetReadyState(kMediaSourceReadyStateClosed); }
 
@@ -179,8 +242,9 @@ scoped_refptr<SourceBuffer> MediaSource::AddSourceBuffer(
   ChunkDemuxer::Status status = chunk_demuxer_->AddId(guid, type);
   switch (status) {
     case ChunkDemuxer::kOk:
-      source_buffer =
-          new SourceBuffer(settings, guid, this, chunk_demuxer_, &event_queue_);
+      source_buffer = new SourceBuffer(settings, guid, this,
+                                       asynchronous_reduction_enabled_,
+                                       chunk_demuxer_, &event_queue_);
       break;
     case ChunkDemuxer::kNotSupported:
       web::DOMException::Raise(web::DOMException::kNotSupportedErr,
@@ -310,8 +374,28 @@ bool MediaSource::AttachToElement(HTMLMediaElement* media_element) {
   }
 
   DCHECK(IsClosed());
+  DCHECK(!algorithm_process_thread_);
+
   attached_element_ = base::AsWeakPtr(media_element);
   has_max_video_capabilities_ = media_element->HasMaxVideoCapabilities();
+
+  if (algorithm_offload_enabled_) {
+    algorithm_process_thread_.reset(new base::Thread("MSEAlgorithm"));
+    if (!algorithm_process_thread_->Start()) {
+      LOG(WARNING) << "Starting algorithm process thread failed, disable"
+                      " algorithm offloading";
+      algorithm_process_thread_.reset();
+    }
+  }
+
+  if (algorithm_process_thread_) {
+    LOG(INFO) << "Algorithm offloading enabled.";
+    offload_algorithm_runner_.reset(new OffloadAlgorithmRunner(
+        algorithm_process_thread_->message_loop()->task_runner(),
+        base::MessageLoop::current()->task_runner()));
+  } else {
+    LOG(INFO) << "Algorithm offloading disabled.";
+  }
   return true;
 }
 
@@ -490,6 +574,18 @@ bool MediaSource::MediaElementHasMaxVideoCapabilities() const {
   return has_max_video_capabilities_;
 }
 
+SerializedAlgorithmRunner* MediaSource::GetAlgorithmRunner(int job_size) {
+  if (!offload_algorithm_runner_) {
+    return &default_algorithm_runner_;
+  }
+  if (asynchronous_reduction_enabled_ &&
+      job_size <= min_size_for_immediate_job_) {
+    // Append without posting new tasks is only supported on the default runner.
+    return &default_algorithm_runner_;
+  }
+  return offload_algorithm_runner_.get();
+}
+
 void MediaSource::TraceMembers(script::Tracer* tracer) {
   web::EventTarget::TraceMembers(tracer);
 
@@ -536,6 +632,12 @@ void MediaSource::SetReadyState(MediaSourceReadyState ready_state) {
   attached_element_.reset();
 
   ScheduleEvent(base::Tokens::sourceclose());
+
+  if (algorithm_process_thread_) {
+    algorithm_process_thread_->Stop();
+    algorithm_process_thread_.reset();
+  }
+  offload_algorithm_runner_.reset();
 }
 
 bool MediaSource::IsUpdating() const {

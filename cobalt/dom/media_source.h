@@ -45,16 +45,19 @@
 #ifndef COBALT_DOM_MEDIA_SOURCE_H_
 #define COBALT_DOM_MEDIA_SOURCE_H_
 
+#include <memory>
 #include <string>
 
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
+#include "base/threading/thread.h"
 #include "cobalt/base/token.h"
 #include "cobalt/dom/audio_track.h"
 #include "cobalt/dom/event_queue.h"
 #include "cobalt/dom/html_media_element.h"
 #include "cobalt/dom/media_source_end_of_stream_error.h"
 #include "cobalt/dom/media_source_ready_state.h"
+#include "cobalt/dom/serialized_algorithm_runner.h"
 #include "cobalt/dom/source_buffer.h"
 #include "cobalt/dom/source_buffer_list.h"
 #include "cobalt/dom/time_ranges.h"
@@ -123,6 +126,7 @@ class MediaSource : public web::EventTarget {
   void SetSourceBufferActive(SourceBuffer* source_buffer, bool is_active);
   HTMLMediaElement* GetMediaElement() const;
   bool MediaElementHasMaxVideoCapabilities() const;
+  SerializedAlgorithmRunner* GetAlgorithmRunner(int job_size);
 
   DEFINE_WRAPPABLE_TYPE(MediaSource);
   void TraceMembers(script::Tracer* tracer) override;
@@ -131,6 +135,23 @@ class MediaSource : public web::EventTarget {
   void SetReadyState(MediaSourceReadyState ready_state);
   bool IsUpdating() const;
   void ScheduleEvent(base::Token event_name);
+
+  // Set to true to offload SourceBuffer buffer append and removal algorithms to
+  // a non-web thread.
+  const bool algorithm_offload_enabled_;
+  // Set to true to reduce asynchronous behaviors.  For example, queued events
+  // will be dispatached immediately when possible.
+  const bool asynchronous_reduction_enabled_;
+  // Only used when |asynchronous_reduction_enabled_| is set true, where any
+  // buffer append job smaller than its value will happen immediately instead of
+  // being scheduled asynchronously.
+  const int min_size_for_immediate_job_;
+
+  // The default algorithm runner runs all steps on the web thread.
+  DefaultAlgorithmRunner default_algorithm_runner_;
+  // The offload algorithm runner offloads some steps to a non-web thread.
+  std::unique_ptr<OffloadAlgorithmRunner> offload_algorithm_runner_;
+  std::unique_ptr<base::Thread> algorithm_process_thread_;
 
   ChunkDemuxer* chunk_demuxer_;
   MediaSourceReadyState ready_state_;

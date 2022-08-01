@@ -53,10 +53,13 @@
 #include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
 #include "base/optional.h"
+#include "base/single_thread_task_runner.h"
 #include "base/timer/timer.h"
 #include "cobalt/base/token.h"
 #include "cobalt/dom/audio_track_list.h"
 #include "cobalt/dom/event_queue.h"
+#include "cobalt/dom/serialized_algorithm_runner.h"
+#include "cobalt/dom/source_buffer_algorithm.h"
 #include "cobalt/dom/source_buffer_append_mode.h"
 #include "cobalt/dom/source_buffer_metrics.h"
 #include "cobalt/dom/time_ranges.h"
@@ -67,6 +70,7 @@
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/exception_state.h"
 #include "cobalt/web/event_target.h"
+#include "starboard/common/mutex.h"
 #include "third_party/chromium/media/base/media_tracks.h"
 #include "third_party/chromium/media/filters/chunk_demuxer.h"
 
@@ -85,8 +89,8 @@ class SourceBuffer : public web::EventTarget {
   // Custom, not in any spec.
   //
   SourceBuffer(script::EnvironmentSettings* settings, const std::string& id,
-               MediaSource* media_source, ChunkDemuxer* chunk_demuxer,
-               EventQueue* event_queue);
+               MediaSource* media_source, bool asynchronous_reduction_enabled,
+               ChunkDemuxer* chunk_demuxer, EventQueue* event_queue);
 
   // Web API: SourceBuffer
   //
@@ -95,12 +99,10 @@ class SourceBuffer : public web::EventTarget {
   }
   void set_mode(SourceBufferAppendMode mode,
                 script::ExceptionState* exception_state);
-  bool updating() const { return updating_; }
+  bool updating() const { return active_algorithm_handle_ != nullptr; }
   scoped_refptr<TimeRanges> buffered(
       script::ExceptionState* exception_state) const;
-  double timestamp_offset(script::ExceptionState* exception_state) const {
-    return timestamp_offset_;
-  }
+  double timestamp_offset(script::ExceptionState* exception_state) const;
   void set_timestamp_offset(double offset,
                             script::ExceptionState* exception_state);
   scoped_refptr<AudioTrackList> audio_tracks() const { return audio_tracks_; }
@@ -140,22 +142,16 @@ class SourceBuffer : public web::EventTarget {
  private:
   typedef ::media::MediaTracks MediaTracks;
 
-  void InitSegmentReceived(std::unique_ptr<MediaTracks> tracks);
+  void OnInitSegmentReceived(std::unique_ptr<MediaTracks> tracks);
   void ScheduleEvent(base::Token event_name);
+  void ScheduleAndMaybeDispatchImmediately(base::Token event_name);
   bool PrepareAppend(size_t new_data_size,
                      script::ExceptionState* exception_state);
-  bool EvictCodedFrames(size_t new_data_size);
   void AppendBufferInternal(const unsigned char* data, size_t size,
                             script::ExceptionState* exception_state);
-  void OnAppendTimer();
-  void AppendError();
 
-  void OnRemoveTimer();
-
-  void CancelRemove();
-  void AbortIfUpdating();
-
-  void RemoveMediaTracks();
+  void OnAlgorithmFinalized();
+  void UpdateTimestampOffset(base::TimeDelta timestamp_offset_);
 
   const TrackDefault* GetTrackDefault(
       const std::string& track_type,
@@ -167,30 +163,32 @@ class SourceBuffer : public web::EventTarget {
       const std::string& byte_stream_track_id) const;
 
   const std::string id_;
+  const bool asynchronous_reduction_enabled_;
   const size_t evict_extra_in_bytes_;
-  ChunkDemuxer* chunk_demuxer_;
+
   MediaSource* media_source_;
+  ChunkDemuxer* chunk_demuxer_;
+  scoped_refptr<base::SingleThreadTaskRunner> web_task_runner_ =
+      base::MessageLoop::current()->task_runner();
   scoped_refptr<TrackDefaultList> track_defaults_ = new TrackDefaultList(NULL);
   EventQueue* event_queue_;
 
-  SourceBufferAppendMode mode_ = kSourceBufferAppendModeSegments;
-  bool updating_ = false;
-  double timestamp_offset_ = 0;
+  bool first_initialization_segment_received_ = false;
   scoped_refptr<AudioTrackList> audio_tracks_;
   scoped_refptr<VideoTrackList> video_tracks_;
+
+  SourceBufferAppendMode mode_ = kSourceBufferAppendModeSegments;
+
+  starboard::Mutex timestamp_offset_mutex_;
+  double timestamp_offset_ = 0;
+
+  scoped_refptr<SerializedAlgorithmRunner::Handle<SourceBufferAlgorithm>>
+      active_algorithm_handle_;
   double append_window_start_ = 0;
   double append_window_end_ = std::numeric_limits<double>::infinity();
 
-  base::OneShotTimer append_timer_;
-  bool first_initialization_segment_received_ = false;
   std::unique_ptr<uint8_t[]> pending_append_data_;
   size_t pending_append_data_capacity_ = 0;
-  size_t pending_append_data_size_ = 0;
-  size_t pending_append_data_offset_ = 0;
-
-  base::OneShotTimer remove_timer_;
-  double pending_remove_start_ = -1;
-  double pending_remove_end_ = -1;
 
   SourceBufferMetrics metrics_;
 };
