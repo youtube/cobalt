@@ -59,6 +59,8 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
                        public net::URLFetcherDelegate {
  public:
   explicit XMLHttpRequest(script::EnvironmentSettings* settings);
+  XMLHttpRequest(const XMLHttpRequest&) = delete;
+  XMLHttpRequest& operator=(const XMLHttpRequest&) = delete;
 
   typedef script::UnionType2<std::string, script::Handle<script::ArrayBuffer> >
       ResponseType;
@@ -208,18 +210,20 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
   FRIEND_TEST_ALL_PREFIXES(XhrTest, SetRequestHeader);
 
   std::unique_ptr<XMLHttpRequestImpl> xhr_impl_;
+#if !defined(COBALT_BUILD_TYPE_GOLD)
   // Unique ID for debugging.
   int xhr_id_;
+#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
 
   THREAD_CHECKER(thread_checker_);
-
-  DISALLOW_COPY_AND_ASSIGN(XMLHttpRequest);
 };
 
 
 class XMLHttpRequestImpl {
  public:
   explicit XMLHttpRequestImpl(XMLHttpRequest* xhr);
+  XMLHttpRequestImpl(const XMLHttpRequestImpl&) = delete;
+  XMLHttpRequestImpl& operator=(const XMLHttpRequestImpl&) = delete;
   virtual ~XMLHttpRequestImpl() {}
 
   void Abort();
@@ -428,13 +432,13 @@ class XMLHttpRequestImpl {
       prevent_gc_until_send_complete_;
 
   std::string request_body_text_;
-
-  DISALLOW_COPY_AND_ASSIGN(XMLHttpRequestImpl);
 };
 
 class DOMXMLHttpRequestImpl : public XMLHttpRequestImpl {
  public:
   explicit DOMXMLHttpRequestImpl(XMLHttpRequest* xhr);
+  DOMXMLHttpRequestImpl(const DOMXMLHttpRequestImpl&) = delete;
+  DOMXMLHttpRequestImpl& operator=(const DOMXMLHttpRequestImpl&) = delete;
   ~DOMXMLHttpRequestImpl() override {}
 
   scoped_refptr<dom::Document> response_xml(
@@ -455,8 +459,6 @@ class DOMXMLHttpRequestImpl : public XMLHttpRequestImpl {
 
   dom::DOMSettings* const settings_;
   bool has_xml_decoder_error_;
-
-  DISALLOW_COPY_AND_ASSIGN(DOMXMLHttpRequestImpl);
 };
 
 std::ostream& operator<<(std::ostream& out, const XMLHttpRequest& xhr);
