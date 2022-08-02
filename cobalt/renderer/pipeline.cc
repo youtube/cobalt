@@ -337,9 +337,9 @@ void Pipeline::SetNewRenderTree(const Submission& render_tree_submission) {
   // Registers Pipeline as a watchdog client.
   watchdog::Watchdog* watchdog = watchdog::Watchdog::GetInstance();
   if (watchdog)
-    watchdog->Register(kWatchdogName, base::kApplicationStateStarted,
-                       kWatchdogTimeInterval, kWatchdogTimeWait,
-                       watchdog::PING);
+    watchdog->Register(kWatchdogName, kWatchdogName,
+                       base::kApplicationStateStarted, kWatchdogTimeInterval,
+                       kWatchdogTimeWait, watchdog::PING);
 
   // If a time fence is active, save the submission to be queued only after
   // we pass the time fence.  Overwrite any existing waiting submission in this
@@ -405,7 +405,7 @@ void Pipeline::RasterizeCurrentTree() {
   watchdog::Watchdog* watchdog = watchdog::Watchdog::GetInstance();
   if (watchdog) {
 #if defined(_DEBUG)
-    // Injects delay based off of environment variables for watchdog debugging.
+    // Injects delay for watchdog debugging.
     watchdog->MaybeInjectDebugDelay(kWatchdogName);
 #endif  // defined(_DEBUG)
     watchdog->Ping(kWatchdogName);
