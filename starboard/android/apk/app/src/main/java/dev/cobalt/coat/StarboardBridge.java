@@ -42,7 +42,6 @@ import android.view.accessibility.CaptioningManager;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 import dev.cobalt.account.UserAuthorizer;
-import dev.cobalt.libraries.services.clientloginfo.ClientLogInfo;
 import dev.cobalt.media.AudioOutputManager;
 import dev.cobalt.media.CaptionSettings;
 import dev.cobalt.media.CobaltMediaSession;
@@ -146,12 +145,6 @@ public class StarboardBridge {
     activityHolder.set(activity);
     this.keyboardEditor = keyboardEditor;
     sysConfigChangeReceiver.setForeground(true);
-
-    // TODO: v0_1231sd2 is the default value used for testing,
-    // delete it once we verify it can be queried in QOE system.
-    if (!isReleaseBuild()) {
-      ClientLogInfo.setClientInfo("v0_1231sd2");
-    }
   }
 
   protected void onActivityStop(Activity activity) {
