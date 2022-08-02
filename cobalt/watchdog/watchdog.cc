@@ -36,12 +36,16 @@ namespace {
 
 // The Watchdog violations json filename.
 const char kWatchdogViolationsJson[] = "watchdog.json";
-// The default number of microseconds between each monitor loop.
-const int64_t kWatchdogSmallestTimeInterval = 1000000;
+// The frequency in microseconds of monitor loops.
+const int64_t kWatchdogMonitorFrequency = 1000000;
 // The maximum number of most recent repeated Watchdog violations.
 const int64_t kWatchdogMaxViolations = 100;
+// The minimum number of microseconds between writes.
+const int64_t kWatchdogWriteWaitTime = 300000000;
 // The maximum number of most recent ping infos.
-const int64_t kWatchdogMaxPingInfos = 100;
+const int64_t kWatchdogMaxPingInfos = 20;
+// The maximum length of each ping info.
+const int64_t kWatchdogMaxPingInfoLength = 1024;
 
 // Persistent setting name and default setting for the boolean that controls
 // whether or not Watchdog is enabled. When disabled, Watchdog behaves like a
@@ -66,7 +70,8 @@ bool Watchdog::Initialize(
   if (is_disabled_) return true;
 
   SB_CHECK(SbMutexCreate(&mutex_));
-  smallest_time_interval_ = kWatchdogSmallestTimeInterval;
+  pending_write_ = false;
+  write_wait_time_microseconds_ = kWatchdogWriteWaitTime;
 
 #if defined(_DEBUG)
   // Sets Watchdog delay settings from command line switch.
@@ -111,6 +116,7 @@ void Watchdog::Uninitialize() {
   if (is_disabled_) return;
 
   SB_CHECK(SbMutexAcquire(&mutex_) == kSbMutexAcquired);
+  if (pending_write_) WriteWatchdogViolations();
   is_monitoring_ = false;
   SB_CHECK(SbMutexRelease(&mutex_));
   SbThreadJoin(watchdog_thread_, nullptr);
@@ -128,6 +134,19 @@ std::string Watchdog::GetWatchdogFilePath() {
     SB_LOG(INFO) << "[Watchdog] Violations filepath: " << watchdog_file_;
   }
   return watchdog_file_;
+}
+
+void Watchdog::WriteWatchdogViolations() {
+  // Writes Watchdog violations to persistent storage as a json file.
+  std::string watchdog_json;
+  base::JSONWriter::Write(*violations_map_, &watchdog_json);
+  SB_LOG(INFO) << "[Watchdog] Writing violations to JSON:\n" << watchdog_json;
+  starboard::ScopedFile watchdog_file(GetWatchdogFilePath().c_str(),
+                                      kSbFileCreateAlways | kSbFileWrite);
+  watchdog_file.WriteAll(watchdog_json.c_str(),
+                         static_cast<int>(watchdog_json.size()));
+  pending_write_ = false;
+  time_last_written_microseconds_ = SbTimeGetMonotonicNow();
 }
 
 void Watchdog::UpdateState(base::ApplicationState state) {
@@ -264,19 +283,19 @@ void* Watchdog::Monitor(void* context) {
               "violationDurationMicroseconds",
               base::Value(std::to_string(violation_duration + time_delta)));
         }
+        static_cast<Watchdog*>(context)->pending_write_ = true;
 
         // Resets time last updated.
         client->time_last_updated_monotonic_microseconds =
             current_monotonic_time;
       }
     }
-    if (watchdog_violation) {
-      WriteWatchdogViolations(context);
-      MaybeTriggerCrash(context);
-    }
+    if (static_cast<Watchdog*>(context)->pending_write_)
+      MaybeWriteWatchdogViolations(context);
+    if (watchdog_violation) MaybeTriggerCrash(context);
 
     SB_CHECK(SbMutexRelease(&(static_cast<Watchdog*>(context))->mutex_));
-    SbThreadSleep(static_cast<Watchdog*>(context)->smallest_time_interval_);
+    SbThreadSleep(kWatchdogMonitorFrequency);
   }
   return nullptr;
 }
@@ -302,32 +321,21 @@ void Watchdog::InitializeViolationsMap(void* context) {
   }
 }
 
-void Watchdog::WriteWatchdogViolations(void* context) {
-  // Writes Watchdog violations to persistent storage as a json file.
-  std::string watchdog_json;
-  base::JSONWriter::Write(*(static_cast<Watchdog*>(context)->violations_map_),
-                          &watchdog_json);
-
-  SB_LOG(INFO) << "[Watchdog] Writing violations to JSON:\n" << watchdog_json;
-
-  starboard::ScopedFile watchdog_file(
-      (static_cast<Watchdog*>(context)->GetWatchdogFilePath()).c_str(),
-      kSbFileCreateAlways | kSbFileWrite);
-  watchdog_file.WriteAll(watchdog_json.c_str(),
-                         static_cast<int>(watchdog_json.size()));
+void Watchdog::MaybeWriteWatchdogViolations(void* context) {
+  if (SbTimeGetMonotonicNow() >
+      static_cast<Watchdog*>(context)->time_last_written_microseconds_ +
+          static_cast<Watchdog*>(context)->write_wait_time_microseconds_) {
+    static_cast<Watchdog*>(context)->WriteWatchdogViolations();
+  }
 }
 
 void Watchdog::MaybeTriggerCrash(void* context) {
   if (static_cast<Watchdog*>(context)->GetPersistentSettingWatchdogCrash()) {
+    if (static_cast<Watchdog*>(context)->pending_write_)
+      static_cast<Watchdog*>(context)->WriteWatchdogViolations();
     SB_LOG(ERROR) << "[Watchdog] Triggering violation Crash!";
     CHECK(false);
   }
-}
-
-bool Watchdog::Register(std::string name, base::ApplicationState monitor_state,
-                        int64_t time_interval, int64_t time_wait,
-                        Replace replace) {
-  return Register(name, name, monitor_state, time_interval, time_wait, replace);
 }
 
 bool Watchdog::Register(std::string name, std::string description,
@@ -335,6 +343,18 @@ bool Watchdog::Register(std::string name, std::string description,
                         int64_t time_interval, int64_t time_wait,
                         Replace replace) {
   if (is_disabled_) return true;
+
+  // Validates parameters.
+  if (time_interval < 1000000 || time_wait < 0) {
+    SB_DLOG(ERROR) << "[Watchdog] Unable to Register: " << name;
+    if (time_interval < 1000000) {
+      SB_DLOG(ERROR) << "[Watchdog] Time interval less than min: "
+                     << kWatchdogMonitorFrequency;
+    } else {
+      SB_DLOG(ERROR) << "[Watchdog] Time wait is negative.";
+    }
+    return false;
+  }
 
   SB_CHECK(SbMutexAcquire(&mutex_) == kSbMutexAcquired);
 
@@ -373,8 +393,6 @@ bool Watchdog::Register(std::string name, std::string description,
 
   // Registers.
   auto result = client_map_.emplace(name, std::move(client));
-  // Sets new smallest_time_interval_.
-  smallest_time_interval_ = std::min(smallest_time_interval_, time_interval);
 
   SB_CHECK(SbMutexRelease(&mutex_));
 
@@ -389,17 +407,9 @@ bool Watchdog::Register(std::string name, std::string description,
 bool Watchdog::Unregister(const std::string& name, bool lock) {
   if (is_disabled_) return true;
 
-  if (lock) SB_CHECK(SbMutexAcquire(&mutex_) == kSbMutexAcquired);
   // Unregisters.
+  if (lock) SB_CHECK(SbMutexAcquire(&mutex_) == kSbMutexAcquired);
   auto result = client_map_.erase(name);
-  // Sets new smallest_time_interval_.
-  if (result) {
-    smallest_time_interval_ = kWatchdogSmallestTimeInterval;
-    for (auto& it : client_map_) {
-      smallest_time_interval_ = std::min(smallest_time_interval_,
-                                         it.second->time_interval_microseconds);
-    }
-  }
   if (lock) SB_CHECK(SbMutexRelease(&mutex_));
 
   if (result) {
@@ -415,7 +425,16 @@ bool Watchdog::Ping(const std::string& name) { return Ping(name, ""); }
 bool Watchdog::Ping(const std::string& name, const std::string& info) {
   if (is_disabled_) return true;
 
+  // Validates parameters.
+  if (info.length() > kWatchdogMaxPingInfoLength) {
+    SB_DLOG(ERROR) << "[Watchdog] Unable to Ping: " << name;
+    SB_DLOG(ERROR) << "[Watchdog] Ping info length exceeds max: "
+                   << kWatchdogMaxPingInfoLength;
+    return false;
+  }
+
   SB_CHECK(SbMutexAcquire(&mutex_) == kSbMutexAcquired);
+
   auto it = client_map_.find(name);
   bool client_exists = it != client_map_.end();
 
@@ -454,7 +473,11 @@ std::string Watchdog::GetWatchdogViolations() {
   if (is_disabled_) return "";
 
   std::string watchdog_json = "";
+
   SB_CHECK(SbMutexAcquire(&mutex_) == kSbMutexAcquired);
+
+  if (pending_write_) WriteWatchdogViolations();
+
   starboard::ScopedFile read_file(GetWatchdogFilePath().c_str(),
                                   kSbFileOpenOnly | kSbFileRead);
   if (read_file.IsValid()) {
@@ -517,7 +540,7 @@ void Watchdog::SetPersistentSettingWatchdogCrash(bool can_trigger_crash) {
 }
 
 #if defined(_DEBUG)
-// Sleeps threads based off of environment variables for Watchdog debugging.
+// Sleeps threads for Watchdog debugging.
 void Watchdog::MaybeInjectDebugDelay(const std::string& name) {
   if (is_disabled_) return;
 
@@ -525,12 +548,7 @@ void Watchdog::MaybeInjectDebugDelay(const std::string& name) {
 
   if (name != delay_name_) return;
 
-  SbTimeMonotonic current_time = SbTimeGetMonotonicNow();
-
-  if (time_last_delayed_microseconds_ == 0)
-    time_last_delayed_microseconds_ = current_time;
-
-  if (current_time >
+  if (SbTimeGetMonotonicNow() >
       time_last_delayed_microseconds_ + delay_wait_time_microseconds_) {
     SbThreadSleep(delay_sleep_time_microseconds_);
     time_last_delayed_microseconds_ = SbTimeGetMonotonicNow();
