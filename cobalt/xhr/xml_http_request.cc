@@ -161,7 +161,9 @@ void FireProgressEvent(XMLHttpRequestEventTarget* target,
       new dom::ProgressEvent(event_name, loaded, total, length_computable));
 }
 
+#if !defined(COBALT_BUILD_TYPE_GOLD)
 int s_xhr_sequence_num_ = 0;
+#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
 // https://fetch.spec.whatwg.org/#concept-http-redirect-fetch
 // 5. If request's redirect count is twenty, return a network error.
 const int kRedirectLimit = 20;
@@ -190,7 +192,9 @@ XMLHttpRequest::XMLHttpRequest(script::EnvironmentSettings* settings)
     xhr_impl_ = std::make_unique<XMLHttpRequestImpl>(this);
   }
   xhr::GlobalStats::GetInstance()->Add(this);
+#if !defined(COBALT_BUILD_TYPE_GOLD)
   xhr_id_ = ++s_xhr_sequence_num_;
+#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
 }
 
 XMLHttpRequest::~XMLHttpRequest() {
