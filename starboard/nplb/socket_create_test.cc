@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "starboard/common/socket.h"
+#include "starboard/nplb/socket_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -83,11 +84,13 @@ TEST_P(SbSocketCreateTest, ManyTcpAtOnce) {
 INSTANTIATE_TEST_CASE_P(SbSocketAddressTypes,
                         SbSocketCreateTest,
                         ::testing::Values(kSbSocketAddressTypeIpv4,
-                                          kSbSocketAddressTypeIpv6));
+                                          kSbSocketAddressTypeIpv6),
+                        GetSbSocketAddressTypeName);
 #else
 INSTANTIATE_TEST_CASE_P(SbSocketAddressTypes,
                         SbSocketCreateTest,
-                        ::testing::Values(kSbSocketAddressTypeIpv4));
+                        ::testing::Values(kSbSocketAddressTypeIpv4),
+                        GetSbSocketAddressTypeName);
 #endif
 
 INSTANTIATE_TEST_CASE_P(
@@ -97,7 +100,8 @@ INSTANTIATE_TEST_CASE_P(
         std::make_pair(kSbSocketAddressTypeIpv4, kSbSocketProtocolTcp),
         std::make_pair(kSbSocketAddressTypeIpv4, kSbSocketProtocolUdp),
         std::make_pair(kSbSocketAddressTypeIpv6, kSbSocketProtocolTcp),
-        std::make_pair(kSbSocketAddressTypeIpv6, kSbSocketProtocolUdp)));
+        std::make_pair(kSbSocketAddressTypeIpv6, kSbSocketProtocolUdp)),
+    GetSbSocketAddressTypeProtocolPairName);
 
 }  // namespace
 }  // namespace nplb

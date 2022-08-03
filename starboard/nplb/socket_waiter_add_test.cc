@@ -210,11 +210,13 @@ TEST_P(SbSocketWaiterAddTest, RainyDayNoInterest) {
 INSTANTIATE_TEST_CASE_P(SbSocketAddressTypes,
                         SbSocketWaiterAddTest,
                         ::testing::Values(kSbSocketAddressTypeIpv4,
-                                          kSbSocketAddressTypeIpv6));
+                                          kSbSocketAddressTypeIpv6),
+                        GetSbSocketAddressTypeName);
 #else
 INSTANTIATE_TEST_CASE_P(SbSocketAddressTypes,
                         SbSocketWaiterAddTest,
-                        ::testing::Values(kSbSocketAddressTypeIpv4));
+                        ::testing::Values(kSbSocketAddressTypeIpv4),
+                        GetSbSocketAddressTypeName);
 #endif
 
 }  // namespace

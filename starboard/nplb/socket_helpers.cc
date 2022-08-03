@@ -14,8 +14,11 @@
 
 #include "starboard/nplb/socket_helpers.h"
 
+#include <utility>
+
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/common/socket.h"
+#include "starboard/common/string.h"
 #include "starboard/once.h"
 #include "starboard/socket_waiter.h"
 #include "starboard/thread.h"
@@ -549,6 +552,88 @@ SbTimeMonotonic TimedWaitTimed(SbSocketWaiter waiter, SbTime timeout) {
   SbSocketWaiterWaitTimed(waiter, timeout);
   return SbTimeGetMonotonicNow() - start;
 }
+
+#if !defined(COBALT_BUILD_TYPE_GOLD)
+namespace {
+const char* SbSocketAddressTypeName(SbSocketAddressType type) {
+  const char* name = "unknown";
+  switch (type) {
+    case kSbSocketAddressTypeIpv4:
+      name = "ipv4";
+      break;
+    case kSbSocketAddressTypeIpv6:
+      name = "ipv6";
+      break;
+  }
+  return name;
+}
+
+const char* SbSocketAddressFilterName(SbSocketResolveFilter filter) {
+  const char* name = "unknown";
+  switch (filter) {
+    case kSbSocketResolveFilterNone:
+      name = "none";
+      break;
+    case kSbSocketResolveFilterIpv4:
+      name = "ipv4";
+      break;
+    case kSbSocketResolveFilterIpv6:
+      name = "ipv6";
+      break;
+  }
+  return name;
+}
+
+const char* SbSocketProtocolName(SbSocketProtocol protocol) {
+  const char* name = "unknown";
+  switch (protocol) {
+    case kSbSocketProtocolTcp:
+      name = "tcp";
+      break;
+    case kSbSocketProtocolUdp:
+      name = "udp";
+      break;
+  }
+  return name;
+}
+}  // namespace
+
+std::string GetSbSocketAddressTypeName(
+    ::testing::TestParamInfo<SbSocketAddressType> info) {
+  return FormatString("type_%s", SbSocketAddressTypeName(info.param));
+}
+std::string GetSbSocketAddressTypePairName(
+    ::testing::TestParamInfo<
+        std::pair<SbSocketAddressType, SbSocketAddressType>> info) {
+  return FormatString("type_%s_type_%s",
+                      SbSocketAddressTypeName(info.param.first),
+                      SbSocketAddressTypeName(info.param.second));
+}
+
+std::string GetSbSocketAddressTypeFilterPairName(
+    ::testing::TestParamInfo<
+        std::pair<SbSocketAddressType, SbSocketResolveFilter>> info) {
+  return FormatString("type_%s_filter_%s",
+                      SbSocketAddressTypeName(info.param.first),
+                      SbSocketAddressFilterName(info.param.second));
+}
+
+std::string GetSbSocketFilterAddressTypePairName(
+    ::testing::TestParamInfo<
+        std::pair<SbSocketResolveFilter, SbSocketAddressType>> info) {
+  return FormatString("filter_%s_type_%s",
+                      SbSocketAddressFilterName(info.param.first),
+                      SbSocketAddressTypeName(info.param.second));
+}
+
+std::string GetSbSocketAddressTypeProtocolPairName(
+    ::testing::TestParamInfo<std::pair<SbSocketAddressType, SbSocketProtocol>>
+        info) {
+  return FormatString("type_%s_%s", SbSocketAddressTypeName(info.param.first),
+                      SbSocketProtocolName(info.param.second));
+}
+
+#endif  // #if !defined(COBALT_BUILD_TYPE_GOLD)
 
 }  // namespace nplb
 }  // namespace starboard

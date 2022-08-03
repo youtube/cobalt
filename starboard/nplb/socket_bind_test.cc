@@ -129,19 +129,22 @@ INSTANTIATE_TEST_CASE_P(
     SbSocketBindTest,
     ::testing::Values(
         std::make_pair(kSbSocketAddressTypeIpv4, kSbSocketResolveFilterIpv4),
-        std::make_pair(kSbSocketAddressTypeIpv6, kSbSocketResolveFilterIpv6)));
+        std::make_pair(kSbSocketAddressTypeIpv6, kSbSocketResolveFilterIpv6)),
+    GetSbSocketAddressTypeFilterPairName);
 INSTANTIATE_TEST_CASE_P(
     SbSocketAddressTypes,
     PairSbSocketBindTest,
     ::testing::Values(
         std::make_pair(kSbSocketAddressTypeIpv4, kSbSocketAddressTypeIpv6),
-        std::make_pair(kSbSocketAddressTypeIpv6, kSbSocketAddressTypeIpv4)));
+        std::make_pair(kSbSocketAddressTypeIpv6, kSbSocketAddressTypeIpv4)),
+    GetSbSocketAddressTypePairName);
 #else
 INSTANTIATE_TEST_CASE_P(
     SbSocketAddressTypes,
     SbSocketBindTest,
     ::testing::Values(std::make_pair(kSbSocketAddressTypeIpv4,
-                                     kSbSocketResolveFilterIpv4)));
+                                     kSbSocketResolveFilterIpv4)),
+    GetSbSocketAddressTypeFilterPairName);
 #endif
 
 }  // namespace

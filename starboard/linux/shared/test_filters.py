@@ -30,27 +30,24 @@ _FILTERED_TESTS['nplb'] = []
 # Conditionally disables tests that require ipv6
 if os.getenv('IPV6_AVAILABLE', '1') == '0':
   _FILTERED_TESTS['nplb'].extend([
-      'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest.SunnyDayDestination/1',
-      'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest.SunnyDaySourceForDestination/1',
-      'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest.SunnyDaySourceNotLoopback/1',
+      'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest.SunnyDayDestination/type_ipv6',
+      'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest.SunnyDaySourceForDestination/type_ipv6',
+      'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest.SunnyDaySourceNotLoopback/type_ipv6',
+      'SbSocketAddressTypes/SbSocketBindTest.RainyDayBadInterface/type_ipv6_filter_ipv6',
+      'SbSocketAddressTypes/PairSbSocketGetLocalAddressTest.SunnyDayConnected/type_ipv6_type_ipv6',
+      'SbSocketAddressTypes/PairSbSocketIsConnectedAndIdleTest.SunnyDay/type_ipv6_type_ipv6',
+      'SbSocketAddressTypes/PairSbSocketIsConnectedTest.SunnyDay/type_ipv6_type_ipv6',
+      'SbSocketAddressTypes/PairSbSocketReceiveFromTest.SunnyDay/type_ipv6_type_ipv6',
+      'SbSocketAddressTypes/SbSocketResolveTest.Localhost/filter_ipv6_type_ipv6',
+      'SbSocketAddressTypes/SbSocketResolveTest.SunnyDayFiltered/filter_ipv6_type_ipv6',
+      'SbSocketAddressTypes/PairSbSocketSendToTest.RainyDaySendToClosedSocket/type_ipv6_type_ipv6',
+      'SbSocketAddressTypes/PairSbSocketSendToTest.RainyDaySendToSocketUntilBlocking/type_ipv6_type_ipv6',
+      'SbSocketAddressTypes/PairSbSocketSendToTest.RainyDaySendToSocketConnectionReset/type_ipv6_type_ipv6',
+      'SbSocketAddressTypes/PairSbSocketWaiterWaitTest.SunnyDay/type_ipv6_type_ipv6',
+      'SbSocketAddressTypes/PairSbSocketWaiterWaitTest.SunnyDayAlreadyReady/type_ipv6_type_ipv6',
+      'SbSocketAddressTypes/PairSbSocketWaiterWaitTimedTest.SunnyDay/type_ipv6_type_ipv6',
+      'SbSocketAddressTypes/PairSbSocketWrapperTest.SunnyDay/type_ipv6_type_ipv6',
   ])
-# TODO: Re-enable once tests or infra fixed.
-_FILTERED_TESTS['nplb'].extend([
-    'SbSocketAddressTypes/SbSocketBindTest.RainyDayBadInterface/1',
-    'SbSocketAddressTypes/PairSbSocketGetLocalAddressTest.SunnyDayConnected/1',
-    'SbSocketAddressTypes/PairSbSocketIsConnectedAndIdleTest.SunnyDay/1',
-    'SbSocketAddressTypes/PairSbSocketIsConnectedTest.SunnyDay/1',
-    'SbSocketAddressTypes/PairSbSocketReceiveFromTest.SunnyDay/1',
-    'SbSocketAddressTypes/SbSocketResolveTest.Localhost/1',
-    'SbSocketAddressTypes/SbSocketResolveTest.SunnyDayFiltered/1',
-    'SbSocketAddressTypes/PairSbSocketSendToTest.RainyDaySendToClosedSocket/1',
-    'SbSocketAddressTypes/PairSbSocketSendToTest.RainyDaySendToSocketUntilBlocking/1',
-    'SbSocketAddressTypes/PairSbSocketSendToTest.RainyDaySendToSocketConnectionReset/1',
-    'SbSocketAddressTypes/PairSbSocketWaiterWaitTest.SunnyDay/1',
-    'SbSocketAddressTypes/PairSbSocketWaiterWaitTest.SunnyDayAlreadyReady/1',
-    'SbSocketAddressTypes/PairSbSocketWaiterWaitTimedTest.SunnyDay/1',
-    'SbSocketAddressTypes/PairSbSocketWrapperTest.SunnyDay/1',
-])
 
 # pylint: enable=line-too-long
 
