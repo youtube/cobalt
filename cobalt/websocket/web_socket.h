@@ -201,7 +201,7 @@ class WebSocket : public web::EventTarget {
   // https://www.w3.org/TR/websockets/#dom-websocket-readystate
   uint16 ready_state_;
   // https://www.w3.org/TR/websockets/#dom-websocket-binarytype
-  web::MessageEvent::ResponseTypeCode binary_type_;
+  web::MessageEvent::ResponseType binary_type_;
   // https://www.w3.org/TR/websockets/#dom-websocket-extensions
   std::string extensions_;
   // https://www.w3.org/TR/websockets/#dom-websocket-protocol

@@ -16,7 +16,7 @@
 // https://html.spec.whatwg.org/dev/web-messaging.html#message-ports
 interface MessagePort /* : EventTarget */ {
   // [RaisesException]
-  void postMessage(USVString message);
+  void postMessage(any message);
   // void postMessage(USVString message, sequence<USVString> transfer);
   // TODO: Support sequence<object>: b/218501774
   // void postMessage(any message, sequence<object> transfer);

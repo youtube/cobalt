@@ -98,7 +98,7 @@ void DedicatedWorker::Terminate() {
 // void postMessage(any message, object transfer);
 // -> void PostMessage(const script::ValueHandleHolder& message,
 //                     script::Sequence<script::ValueHandle*> transfer) {}
-void DedicatedWorker::PostMessage(const std::string& message) {
+void DedicatedWorker::PostMessage(const script::ValueHandleHolder& message) {
   DCHECK(worker_);
   worker_->PostMessage(message);
 }

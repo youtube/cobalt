@@ -17,7 +17,7 @@
 [Exposed = (Window, ServiceWorker)] interface ServiceWorker : EventTarget {
 
   // Todo: Implement postMessage b/219986442
-  void postMessage(USVString message);
+  void postMessage(any message);
   // void postMessage(any message, sequence<object> transfer);
   // void postMessage(any message, optional PostMessageOptions options = {});
 

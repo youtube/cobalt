@@ -15,5 +15,5 @@
 // https://www.w3.org/TR/html50/webappapis.html#erroreventinit
 
 dictionary MessageEventInit : EventInit {
-  DOMString data = "";
+  any data = null;
 };

@@ -58,6 +58,11 @@ class StubWebContext final : public Context {
   }
   ~StubWebContext() final { blob_registry_.reset(); }
 
+  void AddEnvironmentSettingsChangeObserver(
+      Context::EnvironmentSettingsChangeObserver* observer) final {}
+  void RemoveEnvironmentSettingsChangeObserver(
+      Context::EnvironmentSettingsChangeObserver* observer) final {}
+
   // WebInstance
   //
   base::MessageLoop* message_loop() const final {

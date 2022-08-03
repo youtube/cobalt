@@ -15,11 +15,14 @@
 #ifndef COBALT_SCRIPT_VALUE_HANDLE_H_
 #define COBALT_SCRIPT_VALUE_HANDLE_H_
 
+#include <memory>
 #include <string>
 #include <unordered_map>
 
+#include "base/memory/ref_counted.h"
 #include "cobalt/script/exception_state.h"
 #include "cobalt/script/script_value.h"
+#include "v8/include/v8.h"
 
 namespace cobalt {
 namespace script {
@@ -35,6 +38,18 @@ class ValueHandle {
 
 typedef ScriptValue<ValueHandle> ValueHandleHolder;
 
+struct BufferDeleter {
+  void operator()(uint8_t* buffer) { SbMemoryDeallocate(buffer); }
+};
+using DataBufferPtr = std::unique_ptr<uint8_t[], BufferDeleter>;
+
+struct DataBuffer {
+  DataBufferPtr ptr;
+  size_t size;
+
+  DataBuffer(uint8_t* ptr, size_t size) : ptr(DataBufferPtr(ptr)), size(size) {}
+};
+
 // Converts a "simple" object to a map of the object's properties. "Simple"
 // means that the object's property names are strings and its property values
 // must be a boolean, number or string. Note that this is implemented on a per
@@ -46,6 +61,13 @@ typedef ScriptValue<ValueHandle> ValueHandleHolder;
 // {'countryCode': null}
 std::unordered_map<std::string, std::string> ConvertSimpleObjectToMap(
     const ValueHandleHolder& value, ExceptionState* exception_state);
+
+v8::Isolate* GetIsolate(const ValueHandleHolder& value);
+v8::Local<v8::Value> GetV8Value(const ValueHandleHolder& value);
+ValueHandleHolder* DeserializeScriptValue(v8::Isolate* isolate,
+                                          const DataBuffer& data_buffer);
+std::unique_ptr<DataBuffer> SerializeScriptValue(
+    const ValueHandleHolder& value);
 
 }  // namespace script
 }  // namespace cobalt

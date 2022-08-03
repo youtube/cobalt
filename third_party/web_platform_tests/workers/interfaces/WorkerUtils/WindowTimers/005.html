@@ -8,7 +8,7 @@
   async_test(function () {
     var worker = new Worker('005.js');
     worker.onmessage = this.step_func(function (e) {
-      assert_equals(e.data, '1');
+      assert_equals(e.data, 1);
       this.done();
     });
   });

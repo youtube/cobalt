@@ -47,7 +47,7 @@ class DedicatedWorker : public AbstractWorker, public web::EventTarget {
   // void postMessage(any message, object transfer);
   // -> void PostMessage(const script::ValueHandleHolder& message,
   //                     script::Sequence<script::ValueHandle*> transfer) {}
-  void PostMessage(const std::string& message);
+  void PostMessage(const script::ValueHandleHolder& message);
 
   const EventListenerScriptValue* onmessage() const {
     return GetAttributeEventListener(base::Tokens::message());

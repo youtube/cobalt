@@ -12,10 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
 #include <string>
+#include <unordered_map>
+#include <utility>
+#include <vector>
 
 #include "cobalt/script/v8c/v8c_value_handle.h"
 
+#include "base/memory/ref_counted.h"
 #include "cobalt/script/v8c/conversion_helpers.h"
 #include "cobalt/script/v8c/entry_scope.h"
 
@@ -101,6 +106,55 @@ std::unordered_map<std::string, std::string> ConvertSimpleObjectToMap(
 std::unordered_map<std::string, std::string> ConvertSimpleObjectToMap(
     const ValueHandleHolder& value, script::ExceptionState* exception_state) {
   return v8c::ConvertSimpleObjectToMap(value, exception_state);
+}
+
+v8::Isolate* GetIsolate(const ValueHandleHolder& value) {
+  const script::v8c::V8cValueHandleHolder* v8_value_handle_holder =
+      base::polymorphic_downcast<const script::v8c::V8cValueHandleHolder*>(
+          &value);
+  return v8_value_handle_holder->isolate();
+}
+
+v8::Local<v8::Value> GetV8Value(const ValueHandleHolder& value) {
+  const script::v8c::V8cValueHandleHolder* v8_value_handle_holder =
+      base::polymorphic_downcast<const script::v8c::V8cValueHandleHolder*>(
+          &value);
+  return v8_value_handle_holder->v8_value();
+}
+
+ValueHandleHolder* DeserializeScriptValue(v8::Isolate* isolate,
+                                          const DataBuffer& data_buffer) {
+  v8::EscapableHandleScope scope(isolate);
+  v8::TryCatch try_catch(isolate);
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+
+  v8::ValueDeserializer deserializer(isolate, data_buffer.ptr.get(),
+                                     data_buffer.size);
+  v8::Local<v8::Value> value;
+  if (!deserializer.ReadValue(context).ToLocal(&value)) {
+    return nullptr;
+  }
+  script::v8c::V8cExceptionState exception_state(isolate);
+  auto* holder = new script::v8c::V8cValueHandleHolder();
+  FromJSValue(isolate, scope.Escape(value), script::v8c::kNoConversionFlags,
+              &exception_state, holder);
+  return holder;
+}
+
+std::unique_ptr<DataBuffer> SerializeScriptValue(
+    const ValueHandleHolder& value) {
+  v8::Isolate* isolate = GetIsolate(value);
+  script::v8c::EntryScope entry_scope(isolate);
+  v8::Local<v8::Value> v8_value = GetV8Value(value);
+  v8::ValueSerializer serializer(isolate);
+  bool wrote_value;
+  if (!serializer.WriteValue(isolate->GetCurrentContext(), v8_value)
+           .To(&wrote_value) ||
+      !wrote_value) {
+    return nullptr;
+  }
+  std::pair<uint8_t*, size_t> pair = serializer.Release();
+  return std::make_unique<DataBuffer>(std::move(pair.first), pair.second);
 }
 
 }  // namespace script
