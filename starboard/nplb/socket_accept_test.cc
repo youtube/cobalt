@@ -76,11 +76,13 @@ TEST_P(SbSocketAcceptTest, RainyDayNotListening) {
 INSTANTIATE_TEST_CASE_P(SbSocketAddressTypes,
                         SbSocketAcceptTest,
                         ::testing::Values(kSbSocketAddressTypeIpv4,
-                                          kSbSocketAddressTypeIpv6));
+                                          kSbSocketAddressTypeIpv6),
+                        GetSbSocketAddressTypeName);
 #else
 INSTANTIATE_TEST_CASE_P(SbSocketAddressTypes,
                         SbSocketAcceptTest,
-                        ::testing::Values(kSbSocketAddressTypeIpv4));
+                        ::testing::Values(kSbSocketAddressTypeIpv4),
+                        GetSbSocketAddressTypeName);
 #endif
 
 }  // namespace

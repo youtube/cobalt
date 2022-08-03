@@ -192,6 +192,21 @@ SbPlayerWriteSampleTest::SbPlayerWriteSampleTest() {
                                                          : "Punchout");
 }
 
+std::string GetSbPlayerTestConfigName(
+    ::testing::TestParamInfo<SbPlayerTestConfig> info) {
+  const char* audio_filename = std::get<0>(info.param);
+  const char* video_filename = std::get<1>(info.param);
+  SbPlayerOutputMode output_mode = std::get<2>(info.param);
+  std::string name(FormatString(
+      "audio_%s_video_%s_output_%s", audio_filename, video_filename,
+      output_mode == kSbPlayerOutputModeDecodeToTexture ? "DecodeToTexture"
+                                                        : "Punchout"));
+  std::replace(name.begin(), name.end(), '.', '_');
+  std::replace(name.begin(), name.end(), '(', '_');
+  std::replace(name.begin(), name.end(), ')', '_');
+  return name;
+}
+
 void SbPlayerWriteSampleTest::SetUp() {
   SbMediaVideoCodec video_codec = dmp_reader_->video_codec();
   SbMediaAudioCodec audio_codec = dmp_reader_->audio_codec();
@@ -506,7 +521,8 @@ TEST_P(SbPlayerWriteSampleTest, MultipleInputs) {
 
 INSTANTIATE_TEST_CASE_P(SbPlayerWriteSampleTests,
                         SbPlayerWriteSampleTest,
-                        ValuesIn(GetSupportedSbPlayerTestConfigs()));
+                        ValuesIn(GetSupportedSbPlayerTestConfigs()),
+                        GetSbPlayerTestConfigName);
 
 }  // namespace
 }  // namespace nplb

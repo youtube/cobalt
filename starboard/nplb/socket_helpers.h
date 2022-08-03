@@ -15,6 +15,8 @@
 #ifndef STARBOARD_NPLB_SOCKET_HELPERS_H_
 #define STARBOARD_NPLB_SOCKET_HELPERS_H_
 
+#include <string>
+#include <utility>
 #include <vector>
 
 #include "starboard/common/scoped_ptr.h"
@@ -197,6 +199,23 @@ static inline bool SocketErrorIn(
     EXPECT_FALSE(SocketErrorIn(error, {kSbSocketOk, kSbSocketPending})) \
         << "With " #error " = " << error;                               \
   } while (false)
+
+#if !defined(COBALT_BUILD_TYPE_GOLD)
+std::string GetSbSocketAddressTypeName(
+    ::testing::TestParamInfo<SbSocketAddressType> info);
+std::string GetSbSocketAddressTypePairName(
+    ::testing::TestParamInfo<
+        std::pair<SbSocketAddressType, SbSocketAddressType>> info);
+std::string GetSbSocketAddressTypeFilterPairName(
+    ::testing::TestParamInfo<
+        std::pair<SbSocketAddressType, SbSocketResolveFilter>> info);
+std::string GetSbSocketFilterAddressTypePairName(
+    ::testing::TestParamInfo<
+        std::pair<SbSocketResolveFilter, SbSocketAddressType>> info);
+std::string GetSbSocketAddressTypeProtocolPairName(
+    ::testing::TestParamInfo<std::pair<SbSocketAddressType, SbSocketProtocol>>
+        info);
+#endif  // #if !defined(COBALT_BUILD_TYPE_GOLD)
 
 }  // namespace nplb
 }  // namespace starboard

@@ -16,6 +16,7 @@
 from starboard.tools.testing import test_filter
 
 # A map of failing or crashing tests per target.
+# pylint: disable=line-too-long
 _FILTERED_TESTS = {
     'player_filter_tests': [
         # GetMaxNumberOfCachedFrames() on Android is device dependent,
@@ -43,7 +44,7 @@ _FILTERED_TESTS = {
     'nplb': [
         # This test is failing because localhost is not defined for IPv6 in
         # /etc/hosts.
-        'SbSocketAddressTypes/SbSocketResolveTest.Localhost/1',
+        'SbSocketAddressTypes/SbSocketResolveTest.Localhost/filter_ipv6_type_ipv6',
 
         # SbDirectory has problems with empty Asset dirs.
         'SbDirectoryCanOpenTest.SunnyDayStaticContent',
@@ -67,6 +68,7 @@ _FILTERED_TESTS = {
         'SbDrmSessionTest.InvalidSessionUpdateRequestParams',
     ],
 }
+# pylint: enable=line-too-long
 
 
 class TestFilters(object):

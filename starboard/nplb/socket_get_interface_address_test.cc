@@ -177,11 +177,13 @@ TEST_P(SbSocketGetInterfaceAddressTest, SunnyDaySourceNotLoopback) {
 INSTANTIATE_TEST_CASE_P(SbSocketAddressTypes,
                         SbSocketGetInterfaceAddressTest,
                         ::testing::Values(kSbSocketAddressTypeIpv4,
-                                          kSbSocketAddressTypeIpv6));
+                                          kSbSocketAddressTypeIpv6),
+                        GetSbSocketAddressTypeName);
 #else
 INSTANTIATE_TEST_CASE_P(SbSocketAddressTypes,
                         SbSocketGetInterfaceAddressTest,
-                        ::testing::Values(kSbSocketAddressTypeIpv4));
+                        ::testing::Values(kSbSocketAddressTypeIpv4),
+                        GetSbSocketAddressTypeName);
 #endif  // SB_HAS(IPV6)
 
 }  // namespace
