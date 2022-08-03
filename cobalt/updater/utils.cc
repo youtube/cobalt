@@ -127,13 +127,14 @@ const base::FilePath GetLoadedInstallationPath() {
       .DirName();
 }
 
-const base::FilePath FindInstallationPath() {
+const base::FilePath FindInstallationPath(
+    std::function<const void*(const char*)> get_extension_fn) {
   // TODO(b/233914266): consider using base::NoDestructor to give the
   // installation path static duration once found.
 
   auto installation_manager =
       static_cast<const CobaltExtensionInstallationManagerApi*>(
-          SbSystemGetExtension(kCobaltExtensionInstallationManagerName));
+          get_extension_fn(kCobaltExtensionInstallationManagerName));
   if (!installation_manager) {
     LOG(ERROR) << "Failed to get installation manager extension, getting the "
                   "installation path of the loaded library.";
@@ -171,14 +172,16 @@ const std::string GetValidOrDefaultEvergreenVersion(
   return version.GetString();
 }
 
-const std::string GetCurrentEvergreenVersion() {
-  base::FilePath installation_path = FindInstallationPath();
+const std::string GetCurrentEvergreenVersion(
+    std::function<const void*(const char*)> get_extension_fn) {
+  base::FilePath installation_path = FindInstallationPath(get_extension_fn);
   return GetValidOrDefaultEvergreenVersion(installation_path);
 }
 
-EvergreenLibraryMetadata GetCurrentEvergreenLibraryMetadata() {
+EvergreenLibraryMetadata GetCurrentEvergreenLibraryMetadata(
+    std::function<const void*(const char*)> get_extension_fn) {
   EvergreenLibraryMetadata evergreen_library_metadata;
-  base::FilePath installation_path = FindInstallationPath();
+  base::FilePath installation_path = FindInstallationPath(get_extension_fn);
 
   evergreen_library_metadata.version =
       GetValidOrDefaultEvergreenVersion(installation_path);
