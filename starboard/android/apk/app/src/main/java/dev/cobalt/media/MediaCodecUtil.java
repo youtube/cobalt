@@ -365,6 +365,7 @@ public class MediaCodecUtil {
   private MediaCodecUtil() {}
 
   /** A wrapper class of codec capability infos. */
+  @UsedByNative
   public static class CodecCapabilityInfo {
     CodecCapabilityInfo(MediaCodecInfo codecInfo, String mimeType) {
       this.codecInfo = codecInfo;
@@ -375,13 +376,14 @@ public class MediaCodecUtil {
       this.videoCapabilities = this.codecCapabilities.getVideoCapabilities();
     }
 
-    public MediaCodecInfo codecInfo;
-    public String mimeType;
-    public String decoderName;
-    public CodecCapabilities codecCapabilities;
-    public AudioCapabilities audioCapabilities;
-    public VideoCapabilities videoCapabilities;
+    @UsedByNative public MediaCodecInfo codecInfo;
+    @UsedByNative public String mimeType;
+    @UsedByNative public String decoderName;
+    @UsedByNative public CodecCapabilities codecCapabilities;
+    @UsedByNative public AudioCapabilities audioCapabilities;
+    @UsedByNative public VideoCapabilities videoCapabilities;
 
+    @UsedByNative
     public boolean isSecureRequired() {
       // MediaCodecList is supposed to feed us names of decoders that do NOT end in ".secure".  We
       // are then supposed to check if FEATURE_SecurePlayback is supported, and if it is and we
@@ -397,25 +399,30 @@ public class MediaCodecUtil {
           MediaCodecInfo.CodecCapabilities.FEATURE_SecurePlayback);
     }
 
+    @UsedByNative
     public boolean isSecureSupported() {
       return this.codecCapabilities.isFeatureSupported(
           MediaCodecInfo.CodecCapabilities.FEATURE_SecurePlayback);
     }
 
+    @UsedByNative
     public boolean isTunnelModeRequired() {
       return this.codecCapabilities.isFeatureRequired(
           MediaCodecInfo.CodecCapabilities.FEATURE_TunneledPlayback);
     }
 
+    @UsedByNative
     public boolean isTunnelModeSupported() {
       return this.codecCapabilities.isFeatureSupported(
           MediaCodecInfo.CodecCapabilities.FEATURE_TunneledPlayback);
     }
 
+    @UsedByNative
     public boolean isSoftware() {
       return isSoftwareDecoder(this.codecInfo);
     }
 
+    @UsedByNative
     public boolean isHdrCapable() {
       return isHdrCapableVideoDecoder(this.mimeType, this.codecCapabilities);
     }
@@ -523,6 +530,7 @@ public class MediaCodecUtil {
    * <p>NOTE: This code path is called repeatedly by the player to determine the decoding
    * capabilities of the device. To ensure speedy playback the code below should be kept performant.
    */
+  @UsedByNative
   public static String findVideoDecoder(
       String mimeType,
       boolean mustSupportSecure,
@@ -743,6 +751,7 @@ public class MediaCodecUtil {
    * The same as hasAudioDecoderFor, only return the name of the audio decoder if it is found, and
    * "" otherwise.
    */
+  @UsedByNative
   public static String findAudioDecoder(
       String mimeType, int bitrate, boolean mustSupportTunnelMode) {
     // Note: MediaCodecList is sorted by the framework such that the best decoders come first.
