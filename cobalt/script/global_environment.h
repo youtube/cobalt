@@ -27,6 +27,7 @@
 #include "cobalt/script/stack_frame.h"
 #include "cobalt/script/value_handle.h"
 #include "cobalt/script/wrappable.h"
+#include "v8/include/v8.h"
 
 namespace cobalt {
 namespace script {
@@ -137,6 +138,9 @@ class GlobalEnvironment : public base::RefCounted<GlobalEnvironment>,
   // GlobalEnvironment instance retains ownership of the ScriptValueFactory and
   // should live longer than any ScriptValueFactory pointer.
   virtual ScriptValueFactory* script_value_factory() = 0;
+
+  virtual v8::Isolate* isolate() const = 0;
+  virtual v8::Local<v8::Context> context() const = 0;
 
   class ScopedPreventGarbageCollection {
    public:

@@ -12,18 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// https://w3c.github.io/ServiceWorker/#client-interface
-
-[Exposed = ServiceWorker] interface Client {
-  readonly attribute USVString url;
-  readonly attribute FrameType frameType;
-  readonly attribute DOMString id;
-  readonly attribute ClientType type;
-  void postMessage(any message);
-  // TODO: Support sequence<object>: b/218501774
-  // void postMessage(any message, sequence<object> transfer);
-  // TODO: Support overloads with dictionary parameter: b/218506730
-  // void postMessage(any message,
-  //                 optional StructuredSerializeOptions options = {});
-
+[ Constructor ]
+interface SerializeScriptValueInterface {
+  void serializeTest(any value);
+  any deserializeTest();
 };

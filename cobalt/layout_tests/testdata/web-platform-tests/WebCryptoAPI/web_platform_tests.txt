@@ -1,6 +1,7 @@
 # WebCrypto API tests.
 #
 # Only HMAC signing is supported
+sign_verify/hmac.https.worker.html,PASS
 sign_verify/test_rsa_pkcs.https.html,DISABLE
 sign_verify/test_hmac.https.html,PASS
 sign_verify/test_rsa_pss.https.html,DISABLE

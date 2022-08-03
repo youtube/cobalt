@@ -20,6 +20,8 @@
 #include "base/bind.h"
 #include "base/logging.h"
 #include "cobalt/dom/testing/test_with_javascript.h"
+#include "cobalt/script/v8c/entry_scope.h"
+#include "cobalt/script/value_handle.h"
 #include "cobalt/web/message_event_init.h"
 #include "cobalt/web/testing/gtest_workarounds.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -46,14 +48,17 @@ TEST(MessageEventTest, ConstructorWithEventTypeString) {
   EXPECT_FALSE(event->IsBeingDispatched());
   EXPECT_FALSE(event->propagation_stopped());
   EXPECT_FALSE(event->immediate_propagation_stopped());
-  MessageEvent::ResponseType event_data = event->data();
+  MessageEvent::Response event_data = event->data();
   EXPECT_TRUE(event_data.IsType<std::string>());
   EXPECT_EQ("", event_data.AsType<std::string>());
 }
 
-TEST(MessageEventTest, ConstructorWithEventTypeAndDefaultInitDict) {
+TEST_F(MessageEventTestWithJavaScript,
+       ConstructorWithEventTypeAndDefaultInitDict) {
   MessageEventInit init;
-  init.set_data("data_value");
+  base::Optional<script::ValueHandleHolder::Reference> reference;
+  EvaluateScript("'data_value'", window(), &reference);
+  init.set_data(&(reference->referenced_value()));
   scoped_refptr<MessageEvent> event = new MessageEvent("mytestevent", init);
 
   EXPECT_EQ("mytestevent", event->type());
@@ -66,33 +71,34 @@ TEST(MessageEventTest, ConstructorWithEventTypeAndDefaultInitDict) {
   EXPECT_FALSE(event->IsBeingDispatched());
   EXPECT_FALSE(event->propagation_stopped());
   EXPECT_FALSE(event->immediate_propagation_stopped());
-  MessageEvent::ResponseType event_data = event->data();
-  EXPECT_TRUE(event_data.IsType<std::string>());
-  EXPECT_EQ("data_value", event_data.AsType<std::string>());
+  MessageEvent::Response event_data =
+      event->data(window()->environment_settings());
+  EXPECT_TRUE(event_data.IsType<script::Handle<script::ValueHandle>>());
+  auto script_value =
+      event_data.AsType<script::Handle<script::ValueHandle>>().GetScriptValue();
+  auto* isolate = script::GetIsolate(*script_value);
+  script::v8c::EntryScope entry_scope(isolate);
+  v8::Local<v8::Value> v8_value = script::GetV8Value(*script_value);
+  std::string actual =
+      *(v8::String::Utf8Value(isolate, v8_value.As<v8::String>()));
+  EXPECT_EQ("data_value", actual);
 }
 
 TEST_F(MessageEventTestWithJavaScript,
        ConstructorWithEventTypeAndErrorInitDict) {
   std::string result;
-  bool success = EvaluateScript(
-      "var event = new MessageEvent('dog', "
-      "    {'cancelable':true, "
-      "     'data':'data_value'});"
-      "if (event.type == 'dog' &&"
-      "    event.bubbles == false &&"
-      "    event.cancelable == true &&"
-      "    event.data == 'data_value') "
-      "    event.data;",
-      &result);
+  EXPECT_TRUE(
+      EvaluateScript("var event = new MessageEvent('dog', "
+                     "    {'cancelable':true, "
+                     "     'data':'data_value'});"
+                     "if (event.type == 'dog' &&"
+                     "    event.bubbles == false &&"
+                     "    event.cancelable == true &&"
+                     "    event.data == 'data_value') "
+                     "    event.data;",
+                     &result))
+      << "Failed to evaluate script.";
   EXPECT_EQ("data_value", result);
-
-  if (!success) {
-    DLOG(ERROR) << "Failed to evaluate test: "
-                << "\"" << result << "\"";
-  } else {
-    LOG(INFO) << "Test result : "
-              << "\"" << result << "\"";
-  }
 }
 
 }  // namespace web

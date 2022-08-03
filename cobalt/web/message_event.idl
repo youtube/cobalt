@@ -19,5 +19,5 @@
   Exposed = (Window,Worker),
   Constructor(DOMString type, optional MessageEventInit eventInitDict)
 ] interface MessageEvent : Event {
-  [CallWith = EnvironmentSettings] readonly attribute DOMString data;
+  [CallWith = EnvironmentSettings] readonly attribute any data;
 };

@@ -43,7 +43,7 @@ class ServiceWorker : public AbstractWorker, public web::EventTarget {
 
   // Web API: ServiceWorker
   //
-  void PostMessage(const std::string& message) {
+  void PostMessage(const script::ValueHandleHolder& message) {
     DCHECK(message_port_);
     if (worker_->worker_global_scope()) message_port_->PostMessage(message);
   }

@@ -40,7 +40,7 @@ interface WebSocket : EventTarget {
                                optional DOMString reason);
 
   // messaging
-           attribute EventHandler onmessage;
+  attribute EventHandler onmessage;
   [RaisesException] attribute DOMString binaryType;
   [RaisesException] void send(DOMString data);
   [RaisesException] void send(ArrayBuffer data);

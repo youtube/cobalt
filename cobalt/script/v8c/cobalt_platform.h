@@ -17,6 +17,8 @@
 
 #include <map>
 #include <memory>
+#include <utility>
+#include <vector>
 
 #include "base/memory/ref_counted.h"
 #include "base/message_loop/message_loop.h"
@@ -60,7 +62,7 @@ class CobaltPlatform : public v8::Platform {
     return default_platform_->OnCriticalMemoryPressure(length);
   }
 
-  int NumberOfWorkerThreads() {
+  int NumberOfWorkerThreads() override {
     return default_platform_->NumberOfWorkerThreads();
   }
 
@@ -68,16 +70,17 @@ class CobaltPlatform : public v8::Platform {
       v8::Isolate* isolate) override;
 
   std::unique_ptr<v8::JobHandle> PostJob(
-       v8::TaskPriority priority, std::unique_ptr<v8::JobTask> job_task) override {
-     return v8::platform::NewDefaultJobHandle(
-         this, priority, std::move(job_task), NumberOfWorkerThreads());
+      v8::TaskPriority priority,
+      std::unique_ptr<v8::JobTask> job_task) override {
+    return v8::platform::NewDefaultJobHandle(
+        this, priority, std::move(job_task), NumberOfWorkerThreads());
   }
   void CallOnWorkerThread(std::unique_ptr<v8::Task> task) override {
     default_platform_->CallOnWorkerThread(std::move(task));
   }
 
-  virtual void CallDelayedOnWorkerThread(std::unique_ptr<v8::Task> task,
-                                         double delay_in_seconds) {
+  void CallDelayedOnWorkerThread(std::unique_ptr<v8::Task> task,
+                                 double delay_in_seconds) override {
     default_platform_->CallDelayedOnWorkerThread(std::move(task),
                                                  delay_in_seconds);
   }

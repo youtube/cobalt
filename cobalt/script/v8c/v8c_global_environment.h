@@ -102,8 +102,8 @@ class V8cGlobalEnvironment : public GlobalEnvironment,
 
   ScriptValueFactory* script_value_factory() override;
 
-  v8::Isolate* isolate() const { return isolate_; }
-  v8::Local<v8::Context> context() const {
+  v8::Isolate* isolate() const override { return isolate_; }
+  v8::Local<v8::Context> context() const override {
     return v8::Local<v8::Context>::New(isolate_, context_);
   }
 

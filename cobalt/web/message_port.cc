@@ -14,7 +14,9 @@
 
 #include "cobalt/web/message_port.h"
 
+#include <memory>
 #include <string>
+#include <utility>
 
 #include "base/bind.h"
 #include "base/bind_helpers.h"
@@ -33,35 +35,63 @@ namespace cobalt {
 namespace web {
 
 MessagePort::MessagePort(web::EventTarget* event_target)
-    : event_target_(event_target) {}
+    : event_target_(event_target) {
+  if (!event_target_) {
+    return;
+  }
+  Context* context = event_target_->environment_settings()->context();
+  base::MessageLoop* message_loop = context->message_loop();
+  if (!message_loop) {
+    return;
+  }
+  message_loop->task_runner()->PostTask(
+      FROM_HERE,
+      base::BindOnce(&Context::AddEnvironmentSettingsChangeObserver,
+                     base::Unretained(context), base::Unretained(this)));
+  remove_environment_settings_change_observer_ =
+      base::BindOnce(&Context::RemoveEnvironmentSettingsChangeObserver,
+                     base::Unretained(context), base::Unretained(this));
+}
 
-MessagePort::~MessagePort() { event_target_ = nullptr; }
+MessagePort::~MessagePort() { Close(); }
 
-void MessagePort::PostMessage(const std::string& messages) {
+void MessagePort::Close() {
+  if (!event_target_) {
+    return;
+  }
+  if (remove_environment_settings_change_observer_) {
+    std::move(remove_environment_settings_change_observer_).Run();
+  }
+  event_target_ = nullptr;
+}
+
+void MessagePort::PostMessage(const script::ValueHandleHolder& message) {
+  PostMessageSerialized(std::move(SerializeScriptValue(message)));
+}
+
+void MessagePort::PostMessageSerialized(
+    std::unique_ptr<script::DataBuffer> data_buffer) {
+  if (!event_target_ || !data_buffer) {
+    return;
+  }
   // TODO: Forward the location of the origating API call to the PostTask call.
   base::MessageLoop* message_loop =
       event_target_->environment_settings()->context()->message_loop();
-  if (message_loop) {
-    //   https://html.spec.whatwg.org/multipage/workers.html#handler-worker-onmessage
-    // TODO: Update MessageEvent to support more types. (b/227665847)
-    // TODO: Remove dependency of MessageEvent on net iobuffer (b/227665847)
-    message_loop->task_runner()->PostTask(
-        FROM_HERE,
-        base::Bind(
-            [](web::EventTarget* event_target, const std::string& messages) {
-              scoped_refptr<net::IOBufferWithSize> buf = base::WrapRefCounted(
-                  new net::IOBufferWithSize(messages.length()));
-              memcpy(buf->data(), messages.data(), messages.length());
-              if (event_target) {
-                event_target->DispatchEvent(new web::MessageEvent(
-                    base::Tokens::message(), web::MessageEvent::kText, buf));
-              }
-              LOG_IF(WARNING, !event_target)
-                  << "MessagePort event not dispatched "
-                     "because there is no EventTarget.";
-            },
-            base::Unretained(event_target_), messages));
+  if (!message_loop) {
+    return;
   }
+  //   https://html.spec.whatwg.org/multipage/workers.html#handler-worker-onmessage
+  // TODO: Update MessageEvent to support more types. (b/227665847)
+  // TODO: Remove dependency of MessageEvent on net iobuffer (b/227665847)
+  message_loop->task_runner()->PostTask(
+      FROM_HERE, base::BindOnce(&MessagePort::DispatchMessage, AsWeakPtr(),
+                                std::move(data_buffer)));
+}
+
+void MessagePort::DispatchMessage(
+    std::unique_ptr<script::DataBuffer> data_buffer) {
+  event_target_->DispatchEvent(
+      new web::MessageEvent(base::Tokens::message(), std::move(data_buffer)));
 }
 
 }  // namespace web
