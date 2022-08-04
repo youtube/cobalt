@@ -473,6 +473,9 @@ class BrowserModule {
   scoped_refptr<script::Wrappable> CreateH5vcc(
       script::EnvironmentSettings* settings);
 
+  // Validates the PersistentSettings for cache backend, if in use.
+  void ValidateCacheBackendSettings();
+
   // TODO:
   //     WeakPtr usage here can be avoided if BrowserModule has a thread to
   //     own where it can ensure that its tasks are all resolved when it is
