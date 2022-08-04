@@ -1,0 +1,13 @@
+{
+  "platforms": [
+    "win32"
+  ],
+  "includes": [
+    {
+      "platform":"win32",
+      "target_platform":"win32",
+      "target_cpu":"target_cpu=\\\"win32\\\"",
+      "target_os":"target_os=\\\"win32\\\""
+    }
+  ]
+}

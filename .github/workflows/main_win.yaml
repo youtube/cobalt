@@ -1,0 +1,136 @@
+# Reusable Cobalt CI workflow.
+
+name: main
+
+on:
+  workflow_call:
+    inputs:
+      platform:
+        description: 'Cobalt platform.'
+        required: true
+        type: string
+
+# Global env vars.
+env:
+  IPV6_AVAILABLE: 0
+  LANG: en_US.UTF-8
+  IS_BUILDBOT_DOCKER: 1
+  #BUILD_ID_SERVER_URL:
+  IS_CI: 1
+  IS_DOCKER: 1
+  NINJA_STATUS: '[%e sec | %f/%t %u remaining | %c/sec | j%r]'
+  SCCACHE: 1
+  SCCACHE_GCS_BUCKET: cobalt-actions-devel-sccache-windows
+  SCCACHE_GCS_OAUTH_URL: http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token
+  SCCACHE_GCS_RW_MODE: READ_WRITE
+  SCCACHE_IDLE_TIMEOUT: 0 # prevent sccache server from shutting down after long idle.
+  STARBOARD_TOOLCHAINS_DIR: /root/starboard-toolchains
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # Generates build matrix based on json configuration file.
+  build-matrix:
+    runs-on: ubuntu-latest
+    steps:
+      - id: checkout
+        uses: actions/checkout@v3
+      - id: set-platforms
+        run: echo "::set-output name=platforms::$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.platforms')"
+      - id: set-includes
+        run: echo "::set-output name=includes::$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.includes')"
+      - id: set-on-device-test
+        run: echo "::set-output name=on_device_test::$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.on_device_test')"
+      - id: set-on-host-test
+        run: echo "::set-output name=on_host_test::$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.on_host_test')"
+    outputs:
+      platforms: ${{ steps.set-platforms.outputs.platforms }}
+      includes: ${{ steps.set-includes.outputs.includes }}
+      on_device_test: ${{ steps.set-on-device-test.outputs.on_device_test }}
+      on_host_test: ${{ steps.set-on-host-test.outputs.on_host_test }}
+  # Runs builds.
+  build:
+    needs: [build-matrix]
+    runs-on: [self-hosted, X64, Windows]
+    name: ${{matrix.platform}}_${{matrix.config}}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: ${{ fromJson(needs.build-matrix.outputs.platforms) }}
+        include: ${{ fromJson(needs.build-matrix.outputs.includes) }}
+        config: [devel, debug, qa, gold]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: GN
+        uses: ./.github/actions/gn
+      - name: Build Cobalt
+        uses: ./.github/actions/build
+      - name: Show Sccache Stats
+        run: sccache -s
+      - name: Upload Nightly Artifacts
+        if: ${{ endsWith(github.workflow, '_nightly') && matrix.config != 'debug' }}
+        uses: ./.github/actions/upload_nightly_artifacts
+      - name: Upload Test Artifacts
+        if: ${{ matrix.config == 'devel' && needs.build-matrix.outputs.on_device_test == 'true' && (endsWith(github.workflow, '_nightly') || github.event.label.name == 'runtest' || github.event_name == 'push') }}
+        uses: ./.github/actions/upload_test_artifacts
+
+  # Runs on-device tests.
+  on-device-test:
+    needs: [build-matrix, build]
+    if: needs.build-matrix.outputs.on_device_test == 'true' && (endsWith(github.workflow, '_nightly') || github.event.label.name == 'runtest' || github.event_name == 'push') 
+    runs-on: [self-hosted, linux, X64]
+    name: ${{matrix.platform}}_${{matrix.type}}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: ${{ fromJson(needs.build-matrix.outputs.platforms) }}
+        type: [unit_test, integration_test]
+        include: ${{ fromJson(needs.build-matrix.outputs.includes) }}
+    container: ${{ needs.docker-image.outputs.docker_tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+  # Runs on-host integration and unit tests.
+  on-host-test:
+    needs: [build-matrix]
+    if: needs.build-matrix.outputs.on_host_test == 'true'
+    runs-on: [self-hosted, linux, X64]
+    name: ${{matrix.platform}}_${{matrix.shard}}_test
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: ${{ fromJson(needs.build-matrix.outputs.platforms) }}
+        shard: [0, 1, 2, 3, integration]
+        config: [devel]
+        include: ${{ fromJson(needs.build-matrix.outputs.includes) }}
+    container: ${{ needs.docker-image.outputs.docker_tag }}
+    env:
+      # DeepLink test is failing with TMPDIR set to tmpfs.
+      DISPLAY: :99
+      # For some reason tests complaining about HOME set to /github/home
+      # with permission denied error.
+      HOME: /root
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v0
+      - name: Set Env Variables
+        run: |
+          echo "PYTHONPATH=$GITHUB_WORKSPACE" >> $GITHUB_ENV
+      - name: GN
+        uses: ./.github/actions/gn
+      - name: Build Cobalt
+        uses: ./.github/actions/build
+      - name: Show Sccache Stats
+        run: sccache -s
+      # TODO - Move 'Run Tests' to a separate action.
+      - name: Run Tests
+        shell: bash
+        run: |
+          if [[ "${{matrix.shard}}" == 'integration' ]]; then
+            xvfb-run -a --server-args="-screen 0 1920x1080x24i +render +extension GLX -noreset" python3 $GITHUB_WORKSPACE/cobalt/black_box_tests/black_box_tests.py --platform ${{matrix.target_platform}} --config ${{matrix.config}}
+          else
+            xvfb-run -a --server-args="-screen 0 1920x1080x24i +render +extension GLX -noreset" python3 $GITHUB_WORKSPACE/starboard/tools/testing/test_runner.py --platform ${{matrix.target_platform}} --config ${{matrix.config}} -s ${{matrix.shard}} -r
+          fi
