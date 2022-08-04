@@ -249,7 +249,7 @@ void SbEventHandle(const SbEvent* event) {
       std::string url =
           command_line.GetSwitchValue(starboard::loader_app::kURL);
       if (url.empty()) {
-        url = "https://www.youtube.com/tv";
+        url = kCobaltDefaultUrl;
       }
       std::string app_key = starboard::loader_app::GetAppKey(url);
       SB_CHECK(!app_key.empty());
