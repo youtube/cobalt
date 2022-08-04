@@ -34,6 +34,7 @@
 #include "cobalt/dom/location.h"
 #include "cobalt/dom/mouse_event.h"
 #include "cobalt/dom/node_list.h"
+#include "cobalt/dom/testing/fake_document.h"
 #include "cobalt/dom/testing/html_collection_testing.h"
 #include "cobalt/dom/testing/stub_environment_settings.h"
 #include "cobalt/dom/text.h"
@@ -90,26 +91,30 @@ DocumentTest::~DocumentTest() {
 //////////////////////////////////////////////////////////////////////////
 
 TEST_F(DocumentTest, Create) {
-  scoped_refptr<Document> document = new Document(&html_element_context_);
+  scoped_refptr<Document> document =
+      new testing::FakeDocument(&html_element_context_);
   ASSERT_TRUE(document);
 
   EXPECT_EQ(Node::kDocumentNode, document->node_type());
   EXPECT_EQ("#document", document->node_name());
 
   GURL url("http://a valid url");
-  document = new Document(&html_element_context_, Document::Options(url));
+  document =
+      new testing::FakeDocument(&html_element_context_, Document::Options(url));
   EXPECT_EQ(url.spec(), document->url());
   EXPECT_EQ(url.spec(), document->document_uri());
   EXPECT_EQ(url, document->url_as_gurl());
 }
 
 TEST_F(DocumentTest, IsNotXMLDocument) {
-  scoped_refptr<Document> document = new Document(&html_element_context_);
+  scoped_refptr<Document> document =
+      new testing::FakeDocument(&html_element_context_);
   EXPECT_FALSE(document->IsXMLDocument());
 }
 
 TEST_F(DocumentTest, DocumentElement) {
-  scoped_refptr<Document> document = new Document(&html_element_context_);
+  scoped_refptr<Document> document =
+      new testing::FakeDocument(&html_element_context_);
   EXPECT_EQ(NULL, document->document_element().get());
 
   scoped_refptr<Text> text = new Text(document, "test_text");
@@ -121,7 +126,8 @@ TEST_F(DocumentTest, DocumentElement) {
 }
 
 TEST_F(DocumentTest, CreateElement) {
-  scoped_refptr<Document> document = new Document(&html_element_context_);
+  scoped_refptr<Document> document =
+      new testing::FakeDocument(&html_element_context_);
   scoped_refptr<Element> element = document->CreateElement("element");
 
   EXPECT_EQ(Node::kElementNode, element->node_type());
@@ -137,7 +143,8 @@ TEST_F(DocumentTest, CreateElement) {
 }
 
 TEST_F(DocumentTest, CreateTextNode) {
-  scoped_refptr<Document> document = new Document(&html_element_context_);
+  scoped_refptr<Document> document =
+      new testing::FakeDocument(&html_element_context_);
   scoped_refptr<Text> text = document->CreateTextNode("test_text");
 
   EXPECT_EQ(Node::kTextNode, text->node_type());
@@ -147,7 +154,8 @@ TEST_F(DocumentTest, CreateTextNode) {
 }
 
 TEST_F(DocumentTest, CreateComment) {
-  scoped_refptr<Document> document = new Document(&html_element_context_);
+  scoped_refptr<Document> document =
+      new testing::FakeDocument(&html_element_context_);
   scoped_refptr<Comment> comment = document->CreateComment("test_comment");
 
   EXPECT_EQ(Node::kCommentNode, comment->node_type());
@@ -159,7 +167,8 @@ TEST_F(DocumentTest, CreateComment) {
 TEST_F(DocumentTest, CreateEventEvent) {
   StrictMock<MockExceptionState> exception_state;
   scoped_refptr<script::ScriptException> exception;
-  scoped_refptr<Document> document = new Document(&html_element_context_);
+  scoped_refptr<Document> document =
+      new testing::FakeDocument(&html_element_context_);
 
   // Create an Event, the name is case insensitive.
   scoped_refptr<web::Event> event =
@@ -183,7 +192,8 @@ TEST_F(DocumentTest, CreateEventEvent) {
 TEST_F(DocumentTest, CreateEventCustomEvent) {
   StrictMock<MockExceptionState> exception_state;
   scoped_refptr<script::ScriptException> exception;
-  scoped_refptr<Document> document = new Document(&html_element_context_);
+  scoped_refptr<Document> document =
+      new testing::FakeDocument(&html_element_context_);
 
   // Create an Event, the name is case insensitive.
   scoped_refptr<web::Event> event =
@@ -196,7 +206,8 @@ TEST_F(DocumentTest, CreateEventCustomEvent) {
 TEST_F(DocumentTest, CreateEventUIEvent) {
   StrictMock<MockExceptionState> exception_state;
   scoped_refptr<script::ScriptException> exception;
-  scoped_refptr<Document> document = new Document(&html_element_context_);
+  scoped_refptr<Document> document =
+      new testing::FakeDocument(&html_element_context_);
 
   // Create an Event, the name is case insensitive.
   scoped_refptr<web::Event> event =
@@ -214,7 +225,8 @@ TEST_F(DocumentTest, CreateEventUIEvent) {
 TEST_F(DocumentTest, CreateEventKeyboardEvent) {
   StrictMock<MockExceptionState> exception_state;
   scoped_refptr<script::ScriptException> exception;
-  scoped_refptr<Document> document = new Document(&html_element_context_);
+  scoped_refptr<Document> document =
+      new testing::FakeDocument(&html_element_context_);
 
   // Create an Event, the name is case insensitive.
   scoped_refptr<web::Event> event =
@@ -232,7 +244,8 @@ TEST_F(DocumentTest, CreateEventKeyboardEvent) {
 TEST_F(DocumentTest, CreateEventMessageEvent) {
   StrictMock<MockExceptionState> exception_state;
   scoped_refptr<script::ScriptException> exception;
-  scoped_refptr<Document> document = new Document(&html_element_context_);
+  scoped_refptr<Document> document =
+      new testing::FakeDocument(&html_element_context_);
 
   // Create an Event, the name is case insensitive.
   scoped_refptr<web::Event> event =
@@ -245,7 +258,8 @@ TEST_F(DocumentTest, CreateEventMessageEvent) {
 TEST_F(DocumentTest, CreateEventMouseEvent) {
   StrictMock<MockExceptionState> exception_state;
   scoped_refptr<script::ScriptException> exception;
-  scoped_refptr<Document> document = new Document(&html_element_context_);
+  scoped_refptr<Document> document =
+      new testing::FakeDocument(&html_element_context_);
 
   // Create an Event, the name is case insensitive.
   scoped_refptr<web::Event> event =
@@ -263,7 +277,8 @@ TEST_F(DocumentTest, CreateEventMouseEvent) {
 TEST_F(DocumentTest, CreateEventEventNotSupported) {
   StrictMock<MockExceptionState> exception_state;
   scoped_refptr<script::ScriptException> exception;
-  scoped_refptr<Document> document = new Document(&html_element_context_);
+  scoped_refptr<Document> document =
+      new testing::FakeDocument(&html_element_context_);
 
   EXPECT_CALL(exception_state, SetException(_))
       .WillOnce(SaveArg<0>(&exception));
@@ -278,17 +293,20 @@ TEST_F(DocumentTest, CreateEventEventNotSupported) {
 }
 
 TEST_F(DocumentTest, GetElementsByClassName) {
-  scoped_refptr<Document> document = new Document(&html_element_context_);
+  scoped_refptr<Document> document =
+      new testing::FakeDocument(&html_element_context_);
   testing::TestGetElementsByClassName(document);
 }
 
 TEST_F(DocumentTest, GetElementsByTagName) {
-  scoped_refptr<Document> document = new Document(&html_element_context_);
+  scoped_refptr<Document> document =
+      new testing::FakeDocument(&html_element_context_);
   testing::TestGetElementsByTagName(document);
 }
 
 TEST_F(DocumentTest, GetElementById) {
-  scoped_refptr<Document> document = new Document(&html_element_context_);
+  scoped_refptr<Document> document =
+      new testing::FakeDocument(&html_element_context_);
 
   // Construct a tree:
   // document
@@ -321,17 +339,20 @@ TEST_F(DocumentTest, GetElementById) {
 }
 
 TEST_F(DocumentTest, Implementation) {
-  scoped_refptr<Document> document = new Document(&html_element_context_);
+  scoped_refptr<Document> document =
+      new testing::FakeDocument(&html_element_context_);
   EXPECT_TRUE(document->implementation());
 }
 
 TEST_F(DocumentTest, Location) {
-  scoped_refptr<Document> document = new Document(&html_element_context_);
+  scoped_refptr<Document> document =
+      new testing::FakeDocument(&html_element_context_);
   EXPECT_TRUE(document->location());
 }
 
 TEST_F(DocumentTest, StyleSheets) {
-  scoped_refptr<Document> document = new Document(&html_element_context_);
+  scoped_refptr<Document> document =
+      new testing::FakeDocument(&html_element_context_);
 
   scoped_refptr<HTMLElement> element1 =
       html_element_context_.html_element_factory()->CreateHTMLElement(
@@ -376,7 +397,8 @@ TEST_F(DocumentTest, StyleSheets) {
 }
 
 TEST_F(DocumentTest, StyleSheetsAddedToFront) {
-  scoped_refptr<Document> document = new Document(&html_element_context_);
+  scoped_refptr<Document> document =
+      new testing::FakeDocument(&html_element_context_);
 
   scoped_refptr<HTMLElement> element1 =
       html_element_context_.html_element_factory()->CreateHTMLElement(
@@ -421,7 +443,8 @@ TEST_F(DocumentTest, StyleSheetsAddedToFront) {
 }
 
 TEST_F(DocumentTest, HtmlElement) {
-  scoped_refptr<Document> document = new Document(&html_element_context_);
+  scoped_refptr<Document> document =
+      new testing::FakeDocument(&html_element_context_);
   EXPECT_FALSE(document->html());
 
   scoped_refptr<Node> div =
@@ -435,7 +458,8 @@ TEST_F(DocumentTest, HtmlElement) {
 }
 
 TEST_F(DocumentTest, HeadElement) {
-  scoped_refptr<Document> document = new Document(&html_element_context_);
+  scoped_refptr<Document> document =
+      new testing::FakeDocument(&html_element_context_);
   EXPECT_FALSE(document->head());
 
   scoped_refptr<Node> html =
@@ -453,7 +477,8 @@ TEST_F(DocumentTest, HeadElement) {
 }
 
 TEST_F(DocumentTest, BodyElement) {
-  scoped_refptr<Document> document = new Document(&html_element_context_);
+  scoped_refptr<Document> document =
+      new testing::FakeDocument(&html_element_context_);
   EXPECT_FALSE(document->body());
 
   scoped_refptr<Node> html =

@@ -29,6 +29,7 @@
 #include "cobalt/dom/dom_parser.h"
 #include "cobalt/dom/dom_stat_tracker.h"
 #include "cobalt/dom/html_element_context.h"
+#include "cobalt/dom/testing/fake_document.h"
 #include "cobalt/dom/testing/stub_environment_settings.h"
 #include "cobalt/dom_parser/parser.h"
 #include "cobalt/loader/fetcher_factory.h"
@@ -78,7 +79,7 @@ class DocumentLoader : public dom::DocumentObserver {
     dom::Document::Options options(url);
     options.navigation_start_clock = new base::SystemMonotonicClock();
     options.viewport_size = cssom::ViewportSize(1920, 1080);
-    document_ = new dom::Document(&html_element_context_, options);
+    document_ = new dom::testing::FakeDocument(&html_element_context_, options);
     document_->AddObserver(this);
     document_loader_.reset(new loader::Loader(
         base::Bind(&loader::FetcherFactory::CreateFetcher,

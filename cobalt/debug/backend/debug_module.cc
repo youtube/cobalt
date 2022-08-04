@@ -123,7 +123,7 @@ void DebugModule::BuildInternal(const ConstructionData& data) {
       script::ScriptDebugger::CreateDebugger(data.global_environment, this);
   script_runner_.reset(new DebugScriptRunner(
       data.global_environment, script_debugger_.get(),
-      data.window ? data.window->document()->csp_delegate() : nullptr));
+      data.window ? data.window->csp_delegate() : nullptr));
   debug_dispatcher_.reset(
       new DebugDispatcher(script_debugger_.get(), script_runner_.get()));
   debug_backend_ = WrapRefCounted(new DebugBackend(

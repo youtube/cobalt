@@ -32,6 +32,7 @@
 #include "cobalt/dom/node.h"
 #include "cobalt/dom/node_descendants_iterator.h"
 #include "cobalt/dom/node_list.h"
+#include "cobalt/dom/testing/fake_document.h"
 #include "cobalt/dom/testing/stub_environment_settings.h"
 #include "cobalt/dom/testing/stub_window.h"
 #include "cobalt/dom_parser/parser.h"
@@ -58,7 +59,7 @@ class RuleMatchingTest : public ::testing::Test {
                               NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
                               NULL, dom_stat_tracker_.get(), "",
                               base::kApplicationStateStarted, NULL, NULL),
-        document_(new Document(&html_element_context_)),
+        document_(new testing::FakeDocument(&html_element_context_)),
         root_(document_->CreateElement("html")->AsHTMLElement()),
         head_(document_->CreateElement("head")->AsHTMLElement()),
         body_(document_->CreateElement("body")->AsHTMLElement()) {

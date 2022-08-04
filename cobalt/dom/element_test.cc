@@ -31,6 +31,7 @@
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/named_node_map.h"
 #include "cobalt/dom/node_list.h"
+#include "cobalt/dom/testing/fake_document.h"
 #include "cobalt/dom/testing/html_collection_testing.h"
 #include "cobalt/dom/testing/stub_environment_settings.h"
 #include "cobalt/dom/text.h"
@@ -70,7 +71,7 @@ ElementTest::ElementTest()
                             NULL, dom_stat_tracker_.get(), "",
                             base::kApplicationStateStarted, NULL, NULL) {
   EXPECT_TRUE(GlobalStats::GetInstance()->CheckNoLeaks());
-  document_ = new Document(&html_element_context_);
+  document_ = new testing::FakeDocument(&html_element_context_);
   xml_document_ = new XMLDocument(&html_element_context_);
 }
 

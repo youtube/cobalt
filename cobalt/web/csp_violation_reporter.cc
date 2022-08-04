@@ -21,7 +21,6 @@
 #include "base/json/json_writer.h"
 #include "base/values.h"
 #include "cobalt/dom/document.h"
-#include "cobalt/dom/html_element_context.h"
 #include "cobalt/network/net_poster.h"
 #include "cobalt/script/global_environment.h"
 #include "cobalt/web/security_policy_violation_event.h"
@@ -83,12 +82,12 @@ std::string StripUrlForUseInReport(const GURL& origin_url, const GURL& url) {
 }
 
 void GatherSecurityPolicyViolationEventData(
-    const dom::Document* document, const csp::ViolationInfo& violation_info,
+    WindowOrWorkerGlobalScope* global, const csp::ViolationInfo& violation_info,
     ViolationEvent* event_data) {
-  event_data->document_uri =
-      StripUrlForUseInReport(document->url_as_gurl(), document->url_as_gurl());
-  event_data->blocked_uri = StripUrlForUseInReport(document->url_as_gurl(),
-                                                   violation_info.blocked_url);
+  GURL base_url = global->environment_settings()->base_url();
+  event_data->document_uri = StripUrlForUseInReport(base_url, base_url);
+  event_data->blocked_uri =
+      StripUrlForUseInReport(base_url, violation_info.blocked_url);
   // TODO: Implement Document referrer, if needed.
   event_data->referrer = "";
   event_data->violated_directive = violation_info.directive_text;
@@ -96,14 +95,14 @@ void GatherSecurityPolicyViolationEventData(
   event_data->original_policy = violation_info.header;
 
   script::GlobalEnvironment* global_environment =
-      document->html_element_context()->script_runner()->GetGlobalEnvironment();
+      global->environment_settings()->context()->global_environment();
   const std::vector<script::StackFrame>& stack_trace =
       global_environment->GetStackTrace(1);
   if (stack_trace.size() > 0) {
     event_data->line_number = stack_trace[0].line_number;
     event_data->column_number = stack_trace[0].column_number;
-    event_data->source_file = StripUrlForUseInReport(
-        document->url_as_gurl(), GURL(stack_trace[0].source_url));
+    event_data->source_file =
+        StripUrlForUseInReport(base_url, GURL(stack_trace[0].source_url));
   }
 
   // TODO: Set the status code if the document origin is non-secure.
@@ -113,14 +112,15 @@ void GatherSecurityPolicyViolationEventData(
 }  // namespace
 
 CspViolationReporter::CspViolationReporter(
-    dom::Document* document, const network_bridge::PostSender& post_sender)
+    web::WindowOrWorkerGlobalScope* global,
+    const network_bridge::PostSender& post_sender)
     : post_sender_(post_sender),
       message_loop_(base::MessageLoop::current()),
-      document_(document) {}
+      global_(global) {}
 
 CspViolationReporter::~CspViolationReporter() {}
 
-// https://www.w3.org/TR/CSP2/#violation-reports
+// https://www.w3.org/TR/CSP3/#report-violation
 void CspViolationReporter::Report(const csp::ViolationInfo& violation_info) {
   DCHECK(message_loop_);
   if (!message_loop_->task_runner()->BelongsToCurrentThread()) {
@@ -132,14 +132,24 @@ void CspViolationReporter::Report(const csp::ViolationInfo& violation_info) {
 
   LOG(INFO) << violation_info.console_message;
   ViolationEvent violation_data;
-  GatherSecurityPolicyViolationEventData(document_, violation_info,
+  GatherSecurityPolicyViolationEventData(global_, violation_info,
                                          &violation_data);
-  document_->DispatchEvent(new SecurityPolicyViolationEvent(
-      violation_data.document_uri, violation_data.referrer,
-      violation_data.blocked_uri, violation_data.violated_directive,
-      violation_data.effective_directive, violation_data.original_policy,
-      violation_data.source_file, violation_data.status_code,
-      violation_data.line_number, violation_data.column_number));
+  if (global_->IsWindow()) {
+    global_->AsWindow()->document()->DispatchEvent(
+        new SecurityPolicyViolationEvent(
+            violation_data.document_uri, violation_data.referrer,
+            violation_data.blocked_uri, violation_data.violated_directive,
+            violation_data.effective_directive, violation_data.original_policy,
+            violation_data.source_file, violation_data.status_code,
+            violation_data.line_number, violation_data.column_number));
+  } else {
+    global_->DispatchEvent(new SecurityPolicyViolationEvent(
+        violation_data.document_uri, violation_data.referrer,
+        violation_data.blocked_uri, violation_data.violated_directive,
+        violation_data.effective_directive, violation_data.original_policy,
+        violation_data.source_file, violation_data.status_code,
+        violation_data.line_number, violation_data.column_number));
+  }
 
   if (violation_info.endpoints.empty() || post_sender_.is_null()) {
     return;
@@ -190,7 +200,7 @@ void CspViolationReporter::SendViolationReports(
     return;
   }
   violation_reports_sent_.insert(report_hash);
-  const GURL& origin_url = document_->url_as_gurl();
+  const GURL& origin_url = global_->environment_settings()->base_url();
   for (std::vector<std::string>::const_iterator it = endpoints.begin();
        it != endpoints.end(); ++it) {
     GURL resolved_endpoint = origin_url.Resolve(*it);
