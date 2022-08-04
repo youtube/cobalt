@@ -43,10 +43,8 @@ class TestWithJavaScriptBase : public TypeIdProvider {
  public:
   TestWithJavaScriptBase() {
     web_context_.reset(new web::testing::StubWebContext());
-    web_context_->set_network_module(new network::NetworkModule());
     web_context_->setup_environment_settings(new WorkerSettings());
     web_context_->environment_settings()->set_base_url(GURL("about:blank"));
-    web_context_->set_fetcher_factory(new loader::FetcherFactory(NULL));
 
     if (TypeIdProvider::GetGlobalScopeTypeId() ==
         base::GetTypeId<DedicatedWorkerGlobalScope>()) {
@@ -73,18 +71,26 @@ class TestWithJavaScriptBase : public TypeIdProvider {
     }
   }
 
+  web::testing::StubWebContext* GetWebContext() {
+    return web_context_.release();
+  }
+
   WorkerGlobalScope* worker_global_scope() { return worker_global_scope_; }
 
+  virtual scoped_refptr<script::GlobalEnvironment> global_environment() {
+    return web_context_->global_environment();
+  }
+
   bool EvaluateScript(const std::string& js_code, std::string* result) {
-    DCHECK(web_context_->global_environment());
+    DCHECK(this->global_environment());
     scoped_refptr<script::SourceCode> source_code =
         script::SourceCode::CreateSourceCode(
             js_code, base::SourceLocation(__FILE__, __LINE__, 1));
 
-    web_context_->global_environment()->EnableEval();
-    web_context_->global_environment()->SetReportEvalCallback(base::Closure());
+    this->global_environment()->EnableEval();
+    this->global_environment()->SetReportEvalCallback(base::Closure());
     bool succeeded =
-        web_context_->global_environment()->EvaluateScript(source_code, result);
+        this->global_environment()->EvaluateScript(source_code, result);
     return succeeded;
   }
 
@@ -131,6 +137,15 @@ class TestWorkersWithJavaScript
         base::GetTypeId<DedicatedWorkerGlobalScope>(),
         base::GetTypeId<ServiceWorkerGlobalScope>()};
     return worker_types;
+  }
+  static std::string GetTypeName(::testing::TestParamInfo<base::TypeId> info) {
+    if (info.param == base::GetTypeId<DedicatedWorkerGlobalScope>()) {
+      return "DedicatedWorkerGlobalScope";
+    }
+    if (info.param == base::GetTypeId<ServiceWorkerGlobalScope>()) {
+      return "ServiceWorkerGlobalScope";
+    }
+    return "Unknown";
   }
 };
 

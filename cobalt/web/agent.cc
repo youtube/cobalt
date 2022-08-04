@@ -58,9 +58,6 @@ class Impl : public Context {
   }
   base::MessageLoop* message_loop() const final { return message_loop_; }
   void ShutDownJavaScriptEngine() final;
-  void set_fetcher_factory(loader::FetcherFactory* factory) final {
-    fetcher_factory_.reset(factory);
-  }
   loader::FetcherFactory* fetcher_factory() const final {
     return fetcher_factory_.get();
   }

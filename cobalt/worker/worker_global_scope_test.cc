@@ -312,7 +312,8 @@ TEST_P(WorkerGlobalScopeTest, OnUnhandledrejectionEvent) {
 
 INSTANTIATE_TEST_CASE_P(
     WorkerGlobalScopeTests, WorkerGlobalScopeTest,
-    ::testing::ValuesIn(testing::TestWorkersWithJavaScript::GetWorkerTypes()));
+    ::testing::ValuesIn(testing::TestWorkersWithJavaScript::GetWorkerTypes()),
+    testing::TestWorkersWithJavaScript::GetTypeName);
 
 }  // namespace worker
 }  // namespace cobalt

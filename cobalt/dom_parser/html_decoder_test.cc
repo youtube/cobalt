@@ -71,8 +71,7 @@ class HTMLDecoderTest : public ::testing::Test {
 };
 
 HTMLDecoderTest::HTMLDecoderTest()
-    : fetcher_factory_(NULL /* network_module */),
-      loader_factory_("Test" /* name */, &fetcher_factory_,
+    : loader_factory_("Test" /* name */, &fetcher_factory_,
                       NULL /* ResourceProvider */, null_debugger_hooks_,
                       0 /* encoded_image_cache_capacity */,
                       base::ThreadPriority::DEFAULT),

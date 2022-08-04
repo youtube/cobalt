@@ -31,7 +31,6 @@
 #include "cobalt/dom/testing/stub_environment_settings.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/dom_parser/parser.h"
-#include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/loader/loader_factory.h"
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/javascript_engine.h"
@@ -63,7 +62,6 @@ class StubWindow {
     web_context_->setup_environment_settings(
         new dom::testing::StubEnvironmentSettings(options));
     web_context_->environment_settings()->set_base_url(GURL("about:blank"));
-    web_context_->set_fetcher_factory(new loader::FetcherFactory(NULL));
     loader_factory_.reset(new loader::LoaderFactory(
         "Test", web_context_->fetcher_factory(), NULL,
         web_context_->environment_settings()->debugger_hooks(), 0,

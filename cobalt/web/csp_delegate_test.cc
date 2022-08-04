@@ -53,6 +53,13 @@ const ResourcePair s_params[] = {
     {CspDelegate::kWebSocket, "connect-src"},
 };
 
+std::string ResourcePairName(::testing::TestParamInfo<ResourcePair> info) {
+  std::string name(info.param.directive);
+  std::replace(name.begin(), name.end(), '-', '_');
+  base::StringAppendF(&name, "_type_%d", info.param.type);
+  return name;
+}
+
 class MockViolationReporter : public CspViolationReporter {
  public:
   MockViolationReporter()
@@ -132,7 +139,8 @@ TEST_P(CspDelegateTest, LoadNotOk) {
   EXPECT_EQ(effective_directive, info.effective_directive);
 }
 
-INSTANTIATE_TEST_CASE_P(CanLoad, CspDelegateTest, ValuesIn(s_params));
+INSTANTIATE_TEST_CASE_P(CanLoad, CspDelegateTest, ValuesIn(s_params),
+                        ResourcePairName);
 
 TEST(CspDelegateFactoryTest, Secure) {
   std::unique_ptr<CspDelegate> delegate =

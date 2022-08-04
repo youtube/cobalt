@@ -44,7 +44,6 @@ class WebSocketTest : public ::testing::Test {
 
  protected:
   WebSocketTest() : web_context_(new web::testing::StubWebContext()) {
-    web_context_->set_network_module(new network::NetworkModule());
     web_context_->setup_environment_settings(
         new dom::testing::StubEnvironmentSettings());
     web_context_->environment_settings()->set_base_url(

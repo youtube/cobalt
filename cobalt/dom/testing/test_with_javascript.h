@@ -61,15 +61,14 @@ class TestWithJavaScript : public ::testing::Test {
 
   bool EvaluateScript(const std::string& js_code, std::string* result) {
     if (!stub_window_) stub_window_.reset(new StubWindow());
-    DCHECK(stub_window_->global_environment());
+    DCHECK(global_environment());
     scoped_refptr<script::SourceCode> source_code =
         script::SourceCode::CreateSourceCode(
             js_code, base::SourceLocation(__FILE__, __LINE__, 1));
 
-    stub_window_->global_environment()->EnableEval();
-    stub_window_->global_environment()->SetReportEvalCallback(base::Closure());
-    bool succeeded =
-        stub_window_->global_environment()->EvaluateScript(source_code, result);
+    global_environment()->EnableEval();
+    global_environment()->SetReportEvalCallback(base::Closure());
+    bool succeeded = global_environment()->EvaluateScript(source_code, result);
     return succeeded;
   }
 
