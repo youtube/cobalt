@@ -17,7 +17,8 @@
 [
   Constructor,
   Constructor(sequence<(ArrayBuffer or ArrayBufferView or DataView or Blob or USVString)> blobParts, optional BlobPropertyBag options),
-  ConstructorCallWith=EnvironmentSettings
+  ConstructorCallWith=EnvironmentSettings,
+  Exposed=(Window,Worker)
 ]
 interface Blob {
   readonly attribute unsigned long long size;

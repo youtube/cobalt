@@ -46,7 +46,6 @@ class Context {
   virtual ~Context() {}
   virtual base::MessageLoop* message_loop() const = 0;
   virtual void ShutDownJavaScriptEngine() = 0;
-  virtual void set_fetcher_factory(loader::FetcherFactory* factory) = 0;
   virtual loader::FetcherFactory* fetcher_factory() const = 0;
   virtual loader::ScriptLoaderFactory* script_loader_factory() const = 0;
   virtual script::JavaScriptEngine* javascript_engine() const = 0;

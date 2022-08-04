@@ -27,8 +27,7 @@ namespace {
 
 class StubFetcherHandler : public Fetcher::Handler {
  public:
-  explicit StubFetcherHandler(base::RunLoop* run_loop)
-      : run_loop_(run_loop), fetcher_(NULL) {}
+  explicit StubFetcherHandler(base::RunLoop* run_loop) : run_loop_(run_loop) {}
 
   // From Fetcher::Handler.
   void OnReceived(Fetcher* fetcher, const char* data, size_t size) override {
@@ -55,7 +54,7 @@ class StubFetcherHandler : public Fetcher::Handler {
  private:
   void CheckSameFetcher(Fetcher* fetcher) {
     EXPECT_TRUE(fetcher);
-    if (fetcher_ == NULL) {
+    if (fetcher_ == nullptr) {
       fetcher_ = fetcher;
       return;
     }
@@ -63,7 +62,7 @@ class StubFetcherHandler : public Fetcher::Handler {
   }
 
   base::RunLoop* run_loop_;
-  Fetcher* fetcher_;
+  Fetcher* fetcher_ = nullptr;
   base::Optional<std::string> error_message_;
 };
 
@@ -71,9 +70,7 @@ class StubFetcherHandler : public Fetcher::Handler {
 
 class FetcherFactoryTest : public ::testing::Test {
  protected:
-  FetcherFactoryTest()
-      : message_loop_(base::MessageLoop::TYPE_DEFAULT),
-        fetcher_factory_(NULL) {}
+  FetcherFactoryTest() : message_loop_(base::MessageLoop::TYPE_DEFAULT) {}
   ~FetcherFactoryTest() override {}
 
   base::MessageLoop message_loop_;
