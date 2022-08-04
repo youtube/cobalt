@@ -712,7 +712,7 @@ WebModule::Impl::Impl(web::Context* web_context, const ConstructionData& data)
 
   web_context_->global_environment()->SetReportEvalCallback(
       base::Bind(&web::CspDelegate::ReportEval,
-                 base::Unretained(window_->document()->csp_delegate())));
+                 base::Unretained(window_->csp_delegate())));
 
   web_context_->global_environment()->SetReportErrorCallback(
       base::Bind(&WebModule::Impl::ReportScriptError, base::Unretained(this)));
@@ -1019,12 +1019,10 @@ void WebModule::Impl::OnCspPolicyChanged() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(is_running_);
   DCHECK(window_);
-  DCHECK(window_->document());
-  DCHECK(window_->document()->csp_delegate());
+  DCHECK(window_->csp_delegate());
 
   std::string eval_disabled_message;
-  bool allow_eval =
-      window_->document()->csp_delegate()->AllowEval(&eval_disabled_message);
+  bool allow_eval = window_->csp_delegate()->AllowEval(&eval_disabled_message);
   if (allow_eval) {
     web_context_->global_environment()->EnableEval();
   } else {

@@ -429,7 +429,7 @@ void XMLHttpRequestImpl::Open(const std::string& method, const std::string& url,
     return;
   }
 
-  web::CspDelegate* csp = this->csp_delegate();
+  web::CspDelegate* csp = csp_delegate();
   if (csp && !csp->CanLoad(web::CspDelegate::kXhr, request_url_, false)) {
     web::DOMException::Raise(web::DOMException::kSecurityErr, exception_state);
     return;
@@ -1056,7 +1056,7 @@ void XMLHttpRequestImpl::OnRedirect(const net::HttpResponseHeaders& headers) {
     return;
   }
   // This is a redirect. Re-check the CSP.
-  web::CspDelegate* csp = this->csp_delegate();
+  web::CspDelegate* csp = csp_delegate();
   if (csp &&
       !csp->CanLoad(web::CspDelegate::kXhr, new_url, true /* is_redirect */)) {
     HandleRequestError(XMLHttpRequest::kNetworkError);
@@ -1111,11 +1111,10 @@ void XMLHttpRequestImpl::TraceMembers(script::Tracer* tracer) {
 }
 
 web::CspDelegate* XMLHttpRequestImpl::csp_delegate() const {
-  // TODO (b/239733363): csp_delegate is currently available through window.
-  // Refactor to make it available outside of window then implement this. At
-  // that point, there should be no more need to override this function in
-  // DOMXMLHttpRequestImpl.
-  return NULL;
+  DCHECK(settings_);
+  DCHECK(settings_->context());
+  DCHECK(settings_->context()->GetWindowOrWorkerGlobalScope());
+  return settings_->context()->GetWindowOrWorkerGlobalScope()->csp_delegate();
 }
 
 void XMLHttpRequestImpl::TerminateRequest() {
@@ -1424,15 +1423,6 @@ void DOMXMLHttpRequestImpl::GetLoadTimingInfoAndCreateResourceTiming() {
   settings_->window()->performance()->CreatePerformanceResourceTiming(
       load_timing_info_, kPerformanceResourceTimingInitiatorType,
       request_url_.spec());
-}
-
-web::CspDelegate* DOMXMLHttpRequestImpl::csp_delegate() const {
-  DCHECK(settings_);
-  if (settings_->window() && settings_->window()->document()) {
-    return settings_->window()->document()->csp_delegate();
-  } else {
-    return NULL;
-  }
 }
 
 void DOMXMLHttpRequestImpl::StartRequest(const std::string& request_body) {

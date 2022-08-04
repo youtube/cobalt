@@ -25,11 +25,8 @@
 #include "cobalt/network_bridge/net_poster.h"
 
 namespace cobalt {
-namespace dom {
-class Document;
-}  // namespace dom
-
 namespace web {
+class WindowOrWorkerGlobalScope;
 
 // Responsible for reporting CSP violations, i.e. posting JSON
 // reports to any reporting endpoints described by the policy.
@@ -37,12 +34,12 @@ namespace web {
 // and passed in to its constructor. Generally it should not be called directly.
 class CspViolationReporter {
  public:
-  CspViolationReporter(dom::Document* document,
+  CspViolationReporter(WindowOrWorkerGlobalScope* global,
                        const network_bridge::PostSender& post_sender);
   virtual ~CspViolationReporter();
 
   // Used as a callback from ContentSecurityPolicy to dispatch security
-  // violation events on the Document and send the reports.
+  // violation events on the Document or Global Object and send the reports.
   // Report() can be called from any thread and it will re-post itself
   // to the message loop it was created on, which should be the Document's
   // message loop.
@@ -63,7 +60,7 @@ class CspViolationReporter {
   // We must send violations on the document's message loop.
   base::MessageLoop* message_loop_;
 
-  dom::Document* document_;
+  WindowOrWorkerGlobalScope* global_;
 
   DISALLOW_COPY_AND_ASSIGN(CspViolationReporter);
 };

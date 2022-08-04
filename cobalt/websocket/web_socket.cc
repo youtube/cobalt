@@ -562,18 +562,13 @@ void WebSocket::Initialize(script::EnvironmentSettings* settings,
 }
 
 web::CspDelegate* WebSocket::csp_delegate() const {
-  DCHECK(settings_);
-  if (!settings_) {
-    return NULL;
-  }
-  dom::DOMSettings* dom_settings =
-      base::polymorphic_downcast<dom::DOMSettings*>(settings_);
-  if (dom_settings && dom_settings->window() &&
-      dom_settings->window()->document()) {
-    return dom_settings->window()->document()->csp_delegate();
-  } else {
-    return NULL;
-  }
+  DCHECK(environment_settings());
+  DCHECK(environment_settings()->context());
+  DCHECK(environment_settings()->context()->GetWindowOrWorkerGlobalScope());
+  return environment_settings()
+      ->context()
+      ->GetWindowOrWorkerGlobalScope()
+      ->csp_delegate();
 }
 
 void WebSocket::Connect(const GURL& url,

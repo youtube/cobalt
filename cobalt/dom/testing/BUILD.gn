@@ -17,6 +17,7 @@ static_library("dom_testing") {
   has_pedantic_warnings = true
 
   sources = [
+    "fake_document.h",
     "html_collection_testing.h",
     "mock_layout_boxes.h",
     "stub_css_parser.cc",
