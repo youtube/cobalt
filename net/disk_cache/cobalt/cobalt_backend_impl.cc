@@ -76,7 +76,6 @@ CobaltBackendImpl::CobaltBackendImpl(
   persistent_settings_ =
       std::make_unique<cobalt::persistent_storage::PersistentSettings>(
           kPersistentSettingsJson, base::MessageLoop::current()->task_runner());
-  persistent_settings_->ValidatePersistentSettings();
   ReadDiskCacheSize(persistent_settings_.get());
 
   // Initialize disk backend for each resource type.
@@ -119,6 +118,10 @@ void CobaltBackendImpl::UpdateSizes(ResourceType type, uint32_t bytes) {
 
 uint32_t CobaltBackendImpl::GetQuota(ResourceType type) {
   return disk_cache::kTypeMetadata[type].max_size_bytes;
+}
+
+void CobaltBackendImpl::ValidatePersistentSettings() {
+  persistent_settings_->ValidatePersistentSettings();
 }
 
 net::Error CobaltBackendImpl::Init(CompletionOnceCallback completion_callback) {

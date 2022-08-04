@@ -51,6 +51,7 @@ class NET_EXPORT_PRIVATE CobaltBackendImpl final : public Backend {
   net::Error Init(CompletionOnceCallback completion_callback);
   void UpdateSizes(ResourceType type, uint32_t bytes);
   uint32_t GetQuota(ResourceType type);
+  void ValidatePersistentSettings();
 
   // Backend interface.
   net::CacheType GetCacheType() const override;
