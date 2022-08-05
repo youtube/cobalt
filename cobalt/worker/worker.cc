@@ -72,7 +72,7 @@ void Worker::WillDestroyCurrentMessageLoop() {
 Worker::~Worker() { Abort(); }
 
 void Worker::Initialize(web::Context* context) {
-  // Algorithm for 'run a worker'
+  // Algorithm for 'run a worker':
   //   https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#run-a-worker
   // 7. Let realm execution context be the result of creating a new
   //    JavaScript realm given agent and the following customizations:
@@ -80,11 +80,13 @@ void Worker::Initialize(web::Context* context) {
   //    . For the global object, if is shared is true, create a new
   //      SharedWorkerGlobalScope object. Otherwise, create a new
   //      DedicatedWorkerGlobalScope object.
-  // TODO: Actual type here should depend on derived class (e.g. dedicated,
-  // shared, service)
   web_context_->setup_environment_settings(
       new WorkerSettings(options_.outside_port));
-  web_context_->environment_settings()->set_base_url(options_.url);
+  // From algorithm for to setup up a worker environment settings object:
+  //   https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#set-up-a-worker-environment-settings-object
+  // 5. Set settings object's creation URL to worker global scope's url.
+  web_context_->environment_settings()->set_creation_url(options_.url);
+  // Continue algorithm for 'run a worker'.
   // 8. Let worker global scope be the global object of realm execution
   //    context's Realm component.
   scoped_refptr<DedicatedWorkerGlobalScope> dedicated_worker_global_scope =
@@ -148,7 +150,7 @@ void Worker::Obtain() {
   //     1. Set request's reserved client to inside settings.
   //     2. Fetch request, and asynchronously wait to run the remaining steps as
   //        part of fetch's process response for the response response.
-  const GURL& url = web_context_->environment_settings()->base_url();
+  const GURL& url = web_context_->environment_settings()->creation_url();
   loader::Origin origin = loader::Origin(url.GetOrigin());
 
   // Todo: implement csp check (b/225037465)
@@ -167,7 +169,7 @@ void Worker::OnContentProduced(const loader::Origin& last_url_origin,
   DCHECK(content);
   // 14.3. "Set worker global scope's url to response's url."
   worker_global_scope_->set_url(
-      web_context_->environment_settings()->base_url());
+      web_context_->environment_settings()->creation_url());
   // 14.4 - 14.10 initialize worker global scope
   worker_global_scope_->Initialize();
   // 14.11. Asynchronously complete the perform the fetch steps with response.

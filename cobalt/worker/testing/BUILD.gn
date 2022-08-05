@@ -24,6 +24,7 @@ source_set("worker_testing") {
     "//cobalt/base",
     "//cobalt/browser:bindings",
     "//cobalt/loader",
+    "//cobalt/network",
     "//cobalt/script",
     "//cobalt/web",
     "//cobalt/web:dom_exception",

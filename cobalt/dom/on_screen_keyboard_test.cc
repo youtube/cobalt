@@ -172,8 +172,8 @@ class OnScreenKeyboardTest : public testing::TestWithJavaScript {
  public:
   OnScreenKeyboardTest()
       : on_screen_keyboard_bridge_(new OnScreenKeyboardMockBridge()) {
-    set_stub_window(new testing::StubWindow(DOMSettings::Options(),
-                                            on_screen_keyboard_bridge_.get()));
+    stub_window()->set_on_screen_keyboard_bridge(
+        on_screen_keyboard_bridge_.get());
     on_screen_keyboard_bridge_->window_ = window();
   }
 

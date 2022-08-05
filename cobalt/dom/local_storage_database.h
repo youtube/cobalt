@@ -35,7 +35,7 @@ class LocalStorageDatabase {
   typedef base::Callback<void(std::unique_ptr<StorageArea::StorageMap>)>
       ReadCompletionCallback;
 
-  explicit LocalStorageDatabase(storage::StorageManager* storage);
+  explicit LocalStorageDatabase(storage::StorageManager* storage = nullptr);
 
   // Load the LocalStorage from the Storage Manager, and extract
   // all key/values for the given origin. Calls callback and transfers ownership

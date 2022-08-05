@@ -47,6 +47,13 @@ GlobalStats::GlobalStats()
 GlobalStats::~GlobalStats() {}
 
 bool GlobalStats::CheckNoLeaks() {
+  DCHECK(num_attrs_ == 0);
+  DCHECK(num_dom_string_maps_ == 0);
+  DCHECK(num_dom_token_lists_ == 0);
+  DCHECK(num_html_collections_ == 0);
+  DCHECK(num_named_node_maps_ == 0);
+  DCHECK(num_nodes_ == 0);
+  DCHECK(num_node_lists_ == 0);
   return web::GlobalStats::GetInstance()->CheckNoLeaks() &&
          xhr::GlobalStats::GetInstance()->CheckNoLeaks() && num_attrs_ == 0 &&
          num_dom_string_maps_ == 0 && num_dom_token_lists_ == 0 &&

@@ -14,10 +14,15 @@
 
 #include "cobalt/worker/worker_settings.h"
 
+#include "base/logging.h"
 #include "cobalt/base/debugger_hooks.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/javascript_engine.h"
+#include "cobalt/web/context.h"
+#include "cobalt/web/environment_settings.h"
+#include "cobalt/web/window_or_worker_global_scope.h"
+#include "cobalt/worker/worker_global_scope.h"
 #include "url/gurl.h"
 
 namespace cobalt {
@@ -26,5 +31,18 @@ WorkerSettings::WorkerSettings() : web::EnvironmentSettings() {}
 
 WorkerSettings::WorkerSettings(web::MessagePort* message_port)
     : web::EnvironmentSettings(), message_port_(message_port) {}
+
+const GURL& WorkerSettings::base_url() const {
+  // From algorithm for to setup up a worker environment settings object:
+  //   https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#set-up-a-worker-environment-settings-object
+  // 3. Let settings object be a new environment settings object whose
+  //    algorithms are defined as follows:
+  //    The API base URL
+  //    Return worker global scope's url.
+  DCHECK(context()->GetWindowOrWorkerGlobalScope()->IsWorker());
+  return context()->GetWindowOrWorkerGlobalScope()->AsWorker()->Url();
+}
+
+
 }  // namespace worker
 }  // namespace cobalt
