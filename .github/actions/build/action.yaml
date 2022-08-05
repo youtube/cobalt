@@ -25,3 +25,6 @@ runs:
            fi
            ninja -v -C ${GITHUB_WORKSPACE}/out/${{ matrix.target_platform }}_${{ matrix.config }} ${target}
       shell: bash
+    - name: Show Sccache Stats
+      run: sccache -s
+      shell: bash

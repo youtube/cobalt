@@ -70,52 +70,22 @@ jobs:
       - name: Upload Nightly Artifacts
         if: ${{ endsWith(github.workflow, '_nightly') && matrix.config != 'debug' }}
         uses: ./.github/actions/upload_nightly_artifacts
-      - name: Upload Test Artifacts
-        if: ${{ matrix.config == 'devel' && needs.build-matrix.outputs.on_device_test == 'true' && (endsWith(github.workflow, '_nightly') || github.event.label.name == 'runtest' || github.event_name == 'push') }}
-        uses: ./.github/actions/upload_test_artifacts
 
-  # Runs on-device tests.
-  on-device-test:
-    needs: [build-matrix, build]
-    if: needs.build-matrix.outputs.on_device_test == 'true' && (endsWith(github.workflow, '_nightly') || github.event.label.name == 'runtest' || github.event_name == 'push') 
-    runs-on: [self-hosted, linux, X64]
-    name: ${{matrix.platform}}_${{matrix.type}}
-    strategy:
-      fail-fast: false
-      matrix:
-        platform: ${{ fromJson(needs.build-matrix.outputs.platforms) }}
-        type: [unit_test, integration_test]
-        include: ${{ fromJson(needs.build-matrix.outputs.includes) }}
-    container: ${{ needs.docker-image.outputs.docker_tag }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-
-  # Runs on-host integration and unit tests.
   on-host-test:
     needs: [build-matrix]
     if: needs.build-matrix.outputs.on_host_test == 'true'
-    runs-on: [self-hosted, linux, X64]
+    runs-on: [self-hosted, Windows, X64]
     name: ${{matrix.platform}}_${{matrix.shard}}_test
     strategy:
       fail-fast: false
       matrix:
         platform: ${{ fromJson(needs.build-matrix.outputs.platforms) }}
-        shard: [0, 1, 2, 3, integration]
+        shard: [0, 1, 2, 3]
         config: [devel]
         include: ${{ fromJson(needs.build-matrix.outputs.includes) }}
-    container: ${{ needs.docker-image.outputs.docker_tag }}
-    env:
-      # DeepLink test is failing with TMPDIR set to tmpfs.
-      DISPLAY: :99
-      # For some reason tests complaining about HOME set to /github/home
-      # with permission denied error.
-      HOME: /root
     steps:
       - name: Checkout
         uses: actions/checkout@v2
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v0
       - name: Set Env Variables
         run: |
           echo "PYTHONPATH=$GITHUB_WORKSPACE" >> $GITHUB_ENV
@@ -123,14 +93,6 @@ jobs:
         uses: ./.github/actions/gn
       - name: Build Cobalt
         uses: ./.github/actions/build
-      - name: Show Sccache Stats
-        run: sccache -s
-      # TODO - Move 'Run Tests' to a separate action.
       - name: Run Tests
         shell: bash
-        run: |
-          if [[ "${{matrix.shard}}" == 'integration' ]]; then
-            xvfb-run -a --server-args="-screen 0 1920x1080x24i +render +extension GLX -noreset" python3 $GITHUB_WORKSPACE/cobalt/black_box_tests/black_box_tests.py --platform ${{matrix.target_platform}} --config ${{matrix.config}}
-          else
-            xvfb-run -a --server-args="-screen 0 1920x1080x24i +render +extension GLX -noreset" python3 $GITHUB_WORKSPACE/starboard/tools/testing/test_runner.py --platform ${{matrix.target_platform}} --config ${{matrix.config}} -s ${{matrix.shard}} -r
-          fi
+        run: python3 $GITHUB_WORKSPACE/starboard/tools/testing/test_runner.py --platform ${{matrix.target_platform}} --config ${{matrix.config}} -s ${{matrix.shard}} -r
