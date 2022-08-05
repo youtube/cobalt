@@ -17,10 +17,6 @@ import("//starboard/build/convert_i18n_data.gni")
 import("//starboard/shared/starboard/player/buildfiles.gni")
 
 config("starboard_platform_config") {
-  if (current_os == "winuwp") {
-    # We want this to apply to all shared win sources for xb1.
-    configs = [ "//starboard/xb1:starboard_platform_config" ]
-  }
   include_dirs = [
     "//third_party/angle/include",
     "//third_party/angle/include/EGL",
@@ -369,7 +365,6 @@ static_library("starboard_platform") {
     "//starboard/egl_and_gles",
     "//starboard/shared/starboard/media:media_util",
     "//starboard/shared/starboard/player/filter:filter_based_player_sources",
-    "//starboard/xb1/i18n",
     "//third_party/opus",
   ]
 
