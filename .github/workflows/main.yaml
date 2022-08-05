@@ -63,6 +63,8 @@ jobs:
     steps:
       - id: checkout
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 1
       - id: set-platforms
         run: echo "::set-output name=platforms::$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.platforms')"
       - id: set-includes
@@ -96,6 +98,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+        with:
+          fetch-depth: 1
       - name: GN
         uses: ./.github/actions/gn
       - name: Build Cobalt
@@ -123,6 +127,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+        with:
+          fetch-depth: 1
 
   # Runs on-host integration and unit tests.
   on-host-test:
@@ -147,6 +153,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+        with:
+          fetch-depth: 1
       - name: Set Env Variables
         run: |
           echo "PYTHONPATH=$GITHUB_WORKSPACE" >> $GITHUB_ENV
