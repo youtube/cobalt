@@ -17,13 +17,12 @@ FROM cobalt-build-win32-base
 
 SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop';$ProgressPreference='silentlyContinue';"]
 
-ARG RUNNER_VERSION=2.290.1
+ARG RUNNER_VERSION
 
-RUN Invoke-WebRequest -Uri 'https://aka.ms/install-powershell.ps1' -OutFile install-powershell.ps1;`
-    ./install-powershell.ps1 -AddToPath;`
-    Invoke-WebRequest -Uri https://github.com/actions/runner/releases/download/v$env:RUNNER_VERSION/actions-runner-win-x64-$env:RUNNER_VERSION.zip -OutFile runner.zip;`
-    Expand-Archive -Path C:/runner.zip -DestinationPath C:/actions-runner
+RUN Invoke-WebRequest -Uri https://github.com/actions/runner/releases/download/v$env:RUNNER_VERSION/actions-runner-win-x64-$env:RUNNER_VERSION.zip -OutFile runner.zip;`
+    Expand-Archive -Path C:/runner.zip -DestinationPath C:/actions-runner;`
+    Remove-Item -Path C:\runner.zip;`
+    setx /M PATH $(${Env:PATH} + \";${Env:ProgramFiles}\Git\bin\")
 
 ADD runner.ps1 C:/runner.ps1
-CMD ["powershell", ".\\runner.ps1"]
-
+CMD ["powershell", "-ExecutionPolicy", "Unrestricted", "-File", ".\\runner.ps1"]

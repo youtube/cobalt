@@ -81,6 +81,8 @@ services:
     build:
       context: ./docker/windows/runner
       dockerfile: ./Dockerfile
+      args:
+        - RUNNER_VERSION=2.294.0
     depends_on:
       - cobalt-build-win32-base
     image: cobalt-runner-win32
