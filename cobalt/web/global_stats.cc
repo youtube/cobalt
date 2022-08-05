@@ -35,6 +35,8 @@ GlobalStats::GlobalStats()
 GlobalStats::~GlobalStats() {}
 
 bool GlobalStats::CheckNoLeaks() {
+  DCHECK(num_event_listeners_ == 0);
+  DCHECK(num_active_java_script_events_ == 0);
   return num_event_listeners_ == 0 && num_active_java_script_events_ == 0;
 }
 

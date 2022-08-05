@@ -14,9 +14,13 @@
 
 #include "cobalt/dom/dom_settings.h"
 
+#include "base/logging.h"
 #include "cobalt/dom/document.h"
+#include "cobalt/dom/location.h"
 #include "cobalt/dom/window.h"
+#include "cobalt/web/context.h"
 #include "cobalt/web/url_utils.h"
+#include "cobalt/web/window_or_worker_global_scope.h"
 
 namespace cobalt {
 namespace dom {
@@ -38,11 +42,20 @@ DOMSettings::DOMSettings(
 
 DOMSettings::~DOMSettings() {}
 
-void DOMSettings::set_window(const scoped_refptr<Window>& window) {
-  window_ = window;
-  set_base_url(window->document()->url_as_gurl());
+const GURL& DOMSettings::base_url() const {
+  // From algorithm for to setup up a window environment settings object:
+  //   https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#set-up-a-window-environment-settings-object
+  // 3. Let settings object be a new environment settings object whose
+  //    algorithms are defined as follows:
+  //    The API base URL
+  //    Return the current base URL of window's associated Document.
+  return window()->document()->url_as_gurl();
 }
-scoped_refptr<Window> DOMSettings::window() const { return window_; }
+
+scoped_refptr<Window> DOMSettings::window() const {
+  DCHECK(context()->GetWindowOrWorkerGlobalScope()->IsWindow());
+  return context()->GetWindowOrWorkerGlobalScope()->AsWindow();
+}
 
 loader::Origin DOMSettings::document_origin() const {
   return window()->document()->location()->GetOriginAsObject();

@@ -40,8 +40,8 @@ class TestWithJavaScriptBase
     if (TypeIdProvider::GetGlobalScopeTypeId() ==
         base::GetTypeId<dom::Window>()) {
       DCHECK(!this->worker_global_scope());
-      window_.reset(new dom::testing::StubWindow(
-          dom::DOMSettings::Options(), nullptr, this->GetWebContext()));
+      this->ClearWebContext();
+      window_.reset(new dom::testing::StubWindow());
     }
   }
 

@@ -45,7 +45,7 @@ namespace testing {
 
 class StubSettings : public EnvironmentSettings {
  public:
-  explicit StubSettings(const GURL& base) { set_base_url(base); }
+  explicit StubSettings(const GURL& base) { set_creation_url(base); }
 
  private:
 };

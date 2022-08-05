@@ -21,6 +21,7 @@
 
 #include "base/logging.h"
 #include "cobalt/base/type_id.h"
+#include "cobalt/network/network_module.h"
 #include "cobalt/script/exception_message.h"
 #include "cobalt/script/exception_state.h"
 #include "cobalt/script/global_environment.h"
@@ -44,7 +45,7 @@ class TestWithJavaScriptBase : public TypeIdProvider {
   TestWithJavaScriptBase() {
     web_context_.reset(new web::testing::StubWebContext());
     web_context_->setup_environment_settings(new WorkerSettings());
-    web_context_->environment_settings()->set_base_url(GURL("about:blank"));
+    web_context_->environment_settings()->set_creation_url(GURL("about:blank"));
 
     if (TypeIdProvider::GetGlobalScopeTypeId() ==
         base::GetTypeId<DedicatedWorkerGlobalScope>()) {
@@ -71,8 +72,15 @@ class TestWithJavaScriptBase : public TypeIdProvider {
     }
   }
 
-  web::testing::StubWebContext* GetWebContext() {
-    return web_context_.release();
+  ~TestWithJavaScriptBase() { ClearWebContext(); }
+
+  void ClearWebContext() {
+    dedicated_worker_global_scope_ = nullptr;
+    service_worker_object_ = nullptr;
+    containing_service_worker_registration_ = nullptr;
+    service_worker_global_scope_ = nullptr;
+    worker_global_scope_ = nullptr;
+    web_context_.reset();
   }
 
   WorkerGlobalScope* worker_global_scope() { return worker_global_scope_; }

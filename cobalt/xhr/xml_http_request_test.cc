@@ -131,7 +131,7 @@ class XhrTest : public ::testing::Test {
 };
 
 XhrTest::XhrTest() : stub_window_(new dom::testing::StubWindow()) {
-  settings()->set_base_url(GURL("http://example.com"));
+  settings()->set_creation_url(GURL("http://example.com"));
   xhr_ = scoped_refptr<XMLHttpRequest>(new XMLHttpRequest(settings()));
 }
 

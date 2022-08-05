@@ -43,9 +43,13 @@ class MockTimerCallback : public WindowTimers::TimerCallback {
  public:
   MOCK_CONST_METHOD0(Run, script::CallbackResult<void>());
   void ExpectRunCall(int times) {
-    EXPECT_CALL(*this, Run())
-        .Times(times)
-        .WillRepeatedly(Return(script::CallbackResult<void>()));
+    if (!times) {
+      EXPECT_CALL(*this, Run()).Times(times);
+    } else {
+      EXPECT_CALL(*this, Run())
+          .Times(times)
+          .WillRepeatedly(Return(script::CallbackResult<void>()));
+    }
   }
 };
 
