@@ -632,7 +632,8 @@ void HTMLMediaElement::DurationChanged(double duration, bool request_seek) {
 }
 
 void HTMLMediaElement::ScheduleEvent(const scoped_refptr<web::Event>& event) {
-  TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::ScheduleEvent()");
+  TRACE_EVENT1("cobalt::dom", "HTMLMediaElement::ScheduleEvent()", "event",
+               TRACE_STR_COPY(event->type().c_str()));
   MLOG() << "Schedule event " << event->type() << ".";
   event_queue_.Enqueue(event);
 }
