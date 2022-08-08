@@ -23,7 +23,8 @@ template("install_target") {
   }
 
   if (invoker.type == "shared_library" &&
-      invoker.installable_target_name == "cobalt") {
+      filter_include([ invoker.installable_target_name ],
+                     lz4_install_targets) != []) {
     lz4_compress_install_target(target_name) {
       forward_variables_from(invoker, "*")
     }
@@ -33,7 +34,8 @@ template("install_target") {
     forward_variables_from(invoker, [ "testonly" ])
     deps = [ ":${target_name}_run_strip" ]
     if (invoker.type == "shared_library" &&
-        invoker.installable_target_name == "cobalt") {
+        filter_include([ invoker.installable_target_name ],
+                       lz4_install_targets) != []) {
       deps += [ ":${target_name}_run_lz4_compress" ]
     }
   }
