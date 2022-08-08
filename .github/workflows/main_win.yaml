@@ -69,8 +69,6 @@ jobs:
         uses: ./.github/actions/gn
       - name: Build Cobalt
         uses: ./.github/actions/build
-      - name: Show Sccache Stats
-        run: sccache -s
       - name: Upload Nightly Artifacts
         if: ${{ endsWith(github.workflow, '_nightly') && matrix.config != 'debug' }}
         uses: ./.github/actions/upload_nightly_artifacts
@@ -88,13 +86,12 @@ jobs:
         config: [devel]
         include: ${{ fromJson(needs.build-matrix.outputs.includes) }}
     steps:
+      - name: Get Env Vars
+        run: dir env:
       - name: Checkout
         uses: actions/checkout@v2
         with:
           fetch-depth: 1
-      - name: Set Env Variables
-        run: |
-          echo "PYTHONPATH=$GITHUB_WORKSPACE" >> $GITHUB_ENV
       - name: GN
         uses: ./.github/actions/gn
       - name: Build Cobalt

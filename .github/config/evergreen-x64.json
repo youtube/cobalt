@@ -1,5 +1,6 @@
 {
   "docker_service": "build-linux-evergreen",
+  "on_host_test": "true",
   "platforms": [
     "evergreen-x64",
 		"evergreen-x64-sbversion-14",

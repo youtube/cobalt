@@ -2,6 +2,7 @@
   "platforms": [
     "win32"
   ],
+  "on_host_test": "true",
   "includes": [
     {
       "platform":"win32",
