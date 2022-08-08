@@ -13,8 +13,10 @@
 // limitations under the License.
 
 // https://www.w3.org/TR/2015/REC-dom-20151119/#customevent
-[Constructor(DOMString type, optional CustomEventInit eventInitDict)]
-interface CustomEvent : Event {
+[
+  Constructor(DOMString type, optional CustomEventInit eventInitDict),
+  Exposed = (Window,Worker)
+] interface CustomEvent : Event {
   readonly attribute any detail;
 
   void initCustomEvent(DOMString type,
