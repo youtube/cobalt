@@ -15,8 +15,6 @@
 ARG FROM_IMAGE
 FROM ${FROM_IMAGE:-cobalt-base}
 
-ARG gn_hash=vC0rxqiqGTD3ls9KJHrgJoWP2OBiPk_QEO_xbDItKYoC
-
 ARG HOME=/root
 
 # === Install common build tools, required by all platforms
@@ -53,8 +51,12 @@ ENV NODE_PATH $NVM_DIR/v$NODE_VERSION/lib/node_modules
 ENV PATH $NVM_DIR/versions/node/v$NODE_VERSION/bin:$PATH
 
 # === Get GN via CIPD
+ARG GN_SHA256SUM="af7b2dcb3905bca56655e12131b365f1cba8e159db80d2022330c4f522fab2ef  /tmp/gn.zip"
+ARG GN_HASH=r3styzkFvKVmVeEhMbNl8cuo4VnbgNICIzDE9SL6su8C
+
 RUN curl --location --silent --output /tmp/gn.zip \
-    "https://chrome-infra-packages.appspot.com/dl/gn/gn/linux-amd64/+/${gn_hash}" \
+    "https://chrome-infra-packages.appspot.com/dl/gn/gn/linux-amd64/+/${GN_HASH}" \
+    && echo ${GN_SHA256SUM} | sha256sum --check \
     && unzip /tmp/gn.zip -d /usr/local/bin \
     && rm /tmp/gn.zip
 
