@@ -27,14 +27,14 @@ RUN apt update -qqy \
 RUN pip3 install "pre-commit<3" "cpplint<2" "yapf<1" "pylint<3"
 
 # === Get GN via CIPD
-ARG GN_SHA256SUM="1291d4cf9729b6615c621139be4e9c8bb49b5cc80330e7a9e3e83c583d683f71  /usr/local/bin/gn"
-ARG GN_HASH=vC0rxqiqGTD3ls9KJHrgJoWP2OBiPk_QEO_xbDItKYoC
+ARG GN_SHA256SUM="af7b2dcb3905bca56655e12131b365f1cba8e159db80d2022330c4f522fab2ef  /tmp/gn.zip"
+ARG GN_HASH=r3styzkFvKVmVeEhMbNl8cuo4VnbgNICIzDE9SL6su8C
 
 RUN curl --location --silent --output /tmp/gn.zip \
     "https://chrome-infra-packages.appspot.com/dl/gn/gn/linux-amd64/+/${GN_HASH}" \
+    && echo ${GN_SHA256SUM} | sha256sum --check \
     && unzip /tmp/gn.zip -d /usr/local/bin \
-    && rm /tmp/gn.zip \
-    && echo ${GN_SHA256SUM} | sha256sum --check
+    && rm /tmp/gn.zip
 
 WORKDIR /code
 
