@@ -188,10 +188,6 @@ size_t DecoderBufferAllocator::GetMaximumMemoryCapacity() const {
   return max_buffer_capacity_;
 }
 
-size_t DecoderBufferAllocator::GetSourceBufferEvictExtraInBytes() const {
-  return source_buffer_evict_extra_in_bytes_;
-}
-
 void DecoderBufferAllocator::EnsureReuseAllocatorIsCreated() {
   mutex_.DCheckAcquired();
 

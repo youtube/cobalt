@@ -187,6 +187,8 @@ static_library("dom") {
     "media_query_list.h",
     "media_source.cc",
     "media_source.h",
+    "media_source_settings.cc",
+    "media_source_settings.h",
     "memory_info.cc",
     "memory_info.h",
     "mime_type_array.cc",

@@ -21,7 +21,6 @@
 #if SB_IS(EVERGREEN)
 #include "cobalt/h5vcc/h5vcc_updater.h"
 #endif
-#include "cobalt/media/media_module.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
