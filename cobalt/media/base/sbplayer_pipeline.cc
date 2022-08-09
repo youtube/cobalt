@@ -1475,12 +1475,10 @@ void SbPlayerPipeline::ResumeTask(PipelineWindow window,
       LOG(INFO) << "SbPlayerPipeline::ResumeTask failed to create a valid "
                    "StarboardPlayer - "
                 << time_information << " \'" << error_message << "\'";
-      // TODO: Determine if CallSeekCB() may be used here, as |seek_cb_| may be
-      // available if the app is suspended before a seek is completed.
-      CallSeekCB(DECODER_ERROR_NOT_SUPPORTED,
-                 "SbPlayerPipeline::ResumeTask failed to create a valid "
-                 "StarboardPlayer - " +
-                     time_information + " \'" + error_message + "\'");
+      CallErrorCB(DECODER_ERROR_NOT_SUPPORTED,
+                  "SbPlayerPipeline::ResumeTask failed to create a valid "
+                  "StarboardPlayer - " +
+                      time_information + " \'" + error_message + "\'");
       return;
     }
   }
