@@ -77,7 +77,7 @@ class Context {
 
   virtual WindowOrWorkerGlobalScope* GetWindowOrWorkerGlobalScope() = 0;
 
-  virtual UserAgentPlatformInfo* platform_info() const = 0;
+  virtual const UserAgentPlatformInfo* platform_info() const = 0;
 
   virtual std::string GetUserAgent() const = 0;
   virtual std::string GetPreferredLanguage() const = 0;

@@ -28,8 +28,10 @@
 #include "cobalt/web/blob.h"
 #include "cobalt/web/context.h"
 #include "cobalt/web/environment_settings.h"
+#include "cobalt/web/testing/mock_user_agent_platform_info.h"
 #include "cobalt/web/testing/stub_environment_settings.h"
 #include "cobalt/web/url.h"
+#include "cobalt/web/user_agent_platform_info.h"
 #include "cobalt/worker/service_worker.h"
 #include "cobalt/worker/service_worker_object.h"
 #include "cobalt/worker/service_worker_registration.h"
@@ -42,13 +44,6 @@ class ScriptLoaderFactory;
 }  // namespace loader
 namespace web {
 namespace testing {
-
-class StubSettings : public EnvironmentSettings {
- public:
-  explicit StubSettings(const GURL& base) { set_creation_url(base); }
-
- private:
-};
 
 class StubWebContext final : public Context {
  public:
@@ -167,7 +162,9 @@ class StubWebContext final : public Context {
   void set_platform_info(UserAgentPlatformInfo* platform_info) {
     platform_info_ = platform_info;
   }
-  UserAgentPlatformInfo* platform_info() const final { return platform_info_; }
+  const UserAgentPlatformInfo* platform_info() const final {
+    return (platform_info_ ? platform_info_ : &mock_platform_info_);
+  }
 
   std::string GetUserAgent() const final {
     return std::string("StubUserAgentString");
@@ -211,6 +208,7 @@ class StubWebContext final : public Context {
   std::unique_ptr<EnvironmentSettings> environment_settings_;
   UserAgentPlatformInfo* platform_info_ = nullptr;
   scoped_refptr<worker::ServiceWorkerObject> service_worker_object_;
+  MockUserAgentPlatformInfo mock_platform_info_;
 };
 
 }  // namespace testing

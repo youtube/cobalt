@@ -20,7 +20,7 @@ namespace cobalt {
 namespace web {
 
 NavigatorUAData::NavigatorUAData(
-    UserAgentPlatformInfo* platform_info,
+    const UserAgentPlatformInfo* platform_info,
     script::ScriptValueFactory* script_value_factory)
     : script_value_factory_(script_value_factory) {
   if (platform_info == nullptr) {

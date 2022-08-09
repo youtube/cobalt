@@ -19,6 +19,7 @@ source_set("web_testing") {
   sources = [
     "gtest_workarounds.h",
     "mock_event_listener.h",
+    "mock_user_agent_platform_info.h",
     "stub_environment_settings.h",
     "stub_web_context.h",
   ]
