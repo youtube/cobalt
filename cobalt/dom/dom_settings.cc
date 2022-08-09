@@ -28,6 +28,7 @@ namespace dom {
 DOMSettings::DOMSettings(
     const base::DebuggerHooks& debugger_hooks, const int max_dom_element_depth,
     MediaSourceRegistry* media_source_registry,
+    const MediaSourceSettings* media_source_settings,
     media::CanPlayTypeHandler* can_play_type_handler,
     const media::DecoderBufferMemoryInfo* decoder_buffer_memory_info,
     MutationObserverTaskManager* mutation_observer_task_manager,
@@ -36,6 +37,7 @@ DOMSettings::DOMSettings(
       max_dom_element_depth_(max_dom_element_depth),
       microphone_options_(options.microphone_options),
       media_source_registry_(media_source_registry),
+      media_source_settings_(media_source_settings),
       can_play_type_handler_(can_play_type_handler),
       decoder_buffer_memory_info_(decoder_buffer_memory_info),
       mutation_observer_task_manager_(mutation_observer_task_manager) {}
