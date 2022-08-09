@@ -76,7 +76,7 @@ class Agent : public base::MessageLoop::DestructionObserver {
 
     worker::ServiceWorkerJobs* service_worker_jobs = nullptr;
 
-    web::UserAgentPlatformInfo* platform_info = nullptr;
+    const UserAgentPlatformInfo* platform_info = nullptr;
   };
 
   typedef base::Callback<void(const script::HeapStatistics&)>
