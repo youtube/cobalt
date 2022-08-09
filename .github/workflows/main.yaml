@@ -78,6 +78,7 @@ jobs:
       includes: ${{ steps.set-includes.outputs.includes }}
       on_device_test: ${{ steps.set-on-device-test.outputs.on_device_test }}
       on_host_test: ${{ steps.set-on-host-test.outputs.on_host_test }}
+      on_host_test_bootloader: ${{ steps.set-on-host-test-bootloader.outputs.on_host_test_bootloader }}
   # Runs builds.
   build:
     needs: [docker-image, build-matrix]
