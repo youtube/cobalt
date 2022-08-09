@@ -86,8 +86,6 @@ jobs:
         config: [devel]
         include: ${{ fromJson(needs.build-matrix.outputs.includes) }}
     steps:
-      - name: Get Env Vars
-        run: dir env:
       - name: Checkout
         uses: actions/checkout@v2
         with:

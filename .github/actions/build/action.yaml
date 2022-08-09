@@ -1,5 +1,12 @@
 name: Build Cobalt
 description: Builds Cobalt targets
+inputs:
+  build_target_platform: 
+    required: true
+  build_config: 
+    required: true
+  build_target: 
+    required: true
 runs:
   using: "composite"
   steps:
@@ -15,6 +22,8 @@ runs:
       run: env | sort
       shell: bash
     - name: Build ${{matrix.platform}}-${{matrix.config}}
+      env:
+        TARGET: ${{ inputs.build_target_platform }}
       run: |
            set -x
            # GitHub Runners have home set to /github/home.
@@ -25,7 +34,7 @@ runs:
            if [[ "${{ matrix.config }}" =~ ^(qa|gold)$ ]]; then
              target=default
            fi
-           ninja -v -C ${GITHUB_WORKSPACE}/out/${{ matrix.target_platform }}_${{ matrix.config }} ${target}
+           ninja -v -C ${GITHUB_WORKSPACE}/out/${TARGET}_${{ github.events.inputs.build_config }} ${{ inputs.build_target }}
       shell: bash
     - name: Show Sccache Stats
       run: sccache -s
