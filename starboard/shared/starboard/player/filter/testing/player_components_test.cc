@@ -393,10 +393,10 @@ class PlayerComponentsTest
   }
 
  private:
-  // We won't write audio data more than 1s ahead of current media time in
-  // cobalt. So, to test with the same condition, we limit max inputs ahead to
-  // 1s in the tests.
-  const SbTime kMaxWriteAheadDuration = kSbTimeSecond;
+  // In case of AVC MFT decoder to generate OnPrerolled callback we need to
+  // provide input video data for more than 1.1s ahead of current media time.
+  // That's why 1.5s duration is used.
+  const SbTime kMaxWriteAheadDuration = kSbTimeMillisecond * 1500;
 
   void OnError(SbPlayerError error, const std::string& error_message) {
     has_error_ = true;
