@@ -38,10 +38,12 @@ int main(int argc, char** argv) {
 
 #if SB_IS(EVERGREEN_COMPATIBLE)
   if (starboard::shared::starboard::CommandLine(argc, argv)
-          .HasSwitch(starboard::shared::starboard::kStartHandlerAtCrash)) {
-    third_party::crashpad::wrapper::InstallCrashpadHandler(true);
-  } else {
+          .HasSwitch(starboard::shared::starboard::kStartHandlerAtLaunch) &&
+      !starboard::shared::starboard::CommandLine(argc, argv)
+           .HasSwitch(starboard::shared::starboard::kStartHandlerAtCrash)) {
     third_party::crashpad::wrapper::InstallCrashpadHandler(false);
+  } else {
+    third_party::crashpad::wrapper::InstallCrashpadHandler(true);
   }
 #endif
   starboard::raspi::shared::ApplicationDispmanx application;
