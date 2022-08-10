@@ -19,6 +19,7 @@ namespace shared {
 namespace starboard {
 
 const char kStartHandlerAtCrash[] = "start_handler_at_crash";
+const char kStartHandlerAtLaunch[] = "start_handler_at_launch";
 
 }  // namespace starboard
 }  // namespace shared
