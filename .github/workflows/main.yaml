@@ -39,13 +39,6 @@ jobs:
         uses: actions/checkout@v3
         with:
           fetch-depth: 2
-      - name: Build Cobalt
-        id: build-cobalt
-        uses: ./.github/actions/build
-        with:
-          target_platform: 'foobar'
-          config: 'foobar'
-          target: 'foobar'
       - name: Login to Docker Registry ${{env.REGISTRY}}
         uses: docker/login-action@v1
         with:
@@ -80,6 +73,8 @@ jobs:
         run: echo "::set-output name=on_device_test::$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.on_device_test')"
       - id: set-on-host-test
         run: echo "::set-output name=on_host_test::$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.on_host_test')"
+      - id: set-on-host-test-bootloader
+        run: echo "::set-output name=on_host_test_bootloader::$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.on_host_test_bootloader')"
     outputs:
       platforms: ${{ steps.set-platforms.outputs.platforms }}
       includes: ${{ steps.set-includes.outputs.includes }}
@@ -166,12 +161,17 @@ jobs:
       - name: GN
         uses: ./.github/actions/gn
       - name: Build Cobalt
-        id: build-cobalt
         uses: ./.github/actions/build
-        with:
-          target_platform: 'foobar'
-          config: 'foobar'
-          target: 'foobar'
+      # Build bootloader if neccessary.
+      - name: Set bootloader config
+        if: needs.build-matrix.outputs.on_host_test_bootloader != 'null'
+        run: echo "COBALT_BOOTLOADER=${{needs.build-matrix.outputs.on_host_test_bootloader}}" >> $GITHUB_ENV
+      - name: GN
+        if: needs.build-matrix.outputs.on_host_test_bootloader != 'null'
+        uses: ./.github/actions/gn
+      - name: Build Cobalt
+        if: needs.build-matrix.outputs.on_host_test_bootloader != 'null'
+        uses: ./.github/actions/build
       # TODO - Move 'Run Tests' to a separate action.
       - name: Set Env Variables
         run: |
@@ -179,8 +179,12 @@ jobs:
       - name: Run Tests
         shell: bash
         run: |
+          loader_args=''
+          if [ ! -z ${COBALT_BOOTLOADER+x} ]; then
+            loader_args="--loader_platform ${COBALT_BOOTLOADER} --loader_config ${{matrix.config}}"
+          fi
           if [[ "${{matrix.shard}}" == 'integration' ]]; then
-            xvfb-run -a --server-args="-screen 0 1920x1080x24i +render +extension GLX -noreset" python3 $GITHUB_WORKSPACE/cobalt/black_box_tests/black_box_tests.py --platform ${{matrix.target_platform}} --config ${{matrix.config}}
+            xvfb-run -a --server-args="-screen 0 1920x1080x24i +render +extension GLX -noreset" python3 $GITHUB_WORKSPACE/cobalt/black_box_tests/black_box_tests.py --platform ${{matrix.target_platform}} --config ${{matrix.config}} ${loader_args}
           else
-            xvfb-run -a --server-args="-screen 0 1920x1080x24i +render +extension GLX -noreset" python3 $GITHUB_WORKSPACE/starboard/tools/testing/test_runner.py --platform ${{matrix.target_platform}} --config ${{matrix.config}} -s ${{matrix.shard}} -r
+            xvfb-run -a --server-args="-screen 0 1920x1080x24i +render +extension GLX -noreset" python3 $GITHUB_WORKSPACE/starboard/tools/testing/test_runner.py --platform ${{matrix.target_platform}} --config ${{matrix.config}} -s ${{matrix.shard}} -r ${loader_args}
           fi
