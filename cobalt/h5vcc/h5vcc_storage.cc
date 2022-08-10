@@ -248,12 +248,14 @@ H5vccStorageSetQuotaResponse H5vccStorage::SetQuota(
                      quota.image() + quota.font() + quota.splash() +
                      quota.uncompiled_js() + quota.compiled_js();
 
-  // TODO(b/235529738): Calculate correct max_quota_size that subtracts
-  // non-cache memory used in the kSbSystemPathCacheDirectory.
   uint32_t max_quota_size = 24 * 1024 * 1024;
 #if SB_API_VERSION >= 14
   max_quota_size = kSbMaxSystemPathCacheDirectorySize;
 #endif
+  // Assume the non-http-cache memory in kSbSystemPathCacheDirectory
+  // is less than 1 mb and subtract this from the max_quota_size.
+  max_quota_size -= (1 << 20);
+
   if (quota_total != max_quota_size) {
     return SetQuotaResponse(starboard::FormatString(
         "H5vccStorageResourceTypeQuotaDictionary input parameter field values "
@@ -311,12 +313,13 @@ H5vccStorageResourceTypeQuotaBytesDictionary H5vccStorage::GetQuota() {
           ->GetMaxCacheStorageInBytes(disk_cache::kCompiledScript)
           .value());
 
-  // TODO(b/235529738): Calculate correct max_quota_size that subtracts
-  // non-cache memory used in the kSbSystemPathCacheDirectory.
   uint32_t max_quota_size = 24 * 1024 * 1024;
 #if SB_API_VERSION >= 14
   max_quota_size = kSbMaxSystemPathCacheDirectorySize;
 #endif
+  // Assume the non-http-cache memory in kSbSystemPathCacheDirectory
+  // is less than 1 mb and subtract this from the max_quota_size.
+  max_quota_size -= (1 << 20);
 
   quota.set_total(max_quota_size);
 

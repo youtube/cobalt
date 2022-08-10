@@ -37,13 +37,13 @@ struct ResourceTypeMetadata {
   uint32_t max_size_bytes;
 };
 
-static uint32_t kInitialBytes = 3 * 1024 * 1024;
+static uint32_t kInitialBytes = static_cast<uint32_t> (3 * 1024 * 1024);
 // These values are updated on start up in application.cc, using the
 // persisted values saved in settings.json.
 static ResourceTypeMetadata kTypeMetadata[] = {
     {"other", kInitialBytes},         {"html", kInitialBytes},
     {"css", kInitialBytes},           {"image", kInitialBytes},
-    {"font", kInitialBytes},          {"splash", kInitialBytes},
+    {"font", kInitialBytes},          {"splash", 2 * 1024 * 1024},
     {"uncompiled_js", kInitialBytes}, {"compiled_js", kInitialBytes},
 };
 
