@@ -25,6 +25,10 @@ namespace starboard {
 // before the app runs and keeping it running all the time. This option reduces
 // memory consumption by the crash handler.
 extern const char kStartHandlerAtCrash[];
+// Use this flag to start the handler
+// before the app launches. Without this flag, the crash handler starts only
+// when a crash happens. This option increases the memory consumption.
+extern const char kStartHandlerAtLaunch[];
 
 }  // namespace starboard
 }  // namespace shared
