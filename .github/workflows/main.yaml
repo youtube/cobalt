@@ -73,6 +73,8 @@ jobs:
         run: echo "::set-output name=on_device_test::$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.on_device_test')"
       - id: set-on-host-test
         run: echo "::set-output name=on_host_test::$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.on_host_test')"
+      - id: set-on-host-test-shards
+        run: echo "::set-output name=on_host_test_shards::$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.on_host_test_shards')"
       - id: set-on-host-test-bootloader
         run: echo "::set-output name=on_host_test_bootloader::$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.on_host_test_bootloader')"
     outputs:
@@ -80,6 +82,7 @@ jobs:
       includes: ${{ steps.set-includes.outputs.includes }}
       on_device_test: ${{ steps.set-on-device-test.outputs.on_device_test }}
       on_host_test: ${{ steps.set-on-host-test.outputs.on_host_test }}
+      on_host_test_shards: ${{ steps.set-on-host-test-shards.outputs.on_host_test_shards }}
       on_host_test_bootloader: ${{ steps.set-on-host-test-bootloader.outputs.on_host_test_bootloader }}
   # Runs builds.
   build:
@@ -143,12 +146,11 @@ jobs:
       fail-fast: false
       matrix:
         platform: ${{ fromJson(needs.build-matrix.outputs.platforms) }}
-        shard: [0, 1, 2, 3, integration]
+        shard: ${{ fromJson(needs.build-matrix.outputs.on_host_test_shards) }}
         config: [devel]
         include: ${{ fromJson(needs.build-matrix.outputs.includes) }}
     container: ${{ needs.docker-image.outputs.docker_tag }}
     env:
-      # DeepLink test is failing with TMPDIR set to tmpfs.
       DISPLAY: :99
       # For some reason tests complaining about HOME set to /github/home
       # with permission denied error.
@@ -185,6 +187,8 @@ jobs:
           fi
           if [[ "${{matrix.shard}}" == 'integration' ]]; then
             xvfb-run -a --server-args="-screen 0 1920x1080x24i +render +extension GLX -noreset" python3 $GITHUB_WORKSPACE/cobalt/black_box_tests/black_box_tests.py --platform ${{matrix.target_platform}} --config ${{matrix.config}} ${loader_args}
+          elif [[ "${{matrix.shard}}" == 'evergreen' ]]; then
+            xvfb-run -a --server-args="-screen 0 1920x1080x24i +render +extension GLX -noreset" python3 $GITHUB_WORKSPACE/cobalt/evergreen_tests/evergreen_tests.py --platform ${{matrix.target_platform}} --config ${{matrix.config}} ${loader_args} --platform_under_test linux --no-can_mount_tmpfs
           else
             xvfb-run -a --server-args="-screen 0 1920x1080x24i +render +extension GLX -noreset" python3 $GITHUB_WORKSPACE/starboard/tools/testing/test_runner.py --platform ${{matrix.target_platform}} --config ${{matrix.config}} -s ${{matrix.shard}} -r ${loader_args}
           fi
