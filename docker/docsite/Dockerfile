@@ -50,7 +50,7 @@ RUN curl --location --silent --output /tmp/gn.zip \
 # modified files maintain the same permissions as the user that launched the
 # Docker container.
 RUN addgroup --group --gid "${GID}" defaultgroup \
-    && adduser --disabled-password --gecos '' --uid "${UID}" --gid "${GID}" ${USER:-defaultuser}
+    && adduser --disabled-password --gecos '' --uid "${UID}" --gid "${GID}" defaultuser
 
 # Allow the new uses to run gn and create a descriptive out directory.
 RUN chmod a+x /usr/local/bin/gn
