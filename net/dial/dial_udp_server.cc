@@ -9,6 +9,7 @@
 #else
 #include <arpa/inet.h>
 #endif
+#include <memory>
 #include <utility>
 #include <vector>
 
@@ -77,7 +78,7 @@ void DialUdpServer::CreateAndBind() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   socket_ = factory_->CreateAndBind(GetAddressForAllInterfaces(1900));
   if (!socket_) {
-    DLOG(WARNING) << "Failed to bind socket for Dial UDP Server";
+    LOG(WARNING) << "Failed to bind socket for DIAL UDP Server";
     return;
   }
 
@@ -103,8 +104,7 @@ void DialUdpServer::Start() {
 void DialUdpServer::Stop() {
   DCHECK(is_running_);
   thread_.message_loop()->task_runner()->PostBlockingTask(
-      FROM_HERE, base::Bind(&DialUdpServer::Shutdown,
-                            base::Unretained(this)));
+      FROM_HERE, base::Bind(&DialUdpServer::Shutdown, base::Unretained(this)));
   thread_.Stop();
 }
 
@@ -251,6 +251,7 @@ std::string DialUdpServer::ConstructSearchResponse() const {
                                 DialSystemConfig::GetInstance()->model_uuid(),
                                 kDialStRequest));
   ret.append("\r\n");
+  LOG_ONCE(INFO) << "In-App DIAL Discovery response : " << ret;
   return std::move(ret);
 }
 

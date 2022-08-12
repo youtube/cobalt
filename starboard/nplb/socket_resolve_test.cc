@@ -114,13 +114,15 @@ INSTANTIATE_TEST_CASE_P(
     SbSocketResolveTest,
     ::testing::Values(
         std::make_pair(kSbSocketResolveFilterIpv4, kSbSocketAddressTypeIpv4),
-        std::make_pair(kSbSocketResolveFilterIpv6, kSbSocketAddressTypeIpv6)));
+        std::make_pair(kSbSocketResolveFilterIpv6, kSbSocketAddressTypeIpv6)),
+    GetSbSocketFilterAddressTypePairName);
 #else
 INSTANTIATE_TEST_CASE_P(
     SbSocketAddressTypes,
     SbSocketResolveTest,
     ::testing::Values(std::make_pair(kSbSocketResolveFilterIpv4,
-                                     kSbSocketAddressTypeIpv4)));
+                                     kSbSocketAddressTypeIpv4)),
+    GetSbSocketFilterAddressTypePairName);
 #endif
 
 }  // namespace

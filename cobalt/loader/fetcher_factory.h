@@ -36,9 +36,10 @@ namespace loader {
 
 class FetcherFactory {
  public:
+  FetcherFactory() {}
   explicit FetcherFactory(network::NetworkModule* network_module);
   FetcherFactory(network::NetworkModule* network_module,
-                 const base::FilePath& extra_search_dir);
+                 const BlobFetcher::ResolverCallback& blob_resolver);
   FetcherFactory(
       network::NetworkModule* network_module,
       const base::FilePath& extra_search_dir,
@@ -60,8 +61,8 @@ class FetcherFactory {
   network::NetworkModule* network_module() const { return network_module_; }
 
  private:
-  base::Thread file_thread_;
-  network::NetworkModule* network_module_;
+  base::Thread file_thread_{"File"};
+  network::NetworkModule* network_module_ = nullptr;
   base::FilePath extra_search_dir_;
   BlobFetcher::ResolverCallback blob_resolver_;
   base::Callback<int(const std::string&, std::unique_ptr<char[]>*)>

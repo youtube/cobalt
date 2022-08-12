@@ -37,6 +37,7 @@ static_library("dom_testing") {
     "//cobalt/dom",
     "//cobalt/dom_parser",
     "//cobalt/loader",
+    "//cobalt/network",
     "//cobalt/script",
     "//cobalt/web",
     "//cobalt/web:dom_exception",

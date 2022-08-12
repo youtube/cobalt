@@ -33,6 +33,10 @@ class WorkerSettings : public web::EnvironmentSettings {
 
   web::MessagePort* message_port() const { return message_port_; }
 
+  // From: script::EnvironmentSettings
+  //
+  const GURL& base_url() const override;
+
  private:
   // Outer message port.
   web::MessagePort* message_port_ = nullptr;

@@ -14,7 +14,8 @@
 
 // https://www.w3.org/TR/2014/WD-url-1-20141209/#dom-url
 [RaisesException=Constructor, Constructor(
-     USVString url, optional USVString base = "about:blank")] interface URL {
+     USVString url, optional USVString base = "about:blank"),
+     Exposed=(Window,Worker)] interface URL {
   [CallWith=EnvironmentSettings] static DOMString
       createObjectURL(Blob blob);
   [CallWith=EnvironmentSettings] static void revokeObjectURL(DOMString url);

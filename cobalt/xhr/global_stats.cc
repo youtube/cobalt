@@ -31,7 +31,11 @@ GlobalStats::GlobalStats()
 
 GlobalStats::~GlobalStats() {}
 
-bool GlobalStats::CheckNoLeaks() { return num_xhrs_ == 0 && xhr_memory_ == 0; }
+bool GlobalStats::CheckNoLeaks() {
+  DCHECK(num_xhrs_ == 0);
+  DCHECK(xhr_memory_ == 0);
+  return num_xhrs_ == 0 && xhr_memory_ == 0;
+}
 
 void GlobalStats::Add(xhr::XMLHttpRequest* object) { ++num_xhrs_; }
 

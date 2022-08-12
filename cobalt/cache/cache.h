@@ -42,9 +42,13 @@ class Cache {
  public:
   static Cache* GetInstance();
   void Delete(disk_cache::ResourceType resource_type, uint32_t key);
+  void DeleteAll();
   std::unique_ptr<std::vector<uint8_t>> Retrieve(
       disk_cache::ResourceType resource_type, uint32_t key,
       std::function<std::unique_ptr<std::vector<uint8_t>>()> generate);
+  void Resize(disk_cache::ResourceType resource_type, uint32_t bytes);
+  base::Optional<uint32_t> GetMaxCacheStorageInBytes(
+      disk_cache::ResourceType resource_type);
 
   void set_enabled(bool enabled);
 
@@ -74,7 +78,7 @@ class Cache {
       pending_;
   bool enabled_;
 
-  persistent_storage::PersistentSettings* persistent_settings_;
+  persistent_storage::PersistentSettings* persistent_settings_ = nullptr;
 
   DISALLOW_COPY_AND_ASSIGN(Cache);
 };  // class Cache

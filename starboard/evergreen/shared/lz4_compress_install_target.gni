@@ -14,6 +14,13 @@
 
 import("//build/compiled_action.gni")
 
+lz4_install_targets = [
+  "cobalt",
+  "crash_sandbox",
+  "noop_sandbox",
+  "one_app_only_sandbox",
+]
+
 template("lz4_compress_install_target") {
   install_target_name = target_name
   installable_target_name = invoker.installable_target_name

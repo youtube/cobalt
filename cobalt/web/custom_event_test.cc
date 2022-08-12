@@ -19,18 +19,19 @@
 
 #include "base/bind.h"
 #include "base/logging.h"
-#include "cobalt/dom/testing/test_with_javascript.h"
 #include "cobalt/web/custom_event_init.h"
 #include "cobalt/web/testing/gtest_workarounds.h"
+#include "cobalt/web/testing/test_with_javascript.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+using ::testing::_;
 
 namespace cobalt {
 namespace web {
 
 namespace {
-class CustomEventTestWithJavaScript : public dom::testing::TestWithJavaScript {
-};
+class CustomEventTestWithJavaScript : public testing::TestWebWithJavaScript {};
 }  // namespace
 
 TEST(CustomEventTest, ConstructorWithEventTypeString) {
@@ -66,7 +67,7 @@ TEST(CustomEventTest, ConstructorWithEventTypeAndDefaultInitDict) {
   EXPECT_EQ(NULL, event->detail());
 }
 
-TEST_F(CustomEventTestWithJavaScript,
+TEST_P(CustomEventTestWithJavaScript,
        ConstructorWithEventTypeAndCustomInitDict) {
   std::string result;
   bool success = EvaluateScript(
@@ -84,13 +85,10 @@ TEST_F(CustomEventTestWithJavaScript,
   if (!success) {
     DLOG(ERROR) << "Failed to evaluate test: "
                 << "\"" << result << "\"";
-  } else {
-    LOG(INFO) << "Test result : "
-              << "\"" << result << "\"";
   }
 }
 
-TEST_F(CustomEventTestWithJavaScript, InitCustomEvent) {
+TEST_P(CustomEventTestWithJavaScript, InitCustomEvent) {
   std::string result;
   bool success = EvaluateScript(
       "var event = new CustomEvent('cat');\n"
@@ -106,11 +104,13 @@ TEST_F(CustomEventTestWithJavaScript, InitCustomEvent) {
   if (!success) {
     DLOG(ERROR) << "Failed to evaluate test: "
                 << "\"" << result << "\"";
-  } else {
-    LOG(INFO) << "Test result : "
-              << "\"" << result << "\"";
   }
 }
+
+INSTANTIATE_TEST_CASE_P(
+    CustomEventTestsWithJavaScript, CustomEventTestWithJavaScript,
+    ::testing::ValuesIn(testing::TestWebWithJavaScript::GetWorkerTypes()),
+    testing::TestWebWithJavaScript::GetTypeName);
 
 }  // namespace web
 }  // namespace cobalt

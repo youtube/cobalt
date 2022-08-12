@@ -583,7 +583,10 @@ WebModule::Impl::Impl(web::Context* web_context, const ConstructionData& data)
       data.can_play_type_handler, memory_info, &mutation_observer_task_manager_,
       data.options.dom_settings_options));
   DCHECK(web_context_->environment_settings());
-  web_context_->environment_settings()->set_base_url(data.initial_url);
+  // From algorithm to setup up a window environment settings object:
+  //   https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#set-up-a-window-environment-settings-object
+  // 6. Set settings object's creation URL to creationURL.
+  web_context_->environment_settings()->set_creation_url(data.initial_url);
 
   system_caption_settings_ = new cobalt::dom::captions::SystemCaptionSettings(
       web_context_->environment_settings());
@@ -657,11 +660,6 @@ WebModule::Impl::Impl(web::Context* web_context, const ConstructionData& data)
 
   window_weak_ = base::AsWeakPtr(window_.get());
   DCHECK(window_weak_);
-
-  dom::DOMSettings* dom_settings =
-      base::polymorphic_downcast<dom::DOMSettings*>(
-          web_context_->environment_settings());
-  dom_settings->set_window(window_);
 
   web_context_->global_environment()->CreateGlobalObject(
       window_, web_context_->environment_settings());

@@ -12,28 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-source_set("worker_testing") {
+# A target containing test data to be used by Cobalt. Other files can be added
+# as needed.
+copy("media_testdata") {
   testonly = true
-  has_pedantic_warnings = true
-
-  sources = [ "test_with_javascript.h" ]
-
-  deps = [
-    "//base",
-    "//base/test:test_support",
-    "//cobalt/base",
-    "//cobalt/browser:bindings",
-    "//cobalt/loader",
-    "//cobalt/network",
-    "//cobalt/script",
-    "//cobalt/web",
-    "//cobalt/web:dom_exception",
-    "//cobalt/web/testing:web_testing",
-    "//cobalt/worker",
-    "//testing/gmock",
-    "//testing/gtest",
-    "//url",
+  install_content = true
+  sources = [ "bear-320x240.webm" ]
+  subdir = "third_party/chromium/media/test/data"
+  outputs = [
+    "$sb_static_contents_output_data_dir/$subdir/{{source_target_relative}}",
   ]
-
-  public_deps = [ "//cobalt/web/testing:web_testing" ]
 }

@@ -20,16 +20,20 @@
 #include "cobalt/script/data_view.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/testing/mock_exception_state.h"
+#include "cobalt/web/testing/test_with_javascript.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+using cobalt::script::testing::MockExceptionState;
+using ::testing::_;
+using ::testing::SaveArg;
+using ::testing::StrictMock;
 
 namespace cobalt {
 namespace web {
 namespace {
-
-using script::testing::MockExceptionState;
-using ::testing::_;
-using ::testing::SaveArg;
-using ::testing::StrictMock;
+class BlobTestWithJavaScript : public testing::TestWebWithJavaScript {};
+}  // namespace
 
 TEST(BlobTest, Constructors) {
   // Initialize JavaScriptEngine and its environment.
@@ -118,6 +122,93 @@ TEST(BlobTest, HasOwnBuffer) {
   EXPECT_EQ(0x7, blob_with_buffer->data()[1]);
 }
 
-}  // namespace
+TEST_P(BlobTestWithJavaScript, ConstructorWithArray) {
+  std::string result;
+  bool success = EvaluateScript(
+      "try {"
+      "  var blob = new Blob([\" TEST \"]);"
+      "} catch (e) {"
+      "  result = e.name;"
+      "}"
+      "if (!blob) result; else blob;",
+      &result);
+  EXPECT_TRUE(success);
+  EXPECT_EQ("[object Blob]", result);
+
+  if (!success) {
+    DLOG(ERROR) << "Failed to evaluate test: "
+                << "\"" << result << "\"";
+  }
+}
+
+
+TEST_P(BlobTestWithJavaScript, ConstructorWithArrayType) {
+  std::string result;
+  bool success = EvaluateScript(
+      "let result = 'unknown';"
+      "try {"
+      "  var blob = new Blob([\" TEST \"]);"
+      "  result = blob.type;"
+      "} catch (e) {"
+      "  result = e.name;"
+      "}"
+      "result;",
+      &result);
+  EXPECT_TRUE(success);
+  EXPECT_EQ("", result);
+
+  if (!success) {
+    DLOG(ERROR) << "Failed to evaluate test: "
+                << "\"" << result << "\"";
+  }
+}
+
+TEST_P(BlobTestWithJavaScript, ConstructorWithBlobPropertyBag) {
+  std::string result;
+  bool success = EvaluateScript(
+      "let result = 'unknown';"
+      "try {"
+      "  var blob = new Blob([\" TEST \"], {type : 'test/foo'});"
+      "  result = blob.type;"
+      "} catch (e) {"
+      "  result = e.name;"
+      "}"
+      "result;",
+      &result);
+  EXPECT_TRUE(success);
+  EXPECT_EQ("test/foo", result);
+
+  if (!success) {
+    DLOG(ERROR) << "Failed to evaluate test: "
+                << "\"" << result << "\"";
+  }
+}
+
+TEST_P(BlobTestWithJavaScript, ConstructorWithArraySize) {
+  std::string result;
+  bool success = EvaluateScript(
+      "try {"
+      "  var blob = new Blob([\" TEST \"]);"
+      "} catch (e) {"
+      "  result = e.name;"
+      "}"
+      "if (!blob) result; else blob.size;",
+      &result);
+  EXPECT_TRUE(success);
+  EXPECT_EQ("6", result);
+
+  if (!success) {
+    DLOG(ERROR) << "Failed to evaluate test: "
+                << "\"" << result << "\"";
+  }
+}
+
+
+INSTANTIATE_TEST_CASE_P(
+    BlobTestsWithJavaScript, BlobTestWithJavaScript,
+    ::testing::ValuesIn(testing::TestWebWithJavaScript::GetWorkerTypes()),
+    testing::TestWebWithJavaScript::GetTypeName);
+
+
 }  // namespace web
 }  // namespace cobalt

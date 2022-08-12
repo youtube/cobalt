@@ -19,7 +19,9 @@
 #include <utility>
 
 #include "base/bind.h"
+#include "base/message_loop/message_loop.h"
 #include "base/threading/sequenced_task_runner_handle.h"
+#include "base/values.h"
 #include "net/disk_cache/backend_cleanup_tracker.h"
 
 using base::Time;
@@ -27,6 +29,8 @@ using base::Time;
 namespace disk_cache {
 
 namespace {
+
+const char kPersistentSettingsJson[] = "cache_settings.json";
 
 void CompletionOnceCallbackHandler(
     scoped_refptr<CobaltBackendImpl::RefCountedRunner> runner,
@@ -49,6 +53,17 @@ ResourceType GetType(const std::string& key) {
   return kOther;
 }
 
+void ReadDiskCacheSize(
+    cobalt::persistent_storage::PersistentSettings* settings) {
+  for (int i = 0; i < disk_cache::kTypeCount; i++) {
+    auto metadata = disk_cache::kTypeMetadata[i];
+    uint32_t bucket_size =
+        static_cast<uint32_t>(settings->GetPersistentSettingAsDouble(
+            metadata.directory, metadata.max_size_bytes));
+    disk_cache::kTypeMetadata[i] = {metadata.directory, bucket_size};
+  }
+}
+
 }  // namespace
 
 CobaltBackendImpl::CobaltBackendImpl(
@@ -58,12 +73,17 @@ CobaltBackendImpl::CobaltBackendImpl(
     net::CacheType cache_type,
     net::NetLog* net_log)
     : weak_factory_(this) {
+  persistent_settings_ =
+      std::make_unique<cobalt::persistent_storage::PersistentSettings>(
+          kPersistentSettingsJson, base::MessageLoop::current()->task_runner());
+  ReadDiskCacheSize(persistent_settings_.get());
+
   // Initialize disk backend for each resource type.
   int64_t total_size = 0;
   for (int i = 0; i < kTypeCount; i++) {
-    base::FilePath dir =
-        path.Append(FILE_PATH_LITERAL(kTypeMetadata[i].directory));
-    int64_t bucket_size = kTypeMetadata[i].max_size_mb * 1024 * 1024;
+    auto metadata = kTypeMetadata[i];
+    base::FilePath dir = path.Append(FILE_PATH_LITERAL(metadata.directory));
+    int64_t bucket_size = metadata.max_size_bytes;
     total_size += bucket_size;
     SimpleBackendImpl* simple_backend = new SimpleBackendImpl(
         dir, cleanup_tracker, /* file_tracker = */ nullptr, bucket_size,
@@ -80,6 +100,28 @@ CobaltBackendImpl::~CobaltBackendImpl() {
     delete simple_backend_map_[(ResourceType)i];
   }
   simple_backend_map_.clear();
+}
+
+void CobaltBackendImpl::UpdateSizes(ResourceType type, uint32_t bytes) {
+  if (bytes == disk_cache::kTypeMetadata[type].max_size_bytes)
+    return;
+
+  // Static cast value to double since base::Value cannot be a long.
+  persistent_settings_->SetPersistentSetting(
+      disk_cache::kTypeMetadata[type].directory,
+      std::make_unique<base::Value>(static_cast<double>(bytes)));
+
+  disk_cache::kTypeMetadata[type].max_size_bytes = bytes;
+  SimpleBackendImpl* simple_backend = simple_backend_map_[type];
+  simple_backend->SetMaxSize(bytes);
+}
+
+uint32_t CobaltBackendImpl::GetQuota(ResourceType type) {
+  return disk_cache::kTypeMetadata[type].max_size_bytes;
+}
+
+void CobaltBackendImpl::ValidatePersistentSettings() {
+  persistent_settings_->ValidatePersistentSettings();
 }
 
 net::Error CobaltBackendImpl::Init(CompletionOnceCallback completion_callback) {

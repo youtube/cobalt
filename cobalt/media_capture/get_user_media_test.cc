@@ -29,12 +29,12 @@ namespace media_capture {
 class GetUserMediaTest : public ::testing::Test {
  protected:
   GetUserMediaTest() {
-    cobalt::dom::DOMSettings::Options options;
+    window_.reset(new dom::testing::StubWindow());
 #if defined(ENABLE_FAKE_MICROPHONE)
+    cobalt::dom::DOMSettings::Options options;
     options.microphone_options.enable_fake_microphone = true;
+    window_->set_options();
 #endif  // defined(ENABLE_FAKE_MICROPHONE)
-
-    window_.reset(new dom::testing::StubWindow(options));
     media_devices_ =
         new MediaDevices(window_->environment_settings(),
                          window_->global_environment()->script_value_factory());

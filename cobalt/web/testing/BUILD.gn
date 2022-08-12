@@ -19,6 +19,7 @@ source_set("web_testing") {
   sources = [
     "gtest_workarounds.h",
     "mock_event_listener.h",
+    "mock_user_agent_platform_info.h",
     "stub_environment_settings.h",
     "stub_web_context.h",
   ]
@@ -27,6 +28,7 @@ source_set("web_testing") {
     "//base",
     "//base/test:test_support",
     "//cobalt/base",
+    "//cobalt/loader",
     "//cobalt/network",
     "//cobalt/script",
     "//cobalt/script/testing:script_testing",

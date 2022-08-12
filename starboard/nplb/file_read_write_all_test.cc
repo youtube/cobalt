@@ -20,8 +20,7 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-class SbReadWriteAllTestWithBuffer
-    : public ::testing::TestWithParam<int> {
+class SbReadWriteAllTestWithBuffer : public ::testing::TestWithParam<int> {
  public:
   int GetBufferSize() { return GetParam(); }
 };
@@ -30,8 +29,8 @@ TEST_P(SbReadWriteAllTestWithBuffer, ReadFile) {
   ScopedRandomFile random_file(0, ScopedRandomFile::kDontCreate);
   const std::string& filename = random_file.filename();
 
-  SbFile file = SbFileOpen(
-      filename.c_str(), kSbFileCreateAlways | kSbFileWrite, NULL, NULL);
+  SbFile file = SbFileOpen(filename.c_str(), kSbFileCreateAlways | kSbFileWrite,
+                           NULL, NULL);
 
   std::vector<char> file_contents;
   file_contents.reserve(GetBufferSize());
@@ -44,8 +43,8 @@ TEST_P(SbReadWriteAllTestWithBuffer, ReadFile) {
 
   SbFileClose(file);
 
-  file = SbFileOpen(
-      filename.c_str(), kSbFileOpenOnly | kSbFileRead, NULL, NULL);
+  file =
+      SbFileOpen(filename.c_str(), kSbFileOpenOnly | kSbFileRead, NULL, NULL);
   std::vector<char> read_contents(GetBufferSize());
   int bytes_read =
       SbFileReadAll(file, read_contents.data(), read_contents.size());
@@ -58,7 +57,8 @@ TEST_P(SbReadWriteAllTestWithBuffer, ReadFile) {
 INSTANTIATE_TEST_CASE_P(
     SbReadAllTestSbReadWriteAllTest,
     SbReadWriteAllTestWithBuffer,
-    ::testing::Values(0, 1, 1024, 16 * 1024, 128 * 1024, 1024 * 1024));
+    ::testing::Values(0, 1, 1024, 16 * 1024, 128 * 1024, 1024 * 1024),
+    ::testing::PrintToStringParamName());
 
 }  // namespace
 }  // namespace nplb

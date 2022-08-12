@@ -110,6 +110,7 @@ target(gtest_target_type, "updater_test") {
     ":updater",
     "//base",
     "//components/update_client",
+    "//testing/gmock",
     "//testing/gtest",
   ]
 }

@@ -58,9 +58,6 @@ class Impl : public Context {
   }
   base::MessageLoop* message_loop() const final { return message_loop_; }
   void ShutDownJavaScriptEngine() final;
-  void set_fetcher_factory(loader::FetcherFactory* factory) final {
-    fetcher_factory_.reset(factory);
-  }
   loader::FetcherFactory* fetcher_factory() const final {
     return fetcher_factory_.get();
   }
@@ -116,7 +113,9 @@ class Impl : public Context {
 
   WindowOrWorkerGlobalScope* GetWindowOrWorkerGlobalScope() final;
 
-  UserAgentPlatformInfo* platform_info() const final { return platform_info_; }
+  const UserAgentPlatformInfo* platform_info() const final {
+    return platform_info_;
+  }
   std::string GetUserAgent() const final {
     return network_module()->GetUserAgent();
   }
@@ -201,7 +200,7 @@ class Impl : public Context {
       service_worker_object_map_;
 
   worker::ServiceWorkerJobs* service_worker_jobs_;
-  web::UserAgentPlatformInfo* platform_info_;
+  const web::UserAgentPlatformInfo* platform_info_;
 
   // https://html.spec.whatwg.org/multipage/webappapis.html#concept-environment-active-service-worker
   // Note: When a service worker is unregistered from the last client, this will

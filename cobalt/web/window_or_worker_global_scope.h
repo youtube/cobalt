@@ -32,6 +32,7 @@ namespace dom {
 class Window;
 }  // namespace dom
 namespace worker {
+class WorkerGlobalScope;
 class DedicatedWorkerGlobalScope;
 class ServiceWorkerGlobalScope;
 }  // namespace worker
@@ -54,10 +55,12 @@ class WindowOrWorkerGlobalScope : public EventTarget {
   NavigatorBase* navigator_base() { return navigator_base_; }
 
   bool IsWindow();
+  bool IsWorker();
   bool IsDedicatedWorker();
   bool IsServiceWorker();
 
   virtual dom::Window* AsWindow() { return nullptr; }
+  virtual worker::WorkerGlobalScope* AsWorker() { return nullptr; }
   virtual worker::DedicatedWorkerGlobalScope* AsDedicatedWorker() {
     return nullptr;
   }

@@ -91,6 +91,17 @@ void MemoryCappedDirectory::Delete(uint32_t key) {
   }
 }
 
+void MemoryCappedDirectory::DeleteAll() {
+  base::AutoLock auto_lock(lock_);
+  // Recursively delete the contents of the directory_path_.
+  base::DeleteFile(directory_path_, true);
+  // Re-create the directory_path_ which will now be empty.
+  SbDirectoryCreate(directory_path_.value().c_str());
+  file_info_heap_.clear();
+  file_sizes_.clear();
+  size_ = 0;
+}
+
 std::unique_ptr<std::vector<uint8_t>> MemoryCappedDirectory::Retrieve(
     uint32_t key) {
   auto file_path = GetFilePath(key);
@@ -129,6 +140,14 @@ void MemoryCappedDirectory::Store(uint32_t key,
   std::push_heap(heap->begin(), heap->end(),
                  MemoryCappedDirectory::FileInfo::OldestFirst());
   file_sizes_[file_path] = new_entry_size;
+}
+
+void MemoryCappedDirectory::Resize(uint32_t size) {
+  if (max_size_ > size) {
+    uint32_t space_to_be_freed = max_size_ - size;
+    EnsureEnoughSpace(space_to_be_freed);
+  }
+  max_size_ = size;
 }
 
 MemoryCappedDirectory::MemoryCappedDirectory(

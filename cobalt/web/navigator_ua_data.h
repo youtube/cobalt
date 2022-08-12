@@ -36,7 +36,7 @@ class NavigatorUAData : public script::Wrappable {
  public:
   using InterfacePromise = script::Promise<scoped_refptr<script::Wrappable>>;
 
-  NavigatorUAData(UserAgentPlatformInfo* platform_info,
+  NavigatorUAData(const UserAgentPlatformInfo* platform_info,
                   script::ScriptValueFactory* script_value_factory);
 
   script::Sequence<NavigatorUABrandVersion> brands() const { return brands_; }

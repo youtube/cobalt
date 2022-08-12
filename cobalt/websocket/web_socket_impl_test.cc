@@ -63,10 +63,9 @@ class WebSocketImplTest : public ::testing::Test {
 
  protected:
   WebSocketImplTest() : web_context_(new web::testing::StubWebContext()) {
-    web_context_->set_network_module(new network::NetworkModule());
     web_context_->setup_environment_settings(
         new dom::testing::StubEnvironmentSettings());
-    web_context_->environment_settings()->set_base_url(
+    web_context_->environment_settings()->set_creation_url(
         GURL("https://127.0.0.1:1234"));
     std::vector<std::string> sub_protocols;
     sub_protocols.push_back("chat");

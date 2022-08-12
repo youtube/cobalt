@@ -22,6 +22,7 @@
 #include "base/files/file_util.h"
 #include "base/memory/singleton.h"
 #include "base/optional.h"
+#include "base/values.h"
 #include "cobalt/configuration/configuration.h"
 #include "cobalt/extension/javascript_cache.h"
 #include "cobalt/persistent_storage/persistent_settings.h"
@@ -30,16 +31,6 @@
 #include "starboard/system.h"
 
 namespace {
-
-base::Optional<uint32_t> GetMaxCacheStorageInBytes(
-    disk_cache::ResourceType resource_type) {
-  switch (resource_type) {
-    case disk_cache::ResourceType::kCompiledScript:
-      return 5u << 20;  // 5MiB
-    default:
-      return base::nullopt;
-  }
-}
 
 base::Optional<uint32_t> GetMinSizeToCacheInBytes(
     disk_cache::ResourceType resource_type) {
@@ -102,6 +93,14 @@ void Cache::Delete(disk_cache::ResourceType resource_type, uint32_t key) {
   auto* memory_capped_directory = GetMemoryCappedDirectory(resource_type);
   if (memory_capped_directory) {
     memory_capped_directory->Delete(key);
+  }
+}
+
+void Cache::DeleteAll() {
+  auto* memory_capped_directory =
+      GetMemoryCappedDirectory(disk_cache::ResourceType::kCompiledScript);
+  if (memory_capped_directory) {
+    memory_capped_directory->DeleteAll();
   }
 }
 
@@ -173,6 +172,16 @@ MemoryCappedDirectory* Cache::GetMemoryCappedDirectory(
     return it->second.get();
   }
 
+  // Read in size from persistent storage.
+  auto metadata = disk_cache::kTypeMetadata[resource_type];
+  if (persistent_settings_) {
+    uint32_t bucket_size = static_cast<uint32_t>(
+        persistent_settings_->GetPersistentSettingAsDouble(
+            metadata.directory, metadata.max_size_bytes));
+    disk_cache::kTypeMetadata[resource_type] = {metadata.directory,
+                                                bucket_size};
+  }
+
   auto cache_directory = GetCacheDirectory(resource_type);
   auto max_size = GetMaxCacheStorageInBytes(resource_type);
   if (!cache_directory || !max_size) {
@@ -184,6 +193,32 @@ MemoryCappedDirectory* Cache::GetMemoryCappedDirectory(
   memory_capped_directories_[resource_type] =
       std::move(memory_capped_directory);
   return memory_capped_directories_[resource_type].get();
+}
+
+void Cache::Resize(disk_cache::ResourceType resource_type, uint32_t bytes) {
+  if (resource_type != disk_cache::ResourceType::kCompiledScript) return;
+  if (bytes == disk_cache::kTypeMetadata[resource_type].max_size_bytes) return;
+
+  if (persistent_settings_) {
+    persistent_settings_->SetPersistentSetting(
+        disk_cache::kTypeMetadata[resource_type].directory,
+        std::make_unique<base::Value>(static_cast<double>(bytes)));
+  }
+  disk_cache::kTypeMetadata[resource_type].max_size_bytes = bytes;
+  auto* memory_capped_directory = GetMemoryCappedDirectory(resource_type);
+  if (memory_capped_directory) {
+    memory_capped_directory->Resize(bytes);
+  }
+}
+
+base::Optional<uint32_t> Cache::GetMaxCacheStorageInBytes(
+    disk_cache::ResourceType resource_type) {
+  switch (resource_type) {
+    case disk_cache::ResourceType::kCompiledScript:
+      return disk_cache::kTypeMetadata[resource_type].max_size_bytes;
+    default:
+      return base::nullopt;
+  }
 }
 
 base::WaitableEvent* Cache::GetWaitableEvent(

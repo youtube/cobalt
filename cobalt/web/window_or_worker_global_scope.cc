@@ -39,6 +39,10 @@ bool WindowOrWorkerGlobalScope::IsWindow() {
   return GetWrappableType() == base::GetTypeId<dom::Window>();
 }
 
+bool WindowOrWorkerGlobalScope::IsWorker() {
+  return IsDedicatedWorker() || IsServiceWorker();
+}
+
 bool WindowOrWorkerGlobalScope::IsDedicatedWorker() {
   return GetWrappableType() ==
          base::GetTypeId<worker::DedicatedWorkerGlobalScope>();

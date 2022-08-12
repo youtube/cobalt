@@ -36,40 +36,28 @@ namespace testing {
 // Helper class for running tests in a Window JavaScript context.
 class TestWithJavaScript : public ::testing::Test {
  public:
-  TestWithJavaScript() {}
+  TestWithJavaScript() { stub_window_.reset(new StubWindow()); }
   ~TestWithJavaScript() {
-    if (stub_window_) {
-      stub_window_->global_environment()->SetReportEvalCallback(
-          base::Closure());
-      stub_window_->global_environment()->SetReportErrorCallback(
-          script::GlobalEnvironment::ReportErrorCallback());
-      DCHECK(window());
-      window()->DispatchEvent(new web::Event(base::Tokens::unload()));
-      stub_window_.reset();
-    }
+    stub_window_.reset();
     EXPECT_TRUE(GlobalStats::GetInstance()->CheckNoLeaks());
   }
 
-  void set_stub_window(StubWindow* stub_window) {
-    stub_window_.reset(stub_window);
+  StubWindow* stub_window() { return stub_window_.get(); }
+  web::testing::StubWebContext* stub_web_context() {
+    return stub_window_->web_context();
   }
 
-  Window* window() {
-    if (!stub_window_) stub_window_.reset(new StubWindow());
-    return stub_window_->window().get();
-  }
+  Window* window() { return stub_window_->window().get(); }
 
   bool EvaluateScript(const std::string& js_code, std::string* result) {
-    if (!stub_window_) stub_window_.reset(new StubWindow());
-    DCHECK(stub_window_->global_environment());
+    DCHECK(global_environment());
     scoped_refptr<script::SourceCode> source_code =
         script::SourceCode::CreateSourceCode(
             js_code, base::SourceLocation(__FILE__, __LINE__, 1));
 
-    stub_window_->global_environment()->EnableEval();
-    stub_window_->global_environment()->SetReportEvalCallback(base::Closure());
-    bool succeeded =
-        stub_window_->global_environment()->EvaluateScript(source_code, result);
+    global_environment()->EnableEval();
+    global_environment()->SetReportEvalCallback(base::Closure());
+    bool succeeded = global_environment()->EvaluateScript(source_code, result);
     return succeeded;
   }
 

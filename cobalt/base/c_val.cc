@@ -56,7 +56,8 @@ void CValManager::RegisterCVal(
   // CVals cannot share name.  If this assert is triggered, we are trying to
   // register more than one CVal with the same name, which this system is
   // not designed to handle.
-  DCHECK(registered_vars_->find(cval->GetName()) == registered_vars_->end());
+  DCHECK(registered_vars_->find(cval->GetName()) == registered_vars_->end())
+      << " CVal " << cval->GetName() << " Already registered.";
 
   (*registered_vars_)[cval->GetName()] = cval;
   *value_lock = value_lock_refptr_;

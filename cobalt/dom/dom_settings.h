@@ -66,7 +66,6 @@ class DOMSettings : public web::EnvironmentSettings {
     return microphone_options_;
   }
 
-  void set_window(const scoped_refptr<Window>& window);
   scoped_refptr<Window> window() const;
 
   MediaSourceRegistry* media_source_registry() const {
@@ -89,10 +88,13 @@ class DOMSettings : public web::EnvironmentSettings {
   // Return's document's origin.
   loader::Origin document_origin() const;
 
+  // From: script::EnvironmentSettings
+  //
+  const GURL& base_url() const override;
+
  private:
   const int max_dom_element_depth_;
   const speech::Microphone::Options microphone_options_;
-  scoped_refptr<Window> window_;
   MediaSourceRegistry* media_source_registry_;
   media::CanPlayTypeHandler* can_play_type_handler_;
   const media::DecoderBufferMemoryInfo* decoder_buffer_memory_info_;

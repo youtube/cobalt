@@ -129,23 +129,27 @@ TEST_F(SbSocketWaiterWaitTimedTest, RainyDayInvalidWaiter) {
 INSTANTIATE_TEST_CASE_P(SbSocketAddressTypes,
                         SbSocketWaiterWaitTimedTest,
                         ::testing::Values(kSbSocketAddressTypeIpv4,
-                                          kSbSocketAddressTypeIpv6));
+                                          kSbSocketAddressTypeIpv6),
+                        GetSbSocketAddressTypeName);
 INSTANTIATE_TEST_CASE_P(
     SbSocketAddressTypes,
     PairSbSocketWaiterWaitTimedTest,
     ::testing::Values(
         std::make_pair(kSbSocketAddressTypeIpv4, kSbSocketAddressTypeIpv4),
         std::make_pair(kSbSocketAddressTypeIpv6, kSbSocketAddressTypeIpv6),
-        std::make_pair(kSbSocketAddressTypeIpv6, kSbSocketAddressTypeIpv4)));
+        std::make_pair(kSbSocketAddressTypeIpv6, kSbSocketAddressTypeIpv4)),
+    GetSbSocketAddressTypePairName);
 #else
 INSTANTIATE_TEST_CASE_P(SbSocketAddressTypes,
                         SbSocketWaiterWaitTimedTest,
-                        ::testing::Values(kSbSocketAddressTypeIpv4));
+                        ::testing::Values(kSbSocketAddressTypeIpv4),
+                        GetSbSocketAddressTypeName);
 INSTANTIATE_TEST_CASE_P(
     SbSocketAddressTypes,
     PairSbSocketWaiterWaitTimedTest,
     ::testing::Values(std::make_pair(kSbSocketAddressTypeIpv4,
-                                     kSbSocketAddressTypeIpv4)));
+                                     kSbSocketAddressTypeIpv4)),
+    GetSbSocketAddressTypePairName);
 #endif
 
 }  // namespace

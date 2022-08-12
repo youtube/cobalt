@@ -684,6 +684,7 @@ void BrowserModule::OnLoad() {
   web_module_loaded_.Signal();
 
   options_.persistent_settings->ValidatePersistentSettings();
+  ValidateCacheBackendSettings();
 }
 
 bool BrowserModule::WaitForLoad(const base::TimeDelta& timeout) {
@@ -2085,6 +2086,18 @@ scoped_refptr<script::Wrappable> BrowserModule::CreateH5vcc(
 void BrowserModule::SetDeepLinkTimestamp(SbTimeMonotonic timestamp) {
   DCHECK(web_module_);
   web_module_->SetDeepLinkTimestamp(timestamp);
+}
+
+void BrowserModule::ValidateCacheBackendSettings() {
+  DCHECK(network_module_);
+  auto url_request_context = network_module_->url_request_context();
+  auto http_cache = url_request_context->http_transaction_factory()->GetCache();
+  if (!http_cache) return;
+  auto cache_backend = static_cast<disk_cache::CobaltBackendImpl*>(
+      http_cache->GetCurrentBackend());
+  if (cache_backend) {
+    cache_backend->ValidatePersistentSettings();
+  }
 }
 
 }  // namespace browser

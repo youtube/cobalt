@@ -74,7 +74,7 @@ class WorkerGlobalScope : public web::WindowOrWorkerGlobalScope {
 
   void set_url(const GURL& url) { url_ = url; }
 
-  const GURL Url() const { return url_; }
+  const GURL& Url() const { return url_; }
 
   const web::EventTargetListenerInfo::EventListenerScriptValue*
   onlanguagechange() {
@@ -105,6 +105,10 @@ class WorkerGlobalScope : public web::WindowOrWorkerGlobalScope {
     SetAttributeEventListener(base::Tokens::unhandledrejection(),
                               event_listener);
   }
+
+  // From web::WindowOrWorkerGlobalScope
+  //
+  WorkerGlobalScope* AsWorker() override { return this; }
 
   // Custom, not in any spec.
   //

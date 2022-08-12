@@ -8,6 +8,7 @@
 #include <string>
 
 #include "base/version.h"
+#include "starboard/system.h"
 
 namespace base {
 class FilePath;
@@ -34,10 +35,14 @@ bool CreateProductDirectory(base::FilePath* path);
 bool GetProductDirectoryPath(base::FilePath* path);
 
 // Returns the Evergreen library metadata of the current installation.
-EvergreenLibraryMetadata GetCurrentEvergreenLibraryMetadata();
+EvergreenLibraryMetadata GetCurrentEvergreenLibraryMetadata(
+    std::function<const void*(const char*)> get_extension_fn =
+        &SbSystemGetExtension);
 
 // Returns the Evergreen version of the current installation.
-const std::string GetCurrentEvergreenVersion();
+const std::string GetCurrentEvergreenVersion(
+    std::function<const void*(const char*)> get_extension_fn =
+        &SbSystemGetExtension);
 
 // Reads the Evergreen version of the installation dir.
 base::Version ReadEvergreenVersion(base::FilePath installation_dir);

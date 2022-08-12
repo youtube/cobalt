@@ -93,7 +93,8 @@ TEST_P(WorkerNavigatorTest, WorkerNavigatorOnline) {
 
 INSTANTIATE_TEST_CASE_P(
     WorkerNavigatorTests, WorkerNavigatorTest,
-    ::testing::ValuesIn(testing::TestWorkersWithJavaScript::GetWorkerTypes()));
+    ::testing::ValuesIn(testing::TestWorkersWithJavaScript::GetWorkerTypes()),
+    testing::TestWorkersWithJavaScript::GetTypeName);
 
 }  // namespace worker
 }  // namespace cobalt

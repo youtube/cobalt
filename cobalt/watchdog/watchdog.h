@@ -58,8 +58,8 @@ typedef struct Client {
   // Ping() and Register() when in PING replace mode or set initially by
   // Register(). Also reset by Monitor() when in idle states or when a
   // violation occurs. Prevents excessive violations as they must occur
-  // time_interval_microseconds apart rather than smallest_time_interval_
-  // apart. Used as the start value for time interval calculations.
+  // time_interval_microseconds apart rather than on each monitor loop. Used as
+  // the start value for time interval calculations.
   SbTimeMonotonic time_last_updated_monotonic_microseconds;
 } Client;
 
@@ -76,9 +76,6 @@ class Watchdog : public Singleton<Watchdog> {
   bool InitializeStub();
   void Uninitialize();
   void UpdateState(base::ApplicationState state);
-  bool Register(std::string name, base::ApplicationState monitor_state,
-                int64_t time_interval, int64_t time_wait = 0,
-                Replace replace = NONE);
   bool Register(std::string name, std::string description,
                 base::ApplicationState monitor_state, int64_t time_interval,
                 int64_t time_wait = 0, Replace replace = NONE);
@@ -98,9 +95,10 @@ class Watchdog : public Singleton<Watchdog> {
 
  private:
   std::string GetWatchdogFilePath();
+  void WriteWatchdogViolations();
   static void* Monitor(void* context);
   static void InitializeViolationsMap(void* context);
-  static void WriteWatchdogViolations(void* context);
+  static void MaybeWriteWatchdogViolations(void* context);
   static void MaybeTriggerCrash(void* context);
 
   // Watchdog violations file path.
@@ -111,16 +109,21 @@ class Watchdog : public Singleton<Watchdog> {
   // except that persistent settings can still be get/set.
   bool is_disabled_;
   // Creates a lock which ensures that each loop of monitor is atomic in that
-  // modifications to is_monitoring_, state_, smallest_time_interval_, and most
-  // importantly to the dictionaries containing Watchdog clients, client_map_
-  // and violations_map_, only occur in between loops of monitor. API functions
-  // like Register(), Unregister(), Ping(), and GetWatchdogViolations() will be
-  // called by various threads and interact with these class variables.
+  // modifications to is_monitoring_, state_, and most importantly to the
+  // dictionaries containing Watchdog clients, client_map_ and violations_map_,
+  // only occur in between loops of monitor. API functions like Register(),
+  // Unregister(), Ping(), and GetWatchdogViolations() will be called by
+  // various threads and interact with these class variables.
   SbMutex mutex_;
   // Tracks application state.
   base::ApplicationState state_ = base::kApplicationStateStarted;
-  // Time interval between monitor loops.
-  int64_t smallest_time_interval_;
+  // Flag to trigger Watchdog violations writes to persistent storage.
+  bool pending_write_;
+  // Monotonically increasing timestamp when Watchdog violations were last
+  // written to persistent storage. 0 indicates that it has never been written.
+  SbTimeMonotonic time_last_written_microseconds_ = 0;
+  // Number of microseconds between writes.
+  int64_t write_wait_time_microseconds_;
   // Dictionary of registered Watchdog clients.
   std::unordered_map<std::string, std::unique_ptr<Client>> client_map_;
   // Dictionary of lists of Watchdog violations represented as dictionaries.
@@ -132,13 +135,14 @@ class Watchdog : public Singleton<Watchdog> {
 
 #if defined(_DEBUG)
   starboard::Mutex delay_lock_;
-  // name of the client to inject delay
+  // Name of the client to inject a delay for.
   std::string delay_name_ = "";
-  // since (relative)
+  // Monotonically increasing timestamp when a delay was last injected. 0
+  // indicates that it has never been injected.
   SbTimeMonotonic time_last_delayed_microseconds_ = 0;
-  // time in between delays (periodic)
+  // Number of microseconds between delays.
   int64_t delay_wait_time_microseconds_ = 0;
-  // delay duration
+  // Number of microseconds to delay.
   int64_t delay_sleep_time_microseconds_ = 0;
 #endif
 };
