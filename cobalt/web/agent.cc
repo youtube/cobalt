@@ -84,6 +84,7 @@ class Impl : public Context {
     return script_runner_.get();
   }
   Blob::Registry* blob_registry() const final { return blob_registry_.get(); }
+  web::WebSettings* web_settings() const final { return web_settings_; }
   network::NetworkModule* network_module() const final {
     DCHECK(fetcher_factory_);
     return fetcher_factory_->network_module();
@@ -171,6 +172,9 @@ class Impl : public Context {
 
   // Name of the web instance.
   std::string name_;
+
+  web::WebSettings* const web_settings_;
+
   // FetcherFactory that is used to create a fetcher according to URL.
   std::unique_ptr<loader::FetcherFactory> fetcher_factory_;
 
@@ -224,7 +228,7 @@ class Impl : public Context {
 };
 
 Impl::Impl(const std::string& name, const Agent::Options& options)
-    : name_(name) {
+    : name_(name), web_settings_(options.web_settings) {
   TRACE_EVENT0("cobalt::web", "Agent::Impl::Impl()");
   service_worker_jobs_ = options.service_worker_jobs;
   platform_info_ = options.platform_info;

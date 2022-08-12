@@ -172,6 +172,7 @@ bool ServiceWorkerPersistentSettings::ReadServiceWorkerObjectSettings(
       kSettingsOptionsNameKey, base::Value::Type::STRING);
   if (options_name_value == nullptr) return false;
   ServiceWorkerObject::Options options(options_name_value->GetString(),
+                                       options_.web_settings,
                                        options_.network_module, registration);
   options.web_options.platform_info = options_.platform_info;
   options.web_options.service_worker_jobs = options_.service_worker_jobs;

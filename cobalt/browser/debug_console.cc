@@ -109,7 +109,7 @@ DebugConsole::DebugConsole(
     base::ApplicationState initial_application_state,
     const WebModule::OnRenderTreeProducedCallback&
         render_tree_produced_callback,
-    network::NetworkModule* network_module,
+    web::WebSettings* web_settings, network::NetworkModule* network_module,
     const cssom::ViewportSize& window_dimensions,
     render_tree::ResourceProvider* resource_provider, float layout_refresh_rate,
     const debug::CreateDebugClientCallback& create_debug_client_callback,
@@ -140,6 +140,7 @@ DebugConsole::DebugConsole(
   // Pass down this callback from Browser module to Web module eventually.
   web_module_options.maybe_freeze_callback = maybe_freeze_callback;
 
+  web_module_options.web_options.web_settings = web_settings;
   web_module_options.web_options.network_module = network_module;
   web_module_options.web_options.platform_info = platform_info;
 

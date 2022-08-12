@@ -68,6 +68,8 @@ void DedicatedWorker::Initialize() {
   // 4. If this fails, throw a "SyntaxError" web::DOMException.
   // 5. Let worker URL be the resulting URL record.
   options.web_options.stack_size = cobalt::browser::kWorkerStackSize;
+  options.web_options.web_settings =
+      environment_settings()->context()->web_settings();
   options.web_options.network_module =
       environment_settings()->context()->network_module();
   // 6. Let worker be a new Worker object.

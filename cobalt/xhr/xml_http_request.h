@@ -290,7 +290,8 @@ class XMLHttpRequestImpl {
   void OnURLFetchResponseStarted(const net::URLFetcher* source);
   void OnURLFetchDownloadProgress(const net::URLFetcher* source,
                                   int64_t current, int64_t total,
-                                  int64_t current_network_bytes);
+                                  int64_t current_network_bytes,
+                                  bool request_done);
   void OnURLFetchComplete(const net::URLFetcher* source);
 
   void OnURLFetchUploadProgress(const net::URLFetcher* source, int64 current,

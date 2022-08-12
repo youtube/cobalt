@@ -305,7 +305,8 @@ void XMLHttpRequest::OnURLFetchDownloadProgress(const net::URLFetcher* source,
                                                 int64_t current, int64_t total,
                                                 int64_t current_network_bytes) {
   xhr_impl_->OnURLFetchDownloadProgress(source, current, total,
-                                        current_network_bytes);
+                                        current_network_bytes,
+                                        /* request_done = */ false);
 }
 void XMLHttpRequest::OnURLFetchComplete(const net::URLFetcher* source) {
   xhr_impl_->OnURLFetchComplete(source);
@@ -345,7 +346,12 @@ XMLHttpRequestImpl::XMLHttpRequestImpl(XMLHttpRequest* xhr)
       is_redirect_(false),
       method_(net::URLFetcher::GET),
       response_body_(new URLFetcherResponseWriter::Buffer(
-          URLFetcherResponseWriter::Buffer::kString)),
+          URLFetcherResponseWriter::Buffer::kString,
+          xhr->environment_settings()
+              ->context()
+              ->web_settings()
+              ->xhr_settings()
+              .IsTryLockForProgressCheckEnabled())),
       response_type_(XMLHttpRequest::kDefault),
       state_(XMLHttpRequest::kUnsent),
       upload_listener_(false),
@@ -555,8 +561,11 @@ void XMLHttpRequestImpl::SendIntercepted(
 
   // OnURLFetchDownloadProgress().
   ChangeState(XMLHttpRequest::kLoading);
+  const auto& xhr_settings =
+      environment_settings()->context()->web_settings()->xhr_settings();
   response_body_ = new URLFetcherResponseWriter::Buffer(
-      URLFetcherResponseWriter::Buffer::kString);
+      URLFetcherResponseWriter::Buffer::kString,
+      xhr_settings.IsTryLockForProgressCheckEnabled());
   response_body_->Write(response->data(), response->size());
   if (fetch_callback_) {
     script::Handle<script::Uint8Array> data =
@@ -967,13 +976,13 @@ void XMLHttpRequestImpl::OnURLFetchResponseStarted(
 }
 
 void XMLHttpRequestImpl::OnURLFetchDownloadProgress(
-    const net::URLFetcher* source, int64_t current, int64_t total,
-    int64_t current_network_bytes) {
+    const net::URLFetcher* source, int64_t /*current*/, int64_t /*total*/,
+    int64_t /*current_network_bytes*/, bool request_done) {
   TRACK_MEMORY_SCOPE("XHR");
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK_NE(state_, XMLHttpRequest::kDone);
 
-  if (response_body_->HasProgressSinceLastGetAndReset() == 0) {
+  if (response_body_->HasProgressSinceLastGetAndReset(request_done) == 0) {
     return;
   }
 
@@ -981,12 +990,29 @@ void XMLHttpRequestImpl::OnURLFetchDownloadProgress(
   ChangeState(XMLHttpRequest::kLoading);
 
   if (fetch_callback_) {
-    std::string downloaded_data;
-    response_body_->GetAndResetDataAndDownloadProgress(&downloaded_data);
-    script::Handle<script::Uint8Array> data = script::Uint8Array::New(
-        environment_settings()->context()->global_environment(),
-        downloaded_data.data(), downloaded_data.size());
-    fetch_callback_->value().Run(data);
+    if (response_body_->type() == URLFetcherResponseWriter::Buffer::kString) {
+      std::string downloaded_data;
+      response_body_->GetAndResetDataAndDownloadProgress(&downloaded_data);
+      script::Handle<script::Uint8Array> data = script::Uint8Array::New(
+          environment_settings()->context()->global_environment(),
+          downloaded_data.data(), downloaded_data.size());
+      fetch_callback_->value().Run(data);
+    } else {
+      DCHECK_EQ(response_body_->type(),
+                URLFetcherResponseWriter::Buffer::kBufferPool);
+      std::vector<script::PreallocatedArrayBufferData> downloaded_buffers;
+      response_body_->GetAndResetDataAndDownloadProgress(request_done,
+                                                         &downloaded_buffers);
+      for (auto& downloaded_buffer : downloaded_buffers) {
+        auto array_buffer =
+            script::ArrayBuffer::New(settings_->context()->global_environment(),
+                                     std::move(downloaded_buffer));
+        script::Handle<script::Uint8Array> data = script::Uint8Array::New(
+            settings_->context()->global_environment(), array_buffer, 0,
+            array_buffer->ByteLength());
+        fetch_callback_->value().Run(data);
+      }
+    }
   }
 
   // Send a progress notification if at least 50ms have elapsed.
@@ -1033,7 +1059,7 @@ void XMLHttpRequestImpl::OnURLFetchComplete(const net::URLFetcher* source) {
 
     // Ensure all fetched data is read and transferred to this XHR. This should
     // only be done for successful and error-free fetches.
-    OnURLFetchDownloadProgress(source, 0, 0, 0);
+    OnURLFetchDownloadProgress(source, 0, 0, 0, /* request_done = */ true);
 
     // The request may have completed too quickly, before URLFetcher's upload
     // progress timer had a chance to inform us upload is finished.
@@ -1332,7 +1358,18 @@ void XMLHttpRequestImpl::UpdateProgress(int64_t received_length) {
 
 void XMLHttpRequestImpl::StartRequest(const std::string& request_body) {
   TRACK_MEMORY_SCOPE("XHR");
-  LOG(INFO) << "Fetching: " << ClipUrl(request_url_, 200);
+
+  const auto& xhr_settings =
+      environment_settings()->context()->web_settings()->xhr_settings();
+  const bool fetch_buffer_pool_enabled =
+      xhr_settings.IsFetchBufferPoolEnabled().value_or(false);
+
+  if (fetch_callback_ && fetch_buffer_pool_enabled) {
+    LOG(INFO) << "Fetching (backed by BufferPool): "
+              << ClipUrl(request_url_, 200);
+  } else {
+    LOG(INFO) << "Fetching: " << ClipUrl(request_url_, 200);
+  }
 
   response_array_buffer_reference_.reset();
 
@@ -1341,15 +1378,30 @@ void XMLHttpRequestImpl::StartRequest(const std::string& request_body) {
   url_fetcher_ = net::URLFetcher::Create(request_url_, method_, xhr_);
   ++url_fetcher_generation_;
   url_fetcher_->SetRequestContext(network_module->url_request_context_getter());
+
   if (fetch_callback_) {
-    response_body_ = new URLFetcherResponseWriter::Buffer(
-        URLFetcherResponseWriter::Buffer::kString);
-    response_body_->DisablePreallocate();
+    // FetchBufferPool is by default disabled, but can be explicitly overridden.
+    if (fetch_buffer_pool_enabled) {
+      response_body_ = new URLFetcherResponseWriter::Buffer(
+          URLFetcherResponseWriter::Buffer::kBufferPool,
+          xhr_settings.IsTryLockForProgressCheckEnabled(),
+          xhr_settings.GetDefaultFetchBufferSize());
+    } else {
+      response_body_ = new URLFetcherResponseWriter::Buffer(
+          URLFetcherResponseWriter::Buffer::kString,
+          xhr_settings.IsTryLockForProgressCheckEnabled());
+      response_body_->DisablePreallocate();
+    }
   } else {
-    response_body_ = new URLFetcherResponseWriter::Buffer(
-        response_type_ == XMLHttpRequest::kArrayBuffer
-            ? URLFetcherResponseWriter::Buffer::kArrayBuffer
-            : URLFetcherResponseWriter::Buffer::kString);
+    if (response_type_ == XMLHttpRequest::kArrayBuffer) {
+      response_body_ = new URLFetcherResponseWriter::Buffer(
+          URLFetcherResponseWriter::Buffer::kArrayBuffer,
+          xhr_settings.IsTryLockForProgressCheckEnabled());
+    } else {
+      response_body_ = new URLFetcherResponseWriter::Buffer(
+          URLFetcherResponseWriter::Buffer::kString,
+          xhr_settings.IsTryLockForProgressCheckEnabled());
+    }
   }
   std::unique_ptr<net::URLFetcherResponseWriter> download_data_writer(
       new URLFetcherResponseWriter(response_body_));

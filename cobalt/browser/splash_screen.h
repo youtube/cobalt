@@ -26,6 +26,7 @@
 #include "cobalt/cssom/viewport_size.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/web/user_agent_platform_info.h"
+#include "cobalt/web/web_settings.h"
 #include "url/gurl.h"
 
 namespace cobalt {
@@ -39,6 +40,7 @@ class SplashScreen : public LifecycleObserver {
                base::ApplicationState initial_application_state,
                const WebModule::OnRenderTreeProducedCallback&
                    render_tree_produced_callback,
+               web::WebSettings* web_settings,
                network::NetworkModule* network_module,
                const cssom::ViewportSize& window_dimensions,
                render_tree::ResourceProvider* resource_provider,

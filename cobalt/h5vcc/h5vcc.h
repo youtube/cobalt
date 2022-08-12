@@ -54,7 +54,8 @@ class H5vcc : public script::Wrappable {
           user_agent_data(NULL),
           global_environment(NULL) {
     }
-    H5vccSettings::SetMediaSourceSettingFunc set_media_source_setting_func;
+    H5vccSettings::SetSettingFunc set_web_setting_func;
+    H5vccSettings::SetSettingFunc set_media_source_setting_func;
     network::NetworkModule* network_module;
 #if SB_IS(EVERGREEN)
     updater::UpdaterModule* updater_module;

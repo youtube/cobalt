@@ -12,12 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+source_set("xhr_settings") {
+  has_pedantic_warnings = true
+  sources = [ "xhr_settings.h" ]
+  public_deps = [ "//cobalt/base" ]
+}
+
 static_library("xhr") {
   # Creates cycle with //cobalt/dom through xml_document.h
   check_includes = false
 
   has_pedantic_warnings = true
   sources = [
+    "fetch_buffer_pool.cc",
+    "fetch_buffer_pool.h",
     "url_fetcher_buffer_writer.cc",
     "url_fetcher_buffer_writer.h",
     "xml_http_request.cc",
@@ -25,6 +33,8 @@ static_library("xhr") {
     "xml_http_request_event_target.cc",
     "xml_http_request_event_target.h",
   ]
+
+  public_deps = [ ":xhr_settings" ]
 
   deps = [
     ":global_stats",
@@ -54,13 +64,18 @@ static_library("global_stats") {
 target(gtest_target_type, "xhr_test") {
   testonly = true
   has_pedantic_warnings = true
-  sources = [ "xml_http_request_test.cc" ]
+  sources = [
+    "fetch_buffer_pool_test.cc",
+    "xhr_settings_test.cc",
+    "xml_http_request_test.cc",
+  ]
   deps = [
     ":xhr",
     "//cobalt/base",
     "//cobalt/browser",
     "//cobalt/debug",
     "//cobalt/dom/testing:dom_testing",
+    "//cobalt/script",
     "//cobalt/test:run_all_unittests",
     "//cobalt/web:dom_exception",
     "//cobalt/web/testing:web_testing",
