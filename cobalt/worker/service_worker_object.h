@@ -27,6 +27,7 @@
 #include "base/message_loop/message_loop_current.h"
 #include "cobalt/web/agent.h"
 #include "cobalt/web/context.h"
+#include "cobalt/web/web_settings.h"
 #include "cobalt/worker/service_worker_state.h"
 #include "cobalt/worker/worker_global_scope.h"
 #include "starboard/atomic.h"
@@ -57,11 +58,13 @@ class ServiceWorkerObject
   // Worker Options needed at thread run time.
   struct Options {
     Options(
-        const std::string& name, network::NetworkModule* network_module,
+        const std::string& name, web::WebSettings* web_settings,
+        network::NetworkModule* network_module,
         ServiceWorkerRegistrationObject* containing_service_worker_registration)
         : name(name),
           containing_service_worker_registration(
               containing_service_worker_registration) {
+      web_options.web_settings = web_settings;
       web_options.network_module = network_module;
     }
 

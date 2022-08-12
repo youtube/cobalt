@@ -34,6 +34,7 @@
 #include "cobalt/script/script_value.h"
 #include "cobalt/script/script_value_factory.h"
 #include "cobalt/web/environment_settings.h"
+#include "cobalt/web/web_settings.h"
 #include "cobalt/worker/service_worker_registration_object.h"
 #include "cobalt/worker/service_worker_update_via_cache.h"
 #include "url/gurl.h"
@@ -45,12 +46,15 @@ namespace worker {
 class ServiceWorkerPersistentSettings {
  public:
   struct Options {
-    Options(network::NetworkModule* network_module,
+    Options(web::WebSettings* web_settings,
+            network::NetworkModule* network_module,
             web::UserAgentPlatformInfo* platform_info,
             ServiceWorkerJobs* service_worker_jobs)
-        : network_module(network_module),
+        : web_settings(web_settings),
+          network_module(network_module),
           platform_info(platform_info),
           service_worker_jobs(service_worker_jobs) {}
+    web::WebSettings* web_settings;
     network::NetworkModule* network_module;
     web::UserAgentPlatformInfo* platform_info;
     ServiceWorkerJobs* service_worker_jobs;

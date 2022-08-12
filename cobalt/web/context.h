@@ -29,6 +29,7 @@
 #include "cobalt/web/blob.h"
 #include "cobalt/web/environment_settings.h"
 #include "cobalt/web/user_agent_platform_info.h"
+#include "cobalt/web/web_settings.h"
 
 namespace cobalt {
 namespace worker {
@@ -62,6 +63,7 @@ class Context {
   virtual script::ExecutionState* execution_state() const = 0;
   virtual script::ScriptRunner* script_runner() const = 0;
   virtual Blob::Registry* blob_registry() const = 0;
+  virtual web::WebSettings* web_settings() const = 0;
   virtual network::NetworkModule* network_module() const = 0;
   virtual worker::ServiceWorkerJobs* service_worker_jobs() const = 0;
 

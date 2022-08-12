@@ -1,4 +1,4 @@
-// Copyright 2019 Google Inc. All Rights Reserved.
+// Copyright 2019 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,12 +17,15 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
+#include "base/optional.h"
 #include "base/synchronization/lock.h"
 #include "base/task_runner.h"
 #include "cobalt/script/array_buffer.h"
+#include "cobalt/xhr/fetch_buffer_pool.h"
 #include "net/base/io_buffer.h"
 #include "net/url_request/url_fetcher_response_writer.h"
 
@@ -38,15 +41,25 @@ class URLFetcherResponseWriter : public net::URLFetcherResponseWriter {
     enum Type {
       kString,
       kArrayBuffer,
+      kBufferPool,
     };
 
-    explicit Buffer(Type type);
+    // This ctor should be used when |type| isn't |kBufferPool|, it's checked in
+    // the implementation.
+    Buffer(Type type,
+           const base::Optional<bool>& enable_try_lock_for_progress_check);
+    // This ctor should be used when |type| is |kBufferPool|, it's checked in
+    // the implementation.
+    Buffer(Type type,
+           const base::Optional<bool>& enable_try_lock_for_progress_check,
+           const base::Optional<int>& fetch_buffer_size);
 
     void DisablePreallocate();
     void Clear();
 
+    Type type() const { return type_; }
     int64_t GetAndResetDownloadProgress();
-    bool HasProgressSinceLastGetAndReset() const;
+    bool HasProgressSinceLastGetAndReset(bool request_done) const;
 
     // When the following function is called, Write() can no longer be called to
     // append more data.  It is the responsibility of the user of this class to
@@ -58,6 +71,9 @@ class URLFetcherResponseWriter : public net::URLFetcherResponseWriter {
     const std::string& GetTemporaryReferenceOfString();
 
     void GetAndResetDataAndDownloadProgress(std::string* str);
+    void GetAndResetDataAndDownloadProgress(
+        bool request_done,
+        std::vector<script::PreallocatedArrayBufferData>* buffers);
     void GetAndResetData(PreallocatedArrayBufferData* data);
 
     void MaybePreallocate(int64_t capacity);
@@ -72,6 +88,7 @@ class URLFetcherResponseWriter : public net::URLFetcherResponseWriter {
     void UpdateType_Locked(Type type);
 
     Type type_;
+    const bool enable_try_lock_for_progress_check_;
     bool allow_preallocate_ = true;
     bool capacity_known_ = false;
     size_t desired_capacity_ = 0;
@@ -84,11 +101,17 @@ class URLFetcherResponseWriter : public net::URLFetcherResponseWriter {
 
     // Data is stored in one of the following buffers, depends on the value of
     // |type_|.
+    // When |type_| is kString:
     std::string data_as_string_;
     // For use in GetReferenceOfString() so it can return a reference.
     std::string copy_of_data_as_string_;
+
+    // When |type_| is kArrayBuffer:
     PreallocatedArrayBufferData data_as_array_buffer_;
     size_t data_as_array_buffer_size_ = 0;
+
+    // When |type_| is kBufferPool:
+    FetchBufferPool data_as_buffer_pool_;
   };
 
   explicit URLFetcherResponseWriter(const scoped_refptr<Buffer>& buffer);

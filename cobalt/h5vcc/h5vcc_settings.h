@@ -35,9 +35,10 @@ namespace h5vcc {
 class H5vccSettings : public script::Wrappable {
  public:
   typedef base::Callback<bool(const std::string& name, int value)>
-      SetMediaSourceSettingFunc;
+      SetSettingFunc;
 
-  H5vccSettings(const SetMediaSourceSettingFunc& set_media_source_setting_func,
+  H5vccSettings(const SetSettingFunc& set_web_setting_func,
+                const SetSettingFunc& set_media_source_setting_func,
                 cobalt::network::NetworkModule* network_module,
 #if SB_IS(EVERGREEN)
                 cobalt::updater::UpdaterModule* updater_module,
@@ -53,7 +54,8 @@ class H5vccSettings : public script::Wrappable {
   DEFINE_WRAPPABLE_TYPE(H5vccSettings);
 
  private:
-  const SetMediaSourceSettingFunc set_media_source_setting_func_;
+  const SetSettingFunc set_web_setting_func_;
+  const SetSettingFunc set_media_source_setting_func_;
   cobalt::network::NetworkModule* network_module_ = nullptr;
 #if SB_IS(EVERGREEN)
   cobalt::updater::UpdaterModule* updater_module_ = nullptr;

@@ -20,14 +20,16 @@ namespace cobalt {
 namespace h5vcc {
 
 H5vccSettings::H5vccSettings(
-    const SetMediaSourceSettingFunc& set_media_source_setting_func,
+    const SetSettingFunc& set_web_setting_func,
+    const SetSettingFunc& set_media_source_setting_func,
     cobalt::network::NetworkModule* network_module,
 #if SB_IS(EVERGREEN)
     cobalt::updater::UpdaterModule* updater_module,
 #endif
     web::NavigatorUAData* user_agent_data,
     script::GlobalEnvironment* global_environment)
-    : set_media_source_setting_func_(set_media_source_setting_func),
+    : set_web_setting_func_(set_web_setting_func),
+      set_media_source_setting_func_(set_media_source_setting_func),
       network_module_(network_module),
 #if SB_IS(EVERGREEN)
       updater_module_(updater_module),
@@ -44,6 +46,11 @@ bool H5vccSettings::Set(const std::string& name, int32 value) const {
   const char kUpdaterMinFreeSpaceBytes[] = "Updater.MinFreeSpaceBytes";
 #endif
 
+  if (set_web_setting_func_ && set_web_setting_func_.Run(name, value)) {
+    return true;
+  }
+
+  // TODO: MediaSource settings should be part of WebSettings.
   if (set_media_source_setting_func_ &&
       set_media_source_setting_func_.Run(name, value)) {
     return true;

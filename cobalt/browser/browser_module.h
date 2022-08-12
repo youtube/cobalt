@@ -68,6 +68,7 @@
 #include "cobalt/script/array_buffer.h"
 #include "cobalt/storage/storage_manager.h"
 #include "cobalt/system_window/system_window.h"
+#include "cobalt/web/web_settings.h"
 #include "cobalt/webdriver/session_driver.h"
 #include "starboard/configuration.h"
 #include "starboard/time.h"
@@ -489,6 +490,11 @@ class BrowserModule {
   // thread according to weak_ptr.h (versus calling
   // |weak_ptr_factory_.GetWeakPtr() which is not).
   base::WeakPtr<BrowserModule> weak_this_;
+
+  // Holds browser wide web settings accessible from both the main web thread
+  // and all Workers.  It can only be set on the main web module via h5vcc but
+  // any setting changes affect all web modules.
+  web::WebSettingsImpl web_settings_;
 
   // Memory configuration tool.
   memory_settings::AutoMem auto_mem_;

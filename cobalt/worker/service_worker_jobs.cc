@@ -120,10 +120,11 @@ bool IsOriginPotentiallyTrustworthy(const GURL& url) {
 bool PermitAnyURL(const GURL&, bool) { return true; }
 }  // namespace
 
-ServiceWorkerJobs::ServiceWorkerJobs(network::NetworkModule* network_module,
+ServiceWorkerJobs::ServiceWorkerJobs(web::WebSettings* web_settings,
+                                     network::NetworkModule* network_module,
                                      web::UserAgentPlatformInfo* platform_info,
                                      base::MessageLoop* message_loop)
-    : network_module_(network_module), message_loop_(message_loop) {
+    : message_loop_(message_loop) {
   DCHECK_EQ(message_loop_, base::MessageLoop::current());
   fetcher_factory_.reset(new loader::FetcherFactory(network_module));
   DCHECK(fetcher_factory_);
@@ -132,7 +133,7 @@ ServiceWorkerJobs::ServiceWorkerJobs(network::NetworkModule* network_module,
       "ServiceWorkerJobs", fetcher_factory_.get()));
   DCHECK(script_loader_factory_);
 
-  ServiceWorkerPersistentSettings::Options options(network_module,
+  ServiceWorkerPersistentSettings::Options options(web_settings, network_module,
                                                    platform_info, this);
   scope_to_registration_map_.reset(new ServiceWorkerRegistrationMap(options));
   DCHECK(scope_to_registration_map_);
@@ -820,8 +821,8 @@ void ServiceWorkerJobs::UpdateOnLoadingComplete(
 
   // 11. Let worker be a new service worker.
   ServiceWorkerObject::Options options(
-      "ServiceWorker", state->job->client->context()->network_module(),
-      state->registration);
+      "ServiceWorker", state->job->client->context()->web_settings(),
+      state->job->client->context()->network_module(), state->registration);
   options.web_options.platform_info =
       state->job->client->context()->platform_info();
   options.web_options.service_worker_jobs =

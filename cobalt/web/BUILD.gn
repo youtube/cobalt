@@ -97,6 +97,7 @@ static_library("web") {
     "url_utils.cc",
     "url_utils.h",
     "user_agent_platform_info.h",
+    "web_settings.h",
     "window_or_worker_global_scope.cc",
     "window_or_worker_global_scope.h",
   ]
@@ -112,6 +113,7 @@ static_library("web") {
     "//cobalt/script",
     "//cobalt/script:engine",
     "//cobalt/script/v8c:engine",
+    "//cobalt/xhr:xhr_settings",
     "//net",
     "//url",
   ]

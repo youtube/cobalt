@@ -62,7 +62,8 @@ class TestWithJavaScriptBase : public TypeIdProvider {
                                               kServiceWorkerUpdateViaCacheNone);
       service_worker_object_ =
           new ServiceWorkerObject(ServiceWorkerObject::Options(
-              "TestServiceWorkerObject", web_context_->network_module(),
+              "TestServiceWorkerObject", web_context_->web_settings(),
+              web_context_->network_module(),
               containing_service_worker_registration_));
       service_worker_global_scope_ = new ServiceWorkerGlobalScope(
           web_context_->environment_settings(), service_worker_object_);

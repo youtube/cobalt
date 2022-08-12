@@ -30,6 +30,7 @@
 #include "cobalt/web/context.h"
 #include "cobalt/web/environment_settings.h"
 #include "cobalt/web/user_agent_platform_info.h"
+#include "cobalt/web/web_settings.h"
 
 namespace cobalt {
 namespace worker {
@@ -58,6 +59,7 @@ class Agent : public base::MessageLoop::DestructionObserver {
 
     script::JavaScriptEngine::Options javascript_engine_options;
 
+    web::WebSettings* web_settings = nullptr;
     network::NetworkModule* network_module = nullptr;
 
     // Optional directory to add to the search path for web files (file://).

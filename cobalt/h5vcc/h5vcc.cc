@@ -32,7 +32,8 @@ H5vcc::H5vcc(const Settings& settings) {
   crash_log_ = new H5vccCrashLog();
   runtime_ = new H5vccRuntime(settings.event_dispatcher);
   settings_ = new H5vccSettings(
-      settings.set_media_source_setting_func, settings.network_module,
+      settings.set_web_setting_func, settings.set_media_source_setting_func,
+      settings.network_module,
 #if SB_IS(EVERGREEN)
       settings.updater_module,
 #endif

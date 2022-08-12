@@ -39,6 +39,7 @@
 #include "cobalt/script/script_value_factory.h"
 #include "cobalt/web/dom_exception.h"
 #include "cobalt/web/environment_settings.h"
+#include "cobalt/web/web_settings.h"
 #include "cobalt/worker/client_query_options.h"
 #include "cobalt/worker/frame_type.h"
 #include "cobalt/worker/service_worker.h"
@@ -178,7 +179,8 @@ class ServiceWorkerJobs {
     std::queue<std::unique_ptr<Job>> jobs_;
   };
 
-  ServiceWorkerJobs(network::NetworkModule* network_module,
+  ServiceWorkerJobs(web::WebSettings* web_settings,
+                    network::NetworkModule* network_module,
                     web::UserAgentPlatformInfo* platform_info,
                     base::MessageLoop* message_loop);
   ~ServiceWorkerJobs();
@@ -186,7 +188,6 @@ class ServiceWorkerJobs {
   void Stop();
 
   base::MessageLoop* message_loop() { return message_loop_; }
-  network::NetworkModule* network_module() { return network_module_; }
 
   // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#start-register-algorithm
   void StartRegister(const base::Optional<GURL>& scope_url,
@@ -443,7 +444,6 @@ class ServiceWorkerJobs {
   std::unique_ptr<loader::FetcherFactory> fetcher_factory_;
   // LoaderFactory that is used to acquire references to resources from a URL.
   std::unique_ptr<loader::ScriptLoaderFactory> script_loader_factory_;
-  network::NetworkModule* network_module_;
   base::MessageLoop* message_loop_;
 
   JobQueueMap job_queue_map_;

@@ -290,8 +290,8 @@ BrowserModule::BrowserModule(const GURL& url,
   ApplyAutoMemSettings();
 
   platform_info_.reset(new browser::UserAgentPlatformInfo());
-  service_worker_registry_.reset(
-      new ServiceWorkerRegistry(network_module, platform_info_.get()));
+  service_worker_registry_.reset(new ServiceWorkerRegistry(
+      &web_settings_, network_module, platform_info_.get()));
 
 #if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
   SbCoreDumpRegisterHandler(BrowserModule::CoreDumpHandler, this);
@@ -401,7 +401,7 @@ BrowserModule::BrowserModule(const GURL& url,
       platform_info_.get(), application_state_,
       base::Bind(&BrowserModule::QueueOnDebugConsoleRenderTreeProduced,
                  base::Unretained(this)),
-      network_module_, GetViewportSize(), GetResourceProvider(),
+      &web_settings_, network_module_, GetViewportSize(), GetResourceProvider(),
       kLayoutMaxRefreshFrequencyInHz,
       base::Bind(&BrowserModule::CreateDebugClient, base::Unretained(this)),
       base::Bind(&BrowserModule::OnMaybeFreeze, base::Unretained(this))));
@@ -546,7 +546,7 @@ void BrowserModule::Navigate(const GURL& url_reference) {
           platform_info_.get(), application_state_,
           base::Bind(&BrowserModule::QueueOnSplashScreenRenderTreeProduced,
                      base::Unretained(this)),
-          network_module_, viewport_size, GetResourceProvider(),
+          &web_settings_, network_module_, viewport_size, GetResourceProvider(),
           kLayoutMaxRefreshFrequencyInHz, fallback_splash_screen_url_,
           splash_screen_cache_.get(),
           base::Bind(&BrowserModule::DestroySplashScreen, weak_this_),
@@ -606,6 +606,7 @@ void BrowserModule::Navigate(const GURL& url_reference) {
   options.maybe_freeze_callback =
       base::Bind(&BrowserModule::OnMaybeFreeze, base::Unretained(this));
 
+  options.web_options.web_settings = &web_settings_;
   options.web_options.network_module = network_module_;
   options.web_options.service_worker_jobs =
       service_worker_registry_->service_worker_jobs();
@@ -2038,6 +2039,8 @@ scoped_refptr<script::Wrappable> BrowserModule::CreateH5vccCallback(
   // The web_module_ member can not be safely used in this function.
 
   h5vcc::H5vcc::Settings h5vcc_settings;
+  h5vcc_settings.set_web_setting_func =
+      base::Bind(&web::WebSettingsImpl::Set, base::Unretained(&web_settings_));
   h5vcc_settings.set_media_source_setting_func = base::Bind(
       &WebModule::SetMediaSourceSetting, base::Unretained(web_module));
   h5vcc_settings.network_module = network_module_;

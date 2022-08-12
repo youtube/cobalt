@@ -32,6 +32,7 @@
 #include "cobalt/web/testing/stub_environment_settings.h"
 #include "cobalt/web/url.h"
 #include "cobalt/web/user_agent_platform_info.h"
+#include "cobalt/web/web_settings.h"
 #include "cobalt/worker/service_worker.h"
 #include "cobalt/worker/service_worker_object.h"
 #include "cobalt/worker/service_worker_registration.h"
@@ -51,6 +52,7 @@ class StubWebContext final : public Context {
     javascript_engine_ = script::JavaScriptEngine::CreateEngine();
     global_environment_ = javascript_engine_->CreateGlobalEnvironment();
     blob_registry_.reset(new Blob::Registry);
+    web_settings_.reset(new WebSettingsImpl());
     network_module_.reset(new network::NetworkModule());
     fetcher_factory_.reset(new loader::FetcherFactory(
         network_module_.get(),
@@ -98,6 +100,10 @@ class StubWebContext final : public Context {
   Blob::Registry* blob_registry() const final {
     DCHECK(blob_registry_);
     return blob_registry_.get();
+  }
+  web::WebSettings* web_settings() const final {
+    DCHECK(web_settings_);
+    return web_settings_.get();
   }
   network::NetworkModule* network_module() const final {
     DCHECK(network_module_);
@@ -207,6 +213,7 @@ class StubWebContext final : public Context {
   std::unique_ptr<script::JavaScriptEngine> javascript_engine_;
   scoped_refptr<script::GlobalEnvironment> global_environment_;
 
+  std::unique_ptr<WebSettingsImpl> web_settings_;
   std::unique_ptr<network::NetworkModule> network_module_;
   // Environment Settings object
   std::unique_ptr<EnvironmentSettings> environment_settings_;
