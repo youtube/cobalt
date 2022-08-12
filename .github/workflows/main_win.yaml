@@ -103,7 +103,7 @@ jobs:
         uses: ./.github/actions/upload_nightly_artifacts
 
   on-host-test:
-    needs: [build-matrix]
+    needs: [docker-image, build-matrix]
     if: needs.build-matrix.outputs.on_host_test == 'true'
     runs-on: [self-hosted, Windows, X64]
     name: ${{matrix.platform}}_${{matrix.shard}}_test
