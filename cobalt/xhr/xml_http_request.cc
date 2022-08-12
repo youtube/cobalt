@@ -168,6 +168,18 @@ int s_xhr_sequence_num_ = 0;
 // 5. If request's redirect count is twenty, return a network error.
 const int kRedirectLimit = 20;
 
+std::string ClipUrl(const GURL& url, size_t length) {
+  const std::string& spec = url.possibly_invalid_spec();
+  if (spec.size() < length) {
+    return spec;
+  }
+
+  size_t remain = length - 5;
+  size_t head = remain / 2;
+  size_t tail = remain - head;
+
+  return spec.substr(0, head) + "[...]" + spec.substr(spec.size() - tail);
+}
 }  // namespace
 
 bool XMLHttpRequestImpl::verbose_ = false;
@@ -1236,6 +1248,7 @@ void XMLHttpRequestImpl::UpdateProgress(int64_t received_length) {
 
 void XMLHttpRequestImpl::StartRequest(const std::string& request_body) {
   TRACK_MEMORY_SCOPE("XHR");
+  LOG(INFO) << "Fetching: " << ClipUrl(request_url_, 200);
 
   response_array_buffer_reference_.reset();
 
@@ -1424,6 +1437,7 @@ web::CspDelegate* DOMXMLHttpRequestImpl::csp_delegate() const {
 
 void DOMXMLHttpRequestImpl::StartRequest(const std::string& request_body) {
   TRACK_MEMORY_SCOPE("XHR");
+  LOG(INFO) << "Fetching: " << ClipUrl(request_url_, 200);
 
   response_array_buffer_reference_.reset();
 
