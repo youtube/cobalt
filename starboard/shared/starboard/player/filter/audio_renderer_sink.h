@@ -27,7 +27,7 @@ namespace starboard {
 namespace player {
 namespace filter {
 
-// The interface used by AudioRendererImpl to output audio samples.
+// The interface used by AudioRendererPcm to output audio samples.
 class AudioRendererSink {
  public:
   class RenderCallback {

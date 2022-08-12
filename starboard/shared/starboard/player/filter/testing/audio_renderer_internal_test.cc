@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/shared/starboard/player/filter/audio_renderer_internal_impl.h"
+#include "starboard/shared/starboard/player/filter/audio_renderer_internal_pcm.h"
 
 #include <functional>
 #include <set>
@@ -114,7 +114,7 @@ class AudioRendererTest : public ::testing::Test {
 
     const int kMaxCachedFrames = 256 * 1024;
     const int kMaxFramesPerAppend = 16384;
-    audio_renderer_.reset(new AudioRendererImpl(
+    audio_renderer_.reset(new AudioRendererPcm(
         make_scoped_ptr<AudioDecoder>(audio_decoder_),
         make_scoped_ptr<AudioRendererSink>(audio_renderer_sink_),
         GetDefaultAudioSampleInfo(), kMaxCachedFrames, kMaxFramesPerAppend));
@@ -231,7 +231,7 @@ class AudioRendererTest : public ::testing::Test {
   AudioDecoder::ConsumedCB consumed_cb_;
   bool prerolled_ = true;
 
-  scoped_ptr<AudioRendererImpl> audio_renderer_;
+  scoped_ptr<AudioRendererPcm> audio_renderer_;
   MockAudioDecoder* audio_decoder_;
   MockAudioRendererSink* audio_renderer_sink_;
   AudioRendererSink::RenderCallback* renderer_callback_;
