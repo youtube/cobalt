@@ -65,9 +65,9 @@ Available parameters for customizing container execution are:
    base os image and version. Defaults to Debian 10. `ubuntu:bionic` and
    `ubuntu:xenial` are other tested examples.
 
-**PLATFORM**: Cobalt build platform, passed to GYP
+**PLATFORM**: Cobalt build platform, passed to GN
 
-**CONFIG**: Cobalt build config, passed to GYP. Defaults to `debug`
+**CONFIG**: Cobalt build config, passed to GN. Defaults to `debug`
 
 **TARGET**: Build target, passed to `ninja`
 
@@ -90,4 +90,4 @@ docker-compose run linux-x64x11 /bin/bash
 ```
 
 and try to build Cobalt with the <a
-href="https://cobalt.googlesource.com/cobalt/+/refs/heads/22.lts.stable/src/README.md#building-and-running-the-code">usual gyp / ninja flow.</a>
+href="https://cobalt.googlesource.com/cobalt/+/refs/heads/22.lts.stable/src/README.md#building-and-running-the-code">usual GN / ninja flow.</a>
