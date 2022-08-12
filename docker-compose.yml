@@ -148,7 +148,7 @@ services:
       <<: *shared-build-env
       PLATFORM: linux-x64x11
       CONFIG: ${CONFIG:-debug}
-      TARGET: ${TARGET:-cobalt_deploy}
+      TARGET: ${TARGET:-cobalt_install}
 
   linux-x64x11-bionic:
     <<: *common-definitions
