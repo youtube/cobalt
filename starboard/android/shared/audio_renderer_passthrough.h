@@ -15,6 +15,7 @@
 #ifndef STARBOARD_ANDROID_SHARED_AUDIO_RENDERER_PASSTHROUGH_H_
 #define STARBOARD_ANDROID_SHARED_AUDIO_RENDERER_PASSTHROUGH_H_
 
+#include <atomic>
 #include <memory>
 #include <queue>
 
@@ -136,6 +137,8 @@ class AudioRendererPassthrough
   int decoded_audio_writing_offset_ = 0;
   JobToken update_status_and_write_data_token_;
   int64_t total_frames_written_on_audio_track_thread_ = 0;
+
+  std::atomic_bool audio_track_paused_{true};
 
   std::unique_ptr<JobThread> audio_track_thread_;
   std::unique_ptr<AudioTrackBridge> audio_track_bridge_;
