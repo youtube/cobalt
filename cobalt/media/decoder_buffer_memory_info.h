@@ -28,14 +28,6 @@ class DecoderBufferMemoryInfo {
   virtual size_t GetAllocatedMemory() const = 0;
   virtual size_t GetCurrentMemoryCapacity() const = 0;
   virtual size_t GetMaximumMemoryCapacity() const = 0;
-  // The return value will be used in `SourceBuffer::EvictCodedFrames()` so
-  // it will evict extra data from the SourceBuffer, to reduce the overall
-  // memory the underlying Demuxer implementation may use.
-  // NOTE: This is not the best place to pass such information.  Since it is a
-  // tentative workaround that will be reverted once we confirm the new
-  // DecoderBufferAllocator implementation works in production, adding this
-  // here allows us to reduce interfaces passed from media to dom.
-  virtual size_t GetSourceBufferEvictExtraInBytes() const = 0;
 };
 
 class StubDecoderBufferMemoryInfo : public DecoderBufferMemoryInfo {
@@ -45,7 +37,6 @@ class StubDecoderBufferMemoryInfo : public DecoderBufferMemoryInfo {
   size_t GetAllocatedMemory() const override { return 0; }
   size_t GetCurrentMemoryCapacity() const override { return 0; }
   size_t GetMaximumMemoryCapacity() const override { return 0; }
-  size_t GetSourceBufferEvictExtraInBytes() const override { return 0; }
 };
 
 }  // namespace media

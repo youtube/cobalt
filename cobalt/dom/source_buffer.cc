@@ -87,11 +87,13 @@ static base::TimeDelta DoubleToTimeDelta(double time) {
 size_t GetEvictExtraInBytes(script::EnvironmentSettings* settings) {
   DOMSettings* dom_settings =
       base::polymorphic_downcast<DOMSettings*>(settings);
-  if (dom_settings && dom_settings->decoder_buffer_memory_info()) {
-    return dom_settings->decoder_buffer_memory_info()
-        ->GetSourceBufferEvictExtraInBytes();
-  }
-  return 0;
+  DCHECK(dom_settings);
+  DCHECK(dom_settings->media_source_settings());
+  int bytes = dom_settings->media_source_settings()
+                  ->GetSourceBufferEvictExtraInBytes()
+                  .value_or(0);
+  DCHECK_GE(bytes, 0);
+  return std::max<int>(bytes, 0);
 }
 
 }  // namespace

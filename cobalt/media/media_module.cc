@@ -183,14 +183,6 @@ class CanPlayTypeHandlerStarboard : public CanPlayTypeHandler {
 
 }  // namespace
 
-bool MediaModule::SetConfiguration(const std::string& name, int32 value) {
-  if (name == "source_buffer_evict_extra_in_bytes" && value >= 0) {
-    decoder_buffer_allocator_.SetSourceBufferEvictExtraInBytes(value);
-    return true;
-  }
-  return false;
-}
-
 std::unique_ptr<WebMediaPlayer> MediaModule::CreateWebMediaPlayer(
     WebMediaPlayerClient* client) {
   TRACK_MEMORY_SCOPE("Media");
