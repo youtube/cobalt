@@ -17,7 +17,6 @@
 
 #include <string>
 
-#include "base/callback.h"
 #include "cobalt/base/event_dispatcher.h"
 #include "cobalt/dom/c_val_view.h"
 #include "cobalt/dom/mutation_observer_task_manager.h"
@@ -46,7 +45,8 @@ class H5vcc : public script::Wrappable {
  public:
   struct Settings {
     Settings()
-        : network_module(NULL),
+        : media_module(NULL),
+          network_module(NULL),
 #if SB_IS(EVERGREEN)
           updater_module(NULL),
 #endif
@@ -55,7 +55,7 @@ class H5vcc : public script::Wrappable {
           user_agent_data(NULL),
           global_environment(NULL) {
     }
-    H5vccSettings::SetMediaSourceSettingFunc set_media_source_setting_func;
+    media::MediaModule* media_module;
     network::NetworkModule* network_module;
 #if SB_IS(EVERGREEN)
     updater::UpdaterModule* updater_module;
