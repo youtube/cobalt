@@ -21,6 +21,7 @@
 
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
+#include "cobalt/loader/cors_preflight_cache.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/web/crypto.h"
 #include "cobalt/web/csp_delegate.h"
@@ -99,6 +100,10 @@ class WindowOrWorkerGlobalScope : public EventTarget {
 
   web::CspDelegate* csp_delegate() const { return csp_delegate_.get(); }
 
+  const scoped_refptr<loader::CORSPreflightCache> get_preflight_cache() {
+    return preflight_cache_;
+  }
+
   DEFINE_WRAPPABLE_TYPE(WindowOrWorkerGlobalScope);
 
   // Web API: WindowTimers (implements)
@@ -137,6 +142,8 @@ class WindowOrWorkerGlobalScope : public EventTarget {
  private:
   std::unique_ptr<web::CspDelegate> csp_delegate_;
   NavigatorBase* navigator_base_ = nullptr;
+  // Global preflight cache.
+  scoped_refptr<loader::CORSPreflightCache> preflight_cache_;
 };
 
 }  // namespace web

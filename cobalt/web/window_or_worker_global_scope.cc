@@ -37,7 +37,8 @@ WindowOrWorkerGlobalScope::WindowOrWorkerGlobalScope(
     : EventTarget(settings, kUnpackOnErrorEvents),
       crypto_(new Crypto()),
       window_timers_(this, stat_tracker, debugger_hooks(),
-                     options.initial_state) {
+                     options.initial_state),
+      preflight_cache_(new loader::CORSPreflightCache()) {
   std::unique_ptr<web::CspViolationReporter> violation_reporter(
       new web::CspViolationReporter(this, options.post_sender));
   csp_delegate_ = web::CspDelegateFactory::GetInstance()->Create(
