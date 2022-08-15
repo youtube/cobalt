@@ -447,8 +447,6 @@ class DOMXMLHttpRequestImpl : public XMLHttpRequestImpl {
   void GetLoadTimingInfoAndCreateResourceTiming() override;
 
  private:
-  void StartRequest(const std::string& request_body) override;
-
   scoped_refptr<dom::Document> GetDocumentResponseEntityBody();
 
   void XMLDecoderLoadCompleteCallback(
