@@ -27,12 +27,12 @@ H5vcc::H5vcc(const Settings& settings) {
   c_val_ = new dom::CValView();
   crash_log_ = new H5vccCrashLog();
   runtime_ = new H5vccRuntime(settings.event_dispatcher);
-  settings_ =
-      new H5vccSettings(settings.media_module, settings.network_module,
+  settings_ = new H5vccSettings(
+      settings.set_media_source_setting_func, settings.network_module,
 #if SB_IS(EVERGREEN)
-                        settings.updater_module,
+      settings.updater_module,
 #endif
-                        settings.user_agent_data, settings.global_environment);
+      settings.user_agent_data, settings.global_environment);
 #if defined(COBALT_ENABLE_SSO)
   sso_ = new H5vccSso();
 #endif
