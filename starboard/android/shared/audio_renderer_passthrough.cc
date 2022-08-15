@@ -349,7 +349,16 @@ SbTime AudioRendererPassthrough::GetCurrentMediaTime(bool* is_playing,
   SbTime playback_time =
       seek_to_time_ + playback_head_position * kSbTimeSecond /
                           audio_sample_info_.samples_per_second;
-  if (paused_ || playback_rate_ == 0.0) {
+
+  // When underlying AudioTrack is paused, we use returned playback time
+  // directly. Note that we should not use |paused_| or |playback_rate_| here.
+  // As we sync audio sink state on |audio_track_thread_|, when |paused_| is set
+  // to false, the underlying AudioTrack may still be paused. In that case, the
+  // returned playback time and last frame consumed time would be out of date.
+  // For example, when resume the playback, if we call GetAudioTimestamp()
+  // before calling AudioTrack.Play(), the returned playback time and last frame
+  // consumed time would be the same as at when we pause the video.
+  if (audio_track_paused_) {
     return playback_time;
   }
 
@@ -358,6 +367,10 @@ SbTime AudioRendererPassthrough::GetCurrentMediaTime(bool* is_playing,
   SB_LOG_IF(WARNING, now < updated_at)
       << "now (" << now << ") is not greater than updated_at (" << updated_at
       << ").";
+  SB_LOG_IF(WARNING, now - updated_at > kSbTimeSecond)
+      << "Elapsed time (" << now - updated_at
+      << ") is greater than 1s. (playback_time " << playback_time << ")";
+
   playback_time += std::max<SbTime>(now - updated_at, 0);
 
   return playback_time;
@@ -469,11 +482,13 @@ void AudioRendererPassthrough::UpdateStatusAndWriteData(
   if (previous_state.playing() != current_state.playing()) {
     if (current_state.playing()) {
       audio_track_bridge_->Play();
+      audio_track_paused_ = false;
       SB_LOG(INFO) << "Played on AudioTrack thread.";
       ScopedLock scoped_lock(mutex_);
       stop_called_ = false;
     } else {
       audio_track_bridge_->Pause();
+      audio_track_paused_ = true;
       SB_LOG(INFO) << "Paused on AudioTrack thread.";
     }
   }
