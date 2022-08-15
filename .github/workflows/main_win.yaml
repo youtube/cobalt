@@ -124,5 +124,4 @@ jobs:
       - name: Build Cobalt
         uses: ./.github/actions/build
       - name: Run Tests
-        shell: bash
-        run: python3 $GITHUB_WORKSPACE/starboard/tools/testing/test_runner.py --platform ${{matrix.target_platform}} --config ${{matrix.config}} -s ${{matrix.shard}} -r
+        run: python3 $env:GITHUB_WORKSPACE/starboard/tools/testing/test_runner.py --platform ${{matrix.target_platform}} --config ${{matrix.config}} -s ${{matrix.shard}} -r
