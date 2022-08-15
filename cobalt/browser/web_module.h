@@ -338,7 +338,6 @@ class WebModule : public base::MessageLoop::DestructionObserver,
 
   void UpdateCamera3D(const scoped_refptr<input::Camera3D>& camera_3d);
   void SetMediaModule(media::MediaModule* media_module);
-  bool SetMediaSourceSetting(const std::string& name, int value);
   void SetImageCacheCapacity(int64_t bytes);
   void SetRemoteTypefaceCacheCapacity(int64_t bytes);
 
@@ -459,10 +458,9 @@ class WebModule : public base::MessageLoop::DestructionObserver,
 
   void ClearAllIntervalsAndTimeouts();
 
-  void GetIsReadyToFreeze(volatile bool* is_ready_to_freeze);
+  void CancelSynchronousLoads();
 
-  void SetMediaSourceSettingInternal(const std::string& name, int value,
-                                     bool* succeeded);
+  void GetIsReadyToFreeze(volatile bool* is_ready_to_freeze);
 
   // The message loop this object is running on.
   base::MessageLoop* message_loop() const {
