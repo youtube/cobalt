@@ -33,6 +33,8 @@ runs:
     - name: Build containers with docker-compose
       if: steps.changed-files.outputs.any_changed == 'true'
       uses: smartlyio/docker-compose-action@v1
+      env:
+        DOCKER_CPUS: 2
       with:
         serviceName: win-win32
         build: false
