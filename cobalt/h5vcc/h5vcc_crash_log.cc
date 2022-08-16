@@ -161,8 +161,8 @@ bool H5vccCrashLog::Register(const std::string& name,
       default:
         replace = watchdog::NONE;
     }
-    return watchdog->Register(name, description, monitor_state, time_interval,
-                              time_wait, replace);
+    return watchdog->Register(name, description, monitor_state,
+                              time_interval * 1000, time_wait * 1000, replace);
   }
   return false;
 }

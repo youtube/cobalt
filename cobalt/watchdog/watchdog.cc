@@ -39,13 +39,13 @@ const char kWatchdogViolationsJson[] = "watchdog.json";
 // The frequency in microseconds of monitor loops.
 const int64_t kWatchdogMonitorFrequency = 1000000;
 // The maximum number of most recent repeated Watchdog violations.
-const int64_t kWatchdogMaxViolations = 100;
+const int64_t kWatchdogMaxViolations = 200;
 // The minimum number of microseconds between writes.
 const int64_t kWatchdogWriteWaitTime = 300000000;
 // The maximum number of most recent ping infos.
 const int64_t kWatchdogMaxPingInfos = 20;
 // The maximum length of each ping info.
-const int64_t kWatchdogMaxPingInfoLength = 1024;
+const int64_t kWatchdogMaxPingInfoLength = 128;
 
 // Persistent setting name and default setting for the boolean that controls
 // whether or not Watchdog is enabled. When disabled, Watchdog behaves like a
@@ -215,10 +215,10 @@ void* Watchdog::Monitor(void* context) {
           int index = violations->GetList().size() - 1;
           std::string timestamp_last_pinged_microseconds =
               violations->GetList()[index]
-                  .FindKey("timestampLastPingedMicroseconds")
+                  .FindKey("timestampLastPingedMilliseconds")
                   ->GetString();
           if (timestamp_last_pinged_microseconds !=
-              std::to_string(client->time_last_pinged_microseconds))
+              std::to_string(client->time_last_pinged_microseconds / 1000))
             new_violation = true;
         }
 
@@ -230,24 +230,24 @@ void* Watchdog::Monitor(void* context) {
           violation.SetKey("monitorState",
                            base::Value(std::string(GetApplicationStateString(
                                client->monitor_state))));
-          violation.SetKey(
-              "timeIntervalMicroseconds",
-              base::Value(std::to_string(client->time_interval_microseconds)));
-          violation.SetKey(
-              "timeWaitMicroseconds",
-              base::Value(std::to_string(client->time_wait_microseconds)));
-          violation.SetKey("timestampRegisteredMicroseconds",
+          violation.SetKey("timeIntervalMilliseconds",
                            base::Value(std::to_string(
-                               client->time_registered_microseconds)));
-          violation.SetKey("timestampLastPingedMicroseconds",
+                               client->time_interval_microseconds / 1000)));
+          violation.SetKey("timeWaitMilliseconds",
                            base::Value(std::to_string(
-                               client->time_last_pinged_microseconds)));
-          violation.SetKey("timestampViolationMicroseconds",
-                           base::Value(std::to_string(current_time)));
+                               client->time_wait_microseconds / 1000)));
+          violation.SetKey("timestampRegisteredMilliseconds",
+                           base::Value(std::to_string(
+                               client->time_registered_microseconds / 1000)));
+          violation.SetKey("timestampLastPingedMilliseconds",
+                           base::Value(std::to_string(
+                               client->time_last_pinged_microseconds / 1000)));
+          violation.SetKey("timestampViolationMilliseconds",
+                           base::Value(std::to_string(current_time / 1000)));
           violation.SetKey(
-              "violationDurationMicroseconds",
-              base::Value(std::to_string(time_delta -
-                                         client->time_interval_microseconds)));
+              "violationDurationMilliseconds",
+              base::Value(std::to_string(
+                  (time_delta - client->time_interval_microseconds) / 1000)));
           if (registered_clients.GetList().empty()) {
             for (auto& it : static_cast<Watchdog*>(context)->client_map_) {
               registered_clients.GetList().emplace_back(base::Value(it.first));
@@ -277,11 +277,12 @@ void* Watchdog::Monitor(void* context) {
           int index = violations->GetList().size() - 1;
           int64_t violation_duration =
               std::stoll(violations->GetList()[index]
-                             .FindKey("violationDurationMicroseconds")
+                             .FindKey("violationDurationMilliseconds")
                              ->GetString());
           violations->GetList()[index].SetKey(
-              "violationDurationMicroseconds",
-              base::Value(std::to_string(violation_duration + time_delta)));
+              "violationDurationMilliseconds",
+              base::Value(
+                  std::to_string(violation_duration + (time_delta / 1000))));
         }
         static_cast<Watchdog*>(context)->pending_write_ = true;
 
@@ -345,9 +346,9 @@ bool Watchdog::Register(std::string name, std::string description,
   if (is_disabled_) return true;
 
   // Validates parameters.
-  if (time_interval < 1000000 || time_wait < 0) {
+  if (time_interval < kWatchdogMonitorFrequency || time_wait < 0) {
     SB_DLOG(ERROR) << "[Watchdog] Unable to Register: " << name;
-    if (time_interval < 1000000) {
+    if (time_interval < kWatchdogMonitorFrequency) {
       SB_DLOG(ERROR) << "[Watchdog] Time interval less than min: "
                      << kWatchdogMonitorFrequency;
     } else {
@@ -450,8 +451,8 @@ bool Watchdog::Ping(const std::string& name, const std::string& info) {
     if (info != "") {
       // Creates new ping_info.
       base::Value ping_info(base::Value::Type::DICTIONARY);
-      ping_info.SetKey("timestampMicroseconds",
-                       base::Value(std::to_string(current_time)));
+      ping_info.SetKey("timestampMilliseconds",
+                       base::Value(std::to_string(current_time / 1000)));
       ping_info.SetKey("info", base::Value(info));
 
       client->ping_infos.GetList().emplace_back(ping_info.Clone());
