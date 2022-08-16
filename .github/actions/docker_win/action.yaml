@@ -18,6 +18,8 @@ runs:
         files: |
           docker-compose-windows.yml
           docker/windows/**
+          .github/workflows/main_win.yaml
+          .github/actions/docker_win/**
     - name: Retrieve Docker metadata
       if: steps.changed-files.outputs.any_changed == 'true'
       id: meta
