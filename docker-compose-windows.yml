@@ -75,7 +75,7 @@ services:
       - TARGET=${TARGET:-cobalt_install}
       - NINJA_FLAGS
       - IS_DOCKER=1
-    image: cobalt-build-win32
+    image: cobalt-build-win-win32
   cobalt-runner-win32:
     <<: *common-definitions
     build:
