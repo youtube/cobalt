@@ -29,7 +29,7 @@ env:
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  # Build windows docker image.
+  # Build windows docker images.
   docker-image:
     permissions:
       packages: write
@@ -49,14 +49,12 @@ jobs:
         id: build-docker-image
         uses: ./.github/actions/docker_win
         with:
-          platform: ${{inputs.platform}}
-      - name: Set Docker Tag Output
-        id: set-docker-tag-output
-        run: |
-          echo ${{ steps.build-docker-image.outputs.docker_tag }}
-          echo "::set-output name=docker_tag::$(echo ${{ steps.build-docker-image.outputs.docker_tag }})"
-    outputs:
-      docker_tag: ${{steps.set-docker-tag-output.outputs.docker_tag}}
+          service: $(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.docker_service')
+      - name: Build runner docker image
+        id: build-runner-docker-image
+        uses: ./.github/actions/docker_win
+        with:
+          service: $(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.docker_runner_service')
   # Generates build matrix based on json configuration file.
   build-matrix:
     runs-on: ubuntu-latest

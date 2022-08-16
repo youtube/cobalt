@@ -17,7 +17,8 @@ runs:
       with:
         files: |
           docker-compose.yml
-          docker/**
+          docker/linux/**
+          .github/actions/docker/**
     - id: get-docker-service
       run: |
         export docker_service=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -r '.docker_service')

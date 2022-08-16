@@ -62,7 +62,7 @@ services:
     scale: 0
     depends_on:
       - visual-studio-win32-base
-  win-win32:
+  build-win-win32:
     <<: *common-definitions
     build:
       context: ./docker/windows/win32
@@ -76,7 +76,7 @@ services:
       - NINJA_FLAGS
       - IS_DOCKER=1
     image: cobalt-build-win-win32
-  cobalt-runner-win32:
+  runner-win-win32:
     <<: *common-definitions
     build:
       context: ./docker/windows/runner
