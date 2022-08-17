@@ -263,6 +263,9 @@ config("platform_configuration") {
     # objects.
     # https://connect.microsoft.com/VisualStudio/feedback/details/783808/static-analyzer-warning-c28285-for-std-min-and-std-max
     "/wd28285",
+
+    # Deprecated function warning.
+    "/wd4996",
   ]
 }
 
