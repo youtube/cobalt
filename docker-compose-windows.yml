@@ -85,4 +85,4 @@ services:
         - RUNNER_VERSION=2.294.0
     depends_on:
       - cobalt-build-win32-base
-    image: cobalt-runner-win32
+    image: cobalt-runner-win-win32
