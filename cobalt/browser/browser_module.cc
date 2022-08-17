@@ -21,6 +21,7 @@
 
 #include "base/bind.h"
 #include "base/command_line.h"
+#include "base/compiler_specific.h"
 #include "base/files/file_path.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
@@ -436,9 +437,10 @@ BrowserModule::~BrowserModule() {
   switch (application_state_) {
     case base::kApplicationStateStarted:
       Blur(0);
-    // Intentional fall-through.
+      FALLTHROUGH;
     case base::kApplicationStateBlurred:
       Conceal(0);
+      FALLTHROUGH;
     case base::kApplicationStateConcealed:
       Freeze(0);
       break;
