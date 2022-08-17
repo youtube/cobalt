@@ -55,7 +55,7 @@ jobs:
       on_device_test: ${{ steps.set-on-device-test.outputs.on_device_test }}
       on_host_test: ${{ steps.set-on-host-test.outputs.on_host_test }}
       docker_service: ${{ steps.set-docker-service.outputs.docker_service }}
-      docker_runner_service: ${{ steps.set-docker-runner-service.outputs.docker-runner-service }}
+      docker_runner_service: ${{ steps.set-docker-runner-service.outputs.docker_runner_service }}
   # Build windows docker images.
   docker-image:
     needs: [build-matrix]

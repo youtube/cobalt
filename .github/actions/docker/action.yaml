@@ -54,17 +54,8 @@ runs:
       if: ${{ (steps.changed-files.outputs.any_changed == 'true') }}
       run: docker push ${{ steps.meta.outputs.tags }}
       shell: bash
-    - name: Set Docker Tag
-      if: ${{ (steps.changed-files.outputs.any_changed == 'false') && (github.event_name == 'pull_request') }}
-      run: echo "DOCKER_TAG=ghcr.io/${{github.repository_owner}}/cobalt-${docker_service}:${GITHUB_BASE_REF}" >> $GITHUB_ENV
-      shell: bash
-    - name: Set Docker Tag
-      if: ${{ (steps.changed-files.outputs.any_changed == 'false') && (github.event_name != 'pull_request') }}
-      run: echo "DOCKER_TAG=ghcr.io/${{github.repository_owner}}/cobalt-${docker_service}:${GITHUB_REF_NAME}" >> $GITHUB_ENV
-      shell: bash
     - name: Set Docker Tag Output
       id: set-docker-tag-output
       run: |
-        echo $DOCKER_TAG
-        echo "::set-output name=docker_tag::$(echo $DOCKER_TAG)"
+        echo "::set-output name=docker_tag::${{ steps.meta.outputs.tags }}"
       shell: bash
