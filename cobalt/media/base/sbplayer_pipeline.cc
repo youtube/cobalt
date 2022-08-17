@@ -102,8 +102,8 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
       const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
       const GetDecodeTargetGraphicsContextProviderFunc&
           get_decode_target_graphics_context_provider_func,
-      bool allow_resume_after_suspend, MediaLog* media_log,
-      DecodeTargetProvider* decode_target_provider);
+      bool allow_resume_after_suspend, bool allow_batched_sample_write,
+      MediaLog* media_log, DecodeTargetProvider* decode_target_provider);
   ~SbPlayerPipeline() override;
 
   void Suspend() override;
@@ -175,18 +175,20 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   void OnDemuxerInitialized(PipelineStatus status);
   void OnDemuxerSeeked(PipelineStatus status);
   void OnDemuxerStopped();
-  void OnDemuxerStreamRead(DemuxerStream::Type type,
-                           DemuxerStream::Status status,
-                           scoped_refptr<DecoderBuffer> buffer);
+  void OnDemuxerStreamRead(
+      DemuxerStream::Type type, int max_number_buffers_to_read,
+      DemuxerStream::Status status,
+      const std::vector<scoped_refptr<DecoderBuffer>>& buffers);
   // SbPlayerBridge::Host implementation.
-  void OnNeedData(DemuxerStream::Type type) override;
+  void OnNeedData(DemuxerStream::Type type,
+                  int max_number_of_buffers_to_write) override;
   void OnPlayerStatus(SbPlayerState state) override;
   void OnPlayerError(SbPlayerError error, const std::string& message) override;
 
   // Used to make a delayed call to OnNeedData() if |audio_read_delayed_| is
   // true. If |audio_read_delayed_| is false, that means the delayed call has
   // been cancelled due to a seek.
-  void DelayedNeedData();
+  void DelayedNeedData(int max_number_of_buffers_to_write);
 
   void UpdateDecoderConfig(DemuxerStream* stream);
   void CallSeekCB(PipelineStatus status, const std::string& error_message);
@@ -208,6 +210,9 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
 
   void RunSetDrmSystemReadyCB(DrmSystemReadyCB drm_system_ready_cb);
 
+  void SetReadInProgress(DemuxerStream::Type type, bool in_progress);
+  bool GetReadInProgress(DemuxerStream::Type type) const;
+
   // An identifier string for the pipeline, used in CVal to identify multiple
   // pipelines.
   const std::string pipeline_identifier_;
@@ -221,6 +226,9 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
 
   // Whether we should save DecoderBuffers for resume after suspend.
   const bool allow_resume_after_suspend_;
+
+  // Whether we enable batched sample write functionality.
+  const bool allow_batched_sample_write_;
 
   // The window this player associates with.  It should only be assigned in the
   // dtor and accessed once by SbPlayerCreate().
@@ -348,13 +356,14 @@ SbPlayerPipeline::SbPlayerPipeline(
     const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
     const GetDecodeTargetGraphicsContextProviderFunc&
         get_decode_target_graphics_context_provider_func,
-    bool allow_resume_after_suspend, MediaLog* media_log,
-    DecodeTargetProvider* decode_target_provider)
+    bool allow_resume_after_suspend, bool allow_batched_sample_write,
+    MediaLog* media_log, DecodeTargetProvider* decode_target_provider)
     : pipeline_identifier_(
           base::StringPrintf("%X", g_pipeline_identifier_counter++)),
       sbplayer_interface_(interface),
       task_runner_(task_runner),
       allow_resume_after_suspend_(allow_resume_after_suspend),
+      allow_batched_sample_write_(allow_batched_sample_write),
       window_(window),
       get_decode_target_graphics_context_provider_func_(
           get_decode_target_graphics_context_provider_func),
@@ -1167,8 +1176,9 @@ void SbPlayerPipeline::OnDemuxerStopped() {
 }
 
 void SbPlayerPipeline::OnDemuxerStreamRead(
-    DemuxerStream::Type type, DemuxerStream::Status status,
-    scoped_refptr<DecoderBuffer> buffer) {
+    DemuxerStream::Type type, int max_number_buffers_to_read,
+    DemuxerStream::Status status,
+    const std::vector<scoped_refptr<DecoderBuffer>>& buffers) {
 #if SB_HAS(PLAYER_WITH_URL)
   DCHECK(!is_url_based_);
 #endif  // SB_HAS(PLAYER_WITH_URL)
@@ -1177,8 +1187,9 @@ void SbPlayerPipeline::OnDemuxerStreamRead(
 
   if (!task_runner_->BelongsToCurrentThread()) {
     task_runner_->PostTask(
-        FROM_HERE, base::BindOnce(&SbPlayerPipeline::OnDemuxerStreamRead, this,
-                                  type, status, buffer));
+        FROM_HERE,
+        base::BindOnce(&SbPlayerPipeline::OnDemuxerStreamRead, this, type,
+                       max_number_buffers_to_read, status, buffers));
     return;
   }
 
@@ -1192,13 +1203,9 @@ void SbPlayerPipeline::OnDemuxerStreamRead(
   }
 
   if (status == DemuxerStream::kAborted) {
-    if (type == DemuxerStream::AUDIO) {
-      DCHECK(audio_read_in_progress_);
-      audio_read_in_progress_ = false;
-    } else {
-      DCHECK(video_read_in_progress_);
-      video_read_in_progress_ = false;
-    }
+    DCHECK(GetReadInProgress(type));
+    SetReadInProgress(type, false);
+
     if (!seek_cb_.is_null()) {
       CallSeekCB(::media::PIPELINE_OK, "");
     }
@@ -1207,26 +1214,31 @@ void SbPlayerPipeline::OnDemuxerStreamRead(
 
   if (status == DemuxerStream::kConfigChanged) {
     UpdateDecoderConfig(stream);
-    stream->Read(
-        base::BindOnce(&SbPlayerPipeline::OnDemuxerStreamRead, this, type));
+    stream->Read(max_number_buffers_to_read,
+                 base::BindOnce(&SbPlayerPipeline::OnDemuxerStreamRead, this,
+                                type, max_number_buffers_to_read));
     return;
   }
 
   if (type == DemuxerStream::AUDIO) {
-    audio_read_in_progress_ = false;
-    playback_statistics_.OnAudioAU(buffer);
-    if (!buffer->end_of_stream()) {
-      timestamp_of_last_written_audio_ = buffer->timestamp().ToSbTime();
+    for (const auto& buffer : buffers) {
+      playback_statistics_.OnAudioAU(buffer);
+      if (!buffer->end_of_stream()) {
+        timestamp_of_last_written_audio_ = buffer->timestamp().ToSbTime();
+      }
     }
   } else {
-    video_read_in_progress_ = false;
-    playback_statistics_.OnVideoAU(buffer);
+    for (const auto& buffer : buffers) {
+      playback_statistics_.OnVideoAU(buffer);
+    }
   }
+  SetReadInProgress(type, false);
 
-  player_bridge_->WriteBuffer(type, buffer);
+  player_bridge_->WriteBuffers(type, buffers);
 }
 
-void SbPlayerPipeline::OnNeedData(DemuxerStream::Type type) {
+void SbPlayerPipeline::OnNeedData(DemuxerStream::Type type,
+                                  int max_number_of_buffers_to_write) {
 #if SB_HAS(PLAYER_WITH_URL)
   DCHECK(!is_url_based_);
 #endif  // SB_HAS(PLAYER_WITH_URL)
@@ -1237,15 +1249,18 @@ void SbPlayerPipeline::OnNeedData(DemuxerStream::Type type) {
     return;
   }
 
+  int max_buffers =
+      allow_batched_sample_write_ ? max_number_of_buffers_to_write : 1;
+
+  if (GetReadInProgress(type)) return;
+
   if (type == DemuxerStream::AUDIO) {
     if (!audio_stream_) {
       LOG(WARNING)
           << "Calling OnNeedData() for audio data during audioless playback";
       return;
     }
-    if (audio_read_in_progress_) {
-      return;
-    }
+
     // If we haven't checked the media time recently, update it now.
     if (SbTimeGetNow() - last_time_media_time_retrieved_ >
         kMediaTimeCheckInterval) {
@@ -1264,7 +1279,8 @@ void SbPlayerPipeline::OnNeedData(DemuxerStream::Type type) {
           timestamp_of_last_written_audio_ - last_media_time_;
       if (time_ahead_of_playback > (kAudioLimit + kMediaTimeCheckInterval)) {
         task_runner_->PostDelayedTask(
-            FROM_HERE, base::Bind(&SbPlayerPipeline::DelayedNeedData, this),
+            FROM_HERE,
+            base::Bind(&SbPlayerPipeline::DelayedNeedData, this, max_buffers),
             base::TimeDelta::FromMicroseconds(kMediaTimeCheckInterval));
         audio_read_delayed_ = true;
         return;
@@ -1275,16 +1291,15 @@ void SbPlayerPipeline::OnNeedData(DemuxerStream::Type type) {
     audio_read_in_progress_ = true;
   } else {
     DCHECK_EQ(type, DemuxerStream::VIDEO);
-    if (video_read_in_progress_) {
-      return;
-    }
     video_read_in_progress_ = true;
   }
   DemuxerStream* stream =
       type == DemuxerStream::AUDIO ? audio_stream_ : video_stream_;
   DCHECK(stream);
-  stream->Read(
-      base::BindOnce(&SbPlayerPipeline::OnDemuxerStreamRead, this, type));
+
+  stream->Read(max_buffers,
+               base::BindOnce(&SbPlayerPipeline::OnDemuxerStreamRead, this,
+                              type, max_buffers));
 }
 
 void SbPlayerPipeline::OnPlayerStatus(SbPlayerState state) {
@@ -1380,10 +1395,10 @@ void SbPlayerPipeline::OnPlayerError(SbPlayerError error,
   }
 }
 
-void SbPlayerPipeline::DelayedNeedData() {
+void SbPlayerPipeline::DelayedNeedData(int max_number_of_buffers_to_write) {
   DCHECK(task_runner_->BelongsToCurrentThread());
   if (audio_read_delayed_) {
-    OnNeedData(DemuxerStream::AUDIO);
+    OnNeedData(DemuxerStream::AUDIO, max_number_of_buffers_to_write);
   }
 }
 
@@ -1552,6 +1567,19 @@ void SbPlayerPipeline::RunSetDrmSystemReadyCB(
   set_drm_system_ready_cb_.Run(drm_system_ready_cb);
 }
 
+void SbPlayerPipeline::SetReadInProgress(DemuxerStream::Type type,
+                                         bool in_progress) {
+  if (type == DemuxerStream::AUDIO)
+    audio_read_in_progress_ = in_progress;
+  else
+    video_read_in_progress_ = in_progress;
+}
+
+bool SbPlayerPipeline::GetReadInProgress(DemuxerStream::Type type) const {
+  if (type == DemuxerStream::AUDIO) return audio_read_in_progress_;
+  return video_read_in_progress_;
+}
+
 }  // namespace
 
 // static
@@ -1560,11 +1588,12 @@ scoped_refptr<Pipeline> Pipeline::Create(
     const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
     const GetDecodeTargetGraphicsContextProviderFunc&
         get_decode_target_graphics_context_provider_func,
-    bool allow_resume_after_suspend, MediaLog* media_log,
-    DecodeTargetProvider* decode_target_provider) {
+    bool allow_resume_after_suspend, bool allow_batched_sample_write,
+    MediaLog* media_log, DecodeTargetProvider* decode_target_provider) {
   return new SbPlayerPipeline(interface, window, task_runner,
                               get_decode_target_graphics_context_provider_func,
-                              allow_resume_after_suspend, media_log,
+                              allow_resume_after_suspend,
+                              allow_batched_sample_write, media_log,
                               decode_target_provider);
 }
 

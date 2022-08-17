@@ -5,6 +5,10 @@
 #ifndef MEDIA_BASE_DEMUXER_STREAM_H_
 #define MEDIA_BASE_DEMUXER_STREAM_H_
 
+#if defined(STARBOARD)
+#include <vector>
+#endif  // defined(STARBOARD)
+
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
 #include "media/base/media_export.h"
@@ -73,8 +77,13 @@ class MEDIA_EXPORT DemuxerStream {
   // The first parameter indicates the status of the read.
   // The second parameter is non-NULL and contains media data
   // or the end of the stream if the first parameter is kOk. NULL otherwise.
+#if defined(STARBOARD)
+  typedef base::OnceCallback<void(Status, const std::vector<scoped_refptr<DecoderBuffer>>&)> ReadCB;
+  virtual void Read(int max_number_of_buffers_to_read, ReadCB read_cb) = 0;
+#else  // defined (STARBOARD)
   typedef base::OnceCallback<void(Status, scoped_refptr<DecoderBuffer>)> ReadCB;
   virtual void Read(ReadCB read_cb) = 0;
+#endif  // defined (STARBOARD)
 
   // Returns the audio/video decoder configuration. It is an error to call the
   // audio method on a video stream and vice versa. After |kConfigChanged| is

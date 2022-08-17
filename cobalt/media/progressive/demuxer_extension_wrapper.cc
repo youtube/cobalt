@@ -189,14 +189,15 @@ DemuxerExtensionStream::DemuxerExtensionStream(
       << "Audio config is not valid!";
 }
 
-void DemuxerExtensionStream::Read(ReadCB read_cb) {
+void DemuxerExtensionStream::Read(int max_number_of_buffers_to_read,
+                                  ReadCB read_cb) {
   DCHECK(!read_cb.is_null());
   base::AutoLock auto_lock(lock_);
   if (stopped_) {
     LOG(INFO) << "Already stopped.";
-    std::move(read_cb).Run(
-        DemuxerStream::kOk,
-        scoped_refptr<DecoderBuffer>(DecoderBuffer::CreateEOSBuffer()));
+    std::vector<scoped_refptr<DecoderBuffer>> buffers;
+    buffers.push_back(std::move(DecoderBuffer::CreateEOSBuffer()));
+    std::move(read_cb).Run(DemuxerStream::kOk, buffers);
     return;
   }
 
@@ -216,7 +217,9 @@ void DemuxerExtensionStream::Read(ReadCB read_cb) {
     buffer_queue_.pop_front();
   }
 
-  std::move(read_cb).Run(DemuxerStream::kOk, buffer);
+  std::vector<scoped_refptr<DecoderBuffer>> buffers;
+  buffers.push_back(std::move(buffer));
+  std::move(read_cb).Run(DemuxerStream::kOk, buffers);
 }
 
 AudioDecoderConfig DemuxerExtensionStream::audio_decoder_config() {
@@ -277,7 +280,9 @@ void DemuxerExtensionStream::EnqueueBuffer(
   CHECK_EQ(buffer_queue_.size(), 0);
   ReadCB read_cb(std::move(read_queue_.front()));
   read_queue_.pop_front();
-  std::move(read_cb).Run(DemuxerStream::kOk, std::move(buffer));
+  std::vector<scoped_refptr<DecoderBuffer>> buffers;
+  buffers.push_back(std::move(buffer));
+  std::move(read_cb).Run(DemuxerStream::kOk, buffers);
 }
 
 void DemuxerExtensionStream::FlushBuffers() {
@@ -296,9 +301,9 @@ void DemuxerExtensionStream::Stop() {
   last_buffer_timestamp_ = ::media::kNoTimestamp;
   // Fulfill any pending callbacks with EOS buffers set to end timestamp.
   for (auto& read_cb : read_queue_) {
-    std::move(read_cb).Run(
-        DemuxerStream::kOk,
-        scoped_refptr<DecoderBuffer>(DecoderBuffer::CreateEOSBuffer()));
+    std::vector<scoped_refptr<DecoderBuffer>> buffers;
+    buffers.push_back(std::move(DecoderBuffer::CreateEOSBuffer()));
+    std::move(read_cb).Run(DemuxerStream::kOk, buffers);
   }
   read_queue_.clear();
   stopped_ = true;

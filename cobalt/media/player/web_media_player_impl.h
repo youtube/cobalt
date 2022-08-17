@@ -109,6 +109,7 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
                      WebMediaPlayerClient* client,
                      WebMediaPlayerDelegate* delegate,
                      bool allow_resume_after_suspend,
+                     bool allow_batched_sample_write,
                      ::media::MediaLog* const media_log);
   ~WebMediaPlayerImpl() override;
 
@@ -289,6 +290,7 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   WebMediaPlayerClient* const client_;
   WebMediaPlayerDelegate* const delegate_;
   const bool allow_resume_after_suspend_;
+  const bool allow_batched_sample_write_;
   scoped_refptr<DecodeTargetProvider> decode_target_provider_;
 
   scoped_refptr<WebMediaPlayerProxy> proxy_;

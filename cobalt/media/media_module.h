@@ -116,6 +116,8 @@ class MediaModule : public WebMediaPlayerFactory,
   Players players_;
   bool suspended_ = false;
 
+  bool allow_batched_sample_write_ = false;
+
   DecoderBufferAllocator decoder_buffer_allocator_;
 };
 
