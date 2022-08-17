@@ -27,6 +27,7 @@ RUN apt update -qqy \
         python3 \
         # Required for GN build.
         python3-requests \
+        python3-six \
     && apt-get clean autoclean \
     && apt-get autoremove -y --purge \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* \
