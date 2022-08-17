@@ -97,6 +97,8 @@ class Watchdog : public Singleton<Watchdog> {
   std::string GetWatchdogFilePath();
   void WriteWatchdogViolations();
   static void* Monitor(void* context);
+  static void UpdateViolationsMap(void* context, Client* client,
+                                  SbTimeMonotonic time_delta);
   static void InitializeViolationsMap(void* context);
   static void MaybeWriteWatchdogViolations(void* context);
   static void MaybeTriggerCrash(void* context);
