@@ -106,7 +106,7 @@ jobs:
       - name: Upload Nightly Artifacts
         if: ${{ endsWith(github.workflow, '_nightly') && matrix.config != 'debug' }}
         uses: ./.github/actions/upload_nightly_artifacts
-
+  # Runs on the host unit and integration tests.
   on-host-test:
     needs: [docker-image, build-matrix]
     if: needs.build-matrix.outputs.on_host_test == 'true'
