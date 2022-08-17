@@ -16,7 +16,6 @@ runs:
           docker/windows/**
           .github/actions/docker_win/**
     - name: Retrieve Docker metadata
-      if: steps.changed-files.outputs.any_changed == 'true'
       id: meta
       uses: docker/metadata-action@v4
       with:

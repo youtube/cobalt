@@ -27,7 +27,6 @@ runs:
         echo $docker_service
       shell: bash
     - name: Retrieve Docker metadata
-      if: steps.changed-files.outputs.any_changed == 'true'
       id: meta
       uses: docker/metadata-action@v4
       with:
