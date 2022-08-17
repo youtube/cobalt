@@ -195,7 +195,8 @@ std::unique_ptr<WebMediaPlayer> MediaModule::CreateWebMediaPlayer(
       sbplayer_interface_.get(), window,
       base::Bind(&MediaModule::GetSbDecodeTargetGraphicsContextProvider,
                  base::Unretained(this)),
-      client, this, options_.allow_resume_after_suspend, &media_log_));
+      client, this, options_.allow_resume_after_suspend,
+      allow_batched_sample_write_, &media_log_));
 }
 
 void MediaModule::Suspend() {

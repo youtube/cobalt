@@ -40,7 +40,7 @@ message OnDeviceTestsCommand {
   string archive_path = 5;
   string config = 6;
   string tag = 7;
-  repeated string labels = 8;
+  string label = 8;
   string builder_name = 9;
   string change_id = 10;
   string build_number = 11;
@@ -57,8 +57,7 @@ message OnDeviceTestsWatchCommand {
   string workdir = 1;
   string token = 2;
   string session_id = 3;
-  string change_id = 4;
-  optional bool dry_run = 5;
+  optional bool dry_run = 15;
 }
 
 // Response from the on-device tests.

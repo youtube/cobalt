@@ -75,12 +75,15 @@ const char* GetDemuxerStreamType(DemuxerStream* demuxer_stream) {
 
 void ReadDemuxerStream(DemuxerStream* demuxer_stream);
 
-void OnDemuxerStreamRead(DemuxerStream* demuxer_stream,
-                         DemuxerStream::Status status,
-                         scoped_refptr<::media::DecoderBuffer> decoder_buffer) {
-  if (!decoder_buffer->end_of_stream()) {
+void OnDemuxerStreamRead(
+    DemuxerStream* demuxer_stream, DemuxerStream::Status status,
+    const std::vector<scoped_refptr<::media::DecoderBuffer>>& decoder_buffers) {
+  if (status != DemuxerStream::kConfigChanged) {
+    DCHECK(decoder_buffers.size() > 0);
+  }
+  if (!decoder_buffers[0]->end_of_stream()) {
     LOG(INFO) << "Reading " << GetDemuxerStreamType(demuxer_stream)
-              << " buffer at " << decoder_buffer->timestamp();
+              << " buffer at " << decoder_buffers[0]->timestamp();
     ReadDemuxerStream(demuxer_stream);
   } else {
     LOG(INFO) << "Received " << GetDemuxerStreamType(demuxer_stream) << " EOS";
@@ -90,7 +93,7 @@ void OnDemuxerStreamRead(DemuxerStream* demuxer_stream,
 void ReadDemuxerStream(DemuxerStream* demuxer_stream) {
   DCHECK(demuxer_stream);
   demuxer_stream->Read(
-      base::BindOnce(OnDemuxerStreamRead, base::Unretained(demuxer_stream)));
+      1, base::BindOnce(OnDemuxerStreamRead, base::Unretained(demuxer_stream)));
 }
 
 }  // namespace

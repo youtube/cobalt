@@ -97,8 +97,8 @@ class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
       const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
       const GetDecodeTargetGraphicsContextProviderFunc&
           get_decode_target_graphics_context_provider_func,
-      bool allow_resume_after_suspend, MediaLog* media_log,
-      DecodeTargetProvider* decode_target_provider);
+      bool allow_resume_after_suspend, bool allow_batched_sample_write,
+      MediaLog* media_log, DecodeTargetProvider* decode_target_provider);
 
   virtual ~Pipeline() {}
 

@@ -130,7 +130,12 @@ class MEDIA_EXPORT ChunkDemuxerStream : public DemuxerStream {
   std::string mime_type() const override { return mime_type_; }
 #endif  // defined (STARBOARD)
 
+#if defined(STARBOARD)
+  void Read(int max_number_of_buffers_to_read, ReadCB read_cb) override;
+#else  // defined (STARBOARD)
   void Read(ReadCB read_cb) override;
+#endif  // defined (STARBOARD)
+
   Type type() const override;
   Liveness liveness() const override;
   AudioDecoderConfig audio_decoder_config() override;
@@ -180,6 +185,8 @@ class MEDIA_EXPORT ChunkDemuxerStream : public DemuxerStream {
 
 #if defined(STARBOARD)
   const std::string mime_type_;
+  int max_number_of_buffers_to_read_{1};
+  bool pending_config_change_ {false};
 #endif  // defined (STARBOARD)
 
   // Specifies the type of the stream.

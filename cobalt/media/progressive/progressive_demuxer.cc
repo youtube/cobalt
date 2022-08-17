@@ -50,7 +50,8 @@ ProgressiveDemuxerStream::ProgressiveDemuxerStream(ProgressiveDemuxer* demuxer,
   DCHECK(demuxer_);
 }
 
-void ProgressiveDemuxerStream::Read(ReadCB read_cb) {
+void ProgressiveDemuxerStream::Read(int max_number_of_buffers_to_read,
+                                    ReadCB read_cb) {
   TRACE_EVENT0("media_stack", "ProgressiveDemuxerStream::Read()");
   DCHECK(!read_cb.is_null());
 
@@ -61,7 +62,7 @@ void ProgressiveDemuxerStream::Read(ReadCB read_cb) {
   if (stopped_) {
     TRACE_EVENT0("media_stack", "ProgressiveDemuxerStream::Read() EOS sent.");
     std::move(read_cb).Run(DemuxerStream::kOk,
-                           DecoderBuffer::CreateEOSBuffer());
+                           {DecoderBuffer::CreateEOSBuffer()});
     return;
   }
 
@@ -79,7 +80,7 @@ void ProgressiveDemuxerStream::Read(ReadCB read_cb) {
       --total_buffer_count_;
       buffer_queue_.pop_front();
     }
-    std::move(read_cb).Run(DemuxerStream::kOk, buffer);
+    std::move(read_cb).Run(DemuxerStream::kOk, {buffer});
   } else {
     TRACE_EVENT0("media_stack",
                  "ProgressiveDemuxerStream::Read() request queued.");
@@ -139,7 +140,7 @@ void ProgressiveDemuxerStream::EnqueueBuffer(
     DCHECK_EQ(buffer_queue_.size(), 0);
     ReadCB read_cb = std::move(read_queue_.front());
     read_queue_.pop_front();
-    std::move(read_cb).Run(DemuxerStream::kOk, buffer);
+    std::move(read_cb).Run(DemuxerStream::kOk, {buffer});
   } else {
     // save the buffer for next read request
     buffer_queue_.push_back(buffer);
@@ -188,9 +189,7 @@ void ProgressiveDemuxerStream::Stop() {
   for (ReadQueue::iterator it = read_queue_.begin(); it != read_queue_.end();
        ++it) {
     TRACE_EVENT0("media_stack", "ProgressiveDemuxerStream::Stop() EOS sent.");
-    std::move(*it).Run(
-        DemuxerStream::kOk,
-        scoped_refptr<DecoderBuffer>(DecoderBuffer::CreateEOSBuffer()));
+    std::move(*it).Run(DemuxerStream::kOk, {DecoderBuffer::CreateEOSBuffer()});
   }
   read_queue_.clear();
   stopped_ = true;

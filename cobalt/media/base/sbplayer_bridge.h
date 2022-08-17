@@ -18,6 +18,7 @@
 #include <map>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "base/memory/ref_counted.h"
 #include "base/message_loop/message_loop.h"
@@ -48,7 +49,8 @@ class SbPlayerBridge {
  public:
   class Host {
    public:
-    virtual void OnNeedData(DemuxerStream::Type type) = 0;
+    virtual void OnNeedData(DemuxerStream::Type type,
+                            int max_number_of_buffers_to_write) = 0;
     virtual void OnPlayerStatus(SbPlayerState state) = 0;
     virtual void OnPlayerError(SbPlayerError error,
                                const std::string& message) = 0;
@@ -98,8 +100,8 @@ class SbPlayerBridge {
   void UpdateVideoConfig(const VideoDecoderConfig& video_config,
                          const std::string& mime_type);
 
-  void WriteBuffer(DemuxerStream::Type type,
-                   const scoped_refptr<DecoderBuffer>& buffer);
+  void WriteBuffers(DemuxerStream::Type type,
+                    const std::vector<scoped_refptr<DecoderBuffer>>& buffers);
 
   void SetBounds(int z_index, const gfx::Rect& rect);
 
@@ -191,9 +193,11 @@ class SbPlayerBridge {
 #endif  // SB_HAS(PLAYER_WITH_URL)
   void CreatePlayer();
 
-  void WriteNextBufferFromCache(DemuxerStream::Type type);
-  void WriteBufferInternal(DemuxerStream::Type type,
-                           const scoped_refptr<DecoderBuffer>& buffer);
+  void WriteNextBuffersFromCache(DemuxerStream::Type type,
+                                 int max_buffers_per_write);
+  void WriteBuffersInternal(
+      DemuxerStream::Type type,
+      const std::vector<scoped_refptr<DecoderBuffer>>& buffers);
 
   void GetInfo_Locked(uint32* video_frames_decoded,
                       uint32* video_frames_dropped,
@@ -299,6 +303,10 @@ class SbPlayerBridge {
 #if SB_HAS(PLAYER_WITH_URL)
   const bool is_url_based_;
 #endif  // SB_HAS(PLAYER_WITH_URL)
+
+  // Used for Gathered Sample Write.
+  bool pending_audio_eos_buffer_ = false;
+  bool pending_video_eos_buffer_ = false;
 };
 
 }  // namespace media

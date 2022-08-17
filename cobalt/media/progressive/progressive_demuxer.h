@@ -47,8 +47,12 @@ class ProgressiveDemuxerStream : public ::media::DemuxerStream {
 
   ProgressiveDemuxerStream(ProgressiveDemuxer* demuxer, Type type);
 
-  // DemuxerStream implementation
+// DemuxerStream implementation
+#if defined(STARBOARD)
+  void Read(int max_number_of_buffers_to_read, ReadCB read_cb) override;
+#else   // defined(STARBOARD)
   void Read(ReadCB read_cb) override;
+#endif  // defined(STARBOARD)
   AudioDecoderConfig audio_decoder_config() override;
   VideoDecoderConfig video_decoder_config() override;
   Type type() const override;
