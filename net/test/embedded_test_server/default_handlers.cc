@@ -102,7 +102,12 @@ std::unique_ptr<HttpResponse> HandleEchoHeader(const std::string& url,
 
   http_response->AddCustomHeader("Vary", vary);
   http_response->set_content(content);
+#if defined(STARBOARD)
+  // Cobalt does not currently support text/plain caching.
+  http_response->set_content_type("text/html");
+#else
   http_response->set_content_type("text/plain");
+#endif
   http_response->AddCustomHeader("Cache-Control", cache_control);
   return std::move(http_response);
 }
