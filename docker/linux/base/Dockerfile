@@ -27,6 +27,7 @@ RUN apt update -qqy \
         python3-pip \
         python3-requests \
         python3-setuptools \
+        python3-six \
         git ccache \
         curl xz-utils \
     && /opt/clean-after-apt.sh
