@@ -100,6 +100,7 @@ class Watchdog : public Singleton<Watchdog> {
   static void UpdateViolationsMap(void* context, Client* client,
                                   SbTimeMonotonic time_delta);
   static void InitializeViolationsMap(void* context);
+  static void EvictWatchdogViolation(void* context);
   static void MaybeWriteWatchdogViolations(void* context);
   static void MaybeTriggerCrash(void* context);
 
@@ -130,6 +131,8 @@ class Watchdog : public Singleton<Watchdog> {
   std::unordered_map<std::string, std::unique_ptr<Client>> client_map_;
   // Dictionary of lists of Watchdog violations represented as dictionaries.
   std::unique_ptr<base::Value> violations_map_;
+  // Number of violations in violations_map_;
+  int violations_count_;
   // Monitor thread.
   SbThread watchdog_thread_;
   // Flag to stop monitor thread.
