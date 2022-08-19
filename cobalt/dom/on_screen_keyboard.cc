@@ -46,6 +46,14 @@ script::Handle<script::Promise<void>> OnScreenKeyboard::Show() {
           .second;
   DCHECK(is_emplaced);
   bridge_->Show(data_.c_str(), ticket);
+
+  if (background_color_.has_value()) {
+    bridge_->SetBackgroundColor(background_color_.value().c_str());
+  }
+  if (dark_theme_.has_value()) {
+    bridge_->SetDarkTheme(dark_theme_.value());
+  }
+
   return promise;
 }
 
