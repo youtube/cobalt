@@ -60,6 +60,34 @@ namespace starboard {
 namespace elf_loader {
 
 ExportedSymbols::ExportedSymbols() {
+  REGISTER_SYMBOL(kSbDefaultMmapThreshold);
+  REGISTER_SYMBOL(kSbFileAltSepChar);
+  REGISTER_SYMBOL(kSbFileAltSepString);
+  REGISTER_SYMBOL(kSbFileMaxName);
+  REGISTER_SYMBOL(kSbFileMaxOpen);
+  REGISTER_SYMBOL(kSbFileMaxPath);
+  REGISTER_SYMBOL(kSbFileSepChar);
+  REGISTER_SYMBOL(kSbFileSepString);
+  REGISTER_SYMBOL(kSbHasAc3Audio);
+  REGISTER_SYMBOL(kSbHasMediaWebmVp9Support);
+  REGISTER_SYMBOL(kSbHasThreadPrioritySupport);
+  REGISTER_SYMBOL(kSbMallocAlignment);
+#if SB_API_VERSION >= 14
+  REGISTER_SYMBOL(kSbMaxSystemPathCacheDirectorySize);
+#endif  // SB_API_VERSION >= 14
+  REGISTER_SYMBOL(kSbMaxThreadLocalKeys);
+  REGISTER_SYMBOL(kSbMaxThreadNameLength);
+  REGISTER_SYMBOL(kSbMaxThreads);
+  REGISTER_SYMBOL(kSbMediaMaxAudioBitrateInBitsPerSecond);
+  REGISTER_SYMBOL(kSbMediaMaxVideoBitrateInBitsPerSecond);
+  REGISTER_SYMBOL(kSbMediaVideoFrameAlignment);
+  REGISTER_SYMBOL(kSbMemoryLogPath);
+  REGISTER_SYMBOL(kSbMemoryPageSize);
+  REGISTER_SYMBOL(kSbNetworkReceiveBufferSize);
+  REGISTER_SYMBOL(kSbPathSepChar);
+  REGISTER_SYMBOL(kSbPathSepString);
+  REGISTER_SYMBOL(kSbPreferredRgbaByteOrder);
+  REGISTER_SYMBOL(kSbUserMaxSignedIn);
   REGISTER_SYMBOL(SbAccessibilityGetDisplaySettings);
   REGISTER_SYMBOL(SbAccessibilityGetTextToSpeechSettings);
   REGISTER_SYMBOL(SbAudioSinkCreate);
@@ -125,11 +153,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbFileSeek);
   REGISTER_SYMBOL(SbFileTruncate);
   REGISTER_SYMBOL(SbFileWrite);
-  REGISTER_SYMBOL(SbMediaGetAudioConfiguration);
-  REGISTER_SYMBOL(SbMediaGetAudioOutputCount);
-#if SB_API_VERSION < 13
-  REGISTER_SYMBOL(SbMediaIsSupported);
-#endif  // SB_API_VERSION < 13
   REGISTER_SYMBOL(SbMemoryAllocate);
   REGISTER_SYMBOL(SbMemoryAllocateAligned);
   REGISTER_SYMBOL(SbMemoryAllocateNoReport);
@@ -148,6 +171,25 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbLogRawDumpStack);
   REGISTER_SYMBOL(SbLogRawFormat);
   REGISTER_SYMBOL(SbMediaCanPlayMimeAndKeySystem);
+  REGISTER_SYMBOL(SbMediaGetAudioConfiguration);
+  REGISTER_SYMBOL(SbMediaGetAudioOutputCount);
+  REGISTER_SYMBOL(SbMediaGetAudioBufferBudget);
+  REGISTER_SYMBOL(SbMediaGetBufferAlignment);
+  REGISTER_SYMBOL(SbMediaGetBufferAllocationUnit);
+  REGISTER_SYMBOL(SbMediaGetBufferGarbageCollectionDurationThreshold);
+  REGISTER_SYMBOL(SbMediaGetBufferPadding);
+  REGISTER_SYMBOL(SbMediaGetBufferStorageType);
+  REGISTER_SYMBOL(SbMediaGetInitialBufferCapacity);
+  REGISTER_SYMBOL(SbMediaGetMaxBufferCapacity);
+  REGISTER_SYMBOL(SbMediaGetProgressiveBufferBudget);
+  REGISTER_SYMBOL(SbMediaGetVideoBufferBudget);
+  REGISTER_SYMBOL(SbMediaIsBufferPoolAllocateOnDemand);
+  REGISTER_SYMBOL(SbMediaIsBufferUsingMemoryPool);
+#if SB_API_VERSION < 13
+  REGISTER_SYMBOL(SbMediaIsSupported);
+#endif  // SB_API_VERSION < 13
+  REGISTER_SYMBOL(SbMediaSetAudioWriteDuration);
+
   REGISTER_SYMBOL(SbMemoryAllocateAlignedUnchecked);
   REGISTER_SYMBOL(SbMemoryAllocateUnchecked);
 #if SB_API_VERSION < 13
@@ -282,12 +324,8 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbSystemRequestStop);
   REGISTER_SYMBOL(SbSystemRequestSuspend);
   REGISTER_SYMBOL(SbSystemRequestUnpause);
-#endif  // SB_API_VERSION >= 13
-
-#if SB_API_VERSION < 13
   REGISTER_SYMBOL(SbSystemSort);
-#endif  // SB_API_VERSION < 13
-
+#endif  // SB_API_VERSION >= 13
   REGISTER_SYMBOL(SbSystemSymbolize);
   REGISTER_SYMBOL(SbThreadCreate);
   REGISTER_SYMBOL(SbThreadCreateLocalKey);
@@ -320,11 +358,9 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbGetEglInterface);
   REGISTER_SYMBOL(SbGetGlesInterface);
   REGISTER_SYMBOL(SbFileAtomicReplace);
-
 #if SB_CAN(MAP_EXECUTABLE_MEMORY)
   REGISTER_SYMBOL(SbMemoryFlush);
 #endif  // SB_CAN(MAP_EXECUTABLE_MEMORY)
-
   REGISTER_SYMBOL(SbPlayerGetPreferredOutputMode);
   REGISTER_SYMBOL(SbMemoryMap);
   REGISTER_SYMBOL(SbMemoryUnmap);
@@ -355,8 +391,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbTimeGetMonotonicThreadNow);
 #if SB_API_VERSION == 12
   REGISTER_SYMBOL(SbSpeechRecognizerIsSupported);
-#endif
-#if SB_API_VERSION == 12
   REGISTER_SYMBOL(SbSpeechRecognizerCreate);
   REGISTER_SYMBOL(SbSpeechRecognizerDestroy);
   REGISTER_SYMBOL(SbSpeechRecognizerStart);
@@ -367,18 +401,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbTimeIsTimeThreadNowSupported);
   REGISTER_SYMBOL(SbDrmIsServerCertificateUpdatable);
   REGISTER_SYMBOL(SbDrmUpdateServerCertificate);
-  REGISTER_SYMBOL(SbMediaGetAudioBufferBudget);
-  REGISTER_SYMBOL(SbMediaGetBufferAlignment);
-  REGISTER_SYMBOL(SbMediaGetBufferAllocationUnit);
-  REGISTER_SYMBOL(SbMediaGetBufferGarbageCollectionDurationThreshold);
-  REGISTER_SYMBOL(SbMediaGetBufferPadding);
-  REGISTER_SYMBOL(SbMediaGetBufferStorageType);
-  REGISTER_SYMBOL(SbMediaGetInitialBufferCapacity);
-  REGISTER_SYMBOL(SbMediaGetMaxBufferCapacity);
-  REGISTER_SYMBOL(SbMediaGetProgressiveBufferBudget);
-  REGISTER_SYMBOL(SbMediaGetVideoBufferBudget);
-  REGISTER_SYMBOL(SbMediaIsBufferPoolAllocateOnDemand);
-  REGISTER_SYMBOL(SbMediaIsBufferUsingMemoryPool);
   REGISTER_SYMBOL(SbPlayerGetInfo2);
   REGISTER_SYMBOL(SbPlayerGetMaximumNumberOfSamplesPerWrite);
   REGISTER_SYMBOL(SbPlayerSeek2);
@@ -386,7 +408,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbSystemSupportsResume);
   REGISTER_SYMBOL(SbAudioSinkGetMinBufferSizeInFrames);
   REGISTER_SYMBOL(SbCPUFeaturesGet);
-  REGISTER_SYMBOL(SbMediaSetAudioWriteDuration);
   REGISTER_SYMBOL(SbSystemGetExtension);
   REGISTER_SYMBOL(SbSystemSignWithCertificationSecretKey);
   REGISTER_SYMBOL(SbThreadContextGetPointer);
@@ -396,34 +417,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbThreadSamplerIsSupported);
   REGISTER_SYMBOL(SbThreadSamplerThaw);
   REGISTER_SYMBOL(SbWindowGetDiagonalSizeInInches);
-  REGISTER_SYMBOL(kSbDefaultMmapThreshold);
-  REGISTER_SYMBOL(kSbFileMaxName);
-  REGISTER_SYMBOL(kSbFileMaxOpen);
-  REGISTER_SYMBOL(kSbFileAltSepChar);
-  REGISTER_SYMBOL(kSbFileAltSepString);
-  REGISTER_SYMBOL(kSbFileMaxPath);
-  REGISTER_SYMBOL(kSbFileSepChar);
-  REGISTER_SYMBOL(kSbFileSepString);
-  REGISTER_SYMBOL(kSbHasAc3Audio);
-  REGISTER_SYMBOL(kSbHasMediaWebmVp9Support);
-  REGISTER_SYMBOL(kSbHasThreadPrioritySupport);
-  REGISTER_SYMBOL(kSbMallocAlignment);
-#if SB_API_VERSION >= 14
-  REGISTER_SYMBOL(kSbMaxSystemPathCacheDirectorySize);
-#endif  // SB_API_VERSION >= 14
-  REGISTER_SYMBOL(kSbMaxThreadLocalKeys);
-  REGISTER_SYMBOL(kSbMaxThreadNameLength);
-  REGISTER_SYMBOL(kSbMediaMaxAudioBitrateInBitsPerSecond);
-  REGISTER_SYMBOL(kSbMediaMaxVideoBitrateInBitsPerSecond);
-  REGISTER_SYMBOL(kSbMediaVideoFrameAlignment);
-  REGISTER_SYMBOL(kSbMemoryLogPath);
-  REGISTER_SYMBOL(kSbMemoryPageSize);
-  REGISTER_SYMBOL(kSbNetworkReceiveBufferSize);
-  REGISTER_SYMBOL(kSbMaxThreads);
-  REGISTER_SYMBOL(kSbPathSepChar);
-  REGISTER_SYMBOL(kSbPathSepString);
-  REGISTER_SYMBOL(kSbPreferredRgbaByteOrder);
-  REGISTER_SYMBOL(kSbUserMaxSignedIn);
 #if SB_API_VERSION >= 13
   REGISTER_SYMBOL(SbSystemNetworkIsDisconnected);
 #endif  // SB_API_VERSION >= 13
