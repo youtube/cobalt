@@ -22,8 +22,10 @@
 #include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/path_service.h"
+#include "base/threading/platform_thread.h"
 #include "cobalt/base/cobalt_paths.h"
 #include "cobalt/base/path_provider.h"
+#include "starboard/thread.h"
 
 namespace cobalt {
 namespace {
@@ -44,6 +46,11 @@ void InitCobalt(int argc, char* argv[], const char* link) {
   // Register a path provider for Cobalt-specific paths.
   base::PathService::RegisterProvider(&PathProvider, paths::PATH_COBALT_START,
                                       paths::PATH_COBALT_END);
+
+  // Copy the Starboard thread name to the PlatformThread name.
+  char thread_name[128] = {'\0'};
+  SbThreadGetName(thread_name, 127);
+  base::PlatformThread::SetName(thread_name);
 }
 
 const char* GetInitialDeepLink() { return s_initial_deep_link.Get().c_str(); }
