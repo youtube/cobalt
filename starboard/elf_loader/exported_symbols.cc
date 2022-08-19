@@ -88,11 +88,14 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(kSbPathSepString);
   REGISTER_SYMBOL(kSbPreferredRgbaByteOrder);
   REGISTER_SYMBOL(kSbUserMaxSignedIn);
+  REGISTER_SYMBOL(SbAccessibilityGetCaptionSettings);
   REGISTER_SYMBOL(SbAccessibilityGetDisplaySettings);
   REGISTER_SYMBOL(SbAccessibilityGetTextToSpeechSettings);
+  REGISTER_SYMBOL(SbAccessibilitySetCaptionsEnabled);
   REGISTER_SYMBOL(SbAudioSinkCreate);
   REGISTER_SYMBOL(SbAudioSinkDestroy);
   REGISTER_SYMBOL(SbAudioSinkGetMaxChannels);
+  REGISTER_SYMBOL(SbAudioSinkGetMinBufferSizeInFrames);
   REGISTER_SYMBOL(SbAudioSinkGetNearestSupportedSampleFrequency);
   REGISTER_SYMBOL(SbAudioSinkIsAudioFrameStorageTypeSupported);
   REGISTER_SYMBOL(SbAudioSinkIsAudioSampleTypeSupported);
@@ -118,6 +121,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbConditionVariableSignal);
   REGISTER_SYMBOL(SbConditionVariableWait);
   REGISTER_SYMBOL(SbConditionVariableWaitTimed);
+  REGISTER_SYMBOL(SbCPUFeaturesGet);
   REGISTER_SYMBOL(SbDecodeTargetGetInfo);
   REGISTER_SYMBOL(SbDecodeTargetRelease);
   REGISTER_SYMBOL(SbDirectoryCanOpen);
@@ -137,9 +141,12 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbDrmDestroySystem);
   REGISTER_SYMBOL(SbDrmGenerateSessionUpdateRequest);
   REGISTER_SYMBOL(SbDrmGetMetrics);
+  REGISTER_SYMBOL(SbDrmIsServerCertificateUpdatable);
+  REGISTER_SYMBOL(SbDrmUpdateServerCertificate);
   REGISTER_SYMBOL(SbDrmUpdateSession);
   REGISTER_SYMBOL(SbEventCancel);
   REGISTER_SYMBOL(SbEventSchedule);
+  REGISTER_SYMBOL(SbFileAtomicReplace);
   REGISTER_SYMBOL(SbFileCanOpen);
   REGISTER_SYMBOL(SbFileClose);
   REGISTER_SYMBOL(SbFileDelete);
@@ -153,6 +160,8 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbFileSeek);
   REGISTER_SYMBOL(SbFileTruncate);
   REGISTER_SYMBOL(SbFileWrite);
+  REGISTER_SYMBOL(SbGetEglInterface);
+  REGISTER_SYMBOL(SbGetGlesInterface);
   REGISTER_SYMBOL(SbMemoryAllocate);
   REGISTER_SYMBOL(SbMemoryAllocateAligned);
   REGISTER_SYMBOL(SbMemoryAllocateNoReport);
@@ -171,9 +180,9 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbLogRawDumpStack);
   REGISTER_SYMBOL(SbLogRawFormat);
   REGISTER_SYMBOL(SbMediaCanPlayMimeAndKeySystem);
+  REGISTER_SYMBOL(SbMediaGetAudioBufferBudget);
   REGISTER_SYMBOL(SbMediaGetAudioConfiguration);
   REGISTER_SYMBOL(SbMediaGetAudioOutputCount);
-  REGISTER_SYMBOL(SbMediaGetAudioBufferBudget);
   REGISTER_SYMBOL(SbMediaGetBufferAlignment);
   REGISTER_SYMBOL(SbMediaGetBufferAllocationUnit);
   REGISTER_SYMBOL(SbMediaGetBufferGarbageCollectionDurationThreshold);
@@ -216,10 +225,15 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbPlayerCreate);
   REGISTER_SYMBOL(SbPlayerDestroy);
   REGISTER_SYMBOL(SbPlayerGetCurrentFrame);
+  REGISTER_SYMBOL(SbPlayerGetInfo2);
+  REGISTER_SYMBOL(SbPlayerGetMaximumNumberOfSamplesPerWrite);
+  REGISTER_SYMBOL(SbPlayerGetPreferredOutputMode);
+  REGISTER_SYMBOL(SbPlayerSeek2);
   REGISTER_SYMBOL(SbPlayerSetBounds);
   REGISTER_SYMBOL(SbPlayerSetPlaybackRate);
   REGISTER_SYMBOL(SbPlayerSetVolume);
   REGISTER_SYMBOL(SbPlayerWriteEndOfStream);
+  REGISTER_SYMBOL(SbPlayerWriteSample2);
   REGISTER_SYMBOL(SbSocketAccept);
   REGISTER_SYMBOL(SbSocketBind);
   REGISTER_SYMBOL(SbSocketClearLastError);
@@ -232,6 +246,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbSocketGetLocalAddress);
   REGISTER_SYMBOL(SbSocketIsConnected);
   REGISTER_SYMBOL(SbSocketIsConnectedAndIdle);
+  REGISTER_SYMBOL(SbSocketIsIpv6Supported);
   REGISTER_SYMBOL(SbSocketJoinMulticastGroup);
   REGISTER_SYMBOL(SbSocketListen);
   REGISTER_SYMBOL(SbSocketReceiveFrom);
@@ -337,6 +352,11 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbThreadGetName);
   REGISTER_SYMBOL(SbThreadIsEqual);
   REGISTER_SYMBOL(SbThreadJoin);
+  REGISTER_SYMBOL(SbThreadSamplerCreate);
+  REGISTER_SYMBOL(SbThreadSamplerDestroy);
+  REGISTER_SYMBOL(SbThreadSamplerFreeze);
+  REGISTER_SYMBOL(SbThreadSamplerIsSupported);
+  REGISTER_SYMBOL(SbThreadSamplerThaw);
   REGISTER_SYMBOL(SbThreadSetLocalValue);
   REGISTER_SYMBOL(SbThreadSetName);
   REGISTER_SYMBOL(SbThreadSleep);
@@ -355,13 +375,9 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbWindowGetSize);
   REGISTER_SYMBOL(SbWindowSetDefaultOptions);
   REGISTER_SYMBOL(SbSystemGetPath);
-  REGISTER_SYMBOL(SbGetEglInterface);
-  REGISTER_SYMBOL(SbGetGlesInterface);
-  REGISTER_SYMBOL(SbFileAtomicReplace);
 #if SB_CAN(MAP_EXECUTABLE_MEMORY)
   REGISTER_SYMBOL(SbMemoryFlush);
 #endif  // SB_CAN(MAP_EXECUTABLE_MEMORY)
-  REGISTER_SYMBOL(SbPlayerGetPreferredOutputMode);
   REGISTER_SYMBOL(SbMemoryMap);
   REGISTER_SYMBOL(SbMemoryUnmap);
   REGISTER_SYMBOL(SbMemoryProtect);
@@ -376,8 +392,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbWindowOnScreenKeyboardSuggestionsSupported);
   REGISTER_SYMBOL(SbWindowUpdateOnScreenKeyboardSuggestions);
   REGISTER_SYMBOL(SbWindowOnScreenKeyboardIsSupported);
-  REGISTER_SYMBOL(SbAccessibilityGetCaptionSettings);
-  REGISTER_SYMBOL(SbAccessibilitySetCaptionsEnabled);
   REGISTER_SYMBOL(SbMicrophoneClose);
   REGISTER_SYMBOL(SbMicrophoneCreate);
   REGISTER_SYMBOL(SbMicrophoneDestroy);
@@ -385,7 +399,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbMicrophoneIsSampleRateSupported);
   REGISTER_SYMBOL(SbMicrophoneOpen);
   REGISTER_SYMBOL(SbMicrophoneRead);
-  REGISTER_SYMBOL(SbSocketIsIpv6Supported);
   REGISTER_SYMBOL(SbSpeechSynthesisCancel);
   REGISTER_SYMBOL(SbSpeechSynthesisSpeak);
   REGISTER_SYMBOL(SbTimeGetMonotonicThreadNow);
@@ -399,23 +412,10 @@ ExportedSymbols::ExportedSymbols() {
 #endif  // SB_API_VERSION == 12
   REGISTER_SYMBOL(SbSpeechSynthesisIsSupported);
   REGISTER_SYMBOL(SbTimeIsTimeThreadNowSupported);
-  REGISTER_SYMBOL(SbDrmIsServerCertificateUpdatable);
-  REGISTER_SYMBOL(SbDrmUpdateServerCertificate);
-  REGISTER_SYMBOL(SbPlayerGetInfo2);
-  REGISTER_SYMBOL(SbPlayerGetMaximumNumberOfSamplesPerWrite);
-  REGISTER_SYMBOL(SbPlayerSeek2);
-  REGISTER_SYMBOL(SbPlayerWriteSample2);
   REGISTER_SYMBOL(SbSystemSupportsResume);
-  REGISTER_SYMBOL(SbAudioSinkGetMinBufferSizeInFrames);
-  REGISTER_SYMBOL(SbCPUFeaturesGet);
   REGISTER_SYMBOL(SbSystemGetExtension);
   REGISTER_SYMBOL(SbSystemSignWithCertificationSecretKey);
   REGISTER_SYMBOL(SbThreadContextGetPointer);
-  REGISTER_SYMBOL(SbThreadSamplerCreate);
-  REGISTER_SYMBOL(SbThreadSamplerDestroy);
-  REGISTER_SYMBOL(SbThreadSamplerFreeze);
-  REGISTER_SYMBOL(SbThreadSamplerIsSupported);
-  REGISTER_SYMBOL(SbThreadSamplerThaw);
   REGISTER_SYMBOL(SbWindowGetDiagonalSizeInInches);
 #if SB_API_VERSION >= 13
   REGISTER_SYMBOL(SbSystemNetworkIsDisconnected);
