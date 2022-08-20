@@ -34,6 +34,7 @@ class MediaSettings {
   virtual base::Optional<int> GetMinimumProcessorCountToOffloadAlgorithm()
       const = 0;
   virtual base::Optional<bool> IsAsynchronousReductionEnabled() const = 0;
+  virtual base::Optional<bool> IsAvoidCopyingArrayBufferEnabled() const = 0;
   virtual base::Optional<int> GetMaxSizeForImmediateJob() const = 0;
   virtual base::Optional<int> GetMaxSourceBufferAppendSizeInBytes() const = 0;
 
@@ -66,6 +67,10 @@ class MediaSettingsImpl : public MediaSettings {
     base::AutoLock auto_lock(lock_);
     return is_asynchronous_reduction_enabled_;
   }
+  base::Optional<bool> IsAvoidCopyingArrayBufferEnabled() const override {
+    base::AutoLock auto_lock(lock_);
+    return is_avoid_copying_array_buffer_enabled_;
+  }
   base::Optional<int> GetMaxSizeForImmediateJob() const override {
     base::AutoLock auto_lock(lock_);
     return max_size_for_immediate_job_;
@@ -90,6 +95,7 @@ class MediaSettingsImpl : public MediaSettings {
   base::Optional<int> source_buffer_evict_extra_in_bytes_;
   base::Optional<int> minimum_processor_count_to_offload_algorithm_;
   base::Optional<bool> is_asynchronous_reduction_enabled_;
+  base::Optional<bool> is_avoid_copying_array_buffer_enabled_;
   base::Optional<int> max_size_for_immediate_job_;
   base::Optional<int> max_source_buffer_append_size_in_bytes_;
 
