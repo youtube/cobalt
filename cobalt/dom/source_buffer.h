@@ -142,6 +142,8 @@ class SourceBuffer : public web::EventTarget {
 
  private:
   typedef ::media::MediaTracks MediaTracks;
+  typedef script::ArrayBuffer ArrayBuffer;
+  typedef script::ArrayBufferView ArrayBufferView;
 
   // SourceBuffer is inherited from base::RefCounted<> and its ref count cannot
   // be used on non-web threads.  On the other hand the call to
@@ -210,6 +212,9 @@ class SourceBuffer : public web::EventTarget {
   double append_window_start_ = 0;
   double append_window_end_ = std::numeric_limits<double>::infinity();
 
+  bool is_avoid_copying_array_buffer_enabled_ = false;
+  script::Handle<ArrayBuffer> array_buffer_in_use_;
+  script::Handle<ArrayBufferView> array_buffer_view_in_use_;
   std::unique_ptr<uint8_t[]> pending_append_data_;
   size_t pending_append_data_capacity_ = 0;
 

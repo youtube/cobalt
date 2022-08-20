@@ -123,6 +123,11 @@ size_t GetMaxAppendSizeInBytes(web::EnvironmentSettings* settings,
   return bytes;
 }
 
+bool IsAvoidCopyingArrayBufferEnabled(web::EnvironmentSettings* settings) {
+  const MediaSettings& media_settings = GetMediaSettings(settings);
+  return media_settings.IsAvoidCopyingArrayBufferEnabled().value_or(false);
+}
+
 }  // namespace
 
 SourceBuffer::OnInitSegmentReceivedHelper::OnInitSegmentReceivedHelper(
@@ -314,19 +319,38 @@ void SourceBuffer::set_append_window_end(
   append_window_end_ = end;
 }
 
-void SourceBuffer::AppendBuffer(const script::Handle<script::ArrayBuffer>& data,
+void SourceBuffer::AppendBuffer(const script::Handle<ArrayBuffer>& data,
                                 script::ExceptionState* exception_state) {
   TRACE_EVENT1("cobalt::dom", "SourceBuffer::AppendBuffer()", "size",
                data->ByteLength());
+
+  is_avoid_copying_array_buffer_enabled_ =
+      IsAvoidCopyingArrayBufferEnabled(environment_settings());
+
+  DCHECK(array_buffer_in_use_.IsEmpty());
+  DCHECK(array_buffer_view_in_use_.IsEmpty());
+  if (is_avoid_copying_array_buffer_enabled_) {
+    array_buffer_in_use_ = data;
+  }
+
   AppendBufferInternal(static_cast<const unsigned char*>(data->Data()),
                        data->ByteLength(), exception_state);
 }
 
-void SourceBuffer::AppendBuffer(
-    const script::Handle<script::ArrayBufferView>& data,
-    script::ExceptionState* exception_state) {
+void SourceBuffer::AppendBuffer(const script::Handle<ArrayBufferView>& data,
+                                script::ExceptionState* exception_state) {
   TRACE_EVENT1("cobalt::dom", "SourceBuffer::AppendBuffer()", "size",
                data->ByteLength());
+
+  is_avoid_copying_array_buffer_enabled_ =
+      IsAvoidCopyingArrayBufferEnabled(environment_settings());
+
+  DCHECK(array_buffer_in_use_.IsEmpty());
+  DCHECK(array_buffer_view_in_use_.IsEmpty());
+  if (is_avoid_copying_array_buffer_enabled_) {
+    array_buffer_view_in_use_ = data;
+  }
+
   AppendBufferInternal(static_cast<const unsigned char*>(data->RawData()),
                        data->ByteLength(), exception_state);
 }
@@ -466,6 +490,8 @@ void SourceBuffer::OnRemovedFromMediaSource() {
 
   pending_append_data_.reset();
   pending_append_data_capacity_ = 0;
+  array_buffer_in_use_ = script::Handle<ArrayBuffer>();
+  array_buffer_view_in_use_ = script::Handle<ArrayBufferView>();
 }
 
 double SourceBuffer::GetHighestPresentationTimestamp() const {
@@ -550,19 +576,34 @@ void SourceBuffer::AppendBufferInternal(
   DCHECK(data || size == 0);
 
   if (data) {
-    if (pending_append_data_capacity_ < size) {
-      pending_append_data_.reset();
-      pending_append_data_.reset(new uint8_t[size]);
-      pending_append_data_capacity_ = size;
+    if (is_avoid_copying_array_buffer_enabled_) {
+      // When |is_avoid_copying_array_buffer_enabled_| is true, we are holding
+      // reference to the underlying JS buffer object, and don't have to make a
+      // copy of the data.
+      if (array_buffer_view_in_use_.IsEmpty()) {
+        DCHECK(!array_buffer_in_use_.IsEmpty());
+        DCHECK_EQ(array_buffer_in_use_->Data(), data);
+        DCHECK_EQ(array_buffer_in_use_->ByteLength(), size);
+      } else {
+        DCHECK_EQ(array_buffer_view_in_use_->RawData(), data);
+        DCHECK_EQ(array_buffer_view_in_use_->ByteLength(), size);
+      }
+    } else {
+      if (pending_append_data_capacity_ < size) {
+        pending_append_data_.reset();
+        pending_append_data_.reset(new uint8_t[size]);
+        pending_append_data_capacity_ = size;
+      }
+      memcpy(pending_append_data_.get(), data, size);
+      data = pending_append_data_.get();
     }
-    memcpy(pending_append_data_.get(), data, size);
   }
 
   ScheduleEvent(base::Tokens::updatestart());
 
   std::unique_ptr<SourceBufferAlgorithm> algorithm(
       new SourceBufferAppendAlgorithm(
-          media_source_, chunk_demuxer_, id_, pending_append_data_.get(), size,
+          media_source_, chunk_demuxer_, id_, data, size,
           max_append_buffer_size_, DoubleToTimeDelta(append_window_start_),
           DoubleToTimeDelta(append_window_end_),
           DoubleToTimeDelta(timestamp_offset_),
@@ -581,6 +622,16 @@ void SourceBuffer::AppendBufferInternal(
 void SourceBuffer::OnAlgorithmFinalized() {
   DCHECK(active_algorithm_handle_);
   active_algorithm_handle_ = nullptr;
+
+  if (is_avoid_copying_array_buffer_enabled_) {
+    // Allow them to be GCed.
+    array_buffer_in_use_ = script::Handle<ArrayBuffer>();
+    array_buffer_view_in_use_ = script::Handle<ArrayBufferView>();
+    is_avoid_copying_array_buffer_enabled_ = false;
+  } else {
+    DCHECK(array_buffer_in_use_.IsEmpty());
+    DCHECK(array_buffer_view_in_use_.IsEmpty());
+  }
 }
 
 void SourceBuffer::UpdateTimestampOffset(base::TimeDelta timestamp_offset) {
