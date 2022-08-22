@@ -280,6 +280,17 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbSocketWaiterWait);
   REGISTER_SYMBOL(SbSocketWaiterWaitTimed);
   REGISTER_SYMBOL(SbSocketWaiterWakeUp);
+#if SB_API_VERSION == 12
+  REGISTER_SYMBOL(SbSpeechRecognizerCancel);
+  REGISTER_SYMBOL(SbSpeechRecognizerCreate);
+  REGISTER_SYMBOL(SbSpeechRecognizerDestroy);
+  REGISTER_SYMBOL(SbSpeechRecognizerIsSupported);
+  REGISTER_SYMBOL(SbSpeechRecognizerStart);
+  REGISTER_SYMBOL(SbSpeechRecognizerStop);
+#endif  // SB_API_VERSION == 12
+  REGISTER_SYMBOL(SbSpeechSynthesisCancel);
+  REGISTER_SYMBOL(SbSpeechSynthesisIsSupported);
+  REGISTER_SYMBOL(SbSpeechSynthesisSpeak);
   REGISTER_SYMBOL(SbStorageCloseRecord);
   REGISTER_SYMBOL(SbStorageDeleteRecord);
   REGISTER_SYMBOL(SbStorageGetRecordSize);
@@ -326,9 +337,11 @@ ExportedSymbols::ExportedSymbols() {
 #endif
   REGISTER_SYMBOL(SbSystemGetDeviceType);
   REGISTER_SYMBOL(SbSystemGetErrorString);
+  REGISTER_SYMBOL(SbSystemGetExtension);
   REGISTER_SYMBOL(SbSystemGetLastError);
   REGISTER_SYMBOL(SbSystemGetLocaleId);
   REGISTER_SYMBOL(SbSystemGetNumberOfProcessors);
+  REGISTER_SYMBOL(SbSystemGetPath);
   REGISTER_SYMBOL(SbSystemGetProperty);
   REGISTER_SYMBOL(SbSystemGetRandomData);
   REGISTER_SYMBOL(SbSystemGetRandomUInt64);
@@ -340,22 +353,35 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbSystemHasCapability);
   REGISTER_SYMBOL(SbSystemHideSplashScreen);
   REGISTER_SYMBOL(SbSystemIsDebuggerAttached);
+#if SB_API_VERSION >= 13
+  REGISTER_SYMBOL(SbSystemNetworkIsDisconnected);
+#endif  // SB_API_VERSION >= 13
   REGISTER_SYMBOL(SbSystemRaisePlatformError);
 #if SB_API_VERSION >= 13
   REGISTER_SYMBOL(SbSystemRequestBlur);
   REGISTER_SYMBOL(SbSystemRequestConceal);
   REGISTER_SYMBOL(SbSystemRequestFocus);
   REGISTER_SYMBOL(SbSystemRequestFreeze);
+#endif  // SB_API_VERSION >= 13
+#if SB_API_VERSION < 13
+  REGISTER_SYMBOL(SbSystemRequestPause);
+#endif  // SB_API_VERSION < 13
+#if SB_API_VERSION >= 13
   REGISTER_SYMBOL(SbSystemRequestReveal);
   REGISTER_SYMBOL(SbSystemRequestStop);
-#else
-  REGISTER_SYMBOL(SbSystemRequestPause);
+#endif  // SB_API_VERSION >= 13
+#if SB_API_VERSION < 13
   REGISTER_SYMBOL(SbSystemRequestStop);
   REGISTER_SYMBOL(SbSystemRequestSuspend);
   REGISTER_SYMBOL(SbSystemRequestUnpause);
+#endif  // SB_API_VERSION < 13
+  REGISTER_SYMBOL(SbSystemSignWithCertificationSecretKey);
+#if SB_API_VERSION < 13
   REGISTER_SYMBOL(SbSystemSort);
-#endif  // SB_API_VERSION >= 13
+#endif  // SB_API_VERSION < 13
+  REGISTER_SYMBOL(SbSystemSupportsResume);
   REGISTER_SYMBOL(SbSystemSymbolize);
+  REGISTER_SYMBOL(SbThreadContextGetPointer);
   REGISTER_SYMBOL(SbThreadCreate);
   REGISTER_SYMBOL(SbThreadCreateLocalKey);
   REGISTER_SYMBOL(SbThreadDestroyLocalKey);
@@ -376,9 +402,12 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbThreadSleep);
   REGISTER_SYMBOL(SbThreadYield);
   REGISTER_SYMBOL(SbTimeGetMonotonicNow);
+  REGISTER_SYMBOL(SbTimeGetMonotonicThreadNow);
   REGISTER_SYMBOL(SbTimeGetNow);
+  REGISTER_SYMBOL(SbTimeIsTimeThreadNowSupported);
   REGISTER_SYMBOL(SbTimeZoneGetCurrent);
   REGISTER_SYMBOL(SbTimeZoneGetName);
+  REGISTER_SYMBOL(SbUiNavGetInterface);
   REGISTER_SYMBOL(SbUserGetCurrent);
   REGISTER_SYMBOL(SbUserGetProperty);
   REGISTER_SYMBOL(SbUserGetPropertySize);
@@ -388,8 +417,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbWindowGetPlatformHandle);
   REGISTER_SYMBOL(SbWindowGetSize);
   REGISTER_SYMBOL(SbWindowSetDefaultOptions);
-  REGISTER_SYMBOL(SbSystemGetPath);
-  REGISTER_SYMBOL(SbUiNavGetInterface);
   REGISTER_SYMBOL(SbWindowBlurOnScreenKeyboard);
   REGISTER_SYMBOL(SbWindowFocusOnScreenKeyboard);
   REGISTER_SYMBOL(SbWindowGetOnScreenKeyboardBoundingRect);
@@ -400,27 +427,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbWindowOnScreenKeyboardSuggestionsSupported);
   REGISTER_SYMBOL(SbWindowUpdateOnScreenKeyboardSuggestions);
   REGISTER_SYMBOL(SbWindowOnScreenKeyboardIsSupported);
-  REGISTER_SYMBOL(SbSpeechSynthesisCancel);
-  REGISTER_SYMBOL(SbSpeechSynthesisSpeak);
-  REGISTER_SYMBOL(SbTimeGetMonotonicThreadNow);
-#if SB_API_VERSION == 12
-  REGISTER_SYMBOL(SbSpeechRecognizerIsSupported);
-  REGISTER_SYMBOL(SbSpeechRecognizerCreate);
-  REGISTER_SYMBOL(SbSpeechRecognizerDestroy);
-  REGISTER_SYMBOL(SbSpeechRecognizerStart);
-  REGISTER_SYMBOL(SbSpeechRecognizerStop);
-  REGISTER_SYMBOL(SbSpeechRecognizerCancel);
-#endif  // SB_API_VERSION == 12
-  REGISTER_SYMBOL(SbSpeechSynthesisIsSupported);
-  REGISTER_SYMBOL(SbTimeIsTimeThreadNowSupported);
-  REGISTER_SYMBOL(SbSystemSupportsResume);
-  REGISTER_SYMBOL(SbSystemGetExtension);
-  REGISTER_SYMBOL(SbSystemSignWithCertificationSecretKey);
-  REGISTER_SYMBOL(SbThreadContextGetPointer);
   REGISTER_SYMBOL(SbWindowGetDiagonalSizeInInches);
-#if SB_API_VERSION >= 13
-  REGISTER_SYMBOL(SbSystemNetworkIsDisconnected);
-#endif  // SB_API_VERSION >= 13
 }  // NOLINT
 
 const void* ExportedSymbols::Lookup(const char* name) {
