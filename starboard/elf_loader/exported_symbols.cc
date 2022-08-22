@@ -162,14 +162,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbFileWrite);
   REGISTER_SYMBOL(SbGetEglInterface);
   REGISTER_SYMBOL(SbGetGlesInterface);
-  REGISTER_SYMBOL(SbMemoryAllocate);
-  REGISTER_SYMBOL(SbMemoryAllocateAligned);
-  REGISTER_SYMBOL(SbMemoryAllocateNoReport);
-  REGISTER_SYMBOL(SbMemoryDeallocate);
-  REGISTER_SYMBOL(SbMemoryDeallocateAligned);
-  REGISTER_SYMBOL(SbMemoryDeallocateNoReport);
-  REGISTER_SYMBOL(SbMemoryReallocate);
-  REGISTER_SYMBOL(SbMemorySetReporter);
   REGISTER_SYMBOL(SbImageDecode);
   REGISTER_SYMBOL(SbImageIsDecodeSupported);
   REGISTER_SYMBOL(SbLog);
@@ -198,24 +190,46 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbMediaIsSupported);
 #endif  // SB_API_VERSION < 13
   REGISTER_SYMBOL(SbMediaSetAudioWriteDuration);
-
+  REGISTER_SYMBOL(SbMemoryAllocate);
+  REGISTER_SYMBOL(SbMemoryAllocateAligned);
   REGISTER_SYMBOL(SbMemoryAllocateAlignedUnchecked);
+  REGISTER_SYMBOL(SbMemoryAllocateNoReport);
   REGISTER_SYMBOL(SbMemoryAllocateUnchecked);
 #if SB_API_VERSION < 13
   REGISTER_SYMBOL(SbMemoryCompare);
   REGISTER_SYMBOL(SbMemoryCopy);
+#endif
+  REGISTER_SYMBOL(SbMemoryDeallocate);
+  REGISTER_SYMBOL(SbMemoryDeallocateAligned);
+  REGISTER_SYMBOL(SbMemoryDeallocateNoReport);
+#if SB_API_VERSION < 13
   REGISTER_SYMBOL(SbMemoryFindByte);
 #endif
+#if SB_CAN(MAP_EXECUTABLE_MEMORY)
+  REGISTER_SYMBOL(SbMemoryFlush);
+#endif  // SB_CAN(MAP_EXECUTABLE_MEMORY)
   REGISTER_SYMBOL(SbMemoryFree);
   REGISTER_SYMBOL(SbMemoryFreeAligned);
   REGISTER_SYMBOL(SbMemoryGetStackBounds);
+  REGISTER_SYMBOL(SbMemoryMap);
 #if SB_API_VERSION < 13
   REGISTER_SYMBOL(SbMemoryMove);
 #endif
+  REGISTER_SYMBOL(SbMemoryProtect);
+  REGISTER_SYMBOL(SbMemoryReallocate);
   REGISTER_SYMBOL(SbMemoryReallocateUnchecked);
 #if SB_API_VERSION < 13
   REGISTER_SYMBOL(SbMemorySet);
 #endif
+  REGISTER_SYMBOL(SbMemorySetReporter);
+  REGISTER_SYMBOL(SbMemoryUnmap);
+  REGISTER_SYMBOL(SbMicrophoneClose);
+  REGISTER_SYMBOL(SbMicrophoneCreate);
+  REGISTER_SYMBOL(SbMicrophoneDestroy);
+  REGISTER_SYMBOL(SbMicrophoneGetAvailable);
+  REGISTER_SYMBOL(SbMicrophoneIsSampleRateSupported);
+  REGISTER_SYMBOL(SbMicrophoneOpen);
+  REGISTER_SYMBOL(SbMicrophoneRead);
   REGISTER_SYMBOL(SbMutexAcquire);
   REGISTER_SYMBOL(SbMutexAcquireTry);
   REGISTER_SYMBOL(SbMutexCreate);
@@ -375,12 +389,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbWindowGetSize);
   REGISTER_SYMBOL(SbWindowSetDefaultOptions);
   REGISTER_SYMBOL(SbSystemGetPath);
-#if SB_CAN(MAP_EXECUTABLE_MEMORY)
-  REGISTER_SYMBOL(SbMemoryFlush);
-#endif  // SB_CAN(MAP_EXECUTABLE_MEMORY)
-  REGISTER_SYMBOL(SbMemoryMap);
-  REGISTER_SYMBOL(SbMemoryUnmap);
-  REGISTER_SYMBOL(SbMemoryProtect);
   REGISTER_SYMBOL(SbUiNavGetInterface);
   REGISTER_SYMBOL(SbWindowBlurOnScreenKeyboard);
   REGISTER_SYMBOL(SbWindowFocusOnScreenKeyboard);
@@ -392,13 +400,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbWindowOnScreenKeyboardSuggestionsSupported);
   REGISTER_SYMBOL(SbWindowUpdateOnScreenKeyboardSuggestions);
   REGISTER_SYMBOL(SbWindowOnScreenKeyboardIsSupported);
-  REGISTER_SYMBOL(SbMicrophoneClose);
-  REGISTER_SYMBOL(SbMicrophoneCreate);
-  REGISTER_SYMBOL(SbMicrophoneDestroy);
-  REGISTER_SYMBOL(SbMicrophoneGetAvailable);
-  REGISTER_SYMBOL(SbMicrophoneIsSampleRateSupported);
-  REGISTER_SYMBOL(SbMicrophoneOpen);
-  REGISTER_SYMBOL(SbMicrophoneRead);
   REGISTER_SYMBOL(SbSpeechSynthesisCancel);
   REGISTER_SYMBOL(SbSpeechSynthesisSpeak);
   REGISTER_SYMBOL(SbTimeGetMonotonicThreadNow);
