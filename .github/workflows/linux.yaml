@@ -3,9 +3,9 @@ name: linux
 on:
   pull_request:
     types: [opened, reopened, edited, synchronize]
-    branches: [ main, 23.lts.1+ ]
+    branches: [ main ]
   push:
-    branches: [ main, 23.lts.1+ ]
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
