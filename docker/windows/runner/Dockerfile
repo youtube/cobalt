@@ -24,5 +24,7 @@ RUN Invoke-WebRequest -Uri https://github.com/actions/runner/releases/download/v
     Remove-Item -Path C:\runner.zip;`
     setx /M PATH $(${Env:PATH} + \";${Env:ProgramFiles}\Git\bin\")
 
+ENV TMP "C:\Users\ContainerAdministrator\AppData\Local\Temp2"
+
 ADD runner.ps1 C:/runner.ps1
 CMD ["powershell", "-ExecutionPolicy", "Unrestricted", "-File", ".\\runner.ps1"]
