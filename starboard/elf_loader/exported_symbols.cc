@@ -412,22 +412,22 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbUserGetProperty);
   REGISTER_SYMBOL(SbUserGetPropertySize);
   REGISTER_SYMBOL(SbUserGetSignedIn);
+  REGISTER_SYMBOL(SbWindowBlurOnScreenKeyboard);
   REGISTER_SYMBOL(SbWindowCreate);
   REGISTER_SYMBOL(SbWindowDestroy);
+  REGISTER_SYMBOL(SbWindowFocusOnScreenKeyboard);
+  REGISTER_SYMBOL(SbWindowGetDiagonalSizeInInches);
+  REGISTER_SYMBOL(SbWindowGetOnScreenKeyboardBoundingRect);
   REGISTER_SYMBOL(SbWindowGetPlatformHandle);
   REGISTER_SYMBOL(SbWindowGetSize);
-  REGISTER_SYMBOL(SbWindowSetDefaultOptions);
-  REGISTER_SYMBOL(SbWindowBlurOnScreenKeyboard);
-  REGISTER_SYMBOL(SbWindowFocusOnScreenKeyboard);
-  REGISTER_SYMBOL(SbWindowGetOnScreenKeyboardBoundingRect);
   REGISTER_SYMBOL(SbWindowHideOnScreenKeyboard);
   REGISTER_SYMBOL(SbWindowIsOnScreenKeyboardShown);
+  REGISTER_SYMBOL(SbWindowOnScreenKeyboardIsSupported);
+  REGISTER_SYMBOL(SbWindowOnScreenKeyboardSuggestionsSupported);
+  REGISTER_SYMBOL(SbWindowSetDefaultOptions);
   REGISTER_SYMBOL(SbWindowSetOnScreenKeyboardKeepFocus);
   REGISTER_SYMBOL(SbWindowShowOnScreenKeyboard);
-  REGISTER_SYMBOL(SbWindowOnScreenKeyboardSuggestionsSupported);
   REGISTER_SYMBOL(SbWindowUpdateOnScreenKeyboardSuggestions);
-  REGISTER_SYMBOL(SbWindowOnScreenKeyboardIsSupported);
-  REGISTER_SYMBOL(SbWindowGetDiagonalSizeInInches);
 }  // NOLINT
 
 const void* ExportedSymbols::Lookup(const char* name) {
