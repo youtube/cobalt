@@ -25,3 +25,16 @@ static_library("watchdog") {
     "//starboard/common",
   ]
 }
+
+target(gtest_target_type, "watchdog_test") {
+  testonly = true
+
+  sources = [ "watchdog_test.cc" ]
+
+  deps = [
+    ":watchdog",
+    "//cobalt/test:run_all_unittests",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+}
