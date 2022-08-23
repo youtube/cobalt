@@ -73,16 +73,22 @@ enum Replace {
 class Watchdog : public Singleton<Watchdog> {
  public:
   bool Initialize(persistent_storage::PersistentSettings* persistent_settings);
+  // Directly used for testing only.
+  bool InitializeCustom(
+      persistent_storage::PersistentSettings* persistent_settings,
+      std::string watchdog_file_name, int64_t watchdog_monitor_frequency);
   bool InitializeStub();
   void Uninitialize();
+  std::string GetWatchdogFilePath();
   void UpdateState(base::ApplicationState state);
   bool Register(std::string name, std::string description,
-                base::ApplicationState monitor_state, int64_t time_interval,
-                int64_t time_wait = 0, Replace replace = NONE);
+                base::ApplicationState monitor_state,
+                int64_t time_interval_microseconds,
+                int64_t time_wait_microseconds = 0, Replace replace = NONE);
   bool Unregister(const std::string& name, bool lock = true);
   bool Ping(const std::string& name);
   bool Ping(const std::string& name, const std::string& info);
-  std::string GetWatchdogViolations();
+  std::string GetWatchdogViolations(bool clear = true);
   bool GetPersistentSettingWatchdogEnable();
   void SetPersistentSettingWatchdogEnable(bool enable_watchdog);
   bool GetPersistentSettingWatchdogCrash();
@@ -94,7 +100,6 @@ class Watchdog : public Singleton<Watchdog> {
 #endif  // defined(_DEBUG)
 
  private:
-  std::string GetWatchdogFilePath();
   void WriteWatchdogViolations();
   static void* Monitor(void* context);
   static void UpdateViolationsMap(void* context, Client* client,
@@ -104,8 +109,10 @@ class Watchdog : public Singleton<Watchdog> {
   static void MaybeWriteWatchdogViolations(void* context);
   static void MaybeTriggerCrash(void* context);
 
-  // Watchdog violations file path.
-  std::string watchdog_file_;
+  // The Watchdog violations json filename.
+  std::string watchdog_file_name_;
+  // The Watchdog violations json filepath.
+  std::string watchdog_file_path_;
   // Access to persistent settings.
   persistent_storage::PersistentSettings* persistent_settings_;
   // Flag to disable Watchdog. When disabled, Watchdog behaves like a stub
@@ -137,6 +144,8 @@ class Watchdog : public Singleton<Watchdog> {
   SbThread watchdog_thread_;
   // Flag to stop monitor thread.
   bool is_monitoring_;
+  // The frequency in microseconds of monitor loops.
+  int64_t watchdog_monitor_frequency_;
 
 #if defined(_DEBUG)
   starboard::Mutex delay_lock_;

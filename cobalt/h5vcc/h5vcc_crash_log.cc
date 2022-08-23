@@ -126,7 +126,8 @@ void H5vccCrashLog::TriggerCrash(H5vccCrashType intent) {
 bool H5vccCrashLog::Register(const std::string& name,
                              const std::string& description,
                              WatchdogState watchdog_state,
-                             int64_t time_interval, int64_t time_wait,
+                             int64_t time_interval_milliseconds,
+                             int64_t time_wait_milliseconds,
                              WatchdogReplace watchdog_replace) {
   watchdog::Watchdog* watchdog = watchdog::Watchdog::GetInstance();
   if (watchdog) {
@@ -162,7 +163,8 @@ bool H5vccCrashLog::Register(const std::string& name,
         replace = watchdog::NONE;
     }
     return watchdog->Register(name, description, monitor_state,
-                              time_interval * 1000, time_wait * 1000, replace);
+                              time_interval_milliseconds * 1000,
+                              time_wait_milliseconds * 1000, replace);
   }
   return false;
 }
