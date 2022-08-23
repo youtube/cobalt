@@ -16,7 +16,6 @@ env:
   IPV6_AVAILABLE: 0
   LANG: en_US.UTF-8
   IS_BUILDBOT_DOCKER: 1
-  #BUILD_ID_SERVER_URL:
   IS_CI: 1
   IS_DOCKER: 1
   NINJA_STATUS: '[%e sec | %f/%t %u remaining | %c/sec | j%r]'
