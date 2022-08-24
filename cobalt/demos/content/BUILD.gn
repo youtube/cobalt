@@ -133,7 +133,6 @@ copy("demos_testdata") {
       "performance-spike/assets/banner720.jpg",
       "performance-spike/assets/banner720baked.jpg",
       "performance-spike/assets/icons.ttf",
-      "performance-spike/assets/profile-***REMOVED***.jpg",
       "performance-spike/css/default.css",
       "performance-spike/css/icons-content.css",
       "performance-spike/css/icons.css",
