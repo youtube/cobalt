@@ -111,8 +111,8 @@ copy("demos_testdata") {
 
   if (is_internal_build) {
     sources += [
+      "internal/runtime-dump.html",
       "javascript-fuzzer/index.html",
-      "***REMOVED***/runtime-dump.html",
       "media-element-demo/public/assets/ac3.mp4",
       "media-element-demo/public/assets/dash-audio.mp4",
       "media-element-demo/public/assets/dash-video-1080p.mp4",
