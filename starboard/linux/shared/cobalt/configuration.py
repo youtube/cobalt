@@ -52,7 +52,7 @@ class CobaltLinuxConfiguration(cobalt_configuration.CobaltConfiguration):
         test_filter.TestFilter(
             'net_unittests', 'TCPListenSocketTest.ServerSendMultiple'),
         # web_platform_tests disabled due to error on GKE:
-        # net::ERR_NAME_RESOLUTION_FAILED on resolve freedom.sbo.***REMOVED***
+        # net::ERR_NAME_RESOLUTION_FAILED on resolve <host>
         test_filter.TestFilter(
             'web_platform_tests', test_filter.FILTER_ALL),
         test_filter.TestFilter(
