@@ -15,10 +15,6 @@ jobs:
       - name: Trigger Nightly
         run: |
           set -x
-          gh workflow run raspi-2 --ref main
-          echo $?
-          gh workflow run raspi-2_23.lts.1+ --ref 23.lts.1+
-          echo $?
-          gh workflow list
+          gh workflow run raspi-2_nightly_23.lts.1+ --ref 23.lts.1+
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.ISARKIS_PAT }}

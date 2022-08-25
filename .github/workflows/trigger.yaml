@@ -14,4 +14,4 @@ jobs:
         uses: aurelien-baudet/workflow-dispatch@v2
         with:
           workflow: raspi-2
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.ISARKIS_PAT }}
