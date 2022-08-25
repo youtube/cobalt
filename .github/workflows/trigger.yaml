@@ -13,6 +13,5 @@ jobs:
       - name: Trigger Nightly
         uses: aurelien-baudet/workflow-dispatch@v2
         with:
-          workflow: raspi-2_23.lts.1+
+          workflow: raspi-2
           token: ${{ secrets.GITHUB_TOKEN }}
-          ref: 23.lts.1+
