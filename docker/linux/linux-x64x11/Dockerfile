@@ -27,7 +27,8 @@ RUN apt update -qqy \
         libxi-dev \
     && /opt/clean-after-apt.sh
 
-RUN python3 -m pip install "selenium==3.141.0" "Brotli==1.0.9"
+COPY ./linux-x64x11/requirements.txt /opt/requirements.txt
+RUN python3 -m pip install --require-hashes --no-deps -r /opt/requirements.txt
 
 CMD gn gen ${OUTDIR}/${PLATFORM}_${CONFIG} --args="target_platform=\"${PLATFORM}\" build_type=\"${CONFIG}\" sb_api_version=${SB_API_VERSION:-14}" && \
     ninja -v -j ${NINJA_PARALLEL} -C ${OUTDIR}/${PLATFORM}_${CONFIG} ${TARGET:-cobalt_install}

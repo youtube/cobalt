@@ -15,7 +15,7 @@
 FROM cobalt-base
 
 COPY requirements.txt /opt/requirements.txt
-RUN pip3 install -r /opt/requirements.txt
+RUN pip3 install --require-hashes --no-deps -r /opt/requirements.txt
 
 WORKDIR /code
 

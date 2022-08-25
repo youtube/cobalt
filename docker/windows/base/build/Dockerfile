@@ -45,8 +45,9 @@ RUN iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.or
     Copy-Item C:\Python3\python.exe C:\Python3\python3.exe
 
 # Install python3 packages via PIP and set various configurations.
+COPY ./requirements.txt /requirements.txt
 RUN mkdir C:\pip-cache;`
-    python3 -m pip install six --cache-dir C:\pip-cache;`
+    python3 -m pip install --require-hashes --no-deps -r /requirements.txt --cache-dir C:\pip-cache;`
     C:\fast-win-rmdir.cmd C:\pip-cache;`
     # Configure git global settings.
     git config --global core.autocrlf false;`

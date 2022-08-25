@@ -24,7 +24,8 @@ RUN apt update -qqy \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* \
     && rm -rf /var/lib/{apt,dpkg,cache,log}
 
-RUN pip3 install "pre-commit<3" "cpplint<2" "yapf<1" "pylint<3"
+COPY requirements.txt /opt/requirements.txt
+RUN pip3 install --require-hashes --no-deps -r /opt/requirements.txt
 
 # === Get GN via CIPD
 ARG GN_SHA256SUM="1291d4cf9729b6615c621139be4e9c8bb49b5cc80330e7a9e3e83c583d683f71  /usr/local/bin/gn"
