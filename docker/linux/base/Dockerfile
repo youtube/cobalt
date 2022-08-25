@@ -32,6 +32,4 @@ RUN apt update -qqy \
         curl xz-utils \
     && /opt/clean-after-apt.sh
 
-RUN python3 -m pip install --upgrade pip
-
 CMD ["/usr/bin/python","--version"]
