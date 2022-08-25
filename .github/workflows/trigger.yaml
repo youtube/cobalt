@@ -10,15 +10,9 @@ jobs:
     permissions: write-all
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout files
-        uses: actions/checkout@v3
       - name: Trigger Nightly
-        run: |
-          set -x
-          gh workflow run raspi-2s
-          echo $?
-          gh workflow run raspi-2_23.lts.1+ --ref 23.lts.1+
-          echo $?
-          gh workflow list
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: aurelien-baudet/workflow-dispatch@v2
+        with:
+          workflow: raspi-2_23.lts.1+
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: 23.lts.1+
