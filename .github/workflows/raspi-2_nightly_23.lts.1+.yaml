@@ -16,6 +16,6 @@ jobs:
           fetch-depth: 2
           ref: 23.lts.1+
       - name: Trigger Nightly
-        run: gh workflow run raspi-2_nightly_23.lts.1+ --ref 23.lts.1+
+        run: gh workflow run raspi-2_23.lts.1+ --ref 23.lts.1+
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
