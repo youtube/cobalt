@@ -7,7 +7,7 @@ on:
 
 jobs:
   trigger:
-    run-on: ubuntu-latest
+    runs-on: ubuntu-latest
     steps:
       - run: gh run raspi-2_nightly_23.lts.1+ --ref 23.lts.1+
         env:
