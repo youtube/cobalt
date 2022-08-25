@@ -1,0 +1,13 @@
+name: raspi-2_nightly_23.lts.1+
+
+on:
+  schedule:
+    - cron: '0 4 * * *'
+  workflow_dispatch:
+
+jobs:
+  trigger:
+    run-on: ubuntu-latest
+      - run: gh run raspi-2_nightly_23.lts.1+ --ref 23.lts.1+
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
