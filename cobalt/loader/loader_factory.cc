@@ -71,7 +71,8 @@ std::unique_ptr<Loader> LoaderFactory::CreateLinkLoader(
 
   std::unique_ptr<Loader> loader(new Loader(
       fetcher_creator,
-      base::Bind(&loader::TextDecoder::Create, link_available_callback),
+      base::Bind(&loader::TextDecoder::Create, link_available_callback,
+                 loader::TextDecoder::ResponseStartedCallback()),
       load_complete_callback,
       base::Bind(&LoaderFactory::OnLoaderDestroyed, base::Unretained(this)),
       is_suspended_));

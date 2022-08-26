@@ -60,6 +60,87 @@ def MakeRequestHandlerClass(base_path):
   return TestDataHTTPRequestHandler
 
 
+def MakeCustomHeaderRequestHandlerClass(base_path, paths_to_headers):
+  """RequestHandler that serves files that reside relative to base_path.
+
+  Args:
+    base_path: A path considered to be the root directory.
+    paths_to_headers: A dictionary with keys partial paths and values of header
+    dicts. Key is expected to be a substring of a file being served.
+
+    E.g. if you have a test with files foo.html and foo.js, you can serve them
+    separate headers with the following:
+    paths_to_headers = {
+      'foo.html': {
+        'Content-Security-Policy', "script-src 'unsafe-inline';"
+      },
+      'foo.js': {'Content-Security-Policy', "default-src 'self';"}
+    }
+
+  Returns:
+    A RequestHandler class.
+  """
+
+  class TestDataHTTPRequestHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
+    """Handles HTTP requests and serves responses with specified headers.
+
+    For testing purposes only.
+    """
+
+    _current_working_directory = os.getcwd()
+    _base_path = base_path
+    _paths_to_headers = paths_to_headers
+
+    def do_GET(self):  # pylint: disable=invalid-name
+      content = self.get_content()
+      self.wfile.write(content)
+
+    def do_HEAD(self):  # pylint: disable=invalid-name
+      # Run get_content to send the headers, but ignore the returned results
+      self.get_content()
+
+    def translate_path(self, path):
+      """Translate the request path to the file in the testdata directory."""
+
+      potential_path = SimpleHTTPServer.SimpleHTTPRequestHandler.translate_path(
+          self, path)
+      potential_path = potential_path.replace(self._current_working_directory,
+                                              self._base_path)
+      return potential_path
+
+    def get_content(self):
+      """Returns the contents of the file at path with added headers."""
+      path = self.translate_path(self.path)
+      modified_date_time = None
+      raw_content = None
+      try:
+        with open(path, 'rb') as f:
+          filestream = os.fstat(f.fileno())
+          modified_date_time = self.date_time_string(filestream.st_mtime)
+          raw_content = f.read()
+      except IOError:
+        self.send_error(404, 'File not found')
+        return None
+
+      content_type = self.guess_type(path)
+      self.send_response(200)
+      self.send_header('Content-type', content_type)
+      for partial_path, headers in self._paths_to_headers.items():
+        if partial_path in path:
+          for header_key, header_value in headers.items():
+            self.send_header(header_key, header_value)
+
+      content_length = len(raw_content)
+
+      self.send_header('Content-Length', content_length)
+      self.send_header('Last-Modified', modified_date_time)
+      self.end_headers()
+
+      return raw_content
+
+  return TestDataHTTPRequestHandler
+
+
 class ThreadedWebServer(object):
   """A HTTP WebServer that serves requests in a separate thread."""
 

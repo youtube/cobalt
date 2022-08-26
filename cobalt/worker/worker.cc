@@ -176,6 +176,8 @@ void Worker::Obtain() {
   loader_ = web_context_->script_loader_factory()->CreateScriptLoader(
       url, origin, csp_callback,
       base::Bind(&Worker::OnContentProduced, base::Unretained(this)),
+      base::Bind(&WorkerGlobalScope::InitializePolicyContainerCallback,
+                 worker_global_scope_),
       base::Bind(&Worker::OnLoadingComplete, base::Unretained(this)));
 }
 
