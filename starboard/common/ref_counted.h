@@ -6,6 +6,7 @@
 #define STARBOARD_COMMON_REF_COUNTED_H_
 
 #include <algorithm>
+#include <utility>
 
 #include "starboard/atomic.h"
 #include "starboard/common/log.h"
@@ -148,7 +149,8 @@ class RefCountedData
     : public starboard::RefCountedThreadSafe<starboard::RefCountedData<T> > {
  public:
   RefCountedData() : data() {}
-  RefCountedData(const T& in_value) : data(in_value) {}
+  RefCountedData(const T& in_value) : data(in_value) {}        // NOLINT
+  RefCountedData(T&& in_value) : data(std::move(in_value)) {}  // NOLINT
 
   T data;
 
@@ -212,7 +214,7 @@ class scoped_refptr {
 
   scoped_refptr() : ptr_(NULL) {}
 
-  scoped_refptr(T* p) : ptr_(p) {
+  scoped_refptr(T* p) : ptr_(p) {  // NOLINT
     if (ptr_)
       ptr_->AddRef();
   }
@@ -220,6 +222,20 @@ class scoped_refptr {
   scoped_refptr(const scoped_refptr<T>& r) : ptr_(r.ptr_) {
     if (ptr_)
       ptr_->AddRef();
+  }
+
+  // Move constructor. This is required in addition to the move conversion
+  // constructor below.
+  scoped_refptr(scoped_refptr<T>&& r) noexcept : ptr_(r.ptr_) {
+    r.ptr_ = nullptr;
+  }
+
+  // Move conversion constructor.
+  template <typename U,
+            typename = typename std::enable_if<
+                std::is_convertible<U*, T*>::value>::type>
+  scoped_refptr(scoped_refptr<U>&& r) noexcept : ptr_(r.get()) {
+    r.ptr_ = nullptr;
   }
 
   template <typename U>
@@ -275,6 +291,11 @@ class scoped_refptr {
 
  protected:
   T* ptr_;
+
+ private:
+  // Friend required for move constructors that set r.ptr_ to null.
+  template <typename U>
+  friend class scoped_refptr;
 };
 
 // Handy utility for creating a scoped_refptr<T> out of a T* explicitly without
