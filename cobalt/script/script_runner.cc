@@ -99,7 +99,7 @@ std::string ScriptRunnerImpl::Execute(
 #if defined(HANDLE_CORE_DUMP)
     script_runner_log.Get().IncrementFailCount();
 #endif
-    return "";
+    return result;
   }
 #if defined(HANDLE_CORE_DUMP)
   script_runner_log.Get().IncrementSuccessCount();
