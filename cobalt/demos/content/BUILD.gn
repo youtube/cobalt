@@ -111,8 +111,8 @@ copy("demos_testdata") {
 
   if (is_internal_build) {
     sources += [
+      "internal/runtime-dump.html",
       "javascript-fuzzer/index.html",
-      "kabuki/runtime-dump.html",
       "media-element-demo/public/assets/ac3.mp4",
       "media-element-demo/public/assets/dash-audio.mp4",
       "media-element-demo/public/assets/dash-video-1080p.mp4",
@@ -133,7 +133,6 @@ copy("demos_testdata") {
       "performance-spike/assets/banner720.jpg",
       "performance-spike/assets/banner720baked.jpg",
       "performance-spike/assets/icons.ttf",
-      "performance-spike/assets/profile-alecmce.jpg",
       "performance-spike/css/default.css",
       "performance-spike/css/icons-content.css",
       "performance-spike/css/icons.css",

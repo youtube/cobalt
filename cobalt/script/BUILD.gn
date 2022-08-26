@@ -60,6 +60,8 @@ static_library("script") {
     "//cobalt/base",
     "//nb",
     "//starboard:starboard_headers_only",
+    "//third_party/v8",
+    "//third_party/v8:v8_libplatform",
     "//url",
   ]
 }
@@ -74,6 +76,8 @@ static_library("standalone_javascript_runner") {
     ":script",
     "//base",
     "//cobalt/base",
+    "//third_party/v8",
+    "//third_party/v8:v8_libplatform",
   ]
 }
 

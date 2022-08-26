@@ -60,6 +60,10 @@ class FakeGlobalEnvironment : public GlobalEnvironment {
               const scoped_refptr<Wrappable>& impl,
               const std::string& local_object_name) override {}
   ScriptValueFactory* script_value_factory() { return NULL; }
+  v8::Isolate* isolate() const override { return nullptr; }
+  v8::Local<v8::Context> context() const override {
+    return v8::Local<v8::Context>();
+  }
 };
 
 }  // namespace script

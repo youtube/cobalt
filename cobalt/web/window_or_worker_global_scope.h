@@ -15,13 +15,17 @@
 #ifndef COBALT_WEB_WINDOW_OR_WORKER_GLOBAL_SCOPE_H_
 #define COBALT_WEB_WINDOW_OR_WORKER_GLOBAL_SCOPE_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
+#include "cobalt/loader/cors_preflight_cache.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/web/crypto.h"
+#include "cobalt/web/csp_delegate.h"
+#include "cobalt/web/csp_delegate_type.h"
 #include "cobalt/web/event_target.h"
 #include "cobalt/web/event_target_listener_info.h"
 #include "cobalt/web/navigator_base.h"
@@ -42,9 +46,35 @@ namespace web {
 // interfaces.
 class WindowOrWorkerGlobalScope : public EventTarget {
  public:
+  struct Options {
+    explicit Options(base::ApplicationState initial_state)
+        : initial_state(initial_state),
+          csp_enforcement_mode(web::kCspEnforcementEnable) {}
+
+    Options(base::ApplicationState initial_state,
+            const network_bridge::PostSender& post_sender,
+            csp::CSPHeaderPolicy require_csp,
+            web::CspEnforcementType csp_enforcement_mode,
+            base::Closure csp_policy_changed_callback,
+            int csp_insecure_allowed_token = 0)
+        : initial_state(initial_state),
+          post_sender(post_sender),
+          require_csp(require_csp),
+          csp_enforcement_mode(csp_enforcement_mode),
+          csp_policy_changed_callback(csp_policy_changed_callback),
+          csp_insecure_allowed_token(csp_insecure_allowed_token) {}
+
+    base::ApplicationState initial_state;
+    network_bridge::PostSender post_sender;
+    csp::CSPHeaderPolicy require_csp;
+    web::CspEnforcementType csp_enforcement_mode;
+    base::Closure csp_policy_changed_callback;
+    int csp_insecure_allowed_token;
+  };
+
   explicit WindowOrWorkerGlobalScope(script::EnvironmentSettings* settings,
                                      StatTracker* stat_tracker,
-                                     base::ApplicationState initial_state);
+                                     Options options);
   WindowOrWorkerGlobalScope(const WindowOrWorkerGlobalScope&) = delete;
   WindowOrWorkerGlobalScope& operator=(const WindowOrWorkerGlobalScope&) =
       delete;
@@ -66,6 +96,12 @@ class WindowOrWorkerGlobalScope : public EventTarget {
   }
   virtual worker::ServiceWorkerGlobalScope* AsServiceWorker() {
     return nullptr;
+  }
+
+  web::CspDelegate* csp_delegate() const { return csp_delegate_.get(); }
+
+  const scoped_refptr<loader::CORSPreflightCache> get_preflight_cache() {
+    return preflight_cache_;
   }
 
   DEFINE_WRAPPABLE_TYPE(WindowOrWorkerGlobalScope);
@@ -104,7 +140,10 @@ class WindowOrWorkerGlobalScope : public EventTarget {
   web::WindowTimers window_timers_;
 
  private:
+  std::unique_ptr<web::CspDelegate> csp_delegate_;
   NavigatorBase* navigator_base_ = nullptr;
+  // Global preflight cache.
+  scoped_refptr<loader::CORSPreflightCache> preflight_cache_;
 };
 
 }  // namespace web

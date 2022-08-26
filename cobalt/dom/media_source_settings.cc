@@ -1,0 +1,64 @@
+// Copyright 2022 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#include "cobalt/dom/media_source_settings.h"
+
+#include <cstring>
+
+#include "base/logging.h"
+
+namespace cobalt {
+namespace dom {
+
+bool MediaSourceSettingsImpl::Set(const std::string& name, int value) {
+  const char kPrefix[] = "MediaSource.";
+  if (name.compare(0, strlen(kPrefix), kPrefix) != 0) {
+    return false;
+  }
+
+  base::AutoLock auto_lock(lock_);
+  if (name == "MediaSource.SourceBufferEvictExtraInBytes") {
+    if (value >= 0) {
+      source_buffer_evict_extra_in_bytes_ = value;
+      LOG(INFO) << name << ": set to " << value;
+      return true;
+    }
+  } else if (name == "MediaSource.MinimumProcessorCountToOffloadAlgorithm") {
+    if (value >= 0) {
+      minimum_processor_count_to_offload_algorithm_ = value;
+      LOG(INFO) << name << ": set to " << value;
+      return true;
+    }
+  } else if (name == "MediaSource.EnableAsynchronousReduction") {
+    if (value == 0 || value == 1) {
+      is_asynchronous_reduction_enabled_ = value != 0;
+      LOG(INFO) << name << ": set to " << value;
+      return true;
+    }
+  } else if (name == "MediaSource.MinSizeForImmediateJob") {
+    if (value >= 0) {
+      min_size_for_immediate_job_ = value;
+      LOG(INFO) << name << ": set to " << value;
+      return true;
+    }
+  } else {
+    LOG(WARNING) << "Ignore unknown setting with name \"" << name << "\"";
+    return false;
+  }
+  LOG(WARNING) << name << ": ignore invalid value " << value;
+  return false;
+}
+
+}  // namespace dom
+}  // namespace cobalt

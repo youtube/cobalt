@@ -181,14 +181,20 @@ URLRequestContext::URLRequestContext(
   } else {
     using_http_cache_ = true;
 
-    // TODO: Set max size of cache in Starboard.
-    const int cache_size_mb = 24;
+    int max_cache_bytes = 24 * 1024 * 1024;
+#if SB_API_VERSION >= 14
+    max_cache_bytes = kSbMaxSystemPathCacheDirectorySize;
+#endif
+    // Assume the non-http-cache memory in kSbSystemPathCacheDirectory
+    // is less than 1 mb and subtract this from the max_cache_bytes.
+    max_cache_bytes -= (1 << 20);
+
     auto http_cache = std::make_unique<net::HttpCache>(
         storage_.http_network_session(),
         std::make_unique<net::HttpCache::DefaultBackend>(
             net::DISK_CACHE, net::CACHE_BACKEND_COBALT,
             base::FilePath(std::string(path.data())),
-            /* max_bytes */ 1024 * 1024 * cache_size_mb),
+            /* max_bytes */ max_cache_bytes),
         true);
     if (persistent_settings != nullptr) {
       auto cache_enabled = persistent_settings->GetPersistentSettingAsBool(

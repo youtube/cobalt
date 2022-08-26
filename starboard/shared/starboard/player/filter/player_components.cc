@@ -18,7 +18,7 @@
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/command_line.h"
 #include "starboard/shared/starboard/player/filter/adaptive_audio_decoder_internal.h"
-#include "starboard/shared/starboard/player/filter/audio_renderer_internal_impl.h"
+#include "starboard/shared/starboard/player/filter/audio_renderer_internal_pcm.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_sink_impl.h"
 #include "starboard/shared/starboard/player/filter/media_time_provider_impl.h"
 #include "starboard/shared/starboard/player/filter/punchout_video_renderer_sink.h"
@@ -52,7 +52,7 @@ class MonotonicSystemTimeProviderImpl : public MonotonicSystemTimeProvider {
 class PlayerComponentsImpl : public PlayerComponents {
  public:
   PlayerComponentsImpl(scoped_ptr<MediaTimeProviderImpl> media_time_provider,
-                       scoped_ptr<AudioRendererImpl> audio_renderer,
+                       scoped_ptr<AudioRendererPcm> audio_renderer,
                        scoped_ptr<VideoRendererImpl> video_renderer)
       : media_time_provider_(media_time_provider.Pass()),
         audio_renderer_(audio_renderer.Pass()),
@@ -72,7 +72,7 @@ class PlayerComponentsImpl : public PlayerComponents {
  private:
   // |media_time_provider_| will only be used when |audio_renderer_| is nullptr.
   scoped_ptr<MediaTimeProviderImpl> media_time_provider_;
-  scoped_ptr<AudioRendererImpl> audio_renderer_;
+  scoped_ptr<AudioRendererPcm> audio_renderer_;
   scoped_ptr<VideoRendererImpl> video_renderer_;
 };
 
@@ -216,7 +216,7 @@ scoped_ptr<PlayerComponents> PlayerComponents::Factory::CreateComponents(
   }
 
   scoped_ptr<MediaTimeProviderImpl> media_time_provider_impl;
-  scoped_ptr<AudioRendererImpl> audio_renderer;
+  scoped_ptr<AudioRendererPcm> audio_renderer;
   scoped_ptr<VideoRendererImpl> video_renderer;
 
   if (creation_parameters.audio_codec() != kSbMediaAudioCodecNone) {
@@ -228,9 +228,9 @@ scoped_ptr<PlayerComponents> PlayerComponents::Factory::CreateComponents(
                            &min_frames_per_append);
 
     audio_renderer.reset(
-        new AudioRendererImpl(audio_decoder.Pass(), audio_renderer_sink.Pass(),
-                              creation_parameters.audio_sample_info(),
-                              max_cached_frames, min_frames_per_append));
+        new AudioRendererPcm(audio_decoder.Pass(), audio_renderer_sink.Pass(),
+                             creation_parameters.audio_sample_info(),
+                             max_cached_frames, min_frames_per_append));
   }
 
   if (creation_parameters.video_codec() != kSbMediaVideoCodecNone) {

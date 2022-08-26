@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_RENDERER_INTERNAL_IMPL_H_
-#define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_RENDERER_INTERNAL_IMPL_H_
+#ifndef STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_RENDERER_INTERNAL_PCM_H_
+#define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_RENDERER_INTERNAL_PCM_H_
 
 #include <functional>
 #include <string>
@@ -54,10 +54,10 @@ const int kFramesInBufferBeginUnderflow = 1024;
 // A class that sits in between the audio decoder, the audio sink and the
 // pipeline to coordinate data transfer between these parties.  It also serves
 // as the authority of playback time.
-class AudioRendererImpl : public AudioRenderer,
-                          public MediaTimeProvider,
-                          private AudioRendererSink::RenderCallback,
-                          private JobQueue::JobOwner {
+class AudioRendererPcm : public AudioRenderer,
+                         public MediaTimeProvider,
+                         private AudioRendererSink::RenderCallback,
+                         private JobQueue::JobOwner {
  public:
   // |max_cached_frames| is a soft limit for the max audio frames this class can
   // cache so it can:
@@ -66,12 +66,12 @@ class AudioRendererImpl : public AudioRenderer,
   //    longer accept more data.
   // |min_frames_per_append| is the min number of frames that the audio renderer
   // tries to append to the sink buffer at once.
-  AudioRendererImpl(scoped_ptr<AudioDecoder> decoder,
-                    scoped_ptr<AudioRendererSink> audio_renderer_sink,
-                    const SbMediaAudioSampleInfo& audio_sample_info,
-                    int max_cached_frames,
-                    int min_frames_per_append);
-  ~AudioRendererImpl() override;
+  AudioRendererPcm(scoped_ptr<AudioDecoder> decoder,
+                   scoped_ptr<AudioRendererSink> audio_renderer_sink,
+                   const SbMediaAudioSampleInfo& audio_sample_info,
+                   int max_cached_frames,
+                   int min_frames_per_append);
+  ~AudioRendererPcm() override;
 
   void Initialize(const ErrorCB& error_cb,
                   const PrerolledCB& prerolled_cb,
@@ -215,4 +215,4 @@ class AudioRendererImpl : public AudioRenderer,
 }  // namespace shared
 }  // namespace starboard
 
-#endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_RENDERER_INTERNAL_IMPL_H_
+#endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_RENDERER_INTERNAL_PCM_H_

@@ -69,7 +69,6 @@ _TESTS_NO_SIGNAL = [
     'persistent_cookie',
     'soft_mic_platform_service_test',
     'text_encoding_test',
-    'web_crypto_api_test',
     'web_debugger',
     'web_platform_tests',
     'web_worker_test',

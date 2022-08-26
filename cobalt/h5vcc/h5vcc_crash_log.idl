@@ -34,9 +34,9 @@ interface H5vccCrashLog {
   //   description, information on the Watchdog client.
   //   watchdog_state, application state to continue monitoring client up to.
   //     Inclusive.
-  //   time_interval, maximum number of microseconds allowed between pings
-  //     before triggering a Watchdog violation. Min value of 1000000.
-  //   time_wait, number of microseconds to initially wait before Watchdog
+  //   time_interval, maximum number of milliseconds allowed between pings
+  //     before triggering a Watchdog violation. Min value of 1000.
+  //   time_wait, number of milliseconds to initially wait before Watchdog
   //     violations can be triggered. Reapplies after client resumes from idle
   //     state due to application state changes.
   //   watchdog_replace, behavior with previously registered Watchdog clients
@@ -51,12 +51,13 @@ interface H5vccCrashLog {
 
   // Returns true if Watchdog client was pinged. Name determines the Watchdog
   // client to ping with ping_info which can either be empty or contain relevant
-  // metadata. ping_info has a max length of 1024.
+  // metadata. ping_info has a max length of 128.
   boolean ping(DOMString name, DOMString ping_info);
 
   // Returns a json string containing the Watchdog violations since the last
-  // call. Clears internal cache of Watchdog violations to prevent duplicates.
-  // Timestamps are stored as strings due to int size constraints.
+  // call, up to the 200 most recent. Clears internal cache of Watchdog
+  // violations to prevent duplicates. Timestamps are stored as strings due to
+  // int size constraints.
   // Example json:
   // {
   //   "test-name":{
@@ -67,18 +68,18 @@ interface H5vccCrashLog {
   //         "pingInfos":[
   //           {
   //             "info":"test-ping",
-  //             "timestampMicroseconds":"1658972623547006"
+  //             "timestampMilliseconds":"1658972623547"
   //           }
   //         ],
   //         "registeredClients":[
   //           "test-name"
   //         ],
-  //         "timeIntervalMicroseconds":"5000000",
-  //         "timeWaitMicroseconds":"0",
-  //         "timestampLastPingedMicroseconds":"1658972623547006",
-  //         "timestampRegisteredMicroseconds":"1658972621890834",
-  //         "timestampViolationMicroseconds":"1658972629489771",
-  //         "violationDurationMicroseconds":"942764"
+  //         "timeIntervalMilliseconds":"5000",
+  //         "timeWaitMilliseconds":"0",
+  //         "timestampLastPingedMilliseconds":"1658972623547",
+  //         "timestampRegisteredMilliseconds":"1658972621890",
+  //         "timestampViolationMilliseconds":"1658972629489",
+  //         "violationDurationMilliseconds":"942"
   //       }
   //     ]
   //   }

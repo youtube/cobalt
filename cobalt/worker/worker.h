@@ -17,6 +17,7 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "base/bind.h"
 #include "base/macros.h"
@@ -83,7 +84,7 @@ class Worker : public base::MessageLoop::DestructionObserver {
     return web_agent_ ? web_agent_->message_loop() : nullptr;
   }
 
-  void PostMessage(const std::string& message);
+  void PostMessage(const script::ValueHandleHolder& message);
 
   // From base::MessageLoop::DestructionObserver.
   void WillDestroyCurrentMessageLoop() override;

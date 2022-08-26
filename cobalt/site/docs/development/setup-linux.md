@@ -31,7 +31,7 @@ Required libraries can differ depending on your Linux distribution and version.
     $ export NVM_DIR=~/.nvm
     $ export NODE_VERSION=12.17.0
 
-    $ curl --silent -o- https://raw.githubusercontent.com/creationix/nvm/v0.35.3/install.sh | bash
+    $ curl --silent -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.35.3/install.sh | bash
 
     $ . $NVM_DIR/nvm.sh \
         && nvm install --lts \

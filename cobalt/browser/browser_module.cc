@@ -21,6 +21,7 @@
 
 #include "base/bind.h"
 #include "base/command_line.h"
+#include "base/compiler_specific.h"
 #include "base/files/file_path.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
@@ -28,7 +29,6 @@
 #include "base/path_service.h"
 #include "base/stl_util.h"
 #include "base/strings/string_number_conversions.h"
-#include "base/strings/string_split.h"
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/cobalt_paths.h"
@@ -143,15 +143,6 @@ const char kFuzzerToggleCommandLongHelp[] =
     "Each time this is called, it will toggle whether the input fuzzer is "
     "activated or not.  While activated, input will constantly and randomly be "
     "generated and passed directly into the main web module.";
-
-const char kSetMediaConfigCommand[] = "set_media_config";
-const char kSetMediaConfigCommandShortHelp[] =
-    "Sets media module configuration.";
-const char kSetMediaConfigCommandLongHelp[] =
-    "This can be called in the form of set_media_config('name=value'), where "
-    "name is a string and value is an int.  Refer to the implementation of "
-    "MediaModule::SetConfiguration() on individual platform for settings "
-    "supported on the particular platform.";
 
 const char kScreenshotCommand[] = "screenshot";
 const char kScreenshotCommandShortHelp[] = "Takes a screenshot.";
@@ -268,10 +259,6 @@ BrowserModule::BrowserModule(const GURL& url,
           kFuzzerToggleCommand,
           base::Bind(&BrowserModule::OnFuzzerToggle, base::Unretained(this)),
           kFuzzerToggleCommandShortHelp, kFuzzerToggleCommandLongHelp)),
-      ALLOW_THIS_IN_INITIALIZER_LIST(set_media_config_command_handler_(
-          kSetMediaConfigCommand,
-          base::Bind(&BrowserModule::OnSetMediaConfig, base::Unretained(this)),
-          kSetMediaConfigCommandShortHelp, kSetMediaConfigCommandLongHelp)),
       ALLOW_THIS_IN_INITIALIZER_LIST(screenshot_command_handler_(
           kScreenshotCommand,
           base::Bind(&OnScreenshotMessage, base::Unretained(this)),
@@ -450,9 +437,10 @@ BrowserModule::~BrowserModule() {
   switch (application_state_) {
     case base::kApplicationStateStarted:
       Blur(0);
-    // Intentional fall-through.
+      FALLTHROUGH;
     case base::kApplicationStateBlurred:
       Conceal(0);
+      FALLTHROUGH;
     case base::kApplicationStateConcealed:
       Freeze(0);
       break;
@@ -1008,30 +996,6 @@ void BrowserModule::OnFuzzerToggle(const std::string& message) {
                        base::Unretained(this))));
   } else {
     input_device_manager_fuzzer_.reset();
-  }
-}
-
-void BrowserModule::OnSetMediaConfig(const std::string& config) {
-  if (base::MessageLoop::current() != self_message_loop_) {
-    self_message_loop_->task_runner()->PostTask(
-        FROM_HERE,
-        base::Bind(&BrowserModule::OnSetMediaConfig, weak_this_, config));
-    return;
-  }
-
-  std::vector<std::string> tokens = base::SplitString(
-      config, "=", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
-
-  int value;
-  if (tokens.size() != 2 || !base::StringToInt(tokens[1], &value)) {
-    LOG(WARNING) << "Media configuration '" << config << "' is not in the"
-                 << " form of '<string name>=<int value>'.";
-    return;
-  }
-  if (media_module_->SetConfiguration(tokens[0], value)) {
-    LOG(INFO) << "Successfully setting " << tokens[0] << " to " << value;
-  } else {
-    LOG(WARNING) << "Failed to set " << tokens[0] << " to " << value;
   }
 }
 
@@ -2059,8 +2023,11 @@ void BrowserModule::GetParamMap(const std::string& url,
 
 scoped_refptr<script::Wrappable> BrowserModule::CreateH5vcc(
     script::EnvironmentSettings* settings) {
+  DCHECK(web_module_);
+
   h5vcc::H5vcc::Settings h5vcc_settings;
-  h5vcc_settings.media_module = media_module_.get();
+  h5vcc_settings.set_media_source_setting_func = base::Bind(
+      &WebModule::SetMediaSourceSetting, base::Unretained(web_module_.get()));
   h5vcc_settings.network_module = network_module_;
 #if SB_IS(EVERGREEN)
   h5vcc_settings.updater_module = updater_module_;

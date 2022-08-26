@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM ruby:2.7-buster
+ARG FROM_IMAGE
+FROM ${FROM_IMAGE:-cobalt-build-base}
 
 ARG USER
 ARG UID
@@ -20,14 +21,13 @@ ARG GID
 
 RUN apt update -qqy \
     && apt install -qqy --no-install-recommends \
+        build-essential \
         bundler \
         doxygen \
         git \
-        nodejs \
-        python \
-        # Required for GN build.
-        python3 \
-        python3-requests \
+        python-pygments \
+        ruby2.5-dev \
+        ruby-execjs \
     && apt-get clean autoclean \
     && apt-get autoremove -y --purge \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* \
@@ -37,27 +37,19 @@ COPY Gemfile /app/Gemfile
 
 RUN bundle install --gemfile=/app/Gemfile
 
-# === Get GN via CIPD
-ARG GN_SHA256SUM="af7b2dcb3905bca56655e12131b365f1cba8e159db80d2022330c4f522fab2ef  /tmp/gn.zip"
-ARG GN_HASH=r3styzkFvKVmVeEhMbNl8cuo4VnbgNICIzDE9SL6su8C
-
-RUN curl --location --silent --output /tmp/gn.zip \
-    "https://chrome-infra-packages.appspot.com/dl/gn/gn/linux-amd64/+/${GN_HASH}" \
-    && echo ${GN_SHA256SUM} | sha256sum --check \
-    && unzip /tmp/gn.zip -d /usr/local/bin \
-    && rm /tmp/gn.zip
-
 # We create and use a non-root user explicitly so that the generated and
 # modified files maintain the same permissions as the user that launched the
 # Docker container.
 RUN addgroup --group --gid "${GID}" defaultgroup \
-    && adduser --disabled-password --gecos '' --uid "${UID}" --gid "${GID}" ${USER:-defaultuser}
+    && adduser --disabled-password --gecos '' --uid "${UID}" --gid "${GID}" defaultuser
 
-# Allow the new uses to run gn and create a descriptive out directory.
+# The new user must be able to execute gn.
 RUN chmod a+x /usr/local/bin/gn
+
+# Create an out directory with a descriptive name for gn.
 RUN mkdir /project_out_dir \
     && chown ${USER:-defaultuser}:defaultgroup /project_out_dir
 
 USER ${USER:-defaultuser}
 
-CMD /cobalt/third_party/repo-publishing-toolkit-local/preview-site.sh
+CMD /code/third_party/repo-publishing-toolkit-local/preview-site.sh run

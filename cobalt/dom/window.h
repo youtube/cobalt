@@ -45,7 +45,6 @@
 #include "cobalt/dom/test_runner.h"
 #endif  // ENABLE_TEST_RUNNER
 #include "cobalt/input/camera_3d.h"
-#include "cobalt/loader/cors_preflight_cache.h"
 #include "cobalt/loader/decoder.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/loader/font/remote_typeface_cache.h"
@@ -361,10 +360,6 @@ class Window : public web::WindowOrWorkerGlobalScope,
   void CacheSplashScreen(const std::string& content,
                          const base::Optional<std::string>& topic);
 
-  const scoped_refptr<loader::CORSPreflightCache> get_preflight_cache() {
-    return preflight_cache_;
-  }
-
   // Custom on screen keyboard.
   const scoped_refptr<OnScreenKeyboard>& on_screen_keyboard() const;
   void ReleaseOnScreenKeyboard();
@@ -442,9 +437,6 @@ class Window : public web::WindowOrWorkerGlobalScope,
   scoped_refptr<Storage> session_storage_;
 
   scoped_refptr<Screen> screen_;
-
-  // Global preflight cache.
-  scoped_refptr<loader::CORSPreflightCache> preflight_cache_;
 
   const base::Closure ran_animation_frame_callbacks_callback_;
   const CloseCallback window_close_callback_;

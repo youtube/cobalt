@@ -45,9 +45,12 @@
 #include "cobalt/dom/source_buffer.h"
 
 #include <algorithm>
+#include <limits>
+#include <utility>
 
 #include "base/compiler_specific.h"
 #include "base/logging.h"
+#include "base/message_loop/message_loop.h"
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
@@ -84,26 +87,34 @@ static base::TimeDelta DoubleToTimeDelta(double time) {
   return base::TimeDelta::FromSecondsD(time);
 }
 
+// The return value will be used in `SourceBuffer::EvictCodedFrames()` to allow
+// it to evict extra data from the SourceBuffer, so it can reduce the overall
+// memory used by the underlying Demuxer implementation.
+// The default value is 0, i.e. do not evict extra bytes.
 size_t GetEvictExtraInBytes(script::EnvironmentSettings* settings) {
   DOMSettings* dom_settings =
       base::polymorphic_downcast<DOMSettings*>(settings);
-  if (dom_settings && dom_settings->decoder_buffer_memory_info()) {
-    return dom_settings->decoder_buffer_memory_info()
-        ->GetSourceBufferEvictExtraInBytes();
-  }
-  return 0;
+  DCHECK(dom_settings);
+  DCHECK(dom_settings->media_source_settings());
+  int bytes = dom_settings->media_source_settings()
+                  ->GetSourceBufferEvictExtraInBytes()
+                  .value_or(0);
+  DCHECK_GE(bytes, 0);
+  return std::max<int>(bytes, 0);
 }
 
 }  // namespace
 
 SourceBuffer::SourceBuffer(script::EnvironmentSettings* settings,
                            const std::string& id, MediaSource* media_source,
+                           bool asynchronous_reduction_enabled,
                            ChunkDemuxer* chunk_demuxer, EventQueue* event_queue)
     : web::EventTarget(settings),
       id_(id),
+      asynchronous_reduction_enabled_(asynchronous_reduction_enabled),
       evict_extra_in_bytes_(GetEvictExtraInBytes(settings)),
-      chunk_demuxer_(chunk_demuxer),
       media_source_(media_source),
+      chunk_demuxer_(chunk_demuxer),
       event_queue_(event_queue),
       audio_tracks_(
           new AudioTrackList(settings, media_source->GetMediaElement())),
@@ -115,9 +126,11 @@ SourceBuffer::SourceBuffer(script::EnvironmentSettings* settings,
   DCHECK(chunk_demuxer);
   DCHECK(event_queue);
 
+  LOG(INFO) << "Evict extra in bytes is set to " << evict_extra_in_bytes_;
+
   chunk_demuxer_->SetTracksWatcher(
       id_,
-      base::Bind(&SourceBuffer::InitSegmentReceived, base::Unretained(this)));
+      base::Bind(&SourceBuffer::OnInitSegmentReceived, base::Unretained(this)));
   chunk_demuxer_->SetParseWarningCallback(
       id, base::BindRepeating([](::media::SourceBufferParseWarning warning) {
         LOG(WARNING) << "Encountered SourceBufferParseWarning "
@@ -132,7 +145,7 @@ void SourceBuffer::set_mode(SourceBufferAppendMode mode,
                              exception_state);
     return;
   }
-  if (updating_) {
+  if (updating()) {
     web::DOMException::Raise(web::DOMException::kInvalidStateErr,
                              exception_state);
     return;
@@ -168,6 +181,12 @@ scoped_refptr<TimeRanges> SourceBuffer::buffered(
   return time_ranges;
 }
 
+double SourceBuffer::timestamp_offset(
+    script::ExceptionState* exception_state) const {
+  starboard::ScopedLock scoped_lock(timestamp_offset_mutex_);
+  return timestamp_offset_;
+}
+
 void SourceBuffer::set_timestamp_offset(
     double offset, script::ExceptionState* exception_state) {
   if (media_source_ == NULL) {
@@ -175,7 +194,7 @@ void SourceBuffer::set_timestamp_offset(
                              exception_state);
     return;
   }
-  if (updating_) {
+  if (updating()) {
     web::DOMException::Raise(web::DOMException::kInvalidStateErr,
                              exception_state);
     return;
@@ -189,6 +208,9 @@ void SourceBuffer::set_timestamp_offset(
     return;
   }
 
+  // We don't have to acquire |timestamp_offset_mutex_|, as no algorithms are
+  // running asynchronously at this moment, which is guaranteed by the check of
+  // updating() above.
   timestamp_offset_ = offset;
 
   chunk_demuxer_->SetGroupStartTimestampIfInSequenceMode(
@@ -202,7 +224,7 @@ void SourceBuffer::set_append_window_start(
                              exception_state);
     return;
   }
-  if (updating_) {
+  if (updating()) {
     web::DOMException::Raise(web::DOMException::kInvalidStateErr,
                              exception_state);
     return;
@@ -223,7 +245,7 @@ void SourceBuffer::set_append_window_end(
                              exception_state);
     return;
   }
-  if (updating_) {
+  if (updating()) {
     web::DOMException::Raise(web::DOMException::kInvalidStateErr,
                              exception_state);
     return;
@@ -274,20 +296,21 @@ void SourceBuffer::Abort(script::ExceptionState* exception_state) {
     return;
   }
 
-  if (pending_remove_start_ != -1) {
-    DCHECK(updating_);
-    web::DOMException::Raise(web::DOMException::kInvalidStateErr,
-                             exception_state);
-    return;
+  if (active_algorithm_handle_) {
+    if (!active_algorithm_handle_->algorithm()->SupportExplicitAbort()) {
+      web::DOMException::Raise(web::DOMException::kInvalidStateErr,
+                               exception_state);
+      return;
+    }
+    active_algorithm_handle_->Abort();
+    active_algorithm_handle_ = nullptr;
   }
-
-  AbortIfUpdating();
 
   base::TimeDelta timestamp_offset = DoubleToTimeDelta(timestamp_offset_);
   chunk_demuxer_->ResetParserState(id_, DoubleToTimeDelta(append_window_start_),
                                    DoubleToTimeDelta(append_window_end_),
                                    &timestamp_offset);
-  timestamp_offset_ = timestamp_offset.InSecondsF();
+  UpdateTimestampOffset(timestamp_offset);
 
   set_append_window_start(0, exception_state);
   set_append_window_end(std::numeric_limits<double>::infinity(),
@@ -303,7 +326,7 @@ void SourceBuffer::Remove(double start, double end,
                              exception_state);
     return;
   }
-  if (updating_) {
+  if (updating()) {
     web::DOMException::Raise(web::DOMException::kInvalidStateErr,
                              exception_state);
     return;
@@ -322,14 +345,25 @@ void SourceBuffer::Remove(double start, double end,
 
   media_source_->OpenIfInEndedState();
 
-  updating_ = true;
-
   ScheduleEvent(base::Tokens::updatestart());
 
-  pending_remove_start_ = start;
-  pending_remove_end_ = end;
-  remove_timer_.Start(FROM_HERE, base::TimeDelta(), this,
-                      &SourceBuffer::OnRemoveTimer);
+  DCHECK_GE(start, 0);
+  DCHECK_LT(start, end);
+
+  std::unique_ptr<SourceBufferAlgorithm> algorithm(
+      new SourceBufferRemoveAlgorithm(
+          chunk_demuxer_, id_, DoubleToTimeDelta(start), DoubleToTimeDelta(end),
+          base::Bind(asynchronous_reduction_enabled_
+                         ? &SourceBuffer::ScheduleAndMaybeDispatchImmediately
+                         : &SourceBuffer::ScheduleEvent,
+                     base::Unretained(this)),
+          base::Bind(&SourceBuffer::OnAlgorithmFinalized,
+                     base::Unretained(this))));
+  active_algorithm_handle_ =
+      new SerializedAlgorithmRunner::Handle<SourceBufferAlgorithm>(
+          std::move(algorithm));
+  media_source_->GetAlgorithmRunner(std::numeric_limits<int>::max())
+      ->Start(active_algorithm_handle_);
 }
 
 void SourceBuffer::set_track_defaults(
@@ -340,7 +374,7 @@ void SourceBuffer::set_track_defaults(
                              exception_state);
     return;
   }
-  if (updating_) {
+  if (updating()) {
     web::DOMException::Raise(web::DOMException::kInvalidStateErr,
                              exception_state);
     return;
@@ -354,10 +388,9 @@ void SourceBuffer::OnRemovedFromMediaSource() {
     return;
   }
 
-  if (pending_remove_start_ != -1) {
-    CancelRemove();
-  } else {
-    AbortIfUpdating();
+  if (active_algorithm_handle_) {
+    active_algorithm_handle_->Abort();
+    active_algorithm_handle_ = nullptr;
   }
 
   DCHECK(media_source_);
@@ -402,8 +435,15 @@ void SourceBuffer::TraceMembers(script::Tracer* tracer) {
   tracer->Trace(video_tracks_);
 }
 
-void SourceBuffer::InitSegmentReceived(std::unique_ptr<MediaTracks> tracks) {
+void SourceBuffer::OnInitSegmentReceived(std::unique_ptr<MediaTracks> tracks) {
   if (!first_initialization_segment_received_) {
+    // This can be called from non-web thread when the append is async.
+    if (!web_task_runner_->BelongsToCurrentThread()) {
+      web_task_runner_->PostTask(
+          FROM_HERE, base::Bind(&SourceBuffer::OnInitSegmentReceived, this,
+                                base::Passed(&tracks)));
+      return;
+    }
     media_source_->SetSourceBufferActive(this, true);
     first_initialization_segment_received_ = true;
   }
@@ -417,6 +457,12 @@ void SourceBuffer::ScheduleEvent(base::Token event_name) {
   event_queue_->Enqueue(event);
 }
 
+void SourceBuffer::ScheduleAndMaybeDispatchImmediately(base::Token event_name) {
+  scoped_refptr<web::Event> event = new web::Event(event_name);
+  event->set_target(this);
+  event_queue_->EnqueueAndMaybeDispatchImmediately(event);
+}
+
 bool SourceBuffer::PrepareAppend(size_t new_data_size,
                                  script::ExceptionState* exception_state) {
   TRACE_EVENT1("cobalt::dom", "SourceBuffer::PrepareAppend()", "new_data_size",
@@ -426,7 +472,7 @@ bool SourceBuffer::PrepareAppend(size_t new_data_size,
                              exception_state);
     return false;
   }
-  if (updating_) {
+  if (updating()) {
     web::DOMException::Raise(web::DOMException::kInvalidStateErr,
                              exception_state);
     return false;
@@ -441,22 +487,16 @@ bool SourceBuffer::PrepareAppend(size_t new_data_size,
 
   media_source_->OpenIfInEndedState();
 
-  if (!EvictCodedFrames(new_data_size)) {
+  double current_time = media_source_->GetMediaElement()->current_time(NULL);
+  if (!chunk_demuxer_->EvictCodedFrames(
+          id_, base::TimeDelta::FromSecondsD(current_time),
+          new_data_size + evict_extra_in_bytes_)) {
     web::DOMException::Raise(web::DOMException::kQuotaExceededErr,
                              exception_state);
     return false;
   }
 
   return true;
-}
-
-bool SourceBuffer::EvictCodedFrames(size_t new_data_size) {
-  DCHECK(media_source_);
-  DCHECK(media_source_->GetMediaElement());
-  double current_time = media_source_->GetMediaElement()->current_time(NULL);
-  return chunk_demuxer_->EvictCodedFrames(
-      id_, base::TimeDelta::FromSecondsD(current_time),
-      new_data_size + evict_extra_in_bytes_);
 }
 
 void SourceBuffer::AppendBufferInternal(
@@ -471,8 +511,8 @@ void SourceBuffer::AppendBufferInternal(
   metrics_.EndTracking(0);
 
   DCHECK(data || size == 0);
+
   if (data) {
-    DCHECK_EQ(pending_append_data_offset_, 0u);
     if (pending_append_data_capacity_ < size) {
       pending_append_data_.reset();
       pending_append_data_.reset(new uint8_t[size]);
@@ -480,124 +520,43 @@ void SourceBuffer::AppendBufferInternal(
     }
     memcpy(pending_append_data_.get(), data, size);
   }
-  pending_append_data_size_ = size;
-  pending_append_data_offset_ = 0;
-
-  updating_ = true;
 
   ScheduleEvent(base::Tokens::updatestart());
 
-  append_timer_.Start(FROM_HERE, base::TimeDelta(), this,
-                      &SourceBuffer::OnAppendTimer);
+  std::unique_ptr<SourceBufferAlgorithm> algorithm(
+      new SourceBufferAppendAlgorithm(
+          media_source_, chunk_demuxer_, id_, pending_append_data_.get(), size,
+          DoubleToTimeDelta(append_window_start_),
+          DoubleToTimeDelta(append_window_end_),
+          DoubleToTimeDelta(timestamp_offset_),
+          base::Bind(&SourceBuffer::UpdateTimestampOffset,
+                     base::Unretained(this)),
+          base::Bind(asynchronous_reduction_enabled_
+                         ? &SourceBuffer::ScheduleAndMaybeDispatchImmediately
+                         : &SourceBuffer::ScheduleEvent,
+                     base::Unretained(this)),
+          base::Bind(&SourceBuffer::OnAlgorithmFinalized,
+                     base::Unretained(this)),
+          &metrics_));
+  active_algorithm_handle_ =
+      new SerializedAlgorithmRunner::Handle<SourceBufferAlgorithm>(
+          std::move(algorithm));
+  media_source_->GetAlgorithmRunner(size)->Start(active_algorithm_handle_);
 }
 
-void SourceBuffer::OnAppendTimer() {
-  TRACE_EVENT0("cobalt::dom", "SourceBuffer::OnAppendTimer()");
-  const size_t kMaxAppendSize = 128 * 1024;
+void SourceBuffer::OnAlgorithmFinalized() {
+  DCHECK(active_algorithm_handle_);
+  active_algorithm_handle_ = nullptr;
+}
 
-  DCHECK(updating_);
-
-  DCHECK_GE(pending_append_data_size_, pending_append_data_offset_);
-  size_t append_size = pending_append_data_size_ - pending_append_data_offset_;
-  append_size = std::min(append_size, kMaxAppendSize);
-
-  uint8_t dummy;
-  const uint8* data_to_append =
-      append_size > 0 ? pending_append_data_.get() + pending_append_data_offset_
-                      : &dummy;
-
-  base::TimeDelta timestamp_offset = DoubleToTimeDelta(timestamp_offset_);
-  metrics_.StartTracking();
-  bool success = chunk_demuxer_->AppendData(
-      id_, data_to_append, append_size, DoubleToTimeDelta(append_window_start_),
-      DoubleToTimeDelta(append_window_end_), &timestamp_offset);
-
-  if (timestamp_offset != DoubleToTimeDelta(timestamp_offset_)) {
+void SourceBuffer::UpdateTimestampOffset(base::TimeDelta timestamp_offset) {
+  starboard::ScopedLock scoped_lock(timestamp_offset_mutex_);
+  // The check avoids overwriting |timestamp_offset_| when there is a small
+  // difference between its float and its int64_t representation .
+  if (DoubleToTimeDelta(timestamp_offset_) != timestamp_offset) {
     timestamp_offset_ = timestamp_offset.InSecondsF();
   }
-
-  if (!success) {
-    metrics_.EndTracking(0);
-    pending_append_data_size_ = 0;
-    pending_append_data_offset_ = 0;
-    AppendError();
-  } else {
-    metrics_.EndTracking(append_size);
-    pending_append_data_offset_ += append_size;
-
-    if (pending_append_data_offset_ < pending_append_data_size_) {
-      append_timer_.Start(FROM_HERE, base::TimeDelta(), this,
-                          &SourceBuffer::OnAppendTimer);
-      return;
-    }
-
-    updating_ = false;
-    pending_append_data_size_ = 0;
-    pending_append_data_offset_ = 0;
-
-    ScheduleEvent(base::Tokens::update());
-    ScheduleEvent(base::Tokens::updateend());
-  }
 }
-
-void SourceBuffer::AppendError() {
-  base::TimeDelta timestamp_offset = DoubleToTimeDelta(timestamp_offset_);
-  chunk_demuxer_->ResetParserState(id_, DoubleToTimeDelta(append_window_start_),
-                                   DoubleToTimeDelta(append_window_end_),
-                                   &timestamp_offset);
-  timestamp_offset_ = timestamp_offset.InSecondsF();
-
-  updating_ = false;
-
-  ScheduleEvent(base::Tokens::error());
-  ScheduleEvent(base::Tokens::updateend());
-  media_source_->EndOfStreamAlgorithm(kMediaSourceEndOfStreamErrorDecode);
-}
-
-void SourceBuffer::OnRemoveTimer() {
-  TRACE_EVENT0("cobalt::dom", "SourceBuffer::OnRemoveTimer()");
-  DCHECK(updating_);
-  DCHECK_GE(pending_remove_start_, 0);
-  DCHECK_LT(pending_remove_start_, pending_remove_end_);
-
-  chunk_demuxer_->Remove(id_, DoubleToTimeDelta(pending_remove_start_),
-                         DoubleToTimeDelta(pending_remove_end_));
-
-  updating_ = false;
-  pending_remove_start_ = -1;
-  pending_remove_end_ = -1;
-
-  ScheduleEvent(base::Tokens::update());
-  ScheduleEvent(base::Tokens::updateend());
-}
-
-void SourceBuffer::CancelRemove() {
-  DCHECK(updating_);
-  DCHECK_NE(pending_remove_start_, -1);
-  remove_timer_.Stop();
-  pending_remove_start_ = -1;
-  pending_remove_end_ = -1;
-  updating_ = false;
-}
-
-void SourceBuffer::AbortIfUpdating() {
-  if (!updating_) {
-    return;
-  }
-
-  DCHECK_EQ(pending_remove_start_, -1);
-
-  append_timer_.Stop();
-  pending_append_data_size_ = 0;
-  pending_append_data_offset_ = 0;
-
-  updating_ = false;
-
-  ScheduleEvent(base::Tokens::abort());
-  ScheduleEvent(base::Tokens::updateend());
-}
-
-void SourceBuffer::RemoveMediaTracks() { NOTREACHED(); }
 
 }  // namespace dom
 }  // namespace cobalt

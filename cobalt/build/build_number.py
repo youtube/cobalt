@@ -44,28 +44,15 @@ def CheckRevInfo(key, cwd=None):
 
 def GetRevinfo():
   """Get absolute state of all git repos."""
-  try:
-    repo_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel'
-                                        ]).strip().decode('utf-8')
-  except subprocess.CalledProcessError:
-    logging.info('Could not get repo root. Trying again in src/')
-    try:
-      repo_root = subprocess.check_output(
-          ['git', '-C', 'src', 'rev-parse',
-           '--show-toplevel']).strip().decode('utf-8')
-    except subprocess.CalledProcessError as e:
-      logging.warning('Failed to get revision information: %s', e)
-      return {}
-
   # First make sure we can add the cobalt_src repo.
   try:
-    repos = CheckRevInfo('.', cwd=repo_root)
+    repos = CheckRevInfo('.', cwd=paths.REPOSITORY_ROOT)
   except subprocess.CalledProcessError as e:
     logging.warning('Failed to get revision information: %s', e)
     return {}
 
   for rel_path in _SUBREPO_PATHS:
-    path = os.path.join(repo_root, rel_path)
+    path = os.path.join(paths.REPOSITORY_ROOT, rel_path)
     try:
       repos.update(CheckRevInfo(rel_path, cwd=path))
     except subprocess.CalledProcessError as e:

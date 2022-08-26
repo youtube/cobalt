@@ -60,8 +60,6 @@
 #include "cobalt/dom/wheel_event.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/script/global_environment.h"
-#include "cobalt/web/csp_delegate.h"
-#include "cobalt/web/csp_delegate_factory.h"
 #include "cobalt/web/custom_event.h"
 #include "cobalt/web/dom_exception.h"
 #include "cobalt/web/message_event.h"
@@ -71,6 +69,17 @@ using cobalt::cssom::ViewportSize;
 
 namespace cobalt {
 namespace dom {
+namespace {
+csp::SecurityCallback CreateSecurityCallback(
+    web::CspDelegate* csp_delegate, web::CspDelegate::ResourceType type) {
+  csp::SecurityCallback callback;
+  if (csp_delegate) {
+    callback = base::Bind(&web::CspDelegate::CanLoad,
+                          base::Unretained(csp_delegate), type);
+  }
+  return callback;
+}
+}  // namespace
 
 Document::Document(HTMLElementContext* html_element_context,
                    const Options& options)
@@ -113,20 +122,11 @@ Document::Document(HTMLElementContext* html_element_context,
     SetViewport(*options.viewport_size);
   }
 
-  std::unique_ptr<web::CspViolationReporter> violation_reporter(
-      new web::CspViolationReporter(this, options.post_sender));
-  csp_delegate_ = web::CspDelegateFactory::GetInstance()->Create(
-      options.csp_enforcement_mode, std::move(violation_reporter), options.url,
-      options.require_csp, options.csp_policy_changed_callback,
-      options.csp_insecure_allowed_token);
-
   cookie_jar_ = options.cookie_jar;
 
   location_ = new Location(
       options.url, options.hashchange_callback, options.navigation_callback,
-      base::Bind(&web::CspDelegate::CanLoad,
-                 base::Unretained(csp_delegate_.get()),
-                 web::CspDelegate::kLocation),
+      CreateSecurityCallback(csp_delegate(), web::CspDelegate::kLocation),
       base::Bind(&Document::SetNavigationType, base::Unretained(this)));
 
   font_cache_.reset(new FontCache(
@@ -138,15 +138,11 @@ Document::Document(HTMLElementContext* html_element_context,
   if (HasBrowsingContext()) {
     if (html_element_context_->remote_typeface_cache()) {
       html_element_context_->remote_typeface_cache()->set_security_callback(
-          base::Bind(&web::CspDelegate::CanLoad,
-                     base::Unretained(csp_delegate_.get()),
-                     web::CspDelegate::kFont));
+          CreateSecurityCallback(csp_delegate(), web::CspDelegate::kFont));
     }
-
     if (html_element_context_->image_cache()) {
-      html_element_context_->image_cache()->set_security_callback(base::Bind(
-          &web::CspDelegate::CanLoad, base::Unretained(csp_delegate_.get()),
-          web::CspDelegate::kImage));
+      html_element_context_->image_cache()->set_security_callback(
+          CreateSecurityCallback(csp_delegate(), web::CspDelegate::kImage));
     }
 
     ready_state_ = kDocumentReadyStateLoading;
@@ -640,7 +636,7 @@ Document::DoSynchronousLayoutAndGetRenderTree() {
 
 void Document::NotifyUrlChanged(const GURL& url) {
   location_->set_url(url);
-  csp_delegate_->NotifyUrlChanged(url);
+  csp_delegate()->NotifyUrlChanged(url);
 }
 
 void Document::OnFocusChange() {

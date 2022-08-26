@@ -15,8 +15,10 @@
 #ifndef COBALT_WEB_MESSAGE_PORT_H_
 #define COBALT_WEB_MESSAGE_PORT_H_
 
+#include <memory>
 #include <string>
 
+#include "base/callback_forward.h"
 #include "base/memory/weak_ptr.h"
 #include "base/message_loop/message_loop.h"
 #include "cobalt/base/tokens.h"
@@ -24,6 +26,7 @@
 #include "cobalt/script/sequence.h"
 #include "cobalt/script/value_handle.h"
 #include "cobalt/script/wrappable.h"
+#include "cobalt/web/context.h"
 #include "cobalt/web/event_target.h"
 #include "cobalt/web/event_target_listener_info.h"
 #include "cobalt/web/message_event.h"
@@ -32,21 +35,29 @@ namespace cobalt {
 namespace web {
 
 class MessagePort : public script::Wrappable,
-                    public base::SupportsWeakPtr<MessagePort> {
+                    public base::SupportsWeakPtr<MessagePort>,
+                    public Context::EnvironmentSettingsChangeObserver {
  public:
   explicit MessagePort(web::EventTarget* event_target);
   ~MessagePort();
   MessagePort(const MessagePort&) = delete;
   MessagePort& operator=(const MessagePort&) = delete;
 
+  void OnEnvironmentSettingsChanged(bool context_valid) override {
+    if (!context_valid) {
+      Close();
+    }
+  }
+
   // This may help for adding support of 'object'
   // void postMessage(any message, object transfer);
   // -> void PostMessage(const script::ValueHandleHolder& message,
   //                     script::Sequence<script::ValueHandle*> transfer) {}
-  void PostMessage(const std::string& message);
+  void PostMessage(const script::ValueHandleHolder& message);
+  void PostMessageSerialized(std::unique_ptr<script::DataBuffer> data_buffer);
 
   void Start() {}
-  void Close() {}
+  void Close();
 
   const web::EventTargetListenerInfo::EventListenerScriptValue* onmessage()
       const {
@@ -57,9 +68,11 @@ class MessagePort : public script::Wrappable,
   void set_onmessage(
       const web::EventTargetListenerInfo::EventListenerScriptValue&
           event_listener) {
-    if (event_target_)
-      event_target_->SetAttributeEventListener(base::Tokens::message(),
-                                               event_listener);
+    if (!event_target_) {
+      return;
+    }
+    event_target_->SetAttributeEventListener(base::Tokens::message(),
+                                             event_listener);
   }
 
   const web::EventTargetListenerInfo::EventListenerScriptValue* onmessageerror()
@@ -71,16 +84,21 @@ class MessagePort : public script::Wrappable,
   void set_onmessageerror(
       const web::EventTargetListenerInfo::EventListenerScriptValue&
           event_listener) {
-    if (event_target_)
-      event_target_->SetAttributeEventListener(base::Tokens::messageerror(),
-                                               event_listener);
+    if (!event_target_) {
+      return;
+    }
+    event_target_->SetAttributeEventListener(base::Tokens::messageerror(),
+                                             event_listener);
   }
 
   DEFINE_WRAPPABLE_TYPE(MessagePort);
 
  private:
+  void DispatchMessage(std::unique_ptr<script::DataBuffer> data_buffer);
+
   // The event target to dispatch events to.
   web::EventTarget* event_target_ = nullptr;
+  base::OnceClosure remove_environment_settings_change_observer_;
 };
 
 }  // namespace web

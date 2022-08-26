@@ -18,6 +18,7 @@
 #include <memory>
 #include <utility>
 
+#include "base/observer_list.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/loader/script_loader_factory.h"
@@ -50,6 +51,11 @@ class Impl : public Context {
  public:
   explicit Impl(const Agent::Options& options);
   virtual ~Impl();
+
+  void AddEnvironmentSettingsChangeObserver(
+      EnvironmentSettingsChangeObserver* observer) final;
+  void RemoveEnvironmentSettingsChangeObserver(
+      EnvironmentSettingsChangeObserver* observer) final;
 
   // Context
   //
@@ -88,6 +94,9 @@ class Impl : public Context {
   const std::string& name() const final { return name_; };
   void setup_environment_settings(
       EnvironmentSettings* environment_settings) final {
+    for (auto& observer : environment_settings_change_observers_) {
+      observer.OnEnvironmentSettingsChanged(!!environment_settings);
+    }
     environment_settings_.reset(environment_settings);
     if (environment_settings_) environment_settings_->set_context(this);
   }
@@ -208,6 +217,9 @@ class Impl : public Context {
   scoped_refptr<worker::ServiceWorkerObject> active_service_worker_;
   scoped_refptr<worker::ServiceWorkerRegistrationObject>
       containing_service_worker_registration_;
+
+  base::ObserverList<Context::EnvironmentSettingsChangeObserver>::Unchecked
+      environment_settings_change_observers_;
 };
 
 Impl::Impl(const Agent::Options& options) : name_(options.name) {
@@ -269,6 +281,7 @@ void Impl::ShutDownJavaScriptEngine() {
   }
 
   setup_environment_settings(nullptr);
+  environment_settings_change_observers_.Clear();
   blob_registry_.reset();
   script_runner_.reset();
   execution_state_.reset();
@@ -279,6 +292,16 @@ void Impl::ShutDownJavaScriptEngine() {
 }
 
 Impl::~Impl() { ShutDownJavaScriptEngine(); }
+
+void Impl::AddEnvironmentSettingsChangeObserver(
+    Context::EnvironmentSettingsChangeObserver* observer) {
+  environment_settings_change_observers_.AddObserver(observer);
+}
+
+void Impl::RemoveEnvironmentSettingsChangeObserver(
+    Context::EnvironmentSettingsChangeObserver* observer) {
+  environment_settings_change_observers_.RemoveObserver(observer);
+}
 
 void Impl::InjectGlobalObjectAttributes(
     const Agent::Options::InjectedGlobalObjectAttributes& attributes) {

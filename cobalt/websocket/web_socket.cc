@@ -153,9 +153,9 @@ bool AreSubProtocolsUnique(const std::vector<std::string>& sub_protocols) {
   return (all_protocols.size() == sub_protocols.size());
 }
 
-bool IsValidBinaryType(cobalt::web::MessageEvent::ResponseTypeCode code) {
-  return (code == cobalt::web::MessageEvent::kBlob) ||
-         (code == cobalt::web::MessageEvent::kArrayBuffer);
+bool IsValidBinaryType(cobalt::web::MessageEvent::ResponseType response_type) {
+  return (response_type == cobalt::web::MessageEvent::kBlob) ||
+         (response_type == cobalt::web::MessageEvent::kArrayBuffer);
 }
 
 }  // namespace
@@ -220,12 +220,12 @@ void WebSocket::set_binary_type(const std::string& binary_type,
   // "arraybuffer", then set the IDL attribute to this new value.
   // Otherwise, throw a SyntaxError exception."
   base::StringPiece binary_type_string_piece(binary_type);
-  web::MessageEvent::ResponseTypeCode response_code =
-      web::MessageEvent::GetResponseTypeCode(binary_type_string_piece);
-  if (!IsValidBinaryType(response_code)) {
+  web::MessageEvent::ResponseType response_type =
+      web::MessageEvent::GetResponseType(binary_type_string_piece);
+  if (!IsValidBinaryType(response_type)) {
     web::DOMException::Raise(web::DOMException::kSyntaxErr, exception_state);
   } else {
-    binary_type_ = response_code;
+    binary_type_ = response_type;
   }
 }
 
@@ -416,12 +416,12 @@ void WebSocket::OnDisconnected(bool was_clean, uint16 code,
 
 void WebSocket::OnReceivedData(bool is_text_frame,
                                scoped_refptr<net::IOBufferWithSize> data) {
-  web::MessageEvent::ResponseTypeCode response_type_code = binary_type_;
+  web::MessageEvent::ResponseType response_type = binary_type_;
   if (is_text_frame) {
-    response_type_code = web::MessageEvent::kText;
+    response_type = web::MessageEvent::kText;
   }
   this->DispatchEvent(
-      new web::MessageEvent(base::Tokens::message(), response_type_code, data));
+      new web::MessageEvent(base::Tokens::message(), response_type, data));
 }
 
 void WebSocket::OnWriteDone(uint64_t bytes_written) {
@@ -562,18 +562,13 @@ void WebSocket::Initialize(script::EnvironmentSettings* settings,
 }
 
 web::CspDelegate* WebSocket::csp_delegate() const {
-  DCHECK(settings_);
-  if (!settings_) {
-    return NULL;
-  }
-  dom::DOMSettings* dom_settings =
-      base::polymorphic_downcast<dom::DOMSettings*>(settings_);
-  if (dom_settings && dom_settings->window() &&
-      dom_settings->window()->document()) {
-    return dom_settings->window()->document()->csp_delegate();
-  } else {
-    return NULL;
-  }
+  DCHECK(environment_settings());
+  DCHECK(environment_settings()->context());
+  DCHECK(environment_settings()->context()->GetWindowOrWorkerGlobalScope());
+  return environment_settings()
+      ->context()
+      ->GetWindowOrWorkerGlobalScope()
+      ->csp_delegate();
 }
 
 void WebSocket::Connect(const GURL& url,

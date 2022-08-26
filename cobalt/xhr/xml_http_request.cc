@@ -168,6 +168,18 @@ int s_xhr_sequence_num_ = 0;
 // 5. If request's redirect count is twenty, return a network error.
 const int kRedirectLimit = 20;
 
+std::string ClipUrl(const GURL& url, size_t length) {
+  const std::string& spec = url.possibly_invalid_spec();
+  if (spec.size() < length) {
+    return spec;
+  }
+
+  size_t remain = length - 5;
+  size_t head = remain / 2;
+  size_t tail = remain - head;
+
+  return spec.substr(0, head) + "[...]" + spec.substr(spec.size() - tail);
+}
 }  // namespace
 
 bool XMLHttpRequestImpl::verbose_ = false;
@@ -417,7 +429,7 @@ void XMLHttpRequestImpl::Open(const std::string& method, const std::string& url,
     return;
   }
 
-  web::CspDelegate* csp = this->csp_delegate();
+  web::CspDelegate* csp = csp_delegate();
   if (csp && !csp->CanLoad(web::CspDelegate::kXhr, request_url_, false)) {
     web::DOMException::Raise(web::DOMException::kSecurityErr, exception_state);
     return;
@@ -1044,7 +1056,7 @@ void XMLHttpRequestImpl::OnRedirect(const net::HttpResponseHeaders& headers) {
     return;
   }
   // This is a redirect. Re-check the CSP.
-  web::CspDelegate* csp = this->csp_delegate();
+  web::CspDelegate* csp = csp_delegate();
   if (csp &&
       !csp->CanLoad(web::CspDelegate::kXhr, new_url, true /* is_redirect */)) {
     HandleRequestError(XMLHttpRequest::kNetworkError);
@@ -1099,11 +1111,10 @@ void XMLHttpRequestImpl::TraceMembers(script::Tracer* tracer) {
 }
 
 web::CspDelegate* XMLHttpRequestImpl::csp_delegate() const {
-  // TODO (b/239733363): csp_delegate is currently available through window.
-  // Refactor to make it available outside of window then implement this. At
-  // that point, there should be no more need to override this function in
-  // DOMXMLHttpRequestImpl.
-  return NULL;
+  DCHECK(settings_);
+  DCHECK(settings_->context());
+  DCHECK(settings_->context()->GetWindowOrWorkerGlobalScope());
+  return settings_->context()->GetWindowOrWorkerGlobalScope()->csp_delegate();
 }
 
 void XMLHttpRequestImpl::TerminateRequest() {
@@ -1236,6 +1247,7 @@ void XMLHttpRequestImpl::UpdateProgress(int64_t received_length) {
 
 void XMLHttpRequestImpl::StartRequest(const std::string& request_body) {
   TRACK_MEMORY_SCOPE("XHR");
+  LOG(INFO) << "Fetching: " << ClipUrl(request_url_, 200);
 
   response_array_buffer_reference_.reset();
 
@@ -1283,9 +1295,35 @@ void XMLHttpRequestImpl::StartRequest(const std::string& request_body) {
     url_fetcher_->AddExtraRequestHeader("Origin:" + origin_.SerializedOrigin());
   }
   bool dopreflight = false;
-  // TODO (b/239733363): Include CORS functionality once preflight cache is
-  // accessible outside of window. At that point, there should be no more need
-  // to override this function in DOMXMLHttpRequestImpl.
+  if (is_cross_origin_) {
+    corspreflight_.reset(new cobalt::loader::CORSPreflight(
+        request_url_, method_, network_module,
+        base::Bind(&DOMXMLHttpRequestImpl::CORSPreflightSuccessCallback,
+                   base::Unretained(this)),
+        origin_.SerializedOrigin(),
+        base::Bind(&DOMXMLHttpRequestImpl::CORSPreflightErrorCallback,
+                   base::Unretained(this)),
+        settings_->context()
+            ->GetWindowOrWorkerGlobalScope()
+            ->get_preflight_cache()));
+    corspreflight_->set_headers(request_headers_);
+    // For cross-origin requests, don't send or save auth data / cookies unless
+    // withCredentials was set.
+    // To make a cross-origin request, add origin, referrer source, credentials,
+    // omit credentials flag, force preflight flag
+    if (!with_credentials_) {
+      const uint32 kDisableCookiesLoadFlags =
+          net::LOAD_NORMAL | net::LOAD_DO_NOT_SAVE_COOKIES |
+          net::LOAD_DO_NOT_SEND_COOKIES | net::LOAD_DO_NOT_SEND_AUTH_DATA;
+      url_fetcher_->SetLoadFlags(kDisableCookiesLoadFlags);
+    } else {
+      // For credentials mode: If the withCredentials attribute value is true,
+      // "include", and "same-origin" otherwise.
+      corspreflight_->set_credentials_mode_is_include(true);
+    }
+    corspreflight_->set_force_preflight(upload_listener_);
+    dopreflight = corspreflight_->Send();
+  }
   DLOG_IF(INFO, verbose()) << __FUNCTION__ << *xhr_;
   if (!dopreflight) {
     DCHECK(settings_->context()->network_module());
@@ -1411,99 +1449,6 @@ void DOMXMLHttpRequestImpl::GetLoadTimingInfoAndCreateResourceTiming() {
   settings_->window()->performance()->CreatePerformanceResourceTiming(
       load_timing_info_, kPerformanceResourceTimingInitiatorType,
       request_url_.spec());
-}
-
-web::CspDelegate* DOMXMLHttpRequestImpl::csp_delegate() const {
-  DCHECK(settings_);
-  if (settings_->window() && settings_->window()->document()) {
-    return settings_->window()->document()->csp_delegate();
-  } else {
-    return NULL;
-  }
-}
-
-void DOMXMLHttpRequestImpl::StartRequest(const std::string& request_body) {
-  TRACK_MEMORY_SCOPE("XHR");
-
-  response_array_buffer_reference_.reset();
-
-  network::NetworkModule* network_module =
-      settings_->context()->fetcher_factory()->network_module();
-  url_fetcher_ = net::URLFetcher::Create(request_url_, method_, xhr_);
-  ++url_fetcher_generation_;
-  url_fetcher_->SetRequestContext(network_module->url_request_context_getter());
-  if (fetch_callback_) {
-    response_body_ = new URLFetcherResponseWriter::Buffer(
-        URLFetcherResponseWriter::Buffer::kString);
-    response_body_->DisablePreallocate();
-  } else {
-    response_body_ = new URLFetcherResponseWriter::Buffer(
-        response_type_ == XMLHttpRequest::kArrayBuffer
-            ? URLFetcherResponseWriter::Buffer::kArrayBuffer
-            : URLFetcherResponseWriter::Buffer::kString);
-  }
-  std::unique_ptr<net::URLFetcherResponseWriter> download_data_writer(
-      new URLFetcherResponseWriter(response_body_));
-  url_fetcher_->SaveResponseWithWriter(std::move(download_data_writer));
-  // Don't retry, let the caller deal with it.
-  url_fetcher_->SetAutomaticallyRetryOn5xx(false);
-  url_fetcher_->SetExtraRequestHeaders(request_headers_.ToString());
-
-  // We want to do cors check and preflight during redirects
-  url_fetcher_->SetStopOnRedirect(true);
-
-  if (request_body.size()) {
-    // If applicable, the request body Content-Type is already set in
-    // request_headers.
-    url_fetcher_->SetUploadData("", request_body);
-  }
-
-  // We let data url fetch resources freely but with no response headers.
-  is_data_url_ = is_data_url_ || request_url_.SchemeIs("data");
-  is_cross_origin_ = (is_redirect_ && is_cross_origin_) ||
-                     (origin_ != loader::Origin(request_url_) && !is_data_url_);
-  is_redirect_ = false;
-  // If the CORS flag is set, httpRequest’s method is neither `GET` nor `HEAD`
-  // or httpRequest’s mode is "websocket", then append `Origin`/httpRequest’s
-  // origin, serialized and UTF-8 encoded, to httpRequest’s header list.
-  if (is_cross_origin_ ||
-      (method_ != net::URLFetcher::GET && method_ != net::URLFetcher::HEAD)) {
-    url_fetcher_->AddExtraRequestHeader("Origin:" + origin_.SerializedOrigin());
-  }
-  bool dopreflight = false;
-  if (is_cross_origin_) {
-    corspreflight_.reset(new cobalt::loader::CORSPreflight(
-        request_url_, method_, network_module,
-        base::Bind(&DOMXMLHttpRequestImpl::CORSPreflightSuccessCallback,
-                   base::Unretained(this)),
-        origin_.SerializedOrigin(),
-        base::Bind(&DOMXMLHttpRequestImpl::CORSPreflightErrorCallback,
-                   base::Unretained(this)),
-        settings_->window()->get_preflight_cache()));
-    corspreflight_->set_headers(request_headers_);
-    // For cross-origin requests, don't send or save auth data / cookies unless
-    // withCredentials was set.
-    // To make a cross-origin request, add origin, referrer source, credentials,
-    // omit credentials flag, force preflight flag
-    if (!with_credentials_) {
-      const uint32 kDisableCookiesLoadFlags =
-          net::LOAD_NORMAL | net::LOAD_DO_NOT_SAVE_COOKIES |
-          net::LOAD_DO_NOT_SEND_COOKIES | net::LOAD_DO_NOT_SEND_AUTH_DATA;
-      url_fetcher_->SetLoadFlags(kDisableCookiesLoadFlags);
-    } else {
-      // For credentials mode: If the withCredentials attribute value is true,
-      // "include", and "same-origin" otherwise.
-      corspreflight_->set_credentials_mode_is_include(true);
-    }
-    corspreflight_->set_force_preflight(upload_listener_);
-    dopreflight = corspreflight_->Send();
-  }
-  DLOG_IF(INFO, verbose()) << __FUNCTION__ << *xhr_;
-  if (!dopreflight) {
-    DCHECK(settings_->context()->network_module());
-    StartURLFetcher(settings_->context()->network_module()->max_network_delay(),
-                    url_fetcher_generation_);
-  }
 }
 
 // https://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#document-response-entity-body

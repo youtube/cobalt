@@ -14,7 +14,10 @@
 
 #include "cobalt/web/window_or_worker_global_scope.h"
 
+#include <utility>
+
 #include "cobalt/script/environment_settings.h"
+#include "cobalt/web/csp_delegate_factory.h"
 #include "cobalt/web/event_target.h"
 
 namespace cobalt {
@@ -28,12 +31,21 @@ class ServiceWorkerGlobalScope;
 namespace web {
 WindowOrWorkerGlobalScope::WindowOrWorkerGlobalScope(
     script::EnvironmentSettings* settings, StatTracker* stat_tracker,
-    base::ApplicationState initial_state)
+    Options options)
     // Global scope object EventTargets require special handling for onerror
     // events, see EventTarget constructor for more details.
     : EventTarget(settings, kUnpackOnErrorEvents),
       crypto_(new Crypto()),
-      window_timers_(this, stat_tracker, debugger_hooks(), initial_state) {}
+      window_timers_(this, stat_tracker, debugger_hooks(),
+                     options.initial_state),
+      preflight_cache_(new loader::CORSPreflightCache()) {
+  std::unique_ptr<web::CspViolationReporter> violation_reporter(
+      new web::CspViolationReporter(this, options.post_sender));
+  csp_delegate_ = web::CspDelegateFactory::GetInstance()->Create(
+      options.csp_enforcement_mode, std::move(violation_reporter),
+      environment_settings()->creation_url(), options.require_csp,
+      options.csp_policy_changed_callback, options.csp_insecure_allowed_token);
+}
 
 bool WindowOrWorkerGlobalScope::IsWindow() {
   return GetWrappableType() == base::GetTypeId<dom::Window>();

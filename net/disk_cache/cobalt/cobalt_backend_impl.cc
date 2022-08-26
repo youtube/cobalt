@@ -54,13 +54,34 @@ ResourceType GetType(const std::string& key) {
 }
 
 void ReadDiskCacheSize(
-    cobalt::persistent_storage::PersistentSettings* settings) {
+    cobalt::persistent_storage::PersistentSettings* settings,
+    int64_t max_bytes) {
+  auto total_size = 0;
+  disk_cache::ResourceTypeMetadata kTypeMetadataNew[disk_cache::kTypeCount];
+
   for (int i = 0; i < disk_cache::kTypeCount; i++) {
     auto metadata = disk_cache::kTypeMetadata[i];
     uint32_t bucket_size =
         static_cast<uint32_t>(settings->GetPersistentSettingAsDouble(
             metadata.directory, metadata.max_size_bytes));
-    disk_cache::kTypeMetadata[i] = {metadata.directory, bucket_size};
+    kTypeMetadataNew[i] = {metadata.directory, bucket_size};
+
+    total_size += bucket_size;
+  }
+
+  // Check if PersistentSettings values are valid and can replace the disk_cache::kTypeMetadata.
+  if (total_size <= max_bytes) {
+    std::copy(std::begin(kTypeMetadataNew), std::end(kTypeMetadataNew), std::begin(disk_cache::kTypeMetadata));
+    return;
+  }
+
+  // PersistentSettings values are invalid and will be replaced by the default values in
+  // disk_cache::kTypeMetadata.
+  for (int i = 0; i < disk_cache::kTypeCount; i++) {
+    auto metadata = disk_cache::kTypeMetadata[i];
+    settings->SetPersistentSetting(
+            metadata.directory,
+            std::make_unique<base::Value>(static_cast<double>(metadata.max_size_bytes)));
   }
 }
 
@@ -76,7 +97,7 @@ CobaltBackendImpl::CobaltBackendImpl(
   persistent_settings_ =
       std::make_unique<cobalt::persistent_storage::PersistentSettings>(
           kPersistentSettingsJson, base::MessageLoop::current()->task_runner());
-  ReadDiskCacheSize(persistent_settings_.get());
+  ReadDiskCacheSize(persistent_settings_.get(), max_bytes);
 
   // Initialize disk backend for each resource type.
   int64_t total_size = 0;

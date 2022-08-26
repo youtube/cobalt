@@ -106,10 +106,10 @@ Go ahead and click 'yes' to open the SDK manager to install the following:
 ## Basic Build, Install, and Run (command-line based)
 
 1.  Complete the Preliminary Setup above
-1.  Generate the cobalt.apk by building the "cobalt_deploy" target
+1.  Generate the cobalt.apk by building the "cobalt_install" target
 
     ```
-    ninja -C out/android-x86_gold cobalt_deploy
+    ninja -C out/android-x86_gold cobalt_install
     ```
 
     Output can be found in the corresponding `out/android-x86_gold` directory.

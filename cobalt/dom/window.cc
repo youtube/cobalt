@@ -129,8 +129,12 @@ Window::Window(
     bool log_tts)
     // 'window' object EventTargets require special handling for onerror events,
     // see EventTarget constructor for more details.
-    : web::WindowOrWorkerGlobalScope(settings, dom_stat_tracker,
-                                     initial_application_state),
+    : web::WindowOrWorkerGlobalScope(
+          settings, dom_stat_tracker,
+          web::WindowOrWorkerGlobalScope::Options(
+              initial_application_state, post_sender, require_csp,
+              csp_enforcement_mode, csp_policy_changed_callback,
+              csp_insecure_allowed_token)),
       viewport_size_(view_size),
       is_resize_event_pending_(false),
       is_reporting_script_error_(false),
@@ -155,9 +159,7 @@ Window::Window(
               base::Bind(&Window::FireHashChangeEvent, base::Unretained(this)),
               performance_->timing()->GetNavigationStartClock(),
               navigation_callback, ParseUserAgentStyleSheet(css_parser),
-              view_size, cookie_jar, post_sender, require_csp,
-              csp_enforcement_mode, csp_policy_changed_callback,
-              csp_insecure_allowed_token, dom_max_element_depth)))),
+              view_size, cookie_jar, dom_max_element_depth)))),
       document_loader_(nullptr),
       history_(new History()),
       navigator_(new Navigator(environment_settings(), captions)),
@@ -172,7 +174,6 @@ Window::Window(
       ALLOW_THIS_IN_INITIALIZER_LIST(
           session_storage_(new Storage(this, Storage::kSessionStorage, NULL))),
       screen_(new Screen(view_size)),
-      preflight_cache_(new loader::CORSPreflightCache()),
       ran_animation_frame_callbacks_callback_(
           ran_animation_frame_callbacks_callback),
       window_close_callback_(window_close_callback),

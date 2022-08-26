@@ -38,7 +38,9 @@ def main(request, response):
         else:
             status = 200, "OK"
             headers.append(("Access-Control-Allow-Origin", "*"))
-            headers.append(("Content-Type", "text/plain"))
+            # Cobalt does not support text/plain caching.
+            # headers.append(("Content-Type", "text/plain"))
+            headers.append(("Content-Type", "text/html"))
             headers.append(("Cache-Control", "private, max-age=3, must-revalidate"))
             headers.append(("ETag", etag))
             return status, headers, "Success"

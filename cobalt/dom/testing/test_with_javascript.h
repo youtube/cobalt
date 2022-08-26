@@ -50,15 +50,16 @@ class TestWithJavaScript : public ::testing::Test {
   Window* window() { return stub_window_->window().get(); }
 
   bool EvaluateScript(const std::string& js_code, std::string* result) {
-    DCHECK(global_environment());
-    scoped_refptr<script::SourceCode> source_code =
-        script::SourceCode::CreateSourceCode(
-            js_code, base::SourceLocation(__FILE__, __LINE__, 1));
+    return global_environment()->EvaluateScript(
+        CreateSourceCodeAndPrepareEval(js_code), result);
+  }
 
-    global_environment()->EnableEval();
-    global_environment()->SetReportEvalCallback(base::Closure());
-    bool succeeded = global_environment()->EvaluateScript(source_code, result);
-    return succeeded;
+  bool EvaluateScript(
+      const std::string& js_code,
+      const scoped_refptr<script::Wrappable>& owning_object,
+      base::Optional<script::ValueHandleHolder::Reference>* result = NULL) {
+    return global_environment()->EvaluateScript(
+        CreateSourceCodeAndPrepareEval(js_code), owning_object, result);
   }
 
   ::testing::StrictMock<script::testing::MockExceptionState>*
@@ -73,6 +74,15 @@ class TestWithJavaScript : public ::testing::Test {
   base::EventDispatcher* event_dispatcher() { return &event_dispatcher_; }
 
  private:
+  scoped_refptr<script::SourceCode> CreateSourceCodeAndPrepareEval(
+      const std::string& js_code) {
+    DCHECK(global_environment());
+    global_environment()->EnableEval();
+    global_environment()->SetReportEvalCallback(base::Closure());
+    return script::SourceCode::CreateSourceCode(
+        js_code, base::SourceLocation(__FILE__, __LINE__, 1));
+  }
+
   std::unique_ptr<StubWindow> stub_window_;
   ::testing::StrictMock<script::testing::MockExceptionState> exception_state_;
   base::EventDispatcher event_dispatcher_;

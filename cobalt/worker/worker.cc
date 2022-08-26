@@ -31,6 +31,11 @@
 #include "cobalt/worker/worker_options.h"
 #include "cobalt/worker/worker_settings.h"
 
+#include "cobalt/script/v8c/conversion_helpers.h"
+#include "cobalt/script/v8c/v8c_exception_state.h"
+#include "cobalt/script/v8c/v8c_value_handle.h"
+#include "v8/include/v8.h"
+
 namespace cobalt {
 namespace worker {
 
@@ -313,23 +318,20 @@ void Worker::Terminate() {
   // TODO(b/226640425): Implement this when Message Ports can be entangled.
 }
 
-// void postMessage(any message, object transfer);
-// -> void PostMessage(const script::ValueHandleHolder& message,
-//                     script::Sequence<script::ValueHandle*> transfer) {}
-void Worker::PostMessage(const std::string& message) {
+void Worker::PostMessage(const script::ValueHandleHolder& message) {
   DCHECK(message_loop());
+  auto serialized_message = script::SerializeScriptValue(message);
   if (base::MessageLoop::current() != message_loop()) {
     // Block until the worker thread is ready to execute code to handle the
     // event.
     execution_ready_.Wait();
     message_loop()->task_runner()->PostTask(
-        FROM_HERE,
-        base::BindOnce(&Worker::PostMessage, base::Unretained(this), message));
-    return;
+        FROM_HERE, base::BindOnce(&web::MessagePort::PostMessageSerialized,
+                                  message_port()->AsWeakPtr(),
+                                  std::move(serialized_message)));
   } else {
     DCHECK(execution_ready_.IsSignaled());
-    DCHECK(message_port());
-    if (message_port()) message_port()->PostMessage(message);
+    message_port()->PostMessageSerialized(std::move(serialized_message));
   }
 }
 

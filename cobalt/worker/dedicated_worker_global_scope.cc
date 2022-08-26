@@ -72,7 +72,8 @@ void DedicatedWorkerGlobalScope::Initialize() {
   }
 }
 
-void DedicatedWorkerGlobalScope::PostMessage(const std::string& message) {
+void DedicatedWorkerGlobalScope::PostMessage(
+    const script::ValueHandleHolder& message) {
   base::polymorphic_downcast<worker::WorkerSettings*>(environment_settings())
       ->message_port()
       ->PostMessage(message);

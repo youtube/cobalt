@@ -20,15 +20,20 @@
 
 #include "base/basictypes.h"
 #include "cobalt/base/polymorphic_downcast.h"
+#include "cobalt/script/v8c/conversion_helpers.h"
+#include "cobalt/script/v8c/entry_scope.h"
+#include "cobalt/script/v8c/v8c_exception_state.h"
 #include "cobalt/web/context.h"
 #include "cobalt/web/environment_settings.h"
 #include "starboard/common/string.h"
+#include "starboard/memory.h"
+#include "v8/include/v8.h"
 
 namespace {
-const char* const kResponseTypes[] = {"text", "blob", "arraybuffer"};
+const char* const kResponseTypes[] = {"text", "blob", "arraybuffer", "any"};
 
 COMPILE_ASSERT(arraysize(kResponseTypes) ==
-                   cobalt::web::MessageEvent::kResponseTypeCodeMax,
+                   cobalt::web::MessageEvent::kResponseTypeMax,
                enum_and_array_size_mismatch);
 
 }  // namespace
@@ -36,67 +41,73 @@ COMPILE_ASSERT(arraysize(kResponseTypes) ==
 namespace cobalt {
 namespace web {
 
+// static
 std::string MessageEvent::GetResponseTypeAsString(
-    const MessageEvent::ResponseTypeCode code) {
-  DCHECK_LT(code, kResponseTypeCodeMax);
-  if ((code >= kText) && (code < kResponseTypeCodeMax)) {
-    return kResponseTypes[code];
-  }
-  return std::string();
+    const MessageEvent::ResponseType response_type) {
+  DCHECK_GE(response_type, kText);
+  DCHECK_LT(response_type, kResponseTypeMax);
+  return kResponseTypes[response_type];
 }
 
-MessageEvent::ResponseTypeCode MessageEvent::GetResponseTypeCode(
+// static
+MessageEvent::ResponseType MessageEvent::GetResponseType(
     base::StringPiece to_match) {
   for (std::size_t i = 0; i != arraysize(kResponseTypes); ++i) {
     if (strncmp(kResponseTypes[i], to_match.data(), to_match.size()) == 0) {
-      return MessageEvent::ResponseTypeCode(i);
+      return MessageEvent::ResponseType(i);
     }
   }
-  return kResponseTypeCodeMax;
+  return kResponseTypeMax;
 }
 
-MessageEvent::ResponseType MessageEvent::data(
+MessageEvent::Response MessageEvent::data(
     script::EnvironmentSettings* settings) const {
-  const char* data_pointer = NULL;
-  int data_length = 0;
-  if (data_) {
-    data_pointer = data_->data();
-    data_length = data_->size();
+  if (!data_ && !data_io_buffer_) {
+    return Response("");
   }
 
-  auto* global_environment =
-      settings ? base::polymorphic_downcast<web::EnvironmentSettings*>(settings)
-                     ->context()
-                     ->global_environment()
-               : nullptr;
-  script::Handle<script::ArrayBuffer> response_buffer;
-  if (response_type_ != kText) {
+  script::GlobalEnvironment* global_environment = nullptr;
+  if (response_type_ == kBlob || response_type_ == kArrayBuffer ||
+      response_type_ == kAny) {
+    DCHECK(settings);
+    global_environment =
+        base::polymorphic_downcast<web::EnvironmentSettings*>(settings)
+            ->context()
+            ->global_environment();
     DCHECK(global_environment);
-    auto buffer_copy =
-        script::ArrayBuffer::New(global_environment, data_pointer, data_length);
-    response_buffer = std::move(buffer_copy);
   }
 
   switch (response_type_) {
     case kText: {
       // TODO: Find a way to remove two copies of data here.
-      std::string string_response(data_pointer, data_length);
-      return ResponseType(string_response);
+      std::string string_response(data_io_buffer_->data(),
+                                  data_io_buffer_->size());
+      return Response(string_response);
     }
-    case kBlob: {
-      DCHECK(settings);
-      scoped_refptr<web::Blob> blob = new web::Blob(settings, response_buffer);
-      return ResponseType(blob);
-    }
+    case kBlob:
     case kArrayBuffer: {
-      return ResponseType(response_buffer);
+      auto buffer_copy = script::ArrayBuffer::New(
+          global_environment, data_io_buffer_->data(), data_io_buffer_->size());
+      script::Handle<script::ArrayBuffer> response_buffer =
+          std::move(buffer_copy);
+      if (response_type_ == kBlob) {
+        DCHECK(settings);
+        scoped_refptr<web::Blob> blob =
+            new web::Blob(settings, response_buffer);
+        return Response(blob);
+      }
+      return Response(response_buffer);
     }
-    case kResponseTypeCodeMax:
+    case kAny: {
+      v8::Isolate* isolate = global_environment->isolate();
+      script::v8c::EntryScope entry_scope(isolate);
+      return Response(script::Handle<script::ValueHandle>(
+          std::move(script::DeserializeScriptValue(isolate, *data_))));
+    }
+    default:
       NOTREACHED() << "Invalid response type.";
-      return ResponseType();
+      return Response("");
   }
-
-  return ResponseType();
 }
 
 }  // namespace web

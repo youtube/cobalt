@@ -38,14 +38,14 @@ namespace {
 const char kWatchdogViolationsJson[] = "watchdog.json";
 // The frequency in microseconds of monitor loops.
 const int64_t kWatchdogMonitorFrequency = 1000000;
-// The maximum number of most recent repeated Watchdog violations.
-const int64_t kWatchdogMaxViolations = 100;
+// The maximum number of Watchdog violations.
+const int kWatchdogMaxViolations = 200;
 // The minimum number of microseconds between writes.
 const int64_t kWatchdogWriteWaitTime = 300000000;
 // The maximum number of most recent ping infos.
-const int64_t kWatchdogMaxPingInfos = 20;
+const int kWatchdogMaxPingInfos = 20;
 // The maximum length of each ping info.
-const int64_t kWatchdogMaxPingInfoLength = 1024;
+const int kWatchdogMaxPingInfoLength = 128;
 
 // Persistent setting name and default setting for the boolean that controls
 // whether or not Watchdog is enabled. When disabled, Watchdog behaves like a
@@ -162,14 +162,13 @@ void* Watchdog::Monitor(void* context) {
     SB_CHECK(SbMutexAcquire(&(static_cast<Watchdog*>(context))->mutex_) ==
              kSbMutexAcquired);
 
+    // Shutdown
     if (!((static_cast<Watchdog*>(context))->is_monitoring_)) {
       SB_CHECK(SbMutexRelease(&(static_cast<Watchdog*>(context))->mutex_));
       break;
     }
 
-    int64_t current_time = SbTimeToPosix(SbTimeGetNow());
     SbTimeMonotonic current_monotonic_time = SbTimeGetMonotonicNow();
-    base::Value registered_clients(base::Value::Type::LIST);
 
     // Iterates through client map to monitor all registered clients.
     bool watchdog_violation = false;
@@ -196,94 +195,7 @@ void* Watchdog::Monitor(void* context) {
       if (time_delta > client->time_interval_microseconds &&
           time_wait > client->time_wait_microseconds) {
         watchdog_violation = true;
-
-        // Gets violation dictionary with key client name from violations_map_.
-        if (static_cast<Watchdog*>(context)->violations_map_ == nullptr)
-          InitializeViolationsMap(context);
-        base::Value* violation_dict =
-            (static_cast<Watchdog*>(context)->violations_map_)
-                ->FindKey(client->name);
-
-        // Checks if new unique violation.
-        bool new_violation = false;
-        if (violation_dict == nullptr) {
-          new_violation = true;
-        } else {
-          // Compares against last_pinged_timestamp_microsecond of last
-          // violation.
-          base::Value* violations = violation_dict->FindKey("violations");
-          int index = violations->GetList().size() - 1;
-          std::string timestamp_last_pinged_microseconds =
-              violations->GetList()[index]
-                  .FindKey("timestampLastPingedMicroseconds")
-                  ->GetString();
-          if (timestamp_last_pinged_microseconds !=
-              std::to_string(client->time_last_pinged_microseconds))
-            new_violation = true;
-        }
-
-        // New unique violation.
-        if (new_violation) {
-          // Creates new violation.
-          base::Value violation(base::Value::Type::DICTIONARY);
-          violation.SetKey("pingInfos", client->ping_infos.Clone());
-          violation.SetKey("monitorState",
-                           base::Value(std::string(GetApplicationStateString(
-                               client->monitor_state))));
-          violation.SetKey(
-              "timeIntervalMicroseconds",
-              base::Value(std::to_string(client->time_interval_microseconds)));
-          violation.SetKey(
-              "timeWaitMicroseconds",
-              base::Value(std::to_string(client->time_wait_microseconds)));
-          violation.SetKey("timestampRegisteredMicroseconds",
-                           base::Value(std::to_string(
-                               client->time_registered_microseconds)));
-          violation.SetKey("timestampLastPingedMicroseconds",
-                           base::Value(std::to_string(
-                               client->time_last_pinged_microseconds)));
-          violation.SetKey("timestampViolationMicroseconds",
-                           base::Value(std::to_string(current_time)));
-          violation.SetKey(
-              "violationDurationMicroseconds",
-              base::Value(std::to_string(time_delta -
-                                         client->time_interval_microseconds)));
-          if (registered_clients.GetList().empty()) {
-            for (auto& it : static_cast<Watchdog*>(context)->client_map_) {
-              registered_clients.GetList().emplace_back(base::Value(it.first));
-            }
-          }
-          violation.SetKey("registeredClients", registered_clients.Clone());
-
-          // Adds new violation to violations_map_.
-          if (violation_dict == nullptr) {
-            base::Value dict(base::Value::Type::DICTIONARY);
-            dict.SetKey("description", base::Value(client->description));
-            base::Value list(base::Value::Type::LIST);
-            list.GetList().emplace_back(violation.Clone());
-            dict.SetKey("violations", list.Clone());
-            (static_cast<Watchdog*>(context)->violations_map_)
-                ->SetKey(client->name, dict.Clone());
-          } else {
-            base::Value* violations = violation_dict->FindKey("violations");
-            violations->GetList().emplace_back(violation.Clone());
-            if (violations->GetList().size() > kWatchdogMaxViolations)
-              violations->GetList().erase(violations->GetList().begin());
-          }
-          // Consecutive non-unique violation.
-        } else {
-          // Updates consecutive violation in violations_map_.
-          base::Value* violations = violation_dict->FindKey("violations");
-          int index = violations->GetList().size() - 1;
-          int64_t violation_duration =
-              std::stoll(violations->GetList()[index]
-                             .FindKey("violationDurationMicroseconds")
-                             ->GetString());
-          violations->GetList()[index].SetKey(
-              "violationDurationMicroseconds",
-              base::Value(std::to_string(violation_duration + time_delta)));
-        }
-        static_cast<Watchdog*>(context)->pending_write_ = true;
+        UpdateViolationsMap(context, client, time_delta);
 
         // Resets time last updated.
         client->time_last_updated_monotonic_microseconds =
@@ -300,9 +212,103 @@ void* Watchdog::Monitor(void* context) {
   return nullptr;
 }
 
+void Watchdog::UpdateViolationsMap(void* context, Client* client,
+                                   SbTimeMonotonic time_delta) {
+  // Gets violation dictionary with key client name from violations_map_.
+  if (static_cast<Watchdog*>(context)->violations_map_ == nullptr)
+    InitializeViolationsMap(context);
+  base::Value* violation_dict =
+      (static_cast<Watchdog*>(context)->violations_map_)->FindKey(client->name);
+
+  // Checks if new unique violation.
+  bool new_violation = false;
+  if (violation_dict == nullptr) {
+    new_violation = true;
+  } else {
+    // Compares against last_pinged_timestamp_microsecond of last violation.
+    base::Value* violations = violation_dict->FindKey("violations");
+    int last_index = violations->GetList().size() - 1;
+    std::string timestamp_last_pinged_milliseconds =
+        violations->GetList()[last_index]
+            .FindKey("timestampLastPingedMilliseconds")
+            ->GetString();
+    if (timestamp_last_pinged_milliseconds !=
+        std::to_string(client->time_last_pinged_microseconds / 1000))
+      new_violation = true;
+  }
+
+  // New unique violation.
+  if (new_violation) {
+    // Creates new violation.
+    base::Value violation(base::Value::Type::DICTIONARY);
+    violation.SetKey("pingInfos", client->ping_infos.Clone());
+    violation.SetKey("monitorState",
+                     base::Value(std::string(
+                         GetApplicationStateString(client->monitor_state))));
+    violation.SetKey(
+        "timeIntervalMilliseconds",
+        base::Value(std::to_string(client->time_interval_microseconds / 1000)));
+    violation.SetKey(
+        "timeWaitMilliseconds",
+        base::Value(std::to_string(client->time_wait_microseconds / 1000)));
+    violation.SetKey("timestampRegisteredMilliseconds",
+                     base::Value(std::to_string(
+                         client->time_registered_microseconds / 1000)));
+    violation.SetKey("timestampLastPingedMilliseconds",
+                     base::Value(std::to_string(
+                         client->time_last_pinged_microseconds / 1000)));
+    violation.SetKey(
+        "timestampViolationMilliseconds",
+        base::Value(std::to_string(SbTimeToPosix(SbTimeGetNow()) / 1000)));
+    violation.SetKey(
+        "violationDurationMilliseconds",
+        base::Value(std::to_string(
+            (time_delta - client->time_interval_microseconds) / 1000)));
+    base::Value registered_clients(base::Value::Type::LIST);
+    for (auto& it : static_cast<Watchdog*>(context)->client_map_) {
+      registered_clients.GetList().emplace_back(base::Value(it.first));
+    }
+    violation.SetKey("registeredClients", registered_clients.Clone());
+
+    // Adds new violation to violations_map_.
+    if (violation_dict == nullptr) {
+      base::Value dict(base::Value::Type::DICTIONARY);
+      dict.SetKey("description", base::Value(client->description));
+      base::Value list(base::Value::Type::LIST);
+      list.GetList().emplace_back(violation.Clone());
+      dict.SetKey("violations", list.Clone());
+      (static_cast<Watchdog*>(context)->violations_map_)
+          ->SetKey(client->name, dict.Clone());
+    } else {
+      base::Value* violations = violation_dict->FindKey("violations");
+      violations->GetList().emplace_back(violation.Clone());
+    }
+    static_cast<Watchdog*>(context)->violations_count_++;
+    if (static_cast<Watchdog*>(context)->violations_count_ >
+        kWatchdogMaxViolations)
+      EvictWatchdogViolation(context);
+    // Consecutive non-unique violation.
+  } else {
+    // Updates consecutive violation in violations_map_.
+    base::Value* violations = violation_dict->FindKey("violations");
+    int last_index = violations->GetList().size() - 1;
+    int64_t violation_duration =
+        std::stoll(violations->GetList()[last_index]
+                       .FindKey("violationDurationMilliseconds")
+                       ->GetString());
+    violations->GetList()[last_index].SetKey(
+        "violationDurationMilliseconds",
+        base::Value(std::to_string(violation_duration + (time_delta / 1000))));
+  }
+
+  static_cast<Watchdog*>(context)->pending_write_ = true;
+}
+
 void Watchdog::InitializeViolationsMap(void* context) {
   // Loads the previous Watchdog violations file containing violations before
   // app start, if it exists, to populate violations_map_.
+  static_cast<Watchdog*>(context)->violations_count_ = 0;
+
   starboard::ScopedFile read_file(
       (static_cast<Watchdog*>(context)->GetWatchdogFilePath()).c_str(),
       kSbFileOpenOnly | kSbFileRead);
@@ -314,11 +320,54 @@ void Watchdog::InitializeViolationsMap(void* context) {
     static_cast<Watchdog*>(context)->violations_map_ =
         base::JSONReader::Read(watchdog_json);
   }
+
   if (static_cast<Watchdog*>(context)->violations_map_ == nullptr) {
     SB_LOG(INFO) << "[Watchdog] No previous violations JSON.";
     static_cast<Watchdog*>(context)->violations_map_ =
         std::make_unique<base::Value>(base::Value::Type::DICTIONARY);
+  } else {
+    for (const auto& it :
+         (static_cast<Watchdog*>(context)->violations_map_)->DictItems()) {
+      base::Value& violation_dict = it.second;
+      base::Value* violations = violation_dict.FindKey("violations");
+      static_cast<Watchdog*>(context)->violations_count_ +=
+          violations->GetList().size();
+    }
   }
+}
+
+void Watchdog::EvictWatchdogViolation(void* context) {
+  // Evicts a violation in violations_map_ prioritizing first the most frequent
+  // violations (largest violations count by client name) and second the oldest
+  // violation.
+  std::string evicted_name = "";
+  int evicted_count = 0;
+  int64_t evicted_timestamp = 0;
+
+  for (const auto& it :
+       (static_cast<Watchdog*>(context)->violations_map_)->DictItems()) {
+    std::string name = it.first;
+    base::Value& violation_dict = it.second;
+    base::Value* violations = violation_dict.FindKey("violations");
+    int count = violations->GetList().size();
+    int64_t timestamp =
+        std::stoll(violations->GetList()[0]
+                       .FindKey("timestampViolationMilliseconds")
+                       ->GetString());
+
+    if ((evicted_name == "") || (count > evicted_count) ||
+        ((count == evicted_count) && (timestamp < evicted_timestamp))) {
+      evicted_name = name;
+      evicted_count = count;
+      evicted_timestamp = timestamp;
+    }
+  }
+
+  base::Value* violation_dict =
+      (static_cast<Watchdog*>(context)->violations_map_)->FindKey(evicted_name);
+  base::Value* violations = violation_dict->FindKey("violations");
+  violations->GetList().erase(violations->GetList().begin());
+  static_cast<Watchdog*>(context)->violations_count_--;
 }
 
 void Watchdog::MaybeWriteWatchdogViolations(void* context) {
@@ -345,9 +394,9 @@ bool Watchdog::Register(std::string name, std::string description,
   if (is_disabled_) return true;
 
   // Validates parameters.
-  if (time_interval < 1000000 || time_wait < 0) {
+  if (time_interval < kWatchdogMonitorFrequency || time_wait < 0) {
     SB_DLOG(ERROR) << "[Watchdog] Unable to Register: " << name;
-    if (time_interval < 1000000) {
+    if (time_interval < kWatchdogMonitorFrequency) {
       SB_DLOG(ERROR) << "[Watchdog] Time interval less than min: "
                      << kWatchdogMonitorFrequency;
     } else {
@@ -450,8 +499,8 @@ bool Watchdog::Ping(const std::string& name, const std::string& info) {
     if (info != "") {
       // Creates new ping_info.
       base::Value ping_info(base::Value::Type::DICTIONARY);
-      ping_info.SetKey("timestampMicroseconds",
-                       base::Value(std::to_string(current_time)));
+      ping_info.SetKey("timestampMilliseconds",
+                       base::Value(std::to_string(current_time / 1000)));
       ping_info.SetKey("info", base::Value(info));
 
       client->ping_infos.GetList().emplace_back(ping_info.Clone());
@@ -491,6 +540,7 @@ std::string Watchdog::GetWatchdogViolations() {
       base::DictionaryValue** dict = nullptr;
       violations_map_->GetAsDictionary(dict);
       if (dict) (*dict)->Clear();
+      violations_count_ = 0;
     }
     starboard::SbFileDeleteRecursive(GetWatchdogFilePath().c_str(), true);
     SB_LOG(INFO) << "[Watchdog] Reading violations:\n" << watchdog_json;

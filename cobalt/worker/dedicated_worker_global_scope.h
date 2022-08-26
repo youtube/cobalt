@@ -52,7 +52,7 @@ class DedicatedWorkerGlobalScope : public WorkerGlobalScope {
   void set_name(const std::string& name) { name_ = name; }
   std::string name() { return name_; }
 
-  void PostMessage(const std::string& message);
+  void PostMessage(const script::ValueHandleHolder& message);
   void Close() {}
 
   const web::EventTargetListenerInfo::EventListenerScriptValue* onmessage() {
