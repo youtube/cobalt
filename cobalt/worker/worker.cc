@@ -24,16 +24,16 @@
 #include "base/threading/thread.h"
 #include "cobalt/browser/user_agent_platform_info.h"
 #include "cobalt/script/environment_settings.h"
+#include "cobalt/script/v8c/conversion_helpers.h"
+#include "cobalt/script/v8c/v8c_exception_state.h"
+#include "cobalt/script/v8c/v8c_value_handle.h"
 #include "cobalt/web/error_event.h"
+#include "cobalt/web/error_event_init.h"
 #include "cobalt/web/message_port.h"
 #include "cobalt/worker/dedicated_worker_global_scope.h"
 #include "cobalt/worker/worker_global_scope.h"
 #include "cobalt/worker/worker_options.h"
 #include "cobalt/worker/worker_settings.h"
-
-#include "cobalt/script/v8c/conversion_helpers.h"
-#include "cobalt/script/v8c/v8c_exception_state.h"
-#include "cobalt/script/v8c/v8c_value_handle.h"
 #include "v8/include/v8.h"
 
 namespace cobalt {
@@ -253,10 +253,18 @@ void Worker::Execute(const std::string& content,
   std::string retval = web_context_->script_runner()->Execute(
       content, script_location, mute_errors, &succeeded);
   if (!succeeded) {
-    LOG(WARNING) << "Script execution failed : " << retval;
     options_.outside_settings->context()
-        ->GetWindowOrWorkerGlobalScope()
-        ->DispatchEvent(new web::Event(base::Tokens::error()));
+        ->message_loop()
+        ->task_runner()
+        ->PostTask(FROM_HERE,
+                   base::BindOnce(
+                       [](web::Context* context, const std::string& message) {
+                         web::ErrorEventInit error;
+                         error.set_message(message);
+                         context->GetWindowOrWorkerGlobalScope()->DispatchEvent(
+                             new web::ErrorEvent(error));
+                       },
+                       options_.outside_settings->context(), retval));
   }
 
   // 24. Enable outside port's port message queue.

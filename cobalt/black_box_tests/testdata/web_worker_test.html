@@ -26,8 +26,19 @@
 
 <body>
 <script>
+    var window_error_event_count = 0;
+    window.onerror = function (message) {
+        window_error_event_count += 1;
+        assertIncludes('TypeError: self.Foo is not a function', message);
+        console.log('window got onerror', message);
+    };
+
     var message_event_count = 0;
     console.log('running');
+
+    // This is expected trigger a an error event on window.
+    var worker_with_error = new Worker('web_worker_test_with_syntax_error.js');
+
     var worker = new Worker('web_worker_test.js');
     console.log(worker);
     worker.onmessage = function (event) {
@@ -86,6 +97,7 @@
                 window.setTimeout(
                     () => {
                         assertEqual(14, message_event_count);
+                        assertEqual(1, window_error_event_count);
                         onEndTest();
                     }, 250);
                 break;
