@@ -48,6 +48,13 @@ class ScriptLoaderFactory {
       const TextDecoder::TextAvailableCallback& script_available_callback,
       const Loader::OnCompleteFunction& load_complete_callback);
 
+  std::unique_ptr<Loader> CreateScriptLoader(
+      const GURL& url, const Origin& origin,
+      const csp::SecurityCallback& url_security_callback,
+      const TextDecoder::TextAvailableCallback& script_available_callback,
+      const TextDecoder::ResponseStartedCallback& response_started_callback,
+      const Loader::OnCompleteFunction& load_complete_callback);
+
  protected:
   void OnLoaderCreated(Loader* loader);
   void OnLoaderDestroyed(Loader* loader);

@@ -63,6 +63,13 @@ class WorkerGlobalScope : public web::WindowOrWorkerGlobalScope {
 
   virtual void Initialize() {}
 
+  // https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#initialize-worker-policy-container
+  // Intended to be called from a loader::Decoder::OnResponseStarted to
+  // initialize CSP headers once they're fetched.
+  bool InitializePolicyContainerCallback(
+      loader::Fetcher* fetcher,
+      const scoped_refptr<net::HttpResponseHeaders>& headers);
+
   // Web API: WorkerGlobalScope
   //
   scoped_refptr<WorkerGlobalScope> self() { return this; }

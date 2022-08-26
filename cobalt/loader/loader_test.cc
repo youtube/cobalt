@@ -250,13 +250,13 @@ TEST_F(LoaderTest, ValidFileEndToEndTest) {
   FileFetcher::Options fetcher_options;
   TextDecoderCallback text_decoder_callback(&run_loop);
   LoaderCallback loader_callback(&run_loop);
-  Loader loader(
-      base::Bind(&FileFetcher::Create, file_path, fetcher_options),
-      base::Bind(&loader::TextDecoder::Create,
-                 base::Bind(&TextDecoderCallback::OnDone,
-                            base::Unretained(&text_decoder_callback))),
-      base::Bind(&LoaderCallback::OnLoadComplete,
-                 base::Unretained(&loader_callback)));
+  Loader loader(base::Bind(&FileFetcher::Create, file_path, fetcher_options),
+                base::Bind(&loader::TextDecoder::Create,
+                           base::Bind(&TextDecoderCallback::OnDone,
+                                      base::Unretained(&text_decoder_callback)),
+                           loader::TextDecoder::ResponseStartedCallback()),
+                base::Bind(&LoaderCallback::OnLoadComplete,
+                           base::Unretained(&loader_callback)));
 
   // When the message loop runs, the loader will start loading. It'll quit when
   // loading is finished.

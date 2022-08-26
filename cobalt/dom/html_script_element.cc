@@ -351,6 +351,7 @@ void HTMLScriptElement::Prepare() {
           base::Bind(&loader::TextDecoder::Create,
                      base::Bind(&HTMLScriptElement::OnSyncContentProduced,
                                 base::Unretained(this)),
+                     loader::TextDecoder::ResponseStartedCallback(),
                      loader::Decoder::OnCompleteFunction()),
           base::Bind(&HTMLScriptElement::OnSyncLoadingComplete,
                      base::Unretained(this)));
