@@ -52,6 +52,7 @@
 
 #include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
+#include "base/message_loop/message_loop.h"
 #include "base/optional.h"
 #include "base/single_thread_task_runner.h"
 #include "base/timer/timer.h"
@@ -142,6 +143,28 @@ class SourceBuffer : public web::EventTarget {
  private:
   typedef ::media::MediaTracks MediaTracks;
 
+  // SourceBuffer is inherited from base::RefCounted<> and its ref count cannot
+  // be used on non-web threads.  On the other hand the call to
+  // OnInitSegmentReceived() may happen on a worker thread for algorithm
+  // offloading.  This object allows to manage the life time of the SourceBuffer
+  // object across threads while still maintain it as a sub-class of
+  // base::RefCounted<>.
+  class OnInitSegmentReceivedHelper
+      : public base::RefCountedThreadSafe<OnInitSegmentReceivedHelper> {
+   public:
+    explicit OnInitSegmentReceivedHelper(SourceBuffer* source_buffer);
+    void Detach();
+    void TryToRunOnInitSegmentReceived(std::unique_ptr<MediaTracks> tracks);
+
+   private:
+    scoped_refptr<base::SingleThreadTaskRunner> task_runner_ =
+        base::MessageLoop::current()->task_runner();
+    // The access to |source_buffer_| always happens on |task_runner_|, and
+    // needn't be explicitly synchronized by a mutex.
+    SourceBuffer* source_buffer_;
+  };
+
+
   void OnInitSegmentReceived(std::unique_ptr<MediaTracks> tracks);
   void ScheduleEvent(base::Token event_name);
   void ScheduleAndMaybeDispatchImmediately(base::Token event_name);
@@ -162,14 +185,13 @@ class SourceBuffer : public web::EventTarget {
       const std::string& track_type,
       const std::string& byte_stream_track_id) const;
 
+  scoped_refptr<OnInitSegmentReceivedHelper> on_init_segment_received_helper_;
   const std::string id_;
   const bool asynchronous_reduction_enabled_;
   const size_t evict_extra_in_bytes_;
 
   MediaSource* media_source_;
   ChunkDemuxer* chunk_demuxer_;
-  scoped_refptr<base::SingleThreadTaskRunner> web_task_runner_ =
-      base::MessageLoop::current()->task_runner();
   scoped_refptr<TrackDefaultList> track_defaults_ = new TrackDefaultList(NULL);
   EventQueue* event_queue_;
 
