@@ -105,11 +105,38 @@ size_t GetEvictExtraInBytes(script::EnvironmentSettings* settings) {
 
 }  // namespace
 
+SourceBuffer::OnInitSegmentReceivedHelper::OnInitSegmentReceivedHelper(
+    SourceBuffer* source_buffer)
+    : source_buffer_(source_buffer) {
+  DCHECK(source_buffer_);
+}
+
+void SourceBuffer::OnInitSegmentReceivedHelper::Detach() {
+  DCHECK(task_runner_->BelongsToCurrentThread());
+  source_buffer_ = nullptr;
+}
+
+void SourceBuffer::OnInitSegmentReceivedHelper::TryToRunOnInitSegmentReceived(
+    std::unique_ptr<MediaTracks> tracks) {
+  if (!task_runner_->BelongsToCurrentThread()) {
+    task_runner_->PostTask(
+        FROM_HERE,
+        base::Bind(&OnInitSegmentReceivedHelper::TryToRunOnInitSegmentReceived,
+                   this, base::Passed(&tracks)));
+    return;
+  }
+
+  if (source_buffer_) {
+    source_buffer_->OnInitSegmentReceived(std::move(tracks));
+  }
+}
+
 SourceBuffer::SourceBuffer(script::EnvironmentSettings* settings,
                            const std::string& id, MediaSource* media_source,
                            bool asynchronous_reduction_enabled,
                            ChunkDemuxer* chunk_demuxer, EventQueue* event_queue)
     : web::EventTarget(settings),
+      on_init_segment_received_helper_(new OnInitSegmentReceivedHelper(this)),
       id_(id),
       asynchronous_reduction_enabled_(asynchronous_reduction_enabled),
       evict_extra_in_bytes_(GetEvictExtraInBytes(settings)),
@@ -130,7 +157,8 @@ SourceBuffer::SourceBuffer(script::EnvironmentSettings* settings,
 
   chunk_demuxer_->SetTracksWatcher(
       id_,
-      base::Bind(&SourceBuffer::OnInitSegmentReceived, base::Unretained(this)));
+      base::Bind(&OnInitSegmentReceivedHelper::TryToRunOnInitSegmentReceived,
+                 on_init_segment_received_helper_));
   chunk_demuxer_->SetParseWarningCallback(
       id, base::BindRepeating([](::media::SourceBufferParseWarning warning) {
         LOG(WARNING) << "Encountered SourceBufferParseWarning "
@@ -388,6 +416,9 @@ void SourceBuffer::OnRemovedFromMediaSource() {
     return;
   }
 
+  DCHECK(on_init_segment_received_helper_);
+  on_init_segment_received_helper_->Detach();
+
   if (active_algorithm_handle_) {
     active_algorithm_handle_->Abort();
     active_algorithm_handle_ = nullptr;
@@ -437,13 +468,6 @@ void SourceBuffer::TraceMembers(script::Tracer* tracer) {
 
 void SourceBuffer::OnInitSegmentReceived(std::unique_ptr<MediaTracks> tracks) {
   if (!first_initialization_segment_received_) {
-    // This can be called from non-web thread when the append is async.
-    if (!web_task_runner_->BelongsToCurrentThread()) {
-      web_task_runner_->PostTask(
-          FROM_HERE, base::Bind(&SourceBuffer::OnInitSegmentReceived, this,
-                                base::Passed(&tracks)));
-      return;
-    }
     media_source_->SetSourceBufferActive(this, true);
     first_initialization_segment_received_ = true;
   }
