@@ -117,7 +117,6 @@ SB_EXPORT bool SbAudioSinkIsValid(SbAudioSink audio_sink);
 // |context|: A value that is passed back to all callbacks and is generally
 // used to point at a class or struct that contains state associated with the
 // audio sink.
-
 SB_EXPORT SbAudioSink
 SbAudioSinkCreate(int channels,
                   int sampling_frequency_hz,
