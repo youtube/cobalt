@@ -14,6 +14,8 @@
 
 #include "starboard/android/shared/cobalt/android_user_authorizer.h"
 
+#include <memory>
+
 #include "base/time/time.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
@@ -28,6 +30,17 @@ namespace starboard {
 namespace android {
 namespace shared {
 namespace cobalt {
+
+bool UserAuthorizerIsSupported() {
+  // If using the NoopUserAuthorizer, then user authorizer functionally is not
+  // supported.
+  JniEnvExt* env = JniEnvExt::Get();
+  jobject local_ref = env->CallStarboardObjectMethodOrAbort(
+      "getUserAuthorizer", "()Ldev/cobalt/account/UserAuthorizer;");
+  return !env->IsInstanceOf(
+      local_ref,
+      env->FindClassExtOrAbort("dev/cobalt/account/NoopUserAuthorizer"));
+}
 
 AndroidUserAuthorizer::AndroidUserAuthorizer() : shutdown_(false) {
   JniEnvExt* env = JniEnvExt::Get();
@@ -71,8 +84,8 @@ bool AndroidUserAuthorizer::DeauthorizeUser(SbUser user) {
                                        "()Z");
 }
 
-std::unique_ptr<AccessToken>
-AndroidUserAuthorizer::RefreshAuthorization(SbUser user) {
+std::unique_ptr<AccessToken> AndroidUserAuthorizer::RefreshAuthorization(
+    SbUser user) {
   SB_DCHECK(user == &::starboard::shared::nouser::g_user);
   if (shutdown_) {
     DLOG(WARNING) << "No-op RefreshAuthorization after shutdown";
@@ -85,8 +98,8 @@ AndroidUserAuthorizer::RefreshAuthorization(SbUser user) {
   return CreateAccessToken(j_token.Get());
 }
 
-std::unique_ptr<AccessToken>
-AndroidUserAuthorizer::CreateAccessToken(jobject j_token) {
+std::unique_ptr<AccessToken> AndroidUserAuthorizer::CreateAccessToken(
+    jobject j_token) {
   if (!j_token) {
     return std::unique_ptr<AccessToken>();
   }
@@ -101,8 +114,8 @@ AndroidUserAuthorizer::CreateAccessToken(jobject j_token) {
         env->GetStringStandardUTFOrAbort(j_token_string.Get());
   }
 
-  jlong j_expiry = env->CallLongMethodOrAbort(
-      j_token, "getExpirySeconds", "()J");
+  jlong j_expiry =
+      env->CallLongMethodOrAbort(j_token, "getExpirySeconds", "()J");
   if (j_expiry > 0) {
     access_token->expiry =
         base::Time::UnixEpoch() + base::TimeDelta::FromSeconds(j_expiry);
@@ -120,7 +133,10 @@ namespace cobalt {
 namespace account {
 
 UserAuthorizer* UserAuthorizer::Create() {
-  return new ::starboard::android::shared::cobalt::AndroidUserAuthorizer();
+  if (::starboard::android::shared::cobalt::UserAuthorizerIsSupported()) {
+    return new ::starboard::android::shared::cobalt::AndroidUserAuthorizer();
+  }
+  return nullptr;
 }
 
 }  // namespace account

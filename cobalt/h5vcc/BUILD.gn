@@ -96,8 +96,8 @@ static_library("h5vcc") {
 
   if (enable_account_manager) {
     sources += [
-      "h5vcc_account_manager.cc",
-      "h5vcc_account_manager.h",
+      "h5vcc_account_manager_internal.cc",
+      "h5vcc_account_manager_internal.h",
     ]
   }
 

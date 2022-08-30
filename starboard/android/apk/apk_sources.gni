@@ -21,7 +21,6 @@ apk_sources = [
   "//starboard/android/apk/app/src/main/java/dev/cobalt/account/AccessToken.java",
   "//starboard/android/apk/app/src/main/java/dev/cobalt/account/NoopUserAuthorizer.java",
   "//starboard/android/apk/app/src/main/java/dev/cobalt/account/UserAuthorizer.java",
-  "//starboard/android/apk/app/src/main/java/dev/cobalt/account/UserAuthorizerImpl.java",
   "//starboard/android/apk/app/src/main/java/dev/cobalt/coat/AudioPermissionRequester.java",
   "//starboard/android/apk/app/src/main/java/dev/cobalt/coat/CobaltA11yHelper.java",
   "//starboard/android/apk/app/src/main/java/dev/cobalt/coat/CobaltActivity.java",

@@ -77,7 +77,8 @@ class UserAuthorizer {
   // request. Calling other methods after |Shutdown| may have no effect.
   virtual void Shutdown() {}
 
-  // Instantiates an instance of the platform-specific implementation.
+  // Instantiates an instance of the platform-specific implementation. This may
+  // return nullptr if UserAuthorizer functions are not supported.
   static UserAuthorizer* Create();
 
  private:

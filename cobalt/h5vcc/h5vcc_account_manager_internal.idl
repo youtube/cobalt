@@ -15,7 +15,7 @@
   Conditional=COBALT_ENABLE_ACCOUNT_MANAGER,
   Constructor
 ]
-interface H5vccAccountManager {
+interface H5vccAccountManagerInternal {
   void getAuthToken(AccessTokenCallback callback);
   void requestPairing(AccessTokenCallback callback);
   void requestUnpairing(AccessTokenCallback callback);

@@ -18,6 +18,7 @@ import android.content.Intent;
 import dev.cobalt.util.UsedByNative;
 
 /** UserAuthorizer implementation that doesn't try to sign in. */
+@UsedByNative
 public class NoopUserAuthorizer implements UserAuthorizer {
 
   @Override
@@ -55,5 +56,4 @@ public class NoopUserAuthorizer implements UserAuthorizer {
   @Override
   public void onRequestPermissionsResult(
       int requestCode, String[] permissions, int[] grantResults) {}
-
 }
