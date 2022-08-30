@@ -16,7 +16,7 @@ package dev.cobalt.app;
 
 import android.app.Activity;
 import android.app.Service;
-import dev.cobalt.account.UserAuthorizerImpl;
+import dev.cobalt.account.NoopUserAuthorizer;
 import dev.cobalt.coat.CobaltActivity;
 import dev.cobalt.coat.CobaltService;
 import dev.cobalt.coat.StarboardBridge;
@@ -42,8 +42,7 @@ public class MainActivity extends CobaltActivity {
             getStarboardBridge().requestStop(0);
           }
         };
-    UserAuthorizerImpl userAuthorizer =
-        new UserAuthorizerImpl(getApplicationContext(), activityHolder, stopRequester);
+    NoopUserAuthorizer userAuthorizer = new NoopUserAuthorizer();
     StarboardBridge bridge =
         new StarboardBridge(
             getApplicationContext(),
