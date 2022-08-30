@@ -42,6 +42,11 @@ This document records all notable changes made to Cobalt since the last release.
    production configurations. This allows for improved traceability for open
    source releases.
 
+ - **Crash handler improvement**
+
+   The crash handler now launches on crash instead of start, saving
+   10MB of application memory.
+
 ## Version 22
  - **C++14 is required to compile Cobalt 22.**
 
