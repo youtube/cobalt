@@ -63,6 +63,15 @@ This constant defines maximum space in bytes the cache directory
 set `kSbMaxSystemPathCacheDirectorySize` to a larger value in
 "starboard/<PLATFORM_PATH>/configuration_constants.cc".
 
+### Add nplb tests to enforce performance of SbMediaCanPlayMimeAndKeySystem().
+Add SbMediaCanPlayMimeAndKeySystem.ValidatePerformance to enforce the
+performance of SbMediaCanPlayMimeAndKeySystem(). On platforms that fail such
+tests, MimeSupportabilityCache and KeySystemSupportabilityCache can be enabled
+to improve the performance. The caches store the results of previous queries and
+reuse them for repeated queries. Note that if caches are enabled, the platform
+need to clear the caches if there's any codec or audio/video output capability
+change.
+
 ## Version 13
 ### Changed lifecycle events to add support for a concealed state.
 
