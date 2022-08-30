@@ -435,7 +435,9 @@ void AudioRendererPassthrough::FlushAudioTrackAndStopProcessing(
   // silence can be observed after seeking on some audio receivers.
   // TODO: Consider reusing audio sink for non-passthrough playbacks, to see if
   //       it reduces latency after seeking.
-  audio_track_bridge_->PauseAndFlush();
+  if (audio_track_bridge_ && audio_track_bridge_->is_valid()) {
+    audio_track_bridge_->PauseAndFlush();
+  }
   seek_to_time_ = seek_to_time;
   paused_ = true;
   if (update_status_and_write_data_token_.is_valid()) {
