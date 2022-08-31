@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Custom API for getting and setting update channel for evergreen.
+// Custom API for getting and setting Evergreen update settings.
 
 [Conditional=SB_IS_EVERGREEN]
 interface H5vccUpdater {
@@ -26,5 +26,13 @@ interface H5vccUpdater {
   unsigned short getInstallationIndex();
 
   DOMString getLibrarySha256(unsigned short index);
+
+  boolean getUseCompressedUpdates();
+
+  // Sets whether compressed (rather than uncompressed) Evergreen binaries
+  // should be requested, overwriting any value set by the
+  // --use_compressed_updates command-line switch. This API should only be used
+  // for testing.
+  void setUseCompressedUpdates(boolean use_compressed_updates);
 
 };

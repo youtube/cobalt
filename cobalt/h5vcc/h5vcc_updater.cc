@@ -75,6 +75,22 @@ std::string H5vccUpdater::GetLibrarySha256(uint16 index) const {
   return cobalt::updater::GetLibrarySha256(index);
 }
 
+bool H5vccUpdater::GetUseCompressedUpdates() const {
+  if (!updater_module_) {
+    return false;
+  }
+
+  return updater_module_->GetUseCompressedUpdates();
+}
+
+void H5vccUpdater::SetUseCompressedUpdates(bool use_compressed_updates) {
+  if (!updater_module_) {
+    return;
+  }
+
+  return updater_module_->SetUseCompressedUpdates(use_compressed_updates);
+}
+
 #endif  // SB_IS(EVERGREEN)
 }  // namespace h5vcc
 }  // namespace cobalt

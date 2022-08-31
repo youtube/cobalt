@@ -153,6 +153,9 @@ class UpdaterModule {
 
   void SetMinFreeSpaceBytes(uint64_t bytes);
 
+  bool GetUseCompressedUpdates() const;
+  void SetUseCompressedUpdates(bool use_compressed_updates);
+
  private:
   std::unique_ptr<base::Thread> updater_thread_;
   scoped_refptr<update_client::UpdateClient> update_client_;

@@ -70,6 +70,12 @@ Configurator::Configurator(network::NetworkModule* network_module)
   if (network_module != nullptr) {
     user_agent_string_ = network_module->GetUserAgent();
   }
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+          browser::switches::kUseCompressedUpdates)) {
+    use_compressed_updates_.store(true);
+  } else {
+    use_compressed_updates_.store(false);
+  }
 }
 Configurator::~Configurator() { LOG(INFO) << "Configurator::~Configurator"; }
 
@@ -171,11 +177,8 @@ base::flat_map<std::string, std::string> Configurator::ExtraRequestParams()
       "certscope", GetDeviceProperty(kSbSystemPropertyCertificationScope)));
 
   // Compression status
-  params.insert(std::make_pair(
-      "usecompressedupdates", base::CommandLine::ForCurrentProcess()->HasSwitch(
-                                  browser::switches::kUseCompressedUpdates)
-                                  ? "True"
-                                  : "False"));
+  params.insert(std::make_pair("usecompressedupdates",
+                               GetUseCompressedUpdates() ? "True" : "False"));
 
   return params;
 }
@@ -280,6 +283,14 @@ std::string Configurator::GetPreviousUpdaterStatus() const {
 void Configurator::SetPreviousUpdaterStatus(const std::string& status) {
   base::AutoLock auto_lock(previous_updater_status_lock_);
   previous_updater_status_ = status;
+}
+
+bool Configurator::GetUseCompressedUpdates() const {
+  return use_compressed_updates_.load();
+}
+
+void Configurator::SetUseCompressedUpdates(bool use_compressed_updates) {
+  use_compressed_updates_.store(use_compressed_updates);
 }
 
 }  // namespace updater

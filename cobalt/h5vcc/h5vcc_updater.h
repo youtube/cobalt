@@ -48,6 +48,9 @@ class H5vccUpdater : public script::Wrappable {
 
   std::string GetLibrarySha256(uint16 index) const;
 
+  bool GetUseCompressedUpdates() const;
+  void SetUseCompressedUpdates(bool use_compressed_updates);
+
 #else
   H5vccUpdater() {}
 #endif

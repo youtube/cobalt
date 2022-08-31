@@ -28,6 +28,7 @@
 #include "cobalt/network/network_module.h"
 #include "components/update_client/configurator.h"
 #include "components/update_client/persisted_data.h"
+#include "starboard/atomic.h"
 
 class GURL;
 class PrefService;
@@ -98,6 +99,9 @@ class Configurator : public update_client::Configurator {
   void SetMinFreeSpaceBytes(uint64_t bytes) override;
   uint64_t GetMinFreeSpaceBytes() override;
 
+  bool GetUseCompressedUpdates() const override;
+  void SetUseCompressedUpdates(bool use_compressed_updates) override;
+
  private:
   friend class base::RefCountedThreadSafe<Configurator>;
   ~Configurator() override;
@@ -117,6 +121,7 @@ class Configurator : public update_client::Configurator {
   std::string user_agent_string_;
   uint64_t min_free_space_bytes_ = 48 * 1024 * 1024;
   base::Lock min_free_space_bytes_lock_;
+  starboard::atomic_bool use_compressed_updates_;
 
   DISALLOW_COPY_AND_ASSIGN(Configurator);
 };
