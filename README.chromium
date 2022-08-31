@@ -1,0 +1,72 @@
+Name: libjpeg-turbo
+URL: https://github.com/libjpeg-turbo/libjpeg-turbo/
+Version: 2.1.4
+License: Custom license
+License File: LICENSE.md
+Security Critical: yes
+License Android Compatible: yes
+
+Description:
+This consists of the components:
+* libjpeg-turbo 2.1.4
+* This file (README.chromium)
+* A build file (BUILD.gn)
+* An OWNERS file
+* A codereview.settings file
+* A DIR_METADATA file
+* Patched header files used by Chromium
+* Deleted unused directories: cmakescripts, doc, fuzz, java, release,
+  sharedlib, simd/mips, simd/mips64, simd/powerpc, and win
+* Deleted unused files: appveyor.yml, CMakeLists.txt, cjpeg.1, croptest.in,
+  djpeg.1, doxygen.config, doxygen-extra.css, .gitattributes, jpegtran.1,
+  md5/CMakeLists.txt, md5/md5cmp.c, rdjpgcom.1, simd/CMakeLists.txt, strtest.c,
+  tjbenchtest.in, tjbenchtest.java.in, tjexample.c, tjexampletest.in,
+  tjexampletest.java.in and wrjpgcom.1
+* Deleted legacy Arm Neon assembly files (supporting old compiler versions that
+  do not generate performant code from intrinsics):
+  simd/arm/aarch32/jsimd_neon.S, simd/arm/aarch64/jsimd_neon.S.
+
+This libjpeg-turbo can replace our libjpeg-6b without any modifications in the
+Chromium code.
+
+Same as our copy of libjpeg-6b, this libjpeg-turbo also added a new file
+jpeglibmangler.h and included it from jpeglib.h that changes the names of all
+externally visible functions to chromium_* so that we can avoid conflicts that
+arise when system libraries attempt to use our libjpeg. Also, we applied the
+following changes which are not merged to upstream:
+
+* Configuration files jconfig.h, jconfigint.h and neon-compat.h were generated
+  and then altered manually to be compatible on all of Chromium's platforms.
+  http://crbug.com/608347
+* Fix static const data duplication of jpeg_nbits_table. A unique copy
+  was in the jchuff.obj and jcphuff.obj resulting in an added 65k in
+  .rdata in chrome.dll and chrome_child.dll.  Declaring extern const
+  in the header instead of static const and moving the definition to
+  a new .c file fixes this so only one copy is referenced. Also added
+  extern wrappers around usage in asm files. The jpeg_nbits_table.inc
+  file was also deleted. It was also necessary to give this table hidden
+  visibility to avoid invalid relocations (ignored by ld but rejected by
+  lld) arising from attempts to reference the table from assembler on
+  32-bit x86. This only affects shared libraries, but that's important
+  for downstream Android builds.
+* Patches to enable running the upstream unit tests through GTest.
+  The upstream unit tests are defined here under the section 'TESTS':
+  https://github.com/libjpeg-turbo/libjpeg-turbo/blob/master/CMakeLists.txt
+  These changes are tracked by Chromium issue: https://crbug.com/993876
+  - Refactor tjunittest.c to provide test interface
+  - Move tjunittest logs from stdout to stderr
+  - Refactor tjbench.c to provide test interface
+  - Move tbench logs from stdout to stderr
+  - Write tjunittest output files to sdcard on Android
+  - Refactor cjpeg.c to provide test interface
+  - Refactor jpegtran.c to provide test interface
+  - Add input JPEG images for djpeg and jpegtran tests
+  - Refactor djpeg.c to provide test interface
+  A new gtest directory contains GTest wrappers (and associated utilities) for
+  each of tjunittest, tjbench, cjpeg, djpeg and jpegtran.
+
+Refer to working-with-nested-repos [1] for details of how to setup your git
+svn client to update the code (for making local changes, cherry picking from
+upstream, etc).
+
+[1] https://www.chromium.org/developers/how-tos/get-the-code/working-with-nested-repos
