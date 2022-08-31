@@ -44,6 +44,11 @@ DOMSettings::DOMSettings(
 
 DOMSettings::~DOMSettings() {}
 
+Window* DOMSettings::window() const {
+  DCHECK(context()->GetWindowOrWorkerGlobalScope()->IsWindow());
+  return context()->GetWindowOrWorkerGlobalScope()->AsWindow();
+}
+
 const GURL& DOMSettings::base_url() const {
   // From algorithm for to setup up a window environment settings object:
   //   https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#set-up-a-window-environment-settings-object
@@ -51,15 +56,10 @@ const GURL& DOMSettings::base_url() const {
   //    algorithms are defined as follows:
   //    The API base URL
   //    Return the current base URL of window's associated Document.
-  return window()->document()->url_as_gurl();
+  return window()->document()->location()->url();
 }
 
-scoped_refptr<Window> DOMSettings::window() const {
-  DCHECK(context()->GetWindowOrWorkerGlobalScope()->IsWindow());
-  return context()->GetWindowOrWorkerGlobalScope()->AsWindow();
-}
-
-loader::Origin DOMSettings::document_origin() const {
+loader::Origin DOMSettings::GetOrigin() const {
   return window()->document()->location()->GetOriginAsObject();
 }
 

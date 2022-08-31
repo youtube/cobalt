@@ -153,6 +153,9 @@ void ServiceWorkerObject::Initialize(web::Context* context) {
   //        Return serviceWorker’s script url.
   //      The origin
   //        Return its registering service worker client's origin.
+  WorkerSettings* worker_settings = new WorkerSettings();
+  worker_settings->set_origin(
+      loader::Origin(containing_service_worker_registration()->scope_url()));
   //      The policy container
   //        Return workerGlobalScope’s policy container.
   //      The time origin
@@ -162,7 +165,8 @@ void ServiceWorkerObject::Initialize(web::Context* context) {
   //      serviceWorker’s script url, top-level creation URL to null, top-level
   //      origin to an implementation-defined value, target browsing context to
   //      null, and active service worker to null.
-  web_context_->setup_environment_settings(new WorkerSettings());
+
+  web_context_->setup_environment_settings(worker_settings);
   web_context_->environment_settings()->set_creation_url(script_url_);
   scoped_refptr<ServiceWorkerGlobalScope> service_worker_global_scope =
       new ServiceWorkerGlobalScope(web_context_->environment_settings(), this);

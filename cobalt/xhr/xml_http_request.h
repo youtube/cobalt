@@ -26,6 +26,7 @@
 #include "cobalt/dom/document.h"
 #include "cobalt/loader/cors_preflight.h"
 #include "cobalt/loader/net_fetcher.h"
+#include "cobalt/loader/origin.h"
 #include "cobalt/script/array_buffer.h"
 #include "cobalt/script/array_buffer_view.h"
 #include "cobalt/script/environment_settings.h"

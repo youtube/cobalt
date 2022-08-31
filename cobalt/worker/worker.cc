@@ -85,8 +85,14 @@ void Worker::Initialize(web::Context* context) {
   //    . For the global object, if is shared is true, create a new
   //      SharedWorkerGlobalScope object. Otherwise, create a new
   //      DedicatedWorkerGlobalScope object.
-  web_context_->setup_environment_settings(
-      new WorkerSettings(options_.outside_port));
+  WorkerSettings* worker_settings = new WorkerSettings(options_.outside_port);
+  // From algorithm to set up a worker environment settings object
+  // Let inherited origin be outside settings's origin.
+  // The origin return a unique opaque origin if worker global scope's url's
+  // scheme is "data", and inherited origin otherwise.
+  //   https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#set-up-a-worker-environment-settings-object
+  worker_settings->set_origin(options_.outside_settings->GetOrigin());
+  web_context_->setup_environment_settings(worker_settings);
   // From algorithm for to setup up a worker environment settings object:
   //   https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#set-up-a-worker-environment-settings-object
   // 5. Set settings object's creation URL to worker global scope's url.

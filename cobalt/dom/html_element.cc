@@ -2025,7 +2025,7 @@ void HTMLElement::UpdateComputedStyle(
   // came from.
   cssom::GURLMap property_key_to_base_url_map;
   property_key_to_base_url_map[cssom::kBackgroundImageProperty] =
-      document->url_as_gurl();
+      document->location()->url();
 
   // Flags tracking which cached values must be invalidated.
   UpdateComputedStyleInvalidationFlags invalidation_flags;

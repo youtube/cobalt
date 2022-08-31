@@ -841,7 +841,7 @@ void ServiceWorkerJobs::Install(
   ResolveJobPromise(job, registration);
   // 8. Let settingsObjects be all environment settings objects whose origin is
   //    registration’s scope url's origin.
-  auto registration_origin = registration->scope_url().GetOrigin();
+  auto registration_origin = loader::Origin(registration->scope_url());
   // 9. For each settingsObject of settingsObjects...
   for (auto& context : web_context_registrations_) {
     if (context->environment_settings()->GetOrigin() == registration_origin) {
@@ -1469,7 +1469,7 @@ void ServiceWorkerJobs::UpdateWorkerState(ServiceWorkerObject* worker,
   DCHECK_NE(kServiceWorkerStateParsed, state);
   // 2. Set worker's state to state.
   worker->set_state(state);
-  auto worker_origin = worker->script_url().GetOrigin();
+  auto worker_origin = loader::Origin(worker->script_url());
   // 3. Let settingsObjects be all environment settings objects whose origin is
   //    worker's script url's origin.
   // 4. For each settingsObject of settingsObjects...
@@ -1615,7 +1615,7 @@ void ServiceWorkerJobs::Unregister(Job* job) {
   // Algorithm for Unregister:
   //   https://w3c.github.io/ServiceWorker/#unregister-algorithm
   // 1. If the origin of job’s scope url is not job’s client's origin, then:
-  if (!url::Origin::Create(job->client->GetOrigin())
+  if (!url::Origin::Create(GURL(job->client->GetOrigin().SerializedOrigin()))
            .IsSameOriginWith(url::Origin::Create(job->scope_url))) {
     // 1.1. Invoke Reject Job Promise with job and "SecurityError" DOMException.
     RejectJobPromise(

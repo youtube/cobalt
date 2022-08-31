@@ -103,7 +103,7 @@ TEST_F(DocumentTest, Create) {
       new testing::FakeDocument(&html_element_context_, Document::Options(url));
   EXPECT_EQ(url.spec(), document->url());
   EXPECT_EQ(url.spec(), document->document_uri());
-  EXPECT_EQ(url, document->url_as_gurl());
+  EXPECT_EQ(url, document->location()->url());
 }
 
 TEST_F(DocumentTest, IsNotXMLDocument) {
