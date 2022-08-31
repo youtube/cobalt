@@ -47,6 +47,7 @@ class MediaDecoder
  public:
   typedef ::starboard::shared::starboard::player::filter::ErrorCB ErrorCB;
   typedef ::starboard::shared::starboard::player::InputBuffer InputBuffer;
+  typedef ::starboard::shared::starboard::player::InputBuffers InputBuffers;
   typedef std::function<void(SbTime)> FrameRenderedCB;
 
   // This class should be implemented by the users of MediaDecoder to receive
@@ -94,7 +95,7 @@ class MediaDecoder
   ~MediaDecoder();
 
   void Initialize(const ErrorCB& error_cb);
-  void WriteInputBuffer(const scoped_refptr<InputBuffer>& input_buffer);
+  void WriteInputBuffers(const InputBuffers& input_buffers);
   void WriteEndOfStream();
 
   void SetPlaybackRate(double playback_rate);

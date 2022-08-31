@@ -14,6 +14,8 @@
 
 #include "starboard/shared/starboard/player/filter/adaptive_audio_decoder_internal.h"
 
+#include <utility>
+
 #include "starboard/audio_sink.h"
 #include "starboard/common/log.h"
 #include "starboard/common/reset_and_return.h"
@@ -59,35 +61,47 @@ void AdaptiveAudioDecoder::Initialize(const OutputCB& output_cb,
   error_cb_ = error_cb;
 }
 
-void AdaptiveAudioDecoder::Decode(
-    const scoped_refptr<InputBuffer>& input_buffer,
-    const ConsumedCB& consumed_cb) {
+void AdaptiveAudioDecoder::Decode(const InputBuffers& input_buffers,
+                                  const ConsumedCB& consumed_cb) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(!stream_ended_);
   SB_DCHECK(output_cb_);
   SB_DCHECK(error_cb_);
   SB_DCHECK(!flushing_);
-  SB_DCHECK(!pending_input_buffer_);
+  SB_DCHECK(pending_input_buffers_.empty());
   SB_DCHECK(!pending_consumed_cb_);
-  SB_DCHECK(input_buffer->sample_type() == kSbMediaTypeAudio);
-  SB_DCHECK(input_buffer->audio_sample_info().codec != kSbMediaAudioCodecNone);
+  SB_DCHECK(!input_buffers.empty());
+  SB_DCHECK(input_buffers.front()->sample_type() == kSbMediaTypeAudio);
+  SB_DCHECK(input_buffers.front()->audio_sample_info().codec !=
+            kSbMediaAudioCodecNone);
 
   if (!audio_decoder_) {
-    InitializeAudioDecoder(input_buffer->audio_sample_info());
+    InitializeAudioDecoder(input_buffers.front()->audio_sample_info());
     if (audio_decoder_) {
-      audio_decoder_->Decode(input_buffer, consumed_cb);
+      audio_decoder_->Decode(input_buffers, consumed_cb);
     }
     return;
   }
   if (starboard::media::IsAudioSampleInfoSubstantiallyDifferent(
-          input_audio_sample_info_, input_buffer->audio_sample_info())) {
+          input_audio_sample_info_,
+          input_buffers.front()->audio_sample_info())) {
     flushing_ = true;
-    pending_input_buffer_ = input_buffer;
+    pending_input_buffers_ = input_buffers;
     pending_consumed_cb_ = consumed_cb;
     audio_decoder_->WriteEndOfStream();
-  } else {
-    audio_decoder_->Decode(input_buffer, consumed_cb);
+    return;
   }
+#if !defined(COBALT_BUILD_TYPE_GOLD)
+  for (int i = 1; i < input_buffers.size(); i++) {
+    if (starboard::media::IsAudioSampleInfoSubstantiallyDifferent(
+            input_audio_sample_info_, input_buffers[i]->audio_sample_info())) {
+      error_cb_(kSbPlayerErrorDecode,
+                "Configuration switches should NOT happen within a batch.");
+      return;
+    }
+  }
+#endif
+  audio_decoder_->Decode(input_buffers, consumed_cb);
 }
 
 void AdaptiveAudioDecoder::WriteEndOfStream() {
@@ -95,7 +109,7 @@ void AdaptiveAudioDecoder::WriteEndOfStream() {
   SB_DCHECK(!stream_ended_);
   SB_DCHECK(output_cb_);
   SB_DCHECK(error_cb_);
-  SB_DCHECK(!pending_input_buffer_);
+  SB_DCHECK(pending_input_buffers_.empty());
   SB_DCHECK(!pending_consumed_cb_);
 
   stream_ended_ = true;
@@ -139,7 +153,7 @@ void AdaptiveAudioDecoder::Reset() {
   while (!decoded_audios_.empty()) {
     decoded_audios_.pop();
   }
-  pending_input_buffer_ = nullptr;
+  pending_input_buffers_.clear();
   pending_consumed_cb_ = nullptr;
   flushing_ = false;
   stream_ended_ = false;
@@ -213,8 +227,8 @@ void AdaptiveAudioDecoder::OnDecoderOutput() {
       SB_DCHECK(audio_decoder_);
       TeardownAudioDecoder();
       flushing_ = false;
-      Decode(ResetAndReturn(&pending_input_buffer_),
-             ResetAndReturn(&pending_consumed_cb_));
+      InputBuffers input_buffers = std::move(pending_input_buffers_);
+      Decode(input_buffers, ResetAndReturn(&pending_consumed_cb_));
     } else {
       SB_DCHECK(stream_ended_);
       decoded_audios_.push(decoded_audio);

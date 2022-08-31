@@ -129,11 +129,12 @@ void VideoDecoder::TeardownCodec() {
   }
 }
 
-void VideoDecoder::WriteInputBuffer(
-    const scoped_refptr<InputBuffer>& input_buffer) {
+void VideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
   SB_DCHECK(BelongsToCurrentThread());
-  SB_DCHECK(input_buffer);
+  SB_DCHECK(input_buffers.size() == 1);
+  SB_DCHECK(input_buffers[0]);
   SB_DCHECK(decoder_status_cb_);
+
   if (stream_ended_) {
     ReportError("WriteInputBuffer() was called after WriteEndOfStream().");
     return;
@@ -142,6 +143,7 @@ void VideoDecoder::WriteInputBuffer(
     decoder_thread_.reset(new JobThread("openh264_video_decoder"));
     SB_DCHECK(decoder_thread_);
   }
+  const auto& input_buffer = input_buffers[0];
   decoder_thread_->job_queue()->Schedule(
       std::bind(&VideoDecoder::DecodeOneBuffer, this, input_buffer));
 }

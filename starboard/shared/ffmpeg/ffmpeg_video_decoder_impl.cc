@@ -148,11 +148,14 @@ void VideoDecoderImpl<FFMPEG>::Initialize(
   error_cb_ = error_cb;
 }
 
-void VideoDecoderImpl<FFMPEG>::WriteInputBuffer(
-    const scoped_refptr<InputBuffer>& input_buffer) {
-  SB_DCHECK(input_buffer);
+void VideoDecoderImpl<FFMPEG>::WriteInputBuffers(
+    const InputBuffers& input_buffers) {
+  SB_DCHECK(input_buffers.size() == 1);
+  SB_DCHECK(input_buffers[0]);
   SB_DCHECK(queue_.Poll().type == kInvalid);
   SB_DCHECK(decoder_status_cb_);
+
+  const auto& input_buffer = input_buffers[0];
 
   if (stream_ended_) {
     SB_LOG(ERROR) << "WriteInputFrame() was called after WriteEndOfStream().";
@@ -165,7 +168,6 @@ void VideoDecoderImpl<FFMPEG>::WriteInputBuffer(
         &VideoDecoderImpl<FFMPEG>::ThreadEntryPoint, this);
     SB_DCHECK(SbThreadIsValid(decoder_thread_));
   }
-
   queue_.Put(Event(input_buffer));
 }
 
@@ -177,7 +179,7 @@ void VideoDecoderImpl<FFMPEG>::WriteEndOfStream() {
   stream_ended_ = true;
 
   if (!SbThreadIsValid(decoder_thread_)) {
-    // In case there is no WriteInputBuffer() call before WriteEndOfStream(),
+    // In case there is no WriteInputBuffers() call before WriteEndOfStream(),
     // don't create the decoder thread and send the EOS frame directly.
     decoder_status_cb_(kBufferFull, VideoFrame::CreateEOSFrame());
     return;

@@ -69,18 +69,19 @@ void VideoDecoder::Initialize(const DecoderStatusCB& decoder_status_cb,
   SB_DCHECK(SbThreadIsValid(thread_));
 }
 
-void VideoDecoder::WriteInputBuffer(
-    const scoped_refptr<InputBuffer>& input_buffer) {
-  SB_DCHECK(input_buffer);
+void VideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
+  SB_DCHECK(input_buffers.size() == 1);
+  SB_DCHECK(input_buffers[0]);
   SB_DCHECK(decoder_status_cb_);
   SB_DCHECK(!eos_written_);
 
   first_input_written_ = true;
+  const auto& input_buffer = input_buffers[0];
   queue_.Put(new Event(input_buffer));
   if (!TryToDeliverOneFrame()) {
     SbThreadSleep(kSbTimeMillisecond);
-    // Call the callback with NULL frame to ensure that the host know that more
-    // data is expected.
+    // Call the callback with NULL frame to ensure that the host knows that
+    // more data is expected.
     decoder_status_cb_(kNeedMoreInput, NULL);
   }
 }

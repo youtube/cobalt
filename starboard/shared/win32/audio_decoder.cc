@@ -98,14 +98,15 @@ void AudioDecoder::Initialize(const OutputCB& output_cb,
   callback_scheduler_.reset(new CallbackScheduler());
 }
 
-void AudioDecoder::Decode(const scoped_refptr<InputBuffer>& input_buffer,
+void AudioDecoder::Decode(const InputBuffers& input_buffers,
                           const ConsumedCB& consumed_cb) {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
-  SB_DCHECK(input_buffer);
+  SB_DCHECK(input_buffers.size() == 1);
+  SB_DCHECK(input_buffers[0]);
 
   callback_scheduler_->SetCallbackOnce(consumed_cb);
   callback_scheduler_->OnCallbackSignaled();
-  const bool can_take_more_data = decoder_thread_->QueueInput(input_buffer);
+  const bool can_take_more_data = decoder_thread_->QueueInput(input_buffers[0]);
   if (can_take_more_data) {
     callback_scheduler_->ScheduleCallbackIfNecessary();
   }

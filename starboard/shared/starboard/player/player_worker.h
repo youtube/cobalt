@@ -17,7 +17,9 @@
 
 #include <atomic>
 #include <functional>
+#include <memory>
 #include <string>
+#include <utility>
 
 #include "starboard/common/log.h"
 #include "starboard/common/ref_counted.h"
@@ -63,6 +65,7 @@ class PlayerWorker {
    public:
     typedef PlayerWorker::Bounds Bounds;
     typedef ::starboard::shared::starboard::player::InputBuffer InputBuffer;
+    typedef ::starboard::shared::starboard::player::InputBuffers InputBuffers;
 
     typedef std::function<
         void(SbTime media_time, int dropped_video_frames, bool is_progressing)>
@@ -84,8 +87,8 @@ class PlayerWorker {
                       UpdatePlayerStateCB update_player_state_cb,
                       UpdatePlayerErrorCB update_player_error_cb) = 0;
     virtual bool Seek(SbTime seek_to_time, int ticket) = 0;
-    virtual bool WriteSample(const scoped_refptr<InputBuffer>& input_buffer,
-                             bool* written) = 0;
+    virtual bool WriteSamples(const InputBuffers& input_buffers,
+                              int* samples_written) = 0;
     virtual bool WriteEndOfStream(SbMediaType sample_type) = 0;
     virtual bool SetPause(bool pause) = 0;
     virtual bool SetPlaybackRate(double playback_rate) = 0;
@@ -123,9 +126,9 @@ class PlayerWorker {
         std::bind(&PlayerWorker::DoSeek, this, seek_to_time, ticket));
   }
 
-  void WriteSample(const scoped_refptr<InputBuffer>& input_buffer) {
-    job_queue_->Schedule(
-        std::bind(&PlayerWorker::DoWriteSample, this, input_buffer));
+  void WriteSamples(InputBuffers input_buffers) {
+    job_queue_->Schedule(std::bind(&PlayerWorker::DoWriteSamples, this,
+                                   std::move(input_buffers)));
   }
 
   void WriteEndOfStream(SbMediaType sample_type) {
@@ -190,7 +193,7 @@ class PlayerWorker {
   void RunLoop();
   void DoInit();
   void DoSeek(SbTime seek_to_time, int ticket);
-  void DoWriteSample(const scoped_refptr<InputBuffer>& input_buffer);
+  void DoWriteSamples(InputBuffers input_buffers);
   void DoWritePendingSamples();
   void DoWriteEndOfStream(SbMediaType sample_type);
   void DoSetBounds(Bounds bounds);
@@ -218,8 +221,8 @@ class PlayerWorker {
   int ticket_;
 
   SbPlayerState player_state_;
-  scoped_refptr<InputBuffer> pending_audio_buffer_;
-  scoped_refptr<InputBuffer> pending_video_buffer_;
+  InputBuffers pending_audio_buffers_;
+  InputBuffers pending_video_buffers_;
   JobQueue::JobToken write_pending_sample_job_token_;
 };
 

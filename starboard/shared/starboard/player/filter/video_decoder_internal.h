@@ -35,6 +35,7 @@ namespace filter {
 class VideoDecoder {
  public:
   typedef ::starboard::shared::starboard::player::InputBuffer InputBuffer;
+  typedef ::starboard::shared::starboard::player::InputBuffers InputBuffers;
   typedef ::starboard::shared::starboard::player::filter::VideoFrame VideoFrame;
 
   enum Status {
@@ -86,9 +87,8 @@ class VideoDecoder {
   // acceptable playback performance.  A number greater than 6 is recommended.
   virtual size_t GetMaxNumberOfCachedFrames() const = 0;
 
-  // Send encoded video frame stored in |input_buffer| to decode.
-  virtual void WriteInputBuffer(
-      const scoped_refptr<InputBuffer>& input_buffer) = 0;
+  // Send encoded video frames stored in |input_buffers| to decode.
+  virtual void WriteInputBuffers(const InputBuffers& input_buffers) = 0;
 
   // Note that there won't be more input data unless Reset() is called.
   // |decoder_status_cb| can still be called multiple times afterwards to

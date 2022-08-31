@@ -134,7 +134,7 @@ class AdaptiveAudioDecoderTest
 
     can_accept_more_input_ = false;
     audio_decoder_->Decode(
-        GetAudioInputBuffer(dmp_reader, buffer_index),
+        {GetAudioInputBuffer(dmp_reader, buffer_index)},
         std::bind(&AdaptiveAudioDecoderTest::OnConsumed, this));
   }
 

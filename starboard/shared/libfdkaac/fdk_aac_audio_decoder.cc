@@ -44,10 +44,11 @@ void FdkAacAudioDecoder::Initialize(const OutputCB& output_cb,
   error_cb_ = error_cb;
 }
 
-void FdkAacAudioDecoder::Decode(const scoped_refptr<InputBuffer>& input_buffer,
+void FdkAacAudioDecoder::Decode(const InputBuffers& input_buffers,
                                 const ConsumedCB& consumed_cb) {
   SB_DCHECK(BelongsToCurrentThread());
-  SB_DCHECK(input_buffer);
+  SB_DCHECK(input_buffers.size() == 1);
+  SB_DCHECK(input_buffers[0]);
   SB_DCHECK(output_cb_);
   SB_DCHECK(decoder_ != NULL);
 
@@ -55,6 +56,7 @@ void FdkAacAudioDecoder::Decode(const scoped_refptr<InputBuffer>& input_buffer,
     SB_LOG(ERROR) << "Decode() is called after WriteEndOfStream() is called.";
     return;
   }
+  const auto& input_buffer = input_buffers[0];
   if (!WriteToFdkDecoder(input_buffer)) {
     return;
   }

@@ -178,11 +178,9 @@ void MediaDecoder::Initialize(const ErrorCB& error_cb) {
   }
 }
 
-void MediaDecoder::WriteInputBuffer(
-    const scoped_refptr<InputBuffer>& input_buffer) {
+void MediaDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
-  SB_DCHECK(input_buffer);
-
+  SB_DCHECK(!input_buffers.empty());
   if (stream_ended_.load()) {
     SB_LOG(ERROR) << "Decode() is called after WriteEndOfStream() is called.";
     return;
@@ -199,9 +197,12 @@ void MediaDecoder::WriteInputBuffer(
   }
 
   ScopedLock scoped_lock(mutex_);
-  pending_tasks_.push_back(Event(input_buffer));
-  number_of_pending_tasks_.increment();
-  if (pending_tasks_.size() == 1) {
+  bool need_signal = pending_tasks_.empty();
+  for (const auto& input_buffer : input_buffers) {
+    pending_tasks_.push_back(Event(input_buffer));
+    number_of_pending_tasks_.increment();
+  }
+  if (need_signal) {
     condition_variable_.Signal();
   }
 }

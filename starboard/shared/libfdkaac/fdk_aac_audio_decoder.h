@@ -40,7 +40,7 @@ class FdkAacAudioDecoder : public starboard::player::filter::AudioDecoder,
 
   // Overriding functions from starboard::player::filter::AudioDecoder.
   void Initialize(const OutputCB& output_cb, const ErrorCB& error_cb) override;
-  void Decode(const scoped_refptr<InputBuffer>& input_buffer,
+  void Decode(const InputBuffers& input_buffers,
               const ConsumedCB& consumed_cb) override;
   scoped_refptr<DecodedAudio> Read(int* samples_per_second) override;
   void Reset() override;

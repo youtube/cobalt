@@ -63,8 +63,7 @@ class VideoDecoderImpl<FFMPEG> : public VideoDecoder {
   SbTime GetPrerollTimeout() const override { return kSbTimeMax; }
   size_t GetMaxNumberOfCachedFrames() const override { return 12; }
 
-  void WriteInputBuffer(
-      const scoped_refptr<InputBuffer>& input_buffer) override;
+  void WriteInputBuffers(const InputBuffers& input_buffers) override;
   void WriteEndOfStream() override;
   void Reset() override;
 

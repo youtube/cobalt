@@ -88,6 +88,8 @@ class InputBuffer : public RefCountedThreadSafe<InputBuffer> {
   void operator=(const InputBuffer&) = delete;
 };
 
+typedef std::vector<scoped_refptr<InputBuffer>> InputBuffers;
+
 }  // namespace player
 }  // namespace starboard
 }  // namespace shared

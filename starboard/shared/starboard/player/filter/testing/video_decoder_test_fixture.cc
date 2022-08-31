@@ -20,6 +20,7 @@
 #include <map>
 #include <set>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "starboard/common/condition_variable.h"
@@ -232,8 +233,7 @@ void VideoDecoderTestFixture::WriteSingleInput(size_t index) {
     need_more_input_ = false;
     outstanding_inputs_.insert(input_buffer->timestamp());
   }
-
-  video_decoder_->WriteInputBuffer(input_buffer);
+  video_decoder_->WriteInputBuffers({input_buffer});
 }
 
 void VideoDecoderTestFixture::WriteEndOfStream() {

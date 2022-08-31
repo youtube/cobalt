@@ -51,10 +51,10 @@ class AudioDecoderPassthrough
     output_cb_ = output_cb;
   }
 
-  void Decode(const scoped_refptr<InputBuffer>& input_buffer,
+  void Decode(const InputBuffers& input_buffers,
               const ConsumedCB& consumed_cb) override {
     SB_DCHECK(thread_checker_.CalledOnValidThread());
-    SB_DCHECK(input_buffer);
+    SB_DCHECK(!input_buffers.empty());
     SB_DCHECK(consumed_cb);
     SB_DCHECK(output_cb_);
 
@@ -66,15 +66,18 @@ class AudioDecoderPassthrough
     //       We should revisit this once |DecodedAudio| is used by passthrough
     //       mode on more platforms.
     const int kChannels = 1;
-    scoped_refptr<DecodedAudio> decoded_audio =
-        new DecodedAudio(kChannels, kSbMediaAudioSampleTypeInt16Deprecated,
-                         kSbMediaAudioFrameStorageTypePlanar,
-                         input_buffer->timestamp(), input_buffer->size());
-    memcpy(decoded_audio->buffer(), input_buffer->data(), input_buffer->size());
-    decoded_audios_.push(decoded_audio);
+    for (const auto& input_buffer : input_buffers) {
+      scoped_refptr<DecodedAudio> decoded_audio =
+          new DecodedAudio(kChannels, kSbMediaAudioSampleTypeInt16Deprecated,
+                           kSbMediaAudioFrameStorageTypePlanar,
+                           input_buffer->timestamp(), input_buffer->size());
+      memcpy(decoded_audio->buffer(), input_buffer->data(),
+             input_buffer->size());
+      decoded_audios_.push(decoded_audio);
+      output_cb_();
+    }
 
     consumed_cb();
-    output_cb_();
   }
 
   void WriteEndOfStream() override {

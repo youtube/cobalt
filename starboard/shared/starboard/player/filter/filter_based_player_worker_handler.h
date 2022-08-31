@@ -54,8 +54,8 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
             UpdatePlayerStateCB update_player_state_cb,
             UpdatePlayerErrorCB update_player_error_cb) override;
   bool Seek(SbTime seek_to_time, int ticket) override;
-  bool WriteSample(const scoped_refptr<InputBuffer>& input_buffer,
-                   bool* written) override;
+  bool WriteSamples(const InputBuffers& input_buffers,
+                    int* samples_written) override;
   bool WriteEndOfStream(SbMediaType sample_type) override;
   bool SetPause(bool pause) override;
   bool SetPlaybackRate(double playback_rate) override;

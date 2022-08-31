@@ -106,13 +106,15 @@ void AudioDecoderImpl<FFMPEG>::Initialize(const OutputCB& output_cb,
   error_cb_ = error_cb;
 }
 
-void AudioDecoderImpl<FFMPEG>::Decode(
-    const scoped_refptr<InputBuffer>& input_buffer,
-    const ConsumedCB& consumed_cb) {
+void AudioDecoderImpl<FFMPEG>::Decode(const InputBuffers& input_buffers,
+                                      const ConsumedCB& consumed_cb) {
   SB_DCHECK(BelongsToCurrentThread());
-  SB_DCHECK(input_buffer);
+  SB_DCHECK(input_buffers.size() == 1);
+  SB_DCHECK(input_buffers[0]);
   SB_DCHECK(output_cb_);
   SB_CHECK(codec_context_ != NULL);
+
+  const auto& input_buffer = input_buffers[0];
 
   Schedule(consumed_cb);
 

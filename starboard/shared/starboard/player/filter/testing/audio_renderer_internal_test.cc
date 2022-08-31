@@ -155,9 +155,11 @@ class AudioRendererTest : public ::testing::Test {
     ASSERT_FALSE(consumed_cb_);
 
     buffers_in_decoder_.insert(input_buffer->data());
-    EXPECT_CALL(*audio_decoder_, Decode(input_buffer, _))
+    InputBuffers input_buffers;
+    input_buffers.push_back(input_buffer);
+    EXPECT_CALL(*audio_decoder_, Decode(input_buffers, _))
         .WillOnce(SaveArg<1>(&consumed_cb_));
-    audio_renderer_->WriteSample(input_buffer);
+    audio_renderer_->WriteSamples(input_buffers);
     job_queue_.RunUntilIdle();
 
     ASSERT_TRUE(consumed_cb_);

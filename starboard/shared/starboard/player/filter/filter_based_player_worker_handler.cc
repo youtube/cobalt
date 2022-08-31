@@ -14,6 +14,8 @@
 
 #include "starboard/shared/starboard/player/filter/filter_based_player_worker_handler.h"
 
+#include <utility>
+
 #include "starboard/audio_sink.h"
 #include "starboard/common/log.h"
 #include "starboard/common/murmurhash2.h"
@@ -207,81 +209,90 @@ bool FilterBasedPlayerWorkerHandler::Seek(SbTime seek_to_time, int ticket) {
   return true;
 }
 
-bool FilterBasedPlayerWorkerHandler::WriteSample(
-    const scoped_refptr<InputBuffer>& input_buffer,
-    bool* written) {
-  SB_DCHECK(input_buffer);
+bool FilterBasedPlayerWorkerHandler::WriteSamples(
+    const InputBuffers& input_buffers,
+    int* samples_written) {
+  SB_DCHECK(!input_buffers.empty());
   SB_DCHECK(BelongsToCurrentThread());
-  SB_DCHECK(written != NULL);
+  SB_DCHECK(samples_written != NULL);
+  for (const auto& input_buffer : input_buffers) {
+    SB_DCHECK(input_buffer);
+  }
 
-  if (input_buffer->sample_type() == kSbMediaTypeAudio) {
+  *samples_written = 0;
+  if (input_buffers.front()->sample_type() == kSbMediaTypeAudio) {
     if (!audio_renderer_) {
       return false;
     }
-
-    *written = true;
 
     if (audio_renderer_->IsEndOfStreamWritten()) {
       SB_LOG(WARNING) << "Try to write audio sample after EOS is reached";
     } else {
       if (!audio_renderer_->CanAcceptMoreData()) {
-        *written = false;
         return true;
       }
-
-      if (input_buffer->drm_info()) {
-        if (!SbDrmSystemIsValid(drm_system_)) {
-          return false;
+      for (const auto& input_buffer : input_buffers) {
+        if (input_buffer->drm_info()) {
+          if (!SbDrmSystemIsValid(drm_system_)) {
+            return false;
+          }
+          DumpInputHash(input_buffer);
+          SbDrmSystemPrivate::DecryptStatus decrypt_status =
+              drm_system_->Decrypt(input_buffer);
+          if (decrypt_status == SbDrmSystemPrivate::kRetry) {
+            if (*samples_written > 0) {
+              audio_renderer_->WriteSamples(
+                  InputBuffers(input_buffers.begin(),
+                               input_buffers.begin() + *samples_written));
+            }
+            return true;
+          }
+          if (decrypt_status == SbDrmSystemPrivate::kFailure) {
+            return false;
+          }
         }
         DumpInputHash(input_buffer);
-        SbDrmSystemPrivate::DecryptStatus decrypt_status =
-            drm_system_->Decrypt(input_buffer);
-        if (decrypt_status == SbDrmSystemPrivate::kRetry) {
-          *written = false;
-          return true;
-        }
-        if (decrypt_status == SbDrmSystemPrivate::kFailure) {
-          *written = false;
-          return false;
-        }
+        ++*samples_written;
       }
-      DumpInputHash(input_buffer);
-      audio_renderer_->WriteSample(input_buffer);
+      audio_renderer_->WriteSamples(input_buffers);
     }
   } else {
-    SB_DCHECK(input_buffer->sample_type() == kSbMediaTypeVideo);
+    SB_DCHECK(input_buffers.front()->sample_type() == kSbMediaTypeVideo);
 
     if (!video_renderer_) {
       return false;
     }
 
-    *written = true;
-
     if (video_renderer_->IsEndOfStreamWritten()) {
       SB_LOG(WARNING) << "Try to write video sample after EOS is reached";
     } else {
       if (!video_renderer_->CanAcceptMoreData()) {
-        *written = false;
         return true;
       }
-      if (input_buffer->drm_info()) {
-        if (!SbDrmSystemIsValid(drm_system_)) {
-          return false;
+      for (const auto& input_buffer : input_buffers) {
+        if (input_buffer->drm_info()) {
+          if (!SbDrmSystemIsValid(drm_system_)) {
+            return false;
+          }
+          DumpInputHash(input_buffer);
+          SbDrmSystemPrivate::DecryptStatus decrypt_status =
+              drm_system_->Decrypt(input_buffer);
+          if (decrypt_status == SbDrmSystemPrivate::kRetry) {
+            if (*samples_written > 0) {
+              video_renderer_->WriteSamples(
+                  InputBuffers(input_buffers.begin(),
+                               input_buffers.begin() + *samples_written));
+            }
+            return true;
+          }
+          if (decrypt_status == SbDrmSystemPrivate::kFailure) {
+            return false;
+          }
         }
         DumpInputHash(input_buffer);
-        SbDrmSystemPrivate::DecryptStatus decrypt_status =
-            drm_system_->Decrypt(input_buffer);
-        if (decrypt_status == SbDrmSystemPrivate::kRetry) {
-          *written = false;
-          return true;
-        }
-        if (decrypt_status == SbDrmSystemPrivate::kFailure) {
-          *written = false;
-          return false;
-        }
+        ++*samples_written;
       }
-      DumpInputHash(input_buffer);
-      video_renderer_->WriteSample(input_buffer);
+      video_renderer_->WriteSamples(input_buffers);
     }
   }
 

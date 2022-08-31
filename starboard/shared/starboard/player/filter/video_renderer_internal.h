@@ -39,7 +39,8 @@ class VideoRenderer {
                           const EndedCB& ended_cb) = 0;
   virtual int GetDroppedFrames() const = 0;
 
-  virtual void WriteSample(const scoped_refptr<InputBuffer>& input_buffer) = 0;
+  virtual void WriteSamples(const InputBuffers& input_buffers) = 0;
+
   virtual void WriteEndOfStream() = 0;
 
   virtual void Seek(SbTime seek_to_time) = 0;

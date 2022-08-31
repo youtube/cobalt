@@ -21,12 +21,26 @@ void SbPlayerWriteSample2(SbPlayer player,
                           SbMediaType sample_type,
                           const SbPlayerSampleInfo* sample_infos,
                           int number_of_sample_infos) {
-  SB_DCHECK(number_of_sample_infos == 1);
-
   if (!SbPlayerIsValid(player)) {
-    SB_DLOG(WARNING) << "player is invalid.";
+    SB_LOG(WARNING) << "player is invalid.";
     return;
   }
+  if (!sample_infos) {
+    SB_LOG(WARNING) << "sample_infos is null.";
+    return;
+  }
+  if (number_of_sample_infos < 1) {
+    SB_LOG(WARNING) << "number_of_sample_infos is " << number_of_sample_infos
+                    << ", which should be greater than or equal to 1";
+    return;
+  }
+  auto max_samples_per_write =
+      SbPlayerGetMaximumNumberOfSamplesPerWrite(player, sample_type);
+  if (number_of_sample_infos > max_samples_per_write) {
+    SB_LOG(WARNING) << "number_of_sample_infos is " << number_of_sample_infos
+                    << ", which should be less than or equal to "
+                    << max_samples_per_write;
+  }
 
-  player->WriteSample(*sample_infos);
+  player->WriteSamples(sample_infos, number_of_sample_infos);
 }
