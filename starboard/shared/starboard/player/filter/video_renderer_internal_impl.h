@@ -61,7 +61,8 @@ class VideoRendererImpl : public VideoRenderer, private JobQueue::JobOwner {
     return algorithm_->GetDroppedFrames();
   }
 
-  void WriteSample(const scoped_refptr<InputBuffer>& input_buffer) override;
+  void WriteSamples(const InputBuffers& input_buffers) override;
+
   void WriteEndOfStream() override;
 
   void Seek(SbTime seek_to_time) override;

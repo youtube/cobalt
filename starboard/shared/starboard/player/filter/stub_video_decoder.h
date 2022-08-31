@@ -41,15 +41,14 @@ class StubVideoDecoder : public VideoDecoder, private JobQueue::JobOwner {
   SbTime GetPrerollTimeout() const override;
   size_t GetMaxNumberOfCachedFrames() const override;
 
-  void WriteInputBuffer(
-      const scoped_refptr<InputBuffer>& input_buffer) override;
+  void WriteInputBuffers(const InputBuffers& input_buffers) override;
   void WriteEndOfStream() override;
   void Reset() override;
 
   SbDecodeTarget GetCurrentDecodeTarget() override;
 
  private:
-  void DecodeOneBuffer(const scoped_refptr<InputBuffer>& input_buffer);
+  void DecodeBuffers(const InputBuffers& input_buffers);
   void DecodeEndOfStream();
 
   scoped_refptr<VideoFrame> CreateOutputFrame(SbTime timestamp) const;

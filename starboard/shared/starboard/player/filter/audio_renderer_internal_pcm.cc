@@ -124,21 +124,20 @@ void AudioRendererPcm::Initialize(const ErrorCB& error_cb,
                        error_cb);
 }
 
-void AudioRendererPcm::WriteSample(
-    const scoped_refptr<InputBuffer>& input_buffer) {
+void AudioRendererPcm::WriteSamples(const InputBuffers& input_buffers) {
   SB_DCHECK(BelongsToCurrentThread());
-  SB_DCHECK(input_buffer);
+  SB_DCHECK(!input_buffers.empty());
   SB_DCHECK(can_accept_more_data_);
 
   if (eos_state_ >= kEOSWrittenToDecoder) {
-    SB_LOG(ERROR) << "Appending audio sample at " << input_buffer->timestamp()
-                  << " after EOS reached.";
+    SB_LOG(ERROR) << "Appending audio samples from "
+                  << input_buffers.front()->timestamp() << " to "
+                  << input_buffers.back()->timestamp() << " after EOS reached.";
     return;
   }
 
   can_accept_more_data_ = false;
-
-  decoder_->Decode(input_buffer,
+  decoder_->Decode(input_buffers,
                    std::bind(&AudioRendererPcm::OnDecoderConsumed, this));
   first_input_written_ = true;
 }

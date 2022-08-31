@@ -123,10 +123,9 @@ void AudioRendererPassthrough::Initialize(const ErrorCB& error_cb,
       std::bind(&AudioRendererPassthrough::OnDecoderOutput, this), error_cb);
 }
 
-void AudioRendererPassthrough::WriteSample(
-    const scoped_refptr<InputBuffer>& input_buffer) {
+void AudioRendererPassthrough::WriteSamples(const InputBuffers& input_buffers) {
   SB_DCHECK(BelongsToCurrentThread());
-  SB_DCHECK(input_buffer);
+  SB_DCHECK(!input_buffers.empty());
   SB_DCHECK(can_accept_more_data_.load());
 
   if (!audio_track_thread_) {
@@ -138,14 +137,14 @@ void AudioRendererPassthrough::WriteSample(
 
   if (frames_per_input_buffer_ == 0) {
     frames_per_input_buffer_ = ParseAc3SyncframeAudioSampleCount(
-        input_buffer->data(), input_buffer->size());
+        input_buffers.front()->data(), input_buffers.front()->size());
     SB_LOG(INFO) << "Got frames per input buffer " << frames_per_input_buffer_;
   }
 
   can_accept_more_data_.store(false);
 
   decoder_->Decode(
-      input_buffer,
+      input_buffers,
       std::bind(&AudioRendererPassthrough::OnDecoderConsumed, this));
 }
 

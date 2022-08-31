@@ -45,16 +45,15 @@ size_t StubVideoDecoder::GetMaxNumberOfCachedFrames() const {
   return 12;
 }
 
-void StubVideoDecoder::WriteInputBuffer(
-    const scoped_refptr<InputBuffer>& input_buffer) {
+void StubVideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
   SB_DCHECK(BelongsToCurrentThread());
-  SB_DCHECK(input_buffer);
+  SB_DCHECK(!input_buffers.empty());
 
   if (!decoder_thread_) {
     decoder_thread_.reset(new JobThread("stub_video_decoder"));
   }
   decoder_thread_->job_queue()->Schedule(
-      std::bind(&StubVideoDecoder::DecodeOneBuffer, this, input_buffer));
+      std::bind(&StubVideoDecoder::DecodeBuffers, this, input_buffers));
 }
 
 void StubVideoDecoder::WriteEndOfStream() {
@@ -82,41 +81,42 @@ SbDecodeTarget StubVideoDecoder::GetCurrentDecodeTarget() {
   return kSbDecodeTargetInvalid;
 }
 
-void StubVideoDecoder::DecodeOneBuffer(
-    const scoped_refptr<InputBuffer>& input_buffer) {
+void StubVideoDecoder::DecodeBuffers(const InputBuffers& input_buffers) {
   SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
-  auto& video_sample_info = input_buffer->video_sample_info();
-  if (video_sample_info.is_key_frame) {
-    if (video_sample_info_ != video_sample_info) {
-      SB_LOG(INFO) << "New video sample info: " << video_sample_info;
-      video_sample_info_ = video_sample_info;
+  for (const auto& input_buffer : input_buffers) {
+    auto& video_sample_info = input_buffer->video_sample_info();
+    if (video_sample_info.is_key_frame) {
+      if (video_sample_info_ != video_sample_info) {
+        SB_LOG(INFO) << "New video sample info: " << video_sample_info;
+        video_sample_info_ = video_sample_info;
+      }
     }
-  }
 
-  // Defer sending frames out until we've accumulated a reasonable number.
-  // This allows for input buffers to be out of order, and we expect that
-  // after buffering 8 (arbitrarily chosen) that the first timestamp in the
-  // sorted buffer will be the "correct" timestamp to send out.
-  const int kMaxFramesToDelay = 8;
-  // Send kBufferFull on every 5th input buffer received, starting with the
-  // first.
-  const int kMaxInputBeforeBufferFull = 5;
-  scoped_refptr<VideoFrame> output_frame = NULL;
+    // Defer sending frames out until we've accumulated a reasonable number.
+    // This allows for input buffers to be out of order, and we expect that
+    // after buffering 8 (arbitrarily chosen) that the first timestamp in the
+    // sorted buffer will be the "correct" timestamp to send out.
+    const int kMaxFramesToDelay = 8;
+    // Send kBufferFull on every 5th input buffer received, starting with the
+    // first.
+    const int kMaxInputBeforeBufferFull = 5;
+    scoped_refptr<VideoFrame> output_frame = NULL;
 
-  output_frame_timestamps_.insert(input_buffer->timestamp());
-  if (output_frame_timestamps_.size() > kMaxFramesToDelay) {
-    output_frame = CreateOutputFrame(*output_frame_timestamps_.begin());
-    output_frame_timestamps_.erase(output_frame_timestamps_.begin());
-  }
+    output_frame_timestamps_.insert(input_buffer->timestamp());
+    if (output_frame_timestamps_.size() > kMaxFramesToDelay) {
+      output_frame = CreateOutputFrame(*output_frame_timestamps_.begin());
+      output_frame_timestamps_.erase(output_frame_timestamps_.begin());
+    }
 
-  if (total_input_count_ % kMaxInputBeforeBufferFull == 0) {
+    if (total_input_count_ % kMaxInputBeforeBufferFull == 0) {
+      total_input_count_++;
+      decoder_status_cb_(kBufferFull, output_frame);
+      decoder_status_cb_(kNeedMoreInput, nullptr);
+      continue;
+    }
     total_input_count_++;
-    decoder_status_cb_(kBufferFull, output_frame);
-    decoder_status_cb_(kNeedMoreInput, nullptr);
-    return;
+    decoder_status_cb_(kNeedMoreInput, output_frame);
   }
-  total_input_count_++;
-  decoder_status_cb_(kNeedMoreInput, output_frame);
 }
 
 void StubVideoDecoder::DecodeEndOfStream() {

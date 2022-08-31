@@ -92,7 +92,7 @@ class AudioDecoderHelper {
       return;
     }
     if (current_input_buffer_index_ < number_of_inputs_) {
-      audio_decoder_->Decode(GetAudioInputBuffer(current_input_buffer_index_),
+      audio_decoder_->Decode({GetAudioInputBuffer(current_input_buffer_index_)},
                              std::bind(&AudioDecoderHelper::OnConsumed, this));
       ++current_input_buffer_index_;
     } else {

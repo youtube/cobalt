@@ -51,16 +51,19 @@ void StubAudioDecoder::Initialize(const OutputCB& output_cb,
   error_cb_ = error_cb;
 }
 
-void StubAudioDecoder::Decode(const scoped_refptr<InputBuffer>& input_buffer,
+void StubAudioDecoder::Decode(const InputBuffers& input_buffers,
                               const ConsumedCB& consumed_cb) {
   SB_DCHECK(BelongsToCurrentThread());
-  SB_DCHECK(input_buffer);
+  SB_DCHECK(!input_buffers.empty());
+  for (const auto& input_buffer : input_buffers) {
+    SB_DCHECK(input_buffer);
+  }
 
   if (!decoder_thread_) {
     decoder_thread_.reset(new JobThread("stub_audio_decoder"));
   }
   decoder_thread_->job_queue()->Schedule(std::bind(
-      &StubAudioDecoder::DecodeOneBuffer, this, input_buffer, consumed_cb));
+      &StubAudioDecoder::DecodeBuffers, this, input_buffers, consumed_cb));
 }
 
 void StubAudioDecoder::WriteEndOfStream() {
@@ -99,11 +102,17 @@ void StubAudioDecoder::Reset() {
   CancelPendingJobs();
 }
 
-void StubAudioDecoder::DecodeOneBuffer(
-    const scoped_refptr<InputBuffer>& input_buffer,
-    const ConsumedCB& consumed_cb) {
+void StubAudioDecoder::DecodeBuffers(const InputBuffers& input_buffers,
+                                     const ConsumedCB& consumed_cb) {
   SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
+  for (const auto& input_buffer : input_buffers) {
+    DecodeOneBuffer(input_buffer);
+  }
+  decoder_thread_->job_queue()->Schedule(consumed_cb);
+}
 
+void StubAudioDecoder::DecodeOneBuffer(
+    const scoped_refptr<InputBuffer>& input_buffer) {
   // Values to represent what kind of dummy audio to fill the decoded audio
   // we produce with.
   enum FillType {
@@ -177,7 +186,6 @@ void StubAudioDecoder::DecodeOneBuffer(
       decoder_thread_->job_queue()->Schedule(output_cb_);
     }
   }
-  decoder_thread_->job_queue()->Schedule(consumed_cb);
   last_input_buffer_ = input_buffer;
   total_input_count_++;
 }

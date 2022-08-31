@@ -447,13 +447,13 @@ class PlayerComponentsTest
     if (GetAudioRenderer() && GetAudioRenderer()->CanAcceptMoreData() &&
         audio_index_ < audio_reader_->number_of_audio_buffers() &&
         GetCurrentAudioBufferTimestamp() < max_timestamp) {
-      GetAudioRenderer()->WriteSample(GetAudioInputBuffer(audio_index_++));
+      GetAudioRenderer()->WriteSamples({GetAudioInputBuffer(audio_index_++)});
       input_buffer_written = true;
     }
     if (GetVideoRenderer() && GetVideoRenderer()->CanAcceptMoreData() &&
         video_index_ < video_reader_->number_of_video_buffers() &&
         GetCurrentVideoBufferTimestamp() < max_timestamp) {
-      GetVideoRenderer()->WriteSample(GetVideoInputBuffer(video_index_++));
+      GetVideoRenderer()->WriteSamples({GetVideoInputBuffer(video_index_++)});
       input_buffer_written = true;
     }
     if (input_buffer_written) {

@@ -38,15 +38,16 @@ class StubAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
 
   void Initialize(const OutputCB& output_cb, const ErrorCB& error_cb) override;
 
-  void Decode(const scoped_refptr<InputBuffer>& input_buffer,
+  void Decode(const InputBuffers& input_buffer,
               const ConsumedCB& consumed_cb) override;
   void WriteEndOfStream() override;
   scoped_refptr<DecodedAudio> Read(int* samples_per_second) override;
   void Reset() override;
 
  private:
-  void DecodeOneBuffer(const scoped_refptr<InputBuffer>& input_buffer,
-                       const ConsumedCB& consumed_cb);
+  void DecodeBuffers(const InputBuffers& input_buffers,
+                     const ConsumedCB& consumed_cb);
+  void DecodeOneBuffer(const scoped_refptr<InputBuffer>& input_buffer);
   void DecodeEndOfStream();
 
   OutputCB output_cb_;

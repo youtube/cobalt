@@ -138,8 +138,7 @@ class AudioDecoderTest
     can_accept_more_input_ = false;
 
     last_input_buffer_ = GetAudioInputBuffer(index);
-
-    audio_decoder_->Decode(last_input_buffer_, consumed_cb());
+    audio_decoder_->Decode({last_input_buffer_}, consumed_cb());
   }
 
   // This has to be called when OnOutput() is called.

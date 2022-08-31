@@ -24,7 +24,8 @@
 // Can be locally set to |1| for verbose audio decoding.  Verbose audio
 // decoding will log the following transitions that take place for each audio
 // unit:
-//   T1: Our client passes an |InputBuffer| of audio data into us.
+//   T1: Our client passes multiple packets (i.e. InputBuffers) of audio data
+//   into us.
 //   T2: We receive a corresponding media codec output buffer back from our
 //       |MediaCodecBridge|.
 //   T3: Our client reads a corresponding |DecodedAudio| out of us.
@@ -96,16 +97,18 @@ void AudioDecoder::Initialize(const OutputCB& output_cb,
   media_decoder_->Initialize(error_cb_);
 }
 
-void AudioDecoder::Decode(const scoped_refptr<InputBuffer>& input_buffer,
+void AudioDecoder::Decode(const InputBuffers& input_buffers,
                           const ConsumedCB& consumed_cb) {
   SB_DCHECK(BelongsToCurrentThread());
-  SB_DCHECK(input_buffer);
+  SB_DCHECK(!input_buffers.empty());
   SB_DCHECK(output_cb_);
   SB_DCHECK(media_decoder_);
 
-  VERBOSE_MEDIA_LOG() << "T1: timestamp " << input_buffer->timestamp();
+  for (const auto& input_buffer : input_buffers) {
+    VERBOSE_MEDIA_LOG() << "T1: timestamp " << input_buffer->timestamp();
+  }
 
-  media_decoder_->WriteInputBuffer(input_buffer);
+  media_decoder_->WriteInputBuffers(input_buffers);
 
   ScopedLock lock(decoded_audios_mutex_);
   if (media_decoder_->GetNumberOfPendingTasks() + decoded_audios_.size() <=

@@ -101,10 +101,12 @@ void VideoRendererImpl::Initialize(const ErrorCB& error_cb,
   }
 }
 
-void VideoRendererImpl::WriteSample(
-    const scoped_refptr<InputBuffer>& input_buffer) {
+void VideoRendererImpl::WriteSamples(const InputBuffers& input_buffers) {
   SB_DCHECK(BelongsToCurrentThread());
-  SB_DCHECK(input_buffer);
+  SB_DCHECK(!input_buffers.empty());
+  for (const auto& input_buffer : input_buffers) {
+    SB_DCHECK(input_buffer);
+  }
 
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
   buffering_state_ = kWaitForConsumption;
@@ -112,8 +114,9 @@ void VideoRendererImpl::WriteSample(
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
 
   if (end_of_stream_written_.load()) {
-    SB_LOG(ERROR) << "Appending video sample at " << input_buffer->timestamp()
-                  << " after EOS reached.";
+    SB_LOG(ERROR) << "Appending video samples from "
+                  << input_buffers.front()->timestamp() << " to "
+                  << input_buffers.back()->timestamp() << " after EOS reached.";
     return;
   }
 
@@ -128,7 +131,7 @@ void VideoRendererImpl::WriteSample(
   SB_DCHECK(need_more_input_.load());
   need_more_input_.store(false);
 
-  decoder_->WriteInputBuffer(input_buffer);
+  decoder_->WriteInputBuffers(input_buffers);
 }
 
 void VideoRendererImpl::WriteEndOfStream() {

@@ -16,8 +16,8 @@
 #define STARBOARD_ANDROID_SHARED_VIDEO_DECODER_H_
 
 #include <atomic>
-#include <deque>
 #include <string>
+#include <vector>
 
 #include "starboard/android/shared/drm_system.h"
 #include "starboard/android/shared/media_codec_bridge.h"
@@ -87,8 +87,7 @@ class VideoDecoder
   // buffer.
   size_t GetMaxNumberOfCachedFrames() const override { return 12; }
 
-  void WriteInputBuffer(
-      const scoped_refptr<InputBuffer>& input_buffer) override;
+  void WriteInputBuffers(const InputBuffers& input_buffers) override;
   void WriteEndOfStream() override;
   void Reset() override;
   SbDecodeTarget GetCurrentDecodeTarget() override;
@@ -105,7 +104,7 @@ class VideoDecoder
   bool InitializeCodec(std::string* error_message);
   void TeardownCodec();
 
-  void WriteInputBufferInternal(const scoped_refptr<InputBuffer>& input_buffer);
+  void WriteInputBuffersInternal(const InputBuffers& input_buffers);
   void ProcessOutputBuffer(MediaCodecBridge* media_codec_bridge,
                            const DequeueOutputResult& output) override;
   void OnEndOfStreamWritten(MediaCodecBridge* media_codec_bridge);
@@ -196,7 +195,7 @@ class VideoDecoder
   Mutex surface_destroy_mutex_;
   ConditionVariable surface_condition_variable_;
 
-  std::deque<const scoped_refptr<InputBuffer>> pending_input_buffers_;
+  std::vector<scoped_refptr<InputBuffer>> pending_input_buffers_;
   int video_fps_ = 0;
 };
 

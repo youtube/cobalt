@@ -113,9 +113,10 @@ class SbPlayerWriteSampleTest
       const SbTime timeout = kDefaultWaitForPlayerStateTimeout);
 
   // Player and Decoder methods for driving input and output.
-  void WriteSingleInput(size_t index);
+  void WriteSingleBatch(int start_index, int samples_to_write);
   void WriteEndOfStream();
-  void WriteMultipleInputs(size_t start_index, size_t num_inputs_to_write);
+  void WriteMultipleBatches(size_t start_index,
+                            size_t number_of_write_sample_calls);
   void DrainOutputs();
 
   int GetNumBuffers() const;
@@ -389,12 +390,26 @@ void SbPlayerWriteSampleTest::WaitForPlayerState(
       << "Did not received expected state.";
 }
 
-void SbPlayerWriteSampleTest::WriteSingleInput(size_t index) {
+void SbPlayerWriteSampleTest::WriteSingleBatch(int start_index,
+                                               int samples_to_write) {
+  SB_DCHECK(samples_to_write > 0);
+  SB_DCHECK(start_index >= 0);
   ASSERT_FALSE(destroy_player_called_);
-  ASSERT_LT(index, GetNumBuffers());
-  SbPlayerSampleInfo sample_info =
-      dmp_reader_->GetPlayerSampleInfo(test_media_type_, index);
-  SbPlayerWriteSample2(player_, test_media_type_, &sample_info, 1);
+
+  int max_batch_size =
+      SbPlayerGetMaximumNumberOfSamplesPerWrite(player_, test_media_type_);
+  SB_DCHECK(max_batch_size > 0);
+  samples_to_write = std::min(samples_to_write, max_batch_size);
+
+  SB_DCHECK(start_index + samples_to_write <= GetNumBuffers());
+  // Prepare a batch writing.
+  std::vector<SbPlayerSampleInfo> sample_infos;
+  for (int i = 0; i < samples_to_write; ++i) {
+    sample_infos.push_back(
+        dmp_reader_->GetPlayerSampleInfo(test_media_type_, start_index++));
+  }
+  SbPlayerWriteSample2(player_, test_media_type_, sample_infos.data(),
+                       samples_to_write);
 }
 
 void SbPlayerWriteSampleTest::WriteEndOfStream() {
@@ -404,20 +419,29 @@ void SbPlayerWriteSampleTest::WriteEndOfStream() {
   SbPlayerWriteEndOfStream(player_, test_media_type_);
 }
 
-void SbPlayerWriteSampleTest::WriteMultipleInputs(size_t start_index,
-                                                  size_t num_inputs_to_write) {
-  SB_DCHECK(num_inputs_to_write > 0);
+void SbPlayerWriteSampleTest::WriteMultipleBatches(
+    size_t start_index,
+    size_t number_of_write_sample_calls) {
+  SB_DCHECK(number_of_write_sample_calls > 0);
   SB_DCHECK(start_index < GetNumBuffers());
+  ASSERT_FALSE(destroy_player_called_);
 
-  ASSERT_NO_FATAL_FAILURE(WriteSingleInput(start_index));
-  ++start_index;
-  --num_inputs_to_write;
+  int max_batch_size =
+      SbPlayerGetMaximumNumberOfSamplesPerWrite(player_, test_media_type_);
+  SB_DCHECK(max_batch_size > 0);
 
-  while (num_inputs_to_write > 0 && start_index < GetNumBuffers()) {
+  int num_inputs_to_write = max_batch_size;
+  int sample_index = start_index;
+  for (int i = 0; i < number_of_write_sample_calls; ++i) {
+    if (sample_index + num_inputs_to_write > GetNumBuffers()) {
+      break;
+    }
+    ASSERT_NO_FATAL_FAILURE(
+        WriteSingleBatch(sample_index, num_inputs_to_write));
     ASSERT_NO_FATAL_FAILURE(WaitForDecoderStateNeedsData());
-    ASSERT_NO_FATAL_FAILURE(WriteSingleInput(start_index));
-    ++start_index;
-    --num_inputs_to_write;
+    sample_index = sample_index + num_inputs_to_write;
+    num_inputs_to_write =
+        (num_inputs_to_write == 1) ? max_batch_size : num_inputs_to_write - 1;
   }
 }
 
@@ -504,17 +528,19 @@ TEST_P(SbPlayerWriteSampleTest, NoInput) {
   DrainOutputs();
 }
 
-TEST_P(SbPlayerWriteSampleTest, SingleInput) {
-  ASSERT_NO_FATAL_FAILURE(WriteSingleInput(0));
+// A single call to write a batch consists of multiple samples.
+TEST_P(SbPlayerWriteSampleTest, WriteSingleBatch) {
+  int max_batch_size =
+      SbPlayerGetMaximumNumberOfSamplesPerWrite(player_, test_media_type_);
+  ASSERT_NO_FATAL_FAILURE(
+      WriteSingleBatch(0, std::min<size_t>(max_batch_size, GetNumBuffers())));
   ASSERT_NO_FATAL_FAILURE(WaitForDecoderStateNeedsData());
   WriteEndOfStream();
   DrainOutputs();
 }
 
-TEST_P(SbPlayerWriteSampleTest, MultipleInputs) {
-  ASSERT_NO_FATAL_FAILURE(
-      WriteMultipleInputs(0, std::min<size_t>(10, GetNumBuffers())));
-  ASSERT_NO_FATAL_FAILURE(WaitForDecoderStateNeedsData());
+TEST_P(SbPlayerWriteSampleTest, WriteMultipleBatches) {
+  ASSERT_NO_FATAL_FAILURE(WriteMultipleBatches(0, 8));
   WriteEndOfStream();
   DrainOutputs();
 }

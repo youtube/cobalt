@@ -40,6 +40,7 @@ class AudioDecoder {
 
   typedef ::starboard::shared::starboard::player::DecodedAudio DecodedAudio;
   typedef ::starboard::shared::starboard::player::InputBuffer InputBuffer;
+  typedef ::starboard::shared::starboard::player::InputBuffers InputBuffers;
 
   virtual ~AudioDecoder() {}
 
@@ -52,12 +53,12 @@ class AudioDecoder {
   virtual void Initialize(const OutputCB& output_cb,
                           const ErrorCB& error_cb) = 0;
 
-  // Decode the encoded audio data stored in |input_buffer|.  Whenever the input
+  // Decode the encoded audio data stored in |input_buffers|. Whenever the input
   // is consumed and the decoder is ready to accept a new input, it calls
   // |consumed_cb|.
   // Note that |consumed_cb| is always called asynchronously on the calling job
   // queue.
-  virtual void Decode(const scoped_refptr<InputBuffer>& input_buffer,
+  virtual void Decode(const InputBuffers& input_buffer,
                       const ConsumedCB& consumed_cb) = 0;
 
   // Notice the object that there is no more input data unless Reset() is

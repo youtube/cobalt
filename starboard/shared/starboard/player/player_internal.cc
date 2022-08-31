@@ -15,6 +15,7 @@
 #include "starboard/shared/starboard/player/player_internal.h"
 
 #include <functional>
+#include <utility>
 
 #include "starboard/common/log.h"
 #if SB_PLAYER_ENABLE_VIDEO_DUMPER
@@ -24,6 +25,7 @@
 namespace {
 
 using starboard::shared::starboard::player::InputBuffer;
+using starboard::shared::starboard::player::InputBuffers;
 using std::placeholders::_1;
 using std::placeholders::_2;
 using std::placeholders::_3;
@@ -100,19 +102,29 @@ void SbPlayerPrivate::Seek(SbTime seek_to_time, int ticket) {
   worker_->Seek(seek_to_time, ticket);
 }
 
-void SbPlayerPrivate::WriteSample(const SbPlayerSampleInfo& sample_info) {
-  if (sample_info.type == kSbMediaTypeVideo) {
-    ++total_video_frames_;
-    frame_width_ = sample_info.video_sample_info.frame_width;
-    frame_height_ = sample_info.video_sample_info.frame_height;
+void SbPlayerPrivate::WriteSamples(const SbPlayerSampleInfo* sample_infos,
+                                   int number_of_sample_infos) {
+  SB_DCHECK(sample_infos);
+  SB_DCHECK(number_of_sample_infos > 0);
+
+  if (sample_infos[0].type == kSbMediaTypeVideo) {
+    const auto& last_sample_info = sample_infos[number_of_sample_infos - 1];
+    total_video_frames_ += number_of_sample_infos;
+    frame_width_ = last_sample_info.video_sample_info.frame_width;
+    frame_height_ = last_sample_info.video_sample_info.frame_height;
   }
-  starboard::scoped_refptr<InputBuffer> input_buffer =
-      new InputBuffer(sample_deallocate_func_, this, context_, sample_info);
+
+  InputBuffers input_buffers;
+  input_buffers.reserve(number_of_sample_infos);
+  for (int i = 0; i < number_of_sample_infos; i++) {
+    input_buffers.push_back(new InputBuffer(sample_deallocate_func_, this,
+                                            context_, sample_infos[i]));
 #if SB_PLAYER_ENABLE_VIDEO_DUMPER
-  using ::starboard::shared::starboard::player::video_dmp::VideoDmpWriter;
-  VideoDmpWriter::OnPlayerWriteSample(this, input_buffer);
+    using ::starboard::shared::starboard::player::video_dmp::VideoDmpWriter;
+    VideoDmpWriter::OnPlayerWriteSample(this, input_buffers.back());
 #endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER
-  worker_->WriteSample(input_buffer);
+  }
+  worker_->WriteSamples(std::move(input_buffers));
 }
 
 void SbPlayerPrivate::WriteEndOfStream(SbMediaType stream_type) {

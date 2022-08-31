@@ -228,8 +228,9 @@ void PlayerWorker::DoSeek(SbTime seek_to_time, int ticket) {
     job_queue_->RemoveJobByToken(write_pending_sample_job_token_);
     write_pending_sample_job_token_.ResetToInvalid();
   }
-  pending_audio_buffer_ = NULL;
-  pending_video_buffer_ = NULL;
+
+  pending_audio_buffers_.clear();
+  pending_video_buffers_.clear();
 
   if (!handler_->Seek(seek_to_time, ticket)) {
     UpdatePlayerError(kSbPlayerErrorDecode, "Failed seek.");
@@ -247,10 +248,9 @@ void PlayerWorker::DoSeek(SbTime seek_to_time, int ticket) {
   }
 }
 
-void PlayerWorker::DoWriteSample(
-    const scoped_refptr<InputBuffer>& input_buffer) {
+void PlayerWorker::DoWriteSamples(InputBuffers input_buffers) {
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
-  SB_DCHECK(input_buffer);
+  SB_DCHECK(!input_buffers.empty());
 
   if (player_state_ == kSbPlayerStateInitialized ||
       player_state_ == kSbPlayerStateEndOfStream ||
@@ -264,27 +264,34 @@ void PlayerWorker::DoWriteSample(
     return;
   }
 
-  if (input_buffer->sample_type() == kSbMediaTypeAudio) {
+  SbMediaType media_type = input_buffers.front()->sample_type();
+  if (media_type == kSbMediaTypeAudio) {
     SB_DCHECK(audio_codec_ != kSbMediaAudioCodecNone);
-    SB_DCHECK(!pending_audio_buffer_);
+    SB_DCHECK(pending_audio_buffers_.empty());
   } else {
     SB_DCHECK(video_codec_ != kSbMediaVideoCodecNone);
-    SB_DCHECK(!pending_video_buffer_);
+    SB_DCHECK(pending_video_buffers_.empty());
   }
-  bool written;
-  bool result = handler_->WriteSample(input_buffer, &written);
+  int samples_written;
+  bool result = handler_->WriteSamples(input_buffers, &samples_written);
   if (!result) {
     UpdatePlayerError(kSbPlayerErrorDecode, "Failed to write sample.");
     return;
   }
-  if (written) {
-    UpdateDecoderState(input_buffer->sample_type(),
-                       kSbPlayerDecoderStateNeedsData);
+  if (samples_written == input_buffers.size()) {
+    UpdateDecoderState(media_type, kSbPlayerDecoderStateNeedsData);
   } else {
-    if (input_buffer->sample_type() == kSbMediaTypeAudio) {
-      pending_audio_buffer_ = input_buffer;
+    SB_DCHECK(samples_written >= 0 && samples_written <= input_buffers.size());
+
+    size_t num_of_pending_buffers = input_buffers.size() - samples_written;
+    input_buffers.erase(input_buffers.begin(),
+                        input_buffers.begin() + samples_written);
+    if (media_type == kSbMediaTypeAudio) {
+      pending_audio_buffers_ = std::move(input_buffers);
+      SB_DCHECK(pending_audio_buffers_.size() == num_of_pending_buffers);
     } else {
-      pending_video_buffer_ = input_buffer;
+      pending_video_buffers_ = std::move(input_buffers);
+      SB_DCHECK(pending_video_buffers_.size() == num_of_pending_buffers);
     }
     if (!write_pending_sample_job_token_.is_valid()) {
       write_pending_sample_job_token_ = job_queue_->Schedule(
@@ -299,13 +306,14 @@ void PlayerWorker::DoWritePendingSamples() {
   SB_DCHECK(write_pending_sample_job_token_.is_valid());
   write_pending_sample_job_token_.ResetToInvalid();
 
-  if (pending_audio_buffer_) {
+  if (!pending_audio_buffers_.empty()) {
     SB_DCHECK(audio_codec_ != kSbMediaAudioCodecNone);
-    DoWriteSample(common::ResetAndReturn(&pending_audio_buffer_));
+    DoWriteSamples(std::move(pending_audio_buffers_));
   }
-  if (pending_video_buffer_) {
+  if (!pending_video_buffers_.empty()) {
     SB_DCHECK(video_codec_ != kSbMediaVideoCodecNone);
-    DoWriteSample(common::ResetAndReturn(&pending_video_buffer_));
+    InputBuffers input_buffers = std::move(pending_video_buffers_);
+    DoWriteSamples(input_buffers);
   }
 }
 
@@ -327,10 +335,10 @@ void PlayerWorker::DoWriteEndOfStream(SbMediaType sample_type) {
 
   if (sample_type == kSbMediaTypeAudio) {
     SB_DCHECK(audio_codec_ != kSbMediaAudioCodecNone);
-    SB_DCHECK(!pending_audio_buffer_);
+    SB_DCHECK(pending_audio_buffers_.empty());
   } else {
     SB_DCHECK(video_codec_ != kSbMediaVideoCodecNone);
-    SB_DCHECK(!pending_video_buffer_);
+    SB_DCHECK(pending_video_buffers_.empty());
   }
 
   if (!handler_->WriteEndOfStream(sample_type)) {

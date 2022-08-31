@@ -31,13 +31,14 @@ class AudioRenderer {
   typedef ::starboard::shared::starboard::player::filter::PrerolledCB
       PrerolledCB;
   typedef ::starboard::shared::starboard::player::InputBuffer InputBuffer;
+  typedef ::starboard::shared::starboard::player::InputBuffers InputBuffers;
 
   virtual ~AudioRenderer() {}
 
   virtual void Initialize(const ErrorCB& error_cb,
                           const PrerolledCB& prerolled_cb,
                           const EndedCB& ended_cb) = 0;
-  virtual void WriteSample(const scoped_refptr<InputBuffer>& input_buffer) = 0;
+  virtual void WriteSamples(const InputBuffers& input_buffers) = 0;
   virtual void WriteEndOfStream() = 0;
 
   virtual void SetVolume(double volume) = 0;
