@@ -298,7 +298,7 @@ void LottiePlayer::UpdateAnimationData() {
   const std::string src = GetAttribute("src").value_or("");
 
   if (!src.empty()) {
-    const GURL& base_url = node_document()->url_as_gurl();
+    const GURL& base_url = node_document()->location()->url();
     const GURL selected_source = base_url.Resolve(src);
     if (!selected_source.is_valid()) {
       LOG(WARNING) << src << " cannot be resolved based on " << base_url << ".";

@@ -570,7 +570,7 @@ void XMLHttpRequestImpl::Send(
   if (upload_) {
     upload_listener_ = upload_->HasOneOrMoreAttributeEventListener();
   }
-  origin_ = loader::Origin(settings_->GetOrigin());
+  origin_ = settings_->GetOrigin();
   // Step 9
   sent_ = true;
   // Now that a send is happening, prevent this object

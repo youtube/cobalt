@@ -247,8 +247,6 @@ class Document : public Node,
 
   FontCache* font_cache() const { return font_cache_.get(); }
 
-  const GURL& url_as_gurl() const { return location_->url(); }
-
   scoped_refptr<HTMLHtmlElement> html() const;
 
   // List of scripts that will execute in order as soon as possible.

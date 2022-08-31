@@ -448,7 +448,7 @@ void Document::set_cookie(const std::string& cookie,
     return;
   }
   if (cookie_jar_) {
-    cookie_jar_->SetCookie(url_as_gurl(), cookie);
+    cookie_jar_->SetCookie(location()->url(), cookie);
   }
 }
 
@@ -467,7 +467,7 @@ std::string Document::cookie(script::ExceptionState* exception_state) const {
   }
   if (cookie_jar_) {
     return net::CanonicalCookie::BuildCookieLine(
-        cookie_jar_->GetCookies(url_as_gurl()));
+        cookie_jar_->GetCookies(location()->url()));
   } else {
     DLOG(WARNING) << "Document has no cookie jar";
     return "";
@@ -485,7 +485,7 @@ void Document::set_cookie(const std::string& cookie) {
     return;
   }
   if (cookie_jar_) {
-    cookie_jar_->SetCookie(url_as_gurl(), cookie);
+    cookie_jar_->SetCookie(location()->url(), cookie);
   }
 }
 
@@ -501,7 +501,7 @@ std::string Document::cookie() const {
   }
   if (cookie_jar_) {
     return net::CanonicalCookie::BuildCookieLine(
-        cookie_jar_->GetCookies(url_as_gurl()));
+        cookie_jar_->GetCookies(location()->url()));
   } else {
     DLOG(WARNING) << "Document has no cookie jar";
     return "";
@@ -517,7 +517,8 @@ scoped_refptr<Node> Document::Duplicate() const {
   // limited quirks mode, or no-quirks mode), and its type (XML document or HTML
   // document).
   //   https://www.w3.org/TR/dom/#concept-node-clone
-  return new Document(html_element_context_, Document::Options(url_as_gurl()));
+  return new Document(html_element_context_,
+                      Document::Options(location()->url()));
 }
 
 scoped_refptr<HTMLHtmlElement> Document::html() const {

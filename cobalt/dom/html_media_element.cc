@@ -795,7 +795,7 @@ void HTMLMediaElement::LoadInternal() {
     GURL media_url(src);
     if (media_url.is_empty()) {
       // Try to resolve it as a relative url.
-      media_url = node_document()->url_as_gurl().Resolve(src);
+      media_url = node_document()->location()->url().Resolve(src);
     }
     if (media_url.is_empty()) {
       MediaLoadingFailed(WebMediaPlayer::kNetworkStateFormatError,
@@ -1690,7 +1690,7 @@ void HTMLMediaElement::EncryptedMediaInitDataEncountered(
   std::string src = this->src();
   GURL current_url = GURL(src);
   if (current_url.is_empty()) {
-    current_url = node_document()->url_as_gurl().Resolve(src);
+    current_url = node_document()->location()->url().Resolve(src);
   }
   if (!current_url.SchemeIs("http") &&
       OriginIsSafe(request_mode_, current_url,

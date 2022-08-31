@@ -29,7 +29,7 @@ class XMLDocument : public Document {
   // Custom, not in any spec: Node.
   scoped_refptr<Node> Duplicate() const override {
     return new XMLDocument(html_element_context(),
-                           Document::Options(url_as_gurl()));
+                           Document::Options(location()->url()));
   }
 
   // Custom, not in any spec: Document.
