@@ -9,6 +9,7 @@ runs:
     - name: Configure Environment
       shell: bash
       run: |
+        echo "ANDROID_HOME=/root/starboard-toolchains/AndroidSdk/" >> $GITHUB_ENV
         echo "PYTHONPATH=$GITHUB_WORKSPACE" >> $GITHUB_ENV
     - name: GN
       run: |
