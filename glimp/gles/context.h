@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Google Inc. All Rights Reserved.
+ * Copyright 2015 The Cobalt Authors. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@
 
 #include <GLES3/gl3.h>
 
+#include <atomic>
 #include <map>
 #include <set>
 #include <string>
@@ -57,6 +58,9 @@ class Context {
 
   // Releases the current thread's current context.
   static void ReleaseTLSCurrentContext();
+
+  // Returns the unique id of the context instance.
+  int context_id() const { return context_id_; }
 
   egl::Surface* draw_surface() {
     return default_draw_framebuffer_->color_attachment_surface();
@@ -301,6 +305,10 @@ class Context {
 
   // A reference to the platform-specific implementation aspects of the context.
   nb::scoped_ptr<ContextImpl> impl_;
+
+  // The unique id of context instance. It might be queried from different
+  // threads.
+  std::atomic_int context_id_;
 
   // The thread that currently holds this context as its current context.
   SbThread current_thread_;
