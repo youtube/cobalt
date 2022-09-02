@@ -66,7 +66,7 @@ void MessagePort::Close() {
 }
 
 void MessagePort::PostMessage(const script::ValueHandleHolder& message) {
-  PostMessageSerialized(std::move(SerializeScriptValue(message)));
+  PostMessageSerialized(std::move(script::SerializeScriptValue(message)));
 }
 
 void MessagePort::PostMessageSerialized(

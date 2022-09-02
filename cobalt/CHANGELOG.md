@@ -3,10 +3,49 @@
 This document records all notable changes made to Cobalt since the last release.
 
 ## Version 23
- - **Deleted deprecated --webdriver_listen_ip switch.**
+ - **Cobalt now uses GN (Generate Ninja) meta-build system**
 
-   The `--webdriver_listen_ip` switch was deprecated in Cobalt 22 in favor of
-   `--dev_servers_listen_ip`.
+   Cobalt now uses GN instead of GYP which is now fully deprecated. This
+   significantly improves performance of meta-build generation.
+
+   A [migration guide](https://cobalt.dev/gen/starboard/build/doc/migrating_gyp_to_gn.html)
+   has been published to help with migrations.
+
+ - **Added support for HTTP caching**
+
+   Cobalt now supports caching HTTP requests and compiled V8 JS for improved
+   startup times.
+
+ - **Added Identifier For Advertising (IFA) support**
+
+   Cobalt now implements the IFA
+   [guidelines](https://iabtechlab.com/OTT-IFA).
+
+ - **Added experimental support for Web Workers**
+
+   Partial support for Dedicated Workers and Service Workers has been
+   implemented.
+
+ - **Added Watchdog for detecting application hangs**
+
+   A Watchdog has been added to Cobalt to detect if Cobalt has hanged and needs
+   to be restarted.
+
+ - **Evergreen supports LZ4 compressed binaries**
+
+   Evergreen binaries can now be stored compressed, using LZ4, for up to a 50%
+   reduction in Cobalt binary storage.
+
+ - **Reproducible builds are now supported for production configurations**
+
+   Improvements in the buildsystem now allows for fully reproducible builds for
+   production configurations. This allows for improved traceability for open
+   source releases.
+
+ - **Crash handler improvement**
+
+   The crash handler now launches on crash instead of start, saving
+   10MB of application memory.
 
 ## Version 22
  - **C++14 is required to compile Cobalt 22.**

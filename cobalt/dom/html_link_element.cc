@@ -147,7 +147,7 @@ void HTMLLinkElement::OnRemovedFromDocument() {
 
 void HTMLLinkElement::ResolveAndSetAbsoluteURL() {
   // Resolve the URL given by the href attribute, relative to the element.
-  const GURL& base_url = node_document()->url_as_gurl();
+  const GURL& base_url = node_document()->location()->url();
   absolute_url_ = base_url.Resolve(href());
 
   LOG_IF(WARNING, !absolute_url_.is_valid())
@@ -316,7 +316,7 @@ void HTMLLinkElement::OnStylesheetLoaded(Document* document,
   // If not loading from network-fetched resources or fetched resource is same
   // origin as the document, set origin-clean flag to true.
   if (request_mode_ != loader::kNoCORSMode || !loader_ ||
-      document->url_as_gurl().SchemeIsFile() ||
+      document->location()->url().SchemeIsFile() ||
       (fetched_last_url_origin_ == document->location()->GetOriginAsObject())) {
     css_style_sheet->SetOriginClean(true);
   }

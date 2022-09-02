@@ -359,7 +359,6 @@ void WorkerGlobalScope::ImportScriptsInternal(
       }
       if (!succeeded) {
         // TODO(): Handle script execution errors.
-        LOG(WARNING) << "Script Execution Failed : " << retval;
         web::DOMException::Raise(web::DOMException::kSyntaxErr,
                                  exception_state);
         return;

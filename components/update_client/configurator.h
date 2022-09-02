@@ -182,6 +182,9 @@ class Configurator : public base::RefCountedThreadSafe<Configurator> {
 
   virtual void SetMinFreeSpaceBytes(uint64_t bytes) = 0;
   virtual uint64_t GetMinFreeSpaceBytes() = 0;
+
+  virtual bool GetUseCompressedUpdates() const = 0;
+  virtual void SetUseCompressedUpdates(bool use_compressed_updates) = 0;
 #endif
 
  protected:

@@ -57,7 +57,7 @@ bool Storage::DispatchEvent(const base::Optional<std::string>& key,
       key, old_value, new_value, window_->document()->url(), this));
 }
 
-GURL Storage::origin() const { return window_->document()->url_as_gurl(); }
+GURL Storage::origin() const { return window_->document()->location()->url(); }
 
 }  // namespace dom
 }  // namespace cobalt

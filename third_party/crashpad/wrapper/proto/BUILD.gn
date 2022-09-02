@@ -12,29 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-static_library("watchdog") {
-  sources = [
-    "watchdog.cc",
-    "watchdog.h",
-  ]
+import("//third_party/protobuf/proto_library.gni")
 
-  deps = [
-    "//base",
-    "//cobalt/browser:browser_switches",
-    "//cobalt/persistent_storage:persistent_settings",
-    "//starboard/common",
-  ]
-}
-
-target(gtest_target_type, "watchdog_test") {
-  testonly = true
-
-  sources = [ "watchdog_test.cc" ]
-
-  deps = [
-    ":watchdog",
-    "//cobalt/test:run_all_unittests",
-    "//testing/gmock",
-    "//testing/gtest",
-  ]
+proto_library("crashpad_annotations_proto") {
+  sources = [ "crashpad_annotations.proto" ]
+  generate_python = false
 }

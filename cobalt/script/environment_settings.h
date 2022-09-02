@@ -20,6 +20,7 @@
 
 #include "base/memory/ref_counted.h"
 #include "cobalt/base/debugger_hooks.h"
+#include "cobalt/loader/origin.h"
 #include "url/gurl.h"
 
 namespace cobalt {
@@ -47,7 +48,10 @@ class EnvironmentSettings {
   const GURL& creation_url() const { return creation_url_; }
 
   // https://html.spec.whatwg.org/multipage/webappapis.html#concept-settings-object-origin
-  const GURL GetOrigin() const { return creation_url().GetOrigin(); }
+  // TODO(b/244368134): Replace with url::Origin.
+  virtual loader::Origin GetOrigin() const {
+    return loader::Origin(base_url().GetOrigin());
+  }
 
   const base::DebuggerHooks& debugger_hooks() const { return debugger_hooks_; }
 

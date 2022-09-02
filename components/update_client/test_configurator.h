@@ -127,7 +127,7 @@ class TestConfigurator : public Configurator {
   void SetAppGuid(const std::string& app_guid);
 
 #if defined(STARBOARD)
-  // TODO: add unit tests for updater channels and status
+  // TODO: add unit tests for updater channels, status, and compressed updates.
   void SetChannel(const std::string& channel) override {}
   void CompareAndSwapChannelChanged(int old_value, int new_value) override {}
   std::string GetUpdaterStatus() const override { return ""; }
@@ -139,6 +139,9 @@ class TestConfigurator : public Configurator {
   void SetMinFreeSpaceBytes(uint64_t bytes) override {}
 
   uint64_t GetMinFreeSpaceBytes() override { return 0; }
+
+  bool GetUseCompressedUpdates() const override { return false; }
+  void SetUseCompressedUpdates(bool use_compressed_updates) override {}
 #else
   network::TestURLLoaderFactory* test_url_loader_factory() {
     return &test_url_loader_factory_;

@@ -14,7 +14,7 @@
 
 #include <memory>
 
-#include "cobalt/h5vcc/h5vcc_account_manager.h"
+#include "cobalt/h5vcc/h5vcc_account_manager_internal.h"
 
 #include "base/command_line.h"
 #include "base/memory/weak_ptr.h"
@@ -24,32 +24,42 @@
 namespace cobalt {
 namespace h5vcc {
 
-H5vccAccountManager::H5vccAccountManager()
+H5vccAccountManagerInternal::H5vccAccountManagerInternal()
     : user_authorizer_(account::UserAuthorizer::Create()),
       owning_message_loop_(base::MessageLoop::current()),
       thread_("AccountManager") {
   thread_.Start();
 }
 
-void H5vccAccountManager::GetAuthToken(
+// static
+bool H5vccAccountManagerInternal::IsSupported() {
+  auto account_manager = account::UserAuthorizer::Create();
+  if (account_manager) {
+    delete account_manager;
+    return true;
+  }
+  return false;
+}
+
+void H5vccAccountManagerInternal::GetAuthToken(
     const AccessTokenCallbackHolder& callback) {
   DLOG(INFO) << "Get authorization token.";
   PostOperation(kGetToken, callback);
 }
 
-void H5vccAccountManager::RequestPairing(
+void H5vccAccountManagerInternal::RequestPairing(
     const AccessTokenCallbackHolder& callback) {
   DLOG(INFO) << "Request application linking.";
   PostOperation(kPairing, callback);
 }
 
-void H5vccAccountManager::RequestUnpairing(
+void H5vccAccountManagerInternal::RequestUnpairing(
     const AccessTokenCallbackHolder& callback) {
   DLOG(INFO) << "Request application unlinking.";
   PostOperation(kUnpairing, callback);
 }
 
-void H5vccAccountManager::PostOperation(
+void H5vccAccountManagerInternal::PostOperation(
     OperationType operation_type, const AccessTokenCallbackHolder& callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   AccessTokenCallbackReference* token_callback =
@@ -57,31 +67,38 @@ void H5vccAccountManager::PostOperation(
   pending_callbacks_.push_back(
       std::unique_ptr<AccessTokenCallbackReference>(token_callback));
   thread_.message_loop()->task_runner()->PostTask(
-      FROM_HERE, base::Bind(&H5vccAccountManager::RequestOperationInternal,
-                            user_authorizer_.get(), operation_type,
-                            base::Bind(&H5vccAccountManager::PostResult,
-                                       owning_message_loop_,
-                                       base::AsWeakPtr(this), token_callback)));
+      FROM_HERE,
+      base::Bind(&H5vccAccountManagerInternal::RequestOperationInternal,
+                 user_authorizer_.get(), operation_type,
+                 base::Bind(&H5vccAccountManagerInternal::PostResult,
+                            owning_message_loop_, base::AsWeakPtr(this),
+                            token_callback)));
 }
 
-H5vccAccountManager::~H5vccAccountManager() {
+H5vccAccountManagerInternal::~H5vccAccountManagerInternal() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   // Give the UserAuthorizer a chance to abort any long running pending requests
   // before the message loop gets shut down.
-  user_authorizer_->Shutdown();
+  if (user_authorizer_) {
+    user_authorizer_->Shutdown();
+  }
 }
 
 // static
-void H5vccAccountManager::RequestOperationInternal(
+void H5vccAccountManagerInternal::RequestOperationInternal(
     account::UserAuthorizer* user_authorizer, OperationType operation,
     const base::Callback<void(const std::string&, uint64_t)>& post_result) {
+  bool enabled = user_authorizer != nullptr;
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(browser::switches::kDisableSignIn)) {
+    enabled = false;
+  }
+#endif  // defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
+  if (!enabled) {
     post_result.Run(std::string(), 0);
     return;
   }
-#endif  // defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
 
   SbUser current_user = SbUserGetCurrent();
   DCHECK(SbUserIsValid(current_user));
@@ -128,18 +145,18 @@ void H5vccAccountManager::RequestOperationInternal(
 }
 
 // static
-void H5vccAccountManager::PostResult(
+void H5vccAccountManagerInternal::PostResult(
     base::MessageLoop* message_loop,
-    base::WeakPtr<H5vccAccountManager> h5vcc_account_manager,
+    base::WeakPtr<H5vccAccountManagerInternal> h5vcc_account_manager,
     AccessTokenCallbackReference* token_callback, const std::string& token,
     uint64_t expiration_in_seconds) {
   message_loop->task_runner()->PostTask(
-      FROM_HERE,
-      base::Bind(&H5vccAccountManager::SendResult, h5vcc_account_manager,
-                 token_callback, token, expiration_in_seconds));
+      FROM_HERE, base::Bind(&H5vccAccountManagerInternal::SendResult,
+                            h5vcc_account_manager, token_callback, token,
+                            expiration_in_seconds));
 }
 
-void H5vccAccountManager::SendResult(
+void H5vccAccountManagerInternal::SendResult(
     AccessTokenCallbackReference* token_callback, const std::string& token,
     uint64_t expiration_in_seconds) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);

@@ -1,4 +1,4 @@
-// Copyright 2016 The Cobalt Authors. All Rights Reserved.
+// Copyright 2022 The Cobalt Authors.All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -11,15 +11,6 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-[
-  Conditional=COBALT_ENABLE_ACCOUNT_MANAGER,
-  Constructor
-]
-interface H5vccAccountManager {
-  void getAuthToken(AccessTokenCallback callback);
-  void requestPairing(AccessTokenCallback callback);
-  void requestUnpairing(AccessTokenCallback callback);
-};
 
-callback AccessTokenCallback = boolean(DOMString token,
-                                       unsigned long long expiration);
+console.log('Running script with syntax error.');
+self.Foo('Bar');

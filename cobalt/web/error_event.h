@@ -33,18 +33,17 @@ namespace web {
 //   https://www.w3.org/TR/html50/webappapis.html#errorevent
 class ErrorEvent : public Event {
  public:
-  ErrorEvent() : Event(base::Tokens::error()), lineno_(0), colno_(0) {}
-  explicit ErrorEvent(const std::string& type)
-      : Event(type), lineno_(0), colno_(0) {}
-  ErrorEvent(const std::string& type, const web::ErrorEventInit& init_dict)
-      : Event(type, init_dict),
+  ErrorEvent() : Event(base::Tokens::error()) {}
+  explicit ErrorEvent(const std::string& type) : Event(type) {}
+  explicit ErrorEvent(const web::ErrorEventInit& init_dict)
+      : Event(base::Tokens::error(), init_dict),
         message_(init_dict.message()),
         filename_(init_dict.filename()),
         lineno_(init_dict.lineno()),
         colno_(init_dict.colno()) {
     InitError(init_dict);
   }
-  ErrorEvent(base::Token type, const web::ErrorEventInit& init_dict)
+  ErrorEvent(const std::string& type, const web::ErrorEventInit& init_dict)
       : Event(type, init_dict),
         message_(init_dict.message()),
         filename_(init_dict.filename()),
@@ -55,8 +54,8 @@ class ErrorEvent : public Event {
 
   // Web API: ErrorEvent
   //
-  std::string message() const { return message_; }
-  std::string filename() const { return filename_; }
+  const std::string& message() const { return message_; }
+  const std::string& filename() const { return filename_; }
   uint32 lineno() const { return lineno_; }
   uint32 colno() const { return colno_; }
 
@@ -82,8 +81,8 @@ class ErrorEvent : public Event {
 
   std::string message_;
   std::string filename_;
-  uint32 lineno_;
-  uint32 colno_;
+  uint32 lineno_ = 0;
+  uint32 colno_ = 0;
   std::unique_ptr<script::ValueHandleHolder::Reference> error_;
 };
 

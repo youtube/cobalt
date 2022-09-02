@@ -35,8 +35,10 @@ class H5vccCrashLog : public script::Wrappable {
   void TriggerCrash(H5vccCrashType intent);
 
   bool Register(const std::string& name, const std::string& description,
-                WatchdogState watchdog_state, int64_t time_interval,
-                int64_t time_wait, WatchdogReplace watchdog_replace);
+                WatchdogState watchdog_state,
+                int64_t time_interval_milliseconds,
+                int64_t time_wait_milliseconds,
+                WatchdogReplace watchdog_replace);
 
   bool Unregister(const std::string& name);
 

@@ -69,7 +69,7 @@ class DOMSettings : public web::EnvironmentSettings {
     return microphone_options_;
   }
 
-  scoped_refptr<Window> window() const;
+  Window* window() const;
 
   MediaSourceRegistry* media_source_registry() const {
     return media_source_registry_;
@@ -91,12 +91,13 @@ class DOMSettings : public web::EnvironmentSettings {
     return mutation_observer_task_manager_;
   }
 
-  // Return's document's origin.
-  loader::Origin document_origin() const;
-
   // From: script::EnvironmentSettings
   //
   const GURL& base_url() const override;
+
+  // Return the origin of window's associated Document.
+  //   https://html.spec.whatwg.org/#set-up-a-window-environment-settings-object
+  loader::Origin GetOrigin() const override;
 
  private:
   const int max_dom_element_depth_;

@@ -34,16 +34,17 @@ interface H5vccCrashLog {
   //   description, information on the Watchdog client.
   //   watchdog_state, application state to continue monitoring client up to.
   //     Inclusive.
-  //   time_interval, maximum number of milliseconds allowed between pings
-  //     before triggering a Watchdog violation. Min value of 1000.
-  //   time_wait, number of milliseconds to initially wait before Watchdog
-  //     violations can be triggered. Reapplies after client resumes from idle
-  //     state due to application state changes.
+  //   time_interval_milliseconds, maximum number of milliseconds allowed
+  //     between pings before triggering a Watchdog violation. Min value of
+  //     1000.
+  //   time_wait_milliseconds, number of milliseconds to initially wait before
+  //     Watchdog violations can be triggered. Reapplies after client resumes
+  //     from idle state due to application state changes.
   //   watchdog_replace, behavior with previously registered Watchdog clients
   //     of the same name.
   boolean register(DOMString name, DOMString description,
-                   WatchdogState watchdog_state, long long time_interval,
-                   long long time_wait, WatchdogReplace watchdog_replace);
+                   WatchdogState watchdog_state, long long time_interval_milliseconds,
+                   long long time_wait_milliseconds, WatchdogReplace watchdog_replace);
 
   // Returns true if Watchdog client was unregistered. Name determines the
   // Watchdog client to unregister.
@@ -61,7 +62,7 @@ interface H5vccCrashLog {
   // Example json:
   // {
   //   "test-name":{
-  //     "description":"test-description",
+  //     "description":"test-desc",
   //     "violations":[
   //       {
   //         "monitorState":"kApplicationStateStarted",

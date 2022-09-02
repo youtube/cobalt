@@ -54,7 +54,7 @@ bool HTMLAnchorElement::ResolveAndSetURL(const std::string& value) {
   }
 
   // Resolve the URL given by the href attribute, relative to the element.
-  const GURL& base_url = document->url_as_gurl();
+  const GURL& base_url = document->location()->url();
   GURL absolute_url = base_url.Resolve(value);
 
   // If the previous step fails, then abort these steps.

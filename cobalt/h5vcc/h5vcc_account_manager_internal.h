@@ -12,12 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_H5VCC_H5VCC_ACCOUNT_MANAGER_H_
-#define COBALT_H5VCC_H5VCC_ACCOUNT_MANAGER_H_
+#ifndef COBALT_H5VCC_H5VCC_ACCOUNT_MANAGER_INTERNAL_H_
+#define COBALT_H5VCC_H5VCC_ACCOUNT_MANAGER_INTERNAL_H_
 
 #include <memory>
 #include <queue>
 #include <string>
+#include <vector>
 
 #include "base/memory/weak_ptr.h"
 #include "base/message_loop/message_loop.h"
@@ -31,24 +32,32 @@
 namespace cobalt {
 namespace h5vcc {
 
-// Implementation of the H5vccAccountManager interface. Requests will be handled
-// one-at-time on another thread in FIFO order. When a request is complete, the
-// AccessTokenCallback will be fired on the thread that the H5vccAccountManager
-// was created on.
-class H5vccAccountManager : public script::Wrappable,
-                            public base::SupportsWeakPtr<H5vccAccountManager> {
+// Implementation of the H5vccAccountManagerInternal interface. Requests will
+// be handled one-at-time on another thread in FIFO order. When a request is
+// complete, the AccessTokenCallback will be fired on the thread that the
+// H5vccAccountManagerInternal was created on.
+class H5vccAccountManagerInternal
+    : public script::Wrappable,
+      public base::SupportsWeakPtr<H5vccAccountManagerInternal> {
  public:
   typedef script::CallbackFunction<bool(const std::string&, uint64_t)>
       AccessTokenCallback;
   typedef script::ScriptValue<AccessTokenCallback> AccessTokenCallbackHolder;
 
-  H5vccAccountManager();
-  // H5vccAccountManager interface.
+  // Some platforms may enable the account manager interface at compile-time
+  // but need a runtime check to determine if it should be presented to the
+  // web app. If so, H5vccAccountManagerInternal will be bound to
+  // "H5vccAccountManager".
+  static bool IsSupported();
+
+  H5vccAccountManagerInternal();
+
+  // H5vccAccountManagerInternal interface.
   void GetAuthToken(const AccessTokenCallbackHolder& callback);
   void RequestPairing(const AccessTokenCallbackHolder& callback);
   void RequestUnpairing(const AccessTokenCallbackHolder& callback);
 
-  DEFINE_WRAPPABLE_TYPE(H5vccAccountManager);
+  DEFINE_WRAPPABLE_TYPE(H5vccAccountManagerInternal);
 
  private:
   typedef script::ScriptValue<AccessTokenCallback>::Reference
@@ -59,24 +68,24 @@ class H5vccAccountManager : public script::Wrappable,
     kGetToken,
   };
 
-  ~H5vccAccountManager();
+  ~H5vccAccountManagerInternal();
 
   // Posts an operation to the account manager thread.
   void PostOperation(OperationType operation_type,
                      const AccessTokenCallbackHolder& callback);
 
   // Processes an operation on the account manager thread. Static because
-  // H5vccAccountManager may have been destructed before this runs.
+  // H5vccAccountManagerInternal may have been destructed before this runs.
   static void RequestOperationInternal(
       account::UserAuthorizer* user_authorizer, OperationType operation,
       const base::Callback<void(const std::string&, uint64_t)>& post_result);
 
   // Posts the result of an operation from the account manager thread back to
-  // the owning thread. Static because H5vccAccountManager may have been
+  // the owning thread. Static because H5vccAccountManagerInternal may have been
   // destructed before this runs.
   static void PostResult(
       base::MessageLoop* message_loop,
-      base::WeakPtr<H5vccAccountManager> h5vcc_account_manager,
+      base::WeakPtr<H5vccAccountManagerInternal> h5vcc_account_manager,
       AccessTokenCallbackReference* token_callback, const std::string& token,
       uint64_t expiration_in_seconds);
 
@@ -93,9 +102,9 @@ class H5vccAccountManager : public script::Wrappable,
   // Thread checker for the thread that creates this instance.
   THREAD_CHECKER(thread_checker_);
 
-  // The message loop that the H5vccAccountManager was created on. The public
-  // interface must be called from this message loop, and callbacks will be
-  // fired on this loop as well.
+  // The message loop that the H5vccAccountManagerInternal was created on. The
+  // public interface must be called from this message loop, and callbacks will
+  // be fired on this loop as well.
   base::MessageLoop* owning_message_loop_;
 
   // Each incoming request will have a corresponding task posted to this
@@ -105,11 +114,11 @@ class H5vccAccountManager : public script::Wrappable,
   // message loop gets flushed.
   base::Thread thread_;
 
-  friend class scoped_refptr<H5vccAccountManager>;
-  DISALLOW_COPY_AND_ASSIGN(H5vccAccountManager);
+  friend class scoped_refptr<H5vccAccountManagerInternal>;
+  DISALLOW_COPY_AND_ASSIGN(H5vccAccountManagerInternal);
 };
 
 }  // namespace h5vcc
 }  // namespace cobalt
 
-#endif  // COBALT_H5VCC_H5VCC_ACCOUNT_MANAGER_H_
+#endif  // COBALT_H5VCC_H5VCC_ACCOUNT_MANAGER_INTERNAL_H_

@@ -12,29 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-static_library("watchdog") {
-  sources = [
-    "watchdog.cc",
-    "watchdog.h",
-  ]
+# This is a sample minimal sandbox application.
 
-  deps = [
-    "//base",
-    "//cobalt/browser:browser_switches",
-    "//cobalt/persistent_storage:persistent_settings",
-    "//starboard/common",
-  ]
-}
+target(final_executable_type, "simple_sandbox") {
+  sources = [ "simple_sandbox.cc" ]
 
-target(gtest_target_type, "watchdog_test") {
-  testonly = true
+  deps = [ "//cobalt/base" ]
 
-  sources = [ "watchdog_test.cc" ]
-
-  deps = [
-    ":watchdog",
-    "//cobalt/test:run_all_unittests",
-    "//testing/gmock",
-    "//testing/gtest",
-  ]
+  deps += cobalt_platform_dependencies
 }

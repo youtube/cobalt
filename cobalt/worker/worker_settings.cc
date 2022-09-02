@@ -43,6 +43,23 @@ const GURL& WorkerSettings::base_url() const {
   return context()->GetWindowOrWorkerGlobalScope()->AsWorker()->Url();
 }
 
+loader::Origin WorkerSettings::GetOrigin() const {
+  // From algorithm for to setup up a worker environment settings object:
+  //   https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#set-up-a-worker-environment-settings-object
+  // 3. Let settings object be a new environment settings object whose
+  //    algorithms are defined as follows:
+  //    The origin
+  //    Return a unique opaque origin if worker global scope's url's scheme is
+  //    "data", and inherited origin otherwise.
+  DCHECK(context()->GetWindowOrWorkerGlobalScope()->IsWorker());
+  const GURL& url =
+      context()->GetWindowOrWorkerGlobalScope()->AsWorker()->Url();
+  // TODO(b/244368134): Replace with url::Origin::CreateUniqueOpaque().
+  // Note: This does not have to be specialized for service workers, since
+  // their URL can not be a data URL.
+  if (url.SchemeIs("data")) return loader::Origin();
+  return origin_;
+}
 
 }  // namespace worker
 }  // namespace cobalt
