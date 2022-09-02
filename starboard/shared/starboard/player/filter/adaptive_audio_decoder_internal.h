@@ -62,9 +62,6 @@ class AdaptiveAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
   void Reset() override;
 
  private:
-  void ProcessOneInputBuffer(const scoped_refptr<InputBuffer>& input_buffer,
-                             const ConsumedCB& consumed_cb);
-
   void InitializeAudioDecoder(const SbMediaAudioSampleInfo& audio_sample_info);
   void TeardownAudioDecoder();
   void OnDecoderOutput();
