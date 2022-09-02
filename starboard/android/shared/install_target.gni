@@ -16,6 +16,16 @@ import("//starboard/android/apk/apk_sources.gni")
 import("//starboard/android/shared/toolchain/toolchain.gni")
 import("//starboard/build/config/install.gni")
 
+declare_args() {
+  # Must be set to a positive integer. Needs to be a string due to us not being
+  # able to cast to an integer in GN.
+  num_gradle_workers = getenv("COBALT_GRADLE_BUILD_COUNT")
+}
+
+if (num_gradle_workers == "") {
+  num_gradle_workers = "1"
+}
+
 template("install_target") {
   not_needed(invoker, [ "type" ])
 
@@ -36,10 +46,10 @@ template("install_target") {
       gradle_build_type = build_type
     }
 
-    bash_script = "//starboard/android/apk/cobalt-gradle.sh"
+    gradle_wrapper = "//starboard/android/apk/gradlew"
 
     sources = [
-      bash_script,
+      gradle_wrapper,
       target_output,
     ]
     sources += apk_sources
@@ -52,14 +62,16 @@ template("install_target") {
     cobalt_gradle_dir = rebase_path(gradle_files_dir)
     cobalt_product_dir = rebase_path(root_out_dir)
     cobalt_library_dir = rebase_path(root_out_dir)
+    project_cache_dir =
+        rebase_path("$root_build_dir/gradle/$installable_target_name/cache")
+    use_parallel_build = num_gradle_workers != "1"
 
     script = "//starboard/build/run_bash.py"
     args = [
-      rebase_path(bash_script, root_build_dir),
-      "--sdk",
-      android_sdk_path,
-      "--cache",
-      rebase_path("$root_build_dir/gradle/$installable_target_name/cache"),
+      "env",
+      "ANDROID_HOME=${android_sdk_path}",
+      rebase_path(gradle_wrapper, root_build_dir),
+      "--project-cache-dir=$project_cache_dir",
       "--project-dir",
       cobalt_project_dir,
       "-P",
@@ -79,6 +91,9 @@ template("install_target") {
       "-P",
       "enableVulkan=$enable_vulkan",
       "assembleCobalt_$gradle_build_type",
+      "-Dorg.gradle.workers.max=$num_gradle_workers",
+      "-Dorg.gradle.workers.parallel=$use_parallel_build",
+      "-Dorg.gradle.workers.daemon=$use_parallel_build",
     ]
   }
 
