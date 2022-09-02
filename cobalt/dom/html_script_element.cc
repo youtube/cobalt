@@ -78,6 +78,18 @@ HTMLScriptElement::HTMLScriptElement(Document* document)
   DCHECK(document->html_element_context()->script_runner());
 }
 
+std::string HTMLScriptElement::src() const {
+  auto src = GetAttribute("src");
+  if (!src.has_value()) {
+    return "";
+  }
+  if (!node_document()) {
+    return src.value();
+  }
+  const GURL& base_url = node_document()->location()->url();
+  return base_url.Resolve(src.value()).spec();
+}
+
 base::Optional<std::string> HTMLScriptElement::cross_origin() const {
   base::Optional<std::string> cross_origin_attribute =
       GetAttribute("crossOrigin");
@@ -217,7 +229,11 @@ void HTMLScriptElement::Prepare() {
   //   1. Let src be the value of the element's src attribute.
   //   2. If src is the empty string, queue a task to fire a simple event
   // named error at the element, and abort these steps.
-  if (HasAttribute("src") && src() == "") {
+  //
+  // Need to use the "src" attribute. The |src| property is fully resolved. See
+  // header file for details.
+  auto src = GetAttribute("src").value_or("");
+  if (HasAttribute("src") && src == "") {
     LOG(ERROR) << "src attribute of script element is empty.";
 
     PreventGarbageCollectionAndPostToDispatchEvent(
@@ -230,9 +246,9 @@ void HTMLScriptElement::Prepare() {
   //   4. If the previous step failed, queue a task to fire a simple event named
   // error at the element, and abort these steps.
   const GURL& base_url = document_->location()->url();
-  url_ = base_url.Resolve(src());
+  url_ = base_url.Resolve(src);
   if (!url_.is_valid()) {
-    LOG(ERROR) << src() << " cannot be resolved based on " << base_url << ".";
+    LOG(ERROR) << src << " cannot be resolved based on " << base_url << ".";
 
     PreventGarbageCollectionAndPostToDispatchEvent(
         FROM_HERE, base::Tokens::error(),
@@ -267,7 +283,7 @@ void HTMLScriptElement::Prepare() {
              "bugs, it is recommended to use JavaScript to create a "
              "script element and load it async. The <script> reference "
              "appears at: \""
-          << inline_script_location_ << "\" and its src is \"" << src() << "\"";
+          << inline_script_location_ << "\" and its src is \"" << src << "\"";
     }
 
     load_option_ = 2;
