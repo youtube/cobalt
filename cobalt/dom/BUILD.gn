@@ -261,7 +261,6 @@ static_library("dom") {
     "screenshot.h",
     "screenshot_manager.cc",
     "screenshot_manager.h",
-    "serialized_algorithm_runner.cc",
     "serialized_algorithm_runner.h",
     "serializer.cc",
     "serializer.h",
