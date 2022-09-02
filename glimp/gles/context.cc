@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Google Inc. All Rights Reserved.
+ * Copyright 2015 The Cobalt Authors. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,6 +37,7 @@ namespace gles {
 
 namespace {
 
+std::atomic_int s_context_id_counter_(0);
 SbOnceControl s_tls_current_context_key_once_control = SB_ONCE_INITIALIZER;
 SbThreadLocalKey s_tls_current_context_key = kSbThreadLocalKeyInvalid;
 
@@ -54,6 +55,7 @@ SbThreadLocalKey GetThreadLocalKey() {
 Context::Context(nb::scoped_ptr<ContextImpl> context_impl,
                  Context* share_context)
     : impl_(context_impl.Pass()),
+      context_id_(s_context_id_counter_++),
       current_thread_(kSbThreadInvalid),
       has_been_current_(false),
       active_texture_(GL_TEXTURE0),
@@ -974,7 +976,7 @@ void* Context::MapBufferRange(GLenum target,
   SB_DCHECK(access & GL_MAP_INVALIDATE_BUFFER_BIT)
       << "glimp requires the GL_MAP_INVALIDATE_BUFFER_BIT flag to be set.";
   SB_DCHECK(access & GL_MAP_UNSYNCHRONIZED_BIT)
-      << "glimp requres the GL_MAP_UNSYNCHRONIZED_BIT flag to be set.";
+      << "glimp requires the GL_MAP_UNSYNCHRONIZED_BIT flag to be set.";
   SB_DCHECK(!(access & GL_MAP_FLUSH_EXPLICIT_BIT))
       << "glimp does not support the GL_MAP_FLUSH_EXPLICIT_BIT flag.";
   SB_DCHECK(length == bound_buffer->size_in_bytes())
