@@ -196,6 +196,21 @@ jobs:
           set -x
           python3 ${GITHUB_WORKSPACE}/tools/create_archive.py -x -s ${GITHUB_WORKSPACE}/src/out/tmp/${{matrix.target_platform}}_${{matrix.config}}.tar.xz -d ${GITHUB_WORKSPACE}/out --parallel
           rm -rf ${GITHUB_WORKSPACE}/src/out/tmp
+      - name: Set bootloader config
+        if: needs.build-matrix.outputs.on_host_test_bootloader != 'null'
+        run: echo "COBALT_BOOTLOADER=${{needs.build-matrix.outputs.on_host_test_bootloader}}" >> $GITHUB_ENV
+      - name: Download Bootloader Archive
+        if: needs.build-matrix.outputs.on_host_test_bootloader != 'null'
+        run: |
+          set -x
+          PROJECT_NAME=$(gcloud config get-value project)
+          gsutil cp gs://${PROJECT_NAME}-test-artifacts/${{github.workflow}}/${GITHUB_RUN_NUMBER}/${COBALT_BOOTLOADER}_${{matrix.config}}/${COBALT_BOOTLOADER}_${{matrix.config}}.tar.xz ${GITHUB_WORKSPACE}/src/out/tmp/${COBALT_BOOTLOADER}_${{matrix.config}}.tar.xz
+      - name: Extract Bootloader Archive
+        if: needs.build-matrix.outputs.on_host_test_bootloader != 'null'
+        run: |
+          set -x
+          python3 ${GITHUB_WORKSPACE}/tools/create_archive.py -x -s ${GITHUB_WORKSPACE}/src/out/tmp/${COBALT_BOOTLOADER}_${{matrix.config}}.tar.xz -d ${GITHUB_WORKSPACE}/out --parallel
+          rm -rf ${GITHUB_WORKSPACE}/src/out/tmp
       - name: Set Env Variables
         run: |
           echo "PYTHONPATH=$GITHUB_WORKSPACE" >> $GITHUB_ENV
