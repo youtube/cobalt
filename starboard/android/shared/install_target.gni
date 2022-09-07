@@ -46,7 +46,6 @@ template("install_target") {
       gradle_build_type = build_type
     }
 
-
     gradle_wrapper = "//starboard/android/apk/gradlew"
 
     sources = [
