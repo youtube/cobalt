@@ -7,7 +7,6 @@ runs:
       uses: google-github-actions/setup-gcloud@v0
     - name: Set env vars
       run: |
-        echo "ARCHIVE_FILE_NAME=cobalt-${{matrix.platform}}_${{matrix.config}}.tar.gz" >> $GITHUB_ENV
         echo "ARCHIVE_FILE_PATH=$GITHUB_WORKSPACE/cobalt-${{matrix.platform}}_${{matrix.config}}.tar.gz" >> $GITHUB_ENV
         echo "PROJECT_NAME=$(gcloud config get-value project)" >> $GITHUB_ENV
         echo "TODAY=$(date +'%Y-%m-%d')" >> $GITHUB_ENV

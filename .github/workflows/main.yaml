@@ -109,12 +109,29 @@ jobs:
         uses: ./.github/actions/gn
       - name: Build Cobalt
         uses: ./.github/actions/build
+      # Build bootloader if neccessary.
+      - name: Set bootloader config
+        if: needs.build-matrix.outputs.on_host_test_bootloader != 'null'
+        run: echo "COBALT_BOOTLOADER=${{needs.build-matrix.outputs.on_host_test_bootloader}}" >> $GITHUB_ENV
+      - name: GN
+        if: needs.build-matrix.outputs.on_host_test_bootloader != 'null'
+        uses: ./.github/actions/gn
+      - name: Build Cobalt
+        if: needs.build-matrix.outputs.on_host_test_bootloader != 'null'
+        uses: ./.github/actions/build
       - name: Upload Nightly Artifacts
         if: ${{ contains(github.workflow, '_nightly') && matrix.config != 'debug' }}
         uses: ./.github/actions/upload_nightly_artifacts
-      - name: Upload Test Artifacts
+      - name: Upload On Device Test Artifacts
         if: ${{ matrix.config == 'devel' && needs.build-matrix.outputs.on_device_test == 'true' && (contains(github.workflow, '_nightly') || github.event.label.name == 'runtest' || github.event_name == 'push') }}
         uses: ./.github/actions/upload_test_artifacts
+        with:
+          type: ondevice
+      - name: Upload On Host Test Artifacts
+        if: ${{ matrix.config == 'devel' && needs.build-matrix.outputs.on_host_test == 'true' }}
+        uses: ./.github/actions/upload_test_artifacts
+        with:
+          type: onhost
 
   # Runs on-device tests.
   on-device-test:
@@ -137,7 +154,7 @@ jobs:
 
   # Runs on-host integration and unit tests.
   on-host-test:
-    needs: [docker-image, build-matrix]
+    needs: [docker-image, build-matrix, build]
     if: needs.build-matrix.outputs.on_host_test == 'true'
     runs-on: [self-hosted, linux, X64]
     name: ${{matrix.platform}}_${{matrix.shard}}_test
@@ -155,25 +172,25 @@ jobs:
       # with permission denied error.
       HOME: /root
     steps:
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v0
       - name: Checkout
         uses: actions/checkout@v2
         with:
           fetch-depth: 1
-      - name: GN
-        uses: ./.github/actions/gn
-      - name: Build Cobalt
-        uses: ./.github/actions/build
-      # Build bootloader if neccessary.
-      - name: Set bootloader config
-        if: needs.build-matrix.outputs.on_host_test_bootloader != 'null'
-        run: echo "COBALT_BOOTLOADER=${{needs.build-matrix.outputs.on_host_test_bootloader}}" >> $GITHUB_ENV
-      - name: GN
-        if: needs.build-matrix.outputs.on_host_test_bootloader != 'null'
-        uses: ./.github/actions/gn
-      - name: Build Cobalt
-        if: needs.build-matrix.outputs.on_host_test_bootloader != 'null'
-        uses: ./.github/actions/build
       # TODO - Move 'Run Tests' to a separate action.
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v0
+      - name: Download Archive
+        run: |
+          set -x
+          PROJECT_NAME=$(gcloud config get-value project)
+          gsutil cp gs://${PROJECT_NAME}-test-artifacts/${{github.workflow}}/${GITHUB_RUN_NUMBER}/${{matrix.target_platform}}_${{matrix.config}}.tar.xz ${GITHUB_WORKSPACE}/src/out/tmp/${{matrix.target_platform}}_${{matrix.config}}.tar.xz
+      - name: Extract Archive
+        run: |
+          set -x
+          python3 ${GITHUB_WORKSPACE}/tools/create_archive.py -x -s ${GITHUB_WORKSPACE}/src/out/tmp/${{matrix.target_platform}}_${{matrix.config}}.tar.xz -d ${GITHUB_WORKSPACE}/src/out --parallel
+          rm -rf ${GITHUB_WORKSPACE}/src/out/tmp
       - name: Set Env Variables
         run: |
           echo "PYTHONPATH=$GITHUB_WORKSPACE" >> $GITHUB_ENV

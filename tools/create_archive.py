@@ -30,17 +30,18 @@ Raises:
     ValueError: An error occurred when adding a source to the archive, when
       compressing the archive, or when the archive has uppercase symlink names.
 """
+
 import argparse
 import glob
 import logging
 import os
 import subprocess
 import sys
-import tarfile
+import time
 
 import worker_tools
 
-# Use strict include filter to pass artifacts to Test Infra.
+# Use strict include filter to pass artifacts to Mobile Harness
 TEST_PATTERNS = [
     'content/*',
     'deploy/*',
@@ -58,13 +59,33 @@ _7Z_PATH = r'%ProgramFiles%\7-Zip\7z.exe'  # pylint:disable=invalid-name
 # 1 is fastest and least compression, max is 9, see -mx parameter in docs
 _COMPRESSION_LEVEL = 1
 
+_LINUX_PARALLEL_ZIP_EXTENSION = 'tar.xz'
+_LINUX_PARALLEL_ZIP_PROGRAM = 'xz -T0'
+_LINUX_SERIAL_ZIP_EXTENSION = 'tar.gz'
+_LINUX_SERIAL_ZIP_PROGRAM = 'gzip'
+
 
 # TODO(b/143570416): Refactor this method and similar ones in a common file.
 def _IsWindows():
   return sys.platform in ['win32']
 
 
-def _CreateCompressedArchive(source_paths, dest_path, patterns, intermediate):
+def _CheckArchiveExtension(archive_path, is_parallel):
+  if is_parallel and (_LINUX_PARALLEL_ZIP_EXTENSION not in archive_path):
+    raise RuntimeError(
+        'Invalid archive extension. Parallelized zip requested, but path is %s'
+        % archive_path)
+  if not is_parallel and (_LINUX_PARALLEL_ZIP_EXTENSION in archive_path):
+    raise RuntimeError(
+        'Invalid archive extension. Serialized zip requested, but path is: %s' %
+        archive_path)
+
+
+def _CreateCompressedArchive(source_paths,
+                             dest_path,
+                             patterns,
+                             intermediate,
+                             is_parallel=False):
   """Create a compressed tar archive.
 
   This function creates a compressed tar archive from all of the source
@@ -94,6 +115,8 @@ def _CreateCompressedArchive(source_paths, dest_path, patterns, intermediate):
 
   # Get the current working directory to return to once we are done archiving.
   cwd = os.getcwd()
+
+  _CheckArchiveExtension(dest_path, is_parallel)
 
   try:
     intermediate_tar_path = os.path.join(
@@ -126,32 +149,42 @@ def _CreateCompressedArchive(source_paths, dest_path, patterns, intermediate):
           os.path.abspath(source_path))
 
       os.chdir(source_parent_dir)
+      t_start = time.time()
       for included_path in included_paths:
+        # Check every path to make sure there is no symlink being created with
+        # uppercase in it. This causes issues in Windows Archives.
+        for dirpath, dirnames, _ in os.walk(included_path):
+          for dirname in dirnames:
+            iterpath = os.path.join(dirpath, dirname)
+            if os.path.islink(iterpath) and iterpath.lower() != iterpath:
+              raise ValueError('Archive contains uppercase symlink names.\n'
+                               'Please change these names to lowercase.')
+        # Iteratively add filtered source files to the final tar
         _AddSourceToTar(
             os.path.join(source_dir_name, included_path), intermediate_tar_path,
             patterns, intermediate)
+        t_archive = time.time() - t_start
+        logging.info('Archiving took %5.2f seconds', t_archive)
       os.chdir(cwd)
 
+    archive_size = os.path.getsize(intermediate_tar_path) / 1e9
+    logging.info('Size of %s: %5.2f Gi', intermediate_tar_path, archive_size)
     # Compress the archive.
-    cmd = _CreateZipCommand(intermediate_tar_path, dest_path)
+    cmd = _CreateZipCommand(intermediate_tar_path, dest_path, is_parallel)
     logging.info('Compressing "%s" into %s with "%s".', intermediate_tar_path,
                  dest_path, cmd)
+    t_start = time.time()
     subprocess.check_call(cmd, shell=True)
+    t_compress = time.time() - t_start
+    logging.info('Compressing took %5.2f seconds', t_compress)
+    archive_size = os.path.getsize(dest_path) / 1e9
+    logging.info('Size of %s: %5.2f Gi', dest_path, archive_size)
   finally:
-    os.remove(intermediate_tar_path)
-
-  # Check if uppercase name symlinks exist in the archive.
-  # This solves a potential problem in Windows where symlinks
-  # having the same name but different cases cannot be created.
-  contains_uppercase_symlinks = _DoesArchiveContainUppercaseSymlinkNames(
-      dest_path)
-  if contains_uppercase_symlinks:
-    os.remove(dest_path)
-    raise ValueError('Archive contains uppercase symlink names.\n'
-                     'Please change these names to lowercase.')
+    if os.path.exists(intermediate_tar_path):
+      os.remove(intermediate_tar_path)
 
 
-def UncompressArchive(source_path, dest_path):
+def UncompressArchive(source_path, dest_path, is_parallel=False):
   """Uncompress tar archive.
 
   Args:
@@ -159,6 +192,8 @@ def UncompressArchive(source_path, dest_path):
     dest_path: Path (can be absolute or relative) where the archive should be
       uncompressed to.
   """
+  _CheckArchiveExtension(source_path, is_parallel)
+
   # Creates and cleans up destination path
   dest_path = os.path.abspath(dest_path)
   if not os.path.exists(dest_path):
@@ -169,7 +204,7 @@ def UncompressArchive(source_path, dest_path):
         dest_path, 'create_archive_intermediate_artifacts.tar')
 
     # Unzips archive
-    cmd = _CreateUnzipCommand(source_path, intermediate_tar_path)
+    cmd = _CreateUnzipCommand(source_path, intermediate_tar_path, is_parallel)
     logging.info('Unzipping "%s" into %s with "%s".', source_path,
                  intermediate_tar_path, cmd)
     subprocess.check_call(cmd, shell=True)
@@ -258,28 +293,30 @@ def _CreateUntarCommand(intermediate_tar_path):
     return 'tar -xvf {}'.format(intermediate_tar_path)
 
 
-def _CreateZipCommand(intermediate_tar_path, dest_path):
+def _CreateZipCommand(intermediate_tar_path, dest_path, is_parallel=False):
   if _IsWindows():
     return '"{}" a -bsp1 -mx={} -mmt=on {} {}'.format(_7Z_PATH,
                                                       _COMPRESSION_LEVEL,
                                                       dest_path,
                                                       intermediate_tar_path)
   else:
-    return 'gzip -vc {} > {}'.format(intermediate_tar_path, dest_path)
+    zip_program = (
+        _LINUX_PARALLEL_ZIP_PROGRAM
+        if is_parallel else _LINUX_SERIAL_ZIP_PROGRAM)
+    return '{} -vc {} > {}'.format(zip_program, intermediate_tar_path,
+                                   dest_path)
 
 
-def _CreateUnzipCommand(source_path, intermediate_tar_path):
+def _CreateUnzipCommand(source_path, intermediate_tar_path, is_parallel=False):
   if _IsWindows():
     tar_parent = os.path.dirname(intermediate_tar_path)
     return '"{}" x -bsp1 {} -o{}'.format(_7Z_PATH, source_path, tar_parent)
   else:
-    return 'gzip -dvc {} > {}'.format(source_path, intermediate_tar_path)
-
-
-def _DoesArchiveContainUppercaseSymlinkNames(archive_name):
-  with tarfile.open(archive_name, 'r:*') as tar:
-    members = tar.getmembers()
-    return any(m.issym() and m.name.lower() != m.name for m in members)
+    zip_program = (
+        _LINUX_PARALLEL_ZIP_PROGRAM
+        if is_parallel else _LINUX_SERIAL_ZIP_PROGRAM)
+    return '{} -dvc {} > {}'.format(zip_program, source_path,
+                                    intermediate_tar_path)
 
 
 def _CleanUp(intermediate_tar_path):
@@ -332,16 +369,21 @@ def main():
       default=False,
       action='store_true',
       help='Archives intermediate build artifacts needed by Buildbot.')
+  parser.add_argument(
+      '--parallel',
+      default=False,
+      action='store_true',
+      help='Archives using parallelized methods.')
   args = parser.parse_args()
 
   worker_tools.MoveToWindowsShortSymlink()
   if args.extract:
-    UncompressArchive(args.source_paths[0], args.dest_path)
+    UncompressArchive(args.source_paths[0], args.dest_path, args.parallel)
   else:
     _CreateCompressedArchive(
         args.source_paths, args.dest_path,
         TEST_PATTERNS if args.test_infra else args.patterns,
-        args.intermediate)
+        args.intermediate, args.parallel)
 
 
 if __name__ == '__main__':
