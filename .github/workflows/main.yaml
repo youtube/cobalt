@@ -109,16 +109,6 @@ jobs:
         uses: ./.github/actions/gn
       - name: Build Cobalt
         uses: ./.github/actions/build
-      # Build bootloader if neccessary.
-      - name: Set bootloader config
-        if: needs.build-matrix.outputs.on_host_test_bootloader != 'null'
-        run: echo "COBALT_BOOTLOADER=${{needs.build-matrix.outputs.on_host_test_bootloader}}" >> $GITHUB_ENV
-      - name: GN
-        if: needs.build-matrix.outputs.on_host_test_bootloader != 'null'
-        uses: ./.github/actions/gn
-      - name: Build Cobalt
-        if: needs.build-matrix.outputs.on_host_test_bootloader != 'null'
-        uses: ./.github/actions/build
       - name: Upload Nightly Artifacts
         if: ${{ contains(github.workflow, '_nightly') && matrix.config != 'debug' }}
         uses: ./.github/actions/upload_nightly_artifacts
@@ -129,6 +119,21 @@ jobs:
           type: ondevice
       - name: Upload On Host Test Artifacts
         if: ${{ matrix.config == 'devel' && needs.build-matrix.outputs.on_host_test == 'true' }}
+        uses: ./.github/actions/upload_test_artifacts
+        with:
+          type: onhost
+      # Build bootloader if neccessary.
+      - name: Set bootloader config
+        if: needs.build-matrix.outputs.on_host_test_bootloader != 'null'
+        run: echo "COBALT_BOOTLOADER=${{needs.build-matrix.outputs.on_host_test_bootloader}}" >> $GITHUB_ENV
+      - name: Bootloader GN
+        if: needs.build-matrix.outputs.on_host_test_bootloader != 'null'
+        uses: ./.github/actions/gn
+      - name: Build Bootloader
+        if: needs.build-matrix.outputs.on_host_test_bootloader != 'null'
+        uses: ./.github/actions/build
+      - name: Upload Bootloader On Host Test Artifacts
+        if: ${{ needs.build-matrix.outputs.on_host_test_bootloader != 'null' && matrix.config == 'devel' && needs.build-matrix.outputs.on_host_test == 'true' }}
         uses: ./.github/actions/upload_test_artifacts
         with:
           type: onhost
@@ -185,7 +190,7 @@ jobs:
         run: |
           set -x
           PROJECT_NAME=$(gcloud config get-value project)
-          gsutil cp gs://${PROJECT_NAME}-test-artifacts/${{github.workflow}}/${GITHUB_RUN_NUMBER}/${{matrix.target_platform}}_${{matrix.config}}.tar.xz ${GITHUB_WORKSPACE}/src/out/tmp/${{matrix.target_platform}}_${{matrix.config}}.tar.xz
+          gsutil cp gs://${PROJECT_NAME}-test-artifacts/${{github.workflow}}/${GITHUB_RUN_NUMBER}/${{matrix.platform}}_${{matrix.config}}/${{matrix.platform}}_${{matrix.config}}.tar.xz ${GITHUB_WORKSPACE}/src/out/tmp/${{matrix.platform}}_${{matrix.config}}.tar.xz
       - name: Extract Archive
         run: |
           set -x
