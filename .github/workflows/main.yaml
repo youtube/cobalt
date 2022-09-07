@@ -204,7 +204,7 @@ jobs:
         run: |
           set -x
           PROJECT_NAME=$(gcloud config get-value project)
-          gsutil cp gs://${PROJECT_NAME}-test-artifacts/${{github.workflow}}/${GITHUB_RUN_NUMBER}/${COBALT_BOOTLOADER}_${{matrix.config}}/${COBALT_BOOTLOADER}_${{matrix.config}}.tar.xz ${GITHUB_WORKSPACE}/out/tmp/${COBALT_BOOTLOADER}_${{matrix.config}}.tar.xz
+          gsutil cp gs://${PROJECT_NAME}-test-artifacts/${{github.workflow}}/${GITHUB_RUN_NUMBER}/${{matrix.platform}}_${{matrix.config}}/${COBALT_BOOTLOADER}_${{matrix.config}}.tar.xz ${GITHUB_WORKSPACE}/out/tmp/${COBALT_BOOTLOADER}_${{matrix.config}}.tar.xz
       - name: Extract Bootloader Archive
         if: needs.build-matrix.outputs.on_host_test_bootloader != 'null'
         run: |
