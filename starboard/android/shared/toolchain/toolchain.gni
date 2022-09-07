@@ -15,15 +15,14 @@
 import("//build/config/clang/clang.gni")
 
 declare_args() {
-  android_sdk_path = getenv("ANDROID_HOME")
   android_ndk_path = ""
   sb_android_ndk_version = "21.1.6352462"
   android_ndk_api_level = 21
 }
 
-if (android_sdk_path == "") {
-  android_sdk_path = "$starboard_toolchains_path/AndroidSdk"
-}
+android_sdk_path = getenv("ANDROID_HOME")
+assert(android_sdk_path != "",
+       "ANDROID_HOME must be set to build android platforms.")
 
 if (android_ndk_path == "") {
   android_ndk_path = "$android_sdk_path/ndk/$sb_android_ndk_version"
