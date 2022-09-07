@@ -29,7 +29,7 @@ runs:
           echo "ARCHIVE_FILE_PATH=$GITHUB_WORKSPACE/builder_tmp/${PLATFORM}_${{matrix.config}}/artifacts.tar" >> $GITHUB_ENV
         elif [ "${{ inputs.type }}" == 'onhost' ]
         then
-          echo "ARCHIVE_FILE_PATH=$GITHUB_WORKSPACE/src/out/tmp/${PLATFORM}_${{matrix.config}}/${PLATFORM}_${{matrix.config}}.tar.xz" >> $GITHUB_ENV
+          echo "ARCHIVE_FILE_PATH=$GITHUB_WORKSPACE/out/tmp/${PLATFORM}_${{matrix.config}}/${PLATFORM}_${{matrix.config}}.tar.xz" >> $GITHUB_ENV
         fi
 
         echo "PYTHONPATH=$GITHUB_WORKSPACE" >> $GITHUB_ENV
