@@ -99,9 +99,8 @@ class BrowserModule {
   // All browser subcomponent options should have default constructors that
   // setup reasonable default options.
   struct Options {
-    explicit Options(const WebModule::Options& web_options)
-        : web_module_options(web_options),
-          command_line_auto_mem_settings(
+    Options()
+        : command_line_auto_mem_settings(
               memory_settings::AutoMemSettings::kTypeCommandLine),
           build_auto_mem_settings(memory_settings::AutoMemSettings::kTypeBuild),
           enable_splash_screen_on_reloads(true) {}
@@ -465,9 +464,10 @@ class BrowserModule {
   // Returns the topic used, or an empty Optional if a topic isn't found.
   base::Optional<std::string> SetSplashScreenTopicFallback(const GURL& url);
 
-  // Function that creates the H5vcc object that will be injected into WebModule
-  scoped_refptr<script::Wrappable> CreateH5vcc(
-      script::EnvironmentSettings* settings);
+  // Callback function that creates the H5vcc object that will be injected into
+  // the MainWebModule.
+  scoped_refptr<script::Wrappable> CreateH5vccCallback(
+      WebModule* web_module, web::EnvironmentSettings* settings);
 
   // Validates the PersistentSettings for cache backend, if in use.
   void ValidateCacheBackendSettings();

@@ -90,7 +90,7 @@ class Application {
 #endif
 
   // Called when a navigation occurs in the BrowserModule.
-  void WebModuleCreated(WebModule* web_module);
+  void MainWebModuleCreated(WebModule* web_module);
 
   void CollectUnloadEventTimingInfo(base::TimeTicks start_time,
                                     base::TimeTicks end_time);

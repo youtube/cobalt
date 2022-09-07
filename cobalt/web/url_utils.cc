@@ -126,7 +126,8 @@ void URLUtils::set_search(const std::string& search) {
 //   https://www.w3.org/TR/2014/WD-url-1-20141209/#pre-update-steps
 void URLUtils::RunPreUpdateSteps(const GURL& new_url,
                                  const std::string& value) {
-  DLOG(INFO) << "Update URL to " << new_url.possibly_invalid_spec();
+  DLOG(INFO) << "Update URL to "
+             << (value.empty() ? new_url.possibly_invalid_spec() : value);
 
   // 1. If value is not given, let value be the result of serializing the
   // associated url.

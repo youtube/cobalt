@@ -209,7 +209,7 @@ std::string RunWebPlatformTest(const GURL& url, bool* got_results) {
       web::kCspEnforcementEnable, CspDelegatePermissive::Create);
   // Use test runner mode to allow the content itself to dictate when it is
   // ready for layout should be performed.  See cobalt/dom/test_runner.h.
-  browser::WebModule::Options web_module_options("RunWebPlatformTest");
+  browser::WebModule::Options web_module_options;
   web_module_options.layout_trigger = layout::LayoutManager::kTestRunnerMode;
   // We assume that we won't suspend/resume while running the tests, and so
   // we take advantage of the convenience of inline script tags.
@@ -222,7 +222,8 @@ std::string RunWebPlatformTest(const GURL& url, bool* got_results) {
   base::RunLoop run_loop;
 
   // Create the WebModule and wait for a layout to occur.
-  browser::WebModule web_module(
+  browser::WebModule web_module("RunWebPlatformTest");
+  web_module.Run(
       url, base::kApplicationStateStarted,
       base::Bind(&WebModuleOnRenderTreeProducedCallback, &results),
       base::Bind(&WebModuleErrorCallback, &run_loop,

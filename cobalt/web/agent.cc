@@ -19,6 +19,7 @@
 #include <utility>
 
 #include "base/observer_list.h"
+#include "base/threading/thread_checker.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/loader/script_loader_factory.h"
@@ -49,7 +50,7 @@ namespace web {
 namespace {
 class Impl : public Context {
  public:
-  explicit Impl(const Agent::Options& options);
+  Impl(const std::string& name, const Agent::Options& options);
   virtual ~Impl();
 
   void AddEnvironmentSettingsChangeObserver(
@@ -222,7 +223,8 @@ class Impl : public Context {
       environment_settings_change_observers_;
 };
 
-Impl::Impl(const Agent::Options& options) : name_(options.name) {
+Impl::Impl(const std::string& name, const Agent::Options& options)
+    : name_(name) {
   TRACE_EVENT0("cobalt::web", "Agent::Impl::Impl()");
   service_worker_jobs_ = options.service_worker_jobs;
   platform_info_ = options.platform_info;
@@ -235,7 +237,7 @@ Impl::Impl(const Agent::Options& options) : name_(options.name) {
   DCHECK(fetcher_factory_);
 
   script_loader_factory_.reset(new loader::ScriptLoaderFactory(
-      options.name.c_str(), fetcher_factory_.get(), options.thread_priority));
+      name.c_str(), fetcher_factory_.get(), options.thread_priority));
   DCHECK(script_loader_factory_);
 
   javascript_engine_ =
@@ -469,9 +471,31 @@ void SignalWaitableEvent(base::WaitableEvent* event) { event->Signal(); }
 
 void Agent::WillDestroyCurrentMessageLoop() { context_.reset(); }
 
-Agent::Agent(const Options& options, InitializeCallback initialize_callback,
-             DestructionObserver* destruction_observer)
-    : thread_(options.name) {
+Agent::Agent(const std::string& name) : thread_(name) {}
+
+void Agent::Stop() {
+  DCHECK(message_loop());
+  DCHECK(thread_.IsRunning());
+
+  if (context() && context()->service_worker_jobs()) {
+    context()->service_worker_jobs()->UnregisterWebContext(context());
+  }
+
+  // Ensure that the destruction observer got added before stopping the thread.
+  destruction_observer_added_.Wait();
+  // Stop the thread. This will cause the destruction observer to be notified.
+  thread_.Stop();
+}
+
+Agent::~Agent() {
+  DCHECK(!thread_.IsRunning());
+  if (thread_.IsRunning()) {
+    Stop();
+  }
+}
+
+void Agent::Run(const Options& options, InitializeCallback initialize_callback,
+                DestructionObserver* destruction_observer) {
   // Start the dedicated thread and create the internal implementation
   // object on that thread.
   base::Thread::Options thread_options(base::MessageLoop::TYPE_DEFAULT,
@@ -481,8 +505,9 @@ Agent::Agent(const Options& options, InitializeCallback initialize_callback,
   DCHECK(message_loop());
 
   message_loop()->task_runner()->PostTask(
-      FROM_HERE, base::Bind(&Agent::Initialize, base::Unretained(this), options,
-                            initialize_callback));
+      FROM_HERE,
+      base::Bind(&Agent::InitializeTaskInThread, base::Unretained(this),
+                 options, initialize_callback));
 
   if (destruction_observer) {
     message_loop()->task_runner()->PostTask(
@@ -507,30 +532,17 @@ Agent::Agent(const Options& options, InitializeCallback initialize_callback,
                             base::Unretained(&destruction_observer_added_)));
 }
 
-Agent::~Agent() {
-  DCHECK(message_loop());
-  DCHECK(thread_.IsRunning());
-
-  if (context() && context()->service_worker_jobs()) {
-    context()->service_worker_jobs()->UnregisterWebContext(context());
-  }
-
-  // Ensure that the destruction observer got added before stopping the thread.
-  destruction_observer_added_.Wait();
-  // Stop the thread. This will cause the destruction observer to be notified.
-  thread_.Stop();
-}
-
-void Agent::Initialize(const Options& options,
-                       InitializeCallback initialize_callback) {
+void Agent::InitializeTaskInThread(const Options& options,
+                                   InitializeCallback initialize_callback) {
   DCHECK_EQ(base::MessageLoop::current(), message_loop());
-  context_.reset(CreateContext(options, thread_.message_loop()));
+  context_.reset(
+      CreateContext(thread_.thread_name(), options, thread_.message_loop()));
   initialize_callback.Run(context_.get());
 }
 
-Context* Agent::CreateContext(const Options& options,
+Context* Agent::CreateContext(const std::string& name, const Options& options,
                               base::MessageLoop* message_loop) {
-  auto* context = new Impl(options);
+  auto* context = new Impl(name, options);
   context->set_message_loop(message_loop);
   if (options.service_worker_jobs) {
     options.service_worker_jobs->RegisterWebContext(context);

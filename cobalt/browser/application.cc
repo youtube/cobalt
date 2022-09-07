@@ -660,11 +660,10 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
   unconsumed_deep_link_ = GetInitialDeepLink();
   DLOG(INFO) << "Initial deep link: " << unconsumed_deep_link_;
 
-  WebModule::Options web_options("MainWebModule");
   storage::StorageManager::Options storage_manager_options;
   network::NetworkModule::Options network_module_options;
   // Create the main components of our browser.
-  BrowserModule::Options options(web_options);
+  BrowserModule::Options options;
   network_module_options.preferred_language = language;
   network_module_options.persistent_settings = persistent_settings_.get();
   options.persistent_settings = persistent_settings_.get();
@@ -749,7 +748,7 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
   // Set callback to be notified when a navigation occurs that destroys the
   // underlying WebModule.
   options.web_module_created_callback =
-      base::Bind(&Application::WebModuleCreated, base::Unretained(this));
+      base::Bind(&Application::MainWebModuleCreated, base::Unretained(this));
 
   // The main web module's stat tracker tracks event stats.
   options.web_module_options.track_event_stats = true;
@@ -1370,8 +1369,9 @@ void Application::OnDateTimeConfigurationChangedEvent(
 }
 #endif
 
-void Application::WebModuleCreated(WebModule* web_module) {
-  TRACE_EVENT0("cobalt::browser", "Application::WebModuleCreated()");
+void Application::MainWebModuleCreated(WebModule* web_module) {
+  TRACE_EVENT0("cobalt::browser", "Application::MainWebModuleCreated()");
+  // Note: This is a callback function that runs in the MainWebModule thread.
   DCHECK(web_module);
   if (preload_timestamp_.has_value()) {
     web_module->SetApplicationStartOrPreloadTimestamp(
@@ -1499,9 +1499,8 @@ void Application::DispatchDeepLink(const char* link,
     // again after the next WebModule is created.
     unconsumed_deep_link_ = link;
     deep_link = unconsumed_deep_link_;
+    deep_link_timestamp_ = timestamp;
   }
-
-  deep_link_timestamp_ = timestamp;
 
   LOG(INFO) << "Dispatching deep link: " << deep_link;
   DispatchEventInternal(new base::DeepLinkEvent(
@@ -1516,11 +1515,17 @@ void Application::DispatchDeepLink(const char* link,
 
 void Application::DispatchDeepLinkIfNotConsumed() {
   std::string deep_link;
+#if SB_API_VERSION >= 13
+  SbTimeMonotonic timestamp;
+#endif  // SB_API_VERSION >= 13
   // This block exists to ensure that the lock is held while accessing
   // unconsumed_deep_link_.
   {
     base::AutoLock auto_lock(unconsumed_deep_link_lock_);
     deep_link = unconsumed_deep_link_;
+#if SB_API_VERSION >= 13
+    timestamp = deep_link_timestamp_;
+#endif  // SB_API_VERSION >= 13
   }
 
   if (!deep_link.empty()) {
@@ -1531,7 +1536,7 @@ void Application::DispatchDeepLinkIfNotConsumed() {
   }
 #if SB_API_VERSION >= 13
   if (browser_module_) {
-    browser_module_->SetDeepLinkTimestamp(deep_link_timestamp_);
+    browser_module_->SetDeepLinkTimestamp(timestamp);
   }
 #endif  // SB_API_VERSION >= 13
 }
