@@ -56,15 +56,16 @@ class ServiceWorkerObject
  public:
   // Worker Options needed at thread run time.
   struct Options {
-    explicit Options(
+    Options(
         const std::string& name, network::NetworkModule* network_module,
         ServiceWorkerRegistrationObject* containing_service_worker_registration)
-        : web_options(name),
+        : name(name),
           containing_service_worker_registration(
               containing_service_worker_registration) {
       web_options.network_module = network_module;
     }
 
+    std::string name;
     web::Agent::Options web_options;
     ServiceWorkerRegistrationObject* containing_service_worker_registration;
   };

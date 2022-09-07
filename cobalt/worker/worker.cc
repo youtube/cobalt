@@ -43,7 +43,7 @@ namespace {
 bool PermitAnyURL(const GURL&, bool) { return true; }
 }  // namespace
 
-Worker::Worker(const Options& options) : options_(options) {
+Worker::Worker(const char* name, const Options& options) : options_(options) {
   // Algorithm for 'run a worker'
   //   https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#run-a-worker
   // 1. Let is shared be true if worker is a SharedWorker object, and false
@@ -57,9 +57,15 @@ Worker::Worker(const Options& options) : options_(options) {
   // 6. Let agent be the result of obtaining a dedicated/shared worker agent
   //    given outside settings and is shared. Run the rest of these steps in
   //    that agent.
-  web_agent_.reset(new web::Agent(
-      options.web_options,
-      base::Bind(&Worker::Initialize, base::Unretained(this)), this));
+  std::string agent_name(name);
+  if (!options.options.name().empty()) {
+    agent_name.push_back(':');
+    agent_name.append(options.options.name());
+  }
+  web_agent_.reset(new web::Agent(agent_name));
+  web_agent_->Run(options.web_options,
+                  base::Bind(&Worker::Initialize, base::Unretained(this)),
+                  this);
 }
 
 void Worker::WillDestroyCurrentMessageLoop() {
@@ -126,7 +132,7 @@ void Worker::Initialize(web::Context* context) {
 #endif  // ENABLE_DEBUGGER
 
   // 10. Set worker global scope's name to the value of options's name member.
-  dedicated_worker_global_scope->set_name(options_.web_options.name);
+  dedicated_worker_global_scope->set_name(options_.options.name());
   // 11. Append owner to worker global scope's owner set.
   // 12. If is shared is true, then:
   //     1. Set worker global scope's constructor origin to outside settings's
@@ -309,6 +315,7 @@ void Worker::Abort() {
   if (web_agent_) {
     DCHECK(message_loop());
     web_agent_->WaitUntilDone();
+    web_agent_->Stop();
     web_agent_.reset();
     web_context_ = nullptr;
   }

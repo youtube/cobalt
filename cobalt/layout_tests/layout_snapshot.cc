@@ -83,7 +83,7 @@ browser::WebModule::LayoutResults SnapshotURL(
 
   // Use test runner mode to allow the content itself to dictate when it is
   // ready for layout should be performed.  See cobalt/dom/test_runner.h.
-  browser::WebModule::Options web_module_options("SnapshotURL");
+  browser::WebModule::Options web_module_options;
   web_module_options.layout_trigger = layout::LayoutManager::kTestRunnerMode;
   web_module_options.image_cache_capacity = kImageCacheCapacity;
   web_module_options.provide_screenshot_function = screenshot_provider;
@@ -97,7 +97,8 @@ browser::WebModule::LayoutResults SnapshotURL(
   base::Optional<browser::WebModule::LayoutResults> results;
 
   // Create the WebModule and wait for a layout to occur.
-  browser::WebModule web_module(
+  browser::WebModule web_module("SnapshotURL");
+  web_module.Run(
       url, base::kApplicationStateStarted,
       base::Bind(&WebModuleOnRenderTreeProducedCallback, &results, &run_loop,
                  base::MessageLoop::current()),

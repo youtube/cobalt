@@ -58,7 +58,7 @@ void DedicatedWorker::Initialize() {
   //    allow the page to start dedicated workers).
   // 2. Let outside settings be the current settings object.
   // 3. Parse the scriptURL argument relative to outside settings.
-  Worker::Options options(kDedicatedWorkerName);
+  Worker::Options options;
   const GURL& base_url = environment_settings()->base_url();
   options.url = base_url.Resolve(script_url_);
 
@@ -83,7 +83,7 @@ void DedicatedWorker::Initialize() {
   options.web_options.service_worker_jobs =
       options.outside_settings->context()->service_worker_jobs();
 
-  worker_.reset(new Worker(options));
+  worker_.reset(new Worker(kDedicatedWorkerName, options));
   // 10. Return worker.
 }
 

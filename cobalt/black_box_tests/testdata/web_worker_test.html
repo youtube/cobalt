@@ -37,9 +37,10 @@
     console.log('running');
 
     // This is expected trigger a an error event on window.
-    var worker_with_error = new Worker('web_worker_test_with_syntax_error.js');
+    var worker_with_error = new Worker('web_worker_test_with_syntax_error.js',
+        { name : 'worker_with_error'});
 
-    var worker = new Worker('web_worker_test.js');
+    var worker = new Worker('web_worker_test.js', { name : 'test_worker'});
     console.log(worker);
     worker.onmessage = function (event) {
         message_event_count += 1;

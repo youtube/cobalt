@@ -40,18 +40,11 @@ namespace web {
 class Agent : public base::MessageLoop::DestructionObserver {
  public:
   struct Options {
-    explicit Options(const std::string name) : name(name) {}
     typedef base::Callback<scoped_refptr<script::Wrappable>(
-        script::EnvironmentSettings*)>
+        web::EnvironmentSettings*)>
         CreateObjectFunction;
     typedef base::hash_map<std::string, CreateObjectFunction>
         InjectedGlobalObjectAttributes;
-
-    // The name of the Web Agent.  This is useful for debugging purposes as
-    // in the case where multiple Web Agent objects exist, it can be used to
-    // differentiate which objects belong to which Web Agent.  It is used
-    // to name some CVals.
-    std::string name;
 
     // Specifies the priority of the web agent's thread.  This is the thread
     // that is responsible for executing JavaScript.
@@ -83,14 +76,17 @@ class Agent : public base::MessageLoop::DestructionObserver {
       JavaScriptHeapStatisticsCallback;
 
   typedef base::Callback<void(Context*)> InitializeCallback;
-  Agent(const Options& options, InitializeCallback initialize_callback,
-        DestructionObserver* destruction_observer = nullptr);
+  explicit Agent(const std::string& name);
   ~Agent();
 
-  static Context* CreateContext(const Options& options,
+  void Run(const Options& options, InitializeCallback initialize_callback,
+           DestructionObserver* destruction_observer = nullptr);
+  void Stop();
+
+  static Context* CreateContext(const std::string& name, const Options& options,
                                 base::MessageLoop* message_loop = nullptr);
   static Context* CreateContext(const std::string& name) {
-    return CreateContext(Options(name));
+    return CreateContext(name, Options());
   }
 
   Context* context() {
@@ -118,8 +114,8 @@ class Agent : public base::MessageLoop::DestructionObserver {
  private:
   // Called by the constructor to create the private implementation object and
   // perform any other initialization required on the dedicated thread.
-  void Initialize(const Options& options,
-                  InitializeCallback initialize_callback);
+  void InitializeTaskInThread(const Options& options,
+                              InitializeCallback initialize_callback);
 
   // The thread created and owned by this Web Agent.
   // All sub-objects of this object are created on this thread, and all public

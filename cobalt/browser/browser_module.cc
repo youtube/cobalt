@@ -341,11 +341,12 @@ BrowserModule::BrowserModule(const GURL& url,
 
   // Setup our main web module to have the H5VCC API injected into it.
   DCHECK(!ContainsKey(
+      options_.web_module_options.injected_global_object_attributes, "h5vcc"));
+  DCHECK(!ContainsKey(
       options_.web_module_options.web_options.injected_global_object_attributes,
       "h5vcc"));
-  options_.web_module_options.web_options
-      .injected_global_object_attributes["h5vcc"] =
-      base::Bind(&BrowserModule::CreateH5vcc, base::Unretained(this));
+  options_.web_module_options.injected_global_object_attributes["h5vcc"] =
+      base::Bind(&BrowserModule::CreateH5vccCallback, base::Unretained(this));
 
   if (command_line->HasSwitch(switches::kDisableTimerResolutionLimit)) {
     options_.web_module_options.limit_performance_timer_resolution = false;
@@ -515,7 +516,7 @@ void BrowserModule::Navigate(const GURL& url_reference) {
   if (web_module_) {
     lifecycle_observers_.RemoveObserver(web_module_.get());
   }
-  web_module_.reset(NULL);
+  web_module_.reset();
 
   // Increment the navigation generation so that we can attach it to event
   // callbacks as a way of identifying the new web module from the old ones.
@@ -608,7 +609,8 @@ void BrowserModule::Navigate(const GURL& url_reference) {
   options.web_options.service_worker_jobs =
       service_worker_registry_.service_worker_jobs();
   options.web_options.platform_info = platform_info_.get();
-  web_module_.reset(new WebModule(
+  web_module_.reset(new WebModule("MainWebModule"));
+  web_module_->Run(
       url, application_state_,
       base::Bind(&BrowserModule::QueueOnRenderTreeProduced,
                  base::Unretained(this), main_web_module_generation_),
@@ -616,7 +618,7 @@ void BrowserModule::Navigate(const GURL& url_reference) {
       base::Bind(&BrowserModule::OnWindowClose, base::Unretained(this)),
       base::Bind(&BrowserModule::OnWindowMinimize, base::Unretained(this)),
       can_play_type_handler_.get(), media_module_.get(), viewport_size,
-      GetResourceProvider(), kLayoutMaxRefreshFrequencyInHz, options));
+      GetResourceProvider(), kLayoutMaxRefreshFrequencyInHz, options);
   lifecycle_observers_.AddObserver(web_module_.get());
 
   if (system_window_) {
@@ -686,6 +688,7 @@ void BrowserModule::RequestScreenshotToFile(
     const base::Optional<math::Rect>& clip_rect,
     const base::Closure& done_callback) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::RequestScreenshotToFile()");
+  DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
   DCHECK(screen_shot_writer_);
 
   scoped_refptr<render_tree::Node> render_tree;
@@ -704,6 +707,7 @@ void BrowserModule::RequestScreenshotToMemory(
     const base::Optional<math::Rect>& clip_rect,
     const ScreenShotWriter::ImageEncodeCompleteCallback& screenshot_ready) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::RequestScreenshotToMemory()");
+  DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
   DCHECK(screen_shot_writer_);
 
   scoped_refptr<render_tree::Node> render_tree;
@@ -898,6 +902,7 @@ void BrowserModule::OnWindowMinimize() {
 }
 
 void BrowserModule::OnWindowSizeChanged(const ViewportSize& viewport_size) {
+  DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
   if (web_module_) {
     web_module_->SetSize(viewport_size);
   }
@@ -964,6 +969,7 @@ void BrowserModule::OnOnScreenKeyboardSuggestionsUpdated(
 
 void BrowserModule::OnCaptionSettingsChanged(
     const base::AccessibilityCaptionSettingsChangedEvent* event) {
+  DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
   if (web_module_) {
     web_module_->InjectCaptionSettingsChangedEvent();
   }
@@ -972,6 +978,7 @@ void BrowserModule::OnCaptionSettingsChanged(
 #if SB_API_VERSION >= 13
 void BrowserModule::OnDateTimeConfigurationChanged(
     const base::DateTimeConfigurationChangedEvent* event) {
+  DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
   icu::TimeZone::adoptDefault(icu::TimeZone::detectHostTimeZone());
   if (web_module_) {
     web_module_->UpdateDateTimeConfiguration();
@@ -1122,12 +1129,14 @@ void BrowserModule::OnWheelEventProduced(base::Token type,
 }
 
 void BrowserModule::OnWindowOnOnlineEvent(const base::Event* event) {
+  DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
   if (web_module_) {
     web_module_->InjectWindowOnOnlineEvent(event);
   }
 }
 
 void BrowserModule::OnWindowOnOfflineEvent(const base::Event* event) {
+  DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
   if (web_module_) {
     web_module_->InjectWindowOnOfflineEvent(event);
   }
@@ -2021,13 +2030,15 @@ void BrowserModule::GetParamMap(const std::string& url,
   }
 }
 
-scoped_refptr<script::Wrappable> BrowserModule::CreateH5vcc(
-    script::EnvironmentSettings* settings) {
-  DCHECK(web_module_);
+scoped_refptr<script::Wrappable> BrowserModule::CreateH5vccCallback(
+    WebModule* web_module, web::EnvironmentSettings* settings) {
+  DCHECK_NE(base::MessageLoop::current(), self_message_loop_);
+  // Note: This is a callback function that runs in the MainWebModule thread.
+  // The web_module_ member can not be safely used in this function.
 
   h5vcc::H5vcc::Settings h5vcc_settings;
   h5vcc_settings.set_media_source_setting_func = base::Bind(
-      &WebModule::SetMediaSourceSetting, base::Unretained(web_module_.get()));
+      &WebModule::SetMediaSourceSetting, base::Unretained(web_module));
   h5vcc_settings.network_module = network_module_;
 #if SB_IS(EVERGREEN)
   h5vcc_settings.updater_module = updater_module_;
@@ -2035,22 +2046,27 @@ scoped_refptr<script::Wrappable> BrowserModule::CreateH5vcc(
   h5vcc_settings.account_manager = account_manager_;
   h5vcc_settings.event_dispatcher = event_dispatcher_;
 
-  auto* dom_settings = base::polymorphic_downcast<dom::DOMSettings*>(settings);
-
-  h5vcc_settings.user_agent_data =
-      dom_settings->window()->navigator()->user_agent_data();
-  h5vcc_settings.global_environment =
-      dom_settings->context()->global_environment();
+  h5vcc_settings.user_agent_data = settings->context()
+                                       ->GetWindowOrWorkerGlobalScope()
+                                       ->navigator_base()
+                                       ->user_agent_data();
+  h5vcc_settings.global_environment = settings->context()->global_environment();
   h5vcc_settings.persistent_settings = options_.persistent_settings;
 
   auto* h5vcc_object = new h5vcc::H5vcc(h5vcc_settings);
   if (!web_module_created_callback_.is_null()) {
-    web_module_created_callback_.Run(web_module_.get());
+    web_module_created_callback_.Run(web_module);
   }
   return scoped_refptr<script::Wrappable>(h5vcc_object);
 }
 
 void BrowserModule::SetDeepLinkTimestamp(SbTimeMonotonic timestamp) {
+  if (base::MessageLoop::current() != self_message_loop_) {
+    self_message_loop_->task_runner()->PostTask(
+        FROM_HERE, base::Bind(&BrowserModule::SetDeepLinkTimestamp,
+                              base::Unretained(this), timestamp));
+    return;
+  }
   DCHECK(web_module_);
   web_module_->SetDeepLinkTimestamp(timestamp);
 }
