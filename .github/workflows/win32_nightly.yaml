@@ -11,5 +11,5 @@ jobs:
     permissions:
       packages: write
     with:
-      platform: $GITHUB_WORKFLOW
+      platform: win32
 
