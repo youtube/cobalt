@@ -96,10 +96,12 @@ jobs:
     runs-on: [self-hosted, X64, Windows]
     steps:
       - name: Get PS Version
+        run: $PSVersionTable
+      - name: Get PS Version Explicit
         shell: pwsh
         run: $PSVersionTable
-        #- name: Set up Cloud SDK
-        #uses: google-github-actions/setup-gcloud@v0.6.0
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v0.6.0
   # Runs builds.
   build:
     needs: [docker-image, build-matrix]
