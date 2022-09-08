@@ -20,7 +20,7 @@ SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop';$ProgressPrefe
 ARG RUNNER_VERSION
 
 RUN Invoke-WebRequest -Uri 'https://aka.ms/install-powershell.ps1' -OutFile install-powershell.ps1;`
-    ./install-powershell.ps1 -AddToPath
+    powershell -ExecutionPolicy Unrestricted -File ./install-powershell.ps1 -AddToPath
 
 RUN Invoke-WebRequest -Uri https://github.com/actions/runner/releases/download/v$env:RUNNER_VERSION/actions-runner-win-x64-$env:RUNNER_VERSION.zip -OutFile runner.zip;`
     Expand-Archive -Path C:/runner.zip -DestinationPath C:/actions-runner;`
