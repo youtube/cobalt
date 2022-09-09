@@ -48,7 +48,8 @@ const MockTransaction kSimpleGET_Transaction = {
     base::Time(),
     "",
     LOAD_NORMAL,
-    "HTTP/1.1 200 OK",
+    "HTTP/1.1 200 OK\n"
+    "Content-Type: example/unit_test",
     "Cache-Control: max-age=10000\n",
     base::Time(),
     "<html><body>Google Blah Blah</body></html>",
@@ -67,7 +68,8 @@ const MockTransaction kSimplePOST_Transaction = {
     base::Time(),
     "",
     LOAD_NORMAL,
-    "HTTP/1.1 200 OK",
+    "HTTP/1.1 200 OK\n"
+    "Content-Type: example/unit_test",
     "",
     base::Time(),
     "<html><body>Google Blah Blah</body></html>",
@@ -86,7 +88,8 @@ const MockTransaction kTypicalGET_Transaction = {
     base::Time(),
     "",
     LOAD_NORMAL,
-    "HTTP/1.1 200 OK",
+    "HTTP/1.1 200 OK\n"
+    "Content-Type: example/unit_test",
     "Date: Wed, 28 Nov 2007 09:40:09 GMT\n"
     "Last-Modified: Wed, 28 Nov 2007 00:40:09 GMT\n",
     base::Time(),
@@ -106,7 +109,8 @@ const MockTransaction kETagGET_Transaction = {
     base::Time(),
     "",
     LOAD_NORMAL,
-    "HTTP/1.1 200 OK",
+    "HTTP/1.1 200 OK\n"
+    "Content-Type: example/unit_test",
     "Cache-Control: max-age=10000\n"
     "Etag: \"foopy\"\n",
     base::Time(),
@@ -126,7 +130,8 @@ const MockTransaction kRangeGET_Transaction = {
     base::Time(),
     "Range: 0-100\r\n",
     LOAD_NORMAL,
-    "HTTP/1.1 200 OK",
+    "HTTP/1.1 200 OK\n"
+    "Content-Type: example/unit_test",
     "Cache-Control: max-age=10000\n",
     base::Time(),
     "<html><body>Google Blah Blah</body></html>",

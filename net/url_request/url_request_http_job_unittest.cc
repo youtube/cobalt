@@ -494,6 +494,7 @@ TEST_F(URLRequestHttpJobWithMockSocketsTest, TestSuccessfulCachedHeadRequest) {
   {
     MockWrite writes[] = {MockWrite(kSimpleGetMockWrite)};
     MockRead reads[] = {MockRead("HTTP/1.1 200 OK\r\n"
+                                 "Content-Type: example/unit_test\r\n"
                                  "Content-Length: 12\r\n\r\n"),
                         MockRead("Test Content")};
 
