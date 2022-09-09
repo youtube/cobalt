@@ -59,9 +59,9 @@ class OnScreenKeyboardStarboardBridge : public dom::OnScreenKeyboardBridge {
 
   void SetKeepFocus(bool keep_focus) override;
 
-  void SetBackgroundColor(const char* background_color) override;
+  void SetBackgroundColor(uint8 r, uint8 g, uint8 b) override;
 
-  void SetDarkTheme(bool dark_theme) override;
+  void SetLightTheme(bool light_theme) override;
 
  private:
   base::Callback<SbWindow()> sb_window_provider_;
