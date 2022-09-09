@@ -303,7 +303,7 @@ def _CreateZipCommand(intermediate_tar_path, dest_path, is_parallel=False):
     zip_program = (
         _LINUX_PARALLEL_ZIP_PROGRAM
         if is_parallel else _LINUX_SERIAL_ZIP_PROGRAM)
-    return '{} -vc -3 {} > {}'.format(zip_program, intermediate_tar_path,
+    return '{} -vc -1 {} > {}'.format(zip_program, intermediate_tar_path,
                                    dest_path)
 
 
