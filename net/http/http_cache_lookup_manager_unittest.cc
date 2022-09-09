@@ -37,7 +37,8 @@ class MockServerPushHelper : public ServerPushDelegate::ServerPushHelper {
 std::unique_ptr<MockTransaction> CreateMockTransaction(const GURL& url) {
   MockTransaction mock_trans = {
       url.spec().c_str(), "GET", base::Time(), "", LOAD_NORMAL,
-      "HTTP/1.1 200 OK",
+      "HTTP/1.1 200 OK\n"
+      "Content-Type: example/unit_test",
       "Date: Wed, 28 Nov 2007 09:40:09 GMT\n"
       "Last-Modified: Wed, 28 Nov 2007 00:40:09 GMT\n",
       base::Time(), "<html><body>Google Blah Blah</body></html>",
