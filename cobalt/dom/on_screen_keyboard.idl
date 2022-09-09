@@ -51,7 +51,7 @@
   // 2. rgb color notation rgb(R, G, B), e.g. "rgb(0, 0, 255)".
   attribute DOMString? backgroundColor;
 
-  // This attribute overrides the dark theme of on-screen keyboard.
+  // This attribute overrides the light theme of on-screen keyboard.
   // The attribute is only fully supported on Apple TV at the moment.
-  attribute boolean? darkTheme;
+  attribute boolean? lightTheme;
 };
