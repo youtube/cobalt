@@ -1156,12 +1156,6 @@ void URLRequest::OnHeadersComplete() {
     raw_header_size_ = GetTotalReceivedBytes();
 
     ConvertRealLoadTimesToBlockingTimes(&load_timing_info_);
-#if defined (STARBOARD)
-    load_timing_info_.encoded_body_size = static_cast<uint64_t>(GetTotalReceivedBytes());
-    if (!load_timing_info_callback_.is_null()) {
-      load_timing_info_callback_.Run(load_timing_info_);
-    }
-#endif  // defined(STARBOARD)
   }
 }
 
@@ -1170,6 +1164,13 @@ void URLRequest::NotifyRequestCompleted() {
   // not be needed.
   if (has_notified_completion_)
     return;
+
+  #if defined (STARBOARD)
+    load_timing_info_.encoded_body_size = static_cast<uint64_t>(GetTotalReceivedBytes());
+    if (load_timing_info_callback_) {
+      load_timing_info_callback_.Run(load_timing_info_);
+    }
+  #endif  // defined(STARBOARD)
 
   is_pending_ = false;
   is_redirecting_ = false;
