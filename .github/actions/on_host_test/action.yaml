@@ -1,0 +1,53 @@
+name: On Host Test
+description: Downloaads test archives from GCS and runs on-host tests.
+runs:
+  using: "composite"
+  steps:
+    # TODO - Move 'Run Tests' to a separate action.
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v0
+    - name: Download Archive
+      shell: bash
+      run: |
+        set -x
+        PROJECT_NAME=$(gcloud config get-value project)
+        gsutil cp gs://${PROJECT_NAME}-test-artifacts/${{github.workflow}}/${GITHUB_RUN_NUMBER}/${{matrix.platform}}_${{matrix.config}}/${{matrix.platform}}_${{matrix.config}}.tar.xz ${GITHUB_WORKSPACE}/out/tmp/${{matrix.platform}}_${{matrix.config}}.tar.xz
+    - name: Extract Archive
+      shell: bash
+      run: |
+        set -x
+        python3 ${GITHUB_WORKSPACE}/tools/create_archive.py -x -s ${GITHUB_WORKSPACE}/out/tmp/${{matrix.platform}}_${{matrix.config}}.tar.xz -d ${GITHUB_WORKSPACE}/out --parallel
+        rm -rf ${GITHUB_WORKSPACE}/out/tmp
+    - name: Download Bootloader Archive
+      if: env.COBALT_BOOTLOADER != 'null'
+      shell: bash
+      run: |
+        set -x
+        PROJECT_NAME=$(gcloud config get-value project)
+        gsutil cp gs://${PROJECT_NAME}-test-artifacts/${{github.workflow}}/${GITHUB_RUN_NUMBER}/${{matrix.platform}}_${{matrix.config}}/${COBALT_BOOTLOADER}_${{matrix.config}}.tar.xz ${GITHUB_WORKSPACE}/out/tmp/${COBALT_BOOTLOADER}_${{matrix.config}}.tar.xz
+    - name: Extract Bootloader Archive
+      if: env.COBALT_BOOTLOADER != 'null'
+      shell: bash
+      run: |
+        set -x
+        python3 ${GITHUB_WORKSPACE}/tools/create_archive.py -x -s ${GITHUB_WORKSPACE}/out/tmp/${COBALT_BOOTLOADER}_${{matrix.config}}.tar.xz -d ${GITHUB_WORKSPACE}/out --parallel
+        rm -rf ${GITHUB_WORKSPACE}/out/tmp
+    - name: Set Env Variables
+      shell: bash
+      run: |
+        echo "PYTHONPATH=$GITHUB_WORKSPACE" >> $GITHUB_ENV
+    - name: Run Tests
+      shell: bash
+      run: |
+        set -x
+        loader_args=''
+        if [ "${COBALT_BOOTLOADER}" != "null" ]; then
+          loader_args="--loader_platform ${COBALT_BOOTLOADER} --loader_config ${{matrix.config}}"
+        fi
+        if [[ "${{matrix.shard}}" == 'integration' ]]; then
+          xvfb-run -a --server-args="-screen 0 1920x1080x24i +render +extension GLX -noreset" python3 $GITHUB_WORKSPACE/cobalt/black_box_tests/black_box_tests.py --platform ${{matrix.target_platform}} --config ${{matrix.config}} ${loader_args}
+        elif [[ "${{matrix.shard}}" == 'evergreen' ]]; then
+          xvfb-run -a --server-args="-screen 0 1920x1080x24i +render +extension GLX -noreset" python3 $GITHUB_WORKSPACE/cobalt/evergreen_tests/evergreen_tests.py --platform ${{matrix.target_platform}} --config ${{matrix.config}} ${loader_args} --platform_under_test linux --no-can_mount_tmpfs
+        else
+          xvfb-run -a --server-args="-screen 0 1920x1080x24i +render +extension GLX -noreset" python3 $GITHUB_WORKSPACE/starboard/tools/testing/test_runner.py --platform ${{matrix.target_platform}} --config ${{matrix.config}} -s ${{matrix.shard}} -r ${loader_args}
+        fi
