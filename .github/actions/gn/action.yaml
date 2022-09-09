@@ -1,8 +1,5 @@
 name: GN
 description: Generates and checks GN.
-inputs:
-  name:
-    required: false
 runs:
   using: "composite"
   steps:
