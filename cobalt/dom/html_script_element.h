@@ -42,7 +42,13 @@ class HTMLScriptElement : public HTMLElement {
 
   // Web API: HTMLScriptElement
   //
-  std::string src() const { return GetAttribute("src").value_or(""); }
+  // If the "src" attribute is a relative URL, the |src| property returns a
+  // fully resolved URL used the |document.location.href| as the base URL. This
+  // matches the Chrome implementation of the |src| property.
+  // See:
+  //   https://source.chromium.org/chromium/chromium/src/+/main:out/Debug/gen/third_party/blink/renderer/bindings/core/v8/v8_html_script_element.cc;l=93;drc=4f7206c7352efba617f4561cd8c95844d9e9814f
+  //   https://source.chromium.org/chromium/chromium/src/+/main:third_party/blink/renderer/core/dom/element.cc;l=7360;drc=5f6702f8b8f9da8510d2b3ec809e177e6db09e53
+  std::string src() const;
   void set_src(const std::string& value) { SetAttribute("src", value); }
 
   std::string type() const { return GetAttribute("type").value_or(""); }

@@ -83,13 +83,14 @@ auto GetMediaSettings(script::EnvironmentSettings* settings) {
 // If the system has more processors than the specified value, SourceBuffer
 // append and remove algorithm will be offloaded to a non-web thread to reduce
 // the load on the web thread.
-// The default value is 2.  Set to a reasonably high value (say 1024) will
-// disable algorithm offloading completely.
+// The default value is 1024, which effectively disable offloading by default.
+// Setting to a reasonably low value (say 0 or 2) will enable algorithm
+// offloading.
 bool IsAlgorithmOffloadEnabled(script::EnvironmentSettings* settings) {
   int min_process_count_to_offload =
       GetMediaSettings(settings)
           ->GetMinimumProcessorCountToOffloadAlgorithm()
-          .value_or(2);
+          .value_or(1024);
   DCHECK_GE(min_process_count_to_offload, 0);
   return SbSystemGetNumberOfProcessors() >= min_process_count_to_offload;
 }
@@ -97,10 +98,10 @@ bool IsAlgorithmOffloadEnabled(script::EnvironmentSettings* settings) {
 // If this function returns true, SourceBuffer will reduce asynchronous
 // behaviors.  For example, queued events will be dispatached immediately when
 // possible.
-// The default value is true.
+// The default value is false.
 bool IsAsynchronousReductionEnabled(script::EnvironmentSettings* settings) {
   return GetMediaSettings(settings)->IsAsynchronousReductionEnabled().value_or(
-      true);
+      false);
 }
 
 // If the size of a job that is part of an algorithm is less than or equal to
@@ -390,9 +391,10 @@ bool MediaSource::AttachToElement(HTMLMediaElement* media_element) {
 
   if (algorithm_process_thread_) {
     LOG(INFO) << "Algorithm offloading enabled.";
-    offload_algorithm_runner_.reset(new OffloadAlgorithmRunner(
-        algorithm_process_thread_->message_loop()->task_runner(),
-        base::MessageLoop::current()->task_runner()));
+    offload_algorithm_runner_.reset(
+        new OffloadAlgorithmRunner<SourceBufferAlgorithm>(
+            algorithm_process_thread_->message_loop()->task_runner(),
+            base::MessageLoop::current()->task_runner()));
   } else {
     LOG(INFO) << "Algorithm offloading disabled.";
   }
@@ -574,7 +576,8 @@ bool MediaSource::MediaElementHasMaxVideoCapabilities() const {
   return has_max_video_capabilities_;
 }
 
-SerializedAlgorithmRunner* MediaSource::GetAlgorithmRunner(int job_size) {
+SerializedAlgorithmRunner<SourceBufferAlgorithm>*
+MediaSource::GetAlgorithmRunner(int job_size) {
   if (!offload_algorithm_runner_) {
     return &default_algorithm_runner_;
   }

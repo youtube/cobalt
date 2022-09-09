@@ -6,10 +6,7 @@ import android.content.Context;
 import dev.cobalt.coat.CobaltService;
 import dev.cobalt.util.Log;
 
-/**
- * ClientLogInfo to report Android API support on android devices, read go/coat-api-support for more
- * info.
- */
+/** ClientLogInfo to report Android API support on android devices. */
 public class ClientLogInfo extends CobaltService {
   public static final String TAG = "ClientLogInfo";
 

@@ -19,6 +19,7 @@
 
 #include "base/callback.h"
 #include "cobalt/dom/on_screen_keyboard_bridge.h"
+#include "cobalt/extension/on_screen_keyboard.h"
 #include "starboard/window.h"
 
 namespace cobalt {
@@ -57,6 +58,10 @@ class OnScreenKeyboardStarboardBridge : public dom::OnScreenKeyboardBridge {
   bool IsValidTicket(int ticket) const override;
 
   void SetKeepFocus(bool keep_focus) override;
+
+  void SetBackgroundColor(const char* background_color) override;
+
+  void SetDarkTheme(bool dark_theme) override;
 
  private:
   base::Callback<SbWindow()> sb_window_provider_;

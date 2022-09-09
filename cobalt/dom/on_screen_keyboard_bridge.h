@@ -39,6 +39,8 @@ class OnScreenKeyboardBridge {
   virtual scoped_refptr<DOMRect> BoundingRect() const = 0;
   virtual void SetKeepFocus(bool keep_focus) = 0;
   virtual bool IsValidTicket(int ticket) const = 0;
+  virtual void SetBackgroundColor(const char* background_color) = 0;
+  virtual void SetDarkTheme(bool dark_theme) = 0;
 };
 
 }  // namespace dom

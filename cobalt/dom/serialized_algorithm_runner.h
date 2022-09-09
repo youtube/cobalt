@@ -22,6 +22,7 @@
 #include "base/callback.h"
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
+#include "base/message_loop/message_loop.h"
 #include "base/single_thread_task_runner.h"
 #include "base/trace_event/trace_event.h"
 #include "starboard/common/mutex.h"
@@ -53,37 +54,56 @@ namespace dom {
 // This class will keep calling Process() until |finished| becomes false, and
 // then call Finalize().  It guarantees that all calls won't be overlapped and
 // the member functions of the algorithm don't have to synchronize between them.
+template <typename SerializedAlgorithm>
 class SerializedAlgorithmRunner {
  public:
-  // Abstract the non-template part of the Handle class, and shouldn't be used
-  // directly.
-  class HandleBase : public base::RefCountedThreadSafe<HandleBase> {
-   public:
-    virtual ~HandleBase() {}
-
-    virtual void Process(bool* finished) = 0;
-    virtual void Finalize() = 0;
-  };
-
   // A handle object for a running algorithm instance, to allow for aborting and
   // access the algorithm.
-  template <typename SerializedAlgorithm>
-  class Handle : public HandleBase {
+  class Handle : public base::RefCountedThreadSafe<Handle> {
    public:
-    explicit Handle(std::unique_ptr<SerializedAlgorithm> algorithm);
-
     // Abort the algorithm and no more processing will happen on return.  It is
     // possible that Process() has already finished asynchronously, in which
     // case this function will call Finalize() instead (if it hasn't been called
     // yet).
     void Abort();
+    void Process(bool* finished);
+    void FinalizeIfNotAborted();
+
     SerializedAlgorithm* algorithm() const { return algorithm_.get(); }
 
    private:
-    void Process(bool* finished) override;
-    void Finalize() override;
+    friend class SerializedAlgorithmRunner;
 
-    // The |mutex_| is necessary as `Abort()` can be called from any thread.
+    // Provide synchronization only when |synchronization_required| is true.
+    // This allows bypassing of synchronization for algorithm runners that
+    // operate on a single thread, where a mutex could be reentrant if acquired
+    // due to nested calls.
+    class ScopedLockWhenRequired {
+     public:
+      ScopedLockWhenRequired(bool synchronization_required,
+                             const starboard::Mutex& mutex)
+          : synchronization_required_(synchronization_required), mutex_(mutex) {
+        if (synchronization_required_) {
+          mutex_.Acquire();
+        }
+      }
+      ~ScopedLockWhenRequired() {
+        if (synchronization_required_) {
+          mutex_.Release();
+        }
+      }
+
+     private:
+      const bool synchronization_required_;
+      const starboard::Mutex& mutex_;
+    };
+
+    Handle(bool synchronization_required,
+           std::unique_ptr<SerializedAlgorithm> algorithm);
+
+    // The |mutex_| is necessary for algorithm runners operate on multiple
+    // threads as `Abort()` can be called from any thread.
+    const bool synchronization_required_;
     starboard::Mutex mutex_;
     std::unique_ptr<SerializedAlgorithm> algorithm_;
     bool aborted_ = false;
@@ -93,21 +113,32 @@ class SerializedAlgorithmRunner {
 
   virtual ~SerializedAlgorithmRunner() {}
 
-  virtual void Start(const scoped_refptr<HandleBase>& handle) = 0;
+  virtual scoped_refptr<Handle> CreateHandle(
+      std::unique_ptr<SerializedAlgorithm> algorithm) = 0;
+  virtual void Start(scoped_refptr<Handle> handle) = 0;
+
+ protected:
+  scoped_refptr<Handle> CreateHandle(
+      bool synchronization_required,
+      std::unique_ptr<SerializedAlgorithm> algorithm) {
+    return new Handle(synchronization_required, std::move(algorithm));
+  }
 };
 
 template <typename SerializedAlgorithm>
-SerializedAlgorithmRunner::Handle<SerializedAlgorithm>::Handle(
+SerializedAlgorithmRunner<SerializedAlgorithm>::Handle::Handle(
+    bool synchronization_required,
     std::unique_ptr<SerializedAlgorithm> algorithm)
-    : algorithm_(std::move(algorithm)) {
+    : synchronization_required_(synchronization_required),
+      algorithm_(std::move(algorithm)) {
   DCHECK(algorithm_);
 }
 
 template <typename SerializedAlgorithm>
-void SerializedAlgorithmRunner::Handle<SerializedAlgorithm>::Abort() {
+void SerializedAlgorithmRunner<SerializedAlgorithm>::Handle::Abort() {
   TRACE_EVENT0("cobalt::dom", "SerializedAlgorithmRunner::Handle::Abort()");
 
-  starboard::ScopedLock scoped_lock(mutex_);
+  ScopedLockWhenRequired scoped_lock(synchronization_required_, mutex_);
 
   DCHECK(!aborted_);  // Abort() cannot be called twice.
 
@@ -126,18 +157,19 @@ void SerializedAlgorithmRunner::Handle<SerializedAlgorithm>::Abort() {
 }
 
 template <typename SerializedAlgorithm>
-void SerializedAlgorithmRunner::Handle<SerializedAlgorithm>::Process(
+void SerializedAlgorithmRunner<SerializedAlgorithm>::Handle::Process(
     bool* finished) {
   TRACE_EVENT0("cobalt::dom", "SerializedAlgorithmRunner::Handle::Process()");
 
   DCHECK(finished);
 
-  starboard::ScopedLock scoped_lock(mutex_);
+  ScopedLockWhenRequired scoped_lock(synchronization_required_, mutex_);
 
   DCHECK(!finished_);
   DCHECK(!finalized_);
 
   if (aborted_) {
+    *finished = true;
     return;
   }
 
@@ -147,17 +179,19 @@ void SerializedAlgorithmRunner::Handle<SerializedAlgorithm>::Process(
 }
 
 template <typename SerializedAlgorithm>
-void SerializedAlgorithmRunner::Handle<SerializedAlgorithm>::Finalize() {
+void SerializedAlgorithmRunner<
+    SerializedAlgorithm>::Handle::FinalizeIfNotAborted() {
   TRACE_EVENT0("cobalt::dom", "SerializedAlgorithmRunner::Handle::Finalize()");
-  starboard::ScopedLock scoped_lock(mutex_);
 
-  DCHECK(finished_);
+  ScopedLockWhenRequired scoped_lock(synchronization_required_, mutex_);
+
   DCHECK(!finalized_);
 
   if (aborted_) {
     return;
   }
 
+  DCHECK(finished_);
   DCHECK(algorithm_);
 
   algorithm_->Finalize();
@@ -167,14 +201,21 @@ void SerializedAlgorithmRunner::Handle<SerializedAlgorithm>::Finalize() {
 
 // This class runs algorithm on the task runner associated with the thread where
 // Start() is called.
-class DefaultAlgorithmRunner : public SerializedAlgorithmRunner {
+template <typename SerializedAlgorithm>
+class DefaultAlgorithmRunner
+    : public SerializedAlgorithmRunner<SerializedAlgorithm> {
  public:
   explicit DefaultAlgorithmRunner(bool asynchronous_reduction_enabled)
       : asynchronous_reduction_enabled_(asynchronous_reduction_enabled) {}
 
  private:
-  void Start(const scoped_refptr<HandleBase>& handle) override;
-  void Process(const scoped_refptr<HandleBase>& handle);
+  typedef
+      typename SerializedAlgorithmRunner<SerializedAlgorithm>::Handle Handle;
+
+  scoped_refptr<Handle> CreateHandle(
+      std::unique_ptr<SerializedAlgorithm> algorithm) override;
+  void Start(scoped_refptr<Handle> handle) override;
+  void Process(scoped_refptr<Handle> handle);
 
   const bool asynchronous_reduction_enabled_;
 };
@@ -185,7 +226,9 @@ class DefaultAlgorithmRunner : public SerializedAlgorithmRunner {
 // This class will keep calling the Process() member function of the algorithm
 // on the process task runner, and then call Finalize() on the finalize task
 // runner when |finished| becomes true.
-class OffloadAlgorithmRunner : public SerializedAlgorithmRunner {
+template <typename SerializedAlgorithm>
+class OffloadAlgorithmRunner
+    : public SerializedAlgorithmRunner<SerializedAlgorithm> {
  public:
   typedef base::SingleThreadTaskRunner TaskRunner;
 
@@ -193,12 +236,120 @@ class OffloadAlgorithmRunner : public SerializedAlgorithmRunner {
                          const scoped_refptr<TaskRunner>& finalize_task_runner);
 
  private:
-  void Start(const scoped_refptr<HandleBase>& handle) override;
-  void Process(const scoped_refptr<HandleBase>& handle);
+  typedef
+      typename SerializedAlgorithmRunner<SerializedAlgorithm>::Handle Handle;
+
+  scoped_refptr<Handle> CreateHandle(
+      std::unique_ptr<SerializedAlgorithm> algorithm) override;
+  void Start(scoped_refptr<Handle> handle) override;
+  void Process(scoped_refptr<Handle> handle);
 
   scoped_refptr<TaskRunner> process_task_runner_;
   scoped_refptr<TaskRunner> finalize_task_runner_;
 };
+
+template <typename SerializedAlgorithm>
+scoped_refptr<typename SerializedAlgorithmRunner<SerializedAlgorithm>::Handle>
+DefaultAlgorithmRunner<SerializedAlgorithm>::CreateHandle(
+    std::unique_ptr<SerializedAlgorithm> algorithm) {
+  TRACE_EVENT0("cobalt::dom", "DefaultAlgorithmRunner::CreateHandle()");
+
+  const bool kSynchronizationRequired = false;
+  return SerializedAlgorithmRunner<SerializedAlgorithm>::CreateHandle(
+      kSynchronizationRequired, std::move(algorithm));
+}
+
+template <typename SerializedAlgorithm>
+void DefaultAlgorithmRunner<SerializedAlgorithm>::Start(
+    scoped_refptr<Handle> handle) {
+  DCHECK(handle);
+  TRACE_EVENT0("cobalt::dom", "DefaultAlgorithmRunner::Start()");
+
+  if (asynchronous_reduction_enabled_) {
+    Process(handle);
+    return;
+  }
+
+  auto task_runner = base::MessageLoop::current()->task_runner();
+  task_runner->PostTask(FROM_HERE,
+                        base::BindOnce(&DefaultAlgorithmRunner::Process,
+                                       base::Unretained(this), handle));
+}
+
+template <typename SerializedAlgorithm>
+void DefaultAlgorithmRunner<SerializedAlgorithm>::Process(
+    scoped_refptr<Handle> handle) {
+  DCHECK(handle);
+  TRACE_EVENT0("cobalt::dom", "DefaultAlgorithmRunner::Process()");
+
+  auto task_runner = base::MessageLoop::current()->task_runner();
+
+  bool finished = false;
+  handle->Process(&finished);
+
+  if (finished) {
+    handle->FinalizeIfNotAborted();
+    return;
+  }
+  task_runner->PostTask(FROM_HERE,
+                        base::BindOnce(&DefaultAlgorithmRunner::Process,
+                                       base::Unretained(this), handle));
+}
+
+template <typename SerializedAlgorithm>
+OffloadAlgorithmRunner<SerializedAlgorithm>::OffloadAlgorithmRunner(
+    const scoped_refptr<TaskRunner>& process_task_runner,
+    const scoped_refptr<TaskRunner>& finalize_task_runner)
+    : process_task_runner_(process_task_runner),
+      finalize_task_runner_(finalize_task_runner) {
+  DCHECK(process_task_runner_);
+  DCHECK(finalize_task_runner_);
+  DCHECK_NE(process_task_runner_, finalize_task_runner_);
+}
+
+template <typename SerializedAlgorithm>
+scoped_refptr<typename SerializedAlgorithmRunner<SerializedAlgorithm>::Handle>
+OffloadAlgorithmRunner<SerializedAlgorithm>::CreateHandle(
+    std::unique_ptr<SerializedAlgorithm> algorithm) {
+  TRACE_EVENT0("cobalt::dom", "OffloadAlgorithmRunner::CreateHandle()");
+
+  const bool kSynchronizationRequired = true;
+  return SerializedAlgorithmRunner<SerializedAlgorithm>::CreateHandle(
+      kSynchronizationRequired, std::move(algorithm));
+}
+
+template <typename SerializedAlgorithm>
+void OffloadAlgorithmRunner<SerializedAlgorithm>::Start(
+    scoped_refptr<Handle> handle) {
+  DCHECK(handle);
+
+  TRACE_EVENT0("cobalt::dom", "OffloadAlgorithmRunner::Start()");
+
+  process_task_runner_->PostTask(
+      FROM_HERE, base::BindOnce(&OffloadAlgorithmRunner::Process,
+                                base::Unretained(this), handle));
+}
+
+template <typename SerializedAlgorithm>
+void OffloadAlgorithmRunner<SerializedAlgorithm>::Process(
+    scoped_refptr<Handle> handle) {
+  DCHECK(handle);
+  DCHECK(process_task_runner_->BelongsToCurrentThread());
+
+  TRACE_EVENT0("cobalt::dom", "OffloadAlgorithmRunner::Process()");
+
+  bool finished = false;
+  handle->Process(&finished);
+
+  if (finished) {
+    finalize_task_runner_->PostTask(
+        FROM_HERE, base::BindOnce(&Handle::FinalizeIfNotAborted, handle));
+    return;
+  }
+  process_task_runner_->PostTask(
+      FROM_HERE, base::BindOnce(&OffloadAlgorithmRunner::Process,
+                                base::Unretained(this), handle));
+}
 
 }  // namespace dom
 }  // namespace cobalt

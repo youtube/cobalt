@@ -59,6 +59,7 @@
 #include "cobalt/dom/media_source_ready_state.h"
 #include "cobalt/dom/serialized_algorithm_runner.h"
 #include "cobalt/dom/source_buffer.h"
+#include "cobalt/dom/source_buffer_algorithm.h"
 #include "cobalt/dom/source_buffer_list.h"
 #include "cobalt/dom/time_ranges.h"
 #include "cobalt/dom/video_track.h"
@@ -126,7 +127,8 @@ class MediaSource : public web::EventTarget {
   void SetSourceBufferActive(SourceBuffer* source_buffer, bool is_active);
   HTMLMediaElement* GetMediaElement() const;
   bool MediaElementHasMaxVideoCapabilities() const;
-  SerializedAlgorithmRunner* GetAlgorithmRunner(int job_size);
+  SerializedAlgorithmRunner<SourceBufferAlgorithm>* GetAlgorithmRunner(
+      int job_size);
 
   DEFINE_WRAPPABLE_TYPE(MediaSource);
   void TraceMembers(script::Tracer* tracer) override;
@@ -148,9 +150,10 @@ class MediaSource : public web::EventTarget {
   const int min_size_for_immediate_job_;
 
   // The default algorithm runner runs all steps on the web thread.
-  DefaultAlgorithmRunner default_algorithm_runner_;
+  DefaultAlgorithmRunner<SourceBufferAlgorithm> default_algorithm_runner_;
   // The offload algorithm runner offloads some steps to a non-web thread.
-  std::unique_ptr<OffloadAlgorithmRunner> offload_algorithm_runner_;
+  std::unique_ptr<OffloadAlgorithmRunner<SourceBufferAlgorithm>>
+      offload_algorithm_runner_;
   std::unique_ptr<base::Thread> algorithm_process_thread_;
 
   ChunkDemuxer* chunk_demuxer_;

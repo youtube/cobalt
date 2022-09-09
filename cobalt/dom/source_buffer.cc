@@ -387,11 +387,11 @@ void SourceBuffer::Remove(double start, double end,
                      base::Unretained(this)),
           base::Bind(&SourceBuffer::OnAlgorithmFinalized,
                      base::Unretained(this))));
+  auto algorithm_runner =
+      media_source_->GetAlgorithmRunner(std::numeric_limits<int>::max());
   active_algorithm_handle_ =
-      new SerializedAlgorithmRunner::Handle<SourceBufferAlgorithm>(
-          std::move(algorithm));
-  media_source_->GetAlgorithmRunner(std::numeric_limits<int>::max())
-      ->Start(active_algorithm_handle_);
+      algorithm_runner->CreateHandle(std::move(algorithm));
+  algorithm_runner->Start(active_algorithm_handle_);
 }
 
 void SourceBuffer::set_track_defaults(
@@ -482,9 +482,13 @@ void SourceBuffer::ScheduleEvent(base::Token event_name) {
 }
 
 void SourceBuffer::ScheduleAndMaybeDispatchImmediately(base::Token event_name) {
+  ScheduleEvent(event_name);
+  // TODO(b/244773734): Re-enable direct event dispatching
+  /*
   scoped_refptr<web::Event> event = new web::Event(event_name);
   event->set_target(this);
   event_queue_->EnqueueAndMaybeDispatchImmediately(event);
+  */
 }
 
 bool SourceBuffer::PrepareAppend(size_t new_data_size,
@@ -509,6 +513,7 @@ bool SourceBuffer::PrepareAppend(size_t new_data_size,
     return false;
   }
 
+  metrics_.StartTracking();
   media_source_->OpenIfInEndedState();
 
   double current_time = media_source_->GetMediaElement()->current_time(NULL);
@@ -517,9 +522,11 @@ bool SourceBuffer::PrepareAppend(size_t new_data_size,
           new_data_size + evict_extra_in_bytes_)) {
     web::DOMException::Raise(web::DOMException::kQuotaExceededErr,
                              exception_state);
+    metrics_.EndTracking(0);
     return false;
   }
 
+  metrics_.EndTracking(0);
   return true;
 }
 
@@ -528,11 +535,9 @@ void SourceBuffer::AppendBufferInternal(
     script::ExceptionState* exception_state) {
   TRACE_EVENT1("cobalt::dom", "SourceBuffer::AppendBufferInternal()", "size",
                size);
-  metrics_.StartTracking();
   if (!PrepareAppend(size, exception_state)) {
     return;
   }
-  metrics_.EndTracking(0);
 
   DCHECK(data || size == 0);
 
@@ -562,10 +567,10 @@ void SourceBuffer::AppendBufferInternal(
           base::Bind(&SourceBuffer::OnAlgorithmFinalized,
                      base::Unretained(this)),
           &metrics_));
+  auto algorithm_runner = media_source_->GetAlgorithmRunner(size);
   active_algorithm_handle_ =
-      new SerializedAlgorithmRunner::Handle<SourceBufferAlgorithm>(
-          std::move(algorithm));
-  media_source_->GetAlgorithmRunner(size)->Start(active_algorithm_handle_);
+      algorithm_runner->CreateHandle(std::move(algorithm));
+  algorithm_runner->Start(active_algorithm_handle_);
 }
 
 void SourceBuffer::OnAlgorithmFinalized() {

@@ -204,7 +204,7 @@ class SourceBuffer : public web::EventTarget {
   starboard::Mutex timestamp_offset_mutex_;
   double timestamp_offset_ = 0;
 
-  scoped_refptr<SerializedAlgorithmRunner::Handle<SourceBufferAlgorithm>>
+  scoped_refptr<SerializedAlgorithmRunner<SourceBufferAlgorithm>::Handle>
       active_algorithm_handle_;
   double append_window_start_ = 0;
   double append_window_end_ = std::numeric_limits<double>::infinity();
