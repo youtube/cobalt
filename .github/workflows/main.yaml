@@ -28,36 +28,8 @@ env:
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  # Builds, tags, and pushes Cobalt docker images to ghr.
-  docker-image:
-    permissions:
-      packages: write
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout files
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 2
-      - name: Login to Docker Registry ${{env.REGISTRY}}
-        uses: docker/login-action@v1
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build docker image
-        id: build-docker-image
-        uses: ./.github/actions/docker
-        with:
-          platform: ${{inputs.platform}}
-      - name: Set Docker Tag Output
-        id: set-docker-tag-output
-        run: |
-          echo ${{ steps.build-docker-image.outputs.docker_tag }}
-          echo "::set-output name=docker_tag::$(echo ${{ steps.build-docker-image.outputs.docker_tag }})"
-    outputs:
-      docker_tag: ${{steps.set-docker-tag-output.outputs.docker_tag}}
-  # Generates build matrix based on json configuration file.
-  build-matrix:
+  # Retrieves configuration from json file.
+  initialize:
     runs-on: ubuntu-latest
     steps:
       - id: checkout
@@ -76,6 +48,8 @@ jobs:
         run: echo "::set-output name=on_host_test_shards::$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.on_host_test_shards')"
       - id: set-on-host-test-bootloader
         run: echo "::set-output name=on_host_test_bootloader::$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.on_host_test_bootloader')"
+      - id: set-docker-service
+        run: echo "::set-output name=docker_service::$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -r '.docker_service')"
     outputs:
       platforms: ${{ steps.set-platforms.outputs.platforms }}
       includes: ${{ steps.set-includes.outputs.includes }}
@@ -83,18 +57,83 @@ jobs:
       on_host_test: ${{ steps.set-on-host-test.outputs.on_host_test }}
       on_host_test_shards: ${{ steps.set-on-host-test-shards.outputs.on_host_test_shards }}
       on_host_test_bootloader: ${{ steps.set-on-host-test-bootloader.outputs.on_host_test_bootloader }}
+      docker_service: ${{ steps.set-docker-service.outputs.docker_service }}
+
+  # Builds, tags, and pushes Cobalt docker build images to ghr.
+  docker-build-image:
+    needs: [initialize]
+    permissions:
+      packages: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout files
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 2
+      - name: Login to Docker Registry ${{env.REGISTRY}}
+        uses: docker/login-action@v1
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build docker image
+        id: build-docker-image
+        uses: ./.github/actions/docker
+        with:
+          docker_service: ${{ needs.initialize.outputs.docker_service }}
+          docker_image: cobalt-${{ needs.initialize.outputs.docker_service }}
+      - name: Set Docker Tag Output
+        id: set-docker-tag-output
+        run: |
+          echo ${{ steps.build-docker-image.outputs.docker_tag }}
+          echo "::set-output name=docker_tag::$(echo ${{ steps.build-docker-image.outputs.docker_tag }})"
+    outputs:
+      docker_tag: ${{steps.set-docker-tag-output.outputs.docker_tag}}
+
+  # Builds, tags, and pushes Cobalt unit test image to ghr.
+  docker-unittest-image:
+    if: needs.initialize.outputs.on_host_test == 'true'
+    needs: [initialize]
+    permissions:
+      packages: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout files
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 2
+      - name: Login to Docker Registry ${{env.REGISTRY}}
+        uses: docker/login-action@v1
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build docker image
+        id: build-docker-image
+        uses: ./.github/actions/docker
+        with:
+          docker_service: unittest
+          docker_image: cobalt-unittest
+      - name: Set Docker Tag Output
+        id: set-docker-unittest-tag-output
+        run: |
+          echo ${{ steps.build-docker-image.outputs.docker_tag }}
+          echo "::set-output name=docker_unittest_tag::$(echo ${{ steps.build-docker-image.outputs.docker_tag }})"
+    outputs:
+      docker_unittest_tag: ${{steps.set-docker-unittest-tag-output.outputs.docker_unittest_tag}}
+
   # Runs builds.
   build:
-    needs: [docker-image, build-matrix]
+    needs: [initialize, docker-build-image]
     runs-on: [self-hosted, linux, X64]
     name: ${{matrix.platform}}_${{matrix.config}}
     strategy:
       fail-fast: false
       matrix:
-        platform: ${{ fromJson(needs.build-matrix.outputs.platforms) }}
-        include: ${{ fromJson(needs.build-matrix.outputs.includes) }}
+        platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
+        include: ${{ fromJson(needs.initialize.outputs.includes) }}
         config: [devel, debug, qa, gold]
-    container: ${{ needs.docker-image.outputs.docker_tag }}
+    container: ${{ needs.docker-build-image.outputs.docker_tag }}
     env:
       # We want temp folder to be on tmpfs which makes workloads faster.
       # However, dind container ends up having / folder mounted on overlay
@@ -113,44 +152,44 @@ jobs:
         if: ${{ contains(github.workflow, '_nightly') && matrix.config != 'debug' }}
         uses: ./.github/actions/upload_nightly_artifacts
       - name: Upload On Device Test Artifacts
-        if: ${{ matrix.config == 'devel' && needs.build-matrix.outputs.on_device_test == 'true' && (contains(github.workflow, '_nightly') || github.event.label.name == 'runtest' || github.event_name == 'push') }}
+        if: ${{ matrix.config == 'devel' && needs.initialize.outputs.on_device_test == 'true' && (contains(github.workflow, '_nightly') || github.event.label.name == 'runtest' || github.event_name == 'push') }}
         uses: ./.github/actions/upload_test_artifacts
         with:
           type: ondevice
       - name: Upload On Host Test Artifacts
-        if: ${{ matrix.config == 'devel' && needs.build-matrix.outputs.on_host_test == 'true' }}
+        if: ${{ matrix.config == 'devel' && needs.initialize.outputs.on_host_test == 'true' }}
         uses: ./.github/actions/upload_test_artifacts
         with:
           type: onhost
       # Build bootloader if neccessary.
       - name: Set bootloader config
-        if: needs.build-matrix.outputs.on_host_test_bootloader != 'null'
-        run: echo "COBALT_BOOTLOADER=${{needs.build-matrix.outputs.on_host_test_bootloader}}" >> $GITHUB_ENV
+        if: needs.initialize.outputs.on_host_test_bootloader != 'null'
+        run: echo "COBALT_BOOTLOADER=${{needs.initialize.outputs.on_host_test_bootloader}}" >> $GITHUB_ENV
       - name: Bootloader GN
-        if: needs.build-matrix.outputs.on_host_test_bootloader != 'null'
+        if: needs.initialize.outputs.on_host_test_bootloader != 'null'
         uses: ./.github/actions/gn
       - name: Build Bootloader
-        if: needs.build-matrix.outputs.on_host_test_bootloader != 'null'
+        if: needs.initialize.outputs.on_host_test_bootloader != 'null'
         uses: ./.github/actions/build
       - name: Upload Bootloader On Host Test Artifacts
-        if: ${{ needs.build-matrix.outputs.on_host_test_bootloader != 'null' && matrix.config == 'devel' && needs.build-matrix.outputs.on_host_test == 'true' }}
+        if: ${{ needs.initialize.outputs.on_host_test_bootloader != 'null' && matrix.config == 'devel' && needs.initialize.outputs.on_host_test == 'true' }}
         uses: ./.github/actions/upload_test_artifacts
         with:
           type: onhost
 
   # Runs on-device tests.
   on-device-test:
-    needs: [docker-image, build-matrix, build]
-    if: needs.build-matrix.outputs.on_device_test == 'true' && (contains(github.workflow, '_nightly') || github.event.label.name == 'runtest' || github.event_name == 'push') 
+    needs: [initialize, build]
+    if: needs.initialize.outputs.on_device_test == 'true' && (contains(github.workflow, '_nightly') || github.event.label.name == 'runtest' || github.event_name == 'push') 
     runs-on: [self-hosted, linux, X64]
     name: ${{matrix.platform}}_${{matrix.type}}
     strategy:
       fail-fast: false
       matrix:
-        platform: ${{ fromJson(needs.build-matrix.outputs.platforms) }}
+        platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
         type: [unit_test, integration_test]
-        include: ${{ fromJson(needs.build-matrix.outputs.includes) }}
-    container: ${{ needs.docker-image.outputs.docker_tag }}
+        include: ${{ fromJson(needs.initialize.outputs.includes) }}
+    container: ${{ needs.docker-build-image.outputs.docker_tag }}
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -159,24 +198,24 @@ jobs:
 
   # Runs on-host integration and unit tests.
   on-host-test:
-    needs: [docker-image, build-matrix, build]
-    if: needs.build-matrix.outputs.on_host_test == 'true'
+    needs: [initialize, docker-unittest-image, build]
+    if: needs.initialize.outputs.on_host_test == 'true'
     runs-on: [self-hosted, linux, X64]
     name: ${{matrix.platform}}_${{matrix.shard}}_test
     strategy:
       fail-fast: false
       matrix:
-        platform: ${{ fromJson(needs.build-matrix.outputs.platforms) }}
-        shard: ${{ fromJson(needs.build-matrix.outputs.on_host_test_shards) }}
+        platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
+        shard: ${{ fromJson(needs.initialize.outputs.on_host_test_shards) }}
         config: [devel]
-        include: ${{ fromJson(needs.build-matrix.outputs.includes) }}
-    container: ${{ needs.docker-image.outputs.docker_tag }}
+        include: ${{ fromJson(needs.initialize.outputs.includes) }}
+    container: ${{ needs.docker-unittest-image.outputs.docker_unittest_tag }}
     env:
       DISPLAY: :99
       # For some reason tests complaining about HOME set to /github/home
       # with permission denied error.
       HOME: /root
-      COBALT_BOOTLOADER: ${{needs.build-matrix.outputs.on_host_test_bootloader}}
+      COBALT_BOOTLOADER: ${{needs.initialize.outputs.on_host_test_bootloader}}
     steps:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v0
