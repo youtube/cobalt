@@ -23,6 +23,61 @@
 
 namespace cobalt {
 namespace dom {
+namespace {
+bool IsValidRGB(int r, int g, int b) {
+  if (r < 0 || r > 255 || g < 0 || g > 255 || b < 0 || b > 255) {
+    return false;
+  } else {
+    return true;
+  }
+}
+
+bool ParseColor(const char* color_str, int& r, int& g, int& b) {
+  size_t len = strlen(color_str);
+  if (len == 0) {
+    return false;
+  }
+
+  // Handle hexadecimal color notation #RRGGBB
+  int r_tmp, g_tmp, b_tmp;
+  bool is_hex = sscanf(color_str, "#%02x%02x%02x", &r_tmp, &g_tmp, &b_tmp) == 3;
+  if (is_hex && IsValidRGB(r_tmp, g_tmp, b_tmp)) {
+    r = r_tmp;
+    g = g_tmp;
+    b = b_tmp;
+    return true;
+  }
+
+  // Handle rgb color notation rgb(R, G, B)
+  if (!is_hex && len >= 10 && strncmp("rgb(", color_str, 4) == 0) {
+    int rgb_tmp[3] = {-1, -1, -1};
+    const char* ptr = color_str + 4;
+    int i = 0;
+    while (*ptr) {
+      if (isdigit(*ptr)) {
+        char* end;
+        rgb_tmp[i++] = static_cast<int>(strtol(ptr, &end, 10));
+        if (i == 3) {
+          break;
+        }
+        ptr = (const char*)end;
+      } else if (isspace(*ptr) || *ptr == ',') {
+        ptr++;
+      } else {
+        return false;
+      }
+    }
+
+    if (IsValidRGB(rgb_tmp[0], rgb_tmp[1], rgb_tmp[2])) {
+      r = rgb_tmp[0];
+      g = rgb_tmp[1];
+      b = rgb_tmp[2];
+      return true;
+    }
+  }
+  return false;
+}
+}  // namespace
 
 OnScreenKeyboard::OnScreenKeyboard(
     script::EnvironmentSettings* settings, OnScreenKeyboardBridge* bridge,
@@ -48,10 +103,17 @@ script::Handle<script::Promise<void>> OnScreenKeyboard::Show() {
   bridge_->Show(data_.c_str(), ticket);
 
   if (background_color_.has_value()) {
-    bridge_->SetBackgroundColor(background_color_.value().c_str());
+    int r, g, b;
+    if (ParseColor(background_color_.value().c_str(), r, g, b)) {
+      bridge_->SetBackgroundColor(static_cast<uint8>(r), static_cast<uint8>(g),
+                                  static_cast<uint8>(b));
+    } else {
+      LOG(WARNING) << "Invalid on-screen keyboard background color: "
+                   << background_color_.value();
+    }
   }
-  if (dark_theme_.has_value()) {
-    bridge_->SetDarkTheme(dark_theme_.value());
+  if (light_theme_.has_value()) {
+    bridge_->SetLightTheme(light_theme_.value());
   }
 
   return promise;
