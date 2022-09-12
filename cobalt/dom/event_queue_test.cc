@@ -90,42 +90,6 @@ TEST_F(EventQueueTest, EventWithTargetTest) {
   base::RunLoop().RunUntilIdle();
 }
 
-TEST_F(EventQueueTest, EnqueueAndMaybeDispatchImmediatelyTest) {
-  scoped_refptr<web::EventTarget> event_target =
-      new web::EventTarget(&environment_settings_);
-  scoped_refptr<web::Event> event = new web::Event(base::Token("event"));
-  std::unique_ptr<MockEventListener> event_listener =
-      MockEventListener::Create();
-  EventQueue event_queue(event_target.get());
-
-  event->set_target(event_target);
-  event_target->AddEventListener(
-      "event", FakeScriptValue<web::EventListener>(event_listener.get()),
-      false);
-
-  {
-    ::testing::InSequence s;
-    ExpectHandleEventCallWithEventAndTarget(event_listener.get(), event,
-                                            event_target);
-    // The event should be dispatched immediately as the queue is empty, so the
-    // expectation should be set before being enqueued.
-    event_queue.EnqueueAndMaybeDispatchImmediately(event);
-  }
-
-  {
-    ::testing::InSequence s;
-    event_queue.Enqueue(event);
-    // The event won't be dispatched immediately as the queue isn't empty, so
-    // the expectations can be set after being enqueued.
-    event_queue.EnqueueAndMaybeDispatchImmediately(event);
-    ExpectHandleEventCallWithEventAndTarget(event_listener.get(), event,
-                                            event_target);
-    ExpectHandleEventCallWithEventAndTarget(event_listener.get(), event,
-                                            event_target);
-    base::RunLoop().RunUntilIdle();
-  }
-}
-
 TEST_F(EventQueueTest, CancelAllEventsTest) {
   scoped_refptr<web::EventTarget> event_target =
       new web::EventTarget(&environment_settings_);
