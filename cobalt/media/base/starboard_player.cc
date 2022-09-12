@@ -1023,8 +1023,8 @@ void StarboardPlayer::LogStartupLatency() const {
       "  kSbPlayerStatePrerolling received       %" PRId64 " us\n"
       "  First media sample(s) written [a/v]     %" PRId64 "/%" PRId64 " us\n"
       "  kSbPlayerStatePresenting received       %" PRId64 " us\n"
-      "  Startup latency statistics (us):\n"
-      "    min: %" PRId64 ", median: %" PRId64 ", average: %" PRId64
+      "  Startup latency statistics (us):"
+      "        min: %" PRId64 ", median: %" PRId64 ", average: %" PRId64
       ", max: %" PRId64,
       startup_latency,
       first_events_str.c_str(), player_initialization_time_delta,
