@@ -133,12 +133,10 @@ void SourceBuffer::OnInitSegmentReceivedHelper::TryToRunOnInitSegmentReceived(
 
 SourceBuffer::SourceBuffer(script::EnvironmentSettings* settings,
                            const std::string& id, MediaSource* media_source,
-                           bool asynchronous_reduction_enabled,
                            ChunkDemuxer* chunk_demuxer, EventQueue* event_queue)
     : web::EventTarget(settings),
       on_init_segment_received_helper_(new OnInitSegmentReceivedHelper(this)),
       id_(id),
-      asynchronous_reduction_enabled_(asynchronous_reduction_enabled),
       evict_extra_in_bytes_(GetEvictExtraInBytes(settings)),
       media_source_(media_source),
       chunk_demuxer_(chunk_demuxer),
@@ -381,10 +379,7 @@ void SourceBuffer::Remove(double start, double end,
   std::unique_ptr<SourceBufferAlgorithm> algorithm(
       new SourceBufferRemoveAlgorithm(
           chunk_demuxer_, id_, DoubleToTimeDelta(start), DoubleToTimeDelta(end),
-          base::Bind(asynchronous_reduction_enabled_
-                         ? &SourceBuffer::ScheduleAndMaybeDispatchImmediately
-                         : &SourceBuffer::ScheduleEvent,
-                     base::Unretained(this)),
+          base::Bind(&SourceBuffer::ScheduleEvent, base::Unretained(this)),
           base::Bind(&SourceBuffer::OnAlgorithmFinalized,
                      base::Unretained(this))));
   auto algorithm_runner =
@@ -481,16 +476,6 @@ void SourceBuffer::ScheduleEvent(base::Token event_name) {
   event_queue_->Enqueue(event);
 }
 
-void SourceBuffer::ScheduleAndMaybeDispatchImmediately(base::Token event_name) {
-  ScheduleEvent(event_name);
-  // TODO(b/244773734): Re-enable direct event dispatching
-  /*
-  scoped_refptr<web::Event> event = new web::Event(event_name);
-  event->set_target(this);
-  event_queue_->EnqueueAndMaybeDispatchImmediately(event);
-  */
-}
-
 bool SourceBuffer::PrepareAppend(size_t new_data_size,
                                  script::ExceptionState* exception_state) {
   TRACE_EVENT1("cobalt::dom", "SourceBuffer::PrepareAppend()", "new_data_size",
@@ -560,10 +545,7 @@ void SourceBuffer::AppendBufferInternal(
           DoubleToTimeDelta(timestamp_offset_),
           base::Bind(&SourceBuffer::UpdateTimestampOffset,
                      base::Unretained(this)),
-          base::Bind(asynchronous_reduction_enabled_
-                         ? &SourceBuffer::ScheduleAndMaybeDispatchImmediately
-                         : &SourceBuffer::ScheduleEvent,
-                     base::Unretained(this)),
+          base::Bind(&SourceBuffer::ScheduleEvent, base::Unretained(this)),
           base::Bind(&SourceBuffer::OnAlgorithmFinalized,
                      base::Unretained(this)),
           &metrics_));

@@ -44,11 +44,6 @@ class EventQueue : public base::SupportsWeakPtr<EventQueue>,
   explicit EventQueue(web::EventTarget* event_target);
 
   void Enqueue(const scoped_refptr<web::Event>& event);
-  // Try to dispatch the event immediately if there are no existing events in
-  // the queue, otherwise it has the same behavior as Enqueue(), which enqueues
-  // the event and the event will be dispatched after the existing events.
-  void EnqueueAndMaybeDispatchImmediately(
-      const scoped_refptr<web::Event>& event);
   void CancelAllEvents();
 
   void TraceMembers(script::Tracer* tracer) override;
