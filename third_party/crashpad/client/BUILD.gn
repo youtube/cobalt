@@ -90,11 +90,12 @@ static_library("client") {
     "../util",
   ]
 
+  deps = []
+
   if (crashpad_is_in_starboard) {
     public_deps += [ "//starboard/elf_loader:evergreen_info" ]
+    deps += [ "../wrapper/proto:crashpad_annotations_proto" ]
   }
-
-  deps = []
 
   if (crashpad_is_win) {
     libs = [ "rpcrt4.lib" ]

@@ -160,13 +160,16 @@ void LoadLibraryAndInitialize(const std::string& alternative_content_path,
   if (!get_user_agent_func) {
     SB_LOG(ERROR) << "Failed to get user agent string";
   } else {
-    CrashpadAnnotations cobalt_version_info;
-    memset(&cobalt_version_info, 0, sizeof(CrashpadAnnotations));
-    starboard::strlcpy(cobalt_version_info.user_agent_string,
-                       get_user_agent_func(), USER_AGENT_STRING_MAX_SIZE);
-    third_party::crashpad::wrapper::AddAnnotationsToCrashpad(
-        cobalt_version_info);
-    SB_DLOG(INFO) << "Added user agent string to Crashpad.";
+    std::vector<char> buffer(USER_AGENT_STRING_MAX_SIZE);
+    starboard::strlcpy(buffer.data(), get_user_agent_func(),
+                       USER_AGENT_STRING_MAX_SIZE);
+    if (third_party::crashpad::wrapper::InsertCrashpadAnnotation(
+            third_party::crashpad::wrapper::kCrashpadUserAgentStringKey,
+            buffer.data())) {
+      SB_DLOG(INFO) << "Added user agent string to Crashpad.";
+    } else {
+      SB_DLOG(INFO) << "Failed to add user agent string to Crashpad.";
+    }
   }
 
   g_sb_event_func = reinterpret_cast<void (*)(const SbEvent*)>(

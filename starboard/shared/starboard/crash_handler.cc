@@ -25,14 +25,16 @@ namespace common {
 namespace {
 
 bool OverrideCrashpadAnnotations(CrashpadAnnotations* crashpad_annotations) {
-  CrashpadAnnotations annotations;
-  memset(&annotations, 0, sizeof(CrashpadAnnotations));
-  memcpy(&annotations, crashpad_annotations, sizeof(CrashpadAnnotations));
-  return third_party::crashpad::wrapper::AddAnnotationsToCrashpad(annotations);
+  return false;  // Deprecated
+}
+
+bool SetString(const char* key, const char* value) {
+  return third_party::crashpad::wrapper::InsertCrashpadAnnotation(key, value);
 }
 
 const CobaltExtensionCrashHandlerApi kCrashHandlerApi = {
-    kCobaltExtensionCrashHandlerName, 1, &OverrideCrashpadAnnotations,
+    kCobaltExtensionCrashHandlerName, 2, &OverrideCrashpadAnnotations,
+    &SetString,
 };
 
 }  // namespace

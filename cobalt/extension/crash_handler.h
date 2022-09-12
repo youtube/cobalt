@@ -36,8 +36,15 @@ typedef struct CobaltExtensionCrashHandlerApi {
 
   // The fields below this point were added in version 1 or later.
 
+  // Deprecated in version 2 and later.
   bool (*OverrideCrashpadAnnotations)(
       CrashpadAnnotations* crashpad_annotations);
+
+  // The fields below this point were added in version 2 or later.
+
+  // Sets a (key, value) pair for the handler to include when annotating a
+  // crash. Returns true on success and false on failure.
+  bool (*SetString)(const char* key, const char* value);
 } CobaltExtensionCrashHandlerApi;
 
 #ifdef __cplusplus

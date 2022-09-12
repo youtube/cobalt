@@ -18,13 +18,17 @@ namespace third_party {
 namespace crashpad {
 namespace wrapper {
 
+const char kCrashpadVersionKey[]  = "";
+const char kCrashpadProductKey[]  = "";
+const char kCrashpadUserAgentStringKey[]  = "";
+
 void InstallCrashpadHandler(bool start_at_crash) {}
 
 bool AddEvergreenInfoToCrashpad(EvergreenInfo evergreen_info) {
   return false;
 }
 
-bool AddAnnotationsToCrashpad(CrashpadAnnotations annotations) {
+bool InsertCrashpadAnnotation(const char* key, const char* value) {
   return false;
 }
 

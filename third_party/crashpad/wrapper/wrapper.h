@@ -16,17 +16,28 @@
 #define THIRD_PARTY_CRASHPAD_WRAPPER_WRAPPER_H_
 
 #include "starboard/elf_loader/evergreen_info.h" // nogncheck
-#include "third_party/crashpad/wrapper/annotations.h"
 
 namespace third_party {
 namespace crashpad {
 namespace wrapper {
 
+// The key name used in Crashpad for the version annotation.
+extern const char kCrashpadVersionKey[];
+
+// The key name used in Crashpad for the version annotation.
+extern const char kCrashpadProductKey[];
+
+// The key name used in Crashpad for the user_agent_string annotation.
+extern const char kCrashpadUserAgentStringKey[];
+
 void InstallCrashpadHandler(bool start_at_crash);
 
 bool AddEvergreenInfoToCrashpad(EvergreenInfo evergreen_info);
 
-bool AddAnnotationsToCrashpad(CrashpadAnnotations annotations);
+// Associates the given value with the given key in Crashpad's map of
+// annotations, updating the existing value if the map already contains the
+// key. Returns true on success and false on failure.
+bool InsertCrashpadAnnotation(const char* key, const char* value);
 
 }  // namespace wrapper
 }  // namespace crashpad

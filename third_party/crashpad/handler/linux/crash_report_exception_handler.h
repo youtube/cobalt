@@ -122,7 +122,8 @@ class CrashReportExceptionHandler : public ExceptionHandlerServer::Delegate {
   const UserStreamDataSources* user_stream_data_sources_;  // weak
 #if defined(STARBOARD)
   VMAddress evergreen_info_;
-  VMAddress annotations_address_;
+  VMAddress serialized_annotations_address_;
+  int serialized_annotations_size_;
 #endif
 
   DISALLOW_COPY_AND_ASSIGN(CrashReportExceptionHandler);

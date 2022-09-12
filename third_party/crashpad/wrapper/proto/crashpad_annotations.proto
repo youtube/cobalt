@@ -22,10 +22,10 @@ package crashpad.wrapper;
 // Next id: 5
 message CrashpadAnnotations {
   // The product name.
-  string product = 1;
+  string prod = 1;
 
   // The product version.
-  string version = 2;
+  string ver = 2;
 
   // The User-Agent string that identifies brand, model, etc.
   string user_agent_string = 3;

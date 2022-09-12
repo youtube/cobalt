@@ -512,12 +512,13 @@ const char kMemoryTrackerCommandLongHelp[] =
     "available trackers.";
 #endif  // defined(ENABLE_DEBUGGER) && defined(STARBOARD_ALLOWS_MEMORY_TRACKING)
 
-bool AddCrashHandlerAnnotations() {
+void AddCrashHandlerAnnotations() {
   auto crash_handler_extension =
-      SbSystemGetExtension(kCobaltExtensionCrashHandlerName);
+      static_cast<const CobaltExtensionCrashHandlerApi*>(
+          SbSystemGetExtension(kCobaltExtensionCrashHandlerName));
   if (!crash_handler_extension) {
     LOG(INFO) << "No crash handler extension, not sending annotations.";
-    return false;
+    return;
   }
 
   auto platform_info = cobalt::browser::GetUserAgentPlatformInfoFromSystem();
@@ -541,23 +542,41 @@ bool AddCrashHandlerAnnotations() {
   product.push_back('\0');
   version.push_back('\0');
 
-  CrashpadAnnotations crashpad_annotations;
-  memset(&crashpad_annotations, 0, sizeof(CrashpadAnnotations));
-  strncpy(crashpad_annotations.user_agent_string, user_agent.c_str(),
-          USER_AGENT_STRING_MAX_SIZE);
-  strncpy(crashpad_annotations.product, product.c_str(),
-          CRASHPAD_ANNOTATION_DEFAULT_LENGTH);
-  strncpy(crashpad_annotations.version, version.c_str(),
-          CRASHPAD_ANNOTATION_DEFAULT_LENGTH);
-  bool result = static_cast<const CobaltExtensionCrashHandlerApi*>(
-                    crash_handler_extension)
-                    ->OverrideCrashpadAnnotations(&crashpad_annotations);
+  bool result = true;
+  if (crash_handler_extension->version == 1) {
+    CrashpadAnnotations crashpad_annotations;
+    memset(&crashpad_annotations, 0, sizeof(CrashpadAnnotations));
+    strncpy(crashpad_annotations.user_agent_string, user_agent.c_str(),
+            USER_AGENT_STRING_MAX_SIZE);
+    strncpy(crashpad_annotations.product, product.c_str(),
+            CRASHPAD_ANNOTATION_DEFAULT_LENGTH);
+    strncpy(crashpad_annotations.version, version.c_str(),
+            CRASHPAD_ANNOTATION_DEFAULT_LENGTH);
+    result = crash_handler_extension->OverrideCrashpadAnnotations(
+        &crashpad_annotations);
+  } else if (crash_handler_extension->version > 1) {
+    // These particular annotation key names (e.g., ver) are expected by
+    // Crashpad.
+    // TODO(b/201538792): figure out a clean way to define these constants once
+    // and use them everywhere.
+    if (!crash_handler_extension->SetString("user_agent_string",
+                                            user_agent.c_str())) {
+      result = false;
+    }
+    if (!crash_handler_extension->SetString("prod", product.c_str())) {
+      result = false;
+    }
+    if (!crash_handler_extension->SetString("ver", version.c_str())) {
+      result = false;
+    }
+  } else {
+    result = false;
+  }  // Invalid extension version
   if (result) {
     LOG(INFO) << "Sent annotations to crash handler";
   } else {
-    LOG(ERROR) << "Could not send annotations to crash handler.";
+    LOG(ERROR) << "Could not send some annotation(s) to crash handler.";
   }
-  return result;
 }
 
 }  // namespace
