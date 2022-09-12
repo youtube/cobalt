@@ -26,7 +26,9 @@ ExceptionHandlerProtocol::ClientInformation::ClientInformation()
 #if defined(STARBOARD)
       ,
       evergreen_information_address(0),
-      annotations_address(0)
+      serialized_annotations_address(0),
+      serialized_annotations_size(0),
+      handler_start_type(kStartAtLaunch)
 #endif
 {
 }

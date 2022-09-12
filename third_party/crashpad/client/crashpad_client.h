@@ -41,7 +41,6 @@
 #if defined(STARBOARD)
 #include "starboard/elf_loader/evergreen_info.h"
 #include "third_party/crashpad/snapshot/sanitized/sanitization_information.h"
-#include "third_party/crashpad/wrapper/annotations.h"
 #endif
 
 namespace crashpad {
@@ -391,14 +390,17 @@ class CrashpadClient {
   //! \return `true` on success, `false` on failure with a message logged.
   static bool SendEvergreenInfoToHandler(EvergreenInfo evergreen_info);
 
-  //! \brief Sends mapping info to the handler
+  //! \brief Inserts annotation mapping info for the handler
   //!
-  //! A handler must have already been installed before calling this method.
-  //! \param[in] annotations A CrashpadAnnotations struct, whose information
-  //!     was created on Evergreen startup.
+  //! A signal handler must have already been installed before calling this
+  //! method. Whether or not the annotation is sent to the Crashpad handler,
+  //! or just prepared to be sent, depends on whether the Crashpad handler is
+  //! started at launch or at crash.
+  //! \param[in] key The annotation's key.
+  //! \param[in] value The annotation's value.
   //!
   //! \return `true` on success, `false` on failure with a message logged.
-  static bool SendAnnotationsToHandler(CrashpadAnnotations annotations);
+  static bool InsertAnnotationForHandler(const char* key, const char* value);
 
   //! \brief Sends mapping info to the handler
   //!

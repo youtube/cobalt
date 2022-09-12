@@ -45,6 +45,7 @@
 #if defined(STARBOARD)
 #include "snapshot/module_snapshot_evergreen.h"
 #include "starboard/elf_loader/evergreen_info.h"
+#include "third_party/crashpad/util/linux/exception_handler_protocol.h"
 #endif
 
 namespace crashpad {
@@ -77,7 +78,9 @@ class ProcessSnapshotLinux final : public ProcessSnapshot {
   //!     an appropriate message logged.
   bool Initialize(PtraceConnection* connnection,
                   VMAddress evergreen_information_address,
-                  VMAddress annotations_address);
+                  VMAddress serialized_annotations_address,
+                  int serialized_annotations_size,
+                  ExceptionHandlerProtocol::HandlerStartType handler_start_type);
 #endif
 
   //! \brief Finds the thread whose stack contains \a stack_address.
@@ -158,6 +161,8 @@ class ProcessSnapshotLinux final : public ProcessSnapshot {
   void InitializeModules();
 #if defined(STARBOARD)
   void InitializeModules(VMAddress evergreen_information_address);
+  void AddAnnotations(VMAddress serialized_annotations_address,
+                      int serialized_annotations_size);
 #endif
   void InitializeAnnotations();
 
