@@ -40,7 +40,8 @@ bool ParseColor(const char* color_str, int& r, int& g, int& b) {
 
   // Handle hexadecimal color notation #RRGGBB
   int r_tmp, g_tmp, b_tmp;
-  bool is_hex = sscanf(color_str, "#%02x%02x%02x", &r_tmp, &g_tmp, &b_tmp) == 3;
+  bool is_hex =
+      SbStringScanF(color_str, "#%02x%02x%02x", &r_tmp, &g_tmp, &b_tmp) == 3;
   if (is_hex && IsValidRGB(r_tmp, g_tmp, b_tmp)) {
     r = r_tmp;
     g = g_tmp;
@@ -49,14 +50,15 @@ bool ParseColor(const char* color_str, int& r, int& g, int& b) {
   }
 
   // Handle rgb color notation rgb(R, G, B)
-  if (!is_hex && len >= 10 && strncmp("rgb(", color_str, 4) == 0) {
+  if (!is_hex && len >= 10 && SbStringCompare("rgb(", color_str, 4) == 0) {
     int rgb_tmp[3] = {-1, -1, -1};
     const char* ptr = color_str + 4;
     int i = 0;
     while (*ptr) {
       if (isdigit(*ptr)) {
         char* end;
-        rgb_tmp[i++] = static_cast<int>(strtol(ptr, &end, 10));
+        rgb_tmp[i++] =
+            static_cast<int>(SbStringParseSignedInteger(ptr, &end, 10));
         if (i == 3) {
           break;
         }
