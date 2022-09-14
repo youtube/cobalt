@@ -15,3 +15,7 @@
 include ':app'
 
 println "GRADLE VERSION: $gradle.gradleVersion"
+
+gradle.ext.rootBuildDir = hasProperty('cobaltGradleDir')
+    ? new File(cobaltGradleDir, 'build')
+    : new File(rootDir, "/../../../out/android_studio/gradle/build").canonicalFile

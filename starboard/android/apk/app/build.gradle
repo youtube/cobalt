@@ -135,16 +135,16 @@ android {
         }
         // Add the directories symlinked by the CMake "cobalt_content" custom command.
         debug {
-            assets.srcDir "${buildDir}/intermediates/cxx/cobalt_content"
+            assets.srcDir "${buildDir}/intermediates/cxx/debug/cobalt_content"
         }
         devel {
-            assets.srcDir "${buildDir}/intermediates/cxx/cobalt_content"
+            assets.srcDir "${buildDir}/intermediates/cxx/devel/cobalt_content"
         }
         qa {
-            assets.srcDir "${buildDir}/intermediates/cxx/cobalt_content"
+            assets.srcDir "${buildDir}/intermediates/cxx/qa/cobalt_content"
         }
         release {
-            assets.srcDir "${buildDir}/intermediates/cxx/cobalt_content"
+            assets.srcDir "${buildDir}/intermediates/cxx/gold/cobalt_content"
         }
     }
     externalNativeBuild {
