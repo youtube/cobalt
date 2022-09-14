@@ -336,6 +336,7 @@ int SimpleSynchronousEntry::Doom() {
             GetFilenameFromEntryFileKeyAndFileIndex(entry_file_key_, i));
 #if defined(STARBOARD)
         ok = false;
+        // Note: Files can not be renamed on Starboard.
 #else
         ok = base::ReplaceFile(old_name, new_name, &out_error) && ok;
 #endif
@@ -350,6 +351,7 @@ int SimpleSynchronousEntry::Doom() {
           path_.AppendASCII(GetSparseFilenameFromEntryFileKey(entry_file_key_));
 #if defined(STARBOARD)
       ok = false;
+      // Note: Files can not be renamed on Starboard.
 #else
       ok = base::ReplaceFile(old_name, new_name, &out_error) && ok;
 #endif
