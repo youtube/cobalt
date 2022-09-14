@@ -38,6 +38,13 @@ if(NOT COBALT_PRODUCT_DIR)
   )
 endif()
 
+# Abort gracefully if the config has not been generated. This should only happen
+# when building from Android Studio which builds all supported ABIs by default.
+if(NOT EXISTS "${COBALT_PRODUCT_DIR}")
+  message(WARNING "android-${COBALT_ARCH}_${COBALT_CONFIG} not configured. Please run GN. Skipping config.")
+  return()
+endif()
+
 # If COBALT_CONTENT_DIR isn't set for a particular deploy target use the
 # 'content/data' directory.
 if(NOT COBALT_CONTENT_DIR)
@@ -47,9 +54,9 @@ if(NOT COBALT_CONTENT_DIR)
 endif()
 
 # If COBALT_LIBRARY_DIR isn't set for a particular deploy target use the
-# toplevel lib/ subdirectory.
+# product root.
 if(NOT COBALT_LIBRARY_DIR)
-  set(COBALT_LIBRARY_DIR ${COBALT_PRODUCT_DIR}/lib)
+  set(COBALT_LIBRARY_DIR ${COBALT_PRODUCT_DIR})
 endif()
 
 # For platform deploy builds, use the -n parameter to skip Cobalt ninja and
@@ -76,9 +83,11 @@ add_custom_command(OUTPUT coat_lib
 # ("cobalt_content" never gets created, so this runs every time.)
 add_custom_command(OUTPUT cobalt_content
     DEPENDS coat_lib
+    COMMAND ${CMAKE_COMMAND} -E make_directory
+            ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/../../../../${COBALT_CONFIG}
     COMMAND ${CMAKE_COMMAND} -E create_symlink
             ${COBALT_CONTENT_DIR}
-            ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/../../../../cobalt_content
+            ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/../../../../${COBALT_CONFIG}/cobalt_content
 )
 
 # We need a target (not a file) for the phony native dependency below.
