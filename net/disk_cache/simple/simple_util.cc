@@ -63,20 +63,30 @@ uint64_t GetEntryHashKey(const std::string& key) {
 std::string GetFilenameFromEntryFileKeyAndFileIndex(
     const SimpleFileTracker::EntryFileKey& key,
     int file_index) {
+#if defined(STARBOARD)
+  return base::StringPrintf("%016" PRIx64 "_%1d", key.entry_hash, file_index);
+#else
+  // Files are not renamed on Starboard.
   if (key.doom_generation == 0)
     return base::StringPrintf("%016" PRIx64 "_%1d", key.entry_hash, file_index);
   else
     return base::StringPrintf("todelete_%016" PRIx64 "_%1d_%" PRIu64,
                               key.entry_hash, file_index, key.doom_generation);
+#endif
 }
 
 std::string GetSparseFilenameFromEntryFileKey(
     const SimpleFileTracker::EntryFileKey& key) {
+#if defined(STARBOARD)
+  return base::StringPrintf("%016" PRIx64 "_s", key.entry_hash);
+#else
+  // Files are not renamed on Starboard.
   if (key.doom_generation == 0)
     return base::StringPrintf("%016" PRIx64 "_s", key.entry_hash);
   else
     return base::StringPrintf("todelete_%016" PRIx64 "_s_%" PRIu64,
                               key.entry_hash, key.doom_generation);
+#endif
 }
 
 std::string GetFilenameFromKeyAndFileIndex(const std::string& key,
