@@ -50,15 +50,15 @@ bool ParseColor(const char* color_str, int& r, int& g, int& b) {
   }
 
   // Handle rgb color notation rgb(R, G, B)
-  if (!is_hex && len >= 10 && SbStringCompare("rgb(", color_str, 4) == 0) {
+  if (!is_hex && len >= 10 &&
+      SbStringCompareNoCaseN("rgb(", color_str, 4) == 0) {
     int rgb_tmp[3] = {-1, -1, -1};
     const char* ptr = color_str + 4;
     int i = 0;
     while (*ptr) {
       if (isdigit(*ptr)) {
         char* end;
-        rgb_tmp[i++] =
-            static_cast<int>(SbStringParseSignedInteger(ptr, &end, 10));
+        rgb_tmp[i++] = static_cast<int>(strtol(ptr, &end, 10));
         if (i == 3) {
           break;
         }
