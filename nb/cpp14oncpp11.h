@@ -5,6 +5,7 @@
 #ifndef NB_CPP14ONCPP11_H_
 #define NB_CPP14ONCPP11_H_
 
+#include <iterator>
 #include <memory>
 
 #include "starboard/configuration.h"
