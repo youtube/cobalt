@@ -35,7 +35,7 @@ class DelayedHttpRequestHandler(MakeRequestHandlerClass(_SERVER_ROOT_PATH)):
     parsed_path = urlparse(self.path)
 
     if parsed_path.path.startswith('/testdata/http_cache_test_resources/'):
-      time.sleep(10)
+      time.sleep(3)
 
     return SimpleHTTPServer.SimpleHTTPRequestHandler.do_GET(self)
 

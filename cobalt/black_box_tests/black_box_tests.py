@@ -63,9 +63,8 @@ _TESTS_NO_SIGNAL = [
     'allow_eval',
     'compression_test',
     'disable_eval_with_csp',
-    # TODO(b/245756622): http_cache is disabled due to flakiness. Planned update
-    # to make use of transferSize rather than load timings to make it more
-    # consistent.
+    # TODO(b/245756622): JS files are sometimes not being cached during the
+    # test run. Disabling to avoid builder flakiness until that's solved.
     # 'http_cache',
     'persistent_cookie',
     'soft_mic_platform_service_test',
