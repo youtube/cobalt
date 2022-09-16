@@ -76,7 +76,7 @@ unsigned int g_pipeline_identifier_counter = 0;
 struct StartTaskParameters {
   Demuxer* demuxer;
   SetDrmSystemReadyCB set_drm_system_ready_cb;
-  PipelineStatusCallback ended_cb;
+  ::media::PipelineStatusCB ended_cb;
   ErrorCB error_cb;
   Pipeline::SeekCB seek_cb;
   Pipeline::BufferingStateCB buffering_state_cb;
@@ -113,7 +113,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
 
   void Start(Demuxer* demuxer,
              const SetDrmSystemReadyCB& set_drm_system_ready_cb,
-             PipelineStatusCallback ended_cb, const ErrorCB& error_cb,
+             const PipelineStatusCB& ended_cb, const ErrorCB& error_cb,
              const SeekCB& seek_cb, const BufferingStateCB& buffering_state_cb,
              const base::Closure& duration_change_cb,
              const base::Closure& output_mode_change_cb,
@@ -123,7 +123,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   void Start(const SetDrmSystemReadyCB& set_drm_system_ready_cb,
              const OnEncryptedMediaInitDataEncounteredCB&
                  encrypted_media_init_data_encountered_cb,
-             const std::string& source_url, PipelineStatusCallback ended_cb,
+             const std::string& source_url, const PipelineStatusCB& ended_cb,
              const ErrorCB& error_cb, const SeekCB& seek_cb,
              const BufferingStateCB& buffering_state_cb,
              const base::Closure& duration_change_cb,
@@ -265,7 +265,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
 
   // Permanent callbacks passed in via Start().
   SetDrmSystemReadyCB set_drm_system_ready_cb_;
-  PipelineStatusCallback ended_cb_;
+  PipelineStatusCB ended_cb_;
   ErrorCB error_cb_;
   BufferingStateCB buffering_state_cb_;
   base::Closure duration_change_cb_;
@@ -441,7 +441,7 @@ void OnEncryptedMediaInitDataEncountered(
 
 void SbPlayerPipeline::Start(Demuxer* demuxer,
                              const SetDrmSystemReadyCB& set_drm_system_ready_cb,
-                             PipelineStatusCallback ended_cb,
+                             const PipelineStatusCB& ended_cb,
                              const ErrorCB& error_cb, const SeekCB& seek_cb,
                              const BufferingStateCB& buffering_state_cb,
                              const base::Closure& duration_change_cb,
@@ -462,7 +462,7 @@ void SbPlayerPipeline::Start(Demuxer* demuxer,
   StartTaskParameters parameters;
   parameters.demuxer = demuxer;
   parameters.set_drm_system_ready_cb = set_drm_system_ready_cb;
-  parameters.ended_cb = std::move(ended_cb);
+  parameters.ended_cb = ended_cb;
   parameters.error_cb = error_cb;
   parameters.seek_cb = seek_cb;
   parameters.buffering_state_cb = buffering_state_cb;
@@ -484,7 +484,7 @@ void SbPlayerPipeline::Start(const SetDrmSystemReadyCB& set_drm_system_ready_cb,
                              const OnEncryptedMediaInitDataEncounteredCB&
                                  on_encrypted_media_init_data_encountered_cb,
                              const std::string& source_url,
-                             PipelineStatusCallback ended_cb,
+                             const PipelineStatusCB& ended_cb,
                              const ErrorCB& error_cb, const SeekCB& seek_cb,
                              const BufferingStateCB& buffering_state_cb,
                              const base::Closure& duration_change_cb,
@@ -504,7 +504,7 @@ void SbPlayerPipeline::Start(const SetDrmSystemReadyCB& set_drm_system_ready_cb,
   StartTaskParameters parameters;
   parameters.demuxer = NULL;
   parameters.set_drm_system_ready_cb = set_drm_system_ready_cb;
-  parameters.ended_cb = std::move(ended_cb);
+  parameters.ended_cb = ended_cb;
   parameters.error_cb = error_cb;
   parameters.seek_cb = seek_cb;
   parameters.buffering_state_cb = buffering_state_cb;
@@ -810,7 +810,7 @@ void SbPlayerPipeline::StartTask(StartTaskParameters parameters) {
 
   demuxer_ = parameters.demuxer;
   set_drm_system_ready_cb_ = parameters.set_drm_system_ready_cb;
-  ended_cb_ = std::move(parameters.ended_cb);
+  ended_cb_ = parameters.ended_cb;
   error_cb_ = parameters.error_cb;
   {
     base::AutoLock auto_lock(lock_);
@@ -1327,7 +1327,7 @@ void SbPlayerPipeline::OnPlayerStatus(SbPlayerState state) {
       break;
     }
     case kSbPlayerStateEndOfStream:
-      std::move(ended_cb_).Run(::media::PIPELINE_OK);
+      ended_cb_.Run(::media::PIPELINE_OK);
       ended_ = true;
       break;
     case kSbPlayerStateDestroyed:
