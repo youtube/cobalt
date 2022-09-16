@@ -186,4 +186,10 @@ dependencies {
     implementation 'com.google.android.gms:play-services-ads-identifier:17.0.0'
     implementation 'com.google.android.gms:play-services-auth:18.0.0'
     implementation 'com.google.protobuf:protobuf-lite:3.0.1'
+    implementation 'androidx.appcompat:appcompat:1.4.2'
+    implementation 'androidx.core:core:1.8.0'
+    // When updating the games-activity version here, make sure to update
+    // the C++ sources in //third_party/android_game_activity from the same
+    // release package.
+    implementation 'androidx.games:games-activity:1.2.1'
 }

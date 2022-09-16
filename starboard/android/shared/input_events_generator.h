@@ -15,14 +15,11 @@
 #ifndef STARBOARD_ANDROID_SHARED_INPUT_EVENTS_GENERATOR_H_
 #define STARBOARD_ANDROID_SHARED_INPUT_EVENTS_GENERATOR_H_
 
-#include <android/input.h>
 #include <map>
 #include <memory>
 #include <vector>
 
-#ifdef STARBOARD_INPUT_EVENTS_FILTER
-#include "starboard/android/shared/internal/input_events_filter.h"
-#endif
+#include "third_party/android_game_activity/include/game-activity/GameActivity.h"
 
 #include "starboard/input.h"
 #include "starboard/shared/starboard/application.h"
@@ -43,8 +40,12 @@ class InputEventsGenerator {
   // Translates an Android input event into a series of Starboard application
   // events. The caller owns the new events and must delete them when done with
   // them.
-  bool CreateInputEventsFromAndroidEvent(AInputEvent* android_event,
-                                         Events* events);
+  bool CreateInputEventsFromGameActivityEvent(
+      GameActivityMotionEvent* android_event,
+      Events* events);
+  bool CreateInputEventsFromGameActivityEvent(
+      GameActivityKeyEvent* android_event,
+      Events* events);
 
   // Create press/unpress events from SbKey
   // (for use with CobaltA11yHelper injection)
@@ -59,27 +60,24 @@ class InputEventsGenerator {
     kNumAxes,
   };
 
-  bool ProcessKeyEvent(AInputEvent* android_event, Events* events);
-  bool ProcessPointerEvent(AInputEvent* android_event, Events* events);
-  bool ProcessMotionEvent(AInputEvent* android_event, Events* events);
+  bool ProcessPointerEvent(GameActivityMotionEvent* android_event,
+                           Events* events);
   void ProcessJoyStickEvent(FlatAxis axis,
                             int32_t motion_axis,
-                            AInputEvent* android_event,
+                            GameActivityMotionEvent* android_event,
                             Events* events);
-  void UpdateDeviceFlatMapIfNecessary(AInputEvent* android_event);
+  void UpdateDeviceFlatMapIfNecessary(GameActivityMotionEvent* android_event);
+  void UpdateDeviceFlatMapIfNecessary(GameActivityKeyEvent* android_event);
 
   void ProcessFallbackDPadEvent(SbInputEventType type,
                                 SbKey key,
-                                AInputEvent* android_event,
+                                GameActivityKeyEvent* android_event,
                                 Events* events);
-  void UpdateHatValuesAndPossiblySynthesizeKeyEvents(AInputEvent* android_event,
-                                                     Events* events);
+  void UpdateHatValuesAndPossiblySynthesizeKeyEvents(
+      GameActivityMotionEvent* android_event,
+      Events* events);
 
   SbWindow window_;
-
-#ifdef STARBOARD_INPUT_EVENTS_FILTER
-  internal::InputEventsFilter input_events_filter_;
-#endif
 
   // Map the device id with joystick flat position.
   // Cache the flat area of joystick to avoid calling jni functions frequently.
