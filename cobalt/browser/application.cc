@@ -100,6 +100,15 @@ const char kAboutBlankURL[] = "about:blank";
 
 const char kPersistentSettingsJson[] = "settings.json";
 
+// The watchdog client name used to represent Stats.
+const char kWatchdogName[] = "stats";
+// The watchdog time interval in microseconds allowed between pings before
+// triggering violations.
+const int64_t kWatchdogTimeInterval = 10000000;
+// The watchdog time wait in microseconds to initially wait before triggering
+// violations.
+const int64_t kWatchdogTimeWait = 2000000;
+
 bool IsStringNone(const std::string& str) {
   return !base::strcasecmp(str.c_str(), "none");
 }
@@ -668,6 +677,12 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
   watchdog::Watchdog* watchdog =
       watchdog::Watchdog::CreateInstance(persistent_settings_.get());
   DCHECK(watchdog);
+
+  // Registers Stats as a watchdog client.
+  if (watchdog)
+    watchdog->Register(kWatchdogName, kWatchdogName,
+                       base::kApplicationStateStarted, kWatchdogTimeInterval,
+                       kWatchdogTimeWait, watchdog::NONE);
 
   cobalt::cache::Cache::GetInstance()->set_persistent_settings(
       persistent_settings_.get());
@@ -1449,6 +1464,16 @@ void Application::UpdateUserAgent() {
 void Application::UpdatePeriodicStats() {
   TRACE_EVENT0("cobalt::browser", "Application::UpdatePeriodicStats()");
   c_val_stats_.app_lifetime = base::StartupTimer::TimeElapsed();
+
+  // Pings watchdog.
+  watchdog::Watchdog* watchdog = watchdog::Watchdog::GetInstance();
+  if (watchdog) {
+#if defined(_DEBUG)
+    // Injects delay for watchdog debugging.
+    watchdog->MaybeInjectDebugDelay(kWatchdogName);
+#endif  // defined(_DEBUG)
+    watchdog->Ping(kWatchdogName);
+  }
 
   int64_t used_cpu_memory = SbSystemGetUsedCPUMemory();
   base::Optional<int64_t> used_gpu_memory;
