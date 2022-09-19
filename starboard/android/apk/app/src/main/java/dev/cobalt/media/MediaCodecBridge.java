@@ -781,6 +781,10 @@ class MediaCodecBridge {
       Log.e(TAG, "Failed to set operating rate with invalid fps " + mFps);
       return;
     }
+    if (mMediaCodec == null) {
+      Log.e(TAG, "Failed to set operating rate when media codec is null.");
+      return;
+    }
     double operatingRate = mPlaybackRate * mFps;
     Bundle b = new Bundle();
     b.putFloat(MediaFormat.KEY_OPERATING_RATE, (float) operatingRate);
