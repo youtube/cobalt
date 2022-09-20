@@ -178,6 +178,11 @@ class BASE_EXPORT Value {
   ListStorage& GetList();
   const ListStorage& GetList() const;
 
+  // Transfers ownership of the underlying list to the caller. Subsequent
+  // calls to `GetList()` will return an empty list.
+  // Note: This requires that `type()` is Type::LIST.
+  ListStorage TakeList();
+
   // |FindKey| looks up |key| in the underlying dictionary. If found, it returns
   // a pointer to the element. Otherwise it returns nullptr.
   // returned. Callers are expected to perform a check against null before using

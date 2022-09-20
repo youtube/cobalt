@@ -96,7 +96,7 @@ CobaltBackendImpl::CobaltBackendImpl(
     : weak_factory_(this) {
   persistent_settings_ =
       std::make_unique<cobalt::persistent_storage::PersistentSettings>(
-          kPersistentSettingsJson, base::MessageLoop::current()->task_runner());
+          kPersistentSettingsJson);
   ReadDiskCacheSize(persistent_settings_.get(), max_bytes);
 
   // Initialize disk backend for each resource type.
