@@ -56,9 +56,8 @@ interface H5vccCrashLog {
   boolean ping(DOMString name, DOMString ping_info);
 
   // Returns a json string containing the Watchdog violations since the last
-  // call, up to the 200 most recent. Clears internal cache of Watchdog
-  // violations to prevent duplicates. Timestamps are stored as strings due to
-  // int size constraints.
+  // call, up to 200. Clears internal cache of Watchdog violations to prevent
+  // duplicates. Timestamps are stored as strings due to int size constraints.
   // Example json:
   // {
   //   "test-name":{
