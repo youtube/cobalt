@@ -662,7 +662,7 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
   // Initializes persistent settings.
   persistent_settings_ =
       std::make_unique<persistent_storage::PersistentSettings>(
-          kPersistentSettingsJson, message_loop_->task_runner());
+          kPersistentSettingsJson);
 
   // Initializes Watchdog.
   watchdog::Watchdog* watchdog =

@@ -272,6 +272,11 @@ const Value::ListStorage& Value::GetList() const {
   return list_;
 }
 
+Value::ListStorage Value::TakeList() {
+  CHECK(is_list());
+  return std::exchange(list_, {});
+}
+
 Value* Value::FindKey(StringPiece key) {
   return const_cast<Value*>(static_cast<const Value*>(this)->FindKey(key));
 }

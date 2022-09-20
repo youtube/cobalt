@@ -17,8 +17,18 @@
 
 #include <memory>
 #include <string>
+#include <utility>
+#include <vector>
 
-#include "components/prefs/json_pref_store.h"
+#include "base/bind_helpers.h"
+#include "base/callback_forward.h"
+#include "base/containers/flat_map.h"
+#include "base/message_loop/message_loop.h"
+#include "base/synchronization/lock.h"
+#include "base/synchronization/waitable_event.h"
+#include "base/threading/thread.h"
+#include "base/values.h"
+#include "components/prefs/persistent_pref_store.h"
 
 namespace cobalt {
 namespace persistent_storage {
@@ -27,51 +37,97 @@ namespace persistent_storage {
 // lifecycle to another as a JSON file in kSbSystemPathStorageDirectory.
 // PersistentSettings uses JsonPrefStore for most of its functionality.
 // JsonPrefStore maintains thread safety by requiring that all access occurs on
-// the Sequence that created it. This is why some functions rely on a PostTask
-// to the SingleThreadTaskRunner that calls and is subsequently passed into
-// PersistentSettings' constructor.
-class PersistentSettings {
+// the Sequence that created it.
+class PersistentSettings : public base::MessageLoop::DestructionObserver {
  public:
-  explicit PersistentSettings(
-      const std::string& file_name,
-      scoped_refptr<base::SingleThreadTaskRunner> task_runner);
+  explicit PersistentSettings(const std::string& file_name);
+  ~PersistentSettings();
+
+  // The message loop this object is running on.
+  base::MessageLoop* message_loop() const { return thread_.message_loop(); }
+
+  // From base::MessageLoop::DestructionObserver.
+  void WillDestroyCurrentMessageLoop() override;
 
   // Validates persistent settings by restoring the file on successful start up.
   void ValidatePersistentSettings();
 
   // Getters and Setters for persistent settings.
   bool GetPersistentSettingAsBool(const std::string& key, bool default_setting);
+
   int GetPersistentSettingAsInt(const std::string& key, int default_setting);
+
   double GetPersistentSettingAsDouble(const std::string& key,
                                       double default_setting);
+
   std::string GetPersistentSettingAsString(const std::string& key,
                                            const std::string& default_setting);
-  void SetPersistentSetting(const std::string& key,
-                            std::unique_ptr<base::Value> value);
-  void RemovePersistentSetting(const std::string& key);
 
-  void DeletePersistentSettings();
+  std::vector<base::Value> GetPersistentSettingAsList(const std::string& key);
+
+  base::flat_map<std::string, std::unique_ptr<base::Value>>
+  GetPersistentSettingAsDictionary(const std::string& key);
+
+  void SetPersistentSetting(
+      const std::string& key, std::unique_ptr<base::Value> value,
+      base::OnceClosure closure = std::move(base::DoNothing()));
+
+  void RemovePersistentSetting(
+      const std::string& key,
+      base::OnceClosure closure = std::move(base::DoNothing()));
+
+  void DeletePersistentSettings(
+      base::OnceClosure closure = std::move(base::DoNothing()));
 
  private:
-  // Persistent settings file path.
-  std::string persistent_settings_file_;
-  // TaskRunner of the thread that initialized PersistentSettings and
-  // PrefStore.
-  scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
-  // PrefStore used for persistent settings.
-  scoped_refptr<JsonPrefStore> pref_store_;
-  // Flag indicating whether or not initial persistent settings have been
-  // validated.
-  bool validated_initial_settings_;
+  // Called by the constructor to initialize pref_store_ from
+  // the dedicated thread_ as a writeable JSONPrefStore.
+  void InitializeWriteablePrefStore();
 
   void ValidatePersistentSettingsHelper();
 
   void SetPersistentSettingHelper(const std::string& key,
-                                  std::unique_ptr<base::Value> value);
+                                  std::unique_ptr<base::Value> value,
+                                  base::OnceClosure closure);
 
-  void RemovePersistentSettingHelper(const std::string& key);
+  void RemovePersistentSettingHelper(const std::string& key,
+                                     base::OnceClosure closure);
 
-  void DeletePersistentSettingsHelper();
+  void DeletePersistentSettingsHelper(base::OnceClosure closure);
+
+  scoped_refptr<PersistentPrefStore> writeable_pref_store() {
+    writeable_pref_store_initialized_.Wait();
+    return pref_store_;
+  }
+
+  // Persistent settings file path.
+  std::string persistent_settings_file_;
+
+  // PrefStore used for persistent settings.
+  scoped_refptr<PersistentPrefStore> pref_store_;
+
+  // Flag indicating whether or not initial persistent settings have been
+  // validated.
+  bool validated_initial_settings_;
+
+  // The thread created and owned by PersistentSettings. All pref_store_
+  // methods must be called from this thread.
+  base::Thread thread_;
+
+  // This event is used to signal when Initialize has been called and
+  // pref_store_ mutations can now occur.
+  base::WaitableEvent writeable_pref_store_initialized_ = {
+      base::WaitableEvent::ResetPolicy::MANUAL,
+      base::WaitableEvent::InitialState::NOT_SIGNALED};
+
+  // This event is used to signal when the destruction observers have been
+  // added to the message loop. This is then used in Stop() to ensure that
+  // processing doesn't continue until the thread is cleanly shutdown.
+  base::WaitableEvent destruction_observer_added_ = {
+      base::WaitableEvent::ResetPolicy::MANUAL,
+      base::WaitableEvent::InitialState::NOT_SIGNALED};
+
+  base::Lock pref_store_lock_;
 };
 
 }  // namespace persistent_storage
