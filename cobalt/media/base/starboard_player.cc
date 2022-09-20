@@ -565,12 +565,6 @@ void StarboardPlayer::CreatePlayer() {
 
   bool is_visible = SbWindowIsValid(window_);
   SbMediaAudioCodec audio_codec = audio_sample_info_.codec;
-  SbMediaVideoCodec video_codec = kSbMediaVideoCodecNone;
-  // TODO: This is temporary for supporting background media playback.
-  //       Need to be removed with media refactor.
-  if (is_visible) {
-    video_codec = video_sample_info_.codec;
-  }
 
   bool has_audio = audio_codec != kSbMediaAudioCodecNone;
 
