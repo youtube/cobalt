@@ -477,6 +477,7 @@ void AVCParser::ParseAudioSpecificConfig(uint8 b0, uint8 b1) {
       aac.GetChannelLayout(kSbrInMimetype),
       aac.GetOutputSamplesPerSecond(kSbrInMimetype), aac.codec_specific_data(),
       ::media::EncryptionScheme::kUnencrypted, base::TimeDelta(), 0);
+  audio_config_.set_aac_extra_data(aac.codec_specific_data());
 }
 
 size_t AVCParser::CalculatePrependSize(DemuxerStream::Type type,
