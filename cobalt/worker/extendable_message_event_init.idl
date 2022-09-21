@@ -15,9 +15,10 @@
 // https://w3c.github.io/ServiceWorker/#dictdef-extendablemessageeventinit
 
 dictionary ExtendableMessageEventInit : ExtendableEventInit {
-  any data = null;
+  any data;
   USVString origin = "";
   DOMString lastEventId = "";
-  (Client or ServiceWorker or MessagePort)? source = null;
+  EventTarget? source;
+  //(Client or ServiceWorker or MessagePort) ? source = null;
   sequence<MessagePort> ports;
 };

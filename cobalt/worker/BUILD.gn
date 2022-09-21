@@ -82,6 +82,7 @@ target(gtest_target_type, "worker_test") {
 
   sources = [
     "dedicated_worker_global_scope_test.cc",
+    "extendable_message_event_test.cc",
     "service_worker_global_scope_test.cc",
     "worker_global_scope_test.cc",
     "worker_location_test.cc",

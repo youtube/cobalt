@@ -20,4 +20,9 @@
   Constructor(DOMString type, optional MessageEventInit eventInitDict)
 ] interface MessageEvent : Event {
   [CallWith = EnvironmentSettings] readonly attribute any data;
+  readonly attribute USVString origin;
+  readonly attribute DOMString lastEventId;
+  readonly attribute EventTarget? source;
+  // TODO(b/236750294): Make this be FrozenArray<MessagePort> when available.
+  readonly attribute sequence<MessagePort> ports;
 };

@@ -109,7 +109,7 @@ TEST_P(CustomEventTestWithJavaScript, InitCustomEvent) {
 
 INSTANTIATE_TEST_CASE_P(
     CustomEventTestsWithJavaScript, CustomEventTestWithJavaScript,
-    ::testing::ValuesIn(testing::TestWebWithJavaScript::GetWorkerTypes()),
+    ::testing::ValuesIn(testing::TestWebWithJavaScript::GetWebTypes()),
     testing::TestWebWithJavaScript::GetTypeName);
 
 }  // namespace web

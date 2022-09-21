@@ -195,7 +195,7 @@ TEST_P(URLTestWithJavaScript, CreateObjectURL) {
 
 INSTANTIATE_TEST_CASE_P(
     URLTestsWithJavaScript, URLTestWithJavaScript,
-    ::testing::ValuesIn(testing::TestWebWithJavaScript::GetWorkerTypes()),
+    ::testing::ValuesIn(testing::TestWebWithJavaScript::GetWebTypes()),
     testing::TestWebWithJavaScript::GetTypeName);
 
 

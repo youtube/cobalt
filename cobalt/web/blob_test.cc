@@ -206,7 +206,7 @@ TEST_P(BlobTestWithJavaScript, ConstructorWithArraySize) {
 
 INSTANTIATE_TEST_CASE_P(
     BlobTestsWithJavaScript, BlobTestWithJavaScript,
-    ::testing::ValuesIn(testing::TestWebWithJavaScript::GetWorkerTypes()),
+    ::testing::ValuesIn(testing::TestWebWithJavaScript::GetWebTypes()),
     testing::TestWebWithJavaScript::GetTypeName);
 
 

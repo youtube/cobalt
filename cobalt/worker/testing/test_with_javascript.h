@@ -83,23 +83,34 @@ class TestWithJavaScriptBase : public TypeIdProvider {
     web_context_.reset();
   }
 
-  WorkerGlobalScope* worker_global_scope() { return worker_global_scope_; }
-
-  virtual scoped_refptr<script::GlobalEnvironment> global_environment() {
-    return web_context_->global_environment();
+  WorkerGlobalScope* worker_global_scope() const {
+    return worker_global_scope_;
   }
 
-  bool EvaluateScript(const std::string& js_code, std::string* result) {
-    DCHECK(this->global_environment());
-    scoped_refptr<script::SourceCode> source_code =
-        script::SourceCode::CreateSourceCode(
-            js_code, base::SourceLocation(__FILE__, __LINE__, 1));
+  virtual web::Context* web_context() const {
+    DCHECK(web_context_);
+    return web_context_.get();
+  }
 
-    this->global_environment()->EnableEval();
-    this->global_environment()->SetReportEvalCallback(base::Closure());
-    bool succeeded =
-        this->global_environment()->EvaluateScript(source_code, result);
-    return succeeded;
+  scoped_refptr<script::GlobalEnvironment> global_environment() const {
+    DCHECK(this->web_context());
+    return this->web_context()->global_environment();
+  }
+
+  bool EvaluateScript(const std::string& js_code,
+                      std::string* result = nullptr) {
+    DCHECK(global_environment());
+    return global_environment()->EvaluateScript(
+        CreateSourceCodeAndPrepareEval(js_code), result);
+  }
+
+  bool EvaluateScript(
+      const std::string& js_code,
+      base::Optional<script::ValueHandleHolder::Reference>* result) {
+    DCHECK(global_environment());
+    return global_environment()->EvaluateScript(
+        CreateSourceCodeAndPrepareEval(js_code),
+        this->web_context()->GetWindowOrWorkerGlobalScope(), result);
   }
 
   ::testing::StrictMock<script::testing::MockExceptionState>*
@@ -108,6 +119,15 @@ class TestWithJavaScriptBase : public TypeIdProvider {
   }
 
  private:
+  scoped_refptr<script::SourceCode> CreateSourceCodeAndPrepareEval(
+      const std::string& js_code) {
+    DCHECK(global_environment());
+    global_environment()->EnableEval();
+    global_environment()->SetReportEvalCallback(base::Closure());
+    return script::SourceCode::CreateSourceCode(
+        js_code, base::SourceLocation(__FILE__, __LINE__, 1));
+  }
+
   std::unique_ptr<web::testing::StubWebContext> web_context_;
   WorkerGlobalScope* worker_global_scope_ = nullptr;
   scoped_refptr<DedicatedWorkerGlobalScope> dedicated_worker_global_scope_;

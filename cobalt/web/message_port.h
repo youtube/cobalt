@@ -29,7 +29,6 @@
 #include "cobalt/web/context.h"
 #include "cobalt/web/event_target.h"
 #include "cobalt/web/event_target_listener_info.h"
-#include "cobalt/web/message_event.h"
 
 namespace cobalt {
 namespace web {
