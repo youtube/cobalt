@@ -16,6 +16,7 @@
     'cflags': [
       '-fPIC',
       '-fvisibility=hidden',
+      '-Wno-deprecated-declarations',
     ],
     'cflags_c': [
       '-std=gnu99',
