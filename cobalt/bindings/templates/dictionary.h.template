@@ -60,7 +60,7 @@ namespace {{component}} {
 {% if used_class.conditional %}
 #if defined({{used_class.conditional}})
 {% endif %}
-using {{used_class.fully_qualified_name}};
+using ::{{used_class.fully_qualified_name}};
 {% if used_class.conditional %}
 #endif  // defined({{used_class.conditional}})
 {% endif %}

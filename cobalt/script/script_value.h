@@ -17,6 +17,7 @@
 
 #include <algorithm>
 #include <memory>
+#include <utility>
 
 #include "base/basictypes.h"
 #include "base/logging.h"
@@ -171,8 +172,10 @@ class Handle {
       : Handle(reference.referenced_value().MakeWeakCopy().release()) {}
 
   Handle(const Handle& other) : script_value_(other.script_value_) {
-    script_value_->PreventGarbageCollection();
-    script_value_->reference_count_++;
+    if (script_value_) {
+      script_value_->PreventGarbageCollection();
+      script_value_->reference_count_++;
+    }
   }
   // We need the default constructor for nullable ScriptValue.
   Handle() = default;

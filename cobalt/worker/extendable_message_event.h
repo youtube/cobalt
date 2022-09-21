@@ -19,11 +19,13 @@
 #include <string>
 #include <utility>
 
+#include "base/memory/scoped_refptr.h"
 #include "base/optional.h"
 #include "cobalt/base/token.h"
 #include "cobalt/script/union_type.h"
 #include "cobalt/script/value_handle.h"
 #include "cobalt/script/wrappable.h"
+#include "cobalt/web/event_target.h"
 #include "cobalt/web/message_port.h"
 #include "cobalt/worker/client.h"
 #include "cobalt/worker/extendable_event.h"
@@ -52,12 +54,22 @@ class ExtendableMessageEvent : public ExtendableEvent {
   script::Handle<script::ValueHandle> data(
       script::EnvironmentSettings* settings = nullptr) const;
 
-  std::string origin() const { return origin_; }
-  std::string last_event_id() const { return last_event_id_; }
-
-  base::Optional<SourceType> source() { return source_; }
-
+  const std::string& origin() const { return origin_; }
+  const std::string& last_event_id() const { return last_event_id_; }
+  const scoped_refptr<web::EventTarget>& source() const { return source_; }
   script::Sequence<scoped_refptr<MessagePort>> ports() const { return ports_; }
+
+  // These helper functions are custom, and not in any spec.
+  void set_origin(const std::string& origin) { origin_ = origin; }
+  void set_last_event_id(const std::string& last_event_id) {
+    last_event_id_ = last_event_id;
+  }
+  void set_source(const scoped_refptr<web::EventTarget>& source) {
+    source_ = source;
+  }
+  void set_ports(script::Sequence<scoped_refptr<MessagePort>> ports) {
+    ports_ = ports;
+  }
 
   DEFINE_WRAPPABLE_TYPE(ExtendableMessageEvent);
 
@@ -65,11 +77,9 @@ class ExtendableMessageEvent : public ExtendableEvent {
   ~ExtendableMessageEvent() override {}
 
  private:
-  std::unique_ptr<script::ValueHandleHolder::Reference> data_reference_;
-
-  std::string origin_ = "Origin Stub Value";
-  std::string last_event_id_ = "Last Event Id Stub Value";
-  base::Optional<SourceType> source_;
+  std::string origin_;
+  std::string last_event_id_;
+  scoped_refptr<web::EventTarget> source_;
   script::Sequence<scoped_refptr<MessagePort>> ports_;
   std::unique_ptr<script::DataBuffer> data_;
 };

@@ -20,6 +20,7 @@
 #include "cobalt/bindings/testing/utils.h"
 #include "cobalt/script/testing/fake_script_value.h"
 #include "cobalt/web/error_event.h"
+#include "cobalt/web/message_event.h"
 #include "cobalt/web/testing/mock_event_listener.h"
 #include "cobalt/worker/testing/test_with_javascript.h"
 

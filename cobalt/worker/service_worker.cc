@@ -52,7 +52,6 @@ void ServiceWorker::PostMessage(const script::ValueHandleHolder& message) {
   if (!data_buffer) {
     return;
   }
-  LOG(INFO) << "Posting";
   message_loop->task_runner()->PostTask(
       FROM_HERE, base::BindOnce(
                      [](web::EventTarget* event_target,

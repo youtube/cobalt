@@ -29,6 +29,8 @@ namespace worker {
 using script::testing::FakeScriptValue;
 using web::testing::MockEventListener;
 
+namespace {
+
 class ServiceWorkerGlobalScopeTest
     : public testing::TestServiceWorkerWithJavaScript {
  protected:
@@ -40,6 +42,8 @@ class ServiceWorkerGlobalScopeTest
 
   std::unique_ptr<MockEventListener> fake_event_listener_;
 };
+
+}  // namespace
 
 TEST_F(ServiceWorkerGlobalScopeTest, RegistrationIsObject) {
   std::string result;

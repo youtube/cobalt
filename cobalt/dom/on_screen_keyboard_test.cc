@@ -386,7 +386,7 @@ TEST_F(OnScreenKeyboardTest, ShowEventAttribute) {
     let promise;
     let logString;
   )";
-  EXPECT_TRUE(EvaluateScript(let_script, NULL));
+  EXPECT_TRUE(EvaluateScript(let_script));
   const char event_script[] = R"(
     logString = '(empty)';
     window.onScreenKeyboard.onshow = function() {
@@ -436,7 +436,7 @@ TEST_F(OnScreenKeyboardTest, HideEventAttribute) {
     let promise;
     let logString;
   )";
-  EXPECT_TRUE(EvaluateScript(let_script, NULL));
+  EXPECT_TRUE(EvaluateScript(let_script));
   const char event_script[] = R"(
     logString = '(empty)';
     window.onScreenKeyboard.onhide = function() {
@@ -485,7 +485,7 @@ TEST_F(OnScreenKeyboardTest, FocusEventAttribute) {
     let promise;
     let logString;
   )";
-  EXPECT_TRUE(EvaluateScript(let_script, NULL));
+  EXPECT_TRUE(EvaluateScript(let_script));
   const char event_script[] = R"(
     logString = '(empty)';
     window.onScreenKeyboard.onfocus = function() {
@@ -534,7 +534,7 @@ TEST_F(OnScreenKeyboardTest, BlurEventAttribute) {
     let promise;
     let logString;
   )";
-  EXPECT_TRUE(EvaluateScript(let_script, NULL));
+  EXPECT_TRUE(EvaluateScript(let_script));
   const char event_script[] = R"(
     logString = '(empty)';
     window.onScreenKeyboard.onblur = function() {
@@ -605,7 +605,7 @@ TEST_F(OnScreenKeyboardTest, KeepFocus) {
     window.onScreenKeyboard.keepFocus = false;
     window.onScreenKeyboard.keepFocus = true;
   )";
-  EXPECT_TRUE(EvaluateScript(script, NULL));
+  EXPECT_TRUE(EvaluateScript(script));
 }
 
 TEST_F(OnScreenKeyboardTest, SetBackgroundColor) {

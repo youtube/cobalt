@@ -91,18 +91,6 @@ class StubWindow {
     on_screen_keyboard_bridge_ = on_screen_keyboard_bridge;
   }
 
- private:
-  static void StubLoadCompleteCallback(
-      const base::Optional<std::string>& error) {}
-
-  void InitializeWebContext() {
-    web_context_.reset(new web::testing::StubWebContext());
-    web_context()->setup_environment_settings(
-        new dom::testing::StubEnvironmentSettings(options_));
-    web_context()->environment_settings()->set_creation_url(
-        GURL("about:blank"));
-  }
-
   void InitializeWindow() {
     loader_factory_.reset(new loader::LoaderFactory(
         "Test", web_context()->fetcher_factory(), NULL,
@@ -142,6 +130,19 @@ class StubWindow {
     global_environment()->CreateGlobalObject(
         window_, web_context()->environment_settings());
   }
+
+ private:
+  static void StubLoadCompleteCallback(
+      const base::Optional<std::string>& error) {}
+
+  void InitializeWebContext() {
+    web_context_.reset(new web::testing::StubWebContext());
+    web_context()->setup_environment_settings(
+        new dom::testing::StubEnvironmentSettings(options_));
+    web_context()->environment_settings()->set_creation_url(
+        GURL("about:blank"));
+  }
+
 
   OnScreenKeyboardBridge* on_screen_keyboard_bridge_ = nullptr;
   DOMSettings::Options options_;

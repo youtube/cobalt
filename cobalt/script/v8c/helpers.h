@@ -15,6 +15,8 @@
 #ifndef COBALT_SCRIPT_V8C_HELPERS_H_
 #define COBALT_SCRIPT_V8C_HELPERS_H_
 
+#include <string>
+
 #include "starboard/common/string.h"
 #include "v8/include/v8.h"
 
@@ -35,7 +37,7 @@ inline v8::Local<v8::String> NewInternalString(v8::Isolate* isolate,
   }
   return v8::String::NewFromOneByte(
              isolate, reinterpret_cast<const uint8_t*>(string),
-             v8::NewStringType::kInternalized, strlen(string))
+             v8::NewStringType::kInternalized, static_cast<int>(strlen(string)))
       .ToLocalChecked();
 }
 

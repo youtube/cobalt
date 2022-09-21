@@ -35,7 +35,7 @@ class V8cDataView final : public ScopedPersistent<v8::Value>, public DataView {
   // Default constructor should only be used by bindings code.
   V8cDataView() = default;
   V8cDataView(v8::Isolate* isolate, v8::Local<v8::Value> value)
-      : isolate_(isolate), ScopedPersistent(isolate, value) {
+      : ScopedPersistent(isolate, value), isolate_(isolate) {
     DCHECK(value->IsDataView());
   }
 
@@ -110,8 +110,7 @@ inline void FromJSValue(
     return;
   }
 
-  *out_array_buffer_view =
-      std::move(V8cUserObjectHolder<V8cDataView>(isolate, value));
+  *out_array_buffer_view = V8cUserObjectHolder<V8cDataView>(isolate, value);
 }
 
 }  // namespace v8c

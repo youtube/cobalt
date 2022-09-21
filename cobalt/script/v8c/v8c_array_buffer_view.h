@@ -36,7 +36,7 @@ class V8cArrayBufferView final : public ScopedPersistent<v8::Value>,
   // Default constructor should only be used by bindings code.
   V8cArrayBufferView() = default;
   V8cArrayBufferView(v8::Isolate* isolate, v8::Local<v8::Value> value)
-      : isolate_(isolate), ScopedPersistent(isolate, value) {
+      : ScopedPersistent(isolate, value), isolate_(isolate) {
     DCHECK(value->IsArrayBufferView());
   }
 
@@ -111,7 +111,7 @@ inline void FromJSValue(
   }
 
   *out_array_buffer_view =
-      std::move(V8cUserObjectHolder<V8cArrayBufferView>(isolate, value));
+      V8cUserObjectHolder<V8cArrayBufferView>(isolate, value);
 }
 
 }  // namespace v8c

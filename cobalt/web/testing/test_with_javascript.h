@@ -23,7 +23,6 @@
 #include "cobalt/dom/testing/stub_window.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/script/wrappable.h"
-#include "cobalt/web/window_or_worker_global_scope.h"
 #include "cobalt/worker/testing/test_with_javascript.h"
 
 namespace cobalt {
@@ -42,17 +41,14 @@ class TestWithJavaScriptBase
       DCHECK(!this->worker_global_scope());
       this->ClearWebContext();
       window_.reset(new dom::testing::StubWindow());
+      window_->InitializeWindow();
     }
   }
 
-  WindowOrWorkerGlobalScope* window_or_worker_global_scope() {
-    return window_ ? window_->window().get() : this->worker_global_scope();
-  }
-
-  scoped_refptr<script::GlobalEnvironment> global_environment() override {
-    if (window_) return window_->global_environment();
+  web::Context* web_context() const override {
+    if (window_) return window_->web_context();
     return worker::testing::TestWithJavaScriptBase<
-        TypeIdProvider>::global_environment();
+        TypeIdProvider>::web_context();
   }
 
  private:
@@ -66,7 +62,7 @@ class TestWebWithJavaScript
  public:
   // Return a vector of values for all known worker types, to be used in the
   // INSTANTIATE_TEST_CASE_P() declaration.
-  static std::vector<base::TypeId> GetWorkerTypes() {
+  static std::vector<base::TypeId> GetWebTypes() {
     std::vector<base::TypeId> worker_types =
         worker::testing::TestWorkersWithJavaScript::GetWorkerTypes();
     worker_types.push_back(base::GetTypeId<dom::Window>());

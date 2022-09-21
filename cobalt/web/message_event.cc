@@ -29,17 +29,36 @@
 #include "starboard/memory.h"
 #include "v8/include/v8.h"
 
+namespace cobalt {
+namespace web {
+
 namespace {
 const char* const kResponseTypes[] = {"text", "blob", "arraybuffer", "any"};
 
-COMPILE_ASSERT(arraysize(kResponseTypes) ==
-                   cobalt::web::MessageEvent::kResponseTypeMax,
+COMPILE_ASSERT(arraysize(kResponseTypes) == MessageEvent::kResponseTypeMax,
                enum_and_array_size_mismatch);
 
 }  // namespace
 
-namespace cobalt {
-namespace web {
+MessageEvent::MessageEvent(const std::string& type,
+                           const MessageEventInit& init_dict)
+    : Event(type, init_dict), response_type_(kAny) {
+  if (init_dict.has_data() && init_dict.data()) {
+    data_ = script::SerializeScriptValue(*(init_dict.data()));
+  }
+  if (init_dict.has_origin()) {
+    origin_ = init_dict.origin();
+  }
+  if (init_dict.has_last_event_id()) {
+    last_event_id_ = init_dict.last_event_id();
+  }
+  if (init_dict.has_source()) {
+    source_ = init_dict.source();
+  }
+  if (init_dict.has_ports()) {
+    ports_ = init_dict.ports();
+  }
+}
 
 // static
 std::string MessageEvent::GetResponseTypeAsString(
@@ -63,7 +82,7 @@ MessageEvent::ResponseType MessageEvent::GetResponseType(
 MessageEvent::Response MessageEvent::data(
     script::EnvironmentSettings* settings) const {
   if (!data_ && !data_io_buffer_) {
-    return Response("");
+    return Response(script::Handle<script::ValueHandle>());
   }
 
   script::GlobalEnvironment* global_environment = nullptr;
@@ -71,7 +90,7 @@ MessageEvent::Response MessageEvent::data(
       response_type_ == kAny) {
     DCHECK(settings);
     global_environment =
-        base::polymorphic_downcast<web::EnvironmentSettings*>(settings)
+        base::polymorphic_downcast<EnvironmentSettings*>(settings)
             ->context()
             ->global_environment();
     DCHECK(global_environment);
@@ -92,8 +111,7 @@ MessageEvent::Response MessageEvent::data(
           std::move(buffer_copy);
       if (response_type_ == kBlob) {
         DCHECK(settings);
-        scoped_refptr<web::Blob> blob =
-            new web::Blob(settings, response_buffer);
+        scoped_refptr<Blob> blob = new Blob(settings, response_buffer);
         return Response(blob);
       }
       return Response(response_buffer);
@@ -101,12 +119,14 @@ MessageEvent::Response MessageEvent::data(
     case kAny: {
       v8::Isolate* isolate = global_environment->isolate();
       script::v8c::EntryScope entry_scope(isolate);
+      DCHECK(isolate);
+      DCHECK(data_);
       return Response(script::Handle<script::ValueHandle>(
           std::move(script::DeserializeScriptValue(isolate, *data_))));
     }
     default:
       NOTREACHED() << "Invalid response type.";
-      return Response("");
+      return Response(script::Handle<script::ValueHandle>());
   }
 }
 
