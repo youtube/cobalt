@@ -63,9 +63,7 @@ _TESTS_NO_SIGNAL = [
     'allow_eval',
     'compression_test',
     'disable_eval_with_csp',
-    # TODO(b/245756622): JS files are sometimes not being cached during the
-    # test run. Disabling to avoid builder flakiness until that's solved.
-    # 'http_cache',
+    'http_cache',
     'persistent_cookie',
     'soft_mic_platform_service_test',
     'text_encoding_test',

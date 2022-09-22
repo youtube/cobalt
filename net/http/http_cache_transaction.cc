@@ -69,7 +69,7 @@ static const char* const kMimeTypesCacheAllowlist[] = {
     "text/html", "text/css",      "image/gif",  "image/jpeg",
     "image/png", "image/svg+xml", "image/webp", "font/otf",
     "font/ttf",  "font/woff",     "font/woff2", "text/javascript",
-    "example/unit_test"};
+    "example/unit_test", "application/javascript"};
 #endif
 
 constexpr TimeDelta kStaleRevalidateTimeout = TimeDelta::FromSeconds(60);
