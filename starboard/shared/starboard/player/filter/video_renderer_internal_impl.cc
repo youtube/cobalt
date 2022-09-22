@@ -122,7 +122,6 @@ void VideoRendererImpl::WriteSample(
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
     first_input_written_at_ = SbTimeGetMonotonicNow();
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
-    absolute_time_of_first_input_ = SbTimeGetMonotonicNow();
   }
 
   SB_DCHECK(need_more_input_.load());
