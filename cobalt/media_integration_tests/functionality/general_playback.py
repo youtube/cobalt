@@ -40,8 +40,7 @@ class GeneralPlaybackTest(TestCase):
 
 TEST_PARAMETERS = [
     ('H264', PlaybackUrls.H264_ONLY, None),
-    # TODO(b/223856877) -- find out why Progressive still broken
-    #('PROGRESSIVE', PlaybackUrls.PROGRESSIVE, None),
+    ('PROGRESSIVE', PlaybackUrls.PROGRESSIVE, None),
     ('ENCRYPTED', PlaybackUrls.ENCRYPTED, None),
     ('VR', PlaybackUrls.VR, None),
     ('VP9', PlaybackUrls.VP9, MimeStrings.VP9),
