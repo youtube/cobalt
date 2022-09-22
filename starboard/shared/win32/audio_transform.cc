@@ -14,6 +14,8 @@
 
 #include "starboard/shared/win32/audio_transform.h"
 
+#include <mfapi.h>
+
 #include <vector>
 
 #include "starboard/memory.h"
