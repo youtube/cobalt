@@ -30,7 +30,7 @@ env:
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
   # Generates build matrix based on json configuration file.
-  build-matrix:
+  initialize:
     runs-on: ubuntu-latest
     steps:
       - id: Checkout
@@ -45,6 +45,8 @@ jobs:
         run: echo "::set-output name=on_device_test::$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.on_device_test')"
       - id: set-on-host-test
         run: echo "::set-output name=on_host_test::$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.on_host_test')"
+      - id: set-on-host-test-shards
+        run: echo "::set-output name=on_host_test_shards::$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.on_host_test_shards')"
       - id: set-docker-service
         run: echo "::set-output name=docker_service::$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.docker_service')"
       - id: set-docker-runner-service
@@ -54,11 +56,12 @@ jobs:
       includes: ${{ steps.set-includes.outputs.includes }}
       on_device_test: ${{ steps.set-on-device-test.outputs.on_device_test }}
       on_host_test: ${{ steps.set-on-host-test.outputs.on_host_test }}
+      on_host_test_shards: ${{ steps.set-on-host-test-shards.outputs.on_host_test_shards }}
       docker_service: ${{ steps.set-docker-service.outputs.docker_service }}
       docker_runner_service: ${{ steps.set-docker-runner-service.outputs.docker_runner_service }}
   # Build windows docker images.
-  docker-image:
-    needs: [build-matrix]
+  build-docker-image:
+    needs: [initialize]
     permissions:
       packages: write
     runs-on: windows-2019
@@ -77,41 +80,22 @@ jobs:
         id: build-docker-image
         uses: ./.github/actions/docker_win
         with:
-          service: ${{ needs.build-matrix.outputs.docker_service }}
+          service: ${{ needs.initialize.outputs.docker_service }}
       - name: Build runner docker image
         id: build-runner-docker-image
         uses: ./.github/actions/docker_win
         with:
-          service: ${{ needs.build-matrix.outputs.docker_runner_service }}
-  gcloud-test-hosted:
-    name: gcloud setup hosted
-    runs-on: windows-latest
-    steps:
-      - name: Get PS Version
-        run: $PSVersionTable
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v0.6.0
-  gcloud-test-self-hosted:
-    name: gcloud setup self hosted
-    runs-on: [self-hosted, X64, Windows]
-    steps:
-      - name: Get PS Version
-        run: $PSVersionTable
-      - name: Get PS Version Explicit
-        shell: pwsh
-        run: $PSVersionTable
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v0.6.0
+          service: ${{ needs.initialize.outputs.docker_runner_service }}
   # Runs builds.
   build:
-    needs: [docker-image, build-matrix]
+    needs: [initialize]
     runs-on: [self-hosted, X64, Windows]
     name: ${{matrix.platform}}_${{matrix.config}}
     strategy:
       fail-fast: false
       matrix:
-        platform: ${{ fromJson(needs.build-matrix.outputs.platforms) }}
-        include: ${{ fromJson(needs.build-matrix.outputs.includes) }}
+        platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
+        include: ${{ fromJson(needs.initialize.outputs.includes) }}
         config: [devel, debug, qa, gold]
     steps:
       - name: Checkout
@@ -125,28 +109,32 @@ jobs:
       - name: Upload Nightly Artifacts
         if: ${{ endsWith(github.workflow, '_nightly') && matrix.config != 'debug' }}
         uses: ./.github/actions/upload_nightly_artifacts
+      - name: Upload On Host Test Artifacts
+        if: ${{ matrix.config == 'devel' && needs.initialize.outputs.on_host_test == 'true' }}
+        uses: ./.github/actions/upload_test_artifacts
+        with:
+          type: onhost
+          os: windows
+
   # Runs on the host unit and integration tests.
   on-host-test:
-    needs: [docker-image, build-matrix]
-    if: needs.build-matrix.outputs.on_host_test == 'true'
+    needs: [initialize, build]
+    if: needs.initialize.outputs.on_host_test == 'true'
     runs-on: [self-hosted, Windows, X64]
     name: ${{matrix.platform}}_${{matrix.shard}}_test
     strategy:
       fail-fast: false
       matrix:
-        platform: ${{ fromJson(needs.build-matrix.outputs.platforms) }}
-        shard: [0, 1, 2, 3]
+        platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
+        shard: ${{ fromJson(needs.initialize.outputs.on_host_test_shards) }}
         config: [devel]
-        include: ${{ fromJson(needs.build-matrix.outputs.includes) }}
+        include: ${{ fromJson(needs.initialize.outputs.includes) }}
     steps:
       - name: Checkout
         uses: actions/checkout@v2
         with:
           fetch-depth: 1
-      - name: GN
-        uses: ./.github/actions/gn
-      - name: Build Cobalt
-        uses: ./.github/actions/build
       - name: Run Tests
-        shell: bash
-        run: python3 ${GITHUB_WORKSPACE}/starboard/tools/testing/test_runner.py --platform ${{matrix.target_platform}} --config ${{matrix.config}} -s ${{matrix.shard}} -r
+        uses: ./.github/actions/on_host_test
+        with:
+          os: windows

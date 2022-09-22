@@ -27,6 +27,9 @@ RUN Invoke-WebRequest -Uri https://github.com/actions/runner/releases/download/v
     Remove-Item -Path C:\runner.zip;`
     setx /M PATH $(${Env:PATH} + \";${Env:ProgramFiles}\Git\bin\")
 
+# Required for packaging artifacts.
+RUN choco install -f -y 7zip --version=19.0
+
 ENV TMP "C:\Users\ContainerAdministrator\AppData\Local\Temp2"
 
 ADD runner.ps1 C:/runner.ps1

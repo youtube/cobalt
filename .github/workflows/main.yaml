@@ -161,6 +161,7 @@ jobs:
         uses: ./.github/actions/upload_test_artifacts
         with:
           type: onhost
+          os: linux
       # Build bootloader if neccessary.
       - name: Set bootloader config
         if: needs.initialize.outputs.on_host_test_bootloader != 'null'
@@ -176,6 +177,7 @@ jobs:
         uses: ./.github/actions/upload_test_artifacts
         with:
           type: onhost
+          os: linux
 
   # Runs on-device tests.
   on-device-test:
@@ -217,11 +219,11 @@ jobs:
       HOME: /root
       COBALT_BOOTLOADER: ${{needs.initialize.outputs.on_host_test_bootloader}}
     steps:
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v0
       - name: Checkout
         uses: actions/checkout@v2
         with:
           fetch-depth: 1
       - name: Run Tests
         uses: ./.github/actions/on_host_test
+        with:
+          os: linux

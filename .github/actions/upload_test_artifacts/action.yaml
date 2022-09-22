@@ -4,11 +4,14 @@ inputs:
   type:
     description: "Type of artifacts to upload (ondevice or onhost)"
     required: true
+  os:
+    description: "Host OS (either linux or windows)."
+    required: true
 runs:
   using: "composite"
   steps:
     - name: Set up Cloud SDK
-      uses: google-github-actions/setup-gcloud@v0
+      uses: google-github-actions/setup-gcloud@v0.6.0
     - name: Configure Environment
       run: |
         set -x
@@ -24,30 +27,48 @@ runs:
         
         if [ "${{ inputs.type }}" == 'ondevice' ]
         then
-          echo "ARCHIVE_FILE_PATH=$GITHUB_WORKSPACE/builder_tmp/${PLATFORM}_${{matrix.config}}/artifacts.tar" >> $GITHUB_ENV
+          echo "ARCHIVE_FILE=artifacts.tar" >> $GITHUB_ENV
+          echo "ARCHIVE_PATH=$GITHUB_WORKSPACE/artifacts.tar" >> $GITHUB_ENV
+          echo "DESTINATION=${project_name}-test-artifacts/${{github.workflow}}/${GITHUB_RUN_NUMBER}/${{matrix.platform}}_${{matrix.config}}/artifacts.tar" >> $GITHUB_ENV
         elif [ "${{ inputs.type }}" == 'onhost' ]
         then
-          echo "ARCHIVE_FILE_PATH=$GITHUB_WORKSPACE/out/tmp/${PLATFORM}_${{matrix.config}}/${PLATFORM}_${{matrix.config}}.tar.xz" >> $GITHUB_ENV
+          if [ "${{ inputs.os }}" == 'linux' ]
+          then
+            echo "ARCHIVE_FILE=${PLATFORM}_${{matrix.config}}.tar.xz" >> $GITHUB_ENV
+            echo "ARCHIVE_PATH=$GITHUB_WORKSPACE/${PLATFORM}_${{matrix.config}}.tar.xz" >> $GITHUB_ENV
+          elif [ "${{ inputs.os }}" == 'windows' ]
+          then
+            echo "ARCHIVE_FILE=${PLATFORM}_${{matrix.config}}.tar.gz" >> $GITHUB_ENV
+            echo "ARCHIVE_PATH=$GITHUB_WORKSPACE/${PLATFORM}_${{matrix.config}}.tar.gz" >> $GITHUB_ENV
+          fi
+          echo "DESTINATION=${project_name}-test-artifacts/${{github.workflow}}/${GITHUB_RUN_NUMBER}/${{matrix.platform}}_${{matrix.config}}/" >> $GITHUB_ENV
         fi
 
         echo "PYTHONPATH=$GITHUB_WORKSPACE" >> $GITHUB_ENV
         project_name=$(gcloud config get-value project)
-        echo "DESTINATION_PATH=${project_name}-test-artifacts/${{github.workflow}}/${GITHUB_RUN_NUMBER}/${{matrix.platform}}_${{matrix.config}}/" >> $GITHUB_ENV
       shell: bash
     - name: Create Test Files Archive
       run: |
         set -x
+        [ -f "${ARCHIVE_PATH}" ] && rm -rf "${ARCHIVE_PATH}"
         if [ "${{ inputs.type }}" == 'ondevice' ]
         then
-          python3 $GITHUB_WORKSPACE/tools/create_archive.py --test_infra -d ${{env.ARCHIVE_FILE_PATH}} -s $GITHUB_WORKSPACE/out/${{matrix.target_platform}}_${{matrix.config}}
+          python3 $GITHUB_WORKSPACE/tools/create_archive.py --test_infra -d ${{env.ARCHIVE_FILE}} -s $GITHUB_WORKSPACE/out/${{matrix.target_platform}}_${{matrix.config}}
         elif [ "${{ inputs.type }}" == 'onhost' ]
         then
-          python3 $GITHUB_WORKSPACE/tools/create_archive.py --intermediate -d ${{env.ARCHIVE_FILE_PATH}} -s $GITHUB_WORKSPACE/out/${TARGET_PLATFORM}_${{matrix.config}} --parallel
+          parallel=
+          if [[ "${{inputs.os}}" == 'linux' ]]; then
+            parallel='--parallel'
+          fi
+          python3 $GITHUB_WORKSPACE/tools/create_archive.py --intermediate -d ${{env.ARCHIVE_FILE}} -s $GITHUB_WORKSPACE/out/${TARGET_PLATFORM}_${{matrix.config}} $parallel
         fi
       shell: bash
     - name: Copy Test Files to GCS
       id: upload-test-archive
-      uses: google-github-actions/upload-cloud-storage@v0
+      uses: google-github-actions/upload-cloud-storage@v0.10.2
       with:
-        path: ${{env.ARCHIVE_FILE_PATH}}
-        destination: ${{env.DESTINATION_PATH}}
+        headers: |-
+          content-type: application/x-tar
+        path: ${{env.ARCHIVE_PATH}}
+        destination: ${{env.DESTINATION}}
+        parent: true
