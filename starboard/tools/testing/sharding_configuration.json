@@ -56,5 +56,94 @@
       "net_unittests": [2, 2],
       "player_filter_tests": [2, 2]
     }
+  ],
+  "raspi-2":[
+    {
+      "base_unittests": [1, 6],
+      "layout_tests": [5, 6],
+      "net_unittests": [2, 6],
+      "player_filter_tests": [1, 6],
+      "renderer_test": [6, 6]
+    },
+    {
+      "base_unittests": [2, 6],
+      "layout_tests": [4, 6],
+      "net_unittests": [1, 6],
+      "nplb": [1, 5],
+      "player_filter_tests": [5, 6],
+      "renderer_test": [5, 6]
+    },
+    {
+      "base_unittests": [3, 6],
+      "layout_tests": [6, 6],
+      "net_unittests": [4, 6],
+      "nplb": [4, 5],
+      "player_filter_tests": [3, 6],
+      "renderer_test": [1, 6]
+    },
+    {
+      "base_unittests": [5, 6],
+      "layout_tests": [3, 6],
+      "net_unittests": [5, 6],
+      "nplb": [2, 5],
+      "player_filter_tests": [2, 6],
+      "renderer_test": [2, 6]
+    },
+    {
+      "base_unittests": [6, 6],
+      "layout_tests": [1, 6],
+      "net_unittests": [3, 6],
+      "nplb": [3, 5],
+      "player_filter_tests": [4, 6],
+      "renderer_test": [4, 6]
+    },
+    {
+      "app_key_files_test": "*",
+      "app_key_test": "*",
+      "audio_test": "*",
+      "base_test": "*",
+      "base_unittests": [4, 6],
+      "bindings_test": "*",
+      "browser_test": "*",
+      "crypto_unittests": "*",
+      "csp_test": "*",
+      "css_parser_test": "*",
+      "cssom_test": "*",
+      "cwrappers_test": "*",
+      "dom_parser_test": "*",
+      "dom_test": "*",
+      "drain_file_test": "*",
+      "elf_loader_test": "*",
+      "extension_test": "*",
+      "graphics_system_test": "*",
+      "installation_manager_test": "*",
+      "layout_test": "*",
+      "layout_tests": [2, 6],
+      "loader_test": "*",
+      "math_test": "*",
+      "media_capture_test": "*",
+      "media_session_test": "*",
+      "media_stream_test": "*",
+      "memory_store_test": "*",
+      "nb_test": "*",
+      "net_unittests": [6, 6],
+      "network_test": "*",
+      "nplb": [5, 5],
+      "player_filter_tests": [6, 6],
+      "poem_unittests": "*",
+      "render_tree_test": "*",
+      "renderer_test": [3, 6],
+      "slot_management_test": "*",
+      "starboard_platform_tests": "*",
+      "storage_test": "*",
+      "text_encoding_test": "*",
+      "web_animations_test": "*",
+      "web_test": "*",
+      "webdriver_test": "*",
+      "websocket_test": "*",
+      "worker_test": "*",
+      "xhr_test": "*",
+      "zip_unittests": "*"
+    }
   ]
 }
