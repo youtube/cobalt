@@ -214,6 +214,15 @@ change `DEFAULT_COBALT_TARGET` to be the name of the test you want to debug
 instead of 'cobalt'. Then you can set breakpoints, etc. in the test the same as
 when debugging Cobalt.
 
+## Debugging (Terminal)
+
+Use `adb logcat` while Cobalt is running, or use `adb bugreport` shortly after
+exiting to view Android logs. You will need to filter or search for
+Cobalt-related output.
+
+As with the Linux build, use the `debug`, `devel`, or `qa` configs to trace
+Cobalt's callstacks.
+
 ## Removing the Cobalt Android Environment
 
 1.  Unset ANDROID_HOME and or ANDROID_NDK_HOME in your shell and in .bashrc
