@@ -92,7 +92,6 @@ class VideoRendererImpl : public VideoRenderer, private JobQueue::JobOwner {
   PrerolledCB prerolled_cb_;
   EndedCB ended_cb_;
 
-  SbTimeMonotonic absolute_time_of_first_input_ = 0;
   // Our owner will attempt to seek to time 0 when playback begins.  In
   // general, seeking could require a full reset of the underlying decoder on
   // some platforms, so we make an effort to improve playback startup
