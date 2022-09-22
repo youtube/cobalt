@@ -63,8 +63,6 @@ _TESTS_NO_SIGNAL = [
     'allow_eval',
     'compression_test',
     'disable_eval_with_csp',
-    # http_cache is disabled due to flakiness. Planned update to make use of
-    # transferSize rather than load timings to make it more consistent.
     'http_cache',
     'persistent_cookie',
     'soft_mic_platform_service_test',
