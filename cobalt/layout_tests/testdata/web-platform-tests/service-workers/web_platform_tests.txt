@@ -1,0 +1,21 @@
+# Service Worker API tests
+
+cache-storage/common.https.html, PASS
+cache-storage/serviceworker/cache-add.https.html, DISABLE
+cache-storage/serviceworker/cache-delete.https.html, DISABLE
+cache-storage/serviceworker/cache-match.https.html, DISABLE
+cache-storage/serviceworker/cache-put.https.html, DISABLE
+cache-storage/serviceworker/cache-storage-match.https.html, DISABLE
+cache-storage/serviceworker/cache-storage.https.html, DISABLE
+cache-storage/worker/cache-add.https.html, PASS
+cache-storage/worker/cache-delete.https.html, PASS
+cache-storage/worker/cache-match.https.html, PASS
+cache-storage/worker/cache-put.https.html, PASS
+cache-storage/worker/cache-storage-match.https.html, PASS
+cache-storage/worker/cache-storage.https.html, PASS
+cache-storage/window/cache-add.https.html, PASS
+cache-storage/window/cache-delete.https.html, PASS
+cache-storage/window/cache-match.https.html, PASS
+cache-storage/window/cache-put.https.html, PASS
+cache-storage/window/cache-storage-match.https.html, PASS
+cache-storage/window/cache-storage.https.html, PASS

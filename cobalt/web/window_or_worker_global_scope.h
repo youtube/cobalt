@@ -23,6 +23,7 @@
 #include "base/memory/ref_counted.h"
 #include "cobalt/loader/cors_preflight_cache.h"
 #include "cobalt/script/environment_settings.h"
+#include "cobalt/web/cache_storage.h"
 #include "cobalt/web/crypto.h"
 #include "cobalt/web/csp_delegate.h"
 #include "cobalt/web/csp_delegate_type.h"
@@ -129,6 +130,10 @@ class WindowOrWorkerGlobalScope : public EventTarget {
 
   void DestroyTimers();
 
+  // Web API: GlobalCacheStorage (implements)
+  //   https://w3c.github.io/ServiceWorker/#cachestorage
+  scoped_refptr<CacheStorage> caches() const;
+
   // Web API: GlobalCrypto (implements)
   //   https://www.w3.org/TR/WebCryptoAPI/#crypto-interface
   scoped_refptr<Crypto> crypto() const;
@@ -136,6 +141,7 @@ class WindowOrWorkerGlobalScope : public EventTarget {
  protected:
   virtual ~WindowOrWorkerGlobalScope() {}
 
+  scoped_refptr<CacheStorage> caches_;
   scoped_refptr<Crypto> crypto_;
   web::WindowTimers window_timers_;
 

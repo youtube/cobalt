@@ -1,4 +1,4 @@
-// Copyright 2019 The Cobalt Authors. All Rights Reserved.
+// Copyright 2022 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,14 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// https://dom.spec.whatwg.org/#interface-abortcontroller
+#ifndef COBALT_WEB_CACHE_REQUEST_H_
+#define COBALT_WEB_CACHE_REQUEST_H_
 
-[
-  Exposed=(Window,Worker),
-  Constructor,
-  ConstructorCallWith=EnvironmentSettings,
-]
-interface AbortController {
-  [SameObject] readonly attribute AbortSignal signal;
-  void abort();
+#include <string>
+
+namespace cobalt {
+namespace web {
+
+class CacheRequest : public script::Wrappable {
+ public:
+  explicit CacheRequest(const std::string& input) : url_(input) {}
+
+  const std::string& url() const { return url_; }
+
+  DEFINE_WRAPPABLE_TYPE(CacheRequest);
+
+ private:
+  const std::string url_;
 };
+
+}  // namespace web
+}  // namespace cobalt
+
+#endif  // COBALT_WEB_CACHE_REQUEST_H_

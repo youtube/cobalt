@@ -33,6 +33,12 @@ class SourceCode : public base::RefCounted<SourceCode> {
       const std::string& script_utf8,
       const base::SourceLocation& script_location, bool is_muted = false);
 
+  // Same as |CreateSourceCode()| with a flag to indicate that the compiled
+  // JavaScript should not be cached.
+  static scoped_refptr<SourceCode> CreateSourceCodeWithoutCaching(
+      const std::string& script_utf8,
+      const base::SourceLocation& script_location, bool is_muted = false);
+
  protected:
   SourceCode() {}
   virtual ~SourceCode() {}

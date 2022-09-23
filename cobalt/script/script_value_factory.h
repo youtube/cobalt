@@ -21,9 +21,15 @@
 #include "cobalt/script/array_buffer.h"
 #include "cobalt/script/promise.h"
 #include "cobalt/script/script_value.h"
+#include "cobalt/script/value_handle.h"
 
 namespace cobalt {
 namespace script {
+
+using Any = script::Handle<script::ValueHandle>;
+using PromiseAny = script::Promise<script::Handle<script::ValueHandle>>;
+using HandlePromiseAny = script::Handle<PromiseAny>;
+using ValuePromiseAny = ScriptValue<PromiseAny>;
 
 using SequenceWrappable = Sequence<scoped_refptr<Wrappable>>;
 using PromiseSequenceWrappable = Promise<SequenceWrappable>;

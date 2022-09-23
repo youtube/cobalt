@@ -16,6 +16,8 @@
 // specific to the fetch polyfill and may change as the implementation changes.
 // This is not meant to be public and should not be used outside of the fetch
 // implementation.
+
+[Exposed=(Window,Worker)]
 interface FetchInternal {
   [CallWith=EnvironmentSettings] static boolean isUrlValid(
       DOMString url, boolean allowCredentials);

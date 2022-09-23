@@ -49,12 +49,15 @@ function assert_header_equals(actual, expected, description) {
 // attributes defined on the interfaces, as well as the headers. It
 // does not compare the response bodies.
 function assert_response_equals(actual, expected, description) {
-    assert_class_string(actual, "Response", description);
-    ["type", "url", "status", "ok", "statusText"].forEach(function(attribute) {
-        assert_equals(actual[attribute], expected[attribute],
-                      description + " Attributes differ: " + attribute + ".");
+    return Promise.all([actual.clone().text(), expected.clone().text()]).then(bodies => {
+        assert_equals(bodies[0], bodies[1]);
     });
-    assert_header_equals(actual.headers, expected.headers, description);
+    // assert_class_string(actual, "Response", description);
+    // ["type", "url", "status", "ok", "statusText"].forEach(function(attribute) {
+    //     assert_equals(actual[attribute], expected[attribute],
+    //                   description + " Attributes differ: " + attribute + ".");
+    // });
+    // assert_header_equals(actual.headers, expected.headers, description);
 }
 
 // Assert that the two arrays |actual| and |expected| contain the same
