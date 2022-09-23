@@ -1,4 +1,4 @@
-// Copyright 2019 The Cobalt Authors. All Rights Reserved.
+// Copyright 2022 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,14 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// https://dom.spec.whatwg.org/#interface-abortcontroller
+// https://w3c.github.io/ServiceWorker/#self-caches
 
-[
-  Exposed=(Window,Worker),
-  Constructor,
-  ConstructorCallWith=EnvironmentSettings,
-]
-interface AbortController {
-  [SameObject] readonly attribute AbortSignal signal;
-  void abort();
+[NoInterfaceObject]
+interface GlobalCacheStorage {
+  readonly attribute CacheStorage caches;
 };
+Window implements GlobalCacheStorage;
+WorkerGlobalScope implements GlobalCacheStorage;

@@ -12,11 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// https://w3c.github.io/ServiceWorker/#navigation-preload-manager
+// https://w3c.github.io/ServiceWorker/#cachestorage
 
-[Exposed = (Window,ServiceWorker)] interface NavigationPreloadManager {
-  Promise<void> enable();
-  Promise<void> disable();
-  Promise<void> setHeaderValue(ByteString value);
-  Promise<NavigationPreloadState> getState();
+// TODO(b/250611661): implement complete Cache API and adhere to web spec.
+
+[Exposed=(Window,Worker)]
+interface CacheStorage {
+  [CallWith=EnvironmentSettings, NewObject] Promise<any> match(any request, optional MultiCacheQueryOptions options);
+  [CallWith=EnvironmentSettings, NewObject] Promise<Cache> open(DOMString cacheName);
+  // Ignores |cacheName| and deletes all Cache API data.
+  [CallWith=EnvironmentSettings, NewObject] Promise<boolean> delete(DOMString cacheName);
 };

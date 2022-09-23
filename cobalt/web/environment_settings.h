@@ -20,6 +20,9 @@
 
 #include "cobalt/base/debugger_hooks.h"
 #include "cobalt/script/environment_settings.h"
+#include "cobalt/script/global_environment.h"
+#include "cobalt/script/script_value_factory.h"
+#include "cobalt/script/wrappable.h"
 #include "url/origin.h"
 
 namespace cobalt {
@@ -45,6 +48,14 @@ class EnvironmentSettings : public script::EnvironmentSettings {
 
   // https://storage.spec.whatwg.org/#obtain-a-storage-key
   url::Origin ObtainStorageKey() { return url::Origin::Create(creation_url()); }
+
+  static Context* context(script::EnvironmentSettings* environment_settings);
+  static script::GlobalEnvironment* global_environment(
+      script::EnvironmentSettings* environment_settings);
+  static script::Wrappable* global_wrappable(
+      script::EnvironmentSettings* environment_settings);
+  static script::ScriptValueFactory* script_value_factory(
+      script::EnvironmentSettings* environment_settings);
 
  protected:
   friend std::unique_ptr<EnvironmentSettings>::deleter_type;

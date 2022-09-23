@@ -25,6 +25,7 @@
 #include "base/macros.h"
 #include "base/optional.h"
 #include "base/synchronization/lock.h"
+#include "base/values.h"
 
 namespace cobalt {
 namespace cache {
@@ -50,10 +51,13 @@ class MemoryCappedDirectory {
  public:
   static std::unique_ptr<MemoryCappedDirectory> Create(
       const base::FilePath& directory_path, uint32_t max_size);
-  void Delete(uint32_t key);
+  bool Delete(uint32_t key);
   void DeleteAll();
+  std::vector<uint32_t> KeysWithMetadata();
+  std::unique_ptr<base::Value> Metadata(uint32_t key);
   std::unique_ptr<std::vector<uint8_t>> Retrieve(uint32_t key);
-  void Store(uint32_t key, const std::vector<uint8_t>& data);
+  void Store(uint32_t key, const std::vector<uint8_t>& data,
+             const base::Optional<base::Value>& metadata);
   void Resize(uint32_t size);
 
  private:
@@ -68,6 +72,7 @@ class MemoryCappedDirectory {
   // Min-heap determined by last modified time.
   std::vector<FileInfo> file_info_heap_;
   std::map<base::FilePath, uint32_t> file_sizes_;
+  std::map<base::FilePath, uint32_t> file_keys_with_metadata_;
   uint32_t size_;
   uint32_t max_size_;
 

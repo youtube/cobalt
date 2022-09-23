@@ -1764,6 +1764,7 @@ copy("layout_copy_test_data") {
     "web-platform-tests/mediasession/web_platform_tests.txt",
     "web-platform-tests/performance-timeline/web_platform_tests.txt",
     "web-platform-tests/resource-timing/web_platform_tests.txt",
+    "web-platform-tests/service-workers/web_platform_tests.txt",
     "web-platform-tests/streams/web_platform_tests.txt",
     "web-platform-tests/websockets/web_platform_tests.txt",
     "web-platform-tests/workers/web_platform_tests.txt",

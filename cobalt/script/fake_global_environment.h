@@ -28,6 +28,10 @@ class FakeGlobalEnvironment : public GlobalEnvironment {
   void CreateGlobalObject() override {}
   Wrappable* global_wrappable() const override { return nullptr; };
 
+  v8::MaybeLocal<v8::Script> Compile(
+      const scoped_refptr<SourceCode>& source_code) {
+    return {};
+  }
   bool EvaluateScript(const scoped_refptr<SourceCode>& script_utf8,
                       std::string* out_result) override {
     return false;
@@ -51,6 +55,7 @@ class FakeGlobalEnvironment : public GlobalEnvironment {
   void DisableEval(const std::string& message) override {}
   void EnableEval() override {}
   void DisableJit() override {}
+  bool IsEvalEnabled() override { return true; }
   void SetReportEvalCallback(const base::Closure& report_eval) override {}
   void SetReportErrorCallback(const ReportErrorCallback& report_eval) override {
   }

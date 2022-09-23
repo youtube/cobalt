@@ -279,6 +279,14 @@ void V8cGlobalEnvironment::EnableEval() {
   context->AllowCodeGenerationFromStrings(true);
 }
 
+bool V8cGlobalEnvironment::IsEvalEnabled() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+
+  EntryScope entry_scope(isolate_);
+  v8::Local<v8::Context> context = isolate_->GetCurrentContext();
+  return context->IsCodeGenerationFromStringsAllowed();
+}
+
 void V8cGlobalEnvironment::DisableJit() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   LOG(INFO) << "V8 version " << V8_MAJOR_VERSION << '.' << V8_MINOR_VERSION
@@ -424,7 +432,7 @@ v8::MaybeLocal<v8::Value> V8cGlobalEnvironment::EvaluateScriptInternal(
   // up by our caller.
 
   v8::Local<v8::Script> script;
-  if (!CompileWithCaching(source_code).ToLocal(&script)) {
+  if (!Compile(source_code).ToLocal(&script)) {
     return {};
   }
 
@@ -432,9 +440,9 @@ v8::MaybeLocal<v8::Value> V8cGlobalEnvironment::EvaluateScriptInternal(
   return script->Run(isolate_->GetCurrentContext());
 }
 
-v8::MaybeLocal<v8::Script> V8cGlobalEnvironment::CompileWithCaching(
+v8::MaybeLocal<v8::Script> V8cGlobalEnvironment::Compile(
     const scoped_refptr<SourceCode>& source_code) {
-  TRACE_EVENT0("cobalt::script", "V8cGlobalEnvironment::CompileWithCaching()");
+  TRACE_EVENT0("cobalt::script", "V8cGlobalEnvironment::Compile()");
   v8::Local<v8::Context> context = isolate_->GetCurrentContext();
   V8cSourceCode* v8c_source_code =
       base::polymorphic_downcast<V8cSourceCode*>(source_code.get());
@@ -471,6 +479,18 @@ v8::MaybeLocal<v8::Script> V8cGlobalEnvironment::CompileWithCaching(
       /*resource_is_shared_cross_origin=*/
       v8::Boolean::New(isolate_, v8c_source_code->is_muted()));
 
+  if (!v8c_source_code->should_cache_compiled_javascript()) {
+    v8::Local<v8::Script> script;
+    {
+      TRACE_EVENT0("cobalt::script", "v8::Script::Compile()");
+      if (!v8::Script::Compile(context, source, &script_origin)
+               .ToLocal(&script)) {
+        return {};
+      }
+    }
+    return script;
+  }
+
   std::string javascript_engine_version =
       script::GetJavaScriptEngineNameAndVersion();
   uint32_t javascript_cache_key = CreateJavaScriptCacheKey(
@@ -478,19 +498,22 @@ v8::MaybeLocal<v8::Script> V8cGlobalEnvironment::CompileWithCaching(
       v8c_source_code->source_utf8(), source_location.file_path);
   auto retrieved_cached_data = cobalt::cache::Cache::GetInstance()->Retrieve(
       disk_cache::ResourceType::kCompiledScript, javascript_cache_key,
-      [&]() -> std::unique_ptr<std::vector<uint8_t>> {
+      [&]() -> std::pair<std::unique_ptr<std::vector<uint8_t>>,
+                         base::Optional<base::Value>> {
         v8::Local<v8::Script> script;
         {
           TRACE_EVENT0("cobalt::script", "v8::Script::Compile()");
           if (!v8::Script::Compile(context, source, &script_origin)
                    .ToLocal(&script)) {
-            return nullptr;
+            return std::make_pair(/*data=*/nullptr, /*metadata=*/base::nullopt);
           }
         }
         std::unique_ptr<v8::ScriptCompiler::CachedData> cached_data(
             v8::ScriptCompiler::CreateCodeCache(script->GetUnboundScript()));
-        return std::make_unique<std::vector<uint8_t>>(
-            cached_data->data, cached_data->data + cached_data->length);
+        return std::make_pair(
+            std::make_unique<std::vector<uint8_t>>(
+                cached_data->data, cached_data->data + cached_data->length),
+            /*metadata=*/base::nullopt);
       });
   if (!retrieved_cached_data) {
     return {};

@@ -447,6 +447,11 @@ INSTANTIATE_TEST_CASE_P(
     ::testing::ValuesIn(EnumerateWebPlatformTests("resource-timing")),
     GetTestName());
 
+INSTANTIATE_TEST_CASE_P(
+    service_workers, WebPlatformTest,
+    ::testing::ValuesIn(EnumerateWebPlatformTests("service-workers")),
+    GetTestName());
+
 INSTANTIATE_TEST_CASE_P(streams, WebPlatformTest,
                         ::testing::ValuesIn(EnumerateWebPlatformTests(
                             "streams", "'ReadableStream' in this")),
