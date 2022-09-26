@@ -284,6 +284,7 @@ void LayoutManager::Impl::DoSynchronousLayout() {
         line_break_iterator_.get(), character_break_iterator_.get(),
         &initial_containing_block_, clear_window_with_background_color_);
     are_computed_styles_and_box_tree_dirty_ = false;
+    layout::UpdateUiNavItemBoundaries(window_->document());
   }
 }
 

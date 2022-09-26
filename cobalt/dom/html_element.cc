@@ -1474,6 +1474,21 @@ void HTMLElement::UpdateUiNavigationFocus() {
   }
 }
 
+void HTMLElement::SetUiNavItemBounds() {
+  if (!ui_nav_item_->IsContainer()) {
+    return;
+  }
+  float scrollable_width = scroll_width() - client_width();
+  float scroll_top_lower_bound = 0.0f;
+  float scroll_left_lower_bound =
+      GetUsedDirState() == DirState::kDirRightToLeft ? -scrollable_width : 0.0f;
+  float scroll_top_upper_bound = scroll_height() - client_height();
+  float scroll_left_upper_bound =
+      GetUsedDirState() == DirState::kDirRightToLeft ? 0.0f : scrollable_width;
+  ui_nav_item_->SetBounds(scroll_top_lower_bound, scroll_left_lower_bound,
+                          scroll_top_upper_bound, scroll_left_upper_bound);
+}
+
 void HTMLElement::SetDir(const std::string& value) {
   // https://html.spec.whatwg.org/commit-snapshots/ebcac971c2add28a911283899da84ec509876c44/#the-dir-attribute
   auto previous_dir = dir_;

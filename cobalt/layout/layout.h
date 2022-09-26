@@ -49,6 +49,9 @@ void UpdateComputedStylesAndLayoutBoxTree(
     scoped_refptr<BlockLevelBlockContainerBox>* initial_containing_block,
     bool clear_window_with_background_color);
 
+// Update all UI navigation elements with their scroll boundaries.
+void UpdateUiNavItemBoundaries(const scoped_refptr<dom::Document>& document);
+
 // Generates the render tree (along with corresponding animations) of the box
 // tree contained within the provided containing block.
 scoped_refptr<render_tree::Node> GenerateRenderTreeFromBoxTree(
