@@ -132,6 +132,14 @@ void ServiceWorkerObject::ObtainWebAgentAndWaitUntilDone() {
   web_agent_->WaitUntilDone();
 }
 
+bool ServiceWorkerObject::ShouldSkipEvent(base::Token event_name) {
+  // Algorithm for Should Skip Event:
+  //   https://w3c.github.io/ServiceWorker/#should-skip-event-algorithm
+  // TODO(b/229622132): Implementing this algorithm will improve performance.
+  NOTIMPLEMENTED();
+  return false;
+}
+
 void ServiceWorkerObject::Initialize(web::Context* context) {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerObject::Initialize()");
   // Algorithm for "Run Service Worker"

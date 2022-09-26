@@ -414,7 +414,8 @@ class Document : public Node,
   // Page Visibility fields.
   bool hidden() const { return visibility_state() == kVisibilityStateHidden; }
   VisibilityState visibility_state() const {
-    return application_lifecycle_state()->GetVisibilityState();
+    const ApplicationLifecycleState* state = application_lifecycle_state();
+    return state ? state->GetVisibilityState() : kVisibilityStateHidden;
   }
   const EventListenerScriptValue* onvisibilitychange() const {
     return GetAttributeEventListener(base::Tokens::visibilitychange());

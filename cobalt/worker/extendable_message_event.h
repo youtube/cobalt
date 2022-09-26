@@ -45,18 +45,24 @@ class ExtendableMessageEvent : public ExtendableEvent {
   explicit ExtendableMessageEvent(const std::string& type)
       : ExtendableEvent(type) {}
   explicit ExtendableMessageEvent(base::Token type) : ExtendableEvent(type) {}
-  ExtendableMessageEvent(base::Token type,
-                         std::unique_ptr<script::DataBuffer> data)
-      : ExtendableEvent(type), data_(std::move(data)) {}
   ExtendableMessageEvent(const std::string& type,
+                         const ExtendableMessageEventInit& init_dict)
+      : ExtendableMessageEvent(base::Token(type), init_dict) {}
+  ExtendableMessageEvent(base::Token type,
                          const ExtendableMessageEventInit& init_dict);
+  ExtendableMessageEvent(base::Token type,
+                         const ExtendableMessageEventInit& init_dict,
+                         std::unique_ptr<script::DataBuffer> data)
+      : ExtendableMessageEvent(type, init_dict) {
+    data_ = std::move(data);
+  }
 
   script::Handle<script::ValueHandle> data(
       script::EnvironmentSettings* settings = nullptr) const;
 
   const std::string& origin() const { return origin_; }
   const std::string& last_event_id() const { return last_event_id_; }
-  const scoped_refptr<web::EventTarget>& source() const { return source_; }
+  SourceType source() const { return source_; }
   script::Sequence<scoped_refptr<MessagePort>> ports() const { return ports_; }
 
   // These helper functions are custom, and not in any spec.
@@ -64,9 +70,7 @@ class ExtendableMessageEvent : public ExtendableEvent {
   void set_last_event_id(const std::string& last_event_id) {
     last_event_id_ = last_event_id;
   }
-  void set_source(const scoped_refptr<web::EventTarget>& source) {
-    source_ = source;
-  }
+  void set_source(const SourceType& source) { source_ = source; }
   void set_ports(script::Sequence<scoped_refptr<MessagePort>> ports) {
     ports_ = ports;
   }
@@ -79,7 +83,7 @@ class ExtendableMessageEvent : public ExtendableEvent {
  private:
   std::string origin_;
   std::string last_event_id_;
-  scoped_refptr<web::EventTarget> source_;
+  SourceType source_;
   script::Sequence<scoped_refptr<MessagePort>> ports_;
   std::unique_ptr<script::DataBuffer> data_;
 };

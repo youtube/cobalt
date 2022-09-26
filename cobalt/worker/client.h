@@ -29,7 +29,7 @@ namespace worker {
 class Client : public web::MessagePort {
  public:
   // https://w3c.github.io/ServiceWorker/#create-client-algorithm
-  static Client* Create(web::EnvironmentSettings* client) {
+  static scoped_refptr<Client> Create(web::EnvironmentSettings* client) {
     return new Client(client);
   }
   ~Client() { service_worker_client_ = nullptr; }

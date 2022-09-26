@@ -27,10 +27,21 @@ self.onmessage = function (event) {
       }
     }));
     event.waitUntil(self.clients.matchAll(options).then(function (clients) {
+      message = {
+        text: 'Service Worker received a message from source',
+        data: event.data,
+        visibilityState: event.source.visibilityState,
+        focused: event.source.focused,
+        event_type: `${event}`
+      }
+      console.log('Posting to client:', JSON.stringify(message));
+      event.source.postMessage(message);
       for (var i = 0; i < clients.length; i++) {
         message = {
-          text: 'Service Worker received a message',
+          text: 'Service Worker received a message from client',
           data: event.data,
+          visibilityState: clients[i].visibilityState,
+          focused: clients[i].focused,
           event_type: `${event}`
         }
         console.log('Posting to client:', JSON.stringify(message));

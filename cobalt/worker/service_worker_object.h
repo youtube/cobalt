@@ -136,6 +136,10 @@ class ServiceWorkerObject
 
   void ObtainWebAgentAndWaitUntilDone();
 
+  // Algorithm for Should Skip Event:
+  //   https://w3c.github.io/ServiceWorker/#should-skip-event-algorithm
+  bool ShouldSkipEvent(base::Token event_name);
+
  private:
   // Called by ObtainWebAgentAndWaitUntilDone to perform initialization required
   // on the dedicated thread.
