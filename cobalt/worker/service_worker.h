@@ -70,7 +70,9 @@ class ServiceWorker : public AbstractWorker, public web::EventTarget {
     SetAttributeEventListener(base::Tokens::error(), event_listener);
   }
 
-  ServiceWorkerObject* service_worker_object() { return worker_; }
+  const scoped_refptr<ServiceWorkerObject>& service_worker_object() {
+    return worker_;
+  }
 
   DEFINE_WRAPPABLE_TYPE(ServiceWorker);
 

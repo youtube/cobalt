@@ -50,24 +50,48 @@
                     assertEqual('BarString', event.data.bar);
                     break;
                 case 4:
-                    assertEqual('Service Worker received a message',
+                    assertEqual('Service Worker received a message from source',
                         event.data.text);
                     assertEqual('{"message":"Registration ready resolved."}',
                         JSON.stringify(event.data.data));
                     assertEqual('[object ExtendableMessageEvent]',
                         event.data.event_type);
+                    assertEqual('visible', event.data.visibilityState);
+                    assertEqual(true, event.data.focused);
                     break;
                 case 5:
+                    assertEqual('Service Worker received a message from client',
+                        event.data.text);
+                    assertEqual('{"message":"Registration ready resolved."}',
+                        JSON.stringify(event.data.data));
+                    assertEqual('[object ExtendableMessageEvent]',
+                        event.data.event_type);
+                    assertEqual('visible', event.data.visibilityState);
+                    assertEqual(true, event.data.focused);
+                    break;
+                case 6:
                     assertEqual('Foo', event.data.text);
                     assertEqual('BarString', event.data.bar);
                     break;
-                case 6:
-                    assertEqual('Service Worker received a message',
+                case 7:
+                    assertEqual('Service Worker received a message from source',
                         event.data.text);
                     assertEqual('"Controllerchange event received."',
                         JSON.stringify(event.data.data));
                     assertEqual('[object ExtendableMessageEvent]',
                         event.data.event_type);
+                    assertEqual('visible', event.data.visibilityState);
+                    assertEqual(true, event.data.focused);
+                    break;
+                case 8:
+                    assertEqual('Service Worker received a message from client',
+                        event.data.text);
+                    assertEqual('"Controllerchange event received."',
+                        JSON.stringify(event.data.data));
+                    assertEqual('[object ExtendableMessageEvent]',
+                        event.data.event_type);
+                    assertEqual('visible', event.data.visibilityState);
+                    assertEqual(true, event.data.focused);
                     break;
                 default:
                     notReached();
@@ -96,7 +120,7 @@
                         .then(function (success) {
                             console.log('(Expected) unregister success :',
                                 success);
-                            count_event(7);
+                            count_event(9);
                         }, function (error) {
                             console.log('(Unexpected) unregister ' +
                                 `${error}`, error);
@@ -119,7 +143,7 @@
         window.setTimeout(
             () => {
                 console.log('Events:', expected_event_count)
-                assertEqual(7, expected_event_count);
+                assertEqual(9, expected_event_count);
                 onEndTest();
             }, 2000);
 

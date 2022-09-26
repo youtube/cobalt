@@ -18,12 +18,13 @@
 #include <utility>
 
 #include "base/bind.h"
+#include "cobalt/base/tokens.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/value_handle.h"
 #include "cobalt/web/event_target.h"
 #include "cobalt/web/message_port.h"
-#include "cobalt/worker/extendable_message_event.h"
 #include "cobalt/worker/service_worker_global_scope.h"
+#include "cobalt/worker/service_worker_jobs.h"
 #include "cobalt/worker/service_worker_object.h"
 #include "cobalt/worker/service_worker_state.h"
 
@@ -36,30 +37,37 @@ ServiceWorker::ServiceWorker(script::EnvironmentSettings* settings,
       worker_(worker),
       state_(kServiceWorkerStateParsed) {}
 
-
 void ServiceWorker::PostMessage(const script::ValueHandleHolder& message) {
-  // https://w3c.github.io/ServiceWorker/#service-worker-postmessage-options
-  web::EventTarget* event_target = worker_->worker_global_scope();
-  if (!event_target) return;
+  // Algorithm for ServiceWorker.postMessage():
+  //   https://w3c.github.io/ServiceWorker/#service-worker-postmessage
 
-  base::MessageLoop* message_loop =
-      event_target->environment_settings()->context()->message_loop();
-  if (!message_loop) {
-    return;
-  }
-  std::unique_ptr<script::DataBuffer> data_buffer(
+  // 1. Let serviceWorker be the service worker represented by this.
+  ServiceWorkerObject* service_worker = service_worker_object();
+  // 2. Let incumbentSettings be the incumbent settings object.
+  web::EnvironmentSettings* incumbent_settings = environment_settings();
+  // 3. Let incumbentGlobal be incumbentSettings’s global object.
+  // 4. Let serializeWithTransferResult be
+  //    StructuredSerializeWithTransfer(message, options["transfer"]).
+  //    Rethrow any exceptions.
+  std::unique_ptr<script::DataBuffer> serialize_result(
       script::SerializeScriptValue(message));
-  if (!data_buffer) {
+  if (!serialize_result) {
     return;
   }
-  message_loop->task_runner()->PostTask(
-      FROM_HERE, base::BindOnce(
-                     [](web::EventTarget* event_target,
-                        std::unique_ptr<script::DataBuffer> data_buffer) {
-                       event_target->DispatchEvent(new ExtendableMessageEvent(
-                           base::Tokens::message(), std::move(data_buffer)));
-                     },
-                     base::Unretained(event_target), std::move(data_buffer)));
+  // 5. If the result of running the Should Skip Event algorithm with
+  // "message"
+  //    and serviceWorker is true, then return.
+  if (service_worker->ShouldSkipEvent(base::Tokens::message())) return;
+  // 6. Run these substeps in parallel:
+  ServiceWorkerJobs* jobs =
+      incumbent_settings->context()->service_worker_jobs();
+  DCHECK(jobs);
+  jobs->message_loop()->task_runner()->PostTask(
+      FROM_HERE,
+      base::BindOnce(&ServiceWorkerJobs::ServiceWorkerPostMessageSubSteps,
+                     base::Unretained(jobs), base::Unretained(service_worker),
+                     base::Unretained(incumbent_settings),
+                     std::move(serialize_result)));
 }
 
 }  // namespace worker

@@ -32,7 +32,7 @@
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/tokens.h"
-#include "cobalt/dom/visibility_state.h"
+#include "cobalt/base/type_id.h"
 #include "cobalt/loader/script_loader_factory.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/script/promise.h"
@@ -47,6 +47,7 @@
 #include "cobalt/worker/client_query_options.h"
 #include "cobalt/worker/client_type.h"
 #include "cobalt/worker/extendable_event.h"
+#include "cobalt/worker/extendable_message_event.h"
 #include "cobalt/worker/frame_type.h"
 #include "cobalt/worker/service_worker.h"
 #include "cobalt/worker/service_worker_container.h"
@@ -883,7 +884,7 @@ void ServiceWorkerJobs::Install(
   ServiceWorkerObject* installing_worker = registration->installing_worker();
   // 11. If the result of running the Should Skip Event algorithm with
   //     installingWorker and "install" is false, then:
-  if (!ShouldSkipEvent(base::Tokens::install(), installing_worker)) {
+  if (!installing_worker->ShouldSkipEvent(base::Tokens::install())) {
     // 11.1. Let forceBypassCache be true if job’s force bypass cache flag is
     //       set, and false otherwise.
     bool force_bypass_cache = job->force_bypass_cache_flag;
@@ -1162,7 +1163,7 @@ void ServiceWorkerJobs::Activate(
   ServiceWorkerObject* active_worker = registration->active_worker();
   // 11. If the result of running the Should Skip Event algorithm with
   //     activeWorker and "activate" is false, then:
-  if (!ShouldSkipEvent(base::Tokens::activate(), active_worker)) {
+  if (!active_worker->ShouldSkipEvent(base::Tokens::activate())) {
     // 11.1. If the result of running the Run Service Worker algorithm with
     //       activeWorker is not failure, then:
     auto* run_result = RunServiceWorker(active_worker);
@@ -1508,15 +1509,6 @@ void ServiceWorkerJobs::UpdateWorkerState(ServiceWorkerObject* worker,
               context, base::Unretained(worker), state));
     }
   }
-}
-
-bool ServiceWorkerJobs::ShouldSkipEvent(base::Token event_name,
-                                        ServiceWorkerObject* worker) {
-  // Algorithm for Should Skip Event:
-  //   https://w3c.github.io/ServiceWorker/#should-skip-event-algorithm
-  // TODO(b/229622132): Implementing this algorithm will improve performance.
-  NOTIMPLEMENTED();
-  return false;
 }
 
 void ServiceWorkerJobs::HandleServiceWorkerClientUnload(
@@ -2050,22 +2042,16 @@ void ServiceWorkerJobs::ResolveGetClientPromise(
           [](web::EnvironmentSettings* client, web::Context* promise_context,
              std::unique_ptr<script::ValuePromiseWrappable::Reference>
                  promise_reference) {
-            std::unique_ptr<WindowData> window_data(new WindowData);
-            window_data->client = client;
             // 4.4.1. Let frameType be the result of running Get Frame Type with
             //        browsingContext.
-            // Cobalt does not support nested or auxiliary
-            // browsing contexts.
-            window_data->frame_type = kFrameTypeTopLevel;
-
+            // Cobalt does not support nested or auxiliary browsing contexts.
             // 4.4.2. Let visibilityState be browsingContext’s active document's
             //        visibilityState attribute value.
-            // TODO(b/235838698): Implement WindowClient.visibilityState.
-
             // 4.4.3. Let focusState be the result of running the has focus
             //        steps with browsingContext’s active document as the
             //        argument.
-            // TODO(b/235838698): Implement WindowClient.focused.
+            // Handled in the WindowData constructor.
+            std::unique_ptr<WindowData> window_data(new WindowData(client));
 
             // 4.4.4. Let ancestorOriginsList be the empty list.
             // 4.4.5. If client is a window client, set ancestorOriginsList to
@@ -2090,7 +2076,7 @@ void ServiceWorkerJobs::ResolveGetClientPromise(
                       //          Create Window Client with client,
                       //          frameType, visibilityState, focusState,
                       //          and ancestorOriginsList.
-                      scoped_refptr<WindowClient> window_client =
+                      scoped_refptr<Client> window_client =
                           WindowClient::Create(*window_data);
                       // 4.4.6.3. Resolve promise with windowClient.
                       promise_reference->value().Resolve(window_client);
@@ -2174,8 +2160,7 @@ void ServiceWorkerJobs::ClientsMatchAllSubSteps(
 
       // 2.5.1.1. Let windowData be [ "client" -> client, "ancestorOriginsList"
       //          -> a new list ].
-      WindowData window_data;
-      window_data.client = client;
+      WindowData window_data(client);
 
       // 2.5.1.2. Let browsingContext be null.
 
@@ -2217,19 +2202,13 @@ void ServiceWorkerJobs::ClientsMatchAllSubSteps(
                            //            browsingContext.
                            // Cobalt does not support nested or auxiliary
                            // browsing contexts.
-                           window_data->frame_type = kFrameTypeTopLevel;
-
                            // 2.5.1.6.4. Set windowData["visibilityState"] to
                            //            browsingContext’s active document's
                            //            visibilityState attribute value.
-                           // TODO(b/235838698): Implement
-                           // WindowClient.visibilityState.
-
                            // 2.5.1.6.5. Set windowData["focusState"] to the
                            //            result of running the has focus steps
                            //            with browsingContext’s active document
                            //            as the argument.
-                           // TODO(b/235838698): Implement WindowClient.focused.
 
                            // 2.5.1.6.6. If client is a window client, then set
                            //            windowData["ancestorOriginsList"] to
@@ -2288,9 +2267,8 @@ void ServiceWorkerJobs::ClientsMatchAllSubSteps(
               //          windowData["focusState"], and
               //          windowData["ancestorOriginsList"] as the
               //          arguments.
-              // TODO(b/235838698): Implement WindowCLient properties
-              // and methods.
-              scoped_refptr<WindowClient> window_client =
+              // TODO(b/235838698): Implement WindowClient methods.
+              scoped_refptr<Client> window_client =
                   WindowClient::Create(window_data);
 
               // 2.6.2.2. Append WindowClient to clientObjects.
@@ -2410,6 +2388,90 @@ void ServiceWorkerJobs::ClaimSubSteps(
             promise->value().Resolve();
           },
           std::move(promise_reference)));
+}
+
+void ServiceWorkerJobs::ServiceWorkerPostMessageSubSteps(
+    ServiceWorkerObject* service_worker,
+    web::EnvironmentSettings* incumbent_settings,
+    std::unique_ptr<script::DataBuffer> serialize_result) {
+  // Parallel sub steps (6) for algorithm for ServiceWorker.postMessage():
+  //   https://w3c.github.io/ServiceWorker/#service-worker-postmessage-options
+  // 3. Let incumbentGlobal be incumbentSettings’s global object.
+  // 6.1 If the result of running the Run Service Worker algorithm with
+  //     serviceWorker is failure, then return.
+  auto* run_result = RunServiceWorker(service_worker);
+  if (!run_result) return;
+
+  // 6.2 Queue a task on the DOM manipulation task source to run the following
+  //     steps:
+  incumbent_settings->context()->message_loop()->task_runner()->PostTask(
+      FROM_HERE,
+      base::BindOnce(
+          [](ServiceWorkerObject* service_worker,
+             web::EnvironmentSettings* incumbent_settings,
+             std::unique_ptr<script::DataBuffer> serialize_result) {
+            web::WindowOrWorkerGlobalScope* incumbent_global =
+                incumbent_settings->context()->GetWindowOrWorkerGlobalScope();
+
+            web::EventTarget* event_target =
+                service_worker->worker_global_scope();
+            if (!event_target) return;
+
+            ExtendableMessageEventInit init_dict;
+            if (incumbent_global->GetWrappableType() ==
+                base::GetTypeId<ServiceWorkerGlobalScope>()) {
+              // 6.2.1. Let source be determined by switching on the
+              //        type of incumbentGlobal:
+              //        . ServiceWorkerGlobalScope
+              //          The result of getting the service worker
+              //          object that represents incumbentGlobal’s
+              //          service worker in the relevant settings
+              //          object of serviceWorker’s global object.
+              init_dict.set_source(ExtendableMessageEvent::SourceType(
+                  event_target->environment_settings()
+                      ->context()
+                      ->GetServiceWorker(incumbent_global->AsServiceWorker()
+                                             ->service_worker_object())));
+            } else if (incumbent_global->GetWrappableType() ==
+                       base::GetTypeId<dom::Window>()) {
+              //        . Window
+              //          a new WindowClient object that represents
+              //          incumbentGlobal’s relevant settings object.
+              init_dict.set_source(
+                  ExtendableMessageEvent::SourceType(WindowClient::Create(
+                      WindowData(incumbent_global->environment_settings()))));
+            } else {
+              //        . Otherwise
+              //          a new Client object that represents
+              //          incumbentGlobal’s associated worker
+              init_dict.set_source(ExtendableMessageEvent::SourceType(
+                  Client::Create(incumbent_global->environment_settings())));
+            }
+
+            base::MessageLoop* message_loop =
+                event_target->environment_settings()->context()->message_loop();
+            if (!message_loop) {
+              return;
+            }
+            if (!serialize_result) {
+              return;
+            }
+            message_loop->task_runner()->PostTask(
+                FROM_HERE,
+                base::BindOnce(
+                    [](const ExtendableMessageEventInit& init_dict,
+                       web::EventTarget* event_target,
+                       std::unique_ptr<script::DataBuffer> serialize_result) {
+                      event_target->DispatchEvent(
+                          new worker::ExtendableMessageEvent(
+                              base::Tokens::message(), init_dict,
+                              std::move(serialize_result)));
+                    },
+                    init_dict, base::Unretained(event_target),
+                    std::move(serialize_result)));
+          },
+          base::Unretained(service_worker),
+          base::Unretained(incumbent_settings), std::move(serialize_result)));
 }
 
 void ServiceWorkerJobs::RegisterWebContext(web::Context* context) {

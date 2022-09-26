@@ -26,27 +26,13 @@ Event::Event(UninitializedFlag uninitialized_flag)
   InitEventInternal(base::Token(), false, false);
 }
 
-Event::Event(const std::string& type)
-    : event_phase_(kNone), time_stamp_(GetEventTime(SbTimeGetMonotonicNow())) {
-  InitEventInternal(base::Token(type), false, false);
-}
-
-Event::Event(const std::string& type, const EventInit& init_dict)
-    : event_phase_(kNone), time_stamp_(GetEventTime(SbTimeGetMonotonicNow())) {
-  SB_DCHECK(init_dict.has_bubbles());
-  SB_DCHECK(init_dict.has_cancelable());
-  if (init_dict.time_stamp() != 0) {
-    time_stamp_ = init_dict.time_stamp();
-  }
-  InitEventInternal(base::Token(type), init_dict.bubbles(),
-                    init_dict.cancelable());
-}
-
+Event::Event(const std::string& type) : Event(base::Token(type)) {}
 Event::Event(base::Token type)
     : event_phase_(kNone), time_stamp_(GetEventTime(SbTimeGetMonotonicNow())) {
   InitEventInternal(type, false, false);
 }
-
+Event::Event(const std::string& type, const EventInit& init_dict)
+    : Event(base::Token(type), init_dict) {}
 Event::Event(base::Token type, Bubbles bubbles, Cancelable cancelable)
     : event_phase_(kNone), time_stamp_(GetEventTime(SbTimeGetMonotonicNow())) {
   InitEventInternal(type, bubbles == kBubbles, cancelable == kCancelable);

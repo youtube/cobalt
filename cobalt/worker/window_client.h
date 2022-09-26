@@ -15,6 +15,7 @@
 #ifndef COBALT_WORKER_WINDOW_CLIENT_H_
 #define COBALT_WORKER_WINDOW_CLIENT_H_
 
+#include "cobalt/dom/visibility_state.h"
 #include "cobalt/web/environment_settings.h"
 #include "cobalt/worker/client.h"
 #include "cobalt/worker/frame_type.h"
@@ -23,6 +24,11 @@ namespace cobalt {
 namespace worker {
 
 struct WindowData {
+ public:
+  WindowData(web::EnvironmentSettings* client = nullptr,
+             FrameType frame_type = kFrameTypeTopLevel)
+      : client(client), frame_type(frame_type) {}
+
   web::EnvironmentSettings* client = nullptr;
   FrameType frame_type = kFrameTypeTopLevel;
 };
@@ -30,15 +36,20 @@ struct WindowData {
 class WindowClient : public Client {
  public:
   // https://w3c.github.io/ServiceWorker/#create-window-client
-  static WindowClient* Create(const WindowData& window_data) {
+  static scoped_refptr<Client> Create(const WindowData& window_data) {
     return new WindowClient(window_data);
   }
-  // TODO(b/235838698): Implement WindowCLient properties and methods.
+  dom::VisibilityState visibility_state();
+  bool focused();
 
+  // TODO(b/235838698): Implement WindowClient methods.
   DEFINE_WRAPPABLE_TYPE(WindowClient);
 
  private:
   explicit WindowClient(const WindowData& window_data);
+
+  dom::VisibilityState visibility_state_ = dom::kVisibilityStateVisible;
+  bool focused_ = true;
 };
 
 

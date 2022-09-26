@@ -44,11 +44,13 @@ namespace worker {
 class ExtendableEvent : public web::Event {
  public:
   explicit ExtendableEvent(const std::string& type) : Event(type) {}
+  ExtendableEvent(const std::string& type, const ExtendableEventInit& init_dict)
+      : ExtendableEvent(base::Token(type), init_dict) {}
   ExtendableEvent(base::Token type,
                   base::OnceCallback<void(bool)> done_callback =
                       base::OnceCallback<void(bool)>())
       : Event(type), done_callback_(std::move(done_callback)) {}
-  ExtendableEvent(const std::string& type, const ExtendableEventInit& init_dict)
+  ExtendableEvent(base::Token type, const ExtendableEventInit& init_dict)
       : Event(type, init_dict) {}
 
   void WaitUntil(

@@ -14,6 +14,12 @@
 
 #include "cobalt/worker/window_client.h"
 
+#include "cobalt/dom/document.h"
+#include "cobalt/dom/visibility_state.h"
+#include "cobalt/dom/window.h"
+#include "cobalt/web/environment_settings.h"
+#include "cobalt/web/window_or_worker_global_scope.h"
+
 namespace cobalt {
 namespace worker {
 
@@ -31,13 +37,89 @@ WindowClient::WindowClient(const WindowData& window_data)
 
   // 4. Set windowClient’s visibility state to visibilityState.
   // 5. Set windowClient’s focus state to focusState.
-  // TODO(b/235838698): Implement WindowCLient properties and methods.
+  // Determined in the property getter.
 
   // 6. Set windowClient’s ancestor origins array to a frozen array created from
   //    ancestorOriginsList.
   // Not supported by Cobalt.
 
   // 7. Return windowClient.
+}
+
+dom::VisibilityState WindowClient::visibility_state() {
+  DCHECK(event_target());
+  DCHECK(event_target()->environment_settings());
+  web::Context* context = event_target()->environment_settings()->context();
+  DCHECK(context);
+  base::MessageLoop* message_loop = context->message_loop();
+  if (!message_loop) {
+    return dom::kVisibilityStateHidden;
+  }
+
+  dom::VisibilityState visibility_state = dom::kVisibilityStateHidden;
+  if (message_loop->task_runner()->BelongsToCurrentThread()) {
+    DCHECK(context->GetWindowOrWorkerGlobalScope()->IsWindow());
+    DCHECK(context->GetWindowOrWorkerGlobalScope()->AsWindow()->document());
+    visibility_state = context->GetWindowOrWorkerGlobalScope()
+                           ->AsWindow()
+                           ->document()
+                           ->visibility_state();
+  } else {
+    message_loop->task_runner()->PostBlockingTask(
+        FROM_HERE,
+        base::Bind(
+            [](web::Context* context, dom::VisibilityState* visibility_state) {
+              DCHECK(context->GetWindowOrWorkerGlobalScope()->IsWindow());
+              DCHECK(context->GetWindowOrWorkerGlobalScope()
+                         ->AsWindow()
+                         ->document());
+              *visibility_state = context->GetWindowOrWorkerGlobalScope()
+                                      ->AsWindow()
+                                      ->document()
+                                      ->visibility_state();
+            },
+            context, &visibility_state));
+  }
+
+  return visibility_state;
+}
+
+bool WindowClient::focused() {
+  DCHECK(event_target());
+  DCHECK(event_target()->environment_settings());
+  web::Context* context = event_target()->environment_settings()->context();
+  DCHECK(context);
+  base::MessageLoop* message_loop = context->message_loop();
+  if (!message_loop) {
+    return false;
+  }
+
+  bool focused = false;
+  if (message_loop->task_runner()->BelongsToCurrentThread()) {
+    DCHECK(context->GetWindowOrWorkerGlobalScope()->IsWindow());
+    DCHECK(context->GetWindowOrWorkerGlobalScope()->AsWindow()->document());
+    focused = context->GetWindowOrWorkerGlobalScope()
+                  ->AsWindow()
+                  ->document()
+                  ->HasFocus();
+  } else {
+    message_loop->task_runner()->PostBlockingTask(
+        FROM_HERE,
+        base::Bind(
+            [](web::Context* context, bool* focused) {
+              DCHECK(context->GetWindowOrWorkerGlobalScope()->IsWindow());
+              DCHECK(context->GetWindowOrWorkerGlobalScope()
+                         ->AsWindow()
+                         ->document());
+              *focused = context->GetWindowOrWorkerGlobalScope()
+                             ->AsWindow()
+                             ->document()
+                             ->HasFocus();
+            },
+            context, &focused));
+  }
+
+  return focused;
 }
 
 }  // namespace worker

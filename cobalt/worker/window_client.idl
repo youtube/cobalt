@@ -15,9 +15,9 @@
 // https://w3c.github.io/ServiceWorker/#client-interface
 
 [Exposed = ServiceWorker] interface WindowClient : Client {
-  // TODO(b/235838698): Implement WindowCLient properties and methods.
-  // readonly attribute VisibilityState visibilityState;
-  // readonly attribute boolean focused;
+  readonly attribute VisibilityState visibilityState;
+  readonly attribute boolean focused;
+  // TODO(b/235838698): Implement WindowClient methods.
   // [NewObject] Promise<WindowClient> focus();
   // [NewObject] Promise<WindowClient?> navigate(USVString url);
 };
