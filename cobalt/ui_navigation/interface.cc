@@ -29,6 +29,11 @@ struct ItemImpl {
   const NativeItemType type;
   float content_offset_x = 0.0f;
   float content_offset_y = 0.0f;
+
+  float scroll_top_lower_bound = 0.0f;
+  float scroll_left_lower_bound = 0.0f;
+  float scroll_top_upper_bound = 0.0f;
+  float scroll_left_upper_bound = 0.0f;
 };
 
 NativeItem CreateItem(NativeItemType type, const NativeCallbacks* callbacks,
@@ -37,6 +42,33 @@ NativeItem CreateItem(NativeItemType type, const NativeCallbacks* callbacks,
 }
 
 void DestroyItem(NativeItem item) { delete reinterpret_cast<ItemImpl*>(item); }
+
+void SetItemBounds(NativeItem item, float scroll_top_lower_bound,
+                   float scroll_left_lower_bound, float scroll_top_upper_bound,
+                   float scroll_left_upper_bound) {
+  ItemImpl* stub_item = reinterpret_cast<ItemImpl*>(item);
+  if (stub_item->type == kNativeItemTypeContainer) {
+    starboard::ScopedSpinLock scoped_lock(stub_item->lock);
+    stub_item->scroll_top_lower_bound = scroll_top_lower_bound;
+    stub_item->scroll_left_lower_bound = scroll_left_lower_bound;
+    stub_item->scroll_top_upper_bound = scroll_top_upper_bound;
+    stub_item->scroll_left_upper_bound = scroll_left_upper_bound;
+  }
+}
+
+void GetItemBounds(NativeItem item, float* out_scroll_top_lower_bound,
+                   float* out_scroll_left_lower_bound,
+                   float* out_scroll_top_upper_bound,
+                   float* out_scroll_left_upper_bound) {
+  ItemImpl* stub_item = reinterpret_cast<ItemImpl*>(item);
+  if (stub_item->type == kNativeItemTypeContainer) {
+    starboard::ScopedSpinLock scoped_lock(stub_item->lock);
+    *out_scroll_top_lower_bound = stub_item->scroll_top_lower_bound;
+    *out_scroll_left_lower_bound = stub_item->scroll_left_lower_bound;
+    *out_scroll_top_upper_bound = stub_item->scroll_top_upper_bound;
+    *out_scroll_left_upper_bound = stub_item->scroll_left_upper_bound;
+  }
+}
 
 void SetFocus(NativeItem item) {}
 
@@ -90,6 +122,8 @@ NativeInterface InitializeInterface() {
   if (SbUiNavGetInterface(&sb_ui_interface)) {
     interface.create_item = sb_ui_interface.create_item;
     interface.destroy_item = sb_ui_interface.destroy_item;
+    interface.set_item_bounds = nullptr;
+    interface.get_item_bounds = nullptr;
     interface.set_focus = sb_ui_interface.set_focus;
     interface.set_item_enabled = sb_ui_interface.set_item_enabled;
     interface.set_item_dir = sb_ui_interface.set_item_dir;
@@ -115,6 +149,8 @@ NativeInterface InitializeInterface() {
 
   interface.create_item = &CreateItem;
   interface.destroy_item = &DestroyItem;
+  interface.set_item_bounds = &SetItemBounds;
+  interface.get_item_bounds = &GetItemBounds;
   interface.set_focus = &SetFocus;
   interface.set_item_enabled = &SetItemEnabled;
   interface.set_item_dir = &SetItemDir;

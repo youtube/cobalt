@@ -37,6 +37,14 @@ struct NativeInterface {
                             const NativeCallbacks* callbacks,
                             void* callback_context);
   void (*destroy_item)(NativeItem item);
+  void (*set_item_bounds)(NativeItem item, float scroll_top_lower_bound,
+                          float scroll_left_lower_bound,
+                          float scroll_top_upper_bound,
+                          float scroll_left_upper_bound);
+  void (*get_item_bounds)(NativeItem item, float* out_scroll_top_lower_bound,
+                          float* out_scroll_left_lower_bound,
+                          float* out_scroll_top_upper_bound,
+                          float* out_scroll_left_upper_bound);
   void (*set_focus)(NativeItem item);
   void (*set_item_enabled)(NativeItem item, bool enabled);
   void (*set_item_dir)(NativeItem item, NativeItemDir dir);

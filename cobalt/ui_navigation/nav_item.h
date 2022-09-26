@@ -41,6 +41,13 @@ class NavItem : public base::RefCountedThreadSafe<NavItem> {
   // periodically to ensure all UI updates are executed.
   void PerformQueuedUpdates();
 
+  void SetBounds(float scroll_top_lower_bound, float scroll_left_lower_bound,
+                 float scroll_top_upper_bound, float scroll_left_upper_bound);
+  void GetBounds(float* out_scroll_top_lower_bound,
+                 float* out_scroll_left_lower_bound,
+                 float* out_scroll_top_upper_bound,
+                 float* out_scroll_left_upper_bound);
+
   void Focus();
   void UnfocusAll();
   void SetEnabled(bool enabled);
