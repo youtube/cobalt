@@ -27,6 +27,7 @@ TEST(MediaSourceSettingsImplTest, Empty) {
   EXPECT_FALSE(impl.GetMinimumProcessorCountToOffloadAlgorithm());
   EXPECT_FALSE(impl.IsAsynchronousReductionEnabled());
   EXPECT_FALSE(impl.GetMinSizeForImmediateJob());
+  EXPECT_FALSE(impl.GetMaxSourceBufferAppendSizeInBytes());
 }
 
 TEST(MediaSourceSettingsImplTest, SunnyDay) {
@@ -37,11 +38,13 @@ TEST(MediaSourceSettingsImplTest, SunnyDay) {
       impl.Set("MediaSource.MinimumProcessorCountToOffloadAlgorithm", 101));
   ASSERT_TRUE(impl.Set("MediaSource.EnableAsynchronousReduction", 1));
   ASSERT_TRUE(impl.Set("MediaSource.MinSizeForImmediateJob", 103));
+  ASSERT_TRUE(impl.Set("MediaSource.MaxSourceBufferAppendSizeInBytes", 100000));
 
   EXPECT_EQ(impl.GetSourceBufferEvictExtraInBytes().value(), 100);
   EXPECT_EQ(impl.GetMinimumProcessorCountToOffloadAlgorithm().value(), 101);
   EXPECT_TRUE(impl.IsAsynchronousReductionEnabled().value());
   EXPECT_EQ(impl.GetMinSizeForImmediateJob().value(), 103);
+  EXPECT_EQ(impl.GetMaxSourceBufferAppendSizeInBytes().value(), 100000);
 }
 
 TEST(MediaSourceSettingsImplTest, RainyDay) {
@@ -52,11 +55,13 @@ TEST(MediaSourceSettingsImplTest, RainyDay) {
       impl.Set("MediaSource.MinimumProcessorCountToOffloadAlgorithm", -101));
   ASSERT_FALSE(impl.Set("MediaSource.EnableAsynchronousReduction", 2));
   ASSERT_FALSE(impl.Set("MediaSource.MinSizeForImmediateJob", -103));
+  ASSERT_FALSE(impl.Set("MediaSource.MaxSourceBufferAppendSizeInBytes", 0));
 
   EXPECT_FALSE(impl.GetSourceBufferEvictExtraInBytes());
   EXPECT_FALSE(impl.GetMinimumProcessorCountToOffloadAlgorithm());
   EXPECT_FALSE(impl.IsAsynchronousReductionEnabled());
   EXPECT_FALSE(impl.GetMinSizeForImmediateJob());
+  EXPECT_FALSE(impl.GetMaxSourceBufferAppendSizeInBytes());
 }
 
 TEST(MediaSourceSettingsImplTest, ZeroValuesWork) {
@@ -67,6 +72,7 @@ TEST(MediaSourceSettingsImplTest, ZeroValuesWork) {
       impl.Set("MediaSource.MinimumProcessorCountToOffloadAlgorithm", 0));
   ASSERT_TRUE(impl.Set("MediaSource.EnableAsynchronousReduction", 0));
   ASSERT_TRUE(impl.Set("MediaSource.MinSizeForImmediateJob", 0));
+  // O is an invalid value for "MediaSource.MaxSourceBufferAppendSizeInBytes".
 
   EXPECT_EQ(impl.GetSourceBufferEvictExtraInBytes().value(), 0);
   EXPECT_EQ(impl.GetMinimumProcessorCountToOffloadAlgorithm().value(), 0);
@@ -82,17 +88,20 @@ TEST(MediaSourceSettingsImplTest, Updatable) {
       impl.Set("MediaSource.MinimumProcessorCountToOffloadAlgorithm", 0));
   ASSERT_TRUE(impl.Set("MediaSource.EnableAsynchronousReduction", 0));
   ASSERT_TRUE(impl.Set("MediaSource.MinSizeForImmediateJob", 0));
+  ASSERT_TRUE(impl.Set("MediaSource.MaxSourceBufferAppendSizeInBytes", 1));
 
   ASSERT_TRUE(impl.Set("MediaSource.SourceBufferEvictExtraInBytes", 1));
   ASSERT_TRUE(
       impl.Set("MediaSource.MinimumProcessorCountToOffloadAlgorithm", 1));
   ASSERT_TRUE(impl.Set("MediaSource.EnableAsynchronousReduction", 1));
   ASSERT_TRUE(impl.Set("MediaSource.MinSizeForImmediateJob", 1));
+  ASSERT_TRUE(impl.Set("MediaSource.MaxSourceBufferAppendSizeInBytes", 2));
 
   EXPECT_EQ(impl.GetSourceBufferEvictExtraInBytes().value(), 1);
   EXPECT_EQ(impl.GetMinimumProcessorCountToOffloadAlgorithm().value(), 1);
   EXPECT_TRUE(impl.IsAsynchronousReductionEnabled().value());
   EXPECT_EQ(impl.GetMinSizeForImmediateJob().value(), 1);
+  EXPECT_EQ(impl.GetMaxSourceBufferAppendSizeInBytes().value(), 2);
 }
 
 TEST(MediaSourceSettingsImplTest, InvalidSettingNames) {

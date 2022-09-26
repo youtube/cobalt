@@ -36,6 +36,7 @@ class MediaSourceSettings {
       const = 0;
   virtual base::Optional<bool> IsAsynchronousReductionEnabled() const = 0;
   virtual base::Optional<int> GetMinSizeForImmediateJob() const = 0;
+  virtual base::Optional<int> GetMaxSourceBufferAppendSizeInBytes() const = 0;
 
  protected:
   MediaSourceSettings() = default;
@@ -67,6 +68,10 @@ class MediaSourceSettingsImpl : public MediaSourceSettings {
     base::AutoLock auto_lock(lock_);
     return min_size_for_immediate_job_;
   }
+  base::Optional<int> GetMaxSourceBufferAppendSizeInBytes() const override {
+    base::AutoLock auto_lock(lock_);
+    return max_source_buffer_append_size_in_bytes_;
+  }
 
   // Returns true when the setting associated with `name` is set to `value`.
   // Returns false when `name` is not associated with any settings, or if
@@ -79,6 +84,7 @@ class MediaSourceSettingsImpl : public MediaSourceSettings {
   base::Optional<int> minimum_processor_count_to_offload_algorithm_;
   base::Optional<bool> is_asynchronous_reduction_enabled_;
   base::Optional<int> min_size_for_immediate_job_;
+  base::Optional<int> max_source_buffer_append_size_in_bytes_;
 };
 
 }  // namespace dom

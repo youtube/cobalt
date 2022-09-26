@@ -184,9 +184,12 @@ class SourceBuffer : public web::EventTarget {
       const std::string& track_type,
       const std::string& byte_stream_track_id) const;
 
+  static const size_t kDefaultMaxAppendBufferSize = 128 * 1024;
+
   scoped_refptr<OnInitSegmentReceivedHelper> on_init_segment_received_helper_;
   const std::string id_;
   const size_t evict_extra_in_bytes_;
+  const size_t max_append_buffer_size_;
 
   MediaSource* media_source_;
   ChunkDemuxer* chunk_demuxer_;
