@@ -27,8 +27,8 @@ namespace dom {
 SourceBufferAppendAlgorithm::SourceBufferAppendAlgorithm(
     MediaSource* media_source, ::media::ChunkDemuxer* chunk_demuxer,
     const std::string& id, const uint8_t* buffer, size_t size_in_bytes,
-    base::TimeDelta append_window_start, base::TimeDelta append_window_end,
-    base::TimeDelta timestamp_offset,
+    size_t max_append_size_in_bytes, base::TimeDelta append_window_start,
+    base::TimeDelta append_window_end, base::TimeDelta timestamp_offset,
     UpdateTimestampOffsetCB&& update_timestamp_offset_cb,
     ScheduleEventCB&& schedule_event_cb, base::OnceClosure&& finalized_cb,
     SourceBufferMetrics* metrics)
@@ -36,6 +36,7 @@ SourceBufferAppendAlgorithm::SourceBufferAppendAlgorithm(
       chunk_demuxer_(chunk_demuxer),
       id_(id),
       buffer_(buffer),
+      max_append_size_(max_append_size_in_bytes),
       bytes_remaining_(size_in_bytes),
       append_window_start_(append_window_start),
       append_window_end_(append_window_end),
@@ -46,6 +47,7 @@ SourceBufferAppendAlgorithm::SourceBufferAppendAlgorithm(
       metrics_(metrics) {
   DCHECK(media_source_);
   DCHECK(chunk_demuxer_);
+  DCHECK_GT(static_cast<int>(max_append_size_), 0);
   if (bytes_remaining_ > 0) {
     DCHECK(buffer);
   }
@@ -60,9 +62,7 @@ void SourceBufferAppendAlgorithm::Process(bool* finished) {
   DCHECK(finished);
   DCHECK(!*finished);
 
-  const size_t kMaxAppendSize = 128 * 1024;
-
-  size_t append_size = std::min(bytes_remaining_, kMaxAppendSize);
+  size_t append_size = std::min(bytes_remaining_, max_append_size_);
 
   TRACE_EVENT1("cobalt::dom", "SourceBufferAppendAlgorithm::Process()",
                "append_size", append_size);

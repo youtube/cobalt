@@ -103,6 +103,19 @@ size_t GetEvictExtraInBytes(script::EnvironmentSettings* settings) {
   return std::max<int>(bytes, 0);
 }
 
+size_t GetMaxAppendSizeInBytes(script::EnvironmentSettings* settings,
+                               size_t default_value) {
+  DOMSettings* dom_settings =
+      base::polymorphic_downcast<DOMSettings*>(settings);
+  DCHECK(dom_settings);
+  DCHECK(dom_settings->media_source_settings());
+  int bytes = dom_settings->media_source_settings()
+                  ->GetMaxSourceBufferAppendSizeInBytes()
+                  .value_or(default_value);
+  DCHECK_GT(bytes, 0);
+  return bytes;
+}
+
 }  // namespace
 
 SourceBuffer::OnInitSegmentReceivedHelper::OnInitSegmentReceivedHelper(
@@ -138,6 +151,8 @@ SourceBuffer::SourceBuffer(script::EnvironmentSettings* settings,
       on_init_segment_received_helper_(new OnInitSegmentReceivedHelper(this)),
       id_(id),
       evict_extra_in_bytes_(GetEvictExtraInBytes(settings)),
+      max_append_buffer_size_(
+          GetMaxAppendSizeInBytes(settings, kDefaultMaxAppendBufferSize)),
       media_source_(media_source),
       chunk_demuxer_(chunk_demuxer),
       event_queue_(event_queue),
@@ -152,6 +167,7 @@ SourceBuffer::SourceBuffer(script::EnvironmentSettings* settings,
   DCHECK(event_queue);
 
   LOG(INFO) << "Evict extra in bytes is set to " << evict_extra_in_bytes_;
+  LOG(INFO) << "Max append size in bytes is set to " << max_append_buffer_size_;
 
   chunk_demuxer_->SetTracksWatcher(
       id_,
@@ -540,7 +556,7 @@ void SourceBuffer::AppendBufferInternal(
   std::unique_ptr<SourceBufferAlgorithm> algorithm(
       new SourceBufferAppendAlgorithm(
           media_source_, chunk_demuxer_, id_, pending_append_data_.get(), size,
-          DoubleToTimeDelta(append_window_start_),
+          max_append_buffer_size_, DoubleToTimeDelta(append_window_start_),
           DoubleToTimeDelta(append_window_end_),
           DoubleToTimeDelta(timestamp_offset_),
           base::Bind(&SourceBuffer::UpdateTimestampOffset,
