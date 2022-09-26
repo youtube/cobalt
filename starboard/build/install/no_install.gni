@@ -19,6 +19,7 @@ template("install_target") {
              [
                "testonly",
                "installable_target_name",
+               "deps",
              ])
   forward_variables_from(invoker,
                          [
@@ -27,5 +28,8 @@ template("install_target") {
                          ])
   group(target_name) {
     deps = [ ":$installable_target_name" ]
+    if (defined(invoker.deps)) {
+      deps += invoker.deps
+    }
   }
 }
