@@ -1,0 +1,24 @@
+// Copyright 2022 The Cobalt Authors. All Rights Reserved.
+
+syntax = "proto3";
+
+package mobile_harness_gateway;
+
+// Interface exported by the server.
+service mobile_harness_gateway {
+  // A dumb proxy RPC service that passes user defined command line options
+  // to the mobile harness gateway and streams back output in real time.
+  rpc exec_command (MobileHarnessCommand) returns (stream MobileHarnessResponse) {
+  }
+}
+
+// Working directory and command line arguments to be passed to the gateway.
+message MobileHarnessCommand {
+  string workdir = 1;
+  string args = 2;
+}
+
+// Response from the mobile harness.
+message MobileHarnessResponse {
+  string response = 1;
+}

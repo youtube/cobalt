@@ -2,7 +2,7 @@ name: win32
 
 on:
   pull_request:
-    types: [opened, reopened, edited, synchronize, labeled]
+    types: [ready_for_review, synchronize, labeled]
     branches: [ main ]
   push:
     branches: [ main ]
@@ -10,7 +10,6 @@ on:
 
 jobs:
   CI:
-    if: github.event_name != 'label' || github.event.label.name == 'runtest'
     uses: ./.github/workflows/main_win.yaml
     permissions:
       packages: write

@@ -9,3 +9,5 @@
 /venv/*
 _certs/
 .coverage
+mobile_harness_gateway_pb2.py
+mobile_harness_gateway_pb2_grpc.py

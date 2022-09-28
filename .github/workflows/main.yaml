@@ -10,6 +10,10 @@ on:
         required: true
         type: string
 
+concurrency:
+  group: ${{ github.ref }}_${{ github.workflow }}
+  cancel-in-progress: true
+
 # Global env vars.
 env:
   REGISTRY: ghcr.io
@@ -31,11 +35,36 @@ jobs:
   # Retrieves configuration from json file.
   initialize:
     runs-on: ubuntu-latest
+    if: |
+      contains(github.workflow, '_nightly') ||
+      github.event_name == 'push' ||
+      github.event.action == 'ready_for_review' ||
+      (
+        github.event.action == 'synchronize' &&
+        !github.event.pull_request.draft
+      ) ||
+      (
+        github.event.action == 'labeled' &&
+        github.event.label.name == 'on_device' &&
+        !github.event.pull_request.draft
+      ) ||
+      (
+        github.event.action == 'labeled' &&
+        github.event.label.name == 'runtest'
+      )
     steps:
       - id: checkout
         uses: actions/checkout@v3
         with:
           fetch-depth: 1
+      - name: Remove runtest if exists
+        run: |
+          curl \
+            -X DELETE \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            ${{ github.event.pull_request.base.repo.url }}/issues/${{ github.event.number }}/labels/runtest
+        shell: bash
       - id: set-platforms
         run: echo "::set-output name=platforms::$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.platforms')"
       - id: set-includes
@@ -53,7 +82,7 @@ jobs:
     outputs:
       platforms: ${{ steps.set-platforms.outputs.platforms }}
       includes: ${{ steps.set-includes.outputs.includes }}
-      on_device_test: ${{ steps.set-on-device-test.outputs.on_device_test }}
+      on_device_test: ${{ steps.set-on-device-test.outputs.on_device_test == 'true' && (contains(github.workflow, '_nightly') || contains(github.event.pull_request.labels.*.name, 'on_device')) }}
       on_host_test: ${{ steps.set-on-host-test.outputs.on_host_test }}
       on_host_test_shards: ${{ steps.set-on-host-test-shards.outputs.on_host_test_shards }}
       on_host_test_bootloader: ${{ steps.set-on-host-test-bootloader.outputs.on_host_test_bootloader }}
@@ -152,7 +181,7 @@ jobs:
         if: ${{ contains(github.workflow, '_nightly') && matrix.config != 'debug' }}
         uses: ./.github/actions/upload_nightly_artifacts
       - name: Upload On Device Test Artifacts
-        if: ${{ matrix.config == 'devel' && needs.initialize.outputs.on_device_test == 'true' && (contains(github.workflow, '_nightly') || github.event.label.name == 'runtest' || github.event_name == 'push') }}
+        if: ${{ matrix.config == 'devel' && needs.initialize.outputs.on_device_test == 'true' }}
         uses: ./.github/actions/upload_test_artifacts
         with:
           type: ondevice
@@ -182,22 +211,77 @@ jobs:
   # Runs on-device tests.
   on-device-test:
     needs: [initialize, build]
-    if: needs.initialize.outputs.on_device_test == 'true' && (contains(github.workflow, '_nightly') || github.event.label.name == 'runtest' || github.event_name == 'push') 
+    if: needs.initialize.outputs.on_device_test == 'true'
     runs-on: [self-hosted, linux, X64]
-    name: ${{matrix.platform}}_${{matrix.type}}
+    name: On Device Test (${{ matrix.type }} on ${{ matrix.platform }})
     strategy:
       fail-fast: false
       matrix:
         platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
-        type: [unit_test, integration_test]
-        include: ${{ fromJson(needs.initialize.outputs.includes) }}
+        type: [unit_test, black_box_test]
+        config: [ devel ]
     container: ${{ needs.docker-build-image.outputs.docker_tag }}
     steps:
       - name: Checkout
         uses: actions/checkout@v2
-        with:
-          fetch-depth: 1
-
+      - name: Install requirements
+        run: |
+          pip3 install grpcio==1.37.0 grpcio-tools==1.38.0
+        shell: bash
+      - name: Generate gRPC files
+        run: |
+          python -m grpc_tools.protoc -Itools/ --python_out=tools/ --grpc_python_out=tools/ tools/mobile_harness_gateway.proto
+        shell: bash
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v0
+      - name: Set env vars
+        run: |
+          echo "PROJECT_NAME=$(gcloud config get-value project)" >> $GITHUB_ENV
+          echo "GITHUB_RUN_NUMBER=${GITHUB_RUN_NUMBER}" >> $GITHUB_ENV
+          echo "WORKFLOW=${{ github.workflow }}" >> $GITHUB_ENV
+          echo "LOGS_FILE_DIR=$GITHUB_WORKSPACE/out/tmp/${{ matrix.platform }}_${{ matrix.config }}_${{ matrix.type }}/" >> $GITHUB_ENV
+      - name: Create logs directory
+        run: |
+          mkdir -p "${LOGS_FILE_DIR}"
+        shell: bash
+      - name: run ${{ matrix.type }} tests on ${{ matrix.platform }} platform
+        id: on_device_test
+        continue-on-error: true
+        run: |
+          python3 tools/mobile_harness_gateway.py \
+            --test_type ${{ matrix.type }} \
+            --platform ${{ matrix.platform }} \
+            --gateway_exit_status DONE  \
+            --run_as youtube-cobalt-mh-owner \
+            --remote_archive_path gs://${PROJECT_NAME}-test-artifacts/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${{ matrix.platform }}_${{ matrix.config }}/artifacts.tar \
+            --branch COBALT \
+            --config ${{ matrix.config }} \
+            --tag $([[ "${{ github.workflow }}" == *"_nightly"* ]] && echo cobalt_scheduled || echo cobalt_manual) \
+            --sponge_label $([[ "${{ github.workflow }}" == *"_nightly"* ]] && echo cobalt_scheduled || echo cobalt_manual) \
+            --change_id "${{ github.sha }}" \
+            --builder_name github_${{ matrix.platform }}_tests \
+            --build_number ${GITHUB_RUN_NUMBER} \
+            --start_timeout 10h \
+            --docker 2>&1 | tee "${LOGS_FILE_DIR}/logs.txt"
+        shell: bash
+      - name: Sponge link
+        run: |
+          echo "$(sed -n 's/INFO: Sponge link: //p' "${LOGS_FILE_DIR}/logs.txt")"
+        shell: bash
+      - name: Job link
+        run: |
+          echo "$(sed -n '/"name": "job_link_in_mhfe",/{ n; s/.*"value": //p }' "${LOGS_FILE_DIR}/logs.txt" | tr -d '"')"
+        shell: bash
+      - name: Test link
+        run: |
+          echo "$(sed -n '/"name": "test_link_in_mhfe",/{ n; s/.*"value": //p }' "${LOGS_FILE_DIR}/logs.txt" | tr -d '"')"
+        shell: bash
+      - name: Report to UI
+        if: steps.on_device_test.outcome != 'success'
+        run: |
+          echo "Detected failure in 'on_device_test' step"
+          exit 1
+        shell: bash
   # Runs on-host integration and unit tests.
   on-host-test:
     needs: [initialize, docker-unittest-image, build]
