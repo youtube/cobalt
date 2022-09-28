@@ -68,6 +68,8 @@ template("install_target") {
 
     script = "//starboard/build/run_bash.py"
     args = [
+      "env",
+      "ANDROID_HOME=${android_sdk_path}",
       rebase_path(gradle_wrapper, root_build_dir),
       "--project-cache-dir=$project_cache_dir",
       "--project-dir",
