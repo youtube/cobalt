@@ -2,7 +2,7 @@ name: linux-clang-3-9
 
 on:
   pull_request:
-    types: [opened, reopened, edited, synchronize]
+    types: [ready_for_review, synchronize, labeled]
     branches: [ main ]
   push:
     branches: [ main ]

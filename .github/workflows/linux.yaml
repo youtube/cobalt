@@ -2,7 +2,7 @@ name: linux
 
 on:
   pull_request:
-    types: [opened, reopened, edited, synchronize]
+    types: [ready_for_review, synchronize, labeled]
     branches: [ main ]
   push:
     branches: [ main ]
@@ -13,6 +13,6 @@ jobs:
     uses: ./.github/workflows/main.yaml
     permissions:
       packages: write
+      pull-requests: write
     with:
       platform: $GITHUB_WORKFLOW
-

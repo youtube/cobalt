@@ -18,20 +18,31 @@ RUN apt update -qqy \
     && apt install -qqy --no-install-recommends \
         libasound2 \
         libatomic1 \
-        libavcodec58 \
-        libavformat58 \
-        libavutil56 \
+        libavcodec-dev \
+        libavformat-dev \
+        libavresample-dev \
+        libavutil-dev \
+        libegl1-mesa-dev \
+        libgl1-mesa-glx \
+        libglapi-mesa \
+        libgles2-mesa \
+        libglu1-mesa \
+        libwayland-egl1-mesa \
+        mesa-common-dev \
+        mesa-utils   \
         libegl1-mesa \
         libgl1-mesa-dri \
-        libgles2-mesa \
         libx11-6 \
         libxcomposite1 \
-        libxi6 \
+        libxi-dev \
         libxrender1 \
+        procps \
         unzip \
         xauth \
-        xvfb \
+        xvfb \ 
     && /opt/clean-after-apt.sh
+
+RUN python3 -m pip install "selenium==3.141.0" "Brotli==1.0.9"
 
 WORKDIR /out
 # Sets the locale in the environment. This is needed for NPLB unit tests.
