@@ -1,0 +1,156 @@
+# Reusable Cobalt CI workflow.
+
+name: main
+
+on:
+  workflow_call:
+    inputs:
+      platform:
+        description: 'Cobalt platform.'
+        required: true
+        type: string
+
+concurrency:
+  group: ${{ github.ref }}_${{ github.workflow }}
+  cancel-in-progress: true
+
+# Global env vars.
+env:
+  REGISTRY: ghcr.io
+  IPV6_AVAILABLE: 0
+  LANG: en_US.UTF-8
+  IS_BUILDBOT_DOCKER: 1
+  #BUILD_ID_SERVER_URL:
+  IS_CI: 1
+  IS_DOCKER: 1
+  NINJA_STATUS: '[%e sec | %f/%t %u remaining | %c/sec | j%r]'
+  SCCACHE: 1
+  SCCACHE_GCS_BUCKET: cobalt-actions-devel-sccache-windows
+  SCCACHE_GCS_OAUTH_URL: http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token
+  SCCACHE_GCS_RW_MODE: READ_WRITE
+  SCCACHE_IDLE_TIMEOUT: 0 # prevent sccache server from shutting down after long idle.
+  STARBOARD_TOOLCHAINS_DIR: /root/starboard-toolchains
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # Generates build matrix based on json configuration file.
+  initialize:
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'push' ||
+      github.event.action == 'ready_for_review' ||
+      contains(github.workflow, '_nightly') ||
+      (
+        github.event.action == 'synchronize' &&
+        !github.event.pull_request.draft
+      ) ||
+      (
+        github.event.action == 'labeled' &&
+        github.event.label.name == 'runtest'
+      )
+    steps:
+      - id: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 1
+      - id: set-platforms
+        run: echo "::set-output name=platforms::$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.platforms')"
+      - id: set-includes
+        run: echo "::set-output name=includes::$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.includes')"
+      - id: set-on-device-test
+        run: echo "::set-output name=on_device_test::$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.on_device_test')"
+      - id: set-on-host-test
+        run: echo "::set-output name=on_host_test::$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.on_host_test')"
+      - id: set-on-host-test-shards
+        run: echo "::set-output name=on_host_test_shards::$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.on_host_test_shards')"
+      - id: set-docker-service
+        run: echo "::set-output name=docker_service::$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.docker_service')"
+      - id: set-docker-runner-service
+        run: echo "::set-output name=docker_runner_service::$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.docker_runner_service')"
+    outputs:
+      platforms: ${{ steps.set-platforms.outputs.platforms }}
+      includes: ${{ steps.set-includes.outputs.includes }}
+      on_device_test: ${{ steps.set-on-device-test.outputs.on_device_test }}
+      on_host_test: ${{ steps.set-on-host-test.outputs.on_host_test }}
+      on_host_test_shards: ${{ steps.set-on-host-test-shards.outputs.on_host_test_shards }}
+      docker_service: ${{ steps.set-docker-service.outputs.docker_service }}
+      docker_runner_service: ${{ steps.set-docker-runner-service.outputs.docker_runner_service }}
+  # Build windows docker images.
+  build-docker-image:
+    needs: [initialize]
+    permissions:
+      packages: write
+    runs-on: windows-2019
+    steps:
+      - name: Checkout files
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 2
+      - name: Login to Docker Registry ${{env.REGISTRY}}
+        uses: docker/login-action@v1
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build docker image
+        id: build-docker-image
+        uses: ./.github/actions/docker_win
+        with:
+          service: ${{ needs.initialize.outputs.docker_service }}
+      - name: Build runner docker image
+        id: build-runner-docker-image
+        uses: ./.github/actions/docker_win
+        with:
+          service: ${{ needs.initialize.outputs.docker_runner_service }}
+  # Runs builds.
+  build:
+    needs: [initialize]
+    runs-on: [self-hosted, X64, Windows]
+    name: ${{matrix.platform}}_${{matrix.config}}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
+        include: ${{ fromJson(needs.initialize.outputs.includes) }}
+        config: [devel, debug, qa, gold]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 1
+      - name: GN
+        uses: ./.github/actions/gn
+      - name: Build Cobalt
+        uses: ./.github/actions/build
+      - name: Upload Nightly Artifacts
+        if: ${{ endsWith(github.workflow, '_nightly') && matrix.config != 'debug' }}
+        uses: ./.github/actions/upload_nightly_artifacts
+      - name: Upload On Host Test Artifacts
+        if: ${{ matrix.config == 'devel' && needs.initialize.outputs.on_host_test == 'true' }}
+        uses: ./.github/actions/upload_test_artifacts
+        with:
+          type: onhost
+          os: windows
+
+  # Runs on the host unit and integration tests.
+  on-host-test:
+    needs: [initialize, build]
+    if: needs.initialize.outputs.on_host_test == 'true'
+    runs-on: [self-hosted, Windows, X64]
+    name: ${{matrix.platform}}_${{matrix.shard}}_test
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
+        shard: ${{ fromJson(needs.initialize.outputs.on_host_test_shards) }}
+        config: [devel]
+        include: ${{ fromJson(needs.initialize.outputs.includes) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 1
+      - name: Run Tests
+        uses: ./.github/actions/on_host_test
+        with:
+          os: windows

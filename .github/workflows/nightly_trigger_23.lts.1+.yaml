@@ -1,0 +1,34 @@
+name: nightly_trigger_23.lts.1+
+
+on:
+  schedule:
+    - cron: '0 4 * * *'
+  workflow_dispatch:
+
+jobs:
+  trigger:
+    permissions: write-all
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 1
+          ref: 23.lts.1+
+      - name: Trigger Nightly
+        run: |
+          set -x
+          gh workflow run android-arm_nightly_23.lts.1+ --ref 23.lts.1+
+          gh workflow run android-arm64_nightly_23.lts.1+ --ref 23.lts.1+
+          gh workflow run android-x86_nightly_23.lts.1+ --ref 23.lts.1+
+          gh workflow run evergreen-arm-hardfp_nightly_23.lts.1+ --ref 23.lts.1+
+          gh workflow run evergreen-arm-softfp_nightly_23.lts.1+ --ref 23.lts.1+
+          gh workflow run evergreen-x64_nightly_23.lts.1+ --ref 23.lts.1+
+          gh workflow run evergreen-x86_nightly_23.lts.1+ --ref 23.lts.1+
+          gh workflow run linux-clang-3-9_nightly_23.lts.1+ --ref 23.lts.1+
+          gh workflow run linux-gcc-6-3_nightly_23.lts.1+ --ref 23.lts.1+
+          gh workflow run linux_nightly_23.lts.1+ --ref 23.lts.1+
+          gh workflow run raspi-2_nightly_23.lts.1+ --ref 23.lts.1+
+          gh workflow run win32_nightly_23.lts.1+ --ref 23.lts.1+
+        env:
+          GITHUB_TOKEN: ${{ secrets.NIGHTLY_TRIGGER_PAT }}

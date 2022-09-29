@@ -1,0 +1,38 @@
+{
+  "docker_service": "build-raspi",
+  "platforms": [
+    "evergreen-arm-hardfp",
+		"evergreen-arm-hardfp-sbversion-14",
+    "evergreen-arm-hardfp-sbversion-13",
+    "evergreen-arm-hardfp-sbversion-12"
+  ],
+  "includes": [
+    {
+      "platform":"evergreen-arm-hardfp",
+      "target_platform":"evergreen-arm-hardfp",
+      "target_cpu":"target_cpu=\\\"arm\\\"",
+      "extra_gn_arguments":"use_asan=false"
+    },
+    {
+      "platform":"evergreen-arm-hardfp-sbversion-14",
+      "target_platform":"evergreen-arm-hardfp",
+      "target_cpu":"target_cpu=\\\"arm\\\"",
+      "extra_gn_arguments":"use_asan=false",
+      "sb_api_version":"sb_api_version=14"
+    },
+    {
+      "platform":"evergreen-arm-hardfp-sbversion-13",
+      "target_platform":"evergreen-arm-hardfp",
+      "target_cpu":"target_cpu=\\\"arm\\\"",
+      "extra_gn_arguments":"use_asan=false",
+      "sb_api_version":"sb_api_version=13"
+    },
+    {
+      "platform":"evergreen-arm-hardfp-sbversion-12",
+      "target_platform":"evergreen-arm-hardfp",
+      "target_cpu":"target_cpu=\\\"arm\\\"",
+      "extra_gn_arguments":"use_asan=false",
+      "sb_api_version":"sb_api_version=12"
+    }
+  ]
+}
