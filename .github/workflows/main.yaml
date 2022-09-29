@@ -254,7 +254,7 @@ jobs:
             --platform ${{ matrix.platform }} \
             --gateway_exit_status DONE  \
             --run_as youtube-cobalt-mh-owner \
-            --remote_archive_path gs://${PROJECT_NAME}-test-artifacts/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${{ matrix.platform }}_${{ matrix.config }}/artifacts.tar \
+            --remote_archive_path gs://${PROJECT_NAME}-test-artifacts-tmp/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${{ matrix.platform }}_${{ matrix.config }}/artifacts.tar \
             --branch COBALT \
             --config ${{ matrix.config }} \
             --tag $([[ "${{ github.workflow }}" == *"_nightly"* ]] && echo cobalt_scheduled || echo cobalt_manual) \
@@ -265,7 +265,7 @@ jobs:
             --start_timeout 10h \
             --docker 2>&1 | tee "${LOGS_FILE_DIR}/logs.txt"
         shell: bash
-      - name: Sponge link
+      - name: Test logs link
         run: |
           echo "$(sed -n 's/INFO: Sponge link: //p' "${LOGS_FILE_DIR}/logs.txt")"
         shell: bash

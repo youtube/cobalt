@@ -1,5 +1,6 @@
 {
   "docker_service": "build-android",
+  "on_device_test": "true",
   "platforms": [
     "android-arm"
   ],
