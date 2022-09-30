@@ -36,18 +36,6 @@ jobs:
   # Generates build matrix based on json configuration file.
   initialize:
     runs-on: ubuntu-latest
-    if: |
-      github.event_name == 'push' ||
-      github.event.action == 'ready_for_review' ||
-      contains(github.workflow, '_nightly') ||
-      (
-        github.event.action == 'synchronize' &&
-        !github.event.pull_request.draft
-      ) ||
-      (
-        github.event.action == 'labeled' &&
-        github.event.label.name == 'runtest'
-      )
     steps:
       - id: Checkout
         uses: actions/checkout@v3

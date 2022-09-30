@@ -35,37 +35,11 @@ jobs:
   # Retrieves configuration from json file.
   initialize:
     runs-on: ubuntu-latest
-    if: |
-      contains(github.workflow, '_nightly') ||
-      github.event_name == 'push' ||
-      github.event.action == 'ready_for_review' ||
-      (
-        github.event.action == 'synchronize' &&
-        !github.event.pull_request.draft
-      ) ||
-      (
-        github.event.action == 'labeled' &&
-        github.event.label.name == 'on_device' &&
-        !github.event.pull_request.draft
-      ) ||
-      (
-        github.event.action == 'labeled' &&
-        github.event.label.name == 'runtest'
-      )
     steps:
       - id: checkout
         uses: actions/checkout@v3
         with:
           fetch-depth: 1
-      - name: Remove runtest if exists
-        continue-on-error: true
-        run: |
-          curl \
-            -X DELETE \
-            -H "Accept: application/vnd.github+json" \
-            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            ${{ github.event.pull_request.base.repo.url }}/issues/${{ github.event.number }}/labels/runtest
-        shell: bash
       - id: set-platforms
         run: echo "::set-output name=platforms::$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.platforms')"
       - id: set-includes
