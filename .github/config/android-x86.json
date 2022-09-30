@@ -1,0 +1,14 @@
+{
+  "docker_service": "build-android",
+  "platforms": [
+    "android-x86"
+  ],
+  "includes": [
+    {
+      "platform":"android-x86",
+      "target_platform":"android-x86",
+      "target_cpu":"target_cpu=\\\"x86\\\"",
+      "target_os":"target_os=\\\"android\\\""
+    }
+  ]
+}

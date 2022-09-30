@@ -1,0 +1,13 @@
+{
+  "docker_service": "build-linux-gcc",
+  "platforms": [
+    "linux-x64x11-gcc-6-3"
+  ],
+  "includes": [
+    {
+      "platform":"linux-x64x11-gcc-6-3",
+      "target_platform":"linux-x64x11-gcc-6-3",
+      "extra_gn_arguments":"is_clang=false using_old_compiler=true"
+    }
+  ]
+}

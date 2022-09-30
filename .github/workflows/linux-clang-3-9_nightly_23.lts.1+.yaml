@@ -1,0 +1,12 @@
+name: linux-clang-3-9_nightly_23.lts.1+
+
+on:
+  workflow_dispatch:
+
+jobs:
+  CI:
+    uses: ./.github/workflows/main.yaml
+    permissions:
+      packages: write
+    with:
+      platform: linux-clang-3-9

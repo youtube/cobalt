@@ -1,0 +1,45 @@
+{
+  "docker_service": "build-raspi",
+  "platforms": [
+    "raspi-2",
+		"raspi-2-skia",
+    "raspi-2-sbversion-12",
+    "raspi-2-sbversion-13",
+    "raspi-2-sbversion-14"
+  ],
+  "includes": [
+    {
+      "platform":"raspi-2",
+      "target_platform":"raspi-2",
+      "target_cpu":"target_cpu=\\\"arm\\\"",
+      "extra_gn_arguments":"is_clang=false"
+    },
+    {
+      "platform":"raspi-2-skia",
+      "target_platform":"raspi-2-skia",
+      "target_cpu":"target_cpu=\\\"arm\\\"",
+      "extra_gn_arguments":"is_clang=false"
+    },
+    {
+      "platform":"raspi-2-sbversion-12",
+      "target_platform":"raspi-2",
+      "target_cpu":"target_cpu=\\\"arm\\\"",
+      "extra_gn_arguments":"is_clang=false",
+      "sb_api_version":"sb_api_version=12"
+    },
+    {
+      "platform":"raspi-2-sbversion-13",
+      "target_platform":"raspi-2",
+      "target_cpu":"target_cpu=\\\"arm\\\"",
+      "extra_gn_arguments":"is_clang=false",
+      "sb_api_version":"sb_api_version=13"
+    },
+    {
+      "platform":"raspi-2-sbversion-14",
+      "target_platform":"raspi-2",
+      "target_cpu":"target_cpu=\\\"arm\\\"",
+      "extra_gn_arguments":"is_clang=false",
+      "sb_api_version":"sb_api_version=14"
+    }
+  ]
+}

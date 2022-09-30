@@ -1,0 +1,20 @@
+name: win32_23.lts.1+
+
+on:
+  pull_request:
+    types: [opened, reopened, edited, synchronize, labeled]
+    branches:
+      - '23.lts.1\+'
+  push:
+    branches:
+      - '23.lts.1\+'
+  workflow_dispatch:
+
+jobs:
+  CI:
+    if: github.event_name != 'label' || github.event.label.name == 'runtest'
+    uses: ./.github/workflows/main_win.yaml
+    permissions:
+      packages: write
+    with:
+      platform: win32

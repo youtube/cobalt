@@ -1,0 +1,14 @@
+{
+  "docker_service": "build-android",
+  "platforms": [
+    "android-arm"
+  ],
+  "includes": [
+    {
+      "platform":"android-arm",
+      "target_platform":"android-arm",
+      "target_cpu":"target_cpu=\\\"arm\\\"",
+      "target_os":"target_os=\\\"android\\\""
+    }
+  ]
+}

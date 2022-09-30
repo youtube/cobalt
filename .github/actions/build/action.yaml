@@ -1,0 +1,39 @@
+name: Build Cobalt
+description: Builds Cobalt targets
+runs:
+  using: "composite"
+  steps:
+    - name: Configure Environment
+      shell: bash
+      run: |
+        echo "PYTHONPATH=$GITHUB_WORKSPACE" >> $GITHUB_ENV
+    - name: Set Android env vars
+      if: startsWith(${{matrix.target_platform}}, 'android')
+      run: |
+        echo "ANDROID_HOME=/root/starboard-toolchains/AndroidSdk/" >> $GITHUB_ENV
+        echo "COBALT_GRADLE_BUILD_COUNT=4" >> $GITHUB_ENV
+        echo "GCS_NIGHTLY_PATH=gs://cobalt-actions-devel-build-artifacts" >> $GITHUB_ENV
+        echo "PYTHONPATH=$GITHUB_WORKSPACE" >> $GITHUB_ENV
+      shell: bash
+    - name: Build
+      run: |
+        set -x
+        if [ -z ${COBALT_BOOTLOADER+x} ]; then
+          BUILD_PLATFORM=${{ matrix.target_platform }}
+          BUILD_TARGET=all
+          if [[ "${{matrix.config}}" =~ ^(qa|gold)$ ]]; then
+            BUILD_TARGET=default
+          fi
+        else
+          BUILD_PLATFORM=${COBALT_BOOTLOADER}
+          BUILD_TARGET='loader_app_install elf_loader_sandbox_install crashpad_handler_install'
+        fi
+        # GitHub Runners have home set to /github/home.
+        if [ -d /root/starboard-toolchains ]; then
+          ln -s /root/starboard-toolchains /github/home/starboard-toolchains
+        fi
+        ninja -v -C ${GITHUB_WORKSPACE}/out/${BUILD_PLATFORM}_${{matrix.config}} ${BUILD_TARGET}
+      shell: bash
+    - name: Show Sccache Stats
+      run: sccache -s
+      shell: bash

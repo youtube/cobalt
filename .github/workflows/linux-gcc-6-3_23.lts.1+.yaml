@@ -1,0 +1,19 @@
+name: linux-gcc-6-3_23.lts.1+
+
+on:
+  pull_request:
+    types: [opened, reopened, edited, synchronize]
+    branches:
+      - '23.lts.1\+'
+  push:
+    branches:
+      - '23.lts.1\+'
+  workflow_dispatch:
+
+jobs:
+  CI:
+    uses: ./.github/workflows/main.yaml
+    permissions:
+      packages: write
+    with:
+      platform: linux-gcc-6-3

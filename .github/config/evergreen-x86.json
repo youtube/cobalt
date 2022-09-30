@@ -1,0 +1,38 @@
+{
+  "docker_service": "build-evergreen",
+  "platforms": [
+    "evergreen-x86",
+		"evergreen-x86-sbversion-14",
+    "evergreen-x86-sbversion-13",
+    "evergreen-x86-sbversion-12"
+  ],
+  "includes": [
+    {
+      "platform":"evergreen-x86",
+      "target_platform":"evergreen-x86",
+      "target_cpu":"target_cpu=\\\"x86\\\"",
+      "extra_gn_arguments":"use_asan=false"
+    },
+    {
+      "platform":"evergreen-x86-sbversion-14",
+      "target_platform":"evergreen-x86",
+      "target_cpu":"target_cpu=\\\"x86\\\"",
+      "extra_gn_arguments":"use_asan=false",
+      "sb_api_version":"sb_api_version=14"
+    },
+    {
+      "platform":"evergreen-x86-sbversion-13",
+      "target_platform":"evergreen-x86",
+      "target_cpu":"target_cpu=\\\"x86\\\"",
+      "extra_gn_arguments":"use_asan=false",
+      "sb_api_version":"sb_api_version=13"
+    },
+    {
+      "platform":"evergreen-x86-sbversion-12",
+      "target_platform":"evergreen-x86",
+      "target_cpu":"target_cpu=\\\"x86\\\"",
+      "extra_gn_arguments":"use_asan=false",
+      "sb_api_version":"sb_api_version=12"
+    }
+  ]
+}

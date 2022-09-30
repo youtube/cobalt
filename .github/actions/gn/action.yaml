@@ -1,0 +1,24 @@
+name: GN
+description: Generates and checks GN.
+inputs:
+  name:
+    required: false
+runs:
+  using: "composite"
+  steps:
+    - name: Configure Environment
+      shell: bash
+      run: |
+        echo "ANDROID_HOME=/root/starboard-toolchains/AndroidSdk/" >> $GITHUB_ENV
+        echo "PYTHONPATH=$GITHUB_WORKSPACE" >> $GITHUB_ENV
+    - name: GN
+      run: |
+        set -x
+        if [ -z ${COBALT_BOOTLOADER+x} ]; then
+          BUILD_PLATFORM=${{ matrix.target_platform }}
+        else
+          BUILD_PLATFORM=${COBALT_BOOTLOADER}
+        fi
+        gn gen $GITHUB_WORKSPACE/out/${BUILD_PLATFORM}_${{matrix.config}} --args="target_platform=\"${BUILD_PLATFORM}\" ${{matrix.sb_api_version}} ${{matrix.target_os}} ${{matrix.target_cpu}} ${{matrix.extra_gn_arguments}} is_internal_build=false build_type=\"${{matrix.config}}\""
+        gn check $GITHUB_WORKSPACE/out/${BUILD_PLATFORM}_${{ matrix.config }}
+      shell: bash
