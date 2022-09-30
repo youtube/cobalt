@@ -16,10 +16,12 @@
 #define STARBOARD_ANDROID_SHARED_VIDEO_DECODER_H_
 
 #include <atomic>
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "starboard/android/shared/drm_system.h"
+#include "starboard/android/shared/max_output_buffers_lookup_table.h"
 #include "starboard/android/shared/media_codec_bridge.h"
 #include "starboard/android/shared/media_decoder.h"
 #include "starboard/android/shared/video_frame_tracker.h"
@@ -113,6 +115,8 @@ class VideoDecoder
   void OnTunnelModePrerollTimeout();
   void OnTunnelModeCheckForNeedMoreInput();
 
+  void OnVideoFrameRelease();
+
   void OnSurfaceDestroyed() override;
   void ReportError(SbPlayerError error, const std::string& error_message);
 
@@ -191,6 +195,15 @@ class VideoDecoder
 
   std::vector<scoped_refptr<InputBuffer>> pending_input_buffers_;
   int video_fps_ = 0;
+
+  // The variables below are used to calculate platform max supported MediaCodec
+  // output buffers.
+  int decoded_output_frames_ = 0;
+  int buffered_output_frames_ = 0;
+  int max_buffered_output_frames_ = 0;
+  bool first_output_format_changed_ = false;
+  optional<VideoOutputFormat> output_format_;
+  size_t number_of_preroll_frames_;
 };
 
 }  // namespace shared

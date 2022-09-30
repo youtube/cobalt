@@ -14,12 +14,14 @@
 
 #include "starboard/shared/starboard/media/media_support_internal.h"
 
+#include "starboard/android/shared/max_output_buffers_lookup_table.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/configuration.h"
 #include "starboard/media.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
+using starboard::android::shared::MaxMediaCodecOutputBuffersLookupTable;
 using starboard::android::shared::MediaCapabilitiesCache;
 using starboard::android::shared::SupportedVideoCodecToMimeType;
 using starboard::shared::starboard::media::IsSDRVideo;
@@ -87,6 +89,14 @@ bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
     }
     if (mime_type->GetParamBoolValue("disablecache", false)) {
       MediaCapabilitiesCache::GetInstance()->SetCacheEnabled(false);
+    }
+
+    if (!mime_type->ValidateBoolParameter("disabledynamicprerollframecount")) {
+      return false;
+    }
+    if (mime_type->GetParamBoolValue("disabledynamicprerollframecount",
+                                     false)) {
+      MaxMediaCodecOutputBuffersLookupTable::GetInstance()->SetEnabled(false);
     }
   }
 
