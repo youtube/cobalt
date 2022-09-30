@@ -10,10 +10,6 @@ on:
         required: true
         type: string
 
-concurrency:
-  group: ${{ github.ref }}_${{ github.workflow }}
-  cancel-in-progress: true
-
 # Global env vars.
 env:
   REGISTRY: ghcr.io

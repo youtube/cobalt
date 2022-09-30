@@ -10,11 +10,7 @@ on:
         required: true
         type: string
 
-concurrency:
-  group: ${{ github.ref }}_${{ github.workflow }}
-  cancel-in-progress: true
-
-# Global env vars.
+#Global env vars.
 env:
   REGISTRY: ghcr.io
   IPV6_AVAILABLE: 0
@@ -130,7 +126,7 @@ jobs:
   build:
     needs: [initialize, docker-build-image]
     runs-on: [self-hosted, linux, X64]
-    name: ${{matrix.platform}}_${{matrix.config}}
+    name: build-${{matrix.config}}
     strategy:
       fail-fast: false
       matrix:
@@ -188,7 +184,7 @@ jobs:
     needs: [initialize, docker-unittest-image, build]
     if: needs.initialize.outputs.on_host_test == 'true'
     runs-on: [self-hosted, linux, X64]
-    name: ${{matrix.platform}}_${{matrix.shard}}_test
+    name: test-${{matrix.shard}}
     strategy:
       fail-fast: false
       matrix:

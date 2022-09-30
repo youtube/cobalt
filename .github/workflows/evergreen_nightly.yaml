@@ -1,11 +1,8 @@
-name: linux
+name: evergreen_nightly
 
 on:
-  pull_request:
-    types: [opened, reopened, edited, synchronize]
-    branches: [ main ]
-  push:
-    branches: [ main ]
+  schedule:
+    - cron: '0 4 * * *'
   workflow_dispatch:
 
 concurrency:
@@ -13,21 +10,28 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  x86:
+    uses: ./.github/workflows/main.yaml
+    permissions:
+      packages: write
+    with:
+      platform: evergreen-x86
   x64:
     uses: ./.github/workflows/main.yaml
     permissions:
       packages: write
     with:
-      platform: linux
-  clang-3-9:
+      platform: evergreen-x64
+  arm-hardfp:
     uses: ./.github/workflows/main.yaml
     permissions:
       packages: write
     with:
-      platform: linux-clang-3-9
-  gcc-6-3:
+      platform: evergreen-arm-hardfp
+  arm-softfp:
     uses: ./.github/workflows/main.yaml
     permissions:
       packages: write
     with:
-      platform: linux-gcc-6-3
+      platform: evergreen-arm-softfp
+

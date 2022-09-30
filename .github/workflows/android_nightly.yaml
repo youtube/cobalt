@@ -1,4 +1,4 @@
-name: raspi-2_nightly
+name: android_nightly
 
 on:
   schedule:
@@ -10,9 +10,21 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  raspi-2:
+  arm64:
     uses: ./.github/workflows/main.yaml
     permissions:
       packages: write
     with:
-      platform: raspi-2
+      platform: android-arm64
+  arm:
+    uses: ./.github/workflows/main.yaml
+    permissions:
+      packages: write
+    with:
+      platform: android-arm
+  x86:
+    uses: ./.github/workflows/main.yaml
+    permissions:
+      packages: write
+    with:
+      platform: android-x86
