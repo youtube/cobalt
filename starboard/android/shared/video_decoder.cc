@@ -52,21 +52,29 @@ using std::placeholders::_2;
 
 class VideoFrameImpl : public VideoFrame {
  public:
+  typedef std::function<void()> VideoFrameReleaseCallback;
+
   VideoFrameImpl(const DequeueOutputResult& dequeue_output_result,
-                 MediaCodecBridge* media_codec_bridge)
+                 MediaCodecBridge* media_codec_bridge,
+                 const VideoFrameReleaseCallback& release_callback)
       : VideoFrame(dequeue_output_result.flags & BUFFER_FLAG_END_OF_STREAM
                        ? kMediaTimeEndOfStream
                        : dequeue_output_result.presentation_time_microseconds),
         dequeue_output_result_(dequeue_output_result),
         media_codec_bridge_(media_codec_bridge),
-        released_(false) {
+        released_(false),
+        release_callback_(release_callback) {
     SB_DCHECK(media_codec_bridge_);
+    SB_DCHECK(release_callback_);
   }
 
   ~VideoFrameImpl() {
     if (!released_) {
       media_codec_bridge_->ReleaseOutputBuffer(dequeue_output_result_.index,
                                                false);
+      if (!is_end_of_stream()) {
+        release_callback_();
+      }
     }
   }
 
@@ -76,12 +84,14 @@ class VideoFrameImpl : public VideoFrame {
     released_ = true;
     media_codec_bridge_->ReleaseOutputBufferAtTimestamp(
         dequeue_output_result_.index, release_time_in_nanoseconds);
+    release_callback_();
   }
 
  private:
   DequeueOutputResult dequeue_output_result_;
   MediaCodecBridge* media_codec_bridge_;
   volatile bool released_;
+  const VideoFrameReleaseCallback release_callback_;
 };
 
 const SbTime kInitialPrerollTimeout = 250 * kSbTimeMillisecond;
@@ -235,7 +245,8 @@ VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec,
       require_software_codec_(max_video_capabilities &&
                               strlen(max_video_capabilities) > 0),
       force_big_endian_hdr_metadata_(force_big_endian_hdr_metadata),
-      force_improved_support_check_(force_improved_support_check) {
+      force_improved_support_check_(force_improved_support_check),
+      number_of_preroll_frames_(kInitialPrerollFrameCount) {
   SB_DCHECK(error_message);
 
   if (tunnel_mode_audio_session_id != -1) {
@@ -327,7 +338,7 @@ size_t VideoDecoder::GetPrerollFrameCount() const {
   if (input_buffer_written_ > 0 && first_buffer_timestamp_ != 0) {
     return kNonInitialPrerollFrameCount;
   }
-  return kInitialPrerollFrameCount;
+  return number_of_preroll_frames_;
 }
 
 SbTime VideoDecoder::GetPrerollTimeout() const {
@@ -458,9 +469,14 @@ void VideoDecoder::Reset() {
   TeardownCodec();
   CancelPendingJobs();
 
+  // After TeardownCodec, buffered_output_frames_ should equal to 0.
+  SB_DCHECK(buffered_output_frames_ == 0);
+
   tunnel_mode_prerolling_.store(true);
   tunnel_mode_frame_rendered_.store(false);
   input_buffer_written_ = 0;
+  decoded_output_frames_ = 0;
+  output_format_ = starboard::nullopt;
   end_of_stream_written_ = false;
   video_fps_ = 0;
   pending_input_buffers_.clear();
@@ -724,9 +740,27 @@ void VideoDecoder::ProcessOutputBuffer(
 
   bool is_end_of_stream =
       dequeue_output_result.flags & BUFFER_FLAG_END_OF_STREAM;
+  if (!is_end_of_stream) {
+    ++decoded_output_frames_;
+    if (output_format_) {
+      ++buffered_output_frames_;
+      // We have to wait until we feed enough inputs to the decoder and receive
+      // enough outputs before update |max_buffered_output_frames_|. Otherwise,
+      // |max_buffered_output_frames_| may be updated to a very small number
+      // when we receive the first few outputs.
+      if (decoded_output_frames_ > kInitialPrerollFrameCount &&
+          buffered_output_frames_ > max_buffered_output_frames_) {
+        max_buffered_output_frames_ = buffered_output_frames_;
+        MaxMediaCodecOutputBuffersLookupTable::GetInstance()
+            ->UpdateMaxOutputBuffers(output_format_.value(),
+                                     max_buffered_output_frames_);
+      }
+    }
+  }
   decoder_status_cb_(
       is_end_of_stream ? kBufferFull : kNeedMoreInput,
-      new VideoFrameImpl(dequeue_output_result, media_codec_bridge));
+      new VideoFrameImpl(dequeue_output_result, media_codec_bridge,
+                         std::bind(&VideoDecoder::OnVideoFrameRelease, this)));
 }
 
 void VideoDecoder::RefreshOutputFormat(MediaCodecBridge* media_codec_bridge) {
@@ -739,6 +773,30 @@ void VideoDecoder::RefreshOutputFormat(MediaCodecBridge* media_codec_bridge) {
       media_codec_bridge->GetOutputDimensions();
   frame_width_ = output_dimensions.width;
   frame_height_ = output_dimensions.height;
+
+  if (tunnel_mode_audio_session_id_ != -1) {
+    return;
+  }
+  if (first_output_format_changed_) {
+    SB_DCHECK(output_format_);
+    // After resolution changes, the output buffers may have frames of different
+    // resolutions. In that case, it's hard to determine the max supported
+    // output buffers. So, we reset |output_format_| to null here to skip max
+    // output buffers check.
+    output_format_ = starboard::nullopt;
+    return;
+  }
+  output_format_ = VideoOutputFormat(video_codec_, output_dimensions.width,
+                                     output_dimensions.height,
+                                     (color_metadata_ ? true : false));
+  first_output_format_changed_ = true;
+  auto max_output_buffers =
+      MaxMediaCodecOutputBuffersLookupTable::GetInstance()
+          ->GetMaxOutputVideoBuffers(output_format_.value());
+  if (max_output_buffers > 0 &&
+      max_output_buffers < kInitialPrerollFrameCount) {
+    number_of_preroll_frames_ = max_output_buffers;
+  }
 }
 
 bool VideoDecoder::Tick(MediaCodecBridge* media_codec_bridge) {
@@ -926,6 +984,13 @@ void VideoDecoder::OnTunnelModeCheckForNeedMoreInput() {
 
   Schedule(std::bind(&VideoDecoder::OnTunnelModeCheckForNeedMoreInput, this),
            kNeedMoreInputCheckIntervalInTunnelMode);
+}
+
+void VideoDecoder::OnVideoFrameRelease() {
+  if (output_format_) {
+    --buffered_output_frames_;
+    SB_DCHECK(buffered_output_frames_ >= 0);
+  }
 }
 
 void VideoDecoder::OnSurfaceDestroyed() {
