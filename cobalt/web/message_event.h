@@ -20,28 +20,32 @@
 #include <string>
 #include <utility>
 
-#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/strings/string_piece.h"
 #include "cobalt/base/token.h"
 #include "cobalt/script/array_buffer.h"
+#include "cobalt/script/sequence.h"
 #include "cobalt/script/union_type.h"
-#include "cobalt/script/v8c/v8c_value_handle.h"
-#include "cobalt/script/wrappable.h"
+#include "cobalt/script/value_handle.h"
 #include "cobalt/web/blob.h"
 #include "cobalt/web/event.h"
+#include "cobalt/web/event_target.h"
 #include "cobalt/web/message_event_init.h"
+#include "cobalt/web/message_port.h"
 #include "net/base/io_buffer.h"
 #include "v8/include/v8.h"
 
 namespace cobalt {
 namespace web {
 
-class MessageEvent : public web::Event {
+class MessageEvent : public Event {
  public:
-  typedef script::UnionType4<std::string, scoped_refptr<web::Blob>,
+  typedef script::UnionType4<std::string, scoped_refptr<Blob>,
                              script::Handle<script::ArrayBuffer>,
                              script::Handle<script::ValueHandle>>
       Response;
+
+
   // These response types are ordered in the likelihood of being used.
   // Keeping them in expected order will help make code faster.
   enum ResponseType { kText, kBlob, kArrayBuffer, kAny, kResponseTypeMax };
@@ -56,14 +60,26 @@ class MessageEvent : public web::Event {
   MessageEvent(base::Token type, ResponseType response_type,
                const scoped_refptr<net::IOBufferWithSize>& data)
       : Event(type), response_type_(response_type), data_io_buffer_(data) {}
-  MessageEvent(const std::string& type, const web::MessageEventInit& init_dict)
-      : Event(type, init_dict),
-        response_type_(kAny),
-        data_(script::SerializeScriptValue(*(init_dict.data()))) {}
+  MessageEvent(const std::string& type, const MessageEventInit& init_dict);
 
   Response data(script::EnvironmentSettings* settings = nullptr) const;
+  const std::string& origin() const { return origin_; }
+  const std::string& last_event_id() const { return last_event_id_; }
+  const scoped_refptr<EventTarget>& source() const { return source_; }
+  script::Sequence<scoped_refptr<MessagePort>> ports() const { return ports_; }
 
   // These helper functions are custom, and not in any spec.
+  void set_origin(const std::string& origin) { origin_ = origin; }
+  void set_last_event_id(const std::string& last_event_id) {
+    last_event_id_ = last_event_id;
+  }
+  void set_source(const scoped_refptr<EventTarget>& source) {
+    source_ = source;
+  }
+  void set_ports(script::Sequence<scoped_refptr<MessagePort>> ports) {
+    ports_ = ports;
+  }
+
   static std::string GetResponseTypeAsString(const ResponseType response_type);
   static MessageEvent::ResponseType GetResponseType(base::StringPiece to_match);
 
@@ -73,6 +89,10 @@ class MessageEvent : public web::Event {
   ResponseType response_type_ = kText;
   scoped_refptr<net::IOBufferWithSize> data_io_buffer_;
   std::unique_ptr<script::DataBuffer> data_;
+  std::string origin_;
+  std::string last_event_id_;
+  scoped_refptr<EventTarget> source_;
+  script::Sequence<scoped_refptr<MessagePort>> ports_;
 };
 
 }  // namespace web

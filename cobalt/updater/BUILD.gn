@@ -100,9 +100,11 @@ target(final_executable_type, "one_app_only_sandbox") {
 
 target(gtest_target_type, "updater_test") {
   testonly = true
+  has_pedantic_warnings = true
 
   sources = [
     "//starboard/common/test_main.cc",
+    "configurator_test.cc",
     "utils_test.cc",
   ]
 

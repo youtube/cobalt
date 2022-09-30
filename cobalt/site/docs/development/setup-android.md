@@ -17,6 +17,15 @@ return and complete the following steps.
 
 1.  Download and install [Android Studio](https://developer.android.com/studio/).
 
+1.  To enable parallel gradle builds, add the following to your `~/.bashrc`:
+
+    ```
+    export COBALT_GRADLE_BUILD_COUNT=4
+    ```
+
+    Where 4 is the number of parallel threads. You can adjust the number of
+    parallel threads according to how your workstation performs.
+
 1.  Run `cobalt/build/gn.py -p android-x86` to configure the Cobalt build,
     which also installs the SDK and NDK. (This step will have to be repeated
     with 'android-arm' or 'android-arm64' to target those architectures.) The
@@ -213,6 +222,15 @@ If you want to debug a test, you can run it from Android Studio. Edit
 change `DEFAULT_COBALT_TARGET` to be the name of the test you want to debug
 instead of 'cobalt'. Then you can set breakpoints, etc. in the test the same as
 when debugging Cobalt.
+
+## Debugging (Terminal)
+
+Use `adb logcat` while Cobalt is running, or use `adb bugreport` shortly after
+exiting to view Android logs. You will need to filter or search for
+Cobalt-related output.
+
+As with the Linux build, use the `debug`, `devel`, or `qa` configs to trace
+Cobalt's callstacks.
 
 ## Removing the Cobalt Android Environment
 

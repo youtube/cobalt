@@ -68,7 +68,8 @@ namespace {
 static const char* const kMimeTypesCacheAllowlist[] = {
     "text/html", "text/css",      "image/gif",  "image/jpeg",
     "image/png", "image/svg+xml", "image/webp", "font/otf",
-    "font/ttf",  "font/woff",     "font/woff2", "text/javascript"};
+    "font/ttf",  "font/woff",     "font/woff2", "text/javascript",
+    "example/unit_test", "application/javascript"};
 #endif
 
 constexpr TimeDelta kStaleRevalidateTimeout = TimeDelta::FromSeconds(60);
@@ -3085,14 +3086,11 @@ int HttpCache::Transaction::WriteResponseInfoToEntry(bool truncated) {
   // Only allow caching for specific mime types.
   std::string mime_type;
   response_.headers->GetMimeType(&mime_type);
-  // TODO(b/243727663): Empty mime types should not get cached either.
-  bool is_allowed_mime_type = mime_type.empty();
-  if (!is_allowed_mime_type) {
-    for (auto allowed_type : kMimeTypesCacheAllowlist) {
-      if (mime_type.compare(allowed_type) == 0) {
-        is_allowed_mime_type = true;
-        break;
-      }
+  bool is_allowed_mime_type = false;
+  for (auto allowed_type : kMimeTypesCacheAllowlist) {
+    if (mime_type.compare(allowed_type) == 0) {
+      is_allowed_mime_type = true;
+      break;
     }
   }
 #else

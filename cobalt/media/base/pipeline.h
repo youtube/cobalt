@@ -57,6 +57,7 @@ class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
   typedef ::media::PipelineStatistics PipelineStatistics;
   typedef ::media::PipelineStatus PipelineStatus;
   typedef ::media::PipelineStatusCallback PipelineStatusCallback;
+  typedef ::media::PipelineStatusCB PipelineStatusCB;
 
   typedef base::Callback<void(PipelineStatus status, bool is_initial_preroll,
                               const std::string& error_message)>
@@ -126,7 +127,7 @@ class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
   // It is an error to call this method after the pipeline has already started.
   virtual void Start(Demuxer* demuxer,
                      const SetDrmSystemReadyCB& set_drm_system_ready_cb,
-                     PipelineStatusCallback ended_cb, const ErrorCB& error_cb,
+                     const PipelineStatusCB& ended_cb, const ErrorCB& error_cb,
                      const SeekCB& seek_cb,
                      const BufferingStateCB& buffering_state_cb,
                      const base::Closure& duration_change_cb,
@@ -140,7 +141,7 @@ class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
                      const OnEncryptedMediaInitDataEncounteredCB&
                          encrypted_media_init_data_encountered_cb,
                      const std::string& source_url,
-                     PipelineStatusCallback ended_cb, const ErrorCB& error_cb,
+                     const PipelineStatusCB& ended_cb, const ErrorCB& error_cb,
                      const SeekCB& seek_cb,
                      const BufferingStateCB& buffering_state_cb,
                      const base::Closure& duration_change_cb,

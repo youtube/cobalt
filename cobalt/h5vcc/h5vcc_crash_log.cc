@@ -20,6 +20,7 @@
 #include "base/atomicops.h"
 #include "base/memory/singleton.h"
 #include "base/synchronization/lock.h"
+#include "cobalt/extension/crash_handler.h"
 
 #if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
 #include STARBOARD_CORE_DUMP_HANDLER_INCLUDE
@@ -97,6 +98,15 @@ class CrashLogDictionary {
 
 bool H5vccCrashLog::SetString(const std::string& key,
                               const std::string& value) {
+  auto crash_handler_extension =
+      static_cast<const CobaltExtensionCrashHandlerApi*>(
+          SbSystemGetExtension(kCobaltExtensionCrashHandlerName));
+  if (crash_handler_extension && crash_handler_extension->version >= 2) {
+    return crash_handler_extension->SetString(key.c_str(), value.c_str());
+  }
+  // The platform has not implemented a version of the CrashHandler Cobalt
+  // Extension appropriate for this use case.
+
   // Forward the call to a global singleton so that we keep a consistent crash
   // log globally.
   CrashLogDictionary::GetInstance()->SetString(key, value);

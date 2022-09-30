@@ -17,44 +17,59 @@
 
 #include <memory>
 #include <string>
+#include <utility>
 
+#include "base/memory/scoped_refptr.h"
 #include "base/optional.h"
 #include "cobalt/base/token.h"
+#include "cobalt/script/union_type.h"
 #include "cobalt/script/value_handle.h"
 #include "cobalt/script/wrappable.h"
+#include "cobalt/web/event_target.h"
 #include "cobalt/web/message_port.h"
+#include "cobalt/worker/client.h"
 #include "cobalt/worker/extendable_event.h"
 #include "cobalt/worker/extendable_message_event_init.h"
+#include "cobalt/worker/service_worker.h"
 
 namespace cobalt {
 namespace worker {
 
 class ExtendableMessageEvent : public ExtendableEvent {
  public:
-  typedef scoped_refptr<script::Wrappable> SourceType;
+  using SourceType =
+      cobalt::script::UnionType3<scoped_refptr<Client>,
+                                 scoped_refptr<ServiceWorker>,
+                                 scoped_refptr<web::MessagePort>>;
 
   explicit ExtendableMessageEvent(const std::string& type)
       : ExtendableEvent(type) {}
   explicit ExtendableMessageEvent(base::Token type) : ExtendableEvent(type) {}
+  ExtendableMessageEvent(base::Token type,
+                         std::unique_ptr<script::DataBuffer> data)
+      : ExtendableEvent(type), data_(std::move(data)) {}
   ExtendableMessageEvent(const std::string& type,
-                         const ExtendableMessageEventInit& init_dict)
-      : ExtendableEvent(type, init_dict) {}
+                         const ExtendableMessageEventInit& init_dict);
 
+  script::Handle<script::ValueHandle> data(
+      script::EnvironmentSettings* settings = nullptr) const;
 
-  const script::ValueHandleHolder* data() const {
-    if (!data_) {
-      return NULL;
-    }
-
-    return &(data_->referenced_value());
-  }
-
-  std::string origin() const { return origin_; }
-  std::string last_event_id() const { return last_event_id_; }
-
-  base::Optional<SourceType> source() { return source_; }
-
+  const std::string& origin() const { return origin_; }
+  const std::string& last_event_id() const { return last_event_id_; }
+  const scoped_refptr<web::EventTarget>& source() const { return source_; }
   script::Sequence<scoped_refptr<MessagePort>> ports() const { return ports_; }
+
+  // These helper functions are custom, and not in any spec.
+  void set_origin(const std::string& origin) { origin_ = origin; }
+  void set_last_event_id(const std::string& last_event_id) {
+    last_event_id_ = last_event_id;
+  }
+  void set_source(const scoped_refptr<web::EventTarget>& source) {
+    source_ = source;
+  }
+  void set_ports(script::Sequence<scoped_refptr<MessagePort>> ports) {
+    ports_ = ports;
+  }
 
   DEFINE_WRAPPABLE_TYPE(ExtendableMessageEvent);
 
@@ -62,12 +77,11 @@ class ExtendableMessageEvent : public ExtendableEvent {
   ~ExtendableMessageEvent() override {}
 
  private:
-  std::unique_ptr<script::ValueHandleHolder::Reference> data_;
-
-  std::string origin_ = "Origin Stub Value";
-  std::string last_event_id_ = "Last Event Id Stub Value";
-  base::Optional<SourceType> source_;
+  std::string origin_;
+  std::string last_event_id_;
+  scoped_refptr<web::EventTarget> source_;
   script::Sequence<scoped_refptr<MessagePort>> ports_;
+  std::unique_ptr<script::DataBuffer> data_;
 };
 
 }  // namespace worker

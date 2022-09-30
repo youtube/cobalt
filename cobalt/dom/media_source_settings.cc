@@ -52,6 +52,12 @@ bool MediaSourceSettingsImpl::Set(const std::string& name, int value) {
       LOG(INFO) << name << ": set to " << value;
       return true;
     }
+  } else if (name == "MediaSource.MaxSourceBufferAppendSizeInBytes") {
+    if (value > 0) {
+      max_source_buffer_append_size_in_bytes_ = value;
+      LOG(INFO) << name << ": set to " << value;
+      return true;
+    }
   } else {
     LOG(WARNING) << "Ignore unknown setting with name \"" << name << "\"";
     return false;

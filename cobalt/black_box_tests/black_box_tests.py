@@ -63,8 +63,6 @@ _TESTS_NO_SIGNAL = [
     'allow_eval',
     'compression_test',
     'disable_eval_with_csp',
-    # http_cache is disabled due to flakiness. Planned update to make use of
-    # transferSize rather than load timings to make it more consistent.
     'http_cache',
     'persistent_cookie',
     'soft_mic_platform_service_test',
@@ -72,6 +70,8 @@ _TESTS_NO_SIGNAL = [
     'web_debugger',
     'web_platform_tests',
     'web_worker_test',
+    'worker_csp_test',
+    'service_worker_message_test',
     'service_worker_test',
 ]
 # These tests can only be run on platforms whose app launcher can send deep

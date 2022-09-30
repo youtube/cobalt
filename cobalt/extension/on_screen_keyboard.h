@@ -15,8 +15,6 @@
 #ifndef COBALT_EXTENSION_ON_SCREEN_KEYBOARD_H_
 #define COBALT_EXTENSION_ON_SCREEN_KEYBOARD_H_
 
-#include <stdint.h>
-
 #include "starboard/system.h"
 #include "starboard/window.h"
 
@@ -38,16 +36,12 @@ typedef struct CobaltExtensionOnScreenKeyboardApi {
 
   // The fields below this point were added in version 1 or later.
 
-  // This function overrides the background color of on-screen keyboard.
-  // The function is only enabled for Apple TV at the moment.
-  // background_color should be a string of below formats:
-  // 1. hex color notation #RRGGBB, e.g. "#0000FF".
-  // 2. rgb color notation rgb(R, G, B), e.g. "rgb(0, 0, 255)".
-  void (*SetBackgroundColor)(SbWindow window, const char* background_color);
+  // This function overrides the background color of on-screen keyboard in RGB
+  // color space, where r, g, b are between 0 and 255.
+  void (*SetBackgroundColor)(SbWindow window, uint8_t r, uint8_t g, uint8_t b);
 
-  // This function overrides the dark theme of on-screen keyboard.
-  // The function is only enabled for Apple TV at the moment.
-  void (*SetDarkTheme)(SbWindow window, bool dark_theme);
+  // This function overrides the light theme of on-screen keyboard.
+  void (*SetLightTheme)(SbWindow window, bool light_theme);
 } CobaltExtensionOnScreenKeyboardApi;
 
 #ifdef __cplusplus

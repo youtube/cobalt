@@ -34,6 +34,9 @@ namespace loader {
 // results.
 class TextDecoder : public Decoder {
  public:
+  typedef base::Callback<bool(
+      Fetcher* fetcher, const scoped_refptr<net::HttpResponseHeaders>& headers)>
+      ResponseStartedCallback;
   typedef base::Callback<void(const loader::Origin&,
                               std::unique_ptr<std::string>)>
       TextAvailableCallback;
@@ -43,10 +46,24 @@ class TextDecoder : public Decoder {
   // This function is used for binding callback for creating TextDecoder.
   static std::unique_ptr<Decoder> Create(
       const TextAvailableCallback& text_available_callback,
+      const ResponseStartedCallback& response_started_callback =
+          ResponseStartedCallback(),
       const loader::Decoder::OnCompleteFunction& load_complete_callback =
           loader::Decoder::OnCompleteFunction()) {
-    return std::unique_ptr<Decoder>(
-        new TextDecoder(text_available_callback, load_complete_callback));
+    return std::unique_ptr<Decoder>(new TextDecoder(text_available_callback,
+                                                    response_started_callback,
+                                                    load_complete_callback));
+  }
+
+  LoadResponseType OnResponseStarted(
+      Fetcher* fetcher, const scoped_refptr<net::HttpResponseHeaders>& headers)
+      override WARN_UNUSED_RESULT {
+    if (fetcher && headers && !response_started_callback_.is_null()) {
+      if (!response_started_callback_.Run(fetcher, headers)) {
+        return kLoadResponseAbort;
+      }
+    }
+    return kLoadResponseContinue;
   }
 
   // From Decoder.
@@ -105,13 +122,16 @@ class TextDecoder : public Decoder {
  private:
   explicit TextDecoder(
       const TextAvailableCallback& text_available_callback,
+      const ResponseStartedCallback& response_started_callback,
       const loader::Decoder::OnCompleteFunction& load_complete_callback)
       : text_available_callback_(text_available_callback),
+        response_started_callback_(response_started_callback),
         load_complete_callback_(load_complete_callback),
         suspended_(false) {}
 
   THREAD_CHECKER(thread_checker_);
   TextAvailableCallback text_available_callback_;
+  ResponseStartedCallback response_started_callback_;
   loader::Decoder::OnCompleteFunction load_complete_callback_;
   loader::Origin last_url_origin_;
   std::unique_ptr<std::string> text_;

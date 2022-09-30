@@ -28,6 +28,7 @@
 #include "starboard/loader_app/installation_manager.h"
 #include "starboard/memory.h"
 #include "starboard/string.h"
+#include "third_party/crashpad/wrapper/annotations.h"
 #include "third_party/crashpad/wrapper/wrapper.h"
 
 namespace starboard {
@@ -315,13 +316,16 @@ void* LoadSlotManagedLibrary(const std::string& app_key,
     if (!get_user_agent_func) {
       SB_LOG(ERROR) << "Failed to get user agent string";
     } else {
-      CrashpadAnnotations cobalt_version_info;
-      memset(&cobalt_version_info, 0, sizeof(CrashpadAnnotations));
-      starboard::strlcpy(cobalt_version_info.user_agent_string,
-                         get_user_agent_func(), USER_AGENT_STRING_MAX_SIZE);
-      third_party::crashpad::wrapper::AddAnnotationsToCrashpad(
-          cobalt_version_info);
-      SB_DLOG(INFO) << "Added user agent string to Crashpad.";
+      std::vector<char> buffer(USER_AGENT_STRING_MAX_SIZE);
+      starboard::strlcpy(buffer.data(), get_user_agent_func(),
+                         USER_AGENT_STRING_MAX_SIZE);
+      if (third_party::crashpad::wrapper::InsertCrashpadAnnotation(
+              third_party::crashpad::wrapper::kCrashpadUserAgentStringKey,
+              buffer.data())) {
+        SB_DLOG(INFO) << "Added user agent string to Crashpad.";
+      } else {
+        SB_DLOG(INFO) << "Failed to add user agent string to Crashpad.";
+      }
     }
 
     SB_DLOG(INFO) << "Successfully loaded Cobalt!\n";

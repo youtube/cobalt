@@ -26,6 +26,7 @@
 #include "base/logging.h"
 #include "base/strings/stringprintf.h"
 #include "client/client_argv_handling.h"
+#include "starboard/common/mutex.h"
 #include "third_party/lss/lss.h"
 #include "util/file/file_io.h"
 #include "util/file/filesystem.h"
@@ -37,6 +38,15 @@
 #include "util/misc/from_pointer_cast.h"
 #include "util/posix/double_fork_and_exec.h"
 #include "util/posix/signals.h"
+// TODO(b/201538792): resolve conflict between mini_chromium and base functions.
+#ifdef LogMessage
+#define LOG_MESSAGE_DEFINED
+#undef LogMessage
+#endif
+#include "third_party/crashpad/wrapper/proto/crashpad_annotations.pb.h"
+#ifdef LOG_MESSAGE_DEFINED
+#define LogMessage MLogMessage
+#endif
 
 namespace crashpad {
 
@@ -44,9 +54,7 @@ namespace {
 
 #if defined(STARBOARD)
 constexpr char kEvergreenInfoKey[] = "evergreen-information";
-constexpr char kProductKey[] = "annotation=prod";
-constexpr char kVersionKey[] = "annotation=ver";
-constexpr char kUAKey[] = "annotation=user_agent_string";
+constexpr char kAnnotationKey[] = "annotation=%s";
 #endif
 
 std::string FormatArgumentInt(const std::string& name, int value) {
@@ -183,10 +191,10 @@ class SignalHandler {
     return SendEvergreenInfoImpl();
   }
 
-  bool SendAnnotations(CrashpadAnnotations annotations) {
-    annotations_ = annotations;
-    return SendAnnotationsImpl();
+  bool InsertAnnotation(const char* key, const char* value) {
+    return InsertAnnotationImpl(key, value);
   }
+
 #endif
 
   // The base implementation for all signal handlers, suitable for calling
@@ -227,7 +235,6 @@ class SignalHandler {
 
 #if defined(STARBOARD)
   const EvergreenInfo& GetEvergreenInfo() { return evergreen_info_; }
-  const CrashpadAnnotations& GetAnnotations() { return annotations_; }
   const SanitizationInformation& GetSanitizationInformation() {
     return sanitization_information_;
   }
@@ -239,7 +246,7 @@ class SignalHandler {
 
 #if defined(STARBOARD)
   virtual bool SendEvergreenInfoImpl() = 0;
-  virtual bool SendAnnotationsImpl() = 0;
+  virtual bool InsertAnnotationImpl(const char* key, const char* value) = 0;
 #endif
 
   virtual void HandleCrashImpl() = 0;
@@ -262,7 +269,6 @@ class SignalHandler {
 
 #if defined(STARBOARD)
   EvergreenInfo evergreen_info_;
-  CrashpadAnnotations annotations_;
   SanitizationInformation sanitization_information_;
 #endif
 
@@ -297,12 +303,18 @@ class LaunchAtCrashHandler : public SignalHandler {
     argv_strings_.push_back(FormatArgumentAddress("trace-parent-with-exception",
                                                   &GetExceptionInfo()));
 
+#if defined(STARBOARD)
+    argv_strings_.push_back("--handler-started-at-crash");
+#endif
+
     StringVectorToCStringVector(argv_strings_, &argv_);
     return Install(unhandled_signals);
   }
 
 #if defined(STARBOARD)
   bool SendEvergreenInfoImpl() override {
+    starboard::ScopedLock scoped_lock(argv_lock_);
+
     bool updated = false;
     for (auto& s : argv_strings_) {
       if (s.compare(2, strlen(kEvergreenInfoKey), kEvergreenInfoKey) == 0) {
@@ -324,27 +336,19 @@ class LaunchAtCrashHandler : public SignalHandler {
     return true;
   }
 
-  bool SendAnnotationsImpl() override {
-    bool updated_product = false;
-    bool updated_version = false;
-    bool updated_user_agent_string = false;
+  bool InsertAnnotationImpl(const char* key, const char* value) override {
+    starboard::ScopedLock scoped_lock(argv_lock_);
+
+    std::string formatted_key = base::StringPrintf(kAnnotationKey, key);
+    bool updated_annotation = false;
     for (auto& s : argv_strings_) {
-      if (UpdateAnnotation(s, kProductKey, GetAnnotations().product)) {
-        updated_product = true;
-      } else if (UpdateAnnotation(s, kVersionKey, GetAnnotations().version)) {
-        updated_version = true;
-      } else if (UpdateAnnotation(s, kUAKey, GetAnnotations().user_agent_string)) {
-        updated_user_agent_string = true;
+      if (UpdateAnnotation(s, formatted_key, value)) {
+        updated_annotation = true;
       }
     }
-    if (!updated_product) {
-      AddAnnotation(argv_strings_, kProductKey, GetAnnotations().product);
-    }
-    if (!updated_version) {
-      AddAnnotation(argv_strings_, kVersionKey, GetAnnotations().version);
-    }
-    if (!updated_user_agent_string) {
-      AddAnnotation(argv_strings_, kUAKey, GetAnnotations().user_agent_string);
+
+    if (!updated_annotation) {
+      AddAnnotation(argv_strings_, formatted_key, value);
     }
 
     StringVectorToCStringVector(argv_strings_, &argv_);
@@ -382,6 +386,10 @@ class LaunchAtCrashHandler : public SignalHandler {
 
   std::vector<std::string> argv_strings_;
   std::vector<const char*> argv_;
+#if defined(STARBOARD)
+  // Protects access to both argv_strings_ and argv_.
+  starboard::Mutex argv_lock_;
+#endif
   std::vector<std::string> envp_strings_;
   std::vector<const char*> envp_;
   bool set_envp_ = false;
@@ -446,6 +454,10 @@ class RequestCrashDumpHandler : public SignalHandler {
   }
 
 #if defined(STARBOARD)
+  char* GetSerializedAnnotations() {
+    return serialized_annotations_.data();
+  }
+
   bool SendEvergreenInfoImpl() override {
     ExceptionHandlerClient client(sock_to_handler_.get(), true);
     ExceptionHandlerProtocol::ClientInformation info = {};
@@ -455,13 +467,36 @@ class RequestCrashDumpHandler : public SignalHandler {
     return true;
   }
 
-  bool SendAnnotationsImpl() override {
+  bool InsertAnnotationImpl(const char* key, const char* value) override {
+    starboard::ScopedLock scoped_lock(annotations_lock_);
+
+    std::string key_str(key);
+    std::string value_str(value);
+
+    if (strcmp(key, "ver") == 0) {
+      annotations_.set_ver(value_str);
+    } else if (strcmp(key, "prod") == 0) {
+      annotations_.set_prod(value_str);
+    } else if (strcmp(key, "user_agent_string") == 0) {
+      annotations_.set_user_agent_string(value_str);
+    } else {
+      (*annotations_.mutable_runtime_annotations())[key_str] = value_str;
+    }
+
+    serialized_annotations_.resize(annotations_.ByteSize());
+    annotations_.SerializeToArray(serialized_annotations_.data(),
+        annotations_.ByteSize());
+
     ExceptionHandlerClient client(sock_to_handler_.get(), true);
     ExceptionHandlerProtocol::ClientInformation info = {};
-    info.annotations_address = FromPointerCast<VMAddress>(&GetAnnotations());
+    info.serialized_annotations_address = FromPointerCast<VMAddress>(
+        GetSerializedAnnotations());
+    info.serialized_annotations_size = serialized_annotations_.size();
     client.SendAnnotations(info);
+
     return true;
   }
+
 #endif
 
   void HandleCrashImpl() override {
@@ -471,9 +506,12 @@ class RequestCrashDumpHandler : public SignalHandler {
 #if defined(STARBOARD)
     info.sanitization_information_address =
         FromPointerCast<VMAddress>(&GetSanitizationInformation());
-    info.annotations_address = FromPointerCast<VMAddress>(&GetAnnotations());
+    info.serialized_annotations_address = FromPointerCast<VMAddress>(
+        GetSerializedAnnotations());
+    info.serialized_annotations_size = serialized_annotations_.size();
     info.evergreen_information_address =
         FromPointerCast<VMAddress>(&GetEvergreenInfo());
+    info.handler_start_type = ExceptionHandlerProtocol::kStartAtLaunch;
 #endif
 
 #if defined(OS_CHROMEOS)
@@ -497,6 +535,13 @@ class RequestCrashDumpHandler : public SignalHandler {
 
   ScopedFileHandle sock_to_handler_;
   pid_t handler_pid_ = -1;
+#if defined(STARBOARD)
+  crashpad::wrapper::CrashpadAnnotations annotations_;
+  std::vector<char> serialized_annotations_;
+
+  // Protects access to both annotations_ and serialized_annotations_;
+  starboard::Mutex annotations_lock_;
+#endif
 
 #if defined(OS_CHROMEOS)
   // An optional UNIX timestamp passed to us from Chrome.
@@ -694,14 +739,14 @@ bool CrashpadClient::SendEvergreenInfoToHandler(EvergreenInfo evergreen_info) {
   return SignalHandler::Get()->SendEvergreenInfo(evergreen_info);
 }
 
-bool CrashpadClient::SendAnnotationsToHandler(
-    CrashpadAnnotations annotations) {
+bool CrashpadClient::InsertAnnotationForHandler(
+    const char* key, const char* value) {
   if (!SignalHandler::Get()) {
     DLOG(ERROR) << "Crashpad isn't enabled";
     return false;
   }
 
-  return SignalHandler::Get()->SendAnnotations(annotations);
+  return SignalHandler::Get()->InsertAnnotation(key, value);
 }
 
 bool CrashpadClient::SendSanitizationInformationToHandler(

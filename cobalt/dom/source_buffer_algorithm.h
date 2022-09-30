@@ -58,8 +58,8 @@ class SourceBufferAppendAlgorithm : public SourceBufferAlgorithm {
   SourceBufferAppendAlgorithm(
       MediaSource* media_source, ::media::ChunkDemuxer* chunk_demuxer,
       const std::string& id, const uint8_t* buffer, size_t size_in_bytes,
-      base::TimeDelta append_window_start, base::TimeDelta append_window_end,
-      base::TimeDelta timestamp_offset,
+      size_t max_append_size_in_bytes, base::TimeDelta append_window_start,
+      base::TimeDelta append_window_end, base::TimeDelta timestamp_offset,
       UpdateTimestampOffsetCB&& update_timestamp_offset_cb,
       ScheduleEventCB&& schedule_event_cb, base::OnceClosure&& finalized_cb,
       SourceBufferMetrics* metrics);
@@ -74,6 +74,7 @@ class SourceBufferAppendAlgorithm : public SourceBufferAlgorithm {
   ::media::ChunkDemuxer* const chunk_demuxer_;
   const std::string id_;
   const uint8_t* buffer_;
+  const size_t max_append_size_;
   size_t bytes_remaining_;
   const base::TimeDelta append_window_start_;
   const base::TimeDelta append_window_end_;

@@ -38,6 +38,12 @@ class ExceptionHandlerProtocol {
   //! \brief A boolean status suitable for communication between processes.
   enum Bool : char { kBoolFalse, kBoolTrue };
 
+#if defined(STARBOARD)
+  //! \brief Describes when, in the client process lifecycle, the Crashpad
+  //!     handler was or will be started.
+  enum HandlerStartType : char { kStartAtCrash, kStartAtLaunch };
+#endif
+
   //! \brief Information about a client registered with an
   //!     ExceptionHandlerServer.
   struct ClientInformation {
@@ -57,9 +63,15 @@ class ExceptionHandlerProtocol {
     //!     struct, or 0 if there is no such struct.
     VMAddress evergreen_information_address;
 
-    //! \brief The address in the client's address space of an
-    //!     CrashpadAnnotations struct, or 0 if there is no such struct.
-    VMAddress annotations_address;
+    //! \brief The address in the client's address space of a character array
+    //!     containing a serialized CrashpadAnnotations proto, or 0 if there is
+    //!     no such address.
+    VMAddress serialized_annotations_address;
+
+    //! \brief The byte size of the serialized annotations.
+    int serialized_annotations_size;
+
+    HandlerStartType handler_start_type;
 #endif
 
 #if defined(OS_LINUX)

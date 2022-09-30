@@ -32,6 +32,8 @@ namespace {
 const int kDelayOneMinute = 60;
 const int kDelayOneHour = kDelayOneMinute * 60;
 const char kDefaultUpdaterChannel[] = "prod";
+const char kOmahaCobaltTrunkAppID[] = "{A9557415-DDCD-4948-8113-C643EFCF710C}";
+const char kOmahaCobaltAppID[] = "{6D4E53F3-CC64-4CB8-B6BD-AB0B8F300E1C}";
 
 std::string GetDeviceProperty(SbSystemPropertyId id) {
   const size_t kSystemPropertyMaxLength = 1024;
@@ -221,9 +223,17 @@ bool Configurator::IsPerUserInstall() const { return true; }
 
 std::vector<uint8_t> Configurator::GetRunActionKeyHash() const { return {}; }
 
+std::string Configurator::GetAppGuidHelper(const std::string& version) {
+  if (version.find(".lts.") != std::string::npos &&
+      version.find(".master.") == std::string::npos) {
+    return kOmahaCobaltAppID;
+  }
+  return kOmahaCobaltTrunkAppID;
+}
+
 std::string Configurator::GetAppGuid() const {
-  // Omaha console app id for trunk
-  return "{A9557415-DDCD-4948-8113-C643EFCF710C}";
+  const std::string version(COBALT_VERSION);
+  return GetAppGuidHelper(version);
 }
 
 std::unique_ptr<update_client::ProtocolHandlerFactory>

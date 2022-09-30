@@ -42,24 +42,38 @@ class TestWithJavaScript : public ::testing::Test {
     EXPECT_TRUE(GlobalStats::GetInstance()->CheckNoLeaks());
   }
 
-  StubWindow* stub_window() { return stub_window_.get(); }
-  web::testing::StubWebContext* stub_web_context() {
+  StubWindow* stub_window() const { return stub_window_.get(); }
+  web::testing::StubWebContext* stub_web_context() const {
+    DCHECK(stub_window_);
     return stub_window_->web_context();
   }
 
-  Window* window() { return stub_window_->window().get(); }
+  Window* window() const {
+    DCHECK(stub_window_);
+    return stub_window_->window().get();
+  }
 
-  bool EvaluateScript(const std::string& js_code, std::string* result) {
+  web::Context* web_context() const { return stub_web_context(); }
+
+  scoped_refptr<script::GlobalEnvironment> global_environment() const {
+    DCHECK(web_context());
+    return web_context()->global_environment();
+  }
+
+  bool EvaluateScript(const std::string& js_code,
+                      std::string* result = nullptr) {
+    DCHECK(global_environment());
     return global_environment()->EvaluateScript(
         CreateSourceCodeAndPrepareEval(js_code), result);
   }
 
   bool EvaluateScript(
       const std::string& js_code,
-      const scoped_refptr<script::Wrappable>& owning_object,
-      base::Optional<script::ValueHandleHolder::Reference>* result = NULL) {
+      base::Optional<script::ValueHandleHolder::Reference>* result) {
+    DCHECK(global_environment());
     return global_environment()->EvaluateScript(
-        CreateSourceCodeAndPrepareEval(js_code), owning_object, result);
+        CreateSourceCodeAndPrepareEval(js_code),
+        web_context()->GetWindowOrWorkerGlobalScope(), result);
   }
 
   ::testing::StrictMock<script::testing::MockExceptionState>*

@@ -134,22 +134,16 @@ void CspViolationReporter::Report(const csp::ViolationInfo& violation_info) {
   ViolationEvent violation_data;
   GatherSecurityPolicyViolationEventData(global_, violation_info,
                                          &violation_data);
+  EventTarget* target = global_;
   if (global_->IsWindow()) {
-    global_->AsWindow()->document()->DispatchEvent(
-        new SecurityPolicyViolationEvent(
-            violation_data.document_uri, violation_data.referrer,
-            violation_data.blocked_uri, violation_data.violated_directive,
-            violation_data.effective_directive, violation_data.original_policy,
-            violation_data.source_file, violation_data.status_code,
-            violation_data.line_number, violation_data.column_number));
-  } else {
-    global_->DispatchEvent(new SecurityPolicyViolationEvent(
-        violation_data.document_uri, violation_data.referrer,
-        violation_data.blocked_uri, violation_data.violated_directive,
-        violation_data.effective_directive, violation_data.original_policy,
-        violation_data.source_file, violation_data.status_code,
-        violation_data.line_number, violation_data.column_number));
+    target = global_->AsWindow()->document();
   }
+  target->DispatchEvent(new SecurityPolicyViolationEvent(
+      violation_data.document_uri, violation_data.referrer,
+      violation_data.blocked_uri, violation_data.violated_directive,
+      violation_data.effective_directive, violation_data.original_policy,
+      violation_data.source_file, violation_data.status_code,
+      violation_data.line_number, violation_data.column_number));
 
   if (violation_info.endpoints.empty() || post_sender_.is_null()) {
     return;

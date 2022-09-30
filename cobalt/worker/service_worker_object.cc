@@ -58,6 +58,7 @@ void ServiceWorkerObject::Abort() {
     DCHECK(message_loop());
     DCHECK(web_context_);
     web_agent_->WaitUntilDone();
+    web_agent_->Stop();
     web_agent_.reset();
     web_context_ = nullptr;
   }
@@ -123,10 +124,11 @@ void ServiceWorkerObject::WillDestroyCurrentMessageLoop() {
 void ServiceWorkerObject::ObtainWebAgentAndWaitUntilDone() {
   TRACE_EVENT0("cobalt::worker",
                "ServiceWorkerObject::ObtainWebAgentAndWaitUntilDone()");
-  web_agent_.reset(new web::Agent(
+  web_agent_.reset(new web::Agent(options_.name));
+  web_agent_->Run(
       options_.web_options,
       base::Bind(&ServiceWorkerObject::Initialize, base::Unretained(this)),
-      this));
+      this);
   web_agent_->WaitUntilDone();
 }
 

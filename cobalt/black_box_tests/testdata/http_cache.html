@@ -1,10 +1,34 @@
 <!DOCTYPE html>
 
+<!--
+  To add a new check to this test:
+    1. Create the test file to be loaded and place it in
+       /testdata/http_cache_test_resources/. The server delays responses when
+       serving files from that directory, to make a clear distinction of what's
+       being loaded from the cache.
+    2. Add the file name to either CACHED_ELEMENT_LOCATIONS if you expect that
+       file's mime type to be cached or UNCACHED_ELEMENT_LOCATIONS if you
+       expect the file to be excluded from the cache.
+    3. Add a call to the window.onload function to fetch your file, making a
+       call to measureLoadTime after the file has been loaded.
+-->
 <head>
   <title>Cobalt HTTP Cache Test</title>
   <script src="black_box_js_test_utils.js"></script>
   <script>
-    var NUMBER_OF_CACHE_ELEMENTS = Number.MAX_SAFE_INTEGER;
+    var TESTDATA_LOCATION = window.location.protocol + '//'
+                              + window.location.host
+                              + '/testdata/http_cache_test_resources/';
+    var CACHED_ELEMENT_LOCATIONS = {
+      'js': TESTDATA_LOCATION + 'http_cache.js',
+      'img': TESTDATA_LOCATION + 'cobalt_logo.png',
+      'css': TESTDATA_LOCATION + 'http_cache.css',
+    };
+    var UNCACHED_ELEMENT_LOCATIONS = {
+      'txt': TESTDATA_LOCATION + 'http_cache.txt',
+    };
+    var EXPECTED_NUMBER_OF_ELEMENTS = Object.keys(CACHED_ELEMENT_LOCATIONS).length
+                                      + Object.keys(UNCACHED_ELEMENT_LOCATIONS).length;
     var loadTimes = new Map();
     var cacheSize = 0;
 
@@ -20,50 +44,90 @@
     var initialLoadTime = loadTimes.has('initialLoadTime') ?
       loadTimes.get('initialLoadTime') : new Date().getTime();
     var reloadUrl = 'http_cache.html?initialLoadTime=' + initialLoadTime;
+    // Append the timestamp string to each resource url to force reload the
+    // files the first time the page is accessed each test run. The load time
+    // is recorded on the first run and passed to the second run to ensure
+    // the same url is used both times.
+    var timestampString = '?t=' + initialLoadTime;
 
+    // Validate the tranferSize attribute of each performance entry specified
+    // in CACHED_ELEMENT_LOCATIONS and UNCACHED_ELEMENT_LOCATIONS.
+    function checkTransferSizes() {
+      let elementsChecked = 0;
+      // https://www.w3.org/TR/resource-timing-2/#dom-performanceresourcetiming-transfersize
+      // Verify that the transferSize attribute for each resource is less than
+      // 300. If greater than 300, it wasn't fetched from the cache.
+      for (let location in CACHED_ELEMENT_LOCATIONS) {
+        elementsChecked++;
+        let tranferSize = performance.getEntriesByName(CACHED_ELEMENT_LOCATIONS[location] + timestampString)[0].transferSize;
+        if (tranferSize > 300) {
+          console.log('Element at ' + CACHED_ELEMENT_LOCATIONS[location]
+                        + ' was expected to be cached, but was loaded from the server instead.');
+          notReached();
+        }
+      }
+
+      for (let location in UNCACHED_ELEMENT_LOCATIONS) {
+        elementsChecked++;
+        let tranferSize = performance.getEntriesByName(UNCACHED_ELEMENT_LOCATIONS[location] + timestampString)[0].transferSize;
+        if (tranferSize <= 300) {
+          console.log('Element at ' + UNCACHED_ELEMENT_LOCATIONS[location]
+                        + ' was not expected to be cached, but was loaded from the cache.');
+          notReached();
+        }
+      }
+
+      if (elementsChecked == (EXPECTED_NUMBER_OF_ELEMENTS)) {
+        onEndTest();
+      } else {
+        console.log(elementsChecked + ' elements were checked, but '
+                      + EXPECTED_NUMBER_OF_ELEMENTS
+                      + ' elements were expected. Verify that EXPECTED_NUMBER_OF_ELEMENTS is correctly set.');
+        notReached();
+      }
+    }
+
+    // On first page load, measure the load time of the specified element and
+    // update the reloadUrl to record the load time. Once the expected number of
+    // elements is reached, reload the page.
+    // On second load, measure the load time of the specified element and
+    // compare it to the first load time to validate if the cache was used,
+    // failing the test if the second load took longer.
     function measureLoadTime(element, initialTime) {
       cacheSize++;
       onLoadTime = new Date().getTime() - initialTime;
       if (loadTimes.has(element)) {
-        // TODO: change to using transferSize once its implemented (b/231475964)
-        // Load times might give false positives, but should rarely give false
-        // negatives (i.e. this may pass when caching didn't actually occur,
-        // but will likely never fail when caching does occur).
         console.log(element + ' first load time: ' + loadTimes.get(element));
         console.log(element + ' second load time: ' + onLoadTime);
-        assertTrue(onLoadTime <= loadTimes.get(element));
-        if (cacheSize == NUMBER_OF_CACHE_ELEMENTS) {
-          onEndTest();
+        if (cacheSize == EXPECTED_NUMBER_OF_ELEMENTS) {
+          setTimeout(() => { checkTransferSizes(); }, 500);
         }
       } else {
         reloadUrl += '&' + element + '=' + onLoadTime;
-        if (cacheSize == NUMBER_OF_CACHE_ELEMENTS) {
+        if (cacheSize == EXPECTED_NUMBER_OF_ELEMENTS) {
           setTimeout(() => { window.location.href = reloadUrl; }, 100);
         }
       }
     }
 
+
+
     // Add elements after window loads. In Cobalt, adding the onload property
     // directly to an html tag doesn't execute.
     window.onload = function () {
-      NUMBER_OF_CACHE_ELEMENTS = document.getElementsByTagName('div').length;
-      // Append the timestamp string to each resource url to force reload the
-      // files the first time the page is accessed each test run. The load time
-      // is recorded on the first run and passed to the second run to ensure
-      // the same url is used both times.
-      let timestampString = '?t=' + initialLoadTime;
-
+      // text/javascript
       let initialJsTime = new Date().getTime();
       let script = document.createElement('script');
-      script.onload = () => {
+      script.onload = (event) => {
         measureLoadTime('javascript', initialJsTime);
       };
       script.onerror = () => {
         notReached();
       };
-      script.src = 'http_cache_test_resources/http_cache.js' + timestampString;
+      script.src = CACHED_ELEMENT_LOCATIONS['js'] + timestampString;
       document.getElementById('js_div').appendChild(script);
 
+      // image/png
       let initialImgTime = new Date().getTime();
       let image = document.createElement('img');
       image.onload = () => {
@@ -72,10 +136,11 @@
       image.onerror = (e) => {
         notReached();
       };
-      image.src = 'http_cache_test_resources/cobalt_logo.png' + timestampString;
+      image.src = CACHED_ELEMENT_LOCATIONS['img'] + timestampString;
       image.alt = 'falied to load image';
       document.getElementById('image_div').appendChild(image);
 
+      // text/css
       let initialCssTime = new Date().getTime();
       let css = document.createElement('link');
       css.onload = () => {
@@ -85,8 +150,19 @@
         notReached();
       };
       css.rel = 'stylesheet';
-      css.href = 'http_cache_test_resources/http_cache.css' + timestampString;
+      css.href = CACHED_ELEMENT_LOCATIONS['css'] + timestampString;
       document.getElementById('css_div').appendChild(css);
+
+      // text/plain
+      let initialTxtTime = new Date().getTime();
+      let txt = document.createElement('p');
+      fetch(UNCACHED_ELEMENT_LOCATIONS['txt'] + timestampString)
+        .then(response => response.text())
+        .then(text => {
+          txt.innerHTML = text;
+          document.getElementById('txt_div').appendChild(txt);
+          measureLoadTime('txt', initialTxtTime);
+      });
     }
 
   </script>
@@ -102,5 +178,8 @@
   </div>
   <div id="css_div">
     <h2>Loading CSS file</h2>
+  </div>
+  <div id="txt_div">
+    <h2>Loading txt file</h2>
   </div>
 </body>

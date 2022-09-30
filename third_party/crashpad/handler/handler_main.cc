@@ -172,6 +172,9 @@ void Usage(const base::FilePath& me) {
 #if defined(STARBOARD)
 "      --evergreen-information=EVERGREEN_INFORMATION_ADDRESS\n"
 "                              the address of a EvegreenInfo struct.\n"
+"      --handler-started-at-crash\n"
+"                              the handler was started at time of crash, as\n"
+"                              opposed to time of launch\n"
 #endif
 "      --url=URL               send crash reports to this Breakpad server URL,\n"
 "                              only if uploads are enabled for the database\n"
@@ -214,6 +217,7 @@ struct Options {
   bool shared_client_connection;
 #if defined(STARBOARD)
   VMAddress evergreen_information_address;
+  bool handler_started_at_crash = false;
 #endif  // defined(STARBOARD)
 #if defined(OS_ANDROID)
   bool write_minidump_to_log;
@@ -590,6 +594,7 @@ int HandlerMain(int argc,
     kOptionTraceParentWithException,
 #if defined(STARBOARD)
     kOptionEvergreenInformaton,
+    kOptionHandlerStartedAtCrash,
 #endif  // defined(STARBOARD)
 #endif
     kOptionURL,
@@ -676,6 +681,10 @@ int HandlerMain(int argc,
      required_argument,
      nullptr,
      kOptionEvergreenInformaton},
+    {"handler-started-at-crash",
+     no_argument,
+     nullptr,
+     kOptionHandlerStartedAtCrash},
 #endif
     {"url", required_argument, nullptr, kOptionURL},
 #if defined(OS_CHROMEOS)
@@ -848,6 +857,10 @@ int HandlerMain(int argc,
                                  "failed to parse --evergreen-information");
           return ExitFailure();
         }
+        break;
+      }
+      case kOptionHandlerStartedAtCrash: {
+        options.handler_started_at_crash = true;
         break;
       }
 #endif   // defined(STARBOARD)
@@ -1070,6 +1083,9 @@ int HandlerMain(int argc,
 #if defined(STARBOARD)
     info.evergreen_information_address =
         options.evergreen_information_address;
+    if (options.handler_started_at_crash) {
+      info.handler_start_type = ExceptionHandlerProtocol::kStartAtCrash;
+    }
 #endif   // defined(STARBOARD)
     return exception_handler->HandleException(getppid(), geteuid(), info)
                ? EXIT_SUCCESS

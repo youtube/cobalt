@@ -112,9 +112,9 @@ class OnScreenKeyboardMockBridge : public OnScreenKeyboardBridge {
 
   void SetKeepFocus(bool keep_focus) override { SetKeepFocusMock(keep_focus); }
 
-  void SetBackgroundColor(const char* background_color) override {}
+  void SetBackgroundColor(uint8 r, uint8 g, uint8 b) override {}
 
-  void SetDarkTheme(bool dark_theme) override {}
+  void SetLightTheme(bool light_theme) override {}
 
   MOCK_METHOD1(ShowMock, void(std::string));
   MOCK_METHOD0(HideMock, void());
@@ -386,7 +386,7 @@ TEST_F(OnScreenKeyboardTest, ShowEventAttribute) {
     let promise;
     let logString;
   )";
-  EXPECT_TRUE(EvaluateScript(let_script, NULL));
+  EXPECT_TRUE(EvaluateScript(let_script));
   const char event_script[] = R"(
     logString = '(empty)';
     window.onScreenKeyboard.onshow = function() {
@@ -436,7 +436,7 @@ TEST_F(OnScreenKeyboardTest, HideEventAttribute) {
     let promise;
     let logString;
   )";
-  EXPECT_TRUE(EvaluateScript(let_script, NULL));
+  EXPECT_TRUE(EvaluateScript(let_script));
   const char event_script[] = R"(
     logString = '(empty)';
     window.onScreenKeyboard.onhide = function() {
@@ -485,7 +485,7 @@ TEST_F(OnScreenKeyboardTest, FocusEventAttribute) {
     let promise;
     let logString;
   )";
-  EXPECT_TRUE(EvaluateScript(let_script, NULL));
+  EXPECT_TRUE(EvaluateScript(let_script));
   const char event_script[] = R"(
     logString = '(empty)';
     window.onScreenKeyboard.onfocus = function() {
@@ -534,7 +534,7 @@ TEST_F(OnScreenKeyboardTest, BlurEventAttribute) {
     let promise;
     let logString;
   )";
-  EXPECT_TRUE(EvaluateScript(let_script, NULL));
+  EXPECT_TRUE(EvaluateScript(let_script));
   const char event_script[] = R"(
     logString = '(empty)';
     window.onScreenKeyboard.onblur = function() {
@@ -605,7 +605,7 @@ TEST_F(OnScreenKeyboardTest, KeepFocus) {
     window.onScreenKeyboard.keepFocus = false;
     window.onScreenKeyboard.keepFocus = true;
   )";
-  EXPECT_TRUE(EvaluateScript(script, NULL));
+  EXPECT_TRUE(EvaluateScript(script));
 }
 
 TEST_F(OnScreenKeyboardTest, SetBackgroundColor) {
@@ -635,21 +635,21 @@ TEST_F(OnScreenKeyboardTest, SetBackgroundColor) {
   EXPECT_EQ(color_str, result);
 }
 
-TEST_F(OnScreenKeyboardTest, SetDarkTheme) {
+TEST_F(OnScreenKeyboardTest, SetLightTheme) {
   if (SkipLocale()) return;
 
   std::string result;
-  EXPECT_TRUE(EvaluateScript("window.onScreenKeyboard.darkTheme;", &result));
+  EXPECT_TRUE(EvaluateScript("window.onScreenKeyboard.lightTheme;", &result));
   EXPECT_EQ("null", result);
 
-  std::string dark_theme_str = "false";
+  std::string light_theme_str = "true";
   EXPECT_TRUE(
-      EvaluateScript("window.onScreenKeyboard.darkTheme = " + dark_theme_str +
+      EvaluateScript("window.onScreenKeyboard.lightTheme = " + light_theme_str +
                          ";"
-                         "window.onScreenKeyboard.darkTheme",
+                         "window.onScreenKeyboard.lightTheme",
                      &result));
 
-  EXPECT_EQ(dark_theme_str, result);
+  EXPECT_EQ(light_theme_str, result);
 }
 
 }  // namespace dom

@@ -20,7 +20,16 @@
 #include "util/linux/exception_information.h"
 
 #if defined(STARBOARD)
-#include "third_party/crashpad/wrapper/annotations.h"
+#include "third_party/crashpad/util/linux/exception_handler_protocol.h"
+// TODO(b/201538792): resolve conflict between mini_chromium and base functions.
+#ifdef LogMessage
+#define LOG_MESSAGE_DEFINED
+#undef LogMessage
+#endif
+#include "third_party/crashpad/wrapper/proto/crashpad_annotations.pb.h"
+#ifdef LOG_MESSAGE_DEFINED
+#define LogMessage MLogMessage
+#endif
 #endif
 
 namespace crashpad {
@@ -56,7 +65,9 @@ bool ProcessSnapshotLinux::Initialize(PtraceConnection* connection) {
 #if defined(STARBOARD)
 bool ProcessSnapshotLinux::Initialize(PtraceConnection* connection,
                                       VMAddress evergreen_information_address,
-                                      VMAddress annotations_address) {
+                                      VMAddress serialized_annotations_address,
+                                      int serialized_annotations_size,
+                                      ExceptionHandlerProtocol::HandlerStartType handler_start_type) {
   INITIALIZATION_STATE_SET_INITIALIZING(initialized_);
 
   if (gettimeofday(&snapshot_time_, nullptr) != 0) {
@@ -70,15 +81,10 @@ bool ProcessSnapshotLinux::Initialize(PtraceConnection* connection,
     return false;
   }
 
-  CrashpadAnnotations annotations;
-  if (!memory_range_.Read(
-          annotations_address, sizeof(CrashpadAnnotations), &annotations)) {
-    LOG(ERROR) << "Could not read annotations";
+  if (handler_start_type == ExceptionHandlerProtocol::kStartAtCrash) {
+    LOG(INFO) << "Annotations do not need to be read from client process";
   } else {
-    AddAnnotation("user_agent_string",
-                  std::string(annotations.user_agent_string));
-    AddAnnotation("prod", std::string(annotations.product));
-    AddAnnotation("ver", std::string(annotations.version));
+    AddAnnotations(serialized_annotations_address, serialized_annotations_size);
   }
 
   system_.Initialize(&process_reader_, &snapshot_time_);
@@ -89,6 +95,33 @@ bool ProcessSnapshotLinux::Initialize(PtraceConnection* connection,
 
   INITIALIZATION_STATE_SET_VALID(initialized_);
   return true;
+}
+
+void ProcessSnapshotLinux::AddAnnotations(
+    VMAddress serialized_annotations_address, int serialized_annotations_size) {
+  std::vector<char> buffer(serialized_annotations_size);
+  if (!memory_range_.Read(serialized_annotations_address,
+                          serialized_annotations_size,
+                          buffer.data())) {
+    LOG(ERROR) << "Could not read annotations";
+    return;
+  }
+
+  crashpad::wrapper::CrashpadAnnotations annotations;
+  if (!annotations.ParseFromArray(buffer.data(), serialized_annotations_size)) {
+      LOG(ERROR) << "Could not parse annotations";
+      return;
+  }
+
+  AddAnnotation("user_agent_string",
+                std::string(annotations.user_agent_string()));
+  AddAnnotation("prod", std::string(annotations.prod()));
+  AddAnnotation("ver", std::string(annotations.ver()));
+
+  for (auto& runtime_annotation : annotations.runtime_annotations()) {
+    AddAnnotation(runtime_annotation.first, runtime_annotation.second);
+  }
+  LOG(INFO) << "Annotations successfully added from client process";
 }
 #endif
 

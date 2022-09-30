@@ -23,6 +23,7 @@
 #include "base/message_loop/message_loop_current.h"
 #include "base/threading/thread.h"
 #include "base/trace_event/trace_event.h"
+#include "cobalt/loader/net_fetcher.h"
 #include "cobalt/loader/origin.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/web/context.h"
@@ -193,6 +194,53 @@ WorkerGlobalScope::WorkerGlobalScope(script::EnvironmentSettings* settings)
       location_(new WorkerLocation(settings->creation_url())),
       navigator_(new WorkerNavigator(settings)) {
   set_navigator_base(navigator_);
+}
+
+bool WorkerGlobalScope::InitializePolicyContainerCallback(
+    loader::Fetcher* fetcher,
+    const scoped_refptr<net::HttpResponseHeaders>& headers) {
+  DCHECK(headers);
+  // https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#initialize-worker-policy-container
+  // 1. If workerGlobalScope's url is local but its scheme is not "blob":
+  //   1. Assert: workerGlobalScope's owner set's size is 1.
+  //   2. Set workerGlobalScope's policy container to a clone of
+  //      workerGlobalScope's owner set[0]'s relevant settings object's policy
+  //      container.
+  // 2. Otherwise, set workerGlobalScope's policy container to the result of
+  //    creating a policy container from a fetch response given response and
+  //    environment.
+  // Steps from create a policy container from a fetch response:
+  // https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#creating-a-policy-container-from-a-fetch-response
+  // 1. If response's URL's scheme is "blob", then return a clone of response's
+  //    URL's blob URL entry's environment's policy container.
+  // 2. Let result be a new policy container.
+  // 3. Set result's CSP list to the result of parsing a response's Content
+  //    Security Policies given response.
+  // 4. If environment is non-null, then set result's embedder policy to the
+  //    result of obtaining an embedder policy given response and environment.
+  //    Otherwise, set it to "unsafe-none".
+  // 5. Set result's referrer policy to the result of parsing the
+  //    `Referrer-Policy` header given response. [REFERRERPOLICY]
+  // 6. Return result.
+
+  // Steps 3-6. Since csp_delegate doesn't fully mirror PolicyContainer, we
+  // don't create a new one here and return it. Instead we update the existing
+  // one for this worker and return true for success and false for failure.
+  csp::ResponseHeaders csp_headers(headers);
+  if (csp_delegate()->OnReceiveHeaders(csp_headers)) {
+    return true;
+  }
+  // Only NetFetchers are expected to call this, since only they have the
+  // response headers.
+  loader::NetFetcher* net_fetcher =
+      base::polymorphic_downcast<loader::NetFetcher*>(fetcher);
+  net::URLFetcher* url_fetcher = net_fetcher->url_fetcher();
+  LOG(INFO) << "Failure receiving Content Security Policy headers "
+               "for URL: "
+            << url_fetcher->GetURL() << ".";
+  // Return true regardless of CSP headers being received to continue loading
+  // the response.
+  return true;
 }
 
 void WorkerGlobalScope::ImportScripts(const std::vector<std::string>& urls,

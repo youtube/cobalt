@@ -186,6 +186,14 @@ Required libraries can differ depending on your Linux distribution and version.
       </tr>
     </table>
 
+## Debugging Cobalt
+
+`debug`, `devel`, and `qa` configs of Cobalt expose a feature enabling
+developers to trace Cobalt's callstacks per-thread. This is not only a great way
+to debug application performance, but also a great way to debug issues and
+better understand Cobalt's execution flow in general.
+
+Simply build and run one of these configs and observe the terminal output.
 <!--
 <aside class="note">
 <b>Note:</b> If you plan to upload reviews to the Cobalt repository, you

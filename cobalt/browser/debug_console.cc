@@ -97,7 +97,7 @@ int GetInitialMode() {
 scoped_refptr<script::Wrappable> CreateDebugHub(
     const debug::console::DebugHub::GetHudModeCallback& get_hud_mode_function,
     const debug::CreateDebugClientCallback& create_debug_client_callback,
-    script::EnvironmentSettings* settings) {
+    web::EnvironmentSettings* settings) {
   return new debug::console::DebugHub(get_hud_mode_function,
                                       create_debug_client_callback);
 }
@@ -116,7 +116,7 @@ DebugConsole::DebugConsole(
     const base::Closure& maybe_freeze_callback) {
   mode_ = GetInitialMode();
 
-  WebModule::Options web_module_options("DebugConsoleWebModule");
+  WebModule::Options web_module_options;
   // The debug console does not load any image assets.
   web_module_options.image_cache_capacity = 0;
   // Disable CSP for the Debugger's WebModule. This will also allow eval() in
@@ -143,15 +143,15 @@ DebugConsole::DebugConsole(
   web_module_options.web_options.network_module = network_module;
   web_module_options.web_options.platform_info = platform_info;
 
-  web_module_.reset(
-      new WebModule(GURL(kInitialDebugConsoleUrl), initial_application_state,
-                    render_tree_produced_callback,
-                    base::Bind(&DebugConsole::OnError, base::Unretained(this)),
-                    WebModule::CloseCallback(), /* window_close_callback */
-                    base::Closure(),            /* window_minimize_callback */
-                    NULL /* can_play_type_handler */, NULL /* media_module */,
-                    window_dimensions, resource_provider, layout_refresh_rate,
-                    web_module_options));
+  web_module_.reset(new WebModule("DebugConsoleWebModule"));
+  web_module_->Run(GURL(kInitialDebugConsoleUrl), initial_application_state,
+                   render_tree_produced_callback,
+                   base::Bind(&DebugConsole::OnError, base::Unretained(this)),
+                   WebModule::CloseCallback(), /* window_close_callback */
+                   base::Closure(),            /* window_minimize_callback */
+                   NULL /* can_play_type_handler */, NULL /* media_module */,
+                   window_dimensions, resource_provider, layout_refresh_rate,
+                   web_module_options);
 }
 
 DebugConsole::~DebugConsole() {}

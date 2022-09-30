@@ -12,8 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// https://www.w3.org/TR/html50/webappapis.html#erroreventinit
+// https://html.spec.whatwg.org/multipage/comms.html#messageeventinit
 
 dictionary MessageEventInit : EventInit {
-  any data = null;
+  any data;
+  USVString origin = "";
+  DOMString lastEventId = "";
+  EventTarget? source;
+  sequence<MessagePort> ports;
 };

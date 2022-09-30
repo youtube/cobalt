@@ -428,7 +428,7 @@ class TestRunner(object):
     if gtest_filter_value:
       test_params.append("--gtest_filter=" + gtest_filter_value)
 
-    if shard_index and shard_count:
+    if shard_count is not None:
       test_params.append("--gtest_total_shards={}".format(shard_count))
       test_params.append("--gtest_shard_index={}".format(shard_index))
 

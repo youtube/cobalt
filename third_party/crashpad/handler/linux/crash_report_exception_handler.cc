@@ -89,7 +89,8 @@ bool CrashReportExceptionHandler::AddEvergreenInfo(
 
 bool CrashReportExceptionHandler::AddAnnotations(
     const ExceptionHandlerProtocol::ClientInformation& info) {
-  annotations_address_ = info.annotations_address;
+  serialized_annotations_address_ = info.serialized_annotations_address;
+  serialized_annotations_size_ = info.serialized_annotations_size;
   return true;
 }
 #endif
@@ -153,13 +154,7 @@ bool CrashReportExceptionHandler::HandleExceptionWithConnection(
                        requesting_thread_stack_address,
                        requesting_thread_id,
                        &process_snapshot,
-                       &sanitized_snapshot
-#if defined(STARBOARD)
-                       ,
-                       evergreen_info_,
-                       annotations_address_
-#endif
-                       )) {
+                       &sanitized_snapshot)) {
     return false;
   }
 

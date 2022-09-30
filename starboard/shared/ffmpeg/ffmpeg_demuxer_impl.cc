@@ -247,6 +247,65 @@ CobaltExtensionDemuxerVideoCodecProfile ProfileIDToVideoCodecProfile(
   }
 }
 
+// Attempts to parse a codec profile from |extradata|. Upon success,
+// |out_profile| is populated with the profile and true is returned. Upon
+// failure, false is returned and |out_profile| is not modified.
+bool TryParseH264Profile(const uint8_t* extradata,
+                         size_t extradata_size,
+                         CobaltExtensionDemuxerVideoCodecProfile& out_profile) {
+  if (extradata_size < 2) {
+    return false;
+  }
+  const uint8_t version = extradata[0];
+  if (version != 1) {
+    return false;
+  }
+  const int profile = extradata[1];
+  switch (profile) {
+    case FF_PROFILE_H264_BASELINE:
+      out_profile = kCobaltExtensionDemuxerH264ProfileBaseline;
+      return true;
+    case FF_PROFILE_H264_MAIN:
+      out_profile = kCobaltExtensionDemuxerH264ProfileMain;
+      return true;
+    case FF_PROFILE_H264_EXTENDED:
+      out_profile = kCobaltExtensionDemuxerH264ProfileExtended;
+      return true;
+    case FF_PROFILE_H264_HIGH:
+      out_profile = kCobaltExtensionDemuxerH264ProfileHigh;
+      return true;
+    case FF_PROFILE_H264_HIGH_10:
+      out_profile = kCobaltExtensionDemuxerH264ProfileHigh10Profile;
+      return true;
+    case FF_PROFILE_H264_HIGH_422:
+      out_profile = kCobaltExtensionDemuxerH264ProfileHigh422Profile;
+      return true;
+    case FF_PROFILE_H264_HIGH_444_PREDICTIVE:
+      out_profile = kCobaltExtensionDemuxerH264ProfileHigh444PredictiveProfile;
+      return true;
+    default:
+      SB_LOG(ERROR) << "Unknown H264 profile: " << profile;
+      return false;
+  }
+}
+
+// Attempts to parse a codec profile from |extradata|. Upon success,
+// |out_profile| is populated with the profile and true is returned. Upon
+// failure, false is returned and |out_profile| is not modified.
+bool TryParseH265Profile(const uint8_t* extradata,
+                         size_t extradata_size,
+                         int& out_profile) {
+  if (extradata_size < 2) {
+    return false;
+  }
+  const uint8_t version = extradata[0];
+  if (version != 1) {
+    return false;
+  }
+  out_profile = extradata[1] & 0x1F;
+  return true;
+}
+
 int AVIOReadOperation(void* opaque, uint8_t* buf, int buf_size) {
   auto* data_source = static_cast<CobaltExtensionDemuxerDataSource*>(opaque);
   const int bytes_read =
@@ -898,8 +957,15 @@ bool FFmpegDemuxerImpl<FFMPEG>::ParseVideoConfig(
       config->profile = ProfileIDToVideoCodecProfile(codec_context->profile);
       if (config->profile == kCobaltExtensionDemuxerVideoCodecProfileUnknown &&
           codec_context->extradata && codec_context->extradata_size) {
-        // TODO(b/231631898): handle the extra data here, if necessary.
-        SB_LOG(ERROR) << "Extra data is not currently handled.";
+        CobaltExtensionDemuxerVideoCodecProfile profile =
+            kCobaltExtensionDemuxerVideoCodecProfileUnknown;
+        // Attempt to populate profile based on extradata.
+        if (TryParseH264Profile(codec_context->extradata,
+                                codec_context->extradata_size, profile)) {
+          config->profile = profile;
+        } else {
+          SB_LOG(ERROR) << "Could not parse H264 profile from extradata.";
+        }
       }
       break;
     }
@@ -915,8 +981,11 @@ bool FFmpegDemuxerImpl<FFMPEG>::ParseVideoConfig(
 #endif  // FF_PROFILE_HEVC_REXT
            ) &&
           codec_context->extradata && codec_context->extradata_size) {
-        // TODO(b/231631898): handle the extra data here, if necessary.
-        SB_LOG(ERROR) << "Extra data is not currently handled.";
+        // Attempt to populate hevc_profile based on extradata.
+        if (!TryParseH265Profile(codec_context->extradata,
+                                 codec_context->extradata_size, hevc_profile)) {
+          SB_LOG(ERROR) << "Could not parse H265 profile from extradata.";
+        }
       } else {
         hevc_profile = codec_context->profile;
       }

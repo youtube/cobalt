@@ -14,6 +14,8 @@
 
 #include "cobalt/webdriver/session_driver.h"
 
+#include <utility>
+
 #include "base/logging.h"
 #include "cobalt/base/log_message_handler.h"
 
@@ -56,13 +58,13 @@ SessionDriver::SessionDriver(
       logging_callback_id_(0) {
   logging_callback_id_ = base::LogMessageHandler::GetInstance()->AddCallback(
       base::Bind(&SessionDriver::LogMessageHandler, base::Unretained(this)));
-  window_driver_ = create_window_driver_callback_.Run(GetUniqueWindowId());
+  RefreshWindowDriver();
 }
 
 void SessionDriver::RefreshWindowDriver() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  window_driver_ =
-      create_window_driver_callback_.Run(window_driver_->window_id());
+  window_driver_ = create_window_driver_callback_.Run(
+      window_driver_ ? window_driver_->window_id() : GetUniqueWindowId());
 }
 
 SessionDriver::~SessionDriver() {

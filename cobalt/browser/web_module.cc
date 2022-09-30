@@ -1320,15 +1320,32 @@ void WebModule::Impl::HandlePointerEvents() {
   } while (event && !layout_manager_->IsRenderTreePending());
 }
 
-WebModule::Options::Options(const std::string& name)
-    : web_options(name),
-      layout_trigger(layout::LayoutManager::kOnDocumentMutation),
+WebModule::Options::Options()
+    : layout_trigger(layout::LayoutManager::kOnDocumentMutation),
       mesh_cache_capacity(configuration::Configuration::GetInstance()
                               ->CobaltMeshCacheSizeInBytes()) {
   web_options.stack_size = cobalt::browser::kWebModuleStackSize;
 }
 
-WebModule::WebModule(
+WebModule::WebModule(const std::string& name)
+    : ui_nav_root_(new ui_navigation::NavItem(
+          ui_navigation::kNativeItemTypeContainer,
+          // Currently, events do not need to be processed for the root item.
+          base::Closure(), base::Closure(), base::Closure())) {
+  web_agent_.reset(new web::Agent(name));
+}
+
+WebModule::~WebModule() {
+  DCHECK(message_loop());
+  DCHECK(web_agent_);
+  // This will cancel the timers for tasks, which help the thread exit
+  ClearAllIntervalsAndTimeouts();
+  web_agent_->WaitUntilDone();
+  web_agent_->Stop();
+  web_agent_.reset();
+}
+
+void WebModule::Run(
     const GURL& initial_url, base::ApplicationState initial_application_state,
     const OnRenderTreeProducedCallback& render_tree_produced_callback,
     OnErrorCallback error_callback, const CloseCallback& window_close_callback,
@@ -1336,11 +1353,7 @@ WebModule::WebModule(
     media::CanPlayTypeHandler* can_play_type_handler,
     media::MediaModule* media_module, const ViewportSize& window_dimensions,
     render_tree::ResourceProvider* resource_provider, float layout_refresh_rate,
-    const Options& options)
-    : ui_nav_root_(new ui_navigation::NavItem(
-          ui_navigation::kNativeItemTypeContainer,
-          // Currently, events do not need to be processed for the root item.
-          base::Closure(), base::Closure(), base::Closure())) {
+    const Options& options) {
   ConstructionData construction_data(
       initial_url, initial_application_state, render_tree_produced_callback,
       error_callback, window_close_callback, window_minimize_callback,
@@ -1351,24 +1364,27 @@ WebModule::WebModule(
 #endif  // defined(ENABLE_DEBUGGER)
       &synchronous_loader_interrupt_, options);
 
-  web_agent_.reset(
-      new web::Agent(options.web_options,
-                     base::Bind(&WebModule::Initialize, base::Unretained(this),
-                                construction_data),
-                     this));
+  web::Agent::Options web_options(options.web_options);
+  if (!options.injected_global_object_attributes.empty()) {
+    for (Options::InjectedGlobalObjectAttributes::const_iterator iter =
+             options.injected_global_object_attributes.begin();
+         iter != options.injected_global_object_attributes.end(); ++iter) {
+      DCHECK(!ContainsKey(web_options.injected_global_object_attributes,
+                          iter->first));
+      // Trampoline to the given callback, adding a pointer to this WebModule.
+      web_options.injected_global_object_attributes[iter->first] =
+          base::Bind(iter->second, base::Unretained(this));
+    }
+  }
+
+  web_agent_->Run(web_options,
+                  base::Bind(&WebModule::InitializeTaskInThread,
+                             base::Unretained(this), construction_data),
+                  this);
 }
 
-WebModule::~WebModule() {
-  DCHECK(message_loop());
-  DCHECK(web_agent_);
-  // This will cancel the timers for tasks, which help the thread exit
-  ClearAllIntervalsAndTimeouts();
-  web_agent_->WaitUntilDone();
-  web_agent_.reset();
-}
-
-void WebModule::Initialize(const ConstructionData& data,
-                           web::Context* context) {
+void WebModule::InitializeTaskInThread(const ConstructionData& data,
+                                       web::Context* context) {
   DCHECK_EQ(base::MessageLoop::current(), message_loop());
   impl_.reset(new Impl(context, data));
 }

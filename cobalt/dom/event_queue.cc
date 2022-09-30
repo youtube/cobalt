@@ -44,23 +44,6 @@ void EventQueue::Enqueue(const scoped_refptr<web::Event>& event) {
   events_.push_back(event);
 }
 
-void EventQueue::EnqueueAndMaybeDispatchImmediately(
-    const scoped_refptr<web::Event>& event) {
-  DCHECK(message_loop_->BelongsToCurrentThread());
-
-  bool was_empty = events_.empty();
-
-  Enqueue(event);
-
-  if (was_empty) {
-    // We can only dispatch the event immediately if there aren't any existing
-    // events in the queue, because dom activities (including events) have to
-    // happen in order, and any existing events in the queue may mean that these
-    // events have to be dispatched after other activities not tracked here.
-    DispatchEvents();
-  }
-}
-
 void EventQueue::CancelAllEvents() {
   DCHECK(message_loop_->BelongsToCurrentThread());
 

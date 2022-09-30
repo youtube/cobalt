@@ -106,10 +106,10 @@ class OnScreenKeyboard : public web::EventTarget {
     return background_color_;
   }
 
-  void set_dark_theme(base::Optional<bool> dark_theme) {
-    dark_theme_ = dark_theme;
+  void set_light_theme(base::Optional<bool> light_theme) {
+    light_theme_ = light_theme;
   }
-  base::Optional<bool> dark_theme() const { return dark_theme_; }
+  base::Optional<bool> light_theme() const { return light_theme_; }
 
   // Called by the WebModule to dispatch DOM show, hide, focus, blur and
   // suggestions updated events.
@@ -149,7 +149,7 @@ class OnScreenKeyboard : public web::EventTarget {
 
   base::Optional<std::string> background_color_;
 
-  base::Optional<bool> dark_theme_;
+  base::Optional<bool> light_theme_;
 
   DISALLOW_COPY_AND_ASSIGN(OnScreenKeyboard);
 };

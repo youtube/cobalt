@@ -64,13 +64,7 @@ bool CaptureSnapshot(
     VMAddress requesting_thread_stack_address,
     pid_t* requesting_thread_id,
     std::unique_ptr<ProcessSnapshotLinux>* process_snapshot,
-    std::unique_ptr<ProcessSnapshotSanitized>* sanitized_snapshot
-#if defined(STARBOARD)
-    ,
-    VMAddress evergreen_information_address,
-    VMAddress annotations_address
-#endif
-    );
+    std::unique_ptr<ProcessSnapshotSanitized>* sanitized_snapshot);
 
 }  // namespace crashpad
 

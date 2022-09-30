@@ -67,7 +67,7 @@ SplashScreen::SplashScreen(
       self_message_loop_(base::MessageLoop::current()),
       on_splash_screen_shutdown_complete_(on_splash_screen_shutdown_complete),
       shutdown_signaled_(false) {
-  WebModule::Options web_module_options("SplashScreenWebModule");
+  WebModule::Options web_module_options;
 
   // We want the splash screen to load and appear as quickly as possible, so
   // we set it and its image decoding thread to be high priority.
@@ -106,13 +106,14 @@ SplashScreen::SplashScreen(
   web_module_options.web_options.platform_info = platform_info;
 
   DCHECK(url_to_pass);
-  web_module_.reset(new WebModule(
-      *url_to_pass, initial_application_state, render_tree_produced_callback_,
-      base::Bind(&OnError), on_window_close,
-      base::Closure(),  // window_minimize_callback
-      NULL /* can_play_type_handler */, NULL /* media_module */,
-      window_dimensions, resource_provider, layout_refresh_rate,
-      web_module_options));
+  web_module_.reset(new WebModule("SplashScreenWebModule"));
+  web_module_->Run(*url_to_pass, initial_application_state,
+                   render_tree_produced_callback_, base::Bind(&OnError),
+                   on_window_close,
+                   base::Closure(),  // window_minimize_callback
+                   NULL /* can_play_type_handler */, NULL /* media_module */,
+                   window_dimensions, resource_provider, layout_refresh_rate,
+                   web_module_options);
 }
 
 SplashScreen::~SplashScreen() {

@@ -243,9 +243,8 @@ scoped_refptr<SourceBuffer> MediaSource::AddSourceBuffer(
   ChunkDemuxer::Status status = chunk_demuxer_->AddId(guid, type);
   switch (status) {
     case ChunkDemuxer::kOk:
-      source_buffer = new SourceBuffer(settings, guid, this,
-                                       asynchronous_reduction_enabled_,
-                                       chunk_demuxer_, &event_queue_);
+      source_buffer =
+          new SourceBuffer(settings, guid, this, chunk_demuxer_, &event_queue_);
       break;
     case ChunkDemuxer::kNotSupported:
       web::DOMException::Raise(web::DOMException::kNotSupportedErr,

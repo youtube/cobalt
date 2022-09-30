@@ -180,6 +180,7 @@ static_library("starboard_platform") {
     "//starboard/shared/stub/window_set_on_screen_keyboard_keep_focus.cc",
     "//starboard/shared/stub/window_show_on_screen_keyboard.cc",
     "//starboard/shared/stub/window_update_on_screen_keyboard_suggestions.cc",
+    "//starboard/shared/uwp/wasapi_include.h",
     "//starboard/shared/win32/adapter_utils.cc",
     "//starboard/shared/win32/adapter_utils.h",
     "//starboard/shared/win32/atomic_public.h",

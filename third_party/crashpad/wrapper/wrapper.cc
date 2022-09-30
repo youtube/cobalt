@@ -33,8 +33,11 @@ namespace third_party {
 namespace crashpad {
 namespace wrapper {
 
-namespace {
+const char kCrashpadVersionKey[]  = "ver";
+const char kCrashpadProductKey[]  = "prod";
+const char kCrashpadUserAgentStringKey[]  = "user_agent_string";
 
+namespace {
 // TODO: Get evergreen information from installation.
 const std::string kCrashpadVersion = "1.0.0.0";
 #if defined(STARBOARD_BUILD_TYPE_GOLD)
@@ -215,9 +218,9 @@ bool AddEvergreenInfoToCrashpad(EvergreenInfo evergreen_info) {
   return client->SendEvergreenInfoToHandler(evergreen_info);
 }
 
-bool AddAnnotationsToCrashpad(CrashpadAnnotations annotations) {
+bool InsertCrashpadAnnotation(const char* key, const char* value) {
   ::crashpad::CrashpadClient* client = GetCrashpadClient();
-  return client->SendAnnotationsToHandler(annotations);
+  return client->InsertAnnotationForHandler(key, value);
 }
 
 }  // namespace wrapper

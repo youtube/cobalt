@@ -100,6 +100,15 @@ const char kAboutBlankURL[] = "about:blank";
 
 const char kPersistentSettingsJson[] = "settings.json";
 
+// The watchdog client name used to represent Stats.
+const char kWatchdogName[] = "stats";
+// The watchdog time interval in microseconds allowed between pings before
+// triggering violations.
+const int64_t kWatchdogTimeInterval = 10000000;
+// The watchdog time wait in microseconds to initially wait before triggering
+// violations.
+const int64_t kWatchdogTimeWait = 2000000;
+
 bool IsStringNone(const std::string& str) {
   return !base::strcasecmp(str.c_str(), "none");
 }
@@ -512,12 +521,13 @@ const char kMemoryTrackerCommandLongHelp[] =
     "available trackers.";
 #endif  // defined(ENABLE_DEBUGGER) && defined(STARBOARD_ALLOWS_MEMORY_TRACKING)
 
-bool AddCrashHandlerAnnotations() {
+void AddCrashHandlerAnnotations() {
   auto crash_handler_extension =
-      SbSystemGetExtension(kCobaltExtensionCrashHandlerName);
+      static_cast<const CobaltExtensionCrashHandlerApi*>(
+          SbSystemGetExtension(kCobaltExtensionCrashHandlerName));
   if (!crash_handler_extension) {
     LOG(INFO) << "No crash handler extension, not sending annotations.";
-    return false;
+    return;
   }
 
   auto platform_info = cobalt::browser::GetUserAgentPlatformInfoFromSystem();
@@ -541,23 +551,41 @@ bool AddCrashHandlerAnnotations() {
   product.push_back('\0');
   version.push_back('\0');
 
-  CrashpadAnnotations crashpad_annotations;
-  memset(&crashpad_annotations, 0, sizeof(CrashpadAnnotations));
-  strncpy(crashpad_annotations.user_agent_string, user_agent.c_str(),
-          USER_AGENT_STRING_MAX_SIZE);
-  strncpy(crashpad_annotations.product, product.c_str(),
-          CRASHPAD_ANNOTATION_DEFAULT_LENGTH);
-  strncpy(crashpad_annotations.version, version.c_str(),
-          CRASHPAD_ANNOTATION_DEFAULT_LENGTH);
-  bool result = static_cast<const CobaltExtensionCrashHandlerApi*>(
-                    crash_handler_extension)
-                    ->OverrideCrashpadAnnotations(&crashpad_annotations);
+  bool result = true;
+  if (crash_handler_extension->version == 1) {
+    CrashpadAnnotations crashpad_annotations;
+    memset(&crashpad_annotations, 0, sizeof(CrashpadAnnotations));
+    strncpy(crashpad_annotations.user_agent_string, user_agent.c_str(),
+            USER_AGENT_STRING_MAX_SIZE);
+    strncpy(crashpad_annotations.product, product.c_str(),
+            CRASHPAD_ANNOTATION_DEFAULT_LENGTH);
+    strncpy(crashpad_annotations.version, version.c_str(),
+            CRASHPAD_ANNOTATION_DEFAULT_LENGTH);
+    result = crash_handler_extension->OverrideCrashpadAnnotations(
+        &crashpad_annotations);
+  } else if (crash_handler_extension->version > 1) {
+    // These particular annotation key names (e.g., ver) are expected by
+    // Crashpad.
+    // TODO(b/201538792): figure out a clean way to define these constants once
+    // and use them everywhere.
+    if (!crash_handler_extension->SetString("user_agent_string",
+                                            user_agent.c_str())) {
+      result = false;
+    }
+    if (!crash_handler_extension->SetString("prod", product.c_str())) {
+      result = false;
+    }
+    if (!crash_handler_extension->SetString("ver", version.c_str())) {
+      result = false;
+    }
+  } else {
+    result = false;
+  }  // Invalid extension version
   if (result) {
     LOG(INFO) << "Sent annotations to crash handler";
   } else {
-    LOG(ERROR) << "Could not send annotations to crash handler.";
+    LOG(ERROR) << "Could not send some annotation(s) to crash handler.";
   }
-  return result;
 }
 
 }  // namespace
@@ -650,6 +678,12 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
       watchdog::Watchdog::CreateInstance(persistent_settings_.get());
   DCHECK(watchdog);
 
+  // Registers Stats as a watchdog client.
+  if (watchdog)
+    watchdog->Register(kWatchdogName, kWatchdogName,
+                       base::kApplicationStateStarted, kWatchdogTimeInterval,
+                       kWatchdogTimeWait, watchdog::NONE);
+
   cobalt::cache::Cache::GetInstance()->set_persistent_settings(
       persistent_settings_.get());
 
@@ -660,11 +694,10 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
   unconsumed_deep_link_ = GetInitialDeepLink();
   DLOG(INFO) << "Initial deep link: " << unconsumed_deep_link_;
 
-  WebModule::Options web_options("MainWebModule");
   storage::StorageManager::Options storage_manager_options;
   network::NetworkModule::Options network_module_options;
   // Create the main components of our browser.
-  BrowserModule::Options options(web_options);
+  BrowserModule::Options options;
   network_module_options.preferred_language = language;
   network_module_options.persistent_settings = persistent_settings_.get();
   options.persistent_settings = persistent_settings_.get();
@@ -749,7 +782,7 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
   // Set callback to be notified when a navigation occurs that destroys the
   // underlying WebModule.
   options.web_module_created_callback =
-      base::Bind(&Application::WebModuleCreated, base::Unretained(this));
+      base::Bind(&Application::MainWebModuleCreated, base::Unretained(this));
 
   // The main web module's stat tracker tracks event stats.
   options.web_module_options.track_event_stats = true;
@@ -1370,8 +1403,9 @@ void Application::OnDateTimeConfigurationChangedEvent(
 }
 #endif
 
-void Application::WebModuleCreated(WebModule* web_module) {
-  TRACE_EVENT0("cobalt::browser", "Application::WebModuleCreated()");
+void Application::MainWebModuleCreated(WebModule* web_module) {
+  TRACE_EVENT0("cobalt::browser", "Application::MainWebModuleCreated()");
+  // Note: This is a callback function that runs in the MainWebModule thread.
   DCHECK(web_module);
   if (preload_timestamp_.has_value()) {
     web_module->SetApplicationStartOrPreloadTimestamp(
@@ -1430,6 +1464,16 @@ void Application::UpdateUserAgent() {
 void Application::UpdatePeriodicStats() {
   TRACE_EVENT0("cobalt::browser", "Application::UpdatePeriodicStats()");
   c_val_stats_.app_lifetime = base::StartupTimer::TimeElapsed();
+
+  // Pings watchdog.
+  watchdog::Watchdog* watchdog = watchdog::Watchdog::GetInstance();
+  if (watchdog) {
+#if defined(_DEBUG)
+    // Injects delay for watchdog debugging.
+    watchdog->MaybeInjectDebugDelay(kWatchdogName);
+#endif  // defined(_DEBUG)
+    watchdog->Ping(kWatchdogName);
+  }
 
   int64_t used_cpu_memory = SbSystemGetUsedCPUMemory();
   base::Optional<int64_t> used_gpu_memory;
@@ -1499,9 +1543,8 @@ void Application::DispatchDeepLink(const char* link,
     // again after the next WebModule is created.
     unconsumed_deep_link_ = link;
     deep_link = unconsumed_deep_link_;
+    deep_link_timestamp_ = timestamp;
   }
-
-  deep_link_timestamp_ = timestamp;
 
   LOG(INFO) << "Dispatching deep link: " << deep_link;
   DispatchEventInternal(new base::DeepLinkEvent(
@@ -1516,11 +1559,17 @@ void Application::DispatchDeepLink(const char* link,
 
 void Application::DispatchDeepLinkIfNotConsumed() {
   std::string deep_link;
+#if SB_API_VERSION >= 13
+  SbTimeMonotonic timestamp;
+#endif  // SB_API_VERSION >= 13
   // This block exists to ensure that the lock is held while accessing
   // unconsumed_deep_link_.
   {
     base::AutoLock auto_lock(unconsumed_deep_link_lock_);
     deep_link = unconsumed_deep_link_;
+#if SB_API_VERSION >= 13
+    timestamp = deep_link_timestamp_;
+#endif  // SB_API_VERSION >= 13
   }
 
   if (!deep_link.empty()) {
@@ -1531,7 +1580,7 @@ void Application::DispatchDeepLinkIfNotConsumed() {
   }
 #if SB_API_VERSION >= 13
   if (browser_module_) {
-    browser_module_->SetDeepLinkTimestamp(deep_link_timestamp_);
+    browser_module_->SetDeepLinkTimestamp(timestamp);
   }
 #endif  // SB_API_VERSION >= 13
 }

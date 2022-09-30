@@ -61,9 +61,19 @@ AudioDecoder::AudioDecoder(SbMediaAudioCodec audio_codec,
     : audio_codec_(audio_codec),
       audio_sample_info_(audio_sample_info),
       drm_system_(drm_system),
-      sample_type_(kSbMediaAudioSampleTypeFloat32),
+      sample_type_((audio_codec == kSbMediaAudioCodecAc3 ||
+                    audio_codec == kSbMediaAudioCodecEac3)
+                       ?
+#if SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
+                       kSbMediaAudioSampleTypeInt16
+#else
+                       kSbMediaAudioSampleTypeInt16Deprecated
+#endif  // SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
+                       : kSbMediaAudioSampleTypeFloat32),
       stream_ended_(false) {
-  SB_DCHECK(audio_codec == kSbMediaAudioCodecAac);
+  SB_DCHECK(audio_codec == kSbMediaAudioCodecAac ||
+            audio_codec == kSbMediaAudioCodecAc3 ||
+            audio_codec == kSbMediaAudioCodecEac3);
 }
 
 AudioDecoder::~AudioDecoder() {

@@ -55,8 +55,6 @@ class Worker : public base::MessageLoop::DestructionObserver {
  public:
   // Worker Options needed at thread run time.
   struct Options {
-    explicit Options(const std::string& name) : web_options(name) {}
-
     web::Agent::Options web_options;
 
     // True if worker is a SharedWorker object, and false otherwise.
@@ -70,7 +68,7 @@ class Worker : public base::MessageLoop::DestructionObserver {
     WorkerOptions options;
   };
 
-  explicit Worker(const Options& options);
+  Worker(const char* name, const Options& options);
   ~Worker();
   Worker(const Worker&) = delete;
   Worker& operator=(const Worker&) = delete;

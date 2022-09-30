@@ -90,8 +90,8 @@ class SourceBuffer : public web::EventTarget {
   // Custom, not in any spec.
   //
   SourceBuffer(script::EnvironmentSettings* settings, const std::string& id,
-               MediaSource* media_source, bool asynchronous_reduction_enabled,
-               ChunkDemuxer* chunk_demuxer, EventQueue* event_queue);
+               MediaSource* media_source, ChunkDemuxer* chunk_demuxer,
+               EventQueue* event_queue);
 
   // Web API: SourceBuffer
   //
@@ -167,7 +167,6 @@ class SourceBuffer : public web::EventTarget {
 
   void OnInitSegmentReceived(std::unique_ptr<MediaTracks> tracks);
   void ScheduleEvent(base::Token event_name);
-  void ScheduleAndMaybeDispatchImmediately(base::Token event_name);
   bool PrepareAppend(size_t new_data_size,
                      script::ExceptionState* exception_state);
   void AppendBufferInternal(const unsigned char* data, size_t size,
@@ -185,10 +184,12 @@ class SourceBuffer : public web::EventTarget {
       const std::string& track_type,
       const std::string& byte_stream_track_id) const;
 
+  static const size_t kDefaultMaxAppendBufferSize = 128 * 1024;
+
   scoped_refptr<OnInitSegmentReceivedHelper> on_init_segment_received_helper_;
   const std::string id_;
-  const bool asynchronous_reduction_enabled_;
   const size_t evict_extra_in_bytes_;
+  const size_t max_append_buffer_size_;
 
   MediaSource* media_source_;
   ChunkDemuxer* chunk_demuxer_;

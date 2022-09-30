@@ -26,7 +26,9 @@ static_library("worker") {
     "dedicated_worker.h",
     "dedicated_worker_global_scope.cc",
     "dedicated_worker_global_scope.h",
+    "extendable_event.cc",
     "extendable_event.h",
+    "extendable_message_event.cc",
     "extendable_message_event.h",
     "navigation_preload_manager.cc",
     "navigation_preload_manager.h",
@@ -80,6 +82,7 @@ target(gtest_target_type, "worker_test") {
 
   sources = [
     "dedicated_worker_global_scope_test.cc",
+    "extendable_message_event_test.cc",
     "service_worker_global_scope_test.cc",
     "worker_global_scope_test.cc",
     "worker_location_test.cc",
