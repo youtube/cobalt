@@ -110,13 +110,13 @@ bool IsAsynchronousReductionEnabled(script::EnvironmentSettings* settings) {
 // NOTE: This only works when IsAsynchronousReductionEnabled() returns true,
 //       and it is currently only enabled for buffer append.
 // The default value is 16 KB.  Set to 0 will disable immediate job completely.
-int GetMinSizeForImmediateJob(script::EnvironmentSettings* settings) {
-  const int kDefaultMinSize = 16 * 1024;
-  auto min_size =
-      GetMediaSettings(settings)->GetMinSizeForImmediateJob().value_or(
-          kDefaultMinSize);
-  DCHECK_GE(min_size, 0);
-  return min_size;
+int GetMaxSizeForImmediateJob(script::EnvironmentSettings* settings) {
+  const int kDefaultMaxSize = 16 * 1024;
+  auto max_size =
+      GetMediaSettings(settings)->GetMaxSizeForImmediateJob().value_or(
+          kDefaultMaxSize);
+  DCHECK_GE(max_size, 0);
+  return max_size;
 }
 
 }  // namespace
@@ -125,7 +125,7 @@ MediaSource::MediaSource(script::EnvironmentSettings* settings)
     : web::EventTarget(settings),
       algorithm_offload_enabled_(IsAlgorithmOffloadEnabled(settings)),
       asynchronous_reduction_enabled_(IsAsynchronousReductionEnabled(settings)),
-      min_size_for_immediate_job_(GetMinSizeForImmediateJob(settings)),
+      max_size_for_immediate_job_(GetMaxSizeForImmediateJob(settings)),
       default_algorithm_runner_(asynchronous_reduction_enabled_),
       chunk_demuxer_(NULL),
       ready_state_(kMediaSourceReadyStateClosed),
@@ -137,8 +137,8 @@ MediaSource::MediaSource(script::EnvironmentSettings* settings)
             << (algorithm_offload_enabled_ ? "enabled" : "disabled");
   LOG(INFO) << "Asynchronous reduction is "
             << (asynchronous_reduction_enabled_ ? "enabled" : "disabled");
-  LOG(INFO) << "Min size of immediate job is set to "
-            << min_size_for_immediate_job_;
+  LOG(INFO) << "Max size of immediate job is set to "
+            << max_size_for_immediate_job_;
 }
 
 MediaSource::~MediaSource() { SetReadyState(kMediaSourceReadyStateClosed); }
@@ -581,7 +581,7 @@ MediaSource::GetAlgorithmRunner(int job_size) {
     return &default_algorithm_runner_;
   }
   if (asynchronous_reduction_enabled_ &&
-      job_size <= min_size_for_immediate_job_) {
+      job_size <= max_size_for_immediate_job_) {
     // Append without posting new tasks is only supported on the default runner.
     return &default_algorithm_runner_;
   }
