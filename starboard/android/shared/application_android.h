@@ -22,9 +22,6 @@
 #include <vector>
 
 #include "starboard/android/shared/input_events_generator.h"
-#ifdef STARBOARD_INPUT_EVENTS_FILTER
-#include "starboard/android/shared/internal/input_events_filter.h"
-#endif
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/mutex.h"
@@ -34,7 +31,6 @@
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/queue_application.h"
 #include "starboard/types.h"
-#include "third_party/android_game_activity/include/game-activity/GameActivity.h"
 
 namespace starboard {
 namespace android {
@@ -51,6 +47,7 @@ class ApplicationAndroid
       kResume,
       kPause,
       kStop,
+      kInputQueueChanged,
       kNativeWindowCreated,
       kNativeWindowDestroyed,
       kWindowFocusGained,
@@ -83,9 +80,6 @@ class ApplicationAndroid
   void SendAndroidCommand(AndroidCommand::CommandType type) {
     SendAndroidCommand(type, NULL);
   }
-  bool SendAndroidMotionEvent(const GameActivityMotionEvent* event);
-  bool SendAndroidKeyEvent(const GameActivityKeyEvent* event);
-
   void SendKeyboardInject(SbKey key);
 
   void SbWindowShowOnScreenKeyboard(SbWindow window,
@@ -131,6 +125,7 @@ class ApplicationAndroid
  private:
   ALooper* looper_;
   ANativeWindow* native_window_;
+  AInputQueue* input_queue_;
 
   // Pipes attached to the looper.
   int android_command_readfd_;
@@ -139,7 +134,7 @@ class ApplicationAndroid
   int keyboard_inject_writefd_;
 
   // Synchronization for commands that change availability of Android resources
-  // such as the input and/or native_window_.
+  // such as the input_queue_ and/or native_window_.
   Mutex android_command_mutex_;
   ConditionVariable android_command_condition_;
 
@@ -150,10 +145,6 @@ class ApplicationAndroid
   SbWindow window_;
 
   scoped_ptr<InputEventsGenerator> input_events_generator_;
-
-#ifdef STARBOARD_INPUT_EVENTS_FILTER
-  internal::InputEventsFilter input_events_filter_;
-#endif
 
   bool last_is_accessibility_high_contrast_text_enabled_;
 
@@ -166,6 +157,7 @@ class ApplicationAndroid
 
   // Methods to process pipes attached to the Looper.
   void ProcessAndroidCommand();
+  void ProcessAndroidInput();
   void ProcessKeyboardInject();
 };
 

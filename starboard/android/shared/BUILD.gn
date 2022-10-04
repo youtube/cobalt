@@ -262,11 +262,6 @@ static_library("starboard_platform") {
     "//starboard/shared/stub/thread_sampler_is_supported.cc",
     "//starboard/shared/stub/thread_sampler_thaw.cc",
     "//starboard/shared/stub/ui_nav_get_interface.cc",
-    "//third_party/android_game_activity/include/game-activity/GameActivity.cpp",
-    "//third_party/android_game_activity/include/game-activity/GameActivity.h",
-    "//third_party/android_game_activity/include/game-text-input/gamecommon.h",
-    "//third_party/android_game_activity/include/game-text-input/gametextinput.cpp",
-    "//third_party/android_game_activity/include/game-text-input/gametextinput.h",
     "accessibility_get_caption_settings.cc",
     "accessibility_get_display_settings.cc",
     "accessibility_get_text_to_speech_settings.cc",
@@ -423,8 +418,6 @@ static_library("starboard_platform") {
     "//starboard/shared/starboard/player/player_set_bounds.cc",
     "//starboard/shared/starboard/player/player_set_playback_rate.cc",
   ]
-
-  include_dirs = [ "//third_party/android_game_activity/include" ]
 
   configs += [ "//starboard/build/config:starboard_implementation" ]
 

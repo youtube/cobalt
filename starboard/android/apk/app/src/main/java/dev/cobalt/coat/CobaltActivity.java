@@ -16,7 +16,7 @@ package dev.cobalt.coat;
 
 import static dev.cobalt.util.Log.TAG;
 
-import android.annotation.SuppressLint;
+import android.app.NativeActivity;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
@@ -29,7 +29,6 @@ import android.view.View;
 import android.view.ViewGroup.LayoutParams;
 import android.view.ViewParent;
 import android.widget.FrameLayout;
-import com.google.androidgamesdk.GameActivity;
 import dev.cobalt.media.AudioOutputManager;
 import dev.cobalt.media.MediaCodecUtil;
 import dev.cobalt.media.VideoSurfaceView;
@@ -42,7 +41,7 @@ import java.util.List;
 import java.util.Locale;
 
 /** Native activity that has the required JNI methods called by the Starboard implementation. */
-public abstract class CobaltActivity extends GameActivity {
+public abstract class CobaltActivity extends NativeActivity {
 
   // A place to put args while debugging so they're used even when starting from the launcher.
   // This should always be empty in submitted code.
@@ -72,8 +71,6 @@ public abstract class CobaltActivity extends GameActivity {
   private long timeInNanoseconds;
 
   private static native void nativeLowMemoryEvent();
-
-  protected View mContentView = null;
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
@@ -110,21 +107,6 @@ public abstract class CobaltActivity extends GameActivity {
       addContentView(
           keyboardEditor, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
     }
-  }
-
-  /**
-   * Creates an empty View for the launching activity, and prevent GameActivity from creating the
-   * default SurfaceView.
-   */
-  @Override
-  protected void onCreateSurfaceView() {
-    mSurfaceView = null;
-
-    getWindow().takeSurface(this);
-
-    mContentView = new View(this);
-    setContentView(mContentView);
-    mContentView.requestFocus();
   }
 
   /**
@@ -308,7 +290,6 @@ public abstract class CobaltActivity extends GameActivity {
     getStarboardBridge().onActivityResult(requestCode, resultCode, data);
   }
 
-  @SuppressLint("MissingSuperCall")
   @Override
   public void onRequestPermissionsResult(
       int requestCode, String[] permissions, int[] grantResults) {
