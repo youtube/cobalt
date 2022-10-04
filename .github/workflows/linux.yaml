@@ -2,7 +2,7 @@ name: linux
 
 on:
   pull_request:
-    types: [ready_for_review, synchronize, labeled]
+    types: [opened, reopened, edited, synchronize]
     branches: [ main ]
   push:
     branches: [ main ]
