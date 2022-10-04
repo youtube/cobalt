@@ -3,8 +3,12 @@ name: win32_nightly_23.lts.1+
 on:
   workflow_dispatch:
 
+concurrency:
+  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}'
+  cancel-in-progress: true
+
 jobs:
-  CI:
+  win:
     uses: ./.github/workflows/main_win.yaml
     permissions:
       packages: write

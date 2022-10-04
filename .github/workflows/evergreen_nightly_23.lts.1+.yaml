@@ -1,4 +1,4 @@
-name: linux_nightly_23.lts.1+
+name: evergreen_nightly_23.lts.1+
 
 on:
   workflow_dispatch:
@@ -11,21 +11,27 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  x64:
+  evergreen-x64:
     uses: ./.github/workflows/main.yaml
     permissions:
       packages: write
     with:
-      platform: linux
-  clang-3-9:
+      platform: evergreen-x64
+  evergreen-arm-hardfp:
     uses: ./.github/workflows/main.yaml
     permissions:
       packages: write
     with:
-      platform: linux-clang-3-9
-  gcc-6-3:
+      platform: evergreen-arm-hardfp
+  evergreen-arm-softfp:
     uses: ./.github/workflows/main.yaml
     permissions:
       packages: write
     with:
-      platform: linux-gcc-6-3
+      platform: evergreen-arm-softfp
+  evergreen-x86:
+    uses: ./.github/workflows/main.yaml
+    permissions:
+      packages: write
+    with:
+      platform: evergreen-x86

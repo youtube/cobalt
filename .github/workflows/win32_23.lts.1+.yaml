@@ -10,9 +10,12 @@ on:
       - '23.lts.1\+'
   workflow_dispatch:
 
+concurrency:
+  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}'
+  cancel-in-progress: true
+
 jobs:
-  CI:
-    if: github.event_name != 'label' || github.event.label.name == 'runtest'
+  win:
     uses: ./.github/workflows/main_win.yaml
     permissions:
       packages: write
