@@ -6,8 +6,14 @@ runs:
     - name: Configure Environment
       shell: bash
       run: |
-        echo "ANDROID_HOME=/root/starboard-toolchains/AndroidSdk/" >> $GITHUB_ENV
         echo "PYTHONPATH=$GITHUB_WORKSPACE" >> $GITHUB_ENV
+    - name: Configure Android Environment
+      shell: bash
+      if: startsWith(${{matrix.target_platform}}, 'android')
+      run: |
+        echo "ANDROID_HOME=/root/starboard-toolchains/AndroidSdk/" >> $GITHUB_ENV
+        echo "COBALT_GRADLE_BUILD_COUNT=24" >> $GITHUB_ENV
+        echo "GCS_NIGHTLY_PATH=gs://cobalt-actions-devel-build-artifacts" >> $GITHUB_ENV
     - name: GN
       run: |
         set -x
