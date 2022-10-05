@@ -2,9 +2,6 @@ name: evergreen_nightly_23.lts.1+
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - '23.lts.1\+'
 
 concurrency:
   group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}'
