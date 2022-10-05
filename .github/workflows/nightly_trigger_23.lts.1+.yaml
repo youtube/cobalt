@@ -24,4 +24,4 @@ jobs:
           gh workflow run raspi-2_nightly_23.lts.1+ --ref 23.lts.1+
           gh workflow run win32_nightly_23.lts.1+ --ref 23.lts.1+
         env:
-          GITHUB_TOKEN: ${{ secrets.NIGHTLY_TRIGGER_PAT }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
