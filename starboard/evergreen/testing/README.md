@@ -75,6 +75,7 @@ single Evergreen test case.
 * `tests/update_fails_verification_test.sh`
 * `tests/update_works_for_only_one_app_test.sh`
 * `tests/valid_slot_overwritten_test.sh`
+* `tests/verify_qa_channel_compressed_update_test.sh`
 * `tests/verify_qa_channel_update_test.sh`
 
 How To Run
