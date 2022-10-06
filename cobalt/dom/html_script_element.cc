@@ -79,15 +79,12 @@ HTMLScriptElement::HTMLScriptElement(Document* document)
 }
 
 std::string HTMLScriptElement::src() const {
-  auto src = GetAttribute("src");
-  if (!src.has_value()) {
-    return "";
+  std::string src = GetAttribute("src").value_or("");
+  if (src == "" || !node_document()) {
+    return src;
   }
-  if (!node_document()) {
-    return src.value();
-  }
-  const GURL& base_url = node_document()->location()->url();
-  return base_url.Resolve(src.value()).spec();
+  GURL url = node_document()->location()->url().Resolve(src);
+  return url.is_valid() ? url.spec() : src;
 }
 
 base::Optional<std::string> HTMLScriptElement::cross_origin() const {
