@@ -165,13 +165,13 @@ jobs:
           os: linux
       # Build bootloader if neccessary.
       - name: Set bootloader config
-        if: needs.initialize.outputs.on_host_test_bootloader != 'null'
+        if: ${{ needs.initialize.outputs.on_host_test_bootloader != 'null' && matrix.config == 'devel' && needs.initialize.outputs.on_host_test == 'true' }}
         run: echo "COBALT_BOOTLOADER=${{needs.initialize.outputs.on_host_test_bootloader}}" >> $GITHUB_ENV
       - name: Bootloader GN
-        if: needs.initialize.outputs.on_host_test_bootloader != 'null'
+        if: ${{ needs.initialize.outputs.on_host_test_bootloader != 'null' && matrix.config == 'devel' && needs.initialize.outputs.on_host_test == 'true' }}
         uses: ./.github/actions/gn
       - name: Build Bootloader
-        if: needs.initialize.outputs.on_host_test_bootloader != 'null'
+        if: ${{ needs.initialize.outputs.on_host_test_bootloader != 'null' && matrix.config == 'devel' && needs.initialize.outputs.on_host_test == 'true' }}
         uses: ./.github/actions/build
       - name: Upload Bootloader On Host Test Artifacts
         if: ${{ needs.initialize.outputs.on_host_test_bootloader != 'null' && matrix.config == 'devel' && needs.initialize.outputs.on_host_test == 'true' }}
