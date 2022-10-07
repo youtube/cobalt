@@ -9,6 +9,11 @@ on:
         description: 'Cobalt platform.'
         required: true
         type: string
+      nightly:
+        description: 'Nightly workflow.'
+        required: true
+        type: string
+        default: 'false'
 
 # Global env vars.
 env:
@@ -102,7 +107,7 @@ jobs:
       - name: Build Cobalt
         uses: ./.github/actions/build
       - name: Upload Nightly Artifacts
-        if: ${{ contains(github.workflow, '_nightly') && matrix.config != 'debug' }}
+        if: ${{ ( inputs.nightly == 'true' || github.event_name == 'schedule' ) && matrix.config != 'debug' }}
         uses: ./.github/actions/upload_nightly_artifacts
       - name: Upload On Host Test Artifacts
         if: ${{ matrix.config == 'devel' && needs.initialize.outputs.on_host_test == 'true' }}
