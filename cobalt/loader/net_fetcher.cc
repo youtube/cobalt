@@ -103,6 +103,9 @@ NetFetcher::NetFetcher(const GURL& url,
       origin_(origin),
       request_script_(options.resource_type == disk_cache::kUncompiledScript) {
   url_fetcher_ = net::URLFetcher::Create(url, options.request_method, this);
+  if (!options.headers.IsEmpty()) {
+    url_fetcher_->SetExtraRequestHeaders(options.headers.ToString());
+  }
   url_fetcher_->SetRequestContext(
       network_module->url_request_context_getter().get());
   std::unique_ptr<URLFetcherStringWriter> download_data_writer(
@@ -164,14 +167,13 @@ void NetFetcher::OnURLFetchResponseStarted(const net::URLFetcher* source) {
     }
   }
 
-  if (IsResponseCodeSuccess(source->GetResponseCode())) {
-    if (handler()->OnResponseStarted(this, source->GetResponseHeaders()) ==
-        kLoadResponseAbort) {
-      std::string msg(
-          base::StringPrintf("Handler::OnResponseStarted aborted URL %s",
-                             source->GetURL().spec().c_str()));
-      return HandleError(msg).InvalidateThis();
-    }
+  if ((handler()->OnResponseStarted(this, source->GetResponseHeaders()) ==
+       kLoadResponseAbort) ||
+      (!IsResponseCodeSuccess(source->GetResponseCode()))) {
+    std::string msg(
+        base::StringPrintf("Handler::OnResponseStarted aborted URL %s",
+                           source->GetURL().spec().c_str()));
+    return HandleError(msg).InvalidateThis();
   }
 
   // net::URLFetcher can not guarantee GetResponseHeaders() always return

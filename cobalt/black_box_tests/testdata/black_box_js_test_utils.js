@@ -10,6 +10,10 @@ const SETUP_DONE_MESSAGE = 'JavaScript_setup_done';
 const EFFECT_AFTER_VISIBILITY_CHANGE_TIMEOUT_SECONDS = 5;
 
 function notReached() {
+  // Show the stack that triggered this function.
+  try { throw Error('') } catch (error_object) {
+    console.log(`${error_object.stack}`);
+ }
   document.body.setAttribute(TEST_STATUS_ELEMENT_NAME, FAILURE_MESSAGE);
 }
 
