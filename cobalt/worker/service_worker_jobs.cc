@@ -27,6 +27,7 @@
 #include "base/message_loop/message_loop.h"
 #include "base/message_loop/message_loop_current.h"
 #include "base/single_thread_task_runner.h"
+#include "base/strings/string_util.h"
 #include "base/synchronization/lock.h"
 #include "base/task_runner.h"
 #include "base/time/time.h"
@@ -57,6 +58,7 @@
 #include "cobalt/worker/service_worker_update_via_cache.h"
 #include "cobalt/worker/window_client.h"
 #include "cobalt/worker/worker_type.h"
+#include "net/base/mime_util.h"
 #include "net/base/url_util.h"
 #include "starboard/atomic.h"
 #include "url/gurl.h"
@@ -241,6 +243,7 @@ void ServiceWorkerJobs::StartRegister(
 
 void ServiceWorkerJobs::PromiseErrorData::Reject(
     std::unique_ptr<JobPromiseType> promise) const {
+  DCHECK(promise);
   if (message_type_ != script::kNoError) {
     promise->Reject(GetSimpleExceptionType(message_type_));
   } else {
@@ -317,7 +320,7 @@ void ServiceWorkerJobs::ScheduleJob(std::unique_ptr<Job> job) {
       DCHECK(last_job);
       base::AutoLock lock(last_job->equivalent_jobs_promise_mutex);
       if (EquivalentJobs(job.get(), last_job) && last_job->promise &&
-          last_job->promise->State() == script::PromiseState::kPending) {
+          last_job->promise->is_pending()) {
         last_job->equivalent_jobs.push_back(std::move(job));
         return;
       }
@@ -559,6 +562,8 @@ void ServiceWorkerJobs::Update(Job* job) {
   //        environment settings object for this service worker.
   // To perform the fetch given request, run the following steps:
   //   8.1.  Append `Service-Worker`/`script` to request’s header list.
+  net::HttpRequestHeaders headers;
+  headers.SetHeader("Service-Worker", "script");
   //   8.2.  Set request’s cache mode to "no-cache" if any of the following are
   //         true:
   //          - registration’s update via cache mode is not "all".
@@ -570,41 +575,6 @@ void ServiceWorkerJobs::Update(Job* job) {
   //   8.5.  Set request’s redirect mode to "error".
   //   8.6.  Fetch request, and asynchronously wait to run the remaining steps
   //         as part of fetch’s process response for the response response.
-  //   8.7.  Extract a MIME type from the response’s header list. If this MIME
-  //         type (ignoring parameters) is not a JavaScript MIME type, then:
-  //   8.7.1. Invoke Reject Job Promise with job and "SecurityError"
-  //          DOMException.
-  //   8.7.2. Asynchronously complete these steps with a network error.
-  // TODO(b/235393876): Implement Service-Worker-Allowed.
-  //   8.8.  Let serviceWorkerAllowed be the result of extracting header list
-  //         values given `Service-Worker-Allowed` and response’s header list.
-  //   8.9.  Set policyContainer to the result of creating a policy container
-  //         from a fetch response given response.
-  //   8.10. If serviceWorkerAllowed is failure, then:
-  //   8.10.1  Asynchronously complete these steps with a network error.
-  //   8.11. Let scopeURL be registration’s scope url.
-  //   8.12. Let maxScopeString be null.
-  //   8.13. If serviceWorkerAllowed is null, then:
-  //   8.13.1. Let resolvedScope be the result of parsing "./" using job’s
-  //           script url as the base URL.
-  //   8.13.2. Set maxScopeString to "/", followed by the strings in
-  //           resolvedScope’s path (including empty strings), separated from
-  //           each other by "/".
-  //   8.14. Else:
-  //   8.14.1. Let maxScope be the result of parsing serviceWorkerAllowed using
-  //           job’s script url as the base URL.
-  //   8.14.2. If maxScope’s origin is job’s script url's origin, then:
-  //   8.14.2.1. Set maxScopeString to "/", followed by the strings in
-  //             maxScope’s path (including empty strings), separated from each
-  //             other by "/".
-  //   8.15. Let scopeString be "/", followed by the strings in scopeURL’s path
-  //         (including empty strings), separated from each other by "/".
-  //   8.16. If maxScopeString is null or scopeString does not start with
-  //         maxScopeString, then:
-  //   8.16.1. Invoke Reject Job Promise with job and "SecurityError"
-  //           DOMException.
-  //   8.16.2. Asynchronously complete these steps with a network error.
-
   // TODO(b/225037465): Implement CSP check.
   csp::SecurityCallback csp_callback = base::Bind(&PermitAnyURL);
   loader::Origin origin = loader::Origin(job->script_url.GetOrigin());
@@ -612,8 +582,111 @@ void ServiceWorkerJobs::Update(Job* job) {
       job->script_url, origin, csp_callback,
       base::Bind(&ServiceWorkerJobs::UpdateOnContentProduced,
                  base::Unretained(this), state),
+      base::Bind(&ServiceWorkerJobs::UpdateOnResponseStarted,
+                 base::Unretained(this), state),
       base::Bind(&ServiceWorkerJobs::UpdateOnLoadingComplete,
-                 base::Unretained(this), state));
+                 base::Unretained(this), state),
+      std::move(headers));
+}
+
+namespace {
+// Array of JavaScript mime types, according to the MIME Sniffinc spec:
+//   https://mimesniff.spec.whatwg.org/#javascript-mime-type
+static const char* const kJavaScriptMimeTypes[] = {"application/ecmascript",
+                                                   "application/javascript",
+                                                   "application/x-ecmascript",
+                                                   "application/x-javascript",
+                                                   "text/ecmascript",
+                                                   "text/javascript",
+                                                   "text/javascript1.0",
+                                                   "text/javascript1.1",
+                                                   "text/javascript1.2",
+                                                   "text/javascript1.3",
+                                                   "text/javascript1.4",
+                                                   "text/javascript1.5",
+                                                   "text/jscript",
+                                                   "text/livescript",
+                                                   "text/x-ecmascript",
+                                                   "text/x-javascript"};
+
+}  // namespace
+
+bool ServiceWorkerJobs::UpdateOnResponseStarted(
+    scoped_refptr<UpdateJobState> state, loader::Fetcher* fetcher,
+    const scoped_refptr<net::HttpResponseHeaders>& headers) {
+  std::string content_type;
+  bool mime_type_is_javascript = false;
+  if (headers->GetNormalizedHeader("Content-type", &content_type)) {
+    //   8.7.  Extract a MIME type from the response’s header list. If this MIME
+    //         type (ignoring parameters) is not a JavaScript MIME type, then:
+    for (auto mime_type : kJavaScriptMimeTypes) {
+      if (net::MatchesMimeType(mime_type, content_type)) {
+        mime_type_is_javascript = true;
+        break;
+      }
+    }
+  }
+  if (!mime_type_is_javascript) {
+    //   8.7.1. Invoke Reject Job Promise with job and "SecurityError"
+    //          DOMException.
+    //   8.7.2. Asynchronously complete these steps with a network error.
+    RejectJobPromise(state->job,
+                     PromiseErrorData(web::DOMException::kSecurityErr,
+                                      "Service Worker Script is not "
+                                      "JavaScript MIME type."));
+    return true;
+  }
+  //   8.8.  Let serviceWorkerAllowed be the resulf extracting header list
+  //         values given `Service-Worker-Allowed` and response’s header list.
+  std::string service_worker_allowed;
+  bool service_worker_allowed_exists = headers->GetNormalizedHeader(
+      "Service-Worker-Allowed", &service_worker_allowed);
+  //   8.9.  Set policyContainer to the result of creating a policy container
+  //         from a fetch response given response.
+  //   8.10. If serviceWorkerAllowed is failure, then:
+  //   8.10.1  Asynchronously complete these steps with a network error.
+  //   8.11. Let scopeURL be registration’s scope url.
+  GURL scope_url = state->registration->scope_url();
+  //   8.12. Let maxScopeString be null.
+  base::Optional<std::string> max_scope_string;
+  //   8.13. If serviceWorkerAllowed is null, then:
+  if (!service_worker_allowed_exists || service_worker_allowed.empty()) {
+    //   8.13.1. Let resolvedScope be the result of parsing "./" using job’s
+    //           script url as the base URL.
+    //   8.13.2. Set maxScopeString to "/", followed by the strings in
+    //           resolvedScope’s path (including empty strings), separated
+    //           from each other by "/".
+    max_scope_string = state->job->script_url.GetWithoutFilename().path();
+  } else {
+    //   8.14. Else:
+    //   8.14.1. Let maxScope be the result of parsing serviceWorkerAllowed
+    //           using job’s script url as the base URL.
+    GURL max_scope = state->job->script_url.Resolve(service_worker_allowed);
+    //   8.14.2. If maxScope’s origin is job’s script url's origin, then:
+    if (loader::Origin(state->job->script_url) == loader::Origin(max_scope)) {
+      //   8.14.2.1. Set maxScopeString to "/", followed by the strings in
+      //             maxScope’s path (including empty strings), separated from
+      //             each other by "/".
+      max_scope_string = max_scope.path();
+    }
+  }
+  //   8.15. Let scopeString be "/", followed by the strings in scopeURL’s
+  //         path (including empty strings), separated from each other by "/".
+  std::string scope_string = scope_url.path();
+  //   8.16. If maxScopeString is null or scopeString does not start with
+  //         maxScopeString, then:
+  if (!max_scope_string.has_value() ||
+      !base::StartsWith(scope_string, max_scope_string.value(),
+                        base::CompareCase::SENSITIVE)) {
+    //   8.16.1. Invoke Reject Job Promise with job and "SecurityError"
+    //           DOMException.
+    //   8.16.2. Asynchronously complete these steps with a network error.
+    RejectJobPromise(state->job,
+                     PromiseErrorData(web::DOMException::kSecurityErr,
+                                      "Scope not allowed."));
+    return true;
+  }
+  return true;
 }
 
 void ServiceWorkerJobs::UpdateOnContentProduced(
@@ -659,9 +732,28 @@ void ServiceWorkerJobs::UpdateOnLoadingComplete(
   TRACE_EVENT0("cobalt::worker",
                "ServiceWorkerJobs::UpdateOnLoadingComplete()");
   DCHECK_EQ(message_loop(), base::MessageLoop::current());
+  if (state->job->promise.get() == nullptr) {
+    // The job is already rejected, which means there was an error, so finish
+    // the job and skip the remaining steps.
+    FinishJob(state->job);
+    return;
+  }
+
+  if (error) {
+    RejectJobPromise(
+        state->job,
+        PromiseErrorData(web::DOMException::kNetworkErr, error.value()));
+    if (state->newest_worker == nullptr) {
+      scope_to_registration_map_.RemoveRegistration(state->job->storage_key,
+                                                    state->job->scope_url);
+    }
+    FinishJob(state->job);
+    return;
+  }
+
   //   8.21. If hasUpdatedResources is false and newestWorker’s classic
   //         scripts imported flag is set, then:
-  if (!state->has_updated_resources &&
+  if (!state->has_updated_resources && state->newest_worker &&
       state->newest_worker->classic_scripts_imported()) {
     // This checks if there are any updates to already stored importScripts
     // resources.
@@ -2517,22 +2609,26 @@ ServiceWorkerJobs::JobPromiseType::JobPromiseType(
 
 void ServiceWorkerJobs::JobPromiseType::Resolve(const bool result) {
   DCHECK(promise_bool_reference_);
+  is_pending_.store(false);
   promise_bool_reference_->value().Resolve(result);
 }
 
 void ServiceWorkerJobs::JobPromiseType::Resolve(
     const scoped_refptr<cobalt::script::Wrappable>& result) {
   DCHECK(promise_wrappable_reference_);
+  is_pending_.store(false);
   promise_wrappable_reference_->value().Resolve(result);
 }
 
 void ServiceWorkerJobs::JobPromiseType::Reject(
     script::SimpleExceptionType exception) {
   if (promise_bool_reference_) {
+    is_pending_.store(false);
     promise_bool_reference_->value().Reject(exception);
     return;
   }
   if (promise_wrappable_reference_) {
+    is_pending_.store(false);
     promise_wrappable_reference_->value().Reject(exception);
     return;
   }
@@ -2542,25 +2638,16 @@ void ServiceWorkerJobs::JobPromiseType::Reject(
 void ServiceWorkerJobs::JobPromiseType::Reject(
     const scoped_refptr<script::ScriptException>& result) {
   if (promise_bool_reference_) {
+    is_pending_.store(false);
     promise_bool_reference_->value().Reject(result);
     return;
   }
   if (promise_wrappable_reference_) {
+    is_pending_.store(false);
     promise_wrappable_reference_->value().Reject(result);
     return;
   }
   NOTREACHED();
-}
-
-script::PromiseState ServiceWorkerJobs::JobPromiseType::State() {
-  if (promise_bool_reference_) {
-    return promise_bool_reference_->value().State();
-  }
-  if (promise_wrappable_reference_) {
-    return promise_wrappable_reference_->value().State();
-  }
-  NOTREACHED();
-  return script::PromiseState::kPending;
 }
 
 }  // namespace worker

@@ -48,6 +48,7 @@
 #include "cobalt/worker/service_worker_registration_object.h"
 #include "cobalt/worker/service_worker_update_via_cache.h"
 #include "cobalt/worker/worker_type.h"
+#include "starboard/atomic.h"
 #include "url/gurl.h"
 #include "url/origin.h"
 
@@ -83,11 +84,14 @@ class ServiceWorkerJobs {
     void Resolve(const bool result);
     void Resolve(const scoped_refptr<cobalt::script::Wrappable>& result);
     void Reject(script::SimpleExceptionType exception);
+    void Reject(web::DOMException::ExceptionCode code,
+                const std::string& message);
     void Reject(const scoped_refptr<script::ScriptException>& result);
 
-    script::PromiseState State();
+    bool is_pending() const { return is_pending_.load(); }
 
    private:
+    starboard::atomic_bool is_pending_{true};
     std::unique_ptr<script::ValuePromiseBool::Reference>
         promise_bool_reference_;
     std::unique_ptr<script::ValuePromiseWrappable::Reference>
@@ -351,6 +355,9 @@ class ServiceWorkerJobs {
   void UpdateOnContentProduced(scoped_refptr<UpdateJobState> state,
                                const loader::Origin& last_url_origin,
                                std::unique_ptr<std::string> content);
+  bool UpdateOnResponseStarted(
+      scoped_refptr<UpdateJobState> state, loader::Fetcher* fetcher,
+      const scoped_refptr<net::HttpResponseHeaders>& headers);
   void UpdateOnLoadingComplete(scoped_refptr<UpdateJobState> state,
                                const base::Optional<std::string>& error);
 

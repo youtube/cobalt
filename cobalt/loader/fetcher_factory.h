@@ -25,6 +25,7 @@
 #include "cobalt/loader/blob_fetcher.h"
 #include "cobalt/loader/fetcher.h"
 #include "net/disk_cache/cobalt/resource_type.h"
+#include "net/http/http_request_headers.h"
 #include "url/gurl.h"
 
 namespace cobalt {
@@ -56,7 +57,8 @@ class FetcherFactory {
   std::unique_ptr<Fetcher> CreateSecureFetcher(
       const GURL& url, const csp::SecurityCallback& url_security_callback,
       RequestMode request_mode, const Origin& origin,
-      const disk_cache::ResourceType type, Fetcher::Handler* handler);
+      const disk_cache::ResourceType type, net::HttpRequestHeaders headers,
+      Fetcher::Handler* handler);
 
   network::NetworkModule* network_module() const { return network_module_; }
 

@@ -27,6 +27,7 @@
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/loader/loader.h"
 #include "cobalt/loader/text_decoder.h"
+#include "net/http/http_request_headers.h"
 #include "url/gurl.h"
 
 namespace cobalt {
@@ -53,7 +54,8 @@ class ScriptLoaderFactory {
       const csp::SecurityCallback& url_security_callback,
       const TextDecoder::TextAvailableCallback& script_available_callback,
       const TextDecoder::ResponseStartedCallback& response_started_callback,
-      const Loader::OnCompleteFunction& load_complete_callback);
+      const Loader::OnCompleteFunction& load_complete_callback,
+      net::HttpRequestHeaders headers = net::HttpRequestHeaders());
 
  protected:
   void OnLoaderCreated(Loader* loader);
@@ -62,7 +64,8 @@ class ScriptLoaderFactory {
   Loader::FetcherCreator MakeFetcherCreator(
       const GURL& url, const csp::SecurityCallback& url_security_callback,
       RequestMode request_mode, const Origin& origin,
-      disk_cache::ResourceType type = disk_cache::kOther);
+      disk_cache::ResourceType type = disk_cache::kOther,
+      net::HttpRequestHeaders headers = net::HttpRequestHeaders());
 
   // Ensures that the LoaderFactory methods are only called from the same
   // thread.
