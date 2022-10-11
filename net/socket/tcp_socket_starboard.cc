@@ -330,7 +330,6 @@ int TCPSocketStarboard::Connect(const IPEndPoint& address,
   peer_address_.reset(new IPEndPoint(address));
 
   SbSocketError result = SbSocketConnect(socket_, &storage);
-  DCHECK_NE(kSbSocketErrorFailed, result);
 
   int rv = MapLastSocketError(socket_);
   if (rv != ERR_IO_PENDING) {

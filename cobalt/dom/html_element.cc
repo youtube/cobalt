@@ -834,7 +834,7 @@ base::Optional<std::string> HTMLElement::GetStyleAttribute() const {
 
 void HTMLElement::SetStyleAttribute(const std::string& value) {
   Document* document = node_document();
-  web::CspDelegate* csp_delegate = document->csp_delegate();
+  web::CspDelegate* csp_delegate = document->GetCSPDelegate();
   if (value.empty() ||
       csp_delegate->AllowInline(
           web::CspDelegate::kStyle,

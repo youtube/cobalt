@@ -68,7 +68,7 @@ class StubWindow {
     return web_context_.get();
   }
 
-  scoped_refptr<dom::Window> window() {
+  const scoped_refptr<dom::Window>& window() {
     if (!window_) InitializeWindow();
     return window_;
   }

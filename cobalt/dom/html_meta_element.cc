@@ -42,7 +42,7 @@ void HTMLMetaElement::OnInsertedIntoDocument() {
                                           ? csp::kHeaderSourceMeta
                                           : csp::kHeaderSourceMetaOutsideHead;
 
-    node_document()->csp_delegate()->OnReceiveHeader(
+    node_document()->GetCSPDelegate()->OnReceiveHeader(
         csp_text, csp::kHeaderTypeEnforce, header_source);
   }
 

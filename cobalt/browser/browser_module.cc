@@ -707,8 +707,8 @@ void BrowserModule::RequestScreenshotToMemory(
     const base::Optional<math::Rect>& clip_rect,
     const ScreenShotWriter::ImageEncodeCompleteCallback& screenshot_ready) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::RequestScreenshotToMemory()");
-  DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
   DCHECK(screen_shot_writer_);
+  // Note: This does not have to be called from self_message_loop_.
 
   scoped_refptr<render_tree::Node> render_tree;
   web_module_->DoSynchronousLayoutAndGetRenderTree(&render_tree);

@@ -38,6 +38,8 @@
 #include "cobalt/dom_parser/parser.h"
 #include "cobalt/script/script_exception.h"
 #include "cobalt/script/testing/mock_exception_state.h"
+#include "cobalt/web/context.h"
+#include "cobalt/web/testing/stub_web_context.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 using cobalt::cssom::ViewportSize;
@@ -53,16 +55,17 @@ class RuleMatchingTest : public ::testing::Test {
   RuleMatchingTest()
       : css_parser_(css_parser::Parser::Create()),
         dom_parser_(new dom_parser::Parser()),
-        dom_stat_tracker_(new DomStatTracker("RuleMatchingTest")),
-        html_element_context_(&environment_settings_, NULL, NULL,
-                              css_parser_.get(), dom_parser_.get(), NULL, NULL,
-                              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-                              NULL, dom_stat_tracker_.get(), "",
-                              base::kApplicationStateStarted, NULL, NULL),
-        document_(new testing::FakeDocument(&html_element_context_)),
-        root_(document_->CreateElement("html")->AsHTMLElement()),
-        head_(document_->CreateElement("head")->AsHTMLElement()),
-        body_(document_->CreateElement("body")->AsHTMLElement()) {
+        dom_stat_tracker_(new DomStatTracker("RuleMatchingTest")) {
+    window_.InitializeWindow();
+    html_element_context_.reset(new HTMLElementContext(
+        window_.web_context()->environment_settings(), NULL, NULL,
+        css_parser_.get(), dom_parser_.get(), NULL, NULL, NULL, NULL, NULL,
+        NULL, NULL, NULL, NULL, NULL, NULL, dom_stat_tracker_.get(), "",
+        base::kApplicationStateStarted, NULL, NULL));
+    document_ = new testing::FakeDocument(html_element_context_.get());
+    root_ = document_->CreateElement("html")->AsHTMLElement();
+    head_ = document_->CreateElement("head")->AsHTMLElement();
+    body_ = document_->CreateElement("body")->AsHTMLElement();
     root_->AppendChild(head_);
     root_->AppendChild(body_);
     document_->AppendChild(root_);
@@ -77,11 +80,11 @@ class RuleMatchingTest : public ::testing::Test {
     return document_->style_sheets()->Item(index)->AsCSSStyleSheet();
   }
 
-  testing::StubEnvironmentSettings environment_settings_;
+  testing::StubWindow window_;
   std::unique_ptr<css_parser::Parser> css_parser_;
   std::unique_ptr<dom_parser::Parser> dom_parser_;
   std::unique_ptr<DomStatTracker> dom_stat_tracker_;
-  HTMLElementContext html_element_context_;
+  std::unique_ptr<HTMLElementContext> html_element_context_;
 
   scoped_refptr<Document> document_;
   scoped_refptr<HTMLElement> root_;
@@ -289,9 +292,6 @@ TEST_F(RuleMatchingTest, EmptyPseudoClassShouldMatchTextOnly) {
 
 // div:focus should match focused div.
 TEST_F(RuleMatchingTest, FocusPseudoClassMatch) {
-  // Give the document browsing context which is needed for focus to work.
-  testing::StubWindow window;
-  document_->set_window(window.window());
   // Give the document initial computed style.
   ViewportSize view_size(320, 240);
   document_->SetViewport(view_size);
@@ -313,9 +313,6 @@ TEST_F(RuleMatchingTest, FocusPseudoClassMatch) {
 
 // div:focus shouldn't match unfocused div.
 TEST_F(RuleMatchingTest, FocusPseudoClassNoMatch) {
-  // Give the document browsing context which is needed for focus to work.
-  testing::StubWindow window;
-  document_->set_window(window.window());
   // Give the document initial computed style.
   ViewportSize view_size(320, 240);
   document_->SetViewport(view_size);

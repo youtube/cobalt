@@ -15,6 +15,7 @@
 #include "cobalt/cssom/computed_style.h"
 
 #include <memory>
+#include <utility>
 #include <vector>
 
 #include "cobalt/base/polymorphic_downcast.h"
@@ -1445,8 +1446,7 @@ class ComputedLengthIsNegativeProvider : public DefaultingPropertyValueVisitor {
     }
   }
 
-  void VisitDefault(PropertyValue* property_value) override {
-  }
+  void VisitDefault(PropertyValue* property_value) override {}
 
   bool computed_length_is_negative() { return computed_length_is_negative_; }
 
@@ -2526,14 +2526,14 @@ void ComputedTransformFunctionProvider::VisitTranslate(
 
 void ComputedTransformFunctionProvider::VisitCobaltUiNavFocusTransform(
     const CobaltUiNavFocusTransformFunction* focus_function) {
-  computed_transform_function_.reset(new CobaltUiNavFocusTransformFunction(
-      *focus_function));
+  computed_transform_function_.reset(
+      new CobaltUiNavFocusTransformFunction(*focus_function));
 }
 
 void ComputedTransformFunctionProvider::VisitCobaltUiNavSpotlightTransform(
     const CobaltUiNavSpotlightTransformFunction* spotlight_function) {
-  computed_transform_function_.reset(new CobaltUiNavSpotlightTransformFunction(
-      *spotlight_function));
+  computed_transform_function_.reset(
+      new CobaltUiNavSpotlightTransformFunction(*spotlight_function));
 }
 
 // Absolutizes the value of "text-indent" property.
@@ -2679,7 +2679,7 @@ void ComputedTransformProvider::VisitTransformPropertyValue(
       base::polymorphic_downcast<TransformFunctionListValue*>(
           transform_property_value);
   if (!transform_function_list->value().HasTrait(
-      TransformFunction::kTraitUsesRelativeUnits)) {
+          TransformFunction::kTraitUsesRelativeUnits)) {
     // If the transform list contains no transforms that use relative units,
     // then we do not need to do anything and we can pass through the existing
     // transform.
@@ -3496,10 +3496,13 @@ void PromoteToComputedStyle(
   DCHECK(cascaded_style);
   DCHECK(parent_computed_style_declaration);
   DCHECK(root_computed_style);
-
-  // Create a context for calculating the computed style.  This object is useful
-  // because it can cache computed style values that are depended upon by other
-  // properties' computed style calculations.
+  if (!cascaded_style || !root_computed_style ||
+      !parent_computed_style_declaration) {
+    return;
+  }
+  // Create a context for calculating the computed style.  This object is
+  // useful because it can cache computed style values that are depended upon
+  // by other properties' computed style calculations.
   CalculateComputedStyleContext calculate_computed_style_context(
       cascaded_style.get(), parent_computed_style_declaration,
       root_computed_style, viewport_size, property_key_to_base_url_map);

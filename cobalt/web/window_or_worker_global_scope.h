@@ -99,7 +99,10 @@ class WindowOrWorkerGlobalScope : public EventTarget {
     return nullptr;
   }
 
-  web::CspDelegate* csp_delegate() const { return csp_delegate_.get(); }
+  web::CspDelegate* csp_delegate() const {
+    DCHECK(csp_delegate_);
+    return csp_delegate_.get();
+  }
 
   const scoped_refptr<loader::CORSPreflightCache> get_preflight_cache() {
     return preflight_cache_;

@@ -57,7 +57,7 @@ class HTMLElementContext {
 #endif  // !defined(COBALT_BUILD_TYPE_GOLD)
 
   HTMLElementContext(
-      script::EnvironmentSettings* environment_settings,
+      web::EnvironmentSettings* environment_settings,
       loader::FetcherFactory* fetcher_factory,
       loader::LoaderFactory* loader_factory, cssom::CSSParser* css_parser,
       Parser* dom_parser, media::CanPlayTypeHandler* can_play_type_handler,
@@ -79,7 +79,7 @@ class HTMLElementContext {
       float video_playback_rate_multiplier = 1.0);
   ~HTMLElementContext();
 
-  script::EnvironmentSettings* environment_settings() const {
+  web::EnvironmentSettings* environment_settings() const {
     return environment_settings_;
   }
 
@@ -166,10 +166,10 @@ class HTMLElementContext {
  private:
 #if !defined(COBALT_BUILD_TYPE_GOLD)
   // StubEnvironmentSettings for no-args test constructor.
-  std::unique_ptr<script::EnvironmentSettings> stub_environment_settings_;
+  std::unique_ptr<web::EnvironmentSettings> stub_environment_settings_;
 #endif  // !defined(COBALT_BUILD_TYPE_GOLD)
 
-  script::EnvironmentSettings* environment_settings_;
+  web::EnvironmentSettings* environment_settings_;
   loader::FetcherFactory* const fetcher_factory_;
   loader::LoaderFactory* const loader_factory_;
   cssom::CSSParser* const css_parser_;

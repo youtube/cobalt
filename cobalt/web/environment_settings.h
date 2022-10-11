@@ -40,10 +40,7 @@ class EnvironmentSettings : public script::EnvironmentSettings {
   ~EnvironmentSettings() override {}
 
   // https://html.spec.whatwg.org/multipage/webappapis.html#realm-execution-context
-  Context* context() const {
-    DCHECK(context_);
-    return context_;
-  }
+  Context* context() const { return context_; }
   void set_context(Context* context) { context_ = context; }
 
   // https://storage.spec.whatwg.org/#obtain-a-storage-key
