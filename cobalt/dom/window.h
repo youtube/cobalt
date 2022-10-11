@@ -59,13 +59,13 @@
 #include "cobalt/network_bridge/cookie_jar.h"
 #include "cobalt/network_bridge/net_poster.h"
 #include "cobalt/script/callback_function.h"
-#include "cobalt/script/environment_settings.h"
 #include "cobalt/script/error_report.h"
 #include "cobalt/script/execution_state.h"
 #include "cobalt/script/script_runner.h"
 #include "cobalt/script/script_value_factory.h"
 #include "cobalt/ui_navigation/nav_item.h"
 #include "cobalt/web/csp_delegate_type.h"
+#include "cobalt/web/environment_settings.h"
 #include "cobalt/web/event_target.h"
 #include "cobalt/web/url_registry.h"
 #include "cobalt/web/user_agent_platform_info.h"
@@ -131,8 +131,7 @@ class Window : public web::WindowOrWorkerGlobalScope,
   };
 
   Window(
-      script::EnvironmentSettings* settings,
-      const cssom::ViewportSize& view_size,
+      web::EnvironmentSettings* settings, const cssom::ViewportSize& view_size,
       base::ApplicationState initial_application_state,
       cssom::CSSParser* css_parser, Parser* dom_parser,
       loader::FetcherFactory* fetcher_factory,

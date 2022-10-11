@@ -301,7 +301,7 @@ void HTMLScriptElement::Prepare() {
 
   // https://www.w3.org/TR/CSP2/#directive-script-src
 
-  web::CspDelegate* csp_delegate = document_->csp_delegate();
+  web::CspDelegate* csp_delegate = document_->GetCSPDelegate();
   // If the script element has a valid nonce, we always permit it, regardless
   // of its URL or inline nature.
   const bool bypass_csp =

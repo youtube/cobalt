@@ -562,8 +562,6 @@ void WebSocket::Initialize(script::EnvironmentSettings* settings,
 }
 
 web::CspDelegate* WebSocket::csp_delegate() const {
-  DCHECK(environment_settings());
-  DCHECK(environment_settings()->context());
   DCHECK(environment_settings()->context()->GetWindowOrWorkerGlobalScope());
   return environment_settings()
       ->context()

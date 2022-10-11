@@ -60,7 +60,7 @@ loader::LoadResponseType HTMLDecoder::OnResponseStarted(
   }
 
   csp::ResponseHeaders csp_headers(headers);
-  if (document_->csp_delegate()->OnReceiveHeaders(csp_headers) ||
+  if (document_->GetCSPDelegate()->OnReceiveHeaders(csp_headers) ||
       require_csp_ == csp::kCSPOptional) {
     return loader::kLoadResponseContinue;
   } else {

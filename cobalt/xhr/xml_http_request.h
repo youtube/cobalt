@@ -310,6 +310,7 @@ class XMLHttpRequestImpl {
  protected:
   void CORSPreflightErrorCallback();
   void CORSPreflightSuccessCallback();
+  web::EnvironmentSettings* environment_settings() const { return settings_; }
 
   // Return the CSP delegate from the Settings object.
   // virtual for use by tests.
@@ -453,7 +454,6 @@ class DOMXMLHttpRequestImpl : public XMLHttpRequestImpl {
   void XMLDecoderLoadCompleteCallback(
       const base::Optional<std::string>& status);
 
-  dom::DOMSettings* const settings_;
   bool has_xml_decoder_error_;
 };
 
