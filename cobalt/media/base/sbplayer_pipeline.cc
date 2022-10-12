@@ -63,9 +63,9 @@ using ::media::DecoderBuffer;
 using ::media::Demuxer;
 using ::media::DemuxerHost;
 using ::media::DemuxerStream;
-using ::media::VideoDecoderConfig;
 using ::media::PipelineStatistics;
 using ::media::PipelineStatusCallback;
+using ::media::VideoDecoderConfig;
 
 static const int kRetryDelayAtSuspendInMilliseconds = 100;
 
@@ -206,7 +206,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   // playback resume.
   std::string GetTimeInformation() const;
 
-  void RunSetDrmSystemReadyCB();
+  void RunSetDrmSystemReadyCB(DrmSystemReadyCB drm_system_ready_cb);
 
   // An identifier string for the pipeline, used in CVal to identify multiple
   // pipelines.
@@ -518,7 +518,7 @@ void SbPlayerPipeline::Start(const SetDrmSystemReadyCB& set_drm_system_ready_cb,
                  on_encrypted_media_init_data_encountered_cb);
   set_drm_system_ready_cb_ = parameters.set_drm_system_ready_cb;
   DCHECK(!set_drm_system_ready_cb_.is_null());
-  RunSetDrmSystemReadyCB();
+  RunSetDrmSystemReadyCB(base::Bind(&SbPlayerPipeline::SetDrmSystem, this));
 
   task_runner_->PostTask(FROM_HERE,
                          base::Bind(&SbPlayerPipeline::StartTask, this,
@@ -1130,7 +1130,8 @@ void SbPlayerPipeline::OnDemuxerInitialized(PipelineStatus status) {
       content_size_change_cb_.Run();
     }
     if (is_encrypted) {
-      RunSetDrmSystemReadyCB();
+      RunSetDrmSystemReadyCB(::media::BindToCurrentLoop(
+          base::Bind(&SbPlayerPipeline::CreatePlayer, this)));
       return;
     }
   }
@@ -1537,16 +1538,11 @@ std::string SbPlayerPipeline::GetTimeInformation() const {
          ", time since last resume: " + time_since_resume;
 }
 
-void SbPlayerPipeline::RunSetDrmSystemReadyCB() {
+void SbPlayerPipeline::RunSetDrmSystemReadyCB(
+    DrmSystemReadyCB drm_system_ready_cb) {
   TRACE_EVENT0("cobalt::media", "SbPlayerPipeline::RunSetDrmSystemReadyCB");
   set_drm_system_ready_cb_time_ = SbTimeGetMonotonicNow();
-#if SB_HAS(PLAYER_WITH_URL)
-  set_drm_system_ready_cb_.Run(
-      base::Bind(&SbPlayerPipeline::SetDrmSystem, this));
-#else   // SB_HAS(PLAYER_WITH_URL)
-  set_drm_system_ready_cb_.Run(::media::BindToCurrentLoop(
-      base::Bind(&SbPlayerPipeline::CreatePlayer, this)));
-#endif  // SB_HAS(PLAYER_WITH_URL)
+  set_drm_system_ready_cb_.Run(drm_system_ready_cb);
 }
 
 }  // namespace
