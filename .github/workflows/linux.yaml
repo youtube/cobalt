@@ -13,19 +13,19 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  x64:
+  linux-x64:
     uses: ./.github/workflows/main.yaml
     permissions:
       packages: write
     with:
       platform: linux
-  clang-3-9:
+  linux-clang-3-9:
     uses: ./.github/workflows/main.yaml
     permissions:
       packages: write
     with:
       platform: linux-clang-3-9
-  gcc-6-3:
+  linux-gcc-6-3:
     uses: ./.github/workflows/main.yaml
     permissions:
       packages: write

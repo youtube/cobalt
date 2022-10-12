@@ -5,6 +5,7 @@
   ],
   "includes": [
     {
+      "name":"stub",
       "platform":"stub",
       "target_platform":"stub"
     }

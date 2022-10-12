@@ -6,6 +6,7 @@
   ],
   "includes": [
     {
+      "name":"x86",
       "platform":"android-x86",
       "target_platform":"android-x86",
       "target_cpu":"target_cpu=\\\"x86\\\"",

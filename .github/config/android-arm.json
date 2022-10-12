@@ -6,6 +6,7 @@
   ],
   "includes": [
     {
+      "name":"arm",
       "platform":"android-arm",
       "target_platform":"android-arm",
       "target_cpu":"target_cpu=\\\"arm\\\"",
