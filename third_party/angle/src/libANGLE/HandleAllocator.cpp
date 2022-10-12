@@ -10,6 +10,7 @@
 #include "libANGLE/HandleAllocator.h"
 
 #include <algorithm>
+#include <limits>
 
 #include "common/debug.h"
 
