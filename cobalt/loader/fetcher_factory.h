@@ -58,7 +58,7 @@ class FetcherFactory {
       const GURL& url, const csp::SecurityCallback& url_security_callback,
       RequestMode request_mode, const Origin& origin,
       const disk_cache::ResourceType type, net::HttpRequestHeaders headers,
-      Fetcher::Handler* handler);
+      bool skip_fetch_intercept, Fetcher::Handler* handler);
 
   network::NetworkModule* network_module() const { return network_module_; }
 

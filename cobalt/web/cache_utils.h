@@ -37,8 +37,44 @@ v8::MaybeLocal<v8::Value> TryGet(v8::Local<v8::Context> context,
 v8::Local<v8::Value> Get(v8::Local<v8::Context> context,
                          v8::Local<v8::Value> object, const std::string& key);
 
+template <typename T>
+inline T* GetExternal(v8::Local<v8::Context> context,
+                      v8::Local<v8::Value> object, const std::string& key) {
+  return static_cast<T*>(
+      web::cache_utils::Get(context, object, key).As<v8::External>()->Value());
+}
+
+template <typename T>
+inline std::unique_ptr<T> GetOwnedExternal(v8::Local<v8::Context> context,
+                                           v8::Local<v8::Value> object,
+                                           const std::string& key) {
+  return std::unique_ptr<T>(
+      web::cache_utils::GetExternal<T>(context, object, key));
+}
+
 bool Set(v8::Local<v8::Context> context, v8::Local<v8::Value> object,
          const std::string& key, v8::Local<v8::Value> value);
+
+
+template <typename T>
+inline bool SetExternal(v8::Local<v8::Context> context,
+                        v8::Local<v8::Value> object, const std::string& key,
+                        T* value) {
+  auto* isolate = context->GetIsolate();
+  return Set(context, object, key, v8::External::New(isolate, value));
+}
+
+template <typename T>
+inline bool SetOwnedExternal(v8::Local<v8::Context> context,
+                             v8::Local<v8::Value> object,
+                             const std::string& key, std::unique_ptr<T> value) {
+  return SetExternal<T>(context, object, key, value.release());
+}
+
+v8::MaybeLocal<v8::Value> TryCall(v8::Local<v8::Context> context,
+                                  v8::Local<v8::Value> object,
+                                  const std::string& key, int argc = 0,
+                                  v8::Local<v8::Value> argv[] = nullptr);
 
 script::Any GetUndefined(script::EnvironmentSettings* environment_settings);
 

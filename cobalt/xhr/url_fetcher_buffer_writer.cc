@@ -1,4 +1,4 @@
-// Copyright 2019 Google Inc. All Rights Reserved.
+// Copyright 2019 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,6 +13,8 @@
 // limitations under the License.
 
 #include "cobalt/xhr/url_fetcher_buffer_writer.h"
+
+#include <algorithm>
 
 #include "base/logging.h"
 #include "net/base/net_errors.h"
@@ -81,7 +83,6 @@ URLFetcherResponseWriter::Buffer::GetReferenceOfStringAndSeal() {
 
   UpdateType_Locked(kString);
   allow_write_ = false;
-
   return data_as_string_;
 }
 
@@ -282,7 +283,7 @@ void URLFetcherResponseWriter::Buffer::UpdateType_Locked(Type type) {
     data_as_array_buffer_.Resize(data_as_string_.capacity());
     data_as_array_buffer_size_ = data_as_string_.size();
     memcpy(data_as_array_buffer_.data(), data_as_string_.data(),
-                 data_as_array_buffer_size_);
+           data_as_array_buffer_size_);
 
     ReleaseMemory(&data_as_string_);
     ReleaseMemory(&copy_of_data_as_string_);

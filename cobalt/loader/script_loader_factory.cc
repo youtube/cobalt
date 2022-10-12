@@ -47,24 +47,14 @@ std::unique_ptr<Loader> ScriptLoaderFactory::CreateScriptLoader(
     const GURL& url, const Origin& origin,
     const csp::SecurityCallback& url_security_callback,
     const TextDecoder::TextAvailableCallback& script_available_callback,
-    const Loader::OnCompleteFunction& load_complete_callback) {
-  return CreateScriptLoader(
-      url, origin, url_security_callback, script_available_callback,
-      TextDecoder::ResponseStartedCallback(), load_complete_callback);
-}
-
-std::unique_ptr<Loader> ScriptLoaderFactory::CreateScriptLoader(
-    const GURL& url, const Origin& origin,
-    const csp::SecurityCallback& url_security_callback,
-    const TextDecoder::TextAvailableCallback& script_available_callback,
     const TextDecoder::ResponseStartedCallback& response_started_callback,
     const Loader::OnCompleteFunction& load_complete_callback,
-    net::HttpRequestHeaders headers) {
+    net::HttpRequestHeaders headers, bool skip_fetch_intercept) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
-  Loader::FetcherCreator fetcher_creator =
-      MakeFetcherCreator(url, url_security_callback, kNoCORSMode, origin,
-                         disk_cache::kUncompiledScript, std::move(headers));
+  Loader::FetcherCreator fetcher_creator = MakeFetcherCreator(
+      url, url_security_callback, kNoCORSMode, origin,
+      disk_cache::kUncompiledScript, std::move(headers), skip_fetch_intercept);
 
   std::unique_ptr<Loader> loader(
       new Loader(fetcher_creator,
@@ -82,13 +72,14 @@ std::unique_ptr<Loader> ScriptLoaderFactory::CreateScriptLoader(
 Loader::FetcherCreator ScriptLoaderFactory::MakeFetcherCreator(
     const GURL& url, const csp::SecurityCallback& url_security_callback,
     RequestMode request_mode, const Origin& origin,
-    disk_cache::ResourceType type, net::HttpRequestHeaders headers) {
+    disk_cache::ResourceType type, net::HttpRequestHeaders headers,
+    bool skip_fetch_intercept) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   return base::Bind(&FetcherFactory::CreateSecureFetcher,
                     base::Unretained(fetcher_factory_), url,
                     url_security_callback, request_mode, origin, type,
-                    std::move(headers));
+                    std::move(headers), skip_fetch_intercept);
 }
 
 void ScriptLoaderFactory::OnLoaderCreated(Loader* loader) {

@@ -88,14 +88,14 @@ std::unique_ptr<Fetcher> FetcherFactory::CreateFetcher(
     Fetcher::Handler* handler) {
   return CreateSecureFetcher(url, csp::SecurityCallback(), kNoCORSMode,
                              Origin(), type, net::HttpRequestHeaders(),
-                             handler);
+                             /*skip_fetch_intercept=*/false, handler);
 }
 
 std::unique_ptr<Fetcher> FetcherFactory::CreateSecureFetcher(
     const GURL& url, const csp::SecurityCallback& url_security_callback,
     RequestMode request_mode, const Origin& origin,
     const disk_cache::ResourceType type, net::HttpRequestHeaders headers,
-    Fetcher::Handler* handler) {
+    bool skip_fetch_intercept, Fetcher::Handler* handler) {
   LOG(INFO) << "Fetching: " << ClipUrl(url, 200);
 
   if (!url.is_valid()) {
@@ -110,6 +110,7 @@ std::unique_ptr<Fetcher> FetcherFactory::CreateSecureFetcher(
     NetFetcher::Options options;
     options.resource_type = type;
     options.headers = std::move(headers);
+    options.skip_fetch_intercept = skip_fetch_intercept;
     return std::unique_ptr<Fetcher>(
         new NetFetcher(url, url_security_callback, handler, network_module_,
                        options, request_mode, origin));

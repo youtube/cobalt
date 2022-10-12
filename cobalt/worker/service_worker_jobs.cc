@@ -586,7 +586,8 @@ void ServiceWorkerJobs::Update(Job* job) {
                  base::Unretained(this), state),
       base::Bind(&ServiceWorkerJobs::UpdateOnLoadingComplete,
                  base::Unretained(this), state),
-      std::move(headers));
+      std::move(headers),
+      /*skip_fetch_intercept=*/true);
 }
 
 namespace {
@@ -1965,9 +1966,40 @@ void ServiceWorkerJobs::GetRegistrationSubSteps(
           client, std::move(promise_reference), registration));
 }
 
+void ServiceWorkerJobs::GetRegistrationsSubSteps(
+    const url::Origin& storage_key, web::EnvironmentSettings* client,
+    std::unique_ptr<script::ValuePromiseSequenceWrappable::Reference>
+        promise_reference) {
+  DCHECK_EQ(message_loop(), base::MessageLoop::current());
+  std::vector<scoped_refptr<ServiceWorkerRegistrationObject>>
+      registration_objects =
+          scope_to_registration_map_.GetRegistrations(storage_key);
+  client->context()->message_loop()->task_runner()->PostTask(
+      FROM_HERE,
+      base::BindOnce(
+          [](web::EnvironmentSettings* settings,
+             std::unique_ptr<script::ValuePromiseSequenceWrappable::Reference>
+                 promise,
+             std::vector<scoped_refptr<ServiceWorkerRegistrationObject>>
+                 registration_objects) {
+            TRACE_EVENT0(
+                "cobalt::worker",
+                "ServiceWorkerJobs::GetRegistrationSubSteps() Resolve");
+            script::Sequence<scoped_refptr<script::Wrappable>> registrations;
+            for (auto registration_object : registration_objects) {
+              registrations.push_back(scoped_refptr<script::Wrappable>(
+                  settings->context()
+                      ->GetServiceWorkerRegistration(registration_object)
+                      .get()));
+            }
+            promise->value().Resolve(std::move(registrations));
+          },
+          client, std::move(promise_reference),
+          std::move(registration_objects)));
+}
+
 void ServiceWorkerJobs::SkipWaitingSubSteps(
-    web::Context* client_context,
-    const base::WeakPtr<ServiceWorkerObject>& service_worker,
+    web::Context* client_context, ServiceWorkerObject* service_worker,
     std::unique_ptr<script::ValuePromiseVoid::Reference> promise_reference) {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerJobs::SkipWaitingSubSteps()");
   DCHECK_EQ(message_loop(), base::MessageLoop::current());

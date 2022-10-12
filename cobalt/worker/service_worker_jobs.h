@@ -107,6 +107,8 @@ class ServiceWorkerJobs {
           storage_key(storage_key),
           scope_url(scope_url),
           script_url(script_url),
+          update_via_cache(
+              ServiceWorkerUpdateViaCache::kServiceWorkerUpdateViaCacheImports),
           client(client),
           promise(std::move(promise)) {}
     ~Job() {
@@ -201,11 +203,15 @@ class ServiceWorkerJobs {
       std::unique_ptr<script::ValuePromiseWrappable::Reference>
           promise_reference);
 
+  void GetRegistrationsSubSteps(
+      const url::Origin& storage_key, web::EnvironmentSettings* client,
+      std::unique_ptr<script::ValuePromiseSequenceWrappable::Reference>
+          promise_reference);
+
   // Sub steps (2) of ServiceWorkerGlobalScope.skipWaiting().
   //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#dom-serviceworkerglobalscope-skipwaiting
   void SkipWaitingSubSteps(
-      web::Context* client_context,
-      const base::WeakPtr<ServiceWorkerObject>& service_worker,
+      web::Context* client_context, ServiceWorkerObject* service_worker,
       std::unique_ptr<script::ValuePromiseVoid::Reference> promise_reference);
 
   // Sub steps for ExtendableEvent.WaitUntil().

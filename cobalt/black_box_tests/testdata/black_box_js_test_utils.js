@@ -1,3 +1,17 @@
+// Copyright 2018 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 // This file provides JavaScript-side environment and test utility functions.
 // The following constants and logics are used in communication with the python
 // tests. Anyone making changes here should also ensure corresponding changes
@@ -9,12 +23,25 @@ const FAILURE_MESSAGE = 'JavaScript_test_failed';
 const SETUP_DONE_MESSAGE = 'JavaScript_setup_done';
 const EFFECT_AFTER_VISIBILITY_CHANGE_TIMEOUT_SECONDS = 5;
 
-function notReached() {
-  // Show the stack that triggered this function.
-  try { throw Error('') } catch (error_object) {
-    console.log(`${error_object.stack}`);
- }
-  document.body.setAttribute(TEST_STATUS_ELEMENT_NAME, FAILURE_MESSAGE);
+let tearDown = () => {};
+function setTearDown(fn) {
+  tearDown = fn;
+}
+
+function notReached(error) {
+  Promise.resolve(tearDown()).then(() => {
+    if (error && error.message && error.stack) {
+      console(`Error: ${error.message}`);
+      console.log(`${error.stack}`);
+    } else if (error) {
+      console.log(`\nUnexpected notReached() called  with ${JSON.stringify(error)}`);
+    }
+    // Show the stack that triggered this function.
+    try { throw Error('') } catch (error_object) {
+      console.log(`${error_object.stack}`);
+    }
+    document.body.setAttribute(TEST_STATUS_ELEMENT_NAME, FAILURE_MESSAGE);
+  });
 }
 
 function assertTrue(result) {
@@ -29,12 +56,13 @@ function assertFalse(result) {
   }
 }
 
-function assertEqual(expected, result) {
+function assertEqual(expected, result, msg) {
   if (expected !== result) {
     console.log('\n' +
       'Black Box Test Equal Test Assertion failed: \n' +
       'expected: ' + expected + '\n' +
-      'but got:  ' + result);
+      'but got:  ' + result +
+      (msg ? `\n${msg}` : ''));
     notReached();
   }
 }
@@ -64,7 +92,6 @@ function onEndTest() {
   }
   document.body.setAttribute(TEST_STATUS_ELEMENT_NAME, SUCCESS_MESSAGE);
 }
-
 
 class TimerTestCase {
   constructor(name, ExpectedCallTimes) {

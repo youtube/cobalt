@@ -30,6 +30,8 @@ static_library("worker") {
     "extendable_event.h",
     "extendable_message_event.cc",
     "extendable_message_event.h",
+    "fetch_event.cc",
+    "fetch_event.h",
     "navigation_preload_manager.cc",
     "navigation_preload_manager.h",
     "service_worker.cc",
@@ -63,6 +65,7 @@ static_library("worker") {
 
   deps = [
     "//cobalt/browser:generated_bindings",
+    "//cobalt/loader",
     "//cobalt/web",
     "//url",
   ]
