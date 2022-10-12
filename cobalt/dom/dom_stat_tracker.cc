@@ -68,8 +68,9 @@ DomStatTracker::~DomStatTracker() {
 
   // Verify that all of the elements were removed from the document and
   // destroyed.
-  DCHECK_EQ(count_html_element_, 0);
-  DCHECK_EQ(count_html_element_document_, 0);
+  DCHECK_EQ(count_html_element_, 0) << count_html_element_ << " html elements.";
+  DCHECK_EQ(count_html_element_document_, 0)
+      << count_html_element_document_ << " html elements in the document.";
 
   event_video_start_delay_stop_watch_.Stop();
 }

@@ -22,6 +22,9 @@ namespace cobalt {
 namespace cssom {
 
 scoped_refptr<CSSStyleSheet> ParseUserAgentStyleSheet(CSSParser* css_parser) {
+  if (!css_parser) {
+    return nullptr;
+  }
   const char kUserAgentStyleSheetFileName[] = "user_agent_style_sheet.css";
 
   // Parse the user agent style sheet from the given file that was compiled
@@ -41,8 +44,10 @@ scoped_refptr<CSSStyleSheet> ParseUserAgentStyleSheet(CSSParser* css_parser) {
               reinterpret_cast<const char*>(html_css_file_contents.data),
               static_cast<size_t>(html_css_file_contents.size)),
           base::SourceLocation(kUserAgentStyleSheetFileName, 1, 1));
-  user_agent_style_sheet->set_origin(kNormalUserAgent);
-  user_agent_style_sheet->SetOriginClean(true);
+  if (user_agent_style_sheet) {
+    user_agent_style_sheet->set_origin(kNormalUserAgent);
+    user_agent_style_sheet->SetOriginClean(true);
+  }
   return user_agent_style_sheet;
 }
 

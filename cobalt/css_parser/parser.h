@@ -44,7 +44,7 @@ class Parser : public cssom::CSSParser {
   // logging or map-to-mesh.
   static std::unique_ptr<Parser> Create();
 
-  ~Parser();
+  ~Parser() override {}
 
   scoped_refptr<cssom::CSSStyleSheet> ParseStyleSheet(
       const std::string& input,
@@ -88,7 +88,7 @@ class Parser : public cssom::CSSParser {
     kShort,
 
     // With message verbosity set to kVerbose, expect to see information such
-    // as the line that caused the error to be output, allong with an arrow
+    // as the line that caused the error to be output, along with an arrow
     // pointing to where the error occurred on the line.
     kVerbose,
   };

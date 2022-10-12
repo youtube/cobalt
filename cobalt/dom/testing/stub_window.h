@@ -24,6 +24,7 @@
 #include "base/optional.h"
 #include "cobalt/base/debugger_hooks.h"
 #include "cobalt/css_parser/parser.h"
+#include "cobalt/cssom/css_parser.h"
 #include "cobalt/cssom/viewport_size.h"
 #include "cobalt/dom/captions/system_caption_settings.h"
 #include "cobalt/dom/dom_settings.h"
@@ -78,7 +79,7 @@ class StubWindow {
     if (!window_) InitializeWindow();
     return web_context()->global_environment();
   }
-  css_parser::Parser* css_parser() { return css_parser_.get(); }
+  cssom::CSSParser* css_parser() { return css_parser_.get(); }
   web::EnvironmentSettings* environment_settings() {
     // The Window has to be set as the global object for the environment
     // settings object to be valid.
@@ -91,6 +92,8 @@ class StubWindow {
     on_screen_keyboard_bridge_ = on_screen_keyboard_bridge;
   }
 
+  void set_css_parser(cssom::CSSParser* parser) { css_parser_.reset(parser); }
+
   void InitializeWindow() {
     loader_factory_.reset(new loader::LoaderFactory(
         "Test", web_context()->fetcher_factory(), NULL,
@@ -98,7 +101,9 @@ class StubWindow {
         base::ThreadPriority::DEFAULT));
     system_caption_settings_ = new cobalt::dom::captions::SystemCaptionSettings(
         web_context()->environment_settings());
-    css_parser_.reset(css_parser::Parser::Create().release());
+    if (!css_parser_) {
+      css_parser_.reset(css_parser::Parser::Create().release());
+    }
     dom_parser_.reset(
         new dom_parser::Parser(base::Bind(&StubLoadCompleteCallback)));
     dom_stat_tracker_.reset(new dom::DomStatTracker("StubWindow"));
@@ -146,7 +151,7 @@ class StubWindow {
 
   OnScreenKeyboardBridge* on_screen_keyboard_bridge_ = nullptr;
   DOMSettings::Options options_;
-  std::unique_ptr<css_parser::Parser> css_parser_;
+  std::unique_ptr<cssom::CSSParser> css_parser_;
   std::unique_ptr<dom_parser::Parser> dom_parser_;
   std::unique_ptr<loader::LoaderFactory> loader_factory_;
   dom::LocalStorageDatabase local_storage_database_;
