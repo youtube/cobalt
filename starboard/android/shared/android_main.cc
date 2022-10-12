@@ -18,8 +18,10 @@
 #include "starboard/android/shared/log_internal.h"
 #include "starboard/common/semaphore.h"
 #include "starboard/common/string.h"
+#include "starboard/log.h"
 #include "starboard/shared/starboard/command_line.h"
 #include "starboard/thread.h"
+#include "third_party/android_game_activity/include/game-activity/GameActivity.h"
 
 namespace starboard {
 namespace android {
@@ -84,7 +86,7 @@ void* ThreadEntryPoint(void* context) {
   // allow sending the first AndroidCommand after onCreate() returns.
   g_app_running = true;
 
-  // Signal ANativeActivity_onCreate() that it may proceed.
+  // Signal GameActivity_onCreate() that it may proceed.
   app_created_semaphore->Put();
 
   // Enter the Starboard run loop until stopped.
@@ -107,13 +109,13 @@ void* ThreadEntryPoint(void* context) {
   return NULL;
 }
 
-void OnStart(ANativeActivity* activity) {
+void OnStart(GameActivity* activity) {
   if (g_app_running) {
     ApplicationAndroid::Get()->SendAndroidCommand(AndroidCommand::kStart);
   }
 }
 
-void OnResume(ANativeActivity* activity) {
+void OnResume(GameActivity* activity) {
   if (g_app_running) {
     // Stop the MediaPlaybackService if activity state transits from background
     // to foreground. Note that the MediaPlaybackService may already have
@@ -124,7 +126,7 @@ void OnResume(ANativeActivity* activity) {
   }
 }
 
-void OnPause(ANativeActivity* activity) {
+void OnPause(GameActivity* activity) {
   if (g_app_running) {
     // Start the MediaPlaybackService before activity state transits from
     // foreground to background.
@@ -133,13 +135,28 @@ void OnPause(ANativeActivity* activity) {
   }
 }
 
-void OnStop(ANativeActivity* activity) {
+void OnStop(GameActivity* activity) {
   if (g_app_running) {
     ApplicationAndroid::Get()->SendAndroidCommand(AndroidCommand::kStop);
   }
 }
 
-void OnWindowFocusChanged(ANativeActivity* activity, int focused) {
+bool OnTouchEvent(GameActivity* activity,
+                  const GameActivityMotionEvent* event) {
+  if (g_app_running) {
+    return ApplicationAndroid::Get()->SendAndroidMotionEvent(event);
+  }
+  return false;
+}
+
+bool OnKey(GameActivity* activity, const GameActivityKeyEvent* event) {
+  if (g_app_running) {
+    return ApplicationAndroid::Get()->SendAndroidKeyEvent(event);
+  }
+  return false;
+}
+
+void OnWindowFocusChanged(GameActivity* activity, bool focused) {
   if (g_app_running) {
     ApplicationAndroid::Get()->SendAndroidCommand(
         focused ? AndroidCommand::kWindowFocusGained
@@ -147,36 +164,22 @@ void OnWindowFocusChanged(ANativeActivity* activity, int focused) {
   }
 }
 
-void OnNativeWindowCreated(ANativeActivity* activity, ANativeWindow* window) {
+void OnNativeWindowCreated(GameActivity* activity, ANativeWindow* window) {
   if (g_app_running) {
     ApplicationAndroid::Get()->SendAndroidCommand(
         AndroidCommand::kNativeWindowCreated, window);
   }
 }
 
-void OnNativeWindowDestroyed(ANativeActivity* activity, ANativeWindow* window) {
+void OnNativeWindowDestroyed(GameActivity* activity, ANativeWindow* window) {
   if (g_app_running) {
     ApplicationAndroid::Get()->SendAndroidCommand(
         AndroidCommand::kNativeWindowDestroyed);
   }
 }
 
-void OnInputQueueCreated(ANativeActivity* activity, AInputQueue* queue) {
-  if (g_app_running) {
-    ApplicationAndroid::Get()->SendAndroidCommand(
-        AndroidCommand::kInputQueueChanged, queue);
-  }
-}
-
-void OnInputQueueDestroyed(ANativeActivity* activity, AInputQueue* queue) {
-  if (g_app_running) {
-    ApplicationAndroid::Get()->SendAndroidCommand(
-        AndroidCommand::kInputQueueChanged, NULL);
-  }
-}
-
-extern "C" SB_EXPORT_PLATFORM void ANativeActivity_onCreate(
-    ANativeActivity* activity,
+extern "C" SB_EXPORT_PLATFORM void GameActivity_onCreate(
+    GameActivity* activity,
     void* savedState,
     size_t savedStateSize) {
   // Start the Starboard thread the first time an Activity is created.
@@ -195,11 +198,13 @@ extern "C" SB_EXPORT_PLATFORM void ANativeActivity_onCreate(
   activity->callbacks->onResume = OnResume;
   activity->callbacks->onPause = OnPause;
   activity->callbacks->onStop = OnStop;
+  activity->callbacks->onTouchEvent = OnTouchEvent;
+  activity->callbacks->onKeyDown = OnKey;
+  activity->callbacks->onKeyUp = OnKey;
   activity->callbacks->onWindowFocusChanged = OnWindowFocusChanged;
   activity->callbacks->onNativeWindowCreated = OnNativeWindowCreated;
   activity->callbacks->onNativeWindowDestroyed = OnNativeWindowDestroyed;
-  activity->callbacks->onInputQueueCreated = OnInputQueueCreated;
-  activity->callbacks->onInputQueueDestroyed = OnInputQueueDestroyed;
+
   activity->instance = ApplicationAndroid::Get();
 }
 
