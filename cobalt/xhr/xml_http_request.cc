@@ -33,6 +33,7 @@
 #include "cobalt/dom/xml_document.h"
 #include "cobalt/dom_parser/xml_decoder.h"
 #include "cobalt/loader/cors_preflight.h"
+#include "cobalt/loader/fetch_interceptor_coordinator.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/loader/url_fetcher_string_writer.h"
 #include "cobalt/script/global_environment.h"
@@ -357,6 +358,7 @@ XMLHttpRequestImpl::XMLHttpRequestImpl(XMLHttpRequest* xhr)
       sent_(false),
       settings_(xhr->environment_settings()),
       stop_timeout_(false),
+      task_runner_(base::MessageLoop::current()->task_runner()),
       timeout_ms_(0),
       upload_complete_(false) {
   DCHECK(environment_settings());
@@ -502,6 +504,100 @@ void XMLHttpRequestImpl::OverrideMimeType(
 void XMLHttpRequestImpl::Send(
     const base::Optional<XMLHttpRequest::RequestBodyType>& request_body,
     script::ExceptionState* exception_state) {
+  error_ = false;
+  bool in_service_worker = environment_settings()
+                               ->context()
+                               ->GetWindowOrWorkerGlobalScope()
+                               ->IsServiceWorker();
+  if (!in_service_worker && method_ == net::URLFetcher::GET) {
+    loader::FetchInterceptorCoordinator::GetInstance()->TryIntercept(
+        request_url_,
+        std::make_unique<
+            base::OnceCallback<void(std::unique_ptr<std::string>)>>(
+            base::BindOnce(&XMLHttpRequestImpl::SendIntercepted,
+                           base::Unretained(this))),
+        std::make_unique<base::OnceCallback<void(const net::LoadTimingInfo&)>>(
+            base::BindOnce(&XMLHttpRequestImpl::ReportLoadTimingInfo,
+                           base::Unretained(this))),
+        std::make_unique<base::OnceClosure>(base::BindOnce(
+            &XMLHttpRequestImpl::SendFallback, base::Unretained(this),
+            request_body, exception_state)));
+    return;
+  }
+  SendFallback(request_body, exception_state);
+}
+
+void XMLHttpRequestImpl::SendIntercepted(
+    std::unique_ptr<std::string> response) {
+  if (task_runner_ != base::MessageLoop::current()->task_runner()) {
+    task_runner_->PostTask(
+        FROM_HERE, base::BindOnce(&XMLHttpRequestImpl::SendIntercepted,
+                                  base::Unretained(this), std::move(response)));
+    return;
+  }
+  sent_ = true;
+  // Now that a send is happening, prevent this object
+  // from being collected until it's complete or aborted
+  // if no currently active request has called it before.
+  // TODO: consider deduplicating code from |Send()|,
+  //       |OnURLFetchDownloadProgress()|, and |OnURLFetchComplete()|.
+
+  // Send().
+  IncrementActiveRequests();
+  FireProgressEvent(xhr_, base::Tokens::loadstart());
+  if (!upload_complete_) {
+    FireProgressEvent(upload_, base::Tokens::loadstart());
+  }
+
+  // OnURLFetchResponseStarted().
+  http_status_ = 200;
+  http_response_headers_ = new net::HttpResponseHeaders("");
+  ChangeState(XMLHttpRequest::kHeadersReceived);
+
+  // OnURLFetchDownloadProgress().
+  ChangeState(XMLHttpRequest::kLoading);
+  response_body_ = new URLFetcherResponseWriter::Buffer(
+      URLFetcherResponseWriter::Buffer::kString);
+  response_body_->Write(response->data(), response->size());
+  if (fetch_callback_) {
+    script::Handle<script::Uint8Array> data =
+        script::Uint8Array::New(settings_->context()->global_environment(),
+                                response->data(), response->size());
+    fetch_callback_->value().Run(data);
+  }
+
+  // OnURLFetchComplete().
+  if (!upload_complete_ && upload_listener_) {
+    upload_complete_ = true;
+    FireProgressEvent(upload_, base::Tokens::progress());
+    FireProgressEvent(upload_, base::Tokens::load());
+    FireProgressEvent(upload_, base::Tokens::loadend());
+  }
+  ChangeState(XMLHttpRequest::kDone);
+  size_t received_length = response->size();
+  FireProgressEvent(xhr_, base::Tokens::load(), received_length,
+                    received_length,
+                    /*length_computable=*/true);
+  FireProgressEvent(xhr_, base::Tokens::loadend(), received_length,
+                    received_length,
+                    /*length_computable=*/true);
+  // Undo the ref we added in Send()
+  DecrementActiveRequests();
+
+  fetch_callback_.reset();
+  fetch_mode_callback_.reset();
+}
+
+void XMLHttpRequestImpl::SendFallback(
+    const base::Optional<XMLHttpRequest::RequestBodyType>& request_body,
+    script::ExceptionState* exception_state) {
+  if (task_runner_ != base::MessageLoop::current()->task_runner()) {
+    task_runner_->PostTask(
+        FROM_HERE,
+        base::BindOnce(&XMLHttpRequestImpl::SendFallback,
+                       base::Unretained(this), request_body, exception_state));
+    return;
+  }
   TRACK_MEMORY_SCOPE("XHR");
   // https://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#the-send()-method
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
@@ -539,17 +635,17 @@ void XMLHttpRequestImpl::Send(
                                    "text/plain;charset=UTF-8");
       }
     } else if (request_body
-                   ->IsType<script::Handle<script::ArrayBufferView> >()) {
+                   ->IsType<script::Handle<script::ArrayBufferView>>()) {
       script::Handle<script::ArrayBufferView> view =
-          request_body->AsType<script::Handle<script::ArrayBufferView> >();
+          request_body->AsType<script::Handle<script::ArrayBufferView>>();
       if (view->ByteLength()) {
         const char* start = reinterpret_cast<const char*>(view->RawData());
         request_body_text_.assign(start + view->ByteOffset(),
                                   view->ByteLength());
       }
-    } else if (request_body->IsType<script::Handle<script::ArrayBuffer> >()) {
+    } else if (request_body->IsType<script::Handle<script::ArrayBuffer>>()) {
       script::Handle<script::ArrayBuffer> array_buffer =
-          request_body->AsType<script::Handle<script::ArrayBuffer> >();
+          request_body->AsType<script::Handle<script::ArrayBuffer>>();
       if (array_buffer->ByteLength()) {
         const char* start = reinterpret_cast<const char*>(array_buffer->Data());
         request_body_text_.assign(start, array_buffer->ByteLength());
@@ -841,7 +937,7 @@ void XMLHttpRequestImpl::OnURLFetchResponseStarted(
   if (is_cross_origin_) {
     size_t iter = 0;
     std::string name, value;
-    std::vector<std::pair<std::string, std::string> > header_names_to_discard;
+    std::vector<std::pair<std::string, std::string>> header_names_to_discard;
     std::vector<std::string> expose_headers;
     loader::CORSPreflight::GetServerAllowedHeaders(*http_response_headers_,
                                                    &expose_headers);
@@ -859,7 +955,7 @@ void XMLHttpRequestImpl::OnURLFetchResponseStarted(
   if (is_data_url_) {
     size_t iter = 0;
     std::string name, value;
-    std::vector<std::pair<std::string, std::string> > header_names_to_discard;
+    std::vector<std::pair<std::string, std::string>> header_names_to_discard;
     while (http_response_headers_->EnumerateHeaderLines(&iter, &name, &value)) {
       if (name != net::HttpRequestHeaders::kContentType) {
         header_names_to_discard.push_back(std::make_pair(name, value));

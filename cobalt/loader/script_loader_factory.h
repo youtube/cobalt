@@ -47,7 +47,13 @@ class ScriptLoaderFactory {
       const GURL& url, const Origin& origin,
       const csp::SecurityCallback& url_security_callback,
       const TextDecoder::TextAvailableCallback& script_available_callback,
-      const Loader::OnCompleteFunction& load_complete_callback);
+      const Loader::OnCompleteFunction& load_complete_callback,
+      bool skip_fetch_intercept = false) {
+    return CreateScriptLoader(
+        url, origin, url_security_callback, script_available_callback,
+        TextDecoder::ResponseStartedCallback(), load_complete_callback,
+        net::HttpRequestHeaders(), skip_fetch_intercept);
+  }
 
   std::unique_ptr<Loader> CreateScriptLoader(
       const GURL& url, const Origin& origin,
@@ -55,7 +61,8 @@ class ScriptLoaderFactory {
       const TextDecoder::TextAvailableCallback& script_available_callback,
       const TextDecoder::ResponseStartedCallback& response_started_callback,
       const Loader::OnCompleteFunction& load_complete_callback,
-      net::HttpRequestHeaders headers = net::HttpRequestHeaders());
+      net::HttpRequestHeaders headers = net::HttpRequestHeaders(),
+      bool skip_fetch_intercept = false);
 
  protected:
   void OnLoaderCreated(Loader* loader);
@@ -65,7 +72,8 @@ class ScriptLoaderFactory {
       const GURL& url, const csp::SecurityCallback& url_security_callback,
       RequestMode request_mode, const Origin& origin,
       disk_cache::ResourceType type = disk_cache::kOther,
-      net::HttpRequestHeaders headers = net::HttpRequestHeaders());
+      net::HttpRequestHeaders headers = net::HttpRequestHeaders(),
+      bool skip_fetch_intercept = false);
 
   // Ensures that the LoaderFactory methods are only called from the same
   // thread.

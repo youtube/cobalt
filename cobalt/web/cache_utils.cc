@@ -52,6 +52,20 @@ bool Set(v8::Local<v8::Context> context, v8::Local<v8::Value> object,
   return !result.IsNothing();
 }
 
+v8::MaybeLocal<v8::Value> TryCall(v8::Local<v8::Context> context,
+                                  v8::Local<v8::Value> object,
+                                  const std::string& key, int argc,
+                                  v8::Local<v8::Value> argv[]) {
+  v8::Local<v8::Value> function;
+  if (!cache_utils::TryGet(context, object, key).ToLocal(&function) ||
+      function.IsEmpty() || !function->IsFunction()) {
+    return v8::MaybeLocal<v8::Value>();
+  }
+  auto object_context =
+      object.As<v8::Object>()->GetIsolate()->GetCurrentContext();
+  return function.As<v8::Function>()->Call(object_context, object, argc, argv);
+}
+
 script::Any GetUndefined(script::EnvironmentSettings* environment_settings) {
   auto* global_environment = get_global_environment(environment_settings);
   auto* isolate = global_environment->isolate();
@@ -106,7 +120,7 @@ base::Optional<script::Any> CreateRequest(
   auto* global_environment = get_global_environment(environment_settings);
   auto* isolate = global_environment->isolate();
   v8::Local<v8::Value> argv[] = {V8String(isolate, url)};
-  return CreateInstance(environment_settings, "Response", /*argc=*/1, argv);
+  return CreateInstance(environment_settings, "Request", /*argc=*/1, argv);
 }
 
 base::Optional<script::Any> CreateResponse(

@@ -19,6 +19,7 @@
 #include <memory>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
@@ -40,6 +41,7 @@ namespace cobalt {
 namespace worker {
 
 namespace {
+
 // Returns the serialized URL excluding the fragment.
 std::string SerializeExcludingFragment(const GURL& url) {
   url::Replacements<char> replacements;
@@ -49,6 +51,7 @@ std::string SerializeExcludingFragment(const GURL& url) {
   DCHECK(!no_fragment_url.is_empty());
   return no_fragment_url.spec();
 }
+
 }  // namespace
 
 scoped_refptr<ServiceWorkerRegistrationObject>
@@ -150,6 +153,21 @@ ServiceWorkerRegistrationMap::GetRegistration(const url::Origin& storage_key,
 
   // 5. Return null.
   return nullptr;
+}
+
+std::vector<scoped_refptr<ServiceWorkerRegistrationObject>>
+ServiceWorkerRegistrationMap::GetRegistrations(const url::Origin& storage_key) {
+  TRACE_EVENT0("cobalt::worker",
+               "ServiceWorkerRegistrationMap::GetRegistrations()");
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  base::AutoLock lock(mutex_);
+  std::vector<scoped_refptr<ServiceWorkerRegistrationObject>> result;
+  for (const auto& entry : registration_map_) {
+    if (entry.first.first == storage_key) {
+      result.push_back(std::move(entry.second));
+    }
+  }
+  return result;
 }
 
 scoped_refptr<ServiceWorkerRegistrationObject>

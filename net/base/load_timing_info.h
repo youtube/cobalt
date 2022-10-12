@@ -163,6 +163,7 @@ struct NET_EXPORT LoadTimingInfo {
 
 #if defined(STARBOARD)
   uint64_t encoded_body_size;
+  base::TimeTicks service_worker_start_time;
 #endif  // defined(STARBOARD)
 };
 

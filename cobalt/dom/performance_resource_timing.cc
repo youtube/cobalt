@@ -128,6 +128,14 @@ uint64_t PerformanceResourceTiming::encoded_body_size() const {
   return timing_info_.encoded_body_size;
 }
 
+DOMHighResTimeStamp PerformanceResourceTiming::worker_start() const {
+  if (timing_info_.service_worker_start_time.is_null()) {
+    PerformanceEntry::start_time();
+  }
+  return Performance::MonotonicTimeToDOMHighResTimeStamp(
+      time_origin_, timing_info_.service_worker_start_time);
+}
+
 void PerformanceResourceTiming::SetResourceTimingEntry(
     const net::LoadTimingInfo& timing_info, const std::string& initiator_type,
     const std::string& requested_url, const std::string& cache_mode) {

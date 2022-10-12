@@ -19,6 +19,7 @@
 #include <memory>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "base/memory/ref_counted.h"
 #include "base/synchronization/lock.h"
@@ -46,6 +47,9 @@ class ServiceWorkerRegistrationMap {
   // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#get-registration-algorithm
   scoped_refptr<ServiceWorkerRegistrationObject> GetRegistration(
       const url::Origin& storage_key, const GURL& scope);
+
+  std::vector<scoped_refptr<ServiceWorkerRegistrationObject>> GetRegistrations(
+      const url::Origin& storage_key);
 
   // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#set-registration-algorithm
   scoped_refptr<ServiceWorkerRegistrationObject> SetRegistration(
