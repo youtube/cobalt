@@ -14,7 +14,6 @@
 
 #include "starboard/android/shared/input_events_generator.h"
 
-#include <android/input.h>
 #include <android/keycodes.h>
 #include <jni.h>
 #include <math.h>
@@ -35,8 +34,8 @@ typedef ::starboard::android::shared::InputEventsGenerator::Events Events;
 
 namespace {
 
-SbKeyLocation AInputEventToSbKeyLocation(AInputEvent* event) {
-  int32_t keycode = AKeyEvent_getKeyCode(event);
+SbKeyLocation GameActivityKeyToSbKeyLocation(GameActivityKeyEvent* event) {
+  int32_t keycode = event->keyCode;
   switch (keycode) {
     case AKEYCODE_ALT_LEFT:
     case AKEYCODE_CTRL_LEFT:
@@ -52,8 +51,7 @@ SbKeyLocation AInputEventToSbKeyLocation(AInputEvent* event) {
   return kSbKeyLocationUnspecified;
 }
 
-unsigned int AInputEventToSbModifiers(AInputEvent* event) {
-  int32_t meta = AKeyEvent_getMetaState(event);
+unsigned int GameActivityInputEventMetaStateToSbModifiers(unsigned int meta) {
   unsigned int modifiers = kSbKeyModifiersNone;
   if (meta & AMETA_ALT_ON) {
     modifiers |= kSbKeyModifiersAlt;
@@ -114,8 +112,8 @@ bool IsDPadKey(SbKey key) {
          key == kSbKeyGamepadDPadLeft || key == kSbKeyGamepadDPadRight;
 }
 
-SbKey AInputEventToSbKey(AInputEvent* event) {
-  int32_t keycode = AKeyEvent_getKeyCode(event);
+SbKey AInputEventToSbKey(GameActivityKeyEvent* event) {
+  auto keycode = event->keyCode;
   switch (keycode) {
     // Modifiers
     case AKEYCODE_ALT_LEFT:
@@ -411,17 +409,19 @@ InputEventsGenerator::~InputEventsGenerator() {}
 //
 // On game pads with two analog joysticks, AMOTION_EVENT_AXIS_RZ is often
 // reinterpreted to report the absolute Y position of the second joystick.
-void InputEventsGenerator::ProcessJoyStickEvent(FlatAxis axis,
-                                                int32_t motion_axis,
-                                                AInputEvent* android_event,
-                                                Events* events) {
-  SB_DCHECK(AMotionEvent_getPointerCount(android_event) > 0);
+void InputEventsGenerator::ProcessJoyStickEvent(
+    FlatAxis axis,
+    int32_t motion_axis,
+    GameActivityMotionEvent* android_motion_event,
+    Events* events) {
+  SB_DCHECK(android_motion_event->pointerCount > 0);
 
-  int32_t device_id = AInputEvent_getDeviceId(android_event);
+  int32_t device_id = android_motion_event->deviceId;
   SB_DCHECK(device_flat_.find(device_id) != device_flat_.end());
 
   float flat = device_flat_[device_id][axis];
-  float offset = AMotionEvent_getAxisValue(android_event, motion_axis, 0);
+  float offset = GameActivityPointerAxes_getAxisValue(
+      &android_motion_event->pointers[0], motion_axis);
   int sign = offset < 0.0f ? -1 : 1;
 
   if (fabs(offset) < flat) {
@@ -474,13 +474,13 @@ void InputEventsGenerator::ProcessJoyStickEvent(FlatAxis axis,
 
 namespace {
 
-// Generate a Starboard event from an Android event, with the SbKey and
+// Generate a Starboard event from an Android motion event, with the SbKey and
 // SbInputEventType pre-specified (so that it can be used by event
 // synthesization as well.)
 void PushKeyEvent(SbKey key,
                   SbInputEventType type,
                   SbWindow window,
-                  AInputEvent* android_event,
+                  GameActivityMotionEvent* android_event,
                   Events* events) {
   if (key == kSbKeyUnknown) {
     SB_NOTREACHED();
@@ -497,12 +497,49 @@ void PushKeyEvent(SbKey key,
   // device
   // TODO: differentiate gamepad, remote, etc.
   data->device_type = kSbInputDeviceTypeKeyboard;
-  data->device_id = AInputEvent_getDeviceId(android_event);
+  data->device_id = android_event->deviceId;
+
+  data->key = key;
+  data->key_location = kSbKeyLocationUnspecified;
+  data->key_modifiers =
+      GameActivityInputEventMetaStateToSbModifiers(android_event->metaState);
+
+  std::unique_ptr<Event> event(
+      new Event(kSbEventTypeInput, data.release(),
+                &Application::DeleteDestructor<SbInputData>));
+  events->push_back(std::move(event));
+}
+
+// Generate a Starboard event from an Android key  event, with the SbKey and
+// SbInputEventType pre-specified (so that it can be used by event
+// synthesization as well.)
+void PushKeyEvent(SbKey key,
+                  SbInputEventType type,
+                  SbWindow window,
+                  GameActivityKeyEvent* android_event,
+                  Events* events) {
+  if (key == kSbKeyUnknown) {
+    SB_NOTREACHED();
+    return;
+  }
+
+  std::unique_ptr<SbInputData> data(new SbInputData());
+  memset(data.get(), 0, sizeof(*data));
+
+  // window
+  data->window = window;
+  data->type = type;
+
+  // device
+  // TODO: differentiate gamepad, remote, etc.
+  data->device_type = kSbInputDeviceTypeKeyboard;
+  data->device_id = android_event->deviceId;
 
   // key
   data->key = key;
-  data->key_location = AInputEventToSbKeyLocation(android_event);
-  data->key_modifiers = AInputEventToSbModifiers(android_event);
+  data->key_location = GameActivityKeyToSbKeyLocation(android_event);
+  data->key_modifiers =
+      GameActivityInputEventMetaStateToSbModifiers(android_event->metaState);
 
   std::unique_ptr<Event> event(
       new Event(kSbEventTypeInput, data.release(),
@@ -588,7 +625,7 @@ void PossiblySynthesizeHatKeyEvents(HatAxis axis,
                                     float old_value,
                                     float new_value,
                                     SbWindow window,
-                                    AInputEvent* android_event,
+                                    GameActivityMotionEvent* android_event,
                                     Events* events) {
   if (old_value == new_value) {
     // No events to generate if the hat motion value did not change.
@@ -607,16 +644,11 @@ void PossiblySynthesizeHatKeyEvents(HatAxis axis,
 
 }  // namespace
 
-bool InputEventsGenerator::ProcessKeyEvent(AInputEvent* android_event,
-                                           Events* events) {
-#ifdef STARBOARD_INPUT_EVENTS_FILTER
-  if (!input_events_filter_.ShouldProcessKeyEvent(android_event)) {
-    return false;
-  }
-#endif
-
+bool InputEventsGenerator::CreateInputEventsFromGameActivityEvent(
+    GameActivityKeyEvent* android_event,
+    Events* events) {
   SbInputEventType type;
-  switch (AKeyEvent_getAction(android_event)) {
+  switch (android_event->action) {
     case AKEY_EVENT_ACTION_DOWN:
       type = kSbInputEventTypePress;
       break;
@@ -633,8 +665,7 @@ bool InputEventsGenerator::ProcessKeyEvent(AInputEvent* android_event,
     return false;
   }
 
-  if (AKeyEvent_getFlags(android_event) & AKEY_EVENT_FLAG_FALLBACK &&
-      IsDPadKey(key)) {
+  if (android_event->flags & AKEY_EVENT_FLAG_FALLBACK && IsDPadKey(key)) {
     // For fallback DPad keys, we flow into special processing to manage the
     // differentiation between the actual DPad and the left thumbstick, since
     // Android conflates the key down/up events for these inputs.
@@ -642,6 +673,7 @@ bool InputEventsGenerator::ProcessKeyEvent(AInputEvent* android_event,
   } else {
     PushKeyEvent(key, type, window_, android_event, events);
   }
+
   return true;
 }
 
@@ -685,12 +717,13 @@ unsigned int ButtonStateToSbModifiers(unsigned int button_state) {
 
 }  // namespace
 
-bool InputEventsGenerator::ProcessPointerEvent(AInputEvent* android_event,
-                                               Events* events) {
-  float offset_x =
-      AMotionEvent_getAxisValue(android_event, AMOTION_EVENT_AXIS_X, 0);
-  float offset_y =
-      AMotionEvent_getAxisValue(android_event, AMOTION_EVENT_AXIS_Y, 0);
+bool InputEventsGenerator::ProcessPointerEvent(
+    GameActivityMotionEvent* android_event,
+    Events* events) {
+  float offset_x = GameActivityPointerAxes_getAxisValue(
+      &android_event->pointers[0], AMOTION_EVENT_AXIS_X);
+  float offset_y = GameActivityPointerAxes_getAxisValue(
+      &android_event->pointers[0], AMOTION_EVENT_AXIS_Y);
 
   std::unique_ptr<SbInputData> data(new SbInputData());
   memset(data.get(), 0, sizeof(*data));
@@ -700,27 +733,28 @@ bool InputEventsGenerator::ProcessPointerEvent(AInputEvent* android_event,
   data->pressure = NAN;
   data->size = {NAN, NAN};
   data->tilt = {NAN, NAN};
-  unsigned int button_state = AMotionEvent_getButtonState(android_event);
+  unsigned int button_state = android_event->buttonState;
   unsigned int button_modifiers = ButtonStateToSbModifiers(button_state);
 
   // Default to reporting pointer events as mouse events.
   data->device_type = kSbInputDeviceTypeMouse;
 
   // Report both stylus and touchscreen events as touchscreen device events.
-  int32_t event_source = AInputEvent_getSource(android_event);
+  int32_t event_source = android_event->source;
   if (((event_source & AINPUT_SOURCE_TOUCHSCREEN) != 0) ||
       ((event_source & AINPUT_SOURCE_STYLUS) != 0)) {
     data->device_type = kSbInputDeviceTypeTouchScreen;
   }
 
-  data->device_id = AInputEvent_getDeviceId(android_event);
+  data->device_id = android_event->deviceId;
   data->key_modifiers =
-      button_modifiers | AInputEventToSbModifiers(android_event);
+      button_modifiers |
+      GameActivityInputEventMetaStateToSbModifiers(android_event->metaState);
   data->position.x = offset_x;
   data->position.y = offset_y;
   data->key = ButtonStateToSbKey(button_state);
 
-  switch (AKeyEvent_getAction(android_event) & AMOTION_EVENT_ACTION_MASK) {
+  switch (android_event->action & AMOTION_EVENT_ACTION_MASK) {
     case AMOTION_EVENT_ACTION_UP:
       data->type = kSbInputEventTypeUnpress;
       break;
@@ -732,12 +766,15 @@ bool InputEventsGenerator::ProcessPointerEvent(AInputEvent* android_event,
       data->type = kSbInputEventTypeMove;
       break;
     case AMOTION_EVENT_ACTION_SCROLL: {
-      float hscroll = AMotionEvent_getAxisValue(
-          android_event, AMOTION_EVENT_AXIS_HSCROLL, 0);  // left is -1
-      float vscroll = AMotionEvent_getAxisValue(
-          android_event, AMOTION_EVENT_AXIS_VSCROLL, 0);  // down is -1
-      float wheel =
-          AMotionEvent_getAxisValue(android_event, AMOTION_EVENT_AXIS_WHEEL, 0);
+      float hscroll = GameActivityPointerAxes_getAxisValue(
+          &android_event->pointers[0],
+          AMOTION_EVENT_AXIS_HSCROLL);  // left is -1
+      float vscroll = GameActivityPointerAxes_getAxisValue(
+          &android_event->pointers[0],
+          AMOTION_EVENT_AXIS_VSCROLL);  // down is -1
+      float wheel = GameActivityPointerAxes_getAxisValue(
+          &android_event->pointers[0],
+          AMOTION_EVENT_AXIS_WHEEL);  // this is not used
       data->type = kSbInputEventTypeWheel;
       data->key = kSbKeyUnknown;
       data->delta.y = -vscroll;
@@ -754,13 +791,14 @@ bool InputEventsGenerator::ProcessPointerEvent(AInputEvent* android_event,
   return true;
 }
 
-bool InputEventsGenerator::ProcessMotionEvent(AInputEvent* android_event,
-                                              Events* events) {
-  int32_t event_source = AInputEvent_getSource(android_event);
-  if ((event_source & AINPUT_SOURCE_CLASS_POINTER) != 0) {
+bool InputEventsGenerator::CreateInputEventsFromGameActivityEvent(
+    GameActivityMotionEvent* android_event,
+    Events* events) {
+  if ((android_event->source & AINPUT_SOURCE_CLASS_POINTER) != 0) {
     return ProcessPointerEvent(android_event, events);
   }
-  if ((event_source & AINPUT_SOURCE_JOYSTICK) == 0) {
+
+  if ((android_event->source & AINPUT_SOURCE_JOYSTICK) == 0) {
     // Only handles joystick events in the code below.
     return false;
   }
@@ -784,11 +822,12 @@ bool InputEventsGenerator::ProcessMotionEvent(AInputEvent* android_event,
 
 // Special processing to disambiguate between DPad events and left-thumbstick
 // direction key events.
-void InputEventsGenerator::ProcessFallbackDPadEvent(SbInputEventType type,
-                                                    SbKey key,
-                                                    AInputEvent* android_event,
-                                                    Events* events) {
-  SB_DCHECK(AKeyEvent_getFlags(android_event) & AKEY_EVENT_FLAG_FALLBACK);
+void InputEventsGenerator::ProcessFallbackDPadEvent(
+    SbInputEventType type,
+    SbKey key,
+    GameActivityKeyEvent* android_event,
+    Events* events) {
+  SB_DCHECK(android_event->flags & AKEY_EVENT_FLAG_FALLBACK);
   SB_DCHECK(IsDPadKey(key));
 
   HatAxis hat_axis = HatValueForDPadKey(key).axis;
@@ -797,8 +836,8 @@ void InputEventsGenerator::ProcessFallbackDPadEvent(SbInputEventType type,
     // Direction pad events are all assumed to be coming from the hat controls
     // if motion events for that hat DPAD is active, but we do still handle
     // repeat keys here.
-    if (AKeyEvent_getRepeatCount(android_event) > 0) {
-      SB_LOG(INFO) << AKeyEvent_getRepeatCount(android_event);
+    if ((android_event->repeatCount) > 0) {
+      SB_LOG(INFO) << android_event->repeatCount;
       PushKeyEvent(key, kSbInputEventTypePress, window_, android_event, events);
     }
     return;
@@ -833,24 +872,24 @@ void InputEventsGenerator::ProcessFallbackDPadEvent(SbInputEventType type,
 // event's data.  Possibly generate DPad events based on any changes in value
 // here.
 void InputEventsGenerator::UpdateHatValuesAndPossiblySynthesizeKeyEvents(
-    AInputEvent* android_event,
+    GameActivityMotionEvent* android_motion_event,
     Events* events) {
-  float new_hat_x =
-      AMotionEvent_getAxisValue(android_event, AMOTION_EVENT_AXIS_HAT_X, 0);
+  float new_hat_x = GameActivityPointerAxes_getAxisValue(
+      &android_motion_event->pointers[0], AMOTION_EVENT_AXIS_HAT_X);
   PossiblySynthesizeHatKeyEvents(kHatX, hat_value_[kHatX], new_hat_x, window_,
-                                 android_event, events);
+                                 android_motion_event, events);
   hat_value_[kHatX] = new_hat_x;
 
-  float new_hat_y =
-      AMotionEvent_getAxisValue(android_event, AMOTION_EVENT_AXIS_HAT_Y, 0);
+  float new_hat_y = GameActivityPointerAxes_getAxisValue(
+      &android_motion_event->pointers[0], AMOTION_EVENT_AXIS_HAT_Y);
   PossiblySynthesizeHatKeyEvents(kHatY, hat_value_[kHatY], new_hat_y, window_,
-                                 android_event, events);
+                                 android_motion_event, events);
   hat_value_[kHatY] = new_hat_y;
 }
 
 void InputEventsGenerator::UpdateDeviceFlatMapIfNecessary(
-    AInputEvent* android_event) {
-  int32_t device_id = AInputEvent_getDeviceId(android_event);
+    GameActivityMotionEvent* android_motion_event) {
+  int32_t device_id = android_motion_event->deviceId;
   if (device_flat_.find(device_id) != device_flat_.end()) {
     // |device_flat_| is already contains the device flat information.
     return;
@@ -865,28 +904,6 @@ void InputEventsGenerator::UpdateDeviceFlatMapIfNecessary(
                            GetFlat(input_device.Get(), AMOTION_EVENT_AXIS_Z),
                            GetFlat(input_device.Get(), AMOTION_EVENT_AXIS_RZ)};
   device_flat_[device_id] = std::vector<float>(flats, flats + kNumAxes);
-}
-
-bool InputEventsGenerator::CreateInputEventsFromAndroidEvent(
-    AInputEvent* android_event,
-    Events* events) {
-  if (android_event == NULL ||
-      (AInputEvent_getType(android_event) != AINPUT_EVENT_TYPE_KEY &&
-       AInputEvent_getType(android_event) != AINPUT_EVENT_TYPE_MOTION)) {
-    return false;
-  }
-
-  switch (AInputEvent_getType(android_event)) {
-    case AINPUT_EVENT_TYPE_KEY:
-      return ProcessKeyEvent(android_event, events);
-    case AINPUT_EVENT_TYPE_MOTION: {
-      return ProcessMotionEvent(android_event, events);
-    }
-    default:
-      SB_NOTREACHED();
-  }
-
-  return false;
 }
 
 void InputEventsGenerator::CreateInputEventsFromSbKey(SbKey key,

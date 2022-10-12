@@ -59,8 +59,6 @@ const char* AndroidCommandName(
       return "Pause";
     case ApplicationAndroid::AndroidCommand::kStop:
       return "Stop";
-    case ApplicationAndroid::AndroidCommand::kInputQueueChanged:
-      return "InputQueueChanged";
     case ApplicationAndroid::AndroidCommand::kNativeWindowCreated:
       return "NativeWindowCreated";
     case ApplicationAndroid::AndroidCommand::kNativeWindowDestroyed:
@@ -83,7 +81,6 @@ typedef ::starboard::shared::starboard::Application::Event Event;
 ApplicationAndroid::ApplicationAndroid(ALooper* looper)
     : looper_(looper),
       native_window_(NULL),
-      input_queue_(NULL),
       android_command_readfd_(-1),
       android_command_writefd_(-1),
       keyboard_inject_readfd_(-1),
@@ -99,6 +96,17 @@ ApplicationAndroid::ApplicationAndroid(ALooper* looper)
   // Initialize Android asset access early so that ICU can load its tables
   // from the assets. The use ICU is used in our logging.
   SbFileAndroidInitialize();
+
+  // Enable axes used by Cobalt.
+  static const unsigned int required_axes[] = {
+      AMOTION_EVENT_AXIS_Z,       AMOTION_EVENT_AXIS_RZ,
+      AMOTION_EVENT_AXIS_HAT_X,   AMOTION_EVENT_AXIS_HAT_Y,
+      AMOTION_EVENT_AXIS_HSCROLL, AMOTION_EVENT_AXIS_VSCROLL,
+      AMOTION_EVENT_AXIS_WHEEL,
+  };
+  for (auto axis : required_axes) {
+    GameActivityPointerAxes_enableAxis(axis);
+  }
 
   int pipefd[2];
   int err;
@@ -182,9 +190,6 @@ Event* ApplicationAndroid::WaitForSystemEventWithTimeout(SbTime time) {
     case kLooperIdAndroidCommand:
       ProcessAndroidCommand();
       break;
-    case kLooperIdAndroidInput:
-      ProcessAndroidInput();
-      break;
     case kLooperIdKeyboardInject:
       ProcessKeyboardInject();
       break;
@@ -232,23 +237,6 @@ void ApplicationAndroid::ProcessAndroidCommand() {
   switch (cmd.type) {
     case AndroidCommand::kUndefined:
       break;
-
-    case AndroidCommand::kInputQueueChanged: {
-      ScopedLock lock(android_command_mutex_);
-      if (input_queue_) {
-        AInputQueue_detachLooper(input_queue_);
-      }
-      input_queue_ = static_cast<AInputQueue*>(cmd.data);
-      if (input_queue_) {
-        AInputQueue_attachLooper(input_queue_, looper_, kLooperIdAndroidInput,
-                                 NULL, NULL);
-      }
-      // Now that we've swapped our use of the input queue, signal that the
-      // Android UI thread can continue.
-      android_command_condition_.Signal();
-      break;
-    }
-
     // Starboard resume/suspend is tied to the UI window being created/destroyed
     // (rather than to the Activity lifecycle) since Cobalt can't do anything at
     // all if it doesn't have a window surface to draw on.
@@ -385,11 +373,6 @@ void ApplicationAndroid::SendAndroidCommand(AndroidCommand::CommandType type,
   write(android_command_writefd_, &cmd, sizeof(cmd));
   // Synchronization only necessary when managing resources.
   switch (type) {
-    case AndroidCommand::kInputQueueChanged:
-      while (input_queue_ != data) {
-        android_command_condition_.Wait();
-      }
-      break;
     case AndroidCommand::kNativeWindowCreated:
     case AndroidCommand::kNativeWindowDestroyed:
       while (native_window_ != data) {
@@ -401,27 +384,41 @@ void ApplicationAndroid::SendAndroidCommand(AndroidCommand::CommandType type,
   }
 }
 
-void ApplicationAndroid::ProcessAndroidInput() {
-  AInputEvent* android_event = NULL;
-  while (AInputQueue_getEvent(input_queue_, &android_event) >= 0) {
-    SB_LOG(INFO) << "Android input: type="
-                 << AInputEvent_getType(android_event);
-    if (AInputQueue_preDispatchEvent(input_queue_, android_event)) {
-      continue;
-    }
-    if (!input_events_generator_) {
-      SB_DLOG(WARNING) << "Android input event ignored without an SbWindow.";
-      AInputQueue_finishEvent(input_queue_, android_event, false);
-      continue;
-    }
-    InputEventsGenerator::Events app_events;
-    bool handled = input_events_generator_->CreateInputEventsFromAndroidEvent(
-        android_event, &app_events);
-    for (int i = 0; i < app_events.size(); ++i) {
-      Inject(app_events[i].release());
-    }
-    AInputQueue_finishEvent(input_queue_, android_event, handled);
+bool ApplicationAndroid::SendAndroidMotionEvent(
+    const GameActivityMotionEvent* event) {
+  bool result = false;
+
+  // add motion event into the queue.
+  InputEventsGenerator::Events app_events;
+  result = input_events_generator_->CreateInputEventsFromGameActivityEvent(
+      const_cast<GameActivityMotionEvent*>(event), &app_events);
+
+  for (int i = 0; i < app_events.size(); ++i) {
+    Inject(app_events[i].release());
   }
+
+  return result;
+}
+
+bool ApplicationAndroid::SendAndroidKeyEvent(
+    const GameActivityKeyEvent* event) {
+  bool result = false;
+
+#ifdef STARBOARD_INPUT_EVENTS_FILTER
+  if (!input_events_filter_.ShouldProcessKeyEvent(event)) {
+    return result;
+  }
+#endif
+
+  // Add key event to the application queue.
+  InputEventsGenerator::Events app_events;
+  result = input_events_generator_->CreateInputEventsFromGameActivityEvent(
+      const_cast<GameActivityKeyEvent*>(event), &app_events);
+  for (int i = 0; i < app_events.size(); i++) {
+    Inject(app_events[i].release());
+  }
+
+  return result;
 }
 
 void ApplicationAndroid::ProcessKeyboardInject() {

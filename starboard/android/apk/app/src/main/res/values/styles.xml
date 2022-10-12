@@ -16,7 +16,7 @@
 -->
 
 <resources>
-  <style name="CobaltTheme" parent="@style/android:Theme.Material.NoActionBar">
+  <style name="CobaltTheme" parent="Theme.AppCompat.NoActionBar">
     <!-- Color of the transition animation when launching the app. -->
     <item name="android:colorPrimary">@color/primary</item>
 
