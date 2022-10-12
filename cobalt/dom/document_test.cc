@@ -65,7 +65,6 @@ class DocumentTest : public ::testing::Test {
   DocumentTest();
   ~DocumentTest() override;
 
-  scoped_refptr<dom::Window> window() { return window_->window(); }
   const scoped_refptr<Document>& document() {
     return window_->window()->document();
   }
