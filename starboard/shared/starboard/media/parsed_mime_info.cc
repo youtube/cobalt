@@ -14,6 +14,7 @@
 
 #include "starboard/shared/starboard/media/parsed_mime_info.h"
 
+#include <cmath>
 #include <string>
 
 #include "starboard/common/log.h"
@@ -150,7 +151,7 @@ bool ParsedMimeInfo::ParseVideoInfo(const std::string& codec) {
 
   if (!mime_type_.ValidateIntParameter("width") ||
       !mime_type_.ValidateIntParameter("height") ||
-      !mime_type_.ValidateIntParameter("framerate") ||
+      !mime_type_.ValidateFloatParameter("framerate") ||
       !mime_type_.ValidateIntParameter("bitrate") ||
       !mime_type_.ValidateBoolParameter("decode-to-texture")) {
     return false;
@@ -158,7 +159,10 @@ bool ParsedMimeInfo::ParseVideoInfo(const std::string& codec) {
 
   video_info_.frame_width = mime_type_.GetParamIntValue("width", 0);
   video_info_.frame_height = mime_type_.GetParamIntValue("height", 0);
-  video_info_.fps = mime_type_.GetParamIntValue("framerate", 0);
+  // TODO: Support float framerate. Our starboard implementation only supports
+  // integer framerate, but framerate could be float and we should support it.
+  float framerate = mime_type_.GetParamFloatValue("framerate", 0.0f);
+  video_info_.fps = std::round(framerate);
   video_info_.bitrate = mime_type_.GetParamIntValue("bitrate", 0);
   video_info_.decode_to_texture_required =
       mime_type_.GetParamBoolValue("decode-to-texture", false);
