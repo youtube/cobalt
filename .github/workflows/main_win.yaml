@@ -90,7 +90,7 @@ jobs:
   build:
     needs: [initialize]
     runs-on: [self-hosted, X64, Windows]
-    name: ${{matrix.platform}}_${{matrix.config}}
+    name: ${{matrix.name}}_${{matrix.config}}
     strategy:
       fail-fast: false
       matrix:
@@ -121,7 +121,7 @@ jobs:
     needs: [initialize, build]
     if: needs.initialize.outputs.on_host_test == 'true'
     runs-on: [self-hosted, Windows, X64]
-    name: ${{matrix.platform}}_${{matrix.shard}}_test
+    name: ${{matrix.name}}_${{matrix.shard}}_test
     strategy:
       fail-fast: false
       matrix:

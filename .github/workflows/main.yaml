@@ -48,7 +48,7 @@ jobs:
       - id: set-on-host-test-shards
         run: echo "::set-output name=on_host_test_shards::$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.on_host_test_shards')"
       - id: set-on-host-test-bootloader
-        run: echo "::set-output name=on_host_test_bootloader::$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.on_host_test_bootloader')"
+        run: echo "::set-output name=bootloader::$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.bootloader')"
       - id: set-docker-service
         run: echo "::set-output name=docker_service::$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -r '.docker_service')"
     outputs:
@@ -57,7 +57,7 @@ jobs:
       on_device_test: ${{ steps.set-on-device-test.outputs.on_device_test }}
       on_host_test: ${{ steps.set-on-host-test.outputs.on_host_test }}
       on_host_test_shards: ${{ steps.set-on-host-test-shards.outputs.on_host_test_shards }}
-      on_host_test_bootloader: ${{ steps.set-on-host-test-bootloader.outputs.on_host_test_bootloader }}
+      bootloader: ${{ steps.set-on-host-test-bootloader.outputs.bootloader }}
       docker_service: ${{ steps.set-docker-service.outputs.docker_service }}
 
   # Builds, tags, and pushes Cobalt docker build images to ghr.
@@ -127,7 +127,7 @@ jobs:
   build:
     needs: [initialize, docker-build-image]
     runs-on: [self-hosted, linux, X64]
-    name: ${{matrix.platform}}_${{matrix.config}}
+    name: ${{matrix.name}}_${{matrix.config}}
     strategy:
       fail-fast: false
       matrix:
@@ -157,6 +157,7 @@ jobs:
         uses: ./.github/actions/upload_test_artifacts
         with:
           type: ondevice
+          os: linux
       - name: Upload On Host Test Artifacts
         if: ${{ matrix.config == 'devel' && needs.initialize.outputs.on_host_test == 'true' }}
         uses: ./.github/actions/upload_test_artifacts
@@ -165,16 +166,16 @@ jobs:
           os: linux
       # Build bootloader if neccessary.
       - name: Set bootloader config
-        if: ${{ needs.initialize.outputs.on_host_test_bootloader != 'null' && matrix.config == 'devel' && needs.initialize.outputs.on_host_test == 'true' }}
-        run: echo "COBALT_BOOTLOADER=${{needs.initialize.outputs.on_host_test_bootloader}}" >> $GITHUB_ENV
+        if: ${{ needs.initialize.outputs.bootloader != 'null' && matrix.config == 'devel' }}
+        run: echo "COBALT_BOOTLOADER=${{needs.initialize.outputs.bootloader}}" >> $GITHUB_ENV
       - name: Bootloader GN
-        if: ${{ needs.initialize.outputs.on_host_test_bootloader != 'null' && matrix.config == 'devel' && needs.initialize.outputs.on_host_test == 'true' }}
+        if: ${{ needs.initialize.outputs.bootloader != 'null' && matrix.config == 'devel' }}
         uses: ./.github/actions/gn
       - name: Build Bootloader
-        if: ${{ needs.initialize.outputs.on_host_test_bootloader != 'null' && matrix.config == 'devel' && needs.initialize.outputs.on_host_test == 'true' }}
+        if: ${{ needs.initialize.outputs.bootloader != 'null' && matrix.config == 'devel' }}
         uses: ./.github/actions/build
       - name: Upload Bootloader On Host Test Artifacts
-        if: ${{ needs.initialize.outputs.on_host_test_bootloader != 'null' && matrix.config == 'devel' && needs.initialize.outputs.on_host_test == 'true' }}
+        if: ${{ needs.initialize.outputs.bootloader != 'null' && matrix.config == 'devel' && needs.initialize.outputs.on_host_test == 'true' }}
         uses: ./.github/actions/upload_test_artifacts
         with:
           type: onhost
@@ -185,7 +186,7 @@ jobs:
     needs: [initialize, docker-unittest-image, build]
     if: needs.initialize.outputs.on_host_test == 'true'
     runs-on: [self-hosted, linux, X64]
-    name: ${{matrix.platform}}_${{matrix.shard}}_test
+    name: ${{matrix.name}}_${{matrix.shard}}_test
     strategy:
       fail-fast: false
       matrix:
@@ -199,7 +200,7 @@ jobs:
       # For some reason tests complaining about HOME set to /github/home
       # with permission denied error.
       HOME: /root
-      COBALT_BOOTLOADER: ${{needs.initialize.outputs.on_host_test_bootloader}}
+      COBALT_BOOTLOADER: ${{needs.initialize.outputs.bootloader}}
     steps:
       - name: Checkout
         uses: actions/checkout@v2

@@ -15,25 +15,25 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  x64:
+  evergreen-x64:
     uses: ./.github/workflows/main.yaml
     permissions:
       packages: write
     with:
       platform: evergreen-x64
-  arm-hardfp:
+  evergreen-arm-hardfp:
     uses: ./.github/workflows/main.yaml
     permissions:
       packages: write
     with:
       platform: evergreen-arm-hardfp
-  arm-softfp:
+  evergreen-arm-softfp:
     uses: ./.github/workflows/main.yaml
     permissions:
       packages: write
     with:
       platform: evergreen-arm-softfp
-  x86:
+  evergreen-x86:
     uses: ./.github/workflows/main.yaml
     permissions:
       packages: write
