@@ -43,4 +43,15 @@
   attribute EventHandler onfocus;
   attribute EventHandler onblur;
   attribute EventHandler oninput;
+
+  // This attribute overrides the background color of on-screen keyboard.
+  // The attribute is only fully supported on Apple TV at the moment.
+  // backgroundColor should be a string of below formats:
+  // 1. hex color notation #RRGGBB, e.g. "#0000FF".
+  // 2. rgb color notation rgb(R, G, B), e.g. "rgb(0, 0, 255)".
+  attribute DOMString? backgroundColor;
+
+  // This attribute overrides the light theme of on-screen keyboard.
+  // The attribute is only fully supported on Apple TV at the moment.
+  attribute boolean? lightTheme;
 };
