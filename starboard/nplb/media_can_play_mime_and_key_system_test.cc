@@ -80,6 +80,44 @@ TEST(SbMediaCanPlayMimeAndKeySystem, SunnyDay) {
   ASSERT_EQ(result, kSbMediaSupportTypeProbably);
 }
 
+TEST(SbMediaCanPlayMimeAndKeySystem, FloatFramerate) {
+  SbMediaSupportType int_framerate_result = SbMediaCanPlayMimeAndKeySystem(
+      "video/mp4; codecs=\"avc1.4d4015\"; width=640; "
+      "height=360; framerate=24;",
+      "");
+  SbMediaSupportType float_framerate_result = SbMediaCanPlayMimeAndKeySystem(
+      "video/mp4; codecs=\"avc1.4d4015\"; width=640; "
+      "height=360; framerate=23.976;",
+      "");
+  ASSERT_EQ(int_framerate_result, float_framerate_result);
+
+  int_framerate_result = SbMediaCanPlayMimeAndKeySystem(
+      "video/webm; codecs=\"vp9\"; width=1920; height=1080; framerate=60;", "");
+  float_framerate_result = SbMediaCanPlayMimeAndKeySystem(
+      "video/webm; codecs=\"vp9\"; width=1920; height=1080; framerate=59.976;",
+      "");
+  ASSERT_EQ(int_framerate_result, float_framerate_result);
+
+  int_framerate_result = SbMediaCanPlayMimeAndKeySystem(
+      "video/webm; codecs=\"vp9\"; width=1920; height=1080; framerate=9999;",
+      "");
+  float_framerate_result = SbMediaCanPlayMimeAndKeySystem(
+      "video/webm; codecs=\"vp9\"; width=1920; height=1080; "
+      "framerate=9998.976;",
+      "");
+  ASSERT_EQ(int_framerate_result, float_framerate_result);
+
+  int_framerate_result = SbMediaCanPlayMimeAndKeySystem(
+      "video/mp4; codecs=\"av01.0.09M.08\"; width=1920; height=1080; "
+      "framerate=60;",
+      "");
+  float_framerate_result = SbMediaCanPlayMimeAndKeySystem(
+      "video/mp4; codecs=\"av01.0.09M.08\"; width=1920; height=1080; "
+      "framerate=59.976;",
+      "");
+  ASSERT_EQ(int_framerate_result, float_framerate_result);
+}
+
 TEST(SbMediaCanPlayMimeAndKeySystem, Invalid) {
   // Invalid codec
   SbMediaSupportType result =
