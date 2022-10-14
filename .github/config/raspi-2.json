@@ -1,5 +1,6 @@
 {
   "docker_service": "build-raspi",
+  "on_device_test": "true",
   "platforms": [
     "raspi-2",
 		"raspi-2-skia",
