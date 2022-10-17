@@ -1,6 +1,12 @@
 {
   "docker_service": "build-android",
-  "on_device_test": "true",
+  "on_device_test": {
+    "enabled": true,
+    "tests": [
+      "unit_test",
+      "black_box_test"
+    ]
+  },
   "platforms": [
     "android-arm64"
   ],
