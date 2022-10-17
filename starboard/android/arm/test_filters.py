@@ -14,6 +14,15 @@
 """Starboard Android ARM Platform Test Filters."""
 
 from starboard.android.shared import test_filters as shared_test_filters
+from starboard.tools.testing import test_filter
+
+_FILTERED_TESTS = {
+    'player_filter_tests': [
+        'PlayerComponentsTests/PlayerComponentsTest.ShortPlayback/11',
+        'VideoDecoderTests/VideoDecoderTest.SingleInvalidKeyFrame/*',
+        'VideoDecoderTests/VideoDecoderTest.ResetBeforeInput/4',
+    ]
+}
 
 
 def CreateTestFilters():
@@ -25,4 +34,6 @@ class AndroidArmTestFilters(shared_test_filters.TestFilters):
 
   def GetTestFilters(self):
     filters = super(AndroidArmTestFilters, self).GetTestFilters()
+    for target, tests in _FILTERED_TESTS.items():
+      filters.extend(test_filter.TestFilter(target, test) for test in tests)
     return filters
