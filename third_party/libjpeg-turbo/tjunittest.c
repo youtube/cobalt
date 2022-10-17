@@ -1,5 +1,6 @@
 /*
- * Copyright (C)2009-2014, 2017-2019 D. R. Commander.  All Rights Reserved.
+ * Copyright (C)2009-2014, 2017-2019, 2022 D. R. Commander.
+ *                                         All Rights Reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -29,6 +30,10 @@
 /*
  * This program tests the various code paths in the TurboJPEG C Wrapper
  */
+
+#ifdef _MSC_VER
+#define _CRT_SECURE_NO_DEPRECATE
+#endif
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -354,7 +359,7 @@ static void writeJPEG(unsigned char *jpegBuf, unsigned long jpegSize,
 {
 #if defined(ANDROID) && defined(GTEST)
   char path[filePathSize];
-  snprintf(path, filePathSize, "/sdcard/%s", filename);
+  SNPRINTF(path, filePathSize, "/sdcard/%s", filename);
   FILE *file = fopen(path, "wb");
 #else
   FILE *file = fopen(filename, "wb");
@@ -418,7 +423,7 @@ static void compTest(tjhandle handle, unsigned char **dstBuf,
                        jpegQual, flags));
   }
 
-  snprintf(tempStr, filePathSize, "%s_enc_%s_%s_%s_Q%d.jpg", basename, pfStr,
+  SNPRINTF(tempStr, filePathSize, "%s_enc_%s_%s_%s_Q%d.jpg", basename, pfStr,
            buStr, subName[subsamp], jpegQual);
   writeJPEG(*dstBuf, *dstSize, tempStr);
   fprintf(stderr, "Done.\n  Result in %s\n", tempStr);
@@ -797,11 +802,11 @@ static int doBmpTest(const char *ext, int width, int align, int height, int pf,
   initBitmap(buf, width, pitch, height, pf, flags);
 
 #if defined(ANDROID) && defined(GTEST)
-  snprintf(filename, filenameSize, "/sdcard/test_bmp_%s_%d_%s.%s",
+  SNPRINTF(filename, filenameSize, "/sdcard/test_bmp_%s_%d_%s.%s",
            pixFormatStr[pf], align, (flags & TJFLAG_BOTTOMUP) ? "bu" : "td",
            ext);
 #else
-  snprintf(filename, filenameSize, "test_bmp_%s_%d_%s.%s", pixFormatStr[pf],
+  SNPRINTF(filename, filenameSize, "test_bmp_%s_%d_%s.%s", pixFormatStr[pf],
            align, (flags & TJFLAG_BOTTOMUP) ? "bu" : "td", ext);
 #endif
   TRY_TJ(tjSaveImage(filename, buf, width, pitch, height, pf, flags));

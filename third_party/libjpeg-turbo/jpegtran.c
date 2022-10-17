@@ -4,7 +4,7 @@
  * This file was part of the Independent JPEG Group's software:
  * Copyright (C) 1995-2019, Thomas G. Lane, Guido Vollbeding.
  * libjpeg-turbo Modifications:
- * Copyright (C) 2010, 2014, 2017, 2019-2020, D. R. Commander.
+ * Copyright (C) 2010, 2014, 2017, 2019-2022, D. R. Commander.
  * For conditions of distribution and use, see the accompanying README.ijg
  * file.
  *
@@ -14,20 +14,14 @@
  * provides some lossless and sort-of-lossless transformations of JPEG data.
  */
 
+#ifdef _MSC_VER
+#define _CRT_SECURE_NO_DEPRECATE
+#endif
+
 #include "cdjpeg.h"             /* Common decls for cjpeg/djpeg applications */
 #include "transupp.h"           /* Support routines for jpegtran */
 #include "jversion.h"           /* for version message */
 #include "jconfigint.h"
-
-#ifdef USE_CCOMMAND             /* command-line reader for Macintosh */
-#ifdef __MWERKS__
-#include <SIOUX.h>              /* Metrowerks needs this */
-#include <console.h>            /* ... and this */
-#endif
-#ifdef THINK_C
-#include <console.h>            /* Think declares it here */
-#endif
-#endif
 
 
 /*
@@ -64,6 +58,7 @@ usage(void)
   fprintf(stderr, "Switches (names may be abbreviated):\n");
   fprintf(stderr, "  -copy none     Copy no extra markers from source file\n");
   fprintf(stderr, "  -copy comments Copy only comment markers (default)\n");
+  fprintf(stderr, "  -copy icc      Copy only ICC profile markers\n");
   fprintf(stderr, "  -copy all      Copy all extra markers\n");
 #ifdef ENTROPY_OPT_SUPPORTED
   fprintf(stderr, "  -optimize      Optimize Huffman table (smaller file, but slow compression)\n");
@@ -196,6 +191,8 @@ parse_switches(j_compress_ptr cinfo, int argc, char **argv,
         copyoption = JCOPYOPT_NONE;
       } else if (keymatch(argv[argn], "comments", 1)) {
         copyoption = JCOPYOPT_COMMENTS;
+      } else if (keymatch(argv[argn], "icc", 1)) {
+        copyoption = JCOPYOPT_ICC;
       } else if (keymatch(argv[argn], "all", 1)) {
         copyoption = JCOPYOPT_ALL;
       } else
@@ -480,11 +477,6 @@ main(int argc, char **argv)
   JOCTET *icc_profile = NULL;
   long icc_len = 0;
 
-  /* On Mac, fetch a command line. */
-#ifdef USE_CCOMMAND
-  argc = ccommand(&argv);
-#endif
-
   progname = argv[0];
   if (progname == NULL || progname[0] == 0)
     progname = "jpegtran";      /* in case C library doesn't provide it */
@@ -574,6 +566,8 @@ main(int argc, char **argv)
     fclose(icc_file);
     if (copyoption == JCOPYOPT_ALL)
       copyoption = JCOPYOPT_ALL_EXCEPT_ICC;
+    if (copyoption == JCOPYOPT_ICC)
+      copyoption = JCOPYOPT_NONE;
   }
 
   if (report) {
