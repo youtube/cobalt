@@ -14,6 +14,15 @@
 """Starboard Android ARM platform build configuration."""
 
 from starboard.android.shared import gyp_configuration as shared_configuration
+from starboard.tools.testing import test_filter
+
+_FILTERED_TESTS = {
+    'player_filter_tests': [
+        'PlayerComponentsTests/PlayerComponentsTest.ShortPlayback/11',
+        'VideoDecoderTests/VideoDecoderTest.SingleInvalidKeyFrame/*',
+        'VideoDecoderTests/VideoDecoderTest.ResetBeforeInput/4',
+    ]
+}
 
 
 def CreatePlatformConfig():
@@ -21,3 +30,12 @@ def CreatePlatformConfig():
       'android-arm',
       'armeabi-v7a',
       sabi_json_path='starboard/sabi/arm/softfp/sabi-v{sb_api_version}.json')
+
+
+class AndroidArmConfiguraton(shared_configuration.AndroidConfiguration):
+
+  def GetTestFilters(self):
+    filters = super(AndroidArmConfiguraton, self).GetTestFilters()
+    for target, tests in self._FILTERED_TESTS.iteritems():
+      filters.extend(test_filter.TestFilter(target, test) for test in tests)
+    return filters
