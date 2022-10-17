@@ -6,7 +6,15 @@ on:
     branches: [ main ]
   push:
     branches: [ main ]
+  schedule:
+    - cron: '0 4 * * *'
   workflow_dispatch:
+    inputs:
+      nightly:
+        description: 'Nightly workflow.'
+        required: true
+        type: boolean
+        default: false
 
 concurrency:
   group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}'
@@ -19,22 +27,25 @@ jobs:
       packages: write
     with:
       platform: evergreen-x64
+      nightly: ${{ github.event.inputs.nightly }}
   evergreen-arm-hardfp:
     uses: ./.github/workflows/main.yaml
     permissions:
       packages: write
     with:
       platform: evergreen-arm-hardfp
+      nightly: ${{ github.event.inputs.nightly }}
   evergreen-arm-softfp:
     uses: ./.github/workflows/main.yaml
     permissions:
       packages: write
     with:
       platform: evergreen-arm-softfp
+      nightly: ${{ github.event.inputs.nightly }}
   evergreen-x86:
     uses: ./.github/workflows/main.yaml
     permissions:
       packages: write
     with:
       platform: evergreen-x86
-
+      nightly: ${{ github.event.inputs.nightly }}
