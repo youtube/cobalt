@@ -9,6 +9,12 @@ on:
     branches:
       - '23.lts.1\+'
   workflow_dispatch:
+    inputs:
+      nightly:
+        description: 'Nightly workflow.'
+        required: true
+        type: boolean
+        default: false
 
 concurrency:
   group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}'
@@ -21,4 +27,4 @@ jobs:
       packages: write
     with:
       platform: raspi-2
-
+      nightly: ${{ github.event.inputs.nightly }}
