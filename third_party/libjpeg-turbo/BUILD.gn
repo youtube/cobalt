@@ -33,7 +33,7 @@ if (nasm_exists && (current_cpu == "x86" || current_cpu == "x64")) {
   if (is_starboard) {
     import("//starboard/build/nasm_assemble.gni")
   } else {
-    import("//third_party/nasm/nasm_assemble.gni")
+  import("//third_party/nasm/nasm_assemble.gni")
   }
 
   nasm_assemble("simd_asm") {
@@ -157,7 +157,7 @@ static_library("simd") {
   include_dirs = [ "." ]
   deps = [ ":libjpeg_headers" ]
   if (!is_starboard) {
-    defines = [ "MANGLE_JPEG_NAMES" ]
+  defines = [ "MANGLE_JPEG_NAMES" ]
   } else {
     defines = []
   }
@@ -201,7 +201,7 @@ static_library("simd") {
     defines += [ "NEON_INTRINSICS" ]
 
     if (!is_starboard) {
-      configs -= [ "//build/config/compiler:default_optimization" ]
+    configs -= [ "//build/config/compiler:default_optimization" ]
     }
     configs += [ "//build/config/compiler:optimize_speed" ]
 
@@ -220,7 +220,7 @@ static_library("simd") {
 config("libjpeg_config") {
   include_dirs = [ "." ]
   if (!is_starboard) {
-    defines = [ "MANGLE_JPEG_NAMES" ]
+  defines = [ "MANGLE_JPEG_NAMES" ]
   }
 }
 
