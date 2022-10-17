@@ -21,7 +21,6 @@ source_set("libjpeg_headers") {
     "jpeglib.h",
     "jpeglibmangler.h",
   ]
-  defines = [ "MANGLE_JPEG_NAMES" ]
 }
 
 if (current_cpu == "x86" || current_cpu == "x64") {
@@ -138,6 +137,7 @@ if (current_cpu == "x86" || current_cpu == "x64") {
 static_library("simd") {
   include_dirs = [ "." ]
   deps = [ ":libjpeg_headers" ]
+  defines = [ "MANGLE_JPEG_NAMES" ]
 
   if (current_cpu == "x86") {
     deps += [ ":simd_asm" ]
@@ -175,7 +175,7 @@ static_library("simd") {
       ]
     }
 
-    defines = [ "NEON_INTRINSICS" ]
+    defines += [ "NEON_INTRINSICS" ]
 
     configs -= [ "//build/config/compiler:default_optimization" ]
     configs += [ "//build/config/compiler:optimize_speed" ]
@@ -190,6 +190,7 @@ static_library("simd") {
 
 config("libjpeg_config") {
   include_dirs = [ "." ]
+  defines = [ "MANGLE_JPEG_NAMES" ]
 }
 
 static_library("libjpeg") {
@@ -248,6 +249,7 @@ static_library("libjpeg") {
   defines = [
     "WITH_SIMD",
     "NO_GETENV",
+    "NO_PUTENV",
   ]
 
   configs += [ ":libjpeg_config" ]
@@ -342,5 +344,9 @@ if (build_with_chromium) {
 
     configs -= [ "//build/config/compiler:chromium_code" ]
     configs += [ "//build/config/compiler:no_chromium_code" ]
+
+    if (is_win) {
+      cflags = ["-U_CRT_SECURE_NO_DEPRECATE"]
+    }
   }
 }
