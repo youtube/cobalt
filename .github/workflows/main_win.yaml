@@ -43,27 +43,27 @@ jobs:
         with:
           fetch-depth: 1
       - id: set-platforms
-        run: echo "::set-output name=platforms::$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.platforms')"
+        run: echo "platforms=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.platforms')" >> $GITHUB_ENV
       - id: set-includes
-        run: echo "::set-output name=includes::$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.includes')"
+        run: echo "includes=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.includes')" >> $GITHUB_ENV
       - id: set-on-device-test
-        run: echo "::set-output name=on_device_test::$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.on_device_test')"
+        run: echo "on_device_test=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.on_device_test')" >> $GITHUB_ENV
       - id: set-on-host-test
-        run: echo "::set-output name=on_host_test::$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.on_host_test')"
+        run: echo "on_host_test=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.on_host_test')" >> $GITHUB_ENV
       - id: set-on-host-test-shards
-        run: echo "::set-output name=on_host_test_shards::$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.on_host_test_shards')"
+        run: echo "on_host_test_shards=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.on_host_test_shards')" >> $GITHUB_ENV
       - id: set-docker-service
-        run: echo "::set-output name=docker_service::$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.docker_service')"
+        run: echo "docker_service=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.docker_service')" >> $GITHUB_ENV
       - id: set-docker-runner-service
-        run: echo "::set-output name=docker_runner_service::$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.docker_runner_service')"
+        run: echo "docker_runner_service=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.docker_runner_service')" >> $GITHUB_ENV
     outputs:
-      platforms: ${{ steps.set-platforms.outputs.platforms }}
-      includes: ${{ steps.set-includes.outputs.includes }}
-      on_device_test: ${{ steps.set-on-device-test.outputs.on_device_test }}
-      on_host_test: ${{ steps.set-on-host-test.outputs.on_host_test }}
-      on_host_test_shards: ${{ steps.set-on-host-test-shards.outputs.on_host_test_shards }}
-      docker_service: ${{ steps.set-docker-service.outputs.docker_service }}
-      docker_runner_service: ${{ steps.set-docker-runner-service.outputs.docker_runner_service }}
+      platforms: ${{ env.platforms }}
+      includes: ${{ env.includes }}
+      on_device_test: ${{ env.on_device_test }}
+      on_host_test: ${{ env.on_host_test }}
+      on_host_test_shards: ${{ env.on_host_test_shards }}
+      docker_service: ${{ env.docker_service }}
+      docker_runner_service: ${{ env.docker_runner_service }}
   # Build windows docker images.
   build-docker-image:
     needs: [initialize]
@@ -76,7 +76,7 @@ jobs:
         with:
           fetch-depth: 2
       - name: Login to Docker Registry ${{env.REGISTRY}}
-        uses: docker/login-action@v1
+        uses: docker/login-action@v2.1.0
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -99,7 +99,7 @@ jobs:
         config: [devel, debug, qa, gold]
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 1
       - name: GN
@@ -131,7 +131,7 @@ jobs:
         include: ${{ fromJson(needs.initialize.outputs.includes) }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 1
       - name: Run Tests

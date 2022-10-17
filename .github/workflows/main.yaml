@@ -38,27 +38,29 @@ jobs:
         with:
           fetch-depth: 1
       - id: set-platforms
-        run: echo "::set-output name=platforms::$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.platforms')"
+        run: echo "platforms=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.platforms')" >> $GITHUB_ENV
       - id: set-includes
-        run: echo "::set-output name=includes::$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.includes')"
+        run: echo "includes=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.includes')" >> $GITHUB_ENV
       - id: set-on-device-test
-        run: echo "::set-output name=on_device_test::$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.on_device_test')"
+        run: echo "on_device_test=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.on_device_test')" >> $GITHUB_ENV
       - id: set-on-host-test
-        run: echo "::set-output name=on_host_test::$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.on_host_test')"
+        run: echo "on_host_test=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.on_host_test')" >> $GITHUB_ENV
       - id: set-on-host-test-shards
-        run: echo "::set-output name=on_host_test_shards::$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.on_host_test_shards')"
+        run: echo "on_host_test_shards=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.on_host_test_shards')" >> $GITHUB_ENV
       - id: set-on-host-test-bootloader
-        run: echo "::set-output name=bootloader::$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.bootloader')"
+        run: echo "bootloader=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.bootloader')" >> $GITHUB_ENV
       - id: set-docker-service
-        run: echo "::set-output name=docker_service::$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -r '.docker_service')"
+        run: |
+          echo "docker_service=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -r '.docker_service')" >> $GITHUB_ENV
+          echo $platforms
     outputs:
-      platforms: ${{ steps.set-platforms.outputs.platforms }}
-      includes: ${{ steps.set-includes.outputs.includes }}
-      on_device_test: ${{ steps.set-on-device-test.outputs.on_device_test }}
-      on_host_test: ${{ steps.set-on-host-test.outputs.on_host_test }}
-      on_host_test_shards: ${{ steps.set-on-host-test-shards.outputs.on_host_test_shards }}
-      bootloader: ${{ steps.set-on-host-test-bootloader.outputs.bootloader }}
-      docker_service: ${{ steps.set-docker-service.outputs.docker_service }}
+      platforms: ${{ env.platforms }}
+      includes: ${{ env.includes }}
+      on_device_test: ${{ env.on_device_test }}
+      on_host_test: ${{ env.on_host_test }}
+      on_host_test_shards: ${{ env.on_host_test_shards }}
+      bootloader: ${{ env.bootloader }}
+      docker_service: ${{ env.docker_service }}
 
   # Builds, tags, and pushes Cobalt docker build images to ghr.
   docker-build-image:
@@ -72,7 +74,7 @@ jobs:
         with:
           fetch-depth: 2
       - name: Login to Docker Registry ${{env.REGISTRY}}
-        uses: docker/login-action@v1
+        uses: docker/login-action@v2.1.0
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -86,10 +88,10 @@ jobs:
       - name: Set Docker Tag Output
         id: set-docker-tag-output
         run: |
-          echo ${{ steps.build-docker-image.outputs.docker_tag }}
-          echo "::set-output name=docker_tag::$(echo ${{ steps.build-docker-image.outputs.docker_tag }})"
+          echo $DOCKER_TAG
+          echo "docker_tag=$DOCKER_TAG" >> $GITHUB_ENV
     outputs:
-      docker_tag: ${{steps.set-docker-tag-output.outputs.docker_tag}}
+      docker_tag: ${{env.docker_tag}}
 
   # Builds, tags, and pushes Cobalt unit test image to ghr.
   docker-unittest-image:
@@ -104,7 +106,7 @@ jobs:
         with:
           fetch-depth: 2
       - name: Login to Docker Registry ${{env.REGISTRY}}
-        uses: docker/login-action@v1
+        uses: docker/login-action@v2.1.0
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -118,10 +120,10 @@ jobs:
       - name: Set Docker Tag Output
         id: set-docker-unittest-tag-output
         run: |
-          echo ${{ steps.build-docker-image.outputs.docker_tag }}
-          echo "::set-output name=docker_unittest_tag::$(echo ${{ steps.build-docker-image.outputs.docker_tag }})"
+          echo $DOCKER_TAG
+          echo "docker_unittest_tag=$DOCKER_TAG" >> $GITHUB_ENV
     outputs:
-      docker_unittest_tag: ${{steps.set-docker-unittest-tag-output.outputs.docker_unittest_tag}}
+      docker_unittest_tag: ${{env.docker_unittest_tag}}
 
   # Runs builds.
   build:
@@ -142,7 +144,7 @@ jobs:
       TMPDIR: /__w/_temp
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 1
       - name: GN
@@ -203,7 +205,7 @@ jobs:
       COBALT_BOOTLOADER: ${{needs.initialize.outputs.bootloader}}
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 1
       - name: Run Tests

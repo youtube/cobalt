@@ -9,7 +9,7 @@ runs:
   steps:
     - name: Get docker file changes
       id: changed-files
-      uses: tj-actions/changed-files@v13.1
+      uses: tj-actions/changed-files@v32.1.1
       with:
         files: |
           docker-compose-windows.yml
@@ -45,13 +45,13 @@ runs:
         set +e
         docker manifest inspect $DOCKER_TAG > /dev/null
         if [[ $? -ne 0 || ${{ steps.changed-files.outputs.any_changed }} == 'true' ]]; then
-          echo "::set-output name=need_to_build::true"
+          echo "need_to_build=true" >> $GITHUB_ENV
         else
-          echo "::set-output name=need_to_build::false"
+          echo "need_to_build=false" >> $GITHUB_ENV
         fi
       shell: bash
     - name: Build containers with docker-compose
-      if: steps.process-docker.outputs.need_to_build == 'true'
+      if: env.need_to_build == 'true'
       uses: smartlyio/docker-compose-action@v1
       env:
         DOCKER_CPUS: 2
@@ -62,11 +62,11 @@ runs:
         composeArguments: "--no-start"
         composeFile: "docker-compose-windows.yml"
     - name: Tag images
-      if: steps.process-docker.outputs.need_to_build == 'true'
+      if: env.need_to_build == 'true'
       run: |
         docker tag cobalt-${{inputs.service}} $DOCKER_TAG
       shell: bash
     - name: Push images
-      if: steps.process-docker.outputs.need_to_build == 'true'
+      if: env.need_to_build == 'true'
       run: docker push ${DOCKER_TAG}
       shell: bash
