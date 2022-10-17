@@ -1,0 +1,23 @@
+{
+  "docker_service": "build-raspi",
+  "bootloader": "true",
+  "on_device_test": "true",
+  "platforms": [
+    "evergreen-arm-hardfp",
+    "evergreen-arm-hardfp-sbversion-12"
+  ],
+  "includes": [
+    {
+      "name":"hardfp",
+      "platform":"evergreen-arm-hardfp",
+      "target_platform":"evergreen-arm-hardfp",
+      "bootloader_platform": "raspi-2"
+    },
+    {
+      "name":"sbversion-12",
+      "platform":"evergreen-arm-hardfp-sbversion-12",
+      "target_platform":"evergreen-arm-hardfp",
+      "bootloader_platform": "raspi-2"
+    }
+  ]
+}
