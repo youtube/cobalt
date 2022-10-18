@@ -24,7 +24,7 @@ from cobalt.black_box_tests.threaded_web_server import ThreadedWebServer
 class SuspendVisibilityTest(black_box_tests.BlackBoxTestCase):
   """Verify correct visibility changes during and after suspend event."""
 
-  def test_simple(self):
+  def test_suspend_visibility(self):
 
     with ThreadedWebServer(binding_address=self.GetBindingAddress()) as server:
       url = server.GetURL(file_name='testdata/suspend_visibility.html')

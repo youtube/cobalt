@@ -31,7 +31,7 @@ class WebPlatformTests(black_box_tests.BlackBoxTestCase):
     if self.launcher_params.config not in ['debug', 'devel']:
       self.skipTest('Can only run web platform tests on debug or devel config.')
 
-  def test_simple(self):
+  def test_web_platform(self):
     with WebPlatformTestServer(
         binding_address=self.GetBindingAddress(),
         wpt_http_port=self.GetWptHttpPort()):

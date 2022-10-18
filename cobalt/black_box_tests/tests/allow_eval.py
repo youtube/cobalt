@@ -24,7 +24,7 @@ from cobalt.black_box_tests.threaded_web_server import ThreadedWebServer
 class AllowEvalTest(black_box_tests.BlackBoxTestCase):
   """Ensure that client page can use eval() when CSP is missing."""
 
-  def test_simple(self):
+  def test_allow_eval(self):
 
     with ThreadedWebServer(binding_address=self.GetBindingAddress()) as server:
       url = server.GetURL(file_name='testdata/allow_eval.html')

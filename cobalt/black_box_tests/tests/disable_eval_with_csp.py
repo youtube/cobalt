@@ -24,7 +24,7 @@ from cobalt.black_box_tests.threaded_web_server import ThreadedWebServer
 class DisableEvalWithCSPTest(black_box_tests.BlackBoxTestCase):
   """Ensure that Cobalt prohibits eval() when CSP is present in client page."""
 
-  def test_simple(self):
+  def test_disable_eval_with_csp(self):
 
     with ThreadedWebServer(binding_address=self.GetBindingAddress()) as server:
       url = server.GetURL(file_name='testdata/disable_eval_with_csp.html')
