@@ -261,6 +261,9 @@ void Cache::Resize(disk_cache::ResourceType resource_type, uint32_t bytes) {
   if (memory_capped_directory) {
     memory_capped_directory->Resize(bytes);
   }
+  if (bytes == 0) {
+    Delete(resource_type);
+  }
 }
 
 base::Optional<uint32_t> Cache::GetMaxCacheStorageInBytes(

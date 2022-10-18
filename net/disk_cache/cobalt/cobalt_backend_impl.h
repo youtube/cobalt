@@ -85,6 +85,8 @@ class NET_EXPORT_PRIVATE CobaltBackendImpl final : public Backend {
   size_t DumpMemoryStats(
       base::trace_event::ProcessMemoryDump* pmd,
       const std::string& parent_absolute_name) const override;
+  net::Error DoomAllEntriesOfType(disk_cache::ResourceType type,
+                          CompletionOnceCallback callback);
 
   // A refcounted class that runs a CompletionOnceCallback once it's destroyed.
   class RefCountedRunner : public base::RefCounted<RefCountedRunner> {
