@@ -27,7 +27,9 @@ source_set("tool_support") {
   deps = [ "../third_party/mini_chromium:base" ]
 }
 
-if (!crashpad_is_ios) {
+# TODO(b/251521595): resolve GN error and enable this target to be built for
+# android.
+if (!crashpad_is_ios && !crashpad_is_android) {
   crashpad_executable("crashpad_database_util") {
     check_includes = !crashpad_is_in_starboard
 
