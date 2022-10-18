@@ -32,7 +32,7 @@ paths_to_headers = {
 class WorkerCspTest(black_box_tests.BlackBoxTestCase):
   """Verify correct correct CSP behavior."""
 
-  def test_simple(self):
+  def test_worker_csp(self):
     path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
     with ThreadedWebServer(
         binding_address=self.GetBindingAddress(),

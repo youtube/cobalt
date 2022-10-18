@@ -24,7 +24,7 @@ from cobalt.black_box_tests.threaded_web_server import ThreadedWebServer
 class TimerAfterPreloadTest(black_box_tests.BlackBoxTestCase):
   """Set a JS timer that expires after exiting preload mode."""
 
-  def test_simple(self):
+  def test_timer_after_preload(self):
 
     with ThreadedWebServer(binding_address=self.GetBindingAddress()) as server:
       url = server.GetURL(file_name='testdata/timer_hit_after_preload.html')

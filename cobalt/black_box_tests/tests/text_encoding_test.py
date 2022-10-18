@@ -20,7 +20,7 @@ from cobalt.black_box_tests.threaded_web_server import ThreadedWebServer
 class TextEncodingTest(black_box_tests.BlackBoxTestCase):
   """Test basic TextEncoder and TextDecoder functionality."""
 
-  def test_simple(self):
+  def test_text_encoding(self):
 
     with ThreadedWebServer(binding_address=self.GetBindingAddress()) as server:
       url = server.GetURL(file_name='testdata/text_encoding_test.html')

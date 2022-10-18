@@ -29,7 +29,7 @@ class PersistentCookieTest(black_box_tests.BlackBoxTestCase):
 
   # The same page has to be used since cookie are stored per URL.
 
-  def test_simple(self):
+  def test_persistent_cookie(self):
 
     with ThreadedWebServer(binding_address=self.GetBindingAddress()) as server:
       url = server.GetURL(file_name='testdata/persistent_cookie.html')

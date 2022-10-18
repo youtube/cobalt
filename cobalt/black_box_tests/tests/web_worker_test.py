@@ -20,7 +20,7 @@ from cobalt.black_box_tests.threaded_web_server import ThreadedWebServer
 class WebWorkerTest(black_box_tests.BlackBoxTestCase):
   """Test basic Web Worker functionality."""
 
-  def test_simple(self):
+  def test_web_worker(self):
 
     with ThreadedWebServer(binding_address=self.GetBindingAddress()) as server:
       url = server.GetURL(file_name='testdata/web_worker_test.html')
