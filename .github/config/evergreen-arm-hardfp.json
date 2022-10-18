@@ -12,26 +12,18 @@
       "name":"hardfp",
       "platform":"evergreen-arm-hardfp",
       "target_platform":"evergreen-arm-hardfp",
-      "target_cpu":"target_cpu=\\\"arm\\\"",
-      "extra_gn_arguments":"use_asan=false",
       "bootloader_platform": "raspi-2"
     },
     {
       "name":"sbversion-13",
       "platform":"evergreen-arm-hardfp-sbversion-13",
       "target_platform":"evergreen-arm-hardfp",
-      "target_cpu":"target_cpu=\\\"arm\\\"",
-      "extra_gn_arguments":"use_asan=false",
-      "sb_api_version":"sb_api_version=13",
       "bootloader_platform": "raspi-2-sbversion-13"
     },
     {
       "name":"sbversion-12",
       "platform":"evergreen-arm-hardfp-sbversion-12",
       "target_platform":"evergreen-arm-hardfp",
-      "target_cpu":"target_cpu=\\\"arm\\\"",
-      "extra_gn_arguments":"use_asan=false",
-      "sb_api_version":"sb_api_version=12",
       "bootloader_platform": "raspi-2-sbversion-12"
     }
   ]

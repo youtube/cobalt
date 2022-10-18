@@ -21,7 +21,7 @@ runs:
         [ -d "${GITHUB_WORKSPACE}/src/out/upload_out" ] && rm -rf "${GITHUB_WORKSPACE}/src/out/upload_out"
         [ -f "${ARCHIVE_FILE}" ] && rm -rf "${ARCHIVE_FILE}"
         # Create an archive.
-        python3 $GITHUB_WORKSPACE/src/tools/copy_and_filter_out_dir.py -d $GITHUB_WORKSPACE/src/out/upload_out/${{matrix.target_platform}}_${{matrix.config}} -s $GITHUB_WORKSPACE/src/out/${{matrix.target_platform}}_${{matrix.config}}
+        python3 $GITHUB_WORKSPACE/src/tools/copy_and_filter_out_dir.py -d $GITHUB_WORKSPACE/src/out/upload_out/${{matrix.platform}}_${{matrix.config}} -s $GITHUB_WORKSPACE/src/out/${{matrix.platform}}_${{matrix.config}}
       shell: bash
     - name: Create Archive
       run: |

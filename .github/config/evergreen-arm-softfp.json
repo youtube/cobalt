@@ -9,25 +9,17 @@
     {
       "name":"softfp",
       "platform":"evergreen-arm-softfp",
-      "target_platform":"evergreen-arm-softfp",
-      "target_cpu":"target_cpu=\\\"arm\\\"",
-      "extra_gn_arguments":"use_asan=false"
+      "target_platform":"evergreen-arm-softfp"
     },
     {
       "name":"sbversion-13",
       "platform":"evergreen-arm-softfp-sbversion-13",
-      "target_platform":"evergreen-arm-softfp",
-      "target_cpu":"target_cpu=\\\"arm\\\"",
-      "extra_gn_arguments":"use_asan=false",
-      "sb_api_version":"sb_api_version=13"
+      "target_platform":"evergreen-arm-softfp"
     },
     {
       "name":"sbversion-12",
       "platform":"evergreen-arm-softfp-sbversion-12",
-      "target_platform":"evergreen-arm-softfp",
-      "target_cpu":"target_cpu=\\\"arm\\\"",
-      "extra_gn_arguments":"use_asan=false",
-      "sb_api_version":"sb_api_version=12"
+      "target_platform":"evergreen-arm-softfp"
     }
   ]
 }

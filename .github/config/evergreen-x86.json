@@ -9,25 +9,17 @@
     {
       "name":"x86",
       "platform":"evergreen-x86",
-      "target_platform":"evergreen-x86",
-      "target_cpu":"target_cpu=\\\"x86\\\"",
-      "extra_gn_arguments":"use_asan=false"
+      "target_platform":"evergreen-x86"
     },
     {
       "name":"sbversion-13",
       "platform":"evergreen-x86-sbversion-13",
-      "target_platform":"evergreen-x86",
-      "target_cpu":"target_cpu=\\\"x86\\\"",
-      "extra_gn_arguments":"use_asan=false",
-      "sb_api_version":"sb_api_version=13"
+      "target_platform":"evergreen-x86"
     },
     {
       "name":"sbversion-12",
       "platform":"evergreen-x86-sbversion-12",
-      "target_platform":"evergreen-x86",
-      "target_cpu":"target_cpu=\\\"x86\\\"",
-      "extra_gn_arguments":"use_asan=false",
-      "sb_api_version":"sb_api_version=12"
+      "target_platform":"evergreen-x86"
     }
   ]
 }

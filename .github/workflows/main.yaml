@@ -201,7 +201,7 @@ jobs:
       COBALT_BOOTLOADER: ${{needs.initialize.outputs.bootloader}}
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 1
       - name: Run Tests
