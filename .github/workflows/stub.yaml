@@ -2,7 +2,7 @@ name: stub
 
 on:
   pull_request:
-    types: [opened, reopened, edited, synchronize]
+    types: [ready_for_review, opened, reopened, edited, synchronize, labeled]
     branches: [ main ]
   push:
     branches: [ main ]

@@ -40,6 +40,16 @@ jobs:
   # Retrieves configuration from json file.
   initialize:
     runs-on: ubuntu-latest
+    # All triggers except draft PRs, unless PR is labeled with runtest
+    if: |
+      github.event_name != 'pull_request' ||
+      (
+        github.event.pull_request.draft == false ||
+        (
+          github.event.action == 'labeled' &&
+          github.event.label.name == 'runtest'
+        )
+      )
     steps:
       - id: checkout
         uses: actions/checkout@v3
