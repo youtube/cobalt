@@ -66,16 +66,6 @@ void CallMockCB(U* u, void* user_data) {
   static_cast<T*>(user_data)->AsStdFunction()(u);
 }
 
-// A mock class representing a data source passed to the cobalt extension
-// demuxer.
-class MockDataSource {
- public:
-  MOCK_METHOD2(BlockingRead, int(uint8_t* data, int bytes_requested));
-  MOCK_METHOD1(SeekTo, void(int position));
-  MOCK_METHOD0(GetPosition, int64_t());
-  MOCK_METHOD0(GetSize, int64_t());
-};
-
 // These functions forward calls to a FstreamDataSource.
 int FstreamBlockingRead(uint8_t* data, int bytes_requested, void* user_data) {
   auto* input = static_cast<std::ifstream*>(user_data);
@@ -110,7 +100,6 @@ TEST(FFmpegDemuxerTest, InitializeSucceeds) {
 
   const CobaltExtensionDemuxerApi* api = GetFFmpegDemuxerApi();
   ASSERT_THAT(api, NotNull());
-  MockDataSource data_source;
   CobaltExtensionDemuxerDataSource c_data_source{
       &FstreamBlockingRead, &FstreamSeekTo, &FstreamGetPosition,
       &FstreamGetSize,      kIsStreaming,   &input};
@@ -135,7 +124,6 @@ TEST(FFmpegDemuxerTest, ReadsAudioData) {
 
   const CobaltExtensionDemuxerApi* api = GetFFmpegDemuxerApi();
   ASSERT_THAT(api, NotNull());
-  MockDataSource data_source;
   CobaltExtensionDemuxerDataSource c_data_source{
       &FstreamBlockingRead, &FstreamSeekTo, &FstreamGetPosition,
       &FstreamGetSize,      kIsStreaming,   &input};
@@ -193,7 +181,6 @@ TEST(FFmpegDemuxerTest, ReadsVideoData) {
 
   const CobaltExtensionDemuxerApi* api = GetFFmpegDemuxerApi();
   ASSERT_THAT(api, NotNull());
-  MockDataSource data_source;
   CobaltExtensionDemuxerDataSource c_data_source{
       &FstreamBlockingRead, &FstreamSeekTo, &FstreamGetPosition,
       &FstreamGetSize,      kIsStreaming,   &input};
@@ -251,7 +238,6 @@ TEST(FFmpegDemuxerTest, PopulatesAudioConfig) {
 
   const CobaltExtensionDemuxerApi* api = GetFFmpegDemuxerApi();
   ASSERT_THAT(api, NotNull());
-  MockDataSource data_source;
   CobaltExtensionDemuxerDataSource c_data_source{
       &FstreamBlockingRead, &FstreamSeekTo, &FstreamGetPosition,
       &FstreamGetSize,      kIsStreaming,   &input};
@@ -288,7 +274,6 @@ TEST(FFmpegDemuxerTest, PopulatesVideoConfig) {
 
   const CobaltExtensionDemuxerApi* api = GetFFmpegDemuxerApi();
   ASSERT_THAT(api, NotNull());
-  MockDataSource data_source;
   CobaltExtensionDemuxerDataSource c_data_source{
       &FstreamBlockingRead, &FstreamSeekTo, &FstreamGetPosition,
       &FstreamGetSize,      kIsStreaming,   &input};
@@ -337,7 +322,6 @@ TEST(FFmpegDemuxerTest, ReturnsVideoDuration) {
 
   const CobaltExtensionDemuxerApi* api = GetFFmpegDemuxerApi();
   ASSERT_THAT(api, NotNull());
-  MockDataSource data_source;
   CobaltExtensionDemuxerDataSource c_data_source{
       &FstreamBlockingRead, &FstreamSeekTo, &FstreamGetPosition,
       &FstreamGetSize,      kIsStreaming,   &input};
@@ -363,7 +347,6 @@ TEST(FFmpegDemuxerTest, TimelineOffsetReturnsZero) {
 
   const CobaltExtensionDemuxerApi* api = GetFFmpegDemuxerApi();
   ASSERT_THAT(api, NotNull());
-  MockDataSource data_source;
   CobaltExtensionDemuxerDataSource c_data_source{
       &FstreamBlockingRead, &FstreamSeekTo, &FstreamGetPosition,
       &FstreamGetSize,      kIsStreaming,   &input};
@@ -389,7 +372,6 @@ TEST(FFmpegDemuxerTest, StartTimeReturnsZero) {
 
   const CobaltExtensionDemuxerApi* api = GetFFmpegDemuxerApi();
   ASSERT_THAT(api, NotNull());
-  MockDataSource data_source;
   CobaltExtensionDemuxerDataSource c_data_source{
       &FstreamBlockingRead, &FstreamSeekTo, &FstreamGetPosition,
       &FstreamGetSize,      kIsStreaming,   &input};
