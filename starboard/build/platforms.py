@@ -41,6 +41,7 @@ PLATFORMS = {
     'evergreen-arm-hardfp': 'starboard/evergreen/arm/hardfp',
     'evergreen-arm-softfp': 'starboard/evergreen/arm/softfp',
     'evergreen-arm64': 'starboard/evergreen/arm64',
+    'win-win32': 'starboard/win/win32',
 }
 PLATFORMS.update(INTERNAL_PLATFORMS)
 

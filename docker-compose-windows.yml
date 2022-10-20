@@ -70,6 +70,15 @@ services:
     depends_on:
       - visual-studio-win32-base
 
+  build-win-win32:
+    <<: *common-definitions
+    build:
+      context: ./docker/windows/win32
+      dockerfile: ./Dockerfile
+    depends_on:
+      - cobalt-build-win32-base
+    image: cobalt-build-win-win32
+
   win-win32:
     <<: *common-definitions
     build:
@@ -84,6 +93,17 @@ services:
       - NINJA_FLAGS
       - IS_DOCKER=1
     image: cobalt-build-win32
+
+  runner-win-win32:
+    <<: *common-definitions
+    build:
+      context: ./docker/windows/runner
+      dockerfile: ./Dockerfile
+      args:
+        - RUNNER_VERSION=2.294.0
+    depends_on:
+      - cobalt-build-win32-base
+    image: cobalt-runner-win-win32
 
   cobalt-build-win-internal:
     <<: *common-definitions
