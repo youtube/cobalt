@@ -4,10 +4,7 @@
   "on_host_test_shards": ["unit", "integration"],
   "platforms": [
     "linux-x64x11",
-    "linux-x64x11-egl",
-    "linux-x64x11-skia",
-    "linux-x64x11-sbversion-12",
-    "linux-x64x11-sbversion-13"
+    "linux-x64x11-sbversion-12"
   ],
   "includes": [
     {
@@ -16,23 +13,8 @@
       "target_platform":"linux-x64x11"
     },
     {
-      "name":"egl",
-      "platform":"linux-x64x11-egl",
-      "target_platform":"linux-x64x11-egl"
-    },
-    {
-      "name":"skia",
-      "platform":"linux-x64x11-skia",
-      "target_platform":"linux-x64x11-skia"
-    },
-    {
       "name":"sbversion-12",
       "platform":"linux-x64x11-sbversion-12",
-      "target_platform":"linux-x64x11"
-    },
-    {
-      "name":"sbversion-13",
-      "platform":"linux-x64x11-sbversion-13",
       "target_platform":"linux-x64x11"
     }
   ]
