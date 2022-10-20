@@ -3,7 +3,7 @@
  *
  * Copyright 2009 Pierre Ossman <ossman@cendio.se> for Cendio AB
  * Copyright (C) 2011, Nokia Corporation and/or its subsidiary(-ies).
- * Copyright (C) 2009-2011, 2013-2014, 2016, 2018, 2020, D. R. Commander.
+ * Copyright (C) 2009-2011, 2013-2014, 2016, 2018, 2020, 2022, D. R. Commander.
  * Copyright (C) 2015-2016, 2018, Matthieu Darbois.
  * Copyright (C) 2020, Arm Limited.
  *
@@ -26,14 +26,13 @@
 #include "jconfigint.h"
 
 #ifdef STARBOARD
-#include "starboard/client_porting/poem/strings_poem.h"
-#include "starboard/client_porting/poem/string_poem.h"
-#include "starboard/configuration.h"
-#include "starboard/client_porting/poem/stdio_poem.h"
 #include "starboard/character.h"
-#else
 #include "starboard/client_porting/poem/stdio_poem.h"
+#include "starboard/client_porting/poem/string_poem.h"
+#include "starboard/client_porting/poem/strings_poem.h"
+#include "starboard/configuration.h"
 #endif
+#include <ctype.h>
 
 #define JSIMD_FASTLD3  1
 #define JSIMD_FASTST3  2
@@ -133,7 +132,7 @@ LOCAL(void)
 init_simd(void)
 {
 #ifndef NO_GETENV
-  char *env = NULL;
+  char env[2] = { 0 };
 #endif
 #if defined(__linux__) || defined(ANDROID) || defined(__ANDROID__)
 #if !defined(STARBOARD)
@@ -159,24 +158,19 @@ init_simd(void)
 
 #ifndef NO_GETENV
   /* Force different settings through environment variables */
-  env = getenv("JSIMD_FORCENEON");
-  if ((env != NULL) && (strcmp(env, "1") == 0))
+  if (!GETENV_S(env, 2, "JSIMD_FORCENEON") && !strcmp(env, "1"))
     simd_support = JSIMD_NEON;
-  env = getenv("JSIMD_FORCENONE");
-  if ((env != NULL) && (strcmp(env, "1") == 0))
+  if (!GETENV_S(env, 2, "JSIMD_FORCENONE") && !strcmp(env, "1"))
     simd_support = 0;
-  env = getenv("JSIMD_NOHUFFENC");
-  if ((env != NULL) && (strcmp(env, "1") == 0))
+  if (!GETENV_S(env, 2, "JSIMD_NOHUFFENC") && !strcmp(env, "1"))
     simd_huffman = 0;
-  env = getenv("JSIMD_FASTLD3");
-  if ((env != NULL) && (strcmp(env, "1") == 0))
+  if (!GETENV_S(env, 2, "JSIMD_FASTLD3") && !strcmp(env, "1"))
     simd_features |= JSIMD_FASTLD3;
-  if ((env != NULL) && (strcmp(env, "0") == 0))
+  if (!GETENV_S(env, 2, "JSIMD_FASTLD3") && !strcmp(env, "0"))
     simd_features &= ~JSIMD_FASTLD3;
-  env = getenv("JSIMD_FASTST3");
-  if ((env != NULL) && (strcmp(env, "1") == 0))
+  if (!GETENV_S(env, 2, "JSIMD_FASTST3") && !strcmp(env, "1"))
     simd_features |= JSIMD_FASTST3;
-  if ((env != NULL) && (strcmp(env, "0") == 0))
+  if (!GETENV_S(env, 2, "JSIMD_FASTST3") && !strcmp(env, "0"))
     simd_features &= ~JSIMD_FASTST3;
 #endif
 }

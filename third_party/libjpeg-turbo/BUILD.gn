@@ -21,9 +21,7 @@ source_set("libjpeg_headers") {
     "jpeglib.h",
     "jpeglibmangler.h",
   ]
-  if (!is_starboard) {
-    defines = [ "MANGLE_JPEG_NAMES" ]
-  } else {
+  if (is_starboard) {
     public_deps = [
       "//starboard:starboard_headers_only",
       "//starboard/common",
@@ -158,6 +156,11 @@ if (is_starboard && sb_is_evergreen && current_cpu == "arm" && arm_use_neon) {
 static_library("simd") {
   include_dirs = [ "." ]
   deps = [ ":libjpeg_headers" ]
+  if (!is_starboard) {
+    defines = [ "MANGLE_JPEG_NAMES" ]
+  } else {
+    defines = []
+  }
 
   if (current_cpu == "x86" && yasm_exists) {
     deps += [ ":simd_asm" ]
@@ -195,7 +198,7 @@ static_library("simd") {
       ]
     }
 
-    defines = [ "NEON_INTRINSICS" ]
+    defines += [ "NEON_INTRINSICS" ]
 
     if (!is_starboard) {
       configs -= [ "//build/config/compiler:default_optimization" ]
@@ -216,6 +219,9 @@ static_library("simd") {
 
 config("libjpeg_config") {
   include_dirs = [ "." ]
+  if (!is_starboard) {
+    defines = [ "MANGLE_JPEG_NAMES" ]
+  }
 }
 
 static_library("libjpeg") {
@@ -278,6 +284,7 @@ static_library("libjpeg") {
   defines = [
     "WITH_SIMD",
     "NO_GETENV",
+    "NO_PUTENV",
   ]
 
   if (is_starboard) {
@@ -296,6 +303,7 @@ static_library("libjpeg") {
 
     # This is defined in code.
     defines -= [ "NO_GETENV" ]
+    defines -= [ "NO_PUTENV" ]
   }
 
   configs += [ ":libjpeg_config" ]
@@ -402,5 +410,9 @@ if (build_with_chromium) {
 
     configs -= [ "//build/config/compiler:chromium_code" ]
     configs += [ "//build/config/compiler:no_chromium_code" ]
+
+    if (is_win) {
+      cflags = ["-U_CRT_SECURE_NO_DEPRECATE"]
+    }
   }
 }

@@ -26,6 +26,10 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifdef _MSC_VER
+#define _CRT_SECURE_NO_DEPRECATE
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -62,8 +66,10 @@ static int tjErrorLine = -1, tjErrorCode = -1;
     if (strncmp(tjErrorStr, _tjErrorStr, JMSG_LENGTH_MAX) || \
         strncmp(tjErrorMsg, m, JMSG_LENGTH_MAX) || \
         tjErrorCode != _tjErrorCode || tjErrorLine != __LINE__) { \
-      strncpy(tjErrorStr, _tjErrorStr, JMSG_LENGTH_MAX - 1); \
-      strncpy(tjErrorMsg, m, JMSG_LENGTH_MAX - 1); \
+      strncpy(tjErrorStr, _tjErrorStr, JMSG_LENGTH_MAX); \
+      tjErrorStr[JMSG_LENGTH_MAX - 1] = '\0'; \
+      strncpy(tjErrorMsg, m, JMSG_LENGTH_MAX); \
+      tjErrorMsg[JMSG_LENGTH_MAX - 1] = '\0'; \
       tjErrorCode = _tjErrorCode; \
       tjErrorLine = __LINE__; \
       fprintf(stderr, "WARNING in line %d while %s:\n%s\n", __LINE__, m, \
@@ -104,7 +110,7 @@ static char *formatName(int subsamp, int cs, char *buf)
   if (cs == TJCS_YCbCr)
     return (char *)subNameLong[subsamp];
   else if (cs == TJCS_YCCK || cs == TJCS_CMYK) {
-    snprintf(buf, 80, "%s %s", csName[cs], subNameLong[subsamp]);
+    SNPRINTF(buf, 80, "%s %s", csName[cs], subNameLong[subsamp]);
     return buf;
   } else
     return (char *)csName[cs];
@@ -117,10 +123,10 @@ static char *sigfig(double val, int figs, char *buf, int len)
   int digitsAfterDecimal = figs - (int)ceil(log10(fabs(val)));
 
   if (digitsAfterDecimal < 1)
-    snprintf(format, 80, "%%.0f");
+    SNPRINTF(format, 80, "%%.0f");
   else
-    snprintf(format, 80, "%%.%df", digitsAfterDecimal);
-  snprintf(buf, len, format, val);
+    SNPRINTF(format, 80, "%%.%df", digitsAfterDecimal);
+  SNPRINTF(buf, len, format, val);
   return buf;
 }
 
@@ -157,7 +163,7 @@ static int decomp(unsigned char *srcBuf, unsigned char **jpegBuf,
   unsigned char *dstPtr, *dstPtr2, *yuvBuf = NULL;
 
   if (jpegQual > 0) {
-    snprintf(qualStr, 13, "_Q%d", jpegQual);
+    SNPRINTF(qualStr, 13, "_Q%d", jpegQual);
     qualStr[12] = 0;
   }
 
@@ -261,20 +267,20 @@ static int decomp(unsigned char *srcBuf, unsigned char **jpegBuf,
   if (!doWrite) goto bailout;
 
   if (sf.num != 1 || sf.denom != 1)
-    snprintf(sizeStr, 24, "%d_%d", sf.num, sf.denom);
+    SNPRINTF(sizeStr, 24, "%d_%d", sf.num, sf.denom);
   else if (tilew != w || tileh != h)
-    snprintf(sizeStr, 24, "%dx%d", tilew, tileh);
-  else snprintf(sizeStr, 24, "full");
+    SNPRINTF(sizeStr, 24, "%dx%d", tilew, tileh);
+  else SNPRINTF(sizeStr, 24, "full");
   if (decompOnly)
-    snprintf(tempStr, 1024, "%s_%s.%s", fileName, sizeStr, ext);
+    SNPRINTF(tempStr, 1024, "%s_%s.%s", fileName, sizeStr, ext);
   else
-    snprintf(tempStr, 1024, "%s_%s%s_%s.%s", fileName, subName[subsamp],
+    SNPRINTF(tempStr, 1024, "%s_%s%s_%s.%s", fileName, subName[subsamp],
              qualStr, sizeStr, ext);
 
   if (tjSaveImage(tempStr, dstBuf, scaledw, 0, scaledh, pf, flags) == -1)
     THROW_TJG("saving bitmap");
   ptr = strrchr(tempStr, '.');
-  snprintf(ptr, 1024 - (ptr - tempStr), "-err.%s", ext);
+  SNPRINTF(ptr, 1024 - (ptr - tempStr), "-err.%s", ext);
   if (srcBuf && sf.num == 1 && sf.denom == 1) {
     if (!quiet) fprintf(stderr, "Compression error written to %s.\n", tempStr);
     if (subsamp == TJ_GRAYSCALE) {
@@ -291,16 +297,17 @@ static int decomp(unsigned char *srcBuf, unsigned char **jpegBuf,
 
           if (y > 255) y = 255;
           if (y < 0) y = 0;
-          dstBuf[rindex] = abs(dstBuf[rindex] - y);
-          dstBuf[gindex] = abs(dstBuf[gindex] - y);
-          dstBuf[bindex] = abs(dstBuf[bindex] - y);
+          dstBuf[rindex] = (unsigned char)abs(dstBuf[rindex] - y);
+          dstBuf[gindex] = (unsigned char)abs(dstBuf[gindex] - y);
+          dstBuf[bindex] = (unsigned char)abs(dstBuf[bindex] - y);
         }
       }
     } else {
       for (row = 0; row < h; row++)
         for (col = 0; col < w * ps; col++)
           dstBuf[pitch * row + col] =
-            abs(dstBuf[pitch * row + col] - srcBuf[pitch * row + col]);
+            (unsigned char)abs(dstBuf[pitch * row + col] -
+                               srcBuf[pitch * row + col]);
     }
     if (tjSaveImage(tempStr, dstBuf, w, 0, h, pf, flags) == -1)
       THROW_TJG("saving bitmap");
@@ -482,7 +489,7 @@ static int fullTest(unsigned char *srcBuf, int w, int h, int subsamp,
               (double)totalJpegSize * 8. / 1000000. * (double)iter / elapsed);
     }
     if (tilew == w && tileh == h && doWrite) {
-      snprintf(tempStr, 1024, "%s_%s_Q%d.jpg", fileName, subName[subsamp],
+      SNPRINTF(tempStr, 1024, "%s_%s_Q%d.jpg", fileName, subName[subsamp],
                jpegQual);
       if ((file = fopen(tempStr, "wb")) == NULL)
         THROW_UNIX("opening reference image");
@@ -699,7 +706,7 @@ static int decompTest(char *fileName)
                 sigfig((double)(w * h * ps) / (double)totalJpegSize, 4,
                        tempStr2, 80),
                 quiet == 2 ? "\n" : "  ");
-      } else if (!quiet) {
+      } else {
         fprintf(stderr, "Transform     --> Frame rate:         %f fps\n",
                 1.0 / elapsed);
         fprintf(stderr, "                  Output image size:  %lu bytes\n",
