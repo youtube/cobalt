@@ -53,6 +53,7 @@
 #include "cobalt/math/matrix3_f.h"
 #include "cobalt/overlay_info/overlay_info_registry.h"
 #include "cobalt/persistent_storage/persistent_settings.h"
+#include "cobalt/ui_navigation/scroll_engine/scroll_engine.h"
 #include "cobalt/web/csp_delegate_factory.h"
 #include "cobalt/web/navigator_ua_data.h"
 #include "nb/memory_scope.h"
@@ -554,6 +555,9 @@ void BrowserModule::Navigate(const GURL& url_reference) {
     }
   }
 
+  scroll_engine_.reset(new ui_navigation::scroll_engine::ScrollEngine());
+  scroll_engine_->thread()->Start();
+
 // Create new WebModule.
 #if !defined(COBALT_FORCE_CSP)
   options_.web_module_options.csp_insecure_allowed_token =
@@ -611,7 +615,7 @@ void BrowserModule::Navigate(const GURL& url_reference) {
   options.web_options.platform_info = platform_info_.get();
   web_module_.reset(new WebModule("MainWebModule"));
   web_module_->Run(
-      url, application_state_,
+      url, application_state_, scroll_engine_.get(),
       base::Bind(&BrowserModule::QueueOnRenderTreeProduced,
                  base::Unretained(this), main_web_module_generation_),
       base::Bind(&BrowserModule::OnError, base::Unretained(this)),
@@ -1103,6 +1107,12 @@ void BrowserModule::OnPointerEventProduced(base::Token type,
     return;
   }
 #endif  // defined(ENABLE_DEBUGGER)
+
+  scroll_engine_->thread()->message_loop()->task_runner()->PostTask(
+      FROM_HERE,
+      base::Bind(
+          &ui_navigation::scroll_engine::ScrollEngine::HandlePointerEvent,
+          base::Unretained(scroll_engine_.get()), type, event));
 
   DCHECK(web_module_);
   web_module_->InjectPointerEvent(type, event);

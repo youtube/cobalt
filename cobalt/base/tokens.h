@@ -92,6 +92,7 @@ namespace base {
     MacroOpWithNameOnly(offline)                                     \
     MacroOpWithNameOnly(online)                                      \
     MacroOpWithNameOnly(open)                                        \
+    MacroOpWithNameOnly(pointercancel)                               \
     MacroOpWithNameOnly(pointerdown)                                 \
     MacroOpWithNameOnly(pointerenter)                                \
     MacroOpWithNameOnly(pointerleave)                                \

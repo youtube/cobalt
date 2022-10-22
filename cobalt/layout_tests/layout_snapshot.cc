@@ -99,7 +99,7 @@ browser::WebModule::LayoutResults SnapshotURL(
   // Create the WebModule and wait for a layout to occur.
   browser::WebModule web_module("SnapshotURL");
   web_module.Run(
-      url, base::kApplicationStateStarted,
+      url, base::kApplicationStateStarted, nullptr /* scroll_engine */,
       base::Bind(&WebModuleOnRenderTreeProducedCallback, &results, &run_loop,
                  base::MessageLoop::current()),
       base::Bind(&WebModuleErrorCallback, &run_loop,

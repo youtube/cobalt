@@ -14,6 +14,8 @@
 
 #include "cobalt/layout/topmost_event_target.h"
 
+#include <vector>
+
 #include "base/optional.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/token.h"
@@ -77,6 +79,49 @@ LayoutBoxes* GetLayoutBoxesIfNotEmpty(dom::Element* element) {
   return NULL;
 }
 
+scoped_refptr<dom::HTMLElement> FindFirstElementWithScrollType(
+    scoped_refptr<dom::HTMLElement> target_element,
+    ui_navigation::scroll_engine::ScrollType major_scroll_axis,
+    bool scrolling_right, bool scrolling_down) {
+  auto current_element = target_element;
+  bool scrolling_left = !scrolling_right;
+  bool scrolling_up = !scrolling_down;
+
+  while (true) {
+    float scroll_top_lower_bound;
+    float scroll_left_lower_bound;
+    float scroll_top_upper_bound;
+    float scroll_left_upper_bound;
+    float offset_x;
+    float offset_y;
+
+    if (!current_element->parent_element()) {
+      break;
+    }
+    current_element = current_element->parent_element()->AsHTMLElement();
+    auto current_ui_nav_item = current_element->GetUiNavItem();
+    if (!current_ui_nav_item) continue;
+
+    current_ui_nav_item->GetBounds(
+        &scroll_top_lower_bound, &scroll_left_lower_bound,
+        &scroll_top_upper_bound, &scroll_left_upper_bound);
+    current_ui_nav_item->GetContentOffset(&offset_x, &offset_y);
+
+    bool can_scroll_left = scroll_left_lower_bound < offset_x;
+    bool can_scroll_right = scroll_left_upper_bound > offset_x;
+    bool can_scroll_up = scroll_top_lower_bound < offset_y;
+    bool can_scroll_down = scroll_top_upper_bound > offset_y;
+
+    if ((scrolling_left && can_scroll_left) ||
+        (scrolling_right && can_scroll_right) ||
+        (scrolling_up && can_scroll_up) ||
+        (scrolling_down && can_scroll_down)) {
+      return current_element;
+    }
+  }
+  return nullptr;
+}
+
 }  // namespace
 void TopmostEventTarget::ConsiderElement(dom::Element* element,
                                          const math::Vector2dF& coordinate) {
@@ -126,6 +171,111 @@ void TopmostEventTarget::ConsiderBoxes(
       }
       box = box->GetSplitSibling();
     } while (box != NULL);
+  }
+}
+
+void TopmostEventTarget::CancelScrollsInParentNavItems(
+    scoped_refptr<dom::HTMLElement> target_element) {
+  // Cancel any scrolls in the tree.
+  std::vector<scoped_refptr<ui_navigation::NavItem>> scrolls_to_cancel;
+  auto current_element = target_element;
+  while (true) {
+    if (!current_element->parent_element()) {
+      break;
+    }
+    current_element = current_element->parent_element()->AsHTMLElement();
+    auto current_ui_nav_item = current_element->GetUiNavItem();
+    if (current_ui_nav_item) {
+      scrolls_to_cancel.push_back(current_ui_nav_item);
+    }
+  }
+
+  scroll_engine_->thread()->message_loop()->task_runner()->PostTask(
+      FROM_HERE,
+      base::Bind(&ui_navigation::scroll_engine::ScrollEngine::
+                     CancelActiveScrollsForNavItems,
+                 base::Unretained(scroll_engine_), scrolls_to_cancel));
+}
+
+void TopmostEventTarget::HandleScrollState(
+    scoped_refptr<dom::HTMLElement> target_element,
+    const dom::PointerEvent* pointer_event, dom::PointerState* pointer_state,
+    dom::PointerEventInit* event_init) {
+  // On pointer down, cancel any scrolls happening for UI nav items above
+  // that element. Additionally, save the pointer coordinates.
+  //
+  // On pointer move, check if we've reached the threshold to start
+  // scrolling. If we have, find the first scroll container we can scroll.
+  // Then send that scroll container, initial pointer event coords, current
+  // pointer event coords, scroll direction.
+  bool pointer_type_is_accepted = pointer_event->pointer_type() == "mouse" ||
+                                  pointer_event->pointer_type() == "pen" ||
+                                  pointer_event->pointer_type() == "touch";
+  if (!scroll_engine_ || !pointer_event || !pointer_type_is_accepted) {
+    return;
+  }
+
+  bool should_clear_pointer_state =
+      pointer_event->type() == base::Tokens::pointerup();
+
+  auto pointer_id = pointer_event->pointer_id();
+  auto pointer_coordinates =
+      math::Vector2dF(pointer_event->client_x(), pointer_event->client_y());
+
+  if (pointer_event->type() == base::Tokens::pointerdown()) {
+    CancelScrollsInParentNavItems(target_element);
+    pointer_state->SetClientCoordinates(pointer_id, pointer_coordinates);
+    pointer_state->SetClientTimeStamp(pointer_id, pointer_event->time_stamp());
+    return;
+  }
+
+  auto initial_coordinates = pointer_state->GetClientCoordinates(pointer_id);
+  auto initial_time_stamp = pointer_state->GetClientTimeStamp(pointer_id);
+  if (pointer_event->type() == base::Tokens::pointermove() &&
+      initial_coordinates.has_value() && initial_time_stamp.has_value()) {
+    cobalt::math::Vector2dF drag_vector =
+        initial_coordinates.value() - pointer_coordinates;
+    float x = drag_vector.x();
+    float y = drag_vector.y();
+
+    if (drag_vector.Length() >=
+        ui_navigation::scroll_engine::kDragDistanceThreshold) {
+      // Get major scroll direction.
+      ui_navigation::scroll_engine::ScrollType scroll_type =
+          std::abs(x) > std::abs(y)
+              ? ui_navigation::scroll_engine::ScrollType::Horizontal
+              : ui_navigation::scroll_engine::ScrollType::Vertical;
+      auto element_to_scroll = FindFirstElementWithScrollType(
+          target_element, scroll_type, x > 0, y > 0);
+      if (!element_to_scroll) {
+        return;
+      }
+
+      const scoped_refptr<dom::Window>& view = event_init->view();
+      element_to_scroll->DispatchEvent(new dom::PointerEvent(
+          base::Tokens::pointercancel(), web::Event::kBubbles,
+          web::Event::kNotCancelable, view, *event_init));
+      element_to_scroll->DispatchEvent(
+          new dom::PointerEvent(base::Tokens::pointerout(), view, *event_init));
+      element_to_scroll->DispatchEvent(new dom::PointerEvent(
+          base::Tokens::pointerleave(), web::Event::kNotBubbles,
+          web::Event::kNotCancelable, view, *event_init));
+
+      should_clear_pointer_state = true;
+      scroll_engine_->thread()->message_loop()->task_runner()->PostTask(
+          FROM_HERE,
+          base::Bind(
+              &ui_navigation::scroll_engine::ScrollEngine::HandleScrollStart,
+              base::Unretained(scroll_engine_),
+              element_to_scroll->GetUiNavItem(), scroll_type, pointer_id,
+              initial_coordinates.value(), initial_time_stamp.value(),
+              pointer_coordinates, pointer_event->time_stamp()));
+    }
+  }
+
+  if (should_clear_pointer_state) {
+    pointer_state->ClearClientCoordinates(pointer_id);
+    pointer_state->ClearTimeStamp(pointer_id);
   }
 }
 
@@ -342,6 +492,10 @@ void InitializePointerEventInitFromEvent(
 }
 }  // namespace
 
+TopmostEventTarget::TopmostEventTarget(
+    ui_navigation::scroll_engine::ScrollEngine* scroll_engine)
+    : scroll_engine_(scroll_engine) {}
+
 void TopmostEventTarget::MaybeSendPointerEvents(
     const scoped_refptr<web::Event>& event) {
   TRACE_EVENT0("cobalt::layout",
@@ -403,6 +557,11 @@ void TopmostEventTarget::MaybeSendPointerEvents(
     math::Vector2dF coordinate(static_cast<float>(event_init.client_x()),
                                static_cast<float>(event_init.client_y()));
     target_element = FindTopmostEventTarget(view->document(), coordinate);
+  }
+
+  if (target_element) {
+    HandleScrollState(target_element, pointer_event, pointer_state,
+                      &event_init);
   }
 
   scoped_refptr<dom::HTMLElement> previous_html_element(

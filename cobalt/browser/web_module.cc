@@ -67,6 +67,7 @@
 #include "cobalt/media/media_module.h"
 #include "cobalt/media_session/media_session_client.h"
 #include "cobalt/storage/storage_manager.h"
+#include "cobalt/ui_navigation/scroll_engine/scroll_engine.h"
 #include "cobalt/web/blob.h"
 #include "cobalt/web/context.h"
 #include "cobalt/web/csp_delegate_factory.h"
@@ -343,6 +344,8 @@ class WebModule::Impl {
 
   web::Context* web_context_;
 
+  ui_navigation::scroll_engine::ScrollEngine* scroll_engine_;
+
   // Simple flag used for basic error checking.
   bool is_running_;
 
@@ -488,6 +491,7 @@ class WebModule::Impl::DocumentLoadedObserver : public dom::DocumentObserver {
 
 WebModule::Impl::Impl(web::Context* web_context, const ConstructionData& data)
     : web_context_(web_context),
+      scroll_engine_(data.scroll_engine),
       is_running_(false),
       is_render_tree_rasterization_pending_(
           base::StringPrintf("%s.IsRenderTreeRasterizationPending",
@@ -505,7 +509,6 @@ WebModule::Impl::Impl(web::Context* web_context, const ConstructionData& data)
       base::Bind(&WebModule::Impl::LogScriptError, base::Unretained(this));
   web_context_->javascript_engine()->RegisterErrorHandler(error_handler);
 #endif
-
   css_parser::Parser::SupportsMapToMeshFlag supports_map_to_mesh =
       data.options.enable_map_to_mesh
           ? css_parser::Parser::kSupportsMapToMesh
@@ -1316,7 +1319,8 @@ void WebModule::Impl::HandlePointerEvents() {
           base::polymorphic_downcast<const dom::UIEvent* const>(event.get())
               ->view());
       if (!topmost_event_target_) {
-        topmost_event_target_.reset(new layout::TopmostEventTarget());
+        topmost_event_target_.reset(
+            new layout::TopmostEventTarget(scroll_engine_));
       }
       topmost_event_target_->MaybeSendPointerEvents(event);
     }
@@ -1350,6 +1354,7 @@ WebModule::~WebModule() {
 
 void WebModule::Run(
     const GURL& initial_url, base::ApplicationState initial_application_state,
+    ui_navigation::scroll_engine::ScrollEngine* scroll_engine,
     const OnRenderTreeProducedCallback& render_tree_produced_callback,
     OnErrorCallback error_callback, const CloseCallback& window_close_callback,
     const base::Closure& window_minimize_callback,
@@ -1358,10 +1363,11 @@ void WebModule::Run(
     render_tree::ResourceProvider* resource_provider, float layout_refresh_rate,
     const Options& options) {
   ConstructionData construction_data(
-      initial_url, initial_application_state, render_tree_produced_callback,
-      error_callback, window_close_callback, window_minimize_callback,
-      can_play_type_handler, media_module, window_dimensions, resource_provider,
-      kDOMMaxElementDepth, layout_refresh_rate, ui_nav_root_,
+      initial_url, initial_application_state, scroll_engine,
+      render_tree_produced_callback, error_callback, window_close_callback,
+      window_minimize_callback, can_play_type_handler, media_module,
+      window_dimensions, resource_provider, kDOMMaxElementDepth,
+      layout_refresh_rate, ui_nav_root_,
 #if defined(ENABLE_DEBUGGER)
       &waiting_for_web_debugger_,
 #endif  // defined(ENABLE_DEBUGGER)

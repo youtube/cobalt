@@ -185,6 +185,7 @@ static_library("browser") {
     "//cobalt/system_window",
     "//cobalt/trace_event",
     "//cobalt/ui_navigation",
+    "//cobalt/ui_navigation/scroll_engine",
     "//cobalt/watchdog",
     "//cobalt/web",
     "//cobalt/webdriver",

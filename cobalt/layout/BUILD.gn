@@ -117,6 +117,7 @@ static_library("layout") {
     "//cobalt/render_tree",
     "//cobalt/render_tree:animations",
     "//cobalt/ui_navigation",
+    "//cobalt/ui_navigation/scroll_engine",
     "//cobalt/web_animations",
     "//third_party/icu:icuuc",
   ]
