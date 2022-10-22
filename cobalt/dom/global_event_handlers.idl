@@ -51,6 +51,7 @@ interface GlobalEventHandlers {
   //  https://www.w3.org/TR/2015/REC-pointerevents-20150224/#extensions-to-the-globaleventhandlers-interface
   attribute EventHandler ongotpointercapture;
   attribute EventHandler onlostpointercapture;
+  attribute EventHandler onpointercancel;
   attribute EventHandler onpointerdown;
   attribute EventHandler onpointerenter;
   attribute EventHandler onpointerleave;

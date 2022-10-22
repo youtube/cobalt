@@ -227,7 +227,7 @@ std::string RunWebPlatformTest(const GURL& url, bool* got_results) {
   // Create the WebModule and wait for a layout to occur.
   browser::WebModule web_module("RunWebPlatformTest");
   web_module.Run(
-      url, base::kApplicationStateStarted,
+      url, base::kApplicationStateStarted, nullptr /* scroll_engine */,
       base::Bind(&WebModuleOnRenderTreeProducedCallback, &results),
       base::Bind(&WebModuleErrorCallback, &run_loop,
                  base::MessageLoop::current()),

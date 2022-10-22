@@ -146,7 +146,7 @@ DebugConsole::DebugConsole(
 
   web_module_.reset(new WebModule("DebugConsoleWebModule"));
   web_module_->Run(GURL(kInitialDebugConsoleUrl), initial_application_state,
-                   render_tree_produced_callback,
+                   nullptr /* scroll_engine */, render_tree_produced_callback,
                    base::Bind(&DebugConsole::OnError, base::Unretained(this)),
                    WebModule::CloseCallback(), /* window_close_callback */
                    base::Closure(),            /* window_minimize_callback */

@@ -21,10 +21,12 @@
 #include "base/memory/weak_ptr.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/html_element.h"
+#include "cobalt/dom/pointer_event.h"
 #include "cobalt/layout/box.h"
 #include "cobalt/layout/layout_boxes.h"
 #include "cobalt/math/vector2d.h"
 #include "cobalt/math/vector2d_f.h"
+#include "cobalt/ui_navigation/scroll_engine/scroll_engine.h"
 #include "cobalt/web/event.h"
 
 namespace cobalt {
@@ -32,7 +34,8 @@ namespace layout {
 
 class TopmostEventTarget {
  public:
-  TopmostEventTarget() {}
+  explicit TopmostEventTarget(
+      ui_navigation::scroll_engine::ScrollEngine* scroll_engine);
 
   void MaybeSendPointerEvents(const scoped_refptr<web::Event>& event);
 
@@ -40,6 +43,13 @@ class TopmostEventTarget {
   scoped_refptr<dom::HTMLElement> FindTopmostEventTarget(
       const scoped_refptr<dom::Document>& document,
       const math::Vector2dF& coordinate);
+
+  void HandleScrollState(scoped_refptr<dom::HTMLElement> target_element,
+                         const dom::PointerEvent* pointer_event,
+                         dom::PointerState* pointer_state,
+                         dom::PointerEventInit* event_init);
+  void CancelScrollsInParentNavItems(
+      scoped_refptr<dom::HTMLElement> target_element);
 
   void ConsiderElement(dom::Element* element,
                        const math::Vector2dF& coordinate);
@@ -51,6 +61,8 @@ class TopmostEventTarget {
   scoped_refptr<dom::HTMLElement> html_element_;
   scoped_refptr<Box> box_;
   Box::RenderSequence render_sequence_;
+
+  ui_navigation::scroll_engine::ScrollEngine* scroll_engine_;
 
   // This map stores the pointer types for which the 'prevent mouse event' flag
   // has been set as part of the compatibility mapping steps defined at

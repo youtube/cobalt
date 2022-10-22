@@ -68,6 +68,7 @@
 #include "cobalt/script/array_buffer.h"
 #include "cobalt/storage/storage_manager.h"
 #include "cobalt/system_window/system_window.h"
+#include "cobalt/ui_navigation/scroll_engine/scroll_engine.h"
 #include "cobalt/web/web_settings.h"
 #include "cobalt/webdriver/session_driver.h"
 #include "starboard/configuration.h"
@@ -581,6 +582,9 @@ class BrowserModule {
 
   std::unique_ptr<dom::OnScreenKeyboardBridge> on_screen_keyboard_bridge_;
   bool on_screen_keyboard_show_called_ = false;
+
+  // Handles pointer events for scroll containers.
+  std::unique_ptr<ui_navigation::scroll_engine::ScrollEngine> scroll_engine_;
 
   // Sets up everything to do with web page management, from loading and
   // parsing the web page and all referenced files to laying it out.  The

@@ -109,8 +109,8 @@ SplashScreen::SplashScreen(
   DCHECK(url_to_pass);
   web_module_.reset(new WebModule("SplashScreenWebModule"));
   web_module_->Run(*url_to_pass, initial_application_state,
-                   render_tree_produced_callback_, base::Bind(&OnError),
-                   on_window_close,
+                   nullptr /* scroll_engine */, render_tree_produced_callback_,
+                   base::Bind(&OnError), on_window_close,
                    base::Closure(),  // window_minimize_callback
                    NULL /* can_play_type_handler */, NULL /* media_module */,
                    window_dimensions, resource_provider, layout_refresh_rate,

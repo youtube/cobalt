@@ -303,6 +303,13 @@ class EventTarget : public script::Wrappable,
     SetAttributeEventListener(base::Tokens::scroll(), event_listener);
   }
 
+  const EventListenerScriptValue* onpointercancel() {
+    return GetAttributeEventListener(base::Tokens::pointercancel());
+  }
+  void set_onpointercancel(const EventListenerScriptValue& event_listener) {
+    SetAttributeEventListener(base::Tokens::pointercancel(), event_listener);
+  }
+
   const EventListenerScriptValue* ongotpointercapture() {
     return GetAttributeEventListener(base::Tokens::gotpointercapture());
   }
