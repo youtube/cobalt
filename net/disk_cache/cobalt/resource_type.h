@@ -30,7 +30,8 @@ enum ResourceType {
   kUncompiledScript = 6,
   kCompiledScript = 7,
   kCacheApi = 8,
-  kTypeCount = 9
+  kServiceWorkerScript = 9,
+  kTypeCount = 10,
 };
 
 struct ResourceTypeMetadata {
@@ -43,10 +44,10 @@ static uint32_t kInitialBytes = static_cast<uint32_t> (3 * 1024 * 1024);
 // persisted values saved in settings.json.
 static ResourceTypeMetadata kTypeMetadata[] = {
     {"other", kInitialBytes},         {"html", 2 * 1024 * 1024},
-    {"css", 1 * 1024 * 1024},         {"image", kInitialBytes},
+    {"css", 1 * 1024 * 1024},         {"image", 0},
     {"font", kInitialBytes},          {"splash", 2 * 1024 * 1024},
     {"uncompiled_js", kInitialBytes}, {"compiled_js", kInitialBytes},
-    {"cache_api", kInitialBytes},
+    {"cache_api", kInitialBytes},     {"service_worker_js", kInitialBytes},
 };
 
 }  // namespace disk_cache

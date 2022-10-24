@@ -55,8 +55,7 @@ void ServiceWorker::PostMessage(const script::ValueHandleHolder& message) {
     return;
   }
   // 5. If the result of running the Should Skip Event algorithm with
-  // "message"
-  //    and serviceWorker is true, then return.
+  // "message" and serviceWorker is true, then return.
   if (service_worker->ShouldSkipEvent(base::Tokens::message())) return;
   // 6. Run these substeps in parallel:
   ServiceWorkerJobs* jobs =

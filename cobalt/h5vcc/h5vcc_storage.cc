@@ -235,7 +235,7 @@ H5vccStorageSetQuotaResponse H5vccStorage::SetQuota(
   if (!quota.has_other() || !quota.has_html() || !quota.has_css() ||
       !quota.has_image() || !quota.has_font() || !quota.has_splash() ||
       !quota.has_uncompiled_js() || !quota.has_compiled_js() ||
-      !quota.has_cache_api()) {
+      !quota.has_cache_api() || !quota.has_service_worker_js()) {
     return SetQuotaResponse(
         "H5vccStorageResourceTypeQuotaBytesDictionary input parameter missing "
         "required fields.");
@@ -244,7 +244,7 @@ H5vccStorageSetQuotaResponse H5vccStorage::SetQuota(
   if (quota.other() < 0 || quota.html() < 0 || quota.css() < 0 ||
       quota.image() < 0 || quota.font() < 0 || quota.splash() < 0 ||
       quota.uncompiled_js() < 0 || quota.compiled_js() < 0 ||
-      quota.cache_api() < 0) {
+      quota.cache_api() < 0 || quota.service_worker_js() < 0) {
     return SetQuotaResponse(
         "H5vccStorageResourceTypeQuotaBytesDictionary input parameter fields "
         "cannot have a negative value.");
@@ -253,7 +253,7 @@ H5vccStorageSetQuotaResponse H5vccStorage::SetQuota(
   auto quota_total = quota.other() + quota.html() + quota.css() +
                      quota.image() + quota.font() + quota.splash() +
                      quota.uncompiled_js() + quota.compiled_js() +
-                     quota.cache_api();
+                     quota.cache_api() + quota.service_worker_js();
 
   uint32_t max_quota_size = 24 * 1024 * 1024;
 #if SB_API_VERSION >= 14
@@ -291,6 +291,8 @@ H5vccStorageSetQuotaResponse H5vccStorage::SetQuota(
                             static_cast<uint32_t>(quota.compiled_js()));
   SetAndSaveQuotaForBackend(disk_cache::kCacheApi,
                             static_cast<uint32_t>(quota.cache_api()));
+  SetAndSaveQuotaForBackend(disk_cache::kServiceWorkerScript,
+                            static_cast<uint32_t>(quota.service_worker_js()));
   return SetQuotaResponse("", true);
 }
 
@@ -328,6 +330,8 @@ H5vccStorageResourceTypeQuotaBytesDictionary H5vccStorage::GetQuota() {
           ->GetMaxCacheStorageInBytes(disk_cache::kCompiledScript)
           .value());
   quota.set_cache_api(cache_backend_->GetQuota(disk_cache::kCacheApi));
+  quota.set_service_worker_js(
+      cache_backend_->GetQuota(disk_cache::kServiceWorkerScript));
 
   uint32_t max_quota_size = 24 * 1024 * 1024;
 #if SB_API_VERSION >= 14

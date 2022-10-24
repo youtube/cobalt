@@ -284,14 +284,15 @@ BrowserModule::BrowserModule(const GURL& url,
       main_web_module_generation_(0),
       next_timeline_id_(1),
       current_splash_screen_timeline_id_(-1),
-      current_main_web_module_timeline_id_(-1),
-      service_worker_registry_(network_module) {
+      current_main_web_module_timeline_id_(-1) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::BrowserModule()");
 
   // Apply platform memory setting adjustments and defaults.
   ApplyAutoMemSettings();
 
   platform_info_.reset(new browser::UserAgentPlatformInfo());
+  service_worker_registry_.reset(
+      new ServiceWorkerRegistry(network_module, platform_info_.get()));
 
 #if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
   SbCoreDumpRegisterHandler(BrowserModule::CoreDumpHandler, this);
@@ -611,7 +612,7 @@ void BrowserModule::Navigate(const GURL& url_reference) {
 
   options.web_options.network_module = network_module_;
   options.web_options.service_worker_jobs =
-      service_worker_registry_.service_worker_jobs();
+      service_worker_registry_->service_worker_jobs();
   options.web_options.platform_info = platform_info_.get();
   web_module_.reset(new WebModule("MainWebModule"));
   web_module_->Run(

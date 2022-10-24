@@ -121,6 +121,7 @@ bool PermitAnyURL(const GURL&, bool) { return true; }
 }  // namespace
 
 ServiceWorkerJobs::ServiceWorkerJobs(network::NetworkModule* network_module,
+                                     web::UserAgentPlatformInfo* platform_info,
                                      base::MessageLoop* message_loop)
     : network_module_(network_module), message_loop_(message_loop) {
   DCHECK_EQ(message_loop_, base::MessageLoop::current());
@@ -131,7 +132,9 @@ ServiceWorkerJobs::ServiceWorkerJobs(network::NetworkModule* network_module,
       "ServiceWorkerJobs", fetcher_factory_.get()));
   DCHECK(script_loader_factory_);
 
-  scope_to_registration_map_.reset(new ServiceWorkerRegistrationMap());
+  ServiceWorkerPersistentSettings::Options options(network_module,
+                                                   platform_info, this);
+  scope_to_registration_map_.reset(new ServiceWorkerRegistrationMap(options));
   DCHECK(scope_to_registration_map_);
 }
 
@@ -1119,6 +1122,10 @@ void ServiceWorkerJobs::Install(
   // TODO(b/234788479): Wait for tasks.
   // 22. Invoke Try Activate with registration.
   TryActivate(registration);
+
+  // Persist registration since the waiting_worker has been updated.
+  scope_to_registration_map_->PersistRegistration(registration->storage_key(),
+                                                  registration->scope_url());
 }
 
 bool ServiceWorkerJobs::IsAnyClientUsingRegistration(
@@ -1330,6 +1337,11 @@ void ServiceWorkerJobs::Activate(
   if (activated && registration->active_worker()) {
     UpdateWorkerState(registration->active_worker(),
                       kServiceWorkerStateActivated);
+
+    // Persist registration since the waiting_worker has been updated to nullptr
+    // and the active_worker has been updated to the previous waiting_worker.
+    scope_to_registration_map_->PersistRegistration(registration->storage_key(),
+                                                    registration->scope_url());
   }
 }
 
@@ -1415,6 +1427,12 @@ void ServiceWorkerJobs::ClearRegistration(
     //      "active" and null as the arguments.
     UpdateRegistrationState(registration, kActive, nullptr);
   }
+
+  // Persist registration since the waiting_worker and active_worker have
+  // been updated to nullptr. This will remove any persisted registration
+  // if one exists.
+  scope_to_registration_map_->PersistRegistration(registration->storage_key(),
+                                                  registration->scope_url());
 }
 
 void ServiceWorkerJobs::TryClearRegistration(
@@ -1668,7 +1686,8 @@ void ServiceWorkerJobs::TerminateServiceWorker(ServiceWorkerObject* worker) {
       worker->worker_global_scope();
 
   // 1.2. Set serviceWorkerGlobalScope’s closing flag to true.
-  service_worker_global_scope->set_closing_flag(true);
+  if (service_worker_global_scope != nullptr)
+    service_worker_global_scope->set_closing_flag(true);
 
   // 1.3. Remove all the items from serviceWorker’s set of extended events.
   // TODO(b/240174245): Implement 'set of extended events'.
@@ -1701,8 +1720,7 @@ void ServiceWorkerJobs::TerminateServiceWorker(ServiceWorkerObject* worker) {
   }
 
   // 1.5. Abort the script currently running in serviceWorker.
-  DCHECK(worker->is_running());
-  worker->Abort();
+  if (worker->is_running()) worker->Abort();
 
   // 1.6. Set serviceWorker’s start status to null.
   worker->set_start_status(nullptr);

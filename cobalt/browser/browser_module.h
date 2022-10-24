@@ -721,7 +721,7 @@ class BrowserModule {
   std::unique_ptr<browser::UserAgentPlatformInfo> platform_info_;
 
   // Manages the Service Workers.
-  ServiceWorkerRegistry service_worker_registry_;
+  std::unique_ptr<ServiceWorkerRegistry> service_worker_registry_;
 };
 
 }  // namespace browser

@@ -54,6 +54,15 @@ std::string SerializeExcludingFragment(const GURL& url) {
 
 }  // namespace
 
+ServiceWorkerRegistrationMap::ServiceWorkerRegistrationMap(
+    const ServiceWorkerPersistentSettings::Options& options) {
+  service_worker_persistent_settings_.reset(
+      new ServiceWorkerPersistentSettings(options));
+  DCHECK(service_worker_persistent_settings_);
+  service_worker_persistent_settings_->ReadServiceWorkerRegistrationMapSettings(
+      registration_map_);
+}
+
 scoped_refptr<ServiceWorkerRegistrationObject>
 ServiceWorkerRegistrationMap::MatchServiceWorkerRegistration(
     const url::Origin& storage_key, const GURL& client_url) {
@@ -113,7 +122,6 @@ ServiceWorkerRegistrationMap::MatchServiceWorkerRegistration(
                 url::Origin::Create(client_url));
     }
   }
-
   // 9. Return the result of running Get Registration given storage key and
   // matchingScope.
   return GetRegistration(storage_key, matching_scope);
@@ -212,6 +220,8 @@ void ServiceWorkerRegistrationMap::RemoveRegistration(
   DCHECK(entry != registration_map_.end());
   if (entry != registration_map_.end()) {
     registration_map_.erase(entry);
+    service_worker_persistent_settings_
+        ->RemoveServiceWorkerRegistrationObjectSettings(registration_key);
   }
 }
 
@@ -276,6 +286,22 @@ void ServiceWorkerRegistrationMap::AbortAllActive() {
     if (registration->active_worker()) {
       registration->active_worker()->Abort();
     }
+  }
+}
+
+void ServiceWorkerRegistrationMap::PersistRegistration(
+    const url::Origin& storage_key, const GURL& scope) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  std::string scope_string = SerializeExcludingFragment(scope);
+  RegistrationMapKey registration_key(storage_key, scope_string);
+  auto entry = registration_map_.find(registration_key);
+  if (entry != registration_map_.end()) {
+    service_worker_persistent_settings_
+        ->WriteServiceWorkerRegistrationObjectSettings(registration_key,
+                                                       entry->second);
+  } else {
+    service_worker_persistent_settings_
+        ->RemoveServiceWorkerRegistrationObjectSettings(registration_key);
   }
 }
 

@@ -31,7 +31,8 @@ namespace browser {
 // metadata are stored persistently on disk.
 class ServiceWorkerRegistry : public base::MessageLoop::DestructionObserver {
  public:
-  explicit ServiceWorkerRegistry(network::NetworkModule* network_module);
+  explicit ServiceWorkerRegistry(network::NetworkModule* network_module,
+                                 web::UserAgentPlatformInfo* platform_info);
   ~ServiceWorkerRegistry();
 
   // The message loop this object is running on.
@@ -45,7 +46,8 @@ class ServiceWorkerRegistry : public base::MessageLoop::DestructionObserver {
  private:
   // Called by the constructor to perform any other initialization required on
   // the dedicated thread.
-  void Initialize(network::NetworkModule* network_module);
+  void Initialize(network::NetworkModule* network_module,
+                  web::UserAgentPlatformInfo* platform_info);
 
   // The thread created and owned by the Service Worker Registry.
   // All registry mutations occur on this thread. The thread has to outlive all

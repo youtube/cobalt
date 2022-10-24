@@ -179,6 +179,7 @@ class ServiceWorkerJobs {
   };
 
   ServiceWorkerJobs(network::NetworkModule* network_module,
+                    web::UserAgentPlatformInfo* platform_info,
                     base::MessageLoop* message_loop);
   ~ServiceWorkerJobs();
 
