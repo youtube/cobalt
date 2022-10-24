@@ -38,6 +38,8 @@ base::Optional<uint32_t> GetMinSizeToCacheInBytes(
   switch (resource_type) {
     case disk_cache::ResourceType::kCompiledScript:
       return 4096u;
+    case disk_cache::ResourceType::kServiceWorkerScript:
+      return 1u;
     default:
       return base::nullopt;
   }
@@ -50,6 +52,8 @@ base::Optional<std::string> GetSubdirectory(
       return "cache_api";
     case disk_cache::ResourceType::kCompiledScript:
       return "compiled_js";
+    case disk_cache::ResourceType::kServiceWorkerScript:
+      return "service_worker_js";
     default:
       return base::nullopt;
   }
@@ -113,6 +117,7 @@ void Cache::Delete(disk_cache::ResourceType resource_type) {
 }
 
 void Cache::DeleteAll() {
+  Delete(disk_cache::ResourceType::kServiceWorkerScript);
   Delete(disk_cache::ResourceType::kCompiledScript);
   Delete(disk_cache::ResourceType::kCacheApi);
 }
@@ -271,6 +276,7 @@ base::Optional<uint32_t> Cache::GetMaxCacheStorageInBytes(
   switch (resource_type) {
     case disk_cache::ResourceType::kCacheApi:
     case disk_cache::ResourceType::kCompiledScript:
+    case disk_cache::ResourceType::kServiceWorkerScript:
       return disk_cache::kTypeMetadata[resource_type].max_size_bytes;
     default:
       return base::nullopt;

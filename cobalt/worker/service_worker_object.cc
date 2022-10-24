@@ -117,7 +117,6 @@ void ServiceWorkerObject::WillDestroyCurrentMessageLoop() {
 #if defined(ENABLE_DEBUGGER)
   debug_module_.reset();
 #endif  // ENABLE_DEBUGGER
-
   worker_global_scope_ = nullptr;
 }
 

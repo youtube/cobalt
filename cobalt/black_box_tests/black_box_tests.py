@@ -76,6 +76,7 @@ _TESTS_NO_SIGNAL = [
     'service_worker_fetch_test',
     'service_worker_message_test',
     'service_worker_test',
+    'service_worker_persist_test',
 ]
 # These tests can only be run on platforms whose app launcher can send deep
 # links.

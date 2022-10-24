@@ -258,6 +258,11 @@ const checkClaimableWorker = () => Promise.all([
             'Registration successful, current worker state is ' +
             'active.');
       }
+      // TODO (b/259734597) : This registration is persisting since it is
+      // not unregistered and h5vcc storage clearCache does not correctly clear
+      // registrations.
+      // TODO (b/259731731) : Adding registration.unregister() causes memory
+      // leaks.
     })
     .catch(fail),
 ]);
