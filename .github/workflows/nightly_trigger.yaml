@@ -43,3 +43,36 @@ jobs:
           gh workflow run raspi-2_22.lts.1+ --ref 22.lts.1+ -f nightly=true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  trigger_21:
+    permissions: write-all
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 1
+          ref: 21.lts.1+
+      - name: Trigger Nightly
+        run: |
+          set -x
+          gh workflow run evergreen_21.lts.1+ --ref 21.lts.1+ -f nightly=true
+          gh workflow run linux_21.lts.1+ --ref 21.lts.1+ -f nightly=true
+          gh workflow run raspi-2_21.lts.1+ --ref 21.lts.1+ -f nightly=true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  trigger_20:
+    permissions: write-all
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 1
+          ref: 20.lts.1+
+      - name: Trigger Nightly
+        run: |
+          set -x
+          gh workflow run linux_20.lts.1+ --ref 20.lts.1+ -f nightly=true
+          gh workflow run raspi-2_20.lts.1+ --ref 20.lts.1+ -f nightly=true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
