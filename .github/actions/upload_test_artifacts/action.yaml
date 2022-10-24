@@ -56,7 +56,7 @@ runs:
           outdir="$GITHUB_WORKSPACE/out/${{matrix.target_platform}}_${{matrix.config}}"
           if [ -n "${COBALT_BOOTLOADER}" ]
           then
-            outdir="${outdir} $GITHUB_WORKSPACE/out/${{matrix.bootloader_platform}}_${{matrix.config}}"
+            outdir="${outdir} $GITHUB_WORKSPACE/out/${COBALT_BOOTLOADER}_${{matrix.config}}"
           fi
           python3 $GITHUB_WORKSPACE/tools/create_archive.py --test_infra -d ${{env.ARCHIVE_FILE}} -s ${outdir}
         elif [ "${{ inputs.type }}" == 'onhost' ]

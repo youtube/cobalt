@@ -1,7 +1,7 @@
 {
   "docker_service": "build-raspi",
   "bootloader": "raspi-2",
-  "on_device_test": "yes",
+  "on_device_test": "true",
   "platforms": [
     "evergreen-arm-hardfp",
 		"evergreen-arm-hardfp-sbversion-14",
