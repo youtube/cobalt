@@ -41,9 +41,12 @@ RUN curl --silent -o- ${NVM_URL} \
    && echo ${NVM_SHA256SUM} | sha256sum --check \
    && . /tmp/install.sh
 
+# === Pinned Node version to v16, as this is latest one that will work on
+# legacy Debian systems
+ARG LTS_VERSION=v16
 RUN . $NVM_DIR/nvm.sh \
-   && nvm install --lts \
-   && nvm alias default lts/* \
+   && nvm install --lts ${LTS_VERSION} \
+   && nvm alias default ${LTS_VERSION}/* \
    && nvm use default
 
 ENV NODE_PATH $NVM_DIR/v$NODE_VERSION/lib/node_modules
