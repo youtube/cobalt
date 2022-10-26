@@ -35,8 +35,8 @@ const int ProgressiveParser::kInitialHeaderSize = 9;
   DCHECK(media_log);
   *parser = NULL;
 
-  // download first 16 bytes of stream to determine file type and extract basic
-  // container-specific stream configuration information
+  // download first kInitialHeaderSize bytes of stream to determine file type
+  // and extract basic container-specific stream configuration information
   uint8 header[kInitialHeaderSize];
   int bytes_read = reader->BlockingRead(0, kInitialHeaderSize, header);
   if (bytes_read != kInitialHeaderSize) {
