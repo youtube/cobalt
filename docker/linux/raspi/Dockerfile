@@ -37,7 +37,7 @@ RUN cd /tmp \
     "https://storage.googleapis.com/cobalt-static-storage/${raspi_tools}" \
     && mkdir -p ${raspi_home} \
     && cd ${raspi_home} \
-    && tar xjvf /tmp/${raspi_tools} \
+    && tar xjvf /tmp/${raspi_tools} --no-same-owner \
     && rm /tmp/${raspi_tools}
 
 CMD gn gen ${OUTDIR}/${PLATFORM}_${CONFIG} --args="target_platform=\"${PLATFORM}\" build_type=\"${CONFIG}\" target_cpu=\"arm\" is_clang=false" && \
