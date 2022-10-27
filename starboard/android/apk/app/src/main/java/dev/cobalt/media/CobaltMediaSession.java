@@ -78,7 +78,12 @@ public class CobaltMediaSession
   private static final int PLAYBACK_STATE_PLAYING = 0;
   private static final int PLAYBACK_STATE_PAUSED = 1;
   private static final int PLAYBACK_STATE_NONE = 2;
-  private static final String[] PLAYBACK_STATE_NAME = {"playing", "paused", "none"};
+  private static final String[] PLAYBACK_STATE_NAME = {"PLAYING", "PAUSED", "NONE"};
+  private static final int[] PLAYBACK_STATE_COMPAT_MAPPING = {
+    PlaybackStateCompat.STATE_PLAYING,
+    PlaybackStateCompat.STATE_PAUSED,
+    PlaybackStateCompat.STATE_NONE
+  };
 
   // Accessed on the main looper thread only.
   private int currentPlaybackState = PLAYBACK_STATE_NONE;
@@ -205,7 +210,7 @@ public class CobaltMediaSession
     MediaMetadataCompat.Builder metadataBuilder = new MediaMetadataCompat.Builder();
     mediaSession.setMetadata(metadataBuilder.build());
     // |playbackStateBuilder| may still have no fields at this point.
-    mediaSession.setPlaybackState(playbackStateBuilder.build());
+    updatePlaybackState();
   }
 
   private static void checkMainLooperThread() {
@@ -220,10 +225,10 @@ public class CobaltMediaSession
    * are set together to stay coherent as playback state changes. This is idempotent as it may be
    * called multiple times during the course of a media session.
    */
-  private void configureMediaFocus(int playbackState) {
+  private void configureMediaFocus(int playbackState, long positionMs, float speed) {
     checkMainLooperThread();
     if (transientPause && playbackState == PLAYBACK_STATE_PAUSED) {
-      Log.i(TAG, "Media focus: paused (transient)");
+      Log.i(TAG, "Media focus: PAUSED (transient)");
       // Don't release media focus while transiently paused, otherwise we won't get audiofocus back
       // when the transient condition ends and we would leave playback paused.
       return;
@@ -231,6 +236,9 @@ public class CobaltMediaSession
     Log.i(TAG, "Media focus: " + PLAYBACK_STATE_NAME[playbackState]);
     wakeLock(playbackState == PLAYBACK_STATE_PLAYING);
     audioFocus(playbackState == PLAYBACK_STATE_PLAYING);
+
+    playbackStateBuilder.setState(PLAYBACK_STATE_COMPAT_MAPPING[playbackState], positionMs, speed);
+    updatePlaybackState();
 
     boolean activating = playbackState != PLAYBACK_STATE_NONE;
     boolean deactivating = playbackState == PLAYBACK_STATE_NONE;
@@ -383,9 +391,13 @@ public class CobaltMediaSession
 
   private void resumeInternal() {
     checkMainLooperThread();
+    Log.i(TAG, "Resume");
     suspended = false;
     // Undoing what may have been done in suspendInternal().
-    configureMediaFocus(currentPlaybackState);
+    configureMediaFocus(
+        currentPlaybackState,
+        PlaybackStateCompat.PLAYBACK_POSITION_UNKNOWN,
+        currentPlaybackState == PLAYBACK_STATE_PLAYING ? 1.0f : 0.0f);
   }
 
   public void suspend() {
@@ -404,6 +416,7 @@ public class CobaltMediaSession
 
   private void suspendInternal() {
     checkMainLooperThread();
+    Log.i(TAG, "Suspend");
     suspended = true;
 
     // We generally believe the HTML5 app playback state as the source of truth for configuring
@@ -412,11 +425,7 @@ public class CobaltMediaSession
     // active SbPlayer is destroyed and we release media focus, even if the HTML5 app still thinks
     // it's in a playing state. We'll configure it again in resumeInternal() and the HTML5 app will
     // be none the wiser.
-    playbackStateBuilder.setState(
-        currentPlaybackState,
-        PlaybackStateCompat.PLAYBACK_POSITION_UNKNOWN,
-        currentPlaybackState == PLAYBACK_STATE_PLAYING ? 1.0f : 0.0f);
-    configureMediaFocus(PLAYBACK_STATE_NONE);
+    configureMediaFocus(PLAYBACK_STATE_NONE, PlaybackStateCompat.PLAYBACK_POSITION_UNKNOWN, 0.0f);
   }
 
   private static void nativeInvokeAction(long action) {
@@ -469,6 +478,11 @@ public class CobaltMediaSession
       return;
     }
 
+    // Always update playback state.
+    playbackStateBuilder.setActions(actions);
+    playbackStateBuilder.setState(PLAYBACK_STATE_COMPAT_MAPPING[playbackState], positionMs, speed);
+    updatePlaybackState();
+
     if (hasStateChange) {
       if (playbackState == PLAYBACK_STATE_PLAYING) {
         // We don't want to request media focus if |explicitUserActionRequired| is true when we
@@ -479,14 +493,14 @@ public class CobaltMediaSession
         if (!explicitUserActionRequired
             || (activityHolder.get() != null && activityHolder.get().hasWindowFocus())) {
           explicitUserActionRequired = false;
-          configureMediaFocus(playbackState);
+          configureMediaFocus(playbackState, positionMs, speed);
         } else {
           Log.w(TAG, "Audiofocus action: PAUSE (explicit user action required)");
           nativeInvokeAction(PlaybackStateCompat.ACTION_PAUSE);
         }
       } else {
         // It's fine to abandon media focus anytime.
-        configureMediaFocus(playbackState);
+        configureMediaFocus(playbackState, positionMs, speed);
       }
     }
 
@@ -495,43 +509,40 @@ public class CobaltMediaSession
       return;
     }
 
-    int androidPlaybackState;
-    String stateName;
-    switch (playbackState) {
-      case PLAYBACK_STATE_PLAYING:
-        androidPlaybackState = PlaybackStateCompat.STATE_PLAYING;
+    // Let metadata hold onto the most recent metadata and add artwork later.
+    metadata.SetMetadata(title, artist, album, artworkLoader.getOrLoadArtwork(artwork), duration);
+
+    // Update the metadata as soon as we can - even before artwork is loaded.
+    updateMetadata(false);
+  }
+
+  private void updatePlaybackState() {
+    if (mediaSession == null) {
+      return;
+    }
+
+    PlaybackStateCompat playbackState = playbackStateBuilder.build();
+    String stateName = "UNKNOWN";
+    switch (playbackState.getState()) {
+      case PlaybackStateCompat.STATE_PLAYING:
         stateName = "PLAYING";
         break;
-      case PLAYBACK_STATE_PAUSED:
-        androidPlaybackState = PlaybackStateCompat.STATE_PAUSED;
+      case PlaybackStateCompat.STATE_PAUSED:
         stateName = "PAUSED";
         break;
-      case PLAYBACK_STATE_NONE:
-      default:
-        androidPlaybackState = PlaybackStateCompat.STATE_NONE;
+      case PlaybackStateCompat.STATE_NONE:
         stateName = "NONE";
         break;
     }
 
     Log.i(
         TAG,
-        "MediaSession state: %s, position: %d ms, speed: %f x, duration: %d ms",
+        "MediaSession setPlaybackState: %s, position: %d ms, speed: %f x",
         stateName,
-        positionMs,
-        speed,
-        duration);
+        playbackState.getPosition(),
+        playbackState.getPlaybackSpeed());
 
-    playbackStateBuilder =
-        new PlaybackStateCompat.Builder()
-            .setActions(actions)
-            .setState(androidPlaybackState, positionMs, speed);
-    mediaSession.setPlaybackState(playbackStateBuilder.build());
-
-    // Let metadata hold onto the most recent metadata and add artwork later.
-    metadata.SetMetadata(title, artist, album, artworkLoader.getOrLoadArtwork(artwork), duration);
-
-    // Update the metadata as soon as we can - even before artwork is loaded.
-    updateMetadata(false);
+    mediaSession.setPlaybackState(playbackState);
   }
 
   private void updateMetadata(boolean resetMetadataWithEmptyBuilder) {
@@ -541,7 +552,9 @@ public class CobaltMediaSession
 
     MediaMetadataCompat.Builder metadataBuilder = new MediaMetadataCompat.Builder();
     // Reset the metadata to make sure the artwork update correctly.
-    if (resetMetadataWithEmptyBuilder) mediaSession.setMetadata(metadataBuilder.build());
+    if (resetMetadataWithEmptyBuilder) {
+      mediaSession.setMetadata(metadataBuilder.build());
+    }
 
     metadataBuilder
         .putString(MediaMetadataCompat.METADATA_KEY_TITLE, metadata.title)
