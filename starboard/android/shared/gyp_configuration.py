@@ -109,6 +109,25 @@ class AndroidConfiguration(PlatformConfiguration):
         'javascript_engine':
             'v8',
     })
+
+    # The 'android_system' font package installs only minimal fonts, with a
+    # fonts.xml referencing the superset of font files we expect to find on any
+    # Android platform. The Android SbFileOpen implementation falls back to
+    # system fonts when it can't find the font file in the cobalt content.
+
+    # Temporarily include standard fonts for unit tests since Android 12 uses
+    # font variations for key system fonts, and Cobalt will need to be updated
+    # to use them.
+    # TODO(b/255841255) Use "android_system" for all configs once font
+    # variations are supported.
+    if (configuration == 'debug' or configuration == 'devel'):
+      variables.update({
+        'cobalt_font_package': 'standard',
+      })
+    else:
+      variables.update({
+        'cobalt_font_package': 'android_system',
+      })
     return variables
 
   def GetDeployPathPatterns(self):
