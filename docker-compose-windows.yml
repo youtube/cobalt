@@ -29,6 +29,14 @@ x-common-definitions: &common-definitions
   cpus: ${DOCKER_CPUS:-12}
   mem_limit: ${DOCKER_MEMLIMIT:-100000M}
 
+x-shared-build-env: &shared-build-env
+  IS_CI: ${IS_CI:-0}
+  IS_DOCKER: 1
+  PYTHONPATH: c:/code/
+  CONFIG: ${CONFIG:-devel}
+  TARGET: ${TARGET:-cobalt_install}
+  NINJA_FLAGS: ${NINJA_FLAGS}
+
 services:
   visual-studio-base:
     build:
@@ -78,11 +86,8 @@ services:
     depends_on:
       - cobalt-build-win32-base
     environment:
-      - PLATFORM=win-win32
-      - CONFIG=${CONFIG:-devel}
-      - TARGET=${TARGET:-cobalt_install}
-      - NINJA_FLAGS
-      - IS_DOCKER=1
+      <<: *shared-build-env
+      PLATFORM: win-win32
     image: cobalt-build-win32
 
   build-win-win32:
