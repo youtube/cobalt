@@ -149,13 +149,9 @@ class MEDIA_EXPORT ProgressiveDemuxer : public Demuxer {
   bool MessageLoopBelongsToCurrentThread() const;
 
  private:
-<<<<<<< HEAD   (a79dd8 Revert "Disable failing android-arm unit tests")
   void ParseConfigDone(const PipelineStatusCB& status_cb,
                        PipelineStatus status);
   void DataSourceStopped(const base::Closure& callback);
-=======
-  void ParseConfigDone(PipelineStatusCallback status_cb, PipelineStatus status);
->>>>>>> CHANGE (37cbb3 [media] remove unused function in ProgressiveDemuxer)
   bool HasStopCalled();
 
   // methods that perform blocking I/O, and are therefore run on the
