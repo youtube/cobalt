@@ -82,4 +82,6 @@ static_library("starboard_platform") {
   ]
 
   public_deps = [ "//starboard/win/shared:starboard_platform" ]
+
+  deps = [ "//starboard/win/win32/i18n" ]
 }

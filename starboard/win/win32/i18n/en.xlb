@@ -1,0 +1,8 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<localizationbundle locale="en">
+<messages>
+<msg name="EXIT_BUTTON" desc="This is the text on a button which will exit the application.">Exit</msg>
+<msg name="UNABLE_TO_CONTACT_YOUTUBE_1" desc="This error message is shown to the user when the application is unable to make a request to a service that is required to use the application.">Sorry, could not connect to YouTube.</msg>
+<msg name="RETRY_BUTTON" desc="This is the text on a button which will retry a previously attempted action.">Retry</msg>
+</messages>
+</localizationbundle>

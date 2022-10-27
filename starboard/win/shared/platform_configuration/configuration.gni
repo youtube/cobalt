@@ -28,6 +28,4 @@ pedantic_warnings_config_path =
 
 cobalt_platform_dependencies = [ "//starboard/egl_and_gles" ]
 
-platform_i18n_config_path = "//starboard/xb1/i18n:i18n"
-
 sb_enable_cpp17_audit = false
