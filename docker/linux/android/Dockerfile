@@ -18,6 +18,7 @@ RUN apt update -qqy \
     && apt install -qqy --no-install-recommends \
         default-jdk \
         g++-multilib \
+        libxml2-dev \
     && apt-get clean autoclean \
     && apt-get autoremove -y --purge \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* \

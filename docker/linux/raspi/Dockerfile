@@ -20,10 +20,14 @@ ARG raspi_tools=cobalt_raspi_tools.tar.bz2
 # Required by the gyp build system.
 ENV RASPI_HOME=${raspi_home}
 
+# libxml2 and binutils* needed for evergreen
 RUN apt update -qqy \
     && apt install -qqy --no-install-recommends \
         g++-multilib \
         bzip2 \
+        libxml2 \
+        binutils-aarch64-linux-gnu \
+        binutils-arm-linux-gnueabi \
         libglib2.0-dev \
     && apt-get clean autoclean \
     && apt-get autoremove -y --purge \
@@ -37,7 +41,7 @@ RUN cd /tmp \
     "https://storage.googleapis.com/cobalt-static-storage/${raspi_tools}" \
     && mkdir -p ${raspi_home} \
     && cd ${raspi_home} \
-    && tar xjvf /tmp/${raspi_tools} \
+    && tar xjvf /tmp/${raspi_tools} --no-same-owner \
     && rm /tmp/${raspi_tools}
 
 CMD /code/cobalt/build/gyp_cobalt -v -C ${CONFIG} ${PLATFORM} \

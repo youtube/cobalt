@@ -17,16 +17,17 @@ FROM cobalt-base
 RUN apt update -qqy \
     && apt install -qqy --no-install-recommends \
         libasound2 \
-        libavcodec57 \
-        libavformat57 \
-        libavresample3 \
-        libavutil55 \
+        libatomic1 \
+        libavcodec-dev \
+        libavformat-dev \
+        libgles2-mesa \
         libegl1-mesa \
         libgl1-mesa-dri \
-        libgles2-mesa \
         libx11-6 \
         libxcomposite1 \
+        libxi-dev \
         libxrender1 \
+        procps \
         unzip \
         xauth \
         xvfb \
@@ -35,6 +36,8 @@ RUN apt update -qqy \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* \
     && rm -rf /var/lib/{apt,dpkg,cache,log} \
     && echo "Done"
+
+RUN python -m pip install "selenium==3.141.0" "Brotli==1.0.9"
 
 WORKDIR /out
 

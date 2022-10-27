@@ -14,7 +14,7 @@
 
 ARG BASE_OS
 ARG BASE_OS_TAG
-FROM ${BASE_OS:-gcr.io/cloud-marketplace-containers/google/debian9}:${BASE_OS_TAG:-latest}
+FROM ${BASE_OS:-gcr.io/cloud-marketplace-containers/google/debian10}:${BASE_OS_TAG:-latest}
 
 ENV PYTHONUNBUFFERED 1
 
@@ -28,7 +28,7 @@ RUN apt update -qqy \
         python3-pip \
         python3-requests \
         git ccache \
-        curl \
+        curl xz-utils \
     && apt-get clean autoclean \
     && apt-get autoremove -y --purge \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* \
