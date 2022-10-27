@@ -19,13 +19,13 @@
 
 #include "starboard/atomic.h"
 #include "starboard/shared/starboard/thread_checker.h"
-#include "starboard/shared/uwp/wasapi_include.h"
 #include "starboard/shared/win32/atomic_queue.h"
 #include "starboard/shared/win32/audio_decoder.h"
 #include "starboard/shared/win32/audio_transform.h"
 #include "starboard/shared/win32/decrypting_decoder.h"
 #include "starboard/shared/win32/error_utils.h"
 #include "starboard/shared/win32/media_foundation_utils.h"
+#include "starboard/shared/win32/wasapi_include.h"
 
 namespace starboard {
 namespace shared {

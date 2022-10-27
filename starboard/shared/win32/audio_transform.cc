@@ -19,10 +19,10 @@
 #include <vector>
 
 #include "starboard/memory.h"
-#include "starboard/shared/uwp/wasapi_include.h"
 #include "starboard/shared/win32/error_utils.h"
 #include "starboard/shared/win32/media_common.h"
 #include "starboard/shared/win32/media_foundation_utils.h"
+#include "starboard/shared/win32/wasapi_include.h"
 
 namespace starboard {
 namespace shared {
