@@ -49,6 +49,15 @@ enable_account_manager = true
 cobalt_platform_dependencies =
     [ "//starboard/android/shared/cobalt:cobalt_platform" ]
 
-cobalt_font_package = "android_system"
+# Temporarily include standard fonts for unit tests since Android 12 uses font
+# variations for key system fonts, and Cobalt will need to be updated to use
+# them.
+# TODO(b/255841255) Use "android_system" for all configs once font variations
+# are supported.
+if (is_debug || is_devel) {
+  cobalt_font_package = "standard"
+} else {
+  cobalt_font_package = "android_system"
+}
 
 separate_install_targets_for_bundling = true
