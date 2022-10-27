@@ -9,8 +9,12 @@ ENV RASPI_HOME=${raspi_home}
 RUN apt update -qqy \
     && apt install -qqy --no-install-recommends \
         binutils \
+        binutils-aarch64-linux-gnu \
+        binutils-arm-linux-gnueabi \
         bison \
         g++-multilib \
+        libglib2.0-dev \
+        libxml2 \
         ninja-build \
         pkgconf \
         python-requests \
@@ -30,7 +34,7 @@ RUN cd ${raspi_home} \
     && wget -q \
     "https://storage.googleapis.com/cobalt-static-storage/${raspi_sysroot}"
 
-RUN cd ${raspi_home} && tar Jxpvf ${raspi_sysroot}
+RUN cd ${raspi_home} && tar Jxpvf ${raspi_sysroot} --no-same-owner
 
 CMD /code/cobalt/build/gyp_cobalt -v -C ${CONFIG} ${PLATFORM} \
     && ninja -v -j ${NINJA_PARALLEL} -C ${OUTDIR}/${PLATFORM}_${CONFIG} ${TARGET:-cobalt_deploy}

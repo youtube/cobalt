@@ -6,6 +6,7 @@ RUN apt update -qqy \
         bison \
         default-jdk \
         g++-multilib \
+        libxml2-dev \
         ninja-build \
         pkgconf \
         python-requests \
