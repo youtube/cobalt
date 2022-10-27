@@ -1,4 +1,4 @@
-# Copyright 2021 The Cobalt Authors. All Rights Reserved.
+# Copyright 2022 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,6 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//starboard/win/shared/platform_configuration/configuration.gni")
+import("//starboard/build/convert_i18n_data.gni")
 
-platform_i18n_config_path = "//starboard/win/win32/i18n:i18n"
+convert_i18n_data("i18n") {
+  install_content = true
+  xlb_files = [ "en.xlb" ]
+}
