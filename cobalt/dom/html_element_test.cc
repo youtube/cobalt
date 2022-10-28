@@ -21,6 +21,7 @@
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/cssom/css_computed_style_data.h"
 #include "cobalt/cssom/css_declared_style_data.h"
+#include "cobalt/cssom/css_parser.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/testing/mock_css_parser.h"  // nogncheck
 #include "cobalt/cssom/viewport_size.h"
@@ -88,7 +89,8 @@ class HTMLElementTest : public ::testing::Test {
     EXPECT_TRUE(GlobalStats::GetInstance()->CheckNoLeaks());
     window_->set_css_parser(new cssom::testing::MockCSSParser);
     // We expect one call to parse the user agent style sheet.
-    EXPECT_CALL(css_parser(), ParseStyleSheet(_, _));
+    EXPECT_CALL(css_parser(), ParseStyleSheet(_, _))
+        .WillRepeatedly(Return(scoped_refptr<cssom::CSSStyleSheet>()));
     window_->InitializeWindow();
     html_element_context_.reset(new HTMLElementContext(
         window_->web_context()->environment_settings(), NULL, NULL,
