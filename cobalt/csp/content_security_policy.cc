@@ -136,6 +136,9 @@ const char ContentSecurityPolicy::kPluginTypes[] = "plugin-types";
 const char ContentSecurityPolicy::kReflectedXSS[] = "reflected-xss";
 const char ContentSecurityPolicy::kReferrer[] = "referrer";
 
+// CSP Level 3 Directives
+const char ContentSecurityPolicy::kWorkerSrc[] = "worker-src";
+
 // Custom Cobalt directive to enforce navigation restrictions.
 const char ContentSecurityPolicy::kLocationSrc[] = "h5vcc-location-src";
 
@@ -159,19 +162,20 @@ const char ContentSecurityPolicy::kSuborigin[] = "suborigin";
 // clang-format off
 bool ContentSecurityPolicy::IsDirectiveName(const std::string& name) {
   std::string lower_name = base::ToLowerASCII(name);
-  return (lower_name == kConnectSrc ||
+  return (
+          // CSP Level 1 Directives
+          lower_name == kConnectSrc ||
           lower_name == kDefaultSrc ||
           lower_name == kFontSrc ||
           lower_name == kFrameSrc ||
           lower_name == kImgSrc ||
-          lower_name == kLocationSrc ||
           lower_name == kMediaSrc ||
           lower_name == kObjectSrc ||
           lower_name == kReportURI ||
           lower_name == kSandbox ||
-          lower_name == kSuborigin ||
           lower_name == kScriptSrc ||
           lower_name == kStyleSrc ||
+          // CSP Level 2 Directives
           lower_name == kBaseURI ||
           lower_name == kChildSrc ||
           lower_name == kFormAction ||
@@ -179,9 +183,15 @@ bool ContentSecurityPolicy::IsDirectiveName(const std::string& name) {
           lower_name == kPluginTypes ||
           lower_name == kReflectedXSS ||
           lower_name == kReferrer ||
+          // CSP Level 3 Directives
           lower_name == kManifestSrc ||
+          lower_name == kWorkerSrc ||
+          // Directives Defined in Other Documents.
           lower_name == kBlockAllMixedContent ||
-          lower_name == kUpgradeInsecureRequests);
+          lower_name == kUpgradeInsecureRequests ||
+          lower_name == kSuborigin ||
+          // Custom CSP directive for Cobalt
+          lower_name == kLocationSrc);
 }
 // clang-format on
 
@@ -434,18 +444,13 @@ void ContentSecurityPolicy::ReportDirectiveNotSupportedInsideMeta(
                 << " directive is not supported inside a <meta> element.";
 }
 
-bool ContentSecurityPolicy::AllowJavaScriptURLs(const std::string& context_url,
-                                                int context_line,
-                                                ReportingStatus status) const {
-  FOR_ALL_POLICIES_3(AllowJavaScriptURLs, context_url, context_line, status);
-}
-
 bool ContentSecurityPolicy::AllowInlineEventHandlers(
     const std::string& context_url, int context_line,
     ReportingStatus status) const {
   FOR_ALL_POLICIES_3(AllowInlineEventHandlers, context_url, context_line,
                      status);
 }
+
 bool ContentSecurityPolicy::AllowInlineScript(const std::string& context_url,
                                               int context_line,
                                               const std::string& script_content,
@@ -453,6 +458,15 @@ bool ContentSecurityPolicy::AllowInlineScript(const std::string& context_url,
   FOR_ALL_POLICIES_4(AllowInlineScript, context_url, context_line, status,
                      script_content);
 }
+
+bool ContentSecurityPolicy::AllowInlineWorker(const std::string& context_url,
+                                              int context_line,
+                                              const std::string& script_content,
+                                              ReportingStatus status) const {
+  FOR_ALL_POLICIES_4(AllowInlineWorker, context_url, context_line, status,
+                     script_content);
+}
+
 bool ContentSecurityPolicy::AllowInlineStyle(const std::string& context_url,
                                              int context_line,
                                              const std::string& style_content,
@@ -469,6 +483,13 @@ bool ContentSecurityPolicy::AllowScriptFromSource(
     const GURL& url, ContentSecurityPolicy::RedirectStatus redirect_status,
     ContentSecurityPolicy::ReportingStatus reporting_status) const {
   FOR_ALL_POLICIES_3(AllowScriptFromSource, url, redirect_status,
+                     reporting_status);
+}
+
+bool ContentSecurityPolicy::AllowWorkerFromSource(
+    const GURL& url, ContentSecurityPolicy::RedirectStatus redirect_status,
+    ContentSecurityPolicy::ReportingStatus reporting_status) const {
+  FOR_ALL_POLICIES_3(AllowWorkerFromSource, url, redirect_status,
                      reporting_status);
 }
 
@@ -546,6 +567,11 @@ bool ContentSecurityPolicy::AllowScriptWithNonce(
   FOR_ALL_POLICIES_1(AllowScriptNonce, nonce);
 }
 
+bool ContentSecurityPolicy::AllowWorkerWithNonce(
+    const std::string& nonce) const {
+  FOR_ALL_POLICIES_1(AllowWorkerNonce, nonce);
+}
+
 bool ContentSecurityPolicy::AllowStyleWithNonce(
     const std::string& nonce) const {
   FOR_ALL_POLICIES_1(AllowStyleNonce, nonce);
@@ -554,6 +580,12 @@ bool ContentSecurityPolicy::AllowStyleWithNonce(
 bool ContentSecurityPolicy::AllowScriptWithHash(
     const std::string& source) const {
   return CheckDigest<&DirectiveList::AllowScriptHash>(
+      source, script_hash_algorithms_used_, policies_);
+}
+
+bool ContentSecurityPolicy::AllowWorkerWithHash(
+    const std::string& source) const {
+  return CheckDigest<&DirectiveList::AllowWorkerHash>(
       source, script_hash_algorithms_used_, policies_);
 }
 
