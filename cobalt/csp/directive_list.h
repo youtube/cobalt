@@ -40,9 +40,6 @@ class DirectiveList {
   HeaderType header_type() const { return header_type_; }
   HeaderSource header_source() const { return header_source_; }
 
-  bool AllowJavaScriptURLs(
-      const std::string& context_url, int context_line,
-      ContentSecurityPolicy::ReportingStatus reporting_status) const;
   bool AllowInlineEventHandlers(
       const std::string& context_url, int context_line,
       ContentSecurityPolicy::ReportingStatus reporting_status) const;
@@ -50,6 +47,10 @@ class DirectiveList {
       const std::string& context_url, int context_line,
       ContentSecurityPolicy::ReportingStatus reporting_status,
       const std::string& script_content) const;
+  bool AllowInlineWorker(
+      const std::string& context_url, int context_line,
+      ContentSecurityPolicy::ReportingStatus reporting_status,
+      const std::string& worker_content) const;
   bool AllowInlineStyle(const std::string& context_url, int context_line,
                         ContentSecurityPolicy::ReportingStatus reporting_status,
                         const std::string& style_content) const;
@@ -60,6 +61,9 @@ class DirectiveList {
       ContentSecurityPolicy::ReportingStatus reporting_status) const;
 
   bool AllowScriptFromSource(
+      const GURL& url, ContentSecurityPolicy::RedirectStatus redirect_status,
+      ContentSecurityPolicy::ReportingStatus reporting_status) const;
+  bool AllowWorkerFromSource(
       const GURL& url, ContentSecurityPolicy::RedirectStatus redirect_status,
       ContentSecurityPolicy::ReportingStatus reporting_status) const;
   bool AllowObjectFromSource(
@@ -93,9 +97,11 @@ class DirectiveList {
       const GURL&, ContentSecurityPolicy::RedirectStatus redirect_status,
       ContentSecurityPolicy::ReportingStatus reporting_status) const;
   bool AllowScriptNonce(const std::string& script) const;
+  bool AllowWorkerNonce(const std::string& worker) const;
   bool AllowStyleNonce(const std::string& style) const;
   bool AllowScriptHash(const HashValue& script) const;
-  bool AllowStyleHash(const HashValue& script) const;
+  bool AllowWorkerHash(const HashValue& worker) const;
+  bool AllowStyleHash(const HashValue& style) const;
 
   const std::string& eval_disabled_error_message() const {
     return eval_disabled_error_message_;
@@ -173,7 +179,8 @@ class DirectiveList {
   bool CheckInlineAndReportViolation(SourceListDirective* directive,
                                      const std::string& console_message,
                                      const std::string& context_url,
-                                     int context_line, bool is_script,
+                                     int context_line,
+                                     const char* directive_name,
                                      const std::string& hash_value) const;
 
   bool CheckSourceAndReportViolation(
@@ -221,6 +228,7 @@ class DirectiveList {
   std::unique_ptr<SourceListDirective> object_src_;
   std::unique_ptr<SourceListDirective> script_src_;
   std::unique_ptr<SourceListDirective> style_src_;
+  std::unique_ptr<SourceListDirective> worker_src_;
 
   std::vector<std::string> report_endpoints_;
 

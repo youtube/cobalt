@@ -38,6 +38,7 @@ class CspDelegate {
     kMedia,
     kScript,
     kStyle,
+    kWorker,
     kXhr,
     kWebSocket,
   };

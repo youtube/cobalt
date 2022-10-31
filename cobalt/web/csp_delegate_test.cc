@@ -34,8 +34,12 @@ namespace web {
 namespace {
 
 struct ResourcePair {
+  // Resource type queried for the test.
   CspDelegate::ResourceType type;
+  // Directive to allow 'self' for.
   const char* directive;
+  // Effective directive reported in the violation.
+  const char* effective_directive;
 };
 
 std::ostream& operator<<(std::ostream& out, const ResourcePair& obj) {
@@ -43,21 +47,35 @@ std::ostream& operator<<(std::ostream& out, const ResourcePair& obj) {
 }
 
 const ResourcePair s_params[] = {
-    {CspDelegate::kFont, "font-src"},
-    {CspDelegate::kImage, "img-src"},
-    {CspDelegate::kLocation, "h5vcc-location-src"},
-    {CspDelegate::kMedia, "media-src"},
-    {CspDelegate::kScript, "script-src"},
-    {CspDelegate::kStyle, "style-src"},
-    {CspDelegate::kXhr, "connect-src"},
-    {CspDelegate::kWebSocket, "connect-src"},
+    {CspDelegate::kFont, "font-src", "font-src"},
+    {CspDelegate::kFont, "default-src", "font-src"},
+    {CspDelegate::kImage, "img-src", "img-src"},
+    {CspDelegate::kImage, "default-src", "img-src"},
+    {CspDelegate::kLocation, "h5vcc-location-src", "h5vcc-location-src"},
+    {CspDelegate::kMedia, "media-src", "media-src"},
+    {CspDelegate::kMedia, "default-src", "media-src"},
+    {CspDelegate::kScript, "script-src", "script-src"},
+    {CspDelegate::kScript, "default-src", "script-src"},
+    {CspDelegate::kStyle, "style-src", "style-src"},
+    {CspDelegate::kStyle, "default-src", "style-src"},
+    {CspDelegate::kWorker, "worker-src", "worker-src"},
+    {CspDelegate::kWorker, "script-src", "worker-src"},
+    {CspDelegate::kWorker, "default-src", "worker-src"},
+    {CspDelegate::kXhr, "connect-src", "connect-src"},
+    {CspDelegate::kXhr, "default-src", "connect-src"},
+    {CspDelegate::kWebSocket, "connect-src", "connect-src"},
+    {CspDelegate::kWebSocket, "default-src", "connect-src"},
 };
 
 std::string ResourcePairName(::testing::TestParamInfo<ResourcePair> info) {
-  std::string name(info.param.directive);
-  std::replace(name.begin(), name.end(), '-', '_');
-  base::StringAppendF(&name, "_type_%d", info.param.type);
-  return name;
+  std::string directive(info.param.directive);
+  std::replace(directive.begin(), directive.end(), '-', '_');
+  std::string effective_directive(info.param.effective_directive);
+  std::replace(effective_directive.begin(), effective_directive.end(), '-',
+               '_');
+  return base::StringPrintf("type_%d_directive_%s_effective_%s",
+                            info.param.type, directive.c_str(),
+                            effective_directive.c_str());
 }
 
 class MockViolationReporter : public CspViolationReporter {
@@ -115,8 +133,13 @@ void CspDelegateTest::SetUp() {
 
   csp_delegate_.reset(new CspDelegateSecure(
       std::move(reporter), origin, csp::kCSPRequired, base::Closure()));
-  std::string policy =
-      base::StringPrintf("default-src none; %s 'self'", GetParam().directive);
+  std::string policy;
+  if (!strcmp(GetParam().directive, "default-src")) {
+    policy = base::StringPrintf("%s 'self'", GetParam().directive);
+  } else {
+    policy =
+        base::StringPrintf("default-src none; %s 'self'", GetParam().directive);
+  }
   csp_delegate_->OnReceiveHeader(policy, csp::kHeaderTypeEnforce,
                                  csp::kHeaderSourceMeta);
 }
@@ -129,7 +152,7 @@ TEST_P(CspDelegateTest, LoadOk) {
 
 TEST_P(CspDelegateTest, LoadNotOk) {
   CspDelegate::ResourceType param = GetParam().type;
-  std::string effective_directive = GetParam().directive;
+  std::string effective_directive = GetParam().effective_directive;
   GURL test_url("http://www.evil.com");
 
   csp::ViolationInfo info;

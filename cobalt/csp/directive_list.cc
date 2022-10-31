@@ -210,8 +210,8 @@ bool DirectiveList::CheckMediaTypeAndReportViolation(
 
 bool DirectiveList::CheckInlineAndReportViolation(
     SourceListDirective* directive, const std::string& console_message,
-    const std::string& context_url, int context_line, bool is_script,
-    const std::string& hash_value) const {
+    const std::string& context_url, int context_line,
+    const char* directive_name, const std::string& hash_value) const {
   if (CheckInline(directive)) {
     return true;
   }
@@ -240,20 +240,18 @@ bool DirectiveList::CheckInlineAndReportViolation(
         " Either the 'unsafe-inline' keyword, a hash (" + hash_value +
         "), or a nonce ('nonce-...') is required to enable inline execution.";
     if (directive == default_src_.get())
-      suffix = suffix + " Note also that '" +
-               std::string(is_script ? "script" : "style") +
-               "-src' was not explicitly set, so 'default-src' is used as a "
+      suffix = suffix + " Note also that '" + std::string(directive_name) +
+               "' was not explicitly set, so 'default-src' is used as a "
                "fallback.";
   }
 
   ReportViolationWithLocation(
-      directive->text(), is_script ? ContentSecurityPolicy::kScriptSrc
-                                   : ContentSecurityPolicy::kStyleSrc,
+      directive->text(), directive_name,
       console_message + "\"" + directive->text() + "\"." + suffix + "\n",
       GURL(), context_url, context_line);
 
   if (!report_only_) {
-    if (is_script) {
+    if (directive_name == ContentSecurityPolicy::kScriptSrc) {
       // policy_->ReportBlockedScriptExecutionToInspector(directive->text());
     }
     return false;
@@ -296,6 +294,8 @@ bool DirectiveList::CheckSourceAndReportViolation(
     prefix = "Refused to load the script '";
   } else if (ContentSecurityPolicy::kStyleSrc == effective_directive) {
     prefix = "Refused to load the stylesheet '";
+  } else if (ContentSecurityPolicy::kWorkerSrc == effective_directive) {
+    prefix = "Refused to load the worker '";
   }
 
   std::string suffix = std::string();
@@ -313,19 +313,6 @@ bool DirectiveList::CheckSourceAndReportViolation(
   return deny_if_enforcing_policy();
 }
 
-bool DirectiveList::AllowJavaScriptURLs(
-    const std::string& context_url, int context_line,
-    ContentSecurityPolicy::ReportingStatus reporting_status) const {
-  if (reporting_status == ContentSecurityPolicy::kSendReport) {
-    return CheckInlineAndReportViolation(
-        OperativeDirective(script_src_.get()),
-        "Refused to execute JavaScript URL because it violates the following "
-        "Content Security Policy directive: ",
-        context_url, context_line, true, "sha256-...");
-  }
-  return CheckInline(OperativeDirective(script_src_.get()));
-}
-
 bool DirectiveList::AllowInlineEventHandlers(
     const std::string& context_url, int context_line,
     ContentSecurityPolicy::ReportingStatus reporting_status) const {
@@ -334,7 +321,8 @@ bool DirectiveList::AllowInlineEventHandlers(
         OperativeDirective(script_src_.get()),
         "Refused to execute inline event handler because it violates the "
         "following Content Security Policy directive: ",
-        context_url, context_line, true, "sha256-...");
+        context_url, context_line, ContentSecurityPolicy::kScriptSrc,
+        "sha256-...");
   }
   return CheckInline(OperativeDirective(script_src_.get()));
 }
@@ -348,9 +336,27 @@ bool DirectiveList::AllowInlineScript(
         OperativeDirective(script_src_.get()),
         "Refused to execute inline script because it violates the following "
         "Content Security Policy directive: ",
-        context_url, context_line, true, GetSha256String(content));
+        context_url, context_line, ContentSecurityPolicy::kScriptSrc,
+        GetSha256String(content));
   }
   return CheckInline(OperativeDirective(script_src_.get()));
+}
+
+bool DirectiveList::AllowInlineWorker(
+    const std::string& context_url, int context_line,
+    ContentSecurityPolicy::ReportingStatus reporting_status,
+    const std::string& content) const {
+  if (reporting_status == ContentSecurityPolicy::kSendReport) {
+    return CheckInlineAndReportViolation(
+        OperativeDirective(worker_src_.get(),
+                           OperativeDirective(script_src_.get())),
+        "Refused to execute inline script because it violates the following "
+        "Content Security Policy directive: ",
+        context_url, context_line, ContentSecurityPolicy::kWorkerSrc,
+        GetSha256String(content));
+  }
+  return CheckInline(OperativeDirective(worker_src_.get(),
+                                        OperativeDirective(script_src_.get())));
 }
 
 bool DirectiveList::AllowInlineStyle(
@@ -362,7 +368,8 @@ bool DirectiveList::AllowInlineStyle(
         OperativeDirective(style_src_.get()),
         "Refused to apply inline style because it violates the following "
         "Content Security Policy directive: ",
-        context_url, context_line, false, GetSha256String(content));
+        context_url, context_line, ContentSecurityPolicy::kStyleSrc,
+        GetSha256String(content));
   }
   return CheckInline(OperativeDirective(style_src_.get()));
 }
@@ -388,6 +395,20 @@ bool DirectiveList::AllowScriptFromSource(
                    ContentSecurityPolicy::kScriptSrc, redirect_status)
              : CheckSource(OperativeDirective(script_src_.get()), url,
                            redirect_status);
+}
+
+bool DirectiveList::AllowWorkerFromSource(
+    const GURL& url, ContentSecurityPolicy::RedirectStatus redirect_status,
+    ContentSecurityPolicy::ReportingStatus reporting_status) const {
+  return reporting_status == ContentSecurityPolicy::kSendReport
+             ? CheckSourceAndReportViolation(
+                   OperativeDirective(worker_src_.get(),
+                                      OperativeDirective(script_src_.get())),
+                   url, ContentSecurityPolicy::kWorkerSrc, redirect_status)
+             : CheckSource(
+                   OperativeDirective(worker_src_.get(),
+                                      OperativeDirective(script_src_.get())),
+                   url, redirect_status);
 }
 
 bool DirectiveList::AllowObjectFromSource(
@@ -503,12 +524,24 @@ bool DirectiveList::AllowScriptNonce(const std::string& nonce) const {
   return CheckNonce(OperativeDirective(script_src_.get()), nonce);
 }
 
+bool DirectiveList::AllowWorkerNonce(const std::string& nonce) const {
+  return CheckNonce(OperativeDirective(worker_src_.get(),
+                                       OperativeDirective(script_src_.get())),
+                    nonce);
+}
+
 bool DirectiveList::AllowStyleNonce(const std::string& nonce) const {
   return CheckNonce(OperativeDirective(style_src_.get()), nonce);
 }
 
 bool DirectiveList::AllowScriptHash(const HashValue& hash_value) const {
   return CheckHash(OperativeDirective(script_src_.get()), hash_value);
+}
+
+bool DirectiveList::AllowWorkerHash(const HashValue& hash_value) const {
+  return CheckHash(OperativeDirective(worker_src_.get(),
+                                      OperativeDirective(script_src_.get())),
+                   hash_value);
 }
 
 bool DirectiveList::AllowStyleHash(const HashValue& hash_value) const {
@@ -612,7 +645,7 @@ void DirectiveList::ParseReportURI(const std::string& name,
   if (header_source_ == kHeaderSourceMeta) {
     // The report-uri, frame-ancestors, and sandbox directives are not supported
     // inside a meta element.
-    // https://w3c.github.io/webappsec-csp/#meta-element
+    // https://www.w3.org/TR/2022/WD-CSP3-20221014/#meta-element
     policy_->ReportDirectiveNotSupportedInsideMeta(name);
     return;
   }
@@ -844,6 +877,10 @@ void DirectiveList::AddDirective(const std::string& name,
     SetCSPDirective(name, value, &script_src_);
     policy_->set_uses_script_hash_algorithms(
         script_src_->hash_algorithms_used());
+  } else if (lower_name == ContentSecurityPolicy::kWorkerSrc) {
+    SetCSPDirective(name, value, &worker_src_);
+    policy_->set_uses_script_hash_algorithms(
+        worker_src_->hash_algorithms_used());
   } else if (lower_name == ContentSecurityPolicy::kObjectSrc) {
     SetCSPDirective(name, value, &object_src_);
   } else if (lower_name == ContentSecurityPolicy::kFrameAncestors) {

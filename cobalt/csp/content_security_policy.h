@@ -79,6 +79,7 @@ class ContentSecurityPolicy {
   typedef std::vector<std::unique_ptr<DirectiveList>> PolicyList;
 
   // CSP Level 1 Directives
+  //   https://www.w3.org/TR/2012/CR-CSP-20121115/
   static const char kConnectSrc[];
   static const char kDefaultSrc[];
   static const char kFontSrc[];
@@ -92,6 +93,7 @@ class ContentSecurityPolicy {
   static const char kStyleSrc[];
 
   // CSP Level 2 Directives
+  //   https://www.w3.org/TR/2016/REC-CSP2-20161215/
   static const char kBaseURI[];
   static const char kChildSrc[];
   static const char kFormAction[];
@@ -100,23 +102,30 @@ class ContentSecurityPolicy {
   static const char kReflectedXSS[];
   static const char kReferrer[];
 
-  // Custom CSP directive for Cobalt
-  static const char kLocationSrc[];
+  // CSP Level 3 Directives
+  //   https://www.w3.org/TR/2022/WD-CSP3-20221014/#directive-manifest-src
 
-  // Manifest Directives (to be merged into CSP Level 2)
-  // https://w3c.github.io/manifest/#content-security-policy
   static const char kManifestSrc[];
+  // https://www.w3.org/TR/2022/WD-CSP3-20221014/#directive-worker-src
+  static const char kWorkerSrc[];
 
-  // Mixed Content Directive
-  // https://w3c.github.io/webappsec/specs/mixedcontent/#strict-mode
+  // Directives Defined in Other Documents.
+  //   https://www.w3.org/TR/2022/WD-CSP3-20221014/#directives-elsewhere
+
+  // Mixed Content Directive. Note: Deprecated in the current spec.
+  //   https://www.w3.org/TR/2021/CRD-mixed-content-20211004/#strict-checking
   static const char kBlockAllMixedContent[];
 
-  // https://w3c.github.io/webappsec/specs/upgrade/
+  // The upgrade-insecure-requests Directive.
+  //   https://w3c.github.io/webappsec-upgrade-insecure-requests/#delivery
   static const char kUpgradeInsecureRequests[];
 
   // Suborigin Directive
-  // https://metromoxie.github.io/webappsec/specs/suborigins/index.html
+  //   https://metromoxie.github.io/webappsec/specs/suborigins/index.html#the-suborigin-directive
   static const char kSuborigin[];
+
+  // Custom CSP directive h5vcc-location-src for Cobalt
+  static const char kLocationSrc[];
 
   enum ReportingStatus {
     kSendReport,
@@ -174,12 +183,13 @@ class ContentSecurityPolicy {
   void ReportDirectiveNotSupportedInsideMeta(const std::string& name);
 
   // https://www.w3.org/TR/2015/CR-CSP2-20150721/#directives
-  bool AllowJavaScriptURLs(const std::string& context_url, int context_line,
-                           ReportingStatus status = kSendReport) const;
   bool AllowInlineEventHandlers(const std::string& context_url,
                                 int context_line,
                                 ReportingStatus status = kSendReport) const;
   bool AllowInlineScript(const std::string& context_url, int context_line,
+                         const std::string& script_content,
+                         ReportingStatus status = kSendReport) const;
+  bool AllowInlineWorker(const std::string& context_url, int context_line,
                          const std::string& script_content,
                          ReportingStatus status = kSendReport) const;
   bool AllowInlineStyle(const std::string& context_url, int context_line,
@@ -187,6 +197,9 @@ class ContentSecurityPolicy {
                         ReportingStatus status = kSendReport) const;
   bool AllowEval(ReportingStatus status = kSendReport) const;
   bool AllowScriptFromSource(const GURL& url,
+                             RedirectStatus redirect = kDidNotRedirect,
+                             ReportingStatus report = kSendReport) const;
+  bool AllowWorkerFromSource(const GURL& url,
                              RedirectStatus redirect = kDidNotRedirect,
                              ReportingStatus report = kSendReport) const;
   bool AllowObjectFromSource(const GURL& url,
@@ -227,8 +240,10 @@ class ContentSecurityPolicy {
   // If these return true, callers can then process the content or
   // issue a load and be safe disabling any further CSP checks.
   bool AllowScriptWithNonce(const std::string& nonce) const;
+  bool AllowWorkerWithNonce(const std::string& nonce) const;
   bool AllowStyleWithNonce(const std::string& nonce) const;
   bool AllowScriptWithHash(const std::string& source) const;
+  bool AllowWorkerWithHash(const std::string& source) const;
   bool AllowStyleWithHash(const std::string& source) const;
 
   void set_uses_script_hash_algorithms(uint8 algorithm) {

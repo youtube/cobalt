@@ -87,6 +87,9 @@ bool CspDelegateSecure::CanLoad(ResourceType type, const GURL& url,
     case kStyle:
       can_load = csp_->AllowStyleFromSource(url, redirect_status);
       break;
+    case kWorker:
+      can_load = csp_->AllowWorkerFromSource(url, redirect_status);
+      break;
     case kXhr:
       can_load = csp_->AllowConnectToSource(url, redirect_status);
       break;
@@ -100,12 +103,18 @@ bool CspDelegateSecure::CanLoad(ResourceType type, const GURL& url,
 bool CspDelegateSecure::IsValidNonce(ResourceType type,
                                      const std::string& nonce) const {
   bool is_valid = false;
-  if (type == kScript) {
-    is_valid = csp_->AllowScriptWithNonce(nonce);
-  } else if (type == kStyle) {
-    is_valid = csp_->AllowStyleWithNonce(nonce);
-  } else {
-    NOTREACHED() << "Invalid resource type " << type;
+  switch (type) {
+    case kScript:
+      is_valid = csp_->AllowScriptWithNonce(nonce);
+      break;
+    case kStyle:
+      is_valid = csp_->AllowStyleWithNonce(nonce);
+      break;
+    case kWorker:
+      is_valid = csp_->AllowWorkerWithNonce(nonce);
+      break;
+    default:
+      NOTREACHED() << "Invalid resource type " << type;
   }
   return is_valid;
 }
@@ -118,14 +127,21 @@ bool CspDelegateSecure::AllowInline(ResourceType type,
     return true;
   }
   bool can_load = false;
-  if (type == kScript) {
-    can_load = csp_->AllowInlineScript(location.file_path, location.line_number,
-                                       content);
-  } else if (type == kStyle) {
-    can_load = csp_->AllowInlineStyle(location.file_path, location.line_number,
-                                      content);
-  } else {
-    NOTREACHED() << "Invalid resource type" << type;
+  switch (type) {
+    case kScript:
+      can_load = csp_->AllowInlineScript(location.file_path,
+                                         location.line_number, content);
+      break;
+    case kStyle:
+      can_load = csp_->AllowInlineStyle(location.file_path,
+                                        location.line_number, content);
+      break;
+    case kWorker:
+      can_load = csp_->AllowInlineWorker(location.file_path,
+                                         location.line_number, content);
+      break;
+    default:
+      NOTREACHED() << "Invalid resource type" << type;
   }
   return can_load;
 }
