@@ -99,6 +99,8 @@ class WindowOrWorkerGlobalScope : public EventTarget {
     return nullptr;
   }
 
+  // The CspDelegate gives access to the CSP list of the policy container
+  //   https://html.spec.whatwg.org/commit-snapshots/ae3c91103aada3d6d346a6dd3c5356773195fc79/#policy-container
   web::CspDelegate* csp_delegate() const {
     DCHECK(csp_delegate_);
     return csp_delegate_.get();

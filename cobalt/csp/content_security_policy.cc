@@ -480,36 +480,36 @@ bool ContentSecurityPolicy::AllowEval(ReportingStatus status) const {
 }
 
 bool ContentSecurityPolicy::AllowScriptFromSource(
-    const GURL& url, ContentSecurityPolicy::RedirectStatus redirect_status,
-    ContentSecurityPolicy::ReportingStatus reporting_status) const {
+    const GURL& url, RedirectStatus redirect_status,
+    ReportingStatus reporting_status) const {
   FOR_ALL_POLICIES_3(AllowScriptFromSource, url, redirect_status,
                      reporting_status);
 }
 
 bool ContentSecurityPolicy::AllowWorkerFromSource(
-    const GURL& url, ContentSecurityPolicy::RedirectStatus redirect_status,
-    ContentSecurityPolicy::ReportingStatus reporting_status) const {
+    const GURL& url, RedirectStatus redirect_status,
+    ReportingStatus reporting_status) const {
   FOR_ALL_POLICIES_3(AllowWorkerFromSource, url, redirect_status,
                      reporting_status);
 }
 
 bool ContentSecurityPolicy::AllowObjectFromSource(
-    const GURL& url, ContentSecurityPolicy::RedirectStatus redirect_status,
-    ContentSecurityPolicy::ReportingStatus reporting_status) const {
+    const GURL& url, RedirectStatus redirect_status,
+    ReportingStatus reporting_status) const {
   FOR_ALL_POLICIES_3(AllowObjectFromSource, url, redirect_status,
                      reporting_status);
 }
 
 bool ContentSecurityPolicy::AllowImageFromSource(
-    const GURL& url, ContentSecurityPolicy::RedirectStatus redirect_status,
-    ContentSecurityPolicy::ReportingStatus reporting_status) const {
+    const GURL& url, RedirectStatus redirect_status,
+    ReportingStatus reporting_status) const {
   FOR_ALL_POLICIES_3(AllowImageFromSource, url, redirect_status,
                      reporting_status);
 }
 
 bool ContentSecurityPolicy::AllowNavigateToSource(
-    const GURL& url, ContentSecurityPolicy::RedirectStatus redirect_status,
-    ContentSecurityPolicy::ReportingStatus reporting_status) const {
+    const GURL& url, RedirectStatus redirect_status,
+    ReportingStatus reporting_status) const {
   // Note that this is a Cobalt-specific policy to prevent navigation
   // to any unexpected URLs.
   FOR_ALL_POLICIES_3(AllowNavigateToSource, url, redirect_status,
@@ -517,48 +517,48 @@ bool ContentSecurityPolicy::AllowNavigateToSource(
 }
 
 bool ContentSecurityPolicy::AllowStyleFromSource(
-    const GURL& url, ContentSecurityPolicy::RedirectStatus redirect_status,
-    ContentSecurityPolicy::ReportingStatus reporting_status) const {
+    const GURL& url, RedirectStatus redirect_status,
+    ReportingStatus reporting_status) const {
   FOR_ALL_POLICIES_3(AllowStyleFromSource, url, redirect_status,
                      reporting_status);
 }
 
 bool ContentSecurityPolicy::AllowFontFromSource(
-    const GURL& url, ContentSecurityPolicy::RedirectStatus redirect_status,
-    ContentSecurityPolicy::ReportingStatus reporting_status) const {
+    const GURL& url, RedirectStatus redirect_status,
+    ReportingStatus reporting_status) const {
   FOR_ALL_POLICIES_3(AllowFontFromSource, url, redirect_status,
                      reporting_status);
 }
 
 bool ContentSecurityPolicy::AllowMediaFromSource(
-    const GURL& url, ContentSecurityPolicy::RedirectStatus redirect_status,
-    ContentSecurityPolicy::ReportingStatus reporting_status) const {
+    const GURL& url, RedirectStatus redirect_status,
+    ReportingStatus reporting_status) const {
   FOR_ALL_POLICIES_3(AllowMediaFromSource, url, redirect_status,
                      reporting_status);
 }
 
 bool ContentSecurityPolicy::AllowConnectToSource(
-    const GURL& url, ContentSecurityPolicy::RedirectStatus redirect_status,
-    ContentSecurityPolicy::ReportingStatus reporting_status) const {
+    const GURL& url, RedirectStatus redirect_status,
+    ReportingStatus reporting_status) const {
   FOR_ALL_POLICIES_3(AllowConnectToSource, url, redirect_status,
                      reporting_status);
 }
 
 bool ContentSecurityPolicy::AllowFormAction(
-    const GURL& url, ContentSecurityPolicy::RedirectStatus redirect_status,
-    ContentSecurityPolicy::ReportingStatus reporting_status) const {
+    const GURL& url, RedirectStatus redirect_status,
+    ReportingStatus reporting_status) const {
   FOR_ALL_POLICIES_3(AllowFormAction, url, redirect_status, reporting_status);
 }
 
 bool ContentSecurityPolicy::AllowBaseURI(
-    const GURL& url, ContentSecurityPolicy::RedirectStatus redirect_status,
-    ContentSecurityPolicy::ReportingStatus reporting_status) const {
+    const GURL& url, RedirectStatus redirect_status,
+    ReportingStatus reporting_status) const {
   FOR_ALL_POLICIES_3(AllowBaseURI, url, redirect_status, reporting_status);
 }
 
 bool ContentSecurityPolicy::AllowManifestFromSource(
-    const GURL& url, ContentSecurityPolicy::RedirectStatus redirect_status,
-    ContentSecurityPolicy::ReportingStatus reporting_status) const {
+    const GURL& url, RedirectStatus redirect_status,
+    ReportingStatus reporting_status) const {
   FOR_ALL_POLICIES_3(AllowManifestFromSource, url, redirect_status,
                      reporting_status);
 }

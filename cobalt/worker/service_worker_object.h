@@ -109,7 +109,7 @@ class ServiceWorkerObject
   }
   void SetScriptResource(const GURL& url, std::string* resource);
   bool HasScriptResource() const;
-  std::string* LookupScriptResource(const GURL& url) const;
+  const ScriptResource* LookupScriptResource(const GURL& url) const;
 
   // Steps 13-15 of Algorithm for Install.
   //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#installation-algorithm

@@ -33,39 +33,44 @@ const char kDedicatedWorkerName[] = "DedicatedWorker";
 }  // namespace
 
 DedicatedWorker::DedicatedWorker(script::EnvironmentSettings* settings,
-                                 const std::string& scriptURL)
+                                 const std::string& scriptURL,
+                                 script::ExceptionState* exception_state)
     : web::EventTarget(settings), script_url_(scriptURL) {
-  Initialize();
+  Initialize(exception_state);
 }
 
 DedicatedWorker::DedicatedWorker(script::EnvironmentSettings* settings,
                                  const std::string& scriptURL,
-                                 const WorkerOptions& worker_options)
+                                 const WorkerOptions& worker_options,
+                                 script::ExceptionState* exception_state)
     : web::EventTarget(settings),
       script_url_(scriptURL),
       worker_options_(worker_options) {
-  Initialize();
+  Initialize(exception_state);
 }
 
-void DedicatedWorker::Initialize() {
+void DedicatedWorker::Initialize(script::ExceptionState* exception_state) {
   // Algorithm for the Worker constructor.
   //   https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#dom-worker
 
   // 1. The user agent may throw a "SecurityError" web::DOMException if the
-  // request
-  //    violates a policy decision (e.g. if the user agent is configured to
-  //    not
-  //    allow the page to start dedicated workers).
+  //    request violates a policy decision (e.g. if the user agent is configured
+  //    to not allow the page to start dedicated workers).
   // 2. Let outside settings be the current settings object.
   // 3. Parse the scriptURL argument relative to outside settings.
   Worker::Options options;
   const GURL& base_url = environment_settings()->base_url();
   options.url = base_url.Resolve(script_url_);
 
-  LOG_IF(WARNING, !options.url.is_valid())
-      << script_url_ << " cannot be resolved based on " << base_url << ".";
-
   // 4. If this fails, throw a "SyntaxError" web::DOMException.
+  if (!options.url.is_valid()) {
+    web::DOMException::Raise(
+        web::DOMException::kSyntaxErr,
+        script_url_ + " cannot be resolved based on " + base_url.spec() + ".",
+        exception_state);
+    return;
+  }
+
   // 5. Let worker URL be the resulting URL record.
   options.web_options.stack_size = cobalt::browser::kWorkerStackSize;
   options.web_options.web_settings =
@@ -79,12 +84,23 @@ void DedicatedWorker::Initialize() {
   // 9. Run this step in parallel:
   //    1. Run a worker given worker, worker URL, outside settings, outside
   //    port, and options.
-  options.outside_settings = environment_settings();
+  options.outside_context = environment_settings()->context();
   options.outside_port = outside_port_.get();
   options.options = worker_options_;
   options.web_options.service_worker_jobs =
-      options.outside_settings->context()->service_worker_jobs();
-
+      options.outside_context->service_worker_jobs();
+  // Store the current source location as the construction location, to be used
+  // in the error event if worker loading of initialization fails.
+  auto stack_trace =
+      options.outside_context->global_environment()->GetStackTrace(0);
+  if (stack_trace.size() > 0) {
+    options.construction_location = base::SourceLocation(
+        stack_trace[0].source_url, stack_trace[0].line_number,
+        stack_trace[0].column_number);
+  } else {
+    options.construction_location.file_path =
+        environment_settings()->creation_url().spec();
+  }
   worker_.reset(new Worker(kDedicatedWorkerName, options));
   // 10. Return worker.
 }

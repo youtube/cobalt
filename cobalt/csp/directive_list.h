@@ -20,12 +20,14 @@
 #include <vector>
 
 #include "base/basictypes.h"
-#include "cobalt/csp/content_security_policy.h"
+#include "cobalt/csp/directive.h"
+#include "cobalt/csp/parsers.h"
 #include "url/gurl.h"
 
 namespace cobalt {
 namespace csp {
 
+class ContentSecurityPolicy;
 class MediaListDirective;
 class SourceListDirective;
 
@@ -33,6 +35,7 @@ class DirectiveList {
  public:
   DirectiveList(ContentSecurityPolicy* policy, const base::StringPiece& text,
                 HeaderType header_type, HeaderSource header_source);
+  DirectiveList(ContentSecurityPolicy* policy, const DirectiveList& other);
   ~DirectiveList();
   void Parse(const base::StringPiece& text);
 
@@ -40,62 +43,47 @@ class DirectiveList {
   HeaderType header_type() const { return header_type_; }
   HeaderSource header_source() const { return header_source_; }
 
-  bool AllowInlineEventHandlers(
-      const std::string& context_url, int context_line,
-      ContentSecurityPolicy::ReportingStatus reporting_status) const;
-  bool AllowInlineScript(
-      const std::string& context_url, int context_line,
-      ContentSecurityPolicy::ReportingStatus reporting_status,
-      const std::string& script_content) const;
-  bool AllowInlineWorker(
-      const std::string& context_url, int context_line,
-      ContentSecurityPolicy::ReportingStatus reporting_status,
-      const std::string& worker_content) const;
+  bool AllowInlineEventHandlers(const std::string& context_url,
+                                int context_line,
+                                ReportingStatus reporting_status) const;
+  bool AllowInlineScript(const std::string& context_url, int context_line,
+                         ReportingStatus reporting_status,
+                         const std::string& script_content) const;
+  bool AllowInlineWorker(const std::string& context_url, int context_line,
+                         ReportingStatus reporting_status,
+                         const std::string& worker_content) const;
   bool AllowInlineStyle(const std::string& context_url, int context_line,
-                        ContentSecurityPolicy::ReportingStatus reporting_status,
+                        ReportingStatus reporting_status,
                         const std::string& style_content) const;
-  bool AllowEval(ContentSecurityPolicy::ReportingStatus reporting_status) const;
-  bool AllowPluginType(
-      const std::string& type, const std::string& type_attribute,
-      const GURL& url,
-      ContentSecurityPolicy::ReportingStatus reporting_status) const;
+  bool AllowEval(ReportingStatus reporting_status) const;
+  bool AllowPluginType(const std::string& type,
+                       const std::string& type_attribute, const GURL& url,
+                       ReportingStatus reporting_status) const;
 
-  bool AllowScriptFromSource(
-      const GURL& url, ContentSecurityPolicy::RedirectStatus redirect_status,
-      ContentSecurityPolicy::ReportingStatus reporting_status) const;
-  bool AllowWorkerFromSource(
-      const GURL& url, ContentSecurityPolicy::RedirectStatus redirect_status,
-      ContentSecurityPolicy::ReportingStatus reporting_status) const;
-  bool AllowObjectFromSource(
-      const GURL&, ContentSecurityPolicy::RedirectStatus redirect_status,
-      ContentSecurityPolicy::ReportingStatus reporting_status) const;
-  bool AllowImageFromSource(
-      const GURL&, ContentSecurityPolicy::RedirectStatus redirect_status,
-      ContentSecurityPolicy::ReportingStatus reporting_status) const;
-  bool AllowStyleFromSource(
-      const GURL&, ContentSecurityPolicy::RedirectStatus redirect_status,
-      ContentSecurityPolicy::ReportingStatus reporting_status) const;
-  bool AllowFontFromSource(
-      const GURL&, ContentSecurityPolicy::RedirectStatus redirect_status,
-      ContentSecurityPolicy::ReportingStatus reporting_status) const;
-  bool AllowMediaFromSource(
-      const GURL&, ContentSecurityPolicy::RedirectStatus redirect_status,
-      ContentSecurityPolicy::ReportingStatus reporting_status) const;
-  bool AllowManifestFromSource(
-      const GURL&, ContentSecurityPolicy::RedirectStatus redirect_status,
-      ContentSecurityPolicy::ReportingStatus reporting_status) const;
-  bool AllowConnectToSource(
-      const GURL&, ContentSecurityPolicy::RedirectStatus redirect_status,
-      ContentSecurityPolicy::ReportingStatus reporting_status) const;
-  bool AllowNavigateToSource(
-      const GURL&, ContentSecurityPolicy::RedirectStatus redirect_status,
-      ContentSecurityPolicy::ReportingStatus reporting_status) const;
-  bool AllowFormAction(
-      const GURL&, ContentSecurityPolicy::RedirectStatus redirect_status,
-      ContentSecurityPolicy::ReportingStatus reporting_status) const;
-  bool AllowBaseURI(
-      const GURL&, ContentSecurityPolicy::RedirectStatus redirect_status,
-      ContentSecurityPolicy::ReportingStatus reporting_status) const;
+  bool AllowScriptFromSource(const GURL& url, RedirectStatus redirect_status,
+                             ReportingStatus reporting_status) const;
+  bool AllowWorkerFromSource(const GURL& url, RedirectStatus redirect_status,
+                             ReportingStatus reporting_status) const;
+  bool AllowObjectFromSource(const GURL&, RedirectStatus redirect_status,
+                             ReportingStatus reporting_status) const;
+  bool AllowImageFromSource(const GURL&, RedirectStatus redirect_status,
+                            ReportingStatus reporting_status) const;
+  bool AllowStyleFromSource(const GURL&, RedirectStatus redirect_status,
+                            ReportingStatus reporting_status) const;
+  bool AllowFontFromSource(const GURL&, RedirectStatus redirect_status,
+                           ReportingStatus reporting_status) const;
+  bool AllowMediaFromSource(const GURL&, RedirectStatus redirect_status,
+                            ReportingStatus reporting_status) const;
+  bool AllowManifestFromSource(const GURL&, RedirectStatus redirect_status,
+                               ReportingStatus reporting_status) const;
+  bool AllowConnectToSource(const GURL&, RedirectStatus redirect_status,
+                            ReportingStatus reporting_status) const;
+  bool AllowNavigateToSource(const GURL&, RedirectStatus redirect_status,
+                             ReportingStatus reporting_status) const;
+  bool AllowFormAction(const GURL&, RedirectStatus redirect_status,
+                       ReportingStatus reporting_status) const;
+  bool AllowBaseURI(const GURL&, RedirectStatus redirect_status,
+                    ReportingStatus reporting_status) const;
   bool AllowScriptNonce(const std::string& script) const;
   bool AllowWorkerNonce(const std::string& worker) const;
   bool AllowStyleNonce(const std::string& style) const;
@@ -166,7 +154,7 @@ class DirectiveList {
   bool CheckHash(SourceListDirective* directive,
                  const HashValue& hash_value) const;
   bool CheckSource(SourceListDirective* directive, const GURL& url,
-                   ContentSecurityPolicy::RedirectStatus redirect_status) const;
+                   RedirectStatus redirect_status) const;
   bool CheckMediaType(MediaListDirective* directive, const std::string& type,
                       const std::string& type_attribute) const;
 
@@ -183,10 +171,10 @@ class DirectiveList {
                                      const char* directive_name,
                                      const std::string& hash_value) const;
 
-  bool CheckSourceAndReportViolation(
-      SourceListDirective* directive, const GURL& url,
-      const std::string& effective_directive,
-      ContentSecurityPolicy::RedirectStatus redirect_status) const;
+  bool CheckSourceAndReportViolation(SourceListDirective* directive,
+                                     const GURL& url,
+                                     const std::string& effective_directive,
+                                     RedirectStatus redirect_status) const;
   bool CheckMediaTypeAndReportViolation(
       MediaListDirective* directive, const std::string& type,
       const std::string& type_attribute,

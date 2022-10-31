@@ -46,6 +46,10 @@ class CspDelegate {
   CspDelegate();
   virtual ~CspDelegate();
 
+  virtual const csp::ContentSecurityPolicy* GetPolicyContainer() = 0;
+  virtual void ClonePolicyContainer(
+      const csp::ContentSecurityPolicy& other) = 0;
+
   // Return |true| if the given resource type can be loaded from |url|.
   // Set |did_redirect| if url was the result of a redirect.
   virtual bool CanLoad(ResourceType type, const GURL& url,
@@ -84,6 +88,13 @@ class CspDelegate {
 class CspDelegateInsecure : public CspDelegate {
  public:
   CspDelegateInsecure() {}
+  const csp::ContentSecurityPolicy* GetPolicyContainer() override {
+    return nullptr;
+  }
+  void ClonePolicyContainer(const csp::ContentSecurityPolicy& other) override {
+    // No policy to clone.
+    return;
+  }
   bool CanLoad(ResourceType, const GURL&, bool) const override { return true; }
   bool IsValidNonce(ResourceType, const std::string&) const override {
     return true;
@@ -109,6 +120,11 @@ class CspDelegateSecure : public CspDelegate {
                     const GURL& url, csp::CSPHeaderPolicy require_csp,
                     const base::Closure& policy_changed_callback);
   ~CspDelegateSecure();
+
+  const csp::ContentSecurityPolicy* GetPolicyContainer() override {
+    return csp_.get();
+  }
+  void ClonePolicyContainer(const csp::ContentSecurityPolicy& other) override;
 
   // Return |true| if the given resource type can be loaded from |url|.
   // Set |did_redirect| if url was the result of a redirect.

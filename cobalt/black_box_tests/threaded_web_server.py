@@ -93,7 +93,8 @@ def MakeCustomHeaderRequestHandlerClass(base_path, paths_to_headers):
 
     def do_GET(self):  # pylint: disable=invalid-name
       content = self.get_content()
-      self.wfile.write(content)
+      if content:
+        self.wfile.write(content)
 
     def do_HEAD(self):  # pylint: disable=invalid-name
       # Run get_content to send the headers, but ignore the returned results

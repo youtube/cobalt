@@ -205,9 +205,9 @@ void NetFetcher::OnURLFetchResponseStarted(const net::URLFetcher* source) {
   if ((handler()->OnResponseStarted(this, source->GetResponseHeaders()) ==
        kLoadResponseAbort) ||
       (!IsResponseCodeSuccess(source->GetResponseCode()))) {
-    std::string msg(
-        base::StringPrintf("Handler::OnResponseStarted aborted URL %s",
-                           source->GetURL().spec().c_str()));
+    std::string msg(base::StringPrintf("URL %s aborted or failed with code %d",
+                                       source->GetURL().spec().c_str(),
+                                       source->GetResponseCode()));
     return HandleError(msg).InvalidateThis();
   }
 

@@ -17,11 +17,13 @@
 
 #include <map>
 #include <memory>
+#include <set>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/exception_state.h"
@@ -35,6 +37,7 @@
 #include "cobalt/web/window_timers.h"
 #include "cobalt/worker/worker_location.h"
 #include "cobalt/worker/worker_navigator.h"
+#include "net/http/http_response_headers.h"
 #include "net/url_request/url_request.h"
 #include "url/gurl.h"
 #include "url/origin.h"
@@ -44,7 +47,17 @@ namespace worker {
 // Implementation of the WorkerGlobalScope common interface.
 //   https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#the-workerglobalscope-common-interface
 
-using ScriptResourceMap = std::map<GURL, std::unique_ptr<std::string>>;
+struct ScriptResource {
+  explicit ScriptResource(std::unique_ptr<std::string> content)
+      : content(std::move(content)) {}
+  ScriptResource(std::unique_ptr<std::string> content,
+                 const scoped_refptr<net::HttpResponseHeaders>& headers)
+      : content(std::move(content)), headers(headers) {}
+  std::unique_ptr<std::string> content;
+  scoped_refptr<net::HttpResponseHeaders> headers;
+};
+
+using ScriptResourceMap = std::map<GURL, ScriptResource>;
 // A registration map is an ordered map where the keys are (storage key,
 // serialized scope urls) and the values are service worker registrations.
 using RegistrationMapKey = std::pair<url::Origin, std::string>;
@@ -83,6 +96,8 @@ class WorkerGlobalScope : public web::WindowOrWorkerGlobalScope {
 
   virtual void ImportScripts(const std::vector<std::string>& urls,
                              script::ExceptionState* exception_state);
+
+  std::set<WindowOrWorkerGlobalScope*>* owner_set() { return &owner_set_; }
 
   void set_url(const GURL& url) { url_ = url; }
 
@@ -139,6 +154,13 @@ class WorkerGlobalScope : public web::WindowOrWorkerGlobalScope {
                                      ResponseCallback response_callback);
 
  private:
+  // WorkerGlobalScope Infrastructure
+  //   https://html.spec.whatwg.org/multipage/workers.html#workerglobalscope
+  // owner_set_ would typically have a union of Document and WorkerGlobalScope
+  // objects in this set, but we use WindowOrWorkerGlobalScope here since we
+  // have easy access from a Window to its associated Document.
+  std::set<WindowOrWorkerGlobalScope*> owner_set_;
+
   // WorkerGlobalScope url
   //   https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#concept-workerglobalscope-url
   GURL url_;

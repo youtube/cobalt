@@ -104,15 +104,14 @@ TEST_F(SourceTest, RedirectMatching) {
 
   Source source(csp_.get(), config);
 
-  EXPECT_TRUE(source.Matches(GURL("http://example.com:8000/"),
-                             ContentSecurityPolicy::kDidRedirect));
-  EXPECT_TRUE(source.Matches(GURL("http://example.com:8000/foo"),
-                             ContentSecurityPolicy::kDidRedirect));
-  EXPECT_TRUE(source.Matches(GURL("https://example.com:8000/foo"),
-                             ContentSecurityPolicy::kDidRedirect));
+  EXPECT_TRUE(source.Matches(GURL("http://example.com:8000/"), kDidRedirect));
+  EXPECT_TRUE(
+      source.Matches(GURL("http://example.com:8000/foo"), kDidRedirect));
+  EXPECT_TRUE(
+      source.Matches(GURL("https://example.com:8000/foo"), kDidRedirect));
 
-  EXPECT_FALSE(source.Matches(GURL("http://not-example.com:8000/foo"),
-                              ContentSecurityPolicy::kDidRedirect));
+  EXPECT_FALSE(
+      source.Matches(GURL("http://not-example.com:8000/foo"), kDidRedirect));
   EXPECT_FALSE(source.Matches(GURL("http://example.com:9000/foo/")));
 }
 

@@ -43,11 +43,11 @@ class SourceList {
 
   SourceList(const LocalNetworkCheckerInterface* checker,
              ContentSecurityPolicy* policy, const std::string& directive_name);
+  SourceList(const LocalNetworkCheckerInterface* checker,
+             ContentSecurityPolicy* policy, const SourceList& other);
   void Parse(const base::StringPiece& begin);
 
-  bool Matches(const GURL& url,
-               ContentSecurityPolicy::RedirectStatus =
-                   ContentSecurityPolicy::kDidNotRedirect) const;
+  bool Matches(const GURL& url, RedirectStatus = kDidNotRedirect) const;
   bool AllowInline() const;
   bool AllowEval() const;
   bool AllowNonce(const std::string& nonce) const;

@@ -79,6 +79,8 @@ class DedicatedWorkerGlobalScope : public WorkerGlobalScope {
   ~DedicatedWorkerGlobalScope() override {}
 
  private:
+  void InitializePolicyContainer();
+
   bool cross_origin_isolated_capability_;
 
   std::string name_;

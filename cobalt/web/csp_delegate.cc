@@ -45,11 +45,29 @@ CspDelegateSecure::CspDelegateSecure(
 
 CspDelegateSecure::~CspDelegateSecure() {}
 
+void CspDelegateSecure::ClonePolicyContainer(
+    const csp::ContentSecurityPolicy& other) {
+  // https://html.spec.whatwg.org/commit-snapshots/814668ef2d1919a2a9387a0b29ebc6df7748fa80/#clone-a-policy-container
+  // To clone a policy container given a policy container policyContainer:
+  // 1. Let clone be a new policy container.
+  //   We already have csp_ initialized in the constructor.
+  // 2. For each policy in policyContainer's CSP list, append a copy of policy
+  // into clone's CSP list.
+  for (const auto& directive_list : other.policies()) {
+    DCHECK(directive_list);
+    csp_->append_policy(*directive_list);
+  }
+  // 3. Set clone's embedder policy to a copy of policyContainer's embedder
+  // policy.
+  //   Cobalt doesn't currently store embedder policy.
+  // 4. Set clone's referrer policy to policyContainer's referrer policy.
+  csp_->set_referrer_policy(csp_->referrer_policy());
+}
+
 bool CspDelegateSecure::CanLoad(ResourceType type, const GURL& url,
                                 bool did_redirect) const {
-  const csp::ContentSecurityPolicy::RedirectStatus redirect_status =
-      did_redirect ? csp::ContentSecurityPolicy::kDidRedirect
-                   : csp::ContentSecurityPolicy::kDidNotRedirect;
+  const csp::RedirectStatus redirect_status =
+      did_redirect ? csp::kDidRedirect : csp::kDidNotRedirect;
 
   // Special case for "offline" mode- in the absence of any server policy,
   // we check our default navigation policy, to permit navigation to
@@ -149,8 +167,7 @@ bool CspDelegateSecure::AllowInline(ResourceType type,
 bool CspDelegateSecure::AllowEval(std::string* eval_disabled_message) const {
   bool allow_eval =
       // If CSP is not provided, allow eval() function.
-      !was_header_received_ ||
-      csp_->AllowEval(csp::ContentSecurityPolicy::kSuppressReport);
+      !was_header_received_ || csp_->AllowEval(csp::kSuppressReport);
   if (!allow_eval && eval_disabled_message) {
     *eval_disabled_message = csp_->disable_eval_error_message();
   }
@@ -158,7 +175,7 @@ bool CspDelegateSecure::AllowEval(std::string* eval_disabled_message) const {
 }
 
 void CspDelegateSecure::ReportEval() const {
-  csp_->AllowEval(csp::ContentSecurityPolicy::kSendReport);
+  csp_->AllowEval(csp::kSendReport);
 }
 
 bool CspDelegateSecure::OnReceiveHeaders(const csp::ResponseHeaders& headers) {

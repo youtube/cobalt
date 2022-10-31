@@ -35,9 +35,11 @@ namespace worker {
 class DedicatedWorker : public AbstractWorker, public web::EventTarget {
  public:
   DedicatedWorker(script::EnvironmentSettings* settings,
-                  const std::string& scriptURL);
+                  const std::string& scriptURL,
+                  script::ExceptionState* exception_state);
   DedicatedWorker(script::EnvironmentSettings* settings,
-                  const std::string& scriptURL, const WorkerOptions& options);
+                  const std::string& scriptURL, const WorkerOptions& options,
+                  script::ExceptionState* exception_state);
   DedicatedWorker(const DedicatedWorker&) = delete;
   DedicatedWorker& operator=(const DedicatedWorker&) = delete;
 
@@ -78,7 +80,7 @@ class DedicatedWorker : public AbstractWorker, public web::EventTarget {
 
  private:
   ~DedicatedWorker() override;
-  void Initialize();
+  void Initialize(script::ExceptionState* exception_state);
 
   const std::string script_url_;
   const WorkerOptions worker_options_;

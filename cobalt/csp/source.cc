@@ -33,10 +33,11 @@ Source::Source(ContentSecurityPolicy* policy, const SourceConfig& config)
   config_.port_wildcard = config.port_wildcard;
 }
 
+Source::Source(ContentSecurityPolicy* policy, const Source& other)
+    : policy_(policy), config_(other.config_) {}
+
 // https://www.w3.org/TR/2015/CR-CSP2-20150721/#match-source-expression
-bool Source::Matches(
-    const GURL& url,
-    ContentSecurityPolicy::RedirectStatus redirect_status) const {
+bool Source::Matches(const GURL& url, RedirectStatus redirect_status) const {
   if (!SchemeMatches(url)) {
     return false;
   }
@@ -50,8 +51,7 @@ bool Source::Matches(
     return false;
   }
 
-  bool paths_match = (redirect_status == ContentSecurityPolicy::kDidRedirect) ||
-                     PathMatches(url);
+  bool paths_match = (redirect_status == kDidRedirect) || PathMatches(url);
   return paths_match;
 }
 

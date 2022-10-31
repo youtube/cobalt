@@ -23,5 +23,8 @@ Directive::Directive(const std::string& name, const std::string& value,
                      ContentSecurityPolicy* policy)
     : text_(name + " " + value), policy_(policy) {}
 
+Directive::Directive(ContentSecurityPolicy* policy, const Directive& other)
+    : text_(other.text_), policy_(policy) {}
+
 }  // namespace csp
 }  // namespace cobalt

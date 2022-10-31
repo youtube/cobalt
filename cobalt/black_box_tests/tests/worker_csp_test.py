@@ -19,9 +19,13 @@ from cobalt.black_box_tests import black_box_tests
 from cobalt.black_box_tests.threaded_web_server import ThreadedWebServer, MakeCustomHeaderRequestHandlerClass
 
 paths_to_headers = {
+    'worker_load_csp_test.html': {
+        'Content-Security-Policy':
+            "script-src 'unsafe-inline' 'self'; worker-src 'self'"
+    },
     'worker_csp_test.html': {
         'Content-Security-Policy':
-            "script-src 'unsafe-inline' 'self'; connect-src 'self';"
+            "script-src 'unsafe-inline' 'self'; connect-src 'self'"
     },
     'worker_csp_test.js': {
         'Content-Security-Policy': "connect-src 'self';"
@@ -32,13 +36,35 @@ paths_to_headers = {
 class WorkerCspTest(black_box_tests.BlackBoxTestCase):
   """Verify correct correct CSP behavior."""
 
-  def test_worker_csp(self):
+  def test_1_worker_csp(self):
     path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
     with ThreadedWebServer(
         binding_address=self.GetBindingAddress(),
         handler=MakeCustomHeaderRequestHandlerClass(
             path, paths_to_headers)) as server:
       url = server.GetURL(file_name='testdata/worker_csp_test.html')
+
+      with self.CreateCobaltRunner(url=url) as runner:
+        self.assertTrue(runner.JSTestsSucceeded())
+
+  def test_2_worker_load_csp(self):
+    path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+    with ThreadedWebServer(
+        binding_address=self.GetBindingAddress(),
+        handler=MakeCustomHeaderRequestHandlerClass(
+            path, paths_to_headers)) as server:
+      url = server.GetURL(file_name='testdata/worker_load_csp_test.html')
+
+      with self.CreateCobaltRunner(url=url) as runner:
+        self.assertTrue(runner.JSTestsSucceeded())
+
+  def test_3_service_worker_csp(self):
+    path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+    with ThreadedWebServer(
+        binding_address=self.GetBindingAddress(),
+        handler=MakeCustomHeaderRequestHandlerClass(
+            path, paths_to_headers)) as server:
+      url = server.GetURL(file_name='testdata/service_worker_csp_test.html')
 
       with self.CreateCobaltRunner(url=url) as runner:
         self.assertTrue(runner.JSTestsSucceeded())

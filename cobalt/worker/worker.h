@@ -25,6 +25,7 @@
 #include "base/message_loop/message_loop_current.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/thread.h"
+#include "cobalt/base/source_location.h"
 #include "cobalt/csp/content_security_policy.h"
 #include "cobalt/loader/script_loader_factory.h"
 #include "cobalt/script/environment_settings.h"
@@ -57,13 +58,16 @@ class Worker : public base::MessageLoop::DestructionObserver {
   struct Options {
     web::Agent::Options web_options;
 
+    // Holds the source location where the worker was constructed.
+    base::SourceLocation construction_location;
+
     // True if worker is a SharedWorker object, and false otherwise.
     bool is_shared;
 
     // Parameters from 'Run a worker' step 9.1 in the spec.
     //   https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#dom-worker
     GURL url;
-    web::EnvironmentSettings* outside_settings = nullptr;
+    web::Context* outside_context = nullptr;
     web::MessagePort* outside_port = nullptr;
     WorkerOptions options;
   };

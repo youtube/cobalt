@@ -34,6 +34,7 @@
 #include "cobalt/worker/service_worker_jobs.h"
 #include "cobalt/worker/service_worker_registration_object.h"
 #include "cobalt/worker/service_worker_update_via_cache.h"
+#include "cobalt/worker/worker_global_scope.h"
 #include "net/base/completion_once_callback.h"
 #include "net/disk_cache/cobalt/resource_type.h"
 #include "url/gurl.h"
@@ -228,8 +229,10 @@ bool ServiceWorkerPersistentSettings::ReadServiceWorkerObjectSettings(
         return false;
       }
       std::string script_string(data->begin(), data->end());
-      script_resource_map[script_url] =
-          std::make_unique<std::string>(script_string);
+      auto result = script_resource_map.insert(std::make_pair(
+          script_url,
+          ScriptResource(std::make_unique<std::string>(script_string))));
+      DCHECK(result.second);
     }
   }
   if (script_resource_map.size() == 0) {
@@ -346,7 +349,7 @@ ServiceWorkerPersistentSettings::WriteServiceWorkerObjectSettings(
     std::string script_url_string = script_resource.first.spec();
     script_urls_value.GetList().push_back(base::Value(script_url_string));
     // Use Cache::Store to persist the script resource.
-    std::string resource = *(script_resource.second.get());
+    std::string resource = *(script_resource.second.content.get());
     std::vector<uint8_t> data(resource.begin(), resource.end());
     cache_->Store(
         disk_cache::ResourceType::kServiceWorkerScript,

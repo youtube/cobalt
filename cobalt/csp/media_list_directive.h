@@ -28,6 +28,8 @@ class MediaListDirective : public Directive {
  public:
   MediaListDirective(const std::string& name, const std::string& value,
                      ContentSecurityPolicy* policy);
+  MediaListDirective(ContentSecurityPolicy* policy,
+                     const MediaListDirective& other);
 
   bool Allows(const std::string& type) const;
 

@@ -34,9 +34,10 @@ class SourceListDirective : public Directive {
 
   SourceListDirective(const std::string& name, const std::string& value,
                       ContentSecurityPolicy* policy);
+  SourceListDirective(ContentSecurityPolicy* policy,
+                      const SourceListDirective& other);
 
-  bool Allows(const GURL& url,
-              ContentSecurityPolicy::RedirectStatus redirect_status) const;
+  bool Allows(const GURL& url, RedirectStatus redirect_status) const;
   bool AllowInline() const;
   bool AllowEval() const;
   bool AllowNonce(const std::string& nonce) const;

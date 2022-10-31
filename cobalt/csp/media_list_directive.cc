@@ -23,6 +23,10 @@ MediaListDirective::MediaListDirective(const std::string& name,
   Parse(base::StringPiece(value));
 }
 
+MediaListDirective::MediaListDirective(ContentSecurityPolicy* policy,
+                                       const MediaListDirective& other)
+    : Directive(policy, other), plugin_types_(other.plugin_types_) {}
+
 bool MediaListDirective::Allows(const std::string& type) const {
   return plugin_types_.find(type) != plugin_types_.end();
 }
