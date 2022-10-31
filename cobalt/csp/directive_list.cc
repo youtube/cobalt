@@ -88,6 +88,42 @@ DirectiveList::DirectiveList(ContentSecurityPolicy* policy,
   }
 }
 
+DirectiveList::DirectiveList(ContentSecurityPolicy* policy,
+                             const DirectiveList& other)
+    : policy_(policy),
+      header_(other.header_),
+      header_type_(other.header_type_),
+      header_source_(other.header_source_),
+      report_only_(other.report_only_),
+      has_sandbox_policy_(other.has_sandbox_policy_),
+      has_suborigin_policy_(other.has_suborigin_policy_),
+      reflected_xss_disposition_(other.reflected_xss_disposition_),
+      did_set_referrer_policy_(other.did_set_referrer_policy_),
+      referrer_policy_(other.referrer_policy_),
+      strict_mixed_content_checking_enforced_(
+          other.strict_mixed_content_checking_enforced_),
+      upgrade_insecure_requests_(other.upgrade_insecure_requests_),
+      plugin_types_(new MediaListDirective(policy, *(other.plugin_types_))),
+      base_uri_(new SourceListDirective(policy, *(other.base_uri_))),
+      child_src_(new SourceListDirective(policy, *(other.child_src_))),
+      connect_src_(new SourceListDirective(policy, *(other.connect_src_))),
+      default_src_(new SourceListDirective(policy, *(other.default_src_))),
+      font_src_(new SourceListDirective(policy, *(other.font_src_))),
+      form_action_(new SourceListDirective(policy, *(other.form_action_))),
+      frame_ancestors_(
+          new SourceListDirective(policy, *(other.frame_ancestors_))),
+      frame_src_(new SourceListDirective(policy, *(other.frame_src_))),
+      img_src_(new SourceListDirective(policy, *(other.img_src_))),
+      location_src_(new SourceListDirective(policy, *(other.location_src_))),
+      media_src_(new SourceListDirective(policy, *(other.media_src_))),
+      manifest_src_(new SourceListDirective(policy, *(other.manifest_src_))),
+      object_src_(new SourceListDirective(policy, *(other.object_src_))),
+      script_src_(new SourceListDirective(policy, *(other.script_src_))),
+      style_src_(new SourceListDirective(policy, *(other.style_src_))),
+      worker_src_(new SourceListDirective(policy, *(other.worker_src_))),
+      report_endpoints_(other.report_endpoints_),
+      eval_disabled_error_message_(other.eval_disabled_error_message_) {}
+
 DirectiveList::~DirectiveList() {}
 
 void DirectiveList::ReportViolation(const std::string& directive_text,
@@ -130,9 +166,8 @@ bool DirectiveList::CheckHash(SourceListDirective* directive,
   return !directive || directive->AllowHash(hashValue);
 }
 
-bool DirectiveList::CheckSource(
-    SourceListDirective* directive, const GURL& url,
-    ContentSecurityPolicy::RedirectStatus redirect_status) const {
+bool DirectiveList::CheckSource(SourceListDirective* directive, const GURL& url,
+                                RedirectStatus redirect_status) const {
   return !directive || directive->Allows(url, redirect_status);
 }
 
@@ -262,7 +297,7 @@ bool DirectiveList::CheckInlineAndReportViolation(
 bool DirectiveList::CheckSourceAndReportViolation(
     SourceListDirective* directive, const GURL& url,
     const std::string& effective_directive,
-    ContentSecurityPolicy::RedirectStatus redirect_status) const {
+    RedirectStatus redirect_status) const {
   if (CheckSource(directive, url, redirect_status)) {
     return true;
   }
@@ -315,8 +350,8 @@ bool DirectiveList::CheckSourceAndReportViolation(
 
 bool DirectiveList::AllowInlineEventHandlers(
     const std::string& context_url, int context_line,
-    ContentSecurityPolicy::ReportingStatus reporting_status) const {
-  if (reporting_status == ContentSecurityPolicy::kSendReport) {
+    ReportingStatus reporting_status) const {
+  if (reporting_status == kSendReport) {
     return CheckInlineAndReportViolation(
         OperativeDirective(script_src_.get()),
         "Refused to execute inline event handler because it violates the "
@@ -327,11 +362,11 @@ bool DirectiveList::AllowInlineEventHandlers(
   return CheckInline(OperativeDirective(script_src_.get()));
 }
 
-bool DirectiveList::AllowInlineScript(
-    const std::string& context_url, int context_line,
-    ContentSecurityPolicy::ReportingStatus reporting_status,
-    const std::string& content) const {
-  if (reporting_status == ContentSecurityPolicy::kSendReport) {
+bool DirectiveList::AllowInlineScript(const std::string& context_url,
+                                      int context_line,
+                                      ReportingStatus reporting_status,
+                                      const std::string& content) const {
+  if (reporting_status == kSendReport) {
     return CheckInlineAndReportViolation(
         OperativeDirective(script_src_.get()),
         "Refused to execute inline script because it violates the following "
@@ -342,11 +377,11 @@ bool DirectiveList::AllowInlineScript(
   return CheckInline(OperativeDirective(script_src_.get()));
 }
 
-bool DirectiveList::AllowInlineWorker(
-    const std::string& context_url, int context_line,
-    ContentSecurityPolicy::ReportingStatus reporting_status,
-    const std::string& content) const {
-  if (reporting_status == ContentSecurityPolicy::kSendReport) {
+bool DirectiveList::AllowInlineWorker(const std::string& context_url,
+                                      int context_line,
+                                      ReportingStatus reporting_status,
+                                      const std::string& content) const {
+  if (reporting_status == kSendReport) {
     return CheckInlineAndReportViolation(
         OperativeDirective(worker_src_.get(),
                            OperativeDirective(script_src_.get())),
@@ -359,11 +394,11 @@ bool DirectiveList::AllowInlineWorker(
                                         OperativeDirective(script_src_.get())));
 }
 
-bool DirectiveList::AllowInlineStyle(
-    const std::string& context_url, int context_line,
-    ContentSecurityPolicy::ReportingStatus reporting_status,
-    const std::string& content) const {
-  if (reporting_status == ContentSecurityPolicy::kSendReport) {
+bool DirectiveList::AllowInlineStyle(const std::string& context_url,
+                                     int context_line,
+                                     ReportingStatus reporting_status,
+                                     const std::string& content) const {
+  if (reporting_status == kSendReport) {
     return CheckInlineAndReportViolation(
         OperativeDirective(style_src_.get()),
         "Refused to apply inline style because it violates the following "
@@ -374,9 +409,8 @@ bool DirectiveList::AllowInlineStyle(
   return CheckInline(OperativeDirective(style_src_.get()));
 }
 
-bool DirectiveList::AllowEval(
-    ContentSecurityPolicy::ReportingStatus reporting_status) const {
-  if (reporting_status == ContentSecurityPolicy::kSendReport) {
+bool DirectiveList::AllowEval(ReportingStatus reporting_status) const {
+  if (reporting_status == kSendReport) {
     return CheckEvalAndReportViolation(
         OperativeDirective(script_src_.get()),
         "Refused to evaluate a string as JavaScript because 'unsafe-eval' is "
@@ -387,9 +421,9 @@ bool DirectiveList::AllowEval(
 }
 
 bool DirectiveList::AllowScriptFromSource(
-    const GURL& url, ContentSecurityPolicy::RedirectStatus redirect_status,
-    ContentSecurityPolicy::ReportingStatus reporting_status) const {
-  return reporting_status == ContentSecurityPolicy::kSendReport
+    const GURL& url, RedirectStatus redirect_status,
+    ReportingStatus reporting_status) const {
+  return reporting_status == kSendReport
              ? CheckSourceAndReportViolation(
                    OperativeDirective(script_src_.get()), url,
                    ContentSecurityPolicy::kScriptSrc, redirect_status)
@@ -398,9 +432,9 @@ bool DirectiveList::AllowScriptFromSource(
 }
 
 bool DirectiveList::AllowWorkerFromSource(
-    const GURL& url, ContentSecurityPolicy::RedirectStatus redirect_status,
-    ContentSecurityPolicy::ReportingStatus reporting_status) const {
-  return reporting_status == ContentSecurityPolicy::kSendReport
+    const GURL& url, RedirectStatus redirect_status,
+    ReportingStatus reporting_status) const {
+  return reporting_status == kSendReport
              ? CheckSourceAndReportViolation(
                    OperativeDirective(worker_src_.get(),
                                       OperativeDirective(script_src_.get())),
@@ -412,9 +446,9 @@ bool DirectiveList::AllowWorkerFromSource(
 }
 
 bool DirectiveList::AllowObjectFromSource(
-    const GURL& url, ContentSecurityPolicy::RedirectStatus redirect_status,
-    ContentSecurityPolicy::ReportingStatus reporting_status) const {
-  return reporting_status == ContentSecurityPolicy::kSendReport
+    const GURL& url, RedirectStatus redirect_status,
+    ReportingStatus reporting_status) const {
+  return reporting_status == kSendReport
              ? CheckSourceAndReportViolation(
                    OperativeDirective(object_src_.get()), url,
                    ContentSecurityPolicy::kObjectSrc, redirect_status)
@@ -423,9 +457,9 @@ bool DirectiveList::AllowObjectFromSource(
 }
 
 bool DirectiveList::AllowImageFromSource(
-    const GURL& url, ContentSecurityPolicy::RedirectStatus redirect_status,
-    ContentSecurityPolicy::ReportingStatus reporting_status) const {
-  return reporting_status == ContentSecurityPolicy::kSendReport
+    const GURL& url, RedirectStatus redirect_status,
+    ReportingStatus reporting_status) const {
+  return reporting_status == kSendReport
              ? CheckSourceAndReportViolation(
                    OperativeDirective(img_src_.get()), url,
                    ContentSecurityPolicy::kImgSrc, redirect_status)
@@ -434,9 +468,9 @@ bool DirectiveList::AllowImageFromSource(
 }
 
 bool DirectiveList::AllowStyleFromSource(
-    const GURL& url, ContentSecurityPolicy::RedirectStatus redirect_status,
-    ContentSecurityPolicy::ReportingStatus reporting_status) const {
-  return reporting_status == ContentSecurityPolicy::kSendReport
+    const GURL& url, RedirectStatus redirect_status,
+    ReportingStatus reporting_status) const {
+  return reporting_status == kSendReport
              ? CheckSourceAndReportViolation(
                    OperativeDirective(style_src_.get()), url,
                    ContentSecurityPolicy::kStyleSrc, redirect_status)
@@ -445,9 +479,9 @@ bool DirectiveList::AllowStyleFromSource(
 }
 
 bool DirectiveList::AllowFontFromSource(
-    const GURL& url, ContentSecurityPolicy::RedirectStatus redirect_status,
-    ContentSecurityPolicy::ReportingStatus reporting_status) const {
-  return reporting_status == ContentSecurityPolicy::kSendReport
+    const GURL& url, RedirectStatus redirect_status,
+    ReportingStatus reporting_status) const {
+  return reporting_status == kSendReport
              ? CheckSourceAndReportViolation(
                    OperativeDirective(font_src_.get()), url,
                    ContentSecurityPolicy::kFontSrc, redirect_status)
@@ -456,9 +490,9 @@ bool DirectiveList::AllowFontFromSource(
 }
 
 bool DirectiveList::AllowMediaFromSource(
-    const GURL& url, ContentSecurityPolicy::RedirectStatus redirect_status,
-    ContentSecurityPolicy::ReportingStatus reporting_status) const {
-  return reporting_status == ContentSecurityPolicy::kSendReport
+    const GURL& url, RedirectStatus redirect_status,
+    ReportingStatus reporting_status) const {
+  return reporting_status == kSendReport
              ? CheckSourceAndReportViolation(
                    OperativeDirective(media_src_.get()), url,
                    ContentSecurityPolicy::kMediaSrc, redirect_status)
@@ -467,9 +501,9 @@ bool DirectiveList::AllowMediaFromSource(
 }
 
 bool DirectiveList::AllowManifestFromSource(
-    const GURL& url, ContentSecurityPolicy::RedirectStatus redirect_status,
-    ContentSecurityPolicy::ReportingStatus reporting_status) const {
-  return reporting_status == ContentSecurityPolicy::kSendReport
+    const GURL& url, RedirectStatus redirect_status,
+    ReportingStatus reporting_status) const {
+  return reporting_status == kSendReport
              ? CheckSourceAndReportViolation(
                    OperativeDirective(manifest_src_.get()), url,
                    ContentSecurityPolicy::kManifestSrc, redirect_status)
@@ -478,9 +512,9 @@ bool DirectiveList::AllowManifestFromSource(
 }
 
 bool DirectiveList::AllowConnectToSource(
-    const GURL& url, ContentSecurityPolicy::RedirectStatus redirect_status,
-    ContentSecurityPolicy::ReportingStatus reporting_status) const {
-  return reporting_status == ContentSecurityPolicy::kSendReport
+    const GURL& url, RedirectStatus redirect_status,
+    ReportingStatus reporting_status) const {
+  return reporting_status == kSendReport
              ? CheckSourceAndReportViolation(
                    OperativeDirective(connect_src_.get()), url,
                    ContentSecurityPolicy::kConnectSrc, redirect_status)
@@ -489,31 +523,31 @@ bool DirectiveList::AllowConnectToSource(
 }
 
 bool DirectiveList::AllowNavigateToSource(
-    const GURL& url, ContentSecurityPolicy::RedirectStatus redirect_status,
-    ContentSecurityPolicy::ReportingStatus reporting_status) const {
+    const GURL& url, RedirectStatus redirect_status,
+    ReportingStatus reporting_status) const {
   // No fallback to default for h5vcc-location-src policy, so we don't use
   // OperativeDirective() in this case.
-  return reporting_status == ContentSecurityPolicy::kSendReport
+  return reporting_status == kSendReport
              ? CheckSourceAndReportViolation(
                    location_src_.get(), url,
                    ContentSecurityPolicy::kLocationSrc, redirect_status)
              : CheckSource(location_src_.get(), url, redirect_status);
 }
 
-bool DirectiveList::AllowFormAction(
-    const GURL& url, ContentSecurityPolicy::RedirectStatus redirect_status,
-    ContentSecurityPolicy::ReportingStatus reporting_status) const {
-  return reporting_status == ContentSecurityPolicy::kSendReport
+bool DirectiveList::AllowFormAction(const GURL& url,
+                                    RedirectStatus redirect_status,
+                                    ReportingStatus reporting_status) const {
+  return reporting_status == kSendReport
              ? CheckSourceAndReportViolation(form_action_.get(), url,
                                              ContentSecurityPolicy::kFormAction,
                                              redirect_status)
              : CheckSource(form_action_.get(), url, redirect_status);
 }
 
-bool DirectiveList::AllowBaseURI(
-    const GURL& url, ContentSecurityPolicy::RedirectStatus redirect_status,
-    ContentSecurityPolicy::ReportingStatus reporting_status) const {
-  return reporting_status == ContentSecurityPolicy::kSendReport
+bool DirectiveList::AllowBaseURI(const GURL& url,
+                                 RedirectStatus redirect_status,
+                                 ReportingStatus reporting_status) const {
+  return reporting_status == kSendReport
              ? CheckSourceAndReportViolation(base_uri_.get(), url,
                                              ContentSecurityPolicy::kBaseURI,
                                              redirect_status)

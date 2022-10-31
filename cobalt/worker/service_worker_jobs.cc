@@ -64,6 +64,7 @@
 #include "url/gurl.h"
 #include "url/origin.h"
 
+
 namespace cobalt {
 namespace worker {
 
@@ -120,7 +121,9 @@ bool IsOriginPotentiallyTrustworthy(const GURL& url) {
   return false;
 }
 
-bool PermitAnyURL(const GURL&, bool) { return true; }
+bool PermitAnyNonRedirectedURL(const GURL&, bool did_redirect) {
+  return !did_redirect;
+}
 }  // namespace
 
 ServiceWorkerJobs::ServiceWorkerJobs(web::WebSettings* web_settings,
@@ -172,7 +175,7 @@ void ServiceWorkerJobs::StartRegister(
   // Algorithm for Start Register:
   //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#start-register-algorithm
   // 1. If scriptURL is failure, reject promise with a TypeError and abort these
-  // steps.
+  //    steps.
   if (script_url_with_fragment.is_empty()) {
     promise_reference->value().Reject(script::kTypeError);
     return;
@@ -186,26 +189,42 @@ void ServiceWorkerJobs::StartRegister(
   DCHECK(!script_url.is_empty());
 
   // 3. If scriptURL’s scheme is not one of "http" and "https", reject promise
-  // with a TypeError and abort these steps.
+  //    with a TypeError and abort these steps.
   if (!script_url.SchemeIsHTTPOrHTTPS()) {
     promise_reference->value().Reject(script::kTypeError);
     return;
   }
 
   // 4. If any of the strings in scriptURL’s path contains either ASCII
-  // case-insensitive "%2f" or ASCII case-insensitive "%5c", reject promise with
-  // a TypeError and abort these steps.
+  //    case-insensitive "%2f" or ASCII case-insensitive "%5c", reject promise
+  //    with a TypeError and abort these steps.
   if (PathContainsEscapedSlash(script_url)) {
     promise_reference->value().Reject(script::kTypeError);
     return;
   }
 
+  DCHECK(client);
+  web::WindowOrWorkerGlobalScope* window_or_worker_global_scope =
+      client->context()->GetWindowOrWorkerGlobalScope();
+  DCHECK(window_or_worker_global_scope);
+  web::CspDelegate* csp_delegate =
+      window_or_worker_global_scope->csp_delegate();
+  DCHECK(csp_delegate);
+  if (!csp_delegate->CanLoad(web::CspDelegate::kWorker, script_url,
+                             /* did_redirect*/ false)) {
+    promise_reference->value().Reject(new web::DOMException(
+        web::DOMException::kSecurityErr,
+        "Failed to register a ServiceWorker: The provided scriptURL ('" +
+            script_url.spec() + "') violates the Content Security Policy."));
+    return;
+  }
+
   // 5. If scopeURL is null, set scopeURL to the result of parsing the string
-  // "./" with scriptURL.
+  //    "./" with scriptURL.
   GURL scope_url = maybe_scope_url.value_or(script_url.Resolve("./"));
 
   // 6. If scopeURL is failure, reject promise with a TypeError and abort these
-  // steps.
+  //    steps.
   if (scope_url.is_empty()) {
     promise_reference->value().Reject(script::kTypeError);
     return;
@@ -217,26 +236,26 @@ void ServiceWorkerJobs::StartRegister(
   DCHECK(!scope_url.is_empty());
 
   // 8. If scopeURL’s scheme is not one of "http" and "https", reject promise
-  // with a TypeError and abort these steps.
+  //    with a TypeError and abort these steps.
   if (!scope_url.SchemeIsHTTPOrHTTPS()) {
     promise_reference->value().Reject(script::kTypeError);
     return;
   }
 
   // 9. If any of the strings in scopeURL’s path contains either ASCII
-  // case-insensitive "%2f" or ASCII case-insensitive "%5c", reject promise with
-  // a TypeError and abort these steps.
+  //    case-insensitive "%2f" or ASCII case-insensitive "%5c", reject promise
+  //    with a TypeError and abort these steps.
   if (PathContainsEscapedSlash(scope_url)) {
     promise_reference->value().Reject(script::kTypeError);
     return;
   }
 
   // 10. Let storage key be the result of running obtain a storage key given
-  // client.
+  //     client.
   url::Origin storage_key = client->ObtainStorageKey();
 
   // 11. Let job be the result of running Create Job with register, storage key,
-  // scopeURL, scriptURL, promise, and client.
+  //     scopeURL, scriptURL, promise, and client.
   std::unique_ptr<Job> job =
       CreateJob(kRegister, storage_key, scope_url, script_url,
                 JobPromiseType::Create(std::move(promise_reference)), client);
@@ -590,10 +609,11 @@ void ServiceWorkerJobs::Update(Job* job) {
   //   8.4.  If the is top-level flag is unset, then return the result of
   //         fetching request.
   //   8.5.  Set request’s redirect mode to "error".
+  csp::SecurityCallback csp_callback = base::Bind(&PermitAnyNonRedirectedURL);
   //   8.6.  Fetch request, and asynchronously wait to run the remaining steps
   //         as part of fetch’s process response for the response response.
-  // TODO(b/225037465): Implement CSP check.
-  csp::SecurityCallback csp_callback = base::Bind(&PermitAnyURL);
+  // Note: The CSP check for the script_url is done in StartRegister, where
+  // the client's CSP list can still be referred to.
   loader::Origin origin = loader::Origin(job->script_url.GetOrigin());
   job->loader = script_loader_factory_->CreateScriptLoader(
       job->script_url, origin, csp_callback,
@@ -661,6 +681,7 @@ bool ServiceWorkerJobs::UpdateOnResponseStarted(
       "Service-Worker-Allowed", &service_worker_allowed);
   //   8.9.  Set policyContainer to the result of creating a policy container
   //         from a fetch response given response.
+  state->script_headers = headers;
   //   8.10. If serviceWorkerAllowed is failure, then:
   //   8.10.1  Asynchronously complete these steps with a network error.
   //   8.11. Let scopeURL be registration’s scope url.
@@ -712,14 +733,19 @@ void ServiceWorkerJobs::UpdateOnContentProduced(
     std::unique_ptr<std::string> content) {
   TRACE_EVENT0("cobalt::worker",
                "ServiceWorkerJobs::UpdateOnContentProduced()");
+  DCHECK(content);
   DCHECK_EQ(message_loop(), base::MessageLoop::current());
   // Note: There seems to be missing handling of network errors here.
   //   8.17. Let url be request’s url.
   //   8.18. Set updatedResourceMap[url] to response.
-  auto result = state->updated_resource_map.insert(
-      std::make_pair(state->job->script_url, std::move(content)));
+  auto result = state->updated_resource_map.emplace(std::make_pair(
+      state->job->script_url,
+      ScriptResource(std::move(content), state->script_headers)));
   // Assert that the insert was successful.
   DCHECK(result.second);
+  std::string* updated_script_content =
+      result.second ? result.first->second.content.get() : nullptr;
+  DCHECK(updated_script_content);
   //   8.19. If response’s cache state is not "local", set registration’s last
   //         update check time to the current time.
   //   8.20. Set hasUpdatedResources to true if any of the following are true:
@@ -735,9 +761,14 @@ void ServiceWorkerJobs::UpdateOnContentProduced(
     if (state->newest_worker->script_url() != state->job->script_url) {
       state->has_updated_resources = true;
     } else {
-      std::string* script_resource =
+      const ScriptResource* newest_worker_script_resource =
           state->newest_worker->LookupScriptResource(state->job->script_url);
-      if (script_resource && content && (*script_resource != *content)) {
+      std::string* newest_worker_script_content =
+          newest_worker_script_resource
+              ? newest_worker_script_resource->content.get()
+              : nullptr;
+      if (!newest_worker_script_content || !updated_script_content ||
+          (*newest_worker_script_content != *updated_script_content)) {
         state->has_updated_resources = true;
       }
     }
@@ -788,7 +819,7 @@ void ServiceWorkerJobs::UpdateOnLoadingComplete(
   // steps, with script being the asynchronous completion value.
   auto entry = state->updated_resource_map.find(state->job->script_url);
   auto* script = entry != state->updated_resource_map.end()
-                     ? entry->second.get()
+                     ? entry->second.content.get()
                      : nullptr;
   // 9. If script is null or Is Async Module with script’s record, script’s
   //    base URL, and {} it true, then:
@@ -840,6 +871,7 @@ void ServiceWorkerJobs::UpdateOnLoadingComplete(
   // 13. Append url to worker’s set of used scripts.
   worker->AppendToSetOfUsedScripts(state->job->script_url);
   // 14. Set worker’s script resource’s policy container to policyContainer.
+  DCHECK(state->script_headers);
   // 15. Let forceBypassCache be true if job’s force bypass cache flag is
   //     set, and false otherwise.
   bool force_bypass_cache = state->job->force_bypass_cache_flag;
@@ -1008,8 +1040,6 @@ void ServiceWorkerJobs::Install(
     } else {
       // 11.3.1. Queue a task task on installingWorker’s event loop using the
       //         DOM manipulation task source to run the following steps:
-      // Using a shared pointer to ensure that it still exists when it is
-      // signaled from the callback after the timeout.
       DCHECK(done_event_.IsSignaled());
       done_event_.Reset();
       installing_worker->web_agent()
@@ -1645,7 +1675,7 @@ void ServiceWorkerJobs::HandleServiceWorkerClientUnload(
   TRACE_EVENT0("cobalt::worker",
                "ServiceWorkerJobs::HandleServiceWorkerClientUnload()");
   // Algorithm for Handle Servicer Worker Client Unload:
-  //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#on-user-agent-shutdown-algorithm
+  //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#on-client-unload-algorithm
   DCHECK(client);
   // 1. Run the following steps atomically.
   DCHECK_EQ(message_loop(), base::MessageLoop::current());

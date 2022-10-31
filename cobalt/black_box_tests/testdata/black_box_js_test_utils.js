@@ -52,6 +52,9 @@ function notReached(error) {
     console.error('Already failed.');
     return;
   }
+  if (!error) {
+    error = Error('');
+  }
   Promise.resolve(tearDown()).then(() => {
     printError(error);
     document.body.setAttribute(TEST_STATUS_ELEMENT_NAME, FAILURE_MESSAGE);

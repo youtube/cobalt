@@ -128,7 +128,7 @@ class CobaltRunner(object):
     self.log_handler = log_handler
 
     if log_file:
-      self.log_file = open(log_file)  # pylint: disable=consider-using-with
+      self.log_file = open(log_file, encoding='utf-8')  # pylint: disable=consider-using-with
       logging.basicConfig(stream=self.log_file, level=logging.INFO)
     else:
       self.log_file = sys.stdout
@@ -274,12 +274,12 @@ class CobaltRunner(object):
     self.launcher_is_running = True
     try:
       self.WaitForStart()
-    except KeyboardInterrupt:
+    except KeyboardInterrupt as e:
       # potentially from _thread.interrupt_main(). We will treat as
       # a timeout regardless.
 
       self.Exit(should_fail=True)
-      raise TimeoutException
+      raise TimeoutException from e
 
   def __exit__(self, exc_type, exc_value, exc_traceback):
     # The unittest module terminates with a SystemExit
@@ -331,7 +331,7 @@ class CobaltRunner(object):
 
   def _StartWebdriver(self, port):
     host, webdriver_port = self.launcher.GetHostAndPortGivenPort(port)
-    url = 'http://{}:{}/'.format(host, webdriver_port)
+    url = f'http://{host}:{webdriver_port}/'
     self.webdriver = self.selenium_webdriver_module.Remote(
         url, COBALT_WEBDRIVER_CAPABILITIES)
     self.webdriver.command_executor.set_timeout(WEBDRIVER_HTTP_TIMEOUT_SECONDS)
@@ -352,11 +352,14 @@ class CobaltRunner(object):
   def _RunLauncher(self):
     """Thread run routine."""
     try:
+      # Force a newline because unittest with verbosity=2 doesn't start on a new
+      # line.
+      sys.stderr.write('\n')
       logging.info('Running launcher')
       self.launcher.Run()
       logging.info('Cobalt terminated.')
       if not self.failed and self.success_message:
-        print('{}\n'.format(self.success_message))
+        print(f'{self.success_message}\n')
         logging.info('%s\n', self.success_message)
     # pylint: disable=broad-except
     except Exception as ex:
@@ -377,8 +380,7 @@ class CobaltRunner(object):
     while True:
       if retry_count >= EXECUTE_JAVASCRIPT_RETRY_LIMIT:
         raise TimeoutException(
-            'Selenium element or window not found in {} tries'.format(
-                EXECUTE_JAVASCRIPT_RETRY_LIMIT))
+            f'Selenium element or window not found in {retry_count} tries')
       retry_count += 1
       try:
         result = self.webdriver.execute_script(js_code)
@@ -398,7 +400,7 @@ class CobaltRunner(object):
     Returns:
       Python object represented by the cval string
     """
-    javascript_code = 'return h5vcc.cVal.getValue(\'{}\')'.format(cval_name)
+    javascript_code = f'return h5vcc.cVal.getValue(\'{cval_name}\')'
     cval_string = self.ExecuteJavaScript(javascript_code)
     if cval_string:
       try:
@@ -423,7 +425,7 @@ class CobaltRunner(object):
       Python dictionary of values indexed by the cval names provided.
     """
     javascript_code_list = [
-        'h5vcc.cVal.getValue(\'{}\')'.format(name) for name in cval_name_list
+        f'h5vcc.cVal.getValue(\'{name}\')' for name in cval_name_list
     ]
     javascript_code = 'return [' + ','.join(javascript_code_list) + ']'
     json_results = self.ExecuteJavaScript(javascript_code)
@@ -480,7 +482,7 @@ class CobaltRunner(object):
     # probably does.
     if not self.UniqueFind(css_selector):
       raise CobaltRunner.AssertException(
-          'Did not find selector: {}'.format(css_selector))
+          f'Did not find selector: {css_selector}')
 
   def FindElements(self, css_selector, expected_num=None):
     """Finds elements based on a selector.
@@ -502,8 +504,7 @@ class CobaltRunner(object):
     while True:
       if retry_count >= FIND_ELEMENT_RETRY_LIMIT:
         raise TimeoutException(
-            'Selenium element or window not found in {} tries'.format(
-                retry_count))
+            f'Selenium element or window not found in {retry_count} tries')
       retry_count += 1
       try:
         elements = self.webdriver.find_elements_by_css_selector(css_selector)
@@ -514,8 +515,8 @@ class CobaltRunner(object):
       break
     if expected_num and len(elements) != expected_num:
       raise CobaltRunner.AssertException(
-          'Expected number of element {} is: {}, got {}'.format(
-              css_selector, expected_num, len(elements)))
+          f'Expected number of element {css_selector} '
+          f'is: {expected_num}, got {len(elements)}')
     return elements
 
   def WaitForActiveElement(self):
@@ -524,7 +525,7 @@ class CobaltRunner(object):
     while True:
       if retry_count >= FIND_ELEMENT_RETRY_LIMIT:
         raise TimeoutException(
-            'Selenium active element not found in {} tries'.format(retry_count))
+            f'Selenium active element not found in {retry_count} tries')
       retry_count += 1
       try:
         element = self.webdriver.switch_to.active_element

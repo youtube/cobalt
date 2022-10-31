@@ -21,6 +21,7 @@
 
 #include "base/callback.h"
 #include "base/containers/hash_tables.h"
+#include "cobalt/csp/directive_list.h"
 #include "cobalt/csp/parsers.h"
 #include "net/http/http_response_headers.h"
 #include "url/gurl.h"
@@ -28,7 +29,6 @@
 namespace cobalt {
 namespace csp {
 
-class DirectiveList;
 class Source;
 
 // Wrap up information about a CSP violation, for passing to the Delegate.
@@ -126,18 +126,6 @@ class ContentSecurityPolicy {
 
   // Custom CSP directive h5vcc-location-src for Cobalt
   static const char kLocationSrc[];
-
-  enum ReportingStatus {
-    kSendReport,
-    kSuppressReport,
-  };
-
-  // When a resource is loaded after a redirect, source paths are
-  // ignored in the matching algorithm.
-  enum RedirectStatus {
-    kDidRedirect,
-    kDidNotRedirect,
-  };
 
   static bool IsDirectiveName(const std::string& name);
 
@@ -258,6 +246,16 @@ class ContentSecurityPolicy {
   void NotifyUrlChanged(const GURL& url);
   bool DidSetReferrerPolicy() const;
 
+  const PolicyList& policies() const { return policies_; }
+  void append_policy(const DirectiveList& directive_list) {
+    policies_.emplace_back(new DirectiveList(this, directive_list));
+  }
+
+  const ReferrerPolicy& referrer_policy() const { return referrer_policy_; }
+  void set_referrer_policy(const ReferrerPolicy& referrer_policy) {
+    referrer_policy_ = referrer_policy;
+  }
+
   const GURL& url() const { return url_; }
   void set_enforce_strict_mixed_content_checking() {
     enforce_strict_mixed_content_checking_ = true;
@@ -273,6 +271,8 @@ class ContentSecurityPolicy {
   void AddPolicyFromHeaderValue(const std::string& header, HeaderType type,
                                 HeaderSource source);
 
+  // List of CSP Policies.
+  //   https://www.w3.org/TR/2022/WD-CSP3-20221014/#csp-list
   PolicyList policies_;
   std::unique_ptr<Source> self_source_;
   std::string self_scheme_;

@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-  Copyright 2022 The Cobalt Authors. All Rights Reserved.
+  Copyright 2023 The Cobalt Authors. All Rights Reserved.
 
   Licensed under the Apache License, Version 2.0 (the "License");
   you may not use this file except in compliance with the License.
@@ -16,13 +16,12 @@
 -->
 
 <head>
-  <title>Verify that XHR on workers correctly follows CSP</title>
+  <title>Verify that service worker registration correctly follow CSP</title>
   <script src='black_box_js_test_utils.js'></script>
 </head>
 
 <body>
   <script>
-  var worker;
   var window_onerror_count = 0;
   window.onerror = (message, filename, lineno, colno, error) => {
     ++window_onerror_count;
@@ -30,23 +29,23 @@
     // number in the error message.
     assertIncludes('SecurityError', message);
     assertIncludes('worker_csp_test.js', filename);
-    assertEqual(1, window_onerror_count);
-    window.setTimeout(
-      () => {
-        worker.terminate();
-        onEndTest();
-      }, 250);
   }
 
   // This worker attempts to do an XHR request that is blocked by CSP.
-  worker = new Worker('worker_csp_test.js');
-  worker.onmessage = function (event) {
-    notReached();
-  };
-  worker.onerror = function (event) {
-    // Note: The Worker's onerror handler (incorrectly) isn't called.
-    notReached();
-  };
+  navigator.serviceWorker.register(
+    'worker_csp_test.js', { scope: './' })
+    .then(registration => {
+      notReached();
+    })
+    .catch(error => {
+      console.log(`Registration failed: ${error}`);
+      assertIncludes('TypeError', error);
+    });
 
+  window.setTimeout(
+    () => {
+      assertEqual(0, window_onerror_count);
+      onEndTest();
+    }, 250);
   </script>
 </body>

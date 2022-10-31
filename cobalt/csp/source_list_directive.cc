@@ -35,9 +35,13 @@ SourceListDirective::SourceListDirective(const std::string& name,
   source_list_.Parse(base::StringPiece(value));
 }
 
-bool SourceListDirective::Allows(
-    const GURL& url,
-    ContentSecurityPolicy::RedirectStatus redirectStatus) const {
+SourceListDirective::SourceListDirective(ContentSecurityPolicy* policy,
+                                         const SourceListDirective& other)
+    : Directive(policy, other),
+      source_list_(&local_network_checker_, policy, other.source_list_) {}
+
+bool SourceListDirective::Allows(const GURL& url,
+                                 RedirectStatus redirectStatus) const {
   return source_list_.Matches(url.is_empty() ? policy()->url() : url,
                               redirectStatus);
 }

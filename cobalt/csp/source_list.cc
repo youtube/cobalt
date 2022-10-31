@@ -84,9 +84,29 @@ SourceList::SourceList(const LocalNetworkCheckerInterface* checker,
       hash_algorithms_used_(0),
       local_network_checker_(checker) {}
 
-bool SourceList::Matches(
-    const GURL& url,
-    ContentSecurityPolicy::RedirectStatus redirect_status) const {
+SourceList::SourceList(const LocalNetworkCheckerInterface* checker,
+                       ContentSecurityPolicy* policy, const SourceList& other)
+    : policy_(policy),
+      directive_name_(other.directive_name_),
+      allow_self_(other.allow_self_),
+      allow_star_(other.allow_star_),
+      allow_inline_(other.allow_inline_),
+      allow_eval_(other.allow_eval_),
+      allow_insecure_connections_to_local_network_(
+          other.allow_insecure_connections_to_local_network_),
+      allow_insecure_connections_to_localhost_(
+          other.allow_insecure_connections_to_localhost_),
+      allow_insecure_connections_to_private_range_(
+          other.allow_insecure_connections_to_private_range_),
+      hash_algorithms_used_(0),
+      local_network_checker_(checker) {
+  for (Source source : other.list_) {
+    list_.push_back(Source(policy, source));
+  }
+}
+
+bool SourceList::Matches(const GURL& url,
+                         RedirectStatus redirect_status) const {
   if (allow_star_ && SchemeCanMatchStar(url)) {
     return true;
   }

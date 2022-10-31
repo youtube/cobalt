@@ -15,12 +15,11 @@
 // https://html.spec.whatwg.org/multipage/workers.html#dedicated-workers-and-the-worker-interface
 // https://html.spec.whatwg.org/dev/workers.html#workers
 
-[Exposed=Window,
- ImplementedAs=DedicatedWorker,
- ConstructorCallWith=EnvironmentSettings,
- Constructor(USVString scriptURL, optional WorkerOptions options)
-]
-interface Worker : EventTarget {
+[
+  Exposed = Window, ImplementedAs = DedicatedWorker,
+  ConstructorCallWith = EnvironmentSettings, RaisesException = Constructor,
+  Constructor(USVString scriptURL, optional WorkerOptions options)
+] interface Worker : EventTarget {
   void terminate();
 
   void postMessage(any message);

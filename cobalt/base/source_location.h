@@ -34,6 +34,7 @@ namespace base {
 //
 // Line and column numbers are 1-based.
 struct SourceLocation {
+  SourceLocation() = default;
   SourceLocation(const std::string& file_path, int line_number,
                  int column_number)
       : file_path(file_path),

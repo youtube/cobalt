@@ -161,21 +161,21 @@ TEST_F(SourceListTest, RedirectMatching) {
   SourceList source_list(&checker_, csp_.get(), "script-src");
   ParseSourceList(&source_list, sources);
 
-  EXPECT_TRUE(source_list.Matches(GURL("http://example1.com/foo/"),
-                                  ContentSecurityPolicy::kDidRedirect));
-  EXPECT_TRUE(source_list.Matches(GURL("http://example1.com/bar/"),
-                                  ContentSecurityPolicy::kDidRedirect));
-  EXPECT_TRUE(source_list.Matches(GURL("http://example2.com/bar/"),
-                                  ContentSecurityPolicy::kDidRedirect));
-  EXPECT_TRUE(source_list.Matches(GURL("http://example2.com/foo/"),
-                                  ContentSecurityPolicy::kDidRedirect));
-  EXPECT_TRUE(source_list.Matches(GURL("https://example1.com/foo/"),
-                                  ContentSecurityPolicy::kDidRedirect));
-  EXPECT_TRUE(source_list.Matches(GURL("https://example1.com/bar/"),
-                                  ContentSecurityPolicy::kDidRedirect));
+  EXPECT_TRUE(
+      source_list.Matches(GURL("http://example1.com/foo/"), kDidRedirect));
+  EXPECT_TRUE(
+      source_list.Matches(GURL("http://example1.com/bar/"), kDidRedirect));
+  EXPECT_TRUE(
+      source_list.Matches(GURL("http://example2.com/bar/"), kDidRedirect));
+  EXPECT_TRUE(
+      source_list.Matches(GURL("http://example2.com/foo/"), kDidRedirect));
+  EXPECT_TRUE(
+      source_list.Matches(GURL("https://example1.com/foo/"), kDidRedirect));
+  EXPECT_TRUE(
+      source_list.Matches(GURL("https://example1.com/bar/"), kDidRedirect));
 
-  EXPECT_FALSE(source_list.Matches(GURL("http://example3.com/foo/"),
-                                   ContentSecurityPolicy::kDidRedirect));
+  EXPECT_FALSE(
+      source_list.Matches(GURL("http://example3.com/foo/"), kDidRedirect));
 }
 
 TEST_F(SourceListTest, TestInsecureLocalhostDefaultInsecureV4) {

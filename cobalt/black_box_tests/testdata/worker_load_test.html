@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<!--
+  Copyright 2023 The Cobalt Authors. All Rights Reserved.
+
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+-->
+
+<head>
+  <title>Verify that worker loading is blocked and reported as expected</title>
+  <script src='black_box_js_test_utils.js'></script>
+</head>
+
+<body>
+  <script>
+  var window_onerror_count = 0;
+  window.onerror = (message, filename, lineno, colno, error) => {
+    ++window_onerror_count;
+    console.log(message);
+    if (message.includes('nonexisting_worker.js')) {
+      assertIncludes('aborted or failed with code 404', message);
+      assertIncludes('worker_load_test.html', filename);
+    } else {
+      notReached();
+    }
+    if (window_onerror_count == 1) {
+      window.setTimeout(
+        () => {
+          assertEqual(1, window_onerror_count);
+          onEndTest();
+        }, 250);
+
+    }
+  }
+
+  // This worker is blocked because the URL can't resolve.
+  try {
+    var blocked_worker = new Worker('..:/blocked_worker.js');
+    notReached();
+  } catch(error) {
+    console.log(error);
+    assertEqual('SyntaxError', error.name);
+  }
+
+  // This worker is blocked because the script does not exist.
+  try {
+    var nonexisting_worker = new Worker('nonexisting_worker.js');
+    nonexisting_worker.onerror = function (event) {
+      // Note: The Worker's onerror handler (incorrectly) isn't called.
+      notReached();
+    };
+  } catch (error) {
+    // The error is thrown asynchronously after the Worker constructor.
+    notReached();
+  }
+  </script>
+</body>

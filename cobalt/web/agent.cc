@@ -291,7 +291,13 @@ void Impl::ShutDownJavaScriptEngine() {
   blob_registry_.reset();
   script_runner_.reset();
   execution_state_.reset();
-  global_environment_ = NULL;
+
+  // Ensure that global_environment_ is null before it's destroyed.
+  scoped_refptr<script::GlobalEnvironment> global_environment(
+      std::move(global_environment_));
+  DCHECK(!global_environment_);
+  global_environment = nullptr;
+
   javascript_engine_.reset();
   fetcher_factory_.reset();
   script_loader_factory_.reset();
@@ -457,7 +463,7 @@ scoped_refptr<worker::ServiceWorker> Impl::GetServiceWorker(
 
 WindowOrWorkerGlobalScope* Impl::GetWindowOrWorkerGlobalScope() {
   script::Wrappable* global_wrappable =
-      global_environment()->global_wrappable();
+      global_environment_ ? global_environment_->global_wrappable() : nullptr;
   if (!global_wrappable) {
     return nullptr;
   }

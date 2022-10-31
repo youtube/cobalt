@@ -312,6 +312,9 @@ class ServiceWorkerJobs {
     scoped_refptr<ServiceWorkerRegistrationObject> registration;
     ServiceWorkerObject* newest_worker;
 
+    // Headers received with the main service worker script load.
+    scoped_refptr<net::HttpResponseHeaders> script_headers;
+
     // map of content or resources for the worker.
     ScriptResourceMap updated_resource_map;
 

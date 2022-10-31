@@ -70,26 +70,29 @@ void ServiceWorkerGlobalScope::ImportScripts(
             DCHECK(service_worker);
             // 3. Let url be request’s url.
             DCHECK(url.is_valid());
-            std::string* resource = service_worker->LookupScriptResource(url);
+            const ScriptResource* script_resource =
+                service_worker->LookupScriptResource(url);
+            std::string* resource_content =
+                script_resource ? script_resource->content.get() : nullptr;
             // 4. If serviceWorker’s state is not "parsed" or "installing":
             if (service_worker->state() != kServiceWorkerStateParsed &&
                 service_worker->state() != kServiceWorkerStateInstalling) {
               // 4.1. Return map[url] if it exists and a network error
               // otherwise.
-              if (!resource) {
+              if (!resource_content) {
                 web::DOMException::Raise(web::DOMException::kNetworkErr,
                                          exception_state);
               }
-              return resource;
+              return resource_content;
             }
 
             // 5. If map[url] exists:
-            if (resource) {
+            if (resource_content) {
               // 5.1. Append url to serviceWorker’s set of used scripts.
               service_worker->AppendToSetOfUsedScripts(url);
 
               // 5.2. Return map[url].
-              return resource;
+              return resource_content;
             }
 
             // 6. Let registration be serviceWorker’s containing service worker
@@ -106,7 +109,7 @@ void ServiceWorkerGlobalScope::ImportScripts(
             // a separate callback that gets passed to the ScriptLoader for the
             // FetcherFactory.
 
-            return resource;
+            return resource_content;
           },
           service_worker_object_),
       base::Bind(

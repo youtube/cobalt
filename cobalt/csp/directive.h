@@ -24,10 +24,23 @@ namespace csp {
 
 class ContentSecurityPolicy;
 
+enum ReportingStatus {
+  kSendReport,
+  kSuppressReport,
+};
+
+// When a resource is loaded after a redirect, source paths are
+// ignored in the matching algorithm.
+enum RedirectStatus {
+  kDidRedirect,
+  kDidNotRedirect,
+};
+
 class Directive {
  public:
   Directive(const std::string& name, const std::string& value,
             ContentSecurityPolicy* policy);
+  Directive(ContentSecurityPolicy* policy, const Directive& other);
 
   const std::string& text() const { return text_; }
 

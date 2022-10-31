@@ -46,9 +46,9 @@ struct SourceConfig {
 class Source {
  public:
   Source(ContentSecurityPolicy* policy, const SourceConfig& config);
+  Source(ContentSecurityPolicy* policy, const Source& other);
   bool Matches(const GURL& url,
-               ContentSecurityPolicy::RedirectStatus redirect_status =
-                   ContentSecurityPolicy::kDidNotRedirect) const;
+               RedirectStatus redirect_status = kDidNotRedirect) const;
 
  private:
   bool SchemeMatches(const GURL& url) const;
