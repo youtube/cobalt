@@ -132,14 +132,16 @@ class CobaltRunner(object):
       logging.basicConfig(stream=self.log_file, level=logging.INFO)
     else:
       self.log_file = sys.stdout
-    self.url = url
+    if url:
+      self.url = url
     self.target_params = target_params
     self.success_message = success_message
-    url_string = '--url=' + self.url
-    if not self.target_params:
-      self.target_params = [url_string]
-    else:
-      self.target_params.append(url_string)
+    if hasattr(self, 'url'):
+      url_string = '--url=' + self.url
+      if not self.target_params:
+        self.target_params = [url_string]
+      else:
+        self.target_params.append(url_string)
     if self.launcher_params.target_params:
       self.target_params.extend(self.launcher_params.target_params)
 
