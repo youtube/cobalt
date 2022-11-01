@@ -40,11 +40,15 @@ void SingleThreadTaskRunner::PostBlockingTask(const base::Location& from_here,
   base::WaitableEvent task_finished(
       base::WaitableEvent::ResetPolicy::MANUAL,
       base::WaitableEvent::InitialState::NOT_SIGNALED);
-  PostTask(from_here,
+  bool task_may_run = PostTask(from_here,
            base::Bind(&RunAndSignal, task, base::Unretained(&task_finished)));
+  DCHECK(task_may_run)
+      << "Task that will never run posted with PostBlockingTask.";
 
-  // Wait for the task to complete before proceeding.
-  task_finished.Wait();
+  if (task_may_run) {
+    // Wait for the task to complete before proceeding.
+    task_finished.Wait();
+  }
 }
 #endif
 }  // namespace base
