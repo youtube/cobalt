@@ -168,7 +168,7 @@ repos:
         types: [text]
         # TODO: Remove docker-compose-windows.yml after internal check evaluates
         # properly on it.
-        exclude: '(^docker-compose-windows.yml|EXCLUDE\.FILES(\.RECURSIVE)?|codereview\.settings)$'
+        exclude: '(^docker-compose-windows(-internal)?.yml|EXCLUDE\.FILES(\.RECURSIVE)?|codereview\.settings)$'
     -   id: gn-format
         name: GN format
         entry: gn format
