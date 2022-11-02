@@ -43,7 +43,7 @@ runs:
           fi
           echo "DESTINATION=${project_name}-test-artifacts/${{github.workflow}}/${GITHUB_RUN_NUMBER}/${{matrix.platform}}_${{matrix.config}}/" >> $GITHUB_ENV
         fi
-        echo "PYTHONPATH=$GITHUB_WORKSPACE/src" >> $GITHUB_ENV
+        echo "PYTHONPATH=$GITHUB_WORKSPACE" >> $GITHUB_ENV
         project_name=$(gcloud config get-value project)
       shell: bash
     - name: Create Test Files Archive
@@ -52,19 +52,19 @@ runs:
         [ -f "${ARCHIVE_PATH}" ] && rm -rf "${ARCHIVE_PATH}"
         if [ "${{ inputs.type }}" == 'ondevice' ]
         then
-          outdir="$GITHUB_WORKSPACE/src/out/${{matrix.platform}}_${{matrix.config}}"
+          outdir="$GITHUB_WORKSPACE/out/${{matrix.platform}}_${{matrix.config}}"
           if [ -n "${COBALT_BOOTLOADER}" ]
           then
-            outdir="${outdir} $GITHUB_WORKSPACE/src/out/${{matrix.bootloader_platform}}_${{matrix.config}}"
+            outdir="${outdir} $GITHUB_WORKSPACE/out/${{matrix.bootloader_platform}}_${{matrix.config}}"
           fi
-          python3 $GITHUB_WORKSPACE/src/tools/create_archive.py --test_infra -d ${{env.ARCHIVE_FILE}} -s ${outdir}
+          python3 $GITHUB_WORKSPACE/tools/create_archive.py --test_infra -d ${{env.ARCHIVE_FILE}} -s ${outdir}
         elif [ "${{ inputs.type }}" == 'onhost' ]
         then
           parallel=
           if [[ "${{inputs.os}}" == 'linux' ]]; then
             parallel='--parallel'
           fi
-          python3 $GITHUB_WORKSPACE/src/tools/create_archive.py --intermediate -d ${{env.ARCHIVE_FILE}} -s $GITHUB_WORKSPACE/src/out/${PLATFORM}_${{matrix.config}} $parallel
+          python3 $GITHUB_WORKSPACE/tools/create_archive.py --intermediate -d ${{env.ARCHIVE_FILE}} -s $GITHUB_WORKSPACE/out/${PLATFORM}_${{matrix.config}} $parallel
         fi
       shell: bash
     - name: Copy Test Files to GCS
