@@ -1,0 +1,16 @@
+# HG changeset patch
+# Parent 22fb8d1ae29a528ee415b77c5969655ab0588bcb
+Disable internationalization API by default.
+
+diff --git a/js/src/configure.in b/js/src/configure.in
+--- a/js/src/configure.in
++++ b/js/src/configure.in
+@@ -4419,7 +4419,7 @@ dnl ECMAScript Internationalization API 
+ dnl ========================================================
+ 
+ if test -n "$JS_STANDALONE"; then
+-    ENABLE_INTL_API=1
++    ENABLE_INTL_API=
+ fi
+ MOZ_ARG_ENABLE_BOOL(intl-api,
+ [  --enable-intl-api       Enable ECMAScript Internationalization API (default=yes for standalone JS)],
