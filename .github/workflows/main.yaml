@@ -32,7 +32,7 @@ env:
   STARBOARD_TOOLCHAINS_DIR: /root/starboard-toolchains
 
 concurrency:
-  group: '${{ github.workflow }}-${{ inputs.platform }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}'
+  group: '${{ github.workflow }}-${{ inputs.platform }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.sha }}'
   cancel-in-progress: true
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
@@ -258,15 +258,10 @@ jobs:
           echo "PROJECT_NAME=$(gcloud config get-value project)" >> $GITHUB_ENV
           echo "GITHUB_RUN_NUMBER=${GITHUB_RUN_NUMBER}" >> $GITHUB_ENV
           echo "WORKFLOW=${{ github.workflow }}" >> $GITHUB_ENV
-          echo "LOGS_FILE_DIR=$GITHUB_WORKSPACE/out/tmp/${{ matrix.platform }}_${{ matrix.config }}_${{ matrix.type }}/" >> $GITHUB_ENV
           if [ "${{ needs.initialize.outputs.bootloader }}" != "null" ]; then
             echo "LOADER_CONFIG=${{ matrix.config }}" >> $GITHUB_ENV
             echo "LOADER_PLATFORM=${{ needs.initialize.outputs.bootloader }}" >> $GITHUB_ENV
           fi
-      - name: Create logs directory
-        run: |
-          mkdir -p "${LOGS_FILE_DIR}"
-        shell: bash
       - name: run ${{ matrix.type }} tests on ${{ matrix.platform }} platform
         id: on_device_test
         run: |
@@ -282,7 +277,7 @@ jobs:
             --build_number ${GITHUB_RUN_NUMBER} \
             ${LOADER_PLATFORM:+"--loader_config" "$LOADER_CONFIG"} \
             ${LOADER_PLATFORM:+"--loader_platform" "$LOADER_PLATFORM"} \
-            --archive_path gs://${PROJECT_NAME}-test-artifacts-tmp/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${{ matrix.platform }}_${{ matrix.config }}/artifacts.tar 2>&1 | tee "${LOGS_FILE_DIR}/logs.txt"
+            --archive_path gs://${PROJECT_NAME}-test-artifacts-tmp/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${{ matrix.platform }}_${{ matrix.config }}/artifacts.tar
         shell: bash
 
   # Runs on-host integration and unit tests.
