@@ -1,0 +1,8 @@
+This directory contains SpiderMonkey 24.
+
+This release is based on a revision of Mozilla 24:
+  http://hg.mozilla.org/releases/
+The changes in the patches/ directory were applied.
+
+MDN hosts the latest SpiderMonkey 24 release notes:
+  https://developer.mozilla.org/en-US/docs/SpiderMonkey/24
