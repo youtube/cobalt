@@ -76,6 +76,7 @@ static_library("h5vcc") {
     "//cobalt/cache",
     "//cobalt/configuration",
     "//cobalt/dom",
+    "//cobalt/media",
     "//cobalt/network",
     "//cobalt/persistent_storage:persistent_settings",
     "//cobalt/script",

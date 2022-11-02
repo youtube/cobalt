@@ -183,6 +183,16 @@ class CanPlayTypeHandlerStarboard : public CanPlayTypeHandler {
 
 }  // namespace
 
+bool MediaModule::SetConfiguration(const std::string& name, int32 value) {
+  if (name == "EnableBatchedSampleWrite") {
+    allow_batched_sample_write_ = value;
+    LOG(INFO) << (allow_batched_sample_write_ ? "Enabling" : "Disabling")
+              << " batched sample write.";
+    return true;
+  }
+  return false;
+}
+
 std::unique_ptr<WebMediaPlayer> MediaModule::CreateWebMediaPlayer(
     WebMediaPlayerClient* client) {
   TRACK_MEMORY_SCOPE("Media");
