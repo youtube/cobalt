@@ -2,7 +2,7 @@ name: evergreen_21.lts.1+
 
 on:
   pull_request:
-    types: [opened, reopened, edited, synchronize]
+    types: [opened, reopened, synchronize]
     branches:
       - '21.lts.1\+'
   push:
