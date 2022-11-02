@@ -22,6 +22,7 @@ namespace h5vcc {
 H5vccSettings::H5vccSettings(
     const SetSettingFunc& set_web_setting_func,
     const SetSettingFunc& set_media_source_setting_func,
+    cobalt::media::MediaModule* media_module,
     cobalt::network::NetworkModule* network_module,
 #if SB_IS(EVERGREEN)
     cobalt::updater::UpdaterModule* updater_module,
@@ -30,6 +31,7 @@ H5vccSettings::H5vccSettings(
     script::GlobalEnvironment* global_environment)
     : set_web_setting_func_(set_web_setting_func),
       set_media_source_setting_func_(set_media_source_setting_func),
+      media_module_(media_module),
       network_module_(network_module),
 #if SB_IS(EVERGREEN)
       updater_module_(updater_module),
@@ -39,6 +41,7 @@ H5vccSettings::H5vccSettings(
 }
 
 bool H5vccSettings::Set(const std::string& name, int32 value) const {
+  const char kMediaPrefix[] = "Media.";
   const char kNavigatorUAData[] = "NavigatorUAData";
   const char kQUIC[] = "QUIC";
 
@@ -54,6 +57,12 @@ bool H5vccSettings::Set(const std::string& name, int32 value) const {
   if (set_media_source_setting_func_ &&
       set_media_source_setting_func_.Run(name, value)) {
     return true;
+  }
+
+  if (name.rfind(kMediaPrefix, 0) == 0) {
+    return media_module_ ? media_module_->SetConfiguration(
+                               name.substr(strlen(kMediaPrefix)), value)
+                         : false;
   }
 
   if (name.compare(kNavigatorUAData) == 0 && value == 1) {

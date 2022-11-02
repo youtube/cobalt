@@ -17,6 +17,7 @@
 
 #include <string>
 
+#include "cobalt/media/media_module.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/wrappable.h"
@@ -39,6 +40,7 @@ class H5vccSettings : public script::Wrappable {
 
   H5vccSettings(const SetSettingFunc& set_web_setting_func,
                 const SetSettingFunc& set_media_source_setting_func,
+                cobalt::media::MediaModule* media_module,
                 cobalt::network::NetworkModule* network_module,
 #if SB_IS(EVERGREEN)
                 cobalt::updater::UpdaterModule* updater_module,
@@ -56,6 +58,7 @@ class H5vccSettings : public script::Wrappable {
  private:
   const SetSettingFunc set_web_setting_func_;
   const SetSettingFunc set_media_source_setting_func_;
+  cobalt::media::MediaModule* media_module_ = nullptr;
   cobalt::network::NetworkModule* network_module_ = nullptr;
 #if SB_IS(EVERGREEN)
   cobalt::updater::UpdaterModule* updater_module_ = nullptr;

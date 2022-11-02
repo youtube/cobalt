@@ -2062,6 +2062,7 @@ scoped_refptr<script::Wrappable> BrowserModule::CreateH5vccCallback(
       base::Bind(&web::WebSettingsImpl::Set, base::Unretained(&web_settings_));
   h5vcc_settings.set_media_source_setting_func = base::Bind(
       &WebModule::SetMediaSourceSetting, base::Unretained(web_module));
+  h5vcc_settings.media_module = media_module_.get();
   h5vcc_settings.network_module = network_module_;
 #if SB_IS(EVERGREEN)
   h5vcc_settings.updater_module = updater_module_;
