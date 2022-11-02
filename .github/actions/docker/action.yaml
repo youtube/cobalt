@@ -15,9 +15,9 @@ runs:
       uses: tj-actions/changed-files@v32.1.1
       with:
         files: |
-          src/docker-compose.yml
-          src/docker/linux/**
-          src/docker/trigger_docker_build.txt
+          docker-compose.yml
+          docker/linux/**
+          docker/trigger_docker_build.txt
           .github/actions/docker/**
     - name: Retrieve Docker metadata
       id: meta
@@ -62,7 +62,7 @@ runs:
         build: false
         push: "on:push"
         composeArguments: "--no-start"
-        composeFile: "src/docker-compose.yml"
+        composeFile: "docker-compose.yml"
     - name: Tag images
       if: env.need_to_build == 'true'
       run: docker tag ${{inputs.docker_image}} $DOCKER_TAG
