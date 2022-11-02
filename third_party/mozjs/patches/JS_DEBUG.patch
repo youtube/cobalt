@@ -1,0 +1,637 @@
+From: Sean Stangl <sstangl@mozilla.com>
+Date: Fri, 6 Dec 2013 15:03:08 -0800
+
+Bug 939505 - Use JS_DEBUG in public headers [esr24].
+
+diff --git a/js/public/CallArgs.h b/js/public/CallArgs.h
+--- a/js/public/CallArgs.h
++++ b/js/public/CallArgs.h
+@@ -122,7 +122,7 @@ class MOZ_STACK_CLASS UsedRvalBase<NoUse
+ 
+ template<UsedRval WantUsedRval>
+ class MOZ_STACK_CLASS CallReceiverBase : public UsedRvalBase<
+-#ifdef DEBUG
++#ifdef JS_DEBUG
+         WantUsedRval
+ #else
+         NoUsedRval
+diff --git a/js/public/HashTable.h b/js/public/HashTable.h
+--- a/js/public/HashTable.h
++++ b/js/public/HashTable.h
+@@ -698,7 +698,7 @@ class HashTable : private AllocPolicy
+       public:
+         // Leaves Ptr uninitialized.
+         Ptr() {
+-#ifdef DEBUG
++#ifdef JS_DEBUG
+             entry_ = (Entry *)0xbad;
+ #endif
+         }
+@@ -856,7 +856,7 @@ class HashTable : private AllocPolicy
+         hashShift = sHashBits - sizeLog2;
+     }
+ 
+-#ifdef DEBUG
++#ifdef JS_DEBUG
+     mutable struct Stats
+     {
+         uint32_t        searches;       // total number of table searches
+diff --git a/js/public/RootingAPI.h b/js/public/RootingAPI.h
+--- a/js/public/RootingAPI.h
++++ b/js/public/RootingAPI.h
+@@ -150,7 +150,7 @@ template <typename T> class MutableHandl
+ /* This is exposing internal state of the GC for inlining purposes. */
+ JS_FRIEND_API(bool) isGCEnabled();
+ 
+-#if defined(DEBUG) && defined(JS_GC_ZEAL) && defined(JSGC_ROOT_ANALYSIS) && !defined(JS_THREADSAFE)
++#if defined(JS_DEBUG) && defined(JS_GC_ZEAL) && defined(JSGC_ROOT_ANALYSIS) && !defined(JS_THREADSAFE)
+ extern void
+ CheckStackRoots(JSContext *cx);
+ #endif
+@@ -509,7 +509,7 @@ struct GCMethods<T *>
+ #endif
+ };
+ 
+-#if defined(DEBUG) && defined(JS_THREADSAFE)
++#if defined(JS_DEBUG) && defined(JS_THREADSAFE)
+ /* This helper allows us to assert that Rooted<T> is scoped within a request. */
+ extern JS_PUBLIC_API(bool)
+ IsInRequest(JSContext *cx);
+@@ -654,7 +654,7 @@ class MOZ_STACK_CLASS Rooted : public js
+     Rooted<void*> **stack, *prev;
+ #endif
+ 
+-#if defined(DEBUG) && defined(JS_GC_ZEAL) && defined(JSGC_ROOT_ANALYSIS) && !defined(JS_THREADSAFE)
++#if defined(JS_DEBUG) && defined(JS_GC_ZEAL) && defined(JSGC_ROOT_ANALYSIS) && !defined(JS_THREADSAFE)
+     /* Has the rooting analysis ever scanned this Rooted's stack location? */
+     friend void JS::CheckStackRoots(JSContext*);
+     bool scanned;
+@@ -698,7 +698,7 @@ namespace js {
+  */
+ class SkipRoot
+ {
+-#if defined(DEBUG) && defined(JS_GC_ZEAL) && defined(JSGC_ROOT_ANALYSIS) && !defined(JS_THREADSAFE)
++#if defined(JS_DEBUG) && defined(JS_GC_ZEAL) && defined(JSGC_ROOT_ANALYSIS) && !defined(JS_THREADSAFE)
+ 
+     SkipRoot **stack, *prev;
+     const uint8_t *start;
+@@ -742,7 +742,7 @@ class SkipRoot
+         return v >= start && v + len <= end;
+     }
+ 
+-#else /* DEBUG && JSGC_ROOT_ANALYSIS */
++#else /* JS_DEBUG && JSGC_ROOT_ANALYSIS */
+ 
+   public:
+     template <typename T>
+@@ -759,7 +759,7 @@ class SkipRoot
+         MOZ_GUARD_OBJECT_NOTIFIER_INIT;
+     }
+ 
+-#endif /* DEBUG && JSGC_ROOT_ANALYSIS */
++#endif /* JS_DEBUG && JSGC_ROOT_ANALYSIS */
+ 
+     MOZ_DECL_USE_GUARD_OBJECT_NOTIFIER
+ };
+@@ -931,7 +931,7 @@ namespace js {
+  */
+ inline void MaybeCheckStackRoots(JSContext *cx)
+ {
+-#if defined(DEBUG) && defined(JS_GC_ZEAL) && defined(JSGC_ROOT_ANALYSIS) && !defined(JS_THREADSAFE)
++#if defined(JS_DEBUG) && defined(JS_GC_ZEAL) && defined(JSGC_ROOT_ANALYSIS) && !defined(JS_THREADSAFE)
+     JS::CheckStackRoots(cx);
+ #endif
+ }
+diff --git a/js/public/Utility.h b/js/public/Utility.h
+--- a/js/public/Utility.h
++++ b/js/public/Utility.h
+@@ -45,7 +45,7 @@ namespace js {}
+ #define JS_ALWAYS_TRUE(expr)      MOZ_ALWAYS_TRUE(expr)
+ #define JS_ALWAYS_FALSE(expr)     MOZ_ALWAYS_FALSE(expr)
+ 
+-#ifdef DEBUG
++#ifdef JS_DEBUG
+ # ifdef JS_THREADSAFE
+ #  define JS_THREADSAFE_ASSERT(expr) JS_ASSERT(expr)
+ # else
+@@ -55,7 +55,7 @@ namespace js {}
+ # define JS_THREADSAFE_ASSERT(expr) ((void) 0)
+ #endif
+ 
+-#if defined(DEBUG)
++#if defined(JS_DEBUG)
+ # define JS_DIAGNOSTICS_ASSERT(expr) MOZ_ASSERT(expr)
+ #elif defined(JS_CRASH_DIAGNOSTICS)
+ # define JS_DIAGNOSTICS_ASSERT(expr) do { if (!(expr)) MOZ_CRASH(); } while(0)
+@@ -82,7 +82,7 @@ extern JS_PUBLIC_API(void) JS_Abort(void
+ #if defined JS_USE_CUSTOM_ALLOCATOR
+ # include "jscustomallocator.h"
+ #else
+-# ifdef DEBUG
++# ifdef JS_DEBUG
+ /*
+  * In order to test OOM conditions, when the testing function
+  * oomAfterAllocations COUNT is passed, we fail continuously after the NUM'th
+@@ -146,7 +146,7 @@ PrintBacktrace()
+ # else
+ #  define JS_OOM_POSSIBLY_FAIL() do {} while(0)
+ #  define JS_OOM_POSSIBLY_FAIL_REPORT(cx) do {} while(0)
+-# endif /* DEBUG */
++# endif /* JS_DEBUG */
+ 
+ static JS_INLINE void* js_malloc(size_t bytes)
+ {
+@@ -697,26 +697,26 @@ class ReentrancyGuard
+     ReentrancyGuard(const ReentrancyGuard &);
+     void operator=(const ReentrancyGuard &);
+ 
+-#ifdef DEBUG
++#ifdef JS_DEBUG
+     bool &entered;
+ #endif
+   public:
+     template <class T>
+-#ifdef DEBUG
++#ifdef JS_DEBUG
+     ReentrancyGuard(T &obj)
+       : entered(obj.entered)
+ #else
+     ReentrancyGuard(T &/*obj*/)
+ #endif
+     {
+-#ifdef DEBUG
++#ifdef JS_DEBUG
+         JS_ASSERT(!entered);
+         entered = true;
+ #endif
+     }
+     ~ReentrancyGuard()
+     {
+-#ifdef DEBUG
++#ifdef JS_DEBUG
+         entered = false;
+ #endif
+     }
+@@ -803,7 +803,7 @@ namespace JS {
+ 
+ inline void PoisonPtr(void *v)
+ {
+-#if defined(JSGC_ROOT_ANALYSIS) && defined(DEBUG)
++#if defined(JSGC_ROOT_ANALYSIS) && defined(JS_DEBUG)
+     uint8_t *ptr = (uint8_t *) v + 3;
+     *ptr = JS_FREE_PATTERN;
+ #endif
+@@ -812,7 +812,7 @@ inline void PoisonPtr(void *v)
+ template <typename T>
+ inline bool IsPoisonedPtr(T *v)
+ {
+-#if defined(JSGC_ROOT_ANALYSIS) && defined(DEBUG)
++#if defined(JSGC_ROOT_ANALYSIS) && defined(JS_DEBUG)
+     uint32_t mask = uintptr_t(v) & 0xff000000;
+     return mask == uint32_t(JS_FREE_PATTERN << 24);
+ #else
+diff --git a/js/public/Value.h b/js/public/Value.h
+--- a/js/public/Value.h
++++ b/js/public/Value.h
+@@ -1649,7 +1649,7 @@ inline Anchor<Value>::~Anchor()
+ }
+ #endif
+ 
+-#ifdef DEBUG
++#ifdef JS_DEBUG
+ namespace detail {
+ 
+ struct ValueAlignmentTester { char c; JS::Value v; };
+@@ -1661,7 +1661,7 @@ MOZ_STATIC_ASSERT(sizeof(LayoutAlignment
+                   "jsval_layout must be 16-byte-aligned");
+ 
+ } // namespace detail
+-#endif /* DEBUG */
++#endif /* JS_DEBUG */
+ 
+ } // namespace JS
+ 
+diff --git a/js/public/Vector.h b/js/public/Vector.h
+--- a/js/public/Vector.h
++++ b/js/public/Vector.h
+@@ -251,13 +251,13 @@ class Vector : private AllocPolicy
+     T *mBegin;
+     size_t mLength;     /* Number of elements in the Vector. */
+     size_t mCapacity;   /* Max number of elements storable in the Vector without resizing. */
+-#ifdef DEBUG
++#ifdef JS_DEBUG
+     size_t mReserved;   /* Max elements of reserved or used space in this vector. */
+ #endif
+ 
+     mozilla::AlignedStorage<sInlineBytes> storage;
+ 
+-#ifdef DEBUG
++#ifdef JS_DEBUG
+     friend class ReentrancyGuard;
+     bool entered;
+ #endif
+@@ -287,7 +287,7 @@ class Vector : private AllocPolicy
+         return mBegin + mLength;
+     }
+ 
+-#ifdef DEBUG
++#ifdef JS_DEBUG
+     size_t reserved() const {
+         JS_ASSERT(mReserved <= mCapacity);
+         JS_ASSERT(mLength <= mReserved);
+@@ -530,7 +530,7 @@ JS_ALWAYS_INLINE
+ Vector<T,N,AllocPolicy>::Vector(AllocPolicy ap)
+   : AllocPolicy(ap), mBegin((T *)storage.addr()), mLength(0),
+     mCapacity(sInlineCapacity)
+-#ifdef DEBUG
++#ifdef JS_DEBUG
+   , mReserved(sInlineCapacity), entered(false)
+ #endif
+ {}
+@@ -540,13 +540,13 @@ template <class T, size_t N, class Alloc
+ JS_ALWAYS_INLINE
+ Vector<T, N, AllocPolicy>::Vector(MoveRef<Vector> rhs)
+     : AllocPolicy(rhs)
+-#ifdef DEBUG
++#ifdef JS_DEBUG
+     , entered(false)
+ #endif
+ {
+     mLength = rhs->mLength;
+     mCapacity = rhs->mCapacity;
+-#ifdef DEBUG
++#ifdef JS_DEBUG
+     mReserved = rhs->mReserved;
+ #endif
+ 
+@@ -567,7 +567,7 @@ Vector<T, N, AllocPolicy>::Vector(MoveRe
+         rhs->mBegin = (T *) rhs->storage.addr();
+         rhs->mCapacity = sInlineCapacity;
+         rhs->mLength = 0;
+-#ifdef DEBUG
++#ifdef JS_DEBUG
+         rhs->mReserved = sInlineCapacity;
+ #endif
+     }
+@@ -714,7 +714,7 @@ Vector<T,N,AP>::initCapacity(size_t requ
+         return false;
+     mBegin = newbuf;
+     mCapacity = request;
+-#ifdef DEBUG
++#ifdef JS_DEBUG
+     mReserved = request;
+ #endif
+     return true;
+@@ -728,7 +728,7 @@ Vector<T,N,AP>::reserve(size_t request)
+     if (request > mCapacity && !growStorageBy(request - mLength))
+         return false;
+ 
+-#ifdef DEBUG
++#ifdef JS_DEBUG
+     if (request > mReserved)
+         mReserved = request;
+     JS_ASSERT(mLength <= mReserved);
+@@ -761,7 +761,7 @@ Vector<T,N,AP>::growByImpl(size_t incr)
+     if (InitNewElems)
+         Impl::initialize(endNoCheck(), newend);
+     mLength += incr;
+-#ifdef DEBUG
++#ifdef JS_DEBUG
+     if (mLength > mReserved)
+         mReserved = mLength;
+ #endif
+@@ -826,7 +826,7 @@ Vector<T,N,AP>::clearAndFree()
+     this->free_(beginNoCheck());
+     mBegin = (T *)storage.addr();
+     mCapacity = sInlineCapacity;
+-#ifdef DEBUG
++#ifdef JS_DEBUG
+     mReserved = sInlineCapacity;
+ #endif
+ }
+@@ -847,7 +847,7 @@ Vector<T,N,AP>::append(U t)
+     if (mLength == mCapacity && !growStorageBy(1))
+         return false;
+ 
+-#ifdef DEBUG
++#ifdef JS_DEBUG
+     if (mLength + 1 > mReserved)
+         mReserved = mLength + 1;
+ #endif
+@@ -874,7 +874,7 @@ Vector<T,N,AP>::appendN(const T &t, size
+     if (mLength + needed > mCapacity && !growStorageBy(needed))
+         return false;
+ 
+-#ifdef DEBUG
++#ifdef JS_DEBUG
+     if (mLength + needed > mReserved)
+         mReserved = mLength + needed;
+ #endif
+@@ -936,7 +936,7 @@ Vector<T,N,AP>::append(const U *insBegin
+     if (mLength + needed > mCapacity && !growStorageBy(needed))
+         return false;
+ 
+-#ifdef DEBUG
++#ifdef JS_DEBUG
+     if (mLength + needed > mReserved)
+         mReserved = mLength + needed;
+ #endif
+@@ -1016,7 +1016,7 @@ Vector<T,N,AP>::extractRawBuffer()
+         mBegin = (T *)storage.addr();
+         mLength = 0;
+         mCapacity = sInlineCapacity;
+-#ifdef DEBUG
++#ifdef JS_DEBUG
+         mReserved = sInlineCapacity;
+ #endif
+     }
+@@ -1052,7 +1052,7 @@ Vector<T,N,AP>::replaceRawBuffer(T *p, s
+         mLength = aLength;
+         mCapacity = aLength;
+     }
+-#ifdef DEBUG
++#ifdef JS_DEBUG
+     mReserved = aLength;
+ #endif
+ }
+@@ -1093,7 +1093,7 @@ Vector<T,N,AP>::swap(Vector &other)
+ 
+     Swap(mLength, other.mLength);
+     Swap(mCapacity, other.mCapacity);
+-#ifdef DEBUG
++#ifdef JS_DEBUG
+     Swap(mReserved, other.mReserved);
+ #endif
+ }
+diff --git a/js/src/configure.in b/js/src/configure.in
+--- a/js/src/configure.in
++++ b/js/src/configure.in
+@@ -3727,6 +3727,13 @@ if test -n "$MOZ_VTUNE"; then
+ fi
+ 
+ dnl ========================================================
++dnl Debug (see Bug 939505)
++dnl ========================================================
++if test -n "$MOZ_DEBUG"; then
++    AC_DEFINE(JS_DEBUG)
++fi
++
++dnl ========================================================
+ dnl Profiling
+ dnl ========================================================
+ if test -n "$MOZ_PROFILING"; then
+diff --git a/js/src/js-config.h.in b/js/src/js-config.h.in
+--- a/js/src/js-config.h.in
++++ b/js/src/js-config.h.in
+@@ -12,6 +12,12 @@
+    This header file is generated by the SpiderMonkey configure script,
+    and installed along with jsapi.h.  */
+ 
++/* Define to 1 if SpiderMonkey is in debug mode. */
++#undef JS_DEBUG
++
++/* Define to 1 if SpiderMonkey should not use struct types in debug builds. */
++#undef JS_NO_JSVAL_JSID_STRUCT_TYPES
++
+ /* Define to 1 if SpiderMonkey should support multi-threaded clients.  */
+ #undef JS_THREADSAFE
+ 
+diff --git a/js/src/jsapi.h b/js/src/jsapi.h
+--- a/js/src/jsapi.h
++++ b/js/src/jsapi.h
+@@ -47,7 +47,7 @@ class StableCharPtr : public CharPtr {
+     {}
+ };
+ 
+-#if defined JS_THREADSAFE && defined DEBUG
++#if defined JS_THREADSAFE && defined JS_DEBUG
+ 
+ class JS_PUBLIC_API(AutoCheckRequestDepth)
+ {
+@@ -65,9 +65,9 @@ class JS_PUBLIC_API(AutoCheckRequestDept
+ # define CHECK_REQUEST(cx) \
+     ((void) 0)
+ 
+-#endif /* JS_THREADSAFE && DEBUG */
+-
+-#ifdef DEBUG
++#endif /* JS_THREADSAFE && JS_DEBUG */
++
++#ifdef JS_DEBUG
+ /*
+  * Assert that we're not doing GC on cx, that we're in a request as
+  * needed, and that the compartments for cx and v are correct.
+@@ -79,7 +79,7 @@ AssertArgumentsAreSane(JSContext *cx, co
+ inline void AssertArgumentsAreSane(JSContext *cx, const Value &v) {
+     /* Do nothing */
+ }
+-#endif /* DEBUG */
++#endif /* JS_DEBUG */
+ 
+ class JS_PUBLIC_API(AutoGCRooter) {
+   public:
+@@ -1830,7 +1830,7 @@ class JSAutoCheckRequest
+     JSAutoCheckRequest(JSContext *cx
+                        MOZ_GUARD_OBJECT_NOTIFIER_PARAM)
+     {
+-#if defined JS_THREADSAFE && defined DEBUG
++#if defined JS_THREADSAFE && defined JS_DEBUG
+         mContext = cx;
+         JS_ASSERT(JS_IsInRequest(JS_GetRuntime(cx)));
+ #endif
+@@ -1838,14 +1838,14 @@ class JSAutoCheckRequest
+     }
+ 
+     ~JSAutoCheckRequest() {
+-#if defined JS_THREADSAFE && defined DEBUG
++#if defined JS_THREADSAFE && defined JS_DEBUG
+         JS_ASSERT(JS_IsInRequest(JS_GetRuntime(mContext)));
+ #endif
+     }
+ 
+ 
+   private:
+-#if defined JS_THREADSAFE && defined DEBUG
++#if defined JS_THREADSAFE && defined JS_DEBUG
+     JSContext *mContext;
+ #endif
+     MOZ_DECL_USE_GUARD_OBJECT_NOTIFIER
+@@ -2592,10 +2592,10 @@ JS_GetTraceThingInfo(char *buf, size_t b
+ extern JS_PUBLIC_API(const char *)
+ JS_GetTraceEdgeName(JSTracer *trc, char *buffer, int bufferSize);
+ 
+-#ifdef DEBUG
++#ifdef JS_DEBUG
+ 
+ /*
+- * DEBUG-only method to dump the object graph of heap-allocated things.
++ * Debug-only method to dump the object graph of heap-allocated things.
+  *
+  * fp:              file for the dump output.
+  * start:           when non-null, dump only things reachable from start
+@@ -3733,13 +3733,13 @@ struct JSPrincipals {
+     /* Don't call "destroy"; use reference counting macros below. */
+     int refcount;
+ 
+-#ifdef DEBUG
++#ifdef JS_DEBUG
+     /* A helper to facilitate principals debugging. */
+     uint32_t    debugToken;
+ #endif
+ 
+     void setDebugToken(uint32_t token) {
+-# ifdef DEBUG
++# ifdef JS_DEBUG
+         debugToken = token;
+ # endif
+     }
+@@ -5026,7 +5026,7 @@ class JSAutoSetRuntimeThread
+ static JS_ALWAYS_INLINE JSBool
+ JS_IsConstructing(JSContext *cx, const jsval *vp)
+ {
+-#ifdef DEBUG
++#ifdef JS_DEBUG
+     JSObject *callee = JSVAL_TO_OBJECT(JS_CALLEE(cx, vp));
+     if (JS_ObjectIsFunction(cx, callee)) {
+         JSFunction *fun = JS_ValueToFunction(cx, JS_CALLEE(cx, vp));
+diff --git a/js/src/jsdbgapi.h b/js/src/jsdbgapi.h
+--- a/js/src/jsdbgapi.h
++++ b/js/src/jsdbgapi.h
+@@ -39,7 +39,7 @@ FormatStackDump(JSContext *cx, char *buf
+ 
+ }
+ 
+-# ifdef DEBUG
++# ifdef JS_DEBUG
+ JS_FRIEND_API(void) js_DumpValue(const js::Value &val);
+ JS_FRIEND_API(void) js_DumpId(jsid id);
+ JS_FRIEND_API(void) js_DumpStackFrame(JSContext *cx, js::StackFrame *start = NULL);
+diff --git a/js/src/jsfriendapi.h b/js/src/jsfriendapi.h
+--- a/js/src/jsfriendapi.h
++++ b/js/src/jsfriendapi.h
+@@ -137,7 +137,7 @@ js_ObjectClassIs(JSContext *cx, JS::Hand
+ JS_FRIEND_API(const char *)
+ js_ObjectClassName(JSContext *cx, JS::HandleObject obj);
+ 
+-#ifdef DEBUG
++#ifdef JS_DEBUG
+ 
+ /*
+  * Routines to print out values during debugging.  These are FRIEND_API to help
+@@ -824,7 +824,7 @@ CastToJSFreeOp(FreeOp *fop)
+ extern JS_FRIEND_API(const jschar*)
+ GetErrorTypeName(JSContext* cx, int16_t exnType);
+ 
+-#ifdef DEBUG
++#ifdef JS_DEBUG
+ extern JS_FRIEND_API(unsigned)
+ GetEnterCompartmentDepth(JSContext* cx);
+ #endif
+@@ -1725,7 +1725,7 @@ class JS_FRIEND_API(AutoCTypesActivityCa
+     }
+ };
+ 
+-#ifdef DEBUG
++#ifdef JS_DEBUG
+ extern JS_FRIEND_API(void)
+ assertEnteredPolicy(JSContext *cx, JSObject *obj, jsid id);
+ #else
+diff --git a/js/src/jsproxy.h b/js/src/jsproxy.h
+--- a/js/src/jsproxy.h
++++ b/js/src/jsproxy.h
+@@ -358,7 +358,7 @@ class JS_FRIEND_API(AutoEnterPolicy)
+     typedef BaseProxyHandler::Action Action;
+     AutoEnterPolicy(JSContext *cx, BaseProxyHandler *handler,
+                     HandleObject wrapper, HandleId id, Action act, bool mayThrow)
+-#ifdef DEBUG
++#ifdef JS_DEBUG
+         : context(NULL)
+ #endif
+     {
+@@ -381,7 +381,7 @@ class JS_FRIEND_API(AutoEnterPolicy)
+   protected:
+     // no-op constructor for subclass
+     AutoEnterPolicy()
+-#ifdef DEBUG
++#ifdef JS_DEBUG
+         : context(NULL)
+ #endif
+         {};
+@@ -389,7 +389,7 @@ class JS_FRIEND_API(AutoEnterPolicy)
+     bool allow;
+     bool rv;
+ 
+-#ifdef DEBUG
++#ifdef JS_DEBUG
+     JSContext *context;
+     mozilla::Maybe<HandleObject> enteredProxy;
+     mozilla::Maybe<HandleId> enteredId;
+@@ -408,7 +408,7 @@ class JS_FRIEND_API(AutoEnterPolicy)
+ 
+ };
+ 
+-#ifdef DEBUG
++#ifdef JS_DEBUG
+ class JS_FRIEND_API(AutoWaivePolicy) : public AutoEnterPolicy {
+ public:
+     AutoWaivePolicy(JSContext *cx, HandleObject proxy, HandleId id)
+diff --git a/js/src/jspubtd.h b/js/src/jspubtd.h
+--- a/js/src/jspubtd.h
++++ b/js/src/jspubtd.h
+@@ -44,7 +44,7 @@ struct Zone;
+  * oblivious to the change. This feature can be explicitly disabled in debug
+  * builds by defining JS_NO_JSVAL_JSID_STRUCT_TYPES.
+  */
+-# if defined(DEBUG) && !defined(JS_NO_JSVAL_JSID_STRUCT_TYPES)
++# if defined(JS_DEBUG) && !defined(JS_NO_JSVAL_JSID_STRUCT_TYPES)
+ #  define JS_USE_JSID_STRUCT_TYPES
+ # endif
+ 
+@@ -304,7 +304,7 @@ struct ContextFriendFields
+     JS::Rooted<void*> *thingGCRooters[THING_ROOT_LIMIT];
+ #endif
+ 
+-#if defined(DEBUG) && defined(JS_GC_ZEAL) && defined(JSGC_ROOT_ANALYSIS) && !defined(JS_THREADSAFE)
++#if defined(JS_DEBUG) && defined(JS_GC_ZEAL) && defined(JSGC_ROOT_ANALYSIS) && !defined(JS_THREADSAFE)
+     /*
+      * Stack allocated list of stack locations which hold non-relocatable
+      * GC heap pointers (where the target is rooted somewhere else) or integer
+@@ -334,7 +334,7 @@ struct PerThreadDataFriendFields
+         struct PerThreadDummy {
+             void *field1;
+             uintptr_t field2;
+-#ifdef DEBUG
++#ifdef JS_DEBUG
+             uint64_t field3;
+ #endif
+         } mainThread;
+@@ -352,7 +352,7 @@ struct PerThreadDataFriendFields
+     JS::Rooted<void*> *thingGCRooters[THING_ROOT_LIMIT];
+ #endif
+ 
+-#if defined(DEBUG) && defined(JS_GC_ZEAL) && defined(JSGC_ROOT_ANALYSIS) && !defined(JS_THREADSAFE)
++#if defined(JS_DEBUG) && defined(JS_GC_ZEAL) && defined(JSGC_ROOT_ANALYSIS) && !defined(JS_THREADSAFE)
+     /*
+      * Stack allocated list of stack locations which hold non-relocatable
+      * GC heap pointers (where the target is rooted somewhere else) or integer
+diff --git a/js/src/jsutil.h b/js/src/jsutil.h
+--- a/js/src/jsutil.h
++++ b/js/src/jsutil.h
+@@ -302,7 +302,7 @@ bool DecompressString(const unsigned cha
+ }  /* namespace js */
+ 
+ /* Crash diagnostics */
+-#ifdef DEBUG
++#ifdef JS_DEBUG
+ # define JS_CRASH_DIAGNOSTICS 1
+ #endif
+ #ifdef JS_CRASH_DIAGNOSTICS
+@@ -312,7 +312,7 @@ bool DecompressString(const unsigned cha
+ #endif
+ 
+ /* Basic stats */
+-#ifdef DEBUG
++#ifdef JS_DEBUG
+ # define JS_BASIC_STATS 1
+ #endif
+ #ifdef JS_BASIC_STATS

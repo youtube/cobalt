@@ -1,0 +1,37 @@
+# HG changeset patch
+# Parent aae86c76643fd282c5e42c5bf784ccee2dc877a8
+Backport js_strdup().
+
+diff --git a/js/src/jscntxt.cpp b/js/src/jscntxt.cpp
+--- a/js/src/jscntxt.cpp
++++ b/js/src/jscntxt.cpp
+@@ -709,6 +709,16 @@ js::PrintError(JSContext *cx, FILE *file
+     return true;
+ }
+ 
++char *
++js_strdup(JSContext *cx, const char *s)
++{
++    size_t n = strlen(s) + 1;
++    void *p = cx->malloc_(n);
++    if (!p)
++        return NULL;
++    return (char *)js_memcpy(p, s, n);
++}
++
+ /*
+  * The arguments from ap need to be packaged up into an array and stored
+  * into the report struct.
+diff --git a/js/src/jscntxt.h b/js/src/jscntxt.h
+--- a/js/src/jscntxt.h
++++ b/js/src/jscntxt.h
+@@ -2221,6 +2221,9 @@ js_ReportValueErrorFlags(JSContext *cx, 
+ 
+ extern const JSErrorFormatString js_ErrorFormatString[JSErr_Limit];
+ 
++char *
++js_strdup(JSContext *cx, const char *s);
++
+ #ifdef JS_THREADSAFE
+ # define JS_ASSERT_REQUEST_DEPTH(cx)  JS_ASSERT((cx)->runtime()->requestDepth >= 1)
+ #else
