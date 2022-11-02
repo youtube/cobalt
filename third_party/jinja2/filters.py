@@ -21,7 +21,7 @@ from jinja2.exceptions import FilterArgumentError
 from jinja2._compat import next, imap, string_types, text_type, iteritems
 
 
-_word_re = re.compile(r'\w+(?u)')
+_word_re = re.compile(r'\w+')
 
 
 def contextfilter(f):
@@ -183,7 +183,7 @@ def do_title(s):
     uppercase letters, all remaining characters are lowercase.
     """
     rv = []
-    for item in re.compile(r'([-\s]+)(?u)').split(s):
+    for item in re.compile(r'([-\s]+)').split(s):
         if not item:
             continue
         rv.append(item[0].upper() + item[1:].lower())
