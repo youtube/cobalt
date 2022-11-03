@@ -1,9 +1,5 @@
 name: On Host Test
 description: Runs on-host tests.
-inputs:
-  os:
-    description: "Host OS (either linux or windows)."
-    required: true
 runs:
   using: "composite"
   steps:
@@ -14,13 +10,7 @@ runs:
       shell: bash
       run: |
         set -x
-        if [ "${{inputs.os}}" == 'linux' ]
-        then
-          echo "ARCHIVE_EXTENSION=tar.xz" >> $GITHUB_ENV
-        elif [ "${{inputs.os}}" == 'windows' ]
-        then
-          echo "ARCHIVE_EXTENSION=tar.gz" >> $GITHUB_ENV
-        fi
+        echo "ARCHIVE_EXTENSION=tar.xz" >> $GITHUB_ENV
     - name: Download Archive
       shell: bash
       run: |
@@ -31,11 +21,7 @@ runs:
       shell: bash
       run: |
         set -x
-        parallel=
-        if [[ "${{inputs.os}}" == 'linux' ]]; then
-          parallel="--parallel"
-        fi
-        python3 ${GITHUB_WORKSPACE}/tools/create_archive.py -x -s ${GITHUB_WORKSPACE}/out/tmp/${{matrix.platform}}_${{matrix.config}}.${ARCHIVE_EXTENSION} -d ${GITHUB_WORKSPACE}/out ${parallel}
+        python3 ${GITHUB_WORKSPACE}/tools/create_archive.py -x -s ${GITHUB_WORKSPACE}/out/tmp/${{matrix.platform}}_${{matrix.config}}.${ARCHIVE_EXTENSION} -d ${GITHUB_WORKSPACE}/out --parallel
         rm -rf ${GITHUB_WORKSPACE}/out/tmp
     - name: Download Bootloader Archive
       if: ${{ env.COBALT_BOOTLOADER != null && env.COBALT_BOOTLOADER != 'null' }}

@@ -159,7 +159,6 @@ jobs:
         uses: ./.github/actions/upload_test_artifacts
         with:
           type: onhost
-          os: linux
       # Build bootloader if neccessary.
       - name: Set bootloader config
         if: ${{ needs.initialize.outputs.bootloader != 'null' && matrix.config == 'devel' }}
@@ -172,7 +171,6 @@ jobs:
         uses: ./.github/actions/upload_test_artifacts
         with:
           type: onhost
-          os: linux
       - name: Upload Nightly Artifacts
         if: ${{ ( inputs.nightly == 'true' || github.event_name == 'schedule' ) && matrix.config != 'debug' }}
         uses: ./.github/actions/upload_nightly_artifacts
@@ -181,7 +179,6 @@ jobs:
         uses: ./.github/actions/upload_test_artifacts
         with:
           type: ondevice
-          os: linux
 
   # Runs on-host integration and unit tests.
   on-host-test:
@@ -210,5 +207,3 @@ jobs:
           fetch-depth: 1
       - name: Run Tests
         uses: ./.github/actions/on_host_test
-        with:
-          os: linux
