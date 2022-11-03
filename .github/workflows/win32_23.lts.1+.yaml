@@ -2,7 +2,7 @@ name: win32_23.lts.1+
 
 on:
   pull_request:
-    types: [opened, reopened, edited, synchronize, labeled]
+    types: [opened, reopened, synchronize]
     branches:
       - '23.lts.1\+'
   push:
