@@ -2,7 +2,7 @@ name: evergreen_23.lts.1+
 
 on:
   pull_request:
-    types: [opened, reopened, edited, synchronize]
+    types: [opened, reopened, synchronize]
     branches:
       - '23.lts.1\+'
   push:
@@ -15,10 +15,6 @@ on:
         required: true
         type: boolean
         default: false
-
-concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}'
-  cancel-in-progress: true
 
 jobs:
   evergreen-x64:
