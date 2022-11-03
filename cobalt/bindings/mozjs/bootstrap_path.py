@@ -22,9 +22,6 @@ tarball), the path to the root must be hardcoded.
 import os
 import sys
 
-import os
-import sys
-
 _SCRIPT_DIR = os.path.dirname(__file__)
 _TOP_LEVEL_DIR = os.path.join(_SCRIPT_DIR, os.pardir, os.pardir, os.pardir)
 sys.path.insert(0, _TOP_LEVEL_DIR)
