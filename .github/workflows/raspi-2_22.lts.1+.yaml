@@ -2,7 +2,7 @@ name: raspi-2_22.lts.1+
 
 on:
   pull_request:
-    types: [opened, reopened, edited, synchronize]
+    types: [opened, reopened, synchronize]
     branches:
       - '22.lts.1\+'
   push:
