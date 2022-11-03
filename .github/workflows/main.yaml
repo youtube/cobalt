@@ -230,7 +230,7 @@ jobs:
         contains(github.event.pull_request.labels.*.name, 'on_device')
       )
     runs-on: [self-hosted, linux, X64]
-    name: on_device_${{ matrix.name }}_${{ matrix.type }}
+    name: ${{ matrix.name }}_on_device_${{ matrix.type }}
     container: ${{ needs.docker-unittest-image.outputs.docker_unittest_tag }}
     permissions: {}
     strategy:
