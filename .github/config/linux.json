@@ -1,0 +1,13 @@
+{
+  "docker_service": "build-linux",
+  "platforms": [
+    "linux-x64x11"
+  ],
+  "includes": [
+    {
+      "name":"x64",
+      "platform":"linux-x64x11",
+      "target_platform":"linux-x64x11"
+    }
+  ]
+}
