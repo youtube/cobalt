@@ -1,0 +1,179 @@
+# Reusable Cobalt CI workflow.
+
+name: main
+
+on:
+  workflow_call:
+    inputs:
+      platform:
+        description: 'Cobalt platform.'
+        required: true
+        type: string
+      nightly:
+        description: 'Nightly workflow.'
+        required: true
+        type: string
+        default: 'false'
+
+# Global env vars.
+env:
+  REGISTRY: ghcr.io
+  IPV6_AVAILABLE: 0
+  LANG: en_US.UTF-8
+  IS_BUILDBOT_DOCKER: 1
+  #BUILD_ID_SERVER_URL:
+  IS_CI: 1
+  IS_DOCKER: 1
+  NINJA_STATUS: '[%e sec | %f/%t %u remaining | %c/sec | j%r]'
+  STARBOARD_TOOLCHAINS_DIR: /root/starboard-toolchains
+  CCACHE_COMPILERCHECK: content
+  CCACHE_DIR: /root/ccache
+  CCACHE_MAXSIZE: 10G
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # Retrieves configuration from json file.
+  initialize:
+    runs-on: ubuntu-latest
+    steps:
+      - id: checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 1
+      - id: set-platforms
+        run: echo "platforms=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.platforms')" >> $GITHUB_ENV
+      - id: set-includes
+        run: echo "includes=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.includes')" >> $GITHUB_ENV
+      - id: set-on-host-test
+        run: echo "on_host_test=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.on_host_test')" >> $GITHUB_ENV
+      - id: set-on-host-test-shards
+        run: echo "on_host_test_shards=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.on_host_test_shards')" >> $GITHUB_ENV
+      - id: set-docker-service
+        run: |
+          echo "docker_service=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -r '.docker_service')" >> $GITHUB_ENV
+          echo $platforms
+    outputs:
+      platforms: ${{ env.platforms }}
+      includes: ${{ env.includes }}
+      on_host_test: ${{ env.on_host_test }}
+      on_host_test_shards: ${{ env.on_host_test_shards }}
+      docker_service: ${{ env.docker_service }}
+
+  # Builds, tags, and pushes Cobalt docker build images to ghr.
+  docker-build-image:
+    needs: [initialize]
+    permissions:
+      packages: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout files
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 2
+      - name: Login to Docker Registry ${{env.REGISTRY}}
+        uses: docker/login-action@v2.1.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build docker image
+        id: build-docker-image
+        uses: ./.github/actions/docker
+        with:
+          docker_service: ${{ needs.initialize.outputs.docker_service }}
+          docker_image: cobalt-${{ needs.initialize.outputs.docker_service }}
+      - name: Set Docker Tag Output
+        id: set-docker-tag-output
+        run: |
+          echo $DOCKER_TAG
+          echo "docker_tag=$DOCKER_TAG"  >> $GITHUB_ENV
+    outputs:
+      docker_tag: ${{env.docker_tag}}
+
+  # Builds, tags, and pushes Cobalt unit test image to ghr.
+  docker-unittest-image:
+    if: needs.initialize.outputs.on_host_test == 'true'
+    needs: [initialize]
+    permissions:
+      packages: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout files
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 2
+      - name: Login to Docker Registry ${{env.REGISTRY}}
+        uses: docker/login-action@v2.1.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build docker image
+        id: build-docker-image
+        uses: ./.github/actions/docker
+        with:
+          docker_service: unittest
+          docker_image: cobalt-unittest
+      - name: Set Docker Tag Output
+        id: set-docker-unittest-tag-output
+        run: |
+          echo $DOCKER_TAG
+          echo "docker_unittest_tag=$DOCKER_TAG" >> $GITHUB_ENV
+    outputs:
+      docker_unittest_tag: ${{env.docker_unittest_tag}}
+
+  # Runs builds.
+  build:
+    needs: [initialize, docker-build-image]
+    runs-on: [self-hosted, linux, X64]
+    name: ${{matrix.name}}_${{matrix.config}}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
+        include: ${{ fromJson(needs.initialize.outputs.includes) }}
+        config: [devel, debug, qa, gold]
+    container: ${{ needs.docker-build-image.outputs.docker_tag }}
+    env:
+      # We want temp folder to be on tmpfs which makes workloads faster.
+      # However, dind container ends up having / folder mounted on overlay
+      # filesystem, whereas /__w which contains Cobalt source code is on tmpfs.
+      TMPDIR: /__w/_temp
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Build Cobalt
+        uses: ./.github/actions/build
+      - name: Upload On Host Test Artifacts
+        if: ${{ matrix.config == 'devel' && needs.initialize.outputs.on_host_test == 'true' }}
+        uses: ./.github/actions/upload_test_artifacts
+      - name: Upload Nightly Artifacts
+        if: ${{ ( inputs.nightly == 'true' || github.event_name == 'schedule' ) && matrix.config != 'debug' }}
+        uses: ./.github/actions/upload_nightly_artifacts
+
+  # Runs on-host integration and unit tests.
+  on-host-test:
+    needs: [initialize, docker-unittest-image, build]
+    if: needs.initialize.outputs.on_host_test == 'true'
+    runs-on: [self-hosted, linux, X64]
+    name: ${{matrix.name}}_${{matrix.shard}}_test
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
+        shard: ${{ fromJson(needs.initialize.outputs.on_host_test_shards) }}
+        config: [devel]
+        include: ${{ fromJson(needs.initialize.outputs.includes) }}
+    container: ${{ needs.docker-unittest-image.outputs.docker_unittest_tag }}
+    env:
+      DISPLAY: :99
+      # For some reason tests complaining about HOME set to /github/home
+      # with permission denied error.
+      HOME: /root
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 1
+      - name: Run Tests
+        uses: ./.github/actions/on_host_test

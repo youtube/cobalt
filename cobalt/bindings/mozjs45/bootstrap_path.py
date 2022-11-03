@@ -22,28 +22,18 @@ tarball), the path to the root must be hardcoded.
 import os
 import sys
 
-
-def _GetSrcRoot():
-  """Finds the first directory named 'src' that this module is in."""
-  current_path = os.path.normpath(__file__)
-  while os.path.basename(current_path) != 'src':
-    next_path = os.path.dirname(current_path)
-    if next_path == current_path:
-      raise RuntimeError('Could not find src directory.')
-    current_path = next_path
-  return os.path.abspath(current_path)
-
-
-sys.path.insert(0, _GetSrcRoot())
+_SCRIPT_DIR = os.path.dirname(__file__)
+_TOP_LEVEL_DIR = os.path.join(_SCRIPT_DIR, os.pardir, os.pardir, os.pardir)
+sys.path.insert(0, _TOP_LEVEL_DIR)
 
 # Add blink's python tools to the path.
 
 sys.path.append(
     os.path.normpath(
-        os.path.join(_GetSrcRoot(), 'third_party', 'blink', 'Tools',
+        os.path.join(_TOP_LEVEL_DIR, 'third_party', 'blink', 'Tools',
                      'Scripts')))
 
 sys.path.append(
     os.path.normpath(
-        os.path.join(_GetSrcRoot(), 'third_party', 'blink', 'Source',
+        os.path.join(_TOP_LEVEL_DIR, 'third_party', 'blink', 'Source',
                      'bindings', 'scripts')))
