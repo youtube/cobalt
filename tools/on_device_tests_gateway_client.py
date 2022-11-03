@@ -38,6 +38,7 @@ _PLATFORM_TYPES = [
     'android-x86',
     'evergreen-arm-hardfp',
     'raspi-2',
+    'raspi-2-skia',
 ]
 
 # All test configs On-Device tests support
