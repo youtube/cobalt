@@ -23,8 +23,9 @@
 #include "cobalt/base/application_state.h"
 #include "cobalt/persistent_storage/persistent_settings.h"
 #include "cobalt/watchdog/singleton.h"
+#include "starboard/atomic.h"
+#include "starboard/common/condition_variable.h"
 #include "starboard/common/mutex.h"
-#include "starboard/mutex.h"
 #include "starboard/thread.h"
 #include "starboard/time.h"
 
@@ -124,7 +125,7 @@ class Watchdog : public Singleton<Watchdog> {
   // only occur in between loops of monitor. API functions like Register(),
   // Unregister(), Ping(), and GetWatchdogViolations() will be called by
   // various threads and interact with these class variables.
-  SbMutex mutex_;
+  starboard::Mutex mutex_;
   // Tracks application state.
   base::ApplicationState state_ = base::kApplicationStateStarted;
   // Flag to trigger Watchdog violations writes to persistent storage.
@@ -143,12 +144,15 @@ class Watchdog : public Singleton<Watchdog> {
   // Monitor thread.
   SbThread watchdog_thread_;
   // Flag to stop monitor thread.
-  bool is_monitoring_;
+  starboard::atomic_bool is_monitoring_;
+  // Conditional Variable to wait and shutdown monitor thread.
+  starboard::ConditionVariable monitor_wait_ =
+      starboard::ConditionVariable(mutex_);
   // The frequency in microseconds of monitor loops.
   int64_t watchdog_monitor_frequency_;
 
 #if defined(_DEBUG)
-  starboard::Mutex delay_lock_;
+  starboard::Mutex delay_mutex_;
   // Name of the client to inject a delay for.
   std::string delay_name_ = "";
   // Monotonically increasing timestamp when a delay was last injected. 0
