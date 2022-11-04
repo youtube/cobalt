@@ -79,7 +79,6 @@ bool Watchdog::InitializeCustom(
 
   watchdog_file_name_ = watchdog_file_name;
   watchdog_monitor_frequency_ = watchdog_monitor_frequency;
-  SB_CHECK(SbMutexCreate(&mutex_));
   pending_write_ = false;
   write_wait_time_microseconds_ = kWatchdogWriteWaitTime;
 
@@ -109,7 +108,7 @@ bool Watchdog::InitializeCustom(
 #endif  // defined(_DEBUG)
 
   // Starts monitor thread.
-  is_monitoring_ = true;
+  is_monitoring_.store(true);
   SB_DCHECK(!SbThreadIsValid(watchdog_thread_));
   watchdog_thread_ = SbThreadCreate(0, kSbThreadNoPriority, kSbThreadNoAffinity,
                                     true, "Watchdog", &Watchdog::Monitor, this);
@@ -125,10 +124,11 @@ bool Watchdog::InitializeStub() {
 void Watchdog::Uninitialize() {
   if (is_disabled_) return;
 
-  SB_CHECK(SbMutexAcquire(&mutex_) == kSbMutexAcquired);
+  mutex_.Acquire();
   if (pending_write_) WriteWatchdogViolations();
-  is_monitoring_ = false;
-  SB_CHECK(SbMutexRelease(&mutex_));
+  is_monitoring_.store(false);
+  monitor_wait_.Signal();
+  mutex_.Release();
   SbThreadJoin(watchdog_thread_, nullptr);
 }
 
@@ -162,22 +162,13 @@ void Watchdog::WriteWatchdogViolations() {
 void Watchdog::UpdateState(base::ApplicationState state) {
   if (is_disabled_) return;
 
-  SB_CHECK(SbMutexAcquire(&mutex_) == kSbMutexAcquired);
+  starboard::ScopedLock scoped_lock(mutex_);
   state_ = state;
-  SB_CHECK(SbMutexRelease(&mutex_));
 }
 
 void* Watchdog::Monitor(void* context) {
+  starboard::ScopedLock scoped_lock(static_cast<Watchdog*>(context)->mutex_);
   while (1) {
-    SB_CHECK(SbMutexAcquire(&(static_cast<Watchdog*>(context))->mutex_) ==
-             kSbMutexAcquired);
-
-    // Shutdown
-    if (!((static_cast<Watchdog*>(context))->is_monitoring_)) {
-      SB_CHECK(SbMutexRelease(&(static_cast<Watchdog*>(context))->mutex_));
-      break;
-    }
-
     SbTimeMonotonic current_monotonic_time = SbTimeGetMonotonicNow();
 
     // Iterates through client map to monitor all registered clients.
@@ -216,8 +207,12 @@ void* Watchdog::Monitor(void* context) {
       MaybeWriteWatchdogViolations(context);
     if (watchdog_violation) MaybeTriggerCrash(context);
 
-    SB_CHECK(SbMutexRelease(&(static_cast<Watchdog*>(context))->mutex_));
-    SbThreadSleep(static_cast<Watchdog*>(context)->watchdog_monitor_frequency_);
+    // Wait
+    static_cast<Watchdog*>(context)->monitor_wait_.WaitTimed(
+        static_cast<Watchdog*>(context)->watchdog_monitor_frequency_);
+
+    // Shutdown
+    if (!(static_cast<Watchdog*>(context)->is_monitoring_.load())) break;
   }
   return nullptr;
 }
@@ -416,7 +411,7 @@ bool Watchdog::Register(std::string name, std::string description,
     return false;
   }
 
-  SB_CHECK(SbMutexAcquire(&mutex_) == kSbMutexAcquired);
+  starboard::ScopedLock scoped_lock(mutex_);
 
   int64_t current_time = SbTimeToPosix(SbTimeGetNow());
   SbTimeMonotonic current_monotonic_time = SbTimeGetMonotonicNow();
@@ -431,7 +426,6 @@ bool Watchdog::Register(std::string name, std::string description,
         it->second->time_last_pinged_microseconds = current_time;
         it->second->time_last_updated_monotonic_microseconds =
             current_monotonic_time;
-        SB_CHECK(SbMutexRelease(&mutex_));
         return true;
       }
       if (replace == ALL) Unregister(name, false);
@@ -454,8 +448,6 @@ bool Watchdog::Register(std::string name, std::string description,
   // Registers.
   auto result = client_map_.emplace(name, std::move(client));
 
-  SB_CHECK(SbMutexRelease(&mutex_));
-
   if (result.second) {
     SB_DLOG(INFO) << "[Watchdog] Registered: " << name;
   } else {
@@ -468,9 +460,9 @@ bool Watchdog::Unregister(const std::string& name, bool lock) {
   if (is_disabled_) return true;
 
   // Unregisters.
-  if (lock) SB_CHECK(SbMutexAcquire(&mutex_) == kSbMutexAcquired);
+  if (lock) mutex_.Acquire();
   auto result = client_map_.erase(name);
-  if (lock) SB_CHECK(SbMutexRelease(&mutex_));
+  if (lock) mutex_.Release();
 
   if (result) {
     SB_DLOG(INFO) << "[Watchdog] Unregistered: " << name;
@@ -493,7 +485,7 @@ bool Watchdog::Ping(const std::string& name, const std::string& info) {
     return false;
   }
 
-  SB_CHECK(SbMutexAcquire(&mutex_) == kSbMutexAcquired);
+  starboard::ScopedLock scoped_lock(mutex_);
 
   auto it = client_map_.find(name);
   bool client_exists = it != client_map_.end();
@@ -522,7 +514,6 @@ bool Watchdog::Ping(const std::string& name, const std::string& info) {
   } else {
     SB_DLOG(ERROR) << "[Watchdog] Unable to Ping: " << name;
   }
-  SB_CHECK(SbMutexRelease(&mutex_));
   return client_exists;
 }
 
@@ -534,7 +525,7 @@ std::string Watchdog::GetWatchdogViolations(bool clear) {
 
   std::string watchdog_json = "";
 
-  SB_CHECK(SbMutexAcquire(&mutex_) == kSbMutexAcquired);
+  starboard::ScopedLock scoped_lock(mutex_);
 
   if (pending_write_) WriteWatchdogViolations();
 
@@ -558,7 +549,6 @@ std::string Watchdog::GetWatchdogViolations(bool clear) {
   } else {
     SB_LOG(INFO) << "[Watchdog] No violations.";
   }
-  SB_CHECK(SbMutexRelease(&mutex_));
   return watchdog_json;
 }
 
@@ -605,7 +595,7 @@ void Watchdog::SetPersistentSettingWatchdogCrash(bool can_trigger_crash) {
 void Watchdog::MaybeInjectDebugDelay(const std::string& name) {
   if (is_disabled_) return;
 
-  starboard::ScopedLock scoped_lock(delay_lock_);
+  starboard::ScopedLock scoped_lock(delay_mutex_);
 
   if (name != delay_name_) return;
 
