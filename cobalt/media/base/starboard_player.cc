@@ -30,6 +30,7 @@
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/memory.h"
+#include "starboard/once.h"
 #include "third_party/chromium/media/base/starboard_utils.h"
 
 namespace cobalt {
@@ -37,9 +38,14 @@ namespace media {
 
 namespace {
 
-base::Statistics<SbTime, int, 1024> s_startup_latency;
-
+class StatisticsWrapper {
+ public:
+  static StatisticsWrapper* GetInstance();
+  base::Statistics<SbTime, int, 1024> startup_latency{
+      "Media.PlaybackStartupLatency"};
+};
 }  // namespace
+SB_ONCE_INITIALIZE_FUNCTION(StatisticsWrapper, StatisticsWrapper::GetInstance);
 
 StarboardPlayer::CallbackHelper::CallbackHelper(StarboardPlayer* player)
     : player_(player) {}
@@ -1006,7 +1012,8 @@ void StarboardPlayer::LogStartupLatency() const {
       std::max(first_audio_sample_time_, first_video_sample_time_);
   SbTime startup_latency = sb_player_state_presenting_time_ - first_event_time;
 
-  s_startup_latency.AddSample(startup_latency, 1);
+  StatisticsWrapper::GetInstance()->startup_latency.AddSample(startup_latency,
+                                                              1);
 
   // clang-format off
   LOG(INFO) << starboard::FormatString(
@@ -1024,9 +1031,10 @@ void StarboardPlayer::LogStartupLatency() const {
       first_events_str.c_str(), player_initialization_time_delta,
       player_preroll_time_delta, first_audio_sample_time_delta,
       first_video_sample_time_delta, player_presenting_time_delta,
-      s_startup_latency.min(),
-      s_startup_latency.GetMedian(),
-      s_startup_latency.average(), s_startup_latency.max());
+      StatisticsWrapper::GetInstance()->startup_latency.min(),
+      StatisticsWrapper::GetInstance()->startup_latency.GetMedian(),
+      StatisticsWrapper::GetInstance()->startup_latency.average(),
+      StatisticsWrapper::GetInstance()->startup_latency.max());
   // clang-format on
 }
 
