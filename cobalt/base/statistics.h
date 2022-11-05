@@ -17,8 +17,10 @@
 
 #include <algorithm>
 #include <functional>
+#include <string>
 #include <vector>
 
+#include "cobalt/base/c_val.h"
 #include "starboard/types.h"
 
 namespace base {
@@ -66,7 +68,7 @@ template <typename DividendType, typename DivisorType, int MaxSamples,
               internal::DefaultSampleToValueFunc>
 class Statistics {
  public:
-  constexpr Statistics() = default;
+  explicit Statistics(const std::string& metric_name) {}
 
   void AddSample(DividendType dividend, DivisorType divisor) {}
   int64_t accumulated_dividend() const { return 0; }
@@ -85,7 +87,11 @@ template <typename DividendType, typename DivisorType, size_t MaxSamples,
               internal::DefaultSampleToValueFunc>
 class Statistics {
  public:
-  constexpr Statistics() = default;
+  explicit Statistics(const std::string& metric_name)
+      : last_sample_value_(metric_name + ".Latest", 0,
+                           metric_name + " most recent value."),
+        median_sample_value_(metric_name + ".Median", 0,
+                             metric_name + " median value.") {}
 
   void AddSample(DividendType dividend, DivisorType divisor) {
     static_assert(MaxSamples > 0, "MaxSamples has to be greater than 0.");
@@ -111,6 +117,9 @@ class Statistics {
       min_ = max_ = value;
       first_sample_added_ = true;
     }
+    last_sample_value_ = value;
+    // TODO(b/258531018) this should be optimized in future.
+    median_sample_value_ = GetMedian();
   }
 
   int64_t accumulated_dividend() const { return accumulated_dividend_; }
@@ -174,6 +183,9 @@ class Statistics {
   Sample samples_[MaxSamples] = {};  // Ring buffer for samples.
   size_t number_of_samples_ = 0;     // Number of samples in |samples_|.
   size_t first_sample_index_ = 0;    // Index of the first sample in |samples_|.
+
+  base::CVal<int64_t> last_sample_value_;
+  base::CVal<int64_t> median_sample_value_;
 };
 
 #endif  // defined(COBALT_BUILD_TYPE_GOLD)
