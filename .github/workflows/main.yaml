@@ -48,14 +48,10 @@ jobs:
         run: echo "platforms=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.platforms')" >> $GITHUB_ENV
       - id: set-includes
         run: echo "includes=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.includes')" >> $GITHUB_ENV
-      - id: set-on-device-test
-        run: echo "on_device_test=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.on_device_test')" >> $GITHUB_ENV
       - id: set-on-host-test
         run: echo "on_host_test=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.on_host_test')" >> $GITHUB_ENV
       - id: set-on-host-test-shards
         run: echo "on_host_test_shards=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.on_host_test_shards')" >> $GITHUB_ENV
-      - id: set-on-host-test-bootloader
-        run: echo "bootloader=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.bootloader')" >> $GITHUB_ENV
       - id: set-docker-service
         run: |
           echo "docker_service=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -r '.docker_service')" >> $GITHUB_ENV
@@ -63,10 +59,8 @@ jobs:
     outputs:
       platforms: ${{ env.platforms }}
       includes: ${{ env.includes }}
-      on_device_test: ${{ env.on_device_test }}
       on_host_test: ${{ env.on_host_test }}
       on_host_test_shards: ${{ env.on_host_test_shards }}
-      bootloader: ${{ env.bootloader }}
       docker_service: ${{ env.docker_service }}
 
   # Builds, tags, and pushes Cobalt docker build images to ghr.
@@ -157,28 +151,9 @@ jobs:
       - name: Upload On Host Test Artifacts
         if: ${{ matrix.config == 'devel' && needs.initialize.outputs.on_host_test == 'true' }}
         uses: ./.github/actions/upload_test_artifacts
-        with:
-          type: onhost
-      # Build bootloader if neccessary.
-      - name: Set bootloader config
-        if: ${{ needs.initialize.outputs.bootloader != 'null' && matrix.config == 'devel' }}
-        run: echo "COBALT_BOOTLOADER=${{needs.initialize.outputs.bootloader}}" >> $GITHUB_ENV
-      - name: Build Bootloader
-        if: ${{ needs.initialize.outputs.bootloader != 'null' && matrix.config == 'devel' }}
-        uses: ./.github/actions/build
-      - name: Upload Bootloader On Host Test Artifacts
-        if: ${{ needs.initialize.outputs.bootloader != 'null' && matrix.config == 'devel' && needs.initialize.outputs.on_host_test == 'true' }}
-        uses: ./.github/actions/upload_test_artifacts
-        with:
-          type: onhost
       - name: Upload Nightly Artifacts
         if: ${{ ( inputs.nightly == 'true' || github.event_name == 'schedule' ) && matrix.config != 'debug' }}
         uses: ./.github/actions/upload_nightly_artifacts
-      - name: Upload On Device Test Artifacts
-        if: ${{ matrix.config == 'devel' && needs.initialize.outputs.on_device_test == 'true' }}
-        uses: ./.github/actions/upload_test_artifacts
-        with:
-          type: ondevice
 
   # Runs on-host integration and unit tests.
   on-host-test:
@@ -199,7 +174,6 @@ jobs:
       # For some reason tests complaining about HOME set to /github/home
       # with permission denied error.
       HOME: /root
-      COBALT_BOOTLOADER: ${{needs.initialize.outputs.bootloader}}
     steps:
       - name: Checkout
         uses: actions/checkout@v3

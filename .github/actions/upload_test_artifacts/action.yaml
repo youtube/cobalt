@@ -1,9 +1,5 @@
 name: Test Artifact Upload
-description: Uploads test archives to GCS and runs on-device tests.
-inputs:
-  type:
-    description: "Type of artifacts to upload (ondevice or onhost)"
-    required: true
+description: Uploads test archives to GCS.
 runs:
   using: "composite"
   steps:
@@ -13,26 +9,11 @@ runs:
       run: |
         set -x
         project_name=$(gcloud config get-value project)
-        if [ -z ${COBALT_BOOTLOADER+x} ]
-        then
-          PLATFORM=${{matrix.platform}}
-          echo "PLATFORM=${{matrix.platform}}" >> $GITHUB_ENV
-        else
-          PLATFORM=${COBALT_BOOTLOADER}
-          echo "PLATFORM=${{matrix.bootloader_platform}}" >> $GITHUB_ENV
-        fi
-        
-        if [ "${{ inputs.type }}" == 'ondevice' ]
-        then
-          echo "ARCHIVE_FILE=artifacts.tar" >> $GITHUB_ENV
-          echo "ARCHIVE_PATH=$GITHUB_WORKSPACE/artifacts.tar" >> $GITHUB_ENV
-          echo "DESTINATION=${project_name}-test-artifacts/${{github.workflow}}/${GITHUB_RUN_NUMBER}/${{matrix.platform}}_${{matrix.config}}/artifacts.tar" >> $GITHUB_ENV
-        elif [ "${{ inputs.type }}" == 'onhost' ]
-        then
-          echo "ARCHIVE_FILE=${PLATFORM}_${{matrix.config}}.tar.xz" >> $GITHUB_ENV
-          echo "ARCHIVE_PATH=$GITHUB_WORKSPACE/${PLATFORM}_${{matrix.config}}.tar.xz" >> $GITHUB_ENV
-          echo "DESTINATION=${project_name}-test-artifacts/${{github.workflow}}/${GITHUB_RUN_NUMBER}/${{matrix.platform}}_${{matrix.config}}/" >> $GITHUB_ENV
-        fi
+        PLATFORM=${{matrix.platform}}
+        echo "PLATFORM=${{matrix.platform}}" >> $GITHUB_ENV
+        echo "ARCHIVE_FILE=${PLATFORM}_${{matrix.config}}.tar.xz" >> $GITHUB_ENV
+        echo "ARCHIVE_PATH=$GITHUB_WORKSPACE/${PLATFORM}_${{matrix.config}}.tar.xz" >> $GITHUB_ENV
+        echo "DESTINATION=${project_name}-test-artifacts/${{github.workflow}}/${GITHUB_RUN_NUMBER}/${{matrix.platform}}_${{matrix.config}}/" >> $GITHUB_ENV
         echo "PYTHONPATH=$GITHUB_WORKSPACE" >> $GITHUB_ENV
         project_name=$(gcloud config get-value project)
       shell: bash
@@ -40,18 +21,7 @@ runs:
       run: |
         set -x
         [ -f "${ARCHIVE_PATH}" ] && rm -rf "${ARCHIVE_PATH}"
-        if [ "${{ inputs.type }}" == 'ondevice' ]
-        then
-          outdir="$GITHUB_WORKSPACE/out/${{matrix.platform}}_${{matrix.config}}"
-          if [ -n "${COBALT_BOOTLOADER}" ]
-          then
-            outdir="${outdir} $GITHUB_WORKSPACE/out/${{matrix.bootloader_platform}}_${{matrix.config}}"
-          fi
-          python3 $GITHUB_WORKSPACE/tools/create_archive.py --test_infra -d ${{env.ARCHIVE_FILE}} -s ${outdir}
-        elif [ "${{ inputs.type }}" == 'onhost' ]
-        then
-          python3 $GITHUB_WORKSPACE/tools/create_archive.py --intermediate -d ${{env.ARCHIVE_FILE}} -s $GITHUB_WORKSPACE/out/${PLATFORM}_${{matrix.config}} --parallel
-        fi
+        python3 $GITHUB_WORKSPACE/tools/create_archive.py --intermediate -d ${{env.ARCHIVE_FILE}} -s $GITHUB_WORKSPACE/out/${PLATFORM}_${{matrix.config}} --parallel
       shell: bash
     - name: Copy Test Files to GCS
       id: upload-test-archive
