@@ -49,7 +49,7 @@ _TEST_CONFIGS = [
 ]
 
 _WORK_DIR = '/on_device_tests_gateway'
-_ON_DEVICE_TESTS_GATEWAY_SERVICE_HOST = 'on-device-tests-gateway-service'
+_ON_DEVICE_TESTS_GATEWAY_SERVICE_HOST = 'on-device-tests-gateway-service.on-device-tests.svc.cluster.local'
 _ON_DEVICE_TESTS_GATEWAY_SERVICE_PORT = '50052'
 
 
