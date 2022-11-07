@@ -167,6 +167,9 @@ config("speed") {
 
 config("size") {
   cflags = [ "-Os" ]
+  if (is_qa || is_gold) {
+    ldflags = [ "--icf=safe" ]
+  }
 }
 
 config("pedantic_warnings") {
