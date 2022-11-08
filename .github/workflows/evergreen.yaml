@@ -21,6 +21,7 @@ jobs:
     uses: ./.github/workflows/main.yaml
     permissions:
       packages: write
+      pull-requests: write
     with:
       platform: evergreen-x64
       nightly: ${{ github.event.inputs.nightly }}
@@ -28,6 +29,7 @@ jobs:
     uses: ./.github/workflows/main.yaml
     permissions:
       packages: write
+      pull-requests: write
     with:
       platform: evergreen-arm-hardfp
       nightly: ${{ github.event.inputs.nightly }}
@@ -35,6 +37,7 @@ jobs:
     uses: ./.github/workflows/main.yaml
     permissions:
       packages: write
+      pull-requests: write
     with:
       platform: evergreen-arm-softfp
       nightly: ${{ github.event.inputs.nightly }}
@@ -42,6 +45,7 @@ jobs:
     uses: ./.github/workflows/main.yaml
     permissions:
       packages: write
+      pull-requests: write
     with:
       platform: evergreen-x86
       nightly: ${{ github.event.inputs.nightly }}

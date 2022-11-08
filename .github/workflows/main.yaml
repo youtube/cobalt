@@ -40,6 +40,8 @@ jobs:
   # Retrieves configuration from json file.
   initialize:
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
     # All triggers except draft PRs, unless PR is labeled with runtest
     if: |
       github.event_name != 'pull_request' ||
@@ -97,9 +99,9 @@ jobs:
   # Builds, tags, and pushes Cobalt docker build images to ghr.
   docker-build-image:
     needs: [initialize]
+    runs-on: ubuntu-latest
     permissions:
       packages: write
-    runs-on: ubuntu-latest
     steps:
       - name: Checkout files
         uses: actions/checkout@v3
@@ -129,8 +131,7 @@ jobs:
   docker-unittest-image:
     if: needs.initialize.outputs.on_host_test == 'true'
     needs: [initialize]
-    permissions:
-      packages: write
+    permissions: {}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout files
@@ -160,6 +161,7 @@ jobs:
   # Runs builds.
   build:
     needs: [initialize, docker-build-image]
+    permissions: {}
     runs-on: [self-hosted, linux, X64]
     name: ${{matrix.name}}_${{matrix.config}}
     strategy:
@@ -285,6 +287,7 @@ jobs:
   # Runs on-host integration and unit tests.
   on-host-test:
     needs: [initialize, docker-unittest-image, build]
+    permissions: {}
     if: needs.initialize.outputs.on_host_test == 'true'
     runs-on: [self-hosted, linux, X64]
     name: ${{matrix.name}}_${{matrix.shard}}_test

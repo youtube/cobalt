@@ -41,6 +41,8 @@ jobs:
   # Generates build matrix based on json configuration file.
   initialize:
     runs-on: ubuntu-latest
+    permissions: {}
+
     # All triggers except draft PRs, unless PR is labeled with runtest
     if: |
       github.event_name != 'pull_request' ||
@@ -81,8 +83,6 @@ jobs:
   # Build windows docker images.
   build-docker-image:
     needs: [initialize]
-    permissions:
-      packages: write
     runs-on: windows-2019
     steps:
       - name: Checkout files
@@ -108,6 +108,7 @@ jobs:
   # Runs builds.
   build:
     needs: [initialize]
+    permissions: {}
     runs-on: [self-hosted, X64, Windows]
     name: ${{matrix.name}}_${{matrix.config}}
     strategy:
@@ -138,6 +139,7 @@ jobs:
   # Runs on the host unit and integration tests.
   on-host-test:
     needs: [initialize, build]
+    permissions: {}
     if: needs.initialize.outputs.on_host_test == 'true'
     runs-on: [self-hosted, Windows, X64]
     name: ${{matrix.name}}_${{matrix.shard}}_test
