@@ -21,6 +21,7 @@ jobs:
     uses: ./.github/workflows/main.yaml
     permissions:
       packages: write
+      pull-requests: write
     with:
       platform: linux
       nightly: ${{ github.event.inputs.nightly }}
@@ -28,6 +29,7 @@ jobs:
     uses: ./.github/workflows/main.yaml
     permissions:
       packages: write
+      pull-requests: write
     with:
       platform: linux-clang-3-9
       nightly: ${{ github.event.inputs.nightly }}
@@ -35,6 +37,7 @@ jobs:
     uses: ./.github/workflows/main.yaml
     permissions:
       packages: write
+      pull-requests: write
     with:
       platform: linux-gcc-6-3
       nightly: ${{ github.event.inputs.nightly }}

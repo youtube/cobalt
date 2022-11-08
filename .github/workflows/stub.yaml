@@ -19,6 +19,7 @@ jobs:
     uses: ./.github/workflows/main.yaml
     permissions:
       packages: write
+      pull-requests: write
     with:
       platform: stub
       nightly: 'false'

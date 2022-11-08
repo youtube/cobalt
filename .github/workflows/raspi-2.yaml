@@ -21,6 +21,7 @@ jobs:
     uses: ./.github/workflows/main.yaml
     permissions:
       packages: write
+      pull-requests: write
     with:
       platform: raspi-2
       nightly: ${{ github.event.inputs.nightly }}
