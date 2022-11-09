@@ -42,8 +42,6 @@ class ServiceWorkerJobs;
 //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#dfn-scope-to-registration-map
 class ServiceWorkerRegistrationMap {
  public:
-  using Key = std::pair<url::Origin, std::string>;
-
   // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#get-registration-algorithm
   scoped_refptr<ServiceWorkerRegistrationObject> GetRegistration(
       const url::Origin& storage_key, const GURL& scope);
@@ -77,7 +75,7 @@ class ServiceWorkerRegistrationMap {
   // A registration map is an ordered map where the keys are (storage key,
   // serialized scope urls) and the values are service worker registrations.
   //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#dfn-scope-to-registration-map
-  std::map<Key, scoped_refptr<ServiceWorkerRegistrationObject>>
+  std::map<RegistrationMapKey, scoped_refptr<ServiceWorkerRegistrationObject>>
       registration_map_;
 
   // This lock is to allow atomic operations on the registration map.

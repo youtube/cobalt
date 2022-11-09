@@ -18,6 +18,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "base/memory/ref_counted.h"
@@ -36,6 +37,7 @@
 #include "cobalt/worker/worker_navigator.h"
 #include "net/url_request/url_request.h"
 #include "url/gurl.h"
+#include "url/origin.h"
 
 namespace cobalt {
 namespace worker {
@@ -43,6 +45,9 @@ namespace worker {
 //   https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#the-workerglobalscope-common-interface
 
 using ScriptResourceMap = std::map<GURL, std::unique_ptr<std::string>>;
+// A registration map is an ordered map where the keys are (storage key,
+// serialized scope urls) and the values are service worker registrations.
+using RegistrationMapKey = std::pair<url::Origin, std::string>;
 
 class WorkerGlobalScope : public web::WindowOrWorkerGlobalScope {
  public:

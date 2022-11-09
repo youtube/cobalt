@@ -446,7 +446,7 @@ class ServiceWorkerJobs {
   base::MessageLoop* message_loop_;
 
   JobQueueMap job_queue_map_;
-  ServiceWorkerRegistrationMap scope_to_registration_map_;
+  std::unique_ptr<ServiceWorkerRegistrationMap> scope_to_registration_map_;
 
   std::set<web::Context*> web_context_registrations_;
 

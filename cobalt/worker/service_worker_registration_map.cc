@@ -140,7 +140,7 @@ ServiceWorkerRegistrationMap::GetRegistration(const url::Origin& storage_key,
     scope_string = SerializeExcludingFragment(scope);
   }
 
-  Key registration_key(storage_key, scope_string);
+  RegistrationMapKey registration_key(storage_key, scope_string);
   // 4. For each (entry storage key, entry scope) → registration of registration
   // map:
   for (const auto& entry : registration_map_) {
@@ -194,7 +194,7 @@ ServiceWorkerRegistrationMap::SetRegistration(
                                           update_via_cache));
 
   // 4. Set registration map[(storage key, scopeString)] to registration.
-  Key registration_key(storage_key, scope_string);
+  RegistrationMapKey registration_key(storage_key, scope_string);
   registration_map_.insert(std::make_pair(
       registration_key,
       scoped_refptr<ServiceWorkerRegistrationObject>(registration)));
@@ -207,7 +207,7 @@ void ServiceWorkerRegistrationMap::RemoveRegistration(
     const url::Origin& storage_key, const GURL& scope) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   std::string scope_string = SerializeExcludingFragment(scope);
-  Key registration_key(storage_key, scope_string);
+  RegistrationMapKey registration_key(storage_key, scope_string);
   auto entry = registration_map_.find(registration_key);
   DCHECK(entry != registration_map_.end());
   if (entry != registration_map_.end()) {
@@ -222,8 +222,10 @@ bool ServiceWorkerRegistrationMap::IsUnregistered(
   // is not this service worker registration.
   //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#dfn-service-worker-registration-unregistered
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  Key registration_key(registration->storage_key(),
-                       registration->scope_url().spec());
+  std::string scope_string =
+      SerializeExcludingFragment(registration->scope_url());
+  RegistrationMapKey registration_key(registration->storage_key(),
+                                      scope_string);
   auto entry = registration_map_.find(registration_key);
   if (entry == registration_map_.end()) return true;
 
