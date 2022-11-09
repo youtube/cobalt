@@ -130,16 +130,19 @@ ServiceWorkerJobs::ServiceWorkerJobs(network::NetworkModule* network_module,
   script_loader_factory_.reset(new loader::ScriptLoaderFactory(
       "ServiceWorkerJobs", fetcher_factory_.get()));
   DCHECK(script_loader_factory_);
+
+  scope_to_registration_map_.reset(new ServiceWorkerRegistrationMap());
+  DCHECK(scope_to_registration_map_);
 }
 
 ServiceWorkerJobs::~ServiceWorkerJobs() {
   DCHECK_EQ(message_loop(), base::MessageLoop::current());
-  scope_to_registration_map_.HandleUserAgentShutdown(this);
-  scope_to_registration_map_.AbortAllActive();
   while (!web_context_registrations_.empty()) {
     // Wait for web context registrations to be cleared.
     web_context_registrations_cleared_.Wait();
   }
+  scope_to_registration_map_->HandleUserAgentShutdown(this);
+  scope_to_registration_map_->AbortAllActive();
 }
 
 void ServiceWorkerJobs::Stop() {
@@ -475,8 +478,8 @@ void ServiceWorkerJobs::Register(Job* job) {
   // 4. Let registration be the result of running Get Registration given job’s
   // storage key and job’s scope url.
   scoped_refptr<ServiceWorkerRegistrationObject> registration =
-      scope_to_registration_map_.GetRegistration(job->storage_key,
-                                                 job->scope_url);
+      scope_to_registration_map_->GetRegistration(job->storage_key,
+                                                  job->scope_url);
 
   // 5. If registration is not null, then:
   if (registration) {
@@ -501,7 +504,7 @@ void ServiceWorkerJobs::Register(Job* job) {
 
     // 6.1 Invoke Set Registration algorithm with job’s storage key, job’s scope
     // url, and job’s update via cache mode.
-    registration = scope_to_registration_map_.SetRegistration(
+    registration = scope_to_registration_map_->SetRegistration(
         job->storage_key, job->scope_url, job->update_via_cache);
   }
 
@@ -519,8 +522,8 @@ void ServiceWorkerJobs::Update(Job* job) {
   // 1. Let registration be the result of running Get Registration given job’s
   //    storage key and job’s scope url.
   scoped_refptr<ServiceWorkerRegistrationObject> registration =
-      scope_to_registration_map_.GetRegistration(job->storage_key,
-                                                 job->scope_url);
+      scope_to_registration_map_->GetRegistration(job->storage_key,
+                                                  job->scope_url);
 
   // 2. If registration is null, then:
   if (!registration) {
@@ -752,8 +755,8 @@ void ServiceWorkerJobs::UpdateOnLoadingComplete(
         state->job,
         PromiseErrorData(web::DOMException::kNetworkErr, error.value()));
     if (state->newest_worker == nullptr) {
-      scope_to_registration_map_.RemoveRegistration(state->job->storage_key,
-                                                    state->job->scope_url);
+      scope_to_registration_map_->RemoveRegistration(state->job->storage_key,
+                                                     state->job->scope_url);
     }
     FinishJob(state->job);
     return;
@@ -789,8 +792,8 @@ void ServiceWorkerJobs::UpdateOnLoadingComplete(
     // 9.2. If newestWorker is null, then remove registration
     //      map[(registration’s storage key, serialized scopeURL)].
     if (state->newest_worker == nullptr) {
-      scope_to_registration_map_.RemoveRegistration(state->job->storage_key,
-                                                    state->job->scope_url);
+      scope_to_registration_map_->RemoveRegistration(state->job->storage_key,
+                                                     state->job->scope_url);
     }
     // 9.3. Invoke Finish Job with job and abort these steps.
     FinishJob(state->job);
@@ -856,8 +859,8 @@ void ServiceWorkerJobs::UpdateOnRunServiceWorker(
     // 17.2. If newestWorker is null, then remove registration
     //       map[(registration’s storage key, serialized scopeURL)].
     if (state->newest_worker == nullptr) {
-      scope_to_registration_map_.RemoveRegistration(state->job->storage_key,
-                                                    state->job->scope_url);
+      scope_to_registration_map_->RemoveRegistration(state->job->storage_key,
+                                                     state->job->scope_url);
     }
     // 17.3. Invoke Finish Job with job.
     FinishJob(state->job);
@@ -1076,8 +1079,8 @@ void ServiceWorkerJobs::Install(
     //       map[(registration’s storage key, serialized registration’s
     //       scope url)].
     if (newest_worker == nullptr) {
-      scope_to_registration_map_.RemoveRegistration(registration->storage_key(),
-                                                    registration->scope_url());
+      scope_to_registration_map_->RemoveRegistration(
+          registration->storage_key(), registration->scope_url());
     }
     // 12.4. Invoke Finish Job with job and abort these steps.
     FinishJob(job);
@@ -1209,7 +1212,7 @@ void ServiceWorkerJobs::Activate(
     url::Origin context_storage_key =
         url::Origin::Create(context->environment_settings()->creation_url());
     scoped_refptr<ServiceWorkerRegistrationObject> matched_registration =
-        scope_to_registration_map_.MatchServiceWorkerRegistration(
+        scope_to_registration_map_->MatchServiceWorkerRegistration(
             context_storage_key, registration->scope_url());
     if (matched_registration == registration) {
       matched_clients.push_back(context);
@@ -1400,15 +1403,15 @@ void ServiceWorkerJobs::ClearRegistration(
     UpdateRegistrationState(registration, kWaiting, nullptr);
   }
 
-  // 3. If registration’s active worker is not null, then:
+  // 4. If registration’s active worker is not null, then:
   ServiceWorkerObject* active_worker = registration->active_worker();
   if (active_worker) {
-    // 3.1. Terminate registration’s active worker.
+    // 4.1. Terminate registration’s active worker.
     TerminateServiceWorker(active_worker);
-    // 3.2. Run the Update Worker State algorithm passing registration’s
+    // 4.2. Run the Update Worker State algorithm passing registration’s
     //      active worker and "redundant" as the arguments.
     UpdateWorkerState(active_worker, kServiceWorkerStateRedundant);
-    // 3.3. Run the Update Registration State algorithm passing registration,
+    // 4.3. Run the Update Registration State algorithm passing registration,
     //      "active" and null as the arguments.
     UpdateRegistrationState(registration, kActive, nullptr);
   }
@@ -1643,7 +1646,7 @@ void ServiceWorkerJobs::HandleServiceWorkerClientUnload(
 
   // 5. If registration is unregistered, invoke Try Clear Registration with
   //    registration.
-  if (scope_to_registration_map_.IsUnregistered(registration)) {
+  if (scope_to_registration_map_->IsUnregistered(registration)) {
     TryClearRegistration(registration);
   }
 
@@ -1728,8 +1731,8 @@ void ServiceWorkerJobs::Unregister(Job* job) {
   // 2. Let registration be the result of running Get Registration given job’s
   //    storage key and job’s scope url.
   scoped_refptr<ServiceWorkerRegistrationObject> registration =
-      scope_to_registration_map_.GetRegistration(job->storage_key,
-                                                 job->scope_url);
+      scope_to_registration_map_->GetRegistration(job->storage_key,
+                                                  job->scope_url);
 
   // 3. If registration is null, then:
   if (!registration) {
@@ -1743,8 +1746,8 @@ void ServiceWorkerJobs::Unregister(Job* job) {
 
   // 4. Remove registration map[(registration’s storage key, job’s scope url)].
   // Keep the registration until this algorithm finishes.
-  scope_to_registration_map_.RemoveRegistration(registration->storage_key(),
-                                                job->scope_url);
+  scope_to_registration_map_->RemoveRegistration(registration->storage_key(),
+                                                 job->scope_url);
 
   // 5. Invoke Resolve Job Promise with job and true.
   ResolveJobPromise(job, true);
@@ -1918,8 +1921,8 @@ void ServiceWorkerJobs::MaybeResolveReadyPromiseSubSteps(
   const GURL& base_url = client->creation_url();
   GURL client_url = base_url.Resolve("");
   scoped_refptr<ServiceWorkerRegistrationObject> registration =
-      scope_to_registration_map_.MatchServiceWorkerRegistration(storage_key,
-                                                                client_url);
+      scope_to_registration_map_->MatchServiceWorkerRegistration(storage_key,
+                                                                 client_url);
   //    3.3. If registration is not null, and registration’s active
   //         worker is not null, queue a task on readyPromise’s
   //         relevant settings object's responsible event loop, using
@@ -1954,8 +1957,8 @@ void ServiceWorkerJobs::GetRegistrationSubSteps(
   // 8.1. Let registration be the result of running Match Service Worker
   //      Registration algorithm with clientURL as its argument.
   scoped_refptr<ServiceWorkerRegistrationObject> registration =
-      scope_to_registration_map_.MatchServiceWorkerRegistration(storage_key,
-                                                                client_url);
+      scope_to_registration_map_->MatchServiceWorkerRegistration(storage_key,
+                                                                 client_url);
   // 8.2. If registration is null, resolve promise with undefined and abort
   //      these steps.
   // 8.3. Resolve promise with the result of getting the service worker
@@ -2049,7 +2052,7 @@ void ServiceWorkerJobs::WaitUntilSubSteps(
   //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#dom-extendableevent-waituntil
   // 5.2.2. If registration is unregistered, invoke Try Clear Registration
   //        with registration.
-  if (scope_to_registration_map_.IsUnregistered(registration)) {
+  if (scope_to_registration_map_->IsUnregistered(registration)) {
     TryClearRegistration(registration);
   }
   // 5.2.3. If registration is not null, invoke Try Activate with
@@ -2488,7 +2491,7 @@ void ServiceWorkerJobs::ClaimSubSteps(
       const GURL& base_url = client->creation_url();
       GURL client_url = base_url.Resolve("");
       scoped_refptr<ServiceWorkerRegistrationObject> registration =
-          scope_to_registration_map_.MatchServiceWorkerRegistration(
+          scope_to_registration_map_->MatchServiceWorkerRegistration(
               client_storage_key, client_url);
 
       // 3.1.5. If registration is not the service worker's containing service
