@@ -27,6 +27,10 @@ struct HardwareDecodeTargetPrivate : public SbDecodeTargetPrivate {
   template <typename T>
   using ComPtr = ::Microsoft::WRL::ComPtr<T>;
 
+  // Return value of CreateTexture2D. Stored here to report exact error codes to
+  // the video decoder when the call fails (b/257541360).
+  HRESULT create_texture_2d_h_result;
+
   ComPtr<ID3D11Texture2D> d3d_texture;
   bool texture_RGBA_;
 

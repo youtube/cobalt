@@ -24,8 +24,10 @@
 
 // Include this after all other headers to avoid introducing redundant
 // definitions from other header files.
-#include <codecapi.h>  // For CODECAPI_*
-#include <initguid.h>  // For DXVA_ModeVP9_VLD_Profile0
+// For CODECAPI_*
+#include <codecapi.h>  // NOLINT(build/include_order)
+// For DXVA_ModeVP9_VLD_Profile0
+#include <initguid.h>  // NOLINT(build/include_order)
 
 namespace starboard {
 namespace shared {
@@ -391,6 +393,15 @@ SbDecodeTarget VideoDecoder::CreateDecodeTarget() {
       decode_target = new HardwareDecodeTargetPrivate(
           d3d_device_, video_device_, video_context_, video_enumerator_,
           video_processor_, video_sample, video_area, is_hdr_supported_);
+      auto hardware_decode_target =
+          reinterpret_cast<HardwareDecodeTargetPrivate*>(decode_target);
+      if (!hardware_decode_target->d3d_texture) {
+        error_cb_(kSbPlayerErrorDecode,
+                  "Failed to allocate texture with error code: " +
+                      ::starboard::shared::win32::HResultToString(
+                          hardware_decode_target->create_texture_2d_h_result));
+        decode_target = kSbDecodeTargetInvalid;
+      }
     }
 
     // Release the video_sample before releasing the reset lock.
