@@ -14,6 +14,8 @@
 
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontConfigParser_cobalt.h"
 
+#include <ft2build.h>
+#include FT_TYPES_H
 #include <libxml/parser.h>
 #include <limits>
 #include <memory>
@@ -339,8 +341,12 @@ void FontElementHandler(FontFileInfo* file, const char** attributes) {
   DCHECK(file != NULL);
 
   // A <font> may have following attributes:
-  // weight (non-negative integer), style (normal, italic), font_name (string),
-  // postscript_name (string), and index (non-negative integer)
+  //   - weight (non-negative integer)
+  //   - style (normal, italic)
+  //   - font_name (string),
+  //   - postscript_name (string)
+  //   - index (non-negative integer)
+  //   - tags (non-negative integer) [if using font variations]
   // The element should contain a filename.
 
   for (size_t i = 0; attributes[i] != NULL && attributes[i + 1] != NULL;
@@ -376,6 +382,23 @@ void FontElementHandler(FontFileInfo* file, const char** attributes) {
             NOTREACHED();
           }
           continue;
+        }
+        break;
+      case 8:
+        if (strncmp("tag_", name, 4) == 0) {
+          // The remaining 4 characters define the tag.
+          FontFileInfo::VariationCoordinate coord;
+          coord.tag = FT_MAKE_TAG(name[4], name[5], name[6], name[7]);
+          int axis_value;
+          if (ParseNonNegativeInteger(value, &axis_value)) {
+            // Convert axis_value to Fixed16.
+            coord.value = axis_value << 16;
+            file->variation_position.push_back(coord);
+          } else {
+            LOG(ERROR) << "---- Invalid tag (" << name << ") value [" << value
+                       << "]";
+            NOTREACHED();
+          }
         }
         break;
       case 9:
