@@ -69,6 +69,10 @@ class CobaltAndroidConfiguration(cobalt_configuration.CobaltConfiguration):
           'PixelTest.SimpleTextInRed40PtChineseFont',
           'PixelTest.SimpleTextInRed40PtThaiFont',
 
+          # The Roboto variable font looks slightly different than the static
+          # font version. Android 12 and up use font variations for Roboto.
+          'PixelTest.ScalingUpAnOpacityFilterTextDoesNotPixellate',
+
           # Instead of returning an error when allocating too much texture
           # memory, Android instead just terminates the process.  Since this
           # test explicitly tries to allocate too much texture memory, we cannot

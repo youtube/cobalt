@@ -25,6 +25,9 @@
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
 
+// This mimics FT_Fixed which is a 16.16 fixed point format.
+typedef int32_t Fixed16;
+
 // The font_character_map namespace contains all of the constants, typedefs, and
 // utility functions used with determining whether or not a font supports a
 // character.
@@ -133,6 +136,12 @@ struct FontFileInfo {
   };
   typedef uint32_t FontStyle;
 
+  struct VariationCoordinate {
+    uint32_t tag;
+    Fixed16 value;
+  };
+  typedef SkTArray<VariationCoordinate, true> VariationPosition;
+
   FontFileInfo()
       : index(0),
         weight(400),
@@ -144,6 +153,7 @@ struct FontFileInfo {
   int weight;
   FontStyle style;
   bool disable_synthetic_bolding;
+  VariationPosition variation_position;
 
   SkString full_font_name;
   SkString postscript_name;

@@ -64,6 +64,17 @@ void SkTypeface_Cobalt::onGetFamilyName(SkString* family_name) const {
   *family_name = family_name_;
 }
 
+std::unique_ptr<SkFontData> SkTypeface_Cobalt::onMakeFontData() const {
+  int index;
+  std::unique_ptr<SkStreamAsset> stream(this->onOpenStream(&index));
+  if (!stream) {
+    return nullptr;
+  }
+  return std::make_unique<SkFontData>(std::move(stream), index,
+                                      computed_variation_position_.data(),
+                                      computed_variation_position_.count());
+}
+
 SkTypeface_CobaltStream::SkTypeface_CobaltStream(
     std::unique_ptr<SkStreamAsset> stream, int face_index, SkFontStyle style,
     bool is_fixed_pitch, const SkString& family_name,
@@ -93,31 +104,23 @@ size_t SkTypeface_CobaltStream::GetStreamLength() const {
   return stream_->getLength();
 }
 
-#ifdef USE_SKIA_NEXT
-std::unique_ptr<SkFontData> SkTypeface_CobaltStream::onMakeFontData() const {
-  int index;
-  std::unique_ptr<SkStreamAsset> stream(this->onOpenStream(&index));
-  if (!stream) {
-    return nullptr;
-  }
-  return std::make_unique<SkFontData>(std::move(stream), index, nullptr, 0);
-}
-#endif
-
 SkTypeface_CobaltStreamProvider::SkTypeface_CobaltStreamProvider(
     SkFileMemoryChunkStreamProvider* stream_provider, int face_index,
     SkFontStyle style, bool is_fixed_pitch, const SkString& family_name,
     bool disable_synthetic_bolding,
+    const ComputedVariationPosition& computed_variation_position,
     scoped_refptr<font_character_map::CharacterMap> character_map)
     : INHERITED(face_index, style, is_fixed_pitch, family_name, character_map),
       stream_provider_(stream_provider) {
   if (disable_synthetic_bolding) {
     synthesizes_bold_ = false;
   }
-  LOG(INFO) << "Created SkTypeface_CobaltStreamProvider: "
-            << family_name.c_str() << "(" << style.weight() << ", "
-            << style.width() << ", " << style.slant() << "); File: \""
-            << stream_provider->file_path() << "\"";
+  computed_variation_position_ = computed_variation_position;
+  LOG(INFO) << "Created " << font_type_string()
+            << " SkTypeface_CobaltStreamProvider: " << family_name.c_str()
+            << "(" << style.weight() << ", " << style.width() << ", "
+            << style.slant() << "); File: \"" << stream_provider->file_path()
+            << "\"";
 }
 
 void SkTypeface_CobaltStreamProvider::onGetFontDescriptor(
@@ -143,15 +146,3 @@ size_t SkTypeface_CobaltStreamProvider::GetStreamLength() const {
       stream_provider_->OpenStream());
   return stream->getLength();
 }
-
-#ifdef USE_SKIA_NEXT
-std::unique_ptr<SkFontData> SkTypeface_CobaltStreamProvider::onMakeFontData()
-    const {
-  int index;
-  std::unique_ptr<SkStreamAsset> stream(this->onOpenStream(&index));
-  if (!stream) {
-    return nullptr;
-  }
-  return std::make_unique<SkFontData>(std::move(stream), index, nullptr, 0);
-}
-#endif
