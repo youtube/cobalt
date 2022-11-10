@@ -38,10 +38,12 @@ class ShardingTestConfig(object):
     try:
       with open(SHARDING_CONFIG_FILE, 'r') as file:
         sharding_json = json.load(file)
-      if not platform in sharding_json:
-        self.platform_sharding_config = sharding_json['default']
-      else:
-        self.platform_sharding_config = sharding_json[platform]
+      # Load this config by default.
+      self.platform_sharding_config = sharding_json['default']
+      # Check for specific platform if specified:
+      for platform_key in sharding_json:
+        if platform in platform_key:
+          self.platform_sharding_config = sharding_json[platform_key]
     except FileNotFoundError:
       raise RuntimeError('No sharding configuration file found.')
 
