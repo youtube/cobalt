@@ -22,7 +22,8 @@
       "target_platform":"evergreen-arm-hardfp",
       "target_cpu":"target_cpu=\\\"arm\\\"",
       "extra_gn_arguments":"use_asan=false",
-      "bootloader_extra_gn_arguments":"use_asan=false is_clang=false"
+      "bootloader_extra_gn_arguments": "use_asan=false is_clang=false",
+      "dimension": "release_version=regex:10.*"
     },
     {
       "name":"sbversion-14",
@@ -31,7 +32,8 @@
       "target_cpu":"target_cpu=\\\"arm\\\"",
       "extra_gn_arguments":"use_asan=false",
       "bootloader_extra_gn_arguments":"use_asan=false is_clang=false",
-      "sb_api_version":"sb_api_version=14"
+      "sb_api_version": "sb_api_version=14",
+      "dimension": "release_version=regex:10.*"
     },
     {
       "name":"sbversion-13",
@@ -40,7 +42,8 @@
       "target_cpu":"target_cpu=\\\"arm\\\"",
       "extra_gn_arguments":"use_asan=false",
       "bootloader_extra_gn_arguments":"use_asan=false is_clang=false",
-      "sb_api_version":"sb_api_version=13"
+      "sb_api_version": "sb_api_version=13",
+      "dimension": "release_version=regex:10.*"
     },
     {
       "name":"sbversion-12",
@@ -49,7 +52,8 @@
       "target_cpu":"target_cpu=\\\"arm\\\"",
       "extra_gn_arguments":"use_asan=false",
       "bootloader_extra_gn_arguments":"use_asan=false is_clang=false",
-      "sb_api_version":"sb_api_version=12"
+      "sb_api_version": "sb_api_version=12",
+      "dimension": "release_version=regex:10.*"
     }
   ]
 }
