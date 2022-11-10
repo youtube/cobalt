@@ -10,7 +10,7 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     env:
-      SOURCE: "${{ github.event_name == 'pull_request' && github.base_ref || github.ref~1 }}"
+      SOURCE: "${{ github.event_name == 'pull_request' && github.base_ref || ${{ github.ref }}~1 }}"
     steps:
       - name: Checkout
         uses: actions/checkout@v3
