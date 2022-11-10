@@ -18,7 +18,7 @@ jobs:
         if: ${{ github.event_name == 'pull_request' }}
         uses: ./.github/actions/pre_commit
         with:
-          base_ref: ${{ github.base_ref }}
+          base_ref: ${{ github.head_ref }}
       - name: pre-commit
         if: ${{ github.event_name != 'pull_request' }}
         uses: ./.github/actions/pre_commit
