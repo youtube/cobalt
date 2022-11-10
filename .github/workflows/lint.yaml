@@ -1,0 +1,33 @@
+name: lint
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    env:
+      SOURCE: |
+        github.event_name == 'pull_request' &&
+        github.base_ref ||
+        github.ref~1
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Setup Python
+        uses: actions/setup-python@v4
+      - name: Run pre-commit
+        uses: pre-commit/action@v3.0.0
+        with:
+          extra_args: --from-ref ${{ env.SOURCE }} --to-ref ${{ github.ref }}
+        env:
+          SKIP: 'run-py2-tests'
+      - name: Run pre-push
+        uses: pre-commit/action@v3.0.0
+        with:
+          extra_args: --hook-stage push --from-ref ${{ env.SOURCE }} --to-ref ${{ github.ref }}
+        env:
+          SKIP: 'test-download-from-gcs-helper,check-bug-in-commit-message,check-if-starboard-interface-changed'
