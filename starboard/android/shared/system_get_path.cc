@@ -77,6 +77,21 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
       break;
     }
 
+    case kSbSystemPathFontConfigurationDirectory:
+    case kSbSystemPathFontDirectory:
+#if SB_IS(EVERGREEN_COMPATIBLE)
+      if (starboard::strlcat(path, g_app_assets_dir, kPathSize) >= kPathSize) {
+        return false;
+      }
+      if (starboard::strlcat(path, "/fonts", kPathSize) >= kPathSize) {
+        return false;
+      }
+      break;
+#else
+      SB_NOTIMPLEMENTED();
+      return false;
+#endif
+
     case kSbSystemPathStorageDirectory: {
       if (starboard::strlcpy(path, g_app_files_dir, kPathSize) >= kPathSize) {
         return false;
