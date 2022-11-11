@@ -60,7 +60,14 @@ class CobaltAndroidConfiguration(cobalt_configuration.CobaltConfiguration):
       'layout_tests': [
           # Android relies of system fonts and some older Android builds do not
           # have the update (Emoji 11.0) NotoColorEmoji.ttf installed.
-          'CSS3FontsLayoutTests/Layout.Test/color_emojis_should_render_properly'
+          ('CSS3FontsLayoutTests/Layout.Test/'
+            'color_emojis_should_render_properly'),
+
+          # Android 12 changed the look of emojis.
+          # TODO(b/258830349) split this test into emoji & non-emoji parts so
+          # that the emoji portion can be disabled specifically.
+          ('CSS3FontsLayoutTests/Layout.Test/'
+            '5_2_use_system_fallback_if_no_matching_family_is_found'),
       ],
       'crypto_unittests': ['P224.*'],
       'renderer_test': [
