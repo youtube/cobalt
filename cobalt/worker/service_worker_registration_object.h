@@ -29,13 +29,13 @@ namespace cobalt {
 namespace worker {
 
 // This class represents the 'service worker registration'.
-//   https://w3c.github.io/ServiceWorker/#dfn-service-worker-registration
+//   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#dfn-service-worker-registration
 // Not to be confused with the ServiceWorkerRegistration JavaScript object,
 // this represents the registration of the service worker in the browser,
 // independent from the JavaScript realm. The lifetime of this object is beyond
 // that of the ServiceWorkerRegistration JavaScript object(s) that represent
 // this object in their service worker clients.
-//   https://w3c.github.io/ServiceWorker/#service-worker-registration-lifetime
+//   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#service-worker-registration-lifetime
 class ServiceWorkerRegistrationObject
     : public base::RefCountedThreadSafe<ServiceWorkerRegistrationObject> {
  public:
@@ -73,7 +73,7 @@ class ServiceWorkerRegistrationObject
     return active_worker_;
   }
 
-  // https://w3c.github.io/ServiceWorker/#get-newest-worker
+  // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#get-newest-worker
   ServiceWorkerObject* GetNewestWorker();
 
  private:

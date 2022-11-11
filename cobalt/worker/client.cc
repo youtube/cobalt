@@ -29,7 +29,7 @@ Client::Client(web::EnvironmentSettings* client)
                       ->service_worker()) {
   DCHECK(client);
   // Algorithm for Create Client:
-  //   https://w3c.github.io/ServiceWorker/#create-client
+  //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#create-client
   // 1. Let clientObject be a new Client object.
   // 2. Set clientObject’s service worker client to client.
   service_worker_client_ = client;
@@ -39,7 +39,7 @@ Client::Client(web::EnvironmentSettings* client)
 
 ClientType Client::type() {
   // Algorithm for the type getter:
-  //   https://w3c.github.io/ServiceWorker/#client-type
+  //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#client-type
 
   // 1. Let client be this's service worker client.
   web::WindowOrWorkerGlobalScope* client_global_scope =

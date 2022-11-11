@@ -28,22 +28,22 @@ namespace worker {
 
 class Client : public web::MessagePort {
  public:
-  // https://w3c.github.io/ServiceWorker/#create-client-algorithm
+  // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#create-client-algorithm
   static scoped_refptr<Client> Create(web::EnvironmentSettings* client) {
     return new Client(client);
   }
   ~Client() { service_worker_client_ = nullptr; }
 
   std::string url() {
-    // https://w3c.github.io/ServiceWorker/#client-url
+    // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#client-url
     return service_worker_client_->creation_url().spec();
   }
 
-  // https://w3c.github.io/ServiceWorker/#client-frametype
+  // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#client-frametype
   void set_frame_type(FrameType frame_type) { frame_type_ = frame_type; }
   FrameType frame_type() { return frame_type_; }
 
-  // https://w3c.github.io/ServiceWorker/#dom-client-id
+  // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#dom-client-id
   std::string id() { return service_worker_client_->id(); }
   ClientType type();
 

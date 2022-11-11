@@ -38,30 +38,30 @@ namespace worker {
 class ServiceWorkerJobs;
 
 // Algorithms for the service worker scope to registration map.
-//   https://w3c.github.io/ServiceWorker/#dfn-scope-to-registration-map
+//   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#dfn-scope-to-registration-map
 class ServiceWorkerRegistrationMap {
  public:
   using Key = std::pair<url::Origin, std::string>;
 
-  // https://w3c.github.io/ServiceWorker/#get-registration-algorithm
+  // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#get-registration-algorithm
   scoped_refptr<ServiceWorkerRegistrationObject> GetRegistration(
       const url::Origin& storage_key, const GURL& scope);
 
-  // https://w3c.github.io/ServiceWorker/#set-registration-algorithm
+  // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#set-registration-algorithm
   scoped_refptr<ServiceWorkerRegistrationObject> SetRegistration(
       const url::Origin& storage_key, const GURL& scope,
       const ServiceWorkerUpdateViaCache& update_via_cache);
 
-  // https://w3c.github.io/ServiceWorker/#scope-match-algorithm
+  // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#scope-match-algorithm
   scoped_refptr<ServiceWorkerRegistrationObject> MatchServiceWorkerRegistration(
       const url::Origin& storage_key, const GURL& client_url);
 
   void RemoveRegistration(const url::Origin& storage_key, const GURL& scope);
 
-  // https://w3c.github.io/ServiceWorker/#dfn-service-worker-registration-unregistered
+  // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#dfn-service-worker-registration-unregistered
   bool IsUnregistered(ServiceWorkerRegistrationObject* registration);
 
-  // https://w3c.github.io/ServiceWorker/#on-user-agent-shutdown-algorithm
+  // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#on-user-agent-shutdown-algorithm
   void HandleUserAgentShutdown(ServiceWorkerJobs* jobs);
 
  private:
@@ -70,7 +70,7 @@ class ServiceWorkerRegistrationMap {
 
   // A registration map is an ordered map where the keys are (storage key,
   // serialized scope urls) and the values are service worker registrations.
-  //   https://w3c.github.io/ServiceWorker/#dfn-scope-to-registration-map
+  //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#dfn-scope-to-registration-map
   std::map<Key, scoped_refptr<ServiceWorkerRegistrationObject>>
       registration_map_;
 

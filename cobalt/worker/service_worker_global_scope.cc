@@ -42,7 +42,7 @@ void ServiceWorkerGlobalScope::ImportScripts(
     const std::vector<std::string>& urls,
     script::ExceptionState* exception_state) {
   // Algorithm for importScripts():
-  //   https://w3c.github.io/ServiceWorker/#importscripts
+  //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#importscripts
 
   // When the importScripts(urls) method is called, the user agent must import
   // scripts into worker global scope, with the following steps to perform the
@@ -122,7 +122,7 @@ void ServiceWorkerGlobalScope::ImportScripts(
 scoped_refptr<ServiceWorkerRegistration>
 ServiceWorkerGlobalScope::registration() const {
   // Algorithm for registration():
-  //   https://w3c.github.io/ServiceWorker/#service-worker-global-scope-registration
+  //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#service-worker-global-scope-registration
 
   // The registration getter steps are to return the result of getting the
   // service worker registration object representing this's service worker's
@@ -136,7 +136,7 @@ ServiceWorkerGlobalScope::registration() const {
 
 scoped_refptr<ServiceWorker> ServiceWorkerGlobalScope::service_worker() const {
   // Algorithm for service_worker():
-  //   https://w3c.github.io/ServiceWorker/#service-worker-global-scope-serviceworker
+  //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#service-worker-global-scope-serviceworker
 
   // The serviceWorker getter steps are to return the result of getting the
   // service worker object that represents this's service worker in this's
@@ -152,7 +152,7 @@ script::HandlePromiseVoid ServiceWorkerGlobalScope::SkipWaiting() {
   DCHECK_EQ(base::MessageLoop::current(),
             environment_settings()->context()->message_loop());
   // Algorithm for skipWaiting():
-  //   https://w3c.github.io/ServiceWorker/#dom-serviceworkerglobalscope-skipwaiting
+  //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#dom-serviceworkerglobalscope-skipwaiting
   // 1. Let promise be a new promise.
   auto promise = environment_settings()
                      ->context()

@@ -254,7 +254,7 @@ bool WorkerGlobalScope::LoadImportsAndReturnIfUpdated(
     ScriptResourceMap* new_resource_map) {
   bool has_updated_resources = false;
   // Steps from Algorithm for Update:
-  //   https://w3c.github.io/ServiceWorker/#update-algorithm
+  //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#update-algorithm
   //   8.21.1. For each importUrl -> storedResponse of newestWorker’s script
   //           resource map:
   std::vector<GURL> request_urls;

@@ -39,7 +39,7 @@ namespace cobalt {
 namespace worker {
 
 // Implementation of Service Worker Global Scope.
-//   https://w3c.github.io/ServiceWorker/#serviceworkerglobalscope-interface
+//   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#serviceworkerglobalscope-interface
 
 class ServiceWorkerGlobalScope : public WorkerGlobalScope {
  public:

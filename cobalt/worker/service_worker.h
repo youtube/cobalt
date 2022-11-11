@@ -34,7 +34,7 @@ namespace worker {
 
 // The ServiceWorker interface represents a service worker within a service
 // worker client realm.
-//   https://w3c.github.io/ServiceWorker/#serviceworker-interface
+//   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#serviceworker-interface
 class ServiceWorker : public AbstractWorker, public web::EventTarget {
  public:
   ServiceWorker(script::EnvironmentSettings* settings,
@@ -50,7 +50,7 @@ class ServiceWorker : public AbstractWorker, public web::EventTarget {
   // service worker's serialized script url.
   std::string script_url() const { return worker_->script_url().spec(); }
 
-  // https://w3c.github.io/ServiceWorker/#dom-serviceworker-state
+  // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#dom-serviceworker-state
   void set_state(ServiceWorkerState state) { state_ = state; }
   ServiceWorkerState state() const { return state_; }
 

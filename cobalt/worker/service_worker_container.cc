@@ -42,7 +42,7 @@ ServiceWorkerContainer::ServiceWorkerContainer(
 
 scoped_refptr<ServiceWorker> ServiceWorkerContainer::controller() {
   // Algorithm for controller:
-  //   https://w3c.github.io/ServiceWorker/#navigator-service-worker-controller
+  //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#navigator-service-worker-controller
   // 1. Let client be this's service worker client.
   web::EnvironmentSettings* client = environment_settings();
 
@@ -59,7 +59,7 @@ scoped_refptr<ServiceWorker> ServiceWorkerContainer::controller() {
 
 script::HandlePromiseWrappable ServiceWorkerContainer::ready() {
   // Algorithm for ready attribute:
-  //   https://w3c.github.io/ServiceWorker/#navigator-service-worker-ready
+  //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#navigator-service-worker-ready
   // 1. If this's ready promise is null, then set this's ready promise to a new
   //    promise.
   if (!promise_reference_) {
@@ -92,8 +92,8 @@ void ServiceWorkerContainer::MaybeResolveReadyPromise(
     ServiceWorkerRegistrationObject* registration) {
   // This implements resolving of the ready promise for the Activate algorithm
   // (steps 7.1-7.3) as well as for the ready attribute (step 3.3).
-  //   https://w3c.github.io/ServiceWorker/#activation-algorithm
-  //   https://w3c.github.io/ServiceWorker/#navigator-service-worker-ready
+  //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#activation-algorithm
+  //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#navigator-service-worker-ready
   TRACE_EVENT0("cobalt::worker",
                "ServiceWorkerContainer::MaybeResolveReadyPromise()");
   DCHECK_EQ(base::MessageLoop::current(),
@@ -123,7 +123,7 @@ script::HandlePromiseWrappable ServiceWorkerContainer::Register(
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerContainer::Register()");
   DCHECK_EQ(base::MessageLoop::current(),
             environment_settings()->context()->message_loop());
-  // https://w3c.github.io/ServiceWorker/#navigator-service-worker-register
+  // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#navigator-service-worker-register
   // 1. Let p be a promise.
   script::HandlePromiseWrappable promise =
       environment_settings()
@@ -165,7 +165,7 @@ script::HandlePromiseWrappable ServiceWorkerContainer::GetRegistration(
   DCHECK_EQ(base::MessageLoop::current(),
             environment_settings()->context()->message_loop());
   // Algorithm for 'ServiceWorkerContainer.getRegistration()':
-  //   https://w3c.github.io/ServiceWorker/#navigator-service-worker-getRegistration
+  //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#navigator-service-worker-getRegistration
   // Let promise be a new promise.
   // Perform the rest of the steps in a task, because the promise has to be
   // returned before we can safely reject or resolve it.
@@ -195,7 +195,7 @@ void ServiceWorkerContainer::GetRegistrationTask(
   DCHECK_EQ(base::MessageLoop::current(),
             environment_settings()->context()->message_loop());
   // Algorithm for 'ServiceWorkerContainer.getRegistration()':
-  //   https://w3c.github.io/ServiceWorker/#navigator-service-worker-getRegistration
+  //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#navigator-service-worker-getRegistration
   // 1. Let client be this's service worker client.
   web::EnvironmentSettings* client = environment_settings();
 
@@ -242,7 +242,7 @@ void ServiceWorkerContainer::GetRegistrationTask(
 
 script::HandlePromiseSequenceWrappable
 ServiceWorkerContainer::GetRegistrations() {
-  // https://w3c.github.io/ServiceWorker/#navigator-service-worker-getRegistrations
+  // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#navigator-service-worker-getRegistrations
   // 1. Let client be this's service worker client.
   // 2. Let promise be a new promise.
   // 3. Run the following steps in parallel:
