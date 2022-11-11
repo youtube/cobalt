@@ -1211,8 +1211,7 @@ int Box::GetOrder() const {
 }
 
 bool Box::IsUnderCoordinate(const Vector2dLayoutUnit& coordinate) const {
-  RectLayoutUnit rect =
-      GetTransformedBoxFromRootWithScroll(GetBorderBoxFromMarginBox());
+  RectLayoutUnit rect = GetBorderBoxFromRoot(true /*transform_forms_root*/);
   bool res =
       coordinate.x() >= rect.x() && coordinate.x() <= rect.x() + rect.width() &&
       coordinate.y() >= rect.y() && coordinate.y() <= rect.y() + rect.height();
