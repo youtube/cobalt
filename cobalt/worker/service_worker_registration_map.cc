@@ -59,7 +59,7 @@ ServiceWorkerRegistrationMap::MatchServiceWorkerRegistration(
       "ServiceWorkerRegistrationMap::MatchServiceWorkerRegistration()");
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   // Algorithm for Match Service Worker Registration:
-  //   https://w3c.github.io/ServiceWorker/#scope-match-algorithm
+  //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#scope-match-algorithm
   GURL matching_scope;
 
   // 1. Run the following steps atomically.
@@ -123,7 +123,7 @@ ServiceWorkerRegistrationMap::GetRegistration(const url::Origin& storage_key,
                "ServiceWorkerRegistrationMap::GetRegistration()");
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   // Algorithm for Get Registration:
-  //   https://w3c.github.io/ServiceWorker/#get-registration-algorithm
+  //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#get-registration-algorithm
 
   // 1. Run the following steps atomically.
   base::AutoLock lock(mutex_);
@@ -160,7 +160,7 @@ ServiceWorkerRegistrationMap::SetRegistration(
                "ServiceWorkerRegistrationMap::SetRegistration()");
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   // Algorithm for Set Registration:
-  //   https://w3c.github.io/ServiceWorker/#set-registration-algorithm
+  //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#set-registration-algorithm
 
   // 1. Run the following steps atomically.
   base::AutoLock lock(mutex_);
@@ -202,7 +202,7 @@ bool ServiceWorkerRegistrationMap::IsUnregistered(
   // A service worker registration is said to be unregistered if registration
   // map[this service worker registration's (storage key, serialized scope url)]
   // is not this service worker registration.
-  //   https://w3c.github.io/ServiceWorker/#dfn-service-worker-registration-unregistered
+  //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#dfn-service-worker-registration-unregistered
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   Key registration_key(registration->storage_key(),
                        registration->scope_url().spec());
@@ -218,7 +218,7 @@ void ServiceWorkerRegistrationMap::HandleUserAgentShutdown(
                "ServiceWorkerRegistrationMap::HandleUserAgentShutdown()");
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   // Algorithm for Handle User Agent Shutdown:
-  //   https://w3c.github.io/ServiceWorker/#on-user-agent-shutdown-algorithm
+  //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#on-user-agent-shutdown-algorithm
 
   // 1. For each (storage key, scope) -> registration of registration map:
   for (auto& entry : registration_map_) {

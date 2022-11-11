@@ -32,7 +32,7 @@ ServiceWorkerRegistrationObject::ServiceWorkerRegistrationObject(
 
 ServiceWorkerObject* ServiceWorkerRegistrationObject::GetNewestWorker() {
   // Algorithm for Get Newest Worker:
-  //   https://w3c.github.io/ServiceWorker/#get-newest-worker
+  //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#get-newest-worker
   // 1. Run the following steps atomically.
   base::AutoLock lock(mutex_);
 

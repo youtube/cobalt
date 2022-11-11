@@ -59,7 +59,7 @@ script::HandlePromiseWrappable Clients::Get(const std::string& id) {
   TRACE_EVENT0("cobalt::worker", "Clients::Get()");
   DCHECK_EQ(base::MessageLoop::current(), settings_->context()->message_loop());
   // Algorithm for get(id):
-  //   https://w3c.github.io/ServiceWorker/#clients-get
+  //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#clients-get
   // 1. Let promise be a new promise.
   script::HandlePromiseWrappable promise =
       settings_->context()
@@ -89,7 +89,7 @@ script::HandlePromiseSequenceWrappable Clients::MatchAll(
   TRACE_EVENT0("cobalt::worker", "Clients::MatchAll()");
   DCHECK_EQ(base::MessageLoop::current(), settings_->context()->message_loop());
   // Algorithm for matchAll():
-  //   https://w3c.github.io/ServiceWorker/#clients-matchall
+  //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#clients-matchall
   // 1. Let promise be a new promise.
   auto promise = settings_->context()
                      ->global_environment()
@@ -117,7 +117,7 @@ script::HandlePromiseVoid Clients::Claim() {
   TRACE_EVENT0("cobalt::worker", "Clients::Claim()");
   DCHECK_EQ(base::MessageLoop::current(), settings_->context()->message_loop());
   // Algorithm for claim():
-  //   https://w3c.github.io/ServiceWorker/#clients-claim
+  //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#clients-claim
   // 2. Let promise be a new promise.
   // Note: Done first because it's needed for rejecting in step 1.
   auto promise = settings_->context()

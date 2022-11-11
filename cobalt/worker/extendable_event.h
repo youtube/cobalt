@@ -65,7 +65,7 @@ class ExtendableEvent : public web::Event {
     // An ExtendableEvent object is said to be active when its timed out flag
     // is unset and either its pending promises count is greater than zero or
     // its dispatch flag is set.
-    //   https://w3c.github.io/ServiceWorker/#extendableevent-active
+    //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#extendableevent-active
     return !timed_out_flag_ &&
            ((pending_promise_count_ > 0) || IsBeingDispatched());
   }
@@ -78,11 +78,11 @@ class ExtendableEvent : public web::Event {
   ~ExtendableEvent() override {}
 
  private:
-  // https://w3c.github.io/ServiceWorker/#extendableevent-extend-lifetime-promises
+  // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#extendableevent-extend-lifetime-promises
   // std::list<script::Promise<script::ValueHandle*>> extend_lifetime_promises_;
   int pending_promise_count_ = 0;
   bool has_rejected_promise_ = false;
-  // https://w3c.github.io/ServiceWorker/#extendableevent-timed-out-flag
+  // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#extendableevent-timed-out-flag
   bool timed_out_flag_ = false;
 
   base::OnceCallback<void(bool)> done_callback_;

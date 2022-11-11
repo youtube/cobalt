@@ -35,7 +35,7 @@ struct WindowData {
 
 class WindowClient : public Client {
  public:
-  // https://w3c.github.io/ServiceWorker/#create-window-client
+  // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#create-window-client
   static scoped_refptr<Client> Create(const WindowData& window_data) {
     return new WindowClient(window_data);
   }

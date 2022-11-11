@@ -26,7 +26,7 @@ namespace worker {
 WindowClient::WindowClient(const WindowData& window_data)
     : Client(window_data.client) {
   // Algorithm for Create Window Client:
-  //   https://w3c.github.io/ServiceWorker/#create-window-client
+  //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#create-window-client
 
   // 1. Let windowClient be a new WindowClient object.
   // 2. Set windowClient’s service worker client to client.

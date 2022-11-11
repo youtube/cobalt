@@ -72,7 +72,7 @@ class Context {
   virtual scoped_refptr<worker::ServiceWorkerRegistration>
   LookupServiceWorkerRegistration(
       worker::ServiceWorkerRegistrationObject* registration) = 0;
-  // https://w3c.github.io/ServiceWorker/#get-the-service-worker-registration-object
+  // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#get-the-service-worker-registration-object
   virtual scoped_refptr<worker::ServiceWorkerRegistration>
   GetServiceWorkerRegistration(
       worker::ServiceWorkerRegistrationObject* registration) = 0;
@@ -80,7 +80,7 @@ class Context {
   virtual void RemoveServiceWorker(worker::ServiceWorkerObject* worker) = 0;
   virtual scoped_refptr<worker::ServiceWorker> LookupServiceWorker(
       worker::ServiceWorkerObject* worker) = 0;
-  // https://w3c.github.io/ServiceWorker/#get-the-service-worker-object
+  // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#get-the-service-worker-object
   virtual scoped_refptr<worker::ServiceWorker> GetServiceWorker(
       worker::ServiceWorkerObject* worker) = 0;
 
@@ -96,7 +96,7 @@ class Context {
   virtual void RemoveEnvironmentSettingsChangeObserver(
       EnvironmentSettingsChangeObserver* observer) = 0;
 
-  // https://w3c.github.io/ServiceWorker/#dfn-control
+  // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#dfn-control
   virtual bool is_controlled_by(worker::ServiceWorkerObject* worker) const = 0;
 
   // https://html.spec.whatwg.org/multipage/webappapis.html#concept-environment-active-service-worker
