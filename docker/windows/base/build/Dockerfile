@@ -71,7 +71,7 @@ RUN mkdir C:\root\sccache;`
 
 # Set up GN
 RUN (New-Object Net.WebClient).DownloadFile(`
-    'https://chrome-infra-packages.appspot.com/dl/gn/gn/windows-amd64/+/c7arrb3NphJV3Hzo5oKj94VeQgVYY6AoatHY39wlWAEC',`
+    'https://chrome-infra-packages.appspot.com/dl/gn/gn/windows-amd64/+/ur-MX9ARZXAVL1MusvU3v4YebmmerRPLDsJQrTLvN1cC',`
     'C:\gn.zip') ; `
     Expand-Archive -Force C:\gn.zip C:\gn\ ; `
     Remove-Item -Path C:\gn.zip ; `
