@@ -17,12 +17,6 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v4
       - name: pre-commit
-        if: ${{ github.event_name == 'pull_request' }}
         uses: ./.github/actions/pre_commit
         with:
-          base_ref: ${{ github.event.pull_request.base.sha }}
-      - name: pre-commit
-        if: ${{ github.event_name != 'pull_request' }}
-        uses: ./.github/actions/pre_commit
-        with:
-          base_ref: ${{ github.event.base_ref }}
+          base_ref: ${{ github.event.pull_request.base.sha && github.event.pull_request.base.sha || github.event.base_ref }}
