@@ -156,7 +156,8 @@ bool IsSupportedVideoCodec(const ParsedMimeInfo& mime_info) {
   std::string cryptoblockformat =
       mime_type.GetParamStringValue("cryptoblockformat", "");
   if (!cryptoblockformat.empty()) {
-    if (mime_type.subtype() != "webm" || cryptoblockformat != "subsample") {
+    if ((mime_type.subtype() != "mp4" && mime_type.subtype() != "webm") ||
+        cryptoblockformat != "subsample") {
       return false;
     }
   }
