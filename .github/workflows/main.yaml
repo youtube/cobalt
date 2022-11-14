@@ -51,7 +51,9 @@ jobs:
       - id: set-includes
         run: echo "includes=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.includes')" >> $GITHUB_ENV
       - id: set-on-device-test
-        run: echo "on_device_test=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.on_device_test')" >> $GITHUB_ENV
+        run: echo "on_device_test=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.on_device_test.enabled')" >> $GITHUB_ENV
+      - id: set-on-device-test-tests
+        run: echo "on_device_test_tests=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.on_device_test.tests')" >> $GITHUB_ENV
       - id: set-on-host-test
         run: echo "on_host_test=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.on_host_test')" >> $GITHUB_ENV
       - id: set-on-host-test-shards
@@ -66,6 +68,7 @@ jobs:
       platforms: ${{ env.platforms }}
       includes: ${{ env.includes }}
       on_device_test: ${{ env.on_device_test }}
+      on_device_test_tests: ${{ env.on_device_test_tests }}
       on_host_test: ${{ env.on_host_test }}
       on_host_test_shards: ${{ env.on_host_test_shards }}
       bootloader: ${{ env.bootloader }}
@@ -191,6 +194,78 @@ jobs:
         with:
           type: ondevice
           os: linux
+
+  # Runs on-device integration and unit tests.
+  on-device-test:
+    needs: [initialize, build]
+    if: |  # Always run if not a PR or if the PR has on_device label
+      needs.initialize.outputs.on_device_test == 'true' && (
+        github.event_name != 'pull_request' ||
+        contains(github.event.pull_request.labels.*.name, 'on_device')
+      )
+    runs-on: [self-hosted, linux, X64]
+    name: ${{ matrix.name }}_on_device_${{ matrix.type }}
+    container: ${{ needs.docker-unittest-image.outputs.docker_unittest_tag }}
+    permissions: {}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
+        config: [devel]
+        type: ${{ fromJson(needs.initialize.outputs.on_device_test_tests) }}
+        include: ${{ fromJson(needs.initialize.outputs.includes) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Install requirements
+        run: |
+          pip3 install grpcio==1.37.0 grpcio-tools==1.38.0
+        shell: bash
+      - name: Generate gRPC files
+        run: |
+          python -m grpc_tools.protoc -Itools/ --python_out=tools/ --grpc_python_out=tools/ tools/on_device_tests_gateway.proto
+        shell: bash
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v0
+      - name: Set env vars
+        run: |
+          echo "PROJECT_NAME=$(gcloud config get-value project)" >> $GITHUB_ENV
+          echo "GITHUB_RUN_NUMBER=${GITHUB_RUN_NUMBER}" >> $GITHUB_ENV
+          echo "WORKFLOW=${{ github.workflow }}" >> $GITHUB_ENV
+          if [ "${{ needs.initialize.outputs.bootloader }}" != "null" ]; then
+            echo "LOADER_CONFIG=${{ matrix.config }}" >> $GITHUB_ENV
+            echo "LOADER_PLATFORM=${{ matrix.bootloader_platform }}" >> $GITHUB_ENV
+          fi
+          if [ "${{ matrix.dimension }}" != "null" ]; then
+            echo "DIMENSION=${{ matrix.dimension }}" >> $GITHUB_ENV
+          fi
+      - name: trigger ${{ matrix.type }} tests on ${{ matrix.platform }} platform
+        id: on_device_test
+        run: |
+          echo "session_id=$(
+            python3 tools/on_device_tests_gateway_client.py \
+              --token ${{ github.token }} \
+              trigger \
+              --test_type ${{ matrix.type }} \
+              --platform ${{ matrix.platform }} \
+              --config ${{ matrix.config }} \
+              --label cobalt_github_${{ github.event_name }} \
+              --tag cobalt_github_${{ github.event_name }} \
+              --change_id "${{ github.sha }}" \
+              --builder_name github_${{ matrix.platform }}_tests \
+              --build_number ${GITHUB_RUN_NUMBER} \
+              --version '23.lts.1+' \
+              ${LOADER_PLATFORM:+"--loader_config" "$LOADER_CONFIG"} \
+              ${LOADER_PLATFORM:+"--loader_platform" "$LOADER_PLATFORM"} \
+              ${DIMENSION:+"--dimension" "$DIMENSION"} \
+              --archive_path gs://${PROJECT_NAME}-test-artifacts-tmp/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${{ matrix.platform }}_${{ matrix.config }}/artifacts.tar
+          )" >> $GITHUB_ENV
+        shell: bash
+      - name: watch ${{ matrix.type }} tests on ${{ matrix.platform }} platform
+        run: |
+          python3 tools/on_device_tests_gateway_client.py \
+            --token ${{ github.token }} \
+            watch ${{ env.session_id }}
 
   # Runs on-host integration and unit tests.
   on-host-test:

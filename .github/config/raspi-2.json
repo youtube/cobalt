@@ -1,6 +1,12 @@
 {
   "docker_service": "build-raspi",
-  "on_device_test": "true",
+  "on_device_test": {
+    "enabled": true,
+    "tests": [
+      "unit_test",
+      "black_box_test"
+    ]
+  },
   "platforms": [
     "raspi-2",
 		"raspi-2-skia",
@@ -14,14 +20,16 @@
       "platform":"raspi-2",
       "target_platform":"raspi-2",
       "target_cpu":"target_cpu=\\\"arm\\\"",
-      "extra_gn_arguments":"is_clang=false"
+      "extra_gn_arguments":"is_clang=false",
+      "dimension": "release_version=regex:10.*"
     },
     {
       "name":"skia",
       "platform":"raspi-2-skia",
       "target_platform":"raspi-2-skia",
       "target_cpu":"target_cpu=\\\"arm\\\"",
-      "extra_gn_arguments":"is_clang=false"
+      "extra_gn_arguments":"is_clang=false",
+      "dimension": "release_version=regex:10.*"
     },
     {
       "name":"sbversion-12",
@@ -29,7 +37,8 @@
       "target_platform":"raspi-2",
       "target_cpu":"target_cpu=\\\"arm\\\"",
       "extra_gn_arguments":"is_clang=false",
-      "sb_api_version":"sb_api_version=12"
+      "sb_api_version":"sb_api_version=12",
+      "dimension": "release_version=regex:10.*"
     },
     {
       "name":"sbversion-13",
@@ -37,7 +46,8 @@
       "target_platform":"raspi-2",
       "target_cpu":"target_cpu=\\\"arm\\\"",
       "extra_gn_arguments":"is_clang=false",
-      "sb_api_version":"sb_api_version=13"
+      "sb_api_version":"sb_api_version=13",
+      "dimension": "release_version=regex:10.*"
     },
     {
       "name":"sbversion-14",
@@ -45,7 +55,8 @@
       "target_platform":"raspi-2",
       "target_cpu":"target_cpu=\\\"arm\\\"",
       "extra_gn_arguments":"is_clang=false",
-      "sb_api_version":"sb_api_version=14"
+      "sb_api_version":"sb_api_version=14",
+      "dimension": "release_version=regex:10.*"
     }
   ]
 }
