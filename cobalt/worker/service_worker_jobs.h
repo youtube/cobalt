@@ -182,6 +182,8 @@ class ServiceWorkerJobs {
                     base::MessageLoop* message_loop);
   ~ServiceWorkerJobs();
 
+  void Stop();
+
   base::MessageLoop* message_loop() { return message_loop_; }
   network::NetworkModule* network_module() { return network_module_; }
 
@@ -451,6 +453,10 @@ class ServiceWorkerJobs {
   base::WaitableEvent web_context_registrations_cleared_ = {
       base::WaitableEvent::ResetPolicy::MANUAL,
       base::WaitableEvent::InitialState::NOT_SIGNALED};
+
+  base::WaitableEvent done_event_ = {
+      base::WaitableEvent::ResetPolicy::MANUAL,
+      base::WaitableEvent::InitialState::SIGNALED};
 };
 
 }  // namespace worker
