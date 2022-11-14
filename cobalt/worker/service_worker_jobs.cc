@@ -142,6 +142,12 @@ ServiceWorkerJobs::~ServiceWorkerJobs() {
   }
 }
 
+void ServiceWorkerJobs::Stop() {
+  if (!done_event_.IsSignaled()) {
+    done_event_.Signal();
+  }
+}
+
 void ServiceWorkerJobs::StartRegister(
     const base::Optional<GURL>& maybe_scope_url,
     const GURL& script_url_with_fragment,
@@ -993,9 +999,8 @@ void ServiceWorkerJobs::Install(
       //         DOM manipulation task source to run the following steps:
       // Using a shared pointer to ensure that it still exists when it is
       // signaled from the callback after the timeout.
-      std::shared_ptr<base::WaitableEvent> done_event(new base::WaitableEvent(
-          base::WaitableEvent::ResetPolicy::MANUAL,
-          base::WaitableEvent::InitialState::NOT_SIGNALED));
+      DCHECK(done_event_.IsSignaled());
+      done_event_.Reset();
       installing_worker->web_agent()
           ->context()
           ->message_loop()
@@ -1004,7 +1009,7 @@ void ServiceWorkerJobs::Install(
               FROM_HERE,
               base::Bind(
                   [](ServiceWorkerObject* installing_worker,
-                     std::shared_ptr<base::WaitableEvent> done_event,
+                     base::WaitableEvent* done_event,
                      std::shared_ptr<starboard::atomic_bool> install_failed) {
                     // 11.3.1.1. Let e be the result of creating an event with
                     //           ExtendableEvent.
@@ -1021,7 +1026,7 @@ void ServiceWorkerJobs::Install(
                     //             true.
                     //         If task is discarded, set installFailed to true.
                     auto done_callback = base::BindOnce(
-                        [](std::shared_ptr<base::WaitableEvent> done_event,
+                        [](base::WaitableEvent* done_event,
                            std::shared_ptr<starboard::atomic_bool>
                                install_failed,
                            bool was_rejected) {
@@ -1040,7 +1045,7 @@ void ServiceWorkerJobs::Install(
                       done_event->Signal();
                     }
                   },
-                  base::Unretained(installing_worker), done_event,
+                  base::Unretained(installing_worker), &done_event_,
                   install_failed));
       // 11.3.2. Wait for task to have executed or been discarded.
       // This waiting is done inside PostBlockingTask above.
@@ -1049,18 +1054,20 @@ void ServiceWorkerJobs::Install(
       // TODO(b/240164388): Investigate a better approach for combining waiting
       // for the ExtendableEvent while also allowing use of algorithms that run
       // on the same thread from the event handler.
-      while (!done_event->TimedWait(base::TimeDelta::FromMilliseconds(100))) {
+      while (!done_event_.TimedWait(base::TimeDelta::FromMilliseconds(100))) {
         base::MessageLoopCurrent::ScopedNestableTaskAllower allow;
         base::RunLoop().RunUntilIdle();
       }
     }
   }
   // 12. If installFailed is true, then:
-  if (install_failed->load()) {
+  if (install_failed->load() || !registration->installing_worker()) {
     // 12.1. Run the Update Worker State algorithm passing registration’s
     //       installing worker and "redundant" as the arguments.
-    UpdateWorkerState(registration->installing_worker(),
-                      kServiceWorkerStateRedundant);
+    if (registration->installing_worker()) {
+      UpdateWorkerState(registration->installing_worker(),
+                        kServiceWorkerStateRedundant);
+    }
     // 12.2. Run the Update Registration State algorithm passing registration,
     //       "installing" and null as the arguments.
     UpdateRegistrationState(registration, kInstalling, nullptr);
@@ -1254,8 +1261,10 @@ void ServiceWorkerJobs::Activate(
   }
   // 10. Let activeWorker be registration’s active worker.
   ServiceWorkerObject* active_worker = registration->active_worker();
+  bool activated = true;
   // 11. If the result of running the Should Skip Event algorithm with
   //     activeWorker and "activate" is false, then:
+  DCHECK(active_worker);
   if (!active_worker->ShouldSkipEvent(base::Tokens::activate())) {
     // 11.1. If the result of running the Run Service Worker algorithm with
     //       activeWorker is not failure, then:
@@ -1267,9 +1276,8 @@ void ServiceWorkerJobs::Activate(
                 active_worker->worker_global_scope()
                     ->environment_settings()
                     ->context());
-      std::shared_ptr<base::WaitableEvent> done_event(new base::WaitableEvent(
-          base::WaitableEvent::ResetPolicy::MANUAL,
-          base::WaitableEvent::InitialState::NOT_SIGNALED));
+      DCHECK(done_event_.IsSignaled());
+      done_event_.Reset();
       active_worker->web_agent()
           ->context()
           ->message_loop()
@@ -1278,11 +1286,11 @@ void ServiceWorkerJobs::Activate(
               FROM_HERE,
               base::Bind(
                   [](ServiceWorkerObject* active_worker,
-                     std::shared_ptr<base::WaitableEvent> done_event) {
-                    auto done_callback = base::BindOnce(
-                        [](std::shared_ptr<base::WaitableEvent> done_event,
-                           bool) { done_event->Signal(); },
-                        done_event);
+                     base::WaitableEvent* done_event) {
+                    auto done_callback =
+                        base::BindOnce([](base::WaitableEvent* done_event,
+                                          bool) { done_event->Signal(); },
+                                       done_event);
                     scoped_refptr<ExtendableEvent> event(new ExtendableEvent(
                         base::Tokens::activate(), std::move(done_callback)));
                     // 11.1.1.1. Let e be the result of creating an event with
@@ -1299,7 +1307,7 @@ void ServiceWorkerJobs::Activate(
                       done_event->Signal();
                     }
                   },
-                  base::Unretained(active_worker), done_event));
+                  base::Unretained(active_worker), &done_event_));
       // 11.1.2. Wait for task to have executed or been discarded.
       // This waiting is done inside PostBlockingTask above.
       // 11.1.3. Wait for the step labeled WaitForAsynchronousExtensions to
@@ -1307,7 +1315,7 @@ void ServiceWorkerJobs::Activate(
       // TODO(b/240164388): Investigate a better approach for combining waiting
       // for the ExtendableEvent while also allowing use of algorithms that run
       // on the same thread from the event handler.
-      while (!done_event->TimedWait(base::TimeDelta::FromMilliseconds(100))) {
+      while (!done_event_.TimedWait(base::TimeDelta::FromMilliseconds(100))) {
         base::MessageLoopCurrent::ScopedNestableTaskAllower allow;
         base::RunLoop().RunUntilIdle();
       }
@@ -1315,8 +1323,10 @@ void ServiceWorkerJobs::Activate(
   }
   // 12. Run the Update Worker State algorithm passing registration’s active
   //     worker and "activated" as the arguments.
-  UpdateWorkerState(registration->active_worker(),
-                    kServiceWorkerStateActivated);
+  if (activated && registration->active_worker()) {
+    UpdateWorkerState(registration->active_worker(),
+                      kServiceWorkerStateActivated);
+  }
 }
 
 void ServiceWorkerJobs::NotifyControllerChange(
@@ -2002,7 +2012,7 @@ void ServiceWorkerJobs::SkipWaitingSubSteps(
 void ServiceWorkerJobs::WaitUntilSubSteps(
     ServiceWorkerRegistrationObject* registration) {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerJobs::WaitUntilSubSteps()");
-  DCHECK_EQ(message_loop_, base::MessageLoop::current());
+  DCHECK_EQ(message_loop(), base::MessageLoop::current());
   // Sub steps for WaitUntil.
   //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#dom-extendableevent-waituntil
   // 5.2.2. If registration is unregistered, invoke Try Clear Registration
@@ -2023,7 +2033,7 @@ void ServiceWorkerJobs::ClientsGetSubSteps(
     std::unique_ptr<script::ValuePromiseWrappable::Reference> promise_reference,
     const std::string& id) {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerJobs::ClientsGetSubSteps()");
-  DCHECK_EQ(message_loop_, base::MessageLoop::current());
+  DCHECK_EQ(message_loop(), base::MessageLoop::current());
   // Check if the client web context is still active. This may trigger if
   // Clients.get() was called and service worker installation fails.
   if (!IsWebContextRegistered(promise_context)) {
@@ -2188,7 +2198,7 @@ void ServiceWorkerJobs::ClientsMatchAllSubSteps(
     bool include_uncontrolled, ClientType type) {
   TRACE_EVENT0("cobalt::worker",
                "ServiceWorkerJobs::ClientsMatchAllSubSteps()");
-  DCHECK_EQ(message_loop_, base::MessageLoop::current());
+  DCHECK_EQ(message_loop(), base::MessageLoop::current());
   // Check if the client web context is still active. This may trigger if
   // Clients.matchAll() was called and service worker installation fails.
   if (!IsWebContextRegistered(client_context)) {
@@ -2403,7 +2413,7 @@ void ServiceWorkerJobs::ClaimSubSteps(
     ServiceWorkerObject* associated_service_worker,
     std::unique_ptr<script::ValuePromiseVoid::Reference> promise_reference) {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerJobs::ClaimSubSteps()");
-  DCHECK_EQ(message_loop_, base::MessageLoop::current());
+  DCHECK_EQ(message_loop(), base::MessageLoop::current());
 
   // Check if the client web context is still active. This may trigger if
   // Clients.claim() was called and service worker installation fails.
