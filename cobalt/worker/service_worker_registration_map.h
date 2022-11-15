@@ -68,6 +68,8 @@ class ServiceWorkerRegistrationMap {
   // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#on-user-agent-shutdown-algorithm
   void HandleUserAgentShutdown(ServiceWorkerJobs* jobs);
 
+  void AbortAllActive();
+
  private:
   // ThreadChecker for use by the methods operating on the registration map.
   THREAD_CHECKER(thread_checker_);
