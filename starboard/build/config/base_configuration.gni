@@ -51,6 +51,10 @@ declare_args() {
   # Whether to adopt Evergreen Lite on the Evergreen compatible platform.
   sb_evergreen_compatible_enable_lite = false
 
+  # Whether to generate the whole package containing both Loader app and Cobalt
+  # core on the Evergreen compatible platform.
+  sb_evergreen_compatible_package = false
+
   # The target type for test targets. Allows changing the target type
   # on platforms where the native code may require an additional packaging step
   # (ex. Android).
