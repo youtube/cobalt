@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/media/base/starboard_player.h"
+#include "cobalt/media/base/sbplayer_bridge.h"
 
 #include <algorithm>
 #include <iomanip>
@@ -41,56 +41,59 @@ base::Statistics<SbTime, int, 1024> s_startup_latency;
 
 }  // namespace
 
-StarboardPlayer::CallbackHelper::CallbackHelper(StarboardPlayer* player)
-    : player_(player) {}
+SbPlayerBridge::CallbackHelper::CallbackHelper(SbPlayerBridge* player_bridge)
+    : player_bridge_(player_bridge) {}
 
-void StarboardPlayer::CallbackHelper::ClearDecoderBufferCache() {
+void SbPlayerBridge::CallbackHelper::ClearDecoderBufferCache() {
   base::AutoLock auto_lock(lock_);
-  if (player_) {
-    player_->ClearDecoderBufferCache();
+  if (player_bridge_) {
+    player_bridge_->ClearDecoderBufferCache();
   }
 }
 
-void StarboardPlayer::CallbackHelper::OnDecoderStatus(
-    SbPlayer player, SbMediaType type, SbPlayerDecoderState state, int ticket) {
-  base::AutoLock auto_lock(lock_);
-  if (player_) {
-    player_->OnDecoderStatus(player, type, state, ticket);
-  }
-}
-
-void StarboardPlayer::CallbackHelper::OnPlayerStatus(SbPlayer player,
-                                                     SbPlayerState state,
+void SbPlayerBridge::CallbackHelper::OnDecoderStatus(SbPlayer player,
+                                                     SbMediaType type,
+                                                     SbPlayerDecoderState state,
                                                      int ticket) {
   base::AutoLock auto_lock(lock_);
-  if (player_) {
-    player_->OnPlayerStatus(player, state, ticket);
+  if (player_bridge_) {
+    player_bridge_->OnDecoderStatus(player, type, state, ticket);
   }
 }
 
-void StarboardPlayer::CallbackHelper::OnPlayerError(
-    SbPlayer player, SbPlayerError error, const std::string& message) {
+void SbPlayerBridge::CallbackHelper::OnPlayerStatus(SbPlayer player,
+                                                    SbPlayerState state,
+                                                    int ticket) {
   base::AutoLock auto_lock(lock_);
-  if (player_) {
-    player_->OnPlayerError(player, error, message);
+  if (player_bridge_) {
+    player_bridge_->OnPlayerStatus(player, state, ticket);
   }
 }
 
-void StarboardPlayer::CallbackHelper::OnDeallocateSample(
+void SbPlayerBridge::CallbackHelper::OnPlayerError(SbPlayer player,
+                                                   SbPlayerError error,
+                                                   const std::string& message) {
+  base::AutoLock auto_lock(lock_);
+  if (player_bridge_) {
+    player_bridge_->OnPlayerError(player, error, message);
+  }
+}
+
+void SbPlayerBridge::CallbackHelper::OnDeallocateSample(
     const void* sample_buffer) {
   base::AutoLock auto_lock(lock_);
-  if (player_) {
-    player_->OnDeallocateSample(sample_buffer);
+  if (player_bridge_) {
+    player_bridge_->OnDeallocateSample(sample_buffer);
   }
 }
 
-void StarboardPlayer::CallbackHelper::ResetPlayer() {
+void SbPlayerBridge::CallbackHelper::ResetPlayer() {
   base::AutoLock auto_lock(lock_);
-  player_ = NULL;
+  player_bridge_ = NULL;
 }
 
 #if SB_HAS(PLAYER_WITH_URL)
-StarboardPlayer::StarboardPlayer(
+SbPlayerBridge::SbPlayerBridge(
     const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
     const std::string& url, SbWindow window, Host* host,
     SbPlayerSetBoundsHelper* set_bounds_helper, bool allow_resume_after_suspend,
@@ -119,12 +122,12 @@ StarboardPlayer::StarboardPlayer(
 
   task_runner->PostTask(
       FROM_HERE,
-      base::Bind(&StarboardPlayer::CallbackHelper::ClearDecoderBufferCache,
+      base::Bind(&SbPlayerBridge::CallbackHelper::ClearDecoderBufferCache,
                  callback_helper_));
 }
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
-StarboardPlayer::StarboardPlayer(
+SbPlayerBridge::SbPlayerBridge(
     const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
     const GetDecodeTargetGraphicsContextProviderFunc&
         get_decode_target_graphics_context_provider_func,
@@ -177,16 +180,16 @@ StarboardPlayer::StarboardPlayer(
   if (SbPlayerIsValid(player_)) {
     task_runner->PostTask(
         FROM_HERE,
-        base::Bind(&StarboardPlayer::CallbackHelper::ClearDecoderBufferCache,
+        base::Bind(&SbPlayerBridge::CallbackHelper::ClearDecoderBufferCache,
                    callback_helper_));
   }
 }
 
-StarboardPlayer::~StarboardPlayer() {
+SbPlayerBridge::~SbPlayerBridge() {
   DCHECK(task_runner_->BelongsToCurrentThread());
 
   callback_helper_->ResetPlayer();
-  set_bounds_helper_->SetPlayer(NULL);
+  set_bounds_helper_->SetPlayerBridge(NULL);
 
   video_frame_provider_->SetOutputMode(VideoFrameProvider::kOutputModeInvalid);
   video_frame_provider_->ResetGetCurrentSbDecodeTargetFunction();
@@ -196,8 +199,8 @@ StarboardPlayer::~StarboardPlayer() {
   }
 }
 
-void StarboardPlayer::UpdateAudioConfig(const AudioDecoderConfig& audio_config,
-                                        const std::string& mime_type) {
+void SbPlayerBridge::UpdateAudioConfig(const AudioDecoderConfig& audio_config,
+                                       const std::string& mime_type) {
   DCHECK(task_runner_->BelongsToCurrentThread());
   DCHECK(audio_config.IsValidConfig());
 
@@ -211,8 +214,8 @@ void StarboardPlayer::UpdateAudioConfig(const AudioDecoderConfig& audio_config,
   LOG(INFO) << "Converted to SbMediaAudioSampleInfo -- " << audio_sample_info_;
 }
 
-void StarboardPlayer::UpdateVideoConfig(const VideoDecoderConfig& video_config,
-                                        const std::string& mime_type) {
+void SbPlayerBridge::UpdateVideoConfig(const VideoDecoderConfig& video_config,
+                                       const std::string& mime_type) {
   DCHECK(task_runner_->BelongsToCurrentThread());
   DCHECK(video_config.IsValidConfig());
 
@@ -235,8 +238,8 @@ void StarboardPlayer::UpdateVideoConfig(const VideoDecoderConfig& video_config,
   LOG(INFO) << "Converted to SbMediaVideoSampleInfo -- " << video_sample_info_;
 }
 
-void StarboardPlayer::WriteBuffer(DemuxerStream::Type type,
-                                  const scoped_refptr<DecoderBuffer>& buffer) {
+void SbPlayerBridge::WriteBuffer(DemuxerStream::Type type,
+                                 const scoped_refptr<DecoderBuffer>& buffer) {
   DCHECK(task_runner_->BelongsToCurrentThread());
   DCHECK(buffer);
 #if SB_HAS(PLAYER_WITH_URL)
@@ -255,7 +258,7 @@ void StarboardPlayer::WriteBuffer(DemuxerStream::Type type,
   WriteBufferInternal(type, buffer);
 }
 
-void StarboardPlayer::SetBounds(int z_index, const gfx::Rect& rect) {
+void SbPlayerBridge::SetBounds(int z_index, const gfx::Rect& rect) {
   base::AutoLock auto_lock(lock_);
 
   set_bounds_z_index_ = z_index;
@@ -268,7 +271,7 @@ void StarboardPlayer::SetBounds(int z_index, const gfx::Rect& rect) {
   UpdateBounds_Locked();
 }
 
-void StarboardPlayer::PrepareForSeek() {
+void SbPlayerBridge::PrepareForSeek() {
   DCHECK(task_runner_->BelongsToCurrentThread());
 
   seek_pending_ = true;
@@ -281,7 +284,7 @@ void StarboardPlayer::PrepareForSeek() {
   SbPlayerSetPlaybackRate(player_, 0.f);
 }
 
-void StarboardPlayer::Seek(base::TimeDelta time) {
+void SbPlayerBridge::Seek(base::TimeDelta time) {
   DCHECK(task_runner_->BelongsToCurrentThread());
 
   decoder_buffer_cache_.ClearAll();
@@ -306,7 +309,7 @@ void StarboardPlayer::Seek(base::TimeDelta time) {
   SbPlayerSetPlaybackRate(player_, playback_rate_);
 }
 
-void StarboardPlayer::SetVolume(float volume) {
+void SbPlayerBridge::SetVolume(float volume) {
   DCHECK(task_runner_->BelongsToCurrentThread());
 
   volume_ = volume;
@@ -319,7 +322,7 @@ void StarboardPlayer::SetVolume(float volume) {
   SbPlayerSetVolume(player_, volume);
 }
 
-void StarboardPlayer::SetPlaybackRate(double playback_rate) {
+void SbPlayerBridge::SetPlaybackRate(double playback_rate) {
   DCHECK(task_runner_->BelongsToCurrentThread());
 
   playback_rate_ = playback_rate;
@@ -335,9 +338,9 @@ void StarboardPlayer::SetPlaybackRate(double playback_rate) {
   SbPlayerSetPlaybackRate(player_, playback_rate);
 }
 
-void StarboardPlayer::GetInfo(uint32* video_frames_decoded,
-                              uint32* video_frames_dropped,
-                              base::TimeDelta* media_time) {
+void SbPlayerBridge::GetInfo(uint32* video_frames_decoded,
+                             uint32* video_frames_dropped,
+                             base::TimeDelta* media_time) {
   DCHECK(video_frames_decoded || video_frames_dropped || media_time);
 
   base::AutoLock auto_lock(lock_);
@@ -345,7 +348,7 @@ void StarboardPlayer::GetInfo(uint32* video_frames_decoded,
 }
 
 #if SB_HAS(PLAYER_WITH_URL)
-void StarboardPlayer::GetUrlPlayerBufferedTimeRanges(
+void SbPlayerBridge::GetUrlPlayerBufferedTimeRanges(
     base::TimeDelta* buffer_start_time, base::TimeDelta* buffer_length_time) {
   DCHECK(buffer_start_time || buffer_length_time);
   DCHECK(is_url_based_);
@@ -371,7 +374,7 @@ void StarboardPlayer::GetUrlPlayerBufferedTimeRanges(
   }
 }
 
-void StarboardPlayer::GetVideoResolution(int* frame_width, int* frame_height) {
+void SbPlayerBridge::GetVideoResolution(int* frame_width, int* frame_height) {
   DCHECK(frame_width);
   DCHECK(frame_height);
   DCHECK(is_url_based_);
@@ -394,7 +397,7 @@ void StarboardPlayer::GetVideoResolution(int* frame_width, int* frame_height) {
   *frame_height = video_sample_info_.frame_height;
 }
 
-base::TimeDelta StarboardPlayer::GetDuration() {
+base::TimeDelta SbPlayerBridge::GetDuration() {
   DCHECK(is_url_based_);
 
   if (state_ == kSuspended) {
@@ -412,7 +415,7 @@ base::TimeDelta StarboardPlayer::GetDuration() {
   return base::TimeDelta::FromMicroseconds(info.duration);
 }
 
-base::TimeDelta StarboardPlayer::GetStartDate() {
+base::TimeDelta SbPlayerBridge::GetStartDate() {
   DCHECK(is_url_based_);
 
   if (state_ == kSuspended) {
@@ -426,7 +429,7 @@ base::TimeDelta StarboardPlayer::GetStartDate() {
   return base::TimeDelta::FromMicroseconds(info.start_date);
 }
 
-void StarboardPlayer::SetDrmSystem(SbDrmSystem drm_system) {
+void SbPlayerBridge::SetDrmSystem(SbDrmSystem drm_system) {
   DCHECK(is_url_based_);
 
   drm_system_ = drm_system;
@@ -434,7 +437,7 @@ void StarboardPlayer::SetDrmSystem(SbDrmSystem drm_system) {
 }
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
-void StarboardPlayer::Suspend() {
+void SbPlayerBridge::Suspend() {
   DCHECK(task_runner_->BelongsToCurrentThread());
 
   // Check if the player is already suspended.
@@ -446,7 +449,7 @@ void StarboardPlayer::Suspend() {
 
   SbPlayerSetPlaybackRate(player_, 0.0);
 
-  set_bounds_helper_->SetPlayer(NULL);
+  set_bounds_helper_->SetPlayerBridge(NULL);
 
   base::AutoLock auto_lock(lock_);
   GetInfo_Locked(&cached_video_frames_decoded_, &cached_video_frames_dropped_,
@@ -462,7 +465,7 @@ void StarboardPlayer::Suspend() {
   player_ = kSbPlayerInvalid;
 }
 
-void StarboardPlayer::Resume(SbWindow window) {
+void SbPlayerBridge::Resume(SbWindow window) {
   DCHECK(task_runner_->BelongsToCurrentThread());
 
   window_ = window;
@@ -515,18 +518,18 @@ VideoFrameProvider::OutputMode ToVideoFrameProviderOutputMode(
 
 #if SB_HAS(PLAYER_WITH_URL)
 // static
-void StarboardPlayer::EncryptedMediaInitDataEncounteredCB(
+void SbPlayerBridge::EncryptedMediaInitDataEncounteredCB(
     SbPlayer player, void* context, const char* init_data_type,
     const unsigned char* init_data, unsigned int init_data_length) {
-  StarboardPlayer* helper = static_cast<StarboardPlayer*>(context);
+  SbPlayerBridge* helper = static_cast<SbPlayerBridge*>(context);
   DCHECK(!helper->on_encrypted_media_init_data_encountered_cb_.is_null());
   // TODO: Use callback_helper here.
   helper->on_encrypted_media_init_data_encountered_cb_.Run(
       init_data_type, init_data, init_data_length);
 }
 
-void StarboardPlayer::CreateUrlPlayer(const std::string& url) {
-  TRACE_EVENT0("cobalt::media", "StarboardPlayer::CreateUrlPlayer");
+void SbPlayerBridge::CreateUrlPlayer(const std::string& url) {
+  TRACE_EVENT0("cobalt::media", "SbPlayerBridge::CreateUrlPlayer");
   DCHECK(task_runner_->BelongsToCurrentThread());
 
   DCHECK(!on_encrypted_media_init_data_encountered_cb_.is_null());
@@ -539,28 +542,28 @@ void StarboardPlayer::CreateUrlPlayer(const std::string& url) {
   player_creation_time_ = SbTimeGetMonotonicNow();
 
   player_ =
-      SbUrlPlayerCreate(url.c_str(), window_, &StarboardPlayer::PlayerStatusCB,
-                        &StarboardPlayer::EncryptedMediaInitDataEncounteredCB,
-                        &StarboardPlayer::PlayerErrorCB, this);
+      SbUrlPlayerCreate(url.c_str(), window_, &SbPlayerBridge::PlayerStatusCB,
+                        &SbPlayerBridge::EncryptedMediaInitDataEncounteredCB,
+                        &SbPlayerBridge::PlayerErrorCB, this);
   DCHECK(SbPlayerIsValid(player_));
 
   if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
     // If the player is setup to decode to texture, then provide Cobalt with
     // a method of querying that texture.
     video_frame_provider_->SetGetCurrentSbDecodeTargetFunction(base::Bind(
-        &StarboardPlayer::GetCurrentSbDecodeTarget, base::Unretained(this)));
+        &SbPlayerBridge::GetCurrentSbDecodeTarget, base::Unretained(this)));
   }
   video_frame_provider_->SetOutputMode(
       ToVideoFrameProviderOutputMode(output_mode_));
 
-  set_bounds_helper_->SetPlayer(this);
+  set_bounds_helper_->SetPlayerBridge(this);
 
   base::AutoLock auto_lock(lock_);
   UpdateBounds_Locked();
 }
 #endif  // SB_HAS(PLAYER_WITH_URL)
-void StarboardPlayer::CreatePlayer() {
-  TRACE_EVENT0("cobalt::media", "StarboardPlayer::CreatePlayer");
+void SbPlayerBridge::CreatePlayer() {
+  TRACE_EVENT0("cobalt::media", "SbPlayerBridge::CreatePlayer");
   DCHECK(task_runner_->BelongsToCurrentThread());
 
   bool is_visible = SbWindowIsValid(window_);
@@ -588,9 +591,9 @@ void StarboardPlayer::CreatePlayer() {
   creation_param.output_mode = output_mode_;
   DCHECK_EQ(SbPlayerGetPreferredOutputMode(&creation_param), output_mode_);
   player_ = SbPlayerCreate(
-      window_, &creation_param, &StarboardPlayer::DeallocateSampleCB,
-      &StarboardPlayer::DecoderStatusCB, &StarboardPlayer::PlayerStatusCB,
-      &StarboardPlayer::PlayerErrorCB, this,
+      window_, &creation_param, &SbPlayerBridge::DeallocateSampleCB,
+      &SbPlayerBridge::DecoderStatusCB, &SbPlayerBridge::PlayerStatusCB,
+      &SbPlayerBridge::PlayerErrorCB, this,
       get_decode_target_graphics_context_provider_func_.Run());
 
   is_creating_player_ = false;
@@ -603,17 +606,17 @@ void StarboardPlayer::CreatePlayer() {
     // If the player is setup to decode to texture, then provide Cobalt with
     // a method of querying that texture.
     video_frame_provider_->SetGetCurrentSbDecodeTargetFunction(base::Bind(
-        &StarboardPlayer::GetCurrentSbDecodeTarget, base::Unretained(this)));
+        &SbPlayerBridge::GetCurrentSbDecodeTarget, base::Unretained(this)));
   }
   video_frame_provider_->SetOutputMode(
       ToVideoFrameProviderOutputMode(output_mode_));
-  set_bounds_helper_->SetPlayer(this);
+  set_bounds_helper_->SetPlayerBridge(this);
 
   base::AutoLock auto_lock(lock_);
   UpdateBounds_Locked();
 }
 
-void StarboardPlayer::WriteNextBufferFromCache(DemuxerStream::Type type) {
+void SbPlayerBridge::WriteNextBufferFromCache(DemuxerStream::Type type) {
   DCHECK(state_ != kSuspended);
 #if SB_HAS(PLAYER_WITH_URL)
   DCHECK(!is_url_based_);
@@ -629,7 +632,7 @@ void StarboardPlayer::WriteNextBufferFromCache(DemuxerStream::Type type) {
   WriteBufferInternal(type, buffer);
 }
 
-void StarboardPlayer::WriteBufferInternal(
+void SbPlayerBridge::WriteBufferInternal(
     DemuxerStream::Type type, const scoped_refptr<DecoderBuffer>& buffer) {
 #if SB_HAS(PLAYER_WITH_URL)
   DCHECK(!is_url_based_);
@@ -695,17 +698,17 @@ void StarboardPlayer::WriteBufferInternal(
   SbPlayerWriteSample2(player_, sample_type, &sample_info, 1);
 }
 
-SbDecodeTarget StarboardPlayer::GetCurrentSbDecodeTarget() {
+SbDecodeTarget SbPlayerBridge::GetCurrentSbDecodeTarget() {
   return SbPlayerGetCurrentFrame(player_);
 }
 
-SbPlayerOutputMode StarboardPlayer::GetSbPlayerOutputMode() {
+SbPlayerOutputMode SbPlayerBridge::GetSbPlayerOutputMode() {
   return output_mode_;
 }
 
-void StarboardPlayer::GetInfo_Locked(uint32* video_frames_decoded,
-                                     uint32* video_frames_dropped,
-                                     base::TimeDelta* media_time) {
+void SbPlayerBridge::GetInfo_Locked(uint32* video_frames_decoded,
+                                    uint32* video_frames_dropped,
+                                    base::TimeDelta* media_time) {
   lock_.AssertAcquired();
   if (state_ == kSuspended) {
     if (video_frames_decoded) {
@@ -737,7 +740,7 @@ void StarboardPlayer::GetInfo_Locked(uint32* video_frames_decoded,
   }
 }
 
-void StarboardPlayer::UpdateBounds_Locked() {
+void SbPlayerBridge::UpdateBounds_Locked() {
   lock_.AssertAcquired();
   DCHECK(SbPlayerIsValid(player_));
 
@@ -750,7 +753,7 @@ void StarboardPlayer::UpdateBounds_Locked() {
                     rect.width(), rect.height());
 }
 
-void StarboardPlayer::ClearDecoderBufferCache() {
+void SbPlayerBridge::ClearDecoderBufferCache() {
   DCHECK(task_runner_->BelongsToCurrentThread());
 
   if (state_ != kResuming) {
@@ -761,14 +764,14 @@ void StarboardPlayer::ClearDecoderBufferCache() {
 
   task_runner_->PostDelayedTask(
       FROM_HERE,
-      base::Bind(&StarboardPlayer::CallbackHelper::ClearDecoderBufferCache,
+      base::Bind(&SbPlayerBridge::CallbackHelper::ClearDecoderBufferCache,
                  callback_helper_),
       base::TimeDelta::FromMilliseconds(
           kClearDecoderCacheIntervalInMilliseconds));
 }
 
-void StarboardPlayer::OnDecoderStatus(SbPlayer player, SbMediaType type,
-                                      SbPlayerDecoderState state, int ticket) {
+void SbPlayerBridge::OnDecoderStatus(SbPlayer player, SbMediaType type,
+                                     SbPlayerDecoderState state, int ticket) {
 #if SB_HAS(PLAYER_WITH_URL)
   DCHECK(!is_url_based_);
 #endif  // SB_HAS(PLAYER_WITH_URL)
@@ -801,9 +804,9 @@ void StarboardPlayer::OnDecoderStatus(SbPlayer player, SbMediaType type,
   host_->OnNeedData(::media::SbMediaTypeToDemuxerStreamType(type));
 }
 
-void StarboardPlayer::OnPlayerStatus(SbPlayer player, SbPlayerState state,
-                                     int ticket) {
-  TRACE_EVENT1("cobalt::media", "StarboardPlayer::OnPlayerStatus", "state",
+void SbPlayerBridge::OnPlayerStatus(SbPlayer player, SbPlayerState state,
+                                    int ticket) {
+  TRACE_EVENT1("cobalt::media", "SbPlayerBridge::OnPlayerStatus", "state",
                state);
   DCHECK(task_runner_->BelongsToCurrentThread());
 
@@ -842,8 +845,8 @@ void StarboardPlayer::OnPlayerStatus(SbPlayer player, SbPlayerState state,
   host_->OnPlayerStatus(state);
 }
 
-void StarboardPlayer::OnPlayerError(SbPlayer player, SbPlayerError error,
-                                    const std::string& message) {
+void SbPlayerBridge::OnPlayerError(SbPlayer player, SbPlayerError error,
+                                   const std::string& message) {
   DCHECK(task_runner_->BelongsToCurrentThread());
 
   if (player_ != player) {
@@ -852,7 +855,7 @@ void StarboardPlayer::OnPlayerError(SbPlayer player, SbPlayerError error,
   host_->OnPlayerError(error, message);
 }
 
-void StarboardPlayer::OnDeallocateSample(const void* sample_buffer) {
+void SbPlayerBridge::OnDeallocateSample(const void* sample_buffer) {
 #if SB_HAS(PLAYER_WITH_URL)
   DCHECK(!is_url_based_);
 #endif  // SB_HAS(PLAYER_WITH_URL)
@@ -861,7 +864,7 @@ void StarboardPlayer::OnDeallocateSample(const void* sample_buffer) {
   DecodingBuffers::iterator iter = decoding_buffers_.find(sample_buffer);
   DCHECK(iter != decoding_buffers_.end());
   if (iter == decoding_buffers_.end()) {
-    LOG(ERROR) << "StarboardPlayer::OnDeallocateSample encounters unknown "
+    LOG(ERROR) << "SbPlayerBridge::OnDeallocateSample encounters unknown "
                << "sample_buffer " << sample_buffer;
     return;
   }
@@ -871,7 +874,7 @@ void StarboardPlayer::OnDeallocateSample(const void* sample_buffer) {
   }
 }
 
-bool StarboardPlayer::TryToSetPlayerCreationErrorMessage(
+bool SbPlayerBridge::TryToSetPlayerCreationErrorMessage(
     const std::string& message) {
   DCHECK(task_runner_->BelongsToCurrentThread());
   if (is_creating_player_) {
@@ -885,29 +888,29 @@ bool StarboardPlayer::TryToSetPlayerCreationErrorMessage(
 }
 
 // static
-void StarboardPlayer::DecoderStatusCB(SbPlayer player, void* context,
-                                      SbMediaType type,
-                                      SbPlayerDecoderState state, int ticket) {
-  StarboardPlayer* helper = static_cast<StarboardPlayer*>(context);
+void SbPlayerBridge::DecoderStatusCB(SbPlayer player, void* context,
+                                     SbMediaType type,
+                                     SbPlayerDecoderState state, int ticket) {
+  SbPlayerBridge* helper = static_cast<SbPlayerBridge*>(context);
   helper->task_runner_->PostTask(
       FROM_HERE,
-      base::Bind(&StarboardPlayer::CallbackHelper::OnDecoderStatus,
+      base::Bind(&SbPlayerBridge::CallbackHelper::OnDecoderStatus,
                  helper->callback_helper_, player, type, state, ticket));
 }
 
 // static
-void StarboardPlayer::PlayerStatusCB(SbPlayer player, void* context,
-                                     SbPlayerState state, int ticket) {
-  StarboardPlayer* helper = static_cast<StarboardPlayer*>(context);
+void SbPlayerBridge::PlayerStatusCB(SbPlayer player, void* context,
+                                    SbPlayerState state, int ticket) {
+  SbPlayerBridge* helper = static_cast<SbPlayerBridge*>(context);
   helper->task_runner_->PostTask(
-      FROM_HERE, base::Bind(&StarboardPlayer::CallbackHelper::OnPlayerStatus,
+      FROM_HERE, base::Bind(&SbPlayerBridge::CallbackHelper::OnPlayerStatus,
                             helper->callback_helper_, player, state, ticket));
 }
 
 // static
-void StarboardPlayer::PlayerErrorCB(SbPlayer player, void* context,
-                                    SbPlayerError error, const char* message) {
-  StarboardPlayer* helper = static_cast<StarboardPlayer*>(context);
+void SbPlayerBridge::PlayerErrorCB(SbPlayer player, void* context,
+                                   SbPlayerError error, const char* message) {
+  SbPlayerBridge* helper = static_cast<SbPlayerBridge*>(context);
   if (player == kSbPlayerInvalid) {
     // TODO: Simplify by combining the functionality of
     // TryToSetPlayerCreationErrorMessage() with OnPlayerError().
@@ -916,24 +919,23 @@ void StarboardPlayer::PlayerErrorCB(SbPlayer player, void* context,
     }
   }
   helper->task_runner_->PostTask(
-      FROM_HERE, base::Bind(&StarboardPlayer::CallbackHelper::OnPlayerError,
+      FROM_HERE, base::Bind(&SbPlayerBridge::CallbackHelper::OnPlayerError,
                             helper->callback_helper_, player, error,
                             message ? std::string(message) : ""));
 }
 
 // static
-void StarboardPlayer::DeallocateSampleCB(SbPlayer player, void* context,
-                                         const void* sample_buffer) {
-  StarboardPlayer* helper = static_cast<StarboardPlayer*>(context);
+void SbPlayerBridge::DeallocateSampleCB(SbPlayer player, void* context,
+                                        const void* sample_buffer) {
+  SbPlayerBridge* helper = static_cast<SbPlayerBridge*>(context);
   helper->task_runner_->PostTask(
-      FROM_HERE,
-      base::Bind(&StarboardPlayer::CallbackHelper::OnDeallocateSample,
-                 helper->callback_helper_, sample_buffer));
+      FROM_HERE, base::Bind(&SbPlayerBridge::CallbackHelper::OnDeallocateSample,
+                            helper->callback_helper_, sample_buffer));
 }
 
 #if SB_HAS(PLAYER_WITH_URL)
 // static
-SbPlayerOutputMode StarboardPlayer::ComputeSbUrlPlayerOutputMode(
+SbPlayerOutputMode SbPlayerBridge::ComputeSbUrlPlayerOutputMode(
     bool prefer_decode_to_texture) {
   // Try to choose the output mode according to the passed in value of
   // |prefer_decode_to_texture|.  If the preferred output mode is unavailable
@@ -953,7 +955,7 @@ SbPlayerOutputMode StarboardPlayer::ComputeSbUrlPlayerOutputMode(
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
 // static
-SbPlayerOutputMode StarboardPlayer::ComputeSbPlayerOutputMode(
+SbPlayerOutputMode SbPlayerBridge::ComputeSbPlayerOutputMode(
     bool prefer_decode_to_texture) const {
   SbPlayerCreationParam creation_param = {};
   creation_param.drm_system = drm_system_;
@@ -972,7 +974,7 @@ SbPlayerOutputMode StarboardPlayer::ComputeSbPlayerOutputMode(
   return output_mode;
 }
 
-void StarboardPlayer::LogStartupLatency() const {
+void SbPlayerBridge::LogStartupLatency() const {
   std::string first_events_str;
   if (set_drm_system_ready_cb_time_ == -1) {
     first_events_str =

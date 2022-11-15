@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_MEDIA_BASE_STARBOARD_PLAYER_H_
-#define COBALT_MEDIA_BASE_STARBOARD_PLAYER_H_
+#ifndef COBALT_MEDIA_BASE_SBPLAYER_BRIDGE_H_
+#define COBALT_MEDIA_BASE_SBPLAYER_BRIDGE_H_
 
 #include <map>
 #include <string>
@@ -42,7 +42,7 @@ namespace cobalt {
 namespace media {
 
 // TODO: Add switch to disable caching
-class StarboardPlayer {
+class SbPlayerBridge {
   typedef ::media::AudioDecoderConfig AudioDecoderConfig;
   typedef ::media::DecoderBuffer DecoderBuffer;
   typedef ::media::DemuxerStream DemuxerStream;
@@ -67,32 +67,30 @@ class StarboardPlayer {
 #if SB_HAS(PLAYER_WITH_URL)
   typedef base::Callback<void(const char*, const unsigned char*, unsigned)>
       OnEncryptedMediaInitDataEncounteredCB;
-  // Create a StarboardPlayer with url-based player.
-  StarboardPlayer(
-      const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
-      const std::string& url, SbWindow window, Host* host,
-      SbPlayerSetBoundsHelper* set_bounds_helper,
-      bool allow_resume_after_suspend, bool prefer_decode_to_texture,
-      const OnEncryptedMediaInitDataEncounteredCB&
-          encrypted_media_init_data_encountered_cb,
-      VideoFrameProvider* const video_frame_provider);
+  // Create an SbPlayerBridge with url-based player.
+  SbPlayerBridge(const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
+                 const std::string& url, SbWindow window, Host* host,
+                 SbPlayerSetBoundsHelper* set_bounds_helper,
+                 bool allow_resume_after_suspend, bool prefer_decode_to_texture,
+                 const OnEncryptedMediaInitDataEncounteredCB&
+                     encrypted_media_init_data_encountered_cb,
+                 VideoFrameProvider* const video_frame_provider);
 #endif  // SB_HAS(PLAYER_WITH_URL)
-  // Create a StarboardPlayer with normal player
-  StarboardPlayer(
-      const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
-      const GetDecodeTargetGraphicsContextProviderFunc&
-          get_decode_target_graphics_context_provider_func,
-      const AudioDecoderConfig& audio_config,
-      const std::string& audio_mime_type,
-      const VideoDecoderConfig& video_config,
-      const std::string& video_mime_type, SbWindow window,
-      SbDrmSystem drm_system, Host* host,
-      SbPlayerSetBoundsHelper* set_bounds_helper,
-      bool allow_resume_after_suspend, bool prefer_decode_to_texture,
-      VideoFrameProvider* const video_frame_provider,
-      const std::string& max_video_capabilities);
+  // Create an SbPlayerBridge with normal player
+  SbPlayerBridge(const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
+                 const GetDecodeTargetGraphicsContextProviderFunc&
+                     get_decode_target_graphics_context_provider_func,
+                 const AudioDecoderConfig& audio_config,
+                 const std::string& audio_mime_type,
+                 const VideoDecoderConfig& video_config,
+                 const std::string& video_mime_type, SbWindow window,
+                 SbDrmSystem drm_system, Host* host,
+                 SbPlayerSetBoundsHelper* set_bounds_helper,
+                 bool allow_resume_after_suspend, bool prefer_decode_to_texture,
+                 VideoFrameProvider* const video_frame_provider,
+                 const std::string& max_video_capabilities);
 
-  ~StarboardPlayer();
+  ~SbPlayerBridge();
 
   bool IsValid() const { return SbPlayerIsValid(player_); }
 
@@ -152,10 +150,10 @@ class StarboardPlayer {
   };
 
   // This class ensures that the callbacks posted to |task_runner_| are ignored
-  // automatically once StarboardPlayer is destroyed.
+  // automatically once SbPlayerBridge is destroyed.
   class CallbackHelper : public base::RefCountedThreadSafe<CallbackHelper> {
    public:
-    explicit CallbackHelper(StarboardPlayer* player);
+    explicit CallbackHelper(SbPlayerBridge* player_bridge);
 
     void ClearDecoderBufferCache();
 
@@ -170,7 +168,7 @@ class StarboardPlayer {
 
    private:
     base::Lock lock_;
-    StarboardPlayer* player_;
+    SbPlayerBridge* player_bridge_;
   };
 
   static const int64 kClearDecoderCacheIntervalInMilliseconds = 1000;
@@ -306,4 +304,4 @@ class StarboardPlayer {
 }  // namespace media
 }  // namespace cobalt
 
-#endif  // COBALT_MEDIA_BASE_STARBOARD_PLAYER_H_
+#endif  // COBALT_MEDIA_BASE_SBPLAYER_BRIDGE_H_
