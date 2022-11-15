@@ -35,8 +35,10 @@ def MetadataInParentDirectory(filename: str) -> bool:
 
 
 def GetCreatedFiles() -> List[str]:
-  from_ref = os.environ['PRE_COMMIT_FROM_REF']
-  to_ref = os.environ['PRE_COMMIT_TO_REF']
+  from_ref = os.environ.get('PRE_COMMIT_FROM_REF')
+  to_ref = os.environ.get('PRE_COMMIT_TO_REF')
+  if not from_ref or not to_ref:
+    return []
 
   new_files = subprocess.check_output(
       ['git', 'diff', from_ref, to_ref, '--name-only',
