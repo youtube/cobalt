@@ -266,11 +266,15 @@ jobs:
             echo "LOADER_CONFIG=${{ matrix.config }}" >> $GITHUB_ENV
             echo "LOADER_PLATFORM=${{ needs.initialize.outputs.bootloader }}" >> $GITHUB_ENV
           fi
-      - name: run ${{ matrix.type }} tests on ${{ matrix.platform }} platform
-        id: on_device_test
+          if [ "${{ matrix.dimension }}" != "null" ]; then
+            echo "DIMENSION=${{ matrix.dimension }}" >> $GITHUB_ENV
+          fi
+      - name: trigger ${{ matrix.type }} tests on ${{ matrix.platform }} platform
         run: |
+          echo "session_id=$(
           python3 tools/on_device_tests_gateway_client.py \
             --token ${{ github.token }} \
+            trigger \
             --test_type ${{ matrix.type }} \
             --platform ${{ matrix.target_platform }} \
             --config ${{ matrix.config }} \
@@ -281,7 +285,15 @@ jobs:
             --build_number ${GITHUB_RUN_NUMBER} \
             ${LOADER_PLATFORM:+"--loader_config" "$LOADER_CONFIG"} \
             ${LOADER_PLATFORM:+"--loader_platform" "$LOADER_PLATFORM"} \
+            ${DIMENSION:+"--dimension" "$DIMENSION"} \
             --archive_path gs://${PROJECT_NAME}-test-artifacts-tmp/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${{ matrix.platform }}_${{ matrix.config }}/artifacts.tar
+          )" >> $GITHUB_ENV
+        shell: bash
+      - name: watch ${{ matrix.type }} tests on ${{ matrix.platform }} platform
+        run: |
+          python3 tools/on_device_tests_gateway_client.py \
+            --token ${{ github.token }} \
+            watch ${{ env.session_id }}
         shell: bash
 
   # Runs on-host integration and unit tests.

@@ -22,6 +22,9 @@ service on_device_tests_gateway {
   // to the on-device tests gateway and streams back output in real time.
   rpc exec_command (OnDeviceTestsCommand) returns (stream OnDeviceTestsResponse) {
   }
+
+  rpc exec_watch_command (OnDeviceTestsWatchCommand) returns (stream OnDeviceTestsResponse) {
+  }
 }
 
 // Working directory and command line arguments to be passed to the gateway.
@@ -43,7 +46,17 @@ message OnDeviceTestsCommand {
   string build_number = 11;
   string loader_platform = 12;
   string loader_config = 13;
-  optional bool dry_run = 14;
+  string version = 14;
+  optional bool dry_run = 15;
+  repeated string dimension = 16;
+}
+
+// Working directory and command line arguments to be passed to the gateway.
+message OnDeviceTestsWatchCommand {
+  string workdir = 1;
+  string token = 2;
+  string session_id = 3;
+  optional bool dry_run = 15;
 }
 
 // Response from the on-device tests.

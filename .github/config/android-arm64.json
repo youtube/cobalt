@@ -16,7 +16,7 @@
       "platform":"android-arm64",
       "target_platform":"android-arm64",
       "target_cpu":"target_cpu=\\\"arm64\\\"",
-      "target_os":"target_os=\\\"android\\\""
+      "target_os": "target_os=\\\"android\\\""
     }
   ]
 }
