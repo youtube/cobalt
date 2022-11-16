@@ -26,7 +26,7 @@ runs:
       run: |
         set -x
         PROJECT_NAME=$(gcloud config get-value project)
-        gsutil cp gs://${PROJECT_NAME}-test-artifacts/${{github.workflow}}/${GITHUB_RUN_NUMBER}/${{matrix.platform}}_${{matrix.config}}/${{matrix.platform}}_${{matrix.config}}.${ARCHIVE_EXTENSION} ${GITHUB_WORKSPACE}/out/tmp/${{matrix.platform}}_${{matrix.config}}.${ARCHIVE_EXTENSION}
+        gsutil cp gs://${PROJECT_NAME}-test-artifacts-tmp/${{github.workflow}}/${GITHUB_RUN_NUMBER}/${{matrix.platform}}_${{matrix.config}}/${{matrix.platform}}_${{matrix.config}}.${ARCHIVE_EXTENSION} ${GITHUB_WORKSPACE}/out/tmp/${{matrix.platform}}_${{matrix.config}}.${ARCHIVE_EXTENSION}
     - name: Extract Archive
       shell: bash
       run: |
@@ -43,7 +43,7 @@ runs:
       run: |
         set -x
         PROJECT_NAME=$(gcloud config get-value project)
-        gsutil cp gs://${PROJECT_NAME}-test-artifacts/${{github.workflow}}/${GITHUB_RUN_NUMBER}/${{matrix.platform}}_${{matrix.config}}/${COBALT_BOOTLOADER}_${{matrix.config}}.${ARCHIVE_EXTENSION} ${GITHUB_WORKSPACE}/out/tmp/${COBALT_BOOTLOADER}_${{matrix.config}}.${ARCHIVE_EXTENSION}
+        gsutil cp gs://${PROJECT_NAME}-test-artifacts-tmp/${{github.workflow}}/${GITHUB_RUN_NUMBER}/${{matrix.platform}}_${{matrix.config}}/${COBALT_BOOTLOADER}_${{matrix.config}}.${ARCHIVE_EXTENSION} ${GITHUB_WORKSPACE}/out/tmp/${COBALT_BOOTLOADER}_${{matrix.config}}.${ARCHIVE_EXTENSION}
     - name: Extract Bootloader Archive
       if: ${{ env.COBALT_BOOTLOADER != null && env.COBALT_BOOTLOADER != 'null' }}
       shell: bash
