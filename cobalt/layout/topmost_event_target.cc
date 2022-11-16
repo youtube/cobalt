@@ -260,6 +260,7 @@ void TopmostEventTarget::HandleScrollState(
       element_to_scroll->DispatchEvent(new dom::PointerEvent(
           base::Tokens::pointerleave(), web::Event::kNotBubbles,
           web::Event::kNotCancelable, view, *event_init));
+      pointer_state->SetWasCancelled(pointer_id);
 
       should_clear_pointer_state = true;
       scroll_engine_->thread()->message_loop()->task_runner()->PostTask(
@@ -576,8 +577,16 @@ void TopmostEventTarget::MaybeSendPointerEvents(
                              target_element, nearest_common_ancestor,
                              &event_init);
 
+  bool event_was_cancelled = pointer_event && pointer_state->GetWasCancelled(
+                                                  pointer_event->pointer_id());
+  if (pointer_event && pointer_event->type() == base::Tokens::pointerup()) {
+    pointer_state->ClearWasCancelled(pointer_event->pointer_id());
+  }
+
   if (target_element) {
-    target_element->DispatchEvent(event);
+    if (!event_was_cancelled) {
+      target_element->DispatchEvent(event);
+    }
   }
 
   if (pointer_event) {
@@ -591,7 +600,7 @@ void TopmostEventTarget::MaybeSendPointerEvents(
       pointer_state->ClearPendingPointerCaptureTargetOverride(
           pointer_event->pointer_id());
     }
-    if (target_element && !is_touchpad_event) {
+    if (target_element && !is_touchpad_event && !event_was_cancelled) {
       SendCompatibilityMappingMouseEvent(target_element, event, pointer_event,
                                          event_init,
                                          &mouse_event_prevent_flags_);
