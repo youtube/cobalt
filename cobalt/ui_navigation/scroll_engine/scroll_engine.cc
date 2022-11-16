@@ -98,6 +98,8 @@ ScrollEngine::ScrollEngine()
 ScrollEngine::~ScrollEngine() { free_scroll_timer_.Stop(); }
 
 void ScrollEngine::MaybeFreeScrollActiveNavItem() {
+  DCHECK(base::MessageLoop::current() == scroll_engine_.message_loop());
+
   DCHECK(previous_events_.size() == 2);
   if (previous_events_.size() != 2) {
     return;
@@ -144,6 +146,8 @@ void ScrollEngine::MaybeFreeScrollActiveNavItem() {
 
 void ScrollEngine::HandlePointerEventForActiveItem(
     scoped_refptr<dom::PointerEvent> pointer_event) {
+  DCHECK(base::MessageLoop::current() == scroll_engine_.message_loop());
+
   if (pointer_event->type() == base::Tokens::pointerup()) {
     MaybeFreeScrollActiveNavItem();
     active_item_ = nullptr;
@@ -182,6 +186,8 @@ void ScrollEngine::HandlePointerEventForActiveItem(
 
 void ScrollEngine::HandlePointerEvent(base::Token type,
                                       const dom::PointerEventInit& event) {
+  DCHECK(base::MessageLoop::current() == scroll_engine_.message_loop());
+
   scoped_refptr<dom::PointerEvent> pointer_event(
       new dom::PointerEvent(type, nullptr, event));
   uint32_t pointer_id = pointer_event->pointer_id();
@@ -221,6 +227,8 @@ void ScrollEngine::HandleScrollStart(
     ScrollType scroll_type, int32_t pointer_id,
     math::Vector2dF initial_coordinates, uint64 initial_time_stamp,
     math::Vector2dF current_coordinates, uint64 current_time_stamp) {
+  DCHECK(base::MessageLoop::current() == scroll_engine_.message_loop());
+
   auto drag_vector = initial_coordinates - current_coordinates;
   if (ShouldFreeScroll(scroll_container, drag_vector)) {
     scroll_type = ScrollType::Free;
@@ -250,6 +258,8 @@ void ScrollEngine::HandleScrollStart(
 
 void ScrollEngine::CancelActiveScrollsForNavItems(
     std::vector<scoped_refptr<ui_navigation::NavItem>> scrolls_to_cancel) {
+  DCHECK(base::MessageLoop::current() == scroll_engine_.message_loop());
+
   for (auto scroll_to_cancel : scrolls_to_cancel) {
     for (std::vector<FreeScrollingNavItem>::iterator it =
              nav_items_with_decaying_scroll_.begin();
@@ -264,6 +274,8 @@ void ScrollEngine::CancelActiveScrollsForNavItems(
 }
 
 void ScrollEngine::ScrollNavItemsWithDecayingScroll() {
+  DCHECK(base::MessageLoop::current() == scroll_engine_.message_loop());
+
   if (nav_items_with_decaying_scroll_.size() == 0) {
     free_scroll_timer_.Stop();
     return;
