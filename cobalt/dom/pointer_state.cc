@@ -297,6 +297,19 @@ void PointerState::ClearTimeStamp(int32_t pointer_id) {
   client_time_stamps_.erase(pointer_id);
 }
 
+void PointerState::SetWasCancelled(int32_t pointer_id) {
+  client_cancellations_.insert(pointer_id);
+}
+
+bool PointerState::GetWasCancelled(int32_t pointer_id) {
+  auto client_cancellation = client_cancellations_.find(pointer_id);
+  return client_cancellation != client_cancellations_.end();
+}
+
+void PointerState::ClearWasCancelled(int32_t pointer_id) {
+  client_cancellations_.erase(pointer_id);
+}
+
 // static
 bool PointerState::CanQueueEvent(const scoped_refptr<web::Event>& event) {
   return event->GetWrappableType() == base::GetTypeId<PointerEvent>() ||

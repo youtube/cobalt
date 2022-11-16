@@ -85,6 +85,13 @@ class PointerState {
   base::Optional<uint64> GetClientTimeStamp(int32_t pointer_id);
   void ClearTimeStamp(int32_t pointer_id);
 
+  // Tracks whether a certain pointer was cancelled, i.e. if it panned the
+  // page viewport.
+  // https://www.w3.org/TR/pointerevents1/#the-pointercancel-event
+  void SetWasCancelled(int32_t pointer_id);
+  bool GetWasCancelled(int32_t pointer_id);
+  void ClearWasCancelled(int32_t pointer_id);
+
   static bool CanQueueEvent(const scoped_refptr<web::Event>& event);
 
  private:
@@ -106,6 +113,7 @@ class PointerState {
 
   std::map<int32_t, math::Vector2dF> client_coordinates_;
   std::map<int32_t, uint64> client_time_stamps_;
+  std::set<int32_t> client_cancellations_;
 };
 
 }  // namespace dom
