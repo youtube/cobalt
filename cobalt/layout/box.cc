@@ -60,8 +60,8 @@ using cobalt::render_tree::RectNode;
 using cobalt::render_tree::RoundedCorner;
 using cobalt::render_tree::RoundedCorners;
 using cobalt::render_tree::ViewportFilter;
-using cobalt::render_tree::animations::Animation;
 using cobalt::render_tree::animations::AnimateNode;
+using cobalt::render_tree::animations::Animation;
 
 namespace cobalt {
 namespace layout {
@@ -258,11 +258,13 @@ RectLayoutUnit Box::GetTransformedBoxFromRoot(
 }
 
 RectLayoutUnit Box::GetTransformedBoxFromRootWithScroll(
-    const RectLayoutUnit& box_from_margin_box) const {
+    const RectLayoutUnit& box_from_margin_box,
+    bool transform_forms_root) const {
   // Get the transformed box from root while factoring in scrollLeft and
   // scrollTop of intermediate containers.
   return GetTransformedBox(
-      GetMarginBoxTransformFromContainingBlockWithScroll(nullptr),
+      GetMarginBoxTransformFromContainingBlockWithScroll(
+          nullptr, transform_forms_root /* transform_forms_root */),
       box_from_margin_box);
 }
 
@@ -383,11 +385,14 @@ LayoutUnit Box::GetMarginBoxHeight() const {
 }
 
 math::Matrix3F Box::GetMarginBoxTransformFromContainingBlockInternal(
-    const ContainerBox* containing_block, bool include_scroll) const {
+    const ContainerBox* containing_block, bool transform_forms_root,
+    bool include_scroll) const {
   math::Matrix3F transform = math::Matrix3F::Identity();
   if (this == containing_block) {
     return transform;
   }
+
+  bool only_apply_scroll_transform = false;
 
   // Walk up the containing block tree to build the transform matrix.
   // The logic is similar to using ApplyTransformActionToCoordinate with exit
@@ -395,26 +400,36 @@ math::Matrix3F Box::GetMarginBoxTransformFromContainingBlockInternal(
   // GetMarginBoxOffsetFromRoot is also factored in.
   for (const Box* box = this;;) {
     // Factor in the margin box offset.
-    transform =
-        math::TranslateMatrix(
-            box->margin_box_offset_from_containing_block().x().toFloat(),
-            box->margin_box_offset_from_containing_block().y().toFloat()) *
-        transform;
+    if (!only_apply_scroll_transform) {
+      transform =
+          math::TranslateMatrix(
+              box->margin_box_offset_from_containing_block().x().toFloat(),
+              box->margin_box_offset_from_containing_block().y().toFloat()) *
+          transform;
+    }
 
     // Factor in the box's transform.
     if (box->IsTransformed()) {
-      Vector2dLayoutUnit transform_rect_offset =
-          box->margin_box_offset_from_containing_block() +
-          box->GetBorderBoxOffsetFromMarginBox();
-      transform =
-          GetCSSTransform(box->computed_style()->transform().get(),
-                          box->computed_style()->transform_origin().get(),
-                          math::RectF(transform_rect_offset.x().toFloat(),
-                                      transform_rect_offset.y().toFloat(),
-                                      box->GetBorderBoxWidth().toFloat(),
-                                      box->GetBorderBoxHeight().toFloat()),
-                          box->ComputeUiNavFocusForTransform()) *
-          transform;
+      if (transform_forms_root) {
+        if (!include_scroll) {
+          break;
+        }
+        only_apply_scroll_transform = true;
+      }
+      if (!only_apply_scroll_transform) {
+        Vector2dLayoutUnit transform_rect_offset =
+            box->margin_box_offset_from_containing_block() +
+            box->GetBorderBoxOffsetFromMarginBox();
+        transform =
+            GetCSSTransform(box->computed_style()->transform().get(),
+                            box->computed_style()->transform_origin().get(),
+                            math::RectF(transform_rect_offset.x().toFloat(),
+                                        transform_rect_offset.y().toFloat(),
+                                        box->GetBorderBoxWidth().toFloat(),
+                                        box->GetBorderBoxHeight().toFloat()),
+                            box->ComputeUiNavFocusForTransform()) *
+            transform;
+      }
     }
 
     const ContainerBox* container = box->GetContainingBlock();
@@ -422,16 +437,18 @@ math::Matrix3F Box::GetMarginBoxTransformFromContainingBlockInternal(
       break;
     }
 
-    // Convert the transform into the container's coordinate space.
-    Vector2dLayoutUnit containing_block_offset =
-        box->GetContainingBlockOffsetFromItsContentBox(container) +
-        container->GetContentBoxOffsetFromMarginBox();
-    transform = math::TranslateMatrix(containing_block_offset.x().toFloat(),
-                                      containing_block_offset.y().toFloat()) *
-                transform;
+    if (!only_apply_scroll_transform) {
+      // Convert the transform into the container's coordinate space.
+      Vector2dLayoutUnit containing_block_offset =
+          box->GetContainingBlockOffsetFromItsContentBox(container) +
+          container->GetContentBoxOffsetFromMarginBox();
+      transform = math::TranslateMatrix(containing_block_offset.x().toFloat(),
+                                        containing_block_offset.y().toFloat()) *
+                  transform;
+    }
 
     // Factor in the container's scrollLeft / scrollTop as needed.
-    if (include_scroll && container->ui_nav_item_ &&
+    if (container && include_scroll && container->ui_nav_item_ &&
         container->ui_nav_item_->IsContainer()) {
       float left, top;
       container->ui_nav_item_->GetContentOffset(&left, &top);
@@ -447,13 +464,14 @@ math::Matrix3F Box::GetMarginBoxTransformFromContainingBlockInternal(
 math::Matrix3F Box::GetMarginBoxTransformFromContainingBlock(
     const ContainerBox* containing_block) const {
   return GetMarginBoxTransformFromContainingBlockInternal(
-      containing_block, false /* include_scroll */);
+      containing_block, false /* transform_forms_root */,
+      false /* include_scroll */);
 }
 
 math::Matrix3F Box::GetMarginBoxTransformFromContainingBlockWithScroll(
-    const ContainerBox* containing_block) const {
+    const ContainerBox* containing_block, bool transform_forms_root) const {
   return GetMarginBoxTransformFromContainingBlockInternal(
-      containing_block, true /* include_scroll */);
+      containing_block, transform_forms_root, true /* include_scroll */);
 }
 
 Vector2dLayoutUnit Box::GetMarginBoxOffsetFromRoot(
@@ -1211,7 +1229,9 @@ int Box::GetOrder() const {
 }
 
 bool Box::IsUnderCoordinate(const Vector2dLayoutUnit& coordinate) const {
-  RectLayoutUnit rect = GetBorderBoxFromRoot(true /*transform_forms_root*/);
+  RectLayoutUnit rect = GetTransformedBoxFromRootWithScroll(
+      GetBorderBoxFromMarginBox(), true /* transform_forms_root */);
+
   bool res =
       coordinate.x() >= rect.x() && coordinate.x() <= rect.x() + rect.width() &&
       coordinate.y() >= rect.y() && coordinate.y() <= rect.y() + rect.height();
