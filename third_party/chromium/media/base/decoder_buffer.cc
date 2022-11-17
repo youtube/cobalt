@@ -7,9 +7,6 @@
 #include <sstream>
 
 #include "base/debug/alias.h"
-#if defined(STARBOARD)
-#include "starboard/media.h"
-#endif  // defined(STARBOARD)
 
 namespace media {
 
@@ -18,6 +15,12 @@ namespace media {
 namespace {
 DecoderBuffer::Allocator* s_allocator = nullptr;
 }  // namespace
+
+// static
+DecoderBuffer::Allocator* DecoderBuffer::Allocator::GetInstance() {
+  DCHECK(s_allocator);
+  return s_allocator;
+}
 
 // static
 void DecoderBuffer::Allocator::Set(Allocator* allocator) {
@@ -73,8 +76,7 @@ DecoderBuffer::DecoderBuffer(std::unique_ptr<UnalignedSharedMemory> shm,
       is_key_frame_(false) {}
 
 DecoderBuffer::DecoderBuffer(
-    std::unique_ptr<ReadOnlyUnalignedMapping> shared_mem_mapping,
-    size_t size)
+    std::unique_ptr<ReadOnlyUnalignedMapping> shared_mem_mapping, size_t size)
     : size_(size),
       side_data_size_(0),
       shared_mem_mapping_(std::move(shared_mem_mapping)),
@@ -96,15 +98,8 @@ void DecoderBuffer::Initialize() {
   DCHECK(s_allocator);
   DCHECK(!data_);
 
-#if SB_API_VERSION >= 14
-  int alignment = SbMediaGetBufferAlignment();
-  int padding = SbMediaGetBufferPadding();
-#else  // SB_API_VERSION >= 14
-  int alignment = std::max(SbMediaGetBufferAlignment(kSbMediaTypeAudio),
-                           SbMediaGetBufferAlignment(kSbMediaTypeVideo));
-  int padding = std::max(SbMediaGetBufferPadding(kSbMediaTypeAudio),
-                         SbMediaGetBufferPadding(kSbMediaTypeVideo));
-#endif  // SB_API_VERSION >= 14
+  int alignment = s_allocator->GetBufferAlignment();
+  int padding = s_allocator->GetBufferPadding();
   allocated_size_ = size_ + padding;
   data_ = static_cast<uint8_t*>(s_allocator->Allocate(allocated_size_,
                                                       alignment));

@@ -14,12 +14,12 @@
 #include "base/logging.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/trace_event/trace_event.h"
+#if defined(STARBOARD)
+#include "media/base/decoder_buffer.h"
+#endif  // defined(STARBOARD)
 #include "media/base/demuxer_memory_limit.h"
 #include "media/base/media_switches.h"
 #include "media/base/timestamp_constants.h"
-#if defined(STARBOARD)
-#include "starboard/media.h"
-#endif  // defined(STARBOARD)
 
 namespace media {
 
@@ -849,7 +849,8 @@ bool SourceBufferStream::GarbageCollectIfNeeded(base::TimeDelta media_time,
   // Address duration based GC.
   base::TimeDelta duration = GetBufferedDurationForGarbageCollection();
   const SbTime duration_gc_threadold =
-      SbMediaGetBufferGarbageCollectionDurationThreshold();
+      DecoderBuffer::Allocator::GetInstance()
+          ->GetBufferGarbageCollectionDurationThreshold();
   if (duration.ToSbTime() > duration_gc_threadold) {
     effective_memory_limit = ranges_size * duration_gc_threadold /
                              duration.ToSbTime();

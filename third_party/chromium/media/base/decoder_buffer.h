@@ -21,9 +21,11 @@
 #include "media/base/decrypt_config.h"
 #include "media/base/media_export.h"
 #include "media/base/timestamp_constants.h"
-#if !defined(STARBOARD)
+#if defined(STARBOARD)
+#include "starboard/media.h"
+#else  // defined(STARBOARD)
 #include "media/base/unaligned_shared_memory.h"
-#endif  // !defined(STARBOARD)
+#endif  // defined(STARBOARD)
 
 namespace media {
 
@@ -46,16 +48,31 @@ class MEDIA_EXPORT DecoderBuffer
 
 #if defined(STARBOARD)
   class Allocator {
-    public:
-      // The function should never return nullptr.  It may terminate the app on
-      // allocation failure.
-      virtual void* Allocate(size_t size, size_t alignment) = 0;
-      virtual void Free(void* p, size_t size) = 0;
+   public:
+    static Allocator* GetInstance();
 
-    protected:
-      ~Allocator() {}
+    // The function should never return nullptr.  It may terminate the app on
+    // allocation failure.
+    virtual void* Allocate(size_t size, size_t alignment) = 0;
+    virtual void Free(void* p, size_t size) = 0;
 
-      static void Set(Allocator* allocator);
+    virtual int GetAudioBufferBudget() const = 0;
+    virtual int GetBufferAlignment() const = 0;
+    virtual int GetBufferPadding() const = 0;
+    virtual SbTime GetBufferGarbageCollectionDurationThreshold() const = 0;
+    virtual int GetProgressiveBufferBudget(SbMediaVideoCodec codec,
+                                           int resolution_width,
+                                           int resolution_height,
+                                           int bits_per_pixel) const = 0;
+    virtual int GetVideoBufferBudget(SbMediaVideoCodec codec,
+                                     int resolution_width,
+                                     int resolution_height,
+                                     int bits_per_pixel) const = 0;
+
+   protected:
+    ~Allocator() {}
+
+    static void Set(Allocator* allocator);
   };
 #endif  // defined(STARBOARD)
 
