@@ -43,6 +43,17 @@ class DecoderBufferAllocator : public ::media::DecoderBuffer::Allocator,
   void* Allocate(size_t size, size_t alignment) override;
   void Free(void* p, size_t size) override;
 
+  int GetAudioBufferBudget() const override;
+  int GetBufferAlignment() const override;
+  int GetBufferPadding() const override;
+  SbTime GetBufferGarbageCollectionDurationThreshold() const override;
+  int GetProgressiveBufferBudget(SbMediaVideoCodec codec, int resolution_width,
+                                 int resolution_height,
+                                 int bits_per_pixel) const override;
+  int GetVideoBufferBudget(SbMediaVideoCodec codec, int resolution_width,
+                           int resolution_height,
+                           int bits_per_pixel) const override;
+
   // DecoderBufferMemoryInfo methods.
   size_t GetAllocatedMemory() const override;
   size_t GetCurrentMemoryCapacity() const override;

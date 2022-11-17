@@ -162,6 +162,48 @@ void DecoderBufferAllocator::Free(void* p, size_t size) {
   }
 }
 
+int DecoderBufferAllocator::GetAudioBufferBudget() const {
+  return SbMediaGetAudioBufferBudget();
+}
+
+int DecoderBufferAllocator::GetBufferAlignment() const {
+#if SB_API_VERSION >= 14
+  return SbMediaGetBufferAlignment();
+#else   // SB_API_VERSION >= 14
+  return std::max(SbMediaGetBufferAlignment(kSbMediaTypeAudio),
+                  SbMediaGetBufferAlignment(kSbMediaTypeVideo));
+#endif  // SB_API_VERSION >= 14
+}
+
+int DecoderBufferAllocator::GetBufferPadding() const {
+#if SB_API_VERSION >= 14
+  return SbMediaGetBufferPadding();
+#else   // SB_API_VERSION >= 14
+  return std::max(SbMediaGetBufferPadding(kSbMediaTypeAudio),
+                  SbMediaGetBufferPadding(kSbMediaTypeVideo));
+#endif  // SB_API_VERSION >= 14
+}
+
+SbTime DecoderBufferAllocator::GetBufferGarbageCollectionDurationThreshold()
+    const {
+  return SbMediaGetBufferGarbageCollectionDurationThreshold();
+}
+
+int DecoderBufferAllocator::GetProgressiveBufferBudget(
+    SbMediaVideoCodec codec, int resolution_width, int resolution_height,
+    int bits_per_pixel) const {
+  return SbMediaGetProgressiveBufferBudget(codec, resolution_width,
+                                           resolution_height, bits_per_pixel);
+}
+
+int DecoderBufferAllocator::GetVideoBufferBudget(SbMediaVideoCodec codec,
+                                                 int resolution_width,
+                                                 int resolution_height,
+                                                 int bits_per_pixel) const {
+  return SbMediaGetVideoBufferBudget(codec, resolution_width, resolution_height,
+                                     bits_per_pixel);
+}
+
 size_t DecoderBufferAllocator::GetAllocatedMemory() const {
   if (!using_memory_pool_) {
     return sbmemory_bytes_used_.load();

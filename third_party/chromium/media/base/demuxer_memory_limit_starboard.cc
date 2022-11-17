@@ -14,16 +14,16 @@
 
 #include "media/base/demuxer_memory_limit.h"
 
+#include "media/base/decoder_buffer.h"
 #include "media/base/starboard_utils.h"
 #include "media/base/video_codecs.h"
 #include "base/logging.h"
-#include "starboard/media.h"
 
 namespace media {
 
 size_t GetDemuxerStreamAudioMemoryLimit(
     const AudioDecoderConfig* /*audio_config*/) {
-  return SbMediaGetAudioBufferBudget();
+  return DecoderBuffer::Allocator::GetInstance()->GetAudioBufferBudget();
 }
 
 size_t GetDemuxerStreamVideoMemoryLimit(
