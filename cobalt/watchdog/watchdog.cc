@@ -37,7 +37,7 @@ namespace {
 // The Watchdog violations json filename.
 const char kWatchdogViolationsJson[] = "watchdog.json";
 // The frequency in microseconds of monitor loops.
-const int64_t kWatchdogMonitorFrequency = 1000000;
+const int64_t kWatchdogMonitorFrequency = 500000;
 // The maximum number of Watchdog violations.
 const int kWatchdogMaxViolations = 200;
 // The minimum number of microseconds between writes.
