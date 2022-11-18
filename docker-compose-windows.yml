@@ -38,6 +38,11 @@ x-shared-build-env: &shared-build-env
   NINJA_FLAGS: ${NINJA_FLAGS}
 
 services:
+
+  # ----------------------------------------
+  # Base images for Visual Studio dependency
+  # ----------------------------------------
+
   visual-studio-base:
     build:
       context: ./docker/windows/base/visualstudio2017
@@ -46,6 +51,28 @@ services:
         - FROM_IMAGE=mcr.microsoft.com/windows/servercore:ltsc2019
     image: visual-studio-base
     scale: 0
+
+  visual-studio-win32-base:
+    build:
+      context: ./docker/windows/base/visualstudio2017
+      dockerfile: ./Dockerfile
+      args:
+        - FROM_IMAGE=mcr.microsoft.com/windows:1809
+    image: visual-studio-win32-base
+    scale: 0
+
+  visual-studio-2022-win32-base:
+    build:
+      context: ./docker/windows/base/visualstudio2022
+      dockerfile: ./Dockerfile
+      args:
+        - FROM_IMAGE=mcr.microsoft.com/windows:1809
+    image: visual-studio-2022-win32-base
+    scale: 0
+
+  # -----------------------------------------------
+  # Cobalt-Build images for windows-based platforms
+  # -----------------------------------------------
 
   cobalt-build-win-base:
     build:
@@ -58,15 +85,6 @@ services:
     depends_on:
       - visual-studio-base
 
-  visual-studio-win32-base:
-    build:
-      context: ./docker/windows/base/visualstudio2017
-      dockerfile: ./Dockerfile
-      args:
-        - FROM_IMAGE=mcr.microsoft.com/windows:1809
-    image: visual-studio-win32-base
-    scale: 0
-
   cobalt-build-win32-base:
     build:
       context: ./docker/windows/base/build
@@ -78,6 +96,17 @@ services:
     depends_on:
       - visual-studio-win32-base
 
+  cobalt-build-vs2022-win32-base:
+    build:
+      context: ./docker/windows/base/build
+      dockerfile: ./Dockerfile
+      args:
+        - FROM_IMAGE=visual-studio-2022-win32-base
+    depends_on:
+      - visual-studio-2022-win32-base
+    image: cobalt-build-vs2022-win32-base
+    scale: 0
+
   build-win-win32:
     <<: *common-definitions
     build:
@@ -87,17 +116,37 @@ services:
       - cobalt-build-win32-base
     image: cobalt-build-win-win32
 
+  # -----------------------------------------
+  # Win32 Platform Images for Building Cobalt
+  # -----------------------------------------
+
   win-win32:
     <<: *common-definitions
     build:
       context: ./docker/windows/win32
       dockerfile: ./Dockerfile
+      args:
+        - FROM_IMAGE=cobalt-build-win32-base
     depends_on:
       - cobalt-build-win32-base
     environment:
       <<: *shared-build-env
       PLATFORM: win-win32
     image: cobalt-build-win32
+
+  win-win32-vs2022:
+    <<: *common-definitions
+    build:
+      context: ./docker/windows/win32
+      dockerfile: ./Dockerfile
+      args:
+        - FROM_IMAGE=cobalt-build-vs2022-win32-base
+    depends_on:
+      - cobalt-build-vs2022-win32-base
+    environment:
+      <<: *shared-build-env
+      PLATFORM: win-win32
+    image: cobalt-build-win32-vs2022
 
   runner-win-win32:
     <<: *common-definitions

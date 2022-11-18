@@ -13,7 +13,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-FROM cobalt-build-win32-base
+ARG FROM_IMAGE
+FROM ${FROM_IMAGE}
+
 
 SHELL ["powershell", "-ExecutionPolicy", "Unrestricted", "-Command", `
        "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
