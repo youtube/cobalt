@@ -113,6 +113,18 @@
         <font weight="700" style="italic" font_name="Roboto Bold Italic" postscript_name="Roboto-BoldItalic">Roboto-BoldItalic.ttf</font>
         <font weight="900" style="normal" font_name="Roboto Black" postscript_name="Roboto-Black">Roboto-Black.ttf</font>
         <font weight="900" style="italic" font_name="Roboto Black Italic" postscript_name="Roboto-Black-Italic">Roboto-BlackItalic.ttf</font>
+        <!-- Android 12+ uses font variations -->
+        <font weight="100" style="normal" tag_wght="100" tag_ital="0" font_name="Roboto Thin" postscript_name="Roboto-Thin">Roboto-Regular.ttf</font>
+        <font weight="100" style="italic" tag_wght="100" tag_ital="1" font_name="Roboto Thin Italic" postscript_name="Roboto-Thin-Italic">Roboto-Regular.ttf</font>
+        <font weight="300" style="normal" tag_wght="300" tag_ital="0" font_name="Roboto Light" postscript_name="Roboto-Light">Roboto-Regular.ttf</font>
+        <font weight="300" style="italic" tag_wght="300" tag_ital="1" font_name="Roboto Light Italic" postscript_name="Roboto-Light-Italic">Roboto-Regular.ttf</font>
+        <font weight="400" style="italic" tag_wght="400" tag_ital="1" font_name="Roboto Regular Italic" postscript_name="Roboto-Italic">Roboto-Regular.ttf</font>
+        <font weight="500" style="normal" tag_wght="500" tag_ital="0" font_name="Roboto Medium" postscript_name="Roboto-Medium">Roboto-Regular.ttf</font>
+        <font weight="500" style="italic" tag_wght="500" tag_ital="1" font_name="Roboto Medium Italic" postscript_name="Roboto-Medium-Italic">Roboto-Regular.ttf</font>
+        <font weight="700" style="normal" tag_wght="700" tag_ital="0" font_name="Roboto Bold" postscript_name="Roboto-Bold">Roboto-Regular.ttf</font>
+        <font weight="700" style="italic" tag_wght="700" tag_ital="1" font_name="Roboto Bold Italic" postscript_name="Roboto-BoldItalic">Roboto-Regular.ttf</font>
+        <font weight="900" style="normal" tag_wght="900" tag_ital="0" font_name="Roboto Black" postscript_name="Roboto-Black">Roboto-Regular.ttf</font>
+        <font weight="900" style="italic" tag_wght="900" tag_ital="1" font_name="Roboto Black Italic" postscript_name="Roboto-Black-Italic">Roboto-Regular.ttf</font>
     </family>
     <!-- Note that aliases must come after the fonts they reference. -->
     <alias name="roboto" to="sans-serif" />

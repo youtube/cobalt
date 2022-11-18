@@ -28,7 +28,7 @@ _MAX_RESUME_WAIT_SECONDS = 30
 class PreloadFontTest(black_box_tests.BlackBoxTestCase):
   """Verify that fonts are loaded correctly after preload event."""
 
-  def test_simple(self):
+  def test_preload_font(self):
 
     with ThreadedWebServer(binding_address=self.GetBindingAddress()) as server:
       url = server.GetURL(file_name='testdata/preload_font.html')

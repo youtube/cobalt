@@ -14,7 +14,7 @@
 
 // https://html.spec.whatwg.org/multipage/web-messaging.html#messageport
 // https://html.spec.whatwg.org/dev/web-messaging.html#message-ports
-interface MessagePort /* : EventTarget */ {
+[Exposed = (Window,Worker)] interface MessagePort /* : EventTarget */ {
   // [RaisesException]
   void postMessage(any message);
   // TODO: Support sequence<object>: b/218501774
@@ -28,4 +28,4 @@ interface MessagePort /* : EventTarget */ {
   // event handlers
   attribute EventHandler onmessage;
   attribute EventHandler onmessageerror;
-  };
+};

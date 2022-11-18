@@ -19,6 +19,7 @@
 #include "base/logging.h"
 #include "cobalt/base/statistics.h"
 #include "starboard/common/string.h"
+#include "starboard/once.h"
 #include "starboard/types.h"
 
 namespace cobalt {
@@ -39,8 +40,15 @@ int64_t GetBandwidthForStatistics(int64_t size, int64_t duration) {
 using BandwidthStatistics =
     base::Statistics<int64_t, SbTimeMonotonic, 1024, GetBandwidthForStatistics>;
 
-BandwidthStatistics s_accumulated_wall_time_bandwidth_;
-BandwidthStatistics s_accumulated_thread_time_bandwidth_;
+class StatisticsWrapper {
+ public:
+  static StatisticsWrapper* GetInstance();
+  BandwidthStatistics accumulated_wall_time_bandwidth_{
+      "DOM.Performance.BandwidthStatsWallTime"};
+  BandwidthStatistics accumulated_thread_time_bandwidth_{
+      "DOM.Performance.BandwidthStatsThreadTime"};
+};
+
 
 double GetWallToThreadTimeRatio(int64_t wall_time, int64_t thread_time) {
   if (thread_time == 0) {
@@ -48,8 +56,8 @@ double GetWallToThreadTimeRatio(int64_t wall_time, int64_t thread_time) {
   }
   return static_cast<double>(wall_time) / thread_time;
 }
-
 }  // namespace
+SB_ONCE_INITIALIZE_FUNCTION(StatisticsWrapper, StatisticsWrapper::GetInstance);
 
 void SourceBufferMetrics::StartTracking() {
   if (!is_primary_video_) {
@@ -99,9 +107,11 @@ void SourceBufferMetrics::PrintCurrentMetricsAndUpdateAccumulatedMetrics() {
     return;
   }
 
-  s_accumulated_wall_time_bandwidth_.AddSample(total_size_, total_wall_time_);
-  s_accumulated_thread_time_bandwidth_.AddSample(total_size_,
-                                                 total_thread_time_);
+  StatisticsWrapper::GetInstance()->accumulated_wall_time_bandwidth_.AddSample(
+      total_size_, total_wall_time_);
+  StatisticsWrapper::GetInstance()
+      ->accumulated_thread_time_bandwidth_.AddSample(total_size_,
+                                                     total_thread_time_);
 
   LOG_IF(INFO, total_thread_time_ > total_wall_time_)
       << "Total thread time " << total_thread_time_
@@ -140,16 +150,26 @@ void SourceBufferMetrics::PrintAccumulatedMetrics() {
       "    thread bandwidth statistics (B/s):\n"
       "        min %d, median %d, average %d, max %d",
       GetWallToThreadTimeRatio(
-          s_accumulated_wall_time_bandwidth_.accumulated_divisor(),
-          s_accumulated_thread_time_bandwidth_.accumulated_divisor()),
-      static_cast<int>(s_accumulated_wall_time_bandwidth_.min()),
-      static_cast<int>(s_accumulated_wall_time_bandwidth_.GetMedian()),
-      static_cast<int>(s_accumulated_wall_time_bandwidth_.average()),
-      static_cast<int>(s_accumulated_wall_time_bandwidth_.max()),
-      static_cast<int>(s_accumulated_thread_time_bandwidth_.min()),
-      static_cast<int>(s_accumulated_thread_time_bandwidth_.GetMedian()),
-      static_cast<int>(s_accumulated_thread_time_bandwidth_.average()),
-      static_cast<int>(s_accumulated_thread_time_bandwidth_.max()));
+          StatisticsWrapper::GetInstance()
+              ->accumulated_wall_time_bandwidth_.accumulated_divisor(),
+          StatisticsWrapper::GetInstance()
+              ->accumulated_thread_time_bandwidth_.accumulated_divisor()),
+      static_cast<int>(StatisticsWrapper::GetInstance()
+                           ->accumulated_wall_time_bandwidth_.min()),
+      static_cast<int>(StatisticsWrapper::GetInstance()
+                           ->accumulated_wall_time_bandwidth_.GetMedian()),
+      static_cast<int>(StatisticsWrapper::GetInstance()
+                           ->accumulated_wall_time_bandwidth_.average()),
+      static_cast<int>(StatisticsWrapper::GetInstance()
+                           ->accumulated_wall_time_bandwidth_.max()),
+      static_cast<int>(StatisticsWrapper::GetInstance()
+                           ->accumulated_thread_time_bandwidth_.min()),
+      static_cast<int>(StatisticsWrapper::GetInstance()
+                           ->accumulated_thread_time_bandwidth_.GetMedian()),
+      static_cast<int>(StatisticsWrapper::GetInstance()
+                           ->accumulated_thread_time_bandwidth_.average()),
+      static_cast<int>(StatisticsWrapper::GetInstance()
+                           ->accumulated_thread_time_bandwidth_.max()));
 }
 
 #endif  // !defined(COBALT_BUILD_TYPE_GOLD)

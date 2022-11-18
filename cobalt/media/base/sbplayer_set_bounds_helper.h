@@ -23,19 +23,19 @@
 namespace cobalt {
 namespace media {
 
-class StarboardPlayer;
+class SbPlayerBridge;
 
 class SbPlayerSetBoundsHelper
     : public base::RefCountedThreadSafe<SbPlayerSetBoundsHelper> {
  public:
   SbPlayerSetBoundsHelper() {}
 
-  void SetPlayer(StarboardPlayer* player);
+  void SetPlayerBridge(SbPlayerBridge* player_bridge);
   bool SetBounds(int x, int y, int width, int height);
 
  private:
   base::Lock lock_;
-  StarboardPlayer* player_ = nullptr;
+  SbPlayerBridge* player_bridge_ = nullptr;
   base::Optional<gfx::Rect> rect_;
 
   DISALLOW_COPY_AND_ASSIGN(SbPlayerSetBoundsHelper);

@@ -15,13 +15,22 @@
 #include "cobalt/cache/memory_capped_directory.h"
 
 #include <algorithm>
+#include <string>
 
 #include "base/files/file_util.h"
+#include "base/json/json_reader.h"
+#include "base/json/json_writer.h"
 #include "base/strings/string_number_conversions.h"
 #include "starboard/directory.h"
 
 namespace cobalt {
 namespace cache {
+
+namespace {
+
+const char* kMetadataExtension = ".json";
+
+}  // namespace
 
 MemoryCappedDirectory::FileInfo::FileInfo(
     base::FilePath directory_path, base::FileEnumerator::FileInfo file_info)
@@ -58,6 +67,13 @@ std::unique_ptr<MemoryCappedDirectory> MemoryCappedDirectory::Create(
   while (!file_enumerator.Next().empty()) {
     MemoryCappedDirectory::FileInfo file_info(directory_path,
                                               file_enumerator.GetInfo());
+    // TODO: include metadata size in file sizes.
+    if (file_info.file_path_.Extension() == kMetadataExtension) {
+      memory_capped_directory->file_keys_with_metadata_[file_info.file_path_] =
+          std::stoul(
+              file_info.file_path_.BaseName().RemoveExtension().MaybeAsASCII());
+      continue;
+    }
     heap->push_back(file_info);
     memory_capped_directory->file_sizes_[file_info.file_path_] =
         file_info.size_;
@@ -70,13 +86,18 @@ std::unique_ptr<MemoryCappedDirectory> MemoryCappedDirectory::Create(
   return memory_capped_directory;
 }
 
-void MemoryCappedDirectory::Delete(uint32_t key) {
+bool MemoryCappedDirectory::Delete(uint32_t key) {
   base::AutoLock auto_lock(lock_);
   auto file_path = GetFilePath(key);
   if (base::PathExists(file_path)) {
     base::DeleteFile(file_path, false);
   }
+  auto metadata_path = file_path.AddExtension(kMetadataExtension);
+  if (base::PathExists(metadata_path)) {
+    base::DeleteFile(metadata_path, false);
+  }
   file_sizes_.erase(file_path);
+  file_keys_with_metadata_.erase(file_path);
   auto* heap = &file_info_heap_;
   for (auto it = heap->begin(); it != heap->end(); ++it) {
     if (it->file_path_ == file_path) {
@@ -86,9 +107,10 @@ void MemoryCappedDirectory::Delete(uint32_t key) {
         std::make_heap(heap->begin(), heap->end(),
                        MemoryCappedDirectory::FileInfo::OldestFirst());
       }
-      return;
+      return true;
     }
   }
+  return false;
 }
 
 void MemoryCappedDirectory::DeleteAll() {
@@ -99,7 +121,27 @@ void MemoryCappedDirectory::DeleteAll() {
   SbDirectoryCreate(directory_path_.value().c_str());
   file_info_heap_.clear();
   file_sizes_.clear();
+  file_keys_with_metadata_.clear();
   size_ = 0;
+}
+
+std::vector<uint32_t> MemoryCappedDirectory::KeysWithMetadata() {
+  std::vector<uint32_t> keys(file_keys_with_metadata_.size());
+  for (auto it = file_keys_with_metadata_.begin();
+       it != file_keys_with_metadata_.end(); ++it) {
+    keys.push_back(it->second);
+  }
+  return keys;
+}
+
+std::unique_ptr<base::Value> MemoryCappedDirectory::Metadata(uint32_t key) {
+  auto metadata_path = GetFilePath(key).AddExtension(kMetadataExtension);
+  if (!base::PathExists(metadata_path)) {
+    return nullptr;
+  }
+  std::string serialized_metadata;
+  base::ReadFileToString(metadata_path, &serialized_metadata);
+  return base::JSONReader::Read(serialized_metadata);
 }
 
 std::unique_ptr<std::vector<uint8_t>> MemoryCappedDirectory::Retrieve(
@@ -107,6 +149,10 @@ std::unique_ptr<std::vector<uint8_t>> MemoryCappedDirectory::Retrieve(
   auto file_path = GetFilePath(key);
   auto it = file_sizes_.find(file_path);
   if (it == file_sizes_.end()) {
+    return nullptr;
+  }
+  if (!base::PathExists(file_path)) {
+    Delete(key);
     return nullptr;
   }
   auto size = it->second;
@@ -120,17 +166,27 @@ std::unique_ptr<std::vector<uint8_t>> MemoryCappedDirectory::Retrieve(
 }
 
 void MemoryCappedDirectory::Store(uint32_t key,
-                                  const std::vector<uint8_t>& data) {
+                                  const std::vector<uint8_t>& data,
+                                  const base::Optional<base::Value>& metadata) {
   base::AutoLock auto_lock(lock_);
   auto file_path = GetFilePath(key);
   uint32_t new_entry_size = static_cast<uint32_t>(data.size());
   if (!EnsureEnoughSpace(new_entry_size)) {
     return;
   }
+  if (metadata) {
+    std::string serialized_metadata;
+    base::JSONWriter::Write(metadata.value(), &serialized_metadata);
+    base::WriteFile(file_path.AddExtension(kMetadataExtension),
+                    serialized_metadata.data(), serialized_metadata.size());
+  }
   int bytes_written = base::WriteFile(
       file_path, reinterpret_cast<const char*>(data.data()), data.size());
   if (bytes_written != data.size()) {
     base::DeleteFile(file_path, false);
+    if (metadata) {
+      base::DeleteFile(file_path.AddExtension(kMetadataExtension), false);
+    }
     return;
   }
   size_ += new_entry_size;
@@ -140,6 +196,7 @@ void MemoryCappedDirectory::Store(uint32_t key,
   std::push_heap(heap->begin(), heap->end(),
                  MemoryCappedDirectory::FileInfo::OldestFirst());
   file_sizes_[file_path] = new_entry_size;
+  file_keys_with_metadata_[file_path] = key;
 }
 
 void MemoryCappedDirectory::Resize(uint32_t size) {
@@ -173,7 +230,12 @@ bool MemoryCappedDirectory::EnsureEnoughSpace(
     auto removed = heap->back();
     size_ -= removed.size_;
     base::DeleteFile(removed.file_path_, false);
+    auto metadata_path = removed.file_path_.AddExtension(kMetadataExtension);
+    if (base::PathExists(metadata_path)) {
+      base::DeleteFile(metadata_path, false);
+    }
     file_sizes_.erase(removed.file_path_);
+    file_keys_with_metadata_.erase(removed.file_path_);
     heap->pop_back();
   }
   return true;

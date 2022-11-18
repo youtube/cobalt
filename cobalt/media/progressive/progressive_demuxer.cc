@@ -540,19 +540,6 @@ void ProgressiveDemuxer::Stop() {
   reader_->Stop();
 }
 
-void ProgressiveDemuxer::DataSourceStopped(const base::Closure& callback) {
-  TRACE_EVENT0("media_stack", "ProgressiveDemuxer::DataSourceStopped()");
-  DCHECK(MessageLoopBelongsToCurrentThread());
-  // stop the download thread
-  blocking_thread_.Stop();
-
-  // tell downstream we've stopped
-  if (audio_demuxer_stream_) audio_demuxer_stream_->Stop();
-  if (video_demuxer_stream_) video_demuxer_stream_->Stop();
-
-  callback.Run();
-}
-
 bool ProgressiveDemuxer::HasStopCalled() {
   base::AutoLock auto_lock(lock_for_stopped_);
   return stopped_;

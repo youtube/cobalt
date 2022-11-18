@@ -26,6 +26,8 @@ static_library("prefs") {
     "in_memory_pref_store.h",
     "json_pref_store.cc",
     "json_pref_store.h",
+    "json_read_only_pref_store.cc",
+    "json_read_only_pref_store.h",
     "overlay_user_pref_store.cc",
     "overlay_user_pref_store.h",
     "persistent_pref_store.cc",

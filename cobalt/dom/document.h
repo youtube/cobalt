@@ -103,11 +103,10 @@ class Document : public Node,
                  public ApplicationLifecycleState::Observer {
  public:
   struct Options {
-    Options() : window(NULL), cookie_jar(NULL) {}
+    Options() : cookie_jar(NULL) {}
     explicit Options(const GURL& url_value)
-        : url(url_value), window(NULL), cookie_jar(NULL) {}
-    Options(const GURL& url_value, Window* window,
-            const base::Closure& hashchange_callback,
+        : url(url_value), cookie_jar(NULL) {}
+    Options(const GURL& url_value, const base::Closure& hashchange_callback,
             const scoped_refptr<base::BasicClock>& navigation_start_clock_value,
             const base::Callback<void(const GURL&)>& navigation_callback,
             const scoped_refptr<cssom::CSSStyleSheet> user_agent_style_sheet,
@@ -115,7 +114,6 @@ class Document : public Node,
             network_bridge::CookieJar* cookie_jar,
             int dom_max_element_depth = 0)
         : url(url_value),
-          window(window),
           hashchange_callback(hashchange_callback),
           navigation_start_clock(navigation_start_clock_value),
           navigation_callback(navigation_callback),
@@ -125,7 +123,6 @@ class Document : public Node,
           dom_max_element_depth(dom_max_element_depth) {}
 
     GURL url;
-    Window* window;
     base::Closure hashchange_callback;
     scoped_refptr<base::BasicClock> navigation_start_clock;
     base::Callback<void(const GURL&)> navigation_callback;
@@ -136,7 +133,8 @@ class Document : public Node,
   };
 
   Document(HTMLElementContext* html_element_context,
-           const Options& options = Options());
+           const Options& options = Options(),
+           web::CspDelegate* csp_delegate = nullptr);
 
   // Web API: Node
   //
@@ -274,10 +272,11 @@ class Document : public Node,
   // Returns whether the document has browsing context. Having the browsing
   // context means the document is shown on the screen.
   //   https://www.w3.org/TR/html50/browsers.html#browsing-context
-  bool HasBrowsingContext() const { return !!window_; }
+  bool HasBrowsingContext() const {
+    return window() && (window()->document().get() == this);
+  }
 
-  void set_window(Window* window) { window_ = window; }
-  const scoped_refptr<Window> window();
+  const scoped_refptr<Window> window() const;
 
   // Sets the active element of the document.
   void SetActiveElement(Element* active_element);
@@ -363,12 +362,7 @@ class Document : public Node,
   }
 
   // Virtual for testing.
-  virtual web::CspDelegate* csp_delegate() const {
-    if (window_) {
-      return window_->csp_delegate();
-    }
-    return nullptr;
-  }
+  virtual web::CspDelegate* GetCSPDelegate() const;
 
   // Triggers a synchronous layout.
   scoped_refptr<render_tree::Node> DoSynchronousLayoutAndGetRenderTree();
@@ -414,7 +408,8 @@ class Document : public Node,
   // Page Visibility fields.
   bool hidden() const { return visibility_state() == kVisibilityStateHidden; }
   VisibilityState visibility_state() const {
-    return application_lifecycle_state()->GetVisibilityState();
+    const ApplicationLifecycleState* state = application_lifecycle_state();
+    return state ? state->GetVisibilityState() : kVisibilityStateHidden;
   }
   const EventListenerScriptValue* onvisibilitychange() const {
     return GetAttributeEventListener(base::Tokens::visibilitychange());
@@ -548,8 +543,6 @@ class Document : public Node,
   // situation more gracefully than crashing.
   base::WeakPtr<ApplicationLifecycleState> application_lifecycle_state_;
 
-  // Reference to the associated window object.
-  Window* window_;
   // Associated DOM implementation object.
   scoped_refptr<DOMImplementation> implementation_;
   // List of CSS style sheets.

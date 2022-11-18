@@ -31,19 +31,25 @@ class V8cSourceCode : public SourceCode {
  public:
   V8cSourceCode(const std::string& source_utf8,
                 const base::SourceLocation& source_location,
-                bool is_muted = false)
+                bool is_muted = false,
+                bool should_cache_compiled_javascript = true)
       : source_utf8_(source_utf8),
         location_(source_location),
-        is_muted_(is_muted) {}
+        is_muted_(is_muted),
+        should_cache_compiled_javascript_(should_cache_compiled_javascript) {}
 
   const std::string& source_utf8() const { return source_utf8_; }
   const base::SourceLocation& location() const { return location_; }
   bool is_muted() const { return is_muted_; }
+  bool should_cache_compiled_javascript() const {
+    return should_cache_compiled_javascript_;
+  }
 
  private:
   std::string source_utf8_;
   base::SourceLocation location_;
   bool is_muted_;
+  bool should_cache_compiled_javascript_;
 };
 
 }  // namespace v8c

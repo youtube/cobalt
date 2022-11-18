@@ -94,7 +94,7 @@ std::string* ServiceWorkerObject::LookupScriptResource(const GURL& url) const {
 
 void ServiceWorkerObject::PurgeScriptResourceMap() {
   // Steps 13-15 of Algorithm for Install:
-  //   https://w3c.github.io/ServiceWorker/#installation-algorithm
+  //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#installation-algorithm
   // 13. Let map be registration’s installing worker's script resource map.
   // 14. Let usedSet be registration’s installing worker's set of used scripts.
   // 15. For each url of map:
@@ -132,10 +132,18 @@ void ServiceWorkerObject::ObtainWebAgentAndWaitUntilDone() {
   web_agent_->WaitUntilDone();
 }
 
+bool ServiceWorkerObject::ShouldSkipEvent(base::Token event_name) {
+  // Algorithm for Should Skip Event:
+  //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#should-skip-event-algorithm
+  // TODO(b/229622132): Implementing this algorithm will improve performance.
+  NOTIMPLEMENTED();
+  return false;
+}
+
 void ServiceWorkerObject::Initialize(web::Context* context) {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerObject::Initialize()");
   // Algorithm for "Run Service Worker"
-  // https://w3c.github.io/ServiceWorker/#run-service-worker-algorithm
+  // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#run-service-worker-algorithm
 
   // 8.1. Let realmExecutionContext be the result of creating a new JavaScript
   //      realm given agent and the following customizations:

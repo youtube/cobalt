@@ -90,6 +90,8 @@ class MessagePort : public script::Wrappable,
                                              event_listener);
   }
 
+  web::EventTarget* event_target() { return event_target_; }
+
   DEFINE_WRAPPABLE_TYPE(MessagePort);
 
  private:

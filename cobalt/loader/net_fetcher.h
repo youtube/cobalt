@@ -27,6 +27,7 @@
 #include "cobalt/loader/fetcher.h"
 #include "cobalt/network/network_module.h"
 #include "net/disk_cache/cobalt/resource_type.h"
+#include "net/http/http_request_headers.h"
 #include "net/url_request/url_fetcher.h"
 #include "net/url_request/url_fetcher_delegate.h"
 #include "url/gurl.h"
@@ -41,9 +42,12 @@ class NetFetcher : public Fetcher, public net::URLFetcherDelegate {
    public:
     Options()
         : request_method(net::URLFetcher::GET),
-          resource_type(disk_cache::kOther) {}
+          resource_type(disk_cache::kOther),
+          skip_fetch_intercept(false) {}
     net::URLFetcher::RequestType request_method;
     disk_cache::ResourceType resource_type;
+    net::HttpRequestHeaders headers;
+    bool skip_fetch_intercept;
   };
 
   NetFetcher(const GURL& url, const csp::SecurityCallback& security_callback,
@@ -59,6 +63,8 @@ class NetFetcher : public Fetcher, public net::URLFetcherDelegate {
                                   int64_t current, int64_t total,
                                   int64_t current_network_bytes) override;
   void ReportLoadTimingInfo(const net::LoadTimingInfo& timing_info) override;
+
+  void OnFetchIntercepted(std::unique_ptr<std::string> body);
 
   net::URLFetcher* url_fetcher() const {
     DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
@@ -113,6 +119,9 @@ class NetFetcher : public Fetcher, public net::URLFetcherDelegate {
 
   // True when the requested resource type is script.
   bool request_script_;
+
+  scoped_refptr<base::SingleThreadTaskRunner> const task_runner_;
+  bool skip_fetch_intercept_;
 
   DISALLOW_COPY_AND_ASSIGN(NetFetcher);
 };

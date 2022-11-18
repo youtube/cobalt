@@ -585,7 +585,6 @@ std::string HttpCache::GenerateCacheKey(const HttpRequestInfo* request) {
   // Strip out the reference, username, and password sections of the URL.
   std::string url = HttpUtil::SpecForRequest(request->url);
 
-  DCHECK_NE(DISABLE, mode_);
   // No valid URL can begin with numerals, so we should not have to worry
   // about collisions with normal URLs.
   if (request->upload_data_stream &&

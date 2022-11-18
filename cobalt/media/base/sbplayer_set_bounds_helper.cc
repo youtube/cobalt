@@ -15,7 +15,7 @@
 #include "cobalt/media/base/sbplayer_set_bounds_helper.h"
 
 #include "base/atomic_sequence_num.h"
-#include "cobalt/media/base/starboard_player.h"
+#include "cobalt/media/base/sbplayer_bridge.h"
 
 namespace cobalt {
 namespace media {
@@ -28,22 +28,22 @@ namespace {
 base::AtomicSequenceNumber s_z_index;
 }  // namespace
 
-void SbPlayerSetBoundsHelper::SetPlayer(StarboardPlayer* player) {
+void SbPlayerSetBoundsHelper::SetPlayerBridge(SbPlayerBridge* player_bridge) {
   base::AutoLock auto_lock(lock_);
-  player_ = player;
-  if (player_ && rect_.has_value()) {
-    player_->SetBounds(s_z_index.GetNext(), rect_.value());
+  player_bridge_ = player_bridge;
+  if (player_bridge_ && rect_.has_value()) {
+    player_bridge_->SetBounds(s_z_index.GetNext(), rect_.value());
   }
 }
 
 bool SbPlayerSetBoundsHelper::SetBounds(int x, int y, int width, int height) {
   base::AutoLock auto_lock(lock_);
   rect_ = gfx::Rect(x, y, width, height);
-  if (player_) {
-    player_->SetBounds(s_z_index.GetNext(), rect_.value());
+  if (player_bridge_) {
+    player_bridge_->SetBounds(s_z_index.GetNext(), rect_.value());
   }
 
-  return player_ != nullptr;
+  return player_bridge_ != nullptr;
 }
 
 }  // namespace media

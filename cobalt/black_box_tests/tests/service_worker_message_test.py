@@ -20,7 +20,7 @@ from cobalt.black_box_tests.threaded_web_server import ThreadedWebServer
 class ServiceWorkerMessageTest(black_box_tests.BlackBoxTestCase):
   """Test basic Service Worker functionality."""
 
-  def test_simple(self):
+  def test_service_worker_message(self):
 
     with ThreadedWebServer(binding_address=self.GetBindingAddress()) as server:
       url = server.GetURL(file_name='testdata/service_worker_message_test.html')

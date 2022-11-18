@@ -111,17 +111,17 @@ class ScriptPromise : public ScopedPersistent<v8::Value>, public Promise<T> {
     }
   }
 
-  v8::Local<v8::Promise> promise() const {
+  v8::Local<v8::Promise> promise() const override {
     DCHECK(!this->IsEmpty());
     return resolver()->GetPromise();
   }
 
- protected:
-  v8::Local<v8::Promise::Resolver> resolver() const {
+  v8::Local<v8::Promise::Resolver> resolver() const override {
     DCHECK(!this->IsEmpty());
     return this->Get().Get(isolate_).template As<v8::Promise::Resolver>();
   }
 
+ protected:
   v8::Isolate* isolate() const { return isolate_; }
 
  private:

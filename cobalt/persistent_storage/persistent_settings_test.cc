@@ -12,9 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <utility>
 #include <vector>
 
+#include "base/bind.h"
+#include "base/bind_internal.h"
+#include "base/callback_forward.h"
+#include "base/synchronization/waitable_event.h"
 #include "base/test/scoped_task_environment.h"
+#include "base/threading/platform_thread.h"
 #include "base/values.h"
 #include "cobalt/persistent_storage/persistent_settings.h"
 #include "starboard/common/file.h"
@@ -43,26 +49,27 @@ class PersistentSettingTest : public testing::Test {
 
     persistent_settings_file_ = std::string(storage_dir.data()) +
                                 kSbFileSepString + kPersistentSettingsJson;
-    SB_LOG(INFO) << "Persistent settings test file path: "
-                 << persistent_settings_file_;
   }
 
   void SetUp() final {
+    test_done_.Reset();
     starboard::SbFileDeleteRecursive(persistent_settings_file_.c_str(), true);
   }
 
   void TearDown() final {
+    test_done_.Reset();
     starboard::SbFileDeleteRecursive(persistent_settings_file_.c_str(), true);
   }
 
   base::test::ScopedTaskEnvironment scoped_task_environment_;
   std::string persistent_settings_file_;
+  base::WaitableEvent test_done_ = {
+      base::WaitableEvent::ResetPolicy::MANUAL,
+      base::WaitableEvent::InitialState::NOT_SIGNALED};
 };
 
 TEST_F(PersistentSettingTest, GetDefaultBool) {
-  auto persistent_settings = std::make_unique<PersistentSettings>(
-      kPersistentSettingsJson,
-      scoped_task_environment_.GetMainThreadTaskRunner());
+  auto persistent_settings = new PersistentSettings(kPersistentSettingsJson);
   persistent_settings->ValidatePersistentSettings();
 
   // does not exist
@@ -70,35 +77,60 @@ TEST_F(PersistentSettingTest, GetDefaultBool) {
   ASSERT_FALSE(persistent_settings->GetPersistentSettingAsBool("key", false));
 
   // exists but invalid
-  persistent_settings->SetPersistentSetting("key",
-                                            std::make_unique<base::Value>(4.2));
-  scoped_task_environment_.RunUntilIdle();
-  ASSERT_TRUE(persistent_settings->GetPersistentSettingAsInt("key", true));
+  base::OnceClosure closure = base::BindOnce(
+      [](PersistentSettings* persistent_settings,
+         base::WaitableEvent* test_done) {
+        ASSERT_TRUE(
+            persistent_settings->GetPersistentSettingAsInt("key", true));
+        test_done->Signal();
+      },
+      persistent_settings, &test_done_);
+  persistent_settings->SetPersistentSetting(
+      "key", std::make_unique<base::Value>(4.2), std::move(closure));
+  test_done_.Wait();
+  delete persistent_settings;
 }
 
 TEST_F(PersistentSettingTest, GetSetBool) {
-  auto persistent_settings = std::make_unique<PersistentSettings>(
-      kPersistentSettingsJson,
-      scoped_task_environment_.GetMainThreadTaskRunner());
+  auto persistent_settings = new PersistentSettings(kPersistentSettingsJson);
   persistent_settings->ValidatePersistentSettings();
 
-  persistent_settings->SetPersistentSetting(
-      "key", std::make_unique<base::Value>(true));
-  scoped_task_environment_.RunUntilIdle();
-  ASSERT_TRUE(persistent_settings->GetPersistentSettingAsBool("key", true));
-  ASSERT_TRUE(persistent_settings->GetPersistentSettingAsBool("key", false));
+  base::OnceClosure closure = base::BindOnce(
+      [](PersistentSettings* persistent_settings,
+         base::WaitableEvent* test_done) {
+        ASSERT_TRUE(
+            persistent_settings->GetPersistentSettingAsBool("key", true));
+        ASSERT_TRUE(
+            persistent_settings->GetPersistentSettingAsBool("key", false));
+        test_done->Signal();
+      },
+      persistent_settings, &test_done_);
 
   persistent_settings->SetPersistentSetting(
-      "key", std::make_unique<base::Value>(false));
-  scoped_task_environment_.RunUntilIdle();
-  ASSERT_FALSE(persistent_settings->GetPersistentSettingAsBool("key", true));
-  ASSERT_FALSE(persistent_settings->GetPersistentSettingAsBool("key", false));
+      "key", std::make_unique<base::Value>(true), std::move(closure));
+  test_done_.Wait();
+  test_done_.Reset();
+
+  closure = base::BindOnce(
+      [](PersistentSettings* persistent_settings,
+         base::WaitableEvent* test_done) {
+        ASSERT_FALSE(
+            persistent_settings->GetPersistentSettingAsBool("key", true));
+        ASSERT_FALSE(
+            persistent_settings->GetPersistentSettingAsBool("key", false));
+        test_done->Signal();
+      },
+      persistent_settings, &test_done_);
+
+  persistent_settings->SetPersistentSetting(
+      "key", std::make_unique<base::Value>(false), std::move(closure));
+
+  test_done_.Wait();
+  delete persistent_settings;
 }
 
 TEST_F(PersistentSettingTest, GetDefaultInt) {
-  auto persistent_settings = std::make_unique<PersistentSettings>(
-      kPersistentSettingsJson,
-      scoped_task_environment_.GetMainThreadTaskRunner());
+  auto persistent_settings = new PersistentSettings(kPersistentSettingsJson);
   persistent_settings->ValidatePersistentSettings();
 
   // does not exist
@@ -107,38 +139,61 @@ TEST_F(PersistentSettingTest, GetDefaultInt) {
   ASSERT_EQ(42, persistent_settings->GetPersistentSettingAsInt("key", 42));
 
   // exists but invalid
-  persistent_settings->SetPersistentSetting("key",
-                                            std::make_unique<base::Value>(4.2));
-  scoped_task_environment_.RunUntilIdle();
-  ASSERT_EQ(8, persistent_settings->GetPersistentSettingAsInt("key", 8));
+  base::OnceClosure closure = base::BindOnce(
+      [](PersistentSettings* persistent_settings,
+         base::WaitableEvent* test_done) {
+        ASSERT_EQ(8, persistent_settings->GetPersistentSettingAsInt("key", 8));
+        test_done->Signal();
+      },
+      persistent_settings, &test_done_);
+
+  persistent_settings->SetPersistentSetting(
+      "key", std::make_unique<base::Value>(4.2), std::move(closure));
+  test_done_.Wait();
 }
 
 TEST_F(PersistentSettingTest, GetSetInt) {
-  auto persistent_settings = std::make_unique<PersistentSettings>(
-      kPersistentSettingsJson,
-      scoped_task_environment_.GetMainThreadTaskRunner());
+  auto persistent_settings = new PersistentSettings(kPersistentSettingsJson);
   persistent_settings->ValidatePersistentSettings();
 
-  persistent_settings->SetPersistentSetting("key",
-                                            std::make_unique<base::Value>(-1));
-  scoped_task_environment_.RunUntilIdle();
-  ASSERT_EQ(-1, persistent_settings->GetPersistentSettingAsInt("key", 8));
+  base::OnceClosure closure = base::BindOnce(
+      [](PersistentSettings* persistent_settings,
+         base::WaitableEvent* test_done) {
+        ASSERT_EQ(-1, persistent_settings->GetPersistentSettingAsInt("key", 8));
+        test_done->Signal();
+      },
+      persistent_settings, &test_done_);
+  persistent_settings->SetPersistentSetting(
+      "key", std::make_unique<base::Value>(-1), std::move(closure));
+  test_done_.Wait();
+  test_done_.Reset();
 
-  persistent_settings->SetPersistentSetting("key",
-                                            std::make_unique<base::Value>(0));
-  scoped_task_environment_.RunUntilIdle();
-  ASSERT_EQ(0, persistent_settings->GetPersistentSettingAsInt("key", 8));
+  closure = base::BindOnce(
+      [](PersistentSettings* persistent_settings,
+         base::WaitableEvent* test_done) {
+        ASSERT_EQ(0, persistent_settings->GetPersistentSettingAsInt("key", 8));
+        test_done->Signal();
+      },
+      persistent_settings, &test_done_);
+  persistent_settings->SetPersistentSetting(
+      "key", std::make_unique<base::Value>(0), std::move(closure));
+  test_done_.Wait();
+  test_done_.Reset();
 
-  persistent_settings->SetPersistentSetting("key",
-                                            std::make_unique<base::Value>(42));
-  scoped_task_environment_.RunUntilIdle();
-  ASSERT_EQ(42, persistent_settings->GetPersistentSettingAsInt("key", 8));
+  closure = base::BindOnce(
+      [](PersistentSettings* persistent_settings,
+         base::WaitableEvent* test_done) {
+        ASSERT_EQ(42, persistent_settings->GetPersistentSettingAsInt("key", 8));
+        test_done->Signal();
+      },
+      persistent_settings, &test_done_);
+  persistent_settings->SetPersistentSetting(
+      "key", std::make_unique<base::Value>(42), std::move(closure));
+  test_done_.Wait();
 }
 
 TEST_F(PersistentSettingTest, GetDefaultString) {
-  auto persistent_settings = std::make_unique<PersistentSettings>(
-      kPersistentSettingsJson,
-      scoped_task_environment_.GetMainThreadTaskRunner());
+  auto persistent_settings = new PersistentSettings(kPersistentSettingsJson);
   persistent_settings->ValidatePersistentSettings();
 
   // does not exist
@@ -153,127 +208,225 @@ TEST_F(PersistentSettingTest, GetDefaultString) {
             persistent_settings->GetPersistentSettingAsString("key", "\\n"));
 
   // exists but invalid
-  persistent_settings->SetPersistentSetting("key",
-                                            std::make_unique<base::Value>(4.2));
-  scoped_task_environment_.RunUntilIdle();
-  ASSERT_EQ("hello",
-            persistent_settings->GetPersistentSettingAsString("key", "hello"));
+  base::OnceClosure closure = base::BindOnce(
+      [](PersistentSettings* persistent_settings,
+         base::WaitableEvent* test_done) {
+        ASSERT_EQ("hello", persistent_settings->GetPersistentSettingAsString(
+                               "key", "hello"));
+        test_done->Signal();
+      },
+      persistent_settings, &test_done_);
+  persistent_settings->SetPersistentSetting(
+      "key", std::make_unique<base::Value>(4.2), std::move(closure));
+  test_done_.Wait();
+  delete persistent_settings;
 }
 
 TEST_F(PersistentSettingTest, GetSetString) {
-  auto persistent_settings = std::make_unique<PersistentSettings>(
-      kPersistentSettingsJson,
-      scoped_task_environment_.GetMainThreadTaskRunner());
+  auto persistent_settings = new PersistentSettings(kPersistentSettingsJson);
   persistent_settings->ValidatePersistentSettings();
 
-  persistent_settings->SetPersistentSetting("key",
-                                            std::make_unique<base::Value>(""));
-  scoped_task_environment_.RunUntilIdle();
-  ASSERT_EQ("",
-            persistent_settings->GetPersistentSettingAsString("key", "hello"));
+  base::OnceClosure closure = base::BindOnce(
+      [](PersistentSettings* persistent_settings,
+         base::WaitableEvent* test_done) {
+        ASSERT_EQ("", persistent_settings->GetPersistentSettingAsString(
+                          "key", "hello"));
+        test_done->Signal();
+      },
+      persistent_settings, &test_done_);
 
   persistent_settings->SetPersistentSetting(
-      "key", std::make_unique<base::Value>("hello there"));
-  scoped_task_environment_.RunUntilIdle();
-  ASSERT_EQ("hello there",
+      "key", std::make_unique<base::Value>(""), std::move(closure));
+  test_done_.Wait();
+  test_done_.Reset();
+
+  closure = base::BindOnce(
+      [](PersistentSettings* persistent_settings,
+         base::WaitableEvent* test_done) {
+        ASSERT_EQ(
+            "hello there",
             persistent_settings->GetPersistentSettingAsString("key", "hello"));
+        test_done->Signal();
+      },
+      persistent_settings, &test_done_);
 
   persistent_settings->SetPersistentSetting(
-      "key", std::make_unique<base::Value>("42"));
-  scoped_task_environment_.RunUntilIdle();
-  ASSERT_EQ("42",
-            persistent_settings->GetPersistentSettingAsString("key", "hello"));
+      "key", std::make_unique<base::Value>("hello there"), std::move(closure));
+  test_done_.Wait();
+  test_done_.Reset();
 
+  closure = base::BindOnce(
+      [](PersistentSettings* persistent_settings,
+         base::WaitableEvent* test_done) {
+        ASSERT_EQ("42", persistent_settings->GetPersistentSettingAsString(
+                            "key", "hello"));
+        test_done->Signal();
+      },
+      persistent_settings, &test_done_);
   persistent_settings->SetPersistentSetting(
-      "key", std::make_unique<base::Value>("\n"));
-  scoped_task_environment_.RunUntilIdle();
-  ASSERT_EQ("\n",
-            persistent_settings->GetPersistentSettingAsString("key", "hello"));
+      "key", std::make_unique<base::Value>("42"), std::move(closure));
+  test_done_.Wait();
+  test_done_.Reset();
 
+  closure = base::BindOnce(
+      [](PersistentSettings* persistent_settings,
+         base::WaitableEvent* test_done) {
+        ASSERT_EQ("\n", persistent_settings->GetPersistentSettingAsString(
+                            "key", "hello"));
+        test_done->Signal();
+      },
+      persistent_settings, &test_done_);
   persistent_settings->SetPersistentSetting(
-      "key", std::make_unique<base::Value>("\\n"));
-  scoped_task_environment_.RunUntilIdle();
-  ASSERT_EQ("\\n",
-            persistent_settings->GetPersistentSettingAsString("key", "hello"));
+      "key", std::make_unique<base::Value>("\n"), std::move(closure));
+  test_done_.Wait();
+  test_done_.Reset();
+
+  closure = base::BindOnce(
+      [](PersistentSettings* persistent_settings,
+         base::WaitableEvent* test_done) {
+        ASSERT_EQ("\\n", persistent_settings->GetPersistentSettingAsString(
+                             "key", "hello"));
+        test_done->Signal();
+      },
+      persistent_settings, &test_done_);
+  persistent_settings->SetPersistentSetting(
+      "key", std::make_unique<base::Value>("\\n"), std::move(closure));
+  test_done_.Wait();
+  test_done_.Reset();
 }
 
 TEST_F(PersistentSettingTest, RemoveSetting) {
-  auto persistent_settings = std::make_unique<PersistentSettings>(
-      kPersistentSettingsJson,
-      scoped_task_environment_.GetMainThreadTaskRunner());
+  auto persistent_settings = new PersistentSettings(kPersistentSettingsJson);
   persistent_settings->ValidatePersistentSettings();
 
   ASSERT_TRUE(persistent_settings->GetPersistentSettingAsBool("key", true));
   ASSERT_FALSE(persistent_settings->GetPersistentSettingAsBool("key", false));
 
+  base::OnceClosure closure = base::BindOnce(
+      [](PersistentSettings* persistent_settings,
+         base::WaitableEvent* test_done) {
+        ASSERT_TRUE(
+            persistent_settings->GetPersistentSettingAsBool("key", true));
+        ASSERT_TRUE(
+            persistent_settings->GetPersistentSettingAsBool("key", false));
+        test_done->Signal();
+      },
+      persistent_settings, &test_done_);
   persistent_settings->SetPersistentSetting(
-      "key", std::make_unique<base::Value>(true));
-  scoped_task_environment_.RunUntilIdle();
-  ASSERT_TRUE(persistent_settings->GetPersistentSettingAsBool("key", true));
-  ASSERT_TRUE(persistent_settings->GetPersistentSettingAsBool("key", false));
+      "key", std::make_unique<base::Value>(true), std::move(closure));
+  test_done_.Wait();
+  test_done_.Reset();
 
-  persistent_settings->RemovePersistentSetting("key");
-  scoped_task_environment_.RunUntilIdle();
-  ASSERT_TRUE(persistent_settings->GetPersistentSettingAsBool("key", true));
-  ASSERT_FALSE(persistent_settings->GetPersistentSettingAsBool("key", false));
+  closure = base::BindOnce(
+      [](PersistentSettings* persistent_settings,
+         base::WaitableEvent* test_done) {
+        ASSERT_TRUE(
+            persistent_settings->GetPersistentSettingAsBool("key", true));
+        ASSERT_FALSE(
+            persistent_settings->GetPersistentSettingAsBool("key", false));
+        test_done->Signal();
+      },
+      persistent_settings, &test_done_);
+  persistent_settings->RemovePersistentSetting("key", std::move(closure));
+  test_done_.Wait();
+  test_done_.Reset();
+
+  delete persistent_settings;
 }
 
 TEST_F(PersistentSettingTest, DeleteSettings) {
-  auto persistent_settings = std::make_unique<PersistentSettings>(
-      kPersistentSettingsJson,
-      scoped_task_environment_.GetMainThreadTaskRunner());
+  auto persistent_settings = new PersistentSettings(kPersistentSettingsJson);
   persistent_settings->ValidatePersistentSettings();
 
   ASSERT_TRUE(persistent_settings->GetPersistentSettingAsBool("key", true));
   ASSERT_FALSE(persistent_settings->GetPersistentSettingAsBool("key", false));
 
+  base::OnceClosure closure = base::BindOnce(
+      [](PersistentSettings* persistent_settings,
+         base::WaitableEvent* test_done) {
+        ASSERT_TRUE(
+            persistent_settings->GetPersistentSettingAsBool("key", true));
+        ASSERT_TRUE(
+            persistent_settings->GetPersistentSettingAsBool("key", false));
+        test_done->Signal();
+      },
+      persistent_settings, &test_done_);
   persistent_settings->SetPersistentSetting(
-      "key", std::make_unique<base::Value>(true));
-  scoped_task_environment_.RunUntilIdle();
-  ASSERT_TRUE(persistent_settings->GetPersistentSettingAsBool("key", true));
-  ASSERT_TRUE(persistent_settings->GetPersistentSettingAsBool("key", false));
+      "key", std::make_unique<base::Value>(true), std::move(closure));
+  test_done_.Wait();
+  test_done_.Reset();
 
-  persistent_settings->DeletePersistentSettings();
-  scoped_task_environment_.RunUntilIdle();
-  ASSERT_TRUE(persistent_settings->GetPersistentSettingAsBool("key", true));
-  ASSERT_FALSE(persistent_settings->GetPersistentSettingAsBool("key", false));
+  closure = base::BindOnce(
+      [](PersistentSettings* persistent_settings,
+         base::WaitableEvent* test_done) {
+        ASSERT_TRUE(
+            persistent_settings->GetPersistentSettingAsBool("key", true));
+        ASSERT_FALSE(
+            persistent_settings->GetPersistentSettingAsBool("key", false));
+        test_done->Signal();
+      },
+      persistent_settings, &test_done_);
+  persistent_settings->DeletePersistentSettings(std::move(closure));
+  test_done_.Wait();
+  test_done_.Reset();
+
+  delete persistent_settings;
 }
 
 TEST_F(PersistentSettingTest, InvalidSettings) {
-  auto persistent_settings = std::make_unique<PersistentSettings>(
-      kPersistentSettingsJson,
-      scoped_task_environment_.GetMainThreadTaskRunner());
+  auto persistent_settings = new PersistentSettings(kPersistentSettingsJson);
   persistent_settings->ValidatePersistentSettings();
 
   ASSERT_TRUE(persistent_settings->GetPersistentSettingAsBool("key", true));
   ASSERT_FALSE(persistent_settings->GetPersistentSettingAsBool("key", false));
 
+  base::OnceClosure closure = base::BindOnce(
+      [](PersistentSettings* persistent_settings,
+         base::WaitableEvent* test_done) {
+        ASSERT_TRUE(
+            persistent_settings->GetPersistentSettingAsBool("key", true));
+        ASSERT_TRUE(
+            persistent_settings->GetPersistentSettingAsBool("key", false));
+        test_done->Signal();
+      },
+      persistent_settings, &test_done_);
   persistent_settings->SetPersistentSetting(
-      "key", std::make_unique<base::Value>(true));
-  scoped_task_environment_.RunUntilIdle();
+      "key", std::make_unique<base::Value>(true), std::move(closure));
+  test_done_.Wait();
+  test_done_.Reset();
+
+  delete persistent_settings;
+  // Sleep for one second to allow for the previous persistent_setting's
+  // JsonPrefStore instance time to write to disk before creating a new
+  // persistent_settings and JsonPrefStore instance.
+  base::PlatformThread::Sleep(base::TimeDelta::FromSeconds(1));
+  persistent_settings = new PersistentSettings(kPersistentSettingsJson);
   ASSERT_TRUE(persistent_settings->GetPersistentSettingAsBool("key", true));
   ASSERT_TRUE(persistent_settings->GetPersistentSettingAsBool("key", false));
 
-  persistent_settings = std::make_unique<PersistentSettings>(
-      kPersistentSettingsJson,
-      scoped_task_environment_.GetMainThreadTaskRunner());
-
-  ASSERT_TRUE(persistent_settings->GetPersistentSettingAsBool("key", true));
-  ASSERT_TRUE(persistent_settings->GetPersistentSettingAsBool("key", false));
-
+  closure = base::BindOnce(
+      [](PersistentSettings* persistent_settings,
+         base::WaitableEvent* test_done) {
+        ASSERT_TRUE(
+            persistent_settings->GetPersistentSettingAsBool("key", true));
+        ASSERT_TRUE(
+            persistent_settings->GetPersistentSettingAsBool("key", false));
+        test_done->Signal();
+      },
+      persistent_settings, &test_done_);
   persistent_settings->SetPersistentSetting(
-      "key", std::make_unique<base::Value>(false));
-  scoped_task_environment_.RunUntilIdle();
-  ASSERT_TRUE(persistent_settings->GetPersistentSettingAsBool("key", true));
-  ASSERT_TRUE(persistent_settings->GetPersistentSettingAsBool("key", false));
+      "key", std::make_unique<base::Value>(false), std::move(closure));
+  test_done_.Wait();
+  test_done_.Reset();
 
-  persistent_settings = std::make_unique<PersistentSettings>(
-      kPersistentSettingsJson,
-      scoped_task_environment_.GetMainThreadTaskRunner());
+  delete persistent_settings;
+  persistent_settings = new PersistentSettings(kPersistentSettingsJson);
   persistent_settings->ValidatePersistentSettings();
 
   ASSERT_TRUE(persistent_settings->GetPersistentSettingAsBool("key", true));
   ASSERT_FALSE(persistent_settings->GetPersistentSettingAsBool("key", false));
+
+  delete persistent_settings;
 }
 
 }  // namespace persistent_storage

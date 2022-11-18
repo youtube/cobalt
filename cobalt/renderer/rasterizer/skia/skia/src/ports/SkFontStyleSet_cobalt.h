@@ -40,19 +40,23 @@
 // entry are lazily loaded the first time that they are needed.
 class SkFontStyleSet_Cobalt : public SkFontStyleSet {
  public:
+  typedef SkTArray<Fixed16, true> ComputedVariationPosition;
+
   struct SkFontStyleSetEntry_Cobalt : public SkRefCnt {
     // NOTE: SkFontStyleSetEntry_Cobalt objects are not guaranteed to last for
     // the lifetime of SkFontMgr_Cobalt and can be removed by their owning
     // SkFontStyleSet_Cobalt if their typeface fails to load properly. As a
     // result, it is not safe to store their pointers outside of
     // SkFontStyleSet_Cobalt.
-    SkFontStyleSetEntry_Cobalt(const SkString& file_path, const int face_index,
-                               const SkFontStyle& style,
-                               const std::string& full_name,
-                               const std::string& postscript_name,
-                               const bool disable_synthetic_bolding)
+    SkFontStyleSetEntry_Cobalt(
+        const SkString& file_path, const int face_index,
+        const ComputedVariationPosition& computed_variation_position,
+        const SkFontStyle& style, const std::string& full_name,
+        const std::string& postscript_name,
+        const bool disable_synthetic_bolding)
         : font_file_path(file_path),
           face_index(face_index),
+          computed_variation_position(computed_variation_position),
           font_style(style),
           full_font_name(full_name),
           font_postscript_name(postscript_name),
@@ -62,6 +66,7 @@ class SkFontStyleSet_Cobalt : public SkFontStyleSet {
 
     const SkString font_file_path;
     const int face_index;
+    const ComputedVariationPosition computed_variation_position;
     SkFontStyle font_style;
     const std::string full_font_name;
     const std::string font_postscript_name;

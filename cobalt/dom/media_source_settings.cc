@@ -46,9 +46,9 @@ bool MediaSourceSettingsImpl::Set(const std::string& name, int value) {
       LOG(INFO) << name << ": set to " << value;
       return true;
     }
-  } else if (name == "MediaSource.MinSizeForImmediateJob") {
+  } else if (name == "MediaSource.MaxSizeForImmediateJob") {
     if (value >= 0) {
-      min_size_for_immediate_job_ = value;
+      max_size_for_immediate_job_ = value;
       LOG(INFO) << name << ": set to " << value;
       return true;
     }

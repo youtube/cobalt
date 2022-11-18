@@ -782,10 +782,13 @@ WebModule::Impl::~Impl() {
   local_storage_database_.reset();
   mesh_cache_.reset();
   remote_typeface_cache_.reset();
+  // Warning: The image cache may contain animated images that rely on the
+  // thread in AnimatedImageTracker, so it's important to destroy the image
+  // cache before the animated image tracker object.
+  image_cache_.reset();
   animated_image_tracker_.reset();
   dom_parser_.reset();
   css_parser_.reset();
-  image_cache_.reset();
   web_module_stat_tracker_.reset();
 }
 

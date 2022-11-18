@@ -25,4 +25,8 @@ except ImportError as e:
 if __name__ == '__main__':
   from_ref = os.environ.get('PRE_COMMIT_FROM_REF')
   to_ref = os.environ.get('PRE_COMMIT_TO_REF')
+  if not from_ref or not to_ref:
+    print('Invalid from ref or to ref, exiting...')
+    sys.exit(0)
+
   sys.exit(CheckForBugInCommitDescription(from_ref, to_ref))

@@ -15,6 +15,7 @@
 // https://dom.spec.whatwg.org/#interface-abortcontroller
 
 [
+  Exposed=(Window,Worker),
   Constructor,
   ConstructorCallWith=EnvironmentSettings,
 ]

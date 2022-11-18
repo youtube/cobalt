@@ -18,7 +18,7 @@
 import sys
 
 try:
-  import internal.sync_keyboxes as sync_keyboxes
+  from internal import sync_keyboxes
 except ImportError:
   print('sync_keyboxes.py not found, skipping.')
   sys.exit(0)

@@ -174,6 +174,14 @@ void UpdateComputedStylesAndLayoutBoxTree(
   }
 }
 
+void UpdateUiNavItemBoundaries(const scoped_refptr<dom::Document>& document) {
+  TRACE_EVENT0("cobalt::layout", "UpdateUiNavItemBoundaries()");
+  const auto& ui_nav_elements = document->ui_navigation_elements();
+  for (dom::HTMLElement* html_element : ui_nav_elements) {
+    html_element->SetUiNavItemBounds();
+  }
+}
+
 scoped_refptr<render_tree::Node> GenerateRenderTreeFromBoxTree(
     UsedStyleProvider* used_style_provider,
     LayoutStatTracker* layout_stat_tracker,

@@ -127,7 +127,9 @@ class TexturedMeshRenderer {
     int32 texture_size_uniforms[3];
     uint32 gl_program_id;
     int32 viewport_size_uniform;
-    int32 viewport_to_texture_size_ratio_uniform;
+    int32 enable_filtering_uniform;
+    int32 content_region_size_uniform;
+    int32 texture_size_as_unpacked_uniform;
     int32 subtexture_size_uniform;
   };
   // We key each program off of their GL texture type and image type.

@@ -82,12 +82,11 @@ csp::SecurityCallback CreateSecurityCallback(
 }  // namespace
 
 Document::Document(HTMLElementContext* html_element_context,
-                   const Options& options)
+                   const Options& options, web::CspDelegate* csp_delegate)
     : ALLOW_THIS_IN_INITIALIZER_LIST(Node(html_element_context, this)),
       html_element_context_(html_element_context),
       application_lifecycle_state_(
           html_element_context_->application_lifecycle_state()),
-      window_(options.window),
       implementation_(new DOMImplementation(html_element_context)),
       style_sheets_(new cssom::StyleSheetList()),
       loading_counter_(0),
@@ -124,9 +123,13 @@ Document::Document(HTMLElementContext* html_element_context,
 
   cookie_jar_ = options.cookie_jar;
 
+  if (!csp_delegate) {
+    csp_delegate = Document::GetCSPDelegate();
+  }
+
   location_ = new Location(
       options.url, options.hashchange_callback, options.navigation_callback,
-      CreateSecurityCallback(csp_delegate(), web::CspDelegate::kLocation),
+      CreateSecurityCallback(csp_delegate, web::CspDelegate::kLocation),
       base::Bind(&Document::SetNavigationType, base::Unretained(this)));
 
   font_cache_.reset(new FontCache(
@@ -135,18 +138,16 @@ Document::Document(HTMLElementContext* html_element_context,
       base::Bind(&Document::OnTypefaceLoadEvent, base::Unretained(this)),
       html_element_context_->font_language_script(), location_));
 
-  if (HasBrowsingContext()) {
-    if (html_element_context_->remote_typeface_cache()) {
-      html_element_context_->remote_typeface_cache()->set_security_callback(
-          CreateSecurityCallback(csp_delegate(), web::CspDelegate::kFont));
-    }
-    if (html_element_context_->image_cache()) {
-      html_element_context_->image_cache()->set_security_callback(
-          CreateSecurityCallback(csp_delegate(), web::CspDelegate::kImage));
-    }
-
-    ready_state_ = kDocumentReadyStateLoading;
+  if (html_element_context_->remote_typeface_cache()) {
+    html_element_context_->remote_typeface_cache()->set_security_callback(
+        CreateSecurityCallback(csp_delegate, web::CspDelegate::kFont));
   }
+  if (html_element_context_->image_cache()) {
+    html_element_context_->image_cache()->set_security_callback(
+        CreateSecurityCallback(csp_delegate, web::CspDelegate::kImage));
+  }
+
+  ready_state_ = kDocumentReadyStateLoading;
 
   // Sample the timeline upon initialization.
   SampleTimelineTime();
@@ -164,7 +165,7 @@ scoped_refptr<Element> Document::document_element() const {
   return first_element_child();
 }
 
-scoped_refptr<Window> Document::default_view() const { return window_; }
+scoped_refptr<Window> Document::default_view() const { return window(); }
 
 std::string Document::title() const {
   const char kTitleTag[] = "title";
@@ -571,7 +572,25 @@ void Document::SetIndicatedElement(HTMLElement* indicated_element) {
   }
 }
 
-const scoped_refptr<Window> Document::window() { return window_; }
+web::CspDelegate* Document::GetCSPDelegate() const {
+  web::WindowOrWorkerGlobalScope* window_or_worker_global_scope =
+      environment_settings()->context()
+          ? environment_settings()->context()->GetWindowOrWorkerGlobalScope()
+          : nullptr;
+  return window_or_worker_global_scope
+             ? window_or_worker_global_scope->csp_delegate()
+             : nullptr;
+}
+
+const scoped_refptr<Window> Document::window() const {
+  web::WindowOrWorkerGlobalScope* window_or_worker_global_scope =
+      environment_settings()->context()
+          ? environment_settings()->context()->GetWindowOrWorkerGlobalScope()
+          : nullptr;
+  return window_or_worker_global_scope
+             ? window_or_worker_global_scope->AsWindow()
+             : nullptr;
+}
 
 void Document::IncreaseLoadingCounter() { ++loading_counter_; }
 
@@ -637,7 +656,7 @@ Document::DoSynchronousLayoutAndGetRenderTree() {
 
 void Document::NotifyUrlChanged(const GURL& url) {
   location_->set_url(url);
-  csp_delegate()->NotifyUrlChanged(url);
+  GetCSPDelegate()->NotifyUrlChanged(url);
 }
 
 void Document::OnFocusChange() {
@@ -1011,10 +1030,7 @@ void Document::InvalidateLayoutBoxes() {
 }
 
 void Document::DisableJit() {
-  window_->html_element_context()
-      ->script_runner()
-      ->GetGlobalEnvironment()
-      ->DisableJit();
+  environment_settings()->context()->global_environment()->DisableJit();
 }
 
 void Document::OnWindowFocusChanged(bool has_focus) {
@@ -1212,7 +1228,7 @@ void Document::CollectTimingInfoAndDispatchEvent() {
 }
 
 void Document::OnRootElementUnableToProvideOffsetDimensions() {
-  window_->OnDocumentRootElementUnableToProvideOffsetDimensions();
+  window()->OnDocumentRootElementUnableToProvideOffsetDimensions();
 }
 
 void Document::DispatchOnLoadEvent() {

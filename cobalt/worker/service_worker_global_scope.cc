@@ -24,7 +24,11 @@
 #include "base/trace_event/trace_event.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/exception_state.h"
+#include "cobalt/script/v8c/entry_scope.h"
+#include "cobalt/web/environment_settings_helper.h"
 #include "cobalt/worker/clients.h"
+#include "cobalt/worker/fetch_event.h"
+#include "cobalt/worker/fetch_event_init.h"
 #include "cobalt/worker/service_worker_jobs.h"
 #include "cobalt/worker/worker_settings.h"
 
@@ -34,7 +38,13 @@ ServiceWorkerGlobalScope::ServiceWorkerGlobalScope(
     script::EnvironmentSettings* settings, ServiceWorkerObject* service_worker)
     : WorkerGlobalScope(settings),
       clients_(new Clients(settings)),
-      service_worker_object_(base::AsWeakPtr(service_worker)) {}
+      service_worker_object_(base::AsWeakPtr(service_worker)) {
+  loader::FetchInterceptorCoordinator::GetInstance()->Add(this);
+}
+
+ServiceWorkerGlobalScope::~ServiceWorkerGlobalScope() {
+  loader::FetchInterceptorCoordinator::GetInstance()->Clear();
+}
 
 void ServiceWorkerGlobalScope::Initialize() {}
 
@@ -42,7 +52,7 @@ void ServiceWorkerGlobalScope::ImportScripts(
     const std::vector<std::string>& urls,
     script::ExceptionState* exception_state) {
   // Algorithm for importScripts():
-  //   https://w3c.github.io/ServiceWorker/#importscripts
+  //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#importscripts
 
   // When the importScripts(urls) method is called, the user agent must import
   // scripts into worker global scope, with the following steps to perform the
@@ -122,7 +132,7 @@ void ServiceWorkerGlobalScope::ImportScripts(
 scoped_refptr<ServiceWorkerRegistration>
 ServiceWorkerGlobalScope::registration() const {
   // Algorithm for registration():
-  //   https://w3c.github.io/ServiceWorker/#service-worker-global-scope-registration
+  //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#service-worker-global-scope-registration
 
   // The registration getter steps are to return the result of getting the
   // service worker registration object representing this's service worker's
@@ -136,7 +146,7 @@ ServiceWorkerGlobalScope::registration() const {
 
 scoped_refptr<ServiceWorker> ServiceWorkerGlobalScope::service_worker() const {
   // Algorithm for service_worker():
-  //   https://w3c.github.io/ServiceWorker/#service-worker-global-scope-serviceworker
+  //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#service-worker-global-scope-serviceworker
 
   // The serviceWorker getter steps are to return the result of getting the
   // service worker object that represents this's service worker in this's
@@ -152,7 +162,7 @@ script::HandlePromiseVoid ServiceWorkerGlobalScope::SkipWaiting() {
   DCHECK_EQ(base::MessageLoop::current(),
             environment_settings()->context()->message_loop());
   // Algorithm for skipWaiting():
-  //   https://w3c.github.io/ServiceWorker/#dom-serviceworkerglobalscope-skipwaiting
+  //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#dom-serviceworkerglobalscope-skipwaiting
   // 1. Let promise be a new promise.
   auto promise = environment_settings()
                      ->context()
@@ -170,9 +180,60 @@ script::HandlePromiseVoid ServiceWorkerGlobalScope::SkipWaiting() {
       base::BindOnce(&ServiceWorkerJobs::SkipWaitingSubSteps,
                      base::Unretained(jobs),
                      base::Unretained(environment_settings()->context()),
-                     service_worker_object_, std::move(promise_reference)));
+                     base::Unretained(service_worker_object_.get()),
+                     std::move(promise_reference)));
   // 3. Return promise.
   return promise;
+}
+
+void ServiceWorkerGlobalScope::StartFetch(
+    const GURL& url,
+    std::unique_ptr<base::OnceCallback<void(std::unique_ptr<std::string>)>>
+        callback,
+    std::unique_ptr<base::OnceCallback<void(const net::LoadTimingInfo&)>>
+        report_load_timing_info,
+    std::unique_ptr<base::OnceClosure> fallback) {
+  if (base::MessageLoop::current() !=
+      environment_settings()->context()->message_loop()) {
+    environment_settings()->context()->message_loop()->task_runner()->PostTask(
+        FROM_HERE,
+        base::BindOnce(&ServiceWorkerGlobalScope::StartFetch,
+                       base::Unretained(this), url, std::move(callback),
+                       std::move(report_load_timing_info),
+                       std::move(fallback)));
+    return;
+  }
+  if (!service_worker()) {
+    std::move(*fallback).Run();
+    return;
+  }
+  // TODO: handle the following steps in
+  //       https://w3c.github.io/ServiceWorker/#handle-fetch.
+  // 22. If activeWorker’s state is "activating", wait for activeWorker’s state
+  //     to become "activated".
+  // 23. If the result of running the Run Service Worker algorithm with
+  //     activeWorker is failure, then set handleFetchFailed to true.
+
+  auto* global_environment = get_global_environment(environment_settings());
+  auto* isolate = global_environment->isolate();
+  script::v8c::EntryScope entry_scope(isolate);
+  auto request =
+      web::cache_utils::CreateRequest(environment_settings(), url.spec());
+  if (!request) {
+    std::move(*fallback).Run();
+    return;
+  }
+  FetchEventInit event_init;
+  event_init.set_request(request.value().GetScriptValue());
+  scoped_refptr<FetchEvent> fetch_event =
+      new FetchEvent(environment_settings(), base::Tokens::fetch(), event_init,
+                     std::move(callback), std::move(report_load_timing_info));
+  // 24. Create and dispatch event.
+  DispatchEvent(fetch_event);
+  // TODO: implement steps 25 and 26.
+  if (!fetch_event->respond_with_called()) {
+    std::move(*fallback).Run();
+  }
 }
 
 }  // namespace worker

@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 static_library("cache") {
   sources = [
     "cache.cc",
@@ -25,5 +26,6 @@ static_library("cache") {
     "//cobalt/persistent_storage:persistent_settings",
     "//net",
     "//starboard:starboard_headers_only",
+    "//starboard/common",
   ]
 }

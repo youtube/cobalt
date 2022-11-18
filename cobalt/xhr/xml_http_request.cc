@@ -27,13 +27,13 @@
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/base/source_location.h"
 #include "cobalt/base/tokens.h"
-#include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/performance.h"
 #include "cobalt/dom/progress_event.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/dom/xml_document.h"
 #include "cobalt/dom_parser/xml_decoder.h"
 #include "cobalt/loader/cors_preflight.h"
+#include "cobalt/loader/fetch_interceptor_coordinator.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/loader/url_fetcher_string_writer.h"
 #include "cobalt/script/global_environment.h"
@@ -188,19 +188,12 @@ XMLHttpRequest::XMLHttpRequest(script::EnvironmentSettings* settings)
     : XMLHttpRequestEventTarget(settings) {
   // Determine which implementation of XHR to use based on being in a window or
   // worker.
-  if (environment_settings()
-          ->context()
-          ->GetWindowOrWorkerGlobalScope()
-          ->IsWindow()) {
+  web::WindowOrWorkerGlobalScope* window_or_worker_global_scope =
+      environment_settings()->context()->GetWindowOrWorkerGlobalScope();
+  if (window_or_worker_global_scope->IsWindow()) {
     xhr_impl_ = std::make_unique<DOMXMLHttpRequestImpl>(this);
-  } else if (environment_settings()
-                 ->context()
-                 ->GetWindowOrWorkerGlobalScope()
-                 ->IsDedicatedWorker() ||
-             environment_settings()
-                 ->context()
-                 ->GetWindowOrWorkerGlobalScope()
-                 ->IsServiceWorker()) {
+  } else if (window_or_worker_global_scope->IsDedicatedWorker() ||
+             window_or_worker_global_scope->IsServiceWorker()) {
     xhr_impl_ = std::make_unique<XMLHttpRequestImpl>(this);
   }
   xhr::GlobalStats::GetInstance()->Add(this);
@@ -365,9 +358,10 @@ XMLHttpRequestImpl::XMLHttpRequestImpl(XMLHttpRequest* xhr)
       sent_(false),
       settings_(xhr->environment_settings()),
       stop_timeout_(false),
+      task_runner_(base::MessageLoop::current()->task_runner()),
       timeout_ms_(0),
       upload_complete_(false) {
-  DCHECK(settings_);
+  DCHECK(environment_settings());
 }
 
 void XMLHttpRequestImpl::Abort() {
@@ -411,7 +405,7 @@ void XMLHttpRequestImpl::Open(const std::string& method, const std::string& url,
     return;
   }
 
-  base_url_ = settings_->base_url();
+  base_url_ = environment_settings()->base_url();
 
   if (IsForbiddenMethod(method)) {
     web::DOMException::Raise(web::DOMException::kSecurityErr, exception_state);
@@ -510,6 +504,100 @@ void XMLHttpRequestImpl::OverrideMimeType(
 void XMLHttpRequestImpl::Send(
     const base::Optional<XMLHttpRequest::RequestBodyType>& request_body,
     script::ExceptionState* exception_state) {
+  error_ = false;
+  bool in_service_worker = environment_settings()
+                               ->context()
+                               ->GetWindowOrWorkerGlobalScope()
+                               ->IsServiceWorker();
+  if (!in_service_worker && method_ == net::URLFetcher::GET) {
+    loader::FetchInterceptorCoordinator::GetInstance()->TryIntercept(
+        request_url_,
+        std::make_unique<
+            base::OnceCallback<void(std::unique_ptr<std::string>)>>(
+            base::BindOnce(&XMLHttpRequestImpl::SendIntercepted,
+                           base::Unretained(this))),
+        std::make_unique<base::OnceCallback<void(const net::LoadTimingInfo&)>>(
+            base::BindOnce(&XMLHttpRequestImpl::ReportLoadTimingInfo,
+                           base::Unretained(this))),
+        std::make_unique<base::OnceClosure>(base::BindOnce(
+            &XMLHttpRequestImpl::SendFallback, base::Unretained(this),
+            request_body, exception_state)));
+    return;
+  }
+  SendFallback(request_body, exception_state);
+}
+
+void XMLHttpRequestImpl::SendIntercepted(
+    std::unique_ptr<std::string> response) {
+  if (task_runner_ != base::MessageLoop::current()->task_runner()) {
+    task_runner_->PostTask(
+        FROM_HERE, base::BindOnce(&XMLHttpRequestImpl::SendIntercepted,
+                                  base::Unretained(this), std::move(response)));
+    return;
+  }
+  sent_ = true;
+  // Now that a send is happening, prevent this object
+  // from being collected until it's complete or aborted
+  // if no currently active request has called it before.
+  // TODO: consider deduplicating code from |Send()|,
+  //       |OnURLFetchDownloadProgress()|, and |OnURLFetchComplete()|.
+
+  // Send().
+  IncrementActiveRequests();
+  FireProgressEvent(xhr_, base::Tokens::loadstart());
+  if (!upload_complete_) {
+    FireProgressEvent(upload_, base::Tokens::loadstart());
+  }
+
+  // OnURLFetchResponseStarted().
+  http_status_ = 200;
+  http_response_headers_ = new net::HttpResponseHeaders("");
+  ChangeState(XMLHttpRequest::kHeadersReceived);
+
+  // OnURLFetchDownloadProgress().
+  ChangeState(XMLHttpRequest::kLoading);
+  response_body_ = new URLFetcherResponseWriter::Buffer(
+      URLFetcherResponseWriter::Buffer::kString);
+  response_body_->Write(response->data(), response->size());
+  if (fetch_callback_) {
+    script::Handle<script::Uint8Array> data =
+        script::Uint8Array::New(settings_->context()->global_environment(),
+                                response->data(), response->size());
+    fetch_callback_->value().Run(data);
+  }
+
+  // OnURLFetchComplete().
+  if (!upload_complete_ && upload_listener_) {
+    upload_complete_ = true;
+    FireProgressEvent(upload_, base::Tokens::progress());
+    FireProgressEvent(upload_, base::Tokens::load());
+    FireProgressEvent(upload_, base::Tokens::loadend());
+  }
+  ChangeState(XMLHttpRequest::kDone);
+  size_t received_length = response->size();
+  FireProgressEvent(xhr_, base::Tokens::load(), received_length,
+                    received_length,
+                    /*length_computable=*/true);
+  FireProgressEvent(xhr_, base::Tokens::loadend(), received_length,
+                    received_length,
+                    /*length_computable=*/true);
+  // Undo the ref we added in Send()
+  DecrementActiveRequests();
+
+  fetch_callback_.reset();
+  fetch_mode_callback_.reset();
+}
+
+void XMLHttpRequestImpl::SendFallback(
+    const base::Optional<XMLHttpRequest::RequestBodyType>& request_body,
+    script::ExceptionState* exception_state) {
+  if (task_runner_ != base::MessageLoop::current()->task_runner()) {
+    task_runner_->PostTask(
+        FROM_HERE,
+        base::BindOnce(&XMLHttpRequestImpl::SendFallback,
+                       base::Unretained(this), request_body, exception_state));
+    return;
+  }
   TRACK_MEMORY_SCOPE("XHR");
   // https://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#the-send()-method
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
@@ -547,17 +635,17 @@ void XMLHttpRequestImpl::Send(
                                    "text/plain;charset=UTF-8");
       }
     } else if (request_body
-                   ->IsType<script::Handle<script::ArrayBufferView> >()) {
+                   ->IsType<script::Handle<script::ArrayBufferView>>()) {
       script::Handle<script::ArrayBufferView> view =
-          request_body->AsType<script::Handle<script::ArrayBufferView> >();
+          request_body->AsType<script::Handle<script::ArrayBufferView>>();
       if (view->ByteLength()) {
         const char* start = reinterpret_cast<const char*>(view->RawData());
         request_body_text_.assign(start + view->ByteOffset(),
                                   view->ByteLength());
       }
-    } else if (request_body->IsType<script::Handle<script::ArrayBuffer> >()) {
+    } else if (request_body->IsType<script::Handle<script::ArrayBuffer>>()) {
       script::Handle<script::ArrayBuffer> array_buffer =
-          request_body->AsType<script::Handle<script::ArrayBuffer> >();
+          request_body->AsType<script::Handle<script::ArrayBuffer>>();
       if (array_buffer->ByteLength()) {
         const char* start = reinterpret_cast<const char*>(array_buffer->Data());
         request_body_text_.assign(start, array_buffer->ByteLength());
@@ -570,7 +658,7 @@ void XMLHttpRequestImpl::Send(
   if (upload_) {
     upload_listener_ = upload_->HasOneOrMoreAttributeEventListener();
   }
-  origin_ = settings_->GetOrigin();
+  origin_ = environment_settings()->GetOrigin();
   // Step 9
   sent_ = true;
   // Now that a send is happening, prevent this object
@@ -798,7 +886,7 @@ void XMLHttpRequestImpl::set_with_credentials(
 
 scoped_refptr<XMLHttpRequestUpload> XMLHttpRequestImpl::upload() {
   if (!upload_) {
-    upload_ = new XMLHttpRequestUpload(settings_);
+    upload_ = new XMLHttpRequestUpload(environment_settings());
   }
   return upload_;
 }
@@ -849,7 +937,7 @@ void XMLHttpRequestImpl::OnURLFetchResponseStarted(
   if (is_cross_origin_) {
     size_t iter = 0;
     std::string name, value;
-    std::vector<std::pair<std::string, std::string> > header_names_to_discard;
+    std::vector<std::pair<std::string, std::string>> header_names_to_discard;
     std::vector<std::string> expose_headers;
     loader::CORSPreflight::GetServerAllowedHeaders(*http_response_headers_,
                                                    &expose_headers);
@@ -867,7 +955,7 @@ void XMLHttpRequestImpl::OnURLFetchResponseStarted(
   if (is_data_url_) {
     size_t iter = 0;
     std::string name, value;
-    std::vector<std::pair<std::string, std::string> > header_names_to_discard;
+    std::vector<std::pair<std::string, std::string>> header_names_to_discard;
     while (http_response_headers_->EnumerateHeaderLines(&iter, &name, &value)) {
       if (name != net::HttpRequestHeaders::kContentType) {
         header_names_to_discard.push_back(std::make_pair(name, value));
@@ -900,9 +988,9 @@ void XMLHttpRequestImpl::OnURLFetchDownloadProgress(
   if (fetch_callback_) {
     std::string downloaded_data;
     response_body_->GetAndResetDataAndDownloadProgress(&downloaded_data);
-    script::Handle<script::Uint8Array> data =
-        script::Uint8Array::New(settings_->context()->global_environment(),
-                                downloaded_data.data(), downloaded_data.size());
+    script::Handle<script::Uint8Array> data = script::Uint8Array::New(
+        environment_settings()->context()->global_environment(),
+        downloaded_data.data(), downloaded_data.size());
     fetch_callback_->value().Run(data);
   }
 
@@ -1111,10 +1199,10 @@ void XMLHttpRequestImpl::TraceMembers(script::Tracer* tracer) {
 }
 
 web::CspDelegate* XMLHttpRequestImpl::csp_delegate() const {
-  DCHECK(settings_);
-  DCHECK(settings_->context());
-  DCHECK(settings_->context()->GetWindowOrWorkerGlobalScope());
-  return settings_->context()->GetWindowOrWorkerGlobalScope()->csp_delegate();
+  return environment_settings()
+      ->context()
+      ->GetWindowOrWorkerGlobalScope()
+      ->csp_delegate();
 }
 
 void XMLHttpRequestImpl::TerminateRequest() {
@@ -1127,12 +1215,14 @@ void XMLHttpRequestImpl::HandleRequestError(
     XMLHttpRequest::RequestErrorType request_error_type) {
   // https://www.w3.org/TR/XMLHttpRequest/#timeout-error
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  DLOG_IF(INFO, verbose())
-      << __FUNCTION__ << " (" << RequestErrorTypeName(request_error_type)
-      << ") " << *xhr_ << std::endl
-      << script::StackTraceToString(
-             settings_->context()->global_environment()->GetStackTrace(
-                 0 /*max_frames*/));
+  DLOG_IF(INFO, verbose()) << __FUNCTION__ << " ("
+                           << RequestErrorTypeName(request_error_type) << ") "
+                           << *xhr_ << std::endl
+                           << script::StackTraceToString(
+                                  environment_settings()
+                                      ->context()
+                                      ->global_environment()
+                                      ->GetStackTrace(0 /*max_frames*/));
   stop_timeout_ = true;
   // Step 1
   TerminateRequest();
@@ -1209,7 +1299,8 @@ XMLHttpRequestImpl::response_array_buffer() {
         new script::PreallocatedArrayBufferData());
     response_body_->GetAndResetData(downloaded_data.get());
     auto array_buffer = script::ArrayBuffer::New(
-        settings_->context()->global_environment(), std::move(downloaded_data));
+        environment_settings()->context()->global_environment(),
+        std::move(downloaded_data));
     response_array_buffer_reference_.reset(
         new script::ScriptValue<script::ArrayBuffer>::Reference(xhr_,
                                                                 array_buffer));
@@ -1252,7 +1343,7 @@ void XMLHttpRequestImpl::StartRequest(const std::string& request_body) {
   response_array_buffer_reference_.reset();
 
   network::NetworkModule* network_module =
-      settings_->context()->fetcher_factory()->network_module();
+      environment_settings()->context()->fetcher_factory()->network_module();
   url_fetcher_ = net::URLFetcher::Create(request_url_, method_, xhr_);
   ++url_fetcher_generation_;
   url_fetcher_->SetRequestContext(network_module->url_request_context_getter());
@@ -1303,7 +1394,8 @@ void XMLHttpRequestImpl::StartRequest(const std::string& request_body) {
         origin_.SerializedOrigin(),
         base::Bind(&DOMXMLHttpRequestImpl::CORSPreflightErrorCallback,
                    base::Unretained(this)),
-        settings_->context()
+        environment_settings()
+            ->context()
             ->GetWindowOrWorkerGlobalScope()
             ->get_preflight_cache()));
     corspreflight_->set_headers(request_headers_);
@@ -1326,19 +1418,20 @@ void XMLHttpRequestImpl::StartRequest(const std::string& request_body) {
   }
   DLOG_IF(INFO, verbose()) << __FUNCTION__ << *xhr_;
   if (!dopreflight) {
-    DCHECK(settings_->context()->network_module());
-    StartURLFetcher(settings_->context()->network_module()->max_network_delay(),
+    DCHECK(environment_settings()->context()->network_module());
+    StartURLFetcher(environment_settings()
+                        ->context()
+                        ->network_module()
+                        ->max_network_delay(),
                     url_fetcher_generation_);
   }
 }
 
 void XMLHttpRequestImpl::IncrementActiveRequests() {
   if (active_requests_count_ == 0) {
-    DCHECK(settings_);
-    DCHECK(settings_->context());
     prevent_gc_until_send_complete_.reset(
         new script::GlobalEnvironment::ScopedPreventGarbageCollection(
-            settings_->context()->global_environment(), xhr_));
+            environment_settings()->context()->global_environment(), xhr_));
   }
   active_requests_count_++;
 }
@@ -1406,16 +1499,15 @@ void XMLHttpRequestImpl::CORSPreflightErrorCallback() {
 }
 
 void XMLHttpRequestImpl::CORSPreflightSuccessCallback() {
-  DCHECK(settings_->context()->network_module());
-  StartURLFetcher(settings_->context()->network_module()->max_network_delay(),
-                  url_fetcher_generation_);
+  DCHECK(environment_settings()->context()->network_module());
+  StartURLFetcher(
+      environment_settings()->context()->network_module()->max_network_delay(),
+      url_fetcher_generation_);
 }
 
 DOMXMLHttpRequestImpl::DOMXMLHttpRequestImpl(XMLHttpRequest* xhr)
-    : XMLHttpRequestImpl(xhr),
-      settings_(base::polymorphic_downcast<dom::DOMSettings*>(
-          xhr->environment_settings())) {
-  DCHECK(settings_);
+    : XMLHttpRequestImpl(xhr) {
+  DCHECK(environment_settings());
 }
 
 // https://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#the-responsexml-attribute
@@ -1445,22 +1537,34 @@ scoped_refptr<dom::Document> DOMXMLHttpRequestImpl::response_xml(
 }
 
 void DOMXMLHttpRequestImpl::GetLoadTimingInfoAndCreateResourceTiming() {
-  if (settings_->window()->performance() == nullptr) return;
-  settings_->window()->performance()->CreatePerformanceResourceTiming(
-      load_timing_info_, kPerformanceResourceTimingInitiatorType,
-      request_url_.spec());
+  web::WindowOrWorkerGlobalScope* window_or_worker_global_scope =
+      environment_settings()->context()->GetWindowOrWorkerGlobalScope();
+  if (!window_or_worker_global_scope->IsWindow()) return;
+  if (window_or_worker_global_scope->AsWindow()->performance() == nullptr)
+    return;
+  window_or_worker_global_scope->AsWindow()
+      ->performance()
+      ->CreatePerformanceResourceTiming(load_timing_info_,
+                                        kPerformanceResourceTimingInitiatorType,
+                                        request_url_.spec());
 }
 
 // https://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#document-response-entity-body
 scoped_refptr<dom::Document>
 DOMXMLHttpRequestImpl::GetDocumentResponseEntityBody() {
   DCHECK_EQ(state_, XMLHttpRequest::kDone);
+  if (!environment_settings()
+           ->context()
+           ->GetWindowOrWorkerGlobalScope()
+           ->IsWindow()) {
+    return nullptr;
+  }
 
   // Step 1..5
   const std::string final_mime_type =
       mime_type_override_.empty() ? response_mime_type_ : mime_type_override_;
   if (final_mime_type != "text/xml" && final_mime_type != "application/xml") {
-    return NULL;
+    return nullptr;
   }
 
   // 6. Otherwise, let document be a document that represents the result of
@@ -1468,9 +1572,15 @@ DOMXMLHttpRequestImpl::GetDocumentResponseEntityBody() {
   // specifications. If that fails (unsupported character encoding, namespace
   // well-formedness error, etc.), return null.
   scoped_refptr<dom::XMLDocument> xml_document =
-      new dom::XMLDocument(settings_->window()->html_element_context());
+      new dom::XMLDocument(environment_settings()
+                               ->context()
+                               ->GetWindowOrWorkerGlobalScope()
+                               ->AsWindow()
+                               ->html_element_context());
   dom_parser::XMLDecoder xml_decoder(
-      xml_document, xml_document, NULL, settings_->max_dom_element_depth(),
+      xml_document, xml_document, NULL,
+      base::polymorphic_downcast<dom::DOMSettings*>(environment_settings())
+          ->max_dom_element_depth(),
       base::SourceLocation("[object XMLHttpRequest]", 1, 1),
       base::Bind(&DOMXMLHttpRequestImpl::XMLDecoderLoadCompleteCallback,
                  base::Unretained(this)));

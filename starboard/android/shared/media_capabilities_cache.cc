@@ -48,15 +48,15 @@ bool EndsWith(const std::string& str, const std::string& suffix) {
 }
 
 Range ConvertJavaRangeToRange(JniEnvExt* env, jobject j_range) {
-  jobject j_upper_comparable = env->CallObjectMethodOrAbort(
-      j_range, "getUpper", "()Ljava/lang/Comparable;");
+  ScopedLocalJavaRef<jobject> j_upper_comparable(env->CallObjectMethodOrAbort(
+      j_range, "getUpper", "()Ljava/lang/Comparable;"));
   jint j_upper_int =
-      env->CallIntMethodOrAbort(j_upper_comparable, "intValue", "()I");
+      env->CallIntMethodOrAbort(j_upper_comparable.Get(), "intValue", "()I");
 
-  jobject j_lower_comparable = env->CallObjectMethodOrAbort(
-      j_range, "getLower", "()Ljava/lang/Comparable;");
+  ScopedLocalJavaRef<jobject> j_lower_comparable(env->CallObjectMethodOrAbort(
+      j_range, "getLower", "()Ljava/lang/Comparable;"));
   jint j_lower_int =
-      env->CallIntMethodOrAbort(j_lower_comparable, "intValue", "()I");
+      env->CallIntMethodOrAbort(j_lower_comparable.Get(), "intValue", "()I");
   return Range(j_lower_int, j_upper_int);
 }
 
@@ -149,9 +149,9 @@ CodecCapability::CodecCapability(JniEnvExt* env, jobject j_codec_info) {
   SB_DCHECK(env);
   SB_DCHECK(j_codec_info);
 
-  name_ = env->GetStringStandardUTFOrAbort(
+  ScopedLocalJavaRef<jstring> j_decoder_name(
       env->GetStringFieldOrAbort(j_codec_info, "decoderName"));
-
+  name_ = env->GetStringStandardUTFOrAbort(j_decoder_name.Get());
   is_secure_required_ =
       env->CallBooleanMethodOrAbort(j_codec_info, "isSecureRequired", "()Z") ==
       JNI_TRUE;
@@ -174,9 +174,9 @@ AudioCodecCapability::AudioCodecCapability(JniEnvExt* env,
   SB_DCHECK(j_codec_info);
   SB_DCHECK(j_audio_capabilities);
 
-  jobject j_bitrate_range = env->CallObjectMethodOrAbort(
-      j_audio_capabilities, "getBitrateRange", "()Landroid/util/Range;");
-  supported_bitrates_ = ConvertJavaRangeToRange(env, j_bitrate_range);
+  ScopedLocalJavaRef<jobject> j_bitrate_range(env->CallObjectMethodOrAbort(
+      j_audio_capabilities, "getBitrateRange", "()Landroid/util/Range;"));
+  supported_bitrates_ = ConvertJavaRangeToRange(env, j_bitrate_range.Get());
 
   // Overwrite the lower bound to 0.
   supported_bitrates_.minimum = 0;
@@ -200,24 +200,25 @@ VideoCodecCapability::VideoCodecCapability(JniEnvExt* env,
   is_hdr_capable_ = env->CallBooleanMethodOrAbort(j_codec_info, "isHdrCapable",
                                                   "()Z") == JNI_TRUE;
 
-  j_video_capabilities_ = env->ConvertLocalRefToGlobalRef(j_video_capabilities);
+  j_video_capabilities_ = env->NewGlobalRef(j_video_capabilities);
 
-  jobject j_width_range = env->CallObjectMethodOrAbort(
-      j_video_capabilities_, "getSupportedWidths", "()Landroid/util/Range;");
-  supported_widths_ = ConvertJavaRangeToRange(env, j_width_range);
+  ScopedLocalJavaRef<jobject> j_width_range(env->CallObjectMethodOrAbort(
+      j_video_capabilities_, "getSupportedWidths", "()Landroid/util/Range;"));
+  supported_widths_ = ConvertJavaRangeToRange(env, j_width_range.Get());
 
-  jobject j_height_range = env->CallObjectMethodOrAbort(
-      j_video_capabilities_, "getSupportedHeights", "()Landroid/util/Range;");
-  supported_heights_ = ConvertJavaRangeToRange(env, j_height_range);
+  ScopedLocalJavaRef<jobject> j_height_range(env->CallObjectMethodOrAbort(
+      j_video_capabilities_, "getSupportedHeights", "()Landroid/util/Range;"));
+  supported_heights_ = ConvertJavaRangeToRange(env, j_height_range.Get());
 
-  jobject j_bitrate_range = env->CallObjectMethodOrAbort(
-      j_video_capabilities_, "getBitrateRange", "()Landroid/util/Range;");
-  supported_bitrates_ = ConvertJavaRangeToRange(env, j_bitrate_range);
+  ScopedLocalJavaRef<jobject> j_bitrate_range(env->CallObjectMethodOrAbort(
+      j_video_capabilities_, "getBitrateRange", "()Landroid/util/Range;"));
+  supported_bitrates_ = ConvertJavaRangeToRange(env, j_bitrate_range.Get());
 
-  jobject j_frame_rate_range = env->CallObjectMethodOrAbort(
+  ScopedLocalJavaRef<jobject> j_frame_rate_range(env->CallObjectMethodOrAbort(
       j_video_capabilities_, "getSupportedFrameRates",
-      "()Landroid/util/Range;");
-  supported_frame_rates_ = ConvertJavaRangeToRange(env, j_frame_rate_range);
+      "()Landroid/util/Range;"));
+  supported_frame_rates_ =
+      ConvertJavaRangeToRange(env, j_frame_rate_range.Get());
 }
 
 VideoCodecCapability::~VideoCodecCapability() {
@@ -504,7 +505,6 @@ void MediaCapabilitiesCache::LazyInitialize_Locked() {
   if (is_initialized_) {
     return;
   }
-
   is_widevine_supported_ = GetIsWidevineSupported();
   is_cbcs_supported_ = GetIsCbcsSupported();
   supported_transfer_ids_ = GetSupportedHdrTypes();
@@ -522,41 +522,44 @@ void MediaCapabilitiesCache::LoadCodecInfos_Locked() {
   mutex_.DCheckAcquired();
 
   JniEnvExt* env = JniEnvExt::Get();
-  jobjectArray j_codec_infos =
+  ScopedLocalJavaRef<jobjectArray> j_codec_infos(
       static_cast<jobjectArray>(env->CallStaticObjectMethodOrAbort(
           "dev/cobalt/media/MediaCodecUtil", "getAllCodecCapabilityInfos",
-          "()[Ldev/cobalt/media/MediaCodecUtil$CodecCapabilityInfo;"));
-  jsize length = env->GetArrayLength(j_codec_infos);
+          "()[Ldev/cobalt/media/MediaCodecUtil$CodecCapabilityInfo;")));
+  jsize length = env->GetArrayLength(j_codec_infos.Get());
   // Note: Codec infos are sorted by the framework such that the best
   // decoders come first.
   // This order is maintained in the cache.
   for (int i = 0; i < length; i++) {
-    jobject j_codec_info = env->GetObjectArrayElementOrAbort(j_codec_infos, i);
+    ScopedLocalJavaRef<jobject> j_codec_info(
+        env->GetObjectArrayElementOrAbort(j_codec_infos.Get(), i));
 
-    std::string mime_type = env->GetStringStandardUTFOrAbort(
-        env->GetStringFieldOrAbort(j_codec_info, "mimeType"));
-
+    ScopedLocalJavaRef<jstring> j_mime_type(
+        env->GetStringFieldOrAbort(j_codec_info.Get(), "mimeType"));
+    std::string mime_type = env->GetStringStandardUTFOrAbort(j_mime_type.Get());
     // Convert the mime type to lower case.
     ConvertStringToLowerCase(&mime_type);
 
-    jobject j_audio_capabilities = env->GetObjectFieldOrAbort(
-        j_codec_info, "audioCapabilities",
-        "Landroid/media/MediaCodecInfo$AudioCapabilities;");
+    ScopedLocalJavaRef<jobject> j_audio_capabilities(env->GetObjectFieldOrAbort(
+        j_codec_info.Get(), "audioCapabilities",
+        "Landroid/media/MediaCodecInfo$AudioCapabilities;"));
     if (j_audio_capabilities) {
       // Found an audio decoder.
       std::unique_ptr<AudioCodecCapability> audio_codec_capabilities(
-          new AudioCodecCapability(env, j_codec_info, j_audio_capabilities));
+          new AudioCodecCapability(env, j_codec_info.Get(),
+                                   j_audio_capabilities.Get()));
       audio_codec_capabilities_map_[mime_type].push_back(
           std::move(audio_codec_capabilities));
       continue;
     }
-    jobject j_video_capabilities = env->GetObjectFieldOrAbort(
-        j_codec_info, "videoCapabilities",
-        "Landroid/media/MediaCodecInfo$VideoCapabilities;");
+    ScopedLocalJavaRef<jobject> j_video_capabilities(env->GetObjectFieldOrAbort(
+        j_codec_info.Get(), "videoCapabilities",
+        "Landroid/media/MediaCodecInfo$VideoCapabilities;"));
     if (j_video_capabilities) {
       // Found a video decoder.
       std::unique_ptr<VideoCodecCapability> video_codec_capabilities(
-          new VideoCodecCapability(env, j_codec_info, j_video_capabilities));
+          new VideoCodecCapability(env, j_codec_info.Get(),
+                                   j_video_capabilities.Get()));
       video_codec_capabilities_map_[mime_type].push_back(
           std::move(video_codec_capabilities));
     }

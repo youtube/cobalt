@@ -50,6 +50,9 @@
     // the same url is used both times.
     var timestampString = '?t=' + initialLoadTime;
 
+    // Ensure that the cache is enabled.
+    h5vcc.storage.enableCache();
+
     // Validate the tranferSize attribute of each performance entry specified
     // in CACHED_ELEMENT_LOCATIONS and UNCACHED_ELEMENT_LOCATIONS.
     function checkTransferSizes() {

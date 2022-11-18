@@ -70,6 +70,49 @@ int MatchScore(const SkFontStyle& pattern, const SkFontStyle& candidate) {
   return score;
 }
 
+
+// Calculate the variation design coordinates for use with
+// FT_Set_Var_Design_Coordinates or passed to SkFontData.
+bool ComputeVariationPosition(
+    const sk_freetype_cobalt::AxisDefinitions& axis_definitions,
+    const FontFileInfo::VariationPosition& variation_position,
+    SkFontStyleSet_Cobalt::ComputedVariationPosition* out_position) {
+  if (variation_position.count() > axis_definitions.count()) {
+    // More variation axes were specified than actually supported.
+    return false;
+  }
+
+  int positions_used = 0;
+  out_position->resize(axis_definitions.count());
+  for (int axis = 0; axis < axis_definitions.count(); ++axis) {
+    // See if this axis has a specified position. If not, then use the default
+    // value from the axis definitions.
+    Fixed16 value = axis_definitions[axis].def;
+    for (int pos = 0; pos < variation_position.count(); ++pos) {
+      if (variation_position[pos].tag == axis_definitions[axis].tag) {
+        value = variation_position[pos].value;
+        DCHECK(value >= axis_definitions[axis].minimum);
+        DCHECK(value <= axis_definitions[axis].maximum);
+        if (value < axis_definitions[axis].minimum ||
+            value > axis_definitions[axis].maximum) {
+          return false;
+        }
+        ++positions_used;
+        break;
+      }
+    }
+    (*out_position)[axis] = value;
+  }
+
+  if (positions_used != variation_position.count()) {
+    // Some axes were specified which aren't supported.
+    LOG(ERROR) << "Mismatched font variation tags specified";
+    return false;
+  }
+
+  return true;
+}
+
 }  // namespace
 
 SkFontStyleSet_Cobalt::SkFontStyleSet_Cobalt(
@@ -94,16 +137,91 @@ SkFontStyleSet_Cobalt::SkFontStyleSet_Cobalt(
   family_name_ = family_info.names[0];
   SkTHashMap<SkString, int> styles_index_map;
 
+  // These structures support validation of entries for font variations.
+  SkTHashMap<SkString, sk_freetype_cobalt::AxisDefinitions>
+      variation_definitions;
+  ComputedVariationPosition computed_variation_position;
+  sk_freetype_cobalt::AxisDefinitions axis_definitions;
+
+  // Avoid expensive alloc / dealloc calls with SkTArray by reserving size and
+  // using resize(0) instead of reset(). Adobe multiple master fonts are limited
+  // to 4 axes, and although OpenType font variations may have more, they tend
+  // not to -- it's usually just weight, width, and slant. But just in case,
+  // use a relatively high reservation.
+  computed_variation_position.reserve(16);
+  axis_definitions.reserve(16);
+
   for (int i = 0; i < family_info.fonts.count(); ++i) {
     const FontFileInfo& font_file = family_info.fonts[i];
 
     SkString file_path(SkOSPath::Join(base_path, font_file.file_name.c_str()));
 
-    // Validate that the file exists at this location. If it does not, then skip
-    // over it; it isn't being added to the set.
-    if (!sk_exists(file_path.c_str(), kRead_SkFILE_Flag)) {
-      DLOG(INFO) << "Failed to find font file: " << file_path.c_str();
-      continue;
+    // Validate the font file entry.
+    if (font_file.variation_position.empty()) {
+      // Static font files only need to check for file existence.
+      if (!sk_exists(file_path.c_str(), kRead_SkFILE_Flag)) {
+        DLOG(INFO) << "Failed to find static font file: " << file_path.c_str();
+        continue;
+      }
+      computed_variation_position.resize(0);
+    } else {
+      // Need to scan the font file to verify variation parameters. To improve
+      // performance, cache the scan results.
+
+      // In case axis definition changes based on font index, include font
+      // index in the key.
+      SkString cache_key(font_file.file_name);
+      char cache_key_suffix[3] = {':', static_cast<char>(font_file.index + 'A'),
+                                  0};
+      cache_key.append(cache_key_suffix);
+
+      sk_freetype_cobalt::AxisDefinitions* cached_axis_definitions =
+          variation_definitions.find(cache_key);
+
+      if (cached_axis_definitions == nullptr) {
+        // Scan the font file to get the variation information (if any).
+        if (!sk_exists(file_path.c_str(), kRead_SkFILE_Flag)) {
+          // Add an empty axis definition list as placeholder. This will
+          // be detected as an incompatible font file.
+          axis_definitions.resize(0);
+        } else {
+          DLOG(INFO) << "Scanning variable font file: " << file_path.c_str();
+
+          // Create a stream to scan the font. Since these fonts may not ever
+          // be used at runtime, purge stream's chunks after scanning to avoid
+          // memory bloat.
+          SkFileMemoryChunkStreamProvider* stream_provider =
+              local_typeface_stream_manager_->GetStreamProvider(
+                  file_path.c_str());
+          std::unique_ptr<const SkFileMemoryChunks> memory_chunks_snapshot(
+              stream_provider->CreateMemoryChunksSnapshot());
+          std::unique_ptr<SkFileMemoryChunkStream> stream(
+              stream_provider->OpenStream());
+
+          SkString unused_face_name;
+          SkFontStyle unused_font_style;
+          bool unused_is_fixed_pitch;
+          if (!sk_freetype_cobalt::ScanFont(
+                  stream.get(), font_file.index, &unused_face_name,
+                  &unused_font_style, &unused_is_fixed_pitch, &axis_definitions,
+                  nullptr)) {
+            axis_definitions.resize(0);
+          }
+
+          stream.reset(nullptr);
+          stream_provider->PurgeUnusedMemoryChunks();
+        }
+
+        cached_axis_definitions =
+            variation_definitions.set(cache_key, axis_definitions);
+      }
+
+      if (!ComputeVariationPosition(*cached_axis_definitions,
+                                    font_file.variation_position,
+                                    &computed_variation_position)) {
+        DLOG(INFO) << "Incompatible variable font file: " << file_path.c_str();
+        continue;
+      }
     }
 
     auto file_name = font_file.file_name.c_str();
@@ -149,10 +267,10 @@ SkFontStyleSet_Cobalt::SkFontStyleSet_Cobalt(
       font_name = SkString(full_font_name.c_str());
     }
     auto font = new SkFontStyleSetEntry_Cobalt(
-        file_path, font_file.index, style, full_font_name, postscript_name,
-        font_file.disable_synthetic_bolding);
+        file_path, font_file.index, computed_variation_position, style,
+        full_font_name, postscript_name, font_file.disable_synthetic_bolding);
     int* index = styles_index_map.find(font_name);
-    if (index != NULL) {
+    if (index != nullptr) {
       // If style with name already exists in family, replace it.
       if (font_format_setting == kTtfPreferred &&
           SbStringCompareNoCase("ttf", extension) == 0) {
@@ -357,10 +475,17 @@ bool SkFontStyleSet_Cobalt::GenerateStyleFaceInfo(
     character_map = character_maps_[style_index].get();
   }
 
+  SkFontStyle old_style = style->font_style;
   if (!sk_freetype_cobalt::ScanFont(
           stream, style->face_index, &style->face_name, &style->font_style,
-          &style->face_is_fixed_pitch, character_map)) {
+          &style->face_is_fixed_pitch, nullptr, character_map)) {
     return false;
+  }
+
+  if (style->computed_variation_position.count() > 0) {
+    // For font variations, use the font style parsed from fonts.xml rather than
+    // the style returned by ScanFont since that's just the default.
+    style->font_style = old_style;
   }
 
   style->is_face_info_generated = true;
@@ -372,6 +497,10 @@ int SkFontStyleSet_Cobalt::GetClosestStyleIndex(const SkFontStyle& pattern) {
   int max_score = std::numeric_limits<int>::min();
   for (int i = 0; i < styles_.count(); ++i) {
     int score = MatchScore(pattern, styles_[i]->font_style);
+    if (styles_[i]->computed_variation_position.count() > 0) {
+      // Slightly prefer static fonts over font variations to maintain old look.
+      score -= 1;
+    }
     if (score > max_score) {
       closest_index = i;
       max_score = score;
@@ -403,7 +532,8 @@ void SkFontStyleSet_Cobalt::CreateStreamProviderTypeface(
     style_entry->typeface.reset(new SkTypeface_CobaltStreamProvider(
         stream_provider, style_entry->face_index, style_entry->font_style,
         style_entry->face_is_fixed_pitch, family_name_,
-        style_entry->disable_synthetic_bolding, map));
+        style_entry->disable_synthetic_bolding,
+        style_entry->computed_variation_position, map));
   } else {
     LOG(ERROR) << "Failed to scan font: "
                << style_entry->font_file_path.c_str();

@@ -21,5 +21,6 @@ dictionary H5vccStorageResourceTypeQuotaBytesDictionary {
   unsigned long splash;
   unsigned long uncompiled_js;
   unsigned long compiled_js;
+  unsigned long cache_api;
   unsigned long total;
 };

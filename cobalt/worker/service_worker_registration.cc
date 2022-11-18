@@ -41,7 +41,7 @@ ServiceWorkerRegistration::ServiceWorkerRegistration(
 script::HandlePromiseWrappable ServiceWorkerRegistration::Update() {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerRegistration::Update()");
   // Algorithm for update():
-  //   https://w3c.github.io/ServiceWorker/#service-worker-registration-update
+  //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#service-worker-registration-update
 
   script::HandlePromiseWrappable promise =
       environment_settings()
@@ -69,7 +69,7 @@ void ServiceWorkerRegistration::UpdateTask(
   DCHECK_EQ(base::MessageLoop::current(),
             environment_settings()->context()->message_loop());
   // Algorithm for update():
-  //   https://w3c.github.io/ServiceWorker/#service-worker-registration-update
+  //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#service-worker-registration-update
 
   // 1. Let registration be the service worker registration.
   // 2. Let newestWorker be the result of running Get Newest Worker algorithm
@@ -127,7 +127,7 @@ void ServiceWorkerRegistration::UpdateTask(
 
 script::HandlePromiseBool ServiceWorkerRegistration::Unregister() {
   // Algorithm for unregister():
-  //   https://w3c.github.io/ServiceWorker/#navigator-service-worker-unregister
+  //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#navigator-service-worker-unregister
   // 1. Let registration be the service worker registration.
   // 2. Let promise be a new promise.
   script::HandlePromiseBool promise = environment_settings()
@@ -151,7 +151,7 @@ script::HandlePromiseBool ServiceWorkerRegistration::Unregister() {
 void ServiceWorkerRegistration::UnregisterTask(
     std::unique_ptr<script::ValuePromiseBool::Reference> promise_reference) {
   // Algorithm for unregister():
-  //   https://w3c.github.io/ServiceWorker/#navigator-service-worker-unregister
+  //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#navigator-service-worker-unregister
   // 3. Let job be the result of running Create Job with unregister,
   //    registration’s storage key, registration’s scope url, null, promise, and
   //    this's relevant settings object.

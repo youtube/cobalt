@@ -310,6 +310,7 @@ class XMLHttpRequestImpl {
  protected:
   void CORSPreflightErrorCallback();
   void CORSPreflightSuccessCallback();
+  web::EnvironmentSettings* environment_settings() const { return settings_; }
 
   // Return the CSP delegate from the Settings object.
   // virtual for use by tests.
@@ -376,6 +377,11 @@ class XMLHttpRequestImpl {
 
   virtual void StartRequest(const std::string& request_body);
 
+  void SendFallback(
+      const base::Optional<XMLHttpRequest::RequestBodyType>& request_body,
+      script::ExceptionState* exception_state);
+  void SendIntercepted(std::unique_ptr<std::string> response);
+
   // The following two methods are used to determine if garbage collection is
   // needed. It is legal to reuse XHR and send a new request in last request's
   // onload event listener. We should not allow garbage collection until
@@ -424,6 +430,7 @@ class XMLHttpRequestImpl {
   bool sent_;
   web::EnvironmentSettings* const settings_;
   bool stop_timeout_;
+  scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
   uint32 timeout_ms_;
   bool upload_complete_;
 
@@ -453,7 +460,6 @@ class DOMXMLHttpRequestImpl : public XMLHttpRequestImpl {
   void XMLDecoderLoadCompleteCallback(
       const base::Optional<std::string>& status);
 
-  dom::DOMSettings* const settings_;
   bool has_xml_decoder_error_;
 };
 

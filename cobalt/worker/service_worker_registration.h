@@ -37,7 +37,7 @@ namespace worker {
 
 // The ServiceWorkerRegistration interface represents a service worker
 // registration within a service worker client realm.
-//   https://w3c.github.io/ServiceWorker/#serviceworker-interface
+//   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#serviceworker-interface
 class ServiceWorkerRegistration : public web::EventTarget {
  public:
   ServiceWorkerRegistration(

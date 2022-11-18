@@ -41,6 +41,7 @@ class PropertyValue;
 // This class is not a part of any specification.
 class CSSParser {
  public:
+  virtual ~CSSParser() {}
   //
   // Parser entry points
   // (see http://dev.w3.org/csswg/css-syntax/#parser-entry-points):
@@ -102,9 +103,6 @@ class CSSParser {
   virtual scoped_refptr<MediaQuery> ParseMediaQuery(
       const std::string& media_query,
       const base::SourceLocation& input_location) = 0;
-
- protected:
-  virtual ~CSSParser() {}
 };
 
 }  // namespace cssom

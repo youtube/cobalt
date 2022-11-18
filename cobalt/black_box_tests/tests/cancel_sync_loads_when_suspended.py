@@ -89,7 +89,7 @@ class CancelSyncLoadsWhenSuspended(black_box_tests.BlackBoxTestCase):
     except:  # pylint: disable=bare-except
       traceback.print_exc()
 
-  def test_simple(self):
+  def test_cancel_sync_loads_when_suspended(self):
 
     # Step 2. Start Cobalt, and point it to the socket created in Step 1.
     try:

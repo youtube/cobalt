@@ -74,6 +74,11 @@ void ClearCacheHelper(disk_cache::Backend* backend) {
   backend->DoomAllEntries(base::DoNothing());
 }
 
+void ClearCacheOfTypeHelper(disk_cache::ResourceType type,
+                            disk_cache::CobaltBackendImpl* backend) {
+  backend->DoomAllEntriesOfType(type, base::DoNothing());
+}
+
 }  // namespace
 
 H5vccStorage::H5vccStorage(
@@ -229,7 +234,8 @@ H5vccStorageSetQuotaResponse H5vccStorage::SetQuota(
     H5vccStorageResourceTypeQuotaBytesDictionary quota) {
   if (!quota.has_other() || !quota.has_html() || !quota.has_css() ||
       !quota.has_image() || !quota.has_font() || !quota.has_splash() ||
-      !quota.has_uncompiled_js() || !quota.has_compiled_js()) {
+      !quota.has_uncompiled_js() || !quota.has_compiled_js() ||
+      !quota.has_cache_api()) {
     return SetQuotaResponse(
         "H5vccStorageResourceTypeQuotaBytesDictionary input parameter missing "
         "required fields.");
@@ -237,16 +243,17 @@ H5vccStorageSetQuotaResponse H5vccStorage::SetQuota(
 
   if (quota.other() < 0 || quota.html() < 0 || quota.css() < 0 ||
       quota.image() < 0 || quota.font() < 0 || quota.splash() < 0 ||
-      quota.uncompiled_js() < 0 || quota.compiled_js() < 0) {
+      quota.uncompiled_js() < 0 || quota.compiled_js() < 0 ||
+      quota.cache_api() < 0) {
     return SetQuotaResponse(
         "H5vccStorageResourceTypeQuotaBytesDictionary input parameter fields "
-        "cannot "
-        "have a negative value.");
+        "cannot have a negative value.");
   }
 
   auto quota_total = quota.other() + quota.html() + quota.css() +
                      quota.image() + quota.font() + quota.splash() +
-                     quota.uncompiled_js() + quota.compiled_js();
+                     quota.uncompiled_js() + quota.compiled_js() +
+                     quota.cache_api();
 
   uint32_t max_quota_size = 24 * 1024 * 1024;
 #if SB_API_VERSION >= 14
@@ -282,6 +289,8 @@ H5vccStorageSetQuotaResponse H5vccStorage::SetQuota(
                             static_cast<uint32_t>(quota.uncompiled_js()));
   SetAndSaveQuotaForBackend(disk_cache::kCompiledScript,
                             static_cast<uint32_t>(quota.compiled_js()));
+  SetAndSaveQuotaForBackend(disk_cache::kCacheApi,
+                            static_cast<uint32_t>(quota.cache_api()));
   return SetQuotaResponse("", true);
 }
 
@@ -289,6 +298,12 @@ void H5vccStorage::SetAndSaveQuotaForBackend(disk_cache::ResourceType type,
                                              uint32_t bytes) {
   if (cache_backend_) {
     cache_backend_->UpdateSizes(type, bytes);
+
+    if (bytes == 0) {
+      network_module_->task_runner()->PostTask(
+          FROM_HERE, base::Bind(&ClearCacheOfTypeHelper, type,
+                                base::Unretained(cache_backend_)));
+    }
   }
   cobalt::cache::Cache::GetInstance()->Resize(type, bytes);
 }
@@ -312,6 +327,7 @@ H5vccStorageResourceTypeQuotaBytesDictionary H5vccStorage::GetQuota() {
       cobalt::cache::Cache::GetInstance()
           ->GetMaxCacheStorageInBytes(disk_cache::kCompiledScript)
           .value());
+  quota.set_cache_api(cache_backend_->GetQuota(disk_cache::kCacheApi));
 
   uint32_t max_quota_size = 24 * 1024 * 1024;
 #if SB_API_VERSION >= 14

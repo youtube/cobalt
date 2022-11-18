@@ -3237,38 +3237,35 @@ void PrettyUnitTestResultPrinter::PrintFailedTests(const UnitTest& unit_test) {
   }
 }
 
+#if !GTEST_OS_STARBOARD
 void PrettyUnitTestResultPrinter::OnTestIterationEnd(const UnitTest& unit_test,
                                                      int /*iteration*/) {
   ColoredPrintf(COLOR_GREEN,  "[==========] ");
-  posix::PrintF(
-      "%s from %s ran.",
-      FormatTestCount(unit_test.test_to_run_count()).c_str(),
-      FormatTestCaseCount(unit_test.test_case_to_run_count()).c_str());
+  printf("%s from %s ran.",
+         FormatTestCount(unit_test.test_to_run_count()).c_str(),
+         FormatTestCaseCount(unit_test.test_case_to_run_count()).c_str());
   if (GTEST_FLAG(print_time)) {
-    posix::PrintF(
-        " (%s ms total)",
-        internal::StreamableToString(unit_test.elapsed_time()).c_str());
+    printf(" (%s ms total)",
+           internal::StreamableToString(unit_test.elapsed_time()).c_str());
   }
-  posix::PrintF("\n");
+  printf("\n");
   ColoredPrintf(COLOR_GREEN,  "[  PASSED  ] ");
-  posix::PrintF("%s.\n",
-                FormatTestCount(unit_test.successful_test_count()).c_str());
+  printf("%s.\n", FormatTestCount(unit_test.successful_test_count()).c_str());
 
   int num_failures = unit_test.failed_test_count();
   if (!unit_test.Passed()) {
     const int failed_test_count = unit_test.failed_test_count();
     ColoredPrintf(COLOR_RED,  "[  FAILED  ] ");
-    posix::PrintF("%s, listed below:\n",
-                  FormatTestCount(failed_test_count).c_str());
+    printf("%s, listed below:\n", FormatTestCount(failed_test_count).c_str());
     PrintFailedTests(unit_test);
-    posix::PrintF("\n%2d FAILED %s\n", num_failures,
-                  num_failures == 1 ? "TEST" : "TESTS");
+    printf("\n%2d FAILED %s\n", num_failures,
+                        num_failures == 1 ? "TEST" : "TESTS");
   }
 
   int num_disabled = unit_test.reportable_disabled_test_count();
   if (num_disabled && !GTEST_FLAG(also_run_disabled_tests)) {
     if (!num_failures) {
-      posix::PrintF("\n");  // Add a spacer if no FAILURE banner is displayed.
+      printf("\n");  // Add a spacer if no FAILURE banner is displayed.
     }
     ColoredPrintf(COLOR_YELLOW,
                   "  YOU HAVE %d DISABLED %s\n\n",
@@ -3276,8 +3273,109 @@ void PrettyUnitTestResultPrinter::OnTestIterationEnd(const UnitTest& unit_test,
                   num_disabled == 1 ? "TEST" : "TESTS");
   }
   // Ensure that Google Test output is printed before, e.g., heapchecker output.
+  fflush(stdout);
+}
+#else  // !GTEST_OS_STARBOARD
+void PrettyUnitTestResultPrinter::OnTestIterationEnd(const UnitTest& unit_test,
+                                                     int /*iteration*/) {
+  // Due to the test processes relying on regex-parsing of GTEST test result
+  // summary output, we modify this step to atomically output the logs to stdout
+  // to avoid other external SbLogRaw calls from being inserted between calls to
+  // posix:PrintF().
+  // This batching guarantees that the output is well-formatted as the test
+  // runner scripts are setup to expect.
+  // See b/251827741
+  std::stringstream out_stream;
+  out_stream << "[==========] ";
+
+  out_stream << FormatTestCount(unit_test.test_to_run_count())
+             << " from "
+             << FormatTestCaseCount(unit_test.test_case_to_run_count())
+             << " ran.";
+
+  if (GTEST_FLAG(print_time)) {
+    out_stream << " ("
+               << internal::StreamableToString(unit_test.elapsed_time())
+               << " ms total)";
+  }
+  out_stream << std::endl;
+
+  out_stream << "[  PASSED  ] "
+             << FormatTestCount(unit_test.successful_test_count())
+             << "."
+             << std::endl;
+
+  int num_failures = unit_test.failed_test_count();
+  if (!unit_test.Passed()) {
+    const int failed_test_count = unit_test.failed_test_count();
+    out_stream << "[  FAILED  ] "
+               << FormatTestCount(failed_test_count)
+               << ", listed below:"
+               << std::endl;
+
+    // Print each failed test case within the unit test.
+    for (int i = 0; i < unit_test.total_test_case_count(); ++i) {
+      const TestCase& test_case = *unit_test.GetTestCase(i);
+      if (!test_case.should_run() || (test_case.failed_test_count() == 0)) {
+        continue;
+      }
+      for (int j = 0; j < test_case.total_test_count(); ++j) {
+        const TestInfo& test_info = *test_case.GetTestInfo(j);
+        if (!test_info.should_run() || test_info.result()->Passed()) {
+          continue;
+        }
+        out_stream << "[  FAILED  ] "
+                   << test_case.name()
+                   << "."
+                   << test_info.name();
+
+        // Output the full test comment if present.
+        const char* const type_param = test_info.type_param();
+        const char* const value_param = test_info.value_param();
+        if (type_param != NULL || value_param != NULL) {
+          out_stream << ", where ";
+          if (type_param != NULL) {
+            out_stream << kTypeParamLabel
+                       << " = "
+                       << type_param;
+            if (value_param != NULL) {
+              out_stream << " and ";
+            }
+          }
+          if (value_param != NULL) {
+            out_stream << kValueParamLabel
+                       << " = "
+                       << value_param;
+          }
+        }
+        out_stream << std::endl;
+      }
+    }
+
+    out_stream << num_failures
+               << " FAILED "
+               << (num_failures == 1 ? "TEST" : "TESTS")
+               << std::endl;
+  }
+
+  int num_disabled = unit_test.reportable_disabled_test_count();
+  if (num_disabled && !GTEST_FLAG(also_run_disabled_tests)) {
+    if (!num_failures) {
+      // Add a spacer if no FAILURE banner is displayed.
+      out_stream << std::endl;
+    }
+    out_stream << "  YOU HAVE "
+               << num_disabled
+               << " DISABLED "
+               << (num_disabled == 1 ? "TEST" : "TESTS")
+               << std::endl
+               << std::endl;
+  }
+  // Ensure that Google Test output is printed before, e.g., heapchecker output.
+  posix::PrintF("%s", out_stream.str().c_str());
   posix::Flush();
 }
+#endif  // !GTEST_OS_STARBOARD
 
 // End PrettyUnitTestResultPrinter
 

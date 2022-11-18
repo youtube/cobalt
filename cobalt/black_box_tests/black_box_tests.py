@@ -62,6 +62,7 @@ _TESTS_NEEDING_SYSTEM_SIGNAL = [
 _TESTS_NO_SIGNAL = [
     'allow_eval',
     'compression_test',
+    'default_site_can_load',
     'disable_eval_with_csp',
     'http_cache',
     'persistent_cookie',
@@ -71,6 +72,8 @@ _TESTS_NO_SIGNAL = [
     'web_platform_tests',
     'web_worker_test',
     'worker_csp_test',
+    'service_worker_get_registrations_test',
+    'service_worker_fetch_test',
     'service_worker_message_test',
     'service_worker_test',
 ]
@@ -109,7 +112,7 @@ class BlackBoxTestCase(unittest.TestCase):
     super(BlackBoxTestCase, cls).tearDownClass()
     logging.info('Done %s', cls.__name__)
 
-  def CreateCobaltRunner(self, url, target_params=None):
+  def CreateCobaltRunner(self, url=None, target_params=None):
     all_target_params = list(target_params) if target_params else []
     if _launcher_params.target_params is not None:
       all_target_params += _launcher_params.target_params

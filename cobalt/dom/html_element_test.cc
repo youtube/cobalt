@@ -21,12 +21,14 @@
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/cssom/css_computed_style_data.h"
 #include "cobalt/cssom/css_declared_style_data.h"
+#include "cobalt/cssom/css_parser.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/testing/mock_css_parser.h"  // nogncheck
 #include "cobalt/cssom/viewport_size.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/dom_rect_list.h"
 #include "cobalt/dom/dom_stat_tracker.h"
+#include "cobalt/dom/global_stats.h"
 #include "cobalt/dom/html_body_element.h"
 #include "cobalt/dom/html_div_element.h"
 #include "cobalt/dom/html_element_context.h"
@@ -82,13 +84,33 @@ scoped_refptr<HTMLElement> GetFirstChildAtDepth(
 class HTMLElementTest : public ::testing::Test {
  protected:
   HTMLElementTest()
-      : dom_stat_tracker_(new DomStatTracker("HTMLElementTest")),
-        html_element_context_(&environment_settings_, NULL, NULL, &css_parser_,
-                              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-                              NULL, NULL, NULL, NULL, dom_stat_tracker_.get(),
-                              "", base::kApplicationStateStarted, NULL, NULL),
-        document_(new testing::FakeDocument(&html_element_context_)) {}
-  ~HTMLElementTest() override {}
+      : window_(new testing::StubWindow),
+        dom_stat_tracker_(new DomStatTracker("HTMLElementTest")) {
+    EXPECT_TRUE(GlobalStats::GetInstance()->CheckNoLeaks());
+    window_->set_css_parser(new cssom::testing::MockCSSParser);
+    // We expect one call to parse the user agent style sheet.
+    EXPECT_CALL(css_parser(), ParseStyleSheet(_, _))
+        .WillRepeatedly(Return(scoped_refptr<cssom::CSSStyleSheet>()));
+    window_->InitializeWindow();
+    html_element_context_.reset(new HTMLElementContext(
+        window_->web_context()->environment_settings(), NULL, NULL,
+        window_->css_parser(), NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+        NULL, NULL, NULL, NULL, dom_stat_tracker_.get(), "",
+        base::kApplicationStateStarted, NULL, NULL));
+  }
+  ~HTMLElementTest() override {
+    window_.reset();
+    EXPECT_TRUE(GlobalStats::GetInstance()->CheckNoLeaks());
+  }
+
+  cssom::testing::MockCSSParser& css_parser() {
+    return *base::polymorphic_downcast<cssom::testing::MockCSSParser*>(
+        window_->css_parser());
+  }
+
+  const scoped_refptr<Document>& document() {
+    return window_->window()->document();
+  }
 
   // This creates simple DOM tree with mock layout boxes for all elements except
   // the last child element. It returns the root html element.
@@ -98,17 +120,15 @@ class HTMLElementTest : public ::testing::Test {
   void SetElementStyle(const scoped_refptr<cssom::CSSDeclaredStyleData>& data,
                        HTMLElement* html_element);
 
-  testing::StubEnvironmentSettings environment_settings_;
-  cssom::testing::MockCSSParser css_parser_;
+  std::unique_ptr<testing::StubWindow> window_;
   std::unique_ptr<DomStatTracker> dom_stat_tracker_;
-  HTMLElementContext html_element_context_;
-  scoped_refptr<Document> document_;
+  std::unique_ptr<HTMLElementContext> html_element_context_;
 };
 
 void HTMLElementTest::SetElementStyle(
     const scoped_refptr<cssom::CSSDeclaredStyleData>& data,
     HTMLElement* html_element) {
-  EXPECT_CALL(css_parser_,
+  EXPECT_CALL(css_parser(),
               ParseStyleDeclarationList(kFooBarDeclarationString, _))
       .WillOnce(Return(data));
   html_element->SetAttribute("style", kFooBarDeclarationString);
@@ -117,12 +137,13 @@ void HTMLElementTest::SetElementStyle(
 scoped_refptr<HTMLElement>
 HTMLElementTest::CreateHTMLElementTreeWithMockLayoutBoxes(
     const char* null_terminated_element_names[]) {
-  DCHECK(!document_->IsXMLDocument());
+  DCHECK(!document()->IsXMLDocument());
   scoped_refptr<HTMLElement> root_html_element;
   scoped_refptr<HTMLElement> parent_html_element;
   do {
     scoped_refptr<HTMLElement> child_html_element(
-        document_->CreateElement(*null_terminated_element_names)
+        document()
+            ->CreateElement(*null_terminated_element_names)
             ->AsHTMLElement());
     DCHECK(child_html_element);
     child_html_element->css_computed_style_declaration()->SetData(
@@ -163,7 +184,7 @@ HTMLElementTest::CreateHTMLElementTreeWithMockLayoutBoxes(
 TEST_F(HTMLElementTest, Dir) {
   for (size_t i = 0; i < arraysize(kHtmlElementTagNames); ++i) {
     scoped_refptr<HTMLElement> html_element =
-        document_->CreateElement(kHtmlElementTagNames[i])->AsHTMLElement();
+        document()->CreateElement(kHtmlElementTagNames[i])->AsHTMLElement();
     EXPECT_EQ("", html_element->dir());
 
     html_element->set_dir("invalid");
@@ -189,7 +210,7 @@ TEST_F(HTMLElementTest, Dir) {
 TEST_F(HTMLElementTest, TabIndex) {
   for (size_t i = 0; i < arraysize(kHtmlElementTagNames); ++i) {
     scoped_refptr<HTMLElement> html_element =
-        document_->CreateElement(kHtmlElementTagNames[i])->AsHTMLElement();
+        document()->CreateElement(kHtmlElementTagNames[i])->AsHTMLElement();
 
     EXPECT_EQ(0, html_element->tab_index());
 
@@ -205,29 +226,26 @@ TEST_F(HTMLElementTest, TabIndex) {
 }
 
 TEST_F(HTMLElementTest, Focus) {
-  // Give the document browsing context which is needed for focus to work.
-  testing::StubWindow window;
-  document_->set_window(window.window());
   // Give the document initial computed style.
-  document_->SetViewport(kViewSize);
+  document()->SetViewport(kViewSize);
 
   scoped_refptr<HTMLElement> html_element_1 =
-      document_->CreateElement("div")->AsHTMLElement();
+      document()->CreateElement("div")->AsHTMLElement();
   scoped_refptr<HTMLElement> html_element_2 =
-      document_->CreateElement("div")->AsHTMLElement();
-  document_->AppendChild(html_element_1);
-  document_->AppendChild(html_element_2);
-  EXPECT_FALSE(document_->active_element());
+      document()->CreateElement("div")->AsHTMLElement();
+  document()->AppendChild(html_element_1);
+  document()->AppendChild(html_element_2);
+  EXPECT_FALSE(document()->active_element());
 
   html_element_1->set_tab_index(-1);
   html_element_1->Focus();
-  ASSERT_TRUE(document_->active_element());
-  EXPECT_EQ(html_element_1, document_->active_element()->AsHTMLElement());
+  ASSERT_TRUE(document()->active_element());
+  EXPECT_EQ(html_element_1, document()->active_element()->AsHTMLElement());
 
   html_element_2->set_tab_index(-1);
   html_element_2->Focus();
-  ASSERT_TRUE(document_->active_element());
-  EXPECT_EQ(html_element_2, document_->active_element()->AsHTMLElement());
+  ASSERT_TRUE(document()->active_element());
+  EXPECT_EQ(html_element_2, document()->active_element()->AsHTMLElement());
 
   // Make sure that if we try to focus an element that has display set to none,
   // it will not take the focus.
@@ -237,70 +255,64 @@ TEST_F(HTMLElementTest, Focus) {
       cssom::kDisplayProperty, cssom::KeywordValue::GetNone(), false);
   SetElementStyle(display_none_style, html_element_1);
   html_element_1->Focus();
-  ASSERT_TRUE(document_->active_element());
-  EXPECT_EQ(html_element_2, document_->active_element()->AsHTMLElement());
+  ASSERT_TRUE(document()->active_element());
+  EXPECT_EQ(html_element_2, document()->active_element()->AsHTMLElement());
 
   // Make sure that if we try to focus an element whose ancestor has display
   // set to none, it will not take the focus.
   scoped_refptr<HTMLElement> html_element_3 =
-      document_->CreateElement("div")->AsHTMLElement();
+      document()->CreateElement("div")->AsHTMLElement();
   scoped_refptr<HTMLElement> html_element_4 =
-      document_->CreateElement("div")->AsHTMLElement();
-  document_->AppendChild(html_element_3);
+      document()->CreateElement("div")->AsHTMLElement();
+  document()->AppendChild(html_element_3);
   html_element_3->AppendChild(html_element_4);
 
   html_element_4->set_tab_index(-1);
   SetElementStyle(display_none_style, html_element_3);
   html_element_4->Focus();
-  ASSERT_TRUE(document_->active_element());
-  EXPECT_EQ(html_element_2, document_->active_element()->AsHTMLElement());
+  ASSERT_TRUE(document()->active_element());
+  EXPECT_EQ(html_element_2, document()->active_element()->AsHTMLElement());
 }
 
 TEST_F(HTMLElementTest, Blur) {
-  // Give the document browsing context which is needed for focus to work.
-  testing::StubWindow window;
-  document_->set_window(window.window());
   // Give the document initial computed style.
-  document_->SetViewport(kViewSize);
+  document()->SetViewport(kViewSize);
 
   scoped_refptr<HTMLElement> html_element =
-      document_->CreateElement("div")->AsHTMLElement();
-  document_->AppendChild(html_element);
-  EXPECT_FALSE(document_->active_element());
+      document()->CreateElement("div")->AsHTMLElement();
+  document()->AppendChild(html_element);
+  EXPECT_FALSE(document()->active_element());
 
   html_element->set_tab_index(-1);
   html_element->Focus();
-  ASSERT_TRUE(document_->active_element());
-  EXPECT_EQ(html_element, document_->active_element()->AsHTMLElement());
+  ASSERT_TRUE(document()->active_element());
+  EXPECT_EQ(html_element, document()->active_element()->AsHTMLElement());
 
   html_element->Blur();
-  EXPECT_FALSE(document_->active_element());
+  EXPECT_FALSE(document()->active_element());
 }
 
 TEST_F(HTMLElementTest, RemoveActiveElementShouldRunBlur) {
-  // Give the document browsing context which is needed for focus to work.
-  testing::StubWindow window;
-  document_->set_window(window.window());
   // Give the document initial computed style.
-  document_->SetViewport(kViewSize);
+  document()->SetViewport(kViewSize);
 
   scoped_refptr<HTMLElement> html_element =
-      document_->CreateElement("div")->AsHTMLElement();
-  document_->AppendChild(html_element);
-  EXPECT_FALSE(document_->active_element());
+      document()->CreateElement("div")->AsHTMLElement();
+  document()->AppendChild(html_element);
+  EXPECT_FALSE(document()->active_element());
 
   html_element->set_tab_index(-1);
   html_element->Focus();
-  ASSERT_TRUE(document_->active_element());
-  EXPECT_EQ(html_element, document_->active_element()->AsHTMLElement());
+  ASSERT_TRUE(document()->active_element());
+  EXPECT_EQ(html_element, document()->active_element()->AsHTMLElement());
 
-  document_->RemoveChild(html_element);
-  EXPECT_FALSE(document_->active_element());
+  document()->RemoveChild(html_element);
+  EXPECT_FALSE(document()->active_element());
 }
 
 TEST_F(HTMLElementTest, LayoutBoxesGetter) {
   scoped_refptr<HTMLElement> html_element =
-      document_->CreateElement("div")->AsHTMLElement();
+      document()->CreateElement("div")->AsHTMLElement();
 
   std::unique_ptr<MockLayoutBoxes> mock_layout_boxes(new MockLayoutBoxes);
   MockLayoutBoxes* saved_mock_layout_boxes_ptr = mock_layout_boxes.get();
@@ -319,7 +331,7 @@ TEST_F(HTMLElementTest, LayoutBoxesGetter) {
 
 TEST_F(HTMLElementTest, GetBoundingClientRectWithoutLayoutBox) {
   scoped_refptr<HTMLElement> html_element =
-      document_->CreateElement("div")->AsHTMLElement();
+      document()->CreateElement("div")->AsHTMLElement();
   scoped_refptr<DOMRect> rect = html_element->GetBoundingClientRect();
   DCHECK(rect);
   EXPECT_FLOAT_EQ(rect->x(), 0.0f);
@@ -336,7 +348,7 @@ TEST_F(HTMLElementTest, GetBoundingClientRectWithoutLayoutBox) {
 //   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-element-clienttop
 TEST_F(HTMLElementTest, ClientTop) {
   scoped_refptr<HTMLElement> html_element =
-      document_->CreateElement("div")->AsHTMLElement();
+      document()->CreateElement("div")->AsHTMLElement();
 
   // 1. If the element has no associated CSS layout box, return zero.
   EXPECT_FLOAT_EQ(html_element->client_top(), 0.0f);
@@ -371,7 +383,7 @@ TEST_F(HTMLElementTest, ClientTop) {
 //   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-element-clientleft
 TEST_F(HTMLElementTest, ClientLeft) {
   scoped_refptr<HTMLElement> html_element =
-      document_->CreateElement("div")->AsHTMLElement();
+      document()->CreateElement("div")->AsHTMLElement();
 
   // 1. If the element has no associated CSS layout box, return zero.
   EXPECT_FLOAT_EQ(html_element->client_left(), 0.0f);
@@ -655,7 +667,7 @@ TEST_F(HTMLElementTest, OffsetLeft) {
 //   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-htmlelement-offsetwidth
 TEST_F(HTMLElementTest, OffsetWidth) {
   scoped_refptr<HTMLElement> html_element =
-      document_->CreateElement("div")->AsHTMLElement();
+      document()->CreateElement("div")->AsHTMLElement();
 
   // 1. If the element does not have any associated CSS layout box return zero
   // and terminate this algorithm.
@@ -679,7 +691,7 @@ TEST_F(HTMLElementTest, OffsetWidth) {
 //   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-htmlelement-offsetheight
 TEST_F(HTMLElementTest, OffsetHeight) {
   scoped_refptr<HTMLElement> html_element =
-      document_->CreateElement("div")->AsHTMLElement();
+      document()->CreateElement("div")->AsHTMLElement();
 
   // 1. If the element does not have any associated CSS layout box return zero
   // and terminate this algorithm.
@@ -701,7 +713,7 @@ TEST_F(HTMLElementTest, OffsetHeight) {
 
 TEST_F(HTMLElementTest, SetAttributeMatchesGetAttribute) {
   scoped_refptr<HTMLElement> html_element =
-      document_->CreateElement("div")->AsHTMLElement();
+      document()->CreateElement("div")->AsHTMLElement();
   html_element->SetAttribute("foo", "bar");
   EXPECT_EQ(1, html_element->attributes()->length());
   EXPECT_EQ("bar", html_element->GetAttribute("foo").value());
@@ -709,10 +721,10 @@ TEST_F(HTMLElementTest, SetAttributeMatchesGetAttribute) {
 
 TEST_F(HTMLElementTest, SetAttributeStyleSetsElementStyle) {
   scoped_refptr<HTMLElement> html_element =
-      document_->CreateElement("div")->AsHTMLElement();
+      document()->CreateElement("div")->AsHTMLElement();
   scoped_refptr<cssom::CSSDeclaredStyleData> style(
       new cssom::CSSDeclaredStyleData());
-  EXPECT_CALL(css_parser_, ParseStyleDeclarationList("", _))
+  EXPECT_CALL(css_parser(), ParseStyleDeclarationList("", _))
       .WillOnce(Return(style));
   html_element->SetAttribute("style", "");
   EXPECT_EQ(style, html_element->style()->data());
@@ -720,10 +732,10 @@ TEST_F(HTMLElementTest, SetAttributeStyleSetsElementStyle) {
 
 TEST_F(HTMLElementTest, SetAttributeStyleReplacesExistingElementStyle) {
   scoped_refptr<HTMLElement> html_element =
-      document_->CreateElement("div")->AsHTMLElement();
+      document()->CreateElement("div")->AsHTMLElement();
   scoped_refptr<cssom::CSSDeclaredStyleData> style(
       new cssom::CSSDeclaredStyleData());
-  EXPECT_CALL(css_parser_,
+  EXPECT_CALL(css_parser(),
               ParseStyleDeclarationList(kDisplayInlineDeclarationString, _))
       .WillOnce(Return(style));
   html_element->SetAttribute("style", kDisplayInlineDeclarationString);
@@ -735,7 +747,7 @@ TEST_F(HTMLElementTest, SetAttributeStyleReplacesExistingElementStyle) {
 
   scoped_refptr<cssom::CSSDeclaredStyleData> new_style(
       new cssom::CSSDeclaredStyleData());
-  EXPECT_CALL(css_parser_,
+  EXPECT_CALL(css_parser(),
               ParseStyleDeclarationList(kFooBarDeclarationString, _))
       .WillOnce(Return(new_style));
   html_element->SetAttribute("style", kFooBarDeclarationString);
@@ -747,10 +759,10 @@ TEST_F(HTMLElementTest, SetAttributeStyleReplacesExistingElementStyle) {
 
 TEST_F(HTMLElementTest, GetAttributeStyleMatchesSetAttributeStyle) {
   scoped_refptr<HTMLElement> html_element =
-      document_->CreateElement("div")->AsHTMLElement();
+      document()->CreateElement("div")->AsHTMLElement();
   scoped_refptr<cssom::CSSDeclaredStyleData> style(
       new cssom::CSSDeclaredStyleData());
-  EXPECT_CALL(css_parser_,
+  EXPECT_CALL(css_parser(),
               ParseStyleDeclarationList(kFooBarDeclarationString, _))
       .WillOnce(Return(style));
   html_element->SetAttribute("style", kFooBarDeclarationString);
@@ -762,16 +774,16 @@ TEST_F(HTMLElementTest, GetAttributeStyleMatchesSetAttributeStyle) {
 TEST_F(HTMLElementTest,
        GetAttributeStyleDoesNotMatchSetAttributeStyleAfterStyleMutation) {
   scoped_refptr<HTMLElement> html_element =
-      document_->CreateElement("div")->AsHTMLElement();
+      document()->CreateElement("div")->AsHTMLElement();
   scoped_refptr<cssom::CSSDeclaredStyleData> style(
       new cssom::CSSDeclaredStyleData());
-  EXPECT_CALL(css_parser_,
+  EXPECT_CALL(css_parser(),
               ParseStyleDeclarationList(kFooBarDeclarationString, _))
       .WillOnce(Return(style));
   html_element->SetAttribute("style", kFooBarDeclarationString);
   EXPECT_EQ(1, html_element->attributes()->length());
-  EXPECT_CALL(css_parser_, ParsePropertyIntoDeclarationData("display", "inline",
-                                                            _, style.get()))
+  EXPECT_CALL(css_parser(), ParsePropertyIntoDeclarationData(
+                                "display", "inline", _, style.get()))
       .WillOnce(InvokeCallback0(base::Bind(
           &cssom::CSSDeclaredStyleData::SetPropertyValueAndImportance,
           base::Unretained(style.get()), cssom::kDisplayProperty,
@@ -785,16 +797,16 @@ TEST_F(HTMLElementTest,
 TEST_F(HTMLElementTest,
        GetAttributeStyleMatchesSerializedStyleAfterStyleMutation) {
   scoped_refptr<HTMLElement> html_element =
-      document_->CreateElement("div")->AsHTMLElement();
+      document()->CreateElement("div")->AsHTMLElement();
   scoped_refptr<cssom::CSSDeclaredStyleData> style(
       new cssom::CSSDeclaredStyleData());
-  EXPECT_CALL(css_parser_,
+  EXPECT_CALL(css_parser(),
               ParseStyleDeclarationList(kFooBarDeclarationString, _))
       .WillOnce(Return(style));
   html_element->SetAttribute("style", kFooBarDeclarationString);
   EXPECT_EQ(1, html_element->attributes()->length());
-  EXPECT_CALL(css_parser_, ParsePropertyIntoDeclarationData("display", "inline",
-                                                            _, style.get()))
+  EXPECT_CALL(css_parser(), ParsePropertyIntoDeclarationData(
+                                "display", "inline", _, style.get()))
       .WillOnce(InvokeCallback0(base::Bind(
           &cssom::CSSDeclaredStyleData::SetPropertyValueAndImportance,
           base::Unretained(style.get()), cssom::kDisplayProperty,
@@ -807,7 +819,7 @@ TEST_F(HTMLElementTest,
 
 TEST_F(HTMLElementTest, Duplicate) {
   scoped_refptr<HTMLElement> html_element =
-      document_->CreateElement("div")->AsHTMLElement();
+      document()->CreateElement("div")->AsHTMLElement();
   html_element->SetAttribute("a", "1");
   html_element->SetAttribute("b", "2");
   scoped_refptr<HTMLElement> new_html_element =

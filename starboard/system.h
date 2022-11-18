@@ -66,9 +66,10 @@ typedef enum SbSystemPathId {
   // Full path to the executable file.
   kSbSystemPathExecutableFile,
 
-  // Path to a directory for permanent file storage. Both read and write
-  // access is required. This is where an app may store its persistent settings.
-  // The location should be user agnostic if possible.
+  // Path to the directory dedicated for Evergreen Full permanent file storage.
+  // Both read and write access is required.
+  // The directory should be used only for storing the updates.
+  // See starboard/doc/evergreen/cobalt_evergreen_overview.md
   kSbSystemPathStorageDirectory,
 } SbSystemPathId;
 

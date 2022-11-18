@@ -16,6 +16,7 @@
 
 #include <ft2build.h>
 #include FT_FREETYPE_H
+#include FT_MULTIPLE_MASTERS_H
 #include FT_TRUETYPE_TABLES_H
 #include FT_TYPE1_TABLES_H
 
@@ -118,10 +119,11 @@ void GenerateCharacterMapFromFace(
 // These functions are used by FreeType during FT_Open_Face.
 extern "C" {
 
-static unsigned long sk_freetype_cobalt_stream_io(FT_Stream ftStream,
-                                                  unsigned long offset,
-                                                  unsigned char* buffer,
-                                                  unsigned long count) {
+static unsigned long sk_freetype_cobalt_stream_io(  // NOLINT(runtime/int)
+    FT_Stream ftStream,
+    unsigned long offset,   // NOLINT(runtime/int)
+    unsigned char* buffer,  // NOLINT(runtime/int)
+    unsigned long count) {  // NOLINT(runtime/int)
   SkStreamAsset* stream =
       static_cast<SkStreamAsset*>(ftStream->descriptor.pointer);
   stream->seek(offset);
@@ -134,7 +136,7 @@ static void sk_freetype_cobalt_stream_close(FT_Stream) {}
 namespace sk_freetype_cobalt {
 
 bool ScanFont(SkStreamAsset* stream, int face_index, SkString* name,
-              SkFontStyle* style, bool* is_fixed_pitch,
+              SkFontStyle* style, bool* is_fixed_pitch, AxisDefinitions* axes,
               font_character_map::CharacterMap* maybe_character_map /*=NULL*/) {
   TRACE_EVENT0("cobalt::renderer", "SkFreeTypeUtil::ScanFont()");
 
@@ -165,6 +167,27 @@ bool ScanFont(SkStreamAsset* stream, int face_index, SkString* name,
   name->set(face->family_name);
   *style = GenerateSkFontStyleFromFace(face);
   *is_fixed_pitch = FT_IS_FIXED_WIDTH(face);
+
+  if (axes && FT_HAS_MULTIPLE_MASTERS(face)) {
+    FT_MM_Var* variations = nullptr;
+    err = FT_Get_MM_Var(face, &variations);
+    if (err) {
+      LOG(INFO) << "Unable to get variations for " << name;
+    } else {
+      axes->resize(variations->num_axis);
+      for (int i = 0; i < variations->num_axis; ++i) {
+        const FT_Var_Axis& ft_axis = variations->axis[i];
+        AxisDefinition& cobalt_axis = (*axes)[i];
+        cobalt_axis.tag = ft_axis.tag;
+        // The following values are already in 16.16 format, so no need to
+        // convert to Fixed16.
+        cobalt_axis.minimum = ft_axis.minimum;
+        cobalt_axis.def = ft_axis.def;
+        cobalt_axis.maximum = ft_axis.maximum;
+      }
+      FT_Done_MM_Var(freetype_lib, variations);
+    }
+  }
 
   if (maybe_character_map) {
     GenerateCharacterMapFromFace(face, maybe_character_map);

@@ -84,7 +84,7 @@ class Window::RelayLoadEvent : public DocumentObserver {
 };
 
 Window::Window(
-    script::EnvironmentSettings* settings, const ViewportSize& view_size,
+    web::EnvironmentSettings* settings, const ViewportSize& view_size,
     base::ApplicationState initial_application_state,
     cssom::CSSParser* css_parser, Parser* dom_parser,
     loader::FetcherFactory* fetcher_factory,
@@ -152,14 +152,6 @@ Window::Window(
           initial_application_state, synchronous_loader_interrupt,
           performance_.get(), enable_inline_script_warnings,
           video_playback_rate_multiplier)),
-      ALLOW_THIS_IN_INITIALIZER_LIST(document_(new Document(
-          html_element_context(),
-          Document::Options(
-              settings->creation_url(), this,
-              base::Bind(&Window::FireHashChangeEvent, base::Unretained(this)),
-              performance_->timing()->GetNavigationStartClock(),
-              navigation_callback, ParseUserAgentStyleSheet(css_parser),
-              view_size, cookie_jar, dom_max_element_depth)))),
       document_loader_(nullptr),
       history_(new History()),
       navigator_(new Navigator(environment_settings(), captions)),
@@ -191,6 +183,16 @@ Window::Window(
       screenshot_manager_(settings, screenshot_function_callback),
       ui_nav_root_(ui_nav_root),
       enable_map_to_mesh_(enable_map_to_mesh) {
+  document_ = new Document(
+      html_element_context(),
+      Document::Options(
+          settings->creation_url(),
+          base::Bind(&Window::FireHashChangeEvent, base::Unretained(this)),
+          performance_->timing()->GetNavigationStartClock(),
+          navigation_callback, ParseUserAgentStyleSheet(css_parser), view_size,
+          cookie_jar, dom_max_element_depth),
+      csp_delegate());
+
   set_navigator_base(navigator_);
   document_->AddObserver(relay_on_load_event_.get());
   html_element_context()->application_lifecycle_state()->AddObserver(this);

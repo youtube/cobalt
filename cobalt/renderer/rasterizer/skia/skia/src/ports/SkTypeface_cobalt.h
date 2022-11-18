@@ -28,6 +28,9 @@ class SkFontMgr_Cobalt;
 
 class SkTypeface_Cobalt : public SkTypeface_FreeType {
  public:
+  typedef SkFontStyleSet_Cobalt::ComputedVariationPosition
+      ComputedVariationPosition;
+
   SkTypeface_Cobalt(
       int face_index, SkFontStyle style, bool is_fixed_pitch,
       const SkString& family_name,
@@ -45,9 +48,19 @@ class SkTypeface_Cobalt : public SkTypeface_FreeType {
 
   void onGetFamilyName(SkString* family_name) const override;
 
+  std::unique_ptr<SkFontData> onMakeFontData() const override;
+
+  const char* font_type_string() const {
+    return computed_variation_position_.empty() ? "static" : "variable";
+  }
+
   int face_index_;
   SkString family_name_;
   bool synthesizes_bold_;
+
+  // Support font variations. Axis data should already be sorted to match
+  // the order defined in the font file.
+  ComputedVariationPosition computed_variation_position_;
 
  private:
   typedef SkTypeface_FreeType INHERITED;
@@ -66,9 +79,6 @@ class SkTypeface_CobaltStream : public SkTypeface_Cobalt {
                            bool* serialize) const override;
 
   std::unique_ptr<SkStreamAsset> onOpenStream(int* face_index) const override;
-#ifdef USE_SKIA_NEXT
-  std::unique_ptr<SkFontData> onMakeFontData() const override;
-#endif
 
   size_t GetStreamLength() const override;
 
@@ -84,15 +94,13 @@ class SkTypeface_CobaltStreamProvider : public SkTypeface_Cobalt {
       SkFileMemoryChunkStreamProvider* stream_provider, int face_index,
       SkFontStyle style, bool is_fixed_pitch, const SkString& family_name,
       bool disable_synthetic_bolding,
+      const ComputedVariationPosition& computed_variation_position,
       scoped_refptr<font_character_map::CharacterMap> character_map);
 
   void onGetFontDescriptor(SkFontDescriptor* descriptor,
                            bool* serialize) const override;
 
   std::unique_ptr<SkStreamAsset> onOpenStream(int* face_index) const override;
-#ifdef USE_SKIA_NEXT
-  std::unique_ptr<SkFontData> onMakeFontData() const override;
-#endif
 
   size_t GetStreamLength() const override;
 

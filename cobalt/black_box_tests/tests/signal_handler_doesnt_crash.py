@@ -30,7 +30,7 @@ class SignalHandlerDoesntCrashTest(black_box_tests.BlackBoxTestCase):
     if 'linux' not in self.launcher_params.platform:  # pylint: disable=unsupported-membership-test
       self.skipTest('This test needs POSIX system signal handlers')
 
-  def test_simple(self):
+  def test_signal_handler_doesnt_crash(self):
     with self.CreateCobaltRunner(url='', target_params=[]) as runner:
       runner.WaitForUrlLoadedEvents()
 

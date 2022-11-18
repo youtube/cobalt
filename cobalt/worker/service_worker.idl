@@ -14,7 +14,7 @@
 
 // https://w3c.github.io/ServiceWorker/#serviceworker-interface
 
-[Exposed = (Window, ServiceWorker)] interface ServiceWorker : EventTarget {
+[Exposed = (Window,ServiceWorker)] interface ServiceWorker : EventTarget {
 
   // Todo: Implement postMessage b/219986442
   void postMessage(any message);

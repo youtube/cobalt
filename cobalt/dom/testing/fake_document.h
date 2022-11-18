@@ -55,7 +55,7 @@ class FakeDocument : public dom::Document {
         options.csp_insecure_allowed_token);
   }
 
-  web::CspDelegate* csp_delegate() const override {
+  web::CspDelegate* GetCSPDelegate() const override {
     return csp_delegate_.get();
   }
 

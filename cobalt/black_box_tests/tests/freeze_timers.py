@@ -26,7 +26,7 @@ from cobalt.black_box_tests.threaded_web_server import ThreadedWebServer
 class FreezeVisibilityTest(black_box_tests.BlackBoxTestCase):
   """Verify correct timer suspend and resume during and after freeze event."""
 
-  def test_simple(self):
+  def test_freeze_visibility(self):
 
     with ThreadedWebServer(binding_address=self.GetBindingAddress()) as server:
       url = server.GetURL(file_name='testdata/freeze_timers.html')

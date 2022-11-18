@@ -432,7 +432,12 @@ class TestRunner(object):
       test_params.append("--gtest_total_shards={}".format(shard_count))
       test_params.append("--gtest_shard_index={}".format(shard_index))
 
+    # Path to where the test results XML will be created (if applicable).
+    # For on-device testing, this is w.r.t on device storage.
+    test_result_xml_path = None
+
     def MakeLauncher():
+      logging.info("MakeLauncher(): %s", test_result_xml_path)
       return abstract_launcher.LauncherFactory(
           self.platform,
           target_name,
@@ -443,21 +448,26 @@ class TestRunner(object):
           out_directory=self.out_directory,
           coverage_directory=self.coverage_directory,
           env_variables=env,
+          test_result_xml_path=test_result_xml_path,
           loader_platform=self.loader_platform,
           loader_config=self.loader_config,
           loader_out_directory=self.loader_out_directory,
           launcher_args=self.launcher_args)
 
+    logging.info(
+        "XML test result logging: %s",
+        ("enabled" if
+         (self.log_xml_results or self.xml_output_dir) else "disabled"))
     if self.log_xml_results:
       out_path = MakeLauncher().GetDeviceOutputPath()
       xml_filename = "{}_testoutput.xml".format(target_name)
       if out_path:
-        xml_path = os.path.join(out_path, xml_filename)
+        test_result_xml_path = os.path.join(out_path, xml_filename)
       else:
-        xml_path = xml_filename
-      test_params.append("--gtest_output=xml:{}".format(xml_path))
+        test_result_xml_path = xml_filename
+      test_params.append("--gtest_output=xml:{}".format(test_result_xml_path))
       logging.info(("Xml results for this test will "
-                    "be logged to '%s'."), xml_path)
+                    "be logged to '%s'."), test_result_xml_path)
     elif self.xml_output_dir:
       # Have gtest create and save a test result xml
       xml_output_subdir = os.path.join(self.xml_output_dir, target_name)
@@ -465,10 +475,11 @@ class TestRunner(object):
         os.makedirs(xml_output_subdir)
       except OSError:
         pass
-      xml_output_path = os.path.join(xml_output_subdir, "sponge_log.xml")
+      test_result_xml_path = os.path.join(xml_output_subdir, "sponge_log.xml")
       logging.info("Xml output for this test will be saved to: %s",
-                   xml_output_path)
-      test_params.append("--gtest_output=xml:%s" % (xml_output_path))
+                   test_result_xml_path)
+      test_params.append("--gtest_output=xml:%s" % (test_result_xml_path))
+    logging.info("XML test result path: %s", test_result_xml_path)
 
     # Turn off color codes from output to make it easy to parse
     test_params.append("--gtest_color=no")

@@ -163,7 +163,6 @@ class MEDIA_EXPORT ProgressiveDemuxer : public ::media::Demuxer {
 
  private:
   void ParseConfigDone(PipelineStatusCallback status_cb, PipelineStatus status);
-  void DataSourceStopped(const base::Closure& callback);
   bool HasStopCalled();
 
   // methods that perform blocking I/O, and are therefore run on the

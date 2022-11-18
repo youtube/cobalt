@@ -55,7 +55,7 @@ HTMLElementContext::HTMLElementContext()
 #endif  // !defined(COBALT_BUILD_TYPE_GOLD)
 
 HTMLElementContext::HTMLElementContext(
-    script::EnvironmentSettings* environment_settings,
+    web::EnvironmentSettings* environment_settings,
     loader::FetcherFactory* fetcher_factory,
     loader::LoaderFactory* loader_factory, cssom::CSSParser* css_parser,
     Parser* dom_parser, media::CanPlayTypeHandler* can_play_type_handler,
@@ -72,8 +72,7 @@ HTMLElementContext::HTMLElementContext(
     loader::mesh::MeshCache* mesh_cache, DomStatTracker* dom_stat_tracker,
     const std::string& font_language_script,
     base::ApplicationState initial_application_state,
-    base::WaitableEvent* synchronous_loader_interrupt,
-    Performance* performance,
+    base::WaitableEvent* synchronous_loader_interrupt, Performance* performance,
     bool enable_inline_script_warnings, float video_playback_rate_multiplier)
     : environment_settings_(environment_settings),
       fetcher_factory_(fetcher_factory),

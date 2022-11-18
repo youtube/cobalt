@@ -34,6 +34,7 @@ namespace cobalt {
 namespace worker {
 
 using script::testing::FakeScriptValue;
+using ::testing::IsSubstring;
 using web::testing::MockEventListener;
 
 namespace {
@@ -78,8 +79,9 @@ TEST_F(ExtendableMessageEventTestWithJavaScript, ConstructorWithAny) {
   EXPECT_NE(nullptr, data.get());
   EXPECT_NE(nullptr, data->ptr);
   EXPECT_GT(data->size, 0U);
-  scoped_refptr<ExtendableMessageEvent> event =
-      new ExtendableMessageEvent(base::Tokens::message(), std::move(data));
+  const ExtendableMessageEventInit init;
+  scoped_refptr<ExtendableMessageEvent> event = new ExtendableMessageEvent(
+      base::Tokens::message(), init, std::move(data));
 
   EXPECT_EQ("message", event->type());
   EXPECT_EQ(NULL, event->target().get());
@@ -125,7 +127,9 @@ TEST_F(ExtendableMessageEventTestWithJavaScript,
   EXPECT_TRUE(event_data.IsEmpty());
   EXPECT_TRUE(event->origin().empty());
   EXPECT_TRUE(event->last_event_id().empty());
-  EXPECT_EQ(nullptr, event->source().get());
+  EXPECT_FALSE(event->source().IsType<scoped_refptr<Client>>());
+  EXPECT_FALSE(event->source().IsType<scoped_refptr<ServiceWorker>>());
+  EXPECT_FALSE(event->source().IsType<scoped_refptr<web::MessagePort>>());
   EXPECT_TRUE(event->ports().empty());
 }
 
@@ -137,7 +141,9 @@ TEST_F(ExtendableMessageEventTestWithJavaScript,
   init.set_data(&(reference->referenced_value()));
   init.set_origin("OriginString");
   init.set_last_event_id("lastEventIdString");
-  init.set_source(web_context()->GetWindowOrWorkerGlobalScope());
+  base::Optional<ExtendableMessageEvent::SourceType> client(
+      Client::Create(web_context()->environment_settings()));
+  init.set_source(client);
   scoped_refptr<ExtendableMessageEvent> event =
       new ExtendableMessageEvent("mytestevent", init);
 
@@ -164,20 +170,39 @@ TEST_F(ExtendableMessageEventTestWithJavaScript,
 
   EXPECT_EQ("OriginString", event->origin());
   EXPECT_EQ("lastEventIdString", event->last_event_id());
-  EXPECT_EQ(web_context()->GetWindowOrWorkerGlobalScope(),
-            event->source().get());
+  EXPECT_TRUE(event->source().IsType<scoped_refptr<Client>>());
+  EXPECT_EQ(client.value().AsType<scoped_refptr<Client>>().get(),
+            event->source().AsType<scoped_refptr<Client>>().get());
   EXPECT_TRUE(event->ports().empty());
 }
 
 TEST_F(ExtendableMessageEventTestWithJavaScript,
+       ConstructorWithEventTypeAndInvalidSource) {
+  std::string result;
+  EXPECT_FALSE(
+      EvaluateScript("var event = new ExtendableMessageEvent('dog', "
+                     "    {source: this});"
+                     "if (event.type == 'dog') event.source;",
+                     &result))
+      << "Failed to evaluate script.";
+  EXPECT_PRED_FORMAT2(IsSubstring,
+                      "TypeError: Value is not a member of the union type.",
+                      result);
+  // EXPECT_FALSE(IsSubstring(
+  //    "", "", "TypeError: Value is not a member of the union type.", result));
+}
+
+
+TEST_F(ExtendableMessageEventTestWithJavaScript,
        ConstructorWithEventTypeAndExtendableMessageEventInitDict) {
   std::string result;
+  // Note: None of the types for 'source' are constructible, so that can
+  // not easily be tested here.
   EXPECT_TRUE(
       EvaluateScript("var event = new ExtendableMessageEvent('dog', "
                      "    {cancelable: true, "
                      "     origin: 'OriginValue',"
                      "     lastEventId: 'LastEventIdValue',"
-                     "     source: this,"
                      "     data: {value: 'data_value'},"
                      "    }"
                      ");"
@@ -186,7 +211,6 @@ TEST_F(ExtendableMessageEventTestWithJavaScript,
                      "    event.cancelable == true &&"
                      "    event.origin == 'OriginValue' &&"
                      "    event.lastEventId == 'LastEventIdValue' &&"
-                     "    event.source == this &&"
                      "    event.ports.length == 0 &&"
                      "    event.data.value == 'data_value') "
                      "    event.data.value;",

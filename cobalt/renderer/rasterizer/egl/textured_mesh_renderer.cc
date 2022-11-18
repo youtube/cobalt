@@ -164,6 +164,13 @@ void TexturedMeshRenderer::RenderVBO(uint32 vbo, int num_vertices, uint32 mode,
                               GL_TEXTURE_WRAP_S, GL_REPEAT));
     }
 
+    if (image.type == Image::YUV_3PLANE_10BIT_COMPACT_BT2020) {
+      GL_CALL(
+          glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST));
+      GL_CALL(
+          glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
+    }
+
     GL_CALL(glUniform1i(blit_program.texture_uniforms[i], i));
 
     if (blit_program.texture_size_uniforms[i] != -1) {
@@ -190,16 +197,26 @@ void TexturedMeshRenderer::RenderVBO(uint32 vbo, int num_vertices, uint32 mode,
 
     SB_DCHECK(image.num_textures() >= 1);
     math::Size texture_size = image.textures[0].texture->GetSize();
-    GL_CALL(glUniform2f(
-        blit_program.viewport_to_texture_size_ratio_uniform,
-        viewport_size.width() / static_cast<float>(texture_size.width()),
-        viewport_size.height() / static_cast<float>(texture_size.height())));
-
     // The pixel shader requires the actual frame size of the first plane
     // for calculations.
     size_t subtexture_width = (texture_size.width() + 2) / 3;
     GL_CALL(glUniform2f(blit_program.subtexture_size_uniform, subtexture_width,
                         texture_size.height()));
+
+    const int kCompactTextureFilteringThreshold = 1920;
+    int enable_filtering = (abs(image.textures[0].content_region.width()) <
+                            kCompactTextureFilteringThreshold)
+                               ? 1
+                               : 0;
+    GL_CALL(
+        glUniform1i(blit_program.enable_filtering_uniform, enable_filtering));
+
+    GL_CALL(glUniform2f(blit_program.content_region_size_uniform,
+                        abs(image.textures[0].content_region.width()),
+                        abs(image.textures[0].content_region.height())));
+
+    GL_CALL(glUniform2f(blit_program.texture_size_as_unpacked_uniform,
+                        texture_size.width(), texture_size.height()));
   }
 
   GL_CALL(glDrawArrays(mode, 0, num_vertices));
@@ -514,7 +531,9 @@ uint32 TexturedMeshRenderer::CreateYUVCompactedTexturesFragmentShader(
       "uniform sampler2D texture_u;"
       "uniform sampler2D texture_v;"
       "uniform vec2 viewport_size;"
-      "uniform vec2 viewport_to_texture_ratio;"
+      "uniform vec2 texture_size_as_unpacked;"
+      "uniform vec2 content_region_size;"
+      "uniform int enable_filtering;"
       "uniform vec2 texture_size;"
       "uniform mat4 to_rgb_color_matrix;"
       // In a compacted YUV image each channel, Y, U and V, is stored as a
@@ -526,37 +545,95 @@ uint32 TexturedMeshRenderer::CreateYUVCompactedTexturesFragmentShader(
       // decompacted_position = compacted_position / 3;
       // pixel = CompactedTexture.Sample(Sampler, decompacted_position)[index];
       "void main() {"
-      // Take into account display size to texture size ratio for Y component.
-      "vec2 DTid = vec2(floor(v_tex_coord_y * viewport_size));"
-      "vec2 compact_pos_Y = vec2((DTid + 0.5) / viewport_to_texture_ratio);"
-      // Calculate the position of 10-bit pixel for Y.
-      "vec2 decompact_pos_Y;"
-      "decompact_pos_Y.x = (floor(compact_pos_Y.x / 3.0) + 0.5) / "
-      "texture_size.x;"
-      "decompact_pos_Y.y = compact_pos_Y.y / texture_size.y;"
-      // Calculate the index of 10-bit pixel for Y.
-      "int index_Y = int(mod(floor(compact_pos_Y.x), 3.0));"
-      // Extract Y component.
-      "float Y_component = texture2D(texture_y, decompact_pos_Y)[index_Y];"
-      // For yuv420 U and V textures have dimensions twice less than Y.
-      "DTid = vec2(DTid / 2.0);"
-      "vec2 texture_size_UV = vec2(texture_size / 2.0);"
-      "vec2 compact_pos_UV = vec2((DTid + 0.5) / viewport_to_texture_ratio);"
-      // Calculate the position of 10-bit pixels for U and V.
-      "vec2 decompact_pos_UV;"
-      "decompact_pos_UV.x = (floor(compact_pos_UV.x / 3.0) + 0.5) / "
-      "texture_size_UV.x;"
-      "decompact_pos_UV.y = (floor(compact_pos_UV.y) + 0.5) / "
-      "texture_size_UV.y;"
-      // Calculate the index of 10-bit pixels for U and V.
-      "int index_UV = int(mod(floor(compact_pos_UV), 3.0));"
-      // Extract U and V components.
-      "float U_component = texture2D(texture_u, decompact_pos_UV)[index_UV];"
-      "float V_component =  texture2D(texture_v, decompact_pos_UV)[index_UV];"
-      // Perform the YUV->RGB transform and output the color value.
-      "vec4 untransformed_color = vec4(Y_component, U_component, V_component, "
-      "1.0);"
-      "gl_FragColor = untransformed_color * to_rgb_color_matrix;"
+      // texture size as unpacked, f.i. 2562x1440
+      "     float frame_w = texture_size_as_unpacked.x;   \n"
+      "     float frame_h = texture_size_as_unpacked.y;   \n"
+      // texture size in textels, f.i. 854x1440
+      "    float ptex_w = texture_size.x;\n"
+      "     float ptex_h = texture_size.y;\n"
+      "    float y_step = 1.0 / ptex_h;\n"
+      "     float w_mult = 1.0 / ptex_w;\n"
+      "     float y = (enable_filtering != 0) ?\n"
+      "          floor(v_tex_coord_y.y * frame_h) * y_step :\n"
+      "          v_tex_coord_y.y;\n"
+      "     float x = (frame_w - 1.0) * v_tex_coord_y.x;\n"
+      "     float xi = floor(x);\n"
+      "     float xcoord = floor(xi * (1.0 / 3.0));\n"
+      "     int xcoord_fr = int(floor(xi - xcoord * 3.0));\n"
+      "     xcoord *= w_mult;\n"
+      "    float Y_component = texture2D(texture_y, vec2(xcoord, "
+      "y))[xcoord_fr];\n"
+      "     if (enable_filtering != 0)\n"
+      "     {\n"
+      "          float cx1 = x - xi;\n"
+      "          float cy1 = (v_tex_coord_y.y - y) * frame_h;\n"
+      "          float cx0 = 1.0 - cx1;\n"
+      "          float cy0 = 1.0 - cy1;\n"
+      "          Y_component *= cx0 * cy0;\n"
+      "          float y2 = min(y + y_step, y_step * (content_region_size.y - "
+      "1.0));\n"
+      "       Y_component += cx0 * cy1 * texture2D(texture_y, "
+      "vec2(xcoord, y2))[xcoord_fr];\n"
+      "          xi = min(xi + 1.0, float(content_region_size.x - 1.0));\n"
+      "          xcoord = floor(xi  * (1.0 / 3.0));\n"
+      "          xcoord_fr = int(floor(xi - xcoord * 3.0));\n"
+      "          xcoord *= w_mult;\n"
+      "          Y_component += cx1 * cy0 * texture2D(texture_y, vec2(xcoord, "
+      "y))[xcoord_fr];\n"
+      "          Y_component += cx1 * cy1 * texture2D(texture_y, vec2(xcoord, "
+      "y2))[xcoord_fr];\n"
+      "     }\n"
+      "      //chroma:\n"
+      "      float f_w = frame_w / 2.0;\n"
+      "      float f_h = frame_h / 2.0;\n"
+      "      y_step = 1.0 / (ptex_h / 2.0);\n"
+      "      w_mult = 1.0 / (ptex_w / 2.0);\n"
+      "      y = (enable_filtering != 0) ?\n"
+      "          floor(v_tex_coord_y.y * f_h) * y_step :\n"
+      "          v_tex_coord_y.y;\n"
+      "      x = (f_w - 1.0) * v_tex_coord_y.x;\n"
+      "      xi = floor(x);\n"
+      "      xcoord = floor(xi * (1.0 / 3.0));\n"
+      "      xcoord_fr = int(floor(xi - xcoord * 3.0));\n"
+      "      xcoord *= w_mult;\n"
+      "      float U_component = texture2D(texture_u, vec2(xcoord, "
+      "y))[xcoord_fr];\n"
+      "      float V_component = texture2D(texture_v, vec2(xcoord, "
+      "y))[xcoord_fr];\n"
+      "      if (enable_filtering != 0)\n"
+      "      {\n"
+      "          float cx1 = x - xi;\n"
+      "          float cy1 = (v_tex_coord_y.y - y) * f_h;\n"
+      "          float coef0 = (1.0 - cx1) * (1.0 - cy1);\n"
+      "          float coef2 = cx1 * (1.0 - cy1);\n"
+      "          float coef1 = (1.0 - cx1) * cy1;\n"
+      "          float coef3 = cx1 * cy1;\n"
+      "          U_component *= coef0;\n"
+      "          V_component *= coef0;\n"
+      "          float y2 = min(y + y_step, y_step * (content_region_size.y / "
+      "2.0 - "
+      "1.0));\n"
+      "          U_component += coef1 * texture2D(texture_u, vec2(xcoord, "
+      "y2))[xcoord_fr];\n"
+      "          V_component += coef1 * texture2D(texture_v, vec2(xcoord, "
+      "y2))[xcoord_fr];\n"
+      "          xi = min(xi + 1.0, float(content_region_size.x / 2.0 - "
+      "1.0));\n"
+      "          xcoord = floor(xi  * (1.0 / 3.0));\n"
+      "          xcoord_fr = int(floor(xi - xcoord * 3.0));\n"
+      "          xcoord *= w_mult;\n"
+      "          U_component += coef2 * texture2D(texture_u, vec2(xcoord, "
+      "y))[xcoord_fr];\n"
+      "          V_component += coef2 * texture2D(texture_v, vec2(xcoord, "
+      "y))[xcoord_fr];\n"
+      "          U_component += coef3 * texture2D(texture_u, vec2(xcoord, "
+      "y2))[xcoord_fr];\n"
+      "          V_component += coef3 * texture2D(texture_v, vec2(xcoord, "
+      "y2))[xcoord_fr];\n"
+      "      }\n"
+      "    vec4 untransformed_color = vec4(Y_component, U_component, "
+      "V_component, 1.0);\n"
+      "     gl_FragColor = untransformed_color * to_rgb_color_matrix;\n"
       "}";
 
   return CompileShader(blit_fragment_shader_source);
@@ -624,12 +701,18 @@ TexturedMeshRenderer::ProgramInfo TexturedMeshRenderer::MakeBlitProgram(
       result.viewport_size_uniform = GL_CALL_SIMPLE(
           glGetUniformLocation(result.gl_program_id, "viewport_size"));
       DCHECK_EQ(GL_NO_ERROR, GL_CALL_SIMPLE(glGetError()));
-      result.viewport_to_texture_size_ratio_uniform =
-          GL_CALL_SIMPLE(glGetUniformLocation(result.gl_program_id,
-                                              "viewport_to_texture_ratio"));
-      DCHECK_EQ(GL_NO_ERROR, GL_CALL_SIMPLE(glGetError()));
       result.subtexture_size_uniform = GL_CALL_SIMPLE(
           glGetUniformLocation(result.gl_program_id, "texture_size"));
+      DCHECK_EQ(GL_NO_ERROR, GL_CALL_SIMPLE(glGetError()));
+      result.texture_size_as_unpacked_uniform =
+          GL_CALL_SIMPLE(glGetUniformLocation(result.gl_program_id,
+                                              "texture_size_as_unpacked"));
+      DCHECK_EQ(GL_NO_ERROR, GL_CALL_SIMPLE(glGetError()));
+      result.enable_filtering_uniform = GL_CALL_SIMPLE(
+          glGetUniformLocation(result.gl_program_id, "enable_filtering"));
+      DCHECK_EQ(GL_NO_ERROR, GL_CALL_SIMPLE(glGetError()));
+      result.content_region_size_uniform = GL_CALL_SIMPLE(
+          glGetUniformLocation(result.gl_program_id, "content_region_size"));
       DCHECK_EQ(GL_NO_ERROR, GL_CALL_SIMPLE(glGetError()));
     }
   }

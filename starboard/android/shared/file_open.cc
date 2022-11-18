@@ -47,13 +47,7 @@ std::string FallbackPath(const std::string& path) {
   // system font file of the same name.
   const std::string fonts_xml("fonts.xml");
   const std::string system_fonts_dir("/system/fonts/");
-
-#if SB_IS(EVERGREEN_COMPATIBLE)
-  const std::string cobalt_fonts_dir(
-      "/cobalt/assets/app/cobalt/content/fonts/");
-#else
   const std::string cobalt_fonts_dir("/cobalt/assets/fonts/");
-#endif
 
   // Fonts fallback to the system fonts.
   if (path.compare(0, cobalt_fonts_dir.length(), cobalt_fonts_dir) == 0) {

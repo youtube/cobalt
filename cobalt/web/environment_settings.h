@@ -20,6 +20,9 @@
 
 #include "cobalt/base/debugger_hooks.h"
 #include "cobalt/script/environment_settings.h"
+#include "cobalt/script/global_environment.h"
+#include "cobalt/script/script_value_factory.h"
+#include "cobalt/script/wrappable.h"
 #include "url/origin.h"
 
 namespace cobalt {
@@ -37,10 +40,7 @@ class EnvironmentSettings : public script::EnvironmentSettings {
   ~EnvironmentSettings() override {}
 
   // https://html.spec.whatwg.org/multipage/webappapis.html#realm-execution-context
-  Context* context() const {
-    DCHECK(context_);
-    return context_;
-  }
+  Context* context() const { return context_; }
   void set_context(Context* context) { context_ = context; }
 
   // https://storage.spec.whatwg.org/#obtain-a-storage-key

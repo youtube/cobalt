@@ -72,7 +72,7 @@ void HTMLStyleElement::Process() {
     return;
   }
 
-  web::CspDelegate* csp_delegate = document->csp_delegate();
+  web::CspDelegate* csp_delegate = document->GetCSPDelegate();
   // If the style element has a valid nonce, we always permit it.
   const bool bypass_csp = csp_delegate->IsValidNonce(
       web::CspDelegate::kStyle, GetAttribute("nonce").value_or(""));

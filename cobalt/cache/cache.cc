@@ -27,6 +27,7 @@
 #include "cobalt/extension/javascript_cache.h"
 #include "cobalt/persistent_storage/persistent_settings.h"
 #include "net/disk_cache/cobalt/cobalt_backend_impl.h"
+#include "starboard/common/murmurhash2.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/system.h"
 
@@ -45,6 +46,8 @@ base::Optional<uint32_t> GetMinSizeToCacheInBytes(
 base::Optional<std::string> GetSubdirectory(
     disk_cache::ResourceType resource_type) {
   switch (resource_type) {
+    case disk_cache::ResourceType::kCacheApi:
+      return "cache_api";
     case disk_cache::ResourceType::kCompiledScript:
       return "compiled_js";
     default:
@@ -89,24 +92,54 @@ Cache* Cache::GetInstance() {
   return base::Singleton<Cache, base::LeakySingletonTraits<Cache>>::get();
 }
 
-void Cache::Delete(disk_cache::ResourceType resource_type, uint32_t key) {
-  auto* memory_capped_directory = GetMemoryCappedDirectory(resource_type);
-  if (memory_capped_directory) {
-    memory_capped_directory->Delete(key);
-  }
+// static
+uint32_t Cache::CreateKey(const std::string& s) {
+  return starboard::MurmurHash2_32(s.c_str(), s.size());
 }
 
-void Cache::DeleteAll() {
-  auto* memory_capped_directory =
-      GetMemoryCappedDirectory(disk_cache::ResourceType::kCompiledScript);
+bool Cache::Delete(disk_cache::ResourceType resource_type, uint32_t key) {
+  auto* memory_capped_directory = GetMemoryCappedDirectory(resource_type);
+  if (memory_capped_directory) {
+    return memory_capped_directory->Delete(key);
+  }
+  return false;
+}
+
+void Cache::Delete(disk_cache::ResourceType resource_type) {
+  auto* memory_capped_directory = GetMemoryCappedDirectory(resource_type);
   if (memory_capped_directory) {
     memory_capped_directory->DeleteAll();
   }
 }
 
+void Cache::DeleteAll() {
+  Delete(disk_cache::ResourceType::kCompiledScript);
+  Delete(disk_cache::ResourceType::kCacheApi);
+}
+
+std::vector<uint32_t> Cache::KeysWithMetadata(
+    disk_cache::ResourceType resource_type) {
+  auto* memory_capped_directory = GetMemoryCappedDirectory(resource_type);
+  if (memory_capped_directory) {
+    return memory_capped_directory->KeysWithMetadata();
+  }
+  return std::vector<uint32_t>();
+}
+
+std::unique_ptr<base::Value> Cache::Metadata(
+    disk_cache::ResourceType resource_type, uint32_t key) {
+  auto* memory_capped_directory = GetMemoryCappedDirectory(resource_type);
+  if (memory_capped_directory) {
+    return memory_capped_directory->Metadata(key);
+  }
+  return nullptr;
+}
+
 std::unique_ptr<std::vector<uint8_t>> Cache::Retrieve(
     disk_cache::ResourceType resource_type, uint32_t key,
-    std::function<std::unique_ptr<std::vector<uint8_t>>()> generate) {
+    std::function<std::pair<std::unique_ptr<std::vector<uint8_t>>,
+                            base::Optional<base::Value>>()>
+        generate) {
   base::ScopedClosureRunner notifier(base::BindOnce(
       &Cache::Notify, base::Unretained(this), resource_type, key));
   auto* e = GetWaitableEvent(resource_type, key);
@@ -128,12 +161,12 @@ std::unique_ptr<std::vector<uint8_t>> Cache::Retrieve(
         javascript_cache_extension->ReleaseCachedScriptData(cache_data_buf);
         return data;
       }
-      auto data = generate();
+      auto data = generate().first;
       if (data) {
         javascript_cache_extension->StoreCachedScript(
             key, data->size(), data->data(), data->size());
       }
-      return data;
+      return std::move(data);
     }
   }
 
@@ -145,10 +178,27 @@ std::unique_ptr<std::vector<uint8_t>> Cache::Retrieve(
     }
   }
   auto data = generate();
-  if (data) {
-    TryStore(resource_type, key, *data);
+  if (data.first) {
+    Store(resource_type, key, /*data=*/*(data.first), /*metadata=*/data.second);
   }
-  return data;
+  return std::move(data.first);
+}
+
+std::unique_ptr<std::vector<uint8_t>> Cache::Retrieve(
+    disk_cache::ResourceType resource_type, uint32_t key) {
+  base::ScopedClosureRunner notifier(base::BindOnce(
+      &Cache::Notify, base::Unretained(this), resource_type, key));
+  auto* e = GetWaitableEvent(resource_type, key);
+  if (e) {
+    e->Wait();
+    delete e;
+  }
+
+  auto* memory_capped_directory = GetMemoryCappedDirectory(resource_type);
+  if (memory_capped_directory) {
+    return memory_capped_directory->Retrieve(key);
+  }
+  return nullptr;
 }
 
 void Cache::set_enabled(bool enabled) { enabled_ = enabled; }
@@ -196,7 +246,9 @@ MemoryCappedDirectory* Cache::GetMemoryCappedDirectory(
 }
 
 void Cache::Resize(disk_cache::ResourceType resource_type, uint32_t bytes) {
-  if (resource_type != disk_cache::ResourceType::kCompiledScript) return;
+  if (resource_type != disk_cache::ResourceType::kCacheApi &&
+      resource_type != disk_cache::ResourceType::kCompiledScript)
+    return;
   if (bytes == disk_cache::kTypeMetadata[resource_type].max_size_bytes) return;
 
   if (persistent_settings_) {
@@ -209,11 +261,15 @@ void Cache::Resize(disk_cache::ResourceType resource_type, uint32_t bytes) {
   if (memory_capped_directory) {
     memory_capped_directory->Resize(bytes);
   }
+  if (bytes == 0) {
+    Delete(resource_type);
+  }
 }
 
 base::Optional<uint32_t> Cache::GetMaxCacheStorageInBytes(
     disk_cache::ResourceType resource_type) {
   switch (resource_type) {
+    case disk_cache::ResourceType::kCacheApi:
     case disk_cache::ResourceType::kCompiledScript:
       return disk_cache::kTypeMetadata[resource_type].max_size_bytes;
     default:
@@ -252,14 +308,15 @@ void Cache::Notify(disk_cache::ResourceType resource_type, uint32_t key) {
   pending_[resource_type].erase(key);
 }
 
-void Cache::TryStore(disk_cache::ResourceType resource_type, uint32_t key,
-                     const std::vector<uint8_t>& data) {
+void Cache::Store(disk_cache::ResourceType resource_type, uint32_t key,
+                  const std::vector<uint8_t>& data,
+                  const base::Optional<base::Value>& metadata) {
   if (!CanCache(resource_type, data.size())) {
     return;
   }
   auto* memory_capped_directory = GetMemoryCappedDirectory(resource_type);
   if (memory_capped_directory) {
-    memory_capped_directory->Store(key, data);
+    memory_capped_directory->Store(key, data, metadata);
   }
 }
 

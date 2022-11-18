@@ -14,7 +14,7 @@
 
 // https://w3c.github.io/ServiceWorker/#navigation-preload-manager
 
-[Exposed = (Window, ServiceWorker)] interface NavigationPreloadManager {
+[Exposed = (Window,ServiceWorker)] interface NavigationPreloadManager {
   Promise<void> enable();
   Promise<void> disable();
   Promise<void> setHeaderValue(ByteString value);

@@ -27,8 +27,12 @@ source_set("tool_support") {
   deps = [ "../third_party/mini_chromium:base" ]
 }
 
-if (!crashpad_is_ios && !crashpad_is_in_starboard) {
+# TODO(b/251521595): resolve GN error and enable this target to be built for
+# android.
+if (!crashpad_is_ios && !crashpad_is_android) {
   crashpad_executable("crashpad_database_util") {
+    check_includes = !crashpad_is_in_starboard
+
     sources = [ "crashpad_database_util.cc" ]
 
     deps = [
@@ -39,18 +43,26 @@ if (!crashpad_is_ios && !crashpad_is_in_starboard) {
       "../third_party/mini_chromium:base",
       "../util",
     ]
+
+    if (crashpad_is_in_starboard) {
+      deps += [
+        "//starboard",
+      ]
+    }
   }
 
-  crashpad_executable("crashpad_http_upload") {
-    sources = [ "crashpad_http_upload.cc" ]
+  if (!crashpad_is_in_starboard) {
+    crashpad_executable("crashpad_http_upload") {
+      sources = [ "crashpad_http_upload.cc" ]
 
-    deps = [
-      ":tool_support",
-      "../build:default_exe_manifest_win",
-      "../compat",
-      "../third_party/mini_chromium:base",
-      "../util",
-    ]
+      deps = [
+        ":tool_support",
+        "../build:default_exe_manifest_win",
+        "../compat",
+        "../third_party/mini_chromium:base",
+        "../util",
+      ]
+    }
   }
 }
 

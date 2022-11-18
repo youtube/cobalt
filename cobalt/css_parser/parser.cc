@@ -581,8 +581,6 @@ Parser::Parser(const OnMessageCallback& on_warning_callback,
       message_verbosity_(message_verbosity),
       supports_map_to_mesh_(supports_map_to_mesh) {}
 
-Parser::~Parser() {}
-
 scoped_refptr<cssom::CSSStyleSheet> Parser::ParseStyleSheet(
     const std::string& input, const ::base::SourceLocation& input_location) {
   ParserImpl parser_impl(input, input_location, this, on_warning_callback_,

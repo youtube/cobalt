@@ -43,7 +43,7 @@ class DelayedHttpRequestHandler(MakeRequestHandlerClass(_SERVER_ROOT_PATH)):
 class HttpCacheTest(black_box_tests.BlackBoxTestCase):
   """Load resources, then reload the page and verify."""
 
-  def test_simple(self):
+  def test_http_cache(self):
 
     with ThreadedWebServer(
         binding_address=self.GetBindingAddress(),

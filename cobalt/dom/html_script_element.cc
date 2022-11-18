@@ -79,15 +79,12 @@ HTMLScriptElement::HTMLScriptElement(Document* document)
 }
 
 std::string HTMLScriptElement::src() const {
-  auto src = GetAttribute("src");
-  if (!src.has_value()) {
-    return "";
+  std::string src = GetAttribute("src").value_or("");
+  if (src == "" || !node_document()) {
+    return src;
   }
-  if (!node_document()) {
-    return src.value();
-  }
-  const GURL& base_url = node_document()->location()->url();
-  return base_url.Resolve(src.value()).spec();
+  GURL url = node_document()->location()->url().Resolve(src);
+  return url.is_valid() ? url.spec() : src;
 }
 
 base::Optional<std::string> HTMLScriptElement::cross_origin() const {
@@ -304,7 +301,7 @@ void HTMLScriptElement::Prepare() {
 
   // https://www.w3.org/TR/CSP2/#directive-script-src
 
-  web::CspDelegate* csp_delegate = document_->csp_delegate();
+  web::CspDelegate* csp_delegate = document_->GetCSPDelegate();
   // If the script element has a valid nonce, we always permit it, regardless
   // of its URL or inline nature.
   const bool bypass_csp =
@@ -347,7 +344,8 @@ void HTMLScriptElement::Prepare() {
               csp_callback, request_mode_,
               document_->location() ? document_->location()->GetOriginAsObject()
                                     : loader::Origin(),
-              disk_cache::kUncompiledScript),
+              disk_cache::kUncompiledScript, net::HttpRequestHeaders(),
+              /*skip_fetch_intercept=*/false),
           base::Bind(&loader::TextDecoder::Create,
                      base::Bind(&HTMLScriptElement::OnSyncContentProduced,
                                 base::Unretained(this)),

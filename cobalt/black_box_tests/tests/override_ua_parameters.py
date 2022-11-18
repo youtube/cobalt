@@ -53,7 +53,7 @@ class JavascriptRequestDetector(MakeRequestHandlerClass(_SERVER_ROOT_PATH)):
 class OverrideUAParametersTest(black_box_tests.BlackBoxTestCase):
   """Test overriding UA parameters."""
 
-  def test_simple(self):
+  def test_override_ua_parameters(self):
     """Set UA parameters when launching Cobalt."""
 
     with ThreadedWebServer(

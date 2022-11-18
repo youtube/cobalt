@@ -66,8 +66,7 @@ class StubWebContext final : public Context {
   // WebInstance
   //
   base::MessageLoop* message_loop() const final {
-    NOTREACHED();
-    return nullptr;
+    return base::MessageLoop::current();
   }
   void ShutDownJavaScriptEngine() final { NOTREACHED(); }
   loader::FetcherFactory* fetcher_factory() const final {

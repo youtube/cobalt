@@ -18,14 +18,18 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <string>
+#include <utility>
 #include <vector>
 
 #include "base/basictypes.h"
 #include "base/files/file_enumerator.h"
 #include "base/files/file_path.h"
 #include "base/macros.h"
+#include "base/optional.h"
 #include "base/synchronization/lock.h"
 #include "base/synchronization/waitable_event.h"
+#include "base/values.h"
 #include "cobalt/cache/memory_capped_directory.h"
 #include "cobalt/persistent_storage/persistent_settings.h"
 #include "net/disk_cache/cobalt/resource_type.h"
@@ -41,12 +45,26 @@ namespace cache {
 class Cache {
  public:
   static Cache* GetInstance();
-  void Delete(disk_cache::ResourceType resource_type, uint32_t key);
+  static uint32_t CreateKey(const std::string& s);
+
+  bool Delete(disk_cache::ResourceType resource_type, uint32_t key);
+  void Delete(disk_cache::ResourceType resource_type);
   void DeleteAll();
+  std::vector<uint32_t> KeysWithMetadata(
+      disk_cache::ResourceType resource_type);
+  std::unique_ptr<base::Value> Metadata(disk_cache::ResourceType resource_type,
+                                        uint32_t key);
   std::unique_ptr<std::vector<uint8_t>> Retrieve(
       disk_cache::ResourceType resource_type, uint32_t key,
-      std::function<std::unique_ptr<std::vector<uint8_t>>()> generate);
+      std::function<std::pair<std::unique_ptr<std::vector<uint8_t>>,
+                              base::Optional<base::Value>>()>
+          generate);
+  std::unique_ptr<std::vector<uint8_t>> Retrieve(
+      disk_cache::ResourceType resource_type, uint32_t key);
   void Resize(disk_cache::ResourceType resource_type, uint32_t bytes);
+  void Store(disk_cache::ResourceType resource_type, uint32_t key,
+             const std::vector<uint8_t>& data,
+             const base::Optional<base::Value>& metadata);
   base::Optional<uint32_t> GetMaxCacheStorageInBytes(
       disk_cache::ResourceType resource_type);
 
@@ -64,8 +82,6 @@ class Cache {
   base::WaitableEvent* GetWaitableEvent(disk_cache::ResourceType resource_type,
                                         uint32_t key);
   void Notify(disk_cache::ResourceType resource_type, uint32_t key);
-  void TryStore(disk_cache::ResourceType resource_type, uint32_t key,
-                const std::vector<uint8_t>& data);
   bool CanCache(disk_cache::ResourceType resource_type, uint32_t data_size);
 
   mutable base::Lock lock_;

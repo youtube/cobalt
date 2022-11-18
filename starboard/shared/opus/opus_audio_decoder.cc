@@ -16,8 +16,6 @@
 
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
-#include "starboard/memory.h"
-#include "starboard/shared/starboard/media/media_util.h"
 
 namespace starboard {
 namespace shared {

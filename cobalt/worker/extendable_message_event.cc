@@ -28,7 +28,7 @@ namespace cobalt {
 namespace worker {
 
 ExtendableMessageEvent::ExtendableMessageEvent(
-    const std::string& type, const ExtendableMessageEventInit& init_dict)
+    base::Token type, const ExtendableMessageEventInit& init_dict)
     : ExtendableEvent(type, init_dict) {
   if (init_dict.has_data() && init_dict.data()) {
     DCHECK(init_dict.data());
@@ -40,8 +40,8 @@ ExtendableMessageEvent::ExtendableMessageEvent(
   if (init_dict.has_last_event_id()) {
     last_event_id_ = init_dict.last_event_id();
   }
-  if (init_dict.has_source()) {
-    source_ = init_dict.source();
+  if (init_dict.has_source() && init_dict.source().has_value()) {
+    source_ = init_dict.source().value();
   }
   if (init_dict.has_ports()) {
     ports_ = init_dict.ports();

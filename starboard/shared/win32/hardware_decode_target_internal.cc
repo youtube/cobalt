@@ -37,7 +37,8 @@ const GUID kCobaltNv12BindChroma = {
 ComPtr<ID3D11Texture2D> AllocateTexture(const ComPtr<ID3D11Device>& d3d_device,
                                         SbDecodeTargetFormat format,
                                         int width,
-                                        int height) {
+                                        int height,
+                                        HRESULT* h_result) {
   ComPtr<ID3D11Texture2D> texture;
   D3D11_TEXTURE2D_DESC texture_desc = {};
   texture_desc.Width = width;
@@ -60,8 +61,8 @@ ComPtr<ID3D11Texture2D> AllocateTexture(const ComPtr<ID3D11Device>& d3d_device,
   texture_desc.Usage = D3D11_USAGE_DEFAULT;
   texture_desc.BindFlags =
       D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
-  CheckResult(d3d_device->CreateTexture2D(&texture_desc, nullptr,
-                                          texture.GetAddressOf()));
+  *h_result = d3d_device->CreateTexture2D(&texture_desc, nullptr,
+                                          texture.GetAddressOf());
   return texture;
 }
 
@@ -137,17 +138,19 @@ HardwareDecodeTargetPrivate::HardwareDecodeTargetPrivate(
     info.format = kSbDecodeTargetFormat2PlaneYUVNV12;
   }
 
-  d3d_texture =
-      AllocateTexture(d3d_device, info.format, info.width, info.height);
-  if (video_sample) {
-    UpdateTexture(d3d_texture, video_device, video_context, video_enumerator,
-                  video_processor, video_sample, video_area);
-  }
+  d3d_texture = AllocateTexture(d3d_device, info.format, info.width,
+                                info.height, &create_texture_2d_h_result);
+  if (d3d_texture) {
+    if (video_sample) {
+      UpdateTexture(d3d_texture, video_device, video_context, video_enumerator,
+                    video_processor, video_sample, video_area);
+    }
 
-  if (texture_RGBA_) {
-    InitTextureRGBA();
-  } else {
-    InitTextureYUV();
+    if (texture_RGBA_) {
+      InitTextureRGBA();
+    } else {
+      InitTextureYUV();
+    }
   }
 }
 

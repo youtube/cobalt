@@ -60,6 +60,10 @@ class GlobalEnvironment : public base::RefCounted<GlobalEnvironment>,
   // Returns the global object if it is a wrappable.
   virtual Wrappable* global_wrappable() const = 0;
 
+  // Compiles the code but does not execute.
+  virtual v8::MaybeLocal<v8::Script> Compile(
+      const scoped_refptr<SourceCode>& source_code) = 0;
+
   // Evaluate the JavaScript source code. Returns true on success,
   // false if there is an exception.
   // If out_result is non-NULL, it will be set to hold the result of the script
@@ -99,6 +103,8 @@ class GlobalEnvironment : public base::RefCounted<GlobalEnvironment>,
 
   // Allow eval().
   virtual void EnableEval() = 0;
+
+  virtual bool IsEvalEnabled() = 0;
 
   // Disable just-in-time compilation of JavaScript source code to native
   // code.  Calling this is a no-op if JIT was not enabled in the first place,

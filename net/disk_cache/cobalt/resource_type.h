@@ -29,7 +29,8 @@ enum ResourceType {
   kSplashScreen = 5,
   kUncompiledScript = 6,
   kCompiledScript = 7,
-  kTypeCount = 8
+  kCacheApi = 8,
+  kTypeCount = 9
 };
 
 struct ResourceTypeMetadata {
@@ -41,10 +42,11 @@ static uint32_t kInitialBytes = static_cast<uint32_t> (3 * 1024 * 1024);
 // These values are updated on start up in application.cc, using the
 // persisted values saved in settings.json.
 static ResourceTypeMetadata kTypeMetadata[] = {
-    {"other", kInitialBytes},         {"html", kInitialBytes},
-    {"css", kInitialBytes},           {"image", kInitialBytes},
+    {"other", kInitialBytes},         {"html", 2 * 1024 * 1024},
+    {"css", 1 * 1024 * 1024},         {"image", kInitialBytes},
     {"font", kInitialBytes},          {"splash", 2 * 1024 * 1024},
     {"uncompiled_js", kInitialBytes}, {"compiled_js", kInitialBytes},
+    {"cache_api", kInitialBytes},
 };
 
 }  // namespace disk_cache

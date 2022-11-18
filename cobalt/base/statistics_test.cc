@@ -20,7 +20,7 @@ namespace base {
 namespace {
 
 TEST(StatisticsTest, ZeroSamples) {
-  Statistics<int, int, 1> statistics;
+  Statistics<int, int, 1> statistics("test1");
 
   EXPECT_EQ(statistics.accumulated_dividend(), 0);
   EXPECT_EQ(statistics.accumulated_divisor(), 0);
@@ -31,7 +31,7 @@ TEST(StatisticsTest, ZeroSamples) {
 }
 
 TEST(StatisticsTest, SingleSample) {
-  Statistics<int, int, 1> statistics;
+  Statistics<int, int, 1> statistics("test2");
 
   statistics.AddSample(100, 10);
 
@@ -44,7 +44,7 @@ TEST(StatisticsTest, SingleSample) {
 }
 
 TEST(StatisticsTest, NotCrashOnZeroDivisor) {
-  Statistics<int, int, 4> statistics;
+  Statistics<int, int, 4> statistics("test3");
 
   statistics.AddSample(100, 0);
 
@@ -58,7 +58,7 @@ TEST(StatisticsTest, NotCrashOnZeroDivisor) {
 }
 
 TEST(StatisticsTest, MultipleSamples) {
-  Statistics<int, int, 4> statistics;
+  Statistics<int, int, 4> statistics("test4");
 
   statistics.AddSample(10, 2);
   statistics.AddSample(20, 2);
@@ -83,8 +83,8 @@ TEST(StatisticsTest, MultipleSamples) {
 }
 
 TEST(StatisticsTest, MultipleSamplesDifferentOrders) {
-  Statistics<int, int, 10> statistics;
-  Statistics<int, int, 10> statistics_reversed;
+  Statistics<int, int, 10> statistics("test5");
+  Statistics<int, int, 10> statistics_reversed("reverse test5");
 
   for (int i = 0; i < 10; ++i) {
     statistics.AddSample(i * i, i * 3);
@@ -105,16 +105,16 @@ TEST(StatisticsTest, MultipleSamplesDifferentOrders) {
 }
 
 TEST(StatisticsTest, MoreSamplesThanCapacity) {
-  Statistics<int, int, 1> statistics_1;
-  Statistics<int, int, 10> statistics_10;
+  Statistics<int, int, 1> statistics_1("test6");
+  Statistics<int, int, 10> statistics_10("test7");
 
   for (int i = 0; i < 5; ++i) {
     statistics_1.AddSample(i * i, i * 3);
     statistics_10.AddSample(i * i, i * 3);
   }
 
-  Statistics<int, int, 1> statistics_1_median_reference;
-  Statistics<int, int, 10> statistics_10_median_reference;
+  Statistics<int, int, 1> statistics_1_median_reference("test8");
+  Statistics<int, int, 10> statistics_10_median_reference("test9");
 
   for (int i = 0; i < 10; ++i) {
     statistics_1.AddSample(i * i * i, i * 5);
@@ -145,7 +145,7 @@ TEST(StatisticsTest, MoreSamplesThanCapacity) {
 }
 
 TEST(StatisticsTest, MedianWithOverflow) {
-  Statistics<int, int, 3> statistics;
+  Statistics<int, int, 3> statistics("test10");
 
   statistics.AddSample(1, 1);
   statistics.AddSample(11, 1);

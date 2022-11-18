@@ -110,14 +110,14 @@ class Impl : public Context {
   scoped_refptr<worker::ServiceWorkerRegistration>
   LookupServiceWorkerRegistration(
       worker::ServiceWorkerRegistrationObject* registration) final;
-  // https://w3c.github.io/ServiceWorker/#service-worker-registration-creation
+  // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#service-worker-registration-creation
   scoped_refptr<worker::ServiceWorkerRegistration> GetServiceWorkerRegistration(
       worker::ServiceWorkerRegistrationObject* registration) final;
 
   void RemoveServiceWorker(worker::ServiceWorkerObject* worker) final;
   scoped_refptr<worker::ServiceWorker> LookupServiceWorker(
       worker::ServiceWorkerObject* worker) final;
-  // https://w3c.github.io/ServiceWorker/#get-the-service-worker-object
+  // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#get-the-service-worker-object
   scoped_refptr<worker::ServiceWorker> GetServiceWorker(
       worker::ServiceWorkerObject* worker) final;
 
@@ -133,7 +133,7 @@ class Impl : public Context {
     return network_module()->preferred_language();
   }
 
-  // https://w3c.github.io/ServiceWorker/#dfn-control
+  // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#dfn-control
   bool is_controlled_by(worker::ServiceWorkerObject* worker) const final {
     // When a service worker client has a non-null active service worker, it is
     // said to be controlled by that active service worker.
@@ -199,13 +199,13 @@ class Impl : public Context {
   std::unique_ptr<EnvironmentSettings> environment_settings_;
 
   // The service worker registration object map.
-  //   https://w3c.github.io/ServiceWorker/#environment-settings-object-service-worker-registration-object-map
+  //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#environment-settings-object-service-worker-registration-object-map
   std::map<worker::ServiceWorkerRegistrationObject*,
            scoped_refptr<worker::ServiceWorkerRegistration>>
       service_worker_registration_object_map_;
 
   // The service worker object map.
-  //   https://w3c.github.io/ServiceWorker/#environment-settings-object-service-worker-object-map
+  //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#environment-settings-object-service-worker-object-map
   std::map<worker::ServiceWorkerObject*, scoped_refptr<worker::ServiceWorker>>
       service_worker_object_map_;
 
@@ -337,7 +337,7 @@ scoped_refptr<worker::ServiceWorkerRegistration>
 Impl::GetServiceWorkerRegistration(
     worker::ServiceWorkerRegistrationObject* registration) {
   // Algorithm for 'get the service worker registration object':
-  //   https://w3c.github.io/ServiceWorker/#get-the-service-worker-registration-object
+  //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#get-the-service-worker-registration-object
   scoped_refptr<worker::ServiceWorkerRegistration> worker_registration;
   if (!registration) {
     // Return undefined when registration is null.
@@ -404,7 +404,7 @@ void Impl::RemoveServiceWorker(worker::ServiceWorkerObject* worker) {
 scoped_refptr<worker::ServiceWorker> Impl::LookupServiceWorker(
     worker::ServiceWorkerObject* worker) {
   // Algorithm for 'get the service worker object':
-  //   https://w3c.github.io/ServiceWorker/#get-the-service-worker-object
+  //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#get-the-service-worker-object
   scoped_refptr<worker::ServiceWorker> service_worker;
 
   if (!worker) {
@@ -424,7 +424,7 @@ scoped_refptr<worker::ServiceWorker> Impl::LookupServiceWorker(
 scoped_refptr<worker::ServiceWorker> Impl::GetServiceWorker(
     worker::ServiceWorkerObject* worker) {
   // Algorithm for 'get the service worker object':
-  //   https://w3c.github.io/ServiceWorker/#get-the-service-worker-object
+  //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#get-the-service-worker-object
   scoped_refptr<worker::ServiceWorker> service_worker;
 
   if (!worker) {

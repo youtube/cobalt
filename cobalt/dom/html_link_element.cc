@@ -192,7 +192,7 @@ void HTMLLinkElement::Obtain() {
   // attribute, the origin being the origin of the link element's Document, and
   // the default origin behaviour set to taint.
   csp::SecurityCallback csp_callback = base::Bind(
-      &web::CspDelegate::CanLoad, base::Unretained(document->csp_delegate()),
+      &web::CspDelegate::CanLoad, base::Unretained(document->GetCSPDelegate()),
       GetCspResourceTypeForRel(rel()));
 
   fetched_last_url_origin_ = loader::Origin();

@@ -48,9 +48,10 @@ source $DIR/setup.sh
 
 if [[ "${USE_COMPRESSED_SYSTEM_IMAGE}" == "true" ]]; then
   # It would be valid to run all test cases using a compressed system image but
-  # is probably excessive. Instead, just the Evergreen Lite case is run to test
-  # that the compressed system image can be successfully loaded.
-  TESTS=($(eval "find ${DIR}/tests -maxdepth 1 -name 'evergreen_lite_test.sh'"))
+  # is probably excessive. Instead, just two cases are run: one to test that a
+  # compressed system image can be loaded and one to test that a compressed
+  # update can be upgraded to.
+  TESTS=($(eval "find ${DIR}/tests -maxdepth 1 \( -name 'evergreen_lite_test.sh' -o -name 'verify_qa_channel_compressed_update_test.sh' \)"))
 else
   TESTS=($(eval "find ${DIR}/tests -maxdepth 1 -name '*_test.sh'"))
 fi

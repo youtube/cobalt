@@ -14,10 +14,15 @@
 
 #include "cobalt/dom/comment.h"
 
+#include <memory>
+
 #include "cobalt/dom/document.h"
+#include "cobalt/dom/dom_stat_tracker.h"
 #include "cobalt/dom/element.h"
 #include "cobalt/dom/global_stats.h"
 #include "cobalt/dom/html_element_context.h"
+#include "cobalt/dom/testing/fake_document.h"
+#include "cobalt/dom/testing/stub_window.h"
 #include "cobalt/dom/text.h"
 #include "cobalt/web/testing/gtest_workarounds.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -34,18 +39,27 @@ class CommentTest : public ::testing::Test {
   CommentTest();
   ~CommentTest() override;
 
-  base::MessageLoop message_loop_;
-  HTMLElementContext html_element_context_;
+  std::unique_ptr<testing::StubWindow> window_;
+  std::unique_ptr<HTMLElementContext> html_element_context_;
+  std::unique_ptr<DomStatTracker> dom_stat_tracker_;
   scoped_refptr<Document> document_;
 };
 
-CommentTest::CommentTest() {
+CommentTest::CommentTest()
+    : window_(new testing::StubWindow),
+      dom_stat_tracker_(new DomStatTracker("CommentTest")) {
   EXPECT_TRUE(GlobalStats::GetInstance()->CheckNoLeaks());
-  document_ = new Document(&html_element_context_);
+  window_->InitializeWindow();
+  html_element_context_.reset(new HTMLElementContext(
+      window_->web_context()->environment_settings(), NULL, NULL, NULL, NULL,
+      NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+      dom_stat_tracker_.get(), "", base::kApplicationStateStarted, NULL, NULL));
+  document_ = new testing::FakeDocument(html_element_context_.get());
 }
 
 CommentTest::~CommentTest() {
-  document_ = NULL;
+  window_.reset();
+  document_ = nullptr;
   EXPECT_TRUE(GlobalStats::GetInstance()->CheckNoLeaks());
 }
 

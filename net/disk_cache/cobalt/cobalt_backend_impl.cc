@@ -96,7 +96,7 @@ CobaltBackendImpl::CobaltBackendImpl(
     : weak_factory_(this) {
   persistent_settings_ =
       std::make_unique<cobalt::persistent_storage::PersistentSettings>(
-          kPersistentSettingsJson, base::MessageLoop::current()->task_runner());
+          kPersistentSettingsJson);
   ReadDiskCacheSize(persistent_settings_.get(), max_bytes);
 
   // Initialize disk backend for each resource type.
@@ -182,6 +182,11 @@ net::Error CobaltBackendImpl::CreateEntry(const std::string& key,
                                           net::RequestPriority request_priority,
                                           Entry** entry,
                                           CompletionOnceCallback callback) {
+  ResourceType type = GetType(key);
+  auto quota = disk_cache::kTypeMetadata[type].max_size_bytes;
+  if (quota == 0) {
+    return net::Error::ERR_BLOCKED_BY_CLIENT;
+  }
   SimpleBackendImpl* simple_backend = simple_backend_map_[GetType(key)];
   return simple_backend->CreateEntry(key, request_priority, entry,
                                      std::move(callback));
@@ -282,6 +287,12 @@ size_t CobaltBackendImpl::DumpMemoryStats(
     size += backend.second->DumpMemoryStats(pmd, name);
   }
   return size;
+}
+
+net::Error CobaltBackendImpl::DoomAllEntriesOfType(disk_cache::ResourceType type,
+                        CompletionOnceCallback callback) {
+  SimpleBackendImpl* simple_backend = simple_backend_map_[type];
+  return simple_backend->DoomAllEntries(std::move(callback));
 }
 
 }  // namespace disk_cache

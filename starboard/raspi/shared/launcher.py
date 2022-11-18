@@ -104,6 +104,8 @@ class Launcher(abstract_launcher.AbstractLauncher):
     signal.signal(signal.SIGINT, functools.partial(_SigIntOrSigTermHandler))
     signal.signal(signal.SIGTERM, functools.partial(_SigIntOrSigTermHandler))
 
+    self.last_run_pexpect_cmd = ''
+
   def _InitPexpectCommands(self):
     """Initializes all of the pexpect commands needed for running the test."""
 
@@ -180,15 +182,15 @@ class Launcher(abstract_launcher.AbstractLauncher):
       try:
         i = self.pexpect_process.expect(expected_prompts)
         if i == 0:
-          self.pexpect_process.sendline('yes')
+          self._PexpectSendLine('yes')
         elif i == 1:
-          self.pexpect_process.sendline(Launcher._RASPI_PASSWORD)
+          self._PexpectSendLine(Launcher._RASPI_PASSWORD)
           break
         else:
           # If any other input comes in, maybe we've logged in with rsa key or
           # raspi does not have password. Check if we've logged in by echoing
           # a special sentence and expect it back.
-          self.pexpect_process.sendline('echo ' + Launcher._SSH_LOGIN_SIGNAL)
+          self._PexpectSendLine('echo ' + Launcher._SSH_LOGIN_SIGNAL)
           i = self.pexpect_process.expect([Launcher._SSH_LOGIN_SIGNAL])
           break
       except pexpect.TIMEOUT:
@@ -199,6 +201,11 @@ class Launcher(abstract_launcher.AbstractLauncher):
         # re-raise the timeout exception.
         if retry_count > Launcher._PEXPECT_PASSWORD_TIMEOUT_MAX_RETRIES:
           raise
+
+  def _PexpectSendLine(self, cmd):
+    """Send lines to Pexpect and record the last command for logging purposes"""
+    self.last_run_pexpect_cmd = cmd
+    self.pexpect_process.sendline(cmd)
 
   def _PexpectReadLines(self):
     """Reads all lines from the pexpect process."""
@@ -231,8 +238,8 @@ class Launcher(abstract_launcher.AbstractLauncher):
           raise
 
   def _Sleep(self, val):
-    self.pexpect_process.sendline('sleep {};echo {}'.format(
-        val, Launcher._SSH_SLEEP_SIGNAL))
+    self._PexpectSendLine('sleep {};echo {}'.format(val,
+                                                    Launcher._SSH_SLEEP_SIGNAL))
     self.pexpect_process.expect([Launcher._SSH_SLEEP_SIGNAL])
 
   def _CleanupPexpectProcess(self):
@@ -242,16 +249,18 @@ class Launcher(abstract_launcher.AbstractLauncher):
       # Check if kernel logged OOM kill or any other system failure message
       if self.return_value:
         logging.info('Sending dmesg')
-        self.pexpect_process.sendline('dmesg -P --color=never | tail -n 100')
+        self._PexpectSendLine('dmesg -P --color=never | tail -n 100')
         time.sleep(3)
         try:
           self.pexpect_process.readlines()
         except pexpect.TIMEOUT:
+          logging.info('Timeout exception during cleanup command: %s',
+                       self.last_run_pexpect_cmd)
           pass
         logging.info('Done sending dmesg')
 
       # Send ctrl-c to the raspi and close the process.
-      self.pexpect_process.sendline(chr(3))
+      self._PexpectSendLine(chr(3))
       time.sleep(1)  # Allow a second for normal shutdown
       self.pexpect_process.close()
 
@@ -263,12 +272,14 @@ class Launcher(abstract_launcher.AbstractLauncher):
         self.pexpect_process.expect(self._RASPI_PROMPT)
         break
       except pexpect.TIMEOUT:
+        logging.info('Timeout exception during WaitForPrompt command: %s',
+                     self.last_run_pexpect_cmd)
         if self.shutdown_initiated.is_set():
           return
         retry_count -= 1
         if not retry_count:
           raise
-        self.pexpect_process.sendline('echo ' + Launcher._SSH_SLEEP_SIGNAL)
+        self._PexpectSendLine('echo ' + Launcher._SSH_SLEEP_SIGNAL)
         time.sleep(self._INTER_COMMAND_DELAY_SECONDS)
 
   def _KillExistingCobaltProcesses(self):
@@ -279,11 +290,11 @@ class Launcher(abstract_launcher.AbstractLauncher):
     cause other problems.
     """
     logging.info('Killing existing processes')
-    self.pexpect_process.sendline(
+    self._PexpectSendLine(
         'pkill -9 -ef "(cobalt)|(crashpad_handler)|(elf_loader)"')
     self._WaitForPrompt()
     # Print the return code of pkill. 0 if a process was halted
-    self.pexpect_process.sendline('echo PROCKILL:${?}')
+    self._PexpectSendLine('echo PROCKILL:${?}')
     i = self.pexpect_process.expect([r'PROCKILL:0', r'PROCKILL:(\d+)'])
     if i == 0:
       logging.warning('Forced to pkill existing instance(s) of cobalt. '
@@ -321,10 +332,14 @@ class Launcher(abstract_launcher.AbstractLauncher):
         self._PexpectSpawnAndConnect(self.ssh_command)
         self._Sleep(self._INTER_COMMAND_DELAY_SECONDS)
       # Execute debugging commands on the first run
+      first_run_commands = []
+      if self.test_result_xml_path:
+        first_run_commands.append('touch {}'.format(self.test_result_xml_path))
+      first_run_commands.extend(['free -mh', 'ps -ux', 'df -h'])
       if FirstRun():
-        for cmd in ['free -mh', 'ps -ux', 'df -h']:
+        for cmd in first_run_commands:
           if not self.shutdown_initiated.is_set():
-            self.pexpect_process.sendline(cmd)
+            self._PexpectSendLine(cmd)
             line = self.pexpect_process.readline()
             self.output_file.write(line)
         self._WaitForPrompt()
@@ -334,15 +349,18 @@ class Launcher(abstract_launcher.AbstractLauncher):
         self._Sleep(self._INTER_COMMAND_DELAY_SECONDS)
 
       if not self.shutdown_initiated.is_set():
-        self.pexpect_process.sendline(self.test_command)
+        self._PexpectSendLine(self.test_command)
         self._PexpectReadLines()
 
     except pexpect.EOF:
-      logging.exception('pexpect encountered EOF while reading line.')
+      logging.exception('pexpect encountered EOF while reading line. (cmd: %s)',
+                        self.last_run_pexpect_cmd)
     except pexpect.TIMEOUT:
-      logging.exception('pexpect timed out while reading line.')
+      logging.exception('pexpect timed out while reading line. (cmd: %s)',
+                        self.last_run_pexpect_cmd)
     except Exception:  # pylint: disable=broad-except
-      logging.exception('Error occurred while running test.')
+      logging.exception('Error occurred while running test. (cmd: %s)',
+                        self.last_run_pexpect_cmd)
     finally:
       self._CleanupPexpectProcess()
 

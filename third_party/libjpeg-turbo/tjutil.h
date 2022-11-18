@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2011 D. R. Commander.  All Rights Reserved.
+ * Copyright (C)2011, 2022 D. R. Commander.  All Rights Reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -26,24 +26,25 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifdef _WIN32
-#ifndef __MINGW32__
-
 #ifdef STARBOARD
 #include "starboard/client_porting/poem/stdio_poem.h"
-#else
-#include <stdio.h>
-#define snprintf(str, n, format, ...) \
-  _snprintf_s(str, n, _TRUNCATE, format, ##__VA_ARGS__)
-#endif
-
-#endif
-
-#ifdef STARBOARD
 #include "starboard/client_porting/poem/strings_poem.h"
+#define SNPRINTF snprintf
 #else
+#ifdef _WIN32
+#ifndef strcasecmp
 #define strcasecmp  stricmp
+#endif
+#ifndef strncasecmp
 #define strncasecmp  strnicmp
+#endif
+#endif
+
+#ifdef _MSC_VER
+#define SNPRINTF(str, n, format, ...) \
+  _snprintf_s(str, n, _TRUNCATE, format, ##__VA_ARGS__)
+#else
+#define SNPRINTF  snprintf
 #endif
 #endif
 

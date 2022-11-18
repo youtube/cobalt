@@ -22,7 +22,7 @@ void ExtendableEvent::WaitUntil(
     std::unique_ptr<script::Promise<script::ValueHandle*>>& promise,
     script::ExceptionState* exception_state) {
   // Algorithm for waitUntil(), to add lifetime promise to event.
-  //   https://w3c.github.io/ServiceWorker/#dom-extendableevent-waituntil
+  //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#dom-extendableevent-waituntil
 
   // 1. If event’s isTrusted attribute is false, throw an "InvalidStateError"
   //    DOMException.
@@ -50,7 +50,7 @@ void ExtendableEvent::StateChange(
     const script::Promise<script::ValueHandle*>* promise) {
   // Implement the microtask called upon fulfillment or rejection of a
   // promise, as part of the algorithm for waitUntil().
-  //   https://w3c.github.io/ServiceWorker/#dom-extendableevent-waituntil
+  //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#dom-extendableevent-waituntil
   DCHECK(promise);
   has_rejected_promise_ |= promise->State() == script::PromiseState::kRejected;
   // 5.1. Decrement event’s pending promises count by one.

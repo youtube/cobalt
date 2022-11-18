@@ -140,8 +140,11 @@ class AudioRendererPassthrough
 
   std::atomic_bool audio_track_paused_{true};
 
-  std::unique_ptr<JobThread> audio_track_thread_;
+  // |audio_track_thread_| must be declared after |audio_track_bridge_| to
+  // ensure the thread completes all tasks before |audio_track_bridge_| is
+  // invalidated.
   std::unique_ptr<AudioTrackBridge> audio_track_bridge_;
+  std::unique_ptr<JobThread> audio_track_thread_;
 };
 
 }  // namespace shared

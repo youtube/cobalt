@@ -18,7 +18,6 @@ dictionary ExtendableMessageEventInit : ExtendableEventInit {
   any data;
   USVString origin = "";
   DOMString lastEventId = "";
-  EventTarget? source;
-  //(Client or ServiceWorker or MessagePort) ? source = null;
+  (Client or ServiceWorker or MessagePort) ? source;
   sequence<MessagePort> ports;
 };

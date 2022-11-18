@@ -144,10 +144,10 @@ class MediaSource : public web::EventTarget {
   // Set to true to reduce asynchronous behaviors.  For example, queued events
   // will be dispatached immediately when possible.
   const bool asynchronous_reduction_enabled_;
-  // Only used when |asynchronous_reduction_enabled_| is set true, where any
+  // Only used when |asynchronous_reduction_enabled_| is set to true, where any
   // buffer append job smaller than its value will happen immediately instead of
   // being scheduled asynchronously.
-  const int min_size_for_immediate_job_;
+  const int max_size_for_immediate_job_;
 
   // The default algorithm runner runs all steps on the web thread.
   DefaultAlgorithmRunner<SourceBufferAlgorithm> default_algorithm_runner_;

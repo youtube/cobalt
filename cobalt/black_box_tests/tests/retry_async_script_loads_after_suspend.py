@@ -100,7 +100,7 @@ class RetryAsyncScriptLoadsAfterSuspend(black_box_tests.BlackBoxTestCase):
     except:  # pylint: disable=bare-except
       traceback.print_exc()
 
-  def test_simple(self):
+  def test_retry_async_script_loads_after_suspend(self):
 
     # Step 2. Start Cobalt, and point it to the socket created in Step 1.
     try:

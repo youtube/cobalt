@@ -18,20 +18,23 @@ RUN apt update -qqy \
     && apt install -qqy --no-install-recommends \
         libasound2 \
         libatomic1 \
-        libavcodec58 \
-        libavformat58 \
-        libavutil56 \
+        libavcodec-dev \
+        libavformat-dev \
+        libgles2-mesa \
         libegl1-mesa \
         libgl1-mesa-dri \
-        libgles2-mesa \
         libx11-6 \
         libxcomposite1 \
-        libxi6 \
+        libxi-dev \
         libxrender1 \
+        procps \
         unzip \
         xauth \
         xvfb \
     && /opt/clean-after-apt.sh
+
+COPY ./unittest/requirements.txt /opt/requirements.txt
+RUN python3 -m pip install --require-hashes --no-deps -r /opt/requirements.txt
 
 WORKDIR /out
 # Sets the locale in the environment. This is needed for NPLB unit tests.
