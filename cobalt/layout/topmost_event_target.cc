@@ -559,7 +559,7 @@ void TopmostEventTarget::MaybeSendPointerEvents(
     target_element = FindTopmostEventTarget(view->document(), coordinate);
   }
 
-  if (target_element) {
+  if (target_element && pointer_event) {
     HandleScrollState(target_element, pointer_event, pointer_state,
                       &event_init);
   }
