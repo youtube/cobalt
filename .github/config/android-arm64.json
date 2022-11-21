@@ -3,7 +3,10 @@
   "on_device_test": {
     "enabled": true,
     "tests": [
-      "unit_test",
+      "0",
+      "1",
+      "2",
+      "3",
       "black_box_test"
     ]
   },
