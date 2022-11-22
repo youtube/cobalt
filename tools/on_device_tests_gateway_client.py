@@ -85,6 +85,7 @@ class OnDeviceTestsGatewayClient():
             version=args.version,
             dry_run=args.dry_run,
             dimension=args.dimension or [],
+            unittest_shard_index=args.unittest_shard_index,
         )):
 
       print(response_line.response)
@@ -211,6 +212,13 @@ def main():
       type=str,
       default='COBALT',
       help='Cobalt version being tested.')
+  trigger_parser.add_argument(
+      '--unittest_shard_index',
+      type=str,
+      required=False,
+      help='Optional argument to specify which unit testing shard to run in '
+      'the On-Device Tests Job. Defaults behavior is to run all tests without '
+      'sharding enabled.')
 
   watch_parser = subparsers.add_parser('watch', help='Trigger On-Device tests')
   watch_parser.add_argument(

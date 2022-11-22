@@ -49,6 +49,7 @@ message OnDeviceTestsCommand {
   string version = 14;
   optional bool dry_run = 15;
   repeated string dimension = 16;
+  string unittest_shard_index = 17;
 }
 
 // Working directory and command line arguments to be passed to the gateway.
