@@ -97,8 +97,8 @@ class MockDataSource : public DataSource {
   MOCK_METHOD0(Stop, void());
   MOCK_METHOD0(Abort, void());
   MOCK_METHOD1(GetSize, bool(int64_t* size_out));
-  MOCK_METHOD0(IsStreaming, bool());
-  MOCK_METHOD1(SetBitrate, void(int bitrate));
+  MOCK_METHOD1(SetDownloadingStatusCB,
+               void(const DownloadingStatusCB& downloading_status_cb));
 };
 
 // Mock class for receiving calls to the Cobalt Extension demuxer. Based on the

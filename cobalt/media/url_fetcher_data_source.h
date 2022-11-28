@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_MEDIA_FETCHER_BUFFERED_DATA_SOURCE_H_
-#define COBALT_MEDIA_FETCHER_BUFFERED_DATA_SOURCE_H_
+#ifndef COBALT_MEDIA_URL_FETCHER_DATA_SOURCE_H_
+#define COBALT_MEDIA_URL_FETCHER_DATA_SOURCE_H_
 
 #include <memory>
 #include <string>
@@ -29,7 +29,7 @@
 #include "cobalt/loader/fetcher.h"
 #include "cobalt/loader/origin.h"
 #include "cobalt/loader/url_fetcher_string_writer.h"
-#include "cobalt/media/player/buffered_data_source.h"
+#include "cobalt/media/base/data_source.h"
 #include "cobalt/network/network_module.h"
 #include "net/url_request/url_fetcher.h"
 #include "net/url_request/url_fetcher_delegate.h"
@@ -40,7 +40,7 @@ namespace media {
 
 // TODO: This class requires a large block of memory.
 
-// A BufferedDataSource based on net::URLFetcher that can be used to retrieve
+// A DataSource based on net::URLFetcher that can be used to retrieve
 // progressive videos from both local and network sources.
 // It uses a fixed size circular buffer so we may not be able to store all data
 // into this buffer.  It is based on the following assumptions/strategies:
@@ -55,29 +55,28 @@ namespace media {
 //    from offset 0 will be cached.
 // 4. It assumes that the server supports range request.
 // 5. All data stored are continuous.
-class FetcherBufferedDataSource : public BufferedDataSource,
-                                  private net::URLFetcherDelegate {
+class URLFetcherDataSource : public DataSource,
+                             private net::URLFetcherDelegate {
  public:
   static const int64 kInvalidSize = -1;
 
-  // Because the Fetchers have to be created and destroyed on the same thread,
-  // we use the task_runner passed in to create and destroy Fetchers.
-  FetcherBufferedDataSource(
+  // Because the URLFetchers have to be created and destroyed on the same
+  // thread, we use the |task_runner| passed in to ensure that.  Note that the
+  // ctor and dtor are also called from the |task_runner|, which is checked in
+  // the ctor and dtor.
+  URLFetcherDataSource(
       const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
       const GURL& url, const csp::SecurityCallback& security_callback,
       network::NetworkModule* network_module, loader::RequestMode request_mode,
       loader::Origin origin);
-  ~FetcherBufferedDataSource() override;
+  ~URLFetcherDataSource() override;
 
   // DataSource methods.
   void Read(int64 position, int size, uint8* data,
             const ReadCB& read_cb) override;
   void Stop() override;
+  void Abort() override {}
   bool GetSize(int64* size_out) override;
-  bool IsStreaming() override { return false; }
-  void SetBitrate(int bitrate) override {}
-
-  // BufferedDataSource methods.
   void SetDownloadingStatusCB(
       const DownloadingStatusCB& downloading_status_cb) override;
 
@@ -160,4 +159,4 @@ class FetcherBufferedDataSource : public BufferedDataSource,
 }  // namespace media
 }  // namespace cobalt
 
-#endif  // COBALT_MEDIA_FETCHER_BUFFERED_DATA_SOURCE_H_
+#endif  // COBALT_MEDIA_URL_FETCHER_DATA_SOURCE_H_

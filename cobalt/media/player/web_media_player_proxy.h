@@ -6,10 +6,11 @@
 #define COBALT_MEDIA_PLAYER_WEB_MEDIA_PLAYER_PROXY_H_
 
 #include <memory>
+#include <utility>
 
 #include "base/memory/ref_counted.h"
 #include "base/message_loop/message_loop.h"
-#include "cobalt/media/player/buffered_data_source.h"
+#include "cobalt/media/base/data_source.h"
 
 namespace cobalt {
 namespace media {
@@ -24,15 +25,12 @@ class WebMediaPlayerProxy
   WebMediaPlayerProxy(
       const scoped_refptr<base::SingleThreadTaskRunner>& render_loop,
       WebMediaPlayerImpl* webmediaplayer);
-  BufferedDataSource* data_source() { return data_source_.get(); }
-  void set_data_source(std::unique_ptr<BufferedDataSource> data_source) {
+  DataSource* data_source() { return data_source_.get(); }
+  void set_data_source(std::unique_ptr<DataSource> data_source) {
     data_source_ = std::move(data_source);
   }
 
   void Detach();
-  bool HasSingleOrigin();
-  bool DidPassCORSAccessCheck() const;
-
   void AbortDataSource();
 
  private:
@@ -43,7 +41,7 @@ class WebMediaPlayerProxy
   scoped_refptr<base::SingleThreadTaskRunner> render_loop_;
   WebMediaPlayerImpl* webmediaplayer_;
 
-  std::unique_ptr<BufferedDataSource> data_source_;
+  std::unique_ptr<DataSource> data_source_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(WebMediaPlayerProxy);
 };

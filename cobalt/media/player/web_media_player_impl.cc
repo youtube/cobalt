@@ -259,7 +259,7 @@ void WebMediaPlayerImpl::LoadMediaSource() {
 }
 
 void WebMediaPlayerImpl::LoadProgressive(
-    const GURL& url, std::unique_ptr<BufferedDataSource> data_source) {
+    const GURL& url, std::unique_ptr<DataSource> data_source) {
   TRACE_EVENT0("cobalt::media", "WebMediaPlayerImpl::LoadProgressive");
   DCHECK_EQ(main_loop_, base::MessageLoop::current());
 
@@ -513,9 +513,6 @@ void WebMediaPlayerImpl::UpdateBufferedTimeRanges(
 float WebMediaPlayerImpl::GetMaxTimeSeekable() const {
   DCHECK_EQ(main_loop_, base::MessageLoop::current());
 
-  // We don't support seeking in streaming media.
-  if (proxy_ && proxy_->data_source() && proxy_->data_source()->IsStreaming())
-    return 0.0f;
   return static_cast<float>(pipeline_->GetMediaDuration().InSecondsF());
 }
 
@@ -532,15 +529,6 @@ void WebMediaPlayerImpl::Resume(PipelineWindow window) {
 bool WebMediaPlayerImpl::DidLoadingProgress() const {
   DCHECK_EQ(main_loop_, base::MessageLoop::current());
   return pipeline_->DidLoadingProgress();
-}
-
-bool WebMediaPlayerImpl::HasSingleSecurityOrigin() const {
-  if (proxy_) return proxy_->HasSingleOrigin();
-  return true;
-}
-
-bool WebMediaPlayerImpl::DidPassCORSAccessCheck() const {
-  return proxy_ && proxy_->DidPassCORSAccessCheck();
 }
 
 float WebMediaPlayerImpl::MediaTimeForTimeValue(float timeValue) const {

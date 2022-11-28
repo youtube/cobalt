@@ -49,11 +49,8 @@ component("media") {
     "decoder_buffer_allocator.cc",
     "decoder_buffer_allocator.h",
     "decoder_buffer_memory_info.h",
-    "fetcher_buffered_data_source.cc",
-    "fetcher_buffered_data_source.h",
     "media_module.cc",
     "media_module.h",
-    "player/buffered_data_source.h",
     "player/web_media_player_impl.cc",
     "player/web_media_player_impl.h",
     "player/web_media_player_proxy.cc",
@@ -76,6 +73,8 @@ component("media") {
     "progressive/progressive_parser.h",
     "progressive/rbsp_stream.cc",
     "progressive/rbsp_stream.h",
+    "url_fetcher_data_source.cc",
+    "url_fetcher_data_source.h",
   ]
 
   configs -= [ "//starboard/build/config:size" ]

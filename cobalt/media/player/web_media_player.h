@@ -19,8 +19,9 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
+#include "cobalt/media/base/data_source.h"
 #include "cobalt/media/base/decode_target_provider.h"
-#include "cobalt/media/player/buffered_data_source.h"
+#include "starboard/window.h"
 #include "url/gurl.h"
 
 namespace media {
@@ -100,8 +101,8 @@ class WebMediaPlayer {
   virtual void LoadUrl(const GURL& url) = 0;
 #endif  // SB_HAS(PLAYER_WITH_URL)
   virtual void LoadMediaSource() = 0;
-  virtual void LoadProgressive(
-      const GURL& url, std::unique_ptr<BufferedDataSource> data_source) = 0;
+  virtual void LoadProgressive(const GURL& url,
+                               std::unique_ptr<DataSource> data_source) = 0;
 
   virtual void CancelLoad() = 0;
 
@@ -147,9 +148,6 @@ class WebMediaPlayer {
   virtual ReadyState GetReadyState() const = 0;
 
   virtual bool DidLoadingProgress() const = 0;
-
-  virtual bool HasSingleSecurityOrigin() const = 0;
-  virtual bool DidPassCORSAccessCheck() const = 0;
 
   virtual float MediaTimeForTimeValue(float timeValue) const = 0;
 

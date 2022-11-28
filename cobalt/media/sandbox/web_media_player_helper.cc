@@ -17,7 +17,7 @@
 
 #include "cobalt/media/sandbox/web_media_player_helper.h"
 
-#include "cobalt/media/fetcher_buffered_data_source.h"
+#include "cobalt/media/url_fetcher_data_source.h"
 #include "third_party/chromium/media/cobalt/ui/gfx/geometry/rect.h"
 
 namespace cobalt {
@@ -80,7 +80,7 @@ WebMediaPlayerHelper::WebMediaPlayerHelper(
     : client_(new WebMediaPlayerClientStub),
       player_(media_module->CreateWebMediaPlayer(client_)) {
   player_->SetRate(1.0);
-  std::unique_ptr<BufferedDataSource> data_source(new FetcherBufferedDataSource(
+  std::unique_ptr<DataSource> data_source(new URLFetcherDataSource(
       base::MessageLoop::current()->task_runner(), video_url,
       csp::SecurityCallback(), fetcher_factory->network_module(),
       loader::kNoCORSMode, loader::Origin()));

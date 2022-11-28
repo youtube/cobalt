@@ -21,27 +21,15 @@ WebMediaPlayerProxy::WebMediaPlayerProxy(
 
 WebMediaPlayerProxy::~WebMediaPlayerProxy() { Detach(); }
 
-bool WebMediaPlayerProxy::HasSingleOrigin() {
+void WebMediaPlayerProxy::Detach() {
   DCHECK(render_loop_->BelongsToCurrentThread());
-  if (data_source_) return data_source_->HasSingleOrigin();
-  return true;
-}
-
-bool WebMediaPlayerProxy::DidPassCORSAccessCheck() const {
-  DCHECK(render_loop_->BelongsToCurrentThread());
-  if (data_source_) return data_source_->DidPassCORSAccessCheck();
-  return false;
+  webmediaplayer_ = NULL;
+  data_source_.reset();
 }
 
 void WebMediaPlayerProxy::AbortDataSource() {
   DCHECK(render_loop_->BelongsToCurrentThread());
   if (data_source_) data_source_->Abort();
-}
-
-void WebMediaPlayerProxy::Detach() {
-  DCHECK(render_loop_->BelongsToCurrentThread());
-  webmediaplayer_ = NULL;
-  data_source_.reset();
 }
 
 }  // namespace media

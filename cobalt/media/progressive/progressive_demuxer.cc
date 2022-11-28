@@ -289,11 +289,6 @@ void ProgressiveDemuxer::ParseConfigBlocking(PipelineStatusCallback status_cb) {
   // IsConfigComplete() should guarantee we know the duration
   DCHECK(parser_->Duration() != ::media::kInfiniteDuration);
   host_->SetDuration(parser_->Duration());
-  // Bitrate may not be known, however
-  uint32 bitrate = parser_->BitsPerSecond();
-  if (bitrate > 0) {
-    data_source_->SetBitrate(bitrate);
-  }
 
   // successful parse of config data, inform the nonblocking demuxer thread
   DCHECK_EQ(status, ::media::PIPELINE_OK);

@@ -69,8 +69,6 @@ class ProgressiveParser : public base::RefCountedThreadSafe<ProgressiveParser> {
   virtual bool IsConfigComplete();
   // time-duration of file, may return kInfiniteDuration() if unknown
   virtual base::TimeDelta Duration() { return duration_; }
-  // bits per second of media, if known, otherwise 0
-  virtual uint32 BitsPerSecond() { return bits_per_second_; }
   virtual const AudioDecoderConfig& AudioConfig() { return audio_config_; }
   virtual const VideoDecoderConfig& VideoConfig() { return video_config_; }
 
@@ -82,7 +80,6 @@ class ProgressiveParser : public base::RefCountedThreadSafe<ProgressiveParser> {
   AudioDecoderConfig audio_config_;
   VideoDecoderConfig video_config_;
   base::TimeDelta duration_;
-  uint32 bits_per_second_;
 };
 
 }  // namespace media

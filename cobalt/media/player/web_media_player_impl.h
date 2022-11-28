@@ -115,9 +115,8 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   void LoadUrl(const GURL& url) override;
 #endif  // SB_HAS(PLAYER_WITH_URL)
   void LoadMediaSource() override;
-  void LoadProgressive(
-      const GURL& url,
-      std::unique_ptr<BufferedDataSource> data_source) override;
+  void LoadProgressive(const GURL& url,
+                       std::unique_ptr<DataSource> data_source) override;
 
   void CancelLoad() override;
 
@@ -165,9 +164,6 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   ReadyState GetReadyState() const override;
 
   bool DidLoadingProgress() const override;
-
-  bool HasSingleSecurityOrigin() const override;
-  bool DidPassCORSAccessCheck() const override;
 
   float MediaTimeForTimeValue(float timeValue) const override;
 
