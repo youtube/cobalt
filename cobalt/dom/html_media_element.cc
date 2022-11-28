@@ -36,7 +36,7 @@
 #include "cobalt/dom/media_source.h"
 #include "cobalt/dom/media_source_ready_state.h"
 #include "cobalt/loader/fetcher_factory.h"
-#include "cobalt/media/fetcher_buffered_data_source.h"
+#include "cobalt/media/url_fetcher_data_source.h"
 #include "cobalt/media/web_media_player_factory.h"
 #include "cobalt/script/script_value_factory.h"
 #include "cobalt/web/csp_delegate.h"
@@ -49,7 +49,7 @@
 namespace cobalt {
 namespace dom {
 
-using media::BufferedDataSource;
+using media::DataSource;
 using media::WebMediaPlayer;
 
 const char HTMLMediaElement::kMediaSourceUrlProtocol[] = "blob";
@@ -887,11 +887,10 @@ void HTMLMediaElement::LoadResource(const GURL& initial_url,
                    web::CspDelegate::kMedia);
     request_mode_ = GetRequestMode(GetAttribute("crossOrigin"));
     DCHECK(node_document()->location());
-    std::unique_ptr<BufferedDataSource> data_source(
-        new media::FetcherBufferedDataSource(
-            base::MessageLoop::current()->task_runner(), url, csp_callback,
-            html_element_context()->fetcher_factory()->network_module(),
-            request_mode_, node_document()->location()->GetOriginAsObject()));
+    std::unique_ptr<DataSource> data_source(new media::URLFetcherDataSource(
+        base::MessageLoop::current()->task_runner(), url, csp_callback,
+        html_element_context()->fetcher_factory()->network_module(),
+        request_mode_, node_document()->location()->GetOriginAsObject()));
     player_->LoadProgressive(url, std::move(data_source));
   }
 }

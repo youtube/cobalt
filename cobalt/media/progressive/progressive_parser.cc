@@ -48,9 +48,7 @@ const int ProgressiveParser::kInitialHeaderSize = 9;
 }
 
 ProgressiveParser::ProgressiveParser(scoped_refptr<DataSourceReader> reader)
-    : reader_(reader),
-      duration_(::media::kInfiniteDuration),
-      bits_per_second_(0) {}
+    : reader_(reader), duration_(::media::kInfiniteDuration) {}
 
 ProgressiveParser::~ProgressiveParser() {}
 

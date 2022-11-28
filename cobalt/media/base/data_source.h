@@ -18,6 +18,7 @@ class MEDIA_EXPORT DataSource {
  public:
   typedef base::Callback<void(int64_t, int64_t)> StatusCallback;
   typedef base::Callback<void(int)> ReadCB;
+  typedef base::Callback<void(bool)> DownloadingStatusCB;
 
   enum { kReadError = -1, kAborted = -2 };
 
@@ -41,13 +42,9 @@ class MEDIA_EXPORT DataSource {
   // retrieved.
   virtual bool GetSize(int64_t* size_out) = 0;
 
-  // Returns true if we are performing streaming. In this case seeking is
-  // not possible.
-  virtual bool IsStreaming() = 0;
-
-  // Notify the DataSource of the bitrate of the media.
-  // Values of |bitrate| <= 0 are invalid and should be ignored.
-  virtual void SetBitrate(int bitrate) = 0;
+  // Sets a callback to receive downloading status.
+  virtual void SetDownloadingStatusCB(
+      const DownloadingStatusCB& downloading_status_cb) = 0;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(DataSource);
