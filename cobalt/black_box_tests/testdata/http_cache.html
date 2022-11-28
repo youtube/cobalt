@@ -53,6 +53,23 @@
     // Ensure that the cache is enabled.
     h5vcc.storage.enableCache();
 
+    // Make sure caching quotas are configured for required resources
+    const quota = 1024 * 1024 * 1; // set 1MB for each
+    let quotas = h5vcc.storage.getQuota();
+    // required by test
+    quotas.uncompiled_js = quota;
+    quotas.image = quota;
+    quotas.css = quota;
+    // Adjust "other" to match the total
+    quotas.other = quotas.total -
+      quotas.html -  quotas.css -  quotas.image - quotas.font - quotas.splash -
+      quotas.uncompiled_js -  quotas.compiled_js - quotas.cache_api ;
+    const response = h5vcc.storage.setQuota(quotas);
+    if(!response.success) {
+      console.log("Failed to set cache quotas:" + response.error)
+      notReached();
+    }
+
     // Validate the tranferSize attribute of each performance entry specified
     // in CACHED_ELEMENT_LOCATIONS and UNCACHED_ELEMENT_LOCATIONS.
     function checkTransferSizes() {
