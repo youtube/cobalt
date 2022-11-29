@@ -1,4 +1,4 @@
-# Cobalt (Dummy)
+# Cobalt
 
 ## Overview
 
