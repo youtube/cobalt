@@ -134,12 +134,11 @@ ServiceWorkerJobs::ServiceWorkerJobs(network::NetworkModule* network_module,
 
 ServiceWorkerJobs::~ServiceWorkerJobs() {
   DCHECK_EQ(message_loop(), base::MessageLoop::current());
-  scope_to_registration_map_.HandleUserAgentShutdown(this);
-  scope_to_registration_map_.AbortAllActive();
   while (!web_context_registrations_.empty()) {
     // Wait for web context registrations to be cleared.
     web_context_registrations_cleared_.Wait();
   }
+  scope_to_registration_map_.HandleUserAgentShutdown(this);
 }
 
 void ServiceWorkerJobs::Stop() {

@@ -249,15 +249,5 @@ void ServiceWorkerRegistrationMap::HandleUserAgentShutdown(
   }
 }
 
-void ServiceWorkerRegistrationMap::AbortAllActive() {
-  for (auto& entry : registration_map_) {
-    const scoped_refptr<ServiceWorkerRegistrationObject>& registration =
-        entry.second;
-    if (registration->active_worker()) {
-      registration->active_worker()->Abort();
-    }
-  }
-}
-
 }  // namespace worker
 }  // namespace cobalt
