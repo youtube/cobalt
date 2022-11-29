@@ -63,7 +63,8 @@
     // Adjust "other" to match the total
     quotas.other = quotas.total -
       quotas.html -  quotas.css -  quotas.image - quotas.font - quotas.splash -
-      quotas.uncompiled_js -  quotas.compiled_js - quotas.cache_api ;
+      quotas.uncompiled_js -  quotas.compiled_js - quotas.cache_api -
+      quotas.service_worker_js;
     const response = h5vcc.storage.setQuota(quotas);
     if(!response.success) {
       console.log("Failed to set cache quotas:" + response.error)
