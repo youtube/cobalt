@@ -144,6 +144,15 @@ FormatGuesstimator::FormatGuesstimator(const std::string& path_or_url,
     return;
   }
   InitializeAsAdaptive(path, media_module);
+
+  if (!is_valid() && IsFormat(path_or_url, ".mp4")) {
+    // It's an mp4 file but not in DASH, let's try progressive again.
+    bool is_from_root = !path_or_url.empty() && path_or_url[0] == '/';
+    auto path_from_root = (is_from_root ? "" : "/") + path_or_url;
+    progressive_url_ = GURL("file://" + path_from_root);
+    SB_LOG(INFO) << progressive_url_.spec();
+    mime_type_ = "video/mp4; codecs=\"avc1.640028, mp4a.40.2\"";
+  }
 }
 
 void FormatGuesstimator::InitializeAsProgressive(const GURL& url) {
@@ -202,7 +211,6 @@ void FormatGuesstimator::InitializeAsAdaptive(const base::FilePath& path,
       // true format.
       continue;
     }
-
     // Succeeding |AppendData()| may be a false positive (i.e. the expected
     // configuration does not match with the configuration determined by the
     // ChunkDemuxer). To confirm, we check the decoder configuration determined
