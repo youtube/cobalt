@@ -74,6 +74,10 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
     # the proxy has problems sending and terminating a single complete
     # response. It may end up sending multiple empty responses.
     filters = [
+        # CORS - 304 checks
+        # Disabled because of: Flaky on buildbot, proxy unreliability
+        'cors/WebPlatformTest.Run/cors_304_htm',
+
         # Late listeners: Preflight.
         # Disabled because of: Flaky. Buildbot only failure.
         'cors/WebPlatformTest.Run/cors_late_upload_events_htm',
