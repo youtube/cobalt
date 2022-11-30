@@ -49,6 +49,8 @@ component("media") {
     "decoder_buffer_allocator.cc",
     "decoder_buffer_allocator.h",
     "decoder_buffer_memory_info.h",
+    "file_data_source.cc",
+    "file_data_source.h",
     "media_module.cc",
     "media_module.h",
     "player/web_media_player_impl.cc",
@@ -107,6 +109,7 @@ target(gtest_target_type, "media_test") {
   testonly = true
 
   sources = [
+    "file_data_source_test.cc",
     "progressive/demuxer_extension_wrapper_test.cc",
     "progressive/mock_data_source_reader.h",
     "progressive/mp4_map_unittest.cc",
@@ -118,10 +121,13 @@ target(gtest_target_type, "media_test") {
 
   deps = [
     ":media",
+    "//base/test:test_support",
     "//cobalt/base",
     "//cobalt/test:run_all_unittests",
     "//testing/gmock",
     "//testing/gtest",
     "//third_party/chromium/media:media",
   ]
+
+  data_deps = [ "//cobalt/media/testing:cobalt_media_download_test_data" ]
 }
