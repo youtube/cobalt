@@ -64,10 +64,8 @@ class CobaltAndroidConfiguration(cobalt_configuration.CobaltConfiguration):
             'color_emojis_should_render_properly'),
 
           # Android 12 changed the look of emojis.
-          # TODO(b/258830349) split this test into emoji & non-emoji parts so
-          # that the emoji portion can be disabled specifically.
           ('CSS3FontsLayoutTests/Layout.Test/'
-            '5_2_use_system_fallback_if_no_matching_family_is_found'),
+            '5_2_use_system_fallback_if_no_matching_family_is_found_emoji'),
       ],
       'crypto_unittests': ['P224.*'],
       'renderer_test': [
