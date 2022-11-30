@@ -19,7 +19,7 @@
 #include <memory>
 #include <vector>
 
-#include "third_party/android_game_activity/include/game-activity/GameActivity.h"
+#include "game-activity/GameActivity.h"
 
 #include "starboard/input.h"
 #include "starboard/shared/starboard/application.h"
