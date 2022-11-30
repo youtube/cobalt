@@ -4676,7 +4676,7 @@ TEST_F(SpdyNetworkTransactionTest, BufferedClosed) {
 }
 
 // Verify the case where we buffer data and cancel the transaction.
-TEST_F(SpdyNetworkTransactionTest, BufferedCancelled) {
+TEST_F(SpdyNetworkTransactionTest, DISABLED_BufferedCancelled) {
   spdy::SpdySerializedFrame req(
       spdy_util_.ConstructSpdyGet(nullptr, 0, 1, LOWEST));
   spdy::SpdySerializedFrame rst(
