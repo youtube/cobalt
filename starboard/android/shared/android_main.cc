@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "game-activity/GameActivity.h"
 #include "starboard/android/shared/application_android.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
@@ -21,7 +22,6 @@
 #include "starboard/log.h"
 #include "starboard/shared/starboard/command_line.h"
 #include "starboard/thread.h"
-#include "third_party/android_game_activity/include/game-activity/GameActivity.h"
 
 namespace starboard {
 namespace android {

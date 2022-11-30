@@ -17,6 +17,39 @@ import("//starboard/shared/starboard/media/media_tests.gni")
 import("//starboard/shared/starboard/player/buildfiles.gni")
 import("//starboard/shared/starboard/player/player_tests.gni")
 
+##########################################################
+# Configuration to extract GameActivity native files.
+##########################################################
+
+game_activity_aar_file = "//starboard/android/apk/app/src/main/java/dev/cobalt/libraries/game_activity/games-activity-1.2.2-alpha01.aar"
+
+game_activity_source_files = [
+  "$target_gen_dir/game_activity/prefab/modules/game-activity/include/game-activity/GameActivity.cpp",
+  "$target_gen_dir/game_activity/prefab/modules/game-activity/include/game-activity/GameActivity.h",
+  "$target_gen_dir/game_activity/prefab/modules/game-activity/include/game-text-input/gamecommon.h",
+  "$target_gen_dir/game_activity/prefab/modules/game-activity/include/game-text-input/gametextinput.cpp",
+  "$target_gen_dir/game_activity/prefab/modules/game-activity/include/game-text-input/gametextinput.h",
+]
+
+game_activity_include_dirs =
+    [ "$target_gen_dir/game_activity/prefab/modules/game-activity/include" ]
+
+action("game_activity_sources") {
+  script = "//starboard/tools/unzip_file.py"
+  sources = [ game_activity_aar_file ]
+  outputs = game_activity_source_files
+  args = [
+    "--zip_file",
+    rebase_path(game_activity_aar_file, root_build_dir),
+    "--output_dir",
+    rebase_path(target_gen_dir, root_build_dir) + "/game_activity",
+  ]
+}
+
+##########################################################
+# Configuration for overall Android Starboard Platform.
+##########################################################
+
 static_library("starboard_platform") {
   sources = [
     "$target_gen_dir/ndk-sources/cpu-features.c",
@@ -262,11 +295,6 @@ static_library("starboard_platform") {
     "//starboard/shared/stub/thread_sampler_is_supported.cc",
     "//starboard/shared/stub/thread_sampler_thaw.cc",
     "//starboard/shared/stub/ui_nav_get_interface.cc",
-    "//third_party/android_game_activity/include/game-activity/GameActivity.cpp",
-    "//third_party/android_game_activity/include/game-activity/GameActivity.h",
-    "//third_party/android_game_activity/include/game-text-input/gamecommon.h",
-    "//third_party/android_game_activity/include/game-text-input/gametextinput.cpp",
-    "//third_party/android_game_activity/include/game-text-input/gametextinput.h",
     "accessibility_get_caption_settings.cc",
     "accessibility_get_display_settings.cc",
     "accessibility_get_text_to_speech_settings.cc",
@@ -414,6 +442,7 @@ static_library("starboard_platform") {
     "window_update_on_screen_keyboard_suggestions.cc",
   ]
 
+  sources += game_activity_source_files
   sources += common_player_sources
 
   sources -= [
@@ -424,11 +453,12 @@ static_library("starboard_platform") {
     "//starboard/shared/starboard/player/player_set_playback_rate.cc",
   ]
 
-  include_dirs = [ "//third_party/android_game_activity/include" ]
+  include_dirs = game_activity_include_dirs
 
   configs += [ "//starboard/build/config:starboard_implementation" ]
 
   public_deps = [
+    ":game_activity_sources",
     ":ndk_sources",
     ":starboard_base_symbolize",
     "//starboard/common",

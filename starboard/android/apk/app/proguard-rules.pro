@@ -33,15 +33,3 @@
 -keepclasseswithmembers class * {
   @dev.cobalt.util.UsedByNative <fields>;
 }
-
-# Keep GameActivity APIs used by JNI (b/254102295).
--keepclassmembers class com.google.androidgamesdk.GameActivity {
-   void setWindowFlags(int, int);
-   public androidx.core.graphics.Insets getWindowInsets(int);
-   public androidx.core.graphics.Insets getWaterfallInsets();
-   public void setImeEditorInfo(android.view.inputmethod.EditorInfo);
-   public void setImeEditorInfoFields(int, int, int);
-}
--keep class androidx.core.graphics.Insets** { *; }
--keep class androidx.core.view.WindowInsetsCompat** { *; }
--keep class com.google.androidgamesdk.gametextinput.** { *; }

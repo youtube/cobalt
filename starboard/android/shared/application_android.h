@@ -21,6 +21,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "game-activity/GameActivity.h"
 #include "starboard/android/shared/input_events_generator.h"
 #ifdef STARBOARD_INPUT_EVENTS_FILTER
 #include "starboard/android/shared/internal/input_events_filter.h"
@@ -34,7 +35,6 @@
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/queue_application.h"
 #include "starboard/types.h"
-#include "third_party/android_game_activity/include/game-activity/GameActivity.h"
 
 namespace starboard {
 namespace android {
