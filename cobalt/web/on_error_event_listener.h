@@ -45,7 +45,7 @@ class OnErrorEventListener {
  protected:
   virtual base::Optional<bool> HandleEvent(
       const scoped_refptr<script::Wrappable>& callback_this,
-      EventOrMessage message, const std::string& filename, uint32 lineno,
+      const EventOrMessage& message, const std::string& filename, uint32 lineno,
       uint32 colno, const script::ValueHandleHolder* error,
       bool* had_exception) const = 0;
 };
