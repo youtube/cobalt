@@ -2553,10 +2553,12 @@ void ServiceWorkerJobs::ServiceWorkerPostMessageSubSteps(
   // Parallel sub steps (6) for algorithm for ServiceWorker.postMessage():
   //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#service-worker-postmessage-options
   // 3. Let incumbentGlobal be incumbentSettings’s global object.
+  // Note: The 'incumbent' is the sender of the message.
   // 6.1 If the result of running the Run Service Worker algorithm with
   //     serviceWorker is failure, then return.
   auto* run_result = RunServiceWorker(service_worker);
   if (!run_result) return;
+  if (!serialize_result) return;
 
   // 6.2 Queue a task on the DOM manipulation task source to run the following
   //     steps:
@@ -2566,64 +2568,78 @@ void ServiceWorkerJobs::ServiceWorkerPostMessageSubSteps(
           [](ServiceWorkerObject* service_worker,
              web::EnvironmentSettings* incumbent_settings,
              std::unique_ptr<script::DataBuffer> serialize_result) {
-            web::WindowOrWorkerGlobalScope* incumbent_global =
-                incumbent_settings->context()->GetWindowOrWorkerGlobalScope();
+            if (!serialize_result) return;
 
             web::EventTarget* event_target =
                 service_worker->worker_global_scope();
             if (!event_target) return;
 
-            ExtendableMessageEventInit init_dict;
-            if (incumbent_global->GetWrappableType() ==
-                base::GetTypeId<ServiceWorkerGlobalScope>()) {
-              // 6.2.1. Let source be determined by switching on the
-              //        type of incumbentGlobal:
-              //        . ServiceWorkerGlobalScope
-              //          The result of getting the service worker
-              //          object that represents incumbentGlobal’s
-              //          service worker in the relevant settings
-              //          object of serviceWorker’s global object.
-              init_dict.set_source(ExtendableMessageEvent::SourceType(
-                  event_target->environment_settings()
-                      ->context()
-                      ->GetServiceWorker(incumbent_global->AsServiceWorker()
-                                             ->service_worker_object())));
-            } else if (incumbent_global->GetWrappableType() ==
-                       base::GetTypeId<dom::Window>()) {
-              //        . Window
-              //          a new WindowClient object that represents
-              //          incumbentGlobal’s relevant settings object.
-              init_dict.set_source(
-                  ExtendableMessageEvent::SourceType(WindowClient::Create(
-                      WindowData(incumbent_global->environment_settings()))));
-            } else {
-              //        . Otherwise
-              //          a new Client object that represents
-              //          incumbentGlobal’s associated worker
-              init_dict.set_source(ExtendableMessageEvent::SourceType(
-                  Client::Create(incumbent_global->environment_settings())));
-            }
-
+            web::WindowOrWorkerGlobalScope* incumbent_global =
+                incumbent_settings->context()->GetWindowOrWorkerGlobalScope();
+            DCHECK_EQ(incumbent_settings,
+                      incumbent_global->environment_settings());
+            base::TypeId incumbent_type = incumbent_global->GetWrappableType();
+            ServiceWorkerObject* incumbent_worker =
+                incumbent_global->IsServiceWorker()
+                    ? incumbent_global->AsServiceWorker()
+                          ->service_worker_object()
+                    : nullptr;
             base::MessageLoop* message_loop =
                 event_target->environment_settings()->context()->message_loop();
             if (!message_loop) {
               return;
             }
-            if (!serialize_result) {
-              return;
-            }
             message_loop->task_runner()->PostTask(
                 FROM_HERE,
                 base::BindOnce(
-                    [](const ExtendableMessageEventInit& init_dict,
+                    [](const base::TypeId& incumbent_type,
+                       ServiceWorkerObject* incumbent_worker,
+                       web::EnvironmentSettings* incumbent_settings,
                        web::EventTarget* event_target,
                        std::unique_ptr<script::DataBuffer> serialize_result) {
+                      ExtendableMessageEventInit init_dict;
+                      if (incumbent_type ==
+                          base::GetTypeId<ServiceWorkerGlobalScope>()) {
+                        // 6.2.1. Let source be determined by switching on the
+                        //        type of incumbentGlobal:
+                        //        . ServiceWorkerGlobalScope
+                        //          The result of getting the service worker
+                        //          object that represents incumbentGlobal’s
+                        //          service worker in the relevant settings
+                        //          object of serviceWorker’s global object.
+                        init_dict.set_source(ExtendableMessageEvent::SourceType(
+                            event_target->environment_settings()
+                                ->context()
+                                ->GetServiceWorker(incumbent_worker)));
+                      } else if (incumbent_type ==
+                                 base::GetTypeId<dom::Window>()) {
+                        //        . Window
+                        //          a new WindowClient object that represents
+                        //          incumbentGlobal’s relevant settings object.
+                        init_dict.set_source(ExtendableMessageEvent::SourceType(
+                            WindowClient::Create(
+                                WindowData(incumbent_settings))));
+                      } else {
+                        //        . Otherwise
+                        //          a new Client object that represents
+                        //          incumbentGlobal’s associated worker
+                        init_dict.set_source(ExtendableMessageEvent::SourceType(
+                            Client::Create(incumbent_settings)));
+                      }
+
                       event_target->DispatchEvent(
                           new worker::ExtendableMessageEvent(
                               base::Tokens::message(), init_dict,
                               std::move(serialize_result)));
                     },
-                    init_dict, base::Unretained(event_target),
+                    incumbent_type, base::Unretained(incumbent_worker),
+                    // Note: These should probably be weak pointers for when
+                    // the message sender disappears before the recipient
+                    // processes the event, but since base::WeakPtr
+                    // dereferencing isn't thread-safe, that can't actually be
+                    // used here.
+                    base::Unretained(incumbent_settings),
+                    base::Unretained(event_target),
                     std::move(serialize_result)));
           },
           base::Unretained(service_worker),
