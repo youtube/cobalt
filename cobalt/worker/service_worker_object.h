@@ -98,7 +98,6 @@ class ServiceWorkerObject
   void AppendToSetOfUsedScripts(const GURL& url) {
     set_of_used_scripts_.insert(url);
   }
-  std::set<GURL> set_of_used_scripts() { return set_of_used_scripts_; }
 
   // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#dfn-script-resource-map
   void set_script_resource_map(ScriptResourceMap&& resource_map) {
@@ -140,8 +139,6 @@ class ServiceWorkerObject
   // Algorithm for Should Skip Event:
   //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#should-skip-event-algorithm
   bool ShouldSkipEvent(base::Token event_name);
-
-  std::string options_name() { return options_.name; }
 
  private:
   // Called by ObtainWebAgentAndWaitUntilDone to perform initialization required

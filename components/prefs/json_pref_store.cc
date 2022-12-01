@@ -206,9 +206,7 @@ void JsonPrefStore::SetValue(const std::string& key,
   base::Value* old_value = nullptr;
   prefs_->Get(key, &old_value);
   if (!old_value || !value->Equals(old_value)) {
-    // Value::DictionaryValue::Set creates a nested dictionary treating a URL
-    // key as a path, SetKey avoids this.
-    prefs_->SetKey(key, std::move(*value.get()));
+    prefs_->Set(key, std::move(value));
     ReportValueChanged(key, flags);
   }
 }
@@ -222,7 +220,7 @@ void JsonPrefStore::SetValueSilently(const std::string& key,
   base::Value* old_value = nullptr;
   prefs_->Get(key, &old_value);
   if (!old_value || !value->Equals(old_value)) {
-    prefs_->SetPath({key}, base::Value::FromUniquePtrValue(std::move(value)));
+    prefs_->Set(key, std::move(value));
     ScheduleWrite(flags);
   }
 }
@@ -230,16 +228,15 @@ void JsonPrefStore::SetValueSilently(const std::string& key,
 void JsonPrefStore::RemoveValue(const std::string& key, uint32_t flags) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  if (prefs_->RemovePath({key})) {
+  if (prefs_->RemovePath(key, nullptr))
     ReportValueChanged(key, flags);
-  }
 }
 
 void JsonPrefStore::RemoveValueSilently(const std::string& key,
                                         uint32_t flags) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  prefs_->RemovePath({key});
+  prefs_->RemovePath(key, nullptr);
   ScheduleWrite(flags);
 }
 
