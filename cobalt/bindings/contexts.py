@@ -345,7 +345,9 @@ class ContextBuilder(object):
       return base_type + '*'
     if is_any_type(idl_type) or is_array_buffer_or_view_type(idl_type):
       return 'const ::cobalt::script::ScriptValue<%s>*' % base_type
-    elif idl_type.is_string_type or idl_type.is_interface_type:
+    elif cobalt_type_is_optional(idl_type) or is_sequence_type(idl_type) or (
+        idl_type.is_string_type or idl_type.is_interface_type or
+        idl_type.is_union_type):
       return 'const %s&' % base_type
     return base_type
 
