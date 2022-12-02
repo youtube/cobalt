@@ -282,7 +282,8 @@ class TestRunner(object):
     # Read the sharding configuration from deployed sharding configuration json.
     # Create subset of test targets, and launch params per target.
     try:
-      self.sharding_test_config = ShardingTestConfig(self.platform)
+      self.sharding_test_config = ShardingTestConfig(self.platform,
+                                                     self.test_targets)
     except RuntimeError:
       self.sharding_test_config = None
 
@@ -794,7 +795,7 @@ class TestRunner(object):
     for test_target in sorted(self.test_targets.keys()):
       if (self.shard_index is not None) and self.sharding_test_config:
         (run_action, sub_shard_index,
-         sub_shard_count) = self.sharding_test_config.GetTestRunConfig(
+         sub_shard_count) = self.sharding_test_config.get_test_run_config(
              test_target, self.shard_index)
         if run_action == ShardingTestConfig.RUN_FULL_TEST:
           logging.info("SHARD %d RUNS TEST %s (full)", self.shard_index,
