@@ -34,7 +34,8 @@ namespace cobalt {
 namespace persistent_storage {
 
 // PersistentSettings manages Cobalt settings that persist from one application
-// lifecycle to another as a JSON file in kSbSystemPathStorageDirectory.
+// lifecycle to another as a JSON file in kSbSystemPathCacheDirectory. The
+// persistent settings will persist until the cache is cleared.
 // PersistentSettings uses JsonPrefStore for most of its functionality.
 // JsonPrefStore maintains thread safety by requiring that all access occurs on
 // the Sequence that created it.

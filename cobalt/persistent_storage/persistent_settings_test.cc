@@ -44,7 +44,7 @@ class PersistentSettingTest : public testing::Test {
             base::test::ScopedTaskEnvironment::MainThreadType::DEFAULT,
             base::test::ScopedTaskEnvironment::ExecutionMode::ASYNC) {
     std::vector<char> storage_dir(kSbFileMaxPath + 1, 0);
-    SbSystemGetPath(kSbSystemPathStorageDirectory, storage_dir.data(),
+    SbSystemGetPath(kSbSystemPathCacheDirectory, storage_dir.data(),
                     kSbFileMaxPath);
 
     persistent_settings_file_ = std::string(storage_dir.data()) +
