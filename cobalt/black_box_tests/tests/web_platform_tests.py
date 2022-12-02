@@ -69,8 +69,9 @@ class WebPlatformTests(black_box_tests.BlackBoxTestCase):
           used_filters.append(filter_)
 
       if used_filters:
-        target_params.append('--gtest_filter=-{}'.format(
-            ':'.join(used_filters)))
+        if 'gtest_filter' not in ' '.join(self.launcher_params.target_params):
+          target_params.append('--gtest_filter=-{}'.format(
+              ':'.join(used_filters)))
 
       if self.launcher_params.target_params:
         target_params += self.launcher_params.target_params
