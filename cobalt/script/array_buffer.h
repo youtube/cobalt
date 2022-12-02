@@ -16,7 +16,7 @@
 #define COBALT_SCRIPT_ARRAY_BUFFER_H_
 
 #include <algorithm>
-#include <memory>
+#include <utility>
 
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
@@ -49,9 +49,8 @@ class ArrayBuffer {
 
   // Create a new |ArrayBuffer| from existing block of memory.  See
   // |PreallocatedArrayBufferData| for details.
-  static Handle<ArrayBuffer> New(
-      GlobalEnvironment* global_environment,
-      std::unique_ptr<PreallocatedArrayBufferData> data);
+  static Handle<ArrayBuffer> New(GlobalEnvironment* global_environment,
+                                 PreallocatedArrayBufferData&& data);
 
   virtual ~ArrayBuffer() {}
 
@@ -72,10 +71,10 @@ class ArrayBuffer {
 //   PreallocatedArrayBufferData data(16);
 //
 //   // Manipulate the data however you want.
-//   static_cast<uint8_t*>(data.data())[0] = 0xFF;
+//   data.data()[0] = 0xFF;
 //
 //   // Create a new |ArrayBuffer| using |data|.
-//   auto array_buffer = ArrayBuffer::New(env, &data);
+//   auto array_buffer = ArrayBuffer::New(env, std::move(data));
 //
 //   // |PreallocatedData| now no longer holds anything, data should now be
 //   // accessed from the ArrayBuffer itself.
@@ -86,12 +85,14 @@ class PreallocatedArrayBufferData {
   explicit PreallocatedArrayBufferData(size_t byte_length);
   ~PreallocatedArrayBufferData();
 
-  PreallocatedArrayBufferData(PreallocatedArrayBufferData&& other) = default;
+  PreallocatedArrayBufferData(PreallocatedArrayBufferData&& other) {
+    other.Detach(&data_, &byte_length_);
+  }
   PreallocatedArrayBufferData& operator=(PreallocatedArrayBufferData&& other) =
-      default;
+      delete;
 
-  void* data() { return data_; }
-  const void* data() const { return data_; }
+  uint8_t* data() { return data_; }
+  const uint8_t* data() const { return data_; }
   size_t byte_length() const { return byte_length_; }
 
   void Swap(PreallocatedArrayBufferData* that) {
@@ -106,7 +107,7 @@ class PreallocatedArrayBufferData {
   PreallocatedArrayBufferData(const PreallocatedArrayBufferData&) = delete;
   void operator=(const PreallocatedArrayBufferData&) = delete;
 
-  void Detach(void** data, size_t* byte_length) {
+  void Detach(uint8_t** data, size_t* byte_length) {
     DCHECK(data);
     DCHECK(byte_length);
 
@@ -117,7 +118,7 @@ class PreallocatedArrayBufferData {
     byte_length_ = 0u;
   }
 
-  void* data_ = nullptr;
+  uint8_t* data_ = nullptr;
   size_t byte_length_ = 0u;
 
   friend ArrayBuffer;
