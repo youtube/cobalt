@@ -100,8 +100,8 @@ URLFetcherResponseWriter::Buffer::GetTemporaryReferenceOfString() {
     copy_of_data_as_string_ = data_as_string_;
   } else {
     DCHECK_EQ(type_, kArrayBuffer);
-    const char* begin = static_cast<const char*>(data_as_array_buffer_.data());
-    copy_of_data_as_string_.assign(begin, begin + data_as_array_buffer_size_);
+    auto data = data_as_array_buffer_.data();
+    copy_of_data_as_string_.assign(data, data + data_as_array_buffer_size_);
   }
 
   return copy_of_data_as_string_;
@@ -291,8 +291,9 @@ void URLFetcherResponseWriter::Buffer::UpdateType_Locked(Type type) {
   }
 
   data_as_string_.reserve(data_as_array_buffer_.byte_length());
-  data_as_string_.append(static_cast<const char*>(data_as_array_buffer_.data()),
-                         data_as_array_buffer_size_);
+  data_as_string_.append(
+      reinterpret_cast<const char*>(data_as_array_buffer_.data()),
+      data_as_array_buffer_size_);
 
   ReleaseMemory(&data_as_array_buffer_);
   data_as_array_buffer_size_ = 0;

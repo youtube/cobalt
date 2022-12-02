@@ -1295,9 +1295,8 @@ XMLHttpRequestImpl::response_array_buffer() {
     // The request is done so it is safe to only keep the ArrayBuffer and clear
     // |response_body_|.  As |response_body_| will not be used unless the
     // request is re-opened.
-    std::unique_ptr<script::PreallocatedArrayBufferData> downloaded_data(
-        new script::PreallocatedArrayBufferData());
-    response_body_->GetAndResetData(downloaded_data.get());
+    script::PreallocatedArrayBufferData downloaded_data;
+    response_body_->GetAndResetData(&downloaded_data);
     auto array_buffer = script::ArrayBuffer::New(
         environment_settings()->context()->global_environment(),
         std::move(downloaded_data));
