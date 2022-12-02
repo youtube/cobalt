@@ -6,6 +6,7 @@
 // is functionally a wrapper around the LockImpl class, so the only
 // real intelligence in the class is in the debugging logic.
 
+#include "base/base_wrapper.h"
 #include "base/synchronization/lock.h"
 
 #include "base/logging.h"

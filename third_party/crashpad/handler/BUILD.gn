@@ -153,7 +153,8 @@ if (!crashpad_is_in_starboard) {
   }
 }
 
-if (!crashpad_is_ios) {
+# TODO: b/256660693 Disabled crashpad_handler executables due to build issues on Android
+if (!crashpad_is_ios && !crashpad_is_android) {
   if (crashpad_is_in_starboard) {
     config("crashpad_handler_starboard_config") {
       cflags = [
@@ -207,27 +208,28 @@ if (!crashpad_is_ios) {
 # It is normal to package native code as a loadable module but Android's APK
 # installer will ignore files not named like a shared object, so give the
 # handler executable an acceptable name.
-if (crashpad_is_android) {
-  copy("crashpad_handler_named_as_so") {
-    deps = [ ":crashpad_handler" ]
-
-    sources = [ "$root_out_dir/crashpad_handler" ]
-
-    outputs = [ "$root_out_dir/libcrashpad_handler.so" ]
-  }
-
-  crashpad_executable("crashpad_handler_trampoline") {
-    output_name = "libcrashpad_handler_trampoline.so"
-
-    sources = [ "linux/handler_trampoline.cc" ]
-
-    ldflags = [ "-llog" ]
-
-    if (crashpad_is_in_chromium) {
-      no_default_deps = true
-    }
-  }
-}
+# TODO: b/256660693 Disabled crashpad_handler executables due to build issues on Android
+# if (crashpad_is_android) {
+#   copy("crashpad_handler_named_as_so") {
+#     deps = [ ":crashpad_handler" ]
+# 
+#     sources = [ "$root_out_dir/crashpad_handler" ]
+# 
+#     outputs = [ "$root_out_dir/libcrashpad_handler.so" ]
+#   }
+# 
+#   crashpad_executable("crashpad_handler_trampoline") {
+#     output_name = "libcrashpad_handler_trampoline.so"
+# 
+#     sources = [ "linux/handler_trampoline.cc" ]
+# 
+#     ldflags = [ "-llog" ]
+# 
+#     if (crashpad_is_in_chromium) {
+#       no_default_deps = true
+#     }
+#   }
+# }
 
 if (!crashpad_is_ios && !crashpad_is_in_starboard) {
   crashpad_executable("crashpad_handler_test_extended_handler") {

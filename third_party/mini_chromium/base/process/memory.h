@@ -7,6 +7,7 @@
 
 #include <stddef.h>
 
+#include "base/base_wrapper.h"
 #include "base/compiler_specific.h"
 
 namespace base {
