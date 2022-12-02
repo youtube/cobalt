@@ -49,7 +49,7 @@ PersistentSettings::PersistentSettings(const std::string& file_name)
   DCHECK(message_loop());
 
   std::vector<char> storage_dir(kSbFileMaxPath + 1, 0);
-  SbSystemGetPath(kSbSystemPathStorageDirectory, storage_dir.data(),
+  SbSystemGetPath(kSbSystemPathCacheDirectory, storage_dir.data(),
                   kSbFileMaxPath);
 
   persistent_settings_file_ =
