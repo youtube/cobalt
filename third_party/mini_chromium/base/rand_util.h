@@ -9,6 +9,8 @@
 
 #include <string>
 
+#include "base/base_wrapper.h"
+
 namespace base {
 
 uint64_t RandUint64();

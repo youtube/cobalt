@@ -16,14 +16,35 @@
 #define MINI_CHROMIUM_BASE_BASE_WRAPPER_H_
 
 // Change the symbol name to avoid collisions with //base
+#define Alias MAlias
+
+#define AssertAcquired MAssertAcquired
 #define FilePath MFilePath
+#define CheckHeldAndUnmark MCheckHeldAndUnmark
+#define CheckUnheldAndMark MCheckUnheldAndMark
+#define ConditionVariable MConditionVariable
 #define GetLogMessageHandler MGetLogMessageHandler
+#define Lock MLock
+#define LockImpl MLockImpl
 #define LogMessage MLogMessage
+#define PlatformThreadLocalStorage MPlatformThreadLocalStorage
+#define RandBytes MRandBytes
+#define RandBytesAsString MRandBytesAsString
+#define RandDouble MRandDouble
+#define RandGenerator MRandGenerator
+#define RandInt MRandInt
+#define RandUint64 MRandUint64
 #define ReadUnicodeCharacter MReadUnicodeCharacter
 #define SetLogMessageHandler MSetLogMessageHandler
+#define StringAppendV MStringAppendV
+#define StringPrintf MStringPrintf
+#define ThreadLocalStorage MThreadLocalStorage
 #define UTF16ToUTF8 MUTF16ToUTF8
 #define UmaHistogramSparse MUmaHistogramSparse
+#define UncheckedMalloc MUncheckedMalloc
 #define WriteUnicodeCharacter MWriteUnicodeCharacter
 #define c16len mc16len
+#define utf8_nextCharSafeBody mutf8_nextCharSafeBody
+
 
 #endif  // MINI_CHROMIUM_BASE_BASE_WRAPPER_H_

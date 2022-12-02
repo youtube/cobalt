@@ -5,6 +5,8 @@
 #ifndef MINI_CHROMIUM_BASE_DEBUG_ALIAS_H_
 #define MINI_CHROMIUM_BASE_DEBUG_ALIAS_H_
 
+#include "base/base_wrapper.h"
+
 namespace base {
 namespace debug {
 

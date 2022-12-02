@@ -14,6 +14,8 @@
 
 #include <stdint.h>
 
+#include "base/base_wrapper.h"
+
 namespace base_icu {
 
 // source/common/unicode/umachine.h
