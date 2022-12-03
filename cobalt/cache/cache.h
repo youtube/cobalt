@@ -92,7 +92,7 @@ class Cache {
   std::map<disk_cache::ResourceType,
            std::map<uint32_t, std::vector<base::WaitableEvent*>>>
       pending_;
-  bool enabled_;
+  bool enabled_ = true;
 
   persistent_storage::PersistentSettings* persistent_settings_ = nullptr;
 
