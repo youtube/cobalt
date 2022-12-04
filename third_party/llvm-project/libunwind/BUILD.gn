@@ -123,6 +123,7 @@ config("unwind_starboard_config") {
     # Build libunwind with concurrency built upon Starboard mutexes and
     # condition variables.
     "_LIBUNWIND_HAS_STARBOARD_THREADS",
+    "NDEBUG"
   ]
 }
 
