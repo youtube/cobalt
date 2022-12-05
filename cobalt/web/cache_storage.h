@@ -49,6 +49,11 @@ class CacheStorage : public script::Wrappable {
   script::HandlePromiseBool Delete(
       script::EnvironmentSettings* environment_settings,
       const std::string& cache_name);
+  script::HandlePromiseBool Has(
+      script::EnvironmentSettings* environment_settings,
+      const std::string& cache_name);
+  script::Handle<script::Promise<script::Handle<script::ValueHandle>>> Keys(
+      script::EnvironmentSettings* environment_settings);
 
   DEFINE_WRAPPABLE_TYPE(CacheStorage);
 

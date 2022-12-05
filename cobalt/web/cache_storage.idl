@@ -22,4 +22,6 @@ interface CacheStorage {
   [CallWith=EnvironmentSettings, NewObject] Promise<Cache> open(DOMString cacheName);
   // Ignores |cacheName| and deletes all Cache API data.
   [CallWith=EnvironmentSettings, NewObject] Promise<boolean> delete(DOMString cacheName);
+  [CallWith=EnvironmentSettings, NewObject] Promise<boolean> has(DOMString cacheName);
+  [CallWith=EnvironmentSettings, NewObject] Promise<any> keys();
 };

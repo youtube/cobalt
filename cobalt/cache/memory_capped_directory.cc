@@ -97,7 +97,7 @@ bool MemoryCappedDirectory::Delete(uint32_t key) {
     base::DeleteFile(metadata_path, false);
   }
   file_sizes_.erase(file_path);
-  file_keys_with_metadata_.erase(file_path);
+  file_keys_with_metadata_.erase(metadata_path);
   auto* heap = &file_info_heap_;
   for (auto it = heap->begin(); it != heap->end(); ++it) {
     if (it->file_path_ == file_path) {
