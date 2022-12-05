@@ -201,11 +201,12 @@ void ScrollEngine::HandlePointerEvent(base::Token type,
   }
 
   auto last_event_to_handle = events_to_handle_.find(pointer_id);
+  if (last_event_to_handle == events_to_handle_.end()) {
+    // Pointer events have not come in the appropriate order.
+    return;
+  }
+
   if (pointer_event->type() == base::Tokens::pointermove()) {
-    if (last_event_to_handle == events_to_handle_.end()) {
-      // Pointer events have not come in the appropriate order.
-      return;
-    }
     if (last_event_to_handle->second->type() == base::Tokens::pointermove() ||
         (math::Vector2dF(last_event_to_handle->second->x(),
                          last_event_to_handle->second->y()) -
