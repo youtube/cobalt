@@ -72,6 +72,7 @@ _TESTS_NO_SIGNAL = [
     'web_platform_tests',
     'web_worker_test',
     'worker_csp_test',
+    'service_worker_cache_keys_test',
     'service_worker_get_registrations_test',
     'service_worker_fetch_test',
     'service_worker_message_test',

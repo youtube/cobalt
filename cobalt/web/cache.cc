@@ -432,10 +432,8 @@ script::HandlePromiseAny Cache::Keys(
                 get_global_environment(environment_settings);
             auto* isolate = global_environment->isolate();
             script::v8c::EntryScope entry_scope(isolate);
-            auto keys =
-                cache::Cache::GetInstance()->KeysWithMetadata(kResourceType);
             std::vector<v8::Local<v8::Value>> requests;
-            for (uint8_t key :
+            for (uint32_t key :
                  cache::Cache::GetInstance()->KeysWithMetadata(kResourceType)) {
               std::unique_ptr<base::Value> url =
                   cache::Cache::GetInstance()->Metadata(kResourceType, key);
