@@ -19,6 +19,10 @@ from starboard.tools.testing import test_filter
 # pylint: disable=line-too-long
 _FILTERED_TESTS = {
     'player_filter_tests': [
+        # Invalid input may lead to unexpected behaviors.
+        'AudioDecoderTests/AudioDecoderTest.MultipleInvalidInput/*',
+        'AudioDecoderTests/AudioDecoderTest.MultipleValidInputsAfterInvalidInput*',
+
         # GetMaxNumberOfCachedFrames() on Android is device dependent,
         # and Android doesn't provide an API to get it. So, this function
         # doesn't make sense on Android. But HoldFramesUntilFull tests depend
