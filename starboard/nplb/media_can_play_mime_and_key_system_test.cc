@@ -784,13 +784,13 @@ TEST(SbMediaCanPlayMimeAndKeySystem, ValidatePerformance) {
   test_sequential_function_calls(
       kWarmupQueryParams, SB_ARRAY_SIZE_INT(kWarmupQueryParams),
       5 * kSbTimeMillisecond /* 9 calls */, "Warmup queries");
-  // First round of the queires.
+  // First round of the queries.
   test_sequential_function_calls(
       kSdrQueryParams, SB_ARRAY_SIZE_INT(kSdrQueryParams),
       10 * kSbTimeMillisecond /* 38 calls */, "SDR queries");
   test_sequential_function_calls(
       kHdrQueryParams, SB_ARRAY_SIZE_INT(kHdrQueryParams),
-      10 * kSbTimeMillisecond /* 82 calls */, "HDR queries");
+      15 * kSbTimeMillisecond /* 82 calls */, "HDR queries");
   test_sequential_function_calls(
       kDrmQueryParams, SB_ARRAY_SIZE_INT(kDrmQueryParams),
       10 * kSbTimeMillisecond /* 81 calls */, "DRM queries");
