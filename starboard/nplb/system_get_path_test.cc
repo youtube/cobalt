@@ -69,9 +69,6 @@ void UnmodifiedOnFailureTest(SbSystemPathId id, int line) {
 TEST(SbSystemGetPathTest, ReturnsRequiredPaths) {
   BasicTest(kSbSystemPathContentDirectory, true, true, __LINE__);
   BasicTest(kSbSystemPathCacheDirectory, true, true, __LINE__);
-#if SB_API_VERSION >= 14
-  BasicTest(kSbSystemPathStorageDirectory, true, true, __LINE__);
-#endif  // SB_API_VERSION >= 14
 }
 
 TEST(SbSystemGetPathTest, FailsGracefullyZeroBufferLength) {
