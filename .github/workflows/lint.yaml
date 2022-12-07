@@ -18,6 +18,16 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install libncurses5
+      - name: Download GN via CIPD
+        env:
+          GN_SHA256SUM: 'af7b2dcb3905bca56655e12131b365f1cba8e159db80d2022330c4f522fab2ef  /tmp/gn.zip'
+          GN_HASH: r3styzkFvKVmVeEhMbNl8cuo4VnbgNICIzDE9SL6su8C
+        run: |
+          set -e -x
+          curl --location --silent --output /tmp/gn.zip "https://chrome-infra-packages.appspot.com/dl/gn/gn/linux-amd64/+/${GN_HASH}"
+          echo ${GN_SHA256SUM} | sha256sum --check
+          unzip /tmp/gn.zip -d /usr/local/bin
+          rm /tmp/gn.zip
       - name: Checkout
         uses: actions/checkout@v3
         with:
