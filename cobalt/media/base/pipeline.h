@@ -23,6 +23,7 @@
 #include "base/message_loop/message_loop.h"
 #include "cobalt/media/base/decode_target_provider.h"
 #include "cobalt/media/base/media_export.h"
+#include "cobalt/media/base/sbplayer_interface.h"
 #include "starboard/drm.h"
 #include "starboard/window.h"
 #include "third_party/chromium/media/base/demuxer.h"
@@ -92,7 +93,7 @@ class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
   static scoped_refptr<Pipeline> Create(
-      PipelineWindow window,
+      SbPlayerInterface* interface, PipelineWindow window,
       const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
       const GetDecodeTargetGraphicsContextProviderFunc&
           get_decode_target_graphics_context_provider_func,

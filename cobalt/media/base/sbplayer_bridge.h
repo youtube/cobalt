@@ -25,6 +25,7 @@
 #include "base/time/time.h"
 #include "cobalt/media/base/decode_target_provider.h"
 #include "cobalt/media/base/decoder_buffer_cache.h"
+#include "cobalt/media/base/sbplayer_interface.h"
 #include "cobalt/media/base/sbplayer_set_bounds_helper.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
@@ -33,10 +34,6 @@
 #include "third_party/chromium/media/base/demuxer_stream.h"
 #include "third_party/chromium/media/base/video_decoder_config.h"
 #include "third_party/chromium/media/cobalt/ui/gfx/geometry/rect.h"
-
-#if SB_HAS(PLAYER_WITH_URL)
-#include SB_URL_PLAYER_INCLUDE_PATH
-#endif  // SB_HAS(PLAYER_WITH_URL)
 
 namespace cobalt {
 namespace media {
@@ -68,7 +65,8 @@ class SbPlayerBridge {
   typedef base::Callback<void(const char*, const unsigned char*, unsigned)>
       OnEncryptedMediaInitDataEncounteredCB;
   // Create an SbPlayerBridge with url-based player.
-  SbPlayerBridge(const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
+  SbPlayerBridge(SbPlayerInterface* interface,
+                 const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
                  const std::string& url, SbWindow window, Host* host,
                  SbPlayerSetBoundsHelper* set_bounds_helper,
                  bool allow_resume_after_suspend, bool prefer_decode_to_texture,
@@ -77,7 +75,8 @@ class SbPlayerBridge {
                  DecodeTargetProvider* const decode_target_provider);
 #endif  // SB_HAS(PLAYER_WITH_URL)
   // Create a SbPlayerBridge with normal player
-  SbPlayerBridge(const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
+  SbPlayerBridge(SbPlayerInterface* interface,
+                 const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
                  const GetDecodeTargetGraphicsContextProviderFunc&
                      get_decode_target_graphics_context_provider_func,
                  const AudioDecoderConfig& audio_config,
@@ -220,7 +219,7 @@ class SbPlayerBridge {
                                  const void* sample_buffer);
 
 #if SB_HAS(PLAYER_WITH_URL)
-  static SbPlayerOutputMode ComputeSbUrlPlayerOutputMode(
+  SbPlayerOutputMode ComputeSbUrlPlayerOutputMode(
       bool prefer_decode_to_texture);
 #endif  // SB_HAS(PLAYER_WITH_URL)
   // Returns the output mode that should be used for a video with the given
@@ -234,6 +233,7 @@ class SbPlayerBridge {
 #if SB_HAS(PLAYER_WITH_URL)
   std::string url_;
 #endif  // SB_HAS(PLAYER_WITH_URL)
+  SbPlayerInterface* sbplayer_interface_;
   const scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
   const GetDecodeTargetGraphicsContextProviderFunc
       get_decode_target_graphics_context_provider_func_;
