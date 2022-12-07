@@ -27,6 +27,7 @@
 #include "starboard/android/shared/internal/input_events_filter.h"
 #endif
 #include "starboard/android/shared/jni_env_ext.h"
+#include "starboard/atomic.h"
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/mutex.h"
 #include "starboard/common/scoped_ptr.h"
@@ -142,6 +143,10 @@ class ApplicationAndroid
   // such as the input and/or native_window_.
   Mutex android_command_mutex_;
   ConditionVariable android_command_condition_;
+
+  // Track queued "stop" commands to avoid starting the app when Android has
+  // already requested it be stopped.
+  SbAtomic32 android_stop_count_ = 0;
 
   // The last Activity lifecycle state command received.
   AndroidCommand::CommandType activity_state_;
