@@ -44,10 +44,6 @@ class CobaltWinWin32Configuration(cobalt_configuration.CobaltConfiguration):
           '*TaskScheduler*',
           'TaskTraits*',
       ],
-      # Tracked by b/245347178
-      'persistent_settings_test': [
-          'PersistentSettingTest.*',
-      ],
       'renderer_test': [
           # Flaky test is still being counted as a fail.
           ('RendererPipelineTest.FLAKY_'
