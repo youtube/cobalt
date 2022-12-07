@@ -61,6 +61,7 @@
 #include "cobalt/math/size.h"
 #include "cobalt/media/base/decode_target_provider.h"
 #include "cobalt/media/base/pipeline.h"
+#include "cobalt/media/base/sbplayer_interface.h"
 #include "cobalt/media/player/web_media_player.h"
 #include "cobalt/media/player/web_media_player_delegate.h"
 #include "third_party/chromium/media/base/demuxer.h"
@@ -102,7 +103,7 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   // When calling this, the |audio_source_provider| and
   // |audio_renderer_sink| arguments should be the same object.
 
-  WebMediaPlayerImpl(PipelineWindow window,
+  WebMediaPlayerImpl(SbPlayerInterface* interface, PipelineWindow window,
                      const Pipeline::GetDecodeTargetGraphicsContextProviderFunc&
                          get_decode_target_graphics_context_provider_func,
                      WebMediaPlayerClient* client,

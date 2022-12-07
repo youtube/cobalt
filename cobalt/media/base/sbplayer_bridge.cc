@@ -100,6 +100,7 @@ void SbPlayerBridge::CallbackHelper::ResetPlayer() {
 
 #if SB_HAS(PLAYER_WITH_URL)
 SbPlayerBridge::SbPlayerBridge(
+    SbPlayerInterface* interface,
     const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
     const std::string& url, SbWindow window, Host* host,
     SbPlayerSetBoundsHelper* set_bounds_helper, bool allow_resume_after_suspend,
@@ -108,6 +109,7 @@ SbPlayerBridge::SbPlayerBridge(
         on_encrypted_media_init_data_encountered_cb,
     DecodeTargetProvider* const decode_target_provider)
     : url_(url),
+      sbplayer_interface_(interface),
       task_runner_(task_runner),
       callback_helper_(
           new CallbackHelper(ALLOW_THIS_IN_INITIALIZER_LIST(this))),
@@ -134,6 +136,7 @@ SbPlayerBridge::SbPlayerBridge(
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
 SbPlayerBridge::SbPlayerBridge(
+    SbPlayerInterface* interface,
     const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
     const GetDecodeTargetGraphicsContextProviderFunc&
         get_decode_target_graphics_context_provider_func,
@@ -144,7 +147,8 @@ SbPlayerBridge::SbPlayerBridge(
     bool prefer_decode_to_texture,
     DecodeTargetProvider* const decode_target_provider,
     const std::string& max_video_capabilities)
-    : task_runner_(task_runner),
+    : sbplayer_interface_(interface),
+      task_runner_(task_runner),
       get_decode_target_graphics_context_provider_func_(
           get_decode_target_graphics_context_provider_func),
       callback_helper_(
@@ -202,7 +206,7 @@ SbPlayerBridge::~SbPlayerBridge() {
   decode_target_provider_->ResetGetCurrentSbDecodeTargetFunction();
 
   if (SbPlayerIsValid(player_)) {
-    SbPlayerDestroy(player_);
+    sbplayer_interface_->Destroy(player_);
   }
 }
 
@@ -288,7 +292,7 @@ void SbPlayerBridge::PrepareForSeek() {
   }
 
   ++ticket_;
-  SbPlayerSetPlaybackRate(player_, 0.f);
+  sbplayer_interface_->SetPlaybackRate(player_, 0.f);
 }
 
 void SbPlayerBridge::Seek(base::TimeDelta time) {
@@ -311,9 +315,9 @@ void SbPlayerBridge::Seek(base::TimeDelta time) {
   DCHECK(SbPlayerIsValid(player_));
 
   ++ticket_;
-  SbPlayerSeek2(player_, time.InMicroseconds(), ticket_);
+  sbplayer_interface_->Seek(player_, time.InMicroseconds(), ticket_);
 
-  SbPlayerSetPlaybackRate(player_, playback_rate_);
+  sbplayer_interface_->SetPlaybackRate(player_, playback_rate_);
 }
 
 void SbPlayerBridge::SetVolume(float volume) {
@@ -326,7 +330,7 @@ void SbPlayerBridge::SetVolume(float volume) {
   }
 
   DCHECK(SbPlayerIsValid(player_));
-  SbPlayerSetVolume(player_, volume);
+  sbplayer_interface_->SetVolume(player_, volume);
 }
 
 void SbPlayerBridge::SetPlaybackRate(double playback_rate) {
@@ -342,7 +346,7 @@ void SbPlayerBridge::SetPlaybackRate(double playback_rate) {
     return;
   }
 
-  SbPlayerSetPlaybackRate(player_, playback_rate);
+  sbplayer_interface_->SetPlaybackRate(player_, playback_rate);
 }
 
 void SbPlayerBridge::GetInfo(uint32* video_frames_decoded,
@@ -369,7 +373,7 @@ void SbPlayerBridge::GetUrlPlayerBufferedTimeRanges(
   DCHECK(SbPlayerIsValid(player_));
 
   SbUrlPlayerExtraInfo url_player_info;
-  SbUrlPlayerGetExtraInfo(player_, &url_player_info);
+  sbplayer_interface_->GetUrlPlayerExtraInfo(player_, &url_player_info);
 
   if (buffer_start_time) {
     *buffer_start_time = base::TimeDelta::FromMicroseconds(
@@ -395,7 +399,7 @@ void SbPlayerBridge::GetVideoResolution(int* frame_width, int* frame_height) {
   DCHECK(SbPlayerIsValid(player_));
 
   SbPlayerInfo2 out_player_info;
-  SbPlayerGetInfo2(player_, &out_player_info);
+  sbplayer_interface_->GetInfo(player_, &out_player_info);
 
   video_sample_info_.frame_width = out_player_info.frame_width;
   video_sample_info_.frame_height = out_player_info.frame_height;
@@ -414,7 +418,7 @@ base::TimeDelta SbPlayerBridge::GetDuration() {
   DCHECK(SbPlayerIsValid(player_));
 
   SbPlayerInfo2 info;
-  SbPlayerGetInfo2(player_, &info);
+  sbplayer_interface_->GetInfo(player_, &info);
   if (info.duration == SB_PLAYER_NO_DURATION) {
     // URL-based player may not have loaded asset yet, so map no duration to 0.
     return base::TimeDelta();
@@ -432,7 +436,7 @@ base::TimeDelta SbPlayerBridge::GetStartDate() {
   DCHECK(SbPlayerIsValid(player_));
 
   SbPlayerInfo2 info;
-  SbPlayerGetInfo2(player_, &info);
+  sbplayer_interface_->GetInfo(player_, &info);
   return base::TimeDelta::FromMicroseconds(info.start_date);
 }
 
@@ -440,7 +444,7 @@ void SbPlayerBridge::SetDrmSystem(SbDrmSystem drm_system) {
   DCHECK(is_url_based_);
 
   drm_system_ = drm_system;
-  SbUrlPlayerSetDrmSystem(player_, drm_system);
+  sbplayer_interface_->SetUrlPlayerDrmSystem(player_, drm_system);
 }
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
@@ -454,7 +458,7 @@ void SbPlayerBridge::Suspend() {
 
   DCHECK(SbPlayerIsValid(player_));
 
-  SbPlayerSetPlaybackRate(player_, 0.0);
+  sbplayer_interface_->SetPlaybackRate(player_, 0.0);
 
   set_bounds_helper_->SetPlayerBridge(NULL);
 
@@ -468,7 +472,7 @@ void SbPlayerBridge::Suspend() {
       DecodeTargetProvider::kOutputModeInvalid);
   decode_target_provider_->ResetGetCurrentSbDecodeTargetFunction();
 
-  SbPlayerDestroy(player_);
+  sbplayer_interface_->Destroy(player_);
 
   player_ = kSbPlayerInvalid;
 }
@@ -490,7 +494,7 @@ void SbPlayerBridge::Resume(SbWindow window) {
   if (is_url_based_) {
     CreateUrlPlayer(url_);
     if (SbDrmSystemIsValid(drm_system_)) {
-      SbUrlPlayerSetDrmSystem(player_, drm_system_);
+      sbplayer_interface_->SetUrlPlayerDrmSystem(player_, drm_system_);
     }
   } else {
     CreatePlayer();
@@ -549,10 +553,10 @@ void SbPlayerBridge::CreateUrlPlayer(const std::string& url) {
 
   player_creation_time_ = SbTimeGetMonotonicNow();
 
-  player_ =
-      SbUrlPlayerCreate(url.c_str(), window_, &SbPlayerBridge::PlayerStatusCB,
-                        &SbPlayerBridge::EncryptedMediaInitDataEncounteredCB,
-                        &SbPlayerBridge::PlayerErrorCB, this);
+  player_ = sbplayer_interface_->CreateUrlPlayer(
+      url.c_str(), window_, &SbPlayerBridge::PlayerStatusCB,
+      &SbPlayerBridge::EncryptedMediaInitDataEncounteredCB,
+      &SbPlayerBridge::PlayerErrorCB, this);
   DCHECK(SbPlayerIsValid(player_));
 
   if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
@@ -597,8 +601,9 @@ void SbPlayerBridge::CreatePlayer() {
     creation_param.video_sample_info.codec = kSbMediaVideoCodecNone;
   }
   creation_param.output_mode = output_mode_;
-  DCHECK_EQ(SbPlayerGetPreferredOutputMode(&creation_param), output_mode_);
-  player_ = SbPlayerCreate(
+  DCHECK_EQ(sbplayer_interface_->GetPreferredOutputMode(&creation_param),
+            output_mode_);
+  player_ = sbplayer_interface_->Create(
       window_, &creation_param, &SbPlayerBridge::DeallocateSampleCB,
       &SbPlayerBridge::DecoderStatusCB, &SbPlayerBridge::PlayerStatusCB,
       &SbPlayerBridge::PlayerErrorCB, this,
@@ -647,7 +652,8 @@ void SbPlayerBridge::WriteBufferInternal(
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
   if (buffer->end_of_stream()) {
-    SbPlayerWriteEndOfStream(player_, DemuxerStreamTypeToSbMediaType(type));
+    sbplayer_interface_->WriteEndOfStream(player_,
+                                          DemuxerStreamTypeToSbMediaType(type));
     return;
   }
 
@@ -674,7 +680,9 @@ void SbPlayerBridge::WriteBufferInternal(
     FillDrmSampleInfo(buffer, &drm_info, &subsample_mapping);
   }
 
-  DCHECK_GT(SbPlayerGetMaximumNumberOfSamplesPerWrite(player_, sample_type), 0);
+  DCHECK_GT(sbplayer_interface_->GetMaximumNumberOfSamplesPerWrite(player_,
+                                                                   sample_type),
+            0);
 
   SbPlayerSampleSideData side_data = {};
   SbPlayerSampleInfo sample_info = {};
@@ -703,11 +711,11 @@ void SbPlayerBridge::WriteBufferInternal(
   } else {
     sample_info.drm_info = NULL;
   }
-  SbPlayerWriteSample2(player_, sample_type, &sample_info, 1);
+  sbplayer_interface_->WriteSample(player_, sample_type, &sample_info, 1);
 }
 
 SbDecodeTarget SbPlayerBridge::GetCurrentSbDecodeTarget() {
-  return SbPlayerGetCurrentFrame(player_);
+  return sbplayer_interface_->GetCurrentFrame(player_);
 }
 
 SbPlayerOutputMode SbPlayerBridge::GetSbPlayerOutputMode() {
@@ -734,7 +742,7 @@ void SbPlayerBridge::GetInfo_Locked(uint32* video_frames_decoded,
   DCHECK(SbPlayerIsValid(player_));
 
   SbPlayerInfo2 info;
-  SbPlayerGetInfo2(player_, &info);
+  sbplayer_interface_->GetInfo(player_, &info);
 
   if (media_time) {
     *media_time =
@@ -757,8 +765,8 @@ void SbPlayerBridge::UpdateBounds_Locked() {
   }
 
   auto& rect = *set_bounds_rect_;
-  SbPlayerSetBounds(player_, *set_bounds_z_index_, rect.x(), rect.y(),
-                    rect.width(), rect.height());
+  sbplayer_interface_->SetBounds(player_, *set_bounds_z_index_, rect.x(),
+                                 rect.y(), rect.width(), rect.height());
 }
 
 void SbPlayerBridge::ClearDecoderBufferCache() {
@@ -835,9 +843,10 @@ void SbPlayerBridge::OnPlayerStatus(SbPlayer player, SbPlayerState state,
     if (sb_player_state_initialized_time_ == 0) {
       sb_player_state_initialized_time_ = SbTimeGetMonotonicNow();
     }
-    SbPlayerSeek2(player_, preroll_timestamp_.InMicroseconds(), ticket_);
+    sbplayer_interface_->Seek(player_, preroll_timestamp_.InMicroseconds(),
+                              ticket_);
     SetVolume(volume_);
-    SbPlayerSetPlaybackRate(player_, playback_rate_);
+    sbplayer_interface_->SetPlaybackRate(player_, playback_rate_);
     return;
   }
   if (state == kSbPlayerStatePrerolling &&
@@ -942,18 +951,19 @@ void SbPlayerBridge::DeallocateSampleCB(SbPlayer player, void* context,
 }
 
 #if SB_HAS(PLAYER_WITH_URL)
-// static
 SbPlayerOutputMode SbPlayerBridge::ComputeSbUrlPlayerOutputMode(
     bool prefer_decode_to_texture) {
   // Try to choose the output mode according to the passed in value of
   // |prefer_decode_to_texture|.  If the preferred output mode is unavailable
   // though, fallback to an output mode that is available.
   SbPlayerOutputMode output_mode = kSbPlayerOutputModeInvalid;
-  if (SbUrlPlayerOutputModeSupported(kSbPlayerOutputModePunchOut)) {
+  if (sbplayer_interface_->GetUrlPlayerOutputModeSupported(
+          kSbPlayerOutputModePunchOut)) {
     output_mode = kSbPlayerOutputModePunchOut;
   }
   if ((prefer_decode_to_texture || output_mode == kSbPlayerOutputModeInvalid) &&
-      SbUrlPlayerOutputModeSupported(kSbPlayerOutputModeDecodeToTexture)) {
+      sbplayer_interface_->GetUrlPlayerOutputModeSupported(
+          kSbPlayerOutputModeDecodeToTexture)) {
     output_mode = kSbPlayerOutputModeDecodeToTexture;
   }
   CHECK_NE(kSbPlayerOutputModeInvalid, output_mode);
@@ -962,7 +972,6 @@ SbPlayerOutputMode SbPlayerBridge::ComputeSbUrlPlayerOutputMode(
 }
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
-// static
 SbPlayerOutputMode SbPlayerBridge::ComputeSbPlayerOutputMode(
     bool prefer_decode_to_texture) const {
   SbPlayerCreationParam creation_param = {};
@@ -977,7 +986,8 @@ SbPlayerOutputMode SbPlayerBridge::ComputeSbPlayerOutputMode(
   } else {
     creation_param.output_mode = kSbPlayerOutputModePunchOut;
   }
-  auto output_mode = SbPlayerGetPreferredOutputMode(&creation_param);
+  auto output_mode =
+      sbplayer_interface_->GetPreferredOutputMode(&creation_param);
   CHECK_NE(kSbPlayerOutputModeInvalid, output_mode);
   return output_mode;
 }

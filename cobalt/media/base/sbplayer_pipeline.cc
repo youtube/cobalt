@@ -98,7 +98,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
  public:
   // Constructs a media pipeline that will execute on |task_runner|.
   SbPlayerPipeline(
-      PipelineWindow window,
+      SbPlayerInterface* interface, PipelineWindow window,
       const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
       const GetDecodeTargetGraphicsContextProviderFunc&
           get_decode_target_graphics_context_provider_func,
@@ -211,6 +211,10 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   // An identifier string for the pipeline, used in CVal to identify multiple
   // pipelines.
   const std::string pipeline_identifier_;
+
+  // A wrapped interface of starboard player functions, which will be used in
+  // underlying SbPlayerBridge.
+  SbPlayerInterface* sbplayer_interface_;
 
   // Message loop used to execute pipeline tasks.  It is thread-safe.
   scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
@@ -340,7 +344,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
 };
 
 SbPlayerPipeline::SbPlayerPipeline(
-    PipelineWindow window,
+    SbPlayerInterface* interface, PipelineWindow window,
     const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
     const GetDecodeTargetGraphicsContextProviderFunc&
         get_decode_target_graphics_context_provider_func,
@@ -348,6 +352,7 @@ SbPlayerPipeline::SbPlayerPipeline(
     DecodeTargetProvider* decode_target_provider)
     : pipeline_identifier_(
           base::StringPrintf("%X", g_pipeline_identifier_counter++)),
+      sbplayer_interface_(interface),
       task_runner_(task_runner),
       allow_resume_after_suspend_(allow_resume_after_suspend),
       window_(window),
@@ -910,8 +915,9 @@ void SbPlayerPipeline::CreateUrlPlayer(const std::string& source_url) {
     base::AutoLock auto_lock(lock_);
     LOG(INFO) << "Creating SbPlayerBridge with url: " << source_url;
     player_bridge_.reset(new SbPlayerBridge(
-        task_runner_, source_url, window_, this, set_bounds_helper_.get(),
-        allow_resume_after_suspend_, *decode_to_texture_output_mode_,
+        sbplayer_interface_, task_runner_, source_url, window_, this,
+        set_bounds_helper_.get(), allow_resume_after_suspend_,
+        *decode_to_texture_output_mode_,
         on_encrypted_media_init_data_encountered_cb_, decode_target_provider_));
     if (player_bridge_->IsValid()) {
       SetPlaybackRateTask(playback_rate_);
@@ -1012,9 +1018,10 @@ void SbPlayerPipeline::CreatePlayer(SbDrmSystem drm_system) {
     player_bridge_.reset();
     LOG(INFO) << "Creating SbPlayerBridge.";
     player_bridge_.reset(new SbPlayerBridge(
-        task_runner_, get_decode_target_graphics_context_provider_func_,
-        audio_config, audio_mime_type, video_config, video_mime_type, window_,
-        drm_system, this, set_bounds_helper_.get(), allow_resume_after_suspend_,
+        sbplayer_interface_, task_runner_,
+        get_decode_target_graphics_context_provider_func_, audio_config,
+        audio_mime_type, video_config, video_mime_type, window_, drm_system,
+        this, set_bounds_helper_.get(), allow_resume_after_suspend_,
         *decode_to_texture_output_mode_, decode_target_provider_,
         max_video_capabilities_));
     if (player_bridge_->IsValid()) {
@@ -1549,15 +1556,16 @@ void SbPlayerPipeline::RunSetDrmSystemReadyCB(
 
 // static
 scoped_refptr<Pipeline> Pipeline::Create(
-    PipelineWindow window,
+    SbPlayerInterface* interface, PipelineWindow window,
     const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
     const GetDecodeTargetGraphicsContextProviderFunc&
         get_decode_target_graphics_context_provider_func,
     bool allow_resume_after_suspend, MediaLog* media_log,
     DecodeTargetProvider* decode_target_provider) {
-  return new SbPlayerPipeline(
-      window, task_runner, get_decode_target_graphics_context_provider_func,
-      allow_resume_after_suspend, media_log, decode_target_provider);
+  return new SbPlayerPipeline(interface, window, task_runner,
+                              get_decode_target_graphics_context_provider_func,
+                              allow_resume_after_suspend, media_log,
+                              decode_target_provider);
 }
 
 }  // namespace media

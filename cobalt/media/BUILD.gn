@@ -43,6 +43,8 @@ component("media") {
     "base/playback_statistics.h",
     "base/sbplayer_bridge.cc",
     "base/sbplayer_bridge.h",
+    "base/sbplayer_interface.cc",
+    "base/sbplayer_interface.h",
     "base/sbplayer_pipeline.cc",
     "base/sbplayer_set_bounds_helper.cc",
     "base/sbplayer_set_bounds_helper.h",

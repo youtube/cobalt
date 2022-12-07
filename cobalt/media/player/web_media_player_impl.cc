@@ -112,7 +112,7 @@ typedef base::Callback<void(const std::string&, const std::string&,
     OnNeedKeyCB;
 
 WebMediaPlayerImpl::WebMediaPlayerImpl(
-    PipelineWindow window,
+    SbPlayerInterface* interface, PipelineWindow window,
     const Pipeline::GetDecodeTargetGraphicsContextProviderFunc&
         get_decode_target_graphics_context_provider_func,
     WebMediaPlayerClient* client, WebMediaPlayerDelegate* delegate,
@@ -139,10 +139,10 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
   media_log_->AddEvent<::media::MediaLogEvent::kWebMediaPlayerCreated>();
 
   pipeline_thread_.Start();
-  pipeline_ = Pipeline::Create(window, pipeline_thread_.task_runner(),
-                               get_decode_target_graphics_context_provider_func,
-                               allow_resume_after_suspend_, media_log_,
-                               decode_target_provider_.get());
+  pipeline_ = Pipeline::Create(
+      interface, window, pipeline_thread_.task_runner(),
+      get_decode_target_graphics_context_provider_func,
+      allow_resume_after_suspend_, media_log_, decode_target_provider_.get());
 
   // Also we want to be notified of |main_loop_| destruction.
   main_loop_->AddDestructionObserver(this);
