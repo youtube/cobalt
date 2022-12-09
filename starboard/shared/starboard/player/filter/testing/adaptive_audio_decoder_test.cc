@@ -12,12 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <algorithm>
 #include <cmath>
 #include <deque>
 #include <functional>
 #include <memory>
 #include <numeric>
 #include <queue>
+#include <string>
 
 #include "starboard/common/mutex.h"
 #include "starboard/common/scoped_ptr.h"
@@ -42,11 +44,11 @@ namespace filter {
 namespace testing {
 namespace {
 
+using std::string;
+using std::vector;
 using ::testing::Bool;
 using ::testing::Combine;
 using ::testing::ValuesIn;
-using std::vector;
-using std::string;
 using video_dmp::VideoDmpReader;
 
 const SbTimeMonotonic kWaitForNextEventTimeOut = 5 * kSbTimeSecond;
@@ -289,6 +291,28 @@ class AdaptiveAudioDecoderTest
   bool can_accept_more_input_ = true;
 };
 
+std::string GetAdaptiveAudioDecoderTestConfigName(
+    ::testing::TestParamInfo<std::tuple<vector<const char*>, bool>> info) {
+  std::vector<const char*> filenames(std::get<0>(info.param));
+  bool using_stub_decoder = std::get<1>(info.param);
+  std::string config_name;
+
+  for (auto name : filenames) {
+    config_name += std::string(name) + "__to__";
+  }
+  if (!config_name.empty()) {
+    // Remove trailing "__to__".
+    config_name.erase(config_name.end() - 6, config_name.end());
+
+    std::replace(config_name.begin(), config_name.end(), '.', '_');
+    if (using_stub_decoder) {
+      config_name += "__stub";
+    }
+  }
+
+  return config_name;
+}
+
 TEST_P(AdaptiveAudioDecoderTest, SingleInput) {
   SbTime playing_duration = 0;
   // Skip buffer 0, as the difference between first and second opus buffer
@@ -387,13 +411,14 @@ vector<vector<const char*>> GetSupportedTests() {
                            test_params.back().rend());
 
   SB_LOG_IF(INFO, test_params.empty())
-      << "Test params for AdaptiveAudioDecodeTests is empty.";
+      << "Test params for AdaptiveAudioDecoderTests is empty.";
   return test_params;
 }
 
 INSTANTIATE_TEST_CASE_P(AdaptiveAudioDecoderTests,
                         AdaptiveAudioDecoderTest,
-                        Combine(ValuesIn(GetSupportedTests()), Bool()));
+                        Combine(ValuesIn(GetSupportedTests()), Bool()),
+                        GetAdaptiveAudioDecoderTestConfigName);
 
 }  // namespace
 }  // namespace testing

@@ -12,14 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "starboard/shared/starboard/player/filter/audio_channel_layout_mixer.h"
+
 #include <cmath>
 #include <functional>
 #include <numeric>
+#include <string>
 
 #include "starboard/common/ref_counted.h"
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
-#include "starboard/shared/starboard/player/filter/audio_channel_layout_mixer.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -157,6 +159,22 @@ class AudioChannelLayoutMixerTest
   SbMediaAudioSampleType sample_type_;
   SbMediaAudioFrameStorageType storage_type_;
 };
+
+std::string GetAudioChannelLayoutMixerTestConfigName(
+    ::testing::TestParamInfo<std::tuple<SbMediaAudioSampleType,
+                                        SbMediaAudioFrameStorageType>> info) {
+  SbMediaAudioSampleType sample_type = std::get<0>(info.param);
+  SbMediaAudioFrameStorageType frame_storage_type = std::get<1>(info.param);
+
+  return FormatString(
+      "%s_%s",
+      sample_type == kSbMediaAudioSampleTypeInt16Deprecated
+          ? "SampleTypeInt16"
+          : "SampleTypeFloat32",
+      frame_storage_type == kSbMediaAudioFrameStorageTypeInterleaved
+          ? "StorageTypeInterleaved"
+          : "StorageTypePlanar");
+}
 
 TEST_P(AudioChannelLayoutMixerTest, MixToMono) {
   scoped_ptr<AudioChannelLayoutMixer> mixer =
@@ -332,7 +350,8 @@ INSTANTIATE_TEST_CASE_P(AudioChannelLayoutMixerTests,
                         Combine(Values(kSbMediaAudioSampleTypeInt16Deprecated,
                                        kSbMediaAudioSampleTypeFloat32),
                                 Values(kSbMediaAudioFrameStorageTypeInterleaved,
-                                       kSbMediaAudioFrameStorageTypePlanar)));
+                                       kSbMediaAudioFrameStorageTypePlanar)),
+                        GetAudioChannelLayoutMixerTestConfigName);
 
 }  // namespace
 }  // namespace testing

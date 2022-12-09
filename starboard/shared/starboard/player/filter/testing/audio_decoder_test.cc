@@ -14,9 +14,11 @@
 
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 
+#include <algorithm>
 #include <deque>
 #include <functional>
 #include <map>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -53,7 +55,7 @@ using video_dmp::VideoDmpReader;
 const SbTimeMonotonic kWaitForNextEventTimeOut = 5 * kSbTimeSecond;
 
 class AudioDecoderTest
-    : public ::testing::TestWithParam<std::tuple<const char*, bool> > {
+    : public ::testing::TestWithParam<std::tuple<const char*, bool>> {
  public:
   AudioDecoderTest()
       : test_filename_(std::get<0>(GetParam())),
@@ -379,6 +381,16 @@ class AudioDecoderTest
   bool first_output_received_ = false;
 };
 
+std::string GetAudioDecoderTestConfigName(
+    ::testing::TestParamInfo<std::tuple<const char*, bool>> info) {
+  std::string filename(std::get<0>(info.param));
+  bool using_stub_decoder = std::get<1>(info.param);
+
+  std::replace(filename.begin(), filename.end(), '.', '_');
+
+  return filename + (using_stub_decoder ? "__stub" : "");
+}
+
 TEST_P(AudioDecoderTest, MultiDecoders) {
   const int kDecodersToCreate = 100;
   const int kMinimumNumberOfExtraDecodersRequired = 3;
@@ -638,7 +650,8 @@ INSTANTIATE_TEST_CASE_P(
     Combine(ValuesIn(GetSupportedAudioTestFiles(kIncludeHeaac,
                                                 6,
                                                 "audiopassthrough=false")),
-            Bool()));
+            Bool()),
+    GetAudioDecoderTestConfigName);
 
 }  // namespace
 }  // namespace testing
