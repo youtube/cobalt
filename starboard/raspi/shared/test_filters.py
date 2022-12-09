@@ -15,6 +15,7 @@
 
 from starboard.tools.testing import test_filter
 
+# pylint: disable=line-too-long
 _FILTERED_TESTS = {
     'nplb': [
         'SbAudioSinkTest.*',
@@ -35,8 +36,8 @@ _FILTERED_TESTS = {
         # The implementations for the raspberry pi (0 and 2) are incomplete
         # and not meant to be a reference implementation. As such we will
         # not repair these failing tests for now.
-        'VideoDecoderTests/VideoDecoderTest.EndOfStreamWithoutAnyInput/0',
-        'VideoDecoderTests/VideoDecoderTest.MultipleResets/0',
+        'VideoDecoderTests/VideoDecoderTest.EndOfStreamWithoutAnyInput/beneath_the_canopy_137_avc_dmp_Punchout',
+        'VideoDecoderTests/VideoDecoderTest.MultipleResets/beneath_the_canopy_137_avc_dmp_Punchout',
         # Filter failed tests.
         'PlayerComponentsTests/PlayerComponentsTest.*',
     ],

@@ -20,6 +20,7 @@
 #include <vector>
 
 #include "starboard/common/scoped_ptr.h"
+#include "starboard/common/string.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "starboard/shared/starboard/player/filter/testing/test_util.h"
@@ -37,11 +38,11 @@ namespace testing {
 namespace {
 
 using ::starboard::testing::FakeGraphicsContextProvider;
-using std::placeholders::_1;
-using std::placeholders::_2;
 using std::string;
 using std::unique_ptr;
 using std::vector;
+using std::placeholders::_1;
+using std::placeholders::_2;
 using ::testing::ValuesIn;
 using video_dmp::VideoDmpReader;
 
@@ -489,6 +490,22 @@ class PlayerComponentsTest
   bool video_ended_ = false;
 };
 
+std::string GetPlayerComponentsTestConfigName(
+    ::testing::TestParamInfo<PlayerComponentsTestParam> info) {
+  std::string audio_filename(std::get<0>(info.param));
+  std::string video_filename(std::get<1>(info.param));
+  SbPlayerOutputMode output_mode = std::get<2>(info.param);
+
+  std::string config_name(FormatString(
+      "%s_%s_%s", audio_filename.empty() ? "null" : audio_filename.c_str(),
+      video_filename.empty() ? "null" : video_filename.c_str(),
+      output_mode == kSbPlayerOutputModeDecodeToTexture ? "DecodeToTexture"
+                                                        : "Punchout"));
+
+  std::replace(config_name.begin(), config_name.end(), '.', '_');
+  return config_name;
+}
+
 TEST_P(PlayerComponentsTest, Preroll) {
   Seek(0);
   ASSERT_NO_FATAL_FAILURE(WriteDataUntilPrerolled());
@@ -727,7 +744,8 @@ vector<PlayerComponentsTestParam> GetSupportedCreationParameters() {
 
 INSTANTIATE_TEST_CASE_P(PlayerComponentsTests,
                         PlayerComponentsTest,
-                        ValuesIn(GetSupportedCreationParameters()));
+                        ValuesIn(GetSupportedCreationParameters()),
+                        GetPlayerComponentsTestConfigName);
 }  // namespace
 }  // namespace testing
 }  // namespace filter

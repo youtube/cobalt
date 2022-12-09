@@ -43,7 +43,8 @@ _FILTERED_TESTS = {
         'PlayerComponentsTests/PlayerComponentsTest.EOSWithoutInput/*',
 
         # The e/eac3 audio time reporting during pause will be revisitied.
-        'PlayerComponentsTests/PlayerComponentsTest.Pause/15',
+        'PlayerComponentsTests/PlayerComponentsTest.Pause/*ac3*',
+        'PlayerComponentsTests/PlayerComponentsTest.Pause/*ec3*',
     ],
     'nplb': [
         # This test is failing because localhost is not defined for IPv6 in
