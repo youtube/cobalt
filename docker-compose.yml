@@ -58,6 +58,8 @@ x-shared-unittest-definitions: &shared-unittest-definitions
   build:
     context: ./docker/linux
     dockerfile: unittest/Dockerfile
+    args:
+      - CLANG_VER=${CLANG_VER:-365097-f7e52fbd-8}
   image: cobalt-linux-x64x11-unittest
   environment:
     - PLATFORM=${PLATFORM:-linux-x64x11}
