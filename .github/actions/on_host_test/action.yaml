@@ -104,3 +104,8 @@ runs:
       with:
         name: unit-test-reports
         path: ${{env.TEST_REPORT_FILE}}
+    - name: Upload to Codecov
+      if: endsWith(${{matrix.target_platform}}, 'coverage')
+      uses: codecov/codecov-action@v3
+      with:
+        files: ${{env.GITHUB_WORKSPACE}}/out/${{env.BUILD_PLATFORM}}_${{matrix.config}}/coverage/report.txt
