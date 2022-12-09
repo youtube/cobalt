@@ -105,6 +105,7 @@ assert(!(use_tsan && use_asan), "ASAN and TSAN are mutually exclusive.")
 # sub-config of an existing one, most commonly the main "compiler" one.
 
 default_compiler_configs = [
+  "//build/config/coverage:default_coverage",
   "//build/config/compiler:default_include_dirs",
   "//build/config/compiler:no_exceptions",
   "//starboard/build/config:base",
