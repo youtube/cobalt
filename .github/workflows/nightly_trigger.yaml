@@ -7,7 +7,8 @@ on:
 
 jobs:
   trigger_23:
-    permissions: write-all
+    permissions:
+      actions: write
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -22,11 +23,12 @@ jobs:
           gh workflow run evergreen_23.lts.1+ --ref 23.lts.1+ -f nightly=true
           gh workflow run linux_23.lts.1+ --ref 23.lts.1+ -f nightly=true
           gh workflow run raspi-2_23.lts.1+ --ref 23.lts.1+ -f nightly=true
-          gh workflow run win32_23.lts.1+ --ref 23.lts.1+ -f nightly=true 
+          gh workflow run win32_23.lts.1+ --ref 23.lts.1+ -f nightly=true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   trigger_22:
-    permissions: write-all
+    permissions:
+      actions: write
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -44,7 +46,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   trigger_21:
-    permissions: write-all
+    permissions:
+      actions: write
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -61,7 +64,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   trigger_20:
-    permissions: write-all
+    permissions:
+      actions: write
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -77,7 +81,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   trigger_19:
-    permissions: write-all
+    permissions:
+      actions: write
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
