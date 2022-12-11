@@ -77,6 +77,7 @@ void VideoDecoder::Reset() {
 
   CancelPendingJobs();
   frames_being_decoded_ = 0;
+  time_sequential_queue_ = TimeSequentialQueue();
 
   ScopedLock lock(decode_target_mutex_);
   frames_ = std::queue<scoped_refptr<CpuVideoFrame>>();
@@ -203,6 +204,16 @@ void VideoDecoder::FlushFrames() {
   if (frames_being_decoded_ != 0) {
     SB_LOG(WARNING) << "Inconsistency in the number of input/output frames";
   }
+
+  while (!time_sequential_queue_.empty()) {
+    auto output_frame = time_sequential_queue_.top();
+    if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
+      ScopedLock lock(decode_target_mutex_);
+      frames_.push(output_frame);
+    }
+    Schedule(std::bind(decoder_status_cb_, kBufferFull, output_frame));
+    time_sequential_queue_.pop();
+  }
 }
 
 void VideoDecoder::ProcessDecodedImage(unsigned char* decoded_frame[],
@@ -226,14 +237,27 @@ void VideoDecoder::ProcessDecodedImage(unsigned char* decoded_frame[],
       buffer_info.UsrData.sSystemBuffer.iStride[1],
       buffer_info.uiOutYuvTimeStamp, decoded_frame[0], decoded_frame[1],
       decoded_frame[2]);
-  if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
-    ScopedLock lock(decode_target_mutex_);
-    frames_.push(frame);
+
+  bool has_new_output = false;
+  while (!time_sequential_queue_.empty() &&
+         time_sequential_queue_.top()->timestamp() < frame->timestamp()) {
+    has_new_output = true;
+    auto output_frame = time_sequential_queue_.top();
+    if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
+      ScopedLock lock(decode_target_mutex_);
+      frames_.push(output_frame);
+    }
+    if (flushing) {
+      Schedule(std::bind(decoder_status_cb_, kBufferFull, output_frame));
+    } else {
+      Schedule(std::bind(decoder_status_cb_, kNeedMoreInput, output_frame));
+    }
+    time_sequential_queue_.pop();
   }
-  if (flushing) {
-    Schedule(std::bind(decoder_status_cb_, kBufferFull, frame));
-  } else {
-    Schedule(std::bind(decoder_status_cb_, kNeedMoreInput, frame));
+  time_sequential_queue_.push(frame);
+
+  if (!has_new_output) {
+    Schedule(std::bind(decoder_status_cb_, kNeedMoreInput, nullptr));
   }
 }
 
