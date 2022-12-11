@@ -17,6 +17,7 @@
 
 #include <queue>
 #include <string>
+#include <vector>
 
 #include "starboard/common/optional.h"
 #include "starboard/common/ref_counted.h"
@@ -63,6 +64,18 @@ class VideoDecoder : public starboard::player::filter::VideoDecoder,
   static const int kDefaultOpenH264BitsDepth = 8;
   typedef ::starboard::shared::starboard::player::filter::CpuVideoFrame
       CpuVideoFrame;
+  // Operator to compare CpuVideoFrame by timestamp.
+  struct VideoFrameTimeStampGreater {
+    bool operator()(const scoped_refptr<CpuVideoFrame>& left,
+                    const scoped_refptr<CpuVideoFrame>& right) const {
+      // In chronological order.
+      return left->timestamp() > right->timestamp();
+    }
+  };
+  typedef std::priority_queue<scoped_refptr<CpuVideoFrame>,
+                              std::vector<scoped_refptr<CpuVideoFrame>>,
+                              VideoFrameTimeStampGreater>
+      TimeSequentialQueue;
 
   void UpdateDecodeTarget_Locked(const scoped_refptr<CpuVideoFrame>& frame);
 
@@ -85,6 +98,11 @@ class VideoDecoder : public starboard::player::filter::VideoDecoder,
   // changed during the life time of this class.
   DecoderStatusCB decoder_status_cb_;
   ErrorCB error_cb_;
+
+  // Openh264 does NOT always output video frames in chronological order.
+  // |time_sequential_queue_| is used to reorder |CpuVideoFrame|
+  // chronologically.
+  TimeSequentialQueue time_sequential_queue_;
 
   std::queue<scoped_refptr<CpuVideoFrame>> frames_;
 
