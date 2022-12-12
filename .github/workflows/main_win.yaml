@@ -71,8 +71,7 @@ jobs:
   # Build windows docker images.
   build-docker-image:
     needs: [initialize]
-    permissions:
-      packages: write
+    permissions: {}
     runs-on: windows-2019
     steps:
       - name: Checkout files
