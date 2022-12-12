@@ -41,6 +41,7 @@ jobs:
   # Retrieves configuration from json file.
   initialize:
     runs-on: ubuntu-latest
+    permissions: {}
     steps:
       - id: checkout
         uses: actions/checkout@v3
@@ -109,8 +110,7 @@ jobs:
   docker-unittest-image:
     if: needs.initialize.outputs.on_host_test == 'true'
     needs: [initialize]
-    permissions:
-      packages: write
+    permissions: {}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout files
@@ -140,6 +140,7 @@ jobs:
   # Runs builds.
   build:
     needs: [initialize, docker-build-image]
+    permissions: {}
     runs-on: [self-hosted, linux, X64]
     name: ${{matrix.name}}_${{matrix.config}}
     strategy:
@@ -273,6 +274,7 @@ jobs:
     if: needs.initialize.outputs.on_host_test == 'true'
     runs-on: [self-hosted, linux, X64]
     name: ${{matrix.name}}_${{matrix.shard}}_test
+    permissions: {}
     strategy:
       fail-fast: false
       matrix:
