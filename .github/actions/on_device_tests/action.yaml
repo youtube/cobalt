@@ -46,13 +46,13 @@ runs:
         echo "session_id=$(
         python3 tools/on_device_tests_gateway_client.py \
           --token ${{ github.token }} \
+          --change_id "${{ github.sha }}" \
           trigger \
           --test_type ${{ env.TEST_TYPE }} \
           --platform ${{ matrix.target_platform }} \
           --config ${{ matrix.config }} \
           --label cobalt_github_${{ github.event_name }} \
           --tag cobalt_github_${{ github.event_name }} \
-          --change_id "${{ github.sha }}" \
           --builder_name github_${{ matrix.platform }}_tests \
           --build_number ${GITHUB_RUN_NUMBER} \
           ${LOADER_PLATFORM:+"--loader_config" "$LOADER_CONFIG"} \
@@ -66,5 +66,6 @@ runs:
       run: |
         python3 tools/on_device_tests_gateway_client.py \
           --token ${{ github.token }} \
+          --change_id "${{ github.sha }}" \
           watch ${{ env.session_id }}
       shell: bash
