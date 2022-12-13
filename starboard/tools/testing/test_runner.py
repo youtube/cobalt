@@ -36,8 +36,6 @@ from starboard.tools.testing import test_filter
 from starboard.tools.testing.test_sharding import ShardingTestConfig
 from starboard.tools.util import SetupDefaultLoggingConfig
 
-# pylint: disable=consider-using-f-string
-
 _FLAKY_RETRY_LIMIT = 4
 _TOTAL_TESTS_REGEX = re.compile(r"^\[==========\] (.*) tests? from .*"
                                 r"test cases? ran. \(.* ms total\)")
@@ -641,7 +639,6 @@ class TestRunner(object):
 
       actual_failed_count = len(actual_failed_tests)
       flaky_failed_count = len(flaky_failed_tests)
-      initial_flaky_failed_count = flaky_failed_count
       filtered_count = len(filtered_tests)
 
       # If our math does not agree with gtest...
@@ -651,9 +648,9 @@ class TestRunner(object):
 
       # Retry the flaky test cases that failed, and mark them as passed if they
       # succeed within the retry limit.
-      flaky_passed_tests = []
       if flaky_failed_count > 0:
         logging.info("RE-RUNNING FLAKY TESTS.\n")
+        flaky_passed_tests = []
         for test_case in flaky_failed_tests:
           for retry in range(_FLAKY_RETRY_LIMIT):
             # Sometimes the returned test "name" includes information about the
@@ -676,13 +673,9 @@ class TestRunner(object):
 
       test_status = "SUCCEEDED"
 
-      all_flaky_tests_succeeded = initial_flaky_failed_count == len(
-          flaky_passed_tests)
-
       # Always mark as FAILED if we have a non-zero return code, or failing
       # test.
-      if ((return_code != 0 and not all_flaky_tests_succeeded) or
-          actual_failed_count > 0 or flaky_failed_count > 0):
+      if return_code != 0 or actual_failed_count > 0 or flaky_failed_count > 0:
         error = True
         test_status = "FAILED"
         failed_test_groups.append(target_name)

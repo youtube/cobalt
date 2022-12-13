@@ -29,18 +29,6 @@ _FILTERED_TESTS = {
         # performs an optimization that defeats the SB_C_NOINLINE 'noinline'
         # attribute.
         'SbSystemGetStackTest.SunnyDayStackDirection',
-
-        # Failures tracked by b/256160416.
-        'SbSystemGetPathTest.ReturnsRequiredPaths',
-        'SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.SeekAndDestroy/audio__null__video_beneath_the_canopy_137_avc_dmp_output_DecodeToTexture',
-        'SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.NoInput/audio__null__video_beneath_the_canopy_137_avc_dmp_output_DecodeToTexture',
-        'SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.SingleInput/audio__null__video_beneath_the_canopy_137_avc_dmp_output_DecodeToTexture',
-        'SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.MultipleInputs/audio__null__video_beneath_the_canopy_137_avc_dmp_output_DecodeToTexture',
-        'SbSocketAddressTypes/SbSocketBindTest.RainyDayBadInterface/type_ipv6_filter_ipv6',
-        'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest.SunnyDayDestination/type_ipv6',
-        'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest.SunnyDaySourceForDestination/type_ipv6',
-        'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest.SunnyDaySourceNotLoopback/type_ipv6',
-        'SbSocketAddressTypes/SbSocketResolveTest.SunnyDayFiltered/filter_ipv6_type_ipv6',
     ],
     'player_filter_tests': [
         # These tests fail on our VMs for win-win32 builds due to missing
