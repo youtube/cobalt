@@ -227,6 +227,7 @@ BrowserModule::BrowserModule(const GURL& url,
       event_dispatcher_(event_dispatcher),
       account_manager_(account_manager),
       is_rendered_(false),
+      is_web_module_rendered_(false),
       can_play_type_handler_(media::MediaModule::CreateCanPlayTypeHandler()),
       network_module_(network_module),
 #if SB_IS(EVERGREEN)
@@ -794,8 +795,9 @@ void BrowserModule::OnRenderTreeProduced(
   // explicitly.
   renderer_submission.timeline_info.id = current_main_web_module_timeline_id_;
 
-  renderer_submission.on_rasterized_callbacks.push_back(base::Bind(
-      &BrowserModule::OnRendererSubmissionRasterized, base::Unretained(this)));
+  renderer_submission.on_rasterized_callbacks.push_back(
+      base::Bind(&BrowserModule::OnWebModuleRendererSubmissionRasterized,
+                 base::Unretained(this)));
 
   if (!splash_screen_) {
     render_tree_combiner_.SetTimelineLayer(main_web_module_layer_.get());
@@ -1504,6 +1506,23 @@ void BrowserModule::OnRendererSubmissionRasterized() {
     // Hide the system splash screen when the first render has completed.
     is_rendered_ = true;
     SbSystemHideSplashScreen();
+  }
+}
+
+void BrowserModule::OnWebModuleRendererSubmissionRasterized() {
+  TRACE_EVENT0("cobalt::browser",
+               "BrowserModule::OnFirstWebModuleSubmissionRasterized()");
+  OnRendererSubmissionRasterized();
+  if (!is_web_module_rendered_) {
+    is_web_module_rendered_ = true;
+    const CobaltExtensionGraphicsApi* graphics_extension =
+        static_cast<const CobaltExtensionGraphicsApi*>(
+            SbSystemGetExtension(kCobaltExtensionGraphicsName));
+    if (graphics_extension &&
+        strcmp(graphics_extension->name, kCobaltExtensionGraphicsName) == 0 &&
+        graphics_extension->version >= 6) {
+      graphics_extension->ReportFullyDrawn();
+    }
   }
 }
 
