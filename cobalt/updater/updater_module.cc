@@ -95,7 +95,7 @@ namespace cobalt {
 namespace updater {
 
 // The delay in seconds before the first update check.
-const uint64_t kDefaultUpdateCheckDelaySeconds = 15;
+const uint64_t kDefaultUpdateCheckDelaySeconds = 30;
 
 void Observer::OnEvent(Events event, const std::string& id) {
   LOG(INFO) << "Observer::OnEvent id=" << id;
