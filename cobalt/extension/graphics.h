@@ -107,6 +107,12 @@ typedef struct CobaltExtensionGraphicsApi {
   bool (*GetRenderRootTransform)(float* m00, float* m01, float* m02, float* m10,
                                  float* m11, float* m12, float* m20, float* m21,
                                  float* m22);
+
+  // The fields below this point were added in version 6 or later.
+
+  // This function is called when the web app reports that it should be drawn.
+  void (*ReportFullyDrawn)();
+
 } CobaltExtensionGraphicsApi;
 
 #ifdef __cplusplus

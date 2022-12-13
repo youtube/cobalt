@@ -18,6 +18,7 @@
 
 #include "cobalt/extension/graphics.h"
 #include "starboard/android/shared/application_android.h"
+#include "starboard/android/shared/jni_env_ext.h"
 
 namespace starboard {
 namespace android {
@@ -40,12 +41,48 @@ bool IsMapToMeshEnabled() {
   return supports_spherical_videos;
 }
 
+bool DefaultShouldClearFrameOnShutdown(float* clear_color_red,
+                                       float* clear_color_green,
+                                       float* clear_color_blue,
+                                       float* clear_color_alpha) {
+  *clear_color_red = 0.0f;
+  *clear_color_green = 0.0f;
+  *clear_color_blue = 0.0f;
+  *clear_color_alpha = 1.0f;
+  return true;
+}
+
+bool DefaultGetMapToMeshColorAdjustments(
+    CobaltExtensionGraphicsMapToMeshColorAdjustment* color_adjustment) {
+  return false;
+}
+
+bool DefaultGetRenderRootTransform(float* m00,
+                                   float* m01,
+                                   float* m02,
+                                   float* m10,
+                                   float* m11,
+                                   float* m12,
+                                   float* m20,
+                                   float* m21,
+                                   float* m22) {
+  return false;
+}
+
+void ReportFullyDrawn() {
+  JniEnvExt::Get()->CallStarboardVoidMethodOrAbort("reportFullyDrawn", "()V");
+}
+
 const CobaltExtensionGraphicsApi kGraphicsApi = {
     kCobaltExtensionGraphicsName,
-    3,
+    6,
     &GetMaximumFrameIntervalInMilliseconds,
     &GetMinimumFrameIntervalInMilliseconds,
     &IsMapToMeshEnabled,
+    &DefaultShouldClearFrameOnShutdown,
+    &DefaultGetMapToMeshColorAdjustments,
+    &DefaultGetRenderRootTransform,
+    &ReportFullyDrawn,
 };
 
 }  // namespace

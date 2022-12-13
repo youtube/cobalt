@@ -69,7 +69,7 @@ TEST(ExtensionTest, Graphics) {
 
   EXPECT_STREQ(extension_api->name, kExtensionName);
   EXPECT_GE(extension_api->version, 1u);
-  EXPECT_LE(extension_api->version, 5u);
+  EXPECT_LE(extension_api->version, 6u);
 
   EXPECT_NE(extension_api->GetMaximumFrameIntervalInMilliseconds, nullptr);
   float maximum_frame_interval =
@@ -106,6 +106,10 @@ TEST(ExtensionTest, Graphics) {
   if (extension_api->version >= 5) {
     EXPECT_NE(extension_api->GetMapToMeshColorAdjustments, nullptr);
     EXPECT_NE(extension_api->GetRenderRootTransform, nullptr);
+  }
+
+  if (extension_api->version >= 6) {
+    EXPECT_NE(extension_api->ReportFullyDrawn, nullptr);
   }
 
   const ExtensionApi* second_extension_api =

@@ -808,4 +808,13 @@ public class StarboardBridge {
     }
     return 0;
   }
+
+  @SuppressWarnings("unused")
+  @UsedByNative
+  void reportFullyDrawn() {
+    Activity activity = activityHolder.get();
+    if (activity != null) {
+      activity.reportFullyDrawn();
+    }
+  }
 }
