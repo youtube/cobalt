@@ -86,7 +86,6 @@ copy("copy_ssl_certificates") {
   sources = [
     "//cobalt/content/ssl/certs/002c0b4f.0",
     "//cobalt/content/ssl/certs/02265526.0",
-    "//cobalt/content/ssl/certs/03179a64.0",
     "//cobalt/content/ssl/certs/062cdee6.0",
     "//cobalt/content/ssl/certs/064e0aa9.0",
     "//cobalt/content/ssl/certs/06dc52d5.0",
