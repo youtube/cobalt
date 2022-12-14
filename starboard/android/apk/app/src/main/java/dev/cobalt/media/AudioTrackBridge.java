@@ -157,8 +157,11 @@ public class AudioTrackBridge {
       }
       // AudioTrack ctor can fail in multiple, platform specific ways, so do a thorough check
       // before proceed.
-      if (audioTrack != null && audioTrack.getState() == AudioTrack.STATE_INITIALIZED) {
-        break;
+      if (audioTrack != null) {
+        if (audioTrack.getState() == AudioTrack.STATE_INITIALIZED) {
+          break;
+        }
+        audioTrack = null;
       }
       audioTrackBufferSize /= 2;
     }
@@ -194,6 +197,7 @@ public class AudioTrackBridge {
     return audioTrack.setVolume(gain);
   }
 
+  // TODO (b/262608024): Have this method return a boolean and return false on failure.
   @SuppressWarnings("unused")
   @UsedByNative
   private void play() {
@@ -201,9 +205,14 @@ public class AudioTrackBridge {
       Log.e(TAG, "Unable to play with NULL audio track.");
       return;
     }
-    audioTrack.play();
+    try {
+      audioTrack.play();
+    } catch (IllegalStateException e) {
+      Log.e(TAG, String.format("Unable to play audio track, error: %s", e.toString()));
+    }
   }
 
+  // TODO (b/262608024): Have this method return a boolean and return false on failure.
   @SuppressWarnings("unused")
   @UsedByNative
   private void pause() {
@@ -211,9 +220,14 @@ public class AudioTrackBridge {
       Log.e(TAG, "Unable to pause with NULL audio track.");
       return;
     }
-    audioTrack.pause();
+    try {
+      audioTrack.pause();
+    } catch (IllegalStateException e) {
+      Log.e(TAG, String.format("Unable to pause audio track, error: %s", e.toString()));
+    }
   }
 
+  // TODO (b/262608024): Have this method return a boolean and return false on failure.
   @SuppressWarnings("unused")
   @UsedByNative
   private void stop() {
@@ -221,7 +235,11 @@ public class AudioTrackBridge {
       Log.e(TAG, "Unable to stop with NULL audio track.");
       return;
     }
-    audioTrack.stop();
+    try {
+      audioTrack.stop();
+    } catch (IllegalStateException e) {
+      Log.e(TAG, String.format("Unable to stop audio track, error: %s", e.toString()));
+    }
   }
 
   @SuppressWarnings("unused")
