@@ -179,7 +179,6 @@ static_library("browser") {
     "//cobalt/script",
     "//cobalt/script:engine",
     "//cobalt/speech",
-    "//cobalt/sso",
     "//cobalt/storage",
     "//cobalt/subtlecrypto",
     "//cobalt/system_window",
