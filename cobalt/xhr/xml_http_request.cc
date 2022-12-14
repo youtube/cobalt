@@ -42,7 +42,6 @@
 #include "cobalt/web/csp_delegate.h"
 #include "cobalt/web/environment_settings.h"
 #include "cobalt/xhr/global_stats.h"
-#include "cobalt/xhr/xhr_modify_headers.h"
 #include "nb/memory_scope.h"
 #include "net/http/http_util.h"
 
@@ -617,10 +616,6 @@ void XMLHttpRequestImpl::SendFallback(
   // Step 3 - 7
   error_ = false;
   upload_complete_ = false;
-
-#if defined(COBALT_ENABLE_XHR_HEADER_FILTERING)
-  CobaltXhrModifyHeader(request_url_, &request_headers_);
-#endif
 
   // Add request body, if appropriate.
   if ((method_ == net::URLFetcher::POST || method_ == net::URLFetcher::PUT) &&

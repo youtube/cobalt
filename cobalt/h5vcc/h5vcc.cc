@@ -20,7 +20,6 @@
 #endif
 
 #include "cobalt/persistent_storage/persistent_settings.h"
-#include "cobalt/sso/sso_interface.h"
 
 namespace cobalt {
 namespace h5vcc {
@@ -38,9 +37,6 @@ H5vcc::H5vcc(const Settings& settings) {
       settings.updater_module,
 #endif
       settings.user_agent_data, settings.global_environment);
-#if defined(COBALT_ENABLE_SSO)
-  sso_ = new H5vccSso();
-#endif
   storage_ =
       new H5vccStorage(settings.network_module, settings.persistent_settings);
   trace_event_ = new H5vccTraceEvent();
@@ -77,7 +73,6 @@ void H5vcc::TraceMembers(script::Tracer* tracer) {
   tracer->Trace(crash_log_);
   tracer->Trace(runtime_);
   tracer->Trace(settings_);
-  tracer->Trace(sso_);
   tracer->Trace(storage_);
   tracer->Trace(system_);
   tracer->Trace(trace_event_);
