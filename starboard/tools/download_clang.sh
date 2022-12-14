@@ -29,9 +29,17 @@ BASE_URL="https://commondatastorage.googleapis.com/chromium-browser-clang"
 
 cd /tmp
 mkdir -p ${TOOLCHAIN_HOME}
+
+# Download and extract clang.
 curl --silent -O -J ${BASE_URL}/Linux_x64/clang-${CLANG_VERSION}.tgz
 tar xf clang-${CLANG_VERSION}.tgz -C ${TOOLCHAIN_HOME}
-echo ${CLANG_VERSION} >> ${TOOLCHAIN_HOME}/cr_build_revision
 rm clang-${CLANG_VERSION}.tgz
+
+# Download and extract llvm coverage tools.
+curl --silent -O -J ${BASE_URL}/Linux_x64/llvm-code-coverage-${CLANG_VERSION}.tgz
+tar xf llvm-code-coverage-${CLANG_VERSION}.tgz -C ${TOOLCHAIN_HOME}
+rm llvm-code-coverage-${CLANG_VERSION}.tgz
+
+echo ${CLANG_VERSION} >> ${TOOLCHAIN_HOME}/cr_build_revision
 
 echo "Downloaded clang."
