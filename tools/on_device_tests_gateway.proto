@@ -56,7 +56,8 @@ message OnDeviceTestsWatchCommand {
   string workdir = 1;
   string token = 2;
   string session_id = 3;
-  optional bool dry_run = 15;
+  string change_id = 4;
+  optional bool dry_run = 5;
 }
 
 // Response from the on-device tests.
