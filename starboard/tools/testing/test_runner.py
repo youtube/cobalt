@@ -27,6 +27,7 @@ import threading
 import traceback
 
 from six.moves import cStringIO as StringIO
+from starboard.build import clang
 from starboard.tools import abstract_launcher
 from starboard.tools import build
 from starboard.tools import command_line
@@ -831,17 +832,21 @@ class TestRunner(object):
     if not available_profraw_files:
       return
 
+    toolchain_dir = build.GetClangBinPath(clang.GetClangSpecification())
+
     report_name = "report"
     profdata_name = os.path.join(self.coverage_directory,
                                  report_name + ".profdata")
     merge_cmd_list = [
-        "llvm-profdata", "merge", "-sparse=true", "-o", profdata_name
+        os.path.join(toolchain_dir, "llvm-profdata"), "merge", "-sparse=true",
+        "-o", profdata_name
     ]
     merge_cmd_list += available_profraw_files
 
     self._Exec(merge_cmd_list)
     show_cmd_list = [
-        "llvm-cov", "show", "-instr-profile=" + profdata_name, "-format=html",
+        os.path.join(toolchain_dir, "llvm-cov"), "show",
+        "-instr-profile=" + profdata_name, "-format=html",
         "-output-dir=" + os.path.join(self.coverage_directory, "html"),
         available_targets[0]
     ]
@@ -849,8 +854,8 @@ class TestRunner(object):
     self._Exec(show_cmd_list)
 
     report_cmd_list = [
-        "llvm-cov", "report", "-instr-profile=" + profdata_name,
-        available_targets[0]
+        os.path.join(toolchain_dir, "llvm-cov"), "report",
+        "-instr-profile=" + profdata_name, available_targets[0]
     ]
     report_cmd_list += ["-object=" + target for target in available_targets[1:]]
     self._Exec(

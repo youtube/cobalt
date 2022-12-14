@@ -149,7 +149,7 @@ def _GetClangBasePath(clang_spec):
                       'x86_64-linux-gnu-clang-chromium-' + clang_spec.revision)
 
 
-def _GetClangBinPath(clang_spec):
+def GetClangBinPath(clang_spec):
   return os.path.join(_GetClangBasePath(clang_spec), 'bin')
 
 
@@ -162,7 +162,7 @@ def EnsureClangAvailable(clang_spec):
   download_clang.UpdateClang(target_dir=base_dir, revision=clang_spec.revision)
 
   # update.sh downloads Clang to this path.
-  clang_bin = os.path.join(_GetClangBinPath(clang_spec), 'clang')
+  clang_bin = os.path.join(GetClangBinPath(clang_spec), 'clang')
 
   if not os.path.exists(clang_bin):
     raise RuntimeError('Clang not found.')
