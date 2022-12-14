@@ -100,6 +100,7 @@ class OnDeviceTestsGatewayClient():
         on_device_tests_gateway_pb2.OnDeviceTestsWatchCommand(
             workdir=workdir,
             token=args.token,
+            change_id=args.change_id,
             session_id=args.session_id,
         )):
 
@@ -128,6 +129,12 @@ def main():
       '--dry_run',
       action='store_true',
       help='Specifies to show what would be done without actually doing it.')
+  parser.add_argument(
+      '-i',
+      '--change_id',
+      type=str,
+      help='ChangeId that triggered this test, if any. '
+      'Saved with performance test results.')
 
   subparsers = parser.add_subparsers(
       dest='action', help='On-Device tests commands', required=True)
@@ -177,12 +184,6 @@ def main():
       type=str,
       help='Name of the builder that built the artifacts, '
       'if any. Saved with performance test results')
-  trigger_parser.add_argument(
-      '-i',
-      '--change_id',
-      type=str,
-      help='ChangeId that triggered this test, if any. '
-      'Saved with performance test results.')
   trigger_parser.add_argument(
       '-n',
       '--build_number',
