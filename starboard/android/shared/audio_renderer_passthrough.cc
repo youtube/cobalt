@@ -535,14 +535,18 @@ void AudioRendererPassthrough::UpdateStatusAndWriteData(
                  "has likely changed. Restarting playback.";
           error_cb_(kSbPlayerErrorCapabilityChanged,
                     "Audio device capability changed");
-          audio_track_bridge_->PauseAndFlush();
-          return;
+        } else {
+          // `kSbPlayerErrorDecode` is used for general SbPlayer error, there is
+          // no error code corresponding to audio sink.
+          error_cb_(
+              kSbPlayerErrorDecode,
+              FormatString("Error while writing frames: %d", samples_written));
+          SB_LOG(INFO) << "Encountered kSbPlayerErrorDecode while writing "
+                          "frames, error: "
+                       << samples_written;
         }
-        // `kSbPlayerErrorDecode` is used for general SbPlayer error, there is
-        // no error code corresponding to audio sink.
-        error_cb_(
-            kSbPlayerErrorDecode,
-            FormatString("Error while writing frames: %d", samples_written));
+        audio_track_bridge_->PauseAndFlush();
+        return;
       }
       decoded_audio_writing_offset_ += samples_written;
 
