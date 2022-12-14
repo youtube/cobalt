@@ -246,13 +246,13 @@ jobs:
           echo "session_id=$(
             python3 tools/on_device_tests_gateway_client.py \
               --token ${{ github.token }} \
+              --change_id "${{ github.sha }}" \
               trigger \
               --test_type ${{ matrix.type }} \
               --platform ${{ matrix.platform }} \
               --config ${{ matrix.config }} \
               --label cobalt_github_${{ github.event_name }} \
               --tag cobalt_github_${{ github.event_name }} \
-              --change_id "${{ github.sha }}" \
               --builder_name github_${{ matrix.platform }}_tests \
               --build_number ${GITHUB_RUN_NUMBER} \
               --version '23.lts.1+' \
@@ -266,6 +266,7 @@ jobs:
         run: |
           python3 tools/on_device_tests_gateway_client.py \
             --token ${{ github.token }} \
+            --change_id "${{ github.sha }}" \
             watch ${{ env.session_id }}
 
   # Runs on-host integration and unit tests.
