@@ -108,6 +108,7 @@ static_library("web") {
     "//cobalt/browser:generated_bindings",
     "//cobalt/cache",
     "//cobalt/csp",
+    "//cobalt/dom:media_settings",
     "//cobalt/network",
     "//cobalt/network_bridge",
     "//cobalt/script",

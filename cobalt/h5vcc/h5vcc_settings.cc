@@ -19,18 +19,15 @@
 namespace cobalt {
 namespace h5vcc {
 
-H5vccSettings::H5vccSettings(
-    const SetSettingFunc& set_web_setting_func,
-    const SetSettingFunc& set_media_source_setting_func,
-    cobalt::media::MediaModule* media_module,
-    cobalt::network::NetworkModule* network_module,
+H5vccSettings::H5vccSettings(const SetSettingFunc& set_web_setting_func,
+                             cobalt::media::MediaModule* media_module,
+                             cobalt::network::NetworkModule* network_module,
 #if SB_IS(EVERGREEN)
-    cobalt::updater::UpdaterModule* updater_module,
+                             cobalt::updater::UpdaterModule* updater_module,
 #endif
-    web::NavigatorUAData* user_agent_data,
-    script::GlobalEnvironment* global_environment)
+                             web::NavigatorUAData* user_agent_data,
+                             script::GlobalEnvironment* global_environment)
     : set_web_setting_func_(set_web_setting_func),
-      set_media_source_setting_func_(set_media_source_setting_func),
       media_module_(media_module),
       network_module_(network_module),
 #if SB_IS(EVERGREEN)
@@ -50,12 +47,6 @@ bool H5vccSettings::Set(const std::string& name, int32 value) const {
 #endif
 
   if (set_web_setting_func_ && set_web_setting_func_.Run(name, value)) {
-    return true;
-  }
-
-  // TODO: MediaSource settings should be part of WebSettings.
-  if (set_media_source_setting_func_ &&
-      set_media_source_setting_func_.Run(name, value)) {
     return true;
   }
 

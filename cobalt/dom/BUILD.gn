@@ -14,6 +14,12 @@
 
 import("//cobalt/build/contents_dir.gni")
 
+source_set("media_settings") {
+  has_pedantic_warnings = true
+  sources = [ "media_settings.h" ]
+  public_deps = [ "//cobalt/base" ]
+}
+
 static_library("dom") {
   has_pedantic_warnings = true
 
@@ -185,10 +191,9 @@ static_library("dom") {
     "lottie_player.h",
     "media_query_list.cc",
     "media_query_list.h",
+    "media_settings.cc",
     "media_source.cc",
     "media_source.h",
-    "media_source_settings.cc",
-    "media_source_settings.h",
     "memory_info.cc",
     "memory_info.h",
     "mime_type_array.cc",
@@ -310,6 +315,7 @@ static_library("dom") {
   }
 
   public_deps = [
+    ":media_settings",
     "//cobalt/browser:generated_types",
     "//cobalt/web",
     "//cobalt/web:window_timers",
@@ -387,7 +393,7 @@ target(gtest_target_type, "dom_test") {
     "local_storage_database_test.cc",
     "location_test.cc",
     "media_query_list_test.cc",
-    "media_source_settings_test.cc",
+    "media_settings_test.cc",
     "mutation_observer_test.cc",
     "named_node_map_test.cc",
     "navigator_licenses_test.cc",
