@@ -17,6 +17,7 @@
 
 #include <string>
 
+#include "cobalt/dom/media_settings.h"
 #include "cobalt/xhr/xhr_settings.h"
 #include "starboard/types.h"
 
@@ -46,6 +47,7 @@ namespace web {
 // concrete class below.
 class WebSettings {
  public:
+  virtual const dom::MediaSettings& media_settings() const = 0;
   virtual const xhr::XhrSettings& xhr_settings() const = 0;
 
  protected:
@@ -57,11 +59,19 @@ class WebSettings {
 // a name.
 class WebSettingsImpl final : public web::WebSettings {
  public:
+  const dom::MediaSettings& media_settings() const override {
+    return media_settings_impl_;
+  }
+
   const xhr::XhrSettingsImpl& xhr_settings() const override {
     return xhr_settings_impl_;
   }
 
   bool Set(const std::string& name, int32_t value) {
+    if (media_settings_impl_.Set(name, value)) {
+      return true;
+    }
+
     if (xhr_settings_impl_.Set(name, value)) {
       return true;
     }
@@ -71,6 +81,7 @@ class WebSettingsImpl final : public web::WebSettings {
   }
 
  private:
+  dom::MediaSettingsImpl media_settings_impl_;
   xhr::XhrSettingsImpl xhr_settings_impl_;
 };
 

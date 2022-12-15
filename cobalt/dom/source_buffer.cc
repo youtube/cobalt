@@ -56,8 +56,11 @@
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/dom/dom_settings.h"
+#include "cobalt/dom/media_settings.h"
 #include "cobalt/dom/media_source.h"
+#include "cobalt/web/context.h"
 #include "cobalt/web/dom_exception.h"
+#include "cobalt/web/web_settings.h"
 #include "third_party/chromium/media/base/ranges.h"
 #include "third_party/chromium/media/base/timestamp_constants.h"
 
@@ -87,32 +90,36 @@ static base::TimeDelta DoubleToTimeDelta(double time) {
   return base::TimeDelta::FromSecondsD(time);
 }
 
+const MediaSettings& GetMediaSettings(web::EnvironmentSettings* settings) {
+  DCHECK(settings);
+  DCHECK(settings->context());
+  DCHECK(settings->context()->web_settings());
+
+  const auto& web_settings = settings->context()->web_settings();
+  return web_settings->media_settings();
+}
+
 // The return value will be used in `SourceBuffer::EvictCodedFrames()` to allow
 // it to evict extra data from the SourceBuffer, so it can reduce the overall
 // memory used by the underlying Demuxer implementation.
 // The default value is 0, i.e. do not evict extra bytes.
-size_t GetEvictExtraInBytes(script::EnvironmentSettings* settings) {
-  DOMSettings* dom_settings =
-      base::polymorphic_downcast<DOMSettings*>(settings);
-  DCHECK(dom_settings);
-  DCHECK(dom_settings->media_source_settings());
-  int bytes = dom_settings->media_source_settings()
-                  ->GetSourceBufferEvictExtraInBytes()
-                  .value_or(0);
+size_t GetEvictExtraInBytes(web::EnvironmentSettings* settings) {
+  const MediaSettings& media_settings = GetMediaSettings(settings);
+
+  int bytes = media_settings.GetSourceBufferEvictExtraInBytes().value_or(0);
   DCHECK_GE(bytes, 0);
+
   return std::max<int>(bytes, 0);
 }
 
-size_t GetMaxAppendSizeInBytes(script::EnvironmentSettings* settings,
+size_t GetMaxAppendSizeInBytes(web::EnvironmentSettings* settings,
                                size_t default_value) {
-  DOMSettings* dom_settings =
-      base::polymorphic_downcast<DOMSettings*>(settings);
-  DCHECK(dom_settings);
-  DCHECK(dom_settings->media_source_settings());
-  int bytes = dom_settings->media_source_settings()
-                  ->GetMaxSourceBufferAppendSizeInBytes()
-                  .value_or(default_value);
+  const MediaSettings& media_settings = GetMediaSettings(settings);
+
+  int bytes = media_settings.GetMaxSourceBufferAppendSizeInBytes().value_or(
+      default_value);
   DCHECK_GT(bytes, 0);
+
   return bytes;
 }
 
@@ -150,9 +157,9 @@ SourceBuffer::SourceBuffer(script::EnvironmentSettings* settings,
     : web::EventTarget(settings),
       on_init_segment_received_helper_(new OnInitSegmentReceivedHelper(this)),
       id_(id),
-      evict_extra_in_bytes_(GetEvictExtraInBytes(settings)),
-      max_append_buffer_size_(
-          GetMaxAppendSizeInBytes(settings, kDefaultMaxAppendBufferSize)),
+      evict_extra_in_bytes_(GetEvictExtraInBytes(environment_settings())),
+      max_append_buffer_size_(GetMaxAppendSizeInBytes(
+          environment_settings(), kDefaultMaxAppendBufferSize)),
       media_source_(media_source),
       chunk_demuxer_(chunk_demuxer),
       event_queue_(event_queue),

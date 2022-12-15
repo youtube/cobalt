@@ -56,7 +56,6 @@ class H5vcc : public script::Wrappable {
           global_environment(NULL) {
     }
     H5vccSettings::SetSettingFunc set_web_setting_func;
-    H5vccSettings::SetSettingFunc set_media_source_setting_func;
     media::MediaModule* media_module;
     network::NetworkModule* network_module;
 #if SB_IS(EVERGREEN)

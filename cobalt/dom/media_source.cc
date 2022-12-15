@@ -57,6 +57,8 @@
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/dom/dom_settings.h"
+#include "cobalt/dom/media_settings.h"
+#include "cobalt/web/context.h"
 #include "cobalt/web/dom_exception.h"
 #include "cobalt/web/event.h"
 #include "starboard/media.h"
@@ -72,12 +74,13 @@ using ::media::CHUNK_DEMUXER_ERROR_EOS_STATUS_NETWORK_ERROR;
 using ::media::PIPELINE_OK;
 using ::media::PipelineStatus;
 
-auto GetMediaSettings(script::EnvironmentSettings* settings) {
-  DOMSettings* dom_settings =
-      base::polymorphic_downcast<DOMSettings*>(settings);
-  DCHECK(dom_settings);
-  DCHECK(dom_settings->media_source_settings());
-  return dom_settings->media_source_settings();
+const MediaSettings& GetMediaSettings(web::EnvironmentSettings* settings) {
+  DCHECK(settings);
+  DCHECK(settings->context());
+  DCHECK(settings->context()->web_settings());
+
+  const auto& web_settings = settings->context()->web_settings();
+  return web_settings->media_settings();
 }
 
 // If the system has more processors than the specified value, SourceBuffer
@@ -86,10 +89,10 @@ auto GetMediaSettings(script::EnvironmentSettings* settings) {
 // The default value is 1024, which effectively disable offloading by default.
 // Setting to a reasonably low value (say 0 or 2) will enable algorithm
 // offloading.
-bool IsAlgorithmOffloadEnabled(script::EnvironmentSettings* settings) {
+bool IsAlgorithmOffloadEnabled(web::EnvironmentSettings* settings) {
   int min_process_count_to_offload =
       GetMediaSettings(settings)
-          ->GetMinimumProcessorCountToOffloadAlgorithm()
+          .GetMinimumProcessorCountToOffloadAlgorithm()
           .value_or(1024);
   DCHECK_GE(min_process_count_to_offload, 0);
   return SbSystemGetNumberOfProcessors() >= min_process_count_to_offload;
@@ -99,8 +102,8 @@ bool IsAlgorithmOffloadEnabled(script::EnvironmentSettings* settings) {
 // behaviors.  For example, queued events will be dispatached immediately when
 // possible.
 // The default value is false.
-bool IsAsynchronousReductionEnabled(script::EnvironmentSettings* settings) {
-  return GetMediaSettings(settings)->IsAsynchronousReductionEnabled().value_or(
+bool IsAsynchronousReductionEnabled(web::EnvironmentSettings* settings) {
+  return GetMediaSettings(settings).IsAsynchronousReductionEnabled().value_or(
       false);
 }
 
@@ -110,10 +113,10 @@ bool IsAsynchronousReductionEnabled(script::EnvironmentSettings* settings) {
 // NOTE: This only works when IsAsynchronousReductionEnabled() returns true,
 //       and it is currently only enabled for buffer append.
 // The default value is 16 KB.  Set to 0 will disable immediate job completely.
-int GetMaxSizeForImmediateJob(script::EnvironmentSettings* settings) {
+int GetMaxSizeForImmediateJob(web::EnvironmentSettings* settings) {
   const int kDefaultMaxSize = 16 * 1024;
   auto max_size =
-      GetMediaSettings(settings)->GetMaxSizeForImmediateJob().value_or(
+      GetMediaSettings(settings).GetMaxSizeForImmediateJob().value_or(
           kDefaultMaxSize);
   DCHECK_GE(max_size, 0);
   return max_size;
@@ -123,9 +126,12 @@ int GetMaxSizeForImmediateJob(script::EnvironmentSettings* settings) {
 
 MediaSource::MediaSource(script::EnvironmentSettings* settings)
     : web::EventTarget(settings),
-      algorithm_offload_enabled_(IsAlgorithmOffloadEnabled(settings)),
-      asynchronous_reduction_enabled_(IsAsynchronousReductionEnabled(settings)),
-      max_size_for_immediate_job_(GetMaxSizeForImmediateJob(settings)),
+      algorithm_offload_enabled_(
+          IsAlgorithmOffloadEnabled(environment_settings())),
+      asynchronous_reduction_enabled_(
+          IsAsynchronousReductionEnabled(environment_settings())),
+      max_size_for_immediate_job_(
+          GetMaxSizeForImmediateJob(environment_settings())),
       default_algorithm_runner_(asynchronous_reduction_enabled_),
       chunk_demuxer_(NULL),
       ready_state_(kMediaSourceReadyStateClosed),

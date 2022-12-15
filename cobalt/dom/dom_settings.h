@@ -18,7 +18,6 @@
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
 #include "cobalt/base/debugger_hooks.h"
-#include "cobalt/dom/media_source_settings.h"
 #include "cobalt/dom/mutation_observer_task_manager.h"
 #include "cobalt/media/can_play_type_handler.h"
 #include "cobalt/media/decoder_buffer_memory_info.h"
@@ -57,7 +56,6 @@ class DOMSettings : public web::EnvironmentSettings {
   DOMSettings(const base::DebuggerHooks& debugger_hooks,
               const int max_dom_element_depth,
               MediaSourceRegistry* media_source_registry,
-              const MediaSourceSettings* media_source_settings,
               media::CanPlayTypeHandler* can_play_type_handler,
               const media::DecoderBufferMemoryInfo* decoder_buffer_memory_info,
               MutationObserverTaskManager* mutation_observer_task_manager,
@@ -73,9 +71,6 @@ class DOMSettings : public web::EnvironmentSettings {
 
   MediaSourceRegistry* media_source_registry() const {
     return media_source_registry_;
-  }
-  const MediaSourceSettings* media_source_settings() const {
-    return media_source_settings_;
   }
   void set_decoder_buffer_memory_info(
       const media::DecoderBufferMemoryInfo* decoder_buffer_memory_info) {
@@ -103,7 +98,6 @@ class DOMSettings : public web::EnvironmentSettings {
   const int max_dom_element_depth_;
   const speech::Microphone::Options microphone_options_;
   MediaSourceRegistry* media_source_registry_;
-  const MediaSourceSettings* media_source_settings_;
   media::CanPlayTypeHandler* can_play_type_handler_;
   const media::DecoderBufferMemoryInfo* decoder_buffer_memory_info_;
   MutationObserverTaskManager* mutation_observer_task_manager_;

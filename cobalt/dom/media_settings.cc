@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/dom/media_source_settings.h"
+#include "cobalt/dom/media_settings.h"
 
 #include <cstring>
 
@@ -21,9 +21,10 @@
 namespace cobalt {
 namespace dom {
 
-bool MediaSourceSettingsImpl::Set(const std::string& name, int value) {
-  const char kPrefix[] = "MediaSource.";
-  if (name.compare(0, strlen(kPrefix), kPrefix) != 0) {
+bool MediaSettingsImpl::Set(const std::string& name, int value) {
+  const char* kPrefixes[] = {"MediaElement.", "MediaSource."};
+  if (name.compare(0, strlen(kPrefixes[0]), kPrefixes[0]) != 0 &&
+      name.compare(0, strlen(kPrefixes[1]), kPrefixes[1]) != 0) {
     return false;
   }
 
@@ -55,6 +56,12 @@ bool MediaSourceSettingsImpl::Set(const std::string& name, int value) {
   } else if (name == "MediaSource.MaxSourceBufferAppendSizeInBytes") {
     if (value > 0) {
       max_source_buffer_append_size_in_bytes_ = value;
+      LOG(INFO) << name << ": set to " << value;
+      return true;
+    }
+  } else if (name == "MediaElement.TimeupdateEventIntervalInMilliseconds") {
+    if (value > 0) {
+      media_element_timeupdate_event_interval_in_milliseconds_ = value;
       LOG(INFO) << name << ": set to " << value;
       return true;
     }

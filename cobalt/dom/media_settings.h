@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_DOM_MEDIA_SOURCE_SETTINGS_H_
-#define COBALT_DOM_MEDIA_SOURCE_SETTINGS_H_
+#ifndef COBALT_DOM_MEDIA_SETTINGS_H_
+#define COBALT_DOM_MEDIA_SETTINGS_H_
 
 #include <string>
 
@@ -23,13 +23,12 @@
 namespace cobalt {
 namespace dom {
 
-// Holds WebModule wide settings for MediaSource related objects.  Their default
-// values are set in MediaSource related implementations, and the default values
-// will be overridden if the return values of the member functions are
-// non-empty.
+// Holds browser wide settings for media related objects.  Their default values
+// are set in related implementations, and the default values will be overridden
+// if the return values of the member functions are non-empty.
 // Please refer to where these functions are called for the particular
-// MediaSource behaviors being controlled by them.
-class MediaSourceSettings {
+// behaviors being controlled by them.
+class MediaSettings {
  public:
   virtual base::Optional<int> GetSourceBufferEvictExtraInBytes() const = 0;
   virtual base::Optional<int> GetMinimumProcessorCountToOffloadAlgorithm()
@@ -38,18 +37,21 @@ class MediaSourceSettings {
   virtual base::Optional<int> GetMaxSizeForImmediateJob() const = 0;
   virtual base::Optional<int> GetMaxSourceBufferAppendSizeInBytes() const = 0;
 
- protected:
-  MediaSourceSettings() = default;
-  ~MediaSourceSettings() = default;
+  virtual base::Optional<int>
+  GetMediaElementTimeupdateEventIntervalInMilliseconds() const = 0;
 
-  MediaSourceSettings(const MediaSourceSettings&) = delete;
-  MediaSourceSettings& operator=(const MediaSourceSettings&) = delete;
+ protected:
+  MediaSettings() = default;
+  ~MediaSettings() = default;
+
+  MediaSettings(const MediaSettings&) = delete;
+  MediaSettings& operator=(const MediaSettings&) = delete;
 };
 
 // Allows setting the values of MediaSource settings via a name and an int
 // value.
 // This class is thread safe.
-class MediaSourceSettingsImpl : public MediaSourceSettings {
+class MediaSettingsImpl : public MediaSettings {
  public:
   base::Optional<int> GetSourceBufferEvictExtraInBytes() const override {
     base::AutoLock auto_lock(lock_);
@@ -73,6 +75,11 @@ class MediaSourceSettingsImpl : public MediaSourceSettings {
     return max_source_buffer_append_size_in_bytes_;
   }
 
+  base::Optional<int> GetMediaElementTimeupdateEventIntervalInMilliseconds()
+      const override {
+    return media_element_timeupdate_event_interval_in_milliseconds_;
+  }
+
   // Returns true when the setting associated with `name` is set to `value`.
   // Returns false when `name` is not associated with any settings, or if
   // `value` contains an invalid value.
@@ -85,9 +92,11 @@ class MediaSourceSettingsImpl : public MediaSourceSettings {
   base::Optional<bool> is_asynchronous_reduction_enabled_;
   base::Optional<int> max_size_for_immediate_job_;
   base::Optional<int> max_source_buffer_append_size_in_bytes_;
+
+  base::Optional<int> media_element_timeupdate_event_interval_in_milliseconds_;
 };
 
 }  // namespace dom
 }  // namespace cobalt
 
-#endif  // COBALT_DOM_MEDIA_SOURCE_SETTINGS_H_
+#endif  // COBALT_DOM_MEDIA_SETTINGS_H_

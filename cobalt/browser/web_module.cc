@@ -48,7 +48,6 @@
 #include "cobalt/dom/keyboard_event.h"
 #include "cobalt/dom/keyboard_event_init.h"
 #include "cobalt/dom/local_storage_database.h"
-#include "cobalt/dom/media_source_settings.h"
 #include "cobalt/dom/mutation_observer_task_manager.h"
 #include "cobalt/dom/navigation_type.h"
 #include "cobalt/dom/navigator.h"
@@ -217,8 +216,6 @@ class WebModule::Impl {
   void SetSize(cssom::ViewportSize viewport_size);
   void UpdateCamera3D(const scoped_refptr<input::Camera3D>& camera_3d);
   void SetMediaModule(media::MediaModule* media_module);
-  void SetMediaSourceSetting(const std::string& name, int value,
-                             bool* succeeded);
   void SetImageCacheCapacity(int64_t bytes);
   void SetRemoteTypefaceCacheCapacity(int64_t bytes);
 
@@ -401,9 +398,6 @@ class WebModule::Impl {
 
   // Object to register and retrieve MediaSource object with a string key.
   std::unique_ptr<dom::MediaSource::Registry> media_source_registry_;
-
-  // Object to hold WebModule wide settings for MediaSource related objects.
-  dom::MediaSourceSettingsImpl media_source_settings_;
 
   // The Window object wraps all DOM-related components.
   scoped_refptr<dom::Window> window_;
@@ -589,8 +583,8 @@ WebModule::Impl::Impl(web::Context* web_context, const ConstructionData& data)
 
   web_context_->setup_environment_settings(new dom::DOMSettings(
       debugger_hooks_, kDOMMaxElementDepth, media_source_registry_.get(),
-      &media_source_settings_, data.can_play_type_handler, memory_info,
-      &mutation_observer_task_manager_, data.options.dom_settings_options));
+      data.can_play_type_handler, memory_info, &mutation_observer_task_manager_,
+      data.options.dom_settings_options));
   DCHECK(web_context_->environment_settings());
   // From algorithm to setup up a window environment settings object:
   //   https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#set-up-a-window-environment-settings-object
@@ -1106,12 +1100,6 @@ void WebModule::Impl::SetMediaModule(media::MediaModule* media_module) {
   window_->set_web_media_player_factory(media_module);
 }
 
-void WebModule::Impl::SetMediaSourceSetting(const std::string& name, int value,
-                                            bool* succeeded) {
-  DCHECK(succeeded);
-  *succeeded = media_source_settings_.Set(name, value);
-}
-
 void WebModule::Impl::SetApplicationState(base::ApplicationState state,
                                           SbTimeMonotonic timestamp) {
   window_->SetApplicationState(state, timestamp);
@@ -1611,12 +1599,6 @@ void WebModule::SetMediaModule(media::MediaModule* media_module) {
   impl_->SetMediaModule(media_module);
 }
 
-bool WebModule::SetMediaSourceSetting(const std::string& name, int value) {
-  bool succeeded = false;
-  SetMediaSourceSettingInternal(name, value, &succeeded);
-  return succeeded;
-}
-
 void WebModule::SetImageCacheCapacity(int64_t bytes) {
   POST_TO_ENSURE_IMPL_ON_THREAD(SetImageCacheCapacity, bytes);
   impl_->SetImageCacheCapacity(bytes);
@@ -1748,13 +1730,6 @@ void WebModule::SetUnloadEventTimingInfo(base::TimeTicks start_time,
   TRACE_EVENT0("cobalt::browser", "WebModule::SetUnloadEventTimingInfo()");
   POST_TO_ENSURE_IMPL_ON_THREAD(SetUnloadEventTimingInfo, start_time, end_time);
   impl_->SetUnloadEventTimingInfo(start_time, end_time);
-}
-
-void WebModule::SetMediaSourceSettingInternal(const std::string& name,
-                                              int value, bool* succeeded) {
-  POST_AND_BLOCK_TO_ENSURE_IMPL_ON_THREAD(SetMediaSourceSettingInternal, name,
-                                          value, succeeded);
-  impl_->SetMediaSourceSetting(name, value, succeeded);
 }
 
 }  // namespace browser

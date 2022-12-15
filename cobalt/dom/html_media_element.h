@@ -161,9 +161,6 @@ class HTMLMediaElement : public HTMLElement,
   const WebMediaPlayer* player() const { return player_.get(); }
 
  private:
-  static const char kMediaSourceUrlProtocol[];
-  static const double kMaxTimeupdateEventFrequency;
-
   // Loading
   void CreateMediaPlayer();
   void ScheduleLoad();
