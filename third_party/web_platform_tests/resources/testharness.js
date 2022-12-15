@@ -198,6 +198,10 @@ policies and contribution forms [3].
             this_obj.output_handler.show_status();
         });
 
+        add_completion_callback(function (tests, harness_status) {
+            this_obj.output_handler.show_results(tests, harness_status);
+        });
+
         this.setup_messages(settings.message_events);
     };
 
