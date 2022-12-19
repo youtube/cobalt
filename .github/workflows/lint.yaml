@@ -43,4 +43,4 @@ jobs:
       - name: pre-commit
         uses: ./.github/actions/pre_commit
         with:
-          base_ref: ${{ github.event.pull_request.base.sha && github.event.pull_request.base.sha || github.event.base_ref }}
+          base_ref: ${{ github.event.pull_request.base.sha && github.event.pull_request.base.sha || github.event.before }}
