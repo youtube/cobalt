@@ -42,8 +42,6 @@ class FetchBufferPool {
       : default_buffer_size_(
             default_buffer_size.value_or(kDefaultBufferSize + 0)) {
     DCHECK_GT(default_buffer_size_, 0);
-    LOG(INFO) << "Creating FetchBufferPool with default buffer size "
-              << default_buffer_size_;
   }
   ~FetchBufferPool() = default;
 
