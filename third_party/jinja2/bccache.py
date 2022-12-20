@@ -14,7 +14,7 @@
     :copyright: (c) 2010 by the Jinja Team.
     :license: BSD.
 """
-from os import path, listdir, pardir
+from os import path, listdir, pardir, sep
 import sys
 import marshal
 import tempfile
@@ -175,9 +175,13 @@ class BytecodeCache(object):
         """Return a cache bucket for the given template.  All arguments are
         mandatory but filename may be `None`.
         """
+        # TODO(b/263289873): To get correct GN outputs the file list of cached
+        # templates should be printed to a depfile.
         # Use the path to the template relative to the project root to get a
-        # consistent hash.
-        key = self.get_cache_key(name, path.relpath(filename, _REPOSITORY_ROOT))
+        # consistent hash. To have hashes consistent across platforms we have to
+        # replace the path separator.
+        rel_path = path.relpath(filename, _REPOSITORY_ROOT)
+        key = self.get_cache_key(name, rel_path.replace(sep, '/'))
         checksum = self.get_source_checksum(source)
         bucket = Bucket(environment, key, checksum)
         self.load_bytecode(bucket)
