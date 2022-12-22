@@ -369,8 +369,7 @@ scoped_refptr<InputBuffer> VideoDecoderTestFixture::GetVideoInputBuffer(
   if (iter != invalid_inputs_.end()) {
     std::vector<uint8_t> content(input_buffer->size(), iter->second);
     // Replace the content with invalid data.
-    input_buffer->SetDecryptedContent(content.data(),
-                                      static_cast<int>(content.size()));
+    input_buffer->SetDecryptedContent(std::move(content));
   }
   return input_buffer;
 }

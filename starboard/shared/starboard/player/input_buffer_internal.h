@@ -58,7 +58,7 @@ class InputBuffer : public RefCountedThreadSafe<InputBuffer> {
   const SbDrmSampleInfo* drm_info() const {
     return has_drm_info_ ? &drm_info_ : NULL;
   }
-  void SetDecryptedContent(const void* buffer, int size);
+  void SetDecryptedContent(std::vector<uint8_t> decrypted_content);
 
   std::string ToString() const;
 
