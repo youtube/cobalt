@@ -18,6 +18,7 @@
 #include <cstring>
 #include <numeric>
 #include <sstream>
+#include <utility>
 
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
@@ -65,18 +66,17 @@ InputBuffer::~InputBuffer() {
   DeallocateSampleBuffer(data_);
 }
 
-void InputBuffer::SetDecryptedContent(const void* buffer, int size) {
-  SB_DCHECK(size == size_);
+void InputBuffer::SetDecryptedContent(std::vector<uint8_t> decrypted_content) {
+  SB_DCHECK(decrypted_content.size() == size_);
   DeallocateSampleBuffer(data_);
 
-  if (size > 0) {
-    flattened_data_.clear();
-    flattened_data_.assign(static_cast<const uint8_t*>(buffer),
-                           static_cast<const uint8_t*>(buffer) + size);
-    data_ = flattened_data_.data();
-  } else {
+  if (decrypted_content.empty()) {
     data_ = NULL;
+  } else {
+    flattened_data_ = std::move(decrypted_content);
+    data_ = flattened_data_.data();
   }
+
   has_drm_info_ = false;
 }
 

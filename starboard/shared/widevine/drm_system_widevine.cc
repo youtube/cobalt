@@ -15,6 +15,7 @@
 #include "starboard/shared/widevine/drm_system_widevine.h"
 
 #include <algorithm>
+#include <utility>
 #include <vector>
 
 #include "starboard/character.h"
@@ -440,6 +441,7 @@ SbDrmSystemPrivate::DecryptStatus DrmSystemWidevine::Decrypt(
   input.pattern.clear_blocks = drm_info->encryption_pattern.skip_byte_block;
 
   std::vector<uint8_t> output_data(buffer->size());
+
   wv3cdm::OutputBuffer output;
   output.data = output_data.data();
   output.data_length = output_data.size();
@@ -540,7 +542,7 @@ SbDrmSystemPrivate::DecryptStatus DrmSystemWidevine::Decrypt(
     }
   }
 
-  buffer->SetDecryptedContent(output_data.data(), output_data.size());
+  buffer->SetDecryptedContent(std::move(output_data));
   return kSuccess;
 }
 
