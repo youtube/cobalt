@@ -141,6 +141,9 @@ template("msvc_toolchain") {
       rspfile_content = "{{inputs_newline}}"
     }
 
+    # TODO(b/217794556): All following linker tools should list the PDB file in
+    # their outputs. It has been removed as it is not always generated, and
+    # ninja will treat the missing file as a dirty edge.
     tool("solink") {
       # E.g. "foo.dll":
       dllname = "{{output_dir}}/{{target_output_name}}{{output_extension}}"
@@ -157,13 +160,11 @@ template("msvc_toolchain") {
       outputs = [
         dllname,
         libname,
-        pdbname,
       ]
       link_output = libname
       depend_output = libname
       runtime_outputs = [
         dllname,
-        pdbname,
       ]
 
       # Since the above commands only updates the .lib file when it changes, ask
@@ -190,7 +191,6 @@ template("msvc_toolchain") {
       description = "LINK_MODULE(DLL) {{output}}"
       outputs = [
         dllname,
-        pdbname,
       ]
       runtime_outputs = outputs
 
@@ -212,7 +212,6 @@ template("msvc_toolchain") {
       description = "LINK {{output}}"
       outputs = [
         exename,
-        pdbname,
       ]
       runtime_outputs = outputs
 
