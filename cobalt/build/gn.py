@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # Copyright 2021 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,6 +18,7 @@ import argparse
 import os
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 from typing import List
 
@@ -42,7 +43,10 @@ def main(out_directory: str, platform: str, build_type: str,
     print(f'{dst_args_gn_file} already exists.' +
           ' Running ninja will regenerate build files automatically.')
 
-  gn_command = ['gn', 'gen', out_directory] + gn_gen_args
+  gn_command = [
+      'gn', '--script-executable={}'.format(sys.executable), 'gen',
+      out_directory
+  ] + gn_gen_args
   print(' '.join(gn_command))
   subprocess.check_call(gn_command)
 
