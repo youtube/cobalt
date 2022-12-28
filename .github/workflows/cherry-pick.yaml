@@ -1,0 +1,24 @@
+name: cherry-xpick
+
+on:
+  pull_request:
+    types: [labeled, closed]
+  
+jobs:
+  cherry-xpick:
+    if: github.event.pull_request.merged
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Cherry pick to test branch
+        if: github.base_ref != test/auto-cherry-pick && contains( github.event.pull_request.labels.*.name, 'cherry-pick test/auto-cherry-pick')
+        run: |
+          set -e -x
+          cd ${GITHUB_WORKSPACE}
+          git checkout -b tmp/cherry-pick-1-${github.sha}
+          git cherry-pick -x github.event.pull_request.merge_commit_sha
+          git push origin tmp/cherry-pick-1-${github.sha}
+          gh pr create --reviewer ${github.event.pull_request.merged_by.name} --fill --base test/auto-cherry-pick
