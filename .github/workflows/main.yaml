@@ -110,7 +110,8 @@ jobs:
   docker-unittest-image:
     if: needs.initialize.outputs.on_host_test == 'true'
     needs: [initialize]
-    permissions: {}
+    permissions:
+      packages: write
     runs-on: ubuntu-latest
     steps:
       - name: Checkout files
