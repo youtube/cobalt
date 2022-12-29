@@ -5,16 +5,15 @@
 # Its canonical open-source location is:
 #   https://google.github.io/styleguide/pylintrc
 #
-# Last updated for Cobalt (YYYY-MM-DD): 2020-11-04
+# Last updated for Cobalt (YYYY-MM-DD): 2022-12-29
 
 [MASTER]
 
-# Add files or directories to the blacklist. They should be base names, not
-# paths.
+# Files or directories to be skipped. They should be base names, not paths.
 ignore=third_party
 
-# Add files or directories matching the regex patterns to the blacklist. The
-# regex matches against base names, not paths.
+# Files or directories matching the regex patterns are skipped. The regex
+# matches against base names, not paths.
 ignore-patterns=
 
 # Pickle collected data for later comparisons.
@@ -30,11 +29,6 @@ jobs=4
 # Allow loading of arbitrary C extensions. Extensions are imported into the
 # active Python interpreter and may run arbitrary code.
 unsafe-load-any-extension=no
-
-# A comma-separated list of package or module names from where C extensions may
-# be loaded. Extensions are loading into the active Python interpreter and may
-# run arbitrary code
-extension-pkg-whitelist=
 
 
 [MESSAGES CONTROL]
@@ -72,7 +66,6 @@ disable=abstract-method,
         cmp-method,
         coerce-builtin,
         coerce-method,
-        consider-using-f-string,
         delslice-method,
         div-method,
         duplicate-code,
@@ -85,7 +78,7 @@ disable=abstract-method,
         global-statement,
         hex-method,
         idiv-method,
-        implicit-str-concat-in-sequence,
+        implicit-str-concat,
         import-error,
         import-self,
         import-star-module-level,
@@ -119,20 +112,17 @@ disable=abstract-method,
         old-raise-syntax,
         parameter-unpacking,
         print-statement,
-        raise-missing-from,
         raising-string,
         range-builtin-not-iterating,
         raw_input-builtin,
         rdiv-method,
         reduce-builtin,
-        redundant-u-string-prefix,
         relative-import,
         reload-builtin,
         round-builtin,
         setslice-method,
         signature-differs,
         standarderror-builtin,
-        super-with-arguments,
         suppressed-message,
         sys-max-int,
         too-few-public-methods,
@@ -151,8 +141,6 @@ disable=abstract-method,
         unicode-builtin,
         unnecessary-pass,
         unpacking-in-except,
-        unspecified-encoding,
-        use-maxsplit-arg,
         useless-else-on-loop,
         useless-object-inheritance,
         useless-suppression,
@@ -168,12 +156,6 @@ disable=abstract-method,
 # (visual studio) and html. You can also give a reporter class, eg
 # mypackage.mymodule.MyReporterClass.
 output-format=text
-
-# Put messages in a separate file for each module / package specified on the
-# command line instead of printing them on stdout. Reports (if any) will be
-# written in a file name "pylint_global.[txt|html]". This option is deprecated
-# and it will be removed in Pylint 2.0.
-files-output=no
 
 # Tells whether to display a full report or only the messages
 reports=no
@@ -292,12 +274,6 @@ ignore-long-lines=(?x)(
 # Allow the body of an if to be on the same line as the test if there is no
 # else.
 single-line-if-stmt=yes
-
-# List of optional constructs for which whitespace checking is disabled. `dict-
-# separator` is used to allow tabulation in dicts, etc.: {1  : 1,\n222: 2}.
-# `trailing-comma` allows a space between comma and closing bracket: (a, ).
-# `empty-line` allows space-only lines.
-no-space-check=
 
 # Maximum number of lines in a module
 max-module-lines=99999
