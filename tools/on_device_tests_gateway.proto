@@ -40,7 +40,7 @@ message OnDeviceTestsCommand {
   string archive_path = 5;
   string config = 6;
   string tag = 7;
-  string label = 8;
+  repeated string labels = 8;
   string builder_name = 9;
   string change_id = 10;
   string build_number = 11;
