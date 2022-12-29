@@ -11,7 +11,7 @@ runs:
   using: "composite"
   steps:
     - name: Set up Cloud SDK
-      uses: google-github-actions/setup-gcloud@v0.6.2
+      uses: google-github-actions/setup-gcloud@v1
     - name: Configure Environment
       run: |
         set -x
@@ -24,7 +24,7 @@ runs:
           PLATFORM=${COBALT_BOOTLOADER}
           echo "TARGET_PLATFORM=${COBALT_BOOTLOADER}" >> $GITHUB_ENV
         fi
-        
+
         if [ "${{ inputs.type }}" == 'ondevice' ]
         then
           echo "ARCHIVE_FILE=artifacts.tar" >> $GITHUB_ENV
