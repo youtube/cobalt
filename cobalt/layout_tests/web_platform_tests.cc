@@ -25,6 +25,8 @@
 #include "base/strings/string_util.h"
 #include "base/test/scoped_task_environment.h"
 #include "base/values.h"
+#include "cobalt/browser/service_worker_registry.h"
+#include "cobalt/browser/user_agent_platform_info.h"
 #include "cobalt/browser/web_module.h"
 #include "cobalt/cssom/viewport_size.h"
 #include "cobalt/layout_tests/test_utils.h"
@@ -226,6 +228,14 @@ std::string RunWebPlatformTest(const GURL& url, bool* got_results) {
 
   // Create the WebModule and wait for a layout to occur.
   browser::WebModule web_module("RunWebPlatformTest");
+
+  // Create Service Worker Registry
+  browser::ServiceWorkerRegistry* service_worker_registry =
+      new browser::ServiceWorkerRegistry(&web_settings, &network_module,
+                                         new browser::UserAgentPlatformInfo());
+  web_module_options.web_options.service_worker_jobs =
+      service_worker_registry->service_worker_jobs();
+
   web_module.Run(
       url, base::kApplicationStateStarted, nullptr /* scroll_engine */,
       base::Bind(&WebModuleOnRenderTreeProducedCallback, &results),
