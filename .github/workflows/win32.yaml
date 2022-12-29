@@ -19,7 +19,8 @@ on:
 jobs:
   win32:
     uses: ./.github/workflows/main_win.yaml
-    permissions: {}
+    permissions:
+      packages: write
     with:
       platform: win32
       nightly: ${{ github.event.inputs.nightly }}
