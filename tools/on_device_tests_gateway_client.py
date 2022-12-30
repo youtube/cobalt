@@ -76,7 +76,7 @@ class OnDeviceTestsGatewayClient():
             archive_path=args.archive_path,
             config=args.config,
             tag=args.tag,
-            label=args.label,
+            labels=args.label,
             builder_name=args.builder_name,
             change_id=args.change_id,
             build_number=args.build_number,
@@ -177,6 +177,8 @@ def main():
       '-l',
       '--label',
       type=str,
+      default=[],
+      action='append',
       help='Additional labels to assign to the test.')
   trigger_parser.add_argument(
       '-b',
