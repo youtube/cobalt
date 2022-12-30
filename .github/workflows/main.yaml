@@ -252,7 +252,6 @@ jobs:
               --test_type ${{ matrix.type }} \
               --platform ${{ matrix.platform }} \
               --config ${{ matrix.config }} \
-              --label cobalt_github_${{ github.event_name }} \
               --tag cobalt_github_${{ github.event_name }} \
               --builder_name github_${{ matrix.platform }}_tests \
               --build_number ${GITHUB_RUN_NUMBER} \
@@ -260,7 +259,17 @@ jobs:
               ${LOADER_PLATFORM:+"--loader_config" "$LOADER_CONFIG"} \
               ${LOADER_PLATFORM:+"--loader_platform" "$LOADER_PLATFORM"} \
               ${DIMENSION:+"--dimension" "$DIMENSION"} \
-              --archive_path gs://${PROJECT_NAME}-test-artifacts-tmp/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${{ matrix.platform }}_${{ matrix.config }}/artifacts.tar
+              --archive_path gs://${PROJECT_NAME}-test-artifacts-tmp/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${{ matrix.platform }}_${{ matrix.config }}/artifacts.tar \
+              --label github \
+              --label ${{ github.event_name }} \
+              --label ${{ github.workflow }} \
+              --label actor-${{ github.actor }} \
+              --label actor_id-${{ github.actor_id }} \
+              --label triggering_actor-${{ github.triggering_actor }} \
+              --label sha-${{ github.sha }} \
+              --label repository-${{ github.repository }} \
+              --label author-${{ github.event.pull_request.head.user.login || github.event.commits[0].author.username }} \
+              --label author_id-${{ github.event.pull_request.head.user.id || github.event.commits[0].author.email }}
           )" >> $GITHUB_ENV
         shell: bash
       - name: watch ${{ matrix.type }} tests on ${{ matrix.platform }} platform
