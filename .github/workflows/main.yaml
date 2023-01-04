@@ -96,7 +96,7 @@ jobs:
   # Builds, tags, and pushes Cobalt docker build images to ghr.
   docker-build-image:
     needs: [initialize]
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, X64]
     permissions:
       packages: write
     steps:
@@ -130,7 +130,7 @@ jobs:
     needs: [initialize]
     permissions:
       packages: write
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, X64]
     steps:
       - name: Checkout files
         uses: actions/checkout@v3
