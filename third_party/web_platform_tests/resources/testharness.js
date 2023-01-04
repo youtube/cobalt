@@ -197,10 +197,14 @@ policies and contribution forms [3].
         add_result_callback(function (test) {
             this_obj.output_handler.show_status();
         });
-
-        add_completion_callback(function (tests, harness_status) {
-            this_obj.output_handler.show_results(tests, harness_status);
-        });
+        
+        // Only show test summary when browsering tests in Chrome.
+        // Cobalt doesn't support html elements at this moment.
+        if (navigator.userAgent.includes("Chrome")) {
+            add_completion_callback(function (tests, harness_status) {
+                this_obj.output_handler.show_results(tests, harness_status);
+            });
+        }
 
         this.setup_messages(settings.message_events);
     };
