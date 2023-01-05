@@ -112,6 +112,9 @@ bool IsOriginPotentiallyTrustworthy(const GURL& url) {
 
   // 8. If origin has been configured as a trustworthy origin, return
   // "Potentially Trustworthy".
+  if (origin == url::Origin::Create(GURL("http://web-platform.test:8000"))) {
+    return true;
+  }
 
   // 9. Return "Not Trustworthy".
   return false;
