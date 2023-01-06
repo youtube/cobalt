@@ -32,7 +32,7 @@ namespace net {
 namespace {  // anonymous
 
 const char* kDialStRequest = "urn:dial-multiscreen-org:service:dial:1";
-const int kReadBufferSize = 500 * 1024;
+const int kReadBufferSize = 50 * 1024;
 
 // Get the INADDR_ANY address.
 IPEndPoint GetAddressForAllInterfaces(unsigned short port) {
