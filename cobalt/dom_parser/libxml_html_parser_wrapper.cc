@@ -164,6 +164,10 @@ void LibxmlHTMLParserWrapper::Finish() {
     if (IsFullDocument()) {
       document()->DecreaseLoadingCounterAndMaybeDispatchLoadEvent();
     }
+
+    // Release parser memory once done
+    htmlFreeParserCtxt(html_parser_context_);
+    html_parser_context_ = NULL;
   }
 }
 
