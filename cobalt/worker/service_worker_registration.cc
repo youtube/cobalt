@@ -171,7 +171,7 @@ void ServiceWorkerRegistration::UnregisterTask(
 }
 
 std::string ServiceWorkerRegistration::scope() const {
-  return registration_->scope_url().spec();
+  return registration_->scope_url().GetContent();
 }
 
 ServiceWorkerUpdateViaCache ServiceWorkerRegistration::update_via_cache()
