@@ -854,7 +854,8 @@
                      xhr.responseURL : init.headers.get('X-Request-URL')
           try {
             // 6. Let responseObject be a new Response object
-            var response = new Response(responseStream, init)
+            let body_allowed = NULL_BODY_STATUSES.indexOf(xhr.status) == -1
+            var response = new Response(body_allowed ? responseStream : null, init)
             // 7. Let locallyAborted be false - done in response constructor
 
             request[SIGNAL_SLOT].addEventListener('abort',() => {
