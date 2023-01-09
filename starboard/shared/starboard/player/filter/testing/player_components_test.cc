@@ -264,6 +264,11 @@ class PlayerComponentsTest
     return std::min(next_timestamps[0], next_timestamps[1]);
   }
 
+  SbTime GetMaxWrittenBufferTimestamp() const {
+    return std::max(GetCurrentVideoBufferTimestamp(),
+                    GetCurrentAudioBufferTimestamp());
+  }
+
   void WriteDataUntilPrerolled(SbTime timeout = kDefaultPrerollTimeOut) {
     SbTimeMonotonic start_time = SbTimeGetMonotonicNow();
     SbTime max_timestamp = GetMediaTime() + kMaxWriteAheadDuration;
@@ -378,7 +383,11 @@ class PlayerComponentsTest
     }
     current_time = GetMediaTime();
     // TODO: investigate and reduce the tolerance.
-    ASSERT_LE(std::abs(current_time - duration), 500 * kSbTimeMillisecond);
+    ASSERT_LE(std::abs(current_time - duration), 500 * kSbTimeMillisecond)
+        << "Media time difference is too large, buffered audio("
+        << GetCurrentAudioBufferTimestamp() << "), buffered video ("
+        << GetCurrentVideoBufferTimestamp() << "), current media time is "
+        << GetMediaTime() << ".";
   }
 
   // This function needs to be called periodically to keep player components
@@ -400,8 +409,8 @@ class PlayerComponentsTest
  private:
   // We won't write audio data more than 1s ahead of current media time in
   // cobalt. So, to test with the same condition, we limit max inputs ahead to
-  // 1s in the tests.
-  const SbTime kMaxWriteAheadDuration = kSbTimeSecond;
+  // 1.5s in the tests.
+  const SbTime kMaxWriteAheadDuration = kSbTimeMillisecond * 1500;
 
   void OnError(SbPlayerError error, const std::string& error_message) {
     has_error_ = true;
@@ -512,11 +521,10 @@ TEST_P(PlayerComponentsTest, SunnyDay) {
 
   SbTimeMonotonic play_requested_at = SbTimeGetMonotonicNow();
   Play();
-  SbTime media_duration = std::max(GetCurrentVideoBufferTimestamp(),
-                                   GetCurrentAudioBufferTimestamp());
-  media_duration = std::max(kSbTimeSecond, media_duration);
+  SbTime eos_timestamp =
+      std::max(kSbTimeSecond, GetMaxWrittenBufferTimestamp());
 
-  ASSERT_NO_FATAL_FAILURE(WriteDataAndEOS(media_duration));
+  ASSERT_NO_FATAL_FAILURE(WriteDataAndEOS(eos_timestamp));
   ASSERT_NO_FATAL_FAILURE(WaitUntilPlaybackEnded());
 
   // TODO: investigate and reduce the tolerance.
@@ -563,9 +571,7 @@ TEST_P(PlayerComponentsTest, Pause) {
   ASSERT_EQ(media_time, GetMediaTime());
 
   Play();
-  SbTime duration = std::max(GetCurrentAudioBufferTimestamp(),
-                             GetCurrentVideoBufferTimestamp());
-  ASSERT_NO_FATAL_FAILURE(WriteDataAndEOS(duration));
+  ASSERT_NO_FATAL_FAILURE(WriteDataAndEOS(GetMaxWrittenBufferTimestamp()));
   ASSERT_NO_FATAL_FAILURE(WaitUntilPlaybackEnded());
 }
 
@@ -644,7 +650,9 @@ TEST_P(PlayerComponentsTest, SeekForward) {
   ASSERT_FALSE(IsPlaying());
 
   Play();
-  ASSERT_NO_FATAL_FAILURE(WriteDataAndEOS(seek_to_time + kSbTimeSecond));
+  SbTime eos_timestamp =
+      std::max(GetMaxWrittenBufferTimestamp(), seek_to_time + kSbTimeSecond);
+  ASSERT_NO_FATAL_FAILURE(WriteDataAndEOS(eos_timestamp));
   ASSERT_NO_FATAL_FAILURE(WaitUntilPlaybackEnded());
 }
 
@@ -666,7 +674,9 @@ TEST_P(PlayerComponentsTest, SeekBackward) {
   ASSERT_FALSE(IsPlaying());
 
   Play();
-  ASSERT_NO_FATAL_FAILURE(WriteDataAndEOS(seek_to_time + kSbTimeSecond));
+  SbTime eos_timestamp =
+      std::max(GetMaxWrittenBufferTimestamp(), seek_to_time + kSbTimeSecond);
+  ASSERT_NO_FATAL_FAILURE(WriteDataAndEOS(eos_timestamp));
   ASSERT_NO_FATAL_FAILURE(WaitUntilPlaybackEnded());
 }
 
