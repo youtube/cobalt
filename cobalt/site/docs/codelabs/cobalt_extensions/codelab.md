@@ -1,15 +1,15 @@
 ---
 layout: doc
-title: "Cobalt Extensions codelab"
+title: "Starboard Extensions codelab"
 ---
 
-The Cobalt Extension framework provides a way to add optional, platform-specific
-features to the Cobalt application. A Cobalt Extension is an optional interface
+The Starboard Extension framework provides a way to add optional, platform-specific
+features to the Starboard application. A Starboard Extension is an optional interface
 that porters can implement for their platforms if, and as, they wish.
 
 This tutorial uses coding exercises to guide you through the process of creating
-a simple example of a Cobalt Extension. By the end you should have a firm
-understanding of what Cobalt Extensions are, when to use them instead of
+a simple example of a Starboard Extension. By the end you should have a firm
+understanding of what Starboard Extensions are, when to use them instead of
 alternatives, how to write them, and how to work with the Cobalt team to
 contribute them to the repository.
 
@@ -24,7 +24,7 @@ for other platforms.
 
 Also note that while this codelab doesn't require it, you'll need to
 <a href="/starboard/porting.html">Port Cobalt to your platform</a> before you
-can actually use a Cobalt Extension to customize it for your platform.
+can actually use a Starboard Extension to customize it for your platform.
 
 Finally, the exercises assume the ability to program in C and C++.
 
@@ -63,9 +63,9 @@ sometimes be too cumbersome: other applications beyond Cobalt are able to be run
 on top of Starboard. If a feature is needed by Cobalt but not by all Starboard-
 based applications or by Starboard itself, adding a Starboard API for it may add
 unnecessary size and complexity to the porting layer. **And here we arrive at
-the sweet spot for Cobalt Extensions: when the desired functionality is
+the sweet spot for Starboard Extensions: when the desired functionality is
 Cobalt-specific, optional in Cobalt, and has platform-dependent
-implementation.** Also, because Cobalt Extensions are lightweight and, as you'll
+implementation.** Also, because Starboard Extensions are lightweight and, as you'll
 see below, added without any changes to the Starboard layer, they're the
 preferred way for porters to add new, custom features to Cobalt.
 
@@ -90,7 +90,7 @@ To summarize:
     <td>Medium</td>
   </tr>
   <tr>
-    <td>Cobalt Extension</td>
+    <td>Starboard Extension</td>
     <td>Feature is <strong>optional and specific to Cobalt</strong> and
     implementation is platform-dependent</td>
     <td>Low</td>
@@ -114,19 +114,19 @@ Google-built, Cobalt core shared library from the partner-built Starboard layer
 and Cobalt loader app. Because Cobalt core code is built by Google, custom
 changes to it are no longer possible for partners using Evergreen.
 
-## Anatomy of a Cobalt Extension
+## Anatomy of a Starboard Extension
 
 ### Extension structures
 
 Cobalt uses a structure to describe the interface for an extension and organizes
-the structures in headers under `cobalt/extension/`. The header for a "foo"
+the structures in headers under `starboard/extension/`. The header for a "foo"
 extension should be named `foo.h` and the first version of it should contain the
 following content, as well as any additional members that provide the "foo"
 functionality.
 
 ```
-#ifndef COBALT_EXTENSION_FOO_H_
-#define COBALT_EXTENSION_FOO_H_
+#ifndef STARBOARD_EXTENSION_FOO_H_
+#define STARBOARD_EXTENSION_FOO_H_
 
 #include <stdint.h>
 
@@ -134,10 +134,10 @@ functionality.
 extern "C" {
 #endif
 
-#define kCobaltExtensionFooName "dev.cobalt.extension.Foo"
+#define kStarboardExtensionFooName "dev.starboard.extension.Foo"
 
-typedef struct CobaltExtensionFooApi {
-  // Name should be the string |kCobaltExtensionFooName|.
+typedef struct StarboardExtensionFooApi {
+  // Name should be the string |kStarboardExtensionFooName|.
   // This helps to validate that the extension API is correct.
   const char* name;
 
@@ -146,13 +146,13 @@ typedef struct CobaltExtensionFooApi {
 
   // The fields below this point were added in version 1 or later.
 
-} CobaltExtensionFooApi;
+} StarboardExtensionFooApi;
 
 #ifdef __cplusplus
 }  // extern "C"
 #endif
 
-#endif  // COBALT_EXTENSION_FOO_H_
+#endif  // STARBOARD_EXTENSION_FOO_H_
 ```
 
 Please note a few important points about this structure:
@@ -174,16 +174,16 @@ to get an extension; the Starboard interface intentionally doesn't have any
 functions related to the specific extensions.
 
 The caller in Cobalt must static cast the `const void*` returned by
-`SbSystemGetExtension` to a `const CobaltExtensionFooApi*`, or pointer of
+`SbSystemGetExtension` to a `const StarboardExtensionFooApi*`, or pointer of
 whatever type the extension structure type happens to be, before using it. Since
 the caller can't be sure whether a platform implements the extension or, if it
 does, implements it correctly, it's good defensive programming to check that the
 resulting pointer is not `NULL` and that the `name` member in the pointed-to
-structure has the same value as `kCobaltExtensionFooName`.
+structure has the same value as `kStarboardExtensionFooName`.
 
 ### Extension implementation
 
-Because Cobalt Extensions are platform-dependent, the implementations of an
+Because Starboard Extensions are platform-dependent, the implementations of an
 extension belong in Starboard ports. A Starboard port implements an extension by
 defining a constant, global instance of the structure and implementing the
 `SbSystemGetExtension` function to return a pointer to it. For our "foo"
@@ -213,7 +213,7 @@ const void* GetFooApi();
 ```
 #include "starboard/custom_platform/foo.h"
 
-#include "cobalt/extension/foo.h"
+#include "starboard/extension/foo.h"
 
 namespace starboard {
 namespace custom_platform {
@@ -223,8 +223,8 @@ namespace {
 // Definitions of any functions included as components in the extension
 // are added here.
 
-const CobaltExtensionFooApi kFooApi = {
-    kCobaltExtensionFooName,
+const StarboardExtensionFooApi kFooApi = {
+    kStarboardExtensionFooName,
     1,  // API version that's implemented.
     // Any additional members are initialized here.
 };
@@ -245,12 +245,12 @@ Finally, `starboard/custom_platform/system_get_extension.cc` defines
 ```
 #include "starboard/system.h"
 
-#include "cobalt/extension/foo.h"
+#include "starboard/extension/foo.h"
 #include "starboard/common/string.h"
 #include "starboard/custom_platform/foo.h"
 
 const void* SbSystemGetExtension(const char* name) {
-  if (strcmp(name, kCobaltExtensionFooName) == 0) {
+  if (strcmp(name, kStarboardExtensionFooName) == 0) {
     return starboard::custom_platform::GetFooApi();
   }
   // Other conditions here should handle other implemented extensions.
@@ -269,9 +269,9 @@ across the following files.
 
 ### Exercise 1: Write and use your first extension
 
-Now that you've seen the anatomy of a Cobalt Extension it's your turn to write
+Now that you've seen the anatomy of a Starboard Extension it's your turn to write
 one of your own. In Exercise 0 we saw that Cobalt logs "Starting application"
-when it's started. Please write a `Pleasantry` Cobalt Extension that has a
+when it's started. Please write a `Pleasantry` Starboard Extension that has a
 member of type `const char*` and name `greeting` and make any necessary changes
 in `cobalt/browser/main.cc` so that the extension can be used to log a custom
 greeting directly after the plain "Starting application." Implement the
@@ -285,11 +285,11 @@ the solution and the `master` branch.
 
 <details>
     <summary style="display:list-item">Contents of new
-    `cobalt/extension/pleasantry.h` file.</summary>
+    `starboard/extension/pleasantry.h` file.</summary>
 
 ```
-#ifndef COBALT_EXTENSION_PLEASANTRY_H_
-#define COBALT_EXTENSION_PLEASANTRY_H_
+#ifndef STARBOARD_EXTENSION_PLEASANTRY_H_
+#define STARBOARD_EXTENSION_PLEASANTRY_H_
 
 #include <stdint.h>
 
@@ -297,10 +297,10 @@ the solution and the `master` branch.
 extern "C" {
 #endif
 
-#define kCobaltExtensionPleasantryName "dev.cobalt.extension.Pleasantry"
+#define kStarboardExtensionPleasantryName "dev.starboard.extension.Pleasantry"
 
-typedef struct CobaltExtensionPleasantryApi {
-  // Name should be the string |kCobaltExtensionPleasantryName|.
+typedef struct StarboardExtensionPleasantryApi {
+  // Name should be the string |kStarboardExtensionPleasantryName|.
   // This helps to validate that the extension API is correct.
   const char* name;
 
@@ -310,13 +310,13 @@ typedef struct CobaltExtensionPleasantryApi {
   // The fields below this point were added in version 1 or later.
   const char* greeting;
 
-} CobaltExtensionPleasantryApi;
+} StarboardExtensionPleasantryApi;
 
 #ifdef __cplusplus
 }  // extern "C"
 #endif
 
-#endif  // COBALT_EXTENSION_PLEASANTRY_H_
+#endif  // STARBOARD_EXTENSION_PLEASANTRY_H_
 ```
 
 </details>
@@ -349,7 +349,7 @@ const void* GetPleasantryApi();
 ```
 #include "starboard/linux/shared/pleasantry.h"
 
-#include "cobalt/extension/pleasantry.h"
+#include "starboard/extension/pleasantry.h"
 
 namespace starboard {
 namespace shared {
@@ -358,8 +358,8 @@ namespace {
 
 const char *kGreeting = "Happy debugging!";
 
-const CobaltExtensionPleasantryApi kPleasantryApi = {
-    kCobaltExtensionPleasantryName,
+const StarboardExtensionPleasantryApi kPleasantryApi = {
+    kStarboardExtensionPleasantryName,
     1,
     kGreeting,
 };
@@ -401,9 +401,9 @@ const void* GetPleasantryApi() {
 ```
 @@ -16,12 +16,14 @@
 
- #include "cobalt/extension/configuration.h"
- #include "cobalt/extension/crash_handler.h"
-+#include "cobalt/extension/pleasantry.h"
+ #include "starboard/extension/configuration.h"
+ #include "starboard/extension/crash_handler.h"
++#include "starboard/extension/pleasantry.h"
  #include "starboard/common/string.h"
  #include "starboard/shared/starboard/crash_handler.h"
  #if SB_IS(EVERGREEN_COMPATIBLE)
@@ -415,10 +415,10 @@ const void* GetPleasantryApi() {
  const void* SbSystemGetExtension(const char* name) {
  #if SB_IS(EVERGREEN_COMPATIBLE)
 @@ -41,5 +43,8 @@ const void* SbSystemGetExtension(const char* name) {
-   if (strcmp(name, kCobaltExtensionCrashHandlerName) == 0) {
+   if (strcmp(name, kStarboardExtensionCrashHandlerName) == 0) {
      return starboard::common::GetCrashHandlerApi();
    }
-+  if (strcmp(name, kCobaltExtensionPleasantryName) == 0) {
++  if (strcmp(name, kStarboardExtensionPleasantryName) == 0) {
 +    return starboard::shared::GetPleasantryApi();
 +  }
    return NULL;
@@ -436,7 +436,7 @@ const void* GetPleasantryApi() {
  #include "cobalt/base/wrap_main.h"
  #include "cobalt/browser/application.h"
  #include "cobalt/browser/switches.h"
-+#include "cobalt/extension/pleasantry.h"
++#include "starboard/extension/pleasantry.h"
  #include "cobalt/version.h"
 +#include "starboard/system.h"
 
@@ -446,11 +446,11 @@ const void* GetPleasantryApi() {
      return;
    }
    LOG(INFO) << "Starting application.";
-+  const CobaltExtensionPleasantryApi* pleasantry_extension =
-+      static_cast<const CobaltExtensionPleasantryApi*>(
-+          SbSystemGetExtension(kCobaltExtensionPleasantryName));
++  const StarboardExtensionPleasantryApi* pleasantry_extension =
++      static_cast<const StarboardExtensionPleasantryApi*>(
++          SbSystemGetExtension(kStarboardExtensionPleasantryName));
 +  if (pleasantry_extension &&
-+      strcmp(pleasantry_extension->name, kCobaltExtensionPleasantryName) == 0 &&
++      strcmp(pleasantry_extension->name, kStarboardExtensionPleasantryName) == 0 &&
 +      pleasantry_extension->version >= 1) {
 +    LOG(INFO) << pleasantry_extension->greeting;
 +  }
@@ -463,7 +463,7 @@ const void* GetPleasantryApi() {
 
 ## Extension versioning
 
-Cobalt Extensions are themselves extensible, but care must be taken to ensure
+Starboard Extensions are themselves extensible, but care must be taken to ensure
 that the extension interface in Cobalt and implementation in a platform's port,
 which may be built separately, are consistent.
 
@@ -510,11 +510,11 @@ the solution and the `master` branch.
 
 <details>
     <summary style="display:list-item">Updated contents of
-    `cobalt/extension/pleasantry.h`.</summary>
+    `starboard/extension/pleasantry.h`.</summary>
 
 ```
-#ifndef COBALT_EXTENSION_PLEASANTRY_H_
-#define COBALT_EXTENSION_PLEASANTRY_H_
+#ifndef STARBOARD_EXTENSION_PLEASANTRY_H_
+#define STARBOARD_EXTENSION_PLEASANTRY_H_
 
 #include <stdint.h>
 
@@ -522,10 +522,10 @@ the solution and the `master` branch.
 extern "C" {
 #endif
 
-#define kCobaltExtensionPleasantryName "dev.cobalt.extension.Pleasantry"
+#define kStarboardExtensionPleasantryName "dev.starboard.extension.Pleasantry"
 
-typedef struct CobaltExtensionPleasantryApi {
-  // Name should be the string |kCobaltExtensionPleasantryName|.
+typedef struct StarboardExtensionPleasantryApi {
+  // Name should be the string |kStarboardExtensionPleasantryName|.
   // This helps to validate that the extension API is correct.
   const char* name;
 
@@ -538,13 +538,13 @@ typedef struct CobaltExtensionPleasantryApi {
   // The fields below this point were added in version 2 or later.
   const char* (*GetFarewell)();
 
-} CobaltExtensionPleasantryApi;
+} StarboardExtensionPleasantryApi;
 
 #ifdef __cplusplus
 }  // extern "C"
 #endif
 
-#endif  // COBALT_EXTENSION_PLEASANTRY_H_
+#endif  // STARBOARD_EXTENSION_PLEASANTRY_H_
 ```
 
 </details>
@@ -558,7 +558,7 @@ typedef struct CobaltExtensionPleasantryApi {
 
 #include <stdlib.h>
 
-#include "cobalt/extension/pleasantry.h"
+#include "starboard/extension/pleasantry.h"
 #include "starboard/system.h"
 #include "starboard/time.h"
 
@@ -581,8 +581,8 @@ const char* GetFarewell() {
   return kFarewells[pseudo_random_index];
 }
 
-const CobaltExtensionPleasantryApi kPleasantryApi = {
-  kCobaltExtensionPleasantryName,
+const StarboardExtensionPleasantryApi kPleasantryApi = {
+  kStarboardExtensionPleasantryName,
   2,
   kGreeting,
   &GetFarewell,
@@ -609,7 +609,7 @@ const void* GetPleasantryApi() {
  #include "cobalt/base/wrap_main.h"
  #include "cobalt/browser/application.h"
  #include "cobalt/browser/switches.h"
-+#include "cobalt/extension/pleasantry.h"
++#include "starboard/extension/pleasantry.h"
  #include "cobalt/version.h"
 +#include "starboard/system.h"
 
@@ -620,10 +620,10 @@ const void* GetPleasantryApi() {
  }
 
 +// Get the Pleasantry extension if it's implemented.
-+const CobaltExtensionPleasantryApi* GetPleasantryApi() {
-+  static const CobaltExtensionPleasantryApi* pleasantry_extension =
-+      static_cast<const CobaltExtensionPleasantryApi*>(
-+          SbSystemGetExtension(kCobaltExtensionPleasantryName));
++const StarboardExtensionPleasantryApi* GetPleasantryApi() {
++  static const StarboardExtensionPleasantryApi* pleasantry_extension =
++      static_cast<const StarboardExtensionPleasantryApi*>(
++          SbSystemGetExtension(kStarboardExtensionPleasantryName));
 +  return pleasantry_extension;
 +}
 +
@@ -634,9 +634,9 @@ const void* GetPleasantryApi() {
      return;
    }
    LOG(INFO) << "Starting application.";
-+  const CobaltExtensionPleasantryApi* pleasantry_extension = GetPleasantryApi();
++  const StarboardExtensionPleasantryApi* pleasantry_extension = GetPleasantryApi();
 +  if (pleasantry_extension &&
-+      strcmp(pleasantry_extension->name, kCobaltExtensionPleasantryName) == 0 &&
++      strcmp(pleasantry_extension->name, kStarboardExtensionPleasantryName) == 0 &&
 +      pleasantry_extension->version >= 1) {
 +    LOG(INFO) << pleasantry_extension->greeting;
 +  }
@@ -648,9 +648,9 @@ const void* GetPleasantryApi() {
 
  void StopApplication() {
 -  LOG(INFO) << "Stopping application.";
-+  const CobaltExtensionPleasantryApi* pleasantry_extension = GetPleasantryApi();
++  const StarboardExtensionPleasantryApi* pleasantry_extension = GetPleasantryApi();
 +  if (pleasantry_extension &&
-+      strcmp(pleasantry_extension->name, kCobaltExtensionPleasantryName) == 0 &&
++      strcmp(pleasantry_extension->name, kStarboardExtensionPleasantryName) == 0 &&
 +      pleasantry_extension->version >= 2) {
 +    LOG(INFO) << pleasantry_extension->GetFarewell();
 +  } else {
@@ -670,7 +670,7 @@ Exercise 1 solution.
 
 ## Extension testing
 
-Each Cobalt Extension has a test in `cobalt/extension/extension_test.cc` that
+Each Starboard Extension has a test in `starboard/extension/extension_test.cc` that
 tests whether the extension is wired up correctly for the platform Cobalt
 happens to be built for.
 
@@ -681,8 +681,8 @@ following.
 
 ```
 TEST(ExtensionTest, Foo) {
-  typedef CobaltExtensionFooApi ExtensionApi;
-  const char* kExtensionName = kCobaltExtensionFooName;
+  typedef StarboardExtensionFooApi ExtensionApi;
+  const char* kExtensionName = kStarboardExtensionFooName;
 
   const ExtensionApi* extension_api =
       static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));
@@ -707,10 +707,10 @@ structure:
 ### Exercise 3: Test your extension
 
 You guessed it! Add a test for your new extension to
-`cobalt/extension/extension_test.cc`.
+`starboard/extension/extension_test.cc`.
 
 Once you've written your test you can execute it to confirm that it passes.
-`cobalt/extension/extension.gyp` configures an `extension_test` target to be
+`starboard/extension/extension.gyp` configures an `extension_test` target to be
 built from our `extension_test.cc` source file. We can build that target for our
 platform and then run the executable to run the tests.
 
@@ -738,8 +738,8 @@ your newly added test with `--gtest_filter=ExtensionTest.Pleasantry`.
 
 ```
 TEST(ExtensionTest, Pleasantry) {
-  typedef CobaltExtensionPleasantryApi ExtensionApi;
-  const char* kExtensionName = kCobaltExtensionPleasantryName;
+  typedef StarboardExtensionPleasantryApi ExtensionApi;
+  const char* kExtensionName = kStarboardExtensionPleasantryName;
 
   const ExtensionApi* extension_api =
       static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));
@@ -767,21 +767,21 @@ TEST(ExtensionTest, Pleasantry) {
 </details>
 
 You'll also want to include the header for the extension, i.e., `#include
-"cobalt/extension/pleasantry.h"`.
+"starboard/extension/pleasantry.h"`.
 
-## Contributing a Cobalt Extension
+## Contributing a Starboard Extension
 
 Thanks for taking the time to complete the codelab!
 
-**If you'd like to contribute an actual Cobalt Extension to Cobalt in order to
+**If you'd like to contribute an actual Starboard Extension to Cobalt in order to
 add some useful functionality for your platform, we encourage you to start a
 discussion with the Cobalt team before you begin coding.** To do so, please
 [file a feature request](https://issuetracker.google.com/issues/new?component=181120)
 for the extension and include the following information:
 
-*   The name of the Cobalt Extension.
+*   The name of the Starboard Extension.
 *   A description of the extension.
-*   Why a Cobalt Extension is the right tool, instead of some alternative.
+*   Why a Starboard Extension is the right tool, instead of some alternative.
 *   The fact that you'd like to contribute the extension (i.e., write the code)
     rather than rely on the Cobalt team to prioritize, plan, and implement it.
 

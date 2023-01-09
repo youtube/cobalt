@@ -16,7 +16,7 @@ cache directory. This is done by:
 ```
 #include "starboard/system.h"
 
-#include "cobalt/extension/crash_handler.h"
+#include "starboard/extension/crash_handler.h"
 #include "starboard/shared/starboard/crash_handler.h"
 
 ...

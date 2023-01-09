@@ -1,4 +1,4 @@
-// Copyright 2021 The Cobalt Authors. All Rights Reserved.
+// Copyright 2023 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,19 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_EXTENSION_FONT_H_
-#define COBALT_EXTENSION_FONT_H_
+#ifndef STARBOARD_EXTENSION_FREE_SPACE_H_
+#define STARBOARD_EXTENSION_FREE_SPACE_H_
 
 #include <stdint.h>
+
+#include "starboard/system.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#define kCobaltExtensionFontName "dev.cobalt.extension.Font"
+#define kCobaltExtensionFreeSpaceName "dev.cobalt.extension.FreeSpace"
 
-typedef struct CobaltExtensionFontApi {
-  // Name should be the string |kCobaltExtensionFontName|.
+typedef struct CobaltExtensionFreeSpaceApi {
+  // Name should be the string |kCobaltExtensionFreeSpaceName|.
   // This helps to validate that the extension API is correct.
   const char* name;
 
@@ -33,13 +35,14 @@ typedef struct CobaltExtensionFontApi {
 
   // The fields below this point were added in version 1 or later.
 
-  // Provide additional font directory for fonts not available
-  // as system or Cobalt fonts. This is useful for adding local fallback fonts.
-  bool (*GetPathFallbackFontDirectory)(char* path, int path_size);
-} CobaltExtensionFontApi;
+  // Returns the free space in bytes for the provided |system_path_id|.
+  // If there is no implementation for the that |system_path_id| or
+  // if there was an error -1 is returned.
+  int64_t (*MeasureFreeSpace)(SbSystemPathId system_path_id);
+} CobaltExtensionFreeSpaceApi;
 
 #ifdef __cplusplus
 }  // extern "C"
 #endif
 
-#endif  // COBALT_EXTENSION_FONT_H_
+#endif  // STARBOARD_EXTENSION_FREE_SPACE_H_

@@ -17,8 +17,8 @@
 #include <functional>
 #include <string>
 
-#include "cobalt/extension/javascript_cache.h"
 #include "starboard/common/log.h"
+#include "starboard/extension/javascript_cache.h"
 #include "starboard/file.h"
 
 namespace starboard {

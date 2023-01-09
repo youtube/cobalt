@@ -14,8 +14,8 @@
 
 #include "starboard/linux/x64x11/skia/configuration.h"
 
-#include "cobalt/extension/configuration.h"
 #include "starboard/common/configuration_defaults.h"
+#include "starboard/extension/configuration.h"
 
 // Omit namespace linux due to symbol name conflict.
 namespace starboard {

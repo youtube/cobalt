@@ -14,10 +14,12 @@
 
 #include <cmath>
 
-#include "cobalt/extension/cwrappers.h"
 #include "starboard/common/log.h"
+#include "starboard/extension/cwrappers.h"
 #include "starboard/once.h"
 #include "starboard/system.h"
+
+#include "starboard/client_porting/cwrappers/pow_wrapper.h"
 
 static double (*g_pow_wrapper)(double, double) = &pow;
 static SbOnceControl g_pow_wrapper_once = SB_ONCE_INITIALIZER;
@@ -38,5 +40,4 @@ double CobaltPowWrapper(double base, double exponent) {
   SbOnce(&g_pow_wrapper_once, InitPowWrapper);
   return g_pow_wrapper(base, exponent);
 }
-
 }

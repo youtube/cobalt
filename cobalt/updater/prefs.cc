@@ -18,13 +18,13 @@
 
 #include "base/files/file_path.h"
 #include "base/memory/scoped_refptr.h"
-#include "cobalt/extension/installation_manager.h"
 #include "cobalt/updater/utils.h"
 #include "components/prefs/json_pref_store.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/pref_service_factory.h"
 #include "components/update_client/update_client.h"
+#include "starboard/extension/installation_manager.h"
 
 namespace cobalt {
 namespace updater {

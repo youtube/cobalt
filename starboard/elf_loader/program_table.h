@@ -17,9 +17,9 @@
 
 #include <vector>
 
-#include "cobalt/extension/memory_mapped_file.h"
 #include "starboard/elf_loader/elf.h"
 #include "starboard/elf_loader/file.h"
+#include "starboard/extension/memory_mapped_file.h"
 
 namespace starboard {
 namespace elf_loader {

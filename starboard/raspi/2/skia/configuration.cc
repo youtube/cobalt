@@ -14,8 +14,8 @@
 
 #include "starboard/raspi/2/skia/configuration.h"
 
-#include "cobalt/extension/configuration.h"
 #include "starboard/common/configuration_defaults.h"
+#include "starboard/extension/configuration.h"
 
 namespace starboard {
 namespace raspi {

@@ -1,4 +1,4 @@
-// Copyright 2021 The Cobalt Authors. All Rights Reserved.
+// Copyright 2023 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,9 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
-#ifndef COBALT_EXTENSION_MEMORY_MAPPED_FILE_H_
-#define COBALT_EXTENSION_MEMORY_MAPPED_FILE_H_
+#ifndef STARBOARD_EXTENSION_MEMORY_MAPPED_FILE_H_
+#define STARBOARD_EXTENSION_MEMORY_MAPPED_FILE_H_
 
 #include <stdint.h>
 
@@ -23,7 +22,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
 
 #define kCobaltExtensionMemoryMappedFileName \
   "dev.cobalt.extension.MemoryMappedFile"
@@ -45,8 +43,10 @@ typedef struct CobaltExtensionMemoryMappedFileApi {
   // To release the memory call |SbMemoryUnmap|.
   // The |file_offset| must be a multiple of |kSbMemoryPageSize|.
   // Returns NULL or error.
-  void* (*MemoryMapFile)(void* address, const char* path,
-                         SbMemoryMapFlags flags, int64_t file_offset,
+  void* (*MemoryMapFile)(void* address,
+                         const char* path,
+                         SbMemoryMapFlags flags,
+                         int64_t file_offset,
                          int64_t size);
 
 } CobaltExtensionMemoryMappedFileApi;
@@ -55,4 +55,4 @@ typedef struct CobaltExtensionMemoryMappedFileApi {
 }  // extern "C"
 #endif
 
-#endif  // COBALT_EXTENSION_MEMORY_MAPPED_FILE_H_
+#endif  // STARBOARD_EXTENSION_MEMORY_MAPPED_FILE_H_

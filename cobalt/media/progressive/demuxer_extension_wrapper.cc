@@ -21,7 +21,7 @@
 
 #include "base/task/post_task.h"
 #include "base/task_runner_util.h"
-#include "cobalt/extension/demuxer.h"
+#include "starboard/extension/demuxer.h"
 #include "starboard/system.h"
 #include "third_party/chromium/media/base/audio_codecs.h"
 #include "third_party/chromium/media/base/bind_to_current_loop.h"

@@ -14,11 +14,11 @@
 
 #include "starboard/android/shared/platform_service.h"
 
-#include "cobalt/extension/platform_service.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
+#include "starboard/extension/platform_service.h"
 
 typedef struct CobaltExtensionPlatformServicePrivate {
   void* context;

@@ -19,7 +19,7 @@
 #include "url/gurl.h"
 
 #if defined(STARBOARD)
-#include "cobalt/extension/installation_manager.h"
+#include "starboard/extension/installation_manager.h"
 #endif
 
 namespace update_client {

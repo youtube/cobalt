@@ -24,11 +24,11 @@
 #include "base/optional.h"
 #include "base/values.h"
 #include "cobalt/configuration/configuration.h"
-#include "cobalt/extension/javascript_cache.h"
 #include "cobalt/persistent_storage/persistent_settings.h"
 #include "net/disk_cache/cobalt/cobalt_backend_impl.h"
 #include "starboard/common/murmurhash2.h"
 #include "starboard/configuration_constants.h"
+#include "starboard/extension/javascript_cache.h"
 #include "starboard/system.h"
 
 namespace {

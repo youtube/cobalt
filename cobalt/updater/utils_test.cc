@@ -19,10 +19,10 @@
 #include "base/files/file_path.h"
 #include "base/strings/strcat.h"
 #include "base/values.h"
-#include "cobalt/extension/installation_manager.h"
 #include "gmock/gmock.h"
 #include "starboard/common/file.h"
 #include "starboard/directory.h"
+#include "starboard/extension/installation_manager.h"
 #include "starboard/file.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

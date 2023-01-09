@@ -11,10 +11,10 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-#include "cobalt/extension/configuration.h"
-#include "cobalt/extension/crash_handler.h"
 #include "starboard/common/string.h"
 #include "starboard/contrib/stadia/get_platform_service_api.h"
+#include "starboard/extension/configuration.h"
+#include "starboard/extension/crash_handler.h"
 #include "starboard/shared/starboard/crash_handler.h"
 #include "starboard/system.h"
 #if SB_IS(EVERGREEN_COMPATIBLE)

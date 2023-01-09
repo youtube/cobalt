@@ -15,7 +15,7 @@
 #ifndef STARBOARD_ANDROID_SHARED_ANDROID_MEDIA_SESSION_CLIENT_H_
 #define STARBOARD_ANDROID_SHARED_ANDROID_MEDIA_SESSION_CLIENT_H_
 
-#include "cobalt/extension/media_session.h"
+#include "starboard/extension/media_session.h"
 
 namespace starboard {
 namespace android {

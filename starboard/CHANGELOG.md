@@ -14,6 +14,15 @@ A description of all changes currently in the experimental Starboard version
 can be found in the comments of the "Experimental Feature Defines" section of
 [configuration.h](configuration.h).
 
+### Cobalt extensions are now Starboard extensions
+Previously named Cobalt extensions are now found under `starboard/extensions`.
+The mechanism extends platform-specific functionality of Starboard via runtime
+resolution, and hence more properly belongs in Starboard codebase.
+This also helps break the dependency cycle between Starboard and Cobalt for
+cleaner component layering.
+For existing uses in Starboard ports, fallback forwarding headers are provided
+in the previous location of the code in `cobalt/extensions`.
+
 ## Version 14
 ### Add MP3, FLAC, and PCM values to SbMediaAudioCodec.
 This makes it possible to support these codecs in the future.

@@ -15,7 +15,7 @@
 #include <string>
 #include <vector>
 
-#include "cobalt/extension/crash_handler.h"
+#include "starboard/extension/crash_handler.h"
 #include "starboard/nplb/nplb_evergreen_compat_tests/checks.h"
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"

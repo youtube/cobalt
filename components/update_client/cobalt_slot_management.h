@@ -19,7 +19,7 @@
 
 #include "base/files/file_path.h"
 #include "base/version.h"
-#include "cobalt/extension/installation_manager.h"
+#include "starboard/extension/installation_manager.h"
 
 namespace update_client {
 

@@ -24,7 +24,6 @@
 #include "cobalt/dom/html_body_element.h"
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/html_html_element.h"
-#include "cobalt/extension/graphics.h"
 #include "cobalt/layout/benchmark_stat_names.h"
 #include "cobalt/layout/box_generator.h"
 #include "cobalt/layout/initial_containing_block.h"
@@ -32,6 +31,7 @@
 #include "cobalt/layout/used_style.h"
 #include "cobalt/render_tree/animations/animate_node.h"
 #include "cobalt/render_tree/matrix_transform_node.h"
+#include "starboard/extension/graphics.h"
 
 namespace cobalt {
 namespace layout {

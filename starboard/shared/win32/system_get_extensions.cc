@@ -14,9 +14,9 @@
 
 #include "starboard/system.h"
 
-#include "cobalt/extension/configuration.h"
-#include "cobalt/extension/graphics.h"
 #include "starboard/common/string.h"
+#include "starboard/extension/configuration.h"
+#include "starboard/extension/graphics.h"
 #include "starboard/shared/win32/configuration.h"
 #include "starboard/shared/win32/graphics.h"
 

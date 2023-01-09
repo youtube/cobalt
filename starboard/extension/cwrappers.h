@@ -1,4 +1,4 @@
-// Copyright 2021 The Cobalt Authors. All Rights Reserved.
+// Copyright 2023 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,23 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_EXTENSION_URL_FETCHER_OBSERVER_H_
-#define COBALT_EXTENSION_URL_FETCHER_OBSERVER_H_
+#ifndef STARBOARD_EXTENSION_CWRAPPERS_H_
+#define STARBOARD_EXTENSION_CWRAPPERS_H_
 
 #include <stdint.h>
+
+#include "starboard/configuration.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#define URL_FETCHER_OBSERVER_MAX_URL_SIZE 128
-#define URL_FETCHER_COMMAND_LINE_SWITCH "url_fetcher_observer"
+#define kCobaltExtensionCWrappersName "dev.cobalt.extension.CWrappers"
 
-#define kCobaltExtensionUrlFetcherObserverName \
-  "dev.cobalt.extension.UrlFetcherObserver"
-
-typedef struct CobaltExtensionUrlFetcherObserverApi {
-  // Name should be the string |kCobaltExtensionUrlFetcherObserverName|.
+typedef struct CobaltExtensionCWrappersApi {
+  // Name should be the string kCobaltExtensionCWrapperName.
   // This helps to validate that the extension API is correct.
   const char* name;
 
@@ -37,18 +35,11 @@ typedef struct CobaltExtensionUrlFetcherObserverApi {
 
   // The fields below this point were added in version 1 or later.
 
-  // The UrlFetcher for the specified |url| was created.
-  void (*FetcherCreated)(const char* url);
-
-  // The UrlFetcher for the specified |url| was destroyed.
-  void (*FetcherDestroyed)(const char* url);
-
-  // The URL request started for the specified |url|.
-  void (*StartURLRequest)(const char* url);
-} CobaltExtensionUrlFetcherObserverApi;
+  double (*PowWrapper)(double base, double exponent);
+} CobaltExtensionCWrappersApi;
 
 #ifdef __cplusplus
 }  // extern "C"
 #endif
 
-#endif  // COBALT_EXTENSION_URL_FETCHER_OBSERVER_H_
+#endif  // STARBOARD_EXTENSION_CWRAPPERS_H_

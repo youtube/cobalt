@@ -18,9 +18,9 @@
 #include <memory>
 
 #include "base/memory/ref_counted.h"
-#include "cobalt/extension/graphics.h"
 #include "cobalt/math/size.h"
 #include "cobalt/renderer/backend/render_target.h"
+#include "starboard/extension/graphics.h"
 
 namespace cobalt {
 namespace renderer {

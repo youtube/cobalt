@@ -14,7 +14,7 @@
 
 #include "starboard/shared/win32/graphics.h"
 
-#include "cobalt/extension/graphics.h"
+#include "starboard/extension/graphics.h"
 
 namespace starboard {
 namespace shared {
@@ -36,10 +36,8 @@ float GetMinimumFrameIntervalInMilliseconds() {
 }
 
 const CobaltExtensionGraphicsApi kGraphicsApi = {
-  kCobaltExtensionGraphicsName,
-  2,
-  &GetMaximumFrameIntervalInMilliseconds,
-  &GetMinimumFrameIntervalInMilliseconds,
+    kCobaltExtensionGraphicsName, 2, &GetMaximumFrameIntervalInMilliseconds,
+    &GetMinimumFrameIntervalInMilliseconds,
 };
 
 }  // namespace

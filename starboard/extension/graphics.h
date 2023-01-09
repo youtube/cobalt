@@ -1,4 +1,4 @@
-// Copyright 2019 The Cobalt Authors. All Rights Reserved.
+// Copyright 2023 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_EXTENSION_GRAPHICS_H_
-#define COBALT_EXTENSION_GRAPHICS_H_
+#ifndef STARBOARD_EXTENSION_GRAPHICS_H_
+#define STARBOARD_EXTENSION_GRAPHICS_H_
 
 #include <stdint.h>
 
@@ -104,8 +104,14 @@ typedef struct CobaltExtensionGraphicsApi {
   // only impacts rendering of the frame -- the web app will not know about this
   // transform, so it may not layout elements appropriately. This function
   // should return true if a custom transform should be used.
-  bool (*GetRenderRootTransform)(float* m00, float* m01, float* m02, float* m10,
-                                 float* m11, float* m12, float* m20, float* m21,
+  bool (*GetRenderRootTransform)(float* m00,
+                                 float* m01,
+                                 float* m02,
+                                 float* m10,
+                                 float* m11,
+                                 float* m12,
+                                 float* m20,
+                                 float* m21,
                                  float* m22);
 
   // The fields below this point were added in version 6 or later.
@@ -119,4 +125,4 @@ typedef struct CobaltExtensionGraphicsApi {
 }  // extern "C"
 #endif
 
-#endif  // COBALT_EXTENSION_GRAPHICS_H_
+#endif  // STARBOARD_EXTENSION_GRAPHICS_H_

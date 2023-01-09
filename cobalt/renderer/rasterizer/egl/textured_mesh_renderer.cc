@@ -20,11 +20,11 @@
 
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
-#include "cobalt/extension/graphics.h"
 #include "cobalt/math/size.h"
 #include "cobalt/renderer/backend/egl/utils.h"
 #include "cobalt/renderer/egl_and_gles.h"
 #include "starboard/configuration.h"
+#include "starboard/extension/graphics.h"
 #include "third_party/glm/glm/gtc/type_ptr.hpp"
 
 namespace cobalt {

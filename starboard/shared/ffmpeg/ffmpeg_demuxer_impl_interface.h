@@ -17,7 +17,7 @@
 
 #include <memory>
 
-#include "cobalt/extension/demuxer.h"
+#include "starboard/extension/demuxer.h"
 #include "starboard/shared/ffmpeg/ffmpeg_demuxer.h"
 
 namespace starboard {

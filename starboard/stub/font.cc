@@ -14,7 +14,7 @@
 
 #include "starboard/stub/font.h"
 
-#include "cobalt/extension/font.h"
+#include "starboard/extension/font.h"
 
 namespace starboard {
 namespace stub {

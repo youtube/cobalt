@@ -22,13 +22,13 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/message_loop/message_loop.h"
 #include "base/threading/thread.h"
-#include "cobalt/extension/updater_notification.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/updater/configurator.h"
 #include "components/prefs/pref_service.h"
 #include "components/update_client/crx_update_item.h"
 #include "components/update_client/update_client.h"
 #include "starboard/event.h"
+#include "starboard/extension/updater_notification.h"
 
 namespace cobalt {
 namespace updater {

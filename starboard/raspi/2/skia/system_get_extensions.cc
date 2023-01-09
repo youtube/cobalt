@@ -14,8 +14,8 @@
 
 #include "starboard/system.h"
 
-#include "cobalt/extension/configuration.h"
 #include "starboard/common/string.h"
+#include "starboard/extension/configuration.h"
 #include "starboard/raspi/2/skia/configuration.h"
 
 const void* SbSystemGetExtension(const char* name) {

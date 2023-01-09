@@ -1,4 +1,4 @@
-// Copyright 2022 The Cobalt Authors. All Rights Reserved.
+// Copyright 2023 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,8 +15,8 @@
 // Contains extension code allowing partners to provide their own demuxer.
 // CobaltExtensionDemuxerApi is the main API.
 
-#ifndef COBALT_EXTENSION_DEMUXER_H_
-#define COBALT_EXTENSION_DEMUXER_H_
+#ifndef STARBOARD_EXTENSION_DEMUXER_H_
+#define STARBOARD_EXTENSION_DEMUXER_H_
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -298,7 +298,8 @@ typedef struct CobaltExtensionDemuxerBuffer {
 // implements this function to read media data provided by the implementer of
 // CobaltExtensionDemuxer.
 typedef void (*CobaltExtensionDemuxerReadCB)(
-    CobaltExtensionDemuxerBuffer* buffer, void* user_data);
+    CobaltExtensionDemuxerBuffer* buffer,
+    void* user_data);
 
 // A fully synchronous demuxer API. Threading concerns are handled by the code
 // that uses this API.
@@ -330,7 +331,8 @@ typedef struct CobaltExtensionDemuxer {
   // 2. Pass an "end of stream" buffer to read_cb. This will cause the relevant
   //    stream to end normally.
   void (*Read)(CobaltExtensionDemuxerStreamType type,
-               CobaltExtensionDemuxerReadCB read_cb, void* read_cb_user_data,
+               CobaltExtensionDemuxerReadCB read_cb,
+               void* read_cb_user_data,
                void* user_data);
 
   // Returns true and populates |audio_config| if an audio stream is present;
@@ -404,5 +406,4 @@ typedef struct CobaltExtensionDemuxerApi {
 }  // extern "C"
 #endif
 
-
-#endif  // COBALT_EXTENSION_DEMUXER_H_
+#endif  // STARBOARD_EXTENSION_DEMUXER_H_

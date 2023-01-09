@@ -21,15 +21,15 @@
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "cobalt/browser/switches.h"
-#if SB_IS(EVERGREEN)
-#include "cobalt/extension/installation_manager.h"
-#endif  // SB_IS(EVERGREEN)
 #include "cobalt/renderer/get_default_rasterizer_for_platform.h"
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/version.h"
 #include "cobalt_build_id.h"  // NOLINT(build/include_subdir)
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
+#if SB_IS(EVERGREEN)
+#include "starboard/extension/installation_manager.h"
+#endif  // SB_IS(EVERGREEN)
 #include "starboard/system.h"
 #if SB_IS(EVERGREEN)
 #include "cobalt/updater/utils.h"

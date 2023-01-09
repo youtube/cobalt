@@ -17,13 +17,14 @@
 
 #include <bitset>
 #include <memory>
+#include <utility>
 
 #include "base/threading/thread_checker.h"
-#include "cobalt/extension/media_session.h"
 #include "cobalt/media/web_media_player_factory.h"
 #include "cobalt/media_session/media_session.h"
 #include "cobalt/media_session/media_session_action_details.h"
 #include "cobalt/media_session/media_session_state.h"
+#include "starboard/extension/media_session.h"
 #include "starboard/time.h"
 
 namespace cobalt {
@@ -35,7 +36,7 @@ class MediaSessionClient {
   friend class MediaSession;
 
  public:
-  MediaSessionClient(): MediaSessionClient(nullptr) {}
+  MediaSessionClient() : MediaSessionClient(nullptr) {}
   // Injectable MediaSession for tests.
   explicit MediaSessionClient(MediaSession* media_session);
 
@@ -83,7 +84,7 @@ class MediaSessionClient {
   // media session playback state.
   bool is_active() {
     return session_state_.actual_playback_state() !=
-        kMediaSessionPlaybackStateNone;
+           kMediaSessionPlaybackStateNone;
   }
 
   // Set maybe freeze callback.

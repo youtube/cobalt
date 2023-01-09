@@ -1,4 +1,4 @@
-// Copyright 2021 The Cobalt Authors. All Rights Reserved.
+// Copyright 2023 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,22 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_EXTENSION_CRASH_HANDLER_H_
-#define COBALT_EXTENSION_CRASH_HANDLER_H_
+#ifndef STARBOARD_EXTENSION_FONT_H_
+#define STARBOARD_EXTENSION_FONT_H_
 
 #include <stdint.h>
-
-#include "starboard/configuration.h"
-#include "third_party/crashpad/wrapper/annotations.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#define kCobaltExtensionCrashHandlerName "dev.cobalt.extension.CrashHandler"
+#define kCobaltExtensionFontName "dev.cobalt.extension.Font"
 
-typedef struct CobaltExtensionCrashHandlerApi {
-  // Name should be the string |kCobaltExtensionCrashHandlerName|.
+typedef struct CobaltExtensionFontApi {
+  // Name should be the string |kCobaltExtensionFontName|.
   // This helps to validate that the extension API is correct.
   const char* name;
 
@@ -36,19 +33,13 @@ typedef struct CobaltExtensionCrashHandlerApi {
 
   // The fields below this point were added in version 1 or later.
 
-  // Deprecated in version 2 and later.
-  bool (*OverrideCrashpadAnnotations)(
-      CrashpadAnnotations* crashpad_annotations);
-
-  // The fields below this point were added in version 2 or later.
-
-  // Sets a (key, value) pair for the handler to include when annotating a
-  // crash. Returns true on success and false on failure.
-  bool (*SetString)(const char* key, const char* value);
-} CobaltExtensionCrashHandlerApi;
+  // Provide additional font directory for fonts not available
+  // as system or Cobalt fonts. This is useful for adding local fallback fonts.
+  bool (*GetPathFallbackFontDirectory)(char* path, int path_size);
+} CobaltExtensionFontApi;
 
 #ifdef __cplusplus
 }  // extern "C"
 #endif
 
-#endif  // COBALT_EXTENSION_CRASH_HANDLER_H_
+#endif  // STARBOARD_EXTENSION_FONT_H_

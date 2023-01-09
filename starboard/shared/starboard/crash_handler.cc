@@ -14,8 +14,8 @@
 
 #include "starboard/shared/starboard/crash_handler.h"
 
-#include "cobalt/extension/crash_handler.h"
 #include "starboard/common/log.h"
+#include "starboard/extension/crash_handler.h"
 #include "starboard/memory.h"
 #include "third_party/crashpad/wrapper/wrapper.h"
 

@@ -1,4 +1,4 @@
-// Copyright 2020 The Cobalt Authors. All Rights Reserved.
+// Copyright 2023 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_EXTENSION_MEDIA_SESSION_H_
-#define COBALT_EXTENSION_MEDIA_SESSION_H_
+#ifndef STARBOARD_EXTENSION_MEDIA_SESSION_H_
+#define STARBOARD_EXTENSION_MEDIA_SESSION_H_
 
 #include "starboard/configuration.h"
 #include "starboard/time.h"
@@ -73,9 +73,11 @@ typedef struct CobaltExtensionMediaSessionActionDetails {
 } CobaltExtensionMediaSessionActionDetails;
 
 typedef void (*CobaltExtensionMediaSessionUpdatePlatformPlaybackStateCallback)(
-    CobaltExtensionMediaSessionPlaybackState state, void* callback_context);
+    CobaltExtensionMediaSessionPlaybackState state,
+    void* callback_context);
 typedef void (*CobaltExtensionMediaSessionInvokeActionCallback)(
-    CobaltExtensionMediaSessionActionDetails details, void* callback_context);
+    CobaltExtensionMediaSessionActionDetails details,
+    void* callback_context);
 
 // This struct and all its members should only be used for piping data to each
 // platform's implementation of OnMediaSessionStateChanged and they are only
@@ -134,4 +136,4 @@ inline void CobaltExtensionMediaSessionActionDetailsInit(
 }  // extern "C"
 #endif
 
-#endif  // COBALT_EXTENSION_MEDIA_SESSION_H_
+#endif  // STARBOARD_EXTENSION_MEDIA_SESSION_H_

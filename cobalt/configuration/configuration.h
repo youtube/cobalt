@@ -16,7 +16,7 @@
 #define COBALT_CONFIGURATION_CONFIGURATION_H_
 
 #include "base/macros.h"
-#include "cobalt/extension/configuration.h"
+#include "starboard/extension/configuration.h"
 
 namespace base {
 template <typename T>

@@ -14,7 +14,7 @@
 
 #include "starboard/raspi/shared/graphics.h"
 
-#include "cobalt/extension/graphics.h"
+#include "starboard/extension/graphics.h"
 
 namespace starboard {
 namespace raspi {
@@ -35,11 +35,11 @@ bool IsMapToMeshEnabled() {
 }
 
 const CobaltExtensionGraphicsApi kGraphicsApi = {
-  kCobaltExtensionGraphicsName,
-  3,
-  &GetMaximumFrameIntervalInMilliseconds,
-  &GetMinimumFrameIntervalInMilliseconds,
-  &IsMapToMeshEnabled,
+    kCobaltExtensionGraphicsName,
+    3,
+    &GetMaximumFrameIntervalInMilliseconds,
+    &GetMinimumFrameIntervalInMilliseconds,
+    &IsMapToMeshEnabled,
 };
 
 }  // namespace

@@ -14,10 +14,10 @@
 
 #include "starboard/system.h"
 
-#include "cobalt/extension/configuration.h"
-#include "cobalt/extension/font.h"
-#include "cobalt/extension/javascript_cache.h"
 #include "starboard/common/string.h"
+#include "starboard/extension/configuration.h"
+#include "starboard/extension/font.h"
+#include "starboard/extension/javascript_cache.h"
 #include "starboard/stub/configuration.h"
 #include "starboard/stub/font.h"
 #include "starboard/stub/javascript_cache.h"

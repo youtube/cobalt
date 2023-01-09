@@ -16,9 +16,9 @@
 
 #include "starboard/common/log.h"
 
-#include "cobalt/extension/graphics.h"
 #include "starboard/android/shared/application_android.h"
 #include "starboard/android/shared/jni_env_ext.h"
+#include "starboard/extension/graphics.h"
 
 namespace starboard {
 namespace android {

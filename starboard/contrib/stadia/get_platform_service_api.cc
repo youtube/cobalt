@@ -19,12 +19,12 @@
 #include <memory>
 #include <vector>
 
-#include "cobalt/extension/platform_service.h"
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
 #include "starboard/common/string.h"
 #include "starboard/contrib/stadia/stadia_interface.h"
 #include "starboard/event.h"
+#include "starboard/extension/platform_service.h"
 #include "starboard/memory.h"
 #include "starboard/window.h"
 

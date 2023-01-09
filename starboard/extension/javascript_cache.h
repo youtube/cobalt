@@ -1,4 +1,4 @@
-// Copyright 2021 The Cobalt Authors. All Rights Reserved.
+// Copyright 2023 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_EXTENSION_JAVASCRIPT_CACHE_H_
-#define COBALT_EXTENSION_JAVASCRIPT_CACHE_H_
+#ifndef STARBOARD_EXTENSION_JAVASCRIPT_CACHE_H_
+#define STARBOARD_EXTENSION_JAVASCRIPT_CACHE_H_
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -43,7 +43,8 @@ typedef struct CobaltExtensionJavaScriptCacheApi {
   // bytes will be returned in |cache_data_out|. After the |cache_data| is
   // processed the memory should be released by calling
   // |ReleaseScriptCacheData|.
-  bool (*GetCachedScript)(uint32_t key, int source_length,
+  bool (*GetCachedScript)(uint32_t key,
+                          int source_length,
                           const uint8_t** cache_data_out,
                           int* cache_data_length);
 
@@ -51,12 +52,14 @@ typedef struct CobaltExtensionJavaScriptCacheApi {
   void (*ReleaseCachedScriptData)(const uint8_t* cache_data);
 
   // Stores the cached data for |key|.
-  bool (*StoreCachedScript)(uint32_t key, int source_length,
-                            const uint8_t* cache_data, int cache_data_length);
+  bool (*StoreCachedScript)(uint32_t key,
+                            int source_length,
+                            const uint8_t* cache_data,
+                            int cache_data_length);
 } CobaltExtensionJavaScriptCacheApi;
 
 #ifdef __cplusplus
 }  // extern "C"
 #endif
 
-#endif  // COBALT_EXTENSION_JAVASCRIPT_CACHE_H_
+#endif  // STARBOARD_EXTENSION_JAVASCRIPT_CACHE_H_

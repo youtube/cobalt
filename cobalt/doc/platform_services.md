@@ -65,7 +65,7 @@ passing binary data.
 Implementing the Starboard layer of Platform Service extension support uses the
 following interface in parallel with the IDL interface:
 
-*   [src/cobalt/extension/platform\_service.h](../extension/platform_service.h)
+*   [starboard/extension/platform\_service.h](../extension/platform_service.h)
 
 `CobaltExtensionPlatformServiceApi` is the main interface for the Starboard
 layer.

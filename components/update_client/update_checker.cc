@@ -20,9 +20,6 @@
 #include "base/strings/stringprintf.h"
 #include "base/task/post_task.h"
 #include "base/threading/thread_checker.h"
-#if defined(STARBOARD)
-#include "cobalt/extension/free_space.h"
-#endif
 #include "base/threading/thread_task_runner_handle.h"
 #include "build/build_config.h"
 #if defined(STARBOARD)
@@ -40,6 +37,9 @@
 #include "components/update_client/update_client.h"
 #include "components/update_client/updater_state.h"
 #include "components/update_client/utils.h"
+#if defined(STARBOARD)
+#include "starboard/extension/free_space.h"
+#endif
 #include "url/gurl.h"
 
 namespace update_client {

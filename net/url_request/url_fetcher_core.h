@@ -15,7 +15,7 @@
 #include "base/macros.h"
 #include "base/memory/ref_counted.h"
 #include "base/timer/timer.h"
-#include "cobalt/extension/url_fetcher_observer.h"
+#include "starboard/extension/url_fetcher_observer.h"
 #include "net/base/chunked_upload_data_stream.h"
 #include "net/base/host_port_pair.h"
 #if defined(STARBOARD)

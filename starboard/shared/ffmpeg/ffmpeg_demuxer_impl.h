@@ -19,7 +19,7 @@
 #include <memory>
 #include <vector>
 
-#include "cobalt/extension/demuxer.h"
+#include "starboard/extension/demuxer.h"
 #include "starboard/shared/ffmpeg/ffmpeg_common.h"
 #include "starboard/shared/ffmpeg/ffmpeg_demuxer.h"
 #include "starboard/shared/ffmpeg/ffmpeg_demuxer_impl_interface.h"

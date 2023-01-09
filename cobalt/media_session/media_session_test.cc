@@ -20,12 +20,12 @@
 #include "base/message_loop/message_loop.h"
 #include "base/run_loop.h"
 #include "cobalt/bindings/testing/script_object_owner.h"
-#include "cobalt/extension/media_session.h"
 #include "cobalt/media_session/media_session_client.h"
 #include "cobalt/script/callback_function.h"
 #include "cobalt/script/script_value.h"
 #include "cobalt/script/testing/fake_script_value.h"
 #include "cobalt/script/wrappable.h"
+#include "starboard/extension/media_session.h"
 #include "starboard/thread.h"
 #include "starboard/time.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -56,12 +56,11 @@ class MockCallbackFunction : public MediaSession::MediaSessionActionHandler {
 
 class MockMediaSessionClient : public MediaSessionClient {
  public:
-  explicit MockMediaSessionClient(MediaSession* media_session) :
-      MediaSessionClient(media_session) {
-  }
+  explicit MockMediaSessionClient(MediaSession* media_session)
+      : MediaSessionClient(media_session) {}
 
-  void OnMediaSessionStateChanged(const MediaSessionState& session_state)
-      override {
+  void OnMediaSessionStateChanged(
+      const MediaSessionState& session_state) override {
     session_state_ = session_state;
     ++session_change_count_;
     MediaSessionClient::OnMediaSessionStateChanged(session_state);
@@ -109,9 +108,8 @@ MATCHER_P(SeekNoOffset, action, "") {
 TEST(MediaSessionTest, MediaSessionTest) {
   base::MessageLoop message_loop(base::MessageLoop::TYPE_DEFAULT);
 
-  scoped_refptr<MockMediaSession> session =
-      scoped_refptr<MockMediaSession>(new MockMediaSession(
-          new MockMediaSessionClient(nullptr)));
+  scoped_refptr<MockMediaSession> session = scoped_refptr<MockMediaSession>(
+      new MockMediaSession(new MockMediaSessionClient(nullptr)));
   session->media_session_client()->set_media_session(session);
 
   EXPECT_EQ(kMediaSessionPlaybackStateNone, session->playback_state());
@@ -120,7 +118,8 @@ TEST(MediaSessionTest, MediaSessionTest) {
 
   session->mock_session_client()->WaitForSessionStateChange();
   EXPECT_EQ(kMediaSessionPlaybackStatePlaying, session->mock_session_client()
-      ->GetMediaSessionState().actual_playback_state());
+                                                   ->GetMediaSessionState()
+                                                   .actual_playback_state());
 
   EXPECT_EQ(session->mock_session_client()->GetMediaSessionChangeCount(), 1);
 }
@@ -128,9 +127,8 @@ TEST(MediaSessionTest, MediaSessionTest) {
 TEST(MediaSessionTest, ActualPlaybackState) {
   base::MessageLoop message_loop(base::MessageLoop::TYPE_DEFAULT);
 
-  scoped_refptr<MockMediaSession> session =
-      scoped_refptr<MockMediaSession>(new MockMediaSession(
-          new MockMediaSessionClient(nullptr)));
+  scoped_refptr<MockMediaSession> session = scoped_refptr<MockMediaSession>(
+      new MockMediaSession(new MockMediaSessionClient(nullptr)));
   session->media_session_client()->set_media_session(session);
 
   // Trigger a session state change without impacting playback state.
@@ -139,46 +137,53 @@ TEST(MediaSessionTest, ActualPlaybackState) {
   EXPECT_EQ(session->mock_session_client()->GetMediaSessionChangeCount(), 1);
 
   EXPECT_EQ(kMediaSessionPlaybackStateNone, session->mock_session_client()
-      ->GetMediaSessionState().actual_playback_state());
+                                                ->GetMediaSessionState()
+                                                .actual_playback_state());
 
   session->mock_session_client()->UpdatePlatformPlaybackState(
       kCobaltExtensionMediaSessionPlaying);
 
   session->mock_session_client()->WaitForSessionStateChange();
   EXPECT_EQ(kMediaSessionPlaybackStatePlaying, session->mock_session_client()
-      ->GetMediaSessionState().actual_playback_state());
+                                                   ->GetMediaSessionState()
+                                                   .actual_playback_state());
 
   session->set_playback_state(kMediaSessionPlaybackStatePlaying);
 
   session->mock_session_client()->WaitForSessionStateChange();
   EXPECT_EQ(kMediaSessionPlaybackStatePlaying, session->mock_session_client()
-      ->GetMediaSessionState().actual_playback_state());
+                                                   ->GetMediaSessionState()
+                                                   .actual_playback_state());
 
   session->set_playback_state(kMediaSessionPlaybackStatePaused);
 
   session->mock_session_client()->WaitForSessionStateChange();
   EXPECT_EQ(kMediaSessionPlaybackStatePlaying, session->mock_session_client()
-      ->GetMediaSessionState().actual_playback_state());
+                                                   ->GetMediaSessionState()
+                                                   .actual_playback_state());
 
   session->mock_session_client()->UpdatePlatformPlaybackState(
       kCobaltExtensionMediaSessionPaused);
 
   session->mock_session_client()->WaitForSessionStateChange();
   EXPECT_EQ(kMediaSessionPlaybackStatePaused, session->mock_session_client()
-      ->GetMediaSessionState().actual_playback_state());
+                                                  ->GetMediaSessionState()
+                                                  .actual_playback_state());
 
   session->set_playback_state(kMediaSessionPlaybackStateNone);
 
   session->mock_session_client()->WaitForSessionStateChange();
   EXPECT_EQ(kMediaSessionPlaybackStateNone, session->mock_session_client()
-      ->GetMediaSessionState().actual_playback_state());
+                                                ->GetMediaSessionState()
+                                                .actual_playback_state());
 
   session->mock_session_client()->UpdatePlatformPlaybackState(
       kCobaltExtensionMediaSessionNone);
 
   session->mock_session_client()->WaitForSessionStateChange();
   EXPECT_EQ(kMediaSessionPlaybackStateNone, session->mock_session_client()
-      ->GetMediaSessionState().actual_playback_state());
+                                                ->GetMediaSessionState()
+                                                .actual_playback_state());
 
   EXPECT_GE(session->mock_session_client()->GetMediaSessionChangeCount(), 2);
 }
@@ -186,9 +191,8 @@ TEST(MediaSessionTest, ActualPlaybackState) {
 TEST(MediaSessionTest, NullActionClears) {
   base::MessageLoop message_loop(base::MessageLoop::TYPE_DEFAULT);
 
-  scoped_refptr<MockMediaSession> session =
-      scoped_refptr<MockMediaSession>(new MockMediaSession(
-          new MockMediaSessionClient(nullptr)));
+  scoped_refptr<MockMediaSession> session = scoped_refptr<MockMediaSession>(
+      new MockMediaSession(new MockMediaSessionClient(nullptr)));
   session->media_session_client()->set_media_session(session);
 
   // Trigger a session state change without impacting playback state.
@@ -212,14 +216,18 @@ TEST(MediaSessionTest, NullActionClears) {
   session->SetActionHandler(kMediaSessionActionPlay, holder);
   session->mock_session_client()->WaitForSessionStateChange();
   EXPECT_EQ(1, session->mock_session_client()
-      ->GetMediaSessionState().available_actions().to_ulong());
+                   ->GetMediaSessionState()
+                   .available_actions()
+                   .to_ulong());
   session->mock_session_client()->InvokeAction(
       kCobaltExtensionMediaSessionActionPlay);
 
   session->SetActionHandler(kMediaSessionActionPlay, null_holder);
   session->mock_session_client()->WaitForSessionStateChange();
   EXPECT_EQ(0, session->mock_session_client()
-      ->GetMediaSessionState().available_actions().to_ulong());
+                   ->GetMediaSessionState()
+                   .available_actions()
+                   .to_ulong());
   session->mock_session_client()->InvokeAction(
       kCobaltExtensionMediaSessionActionPlay);
 
@@ -231,9 +239,8 @@ TEST(MediaSessionTest, AvailableActions) {
 
   MediaSessionState state;
 
-  scoped_refptr<MockMediaSession> session =
-      scoped_refptr<MockMediaSession>(new MockMediaSession(
-          new MockMediaSessionClient(nullptr)));
+  scoped_refptr<MockMediaSession> session = scoped_refptr<MockMediaSession>(
+      new MockMediaSession(new MockMediaSessionClient(nullptr)));
   session->media_session_client()->set_media_session(session);
 
   // Trigger a session state change without impacting playback state.
@@ -253,15 +260,13 @@ TEST(MediaSessionTest, AvailableActions) {
 
   session->mock_session_client()->WaitForSessionStateChange();
   state = session->mock_session_client()->GetMediaSessionState();
-  EXPECT_EQ(1 << kMediaSessionActionPlay,
-            state.available_actions().to_ulong());
+  EXPECT_EQ(1 << kMediaSessionActionPlay, state.available_actions().to_ulong());
 
   session->SetActionHandler(kMediaSessionActionPause, holder);
 
   session->mock_session_client()->WaitForSessionStateChange();
   state = session->mock_session_client()->GetMediaSessionState();
-  EXPECT_EQ(1 << kMediaSessionActionPlay,
-            state.available_actions().to_ulong());
+  EXPECT_EQ(1 << kMediaSessionActionPlay, state.available_actions().to_ulong());
 
   session->SetActionHandler(kMediaSessionActionSeekto, holder);
 
@@ -339,9 +344,8 @@ TEST(MediaSessionTest, AvailableActions) {
 TEST(MediaSessionTest, InvokeAction) {
   base::MessageLoop message_loop(base::MessageLoop::TYPE_DEFAULT);
 
-  scoped_refptr<MockMediaSession> session =
-      scoped_refptr<MockMediaSession>(new MockMediaSession(
-          new MockMediaSessionClient(nullptr)));
+  scoped_refptr<MockMediaSession> session = scoped_refptr<MockMediaSession>(
+      new MockMediaSession(new MockMediaSessionClient(nullptr)));
   session->media_session_client()->set_media_session(session);
 
   MockCallbackFunction cf;
@@ -360,9 +364,8 @@ TEST(MediaSessionTest, InvokeAction) {
 TEST(MediaSessionTest, SeekDetails) {
   base::MessageLoop message_loop(base::MessageLoop::TYPE_DEFAULT);
 
-  scoped_refptr<MockMediaSession> session =
-      scoped_refptr<MockMediaSession>(new MockMediaSession(
-          new MockMediaSessionClient(nullptr)));
+  scoped_refptr<MockMediaSession> session = scoped_refptr<MockMediaSession>(
+      new MockMediaSession(new MockMediaSessionClient(nullptr)));
   session->media_session_client()->set_media_session(session);
 
   MockCallbackFunction cf;
@@ -410,9 +413,8 @@ TEST(MediaSessionTest, SeekDetails) {
 TEST(MediaSessionTest, PositionState) {
   base::MessageLoop message_loop(base::MessageLoop::TYPE_DEFAULT);
 
-  scoped_refptr<MockMediaSession> session =
-      scoped_refptr<MockMediaSession>(new MockMediaSession(
-          new MockMediaSessionClient(nullptr)));
+  scoped_refptr<MockMediaSession> session = scoped_refptr<MockMediaSession>(
+      new MockMediaSession(new MockMediaSessionClient(nullptr)));
   session->media_session_client()->set_media_session(session);
 
   MediaSessionState state;
@@ -515,9 +517,8 @@ TEST(MediaSessionTest, PositionState) {
 TEST(MediaSessionTest, Metadata) {
   base::MessageLoop message_loop(base::MessageLoop::TYPE_DEFAULT);
 
-  scoped_refptr<MockMediaSession> session =
-      scoped_refptr<MockMediaSession>(new MockMediaSession(
-          new MockMediaSessionClient(nullptr)));
+  scoped_refptr<MockMediaSession> session = scoped_refptr<MockMediaSession>(
+      new MockMediaSession(new MockMediaSessionClient(nullptr)));
   session->media_session_client()->set_media_session(session);
   MediaSessionState state;
 

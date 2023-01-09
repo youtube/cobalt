@@ -1,4 +1,4 @@
-// Copyright 2020 The Cobalt Authors. All Rights Reserved.
+// Copyright 2023 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_EXTENSION_CONFIGURATION_H_
-#define COBALT_EXTENSION_CONFIGURATION_H_
+#ifndef STARBOARD_EXTENSION_CONFIGURATION_H_
+#define STARBOARD_EXTENSION_CONFIGURATION_H_
 
 #include <stdint.h>
 
@@ -224,4 +224,4 @@ typedef struct CobaltExtensionConfigurationApi {
 }  // extern "C"
 #endif
 
-#endif  // COBALT_EXTENSION_CONFIGURATION_H_
+#endif  // STARBOARD_EXTENSION_CONFIGURATION_H_

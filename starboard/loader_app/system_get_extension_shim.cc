@@ -17,8 +17,8 @@
 #include <cstring>
 #include <string>
 
-#include "cobalt/extension/installation_manager.h"
 #include "starboard/common/log.h"
+#include "starboard/extension/installation_manager.h"
 #include "starboard/loader_app/installation_manager.h"
 #include "starboard/string.h"
 #include "starboard/system.h"

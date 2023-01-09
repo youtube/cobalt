@@ -19,7 +19,7 @@
 
 #include "base/callback.h"
 #include "cobalt/dom/on_screen_keyboard_bridge.h"
-#include "cobalt/extension/on_screen_keyboard.h"
+#include "starboard/extension/on_screen_keyboard.h"
 #include "starboard/window.h"
 
 namespace cobalt {

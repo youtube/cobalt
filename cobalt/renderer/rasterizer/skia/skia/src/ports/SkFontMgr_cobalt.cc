@@ -28,10 +28,10 @@
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/language.h"
 #include "cobalt/configuration/configuration.h"
-#include "cobalt/extension/font.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontConfigParser_cobalt.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFreeType_cobalt.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkTypeface_cobalt.h"
+#include "starboard/extension/font.h"
 #include "third_party/icu/source/common/unicode/locid.h"
 
 const char* ROBOTO_SCRIPT = "latn";
