@@ -35,6 +35,7 @@
       'conditions': [
         ['target_arch=="arm" and \
           use_arm_neon_optimizations==1 and \
+          _toolset != "host" and \
           floating_point_fpu!="neon" and \
           floating_point_fpu!="neon-fp16" and \
           floating_point_fpu!="neon-vfpv4" and \
@@ -57,7 +58,7 @@
         'ZLIB_IMPLEMENTATION',
       ],
       'conditions': [
-        ['use_x86_x64_optimizations==1', {
+        ['use_x86_x64_optimizations==1 and _toolset != "host"', {
           'defines': [
             'ADLER32_SIMD_SSSE3',
           ],
@@ -78,7 +79,7 @@
             }],
           ],
         }],
-        ['use_arm_neon_optimizations==1', {
+        ['use_arm_neon_optimizations==1 and _toolset != "host"', {
           'defines': [
             'ADLER32_SIMD_NEON',
           ],
@@ -108,7 +109,7 @@
       'target_name': 'zlib_arm_crc32',
       'type': 'static_library',
       'conditions': [
-        ['use_arm_neon_optimizations==1', {
+        ['use_arm_neon_optimizations==1 and _toolset != "host"', {
           'include_dirs': [
             '.',
           ],
@@ -183,7 +184,10 @@
         'ZLIB_IMPLEMENTATION',
       ],
       'conditions': [
-        ['use_x86_x64_optimizations==1 or use_arm_neon_optimizations==1', {
+        ['use_x86_x64_optimizations==1 and \
+          _toolset != "host" or \
+          use_arm_neon_optimizations==1 and \
+          _toolset != "host"', {
           'include_dirs': [
             '.',
           ],
@@ -194,7 +198,7 @@
             'contrib/optimizations/inflate.c',
           ],
         }],
-        ['use_x86_x64_optimizations==1', {
+        ['use_x86_x64_optimizations==1 and _toolset != "host"', {
           'defines': [
             'INFLATE_CHUNK_SIMD_SSE2',
           ],
@@ -211,7 +215,7 @@
             }],
           ],
         }],
-        ['use_arm_neon_optimizations==1', {
+        ['use_arm_neon_optimizations==1 and _toolset != "host"', {
           'defines': [
             'INFLATE_CHUNK_SIMD_NEON',
           ],
@@ -240,7 +244,7 @@
         'ZLIB_IMPLEMENTATION',
       ],
       'conditions': [
-        ['use_x86_x64_optimizations==1', {
+        ['use_x86_x64_optimizations==1 and _toolset != "host"', {
           'defines': [
             'CRC32_SIMD_SSE42_PCLMUL',
           ],
@@ -267,11 +271,12 @@
     {
       'target_name': 'zlib_x86_simd',
       'type': 'static_library',
+      'toolsets': ['host', 'target'],
       'defines': [
         'ZLIB_IMPLEMENTATION',
       ],
       'conditions': [
-        ['use_x86_x64_optimizations==1', {
+        ['use_x86_x64_optimizations==1 and _toolset != "host"', {
           'sources': [
             'crc_folding.c',
             'fill_window_sse.c',
@@ -290,6 +295,7 @@
     {
       'target_name': 'zlib',
       'type': 'static_library',
+      'toolsets': ['host', 'target'],
       'conditions': [
         ['use_system_zlib==0', {
           'sources': [
@@ -353,7 +359,7 @@
                 'gzwrite.c',
               ],
             }],
-            ['use_x86_x64_optimizations==1', {
+            ['use_x86_x64_optimizations==1 and _toolset != "host"', {
               'defines': [
                 'USE_X86_X64_OPTIMIZATIONS=1',
               ],
@@ -370,7 +376,7 @@
                 'simd_stub.c',
               ],
             }],
-            ['use_arm_neon_optimizations==1', {
+            ['use_arm_neon_optimizations==1 and _toolset != "host"', {
               'defines': [
                 'USE_ARM_NEON_OPTIMIZATIONS=1',
               ],

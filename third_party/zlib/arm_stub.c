@@ -7,10 +7,10 @@
 #include <assert.h>
 
 #include "zutil.h"
-#include "starboard/common/log.h"
 
 #if defined(STARBOARD)
 #include "contrib/optimizations/slide_hash_neon.h"
+#include "starboard/common/log.h"
 #endif
 
 int ZLIB_INTERNAL arm_cpu_enable_crc32 = 0;

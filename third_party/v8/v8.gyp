@@ -2024,7 +2024,7 @@
         ],
       },
       'dependencies': [
-        '<(DEPTH)/third_party/zlib/zlib.gyp:zlib#target',
+        '<(DEPTH)/third_party/zlib/zlib.gyp:zlib',
       ],
       'target_conditions': [
         # cobalt/src/third_party/zlib/zlib.gyp does not provide a host biuld,
