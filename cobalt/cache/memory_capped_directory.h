@@ -54,7 +54,7 @@ class MemoryCappedDirectory {
   bool Delete(uint32_t key);
   void DeleteAll();
   std::vector<uint32_t> KeysWithMetadata();
-  std::unique_ptr<base::Value> Metadata(uint32_t key);
+  base::Optional<base::Value> Metadata(uint32_t key);
   std::unique_ptr<std::vector<uint8_t>> Retrieve(uint32_t key);
   void Store(uint32_t key, const std::vector<uint8_t>& data,
              const base::Optional<base::Value>& metadata);

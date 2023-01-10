@@ -191,11 +191,10 @@ script::HandlePromiseVoid ServiceWorkerGlobalScope::SkipWaiting() {
 
 void ServiceWorkerGlobalScope::StartFetch(
     const GURL& url,
-    std::unique_ptr<base::OnceCallback<void(std::unique_ptr<std::string>)>>
-        callback,
-    std::unique_ptr<base::OnceCallback<void(const net::LoadTimingInfo&)>>
+    base::OnceCallback<void(std::unique_ptr<std::string>)> callback,
+    base::OnceCallback<void(const net::LoadTimingInfo&)>
         report_load_timing_info,
-    std::unique_ptr<base::OnceClosure> fallback) {
+    base::OnceClosure fallback) {
   if (base::MessageLoop::current() !=
       environment_settings()->context()->message_loop()) {
     environment_settings()->context()->message_loop()->task_runner()->PostTask(
@@ -207,7 +206,7 @@ void ServiceWorkerGlobalScope::StartFetch(
     return;
   }
   if (!service_worker()) {
-    std::move(*fallback).Run();
+    std::move(fallback).Run();
     return;
   }
   // TODO: handle the following steps in
@@ -220,14 +219,14 @@ void ServiceWorkerGlobalScope::StartFetch(
   auto* global_environment = get_global_environment(environment_settings());
   auto* isolate = global_environment->isolate();
   script::v8c::EntryScope entry_scope(isolate);
-  auto request =
-      web::cache_utils::CreateRequest(environment_settings(), url.spec());
+  auto request = web::cache_utils::CreateRequest(isolate, url.spec());
   if (!request) {
-    std::move(*fallback).Run();
+    std::move(fallback).Run();
     return;
   }
   FetchEventInit event_init;
-  event_init.set_request(request.value().GetScriptValue());
+  event_init.set_request(
+      web::cache_utils::FromV8Value(isolate, request.value()).GetScriptValue());
   scoped_refptr<FetchEvent> fetch_event =
       new FetchEvent(environment_settings(), base::Tokens::fetch(), event_init,
                      std::move(callback), std::move(report_load_timing_info));
@@ -235,7 +234,7 @@ void ServiceWorkerGlobalScope::StartFetch(
   DispatchEvent(fetch_event);
   // TODO: implement steps 25 and 26.
   if (!fetch_event->respond_with_called()) {
-    std::move(*fallback).Run();
+    std::move(fallback).Run();
   }
 }
 

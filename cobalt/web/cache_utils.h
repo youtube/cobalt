@@ -15,87 +15,117 @@
 #ifndef COBALT_WEB_CACHE_UTILS_H_
 #define COBALT_WEB_CACHE_UTILS_H_
 
+#include <initializer_list>
 #include <memory>
 #include <string>
 #include <vector>
 
+#include "base/bind.h"
+#include "base/optional.h"
+#include "base/synchronization/waitable_event.h"
+#include "base/values.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/script_value_factory.h"
 #include "cobalt/script/value_handle.h"
+#include "url/gurl.h"
 #include "v8/include/v8.h"
 
 namespace cobalt {
 namespace web {
 namespace cache_utils {
 
+using OnFullfilled = base::OnceCallback<base::Optional<v8::Local<v8::Promise>>(
+    v8::Local<v8::Promise>)>;
+
 v8::Local<v8::String> V8String(v8::Isolate* isolate, const std::string& s);
 
-v8::MaybeLocal<v8::Value> TryGet(v8::Local<v8::Context> context,
-                                 v8::Local<v8::Value> object,
-                                 const std::string& key);
+std::string FromV8String(v8::Isolate* isolate, v8::Local<v8::Value> value);
 
-v8::Local<v8::Value> Get(v8::Local<v8::Context> context,
-                         v8::Local<v8::Value> object, const std::string& key);
+base::Optional<v8::Local<v8::Promise>> OptionalPromise(
+    base::Optional<v8::Local<v8::Value>> value);
+
+const base::Value* Get(const base::Value& value, const std::string& path,
+                       bool parent = false);
+
+base::Optional<v8::Local<v8::Value>> Get(v8::Local<v8::Value> object,
+                                         const std::string& path);
 
 template <typename T>
-inline T* GetExternal(v8::Local<v8::Context> context,
-                      v8::Local<v8::Value> object, const std::string& key) {
-  return static_cast<T*>(
-      web::cache_utils::Get(context, object, key).As<v8::External>()->Value());
+inline T* GetExternal(v8::Local<v8::Value> object, const std::string& path) {
+  base::Optional<v8::Local<v8::Value>> value = Get(object, path);
+  if (!value) {
+    return nullptr;
+  }
+  return static_cast<T*>(value->As<v8::External>()->Value());
 }
 
 template <typename T>
-inline std::unique_ptr<T> GetOwnedExternal(v8::Local<v8::Context> context,
-                                           v8::Local<v8::Value> object,
-                                           const std::string& key) {
-  return std::unique_ptr<T>(
-      web::cache_utils::GetExternal<T>(context, object, key));
+inline std::unique_ptr<T> GetOwnedExternal(v8::Local<v8::Object> object,
+                                           const std::string& path) {
+  return std::unique_ptr<T>(web::cache_utils::GetExternal<T>(object, path));
 }
 
-bool Set(v8::Local<v8::Context> context, v8::Local<v8::Value> object,
-         const std::string& key, v8::Local<v8::Value> value);
+base::Optional<double> GetNumber(v8::Local<v8::Value> object,
+                                 const std::string& path);
+base::Optional<std::string> GetString(v8::Local<v8::Value> object,
+                                      const std::string& path);
 
+bool Set(v8::Local<v8::Object> object, const std::string& key,
+         v8::Local<v8::Value> value);
 
 template <typename T>
-inline bool SetExternal(v8::Local<v8::Context> context,
-                        v8::Local<v8::Value> object, const std::string& key,
+inline bool SetExternal(v8::Local<v8::Object> object, const std::string& key,
                         T* value) {
-  auto* isolate = context->GetIsolate();
-  return Set(context, object, key, v8::External::New(isolate, value));
+  auto* isolate = object->GetIsolate();
+  return Set(object, key, v8::External::New(isolate, value));
 }
 
 template <typename T>
-inline bool SetOwnedExternal(v8::Local<v8::Context> context,
-                             v8::Local<v8::Value> object,
+inline bool SetOwnedExternal(v8::Local<v8::Object> object,
                              const std::string& key, std::unique_ptr<T> value) {
-  return SetExternal<T>(context, object, key, value.release());
+  return SetExternal<T>(object, key, value.release());
 }
 
-v8::MaybeLocal<v8::Value> TryCall(v8::Local<v8::Context> context,
-                                  v8::Local<v8::Value> object,
-                                  const std::string& key, int argc = 0,
-                                  v8::Local<v8::Value> argv[] = nullptr);
+bool Delete(v8::Local<v8::Object> object, const std::string& key);
 
-script::Any GetUndefined(script::EnvironmentSettings* environment_settings);
+base::Optional<v8::Local<v8::Value>> Call(
+    v8::Local<v8::Value> object, const std::string& key,
+    std::initializer_list<v8::Local<v8::Value>> args = {});
+base::Optional<v8::Local<v8::Value>> Then(v8::Local<v8::Value> value,
+                                          OnFullfilled on_fullfilled);
 
-script::Any EvaluateString(script::EnvironmentSettings* environment_settings,
-                           const std::string& js_code);
+std::string Stringify(v8::Isolate* isolate, v8::Local<v8::Value> value);
+base::Optional<v8::Local<v8::Value>> BaseToV8(v8::Isolate* isolate,
+                                              const base::Value& value);
+base::Optional<base::Value> Deserialize(const std::string& json);
+base::Optional<base::Value> V8ToBase(v8::Isolate* isolate,
+                                     v8::Local<v8::Value> value);
 
-base::Optional<script::Any> CreateInstance(
-    script::EnvironmentSettings* environment_settings,
-    const std::string& class_name, int argc, v8::Local<v8::Value> argv[]);
-base::Optional<script::Any> CreateRequest(
-    script::EnvironmentSettings* environment_settings, const std::string& url);
-base::Optional<script::Any> CreateResponse(
-    script::EnvironmentSettings* environment_settings,
-    std::unique_ptr<std::vector<uint8_t>> data);
+double FromNumber(v8::Local<v8::Value> value);
+v8::Local<v8::Number> ToNumber(v8::Isolate* isolate, double d);
 
-uint32_t GetKey(const std::string& url);
+std::vector<uint8_t> ToUint8Vector(v8::Local<v8::Value> buffer);
 
-uint32_t GetKey(script::EnvironmentSettings* environment_settings,
+script::Any FromV8Value(v8::Isolate* isolate, v8::Local<v8::Value> value);
+v8::Local<v8::Value> ToV8Value(const script::Any& any);
+
+base::Optional<v8::Local<v8::Value>> Evaluate(v8::Isolate* isolate,
+                                              const std::string& js_code);
+
+base::Optional<v8::Local<v8::Value>> CreateRequest(v8::Isolate* isolate,
+                                                   const std::string& url);
+base::Optional<v8::Local<v8::Value>> CreateResponse(
+    v8::Isolate* isolate, const std::vector<uint8_t>& body,
+    const base::Value& options);
+base::Optional<base::Value> ExtractResponseOptions(
+    v8::Local<v8::Value> response);
+
+uint32_t GetKey(const std::string& s);
+
+uint32_t GetKey(const GURL& base_url,
                 const script::ValueHandleHolder& request_info);
 
-std::string GetUrl(script::EnvironmentSettings* environment_settings,
+std::string GetUrl(const GURL& base_url,
                    const script::ValueHandleHolder& request_info);
 
 }  // namespace cache_utils

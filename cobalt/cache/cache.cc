@@ -27,7 +27,6 @@
 #include "cobalt/extension/javascript_cache.h"
 #include "cobalt/persistent_storage/persistent_settings.h"
 #include "net/disk_cache/cobalt/cobalt_backend_impl.h"
-#include "starboard/common/murmurhash2.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/system.h"
 
@@ -96,11 +95,6 @@ Cache* Cache::GetInstance() {
   return base::Singleton<Cache, base::LeakySingletonTraits<Cache>>::get();
 }
 
-// static
-uint32_t Cache::CreateKey(const std::string& s) {
-  return starboard::MurmurHash2_32(s.c_str(), s.size());
-}
-
 bool Cache::Delete(disk_cache::ResourceType resource_type, uint32_t key) {
   auto* memory_capped_directory = GetMemoryCappedDirectory(resource_type);
   if (memory_capped_directory) {
@@ -131,13 +125,13 @@ std::vector<uint32_t> Cache::KeysWithMetadata(
   return std::vector<uint32_t>();
 }
 
-std::unique_ptr<base::Value> Cache::Metadata(
+base::Optional<base::Value> Cache::Metadata(
     disk_cache::ResourceType resource_type, uint32_t key) {
   auto* memory_capped_directory = GetMemoryCappedDirectory(resource_type);
   if (memory_capped_directory) {
     return memory_capped_directory->Metadata(key);
   }
-  return nullptr;
+  return base::nullopt;
 }
 
 std::unique_ptr<std::vector<uint8_t>> Cache::Retrieve(

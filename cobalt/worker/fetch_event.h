@@ -41,14 +41,14 @@ class FetchEvent : public ::cobalt::worker::ExtendableEvent {
              const FetchEventInit& event_init_dict);
   FetchEvent(script::EnvironmentSettings*, base::Token type,
              const FetchEventInit& event_init_dict,
-             std::unique_ptr<RespondWithCallback> respond_with_callback,
-             std::unique_ptr<ReportLoadTimingInfo> report_load_timing_info);
+             RespondWithCallback respond_with_callback,
+             ReportLoadTimingInfo report_load_timing_info);
   ~FetchEvent() override = default;
 
   void RespondWith(
-      script::EnvironmentSettings*,
-      std::unique_ptr<script::Promise<script::ValueHandle*>>& response);
-  script::HandlePromiseVoid handled(script::EnvironmentSettings*);
+      std::unique_ptr<script::Promise<script::ValueHandle*>>& response,
+      script::ExceptionState* exception_state);
+  script::HandlePromiseVoid handled();
 
   const script::ValueHandleHolder* request() {
     return &(request_->referenced_value());
@@ -59,8 +59,14 @@ class FetchEvent : public ::cobalt::worker::ExtendableEvent {
   DEFINE_WRAPPABLE_TYPE(FetchEvent);
 
  private:
-  std::unique_ptr<RespondWithCallback> respond_with_callback_;
-  std::unique_ptr<ReportLoadTimingInfo> report_load_timing_info_;
+  base::Optional<v8::Local<v8::Promise>> GetText(
+      v8::Local<v8::Promise> response_promise);
+  base::Optional<v8::Local<v8::Promise>> DoRespondWith(
+      v8::Local<v8::Promise> text_promise);
+
+  script::EnvironmentSettings* environment_settings_;
+  RespondWithCallback respond_with_callback_;
+  ReportLoadTimingInfo report_load_timing_info_;
   std::unique_ptr<script::ValueHandleHolder::Reference> request_;
   std::unique_ptr<script::ValuePromiseVoid::Reference> handled_property_;
   bool respond_with_called_ = false;

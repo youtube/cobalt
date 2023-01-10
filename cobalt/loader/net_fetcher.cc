@@ -153,15 +153,11 @@ void NetFetcher::Start() {
     }
     FetchInterceptorCoordinator::GetInstance()->TryIntercept(
         original_url,
-        std::make_unique<
-            base::OnceCallback<void(std::unique_ptr<std::string>)>>(
-            base::BindOnce(&NetFetcher::OnFetchIntercepted,
-                           base::Unretained(this))),
-        std::make_unique<base::OnceCallback<void(const net::LoadTimingInfo&)>>(
-            base::BindOnce(&NetFetcher::ReportLoadTimingInfo,
-                           base::Unretained(this))),
-        std::make_unique<base::OnceClosure>(base::BindOnce(
-            &net::URLFetcher::Start, base::Unretained(url_fetcher_.get()))));
+        base::BindOnce(&NetFetcher::OnFetchIntercepted, base::Unretained(this)),
+        base::BindOnce(&NetFetcher::ReportLoadTimingInfo,
+                       base::Unretained(this)),
+        base::BindOnce(&net::URLFetcher::Start,
+                       base::Unretained(url_fetcher_.get())));
 
   } else {
     std::string msg(base::StringPrintf("URL %s rejected by security policy.",

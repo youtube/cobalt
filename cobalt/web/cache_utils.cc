@@ -14,156 +14,432 @@
 
 #include "cobalt/web/cache_utils.h"
 
-#include "cobalt/cache/cache.h"
+#include <algorithm>
+#include <utility>
+
+#include "base/json/json_reader.h"
+#include "base/json/json_writer.h"
+#include "base/strings/string_split.h"
 #include "cobalt/script/v8c/conversion_helpers.h"
 #include "cobalt/web/environment_settings_helper.h"
+#include "starboard/common/murmurhash2.h"
 
 namespace cobalt {
 namespace web {
 namespace cache_utils {
 
 v8::Local<v8::String> V8String(v8::Isolate* isolate, const std::string& s) {
-  return v8::String::NewFromUtf8(isolate, s.c_str()).ToLocalChecked();
+  return v8::String::NewFromUtf8(isolate, s.c_str())
+      .FromMaybe(v8::String::Empty(isolate));
 }
 
-v8::MaybeLocal<v8::Value> TryGet(v8::Local<v8::Context> context,
-                                 v8::Local<v8::Value> object,
-                                 const std::string& key) {
-  if (!object->IsObject()) {
-    return v8::MaybeLocal<v8::Value>();
+std::string FromV8String(v8::Isolate* isolate, v8::Local<v8::Value> value) {
+  if (!value->IsString()) {
+    return "";
   }
-  auto* isolate = context->GetIsolate();
-  return object.As<v8::Object>()->Get(context, V8String(isolate, key));
+  auto v8_string = value.As<v8::String>();
+  std::string result;
+  FromJSValue(isolate, v8_string, script::v8c::kNoConversionFlags, nullptr,
+              &result);
+  return result;
 }
 
-v8::Local<v8::Value> Get(v8::Local<v8::Context> context,
-                         v8::Local<v8::Value> object, const std::string& key) {
-  return TryGet(context, object, key).ToLocalChecked();
+base::Optional<v8::Local<v8::Value>> Parse(v8::Isolate* isolate,
+                                           const std::string& json) {
+  return Evaluate(isolate, "{ const obj = " + json + "; obj; }");
 }
 
-bool Set(v8::Local<v8::Context> context, v8::Local<v8::Value> object,
-         const std::string& key, v8::Local<v8::Value> value) {
-  if (!object->IsObject()) {
-    return false;
-  }
-  auto* isolate = context->GetIsolate();
-  auto result =
-      object.As<v8::Object>()->Set(context, V8String(isolate, key), value);
-  return !result.IsNothing();
+base::Optional<v8::Local<v8::Value>> BaseToV8(v8::Isolate* isolate,
+                                              const base::Value& value) {
+  auto json = std::make_unique<std::string>();
+  base::JSONWriter::WriteWithOptions(
+      value, base::JSONWriter::OPTIONS_OMIT_BINARY_VALUES, json.get());
+  return Parse(isolate, *json);
 }
 
-v8::MaybeLocal<v8::Value> TryCall(v8::Local<v8::Context> context,
-                                  v8::Local<v8::Value> object,
-                                  const std::string& key, int argc,
-                                  v8::Local<v8::Value> argv[]) {
-  v8::Local<v8::Value> function;
-  if (!cache_utils::TryGet(context, object, key).ToLocal(&function) ||
-      function.IsEmpty() || !function->IsFunction()) {
-    return v8::MaybeLocal<v8::Value>();
-  }
-  auto object_context =
-      object.As<v8::Object>()->GetIsolate()->GetCurrentContext();
-  return function.As<v8::Function>()->Call(object_context, object, argc, argv);
-}
-
-script::Any GetUndefined(script::EnvironmentSettings* environment_settings) {
-  auto* global_environment = get_global_environment(environment_settings);
-  auto* isolate = global_environment->isolate();
-  return script::Any(
-      new script::v8c::V8cValueHandleHolder(isolate, v8::Undefined(isolate)));
-}
-
-script::Any EvaluateString(script::EnvironmentSettings* environment_settings,
-                           const std::string& js_code) {
-  auto* global_environment = get_global_environment(environment_settings);
-  auto* wrappable = get_global_wrappable(environment_settings);
-  base::Optional<script::ValueHandleHolder::Reference> reference;
-  scoped_refptr<script::SourceCode> source_code =
-      script::SourceCode::CreateSourceCodeWithoutCaching(
-          js_code, base::SourceLocation(__FILE__, __LINE__, 1));
-  bool eval_enabled = global_environment->IsEvalEnabled();
-  if (!eval_enabled) {
-    global_environment->EnableEval();
-  }
-  bool success =
-      global_environment->EvaluateScript(source_code, wrappable, &reference);
-  if (!eval_enabled) {
-    global_environment->DisableEval("");
-  }
-  if (success && reference) {
-    return script::Any(reference.value());
-  } else {
-    return GetUndefined(environment_settings);
-  }
-}
-
-base::Optional<script::Any> CreateInstance(
-    script::EnvironmentSettings* environment_settings,
-    const std::string& class_name, int argc, v8::Local<v8::Value> argv[]) {
-  auto* global_environment = get_global_environment(environment_settings);
-  auto* isolate = global_environment->isolate();
-  auto reponse_function =
-      cache_utils::EvaluateString(environment_settings, class_name);
-  auto v8_function =
-      script::GetV8Value(*reponse_function.GetScriptValue()).As<v8::Function>();
-  auto context = isolate->GetCurrentContext();
-  auto maybe_instance = v8_function->NewInstance(context, argc, argv);
-  if (maybe_instance.IsEmpty()) {
+base::Optional<v8::Local<v8::Promise>> OptionalPromise(
+    base::Optional<v8::Local<v8::Value>> value) {
+  if (!value || !(*value)->IsPromise()) {
     return base::nullopt;
   }
-  return script::Any(new script::v8c::V8cValueHandleHolder(
-      isolate, maybe_instance.ToLocalChecked()));
+  return value->As<v8::Promise>();
 }
 
-base::Optional<script::Any> CreateRequest(
-    script::EnvironmentSettings* environment_settings, const std::string& url) {
-  auto* global_environment = get_global_environment(environment_settings);
-  auto* isolate = global_environment->isolate();
-  v8::Local<v8::Value> argv[] = {V8String(isolate, url)};
-  return CreateInstance(environment_settings, "Request", /*argc=*/1, argv);
+std::string Stringify(v8::Isolate* isolate, v8::Local<v8::Value> value) {
+  auto global = isolate->GetCurrentContext()->Global();
+  Set(global, "___tempObject", value);
+  auto result = Evaluate(isolate, "JSON.stringify(___tempObject);");
+  Delete(global, "___tempObject");
+  if (!result) {
+    return "";
+  }
+  return FromV8String(isolate, result.value());
 }
 
-base::Optional<script::Any> CreateResponse(
-    script::EnvironmentSettings* environment_settings,
-    std::unique_ptr<std::vector<uint8_t>> data) {
-  auto* global_environment = get_global_environment(environment_settings);
-  auto* isolate = global_environment->isolate();
-  auto array_buffer = v8::ArrayBuffer::New(isolate, data->size());
-  memcpy(array_buffer->GetBackingStore()->Data(), data->data(), data->size());
-  v8::Local<v8::Value> argv[] = {array_buffer};
-  return CreateInstance(environment_settings, "Response", /*argc=*/1, argv);
+base::Optional<base::Value> Deserialize(const std::string& json) {
+  if (json.empty()) {
+    return base::nullopt;
+  }
+  return base::Value::FromUniquePtrValue(base::JSONReader::Read(json));
 }
 
-uint32_t GetKey(const std::string& url) { return cache::Cache::CreateKey(url); }
+base::Optional<base::Value> V8ToBase(v8::Isolate* isolate,
+                                     v8::Local<v8::Value> value) {
+  return Deserialize(Stringify(isolate, value));
+}
 
-uint32_t GetKey(script::EnvironmentSettings* environment_settings,
+template <typename T>
+base::Optional<v8::Local<T>> ToOptional(v8::MaybeLocal<T> value) {
+  if (value.IsEmpty()) {
+    return base::nullopt;
+  }
+  return value.ToLocalChecked();
+}
+
+v8::Isolate* GetIsolate(v8::Local<v8::Value> object) {
+  if (!object->IsObject()) {
+    return nullptr;
+  }
+  return object.As<v8::Object>()->GetIsolate();
+}
+
+base::Optional<v8::Local<v8::Value>> GetInternal(v8::Local<v8::Value> object,
+                                                 const std::string& path,
+                                                 bool parent) {
+  auto* isolate = GetIsolate(object);
+  if (!isolate) {
+    return base::nullopt;
+  }
+
+  base::Optional<v8::Local<v8::Value>> curr = object;
+  auto context = isolate->GetCurrentContext();
+  auto parts = base::SplitString(path, ".", base::TRIM_WHITESPACE,
+                                 base::SPLIT_WANT_NONEMPTY);
+  int offset = parent ? -1 : 0;
+  for (int i = 0; i < parts.size() + offset; i++) {
+    if (!curr || !curr.value()->IsObject()) {
+      return base::nullopt;
+    }
+    std::string part = parts[i];
+    if (base::ContainsOnlyChars(part, "0123456789")) {
+      uint32_t index;
+      if (!base::StringToUint32(part, &index)) {
+        return base::nullopt;
+      }
+      curr = ToOptional(curr->As<v8::Object>()->Get(context, index));
+    } else {
+      curr = ToOptional(
+          curr->As<v8::Object>()->Get(context, V8String(isolate, part)));
+    }
+  }
+  return curr;
+}
+
+base::Optional<v8::Local<v8::Value>> Get(v8::Local<v8::Value> object,
+                                         const std::string& path) {
+  return GetInternal(object, path, /*parent=*/false);
+}
+
+const base::Value* Get(const base::Value& value, const std::string& path,
+                       bool parent) {
+  if (!value.is_dict() && !value.is_list()) {
+    return nullptr;
+  }
+  const base::Value* curr = &value;
+  auto parts = base::SplitString(path, ".", base::TRIM_WHITESPACE,
+                                 base::SPLIT_WANT_NONEMPTY);
+  int offset = parent ? -1 : 0;
+  for (int i = 0; i < parts.size() + offset; i++) {
+    std::string part = parts[i];
+    if (curr->is_list()) {
+      uint32_t index;
+      if (!base::StringToUint32(part, &index)) {
+        return nullptr;
+      }
+      if (index > curr->GetList().size() - 1) {
+        return nullptr;
+      }
+      curr = &curr->GetList()[index];
+    } else if (curr->is_dict()) {
+      curr = curr->FindKey(part);
+    } else {
+      return nullptr;
+    }
+  }
+  return curr;
+}
+
+template <typename T>
+using V8Transform =
+    std::function<base::Optional<T>(v8::Isolate*, v8::Local<v8::Value>)>;
+
+struct V8Transforms {
+  static base::Optional<double> ToDouble(v8::Isolate* isolate,
+                                         v8::Local<v8::Value> value) {
+    if (!value->IsNumber()) {
+      return base::nullopt;
+    }
+    return value.As<v8::Number>()->Value();
+  }
+
+  static base::Optional<std::string> ToString(v8::Isolate* isolate,
+                                              v8::Local<v8::Value> value) {
+    if (!value->IsString()) {
+      return base::nullopt;
+    }
+    auto v8_string = value.As<v8::String>();
+    std::string result;
+    FromJSValue(isolate, v8_string, script::v8c::kNoConversionFlags, nullptr,
+                &result);
+    return std::move(result);
+  }
+
+};  // V8Transforms
+
+template <typename T>
+base::Optional<T> Get(v8::Local<v8::Value> object, const std::string& path,
+                      V8Transform<T> transform) {
+  auto value = GetInternal(object, path, /*parent=*/false);
+  if (!value) {
+    return base::nullopt;
+  }
+  return transform(GetIsolate(object), value.value());
+}
+
+base::Optional<std::string> GetString(v8::Local<v8::Value> object,
+                                      const std::string& path) {
+  return Get<std::string>(object, path, V8Transforms::ToString);
+}
+
+base::Optional<double> GetNumber(v8::Local<v8::Value> object,
+                                 const std::string& path) {
+  return Get<double>(object, path, V8Transforms::ToDouble);
+}
+
+bool Set(v8::Local<v8::Object> object, const std::string& key,
+         v8::Local<v8::Value> value) {
+  auto* isolate = object->GetIsolate();
+  auto context = isolate->GetCurrentContext();
+  auto result = object->Set(context, V8String(isolate, key), value);
+  return result.FromMaybe(false);
+}
+
+bool Delete(v8::Local<v8::Object> object, const std::string& key) {
+  auto* isolate = object->GetIsolate();
+  auto context = isolate->GetCurrentContext();
+  auto result = object->Delete(context, V8String(isolate, key));
+  return result.FromMaybe(false);
+}
+
+double FromNumber(v8::Local<v8::Value> value) {
+  return value.As<v8::Number>()->Value();
+}
+
+v8::Local<v8::Number> ToNumber(v8::Isolate* isolate, double d) {
+  return v8::Number::New(isolate, d);
+}
+
+std::vector<uint8_t> ToUint8Vector(v8::Local<v8::Value> buffer) {
+  if (!buffer->IsArrayBuffer()) {
+    return std::vector<uint8_t>();
+  }
+  auto array_buffer = buffer.As<v8::ArrayBuffer>();
+  auto byte_length = array_buffer->ByteLength();
+  auto uint8_array =
+      v8::Uint8Array::New(array_buffer, /*byte_offset=*/0, byte_length);
+  auto vector = std::vector<uint8_t>(byte_length);
+  uint8_array->CopyContents(vector.data(), byte_length);
+  return std::move(vector);
+}
+
+base::Optional<v8::Local<v8::Value>> Call(
+    v8::Local<v8::Value> object, const std::string& path,
+    std::initializer_list<v8::Local<v8::Value>> args) {
+  if (!object->IsObject()) {
+    return base::nullopt;
+  }
+  v8::Local<v8::Value> result;
+  auto optional_function = cache_utils::Get(object, path);
+  if (!optional_function || !optional_function.value()->IsFunction()) {
+    return base::nullopt;
+  }
+  auto context_object =
+      cache_utils::GetInternal(object, path, /*parent=*/true).value();
+  auto context =
+      context_object.As<v8::Object>()->GetIsolate()->GetCurrentContext();
+  const size_t argc = args.size();
+  std::vector<v8::Local<v8::Value>> argv = args;
+  return ToOptional(optional_function->As<v8::Function>()->Call(
+      context, context_object, argv.size(), argv.data()));
+}
+
+base::Optional<v8::Local<v8::Value>> Then(v8::Local<v8::Value> value,
+                                          OnFullfilled on_fullfilled) {
+  if (!value->IsPromise()) {
+    on_fullfilled.Reset();
+    return base::nullopt;
+  }
+  auto promise = value.As<v8::Promise>();
+  auto* isolate = promise->GetIsolate();
+  auto context = isolate->GetCurrentContext();
+  auto data = v8::Object::New(isolate);
+  Set(data, "promise", promise);
+  auto* on_fullfilled_ptr = new OnFullfilled(std::move(on_fullfilled));
+  Set(data, "onFullfilled", v8::External::New(isolate, on_fullfilled_ptr));
+  auto resulting_promise = promise->Then(
+      context,
+      v8::Function::New(
+          context,
+          [](const v8::FunctionCallbackInfo<v8::Value>& info) {
+            auto promise = Get(info.Data(), "promise")->As<v8::Promise>();
+            auto on_fullfilled = std::unique_ptr<OnFullfilled>(
+                static_cast<OnFullfilled*>(Get(info.Data(), "onFullfilled")
+                                               ->As<v8::External>()
+                                               ->Value()));
+            auto optional_resulting_promise =
+                std::move(*on_fullfilled).Run(promise);
+            if (!optional_resulting_promise) {
+              return;
+            }
+            info.GetReturnValue().Set(optional_resulting_promise.value());
+          },
+          data)
+          .ToLocalChecked(),
+      v8::Function::New(
+          context,
+          [](const v8::FunctionCallbackInfo<v8::Value>& info) {
+            auto on_fullfilled = std::unique_ptr<OnFullfilled>(
+                static_cast<OnFullfilled*>(Get(info.Data(), "onFullfilled")
+                                               ->As<v8::External>()
+                                               ->Value()));
+            on_fullfilled->Reset();
+            info.GetIsolate()->ThrowException(info[0]);
+          },
+          data)
+          .ToLocalChecked());
+  if (resulting_promise.IsEmpty()) {
+    delete on_fullfilled_ptr;
+    return base::nullopt;
+  }
+  return resulting_promise.ToLocalChecked();
+}
+
+script::Any FromV8Value(v8::Isolate* isolate, v8::Local<v8::Value> value) {
+  return script::Any(new script::v8c::V8cValueHandleHolder(isolate, value));
+}
+
+v8::Local<v8::Value> ToV8Value(const script::Any& any) {
+  return script::GetV8Value(*any.GetScriptValue());
+}
+
+base::Optional<v8::Local<v8::Value>> Evaluate(v8::Isolate* isolate,
+                                              const std::string& js_code) {
+  auto context = isolate->GetCurrentContext();
+  auto script = v8::Script::Compile(context, V8String(isolate, js_code));
+  if (script.IsEmpty()) {
+    return base::nullopt;
+  }
+  return ToOptional(script.ToLocalChecked()->Run(context));
+}
+
+base::Optional<v8::Local<v8::Value>> CreateInstance(
+    v8::Isolate* isolate, const std::string& class_name,
+    std::initializer_list<v8::Local<v8::Value>> args) {
+  auto constructor = Evaluate(isolate, class_name);
+  if (!constructor) {
+    return base::nullopt;
+  }
+  auto context = isolate->GetCurrentContext();
+  std::vector<v8::Local<v8::Value>> argv = args;
+  return ToOptional(constructor.value().As<v8::Function>()->NewInstance(
+      context, argv.size(), argv.data()));
+}
+
+base::Optional<v8::Local<v8::Value>> CreateRequest(v8::Isolate* isolate,
+                                                   const std::string& url) {
+  return CreateInstance(isolate, "Request", {V8String(isolate, url)});
+}
+
+base::Optional<v8::Local<v8::Value>> CreateResponse(
+    v8::Isolate* isolate, const std::vector<uint8_t>& body,
+    const base::Value& options) {
+  auto status = options.FindKey("status");
+  auto status_text = options.FindKey("statusText");
+  auto headers = options.FindKey("headers");
+  if (body.size() == 0 || !status || !status_text || !headers) {
+    return base::nullopt;
+  }
+  auto v8_body = v8::ArrayBuffer::New(isolate, body.size());
+  memcpy(v8_body->GetBackingStore()->Data(), body.data(), body.size());
+  auto v8_options = v8::Object::New(isolate);
+  Set(v8_options, "status", ToNumber(isolate, status->GetDouble()));
+  Set(v8_options, "statusText", V8String(isolate, status_text->GetString()));
+  auto v8_headers = v8::Object::New(isolate);
+  for (const auto& header : headers->GetList()) {
+    const auto& pair = header.GetList();
+    DCHECK(pair.size() == 2);
+    auto name = pair[0].GetString();
+    auto value = pair[1].GetString();
+    Set(v8_headers, name, V8String(isolate, value));
+  }
+  Set(v8_options, "headers", v8_headers);
+  return CreateInstance(isolate, "Response", {v8_body, v8_options});
+}
+
+base::Optional<base::Value> ExtractResponseOptions(
+    v8::Local<v8::Value> response) {
+  if (!response->IsObject()) {
+    return base::nullopt;
+  }
+  auto response_object = response.As<v8::Object>();
+  auto* isolate = response_object->GetIsolate();
+  auto context = isolate->GetCurrentContext();
+  auto global = context->Global();
+  Set(global, "___tempResponseObject", response_object);
+  auto result = Evaluate(isolate,
+                         "(() =>"
+                         "___tempResponseObject instanceof Response && {"
+                         "status: ___tempResponseObject.status,"
+                         "statusText: ___tempResponseObject.statusText,"
+                         "headers: Array.from(___tempResponseObject.headers),"
+                         "}"
+                         ")()");
+  Delete(global, "___tempResponseObject");
+  if (!result) {
+    return base::nullopt;
+  }
+  return V8ToBase(isolate, result.value());
+}
+
+uint32_t GetKey(const std::string& s) {
+  return starboard::MurmurHash2_32(s.c_str(), s.size());
+}
+
+uint32_t GetKey(const GURL& base_url,
                 const script::ValueHandleHolder& request_info) {
-  return GetKey(GetUrl(environment_settings, request_info));
+  return GetKey(GetUrl(base_url, request_info));
 }
 
-std::string GetUrl(script::EnvironmentSettings* environment_settings,
+std::string GetUrl(const GURL& base_url,
                    const script::ValueHandleHolder& request_info) {
   auto v8_value = GetV8Value(request_info);
   auto* isolate = GetIsolate(request_info);
-  v8::Local<v8::String> v8_string;
-  if (v8_value->IsString()) {
-    v8_string = v8_value.As<v8::String>();
-  } else {
-    auto context = isolate->GetCurrentContext();
-    // Treat like |Request| and get "url" property.
-    v8_string = Get(context, v8_value, "url").As<v8::String>();
-  }
   std::string url;
-  FromJSValue(isolate, v8_string, script::v8c::kNoConversionFlags, nullptr,
-              &url);
+  if (v8_value->IsString()) {
+    url = FromV8String(isolate, v8_value);
+  } else {
+    // Treat like |Request| and get "url" property.
+    auto v8_url = Get(v8_value, "url");
+    if (!v8_url) {
+      return "";
+    }
+    url = FromV8String(isolate, v8_url.value());
+  }
   GURL::Replacements replacements;
   replacements.ClearUsername();
   replacements.ClearPassword();
   replacements.ClearRef();
-  return environment_settings->base_url()
-      .Resolve(url)
-      .ReplaceComponents(replacements)
-      .spec();
+  return base_url.Resolve(url).ReplaceComponents(replacements).spec();
 }
 
 }  // namespace cache_utils
