@@ -54,10 +54,13 @@ void ServiceWorkerObject::Abort() {
   if (web_agent_) {
     DCHECK(message_loop());
     DCHECK(web_context_);
-    web_agent_->WaitUntilDone();
-    web_agent_->Stop();
-    web_agent_.reset();
+    std::unique_ptr<web::Agent> web_agent(std::move(web_agent_));
+    DCHECK(web_agent);
+    DCHECK(!web_agent_);
+    web_agent->WaitUntilDone();
     web_context_ = nullptr;
+    web_agent->Stop();
+    web_agent.reset();
   }
 }
 

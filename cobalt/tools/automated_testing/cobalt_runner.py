@@ -56,6 +56,7 @@ DEFAULT_STARTUP_TIMEOUT_SECONDS = 2 * 60
 WEBDRIVER_HTTP_TIMEOUT_SECONDS = 2 * 60
 COBALT_EXIT_TIMEOUT_SECONDS = 5
 PAGE_LOAD_WAIT_SECONDS = 30
+POLL_UNTIL_WAIT_SECONDS = 30
 WINDOWDRIVER_CREATED_TIMEOUT_SECONDS = 45
 WEBMODULE_LOADED_TIMEOUT_SECONDS = 45
 FIND_ELEMENT_RETRY_LIMIT = 20
@@ -331,12 +332,24 @@ class CobaltRunner(object):
 
   def _StartWebdriver(self, port):
     host, webdriver_port = self.launcher.GetHostAndPortGivenPort(port)
-    url = f'http://{host}:{webdriver_port}/'
+    self.webdriver_url = f'http://{host}:{webdriver_port}/'
     self.webdriver = self.selenium_webdriver_module.Remote(
-        url, COBALT_WEBDRIVER_CAPABILITIES)
+        self.webdriver_url, COBALT_WEBDRIVER_CAPABILITIES)
     self.webdriver.command_executor.set_timeout(WEBDRIVER_HTTP_TIMEOUT_SECONDS)
     logging.info('Selenium Connected')
     self.test_script_started.set()
+
+  def ReconnectWebDriver(self):
+    logging.warning('ReconnectWebDriver\n\n\n\n')
+    if self.webdriver:
+      self.webdriver.quit()
+    if self.webdriver_url:
+      self.webdriver = self.selenium_webdriver_module.Remote(
+          self.webdriver_url, COBALT_WEBDRIVER_CAPABILITIES)
+    if self.webdriver:
+      self.webdriver.command_executor.set_timeout(
+          WEBDRIVER_HTTP_TIMEOUT_SECONDS)
+      logging.info('Selenium Reconnected')
 
   def WaitForStart(self):
     """Waits for the webdriver client to attach to Cobalt."""
@@ -444,15 +457,14 @@ class CobaltRunner(object):
 
     Args:
       css_selector: A CSS selector
-      expected_num: The expected number of the selector type to be found.
 
     Raises:
       Underlying WebDriver exceptions
     """
     start_time = time.time()
     while (not self.FindElements(css_selector) and
-           (time.time() - start_time < PAGE_LOAD_WAIT_SECONDS)):
-      time.sleep(1)
+           (time.time() - start_time < POLL_UNTIL_WAIT_SECONDS)):
+      time.sleep(0.5)
     if expected_num:
       self.FindElements(css_selector, expected_num)
 

@@ -17,18 +17,31 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import logging
+import time
+
 from cobalt.tools.automated_testing import cobalt_runner
+from cobalt.tools.automated_testing import webdriver_utils
+
+selenium_exceptions = webdriver_utils.import_selenium_module(
+    'common.exceptions')
 
 # The following constants and logics are shared between this module and
 # the JavaScript test environment. Anyone making changes here should also
 # ensure necessary changes are made to testdata/black_box_js_test_utils.js
 _TEST_STATUS_ELEMENT_NAME = 'black_box_test_status'
 _JS_TEST_SUCCESS_MESSAGE = 'JavaScript_test_succeeded'
+_JS_TEST_FAILURE_MESSAGE = 'JavaScript_test_failed'
 _JS_TEST_SETUP_DONE_MESSAGE = 'JavaScript_setup_done'
+
+POLL_UNTIL_WAIT_SECONDS = 30
 
 
 class BlackBoxCobaltRunner(cobalt_runner.CobaltRunner):
   """Custom CobaltRunner made for BlackBoxTests' need."""
+
+  class AssertException(Exception):
+    """Raised when assert condition fails."""
 
   def __init__(self,
                launcher_params,
@@ -43,11 +56,37 @@ class BlackBoxCobaltRunner(cobalt_runner.CobaltRunner):
       target_params = []
     target_params.append('--silence_inline_script_warnings')
 
-    super(BlackBoxCobaltRunner, self).__init__(launcher_params, url, log_file,
-                                               target_params, success_message)
+    super().__init__(launcher_params, url, log_file, target_params,
+                     success_message)
+
+  def PollUntilFoundOrTestsFailedWithReconnects(self, css_selector):
+    """Polls until an element is found.
+
+    Args:
+      css_selector: A CSS selector
+    """
+    start_time = time.time()
+    while time.time() - start_time < POLL_UNTIL_WAIT_SECONDS:
+      is_failed = False
+      try:
+        if self.FindElements(css_selector):
+          break
+        is_failed = self.JSTestsFailed()
+      except (cobalt_runner.CobaltRunner.AssertException,
+              selenium_exceptions.NoSuchElementException,
+              selenium_exceptions.NoSuchWindowException,
+              selenium_exceptions.WebDriverException) as e:
+        # If the page
+        logging.warning(e)
+        self.ReconnectWebDriver()
+        continue
+      if is_failed:
+        raise BlackBoxCobaltRunner.AssertException(
+            'JS Test failed while waiting for ' + css_selector)
+      time.sleep(0.25)
 
   def JSTestsSucceeded(self):
-    """Check test assertions in HTML page."""
+    """Check succeeded test assertion in HTML page."""
 
     # Call onTestEnd() in black_box_js_test_utils.js to unblock the waiting for
     # JavaScript test logic completion.
@@ -56,9 +95,18 @@ class BlackBoxCobaltRunner(cobalt_runner.CobaltRunner):
     return body_element.get_attribute(
         _TEST_STATUS_ELEMENT_NAME) == _JS_TEST_SUCCESS_MESSAGE
 
+  def JSTestsFailed(self):
+    """Check failed test assertion in HTML page."""
+
+    # Call onTestEnd() in black_box_js_test_utils.js to unblock the waiting for
+    # JavaScript test logic completion.
+    body_element = self.UniqueFind('body')
+    return body_element and body_element.get_attribute(
+        _TEST_STATUS_ELEMENT_NAME) == _JS_TEST_FAILURE_MESSAGE
+
   def WaitForJSTestsSetup(self):
     """Poll setup status until JavaScript gives green light."""
 
     # Calling setupFinished() in black_box_js_test_utils.js to unblock the
     # waiting logic here.
-    self.PollUntilFound('#{}'.format(_JS_TEST_SETUP_DONE_MESSAGE))
+    self.PollUntilFound(f'#{_JS_TEST_SETUP_DONE_MESSAGE}')

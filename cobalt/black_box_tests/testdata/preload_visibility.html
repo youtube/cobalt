@@ -15,11 +15,18 @@
     assertEqual("hidden", document.visibilityState);
     assertFalse(document.hasFocus());
 
+    var visibilityStateVisible = false;
     // Wait for visibility change to verify visibilityState and having focus.
     function handleVisibilityChange() {
-      assertEqual("visible", document.visibilityState);
       assertFalse(document.hasFocus());
-      onEndTest();
+      if (visibilityStateVisible) {
+        assertEqual("hidden", document.visibilityState);
+        // Allow the app to become visible and then hidden at most once.
+      } else {
+        assertEqual("visible", document.visibilityState);
+        visibilityStateVisible = true;
+        onEndTest();
+      }
     }
     document.addEventListener("visibilitychange", handleVisibilityChange);
     setupFinished();

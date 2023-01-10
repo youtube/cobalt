@@ -1,4 +1,4 @@
-# Copyright 2022 The Cobalt Authors. All Rights Reserved.
+# Copyright 2023 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,17 +11,21 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Tests basic Service Worker functionality."""
+"""Tests Service Worker controller activation functionality."""
 
+import logging
 import os
 from six.moves import SimpleHTTPServer
 
 from cobalt.black_box_tests import black_box_tests
 from cobalt.black_box_tests.threaded_web_server import MakeRequestHandlerClass
 from cobalt.black_box_tests.threaded_web_server import ThreadedWebServer
+from cobalt.tools.automated_testing import webdriver_utils
 
 # The base path of the requested assets is the parent directory.
 _SERVER_ROOT_PATH = os.path.join(os.path.dirname(__file__), os.pardir)
+
+keys = webdriver_utils.import_selenium_module('webdriver.common.keys')
 
 
 class ServiceWorkerRequestDetector(MakeRequestHandlerClass(_SERVER_ROOT_PATH)):
@@ -42,40 +46,35 @@ class ServiceWorkerRequestDetector(MakeRequestHandlerClass(_SERVER_ROOT_PATH)):
 
   def send_my_headers(self):
     # Add 'Service-Worker-Allowed' header for the main service worker scripts.
-    if self.path.endswith('/service_worker_test_worker.js'):
-      self.send_header('Service-Worker-Allowed', '/bar')
-
-  def do_GET(self):  # pylint: disable=invalid-name
-    """Handles HTTP GET requests for resources."""
-    # Check if the request for the main service worker script has the
-    # 'Service-Worker' header.
     if self.path.endswith(
-        '/service_worker_test_worker.js') or self.path.endswith(
-            '/service_worker_test_claimable.js'):
-      service_worker_request_header = self.headers.get('Service-Worker', '')
-      expected_service_worker_request_header = 'script'
-
-      if not (service_worker_request_header
-              == expected_service_worker_request_header):
-        raise ValueError(
-            'Service-Worker HTTP request header value does not '
-            'match with expected value.\n'
-            f'Header value:{service_worker_request_header}\n'
-            f'Expected value:{expected_service_worker_request_header}')
-
-    return SimpleHTTPServer.SimpleHTTPRequestHandler.do_GET(self)
+        '/service_worker_controller_activation_test_worker.js'):
+      self.send_header('Service-Worker-Allowed', '/testdata')
 
 
-class ServiceWorkerTest(black_box_tests.BlackBoxTestCase):
+class ServiceWorkerControllerActivationTest(black_box_tests.BlackBoxTestCase):
   """Test basic Service Worker functionality."""
 
-  def test_service_worker(self):
+  def test_service_worker_controller_activation(self):
 
     with ThreadedWebServer(
         ServiceWorkerRequestDetector,
         binding_address=self.GetBindingAddress()) as server:
-      url = server.GetURL(file_name='testdata/service_worker_test.html')
+      url = server.GetURL(
+          file_name='testdata/service_worker_controller_activation_test.html')
 
       with self.CreateCobaltRunner(url=url) as runner:
         runner.WaitForJSTestsSetup()
+
+        logging.info('SendKeys NUMPAD0.')
+        runner.SendKeys(keys.Keys.NUMPAD0)
+        logging.info('Wait.')
+        runner.PollUntilFoundOrTestsFailedWithReconnects(
+            '#ResultSuccessfulRegistration')
+
+        logging.info('SendKeys NUMPAD1.')
+        runner.SendKeys(keys.Keys.NUMPAD1)
+        runner.PollUntilFoundOrTestsFailedWithReconnects('#ResultSuccess')
+
+        logging.info('SendKeys NUMPAD2.')
+        runner.SendKeys(keys.Keys.NUMPAD2)
         self.assertTrue(runner.JSTestsSucceeded())

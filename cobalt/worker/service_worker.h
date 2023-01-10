@@ -51,8 +51,12 @@ class ServiceWorker : public AbstractWorker, public web::EventTarget {
   std::string script_url() const { return worker_->script_url().spec(); }
 
   // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#dom-serviceworker-state
-  void set_state(ServiceWorkerState state) { state_ = state; }
-  ServiceWorkerState state() const { return state_; }
+  void set_state(ServiceWorkerState state) {
+    if (worker_) worker_->set_state(state);
+  }
+  ServiceWorkerState state() const {
+    return worker_ ? worker_->state() : kServiceWorkerStateParsed;
+  }
 
   const EventListenerScriptValue* onstatechange() const {
     return GetAttributeEventListener(base::Tokens::statechange());
@@ -80,7 +84,6 @@ class ServiceWorker : public AbstractWorker, public web::EventTarget {
   ~ServiceWorker() override { worker_ = nullptr; }
 
   scoped_refptr<ServiceWorkerObject> worker_;
-  ServiceWorkerState state_;
 };
 
 }  // namespace worker

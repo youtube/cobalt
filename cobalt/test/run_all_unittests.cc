@@ -29,6 +29,11 @@ int InitAndRunAllTests(int argc, char** argv) {
   base::PathService::RegisterProvider(&cobalt::PathProvider,
                                       cobalt::paths::PATH_COBALT_START,
                                       cobalt::paths::PATH_COBALT_END);
+
+  // Copy the Starboard thread name to the PlatformThread name.
+  char thread_name[128] = {'\0'};
+  SbThreadGetName(thread_name, 127);
+  base::PlatformThread::SetName(thread_name);
   return test_suite.Run();
 }
 }  // namespace

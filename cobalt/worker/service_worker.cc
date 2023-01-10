@@ -33,9 +33,7 @@ namespace worker {
 
 ServiceWorker::ServiceWorker(script::EnvironmentSettings* settings,
                              worker::ServiceWorkerObject* worker)
-    : web::EventTarget(settings),
-      worker_(worker),
-      state_(kServiceWorkerStateParsed) {}
+    : web::EventTarget(settings), worker_(worker) {}
 
 void ServiceWorker::PostMessage(const script::ValueHandleHolder& message) {
   // Algorithm for ServiceWorker.postMessage():

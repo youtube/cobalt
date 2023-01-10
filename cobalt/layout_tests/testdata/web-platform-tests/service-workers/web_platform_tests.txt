@@ -12,9 +12,11 @@ service-worker/registration-basic.https.html, PASS
 service-worker/skip-waiting-without-client.https.html, PASS
 service-worker/update-result.https.html, PASS
 
+# b/234788479 Implement waiting for update worker state tasks in Install algorithm.
+service-worker/activation-after-registration.https.html, DISABLE
+
 # b/264920834 heap-use-after-free bug
 service-worker/activate-event-after-install-state-change.https.html, DISABLE
-service-worker/activation-after-registration.https.html, DISABLE
 service-worker/clients-matchall-frozen.https.html, DISABLE
 service-worker/fetch-event-add-async.https.html, DISABLE
 service-worker/multiple-update.https.html, DISABLE
