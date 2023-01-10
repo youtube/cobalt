@@ -110,7 +110,7 @@ class WinWin32TestFilters(shared_test_filters.TestFilters):
       logging.error('COBALT_WIN_BUILDBOT_DISABLE_TESTS=1, Tests are disabled.')
       return [test_filter.DISABLE_TESTING]
     else:
-      filters = super().GetTestFilters()
+      filters = super(WinWin32TestFilters, self).GetTestFilters()
       for target, tests in _FILTERED_TESTS.items():
         filters.extend(test_filter.TestFilter(target, test) for test in tests)
       if os.environ.get('EXPERIMENTAL_CI', '0') == '1':
