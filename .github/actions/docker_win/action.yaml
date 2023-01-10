@@ -62,11 +62,11 @@ runs:
         composeArguments: "--no-start"
         composeFile: "docker-compose-windows.yml"
     - name: Tag images
-      if: env.need_to_build == 'true'
+      if: ${{ (env.need_to_build == 'true') && ((github.event_name != 'pull_request') || (!github.event.pull_request.head.repo.fork)) }}
       run: |
         docker tag cobalt-${{inputs.service}} $DOCKER_TAG
       shell: bash
     - name: Push images
-      if: env.need_to_build == 'true'
+      if: ${{ (env.need_to_build == 'true') && ((github.event_name != 'pull_request') || (!github.event.pull_request.head.repo.fork)) }}
       run: docker push ${DOCKER_TAG}
       shell: bash
