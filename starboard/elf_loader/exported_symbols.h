@@ -18,10 +18,6 @@
 #include <map>
 #include <string>
 
-#include "starboard/elf_loader/elf_hash_table.h"
-#include "starboard/elf_loader/gnu_hash_table.h"
-#include "starboard/file.h"
-
 namespace starboard {
 namespace elf_loader {
 
