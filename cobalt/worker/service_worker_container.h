@@ -76,8 +76,6 @@ class ServiceWorkerContainer : public web::EventTarget {
       std::unique_ptr<script::ValuePromiseSequenceWrappable::Reference>
           promise_reference);
 
-  scoped_refptr<ServiceWorker> ready_;
-
   script::HandlePromiseWrappable ready_promise_;
   std::unique_ptr<script::ValuePromiseWrappable::Reference> promise_reference_;
 };

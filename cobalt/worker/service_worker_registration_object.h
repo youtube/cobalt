@@ -42,7 +42,9 @@ class ServiceWorkerRegistrationObject
   ServiceWorkerRegistrationObject(
       const url::Origin& storage_key, const GURL& scope_url,
       const ServiceWorkerUpdateViaCache& update_via_cache_mode);
-  ~ServiceWorkerRegistrationObject() {}
+  ~ServiceWorkerRegistrationObject();
+
+  void AbortAll();
 
   const url::Origin& storage_key() const { return storage_key_; }
   const GURL& scope_url() const { return scope_url_; }
@@ -54,19 +56,19 @@ class ServiceWorkerRegistrationObject
     return update_via_cache_mode_;
   }
 
-  void set_installing_worker(scoped_refptr<ServiceWorkerObject> worker) {
+  void set_installing_worker(const scoped_refptr<ServiceWorkerObject>& worker) {
     installing_worker_ = worker;
   }
   const scoped_refptr<ServiceWorkerObject>& installing_worker() const {
     return installing_worker_;
   }
-  void set_waiting_worker(scoped_refptr<ServiceWorkerObject> worker) {
+  void set_waiting_worker(const scoped_refptr<ServiceWorkerObject>& worker) {
     waiting_worker_ = worker;
   }
   const scoped_refptr<ServiceWorkerObject>& waiting_worker() const {
     return waiting_worker_;
   }
-  void set_active_worker(scoped_refptr<ServiceWorkerObject> worker) {
+  void set_active_worker(const scoped_refptr<ServiceWorkerObject>& worker) {
     active_worker_ = worker;
   }
   const scoped_refptr<ServiceWorkerObject>& active_worker() const {
@@ -74,7 +76,7 @@ class ServiceWorkerRegistrationObject
   }
 
   // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#get-newest-worker
-  ServiceWorkerObject* GetNewestWorker();
+  scoped_refptr<ServiceWorkerObject> GetNewestWorker();
 
  private:
   // This lock is to allow atomic operations on the registration object.

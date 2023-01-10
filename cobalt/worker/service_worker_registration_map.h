@@ -46,6 +46,7 @@ class ServiceWorkerRegistrationMap {
  public:
   explicit ServiceWorkerRegistrationMap(
       const ServiceWorkerPersistentSettings::Options& options);
+  ~ServiceWorkerRegistrationMap() { AbortAllActive(); }
 
   // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#get-registration-algorithm
   scoped_refptr<ServiceWorkerRegistrationObject> GetRegistration(

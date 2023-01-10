@@ -57,10 +57,10 @@ class ServiceWorkerObject
  public:
   // Worker Options needed at thread run time.
   struct Options {
-    Options(
-        const std::string& name, web::WebSettings* web_settings,
-        network::NetworkModule* network_module,
-        ServiceWorkerRegistrationObject* containing_service_worker_registration)
+    Options(const std::string& name, web::WebSettings* web_settings,
+            network::NetworkModule* network_module,
+            const scoped_refptr<ServiceWorkerRegistrationObject>&
+                containing_service_worker_registration)
         : name(name),
           containing_service_worker_registration(
               containing_service_worker_registration) {
@@ -119,8 +119,8 @@ class ServiceWorkerObject
   }
 
   // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#service-worker-start-status
-  void set_start_status(std::string* start_status) {
-    start_status_.reset(start_status);
+  void set_start_status(std::unique_ptr<std::string> start_status) {
+    start_status_.reset(start_status.release());
   }
   std::string* start_status() const { return start_status_.get(); }
 

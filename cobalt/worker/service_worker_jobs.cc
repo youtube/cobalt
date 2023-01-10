@@ -149,6 +149,7 @@ ServiceWorkerJobs::~ServiceWorkerJobs() {
   DCHECK_EQ(message_loop(), base::MessageLoop::current());
   scope_to_registration_map_->HandleUserAgentShutdown(this);
   scope_to_registration_map_->AbortAllActive();
+  scope_to_registration_map_.reset();
   while (!web_context_registrations_.empty()) {
     // Wait for web context registrations to be cleared.
     web_context_registrations_cleared_.Wait();
@@ -271,9 +272,7 @@ void ServiceWorkerJobs::StartRegister(
   // This is the same value as set in CreateJob().
 
   // 15. Invoke Schedule Job with job.
-  message_loop()->task_runner()->PostTask(
-      FROM_HERE, base::BindOnce(&ServiceWorkerJobs::ScheduleJob,
-                                base::Unretained(this), std::move(job)));
+  ScheduleJob(std::move(job));
   DCHECK(!job.get());
 }
 
@@ -314,8 +313,16 @@ std::unique_ptr<ServiceWorkerJobs::Job> ServiceWorkerJobs::CreateJob(
 
 void ServiceWorkerJobs::ScheduleJob(std::unique_ptr<Job> job) {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerJobs::ScheduleJob()");
-  DCHECK_EQ(message_loop(), base::MessageLoop::current());
   DCHECK(job);
+
+  if (base::MessageLoop::current() != message_loop()) {
+    DCHECK(message_loop());
+    message_loop()->task_runner()->PostTask(
+        FROM_HERE, base::BindOnce(&ServiceWorkerJobs::ScheduleJob,
+                                  base::Unretained(this), std::move(job)));
+    return;
+  }
+  DCHECK_EQ(message_loop(), base::MessageLoop::current());
   // Algorithm for Schedule Job:
   //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#schedule-job
   // 1. Let jobQueue be null.
@@ -342,6 +349,11 @@ void ServiceWorkerJobs::ScheduleJob(std::unique_ptr<Job> job) {
     // 5.1. Set job’s containing job queue to jobQueue, and enqueue job to
     // jobQueue.
     job->containing_job_queue = job_queue;
+    if (!IsWebContextRegistered(job->client)) {
+      // Note: The client that requested the job has already exited and isn't
+      // able to handle the promise.
+      job->containing_job_queue->PrepareJobForClientShutdown(job, job->client);
+    }
     job_queue->Enqueue(std::move(job));
 
     // 5.2. Invoke Run Job with jobQueue.
@@ -367,6 +379,11 @@ void ServiceWorkerJobs::ScheduleJob(std::unique_ptr<Job> job) {
     // 6.3. Else, set job’s containing job queue to jobQueue, and enqueue job to
     // jobQueue.
     job->containing_job_queue = job_queue;
+    if (!IsWebContextRegistered(job->client)) {
+      // Note: The client that requested the job has already exited and isn't
+      // able to handle the promise.
+      job->containing_job_queue->PrepareJobForClientShutdown(job, job->client);
+    }
     job_queue->Enqueue(std::move(job));
   }
   DCHECK(!job);
@@ -513,7 +530,8 @@ void ServiceWorkerJobs::Register(Job* job) {
   if (registration) {
     // 5.1 Let newestWorker be the result of running the Get Newest Worker
     // algorithm passing registration as the argument.
-    ServiceWorkerObject* newest_worker = registration->GetNewestWorker();
+    const scoped_refptr<ServiceWorkerObject>& newest_worker =
+        registration->GetNewestWorker();
 
     // 5.2 If newestWorker is not null, job’s script url equals newestWorker’s
     // script url, job’s worker type equals newestWorker’s type, and job’s
@@ -564,7 +582,8 @@ void ServiceWorkerJobs::Update(Job* job) {
   }
   // 3. Let newestWorker be the result of running Get Newest Worker algorithm
   //    passing registration as the argument.
-  ServiceWorkerObject* newest_worker = registration->GetNewestWorker();
+  const scoped_refptr<ServiceWorkerObject>& newest_worker =
+      registration->GetNewestWorker();
 
   // 4. If job’s job type is update, and newestWorker is not null and its script
   //    url does not equal job’s script url, then:
@@ -886,8 +905,8 @@ void ServiceWorkerJobs::UpdateOnLoadingComplete(
   // RunServiceWorker, such as for registering the web context, execute first.
   base::MessageLoop::current()->task_runner()->PostTask(
       FROM_HERE, base::Bind(&ServiceWorkerJobs::UpdateOnRunServiceWorker,
-                            base::Unretained(this), state, std::move(worker),
-                            run_result_is_success));
+                            base::Unretained(this), std::move(state),
+                            std::move(worker), run_result_is_success));
 }
 
 void ServiceWorkerJobs::UpdateOnRunServiceWorker(
@@ -951,8 +970,8 @@ std::string* ServiceWorkerJobs::RunServiceWorker(ServiceWorkerObject* worker,
 }
 
 void ServiceWorkerJobs::Install(
-    Job* job, scoped_refptr<ServiceWorkerObject> worker,
-    scoped_refptr<ServiceWorkerRegistrationObject> registration) {
+    Job* job, const scoped_refptr<ServiceWorkerObject>& worker,
+    const scoped_refptr<ServiceWorkerRegistrationObject>& registration) {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerJobs::Install()");
   DCHECK_EQ(message_loop(), base::MessageLoop::current());
   // Algorithm for Install:
@@ -967,7 +986,8 @@ void ServiceWorkerJobs::Install(
 
   // 2. Let newestWorker be the result of running Get Newest Worker algorithm
   //    passing registration as its argument.
-  ServiceWorkerObject* newest_worker = registration->GetNewestWorker();
+  const scoped_refptr<ServiceWorkerObject>& newest_worker =
+      registration->GetNewestWorker();
 
   // 3. Set registration’s update via cache mode to job’s update via cache mode.
   registration->set_update_via_cache_mode(job->update_via_cache);
@@ -1165,7 +1185,7 @@ void ServiceWorkerJobs::Install(
 }
 
 bool ServiceWorkerJobs::IsAnyClientUsingRegistration(
-    scoped_refptr<ServiceWorkerRegistrationObject> registration) {
+    ServiceWorkerRegistrationObject* registration) {
   bool any_client_is_using = false;
   for (auto& context : web_context_registrations_) {
     // When a service worker client is controlled by a service worker, it is
@@ -1181,7 +1201,7 @@ bool ServiceWorkerJobs::IsAnyClientUsingRegistration(
 }
 
 void ServiceWorkerJobs::TryActivate(
-    scoped_refptr<ServiceWorkerRegistrationObject> registration) {
+    ServiceWorkerRegistrationObject* registration) {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerJobs::TryActivate()");
   DCHECK_EQ(message_loop(), base::MessageLoop::current());
   // Algorithm for Try Activate:
@@ -1220,7 +1240,7 @@ void ServiceWorkerJobs::TryActivate(
 }
 
 void ServiceWorkerJobs::Activate(
-    scoped_refptr<ServiceWorkerRegistrationObject> registration) {
+    ServiceWorkerRegistrationObject* registration) {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerJobs::Activate()");
   DCHECK_EQ(message_loop(), base::MessageLoop::current());
   // Algorithm for Activate:
@@ -1281,7 +1301,7 @@ void ServiceWorkerJobs::Activate(
                                             ->navigator_base()
                                             ->service_worker()
                                             .get()),
-                       registration));
+                       base::Unretained(registration)));
   }
   // 8. For each client of matchedClients:
   // 8.1. If client is a window client, unassociate client’s responsible
@@ -1291,12 +1311,23 @@ void ServiceWorkerJobs::Activate(
   // Cobalt doesn't implement 'application cache':
   //   https://www.w3.org/TR/2011/WD-html5-20110525/offline.html#applicationcache
   // 9. For each service worker client client who is using registration:
-  for (auto& client : web_context_registrations_) {
+  // Note: The spec defines "control" and "use" of a service worker from the
+  // value of the active service worker property of the client environment, but
+  // that property is set here, so here we should not use that exact definition
+  // to determine if the client is using this registration. Instead, we use the
+  // Match Service Worker Registration algorithm to find the registration for a
+  // client and compare it with the registration being activated.
+  //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#dfn-use
+  for (const auto& client : web_context_registrations_) {
+    scoped_refptr<ServiceWorkerRegistrationObject> client_registration =
+        scope_to_registration_map_->MatchServiceWorkerRegistration(
+            client->environment_settings()->ObtainStorageKey(),
+            client->environment_settings()->creation_url());
     // When a service worker client is controlled by a service worker, it is
     // said that the service worker client is using the service worker’s
     // containing service worker registration.
     //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#dfn-control
-    if (client->is_controlled_by(registration->active_worker())) {
+    if (client_registration.get() == registration) {
       // 9.1. Set client’s active worker to registration’s active worker.
       client->set_active_service_worker(registration->active_worker());
       // 9.2. Invoke Notify Controller Change algorithm with client as the
@@ -1414,7 +1445,7 @@ bool ServiceWorkerJobs::ServiceWorkerHasNoPendingEvents(
 }
 
 void ServiceWorkerJobs::ClearRegistration(
-    scoped_refptr<ServiceWorkerRegistrationObject> registration) {
+    ServiceWorkerRegistrationObject* registration) {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerJobs::ClearRegistration()");
   // Algorithm for Clear Registration:
   //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#clear-registration-algorithm
@@ -1468,7 +1499,7 @@ void ServiceWorkerJobs::ClearRegistration(
 }
 
 void ServiceWorkerJobs::TryClearRegistration(
-    scoped_refptr<ServiceWorkerRegistrationObject> registration) {
+    ServiceWorkerRegistrationObject* registration) {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerJobs::TryClearRegistration()");
   DCHECK_EQ(message_loop(), base::MessageLoop::current());
   // Algorithm for Try Clear Registration:
@@ -1503,8 +1534,8 @@ void ServiceWorkerJobs::TryClearRegistration(
 }
 
 void ServiceWorkerJobs::UpdateRegistrationState(
-    scoped_refptr<ServiceWorkerRegistrationObject> registration,
-    RegistrationState target, scoped_refptr<ServiceWorkerObject> source) {
+    ServiceWorkerRegistrationObject* registration, RegistrationState target,
+    const scoped_refptr<ServiceWorkerObject>& source) {
   TRACE_EVENT2("cobalt::worker", "ServiceWorkerJobs::UpdateRegistrationState()",
                "target", target, "source", source);
   DCHECK_EQ(message_loop(), base::MessageLoop::current());
@@ -1529,8 +1560,7 @@ void ServiceWorkerJobs::UpdateRegistrationState(
             FROM_HERE,
             base::BindOnce(
                 [](web::Context* context,
-                   scoped_refptr<ServiceWorkerRegistrationObject>
-                       registration) {
+                   ServiceWorkerRegistrationObject* registration) {
                   // 2.2.1. ... set the installing attribute of
                   //        registrationObject to null if registration’s
                   //        installing worker is null, or the result of getting
@@ -1545,7 +1575,7 @@ void ServiceWorkerJobs::UpdateRegistrationState(
                             registration->installing_worker()));
                   }
                 },
-                context, registration));
+                context, base::Unretained(registration)));
       }
       break;
     }
@@ -1560,8 +1590,7 @@ void ServiceWorkerJobs::UpdateRegistrationState(
             FROM_HERE,
             base::BindOnce(
                 [](web::Context* context,
-                   scoped_refptr<ServiceWorkerRegistrationObject>
-                       registration) {
+                   ServiceWorkerRegistrationObject* registration) {
                   // 3.2.1. ... set the waiting attribute of registrationObject
                   //        to null if registration’s waiting worker is null, or
                   //        the result of getting the service worker object that
@@ -1574,7 +1603,7 @@ void ServiceWorkerJobs::UpdateRegistrationState(
                         registration->waiting_worker()));
                   }
                 },
-                context, registration));
+                context, base::Unretained(registration)));
       }
       break;
     }
@@ -1589,8 +1618,7 @@ void ServiceWorkerJobs::UpdateRegistrationState(
             FROM_HERE,
             base::BindOnce(
                 [](web::Context* context,
-                   scoped_refptr<ServiceWorkerRegistrationObject>
-                       registration) {
+                   ServiceWorkerRegistrationObject* registration) {
                   // 4.2.1. ... set the active attribute of registrationObject
                   //        to null if registration’s active worker is null, or
                   //        the result of getting the service worker object that
@@ -1603,7 +1631,7 @@ void ServiceWorkerJobs::UpdateRegistrationState(
                         registration->active_worker()));
                   }
                 },
-                context, registration));
+                context, base::Unretained(registration)));
       }
       break;
     }
@@ -1750,7 +1778,9 @@ void ServiceWorkerJobs::TerminateServiceWorker(ServiceWorkerObject* worker) {
   }
 
   // 1.5. Abort the script currently running in serviceWorker.
-  if (worker->is_running()) worker->Abort();
+  if (worker->is_running()) {
+    worker->Abort();
+  }
 
   // 1.6. Set serviceWorker’s start status to null.
   worker->set_start_status(nullptr);
@@ -2661,6 +2691,27 @@ void ServiceWorkerJobs::RegisterWebContext(web::Context* context) {
   web_context_registrations_.insert(context);
 }
 
+void ServiceWorkerJobs::SetActiveWorker(web::EnvironmentSettings* client) {
+  if (!client) return;
+  if (base::MessageLoop::current() != message_loop()) {
+    DCHECK(message_loop());
+    message_loop()->task_runner()->PostTask(
+        FROM_HERE, base::Bind(&ServiceWorkerJobs::SetActiveWorker,
+                              base::Unretained(this), client));
+    return;
+  }
+  DCHECK(scope_to_registration_map_);
+  scoped_refptr<ServiceWorkerRegistrationObject> client_registration =
+      scope_to_registration_map_->MatchServiceWorkerRegistration(
+          client->ObtainStorageKey(), client->creation_url());
+  if (client_registration.get() && client_registration->active_worker()) {
+    client->context()->set_active_service_worker(
+        client_registration->active_worker());
+  } else {
+    client->context()->set_active_service_worker(nullptr);
+  }
+}
+
 void ServiceWorkerJobs::UnregisterWebContext(web::Context* context) {
   DCHECK_NE(nullptr, context);
   if (base::MessageLoop::current() != message_loop()) {
@@ -2698,12 +2749,12 @@ void ServiceWorkerJobs::PrepareForClientShutdown(web::Context* client) {
 void ServiceWorkerJobs::JobQueue::PrepareForClientShutdown(
     web::Context* client) {
   for (const auto& job : jobs_) {
-    PrepareJobForClientShutdown(job.get(), client);
+    PrepareJobForClientShutdown(job, client);
   }
 }
 
 void ServiceWorkerJobs::JobQueue::PrepareJobForClientShutdown(
-    Job* job, web::Context* client) {
+    const std::unique_ptr<Job>& job, web::Context* client) {
   DCHECK(job);
   if (!job) return;
   base::AutoLock lock(job->equivalent_jobs_promise_mutex);
@@ -2713,7 +2764,7 @@ void ServiceWorkerJobs::JobQueue::PrepareJobForClientShutdown(
   }
   for (const auto& equivalent_job : job->equivalent_jobs) {
     // Recurse for the equivalent jobs.
-    PrepareJobForClientShutdown(equivalent_job.get(), client);
+    PrepareJobForClientShutdown(equivalent_job, client);
   }
 }
 

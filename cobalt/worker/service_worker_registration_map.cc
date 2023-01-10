@@ -286,12 +286,9 @@ void ServiceWorkerRegistrationMap::HandleUserAgentShutdown(
 }
 
 void ServiceWorkerRegistrationMap::AbortAllActive() {
-  for (auto& entry : registration_map_) {
-    const scoped_refptr<ServiceWorkerRegistrationObject>& registration =
-        entry.second;
-    if (registration->active_worker()) {
-      registration->active_worker()->Abort();
-    }
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  for (auto entry : registration_map_) {
+    entry.second->AbortAll();
   }
 }
 

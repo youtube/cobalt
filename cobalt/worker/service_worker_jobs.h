@@ -177,11 +177,12 @@ class ServiceWorkerJobs {
     // be shutdown.
     void PrepareForClientShutdown(web::Context* client);
 
-   private:
     // Helper method for PrepareForClientShutdown to help with recursion to
     // equivalent jobs.
-    void PrepareJobForClientShutdown(Job* job, web::Context* client);
+    void PrepareJobForClientShutdown(const std::unique_ptr<Job>& job,
+                                     web::Context* client);
 
+   private:
     base::Lock mutex_;
     std::deque<std::unique_ptr<Job>> jobs_;
   };
@@ -280,6 +281,9 @@ class ServiceWorkerJobs {
   // be shutdown.
   void PrepareForClientShutdown(web::Context* client);
 
+  // Set the active worker for a client if there is a matching service worker.
+  void SetActiveWorker(web::EnvironmentSettings* client);
+
   // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#create-job
   std::unique_ptr<Job> CreateJob(
       JobType type, const url::Origin& storage_key, const GURL& scope_url,
@@ -306,11 +310,10 @@ class ServiceWorkerJobs {
   void ScheduleJob(std::unique_ptr<Job> job);
 
   // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#activation-algorithm
-  void Activate(scoped_refptr<ServiceWorkerRegistrationObject> registration);
+  void Activate(ServiceWorkerRegistrationObject* registration);
 
   // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#clear-registration-algorithm
-  void ClearRegistration(
-      scoped_refptr<ServiceWorkerRegistrationObject> registration);
+  void ClearRegistration(ServiceWorkerRegistrationObject* registration);
 
   // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#update-state-algorithm
   void UpdateWorkerState(ServiceWorkerObject* worker, ServiceWorkerState state);
@@ -318,9 +321,10 @@ class ServiceWorkerJobs {
  private:
   // State used for the 'Update' algorithm.
   struct UpdateJobState : public base::RefCounted<UpdateJobState> {
-    UpdateJobState(Job* job,
-                   scoped_refptr<ServiceWorkerRegistrationObject> registration,
-                   ServiceWorkerObject* newest_worker)
+    UpdateJobState(
+        Job* job,
+        const scoped_refptr<ServiceWorkerRegistrationObject>& registration,
+        ServiceWorkerObject* newest_worker)
         : job(job), registration(registration), newest_worker(newest_worker) {}
     Job* job;
     scoped_refptr<ServiceWorkerRegistrationObject> registration;
@@ -411,10 +415,6 @@ class ServiceWorkerJobs {
   // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#finish-job-algorithm
   void FinishJob(Job* job);
 
-  // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#get-newest-worker
-  ServiceWorker* GetNewestWorker(
-      scoped_refptr<ServiceWorkerRegistrationObject> registration);
-
   // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#run-service-worker-algorithm
   // The return value is a 'Completion or failure'.
   // A failure is signaled by returning nullptr. Otherwise, the returned string
@@ -424,19 +424,20 @@ class ServiceWorkerJobs {
                                 bool force_bypass_cache = false);
 
   // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#installation-algorithm
-  void Install(Job* job, scoped_refptr<ServiceWorkerObject> worker,
-               scoped_refptr<ServiceWorkerRegistrationObject> registration);
+  void Install(
+      Job* job, const scoped_refptr<ServiceWorkerObject>& worker,
+      const scoped_refptr<ServiceWorkerRegistrationObject>& registration);
 
   // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#try-activate-algorithm
-  void TryActivate(scoped_refptr<ServiceWorkerRegistrationObject> registration);
+  void TryActivate(ServiceWorkerRegistrationObject* registration);
 
   // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#service-worker-has-no-pending-events
   bool ServiceWorkerHasNoPendingEvents(ServiceWorkerObject* worker);
 
   // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#update-registration-state-algorithm
   void UpdateRegistrationState(
-      scoped_refptr<ServiceWorkerRegistrationObject> registration,
-      RegistrationState target, scoped_refptr<ServiceWorkerObject> source);
+      ServiceWorkerRegistrationObject* registration, RegistrationState target,
+      const scoped_refptr<ServiceWorkerObject>& source);
 
   // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#on-client-unload-algorithm
   void HandleServiceWorkerClientUnload(web::Context* client);
@@ -448,11 +449,10 @@ class ServiceWorkerJobs {
   void NotifyControllerChange(web::Context* client);
 
   // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#try-clear-registration-algorithm
-  void TryClearRegistration(
-      scoped_refptr<ServiceWorkerRegistrationObject> registration);
+  void TryClearRegistration(ServiceWorkerRegistrationObject* registration);
 
   bool IsAnyClientUsingRegistration(
-      scoped_refptr<ServiceWorkerRegistrationObject> registration);
+      ServiceWorkerRegistrationObject* registration);
 
   // FetcherFactory that is used to create a fetcher according to URL.
   std::unique_ptr<loader::FetcherFactory> fetcher_factory_;

@@ -80,9 +80,6 @@ class ServiceWorkerRegistration : public web::EventTarget {
   void UpdateTask(std::unique_ptr<script::ValuePromiseWrappable::Reference>
                       promise_reference);
 
-  void UnregisterTask(
-      std::unique_ptr<script::ValuePromiseBool::Reference> promise_reference);
-
   scoped_refptr<worker::ServiceWorkerRegistrationObject> registration_;
   scoped_refptr<ServiceWorker> installing_;
   scoped_refptr<ServiceWorker> waiting_;

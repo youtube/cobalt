@@ -101,9 +101,13 @@ class Impl : public Context {
     }
     environment_settings_.reset(environment_settings);
     if (environment_settings_) environment_settings_->set_context(this);
+    if (service_worker_jobs_) {
+      service_worker_jobs_->SetActiveWorker(environment_settings);
+    }
   }
 
   EnvironmentSettings* environment_settings() const final {
+    DCHECK(environment_settings_);
     DCHECK_EQ(environment_settings_->context(), this);
     return environment_settings_.get();
   }
@@ -145,9 +149,6 @@ class Impl : public Context {
   void set_active_service_worker(
       const scoped_refptr<worker::ServiceWorkerObject>& worker) final {
     active_service_worker_ = worker;
-    // Also hold a reference to the registration that contains this worker.
-    containing_service_worker_registration_ =
-        worker ? worker->containing_service_worker_registration() : nullptr;
   }
   const scoped_refptr<worker::ServiceWorkerObject>& active_service_worker()
       const final {
@@ -220,8 +221,6 @@ class Impl : public Context {
   // Note: When a service worker is unregistered from the last client, this will
   // hold the last reference until the current page is unloaded.
   scoped_refptr<worker::ServiceWorkerObject> active_service_worker_;
-  scoped_refptr<worker::ServiceWorkerRegistrationObject>
-      containing_service_worker_registration_;
 
   base::ObserverList<Context::EnvironmentSettingsChangeObserver>::Unchecked
       environment_settings_change_observers_;

@@ -119,9 +119,7 @@ void ServiceWorkerRegistration::UpdateTask(
   // Cobalt only supports 'classic' worker type.
 
   // 8. Invoke Schedule Job with job.
-  jobs->message_loop()->task_runner()->PostTask(
-      FROM_HERE, base::BindOnce(&ServiceWorkerJobs::ScheduleJob,
-                                base::Unretained(jobs), std::move(job)));
+  jobs->ScheduleJob(std::move(job));
   DCHECK(!job.get());
 }
 
@@ -142,32 +140,29 @@ script::HandlePromiseBool ServiceWorkerRegistration::Unregister() {
   // past any previously submitted update requests.
   base::MessageLoop::current()->task_runner()->PostTask(
       FROM_HERE,
-      base::BindOnce(&ServiceWorkerRegistration::UnregisterTask,
-                     base::Unretained(this), std::move(promise_reference)));
+      base::BindOnce(
+          [](worker::ServiceWorkerJobs* jobs, const url::Origin& storage_key,
+             const GURL& scope_url,
+             std::unique_ptr<script::ValuePromiseBool::Reference>
+                 promise_reference,
+             web::Context* client) {
+            // 3. Let job be the result of running Create Job with unregister,
+            //    registration’s storage key, registration’s scope url, null,
+            //    promise, and this's relevant settings object.
+            std::unique_ptr<ServiceWorkerJobs::Job> job = jobs->CreateJob(
+                ServiceWorkerJobs::JobType::kUnregister, storage_key, scope_url,
+                GURL(), std::move(promise_reference), client);
+            DCHECK(!promise_reference);
+
+            // 4. Invoke Schedule Job with job.
+            jobs->ScheduleJob(std::move(job));
+            DCHECK(!job.get());
+          },
+          environment_settings()->context()->service_worker_jobs(),
+          registration_->storage_key(), registration_->scope_url(),
+          std::move(promise_reference), environment_settings()->context()));
   // 5. Return promise.
   return promise;
-}
-
-void ServiceWorkerRegistration::UnregisterTask(
-    std::unique_ptr<script::ValuePromiseBool::Reference> promise_reference) {
-  // Algorithm for unregister():
-  //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#navigator-service-worker-unregister
-  // 3. Let job be the result of running Create Job with unregister,
-  //    registration’s storage key, registration’s scope url, null, promise, and
-  //    this's relevant settings object.
-  worker::ServiceWorkerJobs* jobs =
-      environment_settings()->context()->service_worker_jobs();
-  std::unique_ptr<ServiceWorkerJobs::Job> job = jobs->CreateJob(
-      ServiceWorkerJobs::JobType::kUnregister, registration_->storage_key(),
-      registration_->scope_url(), GURL(), std::move(promise_reference),
-      environment_settings()->context());
-  DCHECK(!promise_reference);
-
-  // 4. Invoke Schedule Job with job.
-  jobs->message_loop()->task_runner()->PostTask(
-      FROM_HERE, base::BindOnce(&ServiceWorkerJobs::ScheduleJob,
-                                base::Unretained(jobs), std::move(job)));
-  DCHECK(!job.get());
 }
 
 std::string ServiceWorkerRegistration::scope() const {
