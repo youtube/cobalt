@@ -24,6 +24,6 @@
 
 
   // Takes a |Promise<any>| because |Response| is polyfilled.
-  [CallWith=EnvironmentSettings] void respondWith(Promise<any> response);
-  [CallWith=EnvironmentSettings] readonly attribute Promise<void> handled;
+  [RaisesException] void respondWith(Promise<any> response);
+  readonly attribute Promise<void> handled;
 };

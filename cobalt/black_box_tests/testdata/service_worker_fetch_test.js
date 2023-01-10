@@ -89,6 +89,8 @@ self.addEventListener('message', event => {
 self.addEventListener('fetch', event => {
   fetchEventCount++;
   if (shouldIntercept) {
-    event.respondWith(Promise.resolve(new Response(interceptedBody)));
+    event.respondWith(new Promise(resolve => {
+      setTimeout(() => resolve(new Response(interceptedBody)), 100);
+    }));
   }
 });

@@ -73,11 +73,10 @@ class ServiceWorkerGlobalScope : public WorkerGlobalScope,
 
   void StartFetch(
       const GURL& url,
-      std::unique_ptr<base::OnceCallback<void(std::unique_ptr<std::string>)>>
-          callback,
-      std::unique_ptr<base::OnceCallback<void(const net::LoadTimingInfo&)>>
+      base::OnceCallback<void(std::unique_ptr<std::string>)> callback,
+      base::OnceCallback<void(const net::LoadTimingInfo&)>
           report_load_timing_info,
-      std::unique_ptr<base::OnceClosure> fallback) override;
+      base::OnceClosure fallback) override;
 
   const web::EventTargetListenerInfo::EventListenerScriptValue* oninstall() {
     return GetAttributeEventListener(base::Tokens::install());

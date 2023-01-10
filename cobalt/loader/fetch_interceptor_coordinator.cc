@@ -38,11 +38,10 @@ FetchInterceptorCoordinator::FetchInterceptorCoordinator()
 
 void FetchInterceptorCoordinator::TryIntercept(
     const GURL& url,
-    std::unique_ptr<base::OnceCallback<void(std::unique_ptr<std::string>)>>
-        callback,
-    std::unique_ptr<base::OnceCallback<void(const net::LoadTimingInfo&)>>
+    base::OnceCallback<void(std::unique_ptr<std::string>)> callback,
+    base::OnceCallback<void(const net::LoadTimingInfo&)>
         report_load_timing_info,
-    std::unique_ptr<base::OnceClosure> fallback) {
+    base::OnceClosure fallback) {
   // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#handle-fetch
   // Steps 17 to 23
   // TODO: add should skip event handling
@@ -50,7 +49,7 @@ void FetchInterceptorCoordinator::TryIntercept(
   // TODO: determine |shouldSoftUpdate| and if true run soft update in parallel
   // (https://w3c.github.io/ServiceWorker/#soft-update).
   if (!fetch_interceptor_) {
-    std::move(*fallback).Run();
+    std::move(fallback).Run();
     return;
   }
   // TODO: test interception once registered service workers are persisted.

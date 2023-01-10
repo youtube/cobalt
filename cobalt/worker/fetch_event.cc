@@ -28,22 +28,19 @@ namespace worker {
 FetchEvent::FetchEvent(script::EnvironmentSettings* environment_settings,
                        const std::string& type,
                        const FetchEventInit& event_init_dict)
-    : FetchEvent(
-          environment_settings, base::Token(type), event_init_dict,
-          /*respond_with_callback=*/std::make_unique<RespondWithCallback>(),
-          /*report_load_timing_info=*/
-          std::make_unique<ReportLoadTimingInfo>()) {}
+    : FetchEvent(environment_settings, base::Token(type), event_init_dict,
+                 RespondWithCallback(), ReportLoadTimingInfo()) {}
 
-FetchEvent::FetchEvent(
-    script::EnvironmentSettings* environment_settings, base::Token type,
-    const FetchEventInit& event_init_dict,
-    std::unique_ptr<RespondWithCallback> respond_with_callback,
-    std::unique_ptr<ReportLoadTimingInfo> report_load_timing_info)
+FetchEvent::FetchEvent(script::EnvironmentSettings* environment_settings,
+                       base::Token type, const FetchEventInit& event_init_dict,
+                       RespondWithCallback respond_with_callback,
+                       ReportLoadTimingInfo report_load_timing_info)
     : ExtendableEvent(type, event_init_dict),
+      environment_settings_(environment_settings),
       respond_with_callback_(std::move(respond_with_callback)),
       report_load_timing_info_(std::move(report_load_timing_info)) {
   auto script_value_factory =
-      web::get_script_value_factory(environment_settings);
+      web::get_script_value_factory(environment_settings_);
   handled_property_ = std::make_unique<script::ValuePromiseVoid::Reference>(
       this, script_value_factory->CreateBasicPromise<void>());
   request_ = std::make_unique<script::ValueHandleHolder::Reference>(
@@ -56,112 +53,73 @@ FetchEvent::FetchEvent(
   load_timing_info_.service_worker_start_time = base::TimeTicks::Now();
 }
 
-void FetchEvent::RespondWith(
-    script::EnvironmentSettings* environment_settings,
-    std::unique_ptr<script::Promise<script::ValueHandle*>>& response) {
-  respond_with_called_ = true;
-
-  // TODO: call |WaitUntil()|.
-  v8::Local<v8::Promise> v8_response = response->promise();
-  auto* global_environment = web::get_global_environment(environment_settings);
-  auto* isolate = global_environment->isolate();
-  auto context = isolate->GetCurrentContext();
-  auto data = v8::Object::New(isolate);
-  web::cache_utils::SetExternal(context, data, "environment_settings",
-                                environment_settings);
-  web::cache_utils::SetOwnedExternal(context, data, "respond_with_callback",
-                                     std::move(respond_with_callback_));
-  web::cache_utils::SetOwnedExternal(context, data, "report_load_timing_info",
-                                     std::move(report_load_timing_info_));
-  web::cache_utils::SetExternal(context, data, "load_timing_info",
-                                &load_timing_info_);
-  web::cache_utils::SetExternal(context, data, "handled",
-                                handled_property_.get());
-  auto result = v8_response->Then(
-      context,
-      v8::Function::New(
-          context,
-          [](const v8::FunctionCallbackInfo<v8::Value>& info) {
-            auto* isolate = info.GetIsolate();
-            auto context = info.GetIsolate()->GetCurrentContext();
-            v8::Local<v8::Value> text_result;
-            if (!web::cache_utils::TryCall(context, /*object=*/info[0], "text")
-                     .ToLocal(&text_result)) {
-              auto respond_with_callback =
-                  web::cache_utils::GetOwnedExternal<RespondWithCallback>(
-                      context, info.Data(), "respond_with_callback");
-              std::move(*respond_with_callback)
-                  .Run(std::make_unique<std::string>());
-              return;
-            }
-            auto* load_timing_info =
-                web::cache_utils::GetExternal<net::LoadTimingInfo>(
-                    context, info.Data(), "load_timing_info");
-            load_timing_info->receive_headers_end = base::TimeTicks::Now();
-            auto result = text_result.As<v8::Promise>()->Then(
-                context,
-                v8::Function::New(
-                    context,
-                    [](const v8::FunctionCallbackInfo<v8::Value>& info) {
-                      auto* isolate = info.GetIsolate();
-                      auto context = info.GetIsolate()->GetCurrentContext();
-                      auto* handled = web::cache_utils::GetExternal<
-                          script::ValuePromiseVoid::Reference>(
-                          context, info.Data(), "handled");
-                      handled->value().Resolve();
-                      auto respond_with_callback =
-                          web::cache_utils::GetOwnedExternal<
-                              RespondWithCallback>(context, info.Data(),
-                                                   "respond_with_callback");
-                      auto body = std::make_unique<std::string>();
-                      FromJSValue(isolate, info[0],
-                                  script::v8c::kNoConversionFlags, nullptr,
-                                  body.get());
-                      auto* load_timing_info =
-                          web::cache_utils::GetExternal<net::LoadTimingInfo>(
-                              context, info.Data(), "load_timing_info");
-                      auto report_load_timing_info =
-                          web::cache_utils::GetOwnedExternal<
-                              ReportLoadTimingInfo>(context, info.Data(),
-                                                    "report_load_timing_info");
-                      std::move(*report_load_timing_info)
-                          .Run(*load_timing_info);
-                      auto* environment_settings =
-                          web::cache_utils::GetExternal<
-                              script::EnvironmentSettings>(
-                              context, info.Data(), "environment_settings");
-                      web::get_context(environment_settings)
-                          ->network_module()
-                          ->task_runner()
-                          ->PostTask(
-                              FROM_HERE,
-                              base::BindOnce(
-                                  [](std::unique_ptr<base::OnceCallback<void(
-                                         std::unique_ptr<std::string>)>>
-                                         respond_with_callback,
-                                     std::unique_ptr<std::string> body) {
-                                    std::move(*respond_with_callback)
-                                        .Run(std::move(body));
-                                  },
-                                  std::move(respond_with_callback),
-                                  std::move(body)));
-                    },
-                    info.Data())
-                    .ToLocalChecked());
-            if (result.IsEmpty()) {
-              LOG(WARNING) << "Failure during FetchEvent respondWith handling. "
-                              "Retrieving Response text failed.";
-            }
-          },
-          data)
-          .ToLocalChecked());
-  if (result.IsEmpty()) {
-    LOG(WARNING) << "Failure during FetchEvent respondWith handling.";
-  }
+base::Optional<v8::Local<v8::Promise>> FetchEvent::GetText(
+    v8::Local<v8::Promise> response_promise) {
+  std::move(report_load_timing_info_).Run(load_timing_info_);
+  handled_property_->value().Resolve();
+  return web::cache_utils::OptionalPromise(
+      web::cache_utils::Call(response_promise->Result(), "text"));
 }
 
-script::HandlePromiseVoid FetchEvent::handled(
-    script::EnvironmentSettings* environment_settings) {
+base::Optional<v8::Local<v8::Promise>> FetchEvent::DoRespondWith(
+    v8::Local<v8::Promise> text_promise) {
+  auto* isolate = text_promise->GetIsolate();
+  auto context = isolate->GetCurrentContext();
+  auto resolver = v8::Promise::Resolver::New(context);
+  if (resolver.IsEmpty()) {
+    return base::nullopt;
+  }
+  auto body = web::cache_utils::FromV8String(text_promise->GetIsolate(),
+                                             text_promise->Result());
+  auto callback = base::BindOnce(
+      [](v8::Local<v8::Context> context,
+         v8::Local<v8::Promise::Resolver> resolver) {
+        DCHECK(resolver->Resolve(context, v8::Undefined(resolver->GetIsolate()))
+                   .FromMaybe(false));
+      },
+      context, resolver.ToLocalChecked());
+  web::get_context(environment_settings_)
+      ->network_module()
+      ->task_runner()
+      ->PostTask(
+          FROM_HERE,
+          base::BindOnce(
+              [](RespondWithCallback respond_with_callback, std::string body,
+                 base::MessageLoop* loop, base::OnceClosure callback) {
+                std::move(respond_with_callback)
+                    .Run(std::make_unique<std::string>(std::move(body)));
+                loop->task_runner()->PostTask(FROM_HERE, std::move(callback));
+              },
+              std::move(respond_with_callback_), std::move(body),
+              base::MessageLoop::current(), std::move(callback)));
+  return resolver.ToLocalChecked()->GetPromise();
+}
+
+void FetchEvent::RespondWith(
+    std::unique_ptr<script::Promise<script::ValueHandle*>>& response,
+    script::ExceptionState* exception_state) {
+  respond_with_called_ = true;
+
+  auto text_promise = web::cache_utils::Then(
+      response->promise(),
+      base::BindOnce(&FetchEvent::GetText, base::Unretained(this)));
+  if (!text_promise) {
+    return;
+  }
+  auto done_promise = web::cache_utils::Then(
+      text_promise.value(),
+      base::BindOnce(&FetchEvent::DoRespondWith, base::Unretained(this)));
+  if (!done_promise) {
+    return;
+  }
+  auto* isolate = response->promise()->GetIsolate();
+  std::unique_ptr<script::Promise<script::ValueHandle*>> wait_promise;
+  script::v8c::FromJSValue(isolate, done_promise.value(), 0, exception_state,
+                           &wait_promise);
+  WaitUntil(environment_settings_, wait_promise, exception_state);
+}
+
+script::HandlePromiseVoid FetchEvent::handled() {
   return script::HandlePromiseVoid(handled_property_->referenced_value());
 }
 

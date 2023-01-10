@@ -34,11 +34,10 @@ class FetchInterceptor {
  public:
   virtual void StartFetch(
       const GURL& url,
-      std::unique_ptr<base::OnceCallback<void(std::unique_ptr<std::string>)>>
-          callback,
-      std::unique_ptr<base::OnceCallback<void(const net::LoadTimingInfo&)>>
+      base::OnceCallback<void(std::unique_ptr<std::string>)> callback,
+      base::OnceCallback<void(const net::LoadTimingInfo&)>
           report_load_timing_info,
-      std::unique_ptr<base::OnceClosure> fallback) = 0;
+      base::OnceClosure fallback) = 0;
 };
 
 // NetFetcher is for fetching data from the network.
@@ -54,11 +53,10 @@ class FetchInterceptorCoordinator {
 
   void TryIntercept(
       const GURL& url,
-      std::unique_ptr<base::OnceCallback<void(std::unique_ptr<std::string>)>>
-          callback,
-      std::unique_ptr<base::OnceCallback<void(const net::LoadTimingInfo&)>>
+      base::OnceCallback<void(std::unique_ptr<std::string>)> callback,
+      base::OnceCallback<void(const net::LoadTimingInfo&)>
           report_load_timing_info,
-      std::unique_ptr<base::OnceClosure> fallback);
+      base::OnceClosure fallback);
 
  private:
   friend struct base::DefaultSingletonTraits<FetchInterceptorCoordinator>;

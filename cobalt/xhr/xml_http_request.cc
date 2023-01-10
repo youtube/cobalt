@@ -517,16 +517,12 @@ void XMLHttpRequestImpl::Send(
   if (!in_service_worker && method_ == net::URLFetcher::GET) {
     loader::FetchInterceptorCoordinator::GetInstance()->TryIntercept(
         request_url_,
-        std::make_unique<
-            base::OnceCallback<void(std::unique_ptr<std::string>)>>(
-            base::BindOnce(&XMLHttpRequestImpl::SendIntercepted,
-                           base::Unretained(this))),
-        std::make_unique<base::OnceCallback<void(const net::LoadTimingInfo&)>>(
-            base::BindOnce(&XMLHttpRequestImpl::ReportLoadTimingInfo,
-                           base::Unretained(this))),
-        std::make_unique<base::OnceClosure>(base::BindOnce(
-            &XMLHttpRequestImpl::SendFallback, base::Unretained(this),
-            request_body, exception_state)));
+        base::BindOnce(&XMLHttpRequestImpl::SendIntercepted,
+                       base::Unretained(this)),
+        base::BindOnce(&XMLHttpRequestImpl::ReportLoadTimingInfo,
+                       base::Unretained(this)),
+        base::BindOnce(&XMLHttpRequestImpl::SendFallback,
+                       base::Unretained(this), request_body, exception_state));
     return;
   }
   SendFallback(request_body, exception_state);

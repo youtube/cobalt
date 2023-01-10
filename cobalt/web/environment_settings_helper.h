@@ -19,16 +19,20 @@
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/script_value_factory.h"
 #include "cobalt/web/context.h"
+#include "v8/include/v8.h"
 
 namespace cobalt {
 namespace web {
 
 Context* get_context(script::EnvironmentSettings* environment_settings);
+v8::Isolate* get_isolate(script::EnvironmentSettings* environment_settings);
 script::GlobalEnvironment* get_global_environment(
     script::EnvironmentSettings* environment_settings);
 script::Wrappable* get_global_wrappable(
     script::EnvironmentSettings* environment_settings);
 script::ScriptValueFactory* get_script_value_factory(
+    script::EnvironmentSettings* environment_settings);
+base::MessageLoop* get_message_loop(
     script::EnvironmentSettings* environment_settings);
 
 }  // namespace web

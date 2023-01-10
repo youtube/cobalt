@@ -126,7 +126,7 @@ void MemoryCappedDirectory::DeleteAll() {
 }
 
 std::vector<uint32_t> MemoryCappedDirectory::KeysWithMetadata() {
-  std::vector<uint32_t> keys(file_keys_with_metadata_.size());
+  std::vector<uint32_t> keys;
   for (auto it = file_keys_with_metadata_.begin();
        it != file_keys_with_metadata_.end(); ++it) {
     keys.push_back(it->second);
@@ -134,14 +134,15 @@ std::vector<uint32_t> MemoryCappedDirectory::KeysWithMetadata() {
   return keys;
 }
 
-std::unique_ptr<base::Value> MemoryCappedDirectory::Metadata(uint32_t key) {
+base::Optional<base::Value> MemoryCappedDirectory::Metadata(uint32_t key) {
   auto metadata_path = GetFilePath(key).AddExtension(kMetadataExtension);
   if (!base::PathExists(metadata_path)) {
-    return nullptr;
+    return base::nullopt;
   }
   std::string serialized_metadata;
   base::ReadFileToString(metadata_path, &serialized_metadata);
-  return base::JSONReader::Read(serialized_metadata);
+  return base::Value::FromUniquePtrValue(
+      base::JSONReader::Read(serialized_metadata));
 }
 
 std::unique_ptr<std::vector<uint8_t>> MemoryCappedDirectory::Retrieve(

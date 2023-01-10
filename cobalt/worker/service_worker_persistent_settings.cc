@@ -29,6 +29,7 @@
 #include "cobalt/script/exception_message.h"
 #include "cobalt/script/promise.h"
 #include "cobalt/script/script_value.h"
+#include "cobalt/web/cache_utils.h"
 #include "cobalt/web/context.h"
 #include "cobalt/web/environment_settings.h"
 #include "cobalt/worker/service_worker_jobs.h"
@@ -217,9 +218,9 @@ bool ServiceWorkerPersistentSettings::ReadServiceWorkerObjectSettings(
     if (script_url_value.is_string()) {
       auto script_url_string = script_url_value.GetString();
       auto script_url = GURL(script_url_string);
-      std::unique_ptr<std::vector<uint8_t>> data =
-          cache_->Retrieve(disk_cache::ResourceType::kServiceWorkerScript,
-                           cache_->CreateKey(key_string + script_url_string));
+      std::unique_ptr<std::vector<uint8_t>> data = cache_->Retrieve(
+          disk_cache::ResourceType::kServiceWorkerScript,
+          web::cache_utils::GetKey(key_string + script_url_string));
       if (data == nullptr) {
         return false;
       }
@@ -343,7 +344,8 @@ ServiceWorkerPersistentSettings::WriteServiceWorkerObjectSettings(
     std::vector<uint8_t> data(resource.begin(), resource.end());
     cache_->Store(
         disk_cache::ResourceType::kServiceWorkerScript,
-        cache_->CreateKey(registration_key_string + script_url_string), data,
+        web::cache_utils::GetKey(registration_key_string + script_url_string),
+        data,
         /* metadata */ base::nullopt);
   }
   dict.try_emplace(kSettingsScriptResourceMapScriptUrlsKey,
@@ -398,8 +400,9 @@ void ServiceWorkerPersistentSettings::RemoveServiceWorkerObjectSettings(
       auto script_url_value = std::move(script_urls_list[i]);
       if (script_url_value.is_string()) {
         auto script_url_string = script_url_value.GetString();
-        cache_->Delete(disk_cache::ResourceType::kServiceWorkerScript,
-                       cache_->CreateKey(key_string + script_url_string));
+        cache_->Delete(
+            disk_cache::ResourceType::kServiceWorkerScript,
+            web::cache_utils::GetKey(key_string + script_url_string));
       }
     }
   }

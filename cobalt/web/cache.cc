@@ -115,6 +115,18 @@ void Cache::Fetcher::OnResponseStarted(net::URLRequest* request,
     OnDone(/*success=*/false);
     return;
   }
+  status_text_ = request->response_headers()->GetStatusText();
+  response_code_ = request->response_headers()->response_code();
+  size_t iter = 0;
+  std::string name;
+  std::string value;
+  while (
+      request->response_headers()->EnumerateHeaderLines(&iter, &name, &value)) {
+    base::ListValue header;
+    header.GetList().emplace_back(name);
+    header.GetList().emplace_back(value);
+    headers_.GetList().push_back(std::move(header));
+  }
   int initial_capacity = request->response_headers()->HasHeader(
                              net::HttpRequestHeaders::kContentLength)
                              ? request->response_headers()->GetContentLength()
@@ -158,22 +170,25 @@ script::HandlePromiseAny Cache::Match(
             auto* isolate = global_environment->isolate();
             auto cached =
                 cache::Cache::GetInstance()->Retrieve(kResourceType, key);
-            if (!cached) {
+            auto metadata =
+                cache::Cache::GetInstance()->Metadata(kResourceType, key);
+            if (!cached || !metadata || !metadata->FindKey("options")) {
               promise_reference->value().Resolve(
-                  cache_utils::GetUndefined(environment_settings));
+                  cache_utils::FromV8Value(isolate, v8::Undefined(isolate)));
               return;
             }
             script::v8c::EntryScope entry_scope(isolate);
-            auto response = cache_utils::CreateResponse(environment_settings,
-                                                        std::move(cached));
+            auto response = cache_utils::CreateResponse(
+                isolate, *cached, *(metadata->FindKey("options")));
             if (!response) {
               promise_reference->value().Reject();
             } else {
-              promise_reference->value().Resolve(script::Any(response.value()));
+              promise_reference->value().Resolve(
+                  cache_utils::FromV8Value(isolate, response.value()));
             }
           },
           environment_settings,
-          cache_utils::GetKey(environment_settings, request),
+          cache_utils::GetKey(environment_settings->base_url(), request),
           std::move(promise_reference)));
   return promise;
 }
@@ -185,7 +200,7 @@ void Cache::PerformAdd(
   auto* global_environment = get_global_environment(environment_settings);
   auto* isolate = global_environment->isolate();
   script::v8c::EntryScope entry_scope(isolate);
-  uint32_t key = cache_utils::GetKey(environment_settings,
+  uint32_t key = cache_utils::GetKey(environment_settings->base_url(),
                                      request_reference->referenced_value());
   if (fetchers_.find(key) != fetchers_.end()) {
     base::AutoLock auto_lock(*(fetchers_[key]->lock()));
@@ -201,7 +216,7 @@ void Cache::PerformAdd(
   auto* context = get_context(environment_settings);
   fetchers_[key] = std::make_unique<Cache::Fetcher>(
       context->network_module(),
-      GURL(cache_utils::GetUrl(environment_settings,
+      GURL(cache_utils::GetUrl(environment_settings->base_url(),
                                request_reference->referenced_value())),
       base::BindOnce(&Cache::OnFetchCompleted, base::Unretained(this), key));
 }
@@ -239,9 +254,24 @@ script::HandlePromiseVoid Cache::Put(
   auto promise_reference =
       std::make_unique<script::ValuePromiseVoid::Reference>(this, promise);
 
-  auto context = get_context(environment_settings);
-  base::SequencedTaskRunnerHandle::Get()->PostTask(
-      FROM_HERE,
+  auto* global_environment = get_global_environment(environment_settings);
+  auto* isolate = global_environment->isolate();
+  auto context = isolate->GetCurrentContext();
+  script::v8c::EntryScope entry_scope(isolate);
+  auto v8_response =
+      GetV8Value(response_reference->referenced_value()).As<v8::Object>();
+  auto body_used = cache_utils::Get(v8_response, "bodyUsed");
+  if (!body_used || body_used->As<v8::Boolean>()->Value()) {
+    promise_reference->value().Reject(script::kTypeError);
+    return promise;
+  }
+  auto array_buffer_promise = cache_utils::Call(v8_response, "arrayBuffer");
+  if (!array_buffer_promise) {
+    promise_reference->value().Reject();
+    return promise;
+  }
+  cache_utils::Then(
+      array_buffer_promise.value(),
       base::BindOnce(
           [](script::EnvironmentSettings* environment_settings,
              std::unique_ptr<script::ValueHandleHolder::Reference>
@@ -249,131 +279,30 @@ script::HandlePromiseVoid Cache::Put(
              std::unique_ptr<script::ValueHandleHolder::Reference>
                  response_reference,
              std::unique_ptr<script::ValuePromiseVoid::Reference>
-                 promise_reference) {
-
-            auto* global_environment =
-                get_global_environment(environment_settings);
-            auto* isolate = global_environment->isolate();
-            script::v8c::EntryScope entry_scope(isolate);
-            auto context = global_environment->context();
-            auto maybe_body_used = cache_utils::TryGet(
-                context, GetV8Value(response_reference->referenced_value()),
-                "bodyUsed");
-            if (maybe_body_used.IsEmpty() ||
-                maybe_body_used.ToLocalChecked().As<v8::Boolean>()->Value()) {
-              promise_reference->value().Reject(script::kTypeError);
-              return;
-            }
-            auto maybe_text_function = cache_utils::TryGet(
-                context, GetV8Value(response_reference->referenced_value()),
-                "text");
-            if (maybe_text_function.IsEmpty()) {
+                 promise_reference,
+             v8::Local<v8::Promise> array_buffer_promise)
+              -> base::Optional<v8::Local<v8::Promise>> {
+            uint32_t key =
+                cache_utils::GetKey(environment_settings->base_url(),
+                                    request_reference->referenced_value());
+            std::string url =
+                cache_utils::GetUrl(environment_settings->base_url(),
+                                    request_reference->referenced_value());
+            auto options = cache_utils::ExtractResponseOptions(
+                cache_utils::ToV8Value(response_reference->referenced_value()));
+            if (!options) {
               promise_reference->value().Reject();
-              return;
+              return base::nullopt;
             }
-            auto text_function = maybe_text_function.ToLocalChecked();
-            v8::Local<v8::Value> text_result;
-            auto response_context =
-                script::GetIsolate(response_reference->referenced_value())
-                    ->GetCurrentContext();
-            if (text_function.IsEmpty() || !text_function->IsFunction() ||
-                !(text_function.As<v8::Function>()
-                      ->Call(response_context,
-                             GetV8Value(response_reference->referenced_value()),
-                             /*argc=*/0,
-                             /*argv=*/nullptr)
-                      .ToLocal(&text_result))) {
-              promise_reference->value().Reject();
-              return;
-            }
-            std::string url = cache_utils::GetUrl(
-                environment_settings, request_reference->referenced_value());
-            auto data = v8::Object::New(isolate);
-            cache_utils::Set(context, data, "environment_settings",
-                             v8::External::New(isolate, environment_settings));
-            cache_utils::Set(
-                context, data, "promise_reference",
-                v8::External::New(isolate, promise_reference.release()));
-            cache_utils::Set(
-                context, data, "request_reference",
-                v8::External::New(isolate, request_reference.release()));
-            auto then_callback =
-                v8::Function::New(
-                    context,
-                    [](const v8::FunctionCallbackInfo<v8::Value>& info) {
-                      auto* isolate = info.GetIsolate();
-                      auto context = info.GetIsolate()->GetCurrentContext();
-                      auto* environment_settings =
-                          static_cast<script::EnvironmentSettings*>(
-                              cache_utils::Get(context, info.Data(),
-                                               "environment_settings")
-                                  .As<v8::External>()
-                                  ->Value());
-                      std::unique_ptr<script::ValueHandleHolder::Reference>
-                      request_reference(
-                          static_cast<script::ValueHandleHolder::Reference*>(
-                              cache_utils::Get(context, info.Data(),
-                                               "request_reference")
-                                  .As<v8::External>()
-                                  ->Value()));
-                      std::unique_ptr<script::ValuePromiseVoid::Reference>
-                      promise_reference(
-                          static_cast<script::ValuePromiseVoid::Reference*>(
-                              cache_utils::Get(context, info.Data(),
-                                               "promise_reference")
-                                  .As<v8::External>()
-                                  ->Value()));
-                      uint32_t key = cache_utils::GetKey(
-                          environment_settings,
-                          request_reference->referenced_value());
-                      std::string url = cache_utils::GetUrl(
-                          environment_settings,
-                          request_reference->referenced_value());
-                      std::string body;
-                      FromJSValue(info.GetIsolate(), info[0],
-                                  script::v8c::kNoConversionFlags, nullptr,
-                                  &body);
-                      auto* begin =
-                          reinterpret_cast<const uint8_t*>(body.data());
-                      auto data = std::make_unique<std::vector<uint8_t>>(
-                          begin, begin + body.size());
-                      cache::Cache::GetInstance()->Store(
-                          kResourceType, key, *data, base::Value(url));
-                      promise_reference->value().Resolve();
-                    },
-                    data)
-                    .ToLocalChecked();
-            if (text_result.As<v8::Promise>()
-                    ->Then(context, then_callback)
-                    .IsEmpty()) {
-              promise_reference->value().Reject();
-              return;
-            }
-            auto catch_callback =
-                v8::Function::New(
-                    context,
-                    [](const v8::FunctionCallbackInfo<v8::Value>& info) {
-                      auto* isolate = info.GetIsolate();
-                      auto context = info.GetIsolate()->GetCurrentContext();
-                      std::unique_ptr<script::ValuePromiseVoid::Reference>
-                      promise_reference(
-                          static_cast<script::ValuePromiseVoid::Reference*>(
-                              cache_utils::Get(context, info.Data(),
-                                               "promise_reference")
-                                  .As<v8::External>()
-                                  ->Value()));
-                      promise_reference->value().Reject();
-                    },
-                    data)
-                    .ToLocalChecked();
-            if (text_result.As<v8::Promise>()
-                    ->Catch(context, catch_callback)
-                    .IsEmpty()) {
-              promise_reference->value().Reject();
-              return;
-            }
-            // Run |response.text()| promise.
-            isolate->PerformMicrotaskCheckpoint();
+            base::DictionaryValue metadata;
+            metadata.SetKey("url", base::Value(url));
+            metadata.SetKey("options", std::move(options.value()));
+            cache::Cache::GetInstance()->Store(
+                kResourceType, key,
+                cache_utils::ToUint8Vector(array_buffer_promise->Result()),
+                std::move(metadata));
+            promise_reference->value().Resolve();
+            return base::nullopt;
           },
           environment_settings, std::move(request_reference),
           std::move(response_reference), std::move(promise_reference)));
@@ -406,7 +335,7 @@ script::HandlePromiseBool Cache::Delete(
             promise_reference->value().Resolve(
                 cache::Cache::GetInstance()->Delete(
                     kResourceType, cache_utils::GetKey(
-                                       environment_settings,
+                                       environment_settings->base_url(),
                                        request_reference->referenced_value())));
           },
           environment_settings, std::move(request_reference),
@@ -433,17 +362,22 @@ script::HandlePromiseAny Cache::Keys(
             auto* isolate = global_environment->isolate();
             script::v8c::EntryScope entry_scope(isolate);
             std::vector<v8::Local<v8::Value>> requests;
-            for (uint32_t key :
-                 cache::Cache::GetInstance()->KeysWithMetadata(kResourceType)) {
-              std::unique_ptr<base::Value> url =
+            auto keys =
+                cache::Cache::GetInstance()->KeysWithMetadata(kResourceType);
+            for (uint32_t key : keys) {
+              auto metadata =
                   cache::Cache::GetInstance()->Metadata(kResourceType, key);
-              if (url && url->is_string()) {
-                base::Optional<script::Any> request =
-                    cache_utils::CreateRequest(environment_settings,
-                                               url->GetString());
-                if (request) {
-                  requests.push_back(GetV8Value(*(request->GetScriptValue())));
-                }
+              if (!metadata) {
+                continue;
+              }
+              auto url = metadata->FindKey("url");
+              if (!url) {
+                continue;
+              }
+              base::Optional<v8::Local<v8::Value>> request =
+                  cache_utils::CreateRequest(isolate, url->GetString());
+              if (request) {
+                requests.push_back(std::move(request.value()));
               }
             }
             promise_reference->value().Resolve(
@@ -480,9 +414,16 @@ void Cache::OnFetchCompletedMainThread(uint32_t key, bool success) {
     return;
   }
   {
-    cache::Cache::GetInstance()->Store(kResourceType, key,
-                                       fetcher->BufferToVector(),
-                                       base::Value(fetcher->url().spec()));
+    base::DictionaryValue metadata;
+    metadata.SetKey("url", base::Value(fetcher->url().spec()));
+    base::DictionaryValue options;
+    options.SetKey("status", base::Value(fetcher->response_code()));
+    options.SetKey("statusText", base::Value(fetcher->status_text()));
+    options.SetKey("headers", std::move(fetcher->headers()));
+    metadata.SetKey("options", std::move(options));
+
+    cache::Cache::GetInstance()->Store(
+        kResourceType, key, fetcher->BufferToVector(), std::move(metadata));
     if (fetcher->mime_type() == "text/javascript") {
       auto* environment_settings = fetch_contexts_[key].second;
       auto* global_environment = get_global_environment(environment_settings);

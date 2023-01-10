@@ -32,6 +32,10 @@ script::GlobalEnvironment* get_global_environment(
   return get_context(environment_settings)->global_environment();
 }
 
+v8::Isolate* get_isolate(script::EnvironmentSettings* environment_settings) {
+  return get_global_environment(environment_settings)->isolate();
+}
+
 script::Wrappable* get_global_wrappable(
     script::EnvironmentSettings* environment_settings) {
   return get_global_environment(environment_settings)->global_wrappable();
@@ -40,6 +44,11 @@ script::Wrappable* get_global_wrappable(
 script::ScriptValueFactory* get_script_value_factory(
     script::EnvironmentSettings* environment_settings) {
   return get_global_environment(environment_settings)->script_value_factory();
+}
+
+base::MessageLoop* get_message_loop(
+    script::EnvironmentSettings* environment_settings) {
+  return get_context(environment_settings)->message_loop();
 }
 
 }  // namespace web
