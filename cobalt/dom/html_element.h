@@ -440,6 +440,9 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   // Clear the list of active background images, and notify the animated image
   // tracker to stop the animations.
   void ClearActiveBackgroundImages();
+  // Carefully clear the list of cached background images to avoid crashing in
+  // the nested `HTMLElement::GetLoadTimingInfoAndCreateResourceTiming()` call.
+  void ClearCachedBackgroundImages();
 
   void UpdateCachedBackgroundImagesFromComputedStyle();
 
