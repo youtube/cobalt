@@ -40,7 +40,11 @@ namespace base {
 class BASE_EXPORT MessagePumpUIStarboard : public MessagePump {
  public:
   MessagePumpUIStarboard();
-  virtual ~MessagePumpUIStarboard() {}
+  virtual ~MessagePumpUIStarboard() {
+    // There is probability that MessagePump may send event to MessageLoop that
+    // was already destroyed. To avoid this delete all tasks in pump_
+    Quit();
+  }
 
   // Runs one iteration of the run loop, and reschedules another call, if
   // necessary.
