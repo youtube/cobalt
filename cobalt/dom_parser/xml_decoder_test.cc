@@ -244,7 +244,8 @@ TEST_F(XMLDecoderTest, CanDealWithDTDAttack) {
   EXPECT_EQ("element", element->local_name());
 }
 
-TEST_F(XMLDecoderTest, CanDealWithLaughsAttack) {
+// This test is disabled due to memory leak in libxml b/265300062
+TEST_F(XMLDecoderTest, DISABLED_CanDealWithLaughsAttack) {
   const std::string input =
       "<!DOCTYPE doc ["
       "<!ENTITY ha \"Ha !\">"
