@@ -132,7 +132,9 @@ void MinRequiredFramesTester::TesterThreadFunc() {
     }
 
     // Get start threshold before release the audio sink.
-    int start_threshold = audio_sink_->GetStartThresholdInFrames();
+    int start_threshold = audio_sink_->IsAudioTrackValid()
+                              ? audio_sink_->GetStartThresholdInFrames()
+                              : 0;
 
     // |min_required_frames_| is shared between two threads. Release audio sink
     // to end audio sink thread before access |min_required_frames_| on this
