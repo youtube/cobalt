@@ -572,6 +572,7 @@ void AddCrashHandlerAnnotations() {
                                             user_agent.c_str())) {
       result = false;
     }
+    // TODO(b/265339522): move crashpad prod and ver setter to starboard.
     if (!crash_handler_extension->SetString("prod", product.c_str())) {
       result = false;
     }
