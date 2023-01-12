@@ -32,5 +32,5 @@ interface HTMLVideoElement : HTMLMediaElement {
   // INVALID_STATE_ERR exception is raised. The format of the string passed in
   // is the same as the format for the string passed in to
   // HTMLMediaElement.canPlayType().
-  [Conditional=COBALT_ENABLE_SET_MAX_VIDEO_CAPABILITIES, RaisesException] void setMaxVideoCapabilities(DOMString max_video_capabilities);
+  [RaisesException] void setMaxVideoCapabilities(DOMString max_video_capabilities);
 };
