@@ -324,6 +324,8 @@ static_library("starboard_platform") {
     "configuration.h",
     "configuration_constants.cc",
     "configuration_public.h",
+    "crash_handler.cc",
+    "crash_handler.h",
     "decode_target_create.cc",
     "decode_target_create.h",
     "decode_target_get_info.cc",
