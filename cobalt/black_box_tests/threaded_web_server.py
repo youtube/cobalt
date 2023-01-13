@@ -173,8 +173,7 @@ class ThreadedWebServer(object):
     Returns:
       A string containing a HTTP URI.
     """
-    return 'http://{}:{}/{}'.format(self._bound_host, self._bound_port,
-                                    file_name)
+    return f'http://{self._bound_host}:{self._bound_port}/{file_name}'
 
   def __enter__(self):
     self._server_thread = threading.Thread(target=self._server.serve_forever)
