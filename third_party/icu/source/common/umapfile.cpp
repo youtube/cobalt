@@ -26,6 +26,10 @@
 #include "udatamem.h"
 #include "umapfile.h"
 
+#if MAP_IMPLEMENTATION==MAP_STARBOARD
+#include "starboard/extension/memory_mapped_file.h"
+#endif
+
 /* memory-mapping base definitions ------------------------------------------ */
 
 #if MAP_IMPLEMENTATION==MAP_WIN32
@@ -351,6 +355,10 @@ typedef HANDLE MemoryMap;
 #elif MAP_IMPLEMENTATION==MAP_STARBOARD
     U_CFUNC UBool
     uprv_mapFile(UDataMemory *pData, const char *path, UErrorCode *status) {
+        if (U_FAILURE(*status)) {
+            return FALSE;
+        }
+
         UDataMemory_init(pData); /* Clear the output struct.        */
 
         /* open the input file */
@@ -372,6 +380,28 @@ typedef HANDLE MemoryMap;
             return FALSE;
         }
 
+        pData->heapAllocated = false;
+
+        const auto* memory_mapped_file_extension =
+            reinterpret_cast<const CobaltExtensionMemoryMappedFileApi*>(
+                SbSystemGetExtension(kCobaltExtensionMemoryMappedFileName));
+
+        if(memory_mapped_file_extension &&
+           strcmp(memory_mapped_file_extension->name,
+                  kCobaltExtensionMemoryMappedFileName) == 0 &&
+           memory_mapped_file_extension->version >= 1) {
+                void *p = memory_mapped_file_extension->MemoryMapFile(
+                        NULL, path, kSbMemoryMapProtectRead, 0,fileLength);
+                if(p) {
+                    pData->map=p;
+                    pData->pHeader=(const DataHeader *)p;
+                    pData->mapAddr=p;
+                    SbFileClose(file);
+                    return TRUE;
+                }
+            // If mmap extension didn't work, fall back to allocating
+        }
+
         /* allocate the memory to hold the file data */
         void *p = uprv_malloc(fileLength);
         if (!p) {
@@ -390,13 +420,19 @@ typedef HANDLE MemoryMap;
         pData->map=p;
         pData->pHeader=(const DataHeader *)p;
         pData->mapAddr=p;
+        pData->heapAllocated = true;
         return TRUE;
     }
 
     U_CFUNC void
     uprv_unmapFile(UDataMemory *pData) {
         if(pData!=NULL && pData->map!=NULL) {
-            uprv_free(pData->map);
+            if(pData->heapAllocated) {
+                uprv_free(pData->map);
+            } else {
+                size_t dataLen = (char *)pData->map - (char *)pData->mapAddr;
+                SbMemoryUnmap(pData->mapAddr, dataLen);
+            }
             pData->map     = NULL;
             pData->mapAddr = NULL;
             pData->pHeader = NULL;
