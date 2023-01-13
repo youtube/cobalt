@@ -15,11 +15,13 @@
 #include "starboard/system.h"
 
 #include "cobalt/extension/configuration.h"
+#include "cobalt/extension/crash_handler.h"
 #include "cobalt/extension/graphics.h"
 #include "cobalt/extension/media_session.h"
 #include "cobalt/extension/platform_service.h"
 #include "starboard/android/shared/android_media_session_client.h"
 #include "starboard/android/shared/configuration.h"
+#include "starboard/android/shared/crash_handler.h"
 #include "starboard/android/shared/graphics.h"
 #include "starboard/android/shared/platform_service.h"
 #include "starboard/common/log.h"
@@ -37,6 +39,9 @@ const void* SbSystemGetExtension(const char* name) {
   }
   if (strcmp(name, kCobaltExtensionGraphicsName) == 0) {
     return starboard::android::shared::GetGraphicsApi();
+  }
+  if (strcmp(name, kCobaltExtensionCrashHandlerName) == 0) {
+    return starboard::android::shared::GetCrashHandlerApi();
   }
   return NULL;
 }
