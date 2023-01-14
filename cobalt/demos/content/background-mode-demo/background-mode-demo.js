@@ -13,9 +13,9 @@
 // limitations under the License.
 
 // The page simply plays an audio or a video stream in a loop, it can be used
-// in the following forms:
-//   background-mode-demo.html&type=video
-//   background-mode-demo.html&type=audio
+// by appending following queryable object to url path, e.g.
+//   http://0.0.0.0:8000/cobalt/demos/content/background-mode-demo?type=video
+//   http://0.0.0.0:8000/cobalt/demos/content/background-mode-demo?type=audio
 // If the stream is adaptive, it has to be fit in memory as this demo will
 // download the whole stream at once.
 
@@ -66,7 +66,7 @@ function startAdaptiveVideo() {
   mediasource.addEventListener('sourceopen', function () {
     if (type == 'audio') {
       var audio_source_buffer = mediasource.addSourceBuffer('audio/mp4; codecs="mp4a.40.2"');
-	downloadAndAppend('../media-element-demo/dash-audio.mp4', 0, kAdaptiveAudioChunkSize * 10, audio_source_buffer, function () {
+      downloadAndAppend('../media-element-demo/public/assets/dash-audio.mp4', 0, kAdaptiveAudioChunkSize * 10, audio_source_buffer, function () {
         mediasource.endOfStream();
       });
     }
@@ -74,10 +74,10 @@ function startAdaptiveVideo() {
     if (type == 'video') {
       var video_source_buffer = mediasource.addSourceBuffer('video/mp4; codecs="avc1.640028"');
       var audio_source_buffer = mediasource.addSourceBuffer('audio/mp4; codecs="mp4a.40.2"');
-      downloadAndAppend('../media-element-demo/dash-video-1080p.mp4', 0, 15 * 1024 * 1024, video_source_buffer, function () {
+      downloadAndAppend('../media-element-demo/public/assets/dash-video-1080p.mp4', 0, 15 * 1024 * 1024, video_source_buffer, function () {
         video_source_buffer.abort();
            // Append the first two segments of the 240p video so we can see the transition.
-        downloadAndAppend('../media-element-demo/dash-audio.mp4', 0, kAdaptiveAudioChunkSize * 10, audio_source_buffer, function () {
+        downloadAndAppend('../media-element-demo/public/assets/dash-audio.mp4', 0, kAdaptiveAudioChunkSize * 10, audio_source_buffer, function () {
           mediasource.endOfStream();
         });
       });
@@ -96,9 +96,9 @@ function startNextVideo() {
 function checkMediaType() {
   var get_parameters = window.location.search.substr(1).split('&');
   for (var param of get_parameters) {
-    splitted = param.split('=');
-    if (splitted[0] == 'type') {
-      type = splitted[1];
+    split = param.split('=');
+    if (split[0] == 'type') {
+      type = split[1];
     }
   }
 
