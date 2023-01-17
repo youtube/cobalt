@@ -821,8 +821,8 @@ void HTMLMediaElement::LoadResource(const GURL& initial_url,
                                     const std::string& key_system) {
   DLOG(INFO) << "HTMLMediaElement::LoadResource(" << initial_url << ", "
              << content_type << ", " << key_system;
-  DCHECK(player_);
   if (!player_) {
+    LOG(WARNING) << "LoadResource() without player.";
     return;
   }
 
