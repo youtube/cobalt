@@ -160,6 +160,7 @@ SbWindow ApplicationAndroid::CreateWindow(const SbWindowOptions* options) {
   if (SbWindowIsValid(window_)) {
     return kSbWindowInvalid;
   }
+  ScopedLock lock(input_mutex_);
   window_ = new SbWindowPrivate;
   window_->native_window = native_window_;
   input_events_generator_.reset(new InputEventsGenerator(window_));
@@ -171,6 +172,7 @@ bool ApplicationAndroid::DestroyWindow(SbWindow window) {
     return false;
   }
 
+  ScopedLock lock(input_mutex_);
   input_events_generator_.reset();
 
   SB_DCHECK(window == window_);
@@ -399,6 +401,11 @@ bool ApplicationAndroid::SendAndroidMotionEvent(
     const GameActivityMotionEvent* event) {
   bool result = false;
 
+  ScopedLock lock(input_mutex_);
+  if (!input_events_generator_) {
+    return false;
+  }
+
   // add motion event into the queue.
   InputEventsGenerator::Events app_events;
   result = input_events_generator_->CreateInputEventsFromGameActivityEvent(
@@ -421,6 +428,11 @@ bool ApplicationAndroid::SendAndroidKeyEvent(
   }
 #endif
 
+  ScopedLock lock(input_mutex_);
+  if (!input_events_generator_) {
+    return false;
+  }
+
   // Add key event to the application queue.
   InputEventsGenerator::Events app_events;
   result = input_events_generator_->CreateInputEventsFromGameActivityEvent(
@@ -437,6 +449,7 @@ void ApplicationAndroid::ProcessKeyboardInject() {
   int err = read(keyboard_inject_readfd_, &key, sizeof(key));
   SB_DCHECK(err >= 0) << "Keyboard inject read failed: errno=" << errno;
   SB_LOG(INFO) << "Keyboard inject: " << key;
+  ScopedLock lock(input_mutex_);
   if (!input_events_generator_) {
     SB_DLOG(WARNING) << "Injected input event ignored without an SbWindow.";
     return;
