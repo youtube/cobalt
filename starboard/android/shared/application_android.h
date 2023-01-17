@@ -154,6 +154,9 @@ class ApplicationAndroid
   // The single open window, if any.
   SbWindow window_;
 
+  // |input_events_generator_| is accessed from multiple threads, so use a mutex
+  // to safely access it.
+  Mutex input_mutex_;
   scoped_ptr<InputEventsGenerator> input_events_generator_;
 
 #ifdef STARBOARD_INPUT_EVENTS_FILTER
