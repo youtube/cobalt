@@ -26,6 +26,10 @@ MediaSession::MediaSession()
       last_position_updated_time_(0) {}
 
 MediaSession::~MediaSession() {
+  // Stop the media session client first. This avoids possible access to media
+  // session during destruction.
+  media_session_client_.reset();
+
   ActionMap::iterator it;
   for (it = action_map_.begin(); it != action_map_.end(); ++it) {
     delete it->second;
@@ -98,9 +102,7 @@ void MediaSession::MaybeQueueChangeTask(base::TimeDelta delay) {
   }
   is_change_task_queued_ = true;
   task_runner_->PostDelayedTask(
-      FROM_HERE,
-      base::Bind(&MediaSession::OnChanged, this),
-      delay);
+      FROM_HERE, base::Bind(&MediaSession::OnChanged, this), delay);
 }
 
 void MediaSession::OnChanged() {

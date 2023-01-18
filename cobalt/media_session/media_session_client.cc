@@ -91,6 +91,9 @@ MediaSessionClient::MediaSessionClient(MediaSession* media_session)
     } else if (extension_->RegisterMediaSessionCallbacks != nullptr) {
       extension_->RegisterMediaSessionCallbacks(
           this, &InvokeActionCallback, &UpdatePlatformPlaybackStateCallback);
+      DCHECK(extension_->DestroyMediaSessionClientCallback)
+          << "Possible heap use-after-free if platform does not handle media "
+          << "session DestroyMediaSessionClientCallback()";
     }
   }
 }
@@ -186,8 +189,8 @@ MediaSessionClient::ComputeAvailableActions() const {
 void MediaSessionClient::PostDelayedTaskForMaybeFreezeCallback() {
   media_session_->task_runner_->PostDelayedTask(
       FROM_HERE,
-      base::Bind(&MediaSessionClient::RunMaybeFreezeCallback,
-                 base::Unretained(this), ++sequence_number_),
+      base::Bind(&MediaSessionClient::RunMaybeFreezeCallback, AsWeakPtr(),
+                 ++sequence_number_),
       kMaybeFreezeDelay);
 }
 
@@ -197,7 +200,7 @@ void MediaSessionClient::UpdatePlatformPlaybackState(
   if (!media_session_->task_runner_->BelongsToCurrentThread()) {
     media_session_->task_runner_->PostTask(
         FROM_HERE, base::Bind(&MediaSessionClient::UpdatePlatformPlaybackState,
-                              base::Unretained(this), state));
+                              AsWeakPtr(), state));
     return;
   }
 
@@ -235,7 +238,7 @@ void MediaSessionClient::InvokeActionInternal(
   if (!media_session_->task_runner_->BelongsToCurrentThread()) {
     media_session_->task_runner_->PostTask(
         FROM_HERE, base::Bind(&MediaSessionClient::InvokeActionInternal,
-                              base::Unretained(this), base::Passed(&details)));
+                              AsWeakPtr(), base::Passed(&details)));
     return;
   }
 

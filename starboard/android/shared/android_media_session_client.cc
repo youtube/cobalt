@@ -127,9 +127,9 @@ SbMutex mutex;
 // In practice, only one MediaSessionClient will become active at a time.
 // Protected by "mutex"
 CobaltExtensionMediaSessionUpdatePlatformPlaybackStateCallback
-    g_update_platform_playback_state_callback;
-CobaltExtensionMediaSessionInvokeActionCallback g_invoke_action_callback;
-void* g_callback_context;
+    g_update_platform_playback_state_callback = NULL;
+CobaltExtensionMediaSessionInvokeActionCallback g_invoke_action_callback = NULL;
+void* g_callback_context = NULL;
 
 void OnceInit() {
   SbMutexCreate(&mutex);
@@ -263,6 +263,17 @@ void RegisterMediaSessionCallbacks(
   SbMutexRelease(&mutex);
 }
 
+void DestroyMediaSessionClientCallback() {
+  SbOnce(&once_flag, OnceInit);
+  SbMutexAcquire(&mutex);
+
+  g_callback_context = NULL;
+  g_invoke_action_callback = NULL;
+  g_update_platform_playback_state_callback = NULL;
+
+  SbMutexRelease(&mutex);
+}
+
 }  // namespace
 
 const CobaltExtensionMediaSessionApi kMediaSessionApi = {
@@ -270,7 +281,7 @@ const CobaltExtensionMediaSessionApi kMediaSessionApi = {
     1,
     &OnMediaSessionStateChanged,
     &RegisterMediaSessionCallbacks,
-    NULL,
+    &DestroyMediaSessionClientCallback,
     &UpdateActiveSessionPlatformPlaybackState};
 
 const void* GetMediaSessionApi() {
