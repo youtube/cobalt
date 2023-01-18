@@ -605,8 +605,15 @@ void MediaSource::TraceMembers(script::Tracer* tracer) {
 }
 
 void MediaSource::SetReadyState(MediaSourceReadyState ready_state) {
-  if (ready_state == kMediaSourceReadyStateClosed) {
-    chunk_demuxer_ = NULL;
+  if (!offload_algorithm_runner_) {
+    // Setting `chunk_demuxer_` to NULL when there is an active algorithm
+    // running may cause crash.  So `chunk_demuxer_` is reset later in the
+    // function.
+    // When `offload_algorithm_runner_` is null, the logic is kept as is to
+    // ensure that the behavior stays the same when offload is not enabled.
+    if (ready_state == kMediaSourceReadyStateClosed) {
+      chunk_demuxer_ = NULL;
+    }
   }
 
   if (ready_state_ == ready_state) {
@@ -646,6 +653,7 @@ void MediaSource::SetReadyState(MediaSourceReadyState ready_state) {
     algorithm_process_thread_.reset();
   }
   offload_algorithm_runner_.reset();
+  chunk_demuxer_ = NULL;
 }
 
 bool MediaSource::IsUpdating() const {
