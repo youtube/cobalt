@@ -64,8 +64,15 @@ _TESTS_NO_SIGNAL = [
     'compression_test',
     'default_site_can_load',
     'disable_eval_with_csp',
+    'h5vcc_storage_write_verify_test',
     'http_cache',
     'persistent_cookie',
+    'service_worker_cache_keys_test',
+    'service_worker_get_registrations_test',
+    'service_worker_fetch_test',
+    'service_worker_message_test',
+    'service_worker_test',
+    'service_worker_persist_test',
     'soft_mic_platform_service_test',
     'text_encoding_test',
     'web_debugger',
@@ -73,12 +80,6 @@ _TESTS_NO_SIGNAL = [
     'web_worker_test',
     'worker_csp_test',
     'worker_load_test',
-    'service_worker_cache_keys_test',
-    'service_worker_get_registrations_test',
-    'service_worker_fetch_test',
-    'service_worker_message_test',
-    'service_worker_test',
-    'service_worker_persist_test',
 ]
 # These tests can only be run on platforms whose app launcher can send deep
 # links.
