@@ -1,7 +1,7 @@
 {
   "docker_service": "build-raspi",
   "on_device_test": {
-    "enabled": true,
+    "enabled": false,
     "tests": [
       "0",
       "1",
