@@ -22,6 +22,7 @@ group("gn_all") {
     "//starboard/client_porting/eztime:eztime_test",
     "//starboard/client_porting/icu_init",
     "//starboard/client_porting/poem:poem_unittests",
+    "//starboard/examples/hello_world:starboard_hello_world_example",
     "//starboard/examples/window:starboard_window_example",
     "//starboard/extension:extension_test",
     "//starboard/loader_app:app_key_files_test",
