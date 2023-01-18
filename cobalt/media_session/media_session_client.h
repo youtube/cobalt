@@ -18,6 +18,7 @@
 #include <bitset>
 #include <memory>
 
+#include "base/memory/weak_ptr.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/extension/media_session.h"
 #include "cobalt/media/web_media_player_factory.h"
@@ -31,7 +32,7 @@ namespace media_session {
 
 // Base class for a platform-level implementation of MediaSession.
 // Platforms should subclass this to connect MediaSession to their platform.
-class MediaSessionClient {
+class MediaSessionClient : public base::SupportsWeakPtr<MediaSessionClient> {
   friend class MediaSession;
 
  public:

@@ -16,6 +16,7 @@
 #define COBALT_MEDIA_SESSION_MEDIA_SESSION_H_
 
 #include <map>
+#include <memory>
 
 #include "base/containers/small_map.h"
 #include "base/location.h"
