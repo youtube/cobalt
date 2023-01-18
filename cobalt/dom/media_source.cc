@@ -110,11 +110,10 @@ bool IsAsynchronousReductionEnabled(web::EnvironmentSettings* settings) {
 // If the size of a job that is part of an algorithm is less than or equal to
 // the return value of this function, the implementation will run the job
 // immediately instead of scheduling it to run later to reduce latency.
-// NOTE: This only works when IsAsynchronousReductionEnabled() returns true,
-//       and it is currently only enabled for buffer append.
-// The default value is 16 KB.  Set to 0 will disable immediate job completely.
+// NOTE: This is currently only enabled for buffer append.
+// The default value is 0 KB, which disables immediate job completely.
 int GetMaxSizeForImmediateJob(web::EnvironmentSettings* settings) {
-  const int kDefaultMaxSize = 16 * 1024;
+  const int kDefaultMaxSize = 0;
   auto max_size =
       GetMediaSettings(settings).GetMaxSizeForImmediateJob().value_or(
           kDefaultMaxSize);
@@ -583,9 +582,20 @@ bool MediaSource::MediaElementHasMaxVideoCapabilities() const {
 
 SerializedAlgorithmRunner<SourceBufferAlgorithm>*
 MediaSource::GetAlgorithmRunner(int job_size) {
+  if (!asynchronous_reduction_enabled_ &&
+      job_size <= max_size_for_immediate_job_) {
+    // `default_algorithm_runner_` won't run jobs immediately when
+    // `asynchronous_reduction_enabled_` is false, so we use
+    // `immediate_job_algorithm_runner_` instead, which always has asynchronous
+    // reduction enabled.
+    return &immediate_job_algorithm_runner_;
+  }
   if (!offload_algorithm_runner_) {
     return &default_algorithm_runner_;
   }
+  // The logic below is redundant as the code for immediate job can be
+  // consolidated with value of `asynchronous_reduction_enabled_` ignored.  It's
+  // kept as is to leave existing behavior unchanged.
   if (asynchronous_reduction_enabled_ &&
       job_size <= max_size_for_immediate_job_) {
     // Append without posting new tasks is only supported on the default runner.
