@@ -40,9 +40,7 @@ namespace {
 
 const char kTestFileName[] = "cache_test_file.json";
 
-const uint32 kWriteBufferSize = 1024 * 1024;
-
-const uint32 kReadBufferSize = 1024 * 1024;
+const uint32 kBufferSize = 16384;  // 16 KB
 
 H5vccStorageWriteTestResponse WriteTestResponse(std::string error = "",
                                                 uint32 bytes_written = 0) {
@@ -157,13 +155,13 @@ H5vccStorageWriteTestResponse H5vccStorage::WriteTest(uint32 test_size,
   write_buf.append(test_string.substr(0, test_size % test_string.length()));
 
   // Incremental Writes of test_data, copies SbWriteAll, using a maximum
-  // kWriteBufferSize per write.
+  // kBufferSize per write.
   uint32 total_bytes_written = 0;
 
   do {
-    auto bytes_written = test_file.Write(
-        write_buf.data() + total_bytes_written,
-        std::min(kWriteBufferSize, test_size - total_bytes_written));
+    auto bytes_written =
+        test_file.Write(write_buf.data() + total_bytes_written,
+                        std::min(kBufferSize, test_size - total_bytes_written));
     if (bytes_written <= 0) {
       SbFileDelete(test_file_path.c_str());
       return WriteTestResponse("SbWrite -1 return value error");
@@ -196,21 +194,21 @@ H5vccStorageVerifyTestResponse H5vccStorage::VerifyTest(
   }
 
   // Incremental Reads of test_data, copies SbReadAll, using a maximum
-  // kReadBufferSize per write.
+  // kBufferSize per write.
   uint32 total_bytes_read = 0;
 
   do {
-    char read_buf[kReadBufferSize];
+    auto read_buffer = std::make_unique<char[]>(kBufferSize);
     auto bytes_read = test_file.Read(
-        read_buf, std::min(kReadBufferSize, test_size - total_bytes_read));
+        read_buffer.get(), std::min(kBufferSize, test_size - total_bytes_read));
     if (bytes_read <= 0) {
       SbFileDelete(test_file_path.c_str());
       return VerifyTestResponse("SbRead -1 return value error");
     }
 
-    // Verify read_buf equivalent to a repeated test_string.
+    // Verify read_buffer equivalent to a repeated test_string.
     for (auto i = 0; i < bytes_read; ++i) {
-      if (read_buf[i] !=
+      if (read_buffer.get()[i] !=
           test_string[(total_bytes_read + i) % test_string.size()]) {
         return VerifyTestResponse(
             "File test data does not match with test data string");
