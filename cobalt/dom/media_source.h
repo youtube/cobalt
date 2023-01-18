@@ -151,6 +151,11 @@ class MediaSource : public web::EventTarget {
 
   // The default algorithm runner runs all steps on the web thread.
   DefaultAlgorithmRunner<SourceBufferAlgorithm> default_algorithm_runner_;
+  // The immediate job algorithm runner runs job immediately on the web thread,
+  // it has asynchronous reduction always enabled to run immediate jobs even
+  // when asynchronous reduction is disabled on the `default_algorithm_runner_`.
+  DefaultAlgorithmRunner<SourceBufferAlgorithm> immediate_job_algorithm_runner_{
+      true};
   // The offload algorithm runner offloads some steps to a non-web thread.
   std::unique_ptr<OffloadAlgorithmRunner<SourceBufferAlgorithm>>
       offload_algorithm_runner_;
