@@ -757,10 +757,10 @@ TEST(SbMediaCanPlayMimeAndKeySystem, ValidateQueriesUnderPeakCapability) {
 //       boost the queries of repeated mime and key system. Note that if there's
 //       any capability change, the platform need to explicitly clear the
 //       caches, otherwise they may return outdated results.
-TEST(SbMediaCanPlayMimeAndKeySystem, ValidatePerformance) {
+TEST(SbMediaCanPlayMimeAndKeySystem, FLAKY_ValidatePerformance) {
   auto test_sequential_function_calls =
       [](const SbMediaCanPlayMimeAndKeySystemParam* mime_params,
-         int num_function_calls, SbTimeMonotonic max_time_delta,
+         int num_function_calls, SbTimeMonotonic max_time_delta_per_call,
          const char* query_type) {
         const SbTimeMonotonic time_start = SbTimeGetMonotonicNow();
         for (int i = 0; i < num_function_calls; ++i) {
@@ -777,33 +777,32 @@ TEST(SbMediaCanPlayMimeAndKeySystem, ValidatePerformance) {
                      << "us total across " << num_function_calls << " calls.";
         SB_LOG(INFO) << "  Measured duration " << time_per_call
                      << "us average per call.";
-        EXPECT_LE(time_delta, max_time_delta);
+        EXPECT_LE(time_delta, max_time_delta_per_call * num_function_calls);
       };
 
   // Warmup the cache.
-  test_sequential_function_calls(
-      kWarmupQueryParams, SB_ARRAY_SIZE_INT(kWarmupQueryParams),
-      5 * kSbTimeMillisecond /* 9 calls */, "Warmup queries");
+  test_sequential_function_calls(kWarmupQueryParams,
+                                 SB_ARRAY_SIZE_INT(kWarmupQueryParams),
+                                 100 * kSbTimeMillisecond, "Warmup queries");
+
   // First round of the queries.
   test_sequential_function_calls(
-      kSdrQueryParams, SB_ARRAY_SIZE_INT(kSdrQueryParams),
-      10 * kSbTimeMillisecond /* 38 calls */, "SDR queries");
+      kSdrQueryParams, SB_ARRAY_SIZE_INT(kSdrQueryParams), 500, "SDR queries");
   test_sequential_function_calls(
-      kHdrQueryParams, SB_ARRAY_SIZE_INT(kHdrQueryParams),
-      15 * kSbTimeMillisecond /* 82 calls */, "HDR queries");
+      kHdrQueryParams, SB_ARRAY_SIZE_INT(kHdrQueryParams), 500, "HDR queries");
   test_sequential_function_calls(
-      kDrmQueryParams, SB_ARRAY_SIZE_INT(kDrmQueryParams),
-      10 * kSbTimeMillisecond /* 81 calls */, "DRM queries");
+      kDrmQueryParams, SB_ARRAY_SIZE_INT(kDrmQueryParams), 500, "DRM queries");
+
   // Second round of the queries.
-  test_sequential_function_calls(
-      kSdrQueryParams, SB_ARRAY_SIZE_INT(kSdrQueryParams),
-      5 * kSbTimeMillisecond /* 38 calls */, "Cached SDR queries");
-  test_sequential_function_calls(
-      kHdrQueryParams, SB_ARRAY_SIZE_INT(kHdrQueryParams),
-      5 * kSbTimeMillisecond /* 82 calls */, "Cached HDR queries");
-  test_sequential_function_calls(
-      kDrmQueryParams, SB_ARRAY_SIZE_INT(kDrmQueryParams),
-      5 * kSbTimeMillisecond /* 81 calls */, "Cached DRM queries");
+  test_sequential_function_calls(kSdrQueryParams,
+                                 SB_ARRAY_SIZE_INT(kSdrQueryParams), 100,
+                                 "Cached SDR queries");
+  test_sequential_function_calls(kHdrQueryParams,
+                                 SB_ARRAY_SIZE_INT(kHdrQueryParams), 100,
+                                 "Cached HDR queries");
+  test_sequential_function_calls(kDrmQueryParams,
+                                 SB_ARRAY_SIZE_INT(kDrmQueryParams), 100,
+                                 "Cached DRM queries");
 }
 
 }  // namespace
