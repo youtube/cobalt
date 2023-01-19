@@ -86,6 +86,10 @@ scoped_refptr<dom::HTMLElement> FindFirstElementWithScrollType(
   auto current_element = target_element;
   bool scrolling_left = !scrolling_right;
   bool scrolling_up = !scrolling_down;
+  bool horizontal_scroll_axis =
+      major_scroll_axis == ui_navigation::scroll_engine::ScrollType::Horizontal;
+  bool vertical_scroll_axis =
+      major_scroll_axis == ui_navigation::scroll_engine::ScrollType::Vertical;
 
   while (true) {
     float scroll_top_lower_bound;
@@ -112,10 +116,10 @@ scoped_refptr<dom::HTMLElement> FindFirstElementWithScrollType(
     bool can_scroll_up = scroll_top_lower_bound < offset_y;
     bool can_scroll_down = scroll_top_upper_bound > offset_y;
 
-    if ((scrolling_left && can_scroll_left) ||
-        (scrolling_right && can_scroll_right) ||
-        (scrolling_up && can_scroll_up) ||
-        (scrolling_down && can_scroll_down)) {
+    if ((scrolling_left && can_scroll_left && horizontal_scroll_axis) ||
+        (scrolling_right && can_scroll_right && horizontal_scroll_axis) ||
+        (scrolling_up && can_scroll_up && vertical_scroll_axis) ||
+        (scrolling_down && can_scroll_down && vertical_scroll_axis)) {
       return current_element;
     }
   }
