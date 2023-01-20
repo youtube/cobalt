@@ -27,6 +27,7 @@
 #include "cobalt/dom/pointer_event_init.h"
 #include "cobalt/math/vector2d_f.h"
 #include "cobalt/ui_navigation/nav_item.h"
+#include "cobalt/ui_navigation/scroll_engine/free_scrolling_nav_item.h"
 
 namespace cobalt {
 namespace ui_navigation {
@@ -42,9 +43,16 @@ typedef enum ScrollType {
   Free,
 } ScrollType;
 
+struct EventPositionWithTimeStamp {
+  EventPositionWithTimeStamp(math::Vector2dF position, base::Time time_stamp)
+      : position(position), time_stamp(time_stamp) {}
+  math::Vector2dF position;
+  base::Time time_stamp;
+};
+
 class ScrollEngine {
  public:
-  ScrollEngine();
+  ScrollEngine() {}
   ~ScrollEngine();
 
   void HandlePointerEvent(base::Token type, const dom::PointerEventInit& event);
@@ -68,29 +76,7 @@ class ScrollEngine {
   base::Thread scroll_engine_{"ScrollEngineThread"};
   base::RepeatingTimer free_scroll_timer_;
 
-  struct EventPositionWithTimeStamp {
-    EventPositionWithTimeStamp(math::Vector2dF position, base::Time time_stamp)
-        : position(position), time_stamp(time_stamp) {}
-    math::Vector2dF position;
-    base::Time time_stamp;
-  };
-
-  struct FreeScrollingNavItem {
-    FreeScrollingNavItem(scoped_refptr<NavItem> nav_item,
-                         math::Vector2dF initial_offset,
-                         math::Vector2dF target_offset)
-        : nav_item(nav_item),
-          initial_offset(initial_offset),
-          target_offset(target_offset),
-          last_change(base::Time::Now()) {}
-    scoped_refptr<NavItem> nav_item;
-    math::Vector2dF initial_offset;
-    math::Vector2dF target_offset;
-    base::Time last_change;
-  };
-
   std::queue<EventPositionWithTimeStamp> previous_events_;
-  const scoped_refptr<cssom::TimingFunction>& timing_function_;
 
   scoped_refptr<NavItem> active_item_;
   math::Vector2dF active_velocity_;

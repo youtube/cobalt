@@ -16,7 +16,9 @@
 
 #include <algorithm>
 
+#include "base/logging.h"
 #include "cobalt/dom/pointer_event.h"
+#include "cobalt/math/clamp.h"
 
 namespace cobalt {
 namespace ui_navigation {
@@ -24,7 +26,7 @@ namespace scroll_engine {
 
 namespace {
 
-const base::TimeDelta kFreeScrollDuration =
+const base::TimeDelta kMaxFreeScrollDuration =
     base::TimeDelta::FromMilliseconds(700);
 
 void BoundValuesByNavItemBounds(scoped_refptr<ui_navigation::NavItem> nav_item,
@@ -91,10 +93,86 @@ void ScrollNavItemWithVector(scoped_refptr<NavItem> nav_item,
   nav_item->SetContentOffset(offset_x, offset_y);
 }
 
+float GetMaxAbsoluteDimension(math::Vector2dF vector) {
+  return std::abs(vector.x()) >= std::abs(vector.y()) ? vector.x() : vector.y();
+}
+
+math::Vector2dF GetVelocityInMilliseconds(
+    EventPositionWithTimeStamp previous_event,
+    EventPositionWithTimeStamp current_event) {
+  auto time_delta = current_event.time_stamp - previous_event.time_stamp;
+  auto distance_delta = current_event.position - previous_event.position;
+
+  // Don't recognize infinite velocity.
+  if (time_delta.is_zero()) {
+    return math::Vector2dF(0, 0);
+  }
+
+  distance_delta.Scale(static_cast<float>(1.f / time_delta.InMilliseconds()));
+  return distance_delta;
+}
+
+math::Vector2dF GetNewTarget(EventPositionWithTimeStamp previous_event,
+                             EventPositionWithTimeStamp current_event) {
+  auto velocity = GetVelocityInMilliseconds(previous_event, current_event);
+  velocity.Scale(kMaxFreeScrollDuration.InMillisecondsF());
+  velocity.Scale(-1);
+  return current_event.position + velocity;
+}
+
+math::Vector2dF GetNewDelta(EventPositionWithTimeStamp previous_event,
+                            EventPositionWithTimeStamp current_event) {
+  auto new_target = GetNewTarget(previous_event, current_event);
+  return new_target - current_event.position;
+}
+
+base::TimeDelta GetAnimationDurationTimeBound(
+    EventPositionWithTimeStamp previous_event,
+    EventPositionWithTimeStamp current_event) {
+  const float time_bound_multiplier = 2.5f;
+  auto time_delta = current_event.time_stamp - previous_event.time_stamp;
+  return time_delta * time_bound_multiplier;
+}
+
+base::TimeDelta GetAnimationDurationEaseInOutBound(
+    EventPositionWithTimeStamp previous_event,
+    EventPositionWithTimeStamp current_event) {
+  auto new_delta = GetNewDelta(previous_event, current_event);
+  auto duration = std::sqrt(std::abs(GetMaxAbsoluteDimension(new_delta)));
+  return base::TimeDelta::FromMillisecondsD(duration);
+}
+
+base::TimeDelta GetAnimationDuration(EventPositionWithTimeStamp previous_event,
+                                     EventPositionWithTimeStamp current_event) {
+  // TODO(b/265864360): Duration should be calculated as it is in the comment
+  //                    below, but it seems to always be too small. Re-evaluate
+  //                    once something workable is in.
+  // auto duration_time_bound =
+  //     GetAnimationDurationTimeBound(previous_event, current_event);
+  // auto ease_in_out_bound =
+  //     GetAnimationDurationEaseInOutBound(previous_event, current_event);
+  // auto min_bound = duration_time_bound < ease_in_out_bound ?
+  // duration_time_bound
+  //                                                          :
+  //                                                          ease_in_out_bound;
+  // return min_bound < kMaxFreeScrollDuration ? min_bound
+  //                                           : kMaxFreeScrollDuration;
+  return kMaxFreeScrollDuration;
+}
+
+float GetAnimationSlope(EventPositionWithTimeStamp previous_event,
+                        EventPositionWithTimeStamp current_event) {
+  auto animation_duration = GetAnimationDuration(previous_event, current_event);
+  auto time_delta = previous_event.time_stamp - current_event.time_stamp;
+  if (time_delta.is_zero()) {
+    return 0.f;
+  }
+  auto slope = animation_duration / time_delta;
+  return math::Clamp(static_cast<float>(slope), -1000.f, 1000.f);
+}
+
 }  // namespace
 
-ScrollEngine::ScrollEngine()
-    : timing_function_(cssom::TimingFunction::GetEaseInOut()) {}
 ScrollEngine::~ScrollEngine() { free_scroll_timer_.Stop(); }
 
 void ScrollEngine::MaybeFreeScrollActiveNavItem() {
@@ -105,35 +183,25 @@ void ScrollEngine::MaybeFreeScrollActiveNavItem() {
     return;
   }
 
-  auto previous_event = previous_events_.back();
-  auto current_event = previous_events_.front();
-  math::Vector2dF distance_delta =
-      previous_event.position - current_event.position;
-  // TODO(andrewsavage): See if we need this
-  // if (distance_delta.Length() < kFreeScrollThreshold) {
-  //   return;
-  // }
+  auto current_event = previous_events_.back();
+  auto previous_event = previous_events_.front();
 
-  // Get the average velocity for the entire run
-  math::Vector2dF average_velocity = distance_delta;
-  average_velocity.Scale(
-      1.0f /
-      (current_event.time_stamp - previous_event.time_stamp).InMillisecondsF());
-  average_velocity.Scale(0.5);
-
-  // Get the distance
-  average_velocity.Scale(kFreeScrollDuration.InMillisecondsF());
+  auto new_delta = GetNewDelta(previous_event, current_event);
+  base::TimeDelta animation_duration =
+      GetAnimationDuration(previous_event, current_event);
+  float animation_slope = GetAnimationSlope(previous_event, current_event);
 
   float initial_offset_x;
   float initial_offset_y;
   active_item_->GetContentOffset(&initial_offset_x, &initial_offset_y);
   math::Vector2dF initial_offset(initial_offset_x, initial_offset_y);
 
-  math::Vector2dF target_offset = initial_offset + average_velocity;
+  math::Vector2dF target_offset = initial_offset + new_delta;
   target_offset = BoundValuesByNavItemBounds(active_item_, target_offset);
 
   nav_items_with_decaying_scroll_.push_back(
-      FreeScrollingNavItem(active_item_, initial_offset, target_offset));
+      FreeScrollingNavItem(active_item_, initial_offset, target_offset,
+                           animation_duration, animation_slope));
   if (!free_scroll_timer_.IsRunning()) {
     free_scroll_timer_.Start(FROM_HERE, base::TimeDelta::FromMilliseconds(5),
                              this,
@@ -267,7 +335,7 @@ void ScrollEngine::CancelActiveScrollsForNavItems(
     for (std::vector<FreeScrollingNavItem>::iterator it =
              nav_items_with_decaying_scroll_.begin();
          it != nav_items_with_decaying_scroll_.end();) {
-      if (it->nav_item.get() == scroll_to_cancel.get()) {
+      if (it->nav_item().get() == scroll_to_cancel.get()) {
         it = nav_items_with_decaying_scroll_.erase(it);
       } else {
         it++;
@@ -283,21 +351,14 @@ void ScrollEngine::ScrollNavItemsWithDecayingScroll() {
     free_scroll_timer_.Stop();
     return;
   }
+
   for (std::vector<FreeScrollingNavItem>::iterator it =
            nav_items_with_decaying_scroll_.begin();
        it != nav_items_with_decaying_scroll_.end();) {
-    auto now = base::Time::Now();
-    auto update_delta = now - it->last_change;
-    float fraction_of_time =
-        std::max<float>(update_delta / kFreeScrollDuration, 1.0);
-    float progress = timing_function_->Evaluate(fraction_of_time);
-    math::Vector2dF current_offset = it->target_offset - it->initial_offset;
-    current_offset.Scale(progress);
-    current_offset += it->initial_offset;
-    it->nav_item->SetContentOffset(current_offset.x(), current_offset.y());
-    it->last_change = now;
+    auto current_offset = it->GetCurrentOffset();
+    it->nav_item()->SetContentOffset(current_offset.x(), current_offset.y());
 
-    if (fraction_of_time == 1.0) {
+    if (it->AnimationIsComplete()) {
       it = nav_items_with_decaying_scroll_.erase(it);
     } else {
       it++;
