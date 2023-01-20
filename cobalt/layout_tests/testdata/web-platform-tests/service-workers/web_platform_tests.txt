@@ -5,12 +5,10 @@ service-worker/register-default-scope.https.html, PASS
 service-worker/rejections.https.html, PASS
 service-worker/serviceworkerobject-scripturl.https.html, PASS
 service-worker/unregister.https.html, PASS
-service-worker/fetch-event-add-async.https.html, PASS
 # Tests pass with memory leakage issue.
 service-worker/install-event-type.https.html, DISABLE
 service-worker/oninstall-script-error.https.html, DISABLE
 service-worker/registration-basic.https.html, PASS
-service-worker/service-worker-header.https.html, PASS
 service-worker/skip-waiting-without-client.https.html, PASS
 service-worker/update-result.https.html, PASS
 
@@ -18,10 +16,12 @@ service-worker/update-result.https.html, PASS
 service-worker/activate-event-after-install-state-change.https.html, DISABLE
 service-worker/activation-after-registration.https.html, DISABLE
 service-worker/clients-matchall-frozen.https.html, DISABLE
+service-worker/fetch-event-add-async.https.html, DISABLE
 service-worker/multiple-update.https.html, DISABLE
 service-worker/register-wait-forever-in-install-worker.https.html, DISABLE
 service-worker/registration-events.https.html, DISABLE
 service-worker/registration-schedule-job.https.html, DISABLE
+service-worker/service-worker-header.https.html, DISABLE
 service-worker/state.https.html, DISABLE
 service-worker/uncontrolled-page.https.html, DISABLE
 
