@@ -116,12 +116,13 @@ void ScrollEngine::MaybeFreeScrollActiveNavItem() {
 
   // Get the average velocity for the entire run
   math::Vector2dF average_velocity = distance_delta;
-  average_velocity.Scale(1.0f / static_cast<float>(current_event.time_stamp -
-                                                   previous_event.time_stamp));
+  average_velocity.Scale(
+      1.0f /
+      (current_event.time_stamp - previous_event.time_stamp).InMillisecondsF());
   average_velocity.Scale(0.5);
 
   // Get the distance
-  average_velocity.Scale(kFreeScrollDuration.ToSbTime());
+  average_velocity.Scale(kFreeScrollDuration.InMillisecondsF());
 
   float initial_offset_x;
   float initial_offset_y;
@@ -161,10 +162,11 @@ void ScrollEngine::HandlePointerEventForActiveItem(
 
   auto current_coordinates =
       math::Vector2dF(pointer_event->x(), pointer_event->y());
+  auto current_time = base::Time::FromJsTime(pointer_event->time_stamp());
   if (previous_events_.size() != 2) {
     // This is an error.
-    previous_events_.push(EventPositionWithTimeStamp(
-        current_coordinates, pointer_event->time_stamp()));
+    previous_events_.push(
+        EventPositionWithTimeStamp(current_coordinates, current_time));
     return;
   }
 
@@ -175,8 +177,8 @@ void ScrollEngine::HandlePointerEventForActiveItem(
     drag_vector.set_x(0.0f);
   }
 
-  previous_events_.push(EventPositionWithTimeStamp(
-      current_coordinates, pointer_event->time_stamp()));
+  previous_events_.push(
+      EventPositionWithTimeStamp(current_coordinates, current_time));
   previous_events_.pop();
 
   active_velocity_ = drag_vector;
@@ -243,10 +245,10 @@ void ScrollEngine::HandleScrollStart(
     drag_vector.set_x(0.0f);
   }
 
-  previous_events_.push(
-      EventPositionWithTimeStamp(initial_coordinates, initial_time_stamp));
-  previous_events_.push(
-      EventPositionWithTimeStamp(current_coordinates, current_time_stamp));
+  previous_events_.push(EventPositionWithTimeStamp(
+      initial_coordinates, base::Time::FromJsTime(initial_time_stamp)));
+  previous_events_.push(EventPositionWithTimeStamp(
+      current_coordinates, base::Time::FromJsTime(current_time_stamp)));
 
   active_velocity_ = drag_vector;
   ScrollNavItemWithVector(active_item_, drag_vector);
