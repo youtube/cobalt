@@ -69,10 +69,10 @@ class ScrollEngine {
   base::RepeatingTimer free_scroll_timer_;
 
   struct EventPositionWithTimeStamp {
-    EventPositionWithTimeStamp(math::Vector2dF position, uint64 time_stamp)
+    EventPositionWithTimeStamp(math::Vector2dF position, base::Time time_stamp)
         : position(position), time_stamp(time_stamp) {}
     math::Vector2dF position;
-    uint64 time_stamp;
+    base::Time time_stamp;
   };
 
   struct FreeScrollingNavItem {
