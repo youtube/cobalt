@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #
 # Copyright 2017 The Cobalt Authors. All Rights Reserved.
 #
@@ -58,7 +58,7 @@ def _SetEnvironPlatform(platform):
 
 
 def _SetEnvironBuildConfiguration(config, platform):
-  os.environ['BUILD_CONFIGURATION'] = '%s_%s' % (platform, config)
+  os.environ['BUILD_CONFIGURATION'] = f'{platform}_{config}'
 
 
 def _SetEnviron(config, platform):
@@ -70,13 +70,13 @@ def _SetEnviron(config, platform):
 class CommandLineTest(unittest.TestCase):
 
   def setUp(self):
-    super(CommandLineTest, self).setUp()
+    super().setUp()
     self.environ = os.environ.copy()
     _ClearEnviron()
 
   def tearDown(self):
     _RestoreMapping(os.environ, self.environ)
-    super(CommandLineTest, self).tearDown()
+    super().tearDown()
 
   def testNoEnvironmentRainyDayNoArgs(self):
     arg_parser = _CreateParser()
