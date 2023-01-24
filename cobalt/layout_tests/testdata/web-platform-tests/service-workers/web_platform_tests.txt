@@ -1,16 +1,26 @@
 # Service Worker API tests
 
-service-worker/clients-matchall-on-evaluation.https.html, PASS
 service-worker/register-default-scope.https.html, PASS
 service-worker/rejections.https.html, PASS
 service-worker/serviceworkerobject-scripturl.https.html, PASS
 service-worker/unregister.https.html, PASS
+
 # Tests pass with memory leakage issue.
 service-worker/install-event-type.https.html, DISABLE
 service-worker/oninstall-script-error.https.html, DISABLE
 service-worker/registration-basic.https.html, PASS
-service-worker/skip-waiting-without-client.https.html, PASS
-service-worker/update-result.https.html, PASS
+
+# b/266605186
+# SecurityError: Service Worker Script is not JavaScript MIME_TYPE on linux-x64x11-skia_nightly
+# Caught signal: SIGSEGV on linux-x64x11-sbversion-13_evergreen-x64-sbversion-13_tests
+service-worker/update-result.https.html, DISABLE
+
+# b/266605500
+# Caught signal: SIGSEGV on linux-x64x11-sbversion-12_evergreen-x64-sbversion-12_nightly
+service-worker/clients-matchall-on-evaluation.https.html, DISABLE
+
+# b/266605087 TypeError: Cannot set property 'onerror' of null"
+service-worker/skip-waiting-without-client.https.html, DISABLE
 
 # b/234788479 Implement waiting for update worker state tasks in Install algorithm.
 service-worker/activation-after-registration.https.html, DISABLE
