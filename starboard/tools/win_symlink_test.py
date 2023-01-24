@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 # Copyright 2018 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -56,7 +56,7 @@ if __name__ == '__main__' and sys.platform == 'win32':
       external_temp_dir = tempfile.mkdtemp()
       try:
         external_temp_file = os.path.join(external_temp_dir, 'test.txt')
-        with open(external_temp_file, 'w') as fd:
+        with open(external_temp_file, 'w', encoding='utf-8') as fd:
           fd.write('HI')
         link_dir = os.path.join(self.tmp_dir, 'foo', 'link_dir')
         MakeSymLink(external_temp_file, link_dir)
@@ -71,7 +71,7 @@ if __name__ == '__main__' and sys.platform == 'win32':
       external_temp_dir = tempfile.mkdtemp()
       try:
         external_temp_file = os.path.join(external_temp_dir, 'test.txt')
-        with open(external_temp_file, 'w') as fd:
+        with open(external_temp_file, 'w', encoding='utf-8') as fd:
           fd.write('HI')
         link_dir = os.path.join(self.tmp_dir, 'foo', 'link_dir')
         MakeSymLink(external_temp_file, link_dir)

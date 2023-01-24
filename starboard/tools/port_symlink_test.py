@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #
 # Copyright 2019 The Cobalt Authors. All Rights Reserved.
 #
@@ -51,7 +51,7 @@ def OsWalk(*args, **kwargs):
 class PortSymlinkTest(unittest.TestCase):
 
   def setUp(self):
-    super(PortSymlinkTest, self).setUp()
+    super().setUp()
     self.tmp_dir = tempfile.mkdtemp(prefix='port_symlink_')
     self.target_dir = os.path.join(self.tmp_dir, 'target')
     self.inner_dir = os.path.join(self.target_dir, 'inner')
@@ -59,13 +59,13 @@ class PortSymlinkTest(unittest.TestCase):
     self.target_file = os.path.join(self.target_dir, _TARGET_FILENAME)
     _MakeDirs(self.target_dir)
     _MakeDirs(self.inner_dir)
-    with open(self.target_file, 'w') as fd:
+    with open(self.target_file, 'w', encoding='utf-8') as fd:
       fd.write('hallo welt!')
     MakeSymLink(self.target_dir, self.link_dir)
 
   def tearDown(self):
     Rmtree(self.tmp_dir)
-    super(PortSymlinkTest, self).tearDown()
+    super().tearDown()
 
   def testSanity(self):
     self.assertTrue(os.path.isdir(self.tmp_dir))
@@ -88,7 +88,7 @@ class PortSymlinkTest(unittest.TestCase):
     self.assertTrue(IsSymLink(rel_link_dir))
     link_value = ReadSymLink(rel_link_dir)
     self.assertIn(
-        '..', link_value, msg='Expected ".." in relative path %s' % link_value)
+        '..', link_value, msg=f'Expected ".." in relative path {link_value}')
 
   def testDelSymlink(self):
     link_dir2 = os.path.join(self.tmp_dir, 'link2')
@@ -118,7 +118,7 @@ class PortSymlinkTest(unittest.TestCase):
     external_temp_dir = tempfile.mkdtemp()
     try:
       external_temp_file = os.path.join(external_temp_dir, _TARGET_FILENAME)
-      with open(external_temp_file, 'w') as fd:
+      with open(external_temp_file, 'w', encoding='utf-8') as fd:
         fd.write('hallo!')
       link_dir = os.path.join(self.tmp_dir, 'foo', 'link_dir')
       MakeSymLink(external_temp_file, link_dir)

@@ -89,7 +89,7 @@ def Rmtree(path):
   else:
     os.unlink(path)
     return
-  if os.path.exists(path):
+  if os.path.exists(path) or os.path.islink(path):
     func(path)
 
 
@@ -106,7 +106,7 @@ def _CreateArgumentParser():
   class MyParser(argparse.ArgumentParser):
 
     def error(self, message):
-      sys.stderr.write('error: %s\n' % message)
+      sys.stderr.write(f'error: {message}\n')
       self.print_help()
       sys.exit(2)
 
