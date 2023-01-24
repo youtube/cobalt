@@ -20,7 +20,7 @@ import os
 import platform
 import unittest
 
-import _env  # pylint: disable=unused-import
+from . import _env  # pylint: disable=unused-import
 from cobalt.bindings import flatten_idls
 
 

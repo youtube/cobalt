@@ -7,3 +7,4 @@ jsonschema<5
 selenium==3.141.0
 Brotli==1.0.9
 six<2
+pytest-pythonpath<0.8
