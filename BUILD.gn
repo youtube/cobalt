@@ -1,0 +1,148 @@
+# Copyright 2014 The Chromium Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//testing/libfuzzer/fuzzer_test.gni")
+
+config("flac_config") {
+  defines = [ "FLAC__NO_DLL" ]
+}
+
+# Need a separate config to ensure the warnings are added to the end.
+config("flac_private_config") {
+  if (is_clang) {
+    cflags = [
+      # libflac converts between FLAC__StreamDecoderState and
+      # FLAC__StreamDecoderInitStatus a lot in stream_decoder.c.
+      "-Wno-conversion",
+
+      # libflac contains constants that are only used in certain compile-time
+      # cases, which triggers unused-const-variable warnings in other cases.
+      "-Wno-unused-const-variable",
+
+      # libflac contains some questionable bit math.
+      "-Wno-incompatible-pointer-types",
+    ]
+  }
+}
+
+source_set("flac") {
+  sources = [
+    "include/FLAC/all.h",
+    "include/FLAC/assert.h",
+    "include/FLAC/callback.h",
+    "include/FLAC/export.h",
+    "include/FLAC/format.h",
+    "include/FLAC/metadata.h",
+    "include/FLAC/ordinals.h",
+    "include/FLAC/stream_decoder.h",
+    "include/FLAC/stream_encoder.h",
+    "include/share/alloc.h",
+    "include/share/compat.h",
+    "include/share/endswap.h",
+    "include/share/getopt.h",
+    "include/share/grabbag.h",
+    "include/share/grabbag/cuesheet.h",
+    "include/share/grabbag/file.h",
+    "include/share/grabbag/picture.h",
+    "include/share/grabbag/replaygain.h",
+    "include/share/grabbag/seektable.h",
+    "include/share/macros.h",
+    "include/share/private.h",
+    "include/share/replaygain_analysis.h",
+    "include/share/replaygain_synthesis.h",
+    "include/share/safe_str.h",
+    "include/share/utf8.h",
+    "src/libFLAC/bitmath.c",
+    "src/libFLAC/bitreader.c",
+    "src/libFLAC/bitwriter.c",
+    "src/libFLAC/cpu.c",
+    "src/libFLAC/crc.c",
+    "src/libFLAC/fixed.c",
+    "src/libFLAC/fixed_intrin_sse2.c",
+    "src/libFLAC/fixed_intrin_ssse3.c",
+    "src/libFLAC/float.c",
+    "src/libFLAC/format.c",
+    "src/libFLAC/include/private/all.h",
+    "src/libFLAC/include/private/bitmath.h",
+    "src/libFLAC/include/private/bitreader.h",
+    "src/libFLAC/include/private/bitwriter.h",
+    "src/libFLAC/include/private/cpu.h",
+    "src/libFLAC/include/private/crc.h",
+    "src/libFLAC/include/private/fixed.h",
+    "src/libFLAC/include/private/float.h",
+    "src/libFLAC/include/private/format.h",
+    "src/libFLAC/include/private/lpc.h",
+    "src/libFLAC/include/private/macros.h",
+    "src/libFLAC/include/private/md5.h",
+    "src/libFLAC/include/private/memory.h",
+    "src/libFLAC/include/private/metadata.h",
+    "src/libFLAC/include/private/stream_encoder.h",
+    "src/libFLAC/include/private/stream_encoder_framing.h",
+    "src/libFLAC/include/private/window.h",
+    "src/libFLAC/include/protected/all.h",
+    "src/libFLAC/include/protected/stream_decoder.h",
+    "src/libFLAC/include/protected/stream_encoder.h",
+    "src/libFLAC/lpc.c",
+    "src/libFLAC/lpc_intrin_avx2.c",
+    "src/libFLAC/lpc_intrin_fma.c",
+    "src/libFLAC/lpc_intrin_neon.c",
+    "src/libFLAC/lpc_intrin_sse2.c",
+    "src/libFLAC/lpc_intrin_sse41.c",
+    "src/libFLAC/lpc_intrin_vsx.c",
+    "src/libFLAC/md5.c",
+    "src/libFLAC/memory.c",
+    "src/libFLAC/metadata_iterators.c",
+    "src/libFLAC/metadata_object.c",
+    "src/libFLAC/stream_decoder.c",
+    "src/libFLAC/stream_encoder.c",
+    "src/libFLAC/stream_encoder_framing.c",
+    "src/libFLAC/stream_encoder_intrin_avx2.c",
+    "src/libFLAC/stream_encoder_intrin_sse2.c",
+    "src/libFLAC/stream_encoder_intrin_ssse3.c",
+    "src/libFLAC/window.c",
+  ]
+
+  configs -= [ "//build/config/compiler:chromium_code" ]
+  configs += [
+    ":flac_config",
+    ":flac_private_config",
+    "//build/config/compiler:no_chromium_code",
+  ]
+  public_configs = [ ":flac_config" ]
+
+  include_dirs = [
+    "include",
+    "src/libFLAC/include",
+  ]
+
+  defines = [
+    "FLAC__OVERFLOW_DETECT",
+    "FLAC__HAS_OGG=0",
+    "PACKAGE_VERSION=\"1.4.2\"",
+    "HAVE_LROUND",
+  ]
+
+  if (is_win) {
+    sources += [
+      "include/share/win_utf8_io.h",
+      "src/share/win_utf8_io/win_utf8_io.c",
+    ]
+
+    # win_utf8_io.c defines this itself.
+    configs -= [ "//build/config/win:lean_and_mean" ]
+    cflags = [
+      "/wd4334",  # 32-bit shift converted to 64 bits.
+      "/wd4267",  # Converting from size_t to unsigned on 64-bit.
+    ]
+  } else {
+    defines += [ "HAVE_INTTYPES_H" ]
+  }
+
+  if (use_fuzzing_engine) {
+    sources += [
+      "oss-fuzz/fuzzer_common.c",
+      "oss-fuzz/fuzzer_common.h",
+    ]
+  }
+}
