@@ -570,6 +570,43 @@ void ServiceWorkerJobs::Register(Job* job) {
   Update(job);
 }
 
+void ServiceWorkerJobs::SoftUpdate(
+    scoped_refptr<ServiceWorkerRegistrationObject> registration,
+    bool force_bypass_cache) {
+  TRACE_EVENT0("cobalt::worker", "ServiceWorkerJobs::SoftUpdate()");
+  DCHECK_EQ(message_loop(), base::MessageLoop::current());
+  DCHECK(registration);
+  // Algorithm for SoftUpdate:
+  //    https://www.w3.org/TR/2022/CRD-service-workers-20220712/#soft-update
+  // 1. Let newestWorker be the result of running Get Newest Worker algorithm
+  // passing registration as its argument.
+  ServiceWorkerObject* newest_worker = registration->GetNewestWorker();
+
+  // 2. If newestWorker is null, abort these steps.
+  if (newest_worker == nullptr) {
+    return;
+  }
+
+  // 3. Let job be the result of running Create Job with update, registration’s
+  // storage key, registration’s scope url, newestWorker’s script url, null, and
+  // null.
+  std::unique_ptr<Job> job =
+      CreateJob(kUpdate, registration->storage_key(), registration->scope_url(),
+                newest_worker->script_url());
+
+  // 4. Set job’s worker type to newestWorker’s type.
+  // Cobalt only supports 'classic' worker type.
+
+  // 5. Set job’s force bypass cache flag if forceBypassCache is true.
+  job->force_bypass_cache_flag = force_bypass_cache;
+
+  // 6. Invoke Schedule Job with job.
+  message_loop()->task_runner()->PostTask(
+      FROM_HERE, base::BindOnce(&ServiceWorkerJobs::ScheduleJob,
+                                base::Unretained(this), std::move(job)));
+  DCHECK(!job.get());
+}
+
 void ServiceWorkerJobs::Update(Job* job) {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerJobs::Update()");
   DCHECK_EQ(message_loop(), base::MessageLoop::current());
@@ -796,6 +833,7 @@ void ServiceWorkerJobs::UpdateOnContentProduced(
   DCHECK(updated_script_content);
   //   8.19. If response’s cache state is not "local", set registration’s last
   //         update check time to the current time.
+  // TODO(b/228904017):
   //   8.20. Set hasUpdatedResources to true if any of the following are true:
   //          - newestWorker is null.
   //          - newestWorker’s script url is not url or newestWorker’s type is
@@ -855,7 +893,12 @@ void ServiceWorkerJobs::UpdateOnLoadingComplete(
       state->newest_worker->classic_scripts_imported()) {
     // This checks if there are any updates to already stored importScripts
     // resources.
-    if (state->newest_worker->worker_global_scope()
+    // TODO(b/259731731): worker_global_scope_ is set in
+    // ServiceWorkerObject::Initialize, part of the RunServiceWorkerAlgorithm.
+    // For persisted service workers this may not be called before SoftUpdate,
+    // find a way to ensure worker_global_scope_ is not null in that case.
+    if (state->newest_worker->worker_global_scope() != nullptr &&
+        state->newest_worker->worker_global_scope()
             ->LoadImportsAndReturnIfUpdated(
                 state->newest_worker->script_resource_map(),
                 &state->updated_resource_map)) {
@@ -1895,7 +1938,7 @@ void ServiceWorkerJobs::RejectJobPromise(Job* job,
   //      using the DOM manipulation task source, to reject equivalentJob’s
   //      job promise with a new exception with errorData and a user
   //      agent-defined message, in equivalentJob’s client's Realm.
-  if (job->client) {
+  if (job->client && job->promise != nullptr) {
     DCHECK(IsWebContextRegistered(job->client));
     job->client->message_loop()->task_runner()->PostTask(
         FROM_HERE, base::BindOnce(
@@ -1930,7 +1973,7 @@ void ServiceWorkerJobs::ResolveJobPromise(
   //    substeps:
   // 2.1 If equivalentJob’s client is null, continue to the next iteration of
   // the loop.
-  if (job->client) {
+  if (job->client && job->promise != nullptr) {
     DCHECK(IsWebContextRegistered(job->client));
     job->client->message_loop()->task_runner()->PostTask(
         FROM_HERE,

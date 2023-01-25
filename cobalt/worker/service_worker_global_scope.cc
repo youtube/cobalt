@@ -210,7 +210,7 @@ void ServiceWorkerGlobalScope::StartFetch(
     return;
   }
   // TODO: handle the following steps in
-  //       https://w3c.github.io/ServiceWorker/#handle-fetch.
+  //       https://www.w3.org/TR/2022/CRD-service-workers-20220712/#handle-fetch.
   // 22. If activeWorker’s state is "activating", wait for activeWorker’s state
   //     to become "activated".
   // 23. If the result of running the Run Service Worker algorithm with
@@ -224,6 +224,7 @@ void ServiceWorkerGlobalScope::StartFetch(
     std::move(fallback).Run();
     return;
   }
+
   FetchEventInit event_init;
   event_init.set_request(
       web::cache_utils::FromV8Value(isolate, request.value()).GetScriptValue());

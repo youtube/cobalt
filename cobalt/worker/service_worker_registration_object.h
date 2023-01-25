@@ -47,11 +47,14 @@ class ServiceWorkerRegistrationObject
   void AbortAll();
 
   const url::Origin& storage_key() const { return storage_key_; }
+
   const GURL& scope_url() const { return scope_url_; }
+
   void set_update_via_cache_mode(
       const ServiceWorkerUpdateViaCache& update_via_cache_mode) {
     update_via_cache_mode_ = update_via_cache_mode;
   }
+
   const ServiceWorkerUpdateViaCache& update_via_cache_mode() const {
     return update_via_cache_mode_;
   }
@@ -75,8 +78,23 @@ class ServiceWorkerRegistrationObject
     return active_worker_;
   }
 
+  // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#service-worker-registration-stale
+  bool stale() {
+    return !last_update_check_time_.is_null() &&
+           (base::Time::Now() - last_update_check_time_).InSeconds() >
+               kStaleServiceWorkerRegistrationTimeout;
+  }
+
+  base::Time last_update_check_time() { return last_update_check_time_; }
+
+  void set_last_update_check_time(base::Time time) {
+    last_update_check_time_ = time;
+  }
+
   // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#get-newest-worker
   scoped_refptr<ServiceWorkerObject> GetNewestWorker();
+
+  const int kStaleServiceWorkerRegistrationTimeout = 86400;
 
  private:
   // This lock is to allow atomic operations on the registration object.
@@ -88,6 +106,8 @@ class ServiceWorkerRegistrationObject
   scoped_refptr<ServiceWorkerObject> installing_worker_;
   scoped_refptr<ServiceWorkerObject> waiting_worker_;
   scoped_refptr<ServiceWorkerObject> active_worker_;
+
+  base::Time last_update_check_time_;
 };
 
 }  // namespace worker
