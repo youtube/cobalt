@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+h5vcc.storage.clearServiceWorkerCache();
+
 const eventCounts = {};
 const countEvent = (fnName, expectedEventCount) => {
   if (fnName in eventCounts) {

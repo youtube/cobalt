@@ -27,6 +27,9 @@ struct ServiceWorkerConsts {
   static const char kServiceWorkerRegisterBadScopeError[];
   static const char kServiceWorkerUnregisterScopeOriginNotSameError[];
   static const char kServiceWorkerAllowed[];
+
+  // Constants for ServiceWorkerPersistentSettings
+  static const char kSettingsJson[];
 };
 
 }  // namespace worker

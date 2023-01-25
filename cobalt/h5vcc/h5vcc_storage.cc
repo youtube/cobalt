@@ -24,6 +24,7 @@
 #include "cobalt/h5vcc/h5vcc_storage.h"
 #include "cobalt/persistent_storage/persistent_settings.h"
 #include "cobalt/storage/storage_manager.h"
+#include "cobalt/worker/service_worker_consts.h"
 #include "net/base/completion_once_callback.h"
 #include "net/disk_cache/cobalt/cobalt_backend_impl.h"
 #include "net/disk_cache/cobalt/resource_type.h"
@@ -68,13 +69,32 @@ H5vccStorageSetQuotaResponse SetQuotaResponse(std::string error = "",
   return response;
 }
 
+void DeleteCacheResourceTypeDirectory(disk_cache::ResourceType type) {
+  auto metadata = disk_cache::kTypeMetadata[type];
+  std::vector<char> cache_dir(kSbFileMaxPath + 1, 0);
+  SbSystemGetPath(kSbSystemPathCacheDirectory, cache_dir.data(),
+                  kSbFileMaxPath);
+  base::FilePath cache_type_dir =
+      base::FilePath(cache_dir.data())
+          .Append(FILE_PATH_LITERAL(metadata.directory));
+  starboard::SbFileDeleteRecursive(cache_type_dir.value().data(), true);
+}
+
 void ClearCacheHelper(disk_cache::Backend* backend) {
   backend->DoomAllEntries(base::DoNothing());
+
+
+  for (int type_index = 0; type_index < disk_cache::kTypeCount; type_index++) {
+    DeleteCacheResourceTypeDirectory(
+        static_cast<disk_cache::ResourceType>(type_index));
+  }
 }
 
 void ClearCacheOfTypeHelper(disk_cache::ResourceType type,
                             disk_cache::CobaltBackendImpl* backend) {
   backend->DoomAllEntriesOfType(type, base::DoNothing());
+
+  DeleteCacheResourceTypeDirectory(type);
 }
 
 }  // namespace
@@ -375,6 +395,35 @@ void H5vccStorage::ClearCache() {
         base::Bind(&ClearCacheHelper, base::Unretained(cache_backend_)));
   }
   cobalt::cache::Cache::GetInstance()->DeleteAll();
+}
+
+void H5vccStorage::ClearCacheOfType(int type_index) {
+  if (type_index < 0 || type_index > disk_cache::kTypeCount) {
+    DLOG(INFO)
+        << "Invalid type_index, out of bounds of disk_cache::kTypeMetadata";
+    return;
+  }
+  disk_cache::ResourceType type =
+      static_cast<disk_cache::ResourceType>(type_index);
+  if (ValidatedCacheBackend()) {
+    network_module_->task_runner()->PostTask(
+        FROM_HERE, base::Bind(&ClearCacheOfTypeHelper, type,
+                              base::Unretained(cache_backend_)));
+  }
+  cobalt::cache::Cache::GetInstance()->Delete(type);
+}
+
+void H5vccStorage::ClearServiceWorkerCache() {
+  ClearCacheOfType(
+      static_cast<int>(disk_cache::ResourceType::kServiceWorkerScript));
+  // Add deletion of service worker persistent settings file
+  std::vector<char> storage_dir(kSbFileMaxPath, 0);
+  SbSystemGetPath(kSbSystemPathCacheDirectory, storage_dir.data(),
+                  kSbFileMaxPath);
+  std::string service_worker_file_path =
+      std::string(storage_dir.data()) + kSbFileSepString +
+      worker::ServiceWorkerConsts::kSettingsJson;
+  SbFileDelete(service_worker_file_path.c_str());
 }
 
 bool H5vccStorage::ValidatedCacheBackend() {

@@ -22,6 +22,8 @@
 
 <body>
   <script>
+  h5vcc.storage.clearServiceWorkerCache();
+
   var window_onerror_count = 0;
   window.onerror = (message, filename, lineno, colno, error) => {
     ++window_onerror_count;

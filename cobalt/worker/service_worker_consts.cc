@@ -42,5 +42,8 @@ const char
 
 const char ServiceWorkerConsts::kServiceWorkerAllowed[] =
     "Service-Worker-Allowed";
+
+const char ServiceWorkerConsts::kSettingsJson[] =
+    "service_worker_settings.json";
 }  // namespace worker
 }  // namespace cobalt

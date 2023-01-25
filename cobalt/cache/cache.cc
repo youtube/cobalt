@@ -247,7 +247,8 @@ MemoryCappedDirectory* Cache::GetMemoryCappedDirectory(
 
 void Cache::Resize(disk_cache::ResourceType resource_type, uint32_t bytes) {
   if (resource_type != disk_cache::ResourceType::kCacheApi &&
-      resource_type != disk_cache::ResourceType::kCompiledScript)
+      resource_type != disk_cache::ResourceType::kCompiledScript &&
+      resource_type != disk_cache::ResourceType::kServiceWorkerScript)
     return;
   if (bytes == disk_cache::kTypeMetadata[resource_type].max_size_bytes) return;
 
