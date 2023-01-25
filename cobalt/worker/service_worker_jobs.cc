@@ -165,13 +165,13 @@ void ServiceWorkerJobs::StartRegister(
     const base::Optional<GURL>& maybe_scope_url,
     const GURL& script_url_with_fragment,
     std::unique_ptr<script::ValuePromiseWrappable::Reference> promise_reference,
-    web::EnvironmentSettings* client, const WorkerType& type,
+    web::Context* client, const WorkerType& type,
     const ServiceWorkerUpdateViaCache& update_via_cache) {
   TRACE_EVENT2("cobalt::worker", "ServiceWorkerJobs::StartRegister()", "scope",
                maybe_scope_url.value_or(GURL()).spec(), "script",
                script_url_with_fragment.spec());
   DCHECK_NE(message_loop(), base::MessageLoop::current());
-  DCHECK_EQ(client->context()->message_loop(), base::MessageLoop::current());
+  DCHECK_EQ(client->message_loop(), base::MessageLoop::current());
   // Algorithm for Start Register:
   //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#start-register-algorithm
   // 1. If scriptURL is failure, reject promise with a TypeError and abort these
@@ -205,7 +205,7 @@ void ServiceWorkerJobs::StartRegister(
 
   DCHECK(client);
   web::WindowOrWorkerGlobalScope* window_or_worker_global_scope =
-      client->context()->GetWindowOrWorkerGlobalScope();
+      client->GetWindowOrWorkerGlobalScope();
   DCHECK(window_or_worker_global_scope);
   web::CspDelegate* csp_delegate =
       window_or_worker_global_scope->csp_delegate();
@@ -252,7 +252,7 @@ void ServiceWorkerJobs::StartRegister(
 
   // 10. Let storage key be the result of running obtain a storage key given
   //     client.
-  url::Origin storage_key = client->ObtainStorageKey();
+  url::Origin storage_key = client->environment_settings()->ObtainStorageKey();
 
   // 11. Let job be the result of running Create Job with register, storage key,
   //     scopeURL, scriptURL, promise, and client.
@@ -290,7 +290,7 @@ void ServiceWorkerJobs::PromiseErrorData::Reject(
 std::unique_ptr<ServiceWorkerJobs::Job> ServiceWorkerJobs::CreateJob(
     JobType type, const url::Origin& storage_key, const GURL& scope_url,
     const GURL& script_url, std::unique_ptr<JobPromiseType> promise,
-    web::EnvironmentSettings* client) {
+    web::Context* client) {
   TRACE_EVENT2("cobalt::worker", "ServiceWorkerJobs::CreateJob()", "type", type,
                "script_url", script_url.spec());
   // Algorithm for Create Job:
@@ -306,7 +306,7 @@ std::unique_ptr<ServiceWorkerJobs::Job> ServiceWorkerJobs::CreateJob(
                                    client, std::move(promise)));
   // 8. If client is not null, set job’s referrer to client’s creation URL.
   if (client) {
-    job->referrer = client->creation_url();
+    job->referrer = client->environment_settings()->creation_url();
   }
   // 9. Return job.
   return job;
@@ -325,15 +325,17 @@ void ServiceWorkerJobs::ScheduleJob(std::unique_ptr<Job> job) {
 
   // 3. If scope to job queue map[jobScope] does not exist, set scope to job
   // queue map[jobScope] to a new job queue.
-  if (job_queue_map_.find(job_scope) == job_queue_map_.end()) {
+  auto job_queue_iterator_for_scope = job_queue_map_.find(job_scope);
+  if (job_queue_iterator_for_scope == job_queue_map_.end()) {
     auto insertion = job_queue_map_.emplace(
         job_scope, std::unique_ptr<JobQueue>(new JobQueue()));
     DCHECK(insertion.second);
+    job_queue_iterator_for_scope = insertion.first;
   }
 
   // 4. Set jobQueue to scope to job queue map[jobScope].
-  DCHECK(job_queue_map_.find(job_scope) != job_queue_map_.end());
-  JobQueue* job_queue = job_queue_map_.find(job_scope)->second.get();
+  DCHECK(job_queue_iterator_for_scope != job_queue_map_.end());
+  JobQueue* job_queue = job_queue_iterator_for_scope->second.get();
 
   // 5. If jobQueue is empty, then:
   if (job_queue->empty()) {
@@ -355,7 +357,7 @@ void ServiceWorkerJobs::ScheduleJob(std::unique_ptr<Job> job) {
       // settled, append job to lastJob’s list of equivalent jobs.
       DCHECK(last_job);
       base::AutoLock lock(last_job->equivalent_jobs_promise_mutex);
-      if (EquivalentJobs(job.get(), last_job) && last_job->promise &&
+      if (ReturnJobsAreEquivalent(job.get(), last_job) && last_job->promise &&
           last_job->promise->is_pending()) {
         last_job->equivalent_jobs.push_back(std::move(job));
         return;
@@ -370,7 +372,7 @@ void ServiceWorkerJobs::ScheduleJob(std::unique_ptr<Job> job) {
   DCHECK(!job);
 }
 
-bool ServiceWorkerJobs::EquivalentJobs(Job* one, Job* two) {
+bool ServiceWorkerJobs::ReturnJobsAreEquivalent(Job* one, Job* two) {
   // Algorithm for Two jobs are equivalent:
   //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#dfn-job-equivalent
   DCHECK(one);
@@ -781,9 +783,10 @@ void ServiceWorkerJobs::UpdateOnLoadingComplete(
   TRACE_EVENT0("cobalt::worker",
                "ServiceWorkerJobs::UpdateOnLoadingComplete()");
   DCHECK_EQ(message_loop(), base::MessageLoop::current());
-  if (state->job->promise.get() == nullptr) {
-    // The job is already rejected, which means there was an error, so finish
-    // the job and skip the remaining steps.
+  if (!state->job->promise.get() || !state->job->client) {
+    // The job is already rejected, which means there was an error, or the
+    // client is already shutdown, so finish the job and skip the remaining
+    // steps.
     FinishJob(state->job);
     return;
   }
@@ -855,12 +858,11 @@ void ServiceWorkerJobs::UpdateOnLoadingComplete(
 
   // 11. Let worker be a new service worker.
   ServiceWorkerObject::Options options(
-      "ServiceWorker", state->job->client->context()->web_settings(),
-      state->job->client->context()->network_module(), state->registration);
-  options.web_options.platform_info =
-      state->job->client->context()->platform_info();
+      "ServiceWorker", state->job->client->web_settings(),
+      state->job->client->network_module(), state->registration);
+  options.web_options.platform_info = state->job->client->platform_info();
   options.web_options.service_worker_jobs =
-      state->job->client->context()->service_worker_jobs();
+      state->job->client->service_worker_jobs();
   scoped_refptr<ServiceWorkerObject> worker(new ServiceWorkerObject(options));
   // 12. Set worker’s script url to job’s script url, worker’s script
   //     resource to script, worker’s type to job’s worker type, and worker’s
@@ -1262,7 +1264,7 @@ void ServiceWorkerJobs::Activate(
   // 7. For each client of matchedClients, queue a task on client’s  responsible
   //    event loop, using the DOM manipulation task source, to run the following
   //    substeps:
-  for (auto& context : matched_clients) {
+  for (auto& client : matched_clients) {
     // 7.1. Let readyPromise be client’s global object's
     //      ServiceWorkerContainer object’s ready
     //      promise.
@@ -1272,10 +1274,10 @@ void ServiceWorkerJobs::Activate(
     //      the service worker registration object that
     //      represents registration in readyPromise’s
     //      relevant settings object.
-    context->message_loop()->task_runner()->PostTask(
+    client->message_loop()->task_runner()->PostTask(
         FROM_HERE,
         base::BindOnce(&ServiceWorkerContainer::MaybeResolveReadyPromise,
-                       base::Unretained(context->GetWindowOrWorkerGlobalScope()
+                       base::Unretained(client->GetWindowOrWorkerGlobalScope()
                                             ->navigator_base()
                                             ->service_worker()
                                             .get()),
@@ -1289,16 +1291,14 @@ void ServiceWorkerJobs::Activate(
   // Cobalt doesn't implement 'application cache':
   //   https://www.w3.org/TR/2011/WD-html5-20110525/offline.html#applicationcache
   // 9. For each service worker client client who is using registration:
-  for (auto& context : web_context_registrations_) {
-    web::EnvironmentSettings* client = context->environment_settings();
+  for (auto& client : web_context_registrations_) {
     // When a service worker client is controlled by a service worker, it is
     // said that the service worker client is using the service worker’s
     // containing service worker registration.
     //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#dfn-control
-    if (context->is_controlled_by(registration->active_worker())) {
+    if (client->is_controlled_by(registration->active_worker())) {
       // 9.1. Set client’s active worker to registration’s active worker.
-      client->context()->set_active_service_worker(
-          registration->active_worker());
+      client->set_active_service_worker(registration->active_worker());
       // 9.2. Invoke Notify Controller Change algorithm with client as the
       //      argument.
       NotifyControllerChange(client);
@@ -1379,8 +1379,7 @@ void ServiceWorkerJobs::Activate(
   }
 }
 
-void ServiceWorkerJobs::NotifyControllerChange(
-    web::EnvironmentSettings* client) {
+void ServiceWorkerJobs::NotifyControllerChange(web::Context* client) {
   // Algorithm for Notify Controller Change:
   // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#notify-controller-change-algorithm
   // 1. Assert: client is not null.
@@ -1389,11 +1388,10 @@ void ServiceWorkerJobs::NotifyControllerChange(
   // 2. If client is an environment settings object, queue a task to fire an
   //    event named controllerchange at the ServiceWorkerContainer object that
   //    client is associated with.
-  client->context()->message_loop()->task_runner()->PostTask(
+  client->message_loop()->task_runner()->PostTask(
       FROM_HERE, base::Bind(
-                     [](web::EnvironmentSettings* client) {
-                       client->context()
-                           ->GetWindowOrWorkerGlobalScope()
+                     [](web::Context* client) {
+                       client->GetWindowOrWorkerGlobalScope()
                            ->navigator_base()
                            ->service_worker()
                            ->DispatchEvent(new web::Event(
@@ -1670,8 +1668,7 @@ void ServiceWorkerJobs::UpdateWorkerState(ServiceWorkerObject* worker,
   }
 }
 
-void ServiceWorkerJobs::HandleServiceWorkerClientUnload(
-    web::EnvironmentSettings* client) {
+void ServiceWorkerJobs::HandleServiceWorkerClientUnload(web::Context* client) {
   TRACE_EVENT0("cobalt::worker",
                "ServiceWorkerJobs::HandleServiceWorkerClientUnload()");
   // Algorithm for Handle Servicer Worker Client Unload:
@@ -1682,8 +1679,7 @@ void ServiceWorkerJobs::HandleServiceWorkerClientUnload(
 
   // 2. Let registration be the service worker registration used by client.
   // 3. If registration is null, abort these steps.
-  ServiceWorkerObject* active_service_worker =
-      client->context()->active_service_worker();
+  ServiceWorkerObject* active_service_worker = client->active_service_worker();
   if (!active_service_worker) return;
   ServiceWorkerRegistrationObject* registration =
       active_service_worker->containing_service_worker_registration();
@@ -1693,7 +1689,7 @@ void ServiceWorkerJobs::HandleServiceWorkerClientUnload(
   //    steps.
   // Ensure the client is already removed from the registrations when this runs.
   DCHECK(web_context_registrations_.end() ==
-         web_context_registrations_.find(client->context()));
+         web_context_registrations_.find(client));
   if (IsAnyClientUsingRegistration(registration)) return;
 
   // 5. If registration is unregistered, invoke Try Clear Registration with
@@ -1766,7 +1762,10 @@ void ServiceWorkerJobs::Unregister(Job* job) {
   // Algorithm for Unregister:
   //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#unregister-algorithm
   // 1. If the origin of job’s scope url is not job’s client's origin, then:
-  if (!url::Origin::Create(GURL(job->client->GetOrigin().SerializedOrigin()))
+  if (job->client &&
+      !url::Origin::Create(GURL(job->client->environment_settings()
+                                    ->GetOrigin()
+                                    .SerializedOrigin()))
            .IsSameOriginWith(url::Origin::Create(job->scope_url))) {
     // 1.1. Invoke Reject Job Promise with job and "SecurityError" DOMException.
     RejectJobPromise(
@@ -1817,94 +1816,84 @@ void ServiceWorkerJobs::RejectJobPromise(Job* job,
   DCHECK_EQ(message_loop(), base::MessageLoop::current());
   // Algorithm for Reject Job Promise:
   //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#reject-job-promise
+  base::AutoLock lock(job->equivalent_jobs_promise_mutex);
   // 1. If job’s client is not null, queue a task, on job’s client's responsible
   //    event loop using the DOM manipulation task source, to reject job’s job
   //    promise with a new exception with errorData and a user agent-defined
   //    message, in job’s client's Realm.
-
-  auto reject_task = [](std::unique_ptr<JobPromiseType> promise,
-                        const PromiseErrorData& error_data) {
-    error_data.Reject(std::move(promise));
-  };
-
+  // 2.1. If equivalentJob’s client is null, continue.
+  // 2.2. Queue a task, on equivalentJob’s client's responsible event loop
+  //      using the DOM manipulation task source, to reject equivalentJob’s
+  //      job promise with a new exception with errorData and a user
+  //      agent-defined message, in equivalentJob’s client's Realm.
   if (job->client) {
-    base::AutoLock lock(job->equivalent_jobs_promise_mutex);
-    job->client->context()->message_loop()->task_runner()->PostTask(
-        FROM_HERE,
-        base::BindOnce(reject_task, std::move(job->promise), error_data));
+    DCHECK(IsWebContextRegistered(job->client));
+    job->client->message_loop()->task_runner()->PostTask(
+        FROM_HERE, base::BindOnce(
+                       [](std::unique_ptr<JobPromiseType> promise,
+                          const PromiseErrorData& error_data) {
+                         error_data.Reject(std::move(promise));
+                       },
+                       std::move(job->promise), error_data));
     // Ensure that the promise is cleared, so that equivalent jobs won't get
     // added from this point on.
     CHECK(!job->promise);
   }
   // 2. For each equivalentJob in job’s list of equivalent jobs:
   for (auto& equivalent_job : job->equivalent_jobs) {
-    // Equivalent jobs should never have equivalent jobs of their own.
-    DCHECK(equivalent_job->equivalent_jobs.empty());
-
-    // 2.1. If equivalentJob’s client is null, continue.
-    if (equivalent_job->client) {
-      // 2.2. Queue a task, on equivalentJob’s client's responsible event loop
-      //      using the DOM manipulation task source, to reject equivalentJob’s
-      //      job promise with a new exception with errorData and a user
-      //      agent-defined message, in equivalentJob’s client's Realm.
-      equivalent_job->client->context()
-          ->message_loop()
-          ->task_runner()
-          ->PostTask(
-              FROM_HERE,
-              base::BindOnce(reject_task, std::move(equivalent_job->promise),
-                             error_data));
-      // Check that the promise is cleared.
-      CHECK(!equivalent_job->promise);
-    }
+    // Recurse for the equivalent jobs.
+    RejectJobPromise(equivalent_job.get(), error_data);
   }
   job->equivalent_jobs.clear();
 }
 
 void ServiceWorkerJobs::ResolveJobPromise(
     Job* job, bool value,
-    scoped_refptr<ServiceWorkerRegistrationObject> registration) {
+    const scoped_refptr<ServiceWorkerRegistrationObject>& registration) {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerJobs::ResolveJobPromise()");
   DCHECK_EQ(message_loop(), base::MessageLoop::current());
   DCHECK(job);
   // Algorithm for Resolve Job Promise:
   //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#resolve-job-promise-algorithm
-
+  base::AutoLock lock(job->equivalent_jobs_promise_mutex);
   // 1. If job’s client is not null, queue a task, on job’s client's responsible
   //    event loop using the DOM manipulation task source, to run the following
   //    substeps:
-  auto resolve_task =
-      [](JobType type, web::EnvironmentSettings* client,
-         std::unique_ptr<JobPromiseType> promise, bool value,
-         scoped_refptr<ServiceWorkerRegistrationObject> registration) {
-        TRACE_EVENT0("cobalt::worker",
-                     "ServiceWorkerJobs::ResolveJobPromise() ResolveTask");
-        // 1.1./2.2.1. Let convertedValue be null.
-        // 1.2./2.2.2. If job’s job type is either register or update, set
-        //             convertedValue to the result of getting the service
-        //             worker registration object that represents value in job’s
-        //             client.
-        if (type == kRegister || type == kUpdate) {
-          scoped_refptr<cobalt::script::Wrappable> converted_value =
-              client->context()->GetServiceWorkerRegistration(registration);
-          // 1.4./2.2.4. Resolve job’s job promise with convertedValue.
-          promise->Resolve(converted_value);
-        } else {
-          DCHECK_EQ(kUnregister, type);
-          // 1.3./2.2.3. Else, set convertedValue to value, in job’s client's
-          //             Realm.
-          bool converted_value = value;
-          // 1.4./2.2.4. Resolve job’s job promise with convertedValue.
-          promise->Resolve(converted_value);
-        }
-      };
-
+  // 2.1 If equivalentJob’s client is null, continue to the next iteration of
+  // the loop.
   if (job->client) {
-    base::AutoLock lock(job->equivalent_jobs_promise_mutex);
-    job->client->context()->message_loop()->task_runner()->PostTask(
+    DCHECK(IsWebContextRegistered(job->client));
+    job->client->message_loop()->task_runner()->PostTask(
         FROM_HERE,
-        base::BindOnce(resolve_task, job->type, job->client,
-                       std::move(job->promise), value, registration));
+        base::BindOnce(
+            [](JobType type, web::Context* client,
+               std::unique_ptr<JobPromiseType> promise, bool value,
+               scoped_refptr<ServiceWorkerRegistrationObject> registration) {
+              TRACE_EVENT0(
+                  "cobalt::worker",
+                  "ServiceWorkerJobs::ResolveJobPromise() ResolveTask");
+              // 1.1./2.2.1. Let convertedValue be null.
+              // 1.2./2.2.2. If job’s job type is either register or update, set
+              //             convertedValue to the result of getting the service
+              //             worker registration object that represents value in
+              //             job’s client.
+              if (type == kRegister || type == kUpdate) {
+                scoped_refptr<cobalt::script::Wrappable> converted_value =
+                    client->GetServiceWorkerRegistration(registration);
+                // 1.4./2.2.4. Resolve job’s job promise with convertedValue.
+                promise->Resolve(converted_value);
+              } else {
+                DCHECK_EQ(kUnregister, type);
+                // 1.3./2.2.3. Else, set convertedValue to value, in job’s
+                // client's
+                //             Realm.
+                bool converted_value = value;
+                // 1.4./2.2.4. Resolve job’s job promise with convertedValue.
+                promise->Resolve(converted_value);
+              }
+            },
+            job->type, job->client, std::move(job->promise), value,
+            registration));
     // Ensure that the promise is cleared, so that equivalent jobs won't get
     // added from this point on.
     CHECK(!job->promise);
@@ -1912,26 +1901,8 @@ void ServiceWorkerJobs::ResolveJobPromise(
 
   // 2. For each equivalentJob in job’s list of equivalent jobs:
   for (auto& equivalent_job : job->equivalent_jobs) {
-    // Equivalent jobs should never have equivalent jobs of their own.
-    DCHECK(equivalent_job->equivalent_jobs.empty());
-
-    // 2.1. If equivalentJob’s client is null, continue to the next iteration of
-    //      the loop.
-    if (equivalent_job->client) {
-      // 2.2. Queue a task, on equivalentJob’s client's responsible event loop
-      //      using the DOM manipulation task source, to run the following
-      //      substeps:
-      equivalent_job->client->context()
-          ->message_loop()
-          ->task_runner()
-          ->PostTask(FROM_HERE,
-                     base::BindOnce(resolve_task, equivalent_job->type,
-                                    equivalent_job->client,
-                                    std::move(equivalent_job->promise), value,
-                                    registration));
-      // Check that the promise is cleared.
-      CHECK(!equivalent_job->promise);
-    }
+    // Recurse for the equivalent jobs.
+    ResolveJobPromise(equivalent_job.get(), value, registration);
   }
   job->equivalent_jobs.clear();
 }
@@ -1955,8 +1926,7 @@ void ServiceWorkerJobs::FinishJob(Job* job) {
   }
 }
 
-void ServiceWorkerJobs::MaybeResolveReadyPromiseSubSteps(
-    web::EnvironmentSettings* client) {
+void ServiceWorkerJobs::MaybeResolveReadyPromiseSubSteps(web::Context* client) {
   DCHECK_EQ(message_loop(), base::MessageLoop::current());
   // Algorithm for Sub steps of ServiceWorkerContainer.ready():
   //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#navigator-service-worker-ready
@@ -1964,13 +1934,13 @@ void ServiceWorkerJobs::MaybeResolveReadyPromiseSubSteps(
   //    3.1. Let client by this's service worker client.
   //    3.2. Let storage key be the result of running obtain a storage
   //         key given client.
-  url::Origin storage_key = client->ObtainStorageKey();
+  url::Origin storage_key = client->environment_settings()->ObtainStorageKey();
   //    3.3. Let registration be the result of running Match Service
   //         Worker Registration given storage key and client’s
   //         creation URL.
   // TODO(b/234659851): Investigate whether this should use the creation URL
   // directly instead.
-  const GURL& base_url = client->creation_url();
+  const GURL& base_url = client->environment_settings()->creation_url();
   GURL client_url = base_url.Resolve("");
   scoped_refptr<ServiceWorkerRegistrationObject> registration =
       scope_to_registration_map_->MatchServiceWorkerRegistration(storage_key,
@@ -1983,11 +1953,10 @@ void ServiceWorkerJobs::MaybeResolveReadyPromiseSubSteps(
   //         registration object that represents registration in
   //         readyPromise’s relevant settings object.
   if (registration && registration->active_worker()) {
-    client->context()->message_loop()->task_runner()->PostTask(
+    client->message_loop()->task_runner()->PostTask(
         FROM_HERE,
         base::BindOnce(&ServiceWorkerContainer::MaybeResolveReadyPromise,
-                       base::Unretained(client->context()
-                                            ->GetWindowOrWorkerGlobalScope()
+                       base::Unretained(client->GetWindowOrWorkerGlobalScope()
                                             ->navigator_base()
                                             ->service_worker()
                                             .get()),
@@ -1997,7 +1966,7 @@ void ServiceWorkerJobs::MaybeResolveReadyPromiseSubSteps(
 
 void ServiceWorkerJobs::GetRegistrationSubSteps(
     const url::Origin& storage_key, const GURL& client_url,
-    web::EnvironmentSettings* client,
+    web::Context* client,
     std::unique_ptr<script::ValuePromiseWrappable::Reference>
         promise_reference) {
   TRACE_EVENT0("cobalt::worker",
@@ -2016,34 +1985,33 @@ void ServiceWorkerJobs::GetRegistrationSubSteps(
   // 8.3. Resolve promise with the result of getting the service worker
   //      registration object that represents registration in promise’s
   //      relevant settings object.
-  client->context()->message_loop()->task_runner()->PostTask(
+  client->message_loop()->task_runner()->PostTask(
       FROM_HERE,
       base::BindOnce(
-          [](web::EnvironmentSettings* settings,
+          [](web::Context* client,
              std::unique_ptr<script::ValuePromiseWrappable::Reference> promise,
              scoped_refptr<ServiceWorkerRegistrationObject> registration) {
             TRACE_EVENT0(
                 "cobalt::worker",
                 "ServiceWorkerJobs::GetRegistrationSubSteps() Resolve");
             promise->value().Resolve(
-                settings->context()->GetServiceWorkerRegistration(
-                    registration));
+                client->GetServiceWorkerRegistration(registration));
           },
           client, std::move(promise_reference), registration));
 }
 
 void ServiceWorkerJobs::GetRegistrationsSubSteps(
-    const url::Origin& storage_key, web::EnvironmentSettings* client,
+    const url::Origin& storage_key, web::Context* client,
     std::unique_ptr<script::ValuePromiseSequenceWrappable::Reference>
         promise_reference) {
   DCHECK_EQ(message_loop(), base::MessageLoop::current());
   std::vector<scoped_refptr<ServiceWorkerRegistrationObject>>
       registration_objects =
           scope_to_registration_map_->GetRegistrations(storage_key);
-  client->context()->message_loop()->task_runner()->PostTask(
+  client->message_loop()->task_runner()->PostTask(
       FROM_HERE,
       base::BindOnce(
-          [](web::EnvironmentSettings* settings,
+          [](web::Context* client,
              std::unique_ptr<script::ValuePromiseSequenceWrappable::Reference>
                  promise,
              std::vector<scoped_refptr<ServiceWorkerRegistrationObject>>
@@ -2054,8 +2022,7 @@ void ServiceWorkerJobs::GetRegistrationsSubSteps(
             script::Sequence<scoped_refptr<script::Wrappable>> registrations;
             for (auto registration_object : registration_objects) {
               registrations.push_back(scoped_refptr<script::Wrappable>(
-                  settings->context()
-                      ->GetServiceWorkerRegistration(registration_object)
+                  client->GetServiceWorkerRegistration(registration_object)
                       .get()));
             }
             promise->value().Resolve(std::move(registrations));
@@ -2065,13 +2032,13 @@ void ServiceWorkerJobs::GetRegistrationsSubSteps(
 }
 
 void ServiceWorkerJobs::SkipWaitingSubSteps(
-    web::Context* client_context, ServiceWorkerObject* service_worker,
+    web::Context* worker_context, ServiceWorkerObject* service_worker,
     std::unique_ptr<script::ValuePromiseVoid::Reference> promise_reference) {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerJobs::SkipWaitingSubSteps()");
   DCHECK_EQ(message_loop(), base::MessageLoop::current());
   // Check if the client web context is still active. This may trigger if
   // skipWaiting() was called and service worker installation fails.
-  if (!IsWebContextRegistered(client_context)) {
+  if (!IsWebContextRegistered(worker_context)) {
     promise_reference.release();
     return;
   }
@@ -2087,7 +2054,7 @@ void ServiceWorkerJobs::SkipWaitingSubSteps(
   TryActivate(service_worker->containing_service_worker_registration());
 
   // 2.3. Resolve promise with undefined.
-  client_context->message_loop()->task_runner()->PostTask(
+  worker_context->message_loop()->task_runner()->PostTask(
       FROM_HERE,
       base::BindOnce(
           [](std::unique_ptr<script::ValuePromiseVoid::Reference> promise) {
@@ -2115,7 +2082,7 @@ void ServiceWorkerJobs::WaitUntilSubSteps(
 }
 
 void ServiceWorkerJobs::ClientsGetSubSteps(
-    web::Context* promise_context,
+    web::Context* worker_context,
     ServiceWorkerObject* associated_service_worker,
     std::unique_ptr<script::ValuePromiseWrappable::Reference> promise_reference,
     const std::string& id) {
@@ -2123,7 +2090,7 @@ void ServiceWorkerJobs::ClientsGetSubSteps(
   DCHECK_EQ(message_loop(), base::MessageLoop::current());
   // Check if the client web context is still active. This may trigger if
   // Clients.get() was called and service worker installation fails.
-  if (!IsWebContextRegistered(promise_context)) {
+  if (!IsWebContextRegistered(worker_context)) {
     promise_reference.release();
     return;
   }
@@ -2135,12 +2102,12 @@ void ServiceWorkerJobs::ClientsGetSubSteps(
   const url::Origin& storage_key =
       associated_service_worker->containing_service_worker_registration()
           ->storage_key();
-  for (auto& context : web_context_registrations_) {
-    web::EnvironmentSettings* client = context->environment_settings();
-    url::Origin client_storage_key = client->ObtainStorageKey();
+  for (auto& client : web_context_registrations_) {
+    url::Origin client_storage_key =
+        client->environment_settings()->ObtainStorageKey();
     if (client_storage_key.IsSameOriginWith(storage_key)) {
       // 2.1.1. If client’s id is not id, continue.
-      if (client->id() != id) continue;
+      if (client->environment_settings()->id() != id) continue;
 
       // 2.1.2. Wait for either client’s execution ready flag to be set or for
       //        client’s discarded flag to be set.
@@ -2149,13 +2116,13 @@ void ServiceWorkerJobs::ClientsGetSubSteps(
 
       // 2.1.3. If client’s execution ready flag is set, then invoke Resolve Get
       //        Client Promise with client and promise, and abort these steps.
-      ResolveGetClientPromise(client, promise_context,
+      ResolveGetClientPromise(client, worker_context,
                               std::move(promise_reference));
       return;
     }
   }
   // 2.2. Resolve promise with undefined.
-  promise_context->message_loop()->task_runner()->PostTask(
+  worker_context->message_loop()->task_runner()->PostTask(
       FROM_HERE,
       base::BindOnce(
           [](std::unique_ptr<script::ValuePromiseWrappable::Reference>
@@ -2168,7 +2135,7 @@ void ServiceWorkerJobs::ClientsGetSubSteps(
 }
 
 void ServiceWorkerJobs::ResolveGetClientPromise(
-    web::EnvironmentSettings* client, web::Context* promise_context,
+    web::Context* client, web::Context* worker_context,
     std::unique_ptr<script::ValuePromiseWrappable::Reference>
         promise_reference) {
   TRACE_EVENT0("cobalt::worker",
@@ -2191,15 +2158,16 @@ void ServiceWorkerJobs::ResolveGetClientPromise(
 
   // 3. If client is an environment settings object and is not a window client,
   //    then:
-  if (!client->context()->GetWindowOrWorkerGlobalScope()->IsWindow()) {
+  if (!client->GetWindowOrWorkerGlobalScope()->IsWindow()) {
     // 3.1. Let clientObject be the result of running Create Client algorithm
     //      with client as the argument.
-    scoped_refptr<Client> client_object = Client::Create(client);
+    scoped_refptr<Client> client_object =
+        Client::Create(client->environment_settings());
 
     // 3.2. Queue a task to resolve promise with clientObject, on promise’s
     //      relevant settings object's responsible event loop using the DOM
     //      manipulation task source, and abort these steps.
-    promise_context->message_loop()->task_runner()->PostTask(
+    worker_context->message_loop()->task_runner()->PostTask(
         FROM_HERE,
         base::BindOnce(
             [](std::unique_ptr<script::ValuePromiseWrappable::Reference>
@@ -2226,10 +2194,10 @@ void ServiceWorkerJobs::ResolveGetClientPromise(
   // functionality in the client context. It is included however to help future
   // implementation for fetching values for WindowClient properties, with
   // similar logic existing in ClientsMatchAllSubSteps.
-  client->context()->message_loop()->task_runner()->PostTask(
+  client->message_loop()->task_runner()->PostTask(
       FROM_HERE,
       base::BindOnce(
-          [](web::EnvironmentSettings* client, web::Context* promise_context,
+          [](web::Context* client, web::Context* worker_context,
              std::unique_ptr<script::ValuePromiseWrappable::Reference>
                  promise_reference) {
             // 4.4.1. Let frameType be the result of running Get Frame Type with
@@ -2241,7 +2209,8 @@ void ServiceWorkerJobs::ResolveGetClientPromise(
             //        steps with browsingContext’s active document as the
             //        argument.
             // Handled in the WindowData constructor.
-            std::unique_ptr<WindowData> window_data(new WindowData(client));
+            std::unique_ptr<WindowData> window_data(
+                new WindowData(client->environment_settings()));
 
             // 4.4.4. Let ancestorOriginsList be the empty list.
             // 4.4.5. If client is a window client, set ancestorOriginsList to
@@ -2253,7 +2222,7 @@ void ServiceWorkerJobs::ResolveGetClientPromise(
             // 4.4.6. Queue a task to run the following steps on promise’s
             //        relevant settings object's responsible event loop using
             //        the DOM manipulation task source:
-            promise_context->message_loop()->task_runner()->PostTask(
+            worker_context->message_loop()->task_runner()->PostTask(
                 FROM_HERE,
                 base::BindOnce(
                     [](std::unique_ptr<script::ValuePromiseWrappable::Reference>
@@ -2273,12 +2242,12 @@ void ServiceWorkerJobs::ResolveGetClientPromise(
                     },
                     std::move(promise_reference), std::move(window_data)));
           },
-          client, promise_context, std::move(promise_reference)));
+          client, worker_context, std::move(promise_reference)));
   DCHECK_EQ(nullptr, promise_reference.get());
 }
 
 void ServiceWorkerJobs::ClientsMatchAllSubSteps(
-    web::Context* client_context,
+    web::Context* worker_context,
     ServiceWorkerObject* associated_service_worker,
     std::unique_ptr<script::ValuePromiseSequenceWrappable::Reference>
         promise_reference,
@@ -2286,9 +2255,9 @@ void ServiceWorkerJobs::ClientsMatchAllSubSteps(
   TRACE_EVENT0("cobalt::worker",
                "ServiceWorkerJobs::ClientsMatchAllSubSteps()");
   DCHECK_EQ(message_loop(), base::MessageLoop::current());
-  // Check if the client web context is still active. This may trigger if
+  // Check if the worker web context is still active. This may trigger if
   // Clients.matchAll() was called and service worker installation fails.
-  if (!IsWebContextRegistered(client_context)) {
+  if (!IsWebContextRegistered(worker_context)) {
     promise_reference.release();
     return;
   }
@@ -2296,7 +2265,7 @@ void ServiceWorkerJobs::ClientsMatchAllSubSteps(
   // Parallel sub steps (2) for algorithm for Clients.matchAll():
   //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#clients-matchall
   // 2.1. Let targetClients be a new list.
-  std::list<web::EnvironmentSettings*> target_clients;
+  std::list<web::Context*> target_clients;
 
   // 2.2. For each service worker client client where the result of running
   //      obtain a storage key given client equals the associated service
@@ -2304,9 +2273,9 @@ void ServiceWorkerJobs::ClientsMatchAllSubSteps(
   const url::Origin& storage_key =
       associated_service_worker->containing_service_worker_registration()
           ->storage_key();
-  for (auto& context : web_context_registrations_) {
-    web::EnvironmentSettings* client = context->environment_settings();
-    url::Origin client_storage_key = client->ObtainStorageKey();
+  for (auto& client : web_context_registrations_) {
+    url::Origin client_storage_key =
+        client->environment_settings()->ObtainStorageKey();
     if (client_storage_key.IsSameOriginWith(storage_key)) {
       // 2.2.1. If client’s execution ready flag is unset or client’s discarded
       //        flag is set, continue.
@@ -2321,8 +2290,7 @@ void ServiceWorkerJobs::ClientsMatchAllSubSteps(
       //        active service worker is not the associated service worker,
       //        continue.
       if (!include_uncontrolled &&
-          (client->context()->active_service_worker() !=
-           associated_service_worker)) {
+          (client->active_service_worker() != associated_service_worker)) {
         continue;
       }
 
@@ -2336,12 +2304,12 @@ void ServiceWorkerJobs::ClientsMatchAllSubSteps(
       new std::vector<WindowData>);
 
   // 2.4. Let matchedClients be a new list.
-  std::unique_ptr<std::vector<web::EnvironmentSettings*>> matched_clients(
-      new std::vector<web::EnvironmentSettings*>);
+  std::unique_ptr<std::vector<web::Context*>> matched_clients(
+      new std::vector<web::Context*>);
 
   // 2.5. For each service worker client client in targetClients:
   for (auto* client : target_clients) {
-    auto* global_scope = client->context()->GetWindowOrWorkerGlobalScope();
+    auto* global_scope = client->GetWindowOrWorkerGlobalScope();
 
     if ((type == kClientTypeWindow || type == kClientTypeAll) &&
         (global_scope->IsWindow())) {
@@ -2350,7 +2318,7 @@ void ServiceWorkerJobs::ClientsMatchAllSubSteps(
 
       // 2.5.1.1. Let windowData be [ "client" -> client, "ancestorOriginsList"
       //          -> a new list ].
-      WindowData window_data(client);
+      WindowData window_data(client->environment_settings());
 
       // 2.5.1.2. Let browsingContext be null.
 
@@ -2360,9 +2328,8 @@ void ServiceWorkerJobs::ClientsMatchAllSubSteps(
 
       // 2.5.1.4. If client is an environment settings object, set
       //          browsingContext to client’s global object's browsing context.
-
       // 2.5.1.5. Else, set browsingContext to client’s target browsing context.
-      web::Context* browsing_context = client_context;
+      web::Context* browsing_context = client;
 
       // 2.5.1.6. Queue a task task to run the following substeps on
       //          browsingContext’s event loop using the user interaction task
@@ -2433,14 +2400,13 @@ void ServiceWorkerJobs::ClientsMatchAllSubSteps(
   // 2.6. Queue a task to run the following steps on promise’s relevant
   // settings object's responsible event loop using the DOM manipulation
   // task source:
-  client_context->message_loop()->task_runner()->PostTask(
+  worker_context->message_loop()->task_runner()->PostTask(
       FROM_HERE,
       base::BindOnce(
           [](std::unique_ptr<script::ValuePromiseSequenceWrappable::Reference>
                  promise_reference,
              std::unique_ptr<std::vector<WindowData>> matched_window_data,
-             std::unique_ptr<std::vector<web::EnvironmentSettings*>>
-                 matched_clients) {
+             std::unique_ptr<std::vector<web::Context*>> matched_clients) {
             TRACE_EVENT0(
                 "cobalt::worker",
                 "ServiceWorkerJobs::ClientsMatchAllSubSteps() Resolve Promise");
@@ -2470,7 +2436,8 @@ void ServiceWorkerJobs::ClientsMatchAllSubSteps(
               // 2.6.3.1. Let clientObject be the result of running
               //          Create Client algorithm with client as the
               //          argument.
-              scoped_refptr<Client> client_object = Client::Create(client);
+              scoped_refptr<Client> client_object =
+                  Client::Create(client->environment_settings());
 
               // 2.6.3.2. Append clientObject to clientObjects.
               client_objects.push_back(client_object);
@@ -2496,7 +2463,7 @@ void ServiceWorkerJobs::ClientsMatchAllSubSteps(
 }
 
 void ServiceWorkerJobs::ClaimSubSteps(
-    web::Context* client_context,
+    web::Context* worker_context,
     ServiceWorkerObject* associated_service_worker,
     std::unique_ptr<script::ValuePromiseVoid::Reference> promise_reference) {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerJobs::ClaimSubSteps()");
@@ -2504,14 +2471,14 @@ void ServiceWorkerJobs::ClaimSubSteps(
 
   // Check if the client web context is still active. This may trigger if
   // Clients.claim() was called and service worker installation fails.
-  if (!IsWebContextRegistered(client_context)) {
+  if (!IsWebContextRegistered(worker_context)) {
     promise_reference.release();
     return;
   }
 
   // Parallel sub steps (3) for algorithm for Clients.claim():
   //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#dom-clients-claim
-  std::list<web::EnvironmentSettings*> target_clients;
+  std::list<web::Context*> target_clients;
 
   // 3.1. For each service worker client client where the result of running
   //      obtain a storage key given client equals the service worker's
@@ -2519,11 +2486,11 @@ void ServiceWorkerJobs::ClaimSubSteps(
   const url::Origin& storage_key =
       associated_service_worker->containing_service_worker_registration()
           ->storage_key();
-  for (auto& context : web_context_registrations_) {
+  for (auto& client : web_context_registrations_) {
     // Don't claim to be our own service worker.
-    if (context == client_context) continue;
-    web::EnvironmentSettings* client = context->environment_settings();
-    url::Origin client_storage_key = client->ObtainStorageKey();
+    if (client == worker_context) continue;
+    url::Origin client_storage_key =
+        client->environment_settings()->ObtainStorageKey();
     if (client_storage_key.IsSameOriginWith(storage_key)) {
       // 3.1.1. If client’s execution ready flag is unset or client’s discarded
       //        flag is set, continue.
@@ -2540,7 +2507,7 @@ void ServiceWorkerJobs::ClaimSubSteps(
       //        Registration given storage key and client’s creation URL.
       // TODO(b/234659851): Investigate whether this should use the creation
       // URL directly instead.
-      const GURL& base_url = client->creation_url();
+      const GURL& base_url = client->environment_settings()->creation_url();
       GURL client_url = base_url.Resolve("");
       scoped_refptr<ServiceWorkerRegistrationObject> registration =
           scope_to_registration_map_->MatchServiceWorkerRegistration(
@@ -2555,14 +2522,13 @@ void ServiceWorkerJobs::ClaimSubSteps(
 
       // 3.1.6. If client’s active service worker is not the service worker,
       //        then:
-      if (client->context()->active_service_worker() !=
-          associated_service_worker) {
+      if (client->active_service_worker() != associated_service_worker) {
         // 3.1.6.1. Invoke Handle Service Worker Client Unload with client as
         //          the argument.
         HandleServiceWorkerClientUnload(client);
 
         // 3.1.6.2. Set client’s active service worker to service worker.
-        client->context()->set_active_service_worker(associated_service_worker);
+        client->set_active_service_worker(associated_service_worker);
 
         // 3.1.6.3. Invoke Notify Controller Change algorithm with client as the
         //          argument.
@@ -2571,7 +2537,7 @@ void ServiceWorkerJobs::ClaimSubSteps(
     }
   }
   // 3.2. Resolve promise with undefined.
-  client_context->message_loop()->task_runner()->PostTask(
+  worker_context->message_loop()->task_runner()->PostTask(
       FROM_HERE,
       base::BindOnce(
           [](std::unique_ptr<script::ValuePromiseVoid::Reference> promise) {
@@ -2581,8 +2547,7 @@ void ServiceWorkerJobs::ClaimSubSteps(
 }
 
 void ServiceWorkerJobs::ServiceWorkerPostMessageSubSteps(
-    ServiceWorkerObject* service_worker,
-    web::EnvironmentSettings* incumbent_settings,
+    ServiceWorkerObject* service_worker, web::Context* incumbent_client,
     std::unique_ptr<script::DataBuffer> serialize_result) {
   // Parallel sub steps (6) for algorithm for ServiceWorker.postMessage():
   //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#service-worker-postmessage-options
@@ -2596,11 +2561,11 @@ void ServiceWorkerJobs::ServiceWorkerPostMessageSubSteps(
 
   // 6.2 Queue a task on the DOM manipulation task source to run the following
   //     steps:
-  incumbent_settings->context()->message_loop()->task_runner()->PostTask(
+  incumbent_client->message_loop()->task_runner()->PostTask(
       FROM_HERE,
       base::BindOnce(
           [](ServiceWorkerObject* service_worker,
-             web::EnvironmentSettings* incumbent_settings,
+             web::Context* incumbent_client,
              std::unique_ptr<script::DataBuffer> serialize_result) {
             if (!serialize_result) return;
 
@@ -2609,8 +2574,8 @@ void ServiceWorkerJobs::ServiceWorkerPostMessageSubSteps(
             if (!event_target) return;
 
             web::WindowOrWorkerGlobalScope* incumbent_global =
-                incumbent_settings->context()->GetWindowOrWorkerGlobalScope();
-            DCHECK_EQ(incumbent_settings,
+                incumbent_client->GetWindowOrWorkerGlobalScope();
+            DCHECK_EQ(incumbent_client->environment_settings(),
                       incumbent_global->environment_settings());
             base::TypeId incumbent_type = incumbent_global->GetWrappableType();
             ServiceWorkerObject* incumbent_worker =
@@ -2628,7 +2593,7 @@ void ServiceWorkerJobs::ServiceWorkerPostMessageSubSteps(
                 base::BindOnce(
                     [](const base::TypeId& incumbent_type,
                        ServiceWorkerObject* incumbent_worker,
-                       web::EnvironmentSettings* incumbent_settings,
+                       web::Context* incumbent_client,
                        web::EventTarget* event_target,
                        std::unique_ptr<script::DataBuffer> serialize_result) {
                       ExtendableMessageEventInit init_dict;
@@ -2651,14 +2616,15 @@ void ServiceWorkerJobs::ServiceWorkerPostMessageSubSteps(
                         //          a new WindowClient object that represents
                         //          incumbentGlobal’s relevant settings object.
                         init_dict.set_source(ExtendableMessageEvent::SourceType(
-                            WindowClient::Create(
-                                WindowData(incumbent_settings))));
+                            WindowClient::Create(WindowData(
+                                incumbent_client->environment_settings()))));
                       } else {
                         //        . Otherwise
                         //          a new Client object that represents
                         //          incumbentGlobal’s associated worker
-                        init_dict.set_source(ExtendableMessageEvent::SourceType(
-                            Client::Create(incumbent_settings)));
+                        init_dict.set_source(
+                            ExtendableMessageEvent::SourceType(Client::Create(
+                                incumbent_client->environment_settings())));
                       }
 
                       event_target->DispatchEvent(
@@ -2672,12 +2638,12 @@ void ServiceWorkerJobs::ServiceWorkerPostMessageSubSteps(
                     // processes the event, but since base::WeakPtr
                     // dereferencing isn't thread-safe, that can't actually be
                     // used here.
-                    base::Unretained(incumbent_settings),
+                    base::Unretained(incumbent_client),
                     base::Unretained(event_target),
                     std::move(serialize_result)));
           },
-          base::Unretained(service_worker),
-          base::Unretained(incumbent_settings), std::move(serialize_result)));
+          base::Unretained(service_worker), base::Unretained(incumbent_client),
+          std::move(serialize_result)));
 }
 
 void ServiceWorkerJobs::RegisterWebContext(web::Context* context) {
@@ -2708,9 +2674,46 @@ void ServiceWorkerJobs::UnregisterWebContext(web::Context* context) {
   DCHECK_EQ(message_loop(), base::MessageLoop::current());
   DCHECK_EQ(1, web_context_registrations_.count(context));
   web_context_registrations_.erase(context);
-  HandleServiceWorkerClientUnload(context->environment_settings());
+  HandleServiceWorkerClientUnload(context);
+  PrepareForClientShutdown(context);
   if (web_context_registrations_.empty()) {
     web_context_registrations_cleared_.Signal();
+  }
+}
+
+void ServiceWorkerJobs::PrepareForClientShutdown(web::Context* client) {
+  DCHECK(client);
+  if (!client) return;
+  DCHECK(base::MessageLoop::current() == message_loop());
+  // Note: This could be rewritten to use the decomposition declaration
+  // 'const auto& [scope, queue]' after switching to C++17.
+  for (const auto& entry : job_queue_map_) {
+    const std::string& scope = entry.first;
+    const std::unique_ptr<JobQueue>& queue = entry.second;
+    DCHECK(queue.get());
+    queue->PrepareForClientShutdown(client);
+  }
+}
+
+void ServiceWorkerJobs::JobQueue::PrepareForClientShutdown(
+    web::Context* client) {
+  for (const auto& job : jobs_) {
+    PrepareJobForClientShutdown(job.get(), client);
+  }
+}
+
+void ServiceWorkerJobs::JobQueue::PrepareJobForClientShutdown(
+    Job* job, web::Context* client) {
+  DCHECK(job);
+  if (!job) return;
+  base::AutoLock lock(job->equivalent_jobs_promise_mutex);
+  if (client == job->client) {
+    job->promise.reset();
+    job->client = nullptr;
+  }
+  for (const auto& equivalent_job : job->equivalent_jobs) {
+    // Recurse for the equivalent jobs.
+    PrepareJobForClientShutdown(equivalent_job.get(), client);
   }
 }
 

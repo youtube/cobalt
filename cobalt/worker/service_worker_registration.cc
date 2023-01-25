@@ -112,7 +112,7 @@ void ServiceWorkerRegistration::UpdateTask(
   std::unique_ptr<ServiceWorkerJobs::Job> job = jobs->CreateJob(
       ServiceWorkerJobs::JobType::kUpdate, registration_->storage_key(),
       registration_->scope_url(), newest_worker->script_url(),
-      std::move(promise_reference), environment_settings());
+      std::move(promise_reference), environment_settings()->context());
   DCHECK(!promise_reference);
 
   // 7. Set job’s worker type to newestWorker’s type.
@@ -160,7 +160,7 @@ void ServiceWorkerRegistration::UnregisterTask(
   std::unique_ptr<ServiceWorkerJobs::Job> job = jobs->CreateJob(
       ServiceWorkerJobs::JobType::kUnregister, registration_->storage_key(),
       registration_->scope_url(), GURL(), std::move(promise_reference),
-      environment_settings());
+      environment_settings()->context());
   DCHECK(!promise_reference);
 
   // 4. Invoke Schedule Job with job.
