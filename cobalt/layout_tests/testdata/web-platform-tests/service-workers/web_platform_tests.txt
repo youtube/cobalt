@@ -8,12 +8,6 @@ service-worker/unregister.https.html, PASS
 # Tests pass with memory leakage issue.
 service-worker/install-event-type.https.html, DISABLE
 service-worker/oninstall-script-error.https.html, DISABLE
-service-worker/registration-basic.https.html, PASS
-
-# b/266605186
-# SecurityError: Service Worker Script is not JavaScript MIME_TYPE on linux-x64x11-skia_nightly
-# Caught signal: SIGSEGV on linux-x64x11-sbversion-13_evergreen-x64-sbversion-13_tests
-service-worker/update-result.https.html, DISABLE
 
 # b/266605500
 # Caught signal: SIGSEGV on linux-x64x11-sbversion-12_evergreen-x64-sbversion-12_nightly
@@ -26,6 +20,7 @@ service-worker/skip-waiting-without-client.https.html, DISABLE
 service-worker/activation-after-registration.https.html, DISABLE
 
 # b/264920834 heap-use-after-free bug
+service-worker/registration-basic.https.html, DISABLE
 service-worker/activate-event-after-install-state-change.https.html, DISABLE
 service-worker/clients-matchall-frozen.https.html, DISABLE
 service-worker/fetch-event-add-async.https.html, DISABLE
@@ -44,6 +39,7 @@ service-worker/service-worker-csp-connect.https.html, DISABLE
 service-worker/service-worker-csp-default.https.html, DISABLE
 service-worker/service-worker-csp-script.https.html, DISABLE
 service-worker/update-no-cache-request-headers.https.html, DISABLE
+service-worker/update-result.https.html, DISABLE
 
 # "Module" type of dedicated worker is supported in Cobalt
 service-worker/dedicated-worker-service-worker-interception.https.html, DISABLE
