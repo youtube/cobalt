@@ -301,10 +301,10 @@ class ServiceWorkerJobs {
     return CreateJob(type, storage_key, scope_url, script_url,
                      JobPromiseType::Create(std::move(promise)), client);
   }
-  std::unique_ptr<Job> CreateJob(JobType type, const url::Origin& storage_key,
-                                 const GURL& scope_url, const GURL& script_url,
-                                 std::unique_ptr<JobPromiseType> promise,
-                                 web::Context* client);
+  std::unique_ptr<Job> CreateJob(
+      JobType type, const url::Origin& storage_key, const GURL& scope_url,
+      const GURL& script_url, std::unique_ptr<JobPromiseType> promise = nullptr,
+      web::Context* client = nullptr);
 
   // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#schedule-job
   void ScheduleJob(std::unique_ptr<Job> job);
@@ -317,6 +317,10 @@ class ServiceWorkerJobs {
 
   // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#update-state-algorithm
   void UpdateWorkerState(ServiceWorkerObject* worker, ServiceWorkerState state);
+
+  // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#soft-update
+  void SoftUpdate(scoped_refptr<ServiceWorkerRegistrationObject> registration,
+                  bool force_bypass_cache = false);
 
  private:
   // State used for the 'Update' algorithm.

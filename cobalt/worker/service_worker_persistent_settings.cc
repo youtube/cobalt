@@ -56,6 +56,7 @@ const char kSettingsScopeUrlKey[] = "scope_url";
 const char kSettingsUpdateViaCacheModeKey[] = "update_via_cache_mode";
 const char kSettingsWaitingWorkerKey[] = "waiting_worker";
 const char kSettingsActiveWorkerKey[] = "active_worker";
+const char kSettingsLastUpdateCheckTimeKey[] = "last_update_check_time";
 
 // ServicerWorkerObject persistent settings keys.
 const char kSettingsOptionsNameKey[] = "options_name";
@@ -154,6 +155,17 @@ void ServiceWorkerPersistentSettings::ReadServiceWorkerRegistrationMapSettings(
     if (!ReadServiceWorkerObjectSettings(
             registration, key_string, std::move(dict[worker_key]), worker_key))
       continue;
+
+    if (CheckPersistentValue(key_string, kSettingsLastUpdateCheckTimeKey, dict,
+                             base::Value::Type::DOUBLE)) {
+      double last_update_check_time =
+          dict[kSettingsLastUpdateCheckTimeKey]->GetDouble();
+      registration->set_last_update_check_time(
+          base::Time::FromDeltaSinceWindowsEpoch(
+              base::TimeDelta::FromMicroseconds(
+                  (int64_t)dict[kSettingsLastUpdateCheckTimeKey]
+                      ->GetDouble())));
+    }
 
     // Persisted registration and worker are valid, add the registration
     // to the registration_map and key_set_.
@@ -296,6 +308,12 @@ void ServiceWorkerPersistentSettings::
   dict.try_emplace(
       kSettingsUpdateViaCacheModeKey,
       std::make_unique<base::Value>(registration->update_via_cache_mode()));
+
+  dict.try_emplace(kSettingsLastUpdateCheckTimeKey,
+                   std::make_unique<base::Value>(static_cast<double>(
+                       registration->last_update_check_time()
+                           .ToDeltaSinceWindowsEpoch()
+                           .InMicroseconds())));
 
   persistent_settings_->SetPersistentSetting(
       key_string, std::make_unique<base::Value>(dict));

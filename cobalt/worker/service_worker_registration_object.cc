@@ -28,7 +28,8 @@ ServiceWorkerRegistrationObject::ServiceWorkerRegistrationObject(
     const ServiceWorkerUpdateViaCache& update_via_cache_mode)
     : storage_key_(storage_key),
       scope_url_(scope_url),
-      update_via_cache_mode_(update_via_cache_mode) {}
+      update_via_cache_mode_(update_via_cache_mode),
+      last_update_check_time_(base::Time()) {}
 
 ServiceWorkerRegistrationObject::~ServiceWorkerRegistrationObject() {
   AbortAll();
