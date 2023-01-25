@@ -65,7 +65,7 @@ void ServiceWorker::PostMessage(const script::ValueHandleHolder& message) {
       FROM_HERE,
       base::BindOnce(&ServiceWorkerJobs::ServiceWorkerPostMessageSubSteps,
                      base::Unretained(jobs), base::Unretained(service_worker),
-                     base::Unretained(incumbent_settings),
+                     base::Unretained(incumbent_settings->context()),
                      std::move(serialize_result)));
 }
 
