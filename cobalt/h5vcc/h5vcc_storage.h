@@ -66,6 +66,10 @@ class H5vccStorage : public script::Wrappable {
 
   void ClearCache();
 
+  void ClearCacheOfType(int type_index);
+
+  void ClearServiceWorkerCache();
+
   DEFINE_WRAPPABLE_TYPE(H5vccStorage);
 
  private:

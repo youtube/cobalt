@@ -25,6 +25,8 @@
 </head>
 <body>
   <script>
+    h5vcc.storage.clearServiceWorkerCache();
+
     // TODO: check multiple registrations.
     const unregisterAll = () => navigator.serviceWorker.getRegistrations().then(registrations =>
         Promise.all(registrations.map(r => r.unregister())));

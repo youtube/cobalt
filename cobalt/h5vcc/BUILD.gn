@@ -85,6 +85,7 @@ static_library("h5vcc") {
     "//cobalt/trace_event",
     "//cobalt/watchdog",
     "//cobalt/web:dom_exception",
+    "//cobalt/worker",
     "//net",
     "//net:http_server",
     "//starboard",

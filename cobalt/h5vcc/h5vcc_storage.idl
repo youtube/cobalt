@@ -29,4 +29,6 @@ interface H5vccStorage {
   void disableCache();
 
   void clearCache();
+  void clearCacheOfType(octet type_index);
+  void clearServiceWorkerCache();
 };

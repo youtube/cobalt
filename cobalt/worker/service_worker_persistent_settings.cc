@@ -32,6 +32,7 @@
 #include "cobalt/web/cache_utils.h"
 #include "cobalt/web/context.h"
 #include "cobalt/web/environment_settings.h"
+#include "cobalt/worker/service_worker_consts.h"
 #include "cobalt/worker/service_worker_jobs.h"
 #include "cobalt/worker/service_worker_registration_object.h"
 #include "cobalt/worker/service_worker_update_via_cache.h"
@@ -46,7 +47,6 @@ namespace worker {
 
 namespace {
 // ServiceWorkerRegistrationMap persistent settings keys.
-const char kSettingsJson[] = "service_worker_settings.json";
 const char kSettingsKeyList[] = "key_list";
 
 // ServiceWorkerRegistrationObject persistent settings keys.
@@ -88,8 +88,8 @@ bool CheckPersistentValue(
 ServiceWorkerPersistentSettings::ServiceWorkerPersistentSettings(
     const Options& options)
     : options_(options) {
-  persistent_settings_.reset(
-      new cobalt::persistent_storage::PersistentSettings(kSettingsJson));
+  persistent_settings_.reset(new cobalt::persistent_storage::PersistentSettings(
+      ServiceWorkerConsts::kSettingsJson));
   persistent_settings_->ValidatePersistentSettings();
   DCHECK(persistent_settings_);
 
@@ -114,7 +114,7 @@ void ServiceWorkerPersistentSettings::ReadServiceWorkerRegistrationMapSettings(
         persistent_settings_->GetPersistentSettingAsDictionary(key_string);
     if (dict.empty()) {
       DLOG(INFO) << "Key: " << key_string << " does not exist in "
-                 << kSettingsJson;
+                 << ServiceWorkerConsts::kSettingsJson;
       continue;
     }
     if (!CheckPersistentValue(key_string, kSettingsStorageKeyKey, dict,

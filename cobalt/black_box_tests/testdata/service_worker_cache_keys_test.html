@@ -25,6 +25,7 @@
 </head>
 <body>
   <script>
+    h5vcc.storage.clearServiceWorkerCache();
     const unregisterAll = () => navigator.serviceWorker.getRegistrations().then(registrations =>
         Promise.all(registrations.map(r => r.unregister())));
     const fail = msg => {

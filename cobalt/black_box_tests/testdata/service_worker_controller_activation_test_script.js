@@ -12,9 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/**
-* @param {KeyboardEvent} event
-*/
+h5vcc.storage.clearServiceWorkerCache();
 
 const unregisterAll = () => navigator.serviceWorker.getRegistrations().then(registrations =>
   Promise.all(registrations.map(r => r.unregister())));
@@ -25,6 +23,9 @@ function TEST(test) {
   test();
 }
 
+/**
+* @param {KeyboardEvent} event
+*/
 window.onkeydown = function (event) {
   assertEqual(undefined, self.clients);
 
