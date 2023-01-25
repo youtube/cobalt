@@ -5,7 +5,9 @@
 # features that are expected to currently work.
 
 Worker_basic.htm, PASS
-Worker_dispatchEvent_ErrorEvent.htm, PASS
+
+# b/266711887 SIGSEGV
+Worker_dispatchEvent_ErrorEvent.htm, DISABLE
 
 # b/225037465
 Worker_cross_origin_security_err.htm, DISABLE
