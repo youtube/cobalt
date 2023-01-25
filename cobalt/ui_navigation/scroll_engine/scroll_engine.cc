@@ -167,8 +167,10 @@ float GetAnimationSlope(EventPositionWithTimeStamp previous_event,
   if (time_delta.is_zero()) {
     return 0.f;
   }
-  auto slope = animation_duration / time_delta;
-  return math::Clamp(static_cast<float>(slope), -1000.f, 1000.f);
+  auto slope = std::abs(animation_duration / time_delta);
+  float cubic_bezier_ease_in_out_x1 = 0.42f;
+  return math::Clamp(static_cast<float>(slope) * cubic_bezier_ease_in_out_x1,
+                     0.f, 1.f);
 }
 
 }  // namespace
