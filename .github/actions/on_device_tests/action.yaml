@@ -43,38 +43,40 @@ runs:
       shell: bash
     - name: trigger ${{ env.SHARD_NAME }} tests on ${{ matrix.platform }} platform
       run: |
-        echo "session_id=$(
-        python3 tools/on_device_tests_gateway_client.py \
-          --token ${{ github.token }} \
-          --change_id "${{ github.sha }}" \
-          trigger \
-          --test_type ${{ env.TEST_TYPE }} \
-          --platform ${{ matrix.target_platform }} \
-          --config ${{ matrix.config }} \
-          --tag cobalt_github_${{ github.event_name }} \
-          --builder_name github_${{ matrix.platform }}_tests \
-          --build_number ${GITHUB_RUN_NUMBER} \
-          ${LOADER_PLATFORM:+"--loader_config" "$LOADER_CONFIG"} \
-          ${LOADER_PLATFORM:+"--loader_platform" "$LOADER_PLATFORM"} \
-          ${DIMENSION:+"--dimension" "$DIMENSION"} \
-          ${USE_SHARDING:+"--unittest_shard_index" "${{ matrix.shard }}"} \
-          --archive_path gs://${PROJECT_NAME}-test-artifacts-tmp/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${{ matrix.platform }}_${{ matrix.config }}/artifacts.tar \
-          --label github \
-          --label ${{ github.event_name }} \
-          --label ${{ github.workflow }} \
-          --label actor-${{ github.actor }} \
-          --label actor_id-${{ github.actor_id }} \
-          --label triggering_actor-${{ github.triggering_actor }} \
-          --label sha-${{ github.sha }} \
-          --label repository-${{ github.repository }} \
-          --label author-${{ github.event.pull_request.head.user.login || github.event.commits[0].author.username }} \
-          --label author_id-${{ github.event.pull_request.head.user.id || github.event.commits[0].author.email }}
-        )" >> $GITHUB_ENV
+        set -uxe
+        SESSION_ID=$(
+          python3 tools/on_device_tests_gateway_client.py \
+            --token ${{ github.token }} \
+            --change_id "${{ github.event.pull_request.head.sha || github.sha }}" \
+            trigger \
+            --test_type ${{ env.TEST_TYPE }} \
+            --platform ${{ matrix.target_platform }} \
+            --config ${{ matrix.config }} \
+            --tag cobalt_github_${{ github.event_name }} \
+            --builder_name github_${{ matrix.platform }}_tests \
+            --build_number ${GITHUB_RUN_NUMBER} \
+            ${LOADER_PLATFORM:+"--loader_config" "$LOADER_CONFIG"} \
+            ${LOADER_PLATFORM:+"--loader_platform" "$LOADER_PLATFORM"} \
+            ${USE_SHARDING:+"--unittest_shard_index" "${{ matrix.shard }}"} \
+            --archive_path gs://${PROJECT_NAME}-test-artifacts-tmp/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${{ matrix.platform }}_${{ matrix.config }}/artifacts.tar \
+            --label github \
+            --label ${{ github.event_name }} \
+            --label ${{ github.workflow }} \
+            --label actor-${{ github.actor }} \
+            --label actor_id-${{ github.actor_id }} \
+            --label triggering_actor-${{ github.triggering_actor }} \
+            --label sha-${{ github.sha }} \
+            --label repository-${{ github.repository }} \
+            --label author-${{ github.event.pull_request.head.user.login || github.event.commits[0].author.username }} \
+            --label author_id-${{ github.event.pull_request.head.user.id || github.event.commits[0].author.email }}
+        )
+        echo "SESSION_ID=$SESSION_ID" >> $GITHUB_ENV
       shell: bash
     - name: watch ${{ env.SHARD_NAME }} tests on ${{ matrix.platform }} platform
       run: |
+        set -uxe
         python3 tools/on_device_tests_gateway_client.py \
           --token ${{ github.token }} \
           --change_id "${{ github.sha }}" \
-          watch ${{ env.session_id }}
+          watch ${{ env.SESSION_ID }}
       shell: bash
