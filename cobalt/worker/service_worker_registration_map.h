@@ -78,6 +78,8 @@ class ServiceWorkerRegistrationMap {
   // registration's active_worker or waiting_worker are updated.
   void PersistRegistration(const url::Origin& storage_key, const GURL& scope);
 
+  void ReadPersistentSettings();
+
  private:
   // ThreadChecker for use by the methods operating on the registration map.
   THREAD_CHECKER(thread_checker_);

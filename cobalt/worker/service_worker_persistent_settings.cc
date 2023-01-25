@@ -58,7 +58,6 @@ const char kSettingsActiveWorkerKey[] = "active_worker";
 
 // ServicerWorkerObject persistent settings keys.
 const char kSettingsOptionsNameKey[] = "options_name";
-const char kSettingsServiceWorkerStateKey[] = "service_worker_state";
 const char kSettingsScriptUrlKey[] = "script_url";
 const char kSettingsScriptResourceMapScriptUrlsKey[] =
     "script_resource_map_script_urls";
@@ -148,20 +147,21 @@ void ServiceWorkerPersistentSettings::ReadServiceWorkerRegistrationMapSettings(
                               base::Value::Type::DICTIONARY)) {
       worker_key = kSettingsActiveWorkerKey;
       if (!CheckPersistentValue(key_string, worker_key, dict,
-                                base::Value::Type::DICTIONARY)) {
-        // Neither the waiting_worker or active_worker were correctly read
-        // from persistent settings.
+                                base::Value::Type::DICTIONARY))
         continue;
-      }
     }
-    if (!ReadServiceWorkerObjectSettings(registration, key_string,
-                                         std::move(dict[worker_key]),
-                                         worker_key)) {
+    if (!ReadServiceWorkerObjectSettings(
+            registration, key_string, std::move(dict[worker_key]), worker_key))
       continue;
-    }
 
+    // Persisted registration and worker are valid, add the registration
+    // to the registration_map and key_set_.
     key_set_.insert(key_string);
     registration_map.insert(std::make_pair(key, registration));
+
+    // TODO(b/228904017)
+    // Not in spec. Run SoftUpdate on the new registration.
+    // options_.service_worker_jobs->SoftUpdate(registration);
   }
 }
 
@@ -183,11 +183,6 @@ bool ServiceWorkerPersistentSettings::ReadServiceWorkerObjectSettings(
       kSettingsScriptUrlKey, base::Value::Type::STRING);
   if (script_url_value == nullptr) return false;
   worker->set_script_url(GURL(script_url_value->GetString()));
-
-  base::Value* state_value = value_dict->FindKeyOfType(
-      kSettingsServiceWorkerStateKey, base::Value::Type::INTEGER);
-  if (state_value == nullptr) return false;
-  worker->set_state(static_cast<ServiceWorkerState>(state_value->GetInt()));
 
   base::Value* skip_waiting_value = value_dict->FindKeyOfType(
       kSettingsSkipWaitingKey, base::Value::Type::BOOLEAN);
@@ -240,11 +235,10 @@ bool ServiceWorkerPersistentSettings::ReadServiceWorkerObjectSettings(
   }
   worker->set_script_resource_map(std::move(script_resource_map));
 
-  if (worker_key_string == kSettingsWaitingWorkerKey) {
-    registration->set_waiting_worker(worker);
-  } else {
-    registration->set_active_worker(worker);
-  }
+  options_.service_worker_jobs->UpdateWorkerState(worker,
+                                                  kServiceWorkerStateActivated);
+  registration->set_active_worker(worker);
+
   return true;
 }
 
@@ -315,10 +309,6 @@ ServiceWorkerPersistentSettings::WriteServiceWorkerObjectSettings(
   dict.try_emplace(
       kSettingsOptionsNameKey,
       std::make_unique<base::Value>(service_worker_object->options_name()));
-
-  dict.try_emplace(
-      kSettingsServiceWorkerStateKey,
-      std::make_unique<base::Value>(service_worker_object->state()));
 
   dict.try_emplace(kSettingsScriptUrlKey,
                    std::make_unique<base::Value>(
