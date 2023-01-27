@@ -28,6 +28,8 @@ component("media") {
   sources = [
     "base/audio_bus.cc",
     "base/audio_bus.h",
+    "base/cval_stats.cc",
+    "base/cval_stats.h",
     "base/data_source.cc",
     "base/data_source.h",
     "base/decode_target_provider.h",
@@ -111,6 +113,7 @@ target(gtest_target_type, "media_test") {
   testonly = true
 
   sources = [
+    "base/cval_stats_test.cc",
     "file_data_source_test.cc",
     "progressive/demuxer_extension_wrapper_test.cc",
     "progressive/mock_data_source_reader.h",

@@ -189,6 +189,11 @@ bool MediaModule::SetConfiguration(const std::string& name, int32 value) {
     LOG(INFO) << (allow_batched_sample_write_ ? "Enabling" : "Disabling")
               << " batched sample write.";
     return true;
+  } else if (name == "EnableMetrics") {
+    sbplayer_interface_->EnableCValStats(value);
+    LOG(INFO) << (value ? "Enabling" : "Disabling")
+              << " media metrics collection.";
+    return true;
   }
   return false;
 }
