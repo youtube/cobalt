@@ -107,7 +107,8 @@ SbPlayerBridge::SbPlayerBridge(
     bool prefer_decode_to_texture,
     const OnEncryptedMediaInitDataEncounteredCB&
         on_encrypted_media_init_data_encountered_cb,
-    DecodeTargetProvider* const decode_target_provider)
+    DecodeTargetProvider* const decode_target_provider,
+    std::string pipeline_identifier)
     : url_(url),
       sbplayer_interface_(interface),
       task_runner_(task_runner),
@@ -120,6 +121,8 @@ SbPlayerBridge::SbPlayerBridge(
       on_encrypted_media_init_data_encountered_cb_(
           on_encrypted_media_init_data_encountered_cb),
       decode_target_provider_(decode_target_provider),
+      cval_stats_(&interface->cval_stats_),
+      pipeline_identifier_(pipeline_identifier),
       is_url_based_(true) {
   DCHECK(host_);
   DCHECK(set_bounds_helper_);
@@ -146,7 +149,7 @@ SbPlayerBridge::SbPlayerBridge(
     SbPlayerSetBoundsHelper* set_bounds_helper, bool allow_resume_after_suspend,
     bool prefer_decode_to_texture,
     DecodeTargetProvider* const decode_target_provider,
-    const std::string& max_video_capabilities)
+    const std::string& max_video_capabilities, std::string pipeline_identifier)
     : sbplayer_interface_(interface),
       task_runner_(task_runner),
       get_decode_target_graphics_context_provider_func_(
@@ -161,7 +164,9 @@ SbPlayerBridge::SbPlayerBridge(
       audio_config_(audio_config),
       video_config_(video_config),
       decode_target_provider_(decode_target_provider),
-      max_video_capabilities_(max_video_capabilities)
+      max_video_capabilities_(max_video_capabilities),
+      cval_stats_(&interface->cval_stats_),
+      pipeline_identifier_(pipeline_identifier)
 #if SB_HAS(PLAYER_WITH_URL)
       ,
       is_url_based_(false)
@@ -206,7 +211,9 @@ SbPlayerBridge::~SbPlayerBridge() {
   decode_target_provider_->ResetGetCurrentSbDecodeTargetFunction();
 
   if (SbPlayerIsValid(player_)) {
+    cval_stats_->StartTimer(MediaTiming::SbPlayerDestroy, pipeline_identifier_);
     sbplayer_interface_->Destroy(player_);
+    cval_stats_->StopTimer(MediaTiming::SbPlayerDestroy, pipeline_identifier_);
   }
 }
 
@@ -477,7 +484,9 @@ void SbPlayerBridge::Suspend() {
       DecodeTargetProvider::kOutputModeInvalid);
   decode_target_provider_->ResetGetCurrentSbDecodeTargetFunction();
 
+  cval_stats_->StartTimer(MediaTiming::SbPlayerDestroy, pipeline_identifier_);
   sbplayer_interface_->Destroy(player_);
+  cval_stats_->StopTimer(MediaTiming::SbPlayerDestroy, pipeline_identifier_);
 
   player_ = kSbPlayerInvalid;
 }
@@ -558,10 +567,12 @@ void SbPlayerBridge::CreateUrlPlayer(const std::string& url) {
 
   player_creation_time_ = SbTimeGetMonotonicNow();
 
+  cval_stats_->StartTimer(MediaTiming::SbPlayerCreate, pipeline_identifier_);
   player_ = sbplayer_interface_->CreateUrlPlayer(
       url.c_str(), window_, &SbPlayerBridge::PlayerStatusCB,
       &SbPlayerBridge::EncryptedMediaInitDataEncounteredCB,
       &SbPlayerBridge::PlayerErrorCB, this);
+  cval_stats_->StopTimer(MediaTiming::SbPlayerCreate, pipeline_identifier_);
   DCHECK(SbPlayerIsValid(player_));
 
   if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
@@ -608,11 +619,13 @@ void SbPlayerBridge::CreatePlayer() {
   creation_param.output_mode = output_mode_;
   DCHECK_EQ(sbplayer_interface_->GetPreferredOutputMode(&creation_param),
             output_mode_);
+  cval_stats_->StartTimer(MediaTiming::SbPlayerCreate, pipeline_identifier_);
   player_ = sbplayer_interface_->Create(
       window_, &creation_param, &SbPlayerBridge::DeallocateSampleCB,
       &SbPlayerBridge::DecoderStatusCB, &SbPlayerBridge::PlayerStatusCB,
       &SbPlayerBridge::PlayerErrorCB, this,
       get_decode_target_graphics_context_provider_func_.Run());
+  cval_stats_->StopTimer(MediaTiming::SbPlayerCreate, pipeline_identifier_);
 
   is_creating_player_ = false;
 
@@ -693,9 +706,13 @@ void SbPlayerBridge::WriteBuffersInternal(
         }
 
         DCHECK(!gathered_sbplayer_sample_infos.empty());
+        cval_stats_->StartTimer(MediaTiming::SbPlayerWriteSamples,
+                                pipeline_identifier_);
         sbplayer_interface_->WriteSample(player_, sample_type,
                                          gathered_sbplayer_sample_infos.data(),
                                          gathered_sbplayer_sample_infos.size());
+        cval_stats_->StopTimer(MediaTiming::SbPlayerWriteSamples,
+                               pipeline_identifier_);
       } else {
         sbplayer_interface_->WriteEndOfStream(
             player_, DemuxerStreamTypeToSbMediaType(type));
@@ -765,9 +782,13 @@ void SbPlayerBridge::WriteBuffersInternal(
   }
 
   if (!gathered_sbplayer_sample_infos.empty()) {
+    cval_stats_->StartTimer(MediaTiming::SbPlayerWriteSamples,
+                            pipeline_identifier_);
     sbplayer_interface_->WriteSample(player_, sample_type,
                                      gathered_sbplayer_sample_infos.data(),
                                      gathered_sbplayer_sample_infos.size());
+    cval_stats_->StopTimer(MediaTiming::SbPlayerWriteSamples,
+                           pipeline_identifier_);
   }
 }
 

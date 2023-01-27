@@ -927,7 +927,8 @@ void SbPlayerPipeline::CreateUrlPlayer(const std::string& source_url) {
         sbplayer_interface_, task_runner_, source_url, window_, this,
         set_bounds_helper_.get(), allow_resume_after_suspend_,
         *decode_to_texture_output_mode_,
-        on_encrypted_media_init_data_encountered_cb_, decode_target_provider_));
+        on_encrypted_media_init_data_encountered_cb_, decode_target_provider_,
+        pipeline_identifier_));
     if (player_bridge_->IsValid()) {
       SetPlaybackRateTask(playback_rate_);
       SetVolumeTask(volume_);
@@ -1032,7 +1033,7 @@ void SbPlayerPipeline::CreatePlayer(SbDrmSystem drm_system) {
         audio_mime_type, video_config, video_mime_type, window_, drm_system,
         this, set_bounds_helper_.get(), allow_resume_after_suspend_,
         *decode_to_texture_output_mode_, decode_target_provider_,
-        max_video_capabilities_));
+        max_video_capabilities_, pipeline_identifier_));
     if (player_bridge_->IsValid()) {
       SetPlaybackRateTask(playback_rate_);
       SetVolumeTask(volume_);

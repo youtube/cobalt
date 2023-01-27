@@ -15,6 +15,7 @@
 #ifndef COBALT_MEDIA_BASE_SBPLAYER_INTERFACE_H_
 #define COBALT_MEDIA_BASE_SBPLAYER_INTERFACE_H_
 
+#include "cobalt/media/base/cval_stats.h"
 #include "starboard/player.h"
 
 #if SB_HAS(PLAYER_WITH_URL)
@@ -66,6 +67,12 @@ class SbPlayerInterface {
   virtual void GetUrlPlayerExtraInfo(
       SbPlayer player, SbUrlPlayerExtraInfo* out_url_player_info) = 0;
 #endif  // SB_HAS(PLAYER_WITH_URL)
+
+  // disabled by default, but can be enabled via h5vcc setting.
+  void EnableCValStats(bool should_enable) {
+    cval_stats_.Enable(should_enable);
+  }
+  CValStats cval_stats_;
 };
 
 class DefaultSbPlayerInterface final : public SbPlayerInterface {
