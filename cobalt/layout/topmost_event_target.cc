@@ -126,6 +126,22 @@ scoped_refptr<dom::HTMLElement> FindFirstElementWithScrollType(
   return nullptr;
 }
 
+bool TransformCanBeAppliedToBox(const Box* box, math::Vector2dF coordinate) {
+  return !box->IsTransformed() || box->ApplyTransformActionToCoordinate(
+                                      Box::kEnterTransform, &coordinate);
+}
+
+bool ShouldConsiderElementAndChildren(dom::Element* element,
+                                      math::Vector2dF coordinate) {
+  LayoutBoxes* layout_boxes = GetLayoutBoxesIfNotEmpty(element);
+  const Box* box = layout_boxes->boxes().front();
+  if (!box->computed_style()) {
+    return true;
+  }
+
+  return TransformCanBeAppliedToBox(box, coordinate);
+}
+
 }  // namespace
 void TopmostEventTarget::ConsiderElement(dom::Element* element,
                                          const math::Vector2dF& coordinate) {
@@ -133,16 +149,9 @@ void TopmostEventTarget::ConsiderElement(dom::Element* element,
   math::Vector2dF element_coordinate(coordinate);
   LayoutBoxes* layout_boxes = GetLayoutBoxesIfNotEmpty(element);
   if (layout_boxes) {
-    const Box* box = layout_boxes->boxes().front();
-    if (box->computed_style() && box->IsTransformed()) {
-      // Early out if the transform cannot be applied. This can occur if the
-      // transform matrix is not invertible.
-      if (!box->ApplyTransformActionToCoordinate(Box::kEnterTransform,
-                                                 &element_coordinate)) {
-        return;
-      }
+    if (!ShouldConsiderElementAndChildren(element, element_coordinate)) {
+      return;
     }
-
     scoped_refptr<dom::HTMLElement> html_element = element->AsHTMLElement();
     if (html_element && html_element->CanBeDesignatedByPointerIfDisplayed()) {
       ConsiderBoxes(html_element, layout_boxes, element_coordinate);
