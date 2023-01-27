@@ -483,3 +483,28 @@ services:
   unittest-parallel-3:
     <<: *shared-unittest-definitions
     entrypoint: ["python3", "/unittest_docker_launcher.py", "3"]
+
+  xvfb:
+    image: xvfb
+    ports:
+      - "99:99"
+    image: cobalt-xvfb
+    build:
+      context: ./docker/linux/
+      dockerfile: integrationtest/Dockerfile.xvfb
+    depends_on: [ unittest ]
+
+  integration_test:
+    <<: *build-common-definitions
+    image: cobalt-integrationtest
+    build:
+      context: ./docker/linux/
+      dockerfile: integrationtest/Dockerfile
+    depends_on: [ xvfb ]
+    working_dir: /code
+    environment:
+      - DISPLAY=xvfb:99
+      - IPV6_AVAILABLE=0
+      - PYTHONPATH=/code
+      - PLATFORM=${PLATFORM:-linux-x64x11}
+      - CONFIG=${CONFIG:-devel}
