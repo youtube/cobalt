@@ -413,6 +413,7 @@ class Box : public base::RefCounted<Box> {
   LayoutUnit padding_bottom() const { return padding_insets_.bottom(); }
   LayoutUnit GetPaddingBoxWidth() const;
   LayoutUnit GetPaddingBoxHeight() const;
+  RectLayoutUnit GetClampedPaddingBox(bool transform_forms_root) const;
   SizeLayoutUnit GetClampedPaddingBoxSize() const;
 
   RectLayoutUnit GetPaddingBoxFromMarginBox() const;

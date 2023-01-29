@@ -553,6 +553,14 @@ LayoutUnit Box::GetPaddingBoxHeight() const {
   return padding_top() + height() + padding_bottom();
 }
 
+RectLayoutUnit Box::GetClampedPaddingBox(bool transform_forms_root) const {
+  auto padding_box_offset = GetPaddingBoxOffsetFromRoot(transform_forms_root);
+  auto clamped_padding_box = GetClampedPaddingBoxSize();
+  return RectLayoutUnit(padding_box_offset.x(), padding_box_offset.y(),
+                        clamped_padding_box.width(),
+                        clamped_padding_box.height());
+}
+
 SizeLayoutUnit Box::GetClampedPaddingBoxSize() const {
   // Padding box size depends on the content and padding areas
   // Its dimensions cannot be negative because the content and padding areas
