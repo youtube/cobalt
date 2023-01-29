@@ -20,6 +20,7 @@
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/token.h"
 #include "cobalt/base/tokens.h"
+#include "cobalt/cssom/computed_style_utils.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/html_element.h"
@@ -32,6 +33,8 @@
 #include "cobalt/dom/pointer_state.h"
 #include "cobalt/dom/ui_event.h"
 #include "cobalt/dom/wheel_event.h"
+#include "cobalt/layout/layout_unit.h"
+#include "cobalt/math/rect_f.h"
 #include "cobalt/math/vector2d.h"
 #include "cobalt/math/vector2d_f.h"
 #include "cobalt/web/event.h"
@@ -131,6 +134,18 @@ bool TransformCanBeAppliedToBox(const Box* box, math::Vector2dF coordinate) {
                                       Box::kEnterTransform, &coordinate);
 }
 
+bool CoordinateCanTargetBox(const Box* box, math::Vector2dF coordinate) {
+  if (!cssom::IsOverflowCropped(box->computed_style())) {
+    return true;
+  }
+  LayoutUnit coordinate_x(coordinate.x());
+  LayoutUnit coordinate_y(coordinate.y());
+
+  bool transform_forms_root = false;
+  auto padding_box = box->GetClampedPaddingBox(transform_forms_root);
+  return padding_box.Contains(coordinate_x, coordinate_y);
+}
+
 bool ShouldConsiderElementAndChildren(dom::Element* element,
                                       math::Vector2dF coordinate) {
   LayoutBoxes* layout_boxes = GetLayoutBoxesIfNotEmpty(element);
@@ -139,7 +154,8 @@ bool ShouldConsiderElementAndChildren(dom::Element* element,
     return true;
   }
 
-  return TransformCanBeAppliedToBox(box, coordinate);
+  return TransformCanBeAppliedToBox(box, coordinate) &&
+         CoordinateCanTargetBox(box, coordinate);
 }
 
 }  // namespace
