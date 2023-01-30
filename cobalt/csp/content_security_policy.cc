@@ -110,6 +110,9 @@ bool CheckDigest(const std::string& source, uint8 hash_algorithms_used,
 
 ResponseHeaders::ResponseHeaders(
     const scoped_refptr<net::HttpResponseHeaders>& response) {
+  if (response == nullptr) {
+    return;
+  }
   response->GetNormalizedHeader("Content-Security-Policy",
                                 &content_security_policy_);
   response->GetNormalizedHeader("Content-Security-Policy-Report-Only",

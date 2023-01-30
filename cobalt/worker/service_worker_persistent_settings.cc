@@ -174,7 +174,7 @@ void ServiceWorkerPersistentSettings::ReadServiceWorkerRegistrationMapSettings(
 
     // TODO(b/228904017)
     // Not in spec. Run SoftUpdate on the new registration.
-    // options_.service_worker_jobs->SoftUpdate(registration);
+    options_.service_worker_jobs->SoftUpdate(registration);
   }
 }
 

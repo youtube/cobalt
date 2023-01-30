@@ -40,17 +40,18 @@ window.onkeydown = function(event) {
     }
 
     if (event.key == 0) {
+        h5vcc.storage.enableCache();
         test_successful_registration();
     } else if (event.key == 1) {
         test_persistent_registration();
     } else if (event.key == 2) {
-        test_persistent_registration_does_not_exist();
+        test_unregistered_persistent_registration_does_not_exist();
     }
 }
 
 function test_successful_registration() {
     console.log('test_successful_registration()');
-    navigator.serviceWorker.register('service_worker_test_worker.js', {
+    navigator.serviceWorker.register('service_worker_test_persisted_worker.js', {
         scope: '/bar/registration/scope',
     }).then(function (registration) {
         console.log('(Expected) Registration Succeeded:',
@@ -74,8 +75,6 @@ function test_successful_registration() {
                 'Registration active check after timeout',
                 registration);
             assertNotEqual(null, registration.active);
-            registration.active.postMessage(
-                'Registration is active after waiting.');
             console.log('Registration active',
                 registration.active, 'state:',
                 registration.active.state);
@@ -103,20 +102,15 @@ function test_persistent_registration() {
                 'bar/registration/scope'));
 
             window.setTimeout(function () {
-                // TODO(b/259731731): Activate persisted registrations
-                // correctly before enabling these activation checks.
-
-                // console.log(
-                //     'Registration active check after timeout',
-                //     registration);
-                // assertNotEqual(null, registration.active);
-                // registration.active.postMessage(
-                //     'Registration is active after waiting.');
-                // console.log('Registration active',
-                //     registration.active, 'state:',
-                //     registration.active.state);
-                // assertEqual('activated',
-                //     registration.active.state);
+                console.log(
+                    'Registration active check after timeout',
+                    registration);
+                assertNotEqual(null, registration.active);
+                console.log('Registration active',
+                    registration.active, 'state:',
+                    registration.active.state);
+                assertEqual('activated',
+                    registration.active.state);
 
                 registration.unregister()
                 .then(function (success) {
@@ -127,9 +121,6 @@ function test_persistent_registration() {
                     navigator.serviceWorker.getRegistration(
                         'bar/registration/scope')
                         .then(function (registration) {
-                            console.log('(Expected) ' +
-                                'getRegistration Succeeded: ',
-                                registration);
                             assertTrue(null == registration ||
                                 undefined == registration);
                             onEndTest();
@@ -154,8 +145,8 @@ function test_persistent_registration() {
         });
 }
 
-function test_persistent_registration_does_not_exist() {
-    console.log("test_persistent_registration_does_not_exist()");
+function test_unregistered_persistent_registration_does_not_exist() {
+    console.log("test_unregistered_persistent_registration_does_not_exist()");
     navigator.serviceWorker.getRegistration(
         '/bar/registration/scope')
         .then(function (registration) {

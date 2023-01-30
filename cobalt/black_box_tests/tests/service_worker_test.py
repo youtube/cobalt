@@ -42,7 +42,9 @@ class ServiceWorkerRequestDetector(MakeRequestHandlerClass(_SERVER_ROOT_PATH)):
 
   def send_my_headers(self):
     # Add 'Service-Worker-Allowed' header for the main service worker scripts.
-    if self.path.endswith('/service_worker_test_worker.js'):
+    if self.path.endswith(
+        '/service_worker_test_worker.js') or self.path.endswith(
+            '/service_worker_test_persisted_worker.js'):
       self.send_header('Service-Worker-Allowed', '/bar')
 
   def do_GET(self):  # pylint: disable=invalid-name
