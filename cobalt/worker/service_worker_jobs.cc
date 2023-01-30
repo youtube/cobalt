@@ -776,7 +776,7 @@ bool ServiceWorkerJobs::UpdateOnResponseStarted(
                 content_type.c_str())));
     return true;
   }
-  //   8.8.  Let serviceWorkerAllowed be the resulf extracting header list
+  //   8.8.  Let serviceWorkerAllowed be the result of extracting header list
   //         values given `Service-Worker-Allowed` and response’s header list.
   std::string service_worker_allowed;
   bool service_worker_allowed_exists = headers->GetNormalizedHeader(
