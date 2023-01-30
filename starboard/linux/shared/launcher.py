@@ -28,6 +28,9 @@ from starboard.tools import send_link
 
 STATUS_CHANGE_TIMEOUT = 15
 
+# This file is still executed with Python2 in CI.
+# pylint:disable=consider-using-f-string,super-with-arguments
+
 
 def GetProcessStatus(pid):
   """Returns process running status given its pid, or empty string if not found.
@@ -46,6 +49,8 @@ class Launcher(abstract_launcher.AbstractLauncher):
   def __init__(self, platform, target_name, config, device_id, **kwargs):
     super(Launcher, self).__init__(platform, target_name, config, device_id,
                                    **kwargs)
+    # Starts should be generally quick on Linux, default is 2 minutes
+    self.startup_timeout_seconds = 15
     if self.device_id:
       self.device_ip = self.device_id
     else:

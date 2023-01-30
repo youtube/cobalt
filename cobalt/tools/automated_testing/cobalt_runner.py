@@ -38,11 +38,10 @@ RE_WEBDRIVER_LISTEN = re.compile(r'Starting WebDriver server on port (\d+)')
 RE_WEBDRIVER_FAILED = re.compile(r'Could not start WebDriver server')
 # Pattern to match Cobalt log line for when a WindowDriver has been created.
 RE_WINDOWDRIVER_CREATED = re.compile(
-    (r'^\[[\d:]+/[\d.]+:INFO:browser_module\.cc\(\d+\)\] Created WindowDriver: '
-     r'ID=\S+'))
+    (r':browser_module\.cc\(\d+\)\] Created WindowDriver: ID=\S+'))
 # Pattern to match Cobalt log line for when a WebModule is has been loaded.
 RE_WEBMODULE_LOADED = re.compile(
-    r'^\[[\d:]+/[\d.]+:INFO:browser_module\.cc\(\d+\)\] Loaded WebModule')
+    r':browser_module\.cc\(\d+\)\] Loaded WebModule')
 
 # selenium imports
 # pylint: disable=C0103
@@ -112,6 +111,9 @@ class CobaltRunner(object):
         exit.
     """
 
+    # Tracks if test execution started successfully
+    self.start_condition = threading.Condition()
+    # Tracks if Webdriver found the right script and ran it
     self.test_script_started = threading.Event()
     self.launcher = None
     self.webdriver = None
@@ -337,6 +339,8 @@ class CobaltRunner(object):
     self.webdriver.command_executor.set_timeout(WEBDRIVER_HTTP_TIMEOUT_SECONDS)
     logging.info('Selenium Connected')
     self.test_script_started.set()
+    with self.start_condition:
+      self.start_condition.notify()
 
   def WaitForStart(self):
     """Waits for the webdriver client to attach to Cobalt."""
@@ -344,7 +348,12 @@ class CobaltRunner(object):
     if not startup_timeout_seconds:
       startup_timeout_seconds = DEFAULT_STARTUP_TIMEOUT_SECONDS
 
-    if not self.test_script_started.wait(startup_timeout_seconds):
+    with self.start_condition:
+      if not self.start_condition.wait(startup_timeout_seconds):
+        self.Exit(should_fail=True)
+        raise TimeoutException
+
+    if not self.test_script_started.is_set():
       self.Exit(should_fail=True)
       raise TimeoutException
     logging.info('Cobalt started')
@@ -365,6 +374,9 @@ class CobaltRunner(object):
     except Exception as ex:
       sys.stderr.write('Exception running Cobalt ' + str(ex))
     finally:
+      # unblock main thread if it's still waiting to start, but Cobalt quit
+      with self.start_condition:
+        self.start_condition.notify()
       self.launcher_write_pipe.close()
       if not self.should_exit.is_set():
         # If the main thread is not expecting us to exit,
