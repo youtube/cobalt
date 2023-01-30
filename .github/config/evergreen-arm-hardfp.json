@@ -4,7 +4,6 @@
   "on_device_test": {
     "enabled": false,
     "tests": [
-      "black_box_test",
       "evergreen_test",
       "unit_test"
     ]
