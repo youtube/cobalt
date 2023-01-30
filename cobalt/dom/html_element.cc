@@ -1221,7 +1221,7 @@ void HTMLElement::OnUiNavFocus(SbTimeMonotonic time) {
 void HTMLElement::OnUiNavScroll(SbTimeMonotonic /* time */) {
   Document* document = node_document();
   scoped_refptr<Window> window(document ? document->window() : nullptr);
-  DispatchEvent(new UIEvent(base::Tokens::scroll(), web::Event::kBubbles,
+  DispatchEvent(new UIEvent(base::Tokens::scroll(), web::Event::kNotBubbles,
                             web::Event::kNotCancelable, window));
 }
 
