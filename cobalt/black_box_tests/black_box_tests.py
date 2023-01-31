@@ -242,8 +242,8 @@ class BlackBoxTests(object):
         host_resolve_map=self.host_resolve_map,
         client_ips=self.device_ips):
       if self.test_name:
-        suite = unittest.TestLoader().loadTestsFromModule(
-            importlib.import_module(_TEST_DIR_PATH + self.test_name))
+        suite = unittest.TestLoader().loadTestsFromName(_TEST_DIR_PATH +
+                                                        self.test_name)
       else:
         suite = LoadTests(_launcher_params)
       # Using verbosity=2 to log individual test function names and results.
