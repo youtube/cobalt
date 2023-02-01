@@ -105,9 +105,9 @@ using cobalt::render_tree::Image;
 using cobalt::render_tree::ImageData;
 using cobalt::render_tree::ImageDataDescriptor;
 using cobalt::render_tree::ImageNode;
+using cobalt::render_tree::LinearGradientBrush;
 using cobalt::render_tree::LottieAnimation;
 using cobalt::render_tree::LottieNode;
-using cobalt::render_tree::LinearGradientBrush;
 using cobalt::render_tree::MapToMeshFilter;
 using cobalt::render_tree::MatrixTransform3DNode;
 using cobalt::render_tree::MatrixTransformNode;
@@ -1180,6 +1180,19 @@ TEST_F(PixelTest, SimpleText40PtFontWithCharacterLowerThanBaseline) {
   TestTree(CreateTextNodeWithinSurface(GetResourceProvider(), "Berry jam",
                                        FontStyle(), 40,
                                        ColorRGBA(0, 0, 0, 1.0)));
+}
+
+TEST_F(PixelTest, SimpleTextInEthiopic) {
+  TestTree(CreateTextNodeWithinSurface(
+      GetResourceProvider(), "ብመንፅ", FontStyle(), 40, ColorRGBA(0, 0, 0, 1.0),
+      std::vector<Shadow>(), "Noto Sans Ethiopic"));
+}
+
+TEST_F(PixelTest, SimpleTextInEthiopicBold) {
+  FontStyle font_style(FontStyle::kBoldWeight, FontStyle::kUprightSlant);
+  TestTree(CreateTextNodeWithinSurface(
+      GetResourceProvider(), "ብመንፅ", font_style, 40, ColorRGBA(0, 0, 0, 1.0),
+      std::vector<Shadow>(), "Noto Sans Ethiopic"));
 }
 
 TEST_F(PixelTest, SimpleTextInRed40PtFont) {
