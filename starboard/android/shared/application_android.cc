@@ -376,6 +376,7 @@ void ApplicationAndroid::ProcessAndroidCommand() {
   // If there's a window, sync the app state to the Activity lifecycle.
   if (native_window_) {
     switch (sync_state) {
+#if SB_API_VERSION >= 13
       case AndroidCommand::kStart:
         Inject(new Event(kSbEventTypeReveal, NULL, NULL));
         break;
@@ -388,6 +389,20 @@ void ApplicationAndroid::ProcessAndroidCommand() {
       case AndroidCommand::kStop:
         Inject(new Event(kSbEventTypeConceal, NULL, NULL));
         break;
+#else
+      case AndroidCommand::kStart:
+        Inject(new Event(kSbEventTypeResume, NULL, NULL));
+        break;
+      case AndroidCommand::kResume:
+        Inject(new Event(kSbEventTypeUnpause, NULL, NULL));
+        break;
+      case AndroidCommand::kPause:
+        Inject(new Event(kSbEventTypePause, NULL, NULL));
+        break;
+      case AndroidCommand::kStop:
+        Inject(new Event(kSbEventTypeSuspend, NULL, NULL));
+        break;
+#endif
       default:
         break;
     }
