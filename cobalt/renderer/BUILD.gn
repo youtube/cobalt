@@ -426,6 +426,8 @@ copy("renderer_copy_test_data") {
     "rasterizer/testdata/SimpleTextIn40PtFont-expected.png",
     "rasterizer/testdata/SimpleTextIn500PtFont-expected.png",
     "rasterizer/testdata/SimpleTextIn80PtFont-expected.png",
+    "rasterizer/testdata/SimpleTextInEthiopic-expected.png",
+    "rasterizer/testdata/SimpleTextInEthiopicBold-expected.png",
     "rasterizer/testdata/SimpleTextInRed40PtChineseFont-expected.png",
     "rasterizer/testdata/SimpleTextInRed40PtFont-expected.png",
     "rasterizer/testdata/SimpleTextInRed40PtThaiFont-expected.png",

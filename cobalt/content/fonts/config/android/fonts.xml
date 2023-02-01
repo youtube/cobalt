@@ -177,8 +177,8 @@
     <family>
         <font weight="400" style="normal">NotoSansEthiopic-Regular.ttf</font>
         <font weight="700" style="normal">NotoSansEthiopic-Bold.ttf</font>
-        <font weight="400" style="normal">NotoSansEthiopic-VF.ttf</font>
-        <font weight="700" style="normal">NotoSansEthiopic-VF.ttf</font>
+        <font weight="400" style="normal" tag_wght="400" font_name="Noto Sans Ethiopic" postscript_name="NotoSansEthiopic-Regular">NotoSansEthiopic-VF.ttf</font>
+        <font weight="700" style="normal" tag_wght="700" font_name="Noto Sans Ethiopic Bold" postscript_name="NotoSansEthiopic-Bold">NotoSansEthiopic-VF.ttf</font>
     </family>
     <family>
         <font weight="400" style="normal">NotoSansHebrew-Regular.ttf</font>
@@ -193,22 +193,24 @@
         <font weight="400" style="normal">NotoSansArmenian-Regular.otf</font>
         <font weight="700" style="normal">NotoSansArmenian-Bold.ttf</font>
         <font weight="700" style="normal">NotoSansArmenian-Bold.otf</font>
-        <font weight="400" style="normal">NotoSansArmenian-VF.ttf</font>
-        <font weight="700" style="normal">NotoSansArmenian-VF.ttf</font>
+        <font weight="400" style="normal" tag_wght="400" font_name="Noto Sans Armenian" postscript_name="NotoSansArmenian-Regular">NotoSansArmenian-VF.ttf</font>
+        <font weight="700" style="normal" tag_wght="700" font_name="Noto Sans Armenian Bold" postscript_name="NotoSansArmenian-Bold">NotoSansArmenian-VF.ttf</font>
     </family>
     <family>
         <font weight="400" style="normal">NotoSansGeorgian-Regular.ttf</font>
         <font weight="400" style="normal">NotoSansGeorgian-Regular.otf</font>
         <font weight="700" style="normal">NotoSansGeorgian-Bold.ttf</font>
         <font weight="700" style="normal">NotoSansGeorgian-Bold.otf</font>
+        <font weight="400" style="normal" tag_wght="400" font_name="Noto Sans Georgian" postscript_name="NotoSansGeorgian-Regular">NotoSansGeorgian-VF.ttf</font>
+        <font weight="700" style="normal" tag_wght="700" font_name="Noto Sans Georgian Bold" postscript_name="NotoSansGeorgian-Bold">NotoSansGeorgian-VF.ttf</font>
     </family>
     <family>
         <font weight="400" style="normal">NotoSansDevanagariUI-Regular.ttf</font>
         <font weight="400" style="normal">NotoSansDevanagariUI-Regular.otf</font>
         <font weight="700" style="normal">NotoSansDevanagariUI-Bold.ttf</font>
         <font weight="700" style="normal">NotoSansDevanagariUI-Bold.otf</font>
-        <font weight="400" style="normal">NotoSansDevanagariUI-VF.ttf</font>
-        <font weight="700" style="normal">NotoSansDevanagariUI-VF.ttf</font>
+        <font weight="400" style="normal" tag_wght="400" font_name="Noto Sans Devanagari UI" postscript_name="NotoSansDevanagariUI-Regular">NotoSansDevanagariUI-VF.ttf</font>
+        <font weight="700" style="normal" tag_wght="700" font_name="Noto Sans Devanagari UI Bold" postscript_name="NotoSansDevanagariUI-Bold">NotoSansDevanagariUI-VF.ttf</font>
     </family>
     <!-- Gujarati should come after Devanagari -->
     <family>
@@ -219,44 +221,44 @@
     <family>
         <font weight="400" style="normal">NotoSansGurmukhiUI-Regular.ttf</font>
         <font weight="700" style="normal">NotoSansGurmukhiUI-Bold.ttf</font>
-        <font weight="400" style="normal">NotoSansGurmukhiUI-VF.ttf</font>
-        <font weight="700" style="normal">NotoSansGurmukhiUI-VF.ttf</font>
+        <font weight="400" style="normal" tag_wght="400" font_name="Noto Sans Gurmukhi UI" postscript_name="NotoSansGurmukhiUI-Regular">NotoSansGurmukhiUI-VF.ttf</font>
+        <font weight="700" style="normal" tag_wght="700" font_name="Noto Sans Gurmukhi UI Bold" postscript_name="NotoSansGurmukhiUI-Bold">NotoSansGurmukhiUI-VF.ttf</font>
     </family>
     <family>
         <font weight="400" style="normal">NotoSansTamilUI-Regular.ttf</font>
         <font weight="400" style="normal">NotoSansTamilUI-Regular.otf</font>
         <font weight="700" style="normal">NotoSansTamilUI-Bold.ttf</font>
         <font weight="700" style="normal">NotoSansTamilUI-Bold.otf</font>
-        <font weight="400" style="normal">NotoSansTamilUI-VF.ttf</font>
-        <font weight="700" style="normal">NotoSansTamilUI-VF.ttf</font>
+        <font weight="400" style="normal" tag_wght="400" font_name="Noto Sans Tamil UI" postscript_name="NotoSansTamilUI-Regular">NotoSansTamilUI-VF.ttf</font>
+        <font weight="700" style="normal" tag_wght="700" font_name="Noto Sans Tamil UI Bold" postscript_name="NotoSansTamilUI-Bold">NotoSansTamilUI-VF.ttf</font>
     </family>
     <family>
         <font weight="400" style="normal">NotoSansMalayalamUI-Regular.ttf</font>
         <font weight="400" style="normal">NotoSansMalayalamUI-Regular.otf</font>
         <font weight="700" style="normal">NotoSansMalayalamUI-Bold.ttf</font>
         <font weight="700" style="normal">NotoSansMalayalamUI-Bold.otf</font>
-        <font weight="400" style="normal">NotoSansMalayalamUI-VF.ttf</font>
-        <font weight="700" style="normal">NotoSansMalayalamUI-VF.ttf</font>
+        <font weight="400" style="normal" tag_wght="400" font_name="Noto Sans Malayalam UI" postscript_name="NotoSansMalayalamUI-Regular">NotoSansMalayalamUI-VF.ttf</font>
+        <font weight="700" style="normal" tag_wght="700" font_name="Noto Sans Malayalam UI Bold" postscript_name="NotoSansMalayalamUI-Bold">NotoSansMalayalamUI-VF.ttf</font>
     </family>
     <family>
         <font weight="400" style="normal">NotoSansBengaliUI-Regular.ttf</font>
         <font weight="400" style="normal">NotoSansBengaliUI-Regular.otf</font>
         <font weight="700" style="normal">NotoSansBengaliUI-Bold.ttf</font>
         <font weight="700" style="normal">NotoSansBengaliUI-Bold.otf</font>
-        <font weight="400" style="normal">NotoSansBengaliUI-VF.ttf</font>
-        <font weight="700" style="normal">NotoSansBengaliUI-VF.ttf</font>
+        <font weight="400" style="normal" tag_wght="400" font_name="Noto Sans Bengali UI" postscript_name="NotoSansBengaliUI-Regular">NotoSansBengaliUI-VF.ttf</font>
+        <font weight="700" style="normal" tag_wght="700" font_name="Noto Sans Bengali UI Bold" postscript_name="NotoSansBengaliUI-Bold">NotoSansBengaliUI-VF.ttf</font>
     </family>
     <family>
         <font weight="400" style="normal">NotoSansTeluguUI-Regular.ttf</font>
         <font weight="700" style="normal">NotoSansTeluguUI-Bold.ttf</font>
-        <font weight="400" style="normal">NotoSansTeluguUI-VF.ttf</font>
-        <font weight="700" style="normal">NotoSansTeluguUI-VF.ttf</font>
+        <font weight="400" style="normal" tag_wght="400" font_name="Noto Sans Telugu UI" postscript_name="NotoSansTeluguUI-Regular">NotoSansTeluguUI-VF.ttf</font>
+        <font weight="700" style="normal" tag_wght="700" font_name="Noto Sans Telugu UI Bold" postscript_name="NotoSansTeluguUI-Bold">NotoSansTeluguUI-VF.ttf</font>
     </family>
     <family>
         <font weight="400" style="normal">NotoSansKannadaUI-Regular.ttf</font>
         <font weight="700" style="normal">NotoSansKannadaUI-Bold.ttf</font>
-        <font weight="400" style="normal">NotoSansKannadaUI-VF.ttf</font>
-        <font weight="700" style="normal">NotoSansKannadaUI-VF.ttf</font>
+        <font weight="400" style="normal" tag_wght="400" font_name="Noto Sans Kannada UI" postscript_name="NotoSansKannadaUI-Regular">NotoSansKannadaUI-VF.ttf</font>
+        <font weight="700" style="normal" tag_wght="700" font_name="Noto Sans Kannada UI Bold" postscript_name="NotoSansKannadaUI-Bold">NotoSansKannadaUI-VF.ttf</font>
     </family>
     <family>
         <font weight="400" style="normal">NotoSansOriyaUI-Regular.ttf</font>
@@ -267,8 +269,8 @@
         <font weight="400" style="normal">NotoSansSinhala-Regular.otf</font>
         <font weight="700" style="normal">NotoSansSinhala-Bold.ttf</font>
         <font weight="700" style="normal">NotoSansSinhala-Bold.otf</font>
-        <font weight="400" style="normal">NotoSansSinhala-VF.ttf</font>
-        <font weight="700" style="normal">NotoSansSinhala-VF.ttf</font>
+        <font weight="400" style="normal" tag_wght="400" font_name="Noto Sans Sinhala" postscript_name="NotoSansSinhala-Regular">NotoSansSinhala-VF.ttf</font>
+        <font weight="700" style="normal" tag_wght="700" font_name="Noto Sans Sinhala Bold" postscript_name="NotoSansSinhala-Bold">NotoSansSinhala-VF.ttf</font>
     </family>
     <family>
         <font weight="400" style="normal">NotoSansKhmerUI-Regular.ttf</font>
@@ -557,12 +559,12 @@
         files on the android OS.
     -->
     <family>
-            <font weight="400" style="normal">NotoSansAdlam-VF.ttf</font>
-            <font weight="700" style="normal">NotoSansAdlam-VF.ttf</font>
+            <font weight="400" style="normal" tag_wght="400" font_name="Noto Sans Adlam" postscript_name="NotoSansAdlam-Regular">NotoSansAdlam-VF.ttf</font>
+            <font weight="700" style="normal" tag_wght="700" font_name="Noto Sans Adlam Bold" postscript_name="NotoSansAdlam-Bold">NotoSansAdlam-VF.ttf</font>
     </family>
     <family>
-            <font weight="400" style="normal">NotoSansGeorgian-VF.ttf</font>
-            <font weight="700" style="normal">NotoSansGeorgian-VF.ttf</font>
+            <font weight="400" style="normal" tag_wght="400" font_name="Noto Sans Georgian" postscript_name="NotoSansGeorgian-Regular">NotoSansGeorgian-VF.ttf</font>
+            <font weight="700" style="normal" tag_wght="700" font_name="Noto Sans Georgian Bold" postscript_name="NotoSansGeorgian-Bold">NotoSansGeorgian-VF.ttf</font>
     </family>
     <family>
             <font weight="400" style="normal">NotoSansOsage-Regular.ttf</font>
