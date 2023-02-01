@@ -70,15 +70,17 @@ def _IsWindows():
   return sys.platform in ['win32']
 
 
+class InvalidArchiveExtensionException(RuntimeError):
+  pass
+
+
 def _CheckArchiveExtension(archive_path, is_parallel):
   if is_parallel and (_LINUX_PARALLEL_ZIP_EXTENSION not in archive_path):
-    raise RuntimeError(
-        'Invalid archive extension. Parallelized zip requested, but path is %s'
-        % archive_path)
+    raise InvalidArchiveExtensionException(
+        f'Parallelized zip requested, but path is {archive_path}')
   if not is_parallel and (_LINUX_PARALLEL_ZIP_EXTENSION in archive_path):
-    raise RuntimeError(
-        'Invalid archive extension. Serialized zip requested, but path is: %s' %
-        archive_path)
+    raise InvalidArchiveExtensionException(
+        f'Serialized zip requested, but path is: {archive_path}')
 
 
 def _CreateCompressedArchive(source_paths,
@@ -138,12 +140,11 @@ def _CreateCompressedArchive(source_paths,
       logging.info('included subpaths: %s', included_paths)
 
       if not os.path.exists(source_path):
-        raise ValueError('Failed to find source path "{}".'.format(source_path))
+        raise ValueError(f'Failed to find source path "{source_path}".')
 
       for target_path in included_paths:
         if not os.path.exists(os.path.join(source_path, target_path)):
-          raise ValueError(
-              'Failed to find target path "{}".'.format(target_path))
+          raise ValueError(f'Failed to find target path "{target_path}".')
 
       source_parent_dir, source_dir_name = os.path.split(
           os.path.abspath(source_path))
@@ -253,7 +254,7 @@ def _CreateWindowsTarCmd(source_path, intermediate_tar_path, patterns,
   if intermediate:
     exclude_patterns = worker_tools.BUILDBOT_INTERMEDIATE_FILE_NAMES_WILDCARDS
   excludes = ' '.join([
-      '-xr!{}'.format(x.replace(worker_tools.SOURCE_DIR, source_path))
+      f'-xr!{x.replace(worker_tools.SOURCE_DIR, source_path)}'
       for x in exclude_patterns
   ])
   contents = [
@@ -261,9 +262,9 @@ def _CreateWindowsTarCmd(source_path, intermediate_tar_path, patterns,
       for pattern in patterns
       if glob.glob(os.path.join(source_path, pattern))
   ]
-  return '"{}" a {} -bsp1 -snl -ttar {} {}'.format(_7Z_PATH, excludes,
-                                                   intermediate_tar_path,
-                                                   ' '.join(contents))
+  files_to_tar = ' '.join(contents)
+  return (f'"{_7Z_PATH}" a {excludes} -bsp1 -snl -ttar'
+          f'{intermediate_tar_path} {files_to_tar}')
 
 
 def _CreateLinuxTarCmd(source_path, intermediate_tar_path, patterns,
@@ -272,7 +273,7 @@ def _CreateLinuxTarCmd(source_path, intermediate_tar_path, patterns,
   if intermediate:
     exclude_patterns = worker_tools.BUILDBOT_INTERMEDIATE_FILE_NAMES_WILDCARDS
   excludes = ' '.join([
-      '--exclude="{}"'.format(x.replace(worker_tools.SOURCE_DIR, source_path))
+      f'--exclude="{x.replace(worker_tools.SOURCE_DIR, source_path)}"'
       for x in exclude_patterns
   ])
   mode = 'r' if os.path.exists(intermediate_tar_path) else 'c'
@@ -281,42 +282,38 @@ def _CreateLinuxTarCmd(source_path, intermediate_tar_path, patterns,
       for pattern in patterns
       if glob.glob(os.path.join(source_path, pattern))
   ]
-  return 'tar -{}vf {} --format=posix {} {}'.format(mode, intermediate_tar_path,
-                                                    excludes,
-                                                    ' '.join(contents))
+  files_to_tar = ' '.join(contents)
+  return (f'tar -{mode}vf {intermediate_tar_path} --format=posix'
+          f'{excludes} {files_to_tar}')
 
 
 def _CreateUntarCommand(intermediate_tar_path):
   if _IsWindows():
-    return '"{}" x -bsp1 {}'.format(_7Z_PATH, intermediate_tar_path)
+    return f'"{_7Z_PATH}" x -bsp1 {intermediate_tar_path}'
   else:
-    return 'tar -xvf {}'.format(intermediate_tar_path)
+    return f'tar -xvf {intermediate_tar_path}'
 
 
 def _CreateZipCommand(intermediate_tar_path, dest_path, is_parallel=False):
   if _IsWindows():
-    return '"{}" a -bsp1 -mx={} -mmt=on {} {}'.format(_7Z_PATH,
-                                                      _COMPRESSION_LEVEL,
-                                                      dest_path,
-                                                      intermediate_tar_path)
+    return (f'"{_7Z_PATH}" a -bsp1 -mx={_COMPRESSION_LEVEL}'
+            f'-mmt=on {dest_path} {intermediate_tar_path}')
   else:
     zip_program = (
         _LINUX_PARALLEL_ZIP_PROGRAM
         if is_parallel else _LINUX_SERIAL_ZIP_PROGRAM)
-    return '{} -vc -1 {} > {}'.format(zip_program, intermediate_tar_path,
-                                      dest_path)
+    return f'{zip_program} -vc -1 {intermediate_tar_path} > {dest_path}'
 
 
 def _CreateUnzipCommand(source_path, intermediate_tar_path, is_parallel=False):
   if _IsWindows():
     tar_parent = os.path.dirname(intermediate_tar_path)
-    return '"{}" x -bsp1 {} -o{}'.format(_7Z_PATH, source_path, tar_parent)
+    return f'"{_7Z_PATH}" x -bsp1 {source_path} -o{tar_parent}'
   else:
     zip_program = (
         _LINUX_PARALLEL_ZIP_PROGRAM
         if is_parallel else _LINUX_SERIAL_ZIP_PROGRAM)
-    return '{} -dvc {} > {}'.format(zip_program, source_path,
-                                    intermediate_tar_path)
+    return f'{zip_program} -dvc {source_path} > {intermediate_tar_path}'
 
 
 def _CleanUp(intermediate_tar_path):

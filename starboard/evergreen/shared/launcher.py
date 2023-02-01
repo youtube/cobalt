@@ -80,9 +80,9 @@ class Launcher(abstract_launcher.AbstractLauncher):
     # The relationship of loader platforms and configurations to evergreen
     # platforms and configurations is many-to-many. We need a separate directory
     # for each of them, i.e. linux-x64x11_debug__evergreen-x64_gold.
-    self.combined_config = '{}_{}__{}_{}'.format(self.loader_platform,
-                                                 self.loader_config, platform,
-                                                 config)
+    loader_build_name = f'{self.loader_platform}_{self.loader_config}'
+    target_build_name = f'{platform}_{config}'
+    self.combined_config = f'{loader_build_name}__{target_build_name}'
 
     self.staging_directory = os.path.join(
         os.path.dirname(self.out_directory), _BASE_STAGING_DIRECTORY,
@@ -94,8 +94,9 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
     # Ensure the path, relative to the content of the ELF Loader, to the
     # Evergreen target and its content are passed as command line switches.
-    library_path_param = '--evergreen_library=app/{}/lib/lib{}'.format(
-        self.target_name, self.target_name)
+    library_path_value = os.path.join('app', self.target_name, 'lib',
+                                      f'lib{self.target_name}')
+    library_path_param = f'--evergreen_library={library_path_value}'
     if self.use_compressed_library:
       if self.target_name != 'cobalt':
         raise ValueError(
@@ -106,7 +107,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
     target_command_line_params = [
         library_path_param,
-        '--evergreen_content=app/{}/content'.format(self.target_name)
+        f'--evergreen_content=app/{self.target_name}/content'
     ]
 
     if self.target_command_line_params:
@@ -211,7 +212,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
     target_content_dst = os.path.join(target_staging_dir, 'content')
     shutil.copytree(target_content_src, target_content_dst)
 
-    shlib_name = 'lib{}'.format(self.target_name)
+    shlib_name = f'lib{self.target_name}'
     shlib_name += '.lz4' if self.use_compressed_library else '.so'
     target_binary_src = os.path.join(target_install_path, 'lib', shlib_name)
     target_binary_dst = os.path.join(target_staging_dir, 'lib', shlib_name)
@@ -265,7 +266,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
     target_content_dst = os.path.join(target_staging_dir, 'content')
     shutil.copytree(target_content_src, target_content_dst)
 
-    shlib_name = 'lib{}'.format(self.target_name)
+    shlib_name = f'lib{self.target_name}'
     shlib_name += '.lz4' if self.use_compressed_library else '.so'
     target_binary_src = os.path.join(target_install_path, 'lib', shlib_name)
     target_binary_dst = os.path.join(target_staging_dir, 'lib', shlib_name)
