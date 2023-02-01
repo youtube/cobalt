@@ -275,11 +275,11 @@ void ApplicationAndroid::ProcessAndroidCommand() {
       // early in SendAndroidCommand().
       {
         ScopedLock lock(android_command_mutex_);
-        // Cobalt can't keep running without a window, even if the Activity
-        // hasn't stopped yet. Block until conceal event has been processed.
+// Cobalt can't keep running without a window, even if the Activity
+// hasn't stopped yet. Block until conceal event has been processed.
 
-        // Only process injected events -- don't check system events since
-        // that may try to acquire the already-locked android_command_mutex_.
+// Only process injected events -- don't check system events since
+// that may try to acquire the already-locked android_command_mutex_.
 #if SB_API_VERSION >= 13
         InjectAndProcess(kSbEventTypeConceal, /* checkSystemEvents */ false);
 #else
