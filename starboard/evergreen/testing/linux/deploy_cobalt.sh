@@ -20,14 +20,7 @@ function deploy_cobalt() {
     exit 1
   fi
 
-  declare staging_dir=""
-  if [[ -e "${OUT}/deploy/loader_app" ]]; then
-    # Expected after launcher is run for a GYP build.
-    staging_dir="${OUT}/deploy/loader_app"
-  else
-    # Expected after launcher is run for a GN build.
-    staging_dir="${OUT}"
-  fi
+  staging_dir="${OUT}"
 
   echo " Checking '${staging_dir}'"
 
