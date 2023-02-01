@@ -22,7 +22,6 @@
 namespace sbwin32 = starboard::shared::win32;
 
 bool SbSocketSetTcpKeepAlive(SbSocket socket, bool value, SbTime period) {
-  const DWORD should_set_keepalive = value;
   bool result = sbwin32::SetBooleanSocketOption(
       socket, SOL_SOCKET, SO_KEEPALIVE, "SO_KEEPALIVE", value);
   return result;
