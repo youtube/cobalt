@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//cobalt/media/testing/data/sha_files.gni")
+import("//cobalt/media/testing/data/sha1_files.gni")
 
 action("cobalt_media_download_test_data") {
   install_content = true
@@ -20,11 +20,11 @@ action("cobalt_media_download_test_data") {
   script = "//tools/download_from_gcs.py"
 
   sha_sources = []
-  foreach(sha_file, sha1_files) {
+  foreach(sha1_file, sha1_files) {
     sha_sources += [ string_join("/",
                                  [
                                    "data",
-                                   sha_file,
+                                   sha1_file,
                                  ]) ]
   }
 
