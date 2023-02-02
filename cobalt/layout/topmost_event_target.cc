@@ -129,17 +129,17 @@ scoped_refptr<dom::HTMLElement> FindFirstElementWithScrollType(
   return nullptr;
 }
 
-bool TransformCanBeAppliedToBox(const Box* box, math::Vector2dF coordinate) {
+bool TransformCanBeAppliedToBox(const Box* box, math::Vector2dF* coordinate) {
   return !box->IsTransformed() || box->ApplyTransformActionToCoordinate(
-                                      Box::kEnterTransform, &coordinate);
+                                      Box::kEnterTransform, coordinate);
 }
 
-bool CoordinateCanTargetBox(const Box* box, math::Vector2dF coordinate) {
+bool CoordinateCanTargetBox(const Box* box, math::Vector2dF* coordinate) {
   if (!cssom::IsOverflowCropped(box->computed_style())) {
     return true;
   }
-  LayoutUnit coordinate_x(coordinate.x());
-  LayoutUnit coordinate_y(coordinate.y());
+  LayoutUnit coordinate_x(coordinate->x());
+  LayoutUnit coordinate_y(coordinate->y());
 
   bool transform_forms_root = false;
   auto padding_box = box->GetClampedPaddingBox(transform_forms_root);
@@ -147,7 +147,7 @@ bool CoordinateCanTargetBox(const Box* box, math::Vector2dF coordinate) {
 }
 
 bool ShouldConsiderElementAndChildren(dom::Element* element,
-                                      math::Vector2dF coordinate) {
+                                      math::Vector2dF* coordinate) {
   LayoutBoxes* layout_boxes = GetLayoutBoxesIfNotEmpty(element);
   const Box* box = layout_boxes->boxes().front();
   if (!box->computed_style()) {
@@ -165,7 +165,7 @@ void TopmostEventTarget::ConsiderElement(dom::Element* element,
   math::Vector2dF element_coordinate(coordinate);
   LayoutBoxes* layout_boxes = GetLayoutBoxesIfNotEmpty(element);
   if (layout_boxes) {
-    if (!ShouldConsiderElementAndChildren(element, element_coordinate)) {
+    if (!ShouldConsiderElementAndChildren(element, &element_coordinate)) {
       return;
     }
     scoped_refptr<dom::HTMLElement> html_element = element->AsHTMLElement();
