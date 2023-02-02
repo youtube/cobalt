@@ -14,6 +14,8 @@
 
 #include "starboard/linux/x64x11/system_get_property_impl.h"
 
+#include <string>
+
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/linux/x64x11/system_properties.h"
@@ -58,31 +60,53 @@ bool GetSystemProperty(SbSystemPropertyId property_id,
     return false;
   }
 
+  std::string env_value;
   switch (property_id) {
     case kSbSystemPropertyBrandName:
-      return CopyStringAndTestIfSuccess(out_value, value_length, kBrandName);
+      env_value = GetEnvironment("COBALT_TESTING_BRAND_NAME");
+      return CopyStringAndTestIfSuccess(
+          out_value, value_length,
+          env_value.empty() ? kBrandName : env_value.c_str());
     case kSbSystemPropertyCertificationScope:
       if (kCertificationScope[0] == '\0')
         return false;
       return CopyStringAndTestIfSuccess(out_value, value_length,
                                         kCertificationScope);
     case kSbSystemPropertyChipsetModelNumber:
-      return CopyStringAndTestIfSuccess(out_value, value_length,
-                                        kChipsetModelNumber);
+      env_value = GetEnvironment("COBALT_TESTING_CHIPSET_MODEL_NUMBER");
+      return CopyStringAndTestIfSuccess(
+          out_value, value_length,
+          env_value.empty() ? kChipsetModelNumber : env_value.c_str());
     case kSbSystemPropertyFirmwareVersion:
-      return CopyStringAndTestIfSuccess(out_value, value_length,
-                                        kFirmwareVersion);
+      env_value = GetEnvironment("COBALT_TESTING_FIRMWARE_VERSION");
+      return CopyStringAndTestIfSuccess(
+          out_value, value_length,
+          env_value.empty() ? kFirmwareVersion : env_value.c_str());
     case kSbSystemPropertyFriendlyName:
-      return CopyStringAndTestIfSuccess(out_value, value_length, kFriendlyName);
+      env_value = GetEnvironment("COBALT_TESTING_FRIENDLY_NAME");
+      return CopyStringAndTestIfSuccess(
+          out_value, value_length,
+          env_value.empty() ? kFriendlyName : env_value.c_str());
     case kSbSystemPropertyModelName:
-      return CopyStringAndTestIfSuccess(out_value, value_length, kModelName);
+      env_value = GetEnvironment("COBALT_TESTING_MODEL_NAME");
+      return CopyStringAndTestIfSuccess(
+          out_value, value_length,
+          env_value.empty() ? kModelName : env_value.c_str());
     case kSbSystemPropertyModelYear:
-      return CopyStringAndTestIfSuccess(out_value, value_length, kModelYear);
+      env_value = GetEnvironment("COBALT_TESTING_MODEL_YEAR");
+      return CopyStringAndTestIfSuccess(
+          out_value, value_length,
+          env_value.empty() ? kModelYear : env_value.c_str());
     case kSbSystemPropertyPlatformName:
-      return CopyStringAndTestIfSuccess(out_value, value_length, kPlatformName);
+      env_value = GetEnvironment("COBALT_TESTING_PLATFORM_NAME");
+      return CopyStringAndTestIfSuccess(
+          out_value, value_length,
+          env_value.empty() ? kPlatformName : env_value.c_str());
     case kSbSystemPropertySystemIntegratorName:
-      return CopyStringAndTestIfSuccess(out_value, value_length,
-                                        kSystemIntegratorName);
+      env_value = GetEnvironment("COBALT_TESTING_SYSTEM_INTEGRATOR_NAME");
+      return CopyStringAndTestIfSuccess(
+          out_value, value_length,
+          env_value.empty() ? kSystemIntegratorName : env_value.c_str());
     case kSbSystemPropertySpeechApiKey:
     case kSbSystemPropertyUserAgentAuxField:
       return false;
