@@ -21,6 +21,9 @@
 #include "starboard/android/shared/platform_service.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
+#if SB_IS(EVERGREEN_COMPATIBLE)
+#include "starboard/elf_loader/evergreen_config.h"  // nogncheck
+#endif
 #include "starboard/extension/configuration.h"
 #include "starboard/extension/crash_handler.h"
 #include "starboard/extension/graphics.h"
@@ -28,6 +31,17 @@
 #include "starboard/extension/platform_service.h"
 
 const void* SbSystemGetExtension(const char* name) {
+#if SB_IS(EVERGREEN_COMPATIBLE)
+  const starboard::elf_loader::EvergreenConfig* evergreen_config =
+      starboard::elf_loader::EvergreenConfig::GetInstance();
+  if (evergreen_config != NULL &&
+      evergreen_config->custom_get_extension_ != NULL) {
+    const void* ext = evergreen_config->custom_get_extension_(name);
+    if (ext != NULL) {
+      return ext;
+    }
+  }
+#endif
   if (strcmp(name, kCobaltExtensionPlatformServiceName) == 0) {
     return starboard::android::shared::GetPlatformServiceApi();
   }
