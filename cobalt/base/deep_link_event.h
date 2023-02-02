@@ -16,20 +16,28 @@
 #define COBALT_BASE_DEEP_LINK_EVENT_H_
 
 #include <string>
+#include <utility>
 
 #include "base/callback.h"
 #include "base/compiler_specific.h"
 #include "base/strings/string_util.h"
 #include "cobalt/base/event.h"
+#include "cobalt/base/polymorphic_downcast.h"
 
 namespace base {
 
 class DeepLinkEvent : public Event {
  public:
   DeepLinkEvent(const std::string& link, const base::Closure& consumed_callback)
-      : link_(link), consumed_callback_(consumed_callback) {}
+      : link_(link), consumed_callback_(std::move(consumed_callback)) {}
+  explicit DeepLinkEvent(const Event* event) {
+    const base::DeepLinkEvent* deep_link_event =
+        base::polymorphic_downcast<const base::DeepLinkEvent*>(event);
+    link_ = deep_link_event->link();
+    consumed_callback_ = deep_link_event->callback();
+  }
   const std::string& link() const { return link_; }
-  const base::Closure& callback() const { return consumed_callback_; }
+  base::Closure callback() const { return consumed_callback_; }
 
   BASE_EVENT_SUBCLASS(DeepLinkEvent);
 
