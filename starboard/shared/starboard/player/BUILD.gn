@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//starboard/shared/starboard/player/testdata/sha_files.gni")
+import("//starboard/shared/starboard/player/testdata/sha1_files.gni")
 
 static_library("video_dmp") {
   check_includes = false
@@ -35,11 +35,11 @@ action("player_download_test_data") {
   script = "//tools/download_from_gcs.py"
 
   sha_sources = []
-  foreach(sha_file, sha1_files) {
+  foreach(sha1_file, sha1_files) {
     sha_sources += [ string_join("/",
                                  [
                                    "testdata",
-                                   sha_file,
+                                   sha1_file,
                                  ]) ]
   }
 
