@@ -244,7 +244,7 @@ jobs:
       - name: trigger ${{ matrix.type }} tests on ${{ matrix.platform }} platform
         id: on_device_test
         run: |
-          echo "session_id=$(
+          SESSION_ID=$(
             python3 tools/on_device_tests_gateway_client.py \
               --token ${{ github.token }} \
               --change_id "${{ github.sha }}" \
@@ -270,14 +270,15 @@ jobs:
               --label repository-${{ github.repository }} \
               --label author-${{ github.event.pull_request.head.user.login || github.event.commits[0].author.username }} \
               --label author_id-${{ github.event.pull_request.head.user.id || github.event.commits[0].author.email }}
-          )" >> $GITHUB_ENV
+          )
+          echo "SESSION_ID=$SESSION_ID" >> $GITHUB_ENV
         shell: bash
       - name: watch ${{ matrix.type }} tests on ${{ matrix.platform }} platform
         run: |
           python3 tools/on_device_tests_gateway_client.py \
             --token ${{ github.token }} \
             --change_id "${{ github.sha }}" \
-            watch ${{ env.session_id }}
+            watch ${{ env.SESSION_ID }}
 
   # Runs on-host integration and unit tests.
   on-host-test:
