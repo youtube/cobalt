@@ -227,6 +227,7 @@ public class StarboardBridge {
     for (CobaltService service : cobaltServices.values()) {
       service.beforeStartOrResume();
     }
+    advertisingId.refresh();
   }
 
   @SuppressWarnings("unused")

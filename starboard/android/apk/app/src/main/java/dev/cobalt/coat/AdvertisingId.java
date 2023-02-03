@@ -17,6 +17,7 @@ package dev.cobalt.coat;
 import static dev.cobalt.util.Log.TAG;
 
 import android.content.Context;
+import androidx.annotation.GuardedBy;
 import com.google.android.gms.ads.identifier.AdvertisingIdClient;
 import com.google.android.gms.common.GooglePlayServicesNotAvailableException;
 import com.google.android.gms.common.GooglePlayServicesRepairableException;
@@ -29,27 +30,28 @@ import java.util.concurrent.Executors;
 public class AdvertisingId {
   private final Context context;
   private final ExecutorService singleThreadExecutor;
-  private long lastRefreshed;
-  private final long cacheTtlMs = 1000 * 60 * 10; // 10 minutes.
-  private AdvertisingIdClient.Info advertisingIdInfo;
+
+  @GuardedBy("advertisingIdInfoLock")
+  private volatile AdvertisingIdClient.Info advertisingIdInfo;
+  // Controls access to advertisingIdInfo
+  private final Object advertisingIdInfoLock = new Object();
 
   public AdvertisingId(Context context) {
     this.context = context;
-    this.lastRefreshed = 0;
     this.singleThreadExecutor = Executors.newSingleThreadExecutor();
+    this.advertisingIdInfo = null;
     refresh();
   }
 
-  private void refresh() {
-    if (System.currentTimeMillis() - lastRefreshed < cacheTtlMs) {
-      // Cache is up to date.
-      return;
-    }
+  public void refresh() {
     singleThreadExecutor.execute(
         () -> {
           try {
-            advertisingIdInfo = AdvertisingIdClient.getAdvertisingIdInfo(context);
-            lastRefreshed = System.currentTimeMillis();
+            // The following statement may be slow.
+            AdvertisingIdClient.Info info = AdvertisingIdClient.getAdvertisingIdInfo(context);
+            synchronized (advertisingIdInfoLock) {
+              advertisingIdInfo = info;
+            }
             Log.i(TAG, "Successfully retrieved Advertising ID (IfA).");
           } catch (IOException
               | GooglePlayServicesNotAvailableException
@@ -61,20 +63,24 @@ public class AdvertisingId {
 
   public String getId() {
     String result = "";
-    if (lastRefreshed != 0) {
-      result = advertisingIdInfo.getId();
-      refresh();
+    synchronized (advertisingIdInfoLock) {
+      if (advertisingIdInfo != null) {
+        result = advertisingIdInfo.getId();
+      }
     }
+    refresh();
     Log.d(TAG, "Returning IfA getId: " + result);
     return result;
   }
 
   public boolean isLimitAdTrackingEnabled() {
     boolean result = false;
-    if (lastRefreshed != 0) {
-      result = advertisingIdInfo.isLimitAdTrackingEnabled();
-      refresh();
+    synchronized (advertisingIdInfoLock) {
+      if (advertisingIdInfo != null) {
+        result = advertisingIdInfo.isLimitAdTrackingEnabled();
+      }
     }
+    refresh();
     Log.d(TAG, "Returning IfA LimitedAdTrackingEnabled: " + Boolean.toString(result));
     return result;
   }
