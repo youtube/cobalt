@@ -198,6 +198,8 @@ class SbPlayerBridge {
 
   void WriteNextBuffersFromCache(DemuxerStream::Type type,
                                  int max_buffers_per_write);
+
+  template <typename PlayerSampleInfo>
   void WriteBuffersInternal(
       DemuxerStream::Type type,
       const std::vector<scoped_refptr<DecoderBuffer>>& buffers);
@@ -256,8 +258,10 @@ class SbPlayerBridge {
   // |task_runner_|.
   AudioDecoderConfig audio_config_;
   VideoDecoderConfig video_config_;
-  SbMediaAudioSampleInfo audio_sample_info_ = {};
-  SbMediaVideoSampleInfo video_sample_info_ = {};
+  // TODO(b/268098991): Replace them with AudioStreamInfo and VideoStreamInfo
+  //                    wrapper classes.
+  SbMediaAudioStreamInfo audio_stream_info_ = {};
+  SbMediaVideoStreamInfo video_stream_info_ = {};
   DecodingBuffers decoding_buffers_;
   int ticket_ = SB_PLAYER_INITIAL_TICKET;
   float volume_ = 1.0f;

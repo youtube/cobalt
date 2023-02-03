@@ -61,7 +61,7 @@ SbPlayerSampleInfo ConvertToPlayerSampleInfo(
   sample_info.timestamp = audio_unit.timestamp();
   sample_info.drm_info = audio_unit.drm_sample_info();
   sample_info.type = kSbMediaTypeAudio;
-  sample_info.audio_sample_info = audio_unit.audio_sample_info();
+  audio_unit.audio_sample_info().ConvertTo(&sample_info.audio_sample_info);
   return sample_info;
 }
 
@@ -73,7 +73,7 @@ SbPlayerSampleInfo ConvertToPlayerSampleInfo(
   sample_info.timestamp = video_unit.timestamp();
   sample_info.drm_info = video_unit.drm_sample_info();
   sample_info.type = kSbMediaTypeVideo;
-  sample_info.video_sample_info = video_unit.video_sample_info();
+  video_unit.video_sample_info().ConvertTo(&sample_info.video_sample_info);
   return sample_info;
 }
 
@@ -152,7 +152,9 @@ std::string VideoDmpReader::audio_mime_type() const {
     default:
       SB_NOTREACHED();
   }
-  ss << " channels=" << dmp_info_.audio_sample_info.number_of_channels;
+
+  ss << " channels="
+     << dmp_info_.audio_sample_info.stream_info.number_of_channels;
   return ss.str();
 }
 
@@ -176,10 +178,9 @@ std::string VideoDmpReader::video_mime_type() {
       SB_NOTREACHED();
   }
   if (number_of_video_buffers() > 0) {
-    const auto& video_sample_info =
-        GetPlayerSampleInfo(kSbMediaTypeVideo, 0).video_sample_info;
-    ss << "width=" << video_sample_info.frame_width
-       << "; height=" << video_sample_info.frame_height << ";";
+    const auto& video_stream_info = this->video_stream_info();
+    ss << "width=" << video_stream_info.frame_width
+       << "; height=" << video_stream_info.frame_height << ";";
   }
   ss << " framerate=" << dmp_info_.video_fps;
   return ss.str();
@@ -205,7 +206,7 @@ SbPlayerSampleInfo VideoDmpReader::GetPlayerSampleInfo(SbMediaType type,
   return SbPlayerSampleInfo();
 }
 
-const SbMediaAudioSampleInfo& VideoDmpReader::GetAudioSampleInfo(size_t index) {
+const media::AudioSampleInfo& VideoDmpReader::GetAudioSampleInfo(size_t index) {
   EnsureSampleLoaded(kSbMediaTypeAudio, index);
 
   SB_DCHECK(index < audio_access_units_.size());
@@ -251,6 +252,8 @@ bool VideoDmpReader::ParseOneRecord() {
       if (dmp_info_.audio_codec != kSbMediaAudioCodecNone) {
         Read(read_cb_, reverse_byte_order_.value(),
              &dmp_info_.audio_sample_info);
+        SB_DCHECK(dmp_info_.audio_codec ==
+                  dmp_info_.audio_sample_info.stream_info.codec);
       }
       break;
     case kRecordTypeVideoConfig:
@@ -363,12 +366,12 @@ VideoDmpReader::AudioAccessUnit VideoDmpReader::ReadAudioAccessUnit() {
   std::vector<uint8_t> data(size);
   Read(read_cb_, data.data(), size);
 
-  SbMediaAudioSampleInfoWithConfig audio_sample_info;
+  media::AudioSampleInfo audio_sample_info;
   Read(read_cb_, reverse_byte_order_.value(), &audio_sample_info);
 
   return AudioAccessUnit(timestamp,
                          drm_sample_info_present ? &drm_sample_info : NULL,
-                         std::move(data), audio_sample_info);
+                         std::move(data), std::move(audio_sample_info));
 }
 
 VideoDmpReader::VideoAccessUnit VideoDmpReader::ReadVideoAccessUnit() {
@@ -388,12 +391,12 @@ VideoDmpReader::VideoAccessUnit VideoDmpReader::ReadVideoAccessUnit() {
   std::vector<uint8_t> data(size);
   Read(read_cb_, data.data(), size);
 
-  SbMediaVideoSampleInfoWithOptionalColorMetadata video_sample_info;
+  media::VideoSampleInfo video_sample_info;
   Read(read_cb_, reverse_byte_order_.value(), &video_sample_info);
 
   return VideoAccessUnit(timestamp,
                          drm_sample_info_present ? &drm_sample_info : NULL,
-                         std::move(data), video_sample_info);
+                         std::move(data), std::move(video_sample_info));
 }
 
 // static

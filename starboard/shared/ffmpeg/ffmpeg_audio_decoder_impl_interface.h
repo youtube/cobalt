@@ -18,6 +18,7 @@
 #include "starboard/media.h"
 #include "starboard/shared/ffmpeg/ffmpeg_audio_decoder.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/starboard/media/media_util.h"
 
 namespace starboard {
 namespace shared {
@@ -28,8 +29,7 @@ namespace ffmpeg {
 template <int V>
 class AudioDecoderImpl : public AudioDecoder {
  public:
-  static AudioDecoder* Create(SbMediaAudioCodec audio_codec,
-                              const SbMediaAudioSampleInfo& audio_sample_info);
+  static AudioDecoder* Create(const AudioStreamInfo& audio_stream_info);
 };
 
 }  // namespace ffmpeg

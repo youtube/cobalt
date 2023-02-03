@@ -30,13 +30,13 @@
 #include "starboard/shared/starboard/player/video_dmp_writer.h"
 #endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER
 
+using ::starboard::shared::media_session::kPlaying;
 using ::starboard::shared::media_session::
     UpdateActiveSessionPlatformPlaybackState;
-using ::starboard::shared::media_session::kPlaying;
 using ::starboard::shared::starboard::media::MimeType;
+using ::starboard::shared::starboard::player::PlayerWorker;
 using ::starboard::shared::starboard::player::filter::
     FilterBasedPlayerWorkerHandler;
-using ::starboard::shared::starboard::player::PlayerWorker;
 
 SbPlayer SbPlayerCreate(SbWindow window,
                         const SbPlayerCreationParam* creation_param,
@@ -58,35 +58,43 @@ SbPlayer SbPlayerCreate(SbWindow window,
     return kSbPlayerInvalid;
   }
 
-  bool has_audio =
-      creation_param->audio_sample_info.codec != kSbMediaAudioCodecNone;
-  bool has_video =
-      creation_param->video_sample_info.codec != kSbMediaVideoCodecNone;
+#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+  const SbMediaAudioStreamInfo& audio_stream_info =
+      creation_param->audio_stream_info;
+  const SbMediaVideoStreamInfo& video_stream_info =
+      creation_param->video_stream_info;
+#else   // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+  const SbMediaAudioSampleInfo& audio_stream_info =
+      creation_param->audio_sample_info;
+  const SbMediaVideoSampleInfo& video_stream_info =
+      creation_param->video_sample_info;
+#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
 
-  const char* audio_mime =
-      has_audio ? creation_param->audio_sample_info.mime : "";
-  const char* video_mime =
-      has_video ? creation_param->video_sample_info.mime : "";
+  bool has_audio = audio_stream_info.codec != kSbMediaAudioCodecNone;
+  bool has_video = video_stream_info.codec != kSbMediaVideoCodecNone;
+
+  const char* audio_mime = has_audio ? audio_stream_info.mime : "";
+  const char* video_mime = has_video ? video_stream_info.mime : "";
   const char* max_video_capabilities =
-      has_video ? creation_param->video_sample_info.max_video_capabilities : "";
+      has_video ? video_stream_info.max_video_capabilities : "";
 
   if (!audio_mime) {
-    SB_LOG(ERROR) << "creation_param->audio_sample_info.mime cannot be null.";
+    SB_LOG(ERROR) << "creation_param->audio_stream_info.mime cannot be null.";
     player_error_func(kSbPlayerInvalid, context, kSbPlayerErrorDecode,
-                      "creation_param->video_sample_info.mime cannot be null");
+                      "creation_param->audio_stream_info.mime cannot be null");
     return kSbPlayerInvalid;
   }
   if (!video_mime) {
-    SB_LOG(ERROR) << "creation_param->video_sample_info.mime cannot be null.";
+    SB_LOG(ERROR) << "creation_param->video_stream_info.mime cannot be null.";
     player_error_func(kSbPlayerInvalid, context, kSbPlayerErrorDecode,
-                      "creation_param->video_sample_info.mime cannot be null");
+                      "creation_param->video_stream_info.mime cannot be null");
     return kSbPlayerInvalid;
   }
   if (!max_video_capabilities) {
-    SB_LOG(ERROR) << "creation_param->video_sample_info.max_video_capabilities"
+    SB_LOG(ERROR) << "creation_param->video_stream_info.max_video_capabilities"
                   << " cannot be null.";
     player_error_func(kSbPlayerInvalid, context, kSbPlayerErrorDecode,
-                      "creation_param->video_sample_info.max_video_"
+                      "creation_param->video_stream_info.max_video_"
                       "capabilities cannot be null");
     return kSbPlayerInvalid;
   }
@@ -96,23 +104,12 @@ SbPlayer SbPlayerCreate(SbWindow window,
                << "\", and max video capabilities \"" << max_video_capabilities
                << "\".";
 
-  SbMediaAudioCodec audio_codec = creation_param->audio_sample_info.codec;
-  SbMediaVideoCodec video_codec = creation_param->video_sample_info.codec;
+  SbMediaAudioCodec audio_codec = audio_stream_info.codec;
+  SbMediaVideoCodec video_codec = video_stream_info.codec;
 #if SB_PLAYER_ENABLE_VIDEO_DUMPER
   SbDrmSystem drm_system = creation_param->drm_system;
 #endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER
-  const SbMediaAudioSampleInfo* audio_sample_info =
-      &creation_param->audio_sample_info;
   const auto output_mode = creation_param->output_mode;
-
-  if (!player_error_func) {
-    SB_LOG(ERROR) << "|player_error_func| cannot be null.";
-    return kSbPlayerInvalid;
-  }
-
-  if (audio_sample_info) {
-    SB_DCHECK(audio_sample_info->codec == audio_codec);
-  }
 
   if (!sample_deallocate_func) {
     SB_LOG(ERROR) << "|sample_deallocate_func| cannot be null.";
@@ -178,17 +175,6 @@ SbPlayer SbPlayerCreate(SbWindow window,
     }
   }
 
-  if (audio_codec != kSbMediaAudioCodecNone && !audio_sample_info) {
-    SB_LOG(ERROR)
-        << "SbPlayerCreate() requires a non-NULL SbMediaAudioSampleInfo "
-        << "when |audio_codec| is not kSbMediaAudioCodecNone.";
-    player_error_func(kSbPlayerInvalid, context, kSbPlayerErrorDecode,
-                      "SbPlayerCreate() requires a non-NULL "
-                      "SbMediaAudioSampleInfo when |audio_codec| is not "
-                      "kSbMediaAudioCodecNone");
-    return kSbPlayerInvalid;
-  }
-
   if (audio_codec == kSbMediaAudioCodecNone &&
       video_codec == kSbMediaVideoCodecNone) {
     SB_LOG(ERROR) << "SbPlayerCreate() requires at least one audio track or"
@@ -200,12 +186,12 @@ SbPlayer SbPlayerCreate(SbWindow window,
   }
 
   std::string error_message;
-  if (audio_sample_info &&
-      audio_sample_info->number_of_channels > SbAudioSinkGetMaxChannels()) {
+  if (audio_stream_info.codec != kSbMediaAudioCodecNone &&
+      audio_stream_info.number_of_channels > SbAudioSinkGetMaxChannels()) {
     error_message = starboard::FormatString(
         "Number of audio channels (%d) exceeds the maximum number of audio "
         "channels supported by this platform (%d)",
-        audio_sample_info->number_of_channels, SbAudioSinkGetMaxChannels());
+        audio_stream_info.number_of_channels, SbAudioSinkGetMaxChannels());
     SB_LOG(ERROR) << error_message << ".";
     player_error_func(kSbPlayerInvalid, context, kSbPlayerErrorDecode,
                       error_message.c_str());
@@ -227,14 +213,13 @@ SbPlayer SbPlayerCreate(SbWindow window,
       new FilterBasedPlayerWorkerHandler(creation_param, provider));
 
   SbPlayer player = SbPlayerPrivate::CreateInstance(
-      audio_codec, video_codec, audio_sample_info, sample_deallocate_func,
-      decoder_status_func, player_status_func, player_error_func, context,
-      handler.Pass());
+      audio_codec, video_codec, sample_deallocate_func, decoder_status_func,
+      player_status_func, player_error_func, context, handler.Pass());
 
 #if SB_PLAYER_ENABLE_VIDEO_DUMPER
   using ::starboard::shared::starboard::player::video_dmp::VideoDmpWriter;
   VideoDmpWriter::OnPlayerCreate(player, audio_codec, video_codec, drm_system,
-                                 audio_sample_info);
+                                 audio_stream_info);
 #endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER
 
   return player;

@@ -215,7 +215,7 @@ VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec,
                            SbPlayerOutputMode output_mode,
                            SbDecodeTargetGraphicsContextProvider*
                                decode_target_graphics_context_provider,
-                           const char* max_video_capabilities,
+                           const std::string& max_video_capabilities,
                            int tunnel_mode_audio_session_id,
                            bool force_secure_pipeline_under_tunnel_mode,
                            bool force_reset_surface_under_tunnel_mode,
@@ -232,8 +232,7 @@ VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec,
           force_reset_surface_under_tunnel_mode),
       has_new_texture_available_(false),
       surface_condition_variable_(surface_destroy_mutex_),
-      require_software_codec_(max_video_capabilities &&
-                              strlen(max_video_capabilities) > 0),
+      require_software_codec_(!max_video_capabilities.empty()),
       force_big_endian_hdr_metadata_(force_big_endian_hdr_metadata),
       force_improved_support_check_(force_improved_support_check) {
   SB_DCHECK(error_message);
@@ -350,7 +349,7 @@ void VideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
     // If color metadata is present and is not an identity mapping, then
     // teardown the codec so it can be reinitalized with the new metadata.
     const auto& color_metadata =
-        input_buffers.front()->video_sample_info().color_metadata;
+        input_buffers.front()->video_stream_info().color_metadata;
     if (!IsIdentity(color_metadata)) {
       SB_DCHECK(!color_metadata_) << "Unexpected residual color metadata.";
       SB_LOG(INFO) << "Reinitializing codec with HDR color metadata.";

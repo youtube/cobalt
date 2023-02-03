@@ -83,85 +83,58 @@ int AlignUp(int value, int alignment) {
 }  // namespace
 
 PlayerComponents::Factory::CreationParameters::CreationParameters(
-    SbMediaAudioCodec audio_codec,
-    const SbMediaAudioSampleInfo& audio_sample_info,
+    const media::AudioStreamInfo& audio_stream_info,
     SbDrmSystem drm_system)
-    : audio_codec_(audio_codec),
-      audio_sample_info_(audio_sample_info),
-      drm_system_(drm_system) {
-  SB_DCHECK(audio_codec_ != kSbMediaAudioCodecNone);
-  TryToCopyAudioSpecificConfig();
+    : audio_stream_info_(audio_stream_info), drm_system_(drm_system) {
+  SB_DCHECK(audio_stream_info_.codec != kSbMediaAudioCodecNone);
 }
 
 PlayerComponents::Factory::CreationParameters::CreationParameters(
-    SbMediaVideoCodec video_codec,
-    const SbMediaVideoSampleInfo& video_sample_info,
+    const media::VideoStreamInfo& video_stream_info,
     SbPlayer player,
     SbPlayerOutputMode output_mode,
     SbDecodeTargetGraphicsContextProvider*
         decode_target_graphics_context_provider,
     SbDrmSystem drm_system)
-    : video_codec_(video_codec),
-      video_sample_info_(video_sample_info),
+    : video_stream_info_(video_stream_info),
       player_(player),
       output_mode_(output_mode),
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
       drm_system_(drm_system) {
-  SB_DCHECK(video_codec_ != kSbMediaVideoCodecNone);
+  SB_DCHECK(video_stream_info_.codec != kSbMediaVideoCodecNone);
   SB_DCHECK(SbPlayerIsValid(player_));
   SB_DCHECK(output_mode_ != kSbPlayerOutputModeInvalid);
 }
 
 PlayerComponents::Factory::CreationParameters::CreationParameters(
-    SbMediaAudioCodec audio_codec,
-    const SbMediaAudioSampleInfo& audio_sample_info,
-    SbMediaVideoCodec video_codec,
-    const SbMediaVideoSampleInfo& video_sample_info,
+    const media::AudioStreamInfo& audio_stream_info,
+    const media::VideoStreamInfo& video_stream_info,
     SbPlayer player,
     SbPlayerOutputMode output_mode,
     SbDecodeTargetGraphicsContextProvider*
         decode_target_graphics_context_provider,
     SbDrmSystem drm_system)
-    : audio_codec_(audio_codec),
-      audio_sample_info_(audio_sample_info),
-      video_codec_(video_codec),
-      video_sample_info_(video_sample_info),
+    : audio_stream_info_(audio_stream_info),
+      video_stream_info_(video_stream_info),
       player_(player),
       output_mode_(output_mode),
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
       drm_system_(drm_system) {
-  SB_DCHECK(audio_codec_ != kSbMediaAudioCodecNone ||
-            video_codec_ != kSbMediaVideoCodecNone);
-  TryToCopyAudioSpecificConfig();
+  SB_DCHECK(audio_stream_info_.codec != kSbMediaAudioCodecNone ||
+            video_stream_info_.codec != kSbMediaVideoCodecNone);
 }
 
 PlayerComponents::Factory::CreationParameters::CreationParameters(
     const CreationParameters& that) {
-  this->audio_codec_ = that.audio_codec_;
-  this->audio_sample_info_ = that.audio_sample_info_;
-  this->video_codec_ = that.video_codec_;
-  this->video_sample_info_ = that.video_sample_info_;
+  this->audio_stream_info_ = that.audio_stream_info_;
+  this->video_stream_info_ = that.video_stream_info_;
   this->player_ = that.player_;
   this->output_mode_ = that.output_mode_;
   this->decode_target_graphics_context_provider_ =
       that.decode_target_graphics_context_provider_;
   this->drm_system_ = that.drm_system_;
-
-  TryToCopyAudioSpecificConfig();
-}
-
-void PlayerComponents::Factory::CreationParameters::
-    TryToCopyAudioSpecificConfig() {
-  if (audio_sample_info_.audio_specific_config_size > 0) {
-    auto audio_specific_config = reinterpret_cast<const uint8_t*>(
-        audio_sample_info_.audio_specific_config);
-    audio_specific_config_.assign(
-        audio_specific_config,
-        audio_specific_config + audio_sample_info_.audio_specific_config_size);
-    audio_sample_info_.audio_specific_config = audio_specific_config_.data();
-  }
 }
 
 scoped_ptr<PlayerComponents> PlayerComponents::Factory::CreateComponents(
@@ -229,7 +202,7 @@ scoped_ptr<PlayerComponents> PlayerComponents::Factory::CreateComponents(
 
     audio_renderer.reset(
         new AudioRendererPcm(audio_decoder.Pass(), audio_renderer_sink.Pass(),
-                             creation_parameters.audio_sample_info(),
+                             creation_parameters.audio_stream_info(),
                              max_cached_frames, min_frames_per_append));
   }
 
@@ -264,13 +237,12 @@ void PlayerComponents::Factory::CreateStubAudioComponents(
   SB_DCHECK(audio_decoder);
   SB_DCHECK(audio_renderer_sink);
 
-  auto decoder_creator = [](const SbMediaAudioSampleInfo& audio_sample_info,
+  auto decoder_creator = [](const media::AudioStreamInfo& audio_stream_info,
                             SbDrmSystem drm_system) {
-    return scoped_ptr<AudioDecoder>(
-        new StubAudioDecoder(audio_sample_info.codec, audio_sample_info));
+    return scoped_ptr<AudioDecoder>(new StubAudioDecoder(audio_stream_info));
   };
   audio_decoder->reset(new AdaptiveAudioDecoder(
-      creation_parameters.audio_sample_info(), creation_parameters.drm_system(),
+      creation_parameters.audio_stream_info(), creation_parameters.drm_system(),
       decoder_creator));
   audio_renderer_sink->reset(new AudioRendererSinkImpl);
 }
@@ -304,11 +276,11 @@ void PlayerComponents::Factory::GetAudioRendererParams(
   // AudioRenderer prefers to use kSbMediaAudioSampleTypeFloat32 and only uses
   // kSbMediaAudioSampleTypeInt16Deprecated when float32 is not supported.
   int min_frames_required = SbAudioSinkGetMinBufferSizeInFrames(
-      creation_parameters.audio_sample_info().number_of_channels,
+      creation_parameters.audio_stream_info().number_of_channels,
       SbAudioSinkIsAudioSampleTypeSupported(kSbMediaAudioSampleTypeFloat32)
           ? kSbMediaAudioSampleTypeFloat32
           : kSbMediaAudioSampleTypeInt16Deprecated,
-      creation_parameters.audio_sample_info().samples_per_second);
+      creation_parameters.audio_stream_info().samples_per_second);
   // Audio renderer would sleep for a while if it thinks there're enough
   // frames in the sink. The sleeping time is 1/4 of |max_cached_frames|. So, to
   // maintain required min buffer size of audio sink, the |max_cached_frames|

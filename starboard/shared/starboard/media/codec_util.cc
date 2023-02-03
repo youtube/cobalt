@@ -49,16 +49,14 @@ VideoConfig::VideoConfig(SbMediaVideoCodec video_codec,
   }
 }
 
-VideoConfig::VideoConfig(const SbMediaVideoSampleInfo& video_sample_info,
+VideoConfig::VideoConfig(const VideoStreamInfo& video_stream_info,
                          const uint8_t* data,
                          size_t size)
-    : VideoConfig(video_sample_info.codec,
-                  video_sample_info.frame_width,
-                  video_sample_info.frame_height,
+    : VideoConfig(video_stream_info.codec,
+                  video_stream_info.frame_width,
+                  video_stream_info.frame_height,
                   data,
-                  size) {
-  SB_DCHECK(video_sample_info.is_key_frame);
-}
+                  size) {}
 
 bool VideoConfig::operator==(const VideoConfig& that) const {
   if (video_codec_ == kSbMediaVideoCodecNone &&

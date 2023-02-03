@@ -21,6 +21,7 @@
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/drm.h"
 #include "starboard/media.h"
+#include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
 #include "starboard/shared/win32/media_common.h"
 #include "starboard/types.h"
@@ -33,10 +34,9 @@ namespace win32 {
 class AbstractWin32AudioDecoder {
  public:
   static scoped_ptr<AbstractWin32AudioDecoder> Create(
-      SbMediaAudioCodec codec,
       SbMediaAudioFrameStorageType audio_frame_fmt,
       SbMediaAudioSampleType sample_type,
-      const SbMediaAudioSampleInfo& audio_sample_info,
+      const starboard::media::AudioStreamInfo& audio_stream_info,
       SbDrmSystem drm_system);
   virtual ~AbstractWin32AudioDecoder() {}
 

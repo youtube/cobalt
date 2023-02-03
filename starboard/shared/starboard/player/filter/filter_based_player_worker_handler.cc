@@ -73,13 +73,19 @@ FilterBasedPlayerWorkerHandler::FilterBasedPlayerWorkerHandler(
     const SbPlayerCreationParam* creation_param,
     SbDecodeTargetGraphicsContextProvider* provider)
     : JobOwner(kDetached),
-      video_codec_(creation_param->video_sample_info.codec),
-      audio_codec_(creation_param->audio_sample_info.codec),
       drm_system_(creation_param->drm_system),
-      audio_sample_info_(creation_param->audio_sample_info),
+#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+      audio_stream_info_(creation_param->audio_stream_info),
+#else   // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+      audio_stream_info_(creation_param->audio_sample_info),
+#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
       output_mode_(creation_param->output_mode),
       decode_target_graphics_context_provider_(provider),
-      video_sample_info_(creation_param->video_sample_info) {
+#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+      video_stream_info_(creation_param->video_stream_info) {
+#else   // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+      video_stream_info_(creation_param->video_sample_info) {
+#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
   update_job_ = std::bind(&FilterBasedPlayerWorkerHandler::Update, this);
 }
 
@@ -110,11 +116,11 @@ bool FilterBasedPlayerWorkerHandler::Init(
       PlayerComponents::Factory::Create();
   SB_DCHECK(factory);
 
-  if (audio_codec_ != kSbMediaAudioCodecNone) {
+  if (audio_stream_info_.codec != kSbMediaAudioCodecNone) {
     // TODO: This is not ideal as we should really handle the creation failure
     // of audio sink inside the audio renderer to give the renderer a chance to
     // resample the decoded audio.
-    const int required_audio_channels = audio_sample_info_.number_of_channels;
+    const int required_audio_channels = audio_stream_info_.number_of_channels;
     const int supported_audio_channels = SbAudioSinkGetMaxChannels();
     if (required_audio_channels > supported_audio_channels) {
       SB_LOG(ERROR) << "Audio channels requested " << required_audio_channels
@@ -129,9 +135,8 @@ bool FilterBasedPlayerWorkerHandler::Init(
   }
 
   PlayerComponents::Factory::CreationParameters creation_parameters(
-      audio_codec_, audio_sample_info_, video_codec_, video_sample_info_,
-      player_, output_mode_, decode_target_graphics_context_provider_,
-      drm_system_);
+      audio_stream_info_, video_stream_info_, player_, output_mode_,
+      decode_target_graphics_context_provider_, drm_system_);
 
   {
     ::starboard::ScopedLock lock(player_components_existence_mutex_);
@@ -148,10 +153,10 @@ bool FilterBasedPlayerWorkerHandler::Init(
     audio_renderer_ = player_components_->GetAudioRenderer();
     video_renderer_ = player_components_->GetVideoRenderer();
   }
-  if (audio_codec_ != kSbMediaAudioCodecNone) {
+  if (audio_stream_info_.codec != kSbMediaAudioCodecNone) {
     SB_DCHECK(audio_renderer_);
   }
-  if (video_codec_ != kSbMediaVideoCodecNone) {
+  if (video_stream_info_.codec != kSbMediaVideoCodecNone) {
     SB_DCHECK(video_renderer_);
   }
   SB_DCHECK(media_time_provider_);

@@ -15,8 +15,11 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_PLAYER_INTERNAL_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_PLAYER_INTERNAL_H_
 
+#include <utility>
+
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/decode_target.h"
+#include "starboard/extension/enhanced_audio.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
@@ -33,7 +36,6 @@ struct SbPlayerPrivate {
   static SbPlayerPrivate* CreateInstance(
       SbMediaAudioCodec audio_codec,
       SbMediaVideoCodec video_codec,
-      const SbMediaAudioSampleInfo* audio_sample_info,
       SbPlayerDeallocateSampleFunc sample_deallocate_func,
       SbPlayerDecoderStatusFunc decoder_status_func,
       SbPlayerStatusFunc player_status_func,
@@ -42,7 +44,8 @@ struct SbPlayerPrivate {
       starboard::scoped_ptr<PlayerWorker::Handler> player_worker_handler);
 
   void Seek(SbTime seek_to_time, int ticket);
-  void WriteSamples(const SbPlayerSampleInfo* sample_infos,
+  template <typename PlayerSampleInfo>
+  void WriteSamples(const PlayerSampleInfo* sample_infos,
                     int number_of_sample_infos);
   void WriteEndOfStream(SbMediaType stream_type);
   void SetBounds(int z_index, int x, int y, int width, int height);
@@ -64,7 +67,6 @@ struct SbPlayerPrivate {
   SbPlayerPrivate(
       SbMediaAudioCodec audio_codec,
       SbMediaVideoCodec video_codec,
-      const SbMediaAudioSampleInfo* audio_sample_info,
       SbPlayerDeallocateSampleFunc sample_deallocate_func,
       SbPlayerDecoderStatusFunc decoder_status_func,
       SbPlayerStatusFunc player_status_func,
@@ -101,5 +103,35 @@ struct SbPlayerPrivate {
 
   static int number_of_players_;
 };
+
+template <typename SampleInfo>
+void SbPlayerPrivate::WriteSamples(const SampleInfo* sample_infos,
+                                   int number_of_sample_infos) {
+  using starboard::shared::starboard::player::InputBuffer;
+  using starboard::shared::starboard::player::InputBuffers;
+
+  SB_DCHECK(sample_infos);
+  SB_DCHECK(number_of_sample_infos > 0);
+
+  InputBuffers input_buffers;
+  input_buffers.reserve(number_of_sample_infos);
+  for (int i = 0; i < number_of_sample_infos; i++) {
+    input_buffers.push_back(new InputBuffer(sample_deallocate_func_, this,
+                                            context_, sample_infos[i]));
+#if SB_PLAYER_ENABLE_VIDEO_DUMPER
+    using ::starboard::shared::starboard::player::video_dmp::VideoDmpWriter;
+    VideoDmpWriter::OnPlayerWriteSample(this, input_buffers.back());
+#endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER
+  }
+
+  const auto& last_input_buffer = input_buffers.back();
+  if (last_input_buffer->sample_type() == kSbMediaTypeVideo) {
+    total_video_frames_ += number_of_sample_infos;
+    frame_width_ = last_input_buffer->video_stream_info().frame_width;
+    frame_height_ = last_input_buffer->video_stream_info().frame_height;
+  }
+
+  worker_->WriteSamples(std::move(input_buffers));
+}
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_PLAYER_INTERNAL_H_

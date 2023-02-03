@@ -158,8 +158,7 @@ TEST_P(VideoDecoderTest, ThreeMoreDecoders) {
           SbMediaAudioSampleInfo dummy_audio_sample_info = {
               kSbMediaAudioCodecNone};
           PlayerComponents::Factory::CreationParameters creation_parameters(
-              fixture_.dmp_reader().video_codec(),
-              CreateVideoSampleInfo(fixture_.dmp_reader().video_codec()),
+              CreateVideoStreamInfo(fixture_.dmp_reader().video_codec()),
               &players[i], output_mode,
               fake_graphics_context_provider_.decoder_target_provider(),
               nullptr);

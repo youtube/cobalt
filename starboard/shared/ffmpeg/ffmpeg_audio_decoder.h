@@ -17,6 +17,7 @@
 
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 
 namespace starboard {
@@ -25,9 +26,10 @@ namespace ffmpeg {
 
 class AudioDecoder : public starboard::player::filter::AudioDecoder {
  public:
+  typedef starboard::media::AudioStreamInfo AudioStreamInfo;
+
   // Create an audio decoder for the currently loaded ffmpeg library.
-  static AudioDecoder* Create(SbMediaAudioCodec audio_codec,
-                              const SbMediaAudioSampleInfo& audio_sample_info);
+  static AudioDecoder* Create(const AudioStreamInfo& audio_stream_info);
   // Returns true if the audio decoder is initialized successfully.
   virtual bool is_valid() const = 0;
 };

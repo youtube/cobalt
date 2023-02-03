@@ -1,4 +1,4 @@
-# Copyright 2021 The Cobalt Authors. All Rights Reserved.
+# Copyright 2023 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,21 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-target(gtest_target_type, "extension_test") {
-  testonly = true
-  has_pedantic_warnings = true
-  sources = [
-    "enhanced_audio_test.cc",
-    "extension_test.cc",
-  ]
-  deps = [
-    "//cobalt/base",
-    "//cobalt/test:run_all_unittests",
-    "//starboard",
-    "//testing/gmock",
-    "//testing/gtest",
-  ]
-  if (sb_is_evergreen) {
-    deps += cobalt_platform_dependencies
-  }
-}
+enhanced_audio_sources = [
+  "//starboard/shared/enhanced_audio/enhanced_audio.cc",
+  "//starboard/shared/enhanced_audio/enhanced_audio.h",
+  "//starboard/shared/enhanced_audio/enhanced_audio_player_write_samples.cc",
+  "//starboard/shared/enhanced_audio/enhanced_audio_player_write_samples.h",
+  "//starboard/shared/enhanced_audio/player_write_samples_checked.cc",
+]

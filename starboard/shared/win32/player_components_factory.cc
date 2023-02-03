@@ -18,6 +18,7 @@
 #include "starboard/common/ref_counted.h"
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/shared/opus/opus_audio_decoder.h"
+#include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/adaptive_audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_sink_impl.h"
@@ -51,18 +52,18 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       SB_DCHECK(audio_decoder);
       SB_DCHECK(audio_renderer_sink);
 
-      auto decoder_creator = [](const SbMediaAudioSampleInfo& audio_sample_info,
+      auto decoder_creator = [](const media::AudioStreamInfo& audio_stream_info,
                                 SbDrmSystem drm_system) {
         using AacAudioDecoderImpl = ::starboard::shared::win32::AudioDecoder;
         using OpusAudioDecoderImpl =
             ::starboard::shared::opus::OpusAudioDecoder;
 
-        if (audio_sample_info.codec == kSbMediaAudioCodecAac) {
-          return scoped_ptr<AudioDecoder>(new AacAudioDecoderImpl(
-              audio_sample_info.codec, audio_sample_info, drm_system));
-        } else if (audio_sample_info.codec == kSbMediaAudioCodecOpus) {
+        if (audio_stream_info.codec == kSbMediaAudioCodecAac) {
           return scoped_ptr<AudioDecoder>(
-              new OpusAudioDecoderImpl(audio_sample_info));
+              new AacAudioDecoderImpl(audio_stream_info, drm_system));
+        } else if (audio_stream_info.codec == kSbMediaAudioCodecOpus) {
+          return scoped_ptr<AudioDecoder>(
+              new OpusAudioDecoderImpl(audio_stream_info));
         } else {
           SB_NOTREACHED();
         }
@@ -70,7 +71,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       };
 
       audio_decoder->reset(new AdaptiveAudioDecoder(
-          creation_parameters.audio_sample_info(),
+          creation_parameters.audio_stream_info(),
           creation_parameters.drm_system(), decoder_creator));
       audio_renderer_sink->reset(new AudioRendererSinkImpl);
     }

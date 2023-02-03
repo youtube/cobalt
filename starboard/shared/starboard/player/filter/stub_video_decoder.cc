@@ -70,7 +70,7 @@ void StubVideoDecoder::WriteEndOfStream() {
 void StubVideoDecoder::Reset() {
   SB_DCHECK(BelongsToCurrentThread());
 
-  video_sample_info_ = media::VideoSampleInfo();
+  video_stream_info_ = media::VideoStreamInfo();
   decoder_thread_.reset();
   output_frame_timestamps_.clear();
   total_input_count_ = 0;
@@ -86,9 +86,9 @@ void StubVideoDecoder::DecodeBuffers(const InputBuffers& input_buffers) {
   for (const auto& input_buffer : input_buffers) {
     auto& video_sample_info = input_buffer->video_sample_info();
     if (video_sample_info.is_key_frame) {
-      if (video_sample_info_ != video_sample_info) {
+      if (video_stream_info_ != input_buffer->video_stream_info()) {
         SB_LOG(INFO) << "New video sample info: " << video_sample_info;
-        video_sample_info_ = video_sample_info;
+        video_stream_info_ = input_buffer->video_stream_info();
       }
     }
 
@@ -133,19 +133,19 @@ void StubVideoDecoder::DecodeEndOfStream() {
 
 scoped_refptr<VideoFrame> StubVideoDecoder::CreateOutputFrame(
     SbTime timestamp) const {
-  int bits_per_channel = video_sample_info_.color_metadata.bits_per_channel;
+  int bits_per_channel = video_stream_info_.color_metadata.bits_per_channel;
   if (bits_per_channel == 0) {
     // Assume 8 bits when |bits_per_channel| is unknown (0).
     bits_per_channel = 8;
   }
-  int uv_stride = bits_per_channel > 8 ? video_sample_info_.frame_width
-                                       : video_sample_info_.frame_width / 2;
+  int uv_stride = bits_per_channel > 8 ? video_stream_info_.frame_width
+                                       : video_stream_info_.frame_width / 2;
   int y_stride = uv_stride * 2;
-  std::string data(y_stride * video_sample_info_.frame_height, 0);
+  std::string data(y_stride * video_stream_info_.frame_height, 0);
 
   return CpuVideoFrame::CreateYV12Frame(
-      bits_per_channel, video_sample_info_.frame_width,
-      video_sample_info_.frame_height, y_stride, uv_stride, timestamp,
+      bits_per_channel, video_stream_info_.frame_width,
+      video_stream_info_.frame_height, y_stride, uv_stride, timestamp,
       reinterpret_cast<const uint8_t*>(data.data()),
       reinterpret_cast<const uint8_t*>(data.data()),
       reinterpret_cast<const uint8_t*>(data.data()));

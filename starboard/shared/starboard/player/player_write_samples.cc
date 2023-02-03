@@ -17,7 +17,11 @@
 #include "starboard/common/log.h"
 #include "starboard/shared/starboard/player/player_internal.h"
 
+#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+void SbPlayerWriteSamples(SbPlayer player,
+#else   // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
 void SbPlayerWriteSample2(SbPlayer player,
+#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
                           SbMediaType sample_type,
                           const SbPlayerSampleInfo* sample_infos,
                           int number_of_sample_infos) {

@@ -28,30 +28,43 @@ SbPlayerOutputMode SbPlayerGetPreferredOutputMode(
     return kSbPlayerOutputModeInvalid;
   }
 
-  if (creation_param->audio_sample_info.codec != kSbMediaAudioCodecNone &&
-      !creation_param->audio_sample_info.mime) {
-    SB_LOG(ERROR) << "creation_param->audio_sample_info.mime cannot be NULL";
+#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+  const SbMediaAudioStreamInfo& audio_stream_info =
+      creation_param->audio_stream_info;
+  const SbMediaVideoStreamInfo& video_stream_info =
+      creation_param->video_stream_info;
+#else   // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+  const SbMediaAudioSampleInfo& audio_stream_info =
+      creation_param->audio_sample_info;
+  const SbMediaVideoSampleInfo& video_stream_info =
+      creation_param->video_sample_info;
+#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+
+  if (audio_stream_info.codec != kSbMediaAudioCodecNone &&
+      !audio_stream_info.mime) {
+    SB_LOG(ERROR) << "creation_param->audio_stream_info.mime cannot be NULL";
     return kSbPlayerOutputModeInvalid;
   }
 
-  if (creation_param->video_sample_info.codec != kSbMediaVideoCodecNone &&
-      !creation_param->video_sample_info.mime) {
-    SB_LOG(ERROR) << "creation_param->video_sample_info.mime cannot be NULL";
+  if (video_stream_info.codec != kSbMediaVideoCodecNone &&
+      !video_stream_info.mime) {
+    SB_LOG(ERROR) << "creation_param->video_stream_info.mime cannot be NULL";
     return kSbPlayerOutputModeInvalid;
   }
 
-  if (creation_param->video_sample_info.codec != kSbMediaVideoCodecNone &&
-      !creation_param->video_sample_info.max_video_capabilities) {
-    SB_LOG(ERROR) << "creation_param->video_sample_info.max_video_capabilities"
+  if (video_stream_info.codec != kSbMediaVideoCodecNone &&
+      !video_stream_info.max_video_capabilities) {
+    SB_LOG(ERROR) << "creation_param->video_stream_info.max_video_capabilities"
                   << " cannot be NULL";
     return kSbPlayerOutputModeInvalid;
   }
 
-  auto codec = creation_param->video_sample_info.codec;
+  auto codec = video_stream_info.codec;
   auto drm_system = creation_param->drm_system;
 
   SbPlayerOutputMode output_modes_to_check[] = {
-      kSbPlayerOutputModePunchOut, kSbPlayerOutputModeDecodeToTexture,
+      kSbPlayerOutputModePunchOut,
+      kSbPlayerOutputModeDecodeToTexture,
   };
 
   // Check |kSbPlayerOutputModeDecodeToTexture| first if the caller prefers it.
@@ -69,8 +82,7 @@ SbPlayerOutputMode SbPlayerGetPreferredOutputMode(
     return output_modes_to_check[1];
   }
 
-  SB_LOG(WARNING) << "creation_param->video_sample_info.codec ("
-                  << creation_param->video_sample_info.codec
-                  << ") is not supported";
+  SB_LOG(WARNING) << "creation_param->video_stream_info.codec ("
+                  << video_stream_info.codec << ") is not supported";
   return kSbPlayerOutputModeInvalid;
 }

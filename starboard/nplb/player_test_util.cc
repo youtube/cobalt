@@ -19,15 +19,19 @@
 #include "starboard/audio_sink.h"
 #include "starboard/common/string.h"
 #include "starboard/directory.h"
+#include "starboard/extension/enhanced_audio.h"
 #include "starboard/nplb/player_creation_param_helpers.h"
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
 #include "starboard/testing/fake_graphics_context_provider.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
 namespace nplb {
 
 namespace {
 
+using shared::starboard::media::AudioSampleInfo;
+using shared::starboard::media::VideoSampleInfo;
 using shared::starboard::player::video_dmp::VideoDmpReader;
 using std::placeholders::_1;
 using std::placeholders::_2;
@@ -142,7 +146,7 @@ SbPlayer CallSbPlayerCreate(
     SbMediaVideoCodec video_codec,
     SbMediaAudioCodec audio_codec,
     SbDrmSystem drm_system,
-    const SbMediaAudioSampleInfo* audio_sample_info,
+    const shared::starboard::media::AudioStreamInfo* audio_stream_info,
     const char* max_video_capabilities,
     SbPlayerDeallocateSampleFunc sample_deallocate_func,
     SbPlayerDecoderStatusFunc decoder_status_func,
@@ -151,34 +155,111 @@ SbPlayer CallSbPlayerCreate(
     void* context,
     SbPlayerOutputMode output_mode,
     SbDecodeTargetGraphicsContextProvider* context_provider) {
-  if (audio_sample_info) {
-    SB_CHECK(audio_sample_info->codec == audio_codec);
+  if (audio_stream_info) {
+    SB_CHECK(audio_stream_info->codec == audio_codec);
   } else {
     SB_CHECK(audio_codec == kSbMediaAudioCodecNone);
   }
 
-  SbPlayerCreationParam creation_param =
-      nplb::CreatePlayerCreationParam(audio_codec, video_codec);
-  if (audio_sample_info) {
-    creation_param.audio_sample_info = *audio_sample_info;
+  PlayerCreationParam creation_param =
+      CreatePlayerCreationParam(audio_codec, video_codec);
+  if (audio_stream_info) {
+    creation_param.audio_stream_info = *audio_stream_info;
   }
   creation_param.drm_system = drm_system;
   creation_param.output_mode = output_mode;
-  creation_param.video_sample_info.max_video_capabilities =
+  creation_param.video_stream_info.max_video_capabilities =
       max_video_capabilities;
 
-  return SbPlayerCreate(window, &creation_param, sample_deallocate_func,
+  SbPlayerCreationParam param = {};
+  creation_param.ConvertTo(&param);
+  return SbPlayerCreate(window, &param, sample_deallocate_func,
                         decoder_status_func, player_status_func,
                         player_error_func, context, context_provider);
+}
+
+void CallSbPlayerWriteSamples(
+    SbPlayer player,
+    SbMediaType sample_type,
+    shared::starboard::player::video_dmp::VideoDmpReader* dmp_reader,
+    int start_index,
+    int number_of_samples_to_write) {
+  SB_DCHECK(start_index >= 0);
+  SB_DCHECK(number_of_samples_to_write > 0);
+
+  static auto const* enhanced_audio_extension =
+      static_cast<const CobaltExtensionEnhancedAudioApi*>(
+          SbSystemGetExtension(kCobaltExtensionEnhancedAudioName));
+#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+  ASSERT_FALSE(enhanced_audio_extension);
+#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+
+  if (enhanced_audio_extension) {
+    ASSERT_STREQ(enhanced_audio_extension->name,
+                 kCobaltExtensionEnhancedAudioName);
+    ASSERT_EQ(enhanced_audio_extension->version, 1u);
+
+    std::vector<CobaltExtensionEnhancedAudioPlayerSampleInfo> sample_infos;
+    // We have to hold all intermediate sample infos to ensure that their member
+    // variables with allocated memory (like `std::string mime`) won't go out of
+    // scope before the call to `enhanced_audio_extension->PlayerWriteSamples`.
+    std::vector<AudioSampleInfo> audio_sample_infos;
+    std::vector<VideoSampleInfo> video_sample_infos;
+
+    for (int i = 0; i < number_of_samples_to_write; ++i) {
+      SbPlayerSampleInfo source =
+          dmp_reader->GetPlayerSampleInfo(sample_type, start_index++);
+      sample_infos.resize(sample_infos.size() + 1);
+      sample_infos.back().type = source.type;
+      sample_infos.back().buffer = source.buffer;
+      sample_infos.back().buffer_size = source.buffer_size;
+      sample_infos.back().timestamp = source.timestamp;
+      sample_infos.back().side_data = source.side_data;
+      sample_infos.back().side_data_count = source.side_data_count;
+      sample_infos.back().drm_info = source.drm_info;
+
+      if (sample_type == kSbMediaTypeAudio) {
+        audio_sample_infos.emplace_back(source.audio_sample_info);
+        audio_sample_infos.back().ConvertTo(
+            &sample_infos.back().audio_sample_info);
+      } else {
+        SB_DCHECK(sample_type == kSbMediaTypeVideo);
+        video_sample_infos.emplace_back(source.video_sample_info);
+        video_sample_infos.back().ConvertTo(
+            &sample_infos.back().video_sample_info);
+      }
+    }
+
+    enhanced_audio_extension->PlayerWriteSamples(
+        player, sample_type, sample_infos.data(), number_of_samples_to_write);
+
+    return;
+  }
+
+  std::vector<SbPlayerSampleInfo> sample_infos;
+  for (int i = 0; i < number_of_samples_to_write; ++i) {
+    sample_infos.push_back(
+        dmp_reader->GetPlayerSampleInfo(sample_type, start_index++));
+  }
+#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+  SbPlayerWriteSamples(player, sample_type, sample_infos.data(),
+                       number_of_samples_to_write);
+#else   // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+  SbPlayerWriteSample2(player, sample_type, sample_infos.data(),
+                       number_of_samples_to_write);
+#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
 }
 
 bool IsOutputModeSupported(SbPlayerOutputMode output_mode,
                            SbMediaAudioCodec audio_codec,
                            SbMediaVideoCodec video_codec) {
-  SbPlayerCreationParam creation_param =
+  PlayerCreationParam creation_param =
       CreatePlayerCreationParam(audio_codec, video_codec);
   creation_param.output_mode = output_mode;
-  return SbPlayerGetPreferredOutputMode(&creation_param) == output_mode;
+
+  SbPlayerCreationParam param = {};
+  creation_param.ConvertTo(&param);
+  return SbPlayerGetPreferredOutputMode(&param) == output_mode;
 }
 
 }  // namespace nplb

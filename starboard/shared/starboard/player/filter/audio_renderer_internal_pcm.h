@@ -26,6 +26,7 @@
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_frame_tracker.h"
@@ -68,7 +69,7 @@ class AudioRendererPcm : public AudioRenderer,
   // tries to append to the sink buffer at once.
   AudioRendererPcm(scoped_ptr<AudioDecoder> decoder,
                    scoped_ptr<AudioRendererSink> audio_renderer_sink,
-                   const SbMediaAudioSampleInfo& audio_sample_info,
+                   const media::AudioStreamInfo& audio_stream_info,
                    int max_cached_frames,
                    int min_frames_per_append);
   ~AudioRendererPcm() override;

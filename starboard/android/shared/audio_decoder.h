@@ -39,11 +39,10 @@ class AudioDecoder
       private ::starboard::shared::starboard::player::JobQueue::JobOwner,
       private MediaDecoder::Host {
  public:
-  typedef ::starboard::shared::starboard::media::AudioSampleInfo
-      AudioSampleInfo;
+  typedef ::starboard::shared::starboard::media::AudioStreamInfo
+      AudioStreamInfo;
 
-  AudioDecoder(SbMediaAudioCodec audio_codec,
-               const SbMediaAudioSampleInfo& audio_sample_info,
+  AudioDecoder(const AudioStreamInfo& audio_stream_info,
                SbDrmSystem drm_system);
   ~AudioDecoder() override;
 
@@ -69,9 +68,8 @@ class AudioDecoder
   bool Tick(MediaCodecBridge* media_codec_bridge) override { return false; }
   void OnFlushing() override {}
 
-  SbMediaAudioCodec audio_codec_;
-  AudioSampleInfo audio_sample_info_;
-  SbMediaAudioSampleType sample_type_;
+  const AudioStreamInfo audio_stream_info_;
+  const SbMediaAudioSampleType sample_type_;
 
   jint output_sample_rate_;
   jint output_channel_count_;

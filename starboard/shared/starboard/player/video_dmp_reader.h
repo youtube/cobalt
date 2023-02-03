@@ -28,6 +28,7 @@
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/file_cache_reader.h"
 #include "starboard/shared/starboard/player/video_dmp_common.h"
 
@@ -73,15 +74,15 @@ class VideoDmpReader {
     AudioAccessUnit(SbTime timestamp,
                     const SbDrmSampleInfoWithSubSampleMapping* drm_sample_info,
                     std::vector<uint8_t> data,
-                    const SbMediaAudioSampleInfoWithConfig& audio_sample_info)
+                    media::AudioSampleInfo audio_sample_info)
         : AccessUnit(timestamp, drm_sample_info, std::move(data)),
-          audio_sample_info_(audio_sample_info) {}
-    const SbMediaAudioSampleInfo& audio_sample_info() const {
+          audio_sample_info_(std::move(audio_sample_info)) {}
+    const media::AudioSampleInfo& audio_sample_info() const {
       return audio_sample_info_;
     }
 
    private:
-    SbMediaAudioSampleInfoWithConfig audio_sample_info_;
+    media::AudioSampleInfo audio_sample_info_;
   };
 
   class VideoAccessUnit : public AccessUnit {
@@ -89,16 +90,15 @@ class VideoDmpReader {
     VideoAccessUnit(SbTime timestamp,
                     const SbDrmSampleInfoWithSubSampleMapping* drm_sample_info,
                     std::vector<uint8_t> data,
-                    const SbMediaVideoSampleInfoWithOptionalColorMetadata&
-                        video_sample_info)
+                    media::VideoSampleInfo video_sample_info)
         : AccessUnit(timestamp, drm_sample_info, std::move(data)),
-          video_sample_info_(video_sample_info) {}
-    const SbMediaVideoSampleInfo& video_sample_info() const {
+          video_sample_info_(std::move(video_sample_info)) {}
+    const media::VideoSampleInfo& video_sample_info() const {
       return video_sample_info_;
     }
 
    private:
-    SbMediaVideoSampleInfoWithOptionalColorMetadata video_sample_info_;
+    media::VideoSampleInfo video_sample_info_;
   };
 
   explicit VideoDmpReader(
@@ -107,8 +107,12 @@ class VideoDmpReader {
   ~VideoDmpReader();
 
   SbMediaAudioCodec audio_codec() const { return dmp_info_.audio_codec; }
-  const SbMediaAudioSampleInfo& audio_sample_info() const {
-    return dmp_info_.audio_sample_info;
+  const media::AudioStreamInfo& audio_stream_info() const {
+    return dmp_info_.audio_sample_info.stream_info;
+  }
+  const media::VideoStreamInfo& video_stream_info() const {
+    SB_DCHECK(!video_access_units_.empty());
+    return video_access_units_[0].video_sample_info().stream_info;
   }
   int64_t audio_bitrate() const { return dmp_info_.audio_bitrate; }
   std::string audio_mime_type() const;
@@ -128,12 +132,12 @@ class VideoDmpReader {
   }
 
   SbPlayerSampleInfo GetPlayerSampleInfo(SbMediaType type, size_t index);
-  const SbMediaAudioSampleInfo& GetAudioSampleInfo(size_t index);
+  const media::AudioSampleInfo& GetAudioSampleInfo(size_t index);
 
  private:
   struct DmpInfo {
     SbMediaAudioCodec audio_codec = kSbMediaAudioCodecNone;
-    SbMediaAudioSampleInfoWithConfig audio_sample_info;
+    media::AudioSampleInfo audio_sample_info;
     size_t audio_access_units_size = 0;
     int64_t audio_bitrate = 0;
     int audio_duration = 0;

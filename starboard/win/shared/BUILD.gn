@@ -130,8 +130,6 @@ static_library("starboard_platform") {
     "//starboard/shared/starboard/media/media_get_video_buffer_budget.cc",
     "//starboard/shared/starboard/media/media_is_buffer_pool_allocate_on_demand.cc",
     "//starboard/shared/starboard/media/media_is_buffer_using_memory_pool.cc",
-    "//starboard/shared/starboard/media/mime_type.cc",
-    "//starboard/shared/starboard/media/mime_type.h",
     "//starboard/shared/starboard/memory.cc",
     "//starboard/shared/starboard/net_args.cc",
     "//starboard/shared/starboard/net_args.h",

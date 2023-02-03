@@ -29,6 +29,7 @@ namespace shared {
 namespace win32 {
 
 using Microsoft::WRL::ComPtr;
+using starboard::media::AudioStreamInfo;
 
 namespace {
 
@@ -94,69 +95,69 @@ GUID ConvertToWin32OutputFormat(SbMediaAudioCodec codec) {
 
 class WinAudioFormat {
  public:
-  explicit WinAudioFormat(const SbMediaAudioSampleInfo& audio_sample_info) {
-    if (audio_sample_info.codec == kSbMediaAudioCodecAac) {
-      CreateAacAudioFormat(audio_sample_info);
+  explicit WinAudioFormat(const AudioStreamInfo& audio_stream_info) {
+    if (audio_stream_info.codec == kSbMediaAudioCodecAac) {
+      CreateAacAudioFormat(audio_stream_info);
     } else {
-      SB_DCHECK(audio_sample_info.codec == kSbMediaAudioCodecAc3 ||
-                audio_sample_info.codec == kSbMediaAudioCodecEac3);
-      CreateAc3AudioFormat(audio_sample_info);
+      SB_DCHECK(audio_stream_info.codec == kSbMediaAudioCodecAc3 ||
+                audio_stream_info.codec == kSbMediaAudioCodecEac3);
+      CreateAc3AudioFormat(audio_stream_info);
     }
   }
 
-  void CreateAacAudioFormat(const SbMediaAudioSampleInfo& audio_sample_info) {
+  void CreateAacAudioFormat(const AudioStreamInfo& audio_stream_info) {
     // The HEAACWAVEFORMAT structure has many specializations with varying data
     // appended at the end.
     // The "-1" is used to account for pbAudioSpecificConfig[1] at the end of
     // HEAACWAVEFORMAT.
     format_buffer_.resize(sizeof(HEAACWAVEFORMAT) +
-                          audio_sample_info.audio_specific_config_size - 1);
+                          audio_stream_info.audio_specific_config.size() - 1);
     HEAACWAVEFORMAT* wave_format =
         reinterpret_cast<HEAACWAVEFORMAT*>(format_buffer_.data());
 
     wave_format->wfInfo.wfx.nAvgBytesPerSec = 0;
-    wave_format->wfInfo.wfx.nBlockAlign = audio_sample_info.block_alignment;
-    wave_format->wfInfo.wfx.nChannels = audio_sample_info.number_of_channels;
+    wave_format->wfInfo.wfx.nBlockAlign = 4;
+    wave_format->wfInfo.wfx.nChannels = audio_stream_info.number_of_channels;
     wave_format->wfInfo.wfx.nSamplesPerSec =
-        audio_sample_info.samples_per_second;
-    wave_format->wfInfo.wfx.wBitsPerSample = audio_sample_info.bits_per_sample;
+        audio_stream_info.samples_per_second;
+    wave_format->wfInfo.wfx.wBitsPerSample = audio_stream_info.bits_per_sample;
     wave_format->wfInfo.wfx.wFormatTag = WAVE_FORMAT_MPEG_HEAAC;
     // The "-1" is used to account for pbAudioSpecificConfig[1] at the end of
     // HEAACWAVEFORMAT.
     wave_format->wfInfo.wfx.cbSize =
-        sizeof(HEAACWAVEFORMAT) - sizeof(WAVEFORMATEX) +
-        audio_sample_info.audio_specific_config_size - 1;
+        static_cast<WORD>(sizeof(HEAACWAVEFORMAT) - sizeof(WAVEFORMATEX) +
+                          audio_stream_info.audio_specific_config.size() - 1);
 
     wave_format->wfInfo.wPayloadType = 0;                     // RAW
     wave_format->wfInfo.wAudioProfileLevelIndication = 0xfe;  // Unknown Profile
     wave_format->wfInfo.wStructType = 0;  // AudioSpecificConfig()
 
-    if (audio_sample_info.audio_specific_config_size > 0) {
+    if (!audio_stream_info.audio_specific_config.empty()) {
       memcpy(wave_format->pbAudioSpecificConfig,
-             audio_sample_info.audio_specific_config,
-             audio_sample_info.audio_specific_config_size);
+             audio_stream_info.audio_specific_config.data(),
+             audio_stream_info.audio_specific_config.size());
     }
   }
 
-  void CreateAc3AudioFormat(const SbMediaAudioSampleInfo& audio_sample_info) {
+  void CreateAc3AudioFormat(const AudioStreamInfo& audio_stream_info) {
     format_buffer_.resize(sizeof(WAVEFORMATEXTENSIBLE));
     WAVEFORMATEXTENSIBLE* wave_format =
         reinterpret_cast<WAVEFORMATEXTENSIBLE*>(format_buffer_.data());
 
     wave_format->Format.wFormatTag = WAVE_FORMAT_EXTENSIBLE;
-    wave_format->Format.nChannels = audio_sample_info.number_of_channels;
-    wave_format->Format.wBitsPerSample = audio_sample_info.bits_per_sample;
-    wave_format->Format.nSamplesPerSec = audio_sample_info.samples_per_second;
-    wave_format->Format.nBlockAlign = audio_sample_info.block_alignment;
+    wave_format->Format.nChannels = audio_stream_info.number_of_channels;
+    wave_format->Format.wBitsPerSample = audio_stream_info.bits_per_sample;
+    wave_format->Format.nSamplesPerSec = audio_stream_info.samples_per_second;
+    wave_format->Format.nBlockAlign = 4;
     wave_format->Format.nAvgBytesPerSec = 0;
     wave_format->Format.cbSize =
         sizeof(WAVEFORMATEXTENSIBLE) - sizeof(WAVEFORMATEX);
     wave_format->Samples.wValidBitsPerSample =
         wave_format->Format.wBitsPerSample;
-    wave_format->dwChannelMask = audio_sample_info.number_of_channels > 2
+    wave_format->dwChannelMask = audio_stream_info.number_of_channels > 2
                                      ? KSAUDIO_SPEAKER_5POINT1
                                      : KSAUDIO_SPEAKER_STEREO;
-    wave_format->SubFormat = ConvertToWin32AudioCodec(audio_sample_info.codec);
+    wave_format->SubFormat = ConvertToWin32AudioCodec(audio_stream_info.codec);
   }
 
   WAVEFORMATEX* WaveFormatData() {
@@ -171,13 +172,13 @@ class WinAudioFormat {
 }  // namespace.
 
 scoped_ptr<MediaTransform> CreateAudioTransform(
-    const SbMediaAudioSampleInfo& audio,
-    SbMediaAudioCodec codec) {
-  SB_DCHECK(codec == kSbMediaAudioCodecAac || codec == kSbMediaAudioCodecAc3 ||
-            codec == kSbMediaAudioCodecEac3);
+    const AudioStreamInfo& audio_stream_info) {
+  SB_DCHECK(audio_stream_info.codec == kSbMediaAudioCodecAac ||
+            audio_stream_info.codec == kSbMediaAudioCodecAc3 ||
+            audio_stream_info.codec == kSbMediaAudioCodecEac3);
   ComPtr<IMFTransform> transform;
-  HRESULT hr =
-      CreateDecoderTransform(ConvertToWin32TransformType(codec), &transform);
+  HRESULT hr = CreateDecoderTransform(
+      ConvertToWin32TransformType(audio_stream_info.codec), &transform);
 
   CheckResult(hr);
 
@@ -185,12 +186,12 @@ scoped_ptr<MediaTransform> CreateAudioTransform(
   hr = MFCreateMediaType(&input_type);
   CheckResult(hr);
 
-  WinAudioFormat audio_fmt(audio);
+  WinAudioFormat audio_fmt(audio_stream_info);
   hr = MFInitMediaTypeFromWaveFormatEx(
       input_type.Get(), audio_fmt.WaveFormatData(), audio_fmt.Size());
   CheckResult(hr);
 
-  GUID win32_audio_type = ConvertToWin32AudioCodec(codec);
+  GUID win32_audio_type = ConvertToWin32AudioCodec(audio_stream_info.codec);
 
   std::vector<ComPtr<IMFMediaType>> available_types =
       GetAllInputMediaTypes(MediaTransform::kStreamId, transform.Get());
@@ -203,7 +204,8 @@ scoped_ptr<MediaTransform> CreateAudioTransform(
 
   scoped_ptr<MediaTransform> output(new MediaTransform(transform));
   output->SetInputType(selected);
-  output->SetOutputTypeBySubType(ConvertToWin32OutputFormat(codec));
+  output->SetOutputTypeBySubType(
+      ConvertToWin32OutputFormat(audio_stream_info.codec));
 
   return output.Pass();
 }

@@ -87,8 +87,7 @@ void VideoDecoderTestFixture::Initialize() {
       output_mode, dmp_reader_.video_codec(), kSbDrmSystemInvalid));
 
   PlayerComponents::Factory::CreationParameters creation_parameters(
-      dmp_reader_.video_codec(), GetVideoInputBuffer(0)->video_sample_info(),
-      &player_, output_mode,
+      GetVideoInputBuffer(0)->video_stream_info(), &player_, output_mode,
       fake_graphics_context_provider_->decoder_target_provider(), nullptr);
 
   scoped_ptr<PlayerComponents::Factory> factory;

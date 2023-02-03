@@ -22,24 +22,31 @@ namespace starboard {
 namespace nplb {
 namespace {
 
+SbPlayerOutputMode GetPreferredOutputMode(
+    const PlayerCreationParam& creation_param) {
+  SbPlayerCreationParam param = {};
+  creation_param.ConvertTo(&param);
+  return SbPlayerGetPreferredOutputMode(&param);
+}
+
 TEST(SbPlayerGetPreferredOutputModeTest, SunnyDay) {
   auto creation_param =
       CreatePlayerCreationParam(kSbMediaAudioCodecAac, kSbMediaVideoCodecH264);
 
   creation_param.output_mode = kSbPlayerOutputModeInvalid;
-  auto output_mode = SbPlayerGetPreferredOutputMode(&creation_param);
+  auto output_mode = GetPreferredOutputMode(creation_param);
   ASSERT_NE(output_mode, kSbPlayerOutputModeInvalid);
 
   creation_param.output_mode = output_mode;
-  output_mode = SbPlayerGetPreferredOutputMode(&creation_param);
+  output_mode = GetPreferredOutputMode(creation_param);
   ASSERT_EQ(output_mode, creation_param.output_mode);
 
   creation_param.output_mode = kSbPlayerOutputModeDecodeToTexture;
-  output_mode = SbPlayerGetPreferredOutputMode(&creation_param);
+  output_mode = GetPreferredOutputMode(creation_param);
   ASSERT_NE(output_mode, kSbPlayerOutputModeInvalid);
 
   creation_param.output_mode = kSbPlayerOutputModePunchOut;
-  output_mode = SbPlayerGetPreferredOutputMode(&creation_param);
+  output_mode = GetPreferredOutputMode(creation_param);
   ASSERT_NE(output_mode, kSbPlayerOutputModeInvalid);
 }
 
@@ -63,7 +70,8 @@ TEST(SbPlayerGetPreferredOutputModeTest, AllCodecs) {
       kSbMediaVideoCodecAv1,   kSbMediaVideoCodecVp8,    kSbMediaVideoCodecVp9,
   };
   const SbPlayerOutputMode kOutputModes[] = {
-      kSbPlayerOutputModeDecodeToTexture, kSbPlayerOutputModePunchOut,
+      kSbPlayerOutputModeDecodeToTexture,
+      kSbPlayerOutputModePunchOut,
       kSbPlayerOutputModeInvalid,
   };
 
@@ -73,7 +81,7 @@ TEST(SbPlayerGetPreferredOutputModeTest, AllCodecs) {
         auto creation_param =
             CreatePlayerCreationParam(audio_codec, video_codec);
         creation_param.output_mode = output_mode;
-        SbPlayerGetPreferredOutputMode(&creation_param);
+        GetPreferredOutputMode(creation_param);
       }
     }
   }

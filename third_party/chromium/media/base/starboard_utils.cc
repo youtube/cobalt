@@ -119,38 +119,42 @@ SbMediaVideoCodec MediaVideoCodecToSbMediaVideoCodec(VideoCodec codec) {
   return kSbMediaVideoCodecNone;
 }
 
-SbMediaAudioSampleInfo MediaAudioConfigToSbMediaAudioSampleInfo(
+SbMediaAudioStreamInfo MediaAudioConfigToSbMediaAudioStreamInfo(
     const AudioDecoderConfig& audio_decoder_config,
     const char* mime_type) {
   DCHECK(audio_decoder_config.IsValidConfig());
 
-  SbMediaAudioSampleInfo audio_sample_info;
+  SbMediaAudioStreamInfo audio_stream_info;
 
-  audio_sample_info.codec =
+  audio_stream_info.codec =
       MediaAudioCodecToSbMediaAudioCodec(audio_decoder_config.codec());
-  audio_sample_info.mime = mime_type;
-  // TODO: Make this work with non AAC audio.
-  audio_sample_info.format_tag = 0x00ff;
-  audio_sample_info.number_of_channels =
-      ChannelLayoutToChannelCount(audio_decoder_config.channel_layout());
-  audio_sample_info.samples_per_second =
-      audio_decoder_config.samples_per_second();
-  audio_sample_info.average_bytes_per_second = 1;
-  audio_sample_info.block_alignment = 4;
-  audio_sample_info.bits_per_sample = audio_decoder_config.bits_per_channel();
+  audio_stream_info.mime = mime_type;
 
-  const auto& extra_data = audio_sample_info.codec == kSbMediaAudioCodecAac
+#if SB_API_VERSION < SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+  audio_stream_info.format_tag = 0x00ff;
+#endif // SB_API_VERSION < SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+  audio_stream_info.number_of_channels =
+      ChannelLayoutToChannelCount(audio_decoder_config.channel_layout());
+  audio_stream_info.samples_per_second =
+      audio_decoder_config.samples_per_second();
+#if SB_API_VERSION < SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+  audio_stream_info.average_bytes_per_second = 1;
+  audio_stream_info.block_alignment = 4;
+#endif // SB_API_VERSION < SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+  audio_stream_info.bits_per_sample = audio_decoder_config.bits_per_channel();
+
+  const auto& extra_data = audio_stream_info.codec == kSbMediaAudioCodecAac
                                ? audio_decoder_config.aac_extra_data()
                                : audio_decoder_config.extra_data();
-  audio_sample_info.audio_specific_config_size =
+  audio_stream_info.audio_specific_config_size =
       static_cast<uint16_t>(extra_data.size());
-  if (audio_sample_info.audio_specific_config_size == 0) {
-    audio_sample_info.audio_specific_config = NULL;
+  if (audio_stream_info.audio_specific_config_size == 0) {
+    audio_stream_info.audio_specific_config = NULL;
   } else {
-    audio_sample_info.audio_specific_config = extra_data.data();
+    audio_stream_info.audio_specific_config = extra_data.data();
   }
 
-  return audio_sample_info;
+  return audio_stream_info;
 }
 
 DemuxerStream::Type SbMediaTypeToDemuxerStreamType(SbMediaType type) {

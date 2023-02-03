@@ -29,6 +29,7 @@
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
 #include "starboard/testing/fake_graphics_context_provider.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
 namespace starboard {
 namespace shared {
 namespace starboard {
@@ -89,28 +90,22 @@ class PlayerComponentsTest
     string error_message;
     if (audio_reader_ && video_reader_) {
       CreationParameters creation_parameters(
-          audio_reader_->audio_codec(), audio_reader_->audio_sample_info(),
-          video_reader_->video_codec(),
-          video_reader_->GetPlayerSampleInfo(kSbMediaTypeVideo, 0)
-              .video_sample_info,
-          kDummyPlayer, output_mode_,
+          audio_reader_->audio_stream_info(),
+          video_reader_->video_stream_info(), kDummyPlayer, output_mode_,
           fake_graphics_context_provider_.decoder_target_provider());
       player_components_ =
           factory->CreateComponents(creation_parameters, &error_message);
     } else if (audio_reader_) {
       // Audio only
       CreationParameters creation_parameters(
-          audio_reader_->audio_codec(), audio_reader_->audio_sample_info());
+          audio_reader_->audio_stream_info());
       player_components_ =
           factory->CreateComponents(creation_parameters, &error_message);
     } else {
       // Video only
       ASSERT_TRUE(video_reader_);
       CreationParameters creation_parameters(
-          video_reader_->video_codec(),
-          video_reader_->GetPlayerSampleInfo(kSbMediaTypeVideo, 0)
-              .video_sample_info,
-          kDummyPlayer, output_mode_,
+          video_reader_->video_stream_info(), kDummyPlayer, output_mode_,
           fake_graphics_context_provider_.decoder_target_provider());
       player_components_ =
           factory->CreateComponents(creation_parameters, &error_message);

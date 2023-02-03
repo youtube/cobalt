@@ -153,10 +153,9 @@ void VideoDecoder::DecodeOneBuffer(
   SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
   SB_DCHECK(input_buffer);
 
-  const SbMediaVideoSampleInfo& sample_info = input_buffer->video_sample_info();
-  if (sample_info.is_key_frame) {
-    VideoConfig new_config(sample_info, input_buffer->data(),
-                           input_buffer->size());
+  if (input_buffer->video_sample_info().is_key_frame) {
+    VideoConfig new_config(input_buffer->video_stream_info(),
+                           input_buffer->data(), input_buffer->size());
     if (!video_config_ || video_config_.value() != new_config) {
       video_config_ = new_config;
       if (decoder_) {

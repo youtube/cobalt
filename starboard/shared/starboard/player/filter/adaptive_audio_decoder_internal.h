@@ -37,7 +37,7 @@ namespace filter {
 class AdaptiveAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
  public:
   typedef std::function<scoped_ptr<filter::AudioDecoder>(
-      const SbMediaAudioSampleInfo& audio_sample_info,
+      const media::AudioStreamInfo& audio_stream_info,
       SbDrmSystem drm_system)>
       AudioDecoderCreator;
 
@@ -47,7 +47,7 @@ class AdaptiveAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
                              int* output_number_of_channels)>
       OutputFormatAdjustmentCallback;
 
-  AdaptiveAudioDecoder(const SbMediaAudioSampleInfo& audio_sample_info,
+  AdaptiveAudioDecoder(const media::AudioStreamInfo& audio_stream_info,
                        SbDrmSystem drm_system,
                        const AudioDecoderCreator& audio_decoder_creator,
                        const OutputFormatAdjustmentCallback&
@@ -62,11 +62,11 @@ class AdaptiveAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
   void Reset() override;
 
  private:
-  void InitializeAudioDecoder(const SbMediaAudioSampleInfo& audio_sample_info);
+  void InitializeAudioDecoder(const media::AudioStreamInfo& audio_stream_info);
   void TeardownAudioDecoder();
   void OnDecoderOutput();
 
-  const SbMediaAudioSampleInfo initial_audio_sample_info_;
+  const uint32_t initial_samples_per_second_;
   const SbDrmSystem drm_system_;
   const AudioDecoderCreator audio_decoder_creator_;
   const OutputFormatAdjustmentCallback output_adjustment_callback_;
@@ -74,7 +74,7 @@ class AdaptiveAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
   SbMediaAudioFrameStorageType output_storage_type_;
   int output_samples_per_second_;
   int output_number_of_channels_;
-  media::AudioSampleInfo input_audio_sample_info_;
+  media::AudioStreamInfo input_audio_stream_info_;
 
   OutputCB output_cb_ = nullptr;
   ErrorCB error_cb_ = nullptr;

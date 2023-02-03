@@ -163,15 +163,6 @@
 
 // --- Media Configuration ---------------------------------------------------
 
-// After a seek is triggered, the default behavior is to append video frames
-// from the last key frame before the seek time and append audio frames from the
-// seek time because usually all audio frames are key frames.  On platforms that
-// cannot decode video frames without displaying them, this will cause the video
-// being played without audio for several seconds after seeking.  When the
-// following macro is defined, the app will append audio frames start from the
-// timestamp that is before the timestamp of the video key frame being appended.
-//
-
 // The implementation is allowed to support kSbMediaAudioSampleTypeInt16 only
 // when this macro is defined.
 #undef SB_HAS_QUIRK_SUPPORT_INT16_AUDIO_SAMPLES

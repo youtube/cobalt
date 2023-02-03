@@ -18,12 +18,18 @@
 
 namespace starboard {
 namespace nplb {
+namespace {
 
-SbMediaAudioSampleInfo CreateAudioSampleInfo(SbMediaAudioCodec codec) {
-  SbMediaAudioSampleInfo audio_sample_info = {};
+using shared::starboard::media::AudioStreamInfo;
+using shared::starboard::media::VideoStreamInfo;
 
-  audio_sample_info.codec = codec;
-  audio_sample_info.mime = "";
+}  // namespace
+
+AudioStreamInfo CreateAudioStreamInfo(SbMediaAudioCodec codec) {
+  AudioStreamInfo audio_stream_info = {};
+
+  audio_stream_info.codec = codec;
+  audio_stream_info.mime = "";
 
   switch (codec) {
     case kSbMediaAudioCodecNone:
@@ -31,143 +37,89 @@ SbMediaAudioSampleInfo CreateAudioSampleInfo(SbMediaAudioCodec codec) {
     case kSbMediaAudioCodecAac: {
       static const uint8_t kAacAudioSpecificConfig[16] = {18, 16};
 
-      audio_sample_info.format_tag = 0xff;
-      audio_sample_info.number_of_channels = 2;
-      audio_sample_info.samples_per_second = 44100;
-      audio_sample_info.block_alignment = 4;
-      audio_sample_info.bits_per_sample = 16;
-      audio_sample_info.audio_specific_config = kAacAudioSpecificConfig;
-      audio_sample_info.audio_specific_config_size =
-          sizeof(kAacAudioSpecificConfig);
-      audio_sample_info.average_bytes_per_second =
-          audio_sample_info.samples_per_second *
-          audio_sample_info.number_of_channels *
-          audio_sample_info.bits_per_sample / 8;
+      audio_stream_info.number_of_channels = 2;
+      audio_stream_info.samples_per_second = 44100;
+      audio_stream_info.bits_per_sample = 16;
+      audio_stream_info.audio_specific_config.assign(
+          kAacAudioSpecificConfig,
+          kAacAudioSpecificConfig + sizeof(kAacAudioSpecificConfig));
       break;
     }
     case kSbMediaAudioCodecAc3:
     case kSbMediaAudioCodecEac3: {
-      audio_sample_info.format_tag = 0xff;
-      audio_sample_info.number_of_channels = 6;
-      audio_sample_info.samples_per_second = 48000;
-      audio_sample_info.block_alignment = 4;
-      audio_sample_info.bits_per_sample = 16;
-      audio_sample_info.audio_specific_config = nullptr;
-      audio_sample_info.audio_specific_config_size = 0;
-      audio_sample_info.average_bytes_per_second =
-          audio_sample_info.samples_per_second *
-          audio_sample_info.number_of_channels *
-          audio_sample_info.bits_per_sample / 8;
+      audio_stream_info.number_of_channels = 6;
+      audio_stream_info.samples_per_second = 48000;
+      audio_stream_info.bits_per_sample = 16;
       break;
     }
     case kSbMediaAudioCodecOpus: {
       static const uint8_t kOpusAudioSpecificConfig[19] = {
           79, 112, 117, 115, 72, 101, 97, 100, 1, 2, 56, 1, 128, 187};
 
-      audio_sample_info.format_tag = 0xff;
-      audio_sample_info.number_of_channels = 2;
-      audio_sample_info.samples_per_second = 48000;
-      audio_sample_info.block_alignment = 4;
-      audio_sample_info.bits_per_sample = 32;
-      audio_sample_info.audio_specific_config = kOpusAudioSpecificConfig;
-      audio_sample_info.audio_specific_config_size =
-          sizeof(kOpusAudioSpecificConfig);
-      audio_sample_info.average_bytes_per_second =
-          audio_sample_info.samples_per_second *
-          audio_sample_info.number_of_channels *
-          audio_sample_info.bits_per_sample / 8;
+      audio_stream_info.number_of_channels = 2;
+      audio_stream_info.samples_per_second = 48000;
+      audio_stream_info.bits_per_sample = 32;
+      audio_stream_info.audio_specific_config.assign(
+          kOpusAudioSpecificConfig,
+          kOpusAudioSpecificConfig + sizeof(kOpusAudioSpecificConfig));
       break;
     }
     case kSbMediaAudioCodecVorbis: {
       // Note that unlike the configuration of the other formats, the following
       // configuration is made up, instead of taking from a real input.
-      audio_sample_info.format_tag = 0xff;
-      audio_sample_info.number_of_channels = 2;
-      audio_sample_info.samples_per_second = 48000;
-      audio_sample_info.block_alignment = 4;
-      audio_sample_info.bits_per_sample = 16;
-      audio_sample_info.audio_specific_config = nullptr;
-      audio_sample_info.audio_specific_config_size = 0;
-      audio_sample_info.average_bytes_per_second =
-          audio_sample_info.samples_per_second *
-          audio_sample_info.number_of_channels *
-          audio_sample_info.bits_per_sample / 8;
+      audio_stream_info.number_of_channels = 2;
+      audio_stream_info.samples_per_second = 48000;
+      audio_stream_info.bits_per_sample = 16;
       break;
     }
 #if SB_API_VERSION >= 14
     case kSbMediaAudioCodecMp3: {
-      audio_sample_info.format_tag = 0xff;
-      audio_sample_info.number_of_channels = 2;
-      audio_sample_info.samples_per_second = 44100;
-      audio_sample_info.block_alignment = 4;
-      audio_sample_info.bits_per_sample = 16;
-      audio_sample_info.audio_specific_config = nullptr;
-      audio_sample_info.audio_specific_config_size = 0;
-      audio_sample_info.average_bytes_per_second =
-          audio_sample_info.samples_per_second *
-          audio_sample_info.number_of_channels *
-          audio_sample_info.bits_per_sample / 8;
+      audio_stream_info.number_of_channels = 2;
+      audio_stream_info.samples_per_second = 44100;
+      audio_stream_info.bits_per_sample = 16;
       break;
     }
     case kSbMediaAudioCodecFlac: {
-      audio_sample_info.format_tag = 0xff;
-      audio_sample_info.number_of_channels = 2;
-      audio_sample_info.samples_per_second = 44100;
-      audio_sample_info.block_alignment = 4;
-      audio_sample_info.bits_per_sample = 16;
-      audio_sample_info.audio_specific_config = nullptr;
-      audio_sample_info.audio_specific_config_size = 0;
-      audio_sample_info.average_bytes_per_second =
-          audio_sample_info.samples_per_second *
-          audio_sample_info.number_of_channels *
-          audio_sample_info.bits_per_sample / 8;
+      audio_stream_info.number_of_channels = 2;
+      audio_stream_info.samples_per_second = 44100;
+      audio_stream_info.bits_per_sample = 16;
       break;
     }
     case kSbMediaAudioCodecPcm: {
-      audio_sample_info.format_tag = 0x01;
-      audio_sample_info.number_of_channels = 2;
-      audio_sample_info.samples_per_second = 44100;
-      audio_sample_info.block_alignment = 4;
-      audio_sample_info.bits_per_sample = 32;
-      audio_sample_info.audio_specific_config = nullptr;
-      audio_sample_info.audio_specific_config_size = 0;
-      audio_sample_info.average_bytes_per_second =
-          audio_sample_info.samples_per_second *
-          audio_sample_info.number_of_channels *
-          audio_sample_info.bits_per_sample / 8;
+      audio_stream_info.number_of_channels = 2;
+      audio_stream_info.samples_per_second = 44100;
+      audio_stream_info.bits_per_sample = 32;
       break;
     }
 #endif  // SB_API_VERSION >= 14
   }
-  return audio_sample_info;
+  return audio_stream_info;
 }
 
-SbMediaVideoSampleInfo CreateVideoSampleInfo(SbMediaVideoCodec codec) {
-  SbMediaVideoSampleInfo video_sample_info = {};
+VideoStreamInfo CreateVideoStreamInfo(SbMediaVideoCodec codec) {
+  VideoStreamInfo video_stream_info;
 
-  video_sample_info.codec = codec;
+  video_stream_info.codec = codec;
 
-  video_sample_info.mime = "";
-  video_sample_info.max_video_capabilities = "";
-  video_sample_info.color_metadata.primaries = kSbMediaPrimaryIdBt709;
-  video_sample_info.color_metadata.transfer = kSbMediaTransferIdBt709;
-  video_sample_info.color_metadata.matrix = kSbMediaMatrixIdBt709;
-  video_sample_info.color_metadata.range = kSbMediaRangeIdLimited;
+  video_stream_info.mime = "";
+  video_stream_info.max_video_capabilities = "";
+  video_stream_info.color_metadata.primaries = kSbMediaPrimaryIdBt709;
+  video_stream_info.color_metadata.transfer = kSbMediaTransferIdBt709;
+  video_stream_info.color_metadata.matrix = kSbMediaMatrixIdBt709;
+  video_stream_info.color_metadata.range = kSbMediaRangeIdLimited;
 
-  video_sample_info.frame_width = 1920;
-  video_sample_info.frame_height = 1080;
+  video_stream_info.frame_width = 1920;
+  video_stream_info.frame_height = 1080;
 
-  return video_sample_info;
+  return video_stream_info;
 }
 
-SbPlayerCreationParam CreatePlayerCreationParam(SbMediaAudioCodec audio_codec,
-                                                SbMediaVideoCodec video_codec) {
-  SbPlayerCreationParam creation_param = {};
+PlayerCreationParam CreatePlayerCreationParam(SbMediaAudioCodec audio_codec,
+                                              SbMediaVideoCodec video_codec) {
+  PlayerCreationParam creation_param;
 
-  creation_param.drm_system = kSbDrmSystemInvalid;
-  creation_param.audio_sample_info = CreateAudioSampleInfo(audio_codec);
-  creation_param.video_sample_info = CreateVideoSampleInfo(video_codec);
-  creation_param.output_mode = kSbPlayerOutputModeInvalid;
+  creation_param.audio_stream_info = CreateAudioStreamInfo(audio_codec);
+  creation_param.video_stream_info = CreateVideoStreamInfo(video_codec);
 
   return creation_param;
 }

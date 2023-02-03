@@ -247,7 +247,11 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbPlayerSetPlaybackRate);
   REGISTER_SYMBOL(SbPlayerSetVolume);
   REGISTER_SYMBOL(SbPlayerWriteEndOfStream);
+#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+  REGISTER_SYMBOL(SbPlayerWriteSamples);
+#else   // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
   REGISTER_SYMBOL(SbPlayerWriteSample2);
+#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
   REGISTER_SYMBOL(SbSocketAccept);
   REGISTER_SYMBOL(SbSocketBind);
   REGISTER_SYMBOL(SbSocketClearLastError);

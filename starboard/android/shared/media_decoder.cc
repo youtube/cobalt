@@ -72,8 +72,7 @@ const char* GetDecoderName(SbMediaType media_type) {
 }  // namespace
 
 MediaDecoder::MediaDecoder(Host* host,
-                           SbMediaAudioCodec audio_codec,
-                           const SbMediaAudioSampleInfo& audio_sample_info,
+                           const AudioStreamInfo& audio_stream_info,
                            SbDrmSystem drm_system)
     : media_type_(kSbMediaTypeAudio),
       host_(host),
@@ -85,22 +84,18 @@ MediaDecoder::MediaDecoder(Host* host,
   jobject j_media_crypto = drm_system_ ? drm_system_->GetMediaCrypto() : NULL;
   SB_DCHECK(!drm_system_ || j_media_crypto);
   media_codec_bridge_ = MediaCodecBridge::CreateAudioMediaCodecBridge(
-      audio_codec, audio_sample_info, this, j_media_crypto);
+      audio_stream_info, this, j_media_crypto);
   if (!media_codec_bridge_) {
     SB_LOG(ERROR) << "Failed to create audio media codec bridge.";
     return;
   }
-  // When |audio_codec| == kSbMediaAudioCodecOpus, we instead send the audio
-  // specific configuration when we create the MediaCodec object.
+  // When |audio_stream_info.codec| == kSbMediaAudioCodecOpus, we instead send
+  // the audio specific configuration when we create the MediaCodec object.
   // TODO: Determine if we should send the audio specific configuration here
   // only when |audio_codec| == kSbMediaAudioCodecAac.
-  if (audio_codec != kSbMediaAudioCodecOpus &&
-      audio_sample_info.audio_specific_config_size > 0) {
-    // |audio_sample_info.audio_specific_config| is guaranteed to be outlived
-    // the decoder as it is stored in |FilterBasedPlayerWorkerHandler|.
-    pending_tasks_.push_back(Event(
-        static_cast<const int8_t*>(audio_sample_info.audio_specific_config),
-        audio_sample_info.audio_specific_config_size));
+  if (audio_stream_info.codec != kSbMediaAudioCodecOpus &&
+      !audio_stream_info.audio_specific_config.empty()) {
+    pending_tasks_.push_back(Event(audio_stream_info.audio_specific_config));
     number_of_pending_tasks_.increment();
   }
 }
@@ -425,8 +420,8 @@ bool MediaDecoder::ProcessOneInputBuffer(
   int size = 0;
   if (event.type == Event::kWriteCodecConfig) {
     SB_DCHECK(media_type_ == kSbMediaTypeAudio);
-    data = event.codec_config;
-    size = event.codec_config_size;
+    data = event.codec_config.data();
+    size = event.codec_config.size();
   } else if (event.type == Event::kWriteInputBuffer) {
     data = input_buffer->data();
     size = input_buffer->size();

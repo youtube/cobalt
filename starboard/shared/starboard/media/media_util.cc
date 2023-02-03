@@ -34,63 +34,270 @@ namespace {
 const int64_t kDefaultBitRate = 0;
 const int64_t kDefaultAudioChannels = 2;
 
-}  // namespace
+template <typename StreamInfo>
+void Assign(const StreamInfo& source, AudioStreamInfo* dest) {
+  SB_DCHECK(dest);
+  SB_DCHECK(source.mime);
+  if (source.audio_specific_config_size > 0) {
+    SB_DCHECK(source.audio_specific_config);
+  }
 
-AudioSampleInfo::AudioSampleInfo() {
-  memset(this, 0, sizeof(SbMediaAudioSampleInfo));
-  codec = kSbMediaAudioCodecNone;
+  dest->codec = source.codec;
+
+  if (dest->codec == kSbMediaAudioCodecNone) {
+    dest->mime.clear();
+    dest->audio_specific_config.clear();
+    return;
+  }
+
+  dest->mime = source.mime;
+  dest->number_of_channels = source.number_of_channels;
+  dest->samples_per_second = source.samples_per_second;
+  dest->bits_per_sample = source.bits_per_sample;
+
+  auto config = static_cast<const uint8_t*>(source.audio_specific_config);
+  dest->audio_specific_config.assign(
+      config, config + source.audio_specific_config_size);
 }
 
-AudioSampleInfo::AudioSampleInfo(const SbMediaAudioSampleInfo& that) {
-  *this = that;
+template <typename StreamInfo>
+void Assign(const StreamInfo& source, VideoStreamInfo* dest) {
+  SB_DCHECK(dest);
+  SB_DCHECK(source.mime);
+  SB_DCHECK(source.max_video_capabilities);
+
+  dest->codec = source.codec;
+
+  if (dest->codec == kSbMediaVideoCodecNone) {
+    dest->mime.clear();
+    dest->max_video_capabilities.clear();
+    return;
+  }
+
+  dest->mime = source.mime;
+  dest->max_video_capabilities = source.max_video_capabilities;
+  dest->frame_width = source.frame_width;
+  dest->frame_height = source.frame_height;
+  dest->color_metadata = source.color_metadata;
+}
+
+template <typename StreamInfo>
+void Assign(const AudioStreamInfo& source, StreamInfo* dest) {
+  SB_DCHECK(dest);
+
+  *dest = {};
+
+  dest->codec = source.codec;
+  dest->mime = source.mime.c_str();
+  dest->number_of_channels = source.number_of_channels;
+  dest->samples_per_second = source.samples_per_second;
+  dest->bits_per_sample = source.bits_per_sample;
+  if (!source.audio_specific_config.empty()) {
+    dest->audio_specific_config = source.audio_specific_config.data();
+    dest->audio_specific_config_size =
+        static_cast<uint16_t>(source.audio_specific_config.size());
+  }
+}
+
+template <typename StreamInfo>
+void Assign(const VideoStreamInfo& source, StreamInfo* dest) {
+  SB_DCHECK(dest);
+
+  *dest = {};
+
+  dest->codec = source.codec;
+  dest->mime = source.mime.c_str();
+  dest->max_video_capabilities = source.max_video_capabilities.c_str();
+  dest->frame_width = source.frame_width;
+  dest->frame_height = source.frame_height;
+  dest->color_metadata = source.color_metadata;
+}
+
+}  // namespace
+
+AudioStreamInfo& AudioStreamInfo::operator=(
+    const SbMediaAudioStreamInfo& that) {
+  Assign(that, this);
+  return *this;
+}
+
+AudioStreamInfo& AudioStreamInfo::operator=(
+    const CobaltExtensionEnhancedAudioMediaAudioStreamInfo& that) {
+  Assign(that, this);
+  return *this;
+}
+
+void AudioStreamInfo::ConvertTo(
+    SbMediaAudioStreamInfo* audio_stream_info) const {
+  Assign(*this, audio_stream_info);
+
+#if SB_API_VERSION < SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+  SB_DCHECK(audio_stream_info);
+  audio_stream_info->format_tag = 0xff;
+  audio_stream_info->block_alignment = 4;
+  audio_stream_info->average_bytes_per_second =
+      audio_stream_info->samples_per_second *
+      audio_stream_info->number_of_channels *
+      audio_stream_info->bits_per_sample / 8;
+#endif  // SB_API_VERSION < SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+}
+
+void AudioStreamInfo::ConvertTo(
+    CobaltExtensionEnhancedAudioMediaAudioStreamInfo* audio_stream_info) const {
+  Assign(*this, audio_stream_info);
+}
+
+bool operator==(const AudioStreamInfo& left, const AudioStreamInfo& right) {
+  if (left.codec == kSbMediaAudioCodecNone &&
+      right.codec == kSbMediaAudioCodecNone) {
+    return true;
+  }
+
+  return left.codec == right.codec && left.mime == right.mime &&
+         left.number_of_channels == right.number_of_channels &&
+         left.samples_per_second == right.samples_per_second &&
+         left.bits_per_sample == right.bits_per_sample &&
+         left.audio_specific_config == right.audio_specific_config;
+}
+
+bool operator!=(const AudioStreamInfo& left, const AudioStreamInfo& right) {
+  return !(left == right);
 }
 
 AudioSampleInfo& AudioSampleInfo::operator=(
     const SbMediaAudioSampleInfo& that) {
-  *static_cast<SbMediaAudioSampleInfo*>(this) = that;
-  if (audio_specific_config_size > 0) {
-    audio_specific_config_storage.resize(audio_specific_config_size);
-    memcpy(audio_specific_config_storage.data(), audio_specific_config,
-           audio_specific_config_size);
-    audio_specific_config = audio_specific_config_storage.data();
-  }
-
-  if (codec == kSbMediaAudioCodecNone) {
-    mime_storage.clear();
-  } else {
-    SB_DCHECK(that.mime);
-    mime_storage = that.mime;
-  }
-  mime = mime_storage.c_str();
+#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+  stream_info = that.stream_info;
+#else   // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+  stream_info = that;
+#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
 
   return *this;
 }
 
-VideoSampleInfo::VideoSampleInfo() {
-  memset(this, 0, sizeof(SbMediaVideoSampleInfo));
-  codec = kSbMediaVideoCodecNone;
+AudioSampleInfo& AudioSampleInfo::operator=(
+    const CobaltExtensionEnhancedAudioMediaAudioSampleInfo& that) {
+  stream_info = that.stream_info;
+  return *this;
 }
 
-VideoSampleInfo::VideoSampleInfo(const SbMediaVideoSampleInfo& that) {
-  *this = that;
+void AudioSampleInfo::ConvertTo(
+    SbMediaAudioSampleInfo* audio_sample_info) const {
+  SB_DCHECK(audio_sample_info);
+
+  *audio_sample_info = {};
+#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+  stream_info.ConvertTo(&audio_sample_info->stream_info);
+#else   // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+  stream_info.ConvertTo(audio_sample_info);
+#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+}
+
+void AudioSampleInfo::ConvertTo(
+    CobaltExtensionEnhancedAudioMediaAudioSampleInfo* audio_sample_info) const {
+  SB_DCHECK(audio_sample_info);
+  *audio_sample_info = {};
+  stream_info.ConvertTo(&audio_sample_info->stream_info);
+}
+
+VideoStreamInfo& VideoStreamInfo::operator=(
+    const SbMediaVideoStreamInfo& that) {
+  Assign(that, this);
+  return *this;
+}
+
+VideoStreamInfo& VideoStreamInfo::operator=(
+    const CobaltExtensionEnhancedAudioMediaVideoStreamInfo& that) {
+  Assign(that, this);
+  return *this;
+}
+
+void VideoStreamInfo::ConvertTo(
+    SbMediaVideoStreamInfo* video_stream_info) const {
+  Assign(*this, video_stream_info);
+}
+
+void VideoStreamInfo::ConvertTo(
+    CobaltExtensionEnhancedAudioMediaVideoStreamInfo* video_stream_info) const {
+  Assign(*this, video_stream_info);
+}
+
+bool operator==(const VideoStreamInfo& left, const VideoStreamInfo& right) {
+  if (left.codec == kSbMediaVideoCodecNone &&
+      right.codec == kSbMediaVideoCodecNone) {
+    return true;
+  }
+
+  return left.codec == right.codec && left.mime == right.mime &&
+         left.max_video_capabilities == right.max_video_capabilities &&
+         left.frame_width == right.frame_width &&
+         left.frame_height == right.frame_height &&
+         left.color_metadata == right.color_metadata;
+}
+
+bool operator!=(const VideoStreamInfo& left, const VideoStreamInfo& right) {
+  return !(left == right);
 }
 
 VideoSampleInfo& VideoSampleInfo::operator=(
     const SbMediaVideoSampleInfo& that) {
-  *static_cast<SbMediaVideoSampleInfo*>(this) = that;
-
-  if (codec == kSbMediaVideoCodecNone) {
-    mime_storage.clear();
-    max_video_capabilities_storage.clear();
-  } else {
-    SB_DCHECK(that.mime);
-    mime_storage = that.mime;
-    max_video_capabilities_storage = that.max_video_capabilities;
-  }
-  mime = mime_storage.c_str();
-  max_video_capabilities = max_video_capabilities_storage.c_str();
+#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+  stream_info = that.stream_info;
+#else   // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+  stream_info = that;
+#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
 
   return *this;
+}
+
+VideoSampleInfo& VideoSampleInfo::operator=(
+    const CobaltExtensionEnhancedAudioMediaVideoSampleInfo& that) {
+  stream_info = that.stream_info;
+  return *this;
+}
+
+void VideoSampleInfo::ConvertTo(
+    SbMediaVideoSampleInfo* video_sample_info) const {
+  SB_DCHECK(video_sample_info);
+
+  *video_sample_info = {};
+#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+  stream_info.ConvertTo(&video_sample_info->stream_info);
+#else   // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+  stream_info.ConvertTo(video_sample_info);
+#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+  video_sample_info->is_key_frame = is_key_frame;
+}
+
+void VideoSampleInfo::ConvertTo(
+    CobaltExtensionEnhancedAudioMediaVideoSampleInfo* video_sample_info) const {
+  SB_DCHECK(video_sample_info);
+
+  *video_sample_info = {};
+  stream_info.ConvertTo(&video_sample_info->stream_info);
+  video_sample_info->is_key_frame = is_key_frame;
+}
+
+std::ostream& operator<<(std::ostream& os, const VideoSampleInfo& sample_info) {
+  const auto& stream_info = sample_info.stream_info;
+
+  if (stream_info.codec == kSbMediaVideoCodecNone) {
+    return os << "codec: " << GetMediaVideoCodecName(stream_info.codec);
+  }
+
+  os << "codec: " << GetMediaVideoCodecName(stream_info.codec) << ", ";
+  os << "mime: " << stream_info.mime
+     << ", max video capabilities: " << stream_info.max_video_capabilities
+     << ", ";
+
+  if (sample_info.is_key_frame) {
+    os << "key frame, ";
+  }
+
+  os << stream_info.frame_width << 'x' << stream_info.frame_height << ' ';
+  os << '(' << stream_info.color_metadata << ')';
+
+  return os;
 }
 
 bool IsSDRVideo(int bit_depth,
@@ -220,15 +427,12 @@ std::string GetMixedRepresentation(const uint8_t* data,
   return result;
 }
 
-bool IsAudioSampleInfoSubstantiallyDifferent(
-    const SbMediaAudioSampleInfo& left,
-    const SbMediaAudioSampleInfo& right) {
+bool IsAudioSampleInfoSubstantiallyDifferent(const AudioStreamInfo& left,
+                                             const AudioStreamInfo& right) {
   return left.codec != right.codec ||
          left.samples_per_second != right.samples_per_second ||
          left.number_of_channels != right.number_of_channels ||
-         left.audio_specific_config_size != right.audio_specific_config_size ||
-         memcmp(left.audio_specific_config, right.audio_specific_config,
-                left.audio_specific_config_size) != 0;
+         left.audio_specific_config != right.audio_specific_config;
 }
 
 }  // namespace media
@@ -243,32 +447,69 @@ bool operator==(const SbMediaColorMetadata& metadata_1,
 
 bool operator==(const SbMediaVideoSampleInfo& sample_info_1,
                 const SbMediaVideoSampleInfo& sample_info_2) {
-  if (sample_info_1.codec != sample_info_2.codec) {
+#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+  const SbMediaVideoStreamInfo& stream_info_1 = sample_info_1.stream_info;
+  const SbMediaVideoStreamInfo& stream_info_2 = sample_info_2.stream_info;
+#else   // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+  const SbMediaVideoStreamInfo& stream_info_1 = sample_info_1;
+  const SbMediaVideoStreamInfo& stream_info_2 = sample_info_2;
+#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+
+  if (stream_info_1.codec != stream_info_2.codec) {
     return false;
   }
-  if (sample_info_1.codec == kSbMediaVideoCodecNone) {
+  if (stream_info_1.codec == kSbMediaVideoCodecNone) {
     return true;
   }
 
-  if (strcmp(sample_info_1.mime, sample_info_2.mime) != 0) {
+  if (strcmp(stream_info_1.mime, stream_info_2.mime) != 0) {
     return false;
   }
-  if (strcmp(sample_info_1.max_video_capabilities,
-             sample_info_2.max_video_capabilities) != 0) {
+  if (strcmp(stream_info_1.max_video_capabilities,
+             stream_info_2.max_video_capabilities) != 0) {
     return false;
   }
 
   if (sample_info_1.is_key_frame != sample_info_2.is_key_frame) {
     return false;
   }
-  if (sample_info_1.frame_width != sample_info_2.frame_width) {
+  if (stream_info_1.frame_width != stream_info_2.frame_width) {
     return false;
   }
-  if (sample_info_1.frame_height != sample_info_2.frame_height) {
+  if (stream_info_1.frame_height != stream_info_2.frame_height) {
     return false;
   }
-  return sample_info_1.color_metadata == sample_info_2.color_metadata;
+  return stream_info_1.color_metadata == stream_info_2.color_metadata;
 }
+
+#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+
+bool operator==(const SbMediaVideoStreamInfo& stream_info_1,
+                const SbMediaVideoStreamInfo& stream_info_2) {
+  if (stream_info_1.codec != stream_info_2.codec) {
+    return false;
+  }
+  if (stream_info_1.codec == kSbMediaVideoCodecNone) {
+    return true;
+  }
+
+  if (strcmp(stream_info_1.mime, stream_info_2.mime) != 0) {
+    return false;
+  }
+  if (strcmp(stream_info_1.max_video_capabilities,
+             stream_info_2.max_video_capabilities) != 0) {
+    return false;
+  }
+  if (stream_info_1.frame_width != stream_info_2.frame_width) {
+    return false;
+  }
+  if (stream_info_1.frame_height != stream_info_2.frame_height) {
+    return false;
+  }
+  return stream_info_1.color_metadata == stream_info_2.color_metadata;
+}
+
+#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
 
 bool operator!=(const SbMediaColorMetadata& metadata_1,
                 const SbMediaColorMetadata& metadata_2) {
@@ -279,3 +520,10 @@ bool operator!=(const SbMediaVideoSampleInfo& sample_info_1,
                 const SbMediaVideoSampleInfo& sample_info_2) {
   return !(sample_info_1 == sample_info_2);
 }
+
+#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+bool operator!=(const SbMediaVideoStreamInfo& stream_info_1,
+                const SbMediaVideoStreamInfo& stream_info_2) {
+  return !(stream_info_1 == stream_info_2);
+}
+#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION

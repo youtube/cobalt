@@ -22,6 +22,7 @@
 
 #include "starboard/player.h"
 
+#include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_sink.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -55,14 +56,13 @@ std::vector<const char*> GetSupportedAudioTestFiles(
 std::vector<VideoTestParam> GetSupportedVideoTests();
 
 bool CreateAudioComponents(bool using_stub_decoder,
-                           SbMediaAudioCodec codec,
-                           const SbMediaAudioSampleInfo& audio_sample_info,
+                           const media::AudioStreamInfo& audio_stream_info,
                            scoped_ptr<AudioDecoder>* audio_decoder,
                            scoped_ptr<AudioRendererSink>* audio_renderer_sink);
 
 ::testing::AssertionResult AlmostEqualTime(SbTime time1, SbTime time2);
 
-media::VideoSampleInfo CreateVideoSampleInfo(SbMediaVideoCodec codec);
+media::VideoStreamInfo CreateVideoStreamInfo(SbMediaVideoCodec codec);
 
 }  // namespace testing
 }  // namespace filter

@@ -43,18 +43,17 @@ static const VorbisLayout vorbis_mappings[8] = {
 
 }  // namespace
 
-OpusAudioDecoder::OpusAudioDecoder(
-    const SbMediaAudioSampleInfo& audio_sample_info)
-    : audio_sample_info_(audio_sample_info) {
+OpusAudioDecoder::OpusAudioDecoder(const AudioStreamInfo& audio_stream_info)
+    : audio_stream_info_(audio_stream_info) {
   int error;
-  int channels = audio_sample_info_.number_of_channels;
+  int channels = audio_stream_info_.number_of_channels;
   if (channels > 8 || channels < 1) {
     SB_LOG(ERROR) << "Can't create decoder with " << channels << " channels";
     return;
   }
 
   decoder_ = opus_multistream_decoder_create(
-      audio_sample_info_.samples_per_second, channels,
+      audio_stream_info_.samples_per_second, channels,
       vorbis_mappings[channels - 1].nb_streams,
       vorbis_mappings[channels - 1].nb_coupled_streams,
       vorbis_mappings[channels - 1].mapping, &error);
@@ -112,9 +111,9 @@ bool OpusAudioDecoder::DecodeInternal(
   SB_DCHECK(!stream_ended_);
 
   scoped_refptr<DecodedAudio> decoded_audio = new DecodedAudio(
-      audio_sample_info_.number_of_channels, GetSampleType(),
+      audio_stream_info_.number_of_channels, GetSampleType(),
       kSbMediaAudioFrameStorageTypeInterleaved, input_buffer->timestamp(),
-      audio_sample_info_.number_of_channels * frames_per_au_ *
+      audio_stream_info_.number_of_channels * frames_per_au_ *
           starboard::media::GetBytesPerSample(GetSampleType()));
 
 #if SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
@@ -153,7 +152,7 @@ bool OpusAudioDecoder::DecodeInternal(
   }
 
   frames_per_au_ = decoded_frames;
-  decoded_audio->ShrinkTo(audio_sample_info_.number_of_channels *
+  decoded_audio->ShrinkTo(audio_stream_info_.number_of_channels *
                           frames_per_au_ *
                           starboard::media::GetBytesPerSample(GetSampleType()));
 
@@ -186,7 +185,7 @@ scoped_refptr<OpusAudioDecoder::DecodedAudio> OpusAudioDecoder::Read(
     result = decoded_audios_.front();
     decoded_audios_.pop();
   }
-  *samples_per_second = audio_sample_info_.samples_per_second;
+  *samples_per_second = audio_stream_info_.samples_per_second;
   return result;
 }
 

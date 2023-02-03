@@ -141,7 +141,7 @@ void VideoDmpWriter::DumpConfigs(
   Write(write_cb_, audio_codec);
   if (audio_codec != kSbMediaAudioCodecNone) {
     SB_DCHECK(audio_sample_info);
-    Write(write_cb_, audio_codec, *audio_sample_info);
+    Write(write_cb_, audio_codec, media::AudioSampleInfo(*audio_sample_info));
   }
 
   Write(write_cb_, kRecordTypeVideoConfig);
@@ -177,14 +177,12 @@ void VideoDmpWriter::DumpAccessUnit(
   Write(write_cb_, sample_buffer, static_cast<size_t>(sample_buffer_size));
 
   if (sample_type == kSbMediaTypeAudio) {
-    const SbMediaAudioSampleInfo& audio_sample_info =
-        input_buffer->audio_sample_info();
-    Write(write_cb_, audio_sample_info.codec, audio_sample_info);
+    Write(write_cb_, input_buffer->audio_stream_info().codec,
+          input_buffer->audio_sample_info());
   } else {
     SB_DCHECK(sample_type == kSbMediaTypeVideo);
-    const SbMediaVideoSampleInfo& video_sample_info =
-        input_buffer->video_sample_info();
-    Write(write_cb_, video_sample_info.codec, video_sample_info);
+    Write(write_cb_, input_buffer->video_stream_info().codec,
+          input_buffer->video_sample_info());
   }
 }
 

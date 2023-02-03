@@ -1,4 +1,4 @@
-// Copyright 2018 The Cobalt Authors. All Rights Reserved.
+// Copyright 2023 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,7 +14,18 @@
 
 #include "starboard/player.h"
 
+#include "starboard/common/log.h"
+
+// Special implementation of `SbPlayerWriteSample2()` for EnhancedAudio, where
+// all sample writes should use the `PlayerWriteSamples()` function provided by
+// the EnhancedAudio extension.
+#if SB_API_VERSION < SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+
 void SbPlayerWriteSample2(SbPlayer player,
                           SbMediaType sample_type,
                           const SbPlayerSampleInfo* sample_infos,
-                          int number_of_sample_infos) {}
+                          int number_of_sample_infos) {
+  SB_NOTREACHED();
+}
+
+#endif  // SB_API_VERSION < SB_MEDIA_ENHANCED_AUDIO_API_VERSION

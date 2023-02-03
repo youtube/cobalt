@@ -172,7 +172,7 @@ static_library("stub_sources") {
     "//starboard/shared/stub/player_set_playback_rate.cc",
     "//starboard/shared/stub/player_set_volume.cc",
     "//starboard/shared/stub/player_write_end_of_stream.cc",
-    "//starboard/shared/stub/player_write_sample2.cc",
+    "//starboard/shared/stub/player_write_samples.cc",
     "//starboard/shared/stub/socket_accept.cc",
     "//starboard/shared/stub/socket_bind.cc",
     "//starboard/shared/stub/socket_clear_last_error.cc",

@@ -66,16 +66,15 @@ const bool g_registered =
 }  // namespace
 
 AudioDecoderImpl<FFMPEG>::AudioDecoderImpl(
-    SbMediaAudioCodec audio_codec,
-    const SbMediaAudioSampleInfo& audio_sample_info)
-    : audio_codec_(audio_codec),
-      codec_context_(NULL),
+    const AudioStreamInfo& audio_stream_info)
+    : codec_context_(NULL),
       av_frame_(NULL),
       stream_ended_(false),
-      audio_sample_info_(audio_sample_info) {
+      audio_stream_info_(audio_stream_info) {
   SB_DCHECK(g_registered) << "Decoder Specialization registration failed.";
-  SB_DCHECK(GetFfmpegCodecIdByMediaCodec(audio_codec) != AV_CODEC_ID_NONE)
-      << "Unsupported audio codec " << audio_codec;
+  SB_DCHECK(GetFfmpegCodecIdByMediaCodec(audio_stream_info_.codec) !=
+            AV_CODEC_ID_NONE)
+      << "Unsupported audio codec " << audio_stream_info_.codec;
   ffmpeg_ = FFMPEGDispatch::GetInstance();
   SB_DCHECK(ffmpeg_);
   if ((ffmpeg_->specialization_version()) == FFMPEG) {
@@ -89,9 +88,8 @@ AudioDecoderImpl<FFMPEG>::~AudioDecoderImpl() {
 
 // static
 AudioDecoder* AudioDecoderImpl<FFMPEG>::Create(
-    SbMediaAudioCodec audio_codec,
-    const SbMediaAudioSampleInfo& audio_sample_info) {
-  return new AudioDecoderImpl<FFMPEG>(audio_codec, audio_sample_info);
+    const AudioStreamInfo& audio_stream_info) {
+  return new AudioDecoderImpl<FFMPEG>(audio_stream_info);
 }
 
 void AudioDecoderImpl<FFMPEG>::Initialize(const OutputCB& output_cb,
@@ -155,7 +153,7 @@ void AudioDecoderImpl<FFMPEG>::Decode(const InputBuffers& input_buffers,
   int decoded_audio_size = ffmpeg_->av_samples_get_buffer_size(
       NULL, codec_context_->channels, av_frame_->nb_samples,
       codec_context_->sample_fmt, 1);
-  audio_sample_info_.samples_per_second = codec_context_->sample_rate;
+  audio_stream_info_.samples_per_second = codec_context_->sample_rate;
 
   if (decoded_audio_size > 0) {
     scoped_refptr<DecodedAudio> decoded_audio = new DecodedAudio(
@@ -207,7 +205,7 @@ AudioDecoderImpl<FFMPEG>::Read(int* samples_per_second) {
     result = decoded_audios_.front();
     decoded_audios_.pop();
   }
-  *samples_per_second = audio_sample_info_.samples_per_second;
+  *samples_per_second = audio_stream_info_.samples_per_second;
   return result;
 }
 
@@ -267,7 +265,8 @@ void AudioDecoderImpl<FFMPEG>::InitializeCodec() {
   }
 
   codec_context_->codec_type = AVMEDIA_TYPE_AUDIO;
-  codec_context_->codec_id = GetFfmpegCodecIdByMediaCodec(audio_codec_);
+  codec_context_->codec_id =
+      GetFfmpegCodecIdByMediaCodec(audio_stream_info_.codec);
   // Request_sample_fmt is set by us, but sample_fmt is set by the decoder.
   if (GetSupportedSampleType() == kSbMediaAudioSampleTypeInt16Deprecated) {
     codec_context_->request_sample_fmt = AV_SAMPLE_FMT_S16;
@@ -275,23 +274,24 @@ void AudioDecoderImpl<FFMPEG>::InitializeCodec() {
     codec_context_->request_sample_fmt = AV_SAMPLE_FMT_FLT;
   }
 
-  codec_context_->channels = audio_sample_info_.number_of_channels;
-  codec_context_->sample_rate = audio_sample_info_.samples_per_second;
+  codec_context_->channels = audio_stream_info_.number_of_channels;
+  codec_context_->sample_rate = audio_stream_info_.samples_per_second;
   codec_context_->extradata = NULL;
   codec_context_->extradata_size = 0;
 
   if ((codec_context_->codec_id == AV_CODEC_ID_OPUS ||
        codec_context_->codec_id == AV_CODEC_ID_VORBIS) &&
-      audio_sample_info_.audio_specific_config_size > 0) {
+      !audio_stream_info_.audio_specific_config.empty()) {
     // AV_INPUT_BUFFER_PADDING_SIZE is not defined in ancient avcodec.h.  Use a
     // large enough padding here explicitly.
     const int kAvInputBufferPaddingSize = 256;
     codec_context_->extradata_size =
-        audio_sample_info_.audio_specific_config_size;
+        audio_stream_info_.audio_specific_config.size();
     codec_context_->extradata = static_cast<uint8_t*>(ffmpeg_->av_malloc(
         codec_context_->extradata_size + kAvInputBufferPaddingSize));
     SB_DCHECK(codec_context_->extradata);
-    memcpy(codec_context_->extradata, audio_sample_info_.audio_specific_config,
+    memcpy(codec_context_->extradata,
+           audio_stream_info_.audio_specific_config.data(),
            codec_context_->extradata_size);
     memset(codec_context_->extradata + codec_context_->extradata_size, 0,
            kAvInputBufferPaddingSize);

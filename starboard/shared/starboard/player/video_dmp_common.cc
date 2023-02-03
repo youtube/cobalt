@@ -89,41 +89,68 @@ void Write(const WriteCB& write_cb, const void* buffer, size_t size) {
 
 void Read(const ReadCB& read_cb,
           bool reverse_byte_order,
-          SbMediaAudioSampleInfoWithConfig* audio_sample_info) {
-  Read(read_cb, reverse_byte_order, &audio_sample_info->codec);
+          media::AudioSampleInfo* audio_sample_info) {
+  SB_DCHECK(audio_sample_info);
 
-  audio_sample_info->mime = "";
+  *audio_sample_info = media::AudioSampleInfo();
 
-  Read(read_cb, reverse_byte_order, &audio_sample_info->format_tag);
-  Read(read_cb, reverse_byte_order, &audio_sample_info->number_of_channels);
-  Read(read_cb, reverse_byte_order, &audio_sample_info->samples_per_second);
-  Read(read_cb, reverse_byte_order,
-       &audio_sample_info->average_bytes_per_second);
-  Read(read_cb, reverse_byte_order, &audio_sample_info->block_alignment);
-  Read(read_cb, reverse_byte_order, &audio_sample_info->bits_per_sample);
-  Read(read_cb, reverse_byte_order,
-       &audio_sample_info->audio_specific_config_size);
-  audio_sample_info->stored_audio_specific_config.resize(
-      audio_sample_info->audio_specific_config_size);
-  audio_sample_info->audio_specific_config =
-      audio_sample_info->stored_audio_specific_config.data();
-  Read(read_cb, audio_sample_info->stored_audio_specific_config.data(),
-       audio_sample_info->audio_specific_config_size);
+  media::AudioStreamInfo* audio_stream_info = &audio_sample_info->stream_info;
+
+  Read(read_cb, reverse_byte_order, &audio_stream_info->codec);
+
+  audio_stream_info->mime = "";
+
+  // Skip `format_tag` as it's removed from `SbMediaAudioStreamInfo`.
+  uint16_t format_tag_to_skip;
+  Read(read_cb, reverse_byte_order, &format_tag_to_skip);
+
+  Read(read_cb, reverse_byte_order, &audio_stream_info->number_of_channels);
+  Read(read_cb, reverse_byte_order, &audio_stream_info->samples_per_second);
+
+  // Skip `average_bytes` and `block_alignment` as they're removed from
+  // `SbMediaAudioStreamInfo`.
+  uint32_t average_bytes_per_second_to_skip;
+  Read(read_cb, reverse_byte_order, &average_bytes_per_second_to_skip);
+  uint16_t block_alignment_to_skip;
+  Read(read_cb, reverse_byte_order, &block_alignment_to_skip);
+
+  Read(read_cb, reverse_byte_order, &audio_stream_info->bits_per_sample);
+
+  uint16_t audio_specific_config_size;
+  Read(read_cb, reverse_byte_order, &audio_specific_config_size);
+  audio_stream_info->audio_specific_config.resize(audio_specific_config_size);
+  Read(read_cb, audio_stream_info->audio_specific_config.data(),
+       audio_specific_config_size);
 }
 
 void Write(const WriteCB& write_cb,
            SbMediaAudioCodec audio_codec,
-           const SbMediaAudioSampleInfo& audio_sample_info) {
+           const media::AudioSampleInfo& audio_sample_info) {
+  const auto& audio_stream_info = audio_sample_info.stream_info;
+
   Write(write_cb, audio_codec);
-  Write(write_cb, audio_sample_info.format_tag);
-  Write(write_cb, audio_sample_info.number_of_channels);
-  Write(write_cb, audio_sample_info.samples_per_second);
-  Write(write_cb, audio_sample_info.average_bytes_per_second);
-  Write(write_cb, audio_sample_info.block_alignment);
-  Write(write_cb, audio_sample_info.bits_per_sample);
-  Write(write_cb, audio_sample_info.audio_specific_config_size);
-  Write(write_cb, audio_sample_info.audio_specific_config,
-        audio_sample_info.audio_specific_config_size);
+
+  uint16_t format_tag = 0x00ff;
+  // Write a dummy one to be compatible with the existing format.
+  Write(write_cb, format_tag);
+
+  Write(write_cb, audio_stream_info.number_of_channels);
+  Write(write_cb, audio_stream_info.samples_per_second);
+
+  uint32_t average_bytes_per_second = 1;
+  // Write a dummy one to be compatible with the existing format.
+  Write(write_cb, average_bytes_per_second);
+  uint16_t block_alignment = 4;
+  // Write a dummy one to be compatible with the existing format.
+  Write(write_cb, block_alignment);
+
+  Write(write_cb, audio_stream_info.bits_per_sample);
+
+  uint16_t audio_specific_config_size =
+      static_cast<uint16_t>(audio_stream_info.audio_specific_config.size());
+  Write(write_cb, audio_specific_config_size);
+  Write(write_cb, audio_stream_info.audio_specific_config.data(),
+        audio_stream_info.audio_specific_config.size());
 }
 
 void Read(const ReadCB& read_cb,
@@ -165,17 +192,19 @@ void Write(const WriteCB& write_cb, const SbDrmSampleInfo& drm_sample_info) {
 
 void Read(const ReadCB& read_cb,
           bool reverse_byte_order,
-          SbMediaVideoSampleInfoWithOptionalColorMetadata* video_sample_info) {
-  Read(read_cb, reverse_byte_order, &video_sample_info->codec);
+          media::VideoSampleInfo* video_sample_info) {
+  SB_DCHECK(video_sample_info);
 
-  video_sample_info->mime = "";
-  video_sample_info->max_video_capabilities = "";
+  *video_sample_info = media::VideoSampleInfo();
+  media::VideoStreamInfo* video_stream_info = &video_sample_info->stream_info;
+
+  Read(read_cb, reverse_byte_order, &video_stream_info->codec);
 
   Read(read_cb, reverse_byte_order, &video_sample_info->is_key_frame);
-  Read(read_cb, reverse_byte_order, &video_sample_info->frame_width);
-  Read(read_cb, reverse_byte_order, &video_sample_info->frame_height);
+  Read(read_cb, reverse_byte_order, &video_stream_info->frame_width);
+  Read(read_cb, reverse_byte_order, &video_stream_info->frame_height);
 
-  auto& color_metadata = video_sample_info->color_metadata;
+  auto& color_metadata = video_stream_info->color_metadata;
 
   Read(read_cb, reverse_byte_order, &color_metadata.bits_per_channel);
   Read(read_cb, reverse_byte_order,
@@ -220,13 +249,15 @@ void Read(const ReadCB& read_cb,
 
 void Write(const WriteCB& write_cb,
            SbMediaVideoCodec video_codec,
-           const SbMediaVideoSampleInfo& video_sample_info) {
+           const media::VideoSampleInfo& video_sample_info) {
+  const auto& video_stream_info = video_sample_info.stream_info;
+
   Write(write_cb, video_codec);
   Write(write_cb, video_sample_info.is_key_frame);
-  Write(write_cb, video_sample_info.frame_width);
-  Write(write_cb, video_sample_info.frame_height);
+  Write(write_cb, video_stream_info.frame_width);
+  Write(write_cb, video_stream_info.frame_height);
 
-  auto& color_metadata = video_sample_info.color_metadata;
+  const auto& color_metadata = video_stream_info.color_metadata;
 
   Write(write_cb, color_metadata.bits_per_channel);
   Write(write_cb, color_metadata.chroma_subsampling_horizontal);

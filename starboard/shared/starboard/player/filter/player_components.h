@@ -60,20 +60,17 @@ class PlayerComponents {
    public:
     class CreationParameters {
      public:
-      CreationParameters(SbMediaAudioCodec audio_codec,
-                         const SbMediaAudioSampleInfo& audio_sample_info,
-                         SbDrmSystem drm_system = kSbDrmSystemInvalid);
-      CreationParameters(SbMediaVideoCodec video_codec,
-                         const SbMediaVideoSampleInfo& video_sample_info,
+      explicit CreationParameters(
+          const media::AudioStreamInfo& audio_stream_info,
+          SbDrmSystem drm_system = kSbDrmSystemInvalid);
+      CreationParameters(const media::VideoStreamInfo& video_stream_info,
                          SbPlayer player,
                          SbPlayerOutputMode output_mode,
                          SbDecodeTargetGraphicsContextProvider*
                              decode_target_graphics_context_provider,
                          SbDrmSystem drm_system = kSbDrmSystemInvalid);
-      CreationParameters(SbMediaAudioCodec audio_codec,
-                         const SbMediaAudioSampleInfo& audio_sample_info,
-                         SbMediaVideoCodec video_codec,
-                         const SbMediaVideoSampleInfo& video_sample_info,
+      CreationParameters(const media::AudioStreamInfo& audio_stream_info,
+                         const media::VideoStreamInfo& video_stream_info,
                          SbPlayer player,
                          SbPlayerOutputMode output_mode,
                          SbDecodeTargetGraphicsContextProvider*
@@ -82,63 +79,62 @@ class PlayerComponents {
       CreationParameters(const CreationParameters& that);
       void operator=(const CreationParameters& that) = delete;
 
-      void reset_audio_codec() { audio_codec_ = kSbMediaAudioCodecNone; }
-      void reset_video_codec() { video_codec_ = kSbMediaVideoCodecNone; }
-
-      SbMediaAudioCodec audio_codec() const { return audio_codec_; }
-
-      const SbMediaAudioSampleInfo& audio_sample_info() const {
-        SB_DCHECK(audio_codec_ != kSbMediaAudioCodecNone);
-        return audio_sample_info_;
+      void reset_audio_codec() {
+        audio_stream_info_.codec = kSbMediaAudioCodecNone;
+      }
+      void reset_video_codec() {
+        video_stream_info_.codec = kSbMediaVideoCodecNone;
       }
 
-      SbMediaVideoCodec video_codec() const { return video_codec_; }
+      SbMediaAudioCodec audio_codec() const { return audio_stream_info_.codec; }
 
-      const char* audio_mime() const {
-        SB_DCHECK(audio_codec_ != kSbMediaAudioCodecNone);
-        return audio_sample_info_.mime;
+      const media::AudioStreamInfo& audio_stream_info() const {
+        SB_DCHECK(audio_stream_info_.codec != kSbMediaAudioCodecNone);
+        return audio_stream_info_;
       }
 
-      const SbMediaVideoSampleInfo& video_sample_info() const {
-        SB_DCHECK(video_codec_ != kSbMediaVideoCodecNone);
-        return video_sample_info_;
+      SbMediaVideoCodec video_codec() const { return video_stream_info_.codec; }
+
+      const std::string& audio_mime() const {
+        SB_DCHECK(audio_stream_info_.codec != kSbMediaAudioCodecNone);
+        return audio_stream_info_.mime;
       }
 
-      const char* video_mime() const {
-        SB_DCHECK(video_codec_ != kSbMediaVideoCodecNone);
-        return video_sample_info_.mime;
+      const media::VideoStreamInfo& video_stream_info() const {
+        SB_DCHECK(video_stream_info_.codec != kSbMediaVideoCodecNone);
+        return video_stream_info_;
       }
 
-      const char* max_video_capabilities() const {
-        SB_DCHECK(video_codec_ != kSbMediaVideoCodecNone);
-        return video_sample_info_.max_video_capabilities;
+      const std::string& video_mime() const {
+        SB_DCHECK(video_stream_info_.codec != kSbMediaVideoCodecNone);
+        return video_stream_info_.mime;
+      }
+
+      const std::string& max_video_capabilities() const {
+        SB_DCHECK(video_stream_info_.codec != kSbMediaVideoCodecNone);
+        return video_stream_info_.max_video_capabilities;
       }
 
       SbPlayer player() const { return player_; }
       SbPlayerOutputMode output_mode() const { return output_mode_; }
       SbDecodeTargetGraphicsContextProvider*
       decode_target_graphics_context_provider() const {
-        SB_DCHECK(video_codec_ != kSbMediaVideoCodecNone);
+        SB_DCHECK(video_stream_info_.codec != kSbMediaVideoCodecNone);
         return decode_target_graphics_context_provider_;
       }
 
       SbDrmSystem drm_system() const { return drm_system_; }
 
      private:
-      void TryToCopyAudioSpecificConfig();
-
-      // The following members are only used by the audio stream, and only need
-      // to be set when |audio_codec| isn't kSbMediaAudioCodecNone.
-      // |audio_codec| can be set to kSbMediaAudioCodecNone for audioless video.
-      SbMediaAudioCodec audio_codec_ = kSbMediaAudioCodecNone;
-      media::AudioSampleInfo audio_sample_info_;
+      // |audio_stream_info_.codec| can be set to kSbMediaAudioCodecNone for
+      // audioless video.
+      media::AudioStreamInfo audio_stream_info_;
 
       // The following members are only used by the video stream, and only need
-      // to be set when |video_codec| isn't kSbMediaVideoCodecNone.
-      // |video_codec| can be set to kSbMediaVideoCodecNone for audio only
-      // video.
-      SbMediaVideoCodec video_codec_ = kSbMediaVideoCodecNone;
-      media::VideoSampleInfo video_sample_info_;
+      // to be set when |video_stream_info_.codec| isn't kSbMediaVideoCodecNone.
+      // |video_stream_info_.codec| can be set to kSbMediaVideoCodecNone for
+      // audio only video.
+      media::VideoStreamInfo video_stream_info_;
       SbPlayer player_ = kSbPlayerInvalid;
       SbPlayerOutputMode output_mode_ = kSbPlayerOutputModeInvalid;
       SbDecodeTargetGraphicsContextProvider*
@@ -147,8 +143,6 @@ class PlayerComponents {
       // The following member are used by both the audio stream and the video
       // stream, when they are encrypted.
       SbDrmSystem drm_system_ = kSbDrmSystemInvalid;
-
-      std::vector<uint8_t> audio_specific_config_;
     };
 
     virtual ~Factory() {}

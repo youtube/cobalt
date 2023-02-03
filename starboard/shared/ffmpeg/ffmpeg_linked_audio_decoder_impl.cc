@@ -22,20 +22,19 @@
 #include "starboard/shared/ffmpeg/ffmpeg_audio_decoder_impl.h"
 #include "starboard/shared/ffmpeg/ffmpeg_common.h"
 #include "starboard/shared/ffmpeg/ffmpeg_dispatch.h"
+#include "starboard/shared/starboard/media/media_util.h"
 
 namespace starboard {
 namespace shared {
 namespace ffmpeg {
 
 // static
-AudioDecoder* AudioDecoder::Create(
-    SbMediaAudioCodec audio_codec,
-    const SbMediaAudioSampleInfo& audio_sample_info) {
+AudioDecoder* AudioDecoder::Create(const AudioStreamInfo& audio_stream_info) {
   FFMPEGDispatch* ffmpeg = FFMPEGDispatch::GetInstance();
   SB_DCHECK(ffmpeg && ffmpeg->is_valid());
   SB_DCHECK(FFMPEG == ffmpeg->specialization_version());
 
-  return AudioDecoderImpl<FFMPEG>::Create(audio_codec, audio_sample_info);
+  return AudioDecoderImpl<FFMPEG>::Create(audio_stream_info);
 }
 
 }  // namespace ffmpeg

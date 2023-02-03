@@ -36,5 +36,5 @@ common_player_sources = [
   "//starboard/shared/starboard/player/player_worker.cc",
   "//starboard/shared/starboard/player/player_worker.h",
   "//starboard/shared/starboard/player/player_write_end_of_stream.cc",
-  "//starboard/shared/starboard/player/player_write_sample2.cc",
+  "//starboard/shared/starboard/player/player_write_samples.cc",
 ]

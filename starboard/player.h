@@ -25,6 +25,7 @@
 #include "starboard/drm.h"
 #include "starboard/export.h"
 #include "starboard/media.h"
+#include "starboard/time.h"
 #include "starboard/types.h"
 #include "starboard/window.h"
 
@@ -104,6 +105,17 @@ typedef struct SbPlayerCreationParam {
   // portions.  It will be |kSbDrmSystemInvalid| if the stream does not have
   // encrypted portions.
   SbDrmSystem drm_system;
+
+#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+  // Contains a populated SbMediaAudioStreamInfo if |audio_stream_info.codec|
+  // isn't |kSbMediaAudioCodecNone|.  When |audio_stream_info.codec| is
+  // |kSbMediaAudioCodecNone|, the video doesn't have an audio track.
+  SbMediaAudioStreamInfo audio_stream_info;
+  // Contains a populated SbMediaVideoStreamInfo if |video_stream_info.codec|
+  // isn't |kSbMediaVideoCodecNone|.  When |video_stream_info.codec| is
+  // |kSbMediaVideoCodecNone|, the video is audio only.
+  SbMediaVideoStreamInfo video_stream_info;
+#else   // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
   // Contains a populated SbMediaAudioSampleInfo if |audio_sample_info.codec|
   // isn't |kSbMediaAudioCodecNone|.  When |audio_sample_info.codec| is
   // |kSbMediaAudioCodecNone|, the video doesn't have an audio track.
@@ -112,6 +124,8 @@ typedef struct SbPlayerCreationParam {
   // isn't |kSbMediaVideoCodecNone|.  When |video_sample_info.codec| is
   // |kSbMediaVideoCodecNone|, the video is audio only.
   SbMediaVideoSampleInfo video_sample_info;
+#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+
   // Selects how the decoded video frames will be output.  For example,
   // |kSbPlayerOutputModePunchOut| indicates that the decoded video frames will
   // be output to a background video layer by the platform, and
@@ -144,7 +158,7 @@ typedef struct SbPlayerSampleSideData {
   size_t size;
 } SbPlayerSampleSideData;
 
-// Information about the samples to be written into SbPlayerWriteSample2.
+// Information about the samples to be written into SbPlayerWriteSamples().
 typedef struct SbPlayerSampleInfo {
   SbMediaType type;
   // Points to the buffer containing the sample data.
@@ -466,11 +480,11 @@ SB_EXPORT void SbPlayerSeek2(SbPlayer player,
 // lifetime of |sample_infos|, and the members of its elements like |buffer|,
 // |video_sample_info|, and |drm_info| (as well as member |subsample_mapping|
 // contained inside it) are not guaranteed past the call to
-// SbPlayerWriteSample2. That means that before returning, the implementation
+// SbPlayerWriteSamples(). That means that before returning, the implementation
 // must synchronously copy any information it wants to retain from those
 // structures.
 //
-// SbPlayerWriteSample2 allows writing of multiple samples in one call.
+// SbPlayerWriteSamples() allows writing of multiple samples in one call.
 //
 // |player|: The player to which the sample is written.
 // |sample_type|: The type of sample being written. See the |SbMediaType|
@@ -479,12 +493,16 @@ SB_EXPORT void SbPlayerSeek2(SbPlayer player,
 //   |number_of_sample_infos| elements, each holds the data for an sample, i.e.
 //   a sequence of whole NAL Units for video, or a complete audio frame.
 //   |sample_infos| cannot be assumed to live past the call into
-//   SbPlayerWriteSample2(), so it must be copied if its content will be used
-//   after SbPlayerWriteSample2() returns.
+//   SbPlayerWriteSamples(), so it must be copied if its content will be used
+//   after SbPlayerWriteSamples() returns.
 // |number_of_sample_infos|: Specify the number of samples contained inside
 //   |sample_infos|.  It has to be at least one, and less than the return value
 //   of SbPlayerGetMaximumNumberOfSamplesPerWrite().
+#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+SB_EXPORT void SbPlayerWriteSamples(SbPlayer player,
+#else   // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
 SB_EXPORT void SbPlayerWriteSample2(SbPlayer player,
+#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
                                     SbMediaType sample_type,
                                     const SbPlayerSampleInfo* sample_infos,
                                     int number_of_sample_infos);

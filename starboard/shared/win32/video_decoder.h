@@ -26,6 +26,7 @@
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/configuration.h"
 #include "starboard/decode_target.h"
+#include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
 #include "starboard/shared/starboard/thread_checker.h"
 #include "starboard/shared/win32/decrypting_decoder.h"
@@ -65,6 +66,9 @@ class VideoDecoder
   SbDecodeTarget GetCurrentDecodeTarget() override;
 
  private:
+  typedef ::starboard::shared::starboard::media::VideoStreamInfo
+      VideoStreamInfo;
+
   template <typename T>
   using ComPtr = Microsoft::WRL::ComPtr<T>;
 
@@ -91,7 +95,7 @@ class VideoDecoder
   // lost. Otherwise it returns true. For inherited class it also updates HDMI
   // color metadata and sets HDR mode for Angle, if the video stream is HDR
   // stream.
-  virtual bool TryUpdateOutputForHdrVideo(const SbMediaVideoSampleInfo&) {
+  virtual bool TryUpdateOutputForHdrVideo(const VideoStreamInfo& stream_info) {
     return true;
   }
 

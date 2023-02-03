@@ -55,14 +55,12 @@ class AudioDecoder::CallbackScheduler : private JobOwner {
   bool callback_signaled_;
 };
 
-AudioDecoder::AudioDecoder(SbMediaAudioCodec audio_codec,
-                           const SbMediaAudioSampleInfo& audio_sample_info,
+AudioDecoder::AudioDecoder(const AudioStreamInfo& audio_stream_info,
                            SbDrmSystem drm_system)
-    : audio_codec_(audio_codec),
-      audio_sample_info_(audio_sample_info),
+    : audio_stream_info_(audio_stream_info),
       drm_system_(drm_system),
-      sample_type_((audio_codec == kSbMediaAudioCodecAc3 ||
-                    audio_codec == kSbMediaAudioCodecEac3)
+      sample_type_((audio_stream_info.codec == kSbMediaAudioCodecAc3 ||
+                    audio_stream_info.codec == kSbMediaAudioCodecEac3)
                        ?
 #if SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
                        kSbMediaAudioSampleTypeInt16
@@ -71,9 +69,9 @@ AudioDecoder::AudioDecoder(SbMediaAudioCodec audio_codec,
 #endif  // SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
                        : kSbMediaAudioSampleTypeFloat32),
       stream_ended_(false) {
-  SB_DCHECK(audio_codec == kSbMediaAudioCodecAac ||
-            audio_codec == kSbMediaAudioCodecAc3 ||
-            audio_codec == kSbMediaAudioCodecEac3);
+  SB_DCHECK(audio_stream_info.codec == kSbMediaAudioCodecAac ||
+            audio_stream_info.codec == kSbMediaAudioCodecAc3 ||
+            audio_stream_info.codec == kSbMediaAudioCodecEac3);
 }
 
 AudioDecoder::~AudioDecoder() {
@@ -92,8 +90,8 @@ void AudioDecoder::Initialize(const OutputCB& output_cb,
   SB_DCHECK(!output_cb_);
   output_cb_ = output_cb;
   decoder_impl_ = AbstractWin32AudioDecoder::Create(
-      audio_codec_, kSbMediaAudioFrameStorageTypeInterleaved, sample_type_,
-      audio_sample_info_, drm_system_);
+      kSbMediaAudioFrameStorageTypeInterleaved, sample_type_,
+      audio_stream_info_, drm_system_);
   decoder_thread_.reset(new AudioDecoderThread(decoder_impl_.get(), this));
   callback_scheduler_.reset(new CallbackScheduler());
 }

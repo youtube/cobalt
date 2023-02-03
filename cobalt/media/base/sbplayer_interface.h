@@ -16,6 +16,7 @@
 #define COBALT_MEDIA_BASE_SBPLAYER_INTERFACE_H_
 
 #include "cobalt/media/base/cval_stats.h"
+#include "starboard/extension/enhanced_audio.h"
 #include "starboard/player.h"
 
 #if SB_HAS(PLAYER_WITH_URL)
@@ -40,9 +41,16 @@ class SbPlayerInterface {
       const SbPlayerCreationParam* creation_param) = 0;
   virtual void Destroy(SbPlayer player) = 0;
   virtual void Seek(SbPlayer player, SbTime seek_to_timestamp, int ticket) = 0;
-  virtual void WriteSample(SbPlayer player, SbMediaType sample_type,
-                           const SbPlayerSampleInfo* sample_infos,
-                           int number_of_sample_infos) = 0;
+
+  virtual bool IsEnhancedAudioExtensionEnabled() const = 0;
+  virtual void WriteSamples(SbPlayer player, SbMediaType sample_type,
+                            const SbPlayerSampleInfo* sample_infos,
+                            int number_of_sample_infos) = 0;
+  virtual void WriteSamples(
+      SbPlayer player, SbMediaType sample_type,
+      const CobaltExtensionEnhancedAudioPlayerSampleInfo* sample_infos,
+      int number_of_sample_infos) = 0;
+
   virtual int GetMaximumNumberOfSamplesPerWrite(SbPlayer player,
                                                 SbMediaType sample_type) = 0;
   virtual void WriteEndOfStream(SbPlayer player, SbMediaType stream_type) = 0;
@@ -77,6 +85,8 @@ class SbPlayerInterface {
 
 class DefaultSbPlayerInterface final : public SbPlayerInterface {
  public:
+  DefaultSbPlayerInterface();
+
   SbPlayer Create(
       SbWindow window, const SbPlayerCreationParam* creation_param,
       SbPlayerDeallocateSampleFunc sample_deallocate_func,
@@ -88,9 +98,14 @@ class DefaultSbPlayerInterface final : public SbPlayerInterface {
       const SbPlayerCreationParam* creation_param) override;
   void Destroy(SbPlayer player) override;
   void Seek(SbPlayer player, SbTime seek_to_timestamp, int ticket) override;
-  void WriteSample(SbPlayer player, SbMediaType sample_type,
-                   const SbPlayerSampleInfo* sample_infos,
-                   int number_of_sample_infos) override;
+  bool IsEnhancedAudioExtensionEnabled() const override;
+  void WriteSamples(SbPlayer player, SbMediaType sample_type,
+                    const SbPlayerSampleInfo* sample_infos,
+                    int number_of_sample_infos) override;
+  void WriteSamples(
+      SbPlayer player, SbMediaType sample_type,
+      const CobaltExtensionEnhancedAudioPlayerSampleInfo* sample_infos,
+      int number_of_sample_infos) override;
   int GetMaximumNumberOfSamplesPerWrite(SbPlayer player,
                                         SbMediaType sample_type) override;
   void WriteEndOfStream(SbPlayer player, SbMediaType stream_type) override;
@@ -113,6 +128,12 @@ class DefaultSbPlayerInterface final : public SbPlayerInterface {
   void GetUrlPlayerExtraInfo(
       SbPlayer player, SbUrlPlayerExtraInfo* out_url_player_info) override;
 #endif  // SB_HAS(PLAYER_WITH_URL)
+
+ private:
+  void (*enhanced_audio_player_write_samples_)(
+      SbPlayer player, SbMediaType sample_type,
+      const CobaltExtensionEnhancedAudioPlayerSampleInfo* sample_infos,
+      int number_of_sample_infos) = nullptr;
 };
 
 

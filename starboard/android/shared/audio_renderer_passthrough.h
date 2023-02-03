@@ -28,6 +28,7 @@
 #include "starboard/drm.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_internal.h"
 #include "starboard/shared/starboard/player/filter/common.h"
@@ -49,7 +50,10 @@ class AudioRendererPassthrough
       public ::starboard::shared::starboard::player::filter::MediaTimeProvider,
       private ::starboard::shared::starboard::player::JobQueue::JobOwner {
  public:
-  AudioRendererPassthrough(const SbMediaAudioSampleInfo& audio_sample_info,
+  typedef ::starboard::shared::starboard::media::AudioStreamInfo
+      AudioStreamInfo;
+
+  AudioRendererPassthrough(const AudioStreamInfo& audio_stream_info,
                            SbDrmSystem drm_system,
                            bool enable_audio_device_callback);
   ~AudioRendererPassthrough() override;
@@ -99,7 +103,7 @@ class AudioRendererPassthrough
   void OnDecoderOutput();
 
   // The following three variables are set in the ctor.
-  const SbMediaAudioSampleInfo audio_sample_info_;
+  const AudioStreamInfo audio_stream_info_;
   const bool enable_audio_device_callback_;
   // The AudioDecoder is used as a decryptor when the stream is encrypted.
   // TODO: Revisit to encapsulate the AudioDecoder as a SbDrmSystemPrivate

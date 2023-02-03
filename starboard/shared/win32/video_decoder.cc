@@ -286,7 +286,7 @@ void VideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
   EnsureDecoderThreadRunning();
 
   const auto& input_buffer = input_buffers[0];
-  if (TryUpdateOutputForHdrVideo(input_buffer->video_sample_info())) {
+  if (TryUpdateOutputForHdrVideo(input_buffer->video_stream_info())) {
     ScopedLock lock(thread_lock_);
     thread_events_.emplace_back(
         new Event{Event::kWriteInputBuffer, input_buffer});

@@ -55,8 +55,7 @@ class SbPlayerTest : public ::testing::TestWithParam<SbPlayerOutputMode> {
 };
 
 TEST_P(SbPlayerTest, SunnyDay) {
-  SbMediaAudioSampleInfo audio_sample_info =
-      CreateAudioSampleInfo(kSbMediaAudioCodecAac);
+  auto audio_stream_info = CreateAudioStreamInfo(kSbMediaAudioCodecAac);
 
   if (!IsOutputModeSupported(output_mode_, kSbMediaAudioCodecAac,
                              kSbMediaVideoCodecH264)) {
@@ -65,7 +64,7 @@ TEST_P(SbPlayerTest, SunnyDay) {
 
   SbPlayer player = CallSbPlayerCreate(
       fake_graphics_context_provider_.window(), kSbMediaVideoCodecH264,
-      kSbMediaAudioCodecAac, kSbDrmSystemInvalid, &audio_sample_info,
+      kSbMediaAudioCodecAac, kSbDrmSystemInvalid, &audio_stream_info,
       "" /* max_video_capabilities */, DummyDeallocateSampleFunc,
       DummyDecoderStatusFunc, DummyPlayerStatusFunc, DummyErrorFunc,
       NULL /* context */, output_mode_,
@@ -78,8 +77,7 @@ TEST_P(SbPlayerTest, SunnyDay) {
 }
 
 TEST_P(SbPlayerTest, NullCallbacks) {
-  SbMediaAudioSampleInfo audio_sample_info =
-      CreateAudioSampleInfo(kSbMediaAudioCodecAac);
+  auto audio_stream_info = CreateAudioStreamInfo(kSbMediaAudioCodecAac);
 
   if (!IsOutputModeSupported(output_mode_, kSbMediaAudioCodecAac,
                              kSbMediaVideoCodecH264)) {
@@ -89,7 +87,7 @@ TEST_P(SbPlayerTest, NullCallbacks) {
   {
     SbPlayer player = CallSbPlayerCreate(
         fake_graphics_context_provider_.window(), kSbMediaVideoCodecH264,
-        kSbMediaAudioCodecAac, kSbDrmSystemInvalid, &audio_sample_info,
+        kSbMediaAudioCodecAac, kSbDrmSystemInvalid, &audio_stream_info,
         "" /* max_video_capabilities */, NULL /* deallocate_sample_func */,
         DummyDecoderStatusFunc, DummyPlayerStatusFunc, DummyErrorFunc,
         NULL /* context */, output_mode_,
@@ -102,7 +100,7 @@ TEST_P(SbPlayerTest, NullCallbacks) {
   {
     SbPlayer player = CallSbPlayerCreate(
         fake_graphics_context_provider_.window(), kSbMediaVideoCodecH264,
-        kSbMediaAudioCodecAac, kSbDrmSystemInvalid, &audio_sample_info,
+        kSbMediaAudioCodecAac, kSbDrmSystemInvalid, &audio_stream_info,
         "" /* max_video_capabilities */, DummyDeallocateSampleFunc,
         NULL /* decoder_status_func */, DummyPlayerStatusFunc, DummyErrorFunc,
         NULL /* context */, output_mode_,
@@ -115,7 +113,7 @@ TEST_P(SbPlayerTest, NullCallbacks) {
   {
     SbPlayer player = CallSbPlayerCreate(
         fake_graphics_context_provider_.window(), kSbMediaVideoCodecH264,
-        kSbMediaAudioCodecAac, kSbDrmSystemInvalid, &audio_sample_info,
+        kSbMediaAudioCodecAac, kSbDrmSystemInvalid, &audio_stream_info,
         "" /* max_video_capabilities */, DummyDeallocateSampleFunc,
         DummyDecoderStatusFunc, NULL /*status_func */, DummyErrorFunc,
         NULL /* context */, output_mode_,
@@ -128,7 +126,7 @@ TEST_P(SbPlayerTest, NullCallbacks) {
   {
     SbPlayer player = CallSbPlayerCreate(
         fake_graphics_context_provider_.window(), kSbMediaVideoCodecH264,
-        kSbMediaAudioCodecAac, kSbDrmSystemInvalid, &audio_sample_info, "",
+        kSbMediaAudioCodecAac, kSbDrmSystemInvalid, &audio_stream_info, "",
         DummyDeallocateSampleFunc, DummyDecoderStatusFunc,
         DummyPlayerStatusFunc, NULL /* error_func */, NULL /* context */,
         output_mode_,
@@ -147,7 +145,7 @@ TEST_P(SbPlayerTest, Audioless) {
 
   SbPlayer player = CallSbPlayerCreate(
       fake_graphics_context_provider_.window(), kSbMediaVideoCodecH264,
-      kSbMediaAudioCodecNone, kSbDrmSystemInvalid, NULL /* audio_sample_info */,
+      kSbMediaAudioCodecNone, kSbDrmSystemInvalid, NULL /* audio_stream_info */,
       "" /* max_video_capabilities */, DummyDeallocateSampleFunc,
       DummyDecoderStatusFunc, DummyPlayerStatusFunc, DummyErrorFunc,
       NULL /* context */, output_mode_,
@@ -160,8 +158,7 @@ TEST_P(SbPlayerTest, Audioless) {
 }
 
 TEST_P(SbPlayerTest, AudioOnly) {
-  SbMediaAudioSampleInfo audio_sample_info =
-      CreateAudioSampleInfo(kSbMediaAudioCodecAac);
+  auto audio_stream_info = CreateAudioStreamInfo(kSbMediaAudioCodecAac);
 
   if (!IsOutputModeSupported(output_mode_, kSbMediaAudioCodecAac,
                              kSbMediaVideoCodecH264)) {
@@ -170,7 +167,7 @@ TEST_P(SbPlayerTest, AudioOnly) {
 
   SbPlayer player = CallSbPlayerCreate(
       fake_graphics_context_provider_.window(), kSbMediaVideoCodecNone,
-      kSbMediaAudioCodecAac, kSbDrmSystemInvalid, &audio_sample_info,
+      kSbMediaAudioCodecAac, kSbDrmSystemInvalid, &audio_stream_info,
       "" /* max_video_capabilities */, DummyDeallocateSampleFunc,
       DummyDecoderStatusFunc, DummyPlayerStatusFunc, DummyErrorFunc,
       NULL /* context */, output_mode_,
@@ -183,8 +180,7 @@ TEST_P(SbPlayerTest, AudioOnly) {
 }
 
 TEST_P(SbPlayerTest, MultiPlayer) {
-  SbMediaAudioSampleInfo audio_sample_info =
-      CreateAudioSampleInfo(kSbMediaAudioCodecAac);
+  auto audio_stream_info = CreateAudioStreamInfo(kSbMediaAudioCodecAac);
   SbDrmSystem kDrmSystem = kSbDrmSystemInvalid;
 
   constexpr SbPlayerOutputMode kOutputModes[] = {
@@ -258,10 +254,10 @@ TEST_P(SbPlayerTest, MultiPlayer) {
     for (int j = 0; j < SB_ARRAY_SIZE_INT(kOutputModes); ++j) {
       for (int k = 0; k < SB_ARRAY_SIZE_INT(kAudioCodecs); ++k) {
         for (int l = 0; l < SB_ARRAY_SIZE_INT(kVideoCodecs); ++l) {
-          audio_sample_info.codec = kAudioCodecs[k];
+          audio_stream_info.codec = kAudioCodecs[k];
           created_players.push_back(CallSbPlayerCreate(
               fake_graphics_context_provider_.window(), kVideoCodecs[l],
-              kAudioCodecs[k], kSbDrmSystemInvalid, &audio_sample_info,
+              kAudioCodecs[k], kSbDrmSystemInvalid, &audio_stream_info,
               "" /* max_video_capabilities */, DummyDeallocateSampleFunc,
               DummyDecoderStatusFunc, DummyPlayerStatusFunc, DummyErrorFunc,
               NULL /* context */, kOutputModes[j],

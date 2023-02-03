@@ -30,6 +30,7 @@
 #include "starboard/common/ref_counted.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/common.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/player/job_queue.h"
@@ -45,6 +46,8 @@ class MediaDecoder
     : private MediaCodecBridge::Handler,
       protected ::starboard::shared::starboard::player::JobQueue::JobOwner {
  public:
+  typedef ::starboard::shared::starboard::media::AudioStreamInfo
+      AudioStreamInfo;
   typedef ::starboard::shared::starboard::player::filter::ErrorCB ErrorCB;
   typedef ::starboard::shared::starboard::player::InputBuffer InputBuffer;
   typedef ::starboard::shared::starboard::player::InputBuffers InputBuffers;
@@ -75,8 +78,7 @@ class MediaDecoder
   };
 
   MediaDecoder(Host* host,
-               SbMediaAudioCodec audio_codec,
-               const SbMediaAudioSampleInfo& audio_sample_info,
+               const AudioStreamInfo& audio_stream_info,
                SbDrmSystem drm_system);
   MediaDecoder(Host* host,
                SbMediaVideoCodec video_codec,
@@ -118,17 +120,16 @@ class MediaDecoder
     explicit Event(Type type = kInvalid) : type(type) {
       SB_DCHECK(type != kWriteInputBuffer && type != kWriteCodecConfig);
     }
-    Event(const int8_t* codec_config, int16_t codec_config_size)
-        : type(kWriteCodecConfig),
-          codec_config(codec_config),
-          codec_config_size(codec_config_size) {}
+    explicit Event(const std::vector<uint8_t>& codec_config)
+        : type(kWriteCodecConfig), codec_config(codec_config) {
+      SB_DCHECK(!this->codec_config.empty());
+    }
     explicit Event(const scoped_refptr<InputBuffer>& input_buffer)
         : type(kWriteInputBuffer), input_buffer(input_buffer) {}
 
     Type type;
     scoped_refptr<InputBuffer> input_buffer;
-    const int8_t* codec_config;
-    int16_t codec_config_size;
+    std::vector<uint8_t> codec_config;
   };
 
   struct QueueInputBufferTask {

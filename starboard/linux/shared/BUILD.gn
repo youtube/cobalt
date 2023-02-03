@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//starboard/shared/enhanced_audio/enhanced_audio.gni")
 import("//starboard/shared/starboard/media/media_tests.gni")
 import("//starboard/shared/starboard/player/buildfiles.gni")
 import("//starboard/shared/starboard/player/player_tests.gni")
@@ -341,8 +342,6 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/starboard/media/media_get_video_buffer_budget.cc",
     "//starboard/shared/starboard/media/media_is_buffer_pool_allocate_on_demand.cc",
     "//starboard/shared/starboard/media/media_is_buffer_using_memory_pool.cc",
-    "//starboard/shared/starboard/media/mime_type.cc",
-    "//starboard/shared/starboard/media/mime_type.h",
     "//starboard/shared/starboard/memory.cc",
     "//starboard/shared/starboard/queue_application.cc",
     "//starboard/shared/starboard/starboard_switches.cc",
@@ -399,6 +398,11 @@ static_library("starboard_platform_sources") {
   sources += common_player_sources
 
   sources -= [ "//starboard/shared/starboard/player/player_set_bounds.cc" ]
+
+  if (sb_api_version < 15) {
+    sources -= [ "//starboard/shared/starboard/player/player_write_samples.cc" ]
+    sources += enhanced_audio_sources
+  }
 
   configs += [
     "//starboard/build/config:starboard_implementation",

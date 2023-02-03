@@ -21,6 +21,7 @@
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/media/avc_util.h"
+#include "starboard/shared/starboard/media/media_util.h"
 
 namespace starboard {
 namespace shared {
@@ -39,7 +40,7 @@ class VideoConfig {
               const uint8_t* data,
               size_t size);
 
-  VideoConfig(const SbMediaVideoSampleInfo& video_sample_info,
+  VideoConfig(const VideoStreamInfo& video_stream_info,
               const uint8_t* data,
               size_t size);
 

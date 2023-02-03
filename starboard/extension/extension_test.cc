@@ -17,6 +17,7 @@
 #include "starboard/extension/configuration.h"
 #include "starboard/extension/crash_handler.h"
 #include "starboard/extension/cwrappers.h"
+#include "starboard/extension/enhanced_audio.h"
 #include "starboard/extension/font.h"
 #include "starboard/extension/free_space.h"
 #include "starboard/extension/graphics.h"
@@ -30,7 +31,7 @@
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace cobalt {
+namespace starboard {
 namespace extension {
 
 TEST(ExtensionTest, PlatformService) {
@@ -382,5 +383,38 @@ TEST(ExtensionTest, FreeSpace) {
   EXPECT_EQ(second_extension_api, extension_api)
       << "Extension struct should be a singleton";
 }
+
+TEST(ExtensionTest, EnhancedAudio) {
+  typedef CobaltExtensionEnhancedAudioApi ExtensionApi;
+  const char* kExtensionName = kCobaltExtensionEnhancedAudioName;
+
+  const ExtensionApi* extension_api =
+      static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));
+  if (!extension_api) {
+    return;
+  }
+
+#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+  ASSERT_FALSE(extension_api)
+      << "EnhancedAudio extension shouldn't be used under SB_API_VERSION "
+      << SB_API_VERSION
+      << ", the features are supported by the current SbPlayer api by default."
+      << "\nTo upgrade the EnhancedAudio extension based implementation from"
+      << " a previous Starboard version, please rename the `PlayerWriteSamples`"
+      << " implementation to `SbPlayerWriteSample()` (as they are compatible"
+      << " at abi level) and disable the EnhancedAudio extension from"
+      << " `SbSystemGetExtension()`.";
+#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+
+  EXPECT_STREQ(extension_api->name, kExtensionName);
+  EXPECT_EQ(extension_api->version, 1u);
+  EXPECT_NE(extension_api->PlayerWriteSamples, nullptr);
+
+  const ExtensionApi* second_extension_api =
+      static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));
+  EXPECT_EQ(second_extension_api, extension_api)
+      << "Extension struct should be a singleton";
+}
+
 }  // namespace extension
-}  // namespace cobalt
+}  // namespace starboard

@@ -66,14 +66,12 @@ void* IncrementPointerByBytes(void* pointer, int offset) {
 
 }  // namespace
 
-AudioDecoder::AudioDecoder(SbMediaAudioCodec audio_codec,
-                           const SbMediaAudioSampleInfo& audio_sample_info,
+AudioDecoder::AudioDecoder(const AudioStreamInfo& audio_stream_info,
                            SbDrmSystem drm_system)
-    : audio_codec_(audio_codec),
-      audio_sample_info_(audio_sample_info),
+    : audio_stream_info_(audio_stream_info),
       sample_type_(GetSupportedSampleType()),
-      output_sample_rate_(audio_sample_info.samples_per_second),
-      output_channel_count_(audio_sample_info.number_of_channels),
+      output_sample_rate_(audio_stream_info.samples_per_second),
+      output_channel_count_(audio_stream_info.number_of_channels),
       drm_system_(static_cast<DrmSystem*>(drm_system)) {
   if (!InitializeCodec()) {
     SB_LOG(ERROR) << "Failed to initialize audio decoder.";
@@ -147,7 +145,7 @@ scoped_refptr<AudioDecoder::DecodedAudio> AudioDecoder::Read(
     Schedule(consumed_cb_);
     consumed_cb_ = nullptr;
   }
-  *samples_per_second = audio_sample_info_.samples_per_second;
+  *samples_per_second = audio_stream_info_.samples_per_second;
   return result;
 }
 
@@ -173,8 +171,7 @@ void AudioDecoder::Reset() {
 
 bool AudioDecoder::InitializeCodec() {
   SB_DCHECK(!media_decoder_);
-  media_decoder_.reset(
-      new MediaDecoder(this, audio_codec_, audio_sample_info_, drm_system_));
+  media_decoder_.reset(new MediaDecoder(this, audio_stream_info_, drm_system_));
   if (media_decoder_->is_valid()) {
     if (error_cb_) {
       media_decoder_->Initialize(error_cb_);
@@ -200,7 +197,7 @@ void AudioDecoder::ProcessOutputBuffer(
     int16_t* data = static_cast<int16_t*>(IncrementPointerByBytes(
         byte_buffer.address(), dequeue_output_result.offset));
     int size = dequeue_output_result.num_bytes;
-    if (2 * audio_sample_info_.samples_per_second == output_sample_rate_) {
+    if (2 * audio_stream_info_.samples_per_second == output_sample_rate_) {
       // The audio is encoded using implicit HE-AAC.  As the audio sink has
       // been created already we try to down-mix the decoded data to half of
       // its channels so the audio sink can play it with the correct pitch.
@@ -212,7 +209,7 @@ void AudioDecoder::ProcessOutputBuffer(
     }
 
     scoped_refptr<DecodedAudio> decoded_audio = new DecodedAudio(
-        audio_sample_info_.number_of_channels, sample_type_,
+        audio_stream_info_.number_of_channels, sample_type_,
         kSbMediaAudioFrameStorageTypeInterleaved,
         dequeue_output_result.presentation_time_microseconds, size);
 

@@ -1,4 +1,4 @@
-// Copyright 2017 The Cobalt Authors. All Rights Reserved.
+// Copyright 2023 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,23 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_SHARED_WIN32_AUDIO_TRANSFORM_H_
-#define STARBOARD_SHARED_WIN32_AUDIO_TRANSFORM_H_
-
-#include "starboard/common/scoped_ptr.h"
-#include "starboard/media.h"
-#include "starboard/shared/starboard/media/media_util.h"
-#include "starboard/shared/win32/media_transform.h"
+#ifndef STARBOARD_SHARED_ENHANCED_AUDIO_ENHANCED_AUDIO_H_
+#define STARBOARD_SHARED_ENHANCED_AUDIO_ENHANCED_AUDIO_H_
 
 namespace starboard {
 namespace shared {
-namespace win32 {
+namespace enhanced_audio {
 
-scoped_ptr<MediaTransform> CreateAudioTransform(
-    const starboard::media::AudioStreamInfo& audio_stream_info);
+const void* GetEnhancedAudioApi();
 
-}  // namespace win32
+}  // namespace enhanced_audio
 }  // namespace shared
 }  // namespace starboard
 
-#endif  // STARBOARD_SHARED_WIN32_AUDIO_TRANSFORM_H_
+#endif  // STARBOARD_SHARED_ENHANCED_AUDIO_ENHANCED_AUDIO_H_

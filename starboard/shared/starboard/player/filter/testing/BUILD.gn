@@ -75,6 +75,7 @@ static_library("test_util") {
 
   public_deps = [
     "//starboard",
+    "//starboard/shared/starboard/media:media_util",
     "//starboard/shared/starboard/player:player_download_test_data",
     "//starboard/shared/starboard/player:video_dmp",
     "//testing/gtest",

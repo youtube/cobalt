@@ -28,6 +28,7 @@
 #include "starboard/shared/openh264/openh264_library_loader.h"
 #include "starboard/shared/openh264/openh264_video_decoder.h"
 #include "starboard/shared/opus/opus_audio_decoder.h"
+#include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/adaptive_audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_sink.h"
@@ -70,24 +71,23 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       typedef ::starboard::shared::libfdkaac::FdkAacAudioDecoder
           FdkAacAudioDecoder;
 
-      auto decoder_creator = [](const SbMediaAudioSampleInfo& audio_sample_info,
+      auto decoder_creator = [](const media::AudioStreamInfo& audio_stream_info,
                                 SbDrmSystem drm_system) {
-        if (audio_sample_info.codec == kSbMediaAudioCodecOpus) {
+        if (audio_stream_info.codec == kSbMediaAudioCodecOpus) {
           scoped_ptr<OpusAudioDecoder> audio_decoder_impl(
-              new OpusAudioDecoder(audio_sample_info));
+              new OpusAudioDecoder(audio_stream_info));
           if (audio_decoder_impl->is_valid()) {
             return audio_decoder_impl.PassAs<AudioDecoder>();
           }
-        } else if (audio_sample_info.codec == kSbMediaAudioCodecAac &&
-                   audio_sample_info.number_of_channels <=
+        } else if (audio_stream_info.codec == kSbMediaAudioCodecAac &&
+                   audio_stream_info.number_of_channels <=
                        FdkAacAudioDecoder::kMaxChannels &&
                    libfdkaac::LibfdkaacHandle::GetHandle()->IsLoaded()) {
           SB_LOG(INFO) << "Playing audio using FdkAacAudioDecoder.";
           return scoped_ptr<AudioDecoder>(new FdkAacAudioDecoder());
         } else {
           scoped_ptr<FfmpegAudioDecoder> audio_decoder_impl(
-              FfmpegAudioDecoder::Create(audio_sample_info.codec,
-                                         audio_sample_info));
+              FfmpegAudioDecoder::Create(audio_stream_info));
           if (audio_decoder_impl && audio_decoder_impl->is_valid()) {
             SB_LOG(INFO) << "Playing audio using FfmpegAudioDecoder";
             return audio_decoder_impl.PassAs<AudioDecoder>();
@@ -97,7 +97,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       };
 
       audio_decoder->reset(new AdaptiveAudioDecoder(
-          creation_parameters.audio_sample_info(),
+          creation_parameters.audio_stream_info(),
           creation_parameters.drm_system(), decoder_creator));
       audio_renderer_sink->reset(new AudioRendererSinkImpl);
     }

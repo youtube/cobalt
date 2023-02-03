@@ -24,8 +24,6 @@
 
 namespace {
 
-using starboard::shared::starboard::player::InputBuffer;
-using starboard::shared::starboard::player::InputBuffers;
 using std::placeholders::_1;
 using std::placeholders::_2;
 using std::placeholders::_3;
@@ -45,7 +43,6 @@ int SbPlayerPrivate::number_of_players_ = 0;
 SbPlayerPrivate::SbPlayerPrivate(
     SbMediaAudioCodec audio_codec,
     SbMediaVideoCodec video_codec,
-    const SbMediaAudioSampleInfo* audio_sample_info,
     SbPlayerDeallocateSampleFunc sample_deallocate_func,
     SbPlayerDecoderStatusFunc decoder_status_func,
     SbPlayerStatusFunc player_status_func,
@@ -70,7 +67,6 @@ SbPlayerPrivate::SbPlayerPrivate(
 SbPlayerPrivate* SbPlayerPrivate::CreateInstance(
     SbMediaAudioCodec audio_codec,
     SbMediaVideoCodec video_codec,
-    const SbMediaAudioSampleInfo* audio_sample_info,
     SbPlayerDeallocateSampleFunc sample_deallocate_func,
     SbPlayerDecoderStatusFunc decoder_status_func,
     SbPlayerStatusFunc player_status_func,
@@ -78,8 +74,8 @@ SbPlayerPrivate* SbPlayerPrivate::CreateInstance(
     void* context,
     starboard::scoped_ptr<PlayerWorker::Handler> player_worker_handler) {
   SbPlayerPrivate* ret = new SbPlayerPrivate(
-      audio_codec, video_codec, audio_sample_info, sample_deallocate_func,
-      decoder_status_func, player_status_func, player_error_func, context,
+      audio_codec, video_codec, sample_deallocate_func, decoder_status_func,
+      player_status_func, player_error_func, context,
       player_worker_handler.Pass());
 
   if (ret && ret->worker_) {
@@ -100,31 +96,6 @@ void SbPlayerPrivate::Seek(SbTime seek_to_time, int ticket) {
   }
 
   worker_->Seek(seek_to_time, ticket);
-}
-
-void SbPlayerPrivate::WriteSamples(const SbPlayerSampleInfo* sample_infos,
-                                   int number_of_sample_infos) {
-  SB_DCHECK(sample_infos);
-  SB_DCHECK(number_of_sample_infos > 0);
-
-  if (sample_infos[0].type == kSbMediaTypeVideo) {
-    const auto& last_sample_info = sample_infos[number_of_sample_infos - 1];
-    total_video_frames_ += number_of_sample_infos;
-    frame_width_ = last_sample_info.video_sample_info.frame_width;
-    frame_height_ = last_sample_info.video_sample_info.frame_height;
-  }
-
-  InputBuffers input_buffers;
-  input_buffers.reserve(number_of_sample_infos);
-  for (int i = 0; i < number_of_sample_infos; i++) {
-    input_buffers.push_back(new InputBuffer(sample_deallocate_func_, this,
-                                            context_, sample_infos[i]));
-#if SB_PLAYER_ENABLE_VIDEO_DUMPER
-    using ::starboard::shared::starboard::player::video_dmp::VideoDmpWriter;
-    VideoDmpWriter::OnPlayerWriteSample(this, input_buffers.back());
-#endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER
-  }
-  worker_->WriteSamples(std::move(input_buffers));
 }
 
 void SbPlayerPrivate::WriteEndOfStream(SbMediaType stream_type) {

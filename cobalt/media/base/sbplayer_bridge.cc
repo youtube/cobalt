@@ -44,7 +44,60 @@ class StatisticsWrapper {
   base::Statistics<SbTime, int, 1024> startup_latency{
       "Media.PlaybackStartupLatency"};
 };
+
+void SetStreamInfo(
+    const SbMediaAudioStreamInfo& stream_info,
+    CobaltExtensionEnhancedAudioMediaAudioSampleInfo* sample_info) {
+  DCHECK(sample_info);
+
+  sample_info->stream_info.codec = stream_info.codec;
+  sample_info->stream_info.mime = stream_info.mime;
+  sample_info->stream_info.number_of_channels = stream_info.number_of_channels;
+  sample_info->stream_info.samples_per_second = stream_info.samples_per_second;
+  sample_info->stream_info.bits_per_sample = stream_info.bits_per_sample;
+  sample_info->stream_info.audio_specific_config_size =
+      stream_info.audio_specific_config_size;
+  sample_info->stream_info.audio_specific_config =
+      stream_info.audio_specific_config;
+}
+
+void SetStreamInfo(const SbMediaAudioStreamInfo& stream_info,
+                   SbMediaAudioSampleInfo* sample_info) {
+  DCHECK(sample_info);
+
+#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+  sample_info->stream_info = stream_info;
+#else   // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+  *sample_info = stream_info;
+#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION}
+}
+
+void SetStreamInfo(
+    const SbMediaVideoStreamInfo& stream_info,
+    CobaltExtensionEnhancedAudioMediaVideoSampleInfo* sample_info) {
+  DCHECK(sample_info);
+
+  sample_info->stream_info.codec = stream_info.codec;
+  sample_info->stream_info.mime = stream_info.mime;
+  sample_info->stream_info.max_video_capabilities =
+      stream_info.max_video_capabilities;
+  sample_info->stream_info.frame_width = stream_info.frame_width;
+  sample_info->stream_info.frame_height = stream_info.frame_height;
+}
+
+void SetStreamInfo(const SbMediaVideoStreamInfo& stream_info,
+                   SbMediaVideoSampleInfo* sample_info) {
+  DCHECK(sample_info);
+
+#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+  sample_info->stream_info = stream_info;
+#else   // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+  *sample_info = stream_info;
+#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION}
+}
+
 }  // namespace
+
 SB_ONCE_INITIALIZE_FUNCTION(StatisticsWrapper, StatisticsWrapper::GetInstance);
 
 SbPlayerBridge::CallbackHelper::CallbackHelper(SbPlayerBridge* player_bridge)
@@ -178,8 +231,8 @@ SbPlayerBridge::SbPlayerBridge(
   DCHECK(set_bounds_helper_);
   DCHECK(decode_target_provider_);
 
-  audio_sample_info_.codec = kSbMediaAudioCodecNone;
-  video_sample_info_.codec = kSbMediaVideoCodecNone;
+  audio_stream_info_.codec = kSbMediaAudioCodecNone;
+  video_stream_info_.codec = kSbMediaVideoCodecNone;
 
   if (audio_config.IsValidConfig()) {
     UpdateAudioConfig(audio_config, audio_mime_type);
@@ -227,9 +280,9 @@ void SbPlayerBridge::UpdateAudioConfig(const AudioDecoderConfig& audio_config,
 
   audio_config_ = audio_config;
   audio_mime_type_ = mime_type;
-  audio_sample_info_ = MediaAudioConfigToSbMediaAudioSampleInfo(
+  audio_stream_info_ = MediaAudioConfigToSbMediaAudioStreamInfo(
       audio_config_, audio_mime_type_.c_str());
-  LOG(INFO) << "Converted to SbMediaAudioSampleInfo -- " << audio_sample_info_;
+  LOG(INFO) << "Converted to SbMediaAudioStreamInfo -- " << audio_stream_info_;
 }
 
 void SbPlayerBridge::UpdateVideoConfig(const VideoDecoderConfig& video_config,
@@ -241,19 +294,19 @@ void SbPlayerBridge::UpdateVideoConfig(const VideoDecoderConfig& video_config,
             << video_config.AsHumanReadableString();
 
   video_config_ = video_config;
-  video_sample_info_.frame_width =
+  video_stream_info_.frame_width =
       static_cast<int>(video_config_.natural_size().width());
-  video_sample_info_.frame_height =
+  video_stream_info_.frame_height =
       static_cast<int>(video_config_.natural_size().height());
-  video_sample_info_.codec =
+  video_stream_info_.codec =
       MediaVideoCodecToSbMediaVideoCodec(video_config_.codec());
-  video_sample_info_.color_metadata =
+  video_stream_info_.color_metadata =
       MediaToSbMediaColorMetadata(video_config_.color_space_info(),
                                   video_config_.hdr_metadata(), mime_type);
   video_mime_type_ = mime_type;
-  video_sample_info_.mime = video_mime_type_.c_str();
-  video_sample_info_.max_video_capabilities = max_video_capabilities_.c_str();
-  LOG(INFO) << "Converted to SbMediaVideoSampleInfo -- " << video_sample_info_;
+  video_stream_info_.mime = video_mime_type_.c_str();
+  video_stream_info_.max_video_capabilities = max_video_capabilities_.c_str();
+  LOG(INFO) << "Converted to SbMediaVideoStreamInfo -- " << video_stream_info_;
 }
 
 void SbPlayerBridge::WriteBuffers(
@@ -275,7 +328,12 @@ void SbPlayerBridge::WriteBuffers(
     return;
   }
 
-  WriteBuffersInternal(type, buffers);
+  if (sbplayer_interface_->IsEnhancedAudioExtensionEnabled()) {
+    WriteBuffersInternal<CobaltExtensionEnhancedAudioPlayerSampleInfo>(type,
+                                                                       buffers);
+  } else {
+    WriteBuffersInternal<SbPlayerSampleInfo>(type, buffers);
+  }
 }
 
 void SbPlayerBridge::SetBounds(int z_index, const gfx::Rect& rect) {
@@ -403,8 +461,8 @@ void SbPlayerBridge::GetVideoResolution(int* frame_width, int* frame_height) {
   DCHECK(is_url_based_);
 
   if (state_ == kSuspended) {
-    *frame_width = video_sample_info_.frame_width;
-    *frame_height = video_sample_info_.frame_height;
+    *frame_width = video_stream_info_.frame_width;
+    *frame_height = video_stream_info_.frame_height;
     return;
   }
 
@@ -413,11 +471,11 @@ void SbPlayerBridge::GetVideoResolution(int* frame_width, int* frame_height) {
   SbPlayerInfo2 out_player_info;
   sbplayer_interface_->GetInfo(player_, &out_player_info);
 
-  video_sample_info_.frame_width = out_player_info.frame_width;
-  video_sample_info_.frame_height = out_player_info.frame_height;
+  video_stream_info_.frame_width = out_player_info.frame_width;
+  video_stream_info_.frame_height = out_player_info.frame_height;
 
-  *frame_width = video_sample_info_.frame_width;
-  *frame_height = video_sample_info_.frame_height;
+  *frame_width = video_stream_info_.frame_width;
+  *frame_height = video_stream_info_.frame_height;
 }
 
 base::TimeDelta SbPlayerBridge::GetDuration() {
@@ -595,9 +653,7 @@ void SbPlayerBridge::CreatePlayer() {
   DCHECK(task_runner_->BelongsToCurrentThread());
 
   bool is_visible = SbWindowIsValid(window_);
-  SbMediaAudioCodec audio_codec = audio_sample_info_.codec;
-
-  bool has_audio = audio_codec != kSbMediaAudioCodecNone;
+  bool has_audio = audio_stream_info_.codec != kSbMediaAudioCodecNone;
 
   is_creating_player_ = true;
 
@@ -609,12 +665,22 @@ void SbPlayerBridge::CreatePlayer() {
 
   SbPlayerCreationParam creation_param = {};
   creation_param.drm_system = drm_system_;
-  creation_param.audio_sample_info = audio_sample_info_;
-  creation_param.video_sample_info = video_sample_info_;
+#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+  creation_param.audio_stream_info = audio_stream_info_;
+  creation_param.video_stream_info = video_stream_info_;
+#else   // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+  creation_param.audio_sample_info = audio_stream_info_;
+  creation_param.video_sample_info = video_stream_info_;
+#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+
   // TODO: This is temporary for supporting background media playback.
   //       Need to be removed with media refactor.
   if (!is_visible) {
+#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+    creation_param.video_stream_info.codec = kSbMediaVideoCodecNone;
+#else   // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
     creation_param.video_sample_info.codec = kSbMediaVideoCodecNone;
+#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
   }
   creation_param.output_mode = output_mode_;
   DCHECK_EQ(sbplayer_interface_->GetPreferredOutputMode(&creation_param),
@@ -671,9 +737,15 @@ void SbPlayerBridge::WriteNextBuffersFromCache(DemuxerStream::Type type,
     buffers.push_back(buffer);
   }
 
-  WriteBuffersInternal(type, buffers);
+  if (sbplayer_interface_->IsEnhancedAudioExtensionEnabled()) {
+    WriteBuffersInternal<CobaltExtensionEnhancedAudioPlayerSampleInfo>(type,
+                                                                       buffers);
+  } else {
+    WriteBuffersInternal<SbPlayerSampleInfo>(type, buffers);
+  }
 }
 
+template <typename PlayerSampleInfo>
 void SbPlayerBridge::WriteBuffersInternal(
     DemuxerStream::Type type,
     const std::vector<scoped_refptr<DecoderBuffer>>& buffers) {
@@ -683,7 +755,7 @@ void SbPlayerBridge::WriteBuffersInternal(
 
   auto sample_type = DemuxerStreamTypeToSbMediaType(type);
 
-  std::vector<SbPlayerSampleInfo> gathered_sbplayer_sample_infos;
+  std::vector<PlayerSampleInfo> gathered_sbplayer_sample_infos;
   std::vector<SbDrmSampleInfo> gathered_sbplayer_sample_infos_drm_info;
   std::vector<SbDrmSubSampleMapping>
       gathered_sbplayer_sample_infos_subsample_mapping;
@@ -708,9 +780,9 @@ void SbPlayerBridge::WriteBuffersInternal(
         DCHECK(!gathered_sbplayer_sample_infos.empty());
         cval_stats_->StartTimer(MediaTiming::SbPlayerWriteSamples,
                                 pipeline_identifier_);
-        sbplayer_interface_->WriteSample(player_, sample_type,
-                                         gathered_sbplayer_sample_infos.data(),
-                                         gathered_sbplayer_sample_infos.size());
+        sbplayer_interface_->WriteSamples(
+            player_, sample_type, gathered_sbplayer_sample_infos.data(),
+            gathered_sbplayer_sample_infos.size());
         cval_stats_->StopTimer(MediaTiming::SbPlayerWriteSamples,
                                pipeline_identifier_);
       } else {
@@ -752,7 +824,7 @@ void SbPlayerBridge::WriteBuffersInternal(
     SbPlayerSampleSideData* side_data =
         &gathered_sbplayer_sample_infos_side_data[i];
 
-    SbPlayerSampleInfo sample_info = {};
+    PlayerSampleInfo sample_info = {};
     sample_info.type = sample_type;
     sample_info.buffer = buffer->data();
     sample_info.buffer_size = buffer->data_size();
@@ -767,10 +839,10 @@ void SbPlayerBridge::WriteBuffersInternal(
     }
 
     if (sample_type == kSbMediaTypeAudio) {
-      sample_info.audio_sample_info = audio_sample_info_;
+      SetStreamInfo(audio_stream_info_, &sample_info.audio_sample_info);
     } else {
       DCHECK(sample_type == kSbMediaTypeVideo);
-      sample_info.video_sample_info = video_sample_info_;
+      SetStreamInfo(video_stream_info_, &sample_info.video_sample_info);
       sample_info.video_sample_info.is_key_frame = buffer->is_key_frame();
     }
     if (drm_info->subsample_count > 0) {
@@ -784,9 +856,9 @@ void SbPlayerBridge::WriteBuffersInternal(
   if (!gathered_sbplayer_sample_infos.empty()) {
     cval_stats_->StartTimer(MediaTiming::SbPlayerWriteSamples,
                             pipeline_identifier_);
-    sbplayer_interface_->WriteSample(player_, sample_type,
-                                     gathered_sbplayer_sample_infos.data(),
-                                     gathered_sbplayer_sample_infos.size());
+    sbplayer_interface_->WriteSamples(player_, sample_type,
+                                      gathered_sbplayer_sample_infos.data(),
+                                      gathered_sbplayer_sample_infos.size());
     cval_stats_->StopTimer(MediaTiming::SbPlayerWriteSamples,
                            pipeline_identifier_);
   }
@@ -1067,8 +1139,13 @@ SbPlayerOutputMode SbPlayerBridge::ComputeSbPlayerOutputMode(
     bool prefer_decode_to_texture) const {
   SbPlayerCreationParam creation_param = {};
   creation_param.drm_system = drm_system_;
-  creation_param.audio_sample_info = audio_sample_info_;
-  creation_param.video_sample_info = video_sample_info_;
+#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+  creation_param.audio_stream_info = audio_stream_info_;
+  creation_param.video_stream_info = video_stream_info_;
+#else   // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+  creation_param.audio_sample_info = audio_stream_info_;
+  creation_param.video_sample_info = video_stream_info_;
+#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
 
   // Try to choose |kSbPlayerOutputModeDecodeToTexture| when
   // |prefer_decode_to_texture| is true.

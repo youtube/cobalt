@@ -21,15 +21,14 @@
 #include "starboard/player.h"
 #include "starboard/shared/ffmpeg/ffmpeg_audio_decoder_impl_interface.h"
 #include "starboard/shared/ffmpeg/ffmpeg_dispatch.h"
+#include "starboard/shared/starboard/media/media_util.h"
 
 namespace starboard {
 namespace shared {
 namespace ffmpeg {
 
 // static
-AudioDecoder* AudioDecoder::Create(
-    SbMediaAudioCodec audio_codec,
-    const SbMediaAudioSampleInfo& audio_sample_info) {
+AudioDecoder* AudioDecoder::Create(const AudioStreamInfo& audio_stream_info) {
   FFMPEGDispatch* ffmpeg = FFMPEGDispatch::GetInstance();
   if (!ffmpeg || !ffmpeg->is_valid()) {
     return NULL;
@@ -38,21 +37,17 @@ AudioDecoder* AudioDecoder::Create(
   AudioDecoder* audio_decoder = NULL;
   switch (ffmpeg->specialization_version()) {
     case 540:
-      audio_decoder =
-          AudioDecoderImpl<540>::Create(audio_codec, audio_sample_info);
+      audio_decoder = AudioDecoderImpl<540>::Create(audio_stream_info);
       break;
     case 550:
     case 560:
-      audio_decoder =
-          AudioDecoderImpl<560>::Create(audio_codec, audio_sample_info);
+      audio_decoder = AudioDecoderImpl<560>::Create(audio_stream_info);
       break;
     case 571:
-      audio_decoder =
-          AudioDecoderImpl<571>::Create(audio_codec, audio_sample_info);
+      audio_decoder = AudioDecoderImpl<571>::Create(audio_stream_info);
       break;
     case 581:
-      audio_decoder =
-          AudioDecoderImpl<581>::Create(audio_codec, audio_sample_info);
+      audio_decoder = AudioDecoderImpl<581>::Create(audio_stream_info);
       break;
     default:
       SB_LOG(WARNING) << "Unsupported FFMPEG specialization "

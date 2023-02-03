@@ -17,12 +17,14 @@
 
 #include <algorithm>
 #include <functional>
+#include <string>
 #include <vector>
 
 #include "starboard/common/log.h"
 #include "starboard/media.h"
 #include "starboard/memory.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/starboard/media/media_util.h"
 
 namespace starboard {
 namespace shared {
@@ -68,25 +70,6 @@ enum RecordType {
   kRecordTypeVideoAccessUnit = 'vdat',
 };
 
-// Helper structures to allow returning structs containing pointers without
-// explicit memory management.  Use our own structure instead of the one defined
-// in media_util.* to ensure that video_dmp has minimum dependency.
-struct SbMediaAudioSampleInfoWithConfig : public SbMediaAudioSampleInfo {
-  SbMediaAudioSampleInfoWithConfig() {}
-  SbMediaAudioSampleInfoWithConfig(const SbMediaAudioSampleInfoWithConfig& that)
-      : SbMediaAudioSampleInfo(that),
-        stored_audio_specific_config(that.stored_audio_specific_config) {
-    audio_specific_config = stored_audio_specific_config.data();
-  }
-  void operator=(const SbMediaAudioSampleInfoWithConfig& that) {
-    memcpy(this, &that, sizeof(SbMediaAudioSampleInfo));
-    stored_audio_specific_config = that.stored_audio_specific_config;
-    audio_specific_config = stored_audio_specific_config.data();
-  }
-
-  std::vector<uint8_t> stored_audio_specific_config;
-};
-
 struct SbDrmSampleInfoWithSubSampleMapping : public SbDrmSampleInfo {
   SbDrmSampleInfoWithSubSampleMapping() {}
   SbDrmSampleInfoWithSubSampleMapping(
@@ -98,21 +81,6 @@ struct SbDrmSampleInfoWithSubSampleMapping : public SbDrmSampleInfo {
   void operator=(const SbDrmSampleInfoWithSubSampleMapping& that) = delete;
 
   std::vector<SbDrmSubSampleMapping> stored_subsample_mapping;
-};
-
-struct SbMediaVideoSampleInfoWithOptionalColorMetadata
-    : public SbMediaVideoSampleInfo {
-  SbMediaVideoSampleInfoWithOptionalColorMetadata() {}
-  SbMediaVideoSampleInfoWithOptionalColorMetadata(
-      const SbMediaVideoSampleInfoWithOptionalColorMetadata& that)
-      : SbMediaVideoSampleInfo(that),
-        stored_color_metadata(that.stored_color_metadata) {
-  }
-  void operator=(const SbMediaVideoSampleInfoWithOptionalColorMetadata& that) {
-    memcpy(this, &that, sizeof(SbMediaVideoSampleInfo));
-  }
-
-  SbMediaColorMetadata stored_color_metadata;
 };
 
 const uint32_t kByteOrderMark = 0x76543210;
@@ -150,10 +118,10 @@ void Write(const WriteCB& write_cb, RecordType record_type);
 
 void Read(const ReadCB& read_cb,
           bool reverse_byte_order,
-          SbMediaAudioSampleInfoWithConfig* audio_sample_info);
+          media::AudioSampleInfo* audio_sample_info);
 void Write(const WriteCB& write_cb,
            SbMediaAudioCodec audio_codec,
-           const SbMediaAudioSampleInfo& audio_sample_info);
+           const media::AudioSampleInfo& audio_sample_info);
 
 void Read(const ReadCB& read_cb,
           bool reverse_byte_order,
@@ -162,10 +130,10 @@ void Write(const WriteCB& write_cb, const SbDrmSampleInfo& drm_sample_info);
 
 void Read(const ReadCB& read_cb,
           bool reverse_byte_order,
-          SbMediaVideoSampleInfoWithOptionalColorMetadata* video_sample_info);
+          media::VideoSampleInfo* video_sample_info);
 void Write(const WriteCB& write_cb,
            SbMediaVideoCodec video_codec,
-           const SbMediaVideoSampleInfo& video_sample_info);
+           const media::VideoSampleInfo& video_sample_info);
 
 }  // namespace video_dmp
 }  // namespace player

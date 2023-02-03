@@ -18,6 +18,7 @@
 #include "starboard/raspi/shared/video_renderer_sink_impl.h"
 #include "starboard/shared/ffmpeg/ffmpeg_audio_decoder.h"
 #include "starboard/shared/opus/opus_audio_decoder.h"
+#include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/adaptive_audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_sink_impl.h"
@@ -50,21 +51,21 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       SB_DCHECK(audio_decoder);
       SB_DCHECK(audio_renderer_sink);
 
-      auto decoder_creator = [](const SbMediaAudioSampleInfo& audio_sample_info,
+      auto decoder_creator = [](const media::AudioStreamInfo& audio_stream_info,
                                 SbDrmSystem drm_system) {
         typedef ::starboard::shared::ffmpeg::AudioDecoder AudioDecoderImpl;
-        typedef ::starboard::shared::opus::OpusAudioDecoder OpusAudioDecoderImpl;
+        typedef ::starboard::shared::opus::OpusAudioDecoder
+            OpusAudioDecoderImpl;
 
-        if(audio_sample_info.codec == kSbMediaAudioCodecOpus) {
+        if (audio_stream_info.codec == kSbMediaAudioCodecOpus) {
           scoped_ptr<OpusAudioDecoderImpl> opus_audio_decoder_impl(
-              new OpusAudioDecoderImpl(audio_sample_info));
+              new OpusAudioDecoderImpl(audio_stream_info));
           if (opus_audio_decoder_impl && opus_audio_decoder_impl->is_valid()) {
             return opus_audio_decoder_impl.PassAs<AudioDecoder>();
           }
         } else {
           scoped_ptr<AudioDecoderImpl> audio_decoder_impl(
-              AudioDecoderImpl::Create(audio_sample_info.codec,
-                                      audio_sample_info));
+              AudioDecoderImpl::Create(audio_stream_info));
           if (audio_decoder_impl && audio_decoder_impl->is_valid()) {
             return audio_decoder_impl.PassAs<AudioDecoder>();
           }
@@ -73,7 +74,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       };
 
       audio_decoder->reset(new AdaptiveAudioDecoder(
-          creation_parameters.audio_sample_info(),
+          creation_parameters.audio_stream_info(),
           creation_parameters.drm_system(), decoder_creator));
       audio_renderer_sink->reset(new AudioRendererSinkImpl);
     }

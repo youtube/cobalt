@@ -31,7 +31,7 @@ namespace media {
 SbMediaAudioCodec MediaAudioCodecToSbMediaAudioCodec(AudioCodec codec);
 SbMediaVideoCodec MediaVideoCodecToSbMediaVideoCodec(VideoCodec codec);
 
-SbMediaAudioSampleInfo MediaAudioConfigToSbMediaAudioSampleInfo(
+SbMediaAudioStreamInfo MediaAudioConfigToSbMediaAudioStreamInfo(
     const AudioDecoderConfig& audio_decoder_config,
     const char* mime_type);
 

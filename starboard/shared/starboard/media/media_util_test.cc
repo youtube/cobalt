@@ -23,14 +23,22 @@ namespace starboard {
 namespace media {
 namespace {
 
-TEST(VideoSampleInfoTest, DefaultCtor) {
-  VideoSampleInfo video_sample_info;
-  EXPECT_EQ(video_sample_info.codec, kSbMediaVideoCodecNone);
+TEST(AudioStreamInfoTest, DefaultCtor) {
+  AudioStreamInfo audio_stream_info;
+  EXPECT_EQ(audio_stream_info.codec, kSbMediaAudioCodecNone);
+  // No other members should be accessed if `codec` is `kSbMediaAudioCodecNone`,
+  // however we still want to make sure that the following members are empty.
+  EXPECT_TRUE(audio_stream_info.mime.empty());
+  EXPECT_TRUE(audio_stream_info.audio_specific_config.empty());
+}
+
+TEST(VideoStreamInfoTest, DefaultCtor) {
+  VideoStreamInfo video_stream_info;
+  EXPECT_EQ(video_stream_info.codec, kSbMediaVideoCodecNone);
   // No other members should be accessed if `codec` is `kSbMediaVideoCodecNone`,
-  // however we still want to make sure that the pointer members are set to
-  // nullptr.
-  EXPECT_EQ(video_sample_info.mime, nullptr);
-  EXPECT_EQ(video_sample_info.max_video_capabilities, nullptr);
+  // however we still want to make sure that the following members are empty.
+  EXPECT_TRUE(video_stream_info.mime.empty());
+  EXPECT_TRUE(video_stream_info.max_video_capabilities.empty());
 }
 
 }  // namespace

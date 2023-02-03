@@ -30,8 +30,8 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-using ::starboard::testing::FakeGraphicsContextProvider;
 using ::shared::starboard::player::video_dmp::VideoDmpReader;
+using ::starboard::testing::FakeGraphicsContextProvider;
 using ::testing::ValuesIn;
 
 const SbTime kDuration = kSbTimeSecond / 2;
@@ -64,17 +64,6 @@ class SbMediaSetAudioWriteDurationTest
       return;
     }
 
-    SbPlayerSampleInfo player_sample_info =
-        dmp_reader_.GetPlayerSampleInfo(kSbMediaTypeAudio, index_++);
-
-    SbPlayerSampleInfo sample_info = {};
-    sample_info.buffer = player_sample_info.buffer;
-    sample_info.buffer_size = player_sample_info.buffer_size;
-    sample_info.timestamp = player_sample_info.timestamp;
-    sample_info.drm_info = NULL;
-    sample_info.type = kSbMediaTypeAudio;
-    sample_info.audio_sample_info = dmp_reader_.audio_sample_info();
-
     SbPlayer player = pending_decoder_status_->player;
     SbMediaType type = pending_decoder_status_->type;
     int ticket = pending_decoder_status_->ticket;
@@ -83,7 +72,10 @@ class SbMediaSetAudioWriteDurationTest
       pending_decoder_status_ = nullopt;
     }
 
-    SbPlayerWriteSample2(player, kSbMediaTypeAudio, &sample_info, 1);
+    CallSbPlayerWriteSamples(player, kSbMediaTypeAudio, dmp_reader_.get(),
+                             index_, 1);
+    ++index_;
+
     last_input_timestamp_ = player_sample_info.timestamp;
   }
 

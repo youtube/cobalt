@@ -23,6 +23,7 @@ ffmpeg_specialization_sources = [
 ]
 
 static_library("ffmpeg_dynamic_load") {
+  check_includes = false
   sources = [
     "ffmpeg_dynamic_load_audio_decoder_impl.cc",
     "ffmpeg_dynamic_load_demuxer_impl.cc",

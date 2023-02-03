@@ -21,6 +21,7 @@
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/common/scoped_ptr.h"
+#include "starboard/shared/starboard/media/media_util.h"
 
 namespace starboard {
 namespace android {
@@ -74,6 +75,9 @@ struct AudioOutputFormatResult {
 
 class MediaCodecBridge {
  public:
+  typedef ::starboard::shared::starboard::media::AudioStreamInfo
+      AudioStreamInfo;
+
   // The methods are called on the default Looper.  They won't get called after
   // Flush() is returned.
   class Handler {
@@ -96,8 +100,7 @@ class MediaCodecBridge {
   };
 
   static scoped_ptr<MediaCodecBridge> CreateAudioMediaCodecBridge(
-      SbMediaAudioCodec audio_codec,
-      const SbMediaAudioSampleInfo& audio_sample_info,
+      const AudioStreamInfo& audio_stream_info,
       Handler* handler,
       jobject j_media_crypto);
 

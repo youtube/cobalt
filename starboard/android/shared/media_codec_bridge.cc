@@ -156,15 +156,14 @@ Java_dev_cobalt_media_MediaCodecBridge_nativeOnMediaCodecOutputFormatChanged(
 
 // static
 scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodecBridge(
-    SbMediaAudioCodec audio_codec,
-    const SbMediaAudioSampleInfo& audio_sample_info,
+    const AudioStreamInfo& audio_stream_info,
     Handler* handler,
     jobject j_media_crypto) {
   bool is_passthrough = false;
   const char* mime =
-      SupportedAudioCodecToMimeType(audio_codec, &is_passthrough);
+      SupportedAudioCodecToMimeType(audio_stream_info.codec, &is_passthrough);
   if (!mime) {
-    SB_LOG(ERROR) << "Unsupported codec " << audio_codec << ".";
+    SB_LOG(ERROR) << "Unsupported codec " << audio_stream_info.codec << ".";
     return scoped_ptr<MediaCodecBridge>(NULL);
   }
 
@@ -174,17 +173,19 @@ scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodecBridge(
           false /* must_support_tunnel_mode */);
 
   if (decoder_name.empty()) {
-    SB_LOG(ERROR) << "Failed to find decoder for " << audio_codec << ".";
+    SB_LOG(ERROR) << "Failed to find decoder for " << audio_stream_info.codec
+                  << ".";
     return scoped_ptr<MediaCodecBridge>(NULL);
   }
 
   JniEnvExt* env = JniEnvExt::Get();
   ScopedLocalJavaRef<jbyteArray> configuration_data;
-  if (audio_codec == kSbMediaAudioCodecOpus &&
-      audio_sample_info.audio_specific_config_size != 0) {
+  if (audio_stream_info.codec == kSbMediaAudioCodecOpus &&
+      !audio_stream_info.audio_specific_config.empty()) {
     configuration_data.Reset(env->NewByteArrayFromRaw(
-        static_cast<const jbyte*>(audio_sample_info.audio_specific_config),
-        audio_sample_info.audio_specific_config_size));
+        reinterpret_cast<const jbyte*>(
+            audio_stream_info.audio_specific_config.data()),
+        audio_stream_info.audio_specific_config.size()));
   }
   ScopedLocalJavaRef<jstring> j_mime(env->NewStringStandardUTFOrAbort(mime));
   ScopedLocalJavaRef<jstring> j_decoder_name(
@@ -196,12 +197,13 @@ scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodecBridge(
       "(JLjava/lang/String;Ljava/lang/String;IILandroid/media/MediaCrypto;"
       "[B)Ldev/cobalt/media/MediaCodecBridge;",
       reinterpret_cast<jlong>(native_media_codec_bridge.get()), j_mime.Get(),
-      j_decoder_name.Get(), audio_sample_info.samples_per_second,
-      audio_sample_info.number_of_channels, j_media_crypto,
+      j_decoder_name.Get(), audio_stream_info.samples_per_second,
+      audio_stream_info.number_of_channels, j_media_crypto,
       configuration_data.Get());
 
   if (!j_media_codec_bridge) {
-    SB_LOG(ERROR) << "Failed to create codec bridge for " << audio_codec << ".";
+    SB_LOG(ERROR) << "Failed to create codec bridge for "
+                  << audio_stream_info.codec << ".";
     return scoped_ptr<MediaCodecBridge>(NULL);
   }
 

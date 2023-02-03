@@ -22,6 +22,7 @@
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/common/string.h"
 #include "starboard/nplb/player_test_util.h"
+#include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
 #include "starboard/string.h"
 #include "starboard/testing/fake_graphics_context_provider.h"
@@ -211,12 +212,12 @@ std::string GetSbPlayerTestConfigName(
 void SbPlayerWriteSampleTest::SetUp() {
   SbMediaVideoCodec video_codec = dmp_reader_->video_codec();
   SbMediaAudioCodec audio_codec = dmp_reader_->audio_codec();
-  const SbMediaAudioSampleInfo* audio_sample_info = NULL;
+  const shared::starboard::media::AudioStreamInfo* audio_stream_info = NULL;
 
   if (test_media_type_ == kSbMediaTypeAudio) {
     SB_DCHECK(audio_codec != kSbMediaAudioCodecNone);
 
-    audio_sample_info = &dmp_reader_->audio_sample_info();
+    audio_stream_info = &dmp_reader_->audio_stream_info();
     video_codec = kSbMediaVideoCodecNone;
   } else {
     SB_DCHECK(video_codec != kSbMediaVideoCodecNone);
@@ -226,7 +227,7 @@ void SbPlayerWriteSampleTest::SetUp() {
 
   player_ = CallSbPlayerCreate(
       fake_graphics_context_provider_.window(), video_codec, audio_codec,
-      kSbDrmSystemInvalid, audio_sample_info, "", DummyDeallocateSampleFunc,
+      kSbDrmSystemInvalid, audio_stream_info, "", DummyDeallocateSampleFunc,
       DecoderStatusCallback, PlayerStatusCallback, ErrorCallback, this,
       output_mode_, fake_graphics_context_provider_.decoder_target_provider());
 
@@ -402,14 +403,9 @@ void SbPlayerWriteSampleTest::WriteSingleBatch(int start_index,
   samples_to_write = std::min(samples_to_write, max_batch_size);
 
   SB_DCHECK(start_index + samples_to_write <= GetNumBuffers());
-  // Prepare a batch writing.
-  std::vector<SbPlayerSampleInfo> sample_infos;
-  for (int i = 0; i < samples_to_write; ++i) {
-    sample_infos.push_back(
-        dmp_reader_->GetPlayerSampleInfo(test_media_type_, start_index++));
-  }
-  SbPlayerWriteSample2(player_, test_media_type_, sample_infos.data(),
-                       samples_to_write);
+
+  CallSbPlayerWriteSamples(player_, test_media_type_, dmp_reader_.get(),
+                           start_index, samples_to_write);
 }
 
 void SbPlayerWriteSampleTest::WriteEndOfStream() {

@@ -76,11 +76,9 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
   UpdatePlayerStateCB update_player_state_cb_;
   UpdatePlayerErrorCB update_player_error_cb_;
 
-  SbMediaVideoCodec video_codec_;
-  SbMediaAudioCodec audio_codec_;
   SbDrmSystem drm_system_;
 
-  media::AudioSampleInfo audio_sample_info_;
+  const media::AudioStreamInfo audio_stream_info_;
 
   // A mutex guarding changes to the existence (e.g. creation/destruction)
   // of the |player_components_| object.  This is necessary because calls to
@@ -115,7 +113,7 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
   SbPlayerOutputMode output_mode_;
   SbDecodeTargetGraphicsContextProvider*
       decode_target_graphics_context_provider_;
-  media::VideoSampleInfo video_sample_info_;
+  const media::VideoStreamInfo video_stream_info_;
 };
 
 }  // namespace filter

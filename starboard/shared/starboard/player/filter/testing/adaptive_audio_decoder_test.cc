@@ -119,8 +119,7 @@ class AdaptiveAudioDecoderTest
 
     scoped_ptr<AudioRendererSink> audio_renderer_sink;
     ASSERT_TRUE(CreateAudioComponents(using_stub_decoder_,
-                                      dmp_readers_[0]->audio_codec(),
-                                      dmp_readers_[0]->audio_sample_info(),
+                                      dmp_readers_[0]->audio_stream_info(),
                                       &audio_decoder_, &audio_renderer_sink));
     ASSERT_TRUE(audio_decoder_);
     audio_decoder_->Initialize(

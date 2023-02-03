@@ -379,6 +379,65 @@ typedef struct SbMediaColorMetadata {
   float custom_primary_matrix[12];
 } SbMediaColorMetadata;
 
+#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+
+// The set of information required by the decoder or player for each video
+// stream.
+typedef struct SbMediaVideoStreamInfo {
+  // The video codec of this sample.
+  SbMediaVideoCodec codec;
+
+  // The mime of the video stream when |codec| isn't kSbMediaVideoCodecNone.  It
+  // may point to an empty string if the mime is not available, and it can only
+  // be set to NULL when |codec| is kSbMediaVideoCodecNone.
+  const char* mime;
+
+  // Indicates the max video capabilities required. The web app will not provide
+  // a video stream exceeding the maximums described by this parameter. Allows
+  // the platform to optimize playback pipeline for low quality video streams if
+  // it knows that it will never adapt to higher quality streams. The string
+  // uses the same format as the string passed in to
+  // SbMediaCanPlayMimeAndKeySystem(), for example, when it is set to
+  // "width=1920; height=1080; framerate=15;", the video will never adapt to
+  // resolution higher than 1920x1080 or frame per second higher than 15 fps.
+  // When the maximums are unknown, this will be set to an empty string.  It can
+  // only be set to NULL when |codec| is kSbMediaVideoCodecNone.
+  const char* max_video_capabilities;
+
+  // The frame width of this sample, in pixels. Also could be parsed from the
+  // Sequence Parameter Set (SPS) NAL Unit. Frame dimensions must only change on
+  // key frames, but may change on any key frame.
+  int frame_width;
+
+  // The frame height of this sample, in pixels. Also could be parsed from the
+  // Sequence Parameter Set (SPS) NAL Unit. Frame dimensions must only change on
+  // key frames, but may change on any key frame.
+  int frame_height;
+
+  // HDR metadata common for HDR10 and WebM/VP9-based HDR formats as
+  // well as the Color Space, and Color elements: MatrixCoefficients,
+  // BitsPerChannel, ChromaSubsamplingHorz, ChromaSubsamplingVert,
+  // CbSubsamplingHorz, CbSubsamplingVert, ChromaSitingHorz,
+  // ChromaSitingVert, Range, TransferCharacteristics, and Primaries
+  // described here: https://matroska.org/technical/specs/index.html .
+  // This will only be specified on frames where the HDR metadata and
+  // color / color space might have changed (e.g. keyframes).
+  SbMediaColorMetadata color_metadata;
+} SbMediaVideoStreamInfo;
+
+// The set of information required by the decoder or player for each video
+// sample.
+typedef struct SbMediaVideoSampleInfo {
+  // The set of information of the video stream associated with this sample.
+  SbMediaVideoStreamInfo stream_info;
+
+  // Indicates whether the associated sample is a key frame (I-frame). Avc video
+  // key frames must always start with SPS and PPS NAL units.
+  bool is_key_frame;
+} SbMediaVideoSampleInfo;
+
+#else  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+
 // The set of information required by the decoder or player for each video
 // sample.
 typedef struct SbMediaVideoSampleInfo {
@@ -425,7 +484,9 @@ typedef struct SbMediaVideoSampleInfo {
   // This will only be specified on frames where the HDR metadata and
   // color / color space might have changed (e.g. keyframes).
   SbMediaColorMetadata color_metadata;
-} SbMediaVideoSampleInfo;
+} SbMediaVideoSampleInfo, SbMediaVideoStreamInfo;
+
+#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
 
 // A structure describing the audio configuration parameters of a single audio
 // output.
@@ -449,6 +510,45 @@ typedef struct SbMediaAudioConfiguration {
   // caller can probably assume stereo output.
   int number_of_channels;
 } SbMediaAudioConfiguration;
+
+#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+
+// The set of information required by the decoder or player for each audio
+// stream.
+typedef struct SbMediaAudioStreamInfo {
+  // The audio codec of this sample.
+  SbMediaAudioCodec codec;
+
+  // The mime of the audio stream when |codec| isn't kSbMediaAudioCodecNone.  It
+  // may point to an empty string if the mime is not available, and it can only
+  // be set to NULL when |codec| is kSbMediaAudioCodecNone.
+  const char* mime;
+
+  // The number of audio channels in this format. |1| for mono, |2| for stereo.
+  uint16_t number_of_channels;
+
+  // The sampling rate.
+  uint32_t samples_per_second;
+
+  // The bit depth for the stream this represents, e.g. |8| or |16|.
+  uint16_t bits_per_sample;
+
+  // The size, in bytes, of the audio_specific_config.
+  uint16_t audio_specific_config_size;
+
+  // The AudioSpecificConfig, as specified in ISO/IEC-14496-3, section 1.6.2.1:
+  // http://read.pudn.com/downloads98/doc/comm/401153/14496/ISO_IEC_14496-3%20Part%203%20Audio/C036083E_SUB1.PDF
+  const void* audio_specific_config;
+} SbMediaAudioStreamInfo;
+
+// The set of information required by the decoder or player for each audio
+// sample.
+typedef struct SbMediaAudioSampleInfo {
+  // The set of information of the video stream associated with this sample.
+  SbMediaAudioStreamInfo stream_info;
+} SbMediaAudioSampleInfo;
+
+#else  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
 
 // An audio sample info, which is a description of a given audio sample.  This
 // acts as a set of instructions to the audio decoder.
@@ -490,7 +590,9 @@ typedef struct SbMediaAudioSampleInfo {
   // The AudioSpecificConfig, as specified in ISO/IEC-14496-3, section 1.6.2.1:
   // http://read.pudn.com/downloads98/doc/comm/401153/14496/ISO_IEC_14496-3%20Part%203%20Audio/C036083E_SUB1.PDF
   const void* audio_specific_config;
-} SbMediaAudioSampleInfo;
+} SbMediaAudioSampleInfo, SbMediaAudioStreamInfo;
+
+#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
 
 // --- Functions -------------------------------------------------------------
 

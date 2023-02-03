@@ -42,19 +42,19 @@ std::vector<uint8_t> operator+(const std::vector<uint8_t>& left,
   return result;
 }
 
-TEST(VideoConfigTest, CtorWithSbMediaVideoSampleInfo) {
-  SbMediaVideoSampleInfo video_sample_info = {kSbMediaVideoCodecH264};
-  video_sample_info.is_key_frame = true;
-  video_sample_info.frame_width = 1920;
-  video_sample_info.frame_height = 1080;
+TEST(VideoConfigTest, CtorWithVideoStreamInfo) {
+  VideoStreamInfo video_stream_info;
+  video_stream_info.codec = kSbMediaVideoCodecH264;
+  video_stream_info.frame_width = 1920;
+  video_stream_info.frame_height = 1080;
 
   std::vector<uint8_t> nalus_in_annex_b =
       kSpsInAnnexB + kPpsInAnnexB + kIdrInAnnexB;
 
-  VideoConfig config_1(video_sample_info.codec, video_sample_info.frame_width,
-                       video_sample_info.frame_height, nalus_in_annex_b.data(),
+  VideoConfig config_1(video_stream_info.codec, video_stream_info.frame_width,
+                       video_stream_info.frame_height, nalus_in_annex_b.data(),
                        nalus_in_annex_b.size());
-  VideoConfig config_2(video_sample_info, nalus_in_annex_b.data(),
+  VideoConfig config_2(video_stream_info, nalus_in_annex_b.data(),
                        nalus_in_annex_b.size());
   ASSERT_TRUE(config_1 == config_2);
 }

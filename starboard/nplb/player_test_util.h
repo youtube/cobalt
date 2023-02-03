@@ -21,6 +21,8 @@
 
 #include "starboard/configuration_constants.h"
 #include "starboard/player.h"
+#include "starboard/shared/starboard/media/media_util.h"
+#include "starboard/shared/starboard/player/video_dmp_reader.h"
 
 namespace starboard {
 namespace nplb {
@@ -59,7 +61,7 @@ SbPlayer CallSbPlayerCreate(
     SbMediaVideoCodec video_codec,
     SbMediaAudioCodec audio_codec,
     SbDrmSystem drm_system,
-    const SbMediaAudioSampleInfo* audio_sample_info,
+    const shared::starboard::media::AudioStreamInfo* audio_stream_info,
     const char* max_video_capabilities,
     SbPlayerDeallocateSampleFunc sample_deallocate_func,
     SbPlayerDecoderStatusFunc decoder_status_func,
@@ -68,6 +70,13 @@ SbPlayer CallSbPlayerCreate(
     void* context,
     SbPlayerOutputMode output_mode,
     SbDecodeTargetGraphicsContextProvider* context_provider);
+
+void CallSbPlayerWriteSamples(
+    SbPlayer player,
+    SbMediaType sample_type,
+    shared::starboard::player::video_dmp::VideoDmpReader* dmp_reader,
+    int start_index,
+    int number_of_samples_to_write);
 
 bool IsOutputModeSupported(SbPlayerOutputMode output_mode,
                            SbMediaAudioCodec audio_codec,

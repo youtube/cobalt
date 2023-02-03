@@ -33,6 +33,7 @@ namespace win32 {
 
 using Microsoft::WRL::ComPtr;
 using ::starboard::shared::starboard::ThreadChecker;
+using ::starboard::shared::starboard::media::AudioStreamInfo;
 using ::starboard::shared::win32::CreateAudioTransform;
 
 const size_t kAacSamplesPerFrame = 1024;
@@ -56,25 +57,24 @@ size_t GetExpectedBufferSize(SbMediaAudioCodec codec, int num_channels) {
 
 class AbstractWin32AudioDecoderImpl : public AbstractWin32AudioDecoder {
  public:
-  AbstractWin32AudioDecoderImpl(SbMediaAudioCodec codec,
-                                SbMediaAudioFrameStorageType audio_frame_fmt,
+  AbstractWin32AudioDecoderImpl(SbMediaAudioFrameStorageType audio_frame_fmt,
                                 SbMediaAudioSampleType sample_type,
-                                const SbMediaAudioSampleInfo& audio_sample_info,
+                                const AudioStreamInfo& audio_stream_info,
                                 SbDrmSystem drm_system)
       : thread_checker_(ThreadChecker::kSetThreadIdOnFirstCheck),
-        codec_(codec),
+        codec_(audio_stream_info.codec),
         audio_frame_fmt_(audio_frame_fmt),
         sample_type_(sample_type),
-        number_of_channels_(audio_sample_info.number_of_channels),
+        number_of_channels_(audio_stream_info.number_of_channels),
         heaac_detected_(false),
         expected_buffer_size_(
-            GetExpectedBufferSize(codec,
-                                  audio_sample_info.number_of_channels)) {
+            GetExpectedBufferSize(codec_,
+                                  audio_stream_info.number_of_channels)) {
     scoped_ptr<MediaTransform> audio_decoder =
-        CreateAudioTransform(audio_sample_info, codec_);
+        CreateAudioTransform(audio_stream_info);
     impl_.reset(
         new DecryptingDecoder("audio", audio_decoder.Pass(), drm_system));
-    switch (codec) {
+    switch (codec_) {
       case kSbMediaAudioCodecAc3:
         samples_per_second_ = kAc3SamplesPerSecond;
         number_of_channels_ = kIec60958Channels;
@@ -85,8 +85,8 @@ class AbstractWin32AudioDecoderImpl : public AbstractWin32AudioDecoder {
         break;
       default:
         samples_per_second_ =
-            static_cast<int>(audio_sample_info.samples_per_second);
-        number_of_channels_ = audio_sample_info.number_of_channels;
+            static_cast<int>(audio_stream_info.samples_per_second);
+        number_of_channels_ = audio_stream_info.number_of_channels;
     }
   }
 
@@ -224,14 +224,13 @@ class AbstractWin32AudioDecoderImpl : public AbstractWin32AudioDecoder {
 }  // anonymous namespace.
 
 scoped_ptr<AbstractWin32AudioDecoder> AbstractWin32AudioDecoder::Create(
-    SbMediaAudioCodec code,
     SbMediaAudioFrameStorageType audio_frame_fmt,
     SbMediaAudioSampleType sample_type,
-    const SbMediaAudioSampleInfo& audio_sample_info,
+    const AudioStreamInfo& audio_stream_info,
     SbDrmSystem drm_system) {
   return scoped_ptr<AbstractWin32AudioDecoder>(
-      new AbstractWin32AudioDecoderImpl(code, audio_frame_fmt, sample_type,
-                                        audio_sample_info, drm_system));
+      new AbstractWin32AudioDecoderImpl(audio_frame_fmt, sample_type,
+                                        audio_stream_info, drm_system));
 }
 
 }  // namespace win32

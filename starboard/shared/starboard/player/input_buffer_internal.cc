@@ -29,39 +29,6 @@ namespace shared {
 namespace starboard {
 namespace player {
 
-InputBuffer::InputBuffer(SbPlayerDeallocateSampleFunc deallocate_sample_func,
-                         SbPlayer player,
-                         void* context,
-                         const SbPlayerSampleInfo& sample_info)
-    : deallocate_sample_func_(deallocate_sample_func),
-      player_(player),
-      context_(context),
-      sample_type_(sample_info.type),
-      data_(static_cast<const uint8_t*>(sample_info.buffer)),
-      size_(sample_info.buffer_size),
-      timestamp_(sample_info.timestamp) {
-  SB_DCHECK(deallocate_sample_func);
-
-  if (sample_type_ == kSbMediaTypeAudio) {
-    audio_sample_info_ = sample_info.audio_sample_info;
-  } else {
-    SB_DCHECK(sample_type_ == kSbMediaTypeVideo);
-    video_sample_info_ = sample_info.video_sample_info;
-  }
-  TryToAssignDrmSampleInfo(sample_info.drm_info);
-  if (sample_info.side_data_count > 0) {
-    SB_DCHECK(sample_info.side_data_count == 1);
-    SB_DCHECK(sample_info.side_data);
-    SB_DCHECK(sample_info.side_data->type == kMatroskaBlockAdditional);
-    SB_DCHECK(sample_info.side_data->data);
-    // Make a copy anyway as it is possible to release |data_| earlier in
-    // SetDecryptedContent().
-    side_data_.assign(
-        sample_info.side_data->data,
-        sample_info.side_data->data + sample_info.side_data->size);
-  }
-}
-
 InputBuffer::~InputBuffer() {
   DeallocateSampleBuffer(data_);
 }
@@ -87,18 +54,18 @@ std::string InputBuffer::ToString() const {
      << " sample @ timestamp: " << timestamp() << " in " << size()
      << " bytes ==========\n";
   if (sample_type() == kSbMediaTypeAudio) {
-    ss << "codec: " << audio_sample_info().codec << ", mime: '"
-       << audio_sample_info().mime << "'\n";
-    ss << audio_sample_info().samples_per_second << '\n';
+    ss << "codec: " << audio_stream_info().codec << ", mime: '"
+       << audio_stream_info().mime << "'\n";
+    ss << audio_stream_info().samples_per_second << '\n';
   } else {
     SB_DCHECK(sample_type() == kSbMediaTypeVideo);
 
-    ss << "codec: " << video_sample_info().codec << ", mime: '"
-       << video_sample_info().mime << "'"
+    ss << "codec: " << video_stream_info().codec << ", mime: '"
+       << video_stream_info().mime << "'"
        << ", max_video_capabilities: '"
-       << video_sample_info().max_video_capabilities << "'\n";
-    ss << video_sample_info().frame_width << " x "
-       << video_sample_info().frame_height << '\n';
+       << video_stream_info().max_video_capabilities << "'\n";
+    ss << video_stream_info().frame_width << " x "
+       << video_stream_info().frame_height << '\n';
   }
   if (has_drm_info_) {
     ss << "iv: "

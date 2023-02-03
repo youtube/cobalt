@@ -64,7 +64,7 @@ class VideoDecoder
                SbPlayerOutputMode output_mode,
                SbDecodeTargetGraphicsContextProvider*
                    decode_target_graphics_context_provider,
-               const char* max_video_capabilities,
+               const std::string& max_video_capabilities,
                int tunnel_mode_audio_session_id,
                bool force_secure_pipeline_under_tunnel_mode,
                bool force_reset_surface_under_tunnel_mode,

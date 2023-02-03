@@ -23,6 +23,14 @@ cleaner component layering.
 For existing uses in Starboard ports, fallback forwarding headers are provided
 in the previous location of the code in `cobalt/extensions`.
 
+### Refined SbMediaAudioSampleInfo and SbMediaVideoSampleInfo
+Moved attributes of `SbMediaAudioSampleInfo` and `SbMedidaVideoSampleInfo` that
+specific to the stream (i.e. don't change per access unit) to
+`SbMediaAudioStreamInfo` and `SbMediaVideoStreamInfo`.
+
+### Renamed SbPlayerWriteSample2() to SbPlayerWriteSamples()
+To better reflect the fact that it may write multiple samples in one call.
+
 ## Version 14
 ### Add MP3, FLAC, and PCM values to SbMediaAudioCodec.
 This makes it possible to support these codecs in the future.

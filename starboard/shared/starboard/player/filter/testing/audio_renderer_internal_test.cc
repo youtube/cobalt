@@ -117,7 +117,7 @@ class AudioRendererTest : public ::testing::Test {
     audio_renderer_.reset(new AudioRendererPcm(
         make_scoped_ptr<AudioDecoder>(audio_decoder_),
         make_scoped_ptr<AudioRendererSink>(audio_renderer_sink_),
-        GetDefaultAudioSampleInfo(), kMaxCachedFrames, kMaxFramesPerAppend));
+        GetDefaultAudioStreamInfo(), kMaxCachedFrames, kMaxFramesPerAppend));
     audio_renderer_->Initialize(
         std::bind(&AudioRendererTest::OnError, this),
         std::bind(&AudioRendererTest::OnPrerolled, this),
@@ -203,7 +203,7 @@ class AudioRendererTest : public ::testing::Test {
     sample_info.timestamp = timestamp;
     sample_info.drm_info = NULL;
     sample_info.type = kSbMediaTypeAudio;
-    sample_info.audio_sample_info = GetDefaultAudioSampleInfo();
+    GetDefaultAudioSampleInfo().ConvertTo(&sample_info.audio_sample_info);
     return new InputBuffer(DeallocateSampleCB, NULL, this, sample_info);
   }
 
@@ -245,20 +245,22 @@ class AudioRendererTest : public ::testing::Test {
     SbMemoryDeallocate(const_cast<void*>(sample_buffer));
   }
 
-  static const SbMediaAudioSampleInfo& GetDefaultAudioSampleInfo() {
-    static starboard::media::AudioSampleInfo audio_sample_info = {};
+  static const media::AudioStreamInfo& GetDefaultAudioStreamInfo() {
+    static starboard::media::AudioStreamInfo audio_stream_info;
 
-    audio_sample_info.codec = kSbMediaAudioCodecAac;
-    audio_sample_info.mime = "";
-    audio_sample_info.number_of_channels = kDefaultNumberOfChannels;
-    audio_sample_info.samples_per_second = kDefaultSamplesPerSecond;
-    audio_sample_info.bits_per_sample = 32;
-    audio_sample_info.average_bytes_per_second =
-        audio_sample_info.samples_per_second *
-        audio_sample_info.number_of_channels *
-        audio_sample_info.bits_per_sample / 8;
-    audio_sample_info.block_alignment = 4;
-    audio_sample_info.audio_specific_config_size = 0;
+    audio_stream_info.codec = kSbMediaAudioCodecAac;
+    audio_stream_info.mime = "";
+    audio_stream_info.number_of_channels = kDefaultNumberOfChannels;
+    audio_stream_info.samples_per_second = kDefaultSamplesPerSecond;
+    audio_stream_info.bits_per_sample = 32;
+
+    return audio_stream_info;
+  }
+
+  static const media::AudioSampleInfo& GetDefaultAudioSampleInfo() {
+    static starboard::media::AudioSampleInfo audio_sample_info;
+
+    audio_sample_info.stream_info = GetDefaultAudioStreamInfo();
 
     return audio_sample_info;
   }

@@ -17,16 +17,55 @@
 
 #include "starboard/configuration.h"
 
+#include "starboard/drm.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
+#include "starboard/shared/starboard/media/media_util.h"
 
 namespace starboard {
 namespace nplb {
 
-SbMediaAudioSampleInfo CreateAudioSampleInfo(SbMediaAudioCodec codec);
-SbMediaVideoSampleInfo CreateVideoSampleInfo(SbMediaVideoCodec codec);
-SbPlayerCreationParam CreatePlayerCreationParam(SbMediaAudioCodec audio_codec,
-                                                SbMediaVideoCodec video_codec);
+// Encapsulates all information contained in `SbPlayerCreationParam`.  It
+// doesn't aim to maintain the same binary layout as `SbPlayerCreationParam`,
+// and is intended to be used as a C++ wrapper in unit test code to allow of
+// converting between types more conveniently.
+struct PlayerCreationParam {
+  SbDrmSystem drm_system = kSbDrmSystemInvalid;
+
+  shared::starboard::media::AudioStreamInfo audio_stream_info;
+  shared::starboard::media::VideoStreamInfo video_stream_info;
+
+  SbPlayerOutputMode output_mode = kSbPlayerOutputModeInvalid;
+
+  // Convert to an SbPlayerCreationParam that's only valid during the life time
+  // of this PlayerCreationParam instance, as the member pointers of the
+  // SbPlayerCreationParam point to memory held in this PlayerCreationParam
+  // instance.
+  void ConvertTo(SbPlayerCreationParam* creation_param) const {
+    SB_DCHECK(creation_param);
+
+    *creation_param = {};
+
+    creation_param->drm_system = drm_system;
+
+#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+    audio_stream_info.ConvertTo(&creation_param->audio_stream_info);
+    video_stream_info.ConvertTo(&creation_param->video_stream_info);
+#else   // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+    audio_stream_info.ConvertTo(&creation_param->audio_sample_info);
+    video_stream_info.ConvertTo(&creation_param->video_sample_info);
+#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+
+    creation_param->output_mode = output_mode;
+  }
+};
+
+shared::starboard::media::AudioStreamInfo CreateAudioStreamInfo(
+    SbMediaAudioCodec codec);
+shared::starboard::media::VideoStreamInfo CreateVideoStreamInfo(
+    SbMediaVideoCodec codec);
+PlayerCreationParam CreatePlayerCreationParam(SbMediaAudioCodec audio_codec,
+                                              SbMediaVideoCodec video_codec);
 
 }  // namespace nplb
 }  // namespace starboard

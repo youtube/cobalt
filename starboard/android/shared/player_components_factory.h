@@ -34,6 +34,7 @@
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/media.h"
 #include "starboard/shared/opus/opus_audio_decoder.h"
+#include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/media/mime_type.h"
 #include "starboard/shared/starboard/player/filter/adaptive_audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
@@ -88,7 +89,6 @@ class AudioRendererSinkAndroid : public ::starboard::shared::starboard::player::
                 SbAudioSinkPrivate::ConsumeFramesFunc consume_frames_func,
                 SbAudioSinkPrivate::ErrorFunc error_func,
                 void* context) {
-
               auto type = static_cast<AudioTrackAudioSinkType*>(
                   SbAudioSinkPrivate::GetPreferredType());
 
@@ -209,7 +209,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
 
     bool enable_audio_device_callback = true;
 
-    if (strlen(creation_parameters.audio_mime()) > 0) {
+    if (!creation_parameters.audio_mime().empty()) {
       MimeType audio_mime_type(creation_parameters.audio_mime());
       if (!audio_mime_type.is_valid() ||
           !audio_mime_type.ValidateBoolParameter("enableaudiodevicecallback") ||
@@ -233,7 +233,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
     // TODO: Enable tunnel mode for passthrough
     scoped_ptr<AudioRendererPassthrough> audio_renderer;
     audio_renderer.reset(new AudioRendererPassthrough(
-        creation_parameters.audio_sample_info(),
+        creation_parameters.audio_stream_info(),
         GetExtendedDrmSystem(creation_parameters.drm_system()),
         enable_audio_device_callback));
     if (!audio_renderer->is_valid()) {
@@ -248,7 +248,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
 
       bool force_improved_support_check = true;
 
-      if (strlen(creation_parameters.video_mime()) > 0) {
+      if (!creation_parameters.video_mime().empty()) {
         MimeType video_mime_type(creation_parameters.video_mime());
         if (!video_mime_type.is_valid() ||
             !video_mime_type.ValidateBoolParameter(
@@ -294,12 +294,12 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
       std::string* error_message) override {
     SB_DCHECK(error_message);
 
-    const char* audio_mime =
+    const std::string audio_mime =
         creation_parameters.audio_codec() != kSbMediaAudioCodecNone
             ? creation_parameters.audio_mime()
             : "";
     MimeType audio_mime_type(audio_mime);
-    if (strlen(audio_mime) > 0) {
+    if (!audio_mime.empty()) {
       if (!audio_mime_type.is_valid() ||
           !audio_mime_type.ValidateBoolParameter("tunnelmode") ||
           !audio_mime_type.ValidateBoolParameter("enableaudiodevicecallback") ||
@@ -310,12 +310,12 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
       }
     }
 
-    const char* video_mime =
+    const std::string video_mime =
         creation_parameters.video_codec() != kSbMediaVideoCodecNone
             ? creation_parameters.video_mime()
             : "";
     MimeType video_mime_type(video_mime);
-    if (strlen(video_mime) > 0) {
+    if (!video_mime.empty()) {
       if (!video_mime_type.is_valid() ||
           !video_mime_type.ValidateBoolParameter("tunnelmode") ||
           !video_mime_type.ValidateBoolParameter("forceimprovedsupportcheck")) {
@@ -386,33 +386,34 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
       SB_DCHECK(audio_decoder);
       SB_DCHECK(audio_renderer_sink);
 
-      auto decoder_creator = [](const SbMediaAudioSampleInfo& audio_sample_info,
+      using starboard::shared::starboard::media::AudioStreamInfo;
+      auto decoder_creator = [](const AudioStreamInfo& audio_stream_info,
                                 SbDrmSystem drm_system) {
         bool use_libopus_decoder =
-            audio_sample_info.codec == kSbMediaAudioCodecOpus &&
+            audio_stream_info.codec == kSbMediaAudioCodecOpus &&
             !SbDrmSystemIsValid(drm_system) && !kForcePlatformOpusDecoder;
         if (use_libopus_decoder) {
           scoped_ptr<OpusAudioDecoder> audio_decoder_impl(
-              new OpusAudioDecoder(audio_sample_info));
+              new OpusAudioDecoder(audio_stream_info));
           if (audio_decoder_impl->is_valid()) {
             return audio_decoder_impl.PassAs<AudioDecoderBase>();
           }
-        } else if (audio_sample_info.codec == kSbMediaAudioCodecAac ||
-                   audio_sample_info.codec == kSbMediaAudioCodecOpus) {
-          scoped_ptr<AudioDecoder> audio_decoder_impl(new AudioDecoder(
-              audio_sample_info.codec, audio_sample_info, drm_system));
+        } else if (audio_stream_info.codec == kSbMediaAudioCodecAac ||
+                   audio_stream_info.codec == kSbMediaAudioCodecOpus) {
+          scoped_ptr<AudioDecoder> audio_decoder_impl(
+              new AudioDecoder(audio_stream_info, drm_system));
           if (audio_decoder_impl->is_valid()) {
             return audio_decoder_impl.PassAs<AudioDecoderBase>();
           }
         } else {
           SB_LOG(ERROR) << "Unsupported audio codec "
-                        << audio_sample_info.codec;
+                        << audio_stream_info.codec;
         }
         return scoped_ptr<AudioDecoderBase>();
       };
 
       audio_decoder->reset(new AdaptiveAudioDecoder(
-          creation_parameters.audio_sample_info(),
+          creation_parameters.audio_stream_info(),
           GetExtendedDrmSystem(creation_parameters.drm_system()),
           decoder_creator));
 
@@ -480,11 +481,11 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
     // AudioRenderer prefers to use kSbMediaAudioSampleTypeFloat32 and only uses
     // kSbMediaAudioSampleTypeInt16Deprecated when float32 is not supported.
     int min_frames_required = SbAudioSinkGetMinBufferSizeInFrames(
-        creation_parameters.audio_sample_info().number_of_channels,
+        creation_parameters.audio_stream_info().number_of_channels,
         SbAudioSinkIsAudioSampleTypeSupported(kSbMediaAudioSampleTypeFloat32)
             ? kSbMediaAudioSampleTypeFloat32
             : kSbMediaAudioSampleTypeInt16Deprecated,
-        creation_parameters.audio_sample_info().samples_per_second);
+        creation_parameters.audio_stream_info().samples_per_second);
     // On Android 5.0, the size of audio renderer sink buffer need to be two
     // times larger than AudioTrack minBufferSize. Otherwise, AudioTrack may
     // stop working after pause.
@@ -500,7 +501,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
       bool force_improved_support_check,
       std::string* error_message) {
     bool force_big_endian_hdr_metadata = false;
-    if (strlen(creation_parameters.video_mime()) > 0) {
+    if (!creation_parameters.video_mime().empty()) {
       // Use mime param to determine endianness of HDR metadata. If param is
       // missing or invalid it defaults to Little Endian.
       MimeType video_mime_type(creation_parameters.video_mime());
@@ -609,7 +610,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
             "()Ldev/cobalt/media/AudioOutputManager;"));
     int tunnel_mode_audio_session_id = env->CallIntMethodOrAbort(
         j_audio_output_manager.Get(), "generateTunnelModeAudioSessionId",
-        "(I)I", creation_parameters.audio_sample_info().number_of_channels);
+        "(I)I", creation_parameters.audio_stream_info().number_of_channels);
 
     // AudioManager.generateAudioSessionId() return ERROR (-1) to indicate a
     // failure, please see the following url for more details:
@@ -633,11 +634,11 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
     AudioRendererSinkCallbackStub callback_stub;
     std::vector<uint16_t> frame_buffer(
         max_cached_frames *
-        creation_parameters.audio_sample_info().number_of_channels);
+        creation_parameters.audio_stream_info().number_of_channels);
     uint16_t* frame_buffers[] = {frame_buffer.data()};
     audio_sink->Start(
-        0, creation_parameters.audio_sample_info().number_of_channels,
-        creation_parameters.audio_sample_info().samples_per_second,
+        0, creation_parameters.audio_stream_info().number_of_channels,
+        creation_parameters.audio_stream_info().samples_per_second,
         kSbMediaAudioSampleTypeInt16Deprecated,
         kSbMediaAudioFrameStorageTypeInterleaved,
         reinterpret_cast<SbAudioSinkFrameBuffers>(frame_buffers),
@@ -648,9 +649,9 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
     }
     SB_LOG(WARNING)
         << "AudioTrack does not support tunnel mode with sample rate:"
-        << creation_parameters.audio_sample_info().samples_per_second
+        << creation_parameters.audio_stream_info().samples_per_second
         << ", channels:"
-        << creation_parameters.audio_sample_info().number_of_channels
+        << creation_parameters.audio_stream_info().number_of_channels
         << ", audio format:" << creation_parameters.audio_codec()
         << ", and audio buffer frames:" << max_cached_frames;
     return scoped_ptr<AudioRendererSink>();
