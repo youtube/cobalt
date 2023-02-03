@@ -110,9 +110,6 @@ def main():
       dest='can_mount_tmpfs',
       action='store_false',
       help='A temporary filesystem cannot be mounted on the target device.')
-  arg_parser.add_argument(
-      '--platform_under_test',
-      help='The platform to run the tests on (e.g., linux or raspi).')
   authentication_method = arg_parser.add_mutually_exclusive_group()
   authentication_method.add_argument(
       '--public-key-auth',
