@@ -27,8 +27,6 @@ from starboard.tools import command_line
 from starboard.tools import log_level
 from starboard.tools.paths import REPOSITORY_ROOT
 
-_DEFAULT_PLATFORM_UNDER_TEST = 'linux'
-
 
 def _Exec(cmd, env=None):
   """Executes a command in a subprocess and returns the result."""
@@ -100,7 +98,7 @@ def _RunTests(arg_parser, args, use_compressed_system_image):
   if use_compressed_system_image:
     command.append('-c')
 
-  command.append(args.platform_under_test)
+  command.append(args.loader_platform)
 
   return _Exec(command, env)
 
@@ -114,7 +112,6 @@ def main():
       help='A temporary filesystem cannot be mounted on the target device.')
   arg_parser.add_argument(
       '--platform_under_test',
-      default=_DEFAULT_PLATFORM_UNDER_TEST,
       help='The platform to run the tests on (e.g., linux or raspi).')
   authentication_method = arg_parser.add_mutually_exclusive_group()
   authentication_method.add_argument(

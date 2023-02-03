@@ -17,4 +17,3 @@
 function clean_up() {
   clear_storage
 }
-

@@ -16,7 +16,6 @@
 
 function stop_cobalt() {
   echo " Stopping Cobalt"
-  eval "kill -9 $(pidof "${OUT}/loader_app")" 1> /dev/null
+  eval "${SSH}\"pidof /home/pi/coeg/loader_app | xargs kill -9\"" 1> /dev/null
   sleep 1
 }
-

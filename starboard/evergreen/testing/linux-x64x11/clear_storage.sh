@@ -14,9 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-function stop_cobalt() {
-  echo " Stopping Cobalt"
-  eval "${SSH}\"pidof /home/pi/coeg/loader_app | xargs kill -9\"" 1> /dev/null
-  sleep 1
+function clear_storage() {
+  echo " Clearing Cobalt storage"
+  eval "find ${STORAGE_DIR}/ -mindepth 1 -maxdepth 1 ! -name 'icu' -exec rm -rf {} +" 1> /dev/null
 }
-

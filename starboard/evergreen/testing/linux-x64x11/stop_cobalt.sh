@@ -14,8 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-function clear_storage() {
-  echo " Clearing Cobalt storage"
-  eval "find ${STORAGE_DIR}/ -mindepth 1 -maxdepth 1 ! -name 'icu' -exec rm -rf {} +" 1> /dev/null
+function stop_cobalt() {
+  echo " Stopping Cobalt"
+  eval "kill -9 $(pidof "${OUT}/loader_app")" 1> /dev/null
+  sleep 1
 }
-
