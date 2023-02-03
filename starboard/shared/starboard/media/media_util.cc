@@ -67,7 +67,7 @@ AudioSampleInfo& AudioSampleInfo::operator=(
 }
 
 VideoSampleInfo::VideoSampleInfo() {
-  memset(this, 0, sizeof(SbMediaAudioSampleInfo));
+  memset(this, 0, sizeof(SbMediaVideoSampleInfo));
   codec = kSbMediaVideoCodecNone;
 }
 
