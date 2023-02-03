@@ -250,7 +250,7 @@ jobs:
               --change_id "${{ github.sha }}" \
               trigger \
               --test_type ${{ matrix.type }} \
-              --platform ${{ matrix.platform }} \
+              --platform ${{ matrix.target_platform }} \
               --config ${{ matrix.config }} \
               --tag cobalt_github_${{ github.event_name }} \
               --builder_name github_${{ matrix.platform }}_tests \
