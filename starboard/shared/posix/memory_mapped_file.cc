@@ -25,7 +25,9 @@ namespace posix {
 namespace {
 
 const CobaltExtensionMemoryMappedFileApi kMemoryMappedFileApi = {
-    kCobaltExtensionMemoryMappedFileName, 1, &SbPageMapFile,
+    kCobaltExtensionMemoryMappedFileName,
+    1,
+    &SbPageMapFile,
 };
 
 }  // namespace

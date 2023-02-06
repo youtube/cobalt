@@ -38,25 +38,25 @@ v8::Local<v8::Value> ExpectState(
   auto context = isolate->GetCurrentContext();
   auto e = std::make_unique<base::WaitableEvent>();
   auto fulfilled_promise = promise->Then(
-      context,
-      v8::Function::New(context,
-                        [](const v8::FunctionCallbackInfo<v8::Value>& info) {
-                          static_cast<base::WaitableEvent*>(
-                              info.Data().As<v8::External>()->Value())
-                              ->Signal();
-                        },
-                        v8::External::New(isolate, e.get()))
-          .ToLocalChecked());
+      context, v8::Function::New(
+                   context,
+                   [](const v8::FunctionCallbackInfo<v8::Value>& info) {
+                     static_cast<base::WaitableEvent*>(
+                         info.Data().As<v8::External>()->Value())
+                         ->Signal();
+                   },
+                   v8::External::New(isolate, e.get()))
+                   .ToLocalChecked());
   auto rejected_promise = promise->Catch(
-      context,
-      v8::Function::New(context,
-                        [](const v8::FunctionCallbackInfo<v8::Value>& info) {
-                          static_cast<base::WaitableEvent*>(
-                              info.Data().As<v8::External>()->Value())
-                              ->Signal();
-                        },
-                        v8::External::New(isolate, e.get()))
-          .ToLocalChecked());
+      context, v8::Function::New(
+                   context,
+                   [](const v8::FunctionCallbackInfo<v8::Value>& info) {
+                     static_cast<base::WaitableEvent*>(
+                         info.Data().As<v8::External>()->Value())
+                         ->Signal();
+                   },
+                   v8::External::New(isolate, e.get()))
+                   .ToLocalChecked());
   EXPECT_TRUE(!fulfilled_promise.IsEmpty());
   EXPECT_TRUE(!rejected_promise.IsEmpty());
   base::RunLoop run_loop;

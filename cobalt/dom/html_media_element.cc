@@ -31,6 +31,8 @@
 #include "cobalt/base/tokens.h"
 #include "cobalt/cssom/map_to_mesh_function.h"
 #include "cobalt/dom/document.h"
+#include "cobalt/dom/eme/media_encrypted_event.h"
+#include "cobalt/dom/eme/media_encrypted_event_init.h"
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/html_video_element.h"
 #include "cobalt/dom/media_settings.h"
@@ -45,9 +47,6 @@
 #include "cobalt/web/dom_exception.h"
 #include "cobalt/web/event.h"
 #include "cobalt/web/web_settings.h"
-
-#include "cobalt/dom/eme/media_encrypted_event.h"
-#include "cobalt/dom/eme/media_encrypted_event_init.h"
 
 namespace cobalt {
 namespace dom {

@@ -40,15 +40,15 @@ v8::Local<v8::Value> Await(base::Optional<v8::Local<v8::Value>> promise_value) {
   auto context = isolate->GetCurrentContext();
   auto e = std::make_unique<base::WaitableEvent>();
   auto result_promise = promise->Then(
-      context,
-      v8::Function::New(context,
-                        [](const v8::FunctionCallbackInfo<v8::Value>& info) {
-                          static_cast<base::WaitableEvent*>(
-                              info.Data().As<v8::External>()->Value())
-                              ->Signal();
-                        },
-                        v8::External::New(isolate, e.get()))
-          .ToLocalChecked());
+      context, v8::Function::New(
+                   context,
+                   [](const v8::FunctionCallbackInfo<v8::Value>& info) {
+                     static_cast<base::WaitableEvent*>(
+                         info.Data().As<v8::External>()->Value())
+                         ->Signal();
+                   },
+                   v8::External::New(isolate, e.get()))
+                   .ToLocalChecked());
   EXPECT_TRUE(!result_promise.IsEmpty());
   base::RunLoop run_loop;
   run_loop.RunUntilIdle();

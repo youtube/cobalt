@@ -44,8 +44,8 @@
 
 namespace {
 
-using update_client::ComponentState;
 using update_client::CobaltSlotManagement;
+using update_client::ComponentState;
 
 // The SHA256 hash of the "cobalt_evergreen_public" key.
 constexpr uint8_t kCobaltPublicKeyHash[] = {

@@ -124,7 +124,9 @@ const float* GetColorMatrixForImageType(
     case TexturedMeshRenderer::Image::YUV_3PLANE_10BIT_BT2020: {
       return k10BitBT2020ColorMatrix;
     } break;
-    default: { NOTREACHED(); }
+    default: {
+      NOTREACHED();
+    }
   }
   return NULL;
 }
@@ -826,7 +828,9 @@ TexturedMeshRenderer::ProgramInfo TexturedMeshRenderer::GetBlitProgram(
             color_matrix, texture_infos,
             CreateUYVYFragmentShader(texture_target, *texture_wrap_s));
       } break;
-      default: { NOTREACHED(); }
+      default: {
+        NOTREACHED();
+      }
     }
 
     // Save our shader into the cache.

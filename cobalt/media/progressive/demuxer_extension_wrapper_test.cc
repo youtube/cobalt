@@ -37,8 +37,8 @@ namespace {
 
 using ::testing::_;
 using ::testing::AtMost;
-using ::testing::ElementsAreArray;
 using ::testing::ElementsAre;
+using ::testing::ElementsAreArray;
 using ::testing::ExplainMatchResult;
 using ::testing::Invoke;
 using ::testing::InvokeWithoutArgs;

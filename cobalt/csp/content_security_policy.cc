@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <memory>
-
 #include "cobalt/csp/content_security_policy.h"
+
+#include <memory>
 
 #include "base/strings/string_util.h"
 #include "base/values.h"
@@ -85,7 +85,9 @@ bool CheckDigest(const std::string& source, uint8 hash_algorithms_used,
   }
 
   HashAlgorithm valid_hash_algorithms[] = {
-      kHashAlgorithmSha256, kHashAlgorithmSha384, kHashAlgorithmSha512,
+      kHashAlgorithmSha256,
+      kHashAlgorithmSha384,
+      kHashAlgorithmSha512,
   };
 
   for (size_t i = 0; i < arraysize(valid_hash_algorithms); ++i) {

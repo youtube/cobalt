@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <memory>
-
 #include "cobalt/dom_parser/xml_decoder.h"
+
+#include <memory>
 
 #include "base/callback.h"
 #include "base/optional.h"

@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "cobalt/h5vcc/h5vcc_storage.h"
+
 #include <algorithm>
 #include <memory>
 #include <string>
@@ -21,7 +23,6 @@
 #include "base/files/file_util.h"
 #include "base/values.h"
 #include "cobalt/cache/cache.h"
-#include "cobalt/h5vcc/h5vcc_storage.h"
 #include "cobalt/persistent_storage/persistent_settings.h"
 #include "cobalt/storage/storage_manager.h"
 #include "net/base/completion_once_callback.h"
@@ -29,7 +30,6 @@
 #include "net/disk_cache/cobalt/resource_type.h"
 #include "net/http/http_cache.h"
 #include "net/http/http_transaction_factory.h"
-
 #include "starboard/common/file.h"
 #include "starboard/common/string.h"
 

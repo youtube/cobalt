@@ -65,7 +65,9 @@ const char* kResponseTypes[] = {
 };
 
 const char* kForbiddenMethods[] = {
-    "connect", "trace", "track",
+    "connect",
+    "trace",
+    "track",
 };
 
 // https://www.w3.org/TR/resource-timing-1/#dom-performanceresourcetiming-initiatortype

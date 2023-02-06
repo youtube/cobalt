@@ -384,7 +384,6 @@ script::HandlePromiseAny Cache::Keys(
                 script::Any(new script::v8c::V8cValueHandleHolder(
                     isolate, v8::Array::New(isolate, requests.data(),
                                             requests.size()))));
-
           },
           environment_settings, std::move(promise_reference)));
   return promise;

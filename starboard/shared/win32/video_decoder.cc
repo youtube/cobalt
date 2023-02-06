@@ -452,7 +452,9 @@ void VideoDecoder::InitializeCodec() {
       }
       break;
     }
-    default: { SB_NOTREACHED(); }
+    default: {
+      SB_NOTREACHED();
+    }
   }
 
   decoder_.reset(

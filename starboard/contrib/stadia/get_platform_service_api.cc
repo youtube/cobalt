@@ -67,16 +67,13 @@ CobaltExtensionPlatformService OpenPlatformService(
   auto std_callback = std::make_unique<
       std::function<void(const std::vector<uint8_t>& message)>>(
       [receive_callback, context](const std::vector<uint8_t>& message) -> void {
-
         receive_callback(context, message.data(), message.size());
-
       });
 
   StadiaPlugin* plugin = g_stadia_interface->StadiaPluginOpen(
       name_c_str,
 
       [](const uint8_t* const message, size_t length, void* user_data) -> void {
-
         auto callback = static_cast<
             const std::function<void(const std::vector<uint8_t>& message)>*>(
             user_data);
@@ -132,7 +129,10 @@ void* SendToPlatformService(CobaltExtensionPlatformService service,
 const CobaltExtensionPlatformServiceApi kPlatformServiceApi = {
     kCobaltExtensionPlatformServiceName,
     // API version that's implemented.
-    1, &HasPlatformService, &OpenPlatformService, &ClosePlatformService,
+    1,
+    &HasPlatformService,
+    &OpenPlatformService,
+    &ClosePlatformService,
     &SendToPlatformService,
 };
 }  // namespace

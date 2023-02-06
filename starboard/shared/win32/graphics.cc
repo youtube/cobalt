@@ -36,7 +36,9 @@ float GetMinimumFrameIntervalInMilliseconds() {
 }
 
 const CobaltExtensionGraphicsApi kGraphicsApi = {
-    kCobaltExtensionGraphicsName, 2, &GetMaximumFrameIntervalInMilliseconds,
+    kCobaltExtensionGraphicsName,
+    2,
+    &GetMaximumFrameIntervalInMilliseconds,
     &GetMinimumFrameIntervalInMilliseconds,
 };
 

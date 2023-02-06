@@ -39,8 +39,8 @@ namespace shared {
 
 namespace {
 
-using starboard::android::shared::ScopedLocalJavaRef;
 using starboard::android::shared::JniEnvExt;
+using starboard::android::shared::ScopedLocalJavaRef;
 
 bool Has(const char* name) {
   JniEnvExt* env = JniEnvExt::Get();
