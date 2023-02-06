@@ -44,7 +44,6 @@ import worker_tools
 # Use strict include filter to pass artifacts to Mobile Harness
 TEST_PATTERNS = [
     'content/*',
-    'deploy/*',
     'install/*',
     # TODO: All of those should be built under deploy/
     '*.apk',
