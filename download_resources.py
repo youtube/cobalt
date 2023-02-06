@@ -16,7 +16,6 @@
 
 import logging
 import os
-import platform
 import subprocess
 try:
   import urllib.request as urllib
@@ -24,25 +23,6 @@ except ImportError:
   import urllib2 as urllib
 
 from tools import download_from_gcs
-
-
-def DownloadClangFormat(force=False):
-  clang_format_sha_path = os.path.join('buildtools', '{}', 'clang-format')
-
-  system = platform.system()
-  if system == 'Linux':
-    clang_format_sha_path = clang_format_sha_path.format('linux64')
-  elif system == 'Darwin':
-    clang_format_sha_path = clang_format_sha_path.format('mac')
-  elif system == 'Windows':
-    clang_format_sha_path = clang_format_sha_path.format('win') + '.exe'
-  else:
-    logging.error('Unknown system: %s', system)
-    return
-
-  download_from_gcs.MaybeDownloadFileFromGcs('chromium-clang-format',
-                                             clang_format_sha_path + '.sha1',
-                                             clang_format_sha_path, force)
 
 
 def DownloadGerritCommitMsgHook(force=False):
@@ -78,5 +58,4 @@ if __name__ == '__main__':
   logging.basicConfig(
       level=logging.INFO, format=logging_format, datefmt='%H:%M:%S')
 
-  DownloadClangFormat()
   DownloadGerritCommitMsgHook()
