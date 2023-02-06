@@ -1292,7 +1292,7 @@ config("runtime_library") {
   # android:runtime_library.  This is to ensure libc++ appears before
   # libandroid_support in the -isystem include order.  Otherwise, there will be
   # build errors related to symbols declared in math.h.
-  if (use_custom_libcxx) {
+  if (!is_starboard && use_custom_libcxx) {
     configs += [ "//build/config/c++:runtime_library" ]
   }
 
