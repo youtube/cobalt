@@ -7,10 +7,11 @@ service-worker/unregister.https.html, PASS
 service-worker/registration-script-url.https.html, DISABLE
 service-worker/registration-security-error.https.html, DISABLE
 service-worker/Service-Worker-Allowed-header.https.html, DISABLE
+service-worker/update-result.https.html, DISABLE
+service-worker/update-missing-import-scripts.https.html, DISABLE
 
 # Tests pass with memory leakage issue.
-service-worker/install-event-type.https.html, DISABLE
-service-worker/oninstall-script-error.https.html, DISABLE
+service-worker/update-no-cache-request-headers.https.html, DISABLE
 
 # b/266605500
 # Caught signal: SIGSEGV on linux-x64x11-sbversion-12_evergreen-x64-sbversion-12_nightly
@@ -35,15 +36,10 @@ service-worker/service-worker-header.https.html, DISABLE
 service-worker/state.https.html, DISABLE
 service-worker/uncontrolled-page.https.html, DISABLE
 
-# b/265815303 http 500 error
-service-worker/credentials.https.html, DISABLE
-service-worker/referrer-toplevel-script-fetch.https.html, DISABLE
+# b/267538636 assert_throws_js: eval() should throw EvalError
 service-worker/service-worker-csp-connect.https.html, DISABLE
 service-worker/service-worker-csp-default.https.html, DISABLE
 service-worker/service-worker-csp-script.https.html, DISABLE
-service-worker/update-no-cache-request-headers.https.html, DISABLE
-service-worker/update-result.https.html, DISABLE
-service-worker/update-missing-import-scripts.https.html, DISABLE
 
 # "Module" type of dedicated worker is supported in Cobalt
 service-worker/dedicated-worker-service-worker-interception.https.html, DISABLE
@@ -82,14 +78,18 @@ service-worker/navigate-window.https.html, DISABLE
 service-worker/registration-script.https.html, DISABLE
 
 # broken on Chrome
+service-worker/credentials.https.html, DISABLE
 service-worker/navigation-redirect-body.https.html, DISABLE
 service-worker/navigation-sets-cookie.https.html, DISABLE
 service-worker/registration-mime-types.https.html, DISABLE
 service-worker/registration-scope.https.html, DISABLE
 service-worker/update-bytecheck-cors-import.https.html, DISABLE
 service-worker/update-bytecheck.https.html, DISABLE
+service-worker/referrer-toplevel-script-fetch.https.html, DISABLE
 
 # b/264323329 TIMEOUT
+service-worker/install-event-type.https.html, DISABLE
+service-worker/oninstall-script-error.https.html, DISABLE
 service-worker/onactivate-script-error.https.html, DISABLE
 service-worker/postmessage-blob-url.https.html, DISABLE
 service-worker/unregister-immediately-before-installed.https.html, DISABLE
