@@ -209,7 +209,7 @@ Go ahead and click 'yes' to open the SDK manager to install the following:
 
 The test target itself (e.g. nplb) just builds an .so file (e.g. libnplb.so). To
 run that on a device, it needs to be packaged into an APK, which is done by the
-associated "deploy" target (e.g. nplb_deploy). The Starboard test runner does
+associated "install" target (e.g. nplb_install). The Starboard test runner does
 all this for you, so just use that to build and run tests. For example, to
 build and run "devel" NPLB on an ARM64 device, from the top-level directory:
 
