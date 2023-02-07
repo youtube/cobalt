@@ -34,6 +34,7 @@
 #include "starboard/common/mutex.h"
 #include "starboard/common/string.h"
 #include "starboard/event.h"
+#include "starboard/key.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 
 namespace starboard {
@@ -734,6 +735,20 @@ bool ApplicationAndroid::GetOverlayedBoolValue(const char* var_name) {
       env->GetBooleanFieldOrAbort(resource_overlay_, var_name, "Z");
   overlayed_bool_variables_[var_name] = value;
   return value;
+}
+
+extern "C" SB_EXPORT_PLATFORM void
+Java_dev_cobalt_coat_VolumeStateReceiver_nativeVolumeChanged(JNIEnv* env,
+                                                             jobject jcaller,
+                                                             jint volumeDelta) {
+  SbKey key = volumeDelta > 0 ? SbKey::kSbKeyVolumeUp : SbKey::kSbKeyVolumeDown;
+  ApplicationAndroid::Get()->SendKeyboardInject(key);
+}
+
+extern "C" SB_EXPORT_PLATFORM void
+Java_dev_cobalt_coat_VolumeStateReceiver_nativeMuteChanged(JNIEnv* env,
+                                                           jobject jcaller) {
+  ApplicationAndroid::Get()->SendKeyboardInject(SbKey::kSbKeyVolumeMute);
 }
 
 }  // namespace shared
