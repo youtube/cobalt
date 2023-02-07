@@ -84,7 +84,7 @@ call the corresponding renamed helper functions.
 
 ### Deprecated `SbSystemRequest` functions.
 
-The `SbSytemRequest` functions are declared in `src/starboard/system.h`
+The `SbSystemRequest` functions are declared in `src/starboard/system.h`
 
 * The `SbSystemRequestPause` event is renamed to `SbSystemRequestBlur`
 * The `SbSystemRequestUnpause` event is renamed to `SbSystemRequestFocus`
