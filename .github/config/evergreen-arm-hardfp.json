@@ -2,7 +2,7 @@
   "docker_service": "build-raspi",
   "bootloader": "raspi-2",
   "on_device_test": {
-    "enabled": false,
+    "enabled": true,
     "tests": [
       "evergreen_test",
       "unit_test"
