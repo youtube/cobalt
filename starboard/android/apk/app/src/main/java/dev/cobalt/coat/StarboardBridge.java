@@ -80,6 +80,7 @@ public class StarboardBridge {
   private NetworkStatus networkStatus;
   private ResourceOverlay resourceOverlay;
   private AdvertisingId advertisingId;
+  private VolumeStateReceiver volumeStateReceiver;
 
   static {
     // Even though NativeActivity already loads our library from C++,
@@ -136,6 +137,7 @@ public class StarboardBridge {
     this.networkStatus = new NetworkStatus(appContext);
     this.resourceOverlay = new ResourceOverlay(appContext);
     this.advertisingId = new AdvertisingId(appContext);
+    this.volumeStateReceiver = new VolumeStateReceiver(appContext);
   }
 
   private native boolean nativeInitialize();
