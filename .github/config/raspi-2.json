@@ -9,7 +9,6 @@
   },
   "platforms": [
     "raspi-2",
-		"raspi-2-skia",
     "raspi-2-sbversion-12",
     "raspi-2-sbversion-13",
     "raspi-2-sbversion-14"
@@ -19,14 +18,6 @@
       "name":"raspi",
       "platform":"raspi-2",
       "target_platform":"raspi-2",
-      "target_cpu":"target_cpu=\\\"arm\\\"",
-      "extra_gn_arguments":"is_clang=false",
-      "dimension": "release_version=regex:10.*"
-    },
-    {
-      "name":"skia",
-      "platform":"raspi-2-skia",
-      "target_platform":"raspi-2-skia",
       "target_cpu":"target_cpu=\\\"arm\\\"",
       "extra_gn_arguments":"is_clang=false",
       "dimension": "release_version=regex:10.*"
