@@ -22,6 +22,9 @@ using starboard::shared::SetGeneralFeaturesInvalid;
 using starboard::shared::SetX86FeaturesInvalid;
 
 bool SbCPUFeaturesGet(SbCPUFeatures* features) {
+  if (!features) {
+    return false;
+  }
   memset(features, 0, sizeof(*features));
   features->architecture = kSbCPUFeaturesArchitectureUnknown;
 

@@ -119,7 +119,7 @@ TEST(SbCPUFeaturesGetTest, SunnyDay) {
 #if SB_IS(ARCH_ARM) || SB_IS(ARCH_ARM64)
     EXPECT_TRUE(features.architecture == kSbCPUFeaturesArchitectureArm ||
                 features.architecture == kSbCPUFeaturesArchitectureArm64);
-#else  // !SB_IS(ARCH_ARM) && !SB_IS(ARCH_ARM64)
+#else   // !SB_IS(ARCH_ARM) && !SB_IS(ARCH_ARM64)
     ExpectArmInvalid(features);
 #endif  // SB_IS(ARCH_ARM) || SB_IS(ARCH_ARM64)
 
@@ -132,6 +132,10 @@ TEST(SbCPUFeaturesGetTest, SunnyDay) {
 
     ExpectMipsInvalid(features);
   }
+}
+
+TEST(SbCPUFeaturesGetTest, RainyDayNull) {
+  EXPECT_FALSE(SbCPUFeaturesGet(NULL));
 }
 
 }  // namespace
