@@ -23,7 +23,6 @@
 #include "components/update_client/protocol_handler.h"
 #include "components/update_client/unzipper.h"
 #include "starboard/system.h"
-
 #include "url/gurl.h"
 
 namespace {
