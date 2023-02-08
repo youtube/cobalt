@@ -28,6 +28,14 @@ TEST(SbSpeechSynthesisBasicTest, Basic) {
   SbSpeechSynthesisCancel();
 }
 
+TEST(SbSpeechSynthesisBasicTest, RainyDayNull) {
+  SbSpeechSynthesisSpeak(NULL);
+}
+
+TEST(SbSpeechSynthesisBasicTest, RainyDayEmpty) {
+  SbSpeechSynthesisSpeak("");
+}
+
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
