@@ -147,7 +147,6 @@ source_set("starboard_headers_only") {
     "queue.h",
     "socket.h",
     "socket_waiter.h",
-    "spin_lock.h",
     "storage.h",
     "string.h",
     "system.h",
