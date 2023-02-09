@@ -33,9 +33,7 @@ runs:
       shell: bash
     - name: Upload Archive
       id: upload-archive
-      uses: google-github-actions/upload-cloud-storage@v1
-      with:
-        headers: |-
-          content-type: application/x-tar
-        path: ${{env.ARCHIVE_PATH}}
-        destination: ${{env.PROJECT_NAME}}-build-artifacts/${{env.WORKFLOW}}/${{env.TODAY}}/${{env.GITHUB_RUN_NUMBER}}/
+      shell: bash
+      run: |
+        set -uex
+        gsutil -d cp "${ARCHIVE_PATH}" "gs://${PROJECT_NAME}-build-artifacts/${WORKFLOW}/${TODAY}/${GITHUB_RUN_NUMBER}/"
