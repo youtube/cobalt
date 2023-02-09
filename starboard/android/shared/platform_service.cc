@@ -14,6 +14,8 @@
 
 #include "starboard/android/shared/platform_service.h"
 
+#include <memory>
+
 #include "cobalt/extension/platform_service.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
@@ -29,6 +31,10 @@ typedef struct CobaltExtensionPlatformServicePrivate {
   ~CobaltExtensionPlatformServicePrivate() {
     if (name) {
       delete name;
+    }
+    if (cobalt_service) {
+      starboard::android::shared::JniEnvExt::Get()->DeleteGlobalRef(
+          cobalt_service);
     }
   }
 } CobaltExtensionPlatformServicePrivate;
@@ -72,7 +78,7 @@ CobaltExtensionPlatformService Open(void* context,
     delete static_cast<CobaltExtensionPlatformServicePrivate*>(service);
     return kCobaltExtensionPlatformServiceInvalid;
   }
-  service->cobalt_service = cobalt_service;
+  service->cobalt_service = env->ConvertLocalRefToGlobalRef(cobalt_service);
   return service;
 }
 
@@ -99,20 +105,20 @@ void* Send(CobaltExtensionPlatformService service,
   ScopedLocalJavaRef<jbyteArray> data_byte_array;
   data_byte_array.Reset(
       env->NewByteArrayFromRaw(reinterpret_cast<const jbyte*>(data), length));
-  jobject j_response_from_client =
+  ScopedLocalJavaRef<jobject> j_response_from_client(
       static_cast<jbyteArray>(env->CallObjectMethodOrAbort(
           service->cobalt_service, "receiveFromClient",
           "([B)Ldev/cobalt/coat/CobaltService$ResponseToClient;",
-          data_byte_array.Get()));
+          data_byte_array.Get())));
   if (!j_response_from_client) {
     *invalid_state = true;
     *output_length = 0;
     return 0;
   }
-  *invalid_state =
-      env->GetBooleanFieldOrAbort(j_response_from_client, "invalidState", "Z");
+  *invalid_state = env->GetBooleanFieldOrAbort(j_response_from_client.Get(),
+                                               "invalidState", "Z");
   ScopedLocalJavaRef<jbyteArray> j_out_data_array(static_cast<jbyteArray>(
-      env->GetObjectFieldOrAbort(j_response_from_client, "data", "[B")));
+      env->GetObjectFieldOrAbort(j_response_from_client.Get(), "data", "[B")));
   *output_length = env->GetArrayLength(j_out_data_array.Get());
   char* output = new char[*output_length];
   env->GetByteArrayRegion(j_out_data_array.Get(), 0, *output_length,
@@ -144,10 +150,11 @@ Java_dev_cobalt_coat_CobaltService_nativeSendToClient(JniEnvExt* env,
   }
 
   jsize length = env->GetArrayLength(j_data);
-  char* data = new char[length];
-  env->GetByteArrayRegion(j_data, 0, length, reinterpret_cast<jbyte*>(data));
+  std::unique_ptr<char[]> data(new char[length]);
+  env->GetByteArrayRegion(j_data, 0, length,
+                          reinterpret_cast<jbyte*>(data.get()));
 
-  service->receive_callback(service->context, data, length);
+  service->receive_callback(service->context, data.get(), length);
 }
 
 const void* GetPlatformServiceApi() {
