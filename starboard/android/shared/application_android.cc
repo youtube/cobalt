@@ -19,6 +19,7 @@
 #include <time.h>
 #include <unistd.h>
 
+#include <algorithm>
 #include <string>
 #include <vector>
 
@@ -182,12 +183,21 @@ bool ApplicationAndroid::DestroyWindow(SbWindow window) {
 }
 
 Event* ApplicationAndroid::WaitForSystemEventWithTimeout(SbTime time) {
+  // Limit the polling time in case some non-system event is injected.
+  const int kMaxPollingTimeMillisecond = 10;
+
   // Convert from microseconds to milliseconds, taking the ceiling value.
   // If we take the floor, or round, then we end up busy looping every time
   // the next event time is less than one millisecond.
   int timeout_millis = (time + kSbTimeMillisecond - 1) / kSbTimeMillisecond;
   int looper_events;
-  int ident = ALooper_pollAll(timeout_millis, NULL, &looper_events, NULL);
+  int ident = ALooper_pollAll(
+      std::min(std::max(timeout_millis, 0), kMaxPollingTimeMillisecond), NULL,
+      &looper_events, NULL);
+
+  // Ignore new system events while processing one.
+  handle_system_events_ = false;
+
   switch (ident) {
     case kLooperIdAndroidCommand:
       ProcessAndroidCommand();
@@ -196,6 +206,8 @@ Event* ApplicationAndroid::WaitForSystemEventWithTimeout(SbTime time) {
       ProcessKeyboardInject();
       break;
   }
+
+  handle_system_events_ = true;
 
   // Always return NULL since we already dispatched our own system events.
   return NULL;
