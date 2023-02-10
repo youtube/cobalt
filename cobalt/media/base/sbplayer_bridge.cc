@@ -318,9 +318,11 @@ void SbPlayerBridge::WriteBuffers(
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
   if (allow_resume_after_suspend_) {
-    for (const auto& buffer : buffers) {
-      DCHECK(buffer);
-      decoder_buffer_cache_.AddBuffer(type, buffer);
+    if (type == DemuxerStream::Type::AUDIO) {
+      decoder_buffer_cache_.AddBuffers(buffers, audio_stream_info_);
+    } else {
+      DCHECK(type == DemuxerStream::Type::VIDEO);
+      decoder_buffer_cache_.AddBuffers(buffers, video_stream_info_);
     }
     if (state_ != kSuspended) {
       WriteNextBuffersFromCache(type, buffers.size());
@@ -329,10 +331,11 @@ void SbPlayerBridge::WriteBuffers(
   }
 
   if (sbplayer_interface_->IsEnhancedAudioExtensionEnabled()) {
-    WriteBuffersInternal<CobaltExtensionEnhancedAudioPlayerSampleInfo>(type,
-                                                                       buffers);
+    WriteBuffersInternal<CobaltExtensionEnhancedAudioPlayerSampleInfo>(
+        type, buffers, &audio_stream_info_, &video_stream_info_);
   } else {
-    WriteBuffersInternal<SbPlayerSampleInfo>(type, buffers);
+    WriteBuffersInternal<SbPlayerSampleInfo>(type, buffers, &audio_stream_info_,
+                                             &video_stream_info_);
   }
 }
 
@@ -722,38 +725,54 @@ void SbPlayerBridge::WriteNextBuffersFromCache(DemuxerStream::Type type,
 
   DCHECK(SbPlayerIsValid(player_));
 
-  std::vector<scoped_refptr<DecoderBuffer>> buffers;
-  buffers.reserve(max_buffers_per_write);
-
-  // TODO: DecoderBufferCache doesn't respect config change during resume
-  // b/243308409
-  for (int i = 0; i < max_buffers_per_write; i++) {
-    const scoped_refptr<DecoderBuffer>& buffer =
-        decoder_buffer_cache_.GetBuffer(type);
-    if (!buffer) {
-      break;
+  if (type == DemuxerStream::AUDIO) {
+    std::vector<scoped_refptr<DecoderBuffer>> buffers;
+    SbMediaAudioStreamInfo stream_info;
+    decoder_buffer_cache_.ReadBuffers(&buffers, max_buffers_per_write,
+                                      &stream_info);
+    if (buffers.size() > 0) {
+      if (sbplayer_interface_->IsEnhancedAudioExtensionEnabled()) {
+        WriteBuffersInternal<CobaltExtensionEnhancedAudioPlayerSampleInfo>(
+            type, buffers, &stream_info, nullptr);
+      } else {
+        WriteBuffersInternal<SbPlayerSampleInfo>(type, buffers, &stream_info,
+                                                 nullptr);
+      }
     }
-    decoder_buffer_cache_.AdvanceToNextBuffer(type);
-    buffers.push_back(buffer);
-  }
-
-  if (sbplayer_interface_->IsEnhancedAudioExtensionEnabled()) {
-    WriteBuffersInternal<CobaltExtensionEnhancedAudioPlayerSampleInfo>(type,
-                                                                       buffers);
   } else {
-    WriteBuffersInternal<SbPlayerSampleInfo>(type, buffers);
+    DCHECK_EQ(type, DemuxerStream::VIDEO);
+    std::vector<scoped_refptr<DecoderBuffer>> buffers;
+    SbMediaVideoStreamInfo stream_info;
+    decoder_buffer_cache_.ReadBuffers(&buffers, max_buffers_per_write,
+                                      &stream_info);
+    if (buffers.size() > 0) {
+      if (sbplayer_interface_->IsEnhancedAudioExtensionEnabled()) {
+        WriteBuffersInternal<CobaltExtensionEnhancedAudioPlayerSampleInfo>(
+            type, buffers, nullptr, &stream_info);
+      } else {
+        WriteBuffersInternal<SbPlayerSampleInfo>(type, buffers, nullptr,
+                                                 &stream_info);
+      }
+    }
   }
 }
 
 template <typename PlayerSampleInfo>
 void SbPlayerBridge::WriteBuffersInternal(
     DemuxerStream::Type type,
-    const std::vector<scoped_refptr<DecoderBuffer>>& buffers) {
+    const std::vector<scoped_refptr<DecoderBuffer>>& buffers,
+    const SbMediaAudioStreamInfo* audio_stream_info,
+    const SbMediaVideoStreamInfo* video_stream_info) {
 #if SB_HAS(PLAYER_WITH_URL)
   DCHECK(!is_url_based_);
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
   auto sample_type = DemuxerStreamTypeToSbMediaType(type);
+  if (buffers.size() == 1 && buffers[0]->end_of_stream()) {
+    sbplayer_interface_->WriteEndOfStream(player_,
+                                          DemuxerStreamTypeToSbMediaType(type));
+    return;
+  }
 
   std::vector<PlayerSampleInfo> gathered_sbplayer_sample_infos;
   std::vector<SbDrmSampleInfo> gathered_sbplayer_sample_infos_drm_info;
@@ -770,26 +789,12 @@ void SbPlayerBridge::WriteBuffersInternal(
     const auto& buffer = buffers[i];
     if (buffer->end_of_stream()) {
       DCHECK_EQ(i, buffers.size() - 1);
-      if (buffers.size() > 1) {
-        if (type == DemuxerStream::AUDIO) {
-          pending_audio_eos_buffer_ = true;
-        } else {
-          pending_video_eos_buffer_ = true;
-        }
-
-        DCHECK(!gathered_sbplayer_sample_infos.empty());
-        cval_stats_->StartTimer(MediaTiming::SbPlayerWriteSamples,
-                                pipeline_identifier_);
-        sbplayer_interface_->WriteSamples(
-            player_, sample_type, gathered_sbplayer_sample_infos.data(),
-            gathered_sbplayer_sample_infos.size());
-        cval_stats_->StopTimer(MediaTiming::SbPlayerWriteSamples,
-                               pipeline_identifier_);
+      if (type == DemuxerStream::AUDIO) {
+        pending_audio_eos_buffer_ = true;
       } else {
-        sbplayer_interface_->WriteEndOfStream(
-            player_, DemuxerStreamTypeToSbMediaType(type));
+        pending_video_eos_buffer_ = true;
       }
-      return;
+      break;
     }
 
     DecodingBuffers::iterator iter = decoding_buffers_.find(buffer->data());
@@ -839,10 +844,12 @@ void SbPlayerBridge::WriteBuffersInternal(
     }
 
     if (sample_type == kSbMediaTypeAudio) {
-      SetStreamInfo(audio_stream_info_, &sample_info.audio_sample_info);
+      DCHECK(audio_stream_info);
+      SetStreamInfo(*audio_stream_info, &sample_info.audio_sample_info);
     } else {
       DCHECK(sample_type == kSbMediaTypeVideo);
-      SetStreamInfo(video_stream_info_, &sample_info.video_sample_info);
+      DCHECK(video_stream_info);
+      SetStreamInfo(*video_stream_info, &sample_info.video_sample_info);
       sample_info.video_sample_info.is_key_frame = buffer->is_key_frame();
     }
     if (drm_info->subsample_count > 0) {
@@ -970,16 +977,15 @@ void SbPlayerBridge::OnDecoderStatus(SbPlayer player, SbMediaType type,
   auto max_number_of_samples_to_write =
       SbPlayerGetMaximumNumberOfSamplesPerWrite(player_, type);
   if (state_ == kResuming) {
-    if (decoder_buffer_cache_.GetBuffer(stream_type)) {
+    if (decoder_buffer_cache_.HasMoreBuffers(stream_type)) {
       WriteNextBuffersFromCache(stream_type, max_number_of_samples_to_write);
       return;
     }
-    if (!decoder_buffer_cache_.GetBuffer(DemuxerStream::AUDIO) &&
-        !decoder_buffer_cache_.GetBuffer(DemuxerStream::VIDEO)) {
+    if (!decoder_buffer_cache_.HasMoreBuffers(DemuxerStream::AUDIO) &&
+        !decoder_buffer_cache_.HasMoreBuffers(DemuxerStream::VIDEO)) {
       state_ = kPlaying;
     }
   }
-
   host_->OnNeedData(stream_type, max_number_of_samples_to_write);
 }
 

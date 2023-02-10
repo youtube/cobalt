@@ -202,7 +202,9 @@ class SbPlayerBridge {
   template <typename PlayerSampleInfo>
   void WriteBuffersInternal(
       DemuxerStream::Type type,
-      const std::vector<scoped_refptr<DecoderBuffer>>& buffers);
+      const std::vector<scoped_refptr<DecoderBuffer>>& buffers,
+      const SbMediaAudioStreamInfo* audio_stream_info,
+      const SbMediaVideoStreamInfo* video_stream_info);
 
   void GetInfo_Locked(uint32* video_frames_decoded,
                       uint32* video_frames_dropped,

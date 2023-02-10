@@ -16,10 +16,14 @@
 #define COBALT_MEDIA_BASE_DECODER_BUFFER_CACHE_H_
 
 #include <deque>
+#include <map>
+#include <string>
+#include <vector>
 
 #include "base/memory/ref_counted.h"
 #include "base/threading/thread_checker.h"
 #include "base/time/time.h"
+#include "starboard/media.h"
 #include "third_party/chromium//media/base/decoder_buffer.h"
 #include "third_party/chromium//media/base/demuxer_stream.h"
 
@@ -35,38 +39,92 @@ class DecoderBufferCache {
  public:
   typedef ::media::DecoderBuffer DecoderBuffer;
   typedef ::media::DemuxerStream DemuxerStream;
+  typedef std::vector<scoped_refptr<DecoderBuffer>> DecoderBuffers;
 
   DecoderBufferCache();
 
-  void AddBuffer(DemuxerStream::Type type,
-                 const scoped_refptr<DecoderBuffer>& buffer);
-  void ClearSegmentsBeforeMediaTime(base::TimeDelta media_time);
+  // TODO(b/268098991): Replace them with AudioStreamInfo and VideoStreamInfo
+  //                    wrapper classes.
+  void AddBuffers(const DecoderBuffers& buffers,
+                  const SbMediaAudioStreamInfo& stream_info);
+  void AddBuffers(const DecoderBuffers& buffers,
+                  const SbMediaVideoStreamInfo& stream_info);
+  void ClearSegmentsBeforeMediaTime(const base::TimeDelta& media_time);
   void ClearAll();
 
   // Start resuming, reset indices to audio/video buffers to the very beginning.
   void StartResuming();
-  scoped_refptr<DecoderBuffer> GetBuffer(DemuxerStream::Type type) const;
-  void AdvanceToNextBuffer(DemuxerStream::Type type);
+  bool HasMoreBuffers(DemuxerStream::Type type) const;
+  // |buffers| and |stream_info| cannot be null.
+  void ReadBuffers(DecoderBuffers* buffers, size_t max_buffers_per_read,
+                   SbMediaAudioStreamInfo* stream_info);
+  void ReadBuffers(DecoderBuffers* buffers, size_t max_buffers_per_read,
+                   SbMediaVideoStreamInfo* stream_info);
 
  private:
-  typedef std::deque<scoped_refptr<DecoderBuffer>> Buffers;
-  typedef std::deque<base::TimeDelta> KeyFrameTimestamps;
+  // The buffers with same stream info will be stored in same segment.
+  class BufferGroup {
+   public:
+    explicit BufferGroup(DemuxerStream::Type type);
+    void AddBuffers(const DecoderBuffers& buffers,
+                    const SbMediaAudioStreamInfo& stream_info);
+    void AddBuffers(const DecoderBuffers& buffers,
+                    const SbMediaVideoStreamInfo& stream_info);
+    void ClearSegmentsBeforeMediaTime(const base::TimeDelta& media_time);
+    void ClearAll();
 
-  static size_t ClearSegmentsBeforeMediaTime(
-      base::TimeDelta media_time, Buffers* buffers,
-      KeyFrameTimestamps* key_frame_timestamps);
+    bool HasMoreBuffers() const;
+    void ReadBuffers(DecoderBuffers* buffers, size_t max_buffers_per_read,
+                     SbMediaAudioStreamInfo* stream_info);
+    void ReadBuffers(DecoderBuffers* buffers, size_t max_buffers_per_read,
+                     SbMediaVideoStreamInfo* stream_info);
+    void ResetIndex();
+
+   private:
+    struct Segment {
+      explicit Segment(const SbMediaAudioStreamInfo& stream_info);
+      explicit Segment(const SbMediaVideoStreamInfo& stream_info);
+
+      std::deque<scoped_refptr<DecoderBuffer>> buffers;
+      union {
+        SbMediaAudioStreamInfo audio_stream_info;
+        SbMediaVideoStreamInfo video_stream_info;
+      };
+      // Deep copy of the audio and video stream infos.
+      std::string mime;
+      std::string max_video_capabilities;
+      std::vector<uint8_t> audio_specific_config;
+    };
+
+    BufferGroup(const BufferGroup&) = delete;
+    BufferGroup& operator=(const BufferGroup&) = delete;
+
+    template <typename StreamInfo>
+    void AddStreamInfo(const StreamInfo& stream_info);
+    void AddBuffers(const DecoderBuffers& buffers);
+    void AdvanceGroupIndexIfNecessary();
+    void ReadBuffers(DecoderBuffers* buffers, size_t max_buffers_per_read);
+
+    const DemuxerStream::Type type_;
+    std::deque<Segment> segments_;
+    std::deque<base::TimeDelta> key_frame_timestamps_;
+    size_t segment_index_ = 0;
+    size_t buffer_index_ = 0;
+  };
 
   THREAD_CHECKER(thread_checker_);
 
-  Buffers audio_buffers_;
-  KeyFrameTimestamps audio_key_frame_timestamps_;
-
-  Buffers video_buffers_;
-  KeyFrameTimestamps video_key_frame_timestamps_;
-
-  size_t audio_buffer_index_;
-  size_t video_buffer_index_;
+  BufferGroup audio_buffer_group_;
+  BufferGroup video_buffer_group_;
 };
+
+#if !defined(COBALT_BUILD_TYPE_GOLD)
+// Expose the functions for tests.
+bool operator!=(const SbMediaAudioStreamInfo& left,
+                const SbMediaAudioStreamInfo& right);
+bool operator!=(const SbMediaVideoStreamInfo& left,
+                const SbMediaVideoStreamInfo& right);
+#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
 
 }  // namespace media
 }  // namespace cobalt
