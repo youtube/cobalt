@@ -73,6 +73,18 @@
 //   3.  Renamed SbPlayerWriteSample2() to SbPlayerWriteSamples().
 #define SB_MEDIA_ENHANCED_AUDIO_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Minimum Starboard version for modular toolchain builds.
+#define SB_MINIMUM_API_VERSION_FOR_SB_MODULAR_BUILD SB_EXPERIMENTAL_API_VERSION
+
+// This configuration is set for modular builds, which have:
+//   1. Application binary built as a shared library.
+//   2. Either
+//     - Starboard built at a shared library and a separate loader_app
+//     executable.
+//     - A loader_app executable with Starboard built in ( Evergreen ).
+#define SB_MODULAR_BUILD \
+  (SB_API_VERSION >= SB_MINIMUM_API_VERSION_FOR_SB_MODULAR_BUILD)
+
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------

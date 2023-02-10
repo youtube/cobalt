@@ -27,7 +27,12 @@ namespace stub {
 // Stub application engine using the generic queue and a stub implementation.
 class ApplicationStub : public shared::starboard::QueueApplication {
  public:
+#if SB_MODULAR_BUILD
+  explicit ApplicationStub(SbEventHandleCallback sb_event_handle_callback);
+#else
   ApplicationStub();
+#endif  // SB_MODULAR_BUILD
+
   ~ApplicationStub() override;
 
   static ApplicationStub* Get() {

@@ -73,6 +73,9 @@ extern "C" int StarboardMain(int argc, char** argv) {
   SB_DCHECK(SUCCEEDED(hr));
 
   WaitForNetLogIfNecessary(CommandLine(argc, argv));
+#if SB_MODULAR_BUILD
+  return SbRunStarboardMain(argc, argv, SbEventHandle);
+#else
   ApplicationWin32 application;
   // This will run the message loop.
   const int main_return_value = application.Run(argc, argv);
@@ -81,4 +84,18 @@ extern "C" int StarboardMain(int argc, char** argv) {
   MFShutdown();
   WSACleanup();
   return main_return_value;
+#endif  // SB_MODULAR_BUILD
 }
+
+#if SB_MODULAR_BUILD
+int SbRunStarboardMain(int argc, char** argv, SbEventHandleCallback callback) {
+  ApplicationWin32 application(callback);
+  // This will run the message loop.
+  const int main_return_value = application.Run(argc, argv);
+  NetLogFlushThenClose();
+
+  MFShutdown();
+  WSACleanup();
+  return main_return_value;
+}
+#endif  // SB_MODULAR_BUILD

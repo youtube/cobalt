@@ -45,6 +45,11 @@ class Application {
  public:
   typedef player::filter::VideoFrame VideoFrame;
 
+#if SB_MODULAR_BUILD
+  // Executes a SbEventHandle method callback.
+  SbEventHandleCallback sb_event_handle_callback_ = NULL;
+#endif  // SB_MODULAR_BUILD
+
   // You can use a void(void *) function to signal that a state-transition event
   // has completed.
   typedef SbEventDataDestructor EventHandledCallback;
@@ -203,7 +208,11 @@ class Application {
     void* preprocess_context = nullptr;
   };
 
+#if SB_MODULAR_BUILD
+  explicit Application(SbEventHandleCallback sb_event_handle_callback);
+#else
   Application();
+#endif  // SB_MODULAR_BUILD
   virtual ~Application();
 
   // Gets the current instance of the Application. DCHECKS if called before the

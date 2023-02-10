@@ -16,6 +16,17 @@
 #include "starboard/stub/application_stub.h"
 
 int main(int argc, char** argv) {
+#if SB_MODULAR_BUILD
+  return SbRunStarboardMain(argc, argv, SbEventHandle);
+#else
   starboard::stub::ApplicationStub application;
   return application.Run(argc, argv);
+#endif  // SB_MODULAR_BUILD
 }
+
+#if SB_MODULAR_BUILD
+int SbRunStarboardMain(int argc, char** argv, SbEventHandleCallback callback) {
+  starboard::stub::ApplicationStub application(callback);
+  return application.Run(argc, argv);
+}
+#endif  // SB_MODULAR_BUILD

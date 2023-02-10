@@ -80,7 +80,13 @@ const char* AndroidCommandName(
 // "using" doesn't work with class members, so make a local convenience type.
 typedef ::starboard::shared::starboard::Application::Event Event;
 
+#if SB_MODULAR_BUILD
+ApplicationAndroid::ApplicationAndroid(
+    ALooper* looper,
+    SbEventHandleCallback sb_event_handle_callback)
+#else
 ApplicationAndroid::ApplicationAndroid(ALooper* looper)
+#endif  // SB_MODULAR_BUILD
     : looper_(looper),
       native_window_(NULL),
       android_command_readfd_(-1),
@@ -90,6 +96,9 @@ ApplicationAndroid::ApplicationAndroid(ALooper* looper)
       android_command_condition_(android_command_mutex_),
       activity_state_(AndroidCommand::kUndefined),
       window_(kSbWindowInvalid),
+#if SB_MODULAR_BUILD
+      QueueApplication(sb_event_handle_callback),
+#endif  // SB_MODULAR_BUILD
       last_is_accessibility_high_contrast_text_enabled_(false) {
   // Initialize Time Zone early so that local time works correctly.
   // Called once here to help SbTimeZoneGet*Name()

@@ -23,6 +23,7 @@
 #include "starboard/directory.h"
 #include "starboard/file.h"
 #endif
+#include "starboard/event.h"
 #include "starboard/log.h"
 #include "starboard/shared/starboard/command_line.h"
 #include "starboard/shared/starboard/starboard_switches.h"
@@ -41,6 +42,7 @@ typedef ::starboard::android::shared::ApplicationAndroid::AndroidCommand
     AndroidCommand;
 
 SbThread g_starboard_thread = kSbThreadInvalid;
+Semaphore* g_app_created_semaphore = nullptr;
 
 // Safeguard to avoid sending AndroidCommands either when there is no instance
 // of the Starboard application, or after the run loop has exited and the
@@ -213,8 +215,12 @@ void InstallCrashpadHandler(const CommandLine& command_line) {
 #endif  // SB_IS(EVERGREEN_COMPATIBLE)
 
 void* ThreadEntryPoint(void* context) {
-  Semaphore* app_created_semaphore = static_cast<Semaphore*>(context);
+  g_app_created_semaphore = static_cast<Semaphore*>(context);
 
+#if SB_MODULAR_BUILD
+  int unused_value = -1;
+  int error_level = SbRunStarboardMain(unused_value, nullptr, SbEventHandle);
+#else
   ALooper* looper = ALooper_prepare(ALOOPER_PREPARE_ALLOW_NON_CALLBACKS);
   ApplicationAndroid app(looper);
 
@@ -230,11 +236,12 @@ void* ThreadEntryPoint(void* context) {
   g_app_running = true;
 
   // Signal GameActivity_onCreate() that it may proceed.
-  app_created_semaphore->Put();
+  g_app_created_semaphore->Put();
 
   // Enter the Starboard run loop until stopped.
   int error_level =
       app.Run(std::move(command_line), GetStartDeepLink().c_str());
+#endif  // SB_MODULAR_BUILD
 
   // Mark the app not running before informing StarboardBridge that the app is
   // stopped so that we won't send any more AndroidCommands as a result of
@@ -368,6 +375,31 @@ Java_dev_cobalt_coat_StarboardBridge_nativeInitialize(
 }
 
 }  // namespace
+
+#if SB_MODULAR_BUILD
+extern "C" int SbRunStarboardMain(int argc,
+                                  char** argv,
+                                  SbEventHandleCallback callback) {
+  ALooper* looper = ALooper_prepare(ALOOPER_PREPARE_ALLOW_NON_CALLBACKS);
+  ApplicationAndroid app(looper, callback);
+
+  CommandLine command_line(GetArgs());
+  LogInit(command_line);
+
+  // Mark the app running before signaling app created so there's no race to
+  // allow sending the first AndroidCommand after onCreate() returns.
+  g_app_running = true;
+
+  // Signal GameActivity_onCreate() that it may proceed.
+  g_app_created_semaphore->Put();
+
+  // Enter the Starboard run loop until stopped.
+  int error_level =
+      app.Run(std::move(command_line), GetStartDeepLink().c_str());
+  return error_level;
+}
+#endif  // SB_MODULAR_BUILD
+
 }  // namespace shared
 }  // namespace android
 }  // namespace starboard

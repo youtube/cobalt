@@ -36,7 +36,11 @@ namespace win32 {
 
 class ApplicationWin32 : public starboard::QueueApplication {
  public:
+#if SB_MODULAR_BUILD
+  explicit ApplicationWin32(SbEventHandleCallback sb_event_handle_callback);
+#else
   ApplicationWin32();
+#endif  // SB_MODULAR_BUILD
   ~ApplicationWin32() override;
 
   static ApplicationWin32* Get() {
@@ -52,10 +56,8 @@ class ApplicationWin32 : public starboard::QueueApplication {
   void DispatchStart(SbTimeMonotonic timestamp) {
     shared::starboard::Application::DispatchStart(timestamp);
   }
-#else  // SB_API_VERSION >= 13
-void DispatchStart() {
-    shared::starboard::Application::DispatchStart();
-  }
+#else   // SB_API_VERSION >= 13
+  void DispatchStart() { shared::starboard::Application::DispatchStart(); }
 #endif  // SB_API_VERSION >= 13
 
   SbWindow GetCoreWindow() {

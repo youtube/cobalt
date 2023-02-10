@@ -63,7 +63,12 @@ class ApplicationAndroid
     void* data;
   };
 
+#if SB_MODULAR_BUILD
+  ApplicationAndroid(ALooper* looper,
+                     SbEventHandleCallback sb_event_handle_callback);
+#else
   explicit ApplicationAndroid(ALooper* looper);
+#endif  //  SB_MODULAR_BUILD
   ~ApplicationAndroid() override;
 
   static ApplicationAndroid* Get() {

@@ -35,7 +35,12 @@ namespace shared {
 class ApplicationDispmanx
     : public ::starboard::shared::starboard::QueueApplication {
  public:
+#if SB_MODULAR_BUILD
+  explicit ApplicationDispmanx(SbEventHandleCallback sb_event_handle_callback)
+      : window_(kSbWindowInvalid), QueueApplication(sb_event_handle_callback) {}
+#else
   ApplicationDispmanx() : window_(kSbWindowInvalid) {}
+#endif  // SB_MODULAR_BUILD
   ~ApplicationDispmanx() override {}
 
   static ApplicationDispmanx* Get() {

@@ -38,7 +38,11 @@ namespace x11 {
 // This application engine combines the generic queue with the X11 event queue.
 class ApplicationX11 : public shared::starboard::QueueApplication {
  public:
+#if SB_MODULAR_BUILD
+  explicit ApplicationX11(SbEventHandleCallback sb_event_handle_callback);
+#else
   ApplicationX11();
+#endif  // SB_MODULAR_BUILD
   ~ApplicationX11() override;
 
   static ApplicationX11* Get() {

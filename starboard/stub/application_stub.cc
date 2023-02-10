@@ -20,17 +20,18 @@
 namespace starboard {
 namespace stub {
 
-ApplicationStub::ApplicationStub() {
-}
+#if SB_MODULAR_BUILD
+ApplicationStub::ApplicationStub(SbEventHandleCallback sb_event_handle_callback)
+    : QueueApplication(sb_event_handle_callback) {}
+#else
+ApplicationStub::ApplicationStub() {}
+#endif  // SB_MODULAR_BUILD
 
-ApplicationStub::~ApplicationStub() {
-}
+ApplicationStub::~ApplicationStub() {}
 
-void ApplicationStub::Initialize() {
-}
+void ApplicationStub::Initialize() {}
 
-void ApplicationStub::Teardown() {
-}
+void ApplicationStub::Teardown() {}
 
 bool ApplicationStub::MayHaveSystemEvents() {
   return false;
@@ -45,8 +46,7 @@ ApplicationStub::WaitForSystemEventWithTimeout(SbTime time) {
   return NULL;
 }
 
-void ApplicationStub::WakeSystemEventWait() {
-}
+void ApplicationStub::WakeSystemEventWait() {}
 
 }  // namespace stub
 }  // namespace starboard

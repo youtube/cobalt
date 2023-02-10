@@ -15,6 +15,7 @@
 #include <time.h>
 
 #include "starboard/configuration.h"
+#include "starboard/event.h"
 #include "starboard/shared/signal/crash_signals.h"
 #include "starboard/shared/signal/debug_signals.h"
 #include "starboard/shared/signal/suspend_signals.h"
@@ -59,6 +60,9 @@ extern "C" SB_EXPORT_PLATFORM int main(int argc, char** argv) {
   SbLogRawDumpStack(3);
 #endif
 
+#if SB_MODULAR_BUILD
+  return SbRunStarboardMain(argc, argv, SbEventHandle);
+#else
   starboard::shared::x11::ApplicationX11 application;
   int result = 0;
   {
@@ -69,4 +73,20 @@ extern "C" SB_EXPORT_PLATFORM int main(int argc, char** argv) {
   starboard::shared::signal::UninstallDebugSignalHandlers();
   starboard::shared::signal::UninstallCrashSignalHandlers();
   return result;
+#endif  // SB_MODULAR_BUILD
 }
+
+#if SB_MODULAR_BUILD
+int SbRunStarboardMain(int argc, char** argv, SbEventHandleCallback callback) {
+  starboard::shared::x11::ApplicationX11 application(callback);
+  int result = 0;
+  {
+    starboard::shared::starboard::LinkReceiver receiver(&application);
+    result = application.Run(argc, argv);
+  }
+  starboard::shared::signal::UninstallSuspendSignalHandlers();
+  starboard::shared::signal::UninstallDebugSignalHandlers();
+  starboard::shared::signal::UninstallCrashSignalHandlers();
+  return result;
+}
+#endif  // SB_MODULAR_BUILD
