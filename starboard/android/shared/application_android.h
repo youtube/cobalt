@@ -125,7 +125,7 @@ class ApplicationAndroid
   void OnSuspend() override;
 
   // --- QueueApplication overrides ---
-  bool MayHaveSystemEvents() override { return true; }
+  bool MayHaveSystemEvents() override { return handle_system_events_; }
   Event* WaitForSystemEventWithTimeout(SbTime time) override;
   void WakeSystemEventWait() override;
 
@@ -138,6 +138,10 @@ class ApplicationAndroid
   int android_command_writefd_;
   int keyboard_inject_readfd_;
   int keyboard_inject_writefd_;
+
+  // In certain situations, the Starboard thread should not try to process new
+  // system events (e.g. while one is being processed).
+  bool handle_system_events_ = true;
 
   // Synchronization for commands that change availability of Android resources
   // such as the input and/or native_window_.
