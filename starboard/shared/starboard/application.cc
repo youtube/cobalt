@@ -274,10 +274,10 @@ bool Application::DispatchAndDelete(Application::Event* event) {
   // Ensure the event is deleted unless it is released.
   scoped_ptr<Event> scoped_event(event);
 
-// Ensure that we go through the the appropriate lifecycle events based on
-// the current state. If intermediate events need to be processed, use
-// HandleEventAndUpdateState() rather than Inject() for the intermediate events
-// because there may already be other lifecycle events in the queue.
+  // Ensure that we go through the the appropriate lifecycle events based on
+  // the current state. If intermediate events need to be processed, use
+  // HandleEventAndUpdateState() rather than Inject() for the intermediate
+  // events because there may already be other lifecycle events in the queue.
 
 #if SB_API_VERSION >= 13
   SbTimeMonotonic timestamp = scoped_event->event->timestamp;
@@ -522,6 +522,10 @@ bool Application::HandleEventAndUpdateState(Application::Event* event) {
   // Ensure the event is deleted unless it is released.
   scoped_ptr<Event> scoped_event(event);
 
+  if (event->preprocess_callback) {
+    event->preprocess_callback(event->preprocess_context);
+  }
+
 // Call OnSuspend() and OnResume() before the event as needed.
 #if SB_API_VERSION >= 13
   if (scoped_event->event->type == kSbEventTypeUnfreeze &&
@@ -650,7 +654,7 @@ Application::Event* Application::CreateInitialEvent(SbEventType type) {
 
 #if SB_API_VERSION >= 13
   return new Event(type, timestamp, start_data, &DeleteStartData);
-#else  // SB_API_VERSION >= 13
+#else   // SB_API_VERSION >= 13
   return new Event(type, start_data, &DeleteStartData);
 #endif  // SB_API_VERSION >= 13
 }
