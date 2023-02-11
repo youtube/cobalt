@@ -24,14 +24,6 @@ namespace starboard {
 namespace shared {
 namespace starboard {
 
-namespace {
-void SetTrueWhenCalled(void* flag) {
-  volatile bool* bool_flag =
-      const_cast<volatile bool*>(static_cast<bool*>(flag));
-  *bool_flag = true;
-}
-}  // namespace
-
 void QueueApplication::Wake() {
   if (IsCurrentThread()) {
     return;
@@ -98,19 +90,28 @@ void QueueApplication::CancelTimedEvent(SbEventId event_id) {
   // and go back to sleep.
 }
 
-void QueueApplication::InjectAndProcess(SbEventType type,
-                                        bool checkSystemEvents) {
-  volatile bool event_processed = false;
-  Event* flagged_event =
-      new Event(type, const_cast<bool*>(&event_processed), &SetTrueWhenCalled);
-  Inject(flagged_event);
-  while (!event_processed) {
+void QueueApplication::InjectAndProcess(Event* event, bool checkSystemEvents) {
+  Inject(event);
+  for (;;) {
+    Event* next_event;
     if (checkSystemEvents) {
-      DispatchAndDelete(GetNextEvent());
+      next_event = GetNextEvent();
     } else {
-      DispatchAndDelete(GetNextInjectedEvent());
+      next_event = GetNextInjectedEvent();
+    }
+
+    DispatchAndDelete(next_event);
+
+    // If the just-processed event is the original event, then return.
+    if (next_event == event) {
+      break;
     }
   }
+}
+
+void QueueApplication::InjectAndProcess(SbEventType type,
+                                        bool checkSystemEvents) {
+  InjectAndProcess(new Event(type, nullptr, nullptr), checkSystemEvents);
 }
 
 Application::TimedEvent* QueueApplication::GetNextDueTimedEvent() {
