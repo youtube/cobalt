@@ -27,16 +27,15 @@ source $DIR/pprint.sh
 log "info" " [==========] Preparing to test with USE_COMPRESSED_SYSTEM_IMAGE=${USE_COMPRESSED_SYSTEM_IMAGE}."
 
 if [[ -z ${1} ]]; then
-  log "error" "A platform must be provided"
+  log "error" "A loader platform must be provided"
   exit 1
 fi
 
-PLATFORMS=("linux" "raspi")
-if [[ ! "${PLATFORMS[@]}" =~ "${1}" ]] && [[ ! -d "${DIR}/${1}" ]]; then
-  log "error" "The platform provided must be one of the following: ${PLATFORMS[*]}"
+if [[ "${1}" != "linux-x64x11" ]] && [[ "${1}" != "raspi-2" ]]; then
+  log "error" "The loader platform provided must be either linux-x64x11 or raspi-2"
   exit 1
 fi
-PLATFORM="${1}"
+LOADER_PLATFORM="${1}"
 
 # List of all required scripts.
 SCRIPTS=("${DIR}/shared/app_key.sh"           \
@@ -48,17 +47,17 @@ SCRIPTS=("${DIR}/shared/app_key.sh"           \
 
          # Each of the following scripts must be provided for the targeted
          # platform. The script 'setup.sh' must be source'd first.
-         "${DIR}/${PLATFORM}/setup.sh"               \
+         "${DIR}/${LOADER_PLATFORM}/setup.sh"               \
 
-         "${DIR}/${PLATFORM}/clean_up.sh"            \
-         "${DIR}/${PLATFORM}/clear_storage.sh"       \
-         "${DIR}/${PLATFORM}/create_file.sh"         \
-         "${DIR}/${PLATFORM}/delete_file.sh"         \
-         "${DIR}/${PLATFORM}/deploy_cobalt.sh"       \
-         "${DIR}/${PLATFORM}/run_command.sh"         \
-         "${DIR}/${PLATFORM}/start_cobalt.sh"        \
-         "${DIR}/${PLATFORM}/stop_cobalt.sh"         \
-         "${DIR}/${PLATFORM}/stop_process.sh")
+         "${DIR}/${LOADER_PLATFORM}/clean_up.sh"            \
+         "${DIR}/${LOADER_PLATFORM}/clear_storage.sh"       \
+         "${DIR}/${LOADER_PLATFORM}/create_file.sh"         \
+         "${DIR}/${LOADER_PLATFORM}/delete_file.sh"         \
+         "${DIR}/${LOADER_PLATFORM}/deploy_cobalt.sh"       \
+         "${DIR}/${LOADER_PLATFORM}/run_command.sh"         \
+         "${DIR}/${LOADER_PLATFORM}/start_cobalt.sh"        \
+         "${DIR}/${LOADER_PLATFORM}/stop_cobalt.sh"         \
+         "${DIR}/${LOADER_PLATFORM}/stop_process.sh")
 
 for script in "${SCRIPTS[@]}"; do
   if [[ ! -f "${script}" ]]; then
@@ -66,5 +65,5 @@ for script in "${SCRIPTS[@]}"; do
     exit 1
   fi
 
-  source $script "${DIR}/${PLATFORM}"
+  source $script "${DIR}/${LOADER_PLATFORM}"
 done
