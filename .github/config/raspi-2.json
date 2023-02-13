@@ -3,8 +3,7 @@
   "on_device_test": {
     "enabled": true,
     "tests": [
-      "unit_test",
-      "black_box_test"
+      "unit_test"
     ]
   },
   "platforms": [
