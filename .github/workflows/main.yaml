@@ -217,7 +217,13 @@ jobs:
           type: onhost
           os: linux
       - name: Upload On Device Test Artifacts
-        if: ${{ matrix.config == 'devel' && needs.initialize.outputs.on_device_test == 'true' }}
+        if: |
+          matrix.config == 'devel' &&
+          needs.initialize.outputs.on_device_test == 'true' &&
+          (
+            github.event_name != 'pull_request' ||
+            contains(github.event.pull_request.labels.*.name, 'on_device')
+          )
         uses: ./.github/actions/upload_test_artifacts
         with:
           type: ondevice
@@ -227,7 +233,7 @@ jobs:
   on-device-test:
     needs: [initialize, build]
     if: |  # Always run if not a PR or if the PR has on_device label
-      fromJSON(needs.initialize.outputs.on_device_test).enabled == true && ( 
+      needs.initialize.outputs.on_device_test == 'true' && (
         github.event_name != 'pull_request' ||
         contains(github.event.pull_request.labels.*.name, 'on_device')
       )
