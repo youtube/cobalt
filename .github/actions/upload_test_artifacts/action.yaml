@@ -64,10 +64,7 @@ runs:
       shell: bash
     - name: Copy Test Files to GCS
       id: upload-test-archive
-      uses: google-github-actions/upload-cloud-storage@v0.10.4
-      with:
-        headers: |-
-          content-type: application/x-tar
-        path: ${{env.ARCHIVE_PATH}}
-        destination: ${{env.DESTINATION}}
-        parent: true
+      shell: bash
+      run: |
+        set -eux
+        gsutil -d cp "${ARCHIVE_PATH}" "gs://${DESTINATION}"
