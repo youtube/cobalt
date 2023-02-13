@@ -21,6 +21,7 @@ jobs:
     uses: ./.github/workflows/main_win.yaml
     permissions:
       packages: write
+      pull-requests: write
     with:
       platform: win32
       nightly: ${{ github.event.inputs.nightly }}
