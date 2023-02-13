@@ -15,9 +15,12 @@
 #ifndef COBALT_H5VCC_H5VCC_RUNTIME_H_
 #define COBALT_H5VCC_H5VCC_RUNTIME_H_
 
+#include <memory>
 #include <string>
 
 #include "base/callback.h"
+#include "base/threading/thread_checker.h"
+#include "cobalt/base/deep_link_event.h"
 #include "cobalt/base/event_dispatcher.h"
 #include "cobalt/h5vcc/h5vcc_deep_link_event_target.h"
 #include "cobalt/h5vcc/h5vcc_runtime_event_target.h"
@@ -41,7 +44,8 @@ class H5vccRuntime : public script::Wrappable {
 
  private:
   // Called by the event dispatcher to handle deep link events.
-  void OnDeepLinkEvent(const base::Event* event);
+  void OnEventForDeepLink(const base::Event* event);
+  void OnDeepLinkEvent(std::unique_ptr<base::DeepLinkEvent> event);
 
   // Returns the initial deep link if it's unconsumed.
   const std::string& GetUnconsumedDeepLink();
@@ -59,7 +63,13 @@ class H5vccRuntime : public script::Wrappable {
   base::EventCallback deep_link_event_callback_;
   base::OnceClosure consumed_callback_;
 
-  base::Lock lock_;
+  // Track the message loop that created this object so deep link events are
+  // handled from the same thread.
+  base::MessageLoop* message_loop_;
+
+  // Thread checker ensures all calls to DOM element are made from the same
+  // thread that it is created in.
+  THREAD_CHECKER(thread_checker_);
 
   DISALLOW_COPY_AND_ASSIGN(H5vccRuntime);
 };
