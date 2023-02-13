@@ -41,17 +41,38 @@ jobs:
   # Generates build matrix based on json configuration file.
   initialize:
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    # All triggers except draft PRs, unless PR is labeled with runtest
+    if: |
+      github.event_name != 'pull_request' ||
+      (
+        github.event.pull_request.draft == false ||
+        (
+          github.event.action == 'labeled' &&
+          github.event.label.name == 'runtest'
+        )
+      )
     steps:
       - id: Checkout
         uses: actions/checkout@v3
         with:
           fetch-depth: 1
+      - name: Remove runtest if exists
+        if: github.event_name == 'pull_request'
+        continue-on-error: true  # Ignore this step if we cannot remove the label.
+        run: |
+          set +e
+          curl \
+            -X DELETE \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            ${{ github.event.pull_request.base.repo.url }}/issues/${{ github.event.number }}/labels/runtest
+        shell: bash
       - id: set-platforms
         run: echo "platforms=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.platforms')" >> $GITHUB_ENV
       - id: set-includes
         run: echo "includes=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.includes')" >> $GITHUB_ENV
-      - id: set-on-device-test
-        run: echo "on_device_test=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.on_device_test')" >> $GITHUB_ENV
       - id: set-on-host-test
         run: echo "on_host_test=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.on_host_test')" >> $GITHUB_ENV
       - id: set-on-host-test-shards
@@ -71,7 +92,8 @@ jobs:
   # Build windows docker images.
   build-docker-image:
     needs: [initialize]
-    permissions: {}
+    permissions:
+      packages: write
     runs-on: windows-2019
     steps:
       - name: Checkout files

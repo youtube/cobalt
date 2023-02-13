@@ -2,7 +2,7 @@ name: win32_23.lts.1+
 
 on:
   pull_request:
-    types: [opened, reopened, synchronize]
+    types: [ready_for_review, opened, reopened, synchronize, labeled]
     branches:
       - '23.lts.1\+'
   push:
@@ -21,7 +21,9 @@ on:
 jobs:
   win:
     uses: ./.github/workflows/main_win.yaml
-    permissions: {}
+    permissions:
+      packages: write
+      pull-requests: write
     with:
       platform: win32
       nightly: ${{ github.event.inputs.nightly }}

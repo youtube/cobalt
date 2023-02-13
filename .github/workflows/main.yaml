@@ -41,12 +41,38 @@ jobs:
   # Retrieves configuration from json file.
   initialize:
     runs-on: ubuntu-latest
-    permissions: {}
+    permissions:
+      pull-requests: write
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_PR_REPO_URL: ${{ github.event.pull_request.base.repo.url }}
+      GITHUB_EVENT_NUMBER: ${{ github.event.number }}
+    # All triggers except draft PRs, unless PR is labeled with runtest
+    if: |
+      github.event_name != 'pull_request' ||
+      (
+        github.event.pull_request.draft == false ||
+        (
+          github.event.action == 'labeled' &&
+          github.event.label.name == 'runtest'
+        )
+      )
     steps:
       - id: checkout
         uses: actions/checkout@v3
         with:
           fetch-depth: 1
+      - name: Remove runtest if exists
+        if: github.event_name == 'pull_request'
+        continue-on-error: true  # Ignore this step if we cannot remove the label.
+        run: |
+          set +e
+          curl \
+            -X DELETE \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+            ${GITHUB_PR_REPO_URL}/issues/${GITHUB_EVENT_NUMBER}/labels/runtest
+        shell: bash
       - id: set-platforms
         run: echo "platforms=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.platforms')" >> $GITHUB_ENV
       - id: set-includes
@@ -201,7 +227,7 @@ jobs:
   on-device-test:
     needs: [initialize, build]
     if: |  # Always run if not a PR or if the PR has on_device label
-      needs.initialize.outputs.on_device_test == 'true' && (
+      fromJSON(needs.initialize.outputs.on_device_test).enabled == true && ( 
         github.event_name != 'pull_request' ||
         contains(github.event.pull_request.labels.*.name, 'on_device')
       )
