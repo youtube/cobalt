@@ -22,7 +22,7 @@ Required libraries can differ depending on your Linux distribution and version.
         pkgconf ninja-build bison yasm binutils clang libgles2-mesa-dev \
         mesa-common-dev libpulse-dev libavresample-dev libasound2-dev \
         libxrender-dev libxcomposite-dev libxml2-dev curl git \
-        python3.8-venv
+        python3.8-venv libxi-dev
     ```
 
 1.  Install Node.js via `nvm`:
@@ -72,7 +72,7 @@ Required libraries can differ depending on your Linux distribution and version.
     export PYTHONPATH="/fullpathto/cobalt:${PYTHONPATH}"
     ```
 
-    You should also run the above command in your termainal so it's available
+    You should also run the above command in your terminal so it's available
     immediately, rather than when you next login.
 
 ### Set up Developer Tools
@@ -102,6 +102,12 @@ Required libraries can differ depending on your Linux distribution and version.
     ```
     $ pre-commit install -t post-checkout -t pre-commit -t pre-push --allow-missing-config
     $ git checkout -b <my-branch-name> origin/master
+    ```
+
+1.  Download clang++:
+
+    ```
+    $ ./starboard/tools/download_clang.sh
     ```
 
 ## Build and Run Cobalt
