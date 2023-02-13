@@ -43,6 +43,10 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_PR_REPO_URL: ${{ github.event.pull_request.base.repo.url }}
+      GITHUB_EVENT_NUMBER: ${{ github.event.number }}
     # All triggers except draft PRs, unless PR is labeled with runtest
     if: |
       github.event_name != 'pull_request' ||
@@ -66,8 +70,8 @@ jobs:
           curl \
             -X DELETE \
             -H "Accept: application/vnd.github+json" \
-            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            ${{ github.event.pull_request.base.repo.url }}/issues/${{ github.event.number }}/labels/runtest
+            -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+            ${GITHUB_PR_REPO_URL}/issues/${GITHUB_EVENT_NUMBER}/labels/runtest
         shell: bash
       - id: set-platforms
         run: echo "platforms=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.platforms')" >> $GITHUB_ENV
