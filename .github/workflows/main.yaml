@@ -268,7 +268,7 @@ jobs:
           echo "WORKFLOW=${{ github.workflow }}" >> $GITHUB_ENV
           if [ "${{ needs.initialize.outputs.bootloader }}" != "null" ]; then
             echo "LOADER_CONFIG=${{ matrix.config }}" >> $GITHUB_ENV
-            echo "LOADER_PLATFORM=${{ matrix.bootloader_platform }}" >> $GITHUB_ENV
+            echo "LOADER_PLATFORM=${{ needs.initialize.outputs.bootloader }}" >> $GITHUB_ENV
           fi
           if [ "${{ matrix.dimension }}" != "null" ]; then
             echo "DIMENSION=${{ matrix.dimension }}" >> $GITHUB_ENV
