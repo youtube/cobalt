@@ -166,7 +166,7 @@ jobs:
   on-device-test:
     needs: [initialize, build]
     if: |  # Always run if not a PR or if the PR has on_device label
-      fromJSON(needs.initialize.outputs.on_device_test).enabled == true && (
+      needs.initialize.outputs.on_device_test == 'true' && (
         github.event_name != 'pull_request' ||
         contains(github.event.pull_request.labels.*.name, 'on_device')
       )
