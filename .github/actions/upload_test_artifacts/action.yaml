@@ -10,6 +10,8 @@ runs:
     - name: Set up Cloud SDK
       uses: google-github-actions/setup-gcloud@v0.6.2
     - name: Configure Environment
+      env:
+        WORKFLOW: ${{ github.workflow }}
       run: |
         set -x
         project_name=$(gcloud config get-value project)
@@ -26,12 +28,12 @@ runs:
         then
           echo "ARCHIVE_FILE=artifacts.tar" >> $GITHUB_ENV
           echo "ARCHIVE_PATH=$GITHUB_WORKSPACE/artifacts.tar" >> $GITHUB_ENV
-          echo "DESTINATION=${project_name}-test-artifacts-tmp/${{github.workflow}}/${GITHUB_RUN_NUMBER}/${{matrix.platform}}_${{matrix.config}}/" >> $GITHUB_ENV
+          echo "DESTINATION=${project_name}-test-artifacts-tmp/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${{matrix.platform}}_${{matrix.config}}/" >> $GITHUB_ENV
         elif [ "${{ inputs.type }}" == 'onhost' ]
         then
           echo "ARCHIVE_FILE=${PLATFORM}_${{matrix.config}}.tar.xz" >> $GITHUB_ENV
           echo "ARCHIVE_PATH=$GITHUB_WORKSPACE/${PLATFORM}_${{matrix.config}}.tar.xz" >> $GITHUB_ENV
-          echo "DESTINATION=${project_name}-test-artifacts-tmp/${{github.workflow}}/${GITHUB_RUN_NUMBER}/${{matrix.platform}}_${{matrix.config}}/" >> $GITHUB_ENV
+          echo "DESTINATION=${project_name}-test-artifacts-tmp/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${{matrix.platform}}_${{matrix.config}}/" >> $GITHUB_ENV
         fi
         echo "PYTHONPATH=$GITHUB_WORKSPACE" >> $GITHUB_ENV
         project_name=$(gcloud config get-value project)
