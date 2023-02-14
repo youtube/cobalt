@@ -71,7 +71,6 @@ class ScriptValue {
         : owner_(wrappable), referenced_value_(script_value.MakeCopy()) {
       DCHECK(!referenced_value_->IsNull());
       referenced_value_->RegisterOwner(owner_);
-      referenced_value_->PreventGarbageCollection();
     }
 
     Reference(Wrappable* wrappable, const Handle<T>& local)
@@ -79,7 +78,6 @@ class ScriptValue {
           referenced_value_(local.GetScriptValue()->MakeCopy()) {
       DCHECK(!referenced_value_->IsNull());
       referenced_value_->RegisterOwner(owner_);
-      referenced_value_->PreventGarbageCollection();
     }
 
     const T& value() const { return *(referenced_value_->GetValue()); }
@@ -91,10 +89,7 @@ class ScriptValue {
       return *(referenced_value_.get());
     }
 
-    ~Reference() {
-      referenced_value_->AllowGarbageCollection();
-      referenced_value_->DeregisterOwner(owner_);
-    }
+    ~Reference() { referenced_value_->DeregisterOwner(owner_); }
 
    private:
     Wrappable* const owner_;
