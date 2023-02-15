@@ -4,11 +4,11 @@ service-worker/register-default-scope.https.html, PASS
 service-worker/rejections.https.html, PASS
 service-worker/serviceworkerobject-scripturl.https.html, PASS
 service-worker/unregister.https.html, PASS
-service-worker/registration-script-url.https.html, DISABLE
+service-worker/registration-script-url.https.html, PASS
 service-worker/registration-security-error.https.html, DISABLE
-service-worker/Service-Worker-Allowed-header.https.html, DISABLE
-service-worker/update-result.https.html, DISABLE
-service-worker/update-missing-import-scripts.https.html, DISABLE
+service-worker/Service-Worker-Allowed-header.https.html, PASS
+service-worker/update-result.https.html, PASS
+service-worker/update-missing-import-scripts.https.html, PASS
 
 # Tests pass with memory leakage issue.
 service-worker/update-no-cache-request-headers.https.html, DISABLE
@@ -19,6 +19,8 @@ service-worker/clients-matchall-on-evaluation.https.html, DISABLE
 
 # b/266605087 TypeError: Cannot set property 'onerror' of null"
 service-worker/skip-waiting-without-client.https.html, DISABLE
+service-worker/service-worker-csp-default.https.html, DISABLE
+service-worker/service-worker-csp-connect.https.html, DISABLE
 
 # b/234788479 Implement waiting for update worker state tasks in Install algorithm.
 service-worker/activation-after-registration.https.html, DISABLE
@@ -36,10 +38,6 @@ service-worker/service-worker-header.https.html, DISABLE
 service-worker/state.https.html, DISABLE
 service-worker/uncontrolled-page.https.html, DISABLE
 
-# b/267538636 assert_throws_js: eval() should throw EvalError
-service-worker/service-worker-csp-connect.https.html, DISABLE
-service-worker/service-worker-csp-default.https.html, DISABLE
-service-worker/service-worker-csp-script.https.html, DISABLE
 
 # "Module" type of dedicated worker is supported in Cobalt
 service-worker/dedicated-worker-service-worker-interception.https.html, DISABLE
@@ -86,6 +84,7 @@ service-worker/registration-scope.https.html, DISABLE
 service-worker/update-bytecheck-cors-import.https.html, DISABLE
 service-worker/update-bytecheck.https.html, DISABLE
 service-worker/referrer-toplevel-script-fetch.https.html, DISABLE
+service-worker/service-worker-csp-script.https.html, DISABLE
 
 # b/264323329 TIMEOUT
 service-worker/install-event-type.https.html, DISABLE
