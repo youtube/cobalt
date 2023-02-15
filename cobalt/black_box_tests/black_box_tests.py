@@ -36,6 +36,8 @@ _DISABLED_BLACKBOXTEST_CONFIGS = [
     'android-arm/devel',
     'android-arm64/devel',
     'android-x86/devel',
+    'evergreen-arm/devel',
+    'evergreen-x64/devel',
     'raspi-0/devel',
 ]
 
@@ -225,13 +227,8 @@ class BlackBoxTests(object):
     if self.proxy_port == '-1':
       return 1
 
-    # Temporary means to determine if we are running on CI
-    # TODO: Update to IS_CI environment variable or similar
-    out_dir = _launcher_params.out_directory
-    is_ci = out_dir and 'mh_lab' in out_dir  # pylint: disable=unsupported-membership-test
-
-    if is_ci and (f'{_launcher_params.platform}/{_launcher_params.config}'
-                  in _DISABLED_BLACKBOXTEST_CONFIGS):
+    if (f'{_launcher_params.platform}/{_launcher_params.config}'
+        in _DISABLED_BLACKBOXTEST_CONFIGS):
       logging.warning('Blackbox tests disabled for platform:%s config:%s',
                       _launcher_params.platform, _launcher_params.config)
       return 0
