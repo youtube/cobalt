@@ -66,9 +66,16 @@ class CrashReportUploadThread : public WorkerThread::Delegate,
   //!
   //! \param[in] database The database to upload crash reports from.
   //! \param[in] url The URL of the server to upload crash reports to.
+#if defined(STARBOARD)
+  //! \param[in] ca_certificates_path The absolute path to a directory
+  //!   containing CA root certificates.
+#endif  // STARBOARD
   //! \param[in] options Options for the report uploads.
   CrashReportUploadThread(CrashReportDatabase* database,
                           const std::string& url,
+#if defined(STARBOARD)
+                          const std::string& ca_certificates_path,
+#endif  // STARBOARD
                           const Options& options);
   ~CrashReportUploadThread();
 
@@ -169,6 +176,9 @@ class CrashReportUploadThread : public WorkerThread::Delegate,
 
   const Options options_;
   const std::string url_;
+#if defined(STARBOARD)
+  const std::string ca_certificates_path_;
+#endif  // STARBOARD
   WorkerThread thread_;
   ThreadSafeVector<UUID> known_pending_report_uuids_;
   CrashReportDatabase* database_;  // weak

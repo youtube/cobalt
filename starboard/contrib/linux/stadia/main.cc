@@ -20,6 +20,7 @@
 #include "starboard/shared/signal/suspend_signals.h"
 #include "starboard/shared/starboard/link_receiver.h"
 #if SB_IS(EVERGREEN_COMPATIBLE)
+#include "starboard/common/paths.h"
 #include "starboard/shared/starboard/command_line.h"
 #include "starboard/shared/starboard/starboard_switches.h"
 #endif
@@ -32,13 +33,21 @@ extern "C" SB_EXPORT_PLATFORM int main(int argc, char** argv) {
   starboard::shared::signal::InstallSuspendSignalHandlers();
 
 #if SB_IS(EVERGREEN_COMPATIBLE)
+  std::string ca_certificates_path = starboard::common::GetCACertificatesPath();
+  if (ca_certificates_path.empty()) {
+    SB_LOG(ERROR) << "Failed to get CA certificates path";
+    return 1;
+  }
+
   if (starboard::shared::starboard::CommandLine(argc, argv)
           .HasSwitch(starboard::shared::starboard::kStartHandlerAtLaunch) &&
       !starboard::shared::starboard::CommandLine(argc, argv)
            .HasSwitch(starboard::shared::starboard::kStartHandlerAtCrash)) {
-    third_party::crashpad::wrapper::InstallCrashpadHandler(false);
+    third_party::crashpad::wrapper::InstallCrashpadHandler(
+        false, ca_certificates_path);
   } else {
-    third_party::crashpad::wrapper::InstallCrashpadHandler(true);
+    third_party::crashpad::wrapper::InstallCrashpadHandler(
+        true, ca_certificates_path);
   }
 #endif
 

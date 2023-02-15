@@ -57,6 +57,8 @@ static_library("common") {
     "new.cc",
     "optional.cc",
     "optional.h",
+    "paths.cc",
+    "paths.h",
     "queue.h",
     "recursive_mutex.cc",
     "recursive_mutex.h",

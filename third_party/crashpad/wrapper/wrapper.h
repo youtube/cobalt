@@ -15,6 +15,8 @@
 #ifndef THIRD_PARTY_CRASHPAD_WRAPPER_WRAPPER_H_
 #define THIRD_PARTY_CRASHPAD_WRAPPER_WRAPPER_H_
 
+#include <string>
+
 #include "starboard/elf_loader/evergreen_info.h" // nogncheck
 
 namespace third_party {
@@ -30,7 +32,15 @@ extern const char kCrashpadProductKey[];
 // The key name used in Crashpad for the user_agent_string annotation.
 extern const char kCrashpadUserAgentStringKey[];
 
-void InstallCrashpadHandler(bool start_at_crash);
+// Installs a signal handler to handle a crash. The signal handler will launch a
+// Crashpad handler process in response to a crash when |start_at_crash| is
+// true, otherwise a Crashpad handler process will be started immediately.
+// |ca_certificates_path| is the absolute path to a directory containing
+// Cobalt's trusted Certificate Authority (CA) root certificates, and must be
+// passed so that the certificates can be accessed by the handler process during
+// upload.
+void InstallCrashpadHandler(bool start_at_crash,
+                            const std::string& ca_certificates_path);
 
 bool AddEvergreenInfoToCrashpad(EvergreenInfo evergreen_info);
 

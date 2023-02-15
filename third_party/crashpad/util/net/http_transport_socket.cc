@@ -39,10 +39,6 @@
 #include <openssl/ssl.h>
 #endif
 
-#if defined(STARBOARD)
-#include "starboard/configuration_constants.h"
-#include "starboard/system.h"
-#endif
 
 namespace crashpad {
 
@@ -103,7 +99,11 @@ class SSLStream : public Stream {
  public:
   SSLStream() = default;
 
+#if defined(STARBOARD)
+  bool Initialize(const std::string& root_cert_directory_path,
+#else
   bool Initialize(const base::FilePath& root_cert_path,
+#endif  // STARBOARD
                   int sock,
                   const std::string& hostname) {
     SSL_library_init();
@@ -122,6 +122,13 @@ class SSLStream : public Stream {
     SSL_CTX_set_verify(ctx_.get(), SSL_VERIFY_PEER, nullptr);
     SSL_CTX_set_verify_depth(ctx_.get(), 5);
 
+#if defined(STARBOARD)
+    if (SSL_CTX_load_verify_locations(
+            ctx_.get(), nullptr, root_cert_directory_path.c_str()) <= 0) {
+      LOG(ERROR) << "SSL_CTX_load_verify_locations";
+      return false;
+    }
+#else  // STARBOARD
     if (!root_cert_path.empty()) {
       if (SSL_CTX_load_verify_locations(
               ctx_.get(), root_cert_path.value().c_str(), nullptr) <= 0) {
@@ -129,32 +136,7 @@ class SSLStream : public Stream {
         return false;
       }
     } else {
-#if defined(STARBOARD)
-      std::vector<char> buffer(kSbFileMaxPath);
-      bool result = SbSystemGetPath(
-          kSbSystemPathContentDirectory, buffer.data(), buffer.size());
-      if (!result) {
-        LOG(ERROR) << "SSL_CTX_load_verify_locations";
-        return false;
-      }
-
-      std::string cert_location(buffer.data());
-      cert_location.append(std::string(kSbFileSepString) + "app" +
-                           kSbFileSepString + "cobalt" + kSbFileSepString +
-                           "content" + kSbFileSepString + "ssl" +
-                           kSbFileSepString + "certs");
-      // If this is not Cobalt Evergreen setup use the regular content path.
-      if (!SbFileExists(cert_location.c_str())) {
-        cert_location = buffer.data();
-        cert_location.append(std::string(kSbFileSepString) + "ssl" +
-                             kSbFileSepString + "certs");
-      }
-      if (SSL_CTX_load_verify_locations(
-              ctx_.get(), nullptr, cert_location.c_str()) <= 0) {
-        LOG(ERROR) << "SSL_CTX_load_verify_locations";
-        return false;
-      }
-#elif defined(OS_LINUX)
+#if defined(OS_LINUX)
       if (SSL_CTX_load_verify_locations(
               ctx_.get(), nullptr, "/etc/ssl/certs") <= 0) {
         LOG(ERROR) << "SSL_CTX_load_verify_locations";
@@ -166,10 +148,11 @@ class SSLStream : public Stream {
         LOG(ERROR) << "SSL_CTX_load_verify_locations";
         return false;
       }
-#else
+#else  // OS_LINUX
 #error cert store location
-#endif
+#endif  // OS_LINUX
     }
+#endif  // STARBOARD
 
     ssl_.reset(SSL_new(ctx_.get()));
     if (!ssl_.is_valid()) {
@@ -593,7 +576,12 @@ bool HTTPTransportSocket::ExecuteSynchronously(std::string* response_body) {
   if (scheme == "https") {
     auto ssl_stream = std::make_unique<SSLStream>();
     if (!ssl_stream->Initialize(
-            root_ca_certificate_path(), sock.get(), hostname)) {
+#if defined(STARBOARD)
+            root_ca_certificates_directory_path(),
+#else
+            root_ca_certificate_path(),
+#endif  // STARBOARD
+            sock.get(), hostname)) {
       LOG(ERROR) << "SSLStream Initialize";
       return false;
     }

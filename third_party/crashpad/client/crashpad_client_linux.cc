@@ -565,6 +565,9 @@ bool CrashpadClient::StartHandler(
     const base::FilePath& database,
     const base::FilePath& metrics_dir,
     const std::string& url,
+#if defined(STARBOARD)
+    const std::string& ca_certificates_path,
+#endif  // STARBOARD
     const std::map<std::string, std::string>& annotations,
     const std::vector<std::string>& arguments,
     bool restartable,
@@ -578,7 +581,15 @@ bool CrashpadClient::StartHandler(
   }
 
   std::vector<std::string> argv = BuildHandlerArgvStrings(
-      handler, database, metrics_dir, url, annotations, arguments);
+      handler,
+      database,
+      metrics_dir,
+      url,
+#if defined(STARBOARD)
+      ca_certificates_path,
+#endif  // STARBOARD
+      annotations,
+      arguments);
 
   argv.push_back(FormatArgumentInt("initial-client-fd", handler_sock.get()));
   argv.push_back("--shared-client-connection");
@@ -702,15 +713,27 @@ bool CrashpadClient::StartHandlerAtCrash(
     const base::FilePath& database,
     const base::FilePath& metrics_dir,
     const std::string& url,
+#if defined(STARBOARD)
+    const std::string& ca_certificates_path,
+#endif  // STARBOARD
     const std::map<std::string, std::string>& annotations,
     const std::vector<std::string>& arguments) {
   std::vector<std::string> argv = BuildHandlerArgvStrings(
-      handler, database, metrics_dir, url, annotations, arguments);
+      handler,
+      database,
+      metrics_dir,
+      url,
+#if defined(STARBOARD)
+      ca_certificates_path,
+#endif  // STARBOARD
+      annotations,
+      arguments);
 
   auto signal_handler = LaunchAtCrashHandler::Get();
   return signal_handler->Initialize(&argv, nullptr, &unhandled_signals_);
 }
 
+#if !defined(STARBOARD)
 // static
 bool CrashpadClient::StartHandlerForClient(
     const base::FilePath& handler,
@@ -727,6 +750,7 @@ bool CrashpadClient::StartHandlerForClient(
 
   return DoubleForkAndExec(argv, nullptr, socket, true, nullptr);
 }
+#endif  // !defined(STARBOARD)
 
 #if defined(STARBOARD)
 // static

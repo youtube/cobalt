@@ -45,11 +45,18 @@
 
 namespace crashpad {
 
-CrashReportUploadThread::CrashReportUploadThread(CrashReportDatabase* database,
-                                                 const std::string& url,
-                                                 const Options& options)
+CrashReportUploadThread::CrashReportUploadThread(
+    CrashReportDatabase* database,
+    const std::string& url,
+#if defined(STARBOARD)
+    const std::string& ca_certificates_path,
+#endif  // STARBOARD
+    const Options& options)
     : options_(options),
       url_(url),
+#if defined(STARBOARD)
+      ca_certificates_path_(ca_certificates_path),
+#endif  // STARBOARD
       // When watching for pending reports, check every 15 minutes, even in the
       // absence of a signal from the handler thread. This allows for failed
       // uploads to be retried periodically, and for pending reports written by
@@ -329,6 +336,9 @@ CrashReportUploadThread::UploadResult CrashReportUploadThread::UploadReport(
     }
   }
   http_transport->SetURL(url);
+#if defined(STARBOARD)
+  http_transport->SetRootCACertificatesDirectoryPath(ca_certificates_path_);
+#endif  // STARBOARD
 
   if (!http_transport->ExecuteSynchronously(response_body)) {
     return UploadResult::kRetry;

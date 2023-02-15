@@ -32,6 +32,9 @@ std::vector<std::string> BuildHandlerArgvStrings(
     const base::FilePath& database,
     const base::FilePath& metrics_dir,
     const std::string& url,
+#if defined(STARBOARD)
+    const std::string& ca_certificates_path,
+#endif  // STARBOARD
     const std::map<std::string, std::string>& annotations,
     const std::vector<std::string>& arguments) {
   std::vector<std::string> argv_strings(1, handler.value());
@@ -52,6 +55,14 @@ std::vector<std::string> BuildHandlerArgvStrings(
   if (!url.empty()) {
     argv_strings.push_back(FormatArgumentString("url", url));
   }
+
+
+#if defined(STARBOARD)
+  if (!ca_certificates_path.empty()) {
+    argv_strings.push_back(FormatArgumentString("ca-certificates-path",
+                                                ca_certificates_path));
+  }
+#endif  // STARBOARD
 
   for (const auto& kv : annotations) {
     argv_strings.push_back(

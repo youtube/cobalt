@@ -52,8 +52,16 @@ void HTTPTransport::SetTimeout(double timeout) {
   timeout_ = timeout;
 }
 
+#if defined(STARBOARD)
+void HTTPTransport::SetRootCACertificatesDirectoryPath(
+    const std::string& path) {
+  root_ca_certificates_directory_path_ = path;
+}
+#else
 void HTTPTransport::SetRootCACertificatePath(const base::FilePath& cert) {
   root_ca_certificate_path_ = cert;
 }
+#endif  // STARBOARD
+
 
 }  // namespace crashpad

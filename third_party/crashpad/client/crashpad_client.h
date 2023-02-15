@@ -97,6 +97,12 @@ class CrashpadClient {
   //!     path as its `--metrics-dir` argument.
   //! \param[in] url The URL of an upload server. The handler will be started
   //!     with this URL as its `--url` argument.
+#if defined(STARBOARD)
+  //! \param[in] ca_certificates_path The absolute path to a directory
+  //!     containing trusted Certificate Authority (CA) root certificates. The
+  //!     handler will be started with this path as its `--ca-certificates-path`
+  //!     argument.
+#endif  // STARBOARD
   //! \param[in] annotations Process annotations to set in each crash report.
   //!     The handler will be started with an `--annotation` argument for each
   //!     element in this map.
@@ -118,6 +124,9 @@ class CrashpadClient {
                     const base::FilePath& database,
                     const base::FilePath& metrics_dir,
                     const std::string& url,
+#if defined(STARBOARD)
+                    const std::string& ca_certificates_path,
+#endif  // STARBOARD
                     const std::map<std::string, std::string>& annotations,
                     const std::vector<std::string>& arguments,
                     bool restartable,
@@ -330,6 +339,12 @@ class CrashpadClient {
   //!     path as its `--metrics-dir` argument.
   //! \param[in] url The URL of an upload server. The handler will be started
   //!     with this URL as its `--url` argument.
+#if defined(STARBOARD)
+  //! \param[in] ca_certificates_path The absolute path to a directory
+  //!     containing trusted Certificate Authority (CA) root certificates. The
+  //!     handler will be started with this path as its `--ca-certificates-path`
+  //!     argument.
+#endif  // STARBOARD
   //! \param[in] annotations Process annotations to set in each crash report.
   //!     The handler will be started with an `--annotation` argument for each
   //!     element in this map.
@@ -344,9 +359,13 @@ class CrashpadClient {
       const base::FilePath& database,
       const base::FilePath& metrics_dir,
       const std::string& url,
+  #if defined(STARBOARD)
+      const std::string& ca_certificates_path,
+  #endif  // STARBOARD
       const std::map<std::string, std::string>& annotations,
       const std::vector<std::string>& arguments);
 
+#if !defined(STARBOARD)
   //! \brief Starts a handler process with an initial client.
   //!
   //! This method allows a process to launch the handler process on behalf of
@@ -379,6 +398,7 @@ class CrashpadClient {
       const std::map<std::string, std::string>& annotations,
       const std::vector<std::string>& arguments,
       int socket);
+#endif  // !defined(STARBOARD)
 
 #if defined(STARBOARD)
   //! \brief Sends mapping info to the handler

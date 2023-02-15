@@ -34,6 +34,9 @@ std::vector<std::string> BuildHandlerArgvStrings(
     const base::FilePath& database,
     const base::FilePath& metrics_dir,
     const std::string& url,
+#if defined(STARBOARD)
+    const std::string& ca_certificates_path,
+#endif  // STARBOARD
     const std::map<std::string, std::string>& annotations,
     const std::vector<std::string>& arguments);
 

@@ -218,6 +218,7 @@ struct Options {
 #if defined(STARBOARD)
   VMAddress evergreen_information_address;
   bool handler_started_at_crash = false;
+  std::string ca_certificates_path;
 #endif  // defined(STARBOARD)
 #if defined(OS_ANDROID)
   bool write_minidump_to_log;
@@ -503,6 +504,9 @@ void MonitorSelf(const Options& options) {
                                     options.database,
                                     base::FilePath(),
                                     options.url,
+#if defined(STARBOARD)
+                                    options.ca_certificates_path,
+#endif  // STARBOARD
                                     options.annotations,
                                     extra_arguments,
                                     true,
@@ -595,6 +599,7 @@ int HandlerMain(int argc,
 #if defined(STARBOARD)
     kOptionEvergreenInformaton,
     kOptionHandlerStartedAtCrash,
+    kOptionCACertificatesPath,
 #endif  // defined(STARBOARD)
 #endif
     kOptionURL,
@@ -685,6 +690,10 @@ int HandlerMain(int argc,
      no_argument,
      nullptr,
      kOptionHandlerStartedAtCrash},
+    {"ca-certificates-path",
+     required_argument,
+     nullptr,
+     kOptionCACertificatesPath},
 #endif
     {"url", required_argument, nullptr, kOptionURL},
 #if defined(OS_CHROMEOS)
@@ -863,6 +872,10 @@ int HandlerMain(int argc,
         options.handler_started_at_crash = true;
         break;
       }
+      case kOptionCACertificatesPath: {
+        options.ca_certificates_path = optarg;
+        break;
+      }
 #endif   // defined(STARBOARD)
 #endif  // OS_LINUX || OS_ANDROID
       case kOptionURL: {
@@ -1019,7 +1032,12 @@ int HandlerMain(int argc,
     upload_thread_options.watch_pending_reports = options.periodic_tasks;
 
     upload_thread.Reset(new CrashReportUploadThread(
-        database.get(), options.url, upload_thread_options));
+        database.get(),
+        options.url,
+#if defined(STARBOARD)
+        options.ca_certificates_path,
+#endif  // STARBOARD
+        upload_thread_options));
     upload_thread.Get()->Start();
   }
 
