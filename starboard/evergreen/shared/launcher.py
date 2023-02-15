@@ -247,7 +247,6 @@ class Launcher(abstract_launcher.AbstractLauncher):
                                        _CRASHPAD_TARGET)
     crashpad_target_dst = os.path.join(staging_directory_loader,
                                        _CRASHPAD_TARGET)
-    os.makedirs(crashpad_target_dst)
     shutil.copy(crashpad_target_src, crashpad_target_dst)
 
     # Copy target content and binary

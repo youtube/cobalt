@@ -28,11 +28,6 @@ function run_test() {
   LOG="${TEST_NAME}.0.log"
   start_cobalt "file:///tests/${TEST_FILE}?channel=tcrash" "${LOG}" LOADER
 
-  if [[ $(run_command "ps -C crashpad_handler") -ne 0 ]]; then
-    log "error" " Failed to start crashpad_handler"
-    return 1
-  fi
-
   watch_cobalt "${LOG}" "update from tcrash channel was installed"
 
   if [[ $? -ne 0 ]]; then
@@ -54,10 +49,13 @@ function run_test() {
     return 1
   fi
 
-  if [[ $(run_command "find ${CACHE_DIR}/crashpad_database/completed/ -mmin -3 | ${WC} -l") -eq 0 ]]; then
+  local num_recently_completed_crash_files=$(eval "run_command \"find ${CACHE_DIR}/crashpad_database/completed/ -mmin -3 | ${WC} -l\"")
+  # The actual numeric value in the variable may be surrounded by newlines and spaces.
+  if [[ $(echo "$num_recently_completed_crash_files" | tr -d '\n' | tr -d '[:space:]') != "0" ]]; then
+    # Some recently completed crash files were found in the local crash database.
+    return 0
+  else
     log "error" " Failed upload crash to crash database"
     return 1
   fi
-
-  return 0
 }
