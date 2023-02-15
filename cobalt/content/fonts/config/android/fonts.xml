@@ -170,9 +170,7 @@
     -->
     <family fallback_priority="0" name="Noto Naskh Arabic UI">
         <font weight="400" style="normal">NotoNaskhArabicUI-Regular.ttf</font>
-        <font weight="400" style="normal">NotoNaskhUI-Regular.ttf</font>
         <font weight="700" style="normal">NotoNaskhArabicUI-Bold.ttf</font>
-        <font weight="700" style="normal">NotoNaskhUI-Bold.ttf</font>
     </family>
     <family>
         <font weight="400" style="normal">NotoSansEthiopic-Regular.ttf</font>
@@ -296,6 +294,7 @@
     </family>
     <family>
         <font weight="400" style="normal">NotoSansAdlam-Regular.ttf</font>
+        <font weight="400" style="normal" tag_wght="400" font_name="Noto Sans Adlam" postscript_name="NotoSansAdlam-Regular">NotoSansAdlam-VF.ttf</font>
     </family>
     <family>
         <font weight="400" style="normal">NotoSansAvestan-Regular.ttf</font>
@@ -483,17 +482,10 @@
         <font weight="400" style="normal">NotoSansVai-Regular.ttf</font>
     </family>
     <family>
-        <font weight="400" style="normal">Lohit-Odia.ttf</font>
-    </family>
-    <family>
         <font weight="400" style="normal">NotoSansSymbols-Regular-Subsetted.ttf</font>
     </family>
     <family lang="zh-Hans">
         <font weight="400" style="normal" index="2">NotoSansCJK-Regular.ttc</font>
-    </family>
-    <family lang="zh-Hans">
-        <font weight="400" style="normal">NotoSansSC-Regular.otf</font>
-        <font weight="400" style="normal">NotoSansHans-Regular.otf</font>
     </family>
     <family lang="zh-Hant">
         <font weight="400" style="normal" index="3">NotoSansCJK-Regular.ttc</font>
@@ -511,12 +503,6 @@
     <family lang="ko">
         <font weight="400" style="normal" index="1">NotoSansCJK-Regular.ttc</font>
     </family>
-    <family lang="ko">
-        <font weight="400" style="normal">NotoSansKR-Regular.otf</font>
-    </family>
-    <family>
-        <font weight="400" style="normal">NanumGothic.ttf</font>
-    </family>
     <family>
         <font weight="400" style="normal" disable_synthetic_bolding="true">NotoColorEmoji.ttf</font>
     </family>
@@ -530,9 +516,6 @@
     -->
     <family>
         <font weight="400" style="normal" disable_synthetic_bolding="true">DroidSansFallback.ttf</font>
-    </family>
-    <family lang="ja">
-        <font weight="400" style="normal">MTLmr3m.ttf</font>
     </family>
     <!--
         Tai Le, Yi, Mongolian, and Phags-pa are intentionally kept last, to make sure they don't
@@ -549,50 +532,5 @@
     </family>
     <family>
         <font weight="400" style="normal">NotoSansPhagsPa-Regular.ttf</font>
-    </family>
-
-
-    <!--
-        Include font files on android version R under /system/fonts directory.
-        The program will find the first font file that contains the glyph for the character,
-        when no font file has the glyph, it will show broken string, to avoid this, include fonts
-        files on the android OS.
-    -->
-    <family>
-            <font weight="400" style="normal" tag_wght="400" font_name="Noto Sans Adlam" postscript_name="NotoSansAdlam-Regular">NotoSansAdlam-VF.ttf</font>
-            <font weight="700" style="normal" tag_wght="700" font_name="Noto Sans Adlam Bold" postscript_name="NotoSansAdlam-Bold">NotoSansAdlam-VF.ttf</font>
-    </family>
-    <family>
-            <font weight="400" style="normal" tag_wght="400" font_name="Noto Sans Georgian" postscript_name="NotoSansGeorgian-Regular">NotoSansGeorgian-VF.ttf</font>
-            <font weight="700" style="normal" tag_wght="700" font_name="Noto Sans Georgian Bold" postscript_name="NotoSansGeorgian-Bold">NotoSansGeorgian-VF.ttf</font>
-    </family>
-    <family>
-            <font weight="400" style="normal">NotoSansOsage-Regular.ttf</font>
-    </family>
-    <family>
-            <font weight="400" style="normal">RobotoCondensed-Medium.ttf</font>
-    </family>
-    <family>
-            <font weight="400" style="normal">RobotoCondensed-MediumItalic.ttf</font>
-    </family>
-
-    <!--
-        Include font files on android version S under /system/fonts directory.
-    -->
-    <family lang="zh-Hans">
-        <font weight="400" style="normal" index="2">NotoSansCJKjp-Regular.otc</font>
-        <font weight="400" style="normal" index="2" fallbackFor="serif">NotoSerifCJKjp-Regular.otc</font>
-    </family>
-    <family lang="zh-Hant,zh-Bopo">
-        <font weight="400" style="normal" index="3">NotoSansCJKjp-Regular.otc</font>
-        <font weight="400" style="normal" index="3" fallbackFor="serif">NotoSerifCJKjp-Regular.otc</font>
-    </family>
-    <family lang="ja">
-        <font weight="400" style="normal" index="0">NotoSansCJKjp-Regular.otc</font>
-        <font weight="400" style="normal" index="0" fallbackFor="serif">NotoSerifCJKjp-Regular.otc</font>
-    </family>
-    <family lang="ko">
-        <font weight="400" style="normal" index="1">NotoSansCJKjp-Regular.otc</font>
-        <font weight="400" style="normal" index="1" fallbackFor="serif">NotoSerifCJKjp-Regular.otc</font>
     </family>
 </familyset>
