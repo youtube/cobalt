@@ -48,7 +48,7 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@755da8c3cf115ac066823e79a1e1788f8940201b # v3.2.0
       with:
-        ref: $RELEASE_BRANCH
+        ref: ${{ env.RELEASE_BRANCH }}
     - name: Get some helpful info for formatting
       id: cherrypick
       run: |
@@ -62,11 +62,11 @@ jobs:
     - name: Create Pull Request with changes
       uses: peter-evans/create-pull-request@2b011faafdcbc9ceb11414d64d0573f37c774b04 # v4.2.3
       with:
-        title: '$RELEASE_BRANCH cherry-pick: ${{ steps.cherrypick.outputs.SHORTSHA }} "${{ steps.cherrypick.outputs.TITLE }}"'
+        title: '${{ env.RELEASE_BRANCH }} cherry-pick: ${{ steps.cherrypick.outputs.SHORTSHA }} "${{ steps.cherrypick.outputs.TITLE }}"'
         committer: GitHub Release Automation <github@google.com>
         token: ${{ secrets.GITHUB_TOKEN }}
-        base: $RELEASE_BRANCH
-        branch: $RELEASE_BRANCH-${{ steps.cherrypick.outputs.SHORTSHA }}
+        base: ${{ env.RELEASE_BRANCH }}
+        branch: ${{ env.RELEASE_BRANCH }}-${{ steps.cherrypick.outputs.SHORTSHA }}
         reviewers: ${{ steps.cherrypick.outputs.REVIEWER }}
         body: |
           Refer to the original commit: https://github.com/$REPOSITORY/commit/$COMMIT_HASH
