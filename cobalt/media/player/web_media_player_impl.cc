@@ -17,6 +17,7 @@
 #include "base/metrics/histogram.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/stringprintf.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/instance_counter.h"
@@ -641,9 +642,14 @@ void WebMediaPlayerImpl::OnPipelineError(::media::PipelineStatus error,
   if (ready_state_ == WebMediaPlayer::kReadyStateHaveNothing) {
     // Any error that occurs before reaching ReadyStateHaveMetadata should
     // be considered a format error.
-    SetNetworkError(WebMediaPlayer::kNetworkStateFormatError,
-                    message.empty() ? "Ready state have nothing."
-                                    : "Ready state have nothing: " + message);
+    SetNetworkError(
+        WebMediaPlayer::kNetworkStateFormatError,
+        message.empty()
+            ? base::StringPrintf("Ready state have nothing. Error: (%d)",
+                                 static_cast<int>(error))
+            : base::StringPrintf(
+                  "Ready state have nothing: Error: (%d), Message: %s",
+                  static_cast<int>(error), message.c_str()));
     return;
   }
 
