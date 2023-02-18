@@ -54,12 +54,14 @@ bool SbMemorySetReporter(SbMemoryReporter* reporter) {
   // These are straight forward error messages. We use the build settings to
   // predict whether the MemoryReporter is likely to fail.
   if (!StarboardAllowsMemoryTracking()) {
-    SbLogRaw("\nMemory Reporting is disabled because this build does "
-             "not support it. Try a QA, devel or debug build.\n");
+    SbLogRaw(
+        "\nMemory Reporting is disabled because this build does "
+        "not support it. Try a QA, devel or debug build.\n");
     return false;
   } else if (LeakTraceEnabled()) {
-    SbLogRaw("\nMemory Reporting might be disabled because leak trace "
-             "(from address sanitizer?) is active.\n");
+    SbLogRaw(
+        "\nMemory Reporting might be disabled because leak trace "
+        "(from address sanitizer?) is active.\n");
     return false;
   }
   return true;
@@ -83,6 +85,11 @@ void* SbMemoryAllocateAligned(size_t alignment, size_t size) {
 }
 
 void* SbMemoryReallocate(void* memory, size_t size) {
+#if !defined(COBALT_BUILD_TYPE_GOLD)
+  SB_CHECK((size != 0) || (memory == nullptr))
+      << "Calling SbMemoryReallocate with a non-null pointer and size 0 is not "
+         "guaranteed to release the memory, and therefore may leak memory.";
+#endif
   SbReportDeallocation(memory);
   void* new_memory = SbMemoryReallocateImpl(memory, size);
   SbReportAllocation(new_memory, size);
@@ -136,10 +143,7 @@ void SbMemoryReporterReportMappedMemory(const void* memory, size_t size) {
   if (SB_LIKELY(!s_memory_reporter)) {
     return;
   }
-  s_memory_reporter->on_mapmem_cb(
-      s_memory_reporter->context,
-      memory,
-      size);
+  s_memory_reporter->on_mapmem_cb(s_memory_reporter->context, memory, size);
 #endif  // STARBOARD_ALLOWS_MEMORY_TRACKING
 }
 
@@ -150,10 +154,7 @@ void SbMemoryReporterReportUnmappedMemory(const void* memory, size_t size) {
   if (SB_LIKELY(!s_memory_reporter)) {
     return;
   }
-  s_memory_reporter->on_unmapmem_cb(
-      s_memory_reporter->context,
-      memory,
-      size);
+  s_memory_reporter->on_unmapmem_cb(s_memory_reporter->context, memory, size);
 #endif  // STARBOARD_ALLOWS_MEMORY_TRACKING
 }
 
@@ -166,10 +167,7 @@ inline void SbReportAllocation(const void* memory, size_t size) {
   if (SB_LIKELY(!s_memory_reporter)) {
     return;
   }
-  s_memory_reporter->on_alloc_cb(
-      s_memory_reporter->context,
-      memory,
-      size);
+  s_memory_reporter->on_alloc_cb(s_memory_reporter->context, memory, size);
 #endif  // STARBOARD_ALLOWS_MEMORY_TRACKING
 }
 
@@ -180,9 +178,7 @@ inline void SbReportDeallocation(const void* memory) {
   if (SB_LIKELY(!s_memory_reporter)) {
     return;
   }
-  s_memory_reporter->on_dealloc_cb(
-      s_memory_reporter->context,
-      memory);
+  s_memory_reporter->on_dealloc_cb(s_memory_reporter->context, memory);
 #endif  // STARBOARD_ALLOWS_MEMORY_TRACKING
 }
 
