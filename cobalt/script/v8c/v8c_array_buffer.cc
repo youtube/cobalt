@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <memory>
-
 #include "cobalt/script/v8c/v8c_array_buffer.h"
+
+#include <memory>
 
 #include "cobalt/base/polymorphic_downcast.h"
 #include "starboard/memory.h"
@@ -39,7 +39,15 @@ void PreallocatedArrayBufferData::Resize(size_t new_byte_length) {
   if (byte_length_ == new_byte_length) {
     return;
   }
-  data_ = static_cast<uint8_t*>(SbMemoryReallocate(data_, new_byte_length));
+  // Calling reallocate with size 0 and a non-null pointer causes memory leaks
+  // on many platforms, since it may return nullptr while also not deallocating
+  // the previously allocated memory.
+  if (data_ != nullptr && new_byte_length == 0) {
+    SbMemoryDeallocate(data_);
+    data_ = nullptr;
+  } else {
+    data_ = static_cast<uint8_t*>(SbMemoryReallocate(data_, new_byte_length));
+  }
   byte_length_ = new_byte_length;
 }
 
