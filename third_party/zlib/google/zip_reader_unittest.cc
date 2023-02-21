@@ -117,6 +117,7 @@ class MockWriterDelegate : public zip::WriterDelegate {
   MOCK_METHOD0(PrepareOutput, bool());
   MOCK_METHOD2(WriteBytes, bool(const char*, int));
   MOCK_METHOD1(SetTimeModified, void(const base::Time&));
+  MOCK_METHOD0(Flush, bool());
 };
 
 bool ExtractCurrentEntryToFilePath(zip::ZipReader* reader,
@@ -623,6 +624,8 @@ TEST_F(ZipReaderTest, ExtractCurrentEntryWriteBytesFailure) {
 
   EXPECT_CALL(mock_writer, PrepareOutput())
       .WillOnce(Return(true));
+  EXPECT_CALL(mock_writer, Flush())
+      .WillOnce(Return(true));
   EXPECT_CALL(mock_writer, WriteBytes(_, _))
       .WillOnce(Return(false));
 
@@ -635,6 +638,29 @@ TEST_F(ZipReaderTest, ExtractCurrentEntryWriteBytesFailure) {
       &mock_writer, std::numeric_limits<uint64_t>::max()));
 }
 
+#if defined(STARBOARD)
+// Test that when WriterDelegate::Flush returns false the extraction fails.
+TEST_F(ZipReaderTest, ExtractCurrentEntryFlushFailure) {
+  testing::StrictMock<MockWriterDelegate> mock_writer;
+
+  EXPECT_CALL(mock_writer, PrepareOutput())
+      .WillOnce(Return(true));
+  EXPECT_CALL(mock_writer, WriteBytes(_, _))
+      .WillRepeatedly(Return(true));
+  EXPECT_CALL(mock_writer, SetTimeModified(_));
+  EXPECT_CALL(mock_writer, Flush())
+      .WillOnce(Return(false));
+
+  base::FilePath target_path(FILE_PATH_LITERAL("foo/bar/quux.txt"));
+  ZipReader reader;
+
+  ASSERT_TRUE(reader.Open(test_zip_file_));
+  ASSERT_TRUE(LocateAndOpenEntry(&reader, target_path));
+  ASSERT_FALSE(reader.ExtractCurrentEntry(
+      &mock_writer, std::numeric_limits<uint64_t>::max()));
+}
+#endif
+
 // Test that extraction succeeds when the writer delegate reports all is well.
 TEST_F(ZipReaderTest, ExtractCurrentEntrySuccess) {
   testing::StrictMock<MockWriterDelegate> mock_writer;
@@ -644,6 +670,8 @@ TEST_F(ZipReaderTest, ExtractCurrentEntrySuccess) {
   EXPECT_CALL(mock_writer, WriteBytes(_, _))
       .WillRepeatedly(Return(true));
   EXPECT_CALL(mock_writer, SetTimeModified(_));
+
+  EXPECT_CALL(mock_writer, Flush()).WillOnce(Return(true));
 
   base::FilePath target_path(FILE_PATH_LITERAL("foo/bar/quux.txt"));
   ZipReader reader;

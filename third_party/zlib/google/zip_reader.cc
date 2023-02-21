@@ -50,6 +50,10 @@ class StringWriterDelegate : public WriterDelegate {
 
   void SetTimeModified(const base::Time& time) override;
 
+#if defined(STARBOARD)
+  bool Flush() override;
+#endif
+
  private:
   size_t max_read_bytes_;
   std::string* output_;
@@ -76,6 +80,13 @@ bool StringWriterDelegate::WriteBytes(const char* data, int num_bytes) {
   output_->append(data, num_bytes);
   return true;
 }
+
+#if defined(STARBOARD)
+bool StringWriterDelegate::Flush() {
+  // Do nothing.
+  return true;
+}
+#endif
 
 void StringWriterDelegate::SetTimeModified(const base::Time& time) {
   // Do nothing.
@@ -289,6 +300,12 @@ bool ZipReader::ExtractCurrentEntry(WriterDelegate* delegate,
     delegate->SetTimeModified(current_entry_info()->last_modified());
   }
 
+#if defined(STARBOARD)
+  if (!delegate->Flush()) {
+    return false;
+  }
+#endif
+
   return entire_file_extracted;
 }
 
@@ -478,14 +495,17 @@ void FileWriterDelegate::SetTimeModified(const base::Time& time) {
   file_->SetTimes(base::Time::Now(), time);
 }
 
+#if defined(STARBOARD)
+bool FileWriterDelegate::Flush() {
+  return file_->Flush();
+}
+#endif
 // FilePathWriterDelegate ------------------------------------------------------
 
 FilePathWriterDelegate::FilePathWriterDelegate(
     const base::FilePath& output_file_path)
     : output_file_path_(output_file_path) {}
-
 FilePathWriterDelegate::~FilePathWriterDelegate() {}
-
 bool FilePathWriterDelegate::PrepareOutput() {
   // We can't rely on parent directory entries being specified in the
   // zip, so we make sure they are created.
@@ -500,12 +520,19 @@ bool FilePathWriterDelegate::PrepareOutput() {
 bool FilePathWriterDelegate::WriteBytes(const char* data, int num_bytes) {
   return num_bytes == file_.WriteAtCurrentPos(data, num_bytes);
 }
+#if defined(STARBOARD)
+bool FilePathWriterDelegate::Flush() {
+  return file_.Flush();
+}
+#endif
 
 void FilePathWriterDelegate::SetTimeModified(const base::Time& time) {
-  file_.Close();
-  // TODO: use a workaround for base::TouchFile, because Starboard has not
-  // enabled the functions to update file modified/access time.
-  // base::TouchFile(output_file_path_, base::Time::Now(), time);
+#if defined(STARBOARD)
+  // Starboard doesn't support setting file access or modification times.
+#else
+  base::TouchFile(output_file_path_, base::Time::Now(), time);
+#endif
+
 }
 
 }  // namespace zip
