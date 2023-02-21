@@ -33,6 +33,13 @@ Moved attributes of `SbMediaAudioSampleInfo` and `SbMedidaVideoSampleInfo` that
 specific to the stream (i.e. don't change per access unit) to
 `SbMediaAudioStreamInfo` and `SbMediaVideoStreamInfo`.
 
+### Add duration discard support to SbMediaAudioSampleInfo
+This allows to discard specific durations from the front and the back of any
+audio access units to improve the accuracy of audio playback.  For example, in
+an AAC stream where each access unit contains 1024 frames, this allows to
+discard the last 300 frames of the 1024 frames when the duration of the stream
+isn't aligned to 1024 frames.
+
 ### Renamed SbPlayerWriteSample2() to SbPlayerWriteSamples()
 To better reflect the fact that it may write multiple samples in one call.
 

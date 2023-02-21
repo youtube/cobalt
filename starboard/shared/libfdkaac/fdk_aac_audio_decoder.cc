@@ -61,7 +61,7 @@ void FdkAacAudioDecoder::Decode(const InputBuffers& input_buffers,
     return;
   }
 
-  timestamp_queue_.push(input_buffer->timestamp());
+  decoding_input_buffers_.push(input_buffer);
   Schedule(consumed_cb);
   ReadFromFdkDecoder(kDecodeModeDoNotFlush);
 }
@@ -92,7 +92,7 @@ void FdkAacAudioDecoder::Reset() {
   decoded_audios_ = std::queue<scoped_refptr<DecodedAudio>>();  // clear
   partially_decoded_audio_ = nullptr;
   partially_decoded_audio_data_in_bytes_ = 0;
-  timestamp_queue_ = std::queue<SbTime>();  // clear
+  decoding_input_buffers_ = decltype(decoding_input_buffers_)();  // clear
   // Clean up stream information and deduced results.
   has_stream_info_ = false;
   num_channels_ = 0;
@@ -107,7 +107,7 @@ void FdkAacAudioDecoder::WriteEndOfStream() {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb_);
 
-  while (!timestamp_queue_.empty()) {
+  while (!decoding_input_buffers_.empty()) {
     if (!ReadFromFdkDecoder(kDecodeModeFlush)) {
       return;
     }
@@ -212,32 +212,40 @@ void FdkAacAudioDecoder::TryToOutputDecodedAudio(const uint8_t* data,
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(has_stream_info_);
 
-  while (size_in_bytes > 0 && !timestamp_queue_.empty()) {
+  while (size_in_bytes > 0 && !decoding_input_buffers_.empty()) {
     if (!partially_decoded_audio_) {
       SB_DCHECK(partially_decoded_audio_data_in_bytes_ == 0);
       partially_decoded_audio_ = new DecodedAudio(
           num_channels_, kSbMediaAudioSampleTypeInt16Deprecated,
-          kSbMediaAudioFrameStorageTypeInterleaved, timestamp_queue_.front(),
+          kSbMediaAudioFrameStorageTypeInterleaved,
+          decoding_input_buffers_.front()->timestamp(),
           decoded_audio_size_in_bytes_);
     }
-    int freespace = static_cast<int>(partially_decoded_audio_->size()) -
-                    partially_decoded_audio_data_in_bytes_;
+    int freespace =
+        static_cast<int>(partially_decoded_audio_->size_in_bytes()) -
+        partially_decoded_audio_data_in_bytes_;
     if (size_in_bytes >= freespace) {
-      memcpy(partially_decoded_audio_->buffer() +
+      memcpy(partially_decoded_audio_->data() +
                  partially_decoded_audio_data_in_bytes_,
              data, freespace);
       data += freespace;
       size_in_bytes -= freespace;
-      SB_DCHECK(timestamp_queue_.front() ==
+      SB_DCHECK(decoding_input_buffers_.front()->timestamp() ==
                 partially_decoded_audio_->timestamp());
-      timestamp_queue_.pop();
+
+      const auto& sample_info =
+          decoding_input_buffers_.front()->audio_sample_info();
+      partially_decoded_audio_->AdjustForDiscardedDurations(
+          samples_per_second_, sample_info.discarded_duration_from_front,
+          sample_info.discarded_duration_from_back);
+      decoding_input_buffers_.pop();
       decoded_audios_.push(partially_decoded_audio_);
       Schedule(output_cb_);
       partially_decoded_audio_ = nullptr;
       partially_decoded_audio_data_in_bytes_ = 0;
       continue;
     }
-    memcpy(partially_decoded_audio_->buffer() +
+    memcpy(partially_decoded_audio_->data() +
                partially_decoded_audio_data_in_bytes_,
            data, size_in_bytes);
     partially_decoded_audio_data_in_bytes_ += size_in_bytes;

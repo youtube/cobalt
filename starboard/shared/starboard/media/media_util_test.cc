@@ -45,6 +45,17 @@ TEST(AudioStreamInfoTest, DefaultCtor) {
   EXPECT_TRUE(audio_stream_info.audio_specific_config.empty());
 }
 
+TEST(AudioStreamInfoTest, CodecNone) {
+  SbMediaAudioStreamInfo sb_media_audio_stream_info = {kSbMediaAudioCodecNone};
+
+  AudioStreamInfo audio_stream_info;
+  audio_stream_info = sb_media_audio_stream_info;
+  EXPECT_EQ(audio_stream_info.codec, kSbMediaAudioCodecNone);
+
+  audio_stream_info.ConvertTo(&sb_media_audio_stream_info);
+  EXPECT_EQ(sb_media_audio_stream_info.codec, kSbMediaAudioCodecNone);
+}
+
 TEST(AudioStreamInfoTest, SbMediaAudioStreamInfo) {
   SbMediaAudioStreamInfo original = {};
 
@@ -99,6 +110,17 @@ TEST(VideoStreamInfoTest, DefaultCtor) {
   // however we still want to make sure that the following members are empty.
   EXPECT_TRUE(video_stream_info.mime.empty());
   EXPECT_TRUE(video_stream_info.max_video_capabilities.empty());
+}
+
+TEST(VideoStreamInfoTest, CodecNone) {
+  SbMediaVideoStreamInfo sb_media_video_stream_info = {kSbMediaVideoCodecNone};
+
+  VideoStreamInfo video_stream_info;
+  video_stream_info = sb_media_video_stream_info;
+  EXPECT_EQ(video_stream_info.codec, kSbMediaVideoCodecNone);
+
+  video_stream_info.ConvertTo(&sb_media_video_stream_info);
+  EXPECT_EQ(sb_media_video_stream_info.codec, kSbMediaVideoCodecNone);
 }
 
 TEST(VideoStreamInfoTest, SbMediaVideoStreamInfo) {
@@ -273,6 +295,20 @@ TEST(VideoSampleInfoTest, CobaltExtensionEnhancedAudioMediaVideoSampleInfo) {
             video_sample_info.stream_info.frame_height);
   EXPECT_EQ(stream_info.color_metadata,
             video_sample_info.stream_info.color_metadata);
+}
+
+TEST(MediaUtilTest, AudioDurationToFrames) {
+  EXPECT_EQ(AudioDurationToFrames(0, 48000), 0);
+  EXPECT_EQ(AudioDurationToFrames(kSbTimeSecond / 2, 48000), 48000 / 2);
+  EXPECT_EQ(AudioDurationToFrames(kSbTimeSecond, 48000), 48000);
+  EXPECT_EQ(AudioDurationToFrames(kSbTimeSecond * 2, 48000), 48000 * 2);
+}
+
+TEST(MediaUtilTest, AudioFramesToDuration) {
+  EXPECT_EQ(AudioFramesToDuration(0, 48000), 0);
+  EXPECT_EQ(AudioFramesToDuration(48000 / 2, 48000), kSbTimeSecond / 2);
+  EXPECT_EQ(AudioFramesToDuration(48000, 48000), kSbTimeSecond);
+  EXPECT_EQ(AudioFramesToDuration(48000 * 2, 48000), kSbTimeSecond * 2);
 }
 
 }  // namespace

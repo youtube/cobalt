@@ -162,17 +162,23 @@ void AudioDecoderImpl<FFMPEG>::Decode(const InputBuffers& input_buffers,
         codec_context_->channels * av_frame_->nb_samples *
             starboard::media::GetBytesPerSample(GetSampleType()));
     if (GetStorageType() == kSbMediaAudioFrameStorageTypeInterleaved) {
-      memcpy(decoded_audio->buffer(), *av_frame_->extended_data,
-             decoded_audio->size());
+      memcpy(decoded_audio->data(), *av_frame_->extended_data,
+             decoded_audio->size_in_bytes());
     } else {
       SB_DCHECK(GetStorageType() == kSbMediaAudioFrameStorageTypePlanar);
       const int per_channel_size_in_bytes =
-          decoded_audio->size() / decoded_audio->channels();
+          decoded_audio->size_in_bytes() / decoded_audio->channels();
       for (int i = 0; i < decoded_audio->channels(); ++i) {
-        memcpy(decoded_audio->buffer() + per_channel_size_in_bytes * i,
+        memcpy(decoded_audio->data() + per_channel_size_in_bytes * i,
                av_frame_->extended_data[i], per_channel_size_in_bytes);
       }
+      decoded_audio = decoded_audio->SwitchFormatTo(
+          GetSampleType(), kSbMediaAudioFrameStorageTypeInterleaved);
     }
+    decoded_audio->AdjustForDiscardedDurations(
+        audio_stream_info_.samples_per_second,
+        input_buffer->audio_sample_info().discarded_duration_from_front,
+        input_buffer->audio_sample_info().discarded_duration_from_back);
     decoded_audios_.push(decoded_audio);
     Schedule(output_cb_);
   } else {

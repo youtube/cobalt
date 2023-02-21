@@ -14,6 +14,7 @@
 
 #include "starboard/shared/starboard/media/media_util.h"
 
+#include <algorithm>
 #include <cctype>
 
 #include "starboard/character.h"
@@ -37,7 +38,7 @@ const int64_t kDefaultAudioChannels = 2;
 template <typename StreamInfo>
 void Assign(const StreamInfo& source, AudioStreamInfo* dest) {
   SB_DCHECK(dest);
-  SB_DCHECK(source.mime);
+
   if (source.audio_specific_config_size > 0) {
     SB_DCHECK(source.audio_specific_config);
   }
@@ -49,6 +50,8 @@ void Assign(const StreamInfo& source, AudioStreamInfo* dest) {
     dest->audio_specific_config.clear();
     return;
   }
+
+  SB_DCHECK(source.mime);
 
   dest->mime = source.mime;
   dest->number_of_channels = source.number_of_channels;
@@ -63,8 +66,6 @@ void Assign(const StreamInfo& source, AudioStreamInfo* dest) {
 template <typename StreamInfo>
 void Assign(const StreamInfo& source, VideoStreamInfo* dest) {
   SB_DCHECK(dest);
-  SB_DCHECK(source.mime);
-  SB_DCHECK(source.max_video_capabilities);
 
   dest->codec = source.codec;
 
@@ -73,6 +74,9 @@ void Assign(const StreamInfo& source, VideoStreamInfo* dest) {
     dest->max_video_capabilities.clear();
     return;
   }
+
+  SB_DCHECK(source.mime);
+  SB_DCHECK(source.max_video_capabilities);
 
   dest->mime = source.mime;
   dest->max_video_capabilities = source.max_video_capabilities;
@@ -168,6 +172,8 @@ AudioSampleInfo& AudioSampleInfo::operator=(
     const SbMediaAudioSampleInfo& that) {
 #if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
   stream_info = that.stream_info;
+  discarded_duration_from_front = that.discarded_duration_from_front;
+  discarded_duration_from_back = that.discarded_duration_from_back;
 #else   // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
   stream_info = that;
 #endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
@@ -178,6 +184,8 @@ AudioSampleInfo& AudioSampleInfo::operator=(
 AudioSampleInfo& AudioSampleInfo::operator=(
     const CobaltExtensionEnhancedAudioMediaAudioSampleInfo& that) {
   stream_info = that.stream_info;
+  discarded_duration_from_front = that.discarded_duration_from_front;
+  discarded_duration_from_back = that.discarded_duration_from_back;
   return *this;
 }
 
@@ -188,6 +196,10 @@ void AudioSampleInfo::ConvertTo(
   *audio_sample_info = {};
 #if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
   stream_info.ConvertTo(&audio_sample_info->stream_info);
+  audio_sample_info->discarded_duration_from_front =
+      discarded_duration_from_front;
+  audio_sample_info->discarded_duration_from_back =
+      discarded_duration_from_back;
 #else   // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
   stream_info.ConvertTo(audio_sample_info);
 #endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
@@ -196,8 +208,13 @@ void AudioSampleInfo::ConvertTo(
 void AudioSampleInfo::ConvertTo(
     CobaltExtensionEnhancedAudioMediaAudioSampleInfo* audio_sample_info) const {
   SB_DCHECK(audio_sample_info);
+
   *audio_sample_info = {};
   stream_info.ConvertTo(&audio_sample_info->stream_info);
+  audio_sample_info->discarded_duration_from_front =
+      discarded_duration_from_front;
+  audio_sample_info->discarded_duration_from_back =
+      discarded_duration_from_back;
 }
 
 VideoStreamInfo& VideoStreamInfo::operator=(
@@ -434,6 +451,20 @@ bool IsAudioSampleInfoSubstantiallyDifferent(const AudioStreamInfo& left,
          left.samples_per_second != right.samples_per_second ||
          left.number_of_channels != right.number_of_channels ||
          left.audio_specific_config != right.audio_specific_config;
+}
+
+int AudioDurationToFrames(SbTime duration, int samples_per_second) {
+  SB_DCHECK(samples_per_second > 0)
+      << "samples_per_second has to be greater than 0";
+  // The same as `frames = (duration / kSbTimeSecond) * samples_per_second`,
+  // switch order to avoid precision loss due to integer division.
+  return duration * samples_per_second / kSbTimeSecond;
+}
+
+SbTime AudioFramesToDuration(int frames, int samples_per_second) {
+  SB_DCHECK(samples_per_second > 0)
+      << "samples_per_second has to be greater than 0";
+  return frames * kSbTimeSecond / std::max(samples_per_second, 1);
 }
 
 }  // namespace media

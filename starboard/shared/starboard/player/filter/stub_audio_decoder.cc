@@ -14,6 +14,8 @@
 
 #include "starboard/shared/starboard/player/filter/stub_audio_decoder.h"
 
+#include <algorithm>
+
 #include "starboard/audio_sink.h"
 #include "starboard/common/log.h"
 
@@ -25,6 +27,9 @@ namespace filter {
 
 namespace {
 
+using ::starboard::shared::starboard::media::AudioDurationToFrames;
+using ::starboard::shared::starboard::media::GetBytesPerSample;
+
 SbMediaAudioSampleType GetSupportedSampleType() {
   if (SbAudioSinkIsAudioSampleTypeSupported(kSbMediaAudioSampleTypeFloat32)) {
     return kSbMediaAudioSampleTypeFloat32;
@@ -34,12 +39,59 @@ SbMediaAudioSampleType GetSupportedSampleType() {
   return kSbMediaAudioSampleTypeInt16Deprecated;
 }
 
+// Calculate the frames per InputBuffer based on two consecutive audio samples.
+int CalculateFramesPerInputBuffer(int sample_rate,
+                                  const scoped_refptr<InputBuffer>& first,
+                                  const scoped_refptr<InputBuffer>& second) {
+  SB_DCHECK(first);
+  SB_DCHECK(second);
+
+  SbTime duration = second->timestamp() - first->timestamp();
+  if (duration <= 0) {
+    SB_LOG(ERROR) << "Duration (" << duration << ") for InputBuffer@ "
+                  << first->timestamp() << " is invalid.";
+    return -1;
+  }
+
+  return AudioDurationToFrames(duration, sample_rate);
+}
+
+scoped_refptr<DecodedAudio> CreateDecodedAudio(
+    SbTime timestamp,
+    SbMediaAudioSampleType sample_type,
+    int number_of_channels,
+    int frames) {
+  int sample_size = GetBytesPerSample(sample_type);
+  scoped_refptr<DecodedAudio> decoded_audio(new DecodedAudio(
+      number_of_channels, sample_type, kSbMediaAudioFrameStorageTypeInterleaved,
+      timestamp, sample_size * number_of_channels * frames));
+
+  for (int j = 0; j < decoded_audio->size_in_bytes() / sample_size; ++j) {
+    if (sample_size == 2) {
+      *(reinterpret_cast<int16_t*>(decoded_audio->data()) + j) = j;
+    } else {
+      SB_DCHECK(sample_size == 4);
+      *(reinterpret_cast<float*>(decoded_audio->data()) + j) =
+          ((j % 1024) - 512) / 512.0f;
+    }
+  }
+
+  return decoded_audio;
+}
+
 }  // namespace
 
 StubAudioDecoder::StubAudioDecoder(
     const media::AudioStreamInfo& audio_stream_info)
-    : sample_type_(GetSupportedSampleType()),
-      audio_stream_info_(audio_stream_info) {}
+    : codec_(audio_stream_info.codec),
+      number_of_channels_(audio_stream_info.number_of_channels),
+      samples_per_second_(audio_stream_info.samples_per_second),
+      sample_type_(GetSupportedSampleType()) {
+  if (codec_ == kSbMediaAudioCodecAac) {
+    // Assume the frames per input buffer is always 1024 for aac.
+    frames_per_input_ = 1024;
+  }
+}
 
 void StubAudioDecoder::Initialize(const OutputCB& output_cb,
                                   const ErrorCB& error_cb) {
@@ -78,7 +130,7 @@ void StubAudioDecoder::WriteEndOfStream() {
 scoped_refptr<DecodedAudio> StubAudioDecoder::Read(int* samples_per_second) {
   SB_DCHECK(BelongsToCurrentThread());
 
-  *samples_per_second = audio_stream_info_.samples_per_second;
+  *samples_per_second = samples_per_second_;
   ScopedLock lock(decoded_audios_mutex_);
   if (decoded_audios_.empty()) {
     return scoped_refptr<DecodedAudio>();
@@ -111,77 +163,75 @@ void StubAudioDecoder::DecodeBuffers(const InputBuffers& input_buffers,
 
 void StubAudioDecoder::DecodeOneBuffer(
     const scoped_refptr<InputBuffer>& input_buffer) {
-  // Values to represent what kind of dummy audio to fill the decoded audio
-  // we produce with.
-  enum FillType {
-    kSilence,
-    kWave,
-  };
-  // Can be set locally to fill with different types.
-  const FillType fill_type = kSilence;
   const int kMaxInputBeforeMultipleDecodedAudios = 4;
 
   if (last_input_buffer_) {
-    SbTime total_output_duration =
-        input_buffer->timestamp() - last_input_buffer_->timestamp();
-    if (total_output_duration < 0) {
-      SB_DLOG(ERROR) << "Total output duration " << total_output_duration
-                     << " is invalid.";
-      error_cb_(kSbPlayerErrorDecode, "Total output duration is less than 0.");
-      return;
-    }
-    size_t sample_size =
-        sample_type_ == kSbMediaAudioSampleTypeInt16Deprecated ? 2 : 4;
-    size_t total_frame_size = total_output_duration *
-                              audio_stream_info_.samples_per_second /
-                              kSbTimeSecond;
-    if (audio_stream_info_.codec == kSbMediaAudioCodecAac) {
-      // Frame size for AAC is fixed at 1024 samples.
-      total_frame_size = 1024;
+    if (!frames_per_input_) {
+      auto frames_per_input = CalculateFramesPerInputBuffer(
+          samples_per_second_, last_input_buffer_, input_buffer);
+      if (frames_per_input <= 0) {
+        error_cb_(kSbPlayerErrorDecode,
+                  "Failed to calculate frames per input.");
+        return;
+      }
+      frames_per_input_ = frames_per_input;
     }
 
-    // Send 3 decoded audio objects on every 5th call to DecodeOneBuffer().
-    int num_decoded_audio_objects =
-        total_input_count_ % kMaxInputBeforeMultipleDecodedAudios == 0 ? 3 : 1;
-    size_t output_frame_size = total_frame_size / num_decoded_audio_objects;
-    size_t output_byte_size =
-        output_frame_size * sample_size * audio_stream_info_.number_of_channels;
+    scoped_refptr<DecodedAudio> decoded_audio =
+        CreateDecodedAudio(last_input_buffer_->timestamp(), sample_type_,
+                           number_of_channels_, *frames_per_input_);
 
-    for (int i = 0; i < num_decoded_audio_objects; ++i) {
-      SbTime timestamp =
-          last_input_buffer_->timestamp() +
-          ((total_output_duration / num_decoded_audio_objects) * i);
-      // Calculate the output frame size of the last decoded audio object, which
-      // may be larger than the rest.
-      if (i == num_decoded_audio_objects - 1 && num_decoded_audio_objects > 1) {
-        output_frame_size = total_frame_size -
-                            (num_decoded_audio_objects - 1) * output_frame_size;
-        output_byte_size = output_frame_size * sample_size *
-                           audio_stream_info_.number_of_channels;
-      }
-      scoped_refptr<DecodedAudio> decoded_audio(
-          new DecodedAudio(audio_stream_info_.number_of_channels, sample_type_,
-                           kSbMediaAudioFrameStorageTypeInterleaved, timestamp,
-                           output_byte_size));
+    decoded_audio->AdjustForDiscardedDurations(
+        samples_per_second_,
+        last_input_buffer_->audio_sample_info().discarded_duration_from_front,
+        last_input_buffer_->audio_sample_info().discarded_duration_from_back);
 
-      if (fill_type == kSilence) {
-        memset(decoded_audio.get()->buffer(), 0, output_byte_size);
-      } else {
-        SB_DCHECK(fill_type == kWave);
-        for (int j = 0; j < output_byte_size / sample_size; ++j) {
-          if (sample_size == 2) {
-            *(reinterpret_cast<int16_t*>(decoded_audio.get()->buffer()) + j) =
-                j;
-          } else {
-            SB_DCHECK(sample_size == 4);
-            *(reinterpret_cast<float*>(decoded_audio.get()->buffer()) + j) =
-                ((j % 1024) - 512) / 512.0f;
-          }
-        }
-      }
+    if (total_input_count_ % kMaxInputBeforeMultipleDecodedAudios != 0) {
       ScopedLock lock(decoded_audios_mutex_);
       decoded_audios_.push(decoded_audio);
       decoder_thread_->job_queue()->Schedule(output_cb_);
+    } else {
+      // Divide the content of `decoded_audio` as multiple DecodedAudio objects
+      // to ensure that the user of AudioDecoders works with output in
+      // arbitrary frames.
+      const int kNumDecodedAudioObjects = 3;
+      const int sample_size = GetBytesPerSample(sample_type_);
+      int offset_in_bytes = 0;
+
+      for (int i = 0; i < kNumDecodedAudioObjects; ++i) {
+        size_t frames_of_output =
+            decoded_audio->frames() / kNumDecodedAudioObjects;
+        size_t size_in_bytes_of_output =
+            frames_of_output * sample_size * number_of_channels_;
+
+        if (i == kNumDecodedAudioObjects - 1) {
+          // It's the last one, send out all remaining data.
+          size_in_bytes_of_output =
+              decoded_audio->size_in_bytes() - offset_in_bytes;
+          SB_DCHECK(size_in_bytes_of_output %
+                        (sample_size * number_of_channels_) ==
+                    0);
+        }
+
+        auto offset_in_frames =
+            offset_in_bytes / (sample_size * number_of_channels_);
+        SbTime timestamp =
+            decoded_audio->timestamp() +
+            AudioDurationToFrames(offset_in_frames, samples_per_second_);
+
+        scoped_refptr<DecodedAudio> current_decoded_audio(
+            new DecodedAudio(number_of_channels_, sample_type_,
+                             kSbMediaAudioFrameStorageTypeInterleaved,
+                             timestamp, size_in_bytes_of_output));
+        memcpy(current_decoded_audio->data(),
+               decoded_audio->data() + offset_in_bytes,
+               size_in_bytes_of_output);
+        offset_in_bytes += size_in_bytes_of_output;
+
+        ScopedLock lock(decoded_audios_mutex_);
+        decoded_audios_.push(current_decoded_audio);
+        decoder_thread_->job_queue()->Schedule(output_cb_);
+      }
     }
   }
   last_input_buffer_ = input_buffer;
@@ -192,23 +242,38 @@ void StubAudioDecoder::DecodeEndOfStream() {
   SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
 
   if (last_input_buffer_) {
-    // There won't be a next pts, so just guess that the decoded size is
-    // 4 times the encoded size.
-    size_t fake_size = 4 * last_input_buffer_->size();
-    size_t sample_size =
-        sample_type_ == kSbMediaAudioSampleTypeInt16Deprecated ? 2 : 4;
-    fake_size -=
-        fake_size % (sample_size * audio_stream_info_.number_of_channels);
-    if (audio_stream_info_.codec == kSbMediaAudioCodecAac) {
-      // Frame size for AAC is fixed at 1024, so fake the output size such that
-      // number of frames matches up.
-      fake_size = sample_size * audio_stream_info_.number_of_channels * 1024;
+    if (!frames_per_input_) {
+      if (codec_ == kSbMediaAudioCodecOpus) {
+        frames_per_input_ = 960;
+      } else if (codec_ == kSbMediaAudioCodecAc3 ||
+                 codec_ == kSbMediaAudioCodecEac3) {
+        frames_per_input_ = 1536;
+      } else {
+        SB_NOTREACHED() << "Unsupported audio codec " << codec_;
+      }
     }
+
+    SB_DCHECK(frames_per_input_);
+
+    scoped_refptr<DecodedAudio> decoded_audio =
+        CreateDecodedAudio(last_input_buffer_->timestamp(), sample_type_,
+                           number_of_channels_, *frames_per_input_);
+
+    auto discarded_duration_from_front =
+        last_input_buffer_->audio_sample_info().discarded_duration_from_front;
+    auto discarded_duration_from_back =
+        last_input_buffer_->audio_sample_info().discarded_duration_from_back;
+    SB_DCHECK(AudioDurationToFrames(
+                  discarded_duration_from_front + discarded_duration_from_back,
+                  last_input_buffer_->audio_stream_info().samples_per_second) <=
+              decoded_audio->frames());
+
+    decoded_audio->AdjustForDiscardedDurations(samples_per_second_,
+                                               discarded_duration_from_front,
+                                               discarded_duration_from_back);
+
     ScopedLock lock(decoded_audios_mutex_);
-    decoded_audios_.push(
-        new DecodedAudio(audio_stream_info_.number_of_channels, sample_type_,
-                         kSbMediaAudioFrameStorageTypeInterleaved,
-                         last_input_buffer_->timestamp(), fake_size));
+    decoded_audios_.push(decoded_audio);
     decoder_thread_->job_queue()->Schedule(output_cb_);
   }
   ScopedLock lock(decoded_audios_mutex_);

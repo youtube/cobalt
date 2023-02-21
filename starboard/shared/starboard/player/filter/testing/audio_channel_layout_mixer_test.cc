@@ -90,7 +90,7 @@ class AudioChannelLayoutMixerTest
             (sample_type_ == kSbMediaAudioSampleTypeFloat32 ? 4 : 2)));
 
     if (sample_type_ == kSbMediaAudioSampleTypeFloat32) {
-      float* dest_buffer = reinterpret_cast<float*>(decoded_audio->buffer());
+      float* dest_buffer = reinterpret_cast<float*>(decoded_audio->data());
       for (size_t i = 0; i < num_of_channels * kInputFrames; i++) {
         int src_index = i;
         if (storage_type_ == kSbMediaAudioFrameStorageTypePlanar) {
@@ -99,8 +99,7 @@ class AudioChannelLayoutMixerTest
         dest_buffer[i] = data_buffer[src_index];
       }
     } else {
-      int16_t* dest_buffer =
-          reinterpret_cast<int16_t*>(decoded_audio->buffer());
+      int16_t* dest_buffer = reinterpret_cast<int16_t*>(decoded_audio->data());
       for (size_t i = 0; i < num_of_channels * kInputFrames; i++) {
         int src_index = i;
         if (storage_type_ == kSbMediaAudioFrameStorageTypePlanar) {
@@ -120,11 +119,11 @@ class AudioChannelLayoutMixerTest
     ASSERT_EQ(input->sample_type(), output->sample_type());
     ASSERT_EQ(input->storage_type(), output->storage_type());
     ASSERT_EQ(input->timestamp(), output->timestamp());
-    ASSERT_EQ(input->size() * output->channels(),
-              output->size() * input->channels());
+    ASSERT_EQ(input->size_in_bytes() * output->channels(),
+              output->size_in_bytes() * input->channels());
 
     if (sample_type_ == kSbMediaAudioSampleTypeFloat32) {
-      float* output_buffer = reinterpret_cast<float*>(output->buffer());
+      float* output_buffer = reinterpret_cast<float*>(output->data());
       for (size_t i = 0; i < output->frames() * output_num_of_channels; i++) {
         int src_index = i;
         if (storage_type_ == kSbMediaAudioFrameStorageTypePlanar) {
@@ -141,7 +140,7 @@ class AudioChannelLayoutMixerTest
         }
       }
     } else {
-      int16_t* output_buffer = reinterpret_cast<int16_t*>(output->buffer());
+      int16_t* output_buffer = reinterpret_cast<int16_t*>(output->data());
       for (size_t i = 0; i < output->frames() * output_num_of_channels; i++) {
         int src_index = i;
         if (storage_type_ == kSbMediaAudioFrameStorageTypePlanar) {

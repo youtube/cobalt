@@ -29,6 +29,7 @@
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
+#include "starboard/shared/starboard/player/filter/audio_frame_discarder.h"
 #include "starboard/shared/starboard/player/job_queue.h"
 
 namespace starboard {
@@ -57,6 +58,9 @@ class AudioDecoder
   bool is_valid() const { return media_decoder_ != NULL; }
 
  private:
+  typedef ::starboard::shared::starboard::player::filter::AudioFrameDiscarder
+      AudioFrameDiscarder;
+
   // The maximum amount of work that can exist in the union of |decoded_audios_|
   // and |media_decoder_->GetNumberOfPendingTasks()|.
   static const int kMaxPendingWorkSize = 64;
@@ -86,6 +90,7 @@ class AudioDecoder
   starboard::Mutex decoded_audios_mutex_;
   std::queue<scoped_refptr<DecodedAudio> > decoded_audios_;
 
+  AudioFrameDiscarder audio_frame_discarder_;
   scoped_ptr<MediaDecoder> media_decoder_;
 };
 

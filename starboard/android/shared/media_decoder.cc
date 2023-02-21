@@ -90,7 +90,8 @@ MediaDecoder::MediaDecoder(Host* host,
     return;
   }
   // When |audio_stream_info.codec| == kSbMediaAudioCodecOpus, we instead send
-  // the audio specific configuration when we create the MediaCodec object.
+  // the audio specific configuration when we create the MediaCodec object in
+  // the call to MediaCodecBridge::CreateAudioMediaCodecBridge() above.
   // TODO: Determine if we should send the audio specific configuration here
   // only when |audio_codec| == kSbMediaAudioCodecAac.
   if (audio_stream_info.codec != kSbMediaAudioCodecOpus &&

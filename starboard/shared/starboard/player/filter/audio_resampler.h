@@ -43,7 +43,7 @@ class AudioResampler {
   // Write frames to the AudioResampler.  The format of the frames is determined
   // by the input formats passed to Create().
   virtual scoped_refptr<DecodedAudio> Resample(
-      const scoped_refptr<DecodedAudio>& audio_data) = 0;
+      scoped_refptr<DecodedAudio> audio_data) = 0;
 
   // Signal that the last audio input frame has been written.  The resampler
   // should allow for reading of any audio data inside its internal cache.  The

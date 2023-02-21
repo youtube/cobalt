@@ -17,6 +17,7 @@
 
 #include <queue>
 
+#include "starboard/common/optional.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/media/media_util.h"
@@ -49,15 +50,19 @@ class StubAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
   void DecodeOneBuffer(const scoped_refptr<InputBuffer>& input_buffer);
   void DecodeEndOfStream();
 
+  const SbMediaAudioCodec codec_;
+  const int number_of_channels_;
+  const int samples_per_second_;
+  const SbMediaAudioSampleType sample_type_;
+
   OutputCB output_cb_;
   ErrorCB error_cb_;
-  SbMediaAudioSampleType sample_type_;
-  media::AudioStreamInfo audio_stream_info_;
 
   scoped_ptr<starboard::player::JobThread> decoder_thread_;
   Mutex decoded_audios_mutex_;
   std::queue<scoped_refptr<DecodedAudio> > decoded_audios_;
   scoped_refptr<InputBuffer> last_input_buffer_;
+  optional<int> frames_per_input_;
   // Used to determine when to send multiple DecodedAudios in DecodeOneBuffer().
   int total_input_count_ = 0;
 };

@@ -515,10 +515,11 @@ void AudioRendererPassthrough::UpdateStatusAndWriteData(
                      << playback_head_position_when_stopped_;
       }
     } else {
-      auto sample_buffer = decoded_audio_writing_in_progress_->buffer() +
+      auto sample_buffer = decoded_audio_writing_in_progress_->data() +
                            decoded_audio_writing_offset_;
-      auto samples_to_write = (decoded_audio_writing_in_progress_->size() -
-                               decoded_audio_writing_offset_);
+      auto samples_to_write =
+          (decoded_audio_writing_in_progress_->size_in_bytes() -
+           decoded_audio_writing_offset_);
       // TODO: |sync_time| currently doesn't take partial writes into account.
       //       It is not used in non-tunneled mode so it doesn't matter, but we
       //       should revisit this.
@@ -550,7 +551,7 @@ void AudioRendererPassthrough::UpdateStatusAndWriteData(
       decoded_audio_writing_offset_ += samples_written;
 
       if (decoded_audio_writing_offset_ ==
-          decoded_audio_writing_in_progress_->size()) {
+          decoded_audio_writing_in_progress_->size_in_bytes()) {
         total_frames_written_on_audio_track_thread_ += frames_per_input_buffer_;
         decoded_audio_writing_in_progress_ = nullptr;
         decoded_audio_writing_offset_ = 0;

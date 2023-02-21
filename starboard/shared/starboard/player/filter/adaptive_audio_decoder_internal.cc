@@ -214,7 +214,7 @@ void AdaptiveAudioDecoder::OnDecoderOutput() {
     if (resampler_) {
       scoped_refptr<DecodedAudio> resampler_output =
           resampler_->WriteEndOfStream();
-      if (resampler_output && resampler_output->size() > 0) {
+      if (resampler_output && resampler_output->size_in_bytes() > 0) {
         if (channel_mixer_) {
           resampler_output = channel_mixer_->Mix(resampler_output);
         }
@@ -261,7 +261,7 @@ void AdaptiveAudioDecoder::OnDecoderOutput() {
   if (resampler_) {
     decoded_audio = resampler_->Resample(decoded_audio);
   }
-  if (decoded_audio && decoded_audio->size() > 0) {
+  if (decoded_audio && decoded_audio->size_in_bytes() > 0) {
     if (channel_mixer_) {
       decoded_audio = channel_mixer_->Mix(decoded_audio);
     }

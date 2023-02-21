@@ -108,10 +108,14 @@ repos:
         stages: [push]
         exclude: |
             (?x)^(
+                .pre-commit-config.yaml$|
                 cobalt/media/|
                 cobalt/layout_tests/testdata/|
                 nb/|
-                starboard/android/apk/app/src/main/java/dev/cobalt/media/MediaDrmBridge.java$
+                starboard/android/apk/app/src/main/java/dev/cobalt/media/MediaDrmBridge.java$|
+                starboard/shared/starboard/player/filter/decoded_audio_queue.cc$|
+                starboard/shared/starboard/player/filter/decoded_audio_queue.h$|
+                starboard/shared/starboard/player/filter/wsola_internal.cc$
             )
         exclude_types: [markdown]
         verbose: true

@@ -89,7 +89,10 @@ const float kStereoToMonoMatrix[] = {
 // 4 -> 1
 const float kQuadToMonoMatrix[] = {
     // output = 0.25 * (input.L + input.R + input.SL + input.SR)
-    0.25f, 0.25f, 0.25f, 0.25f,
+    0.25f,
+    0.25f,
+    0.25f,
+    0.25f,
 };
 
 // 5.1 -> 1
@@ -108,21 +111,51 @@ const float kQuadToStereoMatrix[] = {
 // 5.1 -> 2
 const float kFivePointOneToStereoMatrix[] = {
     // output.L = L + sqrt(0.5) * (input.C + input.SL)
-    1.0f, 0.0f, 0.7071f, 0.0f, 0.7071f, 0.0f,
+    1.0f,
+    0.0f,
+    0.7071f,
+    0.0f,
+    0.7071f,
+    0.0f,
     // output.R = R + sqrt(0.5) * (input.C + input.SR)
-    0.0f, 1.0f, 0.7071f, 0.0f, 0.0f, 0.7071f,
+    0.0f,
+    1.0f,
+    0.7071f,
+    0.0f,
+    0.0f,
+    0.7071f,
 };
 
 // 5.1 -> 4
 const float kFivePointOneToQuadMatrix[] = {
     // output.L = L + sqrt(0.5) * input.C
-    1.0f, 0.0f, 0.7071f, 0.0f, 0.0f, 0.0f,
+    1.0f,
+    0.0f,
+    0.7071f,
+    0.0f,
+    0.0f,
+    0.0f,
     // output.R = R + sqrt(0.5) * input.C
-    0.0f, 1.0f, 0.7071f, 0.0f, 0.0f, 0.0f,
+    0.0f,
+    1.0f,
+    0.7071f,
+    0.0f,
+    0.0f,
+    0.0f,
     // output.SL = input.SL
-    0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f,
+    0.0f,
+    0.0f,
+    0.0f,
+    0.0f,
+    1.0f,
+    0.0f,
     // output.SR = input.SR
-    0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f,
+    0.0f,
+    0.0f,
+    0.0f,
+    0.0f,
+    0.0f,
+    1.0f,
 };
 
 // Get the samples of frames at |frame_index|.  If |input| is already
@@ -136,7 +169,7 @@ const SampleType* GetInterleavedSamplesOfFrame(
     int frame_index,
     SampleType* aux_buffer) {
   const SampleType* input_buffer =
-      reinterpret_cast<const SampleType*>(input->buffer());
+      reinterpret_cast<const SampleType*>(input->data());
   if (input->storage_type() == kSbMediaAudioFrameStorageTypeInterleaved) {
     return input_buffer + frame_index * input->channels();
   }
@@ -154,7 +187,7 @@ void StoreInterleavedSamplesOfFrame(const SampleType* samples,
                                     scoped_refptr<DecodedAudio>* destination,
                                     int frame_index) {
   SampleType* dest_buffer =
-      reinterpret_cast<SampleType*>((*destination)->buffer());
+      reinterpret_cast<SampleType*>((*destination)->data());
   for (size_t channel_index = 0; channel_index < (*destination)->channels();
        channel_index++) {
     if ((*destination)->storage_type() ==
@@ -329,12 +362,12 @@ AudioChannelLayoutMixerImpl::MixMonoToStereoOptimized(
 
   scoped_refptr<DecodedAudio> output(
       new DecodedAudio(output_channels_, sample_type_, storage_type_,
-                       input->timestamp(), input->size() * 2));
+                       input->timestamp(), input->size_in_bytes() * 2));
   if (storage_type_ == kSbMediaAudioFrameStorageTypeInterleaved) {
     size_t frames_left = input->frames();
     size_t bytes_per_sample = GetBytesPerSample(sample_type_);
-    const uint8_t* src_buffer_ptr = input->buffer();
-    uint8_t* dest_buffer_ptr = output->buffer();
+    const uint8_t* src_buffer_ptr = input->data();
+    uint8_t* dest_buffer_ptr = output->data();
     while (frames_left > 0) {
       memcpy(dest_buffer_ptr, src_buffer_ptr, bytes_per_sample);
       dest_buffer_ptr += bytes_per_sample;
@@ -345,9 +378,9 @@ AudioChannelLayoutMixerImpl::MixMonoToStereoOptimized(
     }
   } else {
     SB_DCHECK(storage_type_ == kSbMediaAudioFrameStorageTypePlanar);
-    memcpy(output->buffer(), input->buffer(), input->size());
-    memcpy(output->buffer() + input->size(), input->buffer(),
-                 input->size());
+    memcpy(output->data(), input->data(), input->size_in_bytes());
+    memcpy(output->data() + input->size_in_bytes(), input->data(),
+           input->size_in_bytes());
   }
   return output;
 }

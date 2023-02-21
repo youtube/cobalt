@@ -155,13 +155,12 @@ bool OpusAudioDecoder::DecodeInternal(
   int decoded_frames = opus_multistream_decode(
       decoder_, static_cast<const unsigned char*>(input_buffer->data()),
       input_buffer->size(),
-      reinterpret_cast<opus_int16*>(decoded_audio->buffer()), frames_per_au_,
-      0);
+      reinterpret_cast<opus_int16*>(decoded_audio->data()), frames_per_au_, 0);
 #else   // SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
   const char kDecodeFunctionName[] = "opus_multistream_decode_float";
   int decoded_frames = opus_multistream_decode_float(
       decoder_, static_cast<const unsigned char*>(input_buffer->data()),
-      input_buffer->size(), reinterpret_cast<float*>(decoded_audio->buffer()),
+      input_buffer->size(), reinterpret_cast<float*>(decoded_audio->data()),
       frames_per_au_, 0);
 #endif  // SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
   if (decoded_frames == OPUS_BUFFER_TOO_SMALL &&
@@ -189,7 +188,11 @@ bool OpusAudioDecoder::DecodeInternal(
   decoded_audio->ShrinkTo(audio_stream_info_.number_of_channels *
                           frames_per_au_ *
                           starboard::media::GetBytesPerSample(GetSampleType()));
-
+  const auto& sample_info = input_buffer->audio_sample_info();
+  decoded_audio->AdjustForDiscardedDurations(
+      audio_stream_info_.samples_per_second,
+      sample_info.discarded_duration_from_front,
+      sample_info.discarded_duration_from_back);
   decoded_audios_.push(decoded_audio);
   output_cb_();
   return true;

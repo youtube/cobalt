@@ -788,6 +788,29 @@ const char* GetMediaRangeIdName(SbMediaRangeId range_id) {
   return "Invalid";
 }
 
+const char* GetMediaAudioSampleTypeName(SbMediaAudioSampleType sample_type) {
+  switch (sample_type) {
+    case kSbMediaAudioSampleTypeFloat32:
+      return "float32";
+    case kSbMediaAudioSampleTypeInt16Deprecated:
+      return "int16";
+  }
+  SB_NOTREACHED();
+  return "Invalid";
+}
+
+const char* GetMediaAudioStorageTypeName(
+    SbMediaAudioFrameStorageType storage_type) {
+  switch (storage_type) {
+    case kSbMediaAudioFrameStorageTypeInterleaved:
+      return "interleaved";
+    case kSbMediaAudioFrameStorageTypePlanar:
+      return "planar";
+  }
+  SB_NOTREACHED();
+  return "Invalid";
+}
+
 bool ParseVideoCodec(const char* codec_string,
                      SbMediaVideoCodec* codec,
                      int* profile,

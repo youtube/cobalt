@@ -116,17 +116,16 @@ int DecodedAudioQueue::InternalRead(int frames,
       if (dest) {
         SB_DCHECK(buffer->channels() == dest->channels());
         if (dest->sample_type() == kSbMediaAudioSampleTypeFloat32) {
-          const float* source =
-              reinterpret_cast<const float*>(buffer->buffer()) +
-              buffer->channels() * current_buffer_offset;
-          float* destination = reinterpret_cast<float*>(dest->buffer()) +
+          const float* source = reinterpret_cast<const float*>(buffer->data()) +
+                                buffer->channels() * current_buffer_offset;
+          float* destination = reinterpret_cast<float*>(dest->data()) +
                                dest->channels() * (dest_frame_offset + taken);
           memcpy(destination, source, copied * dest->channels() * 4);
         } else {
           const int16_t* source =
-              reinterpret_cast<const int16_t*>(buffer->buffer()) +
+              reinterpret_cast<const int16_t*>(buffer->data()) +
               buffer->channels() * current_buffer_offset;
-          int16_t* destination = reinterpret_cast<int16_t*>(dest->buffer()) +
+          int16_t* destination = reinterpret_cast<int16_t*>(dest->data()) +
                                  dest->channels() * (dest_frame_offset + taken);
           memcpy(destination, source, copied * dest->channels() * 2);
         }

@@ -35,7 +35,7 @@ class IdentityAudioResampler : public AudioResampler {
  public:
   IdentityAudioResampler() : eos_reached_(false) {}
   scoped_refptr<DecodedAudio> Resample(
-      const scoped_refptr<DecodedAudio>& audio_data) override {
+      scoped_refptr<DecodedAudio> audio_data) override {
     SB_DCHECK(!eos_reached_);
 
     return audio_data;
@@ -637,11 +637,16 @@ void AudioRendererPcm::ProcessAudioData() {
       resampled_audio = resampler_->Resample(decoded_audio);
     }
 
-    if (resampled_audio && resampled_audio->size() > 0) {
+    if (resampled_audio && resampled_audio->size_in_bytes() > 0) {
       // |time_stretcher_| only support kSbMediaAudioSampleTypeFloat32 and
       // kSbMediaAudioFrameStorageTypeInterleaved.
-      resampled_audio->SwitchFormatTo(kSbMediaAudioSampleTypeFloat32,
-                                      kSbMediaAudioFrameStorageTypeInterleaved);
+      if (!resampled_audio->IsFormat(
+              kSbMediaAudioSampleTypeFloat32,
+              kSbMediaAudioFrameStorageTypeInterleaved)) {
+        resampled_audio = resampled_audio->SwitchFormatTo(
+            kSbMediaAudioSampleTypeFloat32,
+            kSbMediaAudioFrameStorageTypeInterleaved);
+      }
       time_stretcher_.EnqueueBuffer(resampled_audio);
     }
 
@@ -713,9 +718,12 @@ bool AudioRendererPcm::AppendAudioToFrameBuffer(bool* is_frame_buffer_full) {
 
   // |time_stretcher_| only support kSbMediaAudioSampleTypeFloat32 and
   // kSbMediaAudioFrameStorageTypeInterleaved.
-  decoded_audio->SwitchFormatTo(sink_sample_type_,
-                                kSbMediaAudioFrameStorageTypeInterleaved);
-  const uint8_t* source_buffer = decoded_audio->buffer();
+  if (!decoded_audio->IsFormat(sink_sample_type_,
+                               kSbMediaAudioFrameStorageTypeInterleaved)) {
+    decoded_audio = decoded_audio->SwitchFormatTo(
+        sink_sample_type_, kSbMediaAudioFrameStorageTypeInterleaved);
+  }
+  const uint8_t* source_buffer = decoded_audio->data();
   int frames_to_append = decoded_audio->frames();
   int frames_appended = 0;
 

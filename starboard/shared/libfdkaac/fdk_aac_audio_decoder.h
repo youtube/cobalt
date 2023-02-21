@@ -76,8 +76,8 @@ class FdkAacAudioDecoder : public starboard::player::filter::AudioDecoder,
   // once it's fully filled (and |output_cb_| will be called).
   scoped_refptr<DecodedAudio> partially_decoded_audio_;
   int partially_decoded_audio_data_in_bytes_ = 0;
-  // Keep timestamps for inputs, which will be used to create DecodedAudio.
-  std::queue<SbTime> timestamp_queue_;
+  // The input buffers being decoded.
+  std::queue<scoped_refptr<InputBuffer>> decoding_input_buffers_;
   // libfdkaac related parameters are listed below.
   HANDLE_AACDECODER decoder_ = nullptr;
   // There are two quirks of the fdk aac decoder:

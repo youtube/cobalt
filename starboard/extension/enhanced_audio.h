@@ -48,6 +48,8 @@ typedef struct CobaltExtensionEnhancedAudioMediaAudioStreamInfo {
 // comment of `SbMediaAudioSampleInfo` in `media.h` for more details.
 typedef struct CobaltExtensionEnhancedAudioMediaAudioSampleInfo {
   CobaltExtensionEnhancedAudioMediaAudioStreamInfo stream_info;
+  SbTime discarded_duration_from_front;
+  SbTime discarded_duration_from_back;
 } CobaltExtensionEnhancedAudioMediaAudioSampleInfo;
 
 // The structure has the same binary layout as `SbMediaVideoStreamInfo` in the

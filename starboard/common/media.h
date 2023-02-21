@@ -28,6 +28,10 @@ const char* GetMediaTransferIdName(SbMediaTransferId transfer_id);
 const char* GetMediaMatrixIdName(SbMediaMatrixId matrix_id);
 const char* GetMediaRangeIdName(SbMediaRangeId range_id);
 
+const char* GetMediaAudioSampleTypeName(SbMediaAudioSampleType sample_type);
+const char* GetMediaAudioStorageTypeName(
+    SbMediaAudioFrameStorageType storage_type);
+
 // This function parses the video codec string and returns a codec.  All fields
 // will be filled with information parsed from the codec string when possible,
 // otherwise they will have the following default values:

@@ -106,6 +106,8 @@ void AudioDecoder::Decode(const InputBuffers& input_buffers,
   SB_DCHECK(output_cb_);
   SB_DCHECK(media_decoder_);
 
+  audio_frame_discarder_.OnInputBuffers(input_buffers);
+
   for (const auto& input_buffer : input_buffers) {
     VERBOSE_MEDIA_LOG() << "T1: timestamp " << input_buffer->timestamp();
   }
@@ -158,6 +160,7 @@ void AudioDecoder::Reset() {
   SB_DCHECK(output_cb_);
 
   media_decoder_.reset();
+  audio_frame_discarder_.Reset();
 
   if (!InitializeCodec()) {
     // TODO: Communicate this failure to our clients somehow.
@@ -223,7 +226,9 @@ void AudioDecoder::ProcessOutputBuffer(
         kSbMediaAudioFrameStorageTypeInterleaved,
         dequeue_output_result.presentation_time_microseconds, size);
 
-    memcpy(decoded_audio->buffer(), data, size);
+    memcpy(decoded_audio->data(), data, size);
+    audio_frame_discarder_.AdjustForDiscardedDurations(
+        audio_stream_info_.samples_per_second, &decoded_audio);
 
     {
       starboard::ScopedLock lock(decoded_audios_mutex_);
@@ -240,6 +245,7 @@ void AudioDecoder::ProcessOutputBuffer(
       starboard::ScopedLock lock(decoded_audios_mutex_);
       decoded_audios_.push(new DecodedAudio());
     }
+    audio_frame_discarder_.OnDecodedAudioEndOfStream();
     Schedule(output_cb_);
   }
 

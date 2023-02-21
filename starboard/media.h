@@ -549,6 +549,8 @@ typedef struct SbMediaAudioStreamInfo {
 typedef struct SbMediaAudioSampleInfo {
   // The set of information of the video stream associated with this sample.
   SbMediaAudioStreamInfo stream_info;
+  SbTime discarded_duration_from_front;
+  SbTime discarded_duration_from_back;
 } SbMediaAudioSampleInfo;
 
 #else  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION

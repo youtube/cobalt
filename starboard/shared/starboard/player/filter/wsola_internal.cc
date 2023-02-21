@@ -25,14 +25,13 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstring>
 #include <limits>
 #include <memory>
 
 #include "starboard/common/log.h"
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/memory.h"
-
-#include <cstring>
 
 // TODO: Detect Neon on ARM platform and enable SIMD.
 #if SB_IS(ARCH_X86) || SB_IS(ARCH_X64)
@@ -49,11 +48,14 @@ namespace internal {
 
 namespace {
 
-bool InInterval(int n, Interval q) { return n >= q.first && n <= q.second; }
+bool InInterval(int n, Interval q) {
+  return n >= q.first && n <= q.second;
+}
 
 float MultiChannelSimilarityMeasure(const float* dot_prod_a_b,
                                     const float* energy_a,
-                                    const float* energy_b, int channels) {
+                                    const float* energy_b,
+                                    int channels) {
   const float kEpsilon = 1e-12f;
   float similarity_measure = 0.0f;
   for (int n = 0; n < channels; ++n) {
@@ -75,8 +77,8 @@ void MultiChannelDotProduct(const scoped_refptr<DecodedAudio>& a,
   SB_DCHECK(frame_offset_a + num_frames <= a->frames());
   SB_DCHECK(frame_offset_b + num_frames <= b->frames());
 
-  const float* a_frames = reinterpret_cast<const float*>(a->buffer());
-  const float* b_frames = reinterpret_cast<const float*>(b->buffer());
+  const float* a_frames = reinterpret_cast<const float*>(a->data());
+  const float* b_frames = reinterpret_cast<const float*>(b->data());
 
 // SIMD optimized variants can provide a massive speedup to this operation.
 #if defined(USE_SIMD)
@@ -139,7 +141,7 @@ void MultiChannelMovingBlockEnergies(const scoped_refptr<DecodedAudio>& input,
   int num_blocks = input->frames() - (frames_per_block - 1);
   int channels = input->channels();
 
-  const float* input_frames = reinterpret_cast<const float*>(input->buffer());
+  const float* input_frames = reinterpret_cast<const float*>(input->data());
   for (int k = 0; k < channels; ++k) {
     const float* input_channel = input_frames + k;
 
@@ -166,7 +168,8 @@ void MultiChannelMovingBlockEnergies(const scoped_refptr<DecodedAudio>& input,
 //   f(0) = y[1]
 //   f(1) = y[2]
 // and return the maximum, assuming that y[0] <= y[1] >= y[2].
-void QuadraticInterpolation(const float* y_values, float* extremum,
+void QuadraticInterpolation(const float* y_values,
+                            float* extremum,
                             float* extremum_value) {
   float a = 0.5f * (y_values[2] + y_values[0]) - y_values[1];
   float b = 0.5f * (y_values[2] - y_values[0]);

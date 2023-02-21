@@ -71,8 +71,7 @@ class AudioDecoderPassthrough
           new DecodedAudio(kChannels, kSbMediaAudioSampleTypeInt16Deprecated,
                            kSbMediaAudioFrameStorageTypePlanar,
                            input_buffer->timestamp(), input_buffer->size());
-      memcpy(decoded_audio->buffer(), input_buffer->data(),
-             input_buffer->size());
+      memcpy(decoded_audio->data(), input_buffer->data(), input_buffer->size());
       decoded_audios_.push(decoded_audio);
       output_cb_();
     }

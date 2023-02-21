@@ -96,6 +96,26 @@ void SetStreamInfo(const SbMediaVideoStreamInfo& stream_info,
 #endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION}
 }
 
+void SetDiscardPadding(
+    const ::media::DecoderBuffer::DiscardPadding& discard_padding,
+    CobaltExtensionEnhancedAudioMediaAudioSampleInfo* sample_info) {
+  DCHECK(sample_info);
+
+  sample_info->discarded_duration_from_front = discard_padding.first.ToSbTime();
+  sample_info->discarded_duration_from_back = discard_padding.second.ToSbTime();
+}
+
+void SetDiscardPadding(
+    const ::media::DecoderBuffer::DiscardPadding& discard_padding,
+    SbMediaAudioSampleInfo* sample_info) {
+  DCHECK(sample_info);
+
+#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+  sample_info->discarded_duration_from_front = discard_padding.first.ToSbTime();
+  sample_info->discarded_duration_from_back = discard_padding.second.ToSbTime();
+#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION}
+}
+
 }  // namespace
 
 SB_ONCE_INITIALIZE_FUNCTION(StatisticsWrapper, StatisticsWrapper::GetInstance);
@@ -858,6 +878,8 @@ void SbPlayerBridge::WriteBuffersInternal(
     if (sample_type == kSbMediaTypeAudio) {
       DCHECK(audio_stream_info);
       SetStreamInfo(*audio_stream_info, &sample_info.audio_sample_info);
+      SetDiscardPadding(buffer->discard_padding(),
+                        &sample_info.audio_sample_info);
     } else {
       DCHECK(sample_type == kSbMediaTypeVideo);
       DCHECK(video_stream_info);

@@ -20,11 +20,14 @@
 #include <utility>
 #include <vector>
 
+#include "starboard/common/ref_counted.h"
 #include "starboard/player.h"
-
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_sink.h"
+#include "starboard/shared/starboard/player/input_buffer_internal.h"
+#include "starboard/shared/starboard/player/video_dmp_reader.h"
+#include "starboard/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -63,6 +66,18 @@ bool CreateAudioComponents(bool using_stub_decoder,
 ::testing::AssertionResult AlmostEqualTime(SbTime time1, SbTime time2);
 
 media::VideoStreamInfo CreateVideoStreamInfo(SbMediaVideoCodec codec);
+
+bool IsPartialAudioSupported();
+
+scoped_refptr<InputBuffer> GetAudioInputBuffer(
+    video_dmp::VideoDmpReader* dmp_reader,
+    size_t index);
+
+scoped_refptr<InputBuffer> GetAudioInputBuffer(
+    video_dmp::VideoDmpReader* dmp_reader,
+    size_t index,
+    SbTime discarded_duration_from_front,
+    SbTime discarded_duration_from_back);
 
 }  // namespace testing
 }  // namespace filter

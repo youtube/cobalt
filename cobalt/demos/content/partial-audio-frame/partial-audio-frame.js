@@ -14,9 +14,27 @@
 
 "use strict";
 
-function getFmp4AacData(onDataReady) {
-  const FILE_NAME = 'fmp4-aac-44100-tiny.mp4';
+function getContentType(codec) {
+  if (codec == "aac") {
+    return 'audio/mp4; codecs="mp4a.40.2"';
+  } else if (codec == "opus") {
+    return 'audio/webm; codecs="opus"';
+  } else {
+    throw "Invalid codec: " + codec;
+  }
+}
 
+function getContentFilename(codec) {
+  if (codec == "aac") {
+    return 'fmp4-aac-44100-tiny.mp4';
+  } else if (codec == "opus") {
+    return 'webm-opus-48000-tiny.webm';
+  } else {
+    throw "Invalid codec: " + codec;
+  }
+}
+
+function getFmp4AacData(codec, onDataReady) {
   var xhr = new XMLHttpRequest;
   xhr.responseType = 'arraybuffer';
   xhr.addEventListener('readystatechange', function onreadystatechange() {
@@ -27,7 +45,7 @@ function getFmp4AacData(onDataReady) {
       onDataReady(xhr.response);
     }
   });
-  xhr.open('GET', FILE_NAME, true);
+  xhr.open('GET', getContentFilename(codec), true);
   console.log('Sending request for media segment ...');
   xhr.send();
 }
@@ -112,18 +130,24 @@ function appendMediaSegment(mediaSource, sourceBuffer, mediaSegment,
 }
 
 function playPartialAudio() {
+  var codec = 'aac';
+  if (window.location.search.indexOf('codec=opus') != -1) {
+    codec = "opus";
+  }
+
   window.setInterval(function() {
     document.getElementById('status').textContent =
-        'currentTime ' + document.getElementById('video').currentTime;
+        'codec: ' + codec + ', currentTime ' + document.getElementById('video').currentTime;
   }, 100);
 
-  getFmp4AacData(function(mediaSegment) {
+  console.log('Playing ' + codec);
+
+  getFmp4AacData(codec, function(mediaSegment) {
     createAndAttachMediaSource(function(event) {
       var mediaSource = event.target;
 
       console.log('Adding SourceBuffer ...');
-      var sourceBuffer =
-          mediaSource.addSourceBuffer('audio/mp4; codecs="mp4a.40.2"');
+      var sourceBuffer = mediaSource.addSourceBuffer(getContentType(codec));
 
       appendMediaSegment(mediaSource, sourceBuffer, mediaSegment);
     });

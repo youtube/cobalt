@@ -17,6 +17,7 @@
 #include "starboard/audio_sink.h"
 #include "starboard/common/log.h"
 #include "starboard/directory.h"
+#include "starboard/extension/enhanced_audio.h"
 #include "starboard/shared/starboard/media/media_support_internal.h"
 #include "starboard/shared/starboard/media/mime_type.h"
 #include "starboard/shared/starboard/player/filter/player_components.h"
@@ -277,6 +278,64 @@ media::VideoStreamInfo CreateVideoStreamInfo(SbMediaVideoCodec codec) {
   video_stream_info.frame_height = 1080;
 
   return video_stream_info;
+}
+
+bool IsPartialAudioSupported() {
+#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+  return true;
+#else   // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+  return SbSystemGetExtension(kCobaltExtensionEnhancedAudioName) != nullptr;
+#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+}
+
+scoped_refptr<InputBuffer> GetAudioInputBuffer(
+    video_dmp::VideoDmpReader* dmp_reader,
+    size_t index) {
+  SB_DCHECK(dmp_reader);
+
+  auto player_sample_info =
+      dmp_reader->GetPlayerSampleInfo(kSbMediaTypeAudio, index);
+  return new InputBuffer(StubDeallocateSampleFunc, nullptr, nullptr,
+                         player_sample_info);
+}
+
+scoped_refptr<InputBuffer> GetAudioInputBuffer(
+    video_dmp::VideoDmpReader* dmp_reader,
+    size_t index,
+    SbTime discarded_duration_from_front,
+    SbTime discarded_duration_from_back) {
+  SB_DCHECK(dmp_reader);
+  auto player_sample_info =
+      dmp_reader->GetPlayerSampleInfo(kSbMediaTypeAudio, index);
+#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+  player_sample_info.audio_sample_info.discarded_duration_from_front =
+      discarded_duration_from_front;
+  player_sample_info.audio_sample_info.discarded_duration_from_back =
+      discarded_duration_from_back;
+  auto input_buffer = new InputBuffer(StubDeallocateSampleFunc, nullptr,
+                                      nullptr, player_sample_info);
+#else   // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+  media::AudioSampleInfo audio_sample_info(
+      player_sample_info.audio_sample_info);
+  audio_sample_info.discarded_duration_from_front =
+      discarded_duration_from_front;
+  audio_sample_info.discarded_duration_from_back = discarded_duration_from_back;
+
+  CobaltExtensionEnhancedAudioPlayerSampleInfo enhanced_audio_sample_info;
+  enhanced_audio_sample_info.type = player_sample_info.type;
+  enhanced_audio_sample_info.buffer = player_sample_info.buffer;
+  enhanced_audio_sample_info.buffer_size = player_sample_info.buffer_size;
+  enhanced_audio_sample_info.timestamp = player_sample_info.timestamp;
+  enhanced_audio_sample_info.side_data = player_sample_info.side_data;
+  enhanced_audio_sample_info.side_data_count =
+      player_sample_info.side_data_count;
+  audio_sample_info.ConvertTo(&enhanced_audio_sample_info.audio_sample_info);
+  enhanced_audio_sample_info.drm_info = player_sample_info.drm_info;
+
+  auto input_buffer = new InputBuffer(StubDeallocateSampleFunc, nullptr,
+                                      nullptr, enhanced_audio_sample_info);
+#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+  return input_buffer;
 }
 
 }  // namespace testing

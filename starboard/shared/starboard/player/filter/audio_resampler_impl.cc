@@ -46,7 +46,7 @@ class AudioResamplerImpl : public AudioResampler {
                                channels) {}
 
   scoped_refptr<DecodedAudio> Resample(
-      const scoped_refptr<DecodedAudio>& buffer) override;
+      scoped_refptr<DecodedAudio> buffer) override;
 
   scoped_refptr<DecodedAudio> WriteEndOfStream() override;
 
@@ -91,11 +91,14 @@ scoped_refptr<DecodedAudio> AudioResamplerImpl::WriteEndOfStream() {
         channels, kSbMediaAudioSampleTypeFloat32,
         kSbMediaAudioFrameStorageTypeInterleaved, 0, resampled_audio_size);
 
-    float* dst = reinterpret_cast<float*>(resampled_audio->buffer());
+    float* dst = reinterpret_cast<float*>(resampled_audio->data());
     interleaved_resampler_.Resample(dst, out_num_of_frames);
 
-    resampled_audio->SwitchFormatTo(destination_sample_type_,
-                                    destination_storage_type_);
+    if (!resampled_audio->IsFormat(destination_sample_type_,
+                                   destination_storage_type_)) {
+      resampled_audio = resampled_audio->SwitchFormatTo(
+          destination_sample_type_, destination_storage_type_);
+    }
     return resampled_audio;
   }
 
@@ -103,13 +106,17 @@ scoped_refptr<DecodedAudio> AudioResamplerImpl::WriteEndOfStream() {
 }
 
 scoped_refptr<DecodedAudio> AudioResamplerImpl::Resample(
-    const scoped_refptr<DecodedAudio>& audio_data) {
+    scoped_refptr<DecodedAudio> audio_data) {
   SB_DCHECK(audio_data->channels() == interleaved_resampler_.channels());
 
   // It does nothing if source sample type is float and source storage type is
   // interleaved.
-  audio_data->SwitchFormatTo(kSbMediaAudioSampleTypeFloat32,
-                             kSbMediaAudioFrameStorageTypeInterleaved);
+  if (!audio_data->IsFormat(kSbMediaAudioSampleTypeFloat32,
+                            kSbMediaAudioFrameStorageTypeInterleaved)) {
+    audio_data =
+        audio_data->SwitchFormatTo(kSbMediaAudioSampleTypeFloat32,
+                                   kSbMediaAudioFrameStorageTypeInterleaved);
+  }
 
   int num_of_frames = audio_data->frames();
   frames_to_resample_ += num_of_frames;
@@ -121,7 +128,7 @@ scoped_refptr<DecodedAudio> AudioResamplerImpl::Resample(
 
   scoped_refptr<DecodedAudio> resampled_audio = nullptr;
 
-  float* samples = reinterpret_cast<float*>(audio_data->buffer());
+  float* samples = reinterpret_cast<float*>(audio_data->data());
   interleaved_resampler_.QueueBuffer(samples, num_of_frames);
 
   if (interleaved_resampler_.HasEnoughData(out_num_of_frames)) {
@@ -129,12 +136,15 @@ scoped_refptr<DecodedAudio> AudioResamplerImpl::Resample(
         new DecodedAudio(channels, kSbMediaAudioSampleTypeFloat32,
                          kSbMediaAudioFrameStorageTypeInterleaved,
                          audio_data->timestamp(), resampled_audio_size);
-    float* dst = reinterpret_cast<float*>(resampled_audio->buffer());
+    float* dst = reinterpret_cast<float*>(resampled_audio->data());
     interleaved_resampler_.Resample(dst, out_num_of_frames);
     frames_resampled_ += out_num_of_frames;
 
-    resampled_audio->SwitchFormatTo(destination_sample_type_,
-                                    destination_storage_type_);
+    if (!resampled_audio->IsFormat(destination_sample_type_,
+                                   destination_storage_type_)) {
+      resampled_audio = resampled_audio->SwitchFormatTo(
+          destination_sample_type_, destination_storage_type_);
+    }
   }
 
   return resampled_audio;

@@ -15,10 +15,13 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_DECODED_AUDIO_INTERNAL_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_DECODED_AUDIO_INTERNAL_H_
 
+#include <iostream>
+
 #include "starboard/common/ref_counted.h"
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/starboard/player/buffer_internal.h"
 
 namespace starboard {
 namespace shared {
@@ -27,55 +30,87 @@ namespace player {
 
 // Decoded audio frames produced by an audio decoder.  It can contain multiple
 // frames with continuous timestamps.
-// It doesn't have a specific storage type and sample type.  The decoder and the
-// renderer will determine the proper storage type and sample type in their own
-// way.
 class DecodedAudio : public RefCountedThreadSafe<DecodedAudio> {
  public:
   DecodedAudio();  // Signal an EOS.
+  // TODO(b/272837615): Remove `storage_type` support and always store data in
+  // interleaved. Refactor the places that store sample in planar to convert the
+  // samples to interleaved on creation.
   DecodedAudio(int channels,
                SbMediaAudioSampleType sample_type,
                SbMediaAudioFrameStorageType storage_type,
                SbTime timestamp,
-               size_t size);
+               int size_in_bytes);
 
   int channels() const { return channels_; }
   SbMediaAudioSampleType sample_type() const { return sample_type_; }
   SbMediaAudioFrameStorageType storage_type() const { return storage_type_; }
 
-  bool is_end_of_stream() const { return buffer_ == NULL; }
+  bool is_end_of_stream() const { return channels_ == 0; }
   SbTime timestamp() const { return timestamp_; }
-  const uint8_t* buffer() const { return buffer_.get(); }
-  size_t size() const { return size_; }
+  const uint8_t* data() const { return storage_.data() + offset_in_bytes_; }
+  const int16_t* data_as_int16() const {
+    return reinterpret_cast<const int16_t*>(storage_.data() + offset_in_bytes_);
+  }
+  const float* data_as_float32() const {
+    return reinterpret_cast<const float*>(storage_.data() + offset_in_bytes_);
+  }
+  int size_in_bytes() const { return size_in_bytes_; }
 
-  uint8_t* buffer() { return buffer_.get(); }
+  uint8_t* data() { return storage_.data() + offset_in_bytes_; }
+  int16_t* data_as_int16() {
+    return reinterpret_cast<int16_t*>(storage_.data() + offset_in_bytes_);
+  }
+  float* data_as_float32() {
+    return reinterpret_cast<float*>(storage_.data() + offset_in_bytes_);
+  }
   int frames() const;
 
-  void SwitchFormatTo(SbMediaAudioSampleType new_sample_type,
-                      SbMediaAudioFrameStorageType new_storage_type);
-  void ShrinkTo(size_t new_size);
+  void ShrinkTo(int new_size_in_bytes);
+
   // During seeking, the target time can be in the middle of the DecodedAudio
   // object.  This function will adjust the object to the seek target time by
   // removing the frames in the beginning that are before the seek target time.
-  void AdjustForSeekTime(int samples_per_second, SbTime seeking_to_time);
+  void AdjustForSeekTime(int sample_rate, SbTime seeking_to_time);
+  void AdjustForDiscardedDurations(int sample_rate,
+                                   SbTime discarded_duration_from_front,
+                                   SbTime discarded_duration_from_back);
+
+  bool IsFormat(SbMediaAudioSampleType sample_type,
+                SbMediaAudioFrameStorageType storage_type) const;
+  scoped_refptr<DecodedAudio> SwitchFormatTo(
+      SbMediaAudioSampleType new_sample_type,
+      SbMediaAudioFrameStorageType new_storage_type) const
+      SB_WARN_UNUSED_RESULT;
+
+  scoped_refptr<DecodedAudio> Clone() const;
 
  private:
-  void SwitchSampleTypeTo(SbMediaAudioSampleType new_sample_type);
-  void SwitchStorageTypeTo(SbMediaAudioFrameStorageType new_storage_type);
+  scoped_refptr<DecodedAudio> SwitchSampleTypeTo(
+      SbMediaAudioSampleType new_sample_type) const;
+  scoped_refptr<DecodedAudio> SwitchStorageTypeTo(
+      SbMediaAudioFrameStorageType new_storage_type) const;
 
-  int channels_;
-  SbMediaAudioSampleType sample_type_;
-  SbMediaAudioFrameStorageType storage_type_;
+  const int channels_;
+  const SbMediaAudioSampleType sample_type_;
+  const SbMediaAudioFrameStorageType storage_type_;
   // The timestamp of the first audio frame.
   SbTime timestamp_;
-  // Use scoped_array<uint8_t> instead of std::vector<uint8_t> to avoid wasting
-  // time on setting content to 0.
-  scoped_array<uint8_t> buffer_;
-  size_t size_;
+  Buffer storage_;
+  // The audio samples to be played are stored in the memory region starts from
+  // `storage_.data() + offset_in_bytes_`, `size_in_bytes_` bytes in total.
+  int offset_in_bytes_ = 0;
+  int size_in_bytes_ = 0;
 
   DecodedAudio(const DecodedAudio&) = delete;
   void operator=(const DecodedAudio&) = delete;
 };
+
+bool operator==(const DecodedAudio& left, const DecodedAudio& right);
+bool operator!=(const DecodedAudio& left, const DecodedAudio& right);
+
+// For debugging or testing only.
+std::ostream& operator<<(std::ostream& os, const DecodedAudio& decoded_audio);
 
 }  // namespace player
 }  // namespace starboard
