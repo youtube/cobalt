@@ -104,6 +104,8 @@ config("target") {
 
     if (is_starboard) {
       configs = [ ":starboard" ]
+    } else if (is_native_target_build) {
+      configs = [ ":native_target_build" ]
     }
   }
 }
@@ -165,6 +167,10 @@ config("starboard") {
       "STARBOARD_CONFIGURATION_INCLUDE=\"$starboard_path/configuration_public.h\"",
     ]
   }
+}
+
+config("native_target_build") {
+  defines = [ "NATIVE_TARGET_BUILD" ]
 }
 
 config("starboard_implementation") {

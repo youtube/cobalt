@@ -38,3 +38,20 @@ gcc_toolchain("target") {
     is_clang = false
   }
 }
+
+gcc_toolchain("native_target") {
+  cc = gcc_toolchain_cc
+  cxx = gcc_toolchain_cxx
+  ld = cxx
+
+  # We use whatever 'ar' resolves to.
+  ar = gcc_toolchain_ar
+
+  tail_lib_dependencies = "-l:libpthread.so.0"
+
+  toolchain_args = {
+    is_starboard = false
+    is_native_target_build = true
+    is_clang = false
+  }
+}

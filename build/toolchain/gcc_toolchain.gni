@@ -150,7 +150,7 @@ template("gcc_toolchain") {
       # needs to be passed through unchanged to all secondary toolchains to
       # ensure that it's always the same, regardless of the values that may be
       # set on those toolchains.
-      if (!is_starboard) {
+      if (!use_cobalt_customizations) {
         host_toolchain = host_toolchain
 
         if (!defined(invoker_toolchain_args.v8_current_cpu)) {
