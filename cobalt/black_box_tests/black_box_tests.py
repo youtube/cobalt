@@ -75,8 +75,6 @@ _TESTS_NO_SIGNAL = [
     'service_worker_fetch_test',
     'service_worker_message_test',
     'service_worker_test',
-    # TODO(b/259731731) disable for now until persisted registrations
-    # activate correctly.
     'service_worker_persist_test',
     'soft_mic_platform_service_test',
     'text_encoding_test',
