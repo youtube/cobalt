@@ -42,6 +42,12 @@ class WriterDelegate {
 
   // Sets the last-modified time of the data.
   virtual void SetTimeModified(const base::Time& time) = 0;
+
+#if defined(STARBOARD)
+  // Invoked at the end of the entry extraction to flush to persistent storage.
+  // Returns failure on failure to flush.
+  virtual bool Flush() = 0;
+#endif
 };
 
 // This class is used for reading zip files. A typical use case of this
@@ -255,6 +261,10 @@ class FileWriterDelegate : public WriterDelegate {
   // Sets the last-modified time of the data.
   void SetTimeModified(const base::Time& time) override;
 
+#if defined(STARBOARD)
+  bool Flush() override;
+#endif
+
   // Return the actual size of the file.
   int64_t file_length() { return file_length_; }
 
@@ -288,6 +298,10 @@ class FilePathWriterDelegate : public WriterDelegate {
 
   // Sets the last-modified time of the data.
   void SetTimeModified(const base::Time& time) override;
+
+#if defined(STARBOARD)
+  bool Flush() override;
+#endif
 
  private:
   base::FilePath output_file_path_;
