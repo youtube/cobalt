@@ -54,15 +54,13 @@ runs:
       shell: bash
     - name: Build containers with docker-compose
       if: env.need_to_build == 'true'
-      uses: smartlyio/docker-compose-action@v1
       env:
         DOCKER_CPUS: 2
-      with:
-        serviceName: ${{inputs.service}}
-        build: false
-        push: "on:push"
-        composeArguments: "--no-start"
-        composeFile: "docker-compose-windows.yml"
+        SERVICE: ${{inputs.service}}
+      shell: bash
+      run: |
+        set -xue
+        docker compose -f docker-compose-windows.yml up --no-start "${SERVICE}"
     - name: Tag images
       if: ${{ (env.need_to_build == 'true') && ((github.event_name != 'pull_request') || (!github.event.pull_request.head.repo.fork)) }}
       run: |
