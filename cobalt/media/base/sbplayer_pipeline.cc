@@ -339,6 +339,8 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   base::CVal<SbTime> last_media_time_;
   // Time when we last checked the media time.
   SbTime last_time_media_time_retrieved_ = 0;
+  // Counter for retrograde media time.
+  size_t retrograde_media_time_counter_ = 0;
   // The maximum video playback capabilities required for the playback.
   base::CVal<std::string> max_video_capabilities_;
 
@@ -617,6 +619,7 @@ void SbPlayerPipeline::Seek(TimeDelta time, const SeekCB& seek_cb) {
   // decide when to delay.
   audio_read_delayed_ = false;
   StoreMediaTime(seek_time_);
+  retrograde_media_time_counter_ = 0;
   timestamp_of_last_written_audio_ = 0;
 
 #if SB_HAS(PLAYER_WITH_URL)
@@ -704,10 +707,17 @@ TimeDelta SbPlayerPipeline::GetMediaTime() {
 
   // Guarantee that we report monotonically increasing media time
   if (media_time.ToSbTime() < last_media_time_) {
-    DLOG(WARNING) << "The new media timestamp player reported ("
-                  << media_time.ToSbTime() << ") is less than the last one ("
-                  << last_media_time_ << ").";
+    if (retrograde_media_time_counter_ == 0) {
+      DLOG(WARNING) << "Received retrograde media time, new:"
+                    << media_time.ToSbTime() << ", last: " << last_media_time_
+                    << ".";
+    }
     media_time = base::TimeDelta::FromMicroseconds(last_media_time_);
+    retrograde_media_time_counter_++;
+  } else if (retrograde_media_time_counter_ != 0) {
+    DLOG(WARNING) << "Received " << retrograde_media_time_counter_
+                  << " retrograde media time before recovered.";
+    retrograde_media_time_counter_ = 0;
   }
   StoreMediaTime(media_time);
   return media_time;
