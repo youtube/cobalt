@@ -166,8 +166,8 @@ scoped_refptr<dom::HTMLElement> FindFirstElementWithScrollType(
 }
 
 bool TransformCanBeAppliedToBox(const Box* box, math::Vector2dF* coordinate) {
-  return !box->IsTransformed() || box->ApplyTransformActionToCoordinate(
-                                      Box::kEnterTransform, coordinate);
+  return !box->IsTransformed() ||
+         box->ApplyTransformActionToCoordinate(coordinate);
 }
 
 struct CanTargetBox {
