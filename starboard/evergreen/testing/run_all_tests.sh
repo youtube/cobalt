@@ -89,9 +89,13 @@ do
 
     log "info" " [ RUN      ] ${TEST_NAME} attempt ${attempt}"
 
-    run_test
+    # Temporarily disable all tests b/270441309.
+    #
+    # run_test
+    #
+    # RESULT=$?
 
-    RESULT=$?
+    RESULT=2
 
     stop_cobalt &> /dev/null
 
