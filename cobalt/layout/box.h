@@ -705,10 +705,9 @@ class Box : public base::RefCounted<Box> {
   // Applies the specified transform action to the provided coordinates.
   // Returns false if the transform is not invertible and the action requires
   // it being inverted.
-  bool ApplyTransformActionToCoordinate(TransformAction action,
-                                        math::Vector2dF* coordinate) const;
+  bool ApplyTransformActionToCoordinate(math::Vector2dF* coordinate) const;
   bool ApplyTransformActionToCoordinates(
-      TransformAction action, std::vector<math::Vector2dF>* coordinates) const;
+      std::vector<math::Vector2dF>* coordinates) const;
 
   bool CoordinateCanTarget(const math::Vector2dF* coordinate) const;
 

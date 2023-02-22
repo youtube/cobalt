@@ -2159,17 +2159,16 @@ bool Box::IsBorderStyleNoneOrHidden(
   return false;
 }
 
-bool Box::ApplyTransformActionToCoordinate(TransformAction action,
-                                           math::Vector2dF* coordinate) const {
+bool Box::ApplyTransformActionToCoordinate(math::Vector2dF* coordinate) const {
   std::vector<math::Vector2dF> coordinate_vector;
   coordinate_vector.push_back(*coordinate);
-  bool result = ApplyTransformActionToCoordinates(action, &coordinate_vector);
+  bool result = ApplyTransformActionToCoordinates(&coordinate_vector);
   *coordinate = coordinate_vector[0];
   return result;
 }
 
 bool Box::ApplyTransformActionToCoordinates(
-    TransformAction action, std::vector<math::Vector2dF>* coordinates) const {
+    std::vector<math::Vector2dF>* coordinates) const {
   const scoped_refptr<cssom::PropertyValue>& transform =
       computed_style()->transform();
   if (transform == cssom::KeywordValue::GetNone()) {
@@ -2186,10 +2185,7 @@ bool Box::ApplyTransformActionToCoordinates(
   // offset from the root needs to be included in the transform.
   Vector2dLayoutUnit transform_rect_offset =
       margin_box_offset_from_containing_block() +
-      GetBorderBoxOffsetFromMarginBox();
-  if (action == kEnterTransform) {
-    transform_rect_offset += containing_block_offset_from_root;
-  }
+      GetBorderBoxOffsetFromMarginBox() + containing_block_offset_from_root;
 
   // Transform the coordinates.
   math::Matrix3F matrix = GetCSSTransform(
@@ -2200,13 +2196,11 @@ bool Box::ApplyTransformActionToCoordinates(
                   GetBorderBoxHeight().toFloat()),
       ComputeUiNavFocusForTransform());
   if (!matrix.IsIdentity()) {
-    if (action == kEnterTransform) {
-      matrix = matrix.Inverse();
-      // The matrix is not invertible. Return that applying the transform
-      // failed.
-      if (matrix.IsZeros()) {
-        return false;
-      }
+    matrix = matrix.Inverse();
+    // The matrix is not invertible. Return that applying the transform
+    // failed.
+    if (matrix.IsZeros()) {
+      return false;
     }
 
     for (std::vector<math::Vector2dF>::iterator coordinate_iter =
@@ -2230,11 +2224,7 @@ bool Box::ApplyTransformActionToCoordinates(
            coordinates->begin();
        coordinate_iter != coordinates->end(); ++coordinate_iter) {
     math::Vector2dF& coordinate = *coordinate_iter;
-    if (action == kEnterTransform) {
-      coordinate -= containing_block_offset_from_root_as_float;
-    } else {
-      coordinate += containing_block_offset_from_root_as_float;
-    }
+    coordinate -= containing_block_offset_from_root_as_float;
   }
   return true;
 }
