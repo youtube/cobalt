@@ -25,6 +25,7 @@
 #include "base/memory/weak_ptr.h"
 #include "cobalt/dom/html_element.h"
 #include "cobalt/dom/pointer_event_init.h"
+#include "cobalt/math/matrix3_f.h"
 #include "cobalt/math/vector2d_f.h"
 #include "cobalt/web/dom_exception.h"
 #include "cobalt/web/event.h"
@@ -99,6 +100,11 @@ class PointerState {
   PossibleScrollTargets* GetPossibleScrollTargets(int32_t pointer_id);
   void ClearPossibleScrollTargets(int32_t pointer_id);
 
+  void SetClientTransformMatrix(int32_t pointer_id,
+                                const math::Matrix3F& matrix);
+  const math::Matrix3F& GetClientTransformMatrix(int32_t pointer_id);
+  void ClearMatrix(int32_t pointer_id);
+
   // Tracks whether a certain pointer was cancelled, i.e. if it panned the
   // page viewport.
   // https://www.w3.org/TR/pointerevents1/#the-pointercancel-event
@@ -129,7 +135,10 @@ class PointerState {
   std::map<int32_t, uint64> client_time_stamps_;
   std::map<int32_t, std::unique_ptr<PossibleScrollTargets>>
       client_possible_scroll_targets_;
+  std::map<int32_t, const math::Matrix3F> client_matrices_;
   std::set<int32_t> client_cancellations_;
+
+  const math::Matrix3F identity_matrix_ = math::Matrix3F::Identity();
 };
 
 }  // namespace dom

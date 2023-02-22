@@ -173,8 +173,17 @@ float GetAnimationSlope(EventPositionWithTimeStamp previous_event,
                      0.f, 1.f);
 }
 
+math::Matrix3F CalculateActiveTransform(math::Matrix3F initial_transform) {
+  auto active_transform = initial_transform.Inverse();
+  if (active_transform.IsZeros()) {
+    return math::Matrix3F::Identity();
+  }
+  return active_transform;
+}
+
 }  // namespace
 
+ScrollEngine::ScrollEngine() : active_transform_(math::Matrix3F::Identity()) {}
 ScrollEngine::~ScrollEngine() { free_scroll_timer_.Stop(); }
 
 void ScrollEngine::MaybeFreeScrollActiveNavItem() {
@@ -230,8 +239,10 @@ void ScrollEngine::HandlePointerEventForActiveItem(
     return;
   }
 
+  auto transformed_point =
+      active_transform_ * math::PointF(pointer_event->x(), pointer_event->y());
   auto current_coordinates =
-      math::Vector2dF(pointer_event->x(), pointer_event->y());
+      math::Vector2dF(transformed_point.x(), transformed_point.y());
   auto current_time = base::Time::FromJsTime(pointer_event->time_stamp());
   if (previous_events_.size() != 2) {
     // This is an error.
@@ -299,8 +310,18 @@ void ScrollEngine::HandleScrollStart(
     scoped_refptr<ui_navigation::NavItem> scroll_container,
     ScrollType scroll_type, int32_t pointer_id,
     math::Vector2dF initial_coordinates, uint64 initial_time_stamp,
-    math::Vector2dF current_coordinates, uint64 current_time_stamp) {
+    math::Vector2dF current_coordinates, uint64 current_time_stamp,
+    const math::Matrix3F& initial_transform) {
   DCHECK(base::MessageLoop::current() == scroll_engine_.message_loop());
+  active_transform_ = CalculateActiveTransform(initial_transform);
+  auto initial_point =
+      active_transform_ *
+      math::PointF(initial_coordinates.x(), initial_coordinates.y());
+  auto current_point =
+      active_transform_ *
+      math::PointF(current_coordinates.x(), current_coordinates.y());
+  initial_coordinates.SetVector(initial_point.x(), initial_point.y());
+  current_coordinates.SetVector(current_point.x(), current_point.y());
 
   if (active_item_) {
     events_to_handle_.erase(pointer_id);

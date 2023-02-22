@@ -317,6 +317,24 @@ void PointerState::ClearPossibleScrollTargets(int32_t pointer_id) {
   client_possible_scroll_targets_.erase(pointer_id);
 }
 
+void PointerState::SetClientTransformMatrix(int32_t pointer_id,
+                                            const math::Matrix3F& matrix) {
+  client_matrices_.emplace(pointer_id, matrix);
+}
+
+const math::Matrix3F& PointerState::GetClientTransformMatrix(
+    int32_t pointer_id) {
+  auto matrix_entry = client_matrices_.find(pointer_id);
+  if (matrix_entry != client_matrices_.end()) {
+    return matrix_entry->second;
+  }
+  return identity_matrix_;
+}
+
+void PointerState::ClearMatrix(int32_t pointer_id) {
+  client_matrices_.erase(pointer_id);
+}
+
 void PointerState::SetWasCancelled(int32_t pointer_id) {
   client_cancellations_.insert(pointer_id);
 }
