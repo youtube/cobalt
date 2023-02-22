@@ -268,6 +268,8 @@ class Box : public base::RefCounted<Box> {
   // Returns the offset from root to this box's containing block.
   Vector2dLayoutUnit GetContainingBlockOffsetFromRoot(
       bool transform_forms_root) const;
+  math::Matrix3F GetCSSTransformForBoxWithPredefinedOffset(
+      Vector2dLayoutUnit containing_block_offset_from_root) const;
 
   // Returns the offset from the containing block (which can be either the
   // containing block's content box or padding box) to its content box.
@@ -710,6 +712,7 @@ class Box : public base::RefCounted<Box> {
       std::vector<math::Vector2dF>* coordinates) const;
 
   bool CoordinateCanTarget(const math::Vector2dF* coordinate) const;
+  math::Matrix3F GetCSSTransformForBox() const;
 
   // Intended to be set to false on the initial containing block, this indicates
   // that when the background color is rendered, it will be blended with what,
