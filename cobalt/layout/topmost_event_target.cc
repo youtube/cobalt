@@ -423,6 +423,18 @@ void DispatchPointerEventsForScrollStart(
   SendStateChangeLeaveEvents(is_pointer_event, element, event_init);
 }
 
+math::Matrix3F GetCompleteTransformMatrix(dom::Element* element) {
+  auto complete_matrix = math::Matrix3F::Identity();
+  auto current_element = element;
+  while (current_element) {
+    LayoutBoxes* layout_boxes = GetLayoutBoxesIfNotEmpty(current_element);
+    const Box* box = layout_boxes->boxes().front();
+    complete_matrix = complete_matrix * box->GetCSSTransformForBox();
+    current_element = current_element->parent_element();
+  }
+  return complete_matrix;
+}
+
 }  // namespace
 
 void TopmostEventTarget::ConsiderElement(dom::Element* element,
@@ -518,11 +530,15 @@ void TopmostEventTarget::HandleScrollState(
       math::Vector2dF(pointer_event->client_x(), pointer_event->client_y());
 
   if (pointer_event->type() == base::Tokens::pointerdown()) {
+    CancelScrollsInParentNavItems(target_element);
+
     auto initial_possible_scroll_targets =
         FindPossibleScrollTargets(target_element);
-    CancelScrollsInParentNavItems(target_element);
     pointer_state->SetPossibleScrollTargets(
         pointer_id, std::move(initial_possible_scroll_targets));
+
+    auto transform_matrix = GetCompleteTransformMatrix(target_element.get());
+    pointer_state->SetClientTransformMatrix(pointer_id, transform_matrix);
     pointer_state->SetClientCoordinates(pointer_id, pointer_coordinates);
     pointer_state->SetClientTimeStamp(pointer_id, pointer_event->time_stamp());
     return;
@@ -532,6 +548,8 @@ void TopmostEventTarget::HandleScrollState(
   auto initial_time_stamp = pointer_state->GetClientTimeStamp(pointer_id);
   auto possible_scroll_targets =
       pointer_state->GetPossibleScrollTargets(pointer_id);
+  auto initial_transform = pointer_state->GetClientTransformMatrix(pointer_id);
+
   if (pointer_event->type() == base::Tokens::pointermove() &&
       initial_coordinates.has_value() && initial_time_stamp.has_value() &&
       possible_scroll_targets) {
@@ -564,7 +582,8 @@ void TopmostEventTarget::HandleScrollState(
               base::Unretained(scroll_engine_),
               element_to_scroll->GetUiNavItem(), scroll_type, pointer_id,
               initial_coordinates.value(), initial_time_stamp.value(),
-              pointer_coordinates, pointer_event->time_stamp()));
+              pointer_coordinates, pointer_event->time_stamp(),
+              initial_transform));
     }
   }
 
@@ -572,6 +591,7 @@ void TopmostEventTarget::HandleScrollState(
     pointer_state->ClearPossibleScrollTargets(pointer_id);
     pointer_state->ClearClientCoordinates(pointer_id);
     pointer_state->ClearTimeStamp(pointer_id);
+    pointer_state->ClearMatrix(pointer_id);
   }
 }
 

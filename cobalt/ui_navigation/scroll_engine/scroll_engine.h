@@ -52,7 +52,7 @@ struct EventPositionWithTimeStamp {
 
 class ScrollEngine {
  public:
-  ScrollEngine() {}
+  ScrollEngine();
   ~ScrollEngine();
 
   void HandlePointerEvent(base::Token type, const dom::PointerEventInit& event);
@@ -61,7 +61,8 @@ class ScrollEngine {
                          math::Vector2dF initial_coordinates,
                          uint64 initial_time_stamp,
                          math::Vector2dF current_coordinates,
-                         uint64 current_time_stamp);
+                         uint64 current_time_stamp,
+                         const math::Matrix3F& initial_transform);
   void CancelActiveScrollsForNavItems(
       std::vector<scoped_refptr<ui_navigation::NavItem>> scrolls_to_cancel);
 
@@ -80,6 +81,7 @@ class ScrollEngine {
 
   scoped_refptr<NavItem> active_item_;
   math::Vector2dF active_velocity_;
+  math::Matrix3F active_transform_;
   ScrollType active_scroll_type_ = ScrollType::Unknown;
   std::map<uint32_t, scoped_refptr<dom::PointerEvent>> events_to_handle_;
   std::vector<FreeScrollingNavItem> nav_items_with_decaying_scroll_;
