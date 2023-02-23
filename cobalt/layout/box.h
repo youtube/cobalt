@@ -710,6 +710,8 @@ class Box : public base::RefCounted<Box> {
   bool ApplyTransformActionToCoordinates(
       TransformAction action, std::vector<math::Vector2dF>* coordinates) const;
 
+  bool CoordinateCanTarget(const math::Vector2dF* coordinate) const;
+
   // Intended to be set to false on the initial containing block, this indicates
   // that when the background color is rendered, it will be blended with what,
   // is behind it (only relevant when the color is not opaque). As an example,

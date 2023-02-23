@@ -134,28 +134,26 @@ bool TransformCanBeAppliedToBox(const Box* box, math::Vector2dF* coordinate) {
                                       Box::kEnterTransform, coordinate);
 }
 
-bool CoordinateCanTargetBox(const Box* box, math::Vector2dF* coordinate) {
-  if (!cssom::IsOverflowCropped(box->computed_style())) {
-    return true;
+struct CanTargetBox {
+  const math::Vector2dF* coordinate;
+  explicit CanTargetBox(const math::Vector2dF* coordinate)
+      : coordinate(coordinate) {}
+  bool operator()(const Box* box) const {
+    return box->CoordinateCanTarget(coordinate);
   }
-  LayoutUnit coordinate_x(coordinate->x());
-  LayoutUnit coordinate_y(coordinate->y());
-
-  bool transform_forms_root = false;
-  auto padding_box = box->GetClampedPaddingBox(transform_forms_root);
-  return padding_box.Contains(coordinate_x, coordinate_y);
-}
+};
 
 bool ShouldConsiderElementAndChildren(dom::Element* element,
                                       math::Vector2dF* coordinate) {
   LayoutBoxes* layout_boxes = GetLayoutBoxesIfNotEmpty(element);
-  const Box* box = layout_boxes->boxes().front();
+  const Boxes boxes = layout_boxes->boxes();
+  const Box* box = boxes.front();
   if (!box->computed_style()) {
     return true;
   }
 
   return TransformCanBeAppliedToBox(box, coordinate) &&
-         CoordinateCanTargetBox(box, coordinate);
+         std::any_of(boxes.begin(), boxes.end(), CanTargetBox(coordinate));
 }
 
 }  // namespace

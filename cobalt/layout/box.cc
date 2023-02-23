@@ -2239,6 +2239,18 @@ bool Box::ApplyTransformActionToCoordinates(
   return true;
 }
 
+bool Box::CoordinateCanTarget(const math::Vector2dF* coordinate) const {
+  if (!cssom::IsOverflowCropped(computed_style())) {
+    return true;
+  }
+  LayoutUnit coordinate_x(coordinate->x());
+  LayoutUnit coordinate_y(coordinate->y());
+
+  bool transform_forms_root = false;
+  auto padding_box = GetClampedPaddingBox(transform_forms_root);
+  return padding_box.Contains(coordinate_x, coordinate_y);
+}
+
 void Box::AddIntersectionObserverRootsAndTargets(
     BoxIntersectionObserverModule::IntersectionObserverRootVector&& roots,
     BoxIntersectionObserverModule::IntersectionObserverTargetVector&& targets) {
