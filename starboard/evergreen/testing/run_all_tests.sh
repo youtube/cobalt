@@ -23,6 +23,10 @@ DIR="$(dirname "${0}")"
 AUTH_METHOD="public-key"
 USE_COMPRESSED_SYSTEM_IMAGE="false"
 SYSTEM_IMAGE_EXTENSION=".so"
+
+# Temporarily disable the tests b/270441309.
+DISABLE_TESTS="true"
+
 while getopts "d:a:c" o; do
     case "${o}" in
         d)
@@ -89,13 +93,14 @@ do
 
     log "info" " [ RUN      ] ${TEST_NAME} attempt ${attempt}"
 
-    # Temporarily disable all tests b/270441309.
-    #
-    # run_test
-    #
-    # RESULT=$?
 
-    RESULT=2
+    if [[ "${DISABLE_TESTS}" == "true" ]]; then
+      # Set the result to skipped.
+      RESULT=2
+    else
+      run_test
+      RESULT=$?
+    fi
 
     stop_cobalt &> /dev/null
 
