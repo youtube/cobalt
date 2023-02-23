@@ -246,13 +246,14 @@ VideoSampleInfo& VideoSampleInfo::operator=(
 #else   // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
   stream_info = that;
 #endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
-
+  is_key_frame = that.is_key_frame;
   return *this;
 }
 
 VideoSampleInfo& VideoSampleInfo::operator=(
     const CobaltExtensionEnhancedAudioMediaVideoSampleInfo& that) {
   stream_info = that.stream_info;
+  is_key_frame = that.is_key_frame;
   return *this;
 }
 
