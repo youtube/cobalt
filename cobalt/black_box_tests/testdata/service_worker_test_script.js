@@ -292,7 +292,7 @@ promiseSequence([
   () => navigator.serviceWorker.register('service_worker_test_nonexist.js')
       .then(fail(`Unknown script did not raise error.`))
       .catch(error => {
-        assertEqual('NetworkError', error.name);
+        assertEqual('SecurityError', error.name);
       }),
   checkSuccessfulRegistration,
   unregisterAll,

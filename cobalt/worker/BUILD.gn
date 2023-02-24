@@ -36,6 +36,8 @@ static_library("worker") {
     "navigation_preload_manager.h",
     "service_worker.cc",
     "service_worker.h",
+    "service_worker_consts.cc",
+    "service_worker_consts.h",
     "service_worker_container.cc",
     "service_worker_container.h",
     "service_worker_global_scope.cc",
