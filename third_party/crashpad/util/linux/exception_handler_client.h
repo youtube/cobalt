@@ -21,7 +21,7 @@
 #include "base/macros.h"
 #include "util/linux/exception_handler_protocol.h"
 
-#if defined(STARBOARD)
+#if defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
 #include "starboard/elf_loader/evergreen_info.h"
 #endif
 
@@ -50,7 +50,7 @@ class ExceptionHandlerClient {
   //! \return `true` on success. Otherwise, `false` with a message logged.
   bool GetHandlerCredentials(ucred* creds);
 
-#if defined(STARBOARD)
+#if defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
   //! \brief Sends EvergreenInfo to the ExceptionHandlerServer.
   //!
   //! \param[in] info Information to about this client.
@@ -86,7 +86,7 @@ class ExceptionHandlerClient {
   void SetCanSetPtracer(bool can_set_ptracer);
 
  private:
-#if defined(STARBOARD)
+#if defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
   bool SendEvergreenInfoRequest(
       const ExceptionHandlerProtocol::ClientInformation& info);
 

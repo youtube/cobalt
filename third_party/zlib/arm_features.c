@@ -37,6 +37,8 @@ int ZLIB_INTERNAL arm_cpu_enable_pmull = 0;
 #include <zircon/types.h>
 #elif defined(ARMV8_OS_WINDOWS)
 #include <windows.h>
+#elif defined(NATIVE_TARGET_BUILD)
+// TODO(b/270864124): see if there's anything we can/should do here.
 #else
 #error arm_features.c ARM feature detection in not defined for your platform
 #endif

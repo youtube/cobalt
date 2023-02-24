@@ -25,13 +25,17 @@ source_set("tool_support") {
   public_configs = [ "..:crashpad_config" ]
 
   deps = [ "../third_party/mini_chromium:base" ]
+
+  if (crashpad_is_in_native_target_build) {
+    configs -= [ "//build/config/compiler:default_include_dirs" ]
+  }
 }
 
 # TODO(b/251521595): resolve GN error and enable this target to be built for
 # android.
 if (!crashpad_is_ios && !crashpad_is_android) {
   crashpad_executable("crashpad_database_util") {
-    check_includes = !crashpad_is_in_starboard
+    check_includes = !crashpad_is_in_starboard && !crashpad_is_in_native_target_build
 
     sources = [ "crashpad_database_util.cc" ]
 
@@ -51,7 +55,7 @@ if (!crashpad_is_ios && !crashpad_is_android) {
     }
   }
 
-  if (!crashpad_is_in_starboard) {
+  if (!crashpad_is_in_starboard && !crashpad_is_in_native_target_build) {
     crashpad_executable("crashpad_http_upload") {
       sources = [ "crashpad_http_upload.cc" ]
 
@@ -66,7 +70,7 @@ if (!crashpad_is_ios && !crashpad_is_android) {
   }
 }
 
-if (!crashpad_is_in_starboard) {
+if (!crashpad_is_in_starboard && !crashpad_is_in_native_target_build) {
   crashpad_executable("base94_encoder") {
     sources = [ "base94_encoder.cc" ]
     deps = [
@@ -78,7 +82,8 @@ if (!crashpad_is_in_starboard) {
   }
 }
 
-if (!crashpad_is_fuchsia && !crashpad_is_ios && !crashpad_is_in_starboard) {
+if (!crashpad_is_fuchsia && !crashpad_is_ios && !crashpad_is_in_starboard
+    && !crashpad_is_in_native_target_build) {
   crashpad_executable("generate_dump") {
     sources = [ "generate_dump.cc" ]
 

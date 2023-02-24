@@ -36,7 +36,7 @@
 #include "util/linux/socket.h"
 #include "util/misc/as_underlying_type.h"
 
-#if defined(STARBOARD)
+#if defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
 #include "starboard/elf_loader/evergreen_info.h"
 #endif
 
@@ -438,7 +438,7 @@ bool ExceptionHandlerServer::ReceiveClientMessage(Event* event) {
           event->fd.get(),
           event->type == Event::Type::kSharedSocketMessage);
 
-#if defined(STARBOARD)
+#if defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
     case ExceptionHandlerProtocol::ClientToServerMessage::kTypeAddEvergreenInfo:
       return HandleAddEvergreenInfoRequest(creds, message.client_info);
     case ExceptionHandlerProtocol::ClientToServerMessage::kTypeAddAnnotations:
@@ -451,7 +451,7 @@ bool ExceptionHandlerServer::ReceiveClientMessage(Event* event) {
   return false;
 }
 
-#if defined(STARBOARD)
+#if defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
 bool ExceptionHandlerServer::HandleAddEvergreenInfoRequest(
     const ucred& creds,
     const ExceptionHandlerProtocol::ClientInformation& client_info) {

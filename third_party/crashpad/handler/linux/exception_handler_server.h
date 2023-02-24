@@ -95,7 +95,7 @@ class ExceptionHandlerServer {
         pid_t* requesting_thread_id = nullptr,
         UUID* local_report_id = nullptr) = 0;
 
-#if defined(STARBOARD)
+#if defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
     //! \brief Called on receipt of a request to add Evergreen mapping info.
     //!
     //! \param[in] info Information on the client.
@@ -196,7 +196,7 @@ class ExceptionHandlerServer {
       int client_sock,
       bool multiple_clients);
 
-#if defined(STARBOARD)
+#if defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
   bool HandleAddEvergreenInfoRequest(
       const ucred& creds,
       const ExceptionHandlerProtocol::ClientInformation& client_info);

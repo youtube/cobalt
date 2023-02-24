@@ -61,7 +61,13 @@
 #include <string.h>
 #endif  // !defined(OPENSSL_SYS_STARBOARD)
 
+#ifdef OPENSSL_SYS_STARBOARD
 #include "e_os.h"
+#endif
+
+#ifdef NATIVE_TARGET_BUILD
+#define LIST_SEPARATOR_CHAR ':'
+#endif
 
 #ifndef NO_SYS_TYPES_H
 #include <sys/types.h>

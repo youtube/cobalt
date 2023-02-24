@@ -87,12 +87,16 @@ static_library("minidump") {
       "/wd4324",  # 'struct' : structure was padded due to __declspec(align())
     ]
   }
+
+  if (crashpad_is_in_native_target_build) {
+    configs -= [ "//build/config/compiler:default_include_dirs" ]
+  }
 }
 
 static_library("test_support") {
   testonly = true
 
-  if (crashpad_is_in_starboard) {
+  if (crashpad_is_in_starboard || crashpad_is_in_native_target_build) {
     check_includes = false
   }
 

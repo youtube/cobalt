@@ -4,7 +4,7 @@
 
 import("//build/toolchain/toolchain.gni")
 
-if (is_starboard) {
+if (use_cobalt_customizations) {
   import("//starboard/build/toolchain/starboard_toolchains.gni")
 
   declare_args() {

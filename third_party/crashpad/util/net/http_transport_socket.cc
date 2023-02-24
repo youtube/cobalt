@@ -99,11 +99,11 @@ class SSLStream : public Stream {
  public:
   SSLStream() = default;
 
-#if defined(STARBOARD)
+#if defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
   bool Initialize(const std::string& root_cert_directory_path,
 #else
   bool Initialize(const base::FilePath& root_cert_path,
-#endif  // STARBOARD
+#endif  // defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
                   int sock,
                   const std::string& hostname) {
     SSL_library_init();
@@ -122,13 +122,13 @@ class SSLStream : public Stream {
     SSL_CTX_set_verify(ctx_.get(), SSL_VERIFY_PEER, nullptr);
     SSL_CTX_set_verify_depth(ctx_.get(), 5);
 
-#if defined(STARBOARD)
+#if defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
     if (SSL_CTX_load_verify_locations(
             ctx_.get(), nullptr, root_cert_directory_path.c_str()) <= 0) {
       LOG(ERROR) << "SSL_CTX_load_verify_locations";
       return false;
     }
-#else  // STARBOARD
+#else  // defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
     if (!root_cert_path.empty()) {
       if (SSL_CTX_load_verify_locations(
               ctx_.get(), root_cert_path.value().c_str(), nullptr) <= 0) {
@@ -152,7 +152,7 @@ class SSLStream : public Stream {
 #error cert store location
 #endif  // OS_LINUX
     }
-#endif  // STARBOARD
+#endif  // defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
 
     ssl_.reset(SSL_new(ctx_.get()));
     if (!ssl_.is_valid()) {
@@ -576,11 +576,11 @@ bool HTTPTransportSocket::ExecuteSynchronously(std::string* response_body) {
   if (scheme == "https") {
     auto ssl_stream = std::make_unique<SSLStream>();
     if (!ssl_stream->Initialize(
-#if defined(STARBOARD)
+#if defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
             root_ca_certificates_directory_path(),
 #else
             root_ca_certificate_path(),
-#endif  // STARBOARD
+#endif  // defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
             sock.get(), hostname)) {
       LOG(ERROR) << "SSLStream Initialize";
       return false;

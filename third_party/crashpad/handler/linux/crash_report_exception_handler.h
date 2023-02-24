@@ -28,7 +28,7 @@
 #include "util/misc/address_types.h"
 #include "util/misc/uuid.h"
 
-#if defined(STARBOARD)
+#if defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
 #include "starboard/elf_loader/evergreen_info.h"
 #endif
 
@@ -84,7 +84,7 @@ class CrashReportExceptionHandler : public ExceptionHandlerServer::Delegate {
                        pid_t* requesting_thread_id = nullptr,
                        UUID* local_report_id = nullptr) override;
 
-#if defined(STARBOARD)
+#if defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
   bool AddEvergreenInfo(
       const ExceptionHandlerProtocol::ClientInformation& info) override;
   bool AddAnnotations(
@@ -120,7 +120,7 @@ class CrashReportExceptionHandler : public ExceptionHandlerServer::Delegate {
   bool write_minidump_to_database_;
   bool write_minidump_to_log_;
   const UserStreamDataSources* user_stream_data_sources_;  // weak
-#if defined(STARBOARD)
+#if defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
   VMAddress evergreen_info_;
   VMAddress serialized_annotations_address_;
   int serialized_annotations_size_;

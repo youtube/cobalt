@@ -26,6 +26,7 @@
 #define EVERGREEN_FILE_PATH_MAX_SIZE 4096
 #define EVERGREEN_BUILD_ID_MAX_SIZE 128
 
+#ifndef NATIVE_TARGET_BUILD
 #define IS_EVERGREEN_ADDRESS(address, evergreen_info)                    \
   (evergreen_info.base_address != 0 &&                                   \
    reinterpret_cast<uint64_t>(address) >= evergreen_info.base_address && \
@@ -35,6 +36,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+#endif  // !NATIVE_TARGET_BUILD
 
 // Evergreen shared library memory mapping information used for
 // stack unwinding and symbolizing.
@@ -61,6 +63,7 @@ typedef struct EvergreenInfo {
   size_t build_id_length;
 } EvergreenInfo;
 
+#ifndef NATIVE_TARGET_BUILD
 // Set the Evergreen information. Should be called only from the
 // elf_loader module. Passing NULL clears the currently stored
 // information.
@@ -76,5 +79,6 @@ bool GetEvergreenInfo(EvergreenInfo* evergreen_info);
 #ifdef __cplusplus
 }  // extern "C"
 #endif
+#endif  // !NATIVE_TARGET_BUILD
 
 #endif  // STARBOARD_ELF_LOADER_EVERGREEN_INFO_H_

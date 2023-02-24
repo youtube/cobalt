@@ -27,7 +27,7 @@
 #include "util/linux/ptrace_connection.h"
 #include "util/misc/address_types.h"
 
-#if defined(STARBOARD)
+#if defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
 #include "starboard/elf_loader/evergreen_info.h"
 #endif
 

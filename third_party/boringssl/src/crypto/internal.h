@@ -116,9 +116,11 @@
 #include <assert.h>
 #include <string.h>
 
+#ifdef STARBOARD
 #include "starboard/atomic.h"
 #include "starboard/once.h"
 #include "starboard/thread.h"
+#endif
 
 #if !defined(__cplusplus)
 #if defined(__GNUC__) && \

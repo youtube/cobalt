@@ -32,7 +32,9 @@
 //  Based on original Protocol Buffers design by
 //  Sanjay Ghemawat, Jeff Dean, and others.
 
+#ifdef STARBOARD
 #include "starboard/client_porting/poem/string_poem.h"
+#endif
 
 #include <algorithm>
 

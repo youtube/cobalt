@@ -115,7 +115,7 @@ static_library("options_sources") {
   ]
   sources = [ "//build/sanitizers/sanitizer_options.cc" ]
 
-  if (!is_starboard) {
+  if (!use_cobalt_customizations) {
     # Don't compile this target with any sanitizer code. It can be called from
     # the sanitizer runtimes, so instrumenting these functions could cause
     # recursive calls into the runtime if there is an error.

@@ -19,7 +19,7 @@
 #include "base/logging.h"
 #include "util/linux/exception_information.h"
 
-#if defined(STARBOARD)
+#if defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
 #include "third_party/crashpad/util/linux/exception_handler_protocol.h"
 // TODO(b/201538792): resolve conflict between mini_chromium and base functions.
 #ifdef LogMessage
@@ -62,7 +62,7 @@ bool ProcessSnapshotLinux::Initialize(PtraceConnection* connection) {
   return true;
 }
 
-#if defined(STARBOARD)
+#if defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
 bool ProcessSnapshotLinux::Initialize(PtraceConnection* connection,
                                       VMAddress evergreen_information_address,
                                       VMAddress serialized_annotations_address,
@@ -298,7 +298,7 @@ std::vector<const ModuleSnapshot*> ProcessSnapshotLinux::Modules() const {
   for (const auto& module : modules_) {
     modules.push_back(module.get());
   }
-#if defined(STARBOARD)
+#if defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
   if (evergreen_module_) {
     modules.push_back(evergreen_module_.get());
   }
@@ -367,7 +367,7 @@ void ProcessSnapshotLinux::InitializeModules() {
   }
 }
 
-#if defined(STARBOARD)
+#if defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
 void ProcessSnapshotLinux::InitializeModules(
     VMAddress evergreen_information_address) {
   for (const ProcessReaderLinux::Module& reader_module :

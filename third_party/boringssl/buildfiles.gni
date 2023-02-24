@@ -170,7 +170,6 @@ boringssl_crypto_files = [
   "$boringssl_root/crypto/hkdf/hkdf.c",
   "$boringssl_root/crypto/internal.h",
   "$boringssl_root/crypto/lhash/lhash.c",
-  "$boringssl_root/crypto/mem_starboard.c",
   "$boringssl_root/crypto/obj/obj.c",
   "$boringssl_root/crypto/obj/obj_dat.h",
   "$boringssl_root/crypto/obj/obj_xref.c",
@@ -367,6 +366,15 @@ boringssl_crypto_files = [
   "$boringssl_root/include/openssl/x509_vfy.h",
   "$boringssl_root/include/openssl/x509v3.h",
 ]
+if (is_starboard) {
+  boringssl_crypto_files += [ "$boringssl_root/crypto/mem_starboard.c" ]
+} else if (is_native_target_build) {
+  boringssl_crypto_files += [
+    "$boringssl_root/crypto/mem.c",
+    "$boringssl_root/crypto/mem_native_target.c",
+  ]
+}
+
 boringssl_ios_aarch64_files = [
   "ios-aarch64/crypto/chacha/chacha-armv8.S",
   "ios-aarch64/crypto/fipsmodule/aesv8-armx64.S",

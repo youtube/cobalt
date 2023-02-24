@@ -26,7 +26,9 @@
 #include "base/logging.h"
 #include "base/strings/stringprintf.h"
 #include "client/client_argv_handling.h"
+#ifdef STARBOARD
 #include "starboard/common/mutex.h"
+#endif
 #include "third_party/lss/lss.h"
 #include "util/file/file_io.h"
 #include "util/file/filesystem.h"
@@ -565,9 +567,9 @@ bool CrashpadClient::StartHandler(
     const base::FilePath& database,
     const base::FilePath& metrics_dir,
     const std::string& url,
-#if defined(STARBOARD)
+#if defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
     const std::string& ca_certificates_path,
-#endif  // STARBOARD
+#endif  // defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
     const std::map<std::string, std::string>& annotations,
     const std::vector<std::string>& arguments,
     bool restartable,

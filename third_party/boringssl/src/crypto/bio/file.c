@@ -212,6 +212,18 @@ BIO *BIO_new_file(const char *filename, const char *mode) {
   FILE *file = file_fopen(filename, mode);
 
   if (file == NULL) {
+#ifdef NATIVE_TARGET_BUILD
+    // This block was restored from revision 5470252 of this file.
+    OPENSSL_PUT_SYSTEM_ERROR();
+
+    ERR_add_error_data(5, "fopen('", filename, "','", mode, "')");
+    if (errno == ENOENT) {
+      OPENSSL_PUT_ERROR(BIO, BIO_R_NO_SUCH_FILE);
+    } else {
+      OPENSSL_PUT_ERROR(BIO, BIO_R_SYS_LIB);
+    }
+    return NULL;
+#else  // NATIVE_TARGET_BUILD
     SYSerr(SYS_F_FOPEN, get_last_sys_error());
     ERR_add_error_data(5, "fopen('", filename, "','", mode, "')");
     if (OPENSSL_errno == ENOENT)
@@ -219,6 +231,7 @@ BIO *BIO_new_file(const char *filename, const char *mode) {
     else
       BIOerr(BIO_F_BIO_NEW_FILE, ERR_R_SYS_LIB);
     return (NULL);
+#endif  // NATIVE_TARGET_BUILD
   }
   if ((ret = BIO_new(BIO_s_file())) == NULL) {
     fclose(file);
@@ -227,6 +240,7 @@ BIO *BIO_new_file(const char *filename, const char *mode) {
 
   BIO_clear_flags(ret, BIO_FLAGS_UPLINK); /* we did fopen -> we disengage
                                            * UPLINK */
+
   BIO_set_fp(ret, file, BIO_CLOSE);
 #endif  // defined(OPENSSL_SYS_STARBOARD)
   return (ret);
@@ -264,9 +278,17 @@ static int MS_CALLBACK file_free(BIO *a) {
 #if defined(OPENSSL_SYS_STARBOARD)
       SbFileClose((SbFile)a->ptr);
 #else   // defined(OPENSSL_SYS_STARBOARD)
+// When this file was Starboardized, uplink support was added to the
+// non-Starboard code paths. But at this point it's not clear where to find
+// definitions for the uplink functions. The latest upstream version of
+// BoringSSL, which we will soon upgrade to, does not support uplink. It should
+// therefore be ok to just remove uplink support for native target builds while
+// we are still on this version of BoringSSL.
+#ifndef NATIVE_TARGET_BUILD
       if (a->flags & BIO_FLAGS_UPLINK)
         UP_fclose(a->ptr);
       else
+#endif  // !NATIVE_TARGET_BUILD
         fclose(a->ptr);
 #endif  // defined(OPENSSL_SYS_STARBOARD)
       a->ptr = NULL;
@@ -289,14 +311,27 @@ static int MS_CALLBACK file_read(BIO *b, char *out, int outl) {
       OPENSSL_PUT_ERROR(BIO, ERR_R_SYS_LIB);
     }
 #else   // defined(OPENSSL_SYS_STARBOARD)
+#ifndef NATIVE_TARGET_BUILD
     if (b->flags & BIO_FLAGS_UPLINK)
       ret = UP_fread(out, 1, (int)outl, b->ptr);
     else
+#endif  // !NATIVE_TARGET_BUILD
       ret = fread(out, 1, (int)outl, (FILE *)b->ptr);
+#ifndef NATIVE_TARGET_BUILD
     if (ret == 0 && (b->flags & BIO_FLAGS_UPLINK) ? UP_ferror((FILE *)b->ptr)
                                                   : ferror((FILE *)b->ptr)) {
+#else  // !NATIVE_TARGET_BUILD
+    if (ret == 0 && ferror((FILE *)b->ptr)) {
+#endif  // !NATIVE_TARGET_BUILD
+#ifdef NATIVE_TARGET_BUILD
+      // TODO(b/270861949): it would be good to verify that error reporting
+      // works correctly throughout this file in native builds.
+      OPENSSL_PUT_SYSTEM_ERROR();
+      OPENSSL_PUT_ERROR(BIO, ERR_R_SYS_LIB);
+#else  // NATIVE_TARGET_BUILD
       SYSerr(SYS_F_FREAD, get_last_sys_error());
       BIOerr(BIO_F_FILE_READ, ERR_R_SYS_LIB);
+#endif  // NATIVE_TARGET_BUILD
       ret = -1;
     }
 #endif  // defined(OPENSSL_SYS_STARBOARD)
@@ -311,10 +346,13 @@ static int MS_CALLBACK file_write(BIO *b, const char *in, int inl) {
 #if defined(OPENSSL_SYS_STARBOARD)
     ret = SbFileWrite((SbFile)b->ptr, in, inl);
 #else   // defined(OPENSSL_SYS_STARBOARD)
+#ifndef NATIVE_TARGET_BUILD
     if (b->flags & BIO_FLAGS_UPLINK)
       ret = UP_fwrite(in, (int)inl, 1, b->ptr);
     else
+#else  // !NATIVE_TARGET_BUILD
       ret = fwrite(in, (int)inl, 1, (FILE *)b->ptr);
+#endif  // !NATIVE_TARGET_BUILD
     if (ret)
       ret = inl;
       /* ret=fwrite(in,1,(int)inl,(FILE *)b->ptr); */
@@ -345,10 +383,13 @@ static long MS_CALLBACK file_ctrl(BIO *b, int cmd, long num, void *ptr) {
 #if defined(OPENSSL_SYS_STARBOARD)
       ret = (long)SbFileSeek((SbFile)b->ptr, num, kSbFileFromBegin);
 #else   // defined(OPENSSL_SYS_STARBOARD)
+#ifndef NATIVE_TARGET_BUILD
       if (b->flags & BIO_FLAGS_UPLINK)
         ret = (long)UP_fseek(b->ptr, num, 0);
       else
+#else  // !NATIVE_TARGET_BUILD
         ret = (long)fseek(fp, num, 0);
+#endif  // !NATIVE_TARGET_BUILD
 #endif  // defined(OPENSSL_SYS_STARBOARD)
       break;
     case BIO_CTRL_EOF:
@@ -358,10 +399,13 @@ static long MS_CALLBACK file_ctrl(BIO *b, int cmd, long num, void *ptr) {
                  ? 1
                  : 0);
 #else   // defined(OPENSSL_SYS_STARBOARD)
+#ifndef NATIVE_TARGET_BUILD
       if (b->flags & BIO_FLAGS_UPLINK)
         ret = (long)UP_feof(fp);
       else
+#else  // !NATIVE_TARGET_BUILD
         ret = (long)feof(fp);
+#endif  // !NATIVE_TARGET_BUILD
 #endif  // defined(OPENSSL_SYS_STARBOARD)
       break;
     case BIO_C_FILE_TELL:
@@ -369,10 +413,13 @@ static long MS_CALLBACK file_ctrl(BIO *b, int cmd, long num, void *ptr) {
 #if defined(OPENSSL_SYS_STARBOARD)
       ret = SbFileSeek((SbFile)b->ptr, 0, kSbFileFromCurrent);
 #else   // defined(OPENSSL_SYS_STARBOARD)
+#ifndef NATIVE_TARGET_BUILD
       if (b->flags & BIO_FLAGS_UPLINK)
         ret = UP_ftell(b->ptr);
       else
+#else  // !NATIVE_TARGET_BUILD
         ret = ftell(fp);
+#endif  // !NATIVE_TARGET_BUILD
 #endif  // defined(OPENSSL_SYS_STARBOARD)
       break;
     case BIO_C_SET_FILE_PTR:
@@ -485,9 +532,15 @@ static long MS_CALLBACK file_ctrl(BIO *b, int cmd, long num, void *ptr) {
 #else   // defined(OPENSSL_SYS_STARBOARD)
       fp = fopen(ptr, p);
       if (fp == NULL) {
+#ifdef NATIVE_TARGET_BUILD
+        OPENSSL_PUT_SYSTEM_ERROR();
+        ERR_add_error_data(5, "fopen('", ptr, "','", p, "')");
+        OPENSSL_PUT_ERROR(BIO, ERR_R_SYS_LIB);
+#else  // NATIVE_TARGET_BUILD
         SYSerr(SYS_F_FOPEN, get_last_sys_error());
         ERR_add_error_data(5, "fopen('", ptr, "','", p, "')");
         BIOerr(BIO_F_FILE_CTRL, ERR_R_SYS_LIB);
+#endif  // NATIVE_TARGET_BUILD
         ret = 0;
         break;
       }
@@ -522,10 +575,13 @@ static long MS_CALLBACK file_ctrl(BIO *b, int cmd, long num, void *ptr) {
 #if defined(OPENSSL_SYS_STARBOARD)
       SbFileFlush((SbFile)b->ptr);
 #else   // defined(OPENSSL_SYS_STARBOARD)
+#ifndef NATIVE_TARGET_BUILD
       if (b->flags & BIO_FLAGS_UPLINK)
         UP_fflush(b->ptr);
       else
+#else  // !NATIVE_TARGET_BUILD
         fflush((FILE *)b->ptr);
+#endif  // !NATIVE_TARGET_BUILD
 #endif  // defined(OPENSSL_SYS_STARBOARD)
       break;
     case BIO_CTRL_DUP:
@@ -574,6 +630,7 @@ static int MS_CALLBACK file_gets(BIO *bp, char *buf, int size) {
   buf[index] = '\0';
   ret = 0;
 #else   // defined(OPENSSL_SYS_STARBOARD)
+#ifndef NATIVE_TARGET_BUILD
   if (bp->flags & BIO_FLAGS_UPLINK) {
     if (!UP_fgets(buf, size, bp->ptr))
       goto err;
@@ -581,6 +638,10 @@ static int MS_CALLBACK file_gets(BIO *bp, char *buf, int size) {
     if (!fgets(buf, size, (FILE *)bp->ptr))
       goto err;
   }
+#else  // !NATIVE_TARGET_BUILD
+   if (!fgets(buf, size, (FILE *)bp->ptr))
+     goto err;
+#endif  // !NATIVE_TARGET_BUILD
 #endif  // defined(OPENSSL_SYS_STARBOARD)
   if (buf[0] != '\0')
     ret = strlen(buf);
@@ -597,5 +658,36 @@ static int MS_CALLBACK file_puts(BIO *bp, const char *str) {
 }
 
 #endif /* OPENSSL_NO_STDIO */
+
+#ifdef NATIVE_TARGET_BUILD
+// These definitions were restored from revision 5470252 of this file.
+int BIO_get_fp(BIO *bio, FILE **out_file) {
+  return BIO_ctrl(bio, BIO_C_GET_FILE_PTR, 0, (char*) out_file);
+}
+
+int BIO_set_fp(BIO *bio, FILE *file, int close_flag) {
+  return BIO_ctrl(bio, BIO_C_SET_FILE_PTR, close_flag, (char *) file);
+}
+
+int BIO_read_filename(BIO *bio, const char *filename) {
+  return BIO_ctrl(bio, BIO_C_SET_FILENAME, BIO_CLOSE | BIO_FP_READ,
+                  (char *)filename);
+}
+
+int BIO_write_filename(BIO *bio, const char *filename) {
+  return BIO_ctrl(bio, BIO_C_SET_FILENAME, BIO_CLOSE | BIO_FP_WRITE,
+                  (char *)filename);
+}
+
+int BIO_append_filename(BIO *bio, const char *filename) {
+  return BIO_ctrl(bio, BIO_C_SET_FILENAME, BIO_CLOSE | BIO_FP_APPEND,
+                  (char *)filename);
+}
+
+int BIO_rw_filename(BIO *bio, const char *filename) {
+  return BIO_ctrl(bio, BIO_C_SET_FILENAME,
+                  BIO_CLOSE | BIO_FP_READ | BIO_FP_WRITE, (char *)filename);
+}
+#endif  // NATIVE_TARGET_BUILD
 
 #endif /* HEADER_BSS_FILE_C */

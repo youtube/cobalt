@@ -41,7 +41,9 @@
 #include <vector>
 #include <google/protobuf/stubs/common.h>
 
+#ifdef STARBOARD
 #include "starboard/client_porting/poem/stdio_poem.h"
+#endif
 
 namespace google {
 namespace protobuf {

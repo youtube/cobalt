@@ -32,7 +32,9 @@
 
 #include <string.h>
 
+#ifdef STARBOARD
 #include "starboard/client_porting/poem/string_poem.h"
+#endif
 
 #include <algorithm>
 #include <climits>

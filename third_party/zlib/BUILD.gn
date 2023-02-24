@@ -67,7 +67,7 @@ source_set("zlib_adler32_simd") {
 
     if (!is_debug) {
       # Use optimize_speed (-O3) to output the _smallest_ code.
-      if(!is_starboard) {
+      if(!use_cobalt_customizations) {
         configs -= [ "//build/config/compiler:default_optimization" ]
       }
       configs += [ "//build/config/compiler:optimize_speed" ]
@@ -115,7 +115,7 @@ if (use_arm_neon_optimizations) {
     if (!is_ios) {
       include_dirs = [ "." ]
 
-      if (!is_starboard && is_android) {
+      if (!use_cobalt_customizations && is_android) {
         import("//build/config/android/config.gni")
         if (defined(android_ndk_root) && android_ndk_root != "") {
           deps = [
@@ -145,7 +145,7 @@ if (use_arm_neon_optimizations) {
       }
 
       if (!is_debug) {
-        if(!is_starboard) {
+        if(!use_cobalt_customizations) {
           configs -= [ "//build/config/compiler:default_optimization" ]
         }
         configs += [ "//build/config/compiler:optimize_speed" ]
@@ -204,21 +204,21 @@ source_set("zlib_inflate_chunk_simd") {
       "contrib/optimizations/inflate.c",
     ]
 
-    if (!is_win && is_starboard) {
+    if (!is_win && use_cobalt_customizations) {
       cflags_c = [ "-Wno-unused-function" ]
     }
 
     if (use_arm_neon_optimizations && !is_debug) {
       # Here we trade better performance on newer/bigger ARMv8 cores
       # for less perf on ARMv7, per crbug.com/772870#c40
-      if(!is_starboard) {
+      if(!use_cobalt_customizations) {
         configs -= [ "//build/config/compiler:default_optimization" ]
       }
       configs += [ "//build/config/compiler:optimize_speed" ]
     }
   }
 
-  if (!is_starboard) {
+  if (!use_cobalt_customizations) {
     configs -= [ "//build/config/compiler:chromium_code" ]
   }
   configs += [
@@ -287,7 +287,7 @@ source_set("zlib_x86_simd") {
     ]
   }
 
-  if (!is_starboard) {
+  if (!use_cobalt_customizations) {
     configs -= [ "//build/config/compiler:chromium_code" ]
   }
   configs += [
@@ -385,7 +385,7 @@ component("zlib_hidden") {
       "gzread.c",
       "gzwrite.c",
     ]
-  } else {
+  } else if (!is_native_target_build) {
     configs -= [ "//build/config/compiler:chromium_code" ]
   }
   configs += [
@@ -402,7 +402,7 @@ component("zlib_hidden") {
   allow_circular_includes_from = deps
 }
 
-if (is_starboard) {
+if (use_cobalt_customizations) {
   config("zlib_all_dependent_config") {
     # To prevent Zlib ever from redefining const keyword in zconf.h
     defines = [ "STDC" ]
@@ -458,7 +458,7 @@ static_library("minizip") {
       "contrib/minizip/iostarboard.h",
     ]
     deps += [ "//starboard:starboard_headers_only" ]
-  } else {
+  } else if (!is_native_target_build) {
     configs -= [ "//build/config/compiler:chromium_code" ]
   }
   configs += [
@@ -480,11 +480,13 @@ if (!is_starboard) {
     ]
 
     if (!is_debug) {
-      configs -= [ "//build/config/compiler:default_optimization" ]
+      if (!is_native_target_build) {
+        configs -= [ "//build/config/compiler:default_optimization" ]
+      }
       configs += [ "//build/config/compiler:optimize_speed" ]
     }
 
-    if (!is_starboard) {
+    if (!use_cobalt_customizations) {
       configs -= [ "//build/config/compiler:chromium_code" ]
     }
     configs += [ "//build/config/compiler:no_chromium_code" ]

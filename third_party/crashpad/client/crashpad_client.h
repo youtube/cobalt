@@ -124,9 +124,9 @@ class CrashpadClient {
                     const base::FilePath& database,
                     const base::FilePath& metrics_dir,
                     const std::string& url,
-#if defined(STARBOARD)
+#if defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
                     const std::string& ca_certificates_path,
-#endif  // STARBOARD
+#endif  // defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
                     const std::map<std::string, std::string>& annotations,
                     const std::vector<std::string>& arguments,
                     bool restartable,

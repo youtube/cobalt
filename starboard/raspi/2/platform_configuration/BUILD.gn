@@ -15,7 +15,8 @@
 config("platform_configuration") {
   configs = [ "//starboard/build/config/sabi" ]
 
-  if (current_toolchain == default_toolchain) {
+  if (current_toolchain == default_toolchain ||
+      current_toolchain == "//$starboard_path/toolchain:native_target") {
     configs += [ "//starboard/raspi/shared/platform_configuration" ]
     cflags = [
       "-march=armv7-a",

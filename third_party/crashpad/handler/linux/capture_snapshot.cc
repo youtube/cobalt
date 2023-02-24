@@ -34,7 +34,7 @@ bool CaptureSnapshot(
     std::unique_ptr<ProcessSnapshotSanitized>* sanitized_snapshot) {
   std::unique_ptr<ProcessSnapshotLinux> process_snapshot(
       new ProcessSnapshotLinux());
-#if defined(STARBOARD)
+#if defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
   if (!process_snapshot->Initialize(connection,
                                     info.evergreen_information_address,
                                     info.serialized_annotations_address,

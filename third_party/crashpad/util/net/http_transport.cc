@@ -52,7 +52,7 @@ void HTTPTransport::SetTimeout(double timeout) {
   timeout_ = timeout;
 }
 
-#if defined(STARBOARD)
+#if defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
 void HTTPTransport::SetRootCACertificatesDirectoryPath(
     const std::string& path) {
   root_ca_certificates_directory_path_ = path;
@@ -61,7 +61,7 @@ void HTTPTransport::SetRootCACertificatesDirectoryPath(
 void HTTPTransport::SetRootCACertificatePath(const base::FilePath& cert) {
   root_ca_certificate_path_ = cert;
 }
-#endif  // STARBOARD
+#endif  // defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
 
 
 }  // namespace crashpad

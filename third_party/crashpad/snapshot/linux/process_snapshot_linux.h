@@ -42,7 +42,7 @@
 #include "util/process/process_id.h"
 #include "util/process/process_memory_range.h"
 
-#if defined(STARBOARD)
+#if defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
 #include "snapshot/module_snapshot_evergreen.h"
 #include "starboard/elf_loader/evergreen_info.h"
 #include "third_party/crashpad/util/linux/exception_handler_protocol.h"
@@ -65,7 +65,7 @@ class ProcessSnapshotLinux final : public ProcessSnapshot {
   //!     an appropriate message logged.
   bool Initialize(PtraceConnection* connection);
 
-#if defined(STARBOARD)
+#if defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
   //! \brief Initializes the object with Evergreen information.
   //!
   //! \param[in] connection A connection to the process to snapshot.
@@ -159,7 +159,7 @@ class ProcessSnapshotLinux final : public ProcessSnapshot {
  private:
   void InitializeThreads();
   void InitializeModules();
-#if defined(STARBOARD)
+#if defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
   void InitializeModules(VMAddress evergreen_information_address);
   void AddAnnotations(VMAddress serialized_annotations_address,
                       int serialized_annotations_size);
@@ -172,7 +172,7 @@ class ProcessSnapshotLinux final : public ProcessSnapshot {
   UUID client_id_;
   std::vector<std::unique_ptr<internal::ThreadSnapshotLinux>> threads_;
   std::vector<std::unique_ptr<internal::ModuleSnapshotElf>> modules_;
-#if defined(STARBOARD)
+#if defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
   std::unique_ptr<internal::ModuleSnapshotEvergreen> evergreen_module_;
 #endif
   std::unique_ptr<internal::ExceptionSnapshotLinux> exception_;

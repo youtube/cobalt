@@ -23,7 +23,7 @@ ExceptionHandlerProtocol::ClientInformation::ClientInformation()
       ,
       crash_loop_before_time(0)
 #endif  // OS_LINUX
-#if defined(STARBOARD)
+#if defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
       ,
       evergreen_information_address(0),
       serialized_annotations_address(0),

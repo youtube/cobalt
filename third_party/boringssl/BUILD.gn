@@ -9,11 +9,15 @@ if (is_starboard) {
   declare_args() {
     openssl_config_path = "$boringssl_root/config/starboard"
   }
+} else if (is_native_target_build) {
+  declare_args() {
+    openssl_config_path = "$boringssl_root/config/native_target"
+  }
 }
 
 config("external_config") {
   include_dirs = [ "$boringssl_root/include" ]
-  if (is_starboard) {
+  if (use_cobalt_customizations) {
     include_dirs += [ openssl_config_path ]
   }
 }
@@ -148,6 +152,18 @@ static_library("crypto") {
         }
       }
     }
+  } else if (is_native_target_build)  {
+    if (is_linux) {
+      if (asm_target_arch == "x64") {
+        sources += boringssl_linux_x86_64_files
+      } else if (asm_target_arch == "arm") {
+        sources += boringssl_linux_arm_files
+      } else {
+        assert(false, "Unsupported Linux arch for native build")
+      }
+    } else {
+        assert(false, "Unsupported OS for native build")
+    }
   }
 }
 
@@ -178,8 +194,8 @@ target(final_executable_type, "crypto_tool") {
   ]
   include_dirs = [ "src/include" ]
   defines = [ "OPENSSL_NO_SOCK" ]
-  deps = [
-    ":crypto",
-    "//starboard",
-  ]
+  deps = [ ":crypto" ]
+  if (is_starboard) {
+    deps += [ "//starboard" ]
+  }
 }

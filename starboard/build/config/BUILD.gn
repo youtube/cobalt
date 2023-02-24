@@ -203,7 +203,8 @@ config("pedantic_warnings") {
 }
 
 config("no_pedantic_warnings") {
-  if (current_toolchain == default_toolchain) {
+  if (current_toolchain == default_toolchain ||
+      current_toolchain == "//$starboard_path/toolchain:native_target") {
     if (defined(no_pedantic_warnings_config_path)) {
       configs = [ no_pedantic_warnings_config_path ]
     }

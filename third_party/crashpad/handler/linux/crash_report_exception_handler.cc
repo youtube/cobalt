@@ -34,7 +34,7 @@
 #include "util/stream/log_output_stream.h"
 #include "util/stream/zlib_output_stream.h"
 
-#if defined(STARBOARD)
+#if defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
 #include "starboard/elf_loader/evergreen_info.h"
 #endif
 
@@ -80,7 +80,7 @@ CrashReportExceptionHandler::CrashReportExceptionHandler(
 
 CrashReportExceptionHandler::~CrashReportExceptionHandler() = default;
 
-#if defined(STARBOARD)
+#if defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
 bool CrashReportExceptionHandler::AddEvergreenInfo(
     const ExceptionHandlerProtocol::ClientInformation& info) {
   evergreen_info_ = info.evergreen_information_address;

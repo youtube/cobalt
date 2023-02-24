@@ -6,7 +6,7 @@ import("../build/platform.gni")
 
 config("base_public_config") {
   include_dirs = [ ".." ]
-  if (is_starboard) {
+  if (use_cobalt_customizations) {
     cflags = [ "-isystem" + rebase_path("../../..", root_build_dir) ]
   }
 }
@@ -164,7 +164,7 @@ static_library("base") {
   }
 
   public_configs = [ ":base_public_config" ]
-  if (is_starboard) {
+  if (use_cobalt_customizations) {
     configs -= [ "//build/config/compiler:default_include_dirs" ]
   }
 }

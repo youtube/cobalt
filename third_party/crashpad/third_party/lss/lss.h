@@ -15,8 +15,8 @@
 #ifndef CRASHPAD_THIRD_PARTY_LSS_LSS_H_
 #define CRASHPAD_THIRD_PARTY_LSS_LSS_H_
 
-#if defined(STARBOARD)
-#include "third_party/linux-syscall-support/linux_syscall_support.h"
+#if defined(STARBOARD) || NATIVE_TARGET_BUILD
+#include "../../third_party/linux-syscall-support/linux_syscall_support.h"
 #elif defined(CRASHPAD_LSS_SOURCE_EXTERNAL)
 #include "third_party/lss/linux_syscall_support.h"
 #elif defined(CRASHPAD_LSS_SOURCE_EMBEDDED)

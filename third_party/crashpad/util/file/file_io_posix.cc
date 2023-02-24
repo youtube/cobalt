@@ -157,7 +157,7 @@ FileHandle LoggingOpenMemoryFileForReadAndWrite(const base::FilePath& name) {
   DCHECK(name.value().find('/') == std::string::npos);
 
   int result;
-#if !defined(STARBOARD)
+#if !defined(STARBOARD) && !defined(NATIVE_TARGET_BUILD)
   result = HANDLE_EINTR(memfd_create(name.value().c_str(), 0));
   if (result >= 0 || errno != ENOSYS) {
     PLOG_IF(ERROR, result < 0) << "memfd_create";

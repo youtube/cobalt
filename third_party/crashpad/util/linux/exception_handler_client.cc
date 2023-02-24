@@ -84,7 +84,7 @@ bool ExceptionHandlerClient::GetHandlerCredentials(ucred* creds) {
       server_sock_, &response, sizeof(response), creds);
 }
 
-#if defined(STARBOARD)
+#if defined(STARBOARD) || NATIVE_TARGET_BUILD
 bool ExceptionHandlerClient::SendEvergreenInfo(
     const ExceptionHandlerProtocol::ClientInformation& info) {
   return SendEvergreenInfoRequest(info);
@@ -155,7 +155,7 @@ int ExceptionHandlerClient::SignalCrashDump(
   return 0;
 }
 
-#if defined(STARBOARD)
+#if defined(STARBOARD) || NATIVE_TARGET_BUILD
 bool ExceptionHandlerClient::SendEvergreenInfoRequest(
     const ExceptionHandlerProtocol::ClientInformation& info) {
   ExceptionHandlerProtocol::ClientToServerMessage message;

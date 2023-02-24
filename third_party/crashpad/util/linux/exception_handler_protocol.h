@@ -38,7 +38,7 @@ class ExceptionHandlerProtocol {
   //! \brief A boolean status suitable for communication between processes.
   enum Bool : char { kBoolFalse, kBoolTrue };
 
-#if defined(STARBOARD)
+#if defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
   //! \brief Describes when, in the client process lifecycle, the Crashpad
   //!     handler was or will be started.
   enum HandlerStartType : char { kStartAtCrash, kStartAtLaunch };
@@ -58,7 +58,7 @@ class ExceptionHandlerProtocol {
     //!     SanitizationInformation struct, or 0 if there is no such struct.
     VMAddress sanitization_information_address;
 
-#if defined(STARBOARD)
+#if defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
     //! \brief The address in the client's address space of an EvergreenInfo
     //!     struct, or 0 if there is no such struct.
     VMAddress evergreen_information_address;
@@ -106,7 +106,7 @@ class ExceptionHandlerProtocol {
       //! \brief Used to request a crash dump for the sending client.
       kTypeCrashDumpRequest,
 
-#if defined(STARBOARD)
+#if defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
       //! \brief Used to store Evergreen mapping info in the handler for use at
       //!     time of crash.
       kTypeAddEvergreenInfo,

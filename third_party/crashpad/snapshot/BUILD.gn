@@ -20,7 +20,7 @@ if (crashpad_is_in_chromium) {
 }
 
 static_library("snapshot") {
-  if (crashpad_is_in_starboard) {
+  if (crashpad_is_in_starboard || crashpad_is_in_native_target_build) {
     check_includes = false
   }
 
@@ -327,7 +327,7 @@ config("snapshot_test_link") {
   }
 }
 
-if (!crashpad_is_in_starboard) {
+if (!crashpad_is_in_starboard && !crashpad_is_in_native_target_build) {
   source_set("snapshot_test") {
     testonly = true
 

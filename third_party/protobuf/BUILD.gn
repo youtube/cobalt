@@ -156,7 +156,7 @@ component("protobuf_lite") {
 
   if (is_starboard) {
     deps = [ "//starboard/common" ]
-  } else {
+  } else if (!is_native_target_build) {
     configs -= [ "//build/config/compiler:chromium_code" ]
   }
   configs += [
@@ -178,7 +178,7 @@ component("protobuf_lite") {
     "//build/config/compiler:no_size_t_to_int_warning",
   ]
 
-  if (is_starboard) {
+  if (use_cobalt_customizations) {
     public_configs -= [ ":protobuf_config" ]
     all_dependent_configs = [ ":protobuf_config" ]
   } else {
@@ -334,9 +334,7 @@ if (current_toolchain == host_toolchain) {
       "src/google/protobuf/wrappers.pb.h",
     ]
 
-    if (is_starboard) {
-      deps = [ "//starboard/common" ]
-    } else {
+    if (!is_starboard) {
       deps = [
         "//build/config/sanitizers:deps",
       ]
