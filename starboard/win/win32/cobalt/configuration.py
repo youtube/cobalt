@@ -24,13 +24,14 @@ class CobaltWinWin32Configuration(cobalt_configuration.CobaltConfiguration):
     return False
 
   def GetTestFilters(self):
-    filters = super().GetTestFilters()
+    filters = super(CobaltWinWin32Configuration, self).GetTestFilters()
     for target, tests in self.__FILTERED_TESTS.items():
       filters.extend(test_filter.TestFilter(target, test) for test in tests)
     return filters
 
   def GetWebPlatformTestFilters(self):
-    filters = super().GetWebPlatformTestFilters()
+    filters = super(CobaltWinWin32Configuration,
+                    self).GetWebPlatformTestFilters()
     filters += [
         '*WebPlatformTest.Run*',
     ]
@@ -50,9 +51,5 @@ class CobaltWinWin32Configuration(cobalt_configuration.CobaltConfiguration):
           ('RendererPipelineTest.FLAKY_'
            'RasterizerSubmitCalledAtExpectedFrequencyAfterSinglePipelineSubmit'
            ),
-      ],
-      'net_unittests': [
-          # Flaky test to be re-enabled after b/271006511 is fixed.
-          'CookieMonsterTest.PredicateSeesAllCookies',
       ],
   }

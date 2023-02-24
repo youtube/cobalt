@@ -262,7 +262,7 @@ def _CreateWindowsTarCmd(source_path, intermediate_tar_path, patterns,
       if glob.glob(os.path.join(source_path, pattern))
   ]
   files_to_tar = ' '.join(contents)
-  return (f'"{_7Z_PATH}" a {excludes} -bsp1 -snl -ttar '
+  return (f'"{_7Z_PATH}" a {excludes} -bsp1 -snl -ttar'
           f'{intermediate_tar_path} {files_to_tar}')
 
 
@@ -282,7 +282,7 @@ def _CreateLinuxTarCmd(source_path, intermediate_tar_path, patterns,
       if glob.glob(os.path.join(source_path, pattern))
   ]
   files_to_tar = ' '.join(contents)
-  return (f'tar -{mode}vf {intermediate_tar_path} --format=posix '
+  return (f'tar -{mode}vf {intermediate_tar_path} --format=posix'
           f'{excludes} {files_to_tar}')
 
 
@@ -295,7 +295,7 @@ def _CreateUntarCommand(intermediate_tar_path):
 
 def _CreateZipCommand(intermediate_tar_path, dest_path, is_parallel=False):
   if _IsWindows():
-    return (f'"{_7Z_PATH}" a -bsp1 -mx={_COMPRESSION_LEVEL} '
+    return (f'"{_7Z_PATH}" a -bsp1 -mx={_COMPRESSION_LEVEL}'
             f'-mmt=on {dest_path} {intermediate_tar_path}')
   else:
     zip_program = (
