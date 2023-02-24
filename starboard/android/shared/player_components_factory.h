@@ -100,15 +100,22 @@ class AudioRendererSinkAndroid : public ::starboard::shared::starboard::player::
                   tunnel_mode_audio_session_id, enable_audio_device_callback,
                   enable_pcm_content_type_movie, false, /* is_web_audio */
                   context);
-            }) {}
+            }),
+        tunnel_mode_audio_session_id_(tunnel_mode_audio_session_id) {}
 
  private:
   bool IsAudioSampleTypeSupported(
       SbMediaAudioSampleType audio_sample_type) const override {
-    // Currently the implementation only supports tunnel mode with int16 audio
-    // samples.
-    return audio_sample_type == kSbMediaAudioSampleTypeInt16Deprecated;
+    if (tunnel_mode_audio_session_id_ != -1) {
+      // Currently the implementation only supports tunnel mode with int16 audio
+      // samples.
+      return audio_sample_type == kSbMediaAudioSampleTypeInt16Deprecated;
+    }
+
+    return SbAudioSinkIsAudioSampleTypeSupported(audio_sample_type);
   }
+
+  const int tunnel_mode_audio_session_id_;
 };
 
 class AudioRendererSinkCallbackStub

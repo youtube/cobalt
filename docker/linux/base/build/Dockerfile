@@ -32,7 +32,7 @@ RUN apt update -qqy \
 ARG NVM_SHA256SUM="f068e17dacb88f73302790cc076956c7a0d459ce9b01df842ff3e75744f9e2fe /tmp/install.sh"
 ARG NVM_URL="https://cobalt.googlesource.com/third_party/nvm/+/refs/tags/v0.35.3/install.sh?format=TEXT"
 ENV NVM_DIR=${HOME}/.nvm
-ENV NODE_VERSION 16.19.1
+ENV NODE_VERSION 12.17.0
 
 RUN curl --silent -o- ${NVM_URL} \
   | base64 -d > /tmp/install.sh \
