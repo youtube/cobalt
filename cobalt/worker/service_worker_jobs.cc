@@ -28,6 +28,7 @@
 #include "base/message_loop/message_loop_current.h"
 #include "base/single_thread_task_runner.h"
 #include "base/strings/string_util.h"
+#include "base/strings/stringprintf.h"
 #include "base/synchronization/lock.h"
 #include "base/task_runner.h"
 #include "base/time/time.h"
@@ -51,6 +52,7 @@
 #include "cobalt/worker/extendable_message_event.h"
 #include "cobalt/worker/frame_type.h"
 #include "cobalt/worker/service_worker.h"
+#include "cobalt/worker/service_worker_consts.h"
 #include "cobalt/worker/service_worker_container.h"
 #include "cobalt/worker/service_worker_global_scope.h"
 #include "cobalt/worker/service_worker_registration.h"
@@ -495,10 +497,13 @@ void ServiceWorkerJobs::Register(Job* job) {
   if (!job_script_origin.IsSameOriginWith(job_referrer_origin)) {
     // 2.1. Invoke Reject Job Promise with job and "SecurityError" DOMException.
     RejectJobPromise(
-        job, PromiseErrorData(
-                 web::DOMException::kSecurityErr,
-                 "Service Worker Register failed: Script URL and referrer "
-                 "origin are not the same."));
+        job,
+        PromiseErrorData(
+            web::DOMException::kSecurityErr,
+            base::StringPrintf(
+                ServiceWorkerConsts::
+                    kServiceWorkerRegisterScriptOriginNotSameError,
+                job->script_url.spec().c_str(), job->referrer.spec().c_str())));
     // 2.2. Invoke Finish Job with job and abort these steps.
     FinishJob(job);
     return;
@@ -510,10 +515,13 @@ void ServiceWorkerJobs::Register(Job* job) {
   if (!job_scope_origin.IsSameOriginWith(job_referrer_origin)) {
     // 3.1. Invoke Reject Job Promise with job and "SecurityError" DOMException.
     RejectJobPromise(
-        job, PromiseErrorData(
-                 web::DOMException::kSecurityErr,
-                 "Service Worker Register failed: Scope URL and referrer "
-                 "origin are not the same."));
+        job,
+        PromiseErrorData(
+            web::DOMException::kSecurityErr,
+            base::StringPrintf(
+                ServiceWorkerConsts::
+                    kServiceWorkerRegisterScopeOriginNotSameError,
+                job->scope_url.spec().c_str(), job->referrer.spec().c_str())));
 
     // 3.2. Invoke Finish Job with job and abort these steps.
     FinishJob(job);
@@ -715,6 +723,14 @@ bool ServiceWorkerJobs::UpdateOnResponseStarted(
   if (headers->GetNormalizedHeader("Content-type", &content_type)) {
     //   8.7.  Extract a MIME type from the response’s header list. If this MIME
     //         type (ignoring parameters) is not a JavaScript MIME type, then:
+    if (content_type.empty()) {
+      RejectJobPromise(
+          state->job,
+          PromiseErrorData(
+              web::DOMException::kSecurityErr,
+              ServiceWorkerConsts::kServiceWorkerRegisterNoMIMEError));
+      return true;
+    }
     for (auto mime_type : kJavaScriptMimeTypes) {
       if (net::MatchesMimeType(mime_type, content_type)) {
         mime_type_is_javascript = true;
@@ -726,17 +742,20 @@ bool ServiceWorkerJobs::UpdateOnResponseStarted(
     //   8.7.1. Invoke Reject Job Promise with job and "SecurityError"
     //          DOMException.
     //   8.7.2. Asynchronously complete these steps with a network error.
-    RejectJobPromise(state->job,
-                     PromiseErrorData(web::DOMException::kSecurityErr,
-                                      "Service Worker Script is not "
-                                      "JavaScript MIME type."));
+    RejectJobPromise(
+        state->job,
+        PromiseErrorData(
+            web::DOMException::kSecurityErr,
+            base::StringPrintf(
+                ServiceWorkerConsts::kServiceWorkerRegisterBadMIMEError,
+                content_type.c_str())));
     return true;
   }
   //   8.8.  Let serviceWorkerAllowed be the result of extracting header list
   //         values given `Service-Worker-Allowed` and response’s header list.
   std::string service_worker_allowed;
   bool service_worker_allowed_exists = headers->GetNormalizedHeader(
-      "Service-Worker-Allowed", &service_worker_allowed);
+      ServiceWorkerConsts::kServiceWorkerAllowed, &service_worker_allowed);
   //   8.9.  Set policyContainer to the result of creating a policy container
   //         from a fetch response given response.
   state->script_headers = headers;
@@ -778,9 +797,13 @@ bool ServiceWorkerJobs::UpdateOnResponseStarted(
     //   8.16.1. Invoke Reject Job Promise with job and "SecurityError"
     //           DOMException.
     //   8.16.2. Asynchronously complete these steps with a network error.
-    RejectJobPromise(state->job,
-                     PromiseErrorData(web::DOMException::kSecurityErr,
-                                      "Scope not allowed."));
+    RejectJobPromise(
+        state->job,
+        PromiseErrorData(
+            web::DOMException::kSecurityErr,
+            base::StringPrintf(
+                ServiceWorkerConsts::kServiceWorkerRegisterBadScopeError,
+                scope_string.c_str())));
     return true;
   }
   return true;
@@ -851,7 +874,7 @@ void ServiceWorkerJobs::UpdateOnLoadingComplete(
   if (error) {
     RejectJobPromise(
         state->job,
-        PromiseErrorData(web::DOMException::kNetworkErr, error.value()));
+        PromiseErrorData(web::DOMException::kSecurityErr, error.value()));
     if (state->newest_worker == nullptr) {
       scope_to_registration_map_->RemoveRegistration(state->job->storage_key,
                                                      state->job->scope_url);
@@ -1843,9 +1866,9 @@ void ServiceWorkerJobs::Unregister(Job* job) {
     // 1.1. Invoke Reject Job Promise with job and "SecurityError" DOMException.
     RejectJobPromise(
         job,
-        PromiseErrorData(
-            web::DOMException::kSecurityErr,
-            "Service Worker Unregister failed: Scope origin does not match."));
+        PromiseErrorData(web::DOMException::kSecurityErr,
+                         ServiceWorkerConsts::
+                             kServiceWorkerUnregisterScopeOriginNotSameError));
 
     // 1.2. Invoke Finish Job with job and abort these steps.
     FinishJob(job);

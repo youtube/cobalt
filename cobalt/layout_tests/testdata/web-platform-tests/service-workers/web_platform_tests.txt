@@ -5,7 +5,7 @@ service-worker/rejections.https.html, PASS
 service-worker/serviceworkerobject-scripturl.https.html, PASS
 service-worker/unregister.https.html, PASS
 service-worker/registration-script-url.https.html, PASS
-service-worker/registration-security-error.https.html, DISABLE
+service-worker/registration-security-error.https.html, PASS
 service-worker/Service-Worker-Allowed-header.https.html, PASS
 service-worker/update-result.https.html, PASS
 service-worker/update-missing-import-scripts.https.html, PASS
