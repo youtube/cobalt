@@ -282,7 +282,7 @@ def _CreateLinuxTarCmd(source_path, intermediate_tar_path, patterns,
       if glob.glob(os.path.join(source_path, pattern))
   ]
   files_to_tar = ' '.join(contents)
-  return (f'tar -{mode}vf {intermediate_tar_path} --format=posix'
+  return (f'tar -{mode}vf {intermediate_tar_path} --format=posix '
           f'{excludes} {files_to_tar}')
 
 
