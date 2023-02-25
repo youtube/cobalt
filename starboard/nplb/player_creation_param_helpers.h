@@ -17,6 +17,7 @@
 
 #include "starboard/configuration.h"
 
+#include "starboard/common/log.h"
 #include "starboard/drm.h"
 #include "starboard/media.h"
 #include "starboard/player.h"

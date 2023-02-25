@@ -42,6 +42,7 @@
 #if SB_API_VERSION < 13
 #include "starboard/speech_recognizer.h"
 #endif
+#include "starboard/common/log.h"
 #include "starboard/speech_synthesis.h"
 #include "starboard/storage.h"
 #include "starboard/string.h"

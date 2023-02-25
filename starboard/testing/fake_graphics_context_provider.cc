@@ -15,6 +15,7 @@
 #include "starboard/testing/fake_graphics_context_provider.h"
 
 #include "starboard/common/condition_variable.h"
+#include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
 
 #if defined(ADDRESS_SANITIZER)
@@ -229,7 +230,9 @@ void FakeGraphicsContextProvider::InitializeEGL() {
 
   // Create the GLES2 or GLEX3 Context.
   EGLint context_attrib_list[] = {
-      EGL_CONTEXT_CLIENT_VERSION, 3, EGL_NONE,
+      EGL_CONTEXT_CLIENT_VERSION,
+      3,
+      EGL_NONE,
   };
   if (context_ == EGL_NO_CONTEXT) {
     // Create an OpenGL ES 2.0 context.

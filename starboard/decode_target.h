@@ -90,9 +90,9 @@
 #ifndef STARBOARD_DECODE_TARGET_H_
 #define STARBOARD_DECODE_TARGET_H_
 
-#include "starboard/common/log.h"
 #include "starboard/configuration.h"
 #include "starboard/export.h"
+#include "starboard/log.h"
 #include "starboard/types.h"
 
 #ifdef __cplusplus
@@ -330,7 +330,7 @@ static SB_C_INLINE int SbDecodeTargetNumberOfPlanesForFormat(
     case kSbDecodeTargetFormat3PlaneYUVI420:
       return 3;
     default:
-      SB_NOTREACHED();
+      SbLog(kSbLogPriorityFatal, "Unhandled SbDecodeTargetFormat");
       return 0;
   }
 }
