@@ -14,6 +14,8 @@
 
 #include "cobalt/loader/fetcher_cache.h"
 
+#include <utility>
+
 #include "base/bind.h"
 #include "base/logging.h"
 #include "base/strings/stringprintf.h"
@@ -300,8 +302,15 @@ void FetcherCache::OnFetchSuccess(
   if (data->size() <= capacity_) {
     auto entry = new CacheEntry(headers, last_url_origin,
                                 did_fail_from_transient_error, data);
+
+    bool inserted = cache_entries_.insert(std::make_pair(url, entry)).second;
+    if (!inserted) {
+      // The resource is already cached.
+      delete entry;
+      return;
+    }
+
     total_size_ += entry->capacity();
-    cache_entries_.insert(std::make_pair(url, entry));
     while (total_size_ > capacity_) {
       DCHECK(!cache_entries_.empty());
       total_size_ -= cache_entries_.begin()->second->capacity();
