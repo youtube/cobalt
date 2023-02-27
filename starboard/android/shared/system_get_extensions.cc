@@ -16,13 +16,15 @@
 
 #include "starboard/android/shared/android_media_session_client.h"
 #include "starboard/android/shared/configuration.h"
-#include "starboard/android/shared/crash_handler.h"
 #include "starboard/android/shared/graphics.h"
 #include "starboard/android/shared/platform_service.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #if SB_IS(EVERGREEN_COMPATIBLE)
 #include "starboard/elf_loader/evergreen_config.h"  // nogncheck
+#include "starboard/shared/starboard/crash_handler.h"
+#else
+#include "starboard/android/shared/crash_handler.h"
 #endif
 #include "starboard/extension/configuration.h"
 #include "starboard/extension/crash_handler.h"
@@ -55,7 +57,11 @@ const void* SbSystemGetExtension(const char* name) {
     return starboard::android::shared::GetGraphicsApi();
   }
   if (strcmp(name, kCobaltExtensionCrashHandlerName) == 0) {
+#if SB_IS(EVERGREEN_COMPATIBLE)
+    return starboard::common::GetCrashHandlerApi();
+#else
     return starboard::android::shared::GetCrashHandlerApi();
+#endif
   }
   return NULL;
 }

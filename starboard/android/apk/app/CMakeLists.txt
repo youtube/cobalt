@@ -75,6 +75,22 @@ add_custom_command(OUTPUT coat_lib
             ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/libcoat.so
 )
 
+if(EVERGREEN_COMPATIBLE)
+  # Follow the pattern used to import libcoat.so, above.
+  add_custom_command(OUTPUT crashpad_handler_lib
+      COMMAND ${CMAKE_CURRENT_LIST_DIR}/cobalt-ninja.sh
+              ${skip_ninja_arg} -C ${COBALT_PRODUCT_DIR} crashpad_handler
+      COMMAND ${CMAKE_COMMAND} -E copy
+              ${COBALT_LIBRARY_DIR}/libcrashpad_handler.so
+              ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/libcrashpad_handler.so
+  )
+endif()
+
+set (lib_deps coat_lib)
+if(EVERGREEN_COMPATIBLE)
+  list(APPEND lib_deps crashpad_handler_lib)
+endif()
+
 # Make a symlink to the cobalt static content. We put it in a parent directory
 # of the library output, which corresponds to what the Gradle build sets for
 # android.sourceSets.<build-type>.assets.srcDir. This ends up overwriting the
@@ -82,7 +98,7 @@ add_custom_command(OUTPUT coat_lib
 # for a given build config is the same for all architectures.
 # ("cobalt_content" never gets created, so this runs every time.)
 add_custom_command(OUTPUT cobalt_content
-    DEPENDS coat_lib
+    DEPENDS ${lib_deps}
     COMMAND ${CMAKE_COMMAND} -E make_directory
             ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/../../../../${COBALT_CONFIG}
     COMMAND ${CMAKE_COMMAND} -E create_symlink
@@ -99,6 +115,14 @@ add_library(coat SHARED IMPORTED)
 set_target_properties(coat PROPERTIES
     IMPORTED_LOCATION ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/libcoat.so
 )
+
+if(EVERGREEN_COMPATIBLE)
+  # Follow the pattern used to include libcoat.so, above.
+  add_library(crashpadhandler SHARED IMPORTED)
+  set_target_properties(crashpadhandler PROPERTIES
+      IMPORTED_LOCATION ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/libcrashpad_handler.so
+  )
+endif()
 
 # Make a phony "native" library, so Android Studio has something to build.
 file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/phony.cpp "void __phony() {}")

@@ -19,9 +19,17 @@
 #include "starboard/android/shared/log_internal.h"
 #include "starboard/common/semaphore.h"
 #include "starboard/common/string.h"
+#if SB_IS(EVERGREEN_COMPATIBLE)
+#include "starboard/directory.h"
+#include "starboard/file.h"
+#endif
 #include "starboard/log.h"
 #include "starboard/shared/starboard/command_line.h"
+#include "starboard/shared/starboard/starboard_switches.h"
 #include "starboard/thread.h"
+#if SB_IS(EVERGREEN_COMPATIBLE)
+#include "third_party/crashpad/wrapper/wrapper.h"  // nogncheck
+#endif
 
 namespace starboard {
 namespace android {
@@ -73,6 +81,137 @@ std::string GetStartDeepLink() {
   return start_url;
 }
 
+#if SB_IS(EVERGREEN_COMPATIBLE)
+bool CopyDirContents(const std::string& src_dir_path,
+                     const std::string& dst_dir_path) {
+  SbDirectory src_dir = SbDirectoryOpen(src_dir_path.c_str(), NULL);
+  if (!SbDirectoryIsValid(src_dir)) {
+    SB_LOG(WARNING) << "Failed to open dir=" << src_dir_path;
+    return false;
+  }
+
+  std::vector<char> filename_buffer(kSbFileMaxName);
+  while (SbDirectoryGetNext(src_dir, filename_buffer.data(),
+                            filename_buffer.size())) {
+    std::string filename(filename_buffer.begin(), filename_buffer.end());
+    std::string path_to_src_file = src_dir_path + kSbFileSepString + filename;
+    SbFile src_file =
+        SbFileOpen(path_to_src_file.c_str(), kSbFileOpenOnly | kSbFileRead,
+                   nullptr, nullptr);
+    if (src_file == kSbFileInvalid) {
+      SB_LOG(WARNING) << "Failed to open file=" << path_to_src_file;
+      return false;
+    }
+
+    SbFileInfo info;
+    if (!SbFileGetInfo(src_file, &info)) {
+      SB_LOG(WARNING) << "Failed to get info for file=" << path_to_src_file;
+      SbFileClose(src_file);
+      return false;
+    }
+
+    int file_size = static_cast<int>(info.size);
+
+    // Read in bytes from src file
+    char file_contents_buffer[file_size];
+    int read = SbFileReadAll(src_file, file_contents_buffer, file_size);
+    if (read == -1) {
+      SB_LOG(WARNING) << "SbFileReadAll failed for file=" << path_to_src_file;
+      return false;
+    }
+    const std::string file_contents =
+        std::string(file_contents_buffer, file_size);
+    SbFileClose(src_file);
+
+    // Write bytes out to dst file
+    std::string path_to_dst_file = dst_dir_path;
+    path_to_dst_file.append(kSbFileSepString);
+    path_to_dst_file.append(filename);
+    SbFile dst_file =
+        SbFileOpen(path_to_dst_file.c_str(), kSbFileCreateAlways | kSbFileWrite,
+                   NULL, NULL);
+    if (dst_file == kSbFileInvalid) {
+      SB_LOG(WARNING) << "Failed to open file=" << path_to_dst_file;
+      return false;
+    }
+    int wrote = SbFileWriteAll(dst_file, file_contents.c_str(), file_size);
+    if (wrote == -1) {
+      SB_LOG(WARNING) << "SbFileWriteAll failed for file=" << path_to_dst_file;
+      return false;
+    }
+    SbFileClose(dst_file);
+  }
+
+  SbDirectoryClose(src_dir);
+  return true;
+}
+
+// Extracts CA certificates from the APK to the file system and returns the path
+// to the directory containing the extracted certifictes, or an empty string on
+// error.
+std::string ExtractCertificatesToFileSystem() {
+  std::vector<char> apk_path_buffer(kSbFileMaxPath);
+  if (!SbSystemGetPath(kSbSystemPathContentDirectory, apk_path_buffer.data(),
+                       apk_path_buffer.size())) {
+    SB_LOG(WARNING) << "Failed to get path to content dir in APK";
+    return "";
+  }
+
+  std::string apk_path(apk_path_buffer.data());
+  apk_path.append(std::string(kSbFileSepString) + "app" + kSbFileSepString +
+                  "cobalt" + kSbFileSepString + "content" + kSbFileSepString +
+                  "ssl" + kSbFileSepString + "certs");
+  if (!SbFileExists(apk_path.c_str())) {
+    SB_LOG(WARNING) << "CA certificates directory not found in APK";
+    return "";
+  }
+
+  std::vector<char> file_system_path_buffer(kSbFileMaxPath);
+  if (!SbSystemGetPath(kSbSystemPathCacheDirectory,
+                       file_system_path_buffer.data(),
+                       file_system_path_buffer.size())) {
+    SB_LOG(WARNING) << "Failed to get path to cache dir on file system";
+    return "";
+  }
+
+  std::string file_system_path(file_system_path_buffer.data());
+  file_system_path.append(std::string(kSbFileSepString) + "certs");
+  if (!SbDirectoryCreate(file_system_path.c_str())) {
+    SB_LOG(WARNING) << "Failed to create new dir for CA certificates";
+    return "";
+  }
+
+  if (!CopyDirContents(apk_path, file_system_path)) {
+    SB_LOG(WARNING) << "Failed to copy CA certificates to the file system";
+    return "";
+  }
+
+  return file_system_path;
+}
+
+void InstallCrashpadHandler(const CommandLine& command_line) {
+  if (command_line.HasSwitch(
+          starboard::shared::starboard::kStartHandlerAtLaunch)) {
+    SB_LOG(WARNING) << "--"
+                    << starboard::shared::starboard::kStartHandlerAtLaunch
+                    << " not supported for AOSP Evergreen, not installing "
+                    << "Crashpad handler";
+    return;
+  }
+
+  std::string extracted_ca_certificates_path =
+      ExtractCertificatesToFileSystem();
+  if (extracted_ca_certificates_path.empty()) {
+    SB_LOG(WARNING) << "Failed to extract CA certificates to file system, not "
+                    << "installing Crashpad handler";
+    return;
+  }
+
+  third_party::crashpad::wrapper::InstallCrashpadHandler(
+      /*start_at_crash=*/true, extracted_ca_certificates_path);
+}
+#endif  // SB_IS(EVERGREEN_COMPATIBLE)
+
 void* ThreadEntryPoint(void* context) {
   Semaphore* app_created_semaphore = static_cast<Semaphore*>(context);
 
@@ -81,6 +220,10 @@ void* ThreadEntryPoint(void* context) {
 
   CommandLine command_line(GetArgs());
   LogInit(command_line);
+
+#if SB_IS(EVERGREEN_COMPATIBLE)
+  InstallCrashpadHandler(command_line);
+#endif  // SB_IS(EVERGREEN_COMPATIBLE)
 
   // Mark the app running before signaling app created so there's no race to
   // allow sending the first AndroidCommand after onCreate() returns.

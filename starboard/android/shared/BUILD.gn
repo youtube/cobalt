@@ -487,11 +487,24 @@ static_library("starboard_platform") {
   }
 
   if (sb_is_evergreen_compatible) {
+    sources -= [
+      "crash_handler.cc",
+      "crash_handler.h",
+    ]
+    sources += [
+      "//starboard/shared/starboard/crash_handler.cc",
+      "//starboard/shared/starboard/crash_handler.h",
+      "//starboard/shared/starboard/starboard_switches.cc",
+      "//starboard/shared/starboard/starboard_switches.h",
+    ]
+
     public_deps += [ "//starboard/elf_loader:evergreen_config" ]
 
     if (!sb_evergreen_compatible_enable_lite) {
       public_deps += [ "//starboard/loader_app:pending_restart" ]
     }
+
+    deps += [ "//third_party/crashpad/wrapper" ]
   }
 
   if (sb_evergreen_compatible_use_libunwind) {

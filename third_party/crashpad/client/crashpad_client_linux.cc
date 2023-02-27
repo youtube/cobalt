@@ -97,7 +97,7 @@ void AddAnnotation(std::vector<std::string>& argv_strings,
 }
 #endif
 
-#if defined(OS_ANDROID)
+#if defined(OS_ANDROID) && !defined(STARBOARD)
 
 std::vector<std::string> BuildAppProcessArgs(
     const std::string& class_name,
@@ -165,7 +165,7 @@ std::vector<std::string> BuildArgsToLaunchWithLinker(
   return argv;
 }
 
-#endif  // OS_ANDROID
+#endif  // defined(OS_ANDROID) && !defined(STARBOARD)
 
 // A base class for Crashpad signal handler implementations.
 class SignalHandler {
@@ -622,7 +622,7 @@ bool CrashpadClient::SetHandlerSocket(ScopedFileHandle sock, pid_t pid) {
 }
 #endif  // OS_ANDROID || OS_LINUX
 
-#if defined(OS_ANDROID)
+#if defined(OS_ANDROID) && !defined(STARBOARD)
 
 bool CrashpadClient::StartJavaHandlerAtCrash(
     const std::string& class_name,
@@ -708,7 +708,7 @@ bool CrashpadClient::StartHandlerWithLinkerForClient(
   return DoubleForkAndExec(argv, env, socket, false, nullptr);
 }
 
-#endif
+#endif  // defined(OS_ANDROID) && !defined(STARBOARD)
 
 bool CrashpadClient::StartHandlerAtCrash(
     const base::FilePath& handler,

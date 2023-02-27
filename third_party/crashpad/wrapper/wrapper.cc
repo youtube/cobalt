@@ -61,7 +61,12 @@ base::FilePath GetPathToCrashpadHandlerBinary() {
   base::FilePath exe_dir_path = base::FilePath(exe_path.data()).DirName();
   std::string handler_path(exe_dir_path.value());
   handler_path.push_back(kSbFileSepChar);
+#if defined(OS_ANDROID)
+  // Path to the extracted native library.
+  handler_path.append("arm/libcrashpad_handler.so");
+#else
   handler_path.append("crashpad_handler");
+#endif  // defined(OS_ANDROID)
   return base::FilePath(handler_path.c_str());
 }
 

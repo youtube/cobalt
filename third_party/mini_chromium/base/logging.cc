@@ -52,6 +52,10 @@
 #include <zircon/syscalls.h>
 #endif
 
+#if defined(NATIVE_TARGET_BUILD) && defined(OS_ANDROID)
+#include <android/log.h>
+#endif  // defined(NATIVE_TARGET_BUILD) && defined(OS_ANDROID)
+
 #include "base/stl_util.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
@@ -162,6 +166,32 @@ LogMessage::~LogMessage() {
           severity_, file_path_, line_, message_start_, str_newline)) {
     return;
   }
+
+#if defined(NATIVE_TARGET_BUILD) && defined(OS_ANDROID)
+  // This code block is mostly taken from base/logging.cc and was added here to
+  // enable logging in crashpad_handler for the AOSP Evergreen port.
+  android_LogPriority priority =
+      (severity_ < 0) ? ANDROID_LOG_VERBOSE : ANDROID_LOG_UNKNOWN;
+  switch (severity_) {
+    case LOG_INFO:
+      priority = ANDROID_LOG_INFO;
+      break;
+    case LOG_WARNING:
+      priority = ANDROID_LOG_WARN;
+      break;
+    case LOG_ERROR:
+      priority = ANDROID_LOG_ERROR;
+      break;
+    case LOG_FATAL:
+      priority = ANDROID_LOG_FATAL;
+      break;
+  }
+
+  // Even though this is a native build and not a Starboard build, the
+  // "starboard" tag is used to group these logs with the logs from the Cobalt
+  // process.
+  __android_log_write(priority, "starboard", str_newline.c_str());
+#endif  // defined(NATIVE_TARGET_BUILD) && defined(OS_ANDROID)
 
   fprintf(stderr, "%s", str_newline.c_str());
   fflush(stderr);

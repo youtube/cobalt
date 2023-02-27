@@ -156,7 +156,7 @@ class CrashpadClient {
   bool SetHandlerSocket(ScopedFileHandle sock, pid_t pid);
 #endif  // OS_ANDROID || OS_LINUX || DOXYGEN
 
-#if defined(OS_ANDROID) || DOXYGEN
+#if (defined(OS_ANDROID) || DOXYGEN) && !defined(STARBOARD)
   //! \brief Installs a signal handler to execute `/system/bin/app_process` and
   //!     load a Java class in response to a crash.
   //!
@@ -323,7 +323,7 @@ class CrashpadClient {
       const std::map<std::string, std::string>& annotations,
       const std::vector<std::string>& arguments,
       int socket);
-#endif  // OS_ANDROID || DOXYGEN
+#endif  // (defined(OS_ANDROID) || DOXYGEN) && !defined(STARBOARD)
 
 #if defined(OS_LINUX) || defined(OS_ANDROID) || DOXYGEN
   //! \brief Installs a signal handler to launch a handler process in reponse to

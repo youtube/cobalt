@@ -153,13 +153,13 @@ static_library("crypto") {
       }
     }
   } else if (is_native_target_build)  {
-    if (is_linux) {
+    if (is_linux || is_android) {
       if (asm_target_arch == "x64") {
         sources += boringssl_linux_x86_64_files
       } else if (asm_target_arch == "arm") {
         sources += boringssl_linux_arm_files
       } else {
-        assert(false, "Unsupported Linux arch for native build")
+        assert(false, "Unsupported Linux or Android arch for native build")
       }
     } else {
         assert(false, "Unsupported OS for native build")

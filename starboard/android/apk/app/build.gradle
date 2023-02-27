@@ -34,6 +34,8 @@ ext {
             project.hasProperty('cobaltLibraryDir') ? new File(cobaltLibraryDir).canonicalPath : ''
     enableVulkan =
             project.hasProperty('enableVulkan') ? enableVulkan : 0
+    evergreenCompatible =
+            project.hasProperty('evergreenCompatible') ? evergreenCompatible : "false"
 
     buildIdFile = rootProject.file('build.id')
     buildId = buildIdFile.exists() ? buildIdFile.text.trim() : '0'
@@ -76,7 +78,10 @@ android {
         targetSdkVersion 31
         versionCode 1
         versionName "${buildId}"
-        manifestPlaceholders = [applicationName: "CoAT: ${cobaltTarget}"]
+        manifestPlaceholders = [
+            applicationName: "CoAT: ${cobaltTarget}",
+            evergreenCompatible: "${evergreenCompatible}"
+        ]
         externalNativeBuild {
             cmake {
                 arguments "-DCOBALT_TARGET=${cobaltTarget}"
@@ -85,6 +90,7 @@ android {
                 arguments "-DCOBALT_LIBRARY_DIR=${cobaltLibraryDir}"
                 arguments "-DCOBALT_PLATFORM_DEPLOY=${project.hasProperty('cobaltDeployApk')}"
                 arguments "-DENABLE_VULKAN=${enableVulkan}"
+                arguments "-DEVERGREEN_COMPATIBLE=${evergreenCompatible}"
             }
         }
     }
@@ -160,6 +166,14 @@ android {
             // in the top-level build.gradle to be in a common top-level 'build' directory. Get
             // the canonical file at config time so that it's still right at build time.
             buildStagingDirectory new File("${buildDir}.cxx").canonicalFile
+        }
+    }
+    packagingOptions {
+        jniLibs {
+            // extractNativeLibs, which we set, based on evergreenCompatible, in the manifest file,
+            // is deprecated. Gradle asks that useLegacyPackaging be set if extractNativeLibs is
+            // set, and complains if they have different values. To be safe, both are set for now.
+            useLegacyPackaging "${evergreenCompatible}" == "true" ? true : false
         }
     }
 }

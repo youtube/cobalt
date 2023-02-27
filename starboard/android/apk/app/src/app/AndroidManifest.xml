@@ -34,12 +34,12 @@
 
   <!-- https://iabtechlab.com/OTT-IFA, AdvertisingIdClient.Info.getId() -->
   <uses-permission android:name="com.google.android.gms.permission.AD_ID"/>
-
   <application
     android:name="dev.cobalt.app.CobaltApplication"
     android:icon="@mipmap/ic_app"
     android:banner="@drawable/app_banner"
-    android:label="${applicationName}">
+    android:label="${applicationName}"
+    android:extractNativeLibs="${evergreenCompatible}">
 
     <activity android:name="dev.cobalt.app.MainActivity"
       android:exported="true"

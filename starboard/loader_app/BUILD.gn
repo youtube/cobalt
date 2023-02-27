@@ -63,6 +63,16 @@ if (sb_is_evergreen_compatible && sb_evergreen_compatible_package) {
     outputs =
         [ "$sb_static_contents_output_data_dir/app/cobalt/lib/libcobalt.so" ]
   }
+
+  # This trick to name the Crashpad handler executable as a shared library, so
+  # that the Package Manager extracts it to the file system on install, is
+  # borrowed from Chrome on Android.
+  copy("copy_crashpad_handler_named_as_so") {
+    install_content = true
+    sources = [ "$root_out_dir/native_target/crashpad_handler" ]
+    outputs = [ "$root_out_dir/libcrashpad_handler.so" ]
+    deps = [ "//third_party/crashpad/handler:crashpad_handler(//starboard/android/arm/toolchain:native_target)" ]
+  }
 }
 
 target(final_executable_type, "loader_app") {
@@ -85,10 +95,12 @@ target(final_executable_type, "loader_app") {
     ]
     if (sb_is_evergreen_compatible && sb_evergreen_compatible_package) {
       data_deps += [
+        ":copy_crashpad_handler_named_as_so",
         ":copy_loader_app_content",
         ":copy_loader_app_lib",
       ]
       deps += [
+        ":copy_crashpad_handler_named_as_so",
         ":copy_loader_app_content",
         ":copy_loader_app_lib",
       ]
