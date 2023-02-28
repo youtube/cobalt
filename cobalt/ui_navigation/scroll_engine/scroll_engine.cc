@@ -302,6 +302,11 @@ void ScrollEngine::HandleScrollStart(
     math::Vector2dF current_coordinates, uint64 current_time_stamp) {
   DCHECK(base::MessageLoop::current() == scroll_engine_.message_loop());
 
+  if (active_item_) {
+    events_to_handle_.erase(pointer_id);
+    return;
+  }
+
   auto drag_vector = initial_coordinates - current_coordinates;
   if (ShouldFreeScroll(scroll_container, drag_vector)) {
     scroll_type = ScrollType::Free;
