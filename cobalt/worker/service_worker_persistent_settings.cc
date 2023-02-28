@@ -66,6 +66,7 @@ const char kSettingsScriptResourceMapScriptUrlsKey[] =
 const char kSettingsSetOfUsedScriptsKey[] = "set_of_used_scripts";
 const char kSettingsSkipWaitingKey[] = "skip_waiting";
 const char kSettingsClassicScriptsImportedKey[] = "classic_scripts_imported";
+const char kSettingsRawHeadersKey[] = "raw_headers";
 
 bool CheckPersistentValue(
     std::string key_string, std::string settings_key,
@@ -236,10 +237,21 @@ bool ServiceWorkerPersistentSettings::ReadServiceWorkerObjectSettings(
       if (data == nullptr) {
         return false;
       }
-      std::string script_string(data->begin(), data->end());
-      auto result = script_resource_map.insert(std::make_pair(
-          script_url,
-          ScriptResource(std::make_unique<std::string>(script_string))));
+      auto script_resource = ScriptResource(std::make_unique<std::string>(
+          std::string(data->begin(), data->end())));
+      if (script_url == worker->script_url()) {
+        // Get the persistent headers for the ServiceWorkerObject script_url_.
+        // This is used in ServiceWorkerObject::Initialize().
+        base::Value* raw_header_value = value_dict->FindKeyOfType(
+            kSettingsRawHeadersKey, base::Value::Type::STRING);
+        if (raw_header_value == nullptr) return false;
+        const scoped_refptr<net::HttpResponseHeaders> headers =
+            scoped_refptr<net::HttpResponseHeaders>(
+                new net::HttpResponseHeaders(raw_header_value->GetString()));
+        script_resource.headers = headers;
+      }
+      auto result = script_resource_map.insert(
+          std::make_pair(script_url, std::move(script_resource)));
       DCHECK(result.second);
     }
   }
@@ -365,6 +377,14 @@ ServiceWorkerPersistentSettings::WriteServiceWorkerObjectSettings(
         web::cache_utils::GetKey(registration_key_string + script_url_string),
         data,
         /* metadata */ base::nullopt);
+
+    if (script_url_string == service_worker_object->script_url().spec()) {
+      // Persist the raw headers from the ServiceWorkerObject script_url_
+      // ScriptResource headers.
+      dict.try_emplace(kSettingsRawHeadersKey,
+                       std::make_unique<base::Value>(
+                           script_resource.second.headers->raw_headers()));
+    }
   }
   dict.try_emplace(kSettingsScriptResourceMapScriptUrlsKey,
                    std::make_unique<base::Value>(std::move(script_urls_value)));
