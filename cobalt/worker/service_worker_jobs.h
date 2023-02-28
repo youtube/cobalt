@@ -190,7 +190,7 @@ class ServiceWorkerJobs {
   ServiceWorkerJobs(web::WebSettings* web_settings,
                     network::NetworkModule* network_module,
                     web::UserAgentPlatformInfo* platform_info,
-                    base::MessageLoop* message_loop);
+                    base::MessageLoop* message_loop, const GURL& url);
   ~ServiceWorkerJobs();
 
   base::MessageLoop* message_loop() { return message_loop_; }
@@ -312,9 +312,6 @@ class ServiceWorkerJobs {
 
   // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#clear-registration-algorithm
   void ClearRegistration(ServiceWorkerRegistrationObject* registration);
-
-  // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#update-state-algorithm
-  void UpdateWorkerState(ServiceWorkerObject* worker, ServiceWorkerState state);
 
   // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#soft-update
   void SoftUpdate(scoped_refptr<ServiceWorkerRegistrationObject> registration,
@@ -444,6 +441,9 @@ class ServiceWorkerJobs {
   void UpdateRegistrationState(
       ServiceWorkerRegistrationObject* registration, RegistrationState target,
       const scoped_refptr<ServiceWorkerObject>& source);
+
+  // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#update-state-algorithm
+  void UpdateWorkerState(ServiceWorkerObject* worker, ServiceWorkerState state);
 
   // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#on-client-unload-algorithm
   void HandleServiceWorkerClientUnload(web::Context* client);

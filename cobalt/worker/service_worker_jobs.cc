@@ -135,7 +135,8 @@ bool PermitAnyNonRedirectedURL(const GURL&, bool did_redirect) {
 ServiceWorkerJobs::ServiceWorkerJobs(web::WebSettings* web_settings,
                                      network::NetworkModule* network_module,
                                      web::UserAgentPlatformInfo* platform_info,
-                                     base::MessageLoop* message_loop)
+                                     base::MessageLoop* message_loop,
+                                     const GURL& url)
     : message_loop_(message_loop) {
   DCHECK_EQ(message_loop_, base::MessageLoop::current());
   fetcher_factory_.reset(new loader::FetcherFactory(network_module));
@@ -146,7 +147,7 @@ ServiceWorkerJobs::ServiceWorkerJobs(web::WebSettings* web_settings,
   DCHECK(script_loader_factory_);
 
   ServiceWorkerPersistentSettings::Options options(web_settings, network_module,
-                                                   platform_info, this);
+                                                   platform_info, this, url);
   scope_to_registration_map_.reset(new ServiceWorkerRegistrationMap(options));
   DCHECK(scope_to_registration_map_);
 }
@@ -1290,8 +1291,9 @@ void ServiceWorkerJobs::Install(
   TryActivate(registration);
 
   // Persist registration since the waiting_worker has been updated.
-  scope_to_registration_map_->PersistRegistration(registration->storage_key(),
-                                                  registration->scope_url());
+  if (!registration->is_persisted())
+    scope_to_registration_map_->PersistRegistration(registration->storage_key(),
+                                                    registration->scope_url());
 }
 
 bool ServiceWorkerJobs::IsAnyClientUsingRegistration(
@@ -1509,6 +1511,8 @@ void ServiceWorkerJobs::Activate(
         // Timeout
         activated = false;
       }
+    } else {
+      activated = false;
     }
   }
   // 12. Run the Update Worker State algorithm passing registration’s active
@@ -1519,8 +1523,9 @@ void ServiceWorkerJobs::Activate(
 
     // Persist registration since the waiting_worker has been updated to nullptr
     // and the active_worker has been updated to the previous waiting_worker.
-    scope_to_registration_map_->PersistRegistration(registration->storage_key(),
-                                                    registration->scope_url());
+    if (!registration->is_persisted())
+      scope_to_registration_map_->PersistRegistration(
+          registration->storage_key(), registration->scope_url());
   }
 }
 

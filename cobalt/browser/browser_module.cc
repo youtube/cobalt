@@ -293,7 +293,7 @@ BrowserModule::BrowserModule(const GURL& url,
 
   platform_info_.reset(new browser::UserAgentPlatformInfo());
   service_worker_registry_.reset(new ServiceWorkerRegistry(
-      &web_settings_, network_module, platform_info_.get()));
+      &web_settings_, network_module, platform_info_.get(), url));
 
 #if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
   SbCoreDumpRegisterHandler(BrowserModule::CoreDumpHandler, this);
