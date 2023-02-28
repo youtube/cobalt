@@ -123,6 +123,12 @@ void ServiceWorkerPersistentSettings::ReadServiceWorkerRegistrationMapSettings(
     url::Origin storage_key =
         url::Origin::Create(GURL(dict[kSettingsStorageKeyKey]->GetString()));
 
+    // Only add persisted workers to the registration_map
+    // if their storage_key matches the origin of the initial_url.
+    if (!storage_key.IsSameOriginWith(url::Origin::Create(options_.url))) {
+      continue;
+    }
+
     if (!CheckPersistentValue(key_string, kSettingsScopeUrlKey, dict,
                               base::Value::Type::STRING))
       continue;
@@ -168,14 +174,24 @@ void ServiceWorkerPersistentSettings::ReadServiceWorkerRegistrationMapSettings(
                       ->GetDouble())));
     }
 
-    // Persisted registration and worker are valid, add the registration
-    // to the registration_map and key_set_.
     key_set_.insert(key_string);
     registration_map.insert(std::make_pair(key, registration));
+    registration->set_is_persisted(true);
 
-    // TODO(b/228904017)
-    // Not in spec. Run SoftUpdate on the new registration.
-    // options_.service_worker_jobs->SoftUpdate(registration);
+    options_.service_worker_jobs->message_loop()->task_runner()->PostTask(
+        FROM_HERE,
+        base::BindOnce(&ServiceWorkerJobs::Activate,
+                       base::Unretained(options_.service_worker_jobs),
+                       registration));
+
+    auto job = options_.service_worker_jobs->CreateJob(
+        ServiceWorkerJobs::JobType::kUpdate, storage_key, scope,
+        registration->waiting_worker()->script_url());
+    options_.service_worker_jobs->message_loop()->task_runner()->PostTask(
+        FROM_HERE,
+        base::BindOnce(&ServiceWorkerJobs::ScheduleJob,
+                       base::Unretained(options_.service_worker_jobs),
+                       std::move(job)));
   }
 }
 
@@ -260,9 +276,7 @@ bool ServiceWorkerPersistentSettings::ReadServiceWorkerObjectSettings(
   }
   worker->set_script_resource_map(std::move(script_resource_map));
 
-  options_.service_worker_jobs->UpdateWorkerState(worker,
-                                                  kServiceWorkerStateActivated);
-  registration->set_active_worker(worker);
+  registration->set_waiting_worker(worker);
 
   return true;
 }

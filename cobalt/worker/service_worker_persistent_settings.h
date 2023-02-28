@@ -49,15 +49,17 @@ class ServiceWorkerPersistentSettings {
     Options(web::WebSettings* web_settings,
             network::NetworkModule* network_module,
             web::UserAgentPlatformInfo* platform_info,
-            ServiceWorkerJobs* service_worker_jobs)
+            ServiceWorkerJobs* service_worker_jobs, const GURL& url)
         : web_settings(web_settings),
           network_module(network_module),
           platform_info(platform_info),
-          service_worker_jobs(service_worker_jobs) {}
+          service_worker_jobs(service_worker_jobs),
+          url(url) {}
     web::WebSettings* web_settings;
     network::NetworkModule* network_module;
     web::UserAgentPlatformInfo* platform_info;
     ServiceWorkerJobs* service_worker_jobs;
+    const GURL& url;
   };
 
   explicit ServiceWorkerPersistentSettings(const Options& options);

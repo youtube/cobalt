@@ -98,6 +98,10 @@ class ServiceWorkerRegistrationObject
 
   base::WaitableEvent* done_event() { return &done_event_; }
 
+  bool is_persisted() { return is_persisted_; }
+
+  void set_is_persisted(bool value) { is_persisted_ = value; }
+
  private:
   // This lock is to allow atomic operations on the registration object.
   base::Lock mutex_;
@@ -114,6 +118,8 @@ class ServiceWorkerRegistrationObject
   base::WaitableEvent done_event_ = {
       base::WaitableEvent::ResetPolicy::MANUAL,
       base::WaitableEvent::InitialState::SIGNALED};
+
+  bool is_persisted_;
 };
 
 }  // namespace worker

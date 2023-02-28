@@ -232,7 +232,8 @@ std::string RunWebPlatformTest(const GURL& url, bool* got_results) {
   // Create Service Worker Registry
   browser::ServiceWorkerRegistry* service_worker_registry =
       new browser::ServiceWorkerRegistry(&web_settings, &network_module,
-                                         new browser::UserAgentPlatformInfo());
+                                         new browser::UserAgentPlatformInfo(),
+                                         url);
   web_module_options.web_options.service_worker_jobs =
       service_worker_registry->service_worker_jobs();
 
