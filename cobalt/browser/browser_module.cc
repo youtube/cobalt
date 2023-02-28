@@ -1191,6 +1191,7 @@ void BrowserModule::InjectOnScreenKeyboardInputEventToMainWebModule(
 
 void BrowserModule::OnError(const GURL& url, const std::string& error) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::OnError()");
+  LOG(ERROR) << error;
   if (base::MessageLoop::current() != self_message_loop_) {
     self_message_loop_->task_runner()->PostTask(
         FROM_HERE, base::Bind(&BrowserModule::OnError, weak_this_, url, error));
