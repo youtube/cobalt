@@ -137,8 +137,16 @@ GrowableIOBuffer::GrowableIOBuffer()
 void GrowableIOBuffer::SetCapacity(int capacity) {
   DCHECK_GE(capacity, 0);
   // realloc will crash if it fails.
-  real_data_.reset(
-      static_cast<char*>(SbMemoryReallocate(real_data_.release(), capacity)));
+  // Calling reallocate with size 0 and a non-null pointer causes memory leaks
+  // on many platforms, since it may return nullptr while also not deallocating
+  // the previously allocated memory.
+  if (real_data_ && capacity == 0) {
+    SbMemoryDeallocate(real_data_.release());
+    real_data_.reset();
+  } else {
+    real_data_.reset(
+        static_cast<char*>(SbMemoryReallocate(real_data_.release(), capacity)));
+  }
   capacity_ = capacity;
   if (offset_ > capacity)
     set_offset(capacity);
