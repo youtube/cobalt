@@ -262,7 +262,7 @@ def _CreateWindowsTarCmd(source_path, intermediate_tar_path, patterns,
       if glob.glob(os.path.join(source_path, pattern))
   ]
   files_to_tar = ' '.join(contents)
-  return (f'"{_7Z_PATH}" a {excludes} -bsp1 -snl -ttar'
+  return (f'"{_7Z_PATH}" a {excludes} -bsp1 -snl -ttar '
           f'{intermediate_tar_path} {files_to_tar}')
 
 
