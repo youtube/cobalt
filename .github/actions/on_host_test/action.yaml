@@ -70,7 +70,7 @@ runs:
         if [[ "${{matrix.shard}}" == 'integration' ]]; then
           xvfb-run -a --server-args="-screen 0 1920x1080x24i +render +extension GLX -noreset" python3 $GITHUB_WORKSPACE/cobalt/black_box_tests/black_box_tests.py --platform ${{matrix.target_platform}} --config ${{matrix.config}} ${loader_args}
         elif [[ "${{matrix.shard}}" == 'evergreen' ]]; then
-          xvfb-run -a --server-args="-screen 0 1920x1080x24i +render +extension GLX -noreset" python3 $GITHUB_WORKSPACE/cobalt/evergreen_tests/evergreen_tests.py --platform ${{matrix.target_platform}} --config ${{matrix.config}} ${loader_args} --platform_under_test linux --no-can_mount_tmpfs
+          xvfb-run -a --server-args="-screen 0 1920x1080x24i +render +extension GLX -noreset" python3 $GITHUB_WORKSPACE/cobalt/evergreen_tests/evergreen_tests.py --platform ${{matrix.target_platform}} --config ${{matrix.config}} ${loader_args} --no-can_mount_tmpfs
         else
           if [[ "${{inputs.os}}" == 'windows' ]]; then
             python3 ${GITHUB_WORKSPACE}/starboard/tools/testing/test_runner.py --platform ${{matrix.target_platform}} --config ${{matrix.config}} -s ${{matrix.shard}} -r
