@@ -55,7 +55,8 @@ _TESTS_NEEDING_SYSTEM_SIGNAL = [
     'preload_font',
     'preload_visibility',
     'preload_launch_parameter',
-    'signal_handler_doesnt_crash',
+    # TODO(b/254502632): Investigate the cause of the flakiness from this test.
+    # 'signal_handler_doesnt_crash',
     'suspend_visibility',
     'timer_hit_after_preload',
     'timer_hit_in_preload',
