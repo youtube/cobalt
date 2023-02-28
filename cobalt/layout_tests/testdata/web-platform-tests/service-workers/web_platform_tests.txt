@@ -1,21 +1,23 @@
 # Service Worker API tests
 
+service-worker/clients-matchall-on-evaluation.https.html, PASS
+service-worker/fetch-event-add-async.https.html, PASS
 service-worker/register-default-scope.https.html, PASS
+service-worker/registration-basic.https.html, PASS
+service-worker/registration-security-error.https.html, PASS
+service-worker/registration-script-url.https.html, PASS
 service-worker/rejections.https.html, PASS
 service-worker/serviceworkerobject-scripturl.https.html, PASS
-service-worker/unregister.https.html, PASS
-service-worker/registration-script-url.https.html, PASS
-service-worker/registration-security-error.https.html, PASS
+service-worker/service-worker-header.https.html, PASS
 service-worker/Service-Worker-Allowed-header.https.html, PASS
-service-worker/update-result.https.html, PASS
+service-worker/uncontrolled-page.https.html, PASS
+service-worker/unregister.https.html, PASS
 service-worker/update-missing-import-scripts.https.html, PASS
+service-worker/update-result.https.html, PASS
 
 # Tests pass with memory leakage issue.
 service-worker/update-no-cache-request-headers.https.html, DISABLE
 
-# b/266605500
-# Caught signal: SIGSEGV on linux-x64x11-sbversion-12_evergreen-x64-sbversion-12_nightly
-service-worker/clients-matchall-on-evaluation.https.html, DISABLE
 
 # b/266605087 TypeError: Cannot set property 'onerror' of null"
 service-worker/skip-waiting-without-client.https.html, DISABLE
@@ -24,34 +26,27 @@ service-worker/service-worker-csp-connect.https.html, DISABLE
 
 # b/234788479 Implement waiting for update worker state tasks in Install algorithm.
 service-worker/activation-after-registration.https.html, DISABLE
-
-# b/264920834 heap-use-after-free bug
-service-worker/registration-basic.https.html, DISABLE
 service-worker/activate-event-after-install-state-change.https.html, DISABLE
-service-worker/clients-matchall-frozen.https.html, DISABLE
-service-worker/fetch-event-add-async.https.html, DISABLE
 service-worker/multiple-update.https.html, DISABLE
 service-worker/register-wait-forever-in-install-worker.https.html, DISABLE
-service-worker/registration-events.https.html, DISABLE
-service-worker/registration-schedule-job.https.html, DISABLE
-service-worker/service-worker-header.https.html, DISABLE
 service-worker/state.https.html, DISABLE
-service-worker/uncontrolled-page.https.html, DISABLE
-
 
 # "Module" type of dedicated worker is supported in Cobalt
 service-worker/dedicated-worker-service-worker-interception.https.html, DISABLE
+service-worker/registration-schedule-job.https.html, DISABLE
 service-worker/registration-scope-module-static-import.https.html, DISABLE
+service-worker/registration-script-module.https.html, DISABLE
 service-worker/update-module-request-mode.https.html, DISABLE
 service-worker/update-registration-with-type.https.html, DISABLE
-service-worker/registration-script-module.https.html, DISABLE
 
 # Channel API is not supported in Cobalt
+service-worker/clients-matchall-frozen.https.html, DISABLE
 service-worker/extendable-event-waituntil.https.html, DISABLE
 service-worker/immutable-prototype-serviceworker.https.html, DISABLE
 service-worker/indexeddb.https.html, DISABLE
 service-worker/postmessage.https.html, DISABLE
 service-worker/registration-end-to-end.https.html, DISABLE
+service-worker/registration-events.https.html, DISABLE
 
 # Below are manual tests from web-platform-tests without automation.
 service-worker/fetch-event-is-history-backward-navigation-manual.https.html, DISABLE
