@@ -326,6 +326,7 @@ void ScrollEngine::HandleScrollStart(
   auto event_to_handle = events_to_handle_.find(pointer_id);
   if (event_to_handle != events_to_handle_.end()) {
     HandlePointerEventForActiveItem(event_to_handle->second);
+    events_to_handle_.erase(pointer_id);
   }
 }
 
