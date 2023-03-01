@@ -115,7 +115,7 @@ math::Vector2dF GetVelocityInMilliseconds(
 math::Vector2dF GetNewTarget(EventPositionWithTimeStamp previous_event,
                              EventPositionWithTimeStamp current_event) {
   auto velocity = GetVelocityInMilliseconds(previous_event, current_event);
-  velocity.Scale(kMaxFreeScrollDuration.InMillisecondsF());
+  velocity.Scale(kMaxFreeScrollDuration.InMilliseconds());
   velocity.Scale(-1);
   return current_event.position + velocity;
 }
