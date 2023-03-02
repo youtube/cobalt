@@ -209,13 +209,14 @@ jobs:
       - name: Trigger ${{ matrix.type }} tests on ${{ matrix.platform }} platform
         id: on_device_test
         run: |
+          set -eux
           SESSION_ID=$(
             python3 tools/on_device_tests_gateway_client.py \
               --token ${{ github.token }} \
               --change_id "${{ github.sha }}" \
               trigger \
               --test_type ${{ matrix.type }} \
-              --platform ${{ matrix.target_platform }} \
+              --platform ${{ matrix.platform }} \
               --config ${{ matrix.config }} \
               --tag cobalt_github_${{ github.event_name }} \
               --builder_name github_${{ matrix.platform }}_tests \
