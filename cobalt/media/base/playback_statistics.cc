@@ -130,7 +130,11 @@ PlaybackStatistics::PlaybackStatistics(const std::string& pipeline_identifier)
                        "The status of the media pipeline."),
       error_message_(base::StringPrintf("Media.Pipeline.%s.ErrorMessage",
                                         pipeline_identifier.c_str()),
-                     "", "The error message of the media pipeline error.") {}
+                     "", "The error message of the media pipeline error."),
+      current_video_codec_(
+          base::StringPrintf("Media.Pipeline.%s.CurrentCodec",
+                             pipeline_identifier.c_str()),
+          "", "The currently configured Codec in VideoDecoderConfig.") {}
 
 PlaybackStatistics::~PlaybackStatistics() {
   if (has_active_instance_) {
@@ -165,6 +169,7 @@ void PlaybackStatistics::UpdateVideoConfig(
 
   video_width_ = video_config.natural_size().width();
   video_height_ = video_config.natural_size().height();
+  current_video_codec_ = GetCodecName(video_config.codec());
 
   const auto width = static_cast<SbAtomic32>(video_width_);
   const auto height = static_cast<SbAtomic32>(video_height_);
