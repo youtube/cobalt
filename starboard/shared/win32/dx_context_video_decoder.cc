@@ -47,23 +47,21 @@ HardwareDecoderContext GetDirectXForHardwareDecoding() {
 
   intptr_t device;
   query_device(reinterpret_cast<EGLDeviceEXT>(egl_device),
-      EGL_D3D11_DEVICE_ANGLE, &device);
+               EGL_D3D11_DEVICE_ANGLE, &device);
 
-  ID3D11Device* output_dx_device = reinterpret_cast<ID3D11Device*>(device);
-  IMFDXGIDeviceManager* dxgi_device_mgr = nullptr;
+  Microsoft::WRL::ComPtr<ID3D11Device> output_dx_device =
+      reinterpret_cast<ID3D11Device*>(device);
+  Microsoft::WRL::ComPtr<IMFDXGIDeviceManager> dxgi_device_mgr;
 
   UINT token = 0;
   result = MFCreateDXGIDeviceManager(&token, &dxgi_device_mgr);
   SB_DCHECK(result == S_OK);
   SB_DCHECK(dxgi_device_mgr);
 
-  result = dxgi_device_mgr->ResetDevice(output_dx_device, token);
+  result = dxgi_device_mgr->ResetDevice(output_dx_device.Get(), token);
   SB_DCHECK(SUCCEEDED(result));
 
-  HardwareDecoderContext output = {
-    output_dx_device,
-    dxgi_device_mgr
-  };
+  HardwareDecoderContext output = {output_dx_device, dxgi_device_mgr};
   return output;
 }
 
