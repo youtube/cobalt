@@ -322,6 +322,10 @@ class ServiceWorkerJobs {
   void SoftUpdate(scoped_refptr<ServiceWorkerRegistrationObject> registration,
                   bool force_bypass_cache = false);
 
+  void EnsureServiceWorkerStarted(const url::Origin& storage_key,
+                                  const GURL& client_url,
+                                  base::WaitableEvent* done_event);
+
  private:
   // State used for the 'Update' algorithm.
   struct UpdateJobState : public base::RefCounted<UpdateJobState> {

@@ -77,6 +77,13 @@ ServiceWorkerRegistry::~ServiceWorkerRegistry() {
   thread_.Stop();
 }
 
+void ServiceWorkerRegistry::EnsureServiceWorkerStarted(
+    const url::Origin& storage_key, const GURL& client_url,
+    base::WaitableEvent* done_event) {
+  service_worker_jobs()->EnsureServiceWorkerStarted(storage_key, client_url,
+                                                    done_event);
+}
+
 worker::ServiceWorkerJobs* ServiceWorkerRegistry::service_worker_jobs() {
   // Ensure that the thread had a chance to allocate the object.
   destruction_observer_added_.Wait();

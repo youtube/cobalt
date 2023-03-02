@@ -438,6 +438,7 @@ std::string GetUrl(const GURL& base_url,
   GURL::Replacements replacements;
   replacements.ClearUsername();
   replacements.ClearPassword();
+  replacements.ClearQuery();
   replacements.ClearRef();
   return base_url.Resolve(url).ReplaceComponents(replacements).spec();
 }

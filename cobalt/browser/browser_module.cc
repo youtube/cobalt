@@ -529,6 +529,15 @@ void BrowserModule::Navigate(const GURL& url_reference) {
 
   main_web_module_layer_->Reset();
 
+  // Service worker should only start for HTTP or HTTPS fetches.
+  // https://fetch.spec.whatwg.org/commit-snapshots/8f8ab504da6ca9681db5c7f8aa3d1f4b6bf8840c/#http-fetch
+  bool can_start_service_worker = url.SchemeIsHTTPOrHTTPS();
+  auto service_worker_started_event = std::make_unique<base::WaitableEvent>();
+  if (can_start_service_worker) {
+    service_worker_registry_->EnsureServiceWorkerStarted(
+        url::Origin::Create(url), url, service_worker_started_event.get());
+  }
+
   // Wait until after the old WebModule is destroyed before setting the navigate
   // time so that it won't be included in the time taken to load the URL.
   navigate_time_ = base::TimeTicks::Now().ToInternalValue();
@@ -617,6 +626,10 @@ void BrowserModule::Navigate(const GURL& url_reference) {
       service_worker_registry_->service_worker_jobs();
   options.web_options.platform_info = platform_info_.get();
   web_module_.reset(new WebModule("MainWebModule"));
+  // Wait for service worker to start if one exists.
+  if (can_start_service_worker) {
+    service_worker_started_event->Wait();
+  }
   web_module_->Run(
       url, application_state_, scroll_engine_.get(),
       base::Bind(&BrowserModule::QueueOnRenderTreeProduced,

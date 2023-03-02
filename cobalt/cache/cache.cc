@@ -22,6 +22,7 @@
 #include "base/files/file_util.h"
 #include "base/memory/singleton.h"
 #include "base/optional.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/values.h"
 #include "cobalt/configuration/configuration.h"
 #include "cobalt/persistent_storage/persistent_settings.h"
@@ -322,12 +323,24 @@ void Cache::Store(disk_cache::ResourceType resource_type, uint32_t key,
 
 bool Cache::CanCache(disk_cache::ResourceType resource_type,
                      uint32_t data_size) {
-  return enabled_ &&
-         cobalt::configuration::Configuration::GetInstance()
-             ->CobaltCanStoreCompiledJavascript() &&
-         data_size > 0u &&
-         data_size >= GetMinSizeToCacheInBytes(resource_type) &&
-         data_size <= GetMaxCacheStorageInBytes(resource_type);
+  bool size_okay = data_size > 0u &&
+                   data_size >= GetMinSizeToCacheInBytes(resource_type) &&
+                   data_size <= GetMaxCacheStorageInBytes(resource_type);
+  if (!size_okay) {
+    return false;
+  }
+  if (resource_type == disk_cache::ResourceType::kServiceWorkerScript ||
+      resource_type == disk_cache::ResourceType::kCacheApi) {
+    return true;
+  }
+  if (!enabled_) {
+    return false;
+  }
+  if (resource_type == disk_cache::ResourceType::kCompiledScript) {
+    return cobalt::configuration::Configuration::GetInstance()
+        ->CobaltCanStoreCompiledJavascript();
+  }
+  return true;
 }
 
 }  // namespace cache
