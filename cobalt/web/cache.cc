@@ -182,10 +182,10 @@ script::HandlePromiseAny Cache::Match(
                 isolate, *cached, *(metadata->FindKey("options")));
             if (!response) {
               promise_reference->value().Reject();
-            } else {
-              promise_reference->value().Resolve(
-                  cache_utils::FromV8Value(isolate, response.value()));
+              return;
             }
+            promise_reference->value().Resolve(
+                cache_utils::FromV8Value(isolate, response.value()));
           },
           environment_settings,
           cache_utils::GetKey(environment_settings->base_url(), request),

@@ -63,12 +63,14 @@ class FetchEvent : public ::cobalt::worker::ExtendableEvent {
       v8::Local<v8::Promise> response_promise);
   base::Optional<v8::Local<v8::Promise>> DoRespondWith(
       v8::Local<v8::Promise> text_promise);
+  void RespondWithDone();
 
   script::EnvironmentSettings* environment_settings_;
   RespondWithCallback respond_with_callback_;
   ReportLoadTimingInfo report_load_timing_info_;
   std::unique_ptr<script::ValueHandleHolder::Reference> request_;
   std::unique_ptr<script::ValuePromiseVoid::Reference> handled_property_;
+  std::unique_ptr<script::ValuePromiseVoid::Reference> respond_with_done_;
   bool respond_with_called_ = false;
   net::LoadTimingInfo load_timing_info_;
 };

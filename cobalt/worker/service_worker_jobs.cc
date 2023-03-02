@@ -607,6 +607,33 @@ void ServiceWorkerJobs::SoftUpdate(
   DCHECK(!job.get());
 }
 
+void ServiceWorkerJobs::EnsureServiceWorkerStarted(
+    const url::Origin& storage_key, const GURL& client_url,
+    base::WaitableEvent* done_event) {
+  if (message_loop() != base::MessageLoop::current()) {
+    message_loop()->task_runner()->PostTask(
+        FROM_HERE,
+        base::BindOnce(&ServiceWorkerJobs::EnsureServiceWorkerStarted,
+                       base::Unretained(this), storage_key, client_url,
+                       done_event));
+    return;
+  }
+  base::ScopedClosureRunner signal_done(base::BindOnce(
+      [](base::WaitableEvent* done_event) { done_event->Signal(); },
+      done_event));
+  base::TimeTicks start = base::TimeTicks::Now();
+  auto registration =
+      scope_to_registration_map_->GetRegistration(storage_key, client_url);
+  if (!registration) {
+    return;
+  }
+  auto service_worker_object = registration->active_worker();
+  if (!service_worker_object || service_worker_object->is_running()) {
+    return;
+  }
+  service_worker_object->ObtainWebAgentAndWaitUntilDone();
+}
+
 void ServiceWorkerJobs::Update(Job* job) {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerJobs::Update()");
   DCHECK_EQ(message_loop(), base::MessageLoop::current());

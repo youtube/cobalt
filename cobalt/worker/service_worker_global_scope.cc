@@ -195,6 +195,12 @@ void ServiceWorkerGlobalScope::StartFetch(
     base::OnceCallback<void(const net::LoadTimingInfo&)>
         report_load_timing_info,
     base::OnceClosure fallback) {
+  // Only HTTP or HTTPS fetches should be intercepted.
+  // https://fetch.spec.whatwg.org/commit-snapshots/8f8ab504da6ca9681db5c7f8aa3d1f4b6bf8840c/#http-fetch
+  if (!url.SchemeIsHTTPOrHTTPS()) {
+    std::move(fallback).Run();
+    return;
+  }
   if (base::MessageLoop::current() !=
       environment_settings()->context()->message_loop()) {
     environment_settings()->context()->message_loop()->task_runner()->PostTask(

@@ -43,6 +43,10 @@ class ServiceWorkerRegistry : public base::MessageLoop::DestructionObserver {
   // From base::MessageLoop::DestructionObserver.
   void WillDestroyCurrentMessageLoop() override;
 
+  void EnsureServiceWorkerStarted(const url::Origin& storage_key,
+                                  const GURL& client_url,
+                                  base::WaitableEvent* done_event);
+
   worker::ServiceWorkerJobs* service_worker_jobs();
 
  private:

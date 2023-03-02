@@ -45,6 +45,8 @@ FetchEvent::FetchEvent(script::EnvironmentSettings* environment_settings,
       this, script_value_factory->CreateBasicPromise<void>());
   request_ = std::make_unique<script::ValueHandleHolder::Reference>(
       this, event_init_dict.request());
+  respond_with_done_ = std::make_unique<script::ValuePromiseVoid::Reference>(
+      this, script_value_factory->CreateBasicPromise<void>());
 
   load_timing_info_.request_start = base::TimeTicks::Now();
   load_timing_info_.request_start_time = base::Time::Now();
@@ -61,23 +63,16 @@ base::Optional<v8::Local<v8::Promise>> FetchEvent::GetText(
       web::cache_utils::Call(response_promise->Result(), "text"));
 }
 
+void FetchEvent::RespondWithDone() { respond_with_done_->value().Resolve(); }
+
 base::Optional<v8::Local<v8::Promise>> FetchEvent::DoRespondWith(
     v8::Local<v8::Promise> text_promise) {
   auto* isolate = text_promise->GetIsolate();
   auto context = isolate->GetCurrentContext();
-  auto resolver = v8::Promise::Resolver::New(context);
-  if (resolver.IsEmpty()) {
-    return base::nullopt;
-  }
   auto body = web::cache_utils::FromV8String(text_promise->GetIsolate(),
                                              text_promise->Result());
-  auto callback = base::BindOnce(
-      [](v8::Local<v8::Context> context,
-         v8::Local<v8::Promise::Resolver> resolver) {
-        DCHECK(resolver->Resolve(context, v8::Undefined(resolver->GetIsolate()))
-                   .FromMaybe(false));
-      },
-      context, resolver.ToLocalChecked());
+  auto callback =
+      base::BindOnce(&FetchEvent::RespondWithDone, base::Unretained(this));
   web::get_context(environment_settings_)
       ->network_module()
       ->task_runner()
@@ -92,7 +87,7 @@ base::Optional<v8::Local<v8::Promise>> FetchEvent::DoRespondWith(
               },
               std::move(respond_with_callback_), std::move(body),
               base::MessageLoop::current(), std::move(callback)));
-  return resolver.ToLocalChecked()->GetPromise();
+  return respond_with_done_->value().promise();
 }
 
 void FetchEvent::RespondWith(
@@ -116,6 +111,7 @@ void FetchEvent::RespondWith(
   std::unique_ptr<script::Promise<script::ValueHandle*>> wait_promise;
   script::v8c::FromJSValue(isolate, done_promise.value(), 0, exception_state,
                            &wait_promise);
+  WaitUntil(environment_settings_, response, exception_state);
   WaitUntil(environment_settings_, wait_promise, exception_state);
 }
 

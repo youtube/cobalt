@@ -394,7 +394,6 @@ void XMLHttpRequestImpl::Open(const std::string& method, const std::string& url,
                               const base::Optional<std::string>& password,
                               script::ExceptionState* exception_state) {
   TRACK_MEMORY_SCOPE("XHR");
-
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   XMLHttpRequest::State previous_state = state_;
