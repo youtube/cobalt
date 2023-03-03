@@ -27,7 +27,6 @@ gcc_toolchain("target") {
   ar = evergreen_target_ar
   nm = evergreen_target_nm
 
-  evergreen_target_extra_ldflags += [ "-m elf_x86_64" ]
   extra_ldflags = string_join(" ", evergreen_target_extra_ldflags)
 
   toolchain_args = {

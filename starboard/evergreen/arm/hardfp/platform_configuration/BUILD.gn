@@ -29,6 +29,10 @@ config("platform_configuration") {
       ":sabi_flags",
       "//starboard/evergreen/arm/shared/platform_configuration",
     ]
+    ldflags = [
+      "-m",
+      "armelf",
+    ]
   } else {
     cflags = [ "-O2" ]
   }
