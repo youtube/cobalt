@@ -87,7 +87,9 @@ SbAtomicPtr NavItem::s_focused_nav_item_(
     reinterpret_cast<intptr_t>(kNativeItemInvalid));
 
 NativeCallbacks NavItem::s_callbacks_ = {
-    &NavItem::OnBlur, &NavItem::OnFocus, &NavItem::OnScroll,
+    &NavItem::OnBlur,
+    &NavItem::OnFocus,
+    &NavItem::OnScroll,
 };
 
 NavItem::NavItem(NativeItemType type, const base::Closure& onblur_callback,
@@ -111,10 +113,9 @@ NavItem::NavItem(NativeItemType type, const base::Closure& onblur_callback,
 }
 
 NavItem::~NavItem() {
+  SetEnabled(false);
+
   starboard::ScopedSpinLock lock(&g_pending_updates_lock);
-  DCHECK(state_ == kStatePendingDelete);
-  DCHECK(SbAtomicNoBarrier_LoadPtr(&s_focused_nav_item_) !=
-         reinterpret_cast<intptr_t>(nav_item_));
   g_pending_updates->emplace_back(
       nav_item_, base::Bind(GetInterface().destroy_item, nav_item_));
   if (--g_nav_item_count == 0) {
