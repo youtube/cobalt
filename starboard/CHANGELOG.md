@@ -38,6 +38,11 @@ This configuration is set for modular builds, which have:
         a. Starboard built at a shared library and a separate loader_app executable.
         b. A loader_app executable with Starboard built in ( Evergreen ).
 
+### Split C++ and C code from `starboard/atomic.h`
+`starboard/atomic.h` previously included C++ wrapper code for atomic operations.
+This code has been separated out and refactored into `starboard/common/atomic.h`
+to break dependency cycle between Starboard interface and Starboard Common C++
+library.
 
 ## Version 14
 ### Add MP3, FLAC, and PCM values to SbMediaAudioCodec.

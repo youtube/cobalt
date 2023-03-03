@@ -14,10 +14,13 @@
  * limitations under the License.
  */
 
-#ifndef NB_MEMORY_TRACKER_HELPERS_H_
-#define NB_MEMORY_TRACKER_HELPERS_H_
+#ifndef NB_ANALYTICS_MEMORY_TRACKER_HELPERS_H_
+#define NB_ANALYTICS_MEMORY_TRACKER_HELPERS_H_
 
+#include <functional>
 #include <map>
+#include <string>
+#include <utility>
 #include <vector>
 
 #include "nb/analytics/memory_tracker.h"
@@ -25,7 +28,7 @@
 #include "nb/std_allocator.h"
 #include "nb/thread_local_boolean.h"
 #include "nb/thread_local_pointer.h"
-#include "starboard/atomic.h"
+#include "starboard/common/atomic.h"
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
 #include "starboard/memory.h"
@@ -220,4 +223,4 @@ class ConcurrentAllocationMap {
 }  // namespace analytics
 }  // namespace nb
 
-#endif  // NB_MEMORY_TRACKER_HELPERS_H_
+#endif  // NB_ANALYTICS_MEMORY_TRACKER_HELPERS_H_

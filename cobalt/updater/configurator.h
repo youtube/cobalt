@@ -28,7 +28,7 @@
 #include "cobalt/network/network_module.h"
 #include "components/update_client/configurator.h"
 #include "components/update_client/persisted_data.h"
-#include "starboard/atomic.h"
+#include "starboard/common/atomic.h"
 
 class GURL;
 class PrefService;

@@ -23,7 +23,7 @@
 #include "cobalt/base/application_state.h"
 #include "cobalt/persistent_storage/persistent_settings.h"
 #include "cobalt/watchdog/singleton.h"
-#include "starboard/atomic.h"
+#include "starboard/common/atomic.h"
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/mutex.h"
 #include "starboard/thread.h"

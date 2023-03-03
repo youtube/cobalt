@@ -14,7 +14,7 @@
 
 // Adapted from base's atomicops_unittest.
 
-#include "starboard/atomic.h"
+#include "starboard/common/atomic.h"
 #include "starboard/memory.h"
 #include "starboard/thread.h"
 #include "starboard/time.h"
@@ -45,19 +45,19 @@ class AdvancedSbAtomicTest : public BasicSbAtomicTest<SbAtomicType> {
   virtual ~AdvancedSbAtomicTest() {}
 };
 
-typedef testing::Types<
-    SbAtomic8,
-    SbAtomic32,
+typedef testing::Types<SbAtomic8,
+                       SbAtomic32,
 #if SB_HAS(64_BIT_ATOMICS)
-    SbAtomic64,
+                       SbAtomic64,
 #endif
-    SbAtomicPtr>
+                       SbAtomicPtr>
     BasicSbAtomicTestTypes;
 typedef testing::Types<SbAtomic32,
 #if SB_HAS(64_BIT_ATOMICS)
                        SbAtomic64,
 #endif
-                       SbAtomicPtr> AdvancedSbAtomicTestTypes;
+                       SbAtomicPtr>
+    AdvancedSbAtomicTestTypes;
 
 TYPED_TEST_CASE(BasicSbAtomicTest, BasicSbAtomicTestTypes);
 
@@ -394,8 +394,7 @@ TYPED_TEST(AdvancedSbAtomicTest, OnceMultipleThreads) {
     // Ensure that exactly one thread initialized the data.
     bool match = false;
     for (int i = 0; i < kNumThreads; ++i) {
-      if (memcmp(target_data, data + i * kDataPerThread,
-                 kDataPerThread) == 0) {
+      if (memcmp(target_data, data + i * kDataPerThread, kDataPerThread) == 0) {
         match = true;
         break;
       }

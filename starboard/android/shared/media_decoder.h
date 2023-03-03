@@ -23,7 +23,7 @@
 
 #include "starboard/android/shared/drm_system.h"
 #include "starboard/android/shared/media_codec_bridge.h"
-#include "starboard/atomic.h"
+#include "starboard/common/atomic.h"
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/mutex.h"
 #include "starboard/common/optional.h"

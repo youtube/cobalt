@@ -85,6 +85,9 @@
 #define SB_MODULAR_BUILD \
   (SB_API_VERSION >= SB_MINIMUM_API_VERSION_FOR_SB_MODULAR_BUILD)
 
+// Moved atomic operations C++ wrappers to starboard/common.
+#define SB_ATOMIC_MOVED_API_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------

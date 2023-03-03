@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-#ifndef NB_THREAD_H_
-#define NB_THREAD_H_
+#ifndef NB_SIMPLE_THREAD_H_
+#define NB_SIMPLE_THREAD_H_
 
 #include <string>
 
-#include "starboard/atomic.h"
+#include "starboard/common/atomic.h"
 #include "starboard/thread.h"
 #include "starboard/time.h"
 #include "starboard/types.h"
@@ -62,4 +62,4 @@ class SimpleThread {
 
 }  // namespace nb
 
-#endif  // NB_THREAD_H_
+#endif  // NB_SIMPLE_THREAD_H_

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/atomic.h"
+#include "starboard/common/atomic.h"
 #include "starboard/nplb/thread_helpers.h"
 #include "starboard/thread.h"
 #include "starboard/time.h"
@@ -44,7 +44,8 @@ class CountingThread : public AbstractTestThread {
     int32_t end_count = GetCount() + 2;
     SbTime end_time = SbTimeGetNow() + timeout;
     while (SbTimeGetNow() < end_time) {
-      if (GetCount() >= end_count) return true;
+      if (GetCount() >= end_count)
+        return true;
       SbThreadYield();
     }
     return false;

@@ -15,7 +15,7 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_PUNCHOUT_VIDEO_RENDERER_SINK_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_PUNCHOUT_VIDEO_RENDERER_SINK_H_
 
-#include "starboard/atomic.h"
+#include "starboard/common/atomic.h"
 #include "starboard/common/mutex.h"
 #include "starboard/media.h"
 #include "starboard/player.h"

@@ -21,7 +21,7 @@
 #include "cobalt/media/decoder_buffer_memory_info.h"
 #include "nb/bidirectional_fit_reuse_allocator.h"
 #include "nb/starboard_memory_allocator.h"
-#include "starboard/atomic.h"
+#include "starboard/common/atomic.h"
 #include "starboard/common/mutex.h"
 #include "starboard/media.h"
 #include "third_party/chromium/media/base/decoder_buffer.h"

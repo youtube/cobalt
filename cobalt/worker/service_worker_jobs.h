@@ -48,7 +48,7 @@
 #include "cobalt/worker/service_worker_registration_object.h"
 #include "cobalt/worker/service_worker_update_via_cache.h"
 #include "cobalt/worker/worker_type.h"
-#include "starboard/atomic.h"
+#include "starboard/common/atomic.h"
 #include "url/gurl.h"
 #include "url/origin.h"
 

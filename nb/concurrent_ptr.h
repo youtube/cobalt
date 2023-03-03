@@ -22,12 +22,11 @@
 #include <functional>
 #include <iostream>
 #include <memory>
-#include <mutex>
 #include <string>
 #include <utility>
 #include <vector>
 
-#include "starboard/atomic.h"
+#include "starboard/common/atomic.h"
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
 #include "starboard/memory.h"
@@ -81,7 +80,7 @@ class Access;
 template <typename T, typename KeyT = int64_t, typename HashT = std::hash<KeyT>>
 class ConcurrentPtr {
  public:
-  ConcurrentPtr(T* ptr, size_t number_locks = 31) : ptr_(NULL) {
+  explicit ConcurrentPtr(T* ptr, size_t number_locks = 31) : ptr_(NULL) {
     internal_construct(ptr, number_locks);
   }
   ~ConcurrentPtr() { internal_destruct(); }

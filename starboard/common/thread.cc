@@ -16,7 +16,7 @@
 
 #include "starboard/common/thread.h"
 
-#include "starboard/atomic.h"
+#include "starboard/common/atomic.h"
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
 #include "starboard/common/optional.h"
@@ -55,13 +55,10 @@ void Thread::Start(const Options& options) {
   d_->started_.store(true);
   d_->options_ = options;
 
-  d_->thread_ = SbThreadCreate(options.stack_size,
-                               options.priority_,
-                               kSbThreadNoAffinity,  // default affinity.
-                               options.joinable,
-                               d_->name_.c_str(),
-                               entry_point,
-                               this);
+  d_->thread_ =
+      SbThreadCreate(options.stack_size, options.priority_,
+                     kSbThreadNoAffinity,  // default affinity.
+                     options.joinable, d_->name_.c_str(), entry_point, this);
 
   // SbThreadCreate() above produced an invalid thread handle.
   SB_DCHECK(d_->thread_ != kSbThreadInvalid);
@@ -99,8 +96,7 @@ void* Thread::ThreadEntryPoint(void* context) {
 
 void Thread::Join() {
   SB_DCHECK(d_->join_called_.load() == false);
-  SB_DCHECK(d_->options_->joinable)
-      << "Detached thread should not be joined.";
+  SB_DCHECK(d_->options_->joinable) << "Detached thread should not be joined.";
 
   d_->join_called_.store(true);
   d_->join_sema_.Put();

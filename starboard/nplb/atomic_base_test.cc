@@ -16,7 +16,7 @@
 #include <numeric>
 #include <vector>
 
-#include "starboard/atomic.h"
+#include "starboard/common/atomic.h"
 #include "starboard/common/mutex.h"
 #include "starboard/configuration.h"
 #include "testing/gtest/include/gtest/gtest.h"

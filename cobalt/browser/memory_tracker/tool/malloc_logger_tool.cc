@@ -22,7 +22,6 @@
 #include "cobalt/browser/memory_tracker/tool/params.h"
 #include "cobalt/browser/memory_tracker/tool/util.h"
 #include "nb/memory_scope.h"
-#include "starboard/atomic.h"
 #include "starboard/common/string.h"
 #include "starboard/types.h"
 

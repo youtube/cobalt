@@ -18,7 +18,7 @@
 #include "nb/scoped_ptr.h"
 #include "nb/test_thread.h"
 #include "nb/thread_local_object.h"
-#include "starboard/atomic.h"
+#include "starboard/common/atomic.h"
 #include "starboard/common/mutex.h"
 #include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -41,8 +41,8 @@ starboard::atomic_int32_t CountsInstances::s_instances_(0);
 template <typename TYPE>
 class CreateThreadLocalObjectThenExit : public TestThread {
  public:
-  explicit CreateThreadLocalObjectThenExit(
-      ThreadLocalObject<TYPE>* tlo) : tlo_(tlo) {}
+  explicit CreateThreadLocalObjectThenExit(ThreadLocalObject<TYPE>* tlo)
+      : tlo_(tlo) {}
 
   virtual void Run() {
     // volatile as a defensive measure to prevent compiler from optimizing this
@@ -57,11 +57,11 @@ class CreateThreadLocalObjectThenExit : public TestThread {
 template <typename TYPE>
 class DestroyTypeOnThread : public TestThread {
  public:
-  explicit DestroyTypeOnThread(TYPE* ptr)
-      : ptr_(ptr) {}
+  explicit DestroyTypeOnThread(TYPE* ptr) : ptr_(ptr) {}
   virtual void Run() {
     ptr_.reset(NULL);  // Destroys the object.
   }
+
  private:
   nb::scoped_ptr<TYPE> ptr_;
 };
@@ -135,9 +135,9 @@ TEST(ThreadLocalObject, DestroysObjectOnTLODestruction) {
 
   // Create the TLO object and then immediately destroy it.
   nb::scoped_ptr<TLO> tlo_ptr(new TLO);
-  tlo_ptr->GetOrCreate(); // Instantiate the internal object.
+  tlo_ptr->GetOrCreate();  // Instantiate the internal object.
   EXPECT_EQ(1, CountsInstances::NumInstances());
-  tlo_ptr.reset(NULL);    // Should destroy all outstanding allocs.
+  tlo_ptr.reset(NULL);  // Should destroy all outstanding allocs.
   // Now the TLO is destroyed and therefore the destructor should run on the
   // internal object.
   EXPECT_EQ(0, CountsInstances::NumInstances());
@@ -161,8 +161,8 @@ TEST(ThreadLocalObject, ReleasesObject) {
   tlo_ptr.reset(NULL);
   // 1 instance left, which is held in last_ref.
   EXPECT_EQ(1, CountsInstances::NumInstances());
-  last_ref.reset(NULL);   // Now the object should be destroyed and the
-                          // instance count drops to 0.
+  last_ref.reset(NULL);  // Now the object should be destroyed and the
+                         // instance count drops to 0.
   EXPECT_EQ(0, CountsInstances::NumInstances());
   CountsInstances::ResetNumInstances();
 }
@@ -210,7 +210,7 @@ TEST(ThreadLocalObject, NoLeaksOnMainThread) {
   // Thread will simply create the thread local object (CountsInstances)
   // and then return.
   nb::scoped_ptr<TestThread> thread_ptr(
-        new CreateThreadLocalObjectThenExit<CountsInstances>(tlo));
+      new CreateThreadLocalObjectThenExit<CountsInstances>(tlo));
   thread_ptr->Start();  // Object is now created.
   thread_ptr->Join();   // ...then destroyed.
   thread_ptr.reset(NULL);
@@ -233,4 +233,4 @@ TEST(ThreadLocalObject, NoLeaksOnMainThread) {
 }
 
 }  // anonymous namespace
-}  // nb namespace
+}  // namespace nb

@@ -16,7 +16,7 @@
 #include <deque>
 #include <functional>
 
-#include "starboard/atomic.h"
+#include "starboard/common/atomic.h"
 #include "starboard/common/optional.h"
 #include "starboard/common/queue.h"
 #include "starboard/common/scoped_ptr.h"

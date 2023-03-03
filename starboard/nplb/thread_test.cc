@@ -14,7 +14,7 @@
 
 #include <functional>
 
-#include "starboard/atomic.h"
+#include "starboard/common/atomic.h"
 #include "starboard/common/semaphore.h"
 #include "starboard/common/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"

@@ -62,7 +62,7 @@
 #include "cobalt/worker/worker_type.h"
 #include "net/base/mime_util.h"
 #include "net/base/url_util.h"
-#include "starboard/atomic.h"
+#include "starboard/common/atomic.h"
 #include "url/gurl.h"
 #include "url/origin.h"
 

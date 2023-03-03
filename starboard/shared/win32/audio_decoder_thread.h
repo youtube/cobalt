@@ -18,6 +18,7 @@
 #include <deque>
 #include <queue>
 
+#include "starboard/common/atomic.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/common/semaphore.h"

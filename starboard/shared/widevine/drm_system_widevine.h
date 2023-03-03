@@ -20,7 +20,7 @@
 #include <string>
 #include <vector>
 
-#include "starboard/atomic.h"
+#include "starboard/common/atomic.h"
 #include "starboard/common/optional.h"
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/mutex.h"

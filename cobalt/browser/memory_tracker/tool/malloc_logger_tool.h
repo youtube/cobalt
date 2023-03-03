@@ -23,7 +23,7 @@
 #include "cobalt/browser/memory_tracker/tool/params.h"
 #include "cobalt/browser/memory_tracker/tool/tool_impl.h"
 #include "nb/memory_scope.h"
-#include "starboard/atomic.h"
+#include "starboard/common/atomic.h"
 #include "starboard/memory_reporter.h"
 
 namespace cobalt {

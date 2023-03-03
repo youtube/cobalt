@@ -17,7 +17,7 @@
 #include <string>
 #include <unordered_map>
 
-#include "starboard/atomic.h"
+#include "starboard/common/atomic.h"
 #include "starboard/common/file.h"
 #include "starboard/common/log.h"
 #include "starboard/common/scoped_ptr.h"
@@ -270,8 +270,8 @@ void LinkReceiver::Impl::Run() {
   listen_socket_ =
       CreateListeningSocket(kSbSocketAddressTypeIpv4, specified_port_);
   if (!listen_socket_ || !listen_socket_->IsValid()) {
-      listen_socket_ = CreateListeningSocket(kSbSocketAddressTypeIpv6,
-                                             specified_port_);
+    listen_socket_ =
+        CreateListeningSocket(kSbSocketAddressTypeIpv6, specified_port_);
   }
   if (!listen_socket_ || !listen_socket_->IsValid()) {
     SB_LOG(WARNING) << "Unable to start LinkReceiver on port "
@@ -294,8 +294,7 @@ void LinkReceiver::Impl::Run() {
 
   char port_string[32] = {0};
   SbStringFormatF(port_string, SB_ARRAY_SIZE(port_string), "%d", actual_port_);
-  CreateTemporaryFile("link_receiver_port", port_string,
-                      strlen(port_string));
+  CreateTemporaryFile("link_receiver_port", port_string, strlen(port_string));
 
   if (!AddForAccept(listen_socket_.get())) {
     quit_.store(true);

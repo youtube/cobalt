@@ -59,7 +59,7 @@
 #include "cobalt/web/environment_settings.h"
 #include "cobalt/web/user_agent_platform_info.h"
 #include "cobalt/webdriver/session_driver.h"
-#include "starboard/atomic.h"
+#include "starboard/common/atomic.h"
 #include "url/gurl.h"
 
 #if defined(ENABLE_DEBUGGER)

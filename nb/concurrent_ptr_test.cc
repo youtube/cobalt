@@ -17,7 +17,7 @@
 #include "nb/concurrent_ptr.h"
 
 #include "nb/simple_thread.h"
-#include "starboard/atomic.h"
+#include "starboard/common/atomic.h"
 #include "starboard/common/semaphore.h"
 #include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"

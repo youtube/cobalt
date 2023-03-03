@@ -109,6 +109,7 @@ repos:
             (?x)^(
                 cobalt/media/|
                 cobalt/layout_tests/testdata/|
+                nb/|
                 starboard/android/apk/app/src/main/java/dev/cobalt/media/MediaDrmBridge.java$
             )
         exclude_types: [markdown]

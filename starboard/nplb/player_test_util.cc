@@ -17,6 +17,7 @@
 #include <functional>
 
 #include "starboard/audio_sink.h"
+#include "starboard/common/atomic.h"
 #include "starboard/common/string.h"
 #include "starboard/directory.h"
 #include "starboard/extension/enhanced_audio.h"

@@ -19,7 +19,7 @@
 #include <string>
 #include <vector>
 
-#include "starboard/atomic.h"
+#include "starboard/common/atomic.h"
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
 #include "starboard/common/optional.h"
