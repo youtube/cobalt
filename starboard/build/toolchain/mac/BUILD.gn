@@ -1,4 +1,4 @@
-# Copyright 2022 The Cobalt Authors. All Rights Reserved.
+# Copyright 2023 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,20 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//build/config/clang/clang.gni")
-import("//build/toolchain/gcc_toolchain.gni")
-import("//starboard/evergreen/shared/toolchain/toolchain.gni")
+import("//build/toolchain/apple/toolchain.gni")
+import("//starboard/darwin/tvos/shared/xcode_tools_path.gni")
 
-gcc_toolchain("target") {
-  cc = evergreen_target_cc
-  cxx = evergreen_target_cxx
-  ld = evergreen_target_ld
-  ar = evergreen_target_ar
-  nm = evergreen_target_nm
+_clang_base_path =
+    "$xcode_tools_path/Toolchains/XcodeDefault.xctoolchain/usr/bin/"
 
-  extra_ldflags = string_join(" ", evergreen_target_extra_ldflags)
-
+apple_toolchain("host") {
+  bin_path = _clang_base_path
   toolchain_args = {
-    is_clang = true
+    current_os = "mac"
+    current_cpu = "x64"
+    use_xcode_clang = true
   }
 }

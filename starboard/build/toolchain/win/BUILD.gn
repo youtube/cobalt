@@ -1,4 +1,4 @@
-# Copyright 2022 The Cobalt Authors. All Rights Reserved.
+# Copyright 2023 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,20 +12,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//build/config/clang/clang.gni")
-import("//build/toolchain/gcc_toolchain.gni")
-import("//starboard/evergreen/shared/toolchain/toolchain.gni")
+import("//build/config/win/visual_studio_version.gni")
+import("//build/toolchain/win/msvc_toolchain.gni")
 
-gcc_toolchain("target") {
-  cc = evergreen_target_cc
-  cxx = evergreen_target_cxx
-  ld = evergreen_target_ld
-  ar = evergreen_target_ar
-  nm = evergreen_target_nm
+_base_path = "$msvc_path/bin/HostX64/x64"
+_libpaths = "/LIBPATH:\"$wdk_lib_path/ucrt/x64\" /LIBPATH:\"$wdk_lib_path/um/x64\" /LIBPATH:\"$msvc_path/lib/x64\""
 
-  extra_ldflags = string_join(" ", evergreen_target_extra_ldflags)
+msvc_toolchain("x64") {
+  cl = "$_base_path/cl.exe"
+  lib = "$_base_path/lib.exe"
+  link = "$_base_path/link.exe"
+  asm = "$_base_path/ml64.exe"
+  sys_lib_flags = _libpaths
 
   toolchain_args = {
-    is_clang = true
+    is_clang = false
+    current_os = "win"
+    current_cpu = "x64"
   }
 }

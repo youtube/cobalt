@@ -17,15 +17,6 @@ import("//starboard/shared/toolchain/overridable_gcc_toolchain.gni")
 
 _target_llvm_3_9_bin_dir = "/usr/lib/llvm-3.9/bin"
 
-overridable_clang_toolchain("host") {
-  clang_base_path = clang_base_path
-
-  toolchain_args = {
-    target_os = "linux"
-    target_cpu = "x64"
-  }
-}
-
 overridable_gcc_toolchain("target") {
   cc = "${_target_llvm_3_9_bin_dir}/clang"
   cxx = "${_target_llvm_3_9_bin_dir}/clang++"

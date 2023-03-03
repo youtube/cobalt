@@ -16,10 +16,6 @@ import("//build/config/clang/clang.gni")
 import("//build/toolchain/gcc_toolchain.gni")
 import("//starboard/evergreen/shared/toolchain/toolchain.gni")
 
-clang_toolchain("host") {
-  clang_base_path = clang_base_path
-}
-
 gcc_toolchain("target") {
   cc = evergreen_target_cc
   cxx = evergreen_target_cxx

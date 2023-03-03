@@ -85,7 +85,13 @@ if (is_mac) {
 # Get the path to the starboard implementation and include its GN
 # configuration.
 import("//starboard/build/platform_path.gni")
-host_toolchain = "//$starboard_path/toolchain:host"
+# TODO(b/272790873): Set host_cpu to x86 for 32 bit builds.
+if (target_cpu == "x86" || target_cpu == "arm") {
+  _host_toolchain_cpu = "x86"
+} else {
+  _host_toolchain_cpu = host_cpu
+}
+host_toolchain = "//starboard/build/toolchain/$host_os:$_host_toolchain_cpu"
 target_toolchain = "//$starboard_path/toolchain:target"
 set_default_toolchain(target_toolchain)
 
@@ -173,7 +179,7 @@ set_defaults("shared_library") {
 # We make sure to change the pedantic_warnings configs in a particular order to
 # ensure -Wno-foo compiler flags (usually set in no_pedantic_warnings and some
 # of the platform_configuration) come after -Wfoo flags (including -Wall and
-# -Wextra which are set in pedantic_warnings). It is only certain the the "foo"
+# -Wextra which are set in pedantic_warnings). It is only certain that the "foo"
 # error will be ignored if -Wfoo precedes -Wno-foo in the compilation line.
 template("target_with_platform_configs") {
   target(invoker.target_type, target_name) {
