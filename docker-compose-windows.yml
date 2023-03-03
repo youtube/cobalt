@@ -52,6 +52,15 @@ services:
     image: visual-studio-base
     scale: 0
 
+  visual-studio-2022-base:
+    build:
+      context: ./docker/windows/base/visualstudio2022
+      dockerfile: ./Dockerfile
+      args:
+        - FROM_IMAGE=mcr.microsoft.com/windows/servercore:ltsc2019
+    image: visual-studio-2022-base
+    scale: 0
+
   visual-studio-win32-base:
     build:
       context: ./docker/windows/base/visualstudio2017
@@ -84,6 +93,17 @@ services:
     scale: 0
     depends_on:
       - visual-studio-base
+
+  cobalt-build-vs2022-win-base:
+    build:
+      context: ./docker/windows/base/build
+      dockerfile: ./Dockerfile
+      args:
+        - FROM_IMAGE=visual-studio-2022-base
+    image: cobalt-build-vs2022-win-base
+    scale: 0
+    depends_on:
+      - visual-studio-2022-base
 
   cobalt-build-win32-base:
     build:

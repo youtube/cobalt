@@ -32,6 +32,8 @@ RUN Write-Host ('Installing vs_buildtools.exe');`
         --installPath C:\BuildTools `
         --add Microsoft.VisualStudio.Component.VC.CoreIde `
         --add Microsoft.VisualStudio.Component.VC.14.34.17.4.x86.x64 `
+        --add Microsoft.VisualStudio.Component.VC.Llvm.Clang `
+        --add Microsoft.VisualStudio.Component.VC.Llvm.ClangToolset `
         --add Microsoft.VisualStudio.Component.Windows10SDK.18362';`
     Write-Host ('Cleaning up vs_buildtools.exe');`
     Remove-Item -Force -Recurse ${env:ProgramFiles(x86)}\'Microsoft Visual Studio'\Installer;`
