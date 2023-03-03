@@ -64,17 +64,12 @@ config("platform_configuration") {
     "/wd4838",
   ]
 
-  if (current_toolchain == default_toolchain) {
-    defines = [
-      "_WIN32",
-      "WIN32",
-      "WINDOWS",
+  defines = [
+    "_WIN32",
+    "WIN32",
+    "WINDOWS",
 
-      # Enable GNU extensions to get prototypes like ffsl.
-      "_GNU_SOURCE=1",
-    ]
-  } else {
-    # Increase compiler heap limit.
-    cflags += [ "/Zm10" ]
-  }
+    # Enable GNU extensions to get prototypes like ffsl.
+    "_GNU_SOURCE=1",
+  ]
 }

@@ -21,17 +21,12 @@ config("sabi_flags") {
 }
 
 config("platform_configuration") {
-  configs = [ "//starboard/build/config/sabi" ]
+  configs = [
+    "//starboard/build/config/sabi",
+    ":sabi_flags",
+    "//starboard/evergreen/shared/platform_configuration",
+  ]
 
-  if (current_toolchain == default_toolchain) {
-    configs += [
-      ":sabi_flags",
-      "//starboard/evergreen/shared/platform_configuration",
-    ]
-
-    cflags = [ "-isystem" +
-               rebase_path("//third_party/musl/arch/i386", root_build_dir) ]
-  } else {
-    cflags = [ "-O2" ]
-  }
+  cflags = [ "-isystem" +
+             rebase_path("//third_party/musl/arch/i386", root_build_dir) ]
 }

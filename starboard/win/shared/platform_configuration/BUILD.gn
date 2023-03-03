@@ -20,28 +20,26 @@ config("platform_configuration") {
     "//starboard/build/config/win:common",
   ]
 
-  if (current_toolchain == default_toolchain) {
-    defines = [
-      # Disable warnings.  These options were inherited from Chromium.
-      "_CRT_SECURE_NO_DEPRECATE",
-      "_CRT_NONSTDC_NO_WARNINGS",
-      "_CRT_NONSTDC_NO_DEPRECATE",
-      "_SCL_SECURE_NO_DEPRECATE",
+  defines = [
+    # Disable warnings.  These options were inherited from Chromium.
+    "_CRT_SECURE_NO_DEPRECATE",
+    "_CRT_NONSTDC_NO_WARNINGS",
+    "_CRT_NONSTDC_NO_DEPRECATE",
+    "_SCL_SECURE_NO_DEPRECATE",
 
-      # Disable suggestions to switch to Microsoft-specific secure CRT.
-      "_CRT_SECURE_NO_WARNINGS",
-      "__STDC_FORMAT_MACROS",  # so that we get PRI*
+    # Disable suggestions to switch to Microsoft-specific secure CRT.
+    "_CRT_SECURE_NO_WARNINGS",
+    "__STDC_FORMAT_MACROS",  # so that we get PRI*
 
-      # By defining this, M_PI will get #defined.
-      "_USE_MATH_DEFINES",
+    # By defining this, M_PI will get #defined.
+    "_USE_MATH_DEFINES",
 
-      # min and max collide with std::min and std::max
-      "NOMINMAX",
+    # min and max collide with std::min and std::max
+    "NOMINMAX",
 
-      # Conform with C99 spec.
-      "_CRT_STDIO_ISO_WIDE_SPECIFIERS",
-    ]
-  }
+    # Conform with C99 spec.
+    "_CRT_STDIO_ISO_WIDE_SPECIFIERS",
+  ]
 }
 
 config("no_pedantic_warnings") {

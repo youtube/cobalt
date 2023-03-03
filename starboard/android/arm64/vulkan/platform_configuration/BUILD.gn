@@ -15,19 +15,17 @@
 config("platform_configuration") {
   configs = [ "//starboard/android/shared/platform_configuration" ]
 
-  if (current_toolchain == default_toolchain) {
-    libs = [
-      "c++_shared",
-      "EGL_angle",
-      "GLESv2_angle",
-      "GLESv1_CM_angle",
-      "feature_support_angle",
-    ]
+  libs = [
+    "c++_shared",
+    "EGL_angle",
+    "GLESv2_angle",
+    "GLESv1_CM_angle",
+    "feature_support_angle",
+  ]
 
-    ldflags = [
-      "-Wl",
-      "--verbose",
-      "-Llib",
-    ]
-  }
+  ldflags = [
+    "-Wl",
+    "--verbose",
+    "-Llib",
+  ]
 }

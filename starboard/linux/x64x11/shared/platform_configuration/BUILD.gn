@@ -13,17 +13,12 @@
 # limitations under the License.
 
 config("platform_configuration") {
-  if (current_toolchain == default_toolchain ||
-      current_toolchain == "//$starboard_path/toolchain:native_target") {
-    configs = [
-      ":libraries",
-      "//starboard/linux/shared/platform_configuration",
-      "//starboard/linux/shared/platform_configuration:compiler_flags",
-      ":linker_flags",
-    ]
-  } else {
-    cflags = [ "-O2" ]
-  }
+  configs = [
+    ":libraries",
+    "//starboard/linux/shared/platform_configuration",
+    "//starboard/linux/shared/platform_configuration:compiler_flags",
+    ":linker_flags",
+  ]
 }
 
 config("libraries") {
