@@ -12,14 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//build/toolchain/apple/toolchain.gni")
-import("//starboard/build/toolchain/mac/variables.gni")
+import("//starboard/darwin/tvos/shared/xcode_tools_path.gni")
 
-apple_toolchain("host") {
-  bin_path = apple_clang_base_path
-  toolchain_args = {
-    current_os = "mac"
-    current_cpu = "x64"
-    use_xcode_clang = true
-  }
-}
+apple_clang_base_path =
+    "$xcode_tools_path/Toolchains/XcodeDefault.xctoolchain/usr/bin/"

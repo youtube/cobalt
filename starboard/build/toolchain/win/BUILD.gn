@@ -12,18 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//build/config/win/visual_studio_version.gni")
 import("//build/toolchain/win/msvc_toolchain.gni")
-
-_base_path = "$msvc_path/bin/HostX64/x64"
-_libpaths = "/LIBPATH:\"$wdk_lib_path/ucrt/x64\" /LIBPATH:\"$wdk_lib_path/um/x64\" /LIBPATH:\"$msvc_path/lib/x64\""
+import("//starboard/build/toolchain/win/variables.gni")
 
 msvc_toolchain("x64") {
-  cl = "$_base_path/cl.exe"
-  lib = "$_base_path/lib.exe"
-  link = "$_base_path/link.exe"
-  asm = "$_base_path/ml64.exe"
-  sys_lib_flags = _libpaths
+  cl = "$tool_base_path/cl.exe"
+  lib = "$tool_base_path/lib.exe"
+  link = "$tool_base_path/link.exe"
+  asm = "$tool_base_path/ml64.exe"
+  sys_lib_flags = sys_libpaths
 
   toolchain_args = {
     is_clang = false

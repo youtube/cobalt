@@ -12,14 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//build/toolchain/apple/toolchain.gni")
-import("//starboard/build/toolchain/mac/variables.gni")
+import("//build/config/win/visual_studio_version.gni")
 
-apple_toolchain("host") {
-  bin_path = apple_clang_base_path
-  toolchain_args = {
-    current_os = "mac"
-    current_cpu = "x64"
-    use_xcode_clang = true
-  }
-}
+tool_base_path = "$msvc_path/bin/HostX64/x64"
+common_libpaths =
+    "/LIBPATH:\"$wdk_lib_path/ucrt/x64\" /LIBPATH:\"$wdk_lib_path/um/x64\""
+sys_libpaths = "/LIBPATH:\"$msvc_path/lib/x64\" " + common_libpaths
