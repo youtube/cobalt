@@ -55,10 +55,6 @@ class VideoDecoder
 
   class Sink;
 
-  static int number_of_hardware_decoders() {
-    return number_of_hardware_decoders_;
-  }
-
   VideoDecoder(SbMediaVideoCodec video_codec,
                SbDrmSystem drm_system,
                SbPlayerOutputMode output_mode,
@@ -119,8 +115,6 @@ class VideoDecoder
 
   void OnSurfaceDestroyed() override;
   void ReportError(SbPlayerError error, const std::string& error_message);
-
-  static int number_of_hardware_decoders_;
 
   // These variables will be initialized inside ctor or Initialize() and will
   // not be changed during the life time of this class.
