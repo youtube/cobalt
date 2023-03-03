@@ -58,6 +58,7 @@ class MediaTransform {
   void Drain();
   bool draining() const;
   bool drained() const;
+  bool HasError() const;
   // Once the transform is drained, this function can be called to allow the
   // transform to accept new input as a newly created transform.  This allows
   // the reuse of existing transform without re-negotiating all types and
@@ -87,7 +88,13 @@ class MediaTransform {
   void Reset();
 
  private:
-  enum State { kCanAcceptInput, kCanProvideOutput, kDraining, kDrained };
+  enum State {
+    kCanAcceptInput,
+    kCanProvideOutput,
+    kDraining,
+    kDrained,
+    kInvalidInput
+  };
 
   void PrepareOutputDataBuffer(MFT_OUTPUT_DATA_BUFFER* output_data_buffer);
   HRESULT ProcessOutput(Microsoft::WRL::ComPtr<IMFSample>* sample);

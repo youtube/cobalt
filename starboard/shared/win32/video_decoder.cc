@@ -284,7 +284,9 @@ void VideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
   SB_DCHECK(input_buffers[0]);
   SB_DCHECK(decoder_status_cb_);
   EnsureDecoderThreadRunning();
-
+  if (error_occured_.load()) {
+    return;
+  }
   const auto& input_buffer = input_buffers[0];
   if (TryUpdateOutputForHdrVideo(input_buffer->video_stream_info())) {
     ScopedLock lock(thread_lock_);
@@ -300,6 +302,9 @@ void VideoDecoder::WriteEndOfStream() {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
   SB_DCHECK(decoder_status_cb_);
   EnsureDecoderThreadRunning();
+  if (error_occured_.load()) {
+    return;
+  }
 
   ScopedLock lock(thread_lock_);
   thread_events_.emplace_back(new Event{Event::kWriteEndOfStream});
@@ -317,6 +322,7 @@ void VideoDecoder::Reset() {
   thread_outputs_.clear();
   thread_lock_.Release();
   outputs_reset_lock_.Release();
+  error_occured_.store(false);
 
   // If the previous priming hasn't finished, restart it.  This happens rarely
   // as it is only triggered when a seek is requested immediately after video is
@@ -661,6 +667,10 @@ void VideoDecoder::DecoderThreadRun() {
       switch (event->type) {
         case Event::kWriteInputBuffer:
           SB_DCHECK(event->input_buffer != nullptr);
+          if (error_occured_) {
+            event.reset();
+            break;
+          }
           if (decoder_->TryWriteInputBuffer(event->input_buffer, 0)) {
             if (priming_output_count_ > 0) {
               // Save this event for the actual playback.
@@ -719,7 +729,13 @@ void VideoDecoder::DecoderThreadRun() {
 
       ComPtr<IMFSample> sample;
       ComPtr<IMFMediaType> media_type;
-      decoder_->ProcessAndRead(&sample, &media_type);
+      bool hasError;
+      decoder_->ProcessAndRead(&sample, &media_type, &hasError);
+      if (hasError) {
+        error_occured_.exchange(true);
+        error_cb_(kSbPlayerErrorDecode, "Something went wrong in decoding.");
+        break;
+      }
       if (media_type) {
         UpdateVideoArea(media_type);
       }

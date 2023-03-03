@@ -224,11 +224,13 @@ bool DecryptingDecoder::TryWriteInputBuffer(
 }
 
 bool DecryptingDecoder::ProcessAndRead(ComPtr<IMFSample>* output,
-                                       ComPtr<IMFMediaType>* new_type) {
+                                       ComPtr<IMFMediaType>* new_type,
+                                       bool* hasError) {
   bool did_something = false;
 
   *output = decoder_->TryRead(new_type);
   did_something |= *output != NULL;
+  *hasError = decoder_->HasError();
 
   if (decryptor_) {
     if (!pending_decryptor_output_) {
