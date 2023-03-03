@@ -21,5 +21,6 @@ apple_toolchain("x64") {
     current_os = "mac"
     current_cpu = "x64"
     use_xcode_clang = true
+    toolchain_config_path = "//starboard/build/config/mac:host"
   }
 }

@@ -17,10 +17,7 @@ config("platform_configuration") {
   cflags = []
 
   if (current_toolchain == host_toolchain) {
-    cflags += [
-      "-O2",
-      "-Wno-unused-parameter",
-    ]
+    cflags += [ "-O2" ]
   } else {
     cflags_cc = [ "-std=gnu++14" ]
     ldflags = [ "-static-libstdc++" ]

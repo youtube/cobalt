@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//starboard/darwin/tvos/shared/xcode_tools_path.gni")
+import("//starboard/build/config/mac/xcode_tools_path.gni")
 
 apple_clang_base_path =
     "$xcode_tools_path/Toolchains/XcodeDefault.xctoolchain/usr/bin/"
