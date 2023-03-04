@@ -54,7 +54,12 @@ runs:
         [ -f "${ARCHIVE_PATH}" ] && rm -rf "${ARCHIVE_PATH}"
         if [ "${{ inputs.type }}" == 'ondevice' ]
         then
-          python3 $GITHUB_WORKSPACE/tools/create_archive.py --test_infra -d ${{env.ARCHIVE_FILE}} -s $GITHUB_WORKSPACE/out/${{matrix.target_platform}}_${{matrix.config}}
+          outdir="$GITHUB_WORKSPACE/out/${{matrix.target_platform}}_${{matrix.config}}"
+          if [ -n "${COBALT_BOOTLOADER}" ]
+          then
+            outdir="${outdir} $GITHUB_WORKSPACE/out/${COBALT_BOOTLOADER}_${{matrix.config}}"
+          fi
+          python3 $GITHUB_WORKSPACE/tools/create_archive.py --test_infra -d ${{env.ARCHIVE_FILE}} -s ${outdir}
         elif [ "${{ inputs.type }}" == 'onhost' ]
         then
           parallel=
