@@ -454,6 +454,9 @@ class ServiceWorkerJobs {
   bool IsAnyClientUsingRegistration(
       ServiceWorkerRegistrationObject* registration);
 
+  // Returns false when the timeout is reached.
+  bool WaitForAsynchronousExtensions();
+
   // FetcherFactory that is used to create a fetcher according to URL.
   std::unique_ptr<loader::FetcherFactory> fetcher_factory_;
   // LoaderFactory that is used to acquire references to resources from a URL.
