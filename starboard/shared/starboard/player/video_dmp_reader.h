@@ -110,7 +110,8 @@ class VideoDmpReader {
   const media::AudioStreamInfo& audio_stream_info() const {
     return dmp_info_.audio_sample_info.stream_info;
   }
-  const media::VideoStreamInfo& video_stream_info() const {
+  const media::VideoStreamInfo& video_stream_info() {
+    EnsureSampleLoaded(kSbMediaTypeVideo, 0);
     SB_DCHECK(!video_access_units_.empty());
     return video_access_units_[0].video_sample_info().stream_info;
   }
