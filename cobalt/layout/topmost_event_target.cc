@@ -118,11 +118,16 @@ scoped_refptr<dom::HTMLElement> FindFirstElementWithScrollType(
     bool can_scroll_right = scroll_left_upper_bound > offset_x;
     bool can_scroll_up = scroll_top_lower_bound < offset_y;
     bool can_scroll_down = scroll_top_upper_bound > offset_y;
-
-    if ((scrolling_left && can_scroll_left && horizontal_scroll_axis) ||
+    bool scrolling_in_possible_direction =
+        (scrolling_left && can_scroll_left && horizontal_scroll_axis) ||
         (scrolling_right && can_scroll_right && horizontal_scroll_axis) ||
         (scrolling_up && can_scroll_up && vertical_scroll_axis) ||
-        (scrolling_down && can_scroll_down && vertical_scroll_axis)) {
+        (scrolling_down && can_scroll_down && vertical_scroll_axis);
+    bool pointer_events_enabled =
+        current_element->computed_style()->pointer_events() !=
+        cssom::KeywordValue::GetNone();
+
+    if (scrolling_in_possible_direction && pointer_events_enabled) {
       return current_element;
     }
   }
@@ -239,6 +244,11 @@ void TopmostEventTarget::HandleScrollState(
                                   pointer_event->pointer_type() == "pen" ||
                                   pointer_event->pointer_type() == "touch";
   if (!scroll_engine_ || !pointer_event || !pointer_type_is_accepted) {
+    return;
+  }
+
+  if (target_element->computed_style()->pointer_events() ==
+      cssom::KeywordValue::GetNone()) {
     return;
   }
 
