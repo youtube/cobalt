@@ -3,9 +3,13 @@ name: evergreen
 on:
   pull_request:
     types: [ready_for_review, opened, reopened, synchronize, labeled]
-    branches: [ main ]
+    branches:
+      - main
+      - feature/*
   push:
-    branches: [ main ]
+    branches:
+      - main
+      - feature/*
   schedule:
     - cron: '0 4 * * *'
   workflow_dispatch:

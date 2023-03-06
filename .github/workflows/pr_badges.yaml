@@ -3,6 +3,7 @@ name: PR badges
 on:
   pull_request_target:
     branches:
+      - 'feature/*'
       - 'main'
       - '23.lts.1\+'
       - '22.lts.1\+'
