@@ -189,7 +189,11 @@ typedef struct SbPlayerSampleInfo {
 } SbPlayerSampleInfo;
 
 // Information about the current media playback state.
+#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+typedef struct SbPlayerInfo {
+#else   // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
 typedef struct SbPlayerInfo2 {
+#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
   // The position of the playback head, as precisely as possible, in
   // microseconds.
   SbTime current_media_timestamp;
@@ -234,7 +238,11 @@ typedef struct SbPlayerInfo2 {
   // is played in a slower than normal speed.  Negative speeds are not
   // supported.
   double playback_rate;
+#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+} SbPlayerInfo;
+#else   // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
 } SbPlayerInfo2;
+#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
 
 // An opaque handle to an implementation-private structure representing a
 // player.
@@ -442,9 +450,6 @@ SbPlayerGetPreferredOutputMode(const SbPlayerCreationParam* creation_param);
 // |player|: The player to be destroyed.
 SB_EXPORT void SbPlayerDestroy(SbPlayer player);
 
-// SbPlayerSeek2 is like the deprecated SbPlayerSeek, but accepts SbTime
-// |seek_to_timestamp| instead of SbMediaTime |seek_to_pts|.
-
 // Tells the player to freeze playback (if playback has already started),
 // reset or flush the decoder pipeline, and go back to the Prerolling state.
 // The player should restart playback once it can display the frame at
@@ -468,13 +473,19 @@ SB_EXPORT void SbPlayerDestroy(SbPlayer player);
 //   callback function specified when calling SbPlayerCreate.)
 //
 //   The |ticket| value is used to filter calls that may have been in flight
-//   when SbPlayerSeek2 was called. To be very specific, once SbPlayerSeek2 has
+//   when SbPlayerSeek was called. To be very specific, once SbPlayerSeek has
 //   been called with ticket X, a client should ignore all
 //   |SbPlayerDecoderStatusFunc| calls that do not pass in ticket X.
 
+#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+SB_EXPORT void SbPlayerSeek(SbPlayer player,
+                            SbTime seek_to_timestamp,
+                            int ticket);
+#else   // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
 SB_EXPORT void SbPlayerSeek2(SbPlayer player,
                              SbTime seek_to_timestamp,
                              int ticket);
+#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
 
 // Writes samples of the given media type to |player|'s input stream. The
 // lifetime of |sample_infos|, and the members of its elements like |buffer|,
@@ -579,17 +590,19 @@ SB_EXPORT bool SbPlayerSetPlaybackRate(SbPlayer player, double playback_rate);
 //   value of |1.0| means that it should be played at full volume.
 SB_EXPORT void SbPlayerSetVolume(SbPlayer player, double volume);
 
-// SbPlayerGetInfo2 is like the deprecated SbPlayerGetInfo, but accepts
-// SbPlayerInfo2* |out_player_info2| instead of SbPlayerInfo |out_player_info|.
-
 // Gets a snapshot of the current player state and writes it to
 // |out_player_info|. This function may be called very frequently and is
 // expected to be inexpensive.
 //
 // |player|: The player about which information is being retrieved.
 // |out_player_info|: The information retrieved for the player.
+
+#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+SB_EXPORT void SbPlayerGetInfo(SbPlayer player, SbPlayerInfo* out_player_info);
+#else   // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
 SB_EXPORT void SbPlayerGetInfo2(SbPlayer player,
                                 SbPlayerInfo2* out_player_info2);
+#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VER
 
 // Given a player created with the kSbPlayerOutputModeDecodeToTexture
 // output mode, it will return a SbDecodeTarget representing the current frame

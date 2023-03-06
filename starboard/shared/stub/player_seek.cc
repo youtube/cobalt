@@ -14,4 +14,8 @@
 
 #include "starboard/player.h"
 
+#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+void SbPlayerSeek(SbPlayer player, SbTime seek_to_timestamp, int ticket) {}
+#else   // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
 void SbPlayerSeek2(SbPlayer player, SbTime seek_to_timestamp, int ticket) {}
+#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION

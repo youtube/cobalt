@@ -471,7 +471,11 @@ void SbPlayerBridge::GetVideoResolution(int* frame_width, int* frame_height) {
 
   DCHECK(SbPlayerIsValid(player_));
 
+#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+  SbPlayerInfo out_player_info;
+#else   // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
   SbPlayerInfo2 out_player_info;
+#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
   sbplayer_interface_->GetInfo(player_, &out_player_info);
 
   video_stream_info_.frame_width = out_player_info.frame_width;
@@ -490,7 +494,11 @@ base::TimeDelta SbPlayerBridge::GetDuration() {
 
   DCHECK(SbPlayerIsValid(player_));
 
+#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+  SbPlayerInfo info;
+#else   // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
   SbPlayerInfo2 info;
+#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
   sbplayer_interface_->GetInfo(player_, &info);
   if (info.duration == SB_PLAYER_NO_DURATION) {
     // URL-based player may not have loaded asset yet, so map no duration to 0.
@@ -508,7 +516,11 @@ base::TimeDelta SbPlayerBridge::GetStartDate() {
 
   DCHECK(SbPlayerIsValid(player_));
 
+#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+  SbPlayerInfo info;
+#else   // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
   SbPlayerInfo2 info;
+#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
   sbplayer_interface_->GetInfo(player_, &info);
   return base::TimeDelta::FromMicroseconds(info.start_date);
 }
@@ -898,7 +910,11 @@ void SbPlayerBridge::GetInfo_Locked(uint32* video_frames_decoded,
 
   DCHECK(SbPlayerIsValid(player_));
 
+#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+  SbPlayerInfo info;
+#else   // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
   SbPlayerInfo2 info;
+#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
   sbplayer_interface_->GetInfo(player_, &info);
 
   if (media_time) {

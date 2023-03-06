@@ -61,7 +61,11 @@ void DefaultSbPlayerInterface::Destroy(SbPlayer player) {
 
 void DefaultSbPlayerInterface::Seek(SbPlayer player, SbTime seek_to_timestamp,
                                     int ticket) {
+#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+  SbPlayerSeek(player, seek_to_timestamp, ticket);
+#else   // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
   SbPlayerSeek2(player, seek_to_timestamp, ticket);
+#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
 }
 
 bool DefaultSbPlayerInterface::IsEnhancedAudioExtensionEnabled() const {
@@ -115,8 +119,13 @@ void DefaultSbPlayerInterface::SetVolume(SbPlayer player, double volume) {
 }
 
 void DefaultSbPlayerInterface::GetInfo(SbPlayer player,
+#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+                                       SbPlayerInfo* out_player_info) {
+  SbPlayerGetInfo(player, out_player_info);
+#else   // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
                                        SbPlayerInfo2* out_player_info2) {
   SbPlayerGetInfo2(player, out_player_info2);
+#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
 }
 
 SbDecodeTarget DefaultSbPlayerInterface::GetCurrentFrame(SbPlayer player) {

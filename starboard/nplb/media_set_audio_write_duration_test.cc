@@ -57,8 +57,13 @@ class SbMediaSetAudioWriteDurationTest
     }
 
     // Check if we're about to input too far beyond the current playback time.
+#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+    SbPlayerInfo info;
+    SbPlayerGetInfo(pending_decoder_status_->player, &info);
+#else   // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
     SbPlayerInfo2 info;
     SbPlayerGetInfo2(pending_decoder_status_->player, &info);
+#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
     if ((last_input_timestamp_ - info.current_media_timestamp) > kDuration) {
       // Postpone writing samples.
       return;
@@ -183,19 +188,30 @@ TEST_P(SbMediaSetAudioWriteDurationTest, WriteLimitedInput) {
   WaitForPlayerState(kSbPlayerStateInitialized);
 
   // Seek to preroll.
+#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+  SbPlayerSeek(player, first_input_timestamp_, /* ticket */ 1);
+#else   // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
   SbPlayerSeek2(player, first_input_timestamp_, /* ticket */ 1);
+#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
 
   WaitForPlayerState(kSbPlayerStatePresenting);
 
   // Wait until the playback time is > 0.
   const SbTime kMaxWaitTime = 5 * kSbTimeSecond;
   SbTime start_of_wait = SbTimeGetMonotonicNow();
+#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+  SbPlayerInfo info = {};
+#else   // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
   SbPlayerInfo2 info = {};
-
+#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
   while (SbTimeGetMonotonicNow() - start_of_wait < kMaxWaitTime &&
          info.current_media_timestamp == 0) {
     SbThreadSleep(kSbTimeMillisecond * 500);
+#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+    SbPlayerGetInfo(player, &info);
+#else   // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
     SbPlayerGetInfo2(player, &info);
+#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
   }
 
   EXPECT_GT(info.current_media_timestamp, 0);
@@ -216,8 +232,11 @@ TEST_P(SbMediaSetAudioWriteDurationTest, WriteContinuedLimitedInput) {
   WaitForPlayerState(kSbPlayerStateInitialized);
 
   // Seek to preroll.
+#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+  SbPlayerSeek(player, first_input_timestamp_, /* ticket */ 1);
+#else   // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
   SbPlayerSeek2(player, first_input_timestamp_, /* ticket */ 1);
-
+#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
   WaitForPlayerState(kSbPlayerStatePresenting);
 
   // Wait for the player to play far enough. It may not play all the way to
@@ -225,11 +244,20 @@ TEST_P(SbMediaSetAudioWriteDurationTest, WriteContinuedLimitedInput) {
   SbTime min_ending_playback_time = total_duration_ - kDuration;
   SbTime start_of_wait = SbTimeGetMonotonicNow();
   const SbTime kMaxWaitTime = total_duration_ + 5 * kSbTimeSecond;
+#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+  SbPlayerInfo info;
+  SbPlayerGetInfo(player, &info);
+#else   // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
   SbPlayerInfo2 info;
   SbPlayerGetInfo2(player, &info);
+#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
   while (info.current_media_timestamp < min_ending_playback_time &&
          (SbTimeGetMonotonicNow() - start_of_wait) < kMaxWaitTime) {
+#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+    SbPlayerGetInfo(player, &info);
+#else   // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
     SbPlayerGetInfo2(player, &info);
+#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
     SbThreadSleep(kSmallWaitInterval);
     TryToWritePendingSample();
   }

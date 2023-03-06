@@ -17,7 +17,11 @@
 #include "starboard/common/log.h"
 #include "starboard/shared/starboard/player/player_internal.h"
 
+#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+void SbPlayerGetInfo(SbPlayer player, SbPlayerInfo* out_player_info) {
+#else   // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
 void SbPlayerGetInfo2(SbPlayer player, SbPlayerInfo2* out_player_info) {
+#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
   if (!SbPlayerIsValid(player)) {
     SB_DLOG(WARNING) << "player is invalid.";
     return;

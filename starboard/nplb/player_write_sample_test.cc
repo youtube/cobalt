@@ -300,7 +300,11 @@ void SbPlayerWriteSampleTest::PrepareForSeek() {
 
 void SbPlayerWriteSampleTest::Seek(const SbTime time) {
   PrepareForSeek();
+#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+  SbPlayerSeek(player_, time, ticket_);
+#else   // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
   SbPlayerSeek2(player_, time, ticket_);
+#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
   ASSERT_NO_FATAL_FAILURE(WaitForDecoderStateNeedsData());
   ASSERT_TRUE(decoder_state_queue_.empty());
 }
@@ -516,7 +520,11 @@ void SbPlayerWriteSampleTest::TryProcessCallbackEvents(SbTime timeout) {
 
 TEST_P(SbPlayerWriteSampleTest, SeekAndDestroy) {
   PrepareForSeek();
+#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+  SbPlayerSeek(player_, 1 * kSbTimeSecond, ticket_);
+#else   // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
   SbPlayerSeek2(player_, 1 * kSbTimeSecond, ticket_);
+#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
 }
 
 TEST_P(SbPlayerWriteSampleTest, NoInput) {

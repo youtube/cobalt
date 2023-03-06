@@ -112,7 +112,11 @@ void SbPlayerPrivate::SetBounds(int z_index,
   // TODO: Wait until a frame is rendered with the updated bounds.
 }
 
+#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+void SbPlayerPrivate::GetInfo(SbPlayerInfo* out_player_info) {
+#else   // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
 void SbPlayerPrivate::GetInfo(SbPlayerInfo2* out_player_info) {
+#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
   SB_DCHECK(out_player_info != NULL);
 
   starboard::ScopedLock lock(mutex_);

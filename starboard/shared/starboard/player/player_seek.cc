@@ -14,4 +14,18 @@
 
 #include "starboard/player.h"
 
-void SbPlayerGetInfo2(SbPlayer player, SbPlayerInfo2* out_player_info) {}
+#include "starboard/common/log.h"
+#include "starboard/shared/starboard/player/player_internal.h"
+
+#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+void SbPlayerSeek(SbPlayer player, SbTime seek_to_timestamp, int ticket) {
+#else   // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+void SbPlayerSeek2(SbPlayer player, SbTime seek_to_timestamp, int ticket) {
+#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+  if (!SbPlayerIsValid(player)) {
+    SB_DLOG(WARNING) << "player is invalid.";
+    return;
+  }
+
+  player->Seek(seek_to_timestamp, ticket);
+}
