@@ -778,7 +778,6 @@ void VideoDecoder::RefreshOutputFormat(MediaCodecBridge* media_codec_bridge) {
     return;
   }
   if (first_output_format_changed_) {
-    SB_DCHECK(output_format_);
     // After resolution changes, the output buffers may have frames of different
     // resolutions. In that case, it's hard to determine the max supported
     // output buffers. So, we reset |output_format_| to null here to skip max
