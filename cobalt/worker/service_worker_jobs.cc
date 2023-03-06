@@ -71,6 +71,10 @@ namespace cobalt {
 namespace worker {
 
 namespace {
+
+const base::TimeDelta kWaitForAsynchronousExtensionsTimeout =
+    base::TimeDelta::FromSeconds(3);
+
 bool PathContainsEscapedSlash(const GURL& url) {
   const std::string path = url.path();
   return (path.find("%2f") != std::string::npos ||
@@ -1062,6 +1066,21 @@ std::string* ServiceWorkerJobs::RunServiceWorker(ServiceWorkerObject* worker,
   return worker->start_status();
 }
 
+bool ServiceWorkerJobs::WaitForAsynchronousExtensions() {
+  // TODO(b/240164388): Investigate a better approach for combining waiting
+  // for the ExtendableEvent while also allowing use of algorithms that run
+  // on the same thread from the event handler.
+  base::TimeTicks wait_start_time = base::TimeTicks::Now();
+  do {
+    if (done_event_.TimedWait(base::TimeDelta::FromMilliseconds(100))) break;
+    base::MessageLoopCurrent::ScopedNestableTaskAllower allow;
+    base::RunLoop().RunUntilIdle();
+  } while ((base::TimeTicks::Now() - wait_start_time) <
+           kWaitForAsynchronousExtensionsTimeout);
+  return done_event_.IsSignaled();
+}
+
+
 void ServiceWorkerJobs::Install(
     Job* job, const scoped_refptr<ServiceWorkerObject>& worker,
     const scoped_refptr<ServiceWorkerRegistrationObject>& registration) {
@@ -1207,12 +1226,9 @@ void ServiceWorkerJobs::Install(
       // This waiting is done inside PostBlockingTask above.
       // 11.3.3. Wait for the step labeled WaitForAsynchronousExtensions to
       //         complete.
-      // TODO(b/240164388): Investigate a better approach for combining waiting
-      // for the ExtendableEvent while also allowing use of algorithms that run
-      // on the same thread from the event handler.
-      while (!done_event_.TimedWait(base::TimeDelta::FromMilliseconds(100))) {
-        base::MessageLoopCurrent::ScopedNestableTaskAllower allow;
-        base::RunLoop().RunUntilIdle();
+      if (!WaitForAsynchronousExtensions()) {
+        // Timeout
+        install_failed->store(true);
       }
     }
   }
@@ -1484,9 +1500,9 @@ void ServiceWorkerJobs::Activate(
       // TODO(b/240164388): Investigate a better approach for combining waiting
       // for the ExtendableEvent while also allowing use of algorithms that run
       // on the same thread from the event handler.
-      while (!done_event_.TimedWait(base::TimeDelta::FromMilliseconds(100))) {
-        base::MessageLoopCurrent::ScopedNestableTaskAllower allow;
-        base::RunLoop().RunUntilIdle();
+      if (!WaitForAsynchronousExtensions()) {
+        // Timeout
+        activated = false;
       }
     }
   }
