@@ -18,6 +18,7 @@
 #include <jni.h>
 
 #include <queue>
+#include <string>
 
 #include "starboard/android/shared/drm_system.h"
 #include "starboard/android/shared/media_codec_bridge.h"
@@ -68,6 +69,8 @@ class AudioDecoder
   void RefreshOutputFormat(MediaCodecBridge* media_codec_bridge) override;
   bool Tick(MediaCodecBridge* media_codec_bridge) override { return false; }
   void OnFlushing() override {}
+
+  void ReportError(SbPlayerError error, const std::string& error_message);
 
   SbMediaAudioCodec audio_codec_;
   AudioSampleInfo audio_sample_info_;
