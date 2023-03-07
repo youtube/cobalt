@@ -47,7 +47,8 @@ typedef enum SbLogPriority {
 //   that passing |kSbLogPriorityFatal| does not terminate the program. Such a
 //   policy must be enforced at the application level. In fact, |priority| may
 //   be completely ignored on many platforms.
-// |message|: The message to be logged. No formatting is required to be done
+// |message|: The message to be logged. Must not be NULL. No formatting is
+// required to be done
 //   on the value, including newline termination. That said, platforms can
 //   adjust the message to be more suitable for their output method by
 //   wrapping the text, stripping unprintable characters, etc.
@@ -57,7 +58,7 @@ SB_EXPORT void SbLog(SbLogPriority priority, const char* message);
 // from an asynchronous signal handler (e.g. a |SIGSEGV| handler). It should not
 // do any additional formatting.
 //
-// |message|: The message to be logged.
+// |message|: The message to be logged. Must not be NULL.
 SB_EXPORT void SbLogRaw(const char* message);
 
 // Dumps the stack of the current thread to the log in an async-signal-safe
