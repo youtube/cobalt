@@ -12,7 +12,7 @@ runs:
   steps:
     - name: Get docker file changes
       id: changed-files
-      uses: tj-actions/changed-files@v32.1.1
+      uses: tj-actions/changed-files@8953e851a137075e59e84b5c15fbeb3617e82f15 # v32.1.1
       with:
         files: |
           docker-compose.yml
@@ -20,7 +20,7 @@ runs:
           .github/actions/docker/**
     - name: Retrieve Docker metadata
       id: meta
-      uses: docker/metadata-action@v4
+      uses: docker/metadata-action@507c2f2dc502c992ad446e3d7a5dfbe311567a96 # v4.3.0
       with:
         images: ${{env.REGISTRY}}/${{github.repository}}/${{inputs.docker_image}}
         tags: |
@@ -73,7 +73,7 @@ runs:
     - name: Build containers with docker-compose
       id: build-image
       if: env.need_to_build == 'true'
-      uses: smartlyio/docker-compose-action@v1
+      uses: smartlyio/docker-compose-action@83392e28664cc0cb5b3208e8d75697d01da8db18 # v1.7.1
       with:
         serviceName: ${{ inputs.docker_service }}
         build: false
