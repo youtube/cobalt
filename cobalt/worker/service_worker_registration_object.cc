@@ -36,6 +36,9 @@ ServiceWorkerRegistrationObject::~ServiceWorkerRegistrationObject() {
 }
 
 void ServiceWorkerRegistrationObject::AbortAll() {
+  if (!done_event()->IsSignaled()) {
+    done_event()->Signal();
+  }
   if (installing_worker()) {
     installing_worker()->Abort();
   }

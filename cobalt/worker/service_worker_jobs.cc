@@ -162,12 +162,6 @@ ServiceWorkerJobs::~ServiceWorkerJobs() {
   }
 }
 
-void ServiceWorkerJobs::Stop() {
-  if (!done_event_.IsSignaled()) {
-    done_event_.Signal();
-  }
-}
-
 void ServiceWorkerJobs::StartRegister(
     const base::Optional<GURL>& maybe_scope_url,
     const GURL& script_url_with_fragment,
@@ -1066,18 +1060,21 @@ std::string* ServiceWorkerJobs::RunServiceWorker(ServiceWorkerObject* worker,
   return worker->start_status();
 }
 
-bool ServiceWorkerJobs::WaitForAsynchronousExtensions() {
+bool ServiceWorkerJobs::WaitForAsynchronousExtensions(
+    const scoped_refptr<ServiceWorkerRegistrationObject>& registration) {
   // TODO(b/240164388): Investigate a better approach for combining waiting
   // for the ExtendableEvent while also allowing use of algorithms that run
   // on the same thread from the event handler.
   base::TimeTicks wait_start_time = base::TimeTicks::Now();
   do {
-    if (done_event_.TimedWait(base::TimeDelta::FromMilliseconds(100))) break;
+    if (registration->done_event()->TimedWait(
+            base::TimeDelta::FromMilliseconds(100)))
+      break;
     base::MessageLoopCurrent::ScopedNestableTaskAllower allow;
     base::RunLoop().RunUntilIdle();
   } while ((base::TimeTicks::Now() - wait_start_time) <
            kWaitForAsynchronousExtensionsTimeout);
-  return done_event_.IsSignaled();
+  return registration->done_event()->IsSignaled();
 }
 
 
@@ -1174,8 +1171,8 @@ void ServiceWorkerJobs::Install(
     } else {
       // 11.3.1. Queue a task task on installingWorker’s event loop using the
       //         DOM manipulation task source to run the following steps:
-      DCHECK(done_event_.IsSignaled());
-      done_event_.Reset();
+      DCHECK(registration->done_event()->IsSignaled());
+      registration->done_event()->Reset();
       installing_worker->web_agent()
           ->context()
           ->message_loop()
@@ -1220,13 +1217,13 @@ void ServiceWorkerJobs::Install(
                       done_event->Signal();
                     }
                   },
-                  base::Unretained(installing_worker), &done_event_,
-                  install_failed));
+                  base::Unretained(installing_worker),
+                  registration->done_event(), install_failed));
       // 11.3.2. Wait for task to have executed or been discarded.
       // This waiting is done inside PostBlockingTask above.
       // 11.3.3. Wait for the step labeled WaitForAsynchronousExtensions to
       //         complete.
-      if (!WaitForAsynchronousExtensions()) {
+      if (!WaitForAsynchronousExtensions(registration)) {
         // Timeout
         install_failed->store(true);
       }
@@ -1461,8 +1458,8 @@ void ServiceWorkerJobs::Activate(
                 active_worker->worker_global_scope()
                     ->environment_settings()
                     ->context());
-      DCHECK(done_event_.IsSignaled());
-      done_event_.Reset();
+      DCHECK(registration->done_event()->IsSignaled());
+      registration->done_event()->Reset();
       active_worker->web_agent()
           ->context()
           ->message_loop()
@@ -1492,7 +1489,7 @@ void ServiceWorkerJobs::Activate(
                       done_event->Signal();
                     }
                   },
-                  base::Unretained(active_worker), &done_event_));
+                  base::Unretained(active_worker), registration->done_event()));
       // 11.1.2. Wait for task to have executed or been discarded.
       // This waiting is done inside PostBlockingTask above.
       // 11.1.3. Wait for the step labeled WaitForAsynchronousExtensions to
@@ -1500,7 +1497,7 @@ void ServiceWorkerJobs::Activate(
       // TODO(b/240164388): Investigate a better approach for combining waiting
       // for the ExtendableEvent while also allowing use of algorithms that run
       // on the same thread from the event handler.
-      if (!WaitForAsynchronousExtensions()) {
+      if (!WaitForAsynchronousExtensions(registration)) {
         // Timeout
         activated = false;
       }

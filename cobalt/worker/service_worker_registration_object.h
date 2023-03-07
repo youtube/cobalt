@@ -96,6 +96,8 @@ class ServiceWorkerRegistrationObject
 
   const int kStaleServiceWorkerRegistrationTimeout = 86400;
 
+  base::WaitableEvent* done_event() { return &done_event_; }
+
  private:
   // This lock is to allow atomic operations on the registration object.
   base::Lock mutex_;
@@ -108,6 +110,10 @@ class ServiceWorkerRegistrationObject
   scoped_refptr<ServiceWorkerObject> active_worker_;
 
   base::Time last_update_check_time_;
+
+  base::WaitableEvent done_event_ = {
+      base::WaitableEvent::ResetPolicy::MANUAL,
+      base::WaitableEvent::InitialState::SIGNALED};
 };
 
 }  // namespace worker

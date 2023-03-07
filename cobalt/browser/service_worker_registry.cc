@@ -73,8 +73,8 @@ ServiceWorkerRegistry::~ServiceWorkerRegistry() {
   // Ensure that the destruction observer got added before stopping the thread.
   // Stop the thread. This will cause the destruction observer to be notified.
   destruction_observer_added_.Wait();
-  service_worker_jobs_->Stop();
   thread_.Stop();
+  DCHECK(!service_worker_jobs_);
 }
 
 void ServiceWorkerRegistry::EnsureServiceWorkerStarted(
