@@ -620,7 +620,8 @@ SB_EXPORT void SbSystemHideSplashScreen();
 SB_EXPORT bool SbSystemSupportsResume();
 
 // Returns pointer to a constant global struct implementing the extension named
-// |name|, if it is implemented. Otherwise return NULL.
+// |name|, if it is implemented. Otherwise return NULL. The |name| string must
+// not be NULL.
 //
 // Extensions are used to implement behavior which is specific to the
 // combination of application & platform. An extension relies on a header file
@@ -641,7 +642,8 @@ SB_EXPORT bool SbSystemSupportsResume();
 SB_EXPORT const void* SbSystemGetExtension(const char* name);
 
 // Computes a HMAC-SHA256 digest of |message| into |digest| using the
-// application's certification secret.
+// application's certification secret. The |message| and the |digest|
+// pointers must not be NULL.
 //
 // The output will be written into |digest|.  |digest_size_in_bytes| must be 32
 // (or greater), since 32-bytes will be written into it.
