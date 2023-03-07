@@ -193,8 +193,6 @@ class ServiceWorkerJobs {
                     base::MessageLoop* message_loop);
   ~ServiceWorkerJobs();
 
-  void Stop();
-
   base::MessageLoop* message_loop() { return message_loop_; }
 
   // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#start-register-algorithm
@@ -463,7 +461,8 @@ class ServiceWorkerJobs {
       ServiceWorkerRegistrationObject* registration);
 
   // Returns false when the timeout is reached.
-  bool WaitForAsynchronousExtensions();
+  bool WaitForAsynchronousExtensions(
+      const scoped_refptr<ServiceWorkerRegistrationObject>& registration);
 
   // FetcherFactory that is used to create a fetcher according to URL.
   std::unique_ptr<loader::FetcherFactory> fetcher_factory_;
@@ -479,10 +478,6 @@ class ServiceWorkerJobs {
   base::WaitableEvent web_context_registrations_cleared_ = {
       base::WaitableEvent::ResetPolicy::MANUAL,
       base::WaitableEvent::InitialState::NOT_SIGNALED};
-
-  base::WaitableEvent done_event_ = {
-      base::WaitableEvent::ResetPolicy::MANUAL,
-      base::WaitableEvent::InitialState::SIGNALED};
 };
 
 }  // namespace worker
