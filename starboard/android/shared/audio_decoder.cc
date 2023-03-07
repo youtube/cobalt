@@ -54,6 +54,9 @@ namespace shared {
 
 namespace {
 
+using std::placeholders::_1;
+using std::placeholders::_2;
+
 SbMediaAudioSampleType GetSupportedSampleType() {
   SB_DCHECK(SbAudioSinkIsAudioSampleTypeSupported(
       kSbMediaAudioSampleTypeInt16Deprecated));
@@ -92,7 +95,8 @@ void AudioDecoder::Initialize(const OutputCB& output_cb,
   output_cb_ = output_cb;
   error_cb_ = error_cb;
 
-  media_decoder_->Initialize(error_cb_);
+  media_decoder_->Initialize(
+      std::bind(&AudioDecoder::ReportError, this, _1, _2));
 }
 
 void AudioDecoder::Decode(const InputBuffers& input_buffers,
@@ -174,7 +178,8 @@ bool AudioDecoder::InitializeCodec() {
   media_decoder_.reset(new MediaDecoder(this, audio_stream_info_, drm_system_));
   if (media_decoder_->is_valid()) {
     if (error_cb_) {
-      media_decoder_->Initialize(error_cb_);
+      media_decoder_->Initialize(
+          std::bind(&AudioDecoder::ReportError, this, _1, _2));
     }
     return true;
   }
@@ -192,7 +197,12 @@ void AudioDecoder::ProcessOutputBuffer(
   if (dequeue_output_result.num_bytes > 0) {
     ScopedJavaByteBuffer byte_buffer(
         media_codec_bridge->GetOutputBuffer(dequeue_output_result.index));
-    SB_DCHECK(!byte_buffer.IsNull());
+
+    if (byte_buffer.IsNull()) {
+      ReportError(kSbPlayerErrorDecode,
+                  "Failed to process audio output buffer.");
+      return;
+    }
 
     int16_t* data = static_cast<int16_t*>(IncrementPointerByBytes(
         byte_buffer.address(), dequeue_output_result.offset));
@@ -245,6 +255,17 @@ void AudioDecoder::RefreshOutputFormat(MediaCodecBridge* media_codec_bridge) {
   }
   output_sample_rate_ = output_format.sample_rate;
   output_channel_count_ = output_format.channel_count;
+}
+
+void AudioDecoder::ReportError(SbPlayerError error,
+                               const std::string& error_message) {
+  SB_DCHECK(error_cb_);
+
+  if (!error_cb_) {
+    return;
+  }
+
+  error_cb_(kSbPlayerErrorDecode, error_message);
 }
 
 }  // namespace shared
