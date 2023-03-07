@@ -94,10 +94,14 @@ typedef struct SbUiNavItemDir {
 // @verbatim
 //   | a b tx |
 //   | c d ty | @endverbatim
-typedef struct SbUiNavMatrix2x3 { float m[6]; } SbUiNavMatrix2x3;
+typedef struct SbUiNavMatrix2x3 {
+  float m[6];
+} SbUiNavMatrix2x3;
 
 // This represents a 4x4 transform matrix in row-major order.
-typedef struct SbUiNavMatrix4 { float m[16]; } SbUiNavMatrix4;
+typedef struct SbUiNavMatrix4 {
+  float m[16];
+} SbUiNavMatrix4;
 
 // This structure specifies all the callbacks which the platform UI engine
 // should invoke for various interaction events on navigation items. These
@@ -309,6 +313,7 @@ static SB_C_INLINE bool SbUiNavItemIsValid(SbUiNavItem item) {
 // Retrieve the platform's UI navigation implementation. If the platform does
 // not provide one, then return false without modifying |out_interface|.
 // Otherwise, initialize all members of |out_interface| and return true.
+// The |out_interface| pointer must not be NULL.
 SB_EXPORT bool SbUiNavGetInterface(SbUiNavInterface* out_interface);
 
 #ifdef __cplusplus
