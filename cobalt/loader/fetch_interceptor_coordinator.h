@@ -19,6 +19,7 @@
 #include <string>
 
 #include "base/bind.h"
+#include "base/single_thread_task_runner.h"
 #include "net/base/load_timing_info.h"
 #include "url/gurl.h"
 
@@ -34,6 +35,7 @@ class FetchInterceptor {
  public:
   virtual void StartFetch(
       const GURL& url,
+      scoped_refptr<base::SingleThreadTaskRunner> callback_task_runner,
       base::OnceCallback<void(std::unique_ptr<std::string>)> callback,
       base::OnceCallback<void(const net::LoadTimingInfo&)>
           report_load_timing_info,
@@ -53,6 +55,7 @@ class FetchInterceptorCoordinator {
 
   void TryIntercept(
       const GURL& url,
+      scoped_refptr<base::SingleThreadTaskRunner> callback_task_runner,
       base::OnceCallback<void(std::unique_ptr<std::string>)> callback,
       base::OnceCallback<void(const net::LoadTimingInfo&)>
           report_load_timing_info,

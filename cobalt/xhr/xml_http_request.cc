@@ -359,6 +359,7 @@ XMLHttpRequestImpl::XMLHttpRequestImpl(XMLHttpRequest* xhr)
       upload_listener_(false),
       with_credentials_(false),
       xhr_(xhr),
+      will_destroy_current_message_loop_(false),
       active_requests_count_(0),
       http_status_(0),
       redirect_times_(0),
@@ -369,6 +370,7 @@ XMLHttpRequestImpl::XMLHttpRequestImpl(XMLHttpRequest* xhr)
       timeout_ms_(0),
       upload_complete_(false) {
   DCHECK(environment_settings());
+  base::MessageLoop::current()->AddDestructionObserver(this);
 }
 
 void XMLHttpRequestImpl::Abort() {
@@ -517,13 +519,11 @@ void XMLHttpRequestImpl::Send(
                                ->IsServiceWorker();
   if (!in_service_worker && method_ == net::URLFetcher::GET) {
     loader::FetchInterceptorCoordinator::GetInstance()->TryIntercept(
-        request_url_,
-        base::BindOnce(&XMLHttpRequestImpl::SendIntercepted,
-                       base::Unretained(this)),
-        base::BindOnce(&XMLHttpRequestImpl::ReportLoadTimingInfo,
-                       base::Unretained(this)),
-        base::BindOnce(&XMLHttpRequestImpl::SendFallback,
-                       base::Unretained(this), request_body, exception_state));
+        request_url_, task_runner_,
+        base::BindOnce(&XMLHttpRequestImpl::SendIntercepted, AsWeakPtr()),
+        base::BindOnce(&XMLHttpRequestImpl::ReportLoadTimingInfo, AsWeakPtr()),
+        base::BindOnce(&XMLHttpRequestImpl::SendFallback, AsWeakPtr(),
+                       request_body, exception_state));
     return;
   }
   SendFallback(request_body, exception_state);
@@ -531,10 +531,13 @@ void XMLHttpRequestImpl::Send(
 
 void XMLHttpRequestImpl::SendIntercepted(
     std::unique_ptr<std::string> response) {
+  if (will_destroy_current_message_loop_.load()) {
+    return;
+  }
   if (task_runner_ != base::MessageLoop::current()->task_runner()) {
-    task_runner_->PostTask(
-        FROM_HERE, base::BindOnce(&XMLHttpRequestImpl::SendIntercepted,
-                                  base::Unretained(this), std::move(response)));
+    task_runner_->PostTask(FROM_HERE,
+                           base::BindOnce(&XMLHttpRequestImpl::SendIntercepted,
+                                          AsWeakPtr(), std::move(response)));
     return;
   }
   sent_ = true;
@@ -596,6 +599,9 @@ void XMLHttpRequestImpl::SendIntercepted(
 void XMLHttpRequestImpl::SendFallback(
     const base::Optional<XMLHttpRequest::RequestBodyType>& request_body,
     script::ExceptionState* exception_state) {
+  if (will_destroy_current_message_loop_.load()) {
+    return;
+  }
   if (task_runner_ != base::MessageLoop::current()->task_runner()) {
     task_runner_->PostTask(
         FROM_HERE,
@@ -1199,6 +1205,10 @@ void XMLHttpRequestImpl::OnRedirect(const net::HttpResponseHeaders& headers) {
   request_url_ = new_url;
   redirect_times_++;
   this->StartRequest(request_body_text_);
+}
+
+void XMLHttpRequestImpl::WillDestroyCurrentMessageLoop() {
+  will_destroy_current_message_loop_.store(true);
 }
 
 void XMLHttpRequestImpl::ReportLoadTimingInfo(
