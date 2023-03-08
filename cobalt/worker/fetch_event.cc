@@ -29,14 +29,18 @@ FetchEvent::FetchEvent(script::EnvironmentSettings* environment_settings,
                        const std::string& type,
                        const FetchEventInit& event_init_dict)
     : FetchEvent(environment_settings, base::Token(type), event_init_dict,
+                 base::MessageLoop::current()->task_runner(),
                  RespondWithCallback(), ReportLoadTimingInfo()) {}
 
-FetchEvent::FetchEvent(script::EnvironmentSettings* environment_settings,
-                       base::Token type, const FetchEventInit& event_init_dict,
-                       RespondWithCallback respond_with_callback,
-                       ReportLoadTimingInfo report_load_timing_info)
+FetchEvent::FetchEvent(
+    script::EnvironmentSettings* environment_settings, base::Token type,
+    const FetchEventInit& event_init_dict,
+    scoped_refptr<base::SingleThreadTaskRunner> callback_task_runner,
+    RespondWithCallback respond_with_callback,
+    ReportLoadTimingInfo report_load_timing_info)
     : ExtendableEvent(type, event_init_dict),
       environment_settings_(environment_settings),
+      callback_task_runner_(callback_task_runner),
       respond_with_callback_(std::move(respond_with_callback)),
       report_load_timing_info_(std::move(report_load_timing_info)) {
   auto script_value_factory =
@@ -57,7 +61,13 @@ FetchEvent::FetchEvent(script::EnvironmentSettings* environment_settings,
 
 base::Optional<v8::Local<v8::Promise>> FetchEvent::GetText(
     v8::Local<v8::Promise> response_promise) {
-  std::move(report_load_timing_info_).Run(load_timing_info_);
+  callback_task_runner_->PostTask(
+      FROM_HERE, base::BindOnce(
+                     [](ReportLoadTimingInfo report_load_timing_info,
+                        const net::LoadTimingInfo& load_timing_info) {
+                       std::move(report_load_timing_info).Run(load_timing_info);
+                     },
+                     std::move(report_load_timing_info_), load_timing_info_));
   handled_property_->value().Resolve();
   return web::cache_utils::OptionalPromise(
       web::cache_utils::Call(response_promise->Result(), "text"));
@@ -79,15 +89,36 @@ base::Optional<v8::Local<v8::Promise>> FetchEvent::DoRespondWith(
       ->PostTask(
           FROM_HERE,
           base::BindOnce(
-              [](RespondWithCallback respond_with_callback, std::string body,
+              [](scoped_refptr<base::SingleThreadTaskRunner>
+                     callback_task_runner,
+                 RespondWithCallback respond_with_callback, std::string body,
                  base::MessageLoop* loop, base::OnceClosure callback) {
-                std::move(respond_with_callback)
-                    .Run(std::make_unique<std::string>(std::move(body)));
+                callback_task_runner->PostTask(
+                    FROM_HERE,
+                    base::BindOnce(
+                        [](RespondWithCallback respond_with_callback,
+                           std::string body) {
+                          std::move(respond_with_callback)
+                              .Run(std::make_unique<std::string>(
+                                  std::move(body)));
+                        },
+                        std::move(respond_with_callback), std::move(body)));
                 loop->task_runner()->PostTask(FROM_HERE, std::move(callback));
               },
+<<<<<<< HEAD   (60d8b4 [Service Worker] Enable more pass WPTs)
               std::move(respond_with_callback_), std::move(body),
               base::MessageLoop::current(), std::move(callback)));
+<<<<<<< PATCH SET (8cef38 Fix heap use after free when shutting down during fetch inte)
+  return resolver.ToLocalChecked()->GetPromise();
+=======
+              callback_task_runner_, std::move(respond_with_callback_),
+              std::move(body), base::MessageLoop::current(),
+              std::move(callback)));
   return respond_with_done_->value().promise();
+>>>>>>> CHANGE (4ed50a Fix heap use after free when shutting down during fetch inte)
+=======
+  return respond_with_done_->value().promise();
+>>>>>>> BASE      (e68f1b Start registered service worker before navigate.)
 }
 
 void FetchEvent::RespondWith(
