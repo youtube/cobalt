@@ -68,7 +68,9 @@ class Context {
   virtual worker::ServiceWorkerJobs* service_worker_jobs() const = 0;
 
   virtual const std::string& name() const = 0;
-  virtual void setup_environment_settings(EnvironmentSettings* settings) = 0;
+  virtual void SetupEnvironmentSettings(EnvironmentSettings* settings) = 0;
+  virtual void SetupFinished() = 0;
+
   virtual EnvironmentSettings* environment_settings() const = 0;
 
   virtual scoped_refptr<worker::ServiceWorkerRegistration>

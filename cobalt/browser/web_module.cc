@@ -581,7 +581,7 @@ WebModule::Impl::Impl(web::Context* web_context, const ConstructionData& data)
     memory_info = stub_decoder_buffer_memory_info_.get();
   }
 
-  web_context_->setup_environment_settings(new dom::DOMSettings(
+  web_context_->SetupEnvironmentSettings(new dom::DOMSettings(
       debugger_hooks_, kDOMMaxElementDepth, media_source_registry_.get(),
       data.can_play_type_handler, memory_info, &mutation_observer_task_manager_,
       data.options.dom_settings_options));
@@ -734,6 +734,7 @@ WebModule::Impl::Impl(web::Context* web_context, const ConstructionData& data)
       data.options.collect_unload_event_time_callback;
 
   is_running_ = true;
+  web_context_->SetupFinished();
 }
 
 WebModule::Impl::~Impl() {

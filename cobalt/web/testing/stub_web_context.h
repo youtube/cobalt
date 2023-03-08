@@ -116,16 +116,18 @@ class StubWebContext final : public Context {
   }
 
   const std::string& name() const final { return name_; };
-  void setup_environment_settings(
+  void SetupEnvironmentSettings(
       EnvironmentSettings* environment_settings) final {
     environment_settings_.reset(environment_settings);
     if (environment_settings_) environment_settings_->set_context(this);
   }
+  void SetupFinished() final {}
+
   EnvironmentSettings* environment_settings() const final {
     return environment_settings_.get();
   }
   EnvironmentSettings* setup_stub_environment_settings() {
-    setup_environment_settings(new testing::StubEnvironmentSettings);
+    SetupEnvironmentSettings(new testing::StubEnvironmentSettings);
     return environment_settings();
   }
 

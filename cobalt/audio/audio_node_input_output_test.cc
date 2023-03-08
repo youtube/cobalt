@@ -94,9 +94,10 @@ class AudioNodeInputOutputTest : public ::testing::Test {
  public:
   AudioNodeInputOutputTest() {
     web_context_.reset(web::Agent::CreateContext("AudioNodeInputOutputTest"));
-    web_context_->setup_environment_settings(
+    web_context_->SetupEnvironmentSettings(
         new dom::testing::StubEnvironmentSettings);
     web_context_->global_environment()->CreateGlobalObject();
+    web_context_->SetupFinished();
   }
 
   ~AudioNodeInputOutputTest() {}

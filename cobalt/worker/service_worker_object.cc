@@ -180,7 +180,7 @@ void ServiceWorkerObject::Initialize(web::Context* context) {
   //      origin to an implementation-defined value, target browsing context to
   //      null, and active service worker to null.
 
-  web_context_->setup_environment_settings(worker_settings);
+  web_context_->SetupEnvironmentSettings(worker_settings);
   web_context_->environment_settings()->set_creation_url(script_url_);
   scoped_refptr<ServiceWorkerGlobalScope> service_worker_global_scope =
       new ServiceWorkerGlobalScope(web_context_->environment_settings(), this);
@@ -226,6 +226,7 @@ void ServiceWorkerObject::Initialize(web::Context* context) {
     DLOG(WARNING) << "Warning: No Content Security Header received for the "
                      "service worker.";
   }
+  web_context_->SetupFinished();
   // 8.11. If serviceWorker is an active worker, and there are any tasks queued
   //       in serviceWorker’s containing service worker registration’s task
   //       queues, queue them to serviceWorker’s event loop’s task queues in the
