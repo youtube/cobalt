@@ -191,7 +191,6 @@ script::HandlePromiseVoid ServiceWorkerGlobalScope::SkipWaiting() {
 
 void ServiceWorkerGlobalScope::StartFetch(
     const GURL& url,
-    scoped_refptr<base::SingleThreadTaskRunner> callback_task_runner,
     base::OnceCallback<void(std::unique_ptr<std::string>)> callback,
     base::OnceCallback<void(const net::LoadTimingInfo&)>
         report_load_timing_info,
@@ -207,13 +206,13 @@ void ServiceWorkerGlobalScope::StartFetch(
     environment_settings()->context()->message_loop()->task_runner()->PostTask(
         FROM_HERE,
         base::BindOnce(&ServiceWorkerGlobalScope::StartFetch,
-                       base::Unretained(this), url, callback_task_runner,
-                       std::move(callback), std::move(report_load_timing_info),
+                       base::Unretained(this), url, std::move(callback),
+                       std::move(report_load_timing_info),
                        std::move(fallback)));
     return;
   }
   if (!service_worker()) {
-    callback_task_runner->PostTask(FROM_HERE, std::move(fallback));
+    std::move(fallback).Run();
     return;
   }
   // TODO: handle the following steps in
@@ -228,7 +227,7 @@ void ServiceWorkerGlobalScope::StartFetch(
   script::v8c::EntryScope entry_scope(isolate);
   auto request = web::cache_utils::CreateRequest(isolate, url.spec());
   if (!request) {
-    callback_task_runner->PostTask(FROM_HERE, std::move(fallback));
+    std::move(fallback).Run();
     return;
   }
 
@@ -237,13 +236,12 @@ void ServiceWorkerGlobalScope::StartFetch(
       web::cache_utils::FromV8Value(isolate, request.value()).GetScriptValue());
   scoped_refptr<FetchEvent> fetch_event =
       new FetchEvent(environment_settings(), base::Tokens::fetch(), event_init,
-                     callback_task_runner, std::move(callback),
-                     std::move(report_load_timing_info));
+                     std::move(callback), std::move(report_load_timing_info));
   // 24. Create and dispatch event.
   DispatchEvent(fetch_event);
   // TODO: implement steps 25 and 26.
   if (!fetch_event->respond_with_called()) {
-    callback_task_runner->PostTask(FROM_HERE, std::move(fallback));
+    std::move(fallback).Run();
   }
 }
 

@@ -105,8 +105,7 @@ NetFetcher::NetFetcher(const GURL& url,
       origin_(origin),
       request_script_(options.resource_type == disk_cache::kUncompiledScript),
       task_runner_(base::MessageLoop::current()->task_runner()),
-      skip_fetch_intercept_(options.skip_fetch_intercept),
-      will_destroy_current_message_loop_(false) {
+      skip_fetch_intercept_(options.skip_fetch_intercept) {
   url_fetcher_ = net::URLFetcher::Create(url, options.request_method, this);
   if (!options.headers.IsEmpty()) {
     url_fetcher_->SetExtraRequestHeaders(options.headers.ToString());
@@ -139,11 +138,6 @@ NetFetcher::NetFetcher(const GURL& url,
   // while a loader is still being constructed.
   base::MessageLoop::current()->task_runner()->PostTask(
       FROM_HERE, start_callback_.callback());
-  base::MessageLoop::current()->AddDestructionObserver(this);
-}
-
-void NetFetcher::WillDestroyCurrentMessageLoop() {
-  will_destroy_current_message_loop_.store(true);
 }
 
 void NetFetcher::Start() {
@@ -158,10 +152,12 @@ void NetFetcher::Start() {
       return;
     }
     FetchInterceptorCoordinator::GetInstance()->TryIntercept(
-        original_url, task_runner_,
-        base::BindOnce(&NetFetcher::OnFetchIntercepted, AsWeakPtr()),
-        base::BindOnce(&NetFetcher::ReportLoadTimingInfo, AsWeakPtr()),
-        base::BindOnce(&NetFetcher::InterceptFallback, AsWeakPtr()));
+        original_url,
+        base::BindOnce(&NetFetcher::OnFetchIntercepted, base::Unretained(this)),
+        base::BindOnce(&NetFetcher::ReportLoadTimingInfo,
+                       base::Unretained(this)),
+        base::BindOnce(&net::URLFetcher::Start,
+                       base::Unretained(url_fetcher_.get())));
 
   } else {
     std::string msg(base::StringPrintf("URL %s rejected by security policy.",
@@ -170,12 +166,7 @@ void NetFetcher::Start() {
   }
 }
 
-void NetFetcher::InterceptFallback() { url_fetcher_->Start(); }
-
 void NetFetcher::OnFetchIntercepted(std::unique_ptr<std::string> body) {
-  if (will_destroy_current_message_loop_.load()) {
-    return;
-  }
   if (task_runner_ != base::MessageLoop::current()->task_runner()) {
     task_runner_->PostTask(
         FROM_HERE, base::BindOnce(&NetFetcher::OnFetchIntercepted,
@@ -312,9 +303,6 @@ void NetFetcher::ReportLoadTimingInfo(const net::LoadTimingInfo& timing_info) {
 NetFetcher::~NetFetcher() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   start_callback_.Cancel();
-  if (!will_destroy_current_message_loop_.load()) {
-    base::MessageLoop::current()->RemoveDestructionObserver(this);
-  }
 }
 
 NetFetcher::ReturnWrapper NetFetcher::HandleError(const std::string& message) {
