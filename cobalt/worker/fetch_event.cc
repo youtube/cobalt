@@ -38,7 +38,7 @@ FetchEvent::FetchEvent(
     scoped_refptr<base::SingleThreadTaskRunner> callback_task_runner,
     RespondWithCallback respond_with_callback,
     ReportLoadTimingInfo report_load_timing_info)
-    : ExtendableEvent(type, event_init_dict),
+    : ExtendableEvent(environment_settings, type, event_init_dict),
       environment_settings_(environment_settings),
       callback_task_runner_(callback_task_runner),
       respond_with_callback_(std::move(respond_with_callback)),
