@@ -131,9 +131,10 @@ class StubWindow {
         dom::Window::kClockTypeSystemTime /* clock_type */,
         dom::Window::CacheCallback() /* splash_screen_cache_callback */,
         system_caption_settings_ /* captions */
-        );
+    );
     global_environment()->CreateGlobalObject(
         window_, web_context()->environment_settings());
+    web_context()->SetupFinished();
   }
 
  private:
@@ -142,7 +143,7 @@ class StubWindow {
 
   void InitializeWebContext() {
     web_context_.reset(new web::testing::StubWebContext());
-    web_context()->setup_environment_settings(
+    web_context()->SetupEnvironmentSettings(
         new dom::testing::StubEnvironmentSettings(options_));
     web_context()->environment_settings()->set_creation_url(
         GURL("about:blank"));

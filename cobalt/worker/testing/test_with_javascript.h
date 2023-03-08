@@ -44,7 +44,7 @@ class TestWithJavaScriptBase : public TypeIdProvider {
  public:
   TestWithJavaScriptBase() {
     web_context_.reset(new web::testing::StubWebContext());
-    web_context_->setup_environment_settings(new WorkerSettings());
+    web_context_->SetupEnvironmentSettings(new WorkerSettings());
     web_context_->environment_settings()->set_creation_url(GURL("about:blank"));
 
     if (TypeIdProvider::GetGlobalScopeTypeId() ==
@@ -71,6 +71,7 @@ class TestWithJavaScriptBase : public TypeIdProvider {
           service_worker_global_scope_, web_context_->environment_settings());
       worker_global_scope_ = service_worker_global_scope_.get();
     }
+    web_context_->SetupFinished();
   }
 
   ~TestWithJavaScriptBase() { ClearWebContext(); }

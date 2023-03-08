@@ -94,15 +94,23 @@ class Impl : public Context {
   }
 
   const std::string& name() const final { return name_; };
-  void setup_environment_settings(
+  void SetupEnvironmentSettings(
       EnvironmentSettings* environment_settings) final {
     for (auto& observer : environment_settings_change_observers_) {
       observer.OnEnvironmentSettingsChanged(!!environment_settings);
     }
     environment_settings_.reset(environment_settings);
-    if (environment_settings_) environment_settings_->set_context(this);
+    if (environment_settings_) {
+      environment_settings_->set_context(this);
+    }
+  }
+
+  void SetupFinished() {
     if (service_worker_jobs_) {
-      service_worker_jobs_->SetActiveWorker(environment_settings);
+      service_worker_jobs_->RegisterWebContext(this);
+    }
+    if (service_worker_jobs_) {
+      service_worker_jobs_->SetActiveWorker(environment_settings_.get());
     }
   }
 
@@ -285,7 +293,7 @@ void Impl::ShutDownJavaScriptEngine() {
         script::GlobalEnvironment::ReportErrorCallback());
   }
 
-  setup_environment_settings(nullptr);
+  SetupEnvironmentSettings(nullptr);
   environment_settings_change_observers_.Clear();
   blob_registry_.reset();
   script_runner_.reset();
@@ -553,9 +561,6 @@ Context* Agent::CreateContext(const std::string& name, const Options& options,
                               base::MessageLoop* message_loop) {
   auto* context = new Impl(name, options);
   context->set_message_loop(message_loop);
-  if (options.service_worker_jobs) {
-    options.service_worker_jobs->RegisterWebContext(context);
-  }
   return context;
 }
 

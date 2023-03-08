@@ -99,7 +99,7 @@ void Worker::Initialize(web::Context* context) {
   //   https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#set-up-a-worker-environment-settings-object
   worker_settings->set_origin(
       options_.outside_context->environment_settings()->GetOrigin());
-  web_context_->setup_environment_settings(worker_settings);
+  web_context_->SetupEnvironmentSettings(worker_settings);
   // From algorithm for to setup up a worker environment settings object:
   //   https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#set-up-a-worker-environment-settings-object
   // 5. Set settings object's creation URL to worker global scope's url.
@@ -156,6 +156,7 @@ void Worker::Initialize(web::Context* context) {
   // "worker" otherwise.
   // 14. Obtain script
 
+  web_context_->SetupFinished();
   Obtain();
 }
 

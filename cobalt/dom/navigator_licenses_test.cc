@@ -23,10 +23,11 @@ namespace dom {
 // Tests the Navigator::licenses function for non-empty return.
 TEST(NavigatorLicensesTest, NonEmpty) {
   std::unique_ptr<web::Context> web_context(new web::testing::StubWebContext());
-  web_context->setup_environment_settings(
+  web_context->SetupEnvironmentSettings(
       new dom::testing::StubEnvironmentSettings());
   scoped_refptr<cobalt::dom::Navigator> navigator =
       new cobalt::dom::Navigator(web_context->environment_settings(), nullptr);
+  web_context->SetupFinished();
 
   ASSERT_TRUE(navigator != nullptr);
   EXPECT_FALSE(navigator->licenses().empty());
