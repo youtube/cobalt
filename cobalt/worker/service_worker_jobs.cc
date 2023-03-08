@@ -1206,8 +1206,12 @@ void ServiceWorkerJobs::Install(
                           done_event->Signal();
                         },
                         done_event, install_failed);
-                    scoped_refptr<ExtendableEvent> event(new ExtendableEvent(
-                        base::Tokens::install(), std::move(done_callback)));
+                    auto* settings = installing_worker->web_agent()
+                                         ->context()
+                                         ->environment_settings();
+                    scoped_refptr<ExtendableEvent> event(
+                        new ExtendableEvent(settings, base::Tokens::install(),
+                                            std::move(done_callback)));
                     installing_worker->worker_global_scope()->DispatchEvent(
                         event);
                     if (!event->IsActive()) {
@@ -1473,8 +1477,12 @@ void ServiceWorkerJobs::Activate(
                         base::BindOnce([](base::WaitableEvent* done_event,
                                           bool) { done_event->Signal(); },
                                        done_event);
-                    scoped_refptr<ExtendableEvent> event(new ExtendableEvent(
-                        base::Tokens::activate(), std::move(done_callback)));
+                    auto* settings = active_worker->web_agent()
+                                         ->context()
+                                         ->environment_settings();
+                    scoped_refptr<ExtendableEvent> event(
+                        new ExtendableEvent(settings, base::Tokens::activate(),
+                                            std::move(done_callback)));
                     // 11.1.1.1. Let e be the result of creating an event with
                     //           ExtendableEvent.
                     // 11.1.1.2. Initialize e’s type attribute to activate.
@@ -2765,6 +2773,7 @@ void ServiceWorkerJobs::ServiceWorkerPostMessageSubSteps(
 
                       event_target->DispatchEvent(
                           new worker::ExtendableMessageEvent(
+                              event_target->environment_settings(),
                               base::Tokens::message(), init_dict,
                               std::move(serialize_result)));
                     },

@@ -22,6 +22,7 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/optional.h"
 #include "cobalt/base/token.h"
+#include "cobalt/script/environment_settings.h"
 #include "cobalt/script/union_type.h"
 #include "cobalt/script/value_handle.h"
 #include "cobalt/script/wrappable.h"
@@ -42,18 +43,24 @@ class ExtendableMessageEvent : public ExtendableEvent {
                                  scoped_refptr<ServiceWorker>,
                                  scoped_refptr<web::MessagePort>>;
 
-  explicit ExtendableMessageEvent(const std::string& type)
-      : ExtendableEvent(type) {}
-  explicit ExtendableMessageEvent(base::Token type) : ExtendableEvent(type) {}
-  ExtendableMessageEvent(const std::string& type,
+  explicit ExtendableMessageEvent(script::EnvironmentSettings* settings,
+                                  const std::string& type)
+      : ExtendableEvent(settings, type) {}
+  explicit ExtendableMessageEvent(script::EnvironmentSettings* settings,
+                                  base::Token type)
+      : ExtendableEvent(settings, type) {}
+  ExtendableMessageEvent(script::EnvironmentSettings* settings,
+                         const std::string& type,
                          const ExtendableMessageEventInit& init_dict)
-      : ExtendableMessageEvent(base::Token(type), init_dict) {}
-  ExtendableMessageEvent(base::Token type,
+      : ExtendableMessageEvent(settings, base::Token(type), init_dict) {}
+  ExtendableMessageEvent(script::EnvironmentSettings* settings,
+                         base::Token type,
                          const ExtendableMessageEventInit& init_dict);
-  ExtendableMessageEvent(base::Token type,
+  ExtendableMessageEvent(script::EnvironmentSettings* settings,
+                         base::Token type,
                          const ExtendableMessageEventInit& init_dict,
                          std::unique_ptr<script::DataBuffer> data)
-      : ExtendableMessageEvent(type, init_dict) {
+      : ExtendableMessageEvent(settings, type, init_dict) {
     data_ = std::move(data);
   }
 
