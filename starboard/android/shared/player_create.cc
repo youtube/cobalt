@@ -16,7 +16,6 @@
 
 #include "starboard/player.h"
 
-#include "starboard/android/shared/video_decoder.h"
 #include "starboard/android/shared/video_window.h"
 #include "starboard/common/log.h"
 #include "starboard/common/media.h"
@@ -31,7 +30,6 @@
 using starboard::shared::starboard::player::filter::
     FilterBasedPlayerWorkerHandler;
 using starboard::shared::starboard::player::PlayerWorker;
-using starboard::android::shared::VideoDecoder;
 
 SbPlayer SbPlayerCreate(SbWindow window,
                         const SbPlayerCreationParam* creation_param,
@@ -179,25 +177,19 @@ SbPlayer SbPlayerCreate(SbWindow window,
     return kSbPlayerInvalid;
   }
 
-  if (strlen(max_video_capabilities) == 0) {
-    // Check the availability of hardware video decoder. Main player must use a
-    // hardware codec, but Android doesn't support multiple concurrent hardware
-    // codecs. Since it's not safe to have multiple hardware codecs, we only
-    // support one main player on Android, which can be either in punch out mode
-    // or decode to target mode.
-    const int kMaxNumberOfHardwareDecoders = 1;
-    auto number_of_hardware_decoders =
-        VideoDecoder::number_of_hardware_decoders();
-    if (number_of_hardware_decoders >= kMaxNumberOfHardwareDecoders) {
-      error_message = starboard::FormatString(
-          "Number of hardware decoders (%d) is equal to or exceeds the max "
-          "number of hardware decoders supported by this platform (%d)",
-          number_of_hardware_decoders, kMaxNumberOfHardwareDecoders);
-      SB_LOG(ERROR) << error_message << ".";
-      player_error_func(kSbPlayerInvalid, context, kSbPlayerErrorDecode,
-                        error_message.c_str());
-      return kSbPlayerInvalid;
-    }
+  // Android doesn't support multiple concurrent hardware decoders, so we can't
+  // have more than one primary player. And as secondary player is disabled on
+  // android, we simply check the number of active players here.
+  const int kMaxNumberOfPlayers = 1;
+  if (SbPlayerPrivate::number_of_players() >= kMaxNumberOfPlayers) {
+    error_message = starboard::FormatString(
+        "Failed to create a new player. Platform cannot support more than %d "
+        "players.",
+        kMaxNumberOfPlayers);
+    SB_LOG(ERROR) << error_message << ".";
+    player_error_func(kSbPlayerInvalid, context, kSbPlayerErrorDecode,
+                      error_message.c_str());
+    return kSbPlayerInvalid;
   }
 
   if (creation_param->output_mode != kSbPlayerOutputModeDecodeToTexture &&
