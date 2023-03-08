@@ -184,6 +184,8 @@ class VideoRenderAlgorithmTunneled : public VideoRenderAlgorithmBase {
   VideoFrameTracker* frame_tracker_;
 };
 
+int VideoDecoder::number_of_hardware_decoders_ = 0;
+
 class VideoDecoder::Sink : public VideoDecoder::VideoRendererSink {
  public:
   bool Render() {
@@ -262,6 +264,9 @@ VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec,
   if (require_software_codec_) {
     SB_DCHECK(output_mode_ == kSbPlayerOutputModeDecodeToTexture);
   }
+  if (!require_software_codec_) {
+    number_of_hardware_decoders_++;
+  }
 
   if (video_codec_ != kSbMediaVideoCodecAv1) {
     if (!InitializeCodec(error_message)) {
@@ -279,6 +284,10 @@ VideoDecoder::~VideoDecoder() {
     ClearVideoWindow(force_reset_surface_under_tunnel_mode_);
   } else {
     ClearVideoWindow(false);
+  }
+
+  if (!require_software_codec_) {
+    number_of_hardware_decoders_--;
   }
 }
 
