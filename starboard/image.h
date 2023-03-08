@@ -35,7 +35,7 @@
 //       return;
 //     }
 //
-//     SbDecodeTarget result_target = SbDecodeImage(provider, data, data_size,
+//     SbDecodeTarget result_target = SbImageDecode(provider, data, data_size,
 //                                                  mime_type, format);
 //
 
@@ -52,15 +52,16 @@ extern "C" {
 #endif
 
 // Whether the current platform supports hardware accelerated decoding an
-// image of mime type |mime_type| into SbDecodeTargetFormat |format|.  The
-// result of this function must not change over the course of the program,
-// which means that the results of this function may be cached indefinitely.
+// image of mime type |mime_type| into SbDecodeTargetFormat |format|. The
+// |mime_type| must not be NULL. The result of this function must not change
+// over the course of the program, which means that the results of this function
+// may be cached indefinitely.
 SB_EXPORT bool SbImageIsDecodeSupported(const char* mime_type,
                                         SbDecodeTargetFormat format);
 
 // Attempt to decode encoded |mime_type| image data |data| of size |data_size|
 // into an SbDecodeTarget of SbDecodeFormatType |format|, possibly using
-// SbDecodeTargetProvider |provider|, if it is non-null.  Thus, four following
+// SbDecodeTargetProvider |provider|, if it is non-null. Thus, four following
 // scenarios regarding the provider may happen:
 //
 //   1. The provider is required by the |SbImageDecode| implementation and no
@@ -73,7 +74,8 @@ SB_EXPORT bool SbImageIsDecodeSupported(const char* mime_type,
 //      desires.
 //   4. The provider is not required and is not passed in.  The implementation
 //      will proceed forward.
-//
+// The |data| pointer must not be NULL.
+// The |mime_type| string must not be NULL.
 // Thus, it is NOT safe for clients of this API to assume that the |provider|
 // it passes in will be called.  Finally, if the decode succeeds, a new
 // SbDecodeTarget will be allocated. If |mime_type| image decoding for the
