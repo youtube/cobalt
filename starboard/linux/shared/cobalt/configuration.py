@@ -65,20 +65,21 @@ class CobaltLinuxConfiguration(cobalt_configuration.CobaltConfiguration):
 
   def __init__(  # pylint:disable=useless-super-delegation
       self, platform_configuration, application_name, application_directory):
-    super().__init__(platform_configuration, application_name,
-                     application_directory)
+    super(CobaltLinuxConfiguration,
+          self).__init__(platform_configuration, application_name,
+                         application_directory)
 
   def WebdriverBenchmarksEnabled(self):
     return True
 
   def GetTestFilters(self):
-    filters = super().GetTestFilters()
+    filters = super(CobaltLinuxConfiguration, self).GetTestFilters()
     for target, tests in _FILTERED_TESTS.items():
       filters.extend(test_filter.TestFilter(target, test) for test in tests)
     return filters
 
   def GetWebPlatformTestFilters(self):
-    filters = super().GetWebPlatformTestFilters()
+    filters = super(CobaltLinuxConfiguration, self).GetWebPlatformTestFilters()
     filters.extend([
         # These tests are timing-sensitive, and are thus flaky on slower builds
         test_filter.TestFilter(
@@ -91,12 +92,7 @@ class CobaltLinuxConfiguration(cobalt_configuration.CobaltConfiguration):
             'debug'),
         test_filter.TestFilter(
             'web_platform_tests',
-            'cors/WebPlatformTest.Run/cors_preflight_failure_htm', 'devel'),
-        # b/275914032
-        test_filter.TestFilter('web_platform_tests',
-                               ('service_workers/WebPlatformTest.Run/'
-                                'service_workers_service_worker_update_missing_'
-                                'import_scripts_https_html'), 'devel')
+            'cors/WebPlatformTest.Run/cors_preflight_failure_htm', 'devel')
     ])
     return filters
 
