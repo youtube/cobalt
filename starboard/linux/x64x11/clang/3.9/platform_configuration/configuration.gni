@@ -14,7 +14,7 @@
 
 import("//starboard/build/config/base_configuration.gni")
 
-yasm_exists = true
+nasm_exists = true
 
 sb_static_contents_output_data_dir = "$root_out_dir/content"
 
