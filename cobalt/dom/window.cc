@@ -119,6 +119,7 @@ Window::Window(
     const OnStopDispatchEventCallback& on_stop_dispatch_event_callback,
     const ScreenshotManager::ProvideScreenshotFunctionCallback&
         screenshot_function_callback,
+    const NavItemCallback& cancel_scroll_callback,
     base::WaitableEvent* synchronous_loader_interrupt,
     bool enable_inline_script_warnings,
     const scoped_refptr<ui_navigation::NavItem>& ui_nav_root,
@@ -178,6 +179,7 @@ Window::Window(
                                                      script_value_factory)
                               : NULL),
       splash_screen_cache_callback_(splash_screen_cache_callback),
+      cancel_scroll_callback_(cancel_scroll_callback),
       on_start_dispatch_event_callback_(on_start_dispatch_event_callback),
       on_stop_dispatch_event_callback_(on_stop_dispatch_event_callback),
       screenshot_manager_(settings, screenshot_function_callback),
@@ -667,6 +669,14 @@ void Window::CacheSplashScreen(const std::string& content,
   }
   DLOG(INFO) << "Caching splash screen for URL " << location()->url();
   splash_screen_cache_callback_.Run(content, topic);
+}
+
+void Window::CancelScroll(
+    const scoped_refptr<ui_navigation::NavItem>& nav_item) {
+  if (cancel_scroll_callback_.is_null()) {
+    return;
+  }
+  cancel_scroll_callback_.Run(nav_item);
 }
 
 const scoped_refptr<OnScreenKeyboard>& Window::on_screen_keyboard() const {

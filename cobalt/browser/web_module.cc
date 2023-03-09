@@ -109,6 +109,25 @@ CacheUrlContentCallback(SplashScreenCache* splash_screen_cache) {
   }
 }
 
+void CancelScroll(ui_navigation::scroll_engine::ScrollEngine* scroll_engine,
+                  const scoped_refptr<ui_navigation::NavItem>& nav_item) {
+  auto nav_items = std::vector<scoped_refptr<ui_navigation::NavItem>>{nav_item};
+  scroll_engine->thread()->message_loop()->task_runner()->PostTask(
+      FROM_HERE, base::Bind(&ui_navigation::scroll_engine::ScrollEngine::
+                                CancelActiveScrollsForNavItems,
+                            base::Unretained(scroll_engine), nav_items));
+}
+
+dom::Window::NavItemCallback CancelScrollCallback(
+    ui_navigation::scroll_engine::ScrollEngine* scroll_engine) {
+  if (scroll_engine) {
+    return base::Bind(CancelScroll, base::Unretained(scroll_engine));
+  } else {
+    return base::Callback<void(
+        const scoped_refptr<cobalt::ui_navigation::NavItem>& nav_item)>();
+  }
+}
+
 }  // namespace
 
 // Private WebModule implementation. Each WebModule owns a single instance of
@@ -597,6 +616,9 @@ WebModule::Impl::Impl(web::Context* web_context, const ConstructionData& data)
   dom::Window::CacheCallback splash_screen_cache_callback =
       CacheUrlContentCallback(data.options.splash_screen_cache);
 
+  dom::Window::NavItemCallback cancel_scroll_callback =
+      CancelScrollCallback(data.scroll_engine);
+
   // These members will reference other |Traceable|s, however are not
   // accessible from |Window|, so we must explicitly add them as roots.
   web_context_->global_environment()->AddRoot(&mutation_observer_task_manager_);
@@ -645,10 +667,11 @@ WebModule::Impl::Impl(web::Context* web_context, const ConstructionData& data)
       base::Bind(&WebModule::Impl::OnStartDispatchEvent,
                  base::Unretained(this)),
       base::Bind(&WebModule::Impl::OnStopDispatchEvent, base::Unretained(this)),
-      data.options.provide_screenshot_function, synchronous_loader_interrupt_,
-      data.options.enable_inline_script_warnings, data.ui_nav_root,
-      data.options.enable_map_to_mesh, data.options.csp_insecure_allowed_token,
-      data.dom_max_element_depth, data.options.video_playback_rate_multiplier,
+      data.options.provide_screenshot_function, cancel_scroll_callback,
+      synchronous_loader_interrupt_, data.options.enable_inline_script_warnings,
+      data.ui_nav_root, data.options.enable_map_to_mesh,
+      data.options.csp_insecure_allowed_token, data.dom_max_element_depth,
+      data.options.video_playback_rate_multiplier,
 #if defined(ENABLE_TEST_RUNNER)
       data.options.layout_trigger == layout::LayoutManager::kTestRunnerMode
           ? dom::Window::kClockTypeTestRunner

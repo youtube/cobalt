@@ -123,6 +123,9 @@ class Window : public web::WindowOrWorkerGlobalScope,
   typedef base::Callback<void(const std::string&,
                               const base::Optional<std::string>&)>
       CacheCallback;
+  typedef base::Callback<void(
+      const scoped_refptr<ui_navigation::NavItem>& nav_item)>
+      NavItemCallback;
 
   enum ClockType {
     kClockTypeTestRunner,
@@ -168,6 +171,7 @@ class Window : public web::WindowOrWorkerGlobalScope,
       const OnStopDispatchEventCallback& stop_tracking_dispatch_event_callback,
       const ScreenshotManager::ProvideScreenshotFunctionCallback&
           screenshot_function_callback,
+      const NavItemCallback& cancel_scroll_callback,
       base::WaitableEvent* synchronous_loader_interrupt,
       bool enable_inline_script_warnings = false,
       const scoped_refptr<ui_navigation::NavItem>& ui_nav_root = nullptr,
@@ -359,6 +363,8 @@ class Window : public web::WindowOrWorkerGlobalScope,
   void CacheSplashScreen(const std::string& content,
                          const base::Optional<std::string>& topic);
 
+  void CancelScroll(const scoped_refptr<ui_navigation::NavItem>& nav_item);
+
   // Custom on screen keyboard.
   const scoped_refptr<OnScreenKeyboard>& on_screen_keyboard() const;
   void ReleaseOnScreenKeyboard();
@@ -444,6 +450,8 @@ class Window : public web::WindowOrWorkerGlobalScope,
   scoped_refptr<OnScreenKeyboard> on_screen_keyboard_;
 
   CacheCallback splash_screen_cache_callback_;
+
+  NavItemCallback cancel_scroll_callback_;
 
   OnStartDispatchEventCallback on_start_dispatch_event_callback_;
   OnStopDispatchEventCallback on_stop_dispatch_event_callback_;

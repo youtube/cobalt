@@ -580,6 +580,7 @@ void HTMLElement::set_scroll_left(float x) {
 
   // 11. Scroll the element to x,scrollTop, with the scroll behavior being
   //     "auto".
+  node_document()->window()->CancelScroll(ui_nav_item_);
   float left, top;
   ui_nav_item_->GetContentOffset(&left, &top);
   ui_nav_item_->SetContentOffset(x, top);
@@ -633,6 +634,7 @@ void HTMLElement::set_scroll_top(float y) {
 
   // 11. Scroll the element to scrollLeft,y, with the scroll behavior being
   //     "auto".
+  node_document()->window()->CancelScroll(ui_nav_item_);
   float left, top;
   ui_nav_item_->GetContentOffset(&left, &top);
   ui_nav_item_->SetContentOffset(left, y);

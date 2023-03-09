@@ -124,6 +124,7 @@ class StubWindow {
         nullptr /* camera_3d */, dom::Window::OnStartDispatchEventCallback(),
         dom::Window::OnStopDispatchEventCallback(),
         dom::ScreenshotManager::ProvideScreenshotFunctionCallback(),
+        dom::Window::NavItemCallback(),
         nullptr /* synchronous_loader_interrupt */,
         false /* enable_inline_script_warnings */, nullptr /* ui_nav_root */,
         true /* enable_map_to_mesh */, 0 /* csp_insecure_allowed_token */,
