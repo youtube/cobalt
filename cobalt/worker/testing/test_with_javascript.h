@@ -94,6 +94,10 @@ class TestWithJavaScriptBase : public TypeIdProvider {
     return web_context_.get();
   }
 
+  web::EnvironmentSettings* environment_settings() const {
+    return web_context()->environment_settings();
+  }
+
   scoped_refptr<script::GlobalEnvironment> global_environment() const {
     DCHECK(this->web_context());
     return this->web_context()->global_environment();
