@@ -1416,6 +1416,10 @@ void SbPlayerPipeline::DelayedNeedData(int max_number_of_buffers_to_write) {
 void SbPlayerPipeline::UpdateDecoderConfig(DemuxerStream* stream) {
   DCHECK(task_runner_->BelongsToCurrentThread());
 
+  if (!player_bridge_) {
+    return;
+  }
+
   if (stream->type() == DemuxerStream::AUDIO) {
     const AudioDecoderConfig& decoder_config = stream->audio_decoder_config();
     player_bridge_->UpdateAudioConfig(decoder_config, stream->mime_type());
@@ -1503,7 +1507,17 @@ void SbPlayerPipeline::ResumeTask(PipelineWindow window,
 
   window_ = window;
 
-  if (player_bridge_) {
+  bool resumable = true;
+  bool resume_to_background_mode = !SbWindowIsValid(window_);
+  bool is_audioless = !HasAudio();
+  if (resume_to_background_mode && is_audioless) {
+    // Avoid resuming an audioless video to background mode. SbPlayerBridge will
+    // try to create an SbPlayer with only the video stream disabled, and may
+    // crash in this case as SbPlayerCreate() will fail without an audio or
+    // video stream.
+    resumable = false;
+  }
+  if (player_bridge_ && resumable) {
     player_bridge_->Resume(window);
     if (!player_bridge_->IsValid()) {
       std::string error_message;
@@ -1520,8 +1534,6 @@ void SbPlayerPipeline::ResumeTask(PipelineWindow window,
                   "SbPlayerPipeline::ResumeTask failed to create a valid "
                   "SbPlayerBridge - " +
                       time_information + " \'" + error_message + "\'");
-      done_event->Signal();
-      return;
     }
   }
 
