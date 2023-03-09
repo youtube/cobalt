@@ -54,7 +54,7 @@ class ExtendableMessageEventTestWithJavaScript
 TEST_F(ExtendableMessageEventTestWithJavaScript,
        ConstructorWithEventTypeString) {
   scoped_refptr<ExtendableMessageEvent> event =
-      new ExtendableMessageEvent("mytestevent");
+      new ExtendableMessageEvent(environment_settings(), "mytestevent");
 
   EXPECT_EQ("mytestevent", event->type());
   EXPECT_EQ(NULL, event->target().get());
@@ -81,7 +81,7 @@ TEST_F(ExtendableMessageEventTestWithJavaScript, ConstructorWithAny) {
   EXPECT_GT(data->size, 0U);
   const ExtendableMessageEventInit init;
   scoped_refptr<ExtendableMessageEvent> event = new ExtendableMessageEvent(
-      base::Tokens::message(), init, std::move(data));
+      environment_settings(), base::Tokens::message(), init, std::move(data));
 
   EXPECT_EQ("message", event->type());
   EXPECT_EQ(NULL, event->target().get());
@@ -109,7 +109,7 @@ TEST_F(ExtendableMessageEventTestWithJavaScript,
        ConstructorWithEventTypeAndDefaultInitDict) {
   ExtendableMessageEventInit init;
   scoped_refptr<ExtendableMessageEvent> event =
-      new ExtendableMessageEvent("mytestevent", init);
+      new ExtendableMessageEvent(environment_settings(), "mytestevent", init);
 
   EXPECT_EQ("mytestevent", event->type());
   EXPECT_EQ(nullptr, event->target().get());
@@ -145,7 +145,7 @@ TEST_F(ExtendableMessageEventTestWithJavaScript,
       Client::Create(web_context()->environment_settings()));
   init.set_source(client);
   scoped_refptr<ExtendableMessageEvent> event =
-      new ExtendableMessageEvent("mytestevent", init);
+      new ExtendableMessageEvent(environment_settings(), "mytestevent", init);
 
   EXPECT_EQ("mytestevent", event->type());
   EXPECT_EQ(nullptr, event->target().get());
