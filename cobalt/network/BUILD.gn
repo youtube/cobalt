@@ -123,7 +123,6 @@ copy("copy_ssl_certificates") {
     "//cobalt/content/ssl/certs/4b718d9b.0",
     "//cobalt/content/ssl/certs/4bfab552.0",
     "//cobalt/content/ssl/certs/4f316efb.0",
-    "//cobalt/content/ssl/certs/5273a94c.0",
     "//cobalt/content/ssl/certs/5443e9e3.0",
     "//cobalt/content/ssl/certs/54657681.0",
     "//cobalt/content/ssl/certs/57bcb2da.0",
