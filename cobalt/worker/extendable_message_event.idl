@@ -16,6 +16,7 @@
 
 [
   Exposed = ServiceWorker,
+  ConstructorCallWith=EnvironmentSettings,
   Constructor(DOMString type, optional ExtendableMessageEventInit eventInitDict)
 ] interface ExtendableMessageEvent : ExtendableEvent {
   [CallWith = EnvironmentSettings] readonly attribute any data;

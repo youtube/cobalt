@@ -28,8 +28,9 @@ namespace cobalt {
 namespace worker {
 
 ExtendableMessageEvent::ExtendableMessageEvent(
-    base::Token type, const ExtendableMessageEventInit& init_dict)
-    : ExtendableEvent(type, init_dict) {
+    script::EnvironmentSettings* settings, base::Token type,
+    const ExtendableMessageEventInit& init_dict)
+    : ExtendableEvent(settings, type, init_dict) {
   if (init_dict.has_data() && init_dict.data()) {
     DCHECK(init_dict.data());
     data_ = script::SerializeScriptValue(*(init_dict.data()));
