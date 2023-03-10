@@ -62,6 +62,9 @@ public abstract class CobaltActivity extends GameActivity {
   private static final String META_FORCE_MIGRATION_FOR_STORAGE_PARTITIONING =
       "cobalt.force_migration_for_storage_partitioning";
 
+  private static final String EVERGREEN_LITE = "--evergreen_lite";
+  private static final java.lang.String META_DATA_EVERGREEN_LITE = "cobalt.EVERGREEN_LITE";
+
   @SuppressWarnings("unused")
   private CobaltA11yHelper a11yHelper;
 
@@ -220,7 +223,9 @@ public abstract class CobaltActivity extends GameActivity {
     boolean hasSplashUrlArg = hasArg(args, SPLASH_URL_ARG);
     // If the splash screen topics arg isn't specified, get it from AndroidManifest.xml.
     boolean hasSplashTopicsArg = hasArg(args, SPLASH_TOPICS_ARG);
-    if (!hasUrlArg || !hasSplashUrlArg || !hasSplashTopicsArg) {
+    // If the Evergreen-Lite arg isn't specified, get it from AndroidManifest.xml.
+    boolean hasEvergreenLiteArg = hasArg(args, EVERGREEN_LITE);
+    if (!hasUrlArg || !hasSplashUrlArg || !hasSplashTopicsArg || !hasEvergreenLiteArg) {
       try {
         ActivityInfo ai =
             getPackageManager()
@@ -243,6 +248,9 @@ public abstract class CobaltActivity extends GameActivity {
             if (splashTopics != null) {
               args.add(SPLASH_TOPICS_ARG + splashTopics);
             }
+          }
+          if (!hasEvergreenLiteArg && ai.metaData.getBoolean(META_DATA_EVERGREEN_LITE)) {
+            args.add(EVERGREEN_LITE);
           }
           if (ai.metaData.getBoolean(META_FORCE_MIGRATION_FOR_STORAGE_PARTITIONING)) {
             args.add(FORCE_MIGRATION_FOR_STORAGE_PARTITIONING);
