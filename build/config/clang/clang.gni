@@ -4,15 +4,7 @@
 
 import("//build/toolchain/toolchain.gni")
 
-if (use_cobalt_customizations) {
-  import("//starboard/build/toolchain/starboard_toolchains.gni")
-
-  declare_args() {
-    clang_revision = "365097-f7e52fbd-8"
-  }
-
-  default_clang_base_path = "$starboard_toolchains_path/x86_64-linux-gnu-clang-chromium-${clang_revision}"  
-} else {
+if (!use_cobalt_customizations) {
   default_clang_base_path = "//third_party/llvm-build/Release+Asserts"
 }
 
@@ -24,5 +16,7 @@ declare_args() {
       is_clang && !is_nacl && !use_xcode_clang &&
       default_toolchain != "//build/toolchain/cros:target"
 
-  clang_base_path = default_clang_base_path
+  if (!use_cobalt_customizations) {
+    clang_base_path = default_clang_base_path
+  }
 }

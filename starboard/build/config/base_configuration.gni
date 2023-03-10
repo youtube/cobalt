@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//build/config/clang/clang.gni")
 import("//cobalt/content/fonts/font_configuration.gni")
+import("//starboard/build/config/clang.gni")
 import("//starboard/build/config/enable_vr.gni")
 
 # NOTE:
