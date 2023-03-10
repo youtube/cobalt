@@ -249,6 +249,15 @@ void SendStateChangeLeaveEvents(
   }
 }
 
+void SendStateChangeLeaveEvents(
+    bool is_pointer_event, scoped_refptr<dom::HTMLElement> previous_element,
+    dom::PointerEventInit* event_init) {
+  scoped_refptr<dom::HTMLElement> target_element = nullptr;
+  scoped_refptr<dom::Element> nearest_common_ancestor = nullptr;
+  SendStateChangeLeaveEvents(is_pointer_event, previous_element, target_element,
+                             nearest_common_ancestor, event_init);
+}
+
 void SendStateChangeEnterEvents(
     bool is_pointer_event, scoped_refptr<dom::HTMLElement> previous_element,
     scoped_refptr<dom::HTMLElement> target_element,
@@ -371,6 +380,18 @@ void InitializePointerEventInitFromEvent(
     event_init->set_is_primary(pointer_event->is_primary());
   }
 }
+
+void DispatchPointerEventsForScrollStart(
+    scoped_refptr<dom::HTMLElement> element,
+    dom::PointerEventInit* event_init) {
+  const scoped_refptr<dom::Window>& view = event_init->view();
+  element->DispatchEvent(
+      new dom::PointerEvent(base::Tokens::pointercancel(), web::Event::kBubbles,
+                            web::Event::kNotCancelable, view, *event_init));
+  bool is_pointer_event = true;
+  SendStateChangeLeaveEvents(is_pointer_event, element, event_init);
+}
+
 }  // namespace
 
 void TopmostEventTarget::ConsiderElement(dom::Element* element,
@@ -499,15 +520,7 @@ void TopmostEventTarget::HandleScrollState(
         return;
       }
 
-      const scoped_refptr<dom::Window>& view = event_init->view();
-      element_to_scroll->DispatchEvent(new dom::PointerEvent(
-          base::Tokens::pointercancel(), web::Event::kBubbles,
-          web::Event::kNotCancelable, view, *event_init));
-      element_to_scroll->DispatchEvent(
-          new dom::PointerEvent(base::Tokens::pointerout(), view, *event_init));
-      element_to_scroll->DispatchEvent(new dom::PointerEvent(
-          base::Tokens::pointerleave(), web::Event::kNotBubbles,
-          web::Event::kNotCancelable, view, *event_init));
+      DispatchPointerEventsForScrollStart(target_element, event_init);
       pointer_state->SetWasCancelled(pointer_id);
 
       should_clear_pointer_state = true;
