@@ -101,7 +101,7 @@ void VideoDmpWriter::OnPlayerCreate(
     SbMediaAudioCodec audio_codec,
     SbMediaVideoCodec video_codec,
     SbDrmSystem drm_system,
-    const SbMediaAudioSampleInfo* audio_sample_info) {
+    const SbMediaAudioStreamInfo* audio_stream_info) {
   // TODO: Allow dump of drm initialization data
 
   PlayerToWriterMap* map = GetOrCreatePlayerToWriterMap();
@@ -110,7 +110,7 @@ void VideoDmpWriter::OnPlayerCreate(
   }
   map->Register(player);
   VideoDmpWriter* dmp_writer = map->Get(player);
-  dmp_writer->DumpConfigs(video_codec, audio_codec, audio_sample_info);
+  dmp_writer->DumpConfigs(video_codec, audio_codec, audio_stream_info);
 }
 
 // static
@@ -136,12 +136,12 @@ void VideoDmpWriter::OnPlayerDestroy(SbPlayer player) {
 void VideoDmpWriter::DumpConfigs(
     SbMediaVideoCodec video_codec,
     SbMediaAudioCodec audio_codec,
-    const SbMediaAudioSampleInfo* audio_sample_info) {
+    const SbMediaAudioStreamInfo* audio_stream_info) {
   Write(write_cb_, kRecordTypeAudioConfig);
   Write(write_cb_, audio_codec);
   if (audio_codec != kSbMediaAudioCodecNone) {
-    SB_DCHECK(audio_sample_info);
-    Write(write_cb_, audio_codec, media::AudioSampleInfo(*audio_sample_info));
+    SB_DCHECK(audio_stream_info);
+    Write(write_cb_, audio_codec, media::AudioStreamInfo(*audio_stream_info));
   }
 
   Write(write_cb_, kRecordTypeVideoConfig);
@@ -178,7 +178,7 @@ void VideoDmpWriter::DumpAccessUnit(
 
   if (sample_type == kSbMediaTypeAudio) {
     Write(write_cb_, input_buffer->audio_stream_info().codec,
-          input_buffer->audio_sample_info());
+          input_buffer->audio_stream_info());
   } else {
     SB_DCHECK(sample_type == kSbMediaTypeVideo);
     Write(write_cb_, input_buffer->video_stream_info().codec,

@@ -18,8 +18,9 @@
 #include <utility>
 
 #include "starboard/common/log.h"
+
 #if SB_PLAYER_ENABLE_VIDEO_DUMPER
-#include "starboard/shared/starboard/player/video_dmp_writer.h"
+#include SB_PLAYER_DMP_WRITER_INCLUDE_PATH
 #endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER
 
 namespace {

@@ -125,9 +125,7 @@ void Read(const ReadCB& read_cb,
 
 void Write(const WriteCB& write_cb,
            SbMediaAudioCodec audio_codec,
-           const media::AudioSampleInfo& audio_sample_info) {
-  const auto& audio_stream_info = audio_sample_info.stream_info;
-
+           const media::AudioStreamInfo& audio_stream_info) {
   Write(write_cb, audio_codec);
 
   uint16_t format_tag = 0x00ff;

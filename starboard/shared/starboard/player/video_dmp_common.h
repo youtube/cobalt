@@ -121,7 +121,7 @@ void Read(const ReadCB& read_cb,
           media::AudioSampleInfo* audio_sample_info);
 void Write(const WriteCB& write_cb,
            SbMediaAudioCodec audio_codec,
-           const media::AudioSampleInfo& audio_sample_info);
+           const media::AudioStreamInfo& audio_stream_info);
 
 void Read(const ReadCB& read_cb,
           bool reverse_byte_order,

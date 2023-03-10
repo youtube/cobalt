@@ -23,6 +23,8 @@ static_library("video_dmp") {
     "//starboard/shared/starboard/player/video_dmp_common.h",
     "//starboard/shared/starboard/player/video_dmp_reader.cc",
     "//starboard/shared/starboard/player/video_dmp_reader.h",
+    "//starboard/shared/starboard/player/video_dmp_writer.cc",
+    "//starboard/shared/starboard/player/video_dmp_writer.h",
   ]
 
   public_deps = [ "//starboard/common" ]

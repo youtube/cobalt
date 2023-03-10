@@ -26,8 +26,9 @@
 #include "starboard/shared/starboard/player/filter/filter_based_player_worker_handler.h"
 #include "starboard/shared/starboard/player/player_internal.h"
 #include "starboard/shared/starboard/player/player_worker.h"
+
 #if SB_PLAYER_ENABLE_VIDEO_DUMPER
-#include "starboard/shared/starboard/player/video_dmp_writer.h"
+#include SB_PLAYER_DMP_WRITER_INCLUDE_PATH
 #endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER
 
 using ::starboard::shared::media_session::kPlaying;
@@ -219,7 +220,7 @@ SbPlayer SbPlayerCreate(SbWindow window,
 #if SB_PLAYER_ENABLE_VIDEO_DUMPER
   using ::starboard::shared::starboard::player::video_dmp::VideoDmpWriter;
   VideoDmpWriter::OnPlayerCreate(player, audio_codec, video_codec, drm_system,
-                                 audio_stream_info);
+                                 &audio_stream_info);
 #endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER
 
   return player;

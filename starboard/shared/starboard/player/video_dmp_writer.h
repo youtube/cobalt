@@ -39,7 +39,7 @@ class VideoDmpWriter {
                              SbMediaAudioCodec audio_codec,
                              SbMediaVideoCodec video_codec,
                              SbDrmSystem drm_system,
-                             const SbMediaAudioSampleInfo* audio_sample_info);
+                             const SbMediaAudioStreamInfo* audio_stream_info);
   static void OnPlayerWriteSample(
       SbPlayer player,
       const scoped_refptr<InputBuffer>& input_buffer);
@@ -48,7 +48,7 @@ class VideoDmpWriter {
  private:
   void DumpConfigs(SbMediaVideoCodec video_codec,
                    SbMediaAudioCodec audio_codec,
-                   const SbMediaAudioSampleInfo* audio_sample_info);
+                   const SbMediaAudioStreamInfo* audio_stream_info);
   void DumpAccessUnit(const scoped_refptr<InputBuffer>& input_buffer);
   int WriteToFile(const void* buffer, int size);
 

@@ -28,6 +28,10 @@
 #include "starboard/time.h"
 #include "starboard/window.h"
 
+#if SB_PLAYER_ENABLE_VIDEO_DUMPER
+#include SB_PLAYER_DMP_WRITER_INCLUDE_PATH
+#endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER
+
 struct SbPlayerPrivate {
  public:
   typedef starboard::shared::starboard::media::AudioSampleInfo AudioSampleInfo;

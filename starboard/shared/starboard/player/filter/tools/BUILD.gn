@@ -13,20 +13,13 @@
 # limitations under the License.
 
 target(final_executable_type, "audio_dmp_player") {
-  sources = [
-    "//starboard/shared/starboard/player/file_cache_reader.cc",
-    "//starboard/shared/starboard/player/file_cache_reader.h",
-    "//starboard/shared/starboard/player/video_dmp_common.cc",
-    "//starboard/shared/starboard/player/video_dmp_common.h",
-    "//starboard/shared/starboard/player/video_dmp_reader.cc",
-    "//starboard/shared/starboard/player/video_dmp_reader.h",
-    "audio_dmp_player.cc",
-  ]
+  sources = [ "audio_dmp_player.cc" ]
   configs += [ "//starboard/build/config:starboard_implementation" ]
   public_deps = [
     "//starboard",
     "//starboard/shared/starboard/media:media_util",
     "//starboard/shared/starboard/player:player_download_test_data",
+    "//starboard/shared/starboard/player:video_dmp",
   ]
   data_deps = [
     "//cobalt/network:copy_ssl_certificates",

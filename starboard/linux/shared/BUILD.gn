@@ -464,6 +464,12 @@ static_library("starboard_platform_sources") {
       "//starboard/shared/stub/media_is_supported.cc",
     ]
   }
+
+  defines = []
+
+  if (is_debug || is_devel) {
+    defines += [ "SB_PLAYER_ENABLE_VIDEO_DUMPER" ]
+  }
 }
 
 target(gtest_target_type, "starboard_platform_tests") {
