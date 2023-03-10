@@ -19,12 +19,6 @@ Renamed SbPlayerInfo2 to SbPlayerInfo, SbPlayerSeek2() to SbPlayerSeek(),and
 SbPlayerGetInfo2() to SbPlayerGetInfo(), as the version suffixes are no longer
 necessary.
 
-### Renamed SbPlayerSeek2() to SbPlayerSeek()
-Eliminate unnecessary version identifiers.
-
-### Renamed SbPlayerGetInfo2() to SbPlayerGetInfo()
-Eliminate unnecessary version identifiers.
-
 ### Cobalt extensions are now Starboard extensions
 Previously named Cobalt extensions are now found under `starboard/extensions`.
 The mechanism extends platform-specific functionality of Starboard via runtime
