@@ -221,12 +221,9 @@ static_library("installation_manager") {
 
   deps = [
     ":installation_store_proto",
+    ":pending_restart",
     "//starboard",
   ]
-
-  if (!sb_evergreen_compatible_enable_lite) {
-    deps += [ ":pending_restart" ]
-  }
 }
 
 target(gtest_target_type, "installation_manager_test") {
@@ -234,13 +231,12 @@ target(gtest_target_type, "installation_manager_test") {
   sources = [
     "//starboard/common/test_main.cc",
     "installation_manager_test.cc",
+    "pending_restart_test.cc",
   ]
-  if (sb_evergreen_compatible_enable_lite) {
-    sources += [ "pending_restart_test.cc" ]
-  }
   deps = [
     ":installation_manager",
     ":installation_store_proto",
+    ":pending_restart",
     "//testing/gmock",
     "//testing/gtest",
   ]
