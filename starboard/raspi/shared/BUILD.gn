@@ -399,7 +399,7 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/starboard/player/filter:filter_based_player_sources",
   ]
 
-  if (sb_is_evergreen_compatible && !sb_evergreen_compatible_enable_lite) {
+  if (sb_is_evergreen_compatible) {
     public_deps += [ "//starboard/loader_app:pending_restart" ]
   }
 

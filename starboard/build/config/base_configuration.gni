@@ -48,9 +48,6 @@ declare_args() {
   # Whether to use the libunwind library on Evergreen compatible platform.
   sb_evergreen_compatible_use_libunwind = false
 
-  # Whether to adopt Evergreen Lite on the Evergreen compatible platform.
-  sb_evergreen_compatible_enable_lite = false
-
   # Whether to generate the whole package containing both Loader app and Cobalt
   # core on the Evergreen compatible platform.
   sb_evergreen_compatible_package = false
