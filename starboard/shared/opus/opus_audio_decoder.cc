@@ -14,6 +14,8 @@
 
 #include "starboard/shared/opus/opus_audio_decoder.h"
 
+#include <algorithm>
+
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/memory.h"
@@ -91,19 +93,51 @@ void OpusAudioDecoder::Decode(const InputBuffers& input_buffers,
                               const ConsumedCB& consumed_cb) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(!input_buffers.empty());
+  SB_DCHECK(pending_audio_buffers_.empty());
   SB_DCHECK(output_cb_);
 
   if (stream_ended_) {
     SB_LOG(ERROR) << "Decode() is called after WriteEndOfStream() is called.";
     return;
   }
+  if (input_buffers.size() > kMinimumBuffersToDecode) {
+    std::copy(std::begin(input_buffers), std::end(input_buffers),
+              std::back_inserter(pending_audio_buffers_));
+    consumed_cb_ = consumed_cb;
+    DecodePendingBuffers();
+  } else {
+    for (const auto& input_buffer : input_buffers) {
+      if (!DecodeInternal(input_buffer)) {
+        return;
+      }
+    }
+    Schedule(consumed_cb);
+  }
+}
 
-  for (const auto& input_buffer : input_buffers) {
-    if (!DecodeInternal(input_buffer)) {
+void OpusAudioDecoder::DecodePendingBuffers() {
+  SB_DCHECK(BelongsToCurrentThread());
+  SB_DCHECK(!pending_audio_buffers_.empty());
+  SB_DCHECK(consumed_cb_);
+
+  for (int i = 0; i < kMinimumBuffersToDecode; ++i) {
+    if (!DecodeInternal(pending_audio_buffers_.front())) {
+      return;
+    }
+    pending_audio_buffers_.pop_front();
+    if (pending_audio_buffers_.empty()) {
+      Schedule(consumed_cb_);
+      consumed_cb_ = nullptr;
+      if (stream_ended_) {
+        Schedule(std::bind(&OpusAudioDecoder::WriteEndOfStream, this));
+        stream_ended_ = false;
+      }
       return;
     }
   }
-  Schedule(consumed_cb);
+
+  SB_DCHECK(!pending_audio_buffers_.empty());
+  Schedule(std::bind(&OpusAudioDecoder::DecodePendingBuffers, this));
 }
 
 bool OpusAudioDecoder::DecodeInternal(
@@ -111,7 +145,7 @@ bool OpusAudioDecoder::DecodeInternal(
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(input_buffer);
   SB_DCHECK(output_cb_);
-  SB_DCHECK(!stream_ended_);
+  SB_DCHECK(!stream_ended_ || !pending_audio_buffers_.empty());
 
   scoped_refptr<DecodedAudio> decoded_audio = new DecodedAudio(
       audio_sample_info_.number_of_channels, GetSampleType(),
@@ -171,6 +205,10 @@ void OpusAudioDecoder::WriteEndOfStream() {
   // Opus has no dependent frames so we needn't flush the decoder.  Set the
   // flag to ensure that Decode() is not called when the stream is ended.
   stream_ended_ = true;
+  if (!pending_audio_buffers_.empty()) {
+    return;
+  }
+
   // Put EOS into the queue.
   decoded_audios_.push(new DecodedAudio);
 
@@ -199,6 +237,8 @@ void OpusAudioDecoder::Reset() {
   while (!decoded_audios_.empty()) {
     decoded_audios_.pop();
   }
+  pending_audio_buffers_.clear();
+  consumed_cb_ = nullptr;
 
   CancelPendingJobs();
 }
