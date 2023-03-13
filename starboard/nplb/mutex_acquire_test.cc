@@ -91,6 +91,15 @@ TEST(SbMutexAcquireTest, SunnyDayStaticallyInitialized) {
   EXPECT_TRUE(SbMutexDestroy(&mutex));
 }
 
+TEST(SbMutexAcquireTest, RainyDayAcquireNull) {
+  SbMutexResult result = SbMutexAcquire(NULL);
+  EXPECT_EQ(kSbMutexDestroyed, result);
+}
+
+TEST(SbMutexAcquireTest, RainyDayReleaseNull) {
+  EXPECT_FALSE(SbMutexRelease(NULL));
+}
+
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard

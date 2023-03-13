@@ -19,6 +19,9 @@
 #include "starboard/shared/win32/types_internal.h"
 
 bool SbMutexRelease(SbMutex* mutex) {
+  if (!mutex) {
+    return false;
+  }
   ReleaseSRWLockExclusive(SB_WIN32_INTERNAL_MUTEX(mutex));
   return true;
 }

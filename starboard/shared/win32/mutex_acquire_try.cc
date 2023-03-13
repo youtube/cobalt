@@ -19,6 +19,9 @@
 #include "starboard/shared/win32/types_internal.h"
 
 SbMutexResult SbMutexAcquireTry(SbMutex* mutex) {
+  if (!mutex) {
+    return kSbMutexDestroyed;
+  }
   bool result = TryAcquireSRWLockExclusive(SB_WIN32_INTERNAL_MUTEX(mutex));
   return result ? kSbMutexAcquired : kSbMutexBusy;
 }
