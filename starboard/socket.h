@@ -283,7 +283,7 @@ SB_EXPORT bool SbSocketGetInterfaceAddress(
 // persistently, so the address is unnecessary, but allowed.
 //
 // |socket|: The SbSocket from which data is read.
-// |out_data|: The data read from the socket.
+// |out_data|: The data read from the socket. Must not be NULL.
 // |data_size|: The number of bytes to read.
 // |out_source|: The source address of the packet.
 SB_EXPORT int SbSocketReceiveFrom(SbSocket socket,
@@ -304,7 +304,7 @@ SB_EXPORT int SbSocketReceiveFrom(SbSocket socket,
 // spin).
 //
 // |socket|: The SbSocket to use to write data.
-// |data|: The data read from the socket.
+// |data|: The data written to the socket. Must not be NULL.
 // |data_size|: The number of bytes of |data| to write.
 // |destination|: The location to which data is written. This value must be
 //   |NULL| for TCP connections, which can only have a single endpoint.
