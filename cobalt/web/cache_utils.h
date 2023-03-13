@@ -93,24 +93,6 @@ base::Optional<v8::Local<v8::Value>> Call(
     std::initializer_list<v8::Local<v8::Value>> args = {});
 base::Optional<v8::Local<v8::Value>> Then(v8::Local<v8::Value> value,
                                           OnFullfilled on_fullfilled);
-void Resolve(v8::Local<v8::Promise::Resolver> resolver,
-             v8::Local<v8::Value> value = v8::Local<v8::Value>());
-void Reject(v8::Local<v8::Promise::Resolver> resolver);
-script::HandlePromiseAny FromResolver(
-    v8::Local<v8::Promise::Resolver> resolver);
-
-// Keeps |values| from being garbage collected until |cleanup_traced| is run.
-// The caller needs |traced_globals_out| to get a valid reference of the
-// |v8::Value|. To get a reference, the caller needs to create a
-// |v8::HandleScope| and then call |v8::TracedGlobal::Get| to get a valid
-// |v8::Value|.
-// |values| will have a 1:1 relationship with |traced_globals_out|.
-// It is up to the caller to ensure that |cleanup_traced| is run in all
-// possible code paths.
-void Trace(v8::Isolate* isolate,
-           std::initializer_list<v8::Local<v8::Value>> values,
-           std::vector<v8::TracedGlobal<v8::Value>*>& traced_globals_out,
-           base::OnceClosure& cleanup_traced);
 
 std::string Stringify(v8::Isolate* isolate, v8::Local<v8::Value> value);
 base::Optional<v8::Local<v8::Value>> BaseToV8(v8::Isolate* isolate,
