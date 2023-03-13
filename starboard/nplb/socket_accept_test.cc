@@ -72,6 +72,10 @@ TEST_P(SbSocketAcceptTest, RainyDayNotListening) {
   EXPECT_TRUE(SbSocketDestroy(server_socket));
 }
 
+TEST_P(SbSocketAcceptTest, RainyDayInvalidSocket) {
+  EXPECT_EQ(kSbSocketInvalid, SbSocketAccept(kSbSocketInvalid));
+}
+
 #if SB_HAS(IPV6)
 INSTANTIATE_TEST_CASE_P(SbSocketAddressTypes,
                         SbSocketAcceptTest,

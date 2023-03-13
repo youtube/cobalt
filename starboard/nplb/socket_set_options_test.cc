@@ -54,6 +54,16 @@ TEST_P(SbSocketSetOptionsTest, TryThemAllUDP) {
   EXPECT_TRUE(SbSocketDestroy(socket));
 }
 
+TEST_P(SbSocketSetOptionsTest, RainyDayInvalidSocket) {
+  EXPECT_FALSE(SbSocketSetReuseAddress(kSbSocketInvalid, true));
+  EXPECT_FALSE(SbSocketSetReceiveBufferSize(kSbSocketInvalid, 16 * 1024));
+  EXPECT_FALSE(SbSocketSetSendBufferSize(kSbSocketInvalid, 16 * 1024));
+  EXPECT_FALSE(
+      SbSocketSetTcpKeepAlive(kSbSocketInvalid, true, 30 * kSbTimeSecond));
+  EXPECT_FALSE(SbSocketSetTcpNoDelay(kSbSocketInvalid, true));
+  EXPECT_FALSE(SbSocketSetTcpWindowScaling(kSbSocketInvalid, true));
+}
+
 // TODO: Come up with some way to test the effects of these options.
 
 #if SB_HAS(IPV6)
