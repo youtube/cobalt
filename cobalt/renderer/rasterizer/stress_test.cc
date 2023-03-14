@@ -140,7 +140,7 @@ TEST_F(StressTest, VeryLargeFramebuffer) {
 }
 
 namespace {
-// Creates a composition of |cascade_amount| render trees layed out in a
+// Creates a composition of |cascade_amount| render trees laid out in a
 // cascade on top of each other.
 scoped_refptr<Node> CreateCascadedRenderTrees(Node* node, int cascade_amount,
                                               float offset_amount) {
@@ -196,7 +196,10 @@ TEST_F(StressTest, FewVeryLargeOpacityLayers) {
 TEST_F(StressTest, TooManyTextures) {
   // Try to use all the available texture memory in order to test failure to
   // allocate a texture.
-  const int kTextureMemoryMb = 2 * 1024;
+  // The test was created with an assumption that available texture memory is always
+  // at least 2000MB. But that’s not true for Xbox Ones X/S/Base, so we’ve reduced
+  // that size accordingly.
+  const int kTextureMemoryMb = 2 * 1024 - 128;
 
   const Size kFramebufferSize(1920, 1080);
   const Size kTextureSize(2048, 2048);
