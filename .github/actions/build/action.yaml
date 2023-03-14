@@ -18,6 +18,7 @@ runs:
     - name: Build
       run: |
         set -x
+        env
         if [ -z ${COBALT_BOOTLOADER+x} ]; then
           BUILD_PLATFORM=${{ matrix.target_platform }}
           BUILD_TARGET=all
