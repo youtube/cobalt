@@ -43,7 +43,7 @@ runs:
             echo "ARCHIVE_FILE=${PLATFORM}_${{matrix.config}}.tar.gz" >> $GITHUB_ENV
             echo "ARCHIVE_PATH=$GITHUB_WORKSPACE/${PLATFORM}_${{matrix.config}}.tar.gz" >> $GITHUB_ENV
           fi
-          echo "DESTINATION=${project_name}-test-artifacts-tmp/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${{matrix.platform}}_${{matrix.config}}/" >> $GITHUB_ENV
+          echo "DESTINATION=${project_name}-test-artifacts/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${{matrix.platform}}_${{matrix.config}}/" >> $GITHUB_ENV
         fi
 
         echo "PYTHONPATH=$GITHUB_WORKSPACE" >> $GITHUB_ENV
