@@ -13,7 +13,7 @@
 # limitations under the License.
 
 # Usage: Go to
-# https://https://github.com/youtube/cobalt_sandbox/actions/workflows/manual-cherry-pick.yaml
+# https://https://github.com/youtube/cobalt/actions/workflows/manual-cherry-pick.yaml
 # and click "Run Workflow." Leave "Use Workflow From" set to "main", then
 # input the branch name and paste the cherry-pick commit and click Run. A PR
 # will be created.
