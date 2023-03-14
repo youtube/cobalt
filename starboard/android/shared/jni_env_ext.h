@@ -139,7 +139,7 @@ struct JniEnvExt : public JNIEnv {
     const jstring charset = NewStringUTF("UTF-8");
     AbortOnException();
     const jbyteArray byte_array = NewByteArrayFromRaw(
-        reinterpret_cast<const jbyte*>(bytes), strlen(bytes));
+        reinterpret_cast<const jbyte*>(bytes), (bytes ? strlen(bytes) : 0U));
     AbortOnException();
     jstring result = static_cast<jstring>(NewObjectOrAbort(
         "java/lang/String", "([BLjava/lang/String;)V", byte_array, charset));
