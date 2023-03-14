@@ -26,7 +26,7 @@ env:
   IS_DOCKER: 1
   NINJA_STATUS: '[%e sec | %f/%t %u remaining | %c/sec | j%r]'
   SCCACHE: 1
-  SCCACHE_GCS_BUCKET: cobalt-actions-devel-sccache-linux
+  SCCACHE_GCS_BUCKET: cobalt-actions-sccache-linux
   SCCACHE_GCS_OAUTH_URL: http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token
   SCCACHE_GCS_RW_MODE: READ_WRITE
   SCCACHE_IDLE_TIMEOUT: 0 # prevent sccache server from shutting down after long idle.
