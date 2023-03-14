@@ -15,7 +15,7 @@
 import("//build/toolchain/apple/toolchain.gni")
 import("//starboard/build/toolchain/mac/variables.gni")
 
-apple_toolchain("host") {
+apple_toolchain("x64") {
   bin_path = apple_clang_base_path
   toolchain_args = {
     current_os = "mac"
