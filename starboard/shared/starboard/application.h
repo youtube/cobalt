@@ -201,11 +201,6 @@ class Application {
     SbEvent* event;
     SbEventDataDestructor destructor;
     int error_level;
-
-    // Before the event is handled, the |preprocess_callback| is called (if
-    // set) with the |preprocess_context|.
-    SbEventCallback preprocess_callback = nullptr;
-    void* preprocess_context = nullptr;
   };
 
 #if SB_MODULAR_BUILD

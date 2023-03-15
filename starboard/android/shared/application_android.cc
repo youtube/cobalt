@@ -297,27 +297,24 @@ void ApplicationAndroid::ProcessAndroidCommand() {
       // early in SendAndroidCommand().
       {
         ScopedLock lock(android_command_mutex_);
+// Cobalt can't keep running without a window, even if the Activity
+// hasn't stopped yet. Block until conceal event has been processed.
 
-        // SendAndroidCommand() blocks until |android_command_condition_| is
-        // signalled. However, the conceal / suspend lifecycle change may need
-        // resources already locked by the SendAndroidCommand() thread.
-        //
-        // To avoid possible deadlocks, signal |android_command_condition_| just
-        // before processing the lifecycle change. This could result in EGL
-        // errors when operating on the EGLSurface associated with the native
-        // window that was destroyed. However, the application will handle this
-        // by rendering to a dummy surface.
-        Event* event =
+// Only process injected events -- don't check system events since
+// that may try to acquire the already-locked android_command_mutex_.
 #if SB_API_VERSION >= 13
-            new Event(kSbEventTypeConceal, nullptr, nullptr);
+        InjectAndProcess(kSbEventTypeConceal, /* checkSystemEvents */ false);
 #else
-            new Event(kSbEventTypeSuspend, nullptr, nullptr);
+        InjectAndProcess(kSbEventTypeSuspend, /* checkSystemEvents */ false);
 #endif
-        // Signal |android_command_condition_| just before processing the
-        // lifecycle event.
-        event->preprocess_callback = &ProcessAndroidCommandFinishWindowDestroy;
-        event->preprocess_context = this;
-        InjectAndProcess(event, /* checkSystemEvents */ false);
+
+        if (window_) {
+          window_->native_window = NULL;
+        }
+        native_window_ = NULL;
+        // Now that we've suspended the Starboard app, and let go of the window,
+        // signal that the Android UI thread can continue.
+        android_command_condition_.Signal();
       }
       break;
     }
@@ -417,19 +414,6 @@ void ApplicationAndroid::ProcessAndroidCommand() {
         break;
     }
   }
-}
-
-// static
-void ApplicationAndroid::ProcessAndroidCommandFinishWindowDestroy(
-    void* context) {
-  ApplicationAndroid* app = static_cast<ApplicationAndroid*>(context);
-
-  if (app->window_) {
-    app->window_->native_window = nullptr;
-  }
-  app->native_window_ = nullptr;
-
-  app->android_command_condition_.Signal();
 }
 
 void ApplicationAndroid::SendAndroidCommand(AndroidCommand::CommandType type,

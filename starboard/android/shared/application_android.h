@@ -140,8 +140,6 @@ class ApplicationAndroid
   void WakeSystemEventWait() override;
 
  private:
-  static void ProcessAndroidCommandFinishWindowDestroy(void* context);
-
   ALooper* looper_;
   ANativeWindow* native_window_;
 

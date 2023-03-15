@@ -61,7 +61,6 @@ class QueueApplication : public Application {
   // the event out of order. If the caller is part of system event handling,
   // then consider passing |checkSystemEvents| = false to avoid recursion if
   // needed.
-  void InjectAndProcess(Event* event, bool checkSystemEvents);
   void InjectAndProcess(SbEventType type, bool checkSystemEvents);
 
   // Returns true if it is valid to poll/query for system events.
