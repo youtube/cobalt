@@ -112,6 +112,8 @@ services:
     build:
       context: ./docker/windows/win32
       dockerfile: ./Dockerfile
+      args:
+        - FROM_IMAGE=cobalt-build-win32-base
     depends_on:
       - cobalt-build-win32-base
     image: cobalt-build-win-win32
