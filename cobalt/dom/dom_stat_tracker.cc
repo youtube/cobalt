@@ -20,7 +20,7 @@ namespace cobalt {
 namespace dom {
 
 DomStatTracker::DomStatTracker(const std::string& name)
-    : web::StatTracker(name),
+    : web::StatTracker(name, "DOM"),
       count_html_element_(
           base::StringPrintf("Count.%s.DOM.HtmlElement", name.c_str()), 0,
           "Total number of HTML elements."),

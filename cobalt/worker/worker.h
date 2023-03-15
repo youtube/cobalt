@@ -57,6 +57,7 @@ class Worker : public base::MessageLoop::DestructionObserver {
   // Worker Options needed at thread run time.
   struct Options {
     web::Agent::Options web_options;
+    web::WindowOrWorkerGlobalScope::Options global_scope_options;
 
     // Holds the source location where the worker was constructed.
     base::SourceLocation construction_location;

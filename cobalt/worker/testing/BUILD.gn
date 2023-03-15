@@ -28,6 +28,7 @@ source_set("worker_testing") {
     "//cobalt/script",
     "//cobalt/web",
     "//cobalt/web:dom_exception",
+    "//cobalt/web:stat_tracker",
     "//cobalt/web/testing:web_testing",
     "//cobalt/worker",
     "//testing/gmock",

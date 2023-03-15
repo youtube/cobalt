@@ -183,7 +183,8 @@ void ServiceWorkerObject::Initialize(web::Context* context) {
   web_context_->SetupEnvironmentSettings(worker_settings);
   web_context_->environment_settings()->set_creation_url(script_url_);
   scoped_refptr<ServiceWorkerGlobalScope> service_worker_global_scope =
-      new ServiceWorkerGlobalScope(web_context_->environment_settings(), this);
+      new ServiceWorkerGlobalScope(web_context_->environment_settings(),
+                                   options_.global_scope_options, this);
   worker_global_scope_ = service_worker_global_scope;
   web_context_->global_environment()->CreateGlobalObject(
       service_worker_global_scope, web_context_->environment_settings());

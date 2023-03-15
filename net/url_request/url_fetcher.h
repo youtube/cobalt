@@ -24,7 +24,7 @@ class FilePath;
 class SequencedTaskRunner;
 class TaskRunner;
 class TimeDelta;
-}
+}  // namespace base
 
 namespace url {
 class Origin;
@@ -82,9 +82,7 @@ class NET_EXPORT URLFetcher {
  public:
   // Imposible http response code. Used to signal that no http response code
   // was received.
-  enum ResponseCode {
-    RESPONSE_CODE_INVALID = -1
-  };
+  enum ResponseCode { RESPONSE_CODE_INVALID = -1 };
 
   enum RequestType {
     GET,

@@ -107,10 +107,7 @@ Window::Window(
     const base::Callback<void(const GURL&)> navigation_callback,
     const loader::Decoder::OnCompleteFunction& load_complete_callback,
     network_bridge::CookieJar* cookie_jar,
-    const network_bridge::PostSender& post_sender,
-    csp::CSPHeaderPolicy require_csp,
-    web::CspEnforcementType csp_enforcement_mode,
-    const base::Closure& csp_policy_changed_callback,
+    const web::CspDelegate::Options& csp_options,
     const base::Closure& ran_animation_frame_callbacks_callback,
     CloseCallback window_close_callback, base::Closure window_minimize_callback,
     OnScreenKeyboardBridge* on_screen_keyboard_bridge,
@@ -131,11 +128,9 @@ Window::Window(
     // 'window' object EventTargets require special handling for onerror events,
     // see EventTarget constructor for more details.
     : web::WindowOrWorkerGlobalScope(
-          settings, dom_stat_tracker,
+          settings,
           web::WindowOrWorkerGlobalScope::Options(
-              initial_application_state, post_sender, require_csp,
-              csp_enforcement_mode, csp_policy_changed_callback,
-              csp_insecure_allowed_token)),
+              initial_application_state, csp_options, dom_stat_tracker)),
       viewport_size_(view_size),
       is_resize_event_pending_(false),
       is_reporting_script_error_(false),

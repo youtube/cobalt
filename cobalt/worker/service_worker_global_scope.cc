@@ -36,8 +36,10 @@ namespace cobalt {
 namespace worker {
 
 ServiceWorkerGlobalScope::ServiceWorkerGlobalScope(
-    script::EnvironmentSettings* settings, ServiceWorkerObject* service_worker)
-    : WorkerGlobalScope(settings),
+    script::EnvironmentSettings* settings,
+    const web::WindowOrWorkerGlobalScope::Options& options,
+    ServiceWorkerObject* service_worker)
+    : WorkerGlobalScope(settings, options),
       clients_(new Clients(settings)),
       service_worker_object_(base::AsWeakPtr(service_worker)) {
   loader::FetchInterceptorCoordinator::GetInstance()->Add(this);

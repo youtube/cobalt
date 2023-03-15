@@ -77,6 +77,15 @@ void DedicatedWorker::Initialize(script::ExceptionState* exception_state) {
       environment_settings()->context()->web_settings();
   options.web_options.network_module =
       environment_settings()->context()->network_module();
+
+  // Propagate the CSP Options from the current environment settings.
+  options.global_scope_options.csp_options =
+      environment_settings()
+          ->context()
+          ->GetWindowOrWorkerGlobalScope()
+          ->options()
+          .csp_options;
+
   // 6. Let worker be a new Worker object.
   // 7. Let outside port be a new MessagePort in outside settings's Realm.
   // 8. Associate the outside port with worker.

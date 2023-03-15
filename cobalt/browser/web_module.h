@@ -24,7 +24,6 @@
 #include "base/message_loop/message_loop.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/thread.h"
-#include "base/threading/thread_checker.h"
 #include "cobalt/base/address_sanitizer.h"
 #include "cobalt/base/source_location.h"
 #include "cobalt/browser/lifecycle_observer.h"
@@ -121,7 +120,7 @@ class WebModule : public base::MessageLoop::DestructionObserver,
     dom::DOMSettings::Options dom_settings_options;
 
     // Whether Cobalt is forbidden to render without receiving CSP headers.
-    csp::CSPHeaderPolicy require_csp;
+    csp::CSPHeaderPolicy csp_header_policy;
 
     // If true, Cobalt will log a warning each time it parses a non-async
     // <script> tag inlined in HTML.  Cobalt has a known issue where if it is
@@ -149,7 +148,7 @@ class WebModule : public base::MessageLoop::DestructionObserver,
     bool enable_map_to_mesh = true;
 
     // Content Security Policy enforcement mode for this web module.
-    web::CspEnforcementType csp_enforcement_mode = web::kCspEnforcementEnable;
+    web::CspEnforcementType csp_enforcement_type = web::kCspEnforcementEnable;
 
     // Token obtained from CSP to allow creation of insecure delegates.
     int csp_insecure_allowed_token = 0;

@@ -25,7 +25,7 @@ namespace web {
 // Tracks stats for web resources.
 class StatTracker {
  public:
-  explicit StatTracker(const std::string& name);
+  StatTracker(const std::string& name, const char* component);
   ~StatTracker();
 
   void OnWindowTimersIntervalCreated() {

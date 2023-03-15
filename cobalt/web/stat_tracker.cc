@@ -18,18 +18,21 @@
 
 namespace cobalt {
 namespace web {
-StatTracker::StatTracker(const std::string& name)
+StatTracker::StatTracker(const std::string& name, const char* component)
     : count_window_timers_interval_(
-          base::StringPrintf("Count.%s.DOM.WindowTimers.Interval",
-                             name.c_str()),
+          base::StringPrintf("Count.%s.%s.WindowTimers.Interval", name.c_str(),
+                             component),
           0, "Number of active WindowTimer Intervals."),
       count_window_timers_timeout_(
-          base::StringPrintf("Count.%s.DOM.WindowTimers.Timeout", name.c_str()),
+          base::StringPrintf("Count.%s.%s.WindowTimers.Timeout", name.c_str(),
+                             component),
           0, "Number of active WindowTimer Timeouts."),
       count_window_timers_interval_created_(0),
       count_window_timers_interval_destroyed_(0),
       count_window_timers_timeout_created_(0),
-      count_window_timers_timeout_destroyed_(0) {}
+      count_window_timers_timeout_destroyed_(0) {
+  DCHECK(component);
+}
 
 StatTracker::~StatTracker() {
   FlushPeriodicTracking();

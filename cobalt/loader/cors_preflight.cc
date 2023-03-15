@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#include "cobalt/loader/cors_preflight.h"
+
 #include <algorithm>
 #include <cstring>
 #include <iterator>
@@ -23,7 +25,6 @@
 #include "base/basictypes.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
-#include "cobalt/loader/cors_preflight.h"
 #include "starboard/common/string.h"
 
 namespace cobalt {
@@ -412,17 +413,17 @@ bool CORSPreflight::CORSCheck(const net::HttpResponseHeaders& response_headers,
   size_t iter = 0;
   if (!response_headers.EnumerateHeader(&iter, kAccessControlAllowOrigin,
                                         &allowed_origin)) {
-    DLOG(WARNING) << "Insecure cross-origin network request returned response "
-                     "with no Access-Control-Allow-Origin header. Request "
-                     "aborted.";
+    LOG(WARNING) << "Insecure cross-origin network request returned response "
+                    "with no Access-Control-Allow-Origin header. Request "
+                    "aborted: ";
     return false;
   }
   DCHECK(iter);
   if (response_headers.EnumerateHeader(&iter, kAccessControlAllowOrigin,
                                        &empty_container)) {
-    DLOG(WARNING) << "Insecure cross-origin network request returned response "
-                     "with multiple Access-Control-Allow-Origin headers. "
-                     "Behavior disallowed and request aborted";
+    LOG(WARNING) << "Insecure cross-origin network request returned response "
+                    "with multiple Access-Control-Allow-Origin headers. "
+                    "Behavior disallowed and request aborted: ";
     return false;
   }
   // 3. If request's credentials mode is not "include" and origin is `*`, return
@@ -432,13 +433,14 @@ bool CORSPreflight::CORSCheck(const net::HttpResponseHeaders& response_headers,
   }
   // 2. If origin is null or failure, return failure.
   if (allowed_origin.empty()) {
+    LOG(WARNING) << "CORS check failed: Origin is null or failure.";
     return false;
   }
   // 4. If request's origin, serialized and UTF-8 encoded, is not origin, return
   //    failure.
   if (allowed_origin != serialized_origin) {
-    DLOG(WARNING) << "Network request origin is not allowed by server's "
-                     "Access-Control-Allow-Origin header, request aborted.";
+    LOG(WARNING) << "Network request origin is not allowed by server's "
+                    "Access-Control-Allow-Origin header, request aborted.";
     return false;
   }
   // 5. If request's credentials mode is not "include", return success.
@@ -451,7 +453,7 @@ bool CORSPreflight::CORSCheck(const net::HttpResponseHeaders& response_headers,
                                            &allow_credentials)) {
     // 7. If credentials is `true`, return success.
     if (allow_credentials != "true") {
-      DLOG(WARNING)
+      LOG(WARNING)
           << "Network request failed because request want to include credential"
              "but server disallow it.";
       return false;
@@ -459,6 +461,7 @@ bool CORSPreflight::CORSCheck(const net::HttpResponseHeaders& response_headers,
       return true;
     }
   }
+  LOG(WARNING) << "CORS check failed.";
   return false;
 }
 

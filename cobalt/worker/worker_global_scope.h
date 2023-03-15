@@ -70,7 +70,9 @@ class WorkerGlobalScope : public web::WindowOrWorkerGlobalScope {
   using ResponseCallback =
       base::Callback<std::string*(const GURL& url, std::string*)>;
 
-  explicit WorkerGlobalScope(script::EnvironmentSettings* settings);
+  explicit WorkerGlobalScope(
+      script::EnvironmentSettings* settings,
+      const web::WindowOrWorkerGlobalScope::Options& options);
   WorkerGlobalScope(const WorkerGlobalScope&) = delete;
   WorkerGlobalScope& operator=(const WorkerGlobalScope&) = delete;
 

@@ -18,10 +18,13 @@
 #include <memory>
 #include <string>
 
+#include "base/bind.h"
 #include "base/callback_forward.h"
 #include "base/gtest_prod_util.h"
 #include "base/memory/singleton.h"
 #include "cobalt/csp/content_security_policy.h"
+#include "cobalt/network_bridge/net_poster.h"
+#include "cobalt/web/csp_delegate.h"
 #include "cobalt/web/csp_delegate_type.h"
 #include "url/gurl.h"
 
@@ -41,22 +44,27 @@ class CspViolationReporter;
 class CspDelegateFactory {
  public:
   static CspDelegateFactory* GetInstance();
-  std::unique_ptr<CspDelegate> Create(
-      CspEnforcementType type,
-      std::unique_ptr<CspViolationReporter> violation_reporter, const GURL& url,
-      csp::CSPHeaderPolicy require_csp,
-      const base::Closure& policy_changed_callback,
-      int insecure_allowed_token = 0);
+  static std::unique_ptr<CspDelegate> Create(
+      WindowOrWorkerGlobalScope* global, const CspDelegate::Options& options,
+      const base::Closure& policy_changed_callback = base::Closure()) {
+    return GetInstance()->CreateDelegate(global, options,
+                                         policy_changed_callback);
+  }
+
 
   typedef CspDelegate* (*CspDelegateCreator)(
       std::unique_ptr<CspViolationReporter> violation_reporter, const GURL& url,
-      csp::CSPHeaderPolicy require_csp,
+      csp::CSPHeaderPolicy csp_header_policy,
       const base::Closure& policy_changed_callback, int insecure_allowed_token);
 
 #if !defined(COBALT_FORCE_CSP)
   // Allow tests to have the factory create a different delegate type.
   void OverrideCreator(CspEnforcementType type, CspDelegateCreator creator);
 #endif
+ protected:
+  std::unique_ptr<CspDelegate> CreateDelegate(
+      WindowOrWorkerGlobalScope* global, const CspDelegate::Options& options,
+      const base::Closure& policy_changed_callback);
 
  private:
 #if !defined(COBALT_FORCE_CSP)

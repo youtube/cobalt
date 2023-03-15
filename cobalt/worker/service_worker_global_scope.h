@@ -48,8 +48,10 @@ namespace worker {
 class ServiceWorkerGlobalScope : public WorkerGlobalScope,
                                  public loader::FetchInterceptor {
  public:
-  explicit ServiceWorkerGlobalScope(script::EnvironmentSettings* settings,
-                                    ServiceWorkerObject* service_worker);
+  explicit ServiceWorkerGlobalScope(
+      script::EnvironmentSettings* settings,
+      const web::WindowOrWorkerGlobalScope::Options& options,
+      ServiceWorkerObject* service_worker);
   ServiceWorkerGlobalScope(const ServiceWorkerGlobalScope&) = delete;
   ServiceWorkerGlobalScope& operator=(const ServiceWorkerGlobalScope&) = delete;
 
