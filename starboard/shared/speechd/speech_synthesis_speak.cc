@@ -19,6 +19,9 @@
 using starboard::shared::speechd::SpeechDispatcher;
 
 void SbSpeechSynthesisSpeak(const char* text) {
+  if (!text) {
+    return;
+  }
   SpeechDispatcher* speech_dispatcher = SpeechDispatcher::Get();
   if (speech_dispatcher) {
     speech_dispatcher->Speak(text);
