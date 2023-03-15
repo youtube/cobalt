@@ -522,10 +522,6 @@ bool Application::HandleEventAndUpdateState(Application::Event* event) {
   // Ensure the event is deleted unless it is released.
   scoped_ptr<Event> scoped_event(event);
 
-  if (event->preprocess_callback) {
-    event->preprocess_callback(event->preprocess_context);
-  }
-
 // Call OnSuspend() and OnResume() before the event as needed.
 #if SB_API_VERSION >= 13
   if (scoped_event->event->type == kSbEventTypeUnfreeze &&
