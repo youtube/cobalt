@@ -41,7 +41,6 @@ namespace cobalt {
 namespace worker {
 
 namespace {
-bool PermitAnyURL(const GURL& url, bool) { return true; }
 
 class ScriptLoader : public base::MessageLoop::DestructionObserver {
  public:
@@ -93,7 +92,7 @@ class ScriptLoader : public base::MessageLoop::DestructionObserver {
     script_loader_factory_.reset();
   }
 
-  void Load(const loader::Origin& origin,
+  void Load(web::CspDelegate* csp_delegate, const loader::Origin& origin,
             const std::vector<GURL>& resolved_urls) {
     TRACE_EVENT0("cobalt::worker", "ScriptLoader::Load()");
     number_of_loads_ = resolved_urls.size();
@@ -105,20 +104,23 @@ class ScriptLoader : public base::MessageLoop::DestructionObserver {
     for (int i = 0; i < resolved_urls.size(); ++i) {
       const GURL& url = resolved_urls[i];
       thread_->message_loop()->task_runner()->PostTask(
-          FROM_HERE, base::BindOnce(&ScriptLoader::LoaderTask,
-                                    base::Unretained(this), &loaders_[i],
-                                    origin, url, &contents_[i], &errors_[i]));
+          FROM_HERE,
+          base::BindOnce(&ScriptLoader::LoaderTask, base::Unretained(this),
+                         csp_delegate, &loaders_[i], origin, url, &contents_[i],
+                         &errors_[i]));
     }
     load_finished_.Wait();
   }
 
-  void LoaderTask(std::unique_ptr<loader::Loader>* loader,
+  void LoaderTask(web::CspDelegate* csp_delegate,
+                  std::unique_ptr<loader::Loader>* loader,
                   const loader::Origin& origin, const GURL& url,
                   std::unique_ptr<std::string>* content,
                   std::unique_ptr<std::string>* error) {
     TRACE_EVENT0("cobalt::worker", "ScriptLoader::LoaderTask()");
-    // Todo: implement csp check (b/225037465)
-    csp::SecurityCallback csp_callback = base::Bind(&PermitAnyURL);
+    csp::SecurityCallback csp_callback =
+        base::Bind(&web::CspDelegate::CanLoad, base::Unretained(csp_delegate),
+                   web::CspDelegate::kScript);
 
     bool skip_fetch_intercept =
         context_->GetWindowOrWorkerGlobalScope()->IsServiceWorker();
@@ -186,14 +188,10 @@ class ScriptLoader : public base::MessageLoop::DestructionObserver {
 
 }  // namespace
 
-WorkerGlobalScope::WorkerGlobalScope(script::EnvironmentSettings* settings)
-    : web::WindowOrWorkerGlobalScope(
-          settings, /*stat_tracker=*/NULL,
-          // Using default options for CSP
-          web::WindowOrWorkerGlobalScope::Options(
-              // TODO (b/233788170): once application state is
-              // available, update this to use the actual state.
-              base::ApplicationState::kApplicationStateStarted)),
+WorkerGlobalScope::WorkerGlobalScope(
+    script::EnvironmentSettings* settings,
+    const web::WindowOrWorkerGlobalScope::Options& options)
+    : web::WindowOrWorkerGlobalScope(settings, options),
       location_(new WorkerLocation(settings->creation_url())),
       navigator_(new WorkerNavigator(settings)) {
   set_navigator_base(navigator_);
@@ -286,9 +284,8 @@ bool WorkerGlobalScope::LoadImportsAndReturnIfUpdated(
   web::EnvironmentSettings* settings = environment_settings();
   const GURL& base_url = settings->base_url();
   loader::Origin origin = loader::Origin(base_url.GetOrigin());
-  // TODO(b/241801523): Apply CSP.
   ScriptLoader script_loader(settings->context());
-  script_loader.Load(origin, request_urls);
+  script_loader.Load(csp_delegate(), origin, request_urls);
 
   for (int index = 0; index < request_urls.size(); ++index) {
     const auto& error = script_loader.GetError(index);
@@ -378,9 +375,8 @@ void WorkerGlobalScope::ImportScriptsInternal(
   //      object, passing along any custom perform the fetch steps provided.
   //      If this succeeds, let script be the result. Otherwise, rethrow the
   //      exception.
-  // TODO(b/241801523): Apply CSP.
   ScriptLoader script_loader(settings->context());
-  script_loader.Load(origin, request_urls);
+  script_loader.Load(csp_delegate(), origin, request_urls);
 
   // 5. For each url in the resulting URL records, run these substeps:
   int content_lookup_index = 0;

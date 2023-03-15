@@ -21,15 +21,16 @@
 
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
+#include "base/threading/thread_checker.h"
 #include "cobalt/loader/cors_preflight_cache.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/web/cache_storage.h"
 #include "cobalt/web/crypto.h"
 #include "cobalt/web/csp_delegate.h"
-#include "cobalt/web/csp_delegate_type.h"
 #include "cobalt/web/event_target.h"
 #include "cobalt/web/event_target_listener_info.h"
 #include "cobalt/web/navigator_base.h"
+#include "cobalt/web/stat_tracker.h"
 #include "cobalt/web/window_timers.h"
 
 namespace cobalt {
@@ -48,34 +49,21 @@ namespace web {
 class WindowOrWorkerGlobalScope : public EventTarget {
  public:
   struct Options {
-    explicit Options(base::ApplicationState initial_state)
-        : initial_state(initial_state),
-          csp_enforcement_mode(web::kCspEnforcementEnable) {}
-
+    Options() = default;
     Options(base::ApplicationState initial_state,
-            const network_bridge::PostSender& post_sender,
-            csp::CSPHeaderPolicy require_csp,
-            web::CspEnforcementType csp_enforcement_mode,
-            base::Closure csp_policy_changed_callback,
-            int csp_insecure_allowed_token = 0)
+            const web::CspDelegate::Options& csp_options,
+            StatTracker* stat_tracker = nullptr)
         : initial_state(initial_state),
-          post_sender(post_sender),
-          require_csp(require_csp),
-          csp_enforcement_mode(csp_enforcement_mode),
-          csp_policy_changed_callback(csp_policy_changed_callback),
-          csp_insecure_allowed_token(csp_insecure_allowed_token) {}
+          csp_options(csp_options),
+          stat_tracker(stat_tracker) {}
 
-    base::ApplicationState initial_state;
-    network_bridge::PostSender post_sender;
-    csp::CSPHeaderPolicy require_csp;
-    web::CspEnforcementType csp_enforcement_mode;
-    base::Closure csp_policy_changed_callback;
-    int csp_insecure_allowed_token;
+    base::ApplicationState initial_state = base::kApplicationStateStarted;
+    web::CspDelegate::Options csp_options;
+    StatTracker* stat_tracker = nullptr;
   };
 
   explicit WindowOrWorkerGlobalScope(script::EnvironmentSettings* settings,
-                                     StatTracker* stat_tracker,
-                                     Options options);
+                                     const Options& options);
   WindowOrWorkerGlobalScope(const WindowOrWorkerGlobalScope&) = delete;
   WindowOrWorkerGlobalScope& operator=(const WindowOrWorkerGlobalScope&) =
       delete;
@@ -101,7 +89,7 @@ class WindowOrWorkerGlobalScope : public EventTarget {
 
   // The CspDelegate gives access to the CSP list of the policy container
   //   https://html.spec.whatwg.org/commit-snapshots/ae3c91103aada3d6d346a6dd3c5356773195fc79/#policy-container
-  web::CspDelegate* csp_delegate() const {
+  CspDelegate* csp_delegate() const {
     DCHECK(csp_delegate_);
     return csp_delegate_.get();
   }
@@ -110,26 +98,25 @@ class WindowOrWorkerGlobalScope : public EventTarget {
     return preflight_cache_;
   }
 
-  DEFINE_WRAPPABLE_TYPE(WindowOrWorkerGlobalScope);
+  // Callback from the CspDelegate.
+  void OnCspPolicyChanged();
 
   // Web API: WindowTimers (implements)
   //   https://www.w3.org/TR/html50/webappapis.html#timers
   //
-  int SetTimeout(const web::WindowTimers::TimerCallbackArg& handler) {
+  int SetTimeout(const WindowTimers::TimerCallbackArg& handler) {
     return SetTimeout(handler, 0);
   }
 
-  int SetTimeout(const web::WindowTimers::TimerCallbackArg& handler,
-                 int timeout);
+  int SetTimeout(const WindowTimers::TimerCallbackArg& handler, int timeout);
 
   void ClearTimeout(int handle);
 
-  int SetInterval(const web::WindowTimers::TimerCallbackArg& handler) {
+  int SetInterval(const WindowTimers::TimerCallbackArg& handler) {
     return SetInterval(handler, 0);
   }
 
-  int SetInterval(const web::WindowTimers::TimerCallbackArg& handler,
-                  int timeout);
+  int SetInterval(const WindowTimers::TimerCallbackArg& handler, int timeout);
 
   void ClearInterval(int handle);
 
@@ -143,18 +130,27 @@ class WindowOrWorkerGlobalScope : public EventTarget {
   //   https://www.w3.org/TR/WebCryptoAPI/#crypto-interface
   scoped_refptr<Crypto> crypto() const;
 
- protected:
-  virtual ~WindowOrWorkerGlobalScope() {}
+  const Options& options() { return options_; }
 
+  DEFINE_WRAPPABLE_TYPE(WindowOrWorkerGlobalScope);
+
+ protected:
+  virtual ~WindowOrWorkerGlobalScope();
+
+  Options options_;
   scoped_refptr<CacheStorage> caches_;
   scoped_refptr<Crypto> crypto_;
-  web::WindowTimers window_timers_;
+  WindowTimers window_timers_;
 
  private:
-  std::unique_ptr<web::CspDelegate> csp_delegate_;
+  std::unique_ptr<CspDelegate> csp_delegate_;
   NavigatorBase* navigator_base_ = nullptr;
   // Global preflight cache.
   scoped_refptr<loader::CORSPreflightCache> preflight_cache_;
+
+  // Thread checker ensures all calls to the WebModule are made from the same
+  // thread that it is created in.
+  THREAD_CHECKER(thread_checker_);
 };
 
 }  // namespace web

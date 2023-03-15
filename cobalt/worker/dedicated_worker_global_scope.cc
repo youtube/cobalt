@@ -26,8 +26,10 @@ namespace cobalt {
 namespace worker {
 DedicatedWorkerGlobalScope::DedicatedWorkerGlobalScope(
     script::EnvironmentSettings* settings,
+    const web::WindowOrWorkerGlobalScope::Options& options,
     bool parent_cross_origin_isolated_capability)
-    : WorkerGlobalScope(settings), cross_origin_isolated_capability_(false) {
+    : WorkerGlobalScope(settings, options),
+      cross_origin_isolated_capability_(false) {
   // Algorithm for 'run a worker'
   //   https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#run-a-worker
   // 14.9. If is shared is false and owner's cross-origin isolated

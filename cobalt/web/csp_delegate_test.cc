@@ -12,12 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "cobalt/web/csp_delegate.h"
+
 #include <memory>
 #include <utility>
 
 #include "base/strings/stringprintf.h"
 #include "cobalt/base/polymorphic_downcast.h"
-#include "cobalt/web/csp_delegate.h"
 #include "cobalt/web/csp_delegate_factory.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -81,7 +82,7 @@ std::string ResourcePairName(::testing::TestParamInfo<ResourcePair> info) {
 class MockViolationReporter : public CspViolationReporter {
  public:
   MockViolationReporter()
-      : CspViolationReporter(NULL, network_bridge::PostSender()) {}
+      : CspViolationReporter(nullptr, network_bridge::PostSender()) {}
   MOCK_METHOD1(Report, void(const csp::ViolationInfo&));
 };
 
@@ -105,7 +106,7 @@ class ScopedLogInterceptor {
 
   ~ScopedLogInterceptor() {
     logging::SetLogMessageHandler(old_handler_);
-    log_interceptor_ = NULL;
+    log_interceptor_ = nullptr;
   }
 
   static bool LogHandler(int severity, const char* file, int line,
@@ -166,11 +167,11 @@ INSTANTIATE_TEST_CASE_P(CanLoad, CspDelegateTest, ValuesIn(s_params),
                         ResourcePairName);
 
 TEST(CspDelegateFactoryTest, Secure) {
+  CspDelegate::Options options;
+  options.enforcement_type = kCspEnforcementEnable;
   std::unique_ptr<CspDelegate> delegate =
-      CspDelegateFactory::GetInstance()->Create(
-          kCspEnforcementEnable, std::unique_ptr<CspViolationReporter>(),
-          GURL(), csp::kCSPRequired, base::Closure());
-  EXPECT_TRUE(delegate != NULL);
+      CspDelegateFactory::Create(nullptr, options);
+  EXPECT_TRUE(delegate != nullptr);
 }
 
 TEST(CspDelegateFactoryTest, InsecureBlocked) {
@@ -179,10 +180,10 @@ TEST(CspDelegateFactoryTest, InsecureBlocked) {
     // Capture the output, because we should get a FATAL log and we don't
     // want to crash.
     ScopedLogInterceptor li(&output);
+    CspDelegate::Options options;
+    options.enforcement_type = kCspEnforcementDisable;
     std::unique_ptr<CspDelegate> delegate =
-        CspDelegateFactory::GetInstance()->Create(
-            kCspEnforcementDisable, std::unique_ptr<CspViolationReporter>(),
-            GURL(), csp::kCSPRequired, base::Closure());
+        CspDelegateFactory::Create(nullptr, options);
 
     std::unique_ptr<CspDelegate> empty_delegate;
     EXPECT_EQ(empty_delegate.get(), delegate.get());
@@ -193,12 +194,13 @@ TEST(CspDelegateFactoryTest, InsecureBlocked) {
 TEST(CspDelegateFactoryTest, InsecureAllowed) {
   // This only compiles because this test is a friend of CspDelegateFactory,
   // otherwise GetInsecureAllowedToken is private.
-  int token = CspDelegateFactory::GetInstance()->GetInsecureAllowedToken();
+  CspDelegate::Options options;
+  options.enforcement_type = kCspEnforcementDisable;
+  options.insecure_allowed_token =
+      CspDelegateFactory::GetInstance()->GetInsecureAllowedToken();
   std::unique_ptr<CspDelegate> delegate =
-      CspDelegateFactory::GetInstance()->Create(
-          kCspEnforcementDisable, std::unique_ptr<CspViolationReporter>(),
-          GURL(), csp::kCSPRequired, base::Closure(), token);
-  EXPECT_TRUE(delegate != NULL);
+      CspDelegateFactory::Create(nullptr, options);
+  EXPECT_TRUE(delegate != nullptr);
 }
 
 }  // namespace web

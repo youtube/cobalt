@@ -19,7 +19,6 @@
 #include <utility>
 
 #include "cobalt/dom/document.h"
-
 #include "cobalt/web/csp_delegate_factory.h"
 
 namespace cobalt {
@@ -29,30 +28,14 @@ namespace testing {
 class FakeDocument : public dom::Document {
  public:
   explicit FakeDocument(dom::HTMLElementContext* html_element_context)
-      : dom::Document(html_element_context) {
-    web::WindowOrWorkerGlobalScope::Options options(
-        base::ApplicationState::kApplicationStateStarted);
-    std::unique_ptr<web::CspViolationReporter> violation_reporter(
-        new web::CspViolationReporter(nullptr, options.post_sender));
-    csp_delegate_ = web::CspDelegateFactory::GetInstance()->Create(
-        options.csp_enforcement_mode, std::move(violation_reporter),
-        environment_settings()->creation_url(), options.require_csp,
-        options.csp_policy_changed_callback,
-        options.csp_insecure_allowed_token);
-  }
+      : FakeDocument(html_element_context, dom::Document::Options()) {}
 
   FakeDocument(dom::HTMLElementContext* html_element_context,
-               dom::Document::Options doc_options)
+               const dom::Document::Options& doc_options)
       : dom::Document(html_element_context, doc_options) {
-    web::WindowOrWorkerGlobalScope::Options options(
-        base::ApplicationState::kApplicationStateStarted);
-    std::unique_ptr<web::CspViolationReporter> violation_reporter(
-        new web::CspViolationReporter(nullptr, options.post_sender));
-    csp_delegate_ = web::CspDelegateFactory::GetInstance()->Create(
-        options.csp_enforcement_mode, std::move(violation_reporter),
-        environment_settings()->creation_url(), options.require_csp,
-        options.csp_policy_changed_callback,
-        options.csp_insecure_allowed_token);
+    web::WindowOrWorkerGlobalScope::Options options;
+    csp_delegate_ =
+        web::CspDelegateFactory::Create(nullptr, options.csp_options);
   }
 
   web::CspDelegate* GetCSPDelegate() const override {

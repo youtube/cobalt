@@ -852,8 +852,9 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
 #endif  // defined(COBALT_FORCE_CSP)
 
   network_module_options.https_requirement = security_flags.https_requirement;
-  options.web_module_options.require_csp = security_flags.csp_header_policy;
-  options.web_module_options.csp_enforcement_mode = web::kCspEnforcementEnable;
+  options.web_module_options.csp_header_policy =
+      security_flags.csp_header_policy;
+  options.web_module_options.csp_enforcement_type = web::kCspEnforcementEnable;
 
   options.requested_viewport_size = requested_viewport_size;
 

@@ -28,9 +28,9 @@ CspDelegate::~CspDelegate() {}
 
 CspDelegateSecure::CspDelegateSecure(
     std::unique_ptr<CspViolationReporter> violation_reporter, const GURL& url,
-    csp::CSPHeaderPolicy require_csp,
+    csp::CSPHeaderPolicy csp_header_policy,
     const base::Closure& policy_changed_callback) {
-  require_csp_ = require_csp;
+  csp_header_policy_ = csp_header_policy;
   was_header_received_ = false;
   policy_changed_callback_ = policy_changed_callback;
 
@@ -77,7 +77,7 @@ bool CspDelegateSecure::CanLoad(ResourceType type, const GURL& url,
     if (type == kLocation) {
       should_allow = csp_->AllowNavigateToSource(url, redirect_status);
     }
-    if (require_csp_ == csp::kCSPRequired || should_allow) {
+    if (csp_header_policy_ == csp::kCSPRequired || should_allow) {
       return should_allow;
     } else {
       DLOG(WARNING) << "Page must include Content-Security-Policy header, it "

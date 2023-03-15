@@ -16,6 +16,7 @@
 
 #include <utility>
 
+#include "base/bind.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/web/csp_delegate_factory.h"
 #include "cobalt/web/event_target.h"
@@ -30,22 +31,24 @@ class ServiceWorkerGlobalScope;
 }  // namespace worker
 namespace web {
 WindowOrWorkerGlobalScope::WindowOrWorkerGlobalScope(
-    script::EnvironmentSettings* settings, StatTracker* stat_tracker,
-    Options options)
+    script::EnvironmentSettings* settings, const Options& options)
     // Global scope object EventTargets require special handling for onerror
     // events, see EventTarget constructor for more details.
     : EventTarget(settings, kUnpackOnErrorEvents),
+      options_(options),
       caches_(new CacheStorage()),
       crypto_(new Crypto()),
-      window_timers_(this, stat_tracker, debugger_hooks(),
+      window_timers_(this, options.stat_tracker, debugger_hooks(),
                      options.initial_state),
       preflight_cache_(new loader::CORSPreflightCache()) {
-  std::unique_ptr<web::CspViolationReporter> violation_reporter(
-      new web::CspViolationReporter(this, options.post_sender));
-  csp_delegate_ = web::CspDelegateFactory::GetInstance()->Create(
-      options.csp_enforcement_mode, std::move(violation_reporter),
-      environment_settings()->creation_url(), options.require_csp,
-      options.csp_policy_changed_callback, options.csp_insecure_allowed_token);
+  csp_delegate_ = CspDelegateFactory::Create(
+      this, options.csp_options,
+      base::Bind(&WindowOrWorkerGlobalScope::OnCspPolicyChanged,
+                 base::Unretained(this)));
+}
+
+WindowOrWorkerGlobalScope::~WindowOrWorkerGlobalScope() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 }
 
 bool WindowOrWorkerGlobalScope::IsWindow() {
@@ -66,8 +69,24 @@ bool WindowOrWorkerGlobalScope::IsServiceWorker() {
          base::GetTypeId<worker::ServiceWorkerGlobalScope>();
 }
 
+void WindowOrWorkerGlobalScope::OnCspPolicyChanged() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK(csp_delegate());
+  DCHECK(environment_settings()->context()->global_environment());
+
+  std::string eval_disabled_message;
+  bool allow_eval = csp_delegate()->AllowEval(&eval_disabled_message);
+  if (allow_eval) {
+    environment_settings()->context()->global_environment()->EnableEval();
+  } else {
+    environment_settings()->context()->global_environment()->DisableEval(
+        eval_disabled_message);
+  }
+}
+
 int WindowOrWorkerGlobalScope::SetTimeout(
-    const web::WindowTimers::TimerCallbackArg& handler, int timeout) {
+    const WindowTimers::TimerCallbackArg& handler, int timeout) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   return window_timers_.SetTimeout(handler, timeout);
 }
 
@@ -76,7 +95,8 @@ void WindowOrWorkerGlobalScope::ClearTimeout(int handle) {
 }
 
 int WindowOrWorkerGlobalScope::SetInterval(
-    const web::WindowTimers::TimerCallbackArg& handler, int timeout) {
+    const WindowTimers::TimerCallbackArg& handler, int timeout) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   return window_timers_.SetInterval(handler, timeout);
 }
 
@@ -85,6 +105,7 @@ void WindowOrWorkerGlobalScope::ClearInterval(int handle) {
 }
 
 void WindowOrWorkerGlobalScope::DestroyTimers() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   window_timers_.DisableCallbacks();
 }
 

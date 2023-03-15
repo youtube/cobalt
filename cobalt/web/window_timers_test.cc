@@ -27,7 +27,6 @@
 #include "cobalt/script/testing/fake_script_value.h"
 #include "cobalt/web/stat_tracker.h"
 #include "net/test/test_with_scoped_task_environment.h"
-
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -90,7 +89,7 @@ class WindowTimersTest : public ::testing::Test,
   WindowTimersTest()
       : WithScopedTaskEnvironment(
             base::test::ScopedTaskEnvironment::MainThreadType::MOCK_TIME),
-        stat_tracker_("WindowTimersTest"),
+        stat_tracker_("WindowTimersTest", "Test"),
         callback_(&mock_timer_callback_) {
     script::Wrappable* foo = nullptr;
     timers_.reset(
@@ -244,11 +243,11 @@ TEST_F(WindowTimersTest, ActiveTimeoutsAreCounted) {
   stat_tracker_.FlushPeriodicTracking();
   EXPECT_EQ("0", base::CValManager::GetInstance()
                      ->GetValueAsString(
-                         "Count.WindowTimersTest.DOM.WindowTimers.Interval")
+                         "Count.WindowTimersTest.Test.WindowTimers.Interval")
                      .value_or("Foo"));
   EXPECT_EQ("2", base::CValManager::GetInstance()
                      ->GetValueAsString(
-                         "Count.WindowTimersTest.DOM.WindowTimers.Timeout")
+                         "Count.WindowTimersTest.Test.WindowTimers.Timeout")
                      .value_or("Foo"));
 
   EXPECT_EQ(GetPendingMainThreadTaskCount(), 2);
@@ -262,11 +261,11 @@ TEST_F(WindowTimersTest, ActiveTimeoutsAreCounted) {
   stat_tracker_.FlushPeriodicTracking();
   EXPECT_EQ("0", base::CValManager::GetInstance()
                      ->GetValueAsString(
-                         "Count.WindowTimersTest.DOM.WindowTimers.Interval")
+                         "Count.WindowTimersTest.Test.WindowTimers.Interval")
                      .value_or("Foo"));
   EXPECT_EQ("0", base::CValManager::GetInstance()
                      ->GetValueAsString(
-                         "Count.WindowTimersTest.DOM.WindowTimers.Timeout")
+                         "Count.WindowTimersTest.Test.WindowTimers.Timeout")
                      .value_or("Foo"));
 }
 
@@ -398,11 +397,11 @@ TEST_F(WindowTimersTest, ActiveIntervalsAreCounted) {
   stat_tracker_.FlushPeriodicTracking();
   EXPECT_EQ("2", base::CValManager::GetInstance()
                      ->GetValueAsString(
-                         "Count.WindowTimersTest.DOM.WindowTimers.Interval")
+                         "Count.WindowTimersTest.Test.WindowTimers.Interval")
                      .value_or("Foo"));
   EXPECT_EQ("0", base::CValManager::GetInstance()
                      ->GetValueAsString(
-                         "Count.WindowTimersTest.DOM.WindowTimers.Timeout")
+                         "Count.WindowTimersTest.Test.WindowTimers.Timeout")
                      .value_or("Foo"));
 
   EXPECT_EQ(GetPendingMainThreadTaskCount(), 2);
@@ -417,11 +416,11 @@ TEST_F(WindowTimersTest, ActiveIntervalsAreCounted) {
   stat_tracker_.FlushPeriodicTracking();
   EXPECT_EQ("2", base::CValManager::GetInstance()
                      ->GetValueAsString(
-                         "Count.WindowTimersTest.DOM.WindowTimers.Interval")
+                         "Count.WindowTimersTest.Test.WindowTimers.Interval")
                      .value_or("Foo"));
   EXPECT_EQ("0", base::CValManager::GetInstance()
                      ->GetValueAsString(
-                         "Count.WindowTimersTest.DOM.WindowTimers.Timeout")
+                         "Count.WindowTimersTest.Test.WindowTimers.Timeout")
                      .value_or("Foo"));
 }
 
@@ -440,11 +439,11 @@ TEST_F(WindowTimersTest, ActiveIntervalsAndTimeoutsAreCounted) {
   stat_tracker_.FlushPeriodicTracking();
   EXPECT_EQ("2", base::CValManager::GetInstance()
                      ->GetValueAsString(
-                         "Count.WindowTimersTest.DOM.WindowTimers.Interval")
+                         "Count.WindowTimersTest.Test.WindowTimers.Interval")
                      .value_or("Foo"));
   EXPECT_EQ("2", base::CValManager::GetInstance()
                      ->GetValueAsString(
-                         "Count.WindowTimersTest.DOM.WindowTimers.Timeout")
+                         "Count.WindowTimersTest.Test.WindowTimers.Timeout")
                      .value_or("Foo"));
 
   EXPECT_EQ(GetPendingMainThreadTaskCount(), 4);
@@ -459,11 +458,11 @@ TEST_F(WindowTimersTest, ActiveIntervalsAndTimeoutsAreCounted) {
   stat_tracker_.FlushPeriodicTracking();
   EXPECT_EQ("2", base::CValManager::GetInstance()
                      ->GetValueAsString(
-                         "Count.WindowTimersTest.DOM.WindowTimers.Interval")
+                         "Count.WindowTimersTest.Test.WindowTimers.Interval")
                      .value_or("Foo"));
   EXPECT_EQ("0", base::CValManager::GetInstance()
                      ->GetValueAsString(
-                         "Count.WindowTimersTest.DOM.WindowTimers.Timeout")
+                         "Count.WindowTimersTest.Test.WindowTimers.Timeout")
                      .value_or("Foo"));
 }
 

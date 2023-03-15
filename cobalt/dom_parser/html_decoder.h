@@ -49,7 +49,7 @@ class HTMLDecoder : public loader::Decoder {
               const base::SourceLocation& input_location,
               const loader::Decoder::OnCompleteFunction& load_complete_callback,
               const bool should_run_scripts,
-              const csp::CSPHeaderPolicy require_csp);
+              const csp::CSPHeaderPolicy csp_header_policy);
 
   ~HTMLDecoder();
 
@@ -73,7 +73,7 @@ class HTMLDecoder : public loader::Decoder {
   THREAD_CHECKER(thread_checker_);
 
   // If Cobalt user forbids rendering Cobalt without csp headers.
-  const csp::CSPHeaderPolicy require_csp_;
+  const csp::CSPHeaderPolicy csp_header_policy_;
 
   const loader::Decoder::OnCompleteFunction load_complete_callback_;
 

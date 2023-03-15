@@ -27,6 +27,7 @@
 #include "base/optional.h"
 #include "base/strings/stringprintf.h"
 #include "base/synchronization/waitable_event.h"
+#include "base/threading/thread_checker.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/c_val.h"
 #include "cobalt/base/debugger_hooks.h"
@@ -310,8 +311,6 @@ class WebModule::Impl {
   void ProcessOnRenderTreeRasterized(const base::TimeTicks& produced_time,
                                      const base::TimeTicks& rasterized_time);
 
-  void OnCspPolicyChanged();
-
   scoped_refptr<script::GlobalEnvironment> global_environment() {
     DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
     return web_context_->global_environment();
@@ -533,7 +532,7 @@ WebModule::Impl::Impl(web::Context* web_context, const ConstructionData& data)
   dom_parser_.reset(new dom_parser::Parser(
       kDOMMaxElementDepth,
       base::Bind(&WebModule::Impl::OnLoadComplete, base::Unretained(this)),
-      data.options.require_csp));
+      data.options.csp_header_policy));
   DCHECK(dom_parser_);
 
   on_before_unload_fired_but_not_handled_ =
@@ -657,9 +656,10 @@ WebModule::Impl::Impl(web::Context* web_context, const ConstructionData& data)
       base::GetSystemLanguageScript(), data.options.navigation_callback,
       base::Bind(&WebModule::Impl::OnLoadComplete, base::Unretained(this)),
       web_context_->network_module()->cookie_jar(),
-      web_context_->network_module()->GetPostSender(), data.options.require_csp,
-      data.options.csp_enforcement_mode,
-      base::Bind(&WebModule::Impl::OnCspPolicyChanged, base::Unretained(this)),
+      web::CspDelegate::Options(web_context_->network_module()->GetPostSender(),
+                                data.options.csp_header_policy,
+                                data.options.csp_enforcement_type,
+                                data.options.csp_insecure_allowed_token),
       base::Bind(&WebModule::Impl::OnRanAnimationFrameCallbacks,
                  base::Unretained(this)),
       data.window_close_callback, data.window_minimize_callback,
@@ -723,7 +723,7 @@ WebModule::Impl::Impl(web::Context* web_context, const ConstructionData& data)
   DCHECK(layout_manager_);
 
 #if !defined(COBALT_FORCE_CSP)
-  if (data.options.csp_enforcement_mode == web::kCspEnforcementDisable) {
+  if (data.options.csp_enforcement_type == web::kCspEnforcementDisable) {
     // If CSP is disabled, enable eval(). Otherwise, it will be enabled by
     // a CSP directive.
     web_context_->global_environment()->EnableEval();
@@ -1036,21 +1036,6 @@ void WebModule::Impl::SetUnloadEventTimingInfo(base::TimeTicks start_time,
   DCHECK(window_);
   if (window_->document()) {
     window_->document()->SetUnloadEventTimingInfo(start_time, end_time);
-  }
-}
-
-void WebModule::Impl::OnCspPolicyChanged() {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  DCHECK(is_running_);
-  DCHECK(window_);
-  DCHECK(window_->csp_delegate());
-
-  std::string eval_disabled_message;
-  bool allow_eval = window_->csp_delegate()->AllowEval(&eval_disabled_message);
-  if (allow_eval) {
-    web_context_->global_environment()->EnableEval();
-  } else {
-    web_context_->global_environment()->DisableEval(eval_disabled_message);
   }
 }
 

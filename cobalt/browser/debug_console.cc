@@ -121,7 +121,7 @@ DebugConsole::DebugConsole(
   web_module_options.image_cache_capacity = 0;
   // Disable CSP for the Debugger's WebModule. This will also allow eval() in
   // javascript.
-  web_module_options.csp_enforcement_mode = web::kCspEnforcementDisable;
+  web_module_options.csp_enforcement_type = web::kCspEnforcementDisable;
   web_module_options.csp_insecure_allowed_token =
       web::CspDelegateFactory::GetInsecureAllowedToken();
 

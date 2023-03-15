@@ -70,6 +70,7 @@ class ServiceWorkerObject
 
     std::string name;
     web::Agent::Options web_options;
+    web::WindowOrWorkerGlobalScope::Options global_scope_options;
     ServiceWorkerRegistrationObject* containing_service_worker_registration;
   };
 

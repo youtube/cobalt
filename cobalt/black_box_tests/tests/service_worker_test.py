@@ -23,6 +23,19 @@ from cobalt.black_box_tests.threaded_web_server import ThreadedWebServer
 # The base path of the requested assets is the parent directory.
 _SERVER_ROOT_PATH = os.path.join(os.path.dirname(__file__), os.pardir)
 
+paths_to_headers = {
+    'service_worker_test.html': {
+        'Content-Security-Policy':
+            "script-src 'unsafe-inline' 'self'; worker-src 'self'"
+    },
+    'service_worker_test_worker.js': {
+        'Content-Security-Policy':
+            "script-src 'unsafe-inline' 'self'; connect-src 'self'"
+    }
+}
+
+#path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+
 
 class ServiceWorkerRequestDetector(MakeRequestHandlerClass(_SERVER_ROOT_PATH)):
   """Proxies everything to SimpleHTTPRequestHandler, except some paths."""
@@ -32,6 +45,11 @@ class ServiceWorkerRequestDetector(MakeRequestHandlerClass(_SERVER_ROOT_PATH)):
     SimpleHTTPServer.SimpleHTTPRequestHandler.end_headers(self)
 
   def send_header(self, header, value):
+    for partial_path, headers in paths_to_headers.items():
+      if partial_path in self.path:
+        for header_key, header_value in headers.items():
+          SimpleHTTPServer.SimpleHTTPRequestHandler.send_header(
+              self, header_key, header_value)
     # Ensure that the Content-Type for paths ending in '.js' are always
     # 'text/javascript'.
     if header == 'Content-Type' and self.path.endswith('.js'):

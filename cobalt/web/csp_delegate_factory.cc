@@ -12,16 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "cobalt/web/csp_delegate_factory.h"
+
 #include <memory>
 #include <utility>
-
-#include "cobalt/web/csp_delegate_factory.h"
 
 #include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/threading/thread_local.h"
-
 #include "cobalt/web/csp_delegate.h"
+#include "cobalt/web/csp_violation_reporter.h"
+#include "cobalt/web/window_or_worker_global_scope.h"
 
 namespace cobalt {
 namespace web {
@@ -48,7 +49,7 @@ bool InsecureAllowed(int token) {
 
 CspDelegate* CreateInsecureDelegate(
     std::unique_ptr<CspViolationReporter> violation_reporter, const GURL& url,
-    csp::CSPHeaderPolicy require_csp,
+    csp::CSPHeaderPolicy header_policy,
     const base::Closure& policy_changed_callback, int insecure_allowed_token) {
   if (InsecureAllowed(insecure_allowed_token)) {
     return new CspDelegateInsecure();
@@ -60,10 +61,10 @@ CspDelegate* CreateInsecureDelegate(
 
 CspDelegate* CreateSecureDelegate(
     std::unique_ptr<CspViolationReporter> violation_reporter, const GURL& url,
-    csp::CSPHeaderPolicy require_csp,
+    csp::CSPHeaderPolicy header_policy,
     const base::Closure& policy_changed_callback, int insecure_allowed_token) {
-  return new CspDelegateSecure(std::move(violation_reporter), url, require_csp,
-                               policy_changed_callback);
+  return new CspDelegateSecure(std::move(violation_reporter), url,
+                               header_policy, policy_changed_callback);
 }
 }  // namespace
 
@@ -84,14 +85,16 @@ CspDelegateFactory::CspDelegateFactory() {
 #endif  // !defined(COBALT_FORCE_CSP)
 }
 
-std::unique_ptr<CspDelegate> CspDelegateFactory::Create(
-    CspEnforcementType type,
-    std::unique_ptr<CspViolationReporter> violation_reporter, const GURL& url,
-    csp::CSPHeaderPolicy require_csp,
-    const base::Closure& policy_changed_callback, int insecure_allowed_token) {
-  std::unique_ptr<CspDelegate> delegate(
-      method_[type](std::move(violation_reporter), url, require_csp,
-                    policy_changed_callback, insecure_allowed_token));
+std::unique_ptr<CspDelegate> CspDelegateFactory::CreateDelegate(
+    WindowOrWorkerGlobalScope* global, const CspDelegate::Options& options,
+    const base::Closure& policy_changed_callback) {
+  std::unique_ptr<CspViolationReporter> violation_reporter(
+      new CspViolationReporter(global, options.post_sender));
+  std::unique_ptr<CspDelegate> delegate(method_[options.enforcement_type](
+      std::move(violation_reporter),
+      (global ? global->environment_settings()->creation_url() : GURL()),
+      options.header_policy, policy_changed_callback,
+      options.insecure_allowed_token));
   return delegate;
 }
 

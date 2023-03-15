@@ -34,18 +34,18 @@ class Parser : public dom::Parser {
       : dom_max_element_depth_(kDefaultDOMMaxElementDepth),
         ALLOW_THIS_IN_INITIALIZER_LIST(load_complete_callback_(
             base::Bind(&Parser::LoadCompleteCallback, base::Unretained(this)))),
-        require_csp_(csp::kCSPRequired) {}
+        csp_header_policy_(csp::kCSPRequired) {}
   explicit Parser(
       const loader::Decoder::OnCompleteFunction& load_complete_callback)
       : dom_max_element_depth_(kDefaultDOMMaxElementDepth),
         load_complete_callback_(load_complete_callback),
-        require_csp_(csp::kCSPRequired) {}
+        csp_header_policy_(csp::kCSPRequired) {}
   Parser(const int dom_max_element_depth,
          const loader::Decoder::OnCompleteFunction& load_complete_callback,
-         csp::CSPHeaderPolicy require_csp)
+         csp::CSPHeaderPolicy csp_header_policy)
       : dom_max_element_depth_(dom_max_element_depth),
         load_complete_callback_(load_complete_callback),
-        require_csp_(require_csp) {}
+        csp_header_policy_(csp_header_policy) {}
   ~Parser() override {}
 
   // From dom::Parser.
@@ -91,7 +91,7 @@ class Parser : public dom::Parser {
 
   // Cobalt user can specify if they want to forbid Cobalt rendering without csp
   // headers.
-  csp::CSPHeaderPolicy require_csp_;
+  csp::CSPHeaderPolicy csp_header_policy_;
 
   DISALLOW_COPY_AND_ASSIGN(Parser);
 };
