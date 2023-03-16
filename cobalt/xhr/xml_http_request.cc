@@ -519,7 +519,7 @@ void XMLHttpRequestImpl::Send(
                                ->IsServiceWorker();
   if (!in_service_worker && method_ == net::URLFetcher::GET) {
     loader::FetchInterceptorCoordinator::GetInstance()->TryIntercept(
-        request_url_, task_runner_,
+        request_url_, /*main_resource=*/false, task_runner_,
         base::BindOnce(&XMLHttpRequestImpl::SendIntercepted, AsWeakPtr()),
         base::BindOnce(&XMLHttpRequestImpl::ReportLoadTimingInfo, AsWeakPtr()),
         base::BindOnce(&XMLHttpRequestImpl::SendFallback, AsWeakPtr(),

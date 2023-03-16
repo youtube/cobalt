@@ -72,7 +72,7 @@ class ServiceWorkerGlobalScope : public WorkerGlobalScope,
   script::HandlePromiseVoid SkipWaiting();
 
   void StartFetch(
-      const GURL& url,
+      const GURL& url, bool main_resource,
       scoped_refptr<base::SingleThreadTaskRunner> callback_task_runner,
       base::OnceCallback<void(std::unique_ptr<std::string>)> callback,
       base::OnceCallback<void(const net::LoadTimingInfo&)>

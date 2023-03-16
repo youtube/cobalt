@@ -12,12 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "cobalt/loader/fetcher_factory.h"
+
 #include <memory>
 #include <string>
 
 #include "base/optional.h"
 #include "base/run_loop.h"
-#include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/loader/file_fetcher.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -83,7 +84,8 @@ TEST_F(FetcherFactoryTest, InvalidURL) {
   StubFetcherHandler stub_fetcher_handler(&run_loop);
 
   fetcher_ = fetcher_factory_.CreateFetcher(
-      GURL("invalid-url"), disk_cache::kOther, &stub_fetcher_handler);
+      GURL("invalid-url"), /*main_resource=*/false, disk_cache::kOther,
+      &stub_fetcher_handler);
   EXPECT_TRUE(fetcher_);
 
   run_loop.Run();
@@ -95,8 +97,9 @@ TEST_F(FetcherFactoryTest, EmptyFileURL) {
   base::RunLoop run_loop;
   StubFetcherHandler stub_fetcher_handler(&run_loop);
 
-  fetcher_ = fetcher_factory_.CreateFetcher(
-      GURL("file:///"), disk_cache::kOther, &stub_fetcher_handler);
+  fetcher_ =
+      fetcher_factory_.CreateFetcher(GURL("file:///"), /*main_resource=*/false,
+                                     disk_cache::kOther, &stub_fetcher_handler);
   EXPECT_TRUE(fetcher_);
 
   run_loop.Run();
@@ -109,7 +112,8 @@ TEST_F(FetcherFactoryTest, FileURLCannotConvertToFilePath) {
   StubFetcherHandler stub_fetcher_handler(&run_loop);
 
   fetcher_ = fetcher_factory_.CreateFetcher(
-      GURL("file://file.txt"), disk_cache::kOther, &stub_fetcher_handler);
+      GURL("file://file.txt"), /*main_resource=*/false, disk_cache::kOther,
+      &stub_fetcher_handler);
   EXPECT_TRUE(fetcher_);
 
   run_loop.Run();
@@ -124,14 +128,14 @@ TEST_F(FetcherFactoryTest, MultipleCreations) {
   base::RunLoop run_loop;
   StubFetcherHandler stub_fetcher_handler(&run_loop);
 
-  fetcher_ =
-      fetcher_factory_.CreateFetcher(GURL("file:///nonempty-url-1"),
-                                     disk_cache::kOther, &stub_fetcher_handler);
+  fetcher_ = fetcher_factory_.CreateFetcher(
+      GURL("file:///nonempty-url-1"), /*main_resource=*/false,
+      disk_cache::kOther, &stub_fetcher_handler);
   EXPECT_TRUE(fetcher_);
 
-  fetcher_ =
-      fetcher_factory_.CreateFetcher(GURL("file:///nonempty-url-2"),
-                                     disk_cache::kOther, &stub_fetcher_handler);
+  fetcher_ = fetcher_factory_.CreateFetcher(
+      GURL("file:///nonempty-url-2"), /*main_resource=*/false,
+      disk_cache::kOther, &stub_fetcher_handler);
   EXPECT_TRUE(fetcher_);
   run_loop.Run();
   EXPECT_EQ(fetcher_.get(), stub_fetcher_handler.fetcher());

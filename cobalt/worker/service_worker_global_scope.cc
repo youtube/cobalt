@@ -34,6 +34,7 @@
 
 namespace cobalt {
 namespace worker {
+
 ServiceWorkerGlobalScope::ServiceWorkerGlobalScope(
     script::EnvironmentSettings* settings, ServiceWorkerObject* service_worker)
     : WorkerGlobalScope(settings),
@@ -190,7 +191,7 @@ script::HandlePromiseVoid ServiceWorkerGlobalScope::SkipWaiting() {
 }
 
 void ServiceWorkerGlobalScope::StartFetch(
-    const GURL& url,
+    const GURL& url, bool main_resource,
     scoped_refptr<base::SingleThreadTaskRunner> callback_task_runner,
     base::OnceCallback<void(std::unique_ptr<std::string>)> callback,
     base::OnceCallback<void(const net::LoadTimingInfo&)>
@@ -205,17 +206,30 @@ void ServiceWorkerGlobalScope::StartFetch(
   if (base::MessageLoop::current() !=
       environment_settings()->context()->message_loop()) {
     environment_settings()->context()->message_loop()->task_runner()->PostTask(
-        FROM_HERE,
-        base::BindOnce(&ServiceWorkerGlobalScope::StartFetch,
-                       base::Unretained(this), url, callback_task_runner,
-                       std::move(callback), std::move(report_load_timing_info),
-                       std::move(fallback)));
+        FROM_HERE, base::BindOnce(&ServiceWorkerGlobalScope::StartFetch,
+                                  base::Unretained(this), url, main_resource,
+                                  callback_task_runner, std::move(callback),
+                                  std::move(report_load_timing_info),
+                                  std::move(fallback)));
     return;
   }
   if (!service_worker()) {
     callback_task_runner->PostTask(FROM_HERE, std::move(fallback));
     return;
   }
+
+  auto* registration =
+      service_worker_object_->containing_service_worker_registration();
+  if (registration && (main_resource || registration->stale())) {
+    worker::ServiceWorkerJobs* jobs =
+        environment_settings()->context()->service_worker_jobs();
+    jobs->message_loop()->task_runner()->PostTask(
+        FROM_HERE,
+        base::BindOnce(&ServiceWorkerJobs::SoftUpdate, base::Unretained(jobs),
+                       base::Unretained(registration),
+                       /*force_bypass_cache=*/false));
+  }
+
   // TODO: handle the following steps in
   //       https://www.w3.org/TR/2022/CRD-service-workers-20220712/#handle-fetch.
   // 22. If activeWorker’s state is "activating", wait for activeWorker’s state

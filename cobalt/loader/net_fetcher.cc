@@ -91,7 +91,7 @@ bool AllowMimeTypeAsScript(const std::string& mime_type) {
 
 }  // namespace
 
-NetFetcher::NetFetcher(const GURL& url,
+NetFetcher::NetFetcher(const GURL& url, bool main_resource,
                        const csp::SecurityCallback& security_callback,
                        Handler* handler,
                        const network::NetworkModule* network_module,
@@ -106,7 +106,8 @@ NetFetcher::NetFetcher(const GURL& url,
       request_script_(options.resource_type == disk_cache::kUncompiledScript),
       task_runner_(base::MessageLoop::current()->task_runner()),
       skip_fetch_intercept_(options.skip_fetch_intercept),
-      will_destroy_current_message_loop_(false) {
+      will_destroy_current_message_loop_(false),
+      main_resource_(main_resource) {
   url_fetcher_ = net::URLFetcher::Create(url, options.request_method, this);
   if (!options.headers.IsEmpty()) {
     url_fetcher_->SetExtraRequestHeaders(options.headers.ToString());
@@ -158,7 +159,7 @@ void NetFetcher::Start() {
       return;
     }
     FetchInterceptorCoordinator::GetInstance()->TryIntercept(
-        original_url, task_runner_,
+        original_url, main_resource_, task_runner_,
         base::BindOnce(&NetFetcher::OnFetchIntercepted, AsWeakPtr()),
         base::BindOnce(&NetFetcher::ReportLoadTimingInfo, AsWeakPtr()),
         base::BindOnce(&NetFetcher::InterceptFallback, AsWeakPtr()));
