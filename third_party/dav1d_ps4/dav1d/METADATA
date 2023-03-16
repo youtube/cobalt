@@ -1,0 +1,17 @@
+name: "libdav1d"
+description:
+  "Subtree at third_party/dav1d_ps4/dav1d"
+
+third_party {
+  url {
+    type: GIT
+    value: "https://code.videolan.org/videolan/dav1d"
+  }
+  version: "061ac9aee82da23ebba5321f0625cac8bcb615ff"
+  last_upgrade_date {
+    year: 2021
+    month: 2
+    day: 8
+  }
+  license_type: NOTICE
+}
