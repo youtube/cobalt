@@ -19,7 +19,7 @@ option optimize_for = LITE_RUNTIME;
 package crashpad.wrapper;
 
 // Annotations that can be shared between Cobalt and Crashpad handler processes.
-// Next id: 5
+// Next id: 6
 message CrashpadAnnotations {
   // The product name.
   string prod = 1;
@@ -29,6 +29,9 @@ message CrashpadAnnotations {
 
   // The User-Agent string that identifies brand, model, etc.
   string user_agent_string = 3;
+
+  // The device series identifier that is used for device authentication.
+  string cert_scope = 5;
 
   // Annotations with keys that are unknown at compile time.
   map<string, string> runtime_annotations = 4;
