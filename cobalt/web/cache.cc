@@ -401,7 +401,9 @@ void Cache::OnFetchCompleted(uint32_t key, bool success) {
 void Cache::OnFetchCompletedMainThread(uint32_t key, bool success) {
   auto* fetcher = fetchers_[key].get();
   auto* promises = &(fetch_contexts_[key].first);
-  if (!success) {
+  int status = fetcher->response_code();
+  // |status| of 200-299 excluding 206 "Partial Content" should be cached.
+  if (!success || status == 206 || status < 200 || status > 299) {
     {
       base::AutoLock auto_lock(*fetcher->lock());
       while (promises->size() > 0) {
@@ -417,21 +419,24 @@ void Cache::OnFetchCompletedMainThread(uint32_t key, bool success) {
     base::DictionaryValue metadata;
     metadata.SetKey("url", base::Value(fetcher->url().spec()));
     base::DictionaryValue options;
-    options.SetKey("status", base::Value(fetcher->response_code()));
+    options.SetKey("status", base::Value(status));
     options.SetKey("statusText", base::Value(fetcher->status_text()));
     options.SetKey("headers", std::move(fetcher->headers()));
     metadata.SetKey("options", std::move(options));
 
     cache::Cache::GetInstance()->Store(
         kResourceType, key, fetcher->BufferToVector(), std::move(metadata));
-    if (fetcher->mime_type() == "text/javascript") {
-      auto* environment_settings = fetch_contexts_[key].second;
-      auto* global_environment = get_global_environment(environment_settings);
-      auto* isolate = global_environment->isolate();
-      script::v8c::EntryScope entry_scope(isolate);
-      global_environment->Compile(script::SourceCode::CreateSourceCode(
-          fetcher->BufferToString(), base::SourceLocation(__FILE__, 1, 1)));
-    }
+  }
+  if (fetcher->mime_type() == "text/javascript") {
+    auto* environment_settings = fetch_contexts_[key].second;
+    auto* global_environment = get_global_environment(environment_settings);
+    auto* isolate = global_environment->isolate();
+    script::v8c::EntryScope entry_scope(isolate);
+    // TODO: compile async or maybe don't cache if compile fails.
+    global_environment->Compile(script::SourceCode::CreateSourceCode(
+        fetcher->BufferToString(), base::SourceLocation(__FILE__, 1, 1)));
+  }
+  {
     base::AutoLock auto_lock(*fetcher->lock());
     while (promises->size() > 0) {
       promises->back()->value().Resolve();
