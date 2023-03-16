@@ -54,8 +54,9 @@ class NetFetcher : public Fetcher,
     bool skip_fetch_intercept;
   };
 
-  NetFetcher(const GURL& url, const csp::SecurityCallback& security_callback,
-             Handler* handler, const network::NetworkModule* network_module,
+  NetFetcher(const GURL& url, bool main_resource,
+             const csp::SecurityCallback& security_callback, Handler* handler,
+             const network::NetworkModule* network_module,
              const Options& options, RequestMode request_mode,
              const Origin& origin);
   ~NetFetcher() override;
@@ -131,6 +132,7 @@ class NetFetcher : public Fetcher,
   scoped_refptr<base::SingleThreadTaskRunner> const task_runner_;
   bool skip_fetch_intercept_;
   starboard::atomic_bool will_destroy_current_message_loop_;
+  bool main_resource_;
 
   DISALLOW_COPY_AND_ASSIGN(NetFetcher);
 };

@@ -84,15 +84,17 @@ FetcherFactory::FetcherFactory(
       read_cache_callback_(read_cache_callback) {}
 
 std::unique_ptr<Fetcher> FetcherFactory::CreateFetcher(
-    const GURL& url, const disk_cache::ResourceType type,
+    const GURL& url, bool main_resource, const disk_cache::ResourceType type,
     Fetcher::Handler* handler) {
-  return CreateSecureFetcher(url, csp::SecurityCallback(), kNoCORSMode,
-                             Origin(), type, net::HttpRequestHeaders(),
+  return CreateSecureFetcher(url, main_resource, csp::SecurityCallback(),
+                             kNoCORSMode, Origin(), type,
+                             net::HttpRequestHeaders(),
                              /*skip_fetch_intercept=*/false, handler);
 }
 
 std::unique_ptr<Fetcher> FetcherFactory::CreateSecureFetcher(
-    const GURL& url, const csp::SecurityCallback& url_security_callback,
+    const GURL& url, bool main_resource,
+    const csp::SecurityCallback& url_security_callback,
     RequestMode request_mode, const Origin& origin,
     const disk_cache::ResourceType type, net::HttpRequestHeaders headers,
     bool skip_fetch_intercept, Fetcher::Handler* handler) {
@@ -112,8 +114,8 @@ std::unique_ptr<Fetcher> FetcherFactory::CreateSecureFetcher(
     options.headers = std::move(headers);
     options.skip_fetch_intercept = skip_fetch_intercept;
     return std::unique_ptr<Fetcher>(
-        new NetFetcher(url, url_security_callback, handler, network_module_,
-                       options, request_mode, origin));
+        new NetFetcher(url, main_resource, url_security_callback, handler,
+                       network_module_, options, request_mode, origin));
   }
 
   if (url.SchemeIs("blob") && !blob_resolver_.is_null()) {

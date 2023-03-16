@@ -566,8 +566,7 @@ void ServiceWorkerJobs::Register(Job* job) {
 }
 
 void ServiceWorkerJobs::SoftUpdate(
-    scoped_refptr<ServiceWorkerRegistrationObject> registration,
-    bool force_bypass_cache) {
+    ServiceWorkerRegistrationObject* registration, bool force_bypass_cache) {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerJobs::SoftUpdate()");
   DCHECK_EQ(message_loop(), base::MessageLoop::current());
   DCHECK(registration);
@@ -855,6 +854,14 @@ void ServiceWorkerJobs::UpdateOnContentProduced(
   DCHECK(updated_script_content);
   //   8.19. If response’s cache state is not "local", set registration’s last
   //         update check time to the current time.
+  scoped_refptr<ServiceWorkerRegistrationObject> registration =
+      scope_to_registration_map_->GetRegistration(state->job->storage_key,
+                                                  state->job->scope_url);
+  if (registration) {
+    registration->set_last_update_check_time(base::Time::Now());
+    scope_to_registration_map_->PersistRegistration(registration->storage_key(),
+                                                    registration->scope_url());
+  }
   // TODO(b/228904017):
   //   8.20. Set hasUpdatedResources to true if any of the following are true:
   //          - newestWorker is null.

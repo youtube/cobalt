@@ -314,8 +314,8 @@ class ServiceWorkerJobs {
   void ClearRegistration(ServiceWorkerRegistrationObject* registration);
 
   // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#soft-update
-  void SoftUpdate(scoped_refptr<ServiceWorkerRegistrationObject> registration,
-                  bool force_bypass_cache = false);
+  void SoftUpdate(ServiceWorkerRegistrationObject* registration,
+                  bool force_bypass_cache);
 
   void EnsureServiceWorkerStarted(const url::Origin& storage_key,
                                   const GURL& client_url,

@@ -76,10 +76,10 @@ Loader::FetcherCreator ScriptLoaderFactory::MakeFetcherCreator(
     bool skip_fetch_intercept) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
-  return base::Bind(&FetcherFactory::CreateSecureFetcher,
-                    base::Unretained(fetcher_factory_), url,
-                    url_security_callback, request_mode, origin, type,
-                    std::move(headers), skip_fetch_intercept);
+  return base::Bind(
+      &FetcherFactory::CreateSecureFetcher, base::Unretained(fetcher_factory_),
+      url, /*main_resource=*/false, url_security_callback, request_mode, origin,
+      type, std::move(headers), skip_fetch_intercept);
 }
 
 void ScriptLoaderFactory::OnLoaderCreated(Loader* loader) {

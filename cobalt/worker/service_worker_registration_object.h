@@ -79,14 +79,13 @@ class ServiceWorkerRegistrationObject
   }
 
   // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#service-worker-registration-stale
-  bool stale() {
+  bool stale() const {
     return !last_update_check_time_.is_null() &&
            (base::Time::Now() - last_update_check_time_).InSeconds() >
                kStaleServiceWorkerRegistrationTimeout;
   }
 
-  base::Time last_update_check_time() { return last_update_check_time_; }
-
+  base::Time last_update_check_time() const { return last_update_check_time_; }
   void set_last_update_check_time(base::Time time) {
     last_update_check_time_ = time;
   }
@@ -98,8 +97,7 @@ class ServiceWorkerRegistrationObject
 
   base::WaitableEvent* done_event() { return &done_event_; }
 
-  bool is_persisted() { return is_persisted_; }
-
+  bool is_persisted() const { return is_persisted_; }
   void set_is_persisted(bool value) { is_persisted_ = value; }
 
  private:
