@@ -41,7 +41,6 @@ jobs:
           results_file: results.sarif
           results_format: sarif
           # For more info check https://github.com/ossf/scorecard-action#authentication-with-pat.
-          repo_token: ${{ secrets.SCORECARD_TOKEN }}
           publish_results: true
 
       # Upload the results as artifacts (optional). Commenting out will disable uploads of run results in SARIF
