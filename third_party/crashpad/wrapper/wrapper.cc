@@ -36,6 +36,7 @@ namespace wrapper {
 const char kCrashpadVersionKey[]  = "ver";
 const char kCrashpadProductKey[]  = "prod";
 const char kCrashpadUserAgentStringKey[]  = "user_agent_string";
+const char kCrashpadCertScopeKey[] = "cert_scope";
 
 namespace {
 // TODO: Get evergreen information from installation.
@@ -164,6 +165,13 @@ std::map<std::string, std::string> GetPlatformInfo() {
     platform_info.insert({"model", value.data()});
   }
 
+  result = SbSystemGetProperty(kSbSystemPropertyCertificationScope,
+                               value.data(),
+                               kSystemPropertyMaxLength);
+  if (result) {
+    platform_info.insert({kCrashpadCertScopeKey, value.data()});
+  }
+
   return platform_info;
 }
 
@@ -183,7 +191,9 @@ void InstallCrashpadHandler(bool start_at_crash) {
   const base::FilePath default_metrics_dir;
   const std::string product_name = GetProductName();
   std::map<std::string, std::string> default_annotations = {
-      {"ver", kCrashpadVersion}, {"prod", product_name}};
+      {kCrashpadVersionKey, kCrashpadVersion},
+      {kCrashpadProductKey, product_name}
+  };
   const std::vector<std::string> default_arguments = {};
 
   const std::map<std::string, std::string> platform_info = GetPlatformInfo();
