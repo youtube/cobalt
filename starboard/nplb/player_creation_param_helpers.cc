@@ -92,6 +92,14 @@ AudioStreamInfo CreateAudioStreamInfo(SbMediaAudioCodec codec) {
       break;
     }
 #endif  // SB_API_VERSION >= 14
+#if SB_API_VERSION >= SB_MEDIA_IAMF_SUPPORT_API_VERSION
+    case kSbMediaAudioCodecIamf: {
+      audio_stream_info.number_of_channels = 2;
+      audio_stream_info.samples_per_second = 48000;
+      audio_stream_info.bits_per_sample = 32;
+      break;
+    }
+#endif  // SB_API_VERSION >= SB_MEDIA_IAMF_SUPPORT_API_VERSION
   }
   return audio_stream_info;
 }

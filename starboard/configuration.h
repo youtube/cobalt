@@ -76,6 +76,9 @@
 // Minimum Starboard version for modular toolchain builds.
 #define SB_MINIMUM_API_VERSION_FOR_SB_MODULAR_BUILD SB_EXPERIMENTAL_API_VERSION
 
+// Support the IAMF audio codec.
+#define SB_MEDIA_IAMF_SUPPORT_API_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // This configuration is set for modular builds, which have:
 //   1. Application binary built as a shared library.
 //   2. Either

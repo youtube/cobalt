@@ -36,6 +36,9 @@ specific to the stream (i.e. don't change per access unit) to
 ### Renamed SbPlayerWriteSample2() to SbPlayerWriteSamples()
 To better reflect the fact that it may write multiple samples in one call.
 
+### Add IAMF value to SbMediaAudioCodec.
+This makes it possible to support IAMF in the future.
+
 ### Added SB_MODULAR_BUILD for supporting modular builds
 This configuration is set for modular builds, which have:
   1. Application binary built as a shared library.

@@ -68,6 +68,9 @@ typedef enum SbMediaAudioCodec {
   kSbMediaAudioCodecFlac,
   kSbMediaAudioCodecPcm,
 #endif  // SB_API_VERSION >= 14
+#if SB_API_VERSION >= SB_MEDIA_IAMF_SUPPORT_API_VERSION
+  kSbMediaAudioCodecIamf,
+#endif  // SB_API_VERSION >= SB_MEDIA_IAMF_SUPPORT_API_VERSION
 } SbMediaAudioCodec;
 
 // Indicates how confident the device is that it can play media resources of the

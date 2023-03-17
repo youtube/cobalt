@@ -609,6 +609,10 @@ const char* GetMediaAudioCodecName(SbMediaAudioCodec codec) {
     case kSbMediaAudioCodecPcm:
       return "pcm";
 #endif  // SB_API_VERSION >= 14
+#if SB_API_VERSION >= SB_MEDIA_IAMF_SUPPORT_API_VERSION
+    case kSbMediaAudioCodecIamf:
+      return "iamf";
+#endif  // SB_API_VERSION >= SB_MEDIA_IAMF_SUPPORT_API_VERSION
   }
   SB_NOTREACHED();
   return "invalid";

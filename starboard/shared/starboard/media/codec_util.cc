@@ -99,6 +99,11 @@ SbMediaAudioCodec GetAudioCodecFromString(const char* codec) {
     return kSbMediaAudioCodecFlac;
   }
 #endif  // SB_API_VERSION >= 14
+#if SB_API_VERSION >= SB_MEDIA_IAMF_SUPPORT_API_VERSION
+  if (strncmp(codec, "iamf.", 5) == 0) {
+    return kSbMediaAudioCodecIamf;
+  }
+#endif  // SB_API_VERSION >= SB_MEDIA_IAMF_SUPPORT_API_VERSION
   return kSbMediaAudioCodecNone;
 }
 

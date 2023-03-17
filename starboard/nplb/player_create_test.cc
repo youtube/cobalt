@@ -199,6 +199,9 @@ TEST_P(SbPlayerTest, MultiPlayer) {
     kSbMediaAudioCodecFlac,
     kSbMediaAudioCodecPcm,
 #endif  // SB_API_VERSION >= 14
+#if SB_API_VERSION >= SB_MEDIA_IAMF_SUPPORT_API_VERSION
+    kSbMediaAudioCodecIamf,
+#endif  // SB_API_VERSION >= SB_MEDIA_IAMF_SUPPORT_API_VERSION
   };
 
   // TODO: turn this into a macro.
@@ -218,6 +221,9 @@ TEST_P(SbPlayerTest, MultiPlayer) {
     case kAudioCodecs[7]:
     case kAudioCodecs[8]:
 #endif
+#if SB_API_VERSION >= SB_MEDIA_IAMF_SUPPORT_API_VERSION
+    case kAudioCodecs[9]:
+#endif  // SB_API_VERSION >= SB_MEDIA_IAMF_SUPPORT_API_VERSION
       break;
   }
 
