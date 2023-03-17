@@ -15,7 +15,7 @@
 import("//build/config/compiler/compiler.gni")
 
 config("base") {
-  defines = []
+  defines = [ "USE_COBALT_CUSTOMIZATIONS" ]
 
   if (is_debug) {
     defines += [

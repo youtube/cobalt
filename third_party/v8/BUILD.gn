@@ -419,10 +419,6 @@ config("internal_config_base") {
       "DISABLE_GRAPHS_STARBOARD",
       "DISABLE_UNWIND_STARBOARD",
 
-      # On host build, V8_OS_STARBOARD or STARBOARD is not defined. We need a
-      # macro to distinguish Cobalt-only configuraitons.
-      "COMPILE_FOR_STARBOARD",
-
       # "DISABLE_WASM_STARBOARD",
       "DISABLE_WASM_COMPILER_ISSUE_STARBOARD",
       "NO_ARRAY_MOVE_STARBOARD",
@@ -926,7 +922,8 @@ config("toolchain") {
   } else if (target_os == "mac") {
     defines += [ "V8_HAVE_TARGET_OS" ]
     defines += [ "V8_TARGET_OS_MACOSX" ]
-  } else if (target_os == "win") {
+  } else if (target_os == "win" ||
+             (use_cobalt_customizations && target_os == "winuwp")) {
     defines += [ "V8_HAVE_TARGET_OS" ]
     defines += [ "V8_TARGET_OS_WIN" ]
   }

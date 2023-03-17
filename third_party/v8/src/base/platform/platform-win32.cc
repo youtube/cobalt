@@ -1405,7 +1405,7 @@ void OS::AdjustSchedulingParams() {}
 Stack::StackSlot Stack::GetStackStart() {
 // Cobalt sometimes compile on windows x64 for linux arm64 targets. To make
 // host build compile we need the extra check.
-#if defined(V8_TARGET_ARCH_X64) || defined(COMPILE_FOR_STARBOARD)
+#if defined(V8_TARGET_ARCH_X64) || defined(USE_COBALT_CUSTOMIZATIONS)
   return reinterpret_cast<void*>(
       reinterpret_cast<NT_TIB64*>(NtCurrentTeb())->StackBase);
 #elif defined(V8_TARGET_ARCH_32_BIT)

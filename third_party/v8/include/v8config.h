@@ -181,16 +181,13 @@
 # define V8_TARGET_OS_MACOSX
 #endif
 
-#if defined(COMPILE_FOR_STARBOARD)
-// Cobalt
-#if defined(SB_HAS_WINDOWS_CALLING)
-#define V8_TARGET_OS_WIN 1
-#endif
-#else
+// Playstation and Nintendo Switch build on Windows but that is not their
+// target OS.
+#ifndef USE_COBALT_CUSTOMIZATIONS
 #ifdef V8_OS_WIN
 # define V8_TARGET_OS_WIN
 #endif
-#endif  // COMPILE_FOR_STARBOARD
+#endif  // USE_COBALT_CUSTOMIZATIONS
 
 #endif  // V8_HAVE_TARGET_OS
 
