@@ -240,16 +240,16 @@ void ScrollEngine::HandlePointerEventForActiveItem(
     return;
   }
 
+  previous_events_.pop();
+  previous_events_.push(
+      EventPositionWithTimeStamp(current_coordinates, current_time));
+
   auto drag_vector = previous_events_.front().position - current_coordinates;
   if (active_scroll_type_ == ScrollType::Horizontal) {
     drag_vector.set_y(0.0f);
   } else if (active_scroll_type_ == ScrollType::Vertical) {
     drag_vector.set_x(0.0f);
   }
-
-  previous_events_.push(
-      EventPositionWithTimeStamp(current_coordinates, current_time));
-  previous_events_.pop();
 
   active_velocity_ = drag_vector;
 
