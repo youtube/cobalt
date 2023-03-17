@@ -228,7 +228,7 @@ static SB_C_FORCE_INLINE bool SbDrmTicketIsValid(int ticket) {
 // Creates a new DRM system that can be used when constructing an SbPlayer or an
 // SbDecoder.
 //
-// This function returns kSbDrmSystemInvalid if |key_system| is unsupported.
+// This function returns |kSbDrmSystemInvalid| if |key_system| is unsupported.
 //
 // Also see the documentation of SbDrmGenerateSessionUpdateRequest() and
 // SbDrmUpdateSession() for more details.
@@ -284,7 +284,7 @@ SB_EXPORT SbDrmSystem SbDrmCreateSystem(
 //
 // |drm_system|: The DRM system that defines the key system used for the session
 // update request payload as well as the callback function that is called as a
-// result of the function being called.
+// result of the function being called. Must not be |kSbDrmSystemInvalid|.
 //
 // |ticket|: The opaque ID that allows to distinguish callbacks from multiple
 // concurrent calls to SbDrmGenerateSessionUpdateRequest(), which will be passed
@@ -293,9 +293,10 @@ SB_EXPORT SbDrmSystem SbDrmCreateSystem(
 // may result in undefined behavior. The value |kSbDrmTicketInvalid| must not be
 // used.
 //
-// |type|: The case-sensitive type of the session update request payload.
-// |initialization_data|: The data for which the session update request payload
-// is created.
+// |type|: The case-sensitive type of the session update request payload. Must
+//   not be NULL.
+// |initialization_data|: The data for which the session update
+//   request payload is created. Must not be NULL.
 // |initialization_data_size|: The size of the session update request payload.
 SB_EXPORT void SbDrmGenerateSessionUpdateRequest(
     SbDrmSystem drm_system,
@@ -307,8 +308,9 @@ SB_EXPORT void SbDrmGenerateSessionUpdateRequest(
 // Update session with |key|, in |drm_system|'s key system, from the license
 // server response. Calls |session_updated_callback| with |context| and whether
 // the update succeeded. |context| may be used to route callbacks back to an
-// object instance.
+// object instance. The |key| must not be NULL.
 //
+// |drm_system| must not be |kSbDrmSystemInvalid|.
 // |ticket| is the opaque ID that allows to distinguish callbacks from multiple
 // concurrent calls to SbDrmUpdateSession(), which will be passed to
 // |session_updated_callback| as-is. It is the responsibility of the caller to
@@ -320,6 +322,7 @@ SB_EXPORT void SbDrmGenerateSessionUpdateRequest(
 //
 // |drm_system|'s |session_updated_callback| may called either from the current
 // thread before this function returns or from another thread.
+// The |session_id| must not be NULL.
 SB_EXPORT void SbDrmUpdateSession(SbDrmSystem drm_system,
                                   int ticket,
                                   const void* key,
@@ -328,6 +331,9 @@ SB_EXPORT void SbDrmUpdateSession(SbDrmSystem drm_system,
                                   int session_id_size);
 
 // Clear any internal states/resources related to the specified |session_id|.
+//
+// |drm_system| must not be |kSbDrmSystemInvalid|.
+// |session_id| must not be NULL.
 SB_EXPORT void SbDrmCloseSession(SbDrmSystem drm_system,
                                  const void* session_id,
                                  int session_id_size);
@@ -337,6 +343,7 @@ SB_EXPORT void SbDrmCloseSession(SbDrmSystem drm_system,
 // during the life time of |drm_system|.
 //
 // |drm_system|: The DRM system to check if its server certificate is updatable.
+// Must not be |kSbDrmSystemInvalid|.
 SB_EXPORT bool SbDrmIsServerCertificateUpdatable(SbDrmSystem drm_system);
 
 // Update the server certificate of |drm_system|.  The function can be called
@@ -345,14 +352,15 @@ SB_EXPORT bool SbDrmIsServerCertificateUpdatable(SbDrmSystem drm_system);
 // Note that this function should only be called after
 // |SbDrmIsServerCertificateUpdatable| is called first and returned true.
 //
-// |drm_system|: The DRM system whose server certificate is being updated.
+// |drm_system|: The DRM system whose server certificate is being updated. Must
+//   not be |kSbDrmSystemInvalid|.
 // |ticket|: The opaque ID that allows to distinguish callbacks from multiple
-// concurrent calls to SbDrmUpdateServerCertificate(), which will be passed to
-// |server_certificate_updated_callback| as-is. It is the responsibility of the
-// caller to establish ticket uniqueness, issuing multiple requests with the
-// same ticket may result in undefined behavior. The value |kSbDrmTicketInvalid|
-// must not be used.
-// |certificate|: Pointer to the server certificate data.
+//   concurrent calls to SbDrmUpdateServerCertificate(), which will be passed to
+//   |server_certificate_updated_callback| as-is. It is the responsibility of
+//   the caller to establish ticket uniqueness, issuing multiple requests with
+//   the same ticket may result in undefined behavior. The value
+//   |kSbDrmTicketInvalid| must not be used.
+// |certificate|: Pointer to the server certificate data. Must not be NULL.
 // |certificate_size|: Size of the server certificate data.
 SB_EXPORT void SbDrmUpdateServerCertificate(SbDrmSystem drm_system,
                                             int ticket,
@@ -379,7 +387,8 @@ SB_EXPORT void SbDrmUpdateServerCertificate(SbDrmSystem drm_system,
 // It should return NULL when there is no metrics support in the underlying drm
 // system, or when the drm system implementation fails to retrieve the metrics.
 //
-// The caller will never set |size| to NULL.
+// |drm_system| must not be |kSbDrmSystemInvalid|.
+// |size| must not be NULL.
 SB_EXPORT const void* SbDrmGetMetrics(SbDrmSystem drm_system, int* size);
 
 // Destroys |drm_system|, which implicitly removes all keys installed in it and
@@ -391,7 +400,8 @@ SB_EXPORT const void* SbDrmGetMetrics(SbDrmSystem drm_system, int* size);
 // result, if this function is called from a callback that is passed to
 // SbDrmCreateSystem(), a deadlock will occur.
 //
-// |drm_system|: The DRM system to be destroyed.
+// |drm_system|: The DRM system to be destroyed. Must not be
+//   |kSbDrmSystemInvalid|.
 SB_EXPORT void SbDrmDestroySystem(SbDrmSystem drm_system);
 
 #ifdef __cplusplus
