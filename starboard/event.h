@@ -516,7 +516,7 @@ SB_IMPORT void SbEventHandle(const SbEvent* event);
 // This function may be called from any thread, but |callback| is always
 // called from the main Starboard thread, queued with other pending events.
 //
-// |callback|: The callback function to be called.
+// |callback|: The callback function to be called. Must not be NULL.
 // |context|: The context that is passed to the |callback| function.
 // |delay|: The minimum number of microseconds to wait before calling the
 // |callback| function. Set |delay| to |0| to call the callback as soon as
