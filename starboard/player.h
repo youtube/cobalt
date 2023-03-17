@@ -413,7 +413,7 @@ SbPlayerCreate(SbWindow window,
 // Note that it is not the responsibility of this function to verify whether the
 // video described by |creation_param| can be played on the platform, and the
 // implementation should try its best effort to return a valid output mode.
-// |creation_param| will never be NULL.
+// |creation_param| must not be NULL.
 SB_EXPORT SbPlayerOutputMode
 SbPlayerGetPreferredOutputMode(const SbPlayerCreationParam* creation_param);
 
@@ -425,7 +425,7 @@ SbPlayerGetPreferredOutputMode(const SbPlayerCreationParam* creation_param);
 //  * No more other callbacks should be issued after this function returns.
 //  * It is not allowed to pass |player| into any other |SbPlayer| function
 //    once SbPlayerDestroy has been called on that player.
-// |player|: The player to be destroyed.
+// |player|: The player to be destroyed. Must not be |kSbPlayerInvalid|.
 SB_EXPORT void SbPlayerDestroy(SbPlayer player);
 
 // SbPlayerSeek2 is like the deprecated SbPlayerSeek, but accepts SbTime
@@ -448,6 +448,8 @@ SB_EXPORT void SbPlayerDestroy(SbPlayer player);
 //   that was specified when the player was created (SbPlayerCreate).
 //
 // |player|: The SbPlayer in which the seek operation is being performed.
+//   Must not be |kSbPlayerInvalid|.
+
 // |seek_to_timestamp|: The frame at which playback should begin.
 // |ticket|: A user-supplied unique ID that is be passed to all subsequent
 //   |SbPlayerDecoderStatusFunc| calls. (That is the |decoder_status_func|
@@ -472,7 +474,9 @@ SB_EXPORT void SbPlayerSeek2(SbPlayer player,
 //
 // SbPlayerWriteSample2 allows writing of multiple samples in one call.
 //
-// |player|: The player to which the sample is written.
+// |player|: The player to which the sample is written. Must not be
+//   |kSbPlayerInvalid|.
+
 // |sample_type|: The type of sample being written. See the |SbMediaType|
 //   enum in media.h.
 // |sample_infos|: A pointer to an array of SbPlayerSampleInfo with
@@ -526,7 +530,7 @@ SB_EXPORT void SbPlayerWriteEndOfStream(SbPlayer player,
 // frame, implementors should take care to avoid related performance concerns
 // with such frequent calls.
 //
-// |player|: The player that is being resized.
+// |player|: The player that is being resized. Must not be |kSbPlayerInvalid|.
 // |z_index|: The z-index of the player.  When the bounds of multiple players
 //            are overlapped, the one with larger z-index will be rendered on
 //            top of the ones with smaller z-index.
@@ -551,11 +555,14 @@ SB_EXPORT void SbPlayerSetBounds(SbPlayer player,
 // to a rate that is close to |playback_rate| which the implementation supports.
 // It returns false when the playback rate is unchanged, this can happen when
 // |playback_rate| is negative or if it is too high to support.
+//
+// |player| must not be |kSbPlayerInvalid|.
 SB_EXPORT bool SbPlayerSetPlaybackRate(SbPlayer player, double playback_rate);
 
 // Sets the player's volume.
 //
-// |player|: The player in which the volume is being adjusted.
+// |player|: The player in which the volume is being adjusted. Must not be
+//   |kSbPlayerInvalid|.
 // |volume|: The new player volume. The value must be between |0.0| and |1.0|,
 //   inclusive. A value of |0.0| means that the audio should be muted, and a
 //   value of |1.0| means that it should be played at full volume.
@@ -568,7 +575,8 @@ SB_EXPORT void SbPlayerSetVolume(SbPlayer player, double volume);
 // |out_player_info|. This function may be called very frequently and is
 // expected to be inexpensive.
 //
-// |player|: The player about which information is being retrieved.
+// |player|: The player about which information is being retrieved. Must not be
+//   |kSbPlayerInvalid|.
 // |out_player_info|: The information retrieved for the player.
 SB_EXPORT void SbPlayerGetInfo2(SbPlayer player,
                                 SbPlayerInfo2* out_player_info2);
@@ -580,6 +588,8 @@ SB_EXPORT void SbPlayerGetInfo2(SbPlayer player,
 // be used to eventually render the frame.  If this function is called with a
 // |player| object that was created with an output mode other than
 // kSbPlayerOutputModeDecodeToTexture, kSbDecodeTargetInvalid is returned.
+//
+// |player| must not be |kSbPlayerInvalid|.
 SB_EXPORT SbDecodeTarget SbPlayerGetCurrentFrame(SbPlayer player);
 
 #ifdef __cplusplus
