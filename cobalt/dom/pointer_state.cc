@@ -15,6 +15,7 @@
 #include "cobalt/dom/pointer_state.h"
 
 #include <algorithm>
+#include <memory>
 #include <utility>
 
 #include "base/trace_event/trace_event.h"
@@ -295,6 +296,25 @@ base::Optional<uint64> PointerState::GetClientTimeStamp(int32_t pointer_id) {
 
 void PointerState::ClearTimeStamp(int32_t pointer_id) {
   client_time_stamps_.erase(pointer_id);
+}
+
+void PointerState::SetPossibleScrollTargets(
+    int32_t pointer_id,
+    std::unique_ptr<PossibleScrollTargets> possible_scroll_targets) {
+  client_possible_scroll_targets_[pointer_id] =
+      std::move(possible_scroll_targets);
+}
+PossibleScrollTargets* PointerState::GetPossibleScrollTargets(
+    int32_t pointer_id) {
+  auto possible_scroll_targets =
+      client_possible_scroll_targets_.find(pointer_id);
+  if (possible_scroll_targets != client_possible_scroll_targets_.end()) {
+    return possible_scroll_targets->second.get();
+  }
+  return nullptr;
+}
+void PointerState::ClearPossibleScrollTargets(int32_t pointer_id) {
+  client_possible_scroll_targets_.erase(pointer_id);
 }
 
 void PointerState::SetWasCancelled(int32_t pointer_id) {
