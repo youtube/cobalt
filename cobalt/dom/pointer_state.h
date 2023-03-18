@@ -16,6 +16,7 @@
 #define COBALT_DOM_POINTER_STATE_H_
 
 #include <map>
+#include <memory>
 #include <queue>
 #include <set>
 
@@ -30,6 +31,13 @@
 
 namespace cobalt {
 namespace dom {
+
+struct PossibleScrollTargets {
+  scoped_refptr<dom::HTMLElement> scroll_up_target;
+  scoped_refptr<dom::HTMLElement> scroll_down_target;
+  scoped_refptr<dom::HTMLElement> scroll_left_target;
+  scoped_refptr<dom::HTMLElement> scroll_right_target;
+};
 
 // This class contains various state related to pointer and mouse support.
 class PointerState {
@@ -85,6 +93,12 @@ class PointerState {
   base::Optional<uint64> GetClientTimeStamp(int32_t pointer_id);
   void ClearTimeStamp(int32_t pointer_id);
 
+  void SetPossibleScrollTargets(
+      int32_t pointer_id,
+      std::unique_ptr<PossibleScrollTargets> possible_scroll_targets);
+  PossibleScrollTargets* GetPossibleScrollTargets(int32_t pointer_id);
+  void ClearPossibleScrollTargets(int32_t pointer_id);
+
   // Tracks whether a certain pointer was cancelled, i.e. if it panned the
   // page viewport.
   // https://www.w3.org/TR/pointerevents1/#the-pointercancel-event
@@ -96,12 +110,12 @@ class PointerState {
 
  private:
   // Stores pointer events until they are handled after a layout.
-  std::queue<scoped_refptr<web::Event> > pointer_events_;
+  std::queue<scoped_refptr<web::Event>> pointer_events_;
 
   // This stores the elements with target overrides
   //   https://www.w3.org/TR/2015/REC-pointerevents-20150224/#pointer-capture
-  std::map<int32_t, base::WeakPtr<Element> > target_override_;
-  std::map<int32_t, base::WeakPtr<Element> > pending_target_override_;
+  std::map<int32_t, base::WeakPtr<Element>> target_override_;
+  std::map<int32_t, base::WeakPtr<Element>> pending_target_override_;
 
   // Store the set of active pointers.
   //   https://www.w3.org/TR/2015/REC-pointerevents-20150224/#dfn-active-pointer
@@ -113,6 +127,8 @@ class PointerState {
 
   std::map<int32_t, math::Vector2dF> client_coordinates_;
   std::map<int32_t, uint64> client_time_stamps_;
+  std::map<int32_t, std::unique_ptr<PossibleScrollTargets>>
+      client_possible_scroll_targets_;
   std::set<int32_t> client_cancellations_;
 };
 

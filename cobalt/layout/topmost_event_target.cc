@@ -14,6 +14,8 @@
 
 #include "cobalt/layout/topmost_event_target.h"
 
+#include <memory>
+#include <utility>
 #include <vector>
 
 #include "base/optional.h"
@@ -82,19 +84,31 @@ LayoutBoxes* GetLayoutBoxesIfNotEmpty(dom::Element* element) {
   return NULL;
 }
 
-scoped_refptr<dom::HTMLElement> FindFirstElementWithScrollType(
-    scoped_refptr<dom::HTMLElement> target_element,
-    ui_navigation::scroll_engine::ScrollType major_scroll_axis,
-    bool scrolling_right, bool scrolling_down) {
-  auto current_element = target_element;
-  bool scrolling_left = !scrolling_right;
-  bool scrolling_up = !scrolling_down;
-  bool horizontal_scroll_axis =
-      major_scroll_axis == ui_navigation::scroll_engine::ScrollType::Horizontal;
-  bool vertical_scroll_axis =
-      major_scroll_axis == ui_navigation::scroll_engine::ScrollType::Vertical;
+std::unique_ptr<dom::PossibleScrollTargets> FindPossibleScrollTargets(
+    scoped_refptr<dom::Element> target_element) {
+  std::unique_ptr<dom::PossibleScrollTargets> possible_scroll_targets =
+      std::make_unique<dom::PossibleScrollTargets>();
 
-  while (true) {
+  auto current_element = target_element;
+  for (auto current_element = target_element; !!current_element;
+       current_element = current_element->parent_element()) {
+    auto current_html_element = current_element->AsHTMLElement();
+    if (!current_html_element) {
+      continue;
+    }
+
+    bool pointer_events_enabled =
+        current_html_element->computed_style()->pointer_events() !=
+        cssom::KeywordValue::GetNone();
+    if (!pointer_events_enabled) {
+      continue;
+    }
+
+    auto current_ui_nav_item = current_html_element->GetUiNavItem();
+    if (!current_ui_nav_item) {
+      continue;
+    }
+
     float scroll_top_lower_bound;
     float scroll_left_lower_bound;
     float scroll_top_upper_bound;
@@ -102,34 +116,50 @@ scoped_refptr<dom::HTMLElement> FindFirstElementWithScrollType(
     float offset_x;
     float offset_y;
 
-    if (!current_element->parent_element()) {
-      break;
-    }
-    current_element = current_element->parent_element()->AsHTMLElement();
-    auto current_ui_nav_item = current_element->GetUiNavItem();
-    if (!current_ui_nav_item) continue;
-
     current_ui_nav_item->GetBounds(
         &scroll_top_lower_bound, &scroll_left_lower_bound,
         &scroll_top_upper_bound, &scroll_left_upper_bound);
     current_ui_nav_item->GetContentOffset(&offset_x, &offset_y);
-
     bool can_scroll_left = scroll_left_lower_bound < offset_x;
     bool can_scroll_right = scroll_left_upper_bound > offset_x;
     bool can_scroll_up = scroll_top_lower_bound < offset_y;
     bool can_scroll_down = scroll_top_upper_bound > offset_y;
-    bool scrolling_in_possible_direction =
-        (scrolling_left && can_scroll_left && horizontal_scroll_axis) ||
-        (scrolling_right && can_scroll_right && horizontal_scroll_axis) ||
-        (scrolling_up && can_scroll_up && vertical_scroll_axis) ||
-        (scrolling_down && can_scroll_down && vertical_scroll_axis);
-    bool pointer_events_enabled =
-        current_element->computed_style()->pointer_events() !=
-        cssom::KeywordValue::GetNone();
 
-    if (scrolling_in_possible_direction && pointer_events_enabled) {
-      return current_element;
+    if (can_scroll_left && !possible_scroll_targets->scroll_left_target) {
+      possible_scroll_targets->scroll_left_target = current_html_element;
     }
+    if (can_scroll_right && !possible_scroll_targets->scroll_right_target) {
+      possible_scroll_targets->scroll_right_target = current_html_element;
+    }
+    if (can_scroll_up && !possible_scroll_targets->scroll_up_target) {
+      possible_scroll_targets->scroll_up_target = current_html_element;
+    }
+    if (can_scroll_down && !possible_scroll_targets->scroll_down_target) {
+      possible_scroll_targets->scroll_down_target = current_html_element;
+    }
+  }
+  return possible_scroll_targets;
+}
+
+scoped_refptr<dom::HTMLElement> FindFirstElementWithScrollType(
+    dom::PossibleScrollTargets* possible_scroll_targets,
+    ui_navigation::scroll_engine::ScrollType major_scroll_axis,
+    bool scrolling_right, bool scrolling_down) {
+  bool scrolling_left = !scrolling_right;
+  bool scrolling_up = !scrolling_down;
+  bool horizontal_scroll_axis =
+      major_scroll_axis == ui_navigation::scroll_engine::ScrollType::Horizontal;
+  bool vertical_scroll_axis =
+      major_scroll_axis == ui_navigation::scroll_engine::ScrollType::Vertical;
+
+  if (scrolling_left && horizontal_scroll_axis) {
+    return possible_scroll_targets->scroll_left_target;
+  } else if (scrolling_right && horizontal_scroll_axis) {
+    return possible_scroll_targets->scroll_right_target;
+  } else if (scrolling_up && vertical_scroll_axis) {
+    return possible_scroll_targets->scroll_up_target;
+  } else if (scrolling_down && vertical_scroll_axis) {
+    return possible_scroll_targets->scroll_down_target;
   }
   return nullptr;
 }
@@ -492,7 +522,11 @@ void TopmostEventTarget::HandleScrollState(
       math::Vector2dF(pointer_event->client_x(), pointer_event->client_y());
 
   if (pointer_event->type() == base::Tokens::pointerdown()) {
+    auto initial_possible_scroll_targets =
+        FindPossibleScrollTargets(target_element);
     CancelScrollsInParentNavItems(target_element);
+    pointer_state->SetPossibleScrollTargets(
+        pointer_id, std::move(initial_possible_scroll_targets));
     pointer_state->SetClientCoordinates(pointer_id, pointer_coordinates);
     pointer_state->SetClientTimeStamp(pointer_id, pointer_event->time_stamp());
     return;
@@ -500,8 +534,11 @@ void TopmostEventTarget::HandleScrollState(
 
   auto initial_coordinates = pointer_state->GetClientCoordinates(pointer_id);
   auto initial_time_stamp = pointer_state->GetClientTimeStamp(pointer_id);
+  auto possible_scroll_targets =
+      pointer_state->GetPossibleScrollTargets(pointer_id);
   if (pointer_event->type() == base::Tokens::pointermove() &&
-      initial_coordinates.has_value() && initial_time_stamp.has_value()) {
+      initial_coordinates.has_value() && initial_time_stamp.has_value() &&
+      possible_scroll_targets) {
     cobalt::math::Vector2dF drag_vector =
         initial_coordinates.value() - pointer_coordinates;
     float x = drag_vector.x();
@@ -515,7 +552,7 @@ void TopmostEventTarget::HandleScrollState(
               ? ui_navigation::scroll_engine::ScrollType::Horizontal
               : ui_navigation::scroll_engine::ScrollType::Vertical;
       auto element_to_scroll = FindFirstElementWithScrollType(
-          target_element, scroll_type, x > 0, y > 0);
+          possible_scroll_targets, scroll_type, x > 0, y > 0);
       if (!element_to_scroll) {
         return;
       }
