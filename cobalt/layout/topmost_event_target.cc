@@ -509,11 +509,6 @@ void TopmostEventTarget::HandleScrollState(
     return;
   }
 
-  if (target_element->computed_style()->pointer_events() ==
-      cssom::KeywordValue::GetNone()) {
-    return;
-  }
-
   bool should_clear_pointer_state =
       pointer_event->type() == base::Tokens::pointerup();
 
