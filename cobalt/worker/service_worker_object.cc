@@ -97,6 +97,14 @@ const ScriptResource* ServiceWorkerObject::LookupScriptResource(
   return entry != script_resource_map_.end() ? &entry->second : nullptr;
 }
 
+void ServiceWorkerObject::SetScriptResourceHasEverBeenEvaluated(
+    const GURL& url) {
+  auto entry = script_resource_map_.find(url);
+  if (entry != script_resource_map_.end()) {
+    entry->second.has_ever_been_evaluated = true;
+  }
+}
+
 void ServiceWorkerObject::PurgeScriptResourceMap() {
   // Steps 13-15 of Algorithm for Install:
   //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#installation-algorithm
@@ -139,9 +147,10 @@ void ServiceWorkerObject::ObtainWebAgentAndWaitUntilDone() {
 bool ServiceWorkerObject::ShouldSkipEvent(base::Token event_name) {
   // Algorithm for Should Skip Event:
   //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#should-skip-event-algorithm
-  // TODO(b/229622132): Implementing this algorithm will improve performance.
-  NOTIMPLEMENTED();
-  return false;
+  // 1. If serviceWorker’s set of event types to handle does not contain
+  // eventName, then the user agent may return true.
+  return (set_of_event_types_to_handle_.find(event_name) ==
+          set_of_event_types_to_handle_.end());
 }
 
 void ServiceWorkerObject::Initialize(web::Context* context) {
@@ -268,11 +277,32 @@ void ServiceWorkerObject::Initialize(web::Context* context) {
   // 8.16. Set serviceWorker’s start status to evaluationStatus.
   start_status_.reset(new std::string(retval));
   // 8.17. If script’s has ever been evaluated flag is unset, then:
-  // 8.17.1. For each eventType of settingsObject’s global object's associated
-  //         list of event listeners' event types:
-  // 8.17.1.1. Append eventType to workerGlobalScope’s associated service
-  //           worker's set of event types to handle.
-  // 8.17.1.2. Set script’s has ever been evaluated flag.
+  if (!script_resource->has_ever_been_evaluated) {
+    // 8.17.1. For each eventType of settingsObject’s global object's associated
+    //         list of event listeners' event types:
+    auto event_types =
+        service_worker_global_scope->event_listener_event_types();
+    for (auto& event_type : event_types) {
+      // 8.17.1.1. Append eventType to workerGlobalScope’s associated service
+      //           worker's set of event types to handle.
+      service_worker_global_scope->service_worker_object()
+          ->set_of_event_types_to_handle()
+          .insert(event_type);
+    }
+    // 8.17.2. Set script’s has ever been evaluated flag.
+    SetScriptResourceHasEverBeenEvaluated(script_url_);
+
+    if (event_types.empty()) {
+      // NOTE: If the global object’s associated list of event listeners does
+      // not have any event listener added at this moment, the service worker’s
+      // set of event types to handle remains an empty set. The user agents are
+      // encouraged to show a warning that the event listeners must be added on
+      // the very first evaluation of the worker script.
+      DLOG(WARNING) << "ServiceWorkerGlobalScope's event listeners must be "
+                       "added on the first evaluation of the worker script.";
+    }
+    event_types.clear();
+  }
   // 8.18. Run the responsible event loop specified by settingsObject until it
   //       is destroyed.
   // 8.19. Empty workerGlobalScope’s list of active timers.

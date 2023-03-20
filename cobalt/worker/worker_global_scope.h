@@ -55,6 +55,7 @@ struct ScriptResource {
       : content(std::move(content)), headers(headers) {}
   std::unique_ptr<std::string> content;
   scoped_refptr<net::HttpResponseHeaders> headers;
+  bool has_ever_been_evaluated = false;
 };
 
 using ScriptResourceMap = std::map<GURL, ScriptResource>;
