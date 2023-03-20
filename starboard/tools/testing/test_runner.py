@@ -677,7 +677,7 @@ class TestRunner(object):
       test_status = "SUCCEEDED"
 
       all_flaky_tests_succeeded = initial_flaky_failed_count == len(
-          flaky_passed_tests)
+          flaky_passed_tests) and initial_flaky_failed_count != 0
 
       # Always mark as FAILED if we have a non-zero return code, or failing
       # test.
