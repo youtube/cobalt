@@ -90,6 +90,8 @@ function wait_for_update(test, registration) {
         // Install algorithm, otherwise the worker is activated too early
         if (registration.installing) {
           resolve(registration.installing);
+        } else if (registration.waiting) {
+          resolve(registration.waiting);
         } else {
           resolve(registration.active);
         }
