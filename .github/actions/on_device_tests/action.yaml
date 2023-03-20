@@ -70,11 +70,12 @@ runs:
             --tag cobalt_github_${GITHUB_EVENT_NAME} \
             --builder_name github_${{ matrix.platform }}_tests \
             --build_number ${GITHUB_RUN_NUMBER} \
+            --use_gcs_anonymous_caller \
             ${LOADER_PLATFORM:+"--loader_config" "$LOADER_CONFIG"} \
             ${LOADER_PLATFORM:+"--loader_platform" "$LOADER_PLATFORM"} \
             ${DIMENSION:+"--dimension" "$DIMENSION"} \
             ${USE_SHARDING:+"--unittest_shard_index" "${{ matrix.shard }}"} \
-            --archive_path gs://${PROJECT_NAME}-test-artifacts-tmp/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${{ matrix.platform }}_${{ matrix.config }}/artifacts.tar \
+            --archive_path gs://${PROJECT_NAME}-test-artifacts/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${{ matrix.platform }}_${{ matrix.config }}/artifacts.tar \
             --label github \
             --label ${GITHUB_EVENT_NAME} \
             --label ${WORKFLOW} \

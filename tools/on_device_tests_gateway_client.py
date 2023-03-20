@@ -84,6 +84,7 @@ class OnDeviceTestsGatewayClient():
             loader_config=args.loader_config,
             version=args.version,
             dry_run=args.dry_run,
+            use_gcs_anonymous_caller=args.use_gcs_anonymous_caller,
             dimension=args.dimension or [],
             unittest_shard_index=args.unittest_shard_index,
         )):
@@ -210,6 +211,11 @@ def main():
       help='On-Device Tests dimension used to select a device. '
       'Must have the following form: <dimension>=<value>.'
       ' E.G. "release_version=regex:10.*')
+  trigger_parser.add_argument(
+      '--use_gcs_anonymous_caller',
+      required=False,
+      action='store_true',
+      help='Access GCS bucket(s) anonymously (public buckets only).')
   trigger_parser.add_argument(
       '--version',
       type=str,
