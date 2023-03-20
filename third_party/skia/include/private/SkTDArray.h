@@ -320,7 +320,12 @@ public:
 
     void shrinkToFit() {
         fReserve = fCount;
-        fArray = (T*)sk_realloc_throw(fArray, fReserve * sizeof(T));
+        if (fReserve) {
+            fArray = (T*)sk_realloc_throw(fArray, fReserve * sizeof(T));
+        } else {
+            sk_free(fArray);
+            fArray = nullptr;
+        }
     }
 
 private:
