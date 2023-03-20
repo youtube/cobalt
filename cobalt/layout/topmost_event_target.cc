@@ -89,7 +89,6 @@ std::unique_ptr<dom::PossibleScrollTargets> FindPossibleScrollTargets(
   std::unique_ptr<dom::PossibleScrollTargets> possible_scroll_targets =
       std::make_unique<dom::PossibleScrollTargets>();
 
-  auto current_element = target_element;
   for (auto current_element = target_element; !!current_element;
        current_element = current_element->parent_element()) {
     auto current_html_element = current_element->AsHTMLElement();
