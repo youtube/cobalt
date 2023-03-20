@@ -128,7 +128,7 @@ test(function() {
       import_script_failed = true;
     }
     assert_false(import_script_failed,
-                'Importing the other origins script should not fail.');
+                 'Importing the other origins script should not fail.');
   }, 'importScripts test for connect-src');
 
 /* b/114053979 Cobalt eval() allowed when missing csp
