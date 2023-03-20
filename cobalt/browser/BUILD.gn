@@ -70,6 +70,9 @@ target(final_executable_type, "cobalt") {
       "//cobalt/content/fonts:fonts_xml",
     ]
   }
+  if (sb_is_evergreen) {
+    data_deps += [ "//cobalt/updater/version_manifest:copy_version_manifest" ]
+  }
   if (!is_gold) {
     data_deps += [
       "//cobalt/debug/backend/content:copy_backend_web_files",

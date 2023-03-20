@@ -63,6 +63,18 @@ if (sb_is_evergreen_compatible && sb_evergreen_compatible_package) {
     outputs =
         [ "$sb_static_contents_output_data_dir/app/cobalt/lib/libcobalt.so" ]
   }
+  copy("copy_loader_app_manifest") {
+    install_content = true
+    if (target_cpu == "arm" && arm_float_abi == "softfp") {
+      sources = [ "$root_out_dir/../evergreen-$target_cpu-${arm_float_abi}_$build_type/manifest.json" ]
+    } else if (target_cpu == "arm64") {
+      sources =
+          [ "$root_out_dir/../evergreen-$target_cpu_$build_type/manifest.json" ]
+    } else {
+      sources = []
+    }
+    outputs = [ "$sb_static_contents_output_data_dir/app/cobalt/manifest.json" ]
+  }
 
   # This trick to name the Crashpad handler executable as a shared library, so
   # that the Package Manager extracts it to the file system on install, is
@@ -98,11 +110,13 @@ target(final_executable_type, "loader_app") {
         ":copy_crashpad_handler_named_as_so",
         ":copy_loader_app_content",
         ":copy_loader_app_lib",
+        ":copy_loader_app_manifest",
       ]
       deps += [
         ":copy_crashpad_handler_named_as_so",
         ":copy_loader_app_content",
         ":copy_loader_app_lib",
+        ":copy_loader_app_manifest",
       ]
     }
   }
