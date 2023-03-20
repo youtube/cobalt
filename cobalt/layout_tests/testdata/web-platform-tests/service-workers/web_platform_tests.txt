@@ -9,6 +9,7 @@ service-worker/registration-script-url.https.html, PASS
 service-worker/rejections.https.html, PASS
 service-worker/serviceworkerobject-scripturl.https.html, PASS
 service-worker/service-worker-header.https.html, PASS
+service-worker/service-worker-csp-script.https.html, PASS
 service-worker/Service-Worker-Allowed-header.https.html, PASS
 service-worker/uncontrolled-page.https.html, PASS
 service-worker/unregister.https.html, PASS
@@ -79,7 +80,6 @@ service-worker/registration-scope.https.html, DISABLE
 service-worker/update-bytecheck-cors-import.https.html, DISABLE
 service-worker/update-bytecheck.https.html, DISABLE
 service-worker/referrer-toplevel-script-fetch.https.html, DISABLE
-service-worker/service-worker-csp-script.https.html, DISABLE
 
 # b/264323329 TIMEOUT
 service-worker/install-event-type.https.html, DISABLE

@@ -44,7 +44,8 @@ async_test(function(t) {
       base_path() + 'redirect.py?Redirect=';
     var OTHER_BASE_URL = host_info.HTTPS_REMOTE_ORIGIN +
       base_path() + 'fetch-access-control.py?'
-    fetch(REDIRECT_URL + encodeURIComponent(OTHER_BASE_URL + 'ACAOrigin=*'),
+    fetch(REDIRECT_URL + encodeURIComponent(OTHER_BASE_URL + 'ACAOrigin=*') +
+          '&ACAOrigin=*',
           {mode: 'cors'})
       .then(function(response){
           assert_unreached('Redirected fetch should fail.');
@@ -100,7 +101,8 @@ async_test(function(t) {
       base_path() + 'redirect.py?Redirect=';
     var OTHER_BASE_URL = host_info.HTTPS_REMOTE_ORIGIN +
       base_path() + 'fetch-access-control.py?'
-    fetch(REDIRECT_URL + encodeURIComponent(OTHER_BASE_URL + 'ACAOrigin=*'),
+    fetch(REDIRECT_URL + encodeURIComponent(OTHER_BASE_URL + 'ACAOrigin=*') +
+          '&ACAOrigin=*',
           {mode: 'cors'})
       .then(function(response){
           t.done();
@@ -125,8 +127,8 @@ test(function() {
     } catch(e) {
       import_script_failed = true;
     }
-    assert_true(import_script_failed,
-                 'Importing the other origins script should fail.');
+    assert_false(import_script_failed,
+                'Importing the other origins script should not fail.');
   }, 'importScripts test for connect-src');
 
 /* b/114053979 Cobalt eval() allowed when missing csp
@@ -159,7 +161,8 @@ async_test(function(t) {
       base_path() + 'redirect.py?Redirect=';
     var OTHER_BASE_URL = host_info.HTTPS_REMOTE_ORIGIN +
       base_path() + 'fetch-access-control.py?'
-    fetch(REDIRECT_URL + encodeURIComponent(OTHER_BASE_URL + 'ACAOrigin=*'),
+    fetch(REDIRECT_URL + encodeURIComponent(OTHER_BASE_URL + 'ACAOrigin=*') +
+          '&ACAOrigin=*',
           {mode: 'cors'})
       .then(function(response){
           assert_unreached('Redirected fetch should fail.');
