@@ -33,10 +33,10 @@ namespace cobalt {
 namespace dom {
 
 struct PossibleScrollTargets {
-  scoped_refptr<dom::HTMLElement> scroll_up_target;
-  scoped_refptr<dom::HTMLElement> scroll_down_target;
-  scoped_refptr<dom::HTMLElement> scroll_left_target;
-  scoped_refptr<dom::HTMLElement> scroll_right_target;
+  scoped_refptr<dom::HTMLElement> up;
+  scoped_refptr<dom::HTMLElement> down;
+  scoped_refptr<dom::HTMLElement> left;
+  scoped_refptr<dom::HTMLElement> right;
 };
 
 // This class contains various state related to pointer and mouse support.
