@@ -113,29 +113,30 @@ std::unique_ptr<dom::PossibleScrollTargets> FindPossibleScrollTargets(
     float scroll_left_lower_bound;
     float scroll_top_upper_bound;
     float scroll_left_upper_bound;
-    float offset_x;
-    float offset_y;
-
     current_ui_nav_item->GetBounds(
         &scroll_top_lower_bound, &scroll_left_lower_bound,
         &scroll_top_upper_bound, &scroll_left_upper_bound);
+
+    float offset_x;
+    float offset_y;
     current_ui_nav_item->GetContentOffset(&offset_x, &offset_y);
+
     bool can_scroll_left = scroll_left_lower_bound < offset_x;
     bool can_scroll_right = scroll_left_upper_bound > offset_x;
     bool can_scroll_up = scroll_top_lower_bound < offset_y;
     bool can_scroll_down = scroll_top_upper_bound > offset_y;
 
-    if (can_scroll_left && !possible_scroll_targets->scroll_left_target) {
-      possible_scroll_targets->scroll_left_target = current_html_element;
+    if (can_scroll_left && !possible_scroll_targets->left) {
+      possible_scroll_targets->left = current_html_element;
     }
-    if (can_scroll_right && !possible_scroll_targets->scroll_right_target) {
-      possible_scroll_targets->scroll_right_target = current_html_element;
+    if (can_scroll_right && !possible_scroll_targets->right) {
+      possible_scroll_targets->right = current_html_element;
     }
-    if (can_scroll_up && !possible_scroll_targets->scroll_up_target) {
-      possible_scroll_targets->scroll_up_target = current_html_element;
+    if (can_scroll_up && !possible_scroll_targets->up) {
+      possible_scroll_targets->up = current_html_element;
     }
-    if (can_scroll_down && !possible_scroll_targets->scroll_down_target) {
-      possible_scroll_targets->scroll_down_target = current_html_element;
+    if (can_scroll_down && !possible_scroll_targets->down) {
+      possible_scroll_targets->down = current_html_element;
     }
   }
   return possible_scroll_targets;
@@ -153,13 +154,13 @@ scoped_refptr<dom::HTMLElement> FindFirstElementWithScrollType(
       major_scroll_axis == ui_navigation::scroll_engine::ScrollType::Vertical;
 
   if (scrolling_left && horizontal_scroll_axis) {
-    return possible_scroll_targets->scroll_left_target;
+    return possible_scroll_targets->left;
   } else if (scrolling_right && horizontal_scroll_axis) {
-    return possible_scroll_targets->scroll_right_target;
+    return possible_scroll_targets->right;
   } else if (scrolling_up && vertical_scroll_axis) {
-    return possible_scroll_targets->scroll_up_target;
+    return possible_scroll_targets->up;
   } else if (scrolling_down && vertical_scroll_axis) {
-    return possible_scroll_targets->scroll_down_target;
+    return possible_scroll_targets->down;
   }
   return nullptr;
 }
@@ -568,6 +569,7 @@ void TopmostEventTarget::HandleScrollState(
   }
 
   if (should_clear_pointer_state) {
+    pointer_state->ClearPossibleScrollTargets(pointer_id);
     pointer_state->ClearClientCoordinates(pointer_id);
     pointer_state->ClearTimeStamp(pointer_id);
   }
