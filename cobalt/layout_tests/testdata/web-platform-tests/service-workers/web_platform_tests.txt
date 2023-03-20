@@ -8,9 +8,12 @@ service-worker/registration-security-error.https.html, PASS
 service-worker/registration-script-url.https.html, PASS
 service-worker/rejections.https.html, PASS
 service-worker/serviceworkerobject-scripturl.https.html, PASS
+service-worker/service-worker-csp-default.https.html, PASS
+service-worker/service-worker-csp-connect.https.html, PASS
 service-worker/service-worker-header.https.html, PASS
 service-worker/service-worker-csp-script.https.html, PASS
 service-worker/Service-Worker-Allowed-header.https.html, PASS
+service-worker/skip-waiting-without-client.https.html, PASS
 service-worker/uncontrolled-page.https.html, PASS
 service-worker/unregister.https.html, PASS
 service-worker/update-missing-import-scripts.https.html, PASS
@@ -19,11 +22,6 @@ service-worker/update-result.https.html, PASS
 # Tests pass with memory leakage issue.
 service-worker/update-no-cache-request-headers.https.html, DISABLE
 
-
-# b/266605087 TypeError: Cannot set property 'onerror' of null"
-service-worker/skip-waiting-without-client.https.html, DISABLE
-service-worker/service-worker-csp-default.https.html, DISABLE
-service-worker/service-worker-csp-connect.https.html, DISABLE
 
 # b/234788479 Implement waiting for update worker state tasks in Install algorithm.
 service-worker/activation-after-registration.https.html, DISABLE
