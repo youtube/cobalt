@@ -52,5 +52,8 @@ target(gtest_target_type, "text_encoding_test") {
     "//testing/gtest",
   ]
 
-  data_deps = [ "//third_party/icu:icudata" ]
+  data_deps = [
+    "//cobalt/network:copy_ssl_certificates",
+    "//third_party/icu:icudata",
+  ]
 }

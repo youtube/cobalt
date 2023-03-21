@@ -29,6 +29,7 @@ target(final_executable_type, "audio_dmp_player") {
     "//starboard/shared/starboard/player:player_download_test_data",
   ]
   data_deps = [
+    "//cobalt/network:copy_ssl_certificates",
     "//starboard/shared/starboard/player:player_download_test_data",
     "//third_party/icu:icudata",
   ]

@@ -3197,6 +3197,7 @@ target(gtest_target_type, "base_unittests") {
   if (is_starboard){
     data_deps += [
       ":base_unittests_bundle_data",
+      "//cobalt/network:copy_ssl_certificates",
       "//third_party/icu:icudata",
     ]
   }

@@ -124,5 +124,8 @@ target(gtest_target_type, "base_test") {
     "//testing/gmock",
     "//testing/gtest",
   ]
-  data_deps = [ "//third_party/icu:icudata" ]
+  data_deps = [
+    "//cobalt/network:copy_ssl_certificates",
+    "//third_party/icu:icudata",
+  ]
 }
