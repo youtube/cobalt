@@ -74,7 +74,7 @@ runs:
             ${LOADER_PLATFORM:+"--loader_platform" "$LOADER_PLATFORM"} \
             ${DIMENSION:+"--dimension" "$DIMENSION"} \
             ${USE_SHARDING:+"--unittest_shard_index" "${{ matrix.shard }}"} \
-            --archive_path gs://${PROJECT_NAME}-test-artifacts-tmp/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${{ matrix.platform }}_${{ matrix.config }}/artifacts.tar \
+            --archive_path gs://${PROJECT_NAME}-test-artifacts/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${{ matrix.platform }}_${{ matrix.config }}/artifacts.tar \
             --label github \
             --label ${GITHUB_EVENT_NAME} \
             --label ${WORKFLOW} \
