@@ -41,6 +41,8 @@ _FILTERED_TESTS = {
         'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest.SunnyDaySourceForDestination/type_ipv6',
         'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest.SunnyDaySourceNotLoopback/type_ipv6',
         'SbSocketAddressTypes/SbSocketResolveTest.SunnyDayFiltered/filter_ipv6_type_ipv6',
+        'SbSocketAddressTypes/SbSocketSetOptionsTest.RainyDayInvalidSocket/type_ipv4',
+        'SbSocketAddressTypes/SbSocketSetOptionsTest.RainyDayInvalidSocket/type_ipv6',
     ],
     'player_filter_tests': [
         # These tests fail on our VMs for win-win32 builds due to missing
