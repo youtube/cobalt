@@ -107,7 +107,9 @@ TEST(SbMemoryReallocateTest, ReallocatesBigger) {
   SbMemoryDeallocate(memory);
 }
 
-TEST(SbMemoryReallocateTest, ReallocatestoZero) {
+// Tests unspecified behavior, currently not stable.
+// Should be deleted or fixed.
+TEST(SbMemoryReallocateTest, DISABLED_ReallocatestoZero) {
   void* memory = SbMemoryAllocate(kSize);
   ASSERT_NE(static_cast<void*>(NULL), memory);
   memory = SbMemoryReallocate(memory, 0);
