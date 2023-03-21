@@ -24,7 +24,7 @@ class CobaltX64Configuration(cobalt_configuration.CobaltConfiguration):
     return True
 
   def GetTestFilters(self):
-    filters = super(CobaltX64Configuration, self).GetTestFilters()
+    filters = super().GetTestFilters()
     for target, tests in self.__FILTERED_TESTS.items():
       filters.extend(test_filter.TestFilter(target, test) for test in tests)
     return filters
@@ -41,5 +41,20 @@ class CobaltX64Configuration(cobalt_configuration.CobaltConfiguration):
             'ASAN_OPTIONS': 'detect_leaks=0'
         }
     }
+
+  def GetWebPlatformTestFilters(self):
+    filters = super().GetWebPlatformTestFilters()
+    filters.extend([
+        # Re-enable when b/274514002 is addressed.
+        test_filter.TestFilter(
+            'web_platform_tests',
+            'websockets/WebPlatformTest.Run/websockets_interfaces_WebSocket_close_close_basic_html',
+            'devel'),
+        test_filter.TestFilter(
+            'web_platform_tests',
+            'service_workers/WebPlatformTest.Run/service_workers_service_worker_update_result_https_html',
+            'devel'),
+    ])
+    return filters
 
   __FILTERED_TESTS = {}  # pylint: disable=invalid-name
