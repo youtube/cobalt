@@ -92,7 +92,16 @@ class CobaltLinuxConfiguration(cobalt_configuration.CobaltConfiguration):
             'debug'),
         test_filter.TestFilter(
             'web_platform_tests',
-            'cors/WebPlatformTest.Run/cors_preflight_failure_htm', 'devel')
+            'cors/WebPlatformTest.Run/cors_preflight_failure_htm', 'devel'),
+        # Re-enable after b/274011216 is addressed.
+        test_filter.TestFilter(
+            'web_platform_tests',
+            'service_workers/WebPlatformTest.Run/service_workers_service_worker_update_result_https_html',
+            'devel'),
+        test_filter.TestFilter(
+            'web_platform_tests',
+            'service_workers/WebPlatformTest.Run/service_workers_service_worker_skip_waiting_without_client_https_html',
+            'devel'),
     ])
     return filters
 
