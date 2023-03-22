@@ -101,7 +101,11 @@ DrmSystem::DrmSystem(const char* key_system)
 DrmSystem::~DrmSystem() {
   ON_INSTANCE_RELEASED(DrmSystem);
 
-  SbDrmDestroySystem(wrapped_drm_system_);
+  if (is_valid()) {
+    SbDrmDestroySystem(wrapped_drm_system_);
+  } else {
+    LOG(WARNING) << "Attempting to close invalid SbDrmSystem";
+  }
 }
 
 std::unique_ptr<DrmSystem::Session> DrmSystem::CreateSession(
@@ -114,6 +118,8 @@ std::unique_ptr<DrmSystem::Session> DrmSystem::CreateSession(
 
 bool DrmSystem::IsServerCertificateUpdatable() {
   DCHECK(message_loop_->BelongsToCurrentThread());
+  DCHECK(is_valid());
+
   if (SbDrmIsServerCertificateUpdatable(wrapped_drm_system_)) {
     LOG(INFO) << "SbDrmSystem (" << wrapped_drm_system_
               << ") supports server certificate update";
@@ -129,12 +135,22 @@ void DrmSystem::UpdateServerCertificate(
     ServerCertificateUpdatedCallback server_certificate_updated_callback) {
   DCHECK(message_loop_->BelongsToCurrentThread());
   DCHECK(IsServerCertificateUpdatable());
+  DCHECK(is_valid());
+
+  if (!certificate) {
+    LOG(ERROR) << "Updating server with NULL certificate";
+    return;
+  }
 
   LOG(INFO) << "Updating server certificate of drm system ("
             << wrapped_drm_system_
             << "), certificate size: " << certificate_size;
 
   int ticket = next_ticket_++;
+  if (!SbDrmTicketIsValid(ticket)) {
+    LOG(ERROR) << "Updating server with invalid ticket";
+    return;
+  }
   ticket_to_server_certificate_updated_map_.insert(
       std::make_pair(ticket, server_certificate_updated_callback));
   SbDrmUpdateServerCertificate(wrapped_drm_system_, ticket, certificate,
@@ -166,6 +182,12 @@ void DrmSystem::GenerateSessionUpdateRequest(
     const SessionUpdateRequestDidNotGenerateCallback&
         session_update_request_did_not_generate_callback) {
   DCHECK(message_loop_->BelongsToCurrentThread());
+  DCHECK(is_valid());
+
+  if (!init_data) {
+    LOG(ERROR) << "Generate session update request with invalid init_data";
+    return;
+  }
 
   // Store the context of the call.
   SessionUpdateRequest session_update_request;
@@ -175,6 +197,12 @@ void DrmSystem::GenerateSessionUpdateRequest(
   session_update_request.did_not_generate_callback =
       session_update_request_did_not_generate_callback;
   int ticket = next_ticket_++;
+
+  if (!SbDrmTicketIsValid(ticket)) {
+    LOG(ERROR) << "Generate session update request with invalid ticket";
+    return;
+  }
+
   ticket_to_session_update_request_map_.insert(
       std::make_pair(ticket, session_update_request));
 
@@ -192,12 +220,19 @@ void DrmSystem::UpdateSession(
     const SessionUpdatedCallback& session_updated_callback,
     const SessionDidNotUpdateCallback& session_did_not_update_callback) {
   DCHECK(message_loop_->BelongsToCurrentThread());
+  DCHECK(is_valid());
 
   // Store the context of the call.
   SessionUpdate session_update;
   session_update.updated_callback = session_updated_callback;
   session_update.did_not_update_callback = session_did_not_update_callback;
   int ticket = next_ticket_++;
+
+  if (!SbDrmTicketIsValid(ticket)) {
+    LOG(ERROR) << "Update session with invalid ticket";
+    return;
+  }
+
   ticket_to_session_update_map_.insert(std::make_pair(ticket, session_update));
 
   LOG(INFO) << "Update session of drm system (" << wrapped_drm_system_
@@ -210,6 +245,7 @@ void DrmSystem::UpdateSession(
 
 void DrmSystem::CloseSession(const std::string& session_id) {
   DCHECK(message_loop_->BelongsToCurrentThread());
+  DCHECK(is_valid());
 
   LOG(INFO) << "Close session of drm system (" << wrapped_drm_system_
             << "), session id: " << session_id;
