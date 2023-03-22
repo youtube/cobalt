@@ -333,14 +333,16 @@ void Resolve(v8::Local<v8::Promise::Resolver> resolver,
   if (value.IsEmpty()) {
     value = v8::Undefined(isolate);
   }
-  DCHECK(resolver->Resolve(context, value).FromMaybe(false));
+  auto result = resolver->Resolve(context, value);
+  DCHECK(result.FromJust());
 }
 
 void Reject(v8::Local<v8::Promise::Resolver> resolver) {
   auto* isolate = resolver->GetIsolate();
   script::v8c::EntryScope entry_scope(isolate);
   auto context = isolate->GetCurrentContext();
-  DCHECK(resolver->Reject(context, v8::Undefined(isolate)).FromMaybe(false));
+  auto result = resolver->Reject(context, v8::Undefined(isolate));
+  DCHECK(result.FromJust());
 }
 
 script::HandlePromiseAny FromResolver(
