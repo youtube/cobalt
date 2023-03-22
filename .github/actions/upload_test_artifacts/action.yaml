@@ -28,7 +28,7 @@ runs:
         then
           echo "ARCHIVE_FILE=artifacts.tar" >> $GITHUB_ENV
           echo "ARCHIVE_PATH=$GITHUB_WORKSPACE/artifacts.tar" >> $GITHUB_ENV
-          echo "DESTINATION=${project_name}-test-artifacts-tmp/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${{matrix.platform}}_${{matrix.config}}/" >> $GITHUB_ENV
+          echo "DESTINATION=${project_name}-test-artifacts/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${{matrix.platform}}_${{matrix.config}}/" >> $GITHUB_ENV
         elif [ "${{ inputs.type }}" == 'onhost' ]
         then
           echo "ARCHIVE_FILE=${PLATFORM}_${{matrix.config}}.tar.xz" >> $GITHUB_ENV
