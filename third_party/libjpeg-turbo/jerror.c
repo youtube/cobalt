@@ -36,7 +36,7 @@
 #include "starboard/string.h"
 #include "starboard/system.h"
 // Applications should not leave the standard error handler registered.
-#define exit(x) SbSystemBreakIntoDebugger(x)
+#define exit(x) SbSystemBreakIntoDebugger()
 #endif
 
 #ifndef EXIT_FAILURE            /* define exit() codes if not provided */

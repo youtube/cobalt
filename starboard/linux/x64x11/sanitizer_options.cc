@@ -21,30 +21,29 @@
 // libraries. To make the linker pick the strong replacements for those
 // functions from this module, we explicitly force its inclusion by passing
 // -Wl,-u_sanitizer_options_link_helper
-extern "C" void _sanitizer_options_link_helper() { }
+extern "C" void _sanitizer_options_link_helper() {}
 
-#define SANITIZER_HOOK_ATTRIBUTE          \
-  extern "C"                              \
-  __attribute__((no_sanitize_address))    \
-  __attribute__((no_sanitize_memory))     \
-  __attribute__((no_sanitize_thread))     \
-  __attribute__((visibility("default")))  \
-  __attribute__((weak))                   \
+#define SANITIZER_HOOK_ATTRIBUTE                                          \
+  extern "C" __attribute__((no_sanitize_address))                         \
+  __attribute__((no_sanitize_memory)) __attribute__((no_sanitize_thread)) \
+  __attribute__((visibility("default"))) __attribute__((weak))            \
   __attribute__((used))
 
 // Newline separated list of issues to suppress, see
 // http://clang.llvm.org/docs/AddressSanitizer.html#issue-suppression
 // http://llvm.org/svn/llvm-project/compiler-rt/trunk/lib/sanitizer_common/sanitizer_suppressions.cc
 SANITIZER_HOOK_ATTRIBUTE const char* __lsan_default_suppressions() {
-  return
-      "leak:egl_gallium.so\n"
-      "leak:nvidia\n"
-      "leak:libspeechd.so\n";
+  return "leak:egl_gallium.so\n"
+         "leak:nvidia\n"
+         "leak:libspeechd.so\n";
 }
 
 #if defined(ASAN_SYMBOLIZER_PATH)
-extern "C" const char *__asan_default_options() {
-  return "external_symbolizer_path=" ASAN_SYMBOLIZER_PATH;
+extern "C" const char* __asan_default_options() {
+  // TODO(b/278247547) : Remove detect_stack_use_after_return=0 once the issue
+  // with AddressSanitizerFlags in Clang 16 is resolved.
+  return "detect_stack_use_after_return=0:external_symbolizer_"
+         "path=" ASAN_SYMBOLIZER_PATH;
 }
 #endif
 

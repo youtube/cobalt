@@ -116,7 +116,6 @@ target(gtest_target_type, "nplb") {
     "memory_deallocate_aligned_test.cc",
     "memory_deallocate_test.cc",
     "memory_find_byte_test.cc",
-    "memory_get_stack_bounds_test.cc",
     "memory_is_zero_test.cc",
     "memory_map_test.cc",
     "memory_move_test.cc",
@@ -296,4 +295,9 @@ target(gtest_target_type, "nplb") {
     "//starboard/shared/starboard/player:player_download_test_data",
     "//third_party/icu:icudata",
   ]
+
+  if (is_clang_16) {
+    # signedness_and_size_of_enum_test.cc casts -1 to enum value
+    cflags = [ "-Wno-enum-constexpr-conversion" ]
+  }
 }

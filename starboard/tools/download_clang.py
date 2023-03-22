@@ -33,8 +33,10 @@ except ImportError:
 def DownloadUrl(url, output_file):
   chunk_size = 4096
   print_n_dots = 40
+  timeout_seconds = 5
 
-  response = requests.get(url, stream=True, allow_redirects=True)
+  response = requests.get(
+      url, stream=True, allow_redirects=True, timeout=timeout_seconds)
   response.raise_for_status()
   content_length = int(response.headers.get('content-length', 0))
   if not content_length:
@@ -99,7 +101,8 @@ def UpdateClang(target_dir, revision):
   if os.path.exists(target_dir):
     shutil.rmtree(target_dir)
 
-  cds_file = f'clang-{revision}.tgz'
+  cds_file = f'clang-llvmorg-{revision}.tgz'
+
   cds_full_url = os.environ.get(
       'CDS_CLANG_BUCKET_OVERRIDE',
       'https://commondatastorage.googleapis.com/chromium-browser-clang'

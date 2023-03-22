@@ -52,3 +52,5 @@ cobalt_platform_dependencies =
 cobalt_font_package = "android_system"
 
 separate_install_targets_for_bundling = true
+
+is_clang_16 = current_toolchain == host_toolchain

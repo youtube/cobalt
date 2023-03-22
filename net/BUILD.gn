@@ -1749,6 +1749,13 @@ component("net") {
   ]
 
   public_deps = [ "//base" ]
+
+  # quic_stream_factory.cc unqualified call to 'std::move'
+  if (is_clang_16 && use_cobalt_customizations) {
+    cflags = [
+      "-Wno-unqualified-std-cast-call",
+    ]
+  }
 }
 
 proto_library("net_nqe_proto") {

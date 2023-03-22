@@ -964,8 +964,15 @@ config("toolchain") {
   }
 
   if (is_clang) {
-    cflags += [ "-Wmissing-field-initializers" ]
-
+    cflags += [
+     "-Wmissing-field-initializers",
+    ]
+    if (is_clang_16 && use_cobalt_customizations) {
+      cflags += [
+        # bit-field.h integer value is outside the valid range of values
+        "-Wno-enum-constexpr-conversion",
+      ]
+    }
     if (v8_current_cpu != "mips" && v8_current_cpu != "mipsel") {
       # We exclude MIPS because the IsMipsArchVariant macro causes trouble.
       cflags += [ "-Wunreachable-code" ]

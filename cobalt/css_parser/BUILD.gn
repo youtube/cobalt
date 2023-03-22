@@ -97,6 +97,11 @@ static_library("css_parser") {
     "//nb",
     "//starboard/common",
   ]
+
+  if (is_clang_16) {
+    # grammar_impl_generated.h variable 'yynerrs' set but not used
+    cflags_cc = [ "-Wno-unused-but-set-variable" ]
+  }
 }
 
 target(gtest_target_type, "css_parser_test") {

@@ -16,7 +16,7 @@
 
 set -e
 
-CLANG_VERSION="${1:-365097-f7e52fbd-8}"
+CLANG_VERSION="${1:-16-init-17653-g39da55e8-2}"
 TOOLCHAIN_ROOT="${HOME}/starboard-toolchains/"
 TOOLCHAIN_HOME="${TOOLCHAIN_ROOT}/x86_64-linux-gnu-clang-chromium-${CLANG_VERSION}"
 
@@ -31,14 +31,14 @@ cd /tmp
 mkdir -p ${TOOLCHAIN_HOME}
 
 # Download and extract clang.
-curl --silent -O -J ${BASE_URL}/Linux_x64/clang-${CLANG_VERSION}.tgz
-tar xf clang-${CLANG_VERSION}.tgz -C ${TOOLCHAIN_HOME}
-rm clang-${CLANG_VERSION}.tgz
+curl --silent -O -J ${BASE_URL}/Linux_x64/clang-llvmorg-${CLANG_VERSION}.tgz
+tar xf clang-llvmorg-${CLANG_VERSION}.tgz -C ${TOOLCHAIN_HOME}
+rm clang-llvmorg-${CLANG_VERSION}.tgz
 
 # Download and extract llvm coverage tools.
-curl --silent -O -J ${BASE_URL}/Linux_x64/llvm-code-coverage-${CLANG_VERSION}.tgz
-tar xf llvm-code-coverage-${CLANG_VERSION}.tgz -C ${TOOLCHAIN_HOME}
-rm llvm-code-coverage-${CLANG_VERSION}.tgz
+curl --silent -O -J ${BASE_URL}/Linux_x64/llvm-code-coverage-llvmorg-${CLANG_VERSION}.tgz
+tar xf llvm-code-coverage-llvmorg-${CLANG_VERSION}.tgz -C ${TOOLCHAIN_HOME}
+rm llvm-code-coverage-llvmorg-${CLANG_VERSION}.tgz
 
 echo ${CLANG_VERSION} >> ${TOOLCHAIN_HOME}/cr_build_revision
 
