@@ -67,7 +67,8 @@ script::HandlePromiseWrappable Clients::Get(const std::string& id) {
           ->script_value_factory()
           ->CreateInterfacePromise<scoped_refptr<Client>>();
   std::unique_ptr<script::ValuePromiseWrappable::Reference> promise_reference(
-      new script::ValuePromiseWrappable::Reference(this, promise));
+      new script::ValuePromiseWrappable::Reference(
+          settings_->context()->GetWindowOrWorkerGlobalScope(), promise));
 
   // 2. Run these substeps in parallel:
   ServiceWorkerJobs* jobs = settings_->context()->service_worker_jobs();
@@ -96,8 +97,8 @@ script::HandlePromiseSequenceWrappable Clients::MatchAll(
                      ->script_value_factory()
                      ->CreateBasicPromise<script::SequenceWrappable>();
   std::unique_ptr<script::ValuePromiseSequenceWrappable::Reference>
-      promise_reference(
-          new script::ValuePromiseSequenceWrappable::Reference(this, promise));
+      promise_reference(new script::ValuePromiseSequenceWrappable::Reference(
+          settings_->context()->GetWindowOrWorkerGlobalScope(), promise));
   // 2. Run the following steps in parallel:
   ServiceWorkerJobs* jobs = settings_->context()->service_worker_jobs();
   DCHECK(jobs);
@@ -125,7 +126,8 @@ script::HandlePromiseVoid Clients::Claim() {
                      ->script_value_factory()
                      ->CreateBasicPromise<void>();
   std::unique_ptr<script::ValuePromiseVoid::Reference> promise_reference(
-      new script::ValuePromiseVoid::Reference(this, promise));
+      new script::ValuePromiseVoid::Reference(
+          settings_->context()->GetWindowOrWorkerGlobalScope(), promise));
 
   // 1. If the service worker is not an active worker, return a promise rejected
   // with an "InvalidStateError" DOMException.

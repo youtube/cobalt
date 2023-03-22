@@ -50,7 +50,9 @@ script::HandlePromiseWrappable ServiceWorkerRegistration::Update() {
           ->script_value_factory()
           ->CreateInterfacePromise<scoped_refptr<ServiceWorkerRegistration>>();
   std::unique_ptr<script::ValuePromiseWrappable::Reference> promise_reference(
-      new script::ValuePromiseWrappable::Reference(this, promise));
+      new script::ValuePromiseWrappable::Reference(
+          environment_settings()->context()->GetWindowOrWorkerGlobalScope(),
+          promise));
   // Perform the rest of the steps in a task, because the promise has to be
   // returned before we can safely reject or resolve it.
   base::MessageLoop::current()->task_runner()->PostTask(
@@ -134,7 +136,9 @@ script::HandlePromiseBool ServiceWorkerRegistration::Unregister() {
                                           ->script_value_factory()
                                           ->CreateBasicPromise<bool>();
   std::unique_ptr<script::ValuePromiseBool::Reference> promise_reference(
-      new script::ValuePromiseBool::Reference(this, promise));
+      new script::ValuePromiseBool::Reference(
+          environment_settings()->context()->GetWindowOrWorkerGlobalScope(),
+          promise));
 
   // Perform the rest of the steps in a task, so that unregister doesn't race
   // past any previously submitted update requests.

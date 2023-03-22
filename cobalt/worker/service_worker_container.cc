@@ -69,8 +69,9 @@ script::HandlePromiseWrappable ServiceWorkerContainer::ready() {
                          ->script_value_factory()
                          ->CreateInterfacePromise<
                              scoped_refptr<ServiceWorkerRegistration>>();
-    promise_reference_.reset(
-        new script::ValuePromiseWrappable::Reference(this, ready_promise_));
+    promise_reference_.reset(new script::ValuePromiseWrappable::Reference(
+        environment_settings()->context()->GetWindowOrWorkerGlobalScope(),
+        ready_promise_));
   }
   // 2. Let readyPromise be this's ready promise.
   script::HandlePromiseWrappable ready_promise(ready_promise_);
@@ -132,7 +133,9 @@ script::HandlePromiseWrappable ServiceWorkerContainer::Register(
           ->script_value_factory()
           ->CreateInterfacePromise<scoped_refptr<ServiceWorkerRegistration>>();
   std::unique_ptr<script::ValuePromiseWrappable::Reference> promise_reference(
-      new script::ValuePromiseWrappable::Reference(this, promise));
+      new script::ValuePromiseWrappable::Reference(
+          environment_settings()->context()->GetWindowOrWorkerGlobalScope(),
+          promise));
 
   // 2. Let client be this's service worker client.
   web::Context* client = environment_settings()->context();
@@ -170,14 +173,15 @@ script::HandlePromiseWrappable ServiceWorkerContainer::GetRegistration(
   // Perform the rest of the steps in a task, because the promise has to be
   // returned before we can safely reject or resolve it.
   auto promise =
-      base::polymorphic_downcast<web::EnvironmentSettings*>(
-          environment_settings())
+      environment_settings()
           ->context()
           ->global_environment()
           ->script_value_factory()
           ->CreateInterfacePromise<scoped_refptr<ServiceWorkerRegistration>>();
   std::unique_ptr<script::ValuePromiseWrappable::Reference> promise_reference(
-      new script::ValuePromiseWrappable::Reference(this, promise));
+      new script::ValuePromiseWrappable::Reference(
+          environment_settings()->context()->GetWindowOrWorkerGlobalScope(),
+          promise));
   base::MessageLoop::current()->task_runner()->PostTask(
       FROM_HERE, base::BindOnce(&ServiceWorkerContainer::GetRegistrationTask,
                                 base::Unretained(this), url,
@@ -248,8 +252,9 @@ ServiceWorkerContainer::GetRegistrations() {
                      ->script_value_factory()
                      ->CreateBasicPromise<script::SequenceWrappable>();
   std::unique_ptr<script::ValuePromiseSequenceWrappable::Reference>
-      promise_reference(
-          new script::ValuePromiseSequenceWrappable::Reference(this, promise));
+      promise_reference(new script::ValuePromiseSequenceWrappable::Reference(
+          environment_settings()->context()->GetWindowOrWorkerGlobalScope(),
+          promise));
   base::MessageLoop::current()->task_runner()->PostTask(
       FROM_HERE,
       base::BindOnce(&ServiceWorkerContainer::GetRegistrationsTask,
